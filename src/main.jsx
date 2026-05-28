@@ -8,10 +8,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
-
-requestAnimationFrame(() => {
-  const instantShell = document.getElementById('instant-shell');
-  if (instantShell) {
-    instantShell.remove();
-  }
-});
