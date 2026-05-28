@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -20,12 +21,33 @@ const banners = [
       '학생 개인별 학습 분석부터 대입 전략까지, 위닝에듀가 최적의 길을 제시합니다.',
     image: '/images/banner-1.png',
   },
+  {
+    title: '학습 기록이 쌓이면,',
+    highlight: '입시 전략이 더 정교해집니다',
+    subtitle:
+      '매일의 공부 데이터를 분석해 주간 리포트와 맞춤 전략으로 연결합니다.',
+    image: '/images/banner-2.png',
+  },
+  {
+    title: '수행평가와 세특까지,',
+    highlight: '학생부의 방향을 설계합니다',
+    subtitle:
+      '진로와 과목을 연결해 학생부에 남는 탐구 흐름을 만듭니다.',
+    image: '/images/banner-3.png',
+  },
+  {
+    title: '부모님이 확인하는',
+    highlight: '성장 리포트 시스템',
+    subtitle:
+      '학습 시간, 집중도, 과목 비중, 합격 가능성 변화를 한눈에 확인합니다.',
+    image: '/images/banner-4.png',
+  },
 ];
 
 const stats = [
   {
     icon: Users,
-    value: '12,400+',
+    value: '1,240+',
     label: '누적 회원 수',
   },
   {
@@ -90,7 +112,17 @@ const services = [
 ];
 
 export default function Home() {
-  const banner = banners[0];
+  const [currentBanner, setCurrentBanner] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const banner = banners[currentBanner];
 
   return (
     <main className="bg-slate-50">
@@ -148,11 +180,23 @@ export default function Home() {
               </div>
 
               <p className="text-sm font-semibold text-slate-300">
-                <span className="text-lg font-black text-blue-400">12,400+</span> 학생들이
+                <span className="text-lg font-black text-blue-400">1,240+</span> 학생들이
                 <br />
                 위닝에듀와 함께 하고 있어요!
               </p>
             </div>
+            <div className="mt-8 flex gap-2">
+  {banners.map((_, index) => (
+    <button
+      key={index}
+      onClick={() => setCurrentBanner(index)}
+      className={`h-2.5 rounded-full transition-all ${
+        currentBanner === index ? 'w-10 bg-blue-500' : 'w-2.5 bg-white/25'
+      }`}
+      aria-label={`배너 ${index + 1}`}
+    />
+  ))}
+</div>
           </div>
 
           <div className="relative">
