@@ -115,13 +115,15 @@ export default function Home() {
   const banner = banners[currentBanner];
 
   return (
-    <main className="bg-[#F8F7F3]">
+    <main className="page-reveal bg-[#F8F7F3]">
       <section className="relative isolate overflow-hidden bg-[#0D1B2A] text-white">
         <img
-          src={banner.image}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center"
-        />
+  src={banner.image}
+  alt=""
+  loading={currentBanner === 0 ? 'eager' : 'lazy'}
+  fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
+  className="image-reveal absolute inset-0 h-full w-full object-cover object-center"
+/>
 
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,27,42,0.94)_0%,rgba(13,27,42,0.88)_32%,rgba(13,27,42,0.62)_58%,rgba(13,27,42,0.18)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_34%,rgba(214,176,106,0.09),transparent_28%)]" />
@@ -129,21 +131,21 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto flex min-h-[760px] max-w-[1500px] items-center px-8 pb-28 pt-48">
           <div className="w-full max-w-[1120px]">
-            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/45 px-5 py-2 text-[15px] font-extrabold text-[#D6B06A] backdrop-blur">
+            <div className="reveal-1 mb-7 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/45 px-5 py-2 text-[15px] font-extrabold text-[#D6B06A] backdrop-blur">
               <Star size={15} fill="currentColor" />
               데이터 기반 맞춤 학습 플랫폼
             </div>
 
-            <h1 className="max-w-[1080px] text-[52px] font-black leading-[1.13] tracking-[-0.045em] md:text-[68px] xl:text-[76px]">
+            <h1 className="reveal-2 max-w-[1080px] text-[52px] font-black leading-[1.13] tracking-[-0.045em] md:text-[68px] xl:text-[76px]">
               <span className="block break-keep text-white">{banner.title}</span>
               <span className="block break-keep text-[#D6B06A]">{banner.highlight}</span>
             </h1>
 
-            <p className="mt-8 max-w-[860px] break-keep text-[21px] font-bold leading-[1.75] text-white/92">
+            <p className="reveal-3 mt-8 max-w-[860px] break-keep text-[21px] font-bold leading-[1.75] text-white/92">
               {banner.subtitle}
             </p>
 
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="reveal-4 mt-10 flex flex-wrap gap-4">
               <Link
                 to="/signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-lg font-black text-[#0D1B2A] shadow-[0_18px_42px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
@@ -161,7 +163,7 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="mt-8 flex items-center gap-4">
+            <div className="reveal-5 mt-8 flex items-center gap-4">
               <div className="flex -space-x-3">
                 {['김', '이', '박', '최'].map((item) => (
                   <div
