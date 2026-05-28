@@ -117,7 +117,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentBanner((prev) => (prev + 1) % banners.length);
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, []);
@@ -200,36 +200,16 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <div className="absolute -inset-6 rounded-[2rem] bg-blue-600/20 blur-3xl" />
+  <div className="absolute -inset-6 rounded-[2rem] bg-blue-600/20 blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-xl">
-              <img
-                src={banner.image}
-                alt="위닝에듀 배너"
-                className="h-[430px] w-full rounded-[1.5rem] object-cover"
-              />
-
-              <div className="absolute bottom-8 left-8 right-8 rounded-2xl border border-white/15 bg-slate-950/75 p-5 backdrop-blur-xl">
-                <p className="text-sm font-bold text-blue-300">오늘의 학습 리포트</p>
-                <p className="mt-2 text-2xl font-black text-white">
-                  이번 주 잘 해냈습니다!
-                </p>
-
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">공부 시간</p>
-                    <p className="mt-1 text-lg font-black">14시간 30분</p>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">목표 달성률</p>
-                    <p className="mt-1 text-lg font-black">65%</p>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">목표 내 위치</p>
-                    <p className="mt-1 text-lg font-black text-amber-300">상위 23%</p>
-                  </div>
-                </div>
-              </div>
+  <div className="relative h-[470px] overflow-hidden rounded-[2rem] border border-white/15 bg-slate-950 shadow-2xl">
+    <img
+      src={banner.image}
+      alt="위닝에듀 배너"
+      className="absolute inset-0 h-full w-full object-cover"
+    />
+  </div>
+</div>
             </div>
           </div>
         </div>
