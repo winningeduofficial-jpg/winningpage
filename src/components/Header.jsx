@@ -5,26 +5,26 @@ function WinningLogo() {
   return (
     <div className="flex items-center gap-3">
       <svg
-        width="38"
-        height="26"
-        viewBox="0 0 94 62"
+        width="42"
+        height="28"
+        viewBox="0 0 120 80"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
-        className="drop-shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+        className="shrink-0"
       >
         <path
-          d="M0 0H19.5L31.5 33L47 0H63L78.5 33L90.5 0H94L70 62H54L47 45L40 62H24L0 0Z"
+          d="M0 0H29.5L44.5 42.5L60 0H78L93.5 42.5L108.5 0H120L91.5 80H70.5L60 51.5L49.5 80H28.5L0 0Z"
           fill="white"
         />
       </svg>
 
       <div className="leading-none">
-        <div className="text-[18px] font-black tracking-[-0.04em] text-white">
+        <div className="text-[21px] font-black tracking-[-0.055em] text-white">
           위닝에듀
         </div>
-        <div className="mt-1 hidden text-[9px] font-bold uppercase tracking-[0.35em] text-[#D6B06A] sm:block">
-          Winning Edu
+        <div className="mt-1.5 text-[11px] font-black uppercase tracking-[0.42em] text-[#D6B06A]">
+          WINNING EDU
         </div>
       </div>
     </div>
@@ -33,7 +33,7 @@ function WinningLogo() {
 
 export default function Header() {
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-[#0D1B2A]/92 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-[#0D1B2A]/94 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-6">
         <Link to="/" className="flex items-center">
           <WinningLogo />
@@ -69,4 +69,3 @@ export default function Header() {
     </header>
   );
 }
-
