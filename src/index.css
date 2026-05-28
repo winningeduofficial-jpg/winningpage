@@ -211,4 +211,81 @@ select {
   }
 }
 
+/* 첫 화면 자연스러운 순차 등장 */
+.page-reveal {
+  animation: pageReveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reveal-1 {
+  animation: fadeUp 520ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+.reveal-2 {
+  animation: fadeUp 560ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+}
+
+.reveal-3 {
+  animation: fadeUp 600ms cubic-bezier(0.22, 1, 0.36, 1) 240ms both;
+}
+
+.reveal-4 {
+  animation: fadeUp 640ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both;
+}
+
+.reveal-5 {
+  animation: fadeUp 680ms cubic-bezier(0.22, 1, 0.36, 1) 400ms both;
+}
+
+.image-reveal {
+  animation: imageReveal 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pageReveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes imageReveal {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-reveal,
+  .reveal-1,
+  .reveal-2,
+  .reveal-3,
+  .reveal-4,
+  .reveal-5,
+  .image-reveal {
+    animation: none !important;
+  }
+}
+
 
