@@ -80,7 +80,7 @@ select {
   overflow: hidden;
   background:
     radial-gradient(circle at 15% 20%, rgba(37, 99, 235, 0.35), transparent 28%),
-    radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.22), transparent 24%),
+    radial-gradient(circle at 85% 10%, rgba(214, 176, 106, 0.22), transparent 24%),
     linear-gradient(180deg, #020617 0%, #07142d 55%, #0f172a 100%);
 }
 
@@ -131,7 +131,7 @@ select {
 
 /* 파란색 포인트 텍스트 */
 .blue-gradient-text {
-  background: linear-gradient(90deg, #2563eb, #3b82f6, #f59e0b);
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #D6B06A);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
