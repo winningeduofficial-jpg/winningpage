@@ -1,17 +1,205 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  min-width: 320px;
   background: #f8fafc;
+  color: #0f172a;
+  font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 a {
+  color: inherit;
   text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+textarea,
+select {
+  outline: none;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.2);
+}
+
+/* 스크롤바 디자인 */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* 공통 배경 효과 */
+.site-dark-bg {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(37, 99, 235, 0.35), transparent 28%),
+    radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.22), transparent 24%),
+    linear-gradient(180deg, #020617 0%, #07142d 55%, #0f172a 100%);
+}
+
+.site-dark-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 90px 90px;
+  opacity: 0.25;
+}
+
+.site-dark-bg::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  bottom: 10%;
+  width: 55%;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    rgba(59, 130, 246, 0.9),
+    transparent
+  );
+  transform: rotate(16deg);
+  box-shadow: 0 0 35px rgba(59, 130, 246, 0.85);
+}
+
+/* 유리 느낌 카드 */
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
+}
+
+/* 밝은 카드 */
+.soft-card {
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+/* 파란색 포인트 텍스트 */
+.blue-gradient-text {
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 버튼 공통 */
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.32);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 45px rgba(37, 99, 235, 0.4);
+}
+
+.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-weight: 800;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.secondary-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 카드 hover */
+.hover-lift {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.13);
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .mobile-hidden {
+    display: none !important;
+  }
 }
