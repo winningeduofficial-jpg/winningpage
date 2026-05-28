@@ -1,4 +1,68 @@
-.fp-nav {
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>위닝에듀</title>
+
+    <link rel="preload" as="image" href="/images/winning-logo.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="/images/banner-1.png" fetchpriority="high" />
+
+    <style>
+      html,
+      body,
+      #root {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100%;
+        background: #f8f7f3;
+      }
+
+      body {
+        font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      #first-paint {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background: #f8f7f3;
+        opacity: 1;
+        transition: opacity 180ms ease;
+        pointer-events: none;
+      }
+
+      #first-paint.is-hide {
+        opacity: 0;
+      }
+
+      .fp-header {
+        height: 84px;
+        background: #ffffff;
+        border-bottom: 1px solid rgba(13, 27, 42, 0.1);
+        box-shadow: 0 8px 28px rgba(13, 27, 42, 0.08);
+      }
+
+      .fp-header-inner {
+        height: 84px;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 0 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .fp-logo {
+        height: 66px;
+        width: auto;
+        display: block;
+        object-fit: contain;
+      }
+
+      .fp-nav {
         display: flex;
         align-items: center;
         gap: 40px;
