@@ -5,8 +5,8 @@
 :root {
   --winning-navy: #0D1B2A;
   --winning-gold: #D6B06A;
-  --winning-orange: #EA7E35;
-  --winning-cream: #F7F5EF;
+  --winning-brown-gold: #B88737;
+  --winning-cream: #F8F7F3;
   --winning-white: #FFFFFF;
 }
 
@@ -61,7 +61,7 @@ select {
 }
 
 ::selection {
-  background: rgba(214, 176, 106, 0.28);
+  background: rgba(214, 176, 106, 0.26);
 }
 
 /* 스크롤바 디자인 */
@@ -70,16 +70,16 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #efe8da;
+  background: #f0eee8;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c4a466;
+  background: #b8b1a2;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a77e3b;
+  background: #0D1B2A;
 }
 
 /* 공통 배경 효과 */
@@ -87,8 +87,7 @@ select {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 15% 20%, rgba(214, 176, 106, 0.20), transparent 28%),
-    radial-gradient(circle at 85% 10%, rgba(234, 126, 53, 0.14), transparent 24%),
+    radial-gradient(circle at 15% 20%, rgba(214, 176, 106, 0.10), transparent 28%),
     linear-gradient(180deg, #0D1B2A 0%, #081421 58%, #0D1B2A 100%);
 }
 
@@ -98,9 +97,9 @@ select {
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.23) 1px, transparent 1px);
+    radial-gradient(circle, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
   background-size: 90px 90px;
-  opacity: 0.18;
+  opacity: 0.12;
 }
 
 .site-dark-bg::after {
@@ -114,17 +113,16 @@ select {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(214, 176, 106, 0.9),
-    rgba(234, 126, 53, 0.75),
+    rgba(214, 176, 106, 0.60),
     transparent
   );
   transform: rotate(16deg);
-  box-shadow: 0 0 35px rgba(214, 176, 106, 0.7);
+  box-shadow: 0 0 28px rgba(214, 176, 106, 0.36);
 }
 
 /* 유리 느낌 카드 */
 .glass-card {
-  border: 1px solid rgba(214, 176, 106, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(13, 27, 42, 0.62);
   backdrop-filter: blur(18px);
   box-shadow: 0 24px 80px rgba(13, 27, 42, 0.42);
@@ -137,9 +135,9 @@ select {
   box-shadow: 0 18px 50px rgba(13, 27, 42, 0.08);
 }
 
-/* 금색 포인트 텍스트 */
+/* 포인트 텍스트 */
 .blue-gradient-text {
-  background: linear-gradient(90deg, #0D1B2A, #D6B06A, #EA7E35);
+  background: linear-gradient(90deg, #0D1B2A, #D6B06A);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -152,10 +150,10 @@ select {
   justify-content: center;
   gap: 8px;
   border-radius: 12px;
-  background: #D6B06A;
-  color: #0D1B2A;
+  background: #0D1B2A;
+  color: #ffffff;
   font-weight: 800;
-  box-shadow: 0 16px 35px rgba(214, 176, 106, 0.28);
+  box-shadow: 0 16px 35px rgba(13, 27, 42, 0.22);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -164,8 +162,8 @@ select {
 
 .primary-btn:hover {
   transform: translateY(-1px);
-  background: #E7C37A;
-  box-shadow: 0 22px 45px rgba(214, 176, 106, 0.36);
+  background: #162A40;
+  box-shadow: 0 22px 45px rgba(13, 27, 42, 0.30);
 }
 
 .secondary-btn {
@@ -174,9 +172,9 @@ select {
   justify-content: center;
   gap: 8px;
   border-radius: 12px;
-  border: 1px solid rgba(214, 176, 106, 0.35);
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  border: 1px solid rgba(13, 27, 42, 0.18);
+  background: #ffffff;
+  color: #0D1B2A;
   font-weight: 800;
   transition:
     transform 0.2s ease,
@@ -186,8 +184,8 @@ select {
 
 .secondary-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(214, 176, 106, 0.7);
-  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(13, 27, 42, 0.35);
+  background: #F7F5EF;
 }
 
 /* 카드 hover */
@@ -200,7 +198,7 @@ select {
 
 .hover-lift:hover {
   transform: translateY(-4px);
-  border-color: rgba(214, 176, 106, 0.55);
+  border-color: rgba(13, 27, 42, 0.22);
   box-shadow: 0 24px 55px rgba(13, 27, 42, 0.13);
 }
 
@@ -214,3 +212,4 @@ select {
     display: none !important;
   }
 }
+
