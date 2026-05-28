@@ -148,7 +148,7 @@ export default function Home() {
         <div className="absolute inset-0 opacity-[0.13] bg-[linear-gradient(to_right,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:86px_86px]" />
         <div className="pointer-events-none absolute bottom-16 left-[-12%] h-[2px] w-[55%] rotate-[15deg] bg-gradient-to-r from-transparent via-[#D6B06A] to-transparent opacity-80 shadow-[0_0_34px_rgba(214,176,106,0.8)]" />
 
-        <div className="relative z-10 mx-auto flex min-h-[740px] max-w-[1400px] items-center px-6 pb-28 pt-36">
+        <div className="relative z-10 mx-auto flex min-h-[740px] max-w-[1400px] items-center px-6 pb-28 pt-40">
           <div className="max-w-[680px]">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/55 px-4 py-2 text-sm font-extrabold text-[#D6B06A] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur">
               <Star size={15} fill="currentColor" />
