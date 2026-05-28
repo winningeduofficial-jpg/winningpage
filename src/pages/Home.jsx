@@ -49,31 +49,11 @@ const banners = [
 ];
 
 const stats = [
-  {
-    icon: Users,
-    value: '1,240+',
-    label: '누적 회원 수',
-  },
-  {
-    icon: TrendingUp,
-    value: '18.7점',
-    label: '평균 성적 향상',
-  },
-  {
-    icon: BarChart3,
-    value: '86.7%',
-    label: '상위권 대학 합격률',
-  },
-  {
-    icon: ShieldCheck,
-    value: '1,254개',
-    label: '주요대학 합격 사례',
-  },
-  {
-    icon: Award,
-    value: '96.2%',
-    label: '이용자 만족도',
-  },
+  { icon: Users, value: '1,240+', label: '누적 회원 수' },
+  { icon: TrendingUp, value: '18.7점', label: '평균 성적 향상' },
+  { icon: BarChart3, value: '86.7%', label: '상위권 대학 합격률' },
+  { icon: ShieldCheck, value: '1,254개', label: '주요대학 합격 사례' },
+  { icon: Award, value: '96.2%', label: '이용자 만족도' },
 ];
 
 const services = [
@@ -144,22 +124,22 @@ export default function Home() {
         />
 
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,27,42,0.94)_0%,rgba(13,27,42,0.88)_32%,rgba(13,27,42,0.62)_58%,rgba(13,27,42,0.18)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_34%,rgba(214,176,106,0.10),transparent_28%)]" />
-        <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(to_right,rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.14)_1px,transparent_1px)] bg-[size:86px_86px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_34%,rgba(214,176,106,0.09),transparent_28%)]" />
+        <div className="absolute inset-0 opacity-[0.09] bg-[linear-gradient(to_right,rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.14)_1px,transparent_1px)] bg-[size:86px_86px]" />
 
-        <div className="relative z-10 mx-auto flex min-h-[760px] max-w-[1500px] items-center px-8 pb-28 pt-44">
-          <div className="w-full max-w-[960px]">
+        <div className="relative z-10 mx-auto flex min-h-[760px] max-w-[1500px] items-center px-8 pb-28 pt-48">
+          <div className="w-full max-w-[1120px]">
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/45 px-5 py-2 text-[15px] font-extrabold text-[#D6B06A] backdrop-blur">
               <Star size={15} fill="currentColor" />
               데이터 기반 맞춤 학습 플랫폼
             </div>
 
-            <h1 className="max-w-[920px] text-[54px] font-black leading-[1.16] tracking-[-0.045em] md:text-[72px]">
-              <span className="block whitespace-nowrap text-white">{banner.title}</span>
-              <span className="block whitespace-nowrap text-[#D6B06A]">{banner.highlight}</span>
+            <h1 className="max-w-[1080px] text-[52px] font-black leading-[1.13] tracking-[-0.045em] md:text-[68px] xl:text-[76px]">
+              <span className="block break-keep text-white">{banner.title}</span>
+              <span className="block break-keep text-[#D6B06A]">{banner.highlight}</span>
             </h1>
 
-            <p className="mt-8 max-w-[780px] text-[22px] font-bold leading-[1.75] text-white/92">
+            <p className="mt-8 max-w-[860px] break-keep text-[21px] font-bold leading-[1.75] text-white/92">
               {banner.subtitle}
             </p>
 
