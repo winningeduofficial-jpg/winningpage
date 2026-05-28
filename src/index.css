@@ -12,12 +12,13 @@
 
 html {
   scroll-behavior: smooth;
+  background: #0D1B2A;
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--winning-cream);
+  background: #0D1B2A;
   color: var(--winning-navy);
   font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -27,6 +28,7 @@ body {
 
 #root {
   min-height: 100vh;
+  background: #0D1B2A;
 }
 
 a {
@@ -64,7 +66,6 @@ select {
   background: rgba(214, 176, 106, 0.26);
 }
 
-/* 스크롤바 디자인 */
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -82,7 +83,6 @@ select {
   background: #0D1B2A;
 }
 
-/* 공통 배경 효과 */
 .site-dark-bg {
   position: relative;
   overflow: hidden;
@@ -120,7 +120,6 @@ select {
   box-shadow: 0 0 28px rgba(214, 176, 106, 0.36);
 }
 
-/* 유리 느낌 카드 */
 .glass-card {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(13, 27, 42, 0.62);
@@ -128,14 +127,12 @@ select {
   box-shadow: 0 24px 80px rgba(13, 27, 42, 0.42);
 }
 
-/* 밝은 카드 */
 .soft-card {
   border: 1px solid rgba(13, 27, 42, 0.1);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 18px 50px rgba(13, 27, 42, 0.08);
 }
 
-/* 포인트 텍스트 */
 .blue-gradient-text {
   background: linear-gradient(90deg, #0D1B2A, #D6B06A);
   -webkit-background-clip: text;
@@ -143,7 +140,6 @@ select {
   color: transparent;
 }
 
-/* 버튼 공통 */
 .primary-btn {
   display: inline-flex;
   align-items: center;
@@ -188,7 +184,6 @@ select {
   background: #F7F5EF;
 }
 
-/* 카드 hover */
 .hover-lift {
   transition:
     transform 0.22s ease,
@@ -202,7 +197,6 @@ select {
   box-shadow: 0 24px 55px rgba(13, 27, 42, 0.13);
 }
 
-/* 모바일 대응 */
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;
