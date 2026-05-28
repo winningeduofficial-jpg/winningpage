@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 * {
   box-sizing: border-box;
 }
@@ -12,13 +16,13 @@
 
 html {
   scroll-behavior: smooth;
-  background: #0D1B2A;
+  background: #F8F7F3;
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  background: #0D1B2A;
+  background: #F8F7F3;
   color: var(--winning-navy);
   font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -28,7 +32,7 @@ body {
 
 #root {
   min-height: 100vh;
-  background: #0D1B2A;
+  background: #F8F7F3;
 }
 
 a {
@@ -206,4 +210,5 @@ select {
     display: none !important;
   }
 }
+
 
