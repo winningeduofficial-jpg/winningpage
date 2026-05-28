@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Header from './components/Header';
-import ProtectedAdmin from './components/ProtectedAdmin';
+import Header from './components/Header.jsx';
+import ProtectedAdmin from './components/ProtectedAdmin.jsx';
 
-import Home from './pages/Home';
-import Services from './pages/Services';
-import LearningAnalysis from './pages/LearningAnalysis';
-import Admissions from './pages/Admissions';
-import Pricing from './pages/Pricing';
-import Reviews from './pages/Reviews';
-import Events from './pages/Events';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Admin from './pages/Admin';
+import Home from './pages/Home.jsx';
+import Services from './pages/Services.jsx';
+import LearningAnalysis from './pages/LearningAnalysis.jsx';
+import Admissions from './pages/Admissions.jsx';
+import Pricing from './pages/Pricing.jsx';
+import Reviews from './pages/Reviews.jsx';
+import Events from './pages/Events.jsx';
+import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
+import Admin from './pages/Admin.jsx';
 
 export default function App() {
   return (
@@ -30,13 +30,13 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        <Route 
-          path="/admin" 
+        <Route
+          path="/admin"
           element={
             <ProtectedAdmin>
               <Admin />
             </ProtectedAdmin>
-          } 
+          }
         />
       </Routes>
     </BrowserRouter>
