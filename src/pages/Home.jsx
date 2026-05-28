@@ -199,17 +199,15 @@ export default function Home() {
 </div>
           </div>
 
-          <div className="relative">
-  <div className="absolute -inset-6 rounded-[2rem] bg-blue-600/20 blur-3xl" />
+         <div className="relative">
+            <div className="absolute -inset-6 rounded-[2rem] bg-blue-600/20 blur-3xl" />
 
-  <div className="relative h-[470px] overflow-hidden rounded-[2rem] border border-white/15 bg-slate-950 shadow-2xl">
-    <img
-      src={banner.image}
-      alt="위닝에듀 배너"
-      className="absolute inset-0 h-full w-full object-cover"
-    />
-  </div>
-</div>
+            <div className="relative h-[470px] overflow-hidden rounded-[2rem] border border-white/15 bg-slate-950 shadow-2xl">
+              <img
+                src={banner.image}
+                alt="위닝에듀 배너"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
             </div>
           </div>
         </div>
