@@ -126,95 +126,91 @@ export default function Home() {
 
   return (
     <main className="bg-slate-50">
-      <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.35),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(245,158,11,0.20),transparent_25%)]" />
-        <div className="absolute inset-0 opacity-30 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:90px_90px]" />
+      <section className="relative isolate overflow-hidden bg-[#020817] text-white">
+  <img
+    src={banner.image}
+    alt=""
+    className="absolute inset-0 h-full w-full object-cover object-center"
+  />
 
-        <div className="relative z-10 mx-auto grid min-h-[680px] max-w-7xl grid-cols-1 items-center gap-12 px-6 pb-28 pt-28 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-sm font-extrabold text-amber-300">
-              <Star size={15} fill="currentColor" />
-              데이터 기반 맞춤 학습 플랫폼
+  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,8,23,0.95)_0%,rgba(2,8,23,0.90)_22%,rgba(2,8,23,0.75)_42%,rgba(2,8,23,0.42)_62%,rgba(2,8,23,0.10)_100%)]" />
+  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_30%,rgba(37,99,235,0.22),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(245,158,11,0.10),transparent_20%)]" />
+  <div className="absolute inset-0 opacity-[0.18] bg-[linear-gradient(to_right,rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:86px_86px]" />
+
+  <div className="relative z-10 mx-auto flex min-h-[730px] max-w-[1400px] items-center px-6 pb-28 pt-28">
+    <div className="max-w-[640px]">
+      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#D6B06A]/10 px-4 py-2 text-sm font-extrabold text-[#D6B06A]">
+        <Star size={15} fill="currentColor" />
+        데이터 기반 맞춤 학습 플랫폼
+      </div>
+
+      <h1 className="text-[52px] font-black leading-[1.12] tracking-[-0.03em] md:text-[68px]">
+        {banner.title}
+        <br />
+        <span className="bg-gradient-to-r from-[#2f74ff] via-[#3b82f6] to-[#D6B06A] bg-clip-text text-transparent">
+          {banner.highlight}
+        </span>
+      </h1>
+
+      <p className="mt-6 max-w-[540px] text-[21px] font-medium leading-9 text-white/82">
+        {banner.subtitle}
+      </p>
+
+      <div className="mt-10 flex flex-wrap gap-4">
+        <Link
+          to="/signup"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-8 py-4 text-lg font-black text-white shadow-[0_16px_40px_rgba(37,99,235,0.35)] transition hover:brightness-110"
+        >
+          지금 시작하기
+          <ArrowRight size={20} />
+        </Link>
+
+        <Link
+          to="/services"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/6 px-8 py-4 text-lg font-black text-white backdrop-blur-sm transition hover:bg-white/10"
+        >
+          서비스 둘러보기
+          <PlayCircle size={20} />
+        </Link>
+      </div>
+
+      <div className="mt-8 flex items-center gap-4">
+        <div className="flex -space-x-3">
+          {['김', '이', '박', '최'].map((item) => (
+            <div
+              key={item}
+              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#04112a] bg-white text-sm font-black text-slate-800 shadow-md"
+            >
+              {item}
             </div>
-
-            <h1 className="text-5xl font-black leading-tight tracking-tight md:text-6xl">
-              {banner.title}
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-blue-500 to-amber-300 bg-clip-text text-transparent">
-                {banner.highlight}
-              </span>
-            </h1>
-
-            <p className="mt-6 max-w-xl text-lg font-medium leading-8 text-slate-300">
-              {banner.subtitle}
-            </p>
-
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-4 font-black text-white shadow-xl shadow-blue-600/30 hover:bg-blue-500"
-              >
-                무료로 시작하기
-                <ArrowRight size={18} />
-              </Link>
-
-              <Link
-                to="/services"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-8 py-4 font-black text-white hover:bg-white/10"
-              >
-                서비스 둘러보기
-                <PlayCircle size={19} />
-              </Link>
-            </div>
-
-            <div className="mt-8 flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {['김', '이', '박', '최'].map((item) => (
-                  <div
-                    key={item}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-950 bg-white text-sm font-black text-slate-700"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-sm font-semibold text-slate-300">
-                <span className="text-lg font-black text-blue-400">1,240+</span> 학생들이
-                <br />
-                위닝에듀와 함께 하고 있어요!
-              </p>
-            </div>
-            <div className="mt-8 flex gap-2">
-  {banners.map((_, index) => (
-    <button
-      key={index}
-      onClick={() => setCurrentBanner(index)}
-      className={`h-2.5 rounded-full transition-all ${
-        currentBanner === index ? 'w-10 bg-blue-500' : 'w-2.5 bg-white/25'
-      }`}
-      aria-label={`배너 ${index + 1}`}
-    />
-  ))}
-</div>
-          </div>
-
-         <div className="relative">
-            <div className="absolute -inset-6 rounded-[2rem] bg-blue-600/20 blur-3xl" />
-
-            <div className="relative h-[470px] overflow-hidden rounded-[2rem] border border-white/15 bg-slate-950 shadow-2xl">
-              <img
-                src={banner.image}
-                alt="위닝에듀 배너"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          </div>
+          ))}
         </div>
-      </section>
 
-      <section className="relative z-30 mx-auto -mt-16 max-w-7xl px-6">
-        <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur md:grid-cols-5">
+        <p className="text-base font-semibold text-white/88">
+          <span className="text-[20px] font-black text-[#3b82f6]">1,240+</span> 학생들이
+          <br />
+          위닝에듀와 함께 하고 있어요!
+        </p>
+      </div>
+
+      <div className="mt-8 flex gap-2">
+        {banners.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentBanner(index)}
+            className={`h-2.5 rounded-full transition-all ${
+              currentBanner === index ? 'w-10 bg-blue-500' : 'w-2.5 bg-white/25'
+            }`}
+            aria-label={`배너 ${index + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+      <section className="relative z-30 mx-auto -mt-14 max-w-[1400px] px-6">
+        <div className="grid overflow-hidden rounded-[24px] border border-slate-200 bg-white/98 shadow-[0_24px_60px_rgba(15,23,42,0.12)] backdrop-blur md:grid-cols-5">
           {stats.map((item, index) => {
             const Icon = item.icon;
 
@@ -241,7 +237,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-[1400px] px-6 py-14">
         <div className="mb-8 flex items-end justify-between">
           <div>
             <p className="text-sm font-black text-blue-600">위닝에듀 핵심 서비스</p>
@@ -289,7 +285,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-6 pb-20 lg:grid-cols-[1.1fr_1.3fr_1fr]">
+      <section className="mx-auto grid max-w-[1400px] gap-6 px-6 pb-20 lg:grid-cols-[1.1fr_1.3fr_1fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <h3 className="text-2xl font-black text-slate-900">
             위닝에듀와 함께 하면 달라집니다
