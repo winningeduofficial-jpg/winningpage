@@ -25,18 +25,23 @@
       }
 
       #first-paint {
-        position: fixed;
-        inset: 0;
-        z-index: 999999;
-        background: #f8f7f3;
-        opacity: 1;
-        transition: opacity 180ms ease;
-        pointer-events: none;
-      }
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #f8f7f3;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  will-change: opacity;
+}
 
-      #first-paint.is-hide {
-        opacity: 0;
-      }
+#first-paint.is-hide {
+  opacity: 0;
+  visibility: hidden;
+}
 
       .fp-header {
         height: 84px;
