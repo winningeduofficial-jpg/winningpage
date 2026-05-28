@@ -135,7 +135,7 @@ export default function Home() {
   const banner = banners[currentBanner];
 
   return (
-    <main className="bg-[#F7F5EF]">
+    <main className="bg-[#F8F7F3]">
       <section className="relative isolate overflow-hidden bg-[#0D1B2A] text-white">
         <img
           src={banner.image}
@@ -143,34 +143,30 @@ export default function Home() {
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
 
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,27,42,0.97)_0%,rgba(13,27,42,0.91)_30%,rgba(13,27,42,0.68)_51%,rgba(13,27,42,0.24)_75%,rgba(13,27,42,0.10)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_35%,rgba(214,176,106,0.18),transparent_27%),radial-gradient(circle_at_82%_13%,rgba(234,126,53,0.10),transparent_24%)]" />
-        <div className="absolute inset-0 opacity-[0.13] bg-[linear-gradient(to_right,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:86px_86px]" />
-        <div className="pointer-events-none absolute bottom-16 left-[-12%] h-[2px] w-[55%] rotate-[15deg] bg-gradient-to-r from-transparent via-[#D6B06A] to-transparent opacity-80 shadow-[0_0_34px_rgba(214,176,106,0.8)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,27,42,0.94)_0%,rgba(13,27,42,0.88)_32%,rgba(13,27,42,0.62)_58%,rgba(13,27,42,0.18)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_34%,rgba(214,176,106,0.10),transparent_28%)]" />
+        <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(to_right,rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.14)_1px,transparent_1px)] bg-[size:86px_86px]" />
 
-        <div className="relative z-10 mx-auto flex min-h-[740px] max-w-[1400px] items-center px-6 pb-28 pt-44">
-          <div className="max-w-[680px]">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/55 px-4 py-2 text-sm font-extrabold text-[#D6B06A] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur">
+        <div className="relative z-10 mx-auto flex min-h-[760px] max-w-[1500px] items-center px-8 pb-28 pt-44">
+          <div className="w-full max-w-[960px]">
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/45 px-5 py-2 text-[15px] font-extrabold text-[#D6B06A] backdrop-blur">
               <Star size={15} fill="currentColor" />
               데이터 기반 맞춤 학습 플랫폼
             </div>
 
-            <h1 className="text-[48px] font-black leading-[1.12] tracking-[-0.045em] md:text-[66px]">
-              {banner.title}
-              <br />
-              <span className="text-[#D6B06A] drop-shadow-[0_10px_26px_rgba(0,0,0,0.18)]">
-                {banner.highlight}
-              </span>
+            <h1 className="max-w-[920px] text-[54px] font-black leading-[1.16] tracking-[-0.045em] md:text-[72px]">
+              <span className="block whitespace-nowrap text-white">{banner.title}</span>
+              <span className="block whitespace-nowrap text-[#D6B06A]">{banner.highlight}</span>
             </h1>
 
-            <p className="mt-6 max-w-[560px] text-[20px] font-medium leading-9 text-white/84">
+            <p className="mt-8 max-w-[780px] text-[22px] font-bold leading-[1.75] text-white/92">
               {banner.subtitle}
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 to="/signup"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#D6B06A] px-8 py-4 text-lg font-black text-[#0D1B2A] shadow-[0_18px_42px_rgba(214,176,106,0.26)] transition hover:bg-[#E7C37A]"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-lg font-black text-[#0D1B2A] shadow-[0_18px_42px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
               >
                 지금 시작하기
                 <ArrowRight size={20} />
@@ -178,7 +174,7 @@ export default function Home() {
 
               <Link
                 to="/services"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-8 py-4 text-lg font-black text-white backdrop-blur-sm transition hover:border-[#D6B06A]/60 hover:bg-white/12"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/28 bg-white/8 px-8 py-4 text-lg font-black text-white backdrop-blur-sm transition hover:border-white/60 hover:bg-white/14"
               >
                 서비스 둘러보기
                 <PlayCircle size={20} />
@@ -197,7 +193,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <p className="text-base font-semibold text-white/88">
+              <p className="text-base font-semibold text-white/90">
                 <span className="text-[20px] font-black text-[#D6B06A]">1,240+</span> 학생들이
                 <br />
                 위닝에듀와 함께 하고 있어요!
@@ -210,7 +206,7 @@ export default function Home() {
                   key={index}
                   onClick={() => setCurrentBanner(index)}
                   className={`h-2.5 rounded-full transition-all ${
-                    currentBanner === index ? 'w-10 bg-[#D6B06A]' : 'w-2.5 bg-white/25'
+                    currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/30'
                   }`}
                   aria-label={`배너 ${index + 1}`}
                 />
@@ -220,8 +216,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative z-30 mx-auto -mt-14 max-w-[1400px] px-6">
-        <div className="grid overflow-hidden rounded-[24px] border border-[#D6B06A]/25 bg-white/95 shadow-[0_24px_60px_rgba(13,27,42,0.13)] backdrop-blur md:grid-cols-5">
+      <section className="relative z-30 mx-auto -mt-14 max-w-[1500px] px-8">
+        <div className="grid overflow-hidden rounded-[24px] border border-[#0D1B2A]/10 bg-white shadow-[0_24px_60px_rgba(13,27,42,0.13)] md:grid-cols-5">
           {stats.map((item, index) => {
             const Icon = item.icon;
 
@@ -234,7 +230,7 @@ export default function Home() {
                     : ''
                 }`}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#D6B06A]/13 text-[#0D1B2A]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D1B2A]/6 text-[#0D1B2A]">
                   <Icon size={25} strokeWidth={2.25} />
                 </div>
 
@@ -248,10 +244,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-6 py-14">
+      <section className="mx-auto max-w-[1500px] px-8 py-14">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <p className="text-sm font-black text-[#D6B06A]">위닝에듀 핵심 서비스</p>
+            <p className="text-sm font-black text-[#B88737]">위닝에듀 핵심 서비스</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0D1B2A]">
               위닝 서포터와 완성하는 대입 성공 전략
             </h2>
@@ -259,7 +255,7 @@ export default function Home() {
 
           <Link
             to="/services"
-            className="rounded-xl border border-[#0D1B2A]/10 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A] shadow-sm transition hover:border-[#D6B06A]/60 hover:bg-[#FFFBF3]"
+            className="rounded-xl border border-[#0D1B2A]/10 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A] shadow-sm transition hover:border-[#0D1B2A]/25 hover:bg-[#F7F5EF]"
           >
             모든 서비스 보기 →
           </Link>
@@ -273,9 +269,9 @@ export default function Home() {
               <Link
                 key={service.title}
                 to={service.link}
-                className="group rounded-2xl border border-[#0D1B2A]/10 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#D6B06A]/70 hover:shadow-[0_22px_50px_rgba(13,27,42,0.12)]"
+                className="group rounded-2xl border border-[#0D1B2A]/10 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#0D1B2A]/20 hover:shadow-[0_22px_50px_rgba(13,27,42,0.12)]"
               >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#D6B06A]/13 text-[#0D1B2A] transition group-hover:bg-[#0D1B2A] group-hover:text-[#D6B06A]">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#0D1B2A]/6 text-[#0D1B2A] transition group-hover:bg-[#0D1B2A] group-hover:text-white">
                   <Icon size={24} />
                 </div>
 
@@ -287,7 +283,7 @@ export default function Home() {
                   {service.desc}
                 </p>
 
-                <p className="mt-4 text-sm font-black text-[#B88737]">
+                <p className="mt-4 text-sm font-black text-[#0D1B2A]">
                   자세히 보기 →
                 </p>
               </Link>
@@ -296,9 +292,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[1400px] gap-6 px-6 pb-20 lg:grid-cols-[1.1fr_1.3fr_1fr]">
+      <section className="mx-auto grid max-w-[1500px] gap-6 px-8 pb-20 lg:grid-cols-[1.1fr_1.3fr_1fr]">
         <div className="rounded-3xl border border-[#0D1B2A]/10 bg-white p-7 shadow-sm">
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D1B2A] text-[#D6B06A]">
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
             <CheckCircle2 size={25} />
           </div>
 
@@ -317,11 +313,11 @@ export default function Home() {
                 <div className="mb-2 flex justify-between text-sm font-bold text-slate-600">
                   <span>{label}</span>
                   <span>
-                    {before} → <span className="text-[#B88737]">{after}</span>
+                    {before} → <span className="text-[#0D1B2A]">{after}</span>
                   </span>
                 </div>
-                <div className="h-3 rounded-full bg-[#EEE7DA]">
-                  <div className="h-3 w-[86%] rounded-full bg-gradient-to-r from-[#0D1B2A] to-[#D6B06A]" />
+                <div className="h-3 rounded-full bg-[#E9E6DE]">
+                  <div className="h-3 w-[86%] rounded-full bg-[#0D1B2A]" />
                 </div>
               </div>
             ))}
@@ -331,20 +327,20 @@ export default function Home() {
         <div className="rounded-3xl border border-[#0D1B2A]/10 bg-white p-7 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="mb-1 text-sm font-black text-[#D6B06A]">합격 사례</p>
+              <p className="mb-1 text-sm font-black text-[#B88737]">합격 사례</p>
               <h3 className="text-2xl font-black text-[#0D1B2A]">
                 합격으로 증명하는 위닝에듀
               </h3>
             </div>
-            <a href="/reviews" className="text-sm font-black text-[#B88737]">
+            <a href="/reviews" className="text-sm font-black text-[#0D1B2A]">
               더 많은 합격사례 보기 →
             </a>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             {proofCards.map(([name, result, desc]) => (
-              <article key={name} className="rounded-2xl border border-[#0D1B2A]/10 bg-[#FAF7F1] p-4">
-                <div className="mb-4 flex h-24 items-center justify-center rounded-xl bg-gradient-to-br from-[#0D1B2A] to-[#1B314A] text-[#D6B06A]">
+              <article key={name} className="rounded-2xl border border-[#0D1B2A]/10 bg-[#FAF9F5] p-4">
+                <div className="mb-4 flex h-24 items-center justify-center rounded-xl bg-[#0D1B2A] text-white">
                   <GraduationCap size={34} />
                 </div>
                 <p className="font-black text-[#0D1B2A]">{name}</p>
@@ -369,7 +365,7 @@ export default function Home() {
           <div className="rounded-2xl border border-white/10 bg-white/8 p-6 text-center backdrop-blur">
             <BookOpenCheck className="mx-auto mb-4 text-[#D6B06A]" size={30} />
             <p className="text-base font-bold leading-8 text-white/88">
-              위닝AI 분석과 컨설팅 덕분에 제 강점을 정확히 알게 되었고,
+              AI 분석과 컨설팅 덕분에 제 강점을 정확히 알게 되었고,
               목표 대학에 합격할 수 있었습니다.
             </p>
 
