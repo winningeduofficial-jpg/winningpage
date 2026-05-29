@@ -305,53 +305,26 @@ export default function Signup() {
     return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
   }
 
-  async function checkUsernameDuplicate() {
-  const username = form.username.trim();
-  const usernameKey = username.toLowerCase();
+  function checkUsernameDuplicate() {
+    const username = form.username.trim();
 
-  setMessage('');
+    setMessage('');
 
-  if (!isValidUsername(username)) {
-    setUsernameCheck({
-      checked: false,
-      available: false,
-      message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
-    });
-    return;
-  }
+    if (!isValidUsername(username)) {
+      setUsernameCheck({
+        checked: false,
+        available: false,
+        message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
+      });
+      return;
+    }
 
-  const { data, error } = await supabase
-    .from('signup_duplicate_check')
-    .select('username_key')
-    .eq('username_key', usernameKey)
-    .limit(1);
-
-  if (error) {
-    console.error('아이디 중복확인 오류:', error);
-
-    setUsernameCheck({
-      checked: false,
-      available: false,
-      message: `아이디 중복 확인 중 오류가 발생했습니다: ${error.message}`
-    });
-    return;
-  }
-
-  if (data && data.length > 0) {
     setUsernameCheck({
       checked: true,
-      available: false,
-      message: '이미 사용 중인 아이디입니다.'
+      available: true,
+      message: '아이디 형식이 올바릅니다. 최종 중복 여부는 가입 완료 시 확인됩니다.'
     });
-    return;
   }
-
-  setUsernameCheck({
-    checked: true,
-    available: true,
-    message: '사용 가능한 아이디입니다.'
-  });
-}
 
   async function requestEmailVerification() {
     const normalizedEmail = form.email.trim().toLowerCase();
@@ -368,6 +341,7 @@ export default function Signup() {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!emailRegex.test(normalizedEmail)) {
       setEmailVerification({
         requested: false,
@@ -376,32 +350,6 @@ export default function Signup() {
       });
       return;
     }
-
-    const { data: existingEmailRows, error: emailCheckError } = await supabase
-  .from('signup_duplicate_check')
-  .select('email_key')
-  .eq('email_key', normalizedEmail)
-  .limit(1);
-
-if (emailCheckError) {
-  console.error('이메일 중복확인 오류:', emailCheckError);
-
-  setEmailVerification({
-    requested: false,
-    verified: false,
-    message: `이메일 확인 중 오류가 발생했습니다: ${emailCheckError.message}`
-  });
-  return;
-}
-
-if (existingEmailRows && existingEmailRows.length > 0) {
-  setEmailVerification({
-    requested: false,
-    verified: false,
-    message: '이미 가입된 이메일입니다.'
-  });
-  return;
-}
 
     const { data: sessionData } = await supabase.auth.getSession();
     const currentEmail = sessionData.session?.user?.email?.toLowerCase();
@@ -468,6 +416,26 @@ if (existingEmailRows && existingEmailRows.length > 0) {
       return;
     }
 
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUser = userData.user;
+
+    if (currentUser?.id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username, member_type')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (profile?.username && profile?.member_type) {
+        setEmailVerification({
+          requested: true,
+          verified: false,
+          message: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.'
+        });
+        return;
+      }
+    }
+
     setEmailVerification({
       requested: true,
       verified: true,
@@ -482,6 +450,7 @@ if (existingEmailRows && existingEmailRows.length > 0) {
     const normalizedEmail = form.email.trim().toLowerCase();
 
     if (!memberType) return '회원 유형을 선택해 주세요.';
+
     if (!normalizedName) return '이름을 입력해 주세요.';
 
     if (!isValidUsername(normalizedUsername)) {
@@ -533,6 +502,7 @@ if (existingEmailRows && existingEmailRows.length > 0) {
     setMessage('');
 
     const validationMessage = validateStepTwo();
+
     if (validationMessage) {
       setMessage(validationMessage);
       return;
@@ -558,6 +528,18 @@ if (existingEmailRows && existingEmailRows.length > 0) {
 
     if ((currentUser.email || '').toLowerCase() !== normalizedEmail) {
       setMessage('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+      setLoading(false);
+      return;
+    }
+
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('username, member_type')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    if (existingProfile?.username && existingProfile?.member_type) {
+      setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
       setLoading(false);
       return;
     }
@@ -607,6 +589,32 @@ if (existingEmailRows && existingEmailRows.length > 0) {
     );
 
     if (profileError) {
+      const errorMessage = String(profileError.message || '').toLowerCase();
+
+      if (
+        profileError.code === '23505' ||
+        errorMessage.includes('profiles_username_unique_idx') ||
+        errorMessage.includes('username')
+      ) {
+        setMessage('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.');
+        setUsernameCheck({
+          checked: false,
+          available: false,
+          message: '이미 사용 중인 아이디입니다.'
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (
+        errorMessage.includes('profiles_email_unique_idx') ||
+        errorMessage.includes('email')
+      ) {
+        setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
+        setLoading(false);
+        return;
+      }
+
       setMessage(`프로필 저장 중 문제가 발생했습니다: ${profileError.message}`);
       setLoading(false);
       return;
