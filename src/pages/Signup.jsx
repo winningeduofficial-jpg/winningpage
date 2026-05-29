@@ -171,9 +171,115 @@ export default function Signup() {
   }, [step]);
 
   useEffect(() => {
-    let alive = true;
+  let alive = true;
 
-    async function checkSession() {
+  function clearSupabaseStorage() {
+    try {
+      Object.keys(window.localStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.localStorage.removeItem(key);
+        }
+      });
+
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('세션 저장소 정리 오류:', error);
+    }
+  }
+
+  async function checkSession() {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData.session?.user;
+
+      if (!alive) return;
+
+      if (!sessionUser) {
+        setCheckingSession(false);
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (!alive) return;
+
+      if (userError || !userData?.user) {
+        await supabase.auth.signOut({ scope: 'global' });
+        clearSupabaseStorage();
+        setCheckingSession(false);
+        return;
+      }
+
+      const currentUser = userData.user;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('username, member_type')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (!alive) return;
+
+      if (profileError) {
+        console.error('프로필 확인 오류:', profileError);
+        await supabase.auth.signOut({ scope: 'global' });
+        clearSupabaseStorage();
+        setCheckingSession(false);
+        return;
+      }
+
+      if (profile?.username && profile?.member_type) {
+        navigate('/', { replace: true });
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        email: currentUser.email || prev.email
+      }));
+
+      setEmailVerification({
+        requested: true,
+        verified: true,
+        message: '이메일 인증이 완료된 상태입니다.'
+      });
+
+      setCheckingSession(false);
+    } catch (error) {
+      console.error('회원가입 페이지 세션 확인 오류:', error);
+
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (_) {
+        // ignore
+      }
+
+      clearSupabaseStorage();
+
+      if (alive) {
+        setCheckingSession(false);
+      }
+    }
+  }
+
+  checkSession();
+
+  return () => {
+    alive = false;
+  };
+}, [navigate]);
       const { data: sessionData } = await supabase.auth.getSession();
       const sessionUser = sessionData.session?.user;
 
