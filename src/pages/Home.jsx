@@ -115,86 +115,91 @@ export default function Home() {
   const banner = banners[currentBanner];
 
   return (
-    <main className="page-reveal bg-[#F8F7F3] pt-[72px]">
-  <section className="relative isolate overflow-hidden bg-[#0D1B2A] text-white">
-    <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#0D1B2A]">
-      <div className="relative aspect-[2172/724] w-full">
-        <img
-          src={banner.image}
-          alt=""
-          loading={currentBanner === 0 ? 'eager' : 'lazy'}
-          fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
-          className="image-reveal absolute inset-0 h-full w-full object-contain object-center"
-        />
+  <main className="bg-[#F8F7F3] pt-[84px]">
+    <section className="relative isolate overflow-hidden bg-[#F7F3EA] text-white">
+      <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
+        <div className="relative aspect-[2172/724] w-full">
+          <img
+            src={banner.image}
+            alt=""
+            loading={currentBanner === 0 ? 'eager' : 'lazy'}
+            fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
 
-        <div className="absolute left-[4.7%] top-[20%] z-10 max-w-[48%]">
-          <div className="reveal-1 mb-[3%] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/45 bg-[#0D1B2A]/45 px-5 py-2 text-[clamp(12px,0.8vw,15px)] font-extrabold text-[#D6B06A] backdrop-blur">
-            <Star size={15} fill="currentColor" />
-            데이터 기반 맞춤 학습 플랫폼
-          </div>
+          <div className="absolute inset-y-0 left-0 z-[1] w-[58%] bg-[linear-gradient(90deg,rgba(13,27,42,0.72)_0%,rgba(13,27,42,0.48)_43%,rgba(13,27,42,0.22)_72%,rgba(13,27,42,0)_100%)]" />
+          <div className="absolute inset-y-0 left-0 z-[2] w-[48%] bg-[radial-gradient(circle_at_28%_38%,rgba(0,0,0,0.22),transparent_62%)]" />
 
-          <h1 className="reveal-2 font-black leading-[1.12] tracking-[-0.045em] text-[clamp(34px,3.45vw,76px)]">
-            <span className="block break-keep text-white">{banner.title}</span>
-            <span className="block break-keep text-[#D6B06A]">{banner.highlight}</span>
-          </h1>
-
-          <p className="reveal-3 mt-[3.4%] max-w-[860px] break-keep text-[clamp(14px,1.05vw,21px)] font-bold leading-[1.65] text-white/92">
-            {banner.subtitle}
-          </p>
-
-          <div className="reveal-4 mt-[5%] flex flex-wrap gap-4">
-            <Link
-              to="/signup"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(18px,1.8vw,32px)] py-[clamp(10px,0.95vw,16px)] text-[clamp(13px,0.95vw,18px)] font-black text-[#0D1B2A] shadow-[0_18px_42px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
-            >
-              지금 시작하기
-              <ArrowRight size={20} />
-            </Link>
-
-            <Link
-              to="/services"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/28 bg-white/8 px-[clamp(18px,1.8vw,32px)] py-[clamp(10px,0.95vw,16px)] text-[clamp(13px,0.95vw,18px)] font-black text-white backdrop-blur-sm transition hover:border-white/60 hover:bg-white/14"
-            >
-              서비스 둘러보기
-              <PlayCircle size={20} />
-            </Link>
-          </div>
-
-          <div className="reveal-5 mt-[4%] flex items-center gap-4">
-            <div className="flex -space-x-3">
-              {['김', '이', '박', '최'].map((item) => (
-                <div
-                  key={item}
-                  className="flex h-[clamp(36px,2.5vw,48px)] w-[clamp(36px,2.5vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
-                >
-                  {item}
-                </div>
-              ))}
+          <div className="absolute left-[4.6%] top-[18%] z-10 max-w-[47%]">
+            <div className="reveal-1 mb-[3%] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/62 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
+              <Star size={15} fill="currentColor" />
+              데이터 기반 맞춤 학습 플랫폼
             </div>
 
-            <p className="text-[clamp(12px,0.85vw,16px)] font-semibold leading-[1.45] text-white/90">
-              <span className="text-[clamp(16px,1.1vw,20px)] font-black text-[#D6B06A]">1,240+</span> 학생들이
-              <br />
-              위닝에듀와 함께 하고 있어요!
-            </p>
-          </div>
+            <h1 className="reveal-2 font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.3vw,72px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.48)]">
+              <span className="block break-keep text-white">{banner.title}</span>
+              <span className="block break-keep text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.35)]">
+                {banner.highlight}
+              </span>
+            </h1>
 
-          <div className="mt-[4%] flex gap-2">
-            {banners.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentBanner(index)}
-                className={`h-2.5 rounded-full transition-all ${
-                  currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/30'
-                }`}
-                aria-label={`배너 ${index + 1}`}
-              />
-            ))}
+            <p className="reveal-3 mt-[3.5%] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.48)]">
+              {banner.subtitle}
+            </p>
+
+            <div className="reveal-4 mt-[4.8%] flex flex-wrap gap-4">
+              <Link
+                to="/signup"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
+              >
+                지금 시작하기
+                <ArrowRight size={20} />
+              </Link>
+
+              <Link
+                to="/services"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/38 bg-[#0D1B2A]/30 px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-white shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-white/65 hover:bg-[#0D1B2A]/44"
+              >
+                서비스 둘러보기
+                <PlayCircle size={20} />
+              </Link>
+            </div>
+
+            <div className="reveal-5 mt-[4%] flex items-center gap-4">
+              <div className="flex -space-x-3">
+                {['김', '이', '박', '최'].map((item) => (
+                  <div
+                    key={item}
+                    className="flex h-[clamp(38px,2.45vw,48px)] w-[clamp(38px,2.45vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[clamp(12px,0.82vw,16px)] font-bold leading-[1.45] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]">
+                <span className="text-[clamp(16px,1.05vw,20px)] font-black text-[#D6B06A]">1,240+</span> 학생들이
+                <br />
+                위닝에듀와 함께 하고 있어요!
+              </p>
+            </div>
+
+            <div className="mt-[4%] flex gap-2">
+              {banners.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentBanner(index)}
+                  className={`h-2.5 rounded-full transition-all ${
+                    currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/35'
+                  }`}
+                  aria-label={`배너 ${index + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
       <section className="relative z-30 mx-auto mt-8 max-w-[1500px] px-8">
         <div className="grid overflow-hidden rounded-[24px] border border-[#0D1B2A]/10 bg-white shadow-[0_24px_60px_rgba(13,27,42,0.13)] md:grid-cols-5">
