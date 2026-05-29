@@ -280,49 +280,6 @@ export default function Signup() {
     alive = false;
   };
 }, [navigate]);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sessionUser = sessionData.session?.user;
-
-      if (!alive) return;
-
-      if (!sessionUser) {
-        setCheckingSession(false);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, member_type')
-        .eq('id', sessionUser.id)
-        .maybeSingle();
-
-      if (!alive) return;
-
-      if (profile?.username && profile?.member_type) {
-        navigate('/', { replace: true });
-        return;
-      }
-
-      setForm((prev) => ({
-        ...prev,
-        email: sessionUser.email || prev.email
-      }));
-
-      setEmailVerification({
-        requested: true,
-        verified: true,
-        message: '이메일 인증이 완료된 상태입니다.'
-      });
-
-      setCheckingSession(false);
-    }
-
-    checkSession();
-
-    return () => {
-      alive = false;
-    };
-  }, [navigate]);
 
   function updateForm(key, value) {
     setForm((prev) => ({
