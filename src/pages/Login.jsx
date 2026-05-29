@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, BarChart3, CheckCircle2, LockKeyhole, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, BarChart3, CheckCircle2, LockKeyhole, Mail, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Login() {
