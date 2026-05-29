@@ -613,6 +613,8 @@ export default function Signup() {
     const normalizedSchoolName =
       form.schoolType === 'N수생' ? '' : form.schoolName.trim();
 
+    setMessage('사용자 인증 정보를 확인하는 중입니다.');
+
     const { data: userData, error: getUserError } = await supabase.auth.getUser();
 
     if (getUserError) {
@@ -631,6 +633,8 @@ export default function Signup() {
       setMessage('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
       return;
     }
+
+    setMessage('비밀번호를 저장하는 중입니다.');
 
     const { error: updateUserError } = await supabase.auth.updateUser({
       password: form.password,
@@ -652,30 +656,31 @@ export default function Signup() {
       return;
     }
 
-    const { error: profileError } = await supabase.rpc('complete_signup_profile', {
-      p_name: normalizedName,
-      p_username: normalizedUsername,
-      p_phone: normalizedPhone,
-      p_email: normalizedEmail,
-      p_region: form.region,
-      p_school_type: form.schoolType,
-      p_school_name: normalizedSchoolName,
-      p_member_type: memberType,
-      p_terms_service_agreed: agreements.service,
-      p_privacy_required_agreed: agreements.privacyRequired,
-      p_privacy_optional_agreed: agreements.privacyOptional,
-      p_marketing_agreed: agreements.marketing,
-      p_ads_agreed: agreements.ads
-    });
+    setMessage('회원 정보를 저장하는 중입니다.');
+
+    const { data: profileResult, error: profileError } = await supabase.rpc(
+      'complete_signup_profile',
+      {
+        p_name: normalizedName,
+        p_username: normalizedUsername,
+        p_phone: normalizedPhone,
+        p_email: normalizedEmail,
+        p_region: form.region,
+        p_school_type: form.schoolType,
+        p_school_name: normalizedSchoolName,
+        p_member_type: memberType,
+        p_terms_service_agreed: agreements.service,
+        p_privacy_required_agreed: agreements.privacyRequired,
+        p_privacy_optional_agreed: agreements.privacyOptional,
+        p_marketing_agreed: agreements.marketing,
+        p_ads_agreed: agreements.ads
+      }
+    );
 
     if (profileError) {
       const errorMessage = String(profileError.message || '').toLowerCase();
 
-      if (
-        profileError.code === '23505' ||
-        errorMessage.includes('duplicate') ||
-        errorMessage.includes('username')
-      ) {
+      if (errorMessage.includes('duplicate_username')) {
         setMessage('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.');
         setUsernameCheck({
           checked: false,
@@ -685,8 +690,43 @@ export default function Signup() {
         return;
       }
 
-      if (errorMessage.includes('email')) {
+      if (errorMessage.includes('duplicate_email')) {
         setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
+        return;
+      }
+
+      if (errorMessage.includes('not_authenticated')) {
+        setMessage('로그인 세션이 만료되었습니다. 이메일 인증을 다시 진행해 주세요.');
+        return;
+      }
+
+      if (errorMessage.includes('terms_service_required')) {
+        setMessage('이용약관 필수 동의가 필요합니다.');
+        return;
+      }
+
+      if (errorMessage.includes('privacy_required')) {
+        setMessage('개인정보 필수 동의가 필요합니다.');
+        return;
+      }
+
+      if (errorMessage.includes('name_required')) {
+        setMessage('이름을 입력해 주세요.');
+        return;
+      }
+
+      if (errorMessage.includes('region_required')) {
+        setMessage('지역을 선택해 주세요.');
+        return;
+      }
+
+      if (errorMessage.includes('school_type_required')) {
+        setMessage('재학 구분을 선택해 주세요.');
+        return;
+      }
+
+      if (errorMessage.includes('member_type_required')) {
+        setMessage('회원 유형을 다시 선택해 주세요.');
         return;
       }
 
@@ -694,10 +734,43 @@ export default function Signup() {
       return;
     }
 
-    await supabase.auth.signOut({ scope: 'global' });
+    if (!profileResult?.ok) {
+      setMessage('회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    setMessage('');
 
     setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      Object.keys(window.localStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.localStorage.removeItem(key);
+        }
+      });
+
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    } catch (storageError) {
+      console.error('가입 완료 후 세션 저장소 정리 오류:', storageError);
+    }
+
+    supabase.auth.signOut({ scope: 'global' }).catch((error) => {
+      console.error('가입 완료 후 로그아웃 오류:', error);
+    });
   } catch (error) {
     setMessage(`가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`);
   } finally {
