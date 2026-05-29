@@ -6,8 +6,21 @@
     <meta name="theme-color" content="#ffffff" />
     <title>위닝에듀</title>
 
-    <link rel="preload" as="image" href="/images/winning-logo.png" fetchpriority="high" />
-    <link rel="preload" as="image" href="/images/banner-1.png" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <link
+      rel="preload"
+      as="image"
+      href="/images/winning-logo.png"
+      fetchpriority="high"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="/images/banner-1.png"
+      fetchpriority="high"
+    />
 
     <style>
       html,
@@ -19,9 +32,22 @@
         background: #f8f7f3;
       }
 
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
       body {
         font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
           BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis-weight: none;
+        overflow-x: hidden;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
       }
 
       #pre-header {
@@ -37,8 +63,9 @@
       }
 
       .pre-header-inner {
-        height: 84px;
+        width: 100%;
         max-width: 1500px;
+        height: 84px;
         margin: 0 auto;
         padding: 0 32px;
         display: flex;
@@ -47,38 +74,46 @@
       }
 
       .pre-logo-wrap {
-        height: 84px;
+        flex: 0 0 190px;
         width: 190px;
+        height: 84px;
         display: flex;
         align-items: center;
       }
 
       .pre-logo {
+        display: block;
         width: 190px;
         height: 66px;
-        display: block;
         object-fit: contain;
       }
 
       .pre-nav {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 40px;
         color: #0d1b2a;
         font-size: 15px;
         font-weight: 900;
+        line-height: 1;
         white-space: nowrap;
       }
 
-      .pre-nav-item {
+      .pre-nav span {
         display: inline-flex;
         align-items: center;
+        height: 24px;
+      }
+
+      .pre-nav-item {
         gap: 4px;
       }
 
       .pre-chevron {
         width: 15px;
         height: 15px;
+        display: block;
         stroke: currentColor;
         stroke-width: 2.7;
         fill: none;
@@ -90,47 +125,60 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex: 0 0 auto;
+      }
+
+      .pre-login,
+      .pre-start {
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        padding: 0 24px;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 20px;
+        white-space: nowrap;
       }
 
       .pre-login {
         border: 1px solid rgba(13, 27, 42, 0.25);
         background: #ffffff;
         color: #0d1b2a;
-        border-radius: 12px;
-        padding: 10px 24px;
-        font-size: 14px;
-        font-weight: 900;
-        line-height: 20px;
       }
 
       .pre-start {
+        border: 1px solid #0d1b2a;
         background: #0d1b2a;
         color: #ffffff;
-        border-radius: 12px;
-        padding: 10px 24px;
-        font-size: 14px;
-        font-weight: 900;
-        line-height: 20px;
         box-shadow: 0 10px 26px rgba(13, 27, 42, 0.22);
       }
 
       @media (max-width: 900px) {
+        #pre-header {
+          height: 76px;
+        }
+
         .pre-header-inner {
+          height: 76px;
           padding: 0 20px;
         }
 
-        .pre-nav,
-        .pre-actions {
-          display: none;
-        }
-
         .pre-logo-wrap {
+          flex-basis: 170px;
           width: 170px;
+          height: 76px;
         }
 
         .pre-logo {
           width: 170px;
           height: 58px;
+        }
+
+        .pre-nav,
+        .pre-actions {
+          display: none;
         }
       }
     </style>
@@ -140,13 +188,19 @@
     <div id="pre-header" aria-hidden="true">
       <div class="pre-header-inner">
         <div class="pre-logo-wrap">
-          <img class="pre-logo" src="/images/winning-logo.png" alt="" />
+          <img
+            class="pre-logo"
+            src="/images/winning-logo.png"
+            alt=""
+            width="190"
+            height="66"
+          />
         </div>
 
         <div class="pre-nav">
           <span class="pre-nav-item">
             서비스
-            <svg class="pre-chevron" viewBox="0 0 24 24">
+            <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
               <path d="m6 9 6 6 6-6"></path>
             </svg>
           </span>
