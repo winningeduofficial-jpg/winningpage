@@ -1,8 +1,14 @@
-import { useLayoutEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Header() {
+  const navigate = useNavigate();
+
+  const [session, setSession] = useState(null);
+  const [role, setRole] = useState(null);
+
   useLayoutEffect(() => {
     const preHeader = document.getElementById('pre-header');
 
@@ -10,6 +16,56 @@ export default function Header() {
       preHeader.remove();
     }
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadRole(userId) {
+      if (!userId) {
+        setRole(null);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (alive) {
+        setRole(data?.role || null);
+      }
+    }
+
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      const currentSession = data.session;
+
+      if (!alive) return;
+
+      setSession(currentSession);
+      await loadRole(currentSession?.user?.id);
+    }
+
+    loadSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, nextSession) => {
+        setSession(nextSession);
+        await loadRole(nextSession?.user?.id);
+      }
+    );
+
+    return () => {
+      alive = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    navigate('/login');
+  }
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
@@ -51,7 +107,7 @@ export default function Header() {
             to="/pricing"
             className="inline-flex h-6 items-center transition hover:text-[#B88737]"
           >
-            가격
+            결제
           </Link>
 
           <Link
@@ -70,19 +126,42 @@ export default function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
-          <Link
-            to="/login"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
-          >
-            로그인
-          </Link>
+          {session ? (
+            <>
+              {role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+                >
+                  관리자
+                </Link>
+              )}
 
-          <Link
-            to="/signup"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
-          >
-            새로 시작하기
-          </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+              >
+                로그인
+              </Link>
+
+              <Link
+                to="/signup"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+              >
+                새로 시작하기
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
