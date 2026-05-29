@@ -65,7 +65,7 @@ export default function Header() {
             to="/events"
             className="inline-flex h-6 items-center transition hover:text-[#B88737]"
           >
-            이벤트
+            공지사항
           </Link>
         </nav>
 
