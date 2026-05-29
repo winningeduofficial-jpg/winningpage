@@ -63,9 +63,24 @@ export default function Header() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    navigate('/login');
+  setSession(null);
+  setRole(null);
+
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+
+  if (error) {
+    console.error('로그아웃 오류:', error);
   }
+
+  Object.keys(window.localStorage).forEach((key) => {
+    if (key.startsWith('sb-')) {
+      window.localStorage.removeItem(key);
+    }
+  });
+
+  navigate('/login', { replace: true });
+  window.location.replace('/login');
+}
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
