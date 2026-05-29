@@ -63,22 +63,36 @@ export default function Header() {
   }, []);
 
   async function handleLogout() {
-  setSession(null);
-  setRole(null);
-
-  const { error } = await supabase.auth.signOut({ scope: 'global' });
-
-  if (error) {
+  try {
+    await supabase.auth.signOut({ scope: 'global' });
+  } catch (error) {
     console.error('로그아웃 오류:', error);
   }
 
-  Object.keys(window.localStorage).forEach((key) => {
-    if (key.startsWith('sb-')) {
-      window.localStorage.removeItem(key);
-    }
-  });
+  try {
+    Object.keys(window.localStorage).forEach((key) => {
+      if (
+        key.startsWith('sb-') ||
+        key.includes('supabase') ||
+        key.includes('auth-token')
+      ) {
+        window.localStorage.removeItem(key);
+      }
+    });
 
-  navigate('/login', { replace: true });
+    Object.keys(window.sessionStorage).forEach((key) => {
+      if (
+        key.startsWith('sb-') ||
+        key.includes('supabase') ||
+        key.includes('auth-token')
+      ) {
+        window.sessionStorage.removeItem(key);
+      }
+    });
+  } catch (error) {
+    console.error('로컬 세션 삭제 오류:', error);
+  }
+
   window.location.replace('/login');
 }
 
