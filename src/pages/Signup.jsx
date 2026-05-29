@@ -305,26 +305,54 @@ export default function Signup() {
     return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
   }
 
-  function checkUsernameDuplicate() {
-    const username = form.username.trim();
+  async function checkUsernameDuplicate() {
+  const username = form.username.trim();
 
-    setMessage('');
+  setMessage('');
 
-    if (!isValidUsername(username)) {
-      setUsernameCheck({
-        checked: false,
-        available: false,
-        message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
-      });
-      return;
-    }
+  if (!isValidUsername(username)) {
+    setUsernameCheck({
+      checked: false,
+      available: false,
+      message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
+    });
+    return;
+  }
 
+  setUsernameCheck({
+    checked: false,
+    available: false,
+    message: '아이디 중복 여부를 확인하는 중입니다.'
+  });
+
+  const { data, error } = await supabase.rpc('is_username_available', {
+    check_username: username
+  });
+
+  if (error) {
+    setUsernameCheck({
+      checked: false,
+      available: false,
+      message: '중복확인 기능을 사용할 수 없습니다. Supabase 함수를 확인해 주세요.'
+    });
+    return;
+  }
+
+  if (data === true) {
     setUsernameCheck({
       checked: true,
       available: true,
-      message: '아이디 형식이 올바릅니다. 최종 중복 여부는 가입 완료 시 확인됩니다.'
+      message: '사용 가능한 아이디입니다.'
     });
+    return;
   }
+
+  setUsernameCheck({
+    checked: true,
+    available: false,
+    message: '이미 사용 중인 아이디입니다.'
+  });
+}
 
   async function requestEmailVerification() {
     const normalizedEmail = form.email.trim().toLowerCase();
