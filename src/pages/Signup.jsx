@@ -301,6 +301,10 @@ export default function Signup() {
     return /^[a-zA-Z0-9_]{4,20}$/.test(value);
   }
 
+  function isValidPassword(value) {
+  return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
+}
+
   function isValidPhone(value) {
     return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
   }
@@ -489,9 +493,9 @@ export default function Signup() {
       return '아이디 중복확인을 완료해 주세요.';
     }
 
-    if (form.password.length < 6) {
-      return '비밀번호는 최소 6자 이상으로 입력해 주세요.';
-    }
+    if (!isValidPassword(form.password)) {
+  return '비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.';
+}
 
     if (form.password !== form.passwordConfirm) {
       return '비밀번호와 비밀번호 확인이 일치하지 않습니다.';
@@ -944,15 +948,27 @@ export default function Signup() {
                       )}
                     </div>
 
-                    <InputField
-                      label="비밀번호"
-                      icon={<LockKeyhole size={19} />}
-                      type="password"
-                      value={form.password}
-                      onChange={(value) => updateForm('password', value)}
-                      placeholder="6자 이상 입력"
-                      autoComplete="new-password"
-                    />
+                    <div>
+  <InputField
+    label="비밀번호"
+    icon={<LockKeyhole size={19} />}
+    type="password"
+    value={form.password}
+    onChange={(value) => updateForm('password', value)}
+    placeholder="영문/숫자/특수문자 포함 6자 이상"
+    autoComplete="new-password"
+  />
+
+  {form.password && (
+    <p
+      className={`mt-2 text-sm font-bold ${
+        isValidPassword(form.password) ? 'text-[#15803D]' : 'text-red-600'
+      }`}
+    >
+      비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.
+    </p>
+  )}
+</div>
 
                     <InputField
                       label="비밀번호 다시 입력"
