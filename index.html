@@ -34,12 +34,6 @@
         background: #ffffff;
         border-bottom: 1px solid rgba(13, 27, 42, 0.1);
         box-shadow: 0 8px 28px rgba(13, 27, 42, 0.08);
-        transition: opacity 220ms ease;
-      }
-
-      #pre-header.is-hide {
-        opacity: 0;
-        pointer-events: none;
       }
 
       .pre-header-inner {
@@ -52,9 +46,16 @@
         justify-content: space-between;
       }
 
+      .pre-logo-wrap {
+        height: 84px;
+        width: 190px;
+        display: flex;
+        align-items: center;
+      }
+
       .pre-logo {
+        width: 190px;
         height: 66px;
-        width: auto;
         display: block;
         object-fit: contain;
       }
@@ -67,6 +68,22 @@
         font-size: 15px;
         font-weight: 900;
         white-space: nowrap;
+      }
+
+      .pre-nav-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .pre-chevron {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        stroke-width: 2.7;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       .pre-actions {
@@ -83,15 +100,17 @@
         padding: 10px 24px;
         font-size: 14px;
         font-weight: 900;
+        line-height: 20px;
       }
 
       .pre-start {
         background: #0d1b2a;
         color: #ffffff;
         border-radius: 12px;
-        padding: 11px 24px;
+        padding: 10px 24px;
         font-size: 14px;
         font-weight: 900;
+        line-height: 20px;
         box-shadow: 0 10px 26px rgba(13, 27, 42, 0.22);
       }
 
@@ -105,7 +124,12 @@
           display: none;
         }
 
+        .pre-logo-wrap {
+          width: 170px;
+        }
+
         .pre-logo {
+          width: 170px;
           height: 58px;
         }
       }
@@ -115,10 +139,17 @@
   <body>
     <div id="pre-header" aria-hidden="true">
       <div class="pre-header-inner">
-        <img class="pre-logo" src="/images/winning-logo.png" alt="" />
+        <div class="pre-logo-wrap">
+          <img class="pre-logo" src="/images/winning-logo.png" alt="" />
+        </div>
 
         <div class="pre-nav">
-          <span>서비스</span>
+          <span class="pre-nav-item">
+            서비스
+            <svg class="pre-chevron" viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </span>
           <span>학습 분석</span>
           <span>수시 · 대입</span>
           <span>가격</span>
