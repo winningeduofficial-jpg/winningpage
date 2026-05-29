@@ -10,11 +10,7 @@ function removePreHeader() {
     return;
   }
 
-  preHeader.classList.add('is-hide');
-
-  window.setTimeout(() => {
-    preHeader.remove();
-  }, 260);
+  preHeader.remove();
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
