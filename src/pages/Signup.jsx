@@ -529,84 +529,49 @@ export default function Signup() {
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    setMessage('');
+  setMessage('');
 
-    const validationMessage = validateStepTwo();
+  const validationMessage = validateStepTwo();
 
-    if (validationMessage) {
-      setMessage(validationMessage);
+  if (validationMessage) {
+    setMessage(validationMessage);
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const normalizedName = form.name.trim();
+    const normalizedUsername = form.username.trim();
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const normalizedPhone = String(form.phone || '').replaceAll('-', '').trim();
+    const normalizedSchoolName =
+      form.schoolType === 'N수생' ? '' : form.schoolName.trim();
+
+    const { data: userData, error: getUserError } = await supabase.auth.getUser();
+
+    if (getUserError) {
+      setMessage(`사용자 정보를 불러오지 못했습니다: ${getUserError.message}`);
       return;
     }
 
-    setLoading(true);
+    const currentUser = userData.user;
 
-    try {
-      const normalizedName = form.name.trim();
-      const normalizedUsername = form.username.trim();
-      const normalizedEmail = form.email.trim().toLowerCase();
-      const normalizedPhone = String(form.phone || '').replaceAll('-', '').trim();
-      const normalizedSchoolName =
-        form.schoolType === 'N수생' ? '' : form.schoolName.trim();
+    if (!currentUser?.id) {
+      setMessage('이메일 인증 세션을 찾을 수 없습니다. 다시 인증해 주세요.');
+      return;
+    }
 
-      const { data: userData, error: getUserError } = await supabase.auth.getUser();
+    if ((currentUser.email || '').toLowerCase() !== normalizedEmail) {
+      setMessage('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+      return;
+    }
 
-      if (getUserError) {
-        setMessage(`사용자 정보를 불러오지 못했습니다: ${getUserError.message}`);
-        return;
-      }
-
-      const currentUser = userData.user;
-
-      if (!currentUser?.id) {
-        setMessage('이메일 인증 세션을 찾을 수 없습니다. 다시 인증해 주세요.');
-        return;
-      }
-
-      if ((currentUser.email || '').toLowerCase() !== normalizedEmail) {
-        setMessage('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
-        return;
-      }
-
-      const { data: existingProfile, error: existingProfileError } = await supabase
-        .from('profiles')
-        .select('username, member_type')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (existingProfileError) {
-        setMessage(`기존 회원 정보 확인 중 문제가 발생했습니다: ${existingProfileError.message}`);
-        return;
-      }
-
-      if (existingProfile?.username && existingProfile?.member_type) {
-        setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
-        return;
-      }
-
-      const { error: updateUserError } = await supabase.auth.updateUser({
-        password: form.password,
-        data: {
-          name: normalizedName,
-          username: normalizedUsername,
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          region: form.region,
-          school_type: form.schoolType,
-          school_name: normalizedSchoolName,
-          member_type: memberType,
-          role: 'user'
-        }
-      });
-
-      if (updateUserError) {
-        setMessage(getFriendlyError(updateUserError.message));
-        return;
-      }
-
-      const profilePayload = {
-        id: currentUser.id,
+    const { error: updateUserError } = await supabase.auth.updateUser({
+      password: form.password,
+      data: {
         name: normalizedName,
         username: normalizedUsername,
         phone: normalizedPhone,
@@ -615,61 +580,67 @@ export default function Signup() {
         school_type: form.schoolType,
         school_name: normalizedSchoolName,
         member_type: memberType,
-        role: 'user',
-        terms_service_agreed: agreements.service,
-        privacy_required_agreed: agreements.privacyRequired,
-        privacy_optional_agreed: agreements.privacyOptional,
-        marketing_agreed: agreements.marketing,
-        ads_agreed: agreements.ads,
-        updated_at: new Date().toISOString()
-      };
+        role: 'user'
+      }
+    });
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(profilePayload)
-        .eq('id', currentUser.id)
-        .select('id')
-        .single();
+    if (updateUserError) {
+      setMessage(getFriendlyError(updateUserError.message));
+      return;
+    }
 
-      if (profileError) {
-        const errorMessage = String(profileError.message || '').toLowerCase();
+    const { error: profileError } = await supabase.rpc('complete_signup_profile', {
+      p_name: normalizedName,
+      p_username: normalizedUsername,
+      p_phone: normalizedPhone,
+      p_email: normalizedEmail,
+      p_region: form.region,
+      p_school_type: form.schoolType,
+      p_school_name: normalizedSchoolName,
+      p_member_type: memberType,
+      p_terms_service_agreed: agreements.service,
+      p_privacy_required_agreed: agreements.privacyRequired,
+      p_privacy_optional_agreed: agreements.privacyOptional,
+      p_marketing_agreed: agreements.marketing,
+      p_ads_agreed: agreements.ads
+    });
 
-        if (
-          profileError.code === '23505' ||
-          errorMessage.includes('profiles_username_unique_idx') ||
-          errorMessage.includes('username')
-        ) {
-          setMessage('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.');
-          setUsernameCheck({
-            checked: false,
-            available: false,
-            message: '이미 사용 중인 아이디입니다.'
-          });
-          return;
-        }
+    if (profileError) {
+      const errorMessage = String(profileError.message || '').toLowerCase();
 
-        if (
-          errorMessage.includes('profiles_email_unique_idx') ||
-          errorMessage.includes('email')
-        ) {
-          setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
-          return;
-        }
-
-        setMessage(`회원 정보 저장 중 문제가 발생했습니다: ${profileError.message}`);
+      if (
+        profileError.code === '23505' ||
+        errorMessage.includes('duplicate') ||
+        errorMessage.includes('username')
+      ) {
+        setMessage('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.');
+        setUsernameCheck({
+          checked: false,
+          available: false,
+          message: '이미 사용 중인 아이디입니다.'
+        });
         return;
       }
 
-      await supabase.auth.signOut();
+      if (errorMessage.includes('email')) {
+        setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
+        return;
+      }
 
-      setStep(3);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
-      setMessage(`가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`);
-    } finally {
-      setLoading(false);
+      setMessage(`회원 정보 저장 중 문제가 발생했습니다: ${profileError.message}`);
+      return;
     }
+
+    await supabase.auth.signOut({ scope: 'global' });
+
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    setMessage(`가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`);
+  } finally {
+    setLoading(false);
   }
+}
 
   if (checkingSession) {
     return (
