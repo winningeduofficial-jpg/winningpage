@@ -4,10 +4,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Eye,
   GraduationCap,
   LockKeyhole,
   Mail,
@@ -32,56 +30,39 @@ const TERMS_CONTENT = {
 위닝에듀는 회원에게 학습 기록 관리, 주간 리포트 제공, 목표 대학 및 학과 기반 학습 전략 안내, 상담 및 공지 서비스를 제공할 수 있습니다.
 
 제3조 회원가입
-회원은 회사가 정한 가입 양식에 따라 정보를 기입하고 본 약관에 동의함으로써 회원가입을 신청합니다. 회사는 서비스 운영상 필요한 경우 가입 승인을 제한하거나 보류할 수 있습니다.
+회원은 회사가 정한 가입 양식에 따라 정보를 기입하고 본 약관에 동의함으로써 회원가입을 신청합니다.
 
 제4조 회원의 의무
 회원은 가입 시 정확한 정보를 제공해야 하며, 타인의 정보를 도용하거나 서비스 운영을 방해하는 행위를 해서는 안 됩니다.
-
-제5조 서비스 이용 제한
-회사는 회원이 약관을 위반하거나 부정확한 정보를 입력한 경우 서비스 이용을 제한할 수 있습니다.
-
-제6조 기타
-본 약관에 명시되지 않은 사항은 관련 법령 및 일반적인 상관례에 따릅니다.
 `
   },
   privacyRequired: {
     title: '개인정보 수집 및 이용 필수 동의',
     content: `
-1. 수집하는 개인정보 항목
-- 이름, 아이디, 이메일 주소, 휴대전화번호, 지역, 재학 중인 학교 정보, 회원 유형, 회원 식별 정보
+1. 수집 항목
+- 이름, 아이디, 이메일 주소, 휴대전화번호, 지역, 재학 구분, 학교명, 회원 유형
 
-2. 개인정보의 수집 및 이용 목적
+2. 이용 목적
 - 회원 식별 및 본인 확인
 - 학습 관리 서비스 제공
-- 학습 리포트 및 상담 서비스 제공
+- 리포트 및 상담 서비스 제공
 - 공지사항 전달
-- 부정 이용 방지 및 서비스 안정성 확보
+- 부정 이용 방지
 
-3. 개인정보의 보유 및 이용 기간
-- 회원 탈퇴 시까지 보유합니다.
-- 단, 관계 법령에 따라 보존할 필요가 있는 경우 해당 법령에서 정한 기간 동안 보관할 수 있습니다.
-
-4. 동의 거부 권리
-회원은 개인정보 수집 및 이용에 대한 동의를 거부할 권리가 있습니다. 다만 필수 항목에 동의하지 않을 경우 회원가입 및 서비스 이용이 제한될 수 있습니다.
+3. 보유 기간
+- 회원 탈퇴 시까지
 `
   },
   privacyOptional: {
     title: '개인정보 수집 및 이용 선택 동의',
     content: `
-1. 수집하는 개인정보 항목
-- 추가 상담 정보, 학습 성향 정보, 희망 대학 및 학과 정보, 마케팅 활용을 위한 선택 정보
+1. 수집 항목
+- 추가 상담 정보, 희망 대학 및 학과 정보, 학습 성향 정보
 
-2. 수집 및 이용 목적
+2. 이용 목적
 - 맞춤형 학습 관리 안내
 - 상담 품질 개선
-- 이벤트 및 서비스 안내
-- 학습 성향에 따른 개인화 서비스 제공
-
-3. 보유 및 이용 기간
-- 회원 탈퇴 시 또는 동의 철회 시까지 보유합니다.
-
-4. 동의 거부 권리
-선택 항목에 동의하지 않아도 회원가입은 가능합니다. 다만 일부 맞춤형 안내나 이벤트 혜택 제공이 제한될 수 있습니다.
+- 개인화 서비스 제공
 `
   },
   marketing: {
@@ -94,13 +75,6 @@ const TERMS_CONTENT = {
 - 신규 서비스 안내
 - 이벤트 및 혜택 안내
 - 교육 프로그램 안내
-- 맞춤형 광고 및 홍보성 정보 제공
-
-3. 보유 및 이용 기간
-- 동의 철회 시까지 보유합니다.
-
-4. 동의 거부 권리
-본 동의는 선택 사항이며, 동의하지 않아도 회원가입 및 기본 서비스 이용은 가능합니다.
 `
   },
   ads: {
@@ -112,11 +86,7 @@ const TERMS_CONTENT = {
 2. 수신 내용
 - 위닝에듀 교육 프로그램 안내
 - 학습 관리 서비스 안내
-- 이벤트 및 혜택 정보
-- 입시 및 학습 관련 콘텐츠 안내
-
-3. 동의 철회
-회원은 언제든지 광고성 정보 수신 동의를 철회할 수 있습니다.
+- 이벤트 및 혜택 안내
 `
   }
 };
@@ -170,8 +140,8 @@ export default function Signup() {
     password: '',
     passwordConfirm: '',
     phone: '',
-    phoneCode: '',
     email: '',
+    emailCode: '',
     region: '',
     schoolType: '',
     schoolName: ''
@@ -183,10 +153,9 @@ export default function Signup() {
     message: ''
   });
 
-  const [phoneVerification, setPhoneVerification] = useState({
+  const [emailVerification, setEmailVerification] = useState({
     requested: false,
     verified: false,
-    code: '',
     message: ''
   });
 
@@ -205,14 +174,39 @@ export default function Signup() {
     let alive = true;
 
     async function checkSession() {
-      const { data } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData.session?.user;
 
       if (!alive) return;
 
-      if (data.session?.user) {
+      if (!sessionUser) {
+        setCheckingSession(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username, member_type')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
+
+      if (!alive) return;
+
+      if (profile?.username && profile?.member_type) {
         navigate('/', { replace: true });
         return;
       }
+
+      setForm((prev) => ({
+        ...prev,
+        email: sessionUser.email || prev.email
+      }));
+
+      setEmailVerification({
+        requested: true,
+        verified: true,
+        message: '이메일 인증이 완료된 상태입니다.'
+      });
 
       setCheckingSession(false);
     }
@@ -238,11 +232,10 @@ export default function Signup() {
       });
     }
 
-    if (key === 'phone') {
-      setPhoneVerification({
+    if (key === 'email') {
+      setEmailVerification({
         requested: false,
         verified: false,
-        code: '',
         message: ''
       });
     }
@@ -312,10 +305,6 @@ export default function Signup() {
     return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
   }
 
-  function normalizePhone(value) {
-    return value.replaceAll('-', '').trim();
-  }
-
   async function checkUsernameDuplicate() {
     const username = form.username.trim();
 
@@ -358,50 +347,125 @@ export default function Signup() {
     }
   }
 
-  function requestPhoneVerification() {
+  async function requestEmailVerification() {
+    const normalizedEmail = form.email.trim().toLowerCase();
+
     setMessage('');
 
-    if (!isValidPhone(form.phone)) {
-      setPhoneVerification({
+    if (!normalizedEmail) {
+      setEmailVerification({
         requested: false,
         verified: false,
-        code: '',
-        message: '휴대전화번호 형식이 올바르지 않습니다.'
+        message: '이메일을 먼저 입력해 주세요.'
       });
       return;
     }
 
-    setPhoneVerification({
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      setEmailVerification({
+        requested: false,
+        verified: false,
+        message: '이메일 형식이 올바르지 않습니다.'
+      });
+      return;
+    }
+
+    const { data: emailAvailable, error: emailCheckError } = await supabase.rpc(
+      'is_email_available',
+      {
+        input_email: normalizedEmail
+      }
+    );
+
+    if (emailCheckError) {
+      setEmailVerification({
+        requested: false,
+        verified: false,
+        message: '이메일 확인 중 오류가 발생했습니다.'
+      });
+      return;
+    }
+
+    if (emailAvailable !== true) {
+      setEmailVerification({
+        requested: false,
+        verified: false,
+        message: '이미 가입된 이메일입니다.'
+      });
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentEmail = sessionData.session?.user?.email?.toLowerCase();
+
+    if (currentEmail && currentEmail !== normalizedEmail) {
+      await supabase.auth.signOut();
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: true
+      }
+    });
+
+    if (error) {
+      setEmailVerification({
+        requested: false,
+        verified: false,
+        message: getFriendlyError(error.message)
+      });
+      return;
+    }
+
+    setEmailVerification({
       requested: true,
       verified: false,
-      code: '123456',
-      message: '인증번호가 발송되었습니다. 테스트 인증번호는 123456입니다.'
+      message: '입력한 이메일로 인증코드를 발송했습니다.'
     });
   }
 
-  function verifyPhoneCode() {
-    if (!phoneVerification.requested) {
-      setPhoneVerification((prev) => ({
+  async function verifyEmailCode() {
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const token = form.emailCode.trim();
+
+    if (!emailVerification.requested) {
+      setEmailVerification((prev) => ({
         ...prev,
-        message: '먼저 인증요청을 눌러주세요.'
+        message: '먼저 인증 메일을 발송해 주세요.'
       }));
       return;
     }
 
-    if (form.phoneCode.trim() !== phoneVerification.code) {
-      setPhoneVerification((prev) => ({
+    if (!token) {
+      setEmailVerification((prev) => ({
         ...prev,
+        message: '인증코드를 입력해 주세요.'
+      }));
+      return;
+    }
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token,
+      type: 'email'
+    });
+
+    if (error) {
+      setEmailVerification({
+        requested: true,
         verified: false,
-        message: '인증번호가 올바르지 않습니다.'
-      }));
+        message: '인증코드가 올바르지 않거나 만료되었습니다.'
+      });
       return;
     }
 
-    setPhoneVerification((prev) => ({
-      ...prev,
+    setEmailVerification({
+      requested: true,
       verified: true,
-      message: '휴대전화 인증이 완료되었습니다.'
-    }));
+      message: '이메일 인증이 완료되었습니다.'
+    });
   }
 
   function validateStepTwo() {
@@ -411,7 +475,6 @@ export default function Signup() {
     const normalizedEmail = form.email.trim().toLowerCase();
 
     if (!memberType) return '회원 유형을 선택해 주세요.';
-
     if (!normalizedName) return '이름을 입력해 주세요.';
 
     if (!isValidUsername(normalizedUsername)) {
@@ -434,12 +497,12 @@ export default function Signup() {
       return '휴대전화번호를 올바르게 입력해 주세요.';
     }
 
-    if (!phoneVerification.verified) {
-      return '휴대전화 본인인증을 완료해 주세요.';
-    }
-
     if (!normalizedEmail) {
       return '이메일을 입력해 주세요.';
+    }
+
+    if (!emailVerification.verified) {
+      return '이메일 인증을 완료해 주세요.';
     }
 
     if (!form.region) {
@@ -463,7 +526,6 @@ export default function Signup() {
     setMessage('');
 
     const validationMessage = validateStepTwo();
-
     if (validationMessage) {
       setMessage(validationMessage);
       return;
@@ -474,64 +536,73 @@ export default function Signup() {
     const normalizedName = form.name.trim();
     const normalizedUsername = form.username.trim();
     const normalizedEmail = form.email.trim().toLowerCase();
-    const normalizedPhone = normalizePhone(form.phone);
-    const normalizedSchoolName = form.schoolType === 'N수생' ? '' : form.schoolName.trim();
+    const normalizedPhone = form.phone.replaceAll('-', '').trim();
+    const normalizedSchoolName =
+      form.schoolType === 'N수생' ? '' : form.schoolName.trim();
 
-    const { data, error } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password: form.password,
-      options: {
-        data: {
-          name: normalizedName,
-          username: normalizedUsername,
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          region: form.region,
-          school_type: form.schoolType,
-          school_name: normalizedSchoolName,
-          member_type: memberType,
-          role: 'user'
-        }
-      }
-    });
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUser = userData.user;
 
-    if (error) {
-      setMessage(getFriendlyError(error.message));
+    if (!currentUser) {
+      setMessage('이메일 인증 세션을 찾을 수 없습니다. 다시 인증해 주세요.');
       setLoading(false);
       return;
     }
 
-    const user = data.user;
+    if ((currentUser.email || '').toLowerCase() !== normalizedEmail) {
+      setMessage('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+      setLoading(false);
+      return;
+    }
 
-    if (user?.id) {
-      const { error: profileError } = await supabase.from('profiles').upsert(
-        {
-          id: user.id,
-          name: normalizedName,
-          username: normalizedUsername,
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          region: form.region,
-          school_type: form.schoolType,
-          school_name: normalizedSchoolName,
-          member_type: memberType,
-          role: 'user',
-          terms_service_agreed: agreements.service,
-          privacy_required_agreed: agreements.privacyRequired,
-          privacy_optional_agreed: agreements.privacyOptional,
-          marketing_agreed: agreements.marketing,
-          ads_agreed: agreements.ads
-        },
-        {
-          onConflict: 'id'
-        }
-      );
-
-      if (profileError) {
-        setMessage(`회원가입은 되었지만 프로필 저장 중 문제가 발생했습니다: ${profileError.message}`);
-        setLoading(false);
-        return;
+    const { error: updateUserError } = await supabase.auth.updateUser({
+      password: form.password,
+      data: {
+        name: normalizedName,
+        username: normalizedUsername,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        region: form.region,
+        school_type: form.schoolType,
+        school_name: normalizedSchoolName,
+        member_type: memberType,
+        role: 'user'
       }
+    });
+
+    if (updateUserError) {
+      setMessage(getFriendlyError(updateUserError.message));
+      setLoading(false);
+      return;
+    }
+
+    const { error: profileError } = await supabase.from('profiles').upsert(
+      {
+        id: currentUser.id,
+        name: normalizedName,
+        username: normalizedUsername,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        region: form.region,
+        school_type: form.schoolType,
+        school_name: normalizedSchoolName,
+        member_type: memberType,
+        role: 'user',
+        terms_service_agreed: agreements.service,
+        privacy_required_agreed: agreements.privacyRequired,
+        privacy_optional_agreed: agreements.privacyOptional,
+        marketing_agreed: agreements.marketing,
+        ads_agreed: agreements.ads
+      },
+      {
+        onConflict: 'id'
+      }
+    );
+
+    if (profileError) {
+      setMessage(`프로필 저장 중 문제가 발생했습니다: ${profileError.message}`);
+      setLoading(false);
+      return;
     }
 
     setLoading(false);
@@ -552,7 +623,7 @@ export default function Signup() {
   return (
     <main className="min-h-screen bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
       <section className="relative overflow-hidden border-b border-[#0D1B2A]/10 bg-[linear-gradient(120deg,#081321_0%,#0D1B2A_44%,#142B45_100%)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.28),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.18),transparent_32%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.25),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.15),transparent_32%)]" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
         <div className="relative mx-auto max-w-[1180px] px-6 py-14 lg:px-8">
@@ -573,7 +644,7 @@ export default function Signup() {
             </p>
           </div>
 
-          <div className="mx-auto mt-10 max-w-[980px] rounded-[34px] border border-white/70 bg-white p-6 shadow-[0_28px_80px_rgba(13,27,42,0.30)] md:p-9">
+          <div className="mx-auto mt-10 max-w-[980px] rounded-[34px] border border-white/80 bg-[linear-gradient(180deg,#FFFFFF_0%,#FBFAF7_100%)] p-6 shadow-[0_28px_80px_rgba(13,27,42,0.30)] md:p-9">
             {step > 0 && (
               <div className="relative mb-10">
                 <div className="absolute left-0 right-0 top-[26px] h-[3px] rounded-full bg-[#E5E7EB]" />
@@ -612,7 +683,7 @@ export default function Signup() {
                   </p>
                 </div>
 
-                <div className="grid overflow-hidden rounded-[30px] border border-[#0D1B2A]/10 bg-white md:grid-cols-2">
+                <div className="grid gap-5 md:grid-cols-2">
                   <MemberTypeCard
                     icon={<GraduationCap size={72} />}
                     caption="대학 합격을 위해 준비하는 수험생이라면"
@@ -627,13 +698,15 @@ export default function Signup() {
                     title="학부모회원"
                     buttonText="회원가입"
                     onClick={() => selectMemberType('parent')}
-                    bordered
                   />
                 </div>
 
                 <p className="mt-6 text-center text-sm font-bold text-[#64748B]">
                   이미 계정이 있나요?{' '}
-                  <Link to="/login" className="font-black text-[#B88737] hover:text-[#8F6421]">
+                  <Link
+                    to="/login"
+                    className="font-black text-[#B88737] hover:text-[#8F6421]"
+                  >
                     로그인
                   </Link>
                 </p>
@@ -770,7 +843,7 @@ export default function Signup() {
                   </p>
 
                   <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-                    정보 입력 및 본인인증
+                    정보 입력 및 이메일 인증
                   </h2>
 
                   <p className="mt-2 text-sm font-bold leading-6 text-[#64748B]">
@@ -818,7 +891,11 @@ export default function Signup() {
                       </div>
 
                       {usernameCheck.message && (
-                        <p className={`mt-2 text-sm font-bold ${usernameCheck.available ? 'text-[#15803D]' : 'text-red-600'}`}>
+                        <p
+                          className={`mt-2 text-sm font-bold ${
+                            usernameCheck.available ? 'text-[#15803D]' : 'text-red-600'
+                          }`}
+                        >
                           {usernameCheck.message}
                         </p>
                       )}
@@ -844,78 +921,82 @@ export default function Signup() {
                       autoComplete="new-password"
                     />
 
+                    <InputField
+                      label="휴대전화번호"
+                      icon={<Phone size={19} />}
+                      type="tel"
+                      value={form.phone}
+                      onChange={(value) => updateForm('phone', value)}
+                      placeholder="010-0000-0000"
+                      autoComplete="tel"
+                    />
+
                     <div>
                       <label className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                        휴대전화번호
+                        이메일
                       </label>
 
                       <div className="flex gap-2">
                         <div className="flex h-14 flex-1 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
-                          <Phone size={19} className="text-[#8B95A1]" />
+                          <Mail size={19} className="text-[#8B95A1]" />
 
                           <input
-                            type="tel"
-                            placeholder="010-0000-0000"
+                            type="email"
+                            placeholder="winningedu@example.com"
                             className="h-full w-full bg-transparent text-[15px] font-bold text-[#0D1B2A] outline-none placeholder:text-[#9AA3AF]"
-                            value={form.phone}
-                            onChange={(e) => updateForm('phone', e.target.value)}
-                            autoComplete="tel"
+                            value={form.email}
+                            onChange={(e) => updateForm('email', e.target.value)}
+                            autoComplete="email"
                           />
                         </div>
 
                         <button
                           type="button"
-                          onClick={requestPhoneVerification}
+                          onClick={requestEmailVerification}
                           className="h-14 rounded-2xl border border-[#0D1B2A] bg-white px-4 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
                         >
                           인증요청
                         </button>
                       </div>
 
-                      {phoneVerification.message && (
-                        <p className={`mt-2 text-sm font-bold ${phoneVerification.verified ? 'text-[#15803D]' : 'text-[#B88737]'}`}>
-                          {phoneVerification.message}
+                      {emailVerification.message && (
+                        <p
+                          className={`mt-2 text-sm font-bold ${
+                            emailVerification.verified ? 'text-[#15803D]' : 'text-[#B88737]'
+                          }`}
+                        >
+                          {emailVerification.message}
                         </p>
                       )}
                     </div>
 
                     <div>
                       <label className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                        인증번호
+                        이메일 인증코드
                       </label>
 
                       <div className="flex gap-2">
                         <div className="flex h-14 flex-1 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
-                          <CheckCircle2 size={19} className="text-[#8B95A1]" />
+                          <Mail size={19} className="text-[#8B95A1]" />
 
                           <input
                             type="text"
-                            placeholder="인증번호 입력"
+                            placeholder="메일로 받은 인증코드 입력"
                             className="h-full w-full bg-transparent text-[15px] font-bold text-[#0D1B2A] outline-none placeholder:text-[#9AA3AF]"
-                            value={form.phoneCode}
-                            onChange={(e) => updateForm('phoneCode', e.target.value)}
+                            value={form.emailCode}
+                            onChange={(e) => updateForm('emailCode', e.target.value)}
                           />
                         </div>
 
                         <button
                           type="button"
-                          onClick={verifyPhoneCode}
+                          onClick={verifyEmailCode}
                           className="h-14 rounded-2xl bg-[#0D1B2A] px-4 text-sm font-black text-white transition hover:bg-[#162A40]"
                         >
                           확인
                         </button>
                       </div>
                     </div>
-
-                    <InputField
-                      label="이메일"
-                      icon={<Mail size={19} />}
-                      type="email"
-                      value={form.email}
-                      onChange={(value) => updateForm('email', value)}
-                      placeholder="winningedu@example.com"
-                      autoComplete="email"
-                    />
 
                     <SelectField
                       label="지역"
@@ -940,7 +1021,11 @@ export default function Signup() {
                       icon={<School size={19} />}
                       value={form.schoolName}
                       onChange={(value) => updateForm('schoolName', value)}
-                      placeholder={form.schoolType === 'N수생' ? 'N수생은 입력하지 않아도 됩니다' : '학교명 입력'}
+                      placeholder={
+                        form.schoolType === 'N수생'
+                          ? 'N수생은 입력하지 않아도 됩니다'
+                          : '학교명 입력'
+                      }
                       disabled={form.schoolType === 'N수생'}
                     />
                   </div>
@@ -965,7 +1050,9 @@ export default function Signup() {
                       className="group flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-8 text-[15px] font-black text-white shadow-[0_18px_34px_rgba(13,27,42,0.24)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? '가입 처리 중...' : '가입 완료'}
-                      {!loading && <ArrowRight size={18} className="transition group-hover:translate-x-1" />}
+                      {!loading && (
+                        <ArrowRight size={18} className="transition group-hover:translate-x-1" />
+                      )}
                     </button>
                   </div>
                 </form>
@@ -987,15 +1074,15 @@ export default function Signup() {
                 </h2>
 
                 <p className="mx-auto mt-4 max-w-xl text-sm font-bold leading-7 text-[#64748B]">
-                  위닝에듀 학습 관리 서비스를 이용할 수 있습니다. 로그인 후 학습 리포트와 개인별 관리 서비스를 확인하세요.
+                  위닝에듀 학습 관리 서비스를 바로 이용할 수 있습니다.
                 </p>
 
                 <div className="mt-9 flex justify-center">
                   <Link
-                    to="/login"
+                    to="/"
                     className="group flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-8 text-[15px] font-black text-white shadow-[0_18px_34px_rgba(13,27,42,0.24)] transition hover:bg-[#162A40]"
                   >
-                    로그인하러 가기
+                    서비스 시작하기
                     <ArrowRight size={18} className="transition group-hover:translate-x-1" />
                   </Link>
                 </div>
@@ -1016,14 +1103,10 @@ export default function Signup() {
   );
 }
 
-function MemberTypeCard({ icon, caption, title, buttonText, onClick, bordered = false }) {
+function MemberTypeCard({ icon, caption, title, buttonText, onClick }) {
   return (
-    <div
-      className={`flex flex-col items-center justify-center px-8 py-14 text-center ${
-        bordered ? 'border-t border-[#0D1B2A]/10 md:border-l md:border-t-0' : ''
-      }`}
-    >
-      <div className="flex h-36 w-36 items-center justify-center rounded-full bg-[#F3F4F6] text-[#94A3B8]">
+    <div className="group rounded-[30px] border border-[#0D1B2A]/10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F8F7F3_100%)] px-8 py-12 text-center shadow-[0_12px_34px_rgba(13,27,42,0.06)] transition hover:-translate-y-1 hover:border-[#B88737]/35 hover:shadow-[0_20px_44px_rgba(13,27,42,0.12)]">
+      <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-full bg-[#F1F4F8] text-[#95A2B5] transition group-hover:bg-[#EEF2F7] group-hover:text-[#73839A]">
         {icon}
       </div>
 
@@ -1038,7 +1121,7 @@ function MemberTypeCard({ icon, caption, title, buttonText, onClick, bordered = 
       <button
         type="button"
         onClick={onClick}
-        className="mt-12 h-16 w-full max-w-[330px] rounded-none bg-[#1F66D1] text-xl font-black text-white transition hover:bg-[#0D1B2A]"
+        className="mt-10 h-14 w-full rounded-2xl bg-[#0D1B2A] text-lg font-black text-white transition hover:bg-[#162A40]"
       >
         {buttonText}
       </button>
@@ -1059,7 +1142,11 @@ function StepBadge({ number, title, active, current }) {
         {current ? number : active ? <Check size={22} /> : number}
       </div>
 
-      <p className={`mt-3 text-sm font-black ${active ? 'text-[#0D1B2A]' : 'text-[#94A3B8]'}`}>
+      <p
+        className={`mt-3 text-sm font-black ${
+          active ? 'text-[#0D1B2A]' : 'text-[#94A3B8]'
+        }`}
+      >
         {title}
       </p>
     </div>
@@ -1085,7 +1172,11 @@ function CheckBox({ checked, large = false }) {
 function AgreementRow({ checked, label, required = false, onToggle, onView }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[#0D1B2A]/8 px-5 py-4 last:border-b-0">
-      <button type="button" onClick={onToggle} className="flex flex-1 items-center gap-4 text-left">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex flex-1 items-center gap-4 text-left"
+      >
         <CheckBox checked={checked} />
 
         <p className="text-sm font-extrabold text-[#334155] md:text-base">
@@ -1099,10 +1190,9 @@ function AgreementRow({ checked, label, required = false, onToggle, onView }) {
       <button
         type="button"
         onClick={onView}
-        className="inline-flex items-center gap-1 text-sm font-black text-[#2563EB] underline underline-offset-4"
+        className="text-sm font-black text-[#2563EB] underline underline-offset-4"
       >
         보기
-        <Eye size={15} />
       </button>
     </div>
   );
@@ -1129,7 +1219,7 @@ function TermsModal({ title, content, onClose }) {
           {title}
         </h3>
 
-        <div className="mt-6 max-h-[520px] overflow-y-auto rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] p-5 text-[15px] font-bold leading-8 text-[#334155] whitespace-pre-line">
+        <div className="mt-6 max-h-[520px] overflow-y-auto rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] p-5 whitespace-pre-line text-[15px] font-bold leading-8 text-[#334155]">
           {content}
         </div>
 
@@ -1168,9 +1258,7 @@ function InputField({
           disabled ? 'bg-[#ECEFF3]' : 'bg-[#F8F7F3]'
         }`}
       >
-        <span className="text-[#8B95A1]">
-          {icon}
-        </span>
+        <span className="text-[#8B95A1]">{icon}</span>
 
         <input
           type={type}
@@ -1194,18 +1282,14 @@ function SelectField({ label, icon, value, onChange, placeholder, options }) {
       </span>
 
       <div className="flex h-14 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
-        <span className="text-[#8B95A1]">
-          {icon}
-        </span>
+        <span className="text-[#8B95A1]">{icon}</span>
 
         <select
           className="h-full w-full bg-transparent text-[15px] font-bold text-[#0D1B2A] outline-none"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
-          <option value="">
-            {placeholder}
-          </option>
+          <option value="">{placeholder}</option>
 
           {options.map((option) => (
             <option key={option} value={option}>
