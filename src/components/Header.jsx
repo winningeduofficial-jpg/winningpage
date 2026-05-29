@@ -158,7 +158,7 @@ export default function Header() {
                 to="/signup"
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
               >
-                새로 시작하기
+                회원가입
               </Link>
             </>
           )}
