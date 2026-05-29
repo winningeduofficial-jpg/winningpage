@@ -161,11 +161,9 @@ export default function Login() {
                     로그인
                   </h2>
                 </div>
-
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white shadow-[0_16px_30px_rgba(13,27,42,0.28)]">
-                  <ShieldCheck size={26} />
-                </div>
-              </div>
+             </div>
+                
+            
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
                 <label className="block">
