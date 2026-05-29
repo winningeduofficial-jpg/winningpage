@@ -306,45 +306,52 @@ export default function Signup() {
   }
 
   async function checkUsernameDuplicate() {
-    const username = form.username.trim();
+  const username = form.username.trim();
+  const usernameKey = username.toLowerCase();
 
-    setMessage('');
+  setMessage('');
 
-    if (!isValidUsername(username)) {
-      setUsernameCheck({
-        checked: false,
-        available: false,
-        message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
-      });
-      return;
-    }
-
-    const { data, error } = await supabase.rpc('is_username_available', {
-      input_username: username
+  if (!isValidUsername(username)) {
+    setUsernameCheck({
+      checked: false,
+      available: false,
+      message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
     });
+    return;
+  }
 
-    if (error) {
-      setUsernameCheck({
-        checked: false,
-        available: false,
-        message: '아이디 중복 확인 중 오류가 발생했습니다. RPC 설정을 확인해 주세요.'
-      });
-      return;
-    }
+  const { data, error } = await supabase
+    .from('signup_duplicate_check')
+    .select('username_key')
+    .eq('username_key', usernameKey)
+    .limit(1);
 
-    if (data === true) {
-      setUsernameCheck({
-        checked: true,
-        available: true,
-        message: '사용 가능한 아이디입니다.'
-      });
-    } else {
-      setUsernameCheck({
-        checked: true,
-        available: false,
-        message: '이미 사용 중인 아이디입니다.'
-      });
-    }
+  if (error) {
+    console.error('아이디 중복확인 오류:', error);
+
+    setUsernameCheck({
+      checked: false,
+      available: false,
+      message: `아이디 중복 확인 중 오류가 발생했습니다: ${error.message}`
+    });
+    return;
+  }
+
+  if (data && data.length > 0) {
+    setUsernameCheck({
+      checked: true,
+      available: false,
+      message: '이미 사용 중인 아이디입니다.'
+    });
+    return;
+  }
+
+  setUsernameCheck({
+    checked: true,
+    available: true,
+    message: '사용 가능한 아이디입니다.'
+  });
+}
   }
 
   async function requestEmailVerification() {
@@ -371,30 +378,31 @@ export default function Signup() {
       return;
     }
 
-    const { data: emailAvailable, error: emailCheckError } = await supabase.rpc(
-      'is_email_available',
-      {
-        input_email: normalizedEmail
-      }
-    );
+    const { data: existingEmailRows, error: emailCheckError } = await supabase
+  .from('signup_duplicate_check')
+  .select('email_key')
+  .eq('email_key', normalizedEmail)
+  .limit(1);
 
-    if (emailCheckError) {
-      setEmailVerification({
-        requested: false,
-        verified: false,
-        message: '이메일 확인 중 오류가 발생했습니다.'
-      });
-      return;
-    }
+if (emailCheckError) {
+  console.error('이메일 중복확인 오류:', emailCheckError);
 
-    if (emailAvailable !== true) {
-      setEmailVerification({
-        requested: false,
-        verified: false,
-        message: '이미 가입된 이메일입니다.'
-      });
-      return;
-    }
+  setEmailVerification({
+    requested: false,
+    verified: false,
+    message: `이메일 확인 중 오류가 발생했습니다: ${emailCheckError.message}`
+  });
+  return;
+}
+
+if (existingEmailRows && existingEmailRows.length > 0) {
+  setEmailVerification({
+    requested: false,
+    verified: false,
+    message: '이미 가입된 이메일입니다.'
+  });
+  return;
+}
 
     const { data: sessionData } = await supabase.auth.getSession();
     const currentEmail = sessionData.session?.user?.email?.toLowerCase();
