@@ -101,16 +101,56 @@ const proofCards = [
   ['박OO 학생', '고려대학교 컴퓨터학과', 'AI 분석과 컨설팅으로 전략을 명확히 잡았습니다.'],
 ];
 
+function preloadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => resolve(src);
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
 export default function Home() {
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [heroReady, setHeroReady] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
+    async function prepareHero() {
+      const fontReady =
+        document.fonts && document.fonts.ready
+          ? document.fonts.ready
+          : Promise.resolve();
+
+      await Promise.all([preloadImage(banners[0].image), fontReady]);
+
+      if (mounted) {
+        setHeroReady(true);
+      }
+
+      banners.slice(1).forEach((item) => {
+        preloadImage(item.image);
+      });
+    }
+
+    prepareHero();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!heroReady) return undefined;
+
     const timer = setInterval(() => {
       setCurrentBanner((prev) => (prev + 1) % banners.length);
     }, 5000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [heroReady]);
 
   const banner = banners[currentBanner];
 
@@ -122,35 +162,42 @@ export default function Home() {
             <img
               src={banner.image}
               alt=""
-              loading={currentBanner === 0 ? 'eager' : 'lazy'}
-              fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
 
-            <div className="absolute inset-y-0 left-0 z-[1] w-[60%] bg-[linear-gradient(90deg,rgba(13,27,42,0.76)_0%,rgba(13,27,42,0.54)_42%,rgba(13,27,42,0.25)_72%,rgba(13,27,42,0)_100%)]" />
-            <div className="absolute inset-y-0 left-0 z-[2] w-[50%] bg-[radial-gradient(circle_at_26%_38%,rgba(0,0,0,0.24),transparent_64%)]" />
+            <div className="absolute inset-y-0 left-0 z-[1] w-[62%] bg-[linear-gradient(90deg,rgba(13,27,42,0.80)_0%,rgba(13,27,42,0.60)_38%,rgba(13,27,42,0.32)_68%,rgba(13,27,42,0)_100%)]" />
+            <div className="absolute inset-y-0 left-0 z-[2] w-[52%] bg-[radial-gradient(circle_at_28%_40%,rgba(0,0,0,0.26),transparent_66%)]" />
 
-            <div className="absolute left-[clamp(52px,4.45vw,96px)] top-[clamp(78px,5.7vw,124px)] z-10 w-[clamp(520px,43vw,840px)] transform-none will-change-auto">
-              <div className="mb-[clamp(14px,1.5vw,26px)] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/66 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
+            <div
+              className={`absolute left-[clamp(72px,4.7vw,102px)] top-[clamp(86px,5.65vw,122px)] z-10 w-[clamp(600px,42vw,850px)] transform-none ${
+                heroReady ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <div className="mb-[clamp(14px,1.35vw,24px)] inline-flex h-[44px] items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/68 px-5 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
                 <Star size={15} fill="currentColor" />
                 데이터 기반 맞춤 학습 플랫폼
               </div>
 
-              <h1 className="min-h-[clamp(112px,8.2vw,170px)] font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.25vw,70px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.50)]">
-                <span className="block whitespace-nowrap text-white">{banner.title}</span>
-                <span className="block whitespace-nowrap text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.38)]">
+              <h1 className="h-[clamp(120px,8.1vw,166px)] font-black leading-[1.12] tracking-[-0.045em] text-[clamp(38px,3.2vw,70px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.52)]">
+                <span className="block whitespace-nowrap text-white">
+                  {banner.title}
+                </span>
+                <span className="block whitespace-nowrap text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.40)]">
                   {banner.highlight}
                 </span>
               </h1>
 
-              <p className="mt-[clamp(12px,1.2vw,22px)] min-h-[clamp(44px,3.5vw,70px)] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.50)]">
+              <p className="mt-[clamp(6px,0.75vw,14px)] h-[clamp(48px,3.5vw,70px)] max-w-[790px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.52)]">
                 {banner.subtitle}
               </p>
 
-              <div className="mt-[clamp(22px,2.2vw,38px)] flex flex-wrap gap-4">
+              <div className="mt-[clamp(24px,2vw,36px)] flex h-[56px] flex-wrap gap-4">
                 <Link
                   to="/signup"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
+                  className="inline-flex h-[56px] items-center gap-2 rounded-xl bg-white px-[clamp(22px,1.65vw,32px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
                 >
                   지금 시작하기
                   <ArrowRight size={20} />
@@ -158,19 +205,19 @@ export default function Home() {
 
                 <Link
                   to="/services"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/38 bg-[#0D1B2A]/30 px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-white shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-white/65 hover:bg-[#0D1B2A]/44"
+                  className="inline-flex h-[56px] items-center gap-2 rounded-xl border border-white/38 bg-[#0D1B2A]/34 px-[clamp(22px,1.65vw,32px)] text-[clamp(14px,0.9vw,18px)] font-black text-white shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-white/65 hover:bg-[#0D1B2A]/46"
                 >
                   서비스 둘러보기
                   <PlayCircle size={20} />
                 </Link>
               </div>
 
-              <div className="mt-[clamp(20px,1.9vw,34px)] flex items-center gap-4">
+              <div className="mt-[clamp(22px,1.8vw,32px)] flex h-[50px] items-center gap-4">
                 <div className="flex -space-x-3">
                   {['김', '이', '박', '최'].map((item) => (
                     <div
                       key={item}
-                      className="flex h-[clamp(38px,2.45vw,48px)] w-[clamp(38px,2.45vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
+                      className="flex h-[clamp(40px,2.35vw,48px)] w-[clamp(40px,2.35vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
                     >
                       {item}
                     </div>
@@ -178,19 +225,24 @@ export default function Home() {
                 </div>
 
                 <p className="text-[clamp(12px,0.82vw,16px)] font-bold leading-[1.45] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]">
-                  <span className="text-[clamp(16px,1.05vw,20px)] font-black text-[#D6B06A]">1,240+</span> 학생들이
+                  <span className="text-[clamp(16px,1.05vw,20px)] font-black text-[#D6B06A]">
+                    1,240+
+                  </span>{' '}
+                  학생들이
                   <br />
                   위닝에듀와 함께 하고 있어요!
                 </p>
               </div>
 
-              <div className="mt-[clamp(18px,1.7vw,30px)] flex gap-2">
+              <div className="mt-[clamp(18px,1.45vw,28px)] flex h-[12px] gap-2">
                 {banners.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentBanner(index)}
                     className={`h-2.5 rounded-full transition-all ${
-                      currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/35'
+                      currentBanner === index
+                        ? 'w-10 bg-white'
+                        : 'w-2.5 bg-white/35'
                     }`}
                     aria-label={`배너 ${index + 1}`}
                   />
@@ -220,8 +272,12 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <p className="text-2xl font-black text-[#0D1B2A]">{item.value}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-500">{item.label}</p>
+                  <p className="text-2xl font-black text-[#0D1B2A]">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-500">
+                    {item.label}
+                  </p>
                 </div>
               </div>
             );
@@ -232,7 +288,9 @@ export default function Home() {
       <section className="mx-auto max-w-[1500px] px-8 py-14">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <p className="text-sm font-black text-[#B88737]">위닝에듀 핵심 서비스</p>
+            <p className="text-sm font-black text-[#B88737]">
+              위닝에듀 핵심 서비스
+            </p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0D1B2A]">
               위닝 서포터와 완성하는 대입 성공 전략
             </h2>
@@ -312,7 +370,9 @@ export default function Home() {
         <div className="rounded-3xl border border-[#0D1B2A]/10 bg-white p-7 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="mb-1 text-sm font-black text-[#B88737]">합격 사례</p>
+              <p className="mb-1 text-sm font-black text-[#B88737]">
+                합격 사례
+              </p>
               <h3 className="text-2xl font-black text-[#0D1B2A]">
                 합격으로 증명하는 위닝에듀
               </h3>
@@ -324,13 +384,20 @@ export default function Home() {
 
           <div className="grid gap-4 md:grid-cols-3">
             {proofCards.map(([name, result, desc]) => (
-              <article key={name} className="rounded-2xl border border-[#0D1B2A]/10 bg-[#FAF9F5] p-4">
+              <article
+                key={name}
+                className="rounded-2xl border border-[#0D1B2A]/10 bg-[#FAF9F5] p-4"
+              >
                 <div className="mb-4 flex h-24 items-center justify-center rounded-xl bg-[#0D1B2A] text-white">
                   <GraduationCap size={34} />
                 </div>
                 <p className="font-black text-[#0D1B2A]">{name}</p>
-                <p className="mt-1 text-sm font-black text-[#B88737]">{result}</p>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-600">{desc}</p>
+                <p className="mt-1 text-sm font-black text-[#B88737]">
+                  {result}
+                </p>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
+                  {desc}
+                </p>
               </article>
             ))}
           </div>
@@ -356,7 +423,9 @@ export default function Home() {
 
             <div className="mt-5 border-t border-white/10 pt-4">
               <p className="font-black text-white">김OO 학생</p>
-              <p className="mt-1 text-sm font-bold text-[#D6B06A]">서울대학교 합격</p>
+              <p className="mt-1 text-sm font-bold text-[#D6B06A]">
+                서울대학교 합격
+              </p>
             </div>
           </div>
         </div>
