@@ -63,11 +63,8 @@ export default function Header() {
   }, []);
 
   async function handleLogout() {
-  try {
-    await supabase.auth.signOut({ scope: 'global' });
-  } catch (error) {
-    console.error('로그아웃 오류:', error);
-  }
+  setSession(null);
+  setRole(null);
 
   try {
     Object.keys(window.localStorage).forEach((key) => {
@@ -93,7 +90,11 @@ export default function Header() {
     console.error('로컬 세션 삭제 오류:', error);
   }
 
-  window.location.replace('/login');
+  supabase.auth.signOut({ scope: 'global' }).catch((error) => {
+    console.error('로그아웃 오류:', error);
+  });
+
+  window.location.href = '/login';
 }
 
   return (
