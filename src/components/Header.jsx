@@ -1,7 +1,16 @@
+import { useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 
 export default function Header() {
+  useLayoutEffect(() => {
+    const preHeader = document.getElementById('pre-header');
+
+    if (preHeader) {
+      preHeader.remove();
+    }
+  }, []);
+
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
       <div className="mx-auto flex h-[84px] max-w-[1500px] items-center justify-between px-8">
