@@ -94,7 +94,7 @@ export default function Header() {
     console.error('로그아웃 오류:', error);
   });
 
-  window.location.href = '/login';
+  navigate('/login', { replace: true });
 }
 
   return (
