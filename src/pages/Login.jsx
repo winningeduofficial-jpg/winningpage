@@ -122,11 +122,13 @@ export default function Login() {
             <h1 className="mt-8 text-[44px] font-black leading-[1.15] tracking-[-0.04em] md:text-[58px]">
               로그인 후,
               <br />
-              <span className="text-[#D7B56D]">나만의 학습 리포트</span>를 확인하세요
+              <span className="text-[#D7B56D]">나만의 위닝 서비스</span>를
+              <br />
+              확인하세요
             </h1>
 
             <p className="mt-6 max-w-xl text-lg font-bold leading-8 text-white/78">
-              주간 학습 데이터, 목표 달성률, 합격 가능성 변화를 한 화면에서 확인하고 다음 전략까지 이어갑니다.
+              내 입시를 위한 선택, 역시 입시는 위닝에듀입니다.
             </p>
 
             <div className="mt-10 grid max-w-xl grid-cols-3 overflow-hidden rounded-3xl border border-white/12 bg-white/[0.07] backdrop-blur-xl">
@@ -141,7 +143,7 @@ export default function Login() {
               </div>
 
               <div className="p-5">
-                <p className="text-2xl font-black text-white">18.7점</p>
+                <p className="text-2xl font-black text-white">평균 18.7점</p>
                 <p className="mt-1 text-xs font-extrabold text-white/58">평균 성장 폭</p>
               </div>
             </div>
@@ -158,10 +160,6 @@ export default function Login() {
                   <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
                     로그인
                   </h2>
-
-                  <p className="mt-2 text-sm font-bold leading-6 text-[#5B6573]">
-                    등록된 계정으로 학습 관리 서비스를 이용하세요.
-                  </p>
                 </div>
 
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white shadow-[0_16px_30px_rgba(13,27,42,0.28)]">
@@ -234,12 +232,12 @@ export default function Login() {
               <div className="mt-6 grid gap-3 rounded-3xl border border-[#0D1B2A]/8 bg-[#F8F7F3] p-4 text-sm font-bold text-[#5B6573]">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 size={18} className="text-[#B88737]" />
-                  학습 리포트와 상담 내역을 안전하게 관리합니다.
+                  개인정보와 상담 내역을 안전하게 관리합니다.
                 </div>
 
                 <div className="flex items-center gap-3">
                   <BarChart3 size={18} className="text-[#B88737]" />
-                  관리자 계정은 로그인 후 관리자 페이지로 이동합니다.
+                  다양한 위닝 서비스들을 만나볼 수 있습니다.
                 </div>
               </div>
 
@@ -249,7 +247,7 @@ export default function Login() {
                   to="/signup"
                   className="font-black text-[#B88737] hover:text-[#8F6421]"
                 >
-                  새로 시작하기
+                  회원가입
                 </Link>
               </p>
             </div>
