@@ -115,91 +115,91 @@ export default function Home() {
   const banner = banners[currentBanner];
 
   return (
-  <main className="bg-[#F8F7F3] pt-[84px]">
-    <section className="relative isolate overflow-hidden bg-[#F7F3EA] text-white">
-      <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
-        <div className="relative aspect-[2172/724] w-full">
-          <img
-            src={banner.image}
-            alt=""
-            loading={currentBanner === 0 ? 'eager' : 'lazy'}
-            fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
-            className="absolute inset-0 h-full w-full object-cover object-center"
-          />
+    <main className="bg-[#F8F7F3] pt-[84px]">
+      <section className="relative isolate overflow-hidden bg-[#F7F3EA] text-white">
+        <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
+          <div className="relative aspect-[2172/724] w-full">
+            <img
+              src={banner.image}
+              alt=""
+              loading={currentBanner === 0 ? 'eager' : 'lazy'}
+              fetchPriority={currentBanner === 0 ? 'high' : 'auto'}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
 
-          <div className="absolute inset-y-0 left-0 z-[1] w-[58%] bg-[linear-gradient(90deg,rgba(13,27,42,0.72)_0%,rgba(13,27,42,0.48)_43%,rgba(13,27,42,0.22)_72%,rgba(13,27,42,0)_100%)]" />
-          <div className="absolute inset-y-0 left-0 z-[2] w-[48%] bg-[radial-gradient(circle_at_28%_38%,rgba(0,0,0,0.22),transparent_62%)]" />
+            <div className="absolute inset-y-0 left-0 z-[1] w-[60%] bg-[linear-gradient(90deg,rgba(13,27,42,0.76)_0%,rgba(13,27,42,0.54)_42%,rgba(13,27,42,0.25)_72%,rgba(13,27,42,0)_100%)]" />
+            <div className="absolute inset-y-0 left-0 z-[2] w-[50%] bg-[radial-gradient(circle_at_26%_38%,rgba(0,0,0,0.24),transparent_64%)]" />
 
-          <div className="absolute left-[4.6%] top-[18%] z-10 w-[47%] max-w-[900px] translate-x-0 transform-none">
-            <div className="mb-[3%] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/62 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
-              <Star size={15} fill="currentColor" />
-              데이터 기반 맞춤 학습 플랫폼
-            </div>
-
-            <h1 className="font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.3vw,72px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.48)]">
-              <span className="block break-keep text-white">{banner.title}</span>
-              <span className="block break-keep text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.35)]">
-                {banner.highlight}
-              </span>
-            </h1>
-
-            <p className="mt-[3.5%] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.48)]">
-              {banner.subtitle}
-            </p>
-
-            <div className="mt-[4.8%] flex flex-wrap gap-4">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
-              >
-                지금 시작하기
-                <ArrowRight size={20} />
-              </Link>
-
-              <Link
-                to="/services"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/38 bg-[#0D1B2A]/30 px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-white shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-white/65 hover:bg-[#0D1B2A]/44"
-              >
-                서비스 둘러보기
-                <PlayCircle size={20} />
-              </Link>
-            </div>
-
-            <div className="mt-[4%] flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {['김', '이', '박', '최'].map((item) => (
-                  <div
-                    key={item}
-                    className="flex h-[clamp(38px,2.45vw,48px)] w-[clamp(38px,2.45vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
-                  >
-                    {item}
-                  </div>
-                ))}
+            <div className="absolute left-[clamp(52px,4.45vw,96px)] top-[clamp(78px,5.7vw,124px)] z-10 w-[clamp(520px,43vw,840px)] transform-none will-change-auto">
+              <div className="mb-[clamp(14px,1.5vw,26px)] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/66 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
+                <Star size={15} fill="currentColor" />
+                데이터 기반 맞춤 학습 플랫폼
               </div>
 
-              <p className="text-[clamp(12px,0.82vw,16px)] font-bold leading-[1.45] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]">
-                <span className="text-[clamp(16px,1.05vw,20px)] font-black text-[#D6B06A]">1,240+</span> 학생들이
-                <br />
-                위닝에듀와 함께 하고 있어요!
-              </p>
-            </div>
+              <h1 className="min-h-[clamp(112px,8.2vw,170px)] font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.25vw,70px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.50)]">
+                <span className="block whitespace-nowrap text-white">{banner.title}</span>
+                <span className="block whitespace-nowrap text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.38)]">
+                  {banner.highlight}
+                </span>
+              </h1>
 
-            <div className="mt-[4%] flex gap-2">
-              {banners.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentBanner(index)}
-                  className={`h-2.5 rounded-full transition-all ${
-                    currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/35'
-                  }`}
-                  aria-label={`배너 ${index + 1}`}
-                />
-              ))}
+              <p className="mt-[clamp(12px,1.2vw,22px)] min-h-[clamp(44px,3.5vw,70px)] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.50)]">
+                {banner.subtitle}
+              </p>
+
+              <div className="mt-[clamp(22px,2.2vw,38px)] flex flex-wrap gap-4">
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
+                >
+                  지금 시작하기
+                  <ArrowRight size={20} />
+                </Link>
+
+                <Link
+                  to="/services"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/38 bg-[#0D1B2A]/30 px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-white shadow-[0_14px_32px_rgba(0,0,0,0.18)] backdrop-blur transition hover:border-white/65 hover:bg-[#0D1B2A]/44"
+                >
+                  서비스 둘러보기
+                  <PlayCircle size={20} />
+                </Link>
+              </div>
+
+              <div className="mt-[clamp(20px,1.9vw,34px)] flex items-center gap-4">
+                <div className="flex -space-x-3">
+                  {['김', '이', '박', '최'].map((item) => (
+                    <div
+                      key={item}
+                      className="flex h-[clamp(38px,2.45vw,48px)] w-[clamp(38px,2.45vw,48px)] items-center justify-center rounded-full border-2 border-[#0D1B2A] bg-white text-sm font-black text-[#0D1B2A] shadow-md"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-[clamp(12px,0.82vw,16px)] font-bold leading-[1.45] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]">
+                  <span className="text-[clamp(16px,1.05vw,20px)] font-black text-[#D6B06A]">1,240+</span> 학생들이
+                  <br />
+                  위닝에듀와 함께 하고 있어요!
+                </p>
+              </div>
+
+              <div className="mt-[clamp(18px,1.7vw,30px)] flex gap-2">
+                {banners.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentBanner(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      currentBanner === index ? 'w-10 bg-white' : 'w-2.5 bg-white/35'
+                    }`}
+                    aria-label={`배너 ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       <section className="relative z-30 mx-auto mt-8 max-w-[1500px] px-8">
         <div className="grid overflow-hidden rounded-[24px] border border-[#0D1B2A]/10 bg-white shadow-[0_24px_60px_rgba(13,27,42,0.13)] md:grid-cols-5">
