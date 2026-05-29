@@ -130,24 +130,24 @@ export default function Home() {
           <div className="absolute inset-y-0 left-0 z-[1] w-[58%] bg-[linear-gradient(90deg,rgba(13,27,42,0.72)_0%,rgba(13,27,42,0.48)_43%,rgba(13,27,42,0.22)_72%,rgba(13,27,42,0)_100%)]" />
           <div className="absolute inset-y-0 left-0 z-[2] w-[48%] bg-[radial-gradient(circle_at_28%_38%,rgba(0,0,0,0.22),transparent_62%)]" />
 
-          <div className="absolute left-[4.6%] top-[18%] z-10 max-w-[47%]">
-            <div className="reveal-1 mb-[3%] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/62 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
+          <div className="absolute left-[4.6%] top-[18%] z-10 w-[47%] max-w-[900px] translate-x-0 transform-none">
+            <div className="mb-[3%] inline-flex items-center gap-2 rounded-full border border-[#D6B06A]/55 bg-[#0D1B2A]/62 px-5 py-2 text-[clamp(12px,0.75vw,15px)] font-extrabold text-[#D6B06A] shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur">
               <Star size={15} fill="currentColor" />
               데이터 기반 맞춤 학습 플랫폼
             </div>
 
-            <h1 className="reveal-2 font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.3vw,72px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.48)]">
+            <h1 className="font-black leading-[1.12] tracking-[-0.045em] text-[clamp(36px,3.3vw,72px)] drop-shadow-[0_4px_18px_rgba(0,0,0,0.48)]">
               <span className="block break-keep text-white">{banner.title}</span>
               <span className="block break-keep text-[#D6B06A] drop-shadow-[0_3px_14px_rgba(0,0,0,0.35)]">
                 {banner.highlight}
               </span>
             </h1>
 
-            <p className="reveal-3 mt-[3.5%] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.48)]">
+            <p className="mt-[3.5%] max-w-[760px] break-keep text-[clamp(14px,1vw,20px)] font-extrabold leading-[1.65] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.48)]">
               {banner.subtitle}
             </p>
 
-            <div className="reveal-4 mt-[4.8%] flex flex-wrap gap-4">
+            <div className="mt-[4.8%] flex flex-wrap gap-4">
               <Link
                 to="/signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-[clamp(20px,1.7vw,32px)] py-[clamp(11px,0.9vw,16px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
@@ -165,7 +165,7 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="reveal-5 mt-[4%] flex items-center gap-4">
+            <div className="mt-[4%] flex items-center gap-4">
               <div className="flex -space-x-3">
                 {['김', '이', '박', '최'].map((item) => (
                   <div
