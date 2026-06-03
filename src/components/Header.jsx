@@ -5,35 +5,50 @@ import { supabase } from '../lib/supabase';
 
 const CSAT_DATE = '2026-11-19';
 
-function getCsdDay() {
-  const today = new Date();
+function getCsatDay() {
+  const now = new Date();
   const todayKst = new Date(
-    today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+    now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
   );
-  const start = new Date(
+  const today = new Date(
     todayKst.getFullYear(),
     todayKst.getMonth(),
     todayKst.getDate()
   );
   const target = new Date(`${CSAT_DATE}T00:00:00+09:00`);
-  const diff = Math.ceil((target.getTime() - start.getTime()) / 86400000);
+  const diff = Math.ceil((target.getTime() - today.getTime()) / 86400000);
 
   if (diff > 0) return `수능 D-${diff}`;
   if (diff === 0) return '수능 D-DAY';
   return `수능 D+${Math.abs(diff)}`;
 }
 
-function getMemberLabel(profile) {
-  const raw = String(profile?.member_type || '').trim().toLowerCase();
+function cleanText(value) {
+  return String(value || '').trim();
+}
 
-  if (profile?.role === 'admin') return '관리자';
+function getDisplayName(profile) {
+  const name = cleanText(profile?.name);
+
+  // profiles.name만 이름으로 사용한다.
+  // username/email은 이름이 아니므로 헤더 이름으로 절대 대체하지 않는다.
+  return name || '회원';
+}
+
+function getMemberLabel(profile) {
+  const raw = cleanText(profile?.member_type).toLowerCase();
+  const role = cleanText(profile?.role).toLowerCase();
+
+  if (role === 'admin') return '관리자';
   if (['student', '학생', '학생회원'].includes(raw)) return '학생회원';
-  if (['parent', '학부모', '학부모회원'].includes(raw)) return '학부모회원';
-  if (['teacher', 'mentor', '멘토', '교사', '선생님'].includes(raw)) return '멘토회원';
+  if (['parent', 'parents', '학부모', '학부모회원'].includes(raw)) return '학부모회원';
+  if (['teacher', 'mentor', '멘토', '교사', '선생님', '선생님회원'].includes(raw)) {
+    return '멘토회원';
+  }
   if (!raw) return '회원';
   if (raw.endsWith('회원')) return raw;
 
-  return `${profile.member_type}회원`;
+  return `${raw}회원`;
 }
 
 export default function Header() {
@@ -41,19 +56,16 @@ export default function Header() {
 
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [csatDDay, setCsatDDay] = useState(getCsdDay());
+  const [csatDDay, setCsatDDay] = useState(getCsatDay());
 
   useLayoutEffect(() => {
     const preHeader = document.getElementById('pre-header');
-
-    if (preHeader) {
-      preHeader.remove();
-    }
+    if (preHeader) preHeader.remove();
   }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setCsatDDay(getCsdDay());
+      setCsatDDay(getCsatDay());
     }, 60 * 60 * 1000);
 
     return () => window.clearInterval(timer);
@@ -62,15 +74,17 @@ export default function Header() {
   useEffect(() => {
     let alive = true;
 
-    async function loadProfile(userId) {
+    async function loadProfile(nextSession) {
+      const userId = nextSession?.user?.id;
+
       if (!userId) {
-        setProfile(null);
+        if (alive) setProfile(null);
         return;
       }
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, role, member_type')
+        .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
         .eq('id', userId)
         .maybeSingle();
 
@@ -85,29 +99,36 @@ export default function Header() {
       setProfile(data || null);
     }
 
-    async function loadSession() {
+    async function syncSession() {
       const { data } = await supabase.auth.getSession();
-      const currentSession = data.session;
+      const nextSession = data?.session || null;
 
       if (!alive) return;
 
-      setSession(currentSession);
-      await loadProfile(currentSession?.user?.id);
+      setSession(nextSession);
+      await loadProfile(nextSession);
     }
 
-    loadSession();
+    syncSession();
+
+    function handleProfileUpdated() {
+      syncSession();
+    }
+
+    window.addEventListener('winning-profile-updated', handleProfileUpdated);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
         if (!alive) return;
-        setSession(nextSession);
-        await loadProfile(nextSession?.user?.id);
+        setSession(nextSession || null);
+        await loadProfile(nextSession || null);
       }
     );
 
     return () => {
       alive = false;
-      authListener.subscription.unsubscribe();
+      window.removeEventListener('winning-profile-updated', handleProfileUpdated);
+      authListener?.subscription?.unsubscribe?.();
     };
   }, []);
 
@@ -116,7 +137,7 @@ export default function Header() {
     setProfile(null);
 
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'global' });
     } catch (error) {
       console.error('로그아웃 오류:', error);
     }
@@ -148,8 +169,9 @@ export default function Header() {
     navigate('/', { replace: true });
   }
 
-  const displayName = profile?.name || session?.user?.email?.split('@')[0] || '회원';
+  const displayName = getDisplayName(profile);
   const memberLabel = getMemberLabel(profile);
+  const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
@@ -228,7 +250,7 @@ export default function Header() {
                 마이페이지
               </Link>
 
-              {profile?.role === 'admin' && (
+              {isAdmin && (
                 <Link
                   to="/admin"
                   className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
