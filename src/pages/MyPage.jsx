@@ -30,28 +30,45 @@ function cleanText(value) {
   return String(value || '').trim();
 }
 
-async function queryProfile(user) {
-  const byId = await supabase
-    .from('profiles')
-    .select('id, name, email, phone, region, school_type, school_name, member_type, role')
-    .eq('id', user.id)
-    .maybeSingle();
+function withTimeout(promise, ms, fallbackValue = null) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      window.setTimeout(() => resolve(fallbackValue), ms);
+    })
+  ]);
+}
 
-  if (!byId.error && byId.data?.name) return byId.data;
+async function queryProfile(user) {
+  const byId = await withTimeout(
+    supabase
+      .from('profiles')
+      .select('id, name, email, phone, region, school_type, school_name, member_type, role')
+      .eq('id', user.id)
+      .maybeSingle(),
+    3500,
+    { data: null, error: new Error('profile_timeout') }
+  );
+
+  if (!byId?.error && byId?.data?.name) return byId.data;
 
   const email = cleanText(user.email).toLowerCase();
 
   if (email) {
-    const byEmail = await supabase
-      .from('profiles')
-      .select('id, name, email, phone, region, school_type, school_name, member_type, role')
-      .eq('email', email)
-      .maybeSingle();
+    const byEmail = await withTimeout(
+      supabase
+        .from('profiles')
+        .select('id, name, email, phone, region, school_type, school_name, member_type, role')
+        .eq('email', email)
+        .maybeSingle(),
+      3500,
+      { data: null, error: new Error('profile_timeout') }
+    );
 
-    if (!byEmail.error && byEmail.data?.name) return byEmail.data;
+    if (!byEmail?.error && byEmail?.data?.name) return byEmail.data;
   }
 
-  return byId.data || {};
+  return byId?.data || {};
 }
 
 export default function MyPage() {
@@ -79,8 +96,12 @@ export default function MyPage() {
       setLoading(true);
 
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const currentUser = sessionData?.session?.user;
+        const sessionResult = await withTimeout(
+          supabase.auth.getSession(),
+          3500,
+          { data: { session: null } }
+        );
+        const currentUser = sessionResult?.data?.session?.user;
 
         if (!alive) return;
 
@@ -315,4 +336,3 @@ export default function MyPage() {
     </main>
   );
 }
-
