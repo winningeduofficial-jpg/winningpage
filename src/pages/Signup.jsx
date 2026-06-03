@@ -40,7 +40,7 @@ const TERMS_CONTENT = {
     title: '개인정보 수집 및 이용 필수 동의',
     content: `
 1. 수집 항목
-- 이름, 아이디, 이메일 주소, 휴대전화번호, 지역, 재학 구분, 학교명, 회원 유형
+- 이름, 이메일 주소, 휴대전화번호, 지역, 재학 구분, 학교명, 회원 유형
 
 2. 이용 목적
 - 회원 식별 및 본인 확인
@@ -136,7 +136,6 @@ export default function Signup() {
 
   const [form, setForm] = useState({
     name: '',
-    username: '',
     password: '',
     passwordConfirm: '',
     phone: '',
@@ -147,7 +146,7 @@ export default function Signup() {
     schoolName: ''
   });
 
-  const [usernameCheck, setUsernameCheck] = useState({
+  const [emailCheck, setEmailCheck] = useState({
     checked: false,
     available: false,
     message: ''
@@ -226,7 +225,7 @@ export default function Signup() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('username, member_type')
+        .select('email, member_type')
         .eq('id', currentUser.id)
         .maybeSingle();
 
@@ -240,7 +239,7 @@ export default function Signup() {
         return;
       }
 
-      if (profile?.username && profile?.member_type) {
+      if (profile?.email && profile?.member_type) {
         navigate('/', { replace: true });
         return;
       }
@@ -287,15 +286,12 @@ export default function Signup() {
       [key]: value
     }));
 
-    if (key === 'username') {
-      setUsernameCheck({
+    if (key === 'email') {
+      setEmailCheck({
         checked: false,
         available: false,
         message: ''
       });
-    }
-
-    if (key === 'email') {
       setEmailVerification({
         requested: false,
         verified: false,
@@ -360,66 +356,76 @@ export default function Signup() {
     return errorMessage;
   }
 
-  function isValidUsername(value) {
-    return /^[a-zA-Z0-9_]{4,20}$/.test(value);
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   }
 
   function isValidPassword(value) {
-  return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
-}
+    return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
+  }
 
   function isValidPhone(value) {
     return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
   }
 
-  async function checkUsernameDuplicate() {
-  const username = form.username.trim();
+  async function checkEmailDuplicate() {
+    const normalizedEmail = form.email.trim().toLowerCase();
 
-  setMessage('');
+    setMessage('');
 
-  if (!isValidUsername(username)) {
-    setUsernameCheck({
+    if (!normalizedEmail) {
+      setEmailCheck({
+        checked: false,
+        available: false,
+        message: '이메일을 먼저 입력해 주세요.'
+      });
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setEmailCheck({
+        checked: false,
+        available: false,
+        message: '이메일 형식이 올바르지 않습니다.'
+      });
+      return;
+    }
+
+    setEmailCheck({
       checked: false,
       available: false,
-      message: '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.'
+      message: '이메일 중복 여부를 확인하는 중입니다.'
     });
-    return;
-  }
 
-  setUsernameCheck({
-    checked: false,
-    available: false,
-    message: '아이디 중복 여부를 확인하는 중입니다.'
-  });
-
-  const { data, error } = await supabase.rpc('is_username_available', {
-    check_username: username
-  });
-
-  if (error) {
-    setUsernameCheck({
-      checked: false,
-      available: false,
-      message: '중복확인 기능을 사용할 수 없습니다. Supabase 함수를 확인해 주세요.'
+    const { data, error } = await supabase.rpc('is_email_available', {
+      check_email: normalizedEmail
     });
-    return;
-  }
 
-  if (data === true) {
-    setUsernameCheck({
+    if (error) {
+      console.error('이메일 중복확인 오류:', error);
+      setEmailCheck({
+        checked: false,
+        available: false,
+        message: '중복확인 기능을 사용할 수 없습니다. Supabase SQL을 먼저 실행해 주세요.'
+      });
+      return;
+    }
+
+    if (data === true) {
+      setEmailCheck({
+        checked: true,
+        available: true,
+        message: '사용 가능한 이메일입니다.'
+      });
+      return;
+    }
+
+    setEmailCheck({
       checked: true,
-      available: true,
-      message: '사용 가능한 아이디입니다.'
+      available: false,
+      message: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.'
     });
-    return;
   }
-
-  setUsernameCheck({
-    checked: true,
-    available: false,
-    message: '이미 사용 중인 아이디입니다.'
-  });
-}
 
   async function requestEmailVerification() {
     const normalizedEmail = form.email.trim().toLowerCase();
@@ -435,13 +441,20 @@ export default function Signup() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(normalizedEmail)) {
+    if (!isValidEmail(normalizedEmail)) {
       setEmailVerification({
         requested: false,
         verified: false,
         message: '이메일 형식이 올바르지 않습니다.'
+      });
+      return;
+    }
+
+    if (!emailCheck.checked || !emailCheck.available) {
+      setEmailVerification({
+        requested: false,
+        verified: false,
+        message: '이메일 중복확인을 먼저 완료해 주세요.'
       });
       return;
     }
@@ -478,7 +491,6 @@ export default function Signup() {
           email: normalizedEmail,
           name: form.name.trim(),
           full_name: form.name.trim(),
-          username: form.username.trim(),
           member_type: memberType,
           role: 'user'
         }
@@ -542,11 +554,11 @@ export default function Signup() {
     if (currentUser?.id) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('username, member_type')
+        .select('email, member_type')
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      if (profile?.username && profile?.member_type) {
+      if (profile?.email && profile?.member_type) {
         setEmailVerification({
           requested: true,
           verified: false,
@@ -565,21 +577,12 @@ export default function Signup() {
 
   function validateStepTwo() {
     const normalizedName = form.name.trim();
-    const normalizedUsername = form.username.trim();
     const normalizedPhone = form.phone.trim();
     const normalizedEmail = form.email.trim().toLowerCase();
 
     if (!memberType) return '회원 유형을 선택해 주세요.';
 
     if (!normalizedName) return '이름을 입력해 주세요.';
-
-    if (!isValidUsername(normalizedUsername)) {
-      return '아이디는 영문, 숫자, 밑줄 조합 4~20자로 입력해 주세요.';
-    }
-
-    if (!usernameCheck.checked || !usernameCheck.available) {
-      return '아이디 중복확인을 완료해 주세요.';
-    }
 
     if (!isValidPassword(form.password)) {
   return '비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.';
@@ -595,6 +598,10 @@ export default function Signup() {
 
     if (!normalizedEmail) {
       return '이메일을 입력해 주세요.';
+    }
+
+    if (!emailCheck.checked || !emailCheck.available) {
+      return '이메일 중복확인을 완료해 주세요.';
     }
 
     if (!emailVerification.verified) {
@@ -632,8 +639,7 @@ export default function Signup() {
 
     try {
       const normalizedName = form.name.trim();
-      const normalizedUsername = form.username.trim();
-      const normalizedEmail = form.email.trim().toLowerCase();
+        const normalizedEmail = form.email.trim().toLowerCase();
       const normalizedPhone = String(form.phone || '').replaceAll('-', '').trim();
       const normalizedSchoolName =
         form.schoolType === 'N수생' ? '' : form.schoolName.trim();
@@ -665,7 +671,7 @@ export default function Signup() {
         'complete_signup_profile',
         {
           p_name: normalizedName,
-          p_username: normalizedUsername,
+          p_username: normalizedEmail,
           p_phone: normalizedPhone,
           p_email: normalizedEmail,
           p_region: form.region,
@@ -682,17 +688,6 @@ export default function Signup() {
 
       if (profileError) {
         const errorMessage = String(profileError.message || '').toLowerCase();
-
-        if (errorMessage.includes('duplicate_username')) {
-          setMessage('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.');
-          setUsernameCheck({
-            checked: false,
-            available: false,
-            message: '이미 사용 중인 아이디입니다.'
-          });
-          return;
-        }
-
         if (errorMessage.includes('duplicate_email')) {
           setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
           return;
@@ -1033,47 +1028,8 @@ export default function Signup() {
                     />
 
                     <div>
-                      <label className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                        아이디
-                      </label>
-
-                      <div className="flex gap-2">
-                        <div className="flex h-14 flex-1 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
-                          <UserRound size={19} className="text-[#8B95A1]" />
-
-                          <input
-                            type="text"
-                            placeholder="영문/숫자 4~20자"
-                            className="h-full w-full bg-transparent text-[15px] font-bold text-[#0D1B2A] outline-none placeholder:text-[#9AA3AF]"
-                            value={form.username}
-                            onChange={(e) => updateForm('username', e.target.value)}
-                            autoComplete="username"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={checkUsernameDuplicate}
-                          className="h-14 rounded-2xl border border-[#0D1B2A] bg-white px-4 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
-                        >
-                          중복확인
-                        </button>
-                      </div>
-
-                      {usernameCheck.message && (
-                        <p
-                          className={`mt-2 text-sm font-bold ${
-                            usernameCheck.available ? 'text-[#15803D]' : 'text-red-600'
-                          }`}
-                        >
-                          {usernameCheck.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-  <InputField
-    label="비밀번호"
+                      <InputField
+                        label="비밀번호"
     icon={<LockKeyhole size={19} />}
     type="password"
     value={form.password}
@@ -1134,12 +1090,30 @@ export default function Signup() {
 
                         <button
                           type="button"
+                          onClick={checkEmailDuplicate}
+                          className="h-14 shrink-0 rounded-2xl border border-[#0D1B2A] bg-white px-4 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
+                        >
+                          중복확인
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={requestEmailVerification}
-                          className="h-14 rounded-2xl border border-[#0D1B2A] bg-white px-4 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
+                          className="h-14 shrink-0 rounded-2xl border border-[#0D1B2A] bg-white px-4 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
                         >
                           인증요청
                         </button>
                       </div>
+
+                      {emailCheck.message && (
+                        <p
+                          className={`mt-2 text-sm font-bold ${
+                            emailCheck.available ? 'text-[#15803D]' : 'text-red-600'
+                          }`}
+                        >
+                          {emailCheck.message}
+                        </p>
+                      )}
 
                       {emailVerification.message && (
                         <p
@@ -1482,5 +1456,4 @@ function SelectField({ label, icon, value, onChange, placeholder, options }) {
       </div>
     </label>
   );
-}
-  
+}  
