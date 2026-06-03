@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import {
   ArrowRight,
   PlayCircle,
@@ -17,13 +18,14 @@ import {
   BookOpenCheck,
 } from 'lucide-react';
 
-const banners = [
+const DEFAULT_BANNERS = [
   {
     title: '데이터가 발견하고,',
     highlight: '위닝 서포터가 성장을 완성합니다',
     subtitle:
       '학생 개인별 학습 분석부터 대입 전략까지, 위닝에듀가 최적의 길을 제시합니다.',
     image: '/images/banner-1.png',
+    image_url: '/images/banner-1.png',
   },
   {
     title: '학습 기록이 쌓이면,',
@@ -31,6 +33,7 @@ const banners = [
     subtitle:
       '매일의 공부 데이터를 분석해 주간 리포트와 맞춤 전략으로 연결합니다.',
     image: '/images/banner-2.png',
+    image_url: '/images/banner-2.png',
   },
   {
     title: '수행평가와 세특까지,',
@@ -38,6 +41,7 @@ const banners = [
     subtitle:
       '진로와 과목을 연결해 학생부에 남는 탐구 흐름을 만듭니다.',
     image: '/images/banner-3.png',
+    image_url: '/images/banner-3.png',
   },
   {
     title: '부모님이 확인하는',
@@ -45,6 +49,7 @@ const banners = [
     subtitle:
       '학습 시간, 집중도, 과목 비중, 합격 가능성 변화를 한눈에 확인합니다.',
     image: '/images/banner-4.png',
+    image_url: '/images/banner-4.png',
   },
 ];
 
@@ -112,8 +117,45 @@ function preloadImage(src) {
 }
 
 export default function Home() {
+  const [banners, setBanners] = useState(DEFAULT_BANNERS);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchBanners() {
+      const { data, error } = await supabase
+        .from('banners')
+        .select('id, title, highlight, subtitle, image_url, button_text, button_link, sort_order, is_active')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error('배너 조회 오류:', error);
+        setBanners(DEFAULT_BANNERS);
+        return;
+      }
+
+      const normalized = (data || [])
+        .filter((item) => item.image_url)
+        .map((item) => ({
+          ...item,
+          image: item.image_url
+        }));
+
+      setBanners(normalized.length ? normalized : DEFAULT_BANNERS);
+      setCurrentBanner(0);
+    }
+
+    fetchBanners();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -123,24 +165,26 @@ export default function Home() {
         document.fonts && document.fonts.ready
           ? document.fonts.ready
           : Promise.resolve();
+      const firstImage = banners[0]?.image || banners[0]?.image_url;
 
-      await Promise.all([preloadImage(banners[0].image), fontReady]);
+      await Promise.all([preloadImage(firstImage), fontReady]);
 
       if (mounted) {
         setHeroReady(true);
       }
 
       banners.slice(1).forEach((item) => {
-        preloadImage(item.image);
+        preloadImage(item.image || item.image_url);
       });
     }
 
+    setHeroReady(false);
     prepareHero();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [banners]);
 
   useEffect(() => {
     if (!heroReady) return undefined;
@@ -150,7 +194,7 @@ export default function Home() {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [heroReady]);
+  }, [heroReady, banners.length]);
 
   const banner = banners[currentBanner];
 
@@ -160,7 +204,7 @@ export default function Home() {
         <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
           <div className="relative aspect-[2172/724] w-full">
             <img
-              src={banner.image}
+              src={banner.image || banner.image_url}
               alt=""
               loading="eager"
               decoding="sync"
@@ -196,10 +240,10 @@ export default function Home() {
 
               <div className="mt-[clamp(24px,2vw,36px)] flex h-[56px] flex-wrap gap-4">
                 <Link
-                  to="/signup"
+                  to={banner.button_link || "/signup"}
                   className="inline-flex h-[56px] items-center gap-2 rounded-xl bg-white px-[clamp(22px,1.65vw,32px)] text-[clamp(14px,0.9vw,18px)] font-black text-[#0D1B2A] shadow-[0_16px_36px_rgba(0,0,0,0.20)] transition hover:bg-[#F2EBDD]"
                 >
-                  지금 시작하기
+                  {banner.button_text || '지금 시작하기'}
                   <ArrowRight size={20} />
                 </Link>
 
@@ -433,3 +477,4 @@ export default function Home() {
     </main>
   );
 }
+
