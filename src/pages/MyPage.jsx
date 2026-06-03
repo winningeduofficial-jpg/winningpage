@@ -129,6 +129,17 @@ export default function MyPage() {
       return;
     }
 
+    await supabase.auth.updateUser({
+      data: {
+        name: form.name.trim(),
+        full_name: form.name.trim(),
+        member_type: form.member_type
+      }
+    }).catch((metadataError) => {
+      console.error('인증 메타데이터 저장 오류:', metadataError);
+    });
+
+    window.dispatchEvent(new Event('winning-profile-updated'));
     setMessage('개인정보가 저장되었습니다.');
   }
 
