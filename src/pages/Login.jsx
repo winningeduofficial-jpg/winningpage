@@ -1,79 +1,39 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, BarChart3, CheckCircle2, LockKeyhole, Mail, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [checkingSession, setCheckingSession] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
-    async function checkExistingSession() {
+    async function checkSession() {
       try {
-        const timeout = new Promise((resolve) => {
-          window.setTimeout(() => resolve({ timedOut: true }), 800);
-        });
-
-        const result = await Promise.race([
-          supabase.auth.getSession().then(({ data }) => ({ session: data?.session || null })),
-          timeout
-        ]);
+        const { data } = await supabase.auth.getSession();
 
         if (!alive) return;
 
-        // 로그아웃 직후에는 로그인 화면을 바로 보여준다.
-        if (result?.timedOut || !result?.session?.user?.id) {
-          setCheckingSession(false);
-          return;
+        if (data?.session?.user) {
+          navigate('/', { replace: true });
         }
-
-        const nextPath = await getRedirectPath(result.session.user.id);
-
-        if (!alive) return;
-        navigate(nextPath, { replace: true });
       } catch (error) {
-        console.error('로그인 세션 확인 오류:', error);
-        if (alive) setCheckingSession(false);
+        console.error('기존 세션 확인 오류:', error);
       }
     }
 
-    checkExistingSession();
+    checkSession();
 
     return () => {
       alive = false;
     };
   }, [navigate]);
-
-  async function getRedirectPath(userId) {
-    try {
-      const timeout = new Promise((resolve) => {
-        window.setTimeout(() => resolve({ data: null }), 1200);
-      });
-
-      const result = await Promise.race([
-        supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .maybeSingle(),
-        timeout
-      ]);
-
-      if (result?.data?.role === 'admin') return '/admin';
-    } catch (error) {
-      console.error('로그인 후 권한 확인 오류:', error);
-    }
-
-    return location.state?.from?.pathname || '/';
-  }
 
   function getFriendlyError(errorMessage) {
     if (!errorMessage) return '로그인 중 문제가 발생했습니다.';
@@ -92,34 +52,38 @@ export default function Login() {
   async function handleLogin(e) {
     e.preventDefault();
 
+    if (loading) return;
+
     setLoading(true);
     setMessage('');
 
-    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password
-    });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password
+      });
 
-    if (error) {
-      setMessage(getFriendlyError(error.message));
+      if (error) {
+        setMessage(getFriendlyError(error.message));
+        setLoading(false);
+        return;
+      }
+
+      if (!data?.user) {
+        setMessage('사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
-      return;
-    }
-
-    const userId = data.user?.id;
-
-    if (!userId) {
-      setMessage('사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('로그인 처리 오류:', error);
+      setMessage('로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.');
       setLoading(false);
-      return;
     }
-
-    const nextPath = await getRedirectPath(userId);
-
-    setLoading(false);
-    navigate(nextPath, { replace: true });
   }
 
   return (
@@ -167,19 +131,15 @@ export default function Login() {
 
           <div className="mx-auto w-full max-w-[480px]">
             <div className="rounded-[34px] border border-white/70 bg-white p-7 shadow-[0_28px_80px_rgba(13,27,42,0.28)] md:p-9">
-              <div className="flex items-start justify-between gap-5">
-                <div>
-                  <p className="text-sm font-black text-[#B88737]">
-                    WINNING EDU LOGIN
-                  </p>
+              <div>
+                <p className="text-sm font-black text-[#B88737]">
+                  WINNING EDU LOGIN
+                </p>
 
-                  <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                    로그인
-                  </h2>
-                </div>
-             </div>
-                
-            
+                <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
+                  로그인
+                </h2>
+              </div>
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
                 <label className="block">
