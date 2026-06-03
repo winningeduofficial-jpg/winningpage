@@ -60,10 +60,16 @@ export default function Login() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const loginPromise = supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password
       });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        window.setTimeout(() => reject(new Error('login_timeout')), 12000);
+      });
+
+      const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
 
       if (error) {
         setMessage(getFriendlyError(error.message));
@@ -78,10 +84,16 @@ export default function Login() {
       }
 
       setLoading(false);
-      navigate('/', { replace: true });
+      window.location.href = '/';
     } catch (error) {
       console.error('로그인 처리 오류:', error);
-      setMessage('로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.');
+
+      if (error?.message === 'login_timeout') {
+        setMessage('로그인 응답이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.');
+      } else {
+        setMessage('로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.');
+      }
+
       setLoading(false);
     }
   }
