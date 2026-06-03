@@ -26,6 +26,35 @@ const REGION_OPTIONS = [
   '기타'
 ];
 
+function cleanText(value) {
+  return String(value || '').trim();
+}
+
+async function fetchMyProfile(userId) {
+  const attempts = [
+    'name, username, email, phone, region, school_type, school_name, member_type',
+    'name, phone, member_type',
+    'name, phone',
+    'name'
+  ];
+
+  for (const columns of attempts) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(columns)
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!error) {
+      return data || {};
+    }
+
+    console.error(`마이페이지 조회 실패 - columns: ${columns}`, error);
+  }
+
+  return {};
+}
+
 export default function MyPage() {
   const navigate = useNavigate();
 
@@ -48,42 +77,42 @@ export default function MyPage() {
     let alive = true;
 
     async function loadProfile() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
+      setLoading(true);
 
-      if (!alive) return;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
 
-      if (!user) {
-        navigate('/login', { replace: true });
-        return;
+        if (!alive) return;
+
+        if (!user) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        const profile = await fetchMyProfile(user.id);
+
+        if (!alive) return;
+
+        setUserId(user.id);
+        setForm({
+          name: profile?.name || '',
+          username: profile?.username || user.user_metadata?.username || '',
+          email: profile?.email || user.email || '',
+          phone: profile?.phone || '',
+          region: profile?.region || '',
+          school_type: profile?.school_type || '',
+          school_name: profile?.school_name || '',
+          member_type: profile?.member_type || ''
+        });
+      } catch (error) {
+        console.error('마이페이지 로딩 오류:', error);
+        if (alive) {
+          setMessage('개인정보를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (alive) setLoading(false);
       }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('name, username, email, phone, region, school_type, school_name, member_type')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!alive) return;
-
-      if (error) {
-        setMessage('개인정보를 불러오지 못했습니다.');
-        setLoading(false);
-        return;
-      }
-
-      setUserId(user.id);
-      setForm({
-        name: profile?.name || '',
-        username: profile?.username || '',
-        email: profile?.email || user.email || '',
-        phone: profile?.phone || '',
-        region: profile?.region || '',
-        school_type: profile?.school_type || '',
-        school_name: profile?.school_name || '',
-        member_type: profile?.member_type || ''
-      });
-      setLoading(false);
     }
 
     loadProfile();
@@ -97,11 +126,50 @@ export default function MyPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  async function updateProfileWithFallback(payload) {
+    const attempts = [
+      payload,
+      {
+        name: payload.name,
+        phone: payload.phone,
+        member_type: payload.member_type,
+        updated_at: payload.updated_at
+      },
+      {
+        name: payload.name,
+        phone: payload.phone,
+        updated_at: payload.updated_at
+      },
+      {
+        name: payload.name,
+        updated_at: payload.updated_at
+      },
+      {
+        name: payload.name
+      }
+    ];
+
+    for (const nextPayload of attempts) {
+      const { error } = await supabase
+        .from('profiles')
+        .update(nextPayload)
+        .eq('id', userId);
+
+      if (!error) return null;
+
+      console.error('프로필 저장 실패 payload:', nextPayload, error);
+    }
+
+    return new Error('profile_update_failed');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!userId) return;
-    if (!form.name.trim()) {
+
+    const name = cleanText(form.name);
+    if (!name) {
       setMessage('이름을 입력해 주세요.');
       return;
     }
@@ -109,18 +177,17 @@ export default function MyPage() {
     setSaving(true);
     setMessage('');
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        region: form.region,
-        school_type: form.school_type,
-        school_name: form.school_name.trim(),
-        member_type: form.member_type,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    const payload = {
+      name,
+      phone: cleanText(form.phone),
+      region: form.region,
+      school_type: form.school_type,
+      school_name: cleanText(form.school_name),
+      member_type: form.member_type,
+      updated_at: new Date().toISOString()
+    };
+
+    const error = await updateProfileWithFallback(payload);
 
     setSaving(false);
 
@@ -129,15 +196,17 @@ export default function MyPage() {
       return;
     }
 
-    await supabase.auth.updateUser({
-      data: {
-        name: form.name.trim(),
-        full_name: form.name.trim(),
-        member_type: form.member_type
-      }
-    }).catch((metadataError) => {
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          name,
+          full_name: name,
+          member_type: form.member_type
+        }
+      });
+    } catch (metadataError) {
       console.error('인증 메타데이터 저장 오류:', metadataError);
-    });
+    }
 
     window.dispatchEvent(new Event('winning-profile-updated'));
     setMessage('개인정보가 저장되었습니다.');
@@ -171,16 +240,17 @@ export default function MyPage() {
           <label className="block">
             <span className="text-sm font-black">이름</span>
             <input
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
               value={form.name}
               onChange={(e) => updateForm('name', e.target.value)}
+              placeholder="이름 입력"
             />
           </label>
 
           <label className="block">
             <span className="text-sm font-black">아이디</span>
             <input
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
               value={form.username}
               readOnly
             />
@@ -189,7 +259,7 @@ export default function MyPage() {
           <label className="block">
             <span className="text-sm font-black">이메일</span>
             <input
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
               value={form.email}
               readOnly
             />
@@ -198,7 +268,7 @@ export default function MyPage() {
           <label className="block">
             <span className="text-sm font-black">휴대전화번호</span>
             <input
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
               value={form.phone}
               onChange={(e) => updateForm('phone', e.target.value)}
               placeholder="010-0000-0000"
@@ -208,7 +278,7 @@ export default function MyPage() {
           <label className="block">
             <span className="text-sm font-black">지역</span>
             <select
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
               value={form.region}
               onChange={(e) => updateForm('region', e.target.value)}
             >
@@ -220,23 +290,9 @@ export default function MyPage() {
           </label>
 
           <label className="block">
-            <span className="text-sm font-black">회원 유형</span>
-            <select
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.member_type}
-              onChange={(e) => updateForm('member_type', e.target.value)}
-            >
-              <option value="">선택</option>
-              {MEMBER_TYPES.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
             <span className="text-sm font-black">재학 구분</span>
             <select
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
               value={form.school_type}
               onChange={(e) => updateForm('school_type', e.target.value)}
             >
@@ -250,24 +306,38 @@ export default function MyPage() {
           <label className="block">
             <span className="text-sm font-black">학교명</span>
             <input
-              className="mt-2 h-13 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
               value={form.school_name}
               onChange={(e) => updateForm('school_name', e.target.value)}
-              placeholder="학교명을 입력하세요"
+              placeholder="학교명 입력"
             />
           </label>
 
-          {message && (
-            <div className="md:col-span-2 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-3 text-sm font-black text-[#0D1B2A]">
-              {message}
-            </div>
-          )}
+          <label className="block">
+            <span className="text-sm font-black">회원 유형</span>
+            <select
+              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
+              value={form.member_type}
+              onChange={(e) => updateForm('member_type', e.target.value)}
+            >
+              <option value="">선택</option>
+              {MEMBER_TYPES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
 
-          <div className="md:col-span-2 flex justify-end">
+          <div className="md:col-span-2">
+            {message && (
+              <div className="mb-4 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-3 text-sm font-bold text-[#0D1B2A]">
+                {message}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex h-13 items-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:opacity-60"
+              className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save size={18} />
               {saving ? '저장 중...' : '저장하기'}
