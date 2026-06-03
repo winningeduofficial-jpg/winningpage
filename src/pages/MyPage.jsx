@@ -30,35 +30,47 @@ function cleanText(value) {
   return String(value || '').trim();
 }
 
-async function fetchMyProfile(userId) {
-  const attempts = [
-    'name, username, email, phone, region, school_type, school_name, member_type',
-    'name, phone, member_type',
-    'name, phone',
-    'name'
-  ];
+async function queryProfile(user) {
+  const byId = await supabase
+    .from('profiles')
+    .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
+    .eq('id', user.id)
+    .maybeSingle();
 
-  for (const columns of attempts) {
-    const { data, error } = await supabase
+  if (!byId.error && byId.data?.name) return byId.data;
+
+  const email = cleanText(user.email).toLowerCase();
+
+  if (email) {
+    const byEmail = await supabase
       .from('profiles')
-      .select(columns)
-      .eq('id', userId)
+      .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
+      .eq('email', email)
       .maybeSingle();
 
-    if (!error) {
-      return data || {};
-    }
-
-    console.error(`마이페이지 조회 실패 - columns: ${columns}`, error);
+    if (!byEmail.error && byEmail.data?.name) return byEmail.data;
   }
 
-  return {};
+  const username = email.split('@')[0];
+
+  if (username) {
+    const byUsername = await supabase
+      .from('profiles')
+      .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (!byUsername.error && byUsername.data?.name) return byUsername.data;
+  }
+
+  return byId.data || {};
 }
 
 export default function MyPage() {
   const navigate = useNavigate();
 
-  const [userId, setUserId] = useState(null);
+  const [user, setUser] = useState(null);
+  const [profileId, setProfileId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -81,24 +93,26 @@ export default function MyPage() {
 
       try {
         const { data: sessionData } = await supabase.auth.getSession();
-        const user = sessionData?.session?.user;
+        const currentUser = sessionData?.session?.user;
 
         if (!alive) return;
 
-        if (!user) {
+        if (!currentUser) {
           navigate('/login', { replace: true });
           return;
         }
 
-        const profile = await fetchMyProfile(user.id);
+        const profile = await queryProfile(currentUser);
 
         if (!alive) return;
 
-        setUserId(user.id);
+        setUser(currentUser);
+        setProfileId(profile?.id || currentUser.id);
+
         setForm({
           name: profile?.name || '',
-          username: profile?.username || user.user_metadata?.username || '',
-          email: profile?.email || user.email || '',
+          username: profile?.username || currentUser.email?.split('@')[0] || '',
+          email: profile?.email || currentUser.email || '',
           phone: profile?.phone || '',
           region: profile?.region || '',
           school_type: profile?.school_type || '',
@@ -107,9 +121,7 @@ export default function MyPage() {
         });
       } catch (error) {
         console.error('마이페이지 로딩 오류:', error);
-        if (alive) {
-          setMessage('개인정보를 불러오지 못했습니다.');
-        }
+        setMessage('개인정보를 불러오지 못했습니다.');
       } finally {
         if (alive) setLoading(false);
       }
@@ -126,49 +138,15 @@ export default function MyPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function updateProfileWithFallback(payload) {
-    const attempts = [
-      payload,
-      {
-        name: payload.name,
-        phone: payload.phone,
-        member_type: payload.member_type,
-        updated_at: payload.updated_at
-      },
-      {
-        name: payload.name,
-        phone: payload.phone,
-        updated_at: payload.updated_at
-      },
-      {
-        name: payload.name,
-        updated_at: payload.updated_at
-      },
-      {
-        name: payload.name
-      }
-    ];
-
-    for (const nextPayload of attempts) {
-      const { error } = await supabase
-        .from('profiles')
-        .update(nextPayload)
-        .eq('id', userId);
-
-      if (!error) return null;
-
-      console.error('프로필 저장 실패 payload:', nextPayload, error);
-    }
-
-    return new Error('profile_update_failed');
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!userId) return;
+    if (!user) return;
 
     const name = cleanText(form.name);
+    const email = cleanText(form.email || user.email).toLowerCase();
+    const username = cleanText(form.username || email.split('@')[0]);
+
     if (!name) {
       setMessage('이름을 입력해 주세요.');
       return;
@@ -178,7 +156,10 @@ export default function MyPage() {
     setMessage('');
 
     const payload = {
+      id: profileId || user.id,
       name,
+      username,
+      email,
       phone: cleanText(form.phone),
       region: form.region,
       school_type: form.school_type,
@@ -187,11 +168,14 @@ export default function MyPage() {
       updated_at: new Date().toISOString()
     };
 
-    const error = await updateProfileWithFallback(payload);
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' });
 
     setSaving(false);
 
     if (error) {
+      console.error('프로필 저장 실패:', error);
       setMessage('저장에 실패했습니다. 다시 확인해 주세요.');
       return;
     }
@@ -284,7 +268,9 @@ export default function MyPage() {
             >
               <option value="">선택</option>
               {REGION_OPTIONS.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
             </select>
           </label>
@@ -298,7 +284,9 @@ export default function MyPage() {
             >
               <option value="">선택</option>
               {SCHOOL_TYPES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
             </select>
           </label>
@@ -322,7 +310,9 @@ export default function MyPage() {
             >
               <option value="">선택</option>
               {MEMBER_TYPES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
             </select>
           </label>
@@ -337,7 +327,7 @@ export default function MyPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save size={18} />
               {saving ? '저장 중...' : '저장하기'}
