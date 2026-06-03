@@ -3,11 +3,45 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+const CSAT_DATE = '2026-11-19';
+
+function getCsdDay() {
+  const today = new Date();
+  const todayKst = new Date(
+    today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+  );
+  const start = new Date(
+    todayKst.getFullYear(),
+    todayKst.getMonth(),
+    todayKst.getDate()
+  );
+  const target = new Date(`${CSAT_DATE}T00:00:00+09:00`);
+  const diff = Math.ceil((target.getTime() - start.getTime()) / 86400000);
+
+  if (diff > 0) return `수능 D-${diff}`;
+  if (diff === 0) return '수능 D-DAY';
+  return `수능 D+${Math.abs(diff)}`;
+}
+
+function getMemberLabel(profile) {
+  const raw = String(profile?.member_type || '').trim().toLowerCase();
+
+  if (profile?.role === 'admin') return '관리자';
+  if (['student', '학생', '학생회원'].includes(raw)) return '학생회원';
+  if (['parent', '학부모', '학부모회원'].includes(raw)) return '학부모회원';
+  if (['teacher', 'mentor', '멘토', '교사', '선생님'].includes(raw)) return '멘토회원';
+  if (!raw) return '회원';
+  if (raw.endsWith('회원')) return raw;
+
+  return `${profile.member_type}회원`;
+}
+
 export default function Header() {
   const navigate = useNavigate();
 
   const [session, setSession] = useState(null);
-  const [role, setRole] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [csatDDay, setCsatDDay] = useState(getCsdDay());
 
   useLayoutEffect(() => {
     const preHeader = document.getElementById('pre-header');
@@ -18,23 +52,37 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCsatDDay(getCsdDay());
+    }, 60 * 60 * 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
 
-    async function loadRole(userId) {
+    async function loadProfile(userId) {
       if (!userId) {
-        setRole(null);
+        setProfile(null);
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('name, role, member_type')
         .eq('id', userId)
         .maybeSingle();
 
-      if (alive) {
-        setRole(data?.role || null);
+      if (!alive) return;
+
+      if (error) {
+        console.error('프로필 조회 오류:', error);
+        setProfile(null);
+        return;
       }
+
+      setProfile(data || null);
     }
 
     async function loadSession() {
@@ -44,15 +92,16 @@ export default function Header() {
       if (!alive) return;
 
       setSession(currentSession);
-      await loadRole(currentSession?.user?.id);
+      await loadProfile(currentSession?.user?.id);
     }
 
     loadSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
+        if (!alive) return;
         setSession(nextSession);
-        await loadRole(nextSession?.user?.id);
+        await loadProfile(nextSession?.user?.id);
       }
     );
 
@@ -63,39 +112,44 @@ export default function Header() {
   }, []);
 
   async function handleLogout() {
-  setSession(null);
-  setRole(null);
+    setSession(null);
+    setProfile(null);
 
-  try {
-    Object.keys(window.localStorage).forEach((key) => {
-      if (
-        key.startsWith('sb-') ||
-        key.includes('supabase') ||
-        key.includes('auth-token')
-      ) {
-        window.localStorage.removeItem(key);
-      }
-    });
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    }
 
-    Object.keys(window.sessionStorage).forEach((key) => {
-      if (
-        key.startsWith('sb-') ||
-        key.includes('supabase') ||
-        key.includes('auth-token')
-      ) {
-        window.sessionStorage.removeItem(key);
-      }
-    });
-  } catch (error) {
-    console.error('로컬 세션 삭제 오류:', error);
+    try {
+      Object.keys(window.localStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.localStorage.removeItem(key);
+        }
+      });
+
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('로컬 세션 삭제 오류:', error);
+    }
+
+    navigate('/', { replace: true });
   }
 
-  supabase.auth.signOut({ scope: 'global' }).catch((error) => {
-    console.error('로그아웃 오류:', error);
-  });
-
-  navigate('/login', { replace: true });
-}
+  const displayName = profile?.name || session?.user?.email?.split('@')[0] || '회원';
+  const memberLabel = getMemberLabel(profile);
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
@@ -158,7 +212,23 @@ export default function Header() {
         <div className="flex shrink-0 items-center gap-3">
           {session ? (
             <>
-              {role === 'admin' && (
+              <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
+                <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
+                  {csatDDay}
+                </span>
+                <span>
+                  {displayName}님 {memberLabel}
+                </span>
+              </div>
+
+              <Link
+                to="/mypage"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+              >
+                마이페이지
+              </Link>
+
+              {profile?.role === 'admin' && (
                 <Link
                   to="/admin"
                   className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
