@@ -33,7 +33,7 @@ function cleanText(value) {
 async function queryProfile(user) {
   const byId = await supabase
     .from('profiles')
-    .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
+    .select('id, name, email, phone, region, school_type, school_name, member_type, role')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -44,23 +44,11 @@ async function queryProfile(user) {
   if (email) {
     const byEmail = await supabase
       .from('profiles')
-      .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
+      .select('id, name, email, phone, region, school_type, school_name, member_type, role')
       .eq('email', email)
       .maybeSingle();
 
     if (!byEmail.error && byEmail.data?.name) return byEmail.data;
-  }
-
-  const username = email.split('@')[0];
-
-  if (username) {
-    const byUsername = await supabase
-      .from('profiles')
-      .select('id, name, username, email, phone, region, school_type, school_name, member_type, role')
-      .eq('username', username)
-      .maybeSingle();
-
-    if (!byUsername.error && byUsername.data?.name) return byUsername.data;
   }
 
   return byId.data || {};
@@ -76,7 +64,6 @@ export default function MyPage() {
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({
     name: '',
-    username: '',
     email: '',
     phone: '',
     region: '',
@@ -111,7 +98,6 @@ export default function MyPage() {
 
         setForm({
           name: profile?.name || '',
-          username: profile?.username || currentUser.email?.split('@')[0] || '',
           email: profile?.email || currentUser.email || '',
           phone: profile?.phone || '',
           region: profile?.region || '',
@@ -145,7 +131,7 @@ export default function MyPage() {
 
     const name = cleanText(form.name);
     const email = cleanText(form.email || user.email).toLowerCase();
-    const username = cleanText(form.username || email.split('@')[0]);
+    const username = email;
 
     if (!name) {
       setMessage('이름을 입력해 주세요.');
@@ -228,15 +214,6 @@ export default function MyPage() {
               value={form.name}
               onChange={(e) => updateForm('name', e.target.value)}
               placeholder="이름 입력"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-black">아이디</span>
-            <input
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
-              value={form.username}
-              readOnly
             />
           </label>
 
@@ -338,3 +315,4 @@ export default function MyPage() {
     </main>
   );
 }
+
