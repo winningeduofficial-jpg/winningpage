@@ -28,40 +28,79 @@ function getMemberLabel(profile) {
   if (role === 'admin') return '관리자';
   if (!raw) return '';
 
-  if (['student', '학생', '학생회원'].includes(raw)) return '학생회원';
-  if (['parent', 'parents', '학부모', '학부모회원'].includes(raw)) return '학부모회원';
-  if (['teacher', 'mentor', '멘토', '교사', '선생님', '선생님회원'].includes(raw)) {
-    return '멘토회원';
-  }
+  if (raw === 'student' || raw === '학생' || raw === '학생회원') return '학생회원';
+  if (raw === 'parent' || raw === 'parents' || raw === '학부모' || raw === '학부모회원') return '학부모회원';
+  if (raw === 'mentor' || raw === 'teacher' || raw === '멘토' || raw === '교사') return '멘토회원';
 
-  if (raw.endsWith('회원')) return raw;
-  return `${raw}회원`;
+  return raw.endsWith('회원') ? raw : `${raw}회원`;
 }
 
-async function fetchProfile(userId) {
+async function queryProfileById(userId) {
   if (!userId) return null;
 
-  const attempts = [
-    'name, member_type, role',
-    'name, role',
-    'name'
-  ];
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, username, member_type, role')
+    .eq('id', userId)
+    .maybeSingle();
 
-  for (const columns of attempts) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(columns)
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (!error) {
-      return data || null;
-    }
-
-    console.error(`프로필 조회 실패 - columns: ${columns}`, error);
+  if (error) {
+    console.error('profiles id 조회 실패:', error);
+    return null;
   }
 
-  return null;
+  return data || null;
+}
+
+async function queryProfileByEmail(email) {
+  const normalizedEmail = cleanText(email).toLowerCase();
+  if (!normalizedEmail) return null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, username, member_type, role')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (error) {
+    console.error('profiles email 조회 실패:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
+async function queryProfileByUsername(email) {
+  const username = cleanText(email).split('@')[0];
+  if (!username) return null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, username, member_type, role')
+    .eq('username', username)
+    .maybeSingle();
+
+  if (error) {
+    console.error('profiles username 조회 실패:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
+async function fetchProfile(user) {
+  if (!user) return null;
+
+  const byId = await queryProfileById(user.id);
+  if (byId?.name) return byId;
+
+  const byEmail = await queryProfileByEmail(user.email);
+  if (byEmail?.name) return byEmail;
+
+  const byUsername = await queryProfileByUsername(user.email);
+  if (byUsername?.name) return byUsername;
+
+  return byId || byEmail || byUsername || null;
 }
 
 export default function Header() {
@@ -95,13 +134,12 @@ export default function Header() {
 
       setSession(currentSession);
 
-      const userId = currentSession?.user?.id;
-      if (!userId) {
+      if (!currentSession?.user) {
         setProfile(null);
         return;
       }
 
-      const nextProfile = await fetchProfile(userId);
+      const nextProfile = await fetchProfile(currentSession.user);
 
       if (!alive) return;
       setProfile(nextProfile);
@@ -133,28 +171,50 @@ export default function Header() {
     setProfile(null);
 
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'global' });
     } catch (error) {
       console.error('로그아웃 오류:', error);
     }
 
     try {
-      Object.keys(window.localStorage).forEach((key) => {
-        if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
+      const storageKeys = [];
+
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (key) storageKeys.push(key);
+      }
+
+      storageKeys.forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
           window.localStorage.removeItem(key);
         }
       });
 
-      Object.keys(window.sessionStorage).forEach((key) => {
-        if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
+      const sessionKeys = [];
+
+      for (let i = 0; i < window.sessionStorage.length; i += 1) {
+        const key = window.sessionStorage.key(i);
+        if (key) sessionKeys.push(key);
+      }
+
+      sessionKeys.forEach((key) => {
+        if (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth-token')
+        ) {
           window.sessionStorage.removeItem(key);
         }
       });
     } catch (error) {
-      console.error('세션 스토리지 정리 오류:', error);
+      console.error('브라우저 세션 정리 오류:', error);
     }
 
-    window.location.replace('/');
+    window.location.href = '/';
   }
 
   const isLoggedIn = !!session?.user;
@@ -234,7 +294,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
               >
                 로그아웃
               </button>
@@ -243,14 +303,14 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/16 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A]/30 hover:bg-[#F8F7F3]"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
               >
                 로그인
               </Link>
 
               <Link
                 to="/signup"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
               >
                 회원가입
               </Link>
