@@ -11,26 +11,41 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
-    async function checkSession() {
-      const { data } = await supabase.auth.getSession();
+    async function checkExistingSession() {
+      try {
+        const timeout = new Promise((resolve) => {
+          window.setTimeout(() => resolve({ timedOut: true }), 800);
+        });
 
-      if (!alive) return;
+        const result = await Promise.race([
+          supabase.auth.getSession().then(({ data }) => ({ session: data?.session || null })),
+          timeout
+        ]);
 
-      if (data.session?.user) {
-        const nextPath = await getRedirectPath(data.session.user.id);
+        if (!alive) return;
+
+        // 로그아웃 직후에는 로그인 화면을 바로 보여준다.
+        if (result?.timedOut || !result?.session?.user?.id) {
+          setCheckingSession(false);
+          return;
+        }
+
+        const nextPath = await getRedirectPath(result.session.user.id);
+
+        if (!alive) return;
         navigate(nextPath, { replace: true });
-        return;
+      } catch (error) {
+        console.error('로그인 세션 확인 오류:', error);
+        if (alive) setCheckingSession(false);
       }
-
-      setCheckingSession(false);
     }
 
-    checkSession();
+    checkExistingSession();
 
     return () => {
       alive = false;
@@ -38,13 +53,24 @@ export default function Login() {
   }, [navigate]);
 
   async function getRedirectPath(userId) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const timeout = new Promise((resolve) => {
+        window.setTimeout(() => resolve({ data: null }), 1200);
+      });
 
-    if (profile?.role === 'admin') return '/admin';
+      const result = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle(),
+        timeout
+      ]);
+
+      if (result?.data?.role === 'admin') return '/admin';
+    } catch (error) {
+      console.error('로그인 후 권한 확인 오류:', error);
+    }
 
     return location.state?.from?.pathname || '/';
   }
@@ -94,16 +120,6 @@ export default function Login() {
 
     setLoading(false);
     navigate(nextPath, { replace: true });
-  }
-
-  if (checkingSession) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
-        <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
-          로그인 상태 확인 중...
-        </div>
-      </main>
-    );
   }
 
   return (
