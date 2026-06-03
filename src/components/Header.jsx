@@ -124,25 +124,42 @@ export default function Header() {
   useEffect(() => {
     let alive = true;
 
+    function withTimeout(promise, ms, fallbackValue = null) {
+      return Promise.race([
+        promise,
+        new Promise((resolve) => {
+          window.setTimeout(() => resolve(fallbackValue), ms);
+        })
+      ]);
+    }
+
     async function syncSession(nextSession) {
-      const currentSession =
-        nextSession !== undefined
-          ? nextSession
-          : (await supabase.auth.getSession()).data?.session || null;
+      try {
+        const currentSession =
+          nextSession !== undefined
+            ? nextSession
+            : ((await withTimeout(supabase.auth.getSession(), 3500, { data: { session: null } }))?.data?.session || null);
 
-      if (!alive) return;
+        if (!alive) return;
 
-      setSession(currentSession);
+        setSession(currentSession);
 
-      if (!currentSession?.user) {
-        setProfile(null);
-        return;
+        if (!currentSession?.user) {
+          setProfile(null);
+          return;
+        }
+
+        const nextProfile = await withTimeout(fetchProfile(currentSession.user), 3500, null);
+
+        if (!alive) return;
+        setProfile(nextProfile);
+      } catch (error) {
+        console.error('헤더 세션 동기화 오류:', error);
+        if (alive) {
+          setSession(null);
+          setProfile(null);
+        }
       }
-
-      const nextProfile = await fetchProfile(currentSession.user);
-
-      if (!alive) return;
-      setProfile(nextProfile);
     }
 
     syncSession();
@@ -166,25 +183,15 @@ export default function Header() {
     };
   }, []);
 
-  async function handleLogout() {
-    setSession(null);
-    setProfile(null);
-
+  function clearSupabaseAuthStorage() {
     try {
-      await supabase.auth.signOut({ scope: 'global' });
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-    }
-
-    try {
-      const storageKeys = [];
-
+      const localKeys = [];
       for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
-        if (key) storageKeys.push(key);
+        if (key) localKeys.push(key);
       }
 
-      storageKeys.forEach((key) => {
+      localKeys.forEach((key) => {
         if (
           key.startsWith('sb-') ||
           key.includes('supabase') ||
@@ -195,7 +202,6 @@ export default function Header() {
       });
 
       const sessionKeys = [];
-
       for (let i = 0; i < window.sessionStorage.length; i += 1) {
         const key = window.sessionStorage.key(i);
         if (key) sessionKeys.push(key);
@@ -213,8 +219,25 @@ export default function Header() {
     } catch (error) {
       console.error('브라우저 세션 정리 오류:', error);
     }
+  }
 
-    window.location.href = '/';
+  async function handleLogout() {
+    setSession(null);
+    setProfile(null);
+    clearSupabaseAuthStorage();
+
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise((resolve) => window.setTimeout(resolve, 1800))
+      ]);
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    }
+
+    clearSupabaseAuthStorage();
+    window.dispatchEvent(new Event('winning-profile-updated'));
+    window.location.replace('/');
   }
 
   const isLoggedIn = !!session?.user;
