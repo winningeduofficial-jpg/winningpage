@@ -476,6 +476,10 @@ export default function Signup() {
       options: {
         data: {
           email: normalizedEmail,
+          name: form.name.trim(),
+          full_name: form.name.trim(),
+          username: form.username.trim(),
+          member_type: memberType,
           role: 'user'
         }
       }
