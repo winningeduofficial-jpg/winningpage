@@ -170,115 +170,42 @@ export default function Signup() {
   }, [step]);
 
   useEffect(() => {
-  let alive = true;
-
-  function clearSupabaseStorage() {
-    try {
-      Object.keys(window.localStorage).forEach((key) => {
-        if (
-          key.startsWith('sb-') ||
-          key.includes('supabase') ||
-          key.includes('auth-token')
-        ) {
-          window.localStorage.removeItem(key);
-        }
-      });
-
-      Object.keys(window.sessionStorage).forEach((key) => {
-        if (
-          key.startsWith('sb-') ||
-          key.includes('supabase') ||
-          key.includes('auth-token')
-        ) {
-          window.sessionStorage.removeItem(key);
-        }
-      });
-    } catch (error) {
-      console.error('세션 저장소 정리 오류:', error);
-    }
-  }
-
-  async function checkSession() {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sessionUser = sessionData.session?.user;
-
-      if (!alive) return;
-
-      if (!sessionUser) {
-        setCheckingSession(false);
-        return;
-      }
-
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-
-      if (!alive) return;
-
-      if (userError || !userData?.user) {
-        await supabase.auth.signOut({ scope: 'global' });
-        clearSupabaseStorage();
-        setCheckingSession(false);
-        return;
-      }
-
-      const currentUser = userData.user;
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, member_type')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (!alive) return;
-
-      if (profileError) {
-        console.error('프로필 확인 오류:', profileError);
-        await supabase.auth.signOut({ scope: 'global' });
-        clearSupabaseStorage();
-        setCheckingSession(false);
-        return;
-      }
-
-      if (profile?.email && profile?.member_type) {
-        navigate('/', { replace: true });
-        return;
-      }
-
-      setForm((prev) => ({
-        ...prev,
-        email: currentUser.email || prev.email
-      }));
-
-      setEmailVerification({
-        requested: true,
-        verified: true,
-        message: '이메일 인증이 완료된 상태입니다.'
-      });
-
-      setCheckingSession(false);
-    } catch (error) {
-      console.error('회원가입 페이지 세션 확인 오류:', error);
-
+    function clearSupabaseStorage() {
       try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (_) {
-        // ignore
-      }
+        Object.keys(window.localStorage).forEach((key) => {
+          if (
+            key.startsWith('sb-') ||
+            key.includes('supabase') ||
+            key.includes('auth-token')
+          ) {
+            window.localStorage.removeItem(key);
+          }
+        });
 
-      clearSupabaseStorage();
-
-      if (alive) {
-        setCheckingSession(false);
+        Object.keys(window.sessionStorage).forEach((key) => {
+          if (
+            key.startsWith('sb-') ||
+            key.includes('supabase') ||
+            key.includes('auth-token')
+          ) {
+            window.sessionStorage.removeItem(key);
+          }
+        });
+      } catch (error) {
+        console.error('세션 저장소 정리 오류:', error);
       }
     }
-  }
 
-  checkSession();
+    setCheckingSession(false);
+    clearSupabaseStorage();
 
-  return () => {
-    alive = false;
-  };
-}, [navigate]);
+    Promise.race([
+      supabase.auth.signOut({ scope: 'local' }),
+      new Promise((resolve) => window.setTimeout(resolve, 1200))
+    ]).catch((error) => {
+      console.error('회원가입 진입 시 기존 세션 정리 오류:', error);
+    });
+  }, []);
 
   function updateForm(key, value) {
     setForm((prev) => ({
@@ -585,8 +512,8 @@ export default function Signup() {
     if (!normalizedName) return '이름을 입력해 주세요.';
 
     if (!isValidPassword(form.password)) {
-  return '비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.';
-}
+      return '비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.';
+    }
 
     if (form.password !== form.passwordConfirm) {
       return '비밀번호와 비밀번호 확인이 일치하지 않습니다.';
@@ -639,7 +566,7 @@ export default function Signup() {
 
     try {
       const normalizedName = form.name.trim();
-        const normalizedEmail = form.email.trim().toLowerCase();
+      const normalizedEmail = form.email.trim().toLowerCase();
       const normalizedPhone = String(form.phone || '').replaceAll('-', '').trim();
       const normalizedSchoolName =
         form.schoolType === 'N수생' ? '' : form.schoolName.trim();
@@ -688,6 +615,7 @@ export default function Signup() {
 
       if (profileError) {
         const errorMessage = String(profileError.message || '').toLowerCase();
+
         if (errorMessage.includes('duplicate_email')) {
           setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
           return;
@@ -1030,24 +958,24 @@ export default function Signup() {
                     <div>
                       <InputField
                         label="비밀번호"
-    icon={<LockKeyhole size={19} />}
-    type="password"
-    value={form.password}
-    onChange={(value) => updateForm('password', value)}
-    placeholder="영문/숫자/특수문자 포함 6자 이상"
-    autoComplete="new-password"
-  />
+                        icon={<LockKeyhole size={19} />}
+                        type="password"
+                        value={form.password}
+                        onChange={(value) => updateForm('password', value)}
+                        placeholder="영문/숫자/특수문자 포함 6자 이상"
+                        autoComplete="new-password"
+                      />
 
-  {form.password && (
-    <p
-      className={`mt-2 text-sm font-bold ${
-        isValidPassword(form.password) ? 'text-[#15803D]' : 'text-red-600'
-      }`}
-    >
-      비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.
-    </p>
-  )}
-</div>
+                      {form.password && (
+                        <p
+                          className={`mt-2 text-sm font-bold ${
+                            isValidPassword(form.password) ? 'text-[#15803D]' : 'text-red-600'
+                          }`}
+                        >
+                          비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.
+                        </p>
+                      )}
+                    </div>
 
                     <InputField
                       label="비밀번호 다시 입력"
@@ -1456,4 +1384,4 @@ function SelectField({ label, icon, value, onChange, placeholder, options }) {
       </div>
     </label>
   );
-}  
+}
