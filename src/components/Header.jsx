@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronDown,
@@ -17,74 +17,49 @@ const NAV_GROUPS = [
   {
     title: '서비스',
     to: '/services',
-    columns: [
-      {
-        heading: '서비스',
-        items: [
-          { label: '목표관리서비스', to: '/services#goal' },
-          { label: 'AI 수행평가 서비스', to: '/services#performance' },
-          { label: '세특코치서비스', to: '/services#record' },
-          { label: '수시키드', to: '/services#susi' },
-          { label: '약점관리서비스', to: '/services#weakness' },
-          { label: '특화멘토링', to: '/services#mentoring' }
-        ]
-      }
+    items: [
+      { label: '목표관리서비스', to: '/services#goal' },
+      { label: 'AI 수행평가 서비스', to: '/services#performance' },
+      { label: '세특코치서비스', to: '/services#record' },
+      { label: '수시키드', to: '/services#susi' },
+      { label: '약점관리서비스', to: '/services#weakness' },
+      { label: '특화멘토링', to: '/services#mentoring' }
     ]
   },
   {
     title: '합격전략',
     to: '/learning-analysis',
-    columns: [
-      {
-        heading: '합격전략',
-        items: [
-          { label: '성공사례', to: '/reviews' },
-          { label: '교육부시운영지침', to: '/learning-analysis#guide' },
-          { label: '관리시스템이란', to: '/learning-analysis#system' }
-        ]
-      }
+    items: [
+      { label: '성공사례', to: '/reviews' },
+      { label: '교육부시운영지침', to: '/learning-analysis#guide' },
+      { label: '관리시스템이란', to: '/learning-analysis#system' }
     ]
   },
   {
     title: '입시정보',
     to: '/admissions',
-    columns: [
-      {
-        heading: '입시정보',
-        items: [
-          { label: '수시정보', to: '/admissions#susi' },
-          { label: '정시정보', to: '/admissions#jungsi' },
-          { label: '논술정보', to: '/admissions#essay' }
-        ]
-      }
+    items: [
+      { label: '수시정보', to: '/admissions#susi' },
+      { label: '정시정보', to: '/admissions#jungsi' },
+      { label: '논술정보', to: '/admissions#essay' }
     ]
   },
   {
     title: '회사소개',
     to: '/events',
-    columns: [
-      {
-        heading: '회사소개',
-        items: [
-          { label: '회사연혁', to: '/events#history' },
-          { label: '조직소개', to: '/events#team' },
-          { label: '포트폴리오', to: '/events#portfolio' }
-        ]
-      }
+    items: [
+      { label: '회사연혁', to: '/events#history' },
+      { label: '조직소개', to: '/events#team' },
+      { label: '포트폴리오', to: '/events#portfolio' }
     ]
   },
   {
     title: '위닝정보',
     to: '/events',
-    columns: [
-      {
-        heading: '위닝정보',
-        items: [
-          { label: '공지사항', to: '/events' },
-          { label: '이용후기', to: '/reviews' },
-          { label: '자주하는 질문', to: '/events#faq' }
-        ]
-      }
+    items: [
+      { label: '공지사항', to: '/events' },
+      { label: '이용후기', to: '/reviews' },
+      { label: '자주하는 질문', to: '/events#faq' }
     ]
   }
 ];
@@ -410,16 +385,8 @@ export default function Header() {
   const memberLabel = getMemberLabel(profile);
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
-  const activeMegaData = useMemo(
-    () => NAV_GROUPS.find((item) => item.title === activeMega),
-    [activeMega]
-  );
-
   return (
-    <header
-      className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]"
-      onMouseLeave={() => setActiveMega(null)}
-    >
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
       <div className="mx-auto flex h-[84px] max-w-[1500px] items-center justify-between px-8">
         <Link to="/" className="flex h-[84px] w-[190px] shrink-0 items-center">
           <img
@@ -433,15 +400,46 @@ export default function Header() {
 
         <nav className="hidden items-center justify-center gap-8 whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
           {NAV_GROUPS.map((group) => (
-            <Link
+            <div
               key={group.title}
-              to={group.to}
+              className="relative flex h-[84px] items-center"
               onMouseEnter={() => setActiveMega(group.title)}
-              className="inline-flex h-10 items-center gap-1 transition hover:text-[#B88737]"
+              onMouseLeave={() => setActiveMega(null)}
             >
-              {group.title}
-              <ChevronDown size={15} strokeWidth={2.7} />
-            </Link>
+              <Link
+                to={group.to}
+                className={`relative inline-flex h-[84px] items-center gap-1 transition ${
+                  activeMega === group.title ? 'text-[#B88737]' : 'hover:text-[#B88737]'
+                }`}
+              >
+                {group.title}
+                <ChevronDown
+                  size={15}
+                  strokeWidth={2.7}
+                  className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
+                />
+
+                {activeMega === group.title && (
+                  <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full bg-[#B88737]" />
+                )}
+              </Link>
+
+              {activeMega === group.title && (
+                <div className="absolute left-1/2 top-full z-50 w-[230px] -translate-x-1/2">
+                  <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.to}
+                        className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </nav>
 
@@ -469,35 +467,37 @@ export default function Header() {
               </div>
 
               <div
-                className="relative"
+                className="relative flex h-[84px] items-center"
                 onMouseEnter={() => setMyOpen(true)}
                 onMouseLeave={() => setMyOpen(false)}
               >
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
                 >
                   마이페이지
-                  <ChevronDown size={15} />
+                  <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {myOpen && (
-                  <div className="absolute right-0 top-[calc(100%+10px)] w-[260px] rounded-2xl border border-[#0D1B2A]/10 bg-white p-3 shadow-[0_18px_50px_rgba(13,27,42,0.18)]">
-                    {MY_MENU.map((item) => {
-                      const Icon = item.icon;
+                  <div className="absolute right-0 top-full z-50 w-[260px]">
+                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                      {MY_MENU.map((item) => {
+                        const Icon = item.icon;
 
-                      return (
-                        <Link
-                          key={item.label}
-                          to={item.to}
-                          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3] hover:text-[#B88737]"
-                        >
-                          <Icon size={18} />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                          >
+                            <Icon size={18} />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -505,7 +505,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
                 >
                   <Settings size={16} />
                   관리자
@@ -523,12 +523,41 @@ export default function Header() {
             </>
           ) : isLoggedIn ? (
             <>
-              <Link
-                to="/mypage"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+              <div
+                className="relative flex h-[84px] items-center"
+                onMouseEnter={() => setMyOpen(true)}
+                onMouseLeave={() => setMyOpen(false)}
               >
-                마이페이지
-              </Link>
+                <button
+                  type="button"
+                  onClick={() => setMyOpen((prev) => !prev)}
+                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                >
+                  마이페이지
+                  <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {myOpen && (
+                  <div className="absolute right-0 top-full z-50 w-[260px]">
+                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                      {MY_MENU.map((item) => {
+                        const Icon = item.icon;
+
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                          >
+                            <Icon size={18} />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -542,7 +571,7 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
               >
                 로그인
               </Link>
@@ -557,41 +586,6 @@ export default function Header() {
           )}
         </div>
       </div>
-
-      {activeMegaData && (
-        <div
-          className="hidden border-t border-[#0D1B2A]/10 bg-white/98 shadow-[0_24px_50px_rgba(13,27,42,0.10)] backdrop-blur md:block"
-          onMouseEnter={() => setActiveMega(activeMegaData.title)}
-        >
-          <div className="mx-auto grid max-w-[1280px] grid-cols-5 gap-5 px-8 py-7">
-            {NAV_GROUPS.map((group) => (
-              <div
-                key={group.title}
-                className="rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3]/60 p-4"
-              >
-                <Link
-                  to={group.to}
-                  className="mb-3 block border-l-4 border-[#0D1B2A] pl-3 text-base font-black text-[#0D1B2A] hover:text-[#B88737]"
-                >
-                  {group.title}
-                </Link>
-
-                <div className="space-y-2">
-                  {group.columns[0].items.map((item) => (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      className="block rounded-xl border border-[#0D1B2A]/10 bg-white px-4 py-3 text-center text-sm font-extrabold text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E7] hover:text-[#B88737]"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </header>
   );
 }
