@@ -59,7 +59,7 @@ function writeCachedProfile(profile) {
 
     window.localStorage.setItem(HEADER_PROFILE_CACHE_KEY, JSON.stringify(profile));
   } catch {
-    // localStorage 저장 실패는 화면 렌더링을 막지 않는다.
+    // 캐시 저장 실패는 화면 렌더링을 막지 않는다.
   }
 }
 
@@ -377,10 +377,16 @@ export default function Header() {
 
         <div className="flex shrink-0 items-center gap-3">
           {!isAuthReady || (isLoggedIn && !hasProfile) ? (
-            <div className="flex shrink-0 items-center gap-3 opacity-0" aria-hidden="true">
-              <div className="hidden h-10 w-[198px] rounded-xl lg:block" />
-              <div className="h-10 w-[118px] rounded-xl" />
-              <div className="h-10 w-[96px] rounded-xl" />
+            <div className="flex shrink-0 items-center gap-3" aria-hidden="true">
+              <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
+                <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
+                  {csatDDay}
+                </span>
+                <span className="inline-block h-4 w-20 rounded bg-[#0D1B2A]/10" />
+              </div>
+
+              <div className="h-10 w-[118px] rounded-xl border border-[#0D1B2A]/15 bg-white" />
+              <div className="h-10 w-[96px] rounded-xl border border-[#0D1B2A] bg-[#0D1B2A]" />
             </div>
           ) : shouldShowLoggedInHeader ? (
             <>
