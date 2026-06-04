@@ -16,50 +16,50 @@ const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 const NAV_GROUPS = [
   {
     title: '서비스',
-    to: '/services',
+    to: '/page/services-goal',
     items: [
-      { label: '목표관리서비스', to: '/services#goal' },
-      { label: 'AI 수행평가 서비스', to: '/services#performance' },
-      { label: '세특코치서비스', to: '/services#record' },
-      { label: '수시키드', to: '/services#susi' },
-      { label: '약점관리서비스', to: '/services#weakness' },
-      { label: '특화멘토링', to: '/services#mentoring' }
+      { label: '목표관리서비스', to: '/page/services-goal' },
+      { label: 'AI 수행평가 서비스', to: '/page/services-ai-performance' },
+      { label: '세특코치서비스', to: '/page/services-record-coach' },
+      { label: '수시키드', to: '/page/services-susi-card' },
+      { label: '약점관리서비스', to: '/page/services-weakness' },
+      { label: '특화멘토링', to: '/page/services-mentoring' }
     ]
   },
   {
     title: '합격전략',
-    to: '/learning-analysis',
+    to: '/page/strategy-success',
     items: [
-      { label: '성공사례', to: '/reviews' },
-      { label: '교육부시운영지침', to: '/learning-analysis#guide' },
-      { label: '관리시스템이란', to: '/learning-analysis#system' }
+      { label: '성공사례', to: '/page/strategy-success' },
+      { label: '교육부시운영지침', to: '/page/strategy-guide' },
+      { label: '관리시스템이란', to: '/page/strategy-system' }
     ]
   },
   {
     title: '입시정보',
-    to: '/admissions',
+    to: '/page/admission-susi',
     items: [
-      { label: '수시정보', to: '/admissions#susi' },
-      { label: '정시정보', to: '/admissions#jungsi' },
-      { label: '논술정보', to: '/admissions#essay' }
+      { label: '수시정보', to: '/page/admission-susi' },
+      { label: '정시정보', to: '/page/admission-jungsi' },
+      { label: '논술정보', to: '/page/admission-essay' }
     ]
   },
   {
     title: '회사소개',
-    to: '/events',
+    to: '/page/company-history',
     items: [
-      { label: '회사연혁', to: '/events#history' },
-      { label: '조직소개', to: '/events#team' },
-      { label: '포트폴리오', to: '/events#portfolio' }
+      { label: '회사연혁', to: '/page/company-history' },
+      { label: '조직소개', to: '/page/company-team' },
+      { label: '포트폴리오', to: '/page/company-portfolio' }
     ]
   },
   {
     title: '위닝정보',
-    to: '/events',
+    to: '/page/winning-notice',
     items: [
-      { label: '공지사항', to: '/events' },
-      { label: '이용후기', to: '/reviews' },
-      { label: '자주하는 질문', to: '/events#faq' }
+      { label: '공지사항', to: '/page/winning-notice' },
+      { label: '이용후기', to: '/page/winning-reviews' },
+      { label: '자주하는 질문', to: '/page/winning-faq' }
     ]
   }
 ];
