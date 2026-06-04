@@ -61,7 +61,7 @@ const stats = [
   { icon: Award, value: '96.2%', label: '이용자 만족도' },
 ];
 
-const services = [
+const DEFAULT_SERVICES = [
   {
     icon: ClipboardList,
     title: '위닝 생기부 분석',
@@ -100,6 +100,15 @@ const services = [
   },
 ];
 
+const serviceIconMap = {
+  clipboard: ClipboardList,
+  users: Users,
+  edit: PencilLine,
+  file: FileText,
+  chart: BarChart3,
+  star: Star,
+};
+
 const proofCards = [
   ['김OO 학생', '서울대학교 경영학과', '체계적인 관리로 학생부 흐름을 완성했습니다.'],
   ['이OO 학생', '연세대학교 의예과', '생기부 분석과 맞춤 전략이 합격에 큰 도움이 되었습니다.'],
@@ -120,6 +129,7 @@ export default function Home() {
   const [banners, setBanners] = useState(DEFAULT_BANNERS);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
+  const [serviceItems, setServiceItems] = useState(DEFAULT_SERVICES);
 
   useEffect(() => {
     let mounted = true;
@@ -151,6 +161,42 @@ export default function Home() {
     }
 
     fetchBanners();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchServices() {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, title, description, link, slug, icon, sort_order, is_active')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error('서비스 조회 오류:', error);
+        setServiceItems(DEFAULT_SERVICES);
+        return;
+      }
+
+      const normalized = (data || []).map((service) => ({
+        id: service.id,
+        icon: serviceIconMap[service.icon] || ClipboardList,
+        title: service.title,
+        desc: service.description,
+        link: service.link || `/services/${service.slug}`,
+      }));
+
+      setServiceItems(normalized.length ? normalized : DEFAULT_SERVICES);
+    }
+
+    fetchServices();
 
     return () => {
       mounted = false;
@@ -349,12 +395,12 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {services.map((service) => {
+          {serviceItems.map((service) => {
             const Icon = service.icon;
 
             return (
               <Link
-                key={service.title}
+                key={service.id || service.title}
                 to={service.link}
                 className="group rounded-2xl border border-[#0D1B2A]/10 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#0D1B2A]/20 hover:shadow-[0_22px_50px_rgba(13,27,42,0.12)]"
               >
