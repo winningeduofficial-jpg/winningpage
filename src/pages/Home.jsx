@@ -102,12 +102,17 @@ const DEFAULT_SERVICES = [
 ];
 
 const serviceIconMap = {
-  clipboard: ClipboardList,
-  users: Users,
-  edit: PencilLine,
+  target: Target,
+  brain: Brain,
   file: FileText,
+  graduation: GraduationCap,
   chart: BarChart3,
+  users: Users,
+
+  clipboard: ClipboardList,
+  edit: Edit3,
   star: Star,
+  default: ClipboardList
 };
 
 const proofCards = [
