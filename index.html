@@ -63,6 +63,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 24px;
       }
 
       .pre-logo-link {
@@ -88,8 +89,8 @@
         color: #0d1b2a;
         font-size: 15px;
         font-weight: 900;
-        white-space: nowrap;
         line-height: 1;
+        white-space: nowrap;
       }
 
       .pre-nav-item {
@@ -100,15 +101,15 @@
       }
 
       .pre-nav-label {
+        position: relative;
         display: inline-flex;
         height: 84px;
         align-items: center;
         gap: 4px;
         color: #0d1b2a;
         text-decoration: none;
-        transition:
-          color 0.18s ease,
-          background-color 0.18s ease;
+        cursor: default;
+        transition: color 0.18s ease;
       }
 
       .pre-nav-label::after {
@@ -119,6 +120,7 @@
         width: 40px;
         height: 3px;
         transform: translateX(-50%) scaleX(0);
+        transform-origin: center;
         border-radius: 999px;
         background: #b88737;
         transition: transform 0.18s ease;
@@ -147,16 +149,13 @@
         transform: rotate(180deg);
       }
 
-      .pre-dropdown {
+      .pre-dropdown-wrap {
         position: absolute;
         left: 50%;
         top: 100%;
+        z-index: 45;
         width: 230px;
         transform: translateX(-50%);
-        border: 1px solid #e5e0d6;
-        border-top: 0;
-        background: #ffffff;
-        box-shadow: 0 18px 45px rgba(13, 27, 42, 0.14);
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -165,10 +164,18 @@
           visibility 0.16s ease;
       }
 
-      .pre-nav-item:hover .pre-dropdown {
+      .pre-nav-item:hover .pre-dropdown-wrap {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
+      }
+
+      .pre-dropdown {
+        overflow: hidden;
+        border: 1px solid #e5e0d6;
+        border-top: 0;
+        background: #ffffff;
+        box-shadow: 0 18px 45px rgba(13, 27, 42, 0.14);
       }
 
       .pre-dropdown-link {
@@ -180,7 +187,9 @@
         text-decoration: none;
         font-size: 16px;
         font-weight: 900;
+        line-height: 1.25;
         letter-spacing: -0.04em;
+        cursor: default;
         transition:
           color 0.18s ease,
           background-color 0.18s ease;
@@ -195,10 +204,63 @@
         color: #b88737;
       }
 
-      .pre-actions-space {
-        width: 486px;
-        height: 40px;
+      .pre-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        width: 306px;
+        height: 84px;
         flex-shrink: 0;
+      }
+
+      .pre-login {
+        display: inline-flex;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(13, 27, 42, 0.25);
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 0 24px;
+        color: #0d1b2a;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1;
+        text-decoration: none;
+      }
+
+      .pre-signup {
+        display: inline-flex;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #0d1b2a;
+        border-radius: 12px;
+        background: #0d1b2a;
+        padding: 0 24px;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1;
+        text-decoration: none;
+        box-shadow: 0 10px 26px rgba(13, 27, 42, 0.22);
+      }
+
+      @media (max-width: 1200px) {
+        .pre-nav {
+          gap: 24px;
+          font-size: 14px;
+        }
+
+        .pre-actions {
+          width: 250px;
+        }
+
+        .pre-login,
+        .pre-signup {
+          padding: 0 18px;
+        }
       }
 
       @media (max-width: 900px) {
@@ -222,7 +284,7 @@
         }
 
         .pre-nav,
-        .pre-actions-space {
+        .pre-actions {
           display: none;
         }
       }
@@ -251,13 +313,15 @@
               </svg>
             </span>
 
-            <div class="pre-dropdown">
-              <span class="pre-dropdown-link">목표관리서비스</span>
-              <span class="pre-dropdown-link">AI 수행평가 서비스</span>
-              <span class="pre-dropdown-link">세특코치서비스</span>
-              <span class="pre-dropdown-link">수시키드</span>
-              <span class="pre-dropdown-link">약점관리서비스</span>
-              <span class="pre-dropdown-link">특화멘토링</span>
+            <div class="pre-dropdown-wrap">
+              <div class="pre-dropdown">
+                <span class="pre-dropdown-link">목표관리서비스</span>
+                <span class="pre-dropdown-link">AI 수행평가 서비스</span>
+                <span class="pre-dropdown-link">세특코치서비스</span>
+                <span class="pre-dropdown-link">수시키드</span>
+                <span class="pre-dropdown-link">약점관리서비스</span>
+                <span class="pre-dropdown-link">특화멘토링</span>
+              </div>
             </div>
           </div>
 
@@ -269,10 +333,12 @@
               </svg>
             </span>
 
-            <div class="pre-dropdown">
-              <span class="pre-dropdown-link">성공사례</span>
-              <span class="pre-dropdown-link">교육부시운영지침</span>
-              <span class="pre-dropdown-link">관리시스템이란</span>
+            <div class="pre-dropdown-wrap">
+              <div class="pre-dropdown">
+                <span class="pre-dropdown-link">성공사례</span>
+                <span class="pre-dropdown-link">교육부시운영지침</span>
+                <span class="pre-dropdown-link">관리시스템이란</span>
+              </div>
             </div>
           </div>
 
@@ -284,10 +350,12 @@
               </svg>
             </span>
 
-            <div class="pre-dropdown">
-              <span class="pre-dropdown-link">수시정보</span>
-              <span class="pre-dropdown-link">정시정보</span>
-              <span class="pre-dropdown-link">논술정보</span>
+            <div class="pre-dropdown-wrap">
+              <div class="pre-dropdown">
+                <span class="pre-dropdown-link">수시정보</span>
+                <span class="pre-dropdown-link">정시정보</span>
+                <span class="pre-dropdown-link">논술정보</span>
+              </div>
             </div>
           </div>
 
@@ -299,10 +367,12 @@
               </svg>
             </span>
 
-            <div class="pre-dropdown">
-              <span class="pre-dropdown-link">회사연혁</span>
-              <span class="pre-dropdown-link">조직소개</span>
-              <span class="pre-dropdown-link">포트폴리오</span>
+            <div class="pre-dropdown-wrap">
+              <div class="pre-dropdown">
+                <span class="pre-dropdown-link">회사연혁</span>
+                <span class="pre-dropdown-link">조직소개</span>
+                <span class="pre-dropdown-link">포트폴리오</span>
+              </div>
             </div>
           </div>
 
@@ -314,15 +384,20 @@
               </svg>
             </span>
 
-            <div class="pre-dropdown">
-              <span class="pre-dropdown-link">공지사항</span>
-              <span class="pre-dropdown-link">이용후기</span>
-              <span class="pre-dropdown-link">자주하는 질문</span>
+            <div class="pre-dropdown-wrap">
+              <div class="pre-dropdown">
+                <span class="pre-dropdown-link">공지사항</span>
+                <span class="pre-dropdown-link">이용후기</span>
+                <span class="pre-dropdown-link">자주하는 질문</span>
+              </div>
             </div>
           </div>
         </nav>
 
-        <div class="pre-actions-space"></div>
+        <div class="pre-actions">
+          <span class="pre-login">로그인</span>
+          <span class="pre-signup">회원가입</span>
+        </div>
       </div>
     </div>
 
