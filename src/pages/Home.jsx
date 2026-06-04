@@ -17,6 +17,9 @@ import {
   CheckCircle2,
   GraduationCap,
   BookOpenCheck,
+  Target,
+  Brain,
+  Edit3,
 } from 'lucide-react';
 
 const DEFAULT_BANNERS = [
