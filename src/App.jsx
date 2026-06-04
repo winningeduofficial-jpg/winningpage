@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import ProtectedAdmin from './components/ProtectedAdmin.jsx';
 
@@ -14,10 +14,13 @@ import Signup from './pages/Signup.jsx';
 import Admin from './pages/Admin.jsx';
 import MyPage from './pages/MyPage.jsx';
 
-export default function App() {
+function AppRoutes() {
+  const location = useLocation();
+  const isAdminPage = location.pathname.startsWith('/admin');
+
   return (
-    <BrowserRouter>
-      <Header />
+    <>
+      {!isAdminPage && <Header />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -33,7 +36,7 @@ export default function App() {
         <Route path="/mypage" element={<MyPage />} />
 
         <Route
-          path="/admin"
+          path="/admin/*"
           element={
             <ProtectedAdmin>
               <Admin />
@@ -41,6 +44,14 @@ export default function App() {
           }
         />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
     </BrowserRouter>
   );
 }
