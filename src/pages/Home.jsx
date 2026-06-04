@@ -172,10 +172,10 @@ export default function Home() {
 
     async function fetchServices() {
       const { data, error } = await supabase
-        .from('services')
-        .select('id, title, description, link, slug, icon, sort_order, is_active')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+  .from('program_categories')
+  .select('id, name, description, link, icon, sort_order, is_active')
+  .eq('is_active', true)
+  .order('sort_order', { ascending: true });
 
       if (!mounted) return;
 
@@ -186,12 +186,12 @@ export default function Home() {
       }
 
       const normalized = (data || []).map((service) => ({
-        id: service.id,
-        icon: serviceIconMap[service.icon] || ClipboardList,
-        title: service.title,
-        desc: service.description,
-        link: service.link || `/services/${service.slug}`,
-      }));
+  id: service.id,
+  icon: serviceIconMap[service.icon] || ClipboardList,
+  title: service.name,
+  desc: service.description,
+  link: service.link || '/services',
+}));
 
       setServiceItems(normalized.length ? normalized : DEFAULT_SERVICES);
     }
