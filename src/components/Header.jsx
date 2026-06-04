@@ -64,6 +64,14 @@ const FALLBACK_NAV_GROUPS = [
   }
 ];
 
+const MENU_GROUP_ORDER = {
+  서비스: 1,
+  합격전략: 2,
+  입시정보: 3,
+  회사소개: 4,
+  위닝정보: 5
+};
+
 const MY_MENU = [
   { label: '내정보·자녀수정', to: '/mypage', icon: UserRound },
   { label: '수강신청·결제', to: '/pricing', icon: CreditCard },
@@ -213,8 +221,17 @@ function buildNavGroups(rows) {
     if (!slug) return;
 
     const itemLink = `/page/${slug}`;
-    const groupOrder = Number(item.menu_group_order || 99);
-    const sortOrder = Number(item.sort_order || 99);
+    const savedGroupOrder = Number(item.menu_group_order);
+const groupOrder =
+  Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
+    ? savedGroupOrder
+    : MENU_GROUP_ORDER[groupName] || 99;
+
+const savedSortOrder = Number(item.sort_order);
+const sortOrder =
+  Number.isFinite(savedSortOrder) && savedSortOrder > 0
+    ? savedSortOrder
+    : 99;
 
     if (!grouped.has(groupName)) {
       grouped.set(groupName, {
@@ -472,9 +489,9 @@ export default function Header() {
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
-      <div className="mx-auto flex h-[84px] max-w-[1500px] items-center justify-between px-8">
-        <Link to="/" className="flex h-[84px] w-[190px] shrink-0 items-center">
+  <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
+    <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_1fr_420px] items-center px-8">
+        <Link to="/" className="flex h-[84px] w-[190px] shrink-0 items-center justify-self-start">
           <img
             src="/images/winning-logo.png"
             alt="위닝에듀"
@@ -484,7 +501,7 @@ export default function Header() {
           />
         </Link>
 
-        <nav className="hidden items-center justify-center gap-8 whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
+        <nav className="hidden items-center justify-center gap-8 justify-self-center whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
           {navGroups.map((group) => (
             <div
               key={group.title}
@@ -530,9 +547,9 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex w-[420px] shrink-0 items-center justify-end gap-3 justify-self-end">
           {!isAuthReady ? (
-            <div className="flex shrink-0 items-center gap-3" aria-hidden="true">
+            <div className="flex w-full shrink-0 items-center justify-end gap-3" aria-hidden="true">
               <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
                 <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
                   {csatDDay}
