@@ -84,17 +84,52 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 40px;
+        gap: 32px;
         color: #0d1b2a;
         font-size: 15px;
         font-weight: 900;
         white-space: nowrap;
+        line-height: 1;
       }
 
       .pre-nav-item {
+        position: relative;
+        display: flex;
+        height: 84px;
+        align-items: center;
+      }
+
+      .pre-nav-label {
         display: inline-flex;
+        height: 84px;
         align-items: center;
         gap: 4px;
+        color: #0d1b2a;
+        text-decoration: none;
+        transition:
+          color 0.18s ease,
+          background-color 0.18s ease;
+      }
+
+      .pre-nav-label::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 40px;
+        height: 3px;
+        transform: translateX(-50%) scaleX(0);
+        border-radius: 999px;
+        background: #b88737;
+        transition: transform 0.18s ease;
+      }
+
+      .pre-nav-item:hover .pre-nav-label {
+        color: #b88737;
+      }
+
+      .pre-nav-item:hover .pre-nav-label::after {
+        transform: translateX(-50%) scaleX(1);
       }
 
       .pre-chevron {
@@ -105,6 +140,59 @@
         fill: none;
         stroke-linecap: round;
         stroke-linejoin: round;
+        transition: transform 0.18s ease;
+      }
+
+      .pre-nav-item:hover .pre-chevron {
+        transform: rotate(180deg);
+      }
+
+      .pre-dropdown {
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        width: 230px;
+        transform: translateX(-50%);
+        border: 1px solid #e5e0d6;
+        border-top: 0;
+        background: #ffffff;
+        box-shadow: 0 18px 45px rgba(13, 27, 42, 0.14);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity 0.16s ease,
+          visibility 0.16s ease;
+      }
+
+      .pre-nav-item:hover .pre-dropdown {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .pre-dropdown-link {
+        display: block;
+        padding: 20px 24px;
+        border-bottom: 1px solid #eee8da;
+        color: #0d1b2a;
+        text-align: center;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        transition:
+          color 0.18s ease,
+          background-color 0.18s ease;
+      }
+
+      .pre-dropdown-link:last-child {
+        border-bottom: 0;
+      }
+
+      .pre-dropdown-link:hover {
+        background: #fff8e8;
+        color: #b88737;
       }
 
       .pre-actions-space {
@@ -155,17 +243,83 @@
         </div>
 
         <nav class="pre-nav">
-          <span class="pre-nav-item">
-            서비스
-            <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m6 9 6 6 6-6"></path>
-            </svg>
-          </span>
-          <span>학습 분석</span>
-          <span>수시 · 대입</span>
-          <span>결제</span>
-          <span>후기</span>
-          <span>공지사항</span>
+          <div class="pre-nav-item">
+            <span class="pre-nav-label">
+              서비스
+              <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
+
+            <div class="pre-dropdown">
+              <span class="pre-dropdown-link">목표관리서비스</span>
+              <span class="pre-dropdown-link">AI 수행평가 서비스</span>
+              <span class="pre-dropdown-link">세특코치서비스</span>
+              <span class="pre-dropdown-link">수시키드</span>
+              <span class="pre-dropdown-link">약점관리서비스</span>
+              <span class="pre-dropdown-link">특화멘토링</span>
+            </div>
+          </div>
+
+          <div class="pre-nav-item">
+            <span class="pre-nav-label">
+              합격전략
+              <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
+
+            <div class="pre-dropdown">
+              <span class="pre-dropdown-link">성공사례</span>
+              <span class="pre-dropdown-link">교육부시운영지침</span>
+              <span class="pre-dropdown-link">관리시스템이란</span>
+            </div>
+          </div>
+
+          <div class="pre-nav-item">
+            <span class="pre-nav-label">
+              입시정보
+              <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
+
+            <div class="pre-dropdown">
+              <span class="pre-dropdown-link">수시정보</span>
+              <span class="pre-dropdown-link">정시정보</span>
+              <span class="pre-dropdown-link">논술정보</span>
+            </div>
+          </div>
+
+          <div class="pre-nav-item">
+            <span class="pre-nav-label">
+              회사소개
+              <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
+
+            <div class="pre-dropdown">
+              <span class="pre-dropdown-link">회사연혁</span>
+              <span class="pre-dropdown-link">조직소개</span>
+              <span class="pre-dropdown-link">포트폴리오</span>
+            </div>
+          </div>
+
+          <div class="pre-nav-item">
+            <span class="pre-nav-label">
+              위닝정보
+              <svg class="pre-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
+
+            <div class="pre-dropdown">
+              <span class="pre-dropdown-link">공지사항</span>
+              <span class="pre-dropdown-link">이용후기</span>
+              <span class="pre-dropdown-link">자주하는 질문</span>
+            </div>
+          </div>
         </nav>
 
         <div class="pre-actions-space"></div>
