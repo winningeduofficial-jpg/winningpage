@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups';
 
 const FALLBACK_NAV_GROUPS = [
   {
@@ -82,6 +83,18 @@ function cleanText(value) {
   return String(value || '').trim();
 }
 
+function safeJsonStringify(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+}
+
+function isSameObject(a, b) {
+  return safeJsonStringify(a) === safeJsonStringify(b);
+}
+
 function getCsatDay() {
   const now = new Date();
   const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -110,6 +123,7 @@ function readCachedProfile() {
   try {
     const raw = window.localStorage.getItem(HEADER_PROFILE_CACHE_KEY);
     if (!raw) return null;
+
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
@@ -130,6 +144,35 @@ function writeCachedProfile(profile) {
   }
 }
 
+function readCachedNavGroups() {
+  try {
+    const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedNavGroups(groups) {
+  try {
+    if (!Array.isArray(groups) || groups.length === 0) {
+      return;
+    }
+
+    window.localStorage.setItem(HEADER_NAV_CACHE_KEY, JSON.stringify(groups));
+  } catch {
+    // 메뉴 캐시 저장 실패는 무시
+  }
+}
+
 function isSameUserProfile(profile, user) {
   if (!profile || !user) return false;
 
@@ -139,6 +182,13 @@ function isSameUserProfile(profile, user) {
   const userEmail = cleanText(user.email).toLowerCase();
 
   return (!!profileId && profileId === userId) || (!!profileEmail && profileEmail === userEmail);
+}
+
+function withTimeout(promise, ms, fallbackValue = null) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => window.setTimeout(() => resolve(fallbackValue), ms))
+  ]);
 }
 
 async function queryProfileById(userId) {
@@ -221,17 +271,18 @@ function buildNavGroups(rows) {
     if (!slug) return;
 
     const itemLink = `/page/${slug}`;
-    const savedGroupOrder = Number(item.menu_group_order);
-const groupOrder =
-  Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
-    ? savedGroupOrder
-    : MENU_GROUP_ORDER[groupName] || 99;
 
-const savedSortOrder = Number(item.sort_order);
-const sortOrder =
-  Number.isFinite(savedSortOrder) && savedSortOrder > 0
-    ? savedSortOrder
-    : 99;
+    const savedGroupOrder = Number(item.menu_group_order);
+    const groupOrder =
+      Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
+        ? savedGroupOrder
+        : MENU_GROUP_ORDER[groupName] || 99;
+
+    const savedSortOrder = Number(item.sort_order);
+    const sortOrder =
+      Number.isFinite(savedSortOrder) && savedSortOrder > 0
+        ? savedSortOrder
+        : 99;
 
     if (!grouped.has(groupName)) {
       grouped.set(groupName, {
@@ -272,7 +323,9 @@ export default function Header() {
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState(null);
   const [myOpen, setMyOpen] = useState(false);
-  const [navGroups, setNavGroups] = useState(FALLBACK_NAV_GROUPS);
+  const [navGroups, setNavGroups] = useState(() => {
+    return readCachedNavGroups() || FALLBACK_NAV_GROUPS;
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setCsatDDay(getCsatDay()), 60 * 60 * 1000);
@@ -290,6 +343,8 @@ export default function Header() {
         .order('menu_group_order', { ascending: true })
         .order('sort_order', { ascending: true });
 
+      if (!alive) return;
+
       if (error) {
         console.error('헤더 메뉴 조회 실패:', error);
         return;
@@ -297,9 +352,18 @@ export default function Header() {
 
       const nextGroups = buildNavGroups(data);
 
-      if (alive && nextGroups.length > 0) {
-        setNavGroups(nextGroups);
+      if (nextGroups.length === 0) {
+        return;
       }
+
+      setNavGroups((prev) => {
+        if (isSameObject(prev, nextGroups)) {
+          return prev;
+        }
+
+        writeCachedNavGroups(nextGroups);
+        return nextGroups;
+      });
     }
 
     loadHeaderMenus();
@@ -321,33 +385,30 @@ export default function Header() {
 
   useEffect(() => {
     let alive = true;
-    let syncSeq = 0;
-    const TIMEOUT = Symbol('timeout');
-
-    function withTimeout(promise, ms, fallbackValue = TIMEOUT) {
-      return Promise.race([
-        promise,
-        new Promise((resolve) => window.setTimeout(() => resolve(fallbackValue), ms))
-      ]);
-    }
+    let seq = 0;
 
     async function syncSession(nextSession) {
-      const currentSeq = ++syncSeq;
+      const currentSeq = ++seq;
 
       try {
-        const sessionResult = nextSession !== undefined
-          ? nextSession
-          : await withTimeout(supabase.auth.getSession(), 1200, { data: { session: null } });
+        const sessionResult =
+          nextSession !== undefined
+            ? nextSession
+            : await withTimeout(
+                supabase.auth.getSession(),
+                1200,
+                { data: { session: null } }
+              );
 
-        if (!alive || currentSeq !== syncSeq) return;
+        if (!alive || currentSeq !== seq) return;
 
-        const currentSession = nextSession !== undefined
-          ? sessionResult
-          : (sessionResult?.data?.session || null);
-
-        setSession(currentSession);
+        const currentSession =
+          nextSession !== undefined
+            ? sessionResult
+            : sessionResult?.data?.session || null;
 
         if (!currentSession?.user) {
+          setSession(null);
           setProfile(null);
           writeCachedProfile(null);
           setIsAuthReady(true);
@@ -355,67 +416,68 @@ export default function Header() {
         }
 
         const cachedProfile = readCachedProfile();
+        let nextProfile = null;
 
         if (isSameUserProfile(cachedProfile, currentSession.user)) {
-          setProfile(cachedProfile);
+          nextProfile = cachedProfile;
         }
+
+        const fetchedProfile = await withTimeout(
+          fetchProfile(currentSession.user),
+          1800,
+          null
+        );
+
+        if (!alive || currentSeq !== seq) return;
+
+        if (fetchedProfile && isSameUserProfile(fetchedProfile, currentSession.user)) {
+          nextProfile = fetchedProfile;
+          writeCachedProfile(fetchedProfile);
+        }
+
+        setSession((prev) => {
+          if (prev?.user?.id === currentSession?.user?.id) {
+            return prev;
+          }
+
+          return currentSession;
+        });
+
+        setProfile((prev) => {
+          if (isSameObject(prev, nextProfile)) {
+            return prev;
+          }
+
+          return nextProfile;
+        });
 
         setIsAuthReady(true);
-
-        const byId = await withTimeout(queryProfileById(currentSession.user.id), 1500, TIMEOUT);
-
-        if (!alive || currentSeq !== syncSeq) return;
-
-        if (byId && isSameUserProfile(byId, currentSession.user)) {
-          setProfile(byId);
-          writeCachedProfile(byId);
-          return;
-        }
-
-        const fallbackProfile = await withTimeout(fetchProfile(currentSession.user), 1800, TIMEOUT);
-
-        if (!alive || currentSeq !== syncSeq) return;
-
-        if (fallbackProfile && isSameUserProfile(fallbackProfile, currentSession.user)) {
-          setProfile(fallbackProfile);
-          writeCachedProfile(fallbackProfile);
-          return;
-        }
-
-        if (isSameUserProfile(cachedProfile, currentSession.user)) {
-          setProfile(cachedProfile);
-        }
       } catch (error) {
         console.error('헤더 세션 동기화 오류:', error);
 
-        if (alive && currentSeq === syncSeq) {
-          const cachedProfile = readCachedProfile();
-          if (cachedProfile) setProfile(cachedProfile);
-          setIsAuthReady(true);
-        }
+        if (!alive || currentSeq !== seq) return;
+
+        setSession(null);
+        setProfile(null);
+        setIsAuthReady(true);
       }
     }
 
     syncSession();
 
-    const handleProfileUpdated = () => syncSession();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') syncSession();
+    const handleProfileUpdated = () => {
+      syncSession();
     };
 
     window.addEventListener('winning-profile-updated', handleProfileUpdated);
-    window.addEventListener('focus', handleProfileUpdated);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      await syncSession(nextSession || null);
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      syncSession(nextSession || null);
     });
 
     return () => {
       alive = false;
       window.removeEventListener('winning-profile-updated', handleProfileUpdated);
-      window.removeEventListener('focus', handleProfileUpdated);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener?.subscription?.unsubscribe?.();
     };
   }, []);
@@ -481,17 +543,20 @@ export default function Header() {
     window.location.replace('/');
   }
 
-  const isLoggedIn = !!session?.user;
+  const isLoggedIn = isAuthReady && !!session?.user;
   const hasProfile = !!profile && !!cleanText(profile?.name);
-  const shouldShowLoggedInHeader = isAuthReady && isLoggedIn && hasProfile;
+  const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
   const displayName = cleanText(profile?.name) || '';
   const memberLabel = getMemberLabel(profile);
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
   return (
-  <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)]">
-    <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_1fr_420px] items-center px-8">
-        <Link to="/" className="flex h-[84px] w-[190px] shrink-0 items-center justify-self-start">
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)] will-change-transform">
+      <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_minmax(560px,1fr)_420px] items-center px-8">
+        <Link
+          to="/"
+          className="flex h-[84px] w-[190px] shrink-0 items-center justify-self-start"
+        >
           <img
             src="/images/winning-logo.png"
             alt="위닝에듀"
@@ -501,7 +566,7 @@ export default function Header() {
           />
         </Link>
 
-        <nav className="hidden items-center justify-center gap-8 justify-self-center whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
+        <nav className="hidden min-w-0 items-center justify-center gap-8 justify-self-center whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
           {navGroups.map((group) => (
             <div
               key={group.title}
@@ -547,18 +612,9 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex w-[420px] shrink-0 items-center justify-end gap-3 justify-self-end">
+        <div className="flex h-[84px] w-[420px] shrink-0 items-center justify-end gap-3 justify-self-end">
           {!isAuthReady ? (
-            <div className="flex w-full shrink-0 items-center justify-end gap-3" aria-hidden="true">
-              <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
-                <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
-                  {csatDDay}
-                </span>
-                <span className="inline-block h-4 w-20 rounded bg-[#0D1B2A]/10" />
-              </div>
-              <div className="h-10 w-[118px] rounded-xl border border-[#0D1B2A]/15 bg-white" />
-              <div className="h-10 w-[96px] rounded-xl border border-[#0D1B2A] bg-[#0D1B2A]" />
-            </div>
+            <div className="h-10 w-[260px]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
               <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
