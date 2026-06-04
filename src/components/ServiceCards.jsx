@@ -36,7 +36,7 @@ const FALLBACK_SERVICES = [
   },
   {
     id: 'fallback-4',
-    name: '수시키드',
+    name: '수시카드',
     description: '수시 지원 전략 및 전형 관리 서비스',
     link: '/services#susi',
     icon: 'susi'
