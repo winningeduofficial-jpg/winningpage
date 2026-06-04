@@ -59,7 +59,7 @@ function writeCachedProfile(profile) {
 
     window.localStorage.setItem(HEADER_PROFILE_CACHE_KEY, JSON.stringify(profile));
   } catch {
-    // 캐시 저장 실패는 화면 렌더링을 막지 않는다.
+    // localStorage 저장 실패는 화면 렌더링을 막지 않는다.
   }
 }
 
@@ -182,9 +182,10 @@ export default function Header() {
 
         if (!alive || currentSeq !== syncSeq) return;
 
-        const currentSession = nextSession !== undefined
-          ? sessionResult
-          : (sessionResult?.data?.session || null);
+        const currentSession =
+          nextSession !== undefined
+            ? sessionResult
+            : (sessionResult?.data?.session || null);
 
         setSession(currentSession);
 
@@ -199,9 +200,9 @@ export default function Header() {
 
         if (isSameUserProfile(cachedProfile, currentSession.user)) {
           setProfile(cachedProfile);
+        } else {
+          setProfile(null);
         }
-
-        setIsAuthReady(true);
 
         const nextProfile = await withTimeout(fetchProfile(currentSession.user), 5000, TIMEOUT);
 
@@ -210,20 +211,26 @@ export default function Header() {
         if (nextProfile && isSameUserProfile(nextProfile, currentSession.user)) {
           setProfile(nextProfile);
           writeCachedProfile(nextProfile);
+          setIsAuthReady(true);
           return;
         }
 
-        setProfile((prevProfile) => {
-          if (isSameUserProfile(prevProfile, currentSession.user)) return prevProfile;
-          if (isSameUserProfile(cachedProfile, currentSession.user)) return cachedProfile;
-          return null;
-        });
+        if (isSameUserProfile(cachedProfile, currentSession.user)) {
+          setProfile(cachedProfile);
+          setIsAuthReady(true);
+          return;
+        }
+
+        setProfile(null);
+        setIsAuthReady(true);
       } catch (error) {
         console.error('헤더 세션 동기화 오류:', error);
 
         if (alive && currentSeq === syncSeq) {
+          const cachedProfile = readCachedProfile();
+
+          setProfile((prevProfile) => prevProfile || cachedProfile || null);
           setIsAuthReady(true);
-          setProfile((prevProfile) => prevProfile || readCachedProfile());
         }
       }
     }
@@ -235,7 +242,9 @@ export default function Header() {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') syncSession();
+      if (document.visibilityState === 'visible') {
+        syncSession();
+      }
     };
 
     window.addEventListener('winning-profile-updated', handleProfileUpdated);
@@ -319,7 +328,10 @@ export default function Header() {
   }
 
   const isLoggedIn = !!session?.user;
-  const displayName = cleanText(profile?.name) || '회원';
+  const hasProfile = !!profile && !!cleanText(profile?.name);
+  const shouldShowLoggedInHeader = isAuthReady && isLoggedIn && hasProfile;
+
+  const displayName = cleanText(profile?.name) || '';
   const memberLabel = getMemberLabel(profile);
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
@@ -364,13 +376,13 @@ export default function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
-          {!isAuthReady ? (
+          {!isAuthReady || (isLoggedIn && !hasProfile) ? (
             <div className="flex shrink-0 items-center gap-3 opacity-0" aria-hidden="true">
               <div className="hidden h-10 w-[198px] rounded-xl lg:block" />
               <div className="h-10 w-[118px] rounded-xl" />
               <div className="h-10 w-[96px] rounded-xl" />
             </div>
-          ) : isLoggedIn ? (
+          ) : shouldShowLoggedInHeader ? (
             <>
               <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
                 <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
