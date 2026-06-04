@@ -1,57 +1,48 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import Header from './components/Header.jsx';
-import ProtectedAdmin from './components/ProtectedAdmin.jsx';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import MyPage from './pages/MyPage';
+import Pricing from './pages/Pricing';
+import Services from './pages/Services';
+import LearningAnalysis from './pages/LearningAnalysis';
+import Admissions from './pages/Admissions';
+import Events from './pages/Events';
+import Reviews from './pages/Reviews';
+import Admin from './pages/Admin';
+import DynamicPage from './pages/DynamicPage';
+import ProtectedAdmin from './components/ProtectedAdmin';
 
-import Home from './pages/Home.jsx';
-import Services from './pages/Services.jsx';
-import LearningAnalysis from './pages/LearningAnalysis.jsx';
-import Admissions from './pages/Admissions.jsx';
-import Pricing from './pages/Pricing.jsx';
-import Reviews from './pages/Reviews.jsx';
-import Events from './pages/Events.jsx';
-import Login from './pages/Login.jsx';
-import Signup from './pages/Signup.jsx';
-import Admin from './pages/Admin.jsx';
-import MyPage from './pages/MyPage.jsx';
-
-function AppRoutes() {
-  const location = useLocation();
-  const isAdminPage = location.pathname.startsWith('/admin');
-
+export default function App() {
   return (
-    <>
-      {!isAdminPage && <Header />}
-
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/learning-analysis" element={<LearningAnalysis />} />
-        <Route path="/admissions" element={<Admissions />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/reviews" element={<Reviews />} />
-        <Route path="/events" element={<Events />} />
 
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/pricing" element={<Pricing />} />
+
+        <Route path="/services" element={<Services />} />
+        <Route path="/learning-analysis" element={<LearningAnalysis />} />
+        <Route path="/admissions" element={<Admissions />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/reviews" element={<Reviews />} />
+
+        <Route path="/page/:slug" element={<DynamicPage />} />
 
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <ProtectedAdmin>
               <Admin />
             </ProtectedAdmin>
           }
         />
-      </Routes>
-    </>
-  );
-}
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AppRoutes />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
