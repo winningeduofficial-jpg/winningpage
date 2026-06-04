@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 
-const NAV_GROUPS = [
+const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
     to: '/page/services-goal',
@@ -203,6 +203,51 @@ async function fetchProfile(user) {
   return byId || byEmail || byUsername || null;
 }
 
+function buildNavGroups(rows) {
+  const grouped = new Map();
+
+  (rows || []).forEach((item) => {
+    const groupName = cleanText(item.menu_group) || '기타';
+    const slug = cleanText(item.slug);
+
+    if (!slug) return;
+
+    const itemLink = `/page/${slug}`;
+    const groupOrder = Number(item.menu_group_order || 99);
+    const sortOrder = Number(item.sort_order || 99);
+
+    if (!grouped.has(groupName)) {
+      grouped.set(groupName, {
+        title: groupName,
+        groupOrder,
+        to: itemLink,
+        items: []
+      });
+    }
+
+    const group = grouped.get(groupName);
+
+    if (groupOrder < group.groupOrder) {
+      group.groupOrder = groupOrder;
+      group.to = itemLink;
+    }
+
+    group.items.push({
+      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      to: itemLink,
+      sortOrder
+    });
+  });
+
+  return Array.from(grouped.values())
+    .sort((a, b) => a.groupOrder - b.groupOrder)
+    .map((group) => ({
+      title: group.title,
+      to: group.items[0]?.to || group.to,
+      items: group.items.sort((a, b) => a.sortOrder - b.sortOrder)
+    }));
+}
+
 export default function Header() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(() => readCachedProfile());
@@ -210,10 +255,51 @@ export default function Header() {
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState(null);
   const [myOpen, setMyOpen] = useState(false);
+  const [navGroups, setNavGroups] = useState(FALLBACK_NAV_GROUPS);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCsatDDay(getCsatDay()), 60 * 60 * 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadHeaderMenus() {
+      const { data, error } = await supabase
+        .from('page_contents')
+        .select('menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active')
+        .eq('is_active', true)
+        .order('menu_group_order', { ascending: true })
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('헤더 메뉴 조회 실패:', error);
+        return;
+      }
+
+      const nextGroups = buildNavGroups(data);
+
+      if (alive && nextGroups.length > 0) {
+        setNavGroups(nextGroups);
+      }
+    }
+
+    loadHeaderMenus();
+
+    const channel = supabase
+      .channel('header-page-contents')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'page_contents' },
+        () => loadHeaderMenus()
+      )
+      .subscribe();
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -399,7 +485,7 @@ export default function Header() {
         </Link>
 
         <nav className="hidden items-center justify-center gap-8 whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
-          {NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div
               key={group.title}
               className="relative flex h-[84px] items-center"
@@ -429,8 +515,9 @@ export default function Header() {
                   <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                     {group.items.map((item) => (
                       <Link
-                        key={item.label}
+                        key={item.to}
                         to={item.to}
+                        onClick={() => setActiveMega(null)}
                         className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
                       >
                         {item.label}
@@ -490,6 +577,7 @@ export default function Header() {
                           <Link
                             key={item.label}
                             to={item.to}
+                            onClick={() => setMyOpen(false)}
                             className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
                           >
                             <Icon size={18} />
@@ -547,6 +635,7 @@ export default function Header() {
                           <Link
                             key={item.label}
                             to={item.to}
+                            onClick={() => setMyOpen(false)}
                             className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
                           >
                             <Icon size={18} />
