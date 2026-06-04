@@ -178,7 +178,11 @@ export default function Header() {
         const sessionResult =
           nextSession !== undefined
             ? nextSession
-            : await withTimeout(supabase.auth.getSession(), 3500, { data: { session: null } });
+            : await withTimeout(
+                supabase.auth.getSession(),
+                1200,
+                { data: { session: null } }
+              );
 
         if (!alive || currentSeq !== syncSeq) return;
 
@@ -200,36 +204,53 @@ export default function Header() {
 
         if (isSameUserProfile(cachedProfile, currentSession.user)) {
           setProfile(cachedProfile);
-        } else {
-          setProfile(null);
         }
 
-        const nextProfile = await withTimeout(fetchProfile(currentSession.user), 5000, TIMEOUT);
+        // 중요: 여기서 바로 true 처리한다.
+        // Supabase profiles 조회를 기다리지 않고 헤더를 먼저 띄운다.
+        setIsAuthReady(true);
+
+        const byId = await withTimeout(
+          queryProfileById(currentSession.user.id),
+          1500,
+          TIMEOUT
+        );
 
         if (!alive || currentSeq !== syncSeq) return;
 
-        if (nextProfile && isSameUserProfile(nextProfile, currentSession.user)) {
-          setProfile(nextProfile);
-          writeCachedProfile(nextProfile);
-          setIsAuthReady(true);
+        if (byId && isSameUserProfile(byId, currentSession.user)) {
+          setProfile(byId);
+          writeCachedProfile(byId);
+          return;
+        }
+
+        const fallbackProfile = await withTimeout(
+          fetchProfile(currentSession.user),
+          1800,
+          TIMEOUT
+        );
+
+        if (!alive || currentSeq !== syncSeq) return;
+
+        if (fallbackProfile && isSameUserProfile(fallbackProfile, currentSession.user)) {
+          setProfile(fallbackProfile);
+          writeCachedProfile(fallbackProfile);
           return;
         }
 
         if (isSameUserProfile(cachedProfile, currentSession.user)) {
           setProfile(cachedProfile);
-          setIsAuthReady(true);
-          return;
         }
-
-        setProfile(null);
-        setIsAuthReady(true);
       } catch (error) {
         console.error('헤더 세션 동기화 오류:', error);
 
         if (alive && currentSeq === syncSeq) {
           const cachedProfile = readCachedProfile();
 
-          setProfile((prevProfile) => prevProfile || cachedProfile || null);
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+          }
+
           setIsAuthReady(true);
         }
       }
@@ -376,7 +397,7 @@ export default function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
-          {!isAuthReady || (isLoggedIn && !hasProfile) ? (
+          {!isAuthReady ? (
             <div className="flex shrink-0 items-center gap-3" aria-hidden="true">
               <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
                 <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
@@ -415,6 +436,30 @@ export default function Header() {
                   관리자
                 </Link>
               )}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : isLoggedIn ? (
+            <>
+              <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
+                <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
+                  {csatDDay}
+                </span>
+                <span className="inline-block h-4 w-20 rounded bg-[#0D1B2A]/10" />
+              </div>
+
+              <Link
+                to="/mypage"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#0D1B2A] hover:bg-[#F8F7F3]"
+              >
+                마이페이지
+              </Link>
 
               <button
                 type="button"
