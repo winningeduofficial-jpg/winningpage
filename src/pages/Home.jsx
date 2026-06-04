@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 import {
   ArrowRight,
@@ -245,6 +246,8 @@ export default function Home() {
   const banner = banners[currentBanner];
 
   return (
+   <>
+    <Header />
     <main className="bg-[#F8F7F3] pt-[84px]">
       <section className="relative isolate overflow-hidden bg-[#F7F3EA] text-white">
         <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
@@ -520,7 +523,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </main>
-  );
+   </main>
+  </>
+);
 }
-
