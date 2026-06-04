@@ -356,11 +356,11 @@ const CONFIGS = {
     { key: 'description', label: '설명', type: 'textarea' },
     { key: 'link', label: '연결 페이지', type: 'text' },
     {
-      key: 'icon',
-      label: '아이콘',
-      type: 'select',
-      options: ['clipboard', 'users', 'edit', 'file', 'chart', 'star', 'default']
-    },
+  key: 'icon',
+  label: '아이콘',
+  type: 'select',
+  options: ['target', 'brain', 'file', 'graduation', 'chart', 'users', 'clipboard', 'edit', 'star', 'default']
+},
     { key: 'sort_order', label: '순서', type: 'number' }
   ],
   defaults: {
