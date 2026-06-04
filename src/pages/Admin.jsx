@@ -24,7 +24,8 @@ const MENU_GROUPS = [
     title: '전시 관리',
     items: [
       { key: 'popups', label: '팝업 관리' },
-      { key: 'banners', label: '배너 관리' }
+      { key: 'banners', label: '배너 관리' },
+      { key: 'pageContents', label: '세부 페이지 관리' }
     ]
   },
   {
@@ -142,6 +143,54 @@ const CONFIGS = {
       sort_order: 1
     }
   },
+
+  pageContents: {
+  title: '세부 페이지 관리',
+  table: 'page_contents',
+  searchPlaceholder: '메뉴명, 페이지명, 주소를 검색하세요',
+  order: 'sort_order',
+  homepage: true,
+  columns: [
+    { key: 'menu_group', label: '상위 메뉴' },
+    { key: 'menu_label', label: '하위 메뉴' },
+    { key: 'slug', label: '페이지 주소' },
+    { key: 'title', label: '제목' },
+    { key: 'sort_order', label: '순서' },
+    { key: 'is_active', label: '노출', type: 'boolean' }
+  ],
+  fields: [
+    {
+      key: 'menu_group',
+      label: '상위 메뉴',
+      type: 'select',
+      required: true,
+      options: ['서비스', '합격전략', '입시정보', '회사소개', '위닝정보']
+    },
+    { key: 'menu_label', label: '하위 메뉴명', type: 'text', required: true },
+    { key: 'slug', label: '페이지 주소', type: 'text', required: true },
+    { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+    { key: 'title', label: '제목', type: 'text', required: true },
+    { key: 'subtitle', label: '부제목', type: 'textarea' },
+    { key: 'body', label: '본문 내용', type: 'textarea' },
+    { key: 'image_url', label: '대표 이미지', type: 'image' },
+    { key: 'button_text', label: '버튼명', type: 'text' },
+    { key: 'button_link', label: '버튼 링크', type: 'text' },
+    { key: 'sort_order', label: '순서', type: 'number' }
+  ],
+  defaults: {
+    menu_group: '서비스',
+    menu_label: '',
+    slug: '',
+    is_active: true,
+    title: '',
+    subtitle: '',
+    body: '',
+    image_url: '',
+    button_text: '',
+    button_link: '',
+    sort_order: 1
+  }
+},
 
   notices: {
     title: '공지사항',
@@ -288,24 +337,41 @@ const CONFIGS = {
 },
 
   programCategories: {
-    title: '기초 데이터',
-    table: 'program_categories',
-    searchPlaceholder: '기초 데이터명을 검색하세요',
-    order: 'sort_order',
-    columns: [
-      { key: 'name', label: '명칭' },
-      { key: 'description', label: '설명' },
-      { key: 'sort_order', label: '순서' },
-      { key: 'is_active', label: '사용', type: 'boolean' }
-    ],
-    fields: [
-      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-      { key: 'name', label: '명칭', type: 'text', required: true },
-      { key: 'description', label: '설명', type: 'textarea' },
-      { key: 'sort_order', label: '순서', type: 'number' }
-    ],
-    defaults: { is_active: true, name: '', description: '', sort_order: 1 }
-  },
+  title: '기초 데이터',
+  table: 'program_categories',
+  searchPlaceholder: '기초 데이터명을 검색하세요',
+  order: 'sort_order',
+  homepage: true,
+  columns: [
+    { key: 'name', label: '명칭' },
+    { key: 'description', label: '설명' },
+    { key: 'link', label: '연결 페이지' },
+    { key: 'icon', label: '아이콘' },
+    { key: 'sort_order', label: '순서' },
+    { key: 'is_active', label: '사용', type: 'boolean' }
+  ],
+  fields: [
+    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+    { key: 'name', label: '명칭', type: 'text', required: true },
+    { key: 'description', label: '설명', type: 'textarea' },
+    { key: 'link', label: '연결 페이지', type: 'text' },
+    {
+      key: 'icon',
+      label: '아이콘',
+      type: 'select',
+      options: ['clipboard', 'users', 'edit', 'file', 'chart', 'star', 'default']
+    },
+    { key: 'sort_order', label: '순서', type: 'number' }
+  ],
+  defaults: {
+    is_active: true,
+    name: '',
+    description: '',
+    link: '/services',
+    icon: 'default',
+    sort_order: 1
+  }
+},
 
   dailyEntries: {
     title: '일일 입장',
