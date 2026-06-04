@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const CSAT_DATE = '2026-11-19';
+const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 
 function cleanText(value) {
   return String(value || '').trim();
@@ -33,6 +34,44 @@ function getMemberLabel(profile) {
   if (raw === 'mentor' || raw === 'teacher' || raw === '멘토' || raw === '교사') return '멘토회원';
 
   return raw.endsWith('회원') ? raw : `${raw}회원`;
+}
+
+function readCachedProfile() {
+  try {
+    const raw = window.localStorage.getItem(HEADER_PROFILE_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(profile) {
+  try {
+    if (!profile) {
+      window.localStorage.removeItem(HEADER_PROFILE_CACHE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(HEADER_PROFILE_CACHE_KEY, JSON.stringify(profile));
+  } catch {
+    // 캐시 저장 실패는 화면 렌더링을 막지 않는다.
+  }
+}
+
+function isSameUserProfile(profile, user) {
+  if (!profile || !user) return false;
+
+  const profileId = cleanText(profile.id);
+  const userId = cleanText(user.id);
+  const profileEmail = cleanText(profile.email).toLowerCase();
+  const userEmail = cleanText(user.email).toLowerCase();
+
+  return (!!profileId && profileId === userId) || (!!profileEmail && profileEmail === userEmail);
 }
 
 async function queryProfileById(userId) {
@@ -105,13 +144,9 @@ async function fetchProfile(user) {
 
 export default function Header() {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(() => readCachedProfile());
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
-
-  useLayoutEffect(() => {
-    const preHeader = document.getElementById('pre-header');
-    if (preHeader) preHeader.remove();
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -123,8 +158,11 @@ export default function Header() {
 
   useEffect(() => {
     let alive = true;
+    let syncSeq = 0;
 
-    function withTimeout(promise, ms, fallbackValue = null) {
+    const TIMEOUT = Symbol('timeout');
+
+    function withTimeout(promise, ms, fallbackValue = TIMEOUT) {
       return Promise.race([
         promise,
         new Promise((resolve) => {
@@ -134,30 +172,58 @@ export default function Header() {
     }
 
     async function syncSession(nextSession) {
+      const currentSeq = ++syncSeq;
+
       try {
-        const currentSession =
+        const sessionResult =
           nextSession !== undefined
             ? nextSession
-            : ((await withTimeout(supabase.auth.getSession(), 3500, { data: { session: null } }))?.data?.session || null);
+            : await withTimeout(supabase.auth.getSession(), 3500, { data: { session: null } });
 
-        if (!alive) return;
+        if (!alive || currentSeq !== syncSeq) return;
+
+        const currentSession = nextSession !== undefined
+          ? sessionResult
+          : (sessionResult?.data?.session || null);
 
         setSession(currentSession);
 
         if (!currentSession?.user) {
           setProfile(null);
+          writeCachedProfile(null);
+          setIsAuthReady(true);
           return;
         }
 
-        const nextProfile = await withTimeout(fetchProfile(currentSession.user), 3500, null);
+        const cachedProfile = readCachedProfile();
 
-        if (!alive) return;
-        setProfile(nextProfile);
+        if (isSameUserProfile(cachedProfile, currentSession.user)) {
+          setProfile(cachedProfile);
+        }
+
+        setIsAuthReady(true);
+
+        const nextProfile = await withTimeout(fetchProfile(currentSession.user), 5000, TIMEOUT);
+
+        if (!alive || currentSeq !== syncSeq) return;
+
+        if (nextProfile && isSameUserProfile(nextProfile, currentSession.user)) {
+          setProfile(nextProfile);
+          writeCachedProfile(nextProfile);
+          return;
+        }
+
+        setProfile((prevProfile) => {
+          if (isSameUserProfile(prevProfile, currentSession.user)) return prevProfile;
+          if (isSameUserProfile(cachedProfile, currentSession.user)) return cachedProfile;
+          return null;
+        });
       } catch (error) {
         console.error('헤더 세션 동기화 오류:', error);
-        if (alive) {
-          setSession(null);
-          setProfile(null);
+
+        if (alive && currentSeq === syncSeq) {
+          setIsAuthReady(true);
+          setProfile((prevProfile) => prevProfile || readCachedProfile());
         }
       }
     }
@@ -168,7 +234,13 @@ export default function Header() {
       syncSession();
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncSession();
+    };
+
     window.addEventListener('winning-profile-updated', handleProfileUpdated);
+    window.addEventListener('focus', handleProfileUpdated);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
@@ -179,6 +251,8 @@ export default function Header() {
     return () => {
       alive = false;
       window.removeEventListener('winning-profile-updated', handleProfileUpdated);
+      window.removeEventListener('focus', handleProfileUpdated);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener?.subscription?.unsubscribe?.();
     };
   }, []);
@@ -186,6 +260,7 @@ export default function Header() {
   function clearSupabaseAuthStorage() {
     try {
       const localKeys = [];
+
       for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
         if (key) localKeys.push(key);
@@ -195,13 +270,15 @@ export default function Header() {
         if (
           key.startsWith('sb-') ||
           key.includes('supabase') ||
-          key.includes('auth-token')
+          key.includes('auth-token') ||
+          key === HEADER_PROFILE_CACHE_KEY
         ) {
           window.localStorage.removeItem(key);
         }
       });
 
       const sessionKeys = [];
+
       for (let i = 0; i < window.sessionStorage.length; i += 1) {
         const key = window.sessionStorage.key(i);
         if (key) sessionKeys.push(key);
@@ -224,6 +301,7 @@ export default function Header() {
   async function handleLogout() {
     setSession(null);
     setProfile(null);
+    writeCachedProfile(null);
     clearSupabaseAuthStorage();
 
     try {
@@ -286,7 +364,13 @@ export default function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
-          {isLoggedIn ? (
+          {!isAuthReady ? (
+            <div className="flex shrink-0 items-center gap-3 opacity-0" aria-hidden="true">
+              <div className="hidden h-10 w-[198px] rounded-xl lg:block" />
+              <div className="h-10 w-[118px] rounded-xl" />
+              <div className="h-10 w-[96px] rounded-xl" />
+            </div>
+          ) : isLoggedIn ? (
             <>
               <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
                 <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
