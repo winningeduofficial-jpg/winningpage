@@ -552,7 +552,7 @@ export default function Header() {
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)] will-change-transform">
-      <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_minmax(560px,1fr)_420px] items-center px-8">
+      <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_minmax(460px,1fr)_560px] items-center px-8">
         <Link
           to="/"
           className="flex h-[84px] w-[190px] shrink-0 items-center justify-self-start"
