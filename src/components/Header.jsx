@@ -612,18 +612,18 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex h-[84px] w-[420px] shrink-0 items-center justify-end gap-3 justify-self-end">
+        <div className="flex h-[84px] w-[560px] shrink-0 flex-nowrap items-center justify-end gap-3 justify-self-end whitespace-nowrap">
           {!isAuthReady ? (
             <div className="h-10 w-[260px]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="hidden items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] lg:flex">
+              <div className="hidden shrink-0 items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] whitespace-nowrap lg:flex">
                 <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
-                <span>
-                  {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
-                </span>
+                <span className="whitespace-nowrap">
+  {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
+</span>
               </div>
 
               <div
@@ -634,7 +634,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
                 >
                   마이페이지
                   <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -666,7 +666,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
                 >
                   <Settings size={16} />
                   관리자
@@ -692,7 +692,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
                 >
                   마이페이지
                   <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -724,7 +724,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
               >
                 로그아웃
               </button>
