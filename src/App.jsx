@@ -9,6 +9,7 @@ import LearningAnalysis from './pages/LearningAnalysis';
 import Admissions from './pages/Admissions';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
+import Faq from './pages/Faq';
 import Admin from './pages/Admin';
 import DynamicPage from './pages/DynamicPage';
 import ProtectedAdmin from './components/ProtectedAdmin';
