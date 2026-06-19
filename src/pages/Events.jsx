@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Search, ArrowLeft, Download } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
