@@ -1213,9 +1213,6 @@ const path = `${folder}/${Date.now()}-${Math.random()
   .toString(36)
   .slice(2)}-${safeName}.${ext}`;
 
-    const folder = field.type === 'file' ? 'notice-files' : 'admin';
-    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}.${ext}`;
-
     const { error } = await supabase.storage
       .from(IMAGE_BUCKET)
       .upload(path, file, {
