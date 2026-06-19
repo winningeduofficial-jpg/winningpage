@@ -4,6 +4,22 @@ import { Search, ArrowLeft, Download } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value ? [value] : [];
+    }
+  }
+
+  return [];
+}
+
 function formatDate(value) {
   if (!value) return '';
 
@@ -14,6 +30,17 @@ function formatDate(value) {
   }
 
   return date.toISOString().slice(0, 10);
+}
+
+function getAttachmentName(file) {
+  if (!file) return '첨부파일 다운로드';
+  if (typeof file === 'string') return '첨부파일 다운로드';
+  return file.name || '첨부파일 다운로드';
+}
+
+function getAttachmentUrl(file) {
+  if (!file) return '';
+  return typeof file === 'string' ? file : file.url;
 }
 
 function renderNoticeContent(content) {
@@ -53,7 +80,7 @@ export default function Events() {
 
       const { data, error } = await supabase
         .from('notices')
-        .select('id, title, content, image_url, file_url, file_name, is_pinned, is_active, sort_order, created_at')
+        .select('*')
         .eq('is_active', true)
         .order('is_pinned', { ascending: false })
         .order('sort_order', { ascending: true })
@@ -85,10 +112,15 @@ export default function Events() {
     if (!q) return notices;
 
     return notices.filter((notice) => {
+      const attachmentsText = normalizeArray(notice.attachments)
+        .map((file) => (typeof file === 'string' ? file : file?.name || ''))
+        .join(' ');
+
       const text = [
         notice.title,
         notice.content,
-        notice.file_name
+        notice.file_name,
+        attachmentsText
       ]
         .join(' ')
         .toLowerCase();
@@ -98,11 +130,14 @@ export default function Events() {
   }, [keyword, notices]);
 
   const selectedNotice = useMemo(() => {
-  if (!selectedId) return null;
-  return notices.find((notice) => String(notice.id) === String(selectedId)) || null;
-}, [selectedId, notices]);
+    if (!selectedId) return null;
+    return notices.find((notice) => String(notice.id) === String(selectedId)) || null;
+  }, [selectedId, notices]);
 
   if (selectedNotice) {
+    const images = normalizeArray(selectedNotice.image_urls);
+    const attachments = normalizeArray(selectedNotice.attachments);
+
     return (
       <>
         <Header />
@@ -138,7 +173,18 @@ export default function Events() {
               </div>
 
               <article className="min-h-[420px] px-4 py-12">
-                {selectedNotice.image_url && (
+                {images.length > 0 ? (
+                  <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                    {images.map((url, index) => (
+                      <img
+                        key={`${url}-${index}`}
+                        src={url}
+                        alt={`${selectedNotice.title} 이미지 ${index + 1}`}
+                        className="w-full object-contain"
+                      />
+                    ))}
+                  </div>
+                ) : selectedNotice.image_url ? (
                   <div className="mb-10 flex justify-center">
                     <img
                       src={selectedNotice.image_url}
@@ -146,11 +192,37 @@ export default function Events() {
                       className="max-h-none max-w-full object-contain"
                     />
                   </div>
-                )}
+                ) : null}
 
                 {renderNoticeContent(selectedNotice.content)}
 
-                {selectedNotice.file_url && (
+                {attachments.length > 0 ? (
+                  <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                    <p className="mb-3 text-sm font-black text-[#111827]">
+                      첨부파일
+                    </p>
+
+                    <div className="space-y-2">
+                      {attachments.map((file, index) => {
+                        const url = getAttachmentUrl(file);
+                        if (!url) return null;
+
+                        return (
+                          <a
+                            key={`${url}-${index}`}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                          >
+                            <Download size={16} />
+                            {getAttachmentName(file)}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : selectedNotice.file_url ? (
                   <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
                     <p className="mb-3 text-sm font-black text-[#111827]">
                       첨부파일
@@ -166,7 +238,7 @@ export default function Events() {
                       {selectedNotice.file_name || '첨부파일 다운로드'}
                     </a>
                   </div>
-                )}
+                ) : null}
               </article>
             </div>
           </section>
@@ -222,30 +294,30 @@ export default function Events() {
             ) : (
               <div className="grid gap-x-12 gap-y-11 md:grid-cols-2">
                 {filteredNotices.map((notice) => {
-  const isHighlight = notice.is_pinned;
+                  const isHighlight = notice.is_pinned;
 
-  return (
-    <button
-      key={notice.id}
-      type="button"
-      onClick={() => setSearchParams({ id: String(notice.id) })}
-      className={`min-h-[118px] border px-6 py-7 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-        isHighlight
-          ? 'border-[#e2e4cf] bg-[#f2f3d8]'
-          : 'border-gray-200 bg-white'
-      }`}
-    >
-      <h2 className="line-clamp-1 text-[22px] font-black tracking-[-0.03em] text-[#111827]">
-        {notice.is_pinned ? '[공지] ' : ''}
-        {notice.title}
-      </h2>
+                  return (
+                    <button
+                      key={notice.id}
+                      type="button"
+                      onClick={() => setSearchParams({ id: String(notice.id) })}
+                      className={`min-h-[118px] border px-6 py-7 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                        isHighlight
+                          ? 'border-[#e2e4cf] bg-[#f2f3d8]'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <h2 className="line-clamp-1 text-[22px] font-black tracking-[-0.03em] text-[#111827]">
+                        {notice.is_pinned ? '[공지] ' : ''}
+                        {notice.title}
+                      </h2>
 
-      <p className="mt-6 text-[17px] font-medium text-gray-500">
-        {formatDate(notice.created_at)}
-      </p>
-    </button>
-  );
-})}
+                      <p className="mt-6 text-[17px] font-medium text-gray-500">
+                        {formatDate(notice.created_at)}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -254,3 +326,4 @@ export default function Events() {
     </>
   );
 }
+
