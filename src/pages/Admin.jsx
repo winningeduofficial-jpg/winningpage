@@ -196,7 +196,7 @@ popups: {
 }
 },
 
- notices: {
+  notices: {
     title: '공지사항',
     table: 'notices',
     searchPlaceholder: '공지사항 제목을 검색하세요',
@@ -205,7 +205,7 @@ popups: {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
-      { key: 'image_url', label: '대표 이미지', type: 'image' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
       { key: 'file_name', label: '첨부파일' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
@@ -216,7 +216,13 @@ popups: {
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_url', label: '본문 이미지', type: 'image' },
-      { key: 'file_url', label: '첨부파일 URL', type: 'text' },
+      {
+        key: 'file_url',
+        label: '첨부파일',
+        type: 'file',
+        nameKey: 'file_name',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
       { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
@@ -882,12 +888,14 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                 )
               ) : (
                 <>
-                  <AdminInput
-                    field={field}
-                    value={form[field.key]}
-                    onChange={change}
-                    disabled={readonly}
-                  />
+                   {field.type !== 'file' && (
+                    <AdminInput
+                      field={field}
+                      value={form[field.key]}
+                      onChange={change}
+                      disabled={readonly}
+                    />
+                  )}
 
                   {field.type === 'image' && (
                     <div className="mt-3 flex items-center gap-3">
@@ -913,6 +921,48 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                           onChange={(e) => onUpload(e.target.files?.[0], field.key, change)}
                         />
                       </label>
+                    </div>
+                  )}
+                   {field.type === 'file' && (
+                    <div className="mt-3 flex items-center gap-3">
+                      {form[field.key] ? (
+                        <a
+                          href={form[field.key]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-10 items-center rounded border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                        >
+                          {form[field.nameKey] || '첨부파일 보기'}
+                        </a>
+                      ) : (
+                        <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                          첨부파일 없음
+                        </div>
+                      )}
+
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                        <UploadCloud size={16} />
+                        파일 등록
+                        <input
+                          type="file"
+                          accept={field.accept || '*'}
+                          className="hidden"
+                          onChange={(e) => onUpload(e.target.files?.[0], field.key, change, field)}
+                        />
+                      </label>
+
+                      {form[field.key] && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            change(field.key, '');
+                            if (field.nameKey) change(field.nameKey, '');
+                          }}
+                          className="h-10 rounded border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 hover:bg-red-100"
+                        >
+                          삭제
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
@@ -1143,26 +1193,39 @@ export default function Admin() {
     window.location.replace('/');
   }
 
-  async function uploadImage(file, key, change) {
+  async function uploadImage(file, key, change, field = {}) {
     if (!file) return;
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-    const path = `admin/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
+    const safeName = file.name
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[^a-zA-Z0-9가-힣_-]/g, '_')
+      .slice(0, 80);
+
+    const folder = field.type === 'file' ? 'notice-files' : 'admin';
+    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}.${ext}`;
 
     const { error } = await supabase.storage
       .from(IMAGE_BUCKET)
       .upload(path, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: false
       });
 
     if (error) {
-      alert(`이미지 업로드 실패: Supabase Storage에 ${IMAGE_BUCKET} 버킷을 public으로 생성했는지 확인하세요.`);
+      alert(`업로드 실패: ${error.message}`);
       return;
     }
 
-    const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+    const { data } = supabase.storage
+      .from(IMAGE_BUCKET)
+      .getPublicUrl(path);
+
     change(key, data.publicUrl);
+
+    if (field.nameKey) {
+      change(field.nameKey, file.name);
+    }
   }
 
   function createRow() {
