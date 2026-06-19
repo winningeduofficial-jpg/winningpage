@@ -37,14 +37,14 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-    title: '입시정보',
-    to: '/page/admission-susi',
-    items: [
-      { label: '수시정보', to: '/page/admission-susi' },
-      { label: '정시정보', to: '/page/admission-jungsi' },
-      { label: '논술정보', to: '/page/admission-essay' }
-    ]
-  },
+  title: '입시정보',
+  to: '/admission/susi',
+  items: [
+    { label: '수시정보', to: '/admission/susi' },
+    { label: '정시정보', to: '/admission/jungsi' },
+    { label: '논술정보', to: '/admission/essay' }
+  ]
+},
   {
     title: '회사소개',
     to: '/page/company-history',
@@ -314,6 +314,27 @@ function buildNavGroups(rows) {
     to: group.items[0]?.to || group.to,
     items: group.items.sort((a, b) => a.sortOrder - b.sortOrder)
   }));
+
+  const admissionGroup = groups.find((group) => group.title === '입시정보');
+
+if (admissionGroup) {
+  admissionGroup.to = '/admission/susi';
+  admissionGroup.items = [
+    { label: '수시정보', to: '/admission/susi', sortOrder: 1 },
+    { label: '정시정보', to: '/admission/jungsi', sortOrder: 2 },
+    { label: '논술정보', to: '/admission/essay', sortOrder: 3 }
+  ];
+} else {
+  groups.splice(2, 0, {
+    title: '입시정보',
+    to: '/admission/susi',
+    items: [
+      { label: '수시정보', to: '/admission/susi', sortOrder: 1 },
+      { label: '정시정보', to: '/admission/jungsi', sortOrder: 2 },
+      { label: '논술정보', to: '/admission/essay', sortOrder: 3 }
+    ]
+  });
+}
 
 const winningGroup = groups.find((group) => group.title === '위닝정보');
 
