@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
+
   if (!value) return [];
 
   if (typeof value === 'string') {
@@ -19,8 +19,13 @@ function normalizeArray(value) {
   return [];
 }
 
+function cleanText(value) {
+  return String(value || '').trim();
+}
+
 export default function DynamicPage() {
   const { slug } = useParams();
+
   const [page, setPage] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,150 +42,130 @@ export default function DynamicPage() {
         .eq('is_active', true)
         .maybeSingle();
 
+      if (!alive) return;
+
       if (error) {
         console.error('세부 페이지 조회 실패:', error);
+        setPage(null);
+      } else {
+        setPage(data || null);
       }
 
-      if (alive) {
-        setPage(data || null);
-        setLoading(false);
-      }
+      setLoading(false);
     }
 
     loadPage();
 
-    const channel = supabase
-      .channel(`page-content-${slug}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_contents' },
-        () => loadPage()
-      )
-      .subscribe();
-
     return () => {
       alive = false;
-      supabase.removeChannel(channel);
     };
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <main className="pt-[84px]">
-          <div className="mx-auto max-w-[1200px] px-8 py-28 text-center">
-            <p className="text-lg font-black text-gray-500">페이지를 불러오는 중입니다.</p>
-          </div>
-        </main>
-      </div>
+      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+        <div className="mx-auto max-w-[1180px] px-6 py-24 text-center text-sm font-bold text-gray-500">
+          페이지를 불러오는 중입니다.
+        </div>
+      </main>
     );
   }
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <main className="pt-[84px]">
-          <div className="mx-auto max-w-[1200px] px-8 py-28 text-center">
-            <h1 className="text-4xl font-black text-[#0D1B2A]">페이지를 찾을 수 없습니다.</h1>
-            <p className="mt-4 text-base font-bold text-gray-500">
-              관리자 페이지에서 해당 세부 페이지가 노출 상태인지 확인해주세요.
-            </p>
-            <Link
-              to="/"
-              className="mt-8 inline-flex rounded-xl bg-[#0D1B2A] px-6 py-3 text-sm font-black text-white"
-            >
-              홈으로 돌아가기
-            </Link>
-          </div>
-        </main>
-      </div>
+      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+        <div className="mx-auto max-w-[1180px] px-6 py-24 text-center">
+          <h1 className="text-3xl font-black tracking-[-0.04em]">
+            페이지를 찾을 수 없습니다.
+          </h1>
+          <p className="mt-4 text-base font-medium text-gray-500">
+            요청하신 페이지가 없거나 비활성화되어 있습니다.
+          </p>
+          <Link
+            to="/"
+            className="mt-8 inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 text-sm font-black text-white"
+          >
+            메인으로 이동
+          </Link>
+        </div>
+      </main>
     );
   }
 
-  const pageImages = normalizeArray(page.image_urls);
-  const heroImage = page.image_url || pageImages[0] || '';
+  const menuGroup = cleanText(page.menu_group);
+  const title = cleanText(page.title);
+  const subtitle = cleanText(page.subtitle);
+  const body = cleanText(page.body);
+  const topImage = cleanText(page.image_url);
+  const bottomImages = normalizeArray(page.image_urls).filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
+    <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <section className="bg-[#F6F1E8]">
+        <div className="mx-auto grid min-h-[430px] max-w-[1500px] grid-cols-1 items-center gap-12 px-8 py-20 lg:grid-cols-[1fr_560px]">
+          <div>
+            {menuGroup && (
+              <span className="inline-flex rounded-full border border-[#D9B56D]/50 bg-white/70 px-5 py-2 text-sm font-black text-[#B88737]">
+                {menuGroup}
+              </span>
+            )}
 
-      <main className="pt-[84px]">
-        <section className="relative overflow-hidden bg-[#F7F4EC]">
-          <div className="mx-auto grid min-h-[420px] max-w-[1500px] grid-cols-1 items-center gap-10 px-8 py-20 lg:grid-cols-[1fr_520px]">
-            <div>
-              <p className="mb-4 inline-flex rounded-full border border-[#B88737]/30 bg-white/80 px-4 py-2 text-sm font-black text-[#B88737]">
-                {page.menu_group}
+            <h1 className="mt-7 text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
+              {title}
+            </h1>
+
+            {subtitle && (
+              <p className="mt-7 max-w-[760px] text-xl font-bold leading-8 tracking-[-0.04em] text-[#5E6A7B]">
+                {subtitle}
               </p>
+            )}
 
-              <h1 className="text-[42px] font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-[56px]">
-                {page.title}
-              </h1>
-
-              {page.subtitle && (
-                <p className="mt-6 max-w-[760px] text-lg font-bold leading-8 text-[#5F6875]">
-                  {page.subtitle}
-                </p>
-              )}
-
-              {page.button_text && page.button_link && (
-                <Link
-                  to={page.button_link}
-                  className="mt-8 inline-flex rounded-xl bg-[#0D1B2A] px-7 py-4 text-base font-black text-white shadow-[0_14px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#172B42]"
-                >
-                  {page.button_text}
-                </Link>
-              )}
-            </div>
-
-            {heroImage && (
-              <div className="relative">
-                <div className="absolute -left-6 -top-6 h-32 w-32 rounded-full bg-[#B88737]/20 blur-3xl" />
-                <div className="relative overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_28px_70px_rgba(13,27,42,0.16)]">
-                  <img
-                    src={heroImage}
-                    alt={page.title}
-                    className="h-[320px] w-full object-cover"
-                  />
-                </div>
-              </div>
+            {page.button_text && page.button_link && (
+              <Link
+                to={page.button_link}
+                className="mt-9 inline-flex h-14 items-center justify-center rounded-2xl bg-[#0D1B2A] px-8 text-base font-black text-white shadow-[0_16px_36px_rgba(13,27,42,0.20)] transition hover:bg-[#162A40]"
+              >
+                {page.button_text}
+              </Link>
             )}
           </div>
-        </section>
 
-        <section className="bg-white py-20">
-          <div className="mx-auto max-w-[1100px] px-8">
-            <div className="rounded-[28px] border border-[#E6E9EF] bg-white p-8 shadow-[0_20px_60px_rgba(13,27,42,0.08)] md:p-12">
-              <div className="mb-8 border-b border-[#E6E9EF] pb-6">
-                <p className="text-sm font-black tracking-[0.16em] text-[#B88737]">
-                  {page.menu_label}
-                </p>
-                <h2 className="mt-3 text-3xl font-black tracking-[-0.05em] text-[#0D1B2A]">
-                  상세 안내
-                </h2>
-              </div>
-
-              <div className="whitespace-pre-line text-[17px] font-medium leading-9 text-[#374151]">
-                {page.body || '관리자 페이지에서 내용을 입력해주세요.'}
-              </div>
+          {topImage && (
+            <div className="overflow-hidden rounded-[28px] shadow-[0_24px_70px_rgba(13,27,42,0.18)]">
+              <img
+                src={topImage}
+                alt=""
+                className="h-[300px] w-full object-cover md:h-[360px]"
+              />
             </div>
+          )}
+        </div>
+      </section>
 
-            {pageImages.length > 0 && (
-              <div className="mt-14 space-y-0 overflow-hidden rounded-[22px] border border-[#E6E9EF] bg-white shadow-[0_18px_50px_rgba(13,27,42,0.08)]">
-                {pageImages.map((url, index) => (
+      {(body || bottomImages.length > 0) && (
+        <section className="bg-white">
+          <div className="mx-auto max-w-[1180px] px-6 py-20">
+            {body && (
+              <div className="mb-14 whitespace-pre-line text-xl font-semibold leading-9 tracking-[-0.04em] text-[#26364A]">
+                {body}
+              </div>
+            )}
+
+            {bottomImages.length > 0 && (
+              <div className="space-y-6">
+                {bottomImages.map((url, index) => (
                   <img
                     key={`${url}-${index}`}
                     src={url}
-                    alt={`${page.title} 이미지 ${index + 1}`}
-                    className="w-full object-contain"
+                    alt=""
+                    className="mx-auto w-full max-w-[980px] object-contain"
                   />
                 ))}
               </div>
             )}
           </div>
         </section>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
