@@ -60,7 +60,8 @@ const FALLBACK_NAV_GROUPS = [
   items: [
     { label: '공지사항', to: '/events' },
     { label: '이용후기', to: '/reviews' },
-    { label: '자주하는 질문', to: '/faq' }
+    { label: '자주하는 질문', to: '/faq' },
+    { label: '포토갤러리', to: '/gallery' }
   ]
 }
 ];
@@ -343,13 +344,15 @@ if (winningGroup) {
     (item) =>
       item.label !== '공지사항' &&
       item.label !== '이용후기' &&
-      item.label !== '자주하는 질문'
+      item.label !== '자주하는 질문' &&
+      item.label !== '포토갤러리'
   );
 
   winningGroup.items = [
     { label: '공지사항', to: '/events', sortOrder: 1 },
     { label: '이용후기', to: '/reviews', sortOrder: 2 },
     { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
+    { label: '포토갤러리', to: '/gallery', sortOrder: 4 },
     ...withoutBoardItems
   ];
 
@@ -361,7 +364,8 @@ if (winningGroup) {
     items: [
       { label: '공지사항', to: '/events', sortOrder: 1 },
       { label: '이용후기', to: '/reviews', sortOrder: 2 },
-      { label: '자주하는 질문', to: '/faq', sortOrder: 3 }
+      { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
+      { label: '포토갤러리', to: '/gallery', sortOrder: 4 }
     ]
   });
 }
