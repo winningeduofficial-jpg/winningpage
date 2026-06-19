@@ -59,8 +59,8 @@ const FALLBACK_NAV_GROUPS = [
   to: '/events',
   items: [
     { label: '공지사항', to: '/events' },
-    { label: '이용후기', to: '/page/winning-reviews' },
-    { label: '자주하는 질문', to: '/page/winning-faq' }
+    { label: '이용후기', to: '/reviews' },
+    { label: '자주하는 질문', to: '/faq' }
   ]
 }
 ];
@@ -318,13 +318,18 @@ function buildNavGroups(rows) {
 const winningGroup = groups.find((group) => group.title === '위닝정보');
 
 if (winningGroup) {
-  const withoutNotice = winningGroup.items.filter(
-    (item) => item.label !== '공지사항'
+  const withoutBoardItems = winningGroup.items.filter(
+    (item) =>
+      item.label !== '공지사항' &&
+      item.label !== '이용후기' &&
+      item.label !== '자주하는 질문'
   );
 
   winningGroup.items = [
     { label: '공지사항', to: '/events', sortOrder: 1 },
-    ...withoutNotice
+    { label: '이용후기', to: '/reviews', sortOrder: 2 },
+    { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
+    ...withoutBoardItems
   ];
 
   winningGroup.to = '/events';
@@ -333,7 +338,9 @@ if (winningGroup) {
     title: '위닝정보',
     to: '/events',
     items: [
-      { label: '공지사항', to: '/events', sortOrder: 1 }
+      { label: '공지사항', to: '/events', sortOrder: 1 },
+      { label: '이용후기', to: '/reviews', sortOrder: 2 },
+      { label: '자주하는 질문', to: '/faq', sortOrder: 3 }
     ]
   });
 }
