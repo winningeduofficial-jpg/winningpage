@@ -3,6 +3,22 @@ import { Link, useParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value ? [value] : [];
+    }
+  }
+
+  return [];
+}
+
 export default function DynamicPage() {
   const { slug } = useParams();
   const [page, setPage] = useState(null);
@@ -83,6 +99,9 @@ export default function DynamicPage() {
     );
   }
 
+  const pageImages = normalizeArray(page.image_urls);
+  const heroImage = page.image_url || pageImages[0] || '';
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -115,12 +134,12 @@ export default function DynamicPage() {
               )}
             </div>
 
-            {page.image_url && (
+            {heroImage && (
               <div className="relative">
                 <div className="absolute -left-6 -top-6 h-32 w-32 rounded-full bg-[#B88737]/20 blur-3xl" />
                 <div className="relative overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_28px_70px_rgba(13,27,42,0.16)]">
                   <img
-                    src={page.image_url}
+                    src={heroImage}
                     alt={page.title}
                     className="h-[320px] w-full object-cover"
                   />
@@ -146,6 +165,19 @@ export default function DynamicPage() {
                 {page.body || '관리자 페이지에서 내용을 입력해주세요.'}
               </div>
             </div>
+
+            {pageImages.length > 0 && (
+              <div className="mt-14 space-y-0 overflow-hidden rounded-[22px] border border-[#E6E9EF] bg-white shadow-[0_18px_50px_rgba(13,27,42,0.08)]">
+                {pageImages.map((url, index) => (
+                  <img
+                    key={`${url}-${index}`}
+                    src={url}
+                    alt={`${page.title} 이미지 ${index + 1}`}
+                    className="w-full object-contain"
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>
