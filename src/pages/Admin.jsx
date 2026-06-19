@@ -71,7 +71,7 @@ const MENU_GROUPS = [
 ];
 
 const CONFIGS = {
-  popups: {
+popups: {
     title: '팝업 관리',
     table: 'popups',
     searchPlaceholder: '팝업 제목을 검색하세요',
@@ -79,7 +79,8 @@ const CONFIGS = {
     homepage: true,
     columns: [
       { key: 'title', label: '제목' },
-      { key: 'image_url', label: '이미지', type: 'image' },
+      { key: 'image_url', label: 'PC 이미지', type: 'image' },
+      { key: 'mobile_image_url', label: '모바일 이미지', type: 'image' },
       { key: 'url', label: 'URL' },
       { key: 'start_date', label: '시작일', type: 'date' },
       { key: 'end_date', label: '종료일', type: 'date' },
@@ -87,12 +88,12 @@ const CONFIGS = {
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
-      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'is_active', label: '사용', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'content', label: '내용', type: 'textarea' },
       { key: 'url', label: 'URL', type: 'text' },
-      { key: 'image_url', label: '이미지', type: 'image' },
-      { key: 'open_new_window', label: '새창 열기', type: 'checkbox' },
+      { key: 'open_new_window', label: '새창으로열기', type: 'checkbox' },
+      { key: 'image_url', label: 'PC 이미지', type: 'image' },
+      { key: 'mobile_image_url', label: '모바일 이미지', type: 'image' },
       { key: 'start_date', label: '시작일', type: 'date' },
       { key: 'end_date', label: '종료일', type: 'date' },
       { key: 'sort_order', label: '순서', type: 'number' }
@@ -100,9 +101,9 @@ const CONFIGS = {
     defaults: {
       is_active: true,
       title: '',
-      content: '',
       url: '',
       image_url: '',
+      mobile_image_url: '',
       open_new_window: false,
       sort_order: 1
     }
