@@ -98,9 +98,9 @@ export default function Events() {
   }, [keyword, notices]);
 
   const selectedNotice = useMemo(() => {
-    if (!selectedId) return null;
-    return notices.find((notice) => notice.id === selectedId) || null;
-  }, [selectedId, notices]);
+  if (!selectedId) return null;
+  return notices.find((notice) => String(notice.id) === String(selectedId)) || null;
+}, [selectedId, notices]);
 
   if (selectedNotice) {
     return (
@@ -187,7 +187,7 @@ export default function Events() {
             </h1>
 
             <p className="mt-6 text-[26px] font-medium tracking-[-0.03em] text-gray-500">
-              대전동구 글로벌캠퍼스 알림
+              위닝에듀 알림
             </p>
           </div>
 
@@ -221,31 +221,31 @@ export default function Events() {
               </div>
             ) : (
               <div className="grid gap-x-12 gap-y-11 md:grid-cols-2">
-                {filteredNotices.map((notice, index) => {
-                  const isHighlight = notice.is_pinned || index < 6;
+                {filteredNotices.map((notice) => {
+  const isHighlight = notice.is_pinned;
 
-                  return (
-                    <button
-                      key={notice.id}
-                      type="button"
-                      onClick={() => setSearchParams({ id: notice.id })}
-                      className={`min-h-[118px] border px-6 py-7 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-                        isHighlight
-                          ? 'border-[#e2e4cf] bg-[#f2f3d8]'
-                          : 'border-gray-200 bg-white'
-                      }`}
-                    >
-                      <h2 className="line-clamp-1 text-[22px] font-black tracking-[-0.03em] text-[#111827]">
-                        {notice.is_pinned ? '[공지] ' : ''}
-                        {notice.title}
-                      </h2>
+  return (
+    <button
+      key={notice.id}
+      type="button"
+      onClick={() => setSearchParams({ id: String(notice.id) })}
+      className={`min-h-[118px] border px-6 py-7 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+        isHighlight
+          ? 'border-[#e2e4cf] bg-[#f2f3d8]'
+          : 'border-gray-200 bg-white'
+      }`}
+    >
+      <h2 className="line-clamp-1 text-[22px] font-black tracking-[-0.03em] text-[#111827]">
+        {notice.is_pinned ? '[공지] ' : ''}
+        {notice.title}
+      </h2>
 
-                      <p className="mt-6 text-[17px] font-medium text-gray-500">
-                        {formatDate(notice.created_at)}
-                      </p>
-                    </button>
-                  );
-                })}
+      <p className="mt-6 text-[17px] font-medium text-gray-500">
+        {formatDate(notice.created_at)}
+      </p>
+    </button>
+  );
+})}
               </div>
             )}
           </div>
