@@ -7,6 +7,7 @@ import Pricing from './pages/Pricing';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
+import Gallery from './pages/Gallery'
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
@@ -32,6 +33,8 @@ export default function App() {
         <Route path="/events" element={<Events />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/faq" element={<Faq />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/gallery/:id" element={<Gallery />} />
 
         <Route path="/page/:slug" element={<DynamicPage />} />
 
