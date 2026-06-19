@@ -30,6 +30,7 @@ export default function App() {
         <Route path="/admissions" element={<Admissions />} />
         <Route path="/events" element={<Events />} />
         <Route path="/reviews" element={<Reviews />} />
+        <Route path="/faq" element={<Faq />} />
 
         <Route path="/page/:slug" element={<DynamicPage />} />
 
