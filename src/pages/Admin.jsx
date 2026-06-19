@@ -162,7 +162,8 @@ popups: {
   { key: 'menu_label', label: '하위 메뉴' },
   { key: 'slug', label: '페이지 주소' },
   { key: 'title', label: '제목' },
-  { key: 'is_active', label: '노출', type: 'boolean' }
+  { key: 'is_active', label: '노출', type: 'boolean' },
+  { key: 'image_urls', label: '하단 이미지', type: 'imageList' }
 ],
   fields: [
   { key: 'menu_group_order', label: '상위 메뉴 순서', type: 'number' },
@@ -179,7 +180,7 @@ popups: {
   { key: 'title', label: '제목', type: 'text', required: true },
   { key: 'subtitle', label: '부제목', type: 'textarea' },
   { key: 'body', label: '본문 내용', type: 'textarea' },
-  { key: 'image_url', label: '대표 이미지', type: 'image' },
+  { key: 'image_urls', label: '하단 이미지', type: 'multiImage' },
   { key: 'button_text', label: '버튼명', type: 'text' },
   { key: 'button_link', label: '버튼 링크', type: 'text' }
 ],
@@ -194,6 +195,7 @@ popups: {
   subtitle: '',
   body: '',
   image_url: '',
+  image_urls: [],
   button_text: '',
   button_link: ''
 }
@@ -208,8 +210,8 @@ popups: {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
-      { key: 'file_name', label: '첨부파일' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
@@ -218,15 +220,13 @@ popups: {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
-        key: 'file_url',
+        key: 'attachments',
         label: '첨부파일',
-        type: 'file',
-        nameKey: 'file_name',
+        type: 'multiFile',
         accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
       },
-      { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -237,6 +237,8 @@ popups: {
       image_url: '',
       file_url: '',
       file_name: '',
+      image_urls: [],
+      attachments: [],
       sort_order: 1
     }
   },
@@ -251,8 +253,8 @@ popups: {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
-      { key: 'file_name', label: '첨부파일' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
@@ -261,15 +263,13 @@ popups: {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
-        key: 'file_url',
+        key: 'attachments',
         label: '첨부파일',
-        type: 'file',
-        nameKey: 'file_name',
+        type: 'multiFile',
         accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
       },
-      { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -281,6 +281,8 @@ popups: {
       image_url: '',
       file_url: '',
       file_name: '',
+      image_urls: [],
+      attachments: [],
       sort_order: 1
     }
   },
@@ -295,8 +297,8 @@ popups: {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
-      { key: 'file_name', label: '첨부파일' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
@@ -305,15 +307,13 @@ popups: {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
-        key: 'file_url',
+        key: 'attachments',
         label: '첨부파일',
-        type: 'file',
-        nameKey: 'file_name',
+        type: 'multiFile',
         accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
       },
-      { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -325,6 +325,8 @@ popups: {
       image_url: '',
       file_url: '',
       file_name: '',
+      image_urls: [],
+      attachments: [],
       sort_order: 1
     }
   },
@@ -339,8 +341,8 @@ popups: {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
-      { key: 'file_name', label: '첨부파일' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
@@ -349,15 +351,13 @@ popups: {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
-      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
-        key: 'file_url',
+        key: 'attachments',
         label: '첨부파일',
-        type: 'file',
-        nameKey: 'file_name',
+        type: 'multiFile',
         accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
       },
-      { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -369,6 +369,8 @@ popups: {
       image_url: '',
       file_url: '',
       file_name: '',
+      image_urls: [],
+      attachments: [],
       sort_order: 1
     }
   },
@@ -377,21 +379,25 @@ popups: {
     title: '포토갤러리',
     table: 'galleries',
     searchPlaceholder: '포토갤러리 제목을 검색하세요',
-    order: 'sort_order',
+    order: 'created_at',
+    homepage: true,
     columns: [
-      { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
+      { key: 'image_urls', label: '이미지', type: 'imageList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'content', label: '내용', type: 'textarea' },
-      { key: 'image_url', label: '이미지', type: 'image' },
-      { key: 'sort_order', label: '순서', type: 'number' }
+      { key: 'image_urls', label: '이미지', type: 'multiImage', required: true }
     ],
-    defaults: { is_active: true, title: '', content: '', image_url: '', sort_order: 1 }
+    defaults: {
+      is_active: true,
+      title: '',
+      image_url: '',
+      image_urls: []
+    }
   },
 
   faqs: {
@@ -790,6 +796,42 @@ function downloadCsv(filename, rows, columns) {
   URL.revokeObjectURL(url);
 }
 
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value ? [value] : [];
+    }
+  }
+
+  return [];
+}
+
+function getFileNameFromUrl(value) {
+  if (!value) return '첨부파일';
+
+  try {
+    const raw = typeof value === 'string' ? value : value.url;
+    const pathname = new URL(raw).pathname;
+    return decodeURIComponent(pathname.split('/').pop() || '첨부파일');
+  } catch {
+    return '첨부파일';
+  }
+}
+
+function formatListValue(value, type) {
+  const list = normalizeArray(value);
+  if (list.length === 0) return '-';
+  if (type === 'imageList') return `이미지 ${list.length}개`;
+  if (type === 'fileList') return `첨부파일 ${list.length}개`;
+  return `${list.length}개`;
+}
+
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(() => new Set(MENU_GROUPS.map((group) => group.title)));
 
@@ -976,6 +1018,38 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  async function uploadMultiple(fileList, field) {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+
+    const uploaded = await onUpload(files, field);
+    if (!uploaded || uploaded.length === 0) return;
+
+    if (field.type === 'multiImage') {
+      const current = normalizeArray(form[field.key]);
+      change(field.key, [...current, ...uploaded.map((item) => item.url)]);
+      return;
+    }
+
+    if (field.type === 'multiFile') {
+      const current = normalizeArray(form[field.key]);
+      change(field.key, [
+        ...current,
+        ...uploaded.map((item) => ({
+          name: item.name,
+          url: item.url,
+          size: item.size,
+          type: item.type
+        }))
+      ]);
+    }
+  }
+
+  function removeListItem(key, index) {
+    const current = normalizeArray(form[key]);
+    change(key, current.filter((_, i) => i !== index));
+  }
+
   function submit(e) {
     e.preventDefault();
 
@@ -1023,7 +1097,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                 )
               ) : (
                 <>
-                   {field.type !== 'file' && (
+                   {!['file', 'multiImage', 'multiFile'].includes(field.type) && (
                     <AdminInput
                       field={field}
                       value={form[field.key]}
@@ -1053,7 +1127,12 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => onUpload(e.target.files?.[0], field.key, change)}
+                          onChange={async (e) => {
+                            const uploaded = await onUpload(e.target.files?.[0], field);
+                            if (uploaded?.[0]?.url) {
+                              change(field.key, uploaded[0].url);
+                            }
+                          }}
                         />
                       </label>
                     </div>
@@ -1082,7 +1161,13 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                           type="file"
                           accept={field.accept || '*'}
                           className="hidden"
-                          onChange={(e) => onUpload(e.target.files?.[0], field.key, change, field)}
+                          onChange={async (e) => {
+                            const uploaded = await onUpload(e.target.files?.[0], field);
+                            if (uploaded?.[0]?.url) {
+                              change(field.key, uploaded[0].url);
+                              if (field.nameKey) change(field.nameKey, uploaded[0].name);
+                            }
+                          }}
                         />
                       </label>
 
@@ -1098,6 +1183,101 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                           삭제
                         </button>
                       )}
+                    </div>
+                  )}
+
+
+                  {field.type === 'multiImage' && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-3">
+                        {normalizeArray(form[field.key]).length > 0 ? (
+                          normalizeArray(form[field.key]).map((url, index) => (
+                            <div key={`${url}-${index}`} className="relative">
+                              <img
+                                src={url}
+                                alt=""
+                                className="h-28 w-40 rounded border object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeListItem(field.key, index)}
+                                className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
+                            이미지 없음
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                        <UploadCloud size={16} />
+                        이미지 여러 개 업로드
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => uploadMultiple(e.target.files, field)}
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  {field.type === 'multiFile' && (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        {normalizeArray(form[field.key]).length > 0 ? (
+                          normalizeArray(form[field.key]).map((item, index) => {
+                            const fileUrl = typeof item === 'string' ? item : item?.url;
+                            const fileName = item?.name || getFileNameFromUrl(fileUrl);
+
+                            return (
+                              <div
+                                key={`${fileUrl}-${index}`}
+                                className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
+                              >
+                                <a
+                                  href={fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm font-bold text-blue-700 hover:underline"
+                                >
+                                  {fileName}
+                                </a>
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeListItem(field.key, index)}
+                                  className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                            첨부파일 없음
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                        <UploadCloud size={16} />
+                        파일 여러 개 등록
+                        <input
+                          type="file"
+                          accept={field.accept || '*'}
+                          multiple
+                          className="hidden"
+                          onChange={(e) => uploadMultiple(e.target.files, field)}
+                        />
+                      </label>
                     </div>
                   )}
                 </>
@@ -1178,6 +1358,25 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                         ) : (
                           '-'
                         )
+                      ) : column.type === 'imageList' ? (
+                        normalizeArray(row[column.key]).length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={normalizeArray(row[column.key])[0]}
+                              alt=""
+                              className="h-12 w-20 rounded object-cover"
+                            />
+                            <span className="text-xs font-bold text-gray-500">
+                              {normalizeArray(row[column.key]).length > 1
+                                ? `+${normalizeArray(row[column.key]).length - 1}`
+                                : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          '-'
+                        )
+                      ) : column.type === 'fileList' ? (
+                        formatListValue(row[column.key], column.type)
                       ) : (
                         formatValue(row[column.key], column.type)
                       )}
@@ -1340,47 +1539,55 @@ if (config.fixedCategory) {
     window.location.replace('/');
   }
 
-  async function uploadImage(file, key, change, field = {}) {
-    if (!file) return;
+  async function uploadImage(files, field = {}) {
+    const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
+    if (fileList.length === 0) return [];
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
+    const uploaded = [];
 
-const safeName =
-  file.name
-    .replace(/\.[^/.]+$/, '')
-    .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 50) || 'upload';
+    for (const file of fileList) {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
 
-const folder = field.type === 'file' ? 'notice-files' : 'admin';
+      const safeName =
+        file.name
+          .replace(/\.[^/.]+$/, '')
+          .normalize('NFKD')
+          .replace(/[^a-zA-Z0-9_-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .slice(0, 50) || 'upload';
 
-const path = `${folder}/${Date.now()}-${Math.random()
-  .toString(36)
-  .slice(2)}-${safeName}.${ext}`;
+      const folder = field.type === 'file' || field.type === 'multiFile' ? 'notice-files' : 'admin';
 
-    const { error } = await supabase.storage
-      .from(IMAGE_BUCKET)
-      .upload(path, file, {
-        cacheControl: '3600',
-        upsert: false
+      const path = `${folder}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}-${safeName}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from(IMAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        alert(`업로드 실패: ${error.message}`);
+        continue;
+      }
+
+      const { data } = supabase.storage
+        .from(IMAGE_BUCKET)
+        .getPublicUrl(path);
+
+      uploaded.push({
+        name: file.name,
+        url: data.publicUrl,
+        size: file.size,
+        type: file.type
       });
-
-    if (error) {
-      alert(`업로드 실패: ${error.message}`);
-      return;
     }
 
-    const { data } = supabase.storage
-      .from(IMAGE_BUCKET)
-      .getPublicUrl(path);
-
-    change(key, data.publicUrl);
-
-    if (field.nameKey) {
-      change(field.nameKey, file.name);
-    }
+    return uploaded;
   }
 
   function createRow() {
@@ -1402,6 +1609,16 @@ if (config.fixedCategory) {
 
 delete payload.created_at;
 delete payload.updated_at;
+
+    if (Array.isArray(payload.image_urls) && payload.image_urls.length > 0 && !payload.image_url) {
+      payload.image_url = payload.image_urls[0];
+    }
+
+    if (Array.isArray(payload.attachments) && payload.attachments.length > 0) {
+      const firstFile = payload.attachments[0];
+      if (!payload.file_url) payload.file_url = firstFile.url;
+      if (!payload.file_name) payload.file_name = firstFile.name;
+    }
 
     if (activeKey === 'winningDbInputs') {
       try {
