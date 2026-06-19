@@ -22,21 +22,24 @@ const IMAGE_BUCKET = 'banners';
 
 const MENU_GROUPS = [
   {
-    title: '전시 관리',
+    title: '메인 관리',
     items: [
       { key: 'popups', label: '팝업 관리' },
       { key: 'banners', label: '배너 관리' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
   },
-  {
-    title: '게시판 관리',
-    items: [
-      { key: 'notices', label: '공지사항' },
-      { key: 'galleries', label: '포토갤러리' },
-      { key: 'faqs', label: '자주하는질문' }
-    ]
-  },
+ {
+  title: '게시판 관리',
+  items: [
+    { key: 'notices', label: '공지사항' },
+    { key: 'admissionSusi', label: '수시정보' },
+    { key: 'admissionJungsi', label: '정시정보' },
+    { key: 'admissionEssay', label: '논술정보' },
+    { key: 'galleries', label: '포토갤러리' },
+    { key: 'faqs', label: '자주하는질문' }
+  ]
+},
   {
     title: '회원 관리',
     items: [
@@ -238,6 +241,138 @@ popups: {
     }
   },
 
+  admissionSusi: {
+    title: '수시정보',
+    table: 'admission_posts',
+    fixedCategory: 'susi',
+    searchPlaceholder: '수시정보 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    columns: [
+      { key: 'title', label: '제목' },
+      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'file_name', label: '첨부파일' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'created_at', label: '작성일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      {
+        key: 'file_url',
+        label: '첨부파일',
+        type: 'file',
+        nameKey: 'file_name',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
+      { key: 'file_name', label: '첨부파일명', type: 'text' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      category: 'susi',
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      sort_order: 1
+    }
+  },
+
+  admissionJungsi: {
+    title: '정시정보',
+    table: 'admission_posts',
+    fixedCategory: 'jungsi',
+    searchPlaceholder: '정시정보 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    columns: [
+      { key: 'title', label: '제목' },
+      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'file_name', label: '첨부파일' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'created_at', label: '작성일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      {
+        key: 'file_url',
+        label: '첨부파일',
+        type: 'file',
+        nameKey: 'file_name',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
+      { key: 'file_name', label: '첨부파일명', type: 'text' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      category: 'jungsi',
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      sort_order: 1
+    }
+  },
+
+  admissionEssay: {
+    title: '논술정보',
+    table: 'admission_posts',
+    fixedCategory: 'essay',
+    searchPlaceholder: '논술정보 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    columns: [
+      { key: 'title', label: '제목' },
+      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'file_name', label: '첨부파일' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'created_at', label: '작성일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      {
+        key: 'file_url',
+        label: '첨부파일',
+        type: 'file',
+        nameKey: 'file_name',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
+      { key: 'file_name', label: '첨부파일명', type: 'text' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      category: 'essay',
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      sort_order: 1
+    }
+  },
+  
   galleries: {
     title: '포토갤러리',
     table: 'galleries',
@@ -1162,9 +1297,21 @@ export default function Admin() {
     setLoading(true);
 
     let query = supabase.from(config.table).select('*');
-    const orderColumn = config.order || 'created_at';
 
-    query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
+if (config.fixedCategory) {
+  query = query.eq('category', config.fixedCategory);
+}
+
+const orderColumn = config.order || 'created_at';
+
+if (config.fixedCategory) {
+  query = query
+    .order('is_pinned', { ascending: false })
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false });
+} else {
+  query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
+}
 
     const { data, error } = await query;
 
@@ -1248,8 +1395,13 @@ const path = `${folder}/${Date.now()}-${Math.random()
 
   async function saveRow(form) {
     const payload = { ...form };
-    delete payload.created_at;
-    delete payload.updated_at;
+
+if (config.fixedCategory) {
+  payload.category = config.fixedCategory;
+}
+
+delete payload.created_at;
+delete payload.updated_at;
 
     if (activeKey === 'winningDbInputs') {
       try {
