@@ -6,7 +6,7 @@ import MyPage from './pages/MyPage';
 import Pricing from './pages/Pricing';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
-import Admissions from './pages/Admissions';
+import AdmissionBoard from './pages/AdmissionBoard';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
@@ -27,7 +27,8 @@ export default function App() {
 
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
-        <Route path="/admissions" element={<Admissions />} />
+        <Route path="/admission/:category" element={<AdmissionBoard />} />
+        <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
         <Route path="/events" element={<Events />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/faq" element={<Faq />} />
