@@ -177,10 +177,16 @@ popups: {
   { key: 'menu_label', label: '하위 메뉴명', type: 'text', required: true },
   { key: 'slug', label: '페이지 주소', type: 'text', required: true },
   { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+
   { key: 'title', label: '제목', type: 'text', required: true },
   { key: 'subtitle', label: '부제목', type: 'textarea' },
+
+  { key: 'image_url', label: '상단 이미지', type: 'image' },
+
   { key: 'body', label: '본문 내용', type: 'textarea' },
+
   { key: 'image_urls', label: '하단 이미지', type: 'multiImage' },
+
   { key: 'button_text', label: '버튼명', type: 'text' },
   { key: 'button_link', label: '버튼 링크', type: 'text' }
 ],
