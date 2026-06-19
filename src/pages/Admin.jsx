@@ -196,25 +196,40 @@ popups: {
 }
 },
 
-  notices: {
+ notices: {
     title: '공지사항',
     table: 'notices',
     searchPlaceholder: '공지사항 제목을 검색하세요',
     order: 'sort_order',
+    homepage: true,
     columns: [
       { key: 'title', label: '제목' },
-      { key: 'is_pinned', label: '상단고정', type: 'boolean' },
+      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'image_url', label: '대표 이미지', type: 'image' },
+      { key: 'file_name', label: '첨부파일' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'is_pinned', label: '상단 고정', type: 'checkbox' },
       { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_url', label: '본문 이미지', type: 'image' },
+      { key: 'file_url', label: '첨부파일 URL', type: 'text' },
+      { key: 'file_name', label: '첨부파일명', type: 'text' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
-    defaults: { is_active: true, is_pinned: false, title: '', content: '', sort_order: 1 }
+    defaults: {
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      sort_order: 1
+    }
   },
 
   galleries: {
