@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups';
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-events-notice-v1';
 
 const FALLBACK_NAV_GROUPS = [
   {
@@ -55,14 +55,14 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-    title: '위닝정보',
-    to: '/page/winning-notice',
-    items: [
-      { label: '공지사항', to: '/page/winning-notice' },
-      { label: '이용후기', to: '/page/winning-reviews' },
-      { label: '자주하는 질문', to: '/page/winning-faq' }
-    ]
-  }
+  title: '위닝정보',
+  to: '/events',
+  items: [
+    { label: '공지사항', to: '/events' },
+    { label: '이용후기', to: '/page/winning-reviews' },
+    { label: '자주하는 질문', to: '/page/winning-faq' }
+  ]
+}
 ];
 
 const MENU_GROUP_ORDER = {
@@ -307,13 +307,38 @@ function buildNavGroups(rows) {
     });
   });
 
-  return Array.from(grouped.values())
-    .sort((a, b) => a.groupOrder - b.groupOrder)
-    .map((group) => ({
-      title: group.title,
-      to: group.items[0]?.to || group.to,
-      items: group.items.sort((a, b) => a.sortOrder - b.sortOrder)
-    }));
+  const groups = Array.from(grouped.values())
+  .sort((a, b) => a.groupOrder - b.groupOrder)
+  .map((group) => ({
+    title: group.title,
+    to: group.items[0]?.to || group.to,
+    items: group.items.sort((a, b) => a.sortOrder - b.sortOrder)
+  }));
+
+const winningGroup = groups.find((group) => group.title === '위닝정보');
+
+if (winningGroup) {
+  const withoutNotice = winningGroup.items.filter(
+    (item) => item.label !== '공지사항'
+  );
+
+  winningGroup.items = [
+    { label: '공지사항', to: '/events', sortOrder: 1 },
+    ...withoutNotice
+  ];
+
+  winningGroup.to = '/events';
+} else {
+  groups.push({
+    title: '위닝정보',
+    to: '/events',
+    items: [
+      { label: '공지사항', to: '/events', sortOrder: 1 }
+    ]
+  });
+}
+
+return groups;
 }
 
 export default function Header() {
