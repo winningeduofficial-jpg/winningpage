@@ -1493,38 +1493,50 @@ export default function Admin() {
   }, [rows, keyword]);
 
   async function loadRows() {
-    setLoading(true);
+  setLoading(true);
 
-    let query = supabase.from(config.table).select('*');
+  let query = supabase.from(config.table).select('*');
 
-if (config.fixedCategory) {
-  query = query.eq('category', config.fixedCategory);
-}
-
-const orderColumn = config.order || 'created_at';
-
-if (config.fixedCategory) {
-  query = query
-    .order('is_pinned', { ascending: false })
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false });
-} else {
-  query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
-}
-
-    const { data, error } = await query;
-
-    setLoading(false);
-
-    if (error) {
-      console.error(error);
-      alert(`${config.title} 조회 실패: ${error.message}`);
-      setRows([]);
-      return;
-    }
-
-    setRows(data || []);
+  if (config.fixedCategory) {
+    query = query.eq('category', config.fixedCategory);
   }
+
+  const orderColumn = config.order || 'created_at';
+
+  if (config.fixedCategory) {
+    query = query
+      .order('is_pinned', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+  } else {
+    query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
+  }
+
+  const { data, error } = await query;
+
+  setLoading(false);
+
+  if (error) {
+    console.error(error);
+    alert(`${config.title} 조회 실패: ${error.message}`);
+    setRows([]);
+    return;
+  }
+
+  const hiddenPageSlugs = [
+    'admission-susi',
+    'admission-jungsi',
+    'admission-essay',
+    'winning-faq'
+  ];
+
+  const nextRows =
+    activeKey === 'pageContents'
+      ? (data || []).filter((row) => !hiddenPageSlugs.includes(row.slug))
+      : data || [];
+
+  setRows(nextRows);
+}
 
   useEffect(() => {
     setMode('list');
