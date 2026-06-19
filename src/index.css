@@ -286,4 +286,43 @@ select {
   }
 }
 
+.notice-content {
+  max-width: 100%;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.9;
+  word-break: keep-all;
+}
+
+.notice-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 24px auto;
+}
+
+.notice-content table {
+  width: 100%;
+  max-width: 900px;
+  margin: 24px auto;
+  border-collapse: collapse;
+}
+
+.notice-content th,
+.notice-content td {
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.notice-content strong,
+.notice-content b {
+  font-weight: 900;
+}
+
+.notice-content a {
+  color: #0f5bd8;
+  text-decoration: underline;
+}
 
