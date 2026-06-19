@@ -162,7 +162,7 @@ export default function Gallery() {
         <section className="mx-auto max-w-[1280px] px-6 py-16">
           <div className="text-center">
             <h1 className="text-4xl font-black tracking-[-0.04em]">포토갤러리</h1>
-            <p className="mt-6 text-xl font-medium text-gray-500">위닝에듀 센터 스토리</p>
+            <p className="mt-6 text-xl font-medium text-gray-500">위닝에듀 스토리</p>
           </div>
 
           <div className="mx-auto mt-14 flex h-14 max-w-[1160px] items-center border-b border-[#111827]">
