@@ -134,11 +134,113 @@ function preloadImage(src) {
   });
 }
 
+function todayKstYmd() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+
+function getHiddenPopupIds() {
+  try {
+    const saved = localStorage.getItem('hiddenPopupIds');
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setHiddenPopupToday(id) {
+  try {
+    const today = todayKstYmd();
+    const saved = getHiddenPopupIds();
+
+    saved[id] = today;
+    localStorage.setItem('hiddenPopupIds', JSON.stringify(saved));
+  } catch {
+    // localStorage 사용 불가 환경에서는 무시
+  }
+}
+
+function HomePopupLayer({ popups, onClose, onCloseToday }) {
+  if (!popups.length) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/50 px-4 py-8">
+      <div className="mx-auto flex h-full max-w-[1180px] items-start justify-center gap-6 overflow-x-auto overflow-y-hidden pt-4">
+        {popups.map((popup) => {
+          const imageSrc = popup.mobile_image_url || popup.image_url;
+          const Wrapper = popup.url ? 'a' : 'div';
+
+          const wrapperProps = popup.url
+            ? {
+                href: popup.url,
+                target: popup.open_new_window ? '_blank' : '_self',
+                rel: popup.open_new_window ? 'noreferrer' : undefined
+              }
+            : {};
+
+          return (
+            <div
+              key={popup.id}
+              className="relative flex max-h-[calc(100vh-80px)] w-[min(92vw,520px)] shrink-0 flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.36)]"
+            >
+              <Wrapper {...wrapperProps} className="block min-h-0 flex-1 overflow-y-auto">
+                <picture>
+                  {popup.mobile_image_url && (
+                    <source media="(max-width: 768px)" srcSet={popup.mobile_image_url} />
+                  )}
+
+                  <img
+                    src={imageSrc}
+                    alt={popup.title || '팝업'}
+                    className="w-full object-contain"
+                  />
+                </picture>
+              </Wrapper>
+
+              <div className="flex h-[62px] shrink-0 items-center justify-between border-t border-slate-100 bg-white px-6">
+                <button
+                  type="button"
+                  onClick={() => onCloseToday(popup.id)}
+                  className="inline-flex items-center gap-2 text-[15px] font-bold text-[#0D1B2A]"
+                >
+                  <span className="text-[22px] leading-none text-blue-500">✓</span>
+                  오늘 하루 보지않기
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onClose(popup.id)}
+                    className="text-[15px] font-bold text-[#111827]"
+                  >
+                    닫기
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onClose(popup.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-sm font-black text-white"
+                    aria-label="팝업 닫기"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [banners, setBanners] = useState(DEFAULT_BANNERS);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
   const [serviceItems, setServiceItems] = useState(DEFAULT_SERVICES);
+  const [popups, setPopups] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -212,6 +314,44 @@ export default function Home() {
     };
   }, []);
 
+   useEffect(() => {
+    let mounted = true;
+
+    async function fetchPopups() {
+      const today = todayKstYmd();
+
+      const { data, error } = await supabase
+        .from('popups')
+        .select('id, title, url, image_url, mobile_image_url, open_new_window, start_date, end_date, sort_order, is_active')
+        .eq('is_active', true)
+        .or(`start_date.is.null,start_date.lte.${today}`)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('sort_order', { ascending: true });
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error('팝업 조회 오류:', error);
+        setPopups([]);
+        return;
+      }
+
+      const hidden = getHiddenPopupIds();
+
+      const visiblePopups = (data || [])
+        .filter((popup) => popup.image_url || popup.mobile_image_url)
+        .filter((popup) => hidden[popup.id] !== today);
+
+      setPopups(visiblePopups);
+    }
+
+    fetchPopups();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -253,9 +393,25 @@ export default function Home() {
 
   const banner = banners[currentBanner];
 
+  function closePopup(id) {
+    setPopups((prev) => prev.filter((popup) => popup.id !== id));
+  }
+
+  function closePopupToday(id) {
+    setHiddenPopupToday(id);
+    closePopup(id);
+  }
+
   return (
    <>
     <Header />
+
+    <HomePopupLayer
+      popups={popups}
+      onClose={closePopup}
+      onCloseToday={closePopupToday}
+    />
+
     <main className="bg-[#F8F7F3] pt-[84px]">
       <section className="relative isolate overflow-hidden bg-[#F7F3EA] text-white">
         <div className="relative mx-auto w-full max-w-[2172px] overflow-hidden bg-[#F7F3EA]">
