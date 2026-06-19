@@ -1197,10 +1197,21 @@ export default function Admin() {
     if (!file) return;
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
-    const safeName = file.name
-      .replace(/\.[^/.]+$/, '')
-      .replace(/[^a-zA-Z0-9가-힣_-]/g, '_')
-      .slice(0, 80);
+
+const safeName =
+  file.name
+    .replace(/\.[^/.]+$/, '')
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50) || 'upload';
+
+const folder = field.type === 'file' ? 'notice-files' : 'admin';
+
+const path = `${folder}/${Date.now()}-${Math.random()
+  .toString(36)
+  .slice(2)}-${safeName}.${ext}`;
 
     const folder = field.type === 'file' ? 'notice-files' : 'admin';
     const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}.${ext}`;
