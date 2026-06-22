@@ -609,13 +609,13 @@ popups: {
   winningSuhaengTopicDb: {
   title: '위닝 수행 주제 DB',
   table: 'winning_assessment_knowledge_items',
-  searchPlaceholder: '학년, 과목, 진로, 주제 패턴명, 관련 자료를 검색하세요',
+  searchPlaceholder: '학년, 교과군, 진로, 주제 패턴명, 관련 자료를 검색하세요',
   order: 'created_at',
   excel: true,
   fixedValues: { knowledge_type: 'topic_pattern' },
   columns: [
     { key: 'grade', label: '학년' },
-    { key: 'subject', label: '과목' },
+    { key: 'subject', label: '교과군' },
     { key: 'career_field', label: '진로분야' },
     { key: 'title', label: '주제 패턴명 / 관련 자료' },
     { key: 'source', label: '출처' },
@@ -674,13 +674,13 @@ popups: {
  winningSuhaengResourceDb: {
   title: '위닝 수행 자료 DB',
   table: 'winning_assessment_knowledge_items',
-  searchPlaceholder: '학년, 과목, 진로, 실제 자료명, 검색 키워드, 출처를 검색하세요',
+  searchPlaceholder: '학년, 교과군, 진로, 실제 자료명, 검색 키워드, 출처를 검색하세요',
   order: 'created_at',
   excel: true,
   fixedValues: { knowledge_type: 'verified_resource' },
   columns: [
     { key: 'grade', label: '학년' },
-    { key: 'subject', label: '과목' },
+    { key: 'subject', label: '교과군' },
     { key: 'career_field', label: '진로분야' },
     { key: 'title', label: '실제 자료명 / 검색 키워드' },
     { key: 'source', label: '저자·기관·링크·출처' },
@@ -751,13 +751,13 @@ popups: {
    winningStudentRecordDb: {
     title: '위닝 생기부 DB',
     table: 'winning_assessment_knowledge_items',
-    searchPlaceholder: '학년, 과목, 진로, 생기부 패턴, 자료명을 검색하세요',
+    searchPlaceholder: '학년, 교과군, 진로, 생기부 패턴, 자료명을 검색하세요',
     order: 'created_at',
     excel: true,
     fixedValues: { knowledge_type: 'student_record_pattern' },
     columns: [
       { key: 'grade', label: '학년' },
-      { key: 'subject', label: '과목' },
+      { key: 'subject', label: '교과군' },
       { key: 'career_field', label: '진로분야' },
       { key: 'title', label: '사례명' },
       { key: 'source', label: '출처/원본' },
@@ -775,7 +775,7 @@ popups: {
       },
       {
         key: 'subject',
-        label: '과목',
+        label: '교과군',
         type: 'select',
         options: ['국어', '수학', '영어', '사회역사', '과학', '공통', '전체', '확인 필요'],
         required: true
