@@ -165,71 +165,76 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
   if (!popups.length) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/50 px-4 py-8">
-      <div className="mx-auto flex h-full max-w-[1180px] items-start justify-center gap-6 overflow-x-auto overflow-y-hidden pt-4">
-        {popups.map((popup) => {
-          const imageSrc = popup.mobile_image_url || popup.image_url;
-          const Wrapper = popup.url ? 'a' : 'div';
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/50 px-4 py-6">
+      <div className="mx-auto flex min-h-full w-full max-w-[1480px] items-center justify-center gap-5">
+        <div className="flex w-full flex-wrap items-center justify-center gap-5">
+          {popups.slice(0, 3).map((popup) => {
+            const imageSrc = popup.mobile_image_url || popup.image_url;
+            const Wrapper = popup.url ? 'a' : 'div';
 
-          const wrapperProps = popup.url
-            ? {
-                href: popup.url,
-                target: popup.open_new_window ? '_blank' : '_self',
-                rel: popup.open_new_window ? 'noreferrer' : undefined
-              }
-            : {};
+            const wrapperProps = popup.url
+              ? {
+                  href: popup.url,
+                  target: popup.open_new_window ? '_blank' : '_self',
+                  rel: popup.open_new_window ? 'noreferrer' : undefined
+                }
+              : {};
 
-          return (
-            <div
-              key={popup.id}
-              className="relative flex max-h-[calc(100vh-80px)] w-[min(92vw,520px)] shrink-0 flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.36)]"
-            >
-              <Wrapper {...wrapperProps} className="block min-h-0 flex-1 overflow-y-auto">
-                <picture>
-                  {popup.mobile_image_url && (
-                    <source media="(max-width: 768px)" srcSet={popup.mobile_image_url} />
-                  )}
-
-                  <img
-                    src={imageSrc}
-                    alt={popup.title || '팝업'}
-                    className="w-full object-contain"
-                  />
-                </picture>
-              </Wrapper>
-
-              <div className="flex h-[62px] shrink-0 items-center justify-between border-t border-slate-100 bg-white px-6">
-                <button
-                  type="button"
-                  onClick={() => onCloseToday(popup.id)}
-                  className="inline-flex items-center gap-2 text-[15px] font-bold text-[#0D1B2A]"
+            return (
+              <div
+                key={popup.id}
+                className="flex w-[clamp(320px,28vw,440px)] shrink-0 flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.36)]"
+              >
+                <Wrapper
+                  {...wrapperProps}
+                  className="block aspect-[3/4] w-full overflow-hidden bg-white"
                 >
-                  <span className="text-[22px] leading-none text-blue-500">✓</span>
-                  오늘 하루 보지않기
-                </button>
+                  <picture>
+                    {popup.mobile_image_url && (
+                      <source media="(max-width: 768px)" srcSet={popup.mobile_image_url} />
+                    )}
 
-                <div className="flex items-center gap-2">
+                    <img
+                      src={imageSrc}
+                      alt={popup.title || '팝업'}
+                      className="h-full w-full object-contain"
+                    />
+                  </picture>
+                </Wrapper>
+
+                <div className="flex h-[62px] shrink-0 items-center justify-between border-t border-slate-100 bg-white px-5">
                   <button
                     type="button"
-                    onClick={() => onClose(popup.id)}
-                    className="text-[15px] font-bold text-[#111827]"
+                    onClick={() => onCloseToday(popup.id)}
+                    className="inline-flex items-center gap-2 text-[15px] font-bold text-[#0D1B2A]"
                   >
-                    닫기
+                    <span className="text-[22px] leading-none text-blue-500">✓</span>
+                    오늘 하루 보지않기
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => onClose(popup.id)}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-sm font-black text-white"
-                    aria-label="팝업 닫기"
-                  >
-                    ×
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onClose(popup.id)}
+                      className="text-[15px] font-bold text-[#111827]"
+                    >
+                      닫기
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onClose(popup.id)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-sm font-black text-white"
+                      aria-label="팝업 닫기"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
