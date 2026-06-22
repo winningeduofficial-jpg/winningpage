@@ -85,10 +85,7 @@ popups: {
     searchPlaceholder: '팝업 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-  guideText: `PC 팝업 이미지: 900px × 1200px
-비율: 3:4
-형식: JPG 또는 PNG
-권장 용량: 1~2MB 이하`,
+  guideText: `PC 팝업 이미지: 900px × 1200px/ 비율: 3:4/ 형식: JPG 또는 PNG/ 권장 용량: 1~2MB 이하`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
