@@ -608,7 +608,7 @@ popups: {
 
   winningSuhaengTopicDb: {
     title: '위닝 수행 주제 DB',
-    table: 'assessment_knowledge_items',
+    table: 'winning_assessment_knowledge_items',
     searchPlaceholder: '학년, 과목, 진로, 주제 패턴을 검색하세요',
     order: 'created_at',
     excel: true,
@@ -645,9 +645,9 @@ popups: {
     }
   },
 
-  winningSuhaengResourceDb: {
+ winningSuhaengResourceDb: {
     title: '위닝 수행 자료 DB',
-    table: 'assessment_knowledge_items',
+    table: 'winning_assessment_knowledge_items',
     searchPlaceholder: '학년, 과목, 진로, 자료명, 출처를 검색하세요',
     order: 'created_at',
     excel: true,
