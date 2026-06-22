@@ -59,7 +59,12 @@ const MENU_GROUPS = [
     title: '위닝관리',
     items: [
       { key: 'winningBaseData', label: '기초데이터추출' },
-      { key: 'winningDbInputs', label: '위닝DB입력' }
+      { key: 'winningDbInputs', label: '위닝DB입력' },
+      { key: 'winningSuhaengTopicDb', label: '위닝 수행 주제 DB' },
+      { key: 'winningSuhaengResourceDb', label: '위닝 수행 자료 DB' },
+      { key: 'winningSetukDb', label: '위닝 세특 DB' },
+      { key: 'winningDeepReportDb', label: '위닝 심화보고서 DB' },
+      { key: 'winningStudentRecordDb', label: '위닝 생기부 DB' }
     ]
   },
   {
@@ -599,6 +604,102 @@ popups: {
       { key: 'status', label: '상태', type: 'text' }
     ],
     defaults: { capacity: 0, applicant_count: 0, confirmed_count: 0, remaining_count: 0 }
+  },
+
+  winningSuhaengTopicDb: {
+    title: '위닝 수행 주제 DB',
+    table: 'assessment_knowledge_items',
+    searchPlaceholder: '학년, 과목, 진로, 주제 패턴을 검색하세요',
+    order: 'created_at',
+    excel: true,
+    fixedValues: { knowledge_type: 'topic_pattern' },
+    columns: [
+      { key: 'grade', label: '학년' },
+      { key: 'subject', label: '과목' },
+      { key: 'career_field', label: '진로분야' },
+      { key: 'title', label: '자료명' },
+      { key: 'source', label: '출처' },
+      { key: 'is_active', label: '사용', type: 'boolean' },
+      { key: 'created_at', label: '등록일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+      { key: 'grade', label: '학년', type: 'select', options: ['고1', '고2', '고3', '공통', '전체'], required: true },
+      { key: 'subject', label: '과목', type: 'select', options: ['국어', '수학', '영어', '사회역사', '과학', '공통', '전체'], required: true },
+      { key: 'career_field', label: '진로분야', type: 'text' },
+      { key: 'title', label: '자료명', type: 'text', required: true },
+      { key: 'content', label: '주제 추천 패턴 내용', type: 'textarea', required: true },
+      { key: 'source', label: '출처', type: 'text' },
+      { key: 'memo', label: '메모', type: 'textarea' }
+    ],
+    defaults: {
+      is_active: true,
+      grade: '고1',
+      subject: '영어',
+      knowledge_type: 'topic_pattern',
+      career_field: '',
+      title: '',
+      content: '',
+      source: '위닝 내부 주제 패턴',
+      memo: ''
+    }
+  },
+
+  winningSuhaengResourceDb: {
+    title: '위닝 수행 자료 DB',
+    table: 'assessment_knowledge_items',
+    searchPlaceholder: '학년, 과목, 진로, 자료명, 출처를 검색하세요',
+    order: 'created_at',
+    excel: true,
+    fixedValues: { knowledge_type: 'verified_resource' },
+    columns: [
+      { key: 'grade', label: '학년' },
+      { key: 'subject', label: '과목' },
+      { key: 'career_field', label: '진로분야' },
+      { key: 'title', label: '자료명' },
+      { key: 'source', label: '출처' },
+      { key: 'is_active', label: '사용', type: 'boolean' },
+      { key: 'created_at', label: '등록일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+      { key: 'grade', label: '학년', type: 'select', options: ['고1', '고2', '고3', '공통', '전체'], required: true },
+      { key: 'subject', label: '과목', type: 'select', options: ['국어', '수학', '영어', '사회역사', '과학', '공통', '전체'], required: true },
+      { key: 'career_field', label: '진로분야', type: 'text' },
+      { key: 'title', label: '자료명 또는 검색 키워드', type: 'text', required: true },
+      { key: 'content', label: '자료 추천 내용', type: 'textarea', required: true },
+      { key: 'source', label: '출처/기관/링크', type: 'text' },
+      { key: 'memo', label: '메모', type: 'textarea' }
+    ],
+    defaults: {
+      is_active: true,
+      grade: '고1',
+      subject: '영어',
+      knowledge_type: 'verified_resource',
+      career_field: '',
+      title: '',
+      content: '',
+      source: '',
+      memo: ''
+    }
+  },
+
+  winningSetukDb: {
+    title: '위닝 세특 DB',
+    comingSoon: true,
+    description: '추후 별도 Supabase와 연동 예정입니다. 현재는 메뉴명만 선반영했습니다.'
+  },
+
+  winningDeepReportDb: {
+    title: '위닝 심화보고서 DB',
+    comingSoon: true,
+    description: '추후 별도 Supabase와 연동 예정입니다. 현재는 메뉴명만 선반영했습니다.'
+  },
+
+  winningStudentRecordDb: {
+    title: '위닝 생기부 DB',
+    comingSoon: true,
+    description: '추후 별도 Supabase와 연동 예정입니다. 현재는 메뉴명만 선반영했습니다.'
   },
 
   winningBaseData: {
@@ -1501,10 +1602,22 @@ export default function Admin() {
   async function loadRows() {
   setLoading(true);
 
+  if (config.comingSoon) {
+    setRows([]);
+    setLoading(false);
+    return;
+  }
+
   let query = supabase.from(config.table).select('*');
 
   if (config.fixedCategory) {
     query = query.eq('category', config.fixedCategory);
+  }
+
+  if (config.fixedValues) {
+    for (const [key, value] of Object.entries(config.fixedValues)) {
+      query = query.eq(key, value);
+    }
   }
 
   const orderColumn = config.order || 'created_at';
@@ -1625,6 +1738,10 @@ if (config.fixedCategory) {
   payload.category = config.fixedCategory;
 }
 
+if (config.fixedValues) {
+  Object.assign(payload, config.fixedValues);
+}
+
 delete payload.created_at;
 delete payload.updated_at;
 
@@ -1701,6 +1818,15 @@ delete payload.updated_at;
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
           {mode === 'list' ? (
+            config.comingSoon ? (
+              <div className="bg-white p-10 shadow">
+                <h1 className="text-2xl font-black text-[#111827]">{config.title}</h1>
+                <p className="mt-3 text-sm font-bold text-gray-500">{config.description}</p>
+                <div className="mt-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] px-5 py-4 text-sm font-bold text-[#7A4A12]">
+                  이 메뉴는 추후 별도 Supabase 연결 후 활성화됩니다.
+                </div>
+              </div>
+            ) : (
             <>
               <div className="mb-6 bg-white px-6 py-5 shadow">
                 <div className="flex items-center justify-between gap-4">
@@ -1783,6 +1909,7 @@ delete payload.updated_at;
                 />
               )}
             </>
+            )
           ) : (
             <AdminForm
               config={config}
