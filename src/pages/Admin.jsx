@@ -85,6 +85,10 @@ popups: {
     searchPlaceholder: '팝업 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
+  guideText: `PC 팝업 이미지: 900px × 1200px
+비율: 3:4
+형식: JPG 또는 PNG
+권장 용량: 1~2MB 이하`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
@@ -1975,10 +1979,18 @@ delete payload.updated_at;
                   <div>
                     <h1 className="text-xl font-black">{config.title}</h1>
                     {config.homepage && (
-                      <p className="mt-1 text-sm font-bold text-red-500">
-                        이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
-                      </p>
-                    )}
+  <div className="mt-1 space-y-1">
+    <p className="text-sm font-bold text-red-500">
+      이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
+    </p>
+
+    {config.guideText && (
+      <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
+        {config.guideText}
+      </p>
+    )}
+  </div>
+)}
                   </div>
 
                   {!config.noCreate && !config.readOnly && (
