@@ -607,82 +607,134 @@ popups: {
   },
 
   winningSuhaengTopicDb: {
-    title: '위닝 수행 주제 DB',
-    table: 'winning_assessment_knowledge_items',
-    searchPlaceholder: '학년, 과목, 진로, 주제 패턴을 검색하세요',
-    order: 'created_at',
-    excel: true,
-    fixedValues: { knowledge_type: 'topic_pattern' },
-    columns: [
-      { key: 'grade', label: '학년' },
-      { key: 'subject', label: '과목' },
-      { key: 'career_field', label: '진로분야' },
-      { key: 'title', label: '자료명' },
-      { key: 'source', label: '출처' },
-      { key: 'is_active', label: '사용', type: 'boolean' },
-      { key: 'created_at', label: '등록일', type: 'date' }
-    ],
-    fields: [
-      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-      { key: 'grade', label: '학년', type: 'select', options: ['고1', '고2', '고3', '공통', '전체'], required: true },
-      { key: 'subject', label: '과목', type: 'select', options: ['국어', '수학', '영어', '사회역사', '과학', '공통', '전체'], required: true },
-      { key: 'career_field', label: '진로분야', type: 'text' },
-      { key: 'title', label: '자료명', type: 'text', required: true },
-      { key: 'content', label: '주제 추천 패턴 내용', type: 'textarea', required: true },
-      { key: 'source', label: '출처', type: 'text' },
-      { key: 'memo', label: '메모', type: 'textarea' }
-    ],
-    defaults: {
-  is_active: true,
-  grade: '확인 필요',
-  subject: '확인 필요',
-  knowledge_type: 'topic_pattern',
-  career_field: '',
-  title: '',
-  content: '',
-  source: '선배 생기부 PDF / 내부 우수사례',
-  memo: ''
-}
-  },
+  title: '위닝 수행 주제 DB',
+  table: 'winning_assessment_knowledge_items',
+  searchPlaceholder: '학년, 과목, 진로, 주제 패턴명, 관련 자료를 검색하세요',
+  order: 'created_at',
+  excel: true,
+  fixedValues: { knowledge_type: 'topic_pattern' },
+  columns: [
+    { key: 'grade', label: '학년' },
+    { key: 'subject', label: '과목' },
+    { key: 'career_field', label: '진로분야' },
+    { key: 'title', label: '주제 패턴명 / 관련 자료' },
+    { key: 'source', label: '출처' },
+    { key: 'is_active', label: '사용', type: 'boolean' },
+    { key: 'created_at', label: '등록일', type: 'date' }
+  ],
+  fields: [
+    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+    {
+      key: 'grade',
+      label: '학년',
+      type: 'select',
+      options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
+      required: true
+    },
+    {
+      key: 'subject',
+      label: '교과군',
+      type: 'select',
+      options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
+      required: true
+    },
+    { key: 'career_field', label: '진로분야', type: 'text' },
+    {
+      key: 'title',
+      label: '주제 패턴명 / 관련 자료',
+      type: 'text',
+      required: true
+    },
+    {
+      key: 'content',
+      label: '주제 추천 패턴 내용',
+      type: 'textarea',
+      required: true
+    },
+    { key: 'source', label: '출처', type: 'text' },
+    {
+      key: 'memo',
+      label: '메모',
+      type: 'textarea'
+    }
+  ],
+  defaults: {
+    is_active: true,
+    grade: '확인 필요',
+    subject: '확인 필요',
+    knowledge_type: 'topic_pattern',
+    career_field: '',
+    title: '',
+    content: '',
+    source: '선배 생기부 PDF / 내부 우수사례',
+    memo: ''
+  }
+},
 
  winningSuhaengResourceDb: {
-    title: '위닝 수행 자료 DB',
-    table: 'winning_assessment_knowledge_items',
-    searchPlaceholder: '학년, 과목, 진로, 자료명, 출처를 검색하세요',
-    order: 'created_at',
-    excel: true,
-    fixedValues: { knowledge_type: 'verified_resource' },
-    columns: [
-      { key: 'grade', label: '학년' },
-      { key: 'subject', label: '과목' },
-      { key: 'career_field', label: '진로분야' },
-      { key: 'title', label: '자료명' },
-      { key: 'source', label: '출처' },
-      { key: 'is_active', label: '사용', type: 'boolean' },
-      { key: 'created_at', label: '등록일', type: 'date' }
-    ],
-    fields: [
-      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-      { key: 'grade', label: '학년', type: 'select', options: ['고1', '고2', '고3', '공통', '전체'], required: true },
-      { key: 'subject', label: '과목', type: 'select', options: ['국어', '수학', '영어', '사회역사', '과학', '공통', '전체'], required: true },
-      { key: 'career_field', label: '진로분야', type: 'text' },
-      { key: 'title', label: '자료명 또는 검색 키워드', type: 'text', required: true },
-      { key: 'content', label: '자료 핵심 내용 / 활용 방식 / 주의점', type: 'textarea', required: true },
-      { key: 'source', label: '저자·기관·링크·출처 정보', type: 'text' },
-      { key: 'memo', label: '메모', type: 'textarea' }
-    ],
-    defaults: {
-      is_active: true,
-      grade: '고1',
-      subject: '영어',
-      knowledge_type: 'verified_resource',
-      career_field: '',
-      title: '',
-      content: '',
-      source: '',
-      memo: ''
-    }
-  },
+  title: '위닝 수행 자료 DB',
+  table: 'winning_assessment_knowledge_items',
+  searchPlaceholder: '학년, 과목, 진로, 실제 자료명, 검색 키워드, 출처를 검색하세요',
+  order: 'created_at',
+  excel: true,
+  fixedValues: { knowledge_type: 'verified_resource' },
+  columns: [
+    { key: 'grade', label: '학년' },
+    { key: 'subject', label: '과목' },
+    { key: 'career_field', label: '진로분야' },
+    { key: 'title', label: '실제 자료명 / 검색 키워드' },
+    { key: 'source', label: '저자·기관·링크·출처' },
+    { key: 'is_active', label: '사용', type: 'boolean' },
+    { key: 'created_at', label: '등록일', type: 'date' }
+  ],
+  fields: [
+    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+    {
+      key: 'grade',
+      label: '학년',
+      type: 'select',
+      options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
+      required: true
+    },
+    {
+      key: 'subject',
+      label: '교과군',
+      type: 'select',
+      options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
+      required: true
+    },
+    { key: 'career_field', label: '진로분야', type: 'text' },
+    {
+      key: 'title',
+      label: '실제 자료명 / 검색 키워드',
+      type: 'text',
+      required: true
+    },
+    {
+      key: 'content',
+      label: '자료 핵심 내용 / 활용 방식 / 주의점',
+      type: 'textarea',
+      required: true
+    },
+    {
+      key: 'source',
+      label: '저자·기관·링크·출처 정보',
+      type: 'text'
+    },
+    { key: 'memo', label: '메모', type: 'textarea' }
+  ],
+  defaults: {
+    is_active: true,
+    grade: '확인 필요',
+    subject: '확인 필요',
+    knowledge_type: 'verified_resource',
+    career_field: '',
+    title: '',
+    content: '',
+    source: '',
+    memo: ''
+  }
+},
 
   winningSetukDb: {
     title: '위닝 세특 DB',
