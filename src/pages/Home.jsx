@@ -244,8 +244,9 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
 
 export default function Home() {
   const [banners, setBanners] = useState(DEFAULT_BANNERS);
-  const [currentBanner, setCurrentBanner] = useState(0);
-  const [heroReady, setHeroReady] = useState(false);
+const [currentBanner, setCurrentBanner] = useState(0);
+const [bannerTimerKey, setBannerTimerKey] = useState(0);
+const [heroReady, setHeroReady] = useState(false);
   const [serviceItems, setServiceItems] = useState(DEFAULT_SERVICES);
   const [popups, setPopups] = useState([]);
 
@@ -389,27 +390,39 @@ export default function Home() {
   }, [banners]);
 
   useEffect(() => {
-    if (!heroReady) return undefined;
+  if (!heroReady || banners.length <= 1) return undefined;
 
-    const timer = setInterval(() => {
-      setCurrentBanner((prev) => (prev + 1) % banners.length);
-    }, 5000);
+  const timer = setTimeout(() => {
+    setCurrentBanner((prev) => (prev + 1) % banners.length);
+    setBannerTimerKey((prev) => prev + 1);
+  }, 10000);
 
-    return () => clearInterval(timer);
-  }, [heroReady, banners.length]);
+  return () => clearTimeout(timer);
+}, [heroReady, banners.length, bannerTimerKey]);
 
   const banner = banners[currentBanner];
+
+function resetBannerTimer() {
+  setBannerTimerKey((prev) => prev + 1);
+}
 
 function goPrevBanner() {
   setCurrentBanner((prev) =>
     prev === 0 ? banners.length - 1 : prev - 1
   );
+  resetBannerTimer();
 }
 
 function goNextBanner() {
   setCurrentBanner((prev) =>
     (prev + 1) % banners.length
   );
+  resetBannerTimer();
+}
+
+function goBanner(index) {
+  setCurrentBanner(index);
+  resetBannerTimer();
 }
 
 function closePopup(id) {
@@ -535,15 +548,15 @@ function closePopup(id) {
               <div className="mt-[clamp(18px,1.45vw,28px)] flex h-[12px] gap-2">
                 {banners.map((_, index) => (
                   <button
-                    key={index}
-                    onClick={() => setCurrentBanner(index)}
-                    className={`h-2.5 rounded-full transition-all ${
-                      currentBanner === index
-                        ? 'w-10 bg-white'
-                        : 'w-2.5 bg-white/35'
-                    }`}
-                    aria-label={`배너 ${index + 1}`}
-                  />
+  key={index}
+  onClick={() => goBanner(index)}
+  className={`h-2.5 rounded-full transition-all ${
+    currentBanner === index
+      ? 'w-10 bg-white'
+      : 'w-2.5 bg-white/35'
+  }`}
+  aria-label={`배너 ${index + 1}`}
+/>
                 ))}
               </div>
             </div>
