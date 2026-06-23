@@ -119,11 +119,12 @@ popups: {
   },
 
   banners: {
-    title: '배너 관리',
-    table: 'banners',
-    searchPlaceholder: '배너 제목을 검색하세요',
-    order: 'sort_order',
-    homepage: true,
+  title: '배너 관리',
+  table: 'banners',
+  searchPlaceholder: '배너 제목을 검색하세요',
+  order: 'sort_order',
+  homepage: true,
+  guideText: `메인 배너 이미지: 2172px × 724px / 비율: 3:1 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 중요한 글자나 얼굴은 중앙보다 살짝 오른쪽에 배치`,
     columns: [
       { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
@@ -388,11 +389,12 @@ popups: {
   },
   
   galleries: {
-    title: '포토갤러리',
-    table: 'galleries',
-    searchPlaceholder: '포토갤러리 제목을 검색하세요',
-    order: 'created_at',
-    homepage: true,
+  title: '포토갤러리',
+  table: 'galleries',
+  searchPlaceholder: '포토갤러리 제목을 검색하세요',
+  order: 'created_at',
+  homepage: true,
+  guideText: `포토갤러리 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
@@ -1289,6 +1291,12 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
           이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
         </p>
       )}
+
+      {config.guideText && (
+  <p className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+    {config.guideText}
+  </p>
+)}
 
       <div className="bg-white shadow">
         {(config.fields || config.columns).map((field) => (
