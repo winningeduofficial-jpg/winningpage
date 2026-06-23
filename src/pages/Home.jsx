@@ -20,6 +20,8 @@ import {
   Target,
   Brain,
   Edit3,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const DEFAULT_BANNERS = [
@@ -398,9 +400,21 @@ export default function Home() {
 
   const banner = banners[currentBanner];
 
-  function closePopup(id) {
-    setPopups((prev) => prev.filter((popup) => popup.id !== id));
-  }
+function goPrevBanner() {
+  setCurrentBanner((prev) =>
+    prev === 0 ? banners.length - 1 : prev - 1
+  );
+}
+
+function goNextBanner() {
+  setCurrentBanner((prev) =>
+    (prev + 1) % banners.length
+  );
+}
+
+function closePopup(id) {
+  setPopups((prev) => prev.filter((popup) => popup.id !== id));
+}
 
   function closePopupToday(id) {
     setHiddenPopupToday(id);
@@ -429,6 +443,28 @@ export default function Home() {
               fetchPriority="high"
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
+            
+            {banners.length > 1 && (
+  <>
+    <button
+      type="button"
+      onClick={goPrevBanner}
+      className="absolute left-[clamp(18px,2.2vw,42px)] top-1/2 z-20 flex h-[clamp(42px,3vw,58px)] w-[clamp(42px,3vw,58px)] -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-[#0D1B2A]/45 text-white shadow-[0_14px_35px_rgba(0,0,0,0.28)] backdrop-blur transition hover:bg-[#0D1B2A]/70"
+      aria-label="이전 배너"
+    >
+      <ChevronLeft size={30} strokeWidth={3} />
+    </button>
+
+    <button
+      type="button"
+      onClick={goNextBanner}
+      className="absolute right-[clamp(18px,2.2vw,42px)] top-1/2 z-20 flex h-[clamp(42px,3vw,58px)] w-[clamp(42px,3vw,58px)] -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-[#0D1B2A]/45 text-white shadow-[0_14px_35px_rgba(0,0,0,0.28)] backdrop-blur transition hover:bg-[#0D1B2A]/70"
+      aria-label="다음 배너"
+    >
+      <ChevronRight size={30} strokeWidth={3} />
+    </button>
+  </>
+)}
 
             <div className="absolute inset-y-0 left-0 z-[1] w-[62%] bg-[linear-gradient(90deg,rgba(13,27,42,0.80)_0%,rgba(13,27,42,0.60)_38%,rgba(13,27,42,0.32)_68%,rgba(13,27,42,0)_100%)]" />
             <div className="absolute inset-y-0 left-0 z-[2] w-[52%] bg-[radial-gradient(circle_at_28%_40%,rgba(0,0,0,0.26),transparent_66%)]" />
