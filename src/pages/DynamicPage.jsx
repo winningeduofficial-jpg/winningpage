@@ -103,7 +103,6 @@ export default function DynamicPage() {
   const title = cleanText(page.title);
   const subtitle = cleanText(page.subtitle);
   const body = cleanText(page.body);
-  const topImage = cleanText(page.image_url);
   const bottomImages = normalizeArray(page.image_urls).filter(Boolean);
 
   return (
@@ -112,49 +111,33 @@ export default function DynamicPage() {
 
       <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-          <div
-            className={`mx-auto grid max-w-[1180px] items-center gap-10 px-6 py-14 ${
-              topImage ? 'lg:grid-cols-[1fr_420px]' : 'grid-cols-1'
-            }`}
-          >
-            <div>
-              {menuGroup && (
-                <p className="text-sm font-black text-[#B88737]">
-                  {menuGroup}
-                </p>
-              )}
+  <div className="mx-auto max-w-[1180px] px-6 py-20 text-center">
+    {menuGroup && (
+      <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">
+        {menuGroup}
+      </p>
+    )}
 
-              <h1 className="mt-4 text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
-                {title}
-              </h1>
+    <h1 className="mx-auto mt-5 max-w-[900px] text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
+      {title}
+    </h1>
 
-              {subtitle && (
-                <p className="mt-6 max-w-[760px] text-xl font-bold leading-8 tracking-[-0.04em] text-[#5E6A7B]">
-                  {subtitle}
-                </p>
-              )}
+    {subtitle && (
+      <p className="mx-auto mt-6 max-w-[820px] text-xl font-bold leading-8 tracking-[-0.04em] text-[#5E6A7B]">
+        {subtitle}
+      </p>
+    )}
 
-              {page.button_text && page.button_link && (
-                <Link
-                  to={page.button_link}
-                  className="mt-8 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
-                >
-                  {page.button_text}
-                </Link>
-              )}
-            </div>
-
-            {topImage && (
-              <div className="hidden overflow-hidden rounded-[24px] shadow-[0_20px_54px_rgba(13,27,42,0.14)] lg:block">
-                <img
-                  src={topImage}
-                  alt=""
-                  className="h-[260px] w-full object-cover"
-                />
-              </div>
-            )}
-          </div>
-        </section>
+    {page.button_text && page.button_link && (
+      <Link
+        to={page.button_link}
+        className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
+      >
+        {page.button_text}
+      </Link>
+    )}
+  </div>
+</section>
 
         {(body || bottomImages.length > 0) && (
           <section className="bg-white">
