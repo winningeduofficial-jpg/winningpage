@@ -14,14 +14,12 @@ const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-events-notice-v1';
 
-const FREE_DIAGNOSIS_ITEM = { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 };
-
 const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
     to: '/page/services-goal',
     items: [
-      FREE_DIAGNOSIS_ITEM,
+      { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 },
       { label: '목표관리서비스', to: '/page/services-goal' },
       { label: 'AI 수행평가 서비스', to: '/page/services-ai-performance' },
       { label: '세특코치서비스', to: '/page/services-record-coach' },
@@ -40,14 +38,14 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-  title: '입시정보',
-  to: '/admission/susi',
-  items: [
-    { label: '수시정보', to: '/admission/susi' },
-    { label: '정시정보', to: '/admission/jungsi' },
-    { label: '논술정보', to: '/admission/essay' }
-  ]
-},
+    title: '입시정보',
+    to: '/admission/susi',
+    items: [
+      { label: '수시정보', to: '/admission/susi' },
+      { label: '정시정보', to: '/admission/jungsi' },
+      { label: '논술정보', to: '/admission/essay' }
+    ]
+  },
   {
     title: '회사소개',
     to: '/page/company-history',
@@ -58,15 +56,15 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-  title: '위닝정보',
-  to: '/events',
-  items: [
-    { label: '공지사항', to: '/events' },
-    { label: '이용후기', to: '/reviews' },
-    { label: '자주하는 질문', to: '/faq' },
-    { label: '포토갤러리', to: '/gallery' }
-  ]
-}
+    title: '위닝정보',
+    to: '/events',
+    items: [
+      { label: '공지사항', to: '/events' },
+      { label: '이용후기', to: '/reviews' },
+      { label: '자주하는 질문', to: '/faq' },
+      { label: '포토갤러리', to: '/gallery' }
+    ]
+  }
 ];
 
 const MENU_GROUP_ORDER = {
@@ -108,13 +106,19 @@ function ensureFreeDiagnosisInService(groups) {
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
+
     const withoutFreeDiagnosis = items.filter(
-      (item) => cleanText(item?.label) !== FREE_DIAGNOSIS_ITEM.label && cleanText(item?.to) !== FREE_DIAGNOSIS_ITEM.to
+      (item) =>
+        cleanText(item?.label) !== '무료 진단' &&
+        cleanText(item?.to) !== '/free-diagnosis'
     );
 
     return {
       ...group,
-      items: [FREE_DIAGNOSIS_ITEM, ...withoutFreeDiagnosis]
+      items: [
+        { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 },
+        ...withoutFreeDiagnosis
+      ]
     };
   });
 }
