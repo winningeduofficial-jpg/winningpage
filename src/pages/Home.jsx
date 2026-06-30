@@ -22,6 +22,7 @@ import {
   Edit3,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 
 const DEFAULT_BANNERS = [
@@ -66,6 +67,14 @@ const stats = [
   { icon: ShieldCheck, value: '1,254개', label: '주요대학 합격 사례' },
   { icon: Award, value: '96.2%', label: '이용자 만족도' },
 ];
+
+const FREE_DIAGNOSIS_SERVICE = {
+  id: 'free-diagnosis',
+  icon: Sparkles,
+  title: '무료 진단',
+  desc: '학교 유형, 성적대, 성적 정체 이유를 바탕으로 나에게 맞는 위닝 서비스를 확인합니다.',
+  link: '/free-diagnosis',
+};
 
 const DEFAULT_SERVICES = [
   {
@@ -401,6 +410,12 @@ const [heroReady, setHeroReady] = useState(false);
 }, [heroReady, banners.length, bannerTimerKey]);
 
   const banner = banners[currentBanner];
+  const visibleServiceItems = [
+    FREE_DIAGNOSIS_SERVICE,
+    ...serviceItems.filter(
+      (service) => service.link !== FREE_DIAGNOSIS_SERVICE.link && service.title !== FREE_DIAGNOSIS_SERVICE.title
+    )
+  ];
 
 function resetBannerTimer() {
   setBannerTimerKey((prev) => prev + 1);
@@ -616,7 +631,7 @@ function closePopup(id) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {serviceItems.map((service) => {
+          {visibleServiceItems.map((service) => {
             const Icon = service.icon;
 
             return (
