@@ -14,11 +14,14 @@ const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-events-notice-v1';
 
+const FREE_DIAGNOSIS_ITEM = { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 };
+
 const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
     to: '/page/services-goal',
     items: [
+      FREE_DIAGNOSIS_ITEM,
       { label: '목표관리서비스', to: '/page/services-goal' },
       { label: 'AI 수행평가 서비스', to: '/page/services-ai-performance' },
       { label: '세특코치서비스', to: '/page/services-record-coach' },
@@ -96,6 +99,26 @@ function isSameObject(a, b) {
   return safeJsonStringify(a) === safeJsonStringify(b);
 }
 
+function ensureFreeDiagnosisInService(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+
+  return source.map((group) => {
+    if (cleanText(group?.title) !== '서비스') {
+      return group;
+    }
+
+    const items = Array.isArray(group.items) ? group.items : [];
+    const withoutFreeDiagnosis = items.filter(
+      (item) => cleanText(item?.label) !== FREE_DIAGNOSIS_ITEM.label && cleanText(item?.to) !== FREE_DIAGNOSIS_ITEM.to
+    );
+
+    return {
+      ...group,
+      items: [FREE_DIAGNOSIS_ITEM, ...withoutFreeDiagnosis]
+    };
+  });
+}
+
 function getCsatDay() {
   const now = new Date();
   const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -156,7 +179,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return parsed;
+    return ensureFreeDiagnosisInService(parsed);
   } catch {
     return null;
   }
@@ -370,7 +393,7 @@ if (winningGroup) {
   });
 }
 
-return groups;
+return ensureFreeDiagnosisInService(groups);
 }
 
 export default function Header() {
@@ -381,7 +404,7 @@ export default function Header() {
   const [activeMega, setActiveMega] = useState(null);
   const [myOpen, setMyOpen] = useState(false);
   const [navGroups, setNavGroups] = useState(() => {
-    return readCachedNavGroups() || FALLBACK_NAV_GROUPS;
+    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
   });
 
   useEffect(() => {
@@ -624,49 +647,56 @@ export default function Header() {
         </Link>
 
         <nav className="hidden min-w-0 items-center justify-center gap-8 justify-self-center whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
-          {navGroups.map((group) => (
-            <div
-              key={group.title}
-              className="relative flex h-[84px] items-center"
-              onMouseEnter={() => setActiveMega(group.title)}
-              onMouseLeave={() => setActiveMega(null)}
-            >
-              <Link
-                to={group.to}
-                className={`relative inline-flex h-[84px] items-center gap-1 transition ${
-                  activeMega === group.title ? 'text-[#B88737]' : 'hover:text-[#B88737]'
-                }`}
+          {navGroups.map((group) => {
+            const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
+
+            return (
+              <div
+                key={group.title}
+                className="relative flex h-[84px] items-center"
+                onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
+                onMouseLeave={() => hasDropdown && setActiveMega(null)}
               >
-                {group.title}
-                <ChevronDown
-                  size={15}
-                  strokeWidth={2.7}
-                  className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
-                />
+                <Link
+                  to={group.to}
+                  onClick={() => setActiveMega(null)}
+                  className={`relative inline-flex h-[84px] items-center gap-1 transition ${
+                    activeMega === group.title ? 'text-[#B88737]' : 'hover:text-[#B88737]'
+                  }`}
+                >
+                  {group.title}
+                  {hasDropdown && (
+                    <ChevronDown
+                      size={15}
+                      strokeWidth={2.7}
+                      className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
+                    />
+                  )}
 
-                {activeMega === group.title && (
-                  <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full bg-[#B88737]" />
-                )}
-              </Link>
+                  {activeMega === group.title && (
+                    <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full bg-[#B88737]" />
+                  )}
+                </Link>
 
-              {activeMega === group.title && (
-                <div className="absolute left-1/2 top-full z-50 w-[230px] -translate-x-1/2">
-                  <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setActiveMega(null)}
-                        className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
+                {hasDropdown && activeMega === group.title && (
+                  <div className="absolute left-1/2 top-full z-50 w-[230px] -translate-x-1/2">
+                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setActiveMega(null)}
+                          className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="flex h-[84px] w-[560px] shrink-0 flex-nowrap items-center justify-end gap-3 justify-self-end whitespace-nowrap">
