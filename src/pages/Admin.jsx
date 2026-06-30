@@ -29,7 +29,7 @@ const MENU_GROUPS = [
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
   },
- {
+{
   title: '게시판 관리',
   items: [
     { key: 'notices', label: '공지사항' },
@@ -37,7 +37,8 @@ const MENU_GROUPS = [
     { key: 'admissionJungsi', label: '정시정보' },
     { key: 'admissionEssay', label: '논술정보' },
     { key: 'galleries', label: '포토갤러리' },
-    { key: 'faqs', label: '자주하는질문' }
+    { key: 'faqs', label: '자주하는질문' },
+    { key: 'freeDiagnosis', label: '무료진단 관리' }
   ]
 },
   {
@@ -48,14 +49,13 @@ const MENU_GROUPS = [
     ]
   },
   {
-    title: '프로그램 관리',
-    items: [
-      { key: 'programCategories', label: '기초 데이터' },
-      { key: 'dailyEntries', label: '일일 입장' },
-      { key: 'usageStatus', label: '이용 현황' },
-      { key: 'freeDiagnosis', label: '무료진단 관리' }
-    ]
-  },
+  title: '프로그램 관리',
+  items: [
+    { key: 'programCategories', label: '기초 데이터' },
+    { key: 'dailyEntries', label: '일일 입장' },
+    { key: 'usageStatus', label: '이용 현황' }
+  ]
+},
   {
     title: '위닝관리',
     items: [
