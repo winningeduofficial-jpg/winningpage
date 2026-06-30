@@ -372,7 +372,7 @@ export default function FreeDiagnosis() {
                         서비스 확인하기 <ArrowRight size={17} />
                       </Link>
                       <Link to="/pricing" className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]">
-                        수강신청 보기
+                        결제하러가기
                       </Link>
                     </div>
                   </article>
@@ -385,7 +385,7 @@ export default function FreeDiagnosis() {
                     </div>
                     <p className="mt-5 text-sm font-black text-[#B88737]">추천 서비스 02</p>
                     <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                      위닝 목표관리·학습관리 서비스
+                      위닝 목표관리 서비스
                     </h3>
                     <p className="mt-4 break-keep text-base font-bold leading-8 text-[#334155]">
                       서울대·의대 학생들의 학습 경험과 위닝에듀의 관리 노하우를 담아 만들었습니다. 학생에게 필요한 방향, 노력의 양, 매주 해야 할 일을 정리하고 관리까지 이어집니다. 앞으로 학생이 할 일은 정해진 길을 따라가며 실행하는 것입니다.
@@ -395,7 +395,7 @@ export default function FreeDiagnosis() {
                         서비스 확인하기 <ArrowRight size={17} />
                       </Link>
                       <Link to="/learning-analysis" className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-white">
-                        학습분석 보기
+                        결제하러가기
                       </Link>
                     </div>
                   </article>
