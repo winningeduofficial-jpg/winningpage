@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import Pricing from './pages/Pricing';
+import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
 
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
@@ -52,3 +54,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
