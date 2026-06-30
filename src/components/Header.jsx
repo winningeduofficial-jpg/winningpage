@@ -14,6 +14,7 @@ const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-events-notice-v1';
 
+
 const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
@@ -38,14 +39,14 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-    title: '입시정보',
-    to: '/admission/susi',
-    items: [
-      { label: '수시정보', to: '/admission/susi' },
-      { label: '정시정보', to: '/admission/jungsi' },
-      { label: '논술정보', to: '/admission/essay' }
-    ]
-  },
+  title: '입시정보',
+  to: '/admission/susi',
+  items: [
+    { label: '수시정보', to: '/admission/susi' },
+    { label: '정시정보', to: '/admission/jungsi' },
+    { label: '논술정보', to: '/admission/essay' }
+  ]
+},
   {
     title: '회사소개',
     to: '/page/company-history',
@@ -56,15 +57,15 @@ const FALLBACK_NAV_GROUPS = [
     ]
   },
   {
-    title: '위닝정보',
-    to: '/events',
-    items: [
-      { label: '공지사항', to: '/events' },
-      { label: '이용후기', to: '/reviews' },
-      { label: '자주하는 질문', to: '/faq' },
-      { label: '포토갤러리', to: '/gallery' }
-    ]
-  }
+  title: '위닝정보',
+  to: '/events',
+  items: [
+    { label: '공지사항', to: '/events' },
+    { label: '이용후기', to: '/reviews' },
+    { label: '자주하는 질문', to: '/faq' },
+    { label: '포토갤러리', to: '/gallery' }
+  ]
+}
 ];
 
 const MENU_GROUP_ORDER = {
@@ -106,19 +107,13 @@ function ensureFreeDiagnosisInService(groups) {
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
-
     const withoutFreeDiagnosis = items.filter(
-      (item) =>
-        cleanText(item?.label) !== '무료 진단' &&
-        cleanText(item?.to) !== '/free-diagnosis'
+      (item) => cleanText(item?.label) !== '무료 진단' && cleanText(item?.to) !== '/free-diagnosis'
     );
 
     return {
       ...group,
-      items: [
-        { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 },
-        ...withoutFreeDiagnosis
-      ]
+      items: [{ label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
     };
   });
 }
