@@ -1017,6 +1017,13 @@ function normalizeProgramIds(value) {
   return [];
 }
 
+function boolValue(value) {
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  return Boolean(value);
+}
+
+
 function getNextSortOrder(items) {
   const list = Array.isArray(items) ? items : [];
 
