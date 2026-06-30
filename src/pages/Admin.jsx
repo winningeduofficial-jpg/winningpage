@@ -1017,8 +1017,12 @@ function normalizeProgramIds(value) {
   return [];
 }
 
-function boolValue(value) {
-  return value === true || value === 'true';
+function getNextSortOrder(items) {
+  const list = Array.isArray(items) ? items : [];
+
+  if (list.length === 0) return 1;
+
+  return Math.max(...list.map((item) => Number(item.sort_order || 0))) + 1;
 }
 
 function TextInput({ value, onChange, placeholder, className = '' }) {
@@ -1201,9 +1205,27 @@ function FreeDiagnosisAdmin() {
     const nextPrograms = programRes.data || [];
 
     setQuestions(nextQuestions);
-    setOptions(nextOptions);
-    setPrograms(nextPrograms);
-    setOpenQuestions(new Set(nextQuestions.map((question) => question.id)));
+setOptions(nextOptions);
+setPrograms(nextPrograms);
+setOpenQuestions(new Set(nextQuestions.map((question) => question.id)));
+
+setNewQuestion((prev) => {
+  if (String(prev.title || '').trim()) return prev;
+
+  return {
+    ...prev,
+    sort_order: getNextSortOrder(nextQuestions)
+  };
+});
+
+setNewProgram((prev) => {
+  if (String(prev.title || '').trim()) return prev;
+
+  return {
+    ...prev,
+    sort_order: getNextSortOrder(nextPrograms)
+  };
+});
   }
 
   useEffect(() => {
@@ -1232,32 +1254,41 @@ function FreeDiagnosisAdmin() {
   }
 
   async function createQuestion() {
-    const title = newQuestion.title.trim();
-    if (!title) {
-      alert('질문 내용을 입력하세요.');
-      return;
-    }
+  const title = newQuestion.title.trim();
 
-    setSaving(true);
-    const { error } = await supabase.from('free_diagnosis_questions').insert({
-      ...newQuestion,
-      title,
-      description: newQuestion.description || '',
-      input_type: newQuestion.input_type || 'single',
-      is_required: boolValue(newQuestion.is_required),
-      is_active: boolValue(newQuestion.is_active),
-      sort_order: Number(newQuestion.sort_order || 1)
-    });
-    setSaving(false);
-
-    if (error) {
-      alert(`질문 등록 실패: ${error.message}`);
-      return;
-    }
-
-    setNewQuestion({ ...QUESTION_EMPTY, sort_order: questions.length + 2 });
-    await loadAll();
+  if (!title) {
+    alert('질문 내용을 입력하세요.');
+    return;
   }
+
+  const nextSortOrder = getNextSortOrder(questions);
+  const sortOrder = Number(newQuestion.sort_order || 0) || nextSortOrder;
+
+  setSaving(true);
+
+  const { error } = await supabase.from('free_diagnosis_questions').insert({
+    title,
+    description: newQuestion.description || '',
+    input_type: newQuestion.input_type || 'single',
+    is_required: boolValue(newQuestion.is_required),
+    is_active: boolValue(newQuestion.is_active),
+    sort_order: sortOrder
+  });
+
+  setSaving(false);
+
+  if (error) {
+    alert(`질문 등록 실패: ${error.message}`);
+    return;
+  }
+
+  setNewQuestion({
+    ...QUESTION_EMPTY,
+    sort_order: getNextSortOrder([...questions, { sort_order: sortOrder }])
+  });
+
+  await loadAll();
+}
 
   async function saveQuestion(question) {
     if (!String(question.title || '').trim()) {
@@ -1601,7 +1632,12 @@ function FreeDiagnosisAdmin() {
                       className="flex w-full items-center justify-between bg-gray-50 px-5 py-4 text-left"
                     >
                       <div>
-                        <p className="text-xs font-black text-[#B88737]">QUESTION {String(questionIndex + 1).padStart(2, '0')}</p>
+                        <p className="text-xs font-black text-[#B88737]">
+  QUESTION {String(questionIndex + 1).padStart(2, '0')}
+  <span className="ml-2 text-gray-400">
+    정렬순서 {Number(question.sort_order || 0)}
+  </span>
+</p>
                         <h3 className="mt-1 text-base font-black text-gray-900">{question.title || '질문 내용 없음'}</h3>
                         <p className="mt-1 text-xs font-bold text-gray-500">
                           {question.input_type === 'multiple' ? '중복 선택' : '단일 선택'} · {question.is_required ? '필수' : '선택'} · 답변 {questionOptions.length}개
