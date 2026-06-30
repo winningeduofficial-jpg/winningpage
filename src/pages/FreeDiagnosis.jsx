@@ -17,21 +17,31 @@ import {
   UsersRound
 } from 'lucide-react';
 
-const SCHOOL_TYPES = ['일반고', '특목고', '자사고'];
-const GRADE_LEVELS = ['최상위권', '상위권', '중상위권', '중위권', '중하위권', '하위권'];
+const ICONS = {
+  target: Target,
+  book: BookOpenCheck,
+  chart: BarChart3,
+  route: Route
+};
 
-const REASONS = [
-  '공부할 시간이 부족해서',
-  '공부 방법을 잘 몰라서',
-  '어떻게 시작해야 할지를 잘 몰라서'
-];
+function normalizeProgramIds(value) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (!value) return [];
 
-const PRIORITIES = [
-  '수행평가와 세특 완성도',
-  '내신 공부 루틴',
-  '학습 관리와 피드백',
-  '입시 방향 설정'
-];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
 
 function optionClass(active) {
   return `rounded-2xl border px-5 py-4 text-left text-sm font-black leading-6 transition ${
@@ -58,11 +68,13 @@ export default function FreeDiagnosis() {
   const [session, setSession] = useState(null);
   const [started, setStarted] = useState(false);
   const [authNotice, setAuthNotice] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [configError, setConfigError] = useState('');
 
-  const [schoolType, setSchoolType] = useState('');
-  const [gradeLevel, setGradeLevel] = useState('');
-  const [reasons, setReasons] = useState([]);
-  const [priority, setPriority] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [selected, setSelected] = useState({});
   const [showResult, setShowResult] = useState(false);
 
   useEffect(() => {
@@ -88,20 +100,128 @@ export default function FreeDiagnosis() {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDiagnosisConfig() {
+      setLoadingConfig(true);
+      setConfigError('');
+
+      const [questionRes, optionRes, programRes] = await Promise.all([
+        supabase
+          .from('free_diagnosis_questions')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('free_diagnosis_options')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('free_diagnosis_programs')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true })
+      ]);
+
+      if (!alive) return;
+      setLoadingConfig(false);
+
+      const error = questionRes.error || optionRes.error || programRes.error;
+      if (error) {
+        setConfigError('무료진단 설정을 불러오지 못했습니다. 관리자에서 무료진단 테이블 설정을 확인해 주세요.');
+        setQuestions([]);
+        setOptions([]);
+        setPrograms([]);
+        return;
+      }
+
+      setQuestions(questionRes.data || []);
+      setOptions(
+        (optionRes.data || []).map((option) => ({
+          ...option,
+          program_ids: normalizeProgramIds(option.program_ids)
+        }))
+      );
+      setPrograms(programRes.data || []);
+    }
+
+    loadDiagnosisConfig();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const isLoggedIn = !!session?.user;
-  const canSubmit = schoolType && gradeLevel && reasons.length > 0;
 
-  const resultTypes = useMemo(() => {
-    const hasTimeIssue = reasons.includes('공부할 시간이 부족해서');
-    const hasDirectionIssue =
-      reasons.includes('공부 방법을 잘 몰라서') ||
-      reasons.includes('어떻게 시작해야 할지를 잘 몰라서');
+  const optionsByQuestion = useMemo(() => {
+    const grouped = {};
+    options.forEach((option) => {
+      if (!grouped[option.question_id]) grouped[option.question_id] = [];
+      grouped[option.question_id].push(option);
+    });
+    return grouped;
+  }, [options]);
 
-    const types = [];
-    if (hasTimeIssue) types.push('performance');
-    if (hasDirectionIssue) types.push('management');
-    return types;
-  }, [reasons]);
+  const programById = useMemo(() => {
+    const map = new Map();
+    programs.forEach((program) => map.set(String(program.id), program));
+    return map;
+  }, [programs]);
+
+  const requiredQuestions = useMemo(
+    () => questions.filter((question) => question.is_required),
+    [questions]
+  );
+
+  const canSubmit = useMemo(() => {
+    if (questions.length === 0) return false;
+    return requiredQuestions.every((question) => (selected[question.id] || []).length > 0);
+  }, [questions.length, requiredQuestions, selected]);
+
+  const selectedOptions = useMemo(() => {
+    const selectedIds = new Set(Object.values(selected).flat().map(String));
+    return options.filter((option) => selectedIds.has(String(option.id)));
+  }, [options, selected]);
+
+  const resultPrograms = useMemo(() => {
+    const orderedIds = [];
+    const seen = new Set();
+
+    selectedOptions.forEach((option) => {
+      normalizeProgramIds(option.program_ids).forEach((programId) => {
+        const id = String(programId);
+        if (!seen.has(id) && programById.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      });
+    });
+
+    return orderedIds
+      .map((id) => programById.get(id))
+      .filter(Boolean)
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  }, [programById, selectedOptions]);
+
+  const selectedSummary = useMemo(() => {
+    return questions
+      .map((question) => {
+        const ids = new Set((selected[question.id] || []).map(String));
+        const labels = (optionsByQuestion[question.id] || [])
+          .filter((option) => ids.has(String(option.id)))
+          .map((option) => option.label);
+
+        if (labels.length === 0) return null;
+        return `${question.title}: ${labels.join(', ')}`;
+      })
+      .filter(Boolean);
+  }, [optionsByQuestion, questions, selected]);
 
   function startDiagnosis() {
     if (!authReady) return;
@@ -121,13 +241,25 @@ export default function FreeDiagnosis() {
     }, 80);
   }
 
-  function toggleReason(reason) {
-    setReasons((prev) => {
-      if (prev.includes(reason)) {
-        return prev.filter((item) => item !== reason);
+  function toggleOption(question, optionId) {
+    setSelected((prev) => {
+      const current = prev[question.id] || [];
+      const id = String(optionId);
+
+      if (question.input_type === 'multiple') {
+        const exists = current.map(String).includes(id);
+        return {
+          ...prev,
+          [question.id]: exists ? current.filter((item) => String(item) !== id) : [...current, id]
+        };
       }
-      return [...prev, reason];
+
+      return {
+        ...prev,
+        [question.id]: current.map(String).includes(id) ? [] : [id]
+      };
     });
+
     setShowResult(false);
   }
 
@@ -158,7 +290,7 @@ export default function FreeDiagnosis() {
               </h1>
 
               <p className="mt-6 max-w-[760px] break-keep text-lg font-bold leading-9 text-white/78">
-                학교 유형, 현재 성적대, 성적이 정체되는 이유를 선택하면 지금 학생에게 먼저 필요한 위닝에듀 서비스를 바로 확인할 수 있습니다.
+                현재 상황에 맞는 질문에 답하면 지금 학생에게 먼저 필요한 위닝에듀 서비스를 바로 확인할 수 있습니다.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-4">
@@ -183,13 +315,13 @@ export default function FreeDiagnosis() {
             <div className="rounded-[34px] border border-white/14 bg-white/10 p-7 shadow-[0_28px_90px_rgba(0,0,0,0.26)] backdrop-blur">
               <div className="rounded-[26px] bg-white p-7 text-[#0D1B2A]">
                 <p className="text-sm font-black text-[#B88737]">DIAGNOSIS FLOW</p>
-                <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">3단계로 확인하는 맞춤 추천</h2>
+                <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">맞춤 질문 기반 추천</h2>
 
                 <div className="mt-6 grid gap-4">
                   {[
-                    [SchoolIcon, '학교 유형', '일반고·특목고·자사고 기준으로 출발점을 확인합니다.'],
-                    [BarChart3, '현재 성적대', '최상위권부터 하위권까지 현재 위치를 기준으로 봅니다.'],
-                    [Route, '성적 정체 이유', '시간 부족, 방법 부재, 시작점 부재를 중복 선택합니다.']
+                    [SchoolIcon, '질문 선택', '관리자에서 설정한 질문과 답변이 화면에 노출됩니다.'],
+                    [BarChart3, '중복 선택', '질문별로 단일 선택 또는 중복 선택을 적용할 수 있습니다.'],
+                    [Route, '추천 결과', '선택한 답변에 연결된 추천 프로그램이 자동으로 표시됩니다.']
                   ].map(([Icon, title, desc]) => (
                     <div key={title} className="flex gap-4 rounded-2xl border border-[#0D1B2A]/8 bg-[#F8F7F3] p-4">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0D1B2A] text-white">
@@ -253,64 +385,65 @@ export default function FreeDiagnosis() {
                   선택이 끝나면 학생에게 먼저 필요한 서비스가 정리됩니다.
                 </h2>
                 <div className="mt-7 space-y-3 text-sm font-bold leading-6 text-slate-600">
-                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 성적이 정체되는 이유는 중복 선택할 수 있습니다.</p>
-                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 시간 부족과 방법 문제를 함께 선택하면 두 추천이 같이 표시됩니다.</p>
-                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 선택 결과는 상담 전 학생 상태를 빠르게 파악하는 용도로 활용할 수 있습니다.</p>
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 질문과 답변은 관리자에서 자유롭게 수정할 수 있습니다.</p>
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 중복 선택 질문은 여러 답변을 함께 선택할 수 있습니다.</p>
+                  <p className="flex gap-2"><CheckCircle2 className="mt-0.5 shrink-0 text-[#B88737]" size={18} /> 선택한 답변에 연결된 프로그램이 결과 카드로 표시됩니다.</p>
                 </div>
               </aside>
 
               <div className="space-y-6">
-                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-                  <SectionTitle step="01" title="학교 유형을 선택하세요." />
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {SCHOOL_TYPES.map((item) => (
-                      <button key={item} type="button" onClick={() => { setSchoolType(item); setShowResult(false); }} className={optionClass(schoolType === item)}>
-                        {item}
-                      </button>
-                    ))}
+                {loadingConfig && (
+                  <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                    무료진단 문항을 불러오는 중입니다.
                   </div>
-                </div>
+                )}
 
-                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-                  <SectionTitle step="02" title="현재 성적대를 선택하세요." />
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {GRADE_LEVELS.map((item) => (
-                      <button key={item} type="button" onClick={() => { setGradeLevel(item); setShowResult(false); }} className={optionClass(gradeLevel === item)}>
-                        {item}
-                      </button>
-                    ))}
+                {configError && (
+                  <div className="rounded-[30px] border border-red-200 bg-white p-7 text-sm font-black leading-7 text-red-600 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                    {configError}
                   </div>
-                </div>
+                )}
 
-                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-                  <SectionTitle
-                    step="03"
-                    title="성적이 잘 오르지 않는 이유를 선택하세요."
-                    desc="여러 개를 함께 선택할 수 있습니다."
-                  />
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {REASONS.map((item) => (
-                      <button key={item} type="button" onClick={() => toggleReason(item)} className={optionClass(reasons.includes(item))}>
-                        {item}
-                      </button>
-                    ))}
+                {!loadingConfig && !configError && questions.length === 0 && (
+                  <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                    등록된 무료진단 질문이 없습니다. 관리자에서 질문을 추가해 주세요.
                   </div>
-                </div>
+                )}
 
-                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-                  <SectionTitle
-                    step="04"
-                    title="가장 먼저 보완하고 싶은 영역을 선택하세요."
-                    desc="선택하지 않아도 결과 확인은 가능합니다."
-                  />
-                  <div className="grid gap-3 md:grid-cols-4">
-                    {PRIORITIES.map((item) => (
-                      <button key={item} type="button" onClick={() => { setPriority(item); setShowResult(false); }} className={optionClass(priority === item)}>
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {questions.map((question, index) => {
+                  const questionOptions = optionsByQuestion[question.id] || [];
+                  const selectedIds = new Set((selected[question.id] || []).map(String));
+                  const isMultiple = question.input_type === 'multiple';
+
+                  return (
+                    <div key={question.id} className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                      <SectionTitle
+                        step={String(index + 1).padStart(2, '0')}
+                        title={question.title}
+                        desc={question.description || (isMultiple ? '여러 개를 함께 선택할 수 있습니다.' : '')}
+                      />
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {questionOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => toggleOption(question, option.id)}
+                            className={optionClass(selectedIds.has(String(option.id)))}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {questionOptions.length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-[#0D1B2A]/15 bg-[#F8F7F3] p-6 text-center text-sm font-black text-slate-500">
+                          이 질문에는 아직 등록된 답변이 없습니다.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 <button
                   type="button"
@@ -335,10 +468,13 @@ export default function FreeDiagnosis() {
                   <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#0D1B2A]">
                     무료 진단 결과
                   </h2>
-                  <p className="mt-3 break-keep text-sm font-bold leading-6 text-slate-600">
-                    {schoolType} · {gradeLevel} 학생 기준으로 현재 선택한 고민에 맞는 서비스를 추천합니다.
-                    {priority ? ` 우선 보완 영역은 ‘${priority}’입니다.` : ''}
-                  </p>
+                  <div className="mt-3 space-y-1 break-keep text-sm font-bold leading-6 text-slate-600">
+                    {selectedSummary.length > 0 ? (
+                      selectedSummary.map((item) => <p key={item}>{item}</p>)
+                    ) : (
+                      <p>선택한 답변 기준으로 필요한 서비스를 추천합니다.</p>
+                    )}
+                  </div>
                 </div>
 
                 <button
@@ -354,53 +490,51 @@ export default function FreeDiagnosis() {
                 </button>
               </div>
 
-              <div className="mt-8 grid gap-5 lg:grid-cols-2">
-                {resultTypes.includes('performance') && (
-                  <article className="rounded-[28px] border border-[#D6B06A]/45 bg-[#FFF8E8] p-7">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
-                      <BookOpenCheck size={27} />
-                    </div>
-                    <p className="mt-5 text-sm font-black text-[#B88737]">추천 서비스 01</p>
-                    <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                      위닝 AI 수행평가 서비스
-                    </h3>
-                    <p className="mt-4 break-keep text-base font-bold leading-8 text-[#334155]">
-                      생기부의 중요성이 커지면서 수행평가에 요구되는 수준도 함께 높아졌습니다. 공부 시간을 확보하면서 내신 점수와 탐구의 심화성을 모두 놓치고 싶지 않다면, 먼저 필요한 선택은 위닝 AI 수행평가 서비스입니다.
-                    </p>
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <Link to="/page/services-ai-performance" className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D1B2A] px-5 text-sm font-black text-white transition hover:bg-[#162A40]">
-                        서비스 확인하기 <ArrowRight size={17} />
-                      </Link>
-                      <Link to="/pricing" className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]">
-                        결제하러가기
-                      </Link>
-                    </div>
-                  </article>
-                )}
+              {resultPrograms.length > 0 ? (
+                <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                  {resultPrograms.map((program, index) => {
+                    const Icon = ICONS[program.icon] || Target;
 
-                {resultTypes.includes('management') && (
-                  <article className="rounded-[28px] border border-[#0D1B2A]/10 bg-[#F8F7F3] p-7">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
-                      <Target size={27} />
-                    </div>
-                    <p className="mt-5 text-sm font-black text-[#B88737]">추천 서비스 02</p>
-                    <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                      위닝 목표관리 서비스
-                    </h3>
-                    <p className="mt-4 break-keep text-base font-bold leading-8 text-[#334155]">
-                      서울대·의대 학생들의 학습 경험과 위닝에듀의 관리 노하우를 담아 만들었습니다. 학생에게 필요한 방향, 노력의 양, 매주 해야 할 일을 정리하고 관리까지 이어집니다. 앞으로 학생이 할 일은 정해진 길을 따라가며 실행하는 것입니다.
-                    </p>
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <Link to="/page/services-goal" className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D1B2A] px-5 text-sm font-black text-white transition hover:bg-[#162A40]">
-                        서비스 확인하기 <ArrowRight size={17} />
-                      </Link>
-                      <Link to="/learning-analysis" className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-white">
-                        결제하러가기
-                      </Link>
-                    </div>
-                  </article>
-                )}
-              </div>
+                    return (
+                      <article
+                        key={program.id}
+                        className={`rounded-[28px] border p-7 ${
+                          index % 2 === 0
+                            ? 'border-[#D6B06A]/45 bg-[#FFF8E8]'
+                            : 'border-[#0D1B2A]/10 bg-[#F8F7F3]'
+                        }`}
+                      >
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
+                          <Icon size={27} />
+                        </div>
+                        <p className="mt-5 text-sm font-black text-[#B88737]">{program.badge || `추천 서비스 ${index + 1}`}</p>
+                        <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
+                          {program.title}
+                        </h3>
+                        <p className="mt-4 break-keep text-base font-bold leading-8 text-[#334155]">
+                          {program.description}
+                        </p>
+                        <div className="mt-6 flex flex-wrap gap-3">
+                          {program.primary_button_link && (
+                            <Link to={program.primary_button_link} className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D1B2A] px-5 text-sm font-black text-white transition hover:bg-[#162A40]">
+                              {program.primary_button_text || '서비스 확인하기'} <ArrowRight size={17} />
+                            </Link>
+                          )}
+                          {program.secondary_button_link && (
+                            <Link to={program.secondary_button_link} className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]">
+                              {program.secondary_button_text || '자세히 보기'}
+                            </Link>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-8 rounded-[28px] border border-[#0D1B2A]/10 bg-[#F8F7F3] p-7 text-sm font-black leading-7 text-slate-600">
+                  선택한 답변에 연결된 추천 프로그램이 없습니다. 관리자에서 해당 답변에 추천 프로그램을 연결해 주세요.
+                </div>
+              )}
 
               <div className="mt-7 grid gap-4 rounded-[26px] border border-[#0D1B2A]/8 bg-[#0D1B2A] p-6 text-white md:grid-cols-3">
                 {[
@@ -426,3 +560,4 @@ export default function FreeDiagnosis() {
 function SchoolIcon(props) {
   return <GraduationCap {...props} />;
 }
+
