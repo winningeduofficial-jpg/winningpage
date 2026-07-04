@@ -1033,27 +1033,41 @@ function shouldRequestWinningEmbedding(config, row) {
 }
 
 async function requestWinningEmbedding(row) {
-  if (!row?.id) return;
+  if (!row?.id) return null;
+
+  if (!WINNING_EMBED_API_BASE) {
+    console.error(
+      '위닝 수행 DB 자동 임베딩 요청 실패: VITE_RAG_API_BASE_URL 환경변수가 비어 있습니다.'
+    );
+    return null;
+  }
+
+  const endpoint = `${WINNING_EMBED_API_BASE}/api/embed-winning-knowledge`;
 
   try {
-    const response = await fetch(`${WINNING_EMBED_API_BASE}/api/embed-winning-knowledge`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
+      mode: 'cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: row.id })
     });
 
-    if (!response.ok) {
+    const result = await response.json().catch(async () => {
       const text = await response.text().catch(() => '');
-      throw new Error(text || `HTTP ${response.status}`);
+      return { ok: false, error: text || `HTTP ${response.status}` };
+    });
+
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || `HTTP ${response.status}`);
     }
 
-    return await response.json().catch(() => null);
+    console.log('위닝 수행 DB 자동 임베딩 요청 완료:', result);
+    return result;
   } catch (error) {
     console.error('위닝 수행 DB 자동 임베딩 요청 실패:', error);
     return null;
   }
 }
-
 
 function getNextSortOrder(items) {
   const list = Array.isArray(items) ? items : [];
