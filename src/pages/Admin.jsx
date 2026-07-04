@@ -1024,6 +1024,37 @@ function boolValue(value) {
 }
 
 
+const WINNING_RAG_KNOWLEDGE_TYPES = new Set(['topic_pattern', 'verified_resource']);
+const WINNING_EMBED_API_BASE = String(import.meta.env?.VITE_RAG_API_BASE_URL || '').replace(/\/$/, '');
+
+function shouldRequestWinningEmbedding(config, row) {
+  if (!config || config.table !== 'winning_assessment_knowledge_items') return false;
+  return WINNING_RAG_KNOWLEDGE_TYPES.has(String(row?.knowledge_type || ''));
+}
+
+async function requestWinningEmbedding(row) {
+  if (!row?.id) return;
+
+  try {
+    const response = await fetch(`${WINNING_EMBED_API_BASE}/api/embed-winning-knowledge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: row.id })
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+
+    return await response.json().catch(() => null);
+  } catch (error) {
+    console.error('위닝 수행 DB 자동 임베딩 요청 실패:', error);
+    return null;
+  }
+}
+
+
 function getNextSortOrder(items) {
   const list = Array.isArray(items) ? items : [];
 
@@ -2667,26 +2698,46 @@ delete payload.updated_at;
       }
     }
 
+    let savedRow = null;
+
     if (mode === 'create') {
-      const { error } = await supabase.from(config.table).insert(payload);
+      const { data, error } = await supabase
+        .from(config.table)
+        .insert(payload)
+        .select('*')
+        .single();
 
       if (error) {
         alert(`등록 실패: ${error.message}`);
         return;
       }
+
+      savedRow = data;
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from(config.table)
         .update(payload)
-        .eq('id', editingRow.id);
+        .eq('id', editingRow.id)
+        .select('*')
+        .single();
 
       if (error) {
         alert(`수정 실패: ${error.message}`);
         return;
       }
+
+      savedRow = data;
     }
 
-    alert('저장 완료');
+    if (shouldRequestWinningEmbedding(config, savedRow)) {
+      requestWinningEmbedding(savedRow);
+    }
+
+    alert(
+      shouldRequestWinningEmbedding(config, savedRow)
+        ? '저장 완료. 임베딩은 자동 생성 중입니다.'
+        : '저장 완료'
+    );
     setMode('list');
     setEditingRow(null);
     await loadRows();
