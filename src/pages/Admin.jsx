@@ -1035,24 +1035,20 @@ function shouldRequestWinningEmbedding(config, row) {
 async function requestWinningEmbedding(row) {
   if (!row?.id) return null;
 
-  if (!WINNING_EMBED_API_BASE) {
-    console.error(
-      '위닝 수행 DB 자동 임베딩 요청 실패: VITE_RAG_API_BASE_URL 환경변수가 비어 있습니다.'
-    );
-    return null;
-  }
 
-  const endpoint = `/api/request-winning-embedding`;
+  const endpoint = WINNING_EMBED_API_BASE
+    ? `${WINNING_EMBED_API_BASE}/api/admin-embeddings`
+    : '/api/admin-embeddings';
 
-try {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'embed-one',
-      id: row.id
-    })
-  });
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'embed-one',
+        id: row.id
+      })
+    });
 
     const result = await response.json().catch(async () => {
       const text = await response.text().catch(() => '');
