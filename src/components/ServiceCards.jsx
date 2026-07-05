@@ -11,7 +11,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
 
 const FALLBACK_SERVICES = [
   {
@@ -156,11 +155,10 @@ export default function ServiceCards() {
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
             <Link
-              key={service.id}
-              to={service.link || '/services'}
-              onClick={(event) => openPaidServiceOrAlert(event, service)}
-              className="group relative overflow-hidden rounded-3xl border border-[#E6E9EF] bg-white p-8 shadow-[0_16px_40px_rgba(13,27,42,0.06)] transition hover:-translate-y-1 hover:border-[#B88737]/50 hover:shadow-[0_24px_60px_rgba(13,27,42,0.12)]"
-            >
+  key={service.id}
+  to={service.link || '/services'}
+  className="group relative overflow-hidden rounded-3xl border border-[#E6E9EF] bg-white p-8 shadow-[0_16px_40px_rgba(13,27,42,0.06)] transition hover:-translate-y-1 hover:border-[#B88737]/50 hover:shadow-[0_24px_60px_rgba(13,27,42,0.12)]"
+>
               <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[60px] bg-[#F7F4EC] transition group-hover:bg-[#FFF2D4]" />
 
               <div className="relative z-10">
