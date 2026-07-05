@@ -1042,15 +1042,17 @@ async function requestWinningEmbedding(row) {
     return null;
   }
 
-  const endpoint = `${WINNING_EMBED_API_BASE}/api/embed-winning-knowledge`;
+  const endpoint = `/api/request-winning-embedding`;
 
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: row.id })
-    });
+try {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'embed-one',
+      id: row.id
+    })
+  });
 
     const result = await response.json().catch(async () => {
       const text = await response.text().catch(() => '');
