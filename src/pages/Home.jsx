@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
-import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
 import {
   ArrowRight,
   PlayCircle,
@@ -637,11 +636,10 @@ function closePopup(id) {
 
             return (
               <Link
-                key={service.id || service.title}
-                to={service.link}
-                onClick={(event) => openPaidServiceOrAlert(event, service)}
-                className="group rounded-2xl border border-[#0D1B2A]/10 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#0D1B2A]/20 hover:shadow-[0_22px_50px_rgba(13,27,42,0.12)]"
-              >
+  key={service.id || service.title}
+  to={service.link}
+  className="group rounded-2xl border border-[#0D1B2A]/10 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#0D1B2A]/20 hover:shadow-[0_22px_50px_rgba(13,27,42,0.12)]"
+>
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#0D1B2A]/6 text-[#0D1B2A] transition group-hover:bg-[#0D1B2A] group-hover:text-white">
                   <Icon size={24} />
                 </div>
