@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
+import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
@@ -99,11 +100,21 @@ export default function DynamicPage() {
     );
   }
 
-  const menuGroup = cleanText(page.menu_group);
-  const title = cleanText(page.title);
-  const subtitle = cleanText(page.subtitle);
-  const body = cleanText(page.body);
-  const bottomImages = normalizeArray(page.image_urls).filter(Boolean);
+ const menuGroup = cleanText(page.menu_group);
+const title = cleanText(page.title);
+const subtitle = cleanText(page.subtitle);
+const body = cleanText(page.body);
+const bottomImages = normalizeArray(page.image_urls).filter(Boolean);
+
+const paidServiceContext = {
+  name: title,
+  title,
+  label: page.button_text,
+  description: subtitle || body,
+  link: page.button_link,
+  to: page.button_link,
+  slug
+};
 
   return (
     <>
@@ -128,14 +139,15 @@ export default function DynamicPage() {
       </p>
     )}
 
-    {page.button_text && page.button_link && (
-      <Link
-        to={page.button_link}
-        className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
-      >
-        {page.button_text}
-      </Link>
-    )}
+   {page.button_text && page.button_link && (
+  <button
+    type="button"
+    onClick={(event) => openPaidServiceOrAlert(event, paidServiceContext)}
+    className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
+  >
+    {page.button_text}
+  </button>
+)}
   </div>
 </section>
 
