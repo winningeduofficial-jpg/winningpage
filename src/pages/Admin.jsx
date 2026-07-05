@@ -1035,15 +1035,29 @@ function shouldRequestWinningEmbedding(config, row) {
 async function requestWinningEmbedding(row) {
   if (!row?.id) return null;
 
-
   const endpoint = WINNING_EMBED_API_BASE
     ? `${WINNING_EMBED_API_BASE}/api/admin-embeddings`
     : '/api/admin-embeddings';
 
   try {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw new Error(`관리자 로그인 세션 확인 실패: ${sessionError.message}`);
+    }
+
+    const accessToken = sessionData?.session?.access_token;
+
+    if (!accessToken) {
+      throw new Error('관리자 로그인 세션이 없습니다. 다시 로그인한 뒤 저장하세요.');
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
       body: JSON.stringify({
         action: 'embed-one',
         id: row.id
