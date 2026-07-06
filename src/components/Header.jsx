@@ -9,10 +9,10 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { NAV_GROUPS } from '../config/navigation';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v2';
 
 const MY_MENU = [
   { label: '내정보·자녀수정', to: '/mypage', icon: UserRound },
@@ -34,6 +34,190 @@ function safeJsonStringify(value) {
 
 function isSameObject(a, b) {
   return safeJsonStringify(a) === safeJsonStringify(b);
+}
+
+const FALLBACK_NAV_GROUPS = [
+  {
+    title: '서비스',
+    to: '/free-diagnosis',
+    items: [
+      { label: '무료진단', to: '/free-diagnosis', sortOrder: 0 },
+      { label: '위닝 목표관리', to: '/page/services-goal', sortOrder: 1 },
+      { label: '위닝 수시예측', to: '/page/services-susi-prediction', sortOrder: 2 },
+      { label: '위닝 콜멘토', to: '/page/services-content', sortOrder: 3 },
+      { label: '위닝AI 수행평가', to: '/page/services-ai-performance', sortOrder: 4 },
+      { label: '위닝 세특관리', to: '/page/services-record-coach', sortOrder: 5 },
+      { label: '위닝 약점관리', to: '/page/services-weakness', sortOrder: 6 }
+    ]
+  },
+  {
+    title: '프리미엄',
+    to: '/page/premium-a',
+    items: [
+      { label: '입시컨설팅 A프로그램', to: '/page/premium-a', sortOrder: 1 },
+      { label: '입시컨설팅 S프로그램', to: '/page/premium-s', sortOrder: 2 },
+      { label: '특화 멘토링 서비스', to: '/page/services-mentoring', sortOrder: 3 }
+    ]
+  },
+  {
+    title: '입시정보',
+    to: '/admission/guidelines',
+    items: [
+      { label: '대입모집요강', to: '/admission/guidelines', sortOrder: 1 },
+      { label: '입결정보', to: '/admission/results', sortOrder: 2 },
+      { label: '수시·정시', to: '/admission/susi-jungsi', sortOrder: 3 }
+    ]
+  },
+  {
+    title: '이용신청',
+    to: '/pricing',
+    items: [
+      { label: '서비스요금', to: '/pricing', sortOrder: 1 },
+      { label: '구독권안내', to: '/page/subscription-guide', sortOrder: 2 },
+      { label: '프리미엄 이용', to: '/page/premium-apply', sortOrder: 3 }
+    ]
+  },
+  {
+    title: '위닝정보',
+    to: '/page/company-intro',
+    items: [
+      { label: '회사소개', to: '/page/company-intro', sortOrder: 1 },
+      { label: '공지사항', to: '/events', sortOrder: 2 },
+      { label: '자주하는질문', to: '/faq', sortOrder: 3 },
+      { label: '교육컬럼', to: '/gallery', sortOrder: 4 }
+    ]
+  }
+];
+
+const MENU_GROUP_ORDER = {
+  서비스: 1,
+  프리미엄: 2,
+  입시정보: 3,
+  이용신청: 4,
+  위닝정보: 5,
+  합격전략: 6,
+  회사소개: 7
+};
+
+function resolveMenuLink(slug) {
+  const value = cleanText(slug);
+
+  if (!value) return '/';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/')) return value;
+
+  return `/page/${value}`;
+}
+
+function ensureFreeDiagnosisInService(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+
+  return source.map((group) => {
+    if (cleanText(group?.title) !== '서비스') {
+      return group;
+    }
+
+    const items = Array.isArray(group.items) ? group.items : [];
+    const withoutFreeDiagnosis = items.filter((item) => {
+      const label = cleanText(item?.label).replace(/\s+/g, '');
+      return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
+    });
+
+    return {
+      ...group,
+      to: group.to || '/free-diagnosis',
+      items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
+    };
+  });
+}
+
+function readCachedNavGroups() {
+  try {
+    const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return null;
+    }
+
+    return ensureFreeDiagnosisInService(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedNavGroups(groups) {
+  try {
+    if (!Array.isArray(groups) || groups.length === 0) {
+      return;
+    }
+
+    window.localStorage.setItem(HEADER_NAV_CACHE_KEY, JSON.stringify(groups));
+  } catch {
+    // 메뉴 캐시 저장 실패는 무시
+  }
+}
+
+function buildNavGroups(rows) {
+  const grouped = new Map();
+
+  (rows || []).forEach((item) => {
+    const groupName = cleanText(item.menu_group) || '기타';
+    const slug = cleanText(item.slug);
+
+    if (!slug) return;
+
+    const itemLink = resolveMenuLink(slug);
+    const savedGroupOrder = Number(item.menu_group_order);
+    const groupOrder =
+      Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
+        ? savedGroupOrder
+        : MENU_GROUP_ORDER[groupName] || 99;
+
+    const savedSortOrder = Number(item.sort_order);
+    const sortOrder =
+      Number.isFinite(savedSortOrder) && savedSortOrder > 0
+        ? savedSortOrder
+        : 99;
+
+    if (!grouped.has(groupName)) {
+      grouped.set(groupName, {
+        title: groupName,
+        groupOrder,
+        to: itemLink,
+        items: []
+      });
+    }
+
+    const group = grouped.get(groupName);
+
+    if (groupOrder < group.groupOrder) {
+      group.groupOrder = groupOrder;
+      group.to = itemLink;
+    }
+
+    group.items.push({
+      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      to: itemLink,
+      sortOrder
+    });
+  });
+
+  const groups = Array.from(grouped.values())
+    .sort((a, b) => a.groupOrder - b.groupOrder)
+    .map((group) => {
+      const sortedItems = group.items.sort((a, b) => a.sortOrder - b.sortOrder);
+
+      return {
+        title: group.title,
+        to: sortedItems[0]?.to || group.to,
+        items: sortedItems
+      };
+    });
+
+  return ensureFreeDiagnosisInService(groups);
 }
 
 function getCsatDay() {
@@ -180,15 +364,59 @@ export default function Header() {
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState(null);
   const [myOpen, setMyOpen] = useState(false);
-  const navGroups = NAV_GROUPS;
+  const [navGroups, setNavGroups] = useState(() => {
+    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
+  });
 
   useEffect(() => {
-    try {
-      window.localStorage.removeItem('winning-header-nav-groups-events-notice-v1');
-      window.localStorage.removeItem('winning-header-nav-groups-v1');
-    } catch {
-      // 기존 메뉴 캐시 제거 실패는 무시
+    let alive = true;
+
+    async function loadHeaderMenus() {
+      const { data, error } = await supabase
+        .from('page_contents')
+        .select('menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active')
+        .eq('is_active', true)
+        .order('menu_group_order', { ascending: true })
+        .order('sort_order', { ascending: true });
+
+      if (!alive) return;
+
+      if (error) {
+        console.error('헤더 메뉴 조회 실패:', error);
+        return;
+      }
+
+      const nextGroups = buildNavGroups(data);
+
+      if (nextGroups.length === 0) {
+        return;
+      }
+
+      setNavGroups((prev) => {
+        if (isSameObject(prev, nextGroups)) {
+          return prev;
+        }
+
+        writeCachedNavGroups(nextGroups);
+        return nextGroups;
+      });
     }
+
+    loadHeaderMenus();
+
+    const channel = supabase
+      .channel('header-page-contents')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'page_contents' },
+        () => loadHeaderMenus()
+      )
+      .subscribe();
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -571,3 +799,4 @@ export default function Header() {
     </header>
   );
 }
+
