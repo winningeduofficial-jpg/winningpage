@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import Pricing from './pages/Pricing';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFail from './pages/PaymentFail';
 import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
 
         <Route path="/services" element={<Services />} />
