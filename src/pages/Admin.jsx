@@ -33,8 +33,6 @@ const MENU_GROUPS = [
   title: '게시판 관리',
   items: [
     { key: 'notices', label: '공지사항' },
-    { key: 'admissionGuidelines', label: '대입모집요강' },
-    { key: 'admissionResults', label: '입결정보' },
     { key: 'admissionSusiJungsi', label: '수시·정시' },
     { key: 'galleries', label: '교육컬럼' },
     { key: 'faqs', label: '자주하는질문' },
@@ -163,6 +161,7 @@ popups: {
   searchPlaceholder: '메뉴명, 페이지명, 주소를 검색하세요',
   order: 'sort_order',
   homepage: true,
+  guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results`,
   columns: [
   { key: 'menu_group_order', label: '상위 순서' },
   { key: 'menu_group', label: '상위 메뉴' },
