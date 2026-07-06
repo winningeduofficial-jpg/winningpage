@@ -5,6 +5,11 @@ import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 const CATEGORY_META = {
+  'susi-jungsi': {
+    title: '수시·정시',
+    label: '수시·정시',
+    description: '대학별 수시·정시 전형 정보, 지원전략, 입시 일정 자료를 확인하세요.'
+  },
   susi: {
     title: '수시정보',
     label: '수시',
@@ -14,11 +19,6 @@ const CATEGORY_META = {
     title: '정시정보',
     label: '정시',
     description: '수능 반영비율, 영역별 가중치, 대학별 정시 전략을 확인하세요.'
-  },
-  essay: {
-    title: '논술정보',
-    label: '논술',
-    description: '논술 일정, 출제 경향, 대학별 논술 대비 전략을 확인하세요.'
   }
 };
 
@@ -63,8 +63,11 @@ function getAttachmentUrl(file) {
 }
 
 export default function AdmissionBoard() {
-  const { category = 'susi', id } = useParams();
-  const meta = CATEGORY_META[category] || CATEGORY_META.susi;
+  const params = useParams();
+  const category = params.category || 'susi-jungsi';
+  const id = params.id;
+  const meta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
+  const listPath = `/admission/${category}`;
 
   const [rows, setRows] = useState([]);
   const [post, setPost] = useState(null);
@@ -168,7 +171,7 @@ export default function AdmissionBoard() {
               <div className="py-20 text-center">
                 <p className="text-lg font-black">게시글을 찾을 수 없습니다.</p>
                 <Link
-                  to={`/admission/${category}`}
+                  to={listPath}
                   className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0D1B2A] px-6 text-sm font-black text-white"
                 >
                   목록으로
@@ -246,7 +249,7 @@ export default function AdmissionBoard() {
 
                 <div className="mt-14 border-t border-gray-200 pt-8 text-center">
                   <Link
-                    to={`/admission/${category}`}
+                    to={listPath}
                     className="inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 text-sm font-black text-white"
                   >
                     목록으로
@@ -276,34 +279,22 @@ export default function AdmissionBoard() {
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-2">
               <Link
-                to="/admission/susi"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
-                  category === 'susi'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
-                }`}
+                to="/admission/guidelines"
+                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A]"
               >
-                수시정보
+                대입모집요강
               </Link>
               <Link
-                to="/admission/jungsi"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
-                  category === 'jungsi'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
-                }`}
+                to="/admission/results"
+                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A]"
               >
-                정시정보
+                입결정보
               </Link>
               <Link
-                to="/admission/essay"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
-                  category === 'essay'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
-                }`}
+                to="/admission/susi-jungsi"
+                className="rounded-xl bg-[#0D1B2A] px-5 py-3 text-sm font-black text-white"
               >
-                논술정보
+                수시·정시
               </Link>
             </div>
 
@@ -338,7 +329,7 @@ export default function AdmissionBoard() {
                 return (
                   <Link
                     key={row.id}
-                    to={`/admission/${category}/${row.id}`}
+                    to={`${listPath}/${row.id}`}
                     className="block border-b border-[#EEF2F6] px-2 py-6 transition last:border-b-0 hover:bg-[#F8FAFC]"
                   >
                     <div className="flex items-start justify-between gap-5">
