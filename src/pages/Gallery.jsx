@@ -56,7 +56,7 @@ export default function Gallery() {
       if (!alive) return;
 
       if (error) {
-        console.error('포토갤러리 조회 실패:', error);
+        console.error('교육컬럼 조회 실패:', error);
         setRows([]);
       } else {
         setRows(data || []);
@@ -78,7 +78,7 @@ export default function Gallery() {
       if (!alive) return;
 
       if (error) {
-        console.error('포토갤러리 상세 조회 실패:', error);
+        console.error('교육컬럼 상세 조회 실패:', error);
         setPost(null);
       } else {
         setPost(data || null);
@@ -128,16 +128,24 @@ export default function Gallery() {
                   </p>
                 </div>
 
-                <div className="mx-auto mt-12 max-w-[900px] space-y-5">
-                  {finalImages.map((url, index) => (
-                    <img
-                      key={`${url}-${index}`}
-                      src={url}
-                      alt={`${post.title} 이미지 ${index + 1}`}
-                      className="w-full rounded-xl object-cover"
-                    />
-                  ))}
-                </div>
+                {finalImages.length > 0 && (
+                  <div className="mx-auto mt-12 max-w-[900px] space-y-5">
+                    {finalImages.map((url, index) => (
+                      <img
+                        key={`${url}-${index}`}
+                        src={url}
+                        alt={`${post.title} 이미지 ${index + 1}`}
+                        className="w-full rounded-xl object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {post.content && (
+                  <div className="prose prose-lg mx-auto mt-10 max-w-[900px] whitespace-pre-wrap leading-8 text-[#1F2937]">
+                    {post.content}
+                  </div>
+                )}
 
                 <div className="mt-14 text-center">
                   <Link
@@ -161,8 +169,8 @@ export default function Gallery() {
       <main className="pt-[84px]">
         <section className="mx-auto max-w-[1280px] px-6 py-16">
           <div className="text-center">
-            <h1 className="text-4xl font-black tracking-[-0.04em]">포토갤러리</h1>
-            <p className="mt-6 text-xl font-medium text-gray-500">위닝에듀 스토리</p>
+            <h1 className="text-4xl font-black tracking-[-0.04em]">교육컬럼</h1>
+            <p className="mt-6 text-xl font-medium text-gray-500">입시·학습 전략 자료</p>
           </div>
 
           <div className="mx-auto mt-14 flex h-14 max-w-[1160px] items-center border-b border-[#111827]">
@@ -185,7 +193,7 @@ export default function Gallery() {
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="py-24 text-center text-sm font-bold text-gray-400">
-              등록된 사진이 없습니다.
+              등록된 교육컬럼이 없습니다.
             </div>
           ) : (
             <div className="mt-8 grid grid-cols-1 gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
