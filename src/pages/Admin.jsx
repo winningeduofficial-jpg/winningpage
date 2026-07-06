@@ -33,10 +33,10 @@ const MENU_GROUPS = [
   title: '게시판 관리',
   items: [
     { key: 'notices', label: '공지사항' },
-    { key: 'admissionSusi', label: '수시정보' },
-    { key: 'admissionJungsi', label: '정시정보' },
-    { key: 'admissionEssay', label: '논술정보' },
-    { key: 'galleries', label: '포토갤러리' },
+    { key: 'admissionGuidelines', label: '대입모집요강' },
+    { key: 'admissionResults', label: '입결정보' },
+    { key: 'admissionSusiJungsi', label: '수시·정시' },
+    { key: 'galleries', label: '교육컬럼' },
     { key: 'faqs', label: '자주하는질문' },
     { key: 'freeDiagnosis', label: '무료진단 관리' }
   ]
@@ -257,6 +257,176 @@ popups: {
     }
   },
 
+
+  admissionGuidelines: {
+    title: '대입모집요강',
+    table: 'admission_university_resources',
+    searchPlaceholder: '대학명, 지역, 캠퍼스를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `대학별 자료 링크 관리입니다. URL이 비어 있는 버튼은 홈페이지에서 회색 비활성화로 표시됩니다.`,
+    columns: [
+      { key: 'region', label: '지역' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'campus', label: '캠퍼스' },
+      { key: 'ownership', label: '설립' },
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'region', label: '지역', type: 'text', required: true },
+      { key: 'university_name', label: '대학명', type: 'text', required: true },
+      { key: 'campus', label: '캠퍼스', type: 'text' },
+      { key: 'ownership', label: '설립구분', type: 'select', options: ['국립', '공립', '사립'] },
+      { key: 'logo_url', label: '대학 로고', type: 'image' },
+      { key: 'admission_home_url', label: '입학처 URL', type: 'text' },
+      { key: 'plan_2027_url', label: '2027 계획 URL', type: 'text' },
+      { key: 'plan_2028_url', label: '2028 계획 URL', type: 'text' },
+      { key: 'final_guideline_url', label: '확정 안내서 URL', type: 'text' },
+      { key: 'hakjong_guide_url', label: '학종 안내서 URL', type: 'text' },
+      { key: 'major_guide_url', label: '전공 안내 URL', type: 'text' },
+      { key: 'memo', label: '메모', type: 'textarea' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      region: '',
+      university_name: '',
+      campus: '',
+      ownership: '사립',
+      logo_url: '',
+      admission_home_url: '',
+      plan_2027_url: '',
+      plan_2028_url: '',
+      final_guideline_url: '',
+      hakjong_guide_url: '',
+      major_guide_url: '',
+      memo: '',
+      sort_order: 1
+    }
+  },
+
+  admissionResults: {
+    title: '입결정보',
+    table: 'admission_results',
+    searchPlaceholder: '대학명, 모집단위, 전형명을 검색하세요',
+    order: 'result_year',
+    homepage: true,
+    excel: true,
+    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요.`,
+    columns: [
+      { key: 'result_year', label: '연도' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'department', label: '모집단위' },
+      { key: 'recruitment_period', label: '모집시기' },
+      { key: 'screening_category', label: '전형유형' },
+      { key: 'admission_track', label: '전형명' },
+      { key: 'score_label', label: '성적표시' },
+      { key: 'subject_reflection', label: '반영교과/영역' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'result_year', label: '연도', type: 'number', required: true },
+      { key: 'university_name', label: '대학명', type: 'text', required: true },
+      { key: 'campus', label: '캠퍼스', type: 'text' },
+      { key: 'region', label: '지역', type: 'text' },
+      { key: 'college', label: '단과대학', type: 'text' },
+      { key: 'department', label: '모집단위', type: 'text', required: true },
+      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'] },
+      { key: 'screening_category', label: '전형유형', type: 'select', options: ['학생부교과', '학생부종합', '정시', '실기', '기타'] },
+      { key: 'admission_track', label: '전형명', type: 'text' },
+      { key: 'selection_name', label: '세부 전형명', type: 'text' },
+      { key: 'score_basis', label: '발표 기준', type: 'text' },
+      { key: 'score_value', label: '성적 숫자값', type: 'number' },
+      { key: 'score_label', label: '성적 표시문구', type: 'text' },
+      { key: 'score_unit', label: '성적 단위', type: 'text' },
+      { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      { key: 'quota', label: '모집인원', type: 'number' },
+      { key: 'applicants', label: '지원자수', type: 'number' },
+      { key: 'competition_rate', label: '경쟁률', type: 'number' },
+      { key: 'additional_pass_count', label: '충원합격', type: 'number' },
+      { key: 'min_csats', label: '수능최저', type: 'text' },
+      { key: 'reflection_method', label: '반영방법', type: 'textarea' },
+      { key: 'source_title', label: '출처명', type: 'text' },
+      { key: 'source_url', label: '출처 URL', type: 'text' },
+      { key: 'memo', label: '메모', type: 'textarea' }
+    ],
+    defaults: {
+      is_active: true,
+      result_year: 2025,
+      university_name: '',
+      campus: '',
+      region: '',
+      college: '',
+      department: '',
+      recruitment_period: '수시',
+      screening_category: '학생부교과',
+      admission_track: '',
+      selection_name: '',
+      score_basis: '최종등록자',
+      score_value: 0,
+      score_label: '',
+      score_unit: '내신등급',
+      subject_reflection: '',
+      quota: 0,
+      applicants: 0,
+      competition_rate: 0,
+      additional_pass_count: 0,
+      min_csats: '',
+      reflection_method: '',
+      source_title: '',
+      source_url: '',
+      memo: ''
+    }
+  },
+
+  admissionSusiJungsi: {
+    title: '수시·정시',
+    table: 'admission_posts',
+    fixedCategory: 'susi-jungsi',
+    searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    columns: [
+      { key: 'title', label: '제목' },
+      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'created_at', label: '작성일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
+      {
+        key: 'attachments',
+        label: '첨부파일',
+        type: 'multiFile',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      category: 'susi-jungsi',
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      image_urls: [],
+      attachments: [],
+      sort_order: 1
+    }
+  },
+
   admissionSusi: {
     title: '수시정보',
     table: 'admission_posts',
@@ -390,26 +560,29 @@ popups: {
   },
   
   galleries: {
-  title: '포토갤러리',
+  title: '교육컬럼',
   table: 'galleries',
-  searchPlaceholder: '포토갤러리 제목을 검색하세요',
+  searchPlaceholder: '교육컬럼 제목을 검색하세요',
   order: 'created_at',
   homepage: true,
-  guideText: `포토갤러리 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
+  guideText: `교육컬럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
+      { key: 'content', label: '본문' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'image_urls', label: '이미지', type: 'multiImage', required: true }
+      { key: 'content', label: '본문', type: 'textarea' },
+      { key: 'image_urls', label: '이미지', type: 'multiImage' }
     ],
     defaults: {
       is_active: true,
       title: '',
+      content: '',
       image_url: '',
       image_urls: []
     }
