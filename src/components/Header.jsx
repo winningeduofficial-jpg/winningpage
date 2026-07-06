@@ -9,72 +9,10 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { NAV_GROUPS } from '../config/navigation';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-events-notice-v1';
-
-
-const FALLBACK_NAV_GROUPS = [
-  {
-    title: '서비스',
-    to: '/page/services-goal',
-    items: [
-      { label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 },
-      { label: '목표관리서비스', to: '/page/services-goal' },
-      { label: 'AI 수행평가 서비스', to: '/page/services-ai-performance' },
-      { label: '세특코치서비스', to: '/page/services-record-coach' },
-      { label: '수시키드', to: '/page/services-susi-card' },
-      { label: '약점관리서비스', to: '/page/services-weakness' },
-      { label: '특화멘토링', to: '/page/services-mentoring' }
-    ]
-  },
-  {
-    title: '합격전략',
-    to: '/page/strategy-success',
-    items: [
-      { label: '성공사례', to: '/page/strategy-success' },
-      { label: '교육부시운영지침', to: '/page/strategy-guide' },
-      { label: '관리시스템이란', to: '/page/strategy-system' }
-    ]
-  },
-  {
-  title: '입시정보',
-  to: '/admission/susi',
-  items: [
-    { label: '수시정보', to: '/admission/susi' },
-    { label: '정시정보', to: '/admission/jungsi' },
-    { label: '논술정보', to: '/admission/essay' }
-  ]
-},
-  {
-    title: '회사소개',
-    to: '/page/company-history',
-    items: [
-      { label: '회사연혁', to: '/page/company-history' },
-      { label: '조직소개', to: '/page/company-team' },
-      { label: '포트폴리오', to: '/page/company-portfolio' }
-    ]
-  },
-  {
-  title: '위닝정보',
-  to: '/events',
-  items: [
-    { label: '공지사항', to: '/events' },
-    { label: '이용후기', to: '/reviews' },
-    { label: '자주하는 질문', to: '/faq' },
-    { label: '포토갤러리', to: '/gallery' }
-  ]
-}
-];
-
-const MENU_GROUP_ORDER = {
-  서비스: 1,
-  합격전략: 2,
-  입시정보: 3,
-  회사소개: 4,
-  위닝정보: 5
-};
 
 const MY_MENU = [
   { label: '내정보·자녀수정', to: '/mypage', icon: UserRound },
@@ -96,26 +34,6 @@ function safeJsonStringify(value) {
 
 function isSameObject(a, b) {
   return safeJsonStringify(a) === safeJsonStringify(b);
-}
-
-function ensureFreeDiagnosisInService(groups) {
-  const source = Array.isArray(groups) ? groups : [];
-
-  return source.map((group) => {
-    if (cleanText(group?.title) !== '서비스') {
-      return group;
-    }
-
-    const items = Array.isArray(group.items) ? group.items : [];
-    const withoutFreeDiagnosis = items.filter(
-      (item) => cleanText(item?.label) !== '무료 진단' && cleanText(item?.to) !== '/free-diagnosis'
-    );
-
-    return {
-      ...group,
-      items: [{ label: '무료 진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
-    };
-  });
 }
 
 function getCsatDay() {
@@ -164,35 +82,6 @@ function writeCachedProfile(profile) {
     window.localStorage.setItem(HEADER_PROFILE_CACHE_KEY, JSON.stringify(profile));
   } catch {
     // 캐시 저장 실패는 무시
-  }
-}
-
-function readCachedNavGroups() {
-  try {
-    const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return null;
-    }
-
-    return ensureFreeDiagnosisInService(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedNavGroups(groups) {
-  try {
-    if (!Array.isArray(groups) || groups.length === 0) {
-      return;
-    }
-
-    window.localStorage.setItem(HEADER_NAV_CACHE_KEY, JSON.stringify(groups));
-  } catch {
-    // 메뉴 캐시 저장 실패는 무시
   }
 }
 
@@ -284,117 +173,6 @@ async function fetchProfile(user) {
   return byId || byEmail || byUsername || null;
 }
 
-function buildNavGroups(rows) {
-  const grouped = new Map();
-
-  (rows || []).forEach((item) => {
-    const groupName = cleanText(item.menu_group) || '기타';
-    const slug = cleanText(item.slug);
-
-    if (!slug) return;
-
-    const itemLink = `/page/${slug}`;
-
-    const savedGroupOrder = Number(item.menu_group_order);
-    const groupOrder =
-      Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
-        ? savedGroupOrder
-        : MENU_GROUP_ORDER[groupName] || 99;
-
-    const savedSortOrder = Number(item.sort_order);
-    const sortOrder =
-      Number.isFinite(savedSortOrder) && savedSortOrder > 0
-        ? savedSortOrder
-        : 99;
-
-    if (!grouped.has(groupName)) {
-      grouped.set(groupName, {
-        title: groupName,
-        groupOrder,
-        to: itemLink,
-        items: []
-      });
-    }
-
-    const group = grouped.get(groupName);
-
-    if (groupOrder < group.groupOrder) {
-      group.groupOrder = groupOrder;
-      group.to = itemLink;
-    }
-
-    group.items.push({
-      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
-      to: itemLink,
-      sortOrder
-    });
-  });
-
-  const groups = Array.from(grouped.values())
-  .sort((a, b) => a.groupOrder - b.groupOrder)
-  .map((group) => ({
-    title: group.title,
-    to: group.items[0]?.to || group.to,
-    items: group.items.sort((a, b) => a.sortOrder - b.sortOrder)
-  }));
-
-  const admissionGroup = groups.find((group) => group.title === '입시정보');
-
-if (admissionGroup) {
-  admissionGroup.to = '/admission/susi';
-  admissionGroup.items = [
-    { label: '수시정보', to: '/admission/susi', sortOrder: 1 },
-    { label: '정시정보', to: '/admission/jungsi', sortOrder: 2 },
-    { label: '논술정보', to: '/admission/essay', sortOrder: 3 }
-  ];
-} else {
-  groups.splice(2, 0, {
-    title: '입시정보',
-    to: '/admission/susi',
-    items: [
-      { label: '수시정보', to: '/admission/susi', sortOrder: 1 },
-      { label: '정시정보', to: '/admission/jungsi', sortOrder: 2 },
-      { label: '논술정보', to: '/admission/essay', sortOrder: 3 }
-    ]
-  });
-}
-
-const winningGroup = groups.find((group) => group.title === '위닝정보');
-
-if (winningGroup) {
-  const withoutBoardItems = winningGroup.items.filter(
-    (item) =>
-      item.label !== '공지사항' &&
-      item.label !== '이용후기' &&
-      item.label !== '자주하는 질문' &&
-      item.label !== '포토갤러리'
-  );
-
-  winningGroup.items = [
-    { label: '공지사항', to: '/events', sortOrder: 1 },
-    { label: '이용후기', to: '/reviews', sortOrder: 2 },
-    { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
-    { label: '포토갤러리', to: '/gallery', sortOrder: 4 },
-    ...withoutBoardItems
-  ];
-
-  winningGroup.to = '/events';
-} else {
-  groups.push({
-    title: '위닝정보',
-    to: '/events',
-    items: [
-      { label: '공지사항', to: '/events', sortOrder: 1 },
-      { label: '이용후기', to: '/reviews', sortOrder: 2 },
-      { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
-      { label: '포토갤러리', to: '/gallery', sortOrder: 4 }
-    ]
-  });
-}
-
-return ensureFreeDiagnosisInService(groups);
-}
-
 export default function Header() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(() => readCachedProfile());
@@ -402,64 +180,20 @@ export default function Header() {
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState(null);
   const [myOpen, setMyOpen] = useState(false);
-  const [navGroups, setNavGroups] = useState(() => {
-    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
-  });
+  const navGroups = NAV_GROUPS;
+
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem('winning-header-nav-groups-events-notice-v1');
+      window.localStorage.removeItem('winning-header-nav-groups-v1');
+    } catch {
+      // 기존 메뉴 캐시 제거 실패는 무시
+    }
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCsatDDay(getCsatDay()), 60 * 60 * 1000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadHeaderMenus() {
-      const { data, error } = await supabase
-        .from('page_contents')
-        .select('menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active')
-        .eq('is_active', true)
-        .order('menu_group_order', { ascending: true })
-        .order('sort_order', { ascending: true });
-
-      if (!alive) return;
-
-      if (error) {
-        console.error('헤더 메뉴 조회 실패:', error);
-        return;
-      }
-
-      const nextGroups = buildNavGroups(data);
-
-      if (nextGroups.length === 0) {
-        return;
-      }
-
-      setNavGroups((prev) => {
-        if (isSameObject(prev, nextGroups)) {
-          return prev;
-        }
-
-        writeCachedNavGroups(nextGroups);
-        return nextGroups;
-      });
-    }
-
-    loadHeaderMenus();
-
-    const channel = supabase
-      .channel('header-page-contents')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_contents' },
-        () => loadHeaderMenus()
-      )
-      .subscribe();
-
-    return () => {
-      alive = false;
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   useEffect(() => {
@@ -682,7 +416,7 @@ export default function Header() {
                     <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                       {group.items.map((item) => (
                         <Link
-                          key={item.to}
+                          key={`${group.title}-${item.to}-${item.label}`}
                           to={item.to}
                           onClick={() => setActiveMega(null)}
                           className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
@@ -708,8 +442,8 @@ export default function Header() {
                   {csatDDay}
                 </span>
                 <span className="whitespace-nowrap">
-  {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
-</span>
+                  {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
+                </span>
               </div>
 
               <div
