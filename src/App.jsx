@@ -8,7 +8,9 @@ import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
-import Gallery from './pages/Gallery'
+import AdmissionGuidelines from './pages/AdmissionGuidelines';
+import AdmissionResults from './pages/AdmissionResults';
+import Gallery from './pages/Gallery';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
@@ -30,8 +32,22 @@ export default function App() {
 
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
+
+        <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
+        <Route path="/admission/results" element={<AdmissionResults />} />
+        <Route path="/admission/susi-jungsi" element={<AdmissionBoard />} />
+        <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
+
+        <Route path="/admission/susi" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/jungsi" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/essay" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/susi/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/jungsi/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/essay/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
+
         <Route path="/admission/:category" element={<AdmissionBoard />} />
         <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
+
         <Route path="/events" element={<Events />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/faq" element={<Faq />} />
@@ -54,4 +70,5 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
 
