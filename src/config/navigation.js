@@ -6,7 +6,7 @@ export const NAV_GROUPS = [
       { label: '무료진단', to: '/free-diagnosis' },
       { label: '위닝 목표관리', to: '/page/services-goal' },
       { label: '위닝 수시예측', to: '/page/services-susi-prediction' },
-      { label: '위닝 콘텐츠', to: '/page/services-content' },
+      { label: '위닝 콜멘토', to: '/page/services-content' },
       { label: '위닝AI 수행평가', to: '/page/services-ai-performance' },
       { label: '위닝 세특관리', to: '/page/services-record-coach' },
       { label: '위닝 약점관리', to: '/page/services-weakness' }
