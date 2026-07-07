@@ -1062,6 +1062,14 @@ const LINK_SECTIONS = [
   }
 ];
 
+const CATEGORY_INFO_SECTIONS = [
+  {
+    label: '입학자료',
+    key: 'selection_method'
+  }
+];
+
+
 function clean(value) {
   return String(value || '').trim();
 }
@@ -1426,6 +1434,8 @@ function LinkButton({ section, row }) {
 }
 
 function UniversityCard({ university, row, onOpenInfo }) {
+  const infoSections = row?.detail_status === 'category' ? CATEGORY_INFO_SECTIONS : INFO_SECTIONS;
+
   return (
     <article className="rounded-2xl border border-[#E2E6EC] bg-white p-5 shadow-[0_6px_18px_rgba(13,27,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#D4A85F]/60 hover:shadow-[0_14px_30px_rgba(13,27,42,0.08)]">
       <div className="mb-5 flex min-h-[52px] items-center gap-4">
@@ -1438,7 +1448,7 @@ function UniversityCard({ university, row, onOpenInfo }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        {INFO_SECTIONS.map((section) => (
+        {infoSections.map((section) => (
           <InfoButton
             key={section.key}
             section={section}
