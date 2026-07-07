@@ -1018,9 +1018,11 @@ const INFO_SECTIONS = [
     key: 'school_record_method'
   },
   {
-    label: '모집인원',
-    key: 'recruitment_quota'
-  }
+  label: '모집인원 및 입결',
+  lines: ['모집인원', '및 입결'],
+  key: 'recruitment_quota',
+  htmlKey: 'recruitment_result_html'
+}
 ];
 
 const LINK_SECTIONS = [
@@ -1131,8 +1133,11 @@ function findResourceRow(university, resourceIndex) {
 }
 
 function InfoButton({ section, row, onOpen }) {
-  const content = getSectionText(row, section.key);
-  const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
+  const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
+  const content = htmlContent || getSectionText(row, section.key);
+
+  const baseClass =
+    'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
   if (!content) {
     return (
@@ -1148,7 +1153,7 @@ function InfoButton({ section, row, onOpen }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(section, content)}
+      onClick={() => onOpen(section, content, Boolean(htmlContent))}
       className={`${baseClass} border border-[#0D1B2A] bg-[#0D1B2A] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
       title={`${section.label} 보기`}
     >
@@ -1205,13 +1210,14 @@ function UniversityCard({ university, row, onOpenInfo }) {
             key={section.key}
             section={section}
             row={row}
-            onOpen={(openedSection, content) =>
-              onOpenInfo({
-                universityName: university.name,
-                title: openedSection.label,
-                content
-              })
-            }
+            onOpen={(openedSection, content, isHtml = false) =>
+  onOpenInfo({
+    universityName: university.name,
+    title: openedSection.label,
+    content,
+    isHtml
+  })
+}
           />
         ))}
 
@@ -1544,9 +1550,16 @@ export default function AdmissionGuidelines() {
                 {selectedInfo.title}
               </h3>
             </div>
-            <div className="max-h-[58vh] overflow-y-auto whitespace-pre-wrap px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
-              {selectedInfo.content}
-            </div>
+            <div className="max-h-[58vh] overflow-y-auto px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
+  {selectedInfo.isHtml ? (
+    <div
+      className="admission-table-wrap"
+      dangerouslySetInnerHTML={{ __html: selectedInfo.content }}
+    />
+  ) : (
+    <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
+  )}
+</div>
             <div className="border-t border-[#E7EBF0] px-6 py-4 text-right">
               <button
                 type="button"
