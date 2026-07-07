@@ -994,8 +994,8 @@ const KOREA_MAP_SVG = "<svg id=\"korea-map\" xmlns=\"http://www.w3.org/2000/svg\
 
 const INFO_SECTIONS = [
   {
-    label: '전년도와 차이점',
-    lines: ['전년도와', '차이점'],
+    label: '전년도와 차이점(수시)',
+    lines: ['전년도와', '차이점(수시)'],
     key: 'previous_year_changes'
   },
   {
@@ -1393,30 +1393,41 @@ export default function AdmissionGuidelines() {
     </span>
   </div>
 
-  <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] font-black text-white/80 sm:grid-cols-3">
-    {[
-      '전년도와 차이점',
-      '전형방법',
-      '최저학력기준',
-      '대학별고사일',
-      '학생부반영방법',
-      '모집인원 및 입결',
-      '정시모집요강'
-    ].map((item) => (
-      <span
-        key={item}
-        className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
-      >
-        {item}
+ <div className="mt-4 grid grid-cols-3 gap-2.5 text-[12.5px] font-black text-white/85">
+  {[
+    { key: 'previous', lines: ['전년도와', '차이점(수시)'] },
+    { key: 'method', lines: ['전형방법'] },
+    { key: 'minimum', lines: ['최저학력기준'] },
+    { key: 'exam', lines: ['대학별고사일'] },
+    { key: 'record', lines: ['학생부반영방법'] },
+    { key: 'quota', lines: ['모집인원', '및 입결'] },
+    { key: 'jungsi', lines: ['정시모집요강'] }
+  ].map((item) => (
+    <span
+      key={item.key}
+      className="flex min-h-[52px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-[1.25] tracking-[-0.04em]"
+    >
+      <span className="block">
+        {item.lines.map((line) => (
+          <span key={line} className="block whitespace-nowrap">
+            {line}
+          </span>
+        ))}
       </span>
-    ))}
-  </div>
+    </span>
+  ))}
+</div>
 
-  <div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
-    <p className="text-[12px] font-bold leading-5 text-white/55">
-      지역을 선택한 뒤 대학별 버튼을 확인하세요. 자료가 없는 버튼은 회색으로 표시됩니다.
-    </p>
-  </div>
+<div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
+  <p className="text-[12px] font-bold leading-5 tracking-[-0.03em] text-white/55">
+    <span className="block break-keep">
+      지역을 선택한 뒤 대학별 버튼을 확인하세요.
+    </span>
+    <span className="block break-keep">
+      자료가 없는 버튼은 회색으로 표시됩니다.
+    </span>
+  </p>
+</div>
 </div>
             </div>
           </section>
