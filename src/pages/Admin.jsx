@@ -2277,8 +2277,8 @@ function AdminInput({ field, value, onChange, disabled }) {
         value={value || ''}
         onChange={(e) => onChange(field.key, e.target.value)}
         disabled={disabled}
-        rows={5}
-        className="w-full border border-[#9ca3af] bg-white px-3 py-2 text-sm outline-none disabled:bg-gray-100"
+        rows={field.rows || 5}
+        className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100"
       />
     );
   }
