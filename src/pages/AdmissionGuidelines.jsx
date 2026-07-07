@@ -1496,9 +1496,6 @@ export default function AdmissionGuidelines() {
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
                     <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하면 대학 목록이 표시됩니다.</p>
-                    <p className="mt-3 text-sm font-bold leading-6 text-[#667085]">
-                      처음 화면에서는 특정 지역을 고정하지 않습니다. 지도 위에 마우스를 올리면 지역명이 보이고, 클릭하면 해당 지역 대학 목록이 열립니다.
-                    </p>
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
