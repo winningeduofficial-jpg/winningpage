@@ -1369,18 +1369,47 @@ export default function AdmissionGuidelines() {
                 </label>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-bold leading-7 text-white/70">
-                <div className="grid grid-cols-[46px_1fr] gap-x-3">
-                  <span className="font-black text-white/90">자료</span>
-                  <span>전년도와 차이점(수시),전형방법,최저학력기준,대학별 일정,학생부 반영방법,모집인원,정시 모집요강</span>
-                  <span className="font-black text-white/90">방식</span>
-                  <span>지역을 선택한 뒤 대학별 버튼 확인</span>
-                </div>
-                <p className="mt-3 border-t border-white/10 pt-3 text-xs text-white/45">
-                  자료가 없는 버튼은 회색으로 표시됩니다.
-                </p>
-              </div>
-            </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white">
+  <div className="flex items-start justify-between gap-3">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#D4A85F]">
+        Admission Data
+      </p>
+      <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-white">
+        대학별 입시정보
+      </h3>
+    </div>
+
+    <span className="shrink-0 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-white/70">
+      2027
+    </span>
+  </div>
+
+  <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] font-black text-white/80 sm:grid-cols-3">
+    {[
+      '전년도와 차이점',
+      '전형방법',
+      '최저학력기준',
+      '대학별고사일',
+      '학생부반영방법',
+      '모집인원',
+      '정시모집요강'
+    ].map((item) => (
+      <span
+        key={item}
+        className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
+      >
+        {item}
+      </span>
+    ))}
+  </div>
+
+  <div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
+    <p className="text-[12px] font-bold leading-5 text-white/55">
+      지역을 선택한 뒤 대학별 버튼을 확인하세요. 자료가 없는 버튼은 회색으로 표시됩니다.
+    </p>
+  </div>
+</div>
           </section>
 
           <section className="grid gap-8 lg:grid-cols-[32%_1fr] lg:items-start">
