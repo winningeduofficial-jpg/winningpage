@@ -326,3 +326,70 @@ select {
   text-decoration: underline;
 }
 
+/* 대학별 모집인원 및 입결 표 */
+.admission-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admission-table-wrap table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+  background: #ffffff;
+}
+
+.admission-table-wrap th {
+  background: #f3f6fa;
+  color: #0d1b2a;
+  font-weight: 900;
+  border: 1px solid #d9e0ea;
+  padding: 9px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.admission-table-wrap td {
+  border: 1px solid #d9e0ea;
+  padding: 8px 8px;
+  color: #344054;
+  vertical-align: middle;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.admission-table-wrap td.left {
+  text-align: left;
+  white-space: normal;
+  word-break: keep-all;
+  min-width: 160px;
+}
+
+.admission-table-wrap .note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #667085;
+  line-height: 1.6;
+}
+
+.admission-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.admission-table-wrap::-webkit-scrollbar-track {
+  background: #eef1f5;
+  border-radius: 999px;
+}
+
+.admission-table-wrap::-webkit-scrollbar-thumb {
+  background: #b8c0cc;
+  border-radius: 999px;
+}
+
+.admission-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #0d1b2a;
+}
+
