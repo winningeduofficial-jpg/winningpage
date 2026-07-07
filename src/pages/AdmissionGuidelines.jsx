@@ -994,8 +994,8 @@ const KOREA_MAP_SVG = "<svg id=\"korea-map\" xmlns=\"http://www.w3.org/2000/svg\
 
 const INFO_SECTIONS = [
   {
-    label: '전년도와 차이점(수시)',
-    lines: ['전년도와', '차이점(수시)'],
+    label: '전년도와 차이점',
+    lines: ['전년도와', '차이점'],
     key: 'previous_year_changes'
   },
   {
@@ -1018,11 +1018,11 @@ const INFO_SECTIONS = [
     key: 'school_record_method'
   },
   {
-  label: '모집인원 및 입결',
-  lines: ['모집인원', '및 입결'],
-  key: 'recruitment_quota',
-  htmlKey: 'recruitment_result_html'
-}
+    label: '모집인원 및 입결',
+    lines: ['모집인원', '및 입결'],
+    key: 'recruitment_quota',
+    htmlKey: 'recruitment_result_html'
+  }
 ];
 
 const LINK_SECTIONS = [
@@ -1036,6 +1036,10 @@ const LINK_SECTIONS = [
 
 function clean(value) {
   return String(value || '').trim();
+}
+
+function looksLikeHtml(value) {
+  return /<\s*(table|div|ul|ol|li|p|h[1-6]|section|article)\b/i.test(String(value || ''));
 }
 
 function normalizeName(value) {
@@ -1135,9 +1139,7 @@ function findResourceRow(university, resourceIndex) {
 function InfoButton({ section, row, onOpen }) {
   const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
   const content = htmlContent || getSectionText(row, section.key);
-
-  const baseClass =
-    'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
+  const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
   if (!content) {
     return (
@@ -1153,7 +1155,7 @@ function InfoButton({ section, row, onOpen }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(section, content, Boolean(htmlContent))}
+      onClick={() => onOpen(section, content, Boolean(htmlContent) || looksLikeHtml(content))}
       className={`${baseClass} border border-[#0D1B2A] bg-[#0D1B2A] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
       title={`${section.label} 보기`}
     >
@@ -1211,13 +1213,13 @@ function UniversityCard({ university, row, onOpenInfo }) {
             section={section}
             row={row}
             onOpen={(openedSection, content, isHtml = false) =>
-  onOpenInfo({
-    universityName: university.name,
-    title: openedSection.label,
-    content,
-    isHtml
-  })
-}
+              onOpenInfo({
+                universityName: university.name,
+                title: openedSection.label,
+                content,
+                isHtml
+              })
+            }
           />
         ))}
 
@@ -1393,36 +1395,27 @@ export default function AdmissionGuidelines() {
 
   <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] font-black text-white/80 sm:grid-cols-3">
     {[
-  '전년도와 차이점(수시)',
-  '전형방법',
-  '최저학력기준',
-  '대학별고사일',
-  '학생부반영방법',
-  '모집인원',
-  '정시모집요강'
-].map((item) => (
-  <span
-    key={item}
-    className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
-  >
-    {item === '전년도와 차이점(수시)' ? (
-      <span className="block leading-[1.25]">
-        전년도와
-        <br />
-        차이점(수시)
+      '전년도와 차이점',
+      '전형방법',
+      '최저학력기준',
+      '대학별고사일',
+      '학생부반영방법',
+      '모집인원 및 입결',
+      '정시모집요강'
+    ].map((item) => (
+      <span
+        key={item}
+        className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
+      >
+        {item}
       </span>
-    ) : (
-      item
-    )}
-  </span>
-))}
+    ))}
   </div>
 
   <div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
     <p className="text-[12px] font-bold leading-5 text-white/55">
-  <span className="block">지역을 선택한 뒤 대학별 버튼을 확인하세요.</span>
-  <span className="block">자료가 없는 버튼은 회색으로 표시됩니다.</span>
-</p>
+      지역을 선택한 뒤 대학별 버튼을 확인하세요. 자료가 없는 버튼은 회색으로 표시됩니다.
+    </p>
   </div>
 </div>
             </div>
@@ -1502,6 +1495,9 @@ export default function AdmissionGuidelines() {
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
                     <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하면 대학 목록이 표시됩니다.</p>
+                    <p className="mt-3 text-sm font-bold leading-6 text-[#667085]">
+                      처음 화면에서는 특정 지역을 고정하지 않습니다. 지도 위에 마우스를 올리면 지역명이 보이고, 클릭하면 해당 지역 대학 목록이 열립니다.
+                    </p>
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
@@ -1535,6 +1531,29 @@ export default function AdmissionGuidelines() {
         </div>
       ) : null}
 
+
+      <style>{`
+        .admission-table-wrap { width: 100%; overflow-x: auto; }
+
+        .admission-clean-block { width: 100%; }
+        .admission-clean-line { margin: 0 0 10px; color: #344054; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
+        .admission-clean-note, .admission-source-notes { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-subhead { margin: 18px 0 8px; color: #0d1b2a; font-size: 14px; font-weight: 900; }
+        .admission-mini-table, .admission-result-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-result-table { min-width: 980px; }
+        .admission-mini-table th, .admission-result-table th { background: #f3f6fa; color: #0d1b2a; font-weight: 900; border: 1px solid #d9e0ea; padding: 9px 8px; text-align: center; white-space: nowrap; }
+        .admission-mini-table td, .admission-result-table td { border: 1px solid #d9e0ea; padding: 8px 8px; color: #344054; vertical-align: middle; text-align: center; white-space: nowrap; }
+        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; }
+        .admission-result-table-wrap { width: 100%; }
+        .admission-result-source { width: 100%; }
+        .admission-result-note { margin-bottom: 12px; border: 1px solid #e7ebf0; background: #f8fafc; border-radius: 14px; padding: 10px 12px; color: #667085; font-size: 12px; line-height: 1.6; font-weight: 800; }
+        .admission-result-pre { min-width: 920px; margin: 0; border: 1px solid #d9e0ea; border-radius: 16px; background: #ffffff; padding: 16px; color: #1f2937; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .admission-table-wrap table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; line-height: 1.45; }
+        .admission-table-wrap th { background: #f3f6fa; color: #0d1b2a; font-weight: 900; border: 1px solid #d9e0ea; padding: 9px 8px; text-align: center; white-space: nowrap; }
+        .admission-table-wrap td { border: 1px solid #d9e0ea; padding: 8px 8px; color: #344054; vertical-align: middle; text-align: center; }
+        .admission-table-wrap td.left { text-align: left; white-space: normal; }
+      `}</style>
+
       {selectedInfo ? (
         <div
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 px-4"
@@ -1551,15 +1570,15 @@ export default function AdmissionGuidelines() {
               </h3>
             </div>
             <div className="max-h-[58vh] overflow-y-auto px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
-  {selectedInfo.isHtml ? (
-    <div
-      className="admission-table-wrap"
-      dangerouslySetInnerHTML={{ __html: selectedInfo.content }}
-    />
-  ) : (
-    <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
-  )}
-</div>
+              {selectedInfo.isHtml ? (
+                <div
+                  className="admission-table-wrap"
+                  dangerouslySetInnerHTML={{ __html: selectedInfo.content }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
+              )}
+            </div>
             <div className="border-t border-[#E7EBF0] px-6 py-4 text-right">
               <button
                 type="button"
