@@ -1326,20 +1326,30 @@ export default function AdmissionGuidelines() {
     }
   }
 
-  function handleMapMove(event) {
-  if (selectedRegion) {
+ function handleMapMove(event) {
+  const path = event.target.closest?.('path');
+  const regionId = path?.id;
+
+  if (!regionId || !REGION_ORDER.includes(regionId)) {
     setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
     return;
   }
 
-  const path = event.target.closest?.('path');
-  const regionId = path?.id;
-
-  if (regionId && REGION_ORDER.includes(regionId)) {
-    setTooltip({ visible: true, label: regionId, x: event.clientX, y: event.clientY });
-  } else {
+  // 선택된 지역 위에 다시 마우스를 올린 경우:
+  // 이미 고정 라벨이 있으므로 hover tooltip은 숨김
+  if (selectedRegion && regionId === selectedRegion) {
     setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    return;
   }
+
+  // 선택된 지역과 다른 지역에 올린 경우:
+  // 다른 지역 이름은 정상 표시
+  setTooltip({
+    visible: true,
+    label: regionId,
+    x: event.clientX,
+    y: event.clientY
+  });
 }
 
   return (
