@@ -34,6 +34,8 @@ const MENU_GROUPS = [
   items: [
     { key: 'notices', label: '공지사항' },
     { key: 'admissionSusiJungsi', label: '수시·정시' },
+    { key: 'admissionGuidelines', label: '대학별 모집요강' },
+    { key: 'admissionResults', label: '입결정보' },
     { key: 'galleries', label: '교육컬럼' },
     { key: 'faqs', label: '자주하는질문' },
     { key: 'freeDiagnosis', label: '무료진단 관리' }
@@ -257,55 +259,112 @@ popups: {
   },
 
 
-  admissionGuidelines: {
-    title: '대입모집요강',
-    table: 'admission_university_resources',
-    searchPlaceholder: '대학명, 지역, 캠퍼스를 검색하세요',
-    order: 'sort_order',
-    homepage: true,
-    guideText: `대학별 자료 링크 관리입니다. URL이 비어 있는 버튼은 홈페이지에서 회색 비활성화로 표시됩니다.`,
-    columns: [
-      { key: 'region', label: '지역' },
-      { key: 'university_name', label: '대학명' },
-      { key: 'campus', label: '캠퍼스' },
-      { key: 'ownership', label: '설립' },
-      { key: 'logo_url', label: '로고', type: 'image' },
-      { key: 'sort_order', label: '순서' },
-      { key: 'is_active', label: '노출', type: 'boolean' }
-    ],
-    fields: [
-      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'region', label: '지역', type: 'text', required: true },
-      { key: 'university_name', label: '대학명', type: 'text', required: true },
-      { key: 'campus', label: '캠퍼스', type: 'text' },
-      { key: 'ownership', label: '설립구분', type: 'select', options: ['국립', '공립', '사립'] },
-      { key: 'logo_url', label: '대학 로고', type: 'image' },
-      { key: 'admission_home_url', label: '입학처 URL', type: 'text' },
-      { key: 'plan_2027_url', label: '2027 계획 URL', type: 'text' },
-      { key: 'plan_2028_url', label: '2028 계획 URL', type: 'text' },
-      { key: 'final_guideline_url', label: '확정 안내서 URL', type: 'text' },
-      { key: 'hakjong_guide_url', label: '학종 안내서 URL', type: 'text' },
-      { key: 'major_guide_url', label: '전공 안내 URL', type: 'text' },
-      { key: 'memo', label: '메모', type: 'textarea' },
-      { key: 'sort_order', label: '순서', type: 'number' }
-    ],
-    defaults: {
-      is_active: true,
-      region: '',
-      university_name: '',
-      campus: '',
-      ownership: '사립',
-      logo_url: '',
-      admission_home_url: '',
-      plan_2027_url: '',
-      plan_2028_url: '',
-      final_guideline_url: '',
-      hakjong_guide_url: '',
-      major_guide_url: '',
-      memo: '',
-      sort_order: 1
+admissionGuidelines: {
+  title: '대학별 모집요강',
+  table: 'admission_university_resources',
+  searchPlaceholder: '대학명, 지역, 전형 내용을 검색하세요',
+  order: 'university_name',
+  homepage: true,
+  excel: true,
+  guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
+
+  columns: [
+    { key: 'admission_year', label: '연도' },
+    { key: 'region', label: '지역' },
+    { key: 'university_name', label: '대학명' },
+    { key: 'matched_hwp_name', label: '원문 대학명' },
+    { key: 'detail_status', label: '상태' },
+    { key: 'is_active', label: '노출', type: 'boolean' }
+  ],
+
+  fields: [
+    { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+
+    { key: 'admission_year', label: '입학연도', type: 'number', required: true },
+    { key: 'region', label: '지역', type: 'text', required: true },
+    { key: 'university_name', label: '대학명', type: 'text', required: true },
+    { key: 'university_key', label: '대학 키값', type: 'text', required: true },
+    { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
+
+    {
+      key: 'previous_year_changes',
+      label: '전년도와 차이점(HTML)',
+      type: 'textarea',
+      rows: 8
+    },
+    {
+      key: 'selection_method',
+      label: '전형방법(HTML 표)',
+      type: 'textarea',
+      rows: 12
+    },
+    {
+      key: 'minimum_requirements',
+      label: '최저학력기준(HTML 표)',
+      type: 'textarea',
+      rows: 12
+    },
+    {
+      key: 'exam_schedule',
+      label: '대학별고사일(HTML 표)',
+      type: 'textarea',
+      rows: 10
+    },
+    {
+      key: 'school_record_method',
+      label: '학생부반영방법(HTML)',
+      type: 'textarea',
+      rows: 14
+    },
+    {
+      key: 'recruitment_quota',
+      label: '모집인원 버튼명',
+      type: 'text'
+    },
+    {
+      key: 'recruitment_result_html',
+      label: '모집인원 및 입결(HTML 표)',
+      type: 'textarea',
+      rows: 18
+    },
+    {
+      key: 'jungsi_guideline_url',
+      label: '정시모집요강 URL',
+      type: 'text'
+    },
+    {
+      key: 'memo',
+      label: '메모',
+      type: 'textarea',
+      rows: 5
+    },
+    {
+      key: 'detail_status',
+      label: '상태',
+      type: 'select',
+      options: ['상세입력완료', '재가공필요', 'HWP상세페이지미확인']
     }
-  },
+  ],
+
+  defaults: {
+    is_active: true,
+    admission_year: 2027,
+    region: '',
+    university_name: '',
+    university_key: '',
+    matched_hwp_name: '',
+    previous_year_changes: '',
+    selection_method: '',
+    minimum_requirements: '',
+    exam_schedule: '',
+    school_record_method: '',
+    recruitment_quota: '모집인원 및 입결',
+    recruitment_result_html: '',
+    jungsi_guideline_url: '',
+    memo: '',
+    detail_status: '상세입력완료'
+  }
+},
 
   admissionResults: {
     title: '입결정보',
