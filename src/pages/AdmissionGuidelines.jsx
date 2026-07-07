@@ -994,8 +994,8 @@ const KOREA_MAP_SVG = "<svg id=\"korea-map\" xmlns=\"http://www.w3.org/2000/svg\
 
 const INFO_SECTIONS = [
   {
-    label: '전년도와 차이점',
-    lines: ['전년도와', '차이점'],
+    label: '전년도와 차이점(수시)',
+    lines: ['전년도와', '차이점(수시)'],
     key: 'previous_year_changes'
   },
   {
@@ -1387,21 +1387,29 @@ export default function AdmissionGuidelines() {
 
   <div className="mt-4 grid grid-cols-2 gap-2 text-[12px] font-black text-white/80 sm:grid-cols-3">
     {[
-      '전년도와 차이점',
-      '전형방법',
-      '최저학력기준',
-      '대학별고사일',
-      '학생부반영방법',
-      '모집인원',
-      '정시모집요강'
-    ].map((item) => (
-      <span
-        key={item}
-        className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
-      >
-        {item}
+  '전년도와 차이점(수시)',
+  '전형방법',
+  '최저학력기준',
+  '대학별고사일',
+  '학생부반영방법',
+  '모집인원',
+  '정시모집요강'
+].map((item) => (
+  <span
+    key={item}
+    className="flex min-h-[34px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-2 text-center leading-snug"
+  >
+    {item === '전년도와 차이점(수시)' ? (
+      <span className="block leading-[1.25]">
+        전년도와
+        <br />
+        차이점(수시)
       </span>
-    ))}
+    ) : (
+      item
+    )}
+  </span>
+))}
   </div>
 
   <div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
