@@ -1372,7 +1372,7 @@ export default function AdmissionGuidelines() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-bold leading-7 text-white/70">
                 <div className="grid grid-cols-[46px_1fr] gap-x-3">
                   <span className="font-black text-white/90">자료</span>
-                  <span>입학처, 모집요강, 가이드북, 선행학습영향평가, 시행계획</span>
+                  <span>전년도와 차이점(수시),전형방법,최저학력기준,대학별 일정,학생부 반영방법,모집인원,정시 모집요강</span>
                   <span className="font-black text-white/90">방식</span>
                   <span>지역을 선택한 뒤 대학별 버튼 확인</span>
                 </div>
