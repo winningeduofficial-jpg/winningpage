@@ -1408,7 +1408,6 @@ export default function AdmissionGuidelines() {
     <p className="text-[12px] font-bold leading-5 text-white/55">
       지역을 선택한 뒤 대학별 버튼을 확인하세요. 자료가 없는 버튼은 회색으로 표시됩니다.
     </p>
-  </div>
 </div>
           </section>
 
