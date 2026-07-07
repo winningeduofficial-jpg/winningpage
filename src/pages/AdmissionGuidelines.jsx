@@ -2052,9 +2052,6 @@ export default function AdmissionGuidelines() {
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
                   <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
-                  <p className="mt-1 break-keep text-xs font-bold leading-5 text-[#667085]">
-                    경찰대·과학기술원·사관학교 자료는 지역 지도와 별도로 확인합니다.
-                  </p>
                 </div>
 
                 <div className="grid gap-2">
