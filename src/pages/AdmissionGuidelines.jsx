@@ -1188,18 +1188,18 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
     return `
       <div class="admission-raw-section-wrap">
         <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        ${htmlTable(['구분', '내용'], [['변경 사항', '없음']], { compact: true, className: 'admission-data-table admission-change-table' })}
+        ${htmlTable(['구분', '변경 내용'], [['변경 사항', '없음']], { compact: true, className: 'admission-data-table admission-change-table' })}
       </div>
     `;
   }
 
-  const rows = [];
+  const items = [];
   let current = null;
 
   const pushCurrent = () => {
     if (!current) return;
     const text = current.parts.join(' ').replace(/\s+/g, ' ').trim();
-    if (text) rows.push([current.no, text]);
+    if (text) items.push({ no: current.no, text });
     current = null;
   };
 
@@ -1211,20 +1211,33 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
       return;
     }
 
-    if (!current) {
-      current = { no: `${rows.length + 1}`, parts: [line] };
-    } else {
-      current.parts.push(line);
-    }
+    if (!current) current = { no: `${items.length + 1}`, parts: [line] };
+    else current.parts.push(line);
   });
   pushCurrent();
 
-  const finalRows = rows.length ? rows : cleaned.map((line, idx) => [`${idx + 1}`, line]);
+  const rows = (items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }))).map((item) => {
+    let title = '변경 사항';
+    let content = item.text;
+    const colon = content.match(/^([^:：]{2,40})\s*[:：]\s*(.+)$/);
+    if (colon) {
+      title = colon[1].trim();
+      content = colon[2].trim();
+    }
+
+    if (content.includes('→')) {
+      const parts = content.split('→');
+      const before = parts.shift().trim();
+      const after = parts.join('→').trim();
+      return [item.no, title, before, after];
+    }
+    return [item.no, title, content, ''];
+  });
 
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['번호', '변경 내용'], finalRows, { compact: true, className: 'admission-data-table admission-change-table' })}
+      ${htmlTable(['번호', '항목', '변경 전·내용', '변경 후'], rows, { compact: true, className: 'admission-data-table admission-change-table' })}
     </div>
   `;
 }
@@ -1779,32 +1792,36 @@ function splitRecruitValues(values, groupCount) {
   return result.chunks;
 }
 
-function singleRecruitLabel(value) {
+function ambiguousRecruitLabel(value) {
   const n = toNumberForRecruit(value);
-  if (n === null) return '확인값';
+  if (n === null) return '확인 수치';
   if (isIntegerLike(value) && n >= 10) return '인원';
-  if (n >= 0 && n <= 9.99) return '입결';
   if (n > 9.99 && n <= 200) return '경쟁률';
-  return '확인값';
+  return '확인 수치';
 }
 
 function recruitChunkLabelMap(chunk) {
   if (chunk.length >= 5) return ['27 인원', '26 인원', '26 경쟁률', '25 경쟁률', '26 입결'];
   if (chunk.length === 4) {
-    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', '26 경쟁률', '26 입결'];
-    return ['26 인원', '26 경쟁률', '25 경쟁률', '26 입결'];
+    if (chunk.slice(0, 2).every(isIntegerLike)) {
+      const third = toNumberForRecruit(chunk[2]);
+      const fourth = toNumberForRecruit(chunk[3]);
+      if (third !== null && third > 9.99 && fourth !== null && fourth <= 9.99) {
+        return ['27 인원', '26 인원', '26 경쟁률', '26 입결'];
+      }
+      return ['27 인원', '26 인원', '확인 수치', '확인 수치'];
+    }
+    return ['확인 수치', '확인 수치', '확인 수치', '확인 수치'];
   }
   if (chunk.length === 3) {
-    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', '26 입결'];
-    return ['26 경쟁률', '25 경쟁률', '26 입결'];
+    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', ambiguousRecruitLabel(chunk[2])];
+    return ['확인 수치', '확인 수치', '확인 수치'];
   }
   if (chunk.length === 2) {
     if (chunk.every(isIntegerLike)) return ['27 인원', '26 인원'];
-    const second = toNumberForRecruit(chunk[1]);
-    if (second !== null && second <= 9.99) return ['26 경쟁률', '26 입결'];
-    return ['값 1', '값 2'];
+    return ['확인 수치', '확인 수치'];
   }
-  if (chunk.length === 1) return [singleRecruitLabel(chunk[0])];
+  if (chunk.length === 1) return [ambiguousRecruitLabel(chunk[0])];
   return [];
 }
 
@@ -1898,7 +1915,7 @@ function buildRecruitmentHtml(lines, sectionKey) {
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      <div class="admission-recruit-legend">전형별 수치는 <b>27 인원 / 26 인원 / 26 경쟁률 / 25 경쟁률 / 26 입결</b> 순서로 읽습니다. 빈 칸이 있는 전형은 확인 가능한 값만 표시합니다.</div>
+      <div class="admission-recruit-legend">전형별 기본 순서는 <b>27 인원 / 26 인원 / 26 경쟁률 / 25 경쟁률 / 26 입결</b>입니다. 원자료에서 일부 칸이 비어 있어 수치 성격을 단정하기 어려운 값은 <b>확인 수치</b>로 표시합니다.</div>
       <div class="admission-scroll-table">
         <table class="admission-data-table admission-recruit-table">
           <thead><tr>${headerCells.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
@@ -2837,8 +2854,9 @@ export default function AdmissionGuidelines() {
         .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
         .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 9px; padding: 5px 7px; color: #344054; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
         .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
-        .admission-change-table td:first-child { width: 86px; text-align: center; font-weight: 950; color: #9A6A1D; }
-        .admission-change-table td:nth-child(2) { text-align: left; white-space: normal; line-height: 1.65; }
+        .admission-change-table td:first-child { width: 64px; text-align: center; font-weight: 950; color: #9A6A1D; }
+        .admission-change-table td:nth-child(2) { width: 180px; text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; }
+        .admission-change-table td:nth-child(3), .admission-change-table td:nth-child(4) { text-align: left; white-space: normal; line-height: 1.65; }
         .admission-score-table th, .admission-score-table td { padding: 8px 9px; }
         .admission-record-info-table td:first-child { min-width: 160px; color: #0D1B2A; background: #FAFBFC; font-weight: 950; }
         .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
