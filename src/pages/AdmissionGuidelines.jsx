@@ -1007,14 +1007,17 @@ const RESOURCE_BUTTONS = [
   },
   {
     label: '학생부종합가이드북',
+    lines: ['학생부종합', '가이드북'],
     keys: ['hakjong_guide_url', 'student_record_guide_url', 'student_guide_url', 'guide_url', 'guideUrl']
   },
   {
     label: '선행학습영향평가',
+    lines: ['선행학습', '영향평가'],
     keys: ['prior_learning_assessment_url', 'pre_learning_url', 'influence_assessment_url', 'impact_assessment_url']
   },
   {
     label: '대입전형시행계획',
+    lines: ['대입전형', '시행계획'],
     keys: ['admission_plan_url', 'plan_url', 'implementation_plan_url', 'plan_2028_url', 'plan_2027_url', 'plan2028Url', 'plan2027Url']
   },
   {
@@ -1104,17 +1107,29 @@ function findResourceRow(university, resourceIndex) {
 
 function ResourceButton({ resource, row, isPrimary = false }) {
   const url = getFirstUrl(row, resource.keys);
-  const baseClass = `flex min-h-[42px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black leading-tight transition ${
+  const labelNode = resource.lines ? (
+    <span className="block text-center leading-[1.22]">
+      {resource.lines.map((line) => (
+        <span key={line} className="block whitespace-nowrap">
+          {line}
+        </span>
+      ))}
+    </span>
+  ) : (
+    <span className="whitespace-nowrap">{resource.label}</span>
+  );
+
+  const baseClass = `flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition ${
     isPrimary ? 'col-span-2' : ''
   }`;
 
   if (!url) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border border-[#E4E7EC] bg-[#EEF1F5] text-[#A2AAB5]`}
+        className={`${baseClass} cursor-not-allowed border border-[#E1E6EE] bg-[#EFF2F6] text-[#A3ACB8]`}
         title="등록된 자료가 없습니다."
       >
-        {resource.label}
+        {labelNode}
       </span>
     );
   }
@@ -1127,7 +1142,7 @@ function ResourceButton({ resource, row, isPrimary = false }) {
       className={`${baseClass} border border-[#0D1B2A] bg-[#0D1B2A] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
       title={`${resource.label} 열기`}
     >
-      {resource.label}
+      {labelNode}
     </a>
   );
 }
@@ -1139,7 +1154,7 @@ function UniversityCard({ university, row }) {
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-base font-black text-[#A7AFBA]">
           {university.name.slice(0, 1)}
         </div>
-        <h3 className="min-w-0 text-[18px] font-black leading-snug tracking-[-0.04em] text-[#0D1B2A]">
+        <h3 className="min-w-0 break-keep text-[18px] font-black leading-snug tracking-[-0.035em] text-[#0D1B2A]">
           {university.name}
         </h3>
       </div>
@@ -1272,7 +1287,7 @@ export default function AdmissionGuidelines() {
             <div className="grid gap-6 px-7 py-7 md:px-10 lg:grid-cols-[1.05fr_2fr_1.05fr] lg:items-center">
               <div>
                 <p className="text-sm font-black tracking-[0.18em] text-[#D4A85F]">WINNING EDU</p>
-                <h1 className="mt-3 text-3xl font-black tracking-[-0.05em] text-white md:text-4xl">
+                <h1 className="mt-3 break-keep text-3xl font-black leading-tight tracking-[-0.05em] text-white md:text-4xl">
                   대학별 모집요강 자료실
                 </h1>
                 <p className="mt-3 text-sm font-bold leading-6 text-white/60">
@@ -1288,7 +1303,7 @@ export default function AdmissionGuidelines() {
                     value={keyword}
                     onChange={(event) => setKeyword(event.target.value)}
                     placeholder="대학명을 입력하세요 예: 한국대"
-                    className="h-14 w-full rounded-full border border-white/15 bg-white pl-13 pr-12 text-[15px] font-bold text-[#0D1B2A] outline-none transition placeholder:text-[#98A2B3] focus:border-[#D4A85F] focus:ring-4 focus:ring-[#D4A85F]/20"
+                    className="h-14 w-full rounded-full border border-white/15 bg-white pl-[54px] pr-12 text-[15px] font-bold text-[#0D1B2A] outline-none transition placeholder:text-[#98A2B3] focus:border-[#D4A85F] focus:ring-4 focus:ring-[#D4A85F]/20"
                   />
                   {keyword ? (
                     <button
@@ -1303,7 +1318,7 @@ export default function AdmissionGuidelines() {
                 </label>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-bold leading-7 text-white/62">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-bold leading-7 text-white/70">
                 <div className="grid grid-cols-[46px_1fr] gap-x-3">
                   <span className="font-black text-white/90">자료</span>
                   <span>입학처, 모집요강, 가이드북, 선행학습영향평가, 시행계획</span>
@@ -1343,25 +1358,29 @@ export default function AdmissionGuidelines() {
 
             <section className="min-w-0 rounded-[24px] border border-[#E7EBF0] bg-white p-5 shadow-[0_14px_38px_rgba(13,27,42,0.06)] md:p-8">
               <div className="mb-7 border-b-2 border-[#D4A85F] pb-6">
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-                  <div>
+                <div className="grid gap-5 2xl:grid-cols-[220px_1fr] 2xl:items-center">
+                  <div className="min-w-0">
                     <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">REGION SELECT</p>
-                    <h2 className="mt-2 text-[30px] font-black tracking-[-0.06em] text-[#0D1B2A] md:text-[42px]">
-                      {selectedRegion
-                        ? `${selectedRegion} (${visibleUniversities.length}개교)`
-                        : isGlobalSearchMode
-                          ? `검색 결과 (${visibleUniversities.length}개교)`
-                          : '지역을 선택하세요'}
+                    <h2 className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 break-keep text-[#0D1B2A]">
+                      <span className="whitespace-nowrap text-[32px] font-black leading-none tracking-[-0.055em] md:text-[44px]">
+                        {selectedRegion || (isGlobalSearchMode ? '검색 결과' : '지역 선택')}
+                      </span>
+                      <span className="whitespace-nowrap text-[18px] font-black leading-none tracking-[-0.035em] text-[#344054] md:text-[24px]">
+                        {selectedRegion || isGlobalSearchMode ? `(${visibleUniversities.length}개교)` : ''}
+                      </span>
                     </h2>
+                    {!selectedRegion && !isGlobalSearchMode ? (
+                      <p className="mt-3 text-sm font-extrabold text-[#7A8494]">지도 또는 지역 버튼을 선택하세요.</p>
+                    ) : null}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 2xl:justify-end">
                     {REGION_ORDER.map((region) => (
                       <button
                         key={region}
                         type="button"
                         onClick={() => selectRegion(region)}
-                        className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                        className={`h-10 min-w-[58px] rounded-full px-4 text-sm font-black transition ${
                           selectedRegion === region
                             ? 'bg-[#0D1B2A] text-white shadow-sm'
                             : 'bg-[#F1F3F6] text-[#667085] hover:bg-[#E8DCC5] hover:text-[#6F4C13]'
@@ -1374,7 +1393,7 @@ export default function AdmissionGuidelines() {
                       <button
                         type="button"
                         onClick={clearSelection}
-                        className="rounded-full border border-[#D8DEE8] bg-white px-4 py-2 text-sm font-black text-[#667085] transition hover:border-[#B88737] hover:text-[#6F4C13]"
+                        className="h-10 rounded-full border border-[#D8DEE8] bg-white px-4 text-sm font-black text-[#667085] transition hover:border-[#B88737] hover:text-[#6F4C13]"
                       >
                         초기화
                       </button>
