@@ -1302,7 +1302,7 @@ export default function AdmissionGuidelines() {
                   <input
                     value={keyword}
                     onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="대학명을 입력하세요 예: 한국대"
+                    placeholder="대학명을 입력하세요 예: 위닝대"
                     className="h-14 w-full rounded-full border border-white/15 bg-white pl-[54px] pr-12 text-[15px] font-bold text-[#0D1B2A] outline-none transition placeholder:text-[#98A2B3] focus:border-[#D4A85F] focus:ring-4 focus:ring-[#D4A85F]/20"
                   />
                   {keyword ? (
@@ -1323,7 +1323,7 @@ export default function AdmissionGuidelines() {
                   <span className="font-black text-white/90">자료</span>
                   <span>입학처, 모집요강, 가이드북, 선행학습영향평가, 시행계획</span>
                   <span className="font-black text-white/90">방식</span>
-                  <span>지도에서 지역을 선택한 뒤 대학별 버튼 확인</span>
+                  <span>지역을 선택한 뒤 대학별 버튼 확인</span>
                 </div>
                 <p className="mt-3 border-t border-white/10 pt-3 text-xs text-white/45">
                   자료가 없는 버튼은 회색으로 표시됩니다.
