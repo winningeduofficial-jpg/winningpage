@@ -1306,9 +1306,10 @@ export default function AdmissionGuidelines() {
   const isGlobalSearchMode = !selectedRegion && keyword.trim();
 
   function selectRegion(regionId) {
-    setSelectedRegion(regionId);
-    setKeyword('');
-  }
+  setSelectedRegion(regionId);
+  setKeyword('');
+  setTooltip({ visible: false, label: '', x: 0, y: 0 });
+}
 
   function clearSelection() {
     setSelectedRegion('');
@@ -1326,15 +1327,20 @@ export default function AdmissionGuidelines() {
   }
 
   function handleMapMove(event) {
-    const path = event.target.closest?.('path');
-    const regionId = path?.id;
-
-    if (regionId && REGION_ORDER.includes(regionId)) {
-      setTooltip({ visible: true, label: regionId, x: event.clientX, y: event.clientY });
-    } else {
-      setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
-    }
+  if (selectedRegion) {
+    setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    return;
   }
+
+  const path = event.target.closest?.('path');
+  const regionId = path?.id;
+
+  if (regionId && REGION_ORDER.includes(regionId)) {
+    setTooltip({ visible: true, label: regionId, x: event.clientX, y: event.clientY });
+  } else {
+    setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+  }
+}
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] text-[#0D1B2A]">
