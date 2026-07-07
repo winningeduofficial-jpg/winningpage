@@ -1311,6 +1311,78 @@ function nextLooksLikeRequirementRow(lines, fromIndex) {
   return false;
 }
 
+function isLikelyMinimumNote(line) {
+  const v = clean(line);
+  return /^\(?소수점/.test(v)
+    || /^탐구/.test(v)
+    || /^한국사/.test(v)
+    || /^\*/.test(v)
+    || /^※/.test(v)
+    || /^☆/.test(v)
+    || /^단,/.test(v)
+    || /^수\(/.test(v)
+    || /평균|반영|필수|버림|절사|등급|과목/.test(v) && !/(학과|학부|전공|계열)$/.test(v);
+}
+
+function isLikelyAdmissionTypeLabel(line) {
+  const v = clean(line);
+  if (!v) return false;
+  if (/(학과|학부|전공|대학|계열|모집단위)$/.test(v)) return false;
+  return /(일반|교과|종합|논술|실기|전형|추천|지역|학교장|인재|면접|서류|우수자|기회|농어촌|고른기회|특별|자기추천|혜화|세움|미래)/.test(v);
+}
+
+function subjectLabelForMark(mark, idx, marks, subjectHeaders = []) {
+  const compactLabels = ['국어', '수학', '영어', '탐구'];
+  const fullMap = {
+    국: '국어',
+    확: '수학(확통)',
+    '미/기': '수학(미적분/기하)',
+    영: '영어',
+    사: '사회탐구',
+    과: '과학탐구',
+    한국사: '한국사'
+  };
+
+  let label = '';
+  if (marks.length <= 4) {
+    label = compactLabels[idx] || `영역 ${idx + 1}`;
+  } else {
+    label = fullMap[subjectHeaders[idx]] || subjectHeaders[idx] || `영역 ${idx + 1}`;
+  }
+
+  const v = clean(mark);
+  if (/^\d+$/.test(v) && /탐구/.test(label)) return `${label} ${v}과목`;
+  if (v === '☆') return `${label} 필수`;
+  if (/^[◯○]$/.test(v)) return `${label} 반영`;
+  if (/^[-–—]$/.test(v)) return `${label} 미반영`;
+  return `${label} ${v}`;
+}
+
+function formatRequirementMarks(marks, subjectHeaders = []) {
+  return marks.map((mark, idx) => subjectLabelForMark(mark, idx, marks, subjectHeaders)).join(' / ');
+}
+
+function splitMinimumLabel(labelParts, lastType) {
+  const parts = labelParts.map(clean).filter(Boolean);
+  if (!parts.length) return { type: lastType || '-', target: '-', nextType: lastType };
+
+  if (parts.length === 1) {
+    const only = parts[0];
+    if (lastType && !isLikelyAdmissionTypeLabel(only)) {
+      return { type: lastType, target: only, nextType: lastType };
+    }
+    return { type: only, target: '-', nextType: isLikelyAdmissionTypeLabel(only) ? only : lastType };
+  }
+
+  const first = parts[0];
+  const nextType = isLikelyAdmissionTypeLabel(first) ? first : lastType;
+  return {
+    type: isLikelyAdmissionTypeLabel(first) ? first : (lastType || first),
+    target: isLikelyAdmissionTypeLabel(first) ? parts.slice(1).join(' / ') : parts.join(' / '),
+    nextType
+  };
+}
+
 function buildMinimumRequirementsHtml(lines, sectionKey) {
   if (lines.some((line) => clean(line) === '없음')) {
     return `
@@ -1321,20 +1393,31 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
     `;
   }
 
+  const headerStart = lines.findIndex((line) => clean(line) === '국');
   const headerEnd = lines.findIndex((line) => clean(line) === '비고');
-  const data = lines.slice(headerEnd >= 0 ? headerEnd + 1 : 0).filter((line) => !['전형', '계열', '모집단위', '국', '확', '미/기', '영', '사', '과', '한국사', '최저', '비고'].includes(clean(line)));
+  const subjectHeaders = headerStart >= 0 && headerEnd > headerStart
+    ? lines.slice(headerStart, headerEnd).map(clean).filter((line) => !['최저'].includes(line))
+    : ['국', '확', '미/기', '영', '사', '과', '한국사'];
+
+  const data = lines.slice(headerEnd >= 0 ? headerEnd + 1 : 0)
+    .filter((line) => !['전형', '계열', '모집단위', '국', '확', '미/기', '영', '사', '과', '한국사', '최저', '비고'].includes(clean(line)));
+
   const rows = [];
   let label = [];
   let marks = [];
   let minimum = '';
   let notes = [];
   let state = 'label';
+  let lastType = '';
 
   const flush = () => {
     if (!label.length && !marks.length && !minimum && !notes.length) return;
+    const split = splitMinimumLabel(label, lastType);
+    lastType = split.nextType || lastType;
     rows.push([
-      label.join(' / ') || '-',
-      marks.join(' / ') || '-',
+      split.type || '-',
+      split.target || '-',
+      formatRequirementMarks(marks, subjectHeaders) || '-',
       minimum || '-',
       notes.join(' ') || '-'
     ]);
@@ -1346,32 +1429,34 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
   };
 
   data.forEach((line, idx) => {
-    if (state === 'note' && !isFootnoteLine(line) && !line.startsWith('(') && nextLooksLikeRequirementRow(data, idx)) {
-      flush();
+    const v = clean(line);
+
+    if (state === 'note') {
+      if (!isLikelyMinimumNote(v) && nextLooksLikeRequirementRow(data, idx)) {
+        flush();
+      } else {
+        notes.push(v);
+        return;
+      }
     }
 
     if (state === 'label') {
-      if (isRequirementMark(line)) {
-        marks.push(line);
+      if (isRequirementMark(v)) {
+        marks.push(v);
         state = 'marks';
       } else {
-        label.push(line);
+        label.push(v);
       }
       return;
     }
 
     if (state === 'marks') {
-      if (isMinimumResultToken(line)) {
-        minimum = line;
+      if (isMinimumResultToken(v)) {
+        minimum = v;
         state = 'note';
       } else {
-        marks.push(line);
+        marks.push(v);
       }
-      return;
-    }
-
-    if (state === 'note') {
-      notes.push(line);
     }
   });
   flush();
@@ -1381,92 +1466,294 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['전형·대상', '반영 영역', '최저', '비고'], rows)}
+      ${htmlTable(['전형', '대상', '반영 영역', '최저', '비고'], rows)}
     </div>
   `;
 }
 
-function buildStudentRecordHtml(lines, sectionKey) {
-  const blocks = [];
-  const desc = [];
-  const gradeStarts = [];
-  lines.forEach((line, idx) => {
-    if (/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(line))) gradeStarts.push(idx);
-  });
+function isRecordInfoLabel(line) {
+  const v = clean(line);
+  return /^(전형명|유형|대상|반영교과|반영과목 수|필수 반영|선택 반영|학년|반영 비율|반영비율|교과점수|산출방법|교과성적|학생부|과목|공통과목 \/ 일반선택과목.*|진로선택과목.*|출결 성적 반영 방법|봉사 점수 반영 방법)$/.test(v)
+    || /^(반영점수 및|구분|배점|산출식)$/.test(v);
+}
 
-  const firstTable = gradeStarts.length ? gradeStarts[0] : -1;
-  const before = firstTable >= 0 ? lines.slice(0, firstTable) : lines;
-  before.forEach((line) => {
-    if (!['전형', '과목', '공통과목 / 일반선택과목', '진로선택과목', '비고'].includes(clean(line))) desc.push(line);
-  });
+function isGradeHeaderToken(line) {
+  const v = clean(line);
+  return /^[1-9]$/.test(v)
+    || /^[ABC]$/.test(v)
+    || /^[A-E]\s*\(\d+\)$/.test(v)
+    || /^\d+등급$/.test(v)
+    || /^\d+(?:\.\d+)?(?:~|∼)\d+(?:\.\d+)?$/.test(v)
+    || /^\d+(?:\.\d+)?(?:점|일|시간|시간\s*이상|이상)?$/.test(v)
+    || /^(비고|A|B|C|0일|1~2일|3~5일|6일 이상|20시간|15시간|10시간|5시간|0시간|이상)$/.test(v);
+}
 
-  if (desc.length) {
-    blocks.push(`<div class="admission-info-list">${desc.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}</div>`);
-  }
+function isRecordRowLabel(line) {
+  const v = clean(line);
+  if (!v) return false;
+  if (isGradeHeaderToken(v) || isNumericTableValue(v)) return false;
+  if (/^※|^\d+\)|^①|^②|^③|^④/.test(v)) return true;
+  return /(전형|일반|추천|교과|종합|논술|학교장|지역|우수자|인재|학과|학부|전체|나눔|면접|서류|환산점수|반영 점수|과목별 점수|석차등급|성취도|출결|봉사|결석|비고|약학과|일반학과)/.test(v);
+}
 
-  if (firstTable >= 0) {
-    let tableLines = lines.slice(firstTable);
-    const rows = [];
-    let currentLabel = '';
-    let currentValues = [];
+function buildRecordInfoRows(lines) {
+  const rows = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = clean(lines[i]);
+    if (!line || ['전형', '과목', '비고'].includes(line)) { i += 1; continue; }
 
-    const flush = () => {
-      if (!currentLabel && !currentValues.length) return;
-      rows.push([currentLabel || '-', currentValues.join(' / ') || '-']);
-      currentLabel = '';
-      currentValues = [];
-    };
-
-    tableLines.forEach((line) => {
-      const v = clean(line);
-      if (/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간|반영 점수|환산점수|과목별 점수|일반|전체전형|교과|종합|논술|학교장추천|교과일반|학생부우수자|지역균형|종합일반|전체전형|약학과|일반학과|비고)$/.test(v) || /^\d+\)/.test(v) || /^※/.test(v)) {
-        flush();
-        currentLabel = v;
-      } else if (isRequirementMark(v) || isNumericTableValue(v) || /^[ABC]$/.test(v) || /^\d+등급$/.test(v) || /^[A-E]\s*\(\d+\)$/.test(v)) {
-        currentValues.push(v);
-      } else {
-        if (currentLabel) currentValues.push(v);
-        else rows.push([v, '-']);
+    if (isRecordInfoLabel(line)) {
+      const values = [];
+      i += 1;
+      while (i < lines.length && !isRecordInfoLabel(lines[i]) && !/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(lines[i]))) {
+        const v = clean(lines[i]);
+        if (v && !['전형', '과목', '비고'].includes(v)) values.push(v);
+        i += 1;
       }
-    });
-    flush();
+      if (values.length) rows.push([line, values.join(' / ')]);
+      continue;
+    }
 
-    if (rows.length) {
-      blocks.push(htmlTable(['구분', '내용'], rows, { compact: true }));
+    rows.push(['내용', line]);
+    i += 1;
+  }
+  return rows;
+}
+
+function buildGradeScoreTables(lines) {
+  const blocks = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const metric = clean(lines[i]);
+    if (!/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(metric)) {
+      i += 1;
+      continue;
+    }
+
+    const headers = [];
+    i += 1;
+    while (i < lines.length && isGradeHeaderToken(lines[i])) {
+      headers.push(clean(lines[i]));
+      i += 1;
+    }
+
+    const rows = [];
+    let guard = 0;
+    while (i < lines.length && guard < 80) {
+      guard += 1;
+      const labelParts = [];
+      while (i < lines.length && !isGradeHeaderToken(lines[i]) && !isNumericTableValue(lines[i]) && !/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(lines[i]))) {
+        const v = clean(lines[i]);
+        if (/^※|^\d+\)|^①|^②|^③|^④/.test(v)) break;
+        labelParts.push(v);
+        i += 1;
+      }
+
+      if (/^※|^\d+\)|^①|^②|^③|^④/.test(clean(lines[i] || ''))) break;
+      if (/^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(lines[i] || ''))) break;
+
+      const values = [];
+      while (i < lines.length && (isGradeHeaderToken(lines[i]) || isNumericTableValue(lines[i]) || /^[ABC]$/.test(clean(lines[i])) || /^\d+등급$/.test(clean(lines[i])))) {
+        values.push(clean(lines[i]));
+        i += 1;
+        if (headers.length && values.length >= headers.length) break;
+      }
+
+      if (labelParts.length || values.length) {
+        const label = labelParts.join(' / ') || '환산값';
+        const row = [label];
+        for (let h = 0; h < headers.length; h += 1) row.push(values[h] || '');
+        if (!headers.length) row.push(values.join(' / '));
+        rows.push(row);
+      } else {
+        break;
+      }
+
+      if (!headers.length) break;
+    }
+
+    if (headers.length && rows.length) {
+      blocks.push(`
+        <div class="admission-subhead">${escapeHtml(metric)} 환산표</div>
+        ${htmlTable(['구분', ...headers], rows, { compact: true, className: 'admission-data-table admission-score-table' })}
+      `);
     }
   }
+
+  return blocks;
+}
+
+function buildStudentRecordHtml(lines, sectionKey) {
+  const firstGradeIdx = lines.findIndex((line) => /^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(line)));
+  const infoLines = firstGradeIdx >= 0 ? lines.slice(0, firstGradeIdx) : lines;
+  const tableLines = firstGradeIdx >= 0 ? lines.slice(firstGradeIdx) : [];
+
+  const infoRows = buildRecordInfoRows(infoLines);
+  const infoTable = infoRows.length
+    ? htmlTable(['구분', '내용'], infoRows, { compact: true, className: 'admission-data-table admission-record-info-table' })
+    : '';
+
+  const scoreTables = buildGradeScoreTables(tableLines);
+  const notes = lines.filter((line) => /^※|^\d+\)|^①|^②|^③|^④/.test(clean(line)) || /산출식|최종 환산점수|부족/.test(clean(line)));
 
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${blocks.join('') || buildPlainListHtml(lines, sectionKey)}
+      ${infoTable}
+      ${scoreTables.join('')}
+      ${notes.length ? `<div class="admission-footnote">${escapeHtml([...new Set(notes)].join(' '))}</div>` : ''}
     </div>
   `;
 }
 
-function buildValueGroups(values) {
-  const cleanValues = values.filter(Boolean);
-  if (!cleanValues.length) return '-';
-  const groups = [];
-  for (let i = 0; i < cleanValues.length; i += 5) {
-    groups.push(cleanValues.slice(i, i + 5));
+function isMajorAdmissionCategory(line) {
+  return /^(학생부교과|학생부종합|논술|실기|수능|정시|교과|종합)$/.test(clean(line));
+}
+
+function scoreRecruitLabel(label, category) {
+  const l = clean(label);
+  const c = clean(category);
+  if (!l || !c) return 0;
+  if (/논술/.test(l) && /논술/.test(c)) return 5;
+  if (/(실기|예체능)/.test(l) && /실기/.test(c)) return 5;
+  if (/(교과|지역균형|학교장|고교추천|일반고교과|교과우수|학생부교과)/.test(l) && /(교과|학생부교과)/.test(c)) return 4;
+  if (/(종합|인재|서류|면접|자기추천|활동|추천|성장|창의|혜화|세움|미래)/.test(l) && /(종합|학생부종합)/.test(c)) return 3;
+  return 0;
+}
+
+function deriveRecruitGroupLabels(headerLines, groupCount) {
+  const ignore = new Set(['계열', '대학', '단과', '캠퍼스', '모집단위', '개설전공', '세부전공', '인원', '경쟁률', '70%', '75%', '80%', '90%', '50%', '평균', '최저', '(등급)', '표 값']);
+  const firstMetric = headerLines.findIndex((line) => ['인원', '경쟁률'].includes(clean(line)));
+  const beforeMetric = (firstMetric >= 0 ? headerLines.slice(0, firstMetric) : headerLines).map(clean).filter(Boolean).filter((line) => !ignore.has(line));
+
+  const categories = beforeMetric.filter(isMajorAdmissionCategory).map((cat) => cat === '교과' ? '학생부교과' : cat === '종합' ? '학생부종합' : cat);
+  const labels = beforeMetric.filter((line) => !isMajorAdmissionCategory(line));
+
+  if (!groupCount) return [];
+  if (!labels.length) return Array.from({ length: groupCount }, (_, idx) => categories[idx] || `전형 ${idx + 1}`);
+
+  const result = [];
+  let currentCatIdx = 0;
+  for (let i = 0; i < groupCount; i += 1) {
+    const label = labels[i] || `전형 ${i + 1}`;
+    let cat = categories[currentCatIdx] || '';
+
+    let bestIdx = currentCatIdx;
+    let bestScore = scoreRecruitLabel(label, cat);
+    categories.forEach((candidate, idx) => {
+      const score = scoreRecruitLabel(label, candidate);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = idx;
+      }
+    });
+
+    if (bestScore > 0) {
+      cat = categories[bestIdx];
+      currentCatIdx = bestIdx;
+    } else if (labels.length === groupCount && categories.length) {
+      // 제목이 애매한 경우에는 일반적으로 첫 전형은 첫 큰 분류, 이후는 다음 분류로 이어진다.
+      if (i > 0 && currentCatIdx < categories.length - 1) currentCatIdx += 1;
+      cat = categories[currentCatIdx] || cat;
+    }
+
+    result.push([cat, label].filter(Boolean).join(' · '));
   }
-  return `<div class="admission-result-values">${groups.map((group) => `
-    <div class="admission-result-group">
-      ${group.map((v) => `<span>${escapeHtml(v)}</span>`).join('')}
-    </div>
-  `).join('')}</div>`;
+
+  while (result.length < groupCount) result.push(`전형 ${result.length + 1}`);
+  return result.slice(0, groupCount);
+}
+
+function toNumberForRecruit(value) {
+  const v = clean(value).replace(/[(),]/g, '');
+  if (!/^-?\d+(?:\.\d+)?$/.test(v)) return null;
+  return Number(v);
+}
+
+function isIntegerLike(value) {
+  const n = toNumberForRecruit(value);
+  return n !== null && Math.abs(n - Math.round(n)) < 0.00001;
+}
+
+function splitRecruitValues(values, groupCount) {
+  if (!groupCount) return [values];
+  const n = values.length;
+  const memo = new Map();
+
+  const scoreChunk = (chunk, groupIdx) => {
+    if (!chunk.length) return -100;
+    let score = 0;
+    if (chunk[0] && isIntegerLike(chunk[0])) score += 3;
+    if (chunk[1] && isIntegerLike(chunk[1])) score += 3;
+    if (chunk.length >= 3 && toNumberForRecruit(chunk[2]) !== null) score += 1;
+    const last = toNumberForRecruit(chunk[chunk.length - 1]);
+    if (last !== null && last >= 0 && last <= 9.99) score += 2;
+    if (chunk.length === 5) score += 3;
+    if (chunk.length === 4) score += 1;
+    if (groupIdx === groupCount - 1 && chunk.length < 3) score -= 1;
+    return score;
+  };
+
+  const solve = (idx, g) => {
+    const key = `${idx}:${g}`;
+    if (memo.has(key)) return memo.get(key);
+    if (g === groupCount) {
+      return idx === n ? { score: 0, chunks: [] } : { score: -9999, chunks: [] };
+    }
+    const groupsLeft = groupCount - g;
+    let best = { score: -9999, chunks: [] };
+    for (let len = 5; len >= 1; len -= 1) {
+      if (idx + len > n) continue;
+      const remaining = n - (idx + len);
+      if (remaining < groupsLeft - 1 || remaining > (groupsLeft - 1) * 5) continue;
+      const chunk = values.slice(idx, idx + len);
+      const rest = solve(idx + len, g + 1);
+      const score = scoreChunk(chunk, g) + rest.score;
+      if (score > best.score) best = { score, chunks: [chunk, ...rest.chunks] };
+    }
+    memo.set(key, best);
+    return best;
+  };
+
+  const result = solve(0, 0);
+  if (result.score <= -999) {
+    const fallback = [];
+    for (let i = 0; i < n; i += 5) fallback.push(values.slice(i, i + 5));
+    while (fallback.length < groupCount) fallback.push([]);
+    return fallback.slice(0, groupCount);
+  }
+  return result.chunks;
+}
+
+function recruitChunkLabelMap(chunk) {
+  if (chunk.length >= 5) return ['27 인원', '26 인원', '26 경쟁률', '25 경쟁률', '26 입결'];
+  if (chunk.length === 4) return ['27 인원', '26 인원', '26 경쟁률', '26 입결'];
+  if (chunk.length === 3) return ['27 인원', '26 인원', '26 입결'];
+  if (chunk.length === 2) return ['27 인원', '26 인원'];
+  return ['자료'];
+}
+
+function buildRecruitCell(values) {
+  if (!values || !values.length) return '<span class="muted">-</span>';
+  const labels = recruitChunkLabelMap(values);
+  return `<div class="admission-recruit-cell-values">
+    ${values.map((v, idx) => `<span><b>${escapeHtml(labels[idx] || `값 ${idx + 1}`)}</b>${escapeHtml(v)}</span>`).join('')}
+  </div>`;
 }
 
 function buildRecruitmentHtml(lines, sectionKey) {
   const pattern = ['27', '26', '26', '25', '26'];
   let dataStart = -1;
+  let yearStart = -1;
   for (let i = 0; i <= lines.length - pattern.length; i += 1) {
     let ok = true;
     for (let j = 0; j < pattern.length; j += 1) {
       if (clean(lines[i + j]) !== pattern[j]) { ok = false; break; }
     }
     if (ok) {
+      yearStart = i;
       let k = i;
       while (k < lines.length && /^(27|26|25)$/.test(clean(lines[k]))) k += 1;
       dataStart = k;
@@ -1475,20 +1762,24 @@ function buildRecruitmentHtml(lines, sectionKey) {
   }
 
   const headerLines = dataStart >= 0 ? lines.slice(0, dataStart) : [];
+  const yearTokens = yearStart >= 0 ? lines.slice(yearStart, dataStart).map(clean) : [];
+  const groupCount = Math.max(1, Math.floor(yearTokens.length / 5));
+  const groupLabels = deriveRecruitGroupLabels(headerLines, groupCount);
   const data = dataStart >= 0 ? lines.slice(dataStart) : lines;
   const rows = [];
   const footnotes = [];
+  let lastGroup = '';
   let i = 0;
 
   while (i < data.length) {
-    const line = data[i];
+    const line = clean(data[i]);
     if (isFootnoteLine(line)) {
       footnotes.push(data.slice(i).join(' '));
       break;
     }
 
     if (isNumericTableValue(line)) {
-      if (rows.length) rows[rows.length - 1].values.push(line);
+      if (rows.length) rows[rows.length - 1].rawValues.push(line);
       i += 1;
       continue;
     }
@@ -1496,47 +1787,48 @@ function buildRecruitmentHtml(lines, sectionKey) {
     const nameParts = [];
     let j = i;
     while (j < data.length && !isNumericTableValue(data[j]) && !isFootnoteLine(data[j])) {
-      nameParts.push(data[j]);
+      nameParts.push(clean(data[j]));
       j += 1;
     }
+
     const values = [];
     while (j < data.length && isNumericTableValue(data[j])) {
-      values.push(data[j]);
+      values.push(clean(data[j]));
       j += 1;
     }
 
     if (values.length) {
       const unit = nameParts.pop() || '-';
-      const group = nameParts.join(' ');
-      rows.push({ group, unit, values });
+      let group = nameParts.join(' ');
+      if (!group && lastGroup) group = lastGroup;
+      if (group) lastGroup = group;
+      rows.push({ group, unit, rawValues: values, chunks: splitRecruitValues(values, groupCount) });
     } else if (nameParts.length && rows.length) {
       rows[rows.length - 1].unit += ` / ${nameParts.join(' / ')}`;
+    } else if (nameParts.length) {
+      lastGroup = nameParts.join(' ');
     }
     i = Math.max(j, i + 1);
   }
 
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
-  const headerSummary = headerLines.length
-    ? `<div class="admission-header-summary">${headerLines.filter((line) => !['계열','대학','모집단위','인원','경쟁률','70%','75%','80%','90%','50%','평균','최저','(등급)'].includes(clean(line))).slice(0, 18).map(escapeHtml).join(' · ')}</div>`
-    : '';
-
+  const headerCells = ['계열/대학', '모집단위', ...groupLabels];
   const rowHtml = rows.map((row) => `
     <tr>
       <td class="left group-cell">${escapeHtml(row.group || '-')}</td>
       <td class="left unit-cell">${escapeHtml(row.unit || '-')}</td>
-      <td class="values-cell">${buildValueGroups(row.values)}</td>
+      ${groupLabels.map((_, idx) => `<td class="recruit-values-cell">${buildRecruitCell(row.chunks[idx] || [])}</td>`).join('')}
     </tr>
   `).join('');
 
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      <div class="admission-recruit-legend">수치 묶음은 전형별 원자료 순서를 유지합니다. 기본 순서는 <b>27 인원 → 26 인원 → 26 경쟁률 → 25 경쟁률 → 26 입결</b>입니다.</div>
-      ${headerSummary}
+      <div class="admission-recruit-legend">전형별 수치는 <b>27 인원 / 26 인원 / 26 경쟁률 / 25 경쟁률 / 26 입결</b> 순서로 읽습니다. 빈 칸이 있는 전형은 확인 가능한 값만 표시합니다.</div>
       <div class="admission-scroll-table">
         <table class="admission-data-table admission-recruit-table">
-          <thead><tr><th>계열/대학</th><th>모집단위</th><th>전형별 수치</th></tr></thead>
+          <thead><tr>${headerCells.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
           <tbody>${rowHtml}</tbody>
         </table>
       </div>
@@ -1545,7 +1837,249 @@ function buildRecruitmentHtml(lines, sectionKey) {
   `;
 }
 
-function buildSmartRawHtml(value, sectionKey) {
+
+const SCIENCE_SPECIAL_DATA = {
+  '포항공과대학교': {
+    displayName: 'POSTECH',
+    summaryRows: [
+      ['일반전형Ⅰ', '220', '11.28.(토)', '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50', '없음', '정시 선발 없음'],
+      ['일반전형Ⅱ', '70', '11.29.(일)', '1단계: 서류 100(3배수) / 2단계: 서류 67 + 면접 33', '수학(미적분/기하) + 국어·영어·과탐(2) 중 택1, 2개 합 4 이내', '정시 선발 없음'],
+      ['반도체공학인재', '40', '-', '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50', '없음', '정시 선발 없음']
+    ],
+    competitionRows: [
+      ['일반전형Ⅰ', '220명 / 8.27', '220명 / 8.96', '220명 / 7.80'],
+      ['일반전형Ⅱ', '70명 / 13.04', '70명 / 11.63', '80명 / 9.76'],
+      ['반도체공학인재', '40명 / 12.38', '15명 / 10.67', '20명 / 7.90']
+    ],
+    changeRows: [['해당 없음', '변경 사항 없음']],
+    evaluationRows: [
+      ['서류평가', '학업능력은 학교생활기록부의 국어·영어·수학·과학 교과를 중심으로 대학 수학 가능성을 종합 평가하며, 잠재력은 이공계 소양·재능, 학업 열정·태도, 대인관계·품성, 인재상 적합도를 종합 평가'],
+      ['면접평가', '과학·공학계 글로벌 리더로서의 사고력, 이공계 분야 수학을 위한 기본 역량과 태도 등을 평가. 일반전형Ⅰ은 개인면접·개인과제·그룹활동, 일반전형Ⅱ는 개인면접, 반도체공학인재는 개인면접·제시문 면접']
+    ]
+  },
+  '한국과학기술원': {
+    displayName: 'KAIST',
+    summaryRows: [
+      ['학교장추천', '85', '-', '일괄: 서류 100', '없음', '15명(수능 100)'],
+      ['창의도전', '270', '-', '서류평가 중심', '없음', '15명(수능 100)'],
+      ['일반', '380', '11.26.(목)', '1단계: 서류 100(2.5배수) / 2단계: 서류 40 + 면접 60', '없음', '15명(수능 100)'],
+      ['반도체시스템인재', '40', '-', '1단계: 서류 100(2.5배수) / 2단계: 서류 40 + 면접 60', '없음', '-'],
+      ['특기자', '30', '-', '1단계: 서류 100(2배수) / 2단계: 서류 40 + 면접 60', '없음', '-']
+    ],
+    competitionRows: [
+      ['일반', '350명 / 7.64', '410명 / 7.02', '410명 / 6.62'],
+      ['창의도전전형', '200명 / 9.45', '220명 / 8.90', '220명 / 8.29'],
+      ['학교장추천', '85명 / 15.45', '95명 / 11.00', '95명 / 9.62']
+    ],
+    changeRows: [
+      ['입학 지원 방법 변경', '반도체시스템인재전형Ⅱ 폐지, 반도체시스템인재전형 신설. 중복지원 가능 조합은 창의도전전형 + 일반전형'],
+      ['교사추천서 운영방안 변경', '창의도전·학교장추천은 최대 2부 제출 가능, 일반·고른기회·특기자·반도체시스템인재는 최대 2부 제출 가능. 제출 시 담임교사 추천서 1부 필수 포함'],
+      ['모집인원 변경', '창의도전 200명 → 270명, 일반 350명 → 380명, 반도체시스템인재 70명 → 40명']
+    ],
+    evaluationRows: [
+      ['서류평가', '학업성취도, 학교생활 충실도 및 인성, 도전·창의·배려, 발전가능성 등을 종합 평가'],
+      ['면접평가', '수학·과학·영어 관련 개인별 구술면접과 지원서 기반 질문을 활용. 반도체시스템인재는 전공적합성 관련 질문 포함']
+    ]
+  },
+  '한국에너지공과대학교': {
+    displayName: 'KENTECH',
+    summaryRows: [
+      ['일반', '90', '11.30.(월)', '1단계: 서류 100(5배수) / 2단계: 서류 50 + 면접 50', '없음', '10명(수능 100)']
+    ],
+    competitionRows: [['일반', '90명 / 24.18', '90명 / 19.58', '90명 / 15.06']],
+    changeRows: [['해당 없음', '변경 사항 없음']],
+    evaluationRows: []
+  },
+  '울산과학기술원': {
+    displayName: 'UNIST',
+    summaryRows: [
+      ['일반-무학과', '320', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
+      ['일반-반도체', '35', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
+      ['일반-경영', '25', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
+      ['탐구우수', '70', '11.7.(토)', '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50', '없음', '-'],
+      ['그릿인재', '10', '11.8.(일)', '1단계: 서류 100(3배수) / 2단계: 서류 30 + 면접 70', '없음', '-']
+    ],
+    competitionRows: [
+      ['일반-이공계', '285명 / 20.01', '305명 / 15.92', '320명 / 13.41'],
+      ['일반-경영계', '25명 / 19.32', '25명 / 15.08', '25명 / 12.28'],
+      ['탐구우수전형', '50명 / 8.62', '30명 / 7.80', '2025학년도 신설']
+    ],
+    changeRows: [
+      ['전형 신설', '그릿인재전형 신설'],
+      ['모집인원 변경', '일반전형 이공 무학과 250명 → 320명, 탐구우수전형 50명 → 70명'],
+      ['탐구우수전형 변경', '면접 배수 2배수 → 3배수, 기타 입증자료 제출건수 제한 없음 및 총 15매 이내']
+    ],
+    evaluationRows: []
+  },
+  '광주과학기술원': {
+    displayName: 'GIST',
+    summaryRows: [
+      ['학교장추천', '60', '10.22.(목)~10.23.(금)', '1단계: 서류 100(추천 5배수, 일반 6배수) / 2단계: 서류 50 + 면접 50', '없음', '15명(수능 100)'],
+      ['일반-도전탐색과정', '195', '10.22.(목)~10.23.(금)', '1단계: 서류 100(일반 6배수) / 2단계: 서류 50 + 면접 50', '없음', '15명(수능 100)'],
+      ['일반-반도체공학과', '25', '10.22.(목)~10.23.(금)', '1단계: 서류 100(일반 6배수) / 2단계: 서류 50 + 면접 50', '없음', '15명(수능 100)'],
+      ['특기자', '10', '-', '1단계: 서류 100(4배수) / 2단계: 종합평가 100', '없음', '-']
+    ],
+    competitionRows: [
+      ['일반', '150명 / 14.05', '150명 / 12.64', '150명 / 11.51'],
+      ['학교장추천', '40명 / 17.33', '40명 / 14.55', '40명 / 11.80']
+    ],
+    changeRows: [
+      ['모집인원 증원', '일반전형 125명 → 195명, 학교장추천전형 40명 → 60명, 고른기회전형 15명 → 25명'],
+      ['면접 확대', '일반·학교장추천·고른기회전형: 서류 60 + 면접 40 → 서류 50 + 면접 50'],
+      ['자기소개서 변경', '일반·학교장추천·고른기회전형 1문항 1,800자, 특기자전형 1문항 2,000자']
+    ],
+    evaluationRows: []
+  },
+  '대구경북과학기술원': {
+    displayName: 'DGIST',
+    summaryRows: [
+      ['학교장추천-기초학부', '60', '-', '일괄: 서류 100', '없음', '기초 5명, 반도체 3명(수능 100, 출결 감점)'],
+      ['학교장추천-반도체', '12', '-', '일괄: 서류 100', '없음', '기초 5명, 반도체 3명(수능 100, 출결 감점)'],
+      ['일반-기초학부', '100', '-', '서류평가 중심', '없음', '-'],
+      ['일반-반도체', '15', '-', '서류평가 중심', '없음', '-'],
+      ['일반-AI대학', '100', '-', '서류평가 중심', '없음', '-']
+    ],
+    competitionRows: [
+      ['일반-기초학부', '100명 / 33.80', '110명 / 25.60', '130명 / 20.37'],
+      ['일반-반도체', '15명 / 12.93', '25명 / 9.12', '25명 / 9.32'],
+      ['학교장추천-기초학부', '65명 / 21.23', '50명 / 22.06', '35명 / 23.60'],
+      ['학교장추천-반도체', '12명 / 6.08', '-', '-']
+    ],
+    changeRows: [
+      ['모집단위 신설', 'AI대학 신설'],
+      ['모집인원 변경', '일반전형 AI대학 100명 신설, 학교장추천 기초학부 65명 → 60명, 과학인재전형 기초학부 10명 → 15명']
+    ],
+    evaluationRows: []
+  }
+};
+
+const POLICE_SPECIAL_DATA = {
+  scheduleRows: [
+    ['원서접수', '특별전형: 5.4.(월)~5.14.(목) / 일반전형: 5.18.(월)~5.28.(목)'],
+    ['1차시험', '8.1.(토)'],
+    ['1차 합격자 발표', '8.6.(목), 추가합격 8.11.(화)'],
+    ['2차 시험', '서류제출: 신체·체력·적성검사 당일 / 신체·체력·적성검사: 9.3.(목)~9.30.(수) / 면접시험: 12.2.(수)~12.9.(수)'],
+    ['최종 발표', '2027.1.4.(월) 17:00']
+  ],
+  summaryRows: [
+    ['선발인원', '44명 + 특별전형 6명'],
+    ['학과', '법학 / 행정 각 25명, 2학년 진급 시 결정'],
+    ['반영비율', '1차시험 20% + 체력검정 5% + 면접 10% + 학생부 15% + 수능 50%'],
+    ['총점', '1차 시험 200점 + 2차 시험 150점 + 학생부 150점 + 수능 500점 = 1,000점']
+  ],
+  firstTestRows: [
+    ['국어', '독서·문학', '45문항 / 60분', '100점(2점, 3점)'],
+    ['영어', '영어Ⅰ·영어Ⅱ', '45문항 / 60분', '100점(2점, 3점), 듣기평가 없음'],
+    ['수학', '수학Ⅰ·수학Ⅱ', '25문항 / 80분', '100점(3점, 4점, 5점), 단답형 주관식 5문항 포함']
+  ],
+  studentRows: [
+    ['학생부 교과', '석차등급 기재 전과목 반영, 3학년 1학기까지 반영, 135점'],
+    ['출석 점수', '미인정 결석일수에 따라 11~15점. 지각·조퇴·결과는 3회를 1회로 계산'],
+    ['수능 반영', '국어 140 + 수학 140 + 영어 140 + 탐구 80 + 한국사 감점 = 500점'],
+    ['수능 최저', '국어·수학·영어·탐구 중 2개 영역 이상 2등급 이내, 한국사 3등급 이내']
+  ],
+  competitionRows: [
+    ['2026학년도', '44명', '93.6'],
+    ['2025학년도', '44명', '193.9'],
+    ['2024학년도', '44명', '80.3']
+  ],
+  firstPassRows: [
+    ['2026학년도', '95.44', '85.55', '91.27', '90.75'],
+    ['2025학년도', '87.84', '90.15', '78.81', '85.60'],
+    ['2024학년도', '83.32', '74.42', '74.01', '78.92']
+  ]
+};
+
+const ACADEMY_SPECIAL_DATA = {
+  scheduleRows: [
+    ['원서접수', '6.19.(금) 09:00 ~ 6.29.(월) 17:00', '6.19.(금) 09:00 ~ 6.29.(월) 17:00', '6.19.(금) 09:00 ~ 6.29.(월) 17:00', '6.19.(금) 09:00 ~ 6.29.(월) 17:00'],
+    ['1차 시험', '8.1.(토)', '8.1.(토)', '8.1.(토)', '8.1.(토)'],
+    ['1차 합격자 발표', '8.14.(금), 추합 8.20·24·26', '8.13.(목), 추합 8.24', '8.13.(목), 추합 8.20·27', '8.14.(금), 추합 8.20'],
+    ['2차 시험 접수', '8.14.~8.18., 추합 8.21·25·27', '8.13.~8.19., 추합 8.24~8.26', '8.13.~8.18., 추합 8.25·9.1', '8.14.~8.19., 추합 8.25'],
+    ['2차 시험', '9.1.~10.30., 응시조별 2일', '9.1.~10.30., 각 조별 2일', '8.31.~10.16., 개인별 1박 2일', '8.27.~9.30.'],
+    ['우선선발/특별전형 발표', '11.6.(금)', '11.5.(목)', '11.13.(금)', '11.6.(금)'],
+    ['종합선발 발표', '12.18.(금)', '12.15.(화)', '12.18.(금)', '12.21.(월)']
+  ],
+  quotaRows: [
+    ['위치', '서울특별시', '경상남도 창원시', '충청북도 청주시', '대전광역시'],
+    ['남자 인문/자연', '127명 / 155명', '65명 / 79명', '60명 / 139명', '6명 / 8명'],
+    ['여자 인문/자연', '28명 / 20명', '13명 / 13명', '16명 / 20명', '31명 / 45명'],
+    ['일반 우선선발', '85명 이내', '남자 46명, 여자 14명', '81명 내외', '21명, 남자 15% 내외'],
+    ['학교장추천', '99명', '51명', '82명 내외', '42명'],
+    ['종합선발(수능 반영)', '48명 내외', '34명 내외', '47명 내외', '27명']
+  ],
+  firstTestRows: [
+    ['시험과목', '인문: 국어·수학·영어 / 자연: 국어·수학·영어. 수학 선택과목은 계열에 따라 확통·미적·기하 반영, 표준점수 활용'],
+    ['문항수/시간', '국어 30문항 50분, 수학 30문항 100분, 영어 30문항 50분(듣기 제외)'],
+    ['가산점', '한국사능력검정시험: 육군·국군간호 최대 3점, 해군·공군 최대 5점 / 체력우수자 1점']
+  ],
+  futureRows: [
+    ['대상', '육군사관학교 국방미래인재전형'],
+    ['1차 합격자 발표', '9.28.(월)'],
+    ['1차 선발인원', '계열별 남자 5배수, 여자 8배수'],
+    ['2차 시험 접수', '9.28.(월)~10.2.(금)'],
+    ['서류평가', '학업성취도 800점 + 학업태도 100점 + 진로역량 100점 = 1,000점'],
+    ['수능최저학력기준', '국어·수학·영어·탐구 평균 중 3개 합 8 이내']
+  ]
+};
+
+function specialBlock(title, bodyHtml) {
+  return `<section class="admission-special-block"><div class="admission-special-title">${escapeHtml(title)}</div>${bodyHtml}</section>`;
+}
+
+function buildScienceSpecialHtml(universityName) {
+  const data = SCIENCE_SPECIAL_DATA[universityName] || SCIENCE_SPECIAL_DATA[removeCampus(universityName)] || null;
+  if (!data) return '';
+  return `
+    <div class="admission-raw-section-wrap admission-special-wrap">
+      <div class="admission-result-note">${escapeHtml(data.displayName)} 입학자료를 전형별로 다시 정리한 내용입니다. 모집인원, 면접일, 전형방법, 수능최저, 정시 선발 여부를 한 표에서 확인할 수 있습니다.</div>
+      ${specialBlock('2027 수시·정시 전형 요약', htmlTable(['전형명', '인원', '면접일', '전형방법', '수능최저', '정시'], data.summaryRows, { className: 'admission-data-table admission-special-table' }))}
+      ${data.competitionRows?.length ? specialBlock('수시 3개년 경쟁률', htmlTable(['전형', '2026학년도', '2025학년도', '2024학년도'], data.competitionRows, { className: 'admission-data-table admission-special-table' })) : ''}
+      ${data.changeRows?.length ? specialBlock('전년도와의 차이점', htmlTable(['구분', '변경 사항'], data.changeRows, { className: 'admission-data-table admission-special-table' })) : ''}
+      ${data.evaluationRows?.length ? specialBlock('서류·면접 평가 방법', htmlTable(['구분', '내용'], data.evaluationRows, { className: 'admission-data-table admission-special-table' })) : ''}
+    </div>
+  `;
+}
+
+function buildPoliceSpecialHtml() {
+  return `
+    <div class="admission-raw-section-wrap admission-special-wrap">
+      <div class="admission-result-note">경찰대학 입학자료를 일정, 선발 구조, 평가 요소, 최근 경쟁률로 나누어 정리한 내용입니다.</div>
+      ${specialBlock('전형 일정', htmlTable(['구분', '내용'], POLICE_SPECIAL_DATA.scheduleRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('선발 구조', htmlTable(['구분', '내용'], POLICE_SPECIAL_DATA.summaryRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('1차 시험', htmlTable(['과목', '출제범위', '문항수/시간', '배점'], POLICE_SPECIAL_DATA.firstTestRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('학생부·수능 반영', htmlTable(['구분', '내용'], POLICE_SPECIAL_DATA.studentRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('최근 3개년 경쟁률', htmlTable(['학년도', '모집인원', '경쟁률'], POLICE_SPECIAL_DATA.competitionRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('최근 3개년 1차 시험 최초 합격자 평균', htmlTable(['학년도', '국어', '영어', '수학', '평균'], POLICE_SPECIAL_DATA.firstPassRows, { className: 'admission-data-table admission-special-table' }))}
+    </div>
+  `;
+}
+
+function buildAcademySpecialHtml() {
+  return `
+    <div class="admission-raw-section-wrap admission-special-wrap">
+      <div class="admission-result-note">사관학교와 국군간호사관학교 입학자료를 일정, 모집인원, 1차 시험, 가산점으로 나누어 정리한 내용입니다.</div>
+      ${specialBlock('전형 일정 비교', htmlTable(['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'], ACADEMY_SPECIAL_DATA.scheduleRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('모집인원 및 선발 구조', htmlTable(['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'], ACADEMY_SPECIAL_DATA.quotaRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('1차 시험 및 가산점', htmlTable(['구분', '내용'], ACADEMY_SPECIAL_DATA.firstTestRows, { className: 'admission-data-table admission-special-table' }))}
+      ${specialBlock('국방미래인재전형 참고', htmlTable(['구분', '내용'], ACADEMY_SPECIAL_DATA.futureRows, { className: 'admission-data-table admission-special-table' }))}
+    </div>
+  `;
+}
+
+function buildSpecialCategoryHtml(rawValue, row, universityName) {
+  const name = clean(universityName || row?.university_name || row?.university_key);
+  if (name === '경찰대학') return buildPoliceSpecialHtml();
+  if (['육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'].includes(name)) return buildAcademySpecialHtml();
+  if (SCIENCE_SPECIAL_DATA[name] || SCIENCE_SPECIAL_DATA[removeCampus(name)]) return buildScienceSpecialHtml(name);
+  return buildPlainListHtml(splitAdmissionLines(rawValue), 'selection_method');
+}
+
+function buildSmartRawHtml(value, sectionKey, row = null, universityName = '') {
+  if (row?.detail_status === 'category' && sectionKey === 'selection_method') {
+    return buildSpecialCategoryHtml(value, row, universityName);
+  }
+
   const lines = splitAdmissionLines(value).filter((line) => clean(line) !== '표 값');
   if (!lines.length) return '';
 
@@ -1578,8 +2112,8 @@ function wrapExistingHtml(value, sectionKey) {
   `;
 }
 
-function buildRawSectionHtml(value, sectionKey) {
-  return buildSmartRawHtml(value, sectionKey);
+function buildRawSectionHtml(value, sectionKey, row = null, universityName = '') {
+  return buildSmartRawHtml(value, sectionKey, row, universityName);
 }
 
 function buildRecruitmentResultHtml(value) {
@@ -1680,7 +2214,7 @@ function findResourceRow(university, resourceIndex) {
   return resourceIndex.uniqueBaseMap.get(baseKey) || null;
 }
 
-function InfoButton({ section, row, onOpen }) {
+function InfoButton({ section, row, universityName, onOpen }) {
   const rawTextContent = getSectionText(row, section.key);
   const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
   const wrappedRawKeys = ['selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
@@ -1690,7 +2224,7 @@ function InfoButton({ section, row, onOpen }) {
   // 이전에 만들어진 표시용 HTML이 짧거나 오래된 경우에도 원본 텍스트가 있으면 그쪽을 화면에서 재정리한다.
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
   const content = shouldWrapRaw && hasMeaningfulRaw
-    ? buildRawSectionHtml(rawTextContent, section.key)
+    ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
     : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent);
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
@@ -1768,6 +2302,7 @@ function UniversityCard({ university, row, onOpenInfo }) {
             key={section.key}
             section={section}
             row={row}
+            universityName={university.name}
             onOpen={(openedSection, content, isHtml = false) =>
               onOpenInfo({
                 universityName: university.name,
@@ -2221,14 +2756,23 @@ export default function AdmissionGuidelines() {
         .admission-text-line { border: 1px solid #E2E8F0; background: #fff; border-radius: 12px; padding: 10px 12px; color: #344054; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #E8DCC5; background: #FFF8EC; color: #6F4C13; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
         .admission-header-summary { margin-bottom: 10px; border: 1px solid #E2E8F0; background: #F8FAFC; color: #526071; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-        .admission-recruit-table { min-width: 900px; }
-        .admission-recruit-table .group-cell { min-width: 120px; max-width: 180px; }
+        .admission-recruit-table { min-width: 1100px; }
+        .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
         .admission-recruit-table .unit-cell { min-width: 220px; max-width: 360px; }
-        .admission-recruit-table .values-cell { min-width: 360px; text-align: left; white-space: normal; }
-        .admission-result-values { display: flex; flex-wrap: wrap; gap: 8px; }
-        .admission-result-group { display: inline-flex; gap: 4px; align-items: center; border: 1px solid #D9E0EA; background: #F8FAFC; border-radius: 10px; padding: 4px; }
-        .admission-result-group span { min-width: 42px; border-radius: 7px; background: #fff; border: 1px solid #E2E8F0; padding: 4px 7px; text-align: center; font-size: 12.5px; line-height: 1.3; font-weight: 900; color: #344054; }
+        .admission-recruit-table .recruit-values-cell { min-width: 180px; text-align: left; white-space: normal; vertical-align: top; }
+        .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
+        .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 9px; padding: 5px 7px; color: #344054; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
+        .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
+        .admission-score-table th, .admission-score-table td { padding: 8px 9px; }
+        .admission-record-info-table td:first-child { min-width: 160px; color: #0D1B2A; background: #FAFBFC; font-weight: 950; }
         .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-special-wrap { display: grid; gap: 16px; }
+        .admission-special-block { display: grid; gap: 8px; }
+        .admission-special-title { border-left: 4px solid #B88737; background: #FFF8EC; border-radius: 12px; padding: 10px 12px; color: #0D1B2A; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
+        .admission-special-table { min-width: 860px; }
+        .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
+        .admission-special-table td:first-child { min-width: 150px; background: #FAFBFC; color: #0D1B2A; font-weight: 950; }
         .muted { color: #98A2B3; }
         @media (max-width: 720px) {
           .admission-token-row { grid-template-columns: 1fr; }
