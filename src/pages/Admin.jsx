@@ -288,7 +288,7 @@ admissionGuidelines: {
 
     {
       key: 'previous_year_changes',
-      label: '전년도와 차이점(HTML)',
+      label: '전년도와 차이점(수시)(HTML)',
       type: 'textarea',
       rows: 8
     },
