@@ -1414,8 +1414,9 @@ export default function AdmissionGuidelines() {
 
   <div className="mt-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
     <p className="text-[12px] font-bold leading-5 text-white/55">
-      지역을 선택한 뒤 대학별 버튼을 확인하세요. 자료가 없는 버튼은 회색으로 표시됩니다.
-    </p>
+  <span className="block">지역을 선택한 뒤 대학별 버튼을 확인하세요.</span>
+  <span className="block">자료가 없는 버튼은 회색으로 표시됩니다.</span>
+</p>
   </div>
 </div>
             </div>
