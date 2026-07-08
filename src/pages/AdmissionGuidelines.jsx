@@ -1567,22 +1567,38 @@ function splitReadableChangeChunks(text) {
   return out;
 }
 
-function splitBeforeAfterContent(content) {
-  const raw = clean(content);
-  if (!raw) return { before: '', after: '', mode: 'plain', chunks: [] };
+function normalizeChangeTokenSpacing(text) {
+  return clean(text)
+    .replace(/(\d+)\s*합\s*(\d+)/g, '$1합$2')
+    .replace(/([ABC])\s+등급/g, '$1등급')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
-  if (raw.includes('→')) {
-    const pieces = raw.split('→').map(clean).filter(Boolean);
-    if (pieces.length >= 2) {
-      return { before: pieces.shift(), after: pieces.join(' → '), mode: 'arrow', chunks: [] };
-    }
-  }
+function splitBeforeAfterContent(content) {
+  const raw = normalizeChangeTokenSpacing(content);
+  if (!raw) return { before: '', after: '', mode: 'plain', chunks: [] };
 
   const labelled = raw.match(/^(.*?)(?:변경\s*전|개편\s*전|구조개편\s*전)\s*(.*?)(?:변경\s*후|개편\s*후|구조개편\s*후)\s*(.+)$/);
   if (labelled) {
-    const before = clean(labelled[2]);
-    const after = clean(labelled[3]);
+    const before = normalizeChangeTokenSpacing(labelled[2]);
+    const after = normalizeChangeTokenSpacing(labelled[3]);
     if (before || after) return { before: before || '기존 구조', after: after || '-', mode: 'labelled', chunks: [] };
+  }
+
+  // 한 줄 안에 2026학년도/2027학년도가 같이 붙은 경우를 실제 변경 전/후로 분리한다.
+  const yearPair = raw.match(/^(.*?)(2026학년도.+?)\s+(2027학년도.+)$/);
+  if (yearPair) {
+    const before = normalizeChangeTokenSpacing(yearPair[2]);
+    const after = normalizeChangeTokenSpacing(yearPair[3]);
+    if (before && after) return { before, after, mode: 'year', chunks: [] };
+  }
+
+  if (raw.includes('→')) {
+    const pieces = raw.split('→').map(normalizeChangeTokenSpacing).filter(Boolean);
+    if (pieces.length >= 2) {
+      return { before: pieces.shift(), after: pieces.join(' → '), mode: 'arrow', chunks: [] };
+    }
   }
 
   return { before: '', after: '', mode: 'plain', chunks: splitReadableChangeChunks(raw) };
@@ -1683,27 +1699,57 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
   });
   pushCurrent();
 
-  const sourceItems = items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }));
-  const rows = sourceItems.map((item) => {
-    let title = '주요 변경';
-    let content = item.text;
+  const baseItems = items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }));
 
-    const colon = content.match(/^([^:：]{2,55})\s*[:：]\s*(.+)$/);
-    if (colon) {
-      title = colon[1].trim();
-      content = colon[2].trim();
+  const expandedItems = [];
+  baseItems.forEach((item) => {
+    const text = clean(item.text);
+    const markers = [...text.matchAll(/(?:^|\s)(\d+)\)\s*/g)];
+    if (markers.length >= 2) {
+      const prefix = clean(text.slice(0, markers[0].index));
+      markers.forEach((marker, idx) => {
+        const start = marker.index + marker[0].length;
+        const end = idx + 1 < markers.length ? markers[idx + 1].index : text.length;
+        const part = clean(text.slice(start, end));
+        if (part) expandedItems.push({ no: '', text: prefix && prefix.length <= 25 ? `${prefix} ${part}` : part });
+      });
     } else {
-      const titleMatch = content.match(/^(.{2,45}?(?:변경|신설|폐지|통폐합|개편|확대|축소|증가|감소))\s+(.+)$/);
-      if (titleMatch) {
-        title = titleMatch[1].trim();
-        content = titleMatch[2].trim();
+      expandedItems.push({ no: '', text });
+    }
+  });
+
+  const rows = expandedItems.map((item, idx) => {
+    let title = '주요 변경';
+    let content = clean(item.text);
+
+    const labelIdx = content.search(/(?:변경\s*전|개편\s*전|구조개편\s*전)/);
+    if (labelIdx > 0) {
+      title = clean(content.slice(0, labelIdx)) || '주요 변경';
+      content = clean(content.slice(labelIdx));
+    } else {
+      const colon = content.match(/^([^:：]{2,80})\s*[:：]\s*(.+)$/);
+      if (colon) {
+        title = clean(colon[1]);
+        content = clean(colon[2]);
+      } else {
+        const titleMatch = content.match(/^(.{2,70}?(?:변경|신설|폐지|통폐합|개편|확대|축소|증가|감소))\s+(.+)$/);
+        if (titleMatch) {
+          title = clean(titleMatch[1]);
+          content = clean(titleMatch[2]);
+        }
       }
     }
+
+    // 행 제목에 붙은 상위 범주가 너무 앞에 붙어 있으면 가독성 있게 정리한다.
+    title = title
+      .replace(/^(학생부교과|학생부종합|논술|실기)\s+(?=.+(?:변경|신설|폐지|개편))/, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim() || '주요 변경';
 
     const parsed = splitBeforeAfterContent(content);
     const note = summarizeChangeNote(title, parsed.before, parsed.after || content);
     return {
-      no: item.no,
+      no: `${idx + 1}`,
       title,
       html: buildChangeValueHtml(content),
       note
@@ -3732,8 +3778,8 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
-                 </div>
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>                 
+                </div>
 
                 <div className="grid gap-2">
                   {SPECIAL_UNIVERSITY_GROUPS.map((group) => (
@@ -3956,9 +4002,9 @@ export default function AdmissionGuidelines() {
 
         .admission-change-scroll-table { overflow-x: visible; }
         .admission-change-table { width: 100%; min-width: 0; table-layout: fixed; }
-        .admission-change-table th:nth-child(1), .admission-change-table td:nth-child(1) { width: 70px; text-align: center; }
-        .admission-change-table th:nth-child(2), .admission-change-table td:nth-child(2) { width: 220px; }
-        .admission-change-table th:nth-child(4), .admission-change-table td:nth-child(4) { width: 150px; }
+        .admission-change-table th:nth-child(1), .admission-change-table td:nth-child(1) { width: 58px; text-align: center; }
+        .admission-change-table th:nth-child(2), .admission-change-table td:nth-child(2) { width: 240px; }
+        .admission-change-table th:nth-child(4), .admission-change-table td:nth-child(4) { width: 130px; }
         .admission-change-table .change-no-cell { font-weight: 950; color: #9A6A1D; }
         .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #0D1B2A; word-break: keep-all; }
         .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
