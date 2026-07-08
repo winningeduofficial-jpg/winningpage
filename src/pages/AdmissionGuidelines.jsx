@@ -4423,10 +4423,7 @@ export default function AdmissionGuidelines() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-4 rounded-2xl border border-[#E8DCC5] bg-[#FFF8EC] px-4 py-3 text-[13px] font-extrabold leading-6 text-[#6F4C13]">
-                    대학별 자료를 한 줄 배열로 정리했습니다. 수시 6개 항목은 표 안에서 바로 확인하고, 정시모집요강은 오른쪽 열에서 새 창으로 열립니다.
-                  </div>
-                  <div className="hidden md:block">
+                                    <div className="hidden md:block">
                     <UniversityResourceTable
                       universities={visibleUniversities}
                       resourceIndex={resourceIndex}
