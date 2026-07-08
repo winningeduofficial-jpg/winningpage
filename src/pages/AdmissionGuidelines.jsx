@@ -1482,13 +1482,12 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
-  const headers = ['번호', '변경 항목', '변경 전', '변경 후', '비고'];
+  const headers = ['번호', '변경 항목', '변경 전 → 변경 후', '비고'];
 
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
     return `
       <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">전년도와 비교해 달라진 내용을 항목별로 정리한 표입니다.</div>
-        ${htmlTable(headers, [['1', '변경 사항', '-', '-', '전년도와 동일']], { compact: true, className: 'admission-data-table admission-change-table' })}
+        ${htmlTable(headers, [['1', '변경 사항', '전년도와 동일', '-']], { compact: true, className: 'admission-data-table admission-change-table' })}
       </div>
     `;
   }
@@ -1540,12 +1539,14 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
       after = pieces.join('→').trim() || '-';
     }
 
-    return [item.no, title, before, after, summarizeChangeNote(title, before, after)];
+    const combined = before && after && before !== '-' && after !== '-'
+      ? `${before} → ${after}`
+      : (after && after !== '-' ? after : (before && before !== '-' ? before : '-'));
+    return [item.no, title, combined, summarizeChangeNote(title, before, after)];
   });
 
   return `
     <div class="admission-raw-section-wrap">
-      <div class="admission-result-note">전년도와 비교해 달라진 내용을 항목별로 정리한 표입니다.</div>
       ${htmlTable(headers, rows, { compact: true, className: 'admission-data-table admission-change-table' })}
     </div>
   `;
@@ -2734,6 +2735,9 @@ export default function AdmissionGuidelines() {
   const [resourceRows, setResourceRows] = useState([]);
   const [tooltip, setTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
   const [selectedInfo, setSelectedInfo] = useState(null);
+  const modalBodyRef = useRef(null);
+  const modalXScrollRef = useRef(null);
+  const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
 
   useEffect(() => {
     let alive = true;
@@ -2772,6 +2776,119 @@ export default function AdmissionGuidelines() {
       path.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
   }, [selectedRegion]);
+
+  useEffect(() => {
+    if (!selectedInfo) {
+      setModalXScroll({ visible: false, width: 0 });
+      return undefined;
+    }
+
+    const body = modalBodyRef.current;
+    const bar = modalXScrollRef.current;
+    if (!body) return undefined;
+
+    let activeTarget = null;
+    let syncing = false;
+    let rafId = 0;
+
+    const getHorizontalTargets = () => Array.from(
+      body.querySelectorAll('.admission-scroll-table, .admission-table-wrap, .admission-existing-html')
+    ).filter((element) => element.scrollWidth > element.clientWidth + 6);
+
+    const pickTarget = () => {
+      const targets = getHorizontalTargets();
+      if (!targets.length) return null;
+      return targets.reduce((best, current) => {
+        const bestOverflow = best.scrollWidth - best.clientWidth;
+        const currentOverflow = current.scrollWidth - current.clientWidth;
+        return currentOverflow > bestOverflow ? current : best;
+      }, targets[0]);
+    };
+
+    const syncTargetsFromBar = () => {
+      if (!bar || syncing) return;
+      const target = activeTarget || pickTarget();
+      if (!target) return;
+
+      syncing = true;
+      const maxBar = Math.max(1, bar.scrollWidth - bar.clientWidth);
+      const ratio = bar.scrollLeft / maxBar;
+      getHorizontalTargets().forEach((element) => {
+        const maxElement = Math.max(0, element.scrollWidth - element.clientWidth);
+        element.scrollLeft = maxElement * ratio;
+      });
+      window.requestAnimationFrame(() => {
+        syncing = false;
+      });
+    };
+
+    const syncBarFromTarget = (target) => {
+      if (!bar || syncing || !target) return;
+
+      syncing = true;
+      const maxTarget = Math.max(1, target.scrollWidth - target.clientWidth);
+      const maxBar = Math.max(0, bar.scrollWidth - bar.clientWidth);
+      const ratio = target.scrollLeft / maxTarget;
+      bar.scrollLeft = maxBar * ratio;
+      window.requestAnimationFrame(() => {
+        syncing = false;
+      });
+    };
+
+    const refresh = () => {
+      activeTarget = pickTarget();
+      if (!activeTarget) {
+        setModalXScroll({ visible: false, width: 0 });
+        return;
+      }
+
+      setModalXScroll({ visible: true, width: activeTarget.scrollWidth });
+      window.requestAnimationFrame(() => syncBarFromTarget(activeTarget));
+    };
+
+    const scheduleRefresh = () => {
+      window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(refresh);
+    };
+
+    const onTargetScroll = (event) => {
+      activeTarget = event.currentTarget;
+      syncBarFromTarget(activeTarget);
+    };
+
+    const attachTargetListeners = () => {
+      getHorizontalTargets().forEach((element) => {
+        element.removeEventListener('scroll', onTargetScroll);
+        element.addEventListener('scroll', onTargetScroll, { passive: true });
+      });
+    };
+
+    scheduleRefresh();
+    const timeoutId = window.setTimeout(() => {
+      refresh();
+      attachTargetListeners();
+    }, 80);
+
+    bar?.addEventListener('scroll', syncTargetsFromBar, { passive: true });
+    body.addEventListener('scroll', scheduleRefresh, { passive: true });
+    window.addEventListener('resize', scheduleRefresh);
+
+    const observer = new ResizeObserver(() => {
+      scheduleRefresh();
+      attachTargetListeners();
+    });
+    observer.observe(body);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.cancelAnimationFrame(rafId);
+      bar?.removeEventListener('scroll', syncTargetsFromBar);
+      body.removeEventListener('scroll', scheduleRefresh);
+      window.removeEventListener('resize', scheduleRefresh);
+      getHorizontalTargets().forEach((element) => element.removeEventListener('scroll', onTargetScroll));
+      observer.disconnect();
+    };
+  }, [selectedInfo, modalXScroll.visible]);
 
   const resourceIndex = useMemo(() => buildResourceIndex(resourceRows), [resourceRows]);
 
@@ -2990,7 +3107,10 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>                  
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
+                  <p className="mt-1 break-keep text-xs font-bold leading-5 text-[#667085]">
+                    경찰대·과학기술원·사관학교 자료는 지역 지도와 별도로 확인합니다.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">
@@ -3069,10 +3189,7 @@ export default function AdmissionGuidelines() {
               {!selectedRegion && !selectedSpecialGroupKey && !keyword.trim() ? (
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
-                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>
-                    <p className="mt-3 text-sm font-bold leading-6 text-[#667085]">
-                      처음 화면에서는 특정 지역을 고정하지 않습니다. 지도는 일반 지역 대학, 왼쪽 별도 분류는 경찰대·과학기술원·사관학교 자료를 보여줍니다.
-                    </p>
+                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>                    
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
@@ -3108,7 +3225,20 @@ export default function AdmissionGuidelines() {
 
 
       <style>{`
-        .admission-modal-body { overscroll-behavior: contain; }
+        .admission-modal-body { overscroll-behavior: contain; scrollbar-gutter: stable; }
+        .admission-modal-body .admission-scroll-table,
+        .admission-modal-body .admission-table-wrap,
+        .admission-modal-body .admission-existing-html { scrollbar-width: none; }
+        .admission-modal-body .admission-scroll-table::-webkit-scrollbar,
+        .admission-modal-body .admission-table-wrap::-webkit-scrollbar,
+        .admission-modal-body .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
+        .admission-modal-x-scroll-shell { flex: 0 0 auto; border-top: 1px solid #E7EBF0; background: #fff; padding: 5px 24px 4px; }
+        .admission-modal-x-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #AFA895 #F1F3F6; }
+        .admission-modal-x-scroll-inner { height: 1px; }
+        .admission-modal-x-scroll::-webkit-scrollbar { height: 7px; }
+        .admission-modal-x-scroll::-webkit-scrollbar-track { background: #F1F3F6; border-radius: 999px; }
+        .admission-modal-x-scroll::-webkit-scrollbar-thumb { background: #AFA895; border-radius: 999px; }
+        .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #8F8774; }
         .admission-table-wrap,
         .admission-existing-html,
         .admission-raw-section-wrap { width: 100%; max-width: 100%; }
@@ -3180,9 +3310,11 @@ export default function AdmissionGuidelines() {
         .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
         .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 9px; padding: 5px 7px; color: #344054; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
         .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
+        .admission-change-table { min-width: 920px; }
         .admission-change-table td:first-child { width: 64px; text-align: center; font-weight: 950; color: #9A6A1D; }
-        .admission-change-table td:nth-child(2) { width: 180px; text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; }
-        .admission-change-table td:nth-child(3), .admission-change-table td:nth-child(4) { text-align: left; white-space: normal; line-height: 1.65; }
+        .admission-change-table td:nth-child(2) { width: 190px; text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; }
+        .admission-change-table td:nth-child(3) { min-width: 520px; text-align: left; white-space: normal; line-height: 1.65; word-break: keep-all; }
+        .admission-change-table td:nth-child(4) { width: 150px; text-align: left; white-space: normal; line-height: 1.65; color: #475467; }
         .admission-score-table th, .admission-score-table td { padding: 8px 9px; }
         .admission-record-info-table td:first-child { min-width: 160px; color: #0D1B2A; background: #FAFBFC; font-weight: 950; }
         .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
@@ -3206,7 +3338,7 @@ export default function AdmissionGuidelines() {
           onClick={() => setSelectedInfo(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-[1320px] overflow-hidden rounded-[24px] bg-white shadow-2xl"
+            className="flex max-h-[90vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="border-b border-[#E7EBF0] px-6 py-5">
@@ -3215,7 +3347,8 @@ export default function AdmissionGuidelines() {
                 {selectedInfo.title}
               </h3>
             </div>
-            <div className="admission-modal-body max-h-[66vh] overflow-auto px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
+            <div ref={modalBodyRef}
+              className="admission-modal-body flex-1 overflow-auto px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
               {selectedInfo.isHtml ? (
                 <div
                   className="admission-table-wrap"
@@ -3225,6 +3358,20 @@ export default function AdmissionGuidelines() {
                 <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
               )}
             </div>
+            {selectedInfo.isHtml && modalXScroll.visible ? (
+              <div className="admission-modal-x-scroll-shell">
+                <div
+                  ref={modalXScrollRef}
+                  className="admission-modal-x-scroll"
+                  aria-label="표 좌우 이동"
+                >
+                  <div
+                    className="admission-modal-x-scroll-inner"
+                    style={{ width: `${Math.max(modalXScroll.width, 1)}px` }}
+                  />
+                </div>
+              </div>
+            ) : null}
             <div className="border-t border-[#E7EBF0] px-6 py-4 text-right">
               <button
                 type="button"
