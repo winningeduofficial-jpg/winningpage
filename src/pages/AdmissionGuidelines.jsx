@@ -1585,8 +1585,9 @@ function buildPlainListHtml(lines, sectionKey) {
 }
 
 function isSelectionSeatToken(line) {
-  const v = clean(line).replace(/[()]/g, '');
-  return /^\d{1,4}$/.test(v);
+  const v = clean(line).replace(/[()]/g, '').replace(/\s/g, '');
+  // 1,341처럼 쉼표가 있는 대형 모집인원도 인원값으로 본다.
+  return /^\d{1,4}$/.test(v) || /^\d{1,3}(?:,\d{3})+$/.test(v);
 }
 
 function looksLikeSelectionMinimumToken(line) {
@@ -2963,6 +2964,148 @@ function UniversityCard({ university, row, onOpenInfo }) {
   );
 }
 
+function hasNumericOnlyCellAsLabel(html, className) {
+  const re = new RegExp(`<td[^>]*class="[^"]*${className}[^"]*"[^>]*>\\s*(?:<[^>]+>)*\\s*[0-9][0-9,]*(?:\\.[0-9]+)?(?:\\s*\\([^)]*\\))?\\s*(?:</[^>]+>)*\\s*</td>`, 'i');
+  return re.test(String(html || ''));
+}
+
+function countMatches(source, pattern) {
+  return (String(source || '').match(pattern) || []).length;
+}
+
+function buildAdmissionVisualAudit(rows) {
+  const issues = [];
+  const add = (row, section, severity, message) => {
+    issues.push({
+      university: clean(row?.university_name || row?.name || row?.university_key || '-'),
+      section,
+      severity,
+      message
+    });
+  };
+
+  (rows || []).forEach((row) => {
+    const universityName = clean(row?.university_name || row?.name || row?.university_key || '');
+
+    try {
+      const selectionText = getSectionText(row, 'selection_method');
+      if (selectionText) {
+        const selectionHtml = buildRawSectionHtml(selectionText, 'selection_method', row, universityName);
+        if (hasNumericOnlyCellAsLabel(selectionHtml, 'selection-name-cell')) {
+          add(row, '전형방법', 'error', '전형명 칸에 숫자만 들어간 행이 있습니다.');
+        }
+        if (/<td[^>]*class="[^"]*selection-name-cell[^"]*"[^>]*>\s*(?:학생부\(교과\)|서류\s*100|논술\s*100|1단계:)/i.test(selectionHtml)) {
+          add(row, '전형방법', 'error', '전형방법 내용이 전형명 칸으로 밀린 행이 있습니다.');
+        }
+        if (/<td[^>]*class="[^"]*selection-method-cell[^"]*"[^>]*>\s*-\s*<\/td>/i.test(selectionHtml)
+          && /(학생부|서류|논술|면접|출결)/.test(selectionText)) {
+          add(row, '전형방법', 'warn', '전형방법 원자료는 있는데 화면 전형방법 칸이 비어 있는 행이 있을 수 있습니다.');
+        }
+      }
+    } catch (error) {
+      add(row, '전형방법', 'error', `렌더링 오류: ${error?.message || error}`);
+    }
+
+    try {
+      const minimumText = getSectionText(row, 'minimum_requirements');
+      if (minimumText) {
+        const minimumHtml = buildRawSectionHtml(minimumText, 'minimum_requirements', row, universityName);
+        if (/☆\s*:\s*필수|★\s*:\s*필수|비고<\/th>[\s\S]*?필수/i.test(minimumHtml)) {
+          add(row, '최저학력기준', 'warn', '별표 필수 설명이 비고에 노출될 가능성이 있습니다.');
+        }
+        if (/undefined|NaN|\[object Object\]/.test(minimumHtml)) {
+          add(row, '최저학력기준', 'error', '깨진 렌더링 토큰이 있습니다.');
+        }
+      }
+    } catch (error) {
+      add(row, '최저학력기준', 'error', `렌더링 오류: ${error?.message || error}`);
+    }
+
+    try {
+      const recordText = getSectionText(row, 'school_record_method');
+      if (recordText) {
+        const recordHtml = buildRawSectionHtml(recordText, 'school_record_method', row, universityName);
+        if (countMatches(recordHtml, />\s*내용\s*<\/td>/g) >= 3) {
+          add(row, '학생부반영방법', 'error', '구분 칸에 “내용”이 반복됩니다.');
+        }
+        if (/undefined|NaN|\[object Object\]/.test(recordHtml)) {
+          add(row, '학생부반영방법', 'error', '깨진 렌더링 토큰이 있습니다.');
+        }
+      }
+    } catch (error) {
+      add(row, '학생부반영방법', 'error', `렌더링 오류: ${error?.message || error}`);
+    }
+
+    try {
+      const quotaText = getSectionText(row, 'recruitment_quota');
+      const quotaHtmlRaw = clean(row?.recruitment_result_html);
+      if (quotaText || quotaHtmlRaw) {
+        const quotaHtml = quotaHtmlRaw ? normalizeRecruitmentExactHtml(quotaHtmlRaw, quotaText) : buildRawSectionHtml(quotaText, 'recruitment_quota', row, universityName);
+        if (hasNumericOnlyCellAsLabel(quotaHtml, 'recruit-track-cell')) {
+          add(row, '모집인원 및 입결', 'error', '계열 칸에 숫자가 들어간 행이 있습니다.');
+        }
+        if (/자료|확인 수치|원자료|HWP/.test(stripHtmlToText(quotaHtml))) {
+          add(row, '모집인원 및 입결', 'warn', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
+        }
+      }
+    } catch (error) {
+      add(row, '모집인원 및 입결', 'error', `렌더링 오류: ${error?.message || error}`);
+    }
+  });
+
+  return issues;
+}
+
+function AdmissionQaPanel({ rows }) {
+  const issues = useMemo(() => buildAdmissionVisualAudit(rows), [rows]);
+  const errorCount = issues.filter((issue) => issue.severity === 'error').length;
+  const warnCount = issues.filter((issue) => issue.severity !== 'error').length;
+
+  return (
+    <section className="mb-8 rounded-[24px] border border-[#F04438]/25 bg-white p-5 shadow-[0_12px_30px_rgba(13,27,42,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">ADMISSION QA MODE</p>
+          <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#0D1B2A]">자동 이상치 검수 결과</h2>
+          <p className="mt-1 text-sm font-bold text-[#667085]">URL에 ?qa=1을 붙이면 전체 대학 렌더링 이상치를 한 번에 확인합니다.</p>
+        </div>
+        <div className="flex gap-2 text-sm font-black">
+          <span className="rounded-full bg-[#FEF3F2] px-3 py-1.5 text-[#B42318]">오류 {errorCount}</span>
+          <span className="rounded-full bg-[#FFFAEB] px-3 py-1.5 text-[#B54708]">주의 {warnCount}</span>
+          <span className="rounded-full bg-[#F2F4F7] px-3 py-1.5 text-[#344054]">검수 {rows?.length || 0}개</span>
+        </div>
+      </div>
+
+      <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#E1E6EE]">
+        <table className="w-full min-w-[920px] border-collapse text-sm">
+          <thead className="sticky top-0 bg-[#EEF2F7] text-[#0D1B2A]">
+            <tr>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">상태</th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">대학</th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">섹션</th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">내용</th>
+            </tr>
+          </thead>
+          <tbody>
+            {issues.length ? issues.slice(0, 300).map((issue, idx) => (
+              <tr key={`${issue.university}-${issue.section}-${idx}`} className="border-b border-[#EEF2F7]">
+                <td className="px-3 py-2 font-black">{issue.severity === 'error' ? '오류' : '주의'}</td>
+                <td className="px-3 py-2 font-bold">{issue.university}</td>
+                <td className="px-3 py-2 font-bold">{issue.section}</td>
+                <td className="px-3 py-2 text-[#344054]">{issue.message}</td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan="4" className="px-3 py-8 text-center font-black text-[#12B76A]">자동 검수 기준상 감지된 이상치가 없습니다.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function AdmissionGuidelines() {
   const mapRef = useRef(null);
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -3164,6 +3307,7 @@ export default function AdmissionGuidelines() {
   const isGlobalSearchMode = !selectedRegion && !selectedSpecialGroupKey && keyword.trim();
   const currentListTitle = selectedSpecialGroup?.label || selectedRegion || (isGlobalSearchMode ? '검색 결과' : '지역 선택');
   const hasActiveList = Boolean(selectedRegion || selectedSpecialGroupKey || isGlobalSearchMode);
+  const isQaMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('qa') === '1';
 
   function selectRegion(regionId) {
     setSelectedRegion(regionId);
@@ -3317,6 +3461,8 @@ export default function AdmissionGuidelines() {
             </div>
           </section>
 
+          {isQaMode ? <AdmissionQaPanel rows={resourceRows} /> : null}
+
           <section className="grid gap-8 lg:grid-cols-[32%_1fr] lg:items-start">
             <aside className="relative rounded-[24px] border border-[#E7EBF0] bg-white shadow-[0_14px_38px_rgba(13,27,42,0.08)] lg:sticky lg:top-[104px]">
               <div
@@ -3343,7 +3489,10 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>            
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
+                  <p className="mt-1 break-keep text-xs font-bold leading-5 text-[#667085]">
+                    경찰대·과학기술원·사관학교 자료는 지역 지도와 별도로 확인합니다.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">
