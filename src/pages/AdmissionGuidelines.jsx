@@ -3164,7 +3164,7 @@ function findResourceRow(university, resourceIndex) {
   return resourceIndex.uniqueBaseMap.get(baseKey) || null;
 }
 
-function InfoButton({ section, row, universityName, onOpen }) {
+function InfoButton({ section, row, universityName, onOpen, compact = false }) {
   const rawTextContent = getSectionText(row, section.key);
   const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
   const wrappedRawKeys = ['previous_year_changes', 'selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
@@ -3184,12 +3184,14 @@ function InfoButton({ section, row, universityName, onOpen }) {
         ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
         : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent)));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
-  const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
+  const baseClass = compact
+    ? 'admission-table-action flex min-h-[36px] w-full items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition'
+    : 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
   if (!content) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border border-[#E1E6EE] bg-[#EFF2F6] text-[#A3ACB8]`}
+        className={`${baseClass} cursor-not-allowed border border-[#D6DCE6] bg-[#F0F2F5] text-[#9EA7B3]`}
         title="등록된 정보가 없습니다."
       >
         <ButtonLabel item={section} />
@@ -3201,7 +3203,7 @@ function InfoButton({ section, row, universityName, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(section, content, isHtmlContent)}
-      className={`${baseClass} border border-[#0D1B2A] bg-[#0D1B2A] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
+      className={`${baseClass} border border-[#0D1B2A] bg-[#111827] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
       title={`${section.label} 보기`}
     >
       <ButtonLabel item={section} />
@@ -3209,16 +3211,16 @@ function InfoButton({ section, row, universityName, onOpen }) {
   );
 }
 
-function LinkButton({ section, row }) {
+function LinkButton({ section, row, compact = false }) {
   const url = getFirstUrl(row, section.keys);
-  const baseClass = `flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition ${
-    section.wide ? 'col-span-2' : ''
-  }`;
+  const baseClass = compact
+    ? `admission-table-action flex min-h-[36px] w-full items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition ${section.wide ? 'col-span-2' : ''}`
+    : `flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition ${section.wide ? 'col-span-2' : ''}`;
 
   if (!url) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border border-[#E1E6EE] bg-[#EFF2F6] text-[#A3ACB8]`}
+        className={`${baseClass} cursor-not-allowed border border-[#D6DCE6] bg-[#F0F2F5] text-[#9EA7B3]`}
         title="정시모집요강 URL이 아직 등록되지 않았습니다."
       >
         <ButtonLabel item={section} />
@@ -3239,35 +3241,40 @@ function LinkButton({ section, row }) {
   );
 }
 
+function openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml = false) {
+  onOpenInfo({
+    universityName: university.name,
+    title: openedSection.label,
+    content,
+    isHtml
+  });
+}
+
 function UniversityCard({ university, row, onOpenInfo }) {
   const infoSections = row?.detail_status === 'category' ? CATEGORY_INFO_SECTIONS : INFO_SECTIONS;
 
   return (
-    <article className="rounded-2xl border border-[#E2E6EC] bg-white p-5 shadow-[0_6px_18px_rgba(13,27,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#D4A85F]/60 hover:shadow-[0_14px_30px_rgba(13,27,42,0.08)]">
-      <div className="mb-5 flex min-h-[52px] items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-base font-black text-[#A7AFBA]">
-          {university.name.slice(0, 1)}
+    <article className="rounded-2xl border border-[#D7DEE8] bg-white p-4 shadow-[0_8px_20px_rgba(13,27,42,0.05)]">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-[#E7EBF0] pb-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-black tracking-[0.16em] text-[#B88737]">{university.region}</p>
+          <h3 className="mt-1 min-w-0 break-keep text-[18px] font-black leading-snug tracking-[-0.04em] text-[#0D1B2A]">
+            {university.name}
+          </h3>
         </div>
-        <h3 className="min-w-0 break-keep text-[18px] font-black leading-snug tracking-[-0.035em] text-[#0D1B2A]">
-          {university.name}
-        </h3>
+        <span className="shrink-0 rounded-full border border-[#E8DCC5] bg-[#FFF8EC] px-2.5 py-1 text-[11px] font-black text-[#7A541C]">
+          {row ? '자료 있음' : '확인 필요'}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2">
         {infoSections.map((section) => (
           <InfoButton
             key={section.key}
             section={section}
             row={row}
             universityName={university.name}
-            onOpen={(openedSection, content, isHtml = false) =>
-              onOpenInfo({
-                universityName: university.name,
-                title: openedSection.label,
-                content,
-                isHtml
-              })
-            }
+            onOpen={(openedSection, content, isHtml = false) => openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)}
           />
         ))}
 
@@ -3276,6 +3283,88 @@ function UniversityCard({ university, row, onOpenInfo }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function UniversityResourceRow({ university, row, onOpenInfo }) {
+  const isCategory = row?.detail_status === 'category';
+
+  return (
+    <tr>
+      <th scope="row" className="admission-directory-name-cell">
+        <span className="admission-directory-region">{university.region}</span>
+        <span className="admission-directory-name">{university.name}</span>
+        <span className={`admission-directory-status ${row ? 'ready' : ''}`}>
+          {row ? '자료 연결' : 'DB 확인'}
+        </span>
+      </th>
+
+      {isCategory ? (
+        <td colSpan={INFO_SECTIONS.length} className="admission-directory-category-cell">
+          <InfoButton
+            section={CATEGORY_INFO_SECTIONS[0]}
+            row={row}
+            universityName={university.name}
+            compact
+            onOpen={(openedSection, content, isHtml = false) => openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)}
+          />
+        </td>
+      ) : (
+        INFO_SECTIONS.map((section) => (
+          <td key={section.key}>
+            <InfoButton
+              section={section}
+              row={row}
+              universityName={university.name}
+              compact
+              onOpen={(openedSection, content, isHtml = false) => openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)}
+            />
+          </td>
+        ))
+      )}
+
+      {LINK_SECTIONS.map((section) => (
+        <td key={section.label}>
+          <LinkButton section={section} row={row} compact />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function UniversityResourceTable({ universities, resourceIndex, onOpenInfo }) {
+  return (
+    <div className="admission-directory-table-shell">
+      <table className="admission-directory-table">
+        <thead>
+          <tr>
+            <th rowSpan="2" className="admission-directory-sticky-head">대학명</th>
+            <th colSpan={INFO_SECTIONS.length} className="admission-directory-group-head">수시</th>
+            <th className="admission-directory-group-head admission-directory-regular-head">정시</th>
+          </tr>
+          <tr>
+            {INFO_SECTIONS.map((section) => (
+              <th key={section.key}>
+                <ButtonLabel item={section} />
+              </th>
+            ))}
+            <th>
+              <ButtonLabel item={LINK_SECTIONS[0]} />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {universities.map((university) => (
+            <UniversityResourceRow
+              key={`${university.region}-${university.name}`}
+              university={university}
+              row={findResourceRow(university, resourceIndex)}
+              onOpenInfo={onOpenInfo}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -4038,10 +4127,7 @@ export default function AdmissionGuidelines() {
               {!selectedRegion && !selectedSpecialGroupKey && !keyword.trim() ? (
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
-                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>
-                    <p className="mt-3 text-sm font-bold leading-6 text-[#667085]">
-                      처음 화면에서는 특정 지역을 고정하지 않습니다. 지도는 일반 지역 대학, 왼쪽 별도 분류는 경찰대·과학기술원·사관학교 자료를 보여줍니다.
-                    </p>
+                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>                    
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
@@ -4050,16 +4136,28 @@ export default function AdmissionGuidelines() {
                   <p className="mt-2 text-sm font-bold text-[#667085]">검색어를 지우거나 다른 지역을 선택하세요.</p>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {visibleUniversities.map((university) => (
-                    <UniversityCard
-                      key={`${university.region}-${university.name}`}
-                      university={university}
-                      row={findResourceRow(university, resourceIndex)}
+                <>
+                  <div className="mb-4 rounded-2xl border border-[#E8DCC5] bg-[#FFF8EC] px-4 py-3 text-[13px] font-extrabold leading-6 text-[#6F4C13]">
+                    대학별 자료를 한 줄 배열로 정리했습니다. 수시 6개 항목은 표 안에서 바로 확인하고, 정시모집요강은 오른쪽 열에서 새 창으로 열립니다.
+                  </div>
+                  <div className="hidden md:block">
+                    <UniversityResourceTable
+                      universities={visibleUniversities}
+                      resourceIndex={resourceIndex}
                       onOpenInfo={setSelectedInfo}
                     />
-                  ))}
-                </div>
+                  </div>
+                  <div className="grid gap-4 md:hidden">
+                    {visibleUniversities.map((university) => (
+                      <UniversityCard
+                        key={`${university.region}-${university.name}`}
+                        university={university}
+                        row={findResourceRow(university, resourceIndex)}
+                        onOpenInfo={setSelectedInfo}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </section>
           </section>
@@ -4091,6 +4189,33 @@ export default function AdmissionGuidelines() {
         .admission-modal-x-scroll::-webkit-scrollbar-track { background: #F1F3F6; border-radius: 999px; }
         .admission-modal-x-scroll::-webkit-scrollbar-thumb { background: #AFA895; border-radius: 999px; }
         .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #8F8774; }
+
+        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #0D1B2A; border-radius: 0; background: #fff; box-shadow: 0 14px 34px rgba(13, 27, 42, 0.06); }
+        .admission-directory-table { width: max-content; min-width: 100%; border-collapse: collapse; background: #fff; font-size: 12.5px; line-height: 1.3; }
+        .admission-directory-table th,
+        .admission-directory-table td { border: 1px solid #0D1B2A; padding: 7px 8px; vertical-align: middle; text-align: center; }
+        .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #0D1B2A; color: #fff; font-weight: 950; white-space: nowrap; }
+        .admission-directory-table thead tr:nth-child(2) th { top: 35px; background: #111827; color: #fff; }
+        .admission-directory-table .admission-directory-group-head { background: #0D1B2A; color: #fff; font-size: 13px; letter-spacing: -0.02em; }
+        .admission-directory-table .admission-directory-regular-head { border-left-width: 3px; }
+        .admission-directory-sticky-head,
+        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 190px; max-width: 230px; background: #FFFDF4; }
+        .admission-directory-sticky-head { background: #0D1B2A !important; color: #fff !important; }
+        .admission-directory-name-cell { text-align: left !important; color: #111827; }
+        .admission-directory-region { display: inline-flex; margin-bottom: 4px; border: 1px solid #D6B36B; background: #FFF3C4; color: #6F4C13; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
+        .admission-directory-name { display: block; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
+        .admission-directory-status { display: inline-flex; margin-top: 5px; border: 1px solid #D6DCE6; background: #F3F4F6; color: #667085; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
+        .admission-directory-status.ready { border-color: #BFDCCB; background: #ECFDF3; color: #067647; }
+        .admission-directory-category-cell { background: #FFFAE8; }
+        .admission-table-action { line-height: 1.2; box-shadow: none; }
+        .admission-table-action span { line-height: 1.2; }
+        .admission-table-action:hover { transform: translateY(-1px); }
+
+        .admission-modal-sheet { background: #fff; border: 2px solid #0D1B2A; border-radius: 0; box-shadow: 0 26px 60px rgba(0, 0, 0, 0.26); }
+        .admission-modal-sheet-head { border-bottom: 3px solid #0D1B2A; background: #fff; }
+        .admission-modal-sheet-tab { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid #0D1B2A; background: #DFF7FB; padding: 0 14px; color: #0D1B2A; font-size: 13px; font-weight: 950; }
+        .admission-modal-sheet-tab.secondary { background: #F5FFD2; }
+        .admission-modal-sheet-title { text-align: center; color: #1018D7; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
         .admission-table-wrap,
         .admission-existing-html,
         .admission-raw-section-wrap { width: 100%; max-width: 100%; }
@@ -4228,6 +4353,48 @@ export default function AdmissionGuidelines() {
         .admission-special-table { min-width: 860px; }
         .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
         .admission-special-table td:first-child { min-width: 150px; background: #FAFBFC; color: #0D1B2A; font-weight: 950; }
+        .admission-modal-body .admission-raw-section-wrap,
+        .admission-modal-body .admission-existing-html { background: #fff; border: 1px solid #0D1B2A; border-radius: 0; padding: 10px; }
+        .admission-modal-body .admission-table-wrap { background: #fff; }
+        .admission-modal-body .admission-result-note,
+        .admission-modal-body .admission-header-summary,
+        .admission-modal-body .admission-recruit-legend { margin-bottom: 8px; border: 1px solid #0D1B2A; border-radius: 0; background: #FFF8C8; color: #111827; padding: 7px 9px; font-size: 12px; line-height: 1.5; font-weight: 900; }
+        .admission-modal-body .admission-subhead-card,
+        .admission-modal-body .admission-special-title,
+        .admission-modal-body .admission-subtitle-line { margin-top: 8px; border: 1px solid #0D1B2A; border-left: 8px solid #0D1B2A; border-radius: 0; background: #FFF8C8; color: #111827; padding: 7px 9px; font-size: 13px; line-height: 1.45; font-weight: 950; }
+        .admission-modal-body .admission-scroll-table { border: 1px solid #0D1B2A; border-radius: 0; }
+        .admission-modal-body .admission-data-table,
+        .admission-modal-body .admission-mini-table,
+        .admission-modal-body .admission-result-table,
+        .admission-modal-body .admission-existing-html table,
+        .admission-modal-body .admission-table-wrap table { font-size: 12px; line-height: 1.32; }
+        .admission-modal-body .admission-data-table th,
+        .admission-modal-body .admission-mini-table th,
+        .admission-modal-body .admission-result-table th,
+        .admission-modal-body .admission-existing-html th,
+        .admission-modal-body .admission-table-wrap th { background: #0D1B2A !important; color: #fff !important; border: 1px solid #0D1B2A; padding: 6px 7px; font-weight: 950; }
+        .admission-modal-body .admission-data-table td,
+        .admission-modal-body .admission-mini-table td,
+        .admission-modal-body .admission-result-table td,
+        .admission-modal-body .admission-existing-html td,
+        .admission-modal-body .admission-table-wrap td { border: 1px solid #0D1B2A; padding: 6px 7px; color: #111827; font-weight: 800; }
+        .admission-modal-body .admission-data-table td:first-child,
+        .admission-modal-body .admission-result-table td:first-child,
+        .admission-modal-body .admission-mini-table td:first-child,
+        .admission-modal-body .admission-selection-table .selection-type-cell,
+        .admission-modal-body .admission-record-info-table td:first-child,
+        .admission-modal-body .admission-special-table td:first-child { background: #FFFDF0; color: #111827; font-weight: 950; }
+        .admission-modal-body .admission-change-arrow-before,
+        .admission-modal-body .admission-change-arrow-after,
+        .admission-modal-body .admission-change-line,
+        .admission-modal-body .admission-normal-line,
+        .admission-modal-body .admission-long-line,
+        .admission-modal-body .admission-token-row,
+        .admission-modal-body .admission-info-list > div,
+        .admission-modal-body .admission-bullet-list li,
+        .admission-modal-body .admission-text-line { border: 1px solid #0D1B2A; border-radius: 0; background: #fff; color: #111827; }
+        .admission-modal-body .admission-change-arrow-after { background: #FFF8C8; }
+        .admission-modal-body .admission-change-arrow-icon { color: #1018D7; }
         .muted { color: #98A2B3; }
         @media (max-width: 720px) {
           .admission-token-row { grid-template-columns: 1fr; }
@@ -4241,17 +4408,21 @@ export default function AdmissionGuidelines() {
           onClick={() => setSelectedInfo(null)}
         >
           <div
-            className="flex max-h-[90vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl"
+            className="admission-modal-sheet flex max-h-[92vh] w-full max-w-[1440px] flex-col overflow-hidden bg-white"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="border-b border-[#E7EBF0] px-6 py-5">
-              <p className="text-sm font-black text-[#B88737]">{selectedInfo.universityName}</p>
-              <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
+            <div className="admission-modal-sheet-head px-5 py-4 md:px-7">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="admission-modal-sheet-tab">처음으로</span>
+                <span className="admission-modal-sheet-tab secondary">대학별목록</span>
+              </div>
+              <p className="text-center text-[13px] font-black tracking-[0.16em] text-[#6F4C13]">{selectedInfo.universityName}</p>
+              <h3 className="admission-modal-sheet-title mt-1 text-2xl tracking-[-0.04em] md:text-3xl">
                 {selectedInfo.title}
               </h3>
             </div>
             <div ref={modalBodyRef}
-              className="admission-modal-body flex-1 overflow-auto px-6 py-5 text-[15px] font-semibold leading-7 text-[#344054]">
+              className="admission-modal-body flex-1 overflow-auto bg-[#F7F7F0] px-4 py-4 text-[14px] font-semibold leading-7 text-[#344054] md:px-6">
               {selectedInfo.isHtml ? (
                 <div
                   className="admission-table-wrap"
@@ -4275,11 +4446,11 @@ export default function AdmissionGuidelines() {
                 </div>
               </div>
             ) : null}
-            <div className="border-t border-[#E7EBF0] px-6 py-4 text-right">
+            <div className="border-t-2 border-[#0D1B2A] bg-white px-6 py-4 text-right">
               <button
                 type="button"
                 onClick={() => setSelectedInfo(null)}
-                className="rounded-full bg-[#0D1B2A] px-5 py-2.5 text-sm font-black text-white hover:bg-[#B88737]"
+                className="border border-[#0D1B2A] bg-[#0D1B2A] px-5 py-2.5 text-sm font-black text-white hover:bg-[#B88737]"
               >
                 닫기
               </button>
