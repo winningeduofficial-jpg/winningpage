@@ -1049,7 +1049,8 @@ const INFO_SECTIONS = [
   {
     label: '모집인원 및 입결',
     lines: ['모집인원', '및 입결'],
-    key: 'recruitment_quota'
+    key: 'recruitment_quota',
+    htmlKey: 'recruitment_result_html'
   }
 ];
 
@@ -1115,12 +1116,12 @@ function splitAdmissionLines(value) {
 }
 
 const SECTION_NOTES = {
-  previous_year_changes: '전년도 대비 달라진 전형·모집단위·반영방법을 정리한 내용입니다.',
+  previous_year_changes: '전년도 대비 변경된 전형, 모집단위, 반영방법을 표로 정리한 내용입니다.',
   selection_method: '전형별 모집인원과 평가방법을 정리한 내용입니다.',
   minimum_requirements: '전형·계열·모집단위별 수능 최저 충족 기준입니다.',
   exam_schedule: '면접·논술·실기 등 대학별 고사 일정을 정리한 내용입니다.',
   school_record_method: '교과 반영 과목, 반영비율, 석차등급·성취도 환산, 출결·봉사 반영 방식을 정리한 내용입니다.',
-  recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결 자료를 함께 정리한 표입니다. 27은 2027학년도, 26은 2026학년도, 25는 2025학년도 기준입니다.'
+  recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결 자료입니다.'
 };
 
 
@@ -1217,7 +1218,7 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
   pushCurrent();
 
   const rows = (items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }))).map((item) => {
-    let title = '변경 사항';
+    let title = '주요 변경';
     let content = item.text;
     const colon = content.match(/^([^:：]{2,40})\s*[:：]\s*(.+)$/);
     if (colon) {
@@ -1229,15 +1230,15 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
       const parts = content.split('→');
       const before = parts.shift().trim();
       const after = parts.join('→').trim();
-      return [item.no, title, before, after];
+      return [item.no, title, before || '-', after || '-'];
     }
-    return [item.no, title, content, ''];
+    return [item.no, title, '-', content || '-'];
   });
 
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['번호', '항목', '변경 전·내용', '변경 후'], rows, { compact: true, className: 'admission-data-table admission-change-table' })}
+      ${htmlTable(['번호', '변경 항목', '변경 전', '변경 후 / 주요 내용'], rows, { compact: true, className: 'admission-data-table admission-change-table' })}
     </div>
   `;
 }
@@ -1792,36 +1793,33 @@ function splitRecruitValues(values, groupCount) {
   return result.chunks;
 }
 
-function ambiguousRecruitLabel(value) {
+function inferSingleRecruitLabel(value) {
   const n = toNumberForRecruit(value);
-  if (n === null) return '확인 수치';
-  if (isIntegerLike(value) && n >= 10) return '인원';
-  if (n > 9.99 && n <= 200) return '경쟁률';
-  return '확인 수치';
+  if (n === null) return '수치';
+  // 입결 등급은 보통 1.00~9.00 범위다. 1 미만은 등급으로 보기 어려우므로 경쟁률로 표시한다.
+  if (n < 1) return '경쟁률';
+  // 10을 넘는 값은 모집인원이 단독으로 남은 경우가 아니면 대체로 경쟁률이다.
+  if (n > 9.99) return '경쟁률';
+  // 단독 잔여값은 원표에서 앞 칸이 비어 있고 마지막 입결만 남은 경우가 많다.
+  return '입결';
 }
 
 function recruitChunkLabelMap(chunk) {
   if (chunk.length >= 5) return ['27 인원', '26 인원', '26 경쟁률', '25 경쟁률', '26 입결'];
   if (chunk.length === 4) {
-    if (chunk.slice(0, 2).every(isIntegerLike)) {
-      const third = toNumberForRecruit(chunk[2]);
-      const fourth = toNumberForRecruit(chunk[3]);
-      if (third !== null && third > 9.99 && fourth !== null && fourth <= 9.99) {
-        return ['27 인원', '26 인원', '26 경쟁률', '26 입결'];
-      }
-      return ['27 인원', '26 인원', '확인 수치', '확인 수치'];
-    }
-    return ['확인 수치', '확인 수치', '확인 수치', '확인 수치'];
+    // 원자료 기본 열 순서상 4개만 있으면 마지막 입결칸이 비어 있는 경우로 보고 앞 4개 열에 맞춘다.
+    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', '26 경쟁률', '25 경쟁률'];
+    return chunk.map(inferSingleRecruitLabel);
   }
   if (chunk.length === 3) {
-    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', ambiguousRecruitLabel(chunk[2])];
-    return ['확인 수치', '확인 수치', '확인 수치'];
+    if (chunk.slice(0, 2).every(isIntegerLike)) return ['27 인원', '26 인원', '26 경쟁률'];
+    return chunk.map(inferSingleRecruitLabel);
   }
   if (chunk.length === 2) {
     if (chunk.every(isIntegerLike)) return ['27 인원', '26 인원'];
-    return ['확인 수치', '확인 수치'];
+    return chunk.map(inferSingleRecruitLabel);
   }
-  if (chunk.length === 1) return [ambiguousRecruitLabel(chunk[0])];
+  if (chunk.length === 1) return [inferSingleRecruitLabel(chunk[0])];
   return [];
 }
 
@@ -1915,7 +1913,7 @@ function buildRecruitmentHtml(lines, sectionKey) {
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      <div class="admission-recruit-legend">전형별 기본 순서는 <b>27 인원 / 26 인원 / 26 경쟁률 / 25 경쟁률 / 26 입결</b>입니다. 원자료에서 일부 칸이 비어 있어 수치 성격을 단정하기 어려운 값은 <b>확인 수치</b>로 표시합니다.</div>
+      <div class="admission-recruit-legend"></div>
       <div class="admission-scroll-table">
         <table class="admission-data-table admission-recruit-table">
           <thead><tr>${headerCells.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
@@ -2314,9 +2312,12 @@ function InfoButton({ section, row, universityName, onOpen }) {
   // 최저/학생부/모집입결은 DB의 원본 텍스트를 우선 사용한다.
   // 이전에 만들어진 표시용 HTML이 짧거나 오래된 경우에도 원본 텍스트가 있으면 그쪽을 화면에서 재정리한다.
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
-  const content = shouldWrapRaw && hasMeaningfulRaw
-    ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-    : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent);
+  const preferExactHtml = section.key === 'recruitment_quota' && htmlContent;
+  const content = preferExactHtml
+    ? wrapExistingHtml(htmlContent, section.key)
+    : (shouldWrapRaw && hasMeaningfulRaw
+      ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
+      : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
@@ -2847,6 +2848,12 @@ export default function AdmissionGuidelines() {
         .admission-text-line { border: 1px solid #E2E8F0; background: #fff; border-radius: 12px; padding: 10px 12px; color: #344054; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #E8DCC5; background: #FFF8EC; color: #6F4C13; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
         .admission-header-summary { margin-bottom: 10px; border: 1px solid #E2E8F0; background: #F8FAFC; color: #526071; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-exact-hwp-table { min-width: 1280px; border-collapse: collapse; }
+        .admission-exact-hwp-table th { background: #EEF2F7; color: #111827; font-weight: 950; text-align: center; white-space: nowrap; }
+        .admission-exact-hwp-table td { text-align: center; vertical-align: middle; white-space: nowrap; }
+        .admission-exact-hwp-table td:first-child, .admission-exact-hwp-table th:first-child { font-weight: 900; }
+        .admission-exact-hwp-table .blank-cell { color: transparent; background: #FBFCFE; }
         .admission-recruit-table { min-width: 1100px; }
         .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
         .admission-recruit-table .unit-cell { min-width: 220px; max-width: 360px; }
