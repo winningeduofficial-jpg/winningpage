@@ -1419,7 +1419,7 @@ function normalizeRecruitmentExactHtml(html, fallbackText) {
     const fixedValues = fixedCols.map((item) => {
       let value = clean(row[item.col] || '');
 
-      // HWP 병합 셀을 HTML로 풀 때 마지막 입결/평균값이 맨 앞 계열 칸으로 밀려오는 경우가 있다.
+      // 병합 셀 해제 과정에서 마지막 입결/평균값이 맨 앞 계열 칸으로 밀려오는 경우를 차단한다.
       // 계열/대학/모집단위 칸에는 숫자만 있는 값을 절대 노출하지 않고, 계열/대학은 직전 유효값을 이어받는다.
       if (!isValidDescriptorCell(item.key, value)) value = '';
       if (!value && item.carry && carryValues[item.key]) value = carryValues[item.key];
@@ -1596,8 +1596,10 @@ function looksLikeSelectionMinimumToken(line) {
   if (/^[◯○●]+(?:\([^)]+\))?$/.test(v)) return true;
   if (/^(없음|미적용)$/.test(v)) return true;
   if (/^(전\s*모집단위|일반학과)$/.test(v)) return true;
-  if (/^(의|약|간|한의|수의)(?:\s*[,·/]\s*(의|약|간|한의|수의))*$/.test(v)) return true;
-  if (/^(의예과|약학과|간호학과|한의예과|수의예과)(?:\s*[,·/]\s*(의예과|약학과|간호학과|한의예과|수의예과))*$/.test(v)) return true;
+  if (/^(의|약|간|치|한의|수의)(?:\s*[,·/]\s*(의|약|간|치|한의|수의))*$/.test(v)) return true;
+  if (/^(의예|치의예|약학|간호|한의예|수의예)(?:과)?(?:\s*[,·/]\s*(의예|치의예|약학|간호|한의예|수의예)(?:과)?)*$/.test(v)) return true;
+  if (/^(의예과|치의예과|약학과|간호학과|한의예과|수의예과)(?:\s*[,·/]\s*(의예과|치의예과|약학과|간호학과|한의예과|수의예과))*$/.test(v)) return true;
+  if (/^(의학|치의학|약학|간호|보건의료)(?:\s*[,·/]\s*(의학|치의학|약학|간호|보건의료))*$/.test(v)) return true;
   if (/최저/.test(v) && v.length <= 18) return true;
   return false;
 }
@@ -1605,8 +1607,39 @@ function looksLikeSelectionMinimumToken(line) {
 function normalizeSelectionMinimum(value) {
   const v = clean(value);
   if (!v || /^[-–—]$/.test(v)) return '-';
-  if (/^[◯○●]+(?:\([^)]+\))?$/.test(v)) return '있음';
+  const marked = v.match(/^([◯○●]+)(?:\(([^)]+)\))?$/);
+  if (marked) return marked[2] ? `있음: ${marked[2]}` : '있음';
   return v.replace(/,/g, '·');
+}
+
+function splitLeadingSelectionMinimumAndMethod(value) {
+  const v = clean(value).replace(/ /g, ' ');
+  if (!v) return { minimum: '', method: '' };
+
+  const mark = v.match(/^([◯○●]+(?:\([^)]+\))?)\s*(?:[\/·,]|\s{2,})\s*(.+)$/);
+  if (mark && looksLikeSelectionMinimumToken(mark[1])) {
+    return { minimum: mark[1], method: clean(mark[2]) };
+  }
+
+  const targetPattern = '(?:전\\s*모집단위|일반학과|의|약|간|치|한의|수의|의예|치의예|약학|간호|한의예|수의예|의예과|치의예과|약학과|간호학과|한의예과|수의예과|의학|치의학|약학|간호|보건의료)';
+  const target = new RegExp(`^(${targetPattern}(?:\\s*[,·/]\\s*${targetPattern})*)\\s*(?:[/]\\s*|\\s{2,})(.+)$`);
+  const m = v.match(target);
+  if (m && looksLikeSelectionMinimumToken(m[1])) {
+    return { minimum: m[1], method: clean(m[2]) };
+  }
+
+  return { minimum: '', method: '' };
+}
+
+function sanitizeSelectionMethodText(value) {
+  const parts = clean(value)
+    .split(/\s*\/\s*/g)
+    .map((part) => clean(part))
+    .filter(Boolean);
+
+  while (parts.length > 1 && looksLikeSelectionMinimumToken(parts[0])) parts.shift();
+
+  return parts.join(' / ');
 }
 
 function normalizeSelectionName(value) {
@@ -1700,6 +1733,14 @@ function buildSelectionMethodHtml(lines, sectionKey) {
       if (isSelectionType(next)) break;
       if (isSelectionSeatToken(data[i + 1])) break;
 
+      const splitMinimum = splitLeadingSelectionMinimumAndMethod(next);
+      if (minimum === '-' && splitMinimum.minimum) {
+        minimum = splitMinimum.minimum;
+        if (splitMinimum.method) methodParts.push(splitMinimum.method);
+        i += 1;
+        continue;
+      }
+
       if (looksLikeSelectionMinimumToken(next) && minimum === '-' && !methodParts.length) {
         minimum = next;
         i += 1;
@@ -1714,7 +1755,7 @@ function buildSelectionMethodHtml(lines, sectionKey) {
       type: currentType || '-',
       name,
       seats,
-      method: methodParts.join(' / ') || '-',
+      method: sanitizeSelectionMethodText(methodParts.join(' / ')) || '-',
       minimum
     });
   }
@@ -1797,6 +1838,18 @@ function isLikelyMinimumNote(line) {
     || /^단,/.test(v)
     || /^수\(/.test(v)
     || /평균|반영|필수|버림|절사|등급|과목/.test(v) && !/(학과|학부|전공|계열)$/.test(v);
+}
+
+function shouldSkipMinimumNote(line) {
+  const v = clean(line).replace(/\s+/g, '');
+  // 표 안에서 이미 '한국사 필수'처럼 풀어 표시하므로, 기호 설명만 따로 비고에 노출하지 않는다.
+  return /^[-–—]$/.test(v)
+    || /^[☆★＊*]$/.test(v)
+    || /^[:：]$/.test(v)
+    || /^필수$/.test(v)
+    || /^[☆★＊*][:：]?(필수|반영|적용)$/.test(v)
+    || /^(별표|스타)[:：]?(필수|반영|적용)$/.test(v)
+    || /^[◯○●][:：]?(있음|반영|적용)$/.test(v);
 }
 
 function isLikelyAdmissionTypeLabel(line) {
@@ -1889,12 +1942,14 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
     if (!label.length && !marks.length && !minimum && !notes.length) return;
     const split = splitMinimumLabel(label, lastType);
     lastType = split.nextType || lastType;
+    const noteText = [...new Set(notes.map(clean).filter(Boolean).filter((note) => !shouldSkipMinimumNote(note)))]
+      .join(' ');
     rows.push([
       split.type || '-',
       split.target || '-',
       formatRequirementMarks(marks, subjectHeaders) || '-',
       minimum || '-',
-      notes.join(' ') || '-'
+      noteText || '-'
     ]);
     label = [];
     marks = [];
@@ -1910,7 +1965,7 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
       if (!isLikelyMinimumNote(v) && nextLooksLikeRequirementRow(data, idx)) {
         flush();
       } else {
-        notes.push(v);
+        if (!shouldSkipMinimumNote(v)) notes.push(v);
         return;
       }
     }
@@ -1971,6 +2026,90 @@ function isRecordRowLabel(line) {
   return /(전형|일반|추천|교과|종합|논술|학교장|지역|우수자|인재|학과|학부|전체|나눔|면접|서류|환산점수|반영 점수|과목별 점수|석차등급|성취도|출결|봉사|결석|비고|약학과|일반학과)/.test(v);
 }
 
+function studentRecordDisplayLabel(content) {
+  const v = clean(content);
+  if (!v) return '세부 항목';
+  if (/^※|^주\)/.test(v)) return '참고';
+  if (/^[①②③④⑤⑥⑦⑧⑨]|^\d+학년/.test(v)) return '학년별 반영';
+  if (/산출식|=|∑|평균등급|최종점수|교과점수/.test(v)) return '산출식';
+  if (/기본점수|최고점수|만점|배점/.test(v)) return '점수 기준';
+  if (/출결|결석/.test(v)) return /반영|점수|성적/.test(v) ? '출결 반영' : '출결 기준';
+  if (/봉사/.test(v)) return /반영|점수|성적/.test(v) ? '봉사 반영' : '봉사 기준';
+  if (/비교과/.test(v) && /반영/.test(v)) return '비교과 반영';
+  if (/%/.test(v) && /반영/.test(v)) return '반영비율';
+  if (/국어|수학|영어|사회|과학|한국사|전과목|전 교과|교과목|반영\s*교과|반영교과|반영\s*과목/.test(v)) return '반영교과';
+  if (/석차등급|성취도|진로선택|공통과목|일반선택|등급/.test(v)) return '성적 반영';
+  if (/^(교과|비교과|일반|전체전형|전형전체|전체|학생부|교과성적|학생부교과|학생부종합|논술|실기)$/.test(v)) return '적용 구분';
+  if (/전형|추천|우수자|인재|면접|서류|논술|일반/.test(v) && v.length <= 30) return '적용 전형';
+  return '세부 항목';
+}
+
+
+function sanitizeStudentRecordRows(rows) {
+  const out = [];
+  const seen = new Set();
+
+  rows.forEach(([rawLabel, rawContent]) => {
+    const content = clean(rawContent);
+    if (!content || /^(전형|과목|비고|내용)$/.test(content)) return;
+
+    let label = clean(rawLabel);
+    if (!label || label === '내용' || label === '세부 내용') label = studentRecordDisplayLabel(content);
+    if (label === '내용') label = '세부 항목';
+
+    const key = `${label}::${content}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push([label, content]);
+  });
+
+  return out;
+}
+
+function normalizeStudentRecordInfoRows(rows) {
+  const normalized = [];
+  const applyValues = [];
+
+  const flushApplyValues = () => {
+    if (!applyValues.length) return;
+    normalized.push(['적용 구분', [...new Set(applyValues)].join(' / ')]);
+    applyValues.length = 0;
+  };
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const [rawLabel, rawContent] = rows[i] || [];
+    const content = clean(rawContent);
+    if (!content) continue;
+
+    let label = clean(rawLabel);
+    if (label === '내용') label = studentRecordDisplayLabel(content);
+
+    if (label === '적용 구분') {
+      applyValues.push(content);
+      continue;
+    }
+
+    flushApplyValues();
+
+    // '90%(등급) 반영' 다음에 '(기본점수 ...)'처럼 붙는 행은 한 행으로 묶는다.
+    const next = rows[i + 1];
+    const nextLabel = next ? (clean(next[0]) === '내용' ? studentRecordDisplayLabel(next[1]) : clean(next[0])) : '';
+    const nextContent = next ? clean(next[1]) : '';
+    if ((label === '교과 반영' || label === '출결 반영' || label === '봉사 반영' || label === '비교과 반영')
+      && nextContent
+      && (nextLabel === '점수 기준' || /^\([^)]*(기본점수|최고점수|만점|배점)/.test(nextContent))) {
+      normalized.push([label, `${content} ${nextContent}`]);
+      i += 1;
+      continue;
+    }
+
+    normalized.push([label || '세부 내용', content]);
+  }
+
+  flushApplyValues();
+  return sanitizeStudentRecordRows(normalized);
+}
+
 function buildRecordInfoRows(lines) {
   const rows = [];
   let i = 0;
@@ -1993,7 +2132,7 @@ function buildRecordInfoRows(lines) {
     rows.push(['내용', line]);
     i += 1;
   }
-  return rows;
+  return normalizeStudentRecordInfoRows(rows);
 }
 
 function buildGradeScoreTables(lines) {
@@ -2071,14 +2210,11 @@ function buildStudentRecordHtml(lines, sectionKey) {
     : '';
 
   const scoreTables = buildGradeScoreTables(tableLines);
-  const notes = lines.filter((line) => /^※|^\d+\)|^①|^②|^③|^④/.test(clean(line)) || /산출식|최종 환산점수|부족/.test(clean(line)));
-
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
       ${infoTable}
       ${scoreTables.join('')}
-      ${notes.length ? `<div class="admission-footnote">${escapeHtml([...new Set(notes)].join(' '))}</div>` : ''}
     </div>
   `;
 }
@@ -2719,7 +2855,7 @@ function InfoButton({ section, row, universityName, onOpen }) {
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
 
   // 최저/학생부/모집입결은 화면용으로 재정렬해서 보여준다.
-  // recruitment_result_html의 HWP 좌표표는 그대로 출력하지 않고, 계열/모집단위/전형별 수치 구조로 정규화한다.
+  // recruitment_result_html은 화면용 구조로 정규화해서 출력한다.
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
   const normalizedRecruitmentHtml = section.key === 'recruitment_quota' && htmlContent
     ? normalizeRecruitmentExactHtml(htmlContent, rawTextContent)
@@ -3207,7 +3343,7 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>            
                 </div>
 
                 <div className="grid gap-2">
@@ -3425,7 +3561,7 @@ export default function AdmissionGuidelines() {
         .admission-selection-table .selection-type-cell { background: #FAFBFC; color: #0D1B2A; font-weight: 950; }
         .admission-selection-table .selection-name-cell { font-weight: 900; }
         .admission-selection-table .selection-seat-cell { color: #0D1B2A; font-weight: 950; }
-        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 96px; border: 1px solid #D9E0EA; border-radius: 999px; padding: 3px 7px; background: #F8FAFC; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
+        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 140px; border: 1px solid #D9E0EA; border-radius: 999px; padding: 3px 7px; background: #F8FAFC; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
         .admission-minimum-badge.has { border-color: #E8DCC5; background: #FFF8EC; color: #8A5E1A; }
         .admission-minimum-badge.none { color: #98A2B3; }
 
