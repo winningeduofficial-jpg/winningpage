@@ -1121,7 +1121,7 @@ const SECTION_NOTES = {
   minimum_requirements: '전형·계열·모집단위별 수능 최저 충족 기준입니다.',
   exam_schedule: '면접·논술·실기 등 대학별 고사 일정을 정리한 내용입니다.',
   school_record_method: '교과 반영 과목, 반영비율, 석차등급·성취도 환산, 출결·봉사 반영 방식을 정리한 내용입니다.',
-  recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결 자료입니다.'
+  recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결을 정리한 표입니다.'
 };
 
 
@@ -1448,7 +1448,7 @@ function normalizeRecruitmentExactHtml(html, fallbackText) {
 
   return `
     <div class="admission-raw-section-wrap">
-      <div class="admission-result-note">모집단위별 전형, 모집인원, 경쟁률, 입결 자료입니다.</div>
+      <div class="admission-result-note">모집단위별 전형, 모집인원, 경쟁률, 입결을 정리한 표입니다.</div>
       <div class="admission-scroll-table">
         <table class="admission-data-table admission-normalized-recruit-table">
           <thead>
@@ -1586,8 +1586,15 @@ function buildPlainListHtml(lines, sectionKey) {
 
 function isSelectionSeatToken(line) {
   const v = clean(line).replace(/[()]/g, '').replace(/\s/g, '');
+  if (!v || /^[-–—]$/.test(v)) return false;
   // 1,341처럼 쉼표가 있는 대형 모집인원도 인원값으로 본다.
   return /^\d{1,4}$/.test(v) || /^\d{1,3}(?:,\d{3})+$/.test(v);
+}
+
+function normalizeSelectionSeat(value) {
+  const v = clean(value);
+  if (!v || /^[-–—]$/.test(v)) return '-';
+  return v;
 }
 
 function looksLikeSelectionMinimumToken(line) {
@@ -1613,6 +1620,14 @@ function normalizeSelectionMinimum(value) {
   return v.replace(/,/g, '·');
 }
 
+function isSelectionMethodLike(value) {
+  const v = clean(value);
+  if (!v) return false;
+  if (looksLikeSelectionMinimumToken(v)) return false;
+  if (isSelectionType(v) || isSelectionSeatToken(v)) return false;
+  return /(학생부|교과\)|서류|면접|논술|실기|수능|출결|봉사|적성|필기|체력|P\/F|1단계|2단계|3단계|일괄|합산|\d+\s*[+＋]\s*\S+)/.test(v);
+}
+
 function splitLeadingSelectionMinimumAndMethod(value) {
   const v = clean(value).replace(/ /g, ' ');
   if (!v) return { minimum: '', method: '' };
@@ -1636,7 +1651,8 @@ function sanitizeSelectionMethodText(value) {
   const parts = clean(value)
     .split(/\s*\/\s*/g)
     .map((part) => clean(part))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((part) => !/^(전형|유형|전형명|인원|최저|전형방법)$/.test(part));
 
   while (parts.length > 1 && looksLikeSelectionMinimumToken(parts[0])) parts.shift();
 
@@ -1648,6 +1664,26 @@ function normalizeSelectionName(value) {
     .replace(/가톨릭지도차추천/g, '가톨릭지도자추천')
     .replace(/잠재능력우수자서류/g, '잠재능력우수자서류')
     .replace(/잠재능력우수자면접/g, '잠재능력우수자면접');
+}
+
+function isSelectionNameCandidate(value) {
+  const v = clean(value);
+  if (!v) return false;
+  if (/^(전형|유형|전형명|인원|최저|전형방법)$/.test(v)) return false;
+  if (isSelectionType(v) || isSelectionSeatToken(v) || looksLikeSelectionMinimumToken(v)) return false;
+  if (isSelectionMethodLike(v)) return false;
+  if (/^[0-9][0-9,]*(?:\.[0-9]+)?(?:\s*\([^)]*\))?$/.test(v)) return false;
+  if (/^(학생부\(교과\)|학생부|서류\s*100|논술\s*100|면접\s*\d+|1단계:|2단계:)/.test(v)) return false;
+  return true;
+}
+
+function isSelectionRowStart(data, idx) {
+  const token = clean(data[idx]);
+  if (!isSelectionNameCandidate(token)) return false;
+  const next = clean(data[idx + 1]);
+  if (isSelectionSeatToken(next)) return true;
+  if (next && (isSelectionMethodLike(next) || looksLikeSelectionMinimumToken(next))) return true;
+  return false;
 }
 
 function buildSelectionMethodTable(rows) {
@@ -1710,17 +1746,19 @@ function buildSelectionMethodHtml(lines, sectionKey) {
       continue;
     }
 
-    // 전형명 다음에 인원이 오는 구조를 기준으로 행을 만든다.
-    // 숫자 크기로 최저/전형방법을 추정하지 않고, 원자료의 전형명-인원 위치를 기준으로 끊는다.
-    if (!isSelectionSeatToken(data[i + 1])) {
-      rows.push({ type: currentType || '-', name: normalizeSelectionName(token), seats: '-', method: '-', minimum: '-' });
+    if (!isSelectionRowStart(data, i)) {
       i += 1;
       continue;
     }
 
     const name = normalizeSelectionName(token);
-    const seats = clean(data[i + 1]);
-    i += 2;
+    let seats = '-';
+    i += 1;
+
+    if (isSelectionSeatToken(data[i])) {
+      seats = normalizeSelectionSeat(data[i]);
+      i += 1;
+    }
 
     let minimum = '-';
     const methodParts = [];
@@ -1732,7 +1770,7 @@ function buildSelectionMethodHtml(lines, sectionKey) {
         continue;
       }
       if (isSelectionType(next)) break;
-      if (isSelectionSeatToken(data[i + 1])) break;
+      if (isSelectionRowStart(data, i)) break;
 
       const splitMinimum = splitLeadingSelectionMinimumAndMethod(next);
       if (minimum === '-' && splitMinimum.minimum) {
@@ -1742,26 +1780,29 @@ function buildSelectionMethodHtml(lines, sectionKey) {
         continue;
       }
 
-      if (looksLikeSelectionMinimumToken(next) && minimum === '-' && !methodParts.length) {
+      if (looksLikeSelectionMinimumToken(next) && minimum === '-') {
         minimum = next;
         i += 1;
         continue;
       }
 
-      methodParts.push(next);
+      if (!isSelectionSeatToken(next)) methodParts.push(next);
       i += 1;
     }
+
+    const method = sanitizeSelectionMethodText(methodParts.join(' / ')) || '-';
+    if (!name || !isSelectionNameCandidate(name)) continue;
 
     rows.push({
       type: currentType || '-',
       name,
       seats,
-      method: sanitizeSelectionMethodText(methodParts.join(' / ')) || '-',
+      method,
       minimum
     });
   }
 
-  const validRows = rows.filter((row) => row.name && row.name !== '-');
+  const validRows = rows.filter((row) => row.name && row.name !== '-' && !isNumericNoiseCell(row.name));
   if (!validRows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
@@ -2997,7 +3038,10 @@ function buildAdmissionVisualAudit(rows) {
         if (/<td[^>]*class="[^"]*selection-name-cell[^"]*"[^>]*>\s*(?:학생부\(교과\)|서류\s*100|논술\s*100|1단계:)/i.test(selectionHtml)) {
           add(row, '전형방법', 'error', '전형방법 내용이 전형명 칸으로 밀린 행이 있습니다.');
         }
-        if (/<td[^>]*class="[^"]*selection-method-cell[^"]*"[^>]*>\s*-\s*<\/td>/i.test(selectionHtml)
+        const methodCells = selectionHtml.match(/<td[^>]*class="[^"]*selection-method-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi) || [];
+        const emptyMethodCells = methodCells.filter((cell) => />\s*-\s*<\/td>/i.test(cell)).length;
+        if (methodCells.length > 0
+          && emptyMethodCells === methodCells.length
           && /(학생부|서류|논술|면접|출결)/.test(selectionText)) {
           add(row, '전형방법', 'warn', '전형방법 원자료는 있는데 화면 전형방법 칸이 비어 있는 행이 있을 수 있습니다.');
         }
@@ -3010,7 +3054,8 @@ function buildAdmissionVisualAudit(rows) {
       const minimumText = getSectionText(row, 'minimum_requirements');
       if (minimumText) {
         const minimumHtml = buildRawSectionHtml(minimumText, 'minimum_requirements', row, universityName);
-        if (/☆\s*:\s*필수|★\s*:\s*필수|비고<\/th>[\s\S]*?필수/i.test(minimumHtml)) {
+        const minimumPlain = stripHtmlToText(minimumHtml);
+        if (/☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★]\s*필수/i.test(minimumPlain)) {
           add(row, '최저학력기준', 'warn', '별표 필수 설명이 비고에 노출될 가능성이 있습니다.');
         }
         if (/undefined|NaN|\[object Object\]/.test(minimumHtml)) {
@@ -3044,7 +3089,7 @@ function buildAdmissionVisualAudit(rows) {
         if (hasNumericOnlyCellAsLabel(quotaHtml, 'recruit-track-cell')) {
           add(row, '모집인원 및 입결', 'error', '계열 칸에 숫자가 들어간 행이 있습니다.');
         }
-        if (/자료|확인 수치|원자료|HWP/.test(stripHtmlToText(quotaHtml))) {
+        if (/(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(stripHtmlToText(quotaHtml)) || /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(quotaHtml)) {
           add(row, '모집인원 및 입결', 'warn', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
         }
       }
