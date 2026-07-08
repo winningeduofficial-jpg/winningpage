@@ -1612,8 +1612,11 @@ function parseChangeRowTitleAndContent(text) {
 }
 
 function splitChangePairs(content) {
-  const raw = normalizeChangeTokenSpacing(content);
+  let raw = normalizeChangeTokenSpacing(content);
   if (!raw) return [];
+
+  // 표 변환 중 앞에 붙은 화살표/불릿이 연도 비교 분리를 방해하지 않도록 선제 제거한다.
+  raw = raw.replace(/^[-–—•·\s]*→\s*/, '').replace(/^[-–—•·]+\s*/, '').trim();
 
   const labelled = raw.match(/^(?:변경\s*전|개편\s*전|구조개편\s*전)\s*(.*?)(?:변경\s*후|개편\s*후|구조개편\s*후)\s*(.+)$/);
   if (labelled) {
@@ -1622,9 +1625,15 @@ function splitChangePairs(content) {
     if (before || after) return [{ before: before || '-', after: after || '-' }];
   }
 
-  // 2026학년도와 2027학년도가 한 문장 안에 나란히 있는 경우만 비교쌍으로 인정한다.
-  const yearPair = raw.match(/^(2026학년도.+?)\s+(2027학년도.+)$/);
-  if (yearPair) return [{ before: normalizeChangeTokenSpacing(yearPair[1]), after: normalizeChangeTokenSpacing(yearPair[2]) }];
+  // 2026학년도와 2027학년도가 같은 변경 항목에 함께 있으면 무조건 2026 → 2027 비교로 분리한다.
+  // 예: “2026학년도 성취도 ... 2027학년도 성취도 ...”
+  const y2026 = raw.indexOf('2026학년도');
+  const y2027 = raw.indexOf('2027학년도');
+  if (y2026 >= 0 && y2027 > y2026) {
+    const before = normalizeChangeTokenSpacing(raw.slice(y2026, y2027));
+    const after = normalizeChangeTokenSpacing(raw.slice(y2027));
+    if (before || after) return [{ before: before || '-', after: after || '-' }];
+  }
 
   // 여러 개의 A → B가 / 로 이어진 경우 각각 비교쌍으로 분리한다.
   const slashParts = raw.split(/\s+\/\s+/).map(normalizeChangeTokenSpacing).filter(Boolean);
@@ -3001,7 +3010,7 @@ function wrapExistingHtml(value, sectionKey) {
 }
 
 function buildRawSectionHtml(value, sectionKey, row = null, universityName = '') {
-  return buildSmartRawHtml(value, sectionKey, row, universityName);
+  return sanitizeAdmissionRenderedHtml(buildSmartRawHtml(value, sectionKey, row, universityName));
 }
 
 function buildRecruitmentResultHtml(value) {
@@ -3226,6 +3235,64 @@ function countMatches(source, pattern) {
   return (String(source || '').match(pattern) || []).length;
 }
 
+
+function extractHtmlCellTexts(html) {
+  const source = String(html || '');
+  const matches = source.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
+  return matches.map((cell) => stripHtmlToText(cell)).map(clean).filter(Boolean);
+}
+
+function hasTableButNoBodyRows(html) {
+  const source = String(html || '');
+  if (!/<table/i.test(source)) return false;
+  const body = (source.match(/<tbody[\s\S]*?<\/tbody>/i) || [''])[0];
+  if (!body) return false;
+  return !/<tr/i.test(body);
+}
+
+function isTooLongReadableCell(text, section) {
+  const v = clean(text);
+  if (!v) return false;
+  if (section === '모집인원 및 입결') return false;
+  if (section === '학생부반영방법' && v.length > 360) return true;
+  if (section === '전년도와 차이점' && v.length > 220) return true;
+  return v.length > 280;
+}
+
+function containsMixedYearComparisonInOneCell(text) {
+  const v = clean(text);
+  return /2026학년도/.test(v) && /2027학년도/.test(v);
+}
+
+function looksLikeBrokenAdmissionHtml(html) {
+  return /undefined|NaN|\[object Object\]|null\s*null/i.test(String(html || ''));
+}
+
+function addGlobalSectionQa(add, row, section, rawText, html) {
+  const plain = stripHtmlToText(html);
+  if (looksLikeBrokenAdmissionHtml(html)) {
+    add(row, section, 'error', '깨진 렌더링 토큰(undefined/NaN/object)이 있습니다.');
+  }
+  if (/[◯○●☆★]/.test(plain)) {
+    add(row, section, 'error', '원표 체크·주석 기호가 화면에 그대로 남아 있습니다.');
+  }
+  if (/(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(plain) || /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(String(html || ''))) {
+    add(row, section, 'error', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
+  }
+  if (hasTableButNoBodyRows(html)) {
+    add(row, section, 'error', '표 헤더만 있고 본문 행이 없습니다.');
+  }
+  const cells = extractHtmlCellTexts(html);
+  cells.forEach((cellText) => {
+    if (containsMixedYearComparisonInOneCell(cellText)) {
+      add(row, section, 'error', '2026학년도와 2027학년도 내용이 같은 셀에 뭉쳐 있습니다.');
+    }
+    if (isTooLongReadableCell(cellText, section)) {
+      add(row, section, 'warn', '한 셀의 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
+    }
+  });
+}
+
 function buildAdmissionVisualAudit(rows) {
   const issues = [];
   const add = (row, section, severity, message) => {
@@ -3244,6 +3311,7 @@ function buildAdmissionVisualAudit(rows) {
       const previousText = getSectionText(row, 'previous_year_changes');
       if (previousText) {
         const previousHtml = buildRawSectionHtml(previousText, 'previous_year_changes', row, universityName);
+        addGlobalSectionQa(add, row, '전년도와 차이점', previousText, previousHtml);
         const previousPlain = stripHtmlToText(previousHtml);
         if (/변경\s*전\s*변경\s*후|구조개편\s*전\s*구조개편\s*후/.test(previousPlain)
           && !/admission-change-lines|admission-change-arrow-row|admission-change-simple/.test(previousHtml)) {
@@ -3252,6 +3320,28 @@ function buildAdmissionVisualAudit(rows) {
         if ((previousPlain || '').length > 220
           && !/admission-change-lines|admission-change-arrow-row|admission-change-simple/.test(previousHtml)) {
           add(row, '전년도와 차이점', 'warn', '변경 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
+        }
+
+        // 전년도와 차이점 전수 QA: 2026/2027 비교가 한 칸에 같이 뭉치면 화면상 바로 오류로 본다.
+        const previousRaw = normalizeChangeTokenSpacing(previousText);
+        const hasYearComparison = /2026학년도/.test(previousRaw) && /2027학년도/.test(previousRaw);
+        const hasRenderedYearPair = /admission-change-arrow-before[\s\S]*2026학년도[\s\S]*admission-change-arrow-after[\s\S]*2027학년도/.test(previousHtml);
+        const afterCellHasBothYears = /admission-change-arrow-after[\s\S]*2026학년도[\s\S]*2027학년도/.test(previousHtml);
+        const beforeCellIsEmptyYearDump = /admission-change-arrow-before[\s\S]*>\s*-\s*</.test(previousHtml)
+          && /admission-change-arrow-after[\s\S]*2026학년도[\s\S]*2027학년도/.test(previousHtml);
+        const simpleCellHasBothYears = /change-content-cell[\s\S]*2026학년도[\s\S]*2027학년도[\s\S]*<\/td>/.test(previousHtml)
+          && !hasRenderedYearPair;
+        if (hasYearComparison && (!hasRenderedYearPair || afterCellHasBothYears || beforeCellIsEmptyYearDump || simpleCellHasBothYears)) {
+          add(row, '전년도와 차이점', 'error', '2026학년도/2027학년도 비교가 변경 전·후로 분리되지 않고 한 칸에 뭉쳐 있습니다.');
+        }
+        if (/admission-change-arrow-before[\s\S]*2027학년도/.test(previousHtml)) {
+          add(row, '전년도와 차이점', 'error', '변경 전 칸에 2027학년도 내용이 들어갔습니다.');
+        }
+        if (/admission-change-arrow-after[\s\S]*2026학년도/.test(previousHtml)) {
+          add(row, '전년도와 차이점', 'error', '변경 후 칸에 2026학년도 내용이 들어갔습니다.');
+        }
+        if (/→/.test(previousPlain) && !/admission-change-arrow-row/.test(previousHtml)) {
+          add(row, '전년도와 차이점', 'warn', '화살표 변경사항이 비교 구조로 정리되지 않았습니다.');
         }
         if (/undefined|NaN|\[object Object\]/.test(previousHtml)) {
           add(row, '전년도와 차이점', 'error', '깨진 렌더링 토큰이 있습니다.');
@@ -3265,6 +3355,7 @@ function buildAdmissionVisualAudit(rows) {
       const selectionText = getSectionText(row, 'selection_method');
       if (selectionText) {
         const selectionHtml = buildRawSectionHtml(selectionText, 'selection_method', row, universityName);
+        addGlobalSectionQa(add, row, '전형방법', selectionText, selectionHtml);
         if (hasNumericOnlyCellAsLabel(selectionHtml, 'selection-name-cell')) {
           add(row, '전형방법', 'error', '전형명 칸에 숫자만 들어간 행이 있습니다.');
         }
@@ -3287,6 +3378,7 @@ function buildAdmissionVisualAudit(rows) {
       const minimumText = getSectionText(row, 'minimum_requirements');
       if (minimumText) {
         const minimumHtml = buildRawSectionHtml(minimumText, 'minimum_requirements', row, universityName);
+        addGlobalSectionQa(add, row, '최저학력기준', minimumText, minimumHtml);
         const minimumPlain = stripHtmlToText(minimumHtml);
         if (/☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★]\s*필수/i.test(minimumPlain)) {
           add(row, '최저학력기준', 'warn', '별표 필수 설명이 비고에 노출될 가능성이 있습니다.');
@@ -3306,9 +3398,24 @@ function buildAdmissionVisualAudit(rows) {
     }
 
     try {
+      const examText = getSectionText(row, 'exam_schedule');
+      if (examText) {
+        const examHtml = buildRawSectionHtml(examText, 'exam_schedule', row, universityName);
+        addGlobalSectionQa(add, row, '대학별고사일', examText, examHtml);
+        const examPlain = stripHtmlToText(examHtml);
+        if (!/없음|\d{1,2}\.\d{1,2}|\d{4}-\d{2}-\d{2}|\(.[월화수목금토일]\)/.test(examPlain) && /(면접|논술|실기|고사)/.test(examText)) {
+          add(row, '대학별고사일', 'warn', '고사 원자료는 있는데 날짜/일정이 화면에서 명확하지 않을 수 있습니다.');
+        }
+      }
+    } catch (error) {
+      add(row, '대학별고사일', 'error', `렌더링 오류: ${error?.message || error}`);
+    }
+
+    try {
       const recordText = getSectionText(row, 'school_record_method');
       if (recordText) {
         const recordHtml = buildRawSectionHtml(recordText, 'school_record_method', row, universityName);
+        addGlobalSectionQa(add, row, '학생부반영방법', recordText, recordHtml);
         if (countMatches(recordHtml, />\s*내용\s*<\/td>/g) >= 3) {
           add(row, '학생부반영방법', 'error', '구분 칸에 “내용”이 반복됩니다.');
         }
@@ -3324,7 +3431,8 @@ function buildAdmissionVisualAudit(rows) {
       const quotaText = getSectionText(row, 'recruitment_quota');
       const quotaHtmlRaw = clean(row?.recruitment_result_html);
       if (quotaText || quotaHtmlRaw) {
-        const quotaHtml = quotaHtmlRaw ? normalizeRecruitmentExactHtml(quotaHtmlRaw, quotaText) : buildRawSectionHtml(quotaText, 'recruitment_quota', row, universityName);
+        const quotaHtml = quotaHtmlRaw ? sanitizeAdmissionRenderedHtml(normalizeRecruitmentExactHtml(quotaHtmlRaw, quotaText)) : buildRawSectionHtml(quotaText, 'recruitment_quota', row, universityName);
+        addGlobalSectionQa(add, row, '모집인원 및 입결', quotaText || quotaHtmlRaw, quotaHtml);
         if (hasNumericOnlyCellAsLabel(quotaHtml, 'recruit-track-cell')) {
           add(row, '모집인원 및 입결', 'error', '계열 칸에 숫자가 들어간 행이 있습니다.');
         }
@@ -3355,7 +3463,7 @@ function AdmissionQaPanel({ rows }) {
         <div>
           <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">ADMISSION QA MODE</p>
           <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#0D1B2A]">자동 이상치 검수 결과</h2>
-          <p className="mt-1 text-sm font-bold text-[#667085]">URL에 ?qa=1을 붙이면 전체 대학 렌더링 이상치를 한 번에 확인합니다.</p>
+          <p className="mt-1 text-sm font-bold text-[#667085]">URL에 ?qa=1을 붙이면 전체 대학의 6개 섹션 렌더링 이상치를 한 번에 확인합니다.</p>
         </div>
         <div className="flex gap-2 text-sm font-black">
           <span className="rounded-full bg-[#FEF3F2] px-3 py-1.5 text-[#B42318]">오류 {errorCount}</span>
