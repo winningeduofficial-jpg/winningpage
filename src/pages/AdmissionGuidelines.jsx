@@ -1075,7 +1075,7 @@ function clean(value) {
   return String(value || '').trim();
 }
 
-const RAW_ADMISSION_MARK_RE = /[◯○●☆★]/g;
+const RAW_ADMISSION_MARK_RE = /[◯○●☆★]/;
 
 function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {}) {
   let text = clean(value);
@@ -1092,6 +1092,8 @@ function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {})
   }
 
   text = text
+    // 원표의 체크 기호와 뒤따르는 영역 번호가 한 셀로 밀린 경우까지 제거한다. 예: "○ 1", "◯1", "● 2"
+    .replace(/\s*[◯○●]\s*\d+\s*/g, ' ')
     .replace(/\s*[◯○●]\s*[:：]?\s*/g, ' ')
     .replace(/\s*[☆★]\s*[:：]?\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
@@ -1099,6 +1101,16 @@ function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {})
 
   if (/^[,./|:;·\-–—()\[\]{}\s]*$/.test(text)) return '';
   return text;
+}
+
+
+function sanitizeAdmissionRenderedHtml(html) {
+  return String(html || '')
+    // 최종 렌더 HTML에도 원표 체크/주석 기호가 남지 않게 한 번 더 막는다.
+    .replace(/([>\s])[◯○●]\s*\d+\s*/g, '$1')
+    .replace(/([>\s])[◯○●☆★]+\s*/g, '$1')
+    .replace(/\s+[◯○●☆★]+(?=\s*<\/t[dh]>)/g, '')
+    .replace(/\s{2,}/g, ' ');
 }
 
 function hasRawAdmissionMark(value) {
@@ -1205,7 +1217,7 @@ function htmlTable(headers, rows, options = {}) {
         <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
         <tbody>
           ${rows.map((row) => `<tr>${headers.map((_, idx) => {
-            const value = row[idx] ?? '';
+            const value = sanitizeAdmissionDisplayText(row[idx] ?? '');
             const left = idx === 0 || idx === 1 ? ' class="left"' : '';
             return `<td${left}>${value === '' ? '<span class="muted">-</span>' : escapeHtml(value)}</td>`;
           }).join('')}</tr>`).join('')}
@@ -1483,7 +1495,7 @@ function normalizeRecruitmentExactHtml(html, fallbackText) {
     </tr>
   `).join('');
 
-  return `
+  return sanitizeAdmissionRenderedHtml(`
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">모집단위별 전형, 모집인원, 경쟁률, 입결을 정리한 표입니다.</div>
       <div class="admission-scroll-table">
@@ -1496,7 +1508,7 @@ function normalizeRecruitmentExactHtml(html, fallbackText) {
         </table>
       </div>
     </div>
-  `;
+  `);
 }
 
 
@@ -1526,7 +1538,11 @@ function splitReadableChangeChunks(text) {
   const slashChunks = normalized.split(/\s+\/\s+/).map(clean).filter(Boolean);
   if (slashChunks.length >= 2) return slashChunks;
 
+  // 학과/학부/전공/정원 정보가 길게 붙은 경우 가독성을 위해 항목 단위로 쪼갠다.
   normalized = normalized
+    .replace(/\s*,\s*/g, ' § ')
+    .replace(/(?<!^)(?=\s*[가-힣A-Za-z·&()\[\]ⅠⅡⅢⅣⅤ]+(?:학과|학부|전공|대학|계열|전형|모집단위)\s*\d+)/g, ' § ')
+    .replace(/(?<!^)(?=\s*(?:신설|폐지|증원|감원|통합|분리|변경)\s*[:：]?)/g, ' § ')
     .replace(/(\d{4}학년도)/g, '§$1')
     .replace(/((?:[가-힣A-Za-z·&()\[\]ⅠⅡⅢⅣⅤ]+(?:학과|학부|전공|대학|계열|전형|단위))\s+\d+)/g, '§$1')
     .replace(/(→)/g, ' §$1 ');
@@ -1572,6 +1588,17 @@ function splitBeforeAfterContent(content) {
   return { before: '', after: '', mode: 'plain', chunks: splitReadableChangeChunks(raw) };
 }
 
+function buildChangeBoxInner(text) {
+  const value = clean(text);
+  if (!value) return '<p>-</p>';
+  const chunks = splitReadableChangeChunks(value);
+  if (chunks.length >= 2 || value.length > 90) {
+    const safeChunks = chunks.length ? chunks : [value];
+    return `<div class="admission-change-list compact">${safeChunks.map((chunk) => `<span>${escapeHtml(chunk)}</span>`).join('')}</div>`;
+  }
+  return `<p>${escapeHtml(value)}</p>`;
+}
+
 function buildChangeValueHtml(content) {
   const parsed = splitBeforeAfterContent(content);
   if ((parsed.mode === 'arrow' || parsed.mode === 'labelled') && (parsed.before || parsed.after)) {
@@ -1579,12 +1606,12 @@ function buildChangeValueHtml(content) {
       <div class="admission-change-flow">
         <div class="admission-change-box">
           <span class="admission-change-label">변경 전</span>
-          <p>${escapeHtml(parsed.before || '-')}</p>
+          ${buildChangeBoxInner(parsed.before || '-')}
         </div>
         <div class="admission-change-arrow">→</div>
         <div class="admission-change-box after">
           <span class="admission-change-label">변경 후</span>
-          <p>${escapeHtml(parsed.after || '-')}</p>
+          ${buildChangeBoxInner(parsed.after || '-')}
         </div>
       </div>
     `;
@@ -2071,7 +2098,7 @@ function formatRequirementMarks(marks, subjectHeaders = []) {
 }
 
 function splitMinimumLabel(labelParts, lastType) {
-  const parts = labelParts.map(clean).filter(Boolean);
+  const parts = labelParts.map((part) => sanitizeAdmissionDisplayText(part)).filter(Boolean);
   if (!parts.length) return { type: lastType || '-', target: '-', nextType: lastType };
 
   if (parts.length === 1) {
@@ -2173,12 +2200,12 @@ function buildMinimumRequirementsHtml(lines, sectionKey) {
 
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
-  return `
+  return sanitizeAdmissionRenderedHtml(`
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
       ${htmlTable(['전형', '대상', '반영 영역', '최저', '비고'], rows)}
     </div>
-  `;
+  `);
 }
 
 function isRecordInfoLabel(line) {
@@ -2637,7 +2664,7 @@ function buildRecruitmentHtml(lines, sectionKey) {
     </tr>
   `).join('');
 
-  return `
+  return sanitizeAdmissionRenderedHtml(`
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
       <div class="admission-recruit-legend"></div>
@@ -2649,7 +2676,7 @@ function buildRecruitmentHtml(lines, sectionKey) {
       </div>
       ${footnotes.filter(Boolean).length ? `<div class="admission-footnote">${escapeHtml(footnotes.filter(Boolean).join(' '))}</div>` : ''}
     </div>
-  `;
+  `);
 }
 
 
@@ -3706,7 +3733,7 @@ export default function AdmissionGuidelines() {
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
                   <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
-                </div>
+                 </div>
 
                 <div className="grid gap-2">
                   {SPECIAL_UNIVERSITY_GROUPS.map((group) => (
