@@ -1321,6 +1321,35 @@ function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
   return cleaned.join(' - ') || '전형';
 }
 
+
+function isNumericNoiseCell(value) {
+  const v = clean(value).replace(/,/g, '').trim();
+  if (!v) return false;
+  if (/^[-+]?\d+(?:\.\d+)?(?:\s*\([^)]*\))?$/.test(v)) return true;
+  if (/^[-+]?\d+(?:\.\d+)?\s*(평균|등급|%)$/.test(v)) return true;
+  return false;
+}
+
+function isValidDescriptorCell(key, value) {
+  const v = clean(value);
+  if (!v) return false;
+  if (isNumericNoiseCell(v)) return false;
+  if (key === 'series') {
+    const compact = v.replace(/\s+/g, '');
+    if (/^[\d.]+/.test(compact)) return false;
+    return /(공통|광역|인문|사회|자연|과학|공학|의학|의예|치의|한의|약학|간호|보건|사범|교육|경영|경제|예체능|예술|체육|미술|음악|디자인|국제|융합|자유|계열|대학|학부)/.test(compact);
+  }
+  if (key === 'college') {
+    if (/^[\d.]+/.test(v.replace(/\s+/g, ''))) return false;
+    return true;
+  }
+  if (key === 'unit' || key === 'detail') {
+    if (/^[\d.]+(?:\s*\([^)]*\))?$/.test(v)) return false;
+    return true;
+  }
+  return true;
+}
+
 function normalizeRecruitmentExactHtml(html, fallbackText) {
   if (!/<table/i.test(String(html || ''))) return '';
 
@@ -1389,6 +1418,10 @@ function normalizeRecruitmentExactHtml(html, fallbackText) {
     const row = rawRow || [];
     const fixedValues = fixedCols.map((item) => {
       let value = clean(row[item.col] || '');
+
+      // HWP 병합 셀을 HTML로 풀 때 마지막 입결/평균값이 맨 앞 계열 칸으로 밀려오는 경우가 있다.
+      // 계열/대학/모집단위 칸에는 숫자만 있는 값을 절대 노출하지 않고, 계열/대학은 직전 유효값을 이어받는다.
+      if (!isValidDescriptorCell(item.key, value)) value = '';
       if (!value && item.carry && carryValues[item.key]) value = carryValues[item.key];
       if (value && item.carry) carryValues[item.key] = value;
       return value;
@@ -2581,7 +2614,7 @@ function findResourceRow(university, resourceIndex) {
 function InfoButton({ section, row, universityName, onOpen }) {
   const rawTextContent = getSectionText(row, section.key);
   const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
-  const wrappedRawKeys = ['selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
+  const wrappedRawKeys = ['previous_year_changes', 'selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
 
   // 최저/학생부/모집입결은 화면용으로 재정렬해서 보여준다.
@@ -2592,9 +2625,11 @@ function InfoButton({ section, row, universityName, onOpen }) {
     : '';
   const content = section.key === 'recruitment_quota'
     ? (normalizedRecruitmentHtml || (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent))
-    : (shouldWrapRaw && hasMeaningfulRaw
+    : (section.key === 'previous_year_changes' && hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-      : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent));
+      : (shouldWrapRaw && hasMeaningfulRaw
+        ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
+        : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent)));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
