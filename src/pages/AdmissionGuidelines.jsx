@@ -1179,17 +1179,283 @@ function htmlTable(headers, rows, options = {}) {
 }
 
 
+function decodeBasicHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function stripHtmlToText(value) {
+  return clean(decodeBasicHtmlEntities(String(value || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' ')));
+}
+
+function parseHtmlTableRows(html) {
+  const source = String(html || '');
+  const rowMatches = source.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  return rowMatches.map((rowHtml) => {
+    const cellMatches = rowHtml.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
+    return cellMatches.map((cellHtml) => {
+      const openTag = (cellHtml.match(/^<t[hd][^>]*>/i) || [''])[0];
+      const isBlank = /blank-cell/.test(openTag);
+      const text = stripHtmlToText(cellHtml);
+      return isBlank && !text ? '' : text;
+    });
+  }).filter((row) => row.some((cell) => clean(cell)));
+}
+
+function padRows(rows) {
+  const width = Math.max(0, ...rows.map((row) => row.length));
+  return rows.map((row) => Array.from({ length: width }, (_, idx) => clean(row[idx] || '')));
+}
+
+function isYearHeaderToken(value) {
+  return /^(27|26|25)$/.test(clean(value));
+}
+
+function isDescriptorHeader(value) {
+  const v = clean(value).replace(/\s+/g, '');
+  return ['계열', '대학', '단과대학', '모집단위', '세부전공', '개설전공'].includes(v);
+}
+
+function isMetricHeader(value) {
+  const v = clean(value).replace(/\s+/g, '');
+  return /^(인원|모집인원|경쟁률|70%\(?등급\)?|70%|50%\(?등급\)?|50%|평균|최저|입결|등급)$/.test(v);
+}
+
+function normalizeMetricLabel(value) {
+  const v = clean(value).replace(/\s+/g, '');
+  if (!v) return '';
+  if (v === '모집인원') return '인원';
+  if (v === '70%' || v === '70%(등급)' || v === '70%등급') return '70%(등급)';
+  if (v === '50%' || v === '50%(등급)' || v === '50%등급') return '50%(등급)';
+  if (v === '등급') return '70%(등급)';
+  if (['인원', '경쟁률', '평균', '최저', '입결'].includes(v)) return v;
+  return '';
+}
+
+function isGroupHeaderCandidate(value) {
+  const v = clean(value);
+  if (!v) return false;
+  if (isYearHeaderToken(v) || isDescriptorHeader(v) || isMetricHeader(v)) return false;
+  if (/^(학생부교과|학생부종합|논술|실기|수능|정시|교과|종합)$/.test(v)) return true;
+  if (/전형|추천|일반|우수자|인재|면접|서류|논술|지역|학교|균형|교과|종합/.test(v)) return true;
+  return false;
+}
+
+function getColumnFilledValue(headerRows, rowIdx, colIdx, predicate) {
+  let current = '';
+  for (let c = 0; c <= colIdx; c += 1) {
+    const candidate = clean(headerRows[rowIdx]?.[c] || '');
+    if (predicate(candidate)) current = candidate;
+    if (c === colIdx) return current;
+  }
+  return '';
+}
+
+function findYearHeaderRow(rows) {
+  let bestIdx = -1;
+  let bestCount = 0;
+  rows.slice(0, 10).forEach((row, idx) => {
+    const count = row.filter(isYearHeaderToken).length;
+    if (count > bestCount) {
+      bestCount = count;
+      bestIdx = idx;
+    }
+  });
+  return bestCount >= 3 ? bestIdx : -1;
+}
+
+function findDescriptorColumns(headerRows) {
+  const width = Math.max(0, ...headerRows.map((row) => row.length));
+  const found = {};
+
+  for (let c = 0; c < width; c += 1) {
+    const stack = headerRows.map((row) => clean(row[c] || '').replace(/\s+/g, '')).filter(Boolean);
+    stack.forEach((v) => {
+      if (v === '계열' && found.series === undefined) found.series = c;
+      if ((v === '대학' || v === '단과대학') && found.college === undefined) found.college = c;
+      if (v === '모집단위' && found.unit === undefined) found.unit = c;
+      if ((v === '세부전공' || v === '개설전공') && found.detail === undefined) found.detail = c;
+    });
+  }
+
+  const result = [];
+  if (found.series !== undefined) result.push({ key: 'series', label: '계열', col: found.series, carry: true });
+  if (found.college !== undefined && found.college !== found.series) result.push({ key: 'college', label: '대학', col: found.college, carry: true });
+  if (found.unit !== undefined) result.push({ key: 'unit', label: '모집단위', col: found.unit, carry: false });
+  if (found.detail !== undefined && found.detail !== found.unit) result.push({ key: 'detail', label: '세부전공', col: found.detail, carry: false });
+
+  return result.filter((item, idx, arr) => arr.findIndex((other) => other.col === item.col) === idx);
+}
+
+function inferMetricFromHeaders(headerRows, yearRowIdx, colIdx, positionInGroup, groupSize) {
+  for (let r = yearRowIdx - 1; r >= 0; r -= 1) {
+    const direct = normalizeMetricLabel(headerRows[r]?.[colIdx] || '');
+    if (direct) return direct;
+    const right1 = normalizeMetricLabel(headerRows[r]?.[colIdx + 1] || '');
+    if (right1 && (right1 === '인원' || right1 === '경쟁률')) return right1;
+    const left1 = normalizeMetricLabel(headerRows[r]?.[colIdx - 1] || '');
+    if (left1 && left1 !== '인원') return left1;
+  }
+
+  if (groupSize >= 5) return ['인원', '인원', '경쟁률', '경쟁률', '70%(등급)'][positionInGroup % 5] || '값';
+  if (groupSize === 4) return ['인원', '인원', '경쟁률', '경쟁률'][positionInGroup] || '값';
+  if (groupSize === 3) return ['인원', '경쟁률', '70%(등급)'][positionInGroup] || '값';
+  if (groupSize === 2) return ['인원', '경쟁률'][positionInGroup] || '값';
+  return '값';
+}
+
+function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
+  const parts = [];
+  for (let r = 0; r < yearRowIdx; r += 1) {
+    const value = getColumnFilledValue(headerRows, r, colIdx, isGroupHeaderCandidate);
+    if (value && !parts.includes(value)) parts.push(value);
+  }
+  const cleaned = parts
+    .map((part) => clean(part))
+    .filter((part) => part && !isMetricHeader(part) && !isDescriptorHeader(part) && !isYearHeaderToken(part));
+  return cleaned.join(' - ') || '전형';
+}
+
+function normalizeRecruitmentExactHtml(html, fallbackText) {
+  if (!/<table/i.test(String(html || ''))) return '';
+
+  const rows = padRows(parseHtmlTableRows(html));
+  const yearRowIdx = findYearHeaderRow(rows);
+  if (yearRowIdx < 0) return '';
+
+  const headerRows = rows.slice(0, yearRowIdx + 1);
+  const bodyRows = rows.slice(yearRowIdx + 1);
+  const fixedCols = findDescriptorColumns(headerRows);
+  if (!fixedCols.some((item) => item.key === 'unit')) return '';
+
+  const firstFixedCol = Math.min(...fixedCols.map((item) => item.col));
+  const fixedSet = new Set(fixedCols.map((item) => item.col));
+  const yearRow = headerRows[yearRowIdx] || [];
+
+  const leadingOrphanCols = [];
+  const mainDataCols = [];
+  yearRow.forEach((value, colIdx) => {
+    if (!isYearHeaderToken(value) || fixedSet.has(colIdx)) return;
+    if (colIdx < firstFixedCol) leadingOrphanCols.push(colIdx);
+    else mainDataCols.push(colIdx);
+  });
+
+  if (!mainDataCols.length) return '';
+
+  const baseMetas = mainDataCols.map((col) => ({
+    col,
+    year: clean(yearRow[col]),
+    group: buildGroupNameForColumn(headerRows, yearRowIdx, col)
+  }));
+
+  const groupCounts = new Map();
+  baseMetas.forEach((meta) => groupCounts.set(meta.group, (groupCounts.get(meta.group) || 0) + 1));
+  const groupSeen = new Map();
+  baseMetas.forEach((meta) => {
+    const seen = groupSeen.get(meta.group) || 0;
+    meta.positionInGroup = seen;
+    meta.groupSize = groupCounts.get(meta.group) || 5;
+    meta.metric = inferMetricFromHeaders(headerRows, yearRowIdx, meta.col, seen, meta.groupSize);
+    groupSeen.set(meta.group, seen + 1);
+  });
+
+  const lastGroup = baseMetas[baseMetas.length - 1]?.group || '전형';
+  const orphanMetas = leadingOrphanCols.map((col, idx) => ({
+    col,
+    year: clean(yearRow[col]) || '26',
+    group: lastGroup,
+    positionInGroup: (groupCounts.get(lastGroup) || 0) + idx,
+    groupSize: Math.max(5, (groupCounts.get(lastGroup) || 0) + leadingOrphanCols.length),
+    metric: normalizeMetricLabel(headerRows[yearRowIdx - 1]?.[col] || '') || '70%(등급)'
+  }));
+
+  const metas = [...baseMetas, ...orphanMetas];
+  const orderedGroups = [];
+  metas.forEach((meta) => {
+    const last = orderedGroups[orderedGroups.length - 1];
+    if (!last || last.name !== meta.group) orderedGroups.push({ name: meta.group, count: 1 });
+    else last.count += 1;
+  });
+
+  const carryValues = {};
+  const renderedRows = [];
+
+  bodyRows.forEach((rawRow) => {
+    const row = rawRow || [];
+    const fixedValues = fixedCols.map((item) => {
+      let value = clean(row[item.col] || '');
+      if (!value && item.carry && carryValues[item.key]) value = carryValues[item.key];
+      if (value && item.carry) carryValues[item.key] = value;
+      return value;
+    });
+    const dataValues = metas.map((meta) => clean(row[meta.col] || ''));
+    const hasUnit = fixedValues.some(Boolean);
+    const hasData = dataValues.some(Boolean);
+    if (!hasUnit && !hasData) return;
+
+    renderedRows.push({ fixedValues, dataValues });
+  });
+
+  if (!renderedRows.length) return '';
+
+  const fixedHeaderHtml = fixedCols.map((item) => `<th rowspan="2" class="fixed-head">${escapeHtml(item.label)}</th>`).join('');
+  const groupHeaderHtml = orderedGroups.map((group) => `<th colspan="${group.count}" class="recruit-group-head">${escapeHtml(group.name)}</th>`).join('');
+  const metricHeaderHtml = metas.map((meta) => `<th>${escapeHtml(`${meta.year} ${meta.metric}`)}</th>`).join('');
+  const bodyHtml = renderedRows.map((row) => `
+    <tr>
+      ${row.fixedValues.map((value, idx) => `<td class="left ${idx === 0 ? 'series-cell' : ''}">${value ? escapeHtml(value) : '<span class="muted">-</span>'}</td>`).join('')}
+      ${row.dataValues.map((value) => `<td>${value ? escapeHtml(value) : '<span class="muted">-</span>'}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  return `
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note">모집단위별 전형, 모집인원, 경쟁률, 입결 자료입니다.</div>
+      <div class="admission-scroll-table">
+        <table class="admission-data-table admission-normalized-recruit-table">
+          <thead>
+            <tr>${fixedHeaderHtml}${groupHeaderHtml}</tr>
+            <tr>${metricHeaderHtml}</tr>
+          </thead>
+          <tbody>${bodyHtml}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+
+function summarizeChangeNote(title, before, after) {
+  const text = `${title} ${before} ${after}`;
+  if (/지원\s*자격|졸업|검정고시/.test(text)) return '지원 자격 변경';
+  if (/모집\s*인원|선발\s*인원|명\s*→/.test(text)) return '모집인원 변경';
+  if (/최저|수능/.test(text)) return '수능최저 변경';
+  if (/전형\s*방법|반영\s*비율|서류|면접|논술|교과/.test(text)) return '전형방법 변경';
+  if (/명칭|학과명|전공명/.test(text)) return '모집단위 명칭 변경';
+  if (/신설/.test(text)) return '신설';
+  if (/폐지|미모집/.test(text)) return '폐지/미모집';
+  if (/통폐합|통합|분리|개편/.test(text)) return '모집단위 개편';
+  return '주요 변경사항';
+}
+
 function buildPreviousYearChangesHtml(lines, sectionKey) {
   const cleaned = lines
     .map(clean)
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
+  const headers = ['번호', '변경 항목', '변경 전', '변경 후', '비고'];
+
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
     return `
       <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        ${htmlTable(['구분', '변경 내용'], [['변경 사항', '없음']], { compact: true, className: 'admission-data-table admission-change-table' })}
+        <div class="admission-result-note">전년도와 비교해 달라진 내용을 항목별로 정리한 표입니다.</div>
+        ${htmlTable(headers, [['1', '변경 사항', '-', '-', '전년도와 동일']], { compact: true, className: 'admission-data-table admission-change-table' })}
       </div>
     `;
   }
@@ -1205,40 +1471,49 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
   };
 
   cleaned.forEach((line) => {
-    const m = line.match(/^(\d+)\.\s*(.+)$/);
-    if (m) {
+    const numbered = line.match(/^(\d+)\.\s*(.+)$/);
+    if (numbered) {
       pushCurrent();
-      current = { no: `${m[1]}`, parts: [m[2]] };
+      current = { no: numbered[1], parts: [numbered[2]] };
       return;
     }
-
     if (!current) current = { no: `${items.length + 1}`, parts: [line] };
     else current.parts.push(line);
   });
   pushCurrent();
 
-  const rows = (items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }))).map((item) => {
+  const sourceItems = items.length ? items : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }));
+  const rows = sourceItems.map((item) => {
     let title = '주요 변경';
     let content = item.text;
-    const colon = content.match(/^([^:：]{2,40})\s*[:：]\s*(.+)$/);
+
+    const colon = content.match(/^([^:：]{2,45})\s*[:：]\s*(.+)$/);
     if (colon) {
       title = colon[1].trim();
       content = colon[2].trim();
+    } else {
+      const titleMatch = content.match(/^(.{2,35}?(?:변경|신설|폐지|통폐합|개편|확대|축소|증가|감소))\s+(.+)$/);
+      if (titleMatch) {
+        title = titleMatch[1].trim();
+        content = titleMatch[2].trim();
+      }
     }
 
+    let before = '-';
+    let after = content || '-';
     if (content.includes('→')) {
-      const parts = content.split('→');
-      const before = parts.shift().trim();
-      const after = parts.join('→').trim();
-      return [item.no, title, before || '-', after || '-'];
+      const pieces = content.split('→');
+      before = pieces.shift().trim() || '-';
+      after = pieces.join('→').trim() || '-';
     }
-    return [item.no, title, '-', content || '-'];
+
+    return [item.no, title, before, after, summarizeChangeNote(title, before, after)];
   });
 
   return `
     <div class="admission-raw-section-wrap">
-      <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['번호', '변경 항목', '변경 전', '변경 후 / 주요 내용'], rows, { compact: true, className: 'admission-data-table admission-change-table' })}
+      <div class="admission-result-note">전년도와 비교해 달라진 내용을 항목별로 정리한 표입니다.</div>
+      ${htmlTable(headers, rows, { compact: true, className: 'admission-data-table admission-change-table' })}
     </div>
   `;
 }
@@ -2309,12 +2584,14 @@ function InfoButton({ section, row, universityName, onOpen }) {
   const wrappedRawKeys = ['selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
 
-  // 최저/학생부/모집입결은 DB의 원본 텍스트를 우선 사용한다.
-  // 이전에 만들어진 표시용 HTML이 짧거나 오래된 경우에도 원본 텍스트가 있으면 그쪽을 화면에서 재정리한다.
+  // 최저/학생부/모집입결은 화면용으로 재정렬해서 보여준다.
+  // recruitment_result_html의 HWP 좌표표는 그대로 출력하지 않고, 계열/모집단위/전형별 수치 구조로 정규화한다.
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
-  const preferExactHtml = section.key === 'recruitment_quota' && htmlContent;
-  const content = preferExactHtml
-    ? wrapExistingHtml(htmlContent, section.key)
+  const normalizedRecruitmentHtml = section.key === 'recruitment_quota' && htmlContent
+    ? normalizeRecruitmentExactHtml(htmlContent, rawTextContent)
+    : '';
+  const content = section.key === 'recruitment_quota'
+    ? (normalizedRecruitmentHtml || (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent))
     : (shouldWrapRaw && hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
       : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent));
@@ -2678,7 +2955,7 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>                  
                 </div>
 
                 <div className="grid gap-2">
@@ -2855,6 +3132,13 @@ export default function AdmissionGuidelines() {
         .admission-exact-hwp-table td:first-child, .admission-exact-hwp-table th:first-child { font-weight: 900; }
         .admission-exact-hwp-table .blank-cell { color: transparent; background: #FBFCFE; }
         .admission-recruit-table { min-width: 1100px; }
+        .admission-normalized-recruit-table { min-width: 1280px; }
+        .admission-normalized-recruit-table th.fixed-head { left: 0; z-index: 4; }
+        .admission-normalized-recruit-table th.recruit-group-head { background: #E8EEF7; color: #0D1B2A; font-size: 13px; }
+        .admission-normalized-recruit-table td:first-child,
+        .admission-normalized-recruit-table th:first-child { background: #F8FAFC; color: #0D1B2A; font-weight: 950; }
+        .admission-normalized-recruit-table td.left { min-width: 140px; max-width: 260px; }
+        .admission-normalized-recruit-table td.series-cell { min-width: 110px; }
         .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
         .admission-recruit-table .unit-cell { min-width: 220px; max-width: 360px; }
         .admission-recruit-table .recruit-values-cell { min-width: 180px; text-align: left; white-space: normal; vertical-align: top; }
