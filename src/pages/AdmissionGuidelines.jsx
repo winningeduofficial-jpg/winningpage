@@ -1024,11 +1024,13 @@ const INFO_SECTIONS = [
   {
     label: '전년도와 차이점(수시)',
     lines: ['전년도와', '차이점(수시)'],
-    key: 'previous_year_changes'
+    key: 'previous_year_changes',
+    htmlKey: 'previous_year_changes_html'
   },
   {
     label: '전형방법',
-    key: 'selection_method'
+    key: 'selection_method',
+    htmlKey: 'selection_method_html'
   },
   {
     label: '최저학력기준',
@@ -1039,7 +1041,8 @@ const INFO_SECTIONS = [
   {
     label: '대학별고사일',
     lines: ['대학별', '고사일'],
-    key: 'exam_schedule'
+    key: 'exam_schedule',
+    htmlKey: 'exam_schedule_html'
   },
   {
     label: '학생부반영방법',
@@ -3185,8 +3188,25 @@ function wrapExistingHtml(value, sectionKey) {
   `;
 }
 
+
+function buildSafeTextSectionHtml(value, sectionKey) {
+  const text = splitAdmissionLines(value)
+    .map((line) => sanitizeAdmissionDisplayText(line))
+    .filter(Boolean)
+    .join('\n');
+
+  if (!text) return '';
+
+  return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`
+    <div class="admission-raw-section-wrap">
+      <pre class="admission-raw-pre admission-safe-text-block">${escapeHtml(text)}</pre>
+    </div>
+  `, sectionKey));
+}
+
 function buildRawSectionHtml(value, sectionKey, row = null, universityName = '') {
-  return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(buildSmartRawHtml(value, sectionKey, row, universityName), sectionKey));
+  if (looksLikeHtml(value)) return sanitizeAdmissionRenderedHtml(value);
+  return buildSafeTextSectionHtml(value, sectionKey);
 }
 
 function buildRecruitmentResultHtml(value) {
@@ -3297,6 +3317,15 @@ const HWP_SECTION_FIELD_KEYS = [
   'recruitment_quota'
 ];
 
+const HWP_SECTION_HTML_KEYS = [
+  'previous_year_changes_html',
+  'selection_method_html',
+  'minimum_requirements_html',
+  'exam_schedule_html',
+  'school_record_method_html',
+  'recruitment_result_html'
+];
+
 function findHwpSectionData(name) {
   const target = clean(name);
   if (!target) return null;
@@ -3326,11 +3355,10 @@ function buildHwpResourceRow(universityName, hwpData) {
     if (value) row[key] = value;
   });
 
-  // HWP 원문을 기준으로 섹션별 텍스트를 다시 렌더링한다.
-  // 기존 DB HTML이 남아 있으면 섹션이 섞여 보일 수 있으므로 HWP가 있는 칸은 HTML 보조값을 비운다.
-  if (row.minimum_requirements) row.minimum_requirements_html = '';
-  if (row.school_record_method) row.school_record_method_html = '';
-  if (row.recruitment_quota) row.recruitment_result_html = '';
+  HWP_SECTION_HTML_KEYS.forEach((key) => {
+    const value = clean(hwpData?.[key]);
+    if (value) row[key] = value;
+  });
 
   return row;
 }
@@ -3359,9 +3387,10 @@ function mergeHwpResourceRows(rows) {
         const hwpValue = clean(hwpData[key]);
         if (hwpValue) row[key] = hwpValue;
       });
-      if (hwpData.minimum_requirements) row.minimum_requirements_html = '';
-      if (hwpData.school_record_method) row.school_record_method_html = '';
-      if (hwpData.recruitment_quota) row.recruitment_result_html = '';
+      HWP_SECTION_HTML_KEYS.forEach((key) => {
+        const hwpValue = clean(hwpData[key]);
+        if (hwpValue) row[key] = hwpValue;
+      });
     }
 
     const key = normalizeName(getFullResourceName(row) || fullName);
@@ -3378,20 +3407,15 @@ function InfoButton({ section, row, universityName, onOpen, compact = false }) {
     : '';
   const wrappedRawKeys = ['previous_year_changes', 'selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
-
-  // 최저/학생부/모집입결은 화면용으로 재정렬해서 보여준다.
-  // recruitment_result_html은 화면용 구조로 정규화해서 출력한다.
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
-  const normalizedRecruitmentHtml = section.key === 'recruitment_quota' && htmlContent
-    ? normalizeRecruitmentExactHtml(htmlContent, rawTextContent)
-    : '';
-  const content = section.key === 'recruitment_quota'
-    ? (normalizedRecruitmentHtml || (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent))
-    : (section.key === 'previous_year_changes' && hasMeaningfulRaw
-      ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-      : (shouldWrapRaw && hasMeaningfulRaw
-        ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-        : (htmlContent ? wrapExistingHtml(htmlContent, section.key) : rawTextContent)));
+
+  // 검수된 HTML 표가 있으면 그대로 출력한다. HTML이 없으면 원문 줄바꿈 텍스트만 보여준다.
+  // 여기서는 절대 숫자를 다시 분류하거나 입결/경쟁률 라벨을 추정하지 않는다.
+  const content = htmlContent
+    ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
+    : (looksLikeHtml(rawTextContent)
+      ? sanitizeAdmissionRenderedHtml(rawTextContent)
+      : (hasMeaningfulRaw ? buildSafeTextSectionHtml(rawTextContent, section.key) : rawTextContent));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = compact
     ? 'admission-table-action flex min-h-[36px] w-full items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition'
@@ -4461,6 +4485,7 @@ export default function AdmissionGuidelines() {
         .admission-wide-sheet { min-width: 980px; width: max-content; display: grid; gap: 4px; border: 1px solid #D9E0EA; background: #F8FAFC; border-radius: 16px; padding: 10px; }
         .admission-wide-line { border: 1px solid #E2E8F0; background: #fff; border-radius: 10px; padding: 9px 10px; color: #344054; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
         .admission-raw-pre { min-width: 980px; margin: 0; border: 1px solid #d9e0ea; border-radius: 16px; background: #ffffff; padding: 16px; color: #1f2937; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .admission-safe-text-block { border-radius: 0; border-top: 3px solid #2F5597; border-bottom: 3px solid #2F5597; border-left: 0; border-right: 0; }
 
         .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #D9E0EA; background: #fff; }
         .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
