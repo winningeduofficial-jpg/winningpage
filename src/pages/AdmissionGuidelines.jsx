@@ -1110,6 +1110,8 @@ function sanitizeAdmissionRenderedHtml(html) {
     .replace(/([>\s])[◯○●]\s*\d+\s*/g, '$1')
     .replace(/([>\s])[◯○●☆★]+\s*/g, '$1')
     .replace(/\s+[◯○●☆★]+(?=\s*<\/t[dh]>)/g, '')
+    // 렌더링 중 일부 셀에서 undefined/NaN/object가 그대로 노출되는 것을 차단한다.
+    .replace(/undefined|NaN|\[object Object\]|null\s*null/gi, '-')
     .replace(/\s{2,}/g, ' ');
 }
 
@@ -1570,6 +1572,32 @@ function normalizeChangeTokenSpacing(text) {
     .trim();
 }
 
+function countCharInText(text, char) {
+  return (String(text || '').match(new RegExp('\\' + char, 'g')) || []).length;
+}
+
+function trimComparisonFragment(text) {
+  let value = normalizeChangeTokenSpacing(text)
+    .replace(/^[-–—•·\s]*→\s*/, '')
+    .trim();
+
+  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼
+  // 변경 설명의 괄호가 비교값으로 밀려 들어간 경우만 제거한다.
+  value = value.replace(/^.*?(?:변경|신설|폐지|개편|증가|감소|확대|축소)\s*\((?=[^)]*$)/, '');
+
+  let open = countCharInText(value, '(');
+  let close = countCharInText(value, ')');
+  while (close > open && /\)\s*$/.test(value)) {
+    value = value.replace(/\)\s*$/, '').trim();
+    close -= 1;
+  }
+  while (open > close && /\(\s*$/.test(value)) {
+    value = value.replace(/\(\s*$/, '').trim();
+    open -= 1;
+  }
+  return normalizeChangeTokenSpacing(value);
+}
+
 function splitSubnumberedChangeItem(text) {
   const raw = clean(text);
   if (!raw) return [];
@@ -1603,6 +1631,24 @@ function parseChangeRowTitleAndContent(text) {
     }
   }
 
+  // “논술 : 전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼
+  // 콜론 앞의 전형명과 콜론 뒤의 변경 항목을 합쳐 제목으로 만들고,
+  // 괄호 안 비교값만 변경 내용으로 사용한다.
+  const bracketedChange = content.match(/^(.{2,90}?(?:변경|신설|폐지|통폐합|개편|분리|통합|확대|축소|증가|감소))\s*\((.+→.+)\)$/);
+  if (bracketedChange) {
+    const mergedTitle = clean(`${title === '주요 변경' ? '' : title} ${bracketedChange[1]}`);
+    title = mergedTitle || clean(bracketedChange[1]);
+    content = clean(bracketedChange[2]);
+  }
+
+  // “전형방법 변경 논술 80 + 교과 20 → 논술 100” 유형도 제목/비교값으로 분리한다.
+  const prefixedPair = content.match(/^(.{2,90}?(?:변경|신설|폐지|통폐합|개편|분리|통합|확대|축소|증가|감소))\s+(.+→.+)$/);
+  if (prefixedPair) {
+    const mergedTitle = clean(`${title === '주요 변경' ? '' : title} ${prefixedPair[1]}`);
+    title = mergedTitle || clean(prefixedPair[1]);
+    content = clean(prefixedPair[2]);
+  }
+
   title = title
     .replace(/^(학생부교과|학생부종합|논술|실기)\s+(?=.+(?:변경|신설|폐지|개편|증가|감소))/, '$1 ')
     .replace(/\s{2,}/g, ' ')
@@ -1618,20 +1664,24 @@ function splitChangePairs(content) {
   // 표 변환 중 앞에 붙은 화살표/불릿이 연도 비교 분리를 방해하지 않도록 선제 제거한다.
   raw = raw.replace(/^[-–—•·\s]*→\s*/, '').replace(/^[-–—•·]+\s*/, '').trim();
 
+  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼 괄호 안에 비교값이 들어 있는 경우,
+  // 비교값만 사용한다. 제목은 parseChangeRowTitleAndContent에서 이미 분리한다.
+  const bracketedOnlyPair = raw.match(/^.{2,90}?(?:변경|신설|폐지|통폐합|개편|분리|통합|확대|축소|증가|감소)\s*\((.+→.+)\)$/);
+  if (bracketedOnlyPair) raw = normalizeChangeTokenSpacing(bracketedOnlyPair[1]);
+
   const labelled = raw.match(/^(?:변경\s*전|개편\s*전|구조개편\s*전)\s*(.*?)(?:변경\s*후|개편\s*후|구조개편\s*후)\s*(.+)$/);
   if (labelled) {
-    const before = normalizeChangeTokenSpacing(labelled[1]);
-    const after = normalizeChangeTokenSpacing(labelled[2]);
+    const before = trimComparisonFragment(labelled[1]);
+    const after = trimComparisonFragment(labelled[2]);
     if (before || after) return [{ before: before || '-', after: after || '-' }];
   }
 
   // 2026학년도와 2027학년도가 같은 변경 항목에 함께 있으면 무조건 2026 → 2027 비교로 분리한다.
-  // 예: “2026학년도 성취도 ... 2027학년도 성취도 ...”
   const y2026 = raw.indexOf('2026학년도');
   const y2027 = raw.indexOf('2027학년도');
   if (y2026 >= 0 && y2027 > y2026) {
-    const before = normalizeChangeTokenSpacing(raw.slice(y2026, y2027));
-    const after = normalizeChangeTokenSpacing(raw.slice(y2027));
+    const before = trimComparisonFragment(raw.slice(y2026, y2027));
+    const after = trimComparisonFragment(raw.slice(y2027));
     if (before || after) return [{ before: before || '-', after: after || '-' }];
   }
 
@@ -1639,14 +1689,17 @@ function splitChangePairs(content) {
   const slashParts = raw.split(/\s+\/\s+/).map(normalizeChangeTokenSpacing).filter(Boolean);
   if (slashParts.length >= 2 && slashParts.every((part) => part.includes('→'))) {
     return slashParts.map((part) => {
-      const [before, ...afterParts] = part.split('→').map(normalizeChangeTokenSpacing);
-      return { before, after: afterParts.join(' → ') };
+      const [beforeRaw, ...afterPartsRaw] = part.split('→').map(normalizeChangeTokenSpacing);
+      const before = trimComparisonFragment(beforeRaw);
+      const after = trimComparisonFragment(afterPartsRaw.join(' → '));
+      return { before: before || '-', after: after || '-' };
     }).filter((pair) => pair.before || pair.after);
   }
 
   if (raw.includes('→')) {
-    const [before, ...afterParts] = raw.split('→').map(normalizeChangeTokenSpacing);
-    const after = afterParts.join(' → ');
+    const [beforeRaw, ...afterPartsRaw] = raw.split('→').map(normalizeChangeTokenSpacing);
+    const before = trimComparisonFragment(beforeRaw);
+    const after = trimComparisonFragment(afterPartsRaw.join(' → '));
     if (before || after) return [{ before: before || '-', after: after || '-' }];
   }
 
@@ -3236,10 +3289,16 @@ function countMatches(source, pattern) {
 }
 
 
-function extractHtmlCellTexts(html) {
+function extractHtmlCells(html) {
   const source = String(html || '');
   const matches = source.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
-  return matches.map((cell) => stripHtmlToText(cell)).map(clean).filter(Boolean);
+  return matches
+    .map((htmlCell) => ({ html: htmlCell, text: clean(stripHtmlToText(htmlCell)) }))
+    .filter((cell) => cell.text);
+}
+
+function extractHtmlCellTexts(html) {
+  return extractHtmlCells(html).map((cell) => cell.text);
 }
 
 function hasTableButNoBodyRows(html) {
@@ -3282,12 +3341,27 @@ function addGlobalSectionQa(add, row, section, rawText, html) {
   if (hasTableButNoBodyRows(html)) {
     add(row, section, 'error', '표 헤더만 있고 본문 행이 없습니다.');
   }
-  const cells = extractHtmlCellTexts(html);
-  cells.forEach((cellText) => {
-    if (containsMixedYearComparisonInOneCell(cellText)) {
+  const cells = extractHtmlCells(html);
+  cells.forEach((cell) => {
+    const cellText = cell.text;
+    const cellHtml = cell.html;
+    const hasVisualPairLayout = /admission-change-arrow-row/.test(cellHtml)
+      && /admission-change-arrow-before/.test(cellHtml)
+      && /admission-change-arrow-after/.test(cellHtml);
+    if (containsMixedYearComparisonInOneCell(cellText) && !(section === '전년도와 차이점' && hasVisualPairLayout)) {
       add(row, section, 'error', '2026학년도와 2027학년도 내용이 같은 셀에 뭉쳐 있습니다.');
     }
-    if (isTooLongReadableCell(cellText, section)) {
+    if (section === '전년도와 차이점' && hasVisualPairLayout) {
+      const beforeText = clean(stripHtmlToText((cellHtml.match(/<div class="admission-change-arrow-before">[\s\S]*?<\/div>\s*<div class="admission-change-arrow-icon">/i) || [''])[0]));
+      const afterText = clean(stripHtmlToText((cellHtml.match(/<div class="admission-change-arrow-after">[\s\S]*?<\/div>/i) || [''])[0]));
+      if (/\($/.test(beforeText) || /^\)/.test(afterText) || /\)$/.test(afterText) && !/\(/.test(afterText)) {
+        add(row, section, 'error', '변경 전·후 비교값에 괄호가 잘못 남아 있습니다.');
+      }
+      if (/(?:변경|신설|폐지|개편)\s*\(/.test(beforeText)) {
+        add(row, section, 'error', '변경 항목 설명이 변경 전 값에 섞여 있습니다.');
+      }
+    }
+    if (isTooLongReadableCell(cellText, section) && !(section === '전년도와 차이점' && /admission-change-lines|admission-change-arrow-row/.test(cellHtml))) {
       add(row, section, 'warn', '한 셀의 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
     }
   });
@@ -3322,23 +3396,23 @@ function buildAdmissionVisualAudit(rows) {
           add(row, '전년도와 차이점', 'warn', '변경 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
         }
 
-        // 전년도와 차이점 전수 QA: 2026/2027 비교가 한 칸에 같이 뭉치면 화면상 바로 오류로 본다.
+        // 전년도와 차이점 전수 QA: 비교 박스 단위로만 검사한다.
         const previousRaw = normalizeChangeTokenSpacing(previousText);
         const hasYearComparison = /2026학년도/.test(previousRaw) && /2027학년도/.test(previousRaw);
-        const hasRenderedYearPair = /admission-change-arrow-before[\s\S]*2026학년도[\s\S]*admission-change-arrow-after[\s\S]*2027학년도/.test(previousHtml);
-        const afterCellHasBothYears = /admission-change-arrow-after[\s\S]*2026학년도[\s\S]*2027학년도/.test(previousHtml);
-        const beforeCellIsEmptyYearDump = /admission-change-arrow-before[\s\S]*>\s*-\s*</.test(previousHtml)
-          && /admission-change-arrow-after[\s\S]*2026학년도[\s\S]*2027학년도/.test(previousHtml);
-        const simpleCellHasBothYears = /change-content-cell[\s\S]*2026학년도[\s\S]*2027학년도[\s\S]*<\/td>/.test(previousHtml)
-          && !hasRenderedYearPair;
-        if (hasYearComparison && (!hasRenderedYearPair || afterCellHasBothYears || beforeCellIsEmptyYearDump || simpleCellHasBothYears)) {
-          add(row, '전년도와 차이점', 'error', '2026학년도/2027학년도 비교가 변경 전·후로 분리되지 않고 한 칸에 뭉쳐 있습니다.');
-        }
-        if (/admission-change-arrow-before[\s\S]*2027학년도/.test(previousHtml)) {
-          add(row, '전년도와 차이점', 'error', '변경 전 칸에 2027학년도 내용이 들어갔습니다.');
-        }
-        if (/admission-change-arrow-after[\s\S]*2026학년도/.test(previousHtml)) {
-          add(row, '전년도와 차이점', 'error', '변경 후 칸에 2026학년도 내용이 들어갔습니다.');
+        const pairBlocks = previousHtml.match(/<div class="admission-change-arrow-row">[\s\S]*?<\/div>\s*<\/div>/gi) || [];
+        const hasRenderedYearPair = pairBlocks.some((block) => /admission-change-arrow-before[\s\S]*2026학년도/.test(block)
+          && /admission-change-arrow-after[\s\S]*2027학년도/.test(block));
+        const badPair = pairBlocks.some((block) => /admission-change-arrow-before[\s\S]*2027학년도/.test(block)
+          || /admission-change-arrow-after[\s\S]*2026학년도/.test(block)
+          || /admission-change-arrow-before[\s\S]*>\s*-\s*</.test(block)
+          || /(?:변경|신설|폐지|개편)\s*\(/.test(stripHtmlToText(block))
+          || /\(\s*→|→\s*\)/.test(stripHtmlToText(block)));
+        const simpleCells = (previousHtml.match(/<td[^>]*class="[^"]*change-content-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi) || []);
+        const simpleCellHasBothYears = simpleCells.some((cell) => /2026학년도/.test(stripHtmlToText(cell))
+          && /2027학년도/.test(stripHtmlToText(cell))
+          && !/admission-change-arrow-row/.test(cell));
+        if (hasYearComparison && (!hasRenderedYearPair || badPair || simpleCellHasBothYears)) {
+          add(row, '전년도와 차이점', 'error', '2026학년도/2027학년도 비교가 변경 전·후로 분리되지 않았거나 비교값에 불필요한 문구가 섞였습니다.');
         }
         if (/→/.test(previousPlain) && !/admission-change-arrow-row/.test(previousHtml)) {
           add(row, '전년도와 차이점', 'warn', '화살표 변경사항이 비교 구조로 정리되지 않았습니다.');
@@ -3885,7 +3959,7 @@ export default function AdmissionGuidelines() {
               <div className="border-t border-[#E7EBF0] px-5 pb-5 pt-4">
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
-                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>                  
+                  <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>                 
                 </div>
 
                 <div className="grid gap-2">
