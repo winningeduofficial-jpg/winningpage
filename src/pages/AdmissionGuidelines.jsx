@@ -1863,9 +1863,13 @@ function buildChangePairsHtml(pairs) {
 
 function buildChangeValueHtml(content) {
   const value = normalizeChangeTokenSpacing(content);
-  const pairs = splitChangePairs(value);
-  if (pairs.length) return buildChangePairsHtml(pairs);
-  return buildChangePlainListHtml(value);
+  if (!value) return '<span class="muted">-</span>';
+  const normalized = value
+    .replace(/\s*→\s*/g, ' → ')
+    .replace(/\s*⇒\s*/g, ' → ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `<div class="admission-change-plain-cell">${escapeHtml(normalized)}</div>`;
 }
 
 function buildChangeTableHtml(rows) {
@@ -3459,13 +3463,17 @@ function InfoButton({ section, row, universityName, onOpen, compact = false }) {
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
   const hasHwpSource = Boolean(row?.hwp_match_method || row?.hwp_source_name || findHwpSectionData(universityName));
-  const content = hasHwpSource && hasMeaningfulRaw
-    ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-    : (htmlContent
-      ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
-      : (looksLikeHtml(rawTextContent)
-        ? sanitizeAdmissionRenderedHtml(rawTextContent)
-        : (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent)));
+  const preferExistingHtmlKeys = ['minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
+  const shouldPreferExistingHtml = Boolean(htmlContent) && preferExistingHtmlKeys.includes(section.key);
+  const content = shouldPreferExistingHtml
+    ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
+    : (hasHwpSource && hasMeaningfulRaw
+      ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
+      : (htmlContent
+        ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
+        : (looksLikeHtml(rawTextContent)
+          ? sanitizeAdmissionRenderedHtml(rawTextContent)
+          : (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent))));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = compact
     ? 'admission-table-action flex min-h-[34px] w-full items-center justify-center rounded-[7px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition'
@@ -4423,7 +4431,10 @@ export default function AdmissionGuidelines() {
                 </div>
               ) : (
                 <>
-                                    <div className="hidden md:block">
+                  <div className="mb-4 rounded-2xl border border-[#E8DCC5] bg-[#FFF8EC] px-4 py-3 text-[13px] font-extrabold leading-6 text-[#6F4C13]">
+                    대학별 자료를 한 줄 배열로 정리했습니다. 수시 6개 항목은 표 안에서 바로 확인하고, 정시모집요강은 오른쪽 열에서 새 창으로 열립니다.
+                  </div>
+                  <div className="hidden md:block">
                     <UniversityResourceTable
                       universities={visibleUniversities}
                       resourceIndex={resourceIndex}
@@ -4766,7 +4777,9 @@ export default function AdmissionGuidelines() {
           stroke-width: 1.35;
           filter: drop-shadow(0 8px 14px rgba(184, 135, 55, 0.28));
         }
-      `}</style>
+      `}
+
+</style>
     </div>
   );
 }
