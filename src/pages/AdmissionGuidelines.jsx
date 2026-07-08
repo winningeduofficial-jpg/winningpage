@@ -1177,12 +1177,12 @@ function splitAdmissionLines(value) {
 }
 
 const SECTION_NOTES = {
-  previous_year_changes: '전년도 대비 변경된 전형, 모집단위, 반영방법을 표로 정리한 내용입니다.',
-  selection_method: '전형별 모집인원과 평가방법을 정리한 내용입니다.',
-  minimum_requirements: '전형·계열·모집단위별 수능 최저 충족 기준입니다.',
-  exam_schedule: '면접·논술·실기 등 대학별 고사 일정을 정리한 내용입니다.',
-  school_record_method: '교과 반영 과목, 반영비율, 석차등급·성취도 환산, 출결·봉사 반영 방식을 정리한 내용입니다.',
-  recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결을 정리한 표입니다.'
+  previous_year_changes: '',
+  selection_method: '',
+  minimum_requirements: '',
+  exam_schedule: '',
+  school_record_method: '',
+  recruitment_quota: ''
 };
 
 const HWP_SECTION_TITLES = {
@@ -2086,11 +2086,11 @@ function buildSelectionMethodTable(rows) {
       <table class="admission-data-table admission-selection-table">
         <thead>
           <tr>
-            <th>유형</th>
+            <th>전형</th>
             <th>전형명</th>
             <th>인원</th>
-            <th>전형방법</th>
             <th>최저</th>
+            <th>전형방법</th>
           </tr>
         </thead>
         <tbody>
@@ -2102,8 +2102,8 @@ function buildSelectionMethodTable(rows) {
                 <td class="selection-type-cell">${escapeHtml(row.type || '-')}</td>
                 <td class="left selection-name-cell">${escapeHtml(row.name || '-')}</td>
                 <td class="selection-seat-cell">${escapeHtml(row.seats || '-')}</td>
-                <td class="left selection-method-cell">${escapeHtml(row.method || '-')}</td>
                 <td class="selection-minimum-cell"><span class="admission-minimum-badge${minimumCls}">${escapeHtml(minimum)}</span></td>
+                <td class="left selection-method-cell">${escapeHtml(row.method || '-')}</td>
               </tr>
             `;
           }).join('')}
@@ -2135,6 +2135,55 @@ function buildSelectionMethodHtml(lines, sectionKey) {
     }
 
     if (isSelectionType(token)) {
+      // HWP/PDF extraction sometimes collapses rows where the type and the
+      // 전형명 are identical, e.g. "논술 / 351 / 있음 / 논술100".
+      // If the type token is immediately followed by an 인원 token, treat it
+      // as a complete row instead of only changing currentType.
+      if (isSelectionSeatToken(data[i + 1])) {
+        currentType = token;
+        const name = normalizeSelectionName(token);
+        let seats = normalizeSelectionSeat(data[i + 1]);
+        i += 2;
+        let minimum = '-';
+        const methodParts = [];
+
+        while (i < data.length) {
+          const next = clean(data[i]);
+          if (!next) {
+            i += 1;
+            continue;
+          }
+          if (isSelectionType(next)) break;
+          if (isSelectionRowStart(data, i)) break;
+
+          const splitMinimum = splitLeadingSelectionMinimumAndMethod(next);
+          if (minimum === '-' && splitMinimum.minimum) {
+            minimum = splitMinimum.minimum;
+            if (splitMinimum.method) methodParts.push(splitMinimum.method);
+            i += 1;
+            continue;
+          }
+
+          if (looksLikeSelectionMinimumToken(next) && minimum === '-') {
+            minimum = next;
+            i += 1;
+            continue;
+          }
+
+          if (!isSelectionSeatToken(next)) methodParts.push(next);
+          i += 1;
+        }
+
+        rows.push({
+          type: currentType || '-',
+          name,
+          seats,
+          method: sanitizeSelectionMethodText(methodParts.join(' / ')) || '-',
+          minimum
+        });
+        continue;
+      }
+
       currentType = token;
       i += 1;
       continue;
@@ -2201,7 +2250,6 @@ function buildSelectionMethodHtml(lines, sectionKey) {
 
   return `
     <div class="admission-raw-section-wrap">
-      <div class="admission-result-note">전형별 모집인원과 평가방법을 정리한 내용입니다.</div>
       ${buildSelectionMethodTable(validRows)}
     </div>
   `;
@@ -3206,7 +3254,8 @@ function buildSafeTextSectionHtml(value, sectionKey) {
 
 function buildRawSectionHtml(value, sectionKey, row = null, universityName = '') {
   if (looksLikeHtml(value)) return sanitizeAdmissionRenderedHtml(value);
-  return buildSafeTextSectionHtml(value, sectionKey);
+  if (sectionKey === 'recruitment_quota') return buildSafeTextSectionHtml(value, sectionKey);
+  return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(buildSmartRawHtml(value, sectionKey, row, universityName), sectionKey));
 }
 
 function buildRecruitmentResultHtml(value) {
@@ -3409,17 +3458,18 @@ function InfoButton({ section, row, universityName, onOpen, compact = false }) {
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
-  // 검수된 HTML 표가 있으면 그대로 출력한다. HTML이 없으면 원문 줄바꿈 텍스트만 보여준다.
-  // 여기서는 절대 숫자를 다시 분류하거나 입결/경쟁률 라벨을 추정하지 않는다.
-  const content = htmlContent
-    ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
-    : (looksLikeHtml(rawTextContent)
-      ? sanitizeAdmissionRenderedHtml(rawTextContent)
-      : (hasMeaningfulRaw ? buildSafeTextSectionHtml(rawTextContent, section.key) : rawTextContent));
+  const hasHwpSource = Boolean(row?.hwp_match_method || row?.hwp_source_name || findHwpSectionData(universityName));
+  const content = hasHwpSource && hasMeaningfulRaw
+    ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
+    : (htmlContent
+      ? sanitizeAdmissionRenderedHtml(withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key))
+      : (looksLikeHtml(rawTextContent)
+        ? sanitizeAdmissionRenderedHtml(rawTextContent)
+        : (hasMeaningfulRaw ? buildRawSectionHtml(rawTextContent, section.key, row, universityName) : rawTextContent)));
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass = compact
-    ? 'admission-table-action flex min-h-[36px] w-full items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition'
-    : 'flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
+    ? 'admission-table-action flex min-h-[34px] w-full items-center justify-center rounded-[7px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition'
+    : 'flex min-h-[46px] items-center justify-center rounded-[10px] px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition';
 
   if (!content) {
     return (
@@ -3436,7 +3486,7 @@ function InfoButton({ section, row, universityName, onOpen, compact = false }) {
     <button
       type="button"
       onClick={() => onOpen(section, content, isHtmlContent)}
-      className={`${baseClass} border border-[#0D1B2A] bg-[#111827] text-white shadow-sm hover:border-[#B88737] hover:bg-[#B88737]`}
+      className={`${baseClass} border border-[#1F3654] bg-[#14253D] text-white shadow-sm hover:border-[#C99A4B] hover:bg-[#C99A4B] hover:text-[#10243E]`}
       title={`${section.label} 보기`}
     >
       <ButtonLabel item={section} />
@@ -3447,8 +3497,8 @@ function InfoButton({ section, row, universityName, onOpen, compact = false }) {
 function LinkButton({ section, row, compact = false }) {
   const url = getFirstUrl(row, section.keys);
   const baseClass = compact
-    ? `admission-table-action flex min-h-[36px] w-full items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition ${section.wide ? 'col-span-2' : ''}`
-    : `flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition ${section.wide ? 'col-span-2' : ''}`;
+    ? `admission-table-action flex min-h-[34px] w-full items-center justify-center rounded-[7px] px-2 py-1.5 text-center text-[12px] font-black tracking-[-0.03em] transition ${section.wide ? 'col-span-2' : ''}`
+    : `flex min-h-[46px] items-center justify-center rounded-[10px] px-3 py-2 text-center text-[13px] font-black tracking-[-0.02em] transition ${section.wide ? 'col-span-2' : ''}`;
 
   if (!url) {
     return (
@@ -3466,7 +3516,7 @@ function LinkButton({ section, row, compact = false }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={`${baseClass} border border-[#B88737] bg-[#B88737] text-white shadow-sm hover:border-[#0D1B2A] hover:bg-[#0D1B2A]`}
+      className={`${baseClass} border border-[#C99A4B] bg-[#FFF7E8] text-[#7A5418] shadow-sm hover:border-[#14253D] hover:bg-[#14253D] hover:text-white`}
       title={`${section.label} 열기`}
     >
       <ButtonLabel item={section} />
@@ -4161,12 +4211,12 @@ export default function AdmissionGuidelines() {
 }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] text-[#0D1B2A]">
+    <div className="min-h-screen bg-[#F4F1EA] text-[#10243E]">
       <Header />
 
       <main className="pt-[84px]">
         <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">
-          <section className="mb-8 overflow-hidden rounded-[28px] border border-[#1C2C3E]/10 bg-[#0D1B2A] shadow-[0_16px_38px_rgba(13,27,42,0.18)]">
+          <section className="mb-8 overflow-hidden rounded-[26px] border border-[#10243E]/10 bg-[#10243E] shadow-[0_18px_42px_rgba(16,36,62,0.16)]">
             <div className="grid gap-6 px-7 py-7 md:px-10 lg:grid-cols-[1.05fr_2fr_1.05fr] lg:items-center">
               <div>
                 <p className="text-sm font-black tracking-[0.18em] text-[#D4A85F]">WINNING EDU</p>
@@ -4426,30 +4476,32 @@ export default function AdmissionGuidelines() {
         .admission-modal-x-scroll::-webkit-scrollbar-thumb { background: #AFA895; border-radius: 999px; }
         .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #8F8774; }
 
-        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #0D1B2A; border-radius: 0; background: #fff; box-shadow: 0 14px 34px rgba(13, 27, 42, 0.06); }
-        .admission-directory-table { width: max-content; min-width: 100%; border-collapse: collapse; background: #fff; font-size: 12.5px; line-height: 1.3; }
+        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #C9D3E1; border-radius: 16px; background: #fff; box-shadow: 0 18px 42px rgba(16, 36, 62, 0.07); }
+        .admission-directory-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; font-size: 12.5px; line-height: 1.3; }
         .admission-directory-table th,
-        .admission-directory-table td { border: 1px solid #0D1B2A; padding: 7px 8px; vertical-align: middle; text-align: center; }
-        .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #0D1B2A; color: #fff; font-weight: 950; white-space: nowrap; }
-        .admission-directory-table thead tr:nth-child(2) th { top: 35px; background: #111827; color: #fff; }
-        .admission-directory-table .admission-directory-group-head { background: #0D1B2A; color: #fff; font-size: 13px; letter-spacing: -0.02em; }
-        .admission-directory-table .admission-directory-regular-head { border-left-width: 3px; }
+        .admission-directory-table td { border-right: 1px solid #D5DEE9; border-bottom: 1px solid #D5DEE9; padding: 8px 8px; vertical-align: middle; text-align: center; }
+        .admission-directory-table tr > *:first-child { border-left: 0; }
+        .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #10243E; color: #fff; font-weight: 950; white-space: nowrap; }
+        .admission-directory-table thead tr:nth-child(2) th { top: 37px; background: #1E3656; color: #fff; }
+        .admission-directory-table .admission-directory-group-head { background: #10243E; color: #fff; font-size: 13px; letter-spacing: -0.02em; }
+        .admission-directory-table .admission-directory-regular-head { border-left: 2px solid #C99A4B; }
         .admission-directory-sticky-head,
-        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 190px; max-width: 230px; background: #FFFDF4; }
-        .admission-directory-sticky-head { background: #0D1B2A !important; color: #fff !important; }
-        .admission-directory-name-cell { text-align: left !important; color: #111827; }
-        .admission-directory-region { display: inline-flex; margin-bottom: 4px; border: 1px solid #D6B36B; background: #FFF3C4; color: #6F4C13; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
+        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 190px; max-width: 230px; background: #FFFDF7; }
+        .admission-directory-sticky-head { background: #10243E !important; color: #fff !important; }
+        .admission-directory-name-cell { text-align: left !important; color: #10243E; }
+        .admission-directory-region { display: inline-flex; margin-bottom: 4px; border: 1px solid #E1C37F; background: #FFF6DC; color: #7A5418; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
         .admission-directory-name { display: block; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
-        .admission-directory-status { display: inline-flex; margin-top: 5px; border: 1px solid #D6DCE6; background: #F3F4F6; color: #667085; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
-        .admission-directory-status.ready { border-color: #BFDCCB; background: #ECFDF3; color: #067647; }
-        .admission-directory-category-cell { background: #FFFAE8; }
+        .admission-directory-status { display: inline-flex; margin-top: 5px; border: 1px solid #D6DCE6; background: #F3F5F7; color: #667085; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
+        .admission-directory-status.ready { border-color: #C7D8C9; background: #F3FAF2; color: #356E3D; }
+        .admission-directory-category-cell { background: #FFF9EA; }
         .admission-table-action { line-height: 1.2; box-shadow: none; }
         .admission-table-action span { line-height: 1.2; }
         .admission-table-action:hover { transform: translateY(-1px); }
 
-        .admission-modal-sheet { background: #fff; border: 2px solid #0D1B2A; border-radius: 0; box-shadow: 0 26px 60px rgba(0, 0, 0, 0.26); }
-        .admission-modal-sheet-head { border-bottom: 3px solid #0D1B2A; background: #fff; }
-        .admission-modal-sheet-title { text-align: center; color: #1018D7; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
+        .admission-modal-sheet { background: #fff; border: 2px solid #10243E; border-radius: 0; box-shadow: 0 26px 60px rgba(0, 0, 0, 0.26); }
+        .admission-modal-sheet-head { border-bottom: 3px solid #10243E; background: #FFFDF8; }
+        .admission-modal-sheet-title { text-align: center; color: #10243E; font-weight: 950; text-decoration: none; letter-spacing: -0.05em; }
+        .admission-modal-sheet-title::after { content: ''; display: block; width: 86px; height: 3px; margin: 8px auto 0; background: #C99A4B; }
         .admission-table-wrap,
         .admission-existing-html,
         .admission-raw-section-wrap { width: 100%; max-width: 100%; }
@@ -4485,7 +4537,7 @@ export default function AdmissionGuidelines() {
         .admission-wide-sheet { min-width: 980px; width: max-content; display: grid; gap: 4px; border: 1px solid #D9E0EA; background: #F8FAFC; border-radius: 16px; padding: 10px; }
         .admission-wide-line { border: 1px solid #E2E8F0; background: #fff; border-radius: 10px; padding: 9px 10px; color: #344054; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
         .admission-raw-pre { min-width: 980px; margin: 0; border: 1px solid #d9e0ea; border-radius: 16px; background: #ffffff; padding: 16px; color: #1f2937; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-        .admission-safe-text-block { border-radius: 0; border-top: 3px solid #2F5597; border-bottom: 3px solid #2F5597; border-left: 0; border-right: 0; }
+        .admission-safe-text-block { border-radius: 0; border-top: 3px solid #36557A; border-bottom: 3px solid #36557A; border-left: 0; border-right: 0; }
 
         .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #D9E0EA; background: #fff; }
         .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
@@ -4591,7 +4643,7 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-raw-section-wrap,
         .admission-modal-body .admission-existing-html { background: #fff; border: 0; border-radius: 0; padding: 0; }
         .admission-modal-body .admission-table-wrap { background: #fff; }
-        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #000; font-size: 16px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
+        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #10243E; font-size: 16px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
         .admission-modal-body .admission-result-note,
         .admission-modal-body .admission-header-summary,
         .admission-modal-body .admission-recruit-legend { display: none !important; }
@@ -4603,23 +4655,23 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-mini-table,
         .admission-modal-body .admission-result-table,
         .admission-modal-body .admission-existing-html table,
-        .admission-modal-body .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: 3px solid #2F5597; border-bottom: 3px solid #2F5597; font-size: 12px; line-height: 1.28; table-layout: auto; }
+        .admission-modal-body .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: 3px solid #36557A; border-bottom: 3px solid #36557A; font-size: 12px; line-height: 1.32; table-layout: auto; }
         .admission-modal-body .admission-data-table th,
         .admission-modal-body .admission-mini-table th,
         .admission-modal-body .admission-result-table th,
         .admission-modal-body .admission-existing-html th,
-        .admission-modal-body .admission-table-wrap th { background: #EAF2FF !important; color: #000 !important; border: 1px solid #2F5597; padding: 4px 7px; font-weight: 950; text-align: center; white-space: nowrap; }
+        .admission-modal-body .admission-table-wrap th { background: #EAF0F6 !important; color: #10243E !important; border: 1px solid #36557A; padding: 5px 8px; font-weight: 950; text-align: center; white-space: nowrap; }
         .admission-modal-body .admission-data-table td,
         .admission-modal-body .admission-mini-table td,
         .admission-modal-body .admission-result-table td,
         .admission-modal-body .admission-existing-html td,
-        .admission-modal-body .admission-table-wrap td { border: 1px solid #2F5597; padding: 4px 7px; color: #000; font-weight: 800; vertical-align: middle; }
+        .admission-modal-body .admission-table-wrap td { border: 1px solid #36557A; padding: 5px 8px; color: #1F2937; font-weight: 800; vertical-align: middle; }
         .admission-modal-body .admission-data-table td:first-child,
         .admission-modal-body .admission-result-table td:first-child,
         .admission-modal-body .admission-mini-table td:first-child,
         .admission-modal-body .admission-selection-table .selection-type-cell,
         .admission-modal-body .admission-record-info-table td:first-child,
-        .admission-modal-body .admission-special-table td:first-child { background: #fff; color: #000; font-weight: 950; }
+        .admission-modal-body .admission-special-table td:first-child { background: #fff; color: #10243E; font-weight: 950; }
         .admission-modal-body .admission-change-arrow-before,
         .admission-modal-body .admission-change-arrow-after,
         .admission-modal-body .admission-change-line,
@@ -4628,9 +4680,9 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-token-row,
         .admission-modal-body .admission-info-list > div,
         .admission-modal-body .admission-bullet-list li,
-        .admission-modal-body .admission-text-line { border: 1px solid #2F5597; border-radius: 0; background: #fff; color: #000; }
+        .admission-modal-body .admission-text-line { border: 1px solid #D5DEE9; border-radius: 0; background: #fff; color: #1F2937; }
         .admission-modal-body .admission-change-arrow-after { background: #fff; }
-        .admission-modal-body .admission-change-arrow-icon { color: #1018D7; }
+        .admission-modal-body .admission-change-arrow-icon { color: #10243E; }
         .muted { color: #98A2B3; }
         @media (max-width: 720px) {
           .admission-token-row { grid-template-columns: 1fr; }
@@ -4648,7 +4700,7 @@ export default function AdmissionGuidelines() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="admission-modal-sheet-head px-5 py-4 md:px-7">
-              <p className="text-center text-[13px] font-black tracking-[0.16em] text-[#6F4C13]">{selectedInfo.universityName}</p>
+              <p className="text-center text-[13px] font-black tracking-[0.18em] text-[#8B6A2B]">{selectedInfo.universityName}</p>
               <h3 className="admission-modal-sheet-title mt-1 text-2xl tracking-[-0.04em] md:text-3xl">
                 {selectedInfo.title}
               </h3>
