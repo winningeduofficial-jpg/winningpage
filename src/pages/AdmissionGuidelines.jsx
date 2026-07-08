@@ -1482,7 +1482,7 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
-  const headers = ['번호', '변경 항목', '변경사항', '비고'];
+  const headers = ['번호', '변경 항목', '변경 전 → 변경 후', '비고'];
 
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
     return `
@@ -1584,48 +1584,148 @@ function buildPlainListHtml(lines, sectionKey) {
   `;
 }
 
+function isSelectionSeatToken(line) {
+  const v = clean(line).replace(/[()]/g, '');
+  return /^\d{1,4}$/.test(v);
+}
+
+function looksLikeSelectionMinimumToken(line) {
+  const v = clean(line);
+  if (!v) return false;
+  if (/^[-–—]$/.test(v)) return true;
+  if (/^[◯○●]+(?:\([^)]+\))?$/.test(v)) return true;
+  if (/^(없음|미적용)$/.test(v)) return true;
+  if (/^(전\s*모집단위|일반학과)$/.test(v)) return true;
+  if (/^(의|약|간|한의|수의)(?:\s*[,·/]\s*(의|약|간|한의|수의))*$/.test(v)) return true;
+  if (/^(의예과|약학과|간호학과|한의예과|수의예과)(?:\s*[,·/]\s*(의예과|약학과|간호학과|한의예과|수의예과))*$/.test(v)) return true;
+  if (/최저/.test(v) && v.length <= 18) return true;
+  return false;
+}
+
+function normalizeSelectionMinimum(value) {
+  const v = clean(value);
+  if (!v || /^[-–—]$/.test(v)) return '-';
+  if (/^[◯○●]+(?:\([^)]+\))?$/.test(v)) return '있음';
+  return v.replace(/,/g, '·');
+}
+
+function normalizeSelectionName(value) {
+  return clean(value)
+    .replace(/가톨릭지도차추천/g, '가톨릭지도자추천')
+    .replace(/잠재능력우수자서류/g, '잠재능력우수자서류')
+    .replace(/잠재능력우수자면접/g, '잠재능력우수자면접');
+}
+
+function buildSelectionMethodTable(rows) {
+  return `
+    <div class="admission-scroll-table">
+      <table class="admission-data-table admission-selection-table">
+        <thead>
+          <tr>
+            <th>유형</th>
+            <th>전형명</th>
+            <th>인원</th>
+            <th>전형방법</th>
+            <th>최저</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => {
+            const minimum = normalizeSelectionMinimum(row.minimum);
+            const minimumCls = minimum === '-' ? ' none' : ' has';
+            return `
+              <tr>
+                <td class="selection-type-cell">${escapeHtml(row.type || '-')}</td>
+                <td class="left selection-name-cell">${escapeHtml(row.name || '-')}</td>
+                <td class="selection-seat-cell">${escapeHtml(row.seats || '-')}</td>
+                <td class="left selection-method-cell">${escapeHtml(row.method || '-')}</td>
+                <td class="selection-minimum-cell"><span class="admission-minimum-badge${minimumCls}">${escapeHtml(minimum)}</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function buildSelectionMethodHtml(lines, sectionKey) {
   const idx = lines.findIndex((line) => clean(line) === '전형방법');
   const start = idx >= 0 ? idx + 1 : 0;
-  const data = lines.slice(start).filter((line) => !['전형', '유형', '전형명', '인원', '최저', '전형방법'].includes(clean(line)));
+  const ignored = new Set(['전형', '유형', '전형명', '인원', '최저', '전형방법']);
+  const data = lines
+    .slice(start)
+    .map((line) => clean(line))
+    .filter(Boolean)
+    .filter((line) => !ignored.has(clean(line)));
+
   const rows = [];
   let i = 0;
+  let currentType = '';
 
   while (i < data.length) {
-    if (!isSelectionType(data[i])) {
-      rows.push([data[i], '', '', '', '']);
+    const token = clean(data[i]);
+    if (!token) {
       i += 1;
       continue;
     }
 
-    const type = data[i] || '';
-    const name = data[i + 1] || '';
-    const seats = data[i + 2] || '';
-    i += 3;
+    if (isSelectionType(token)) {
+      currentType = token;
+      i += 1;
+      continue;
+    }
 
-    const tail = [];
-    while (i < data.length && !isSelectionType(data[i])) {
-      tail.push(data[i]);
+    // 전형명 다음에 인원이 오는 구조를 기준으로 행을 만든다.
+    // 숫자 크기로 최저/전형방법을 추정하지 않고, 원자료의 전형명-인원 위치를 기준으로 끊는다.
+    if (!isSelectionSeatToken(data[i + 1])) {
+      rows.push({ type: currentType || '-', name: normalizeSelectionName(token), seats: '-', method: '-', minimum: '-' });
+      i += 1;
+      continue;
+    }
+
+    const name = normalizeSelectionName(token);
+    const seats = clean(data[i + 1]);
+    i += 2;
+
+    let minimum = '-';
+    const methodParts = [];
+
+    while (i < data.length) {
+      const next = clean(data[i]);
+      if (!next) {
+        i += 1;
+        continue;
+      }
+      if (isSelectionType(next)) break;
+      if (isSelectionSeatToken(data[i + 1])) break;
+
+      if (looksLikeSelectionMinimumToken(next) && minimum === '-' && !methodParts.length) {
+        minimum = next;
+        i += 1;
+        continue;
+      }
+
+      methodParts.push(next);
       i += 1;
     }
 
-    let minimum = '';
-    let method = '';
-    if (tail.length === 1) {
-      method = tail[0];
-    } else if (tail.length > 1) {
-      method = tail[tail.length - 1];
-      minimum = tail.slice(0, -1).join(' / ');
-    }
-    rows.push([type, name, seats, minimum || '-', method]);
+    rows.push({
+      type: currentType || '-',
+      name,
+      seats,
+      method: methodParts.join(' / ') || '-',
+      minimum
+    });
   }
 
-  if (!rows.length) return buildPlainListHtml(lines, sectionKey);
+  const validRows = rows.filter((row) => row.name && row.name !== '-');
+  if (!validRows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
     <div class="admission-raw-section-wrap">
-      <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['유형', '전형명', '인원', '최저', '전형방법'], rows)}
+      <div class="admission-result-note">전형별 모집인원과 평가방법을 정리한 내용입니다.</div>
+      ${buildSelectionMethodTable(validRows)}
     </div>
   `;
 }
@@ -3108,9 +3208,6 @@ export default function AdmissionGuidelines() {
                 <div className="mb-3">
                   <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">SPECIAL ADMISSION</p>
                   <h3 className="mt-1 text-lg font-black tracking-[-0.04em] text-[#0D1B2A]">별도 분류 대학</h3>
-                  <p className="mt-1 break-keep text-xs font-bold leading-5 text-[#667085]">
-                    경찰대·과학기술원·사관학교 자료는 지역 지도와 별도로 확인합니다.
-                  </p>
                 </div>
 
                 <div className="grid gap-2">
@@ -3189,7 +3286,10 @@ export default function AdmissionGuidelines() {
               {!selectedRegion && !selectedSpecialGroupKey && !keyword.trim() ? (
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
-                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>                    
+                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>
+                    <p className="mt-3 text-sm font-bold leading-6 text-[#667085]">
+                      처음 화면에서는 특정 지역을 고정하지 않습니다. 지도는 일반 지역 대학, 왼쪽 별도 분류는 경찰대·과학기술원·사관학교 자료를 보여줍니다.
+                    </p>
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
@@ -3310,6 +3410,25 @@ export default function AdmissionGuidelines() {
         .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
         .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 9px; padding: 5px 7px; color: #344054; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
         .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
+
+        .admission-selection-table { min-width: 980px; }
+        .admission-selection-table th:nth-child(1),
+        .admission-selection-table td:nth-child(1) { min-width: 82px; text-align: center; }
+        .admission-selection-table th:nth-child(2),
+        .admission-selection-table td:nth-child(2) { min-width: 210px; }
+        .admission-selection-table th:nth-child(3),
+        .admission-selection-table td:nth-child(3) { min-width: 72px; text-align: center; }
+        .admission-selection-table th:nth-child(4),
+        .admission-selection-table td:nth-child(4) { min-width: 420px; max-width: 760px; text-align: left; white-space: normal; word-break: keep-all; line-height: 1.62; }
+        .admission-selection-table th:nth-child(5),
+        .admission-selection-table td:nth-child(5) { width: 82px; min-width: 82px; max-width: 110px; text-align: center; padding-left: 6px; padding-right: 6px; }
+        .admission-selection-table .selection-type-cell { background: #FAFBFC; color: #0D1B2A; font-weight: 950; }
+        .admission-selection-table .selection-name-cell { font-weight: 900; }
+        .admission-selection-table .selection-seat-cell { color: #0D1B2A; font-weight: 950; }
+        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 96px; border: 1px solid #D9E0EA; border-radius: 999px; padding: 3px 7px; background: #F8FAFC; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
+        .admission-minimum-badge.has { border-color: #E8DCC5; background: #FFF8EC; color: #8A5E1A; }
+        .admission-minimum-badge.none { color: #98A2B3; }
+
         .admission-change-table { min-width: 920px; }
         .admission-change-table td:first-child { width: 64px; text-align: center; font-weight: 950; color: #9A6A1D; }
         .admission-change-table td:nth-child(2) { width: 190px; text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; }
