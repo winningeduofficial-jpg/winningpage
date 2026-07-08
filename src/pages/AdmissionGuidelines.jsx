@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
+import admissionHwpSections from '../data/admissionHwpSections.json';
 
 const REGION_ORDER = [
   "강원",
@@ -1075,7 +1076,7 @@ function clean(value) {
   return String(value || '').trim();
 }
 
-const RAW_ADMISSION_MARK_RE = /[◯○●☆★]/;
+const RAW_ADMISSION_MARK_RE = /[◯○●☆★♥♡❤]/;
 
 function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {}) {
   let text = clean(value);
@@ -1085,17 +1086,17 @@ function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {})
   // 모집단위의 (★) 같은 표식도 가독성을 위해 제거하되, 필요 시 옵션으로 보존 가능하게 둔다.
   if (!keepMajorFootnote) {
     text = text
-      .replace(/\s*\([☆★]\)\s*/g, '')
-      .replace(/\s*\[[☆★]\]\s*/g, '')
-      .replace(/\s*[☆★]\s*[:：]\s*필수\s*/g, ' ')
-      .replace(/\s*[☆★]\s*필수\s*/g, ' ');
+      .replace(/\s*\([☆★♥♡❤]\)\s*/g, '')
+      .replace(/\s*\[[☆★♥♡❤]\]\s*/g, '')
+      .replace(/\s*[☆★♥♡❤]\s*[:：]\s*필수\s*/g, ' ')
+      .replace(/\s*[☆★♥♡❤]\s*필수\s*/g, ' ');
   }
 
   text = text
     // 원표의 체크 기호와 뒤따르는 영역 번호가 한 셀로 밀린 경우까지 제거한다. 예: "○ 1", "◯1", "● 2"
     .replace(/\s*[◯○●]\s*\d+\s*/g, ' ')
     .replace(/\s*[◯○●]\s*[:：]?\s*/g, ' ')
-    .replace(/\s*[☆★]\s*[:：]?\s*/g, ' ')
+    .replace(/\s*[☆★♥♡❤]\s*[:：]?\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 
@@ -1107,9 +1108,12 @@ function sanitizeAdmissionDisplayText(value, { keepMajorFootnote = false } = {})
 function sanitizeAdmissionRenderedHtml(html) {
   return String(html || '')
     // 최종 렌더 HTML에도 원표 체크/주석 기호가 남지 않게 한 번 더 막는다.
+    .replace(/\s*\([☆★♥♡❤]\)\s*/g, '')
+    .replace(/\s*\[[☆★♥♡❤]\]\s*/g, '')
+    .replace(/\s*[☆★♥♡❤]\s*[:：]?\s*(필수|반영|적용)?\s*/g, ' ')
     .replace(/([>\s])[◯○●]\s*\d+\s*/g, '$1')
-    .replace(/([>\s])[◯○●☆★]+\s*/g, '$1')
-    .replace(/\s+[◯○●☆★]+(?=\s*<\/t[dh]>)/g, '')
+    .replace(/([>\s])[◯○●☆★♥♡❤]+\s*/g, '$1')
+    .replace(/\s+[◯○●☆★♥♡❤]+(?=\s*<\/t[dh]>)/g, '')
     // 렌더링 중 일부 셀에서 undefined/NaN/object가 그대로 노출되는 것을 차단한다.
     .replace(/undefined|NaN|\[object Object\]|null\s*null/gi, '-')
     .replace(/\s{2,}/g, ' ');
@@ -1122,7 +1126,7 @@ function hasRawAdmissionMark(value) {
 function looksLikeRawAdmissionMarkFragment(value) {
   const text = clean(value);
   if (!text) return false;
-  if (/[◯○●☆★]/.test(text)) return true;
+  if (/[◯○●☆★♥♡❤]/.test(text)) return true;
   return false;
 }
 
@@ -1163,7 +1167,10 @@ function splitAdmissionLines(value) {
     .filter((line) => !/^Click$/i.test(line))
     .filter((line) => !/^-\s*\d+\s*-$/.test(line))
     .filter((line) => !/^처음으로\s+대학별목록/.test(line))
-    .filter((line) => !/^지역별\s+/.test(line));
+    .filter((line) => !/^처음으로$/.test(line))
+    .filter((line) => !/^대학별목록$/.test(line))
+    .filter((line) => !/^지역별\s+/.test(line))
+    .filter((line) => !Object.values(SECTION_NOTES).includes(line));
 }
 
 const SECTION_NOTES = {
@@ -1174,6 +1181,122 @@ const SECTION_NOTES = {
   school_record_method: '교과 반영 과목, 반영비율, 석차등급·성취도 환산, 출결·봉사 반영 방식을 정리한 내용입니다.',
   recruitment_quota: '모집단위별 전형, 모집인원, 경쟁률, 입결을 정리한 표입니다.'
 };
+
+const HWP_SECTION_TITLES = {
+  previous_year_changes: '1. 전년도와 차이점',
+  selection_method: '2. 전형방법',
+  minimum_requirements: '3. 최저학력기준',
+  exam_schedule: '4. 대학별고사일',
+  school_record_method: '5. 학생부반영방법',
+  recruitment_quota: '6. 모집인원 및 입결'
+};
+
+const HWP_SECTION_ORDER = [
+  'previous_year_changes',
+  'selection_method',
+  'minimum_requirements',
+  'exam_schedule',
+  'school_record_method',
+  'recruitment_quota'
+];
+
+const HWP_SECTION_LABELS = {
+  previous_year_changes: '전년도와 차이점',
+  selection_method: '전형방법',
+  minimum_requirements: '최저학력기준',
+  exam_schedule: '대학별고사일',
+  school_record_method: '학생부반영방법',
+  recruitment_quota: '모집인원 및 입결'
+};
+
+function getSectionNumber(sectionKey) {
+  const idx = HWP_SECTION_ORDER.indexOf(sectionKey);
+  return idx >= 0 ? String(idx + 1) : '';
+}
+
+function getSectionTitleText(sectionKey) {
+  return HWP_SECTION_TITLES[sectionKey] || HWP_SECTION_LABELS[sectionKey] || '';
+}
+
+function stripRepeatedSheetNavigation(value) {
+  return normalizeAdmissionText(value)
+    .split('\n')
+    .map((line) => clean(line))
+    .filter(Boolean)
+    .filter((line) => !/^처음으로$/.test(line))
+    .filter((line) => !/^대학별목록$/.test(line))
+    .filter((line) => !/^처음으로\s+대학별목록$/.test(line))
+    .filter((line) => !/^지역별$/.test(line))
+    .filter((line) => !/^(서울권|경기권|인천권|대전권|충북권|충남권|전북권|전남\/광주권|강원권|국립대|제2캠퍼스|대구\/경북권|부산권|울산\/경남권|제주권)$/.test(line))
+    .filter((line) => !/^漠杳$/.test(line))
+    .filter((line) => !/[\u6364\u7365\u6c64\u636f\u6c20\u7462\u6c6b\u2568\u6d6b\u2562]/.test(line))
+    .join('\n')
+    .trim();
+}
+
+function sliceNumberedSection(value, sectionKey) {
+  const text = stripRepeatedSheetNavigation(value);
+  if (!text) return '';
+
+  const sectionNo = getSectionNumber(sectionKey);
+  const label = HWP_SECTION_LABELS[sectionKey];
+  if (!sectionNo || !label) return text;
+
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const marker = new RegExp(`(^|\\n)\\s*${sectionNo}\\.\\s*${escapedLabel}(?:\\s*[:：]?\\s*)?`, 'i');
+  const match = marker.exec(text);
+  if (!match) return '';
+
+  const start = match.index + match[0].length;
+  const rest = text.slice(start);
+  const next = /\n\s*[1-6]\.\s*(전년도와 차이점|전형방법|최저학력기준|대학별고사일|학생부반영방법|모집인원 및 입결)\b/.exec(rest.slice(1));
+  const end = next ? 1 + next.index : rest.length;
+  return rest.slice(0, end).trim();
+}
+
+function hasDifferentNumberedSectionOnly(value, sectionKey) {
+  const text = stripRepeatedSheetNavigation(value);
+  if (!text) return false;
+  const requestedNo = getSectionNumber(sectionKey);
+  const titlePattern = /(^|\n)\s*([1-6])\.\s*(전년도와 차이점|전형방법|최저학력기준|대학별고사일|학생부반영방법|모집인원 및 입결)\b/gi;
+  const found = Array.from(text.matchAll(titlePattern)).map((m) => m[2]);
+  return found.length > 0 && !found.includes(requestedNo);
+}
+
+function getRowStringValues(row) {
+  if (!row || typeof row !== 'object') return [];
+  return Object.entries(row)
+    .filter(([, value]) => typeof value === 'string' && clean(value))
+    .map(([key, value]) => ({ key, value }));
+}
+
+function resolveSectionText(row, section) {
+  const direct = getSectionText(row, section.key);
+  const htmlDirect = section.htmlKey ? stripHtmlToText(row?.[section.htmlKey]) : '';
+  const candidates = [
+    { key: section.key, value: direct },
+    { key: section.htmlKey || '', value: htmlDirect },
+    ...getRowStringValues(row),
+  ].filter((item) => clean(item.value));
+
+  for (const item of candidates) {
+    const sliced = sliceNumberedSection(item.value, section.key);
+    if (sliced) return sliced;
+  }
+
+  if (direct && !hasDifferentNumberedSectionOnly(direct, section.key)) return direct;
+  if (htmlDirect && !hasDifferentNumberedSectionOnly(htmlDirect, section.key)) return htmlDirect;
+
+  return '';
+}
+
+function withHwpSectionHeading(html, sectionKey) {
+  const heading = getSectionTitleText(sectionKey);
+  if (!heading) return html;
+  const plain = stripHtmlToText(html);
+  if (plain.startsWith(heading)) return html;
+  return `<div class="admission-hwp-section-title">${escapeHtml(heading)}</div>${html}`;
+}
 
 
 function isNumericTableValue(line) {
@@ -1188,7 +1311,7 @@ function isNumericTableValue(line) {
 
 function isRequirementMark(line) {
   const v = clean(line);
-  return /^[◯○●ＸX☆★]+$/.test(v) || /^[1-9]$/.test(v) || /^[-–—]$/.test(v);
+  return /^[◯○●ＸX☆★♥♡❤]+$/.test(v) || /^[1-9]$/.test(v) || /^[-–—]$/.test(v);
 }
 
 function isMinimumResultToken(line) {
@@ -1207,7 +1330,7 @@ function isSelectionType(line) {
 
 function isFootnoteLine(line) {
   const v = clean(line);
-  return /^\(★\)|^\(♥\)|^※|^\*|^주\)|^\([^)]+\)\s*:/.test(v);
+  return /^\([☆★♥♡❤]\)|^[☆★♥♡❤]\s*[:：]|^※|^\*|^주\)|^\([^)]+\)\s*:/.test(v);
 }
 
 function htmlTable(headers, rows, options = {}) {
@@ -2155,13 +2278,13 @@ function shouldSkipMinimumNote(line) {
   const v = original.replace(/\s+/g, '');
   // 비고 칸은 실제 설명만 남긴다. 원표의 체크 기호/별표/영역 숫자가 밀린 조각은 비고가 아니다.
   return /^[-–—]$/.test(v)
-    || /^[☆★＊*]$/.test(v)
+    || /^[☆★♥♡❤＊*]$/.test(v)
     || /^[:：]$/.test(v)
     || /^필수$/.test(v)
-    || /^[☆★＊*][:：]?(필수|반영|적용)$/.test(v)
+    || /^[☆★♥♡❤＊*][:：]?(필수|반영|적용)$/.test(v)
     || /^(별표|스타)[:：]?(필수|반영|적용)$/.test(v)
     || /^[◯○●][:：]?(있음|반영|적용)?$/.test(v)
-    || /[◯○●☆★]/.test(original)
+    || /[◯○●☆★♥♡❤]/.test(original)
     || /^(국어|수학|영어|탐구|사회탐구|과학탐구|한국사)?\s*\d+과목?$/.test(original)
     || /^(인문|자연|예체능|자유전공|미래융합|모집단위|전모집단위).*[◯○●\d]$/.test(original);
 }
@@ -3063,7 +3186,7 @@ function wrapExistingHtml(value, sectionKey) {
 }
 
 function buildRawSectionHtml(value, sectionKey, row = null, universityName = '') {
-  return sanitizeAdmissionRenderedHtml(buildSmartRawHtml(value, sectionKey, row, universityName));
+  return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(buildSmartRawHtml(value, sectionKey, row, universityName), sectionKey));
 }
 
 function buildRecruitmentResultHtml(value) {
@@ -3164,9 +3287,95 @@ function findResourceRow(university, resourceIndex) {
   return resourceIndex.uniqueBaseMap.get(baseKey) || null;
 }
 
+
+const HWP_SECTION_FIELD_KEYS = [
+  'previous_year_changes',
+  'selection_method',
+  'minimum_requirements',
+  'exam_schedule',
+  'school_record_method',
+  'recruitment_quota'
+];
+
+function findHwpSectionData(name) {
+  const target = clean(name);
+  if (!target) return null;
+
+  if (admissionHwpSections[target]) return admissionHwpSections[target];
+
+  const targetKey = normalizeName(target);
+  return Object.values(admissionHwpSections).find((item) => {
+    if (!item) return false;
+    return normalizeName(item.university_name) === targetKey
+      || normalizeName(item.hwp_source_name) === targetKey;
+  }) || null;
+}
+
+function buildHwpResourceRow(universityName, hwpData) {
+  const row = {
+    university_name: universityName,
+    name: universityName,
+    detail_status: hwpData?.detail_status || 'normal',
+    is_active: true,
+    hwp_source_name: hwpData?.hwp_source_name || '',
+    hwp_match_method: hwpData?.match_method || 'hwp'
+  };
+
+  HWP_SECTION_FIELD_KEYS.forEach((key) => {
+    const value = clean(hwpData?.[key]);
+    if (value) row[key] = value;
+  });
+
+  // HWP 원문을 기준으로 섹션별 텍스트를 다시 렌더링한다.
+  // 기존 DB HTML이 남아 있으면 섹션이 섞여 보일 수 있으므로 HWP가 있는 칸은 HTML 보조값을 비운다.
+  if (row.minimum_requirements) row.minimum_requirements_html = '';
+  if (row.school_record_method) row.school_record_method_html = '';
+  if (row.recruitment_quota) row.recruitment_result_html = '';
+
+  return row;
+}
+
+function mergeHwpResourceRows(rows) {
+  const mergedMap = new Map();
+
+  Object.entries(admissionHwpSections).forEach(([universityName, hwpData]) => {
+    const hwpRow = buildHwpResourceRow(universityName, hwpData);
+    const key = normalizeName(universityName);
+    if (key) mergedMap.set(key, hwpRow);
+  });
+
+  (rows || []).forEach((originalRow) => {
+    const fullName = getFullResourceName(originalRow) || clean(originalRow?.university_name || originalRow?.name);
+    const hwpData = findHwpSectionData(fullName)
+      || findHwpSectionData(originalRow?.university_name)
+      || findHwpSectionData(originalRow?.name)
+      || findHwpSectionData(originalRow?.university_key);
+
+    const row = { ...originalRow };
+    if (hwpData) {
+      row.hwp_source_name = hwpData.hwp_source_name || row.hwp_source_name || '';
+      row.hwp_match_method = hwpData.match_method || row.hwp_match_method || 'hwp';
+      HWP_SECTION_FIELD_KEYS.forEach((key) => {
+        const hwpValue = clean(hwpData[key]);
+        if (hwpValue) row[key] = hwpValue;
+      });
+      if (hwpData.minimum_requirements) row.minimum_requirements_html = '';
+      if (hwpData.school_record_method) row.school_record_method_html = '';
+      if (hwpData.recruitment_quota) row.recruitment_result_html = '';
+    }
+
+    const key = normalizeName(getFullResourceName(row) || fullName);
+    if (key) mergedMap.set(key, row);
+  });
+
+  return Array.from(mergedMap.values());
+}
+
 function InfoButton({ section, row, universityName, onOpen, compact = false }) {
-  const rawTextContent = getSectionText(row, section.key);
-  const htmlContent = section.htmlKey ? clean(row?.[section.htmlKey]) : '';
+  const rawTextContent = resolveSectionText(row, section);
+  const htmlContent = section.htmlKey && !hasDifferentNumberedSectionOnly(stripHtmlToText(row?.[section.htmlKey]), section.key)
+    ? clean(row?.[section.htmlKey])
+    : '';
   const wrappedRawKeys = ['previous_year_changes', 'selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'];
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
 
@@ -3262,9 +3471,6 @@ function UniversityCard({ university, row, onOpenInfo }) {
             {university.name}
           </h3>
         </div>
-        <span className="shrink-0 rounded-full border border-[#E8DCC5] bg-[#FFF8EC] px-2.5 py-1 text-[11px] font-black text-[#7A541C]">
-          {row ? '자료 있음' : '확인 필요'}
-        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -3294,9 +3500,6 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
       <th scope="row" className="admission-directory-name-cell">
         <span className="admission-directory-region">{university.region}</span>
         <span className="admission-directory-name">{university.name}</span>
-        <span className={`admission-directory-status ${row ? 'ready' : ''}`}>
-          {row ? '자료 연결' : 'DB 확인'}
-        </span>
       </th>
 
       {isCategory ? (
@@ -3421,7 +3624,7 @@ function addGlobalSectionQa(add, row, section, rawText, html) {
   if (looksLikeBrokenAdmissionHtml(html)) {
     add(row, section, 'error', '깨진 렌더링 토큰(undefined/NaN/object)이 있습니다.');
   }
-  if (/[◯○●☆★]/.test(plain)) {
+  if (/[◯○●☆★♥♡❤]/.test(plain)) {
     add(row, section, 'error', '원표 체크·주석 기호가 화면에 그대로 남아 있습니다.');
   }
   if (/(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(plain) || /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(String(html || ''))) {
@@ -3543,10 +3746,10 @@ function buildAdmissionVisualAudit(rows) {
         const minimumHtml = buildRawSectionHtml(minimumText, 'minimum_requirements', row, universityName);
         addGlobalSectionQa(add, row, '최저학력기준', minimumText, minimumHtml);
         const minimumPlain = stripHtmlToText(minimumHtml);
-        if (/☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★]\s*필수/i.test(minimumPlain)) {
+        if (/☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★♥♡❤]\s*필수/i.test(minimumPlain)) {
           add(row, '최저학력기준', 'warn', '별표 필수 설명이 비고에 노출될 가능성이 있습니다.');
         }
-        if (/[◯○●☆★]/.test(minimumPlain)) {
+        if (/[◯○●☆★♥♡❤]/.test(minimumPlain)) {
           add(row, '최저학력기준', 'warn', '비고/표 안에 원표 체크 기호가 그대로 노출될 가능성이 있습니다.');
         }
         if (/<td[^>]*>\s*(?:[^<]*자유전공[^<]*|[^<]*미래융합[^<]*|[^<]*자연[^<]*)\s*[◯○●]\s*\d?\s*<\/td>/i.test(minimumHtml)) {
@@ -3603,7 +3806,7 @@ function buildAdmissionVisualAudit(rows) {
         if (/(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(quotaPlain) || /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(quotaHtml)) {
           add(row, '모집인원 및 입결', 'warn', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
         }
-        if (/[◯○●☆★]/.test(quotaPlain)) {
+        if (/[◯○●☆★♥♡❤]/.test(quotaPlain)) {
           add(row, '모집인원 및 입결', 'warn', '모집인원/입결 표 안에 원표 체크·주석 기호가 그대로 노출될 가능성이 있습니다.');
         }
       }
@@ -3676,6 +3879,14 @@ export default function AdmissionGuidelines() {
   const modalBodyRef = useRef(null);
   const modalXScrollRef = useRef(null);
   const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
+
+  useEffect(() => {
+    if (!selectedInfo) return;
+    window.requestAnimationFrame(() => {
+      if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0;
+      if (modalXScrollRef.current) modalXScrollRef.current.scrollLeft = 0;
+    });
+  }, [selectedInfo?.universityName, selectedInfo?.title]);
 
   useEffect(() => {
     let alive = true;
@@ -3828,7 +4039,8 @@ export default function AdmissionGuidelines() {
     };
   }, [selectedInfo, modalXScroll.visible]);
 
-  const resourceIndex = useMemo(() => buildResourceIndex(resourceRows), [resourceRows]);
+  const mergedResourceRows = useMemo(() => mergeHwpResourceRows(resourceRows), [resourceRows]);
+  const resourceIndex = useMemo(() => buildResourceIndex(mergedResourceRows), [mergedResourceRows]);
 
   const selectedSpecialGroup = useMemo(() => (
     SPECIAL_UNIVERSITY_GROUPS.find((group) => group.key === selectedSpecialGroupKey) || null
@@ -4020,7 +4232,7 @@ export default function AdmissionGuidelines() {
             </div>
           </section>
 
-          {isQaMode ? <AdmissionQaPanel rows={resourceRows} /> : null}
+          {isQaMode ? <AdmissionQaPanel rows={mergedResourceRows} /> : null}
 
           <section className="grid gap-8 lg:grid-cols-[32%_1fr] lg:items-start">
             <aside className="relative rounded-[24px] border border-[#E7EBF0] bg-white shadow-[0_14px_38px_rgba(13,27,42,0.08)] lg:sticky lg:top-[104px]">
@@ -4127,7 +4339,7 @@ export default function AdmissionGuidelines() {
               {!selectedRegion && !selectedSpecialGroupKey && !keyword.trim() ? (
                 <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#D8DEE8] bg-[#F8FAFC] px-6 text-center">
                   <div>
-                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>                    
+                    <p className="text-xl font-black text-[#0D1B2A]">지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.</p>                   
                   </div>
                 </div>
               ) : visibleUniversities.length === 0 ? (
@@ -4213,8 +4425,6 @@ export default function AdmissionGuidelines() {
 
         .admission-modal-sheet { background: #fff; border: 2px solid #0D1B2A; border-radius: 0; box-shadow: 0 26px 60px rgba(0, 0, 0, 0.26); }
         .admission-modal-sheet-head { border-bottom: 3px solid #0D1B2A; background: #fff; }
-        .admission-modal-sheet-tab { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid #0D1B2A; background: #DFF7FB; padding: 0 14px; color: #0D1B2A; font-size: 13px; font-weight: 950; }
-        .admission-modal-sheet-tab.secondary { background: #F5FFD2; }
         .admission-modal-sheet-title { text-align: center; color: #1018D7; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
         .admission-table-wrap,
         .admission-existing-html,
@@ -4354,36 +4564,37 @@ export default function AdmissionGuidelines() {
         .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
         .admission-special-table td:first-child { min-width: 150px; background: #FAFBFC; color: #0D1B2A; font-weight: 950; }
         .admission-modal-body .admission-raw-section-wrap,
-        .admission-modal-body .admission-existing-html { background: #fff; border: 1px solid #0D1B2A; border-radius: 0; padding: 10px; }
+        .admission-modal-body .admission-existing-html { background: #fff; border: 0; border-radius: 0; padding: 0; }
         .admission-modal-body .admission-table-wrap { background: #fff; }
+        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #000; font-size: 16px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
         .admission-modal-body .admission-result-note,
         .admission-modal-body .admission-header-summary,
-        .admission-modal-body .admission-recruit-legend { margin-bottom: 8px; border: 1px solid #0D1B2A; border-radius: 0; background: #FFF8C8; color: #111827; padding: 7px 9px; font-size: 12px; line-height: 1.5; font-weight: 900; }
+        .admission-modal-body .admission-recruit-legend { display: none !important; }
         .admission-modal-body .admission-subhead-card,
         .admission-modal-body .admission-special-title,
-        .admission-modal-body .admission-subtitle-line { margin-top: 8px; border: 1px solid #0D1B2A; border-left: 8px solid #0D1B2A; border-radius: 0; background: #FFF8C8; color: #111827; padding: 7px 9px; font-size: 13px; line-height: 1.45; font-weight: 950; }
-        .admission-modal-body .admission-scroll-table { border: 1px solid #0D1B2A; border-radius: 0; }
+        .admission-modal-body .admission-subtitle-line { margin-top: 8px; border: 0; border-left: 0; border-radius: 0; background: transparent; color: #000; padding: 0; font-size: 13px; line-height: 1.45; font-weight: 950; }
+        .admission-modal-body .admission-scroll-table { border: 0; border-radius: 0; background: #fff; }
         .admission-modal-body .admission-data-table,
         .admission-modal-body .admission-mini-table,
         .admission-modal-body .admission-result-table,
         .admission-modal-body .admission-existing-html table,
-        .admission-modal-body .admission-table-wrap table { font-size: 12px; line-height: 1.32; }
+        .admission-modal-body .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: 3px solid #2F5597; border-bottom: 3px solid #2F5597; font-size: 12px; line-height: 1.28; table-layout: auto; }
         .admission-modal-body .admission-data-table th,
         .admission-modal-body .admission-mini-table th,
         .admission-modal-body .admission-result-table th,
         .admission-modal-body .admission-existing-html th,
-        .admission-modal-body .admission-table-wrap th { background: #0D1B2A !important; color: #fff !important; border: 1px solid #0D1B2A; padding: 6px 7px; font-weight: 950; }
+        .admission-modal-body .admission-table-wrap th { background: #EAF2FF !important; color: #000 !important; border: 1px solid #2F5597; padding: 4px 7px; font-weight: 950; text-align: center; white-space: nowrap; }
         .admission-modal-body .admission-data-table td,
         .admission-modal-body .admission-mini-table td,
         .admission-modal-body .admission-result-table td,
         .admission-modal-body .admission-existing-html td,
-        .admission-modal-body .admission-table-wrap td { border: 1px solid #0D1B2A; padding: 6px 7px; color: #111827; font-weight: 800; }
+        .admission-modal-body .admission-table-wrap td { border: 1px solid #2F5597; padding: 4px 7px; color: #000; font-weight: 800; vertical-align: middle; }
         .admission-modal-body .admission-data-table td:first-child,
         .admission-modal-body .admission-result-table td:first-child,
         .admission-modal-body .admission-mini-table td:first-child,
         .admission-modal-body .admission-selection-table .selection-type-cell,
         .admission-modal-body .admission-record-info-table td:first-child,
-        .admission-modal-body .admission-special-table td:first-child { background: #FFFDF0; color: #111827; font-weight: 950; }
+        .admission-modal-body .admission-special-table td:first-child { background: #fff; color: #000; font-weight: 950; }
         .admission-modal-body .admission-change-arrow-before,
         .admission-modal-body .admission-change-arrow-after,
         .admission-modal-body .admission-change-line,
@@ -4392,8 +4603,8 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-token-row,
         .admission-modal-body .admission-info-list > div,
         .admission-modal-body .admission-bullet-list li,
-        .admission-modal-body .admission-text-line { border: 1px solid #0D1B2A; border-radius: 0; background: #fff; color: #111827; }
-        .admission-modal-body .admission-change-arrow-after { background: #FFF8C8; }
+        .admission-modal-body .admission-text-line { border: 1px solid #2F5597; border-radius: 0; background: #fff; color: #000; }
+        .admission-modal-body .admission-change-arrow-after { background: #fff; }
         .admission-modal-body .admission-change-arrow-icon { color: #1018D7; }
         .muted { color: #98A2B3; }
         @media (max-width: 720px) {
@@ -4412,17 +4623,13 @@ export default function AdmissionGuidelines() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="admission-modal-sheet-head px-5 py-4 md:px-7">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="admission-modal-sheet-tab">처음으로</span>
-                <span className="admission-modal-sheet-tab secondary">대학별목록</span>
-              </div>
               <p className="text-center text-[13px] font-black tracking-[0.16em] text-[#6F4C13]">{selectedInfo.universityName}</p>
               <h3 className="admission-modal-sheet-title mt-1 text-2xl tracking-[-0.04em] md:text-3xl">
                 {selectedInfo.title}
               </h3>
             </div>
             <div ref={modalBodyRef}
-              className="admission-modal-body flex-1 overflow-auto bg-[#F7F7F0] px-4 py-4 text-[14px] font-semibold leading-7 text-[#344054] md:px-6">
+              className="admission-modal-body flex-1 overflow-auto bg-white px-4 py-4 text-[14px] font-semibold leading-7 text-[#111827] md:px-6">
               {selectedInfo.isHtml ? (
                 <div
                   className="admission-table-wrap"
