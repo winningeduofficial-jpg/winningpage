@@ -1482,7 +1482,7 @@ function buildPreviousYearChangesHtml(lines, sectionKey) {
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
-  const headers = ['번호', '변경 항목', '변경 전 → 변경 후', '비고'];
+  const headers = ['번호', '변경 항목', '변경사항', '비고'];
 
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
     return `
