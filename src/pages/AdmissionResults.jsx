@@ -49,9 +49,7 @@ export default function AdmissionResults() {
               <div>
                 <p className="text-sm font-black text-[#B88737]">구현 예정 구조</p>
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">수시 DB와 정시 DB를 분리해 한 화면에서 검색</h2>
-                <p className="mt-4 max-w-[820px] text-base font-semibold leading-7 text-gray-600">
-                  수시 파일과 정시 파일은 컬럼 구조가 다르므로 하나의 테이블에 억지로 합치지 않고, 각각 변환한 뒤 대학명·모집단위 기준으로 묶어 보여주는 방식으로 연결합니다.
-                </p>
+            
               </div>
               <div className="rounded-2xl bg-[#F3F0FF] px-5 py-4 text-sm font-black text-[#5B21B6]">
                 현재 단계: 헤더·라우트만 연결
@@ -82,9 +80,7 @@ export default function AdmissionResults() {
               </div>
             </div>
 
-            <div className="mt-8 rounded-2xl border border-dashed border-[#7B2FF7]/40 bg-[#F3F0FF] p-5 text-sm font-bold leading-7 text-[#4C1D95]">
-              다음 단계에서 업로드한 수시·정시 엑셀 구조를 기준으로 Supabase 변환 스크립트와 검색 테이블을 확정합니다. 지금은 존재하지 않는 DB를 호출하지 않도록 안전하게 비워둔 상태입니다.
-            </div>
+           
           </div>
         </section>
       </main>
