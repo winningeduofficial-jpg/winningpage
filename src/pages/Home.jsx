@@ -277,40 +277,81 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
   );
 }
 
-function AutoScrollRow({ items, renderItem, speed = 34, ariaLabel }) {
-  const safeItems = Array.isArray(items) ? items : [];
-  const trackItems = safeItems.length > 0 ? [...safeItems, ...safeItems] : [];
+function AcceptanceCarousel({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => item?.image_url)
+    : [];
+  const scrollRef = useRef(null);
 
   if (safeItems.length === 0) return null;
 
+  function move(direction) {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const firstCard = container.querySelector('[data-acceptance-card]');
+    const cardWidth = firstCard?.getBoundingClientRect().width || 250;
+    const gap = 18;
+    const nextLeft = container.scrollLeft + direction * (cardWidth + gap);
+    const maxLeft = container.scrollWidth - container.clientWidth;
+
+    if (direction > 0 && nextLeft >= maxLeft - 8) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (direction < 0 && nextLeft <= 8) {
+      container.scrollTo({ left: maxLeft, behavior: 'smooth' });
+      return;
+    }
+
+    container.scrollBy({ left: direction * (cardWidth + gap), behavior: 'smooth' });
+  }
+
   return (
-    <div className="winning-marquee overflow-hidden" aria-label={ariaLabel}>
-      <div
-        className="winning-marquee-track flex w-max gap-5"
-        style={{ animationDuration: `${speed}s` }}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => move(-1)}
+        className="absolute left-0 top-1/2 z-20 flex h-11 w-11 -translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/18 bg-white text-[#0D1B2A] shadow-[0_10px_28px_rgba(13,27,42,0.14)] transition hover:bg-[#0D1B2A] hover:text-white sm:h-12 sm:w-12"
+        aria-label="이전 합격생 카드"
       >
-        {trackItems.map((item, index) => (
-          <div
-            key={`${item.id || item.title || 'item'}-${index}`}
-            aria-hidden={index >= safeItems.length ? true : undefined}
-          >
-            {renderItem(item, index)}
-          </div>
+        <ChevronLeft size={24} />
+      </button>
+
+      <div
+        ref={scrollRef}
+        className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto px-2 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {safeItems.map((item, index) => (
+          <AcceptanceCard key={item.id || `${item.image_url}-${index}`} item={item} />
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={() => move(1)}
+        className="absolute right-0 top-1/2 z-20 flex h-11 w-11 translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/18 bg-white text-[#0D1B2A] shadow-[0_10px_28px_rgba(13,27,42,0.14)] transition hover:bg-[#0D1B2A] hover:text-white sm:h-12 sm:w-12"
+        aria-label="다음 합격생 카드"
+      >
+        <ChevronRight size={24} />
+      </button>
     </div>
   );
 }
 
 function AcceptanceCard({ item }) {
   return (
-    <div className="block w-[220px] shrink-0 overflow-hidden rounded-[22px] border border-[#173F7A]/15 bg-white shadow-[0_14px_32px_rgba(13,27,42,0.09)] sm:w-[250px]">
+    <div
+      data-acceptance-card
+      className="group block w-[210px] shrink-0 snap-start overflow-hidden rounded-[22px] border border-[#173F7A]/12 bg-white shadow-[0_12px_30px_rgba(13,27,42,0.09)] transition duration-300 hover:-translate-y-2 hover:shadow-[0_22px_42px_rgba(13,27,42,0.16)] sm:w-[235px] lg:w-[250px]"
+    >
       <div className="aspect-[4/5] overflow-hidden bg-[#F4F6F8]">
         {item.image_url ? (
           <img
             src={item.image_url}
             alt="합격생 사례"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
           />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center text-sm font-black text-[#173F7A]">
@@ -326,46 +367,81 @@ function MentorArchGallery({ items }) {
   const safeItems = Array.isArray(items)
     ? items.filter((item) => item?.image_url)
     : [];
-  const [startIndex, setStartIndex] = useState(0);
+  const [centerIndex, setCenterIndex] = useState(0);
 
   useEffect(() => {
-    if (safeItems.length <= 5) {
-      setStartIndex(0);
-      return undefined;
-    }
-
-    const timer = window.setInterval(() => {
-      setStartIndex((current) => (current + 1) % safeItems.length);
-    }, 4500);
-
-    return () => window.clearInterval(timer);
-  }, [safeItems.length]);
-
-  const visibleItems = useMemo(() => {
-    if (safeItems.length <= 5) return safeItems;
-
-    return Array.from({ length: 5 }, (_, index) => {
-      return safeItems[(startIndex + index) % safeItems.length];
-    });
-  }, [safeItems, startIndex]);
+    if (centerIndex > safeItems.length - 1) setCenterIndex(0);
+  }, [safeItems.length, centerIndex]);
 
   if (safeItems.length === 0) return null;
 
-  const desktopSlots = [
-    { left: '0%', top: '92px', width: '30%', rotate: '-3deg', zIndex: 1 },
-    { left: '15%', top: '50px', width: '34%', rotate: '-1.5deg', zIndex: 2 },
-    { left: '33%', top: '10px', width: '39%', rotate: '0deg', zIndex: 5 },
-    { left: '55%', top: '50px', width: '34%', rotate: '1.5deg', zIndex: 2 },
-    { left: '72%', top: '92px', width: '30%', rotate: '3deg', zIndex: 1 },
-  ];
+  function move(direction) {
+    setCenterIndex((current) => {
+      const next = current + direction;
+      if (next < 0) return safeItems.length - 1;
+      if (next >= safeItems.length) return 0;
+      return next;
+    });
+  }
+
+  const slotOffsets = safeItems.length >= 5
+    ? [-2, -1, 0, 1, 2]
+    : Array.from({ length: safeItems.length }, (_, index) => {
+        return index - Math.floor(safeItems.length / 2);
+      });
+
+  const visibleItems = slotOffsets.map((offset) => {
+    const index = (centerIndex + offset + safeItems.length) % safeItems.length;
+    return { item: safeItems[index], offset, sourceIndex: index };
+  });
+
+  const slotStyles = {
+    '-2': {
+      left: '0%', top: '124px', width: '29%', zIndex: 1,
+      transform: 'perspective(1100px) rotateY(18deg) rotateZ(-2.4deg) scale(0.92)',
+      opacity: 0.76,
+    },
+    '-1': {
+      left: '14%', top: '72px', width: '35%', zIndex: 3,
+      transform: 'perspective(1100px) rotateY(10deg) rotateZ(-1.2deg) scale(0.97)',
+      opacity: 0.92,
+    },
+    '0': {
+      left: '30%', top: '20px', width: '42%', zIndex: 7,
+      transform: 'perspective(1100px) rotateY(0deg) rotateZ(0deg) scale(1)',
+      opacity: 1,
+    },
+    '1': {
+      left: '55%', top: '72px', width: '35%', zIndex: 3,
+      transform: 'perspective(1100px) rotateY(-10deg) rotateZ(1.2deg) scale(0.97)',
+      opacity: 0.92,
+    },
+    '2': {
+      left: '72%', top: '124px', width: '29%', zIndex: 1,
+      transform: 'perspective(1100px) rotateY(-18deg) rotateZ(2.4deg) scale(0.92)',
+      opacity: 0.76,
+    },
+  };
 
   return (
-    <div>
-      <div className="flex snap-x gap-4 overflow-x-auto pb-3 lg:hidden">
+    <div className="relative overflow-hidden rounded-[30px] border border-[#173F7A]/10 bg-[radial-gradient(circle_at_50%_34%,rgba(46,94,151,0.12),rgba(255,255,255,0)_48%),linear-gradient(180deg,#FBFCFE_0%,#F5F8FC_100%)] px-3 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:px-5 lg:px-7 lg:py-7">
+      <div className="pointer-events-none absolute left-1/2 top-[62%] h-24 w-[70%] -translate-x-1/2 rounded-[50%] bg-[#173F7A]/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-[12%] bottom-8 h-px bg-gradient-to-r from-transparent via-[#173F7A]/18 to-transparent" />
+
+      <button
+        type="button"
+        onClick={() => move(-1)}
+        className="absolute left-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/15 bg-white/95 text-[#0D1B2A] shadow-[0_12px_30px_rgba(13,27,42,0.18)] backdrop-blur transition hover:bg-[#0D1B2A] hover:text-white sm:left-5 sm:h-12 sm:w-12"
+        aria-label="이전 멘토 성공전략"
+      >
+        <ChevronLeft size={25} />
+      </button>
+
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-12 pb-3 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden">
         {safeItems.map((item, index) => (
           <div
             key={item.id || `${item.image_url}-${index}`}
-            className="w-[86%] min-w-[86%] snap-center overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
+            className="w-[86%] min-w-[86%] snap-center overflow-hidden rounded-[22px] border border-white bg-white shadow-[0_18px_42px_rgba(13,27,42,0.16)]"
           >
             <div className="aspect-[14/5] bg-slate-100">
               <img
@@ -378,34 +454,49 @@ function MentorArchGallery({ items }) {
         ))}
       </div>
 
-      <div className="relative hidden h-[390px] lg:block" aria-label="멘토 성공전략 이미지">
-        {visibleItems.map((item, index) => {
-          const slotOffset = Math.floor((5 - visibleItems.length) / 2);
-          const slot = desktopSlots[index + slotOffset] || desktopSlots[index];
+      <div className="relative hidden h-[410px] lg:block" aria-label="멘토 성공전략 이미지">
+        {visibleItems.map(({ item, offset, sourceIndex }) => {
+          const style = slotStyles[String(offset)] || slotStyles['0'];
+          const isCenter = offset === 0;
 
           return (
-            <div
-              key={`${item.id || item.image_url}-${index}-${startIndex}`}
-              className="absolute overflow-hidden rounded-[24px] border border-white/80 bg-white shadow-[0_24px_55px_rgba(15,23,42,0.17)] transition-all duration-700 ease-out"
-              style={{
-                left: slot.left,
-                top: slot.top,
-                width: slot.width,
-                zIndex: slot.zIndex,
-                transform: `rotate(${slot.rotate})`,
-              }}
+            <button
+              type="button"
+              key={`${item.id || item.image_url}-${sourceIndex}-${offset}`}
+              onClick={() => setCenterIndex(sourceIndex)}
+              className={`absolute overflow-hidden rounded-[26px] border bg-white text-left transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isCenter
+                  ? 'border-white shadow-[0_34px_80px_rgba(13,27,42,0.28),0_10px_24px_rgba(13,27,42,0.16)] ring-1 ring-[#E1B85A]/35'
+                  : 'border-white/90 shadow-[0_20px_48px_rgba(13,27,42,0.19)]'
+              }`}
+              style={style}
+              aria-label={`멘토 성공전략 ${sourceIndex + 1} 보기`}
             >
-              <div className="aspect-[14/5] bg-slate-100">
+              <div className="aspect-[14/5] overflow-hidden bg-slate-100">
                 <img
                   src={item.image_url}
-                  alt={`위닝 멘토 성공전략 ${index + 1}`}
-                  className="h-full w-full object-cover"
+                  alt={`위닝 멘토 성공전략 ${sourceIndex + 1}`}
+                  className={`h-full w-full object-cover transition duration-700 ${
+                    isCenter ? 'saturate-100 brightness-100' : 'saturate-[0.9] brightness-[0.94]'
+                  }`}
                 />
               </div>
-            </div>
+              {isCenter && (
+                <span className="pointer-events-none absolute inset-0 rounded-[26px] ring-2 ring-white/75" />
+              )}
+            </button>
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={() => move(1)}
+        className="absolute right-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/15 bg-white/95 text-[#0D1B2A] shadow-[0_12px_30px_rgba(13,27,42,0.18)] backdrop-blur transition hover:bg-[#0D1B2A] hover:text-white sm:right-5 sm:h-12 sm:w-12"
+        aria-label="다음 멘토 성공전략"
+      >
+        <ChevronRight size={25} />
+      </button>
     </div>
   );
 }
@@ -891,28 +982,24 @@ export default function Home() {
         </section>
 
         {acceptanceCards.length > 0 && (
-          <section className="overflow-hidden py-14 lg:py-18">
+          <section className="overflow-hidden border-b border-[#E7ECF2] bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FAFD_100%)] py-14 lg:py-18">
             <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
-              <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-sm font-black text-[#D81F26]">SUCCESS STORIES</p>
-                <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#D81F26] sm:text-[34px]">
-                  합격생 선배들의 압도적 선택
-                </h2>
+              <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black tracking-[0.08em] text-[#B58A2A]">SUCCESS STORIES</p>
+                  <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[34px]">
+                    합격생 선배들의 압도적 선택
+                  </h2>
+                </div>
+                <Link
+                  to="/reviews"
+                  className="inline-flex items-center gap-1 text-sm font-black text-[#173F7A] transition hover:text-[#0D1B2A]"
+                >
+                  합격사례 전체보기 <ArrowRight size={16} />
+                </Link>
               </div>
-              <Link to="/reviews" className="text-sm font-black text-[#0D1B2A]">
-                합격사례 전체보기 →
-              </Link>
-            </div>
-          </div>
 
-          <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
-            <AutoScrollRow
-              items={acceptanceCards}
-              speed={Math.max(28, acceptanceCards.length * 5)}
-              ariaLabel="합격생 사례 자동 흐름"
-              renderItem={(item) => <AcceptanceCard item={item} />}
-            />
+              <AcceptanceCarousel items={acceptanceCards} />
             </div>
           </section>
         )}
@@ -978,11 +1065,11 @@ export default function Home() {
               <div className="min-w-0">
                 {mentorStrategies.length > 0 && (
                   <>
-                    <div className="mb-5 lg:mb-1">
-                      <p className="text-sm font-black tracking-[0.04em] text-[#0B73C9]">
+                    <div className="mb-6">
+                      <p className="text-sm font-black tracking-[0.08em] text-[#B58A2A]">
                         MENTOR STRATEGY
                       </p>
-                      <h2 className="mt-2 break-keep text-[28px] font-black tracking-[-0.045em] text-[#0B73C9] sm:text-[36px]">
+                      <h2 className="mt-2 break-keep text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[36px]">
                         위닝 멘토와 완성하는 성공전략
                       </h2>
                     </div>
