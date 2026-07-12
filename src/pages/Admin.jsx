@@ -25,7 +25,10 @@ const MENU_GROUPS = [
     title: '메인 관리',
     items: [
       { key: 'popups', label: '팝업 관리' },
-      { key: 'banners', label: '배너 관리' },
+      { key: 'banners', label: '메인 배너 관리' },
+      { key: 'sideBanners', label: '우측 소형 배너' },
+      { key: 'acceptanceCards', label: '합격생 카드' },
+      { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
   },
@@ -33,6 +36,7 @@ const MENU_GROUPS = [
   title: '게시판 관리',
   items: [
     { key: 'notices', label: '공지사항' },
+    { key: 'companyNews', label: '회사소식' },
     { key: 'admissionSusiJungsi', label: '수시·정시' },
     { key: 'admissionGuidelines', label: '대학별 모집요강' },
     { key: 'admissionResults', label: '입결정보' },
@@ -157,6 +161,120 @@ popups: {
     }
   },
 
+
+  sideBanners: {
+    title: '우측 소형 배너',
+    table: 'home_side_banners',
+    searchPlaceholder: '배너 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `메인 배너 오른쪽에 최대 3개가 노출됩니다. PC 권장 이미지: 900px × 420px / 모바일 권장 이미지: 900px × 500px / 형식: JPG 또는 PNG / 권장 용량: 1MB 이하`,
+    columns: [
+      { key: 'image_url', label: 'PC 이미지', type: 'image' },
+      { key: 'title', label: '제목' },
+      { key: 'subtitle', label: '설명' },
+      { key: 'link_url', label: '연결 주소' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'subtitle', label: '설명', type: 'textarea' },
+      { key: 'link_url', label: '연결 주소', type: 'text' },
+      { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
+      { key: 'image_url', label: 'PC 이미지', type: 'image' },
+      { key: 'mobile_image_url', label: '모바일 이미지', type: 'image' },
+      { key: 'start_date', label: '노출 시작일', type: 'date' },
+      { key: 'end_date', label: '노출 종료일', type: 'date' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      title: '',
+      subtitle: '',
+      link_url: '',
+      open_new_window: false,
+      image_url: '',
+      mobile_image_url: '',
+      start_date: null,
+      end_date: null,
+      sort_order: 1
+    }
+  },
+
+  acceptanceCards: {
+    title: '합격생 카드',
+    table: 'home_acceptance_cards',
+    searchPlaceholder: '학생명, 합격 대학을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `메인 화면의 '합격생 선배들의 압도적 선택' 영역에 자동으로 흐르는 카드입니다. 권장 이미지: 800px × 1000px / 비율: 4:5 / 형식: JPG 또는 PNG`,
+    columns: [
+      { key: 'image_url', label: '이미지', type: 'image' },
+      { key: 'student_name', label: '학생명' },
+      { key: 'result_title', label: '합격 결과' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'student_name', label: '학생명', type: 'text', required: true },
+      { key: 'result_title', label: '합격 결과', type: 'text', required: true },
+      { key: 'description', label: '간단 설명', type: 'textarea' },
+      { key: 'link_url', label: '연결 주소', type: 'text' },
+      { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
+      { key: 'image_url', label: '카드 이미지', type: 'image' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      student_name: '',
+      result_title: '',
+      description: '',
+      link_url: '/reviews',
+      open_new_window: false,
+      image_url: '',
+      sort_order: 1
+    }
+  },
+
+  mentorStrategies: {
+    title: '멘토 성공전략',
+    table: 'home_mentor_strategies',
+    searchPlaceholder: '멘토명, 전략 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `메인 화면의 '위닝 멘토와 완성하는 성공전략' 영역에 자동으로 흐르는 카드입니다. 권장 이미지: 1000px × 800px / 비율: 5:4 / 형식: JPG 또는 PNG`,
+    columns: [
+      { key: 'image_url', label: '이미지', type: 'image' },
+      { key: 'mentor_name', label: '멘토명' },
+      { key: 'title', label: '전략 제목' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'mentor_name', label: '멘토명', type: 'text', required: true },
+      { key: 'title', label: '전략 제목', type: 'text', required: true },
+      { key: 'description', label: '전략 설명', type: 'textarea' },
+      { key: 'link_url', label: '연결 주소', type: 'text' },
+      { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
+      { key: 'image_url', label: '전략 이미지', type: 'image' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      mentor_name: '',
+      title: '',
+      description: '',
+      link_url: '/page/services-mentoring',
+      open_new_window: false,
+      image_url: '',
+      sort_order: 1
+    }
+  },
+
   pageContents: {
   title: '세부 페이지 관리',
   table: 'page_contents',
@@ -234,6 +352,49 @@ popups: {
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'content', label: '내용', type: 'textarea' },
+      { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
+      {
+        key: 'attachments',
+        label: '첨부파일',
+        type: 'multiFile',
+        accept: '.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      is_pinned: false,
+      title: '',
+      content: '',
+      image_url: '',
+      file_url: '',
+      file_name: '',
+      image_urls: [],
+      attachments: [],
+      sort_order: 1
+    }
+  },
+
+  companyNews: {
+    title: '회사소식',
+    table: 'company_news',
+    searchPlaceholder: '회사소식 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `회사소식 페이지 하단 게시판과 메인 페이지 우측 미리보기에 함께 노출됩니다. 회사소개 상단 내용은 '세부 페이지 관리'의 company-intro 항목을 사용합니다.`,
+    columns: [
+      { key: 'title', label: '제목' },
+      { key: 'is_pinned', label: '주요소식 고정', type: 'boolean' },
+      { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
+      { key: 'attachments', label: '첨부파일', type: 'fileList' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'created_at', label: '작성일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'is_pinned', label: '주요소식 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -3204,4 +3365,3 @@ delete payload.updated_at;
     </div>
   );
 }
-
