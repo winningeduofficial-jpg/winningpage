@@ -16,6 +16,7 @@ import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import Admin from './pages/Admin';
 import DynamicPage from './pages/DynamicPage';
+import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
 
         <Route path="/events" element={<Events />} />
+        <Route path="/company-news" element={<CompanyNews />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/gallery" element={<Gallery />} />
