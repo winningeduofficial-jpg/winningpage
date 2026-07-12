@@ -397,18 +397,20 @@ function AcceptanceCarousel({ items }) {
 
 function AcceptanceCard({ item }) {
   return (
-    <div
+    <Link
+      to={item.link_url || '/admission/susi-jungsi'}
       data-acceptance-card
-      className="group block w-[210px] shrink-0 overflow-hidden rounded-[20px] border border-[#DDE5EE] bg-white shadow-[0_9px_24px_rgba(13,27,42,0.08)] transition duration-300 hover:-translate-y-1.5 hover:border-[#BFCBDC] hover:shadow-[0_18px_38px_rgba(13,27,42,0.14)] sm:w-[235px] lg:w-[250px]"
+      aria-label={`${item.title || '합격 사례'} 게시글 보기`}
+      className="group block w-[210px] shrink-0 overflow-hidden rounded-[20px] border border-[#DDE5EE] bg-white shadow-[0_9px_24px_rgba(13,27,42,0.08)] transition duration-300 hover:-translate-y-1.5 hover:border-[#BFCBDC] hover:shadow-[0_18px_38px_rgba(13,27,42,0.14)] focus:outline-none focus:ring-2 focus:ring-[#173F7A]/35 sm:w-[235px] lg:w-[250px]"
     >
       <div className="aspect-[4/5] overflow-hidden bg-[#F4F6F8]">
         <img
           src={item.image_url}
-          alt="합격생 사례"
+          alt={item.title || '합격생 사례'}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
         />
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -715,10 +717,13 @@ export default function Home() {
           .or(`end_date.is.null,end_date.gte.${today}`)
           .order('sort_order', { ascending: true }),
         supabase
-          .from('home_acceptance_cards')
-          .select('*')
+          .from('admission_posts')
+          .select('id, category, title, image_url, image_urls, sort_order, created_at')
+          .in('category', ['susi', 'jungsi'])
           .eq('is_active', true)
-          .order('sort_order', { ascending: true }),
+          .eq('show_on_home', true)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: false }),
         supabase
           .from('home_mentor_strategies')
           .select('*')
@@ -755,10 +760,25 @@ export default function Home() {
       }
 
       if (acceptanceResult.error) {
-        console.error('합격생 카드 조회 오류:', acceptanceResult.error);
+        console.error('수시·정시 메인 합격생 게시글 조회 오류:', acceptanceResult.error);
         setAcceptanceCards([]);
       } else {
-        setAcceptanceCards(acceptanceResult.data || []);
+        const cards = (acceptanceResult.data || [])
+          .map((post) => {
+            const images = normalizeArray(post.image_urls);
+            const firstImage = images[0] || post.image_url || '';
+            if (!firstImage) return null;
+
+            return {
+              id: post.id,
+              title: post.title,
+              image_url: firstImage,
+              link_url: `/admission/susi-jungsi/${post.id}`,
+            };
+          })
+          .filter(Boolean);
+
+        setAcceptanceCards(cards);
       }
 
       if (mentorResult.error) {
@@ -1039,10 +1059,10 @@ export default function Home() {
                   </h2>
                 </div>
                 <Link
-                  to="/reviews"
+                  to="/admission/susi-jungsi"
                   className="inline-flex items-center gap-1 text-sm font-black text-[#173F7A] transition hover:text-[#0D1B2A]"
                 >
-                  합격사례 전체보기 <ArrowRight size={16} />
+                  수시·정시 합격 게시물 전체보기 <ArrowRight size={16} />
                 </Link>
               </div>
 
