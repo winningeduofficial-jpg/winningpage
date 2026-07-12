@@ -95,11 +95,16 @@ export default function AdmissionBoard() {
     async function loadList() {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('admission_posts')
         .select('*')
-        .eq('category', category)
-        .eq('is_active', true)
+        .eq('is_active', true);
+
+      query = category === 'susi-jungsi'
+        ? query.in('category', ['susi', 'jungsi'])
+        : query.eq('category', category);
+
+      const { data, error } = await query
         .order('is_pinned', { ascending: false })
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
@@ -119,13 +124,17 @@ export default function AdmissionBoard() {
     async function loadDetail() {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('admission_posts')
         .select('*')
         .eq('id', id)
-        .eq('category', category)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
+
+      query = category === 'susi-jungsi'
+        ? query.in('category', ['susi', 'jungsi'])
+        : query.eq('category', category);
+
+      const { data, error } = await query.maybeSingle();
 
       if (!alive) return;
 
