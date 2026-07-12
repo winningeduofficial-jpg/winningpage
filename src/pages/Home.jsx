@@ -282,60 +282,115 @@ function AcceptanceCarousel({ items }) {
     ? items.filter((item) => item?.image_url)
     : [];
   const scrollRef = useRef(null);
+  const normalizeTimerRef = useRef(null);
+  const autoTimerRef = useRef(null);
+  const [isPaused, setIsPaused] = useState(false);
 
-  if (safeItems.length === 0) return null;
+  const repeatedItems = useMemo(() => {
+    if (safeItems.length === 0) return [];
+    return [...safeItems, ...safeItems, ...safeItems];
+  }, [safeItems]);
+
+  function getStep(container) {
+    const firstCard = container?.querySelector('[data-acceptance-card]');
+    const cardWidth = firstCard?.getBoundingClientRect().width || 250;
+    return cardWidth + 18;
+  }
 
   function move(direction) {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container || safeItems.length <= 1) return;
 
-    const firstCard = container.querySelector('[data-acceptance-card]');
-    const cardWidth = firstCard?.getBoundingClientRect().width || 250;
-    const gap = 18;
-    const nextLeft = container.scrollLeft + direction * (cardWidth + gap);
-    const maxLeft = container.scrollWidth - container.clientWidth;
+    const step = getStep(container);
+    container.scrollBy({ left: direction * step, behavior: 'smooth' });
 
-    if (direction > 0 && nextLeft >= maxLeft - 8) {
-      container.scrollTo({ left: 0, behavior: 'smooth' });
-      return;
-    }
+    window.clearTimeout(normalizeTimerRef.current);
+    normalizeTimerRef.current = window.setTimeout(() => {
+      const cycleWidth = step * safeItems.length;
+      if (!cycleWidth) return;
 
-    if (direction < 0 && nextLeft <= 8) {
-      container.scrollTo({ left: maxLeft, behavior: 'smooth' });
-      return;
-    }
-
-    container.scrollBy({ left: direction * (cardWidth + gap), behavior: 'smooth' });
+      if (container.scrollLeft < cycleWidth * 0.45) {
+        container.scrollTo({ left: container.scrollLeft + cycleWidth, behavior: 'auto' });
+      } else if (container.scrollLeft > cycleWidth * 1.55) {
+        container.scrollTo({ left: container.scrollLeft - cycleWidth, behavior: 'auto' });
+      }
+    }, 520);
   }
 
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || safeItems.length === 0) return undefined;
+
+    const positionAtMiddle = () => {
+      const step = getStep(container);
+      container.scrollTo({ left: step * safeItems.length, behavior: 'auto' });
+    };
+
+    const frame = window.requestAnimationFrame(positionAtMiddle);
+    window.addEventListener('resize', positionAtMiddle);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', positionAtMiddle);
+    };
+  }, [safeItems.length]);
+
+  useEffect(() => {
+    window.clearInterval(autoTimerRef.current);
+    if (safeItems.length <= 1 || isPaused) return undefined;
+
+    autoTimerRef.current = window.setInterval(() => move(1), 4600);
+    return () => window.clearInterval(autoTimerRef.current);
+  }, [safeItems.length, isPaused]);
+
+  useEffect(() => () => {
+    window.clearTimeout(normalizeTimerRef.current);
+    window.clearInterval(autoTimerRef.current);
+  }, []);
+
+  if (safeItems.length === 0) return null;
+
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => move(-1)}
-        className="absolute left-0 top-1/2 z-20 flex h-11 w-11 -translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/18 bg-white text-[#0D1B2A] shadow-[0_10px_28px_rgba(13,27,42,0.14)] transition hover:bg-[#0D1B2A] hover:text-white sm:h-12 sm:w-12"
-        aria-label="이전 합격생 카드"
-      >
-        <ChevronLeft size={24} />
-      </button>
+    <div
+      className="relative"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={() => setIsPaused(false)}
+    >
+      {safeItems.length > 1 && (
+        <button
+          type="button"
+          onClick={() => move(-1)}
+          className="absolute left-0 top-1/2 z-20 flex h-11 w-11 -translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#D9E1EB] bg-white text-[#10243A] shadow-[0_10px_28px_rgba(13,27,42,0.13)] transition hover:border-[#173F7A] hover:bg-[#173F7A] hover:text-white sm:h-12 sm:w-12"
+          aria-label="이전 합격생 카드"
+        >
+          <ChevronLeft size={24} />
+        </button>
+      )}
 
       <div
         ref={scrollRef}
-        className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto px-2 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-[18px] overflow-x-auto px-2 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {safeItems.map((item, index) => (
-          <AcceptanceCard key={item.id || `${item.image_url}-${index}`} item={item} />
+        {repeatedItems.map((item, index) => (
+          <AcceptanceCard
+            key={`${item.id || item.image_url}-${index}`}
+            item={item}
+          />
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => move(1)}
-        className="absolute right-0 top-1/2 z-20 flex h-11 w-11 translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/18 bg-white text-[#0D1B2A] shadow-[0_10px_28px_rgba(13,27,42,0.14)] transition hover:bg-[#0D1B2A] hover:text-white sm:h-12 sm:w-12"
-        aria-label="다음 합격생 카드"
-      >
-        <ChevronRight size={24} />
-      </button>
+      {safeItems.length > 1 && (
+        <button
+          type="button"
+          onClick={() => move(1)}
+          className="absolute right-0 top-1/2 z-20 flex h-11 w-11 translate-x-1/3 -translate-y-1/2 items-center justify-center rounded-full border border-[#D9E1EB] bg-white text-[#10243A] shadow-[0_10px_28px_rgba(13,27,42,0.13)] transition hover:border-[#173F7A] hover:bg-[#173F7A] hover:text-white sm:h-12 sm:w-12"
+          aria-label="다음 합격생 카드"
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
     </div>
   );
 }
@@ -344,20 +399,14 @@ function AcceptanceCard({ item }) {
   return (
     <div
       data-acceptance-card
-      className="group block w-[210px] shrink-0 snap-start overflow-hidden rounded-[22px] border border-[#173F7A]/12 bg-white shadow-[0_12px_30px_rgba(13,27,42,0.09)] transition duration-300 hover:-translate-y-2 hover:shadow-[0_22px_42px_rgba(13,27,42,0.16)] sm:w-[235px] lg:w-[250px]"
+      className="group block w-[210px] shrink-0 overflow-hidden rounded-[20px] border border-[#DDE5EE] bg-white shadow-[0_9px_24px_rgba(13,27,42,0.08)] transition duration-300 hover:-translate-y-1.5 hover:border-[#BFCBDC] hover:shadow-[0_18px_38px_rgba(13,27,42,0.14)] sm:w-[235px] lg:w-[250px]"
     >
       <div className="aspect-[4/5] overflow-hidden bg-[#F4F6F8]">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt="합격생 사례"
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center px-6 text-center text-sm font-black text-[#173F7A]">
-            합격생 이미지
-          </div>
-        )}
+        <img
+          src={item.image_url}
+          alt="합격생 사례"
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+        />
       </div>
     </div>
   );
@@ -376,19 +425,16 @@ function MentorArchGallery({ items }) {
   if (safeItems.length === 0) return null;
 
   function move(direction) {
-    setCenterIndex((current) => {
-      const next = current + direction;
-      if (next < 0) return safeItems.length - 1;
-      if (next >= safeItems.length) return 0;
-      return next;
-    });
+    setCenterIndex((current) =>
+      (current + direction + safeItems.length) % safeItems.length,
+    );
   }
 
   const slotOffsets = safeItems.length >= 5
     ? [-2, -1, 0, 1, 2]
-    : Array.from({ length: safeItems.length }, (_, index) => {
-        return index - Math.floor(safeItems.length / 2);
-      });
+    : Array.from({ length: safeItems.length }, (_, index) =>
+        index - Math.floor(safeItems.length / 2),
+      );
 
   const visibleItems = slotOffsets.map((offset) => {
     const index = (centerIndex + offset + safeItems.length) % safeItems.length;
@@ -397,51 +443,50 @@ function MentorArchGallery({ items }) {
 
   const slotStyles = {
     '-2': {
-      left: '0%', top: '124px', width: '29%', zIndex: 1,
-      transform: 'perspective(1100px) rotateY(18deg) rotateZ(-2.4deg) scale(0.92)',
-      opacity: 0.76,
+      left: '0%', top: '92px', width: '25%', zIndex: 1,
+      transform: 'translateY(8px) scale(0.92)', opacity: 0.72,
     },
     '-1': {
-      left: '14%', top: '72px', width: '35%', zIndex: 3,
-      transform: 'perspective(1100px) rotateY(10deg) rotateZ(-1.2deg) scale(0.97)',
-      opacity: 0.92,
+      left: '15%', top: '52px', width: '31%', zIndex: 3,
+      transform: 'translateY(3px) scale(0.97)', opacity: 0.92,
     },
     '0': {
-      left: '30%', top: '20px', width: '42%', zIndex: 7,
-      transform: 'perspective(1100px) rotateY(0deg) rotateZ(0deg) scale(1)',
-      opacity: 1,
+      left: '31%', top: '14px', width: '38%', zIndex: 7,
+      transform: 'translateY(0) scale(1)', opacity: 1,
     },
     '1': {
-      left: '55%', top: '72px', width: '35%', zIndex: 3,
-      transform: 'perspective(1100px) rotateY(-10deg) rotateZ(1.2deg) scale(0.97)',
-      opacity: 0.92,
+      left: '54%', top: '52px', width: '31%', zIndex: 3,
+      transform: 'translateY(3px) scale(0.97)', opacity: 0.92,
     },
     '2': {
-      left: '72%', top: '124px', width: '29%', zIndex: 1,
-      transform: 'perspective(1100px) rotateY(-18deg) rotateZ(2.4deg) scale(0.92)',
-      opacity: 0.76,
+      left: '75%', top: '92px', width: '25%', zIndex: 1,
+      transform: 'translateY(8px) scale(0.92)', opacity: 0.72,
     },
   };
 
   return (
-    <div className="relative overflow-hidden rounded-[30px] border border-[#173F7A]/10 bg-[radial-gradient(circle_at_50%_34%,rgba(46,94,151,0.12),rgba(255,255,255,0)_48%),linear-gradient(180deg,#FBFCFE_0%,#F5F8FC_100%)] px-3 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:px-5 lg:px-7 lg:py-7">
-      <div className="pointer-events-none absolute left-1/2 top-[62%] h-24 w-[70%] -translate-x-1/2 rounded-[50%] bg-[#173F7A]/10 blur-3xl" />
-      <div className="pointer-events-none absolute inset-x-[12%] bottom-8 h-px bg-gradient-to-r from-transparent via-[#173F7A]/18 to-transparent" />
+    <div className="relative px-1 pb-2 pt-1 sm:px-3">
+      <div className="pointer-events-none absolute left-1/2 top-[52%] h-28 w-[72%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(30,64,107,0.16)_0%,rgba(30,64,107,0.05)_48%,transparent_72%)] blur-xl" />
+      <div className="pointer-events-none absolute left-1/2 top-[49%] h-[210px] w-[82%] -translate-x-1/2 rounded-[50%] border-t border-[#DDE6F0]" />
 
-      <button
-        type="button"
-        onClick={() => move(-1)}
-        className="absolute left-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/15 bg-white/95 text-[#0D1B2A] shadow-[0_12px_30px_rgba(13,27,42,0.18)] backdrop-blur transition hover:bg-[#0D1B2A] hover:text-white sm:left-5 sm:h-12 sm:w-12"
-        aria-label="이전 멘토 성공전략"
-      >
-        <ChevronLeft size={25} />
-      </button>
+      {safeItems.length > 1 && (
+        <button
+          type="button"
+          onClick={() => move(-1)}
+          className="absolute left-0 top-1/2 z-30 flex h-11 w-11 -translate-x-1/4 -translate-y-1/2 items-center justify-center rounded-full border border-[#D9E1EB] bg-white text-[#10243A] shadow-[0_10px_28px_rgba(13,27,42,0.13)] transition hover:border-[#173F7A] hover:bg-[#173F7A] hover:text-white sm:h-12 sm:w-12"
+          aria-label="이전 멘토 성공전략"
+        >
+          <ChevronLeft size={24} />
+        </button>
+      )}
 
-      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-12 pb-3 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden">
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-10 pb-3 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden">
         {safeItems.map((item, index) => (
-          <div
+          <button
+            type="button"
             key={item.id || `${item.image_url}-${index}`}
-            className="w-[86%] min-w-[86%] snap-center overflow-hidden rounded-[22px] border border-white bg-white shadow-[0_18px_42px_rgba(13,27,42,0.16)]"
+            onClick={() => setCenterIndex(index)}
+            className="w-[88%] min-w-[88%] snap-center overflow-hidden rounded-[18px] border border-[#DCE4ED] bg-white shadow-[0_14px_34px_rgba(13,27,42,0.13)]"
           >
             <div className="aspect-[14/5] bg-slate-100">
               <img
@@ -450,11 +495,11 @@ function MentorArchGallery({ items }) {
                 className="h-full w-full object-cover"
               />
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
-      <div className="relative hidden h-[410px] lg:block" aria-label="멘토 성공전략 이미지">
+      <div className="relative hidden h-[300px] lg:block" aria-label="멘토 성공전략 이미지">
         {visibleItems.map(({ item, offset, sourceIndex }) => {
           const style = slotStyles[String(offset)] || slotStyles['0'];
           const isCenter = offset === 0;
@@ -464,10 +509,10 @@ function MentorArchGallery({ items }) {
               type="button"
               key={`${item.id || item.image_url}-${sourceIndex}-${offset}`}
               onClick={() => setCenterIndex(sourceIndex)}
-              className={`absolute overflow-hidden rounded-[26px] border bg-white text-left transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`absolute overflow-hidden rounded-[20px] border bg-white text-left transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCenter
-                  ? 'border-white shadow-[0_34px_80px_rgba(13,27,42,0.28),0_10px_24px_rgba(13,27,42,0.16)] ring-1 ring-[#E1B85A]/35'
-                  : 'border-white/90 shadow-[0_20px_48px_rgba(13,27,42,0.19)]'
+                  ? 'border-white shadow-[0_28px_62px_rgba(13,27,42,0.23),0_7px_18px_rgba(13,27,42,0.12)] ring-1 ring-[#D9B45B]/45'
+                  : 'border-[#E1E7EE] shadow-[0_13px_32px_rgba(13,27,42,0.13)]'
               }`}
               style={style}
               aria-label={`멘토 성공전략 ${sourceIndex + 1} 보기`}
@@ -476,27 +521,29 @@ function MentorArchGallery({ items }) {
                 <img
                   src={item.image_url}
                   alt={`위닝 멘토 성공전략 ${sourceIndex + 1}`}
-                  className={`h-full w-full object-cover transition duration-700 ${
-                    isCenter ? 'saturate-100 brightness-100' : 'saturate-[0.9] brightness-[0.94]'
+                  className={`h-full w-full object-cover transition duration-500 ${
+                    isCenter ? 'brightness-100 saturate-100' : 'brightness-[0.97] saturate-[0.94]'
                   }`}
                 />
               </div>
               {isCenter && (
-                <span className="pointer-events-none absolute inset-0 rounded-[26px] ring-2 ring-white/75" />
+                <span className="pointer-events-none absolute inset-0 rounded-[20px] ring-1 ring-white/80" />
               )}
             </button>
           );
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={() => move(1)}
-        className="absolute right-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#173F7A]/15 bg-white/95 text-[#0D1B2A] shadow-[0_12px_30px_rgba(13,27,42,0.18)] backdrop-blur transition hover:bg-[#0D1B2A] hover:text-white sm:right-5 sm:h-12 sm:w-12"
-        aria-label="다음 멘토 성공전략"
-      >
-        <ChevronRight size={25} />
-      </button>
+      {safeItems.length > 1 && (
+        <button
+          type="button"
+          onClick={() => move(1)}
+          className="absolute right-0 top-1/2 z-30 flex h-11 w-11 translate-x-1/4 -translate-y-1/2 items-center justify-center rounded-full border border-[#D9E1EB] bg-white text-[#10243A] shadow-[0_10px_28px_rgba(13,27,42,0.13)] transition hover:border-[#173F7A] hover:bg-[#173F7A] hover:text-white sm:h-12 sm:w-12"
+          aria-label="다음 멘토 성공전략"
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
     </div>
   );
 }
@@ -982,11 +1029,11 @@ export default function Home() {
         </section>
 
         {acceptanceCards.length > 0 && (
-          <section className="overflow-hidden border-b border-[#E7ECF2] bg-[linear-gradient(180deg,#FFFFFF_0%,#F8FAFD_100%)] py-14 lg:py-18">
+          <section className="overflow-hidden border-b border-[#E7ECF2] bg-white py-14 lg:py-18">
             <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
               <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-sm font-black tracking-[0.08em] text-[#B58A2A]">SUCCESS STORIES</p>
+                  <p className="text-sm font-black tracking-[0.08em] text-[#1B5A8E]">SUCCESS STORIES</p>
                   <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[34px]">
                     합격생 선배들의 압도적 선택
                   </h2>
@@ -1066,7 +1113,7 @@ export default function Home() {
                 {mentorStrategies.length > 0 && (
                   <>
                     <div className="mb-6">
-                      <p className="text-sm font-black tracking-[0.08em] text-[#B58A2A]">
+                      <p className="text-sm font-black tracking-[0.08em] text-[#1B5A8E]">
                         MENTOR STRATEGY
                       </p>
                       <h2 className="mt-2 break-keep text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[36px]">
