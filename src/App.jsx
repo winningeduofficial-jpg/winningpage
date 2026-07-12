@@ -36,16 +36,19 @@ export default function App() {
 
         <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
         <Route path="/admission/results" element={<AdmissionResults />} />
-        <Route path="/admission/susi-jungsi" element={<AdmissionBoard />} />
-        <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
 
-        <Route path="/admission/susi" element={<Navigate to="/admission/susi-jungsi" replace />} />
-        <Route path="/admission/jungsi" element={<Navigate to="/admission/susi-jungsi" replace />} />
-        <Route path="/admission/essay" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        {/* 수시와 정시는 각각 자신의 category만 조회합니다. */}
+        <Route path="/admission/susi" element={<AdmissionBoard />} />
+        <Route path="/admission/jungsi" element={<AdmissionBoard />} />
         <Route path="/admission/susi/:id" element={<AdmissionBoard />} />
         <Route path="/admission/jungsi/:id" element={<AdmissionBoard />} />
-        <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
 
+        {/* 메인 합격생 카드에서 사용하는 통합 상세 주소는 유지합니다. */}
+        <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
+        <Route path="/admission/susi-jungsi" element={<Navigate to="/admission/susi" replace />} />
+
+        <Route path="/admission/essay" element={<AdmissionBoard />} />
+        <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
         <Route path="/admission/:category" element={<AdmissionBoard />} />
         <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
 
@@ -72,4 +75,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
