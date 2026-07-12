@@ -27,7 +27,6 @@ const MENU_GROUPS = [
       { key: 'popups', label: '팝업 관리' },
       { key: 'banners', label: '메인 배너 관리' },
       { key: 'sideBanners', label: '우측 소형 배너' },
-      { key: 'acceptanceCards', label: '합격생 카드' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
@@ -141,6 +140,7 @@ popups: {
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'category', label: '구분', type: 'select', options: ['susi', 'jungsi'], required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'highlight', label: '강조문구', type: 'text' },
       { key: 'subtitle', label: '설명', type: 'textarea' },
@@ -199,37 +199,6 @@ popups: {
       mobile_image_url: '',
       start_date: null,
       end_date: null,
-      sort_order: 1
-    }
-  },
-
-  acceptanceCards: {
-    title: '합격생 카드',
-    table: 'home_acceptance_cards',
-    searchPlaceholder: '등록된 합격생 이미지를 확인하세요',
-    order: 'sort_order',
-    homepage: true,
-    guideText: `메인 화면의 '합격생 선배들의 압도적 선택' 영역에 자동으로 흐르는 이미지입니다. 사진 1장만 등록하면 됩니다. 권장 이미지: 800px × 1000px / 비율: 4:5 / 형식: JPG 또는 PNG`,
-    columns: [
-      { key: 'image_url', label: '합격생 이미지', type: 'image' }
-    ],
-    fields: [
-      {
-        key: 'image_url',
-        label: '합격생 이미지',
-        type: 'image',
-        required: true,
-        hideUrlInput: true
-      }
-    ],
-    defaults: {
-      is_active: true,
-      student_name: '합격생',
-      result_title: '합격 사례',
-      description: '',
-      link_url: '',
-      open_new_window: false,
-      image_url: '',
       sort_order: 1
     }
   },
@@ -595,13 +564,16 @@ admissionGuidelines: {
   admissionSusiJungsi: {
     title: '수시·정시',
     table: 'admission_posts',
-    fixedCategory: 'susi-jungsi',
+    fixedCategories: ['susi', 'jungsi'],
     searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
+    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다.`,
     columns: [
+      { key: 'category', label: '구분' },
       { key: 'title', label: '제목' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'show_on_home', label: '메인 합격생 노출', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
@@ -609,8 +581,10 @@ admissionGuidelines: {
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'category', label: '구분', type: 'select', options: ['susi', 'jungsi'], required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'show_on_home', label: '메인 합격생 영역에 노출', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -622,9 +596,10 @@ admissionGuidelines: {
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
-      category: 'susi-jungsi',
+      category: 'susi',
       is_active: true,
       is_pinned: false,
+      show_on_home: false,
       title: '',
       content: '',
       image_url: '',
@@ -3010,6 +2985,8 @@ export default function Admin() {
 
   if (config.fixedCategory) {
     query = query.eq('category', config.fixedCategory);
+  } else if (config.fixedCategories) {
+    query = query.in('category', config.fixedCategories);
   }
 
   if (config.fixedValues) {
@@ -3020,7 +2997,7 @@ export default function Admin() {
 
   const orderColumn = config.order || 'created_at';
 
-  if (config.fixedCategory) {
+  if (config.fixedCategory || config.fixedCategories) {
     query = query
       .order('is_pinned', { ascending: false })
       .order('sort_order', { ascending: true })
@@ -3134,6 +3111,11 @@ export default function Admin() {
 
 if (config.fixedCategory) {
   payload.category = config.fixedCategory;
+}
+
+if (config.fixedCategories && !config.fixedCategories.includes(payload.category)) {
+  alert('수시 또는 정시 구분을 선택해 주세요.');
+  return;
 }
 
 if (config.fixedValues) {
