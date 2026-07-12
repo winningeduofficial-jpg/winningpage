@@ -322,41 +322,91 @@ function AcceptanceCard({ item }) {
   );
 }
 
-function MentorStrategyCard({ item }) {
+function MentorArchGallery({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => item?.image_url)
+    : [];
+  const [startIndex, setStartIndex] = useState(0);
+
+  useEffect(() => {
+    if (safeItems.length <= 5) {
+      setStartIndex(0);
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setStartIndex((current) => (current + 1) % safeItems.length);
+    }, 4500);
+
+    return () => window.clearInterval(timer);
+  }, [safeItems.length]);
+
+  const visibleItems = useMemo(() => {
+    if (safeItems.length <= 5) return safeItems;
+
+    return Array.from({ length: 5 }, (_, index) => {
+      return safeItems[(startIndex + index) % safeItems.length];
+    });
+  }, [safeItems, startIndex]);
+
+  if (safeItems.length === 0) return null;
+
+  const desktopSlots = [
+    { left: '0%', top: '92px', width: '30%', rotate: '-3deg', zIndex: 1 },
+    { left: '15%', top: '50px', width: '34%', rotate: '-1.5deg', zIndex: 2 },
+    { left: '33%', top: '10px', width: '39%', rotate: '0deg', zIndex: 5 },
+    { left: '55%', top: '50px', width: '34%', rotate: '1.5deg', zIndex: 2 },
+    { left: '72%', top: '92px', width: '30%', rotate: '3deg', zIndex: 1 },
+  ];
+
   return (
-    <SmartLink
-      to={item.link_url || '/page/services-mentoring'}
-      openNewWindow={!!item.open_new_window}
-      className="group block w-[250px] shrink-0 overflow-hidden rounded-[22px] border border-[#173F7A]/15 bg-white shadow-[0_14px_32px_rgba(13,27,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(13,27,42,0.14)] sm:w-[280px]"
-    >
-      <div className="aspect-[5/4] overflow-hidden bg-[linear-gradient(145deg,#E7F4DF,#B8DBA5)]">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.title || '멘토 성공전략'}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-[#173F7A]">
-            <Target size={45} strokeWidth={1.8} />
-            <p className="mt-4 text-sm font-black">멘토 성공전략 이미지</p>
+    <div>
+      <div className="flex snap-x gap-4 overflow-x-auto pb-3 lg:hidden">
+        {safeItems.map((item, index) => (
+          <div
+            key={item.id || `${item.image_url}-${index}`}
+            className="w-[86%] min-w-[86%] snap-center overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
+          >
+            <div className="aspect-[14/5] bg-slate-100">
+              <img
+                src={item.image_url}
+                alt={`위닝 멘토 성공전략 ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
-        )}
+        ))}
       </div>
-      <div className="p-5">
-        <p className="text-xs font-black text-[#0B73C9]">
-          {item.mentor_name || '위닝 멘토'}
-        </p>
-        <h3 className="mt-2 line-clamp-2 min-h-[52px] break-keep text-lg font-black leading-[1.45] text-[#0D1B2A]">
-          {item.title || '성공전략'}
-        </h3>
-        {item.description && (
-          <p className="mt-3 line-clamp-2 min-h-[40px] text-sm font-semibold leading-5 text-slate-500">
-            {item.description}
-          </p>
-        )}
+
+      <div className="relative hidden h-[390px] lg:block" aria-label="멘토 성공전략 이미지">
+        {visibleItems.map((item, index) => {
+          const slotOffset = Math.floor((5 - visibleItems.length) / 2);
+          const slot = desktopSlots[index + slotOffset] || desktopSlots[index];
+
+          return (
+            <div
+              key={`${item.id || item.image_url}-${index}-${startIndex}`}
+              className="absolute overflow-hidden rounded-[24px] border border-white/80 bg-white shadow-[0_24px_55px_rgba(15,23,42,0.17)] transition-all duration-700 ease-out"
+              style={{
+                left: slot.left,
+                top: slot.top,
+                width: slot.width,
+                zIndex: slot.zIndex,
+                transform: `rotate(${slot.rotate})`,
+              }}
+            >
+              <div className="aspect-[14/5] bg-slate-100">
+                <img
+                  src={item.image_url}
+                  alt={`위닝 멘토 성공전략 ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </SmartLink>
+    </div>
   );
 }
 
@@ -922,31 +972,22 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="overflow-hidden py-14 lg:py-18">
+        <section className="overflow-hidden py-14 lg:py-20">
           <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
-            <div className="mb-7">
-              <p className="text-sm font-black text-[#0B73C9]">MENTOR STRATEGY</p>
-              <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#0B73C9] sm:text-[34px]">
-                위닝 멘토와 완성하는 성공전략
-                <span className="ml-2 text-sm font-black text-[#0B73C9]/75">
-                  ({mentorStrategies.length}개)
-                </span>
-              </h2>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-              <div className="min-w-0 overflow-hidden rounded-[24px] bg-[#F7F9FC] p-5 sm:p-6">
-                {mentorStrategies.length > 0 ? (
-                  <AutoScrollRow
-                    items={mentorStrategies}
-                    speed={Math.max(34, mentorStrategies.length * 5)}
-                    ariaLabel="멘토 성공전략 자동 흐름"
-                    renderItem={(item) => <MentorStrategyCard item={item} />}
-                  />
-                ) : (
-                  <div className="flex min-h-[260px] items-center justify-center rounded-[18px] border border-dashed border-[#173F7A]/20 bg-white px-6 text-center text-sm font-bold text-slate-400">
-                    등록된 멘토 성공전략이 없습니다.
-                  </div>
+            <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="min-w-0">
+                {mentorStrategies.length > 0 && (
+                  <>
+                    <div className="mb-5 lg:mb-1">
+                      <p className="text-sm font-black tracking-[0.04em] text-[#0B73C9]">
+                        MENTOR STRATEGY
+                      </p>
+                      <h2 className="mt-2 break-keep text-[28px] font-black tracking-[-0.045em] text-[#0B73C9] sm:text-[36px]">
+                        위닝 멘토와 완성하는 성공전략
+                      </h2>
+                    </div>
+                    <MentorArchGallery items={mentorStrategies} />
+                  </>
                 )}
               </div>
 
