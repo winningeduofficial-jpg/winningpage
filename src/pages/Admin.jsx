@@ -235,35 +235,30 @@ popups: {
   },
 
   mentorStrategies: {
-    title: '멘토 성공전략',
+    title: '멘토 성공전략 이미지',
     table: 'home_mentor_strategies',
-    searchPlaceholder: '멘토명, 전략 제목을 검색하세요',
+    searchPlaceholder: '등록된 멘토 성공전략 이미지를 확인하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 화면의 '위닝 멘토와 완성하는 성공전략' 영역에 자동으로 흐르는 카드입니다. 권장 이미지: 1000px × 800px / 비율: 5:4 / 형식: JPG 또는 PNG`,
+    guideText: `메인 화면의 '위닝 멘토와 완성하는 성공전략' 영역에 반원형으로 배치되는 이미지입니다. 이미지 1장만 등록하면 됩니다. 권장 이미지: 1400px × 500px / 비율: 약 2.8:1 / 형식: JPG 또는 PNG`,
     columns: [
-      { key: 'image_url', label: '이미지', type: 'image' },
-      { key: 'mentor_name', label: '멘토명' },
-      { key: 'title', label: '전략 제목' },
-      { key: 'sort_order', label: '순서' },
-      { key: 'is_active', label: '노출', type: 'boolean' }
+      { key: 'image_url', label: '멘토 성공전략 이미지', type: 'image' }
     ],
     fields: [
-      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'mentor_name', label: '멘토명', type: 'text', required: true },
-      { key: 'title', label: '전략 제목', type: 'text', required: true },
-      { key: 'description', label: '전략 설명', type: 'textarea' },
-      { key: 'link_url', label: '연결 주소', type: 'text' },
-      { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
-      { key: 'image_url', label: '전략 이미지', type: 'image' },
-      { key: 'sort_order', label: '순서', type: 'number' }
+      {
+        key: 'image_url',
+        label: '멘토 성공전략 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true
+      }
     ],
     defaults: {
       is_active: true,
-      mentor_name: '',
-      title: '',
+      mentor_name: '위닝 멘토',
+      title: '멘토 성공전략',
       description: '',
-      link_url: '/page/services-mentoring',
+      link_url: '',
       open_new_window: false,
       image_url: '',
       sort_order: 1
