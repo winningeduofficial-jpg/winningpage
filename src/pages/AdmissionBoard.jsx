@@ -283,22 +283,24 @@ export default function AdmissionBoard() {
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-2">
               <Link
-                to="/admission/guidelines"
-                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A]"
+                to="/admission/susi"
+                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
+                  category === 'susi'
+                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
+                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
+                }`}
               >
-                대입모집요강
+                수시
               </Link>
               <Link
-                to="/admission/results"
-                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-[#0D1B2A]"
+                to="/admission/jungsi"
+                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
+                  category === 'jungsi'
+                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
+                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
+                }`}
               >
-                입결정보
-              </Link>
-              <Link
-                to="/admission/susi-jungsi"
-                className="rounded-xl bg-[#0D1B2A] px-5 py-3 text-sm font-black text-white"
-              >
-                수시·정시
+                정시
               </Link>
             </div>
 
