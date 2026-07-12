@@ -13,92 +13,11 @@ import {
   FileText,
   GraduationCap,
   Image as ImageIcon,
-  Megaphone,
-  Sparkles,
   Star,
   Target,
   Users,
 } from 'lucide-react';
 
-const DEFAULT_BANNERS = [
-  {
-    title: '데이터가 발견하고,',
-    highlight: '위닝 서포터가 성장을 완성합니다',
-    subtitle:
-      '학생 개인별 학습 분석부터 대입 전략까지, 위닝에듀가 최적의 길을 제시합니다.',
-    image: '/images/banner-1.png',
-    image_url: '/images/banner-1.png',
-  },
-  {
-    title: '학습 기록이 쌓이면,',
-    highlight: '입시 전략이 더 정교해집니다',
-    subtitle:
-      '매일의 공부 데이터를 분석해 주간 리포트와 맞춤 전략으로 연결합니다.',
-    image: '/images/banner-2.png',
-    image_url: '/images/banner-2.png',
-  },
-  {
-    title: '수행평가와 세특까지,',
-    highlight: '학생부의 방향을 설계합니다',
-    subtitle:
-      '진로와 과목을 연결해 학생부에 남는 탐구 흐름을 만듭니다.',
-    image: '/images/banner-3.png',
-    image_url: '/images/banner-3.png',
-  },
-];
-
-const DEFAULT_SIDE_BANNERS = [];
-
-const DEFAULT_ACCEPTANCE_CARDS = [];
-
-const DEFAULT_MENTOR_STRATEGIES = [];
-
-const FREE_DIAGNOSIS_SERVICE = {
-  id: 'free-diagnosis',
-  icon: Sparkles,
-  title: '무료 진단',
-  desc: '현재 성적과 학습 상태를 바탕으로 필요한 서비스를 확인합니다.',
-  link: '/free-diagnosis',
-};
-
-const DEFAULT_SERVICES = [
-  {
-    icon: ClipboardList,
-    title: '위닝 목표관리',
-    desc: '학습 목표와 실천 기록을 체계적으로 관리합니다.',
-    link: '/page/services-goal',
-  },
-  {
-    icon: BarChart3,
-    title: '위닝 수시예측',
-    desc: '성적과 전형 데이터를 바탕으로 지원 가능성을 분석합니다.',
-    link: '/page/services-susi-prediction',
-  },
-  {
-    icon: Users,
-    title: '위닝 콜멘토',
-    desc: '학생 상황에 맞춘 멘토 피드백을 제공합니다.',
-    link: '/page/services-content',
-  },
-  {
-    icon: Edit3,
-    title: '위닝AI 수행평가',
-    desc: '과목과 진로를 연결한 수행평가 방향을 설계합니다.',
-    link: '/page/services-ai-performance',
-  },
-  {
-    icon: FileText,
-    title: '위닝 세특관리',
-    desc: '교과 활동의 연결성과 성장 흐름을 관리합니다.',
-    link: '/page/services-record-coach',
-  },
-  {
-    icon: Brain,
-    title: '위닝 약점관리',
-    desc: '학습 데이터로 취약 영역을 확인하고 보완합니다.',
-    link: '/page/services-weakness',
-  },
-];
 
 const serviceIconMap = {
   target: Target,
@@ -585,15 +504,17 @@ function NewsPreviewCard({ title, rows, moreLink, emptyText }) {
 }
 
 export default function Home() {
-  const [banners, setBanners] = useState(DEFAULT_BANNERS);
+  const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [bannerTimerKey, setBannerTimerKey] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
-  const [serviceItems, setServiceItems] = useState(DEFAULT_SERVICES);
+  const [serviceItems, setServiceItems] = useState([]);
   const [popups, setPopups] = useState([]);
-  const [sideBanners, setSideBanners] = useState(DEFAULT_SIDE_BANNERS);
-  const [acceptanceCards, setAcceptanceCards] = useState(DEFAULT_ACCEPTANCE_CARDS);
-  const [mentorStrategies, setMentorStrategies] = useState(DEFAULT_MENTOR_STRATEGIES);
+  const [sideBanners, setSideBanners] = useState([]);
+  const [currentSideBanner, setCurrentSideBanner] = useState(0);
+  const [sideBannerTimerKey, setSideBannerTimerKey] = useState(0);
+  const [acceptanceCards, setAcceptanceCards] = useState([]);
+  const [mentorStrategies, setMentorStrategies] = useState([]);
   const [companyNews, setCompanyNews] = useState([]);
   const [notices, setNotices] = useState([]);
   const serviceScrollRef = useRef(null);
@@ -604,7 +525,7 @@ export default function Home() {
     async function fetchBanners() {
       const { data, error } = await supabase
         .from('banners')
-        .select('id, title, highlight, subtitle, image_url, button_text, button_link, sort_order, is_active')
+        .select('id, title, highlight, image_url, button_text, button_link, sort_order, is_active')
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
@@ -612,7 +533,7 @@ export default function Home() {
 
       if (error) {
         console.error('배너 조회 오류:', error);
-        setBanners(DEFAULT_BANNERS);
+        setBanners([]);
         return;
       }
 
@@ -620,7 +541,7 @@ export default function Home() {
         .filter((item) => item.image_url)
         .map((item) => ({ ...item, image: item.image_url }));
 
-      setBanners(normalized.length ? normalized : DEFAULT_BANNERS);
+      setBanners(normalized);
       setCurrentBanner(0);
     }
 
@@ -645,7 +566,7 @@ export default function Home() {
 
       if (error) {
         console.error('서비스 조회 오류:', error);
-        setServiceItems(DEFAULT_SERVICES);
+        setServiceItems([]);
         return;
       }
 
@@ -657,7 +578,7 @@ export default function Home() {
         link: service.link || '/services',
       }));
 
-      setServiceItems(normalized.length ? normalized : DEFAULT_SERVICES);
+      setServiceItems(normalized);
     }
 
     fetchServices();
@@ -756,7 +677,8 @@ export default function Home() {
         const visible = (sideResult.data || []).filter(
           (item) => item.image_url || item.mobile_image_url,
         );
-        setSideBanners(visible.slice(0, 3));
+        setSideBanners(visible);
+        setCurrentSideBanner(0);
       }
 
       if (acceptanceResult.error) {
@@ -813,11 +735,11 @@ export default function Home() {
 
     async function prepareHero() {
       const fontReady = document.fonts?.ready || Promise.resolve();
-      const firstImage = banners[0]?.image || banners[0]?.image_url;
+      const firstImage = banners[0]?.image_url;
       await Promise.all([preloadImage(firstImage), fontReady]);
 
       if (mounted) setHeroReady(true);
-      banners.slice(1).forEach((item) => preloadImage(item.image || item.image_url));
+      banners.slice(1).forEach((item) => preloadImage(item.image_url));
     }
 
     setHeroReady(false);
@@ -839,17 +761,34 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [heroReady, banners.length, bannerTimerKey]);
 
-  const banner = banners[currentBanner] || DEFAULT_BANNERS[0];
+
+  useEffect(() => {
+    if (sideBanners.length <= 1) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setCurrentSideBanner((prev) => (prev + 1) % sideBanners.length);
+      setSideBannerTimerKey((prev) => prev + 1);
+    }, 6000);
+
+    return () => window.clearTimeout(timer);
+  }, [sideBanners.length, sideBannerTimerKey]);
+
+  useEffect(() => {
+    if (sideBanners.length === 0) {
+      setCurrentSideBanner(0);
+      return;
+    }
+
+    if (currentSideBanner >= sideBanners.length) {
+      setCurrentSideBanner(0);
+    }
+  }, [currentSideBanner, sideBanners.length]);
+
+  const banner = banners[currentBanner] || null;
+  const sideBanner = sideBanners[currentSideBanner] || null;
 
   const visibleServiceItems = useMemo(
-    () => [
-      FREE_DIAGNOSIS_SERVICE,
-      ...serviceItems.filter(
-        (service) =>
-          service.link !== FREE_DIAGNOSIS_SERVICE.link &&
-          service.title !== FREE_DIAGNOSIS_SERVICE.title,
-      ),
-    ].slice(0, 7),
+    () => serviceItems.slice(0, 7),
     [serviceItems],
   );
 
@@ -870,6 +809,29 @@ export default function Home() {
   function goBanner(index) {
     setCurrentBanner(index);
     resetBannerTimer();
+  }
+
+  function resetSideBannerTimer() {
+    setSideBannerTimerKey((prev) => prev + 1);
+  }
+
+  function goPrevSideBanner() {
+    if (sideBanners.length <= 1) return;
+    setCurrentSideBanner((prev) =>
+      prev === 0 ? sideBanners.length - 1 : prev - 1,
+    );
+    resetSideBannerTimer();
+  }
+
+  function goNextSideBanner() {
+    if (sideBanners.length <= 1) return;
+    setCurrentSideBanner((prev) => (prev + 1) % sideBanners.length);
+    resetSideBannerTimer();
+  }
+
+  function goSideBanner(index) {
+    setCurrentSideBanner(index);
+    resetSideBannerTimer();
   }
 
   function closePopup(id) {
@@ -927,43 +889,46 @@ export default function Home() {
             }`}
           >
             <div className="relative min-h-[360px] overflow-hidden rounded-[26px] bg-[#0D1B2A] shadow-[0_22px_55px_rgba(13,27,42,0.16)] lg:min-h-[470px]">
-              <img
-                src={banner.image || banner.image_url}
-                alt={banner.title || '위닝에듀 메인 배너'}
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              {banner?.image_url && (
+                <img
+                  src={banner.image_url}
+                  alt={banner.title || ''}
+                  loading="eager"
+                  decoding="sync"
+                  fetchPriority="high"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,32,0.88)_0%,rgba(5,18,32,0.66)_45%,rgba(5,18,32,0.12)_100%)]" />
 
-              <div
-                className={`relative z-10 flex h-full min-h-[360px] max-w-[780px] flex-col justify-center px-7 py-14 transition-opacity duration-500 sm:px-12 lg:min-h-[470px] lg:px-16 ${
-                  heroReady ? 'opacity-100' : 'opacity-0'
-                }`}
-              >
-                <p className="text-sm font-black text-[#F0C96B]">WINNING EDU</p>
-                <h1 className="mt-4 break-keep text-[34px] font-black leading-[1.16] tracking-[-0.055em] text-white sm:text-[48px] lg:text-[58px]">
-                  {banner.title}
-                  {banner.highlight && (
-                    <span className="mt-1 block text-[#F0C96B]">{banner.highlight}</span>
+              {banner && (
+                <div
+                  className={`relative z-10 flex h-full min-h-[360px] max-w-[780px] flex-col justify-center px-7 py-14 transition-opacity duration-500 sm:px-12 lg:min-h-[470px] lg:px-16 ${
+                    heroReady ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <h1 className="break-keep text-[34px] font-black leading-[1.16] tracking-[-0.055em] text-white sm:text-[48px] lg:text-[58px]">
+                    {banner.title}
+                    {banner.highlight && (
+                      <span className="mt-1 block text-[#F0C96B]">
+                        {banner.highlight}
+                      </span>
+                    )}
+                  </h1>
+
+                  {banner.button_text && (
+                    <div className="mt-8">
+                      <SmartLink
+                        to={banner.button_link || '#'}
+                        className="inline-flex h-12 items-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-[#0D1B2A] shadow-lg transition hover:bg-[#F6E9C8]"
+                      >
+                        {banner.button_text}
+                        <ArrowRight size={18} />
+                      </SmartLink>
+                    </div>
                   )}
-                </h1>
-                {banner.subtitle && (
-                  <p className="mt-5 max-w-[700px] break-keep text-sm font-bold leading-7 text-white/82 sm:text-base lg:text-lg">
-                    {banner.subtitle}
-                  </p>
-                )}
-                <div className="mt-8">
-                  <SmartLink
-                    to={banner.button_link || '/signup'}
-                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-white px-6 text-sm font-black text-[#0D1B2A] shadow-lg transition hover:bg-[#F6E9C8]"
-                  >
-                    {banner.button_text || '지금 시작하기'}
-                    <ArrowRight size={18} />
-                  </SmartLink>
                 </div>
-              </div>
+              )}
 
               {banners.length > 1 && (
                 <>
@@ -985,9 +950,9 @@ export default function Home() {
                   </button>
 
                   <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 gap-2">
-                    {banners.map((_, index) => (
+                    {banners.map((item, index) => (
                       <button
-                        key={index}
+                        key={item.id || index}
                         type="button"
                         onClick={() => goBanner(index)}
                         className={`h-2.5 rounded-full transition-all ${
@@ -1001,48 +966,85 @@ export default function Home() {
               )}
             </div>
 
-            {sideBanners.length > 0 && (
-              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-                {sideBanners.slice(0, 3).map((item) => {
-                const imageSrc = item.image_url || item.mobile_image_url;
-
-                return (
-                  <SmartLink
-                    key={item.id}
-                    to={item.link_url || '#'}
-                    openNewWindow={!!item.open_new_window}
-                    className="group relative min-h-[150px] overflow-hidden rounded-[22px] border border-[#173F7A]/15 bg-[#0D1B2A] shadow-[0_14px_36px_rgba(13,27,42,0.11)] lg:min-h-0"
-                  >
-                    {imageSrc ? (
-                      <picture>
-                        {item.mobile_image_url && (
-                          <source media="(max-width: 768px)" srcSet={item.mobile_image_url} />
-                        )}
-                        <img
-                          src={imageSrc}
-                          alt={item.title || '이벤트 배너'}
-                          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+            {sideBanner && (
+              <div className="relative min-h-[220px] overflow-hidden rounded-[26px] border border-[#173F7A]/15 bg-[#0D1B2A] shadow-[0_14px_36px_rgba(13,27,42,0.11)] lg:min-h-[470px]">
+                <SmartLink
+                  to={sideBanner.link_url || '#'}
+                  openNewWindow={!!sideBanner.open_new_window}
+                  className="group absolute inset-0 block"
+                >
+                  {(sideBanner.image_url || sideBanner.mobile_image_url) ? (
+                    <picture>
+                      {sideBanner.mobile_image_url && (
+                        <source
+                          media="(max-width: 768px)"
+                          srcSet={sideBanner.mobile_image_url}
                         />
-                      </picture>
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-[#E8EEF6] text-[#173F7A]">
-                        <ImageIcon size={32} />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#06192D]/88 via-[#06192D]/55 to-[#06192D]/10" />
-                    <div className="relative z-10 flex h-full min-h-[150px] flex-col justify-end p-5 text-white lg:min-h-0">
-                      <h2 className="break-keep text-lg font-black leading-6">
-                        {item.title || '새 소식'}
-                      </h2>
-                      {item.subtitle && (
-                        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/76">
-                          {item.subtitle}
-                        </p>
                       )}
+                      <img
+                        src={sideBanner.image_url || sideBanner.mobile_image_url}
+                        alt={sideBanner.title || ''}
+                        className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                      />
+                    </picture>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#E8EEF6] text-[#173F7A]">
+                      <ImageIcon size={32} />
                     </div>
-                  </SmartLink>
-                );
-                })}
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#06192D]/88 via-[#06192D]/55 to-[#06192D]/10" />
+
+                  <div className="relative z-10 flex h-full min-h-[220px] flex-col justify-end px-6 pb-14 pt-6 lg:min-h-[470px] lg:px-7 lg:pb-16">
+                    {sideBanner.title && (
+                      <h2 className="break-keep text-xl font-black leading-7 text-white lg:text-2xl">
+                        {sideBanner.title}
+                      </h2>
+                    )}
+                    {sideBanner.subtitle && (
+                      <p className="mt-2 line-clamp-3 text-sm font-black leading-6 text-[#F0C96B]">
+                        {sideBanner.subtitle}
+                      </p>
+                    )}
+                  </div>
+                </SmartLink>
+
+                {sideBanners.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrevSideBanner}
+                      className="absolute left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#0D1B2A]/45 text-white backdrop-blur transition hover:bg-[#0D1B2A]/75"
+                      aria-label="이전 소형 배너"
+                    >
+                      <ChevronLeft size={22} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goNextSideBanner}
+                      className="absolute right-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-[#0D1B2A]/45 text-white backdrop-blur transition hover:bg-[#0D1B2A]/75"
+                      aria-label="다음 소형 배너"
+                    >
+                      <ChevronRight size={22} />
+                    </button>
+
+                    <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                      {sideBanners.map((item, index) => (
+                        <button
+                          key={item.id || index}
+                          type="button"
+                          onClick={() => goSideBanner(index)}
+                          className={`h-2 rounded-full transition-all ${
+                            currentSideBanner === index
+                              ? 'w-7 bg-white'
+                              : 'w-2 bg-white/45'
+                          }`}
+                          aria-label={`소형 배너 ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1171,4 +1173,3 @@ export default function Home() {
     </>
   );
 }
-
