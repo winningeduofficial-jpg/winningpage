@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v2';
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4';
 
 const MY_MENU = [
   { label: '내정보·자녀수정', to: '/mypage', icon: UserRound },
@@ -79,9 +79,9 @@ const FALLBACK_NAV_GROUPS = [
   },
   {
     title: '위닝정보',
-    to: '/page/company-intro',
+    to: '/company-news',
     items: [
-      { label: '회사소개', to: '/page/company-intro', sortOrder: 1 },
+      { label: '회사소식', to: '/company-news', sortOrder: 1 },
       { label: '공지사항', to: '/events', sortOrder: 2 },
       { label: '자주하는질문', to: '/faq', sortOrder: 3 },
       { label: '교육컬럼', to: '/gallery', sortOrder: 4 }
@@ -169,7 +169,8 @@ function buildNavGroups(rows) {
 
     if (!slug) return;
 
-    const itemLink = resolveMenuLink(slug);
+    const isCompanyIntro = slug === 'company-intro';
+    const itemLink = isCompanyIntro ? '/company-news' : resolveMenuLink(slug);
     const savedGroupOrder = Number(item.menu_group_order);
     const groupOrder =
       Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
@@ -199,7 +200,9 @@ function buildNavGroups(rows) {
     }
 
     group.items.push({
-      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      label: isCompanyIntro
+        ? '회사소식'
+        : cleanText(item.menu_label) || cleanText(item.title) || groupName,
       to: itemLink,
       sortOrder
     });
@@ -799,4 +802,3 @@ export default function Header() {
     </header>
   );
 }
-
