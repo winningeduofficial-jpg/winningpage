@@ -1048,28 +1048,33 @@ export default function Home() {
           </div>
         </section>
 
-        {acceptanceCards.length > 0 && (
-          <section className="overflow-hidden border-b border-[#E7ECF2] bg-white py-14 lg:py-18">
-            <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
-              <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-black tracking-[0.08em] text-[#1B5A8E]">SUCCESS STORIES</p>
-                  <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[34px]">
-                    합격생 선배들의 압도적 선택
-                  </h2>
-                </div>
-                <Link
-                  to="/admission/susi-jungsi"
-                  className="inline-flex items-center gap-1 text-sm font-black text-[#173F7A] transition hover:text-[#0D1B2A]"
-                >
-                  수시·정시 합격 게시물 전체보기 <ArrowRight size={16} />
-                </Link>
+        <section className="overflow-hidden border-b border-[#E7ECF2] bg-white py-14 lg:py-18">
+          <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-black tracking-[0.08em] text-[#1B5A8E]">
+                  SUCCESS STORIES
+                </p>
+                <h2 className="mt-2 text-[28px] font-black tracking-[-0.045em] text-[#0D1B2A] sm:text-[34px]">
+                  합격생 선배들의 압도적 선택
+                </h2>
               </div>
 
-              <AcceptanceCarousel items={acceptanceCards} />
+              <Link
+                to="/admission/susi-jungsi"
+                className="inline-flex items-center gap-1 text-sm font-black text-[#173F7A] transition hover:text-[#0D1B2A]"
+              >
+                수시·정시 합격 게시물 전체보기 <ArrowRight size={16} />
+              </Link>
             </div>
-          </section>
-        )}
+
+            <div className="min-h-[303px] sm:min-h-[334px] lg:min-h-[353px]">
+              {acceptanceCards.length > 0 && (
+                <AcceptanceCarousel items={acceptanceCards} />
+              )}
+            </div>
+          </div>
+        </section>
 
         <section className="border-y border-[#E7ECF2] bg-[#F7F9FC] py-9">
           <div className="mx-auto max-w-[1500px] px-5 sm:px-8">
