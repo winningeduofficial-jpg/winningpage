@@ -206,33 +206,28 @@ popups: {
   acceptanceCards: {
     title: '합격생 카드',
     table: 'home_acceptance_cards',
-    searchPlaceholder: '학생명, 합격 대학을 검색하세요',
+    searchPlaceholder: '등록된 합격생 이미지를 확인하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 화면의 '합격생 선배들의 압도적 선택' 영역에 자동으로 흐르는 카드입니다. 권장 이미지: 800px × 1000px / 비율: 4:5 / 형식: JPG 또는 PNG`,
+    guideText: `메인 화면의 '합격생 선배들의 압도적 선택' 영역에 자동으로 흐르는 이미지입니다. 사진 1장만 등록하면 됩니다. 권장 이미지: 800px × 1000px / 비율: 4:5 / 형식: JPG 또는 PNG`,
     columns: [
-      { key: 'image_url', label: '이미지', type: 'image' },
-      { key: 'student_name', label: '학생명' },
-      { key: 'result_title', label: '합격 결과' },
-      { key: 'sort_order', label: '순서' },
-      { key: 'is_active', label: '노출', type: 'boolean' }
+      { key: 'image_url', label: '합격생 이미지', type: 'image' }
     ],
     fields: [
-      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'student_name', label: '학생명', type: 'text', required: true },
-      { key: 'result_title', label: '합격 결과', type: 'text', required: true },
-      { key: 'description', label: '간단 설명', type: 'textarea' },
-      { key: 'link_url', label: '연결 주소', type: 'text' },
-      { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
-      { key: 'image_url', label: '카드 이미지', type: 'image' },
-      { key: 'sort_order', label: '순서', type: 'number' }
+      {
+        key: 'image_url',
+        label: '합격생 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true
+      }
     ],
     defaults: {
       is_active: true,
-      student_name: '',
-      result_title: '',
+      student_name: '합격생',
+      result_title: '합격 사례',
       description: '',
-      link_url: '/reviews',
+      link_url: '',
       open_new_window: false,
       image_url: '',
       sort_order: 1
@@ -2611,7 +2606,8 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                 )
               ) : (
                 <>
-                   {!['file', 'multiImage', 'multiFile'].includes(field.type) && (
+                   {!['file', 'multiImage', 'multiFile'].includes(field.type) &&
+                    !(field.type === 'image' && field.hideUrlInput) && (
                     <AdminInput
                       field={field}
                       value={form[field.key]}
