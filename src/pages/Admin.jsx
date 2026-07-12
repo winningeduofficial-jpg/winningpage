@@ -164,7 +164,7 @@ popups: {
     searchPlaceholder: '배너 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 배너 오른쪽에 최대 3개가 노출됩니다. PC 권장 이미지: 900px × 420px / 모바일 권장 이미지: 900px × 500px / 형식: JPG 또는 PNG / 권장 용량: 1MB 이하`,
+    guideText: ` PC 권장 이미지: 900px × 420px / 모바일 권장 이미지: 900px × 500px / 형식: JPG 또는 PNG / 권장 용량: 1MB 이하`,
     columns: [
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
       { key: 'title', label: '제목' },
