@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Download, Search } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
@@ -64,7 +64,9 @@ function getAttachmentUrl(file) {
 
 export default function AdmissionBoard() {
   const params = useParams();
-  const category = params.category || 'susi-jungsi';
+  const location = useLocation();
+  const pathCategory = location.pathname.split('/').filter(Boolean)[1];
+  const category = params.category || (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
   const id = params.id;
   const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
 
