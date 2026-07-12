@@ -133,17 +133,14 @@ popups: {
       { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
       { key: 'highlight', label: '강조문구' },
-      { key: 'subtitle', label: '설명' },
       { key: 'button_text', label: '버튼명' },
       { key: 'sort_order', label: '순서' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'category', label: '구분', type: 'select', options: ['susi', 'jungsi'], required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'highlight', label: '강조문구', type: 'text' },
-      { key: 'subtitle', label: '설명', type: 'textarea' },
       { key: 'button_text', label: '버튼명', type: 'text' },
       { key: 'button_link', label: '버튼 링크', type: 'text' },
       { key: 'image_url', label: '배너 이미지', type: 'image' },
@@ -153,7 +150,6 @@ popups: {
       is_active: true,
       title: '',
       highlight: '',
-      subtitle: '',
       button_text: '지금 시작하기',
       button_link: '/signup',
       image_url: '',
@@ -3120,6 +3116,11 @@ if (config.fixedCategories && !config.fixedCategories.includes(payload.category)
 
 if (config.fixedValues) {
   Object.assign(payload, config.fixedValues);
+}
+
+if (activeKey === 'banners') {
+  delete payload.category;
+  payload.subtitle = null;
 }
 
 delete payload.created_at;
