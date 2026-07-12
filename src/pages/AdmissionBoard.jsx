@@ -66,8 +66,7 @@ export default function AdmissionBoard() {
   const params = useParams();
   const category = params.category || 'susi-jungsi';
   const id = params.id;
-  const meta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
-  const listPath = `/admission/${category}`;
+  const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
 
   const [rows, setRows] = useState([]);
   const [post, setPost] = useState(null);
@@ -154,6 +153,9 @@ export default function AdmissionBoard() {
   if (id) {
     const images = post ? normalizeArray(post.image_urls) : [];
     const attachments = post ? normalizeArray(post.attachments) : [];
+    const detailCategory = post?.category === 'jungsi' ? 'jungsi' : 'susi';
+    const detailMeta = CATEGORY_META[detailCategory];
+    const detailListPath = `/admission/${detailCategory}`;
 
     return (
       <>
@@ -162,7 +164,7 @@ export default function AdmissionBoard() {
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
             <div className="mx-auto max-w-[1180px] px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{meta.title}</h1>
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{detailMeta.title}</h1>
             </div>
           </section>
 
@@ -175,7 +177,7 @@ export default function AdmissionBoard() {
               <div className="py-20 text-center">
                 <p className="text-lg font-black">게시글을 찾을 수 없습니다.</p>
                 <Link
-                  to={listPath}
+                  to={detailListPath}
                   className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0D1B2A] px-6 text-sm font-black text-white"
                 >
                   목록으로
@@ -253,7 +255,7 @@ export default function AdmissionBoard() {
 
                 <div className="mt-14 border-t border-gray-200 pt-8 text-center">
                   <Link
-                    to={listPath}
+                    to={detailListPath}
                     className="inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 text-sm font-black text-white"
                   >
                     목록으로
@@ -274,8 +276,8 @@ export default function AdmissionBoard() {
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-[1180px] px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{meta.title}</h1>
-            <p className="mt-4 text-base font-medium text-gray-500">{meta.description}</p>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{routeMeta.title}</h1>
+            <p className="mt-4 text-base font-medium text-gray-500">{routeMeta.description}</p>
           </div>
         </section>
 
@@ -309,7 +311,7 @@ export default function AdmissionBoard() {
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder={`${meta.title} 검색`}
+                placeholder={`${routeMeta.title} 검색`}
                 className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-none"
               />
             </div>
@@ -335,7 +337,7 @@ export default function AdmissionBoard() {
                 return (
                   <Link
                     key={row.id}
-                    to={`${listPath}/${row.id}`}
+                    to={`/admission/${row.category}/${row.id}`}
                     className="block border-b border-[#EEF2F6] px-2 py-6 transition last:border-b-0 hover:bg-[#F8FAFC]"
                   >
                     <div className="flex items-start justify-between gap-5">
