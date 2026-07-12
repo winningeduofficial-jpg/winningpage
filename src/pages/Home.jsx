@@ -304,39 +304,21 @@ function AutoScrollRow({ items, renderItem, speed = 34, ariaLabel }) {
 
 function AcceptanceCard({ item }) {
   return (
-    <SmartLink
-      to={item.link_url || '/reviews'}
-      openNewWindow={!!item.open_new_window}
-      className="group block w-[220px] shrink-0 overflow-hidden rounded-[22px] border border-[#173F7A]/15 bg-white shadow-[0_14px_32px_rgba(13,27,42,0.09)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(13,27,42,0.15)] sm:w-[250px]"
-    >
-      <div className="relative aspect-[4/5] overflow-hidden bg-[linear-gradient(145deg,#FFF4B8,#F5C94B)]">
+    <div className="block w-[220px] shrink-0 overflow-hidden rounded-[22px] border border-[#173F7A]/15 bg-white shadow-[0_14px_32px_rgba(13,27,42,0.09)] sm:w-[250px]">
+      <div className="aspect-[4/5] overflow-hidden bg-[#F4F6F8]">
         {item.image_url ? (
           <img
             src={item.image_url}
-            alt={item.result_title || item.student_name || '합격 사례'}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+            alt="합격생 사례"
+            className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-[#173F7A]">
-            <GraduationCap size={48} strokeWidth={1.8} />
-            <p className="mt-4 text-sm font-black">합격 사례 이미지</p>
+          <div className="flex h-full items-center justify-center px-6 text-center text-sm font-black text-[#173F7A]">
+            합격생 이미지
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#071829]/95 via-[#071829]/75 to-transparent px-5 pb-5 pt-16 text-white">
-          <p className="text-sm font-extrabold text-[#F3CB68]">
-            {item.student_name || '합격생 선배'}
-          </p>
-          <h3 className="mt-1 break-keep text-lg font-black leading-6">
-            {item.result_title || item.title || '합격 사례'}
-          </h3>
-          {item.description && (
-            <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-white/78">
-              {item.description}
-            </p>
-          )}
-        </div>
       </div>
-    </SmartLink>
+    </div>
   );
 }
 
@@ -989,3 +971,4 @@ export default function Home() {
     </>
   );
 }
+
