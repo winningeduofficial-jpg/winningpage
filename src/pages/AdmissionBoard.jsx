@@ -124,17 +124,12 @@ export default function AdmissionBoard() {
     async function loadDetail() {
       setLoading(true);
 
-      let query = supabase
+      const { data, error } = await supabase
         .from('admission_posts')
         .select('*')
         .eq('id', id)
-        .eq('is_active', true);
-
-      query = category === 'susi-jungsi'
-        ? query.in('category', ['susi', 'jungsi'])
-        : query.eq('category', category);
-
-      const { data, error } = await query.maybeSingle();
+        .eq('is_active', true)
+        .maybeSingle();
 
       if (!alive) return;
 
