@@ -197,13 +197,17 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
 }
 
 function AcceptanceCarousel({ items }) {
-  const safeItems = Array.isArray(items)
-    ? items.filter((item) => item?.image_url)
-    : [];
+  const safeItems = useMemo(
+    () => (Array.isArray(items) ? items.filter((item) => item?.image_url) : []),
+    [items],
+  );
+
   const scrollRef = useRef(null);
-  const normalizeTimerRef = useRef(null);
-  const autoTimerRef = useRef(null);
-  const [isPaused, setIsPaused] = useState(false);
+  const animationFrameRef = useRef(null);
+  const manualPauseTimerRef = useRef(null);
+  const hoverPausedRef = useRef(false);
+  const focusPausedRef = useRef(false);
+  const manualPausedRef = useRef(false);
 
   const repeatedItems = useMemo(() => {
     if (safeItems.length === 0) return [];
@@ -216,24 +220,35 @@ function AcceptanceCarousel({ items }) {
     return cardWidth + 18;
   }
 
+  function normalizePosition(container) {
+    if (!container || safeItems.length === 0) return;
+
+    const cycleWidth = container.scrollWidth / 3;
+    if (!cycleWidth) return;
+
+    if (container.scrollLeft >= cycleWidth * 2) {
+      container.scrollLeft -= cycleWidth;
+    } else if (container.scrollLeft < cycleWidth * 0.5) {
+      container.scrollLeft += cycleWidth;
+    }
+  }
+
   function move(direction) {
     const container = scrollRef.current;
     if (!container || safeItems.length <= 1) return;
 
-    const step = getStep(container);
-    container.scrollBy({ left: direction * step, behavior: 'smooth' });
+    manualPausedRef.current = true;
+    window.clearTimeout(manualPauseTimerRef.current);
 
-    window.clearTimeout(normalizeTimerRef.current);
-    normalizeTimerRef.current = window.setTimeout(() => {
-      const cycleWidth = step * safeItems.length;
-      if (!cycleWidth) return;
+    container.scrollBy({
+      left: direction * getStep(container),
+      behavior: 'smooth',
+    });
 
-      if (container.scrollLeft < cycleWidth * 0.45) {
-        container.scrollTo({ left: container.scrollLeft + cycleWidth, behavior: 'auto' });
-      } else if (container.scrollLeft > cycleWidth * 1.55) {
-        container.scrollTo({ left: container.scrollLeft - cycleWidth, behavior: 'auto' });
-      }
-    }, 520);
+    manualPauseTimerRef.current = window.setTimeout(() => {
+      normalizePosition(container);
+      manualPausedRef.current = false;
+    }, 700);
   }
 
   useEffect(() => {
@@ -241,8 +256,10 @@ function AcceptanceCarousel({ items }) {
     if (!container || safeItems.length === 0) return undefined;
 
     const positionAtMiddle = () => {
-      const step = getStep(container);
-      container.scrollTo({ left: step * safeItems.length, behavior: 'auto' });
+      const cycleWidth = container.scrollWidth / 3;
+      if (cycleWidth) {
+        container.scrollTo({ left: cycleWidth, behavior: 'auto' });
+      }
     };
 
     const frame = window.requestAnimationFrame(positionAtMiddle);
@@ -255,27 +272,63 @@ function AcceptanceCarousel({ items }) {
   }, [safeItems.length]);
 
   useEffect(() => {
-    window.clearInterval(autoTimerRef.current);
-    if (safeItems.length <= 1 || isPaused) return undefined;
+    if (safeItems.length <= 1) return undefined;
 
-    autoTimerRef.current = window.setInterval(() => move(1), 4600);
-    return () => window.clearInterval(autoTimerRef.current);
-  }, [safeItems.length, isPaused]);
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (reduceMotion) return undefined;
 
-  useEffect(() => () => {
-    window.clearTimeout(normalizeTimerRef.current);
-    window.clearInterval(autoTimerRef.current);
-  }, []);
+    let previousTime = performance.now();
+
+    const animate = (currentTime) => {
+      const container = scrollRef.current;
+      const delta = Math.min(currentTime - previousTime, 50);
+      previousTime = currentTime;
+
+      const isPaused =
+        hoverPausedRef.current ||
+        focusPausedRef.current ||
+        manualPausedRef.current;
+
+      if (container && !isPaused) {
+        container.scrollLeft += delta * 0.025;
+        normalizePosition(container);
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(animate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [safeItems.length]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      window.clearTimeout(manualPauseTimerRef.current);
+    },
+    [],
+  );
 
   if (safeItems.length === 0) return null;
 
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onFocusCapture={() => setIsPaused(true)}
-      onBlurCapture={() => setIsPaused(false)}
+      onMouseEnter={() => {
+        hoverPausedRef.current = true;
+      }}
+      onMouseLeave={() => {
+        hoverPausedRef.current = false;
+      }}
+      onFocusCapture={() => {
+        focusPausedRef.current = true;
+      }}
+      onBlurCapture={() => {
+        focusPausedRef.current = false;
+      }}
     >
       {safeItems.length > 1 && (
         <button
