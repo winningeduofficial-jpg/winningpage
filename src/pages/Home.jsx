@@ -564,6 +564,7 @@ export default function Home() {
   const [serviceItems, setServiceItems] = useState([]);
   const [popups, setPopups] = useState([]);
   const [sideBanners, setSideBanners] = useState([]);
+  const [sideBannersLoaded, setSideBannersLoaded] = useState(false);
   const [currentSideBanner, setCurrentSideBanner] = useState(0);
   const [sideBannerTimerKey, setSideBannerTimerKey] = useState(0);
   const [acceptanceCards, setAcceptanceCards] = useState([]);
@@ -733,6 +734,7 @@ export default function Home() {
         setSideBanners(visible);
         setCurrentSideBanner(0);
       }
+      setSideBannersLoaded(true);
 
       if (acceptanceResult.error) {
         console.error('수시·정시 메인 합격생 게시글 조회 오류:', acceptanceResult.error);
@@ -839,6 +841,7 @@ export default function Home() {
 
   const banner = banners[currentBanner] || null;
   const sideBanner = sideBanners[currentSideBanner] || null;
+  const shouldReserveSideBannerSlot = !sideBannersLoaded || Boolean(sideBanner);
 
   const visibleServiceItems = useMemo(
     () => serviceItems.slice(0, 7),
@@ -936,7 +939,7 @@ export default function Home() {
         <section className="border-b border-[#E7ECF2] bg-[#F7F9FC] py-7 lg:py-10">
           <div
             className={`mx-auto grid max-w-[1500px] gap-5 px-5 sm:px-8 ${
-              sideBanners.length > 0
+              shouldReserveSideBannerSlot
                 ? 'lg:grid-cols-[minmax(0,3fr)_minmax(245px,1fr)]'
                 : 'lg:grid-cols-1'
             }`}
@@ -1019,7 +1022,14 @@ export default function Home() {
               )}
             </div>
 
-            {sideBanner && (
+            {!sideBannersLoaded ? (
+              <div
+                aria-hidden="true"
+                className="relative min-h-[220px] overflow-hidden rounded-[26px] border border-[#173F7A]/15 bg-[#0D1B2A] shadow-[0_14px_36px_rgba(13,27,42,0.11)] lg:min-h-[470px]"
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,45,72,0.52)_0%,rgba(13,27,42,0.96)_72%)]" />
+              </div>
+            ) : sideBanner ? (
               <div className="relative min-h-[220px] overflow-hidden rounded-[26px] border border-[#173F7A]/15 bg-[#0D1B2A] shadow-[0_14px_36px_rgba(13,27,42,0.11)] lg:min-h-[470px]">
                 <SmartLink
                   to={sideBanner.link_url || '#'}
@@ -1099,7 +1109,7 @@ export default function Home() {
                   </>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </section>
 
