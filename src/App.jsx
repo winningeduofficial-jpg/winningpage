@@ -42,9 +42,9 @@ export default function App() {
         <Route path="/admission/susi" element={<Navigate to="/admission/susi-jungsi" replace />} />
         <Route path="/admission/jungsi" element={<Navigate to="/admission/susi-jungsi" replace />} />
         <Route path="/admission/essay" element={<Navigate to="/admission/susi-jungsi" replace />} />
-        <Route path="/admission/susi/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
-        <Route path="/admission/jungsi/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
-        <Route path="/admission/essay/:id" element={<Navigate to="/admission/susi-jungsi" replace />} />
+        <Route path="/admission/susi/:id" element={<AdmissionBoard />} />
+        <Route path="/admission/jungsi/:id" element={<AdmissionBoard />} />
+        <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
 
         <Route path="/admission/:category" element={<AdmissionBoard />} />
         <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
