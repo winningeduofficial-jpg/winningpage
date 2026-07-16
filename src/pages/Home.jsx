@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
+import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
 import {
   ArrowRight,
@@ -1232,6 +1233,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <SiteFooter />
       </main>
     </>
   );
