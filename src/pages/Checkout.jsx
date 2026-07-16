@@ -9,18 +9,18 @@ import { COUPONS, formatKRW } from '../data/pricingCatalog';
 import { getCart, saveCart } from '../lib/cart';
 
 const PURCHASE_NOTICE = [
-  '결제 완료 후 서비스는 마이페이지 또는 담당 멘토 안내를 통해 이용하실 수 있습니다.',
-  '이용권·기간제 상품은 명시된 이용 횟수 및 기간 내에서만 이용 가능합니다.',
-  '미성년자 결제 시 법정대리인의 동의가 필요하며, 동의 없이 이루어진 결제는 취소될 수 있습니다.',
-  '환불은 「콘텐츠산업진흥법」 및 「전자상거래 등에서의 소비자보호에 관한 법률」에 따르며, 이용 개시 전에는 전액 환불, 이용 개시 후에는 잔여 이용량을 기준으로 환불됩니다.',
-  '자세한 내용은 이용약관 및 환불정책을 따릅니다.',
+  '유료서비스 결제 전 위닝에듀 이용약관과 환불규정을 반드시 확인해 주세요.',
+  '온라인교육서비스·디지털 콘텐츠 및 상담이 개시된 콜멘토·특화멘토링 서비스는 이용 개시 후 청약철회가 제한됩니다. (이용약관 제32조)',
+  '이용권(회차제·데이터 차감형)은 구매일로부터 1개월 이내에 이용해야 하며, 기간 경과 시 잔여분이 소멸될 수 있습니다. (제23조)',
+  '미성년자는 법정대리인의 동의 하에 결제해야 하며, 동의 없는 결제는 관계법령에 따라 취소될 수 있습니다. (제31조)',
+  '환불 기준은 서비스별로 상이하며 이용약관 제33조(환불 규정)에 따릅니다.',
 ];
 
 const PAYMENT_TERMS = [
-  '결제는 토스페이먼츠(주)를 통해 처리되며, 결제 진행을 위해 주문정보 및 결제수단 정보가 결제대행사에 제공됩니다.',
-  '결제 및 환불 처리를 위해 이름, 연락처, 이메일, 주문내역이 수집·이용됩니다.',
-  '카드사 승인이 완료된 시점에 결제가 확정됩니다.',
-  '위 결제 서비스 이용약관 및 개인정보 수집·이용에 동의합니다.',
+  '결제는 토스페이먼츠(PG사)를 통해 처리되며, 결제 승인·매입·정산 업무가 위탁됩니다.',
+  '결제·환불·현금영수증 처리를 위해 이름·아이디·휴대폰번호, 결제수단 일부 정보, 결제내역 등이 수집·이용됩니다.',
+  '결제·청약철회·계약 관련 기록은 전자상거래법 등 관계법령에 따라 최대 5년간 보관됩니다.',
+  '아래 결제 서비스 이용약관 및 결제 관련 개인정보 수집·이용에 동의합니다.',
 ];
 
 const PAY_METHODS = [
@@ -40,14 +40,34 @@ function Accordion({ title, open, onToggle, children }) {
         <span>{title}</span>
         <ChevronDown size={18} className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="border-t border-slate-100 px-4 py-3.5">
-          <ul className="space-y-2 text-[12.5px] leading-relaxed text-slate-500">
-            {children}
-          </ul>
-        </div>
-      )}
+      {open && <div className="border-t border-slate-100 px-4 py-3.5">{children}</div>}
     </div>
+  );
+}
+
+// 약관 전문 링크 (새 탭 → 체크아웃 상태 유지)
+function DocLinks({ links }) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-[12px] font-bold">
+      {links.map((l) => (
+        <a key={l.to} href={l.to} target="_blank" rel="noreferrer" className="text-blue-600 underline underline-offset-2">
+          {l.label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function NoticeList({ items }) {
+  return (
+    <ul className="space-y-2 text-[12.5px] leading-relaxed text-slate-500">
+      {items.map((line, idx) => (
+        <li key={idx} className="flex gap-1.5">
+          <span className="text-slate-300">•</span>
+          <span>{line}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -337,12 +357,13 @@ export default function Checkout() {
               <div>
                 <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">구매 전 확인사항</h3>
                 <Accordion title="[구매 전 안내사항]" open={openNotice} onToggle={() => setOpenNotice((v) => !v)}>
-                  {PURCHASE_NOTICE.map((line, idx) => (
-                    <li key={idx} className="flex gap-1.5">
-                      <span className="text-slate-300">•</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
+                  <NoticeList items={PURCHASE_NOTICE} />
+                  <DocLinks
+                    links={[
+                      { to: '/terms', label: '이용약관 전문' },
+                      { to: '/refund', label: '환불규정 전문' },
+                    ]}
+                  />
                 </Accordion>
                 <RequiredCheck checked={agreeNotice} onChange={() => setAgreeNotice((v) => !v)}>
                   위 내용을 모두 확인하였습니다.
@@ -447,12 +468,14 @@ export default function Checkout() {
                     open={openTerms}
                     onToggle={() => setOpenTerms((v) => !v)}
                   >
-                    {PAYMENT_TERMS.map((line, idx) => (
-                      <li key={idx} className="flex gap-1.5">
-                        <span className="text-slate-300">•</span>
-                        <span>{line}</span>
-                      </li>
-                    ))}
+                    <NoticeList items={PAYMENT_TERMS} />
+                    <DocLinks
+                      links={[
+                        { to: '/payment-terms', label: '결제 서비스 이용약관' },
+                        { to: '/payment-consent', label: '개인정보 수집·이용 동의서' },
+                        { to: '/privacy', label: '개인정보처리방침' },
+                      ]}
+                    />
                   </Accordion>
                   <RequiredCheck checked={agreeTerms} onChange={() => setAgreeTerms((v) => !v)}>
                     위 내용을 모두 확인하였습니다.

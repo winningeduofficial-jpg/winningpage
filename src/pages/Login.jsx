@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BarChart3, CheckCircle2, LockKeyhole, Mail, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+// 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
+function safeRedirect(value) {
+  if (value && value.startsWith('/') && !value.startsWith('//')) return value;
+  return '/';
+}
+
 export default function Login() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const redirectTo = safeRedirect(params.get('redirect'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +29,7 @@ export default function Login() {
         if (!alive) return;
 
         if (data?.session?.user) {
-          navigate('/', { replace: true });
+          navigate(redirectTo, { replace: true });
         }
       } catch (error) {
         console.error('기존 세션 확인 오류:', error);
@@ -33,7 +41,7 @@ export default function Login() {
     return () => {
       alive = false;
     };
-  }, [navigate]);
+  }, [navigate, redirectTo]);
 
   function getFriendlyError(errorMessage) {
     if (!errorMessage) return '로그인 중 문제가 발생했습니다.';
@@ -84,7 +92,7 @@ export default function Login() {
       }
 
       setLoading(false);
-      window.location.href = '/';
+      window.location.href = redirectTo;
     } catch (error) {
       console.error('로그인 처리 오류:', error);
 

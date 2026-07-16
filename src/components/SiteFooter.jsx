@@ -57,10 +57,13 @@ export default function SiteFooter() {
 
           <div className="flex flex-col items-start gap-2 lg:items-end">
             <div className="flex items-center gap-5 text-[13px] font-bold text-[#0D1B2A]">
-              <Link to="/page/terms" className="transition hover:text-[#B88737]">
+              <Link to="/terms" className="transition hover:text-[#B88737]">
                 이용약관
               </Link>
-              <Link to="/page/privacy" className="transition hover:text-[#B88737]">
+              <Link to="/refund" className="transition hover:text-[#B88737]">
+                환불규정
+              </Link>
+              <Link to="/privacy" className="font-black transition hover:text-[#B88737]">
                 개인정보처리방침
               </Link>
             </div>

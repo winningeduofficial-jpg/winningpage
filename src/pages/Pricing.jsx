@@ -95,10 +95,18 @@ export default function Pricing() {
   }, [services, selected]);
 
   const totalPrice = selectedItems.reduce((sum, it) => sum + Number(it.price || 0), 0);
+  const listTotal = selectedItems.reduce((sum, it) => sum + Number(it.listPrice || it.price || 0), 0);
+  const discountTotal = listTotal - totalPrice;
 
-  function goCheckout() {
+  async function goCheckout() {
     if (selectedItems.length === 0) return;
-    saveCart(selectedItems);
+    saveCart(selectedItems); // 선택 항목 저장 (로그인 후에도 유지)
+    // 로그인 안 됐으면 로그인 페이지로 → 로그인 후 바로 결제 페이지로 복귀
+    const { data } = await supabase.auth.getSession();
+    if (!data?.session?.user) {
+      navigate('/login?redirect=/checkout');
+      return;
+    }
     navigate('/checkout');
   }
 
@@ -185,20 +193,24 @@ export default function Pricing() {
 
       {/* 하단 플로팅 결제바 */}
       {selectedItems.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(13,27,42,0.10)] backdrop-blur">
-          <div className="mx-auto flex max-w-[900px] items-center justify-between gap-4 px-6 py-4">
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold text-slate-500">
-                선택 <span className="text-blue-600">{selectedItems.length}</span>개
-              </p>
-              <p className="text-[20px] font-black text-[#0D1B2A]">{formatKRW(totalPrice)}</p>
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-[#E3EEFF] shadow-[0_-6px_24px_rgba(13,27,42,0.08)]">
+          <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-6 px-8 py-5">
+            <div className="flex items-center gap-12 sm:gap-16">
+              <div className="text-center">
+                <p className="text-[13px] font-medium text-slate-500">총 판매가</p>
+                <p className="mt-1 text-[19px] font-black text-[#0D1B2A]">{formatKRW(listTotal)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[13px] font-medium text-slate-500">총 할인금액</p>
+                <p className="mt-1 text-[19px] font-black text-blue-600">{formatKRW(discountTotal)}</p>
+              </div>
             </div>
             <button
               type="button"
               onClick={goCheckout}
-              className="shrink-0 rounded-xl bg-[#0D1B2A] px-8 py-4 text-[15px] font-black text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+              className="shrink-0 rounded-lg bg-blue-600 px-8 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_26px_rgba(37,99,235,0.28)] transition hover:bg-blue-700"
             >
-              결제하기
+              {formatKRW(totalPrice)} 결제하기
             </button>
           </div>
         </div>
