@@ -65,15 +65,21 @@ export default async function handler(req, res) {
     if (supabaseAdmin) {
       const { data } = await supabaseAdmin
         .from('orders')
-        .select('id, amount, status')
+        .select('id, amount, status, raw')
         .eq('id', orderId)
         .maybeSingle();
       order = data ?? null;
 
       if (order) {
         if (order.status === 'paid') {
-          // 이미 승인된 주문 (성공 페이지 재요청 등) → 멱등 처리
-          return res.status(200).json({ status: 'DONE', orderId, amount: order.amount, alreadyConfirmed: true });
+          // 이미 승인된 주문 (성공 페이지 재요청/새로고침 등) → 저장해둔 승인 원본으로 멱등 응답
+          return res.status(200).json({
+            ...(order.raw || {}),
+            status: 'DONE',
+            orderId,
+            totalAmount: order.amount,
+            alreadyConfirmed: true,
+          });
         }
         if (Number(order.amount) !== Number(amount)) {
           return res.status(400).json({ error: '주문 금액이 일치하지 않습니다.' });
