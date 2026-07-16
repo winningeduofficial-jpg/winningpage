@@ -490,7 +490,7 @@ export default function Checkout() {
                   {loading ? '결제창 여는 중…' : `${formatKRW(payAmount)} 결제하기`}
                 </button>
                 <p className="mt-3 text-center text-[11px] text-slate-400">
-                  ※ 토스페이먼츠 테스트 결제 환경입니다.
+                  결제는 토스페이먼츠를 통해 안전하게 처리됩니다.
                 </p>
               </div>
             </aside>
