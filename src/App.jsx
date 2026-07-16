@@ -1,9 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import Pricing from './pages/Pricing';
+import Checkout from './pages/Checkout';
+import Legal from './pages/Legal';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFail from './pages/PaymentFail';
 import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
@@ -19,9 +24,20 @@ import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 
+// 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
 
@@ -29,6 +45,17 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/checkout" element={<Checkout />} />
+
+        {/* 법적 문서 (카드사·PG 심사 필수) */}
+        <Route path="/terms" element={<Legal docKey="terms" />} />
+        <Route path="/privacy" element={<Legal docKey="privacy" />} />
+        <Route path="/refund" element={<Legal docKey="refund" />} />
+        <Route path="/payment-terms" element={<Legal docKey="payment-terms" />} />
+        <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
+
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
 
         <Route path="/services" element={<Services />} />
