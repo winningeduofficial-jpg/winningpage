@@ -17,7 +17,7 @@ export const SERVICES = [
   {
     key: 'goal',
     name: '위닝 목표관리',
-    desc: '단순히 희망 대학을 적는 기능이 아니라, 학생의 현재 성적, 학습 습관, 수행평가 흐름, 학생부 방향을 함께 분석하여 목표 달성 가능성을 높이는 관리 체계입니다.',
+    desc: '목표관리서비스는 단순히 희망 대학을 적는 기능이 아니라, 학생의 현재 성적, 학습 습관, 수행평가 흐름, 학생부 방향을 함께 분석하여 목표 달성 가능성을 높이는 관리 체계입니다.',
     products: [
       { id: 'goal-1m', name: '[1개월] 위닝 목표관리', listPrice: 30000, price: 30000, badge: null, recommended: false },
       { id: 'goal-3m', name: '[3개월] 위닝 목표관리', listPrice: 90000, price: 81000, badge: '10% 할인', recommended: false },
@@ -28,7 +28,7 @@ export const SERVICES = [
   {
     key: 'susi',
     name: '위닝 수시예측',
-    desc: '학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.',
+    desc: '수시카드는 학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.',
     products: [
       { id: 'susi-1', name: '[1회 이용권] 위닝 수시예측', listPrice: 30000, price: 30000, badge: null, recommended: false },
       { id: 'susi-2', name: '[2회 이용권] 위닝 수시예측', listPrice: 60000, price: 55000, badge: '약 8% 할인', recommended: false },

@@ -159,3 +159,34 @@ on conflict (id) do update set
   min_amount      = excluded.min_amount,
   valid_until     = excluded.valid_until,
   is_active       = true;
+
+-- ---------------------------------------------------------------------
+-- refund_requests : 고객 환불 신청 (마이페이지 > 환불신청)
+-- ---------------------------------------------------------------------
+create table if not exists public.refund_requests (
+  id             bigint generated always as identity primary key,
+  user_id        uuid references auth.users (id) on delete set null,
+  order_id       text references public.orders (id) on delete set null,
+  order_name     text,
+  amount         int  not null default 0,
+  reason         text,
+  refund_bank    text,
+  refund_account text,
+  refund_holder  text,
+  status         text not null default 'requested', -- requested | processing | completed | rejected
+  admin_memo     text,
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists refund_requests_user_idx on public.refund_requests (user_id, created_at desc);
+
+alter table public.refund_requests enable row level security;
+
+-- 본인 신청만 조회/생성 가능. 처리(상태 변경)는 서버(service_role)/관리자만.
+drop policy if exists "refund_requests select own" on public.refund_requests;
+create policy "refund_requests select own" on public.refund_requests
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "refund_requests insert own" on public.refund_requests;
+create policy "refund_requests insert own" on public.refund_requests
+  for insert with check (auth.uid() = user_id);
