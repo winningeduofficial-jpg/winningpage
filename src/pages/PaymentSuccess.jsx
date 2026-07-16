@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
 import { clearCart } from '../lib/cart';
+import { COMPANY } from '../data/company';
 
 const ACCENT = '#2563EB';
 
@@ -149,13 +150,25 @@ export default function PaymentSuccess() {
               </dl>
             </div>
 
+            {/* 이용 안내 (수동 운영) */}
+            <div className="mx-auto mt-6 max-w-[720px] rounded-2xl border border-blue-100 bg-blue-50/50 px-6 py-5 text-left">
+              <p className="text-[14px] font-black text-[#0D1B2A]">이용 안내</p>
+              <p className="mt-2 break-keep text-[13px] leading-relaxed text-slate-600">
+                결제해 주셔서 감사합니다. 담당 매니저가 영업일 기준 1~2일 이내에 등록하신 연락처(카카오톡·이메일·전화)로
+                서비스 이용 방법을 안내드립니다. 서비스별 진행 방식은 이용약관 및 담당자 안내를 따릅니다.
+              </p>
+              <p className="mt-3 text-[12.5px] font-bold text-slate-500">
+                문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의 {COMPANY.centerTel}
+              </p>
+            </div>
+
             <button
               type="button"
               onClick={() => navigate('/mypage')}
-              className="mt-12 rounded-xl px-16 py-4 text-[15px] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95"
+              className="mt-10 rounded-xl px-16 py-4 text-[15px] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95"
               style={{ backgroundColor: ACCENT }}
             >
-              프로그램 시작하기
+              마이페이지에서 확인하기
             </button>
           </div>
         )}

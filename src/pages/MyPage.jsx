@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { RotateCcw, Save, UserRound } from 'lucide-react';
+import { PackageCheck, RotateCcw, Save, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatKRW } from '../data/pricingCatalog';
+import { COMPANY } from '../data/company';
 
 const REFUND_STATUS = {
   requested: { label: '접수', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -439,6 +440,52 @@ export default function MyPage() {
           </div>
         </form>
       </section>
+
+      {/* 이용 중인 서비스 (결제 완료 건) */}
+      {orders.length > 0 && (
+        <section className="mx-auto mt-8 max-w-3xl rounded-[34px] border border-[#0D1B2A]/10 bg-white p-8 shadow-[0_24px_70px_rgba(13,27,42,0.12)]">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
+              <PackageCheck size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-[#B88737]">MY SERVICE</p>
+              <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">이용 중인 서비스</h2>
+            </div>
+          </div>
+
+          <ul className="mt-6 space-y-3">
+            {orders.map((o) => (
+              <li
+                key={o.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[#0D1B2A]">{o.order_name}</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#8B95A1]">
+                    {formatKRW(o.amount)}
+                    {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)} 결제` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                  결제완료
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 px-5 py-4">
+            <p className="text-sm font-black text-[#0D1B2A]">이용 안내</p>
+            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#5B6573]">
+              담당 매니저가 등록하신 연락처(카카오톡·이메일·전화)로 서비스 이용 방법을 안내드립니다. 서비스별 진행 방식은
+              이용약관 및 담당자 안내를 따릅니다.
+            </p>
+            <p className="mt-2 text-xs font-bold text-[#8B95A1]">
+              문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의 {COMPANY.centerTel}
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* 환불 신청 */}
       <section

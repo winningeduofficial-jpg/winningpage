@@ -17,8 +17,3 @@ export function getTossPayments() {
   }
   return tossPromise;
 }
-
-// 데모용 주문번호 생성기 (실서비스에서는 서버에서 생성/저장하는 것을 권장).
-export function createOrderId() {
-  return `order_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
