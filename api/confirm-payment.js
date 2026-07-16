@@ -58,7 +58,31 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: '서버에 TOSS_SECRET_KEY 가 설정되지 않았습니다.' });
     }
 
-    // 토스 승인 API 호출. 인증은 Basic base64(`${secretKey}:`)
+    const supabaseAdmin = createSupabaseAdmin();
+
+    // 서버가 생성한 주문의 금액을 신뢰값으로 사용한다. (클라이언트가 보낸 amount 는 검증용)
+    let order = null;
+    if (supabaseAdmin) {
+      const { data } = await supabaseAdmin
+        .from('orders')
+        .select('id, amount, status')
+        .eq('id', orderId)
+        .maybeSingle();
+      order = data ?? null;
+
+      if (order) {
+        if (order.status === 'paid') {
+          // 이미 승인된 주문 (성공 페이지 재요청 등) → 멱등 처리
+          return res.status(200).json({ status: 'DONE', orderId, amount: order.amount, alreadyConfirmed: true });
+        }
+        if (Number(order.amount) !== Number(amount)) {
+          return res.status(400).json({ error: '주문 금액이 일치하지 않습니다.' });
+        }
+      }
+    }
+
+    // 토스 승인 API 호출. 주문이 있으면 DB 금액을, 없으면 요청 금액을 사용한다.
+    const confirmAmount = order ? Number(order.amount) : Number(amount);
     const auth = Buffer.from(`${secretKey}:`).toString('base64');
     const tossRes = await fetch(TOSS_CONFIRM_URL, {
       method: 'POST',
@@ -66,44 +90,38 @@ export default async function handler(req, res) {
         Authorization: `Basic ${auth}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ paymentKey, orderId, amount: Number(amount) }),
+      body: JSON.stringify({ paymentKey, orderId, amount: confirmAmount }),
     });
 
     const data = await tossRes.json();
 
     if (!tossRes.ok) {
-      // 토스가 실패를 반환한 경우 (금액 위변조, 이미 처리된 결제 등)
+      // 토스가 실패를 반환한 경우 (금액 위변조, 이미 처리된 결제 등) → 주문 실패 기록
+      if (supabaseAdmin && order) {
+        await supabaseAdmin.from('orders').update({ status: 'failed' }).eq('id', orderId);
+      }
       return res.status(tossRes.status).json({
         error: data.message ?? '결제 승인 실패',
         code: data.code,
       });
     }
 
-    // (선택) 승인 성공 결과를 payments 테이블에 저장한다.
-    // 로그인 사용자면 Authorization 헤더의 토큰으로 user 를 매핑한다.
-    const supabaseAdmin = createSupabaseAdmin();
-    if (supabaseAdmin) {
-      let userId = null;
-      const token = getBearerToken(req);
-      if (token) {
-        const { data: userData } = await supabaseAdmin.auth.getUser(token);
-        userId = userData?.user?.id ?? null;
-      }
+    // 승인 성공 → 주문을 paid 로 확정한다.
+    if (supabaseAdmin && order) {
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'paid',
+          payment_key: paymentKey,
+          method: data.method ?? null,
+          paid_at: new Date().toISOString(),
+          raw: data,
+        })
+        .eq('id', orderId);
 
-      // TODO: payments 테이블 스키마에 맞춰 컬럼을 조정한다.
-      const { error: insertError } = await supabaseAdmin.from('payments').insert({
-        order_id: orderId,
-        payment_key: paymentKey,
-        amount: Number(amount),
-        status: data.status ?? 'DONE',
-        method: data.method ?? null,
-        user_id: userId,
-        raw: data,
-      });
-
-      if (insertError) {
-        // 저장 실패해도 승인 자체는 성공이므로 로깅만 하고 진행한다.
-        console.error('payments insert error:', insertError);
+      if (updateError) {
+        // 승인 자체는 성공이므로 로깅만 하고 진행한다.
+        console.error('orders update error:', updateError);
       }
     }
 

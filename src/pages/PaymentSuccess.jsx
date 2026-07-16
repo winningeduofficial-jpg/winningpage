@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { clearCart } from '../lib/cart';
 
 export default function PaymentSuccess() {
   const [params] = useSearchParams();
@@ -49,6 +50,7 @@ export default function PaymentSuccess() {
           setErrorMsg(result?.error ?? '결제 승인에 실패했습니다.');
         } else {
           setStatus('done'); // 승인 완료
+          clearCart(); // 결제 완료 → 선택 항목 비우기
         }
       } catch (err) {
         if (cancelled) return;
