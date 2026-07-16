@@ -1,105 +1,208 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Check, ChevronRight } from 'lucide-react';
+import Header from '../components/Header';
+import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
-import { getTossPayments, ANONYMOUS, createOrderId } from '../lib/toss';
+import { SERVICES, SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
+import { saveCart } from '../lib/cart';
 
-// 데모용 요금제. 실제로는 서버/DB에서 내려주는 값을 사용한다.
-const PLANS = [
-  { id: 'basic', name: '베이직', price: 50000, desc: '기본 학습 관리 프로그램' },
-  { id: 'standard', name: '스탠다드', price: 120000, desc: '1:1 첨삭 + 주간 리포트', popular: true },
-  { id: 'premium', name: '프리미엄', price: 250000, desc: '전담 컨설턴트 밀착 관리' },
-];
+// Supabase products 행 → 서비스별 그룹 구조로 변환
+function groupProducts(rows) {
+  const map = new Map();
+  (rows || []).forEach((r) => {
+    if (!map.has(r.service_key)) {
+      map.set(r.service_key, {
+        key: r.service_key,
+        name: r.service_name,
+        desc: r.service_desc || '',
+        order: Number.isFinite(r.service_sort_order) ? r.service_sort_order : 99,
+        products: [],
+      });
+    }
+    map.get(r.service_key).products.push({
+      id: r.id,
+      name: r.name,
+      listPrice: r.list_price,
+      price: r.price,
+      badge: r.badge,
+      recommended: !!r.is_recommended,
+    });
+  });
+  return Array.from(map.values()).sort((a, b) => a.order - b.order);
+}
 
 export default function Pricing() {
-  const [loadingId, setLoadingId] = useState(null);
+  const navigate = useNavigate();
+  const [services, setServices] = useState(SERVICES); // 폴백으로 시작
+  // 서비스별 단일 선택: { [serviceKey]: productId }
+  const [selected, setSelected] = useState({});
 
-  async function handlePayment(plan) {
-    try {
-      setLoadingId(plan.id);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active')
+        .eq('is_active', true)
+        .order('service_sort_order', { ascending: true })
+        .order('sort_order', { ascending: true });
 
-      const tossPayments = await getTossPayments();
-
-      // 로그인 사용자면 user.id 를 customerKey 로, 비회원이면 ANONYMOUS 를 사용한다.
-      const { data } = await supabase.auth.getSession();
-      const user = data?.session?.user ?? null;
-      const customerKey = user?.id ?? ANONYMOUS;
-
-      const payment = tossPayments.payment({ customerKey });
-
-      // 결제창 호출 → 성공 시 successUrl, 실패 시 failUrl 로 리다이렉트된다.
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: plan.price },
-        orderId: createOrderId(),
-        orderName: `${plan.name} 프로그램`,
-        successUrl: `${window.location.origin}/payment/success`,
-        failUrl: `${window.location.origin}/payment/fail`,
-        customerEmail: user?.email ?? undefined,
-        card: {
-          useEscrow: false,
-          flowMode: 'DEFAULT',
-          useCardPoint: false,
-          useAppCardOnly: false,
-        },
-      });
-    } catch (err) {
-      // 사용자가 결제창을 닫으면 여기로 온다 (err.code === 'USER_CANCEL' 등).
-      console.error('결제 요청 실패:', err);
-      if (err?.code !== 'USER_CANCEL') {
-        alert(`결제를 시작하지 못했습니다: ${err?.message ?? err}`);
+      if (!alive) return;
+      if (error) {
+        // 테이블 미생성 등 → 폴백 카탈로그 유지
+        console.warn('products 조회 실패, 폴백 카탈로그 사용:', error.message);
+        return;
       }
-    } finally {
-      setLoadingId(null);
-    }
+      const grouped = groupProducts(data);
+      if (grouped.length > 0) setServices(grouped);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function toggle(serviceKey, productId) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[serviceKey] === productId) delete next[serviceKey];
+      else next[serviceKey] = productId;
+      return next;
+    });
+  }
+
+  // 선택된 상품 목록(장바구니 형태로 enrich)
+  const selectedItems = useMemo(() => {
+    const items = [];
+    services.forEach((service) => {
+      const pid = selected[service.key];
+      if (!pid) return;
+      const product = service.products.find((p) => p.id === pid);
+      if (!product) return;
+      items.push({
+        id: product.id,
+        serviceKey: service.key,
+        serviceName: service.name,
+        serviceDesc: service.desc,
+        name: product.name,
+        listPrice: product.listPrice,
+        price: product.price,
+        badge: product.badge,
+        recommended: product.recommended,
+      });
+    });
+    return items;
+  }, [services, selected]);
+
+  const totalPrice = selectedItems.reduce((sum, it) => sum + Number(it.price || 0), 0);
+
+  function goCheckout() {
+    if (selectedItems.length === 0) return;
+    saveCart(selectedItems);
+    navigate('/checkout');
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 pt-28 pb-20">
-      <section className="mx-auto max-w-7xl">
-        <p className="text-sm font-bold text-blue-600">PRICING</p>
-        <h1 className="mt-3 text-4xl font-extrabold text-slate-900">가격</h1>
-        <p className="mt-4 text-lg text-slate-600">
-          학생의 목표와 관리 범위에 따라 맞춤형 프로그램을 선택할 수 있습니다.
-        </p>
+    <>
+      <Header />
+      <main className="min-h-screen bg-white pt-[84px]">
+        {/* 타이틀 */}
+        <section className="px-6 pb-4 pt-16 text-center">
+          <p className="text-sm font-black text-blue-600">나에게 맞는 서비스를 선택해주세요</p>
+          <h1 className="mt-3 text-3xl font-black tracking-[-0.02em] text-[#0D1B2A] sm:text-[40px]">
+            결제할 서비스를 선택해주세요
+          </h1>
+        </section>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`flex flex-col rounded-2xl border bg-white p-8 shadow-sm ${
-                plan.popular ? 'border-blue-600 ring-2 ring-blue-100' : 'border-slate-200'
-              }`}
-            >
-              {plan.popular && (
-                <span className="mb-4 w-fit rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
-                  인기
-                </span>
+        {/* 서비스 섹션들 */}
+        <div className="mx-auto max-w-[900px] px-6 pb-40 pt-10">
+          {services.map((service) => (
+            <section key={service.key} className="mb-16">
+              <div className="mb-2 flex items-center gap-2">
+                <h2 className="text-2xl font-black text-[#0D1B2A]">{service.name}</h2>
+                <ChevronRight size={22} strokeWidth={3} className="text-[#0D1B2A]" />
+              </div>
+              {service.desc && (
+                <p className="mb-6 max-w-[760px] text-[13px] leading-relaxed text-slate-500">{service.desc}</p>
               )}
-              <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
-              <p className="mt-2 text-sm text-slate-500">{plan.desc}</p>
-              <p className="mt-6 text-3xl font-extrabold text-slate-900">
-                {plan.price.toLocaleString()}
-                <span className="ml-1 text-base font-medium text-slate-500">원 / 월</span>
-              </p>
 
-              <button
-                onClick={() => handlePayment(plan)}
-                disabled={loadingId === plan.id}
-                className={`mt-8 w-full rounded-xl px-4 py-3 text-sm font-bold transition disabled:opacity-60 ${
-                  plan.popular
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-slate-900 text-white hover:bg-slate-800'
-                }`}
-              >
-                {loadingId === plan.id ? '결제창 여는 중…' : '결제하기'}
-              </button>
-            </div>
+              <div className="space-y-3">
+                {service.products.map((product) => {
+                  const isSelected = selected[service.key] === product.id;
+                  const hasDiscount = product.listPrice > product.price;
+                  return (
+                    <button
+                      type="button"
+                      key={product.id}
+                      onClick={() => toggle(service.key, product.id)}
+                      className={`flex w-full items-center justify-between gap-4 rounded-2xl border px-5 py-5 text-left transition ${
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50/40 ring-1 ring-blue-200'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                            isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isSelected && <Check size={15} strokeWidth={3.5} className="text-white" />}
+                        </span>
+                        <span className="truncate text-[15px] font-bold text-[#0D1B2A]">{product.name}</span>
+                        {product.recommended && (
+                          <span className="shrink-0 rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                            추천
+                          </span>
+                        )}
+                      </span>
+
+                      <span className="flex shrink-0 flex-col items-end leading-tight">
+                        {hasDiscount && (
+                          <span className="text-[12px] text-slate-400 line-through">{formatKRW(product.listPrice)}</span>
+                        )}
+                        <span className="flex items-center gap-2">
+                          {product.badge && (
+                            <span className="text-[13px] font-bold text-blue-600">{product.badge}</span>
+                          )}
+                          <span className="text-[15px] font-black text-[#0D1B2A]">{formatKRW(product.price)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {service.products.length > 1 && (
+                <p className="mt-4 text-[12px] text-slate-400">{SINGLE_SELECT_NOTICE}</p>
+              )}
+            </section>
           ))}
         </div>
 
-        <p className="mt-8 text-xs text-slate-400">
-          ※ 토스페이먼츠 테스트 결제입니다. 실제 금액은 청구되지 않습니다.
-        </p>
-      </section>
-    </main>
+        <SiteFooter />
+      </main>
+
+      {/* 하단 플로팅 결제바 */}
+      {selectedItems.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(13,27,42,0.10)] backdrop-blur">
+          <div className="mx-auto flex max-w-[900px] items-center justify-between gap-4 px-6 py-4">
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-slate-500">
+                선택 <span className="text-blue-600">{selectedItems.length}</span>개
+              </p>
+              <p className="text-[20px] font-black text-[#0D1B2A]">{formatKRW(totalPrice)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={goCheckout}
+              className="shrink-0 rounded-xl bg-[#0D1B2A] px-8 py-4 text-[15px] font-black text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+            >
+              결제하기
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
