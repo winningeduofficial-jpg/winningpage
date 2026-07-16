@@ -10,12 +10,15 @@ import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
-import Gallery from './pages/Gallery'
+import AdmissionGuidelines from './pages/AdmissionGuidelines';
+import AdmissionResults from './pages/AdmissionResults';
+import Gallery from './pages/Gallery';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import Admin from './pages/Admin';
 import DynamicPage from './pages/DynamicPage';
+import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 
 export default function App() {
@@ -34,9 +37,27 @@ export default function App() {
 
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
+
+        <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
+        <Route path="/admission/results" element={<AdmissionResults />} />
+
+        {/* 수시와 정시는 각각 자신의 category만 조회합니다. */}
+        <Route path="/admission/susi" element={<AdmissionBoard />} />
+        <Route path="/admission/jungsi" element={<AdmissionBoard />} />
+        <Route path="/admission/susi/:id" element={<AdmissionBoard />} />
+        <Route path="/admission/jungsi/:id" element={<AdmissionBoard />} />
+
+        {/* 메인 합격생 카드에서 사용하는 통합 상세 주소는 유지합니다. */}
+        <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
+        <Route path="/admission/susi-jungsi" element={<Navigate to="/admission/susi" replace />} />
+
+        <Route path="/admission/essay" element={<AdmissionBoard />} />
+        <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
         <Route path="/admission/:category" element={<AdmissionBoard />} />
         <Route path="/admission/:category/:id" element={<AdmissionBoard />} />
+
         <Route path="/events" element={<Events />} />
+        <Route path="/company-news" element={<CompanyNews />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/gallery" element={<Gallery />} />
@@ -58,4 +79,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

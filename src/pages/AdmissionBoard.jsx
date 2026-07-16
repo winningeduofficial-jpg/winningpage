@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Download, Search } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 const CATEGORY_META = {
+  'susi-jungsi': {
+    title: '수시·정시',
+    label: '수시·정시',
+    description: '대학별 수시·정시 전형 정보, 지원전략, 입시 일정 자료를 확인하세요.'
+  },
   susi: {
     title: '수시정보',
     label: '수시',
@@ -14,11 +19,6 @@ const CATEGORY_META = {
     title: '정시정보',
     label: '정시',
     description: '수능 반영비율, 영역별 가중치, 대학별 정시 전략을 확인하세요.'
-  },
-  essay: {
-    title: '논술정보',
-    label: '논술',
-    description: '논술 일정, 출제 경향, 대학별 논술 대비 전략을 확인하세요.'
   }
 };
 
@@ -63,8 +63,12 @@ function getAttachmentUrl(file) {
 }
 
 export default function AdmissionBoard() {
-  const { category = 'susi', id } = useParams();
-  const meta = CATEGORY_META[category] || CATEGORY_META.susi;
+  const params = useParams();
+  const location = useLocation();
+  const pathCategory = location.pathname.split('/').filter(Boolean)[1];
+  const category = params.category || (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
+  const id = params.id;
+  const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
 
   const [rows, setRows] = useState([]);
   const [post, setPost] = useState(null);
@@ -92,11 +96,16 @@ export default function AdmissionBoard() {
     async function loadList() {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('admission_posts')
         .select('*')
-        .eq('category', category)
-        .eq('is_active', true)
+        .eq('is_active', true);
+
+      query = category === 'susi-jungsi'
+        ? query.in('category', ['susi', 'jungsi'])
+        : query.eq('category', category);
+
+      const { data, error } = await query
         .order('is_pinned', { ascending: false })
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
@@ -120,7 +129,6 @@ export default function AdmissionBoard() {
         .from('admission_posts')
         .select('*')
         .eq('id', id)
-        .eq('category', category)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -147,6 +155,9 @@ export default function AdmissionBoard() {
   if (id) {
     const images = post ? normalizeArray(post.image_urls) : [];
     const attachments = post ? normalizeArray(post.attachments) : [];
+    const detailCategory = post?.category === 'jungsi' ? 'jungsi' : 'susi';
+    const detailMeta = CATEGORY_META[detailCategory];
+    const detailListPath = `/admission/${detailCategory}`;
 
     return (
       <>
@@ -155,7 +166,7 @@ export default function AdmissionBoard() {
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
             <div className="mx-auto max-w-[1180px] px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{meta.title}</h1>
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{detailMeta.title}</h1>
             </div>
           </section>
 
@@ -168,7 +179,7 @@ export default function AdmissionBoard() {
               <div className="py-20 text-center">
                 <p className="text-lg font-black">게시글을 찾을 수 없습니다.</p>
                 <Link
-                  to={`/admission/${category}`}
+                  to={detailListPath}
                   className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0D1B2A] px-6 text-sm font-black text-white"
                 >
                   목록으로
@@ -246,7 +257,7 @@ export default function AdmissionBoard() {
 
                 <div className="mt-14 border-t border-gray-200 pt-8 text-center">
                   <Link
-                    to={`/admission/${category}`}
+                    to={detailListPath}
                     className="inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 text-sm font-black text-white"
                   >
                     목록으로
@@ -267,8 +278,8 @@ export default function AdmissionBoard() {
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-[1180px] px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{meta.title}</h1>
-            <p className="mt-4 text-base font-medium text-gray-500">{meta.description}</p>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{routeMeta.title}</h1>
+            <p className="mt-4 text-base font-medium text-gray-500">{routeMeta.description}</p>
           </div>
         </section>
 
@@ -277,33 +288,23 @@ export default function AdmissionBoard() {
             <div className="flex gap-2">
               <Link
                 to="/admission/susi"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
+                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
                   category === 'susi'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
+                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
+                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
                 }`}
               >
-                수시정보
+                수시
               </Link>
               <Link
                 to="/admission/jungsi"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
+                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
                   category === 'jungsi'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
+                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
+                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
                 }`}
               >
-                정시정보
-              </Link>
-              <Link
-                to="/admission/essay"
-                className={`rounded-xl px-5 py-3 text-sm font-black ${
-                  category === 'essay'
-                    ? 'bg-[#0D1B2A] text-white'
-                    : 'border border-gray-200 bg-white text-[#0D1B2A]'
-                }`}
-              >
-                논술정보
+                정시
               </Link>
             </div>
 
@@ -312,7 +313,7 @@ export default function AdmissionBoard() {
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder={`${meta.title} 검색`}
+                placeholder={`${routeMeta.title} 검색`}
                 className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-none"
               />
             </div>
@@ -338,7 +339,7 @@ export default function AdmissionBoard() {
                 return (
                   <Link
                     key={row.id}
-                    to={`/admission/${category}/${row.id}`}
+                    to={`/admission/${row.category}/${row.id}`}
                     className="block border-b border-[#EEF2F6] px-2 py-6 transition last:border-b-0 hover:bg-[#F8FAFC]"
                   >
                     <div className="flex items-start justify-between gap-5">
