@@ -25,7 +25,7 @@ export default function SiteFooter() {
                   <li key={`${col.title}-${item.label}`}>
                     <Link
                       to={item.to}
-                      className="text-sm text-[#525252] transition hover:text-[#013262]"
+                      className="inline-block break-keep py-1 text-sm text-[#525252] transition hover:text-[#013262] lg:py-0"
                     >
                       {item.label}
                     </Link>
@@ -40,7 +40,7 @@ export default function SiteFooter() {
       {/* 사업자 정보 */}
       <div className="border-t border-black/20">
         <div className="mx-auto flex max-w-[1500px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start lg:justify-between lg:px-8">
-          <div className="space-y-1 py-3 text-sm leading-[1.4] text-[#525252]">
+          <div className="space-y-1 break-keep py-3 text-sm leading-[1.4] text-[#525252]">
             <p>
               상호명: {COMPANY.name} | 대표: {COMPANY.ceo} | 법인등록번호: {COMPANY.corpRegNo} | 특허출원:{' '}
               {COMPANY.patentNo} | 사업자 등록번호: {COMPANY.bizRegNo} | 통신판매업 신고번호: {COMPANY.mailOrderNo}
@@ -53,10 +53,10 @@ export default function SiteFooter() {
 
           <div className="flex flex-col items-start gap-2 py-3 lg:items-end">
             <div className="flex items-center gap-8 text-sm font-semibold text-[#1e293b]">
-              <Link to="/terms" className="transition hover:text-[#013262]">
+              <Link to="/terms" className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0">
                 이용약관
               </Link>
-              <Link to="/privacy" className="transition hover:text-[#013262]">
+              <Link to="/privacy" className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0">
                 개인정보처리방침
               </Link>
             </div>

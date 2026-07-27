@@ -27,6 +27,7 @@ const MENU_GROUPS = [
       { key: 'popups', label: '팝업 관리' },
       { key: 'banners', label: '메인 배너 관리' },
       { key: 'sideBanners', label: '우측 소형 배너' },
+      { key: 'universityAcceptances', label: '합격생 대학 관리' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
@@ -128,30 +129,30 @@ popups: {
   searchPlaceholder: '배너 제목을 검색하세요',
   order: 'sort_order',
   homepage: true,
-  guideText: `메인 배너 이미지: 2172px × 724px / 비율: 3:1 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 중요한 글자나 얼굴은 중앙보다 살짝 오른쪽에 배치`,
+  guideText: `메인 좌측 대형 배너는 1장만 노출됩니다(활성 항목 중 정렬 최상위). 헤드라인·버튼 문구까지 포함된 완성 이미지를 업로드하세요. 클릭 연결 주소를 입력하면 배너 전체가 클릭됩니다. 권장: 1938px × 858px(969×429 @2x) / 형식: JPG 또는 PNG`,
     columns: [
       { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
-      { key: 'highlight', label: '강조문구' },
-      { key: 'button_text', label: '버튼명' },
+      { key: 'button_link', label: '클릭 연결 주소' },
       { key: 'sort_order', label: '순서' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'highlight', label: '강조문구', type: 'text' },
-      { key: 'button_text', label: '버튼명', type: 'text' },
-      { key: 'button_link', label: '버튼 링크', type: 'text' },
+      // 통이미지 전환으로 highlight/button_text 오버레이 입력은 제거.
+      // button_link는 배너 전체 클릭 URL로 용도 변경 (HeroSection.jsx 참조)
+      { key: 'button_link', label: '클릭 연결 주소', type: 'text' },
       { key: 'image_url', label: '배너 이미지', type: 'image' },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
       is_active: true,
       title: '',
+      // highlight/button_text: 렌더되지 않는 레거시 컬럼 — NOT NULL 대비 빈 값만 유지
       highlight: '',
-      button_text: '지금 시작하기',
-      button_link: '/signup',
+      button_text: '',
+      button_link: '',
       image_url: '',
       sort_order: 1
     }
@@ -164,7 +165,7 @@ popups: {
     searchPlaceholder: '배너 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: ` PC 권장 이미지: 900px × 420px / 모바일 권장 이미지: 900px × 500px / 형식: JPG 또는 PNG / 권장 용량: 1MB 이하`,
+    guideText: `PC 권장: 642px × 858px(321×429 @2x) / 형식: PNG / 여러 장 등록 시 6초 간격 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
     columns: [
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
       { key: 'title', label: '제목' },
@@ -205,7 +206,7 @@ popups: {
     searchPlaceholder: '등록된 멘토 성공전략 이미지를 확인하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 화면의 '위닝 멘토와 완성하는 성공전략' 영역에 반원형으로 배치되는 이미지입니다. 이미지 1장만 등록하면 됩니다. 권장 이미지: 1400px × 500px / 비율: 약 2.8:1 / 형식: JPG 또는 PNG`,
+    guideText: `메인 '멘토' 영역 카드 이미지입니다. 배지(기수)·이름·소속 텍스트를 포함한 완성 이미지를 업로드하세요. 멘토별 1건씩 등록합니다. 권장: 420px × 720px(210×360 @2x) 세로형 / 형식: JPG 또는 PNG`,
     columns: [
       { key: 'image_url', label: '멘토 성공전략 이미지', type: 'image' }
     ],
@@ -220,12 +221,55 @@ popups: {
     ],
     defaults: {
       is_active: true,
-      mentor_name: '위닝 멘토',
-      title: '멘토 성공전략',
-      description: '',
-      link_url: '',
-      open_new_window: false,
       image_url: '',
+      sort_order: 1
+    }
+  },
+
+  universityAcceptances: {
+    title: '합격생 대학 관리',
+    table: 'university_acceptances',
+    searchPlaceholder: '대학명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `메인 화면 '합격생' 영역 카드입니다. 엠블럼 권장: 240px × 240px 정사각 PNG(투명 배경) / 카드에는 120px로 표시됩니다. 표시 문구는 학과·과정명을 입력하세요(예: 컴퓨터공학과, 의예과, 84기). 합격 인원 입력은 더 이상 사용하지 않습니다.`,
+    columns: [
+      { key: 'emblem_url', label: '엠블럼', type: 'image' },
+      { key: 'name', label: '대학명' },
+      { key: 'subtitle', label: '표시 문구' },
+      { key: 'track', label: '계열' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true },
+      {
+        key: 'emblem_url',
+        label: '엠블럼 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true
+      },
+      { key: 'subtitle', label: '표시 문구(예: 컴퓨터공학과, 의예과, 84기)', type: 'text' },
+      {
+        key: 'track',
+        label: '계열',
+        type: 'select',
+        options: [
+          { value: 'general', label: '일반계열' },
+          { value: 'medical_special', label: '의약학 · 특수계열' }
+        ]
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      name: '',
+      emblem_url: '',
+      subtitle: '',
+      count: null,
+      track: 'general',
       sort_order: 1
     }
   },
@@ -876,10 +920,12 @@ admissionGuidelines: {
   searchPlaceholder: '기초 데이터명을 검색하세요',
   order: 'sort_order',
   homepage: true,
+  guideText: `설명 입력 시 줄바꿈(Enter)한 위치가 메인 화면 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
   columns: [
     { key: 'name', label: '명칭' },
     { key: 'description', label: '설명' },
     { key: 'link', label: '연결 페이지' },
+    { key: 'icon_image_url', label: '카드 일러스트', type: 'image' },
     { key: 'icon', label: '아이콘' },
     { key: 'sort_order', label: '순서' },
     { key: 'is_active', label: '사용', type: 'boolean' }
@@ -889,6 +935,7 @@ admissionGuidelines: {
     { key: 'name', label: '명칭', type: 'text', required: true },
     { key: 'description', label: '설명', type: 'textarea' },
     { key: 'link', label: '연결 페이지', type: 'text' },
+    { key: 'icon_image_url', label: '카드 일러스트 이미지', type: 'image' },
     {
   key: 'icon',
   label: '아이콘',
@@ -903,6 +950,7 @@ admissionGuidelines: {
     description: '',
     link: '/services',
     icon: 'default',
+    icon_image_url: '',
     sort_order: 1
   }
 },
@@ -2414,9 +2462,13 @@ function AdminInput({ field, value, onChange, disabled }) {
         className={base}
       >
         <option value="">선택</option>
-        {(field.options || []).map((option) => (
-          <option key={option} value={option}>{option}</option>
-        ))}
+        {(field.options || []).map((option) => {
+          const optionValue = typeof option === 'object' && option !== null ? option.value : option;
+          const optionLabel = typeof option === 'object' && option !== null ? option.label : option;
+          return (
+            <option key={optionValue} value={optionValue}>{optionLabel}</option>
+          );
+        })}
       </select>
     );
   }

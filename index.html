@@ -19,7 +19,11 @@
       body,
       #root {
         margin: 0;
-        min-width: 320px;
+        /* src/index.css body 규칙과 동일한 이유 — 320px 뷰포트에서 세로 스크롤바만큼
+           줄어든 실제 가용폭(100%)이 고정 320px보다 좁아져 가로 스크롤이 생긴다.
+           html 요소는 이 인라인 스타일에서만 min-width가 걸려 있어 src/index.css의
+           body 수정만으로는 해결되지 않았다. */
+        min-width: min(320px, 100%);
         min-height: 100%;
         background: #ffffff;
       }

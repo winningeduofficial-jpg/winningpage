@@ -111,7 +111,13 @@ create policy "order_items select own" on public.order_items
   );
 
 -- =====================================================================
--- 시드 데이터 (상품 / 쿠폰)  ※ 가격이 바뀌면 이 값을 갱신하세요.
+-- 시드 데이터 (상품 / 쿠폰)
+-- ※ on conflict do nothing: 최초 설치(신규 id)만 반영되고, 이미 존재하는
+--    상품/쿠폰은 재실행 시 건드리지 않는다. api/create-order.js가 products를
+--    결제 신뢰값으로 읽으므로, 이미 저장된 price/is_active(단종·종료 처리 포함)를
+--    이 파일 재실행으로 되돌리면 실제 청구 금액·판매 상태가 임의로 바뀐다.
+--    가격/카피를 바꾸려면 Supabase에서 해당 행을 직접 update하거나 새 id로
+--    행을 추가하세요(예: 'goal-1m' 가격 개편 시 'goal-1m-v2' 신설).
 -- =====================================================================
 insert into public.products
   (id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended)
@@ -136,29 +142,13 @@ values
   ('suhaeng-6',  'suhaeng', '위닝 AI수행평가', 'AI 수행평가 서비스는 과목, 단원, 진로, 학생의 기존 활동을 바탕으로 수행평가 주제를 추천하고 탐구 구조를 잡아주는 서비스입니다. 단순한 답안 작성이 아니라 주제 선정, 자료 방향, 탐구 질문, 발표 구조까지 관리할 수 있습니다.', 4, 3, '[3개월 6회 이용권] 위닝 AI수행평가',  26667,  24000, '10% 할인', false),
   ('suhaeng-14', 'suhaeng', '위닝 AI수행평가', 'AI 수행평가 서비스는 과목, 단원, 진로, 학생의 기존 활동을 바탕으로 수행평가 주제를 추천하고 탐구 구조를 잡아주는 서비스입니다. 단순한 답안 작성이 아니라 주제 선정, 자료 방향, 탐구 질문, 발표 구조까지 관리할 수 있습니다.', 4, 4, '[6개월 14회 이용권] 위닝 AI수행평가', 54000,  43200, '20% 할인', false),
   ('suhaeng-30', 'suhaeng', '위닝 AI수행평가', 'AI 수행평가 서비스는 과목, 단원, 진로, 학생의 기존 활동을 바탕으로 수행평가 주제를 추천하고 탐구 구조를 잡아주는 서비스입니다. 단순한 답안 작성이 아니라 주제 선정, 자료 방향, 탐구 질문, 발표 구조까지 관리할 수 있습니다.', 4, 5, '[12개월 30회 이용권] 위닝 AI수행평가', 108000, 75600, '30% 할인', true)
-on conflict (id) do update set
-  service_key        = excluded.service_key,
-  service_name       = excluded.service_name,
-  service_desc       = excluded.service_desc,
-  service_sort_order = excluded.service_sort_order,
-  sort_order         = excluded.sort_order,
-  name               = excluded.name,
-  list_price         = excluded.list_price,
-  price              = excluded.price,
-  badge              = excluded.badge,
-  is_recommended     = excluded.is_recommended,
-  is_active          = true;
+on conflict (id) do nothing;
 
 insert into public.coupons (id, code, title, discount_amount, min_amount, valid_until)
 values
   ('signup-6000',   null, '회원가입 특별할인',            6000,      0, '2026-08-15'),
   ('over200k-5000', null, '20만원 이상 구매 시 5,000원 할인', 5000, 200000, '2026-08-15')
-on conflict (id) do update set
-  title           = excluded.title,
-  discount_amount = excluded.discount_amount,
-  min_amount      = excluded.min_amount,
-  valid_until     = excluded.valid_until,
-  is_active       = true;
+on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------
 -- refund_requests : 고객 환불 신청 (마이페이지 > 환불신청)
