@@ -595,81 +595,74 @@ export default function Header() {
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-[#0D1B2A]/10 bg-white shadow-[0_8px_28px_rgba(13,27,42,0.08)] will-change-transform">
-      <div className="mx-auto grid h-[84px] max-w-[1500px] grid-cols-[190px_minmax(460px,1fr)_560px] items-center px-8">
-        <Link
-          to="/"
-          className="flex h-[84px] w-[190px] shrink-0 items-center justify-self-start"
-        >
-          <img
-            src="/images/winning-logo.png"
-            alt="위닝에듀"
-            width="190"
-            height="66"
-            className="block h-[66px] w-[190px] object-contain"
-          />
-        </Link>
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
+      <div className="mx-auto flex h-[84px] max-w-[1500px] items-center justify-between px-8">
+        <div className="flex min-w-0 items-center gap-16">
+          <Link to="/" className="flex shrink-0 items-center">
+            <img
+              src="/images/winning-logo.png"
+              alt="위닝에듀"
+              className="h-[3.25rem] w-auto object-contain"
+            />
+          </Link>
 
-        <nav className="hidden min-w-0 items-center justify-center gap-8 justify-self-center whitespace-nowrap text-[15px] font-black leading-none text-[#0D1B2A] md:flex">
-          {navGroups.map((group) => {
-            const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
+          <nav className="hidden min-w-0 items-center gap-10 md:flex">
+            {navGroups.map((group) => {
+              const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
 
-            return (
-              <div
-                key={group.title}
-                className="relative flex h-[84px] items-center"
-                onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
-                onMouseLeave={() => hasDropdown && setActiveMega(null)}
-              >
-                <Link
-                  to={group.to}
-                  onClick={() => setActiveMega(null)}
-                  className={`relative inline-flex h-[84px] items-center gap-1 transition ${
-                    activeMega === group.title ? 'text-[#B88737]' : 'hover:text-[#B88737]'
-                  }`}
+              return (
+                <div
+                  key={group.title}
+                  className="relative flex items-center"
+                  onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
+                  onMouseLeave={() => hasDropdown && setActiveMega(null)}
                 >
-                  {group.title}
-                  {hasDropdown && (
-                    <ChevronDown
-                      size={15}
-                      strokeWidth={2.7}
-                      className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
-                    />
-                  )}
+                  <Link
+                    to={group.to}
+                    onClick={() => setActiveMega(null)}
+                    className={`flex items-center gap-1 px-5 py-5 text-xl font-medium leading-none tracking-[-0.025em] transition ${
+                      activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
+                    }`}
+                  >
+                    {group.title}
+                    {hasDropdown && (
+                      <ChevronDown
+                        size={16}
+                        strokeWidth={2.2}
+                        className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
+                      />
+                    )}
+                  </Link>
 
-                  {activeMega === group.title && (
-                    <span className="absolute bottom-0 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full bg-[#B88737]" />
-                  )}
-                </Link>
-
-                {hasDropdown && activeMega === group.title && (
-                  <div className="absolute left-1/2 top-full z-50 w-[230px] -translate-x-1/2">
-                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {group.items.map((item) => (
-                        <Link
-                          key={`${group.title}-${item.to}-${item.label}`}
-                          to={item.to}
-                          onClick={() => setActiveMega(null)}
-                          className="block border-b border-[#EEE8DA] px-6 py-5 text-center text-[16px] font-black tracking-[-0.04em] text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
+                  {hasDropdown && activeMega === group.title && (
+                    <div className="absolute left-1/2 top-full z-50 w-[14rem] -translate-x-1/2">
+                      <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                        {group.items.map((item) => (
+                          <Link
+                            key={`${group.title}-${item.to}-${item.label}`}
+                            to={item.to}
+                            onClick={() => setActiveMega(null)}
+                            className="block border-b border-[#eeeeee] px-6 py-4 text-center text-base font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="flex h-[84px] w-[560px] shrink-0 flex-nowrap items-center justify-end gap-3 justify-self-end whitespace-nowrap">
+        <div className="flex shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap">
           {!isAuthReady ? (
-            <div className="h-10 w-[260px]" aria-hidden="true" />
+            <div className="h-[3.25rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="hidden shrink-0 items-center gap-2 rounded-xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-2 text-sm font-black text-[#0D1B2A] whitespace-nowrap lg:flex">
-                <span className="rounded-lg bg-[#0D1B2A] px-2.5 py-1 text-xs text-white">
+              <div className="hidden shrink-0 items-center gap-2 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-4 py-2 text-sm font-medium text-[#1e293b] whitespace-nowrap lg:flex">
+                <span className="rounded bg-[#013262] px-2.5 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
                 <span className="whitespace-nowrap">
@@ -678,22 +671,22 @@ export default function Header() {
               </div>
 
               <div
-                className="relative flex h-[84px] items-center"
+                className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
                 onMouseLeave={() => setMyOpen(false)}
               >
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
-                  <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={16} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {myOpen && (
-                  <div className="absolute right-0 top-full z-50 w-[260px]">
-                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                  <div className="absolute right-0 top-full z-50 w-[16rem]">
+                    <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                       {MY_MENU.map((item) => {
                         const Icon = item.icon;
 
@@ -702,7 +695,7 @@ export default function Header() {
                             key={item.label}
                             to={item.to}
                             onClick={() => setMyOpen(false)}
-                            className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                            className="flex items-center gap-3 border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
                           >
                             <Icon size={18} />
                             {item.label}
@@ -717,7 +710,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   <Settings size={16} />
                   관리자
@@ -727,7 +720,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+                className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#013262] px-9 py-3 text-lg font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 <LogOut size={16} />
                 로그아웃
@@ -736,22 +729,22 @@ export default function Header() {
           ) : isLoggedIn ? (
             <>
               <div
-                className="relative flex h-[84px] items-center"
+                className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
                 onMouseLeave={() => setMyOpen(false)}
               >
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
-                  <ChevronDown size={15} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={16} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {myOpen && (
-                  <div className="absolute right-0 top-full z-50 w-[260px]">
-                    <div className="overflow-hidden border border-t-0 border-[#E5E0D6] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                  <div className="absolute right-0 top-full z-50 w-[16rem]">
+                    <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                       {MY_MENU.map((item) => {
                         const Icon = item.icon;
 
@@ -760,7 +753,7 @@ export default function Header() {
                             key={item.label}
                             to={item.to}
                             onClick={() => setMyOpen(false)}
-                            className="flex items-center gap-3 border-b border-[#EEE8DA] px-5 py-5 text-sm font-black text-[#0D1B2A] transition last:border-b-0 hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                            className="flex items-center gap-3 border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
                           >
                             <Icon size={18} />
                             {item.label}
@@ -775,7 +768,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#0D1B2A]/25 bg-white px-5 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그아웃
               </button>
@@ -784,14 +777,14 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A]/25 bg-white px-6 text-sm font-black leading-5 text-[#0D1B2A] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+                className="inline-flex items-center justify-center rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그인
               </Link>
 
               <Link
                 to="/signup"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#0D1B2A] bg-[#0D1B2A] px-6 text-sm font-black leading-5 text-white shadow-[0_10px_26px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40]"
+                className="inline-flex items-center justify-center rounded-lg bg-[#013262] px-9 py-3 text-lg font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 회원가입
               </Link>

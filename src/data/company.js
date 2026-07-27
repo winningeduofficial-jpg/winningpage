@@ -19,14 +19,11 @@ export const FOOTER_COLUMNS = [
     title: '서비스',
     items: [
       { label: '무료진단', to: '/free-diagnosis' },
-      { label: '위닝 목표관리', to: '/page/services-goal' },
-      { label: '위닝 수시예측', to: '/page/services-susi-prediction' },
-      { label: '위닝 콜멘토', to: '/page/services-content' },
-      { label: '위닝 AI수행평가', to: '/page/services-ai-performance' },
-      { label: '위닝 세특관리', to: '/page/services-record-coach' },
-      { label: '위닝 약점관리', to: '/page/services-weakness' },
-      { label: '위닝 심화탐구', to: '/services' },
-      { label: '위닝 생기부분석', to: '/services' },
+      { label: '목표관리', to: '/page/services-goal' },
+      { label: '콜멘토', to: '/page/services-content' },
+      { label: '수행평가', to: '/page/services-ai-performance' },
+      { label: '자기평가', to: '/services' },
+      { label: '심화탐구', to: '/services' },
     ],
   },
   {
@@ -61,7 +58,7 @@ export const FOOTER_COLUMNS = [
   {
     title: '고객안내',
     items: [
-      { label: '회사소식', to: '/company-news' },
+      { label: '회사소개', to: '/company-news' },
       { label: '공지사항', to: '/events' },
       { label: '자주하는 질문', to: '/faq' },
       { label: '온라인문의', to: '/faq' },
