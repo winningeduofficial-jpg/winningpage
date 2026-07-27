@@ -1,0 +1,106 @@
+[
+  {
+    "id": "q1",
+    "number": 1,
+    "category": "기본정보",
+    "title": "현재 학년을 선택해 주세요",
+    "helper": "하나만 선택해 주세요.",
+    "type": "radio-chip",
+    "options": ["중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년", "N수생"],
+    "extra": {
+      "selectedDefault": null,
+      "note": "이 노드(ver2)에서는 모든 옵션이 미선택 상태(회색 원 아이콘)로 표시됨"
+    }
+  },
+  {
+    "id": "q2",
+    "number": 2,
+    "category": "기본정보",
+    "title": "현재 재학 중인 학교 유형을 선택해 주세요.",
+    "helper": "하나만 선택해 주세요.",
+    "type": "radio-chip",
+    "options": ["일반고", "자율형・사립고", "특목고", "특성화고", "기타", "해당 없음"],
+    "extra": {
+      "selectedDefault": null
+    }
+  },
+  {
+    "id": "q3",
+    "number": 3,
+    "category": "목표설정",
+    "title": "현재 진학 목표는 어느 정도 정해져 있나요?",
+    "helper": "하나만 선택해 주세요.",
+    "type": "radio-row",
+    "options": [
+      "목표 대학과 학과가 모두 정해져 있어요",
+      "목표 대학만 정해져 있어요",
+      "희망 학과나 계열만 정해져 있어요",
+      "대략적인 대학 수준만 생각하고 있어요",
+      "여러 목표 사이에서 고민하고 있어요",
+      "아직 구체적인 목표가 없어요"
+    ],
+    "extra": {
+      "selectedDefault": null
+    }
+  },
+  {
+    "id": "q3-target-university",
+    "number": null,
+    "category": null,
+    "title": "목표대학",
+    "helper": null,
+    "type": "text",
+    "placeholder": "예) 성균관대학교",
+    "extra": {
+      "embeddedIn": "q3",
+      "component": "ConditionalTextInput",
+      "note": "노드 1889:13222과 달리 라벨에 '(선택입력)' 접미사가 없음"
+    }
+  },
+  {
+    "id": "q3-target-major",
+    "number": null,
+    "category": null,
+    "title": "희망 학과 또는 모집단위",
+    "helper": null,
+    "type": "text",
+    "placeholder": "예) 경영학과",
+    "extra": {
+      "embeddedIn": "q3",
+      "component": "ConditionalTextInput",
+      "note": "노드 1889:13222과 달리 라벨에 '(선택입력)' 접미사가 없음"
+    }
+  },
+  {
+    "id": "q3-target-reason",
+    "number": null,
+    "category": null,
+    "title": "희망 학과 또는 모집단위",
+    "helper": null,
+    "type": "radio-row",
+    "options": [
+      "해당 분야에 관심과 적성이 있어서",
+      "희망 직업과 연결되어 있어서",
+      "대학의 인지도나 선호도가 높아서",
+      "현재 성적으로 지원할 수 있을거 같아서",
+      "부모님이나 주변의 권유로",
+      "지역이나 통학 조건이 적합해서",
+      "아직 충분히 알아보지 못했어요"
+    ],
+    "extra": {
+      "embeddedIn": "q3",
+      "selectedDefault": null,
+      "note": "Figma 원문 라벨이 q3-target-major와 동일하게 표기됨(원문 그대로 유지). 이 노드에서는 모든 옵션이 미선택 상태"
+    }
+  },
+  {
+    "id": "progress-after-q3",
+    "type": "progress",
+    "extra": {
+      "component": "SurveyProgress",
+      "label": "16개 문항이 남았어요",
+      "disabled": true,
+      "note": "이 노드(ver2)에서는 진행 바가 회색(#d7d7d7) 비활성 상태로 표시됨 — 필수 문항 미응답 상태를 나타내는 것으로 추정"
+    }
+  }
+]

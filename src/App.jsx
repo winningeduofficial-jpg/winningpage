@@ -9,7 +9,6 @@ import Checkout from './pages/Checkout';
 import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
-import FreeDiagnosis from './pages/FreeDiagnosis';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
@@ -24,6 +23,8 @@ import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
+import FreeDiagnosisLanding from './pages/renewal/FreeDiagnosisLanding';
+import SurveyPreview from './pages/renewal/SurveyPreview';
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -54,7 +55,8 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
+          <Route path="/free-diagnosis" element={<FreeDiagnosisLanding />} />
+          <Route path="/free-diagnosis/survey" element={<SurveyPreview />} />
 
           <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
           <Route path="/admission/results" element={<AdmissionResults />} />
