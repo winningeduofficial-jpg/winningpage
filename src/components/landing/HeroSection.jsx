@@ -166,9 +166,10 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
 
   return (
     <section aria-label="메인 히어로" className="w-full">
-      {/* lg 가로 배치: basis 합 96.99% 기준으로 gap은 lg에서 1.25rem(20px)로 축소
-          — max-w-content(1200px, 콘텐츠 1136px)에서 1136×0.9699+20=1121.8px로 오버플로 없음 */}
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-5">
+      {/* lg 가로 배치: gap은 시안 40px×0.8347=33.39→2.09rem(33.44px)
+          — max-w-content(1200px, 콘텐츠 1136px)에서 1136×0.9699+33.44=1135.25px로 오버플로 없음
+          lg 상하 패딩: 헤더 하단→배너 81px×0.8347=67.61→4.23rem, 인디케이터 하단→섹션 끝 37px×0.8347=30.88→1.93rem */}
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-[2.09rem] lg:pb-[1.93rem] lg:pt-[4.23rem]">
         {/* 좌측 고정 배너 969×429 — 통이미지 (텍스트는 이미지에 포함) */}
         {mainBanner && (() => {
           const image = (
@@ -270,9 +271,10 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
               </div>
             </div>
 
-            {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만) */}
+            {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만)
+                lg 배너→인디케이터 간격: 시안 35px×0.8347=29.21→1.83rem */}
             {slideCount > 1 && (
-              <div className="mt-3 flex items-center gap-[0.625rem] hero-reveal-indicator">
+              <div className="mt-3 flex items-center gap-[0.625rem] hero-reveal-indicator lg:mt-[1.83rem]">
                 {slides.map((slide, index) => (
                   <button
                     key={slide.id ?? index}

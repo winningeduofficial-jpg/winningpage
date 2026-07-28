@@ -11,9 +11,12 @@ import { ChevronRight } from 'lucide-react';
  * 컨테이너 폭: 프로젝트 공통 max-w-content(75rem/1200px) 토큰 사용. 시안은 1920 캔버스
  * 기준 컨텐츠 실폭 1440px(좌우 240px 마진, node 1907:22199)이므로, 두 컬럼 사이 가로 간격은
  * 1200/1440(=5/6) 비율로 60px→50px 환산해 컨테이너가 좁아져도 컬럼 폭 비율이 시안과
- * 동일하게 유지되도록 했다(50% - 25px씩 = 시안의 690/1440 비율과 일치). 반면 배지 패딩·
- * 행 높이·타이포그래피 등 폭 축(1440↔1200)과 무관한 값은 시안 px를 그대로 rem 환산했다
- * (기계적 전체 축소 금지 — 폭 비율에만 스케일 적용).
+ * 동일하게 유지되도록 했다(50% - 25px씩 = 시안의 690/1440 비율과 일치). 배지 패딩·
+ * 타이포그래피 등 폭 축과 무관한 값은 시안 px를 그대로 rem 환산했다.
+ *
+ * 수직 리듬(데스크톱): 시안 실측값에 서비스 섹션 선례 비율 0.8347(=1136/1361)을 곱해 환산.
+ * 섹션 상단 120→100.16(6.26rem), 하단 112→93.49(5.84rem), 타이틀→그리드 81→67.61(4.23rem),
+ * 컬럼 헤더→리스트 20→16.69(1.04rem), 행 높이 54→45.07(2.82rem). 모바일 분기는 기존 유지.
  *
  * @param {object} props
  * @param {Array<{id: string, title: string, created_at: string, category?: string|null,
@@ -106,7 +109,7 @@ function NewsRow({ item, basePath }) {
           간격이 그대로 복원된다(데스크톱 렌더 불변). */}
       <Link
         to={`${basePath}?id=${item.id}`}
-        className="flex flex-col gap-1 px-[0.625rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[3.375rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:py-0"
+        className="flex flex-col gap-1 px-[0.625rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[2.82rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:py-0"
       >
         <div className="flex min-w-0 items-center gap-4 sm:contents">
           <CategoryBadge category={item.category} />
@@ -127,13 +130,16 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
   const noticeRows = notices.slice(0, MAX_ROWS);
 
   return (
-    <section aria-label="위닝에듀 소식" className="w-full bg-white pt-[7.5rem] pb-24">
+    <section
+      aria-label="위닝에듀 소식"
+      className="w-full bg-white pt-[7.5rem] pb-24 md:pt-[6.26rem] md:pb-[5.84rem]"
+    >
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className="text-center text-[1.75rem] font-bold leading-[1.4] tracking-[-0.055rem] text-[#525252] sm:text-[2.75rem]">
           위닝에듀의 새로운 소식
         </h2>
 
-        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[5.0625rem] md:grid-cols-2 md:gap-[3.125rem]">
+        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[4.23rem] md:grid-cols-2 md:gap-[3.125rem]">
           {/* 좌: 회사소식 */}
           <div>
             <ColumnHeader
@@ -142,7 +148,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
               moreLabel="회사소식 더보기"
             />
             {newsRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7]">
+              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[1.04rem]">
                 {newsRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/company-news" />
                 ))}
@@ -150,7 +156,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 회사소식이 없습니다."
-                className="mt-6 h-16 md:mt-10 md:h-[3.375rem]"
+                className="mt-6 h-16 md:mt-[1.04rem] md:h-[2.82rem]"
               />
             )}
           </div>
@@ -163,7 +169,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
               moreLabel="공지사항 더보기"
             />
             {noticeRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7]">
+              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[1.04rem]">
                 {noticeRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/events" />
                 ))}
@@ -171,7 +177,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 공지사항이 없습니다."
-                className="mt-6 h-16 md:mt-10 md:h-[3.375rem]"
+                className="mt-6 h-16 md:mt-[1.04rem] md:h-[2.82rem]"
               />
             )}
           </div>

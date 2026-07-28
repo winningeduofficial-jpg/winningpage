@@ -62,7 +62,7 @@ export default function AcceptanceSection({ universities = [] }) {
 
   return (
     <section aria-label="합격생" className="overflow-hidden border-b border-[#f1f1f1] bg-white">
-      <div className="pb-5 pt-5">
+      <div className="pb-5 pt-5 lg:pb-[3.91rem] lg:pt-[3.91rem]">
         {/* 헤더 + 탭 */}
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h2 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.055rem] sm:text-[2.25rem] lg:text-[2.75rem]">
@@ -73,14 +73,14 @@ export default function AcceptanceSection({ universities = [] }) {
           <div
             role="tablist"
             aria-label="합격 계열 선택"
-            className="mt-8 flex items-center gap-6 sm:gap-10 lg:mt-10"
+            className="mt-8 flex items-center gap-6 sm:gap-10 lg:mt-[2.09rem] lg:gap-[2.09rem]"
           >
             {TRACK_TABS.map((tab, tabIndex) => {
               const isActive = activeTrack === tab.key;
               const isEmpty = trackCounts[tab.key] === 0;
 
               return (
-                <div key={tab.key} className="flex items-center gap-6 sm:gap-10">
+                <div key={tab.key} className="flex items-center gap-6 sm:gap-10 lg:gap-[2.09rem]">
                   {tabIndex > 0 && (
                     <span aria-hidden="true" className="h-[1.875rem] w-px bg-[#d7d7d7]" />
                   )}
@@ -113,7 +113,7 @@ export default function AcceptanceSection({ universities = [] }) {
           id="acceptance-panel"
           role="tabpanel"
           aria-labelledby={`acceptance-tab-${activeTrack}`}
-          className="mx-auto mt-10 w-full max-w-[120rem] lg:mt-[3.75rem]"
+          className="mx-auto mt-10 w-full max-w-[120rem] lg:mt-[3.13rem]"
           {...containerHandlers}
         >
           <div
@@ -122,7 +122,7 @@ export default function AcceptanceSection({ universities = [] }) {
           >
             <ul
               key={activeTrack}
-              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 ${isMarquee ? '' : 'justify-center'
+              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 lg:gap-[1.04rem] ${isMarquee ? '' : 'justify-center'
                 }`}
             >
               {renderIndices.map((itemIndex, renderIndex) => {
