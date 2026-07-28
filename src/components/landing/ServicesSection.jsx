@@ -29,7 +29,7 @@ const serviceIconMap = {
 };
 
 const CARD_CLASS =
-  'group relative block h-[13.5625rem] w-full overflow-hidden rounded-[1.875rem] bg-white ' +
+  'group relative block h-[11.5625rem] w-full overflow-hidden rounded-[1.875rem] bg-white ' +
   'shadow-[0_0.125rem_0.25rem_0.125rem_rgba(215,215,215,0.3)] transition-[background-color,box-shadow] duration-200 ' +
   '[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(215,215,215,0.5)] ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2';
@@ -53,7 +53,7 @@ function ServiceCard({ service }) {
           (lg 2열에서도 max-w-content 콘텐츠 1136px 기준 열폭 548px ≥ 449.5px로 동일),
           그 미만(모바일 단독 구간)만 pr-[6rem]으로 축소한다. 단, pr만 줄이면 절대 위치인
           우측 일러스트(아래 두 분기)와 겹치므로 모바일에서 일러스트도 함께 축소한다. */}
-      <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[3.75rem] sm:pl-[3.125rem] sm:pr-[12.5rem]">
+      <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[2.75rem] sm:pl-[2.75rem] sm:pr-[12.5rem]">
         <span className="block break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.03rem] text-[#525252]">
           {service.name}
         </span>
@@ -68,13 +68,13 @@ function ServiceCard({ service }) {
       {service.icon_image_url ? (
         <span
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-y-0 right-4 flex w-[10.625rem] origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 ${ILLUSTRATION_LIFT_CLASS}`}
+          className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 ${ILLUSTRATION_LIFT_CLASS}`}
         >
           <img
             src={service.icon_image_url}
             alt=""
             loading="lazy"
-            className="relative z-10 h-[9.5rem] w-[10.625rem] object-contain"
+            className="relative z-10 h-[9.5rem] w-28 object-contain"
           />
           <img
             src={ICON_SHADOW_SRC}
@@ -157,7 +157,7 @@ export default function ServicesSection({ services = [] }) {
             768~1023 구간은 1열로 유지해 모바일과 같은 넉넉한 카드 폭(텍스트 공간)을 확보한다.
             컨테이너가 max-w-content(1200px, 콘텐츠 1136px)로 좁아져 3열이면 카드가 압착되므로
             lg 이상은 2열 상한 — 2열 기준 열폭 548px ≥ 카드 max-w 449.5px로 원설계 폭이 유지된다. */}
-        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-10 lg:grid-cols-2">
+        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-8 lg:grid-cols-3">
           {visibleServices.map((service) => (
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard service={service} />
