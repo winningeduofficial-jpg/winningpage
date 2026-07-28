@@ -8,7 +8,7 @@ const BAND_GRADIENT =
 /**
  * 멘토 섹션 (명세 3.4, Figma 1982:7301 리뉴얼)
  * - 라이트 블루 그라데이션 풀폭 밴드 + 무한 마퀴 사진 스트립 (카드 기본 210×360, 김무경 230×360)
- * - 카드 렌더는 MentorCard 프레젠테이션 컴포넌트에 위임 (신규 합성/통이미지 폴백/crop 처리)
+ * - 카드 렌더는 MentorCard 프레젠테이션 컴포넌트에 위임 (신규 합성/crop 처리, 필수 항목 미비 row는 null 반환)
  * - useInfiniteMarquee 훅 사용 (화살표 없음, hover pause + 드래그/터치 스크롤 가드)
  *
  * @param {object} props
@@ -31,10 +31,10 @@ export default function MentorSection({ mentors = [] }) {
   return (
     <section
       aria-label="위닝 멘토"
-      className="mx-auto w-full max-w-[120rem] pt-10 pb-20"
+      className="mx-auto w-full max-w-[120rem] pt-10 pb-20 lg:pt-[6.36rem] lg:pb-[6.36rem]"
       style={{ background: BAND_GRADIENT }}
     >
-      <div className="flex w-full flex-col gap-[3.75rem]">
+      <div className="flex w-full flex-col gap-[3.75rem] lg:gap-[3.13rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262]">멘토스 소개</p>
           <h2 className="mt-[0.5rem] break-keep text-left text-[1.75rem] font-bold leading-[1.4] tracking-[-0.06875rem] sm:text-[2.25rem] lg:text-[2.75rem]">

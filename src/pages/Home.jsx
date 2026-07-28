@@ -28,7 +28,7 @@ function preloadImage(src) {
 
 // home_mentor_strategies row → MentorSection/MentorCard props 정규화
 // - photo_layout(jsonb) → photo 매핑 (컴포넌트 무수정 유지)
-// - title_lines가 문자열(JSON)로 오는 경우 방어 파싱 — 실패/비배열이면 통이미지 폴백 유도
+// - title_lines가 문자열(JSON)로 오는 경우 방어 파싱 — 실패/비배열이면 null(카드 미노출 유도)
 function normalizeMentorRow(row) {
   let titleLines = row.title_lines;
   if (typeof titleLines === 'string') {
@@ -295,7 +295,7 @@ export default function Home() {
           supabase
             .from('home_mentor_strategies')
             .select(
-              'id, mentor_name, image_url, badge, title_lines, photo_url, photo_layout, card_width, sort_order',
+              'id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order',
             )
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),

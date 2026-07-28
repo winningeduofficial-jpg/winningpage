@@ -62,7 +62,7 @@ export const MENTOR_SLUGS = {
 };
 
 const BUCKET = 'banners';
-const DEV_PROJECT_REF = 'qxrqwbfjwthwaapikacu';
+const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const CACHE_CONTROL = '31536000, immutable';
 const MAX_LONG_EDGE = 1600; // px — 초과 시 비율 유지 리사이즈
 const MAX_BYTES = 500 * 1024; // 500KB 초과 시 재인코딩 시도
@@ -77,7 +77,7 @@ const DB_TARGETS = [
   { table: 'home_side_banners', columns: ['image_url', 'mobile_image_url'] },
   { table: 'university_acceptances', columns: ['emblem_url'] },
   { table: 'program_categories', columns: ['icon_image_url'] },
-  { table: 'home_mentor_strategies', columns: ['image_url', 'photo_url'] },
+  { table: 'home_mentor_strategies', columns: ['photo_url'] },
 ];
 
 function parseCliArgs() {

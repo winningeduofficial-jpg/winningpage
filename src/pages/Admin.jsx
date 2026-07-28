@@ -231,7 +231,7 @@ popups: {
     searchPlaceholder: '멘토 이름·배지를 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 '멘토' 영역 카드입니다. 배지(기수)·소개 문구 텍스트 + 투명 배경 인물사진(PNG, 1MB 이하)을 조합해 카드를 만들며, 라이브 프리뷰가 실제 노출과 동일합니다. 프리셋 버튼으로 사진 배치를 잡은 뒤 좌표(px)로 미세 조정하세요. 신규 등록은 노출 '미사용'으로 저장 → 프리뷰 확인 → '사용' 전환을 권장합니다.`,
+    guideText: `메인 '멘토' 영역 카드입니다. 배지(기수)·소개 문구 텍스트 + 투명 배경 인물사진(PNG, 1MB 이하)을 조합해 카드를 만들며, 라이브 프리뷰가 실제 노출과 동일합니다. 프리셋 버튼으로 사진 배치를 잡은 뒤 좌표(px)로 미세 조정하세요. 배지·소개 문구·인물 사진·사진 배치를 모두 입력해야 랜딩에 카드가 노출됩니다. 신규 등록은 노출 '미사용'으로 저장 → 프리뷰 확인 → '사용' 전환을 권장합니다.`,
     rowToForm: mentorRowToForm,
     formToPayload: mentorFormToPayload,
     validate: mentorFormValidate,
@@ -241,7 +241,6 @@ popups: {
       { key: 'mentor_name', label: '멘토 이름' },
       { key: 'badge', label: '배지(기수)' },
       { key: 'card_width', label: '카드 너비(px)' },
-      { key: 'image_url', label: '구버전 통이미지', type: 'image', showFileName: true },
       { key: 'sort_order', label: '순서' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
@@ -298,12 +297,6 @@ popups: {
         help: 'CSS 값 그대로 입력 (예: 116.12%)',
         showIf: (form) => !!form.photo_crop_enabled
       },
-      {
-        key: 'image_url',
-        label: '구버전 통이미지(폴백)',
-        type: 'image',
-        help: '배지·소개 문구·인물 사진·사진 배치 중 하나라도 비면 이 이미지가 그대로 노출됩니다'
-      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -312,7 +305,6 @@ popups: {
       badge: '',
       title_lines: '',
       photo_url: '',
-      image_url: '',
       card_width: 210,
       photo_top: 106,
       photo_left: 0,
@@ -2930,7 +2922,6 @@ function MentorCardFormPreview({ form, onPatch }) {
   // MentorCard(공개 랜딩과 동일 컴포넌트)가 기대하는 mentor prop shape로 매핑
   const previewMentor = {
     id: 'preview',
-    image_url: form.image_url || '',
     mentor_name: String(form.mentor_name || '').trim() || '멘토',
     badge: String(form.badge || '').trim(),
     title_lines: titleLines.length > 0 ? titleLines : null,
@@ -2939,7 +2930,7 @@ function MentorCardFormPreview({ form, onPatch }) {
     card_width: Number(form.card_width) || 210
   };
 
-  const isLegacyFallback = !(
+  const isMissingRequiredFields = !(
     previewMentor.badge &&
     titleLines.length > 0 &&
     previewMentor.photo_url &&
@@ -2967,24 +2958,24 @@ function MentorCardFormPreview({ form, onPatch }) {
         ))}
       </div>
 
-      {isLegacyFallback && (
+      {isMissingRequiredFields && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
-          구버전 통이미지로 노출 중 — 배지·소개 문구·인물 사진·사진 배치를 모두 채우면 신규
-          카드로 전환됩니다.
+          필수 항목(배지·소개 문구·인물 사진·사진 배치)이 비어 있어 랜딩에 카드가 노출되지
+          않습니다.
         </p>
       )}
 
       <div className="mt-3 overflow-x-auto rounded bg-[#0D1B2A] p-5">
-        <ul className="m-0 flex list-none justify-center p-0">
-          <MentorCard mentor={previewMentor} />
-        </ul>
+        {isMissingRequiredFields ? (
+          <p className="p-5 text-center text-xs font-bold leading-5 text-white/60">
+            필수 항목을 모두 입력하면 카드 미리보기가 표시됩니다.
+          </p>
+        ) : (
+          <ul className="m-0 flex list-none justify-center p-0">
+            <MentorCard mentor={previewMentor} />
+          </ul>
+        )}
       </div>
-
-      {isLegacyFallback && !previewMentor.image_url && (
-        <p className="mt-2 text-xs font-bold leading-5 text-gray-400">
-          통이미지도 비어 있어 카드가 빈 상태로 보입니다.
-        </p>
-      )}
     </section>
   );
 }
