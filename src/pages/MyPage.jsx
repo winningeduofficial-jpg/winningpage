@@ -312,7 +312,7 @@ export default function MyPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[4.25rem] text-[#0D1B2A]">
         <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
           개인정보 불러오는 중...
         </div>

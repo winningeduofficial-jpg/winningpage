@@ -4222,8 +4222,8 @@ export default function AdmissionGuidelines() {
     <div className="min-h-screen bg-[#F4F1EA] text-[#10243E]">
       <Header />
 
-      <main className="pt-[84px]">
-        <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">
+      <main className="pt-[4.25rem]">
+        <div className="mx-auto max-w-content px-4 py-6 md:px-8">
           <section className="mb-8 overflow-hidden rounded-[26px] border border-[#10243E]/10 bg-[#10243E] shadow-[0_18px_42px_rgba(16,36,62,0.16)]">
             <div className="grid gap-6 px-7 py-7 md:px-10 lg:grid-cols-[1.05fr_2fr_1.05fr] lg:items-center">
               <div>

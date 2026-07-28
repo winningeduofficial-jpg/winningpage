@@ -113,7 +113,7 @@ export default function Pricing() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px]">
+      <main className="min-h-screen bg-white pt-[4.25rem]">
         {/* 타이틀 */}
         <section className="px-6 pb-4 pt-16 text-center">
           <p className="text-sm font-black text-blue-600">나에게 맞는 서비스를 선택해주세요</p>

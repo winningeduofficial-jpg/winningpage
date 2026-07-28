@@ -32,9 +32,9 @@ export default function AdmissionResults() {
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
       <Header />
-      <main className="pt-[84px]">
+      <main className="pt-[4.25rem]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-          <div className="mx-auto max-w-[1280px] px-6 py-14 text-center">
+          <div className="mx-auto max-w-content px-6 py-14 text-center">
             <p className="text-sm font-black text-[#7B2FF7]">위닝에듀 입시정보</p>
             <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">대학 입결정보 검색</h1>
             <p className="mx-auto mt-5 max-w-[760px] text-base font-bold leading-7 text-gray-500">
@@ -43,7 +43,7 @@ export default function AdmissionResults() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1280px] px-6 py-10">
+        <section className="mx-auto max-w-content px-6 py-10">
           <div className="rounded-[34px] border border-[#E3E7EE] bg-white p-8 shadow-[0_12px_34px_rgba(13,27,42,0.08)]">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>

@@ -67,8 +67,8 @@ export default function DynamicPage() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
-          <div className="mx-auto max-w-[1180px] px-6 py-24 text-center text-sm font-bold text-gray-500">
+        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+          <div className="mx-auto max-w-content px-6 py-24 text-center text-sm font-bold text-gray-500">
             페이지를 불러오는 중입니다.
           </div>
         </main>
@@ -80,8 +80,8 @@ export default function DynamicPage() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
-          <div className="mx-auto max-w-[1180px] px-6 py-24 text-center">
+        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+          <div className="mx-auto max-w-content px-6 py-24 text-center">
             <h1 className="text-3xl font-black tracking-[-0.04em]">
               페이지를 찾을 수 없습니다.
             </h1>
@@ -120,9 +120,9 @@ const paidServiceContext = {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-  <div className="mx-auto max-w-[1180px] px-6 py-20 text-center">
+  <div className="mx-auto max-w-content px-6 py-20 text-center">
     {menuGroup && (
       <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">
         {menuGroup}
@@ -153,7 +153,7 @@ const paidServiceContext = {
 
         {(body || bottomImages.length > 0) && (
           <section className="bg-white">
-            <div className="mx-auto max-w-[1180px] px-6 py-16">
+            <div className="mx-auto max-w-content px-6 py-16">
               {body && (
                 <div className="mb-12 whitespace-pre-line text-lg font-semibold leading-9 tracking-[-0.04em] text-[#26364A]">
                   {body}

@@ -251,7 +251,7 @@ export default function Checkout() {
     return (
       <>
         <Header />
-        <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-[84px] text-center">
+        <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-[4.25rem] text-center">
           <h1 className="text-2xl font-black text-[#0D1B2A]">선택한 상품이 없습니다</h1>
           <p className="mt-3 text-slate-500">결제할 서비스를 먼저 선택해주세요.</p>
           <Link
@@ -269,8 +269,8 @@ export default function Checkout() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px]">
-        <div className="mx-auto max-w-[1180px] px-6 py-14">
+      <main className="min-h-screen bg-white pt-[4.25rem]">
+        <div className="mx-auto max-w-content px-6 py-14">
           <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">결제하기</h1>
 
           <div className="grid gap-12 lg:grid-cols-[1fr_400px]">

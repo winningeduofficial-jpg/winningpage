@@ -35,7 +35,7 @@ export default function MentorSection({ mentors = [] }) {
       style={{ background: BAND_GRADIENT }}
     >
       <div className="flex w-full flex-col gap-[3.75rem]">
-        <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262]">멘토스 소개</p>
           <h2 className="mt-[0.625rem] break-keep text-left text-[1.75rem] font-bold leading-[1.4] tracking-[-0.06875rem] sm:text-[2.25rem] lg:text-[2.75rem]">
             <span className="text-[#013262]">위닝과 함께 합격한 선배에게 </span>

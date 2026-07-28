@@ -142,8 +142,8 @@ export default function Events() {
       <>
         <Header />
 
-        <main className="min-h-screen bg-white pt-[84px]">
-          <section className="mx-auto max-w-[1180px] px-6 py-16">
+        <main className="min-h-screen bg-white pt-[4.25rem]">
+          <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
               onClick={() => setSearchParams({})}
@@ -251,8 +251,8 @@ export default function Events() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[84px]">
-        <section className="mx-auto max-w-[1500px] px-8 py-16">
+      <main className="min-h-screen bg-white pt-[4.25rem]">
+        <section className="mx-auto max-w-content px-8 py-16">
           <div className="text-center">
             <h1 className="text-[44px] font-black tracking-[-0.04em] text-[#222]">
               공지사항
@@ -263,7 +263,7 @@ export default function Events() {
             </p>
           </div>
 
-          <div className="mx-auto mt-16 flex max-w-[1340px] items-center border-b border-[#222] pb-4">
+          <div className="mx-auto mt-16 flex items-center border-b border-[#222] pb-4">
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -274,7 +274,7 @@ export default function Events() {
             <Search size={38} strokeWidth={1.6} className="text-gray-600" />
           </div>
 
-          <div className="mx-auto mt-14 max-w-[1340px]">
+          <div className="mx-auto mt-14">
             <p className="mb-8 text-[20px] font-medium text-gray-600">
               총{' '}
               <span className="font-black text-[#00A6D6]">

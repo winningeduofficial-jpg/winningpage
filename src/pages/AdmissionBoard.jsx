@@ -162,9 +162,9 @@ export default function AdmissionBoard() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-            <div className="mx-auto max-w-[1180px] px-6 py-14">
+            <div className="mx-auto max-w-content px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
               <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{detailMeta.title}</h1>
             </div>
@@ -274,16 +274,16 @@ export default function AdmissionBoard() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-          <div className="mx-auto max-w-[1180px] px-6 py-14">
+          <div className="mx-auto max-w-content px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
             <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{routeMeta.title}</h1>
             <p className="mt-4 text-base font-medium text-gray-500">{routeMeta.description}</p>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1180px] px-6 py-12">
+        <section className="mx-auto max-w-content px-6 py-12">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-2">
               <Link

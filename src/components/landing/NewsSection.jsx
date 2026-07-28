@@ -162,7 +162,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
 
   return (
     <section aria-label="위닝에듀 소식" className="w-full bg-white pt-[7.5rem] pb-24">
-      <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className="text-center text-[1.75rem] font-bold leading-[1.4] tracking-[-0.055rem] text-[#525252] sm:text-[2.75rem]">
           위닝에듀의 새로운 소식
         </h2>

@@ -705,7 +705,7 @@ export default function Signup() {
 
   if (checkingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[4.25rem] text-[#0D1B2A]">
         <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
           로그인 상태 확인 중...
         </div>
@@ -714,12 +714,12 @@ export default function Signup() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+    <main className="min-h-screen bg-[#F7F4EF] pt-[4.25rem] text-[#0D1B2A]">
       <section className="relative overflow-hidden border-b border-[#0D1B2A]/10 bg-[linear-gradient(120deg,#081321_0%,#0D1B2A_44%,#142B45_100%)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.25),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.15),transparent_32%)]" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
-        <div className="relative mx-auto max-w-[1180px] px-6 py-14 lg:px-8">
+        <div className="relative mx-auto max-w-content px-6 py-14 lg:px-8">
           <div className="mx-auto max-w-3xl text-center text-white">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#D7B56D]/45 bg-[#D7B56D]/10 px-4 py-2 text-sm font-black text-[#E5C677] shadow-[0_12px_34px_rgba(0,0,0,0.18)]">
               <Sparkles size={16} fill="currentColor" />

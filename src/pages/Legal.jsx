@@ -20,7 +20,7 @@ export default function Legal({ docKey }) {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px]">
+      <main className="min-h-screen bg-white pt-[4.25rem]">
         <div className="mx-auto max-w-[880px] px-6 py-16">
           <h1 className="text-[30px] font-black tracking-[-0.02em] text-[#0D1B2A]">
             {doc?.title || '문서를 찾을 수 없습니다'}

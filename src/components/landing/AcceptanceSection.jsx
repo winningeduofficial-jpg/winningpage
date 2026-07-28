@@ -64,7 +64,7 @@ export default function AcceptanceSection({ universities = [] }) {
     <section aria-label="합격생" className="overflow-hidden border-b border-[#f1f1f1] bg-white">
       <div className="pb-5 pt-5">
         {/* 헤더 + 탭 */}
-        <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h2 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.055rem] sm:text-[2.25rem] lg:text-[2.75rem]">
             <span className="block text-[#013262]">인서울부터 과기원까지</span>
             <span className="block text-[#525252]">합격생 선배님들의 압도적 선택</span>

@@ -166,7 +166,9 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
 
   return (
     <section aria-label="메인 히어로" className="w-full">
-      <div className="mx-auto flex w-full max-w-[93.75rem] flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center">
+      {/* lg 가로 배치: basis 합 96.99% 기준으로 gap은 lg에서 1.25rem(20px)로 축소
+          — max-w-content(1100px, 콘텐츠 1036px)에서 1036×0.9699+20=1024.8px로 오버플로 없음 */}
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-5">
         {/* 좌측 고정 배너 969×429 — 통이미지 (텍스트는 이미지에 포함) */}
         {mainBanner && (() => {
           const image = (

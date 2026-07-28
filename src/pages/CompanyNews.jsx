@@ -66,7 +66,7 @@ function CompanyIntro({ page }) {
 
   return (
     <section className="border-b border-[#E7ECF2] bg-[#F7F9FC]">
-      <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:py-20">
+      <div className="mx-auto grid max-w-content gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:py-20">
         <div>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
             <Building2 size={25} />
@@ -197,8 +197,8 @@ export default function CompanyNews() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
-          <section className="mx-auto max-w-[1180px] px-6 py-16">
+        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+          <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
               onClick={() => setSearchParams({})}
@@ -288,10 +288,10 @@ export default function CompanyNews() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
         <CompanyIntro page={introPage} />
 
-        <section className="mx-auto max-w-[1280px] px-6 py-16 lg:py-20">
+        <section className="mx-auto max-w-content px-6 py-16 lg:py-20">
           <div className="text-center">
             <p className="text-sm font-black text-[#B88737]">WINNING NEWS</p>
             <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">회사소식</h2>
@@ -300,7 +300,7 @@ export default function CompanyNews() {
             </p>
           </div>
 
-          <div className="mx-auto mt-12 flex h-14 max-w-[1120px] items-center border-b border-[#111827]">
+          <div className="mx-auto mt-12 flex h-14 items-center border-b border-[#111827]">
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -310,7 +310,7 @@ export default function CompanyNews() {
             <Search size={29} strokeWidth={1.7} className="mr-4 text-slate-500" />
           </div>
 
-          <div className="mx-auto mt-10 max-w-[1120px]">
+          <div className="mx-auto mt-10">
             <p className="mb-7 text-base font-semibold text-slate-500">
               총 <span className="font-black text-[#0B73C9]">{filteredRows.length}</span>건의 소식이 있습니다.
             </p>
