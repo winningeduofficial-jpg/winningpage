@@ -5,7 +5,7 @@ import { COMPANY, FOOTER_COLUMNS } from '../data/company';
 export default function SiteFooter() {
   return (
     <footer className="bg-[#f9fafb]">
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-10 px-6 py-[6.25rem] lg:flex-row lg:items-start lg:justify-between lg:px-8">
+      <div className="mx-auto flex max-w-content flex-col gap-10 px-6 py-[6.25rem] lg:flex-row lg:items-start lg:justify-between lg:px-8">
         {/* 로고 */}
         <Link to="/" className="inline-flex shrink-0 items-center">
           <img
@@ -39,7 +39,7 @@ export default function SiteFooter() {
 
       {/* 사업자 정보 */}
       <div className="border-t border-black/20">
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start lg:justify-between lg:px-8">
+        <div className="mx-auto flex max-w-content flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start lg:justify-between lg:px-8">
           <div className="space-y-1 break-keep py-3 text-sm leading-[1.4] text-[#525252]">
             <p>
               상호명: {COMPANY.name} | 대표: {COMPANY.ceo} | 법인등록번호: {COMPANY.corpRegNo} | 특허출원:{' '}

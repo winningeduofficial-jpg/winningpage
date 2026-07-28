@@ -587,18 +587,22 @@ export default function Header() {
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
-      <div className="mx-auto flex h-[84px] max-w-[1500px] items-center justify-between px-8">
-        <div className="flex min-w-0 items-center gap-10">
+      <div className="mx-auto flex h-[4.25rem] max-w-content items-center justify-between px-8">
+        <div className="flex min-w-0 items-center gap-6">
           <Link to="/" className="flex shrink-0 items-center">
             <img
               src="/images/winning-logo.png"
               alt="위닝에듀"
-              className="h-[3.25rem] w-auto object-contain"
+              className="h-[2.75rem] w-auto object-contain"
             />
           </Link>
 
-          {/* 헤더 컨테이너가 max-w-[1500px]로 고정돼 뷰포트를 넓혀도 내부 폭(1436px)은 그대로라, 로그인(관리자) 우측 그룹과 gap-10은 공존 불가 — 로그인 상태에서만 gap 축소 */}
-          <nav className={`hidden items-center desktop:flex ${isLoggedIn ? 'gap-0' : 'gap-10'}`}>
+          {/* 헤더 컨테이너가 max-w-content(1100px)로 고정돼 내부 폭이 1036px로 줄었다. nav 5그룹 + 우측 로그인 그룹이 한 줄에 들어가도록
+              nav 아이템 px-2/text-base, 우측 버튼 px-2.5/text-sm, D-day 배지 px-2/gap-1/이름 max-w-5rem, 우측 그룹 gap-1.5로 축소했다.
+              좌측(로고-nav)·nav 자체 gap은 gap-5(게스트)/gap-0(로그인)이다.
+              로그인(관리자 포함) 상태에서는 우측 그룹 폭이 커서 nav도 gap-0으로 더 좁힌다.
+              헤더 두께는 4.25rem(68px)로 축소됐다 */}
+          <nav className={`hidden items-center desktop:flex ${isLoggedIn ? 'gap-0' : 'gap-5'}`}>
             {navGroups.map((group) => {
               const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
 
@@ -612,13 +616,13 @@ export default function Header() {
                   <Link
                     to={group.to}
                     onClick={() => setActiveMega(null)}
-                    className={`flex items-center gap-1 whitespace-nowrap px-5 py-5 text-xl font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
+                    className={`flex items-center gap-1 whitespace-nowrap px-2 py-4 text-base font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
                       }`}
                   >
                     {group.title}
                     {hasDropdown && (
                       <ChevronDown
-                        size={16}
+                        size={14}
                         strokeWidth={2.2}
                         className={`transition ${activeMega === group.title ? 'rotate-180' : ''}`}
                       />
@@ -659,16 +663,16 @@ export default function Header() {
           <Menu size={22} />
         </button>
 
-        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
+        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap desktop:flex">
           {!isAuthReady ? (
-            <div className="h-[3.25rem] w-[16rem]" aria-hidden="true" />
+            <div className="h-[2.75rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="flex shrink-0 items-center gap-2 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-3 py-1.5 text-sm font-medium text-[#1e293b] whitespace-nowrap">
-                <span className="rounded bg-[#013262] px-2.5 py-1 text-xs text-white">
+              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-2 py-1.5 text-xs font-medium text-[#1e293b] whitespace-nowrap">
+                <span className="rounded bg-[#013262] px-2 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
-                <span className="inline-block max-w-[9rem] truncate">
+                <span className="inline-block max-w-[5rem] truncate">
                   {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
                 </span>
               </div>
@@ -681,10 +685,10 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-5 py-2.5 text-base font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
-                  <ChevronDown size={16} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {myOpen && (
@@ -713,9 +717,9 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-5 py-2.5 text-base font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
-                  <Settings size={16} />
+                  <Settings size={14} />
                   관리자
                 </Link>
               )}
@@ -723,9 +727,9 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-5 py-2.5 text-base font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-2.5 py-2.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
                 로그아웃
               </button>
             </>
@@ -739,10 +743,10 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-5 py-2.5 text-base font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
-                  <ChevronDown size={16} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {myOpen && (
@@ -771,7 +775,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-5 py-2.5 text-base font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그아웃
               </button>
@@ -780,14 +784,14 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-9 py-3 text-lg font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-6 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그인
               </Link>
 
               <Link
                 to="/signup"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-9 py-3 text-lg font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-6 py-2.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 회원가입
               </Link>
