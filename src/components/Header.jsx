@@ -593,15 +593,18 @@ export default function Header() {
             <img
               src="/images/winning-logo.png"
               alt="위닝에듀"
-              className="h-[2.75rem] w-auto object-contain"
+              className="h-[2rem] w-auto object-contain"
             />
           </Link>
 
-          {/* 헤더 컨테이너가 max-w-content(1100px)로 고정돼 내부 폭이 1036px로 줄었다. nav 5그룹 + 우측 로그인 그룹이 한 줄에 들어가도록
-              nav 아이템 px-2/text-base, 우측 버튼 px-2.5/text-sm, D-day 배지 px-2/gap-1/이름 max-w-5rem, 우측 그룹 gap-1.5로 축소했다.
+          {/* 헤더 컨테이너가 max-w-content(1200px)로 고정돼 내부 폭이 1136px로 줄었다. nav 5그룹 + 우측 로그인 그룹이 한 줄에 들어가도록
+              nav 아이템 px-2/text-sm, 우측 버튼 px-4/py-2/text-sm(py는 px의 절반), D-day 배지 컨테이너 px-3/py-1.5/text-sm/gap-1/이름 max-w-5rem,
+              우측 그룹 gap-1.5로 축소했다. 로그인/비로그인 양쪽 상태에서 nav·우측 버튼 폰트를 text-sm으로 통일했다.
               좌측(로고-nav)·nav 자체 gap은 gap-5(게스트)/gap-0(로그인)이다.
               로그인(관리자 포함) 상태에서는 우측 그룹 폭이 커서 nav도 gap-0으로 더 좁힌다.
-              헤더 두께는 4.25rem(68px)로 축소됐다 */}
+              헤더 두께는 4.25rem(68px)로 축소됐다.
+              데스크톱 인라인 nav 전환 시점(tailwind desktop: 브레이크포인트)은 max-w-content와 동일한 1200px로,
+              컨텐츠 제한 폭 도달 시점과 햄버거 전환 시점을 일치시켰다 */}
           <nav className={`hidden items-center desktop:flex ${isLoggedIn ? 'gap-0' : 'gap-5'}`}>
             {navGroups.map((group) => {
               const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
@@ -616,7 +619,7 @@ export default function Header() {
                   <Link
                     to={group.to}
                     onClick={() => setActiveMega(null)}
-                    className={`flex items-center gap-1 whitespace-nowrap px-2 py-4 text-base font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
+                    className={`flex items-center gap-1 whitespace-nowrap px-2 py-4 text-sm font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
                       }`}
                   >
                     {group.title}
@@ -637,7 +640,7 @@ export default function Header() {
                             key={`${group.title}-${item.to}-${item.label}`}
                             to={item.to}
                             onClick={() => setActiveMega(null)}
-                            className="block whitespace-nowrap border-b border-[#eeeeee] px-6 py-4 text-center text-base font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                            className="block whitespace-nowrap border-b border-[#eeeeee] px-6 py-4 text-center text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
                           >
                             {item.label}
                           </Link>
@@ -665,10 +668,10 @@ export default function Header() {
 
         <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap desktop:flex">
           {!isAuthReady ? (
-            <div className="h-[2.75rem] w-[16rem]" aria-hidden="true" />
+            <div className="h-[2rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-2 py-1.5 text-xs font-medium text-[#1e293b] whitespace-nowrap">
+              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-3 py-1.5 text-sm font-medium text-[#1e293b] whitespace-nowrap">
                 <span className="rounded bg-[#013262] px-2 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
@@ -685,7 +688,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -717,7 +720,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   <Settings size={14} />
                   관리자
@@ -727,7 +730,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-2.5 py-2.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-2 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 <LogOut size={14} />
                 로그아웃
@@ -743,7 +746,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -775,7 +778,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-2.5 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그아웃
               </button>
@@ -784,14 +787,14 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-6 py-2.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그인
               </Link>
 
               <Link
                 to="/signup"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-6 py-2.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-2 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 회원가입
               </Link>
