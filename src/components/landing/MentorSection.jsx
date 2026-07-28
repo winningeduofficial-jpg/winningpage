@@ -1,9 +1,9 @@
 import { useInfiniteMarquee } from '../../hooks/useInfiniteMarquee';
 import MentorCard from './MentorCard';
 
-/** 라이트 블루 그라데이션 풀폭 밴드 (Figma 1479:4378 추출) */
+/** 라이트 블루 그라데이션 풀폭 밴드 (Figma 1889:4937 추출) */
 const BAND_GRADIENT =
-  'linear-gradient(106.26deg, #FFFFFF 0.48%, rgba(176, 215, 254, 0.845) 32.4%, rgba(98, 171, 255, 0.2) 79.1%, rgba(11, 132, 253, 0.25) 99.6%)';
+  'linear-gradient(106.75deg, rgba(255, 255, 255, 0.3) 0.48%, rgba(176, 215, 254, 0.254) 32.4%, rgba(98, 171, 255, 0.06) 79.1%, rgba(11, 132, 253, 0.075) 99.59%)';
 
 /**
  * 멘토 섹션 (명세 3.4, Figma 1982:7301 리뉴얼)
@@ -37,7 +37,7 @@ export default function MentorSection({ mentors = [] }) {
       <div className="flex w-full flex-col gap-[3.75rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262]">멘토스 소개</p>
-          <h2 className="mt-[0.625rem] break-keep text-left text-[1.75rem] font-bold leading-[1.4] tracking-[-0.06875rem] sm:text-[2.25rem] lg:text-[2.75rem]">
+          <h2 className="mt-[0.5rem] break-keep text-left text-[1.75rem] font-bold leading-[1.4] tracking-[-0.06875rem] sm:text-[2.25rem] lg:text-[2.75rem]">
             <span className="text-[#013262]">위닝과 함께 합격한 선배에게 </span>
             <span className="text-[#808080]">멘토 상담을 받아보세요</span>
           </h2>
