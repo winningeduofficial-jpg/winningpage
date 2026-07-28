@@ -204,7 +204,7 @@
 
 #### 데이터 소스 / Admin 영향
 
-- `program_categories` 유지 + `icon_image_url` 추가. Admin 기초 데이터 config에 image 타입 필드 추가 (6절).
+- `program_categories` 유지 + `icon_image_url` 추가. Admin 핵심 서비스 config(구 '기초 데이터')에 image 타입 필드 추가 (6절).
 
 ---
 
