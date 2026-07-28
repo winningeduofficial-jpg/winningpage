@@ -9,10 +9,11 @@ import NewsSection from '../components/landing/NewsSection';
 import { supabase } from '../lib/supabase';
 import * as landingPreview from '../data/landingPreview';
 
-// 랜딩 콘텐츠(배너/대학/서비스/멘토)를 Supabase 대신 로컬 정적 데이터로 렌더.
-// 공지사항 섹션(company_news/notices)은 실 Supabase DB 연동 완료 — 이 플래그의 영향을 받지 않음.
-// 나머지 프리뷰 섹션은 DB 전환 시 false로 변경 — 기존 Supabase fetch 경로는 그대로 유지되어 있음.
-const LANDING_PREVIEW = true; // TODO: DB 전환 시 false — Supabase fetch 사용
+// 랜딩 콘텐츠(배너/대학/서비스/멘토): Supabase DB fetch 모드 (LANDING_PREVIEW=false).
+// true로 되돌리면 ../data/landingPreview 정적 픽스처로 렌더 (로컬 프리뷰 전용 스위치).
+// fetch 실패 시 각 섹션은 빈 배열 폴백으로 미렌더 처리 — 픽스처 자동 폴백은 없음.
+// 공지사항 섹션(company_news/notices)은 이 플래그와 무관하게 항상 DB 연동.
+const LANDING_PREVIEW = false;
 
 function preloadImage(src) {
   if (!src) return Promise.resolve('');
@@ -23,6 +24,30 @@ function preloadImage(src) {
     img.onerror = () => resolve(src);
     img.src = src;
   });
+}
+
+// home_mentor_strategies row → MentorSection/MentorCard props 정규화
+// - photo_layout(jsonb) → photo 매핑 (컴포넌트 무수정 유지)
+// - title_lines가 문자열(JSON)로 오는 경우 방어 파싱 — 실패/비배열이면 통이미지 폴백 유도
+function normalizeMentorRow(row) {
+  let titleLines = row.title_lines;
+  if (typeof titleLines === 'string') {
+    try {
+      titleLines = JSON.parse(titleLines);
+    } catch {
+      titleLines = null;
+    }
+  }
+  const layout = row.photo_layout;
+  const hasValidLayout =
+    layout &&
+    ['top', 'left', 'width', 'height'].every((key) => Number.isFinite(layout[key]));
+
+  return {
+    ...row,
+    title_lines: Array.isArray(titleLines) && titleLines.length > 0 ? titleLines : null,
+    photo: hasValidLayout ? layout : null,
+  };
 }
 
 function todayKstYmd() {
@@ -269,7 +294,9 @@ export default function Home() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('home_mentor_strategies')
-            .select('*')
+            .select(
+              'id, mentor_name, image_url, badge, title_lines, photo_url, photo_layout, card_width, sort_order',
+            )
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),
         ]);
@@ -298,7 +325,7 @@ export default function Home() {
         console.error('멘토 조회 오류:', mentorResult.error);
         setMentors([]);
       } else {
-        setMentors(mentorResult.data || []);
+        setMentors((mentorResult.data || []).map(normalizeMentorRow));
       }
     }
 
