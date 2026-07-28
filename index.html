@@ -10,7 +10,7 @@
     <link
       rel="preload"
       as="image"
-      href="/images/winning-logo.png"
+      href="/images/winning-logo-stacked.svg"
       fetchpriority="high"
     />
 
@@ -59,8 +59,11 @@
       }
 
       .pre-header-inner {
+        /* 실헤더(Header.jsx)의 좌표계 1(로고+계정 그룹)과 동일하게 max-w-[120rem](1920px)
+           밴드를 기준으로 로고를 좌측 끝에 배치한다. nav는 실헤더에서 별도의 1200px
+           컨텐츠 좌표계로 분리됐으므로 프리헤더는 로고 위치만 재현하면 된다. */
         width: 100%;
-        max-width: 75rem;
+        max-width: 120rem;
         height: 4.25rem;
         margin: 0 auto;
         padding: 0 32px;
@@ -70,7 +73,7 @@
 
       .pre-logo-link {
         display: flex;
-        width: 190px;
+        width: 74px;
         height: 4.25rem;
         align-items: center;
         flex-shrink: 0;
@@ -78,11 +81,14 @@
 
       .pre-logo {
         display: block;
-        width: 190px;
-        height: 2rem;
+        width: 74px;
+        height: 2.5rem;
         object-fit: contain;
       }
 
+      /* Header.jsx의 로고는 모든 뷰포트에서 동일한 h-[2.5rem] 고정 크기이므로
+         프리헤더 로고 치수도 브레이크포인트 구분 없이 동일하게 유지해
+         하이드레이션 시 로고 크기 점프가 생기지 않게 한다. */
       @media (max-width: 900px) {
         #pre-header {
           height: 76px;
@@ -94,13 +100,8 @@
         }
 
         .pre-logo-link {
-          width: 170px;
+          width: 74px;
           height: 76px;
-        }
-
-        .pre-logo {
-          width: 170px;
-          height: 58px;
         }
       }
     </style>
@@ -112,10 +113,10 @@
         <div class="pre-logo-link">
           <img
             class="pre-logo"
-            src="/images/winning-logo.png"
+            src="/images/winning-logo-stacked.svg"
             alt=""
-            width="190"
-            height="32"
+            width="74"
+            height="40"
           />
         </div>
       </div>
