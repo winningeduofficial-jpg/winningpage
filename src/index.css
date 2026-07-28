@@ -208,6 +208,23 @@ select {
   box-shadow: 0 24px 55px rgba(13, 27, 42, 0.13);
 }
 
+/* 무한 마퀴 좌우 페이드 마스크 (멘토/합격생 공용) */
+.marquee-mask {
+  --marquee-fade: 3rem;
+  -webkit-mask-image: linear-gradient(to right,
+    transparent, black var(--marquee-fade),
+    black calc(100% - var(--marquee-fade)), transparent);
+  mask-image: linear-gradient(to right,
+    transparent, black var(--marquee-fade),
+    black calc(100% - var(--marquee-fade)), transparent);
+}
+
+@media (min-width: 640px) {
+  .marquee-mask {
+    --marquee-fade: 4rem;
+  }
+}
+
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;

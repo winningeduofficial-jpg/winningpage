@@ -31,7 +31,7 @@ export default function MentorSection({ mentors = [] }) {
   return (
     <section
       aria-label="위닝 멘토"
-      className="w-full pt-10 pb-20"
+      className="mx-auto w-full max-w-[120rem] pt-10 pb-20"
       style={{ background: BAND_GRADIENT }}
     >
       <div className="flex w-full flex-col gap-[3.75rem]">
@@ -43,11 +43,11 @@ export default function MentorSection({ mentors = [] }) {
           </h2>
         </div>
 
-        {/* 좌우 블리드 풀폭 무한 마퀴 스트립 */}
-        <div className="w-full" {...containerHandlers}>
+        {/* 컨텐츠 폭 캡 무한 마퀴 스트립 (좌우 페이드 마스크로 잘림 경계 완화) */}
+        <div className="mx-auto w-full max-w-content" {...containerHandlers}>
           <ul
             ref={scrollRef}
-            className={`flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${isMarquee ? '' : 'justify-center'
+            className={`marquee-mask flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${isMarquee ? '' : 'justify-center'
               }`}
           >
             {renderIndices.map((mentorIndex, position) => {

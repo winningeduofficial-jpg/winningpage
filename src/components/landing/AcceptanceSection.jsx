@@ -113,12 +113,12 @@ export default function AcceptanceSection({ universities = [] }) {
           id="acceptance-panel"
           role="tabpanel"
           aria-labelledby={`acceptance-tab-${activeTrack}`}
-          className="mt-10 lg:mt-[3.75rem]"
+          className="mx-auto mt-10 w-full max-w-content lg:mt-[3.75rem]"
           {...containerHandlers}
         >
           <div
             ref={scrollRef}
-            className="w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+            className="marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
               key={activeTrack}
