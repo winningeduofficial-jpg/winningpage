@@ -6,11 +6,12 @@
 
 ## 진행 상태 (2026-07-28)
 
-- [x] **Phase 1** — dev 프로젝트 `winningpage-dev`(qxrqwbfjwthwaapikacu) 생성·복제 완료. public 57개 테이블 + 시드 확인 (mentors 22, universities 26). 리뉴얼 SQL 적용됨
+- [x] **Phase 1** — dev 프로젝트 `winningpage-dev`(qxrqwbfjwthwaapikacu — 구 ref, 2026-07-28 서울 이전으로 소멸 → 현행 `gjowqdiopinhixfivnkx`) 생성·복제 완료. public 57개 테이블 + 시드 확인 (mentors 22, universities 26). 리뉴얼 SQL 적용됨
 - [x] **Phase 1 보정** — dev 테스트 관리자 계정 생성 완료: `teamstronglife2023+devadmin@gmail.com`, profiles.role='admin'. 비밀번호는 macOS keychain(서비스명 `Winning dev admin`)에 보관
 - [x] **Phase 2** — Vercel env 스코프 분리 완료: `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`/`WINNING_SUPABASE_URL`/`WINNING_SUPABASE_SERVICE_ROLE_KEY` 4종을 Production=운영, Preview/Development=dev로 재등록. Development 스코프는 API로 실값 검증 완료; Production/Preview는 sensitive 타입이라 읽기 검증 불가(등록 소스는 Supabase Management API 실키) → 다음 배포에서 최종 확인 필요
   - `VITE_TOSS_CLIENT_KEY`는 Preview에 아직 운영 키 — 토스 테스트 키 확보 시 교체 (보류)
 - [x] **Phase 3** — 로컬 `.env.local` dev 키로 전환 완료 (main·worktree 양쪽). 기존 운영 키는 `.env.local.prod-backup`(gitignored)에 백업
+- [x] **Region 이전 (2026-07-28)** — dev를 서울(ap-northeast-2)로 재생성: 새 ref `gjowqdiopinhixfivnkx`. 키는 신 체계(sb_publishable_/sb_secret_)로 Vercel Preview·Development 및 로컬 `.env.local` 3곳(main·landing-renewal·width worktree) 재등록. DB 비밀번호 keychain `Winning dev db`. dev admin 이메일 정정: `devadmin@gmail.com`. 상세: docs/dev-region-migration-plan.md
 - [ ] **Phase 5** — 검증: 다음 브랜치 push의 Preview에서 dev DB 조회·/admin 로그인 확인, 운영 도메인 재배포 후 정상 확인
 
 > ⚠️ 주의: `vercel env pull`은 sensitive 변수를 `[SENSITIVE]` 리터럴로 기록한다 — pull 결과를 재등록 소스로 쓰지 말 것. 실키는 Supabase Management API(`/v1/projects/:ref/api-keys?reveal=true`)에서 받는다.

@@ -1,6 +1,6 @@
 # 랜딩페이지 이미지 → 관리자 관리 전환 계획
 
-작성: 2026-07-28 · 기준 브랜치: landing-free-diagnosis-renewal · dev DB: qxrqwbfjwthwaapikacu (선행 검증), 운영 DB 직접 쓰기 금지
+작성: 2026-07-28 · 기준 브랜치: landing-free-diagnosis-renewal · dev DB: gjowqdiopinhixfivnkx (ap-northeast-2 서울, 2026-07-28 이전 완료), 운영 DB 직접 쓰기 금지
 설계 방식: 3안(MVP/운영자 UX/데이터 모델) 경쟁 → 데이터 모델-first 안 채택 + 타 안 아이디어 이식
 
 ## 0. 설계 원칙
