@@ -31,7 +31,10 @@ const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4';
 //   그 사이(1488~1680px)는 선형 보간. nav row와 메가 컬럼 grid 양쪽 모두 이 식을 그대로
 //   참조해(동일 상수) 유동 상태에서도 nav-컬럼 x 정렬이 유지된다.
 // 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
-//   (devadmin@gmail.com, D-day 3자리 + 이름 max-w-5rem truncate 상한 기준) = 31.176rem(498.8125px).
+//   (devadmin@gmail.com, D-day 3자리 + 이름 max-w-5rem truncate 상한 당시 기준) = 31.176rem(498.8125px).
+//   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
+//   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·93rem
+//   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
 // nav 5칸 폭(최솟값, gap=1rem) = NAV_ITEM_W 8.75rem×5 + 1rem×4 = 43.75+4 = 47.75rem(764px).
 // nav 5칸 폭(최댓값, gap=2.5rem) = 43.75+10 = 53.75rem(860px) < max-w-content 내부 폭(71rem/1136px).
 //   좌표계가 분리되어 있어(계정 그룹은 1920 밴드, nav는 1200 컨텐츠 영역) 폭 예산 자체는 서로
@@ -50,20 +53,15 @@ const NAV_GAP = 'clamp(1rem, calc(1rem + (100vw - 93rem) / 8), 2.5rem)';
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
 // 동일 0.8 스케일로 환산해 아래 카드 JSX에 반영했다.)
 const MEGA_PROMO_W = '23rem';
-// 메가 컬럼 우측 끝(뷰포트 절대 x): 데스크톱 노출 구간(100vw ≥ 93rem)에서는 NAV_GUARD가 항상
-// 0으로 평가되므로(위 NAV_GUARD 주석 참고), 컬럼 블록 우측 끝 = 컨텐츠 영역 시작
-// (50vw - 35.5rem, = (100vw-75rem)/2 + px-8 2rem) + nav 5칸 총 폭(43.75rem + 4×NAV_GAP).
-// Playwright 실측으로 5개 뷰포트(1490/1600/1920/2560)에서 이 식과 실제 lastColumn.right가
-// 오차 0으로 일치함을 확인했다(회색 존 좌측 시작점 산정에 사용).
-const NAV_BLOCK_RIGHT_EDGE =
-  'calc(50vw + 8.25rem + clamp(4rem, calc(4rem + (100vw - 93rem) / 2), 10rem))';
-// 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값으로 확인 완료, 기존 #F7F7F7 추정치 폐기) 좌측 시작 x:
-// "컬럼 영역 끝 ~ 1920 밴드 우측 끝 풀 높이"로, 기존 고정폭(20.25rem) 스트립을 폐기하고
-// NAV_BLOCK_RIGHT_EDGE(뷰포트 절대 x)를 1920 밴드 래퍼의 자체 좌표(래퍼 padding-box 좌측 끝
-// 기준)로 환산한 값 — 래퍼 좌측 끝(뷰포트 절대 x) = max(0px, (100vw-120rem)/2)이므로 그만큼을 뺀다.
-// 시안 실측: 분할선 x=1281, 마지막 컬럼 끝(1208) 사이에 73px 흰 여백이 존재 — 컬럼 끝에 존이
-// 밀착하던 기존 구현을 폐기하고 0.8 스케일 환산한 3.5rem(≈58px) 오프셋을 더해 존 시작점을 우측으로 민다.
-const MEGA_ZONE_LEFT = `calc(${NAV_BLOCK_RIGHT_EDGE} + 3.5rem - max(0px, calc((100vw - 120rem) / 2)))`;
+// 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
+// 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
+// py-10과 동일 값) 패딩으로 감싸는 고정 크기 박스. 존 크기 = 카드 + 2.5rem×2 상수로,
+// 컬럼 높이와 무관하게 항상 동일하게 보인다. 패널 전체 높이는 grid 겹침 구조에 의해
+// max(컬럼 콘텐츠, 존 박스)로 결정되며, 컬럼이 더 길면 존은 상단 고정된 채 크기를 유지한다.
+// 존 우측 끝은 1920 밴드 래퍼 바깥쪽 우측 끝(패딩 이전) 기준 — 기존 "컬럼 끝~밴드 우측 끝
+// 풀 높이 스트립"(NAV_BLOCK_RIGHT_EDGE 기반 MEGA_ZONE_LEFT 산정)은 컬럼 높이를 따라
+// 세로로 늘어나는 구조여서 폐기했고, 관련 상수도 함께 제거했다. 카드 우측 끝은 밴드 우측
+// 끝에서 2.5rem 안쪽(기존 px-8=2rem 대비 0.5rem 이동) — 4방향 동일 패딩 원칙이 우선한다.
 
 function cleanText(value) {
   return String(value || '').trim();
@@ -411,12 +409,83 @@ export default function Header() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState(null);
+  // 메가 패널 애니메이션 상태(open/closed 3-phase state machine, 사용자 확정 스펙).
+  // 'closed' → 마운트는 유지하되 opacity-0/invisible/pointer-events-none으로 완전히 상주(비표시).
+  // 'open'   → activeMega가 켜지는 즉시 진입, 180ms ease-out-quart로 opacity+translateY 페이드인.
+  // 'closing'→ activeMega가 null이 될 때(유지영역 타이머 만료·클릭 토글·로고 클릭 등) 진입,
+  //            120ms opacity만 페이드아웃(이동 없음) 후 아래 타이머로 'closed'에 도달한다.
+  // 패널이 always-mounted(조건부 렌더 아님)라 첫 hover 시에도 트랜지션이 항상 이미 걸려있는
+  // 상태에서 클래스만 토글되므로 최초 오픈에서도 트랜지션이 확실히 발화한다.
+  const [megaPanelPhase, setMegaPanelPhase] = useState('closed');
+  const megaPanelAnimTimerRef = useRef(null);
   const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavTriggerRef = useRef(null);
   const [navGroups, setNavGroups] = useState(() => {
     return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
   });
+
+  // 메가 유지영역(nav 메뉴 블록 + 메가 패널) 전용 공유 close 타이머 —
+  // 두 영역이 헤더 안에서 서로 다른 DOM 서브트리(nav 오버레이 / 패널)라 완전히 붙어있지
+  // 않고, nav↔패널 이동 시 짧은 순간 두 영역 모두를 벗어나는 프레임이 있을 수 있어
+  // 즉시 닫지 않고 ~100ms 유예를 둔다. 로고·계정 그룹·딤·기타 영역으로 나가면(두 영역
+  // 중 어느 쪽도 재진입하지 않으면) 유예 후 닫힌다.
+  const megaCloseTimerRef = useRef(null);
+
+  function clearMegaCloseTimer() {
+    if (megaCloseTimerRef.current) {
+      window.clearTimeout(megaCloseTimerRef.current);
+      megaCloseTimerRef.current = null;
+    }
+  }
+
+  function scheduleMegaClose() {
+    clearMegaCloseTimer();
+    megaCloseTimerRef.current = window.setTimeout(() => {
+      setActiveMega(null);
+      megaCloseTimerRef.current = null;
+    }, 100);
+  }
+
+  useEffect(() => () => clearMegaCloseTimer(), []);
+
+  // activeMega(어떤 그룹이 활성인지)와 megaPanelPhase(패널이 화면에서 어떻게 보이는지)를
+  // 분리한다 — 그룹이 바뀌어도(호버 이동) activeMega만 바뀌고 phase는 'open'을 유지해
+  // 재애니메이션 없이 패널이 그대로 열려있게 하고, activeMega가 null이 될 때만 'closing'으로
+  // 전환한다.
+  useEffect(() => {
+    if (activeMega) {
+      if (megaPanelAnimTimerRef.current) {
+        window.clearTimeout(megaPanelAnimTimerRef.current);
+        megaPanelAnimTimerRef.current = null;
+      }
+
+      setMegaPanelPhase('open');
+      return undefined;
+    }
+
+    setMegaPanelPhase((prev) => (prev === 'open' ? 'closing' : prev));
+    return undefined;
+  }, [activeMega]);
+
+  // 'closing' 진입 120ms 후 'closed'로 전환 — 이 시점엔 opacity가 이미 0에 도달해 있어
+  // (visibility invisible로 전환되며) translateY를 -0.5rem으로 되돌려도 시각적 이동이 보이지
+  // 않는다(닫힘 애니메이션 자체는 opacity 페이드만, 이동 없음이라는 스펙을 그대로 지킨다).
+  useEffect(() => {
+    if (megaPanelPhase !== 'closing') return undefined;
+
+    megaPanelAnimTimerRef.current = window.setTimeout(() => {
+      setMegaPanelPhase('closed');
+      megaPanelAnimTimerRef.current = null;
+    }, 120);
+
+    return () => {
+      if (megaPanelAnimTimerRef.current) {
+        window.clearTimeout(megaPanelAnimTimerRef.current);
+        megaPanelAnimTimerRef.current = null;
+      }
+    };
+  }, [megaPanelPhase]);
 
   useEffect(() => {
     let alive = true;
@@ -641,12 +710,16 @@ export default function Header() {
   const memberLabel = getMemberLabel(profile);
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
-  const activeMegaGroup = navGroups.find((group) => group.title === activeMega);
+  // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
+  // (어떤 그룹을 hover해도 5개 컬럼 전체가 함께 보이는 구조 — activeMega는 nav 버튼 하이라이트와
+  // 패널 표시 여부만 결정한다). 그래서 패널 자체는 open 여부(megaPanelPhase)만으로 gate하면 되고,
+  // 그룹별 콘텐츠 스위칭 로직은 불필요하다.
+  const isMegaPanelOpen = megaPanelPhase === 'open';
+  const isMegaPanelClosing = megaPanelPhase === 'closing';
 
   return (
     <header
       className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white"
-      onMouseLeave={() => setActiveMega(null)}
     >
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
@@ -686,7 +759,7 @@ export default function Header() {
                 <span className="rounded bg-[#013262] px-2 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
-                <span className="inline-block max-w-[5rem] truncate">
+                <span className="inline-block">
                   {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
                 </span>
               </div>
@@ -829,6 +902,8 @@ export default function Header() {
           <div
             className="pointer-events-auto flex items-center"
             style={{ gap: NAV_GAP, marginLeft: NAV_GUARD }}
+            onMouseEnter={clearMegaCloseTimer}
+            onMouseLeave={scheduleMegaClose}
           >
             {navGroups.map((group) => {
               const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
@@ -836,18 +911,34 @@ export default function Header() {
               return (
                 <div
                   key={group.title}
-                  className="relative flex shrink-0 items-center"
+                  className="pointer-events-none relative flex shrink-0 items-center"
                   style={{ width: NAV_ITEM_W }}
                   onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
                 >
-                  <Link
-                    to={group.to}
-                    onClick={() => setActiveMega(null)}
-                    className={`whitespace-nowrap py-4 text-xl font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
+                  {/* nav 아이템은 페이지 이동 없이 메가 패널 트리거 전용(사용자 확정) —
+                      Link 제거, hover(부모 onMouseEnter)·keyboard focus·클릭 토글로만 패널을 연다.
+                      hit 영역은 셀(NAV_ITEM_W) 전폭이 아니라 버튼 콘텐츠 폭만(좌측 정렬, 셀 x
+                      정렬 기준은 그대로 유지) — 셀의 나머지 빈 공간(이 div)은 pointer-events-none
+                      으로 통과시켜, 셀이 우측 계정 그룹(배지 등)과 겹치는 뷰포트 구간에서도 nav가
+                      그 영역의 hover/클릭을 가로채지 않게 한다. */}
+                  <button
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded={activeMega === group.title}
+                    onFocus={() => {
+                      clearMegaCloseTimer();
+                      hasDropdown && setActiveMega(group.title);
+                    }}
+                    onClick={() => {
+                      clearMegaCloseTimer();
+                      hasDropdown &&
+                        setActiveMega((prev) => (prev === group.title ? null : group.title));
+                    }}
+                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-xl font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
                       }`}
                   >
                     {group.title}
-                  </Link>
+                  </button>
                 </div>
               );
             })}
@@ -855,17 +946,40 @@ export default function Header() {
         </div>
       </nav>
 
-      {activeMegaGroup && (
-        <>
-          {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
-              패널이 차지하는 영역만 자연히 dim이 가려지므로 패널 높이를 따로 측정할 필요가 없다. */}
-          <div
-            className="fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block"
-            onClick={() => setActiveMega(null)}
-            aria-hidden="true"
-          />
+      {/* 메가 딤+패널은 activeMega 조건부 마운트 대신 상시 마운트(always-mounted) 후 상태
+          클래스로 open/closing/closed 3-phase를 토글한다(megaPanelPhase, 위 effect 참고).
+          조건부 마운트는 클로즈 애니메이션이 불가능하고(언마운트 즉시 사라짐), 마운트 직후
+          클래스를 바로 여는 첫 프레임에 트랜지션이 발화하지 않을 위험이 있어 폐기했다 —
+          항상 DOM에 상주(opacity-0 + invisible + pointer-events-none)시켜 두 문제를 모두 해소한다. */}
+      <>
+        {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
+            패널이 차지하는 영역만 자연히 dim이 가려지므로 패널 높이를 따로 측정할 필요가 없다.
+            오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
+            이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
+        <div
+          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+            isMegaPanelOpen
+              ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
+              : isMegaPanelClosing
+                ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
+                : 'invisible opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setActiveMega(null)}
+          aria-hidden="true"
+        />
 
-          <div className="fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block">
+        <div
+          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+            isMegaPanelOpen
+              ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
+              : isMegaPanelClosing
+                ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
+                : 'invisible opacity-0 -translate-y-2 pointer-events-none'
+          }`}
+          aria-hidden={!isMegaPanelOpen}
+          onMouseEnter={clearMegaCloseTimer}
+          onMouseLeave={scheduleMegaClose}
+        >
             {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
                 1920 밴드 — 헤더 계정 그룹과 같은 축)를 같은 grid cell(col-start-1 row-start-1)에
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
@@ -877,13 +991,13 @@ export default function Header() {
                   정렬은 아래 회색 존/카드 폴리시 변경과 무관하게 그대로 유지). 컬럼 폭이
                   8.75rem(140px, 시안 132px과 거의 1:1)으로 넓어지면서 "해외명문대 진학컨설팅" 등
                   이전에 자동 줄바꿈되던 긴 서브아이템 라벨도 한 줄에 들어간다.
-                  타이포 위계: Figma 1483:882 get_design_context 실값으로 확인 — 컬럼은 컬럼 폭(140px)이
-                  이미 시안(132px)과 거의 1:1이라 0.8 컴팩트 스케일을 적용하지 않고 실측값을 그대로 쓴다.
-                  타이틀 18px/#7a7a7a, 아이템 14px/#525252, 폰트 굵기는 둘 다 Pretendard Medium(전체
-                  서브트리에 상속) — 기존 구현의 title font-semibold/#4d4d4d는 추정치 오류였다.
-                  타이틀→아이템 간격은 실측 gap-[20px]=1.25rem(기존 추정 40/2rem 아님), 아이템 행간은
-                  실측 gap-[12px]=0.75rem(gap-3, 변경 없음), 행 line-height는 실측 20px=leading-5로
-                  타이틀/아이템 모두 통일. */}
+                  타이포: Figma 1483:882 get_design_context 실값 기준 — 컬럼 폭(140px)이 이미
+                  시안(132px)과 거의 1:1이라 0.8 컴팩트 스케일 없이 실측값을 그대로 쓴다.
+                  아이템 14px/#525252/Pretendard Medium, 행간 gap-[12px]=0.75rem(gap-3),
+                  행 line-height 20px=leading-5.
+                  컬럼 상단 그룹 타이틀(서비스/프리미엄/...)은 바로 위 nav 아이템과 문구가
+                  완전히 중복되어 제거했다 — 첫 아이템이 기존 타이틀 자리(패널 상단 py-6=1.5rem)
+                  에서 바로 시작하며, 타이틀이 쓰던 간격은 패널 상단 패딩이 그대로 흡수한다. */}
               <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
                 <div
                   className="grid"
@@ -894,44 +1008,42 @@ export default function Header() {
                   }}
                 >
                   {navGroups.map((group) => (
-                    <div key={`mega-col-${group.title}`} className="flex flex-col gap-5">
-                      <p className="text-lg font-medium leading-5 text-[#7a7a7a]">{group.title}</p>
-                      <div className="flex flex-col gap-3">
-                        {group.items.map((item) => (
-                          <Link
-                            key={`mega-${group.title}-${item.to}-${item.label}`}
-                            to={item.to}
-                            onClick={() => setActiveMega(null)}
-                            className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
+                    <div key={`mega-col-${group.title}`} className="flex flex-col gap-3">
+                      {group.items.map((item) => (
+                        <Link
+                          key={`mega-${group.title}-${item.to}-${item.label}`}
+                          to={item.to}
+                          onClick={() => setActiveMega(null)}
+                          className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
-                  mx-auto max-w-[120rem] px-8 축을 공유해 카드 우측 끝 = 계정 그룹 우측 끝이
-                  전 뷰포트에서 일치한다. 컬럼 레이어와 같은 grid cell에 겹치므로 바깥 두 겹은
-                  pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
+                  mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에 겹치므로
+                  바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
                   pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
-              <div className="pointer-events-none relative col-start-1 row-start-1 mx-auto w-full max-w-[120rem] px-8 py-10">
-                {/* 회색 존: 기존 고정폭(20.25rem) 스트립이 컬럼 끝에 못 미쳐 패널 중간에서
-                    하드 엣지로 시작하던 문제를 해결 — "컬럼 영역 끝 + 3.5rem 여백 ~ 밴드 우측 끝"
-                    풀 높이로 확장했다(MEGA_ZONE_LEFT, 파일 상단 상수 주석 참고). right-0은 이 1920
-                    밴드 래퍼의 바깥쪽 우측 끝 기준(패딩 이전) — 뷰포트가 120rem(1920px)을 넘으면
-                    밴드 자체가 중앙 정렬되며 캡 안쪽에 서므로, 이 존과 카드는 항상 같은 밴드
-                    우측 끝을 공유해 어긋나지 않는다. 색상 #f9fafb는 Figma 1483:846 실측값. */}
+              <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
+                {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
+                    (파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
+                    붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
+                    서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 박스 자연 높이(카드+5rem)가
+                    grid cell 높이에 기여해 컬럼이 더 짧아도 패널이 존 높이만큼 확보되고, 컬럼이
+                    더 길면 존은 상단 고정. 색상 #f9fafb는 Figma 1483:846 실측값.
+                    translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1(px-8=2rem)보다
+                    0.5rem(8px) 두꺼워 카드 우측 끝이 계정 그룹 우측 끝보다 8px 안쪽에 있었다.
+                    4방향 동일 패딩(p-10)은 그대로 두고 박스 자체의 우측 기준점만 8px 우측으로
+                    옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
+                    맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
                 <div
-                  className="pointer-events-none absolute inset-y-0 right-0 bg-[#f9fafb]"
-                  style={{ left: MEGA_ZONE_LEFT }}
-                  aria-hidden="true"
-                />
-
-                <div className="pointer-events-none flex h-full items-start justify-end">
+                  className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
+                  style={{ transform: 'translateX(0.5rem)' }}
+                >
                   {/* 프로모 카드: 콘텐츠 하드코딩. 추후 admin에서 편집 가능한 배너로 전환 후보.
                       Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
                       rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
@@ -975,7 +1087,6 @@ export default function Header() {
             </div>
           </div>
         </>
-      )}
 
       <MobileNavDrawer
         open={mobileNavOpen}
