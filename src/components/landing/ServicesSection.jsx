@@ -50,7 +50,7 @@ function ServiceCard({ service }) {
           — pr-[12.5rem](200px)이 전 breakpoint에 고정돼 320px 카드(폭 280px)에서
           텍스트 실질 폭이 ~48px까지 압착됨. sm(640px)부터는 li의 max-w-[28.0938rem]로
           카드가 이미 데스크톱과 동일한 449.5px에 도달해 원래 값이 안전하므로 그대로 두고
-          (lg 2열에서도 max-w-content 콘텐츠 1036px 기준 열폭 498px ≥ 449.5px로 동일),
+          (lg 2열에서도 max-w-content 콘텐츠 1136px 기준 열폭 548px ≥ 449.5px로 동일),
           그 미만(모바일 단독 구간)만 pr-[6rem]으로 축소한다. 단, pr만 줄이면 절대 위치인
           우측 일러스트(아래 두 분기)와 겹치므로 모바일에서 일러스트도 함께 축소한다. */}
       <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[3.75rem] sm:pl-[3.125rem] sm:pr-[12.5rem]">
@@ -155,8 +155,8 @@ export default function ServicesSection({ services = [] }) {
         {/* 2열×3행 카드 그리드 (모바일+태블릿 1열 → lg 2열 상한)
             — md(768px)에서 2열로 전환하면 카드 폭이 좁아져 2줄 고정 설명이 3~4줄로 깨짐(태블릿 실측).
             768~1023 구간은 1열로 유지해 모바일과 같은 넉넉한 카드 폭(텍스트 공간)을 확보한다.
-            컨테이너가 max-w-content(1100px, 콘텐츠 1036px)로 좁아져 3열이면 카드가 압착되므로
-            lg 이상은 2열 상한 — 2열 기준 열폭 498px ≥ 카드 max-w 449.5px로 원설계 폭이 유지된다. */}
+            컨테이너가 max-w-content(1200px, 콘텐츠 1136px)로 좁아져 3열이면 카드가 압착되므로
+            lg 이상은 2열 상한 — 2열 기준 열폭 548px ≥ 카드 max-w 449.5px로 원설계 폭이 유지된다. */}
         <ul className="mt-10 grid grid-cols-1 justify-items-center gap-10 lg:grid-cols-2">
           {visibleServices.map((service) => (
             <li key={service.id} className="w-full max-w-[28.0938rem]">
