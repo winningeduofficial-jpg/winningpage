@@ -123,8 +123,8 @@ export default function SurveyPreview() {
       <Header />
 
       <section className="w-full py-16 sm:py-20 lg:py-[7.5rem]">
-        <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
-          <div className="mx-auto flex w-full max-w-[69.5rem] flex-col items-start gap-[3.75rem]">
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          <div className="mx-auto flex w-full max-w-content flex-col items-start gap-[3.75rem]">
             <div className="flex w-full max-w-[37.25rem] flex-col items-start gap-5 text-[#525252]">
               <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.75rem]">
                 무료 진단으로

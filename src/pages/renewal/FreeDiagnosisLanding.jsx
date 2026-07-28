@@ -47,9 +47,9 @@ const BENEFITS = [
 ];
 
 const FLOATING_BADGES = [
-  { emoji: '📊', label: '상세 진단 요약 카드', position: 'left-[3%] top-[52%]' },
-  { emoji: '📋', label: '보완 안내', position: 'right-[4%] top-[15%]' },
-  { emoji: '✏️', label: '나의 강점 정리본', position: 'right-[6%] top-[70%]' }
+  { emoji: '📊', label: '상세 진단 요약 카드', position: 'left-[1%] top-[52%]' },
+  { emoji: '📋', label: '보완 안내', position: 'right-[2%] top-[15%]' },
+  { emoji: '✏️', label: '나의 강점 정리본', position: 'right-[1%] top-[70%]' }
 ];
 
 const SECTION_HEADING_CLASS =
@@ -58,7 +58,7 @@ const SECTION_HEADING_CLASS =
 function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-[#FBFAFA] pb-14 pt-10 sm:pb-16 md:pb-20 lg:pb-0">
-      <div className="mx-auto flex w-full max-w-[93.75rem] flex-col items-center px-5 text-center sm:px-8">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
         <h1 className={`max-w-[56rem] ${SECTION_HEADING_CLASS}`}>
           학생부 업로드 없이 무료 진단하고
           <br />
@@ -72,7 +72,7 @@ function HeroSection() {
           무료진단 시작하기 →
         </Link>
 
-        <div className="mt-10 w-full max-w-[88rem] lg:mb-[-5rem]">
+        <div className="mt-10 w-full max-w-content lg:mb-[-5rem]">
           <img
             src={heroBrowserMockup}
             alt="위닝에듀 무료진단 문항 화면이 담긴 브라우저 목업"
@@ -88,7 +88,7 @@ function HeroSection() {
 function StepsSection() {
   return (
     <section className="bg-white pt-20 pb-10">
-      <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>
           학생부 업로드 없이,
           <br />
@@ -117,7 +117,7 @@ function StepsSection() {
 function AudienceSection() {
   return (
     <section className="bg-white pt-20 pb-10">
-      <div className="mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>이런 학생에게 무료 진단을 추천해요</h2>
 
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
@@ -154,7 +154,7 @@ function AudienceSection() {
 function BenefitsSection() {
   return (
     <section className="bg-white pb-10 pt-20">
-      <div className="mx-auto flex w-full max-w-[93.75rem] flex-col items-center gap-10 px-5 sm:px-8 md:gap-14">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-14">
         <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>무료진단으로 얻을 수 있는 것</h2>
 
         <div className="w-full max-w-[60.625rem] rounded-[0.75rem] border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
@@ -186,7 +186,7 @@ function BenefitsSection() {
 function MacbookShowcase() {
   return (
     <section className="relative overflow-hidden bg-white py-16 sm:py-20 md:py-24 lg:py-[9rem]">
-      <div className="relative mx-auto w-full max-w-[93.75rem] px-5 sm:px-8">
+      <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>지금 내 입시 좌표를 확인 해보세요</h2>
 
         <div className="relative mx-auto mt-16 flex max-w-[58rem] flex-col items-center sm:mt-20 md:mt-24 lg:mt-28">
@@ -231,7 +231,7 @@ function MacbookShowcase() {
           {FLOATING_BADGES.map((badge) => (
             <span
               key={badge.label}
-              className={`absolute ${badge.position} inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] px-7 py-4 text-[1.25rem] font-semibold text-[#013262] shadow-[0_0.5rem_1.5rem_rgba(11,132,253,0.35)]`}
+              className={`absolute ${badge.position} inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] px-5 py-3 text-base font-semibold text-[#013262] shadow-[0_0.5rem_1.5rem_rgba(11,132,253,0.35)]`}
             >
               {badge.emoji} {badge.label}
             </span>
@@ -245,7 +245,7 @@ function MacbookShowcase() {
 function BottomCta() {
   return (
     <section className="bg-[#172437] py-14 md:py-20 lg:py-[7.5rem]">
-      <div className="mx-auto flex w-full max-w-[93.75rem] flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
           어서 무료진단을 경험해보세요
         </h2>
