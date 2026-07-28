@@ -44,7 +44,7 @@ export default function MentorSection({ mentors = [] }) {
         </div>
 
         {/* 컨텐츠 폭 캡 무한 마퀴 스트립 (좌우 페이드 마스크로 잘림 경계 완화) */}
-        <div className="mx-auto w-full max-w-content" {...containerHandlers}>
+        <div className="mx-auto w-full max-w-[120rem]" {...containerHandlers}>
           <ul
             ref={scrollRef}
             className={`marquee-mask flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${isMarquee ? '' : 'justify-center'

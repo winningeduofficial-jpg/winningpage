@@ -113,7 +113,7 @@ export default function AcceptanceSection({ universities = [] }) {
           id="acceptance-panel"
           role="tabpanel"
           aria-labelledby={`acceptance-tab-${activeTrack}`}
-          className="mx-auto mt-10 w-full max-w-content lg:mt-[3.75rem]"
+          className="mx-auto mt-10 w-full max-w-[120rem] lg:mt-[3.75rem]"
           {...containerHandlers}
         >
           <div
