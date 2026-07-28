@@ -16,6 +16,7 @@ import {
   UploadCloud
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import MentorCard from '../components/landing/MentorCard';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -28,7 +29,7 @@ const MENU_GROUPS = [
       { key: 'banners', label: '메인 배너 관리' },
       { key: 'sideBanners', label: '우측 소형 배너' },
       { key: 'universityAcceptances', label: '합격생 대학 관리' },
-      { key: 'programCategories', label: '기초 데이터' },
+      { key: 'programCategories', label: '핵심 서비스' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
@@ -129,11 +130,11 @@ popups: {
   searchPlaceholder: '배너 제목을 검색하세요',
   order: 'sort_order',
   homepage: true,
-  guideText: `메인 좌측 대형 배너는 1장만 노출됩니다(활성 항목 중 정렬 최상위). 헤드라인·버튼 문구까지 포함된 완성 이미지를 업로드하세요. 클릭 연결 주소를 입력하면 배너 전체가 클릭됩니다. 권장: 1938px × 858px(969×429 @2x) / 형식: JPG 또는 PNG`,
+  guideText: `랜딩에는 활성 배너 중 sort_order 최상위 1건만 노출됩니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
     columns: [
       { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
-      { key: 'button_link', label: '클릭 연결 주소' },
+      { key: 'button_link', label: '배너 클릭 시 이동 URL' },
       { key: 'sort_order', label: '순서' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
@@ -142,8 +143,16 @@ popups: {
       { key: 'title', label: '제목', type: 'text', required: true },
       // 통이미지 전환으로 highlight/button_text 오버레이 입력은 제거.
       // button_link는 배너 전체 클릭 URL로 용도 변경 (HeroSection.jsx 참조)
-      { key: 'button_link', label: '클릭 연결 주소', type: 'text' },
-      { key: 'image_url', label: '배너 이미지', type: 'image' },
+      { key: 'button_link', label: '배너 클릭 시 이동 URL', type: 'text' },
+      {
+        key: 'image_url',
+        label: '배너 이미지',
+        type: 'image',
+        compress: true,
+        imageSpec: { width: 969, height: 429, maxMB: 2 },
+        folder: 'landing/hero',
+        cacheControl: '31536000, immutable'
+      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
@@ -165,7 +174,7 @@ popups: {
     searchPlaceholder: '배너 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `PC 권장: 642px × 858px(321×429 @2x) / 형식: PNG / 여러 장 등록 시 6초 간격 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
+    guideText: `PC 권장: 321px × 429px / 형식: PNG / 2MB 이하 / 여러 장 등록 시 6초 간격 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
     columns: [
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
       { key: 'title', label: '제목' },
@@ -180,8 +189,24 @@ popups: {
       { key: 'subtitle', label: '설명', type: 'textarea' },
       { key: 'link_url', label: '연결 주소', type: 'text' },
       { key: 'open_new_window', label: '새창으로 열기', type: 'checkbox' },
-      { key: 'image_url', label: 'PC 이미지', type: 'image' },
-      { key: 'mobile_image_url', label: '모바일 이미지', type: 'image' },
+      {
+        key: 'image_url',
+        label: 'PC 이미지',
+        type: 'image',
+        compress: true,
+        imageSpec: { width: 321, height: 429, maxMB: 2 },
+        folder: 'landing/hero',
+        cacheControl: '31536000, immutable'
+      },
+      {
+        key: 'mobile_image_url',
+        label: '모바일 이미지',
+        type: 'image',
+        help: '모바일(≤768px) 전용 — 없으면 PC 이미지 사용',
+        imageSpec: { maxMB: 2 },
+        folder: 'landing/hero',
+        cacheControl: '31536000, immutable'
+      },
       { key: 'start_date', label: '노출 시작일', type: 'date' },
       { key: 'end_date', label: '노출 종료일', type: 'date' },
       { key: 'sort_order', label: '순서', type: 'number' }
@@ -201,27 +226,101 @@ popups: {
   },
 
   mentorStrategies: {
-    title: '멘토 성공전략 이미지',
+    title: '멘토 성공전략 카드',
     table: 'home_mentor_strategies',
-    searchPlaceholder: '등록된 멘토 성공전략 이미지를 확인하세요',
+    searchPlaceholder: '멘토 이름·배지를 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 '멘토' 영역 카드 이미지입니다. 배지(기수)·이름·소속 텍스트를 포함한 완성 이미지를 업로드하세요. 멘토별 1건씩 등록합니다. 권장: 420px × 720px(210×360 @2x) 세로형 / 형식: JPG 또는 PNG`,
+    guideText: `메인 '멘토' 영역 카드입니다. 배지(기수)·소개 문구 텍스트 + 투명 배경 인물사진(PNG, 1MB 이하)을 조합해 카드를 만들며, 라이브 프리뷰가 실제 노출과 동일합니다. 프리셋 버튼으로 사진 배치를 잡은 뒤 좌표(px)로 미세 조정하세요. 신규 등록은 노출 '미사용'으로 저장 → 프리뷰 확인 → '사용' 전환을 권장합니다.`,
+    rowToForm: mentorRowToForm,
+    formToPayload: mentorFormToPayload,
+    validate: mentorFormValidate,
+    FormPreview: MentorCardFormPreview,
     columns: [
-      { key: 'image_url', label: '멘토 성공전략 이미지', type: 'image' }
+      { key: 'photo_url', label: '인물 사진', type: 'image', showFileName: true },
+      { key: 'mentor_name', label: '멘토 이름' },
+      { key: 'badge', label: '배지(기수)' },
+      { key: 'card_width', label: '카드 너비(px)' },
+      { key: 'image_url', label: '구버전 통이미지', type: 'image', showFileName: true },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      {
+        key: 'mentor_name',
+        label: '멘토 이름',
+        type: 'text',
+        required: true,
+        help: '사진 대체 텍스트("○○○ 멘토")로 사용됩니다'
+      },
+      { key: 'badge', label: '배지(기수)', type: 'text', help: '카드 상단 진한 글씨 (예: 위닝 8기)' },
+      {
+        key: 'title_lines',
+        label: '소개 문구(줄 단위)',
+        type: 'textarea',
+        rows: 3,
+        help: '한 줄에 하나씩 입력 — 1줄: "김무경 멘토", 2줄: "연세대 응용통계학과"'
+      },
+      {
+        key: 'photo_url',
+        label: '인물 사진',
+        type: 'image',
+        hideUrlInput: true,
+        compress: true,
+        help: '투명 배경 PNG 권장 / 1MB 이하',
+        imageSpec: { aspectOnly: true, maxMB: 1 },
+        folder: 'landing/mentors/photos',
+        cacheControl: '31536000, immutable'
+      },
+      { key: 'card_width', label: '카드 너비(px)', type: 'number', help: '기본 210 / 와이드 카드만 230' },
+      { key: 'photo_top', label: '사진 top(px)', type: 'number', help: '카드 좌상단 기준 세로 오프셋' },
+      { key: 'photo_left', label: '사진 left(px)', type: 'number', help: '카드 좌상단 기준 가로 오프셋' },
+      { key: 'photo_width', label: '사진 너비(px)', type: 'number' },
+      { key: 'photo_height', label: '사진 높이(px)', type: 'number' },
+      {
+        key: 'photo_crop_enabled',
+        label: '사진 내부 크롭 사용',
+        type: 'checkbox',
+        help: '사진 높이가 카드(360px)를 넘어 상단을 잘라야 할 때만 사용'
+      },
+      {
+        key: 'photo_crop_top',
+        label: '크롭 top',
+        type: 'text',
+        help: 'CSS 값 그대로 입력 (예: -16.26%)',
+        showIf: (form) => !!form.photo_crop_enabled
+      },
+      {
+        key: 'photo_crop_height',
+        label: '크롭 height',
+        type: 'text',
+        help: 'CSS 값 그대로 입력 (예: 116.12%)',
+        showIf: (form) => !!form.photo_crop_enabled
+      },
       {
         key: 'image_url',
-        label: '멘토 성공전략 이미지',
+        label: '구버전 통이미지(폴백)',
         type: 'image',
-        required: true,
-        hideUrlInput: true
-      }
+        help: '배지·소개 문구·인물 사진·사진 배치 중 하나라도 비면 이 이미지가 그대로 노출됩니다'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
     ],
     defaults: {
       is_active: true,
+      mentor_name: '',
+      badge: '',
+      title_lines: '',
+      photo_url: '',
       image_url: '',
+      card_width: 210,
+      photo_top: 106,
+      photo_left: 0,
+      photo_width: 210,
+      photo_height: 270,
+      photo_crop_enabled: false,
+      photo_crop_top: '',
+      photo_crop_height: '',
       sort_order: 1
     }
   },
@@ -232,7 +331,7 @@ popups: {
     searchPlaceholder: '대학명을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `메인 화면 '합격생' 영역 카드입니다. 엠블럼 권장: 240px × 240px 정사각 PNG(투명 배경) / 카드에는 120px로 표시됩니다. 표시 문구는 학과·과정명을 입력하세요(예: 컴퓨터공학과, 의예과, 84기). 합격 인원 입력은 더 이상 사용하지 않습니다.`,
+    guideText: `메인 화면 '합격생' 영역 카드입니다. 엠블럼: 정방형 200px 이상 권장, PNG(투명 배경) / 1MB 이하. 표시 문구는 학과·과정명을 입력하세요(예: 컴퓨터공학과, 의예과, 84기). 합격 인원 입력은 더 이상 사용하지 않습니다.`,
     columns: [
       { key: 'emblem_url', label: '엠블럼', type: 'image' },
       { key: 'name', label: '대학명' },
@@ -249,7 +348,12 @@ popups: {
         label: '엠블럼 이미지',
         type: 'image',
         required: true,
-        hideUrlInput: true
+        hideUrlInput: true,
+        compress: true,
+        help: '정방형 200px 이상 권장',
+        imageSpec: { width: 1, height: 1, aspectOnly: true, maxMB: 1 },
+        folder: 'landing/acceptance',
+        cacheControl: '31536000, immutable'
       },
       { key: 'subtitle', label: '표시 문구(예: 컴퓨터공학과, 의예과, 84기)', type: 'text' },
       {
@@ -915,12 +1019,12 @@ admissionGuidelines: {
 },
 
   programCategories: {
-  title: '기초 데이터',
+  title: '핵심 서비스',
   table: 'program_categories',
-  searchPlaceholder: '기초 데이터명을 검색하세요',
+  searchPlaceholder: '핵심 서비스명을 검색하세요',
   order: 'sort_order',
   homepage: true,
-  guideText: `설명 입력 시 줄바꿈(Enter)한 위치가 메인 화면 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
+  guideText: `랜딩 '핵심 서비스'에는 사용 중 항목이 최대 6개까지 노출됩니다. 설명 입력 시 줄바꿈(Enter)한 위치가 랜딩 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
   columns: [
     { key: 'name', label: '명칭' },
     { key: 'description', label: '설명' },
@@ -933,9 +1037,17 @@ admissionGuidelines: {
   fields: [
     { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
     { key: 'name', label: '명칭', type: 'text', required: true },
-    { key: 'description', label: '설명', type: 'textarea' },
+    { key: 'description', label: '설명', type: 'textarea', help: '줄바꿈이 랜딩 카드에 그대로 반영' },
     { key: 'link', label: '연결 페이지', type: 'text' },
-    { key: 'icon_image_url', label: '카드 일러스트 이미지', type: 'image' },
+    {
+      key: 'icon_image_url',
+      label: '카드 일러스트 이미지',
+      type: 'image',
+      compress: true,
+      imageSpec: { maxMB: 1 },
+      folder: 'landing/services',
+      cacheControl: '31536000, immutable'
+    },
     {
   key: 'icon',
   label: '아이콘',
@@ -2527,9 +2639,343 @@ function AdminInput({ field, value, onChange, disabled }) {
   );
 }
 
+const COMPRESS_THRESHOLD_BYTES = 500 * 1024;
+
+// URL 마지막 세그먼트를 파일명으로 추출 (쿼리스트링 제거 + decodeURIComponent로 한글 파일명 대비)
+function fileNameFromUrl(url) {
+  if (!url) return '';
+  try {
+    const withoutQuery = String(url).split('?')[0].split('#')[0];
+    const segments = withoutQuery.split('/').filter(Boolean);
+    const last = segments[segments.length - 1] || '';
+    return decodeURIComponent(last);
+  } catch {
+    return String(url);
+  }
+}
+
+function formatFileSize(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  return `${Math.round(bytes / 1024)}KB`;
+}
+
+// maxMB 초과 시 alert 후 false 반환. 압축 대상 필드는 압축 이후(uploadImage)에 별도 호출.
+function validateMaxMB(file, maxMB) {
+  if (!maxMB) return true;
+  if (file.size > maxMB * 1024 * 1024) {
+    alert(
+      `파일 용량이 너무 큽니다. 최대 ${maxMB}MB까지 업로드할 수 있습니다. (현재 ${formatFileSize(file.size)})`
+    );
+    return false;
+  }
+  return true;
+}
+
+// 압축 적용 대상 필드인지 판정: field.compress === true이고 file/multiFile 타입이 아님
+function isCompressibleField(field = {}) {
+  return field.compress === true && field.type !== 'file' && field.type !== 'multiFile';
+}
+
+// 이미지 규격 검증: imageSpec = { width, height, tolerance(기본 0.02), maxMB, aspectOnly }
+// 반환값 false = 업로드 중단, true = 계속 진행
+// options.skipMaxMB: true면 maxMB 검증은 건너뜀 (압축 대상 필드는 압축 이후 별도 검증)
+async function validateImageSpec(file, imageSpec, options = {}) {
+  if (!imageSpec) return true;
+
+  const { width, height, tolerance = 0.02, maxMB, aspectOnly } = imageSpec;
+
+  if (!options.skipMaxMB && !validateMaxMB(file, maxMB)) return false;
+
+  if (!width || !height) return true;
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    // 치수 측정 불가 형식(svg 등)은 규격 검증 없이 통과
+    return true;
+  }
+
+  const actualWidth = bitmap.width;
+  const actualHeight = bitmap.height;
+  bitmap.close?.();
+
+  let matches;
+  let expectedText;
+
+  if (aspectOnly) {
+    const expectedRatio = width / height;
+    const actualRatio = actualWidth / actualHeight;
+    matches = Math.abs(actualRatio - expectedRatio) / expectedRatio <= tolerance;
+    expectedText = `${width}:${height} 비율`;
+  } else {
+    matches =
+      Math.abs(actualWidth - width) / width <= tolerance &&
+      Math.abs(actualHeight - height) / height <= tolerance;
+    expectedText = `${width}×${height}`;
+  }
+
+  if (matches) return true;
+
+  return window.confirm(
+    `이미지 규격이 다릅니다.\n${expectedText} 필요, 현재 ${actualWidth}×${actualHeight} — 계속 업로드할까요?`
+  );
+}
+
+// 500KB 초과 이미지 canvas 재인코딩 (치수 유지, png→png / jpeg 품질 0.85)
+// 재인코딩 결과가 원본보다 작을 때만 교체. field.compress === true인 필드만 대상 (옵트인).
+async function maybeCompressImage(file, field = {}) {
+  if (!isCompressibleField(field)) return file;
+  if (file.type !== 'image/png' && file.type !== 'image/jpeg') return file;
+  if (file.size <= COMPRESS_THRESHOLD_BYTES) return file;
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+
+    const isPng = file.type === 'image/png';
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, file.type, isPng ? undefined : 0.85)
+    );
+
+    if (!blob || blob.size >= file.size) return file;
+
+    alert(`${formatFileSize(file.size)} → ${formatFileSize(blob.size)}로 압축됨`);
+    return new File([blob], file.name, { type: file.type });
+  } catch {
+    return file;
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+// ── 멘토 성공전략 카드: photo_layout jsonb ↔ 평탄화 폼 필드 변환 + 라이브 프리뷰 ──
+
+const MENTOR_PHOTO_FORM_KEYS = [
+  'photo_top',
+  'photo_left',
+  'photo_width',
+  'photo_height',
+  'photo_crop_enabled',
+  'photo_crop_top',
+  'photo_crop_height'
+];
+
+// 프리셋 좌표 근거: sql/30 백필 22건 (표준 = 최빈 배치, 와이드 = 김무경, 크롭형 = 김성훈)
+const MENTOR_CARD_PRESETS = [
+  {
+    label: '표준',
+    help: '기존 22건 최빈 배치 — 210 카드',
+    patch: {
+      card_width: 210,
+      photo_top: 106,
+      photo_left: 0,
+      photo_width: 210,
+      photo_height: 270,
+      photo_crop_enabled: false,
+      photo_crop_top: '',
+      photo_crop_height: ''
+    }
+  },
+  {
+    label: '와이드 230',
+    help: '김무경형 — 넓은 카드',
+    patch: {
+      card_width: 230,
+      photo_top: 95,
+      photo_left: 0,
+      photo_width: 230,
+      photo_height: 296,
+      photo_crop_enabled: false,
+      photo_crop_top: '',
+      photo_crop_height: ''
+    }
+  },
+  {
+    label: '크롭형',
+    help: '김성훈형 — 큰 사진 상단 크롭',
+    patch: {
+      card_width: 210,
+      photo_top: 92,
+      photo_left: 0,
+      photo_width: 210,
+      photo_height: 392,
+      photo_crop_enabled: true,
+      photo_crop_top: '-16.26%',
+      photo_crop_height: '116.12%'
+    }
+  }
+];
+
+function parseMentorTitleLines(value) {
+  if (Array.isArray(value)) {
+    return value.map((line) => String(line).trim()).filter(Boolean);
+  }
+  return String(value || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+// 폼의 photo_* 평탄화 값 → photo_layout jsonb ({top,left,width,height,crop?}) / 미완성이면 null
+function buildMentorPhotoLayout(form) {
+  const raw = [form.photo_top, form.photo_left, form.photo_width, form.photo_height];
+  if (raw.some((v) => v === '' || v === null || v === undefined)) return null;
+
+  const [top, left, width, height] = raw.map(Number);
+  if (![top, left, width, height].every(Number.isFinite)) return null;
+  if (width <= 0 || height <= 0) return null;
+
+  const layout = { top, left, width, height };
+
+  if (form.photo_crop_enabled) {
+    const cropTop = String(form.photo_crop_top || '').trim();
+    const cropHeight = String(form.photo_crop_height || '').trim();
+    if (cropTop && cropHeight) layout.crop = { top: cropTop, height: cropHeight };
+  }
+
+  return layout;
+}
+
+function mentorRowToForm(row) {
+  let titleLines = row.title_lines;
+  if (typeof titleLines === 'string') {
+    try {
+      titleLines = JSON.parse(titleLines);
+    } catch {
+      titleLines = null;
+    }
+  }
+
+  const layout =
+    row.photo_layout && typeof row.photo_layout === 'object' ? row.photo_layout : null;
+
+  const form = {
+    ...row,
+    title_lines: Array.isArray(titleLines) ? titleLines.join('\n') : '',
+    card_width: row.card_width ?? 210,
+    photo_top: layout?.top ?? '',
+    photo_left: layout?.left ?? '',
+    photo_width: layout?.width ?? '',
+    photo_height: layout?.height ?? '',
+    photo_crop_enabled: Boolean(layout?.crop),
+    photo_crop_top: layout?.crop?.top ?? '',
+    photo_crop_height: layout?.crop?.height ?? ''
+  };
+
+  delete form.photo_layout;
+  return form;
+}
+
+// 크롭 사용 체크했는데 top/height 중 하나라도 비면 저장 중단 (조용한 소실 방지)
+// 반환값: 에러 메시지(문자열) 또는 null(검증 통과)
+function mentorFormValidate(form) {
+  if (form.photo_crop_enabled) {
+    const cropTop = String(form.photo_crop_top || '').trim();
+    const cropHeight = String(form.photo_crop_height || '').trim();
+    if (!cropTop || !cropHeight) {
+      return '크롭 값(top/height)을 모두 입력해야 크롭이 적용됩니다';
+    }
+  }
+  return null;
+}
+
+function mentorFormToPayload(form) {
+  const payload = { ...form };
+  const titleLines = parseMentorTitleLines(form.title_lines);
+
+  payload.mentor_name = String(form.mentor_name || '').trim();
+  payload.badge = String(form.badge || '').trim() || null;
+  payload.title_lines = titleLines.length > 0 ? titleLines : null;
+  payload.photo_url = form.photo_url || null;
+  payload.photo_layout = buildMentorPhotoLayout(form);
+  payload.card_width = Number(form.card_width) || 210;
+
+  for (const key of MENTOR_PHOTO_FORM_KEYS) delete payload[key];
+  return payload;
+}
+
+function MentorCardFormPreview({ form, onPatch }) {
+  const titleLines = parseMentorTitleLines(form.title_lines);
+  const photoLayout = buildMentorPhotoLayout(form);
+
+  // MentorCard(공개 랜딩과 동일 컴포넌트)가 기대하는 mentor prop shape로 매핑
+  const previewMentor = {
+    id: 'preview',
+    image_url: form.image_url || '',
+    mentor_name: String(form.mentor_name || '').trim() || '멘토',
+    badge: String(form.badge || '').trim(),
+    title_lines: titleLines.length > 0 ? titleLines : null,
+    photo_url: form.photo_url || '',
+    photo: photoLayout,
+    card_width: Number(form.card_width) || 210
+  };
+
+  const isLegacyFallback = !(
+    previewMentor.badge &&
+    titleLines.length > 0 &&
+    previewMentor.photo_url &&
+    photoLayout
+  );
+
+  return (
+    <section className="bg-white p-5 shadow">
+      <h2 className="text-sm font-black">라이브 프리뷰</h2>
+      <p className="mt-1 text-xs font-bold leading-5 text-gray-500">
+        메인 &apos;멘토&apos; 영역과 동일한 컴포넌트로 렌더됩니다.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {MENTOR_CARD_PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            type="button"
+            title={preset.help}
+            onClick={() => onPatch(preset.patch)}
+            className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      {isLegacyFallback && (
+        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
+          구버전 통이미지로 노출 중 — 배지·소개 문구·인물 사진·사진 배치를 모두 채우면 신규
+          카드로 전환됩니다.
+        </p>
+      )}
+
+      <div className="mt-3 overflow-x-auto rounded bg-[#0D1B2A] p-5">
+        <ul className="m-0 flex list-none justify-center p-0">
+          <MentorCard mentor={previewMentor} />
+        </ul>
+      </div>
+
+      {isLegacyFallback && !previewMentor.image_url && (
+        <p className="mt-2 text-xs font-bold leading-5 text-gray-400">
+          통이미지도 비어 있어 카드가 빈 상태로 보입니다.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   const [form, setForm] = useState(() => {
-    if (row) return { ...row };
+    if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
 
@@ -2537,6 +2983,10 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
 
   function change(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function patch(values) {
+    setForm((prev) => ({ ...prev, ...values }));
   }
 
   async function uploadMultiple(fileList, field) {
@@ -2586,6 +3036,14 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
       }
     }
 
+    if (config.validate) {
+      const error = config.validate(form);
+      if (error) {
+        alert(error);
+        return;
+      }
+    }
+
     onSave(form);
   }
 
@@ -2607,12 +3065,18 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   </p>
 )}
 
-      <div className="bg-white shadow">
-        {(config.fields || config.columns).map((field) => (
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+      <div className="min-w-0 flex-1 bg-white shadow">
+        {(config.fields || config.columns)
+          .filter((field) => !field.showIf || field.showIf(form))
+          .map((field) => (
           <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
             <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
               {field.label}
               {field.required && <span className="ml-1 text-red-500">*</span>}
+              {field.help && (
+                <p className="mt-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
+              )}
             </div>
 
             <div className="px-5 py-3">
@@ -2815,6 +3279,13 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         ))}
       </div>
 
+      {config.FormPreview && (
+        <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
+          <config.FormPreview form={form} onPatch={patch} />
+        </div>
+      )}
+      </div>
+
       <div className="mt-5 flex justify-end gap-2">
         <button
           type="button"
@@ -2878,11 +3349,27 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                     <td key={column.key} className="px-3 py-3">
                       {column.type === 'image' ? (
                         row[column.key] ? (
-                          <img
-                            src={row[column.key]}
-                            alt=""
-                            className="h-12 w-20 rounded object-cover"
-                          />
+                          column.showFileName ? (
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={row[column.key]}
+                                alt=""
+                                className="h-12 w-20 rounded object-cover"
+                              />
+                              <span
+                                className="max-w-[10rem] truncate text-xs font-bold text-gray-500"
+                                title={fileNameFromUrl(row[column.key])}
+                              >
+                                {fileNameFromUrl(row[column.key])}
+                              </span>
+                            </div>
+                          ) : (
+                            <img
+                              src={row[column.key]}
+                              alt=""
+                              className="h-12 w-20 rounded object-cover"
+                            />
+                          )
                         ) : (
                           '-'
                         )
@@ -3099,7 +3586,20 @@ export default function Admin() {
 
     const uploaded = [];
 
-    for (const file of fileList) {
+    for (const rawFile of fileList) {
+      const willCompress = isCompressibleField(field);
+
+      if (field.imageSpec) {
+        const proceed = await validateImageSpec(rawFile, field.imageSpec, { skipMaxMB: willCompress });
+        if (!proceed) continue;
+      }
+
+      const file = await maybeCompressImage(rawFile, field);
+
+      if (willCompress && field.imageSpec?.maxMB && !validateMaxMB(file, field.imageSpec.maxMB)) {
+        continue;
+      }
+
       const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
 
       const safeName =
@@ -3111,7 +3611,9 @@ export default function Admin() {
           .replace(/^_+|_+$/g, '')
           .slice(0, 50) || 'upload';
 
-      const folder = field.type === 'file' || field.type === 'multiFile' ? 'notice-files' : 'admin';
+      const folder =
+        field.folder ||
+        (field.type === 'file' || field.type === 'multiFile' ? 'notice-files' : 'admin');
 
       const path = `${folder}/${Date.now()}-${Math.random()
         .toString(36)
@@ -3120,7 +3622,7 @@ export default function Admin() {
       const { error } = await supabase.storage
         .from(IMAGE_BUCKET)
         .upload(path, file, {
-          cacheControl: '3600',
+          cacheControl: field.cacheControl || '3600',
           upsert: false
         });
 
@@ -3155,7 +3657,7 @@ export default function Admin() {
   }
 
   async function saveRow(form) {
-    const payload = { ...form };
+    const payload = config.formToPayload ? config.formToPayload(form) : { ...form };
 
 if (config.fixedCategory) {
   payload.category = config.fixedCategory;

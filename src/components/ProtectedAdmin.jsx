@@ -11,6 +11,11 @@ export default function ProtectedAdmin({ children }) {
     let alive = true;
 
     async function checkAdmin() {
+      if (import.meta.env.DEV && import.meta.env.VITE_ADMIN_BYPASS === 'true') {
+        setStatus('admin');
+        return;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
 
