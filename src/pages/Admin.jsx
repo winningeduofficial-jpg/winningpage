@@ -28,6 +28,7 @@ const MENU_GROUPS = [
       { key: 'banners', label: '메인 배너 관리' },
       { key: 'sideBanners', label: '우측 소형 배너' },
       { key: 'universityAcceptances', label: '합격생 대학 관리' },
+      { key: 'programCategories', label: '기초 데이터' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
@@ -55,7 +56,6 @@ const MENU_GROUPS = [
   {
   title: '프로그램 관리',
   items: [
-    { key: 'programCategories', label: '기초 데이터' },
     { key: 'dailyEntries', label: '일일 입장' },
     { key: 'usageStatus', label: '이용 현황' }
   ]
