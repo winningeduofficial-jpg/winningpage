@@ -1,4 +1,5 @@
 import { useInfiniteMarquee } from '../../hooks/useInfiniteMarquee';
+import MentorCard from './MentorCard';
 
 /** 라이트 블루 그라데이션 풀폭 밴드 (Figma 1479:4378 추출) */
 const BAND_GRADIENT =
@@ -7,30 +8,12 @@ const BAND_GRADIENT =
 /**
  * 멘토 섹션 (명세 3.4, Figma 1982:7301 리뉴얼)
  * - 라이트 블루 그라데이션 풀폭 밴드 + 무한 마퀴 사진 스트립 (카드 기본 210×360, 김무경 230×360)
- * - 카드 = 흰 배경 + 상단 텍스트(badge/title_lines) + 하단 투명 인물사진(photo_url/photo) 합성
- * - badge/title_lines/photo_url 중 하나라도 없는 row(구버전)는 기존 통이미지(image_url) 풀블리드 렌더로 폴백
+ * - 카드 렌더는 MentorCard 프레젠테이션 컴포넌트에 위임 (신규 합성/통이미지 폴백/crop 처리)
  * - useInfiniteMarquee 훅 사용 (화살표 없음, hover pause + 드래그/터치 스크롤 가드)
  *
  * @param {object} props
- * @param {Array<{
- *   id: string,
- *   image_url: string,
- *   mentor_name?: string,
- *   badge?: string,
- *   title_lines?: string[],
- *   photo_url?: string,
- *   photo?: { top: number, left: number, width: number, height: number,
- *     crop?: { top: string, height: string } },
- *   card_width?: number,
- *   sort_order?: number,
- * }>} props.mentors
- *   home_mentor_strategies 활성 rows (sort_order asc).
- *   - image_url: 하위호환 통이미지 폴백 (구버전 rows 전용)
- *   - mentor_name: alt 텍스트 생성용 ("${mentor_name} 멘토") 및 통이미지 폴백 alt
- *   - badge/title_lines: 카드 상단 텍스트 블록 (badge 1행 + title_lines 각 라인)
- *   - photo_url/photo: 카드 하단 투명 인물사진 및 절대 위치(px, 컴포넌트에서 rem 환산)
- *   - photo.crop: 사진 높이가 카드를 초과해 내부 크롭이 필요한 경우만 존재 (예: 김성훈)
- *   - card_width: 카드 너비(px), 기본 210
+ * @param {Array<object>} props.mentors
+ *   home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조.
  */
 export default function MentorSection({ mentors = [] }) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
@@ -76,72 +59,12 @@ export default function MentorSection({ mentors = [] }) {
               const cycle = Math.floor(position / mentors.length);
               const isClone = isMarquee && cycle !== 1;
 
-              const hasNewCard = Boolean(
-                mentor.badge && mentor.title_lines && mentor.photo_url && mentor.photo
-              );
-              const cardWidthRem = (mentor.card_width || 210) / 16;
-
               return (
-                <li
+                <MentorCard
                   key={`${mentor.id}-${position}`}
-                  aria-hidden={isClone || undefined}
-                  className="relative h-[22.5rem] shrink-0 overflow-hidden rounded-[1.25rem] bg-white"
-                  style={{ width: `${cardWidthRem}rem` }}
-                >
-                  {hasNewCard ? (
-                    <>
-                      <div className="absolute left-1/2 top-[1.5rem] flex w-[12.25rem] -translate-x-1/2 flex-col items-center gap-[0.25rem] text-center">
-                        <p className="text-[1rem] font-semibold leading-[1.4] text-[#525252]">
-                          {mentor.badge}
-                        </p>
-                        {mentor.title_lines.map((line) => (
-                          <p
-                            key={line}
-                            className="text-[0.9375rem] font-medium leading-[1.4] text-[#808080]"
-                          >
-                            {line}
-                          </p>
-                        ))}
-                      </div>
-                      <div
-                        className={`absolute ${mentor.photo.crop ? 'overflow-hidden' : ''}`}
-                        style={{
-                          top: `${mentor.photo.top / 16}rem`,
-                          left: `${mentor.photo.left / 16}rem`,
-                          width: `${mentor.photo.width / 16}rem`,
-                          height: `${mentor.photo.height / 16}rem`,
-                        }}
-                      >
-                        <img
-                          src={mentor.photo_url}
-                          alt={`${mentor.mentor_name} 멘토`}
-                          loading="lazy"
-                          draggable="false"
-                          className={
-                            mentor.photo.crop
-                              ? 'absolute left-0 w-full object-cover'
-                              : 'h-full w-full object-cover'
-                          }
-                          style={
-                            mentor.photo.crop
-                              ? { top: mentor.photo.crop.top, height: mentor.photo.crop.height }
-                              : undefined
-                          }
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <img
-                      src={mentor.image_url}
-                      alt={mentor.mentor_name || '위닝 멘토'}
-                      width="210"
-                      height="360"
-                      loading="lazy"
-                      draggable="false"
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </li>
+                  mentor={mentor}
+                  isClone={isClone}
+                />
               );
             })}
           </ul>

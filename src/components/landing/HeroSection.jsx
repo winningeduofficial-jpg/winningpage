@@ -175,6 +175,8 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
               alt={mainBanner.title || '메인 배너'}
               width="969"
               height="429"
+              // LCP 대상 — React 18은 camelCase fetchPriority 미지원, 소문자로 DOM 통과
+              fetchpriority="high"
               className="absolute inset-0 h-full w-full object-cover"
             />
           );
