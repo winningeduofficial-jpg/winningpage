@@ -344,7 +344,7 @@ export default function Home() {
       const [companyResult, noticeResult] = await Promise.all([
         supabase
           .from('company_news')
-          .select('id, title, created_at, is_pinned, sort_order, image_urls')
+          .select('id, title, created_at, is_pinned, sort_order, category')
           .eq('is_active', true)
           .order('is_pinned', { ascending: false })
           .order('sort_order', { ascending: true })
@@ -352,7 +352,7 @@ export default function Home() {
           .limit(5),
         supabase
           .from('notices')
-          .select('id, title, created_at, is_pinned, sort_order')
+          .select('id, title, created_at, is_pinned, sort_order, category')
           .eq('is_active', true)
           .order('is_pinned', { ascending: false })
           .order('sort_order', { ascending: true })

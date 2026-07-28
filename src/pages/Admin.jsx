@@ -445,6 +445,7 @@ popups: {
     homepage: true,
     columns: [
       { key: 'title', label: '제목' },
+      { key: 'category', label: '메인 배지' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
@@ -454,6 +455,12 @@ popups: {
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
+      {
+        key: 'category',
+        label: '메인페이지 소식 배지',
+        type: 'select',
+        options: ['보도자료', '파트너십', '공지']
+      },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
@@ -469,6 +476,7 @@ popups: {
       is_active: true,
       is_pinned: false,
       title: '',
+      category: '',
       content: '',
       image_url: '',
       file_url: '',
@@ -488,6 +496,7 @@ popups: {
     guideText: `회사소식 페이지 하단 게시판과 메인 페이지 우측 미리보기에 함께 노출됩니다. 회사소개 상단 내용은 '세부 페이지 관리'의 company-intro 항목을 사용합니다.`,
     columns: [
       { key: 'title', label: '제목' },
+      { key: 'category', label: '메인 배지' },
       { key: 'is_pinned', label: '주요소식 고정', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
@@ -497,6 +506,12 @@ popups: {
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
+      {
+        key: 'category',
+        label: '메인페이지 소식 배지',
+        type: 'select',
+        options: ['보도자료', '파트너십', '공지']
+      },
       { key: 'is_pinned', label: '주요소식 고정', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
@@ -512,6 +527,7 @@ popups: {
       is_active: true,
       is_pinned: false,
       title: '',
+      category: '',
       content: '',
       image_url: '',
       file_url: '',

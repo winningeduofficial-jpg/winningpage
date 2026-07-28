@@ -9,6 +9,7 @@ Supabase SQL Editor에서 **파일명 접두어 순서대로** 실행합니다. 
 | 20 | `20_landing_renewal.sql` | 랜딩페이지 리뉴얼 스키마: `public.is_admin()` 헬퍼, `university_acceptances` 신규 테이블 + `program_categories.icon_image_url` 컬럼 + `home_mentor_strategies` 시드 | `00_base_schema.sql`의 `profiles`(role 컬럼), `program_categories`, `home_mentor_strategies` 필요 |
 | 30 | `30_landing_admin_media.sql` | 랜딩 이미지 관리자 전환: `home_mentor_strategies` 카드 분해 컬럼 5종(badge/title_lines/photo_url/photo_layout/card_width) + 멘토 22건 백필 + `banners` 히어로 969×429 시드 + 구 규격 배너/레거시 멘토 행 정리 (전부 마커 가드) | `00_base_schema.sql`의 `banners`, `20_landing_renewal.sql`의 `schema_migrations` 마커·멘토 시드 필요. **업로드 스크립트(`scripts/seed-landing-storage.mjs`)보다 먼저 실행** |
 | 31 | `31_storage_policies.sql` | Storage 정책: `banners` 버킷 public 보정 + `storage.objects` public read/`is_winning_admin()` write 정책 + `university_acceptances` write 판정 `is_winning_admin()` 교체 + `banners` 구식 profiles 서브쿼리 정책 4개 drop | `00_base_schema.sql`의 `is_winning_admin()`, `20_landing_renewal.sql`의 `university_acceptances` 필요 |
+| 32 | `32_news_categories.sql` | 랜딩 "소식" 섹션 카테고리 배지(Figma 1907:14893): `company_news`/`notices`에 nullable `category` 컬럼 추가 + dev 테스트 행(Test1~3) 시드 UPDATE(마커 가드) | `00_base_schema.sql`의 `company_news`/`notices` 필요 |
 
 > `partner_universities`(학교리스트 섹션) 테이블·RLS·시드는 2026-07-27 최종본에서 섹션 자체가 삭제되어 이 파일에서 제거됨. 이미 실행된 운영 DB에 테이블이 남아있다면 별도 `drop table` 정리는 필요 시 수동 진행.
 
