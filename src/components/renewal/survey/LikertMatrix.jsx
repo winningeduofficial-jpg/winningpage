@@ -1,4 +1,10 @@
-const DEFAULT_SCALE = ['매우 그렇다', '대체로 그렇다', '보통이다', '별로 그렇지 않다', '전혀 그렇지 않다'];
+const DEFAULT_SCALE = [
+  '매우 그렇다',
+  '대체로 그렇다',
+  '보통이다',
+  '별로 그렇지 않다',
+  '전혀 그렇지 않다'
+];
 
 function normalizeStatement(statement, index) {
   if (typeof statement === 'string') {
@@ -23,7 +29,12 @@ function RadioDot({ checked }) {
   );
 }
 
-export default function LikertMatrix({ statements = [], scale = DEFAULT_SCALE, value = {}, onChange }) {
+export default function LikertMatrix({
+  statements = [],
+  scale = DEFAULT_SCALE,
+  value = {},
+  onChange
+}) {
   const rows = statements.map(normalizeStatement);
   const gridTemplate = `minmax(0,1fr) repeat(${scale.length}, 6.5rem)`;
 
@@ -36,7 +47,10 @@ export default function LikertMatrix({ statements = [], scale = DEFAULT_SCALE, v
     <div className="w-full">
       {/* Desktop / tablet: fixed column grid, one radiogroup per statement row */}
       <div className="hidden md:block">
-        <div className="grid items-center gap-x-4 pb-3" style={{ gridTemplateColumns: gridTemplate }}>
+        <div
+          className="grid items-center gap-x-4 pb-3"
+          style={{ gridTemplateColumns: gridTemplate }}
+        >
           <span aria-hidden="true" />
           {scale.map((label) => (
             <span key={label} className="text-center text-sm font-medium leading-5 text-[#525252]">
@@ -83,7 +97,11 @@ export default function LikertMatrix({ statements = [], scale = DEFAULT_SCALE, v
         {rows.map((row) => (
           <div key={row.key} className="rounded-2xl border border-[#EDEDED] bg-white p-4">
             <p className="mb-3 text-base leading-6 text-[#525252]">{row.text}</p>
-            <div role="radiogroup" aria-label={row.text} className="flex items-start justify-between gap-1">
+            <div
+              role="radiogroup"
+              aria-label={row.text}
+              className="flex items-start justify-between gap-1"
+            >
               {scale.map((label, columnIndex) => {
                 const checked = value[row.key] === columnIndex;
                 return (

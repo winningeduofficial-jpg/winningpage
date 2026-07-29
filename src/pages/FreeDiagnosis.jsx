@@ -49,8 +49,6 @@ function optionClass(active) {
   }`;
 }
 
-
-
 export default function FreeDiagnosis() {
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState(null);
@@ -121,7 +119,9 @@ export default function FreeDiagnosis() {
 
       const error = questionRes.error || optionRes.error || programRes.error;
       if (error) {
-        setConfigError('무료진단 설정을 불러오지 못했습니다. 관리자에서 무료진단 테이블 설정을 확인해 주세요.');
+        setConfigError(
+          '무료진단 설정을 불러오지 못했습니다. 관리자에서 무료진단 테이블 설정을 확인해 주세요.'
+        );
         setQuestions([]);
         setOptions([]);
         setPrograms([]);
@@ -225,7 +225,9 @@ export default function FreeDiagnosis() {
     setStarted(true);
     setShowResult(false);
     window.setTimeout(() => {
-      document.getElementById('diagnosis-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document
+        .getElementById('diagnosis-form')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
   }
 
@@ -255,7 +257,9 @@ export default function FreeDiagnosis() {
     if (!canSubmit) return;
     setShowResult(true);
     window.setTimeout(() => {
-      document.getElementById('diagnosis-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document
+        .getElementById('diagnosis-result')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
   }
 
@@ -276,7 +280,8 @@ export default function FreeDiagnosis() {
               </h1>
 
               <p className="mt-6 max-w-[760px] break-keep text-lg font-bold leading-9 text-white/78">
-                현재 상황에 맞는 질문에 답하면 지금 학생에게 먼저 필요한 위닝에듀 서비스를 바로 확인할 수 있습니다.
+                현재 상황에 맞는 질문에 답하면 지금 학생에게 먼저 필요한 위닝에듀 서비스를 바로
+                확인할 수 있습니다.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-4">
@@ -306,10 +311,21 @@ export default function FreeDiagnosis() {
                 <div className="mt-6 grid gap-4">
                   {[
                     [SchoolIcon, '질문 선택', '관리자에서 설정한 질문과 답변이 화면에 노출됩니다.'],
-                    [BarChart3, '중복 선택', '질문별로 단일 선택 또는 중복 선택을 적용할 수 있습니다.'],
-                    [Route, '추천 결과', '선택한 답변에 연결된 추천 프로그램이 자동으로 표시됩니다.']
+                    [
+                      BarChart3,
+                      '중복 선택',
+                      '질문별로 단일 선택 또는 중복 선택을 적용할 수 있습니다.'
+                    ],
+                    [
+                      Route,
+                      '추천 결과',
+                      '선택한 답변에 연결된 추천 프로그램이 자동으로 표시됩니다.'
+                    ]
                   ].map(([Icon, title, desc]) => (
-                    <div key={title} className="flex gap-4 rounded-2xl border border-[#0D1B2A]/8 bg-[#F8F7F3] p-4">
+                    <div
+                      key={title}
+                      className="flex gap-4 rounded-2xl border border-[#0D1B2A]/8 bg-[#F8F7F3] p-4"
+                    >
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0D1B2A] text-white">
                         <Icon size={22} />
                       </div>
@@ -338,7 +354,8 @@ export default function FreeDiagnosis() {
                       무료 진단은 회원가입 후 이용할 수 있습니다.
                     </h2>
                     <p className="mt-2 break-keep text-sm font-bold leading-6 text-slate-600">
-                      진단 결과를 학생 정보와 연결해 관리하기 위해 로그인 또는 회원가입이 필요합니다.
+                      진단 결과를 학생 정보와 연결해 관리하기 위해 로그인 또는 회원가입이
+                      필요합니다.
                     </p>
                   </div>
                 </div>
@@ -363,94 +380,94 @@ export default function FreeDiagnosis() {
         )}
 
         {started && (
-  <section id="diagnosis-form" className="mx-auto max-w-[1500px] px-6 py-14">
-    <div className="space-y-6">
-      {loadingConfig && (
-        <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-          무료진단 문항을 불러오는 중입니다.
-        </div>
-      )}
-
-      {configError && (
-        <div className="rounded-[30px] border border-red-200 bg-white p-7 text-sm font-black leading-7 text-red-600 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-          {configError}
-        </div>
-      )}
-
-      {!loadingConfig && !configError && questions.length === 0 && (
-        <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-          등록된 무료진단 질문이 없습니다. 관리자에서 질문을 추가해 주세요.
-        </div>
-      )}
-
-      {questions.map((question, index) => {
-        const questionOptions = optionsByQuestion[question.id] || [];
-        const selectedIds = new Set((selected[question.id] || []).map(String));
-        const isMultiple = question.input_type === 'multiple';
-
-        return (
-          <div
-            key={question.id}
-            className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]"
-          >
-            <div className="mb-5">
-              <p className="text-sm font-black text-[#B88737]">
-                QUESTION {String(index + 1).padStart(2, '0')}
-              </p>
-
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                  {question.title}
-                </h2>
-
-                {isMultiple && (
-                  <span className="rounded-full bg-[#FFF1CC] px-3 py-1 text-xs font-black text-[#B88737]">
-                    중복선택가능
-                  </span>
-                )}
-              </div>
-
-              {question.description && (
-                <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                  {question.description}
-                </p>
+          <section id="diagnosis-form" className="mx-auto max-w-[1500px] px-6 py-14">
+            <div className="space-y-6">
+              {loadingConfig && (
+                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                  무료진단 문항을 불러오는 중입니다.
+                </div>
               )}
+
+              {configError && (
+                <div className="rounded-[30px] border border-red-200 bg-white p-7 text-sm font-black leading-7 text-red-600 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                  {configError}
+                </div>
+              )}
+
+              {!loadingConfig && !configError && questions.length === 0 && (
+                <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
+                  등록된 무료진단 질문이 없습니다. 관리자에서 질문을 추가해 주세요.
+                </div>
+              )}
+
+              {questions.map((question, index) => {
+                const questionOptions = optionsByQuestion[question.id] || [];
+                const selectedIds = new Set((selected[question.id] || []).map(String));
+                const isMultiple = question.input_type === 'multiple';
+
+                return (
+                  <div
+                    key={question.id}
+                    className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_18px_45px_rgba(13,27,42,0.07)]"
+                  >
+                    <div className="mb-5">
+                      <p className="text-sm font-black text-[#B88737]">
+                        QUESTION {String(index + 1).padStart(2, '0')}
+                      </p>
+
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
+                          {question.title}
+                        </h2>
+
+                        {isMultiple && (
+                          <span className="rounded-full bg-[#FFF1CC] px-3 py-1 text-xs font-black text-[#B88737]">
+                            중복선택가능
+                          </span>
+                        )}
+                      </div>
+
+                      {question.description && (
+                        <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
+                          {question.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {questionOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => toggleOption(question, option.id)}
+                          className={optionClass(selectedIds.has(String(option.id)))}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {questionOptions.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-[#0D1B2A]/15 bg-[#F8F7F3] p-6 text-center text-sm font-black text-slate-500">
+                        이 질문에는 아직 등록된 답변이 없습니다.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={submitDiagnosis}
+                disabled={!canSubmit}
+                className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] text-base font-black text-white shadow-[0_20px_45px_rgba(13,27,42,0.20)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                무료진단 결과 확인하기
+                <ArrowRight size={20} />
+              </button>
             </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              {questionOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => toggleOption(question, option.id)}
-                  className={optionClass(selectedIds.has(String(option.id)))}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {questionOptions.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-[#0D1B2A]/15 bg-[#F8F7F3] p-6 text-center text-sm font-black text-slate-500">
-                이 질문에는 아직 등록된 답변이 없습니다.
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      <button
-        type="button"
-        onClick={submitDiagnosis}
-        disabled={!canSubmit}
-        className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] text-base font-black text-white shadow-[0_20px_45px_rgba(13,27,42,0.20)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-45"
-      >
-        무료진단 결과 확인하기
-        <ArrowRight size={20} />
-      </button>
-    </div>
-  </section>
-)}
+          </section>
+        )}
         {showResult && (
           <section id="diagnosis-result" className="mx-auto max-w-[1500px] px-6 pb-20">
             <div className="rounded-[34px] border border-[#0D1B2A]/10 bg-white p-7 shadow-[0_26px_70px_rgba(13,27,42,0.12)] md:p-9">
@@ -474,7 +491,13 @@ export default function FreeDiagnosis() {
                   onClick={() => {
                     setShowResult(false);
                     setStarted(true);
-                    window.setTimeout(() => document.getElementById('diagnosis-form')?.scrollIntoView({ behavior: 'smooth' }), 80);
+                    window.setTimeout(
+                      () =>
+                        document
+                          .getElementById('diagnosis-form')
+                          ?.scrollIntoView({ behavior: 'smooth' }),
+                      80
+                    );
                   }}
                   className="h-12 rounded-xl border border-[#0D1B2A]/14 bg-[#F8F7F3] px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#FFF8E8]"
                 >
@@ -499,7 +522,9 @@ export default function FreeDiagnosis() {
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
                           <Icon size={27} />
                         </div>
-                        <p className="mt-5 text-sm font-black text-[#B88737]">{program.badge || `추천 서비스 ${index + 1}`}</p>
+                        <p className="mt-5 text-sm font-black text-[#B88737]">
+                          {program.badge || `추천 서비스 ${index + 1}`}
+                        </p>
                         <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
                           {program.title}
                         </h3>
@@ -508,12 +533,19 @@ export default function FreeDiagnosis() {
                         </p>
                         <div className="mt-6 flex flex-wrap gap-3">
                           {program.primary_button_link && (
-                            <Link to={program.primary_button_link} className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D1B2A] px-5 text-sm font-black text-white transition hover:bg-[#162A40]">
-                              {program.primary_button_text || '서비스 확인하기'} <ArrowRight size={17} />
+                            <Link
+                              to={program.primary_button_link}
+                              className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#0D1B2A] px-5 text-sm font-black text-white transition hover:bg-[#162A40]"
+                            >
+                              {program.primary_button_text || '서비스 확인하기'}{' '}
+                              <ArrowRight size={17} />
                             </Link>
                           )}
                           {program.secondary_button_link && (
-                            <Link to={program.secondary_button_link} className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]">
+                            <Link
+                              to={program.secondary_button_link}
+                              className="inline-flex h-12 items-center rounded-xl border border-[#0D1B2A]/15 bg-white px-5 text-sm font-black text-[#0D1B2A] transition hover:bg-[#F8F7F3]"
+                            >
                               {program.secondary_button_text || '자세히 보기'}
                             </Link>
                           )}
@@ -524,7 +556,8 @@ export default function FreeDiagnosis() {
                 </div>
               ) : (
                 <div className="mt-8 rounded-[28px] border border-[#0D1B2A]/10 bg-[#F8F7F3] p-7 text-sm font-black leading-7 text-slate-600">
-                  선택한 답변에 연결된 추천 프로그램이 없습니다. 관리자에서 해당 답변에 추천 프로그램을 연결해 주세요.
+                  선택한 답변에 연결된 추천 프로그램이 없습니다. 관리자에서 해당 답변에 추천
+                  프로그램을 연결해 주세요.
                 </div>
               )}
 
@@ -552,4 +585,3 @@ export default function FreeDiagnosis() {
 function SchoolIcon(props) {
   return <GraduationCap {...props} />;
 }
-

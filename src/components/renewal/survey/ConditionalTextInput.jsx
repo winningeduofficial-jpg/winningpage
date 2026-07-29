@@ -8,9 +8,7 @@
 export default function ConditionalTextInput({ label, placeholder, value, onChange }) {
   return (
     <div className="flex w-full flex-col items-start gap-3">
-      {label && (
-        <p className="text-base font-medium text-[#525252]">{label}</p>
-      )}
+      {label && <p className="text-base font-medium text-[#525252]">{label}</p>}
       <div className="flex h-[4.25rem] w-full items-center rounded-[1.25rem] border border-[#d7d7d7] bg-white px-5 py-3.5 transition focus-within:border-[#013262]">
         <input
           type="text"

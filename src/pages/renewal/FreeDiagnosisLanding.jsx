@@ -105,7 +105,9 @@ function StepsSection() {
                 <p className="text-base font-semibold text-[#013262]">{item.step}</p>
                 <p className="text-xl font-semibold text-[#525252]">{item.title}</p>
               </div>
-              <p className="break-keep text-base font-medium leading-[1.4] text-[#525252]">{item.desc}</p>
+              <p className="break-keep text-base font-medium leading-[1.4] text-[#525252]">
+                {item.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -187,7 +189,9 @@ function MacbookShowcase() {
   return (
     <section className="relative overflow-hidden bg-white py-16 sm:py-20 md:py-24 lg:py-[9rem]">
       <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>지금 내 입시 좌표를 확인 해보세요</h2>
+        <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>
+          지금 내 입시 좌표를 확인 해보세요
+        </h2>
 
         <div className="relative mx-auto mt-16 flex max-w-[58rem] flex-col items-center sm:mt-20 md:mt-24 lg:mt-28">
           <div

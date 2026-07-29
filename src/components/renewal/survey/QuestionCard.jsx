@@ -14,18 +14,14 @@ export default function QuestionCard({ number, category, title, helper, children
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#d7d7d7] text-xl font-medium text-[#808080]">
               {number}
             </span>
-            {category && (
-              <p className="text-base font-medium text-[#d7d7d7]">{category}</p>
-            )}
+            {category && <p className="text-base font-medium text-[#d7d7d7]">{category}</p>}
           </div>
 
           <div className="flex flex-col gap-1">
             <h3 className="break-keep text-xl font-medium leading-snug text-[#525252] sm:text-2xl">
               {title}
             </h3>
-            {helper && (
-              <p className="break-keep text-base font-medium text-[#d7d7d7]">{helper}</p>
-            )}
+            {helper && <p className="break-keep text-base font-medium text-[#d7d7d7]">{helper}</p>}
           </div>
         </div>
 

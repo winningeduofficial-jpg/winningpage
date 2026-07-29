@@ -12,10 +12,14 @@ import { renewalSurveyQuestions } from '../../data/renewalSurveyQuestions';
 
 function isAnswered(type, value) {
   if (value == null) return false;
-  if (type === 'checkbox-row' || type === 'chip-multi') return Array.isArray(value) && value.length > 0;
+  if (type === 'checkbox-row' || type === 'chip-multi')
+    return Array.isArray(value) && value.length > 0;
   if (type === 'likert') return typeof value === 'object' && Object.keys(value).length > 0;
   if (type === 'grade-grid') {
-    return typeof value === 'object' && Object.values(value).some((field) => field !== '' && field != null);
+    return (
+      typeof value === 'object' &&
+      Object.values(value).some((field) => field !== '' && field != null)
+    );
   }
   if (type === 'cascade') {
     return typeof value === 'object' && Boolean(value.university);
@@ -26,9 +30,23 @@ function isAnswered(type, value) {
 function AnswerField({ question, value, onChange }) {
   switch (question.type) {
     case 'radio-row':
-      return <OptionGroup variant="row" options={question.options} value={value ?? null} onChange={onChange} />;
+      return (
+        <OptionGroup
+          variant="row"
+          options={question.options}
+          value={value ?? null}
+          onChange={onChange}
+        />
+      );
     case 'radio-chip':
-      return <OptionGroup variant="chip" options={question.options} value={value ?? null} onChange={onChange} />;
+      return (
+        <OptionGroup
+          variant="chip"
+          options={question.options}
+          value={value ?? null}
+          onChange={onChange}
+        />
+      );
     case 'checkbox-row':
       return (
         <OptionGroup
@@ -61,12 +79,20 @@ function AnswerField({ question, value, onChange }) {
         />
       );
     case 'grade-grid':
-      return <GradeInputGrid groups={question.extra?.groups} value={value ?? {}} onChange={onChange} />;
+      return (
+        <GradeInputGrid groups={question.extra?.groups} value={value ?? {}} onChange={onChange} />
+      );
     case 'cascade':
-      return <CascadingSelect levels={question.extra?.levels} value={value ?? {}} onChange={onChange} />;
+      return (
+        <CascadingSelect levels={question.extra?.levels} value={value ?? {}} onChange={onChange} />
+      );
     case 'text':
       return (
-        <ConditionalTextInput placeholder={question.extra?.placeholder} value={value ?? ''} onChange={onChange} />
+        <ConditionalTextInput
+          placeholder={question.extra?.placeholder}
+          value={value ?? ''}
+          onChange={onChange}
+        />
       );
     default:
       return null;
@@ -76,7 +102,14 @@ function AnswerField({ question, value, onChange }) {
 function EmbeddedField({ question, value, onChange }) {
   // 조건부 중첩 문항: 별도 번호 카드 없이 부모 QuestionCard 안에서 라벨 + 입력만 노출.
   if (question.type === 'text') {
-    return <ConditionalTextInput label={question.title} placeholder={question.extra?.placeholder} value={value ?? ''} onChange={onChange} />;
+    return (
+      <ConditionalTextInput
+        label={question.title}
+        placeholder={question.extra?.placeholder}
+        value={value ?? ''}
+        onChange={onChange}
+      />
+    );
   }
 
   return (
@@ -114,7 +147,9 @@ export default function SurveyPreview() {
     setAnswers((prev) => ({ ...prev, [questionId]: nextValue }));
   }
 
-  const answeredCount = mainQuestions.filter((question) => isAnswered(question.type, answers[question.id])).length;
+  const answeredCount = mainQuestions.filter((question) =>
+    isAnswered(question.type, answers[question.id])
+  ).length;
   const remaining = Math.max(mainQuestions.length - answeredCount, 0);
   const allAnswered = answeredCount >= mainQuestions.length;
 

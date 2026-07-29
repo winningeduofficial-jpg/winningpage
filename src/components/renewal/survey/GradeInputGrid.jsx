@@ -38,7 +38,10 @@ export default function GradeInputGrid({ groups, value, onChange }) {
                   key={field.key}
                   className="flex basis-[calc(33.333%-0.5rem)] min-w-0 flex-col gap-1 sm:basis-[6.25rem] sm:flex-none"
                 >
-                  <label htmlFor={inputId} className="block truncate text-base font-medium leading-5 text-[#808080]">
+                  <label
+                    htmlFor={inputId}
+                    className="block truncate text-base font-medium leading-5 text-[#808080]"
+                  >
                     {field.label}
                   </label>
 

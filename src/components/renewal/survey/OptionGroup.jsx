@@ -52,9 +52,7 @@ export default function OptionGroup({
     <div className={containerClass} role={multiple ? 'group' : 'radiogroup'}>
       {options.map((rawOption) => {
         const { value: optionValue, label } = normalizeOption(rawOption);
-        const active = multiple
-          ? selectedList.includes(optionValue)
-          : value === optionValue;
+        const active = multiple ? selectedList.includes(optionValue) : value === optionValue;
         const maxReached = multiple && !!max && !active && selectedList.length >= max;
 
         return (

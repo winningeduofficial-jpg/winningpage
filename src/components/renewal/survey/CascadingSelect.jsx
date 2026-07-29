@@ -92,7 +92,9 @@ function getOptionsForLevel(index, levels, currentValue) {
   }
 
   if (index === 2) {
-    return university && UNIVERSITY_DATA[university] ? Object.keys(UNIVERSITY_DATA[university].admissionTypes) : [];
+    return university && UNIVERSITY_DATA[university]
+      ? Object.keys(UNIVERSITY_DATA[university].admissionTypes)
+      : [];
   }
 
   if (index === 3) {
@@ -141,7 +143,10 @@ export default function CascadingSelect({ levels, value, onChange }) {
   }
 
   return (
-    <div ref={containerRef} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+    <div
+      ref={containerRef}
+      className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5"
+    >
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || '';
         const options = getOptionsForLevel(index, levels, currentValue);
