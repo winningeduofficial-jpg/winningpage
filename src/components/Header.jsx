@@ -4,10 +4,11 @@ import { ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { MY_MENU } from './myMenuItems';
 import MobileNavDrawer from './MobileNavDrawer';
+import { cleanText, isSameObject, useNavGroups } from '../hooks/useNavGroups';
+import { NAV_GAP, NAV_GUARD, NAV_ITEM_W } from '../data/navigation';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4';
 
 // ---- 헤더 2중 좌표계 정렬 상수 (Playwright 실측 기준) ----
 // 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드, px-8(2rem) 패딩.
@@ -16,38 +17,14 @@ const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4';
 //   nav 기준점은 로고가 아니라 "컨텐츠 영역 시작"(뷰포트 중앙정렬 기준)이며, 좌표계 1과 완전히 독립이다.
 // LOGO_W: 세로형 로고(SVG, h-2.5rem 고정, viewBox 96:52) 실렌더 폭 실측 4.615rem(73.84px)
 //   → 프리헤더(index.html .pre-logo, 74px)와 동일하게 4.625rem(74px) 고정 슬롯으로 반올림.
-// NAV_GUARD (좁은 데스크톱 충돌 가드, A안 — 로고용, 유지):
-//   marginLeft: max(0px, calc(6.625rem − (100vw − 75rem) / 2))
-//   6.625rem = 밴드 패딩(px-8=2rem) + LOGO_W(4.625rem) = 로고 우측 끝까지의 안전영역.
-//   원래 100vw < 88.25rem(1412px) 구간에서 로고와의 충돌을 막던 값인데, desktop 브레이크포인트가
-//   93rem(1488px)으로 올라가면서 데스크톱 인라인 nav가 노출되는 범위(100vw ≥ 93rem)는 항상
-//   1412px 조건을 만족해(93rem > 88.25rem) 이 가드는 데스크톱 상태에서 상시 0으로 평가된다.
-//   즉 로고 충돌 가드는 현재 실질적으로 비활성(그 미만은 desktop:hidden으로 nav 자체가 없음) —
-//   그래도 향후 breakpoint를 다시 낮추는 변경에 대비한 안전망으로 제거하지 않고 유지한다.
-// NAV_GAP (겹침 해결 확정안 — 유동 gap):
-//   clamp(1rem, calc(1rem + (100vw - 93rem) / 8), 2.5rem)
-//   100vw ≤ 93rem(1488px)에서 1rem(16px, 하한) — desktop 브레이크포인트(93rem) 바로 아래에서
-//   최소 gap에 도달하도록 맞춘 값. 100vw ≥ 105rem(1680px)에서 2.5rem(40px, 상한, 피그마 시안 값).
-//   그 사이(1488~1680px)는 선형 보간. nav row와 메가 컬럼 grid 양쪽 모두 이 식을 그대로
-//   참조해(동일 상수) 유동 상태에서도 nav-컬럼 x 정렬이 유지된다.
+// NAV_GUARD·NAV_ITEM_W·NAV_GAP: 헤더 nav·메가 컬럼·푸터 메뉴가 공유하는 컨텐츠 격자 상수.
+// 산정 근거 및 상세 주석은 src/data/navigation.js로 이전했다(SiteFooter.jsx도 동일 상수를 import).
 // 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
 //   (devadmin@gmail.com, D-day 3자리 + 이름 max-w-5rem truncate 상한 당시 기준) = 31.176rem(498.8125px).
 //   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
 //   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·93rem
 //   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-// nav 5칸 폭(최솟값, gap=1rem) = NAV_ITEM_W 8.75rem×5 + 1rem×4 = 43.75+4 = 47.75rem(764px).
-// nav 5칸 폭(최댓값, gap=2.5rem) = 43.75+10 = 53.75rem(860px) < max-w-content 내부 폭(71rem/1136px).
-//   좌표계가 분리되어 있어(계정 그룹은 1920 밴드, nav는 1200 컨텐츠 영역) 폭 예산 자체는 서로
-//   침범하지 않지만, 두 좌표계가 화면상 인접해 보일 수 있어(특히 로그인/관리자 상태) desktop
-//   브레이크포인트(93rem)를 "최소 gap(764px 폭)으로도 로그인 헤더가 안 들어가는 지점"에 맞춰
-//   93rem 미만에서는 아예 모바일 드로어로 전환시켜 겹침 자체가 발생하지 않게 했다(Playwright
-//   실측으로 nav-계정 그룹 간격이 desktop 범위 전역에서 양수인지 확인 필요).
-// 메가 컬럼 폭(NAV_ITEM_W=8.75rem)도 nav 아이템 폭과 동일해 서브아이템 라벨 중
-// 긴 것(예: "해외명문대 진학컨설팅")이 넓어진 컬럼 폭 안에서 줄바꿈 없이 한 줄에 들어간다.
 const LOGO_W = '4.625rem';
-const NAV_GUARD = 'max(0px, calc(6.625rem - (100vw - 75rem) / 2))';
-const NAV_ITEM_W = '8.75rem';
-const NAV_GAP = 'clamp(1rem, calc(1rem + (100vw - 93rem) / 8), 2.5rem)';
 // 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
 // (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
@@ -62,209 +39,6 @@ const MEGA_PROMO_W = '23rem';
 // 풀 높이 스트립"(NAV_BLOCK_RIGHT_EDGE 기반 MEGA_ZONE_LEFT 산정)은 컬럼 높이를 따라
 // 세로로 늘어나는 구조여서 폐기했고, 관련 상수도 함께 제거했다. 카드 우측 끝은 밴드 우측
 // 끝에서 2.5rem 안쪽(기존 px-8=2rem 대비 0.5rem 이동) — 4방향 동일 패딩 원칙이 우선한다.
-
-function cleanText(value) {
-  return String(value || '').trim();
-}
-
-function safeJsonStringify(value) {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '';
-  }
-}
-
-function isSameObject(a, b) {
-  return safeJsonStringify(a) === safeJsonStringify(b);
-}
-
-const FALLBACK_NAV_GROUPS = [
-  {
-    title: '서비스',
-    to: '/free-diagnosis',
-    items: [
-      { label: '무료진단', to: '/free-diagnosis', sortOrder: 0 },
-      { label: '위닝 목표관리', to: '/page/services-goal', sortOrder: 1 },
-      { label: '위닝 수시예측', to: '/page/services-susi-prediction', sortOrder: 2 },
-      { label: '위닝 콜멘토', to: '/page/services-content', sortOrder: 3 },
-      { label: '위닝AI 수행평가', to: '/page/services-ai-performance', sortOrder: 4 },
-      { label: '위닝 세특관리', to: '/page/services-record-coach', sortOrder: 5 },
-      { label: '위닝 약점관리', to: '/page/services-weakness', sortOrder: 6 }
-    ]
-  },
-  {
-    title: '프리미엄',
-    to: '/page/premium-a',
-    items: [
-      { label: '입시컨설팅 A프로그램', to: '/page/premium-a', sortOrder: 1 },
-      { label: '입시컨설팅 S프로그램', to: '/page/premium-s', sortOrder: 2 },
-      { label: '특화 멘토링 서비스', to: '/page/services-mentoring', sortOrder: 3 }
-    ]
-  },
-  {
-    title: '입시정보',
-    to: '/admission/guidelines',
-    items: [
-      { label: '대입모집요강', to: '/admission/guidelines', sortOrder: 1 },
-      { label: '입결정보', to: '/admission/results', sortOrder: 2 },
-      { label: '수시·정시', to: '/admission/susi-jungsi', sortOrder: 3 }
-    ]
-  },
-  {
-    title: '이용신청',
-    to: '/pricing',
-    items: [
-      { label: '서비스요금', to: '/pricing', sortOrder: 1 },
-      { label: '구독권안내', to: '/page/subscription-guide', sortOrder: 2 },
-      { label: '프리미엄 이용', to: '/page/premium-apply', sortOrder: 3 }
-    ]
-  },
-  {
-    title: '고객안내',
-    to: '/company-news',
-    items: [
-      { label: '회사소식', to: '/company-news', sortOrder: 1 },
-      { label: '공지사항', to: '/events', sortOrder: 2 },
-      { label: '자주하는질문', to: '/faq', sortOrder: 3 },
-      { label: '교육컬럼', to: '/gallery', sortOrder: 4 }
-    ]
-  }
-];
-
-const MENU_GROUP_ORDER = {
-  서비스: 1,
-  프리미엄: 2,
-  입시정보: 3,
-  이용신청: 4,
-  고객안내: 5,
-  합격전략: 6,
-  회사소개: 7
-};
-
-function resolveMenuLink(slug) {
-  const value = cleanText(slug);
-
-  if (!value) return '/';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (value.startsWith('/')) return value;
-
-  return `/page/${value}`;
-}
-
-function ensureFreeDiagnosisInService(groups) {
-  const source = Array.isArray(groups) ? groups : [];
-
-  return source.map((group) => {
-    if (cleanText(group?.title) !== '서비스') {
-      return group;
-    }
-
-    const items = Array.isArray(group.items) ? group.items : [];
-    const withoutFreeDiagnosis = items.filter((item) => {
-      const label = cleanText(item?.label).replace(/\s+/g, '');
-      return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
-    });
-
-    return {
-      ...group,
-      to: group.to || '/free-diagnosis',
-      items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
-    };
-  });
-}
-
-function readCachedNavGroups() {
-  try {
-    const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return null;
-    }
-
-    return ensureFreeDiagnosisInService(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedNavGroups(groups) {
-  try {
-    if (!Array.isArray(groups) || groups.length === 0) {
-      return;
-    }
-
-    window.localStorage.setItem(HEADER_NAV_CACHE_KEY, JSON.stringify(groups));
-  } catch {
-    // 메뉴 캐시 저장 실패는 무시
-  }
-}
-
-function buildNavGroups(rows) {
-  const grouped = new Map();
-
-  (rows || []).forEach((item) => {
-    const groupName = cleanText(item.menu_group) || '기타';
-    const slug = cleanText(item.slug);
-
-    if (!slug) return;
-
-    const isCompanyIntro = slug === 'company-intro';
-    const itemLink = isCompanyIntro ? '/company-news' : resolveMenuLink(slug);
-    const savedGroupOrder = Number(item.menu_group_order);
-    const groupOrder =
-      Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
-        ? savedGroupOrder
-        : MENU_GROUP_ORDER[groupName] || 99;
-
-    const savedSortOrder = Number(item.sort_order);
-    const sortOrder =
-      Number.isFinite(savedSortOrder) && savedSortOrder > 0
-        ? savedSortOrder
-        : 99;
-
-    if (!grouped.has(groupName)) {
-      grouped.set(groupName, {
-        title: groupName,
-        groupOrder,
-        to: itemLink,
-        items: []
-      });
-    }
-
-    const group = grouped.get(groupName);
-
-    if (groupOrder < group.groupOrder) {
-      group.groupOrder = groupOrder;
-      group.to = itemLink;
-    }
-
-    group.items.push({
-      label: isCompanyIntro
-        ? '회사소식'
-        : cleanText(item.menu_label) || cleanText(item.title) || groupName,
-      to: itemLink,
-      sortOrder
-    });
-  });
-
-  const groups = Array.from(grouped.values())
-    .sort((a, b) => a.groupOrder - b.groupOrder)
-    .map((group) => {
-      const sortedItems = group.items.sort((a, b) => a.sortOrder - b.sortOrder);
-
-      return {
-        title: group.title,
-        to: sortedItems[0]?.to || group.to,
-        items: sortedItems
-      };
-    });
-
-  return ensureFreeDiagnosisInService(groups);
-}
 
 function getCsatDay() {
   const now = new Date();
@@ -421,9 +195,7 @@ export default function Header() {
   const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavTriggerRef = useRef(null);
-  const [navGroups, setNavGroups] = useState(() => {
-    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
-  });
+  const navGroups = useNavGroups();
 
   // 메가 유지영역(nav 메뉴 블록 + 메가 패널) 전용 공유 close 타이머 —
   // 두 영역이 헤더 안에서 서로 다른 DOM 서브트리(nav 오버레이 / 패널)라 완전히 붙어있지
@@ -486,57 +258,6 @@ export default function Header() {
       }
     };
   }, [megaPanelPhase]);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadHeaderMenus() {
-      const { data, error } = await supabase
-        .from('page_contents')
-        .select('menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active')
-        .eq('is_active', true)
-        .order('menu_group_order', { ascending: true })
-        .order('sort_order', { ascending: true });
-
-      if (!alive) return;
-
-      if (error) {
-        console.error('헤더 메뉴 조회 실패:', error);
-        return;
-      }
-
-      const nextGroups = buildNavGroups(data);
-
-      if (nextGroups.length === 0) {
-        return;
-      }
-
-      setNavGroups((prev) => {
-        if (isSameObject(prev, nextGroups)) {
-          return prev;
-        }
-
-        writeCachedNavGroups(nextGroups);
-        return nextGroups;
-      });
-    }
-
-    loadHeaderMenus();
-
-    const channel = supabase
-      .channel('header-page-contents')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_contents' },
-        () => loadHeaderMenus()
-      )
-      .subscribe();
-
-    return () => {
-      alive = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCsatDDay(getCsatDay()), 60 * 60 * 1000);
