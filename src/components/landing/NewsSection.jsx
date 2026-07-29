@@ -30,10 +30,12 @@ import { ChevronRight } from 'lucide-react';
 const MAX_ROWS = 3;
 
 // 시안(Figma 1907:14893) 배지 3색 — 값이 없거나 매핑에 없는 카테고리는 배지를 렌더하지 않는다.
+// 공지는 시안 원값(#FFC4C4/#FF7373)이 대비 1.75:1로 WCAG 미달이라 타 칩과 같은 패턴
+// (연한 동계열 틴트 배경 + 진한 동계열 텍스트, 7.88:1)으로 보정.
 const CATEGORY_BADGE_STYLES = {
   보도자료: { bg: '#E9F4FF', text: '#013262' },
   파트너십: { bg: '#EEFFE9', text: '#016215' },
-  공지: { bg: '#FFC4C4', text: '#FF7373' }
+  공지: { bg: '#FFE9E9', text: '#8F1616' }
 };
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
@@ -55,14 +57,15 @@ function formatDate(value) {
     .replace(/-/g, '.');
 }
 
+// 배지 폭은 4자 라벨(보도자료) 기준 3.5rem 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
 function CategoryBadge({ category }) {
   const style = category ? CATEGORY_BADGE_STYLES[category] : null;
 
-  if (!category) return null;
+  if (!category) return <span aria-hidden="true" className="w-[3.5rem] shrink-0" />;
 
   return (
     <span
-      className="shrink-0 rounded-lg px-2 py-1 text-[0.625rem] font-medium leading-[1.4] tracking-[-0.0125rem] whitespace-nowrap"
+      className="inline-flex w-[3.5rem] shrink-0 items-center justify-center rounded-lg py-1 text-[0.75rem] font-medium leading-[1.4] tracking-[-0.0125rem] whitespace-nowrap"
       style={{
         backgroundColor: style?.bg ?? '#F1F5F9',
         color: style?.text ?? '#525252'
