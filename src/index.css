@@ -233,6 +233,56 @@ select {
   }
 }
 
+/* 합격생 섹션 전용 좌우 페이드 마스크 (멘토와 분리 — 콘텐츠 폭 1100px 경계에서 페이드) */
+.acceptance-marquee-mask {
+  --acceptance-fade: 3rem;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--acceptance-fade),
+    black calc(100% - var(--acceptance-fade)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--acceptance-fade),
+    black calc(100% - var(--acceptance-fade)),
+    transparent
+  );
+}
+
+@media (min-width: 640px) {
+  .acceptance-marquee-mask {
+    --acceptance-fade: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .acceptance-marquee-mask {
+    --acceptance-content: 68.75rem;
+    --acceptance-fade: 9rem;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      transparent calc((100% - var(--acceptance-content)) / 2 - var(--acceptance-fade)),
+      black calc((100% - var(--acceptance-content)) / 2),
+      black calc(100% - (100% - var(--acceptance-content)) / 2),
+      transparent calc(100% - (100% - var(--acceptance-content)) / 2 + var(--acceptance-fade)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      transparent calc((100% - var(--acceptance-content)) / 2 - var(--acceptance-fade)),
+      black calc((100% - var(--acceptance-content)) / 2),
+      black calc(100% - (100% - var(--acceptance-content)) / 2),
+      transparent calc(100% - (100% - var(--acceptance-content)) / 2 + var(--acceptance-fade)),
+      transparent
+    );
+  }
+}
+
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;

@@ -58,26 +58,26 @@ export default function AcceptanceSection({ universities = [] }) {
   const renderIndices = isMarquee ? repeatIndices : activeUniversities.map((_, index) => index);
 
   return (
-    <section aria-label="합격생" className="overflow-hidden border-b border-[#f1f1f1] bg-white">
-      <div className="pb-5 pt-5 lg:pb-[3.91rem] lg:pt-[3.91rem]">
+    <section aria-label="합격생" className="overflow-hidden bg-white">
+      <div className="pb-0 pt-10 sm:pt-16 lg:pt-[7.5rem]">
         {/* 헤더 + 탭 */}
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <h2 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.055rem] sm:text-[2.25rem] lg:text-[2.75rem]">
-            <span className="block text-[#0086ff]">인서울부터 과기원까지</span>
+          <h2 className="break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.03rem] sm:text-[1.75rem] lg:text-[2rem] lg:tracking-[-0.04rem]">
+            <span className="block text-[#013262]">인서울부터 과기원까지</span>
             <span className="block text-[#525252]">합격생 선배님들의 압도적 선택</span>
           </h2>
 
           <div
             role="tablist"
             aria-label="합격 계열 선택"
-            className="mt-8 flex items-center gap-6 sm:gap-10 lg:mt-[2.09rem] lg:gap-[2.09rem]"
+            className="mt-10 flex items-center gap-6 sm:gap-10"
           >
             {TRACK_TABS.map((tab, tabIndex) => {
               const isActive = activeTrack === tab.key;
               const isEmpty = trackCounts[tab.key] === 0;
 
               return (
-                <div key={tab.key} className="flex items-center gap-6 sm:gap-10 lg:gap-[2.09rem]">
+                <div key={tab.key} className="flex items-center gap-6 sm:gap-10">
                   {tabIndex > 0 && (
                     <span aria-hidden="true" className="h-[1.875rem] w-px bg-[#d7d7d7]" />
                   )}
@@ -89,7 +89,7 @@ export default function AcceptanceSection({ universities = [] }) {
                     aria-controls="acceptance-panel"
                     disabled={isEmpty}
                     onClick={() => setSelectedTrack(tab.key)}
-                    className={`relative text-[1.125rem] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] sm:text-[1.5rem] ${
+                    className={`relative text-[1.5rem] leading-[1.3] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] ${
                       isActive ? 'font-semibold text-[#525252]' : 'font-medium text-[#d7d7d7]'
                     } ${
                       isEmpty
@@ -110,16 +110,16 @@ export default function AcceptanceSection({ universities = [] }) {
           id="acceptance-panel"
           role="tabpanel"
           aria-labelledby={`acceptance-tab-${activeTrack}`}
-          className="mx-auto mt-10 w-full max-w-[120rem] lg:mt-[3.13rem]"
+          className="mx-auto mt-10 w-full max-w-[120rem]"
           {...containerHandlers}
         >
           <div
             ref={scrollRef}
-            className="marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+            className="acceptance-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
               key={activeTrack}
-              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 lg:gap-[1.04rem] ${
+              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 ${
                 isMarquee ? '' : 'justify-center'
               }`}
             >
