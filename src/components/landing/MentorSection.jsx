@@ -1,13 +1,9 @@
 import { useInfiniteMarquee } from '../../hooks/useInfiniteMarquee';
 import MentorCard from './MentorCard';
 
-/** 라이트 블루 그라데이션 풀폭 밴드 (Figma 1889:4937 추출) */
-const BAND_GRADIENT =
-  'linear-gradient(106.75deg, rgba(255, 255, 255, 0.3) 0.48%, rgba(176, 215, 254, 0.254) 32.4%, rgba(98, 171, 255, 0.06) 79.1%, rgba(11, 132, 253, 0.075) 99.59%)';
-
 /**
- * 멘토 섹션 (명세 3.4, Figma 1982:7301 리뉴얼)
- * - 라이트 블루 그라데이션 풀폭 밴드 + 무한 마퀴 사진 스트립 (카드 기본 210×360, 김무경 230×360)
+ * 멘토 섹션 (명세 3.4, 0729 시안 2207:13029 리뉴얼)
+ * - 순수 화이트 배경(기존 그라데이션 밴드 제거) + 무한 마퀴 사진 스트립 (카드 기본 210×360, 김무경 230×360)
  * - 카드 렌더는 MentorCard 프레젠테이션 컴포넌트에 위임 (신규 합성/crop 처리, 필수 항목 미비 row는 null 반환)
  * - useInfiniteMarquee 훅 사용 (화살표 없음, hover pause + 드래그/터치 스크롤 가드)
  *
@@ -29,23 +25,24 @@ export default function MentorSection({ mentors = [] }) {
   return (
     <section
       aria-label="위닝 멘토"
-      className="mx-auto w-full max-w-[120rem] pt-10 pb-20 lg:pt-[6.36rem] lg:pb-[6.36rem]"
-      style={{ background: BAND_GRADIENT }}
+      className="mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]"
     >
-      <div className="flex w-full flex-col gap-[3.75rem] lg:gap-[3.13rem]">
+      <div className="flex w-full flex-col gap-[2.5rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262]">멘토스 소개</p>
-          <h2 className="mt-[0.5rem] break-keep text-left text-[1.75rem] font-bold leading-[1.4] tracking-[-0.06875rem] sm:text-[2.25rem] lg:text-[2.75rem]">
+          <p className="text-[1.25rem] font-normal leading-[1.3] text-accent">멘토스 소개</p>
+          <h2 className="mt-[0.5rem] break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
             <span className="text-[#013262]">위닝과 함께 합격한 선배에게 </span>
             <span className="text-[#808080]">멘토 상담을 받아보세요</span>
           </h2>
         </div>
 
-        {/* 컨텐츠 폭 캡 무한 마퀴 스트립 (좌우 페이드 마스크로 잘림 경계 완화) */}
+        {/* 컨텐츠 폭 캡 무한 마퀴 스트립 (좌우 페이드 마스크로 잘림 경계 완화)
+            페이드 폭은 공용 marquee-mask(--marquee-fade)를 건드리지 않고 이 요소에만
+            데스크톱 전용 CSS 변수 오버라이드(lg:[--marquee-fade:9rem])를 얹어 확대한다. */}
         <div className="mx-auto w-full max-w-[120rem]" {...containerHandlers}>
           <ul
             ref={scrollRef}
-            className={`marquee-mask flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${
+            className={`marquee-mask flex w-full cursor-grab gap-8 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 lg:[--marquee-fade:9rem] ${
               isMarquee ? '' : 'justify-center'
             }`}
           >
