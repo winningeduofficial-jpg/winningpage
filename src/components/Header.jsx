@@ -5,26 +5,37 @@ import { supabase } from '../lib/supabase';
 import { MY_MENU } from './myMenuItems';
 import MobileNavDrawer from './MobileNavDrawer';
 import { cleanText, isSameObject, useNavGroups } from '../hooks/useNavGroups';
-import { NAV_GAP, NAV_GUARD, NAV_ITEM_W } from '../data/navigation';
+import {
+  MEGA_COL_GAP,
+  MEGA_COL_W,
+  MEGA_GUARD,
+  NAV_CELL_GAP,
+  NAV_CELL_W,
+  NAV_GUARD
+} from '../data/navigation';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 
-// ---- 헤더 2중 좌표계 정렬 상수 (Playwright 실측 기준) ----
-// 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드, px-8(2rem) 패딩.
-//   랜딩 마퀴 밴드(max-w-[120rem])와 동일 기준 — 로고는 밴드 좌측 끝, 계정 그룹은 밴드 우측 끝.
-// 좌표계 2 (nav 5개 + 메가 컬럼): max-w-content(75rem/1200px) 컨텐츠 영역, px-8(2rem) 패딩.
+// ---- 헤더 2중 좌표계 정렬 상수 (0729 시안 2207:12337, Playwright 실측 기준) ----
+// 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드. 좌우 마진은 px-8(2rem)에서
+//   2xl(96rem)↑ px-[7.5rem](120px)로 램프한다 — 시안이 1920 기준 좌우 대칭 120px 마진으로
+//   설계됐지만, desktop 브레이크포인트(90rem) 바로 위에서 즉시 120px를 적용하면 nav/계정
+//   그룹 쪽 여유가 줄어(로고·계정 그룹이 함께 안쪽으로 밀림) 겹침 위험이 커져, 1920에 더
+//   가까운 2xl(96rem)에서 램프하도록 의도적으로 분리했다(아래 nav-계정 그룹 충돌 계산 참고).
+//   로고는 밴드 좌측 끝, 계정 그룹은 밴드 우측 끝.
+// 좌표계 2 (nav 5개 + 메가 컬럼): max-w-content(72.75rem) 컨텐츠 영역, px-8(2rem) 패딩.
 //   nav 기준점은 로고가 아니라 "컨텐츠 영역 시작"(뷰포트 중앙정렬 기준)이며, 좌표계 1과 완전히 독립이다.
-// LOGO_W: 세로형 로고(SVG, h-2.5rem 고정, viewBox 96:52) 실렌더 폭 실측 4.615rem(73.84px)
-//   → 프리헤더(index.html .pre-logo, 74px)와 동일하게 4.625rem(74px) 고정 슬롯으로 반올림.
-// NAV_GUARD·NAV_ITEM_W·NAV_GAP: 헤더 nav·메가 컬럼·푸터 메뉴가 공유하는 컨텐츠 격자 상수.
-// 산정 근거 및 상세 주석은 src/data/navigation.js로 이전했다(SiteFooter.jsx도 동일 상수를 import).
+// LOGO_W: 세로형 로고(SVG, h-[2.1875rem]=35px 고정, viewBox 96:52) 실렌더 폭 4.0385rem(64.6px)
+//   → 4.04rem로 반올림(0729 시안, 기존 40px/74px에서 축소 — 프리헤더 로고도 동일 크기로 축소).
+// NAV_GUARD·MEGA_GUARD·NAV_CELL_W·NAV_CELL_GAP·MEGA_COL_W·MEGA_COL_GAP: 헤더 nav·메가 컬럼이
+// 공유하는 컨텐츠 격자 상수. 산정 근거 및 상세 주석은 src/data/navigation.js에 있다.
 // 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
 //   (devadmin@gmail.com, D-day 3자리 + 이름 max-w-5rem truncate 상한 당시 기준) = 31.176rem(498.8125px).
 //   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
-//   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·93rem
+//   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·90rem
 //   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-const LOGO_W = '4.625rem';
+const LOGO_W = '4.04rem';
 // 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
 // (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
@@ -430,7 +441,7 @@ export default function Header() {
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay). */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8">
+      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-[7.5rem]">
         <Link
           to="/"
           className="flex shrink-0 items-center"
@@ -440,7 +451,7 @@ export default function Header() {
           <img
             src="/images/winning-logo-stacked.svg"
             alt="위닝에듀"
-            className="h-[2.5rem] w-auto object-contain"
+            className="h-[2.1875rem] w-auto object-contain"
           />
         </Link>
 
@@ -456,7 +467,7 @@ export default function Header() {
           <Menu size={22} />
         </button>
 
-        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap desktop:flex">
+        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
           {!isAuthReady ? (
             <div className="h-[2rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
@@ -478,7 +489,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -510,7 +521,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   <Settings size={14} />
                   관리자
@@ -520,7 +531,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-2 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 <LogOut size={14} />
                 로그아웃
@@ -536,7 +547,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -568,7 +579,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
               >
                 로그아웃
               </button>
@@ -577,14 +588,14 @@ export default function Header() {
             <>
               <Link
                 to="/login"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
               >
                 로그인
               </Link>
 
               <Link
                 to="/signup"
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-2 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 회원가입
               </Link>
@@ -593,21 +604,23 @@ export default function Header() {
         </div>
       </div>
 
-      {/* 좌표계 2(1200 컨텐츠 영역): nav 5개. header가 position:fixed라 이 nav의 containing
+      {/* 좌표계 2(72.75rem 컨텐츠 영역): nav 5개. header가 position:fixed라 이 nav의 containing
           block이 되므로 별도 wrapper 없이 absolute로 좌표계 1(로고/계정 그룹) 위에 겹쳐 그린다.
           바깥 두 겹(overlay, mx-auto 컨테이너)은 pointer-events-none이라 로고/계정 그룹 클릭을
           가리지 않고, 실제 nav 아이템을 감싸는 안쪽 div만 pointer-events-auto로 되살린다.
           상태 불변 nav 그리드: nav 아이템은 로그인/비로그인 상태와 무관하게 항상
-          NAV_ITEM_W(고정폭) + NAV_GAP(고정 간격)만 사용한다(과거 게스트 gap-5/로그인 gap-0
+          NAV_CELL_W(고정폭) + NAV_CELL_GAP(고정 간격)만 사용한다(과거 게스트 gap-5/로그인 gap-0
           토글로 인해 상태별 x 좌표가 달라지던 문제 제거) — 좌표계가 계정 그룹과 완전히
           분리돼 있어 이제는 이 원칙이 자연히 충족된다.
-          nav 텍스트는 아이템 박스 좌측에 고정(px 없음)해 메가 컬럼 타이틀과 동일 x좌표를 공유한다.
-          데스크톱 인라인 nav 전환 시점(desktop: 브레이크포인트)은 max-w-content와 동일한 1200px. */}
+          0729 시안: 셀 100px 중앙정렬(justify-center) — 과거 좌측 정렬(px 없음)에서 변경.
+          데스크톱 인라인 nav 전환 시점(desktop: 브레이크포인트)은 90rem(nav 5칸 692px 고정 폭 +
+          로고/계정 그룹 폭 기준 재산정, tailwind.config.js 주석 참고 — max-w-content와 더 이상
+          동일 값이 아니다). */}
       <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
           <div
             className="pointer-events-auto flex items-center"
-            style={{ gap: NAV_GAP, marginLeft: NAV_GUARD }}
+            style={{ gap: NAV_CELL_GAP, marginLeft: NAV_GUARD }}
             onMouseEnter={clearMegaCloseTimer}
             onMouseLeave={scheduleMegaClose}
           >
@@ -617,16 +630,16 @@ export default function Header() {
               return (
                 <div
                   key={group.title}
-                  className="pointer-events-none relative flex shrink-0 items-center"
-                  style={{ width: NAV_ITEM_W }}
+                  className="pointer-events-none relative flex shrink-0 items-center justify-center"
+                  style={{ width: NAV_CELL_W }}
                   onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
                 >
                   {/* nav 아이템은 페이지 이동 없이 메가 패널 트리거 전용(사용자 확정) —
                       Link 제거, hover(부모 onMouseEnter)·keyboard focus·클릭 토글로만 패널을 연다.
-                      hit 영역은 셀(NAV_ITEM_W) 전폭이 아니라 버튼 콘텐츠 폭만(좌측 정렬, 셀 x
-                      정렬 기준은 그대로 유지) — 셀의 나머지 빈 공간(이 div)은 pointer-events-none
-                      으로 통과시켜, 셀이 우측 계정 그룹(배지 등)과 겹치는 뷰포트 구간에서도 nav가
-                      그 영역의 hover/클릭을 가로채지 않게 한다. */}
+                      hit 영역은 셀(NAV_CELL_W) 전폭이 아니라 버튼 콘텐츠 폭만(부모 justify-center로
+                      셀 안에서 시각적으로만 중앙정렬) — 셀의 나머지 빈 공간(이 div)은
+                      pointer-events-none으로 통과시켜, 셀이 우측 계정 그룹(배지 등)과 겹치는
+                      뷰포트 구간에서도 nav가 그 영역의 hover/클릭을 가로채지 않게 한다. */}
                   <button
                     type="button"
                     aria-haspopup="true"
@@ -640,7 +653,7 @@ export default function Header() {
                       hasDropdown &&
                         setActiveMega((prev) => (prev === group.title ? null : group.title));
                     }}
-                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-xl font-medium leading-none tracking-[-0.025em] transition ${
+                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base font-medium leading-[1.4] tracking-[-0.02em] transition ${
                       activeMega === group.title
                         ? 'text-[#013262]'
                         : 'text-[#4d4d4d] hover:text-[#013262]'
@@ -695,11 +708,15 @@ export default function Header() {
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
           <div className="grid">
-            {/* 좌표계 2(1200 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8 +
-                  marginLeft(NAV_GUARD)로 컬럼 0의 시작 x를 nav 아이템 0의 시작 x와 맞춘다(이
-                  정렬은 아래 회색 존/카드 폴리시 변경과 무관하게 그대로 유지). 컬럼 폭이
-                  8.75rem(140px, 시안 132px과 거의 1:1)으로 넓어지면서 "해외명문대 진학컨설팅" 등
-                  이전에 자동 줄바꿈되던 긴 서브아이템 라벨도 한 줄에 들어간다.
+            {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
+                  컨테이너를 공유하지만, marginLeft는 MEGA_GUARD(NAV_GUARD - 1.25rem)를 쓴다 —
+                  0729 시안에서 nav 셀이 100px 중앙정렬로 바뀌면서 컬럼(140px, 유지)과 셀(100px)의
+                  중심이 어긋나 컬럼 폭이 커진 만큼(40px 차이의 절반=20px) 컬럼 그리드를 왼쪽으로
+                  당겨 컬럼 0의 중심을 nav 셀 0의 중심에 맞춘다. 컬럼 폭은 8.75rem(140px) 그대로
+                  유지 — "국제・해외고 국내대 입학컨설팅" 등 긴 서브아이템 라벨이 줄바꿈되는 것을
+                  막기 위함이며, 컬럼 gap도 0.5rem(8px)로 고정해 컬럼 피치(148px)가 nav 셀
+                  피치(100+48=148px)와 항상 동일하게 유지되도록 했다(자세한 계산은
+                  src/data/navigation.js 상단 주석 참고).
                   타이포: Figma 1483:882 get_design_context 실값 기준 — 컬럼 폭(140px)이 이미
                   시안(132px)과 거의 1:1이라 0.8 컴팩트 스케일 없이 실측값을 그대로 쓴다.
                   아이템 14px/#525252/Pretendard Medium, 행간 gap-[12px]=0.75rem(gap-3),
@@ -711,9 +728,9 @@ export default function Header() {
               <div
                 className="grid"
                 style={{
-                  marginLeft: NAV_GUARD,
-                  gridTemplateColumns: `repeat(5, ${NAV_ITEM_W})`,
-                  columnGap: NAV_GAP
+                  marginLeft: MEGA_GUARD,
+                  gridTemplateColumns: `repeat(5, ${MEGA_COL_W})`,
+                  columnGap: MEGA_COL_GAP
                 }}
               >
                 {navGroups.map((group) => (

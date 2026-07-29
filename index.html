@@ -68,7 +68,7 @@
 
       .pre-logo-link {
         display: flex;
-        width: 74px;
+        width: 65px;
         height: 4rem;
         align-items: center;
         flex-shrink: 0;
@@ -76,13 +76,13 @@
 
       .pre-logo {
         display: block;
-        width: 74px;
-        height: 2.5rem;
+        width: 65px;
+        height: 2.1875rem;
         object-fit: contain;
       }
 
-      /* Header.jsx의 로고는 모든 뷰포트에서 동일한 h-[2.5rem] 고정 크기이므로
-         프리헤더 로고 치수도 브레이크포인트 구분 없이 동일하게 유지해
+      /* Header.jsx의 로고는 모든 뷰포트에서 동일한 h-[2.1875rem](35px, 0729 시안) 고정
+         크기이므로 프리헤더 로고 치수도 브레이크포인트 구분 없이 동일하게 유지해
          하이드레이션 시 로고 크기 점프가 생기지 않게 한다. */
       @media (max-width: 900px) {
         #pre-header {
@@ -95,7 +95,7 @@
         }
 
         .pre-logo-link {
-          width: 74px;
+          width: 65px;
           height: 76px;
         }
       }
@@ -110,8 +110,8 @@
             class="pre-logo"
             src="/images/winning-logo-stacked.svg"
             alt=""
-            width="74"
-            height="40"
+            width="65"
+            height="35"
           />
         </div>
       </div>
