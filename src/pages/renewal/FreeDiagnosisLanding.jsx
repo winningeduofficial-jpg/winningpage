@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import SiteFooter from '../../components/SiteFooter';
 
-import heroBrowserMockup from '../../assets/renewal/landing/hero-browser-mockup.png';
+import heroBrowserV2 from '../../assets/renewal/landing/hero-browser-v2.png';
+import heroGlow from '../../assets/renewal/landing/hero-glow.svg';
+import heroGrain from '../../assets/renewal/landing/hero-grain.png';
 import illustrationStrength from '../../assets/renewal/landing/illustration-strength.png';
 import illustrationWeakness from '../../assets/renewal/landing/illustration-weakness.png';
 import illustrationTrial from '../../assets/renewal/landing/illustration-trial.png';
@@ -55,30 +57,63 @@ const FLOATING_BADGES = [
 const SECTION_HEADING_CLASS =
   'break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-[#525252] sm:text-[1.75rem] md:text-[2.75rem]';
 
+// 히어로 전용 타이포 — SECTION_HEADING_CLASS는 다른 섹션과 공유하므로 별도 정의.
+const HERO_EYEBROW_CLASS =
+  'text-[1.25rem] font-normal leading-[1.6] text-[#0B84FD] sm:text-[1.375rem] md:text-[1.5rem]';
+const HERO_HEADLINE_CLASS =
+  'break-keep max-w-[56rem] text-[1.75rem] font-bold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2.75rem] lg:max-w-none lg:whitespace-nowrap';
+const HERO_SUBTEXT_CLASS =
+  'text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]';
+
+// Figma TILE fill(scalingFactor 0.609 → 134px/8.375rem 타일) + blendMode OVERLAY 재현.
+// 글로우 프레임 내부 1겹 + 히어로 프레임 전체 1겹, 총 2겹으로 원본과 동일하게 겹친다.
+const HERO_GRAIN_STYLE = { backgroundImage: `url(${heroGrain})` };
+const HERO_GRAIN_CLASS =
+  'pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay';
+
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-[#FBFAFA] pb-14 pt-10 sm:pb-16 md:pb-20 lg:pb-0">
-      <div className="mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
-        <h1 className={`max-w-[56rem] ${SECTION_HEADING_CLASS}`}>
-          학생부 업로드 없이 무료 진단하고
-          <br />
-          나에게 딱 맞는 서비스를 추천받아요
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-20 md:pt-[6.25rem] lg:pb-0">
+      <img
+        src={heroGlow}
+        alt=""
+        aria-hidden="true"
+        draggable="false"
+        className="pointer-events-none absolute left-1/2 top-[-1.09%] w-[83.34%] max-w-none -translate-x-1/2 select-none"
+      />
+      <div
+        aria-hidden="true"
+        style={HERO_GRAIN_STYLE}
+        className={`${HERO_GRAIN_CLASS} left-1/2 top-[-1.09%] aspect-[4/3] w-[83.34%] -translate-x-1/2`}
+      />
+      <div aria-hidden="true" style={HERO_GRAIN_STYLE} className={`${HERO_GRAIN_CLASS} inset-0`} />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
+        <p className={HERO_EYEBROW_CLASS}>무료진단</p>
+
+        <h1 className={`mt-6 ${HERO_HEADLINE_CLASS}`}>
+          학생부 업로드 없이 나에게 딱 맞는 서비스를 추천받아요
         </h1>
+
+        <p className={`mt-6 ${HERO_SUBTEXT_CLASS}`}>설문조사로 나의 강점과 약점을 찾아드려요</p>
 
         <Link
           to="/free-diagnosis/survey"
-          className={`${CTA_LINK_CLASS} mt-10 bg-[#0F172A] shadow-[0_0.75rem_1.875rem_rgba(15,23,42,0.25)] hover:bg-[#1E293B] focus-visible:ring-[#0F172A] sm:mt-12 md:mt-14`}
+          className={`${CTA_LINK_CLASS} mt-6 bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-[#013262]`}
         >
-          무료진단 시작하기 →
+          지금 시작하기
         </Link>
 
-        <div className="mt-10 w-full max-w-content lg:mb-[-5rem]">
-          <img
-            src={heroBrowserMockup}
-            alt="위닝에듀 무료진단 문항 화면이 담긴 브라우저 목업"
-            width={1380}
-            height={788}
-          />
+        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-5.75rem]">
+          <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
+            <img
+              src={heroBrowserV2}
+              alt="위닝에듀 무료진단 문항 화면이 담긴 브라우저 목업"
+              width={1280}
+              height={553}
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
     </section>
