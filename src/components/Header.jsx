@@ -612,7 +612,8 @@ export default function Header() {
           NAV_CELL_W(고정폭) + NAV_CELL_GAP(고정 간격)만 사용한다(과거 게스트 gap-5/로그인 gap-0
           토글로 인해 상태별 x 좌표가 달라지던 문제 제거) — 좌표계가 계정 그룹과 완전히
           분리돼 있어 이제는 이 원칙이 자연히 충족된다.
-          0729 시안: 셀 100px 중앙정렬(justify-center) — 과거 좌측 정렬(px 없음)에서 변경.
+          0729 시안: 셀 100px 내부 좌측 정렬(justify-start) — 메가 컬럼과 좌측선을 공유한다
+          (아래 메가 컬럼 정렬 주석 참고).
           데스크톱 인라인 nav 전환 시점(desktop: 브레이크포인트)은 90rem(nav 5칸 692px 고정 폭 +
           로고/계정 그룹 폭 기준 재산정, tailwind.config.js 주석 참고 — max-w-content와 더 이상
           동일 값이 아니다). */}
@@ -630,14 +631,14 @@ export default function Header() {
               return (
                 <div
                   key={group.title}
-                  className="pointer-events-none relative flex shrink-0 items-center justify-center"
+                  className="pointer-events-none relative flex shrink-0 items-center justify-start"
                   style={{ width: NAV_CELL_W }}
                   onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
                 >
                   {/* nav 아이템은 페이지 이동 없이 메가 패널 트리거 전용(사용자 확정) —
                       Link 제거, hover(부모 onMouseEnter)·keyboard focus·클릭 토글로만 패널을 연다.
-                      hit 영역은 셀(NAV_CELL_W) 전폭이 아니라 버튼 콘텐츠 폭만(부모 justify-center로
-                      셀 안에서 시각적으로만 중앙정렬) — 셀의 나머지 빈 공간(이 div)은
+                      hit 영역은 셀(NAV_CELL_W) 전폭이 아니라 버튼 콘텐츠 폭만(부모 justify-start로
+                      셀 좌측에 고정, 메가 컬럼과 동일 좌측선 공유) — 셀의 나머지 빈 공간(이 div)은
                       pointer-events-none으로 통과시켜, 셀이 우측 계정 그룹(배지 등)과 겹치는
                       뷰포트 구간에서도 nav가 그 영역의 hover/클릭을 가로채지 않게 한다. */}
                   <button
@@ -709,14 +710,14 @@ export default function Header() {
                 높이에 기여하지 못한다). */}
           <div className="grid">
             {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
-                  컨테이너를 공유하지만, marginLeft는 MEGA_GUARD(NAV_GUARD - 1.25rem)를 쓴다 —
-                  0729 시안에서 nav 셀이 100px 중앙정렬로 바뀌면서 컬럼(140px, 유지)과 셀(100px)의
-                  중심이 어긋나 컬럼 폭이 커진 만큼(40px 차이의 절반=20px) 컬럼 그리드를 왼쪽으로
-                  당겨 컬럼 0의 중심을 nav 셀 0의 중심에 맞춘다. 컬럼 폭은 8.75rem(140px) 그대로
-                  유지 — "국제・해외고 국내대 입학컨설팅" 등 긴 서브아이템 라벨이 줄바꿈되는 것을
-                  막기 위함이며, 컬럼 gap도 0.5rem(8px)로 고정해 컬럼 피치(148px)가 nav 셀
-                  피치(100+48=148px)와 항상 동일하게 유지되도록 했다(자세한 계산은
-                  src/data/navigation.js 상단 주석 참고).
+                  컨테이너를 공유하고, marginLeft도 nav와 동일한 MEGA_GUARD(= NAV_GUARD)를 쓴다 —
+                  nav 텍스트가 셀 안에서 좌측 정렬(justify-start)이라 정렬 기준은 "좌측선 공유":
+                  컬럼 0의 시작 x가 nav 셀 0의 텍스트 시작 x와 그대로 일치한다(별도 오프셋
+                  보정 불필요). 컬럼 폭은 8.75rem(140px) 그대로 유지 — "국제・해외고 국내대
+                  입학컨설팅" 등 긴 서브아이템 라벨이 줄바꿈되는 것을 막기 위함이며, 컬럼 gap도
+                  0.5rem(8px)로 고정해 컬럼 피치(140+8=148px)가 nav 셀 피치(100+48=148px)와
+                  항상 동일하게 유지되도록 했다 — 피치가 같아야 컬럼 1, 2...도 좌측선이 계속
+                  맞는다(자세한 계산은 src/data/navigation.js 상단 주석 참고).
                   타이포: Figma 1483:882 get_design_context 실값 기준 — 컬럼 폭(140px)이 이미
                   시안(132px)과 거의 1:1이라 0.8 컴팩트 스케일 없이 실측값을 그대로 쓴다.
                   아이템 14px/#525252/Pretendard Medium, 행간 gap-[12px]=0.75rem(gap-3),
