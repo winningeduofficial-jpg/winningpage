@@ -115,7 +115,7 @@ export default function AcceptanceSection({ universities = [] }) {
         >
           <div
             ref={scrollRef}
-            className="acceptance-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
               key={activeTrack}

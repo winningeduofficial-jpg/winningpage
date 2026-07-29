@@ -208,8 +208,8 @@ select {
   box-shadow: 0 24px 55px rgba(13, 27, 42, 0.13);
 }
 
-/* 무한 마퀴 좌우 페이드 마스크 (멘토/합격생 공용) */
-.marquee-mask {
+/* 무한 마퀴 좌우 페이드 마스크 (합격생·멘토 공용 — 콘텐츠 폭 1100px 경계에서 페이드) */
+.landing-marquee-mask {
   --marquee-fade: 3rem;
   -webkit-mask-image: linear-gradient(
     to right,
@@ -228,56 +228,31 @@ select {
 }
 
 @media (min-width: 640px) {
-  .marquee-mask {
+  .landing-marquee-mask {
     --marquee-fade: 4rem;
   }
 }
 
-/* 합격생 섹션 전용 좌우 페이드 마스크 (멘토와 분리 — 콘텐츠 폭 1100px 경계에서 페이드) */
-.acceptance-marquee-mask {
-  --acceptance-fade: 3rem;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    black var(--acceptance-fade),
-    black calc(100% - var(--acceptance-fade)),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    black var(--acceptance-fade),
-    black calc(100% - var(--acceptance-fade)),
-    transparent
-  );
-}
-
-@media (min-width: 640px) {
-  .acceptance-marquee-mask {
-    --acceptance-fade: 4rem;
-  }
-}
-
 @media (min-width: 1024px) {
-  .acceptance-marquee-mask {
-    --acceptance-content: 68.75rem;
-    --acceptance-fade: 9rem;
+  .landing-marquee-mask {
+    --marquee-content: 68.75rem;
+    --marquee-fade: 9rem;
     -webkit-mask-image: linear-gradient(
       to right,
       transparent,
-      transparent calc((100% - var(--acceptance-content)) / 2 - var(--acceptance-fade)),
-      black calc((100% - var(--acceptance-content)) / 2),
-      black calc(100% - (100% - var(--acceptance-content)) / 2),
-      transparent calc(100% - (100% - var(--acceptance-content)) / 2 + var(--acceptance-fade)),
+      transparent calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
+      black calc((100% - var(--marquee-content)) / 2),
+      black calc(100% - (100% - var(--marquee-content)) / 2),
+      transparent calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
       transparent
     );
     mask-image: linear-gradient(
       to right,
       transparent,
-      transparent calc((100% - var(--acceptance-content)) / 2 - var(--acceptance-fade)),
-      black calc((100% - var(--acceptance-content)) / 2),
-      black calc(100% - (100% - var(--acceptance-content)) / 2),
-      transparent calc(100% - (100% - var(--acceptance-content)) / 2 + var(--acceptance-fade)),
+      transparent calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
+      black calc((100% - var(--marquee-content)) / 2),
+      black calc(100% - (100% - var(--marquee-content)) / 2),
+      transparent calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
       transparent
     );
   }

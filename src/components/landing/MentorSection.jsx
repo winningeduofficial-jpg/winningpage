@@ -36,30 +36,34 @@ export default function MentorSection({ mentors = [] }) {
           </h2>
         </div>
 
-        {/* 컨텐츠 폭 캡 무한 마퀴 스트립 (좌우 페이드 마스크로 잘림 경계 완화)
-            페이드 폭은 공용 marquee-mask(--marquee-fade)를 건드리지 않고 이 요소에만
-            데스크톱 전용 CSS 변수 오버라이드(lg:[--marquee-fade:9rem])를 얹어 확대한다. */}
+        {/* 컨텐츠 폭 캡 무한 마퀴 스트립 — AcceptanceSection과 동일 구조(스크롤 컨테이너 +
+            내부 w-max 리스트)로 공용 landing-marquee-mask를 사용해 콘텐츠 폭 1100px 경계
+            기준 좌우 페이드(데스크톱 9rem)를 동일하게 적용한다. */}
         <div className="mx-auto w-full max-w-[120rem]" {...containerHandlers}>
-          <ul
+          <div
             ref={scrollRef}
-            className={`marquee-mask flex w-full cursor-grab gap-8 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 lg:[--marquee-fade:9rem] ${
-              isMarquee ? '' : 'justify-center'
-            }`}
+            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
-            {renderIndices.map((mentorIndex, position) => {
-              const mentor = mentors[mentorIndex];
-              if (!mentor) return null;
+            <ul
+              className={`flex w-max min-w-full items-center gap-8 px-5 sm:px-8 ${
+                isMarquee ? '' : 'justify-center'
+              }`}
+            >
+              {renderIndices.map((mentorIndex, position) => {
+                const mentor = mentors[mentorIndex];
+                if (!mentor) return null;
 
-              // N배 반복 중 사이클 1(초기 표시 사이클)만 스크린리더에 노출
-              // — AcceptanceSection과 동일한 cycle 계산식 (repeatCount 동적 증가에도 유효)
-              const cycle = Math.floor(position / mentors.length);
-              const isClone = isMarquee && cycle !== 1;
+                // N배 반복 중 사이클 1(초기 표시 사이클)만 스크린리더에 노출
+                // — AcceptanceSection과 동일한 cycle 계산식 (repeatCount 동적 증가에도 유효)
+                const cycle = Math.floor(position / mentors.length);
+                const isClone = isMarquee && cycle !== 1;
 
-              return (
-                <MentorCard key={`${mentor.id}-${position}`} mentor={mentor} isClone={isClone} />
-              );
-            })}
-          </ul>
+                return (
+                  <MentorCard key={`${mentor.id}-${position}`} mentor={mentor} isClone={isClone} />
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
