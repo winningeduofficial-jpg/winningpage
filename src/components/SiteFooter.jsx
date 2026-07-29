@@ -1,39 +1,81 @@
 import { Link } from 'react-router-dom';
-import { COMPANY, FOOTER_COLUMNS } from '../data/company';
+import { COMPANY } from '../data/company';
+import { useNavGroups } from '../hooks/useNavGroups';
 
 // 결제/랜딩 공용 푸터. 사업자 정보 + 이용약관/개인정보처리방침 링크 포함.
+// 메뉴 컬럼은 헤더 메가메뉴와 동일한 useNavGroups()(DB → 캐시 → fallback)를 공유한다.
+// lg+ 데스크톱: 로고와 메뉴 격자 모두 컨텐츠 영역(max-w-content) 안에서 한 flex 컨테이너로
+// 배치한다. 메뉴 컬럼은 시안 2016:1796 원형 — 콘텐츠 폭 컬럼 + 균일 gap 3.125rem(60px×0.8347),
+// 블록은 컨텐츠 영역 우측 정렬.
+
 export default function SiteFooter() {
+  const navGroups = useNavGroups();
+
   return (
     <footer className="bg-[#f9fafb]">
-      <div className="mx-auto flex max-w-content flex-col gap-10 px-6 py-[6.25rem] lg:flex-row lg:items-start lg:justify-between lg:px-8">
-        {/* 로고 */}
-        <Link to="/" className="inline-flex shrink-0 items-center">
-          <img
-            src="/images/winning-logo.png"
-            alt="위닝에듀"
-            className="h-[6.25rem] w-auto object-contain"
-          />
-        </Link>
+      <div className="relative py-[6.25rem]">
+        {/* 모바일/태블릿(<lg): 로고 + 메뉴 흐름 배치 (현행 유지) */}
+        <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:hidden">
+          <Link to="/" className="inline-flex shrink-0 items-center">
+            <img
+              src="/images/winning-logo.png"
+              alt="위닝에듀"
+              className="h-[6.25rem] w-auto object-contain"
+            />
+          </Link>
 
-        {/* 메뉴 컬럼 */}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:flex lg:flex-row lg:gap-[3.75rem]">
-          {FOOTER_COLUMNS.map((col) => (
-            <nav key={col.title} className="min-w-0">
-              <p className="mb-5 text-sm text-[#808080]">{col.title}</p>
-              <ul className="space-y-3">
-                {col.items.map((item) => (
-                  <li key={`${col.title}-${item.label}`}>
-                    <Link
-                      to={item.to}
-                      className="inline-block break-keep py-1 text-sm text-[#525252] transition hover:text-[#013262] lg:py-0"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+            {navGroups.map((group) => (
+              <nav key={group.title} className="min-w-0">
+                <p className="mb-5 text-sm font-medium text-[#808080]">{group.title}</p>
+                <ul className="space-y-3">
+                  {group.items.map((item) => (
+                    <li key={`${group.title}-${item.label}`}>
+                      <Link
+                        to={item.to}
+                        className="inline-block break-keep py-1 text-sm font-medium text-[#525252] transition hover:text-[#013262]"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
+        </div>
+
+        {/* 데스크톱(lg+): 로고 + 메뉴 격자를 하나의 flex 컨테이너에서 좌/우로 배치.
+            로고와 메뉴는 같은 컨테이너에 있어 서로 겹치지 않는다(격자 최소폭 764px +
+            로고 185px = 949px < 컨텐츠 내부폭 1136px). */}
+        <div className="mx-auto hidden w-full max-w-content items-start justify-between px-8 lg:flex">
+          <Link to="/" className="inline-flex shrink-0 items-center">
+            <img
+              src="/images/winning-logo-stacked.svg"
+              alt="위닝에듀"
+              className="h-auto w-[11.5625rem]"
+            />
+          </Link>
+
+          <div className="flex gap-[3.125rem]">
+            {navGroups.map((group) => (
+              <nav key={group.title} className="max-w-[8.25rem] shrink-0">
+                <p className="mb-[2.09rem] text-sm font-medium text-[#808080]">{group.title}</p>
+                <ul className="space-y-3">
+                  {group.items.map((item) => (
+                    <li key={`${group.title}-${item.label}`}>
+                      <Link
+                        to={item.to}
+                        className="inline-block break-keep text-sm font-medium text-[#525252] transition hover:text-[#013262]"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
         </div>
       </div>
 
