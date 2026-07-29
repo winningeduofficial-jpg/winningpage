@@ -107,12 +107,12 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] pt-[4.25rem] text-[#0D1B2A]">
+    <main className="min-h-screen bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
       <section className="relative overflow-hidden border-b border-[#0D1B2A]/10 bg-[linear-gradient(120deg,#081321_0%,#0D1B2A_42%,#142B45_100%)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.28),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.18),transparent_32%)]" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
-        <div className="relative mx-auto grid min-h-[calc(100vh-4.25rem)] max-w-content items-center gap-10 px-6 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
+        <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-content items-center gap-10 px-6 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
           <div className="max-w-2xl text-white">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#D7B56D]/45 bg-[#D7B56D]/10 px-4 py-2 text-sm font-black text-[#E5C677] shadow-[0_12px_34px_rgba(0,0,0,0.18)]">
               <Sparkles size={16} fill="currentColor" />

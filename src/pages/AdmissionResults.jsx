@@ -32,7 +32,7 @@ export default function AdmissionResults() {
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
       <Header />
-      <main className="pt-[4.25rem]">
+      <main className="pt-16">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14 text-center">
             <p className="text-sm font-black text-[#7B2FF7]">위닝에듀 입시정보</p>

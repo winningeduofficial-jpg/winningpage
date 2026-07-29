@@ -111,7 +111,7 @@ export default function PaymentSuccess() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[4.25rem]">
+      <main className="min-h-screen bg-white pt-16">
         {status === 'confirming' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
             <div

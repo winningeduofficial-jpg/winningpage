@@ -62,7 +62,7 @@ export default function Faq() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="mx-auto max-w-content px-6 py-12">
           <div className="relative h-[150px] overflow-hidden rounded-xl bg-[#0D1B2A]">
             <img

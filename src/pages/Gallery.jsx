@@ -107,7 +107,7 @@ export default function Gallery() {
     return (
       <div className="min-h-screen bg-white text-[#0D1B2A]">
         <Header />
-        <main className="pt-[4.25rem]">
+        <main className="pt-16">
           <section className="mx-auto max-w-content px-6 py-16">
             {loading ? (
               <div className="py-24 text-center text-sm font-bold text-gray-500">
@@ -170,7 +170,7 @@ export default function Gallery() {
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
       <Header />
-      <main className="pt-[4.25rem]">
+      <main className="pt-16">
         <section className="mx-auto max-w-content px-6 py-16">
           <div className="text-center">
             <h1 className="text-4xl font-black tracking-[-0.04em]">교육컬럼</h1>

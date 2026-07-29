@@ -128,7 +128,7 @@ export default function Events() {
       <>
         <Header />
 
-        <main className="min-h-screen bg-white pt-[4.25rem]">
+        <main className="min-h-screen bg-white pt-16">
           <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
@@ -233,7 +233,7 @@ export default function Events() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[4.25rem]">
+      <main className="min-h-screen bg-white pt-16">
         <section className="mx-auto max-w-content px-8 py-16">
           <div className="text-center">
             <h1 className="text-[44px] font-black tracking-[-0.04em] text-[#222]">공지사항</h1>

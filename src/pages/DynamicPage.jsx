@@ -67,7 +67,7 @@ export default function DynamicPage() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <div className="mx-auto max-w-content px-6 py-24 text-center text-sm font-bold text-gray-500">
             페이지를 불러오는 중입니다.
           </div>
@@ -80,7 +80,7 @@ export default function DynamicPage() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <div className="mx-auto max-w-content px-6 py-24 text-center">
             <h1 className="text-3xl font-black tracking-[-0.04em]">페이지를 찾을 수 없습니다.</h1>
             <p className="mt-4 text-base font-medium text-gray-500">
@@ -118,7 +118,7 @@ export default function DynamicPage() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-20 text-center">
             {menuGroup && (

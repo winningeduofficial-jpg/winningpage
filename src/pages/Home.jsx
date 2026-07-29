@@ -418,7 +418,7 @@ export default function Home() {
       <HomePopupLayer popups={popups} onClose={closePopup} onCloseToday={closePopupToday} />
 
       <main
-        className={`min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A] transition-opacity duration-500 ${
+        className={`min-h-screen bg-white pt-16 text-[#0D1B2A] transition-opacity duration-500 ${
           heroReady ? 'opacity-100' : 'opacity-0'
         }`}
       >

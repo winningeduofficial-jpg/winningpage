@@ -193,7 +193,7 @@ export default function CompanyNews() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
@@ -284,7 +284,7 @@ export default function CompanyNews() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <CompanyIntro page={introPage} />
 
         <section className="mx-auto max-w-content px-6 py-16 lg:py-20">

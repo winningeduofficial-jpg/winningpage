@@ -165,7 +165,7 @@ export default function AdmissionBoard() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
             <div className="mx-auto max-w-content px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
@@ -279,7 +279,7 @@ export default function AdmissionBoard() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>

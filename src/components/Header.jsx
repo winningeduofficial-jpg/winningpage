@@ -430,7 +430,7 @@ export default function Header() {
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay). */}
-      <div className="mx-auto flex h-[4.25rem] max-w-[120rem] items-center justify-between px-8">
+      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8">
         <Link
           to="/"
           className="flex shrink-0 items-center"
@@ -603,7 +603,7 @@ export default function Header() {
           분리돼 있어 이제는 이 원칙이 자연히 충족된다.
           nav 텍스트는 아이템 박스 좌측에 고정(px 없음)해 메가 컬럼 타이틀과 동일 x좌표를 공유한다.
           데스크톱 인라인 nav 전환 시점(desktop: 브레이크포인트)은 max-w-content와 동일한 1200px. */}
-      <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-[4.25rem] desktop:block">
+      <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
           <div
             className="pointer-events-auto flex items-center"
@@ -666,7 +666,7 @@ export default function Header() {
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
             이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
         <div
-          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
             isMegaPanelOpen
               ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
               : isMegaPanelClosing
@@ -678,7 +678,7 @@ export default function Header() {
         />
 
         <div
-          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
             isMegaPanelOpen
               ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
               : isMegaPanelClosing
