@@ -33,8 +33,8 @@ const serviceIconMap = {
    그림자 0 4px 8px 4px rgba(128,128,128,0.3) → 0 3.3 6.7 3.3(색·투명도는 원값 유지).
    hover는 시안에 없는 구현측 인터랙션 — 동작은 유지하되 그림자 색만 기본과 동계열로 통일. */
 const CARD_CLASS =
-  'group relative block h-[11.5625rem] w-full overflow-hidden rounded-[1.875rem] border border-[#D7D7D7] bg-white ' +
-  'shadow-[0_0.2063rem_0.4188rem_0.2063rem_rgba(128,128,128,0.3)] transition-[background-color,box-shadow] duration-200 ' +
+  'group relative block h-[11.5625rem] w-full overflow-hidden rounded-[1.875rem] bg-white ' +
+  'shadow-[0_0.2063rem_0.4188rem_0.2063rem_rgba(128,128,128,0.125)] transition-[background-color,box-shadow] duration-200 ' +
   '[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 ' +
   'lg:h-[11.32rem] lg:rounded-[1.5625rem]';
@@ -53,23 +53,35 @@ const ILLUSTRATION_LIFT_CLASS =
    인덱스 = sort_order 순 = 시안 카드 순서. */
 const ILLUSTRATION_LAYOUTS = [
   // 무료진단 — 본체 146×123.1 / right 60 / top 48 / 그림자 124.4×26.5, 하단 44.1
-  { boxW: '7.62rem', w: '7.62rem', h: '6.42rem', right: '3.13rem', top: '2.5rem',
-    rotate: '0deg', shadowW: '6.49rem', shadowH: '1.38rem', shadowBottom: '2.3rem' },
+  {
+    boxW: '7.62rem', w: '7.62rem', h: '6.42rem', right: '3.13rem', top: '2.5rem',
+    rotate: '0deg', shadowW: '6.49rem', shadowH: '1.38rem', shadowBottom: '2.3rem'
+  },
   // 목표관리 — 본체 137×151 / right 51 / top 21 / 그림자 하단 26
-  { boxW: '7.15rem', w: '7.15rem', h: '7.88rem', right: '2.66rem', top: '1.1rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.36rem' },
+  {
+    boxW: '7.15rem', w: '7.15rem', h: '7.88rem', right: '2.66rem', top: '1.1rem',
+    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.36rem'
+  },
   // 콜멘토 — 본체 175.2×144 / right 47.8 / top 25 / 그림자 하단 21
-  { boxW: '9.14rem', w: '9.14rem', h: '7.51rem', right: '2.49rem', top: '1.3rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.1rem' },
+  {
+    boxW: '9.14rem', w: '9.14rem', h: '7.51rem', right: '2.49rem', top: '1.3rem',
+    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.1rem'
+  },
   // 수행평가 — 본체 151×124 회전 18.66° → bbox 182.7×165.8 / bbox right ~2 / bbox top 25.4 / 그림자 하단 23
-  { boxW: '9.53rem', w: '7.88rem', h: '6.47rem', right: '0.1rem', top: '2.42rem',
-    rotate: '18.66deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem' },
+  {
+    boxW: '9.53rem', w: '7.88rem', h: '6.47rem', right: '0.1rem', top: '2.42rem',
+    rotate: '18.66deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem'
+  },
   // 자기평가 — 본체 146×144 / right 52 / top 35 / 그림자 하단 18
-  { boxW: '7.62rem', w: '7.62rem', h: '7.51rem', right: '2.71rem', top: '1.83rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '0.94rem' },
+  {
+    boxW: '7.62rem', w: '7.62rem', h: '7.51rem', right: '2.71rem', top: '1.83rem',
+    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '0.94rem'
+  },
   // 심화탐구 — 본체 169.3×133 / right 44.7 / top 45 / 그림자 하단 23
-  { boxW: '8.83rem', w: '8.83rem', h: '6.94rem', right: '2.33rem', top: '2.35rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem' },
+  {
+    boxW: '8.83rem', w: '8.83rem', h: '6.94rem', right: '2.33rem', top: '2.35rem',
+    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem'
+  },
 ];
 
 function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
