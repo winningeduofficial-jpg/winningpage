@@ -59,7 +59,8 @@ function getMemberLabel(profile) {
   if (role === 'admin') return '관리자';
   if (!raw) return '';
   if (raw === 'student' || raw === '학생' || raw === '학생회원') return '학생회원';
-  if (raw === 'parent' || raw === 'parents' || raw === '학부모' || raw === '학부모회원') return '학부모회원';
+  if (raw === 'parent' || raw === 'parents' || raw === '학부모' || raw === '학부모회원')
+    return '학부모회원';
   if (raw === 'mentor' || raw === 'teacher' || raw === '멘토' || raw === '교사') return '멘토회원';
   return raw.endsWith('회원') ? raw : `${raw}회원`;
 }
@@ -275,18 +276,12 @@ export default function Header() {
         const sessionResult =
           nextSession !== undefined
             ? nextSession
-            : await withTimeout(
-              supabase.auth.getSession(),
-              1200,
-              { data: { session: null } }
-            );
+            : await withTimeout(supabase.auth.getSession(), 1200, { data: { session: null } });
 
         if (!alive || currentSeq !== seq) return;
 
         const currentSession =
-          nextSession !== undefined
-            ? sessionResult
-            : sessionResult?.data?.session || null;
+          nextSession !== undefined ? sessionResult : sessionResult?.data?.session || null;
 
         if (!currentSession?.user) {
           setSession(null);
@@ -303,11 +298,7 @@ export default function Header() {
           nextProfile = cachedProfile;
         }
 
-        const fetchedProfile = await withTimeout(
-          fetchProfile(currentSession.user),
-          1800,
-          null
-        );
+        const fetchedProfile = await withTimeout(fetchProfile(currentSession.user), 1800, null);
 
         if (!alive || currentSeq !== seq) return;
 
@@ -391,11 +382,7 @@ export default function Header() {
       }
 
       sessionKeys.forEach((key) => {
-        if (
-          key.startsWith('sb-') ||
-          key.includes('supabase') ||
-          key.includes('auth-token')
-        ) {
+        if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
           window.sessionStorage.removeItem(key);
         }
       });
@@ -439,9 +426,7 @@ export default function Header() {
   const isMegaPanelClosing = megaPanelPhase === 'closing';
 
   return (
-    <header
-      className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white"
-    >
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay). */}
@@ -655,8 +640,11 @@ export default function Header() {
                       hasDropdown &&
                         setActiveMega((prev) => (prev === group.title ? null : group.title));
                     }}
-                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-xl font-medium leading-none tracking-[-0.025em] transition ${activeMega === group.title ? 'text-[#013262]' : 'text-[#4d4d4d] hover:text-[#013262]'
-                      }`}
+                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-xl font-medium leading-none tracking-[-0.025em] transition ${
+                      activeMega === group.title
+                        ? 'text-[#013262]'
+                        : 'text-[#4d4d4d] hover:text-[#013262]'
+                    }`}
                   >
                     {group.title}
                   </button>
@@ -678,23 +666,25 @@ export default function Header() {
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
             이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
         <div
-          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${isMegaPanelOpen
-            ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
-            : isMegaPanelClosing
-              ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
-              : 'invisible opacity-0 pointer-events-none'
-            }`}
+          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+            isMegaPanelOpen
+              ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
+              : isMegaPanelClosing
+                ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
+                : 'invisible opacity-0 pointer-events-none'
+          }`}
           onClick={() => setActiveMega(null)}
           aria-hidden="true"
         />
 
         <div
-          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${isMegaPanelOpen
-            ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
-            : isMegaPanelClosing
-              ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
-              : 'invisible opacity-0 -translate-y-2 pointer-events-none'
-            }`}
+          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+            isMegaPanelOpen
+              ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
+              : isMegaPanelClosing
+                ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
+                : 'invisible opacity-0 -translate-y-2 pointer-events-none'
+          }`}
           aria-hidden={!isMegaPanelOpen}
           onMouseEnter={clearMegaCloseTimer}
           onMouseLeave={scheduleMegaClose}

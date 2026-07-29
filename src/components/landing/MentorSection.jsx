@@ -17,16 +17,14 @@ const BAND_GRADIENT =
  */
 export default function MentorSection({ mentors = [] }) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
-    itemCount: mentors.length,
+    itemCount: mentors.length
   });
 
   if (mentors.length === 0) return null;
 
   // 2개 이상일 때만 N배 반복 마퀴(기본 3배, 훅이 폭에 맞춰 자동 증가), 1개면 원본만 정적 렌더
   const isMarquee = mentors.length > 1;
-  const renderIndices = isMarquee
-    ? repeatIndices
-    : mentors.map((_, index) => index);
+  const renderIndices = isMarquee ? repeatIndices : mentors.map((_, index) => index);
 
   return (
     <section
@@ -47,8 +45,9 @@ export default function MentorSection({ mentors = [] }) {
         <div className="mx-auto w-full max-w-[120rem]" {...containerHandlers}>
           <ul
             ref={scrollRef}
-            className={`marquee-mask flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${isMarquee ? '' : 'justify-center'
-              }`}
+            className={`marquee-mask flex w-full cursor-grab gap-5 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden sm:px-8 ${
+              isMarquee ? '' : 'justify-center'
+            }`}
           >
             {renderIndices.map((mentorIndex, position) => {
               const mentor = mentors[mentorIndex];
@@ -60,11 +59,7 @@ export default function MentorSection({ mentors = [] }) {
               const isClone = isMarquee && cycle !== 1;
 
               return (
-                <MentorCard
-                  key={`${mentor.id}-${position}`}
-                  mentor={mentor}
-                  isClone={isClone}
-                />
+                <MentorCard key={`${mentor.id}-${position}`} mentor={mentor} isClone={isClone} />
               );
             })}
           </ul>

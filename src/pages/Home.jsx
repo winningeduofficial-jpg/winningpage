@@ -40,13 +40,12 @@ function normalizeMentorRow(row) {
   }
   const layout = row.photo_layout;
   const hasValidLayout =
-    layout &&
-    ['top', 'left', 'width', 'height'].every((key) => Number.isFinite(layout[key]));
+    layout && ['top', 'left', 'width', 'height'].every((key) => Number.isFinite(layout[key]));
 
   return {
     ...row,
     title_lines: Array.isArray(titleLines) && titleLines.length > 0 ? titleLines : null,
-    photo: hasValidLayout ? layout : null,
+    photo: hasValidLayout ? layout : null
   };
 }
 
@@ -90,7 +89,7 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
               ? {
                   href: popup.url,
                   target: popup.open_new_window ? '_blank' : '_self',
-                  rel: popup.open_new_window ? 'noreferrer' : undefined,
+                  rel: popup.open_new_window ? 'noreferrer' : undefined
                 }
               : {};
 
@@ -153,23 +152,15 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
 }
 
 export default function Home() {
-  const [banners, setBanners] = useState(
-    LANDING_PREVIEW ? landingPreview.banners : [],
-  );
+  const [banners, setBanners] = useState(LANDING_PREVIEW ? landingPreview.banners : []);
   const [heroReady, setHeroReady] = useState(false);
   const [popups, setPopups] = useState([]);
-  const [sideBanners, setSideBanners] = useState(
-    LANDING_PREVIEW ? landingPreview.sideBanners : [],
-  );
+  const [sideBanners, setSideBanners] = useState(LANDING_PREVIEW ? landingPreview.sideBanners : []);
   const [universities, setUniversities] = useState(
-    LANDING_PREVIEW ? landingPreview.universities : [],
+    LANDING_PREVIEW ? landingPreview.universities : []
   );
-  const [services, setServices] = useState(
-    LANDING_PREVIEW ? landingPreview.services : [],
-  );
-  const [mentors, setMentors] = useState(
-    LANDING_PREVIEW ? landingPreview.mentors : [],
-  );
+  const [services, setServices] = useState(LANDING_PREVIEW ? landingPreview.services : []);
+  const [mentors, setMentors] = useState(LANDING_PREVIEW ? landingPreview.mentors : []);
   // 공지사항 섹션(회사소식/공지사항)은 실 Supabase DB 연동 완료 — 프리뷰 대상 아님.
   const [companyNews, setCompanyNews] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -242,7 +233,9 @@ export default function Home() {
       const today = todayKstYmd();
       const { data, error } = await supabase
         .from('popups')
-        .select('id, title, url, image_url, mobile_image_url, open_new_window, start_date, end_date, sort_order, is_active')
+        .select(
+          'id, title, url, image_url, mobile_image_url, open_new_window, start_date, end_date, sort_order, is_active'
+        )
         .eq('is_active', true)
         .or(`start_date.is.null,start_date.lte.${today}`)
         .or(`end_date.is.null,end_date.gte.${today}`)
@@ -278,28 +271,27 @@ export default function Home() {
 
     async function fetchRenewalContents() {
       const today = todayKstYmd();
-      const [sideResult, universityResult, mentorResult] =
-        await Promise.all([
-          supabase
-            .from('home_side_banners')
-            .select('*')
-            .eq('is_active', true)
-            .or(`start_date.is.null,start_date.lte.${today}`)
-            .or(`end_date.is.null,end_date.gte.${today}`)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('university_acceptances')
-            .select('*')
-            .eq('is_active', true)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('home_mentor_strategies')
-            .select(
-              'id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order',
-            )
-            .eq('is_active', true)
-            .order('sort_order', { ascending: true }),
-        ]);
+      const [sideResult, universityResult, mentorResult] = await Promise.all([
+        supabase
+          .from('home_side_banners')
+          .select('*')
+          .eq('is_active', true)
+          .or(`start_date.is.null,start_date.lte.${today}`)
+          .or(`end_date.is.null,end_date.gte.${today}`)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('university_acceptances')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('home_mentor_strategies')
+          .select(
+            'id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order'
+          )
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+      ]);
 
       if (!mounted) return;
 
@@ -308,7 +300,7 @@ export default function Home() {
         setSideBanners([]);
       } else {
         const visible = (sideResult.data || []).filter(
-          (item) => item.image_url || item.mobile_image_url,
+          (item) => item.image_url || item.mobile_image_url
         );
         setSideBanners(visible);
       }
@@ -357,7 +349,7 @@ export default function Home() {
           .order('is_pinned', { ascending: false })
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(5)
       ]);
 
       if (!mounted) return;
@@ -423,11 +415,7 @@ export default function Home() {
     <>
       <Header />
 
-      <HomePopupLayer
-        popups={popups}
-        onClose={closePopup}
-        onCloseToday={closePopupToday}
-      />
+      <HomePopupLayer popups={popups} onClose={closePopup} onCloseToday={closePopupToday} />
 
       <main
         className={`min-h-screen bg-white pt-[4.25rem] text-[#0D1B2A] transition-opacity duration-500 ${
@@ -438,9 +426,7 @@ export default function Home() {
           <HeroSection banners={banners} sideBanners={sideBanners} />
         )}
 
-        {universities.length > 0 && (
-          <AcceptanceSection universities={universities} />
-        )}
+        {universities.length > 0 && <AcceptanceSection universities={universities} />}
 
         {services.length > 0 && <ServicesSection services={services} />}
 

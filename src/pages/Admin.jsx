@@ -34,19 +34,19 @@ const MENU_GROUPS = [
       { key: 'pageContents', label: '세부 페이지 관리' }
     ]
   },
-{
-  title: '게시판 관리',
-  items: [
-    { key: 'notices', label: '공지사항' },
-    { key: 'companyNews', label: '회사소식' },
-    { key: 'admissionSusiJungsi', label: '수시·정시' },
-    { key: 'admissionGuidelines', label: '대학별 모집요강' },
-    { key: 'admissionResults', label: '입결정보' },
-    { key: 'galleries', label: '교육컬럼' },
-    { key: 'faqs', label: '자주하는질문' },
-    { key: 'freeDiagnosis', label: '무료진단 관리' }
-  ]
-},
+  {
+    title: '게시판 관리',
+    items: [
+      { key: 'notices', label: '공지사항' },
+      { key: 'companyNews', label: '회사소식' },
+      { key: 'admissionSusiJungsi', label: '수시·정시' },
+      { key: 'admissionGuidelines', label: '대학별 모집요강' },
+      { key: 'admissionResults', label: '입결정보' },
+      { key: 'galleries', label: '교육컬럼' },
+      { key: 'faqs', label: '자주하는질문' },
+      { key: 'freeDiagnosis', label: '무료진단 관리' }
+    ]
+  },
   {
     title: '회원 관리',
     items: [
@@ -55,12 +55,12 @@ const MENU_GROUPS = [
     ]
   },
   {
-  title: '프로그램 관리',
-  items: [
-    { key: 'dailyEntries', label: '일일 입장' },
-    { key: 'usageStatus', label: '이용 현황' }
-  ]
-},
+    title: '프로그램 관리',
+    items: [
+      { key: 'dailyEntries', label: '일일 입장' },
+      { key: 'usageStatus', label: '이용 현황' }
+    ]
+  },
   {
     title: '위닝관리',
     items: [
@@ -85,13 +85,13 @@ const MENU_GROUPS = [
 ];
 
 const CONFIGS = {
-popups: {
+  popups: {
     title: '팝업 관리',
     table: 'popups',
     searchPlaceholder: '팝업 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-  guideText: `PC 팝업 이미지: 900px × 1200px/ 비율: 3:4/ 형식: JPG 또는 PNG/ 권장 용량: 1~2MB 이하`,
+    guideText: `PC 팝업 이미지: 900px × 1200px/ 비율: 3:4/ 형식: JPG 또는 PNG/ 권장 용량: 1~2MB 이하`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_url', label: 'PC 이미지', type: 'image' },
@@ -125,12 +125,12 @@ popups: {
   },
 
   banners: {
-  title: '배너 관리',
-  table: 'banners',
-  searchPlaceholder: '배너 제목을 검색하세요',
-  order: 'sort_order',
-  homepage: true,
-  guideText: `랜딩에는 활성 배너 중 sort_order 최상위 1건만 노출됩니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
+    title: '배너 관리',
+    table: 'banners',
+    searchPlaceholder: '배너 제목을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `랜딩에는 활성 배너 중 sort_order 최상위 1건만 노출됩니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
     columns: [
       { key: 'image_url', label: '이미지', type: 'image' },
       { key: 'title', label: '제목' },
@@ -166,7 +166,6 @@ popups: {
       sort_order: 1
     }
   },
-
 
   sideBanners: {
     title: '우측 소형 배너',
@@ -253,7 +252,12 @@ popups: {
         required: true,
         help: '사진 대체 텍스트("○○○ 멘토")로 사용됩니다'
       },
-      { key: 'badge', label: '배지(기수)', type: 'text', help: '카드 상단 진한 글씨 (예: 위닝 8기)' },
+      {
+        key: 'badge',
+        label: '배지(기수)',
+        type: 'text',
+        help: '카드 상단 진한 글씨 (예: 위닝 8기)'
+      },
       {
         key: 'title_lines',
         label: '소개 문구(줄 단위)',
@@ -272,9 +276,24 @@ popups: {
         folder: 'landing/mentors/photos',
         cacheControl: '31536000, immutable'
       },
-      { key: 'card_width', label: '카드 너비(px)', type: 'number', help: '기본 210 / 와이드 카드만 230' },
-      { key: 'photo_top', label: '사진 top(px)', type: 'number', help: '카드 좌상단 기준 세로 오프셋' },
-      { key: 'photo_left', label: '사진 left(px)', type: 'number', help: '카드 좌상단 기준 가로 오프셋' },
+      {
+        key: 'card_width',
+        label: '카드 너비(px)',
+        type: 'number',
+        help: '기본 210 / 와이드 카드만 230'
+      },
+      {
+        key: 'photo_top',
+        label: '사진 top(px)',
+        type: 'number',
+        help: '카드 좌상단 기준 세로 오프셋'
+      },
+      {
+        key: 'photo_left',
+        label: '사진 left(px)',
+        type: 'number',
+        help: '카드 좌상단 기준 가로 오프셋'
+      },
       { key: 'photo_width', label: '사진 너비(px)', type: 'number' },
       { key: 'photo_height', label: '사진 높이(px)', type: 'number' },
       {
@@ -371,63 +390,63 @@ popups: {
   },
 
   pageContents: {
-  title: '세부 페이지 관리',
-  table: 'page_contents',
-  searchPlaceholder: '메뉴명, 페이지명, 주소를 검색하세요',
-  order: 'sort_order',
-  homepage: true,
-  guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results`,
-  columns: [
-  { key: 'menu_group_order', label: '상위 순서' },
-  { key: 'menu_group', label: '상위 메뉴' },
-  { key: 'sort_order', label: '하위 순서' },
-  { key: 'menu_label', label: '하위 메뉴' },
-  { key: 'slug', label: '페이지 주소' },
-  { key: 'title', label: '제목' },
-  { key: 'is_active', label: '노출', type: 'boolean' },
-  { key: 'image_urls', label: '하단 이미지', type: 'imageList' }
-],
-  fields: [
-  { key: 'menu_group_order', label: '상위 메뉴 순서', type: 'number' },
-  {
-    key: 'menu_group',
-    label: '상위 메뉴명',
-    type: 'text',
-    required: true
+    title: '세부 페이지 관리',
+    table: 'page_contents',
+    searchPlaceholder: '메뉴명, 페이지명, 주소를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results`,
+    columns: [
+      { key: 'menu_group_order', label: '상위 순서' },
+      { key: 'menu_group', label: '상위 메뉴' },
+      { key: 'sort_order', label: '하위 순서' },
+      { key: 'menu_label', label: '하위 메뉴' },
+      { key: 'slug', label: '페이지 주소' },
+      { key: 'title', label: '제목' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'image_urls', label: '하단 이미지', type: 'imageList' }
+    ],
+    fields: [
+      { key: 'menu_group_order', label: '상위 메뉴 순서', type: 'number' },
+      {
+        key: 'menu_group',
+        label: '상위 메뉴명',
+        type: 'text',
+        required: true
+      },
+      { key: 'sort_order', label: '하위 메뉴 순서', type: 'number' },
+      { key: 'menu_label', label: '하위 메뉴명', type: 'text', required: true },
+      { key: 'slug', label: '페이지 주소', type: 'text', required: true },
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+
+      { key: 'title', label: '제목', type: 'text', required: true },
+      { key: 'subtitle', label: '부제목', type: 'textarea' },
+
+      { key: 'image_url', label: '상단 이미지', type: 'image' },
+
+      { key: 'body', label: '본문 내용', type: 'textarea' },
+
+      { key: 'image_urls', label: '하단 이미지', type: 'multiImage' },
+
+      { key: 'button_text', label: '버튼명', type: 'text' },
+      { key: 'button_link', label: '버튼 링크', type: 'text' }
+    ],
+    defaults: {
+      menu_group_order: 1,
+      menu_group: '서비스',
+      sort_order: 1,
+      menu_label: '',
+      slug: '',
+      is_active: true,
+      title: '',
+      subtitle: '',
+      body: '',
+      image_url: '',
+      image_urls: [],
+      button_text: '',
+      button_link: ''
+    }
   },
-  { key: 'sort_order', label: '하위 메뉴 순서', type: 'number' },
-  { key: 'menu_label', label: '하위 메뉴명', type: 'text', required: true },
-  { key: 'slug', label: '페이지 주소', type: 'text', required: true },
-  { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-
-  { key: 'title', label: '제목', type: 'text', required: true },
-  { key: 'subtitle', label: '부제목', type: 'textarea' },
-
-  { key: 'image_url', label: '상단 이미지', type: 'image' },
-
-  { key: 'body', label: '본문 내용', type: 'textarea' },
-
-  { key: 'image_urls', label: '하단 이미지', type: 'multiImage' },
-
-  { key: 'button_text', label: '버튼명', type: 'text' },
-  { key: 'button_link', label: '버튼 링크', type: 'text' }
-],
-  defaults: {
-  menu_group_order: 1,
-  menu_group: '서비스',
-  sort_order: 1,
-  menu_label: '',
-  slug: '',
-  is_active: true,
-  title: '',
-  subtitle: '',
-  body: '',
-  image_url: '',
-  image_urls: [],
-  button_text: '',
-  button_link: ''
-}
-},
 
   notices: {
     title: '공지사항',
@@ -530,113 +549,112 @@ popups: {
     }
   },
 
+  admissionGuidelines: {
+    title: '대학별 모집요강',
+    table: 'admission_university_resources',
+    searchPlaceholder: '대학명, 지역, 전형 내용을 검색하세요',
+    order: 'university_name',
+    homepage: true,
+    excel: true,
+    guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
 
-admissionGuidelines: {
-  title: '대학별 모집요강',
-  table: 'admission_university_resources',
-  searchPlaceholder: '대학명, 지역, 전형 내용을 검색하세요',
-  order: 'university_name',
-  homepage: true,
-  excel: true,
-  guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
+    columns: [
+      { key: 'admission_year', label: '연도' },
+      { key: 'region', label: '지역' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'matched_hwp_name', label: '원문 대학명' },
+      { key: 'detail_status', label: '상태' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
 
-  columns: [
-    { key: 'admission_year', label: '연도' },
-    { key: 'region', label: '지역' },
-    { key: 'university_name', label: '대학명' },
-    { key: 'matched_hwp_name', label: '원문 대학명' },
-    { key: 'detail_status', label: '상태' },
-    { key: 'is_active', label: '노출', type: 'boolean' }
-  ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
 
-  fields: [
-    { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'admission_year', label: '입학연도', type: 'number', required: true },
+      { key: 'region', label: '지역', type: 'text', required: true },
+      { key: 'university_name', label: '대학명', type: 'text', required: true },
+      { key: 'university_key', label: '대학 키값', type: 'text', required: true },
+      { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
 
-    { key: 'admission_year', label: '입학연도', type: 'number', required: true },
-    { key: 'region', label: '지역', type: 'text', required: true },
-    { key: 'university_name', label: '대학명', type: 'text', required: true },
-    { key: 'university_key', label: '대학 키값', type: 'text', required: true },
-    { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
+      {
+        key: 'previous_year_changes',
+        label: '전년도와 차이점(수시)(HTML)',
+        type: 'textarea',
+        rows: 8
+      },
+      {
+        key: 'selection_method',
+        label: '전형방법(HTML 표)',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'minimum_requirements',
+        label: '최저학력기준(HTML 표)',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'exam_schedule',
+        label: '대학별고사일(HTML 표)',
+        type: 'textarea',
+        rows: 10
+      },
+      {
+        key: 'school_record_method',
+        label: '학생부반영방법(HTML)',
+        type: 'textarea',
+        rows: 14
+      },
+      {
+        key: 'recruitment_quota',
+        label: '모집인원 버튼명',
+        type: 'text'
+      },
+      {
+        key: 'recruitment_result_html',
+        label: '모집인원 및 입결(HTML 표)',
+        type: 'textarea',
+        rows: 18
+      },
+      {
+        key: 'jungsi_guideline_url',
+        label: '정시모집요강 URL',
+        type: 'text'
+      },
+      {
+        key: 'memo',
+        label: '메모',
+        type: 'textarea',
+        rows: 5
+      },
+      {
+        key: 'detail_status',
+        label: '상태',
+        type: 'select',
+        options: ['상세입력완료', '재가공필요', 'HWP상세페이지미확인']
+      }
+    ],
 
-    {
-      key: 'previous_year_changes',
-      label: '전년도와 차이점(수시)(HTML)',
-      type: 'textarea',
-      rows: 8
-    },
-    {
-      key: 'selection_method',
-      label: '전형방법(HTML 표)',
-      type: 'textarea',
-      rows: 12
-    },
-    {
-      key: 'minimum_requirements',
-      label: '최저학력기준(HTML 표)',
-      type: 'textarea',
-      rows: 12
-    },
-    {
-      key: 'exam_schedule',
-      label: '대학별고사일(HTML 표)',
-      type: 'textarea',
-      rows: 10
-    },
-    {
-      key: 'school_record_method',
-      label: '학생부반영방법(HTML)',
-      type: 'textarea',
-      rows: 14
-    },
-    {
-      key: 'recruitment_quota',
-      label: '모집인원 버튼명',
-      type: 'text'
-    },
-    {
-      key: 'recruitment_result_html',
-      label: '모집인원 및 입결(HTML 표)',
-      type: 'textarea',
-      rows: 18
-    },
-    {
-      key: 'jungsi_guideline_url',
-      label: '정시모집요강 URL',
-      type: 'text'
-    },
-    {
-      key: 'memo',
-      label: '메모',
-      type: 'textarea',
-      rows: 5
-    },
-    {
-      key: 'detail_status',
-      label: '상태',
-      type: 'select',
-      options: ['상세입력완료', '재가공필요', 'HWP상세페이지미확인']
+    defaults: {
+      is_active: true,
+      admission_year: 2027,
+      region: '',
+      university_name: '',
+      university_key: '',
+      matched_hwp_name: '',
+      previous_year_changes: '',
+      selection_method: '',
+      minimum_requirements: '',
+      exam_schedule: '',
+      school_record_method: '',
+      recruitment_quota: '모집인원 및 입결',
+      recruitment_result_html: '',
+      jungsi_guideline_url: '',
+      memo: '',
+      detail_status: '상세입력완료'
     }
-  ],
-
-  defaults: {
-    is_active: true,
-    admission_year: 2027,
-    region: '',
-    university_name: '',
-    university_key: '',
-    matched_hwp_name: '',
-    previous_year_changes: '',
-    selection_method: '',
-    minimum_requirements: '',
-    exam_schedule: '',
-    school_record_method: '',
-    recruitment_quota: '모집인원 및 입결',
-    recruitment_result_html: '',
-    jungsi_guideline_url: '',
-    memo: '',
-    detail_status: '상세입력완료'
-  }
-},
+  },
 
   admissionResults: {
     title: '입결정보',
@@ -666,7 +684,12 @@ admissionGuidelines: {
       { key: 'college', label: '단과대학', type: 'text' },
       { key: 'department', label: '모집단위', type: 'text', required: true },
       { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'] },
-      { key: 'screening_category', label: '전형유형', type: 'select', options: ['학생부교과', '학생부종합', '정시', '실기', '기타'] },
+      {
+        key: 'screening_category',
+        label: '전형유형',
+        type: 'select',
+        options: ['학생부교과', '학생부종합', '정시', '실기', '기타']
+      },
       { key: 'admission_track', label: '전형명', type: 'text' },
       { key: 'selection_name', label: '세부 전형명', type: 'text' },
       { key: 'score_basis', label: '발표 기준', type: 'text' },
@@ -733,7 +756,13 @@ admissionGuidelines: {
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'category', label: '구분', type: 'select', options: ['susi', 'jungsi'], required: true },
+      {
+        key: 'category',
+        label: '구분',
+        type: 'select',
+        options: ['susi', 'jungsi'],
+        required: true
+      },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'show_on_home', label: '메인 합격생 영역에 노출', type: 'checkbox' },
@@ -894,14 +923,14 @@ admissionGuidelines: {
       sort_order: 1
     }
   },
-  
+
   galleries: {
-  title: '교육컬럼',
-  table: 'galleries',
-  searchPlaceholder: '교육컬럼 제목을 검색하세요',
-  order: 'created_at',
-  homepage: true,
-  guideText: `교육컬럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
+    title: '교육컬럼',
+    table: 'galleries',
+    searchPlaceholder: '교육컬럼 제목을 검색하세요',
+    order: 'created_at',
+    homepage: true,
+    guideText: `교육컬럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
@@ -968,7 +997,12 @@ admissionGuidelines: {
       { key: 'region', label: '거주구분', type: 'select', options: ['관내', '관외'] },
       { key: 'school_type', label: '학교구분', type: 'text' },
       { key: 'school_name', label: '학교명', type: 'text' },
-      { key: 'member_type', label: '회원유형', type: 'select', options: ['학생', '학부모', '일반'] },
+      {
+        key: 'member_type',
+        label: '회원유형',
+        type: 'select',
+        options: ['학생', '학부모', '일반']
+      },
       { key: 'role', label: '권한', type: 'select', options: ['user', 'admin'] },
       { key: 'is_active', label: '사용 여부', type: 'radioBoolean' },
       { key: 'sms_agreed', label: 'SMS수신동의', type: 'checkbox' },
@@ -979,101 +1013,117 @@ admissionGuidelines: {
   },
 
   enrollments: {
-  title: '수강 신청 내역',
-  table: 'enrollments',
-  searchPlaceholder: '수강생, 보호자, 프로그램 검색',
-  order: 'created_at',
-  excel: true,
-  columns: [
-    { key: 'term_name', label: '학기' },
-    { key: 'category_name', label: '종목' },
-    { key: 'program_name', label: '프로그램' },
-    { key: 'class_name', label: '클래스' },
-    { key: 'guardian_name', label: '보호자' },
-    { key: 'student_name', label: '수강생' },
-    { key: 'payment_status', label: '납부상태' },
-    { key: 'price', label: '수강료', type: 'money' },
-    { key: 'discount_amount', label: '감면액', type: 'money' },
-    { key: 'paid_amount', label: '납부액', type: 'money' },
-    { key: 'created_at', label: '신청일', type: 'date' }
-  ],
-  fields: [
-    { key: 'term_name', label: '학기', type: 'text' },
-    { key: 'category_name', label: '종목', type: 'text' },
-    { key: 'program_name', label: '프로그램', type: 'text' },
-    { key: 'class_name', label: '클래스', type: 'text' },
-    { key: 'guardian_name', label: '보호자', type: 'text' },
-    { key: 'student_name', label: '수강생', type: 'text', required: true },
-    { key: 'phone', label: '연락처', type: 'text' },
-    { key: 'grade', label: '학년', type: 'text' },
-    { key: 'school_name', label: '학교명', type: 'text' },
-    {
-      key: 'payment_status',
-      label: '납부상태',
-      type: 'select',
-      options: ['납부대기', '납부완료', '미납', '취소요청', '환불완료']
-    },
-    { key: 'price', label: '수강료', type: 'number' },
-    { key: 'discount_amount', label: '감면액', type: 'number' },
-    { key: 'paid_amount', label: '납부액', type: 'number' },
-    { key: 'memo', label: '비고', type: 'textarea' }
-  ],
-  defaults: {
-    payment_status: '납부대기',
-    price: 0,
-    discount_amount: 0,
-    paid_amount: 0
-  }
-},
+    title: '수강 신청 내역',
+    table: 'enrollments',
+    searchPlaceholder: '수강생, 보호자, 프로그램 검색',
+    order: 'created_at',
+    excel: true,
+    columns: [
+      { key: 'term_name', label: '학기' },
+      { key: 'category_name', label: '종목' },
+      { key: 'program_name', label: '프로그램' },
+      { key: 'class_name', label: '클래스' },
+      { key: 'guardian_name', label: '보호자' },
+      { key: 'student_name', label: '수강생' },
+      { key: 'payment_status', label: '납부상태' },
+      { key: 'price', label: '수강료', type: 'money' },
+      { key: 'discount_amount', label: '감면액', type: 'money' },
+      { key: 'paid_amount', label: '납부액', type: 'money' },
+      { key: 'created_at', label: '신청일', type: 'date' }
+    ],
+    fields: [
+      { key: 'term_name', label: '학기', type: 'text' },
+      { key: 'category_name', label: '종목', type: 'text' },
+      { key: 'program_name', label: '프로그램', type: 'text' },
+      { key: 'class_name', label: '클래스', type: 'text' },
+      { key: 'guardian_name', label: '보호자', type: 'text' },
+      { key: 'student_name', label: '수강생', type: 'text', required: true },
+      { key: 'phone', label: '연락처', type: 'text' },
+      { key: 'grade', label: '학년', type: 'text' },
+      { key: 'school_name', label: '학교명', type: 'text' },
+      {
+        key: 'payment_status',
+        label: '납부상태',
+        type: 'select',
+        options: ['납부대기', '납부완료', '미납', '취소요청', '환불완료']
+      },
+      { key: 'price', label: '수강료', type: 'number' },
+      { key: 'discount_amount', label: '감면액', type: 'number' },
+      { key: 'paid_amount', label: '납부액', type: 'number' },
+      { key: 'memo', label: '비고', type: 'textarea' }
+    ],
+    defaults: {
+      payment_status: '납부대기',
+      price: 0,
+      discount_amount: 0,
+      paid_amount: 0
+    }
+  },
 
   programCategories: {
-  title: '핵심 서비스',
-  table: 'program_categories',
-  searchPlaceholder: '핵심 서비스명을 검색하세요',
-  order: 'sort_order',
-  homepage: true,
-  guideText: `랜딩 '핵심 서비스'에는 사용 중 항목이 최대 6개까지 노출됩니다. 설명 입력 시 줄바꿈(Enter)한 위치가 랜딩 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
-  columns: [
-    { key: 'name', label: '명칭' },
-    { key: 'description', label: '설명' },
-    { key: 'link', label: '연결 페이지' },
-    { key: 'icon_image_url', label: '카드 일러스트', type: 'image' },
-    { key: 'icon', label: '아이콘' },
-    { key: 'sort_order', label: '순서' },
-    { key: 'is_active', label: '사용', type: 'boolean' }
-  ],
-  fields: [
-    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-    { key: 'name', label: '명칭', type: 'text', required: true },
-    { key: 'description', label: '설명', type: 'textarea', help: '줄바꿈이 랜딩 카드에 그대로 반영' },
-    { key: 'link', label: '연결 페이지', type: 'text' },
-    {
-      key: 'icon_image_url',
-      label: '카드 일러스트 이미지',
-      type: 'image',
-      compress: true,
-      imageSpec: { maxMB: 1 },
-      folder: 'landing/services',
-      cacheControl: '31536000, immutable'
-    },
-    {
-  key: 'icon',
-  label: '아이콘',
-  type: 'select',
-  options: ['target', 'brain', 'file', 'graduation', 'chart', 'users', 'clipboard', 'edit', 'star', 'default']
-},
-    { key: 'sort_order', label: '순서', type: 'number' }
-  ],
-  defaults: {
-    is_active: true,
-    name: '',
-    description: '',
-    link: '/services',
-    icon: 'default',
-    icon_image_url: '',
-    sort_order: 1
-  }
-},
+    title: '핵심 서비스',
+    table: 'program_categories',
+    searchPlaceholder: '핵심 서비스명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `랜딩 '핵심 서비스'에는 사용 중 항목이 최대 6개까지 노출됩니다. 설명 입력 시 줄바꿈(Enter)한 위치가 랜딩 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
+    columns: [
+      { key: 'name', label: '명칭' },
+      { key: 'description', label: '설명' },
+      { key: 'link', label: '연결 페이지' },
+      { key: 'icon_image_url', label: '카드 일러스트', type: 'image' },
+      { key: 'icon', label: '아이콘' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '사용', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+      { key: 'name', label: '명칭', type: 'text', required: true },
+      {
+        key: 'description',
+        label: '설명',
+        type: 'textarea',
+        help: '줄바꿈이 랜딩 카드에 그대로 반영'
+      },
+      { key: 'link', label: '연결 페이지', type: 'text' },
+      {
+        key: 'icon_image_url',
+        label: '카드 일러스트 이미지',
+        type: 'image',
+        compress: true,
+        imageSpec: { maxMB: 1 },
+        folder: 'landing/services',
+        cacheControl: '31536000, immutable'
+      },
+      {
+        key: 'icon',
+        label: '아이콘',
+        type: 'select',
+        options: [
+          'target',
+          'brain',
+          'file',
+          'graduation',
+          'chart',
+          'users',
+          'clipboard',
+          'edit',
+          'star',
+          'default'
+        ]
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      name: '',
+      description: '',
+      link: '/services',
+      icon: 'default',
+      icon_image_url: '',
+      sort_order: 1
+    }
+  },
 
   dailyEntries: {
     title: '일일 입장',
@@ -1138,134 +1188,134 @@ admissionGuidelines: {
   },
 
   winningSuhaengTopicDb: {
-  title: '위닝 수행 주제 DB',
-  table: 'winning_assessment_knowledge_items',
-  searchPlaceholder: '학년, 교과군, 진로, 주제 패턴명, 관련 자료를 검색하세요',
-  order: 'created_at',
-  excel: true,
-  fixedValues: { knowledge_type: 'topic_pattern' },
-  columns: [
-    { key: 'grade', label: '학년' },
-    { key: 'subject', label: '교과군' },
-    { key: 'career_field', label: '진로분야' },
-    { key: 'title', label: '주제 패턴명 / 관련 자료' },
-    { key: 'source', label: '출처' },
-    { key: 'is_active', label: '사용', type: 'boolean' },
-    { key: 'created_at', label: '등록일', type: 'date' }
-  ],
-  fields: [
-    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-    {
-      key: 'grade',
-      label: '학년',
-      type: 'select',
-      options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
-      required: true
-    },
-    {
-      key: 'subject',
-      label: '교과군',
-      type: 'select',
-      options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
-      required: true
-    },
-    { key: 'career_field', label: '진로분야', type: 'text' },
-    {
-      key: 'title',
-      label: '주제 패턴명 / 관련 자료',
-      type: 'text',
-      required: true
-    },
-    {
-      key: 'content',
-      label: '주제 추천 패턴 내용',
-      type: 'textarea',
-      required: true
-    },
-    { key: 'source', label: '출처', type: 'text' },
-    {
-      key: 'memo',
-      label: '메모',
-      type: 'textarea'
+    title: '위닝 수행 주제 DB',
+    table: 'winning_assessment_knowledge_items',
+    searchPlaceholder: '학년, 교과군, 진로, 주제 패턴명, 관련 자료를 검색하세요',
+    order: 'created_at',
+    excel: true,
+    fixedValues: { knowledge_type: 'topic_pattern' },
+    columns: [
+      { key: 'grade', label: '학년' },
+      { key: 'subject', label: '교과군' },
+      { key: 'career_field', label: '진로분야' },
+      { key: 'title', label: '주제 패턴명 / 관련 자료' },
+      { key: 'source', label: '출처' },
+      { key: 'is_active', label: '사용', type: 'boolean' },
+      { key: 'created_at', label: '등록일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+      {
+        key: 'grade',
+        label: '학년',
+        type: 'select',
+        options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
+        required: true
+      },
+      {
+        key: 'subject',
+        label: '교과군',
+        type: 'select',
+        options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
+        required: true
+      },
+      { key: 'career_field', label: '진로분야', type: 'text' },
+      {
+        key: 'title',
+        label: '주제 패턴명 / 관련 자료',
+        type: 'text',
+        required: true
+      },
+      {
+        key: 'content',
+        label: '주제 추천 패턴 내용',
+        type: 'textarea',
+        required: true
+      },
+      { key: 'source', label: '출처', type: 'text' },
+      {
+        key: 'memo',
+        label: '메모',
+        type: 'textarea'
+      }
+    ],
+    defaults: {
+      is_active: true,
+      grade: '확인 필요',
+      subject: '확인 필요',
+      knowledge_type: 'topic_pattern',
+      career_field: '',
+      title: '',
+      content: '',
+      source: '선배 생기부 PDF / 내부 우수사례',
+      memo: ''
     }
-  ],
-  defaults: {
-    is_active: true,
-    grade: '확인 필요',
-    subject: '확인 필요',
-    knowledge_type: 'topic_pattern',
-    career_field: '',
-    title: '',
-    content: '',
-    source: '선배 생기부 PDF / 내부 우수사례',
-    memo: ''
-  }
-},
+  },
 
- winningSuhaengResourceDb: {
-  title: '위닝 수행 자료 DB',
-  table: 'winning_assessment_knowledge_items',
-  searchPlaceholder: '학년, 교과군, 진로, 실제 자료명, 검색 키워드, 출처를 검색하세요',
-  order: 'created_at',
-  excel: true,
-  fixedValues: { knowledge_type: 'verified_resource' },
-  columns: [
-    { key: 'grade', label: '학년' },
-    { key: 'subject', label: '교과군' },
-    { key: 'career_field', label: '진로분야' },
-    { key: 'title', label: '실제 자료명 / 검색 키워드' },
-    { key: 'source', label: '저자·기관·링크·출처' },
-    { key: 'is_active', label: '사용', type: 'boolean' },
-    { key: 'created_at', label: '등록일', type: 'date' }
-  ],
-  fields: [
-    { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
-    {
-      key: 'grade',
-      label: '학년',
-      type: 'select',
-      options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
-      required: true
-    },
-    {
-      key: 'subject',
-      label: '교과군',
-      type: 'select',
-      options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
-      required: true
-    },
-    { key: 'career_field', label: '진로분야', type: 'text' },
-    {
-      key: 'title',
-      label: '실제 자료명 / 검색 키워드',
-      type: 'text',
-      required: true
-    },
-    {
-      key: 'content',
-      label: '자료 핵심 내용 / 활용 방식 / 주의점',
-      type: 'textarea',
-      required: true
-    },
-    {
-      key: 'source',
-      label: '저자·기관·링크·출처 정보',
-      type: 'text'
-    },
-    { key: 'memo', label: '메모', type: 'textarea' }
-  ],
-  defaults: {
-    is_active: true,
-    grade: '확인 필요',
-    subject: '확인 필요',
-    knowledge_type: 'verified_resource',
-    career_field: '',
-    title: '',
-    content: '',
-    source: '',
-    memo: ''
-  }
-},
+  winningSuhaengResourceDb: {
+    title: '위닝 수행 자료 DB',
+    table: 'winning_assessment_knowledge_items',
+    searchPlaceholder: '학년, 교과군, 진로, 실제 자료명, 검색 키워드, 출처를 검색하세요',
+    order: 'created_at',
+    excel: true,
+    fixedValues: { knowledge_type: 'verified_resource' },
+    columns: [
+      { key: 'grade', label: '학년' },
+      { key: 'subject', label: '교과군' },
+      { key: 'career_field', label: '진로분야' },
+      { key: 'title', label: '실제 자료명 / 검색 키워드' },
+      { key: 'source', label: '저자·기관·링크·출처' },
+      { key: 'is_active', label: '사용', type: 'boolean' },
+      { key: 'created_at', label: '등록일', type: 'date' }
+    ],
+    fields: [
+      { key: 'is_active', label: '사용 여부', type: 'radioBoolean', required: true },
+      {
+        key: 'grade',
+        label: '학년',
+        type: 'select',
+        options: ['고1', '고2', '고3', '공통', '전체', '확인 필요'],
+        required: true
+      },
+      {
+        key: 'subject',
+        label: '교과군',
+        type: 'select',
+        options: ['국어', '수학', '영어', '사회역사', '과학', '정보', '공통', '전체', '확인 필요'],
+        required: true
+      },
+      { key: 'career_field', label: '진로분야', type: 'text' },
+      {
+        key: 'title',
+        label: '실제 자료명 / 검색 키워드',
+        type: 'text',
+        required: true
+      },
+      {
+        key: 'content',
+        label: '자료 핵심 내용 / 활용 방식 / 주의점',
+        type: 'textarea',
+        required: true
+      },
+      {
+        key: 'source',
+        label: '저자·기관·링크·출처 정보',
+        type: 'text'
+      },
+      { key: 'memo', label: '메모', type: 'textarea' }
+    ],
+    defaults: {
+      is_active: true,
+      grade: '확인 필요',
+      subject: '확인 필요',
+      knowledge_type: 'verified_resource',
+      career_field: '',
+      title: '',
+      content: '',
+      source: '',
+      memo: ''
+    }
+  },
 
   winningSetukDb: {
     title: '위닝 세특 DB',
@@ -1279,7 +1329,7 @@ admissionGuidelines: {
     description: '추후 별도 Supabase와 연동 예정입니다. 현재는 메뉴명만 선반영했습니다.'
   },
 
-   winningStudentRecordDb: {
+  winningStudentRecordDb: {
     title: '위닝 생기부 DB',
     table: 'winning_assessment_knowledge_items',
     searchPlaceholder: '학년, 교과군, 진로, 생기부 패턴, 자료명을 검색하세요',
@@ -1489,7 +1539,6 @@ admissionGuidelines: {
   }
 };
 
-
 const QUESTION_EMPTY = {
   title: '',
   description: '',
@@ -1544,9 +1593,11 @@ function boolValue(value) {
   return Boolean(value);
 }
 
-
 const WINNING_RAG_KNOWLEDGE_TYPES = new Set(['topic_pattern', 'verified_resource']);
-const WINNING_EMBED_API_BASE = String(import.meta.env?.VITE_RAG_API_BASE_URL || '').replace(/\/$/, '');
+const WINNING_EMBED_API_BASE = String(import.meta.env?.VITE_RAG_API_BASE_URL || '').replace(
+  /\/$/,
+  ''
+);
 
 function shouldRequestWinningEmbedding(config, row) {
   if (!config || config.table !== 'winning_assessment_knowledge_items') return false;
@@ -1846,27 +1897,27 @@ function FreeDiagnosisAdmin() {
     const nextPrograms = programRes.data || [];
 
     setQuestions(nextQuestions);
-setOptions(nextOptions);
-setPrograms(nextPrograms);
-setOpenQuestions(new Set(nextQuestions.map((question) => question.id)));
+    setOptions(nextOptions);
+    setPrograms(nextPrograms);
+    setOpenQuestions(new Set(nextQuestions.map((question) => question.id)));
 
-setNewQuestion((prev) => {
-  if (String(prev.title || '').trim()) return prev;
+    setNewQuestion((prev) => {
+      if (String(prev.title || '').trim()) return prev;
 
-  return {
-    ...prev,
-    sort_order: getNextSortOrder(nextQuestions)
-  };
-});
+      return {
+        ...prev,
+        sort_order: getNextSortOrder(nextQuestions)
+      };
+    });
 
-setNewProgram((prev) => {
-  if (String(prev.title || '').trim()) return prev;
+    setNewProgram((prev) => {
+      if (String(prev.title || '').trim()) return prev;
 
-  return {
-    ...prev,
-    sort_order: getNextSortOrder(nextPrograms)
-  };
-});
+      return {
+        ...prev,
+        sort_order: getNextSortOrder(nextPrograms)
+      };
+    });
   }
 
   useEffect(() => {
@@ -1874,15 +1925,21 @@ setNewProgram((prev) => {
   }, []);
 
   function updateQuestionLocal(id, patch) {
-    setQuestions((prev) => prev.map((question) => (question.id === id ? { ...question, ...patch } : question)));
+    setQuestions((prev) =>
+      prev.map((question) => (question.id === id ? { ...question, ...patch } : question))
+    );
   }
 
   function updateOptionLocal(id, patch) {
-    setOptions((prev) => prev.map((option) => (option.id === id ? { ...option, ...patch } : option)));
+    setOptions((prev) =>
+      prev.map((option) => (option.id === id ? { ...option, ...patch } : option))
+    );
   }
 
   function updateProgramLocal(id, patch) {
-    setPrograms((prev) => prev.map((program) => (program.id === id ? { ...program, ...patch } : program)));
+    setPrograms((prev) =>
+      prev.map((program) => (program.id === id ? { ...program, ...patch } : program))
+    );
   }
 
   function toggleQuestion(id) {
@@ -1895,41 +1952,41 @@ setNewProgram((prev) => {
   }
 
   async function createQuestion() {
-  const title = newQuestion.title.trim();
+    const title = newQuestion.title.trim();
 
-  if (!title) {
-    alert('질문 내용을 입력하세요.');
-    return;
+    if (!title) {
+      alert('질문 내용을 입력하세요.');
+      return;
+    }
+
+    const nextSortOrder = getNextSortOrder(questions);
+    const sortOrder = Number(newQuestion.sort_order || 0) || nextSortOrder;
+
+    setSaving(true);
+
+    const { error } = await supabase.from('free_diagnosis_questions').insert({
+      title,
+      description: newQuestion.description || '',
+      input_type: newQuestion.input_type || 'single',
+      is_required: boolValue(newQuestion.is_required),
+      is_active: boolValue(newQuestion.is_active),
+      sort_order: sortOrder
+    });
+
+    setSaving(false);
+
+    if (error) {
+      alert(`질문 등록 실패: ${error.message}`);
+      return;
+    }
+
+    setNewQuestion({
+      ...QUESTION_EMPTY,
+      sort_order: getNextSortOrder([...questions, { sort_order: sortOrder }])
+    });
+
+    await loadAll();
   }
-
-  const nextSortOrder = getNextSortOrder(questions);
-  const sortOrder = Number(newQuestion.sort_order || 0) || nextSortOrder;
-
-  setSaving(true);
-
-  const { error } = await supabase.from('free_diagnosis_questions').insert({
-    title,
-    description: newQuestion.description || '',
-    input_type: newQuestion.input_type || 'single',
-    is_required: boolValue(newQuestion.is_required),
-    is_active: boolValue(newQuestion.is_active),
-    sort_order: sortOrder
-  });
-
-  setSaving(false);
-
-  if (error) {
-    alert(`질문 등록 실패: ${error.message}`);
-    return;
-  }
-
-  setNewQuestion({
-    ...QUESTION_EMPTY,
-    sort_order: getNextSortOrder([...questions, { sort_order: sortOrder }])
-  });
-
-  await loadAll();
-}
 
   async function saveQuestion(question) {
     if (!String(question.title || '').trim()) {
@@ -1961,9 +2018,13 @@ setNewProgram((prev) => {
   }
 
   async function deleteQuestion(question) {
-    if (!window.confirm('질문을 삭제하면 질문 안의 답변도 함께 삭제됩니다. 삭제하시겠습니까?')) return;
+    if (!window.confirm('질문을 삭제하면 질문 안의 답변도 함께 삭제됩니다. 삭제하시겠습니까?'))
+      return;
 
-    const { error } = await supabase.from('free_diagnosis_questions').delete().eq('id', question.id);
+    const { error } = await supabase
+      .from('free_diagnosis_questions')
+      .delete()
+      .eq('id', question.id);
     if (error) {
       alert(`질문 삭제 실패: ${error.message}`);
       return;
@@ -2088,7 +2149,12 @@ setNewProgram((prev) => {
   }
 
   async function deleteProgram(program) {
-    if (!window.confirm('추천 프로그램을 삭제하면 기존 답변과의 연결도 결과에서 제외됩니다. 삭제하시겠습니까?')) return;
+    if (
+      !window.confirm(
+        '추천 프로그램을 삭제하면 기존 답변과의 연결도 결과에서 제외됩니다. 삭제하시겠습니까?'
+      )
+    )
+      return;
 
     const { error } = await supabase.from('free_diagnosis_programs').delete().eq('id', program.id);
     if (error) {
@@ -2137,23 +2203,51 @@ setNewProgram((prev) => {
               <h3 className="mb-3 text-sm font-black text-[#7A4A12]">새 추천 프로그램 추가</h3>
               <div className="grid gap-3 lg:grid-cols-2">
                 <Field label="프로그램명">
-                  <TextInput value={newProgram.title} onChange={(value) => setNewProgram((prev) => ({ ...prev, title: value }))} placeholder="예: 위닝 AI 수행평가 서비스" />
+                  <TextInput
+                    value={newProgram.title}
+                    onChange={(value) => setNewProgram((prev) => ({ ...prev, title: value }))}
+                    placeholder="예: 위닝 AI 수행평가 서비스"
+                  />
                 </Field>
                 <Field label="상단 배지">
-                  <TextInput value={newProgram.badge} onChange={(value) => setNewProgram((prev) => ({ ...prev, badge: value }))} placeholder="예: 추천 서비스 01" />
+                  <TextInput
+                    value={newProgram.badge}
+                    onChange={(value) => setNewProgram((prev) => ({ ...prev, badge: value }))}
+                    placeholder="예: 추천 서비스 01"
+                  />
                 </Field>
                 <Field label="추천 문구">
-                  <Textarea value={newProgram.description} onChange={(value) => setNewProgram((prev) => ({ ...prev, description: value }))} rows={4} />
+                  <Textarea
+                    value={newProgram.description}
+                    onChange={(value) => setNewProgram((prev) => ({ ...prev, description: value }))}
+                    rows={4}
+                  />
                 </Field>
                 <div className="grid gap-3">
                   <Field label="서비스 버튼명">
-                    <TextInput value={newProgram.primary_button_text} onChange={(value) => setNewProgram((prev) => ({ ...prev, primary_button_text: value }))} />
+                    <TextInput
+                      value={newProgram.primary_button_text}
+                      onChange={(value) =>
+                        setNewProgram((prev) => ({ ...prev, primary_button_text: value }))
+                      }
+                    />
                   </Field>
                   <Field label="서비스 링크">
-                    <TextInput value={newProgram.primary_button_link} onChange={(value) => setNewProgram((prev) => ({ ...prev, primary_button_link: value }))} placeholder="/page/services-ai-performance" />
+                    <TextInput
+                      value={newProgram.primary_button_link}
+                      onChange={(value) =>
+                        setNewProgram((prev) => ({ ...prev, primary_button_link: value }))
+                      }
+                      placeholder="/page/services-ai-performance"
+                    />
                   </Field>
                   <Field label="순서">
-                    <TextInput value={newProgram.sort_order} onChange={(value) => setNewProgram((prev) => ({ ...prev, sort_order: value }))} />
+                    <TextInput
+                      value={newProgram.sort_order}
+                      onChange={(value) =>
+                        setNewProgram((prev) => ({ ...prev, sort_order: value }))
+                      }
+                    />
                   </Field>
                 </div>
               </div>
@@ -2170,30 +2264,63 @@ setNewProgram((prev) => {
                 <div key={program.id} className="border border-gray-200 p-4">
                   <div className="grid gap-3 md:grid-cols-2">
                     <Field label="프로그램명">
-                      <TextInput value={program.title} onChange={(value) => updateProgramLocal(program.id, { title: value })} />
+                      <TextInput
+                        value={program.title}
+                        onChange={(value) => updateProgramLocal(program.id, { title: value })}
+                      />
                     </Field>
                     <Field label="상단 배지">
-                      <TextInput value={program.badge} onChange={(value) => updateProgramLocal(program.id, { badge: value })} />
+                      <TextInput
+                        value={program.badge}
+                        onChange={(value) => updateProgramLocal(program.id, { badge: value })}
+                      />
                     </Field>
                     <Field label="추천 문구">
-                      <Textarea value={program.description} onChange={(value) => updateProgramLocal(program.id, { description: value })} rows={5} />
+                      <Textarea
+                        value={program.description}
+                        onChange={(value) => updateProgramLocal(program.id, { description: value })}
+                        rows={5}
+                      />
                     </Field>
                     <div className="grid gap-3">
                       <Field label="서비스 버튼명">
-                        <TextInput value={program.primary_button_text} onChange={(value) => updateProgramLocal(program.id, { primary_button_text: value })} />
+                        <TextInput
+                          value={program.primary_button_text}
+                          onChange={(value) =>
+                            updateProgramLocal(program.id, { primary_button_text: value })
+                          }
+                        />
                       </Field>
                       <Field label="서비스 링크">
-                        <TextInput value={program.primary_button_link} onChange={(value) => updateProgramLocal(program.id, { primary_button_link: value })} />
+                        <TextInput
+                          value={program.primary_button_link}
+                          onChange={(value) =>
+                            updateProgramLocal(program.id, { primary_button_link: value })
+                          }
+                        />
                       </Field>
                       <Field label="보조 버튼명">
-                        <TextInput value={program.secondary_button_text} onChange={(value) => updateProgramLocal(program.id, { secondary_button_text: value })} />
+                        <TextInput
+                          value={program.secondary_button_text}
+                          onChange={(value) =>
+                            updateProgramLocal(program.id, { secondary_button_text: value })
+                          }
+                        />
                       </Field>
                       <Field label="보조 링크">
-                        <TextInput value={program.secondary_button_link} onChange={(value) => updateProgramLocal(program.id, { secondary_button_link: value })} />
+                        <TextInput
+                          value={program.secondary_button_link}
+                          onChange={(value) =>
+                            updateProgramLocal(program.id, { secondary_button_link: value })
+                          }
+                        />
                       </Field>
                     </div>
                     <Field label="아이콘">
-                      <Select value={program.icon} onChange={(value) => updateProgramLocal(program.id, { icon: value })}>
+                      <Select
+                        value={program.icon}
+                        onChange={(value) => updateProgramLocal(program.id, { icon: value })}
+                      >
                         <option value="target">목표관리</option>
                         <option value="book">수행평가</option>
                         <option value="chart">분석</option>
@@ -2201,13 +2328,22 @@ setNewProgram((prev) => {
                       </Select>
                     </Field>
                     <Field label="순서">
-                      <TextInput value={program.sort_order} onChange={(value) => updateProgramLocal(program.id, { sort_order: value })} />
+                      <TextInput
+                        value={program.sort_order}
+                        onChange={(value) => updateProgramLocal(program.id, { sort_order: value })}
+                      />
                     </Field>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <Toggle checked={program.is_active} onChange={(value) => updateProgramLocal(program.id, { is_active: value })} label="사용" />
+                    <Toggle
+                      checked={program.is_active}
+                      onChange={(value) => updateProgramLocal(program.id, { is_active: value })}
+                      label="사용"
+                    />
                     <div className="flex gap-2">
-                      <ActionButton onClick={() => saveProgram(program)} disabled={saving}>저장</ActionButton>
+                      <ActionButton onClick={() => saveProgram(program)} disabled={saving}>
+                        저장
+                      </ActionButton>
                       <ActionButton onClick={() => deleteProgram(program)} variant="danger">
                         <Trash2 size={14} />
                         삭제
@@ -2231,27 +2367,53 @@ setNewProgram((prev) => {
               <h3 className="mb-3 text-sm font-black text-[#7A4A12]">새 질문 추가</h3>
               <div className="grid gap-3 lg:grid-cols-[1.3fr_0.7fr_0.5fr]">
                 <Field label="질문 내용">
-                  <TextInput value={newQuestion.title} onChange={(value) => setNewQuestion((prev) => ({ ...prev, title: value }))} placeholder="예: 현재 가장 큰 학습 고민은 무엇인가요?" />
+                  <TextInput
+                    value={newQuestion.title}
+                    onChange={(value) => setNewQuestion((prev) => ({ ...prev, title: value }))}
+                    placeholder="예: 현재 가장 큰 학습 고민은 무엇인가요?"
+                  />
                 </Field>
                 <Field label="선택 방식">
-                  <Select value={newQuestion.input_type} onChange={(value) => setNewQuestion((prev) => ({ ...prev, input_type: value }))}>
+                  <Select
+                    value={newQuestion.input_type}
+                    onChange={(value) => setNewQuestion((prev) => ({ ...prev, input_type: value }))}
+                  >
                     <option value="single">단일 선택</option>
                     <option value="multiple">중복 선택</option>
                   </Select>
                 </Field>
                 <Field label="순서">
-                  <TextInput value={newQuestion.sort_order} onChange={(value) => setNewQuestion((prev) => ({ ...prev, sort_order: value }))} />
+                  <TextInput
+                    value={newQuestion.sort_order}
+                    onChange={(value) => setNewQuestion((prev) => ({ ...prev, sort_order: value }))}
+                  />
                 </Field>
               </div>
               <div className="mt-3">
                 <Field label="질문 설명">
-                  <Textarea value={newQuestion.description} onChange={(value) => setNewQuestion((prev) => ({ ...prev, description: value }))} rows={2} />
+                  <Textarea
+                    value={newQuestion.description}
+                    onChange={(value) =>
+                      setNewQuestion((prev) => ({ ...prev, description: value }))
+                    }
+                    rows={2}
+                  />
                 </Field>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex gap-4">
-                  <Toggle checked={newQuestion.is_required} onChange={(value) => setNewQuestion((prev) => ({ ...prev, is_required: value }))} label="필수 질문" />
-                  <Toggle checked={newQuestion.is_active} onChange={(value) => setNewQuestion((prev) => ({ ...prev, is_active: value }))} label="사용" />
+                  <Toggle
+                    checked={newQuestion.is_required}
+                    onChange={(value) =>
+                      setNewQuestion((prev) => ({ ...prev, is_required: value }))
+                    }
+                    label="필수 질문"
+                  />
+                  <Toggle
+                    checked={newQuestion.is_active}
+                    onChange={(value) => setNewQuestion((prev) => ({ ...prev, is_active: value }))}
+                    label="사용"
+                  />
                 </div>
                 <ActionButton onClick={createQuestion} disabled={saving}>
                   <Plus size={14} />
@@ -2274,47 +2436,88 @@ setNewProgram((prev) => {
                     >
                       <div>
                         <p className="text-xs font-black text-[#B88737]">
-  QUESTION {String(questionIndex + 1).padStart(2, '0')}
-  <span className="ml-2 text-gray-400">
-    정렬순서 {Number(question.sort_order || 0)}
-  </span>
-</p>
-                        <h3 className="mt-1 text-base font-black text-gray-900">{question.title || '질문 내용 없음'}</h3>
+                          QUESTION {String(questionIndex + 1).padStart(2, '0')}
+                          <span className="ml-2 text-gray-400">
+                            정렬순서 {Number(question.sort_order || 0)}
+                          </span>
+                        </p>
+                        <h3 className="mt-1 text-base font-black text-gray-900">
+                          {question.title || '질문 내용 없음'}
+                        </h3>
                         <p className="mt-1 text-xs font-bold text-gray-500">
-                          {question.input_type === 'multiple' ? '중복 선택' : '단일 선택'} · {question.is_required ? '필수' : '선택'} · 답변 {questionOptions.length}개
+                          {question.input_type === 'multiple' ? '중복 선택' : '단일 선택'} ·{' '}
+                          {question.is_required ? '필수' : '선택'} · 답변 {questionOptions.length}개
                         </p>
                       </div>
-                      <ChevronDown size={18} className={`transition ${isOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown
+                        size={18}
+                        className={`transition ${isOpen ? 'rotate-180' : ''}`}
+                      />
                     </button>
 
                     {isOpen && (
                       <div className="p-5">
                         <div className="grid gap-3 lg:grid-cols-[1.3fr_0.7fr_0.5fr]">
                           <Field label="질문 내용">
-                            <TextInput value={question.title} onChange={(value) => updateQuestionLocal(question.id, { title: value })} />
+                            <TextInput
+                              value={question.title}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { title: value })
+                              }
+                            />
                           </Field>
                           <Field label="선택 방식">
-                            <Select value={question.input_type} onChange={(value) => updateQuestionLocal(question.id, { input_type: value })}>
+                            <Select
+                              value={question.input_type}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { input_type: value })
+                              }
+                            >
                               <option value="single">단일 선택</option>
                               <option value="multiple">중복 선택</option>
                             </Select>
                           </Field>
                           <Field label="순서">
-                            <TextInput value={question.sort_order} onChange={(value) => updateQuestionLocal(question.id, { sort_order: value })} />
+                            <TextInput
+                              value={question.sort_order}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { sort_order: value })
+                              }
+                            />
                           </Field>
                         </div>
                         <div className="mt-3">
                           <Field label="질문 설명">
-                            <Textarea value={question.description} onChange={(value) => updateQuestionLocal(question.id, { description: value })} rows={2} />
+                            <Textarea
+                              value={question.description}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { description: value })
+                              }
+                              rows={2}
+                            />
                           </Field>
                         </div>
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-5">
                           <div className="flex gap-4">
-                            <Toggle checked={question.is_required} onChange={(value) => updateQuestionLocal(question.id, { is_required: value })} label="필수 질문" />
-                            <Toggle checked={question.is_active} onChange={(value) => updateQuestionLocal(question.id, { is_active: value })} label="사용" />
+                            <Toggle
+                              checked={question.is_required}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { is_required: value })
+                              }
+                              label="필수 질문"
+                            />
+                            <Toggle
+                              checked={question.is_active}
+                              onChange={(value) =>
+                                updateQuestionLocal(question.id, { is_active: value })
+                              }
+                              label="사용"
+                            />
                           </div>
                           <div className="flex gap-2">
-                            <ActionButton onClick={() => saveQuestion(question)} disabled={saving}>질문 저장</ActionButton>
+                            <ActionButton onClick={() => saveQuestion(question)} disabled={saving}>
+                              질문 저장
+                            </ActionButton>
                             <ActionButton onClick={() => deleteQuestion(question)} variant="danger">
                               <Trash2 size={14} />
                               질문 삭제
@@ -2336,10 +2539,21 @@ setNewProgram((prev) => {
                               <div key={option.id} className="rounded border border-gray-200 p-4">
                                 <div className="grid gap-3 lg:grid-cols-[1fr_120px]">
                                   <Field label="답변 내용">
-                                    <TextInput value={option.label} onChange={(value) => updateOptionLocal(option.id, { label: value })} placeholder="답변 내용을 입력하세요" />
+                                    <TextInput
+                                      value={option.label}
+                                      onChange={(value) =>
+                                        updateOptionLocal(option.id, { label: value })
+                                      }
+                                      placeholder="답변 내용을 입력하세요"
+                                    />
                                   </Field>
                                   <Field label="순서">
-                                    <TextInput value={option.sort_order} onChange={(value) => updateOptionLocal(option.id, { sort_order: value })} />
+                                    <TextInput
+                                      value={option.sort_order}
+                                      onChange={(value) =>
+                                        updateOptionLocal(option.id, { sort_order: value })
+                                      }
+                                    />
                                   </Field>
                                 </div>
 
@@ -2348,16 +2562,32 @@ setNewProgram((prev) => {
                                     <ProgramSelector
                                       programs={programs}
                                       value={option.program_ids}
-                                      onChange={(value) => updateOptionLocal(option.id, { program_ids: value })}
+                                      onChange={(value) =>
+                                        updateOptionLocal(option.id, { program_ids: value })
+                                      }
                                     />
                                   </Field>
                                 </div>
 
                                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                                  <Toggle checked={option.is_active} onChange={(value) => updateOptionLocal(option.id, { is_active: value })} label="사용" />
+                                  <Toggle
+                                    checked={option.is_active}
+                                    onChange={(value) =>
+                                      updateOptionLocal(option.id, { is_active: value })
+                                    }
+                                    label="사용"
+                                  />
                                   <div className="flex gap-2">
-                                    <ActionButton onClick={() => saveOption(option)} disabled={saving}>답변 저장</ActionButton>
-                                    <ActionButton onClick={() => deleteOption(option)} variant="danger">
+                                    <ActionButton
+                                      onClick={() => saveOption(option)}
+                                      disabled={saving}
+                                    >
+                                      답변 저장
+                                    </ActionButton>
+                                    <ActionButton
+                                      onClick={() => deleteOption(option)}
+                                      variant="danger"
+                                    >
                                       <Trash2 size={14} />
                                       삭제
                                     </ActionButton>
@@ -2416,7 +2646,9 @@ function csvEscape(value) {
 function downloadCsv(filename, rows, columns) {
   const header = columns.map((column) => csvEscape(column.label)).join(',');
   const body = rows
-    .map((row) => columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(','))
+    .map((row) =>
+      columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
+    )
     .join('\n');
 
   const blob = new Blob([`\ufeff${header}\n${body}`], {
@@ -2483,9 +2715,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-[224px] overflow-y-auto bg-[#101214] text-white">
-      <div className="border-b border-white/10 px-5 py-5 text-2xl font-black">
-        관리자
-      </div>
+      <div className="border-b border-white/10 px-5 py-5 text-2xl font-black">관리자</div>
 
       <nav className="px-4 py-5">
         {MENU_GROUPS.map((group) => {
@@ -2559,7 +2789,8 @@ function AdminTopbar({ onLogout }) {
 }
 
 function AdminInput({ field, value, onChange, disabled }) {
-  const base = 'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100';
+  const base =
+    'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100';
 
   if (field.type === 'textarea') {
     return (
@@ -2586,7 +2817,9 @@ function AdminInput({ field, value, onChange, disabled }) {
           const optionValue = typeof option === 'object' && option !== null ? option.value : option;
           const optionLabel = typeof option === 'object' && option !== null ? option.label : option;
           return (
-            <option key={optionValue} value={optionValue}>{optionLabel}</option>
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
           );
         })}
       </select>
@@ -2867,8 +3100,7 @@ function mentorRowToForm(row) {
     }
   }
 
-  const layout =
-    row.photo_layout && typeof row.photo_layout === 'object' ? row.photo_layout : null;
+  const layout = row.photo_layout && typeof row.photo_layout === 'object' ? row.photo_layout : null;
 
   const form = {
     ...row,
@@ -2960,8 +3192,7 @@ function MentorCardFormPreview({ form, onPatch }) {
 
       {isMissingRequiredFields && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
-          필수 항목(배지·소개 문구·인물 사진·사진 배치)이 비어 있어 랜딩에 카드가 노출되지
-          않습니다.
+          필수 항목(배지·소개 문구·인물 사진·사진 배치)이 비어 있어 랜딩에 카드가 노출되지 않습니다.
         </p>
       )}
 
@@ -3025,7 +3256,10 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
 
   function removeListItem(key, index) {
     const current = normalizeArray(form[key]);
-    change(key, current.filter((_, i) => i !== index));
+    change(
+      key,
+      current.filter((_, i) => i !== index)
+    );
   }
 
   function submit(e) {
@@ -3067,230 +3301,229 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
       )}
 
       {config.guideText && (
-  <p className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
-    {config.guideText}
-  </p>
-)}
+        <p className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+          {config.guideText}
+        </p>
+      )}
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-      <div className="min-w-0 flex-1 bg-white shadow">
-        {(config.fields || config.columns)
-          .filter((field) => !field.showIf || field.showIf(form))
-          .map((field) => (
-          <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
-            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
-              {field.label}
-              {field.required && <span className="ml-1 text-red-500">*</span>}
-              {field.help && (
-                <p className="mt-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
-              )}
-            </div>
-
-            <div className="px-5 py-3">
-              {readonly ? (
-                field.type === 'image' && form[field.key] ? (
-                  <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
-                ) : (
-                  <div className="py-2 text-sm">{formatValue(form[field.key], field.type)}</div>
-                )
-              ) : (
-                <>
-                   {!['file', 'multiImage', 'multiFile'].includes(field.type) &&
-                    !(field.type === 'image' && field.hideUrlInput) && (
-                    <AdminInput
-                      field={field}
-                      value={form[field.key]}
-                      onChange={change}
-                      disabled={readonly}
-                    />
+        <div className="min-w-0 flex-1 bg-white shadow">
+          {(config.fields || config.columns)
+            .filter((field) => !field.showIf || field.showIf(form))
+            .map((field) => (
+              <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
+                <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
+                  {field.label}
+                  {field.required && <span className="ml-1 text-red-500">*</span>}
+                  {field.help && (
+                    <p className="mt-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
                   )}
+                </div>
 
-                  {field.type === 'image' && (
-                    <div className="mt-3 flex items-center gap-3">
-                      {form[field.key] ? (
-                        <img
-                          src={form[field.key]}
-                          alt=""
-                          className="h-20 w-32 rounded border object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
-                          이미지 없음
-                        </div>
-                      )}
+                <div className="px-5 py-3">
+                  {readonly ? (
+                    field.type === 'image' && form[field.key] ? (
+                      <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
+                    ) : (
+                      <div className="py-2 text-sm">{formatValue(form[field.key], field.type)}</div>
+                    )
+                  ) : (
+                    <>
+                      {!['file', 'multiImage', 'multiFile'].includes(field.type) &&
+                        !(field.type === 'image' && field.hideUrlInput) && (
+                          <AdminInput
+                            field={field}
+                            value={form[field.key]}
+                            onChange={change}
+                            disabled={readonly}
+                          />
+                        )}
 
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
-                        <UploadCloud size={16} />
-                        이미지 업로드
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const uploaded = await onUpload(e.target.files?.[0], field);
-                            if (uploaded?.[0]?.url) {
-                              change(field.key, uploaded[0].url);
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  )}
-                   {field.type === 'file' && (
-                    <div className="mt-3 flex items-center gap-3">
-                      {form[field.key] ? (
-                        <a
-                          href={form[field.key]}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-10 items-center rounded border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
-                        >
-                          {form[field.nameKey] || '첨부파일 보기'}
-                        </a>
-                      ) : (
-                        <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
-                          첨부파일 없음
-                        </div>
-                      )}
-
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
-                        <UploadCloud size={16} />
-                        파일 등록
-                        <input
-                          type="file"
-                          accept={field.accept || '*'}
-                          className="hidden"
-                          onChange={async (e) => {
-                            const uploaded = await onUpload(e.target.files?.[0], field);
-                            if (uploaded?.[0]?.url) {
-                              change(field.key, uploaded[0].url);
-                              if (field.nameKey) change(field.nameKey, uploaded[0].name);
-                            }
-                          }}
-                        />
-                      </label>
-
-                      {form[field.key] && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            change(field.key, '');
-                            if (field.nameKey) change(field.nameKey, '');
-                          }}
-                          className="h-10 rounded border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 hover:bg-red-100"
-                        >
-                          삭제
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-
-                  {field.type === 'multiImage' && (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-3">
-                        {normalizeArray(form[field.key]).length > 0 ? (
-                          normalizeArray(form[field.key]).map((url, index) => (
-                            <div key={`${url}-${index}`} className="relative">
-                              <img
-                                src={url}
-                                alt=""
-                                className="h-28 w-40 rounded border object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeListItem(field.key, index)}
-                                className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
-                              >
-                                삭제
-                              </button>
+                      {field.type === 'image' && (
+                        <div className="mt-3 flex items-center gap-3">
+                          {form[field.key] ? (
+                            <img
+                              src={form[field.key]}
+                              alt=""
+                              className="h-20 w-32 rounded border object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
+                              이미지 없음
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
-                            이미지 없음
-                          </div>
-                        )}
-                      </div>
+                          )}
 
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
-                        <UploadCloud size={16} />
-                        이미지 여러 개 업로드
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => uploadMultiple(e.target.files, field)}
-                        />
-                      </label>
-                    </div>
-                  )}
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <UploadCloud size={16} />
+                            이미지 업로드
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const uploaded = await onUpload(e.target.files?.[0], field);
+                                if (uploaded?.[0]?.url) {
+                                  change(field.key, uploaded[0].url);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+                      {field.type === 'file' && (
+                        <div className="mt-3 flex items-center gap-3">
+                          {form[field.key] ? (
+                            <a
+                              href={form[field.key]}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-10 items-center rounded border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                            >
+                              {form[field.nameKey] || '첨부파일 보기'}
+                            </a>
+                          ) : (
+                            <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                              첨부파일 없음
+                            </div>
+                          )}
 
-                  {field.type === 'multiFile' && (
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        {normalizeArray(form[field.key]).length > 0 ? (
-                          normalizeArray(form[field.key]).map((item, index) => {
-                            const fileUrl = typeof item === 'string' ? item : item?.url;
-                            const fileName = item?.name || getFileNameFromUrl(fileUrl);
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <UploadCloud size={16} />
+                            파일 등록
+                            <input
+                              type="file"
+                              accept={field.accept || '*'}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const uploaded = await onUpload(e.target.files?.[0], field);
+                                if (uploaded?.[0]?.url) {
+                                  change(field.key, uploaded[0].url);
+                                  if (field.nameKey) change(field.nameKey, uploaded[0].name);
+                                }
+                              }}
+                            />
+                          </label>
 
-                            return (
-                              <div
-                                key={`${fileUrl}-${index}`}
-                                className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
-                              >
-                                <a
-                                  href={fileUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-sm font-bold text-blue-700 hover:underline"
-                                >
-                                  {fileName}
-                                </a>
+                          {form[field.key] && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                change(field.key, '');
+                                if (field.nameKey) change(field.nameKey, '');
+                              }}
+                              className="h-10 rounded border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 hover:bg-red-100"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                      )}
 
-                                <button
-                                  type="button"
-                                  onClick={() => removeListItem(field.key, index)}
-                                  className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
-                                >
-                                  삭제
-                                </button>
+                      {field.type === 'multiImage' && (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-3">
+                            {normalizeArray(form[field.key]).length > 0 ? (
+                              normalizeArray(form[field.key]).map((url, index) => (
+                                <div key={`${url}-${index}`} className="relative">
+                                  <img
+                                    src={url}
+                                    alt=""
+                                    className="h-28 w-40 rounded border object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeListItem(field.key, index)}
+                                    className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
+                                이미지 없음
                               </div>
-                            );
-                          })
-                        ) : (
-                          <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
-                            첨부파일 없음
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
-                        <UploadCloud size={16} />
-                        파일 여러 개 등록
-                        <input
-                          type="file"
-                          accept={field.accept || '*'}
-                          multiple
-                          className="hidden"
-                          onChange={(e) => uploadMultiple(e.target.files, field)}
-                        />
-                      </label>
-                    </div>
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <UploadCloud size={16} />
+                            이미지 여러 개 업로드
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => uploadMultiple(e.target.files, field)}
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {field.type === 'multiFile' && (
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            {normalizeArray(form[field.key]).length > 0 ? (
+                              normalizeArray(form[field.key]).map((item, index) => {
+                                const fileUrl = typeof item === 'string' ? item : item?.url;
+                                const fileName = item?.name || getFileNameFromUrl(fileUrl);
+
+                                return (
+                                  <div
+                                    key={`${fileUrl}-${index}`}
+                                    className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
+                                  >
+                                    <a
+                                      href={fileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm font-bold text-blue-700 hover:underline"
+                                    >
+                                      {fileName}
+                                    </a>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => removeListItem(field.key, index)}
+                                      className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                                첨부파일 없음
+                              </div>
+                            )}
+                          </div>
+
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <UploadCloud size={16} />
+                            파일 여러 개 등록
+                            <input
+                              type="file"
+                              accept={field.accept || '*'}
+                              multiple
+                              className="hidden"
+                              onChange={(e) => uploadMultiple(e.target.files, field)}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {config.FormPreview && (
-        <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
-          <config.FormPreview form={form} onPatch={patch} />
+                </div>
+              </div>
+            ))}
         </div>
-      )}
+
+        {config.FormPreview && (
+          <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
+            <config.FormPreview form={form} onPatch={patch} />
+          </div>
+        )}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
@@ -3303,10 +3536,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         </button>
 
         {!readonly && (
-          <button
-            type="submit"
-            className="h-10 bg-[#2348ff] px-5 text-sm font-black text-white"
-          >
+          <button type="submit" className="h-10 bg-[#2348ff] px-5 text-sm font-black text-white">
             저장
           </button>
         )}
@@ -3438,7 +3668,11 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
           <button type="button" onClick={() => setPage(1)} className="h-9 w-10 border-r">
             <ChevronsLeft size={15} className="mx-auto" />
           </button>
-          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} className="h-9 w-10 border-r">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="h-9 w-10 border-r"
+          >
             <ChevronLeft size={15} className="mx-auto" />
           </button>
 
@@ -3455,7 +3689,11 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
             </button>
           ))}
 
-          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="h-9 w-10 border-r">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="h-9 w-10 border-r"
+          >
             <ChevronRight size={15} className="mx-auto" />
           </button>
           <button type="button" onClick={() => setPage(totalPages)} className="h-9 w-10">
@@ -3470,10 +3708,22 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
 function MoneySummary({ activeKey, rows }) {
   if (!['payments', 'settlements', 'dailySettlements', 'refunds'].includes(activeKey)) return null;
 
-  const sale = rows.reduce((sum, row) => sum + Number(row.sale_amount || row.total_sale_amount || 0), 0);
-  const discount = rows.reduce((sum, row) => sum + Number(row.discount_amount || row.total_discount_amount || 0), 0);
-  const paid = rows.reduce((sum, row) => sum + Number(row.paid_amount || row.total_paid_amount || 0), 0);
-  const refund = rows.reduce((sum, row) => sum + Number(row.refund_amount || row.total_refund_amount || 0), 0);
+  const sale = rows.reduce(
+    (sum, row) => sum + Number(row.sale_amount || row.total_sale_amount || 0),
+    0
+  );
+  const discount = rows.reduce(
+    (sum, row) => sum + Number(row.discount_amount || row.total_discount_amount || 0),
+    0
+  );
+  const paid = rows.reduce(
+    (sum, row) => sum + Number(row.paid_amount || row.total_paid_amount || 0),
+    0
+  );
+  const refund = rows.reduce(
+    (sum, row) => sum + Number(row.refund_amount || row.total_refund_amount || 0),
+    0
+  );
 
   return (
     <div className="mb-6 grid grid-cols-4 bg-white text-center text-sm shadow">
@@ -3515,64 +3765,64 @@ export default function Admin() {
   }, [rows, keyword]);
 
   async function loadRows() {
-  setLoading(true);
+    setLoading(true);
 
-  if (config.custom || config.comingSoon) {
-    setRows([]);
-    setLoading(false);
-    return;
-  }
-
-  let query = supabase.from(config.table).select('*');
-
-  if (config.fixedCategory) {
-    query = query.eq('category', config.fixedCategory);
-  } else if (config.fixedCategories) {
-    query = query.in('category', config.fixedCategories);
-  }
-
-  if (config.fixedValues) {
-    for (const [key, value] of Object.entries(config.fixedValues)) {
-      query = query.eq(key, value);
+    if (config.custom || config.comingSoon) {
+      setRows([]);
+      setLoading(false);
+      return;
     }
+
+    let query = supabase.from(config.table).select('*');
+
+    if (config.fixedCategory) {
+      query = query.eq('category', config.fixedCategory);
+    } else if (config.fixedCategories) {
+      query = query.in('category', config.fixedCategories);
+    }
+
+    if (config.fixedValues) {
+      for (const [key, value] of Object.entries(config.fixedValues)) {
+        query = query.eq(key, value);
+      }
+    }
+
+    const orderColumn = config.order || 'created_at';
+
+    if (config.fixedCategory || config.fixedCategories) {
+      query = query
+        .order('is_pinned', { ascending: false })
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+    } else {
+      query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
+    }
+
+    const { data, error } = await query;
+
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      alert(`${config.title} 조회 실패: ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    const hiddenPageSlugs = [
+      'admission-susi',
+      'admission-jungsi',
+      'admission-essay',
+      'winning-faq'
+    ];
+
+    const nextRows =
+      activeKey === 'pageContents'
+        ? (data || []).filter((row) => !hiddenPageSlugs.includes(row.slug))
+        : data || [];
+
+    setRows(nextRows);
   }
-
-  const orderColumn = config.order || 'created_at';
-
-  if (config.fixedCategory || config.fixedCategories) {
-    query = query
-      .order('is_pinned', { ascending: false })
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: false });
-  } else {
-    query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
-  }
-
-  const { data, error } = await query;
-
-  setLoading(false);
-
-  if (error) {
-    console.error(error);
-    alert(`${config.title} 조회 실패: ${error.message}`);
-    setRows([]);
-    return;
-  }
-
-  const hiddenPageSlugs = [
-    'admission-susi',
-    'admission-jungsi',
-    'admission-essay',
-    'winning-faq'
-  ];
-
-  const nextRows =
-    activeKey === 'pageContents'
-      ? (data || []).filter((row) => !hiddenPageSlugs.includes(row.slug))
-      : data || [];
-
-  setRows(nextRows);
-}
 
   useEffect(() => {
     setMode('list');
@@ -3597,7 +3847,9 @@ export default function Admin() {
       const willCompress = isCompressibleField(field);
 
       if (field.imageSpec) {
-        const proceed = await validateImageSpec(rawFile, field.imageSpec, { skipMaxMB: willCompress });
+        const proceed = await validateImageSpec(rawFile, field.imageSpec, {
+          skipMaxMB: willCompress
+        });
         if (!proceed) continue;
       }
 
@@ -3626,21 +3878,17 @@ export default function Admin() {
         .toString(36)
         .slice(2)}-${safeName}.${ext}`;
 
-      const { error } = await supabase.storage
-        .from(IMAGE_BUCKET)
-        .upload(path, file, {
-          cacheControl: field.cacheControl || '3600',
-          upsert: false
-        });
+      const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, file, {
+        cacheControl: field.cacheControl || '3600',
+        upsert: false
+      });
 
       if (error) {
         alert(`업로드 실패: ${error.message}`);
         continue;
       }
 
-      const { data } = supabase.storage
-        .from(IMAGE_BUCKET)
-        .getPublicUrl(path);
+      const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
 
       uploaded.push({
         name: file.name,
@@ -3666,26 +3914,26 @@ export default function Admin() {
   async function saveRow(form) {
     const payload = config.formToPayload ? config.formToPayload(form) : { ...form };
 
-if (config.fixedCategory) {
-  payload.category = config.fixedCategory;
-}
+    if (config.fixedCategory) {
+      payload.category = config.fixedCategory;
+    }
 
-if (config.fixedCategories && !config.fixedCategories.includes(payload.category)) {
-  alert('수시 또는 정시 구분을 선택해 주세요.');
-  return;
-}
+    if (config.fixedCategories && !config.fixedCategories.includes(payload.category)) {
+      alert('수시 또는 정시 구분을 선택해 주세요.');
+      return;
+    }
 
-if (config.fixedValues) {
-  Object.assign(payload, config.fixedValues);
-}
+    if (config.fixedValues) {
+      Object.assign(payload, config.fixedValues);
+    }
 
-if (activeKey === 'banners') {
-  delete payload.category;
-  payload.subtitle = null;
-}
+    if (activeKey === 'banners') {
+      delete payload.category;
+      payload.subtitle = null;
+    }
 
-delete payload.created_at;
-delete payload.updated_at;
+    delete payload.created_at;
+    delete payload.updated_at;
 
     if (Array.isArray(payload.image_urls) && payload.image_urls.length > 0 && !payload.image_url) {
       payload.image_url = payload.image_urls[0];
@@ -3699,9 +3947,7 @@ delete payload.updated_at;
 
     if (activeKey === 'winningDbInputs') {
       try {
-        payload.parsed_data = payload.raw_data
-          ? JSON.parse(payload.raw_data)
-          : null;
+        payload.parsed_data = payload.raw_data ? JSON.parse(payload.raw_data) : null;
       } catch {
         payload.parsed_data = null;
       }
@@ -3755,10 +4001,7 @@ delete payload.updated_at;
   async function deleteRow(row) {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
 
-    const { error } = await supabase
-      .from(config.table)
-      .delete()
-      .eq('id', row.id);
+    const { error } = await supabase.from(config.table).delete().eq('id', row.id);
 
     if (error) {
       alert(`삭제 실패: ${error.message}`);
@@ -3769,7 +4012,11 @@ delete payload.updated_at;
   }
 
   function downloadExcel() {
-    downloadCsv(`${config.title}_${new Date().toISOString().slice(0, 10)}.csv`, filteredRows, config.columns);
+    downloadCsv(
+      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRows,
+      config.columns
+    );
   }
 
   return (
@@ -3791,96 +4038,103 @@ delete payload.updated_at;
                 </div>
               </div>
             ) : (
-            <>
-              <div className="mb-6 bg-white px-6 py-5 shadow">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={loadRows}
-                      className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-                    >
-                      <RefreshCw size={14} />
-                      초기화
-                    </button>
-
-                    {(config.excel || ['members', 'payments', 'settlements', 'dailySettlements', 'refunds'].includes(activeKey)) && (
+              <>
+                <div className="mb-6 bg-white px-6 py-5 shadow">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={downloadExcel}
+                        onClick={loadRows}
                         className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
                       >
-                        <Download size={14} />
-                        엑셀 다운로드
+                        <RefreshCw size={14} />
+                        초기화
+                      </button>
+
+                      {(config.excel ||
+                        [
+                          'members',
+                          'payments',
+                          'settlements',
+                          'dailySettlements',
+                          'refunds'
+                        ].includes(activeKey)) && (
+                        <button
+                          type="button"
+                          onClick={downloadExcel}
+                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                        >
+                          <Download size={14} />
+                          엑셀 다운로드
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        placeholder={config.searchPlaceholder}
+                        className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+                      />
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
+                      >
+                        <Search size={14} />
+                        검색
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <div>
+                      <h1 className="text-xl font-black">{config.title}</h1>
+                      {config.homepage && (
+                        <div className="mt-1 space-y-1">
+                          <p className="text-sm font-bold text-red-500">
+                            이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
+                          </p>
+
+                          {config.guideText && (
+                            <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
+                              {config.guideText}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {!config.noCreate && !config.readOnly && (
+                      <button
+                        type="button"
+                        onClick={createRow}
+                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white"
+                      >
+                        <Plus size={14} />
+                        등록
                       </button>
                     )}
                   </div>
+                </div>
 
-                  <div className="flex items-center">
-                    <input
-                      value={keyword}
-                      onChange={(e) => setKeyword(e.target.value)}
-                      placeholder={config.searchPlaceholder}
-                      className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
-                    />
-                    <button
-                      type="button"
-                      className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
-                    >
-                      <Search size={14} />
-                      검색
-                    </button>
+                <MoneySummary activeKey={activeKey} rows={filteredRows} />
+
+                {loading ? (
+                  <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+                    데이터를 불러오는 중입니다.
                   </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div>
-                    <h1 className="text-xl font-black">{config.title}</h1>
-                    {config.homepage && (
-  <div className="mt-1 space-y-1">
-    <p className="text-sm font-bold text-red-500">
-      이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
-    </p>
-
-    {config.guideText && (
-      <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
-        {config.guideText}
-      </p>
-    )}
-  </div>
-)}
-                  </div>
-
-                  {!config.noCreate && !config.readOnly && (
-                    <button
-                      type="button"
-                      onClick={createRow}
-                      className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white"
-                    >
-                      <Plus size={14} />
-                      등록
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <MoneySummary activeKey={activeKey} rows={filteredRows} />
-
-              {loading ? (
-                <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
-                  데이터를 불러오는 중입니다.
-                </div>
-              ) : (
-                <AdminTable
-                  config={config}
-                  rows={filteredRows}
-                  page={page}
-                  setPage={setPage}
-                  onEdit={editRow}
-                  onDelete={deleteRow}
-                />
-              )}
-            </>
+                ) : (
+                  <AdminTable
+                    config={config}
+                    rows={filteredRows}
+                    page={page}
+                    setPage={setPage}
+                    onEdit={editRow}
+                    onDelete={deleteRow}
+                  />
+                )}
+              </>
             )
           ) : (
             <AdminForm

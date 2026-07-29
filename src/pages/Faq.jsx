@@ -9,19 +9,10 @@ function renderAnswer(answer) {
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(answer);
 
   if (hasHtml) {
-    return (
-      <div
-        className="faq-answer"
-        dangerouslySetInnerHTML={{ __html: answer }}
-      />
-    );
+    return <div className="faq-answer" dangerouslySetInnerHTML={{ __html: answer }} />;
   }
 
-  return (
-    <div className="faq-answer whitespace-pre-line">
-      {answer}
-    </div>
-  );
+  return <div className="faq-answer whitespace-pre-line">{answer}</div>;
 }
 
 export default function Faq() {
@@ -60,12 +51,7 @@ export default function Faq() {
 
     if (!q) return faqs;
 
-    return faqs.filter((faq) =>
-      [faq.question, faq.answer]
-        .join(' ')
-        .toLowerCase()
-        .includes(q)
-    );
+    return faqs.filter((faq) => [faq.question, faq.answer].join(' ').toLowerCase().includes(q));
   }, [faqs, keyword]);
 
   function toggleFaq(id) {

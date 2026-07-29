@@ -10,5 +10,5 @@ export const COMPANY = {
   address: '(본점) 세종특별자치시 마음안1로 61, 404호',
   tel: '010-3664-0081', // 대표전화
   centerTel: '051-902-0080', // 센터문의
-  kakao: 'winningedu_official',
+  kakao: 'winningedu_official'
 };

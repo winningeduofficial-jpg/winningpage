@@ -51,10 +51,7 @@ function formatDate(value) {
     return String(value).slice(0, 10).replace(/-/g, '.');
   }
 
-  return new Date(date.getTime() + KST_OFFSET_MS)
-    .toISOString()
-    .slice(0, 10)
-    .replace(/-/g, '.');
+  return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10).replace(/-/g, '.');
 }
 
 // 배지 폭은 4자 라벨(보도자료) 기준 3.5rem 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
@@ -145,11 +142,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
         <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[4.23rem] md:grid-cols-2 md:gap-[3.125rem]">
           {/* 좌: 회사소식 */}
           <div>
-            <ColumnHeader
-              title="회사소식"
-              moreLink="/company-news"
-              moreLabel="회사소식 더보기"
-            />
+            <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
             {newsRows.length > 0 ? (
               <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[1.04rem]">
                 {newsRows.map((item) => (
@@ -166,11 +159,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
 
           {/* 우: 공지사항 */}
           <div>
-            <ColumnHeader
-              title="공지사항"
-              moreLink="/events"
-              moreLabel="공지사항 더보기"
-            />
+            <ColumnHeader title="공지사항" moreLink="/events" moreLabel="공지사항 더보기" />
             {noticeRows.length > 0 ? (
               <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[1.04rem]">
                 {noticeRows.map((item) => (

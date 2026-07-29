@@ -43,14 +43,9 @@ export default function MentorCard({ mentor, isClone = false }) {
       style={{ width: `${cardWidthRem}rem` }}
     >
       <div className="absolute left-1/2 top-[1.5rem] flex w-[12.25rem] -translate-x-1/2 flex-col items-center gap-[0.25rem] text-center">
-        <p className="text-[1rem] font-semibold leading-[1.4] text-[#525252]">
-          {mentor.badge}
-        </p>
+        <p className="text-[1rem] font-semibold leading-[1.4] text-[#525252]">{mentor.badge}</p>
         {mentor.title_lines.map((line) => (
-          <p
-            key={line}
-            className="text-[0.9375rem] font-medium leading-[1.4] text-[#808080]"
-          >
+          <p key={line} className="text-[0.9375rem] font-medium leading-[1.4] text-[#808080]">
             {line}
           </p>
         ))}
@@ -61,7 +56,7 @@ export default function MentorCard({ mentor, isClone = false }) {
           top: `${mentor.photo.top / 16}rem`,
           left: `${mentor.photo.left / 16}rem`,
           width: `${mentor.photo.width / 16}rem`,
-          height: `${mentor.photo.height / 16}rem`,
+          height: `${mentor.photo.height / 16}rem`
         }}
       >
         <img
@@ -70,9 +65,7 @@ export default function MentorCard({ mentor, isClone = false }) {
           loading="lazy"
           draggable="false"
           className={
-            mentor.photo.crop
-              ? 'absolute left-0 w-full object-cover'
-              : 'h-full w-full object-cover'
+            mentor.photo.crop ? 'absolute left-0 w-full object-cover' : 'h-full w-full object-cover'
           }
           style={
             mentor.photo.crop

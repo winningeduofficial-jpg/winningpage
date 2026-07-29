@@ -38,7 +38,11 @@ export default function Gallery() {
     const q = keyword.trim().toLowerCase();
     if (!q) return rows;
 
-    return rows.filter((row) => String(row.title || '').toLowerCase().includes(q));
+    return rows.filter((row) =>
+      String(row.title || '')
+        .toLowerCase()
+        .includes(q)
+    );
   }, [rows, keyword]);
 
   useEffect(() => {
@@ -184,7 +188,8 @@ export default function Gallery() {
           </div>
 
           <div className="mt-12 text-lg font-medium text-gray-500">
-            총 <span className="font-black text-[#0086d1]">{filteredRows.length}</span>건의 자료가 있습니다.
+            총 <span className="font-black text-[#0086d1]">{filteredRows.length}</span>건의 자료가
+            있습니다.
           </div>
 
           {loading ? (

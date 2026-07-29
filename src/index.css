@@ -7,18 +7,18 @@
 }
 
 :root {
-  --winning-navy: #0D1B2A;
-  --winning-gold: #D6B06A;
-  --winning-brown-gold: #B88737;
-  --winning-cream: #F8F7F3;
-  --winning-white: #FFFFFF;
+  --winning-navy: #0d1b2a;
+  --winning-gold: #d6b06a;
+  --winning-brown-gold: #b88737;
+  --winning-cream: #f8f7f3;
+  --winning-white: #ffffff;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
   scroll-behavior: smooth;
-  background: #F8F7F3;
+  background: #f8f7f3;
 }
 
 body {
@@ -29,17 +29,23 @@ body {
      항상 min-width <= 가용폭이 보장된다. 320px보다 넓은 화면에서는 100%가
      항상 320px보다 크므로 min()이 그대로 320px를 선택해 기존 하한 의도도 유지된다. */
   min-width: min(320px, 100%);
-  background: #F8F7F3;
+  background: #f8f7f3;
   color: var(--winning-navy);
-  font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Pretendard,
+    'Noto Sans KR',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 #root {
   min-height: 100vh;
-  background: #F8F7F3;
+  background: #f8f7f3;
 }
 
 a {
@@ -91,42 +97,36 @@ select {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0D1B2A;
+  background: #0d1b2a;
 }
 
 .site-dark-bg {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 15% 20%, rgba(214, 176, 106, 0.10), transparent 28%),
-    linear-gradient(180deg, #0D1B2A 0%, #081421 58%, #0D1B2A 100%);
+    radial-gradient(circle at 15% 20%, rgba(214, 176, 106, 0.1), transparent 28%),
+    linear-gradient(180deg, #0d1b2a 0%, #081421 58%, #0d1b2a 100%);
 }
 
 .site-dark-bg::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
   background-size: 90px 90px;
   opacity: 0.12;
 }
 
 .site-dark-bg::after {
-  content: "";
+  content: '';
   position: absolute;
   left: -10%;
   bottom: 10%;
   width: 55%;
   height: 2px;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(214, 176, 106, 0.60),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(214, 176, 106, 0.6), transparent);
   transform: rotate(16deg);
   box-shadow: 0 0 28px rgba(214, 176, 106, 0.36);
 }
@@ -145,7 +145,7 @@ select {
 }
 
 .blue-gradient-text {
-  background: linear-gradient(90deg, #0D1B2A, #D6B06A);
+  background: linear-gradient(90deg, #0d1b2a, #d6b06a);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -157,7 +157,7 @@ select {
   justify-content: center;
   gap: 8px;
   border-radius: 12px;
-  background: #0D1B2A;
+  background: #0d1b2a;
   color: #ffffff;
   font-weight: 800;
   box-shadow: 0 16px 35px rgba(13, 27, 42, 0.22);
@@ -169,8 +169,8 @@ select {
 
 .primary-btn:hover {
   transform: translateY(-1px);
-  background: #162A40;
-  box-shadow: 0 22px 45px rgba(13, 27, 42, 0.30);
+  background: #162a40;
+  box-shadow: 0 22px 45px rgba(13, 27, 42, 0.3);
 }
 
 .secondary-btn {
@@ -181,7 +181,7 @@ select {
   border-radius: 12px;
   border: 1px solid rgba(13, 27, 42, 0.18);
   background: #ffffff;
-  color: #0D1B2A;
+  color: #0d1b2a;
   font-weight: 800;
   transition:
     transform 0.2s ease,
@@ -192,7 +192,7 @@ select {
 .secondary-btn:hover {
   transform: translateY(-1px);
   border-color: rgba(13, 27, 42, 0.35);
-  background: #F7F5EF;
+  background: #f7f5ef;
 }
 
 .hover-lift {
@@ -211,12 +211,20 @@ select {
 /* 무한 마퀴 좌우 페이드 마스크 (멘토/합격생 공용) */
 .marquee-mask {
   --marquee-fade: 3rem;
-  -webkit-mask-image: linear-gradient(to right,
-    transparent, black var(--marquee-fade),
-    black calc(100% - var(--marquee-fade)), transparent);
-  mask-image: linear-gradient(to right,
-    transparent, black var(--marquee-fade),
-    black calc(100% - var(--marquee-fade)), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--marquee-fade),
+    black calc(100% - var(--marquee-fade)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--marquee-fade),
+    black calc(100% - var(--marquee-fade)),
+    transparent
+  );
 }
 
 @media (min-width: 640px) {
@@ -457,4 +465,3 @@ select {
 .admission-table-wrap::-webkit-scrollbar-thumb:hover {
   background: #0d1b2a;
 }
-

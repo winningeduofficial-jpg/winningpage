@@ -36,9 +36,12 @@ export default function AdmissionResults() {
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14 text-center">
             <p className="text-sm font-black text-[#7B2FF7]">위닝에듀 입시정보</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">대학 입결정보 검색</h1>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
+              대학 입결정보 검색
+            </h1>
             <p className="mx-auto mt-5 max-w-[760px] text-base font-bold leading-7 text-gray-500">
-              대학명과 모집단위를 기준으로 수시 입결과 정시 지원선·과거 입시결과를 함께 조회하는 페이지입니다.
+              대학명과 모집단위를 기준으로 수시 입결과 정시 지원선·과거 입시결과를 함께 조회하는
+              페이지입니다.
             </p>
           </div>
         </section>
@@ -48,8 +51,9 @@ export default function AdmissionResults() {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm font-black text-[#B88737]">구현 예정 구조</p>
-                <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">수시 DB와 정시 DB를 분리해 한 화면에서 검색</h2>
-            
+                <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+                  수시 DB와 정시 DB를 분리해 한 화면에서 검색
+                </h2>
               </div>
               <div className="rounded-2xl bg-[#F3F0FF] px-5 py-4 text-sm font-black text-[#5B21B6]">
                 현재 단계: 헤더·라우트만 연결
@@ -61,7 +65,10 @@ export default function AdmissionResults() {
                 <h3 className="text-xl font-black tracking-[-0.04em]">수시 입결 반영 예정 항목</h3>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   {SUSI_FIELDS.map((field) => (
-                    <div key={field} className="rounded-xl bg-white px-4 py-3 text-sm font-black text-gray-700 shadow-sm">
+                    <div
+                      key={field}
+                      className="rounded-xl bg-white px-4 py-3 text-sm font-black text-gray-700 shadow-sm"
+                    >
                       {field}
                     </div>
                   ))}
@@ -72,15 +79,16 @@ export default function AdmissionResults() {
                 <h3 className="text-xl font-black tracking-[-0.04em]">정시 자료 반영 예정 항목</h3>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   {JUNGSI_FIELDS.map((field) => (
-                    <div key={field} className="rounded-xl bg-white px-4 py-3 text-sm font-black text-gray-700 shadow-sm">
+                    <div
+                      key={field}
+                      className="rounded-xl bg-white px-4 py-3 text-sm font-black text-gray-700 shadow-sm"
+                    >
                       {field}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-
-           
           </div>
         </section>
       </main>

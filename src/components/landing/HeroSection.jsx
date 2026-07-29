@@ -58,7 +58,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
       if (slideCount === 0) return;
       setActiveIndex(((index % slideCount) + slideCount) % slideCount);
     },
-    [slideCount],
+    [slideCount]
   );
 
   // 트랙패드 휠 좌우 이동: 가로 성분 우세 시 누적 deltaX로 슬라이드 전환.
@@ -85,7 +85,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
         wheelCooldownUntilRef.current = now + WHEEL_COOLDOWN;
       }
     },
-    [activeIndex, goTo, slideCount],
+    [activeIndex, goTo, slideCount]
   );
 
   // 포인터 스와이프 (터치/마우스 드래그 공용)
@@ -113,7 +113,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
       dragStartXRef.current = null;
       setPointerPaused(false);
     },
-    [activeIndex, goTo, slideCount],
+    [activeIndex, goTo, slideCount]
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -154,7 +154,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
     onMouseEnter: () => setHoverPaused(true),
     onMouseLeave: () => setHoverPaused(false),
     onFocusCapture: () => setFocusPaused(true),
-    onBlurCapture: () => setFocusPaused(false),
+    onBlurCapture: () => setFocusPaused(false)
   };
 }
 
@@ -300,8 +300,9 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                     aria-label={`${index + 1}번째 메인 배너로 이동`}
                     aria-current={index === leftCarousel.activeIndex}
                     onClick={() => leftCarousel.goTo(index)}
-                    className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${index === leftCarousel.activeIndex ? 'bg-[#013262]' : 'bg-[#D9D9D9]'
-                      }`}
+                    className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${
+                      index === leftCarousel.activeIndex ? 'bg-[#013262]' : 'bg-[#D9D9D9]'
+                    }`}
                   />
                 ))}
               </div>
@@ -387,8 +388,9 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                     aria-label={`${index + 1}번째 배너로 이동`}
                     aria-current={index === rightCarousel.activeIndex}
                     onClick={() => rightCarousel.goTo(index)}
-                    className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${index === rightCarousel.activeIndex ? 'bg-[#013262]' : 'bg-[#D9D9D9]'
-                      }`}
+                    className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${
+                      index === rightCarousel.activeIndex ? 'bg-[#013262]' : 'bg-[#D9D9D9]'
+                    }`}
                   />
                 ))}
               </div>

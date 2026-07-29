@@ -3,7 +3,7 @@ import useInfiniteMarquee from '../../hooks/useInfiniteMarquee';
 
 const TRACK_TABS = [
   { key: 'general', label: '일반계열' },
-  { key: 'medical_special', label: '의약학 · 특수계열' },
+  { key: 'medical_special', label: '의약학 · 특수계열' }
 ];
 
 /**
@@ -23,9 +23,9 @@ export default function AcceptanceSection({ universities = [] }) {
   const trackCounts = useMemo(
     () => ({
       general: universities.filter((item) => item.track === 'general').length,
-      medical_special: universities.filter((item) => item.track === 'medical_special').length,
+      medical_special: universities.filter((item) => item.track === 'medical_special').length
     }),
-    [universities],
+    [universities]
   );
 
   const [selectedTrack, setSelectedTrack] = useState('general');
@@ -34,17 +34,16 @@ export default function AcceptanceSection({ universities = [] }) {
   const activeTrack =
     trackCounts[selectedTrack] > 0
       ? selectedTrack
-      : TRACK_TABS.find((tab) => trackCounts[tab.key] > 0)?.key ?? selectedTrack;
+      : (TRACK_TABS.find((tab) => trackCounts[tab.key] > 0)?.key ?? selectedTrack);
 
   const activeUniversities = useMemo(
     () => universities.filter((item) => item.track === activeTrack),
-    [universities, activeTrack],
+    [universities, activeTrack]
   );
 
-  const { scrollRef, repeatIndices, containerHandlers, recenter } =
-    useInfiniteMarquee({
-      itemCount: activeUniversities.length,
-    });
+  const { scrollRef, repeatIndices, containerHandlers, recenter } = useInfiniteMarquee({
+    itemCount: activeUniversities.length
+  });
 
   // 탭 전환 시 캐러셀 위치 리셋 (중앙 사이클로 재배치 — 훅의 동적 repeatCount 반영)
   useEffect(() => {
@@ -56,9 +55,7 @@ export default function AcceptanceSection({ universities = [] }) {
 
   // 2개 이상일 때만 N배 반복 마퀴(기본 3배, 훅이 폭에 맞춰 자동 증가), 이하면 원본만 정적 렌더
   const isMarquee = activeUniversities.length > 1;
-  const renderIndices = isMarquee
-    ? repeatIndices
-    : activeUniversities.map((_, index) => index);
+  const renderIndices = isMarquee ? repeatIndices : activeUniversities.map((_, index) => index);
 
   return (
     <section aria-label="합격생" className="overflow-hidden border-b border-[#f1f1f1] bg-white">
@@ -92,13 +89,13 @@ export default function AcceptanceSection({ universities = [] }) {
                     aria-controls="acceptance-panel"
                     disabled={isEmpty}
                     onClick={() => setSelectedTrack(tab.key)}
-                    className={`relative text-[1.125rem] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] sm:text-[1.5rem] ${isActive
-                      ? 'font-semibold text-[#525252]'
-                      : 'font-medium text-[#d7d7d7]'
-                      } ${isEmpty
+                    className={`relative text-[1.125rem] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] sm:text-[1.5rem] ${
+                      isActive ? 'font-semibold text-[#525252]' : 'font-medium text-[#d7d7d7]'
+                    } ${
+                      isEmpty
                         ? 'cursor-not-allowed opacity-60'
                         : 'hover:text-[#8a8a8a] focus-visible:text-[#8a8a8a]'
-                      }`}
+                    }`}
                   >
                     {tab.label}
                   </button>
@@ -122,8 +119,9 @@ export default function AcceptanceSection({ universities = [] }) {
           >
             <ul
               key={activeTrack}
-              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 lg:gap-[1.04rem] ${isMarquee ? '' : 'justify-center'
-                }`}
+              className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 lg:gap-[1.04rem] ${
+                isMarquee ? '' : 'justify-center'
+              }`}
             >
               {renderIndices.map((itemIndex, renderIndex) => {
                 const university = activeUniversities[itemIndex];
@@ -136,8 +134,9 @@ export default function AcceptanceSection({ universities = [] }) {
                   <li
                     key={`${university.id}-${renderIndex}`}
                     aria-hidden={isClone || undefined}
-                    className={`flex h-[18.75rem] w-[12.5rem] shrink-0 flex-col items-center gap-6 rounded-[2rem] pt-[3.25rem] ${activeTrack === 'medical_special' ? 'bg-[#e9f4ff]' : 'bg-[#f9fafb]'
-                      }`}
+                    className={`flex h-[18.75rem] w-[12.5rem] shrink-0 flex-col items-center gap-6 rounded-[2rem] pt-[3.25rem] ${
+                      activeTrack === 'medical_special' ? 'bg-[#e9f4ff]' : 'bg-[#f9fafb]'
+                    }`}
                   >
                     {university.emblem_url ? (
                       <img

@@ -9,7 +9,7 @@ const REFUND_STATUS = {
   requested: { label: '접수', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
   processing: { label: '처리중', cls: 'border-blue-200 bg-blue-50 text-blue-700' },
   completed: { label: '환불완료', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-  rejected: { label: '반려', cls: 'border-rose-200 bg-rose-50 text-rose-700' },
+  rejected: { label: '반려', cls: 'border-rose-200 bg-rose-50 text-rose-700' }
 };
 function refundStatus(s) {
   return REFUND_STATUS[s] || REFUND_STATUS.requested;
@@ -115,11 +115,9 @@ export default function MyPage() {
       setLoading(true);
 
       try {
-        const sessionResult = await withTimeout(
-          supabase.auth.getSession(),
-          3500,
-          { data: { session: null } }
-        );
+        const sessionResult = await withTimeout(supabase.auth.getSession(), 3500, {
+          data: { session: null }
+        });
         const currentUser = sessionResult?.data?.session?.user;
 
         if (!alive) return;
@@ -177,7 +175,7 @@ export default function MyPage() {
           .from('refund_requests')
           .select('id, order_id, order_name, amount, reason, status, created_at')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
       ]);
       if (!alive) return;
       setOrders(ord || []);
@@ -230,7 +228,7 @@ export default function MyPage() {
       refund_bank: cleanText(refundForm.bank),
       refund_account: cleanText(refundForm.account),
       refund_holder: cleanText(refundForm.holder),
-      status: 'requested',
+      status: 'requested'
     });
 
     setRefundSaving(false);
@@ -282,9 +280,7 @@ export default function MyPage() {
       updated_at: new Date().toISOString()
     };
 
-    const { error } = await supabase
-      .from('profiles')
-      .upsert(payload, { onConflict: 'id' });
+    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
 
     setSaving(false);
 
@@ -477,8 +473,8 @@ export default function MyPage() {
           <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 px-5 py-4">
             <p className="text-sm font-black text-[#0D1B2A]">이용 안내</p>
             <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#5B6573]">
-              담당 매니저가 등록하신 연락처(카카오톡·이메일·전화)로 서비스 이용 방법을 안내드립니다. 서비스별 진행 방식은
-              이용약관 및 담당자 안내를 따릅니다.
+              담당 매니저가 등록하신 연락처(카카오톡·이메일·전화)로 서비스 이용 방법을 안내드립니다.
+              서비스별 진행 방식은 이용약관 및 담당자 안내를 따릅니다.
             </p>
             <p className="mt-2 text-xs font-bold text-[#8B95A1]">
               문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의 {COMPANY.centerTel}
@@ -545,7 +541,10 @@ export default function MyPage() {
             </label>
 
             <div>
-              <p className="text-sm font-black">환불 계좌 <span className="font-bold text-[#8B95A1]">(현금성 결제·계좌 환불 시)</span></p>
+              <p className="text-sm font-black">
+                환불 계좌{' '}
+                <span className="font-bold text-[#8B95A1]">(현금성 결제·계좌 환불 시)</span>
+              </p>
               <div className="mt-2 grid gap-3 sm:grid-cols-3">
                 <input
                   className="w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
@@ -567,7 +566,8 @@ export default function MyPage() {
                 />
               </div>
               <p className="mt-2 text-xs font-bold text-[#8B95A1]">
-                ※ 카드 결제 건은 원칙적으로 원결제 취소(카드 취소)로 환불되며, 계좌 정보는 부분·현금 환불 시 사용됩니다.
+                ※ 카드 결제 건은 원칙적으로 원결제 취소(카드 취소)로 환불되며, 계좌 정보는 부분·현금
+                환불 시 사용됩니다.
               </p>
             </div>
 
@@ -608,9 +608,15 @@ export default function MyPage() {
                           {formatKRW(r.amount)}
                           {r.created_at ? ` · ${String(r.created_at).slice(0, 10)}` : ''}
                         </p>
-                        {r.reason && <p className="mt-1.5 break-keep text-xs font-bold text-[#5B6573]">사유: {r.reason}</p>}
+                        {r.reason && (
+                          <p className="mt-1.5 break-keep text-xs font-bold text-[#5B6573]">
+                            사유: {r.reason}
+                          </p>
+                        )}
                       </div>
-                      <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${st.cls}`}>
+                      <span
+                        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${st.cls}`}
+                      >
                         {st.label}
                       </span>
                     </div>

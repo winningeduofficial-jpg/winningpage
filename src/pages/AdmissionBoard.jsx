@@ -46,7 +46,9 @@ function formatDate(value) {
 }
 
 function getContentPreview(value) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  const text = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!text) return '';
   return text.length > 120 ? `${text.slice(0, 120)}...` : text;
 }
@@ -66,7 +68,9 @@ export default function AdmissionBoard() {
   const params = useParams();
   const location = useLocation();
   const pathCategory = location.pathname.split('/').filter(Boolean)[1];
-  const category = params.category || (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
+  const category =
+    params.category ||
+    (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
   const id = params.id;
   const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
 
@@ -85,7 +89,8 @@ export default function AdmissionBoard() {
         .map((file) => (typeof file === 'string' ? file : file?.name || ''))
         .join(' ');
 
-      const target = `${row.title || ''} ${row.content || ''} ${row.file_name || ''} ${attachmentsText}`.toLowerCase();
+      const target =
+        `${row.title || ''} ${row.content || ''} ${row.file_name || ''} ${attachmentsText}`.toLowerCase();
       return target.includes(q);
     });
   }, [rows, keyword]);
@@ -96,14 +101,12 @@ export default function AdmissionBoard() {
     async function loadList() {
       setLoading(true);
 
-      let query = supabase
-        .from('admission_posts')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('admission_posts').select('*').eq('is_active', true);
 
-      query = category === 'susi-jungsi'
-        ? query.in('category', ['susi', 'jungsi'])
-        : query.eq('category', category);
+      query =
+        category === 'susi-jungsi'
+          ? query.in('category', ['susi', 'jungsi'])
+          : query.eq('category', category);
 
       const { data, error } = await query
         .order('is_pinned', { ascending: false })
@@ -194,7 +197,9 @@ export default function AdmissionBoard() {
                         중요
                       </span>
                     )}
-                    <span className="text-sm font-bold text-gray-500">{formatDate(post.created_at)}</span>
+                    <span className="text-sm font-bold text-gray-500">
+                      {formatDate(post.created_at)}
+                    </span>
                   </div>
 
                   <h2 className="text-3xl font-black tracking-[-0.04em]">{post.title}</h2>
@@ -334,7 +339,8 @@ export default function AdmissionBoard() {
               </div>
             ) : (
               filteredRows.map((row) => {
-                const attachmentCount = normalizeArray(row.attachments).length || (row.file_url ? 1 : 0);
+                const attachmentCount =
+                  normalizeArray(row.attachments).length || (row.file_url ? 1 : 0);
 
                 return (
                   <Link

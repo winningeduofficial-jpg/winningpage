@@ -9,7 +9,7 @@ import {
   GraduationCap,
   Star,
   Target,
-  Users,
+  Users
 } from 'lucide-react';
 
 const ICON_SHADOW_SRC = '/images/landing/services/icon-shadow.png';
@@ -25,7 +25,7 @@ const serviceIconMap = {
   clipboard: ClipboardList,
   edit: Edit3,
   star: Star,
-  default: ClipboardList,
+  default: ClipboardList
 };
 
 /* 카드 셸 — 시안(1889:4876, 1920 캔버스) 실측 → 1136 환산(×0.8347 = 1136/그리드 실폭 1361)
@@ -54,34 +54,76 @@ const ILLUSTRATION_LIFT_CLASS =
 const ILLUSTRATION_LAYOUTS = [
   // 무료진단 — 본체 146×123.1 / right 60 / top 48 / 그림자 124.4×26.5, 하단 44.1
   {
-    boxW: '7.62rem', w: '7.62rem', h: '6.42rem', right: '3.13rem', top: '2.5rem',
-    rotate: '0deg', shadowW: '6.49rem', shadowH: '1.38rem', shadowBottom: '2.3rem'
+    boxW: '7.62rem',
+    w: '7.62rem',
+    h: '6.42rem',
+    right: '3.13rem',
+    top: '2.5rem',
+    rotate: '0deg',
+    shadowW: '6.49rem',
+    shadowH: '1.38rem',
+    shadowBottom: '2.3rem'
   },
   // 목표관리 — 본체 137×151 / right 51 / top 21 / 그림자 하단 26
   {
-    boxW: '7.15rem', w: '7.15rem', h: '7.88rem', right: '2.66rem', top: '1.1rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.36rem'
+    boxW: '7.15rem',
+    w: '7.15rem',
+    h: '7.88rem',
+    right: '2.66rem',
+    top: '1.1rem',
+    rotate: '0deg',
+    shadowW: '7.09rem',
+    shadowH: '1.51rem',
+    shadowBottom: '1.36rem'
   },
   // 콜멘토 — 본체 175.2×144 / right 47.8 / top 25 / 그림자 하단 21
   {
-    boxW: '9.14rem', w: '9.14rem', h: '7.51rem', right: '2.49rem', top: '1.3rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.1rem'
+    boxW: '9.14rem',
+    w: '9.14rem',
+    h: '7.51rem',
+    right: '2.49rem',
+    top: '1.3rem',
+    rotate: '0deg',
+    shadowW: '7.09rem',
+    shadowH: '1.51rem',
+    shadowBottom: '1.1rem'
   },
   // 수행평가 — 본체 151×124 회전 18.66° → bbox 182.7×165.8 / bbox right ~2 / bbox top 25.4 / 그림자 하단 23
   {
-    boxW: '9.53rem', w: '7.88rem', h: '6.47rem', right: '0.1rem', top: '2.42rem',
-    rotate: '18.66deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem'
+    boxW: '9.53rem',
+    w: '7.88rem',
+    h: '6.47rem',
+    right: '0.1rem',
+    top: '2.42rem',
+    rotate: '18.66deg',
+    shadowW: '7.09rem',
+    shadowH: '1.51rem',
+    shadowBottom: '1.2rem'
   },
   // 자기평가 — 본체 146×144 / right 52 / top 35 / 그림자 하단 18
   {
-    boxW: '7.62rem', w: '7.62rem', h: '7.51rem', right: '2.71rem', top: '1.83rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '0.94rem'
+    boxW: '7.62rem',
+    w: '7.62rem',
+    h: '7.51rem',
+    right: '2.71rem',
+    top: '1.83rem',
+    rotate: '0deg',
+    shadowW: '7.09rem',
+    shadowH: '1.51rem',
+    shadowBottom: '0.94rem'
   },
   // 심화탐구 — 본체 169.3×133 / right 44.7 / top 45 / 그림자 하단 23
   {
-    boxW: '8.83rem', w: '8.83rem', h: '6.94rem', right: '2.33rem', top: '2.35rem',
-    rotate: '0deg', shadowW: '7.09rem', shadowH: '1.51rem', shadowBottom: '1.2rem'
-  },
+    boxW: '8.83rem',
+    w: '8.83rem',
+    h: '6.94rem',
+    right: '2.33rem',
+    top: '2.35rem',
+    rotate: '0deg',
+    shadowW: '7.09rem',
+    shadowH: '1.51rem',
+    shadowBottom: '1.2rem'
+  }
 ];
 
 function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
@@ -128,7 +170,7 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
             '--illo-rotate': layout.rotate,
             '--illo-shadow-w': layout.shadowW,
             '--illo-shadow-h': layout.shadowH,
-            '--illo-shadow-bottom': layout.shadowBottom,
+            '--illo-shadow-bottom': layout.shadowBottom
           }}
           className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-[var(--illo-right)] lg:w-[var(--illo-box-w)] lg:justify-start ${ILLUSTRATION_LIFT_CLASS}`}
         >
@@ -197,11 +239,8 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
  */
 export default function ServicesSection({ services = [] }) {
   const visibleServices = useMemo(
-    () =>
-      [...services]
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-        .slice(0, 6),
-    [services],
+    () => [...services].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).slice(0, 6),
+    [services]
   );
 
   if (visibleServices.length === 0) return null;
@@ -212,7 +251,9 @@ export default function ServicesSection({ services = [] }) {
       <div className="mx-auto w-full max-w-content px-5 pb-10 pt-10 sm:px-8 lg:pb-[6.25rem] lg:pt-[6.25rem]">
         {/* 헤더 — 시안 1920 실측 → 1136 환산(×0.8347): 아이브로우 20→16.7px(1.04rem),
             대제목 44→36.7px(2.29rem). 자간은 시안 -0.88/44 = -0.02em — em 단위라 축소 시 비율 유지 */}
-        <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262] lg:text-[1.04rem]">핵심 서비스</p>
+        <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262] lg:text-[1.04rem]">
+          핵심 서비스
+        </p>
         {/* 대제목 2톤 — 시안: 1행 #808080, 2행 #013262 */}
         <h2 className="mt-[0.625rem] text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.29rem]">
           <span className="block text-[#808080]">진학의 순간들을</span>

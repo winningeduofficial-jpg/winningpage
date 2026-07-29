@@ -25,7 +25,9 @@ export default function Legal({ docKey }) {
           <h1 className="text-[30px] font-black tracking-[-0.02em] text-[#0D1B2A]">
             {doc?.title || '문서를 찾을 수 없습니다'}
           </h1>
-          {doc?.effective && <p className="mt-2 text-[13px] text-slate-400">시행일: {doc.effective}</p>}
+          {doc?.effective && (
+            <p className="mt-2 text-[13px] text-slate-400">시행일: {doc.effective}</p>
+          )}
 
           <div className="mt-10 border-t border-slate-100 pt-8">
             {lines.length === 0 ? (
@@ -43,7 +45,10 @@ export default function Legal({ docKey }) {
                 }
                 const indent = /^[·\-①-⑳]/.test(t) || /^\d+\.\s/.test(t) ? 'pl-3.5' : '';
                 return (
-                  <p key={i} className={`break-keep text-[14px] leading-[1.85] text-slate-600 ${indent}`}>
+                  <p
+                    key={i}
+                    className={`break-keep text-[14px] leading-[1.85] text-slate-600 ${indent}`}
+                  >
                     {t}
                   </p>
                 );

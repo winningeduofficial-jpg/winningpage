@@ -106,10 +106,7 @@ function buildNavGroups(rows) {
         : MENU_GROUP_ORDER[groupName] || 99;
 
     const savedSortOrder = Number(item.sort_order);
-    const sortOrder =
-      Number.isFinite(savedSortOrder) && savedSortOrder > 0
-        ? savedSortOrder
-        : 99;
+    const sortOrder = Number.isFinite(savedSortOrder) && savedSortOrder > 0 ? savedSortOrder : 99;
 
     if (!grouped.has(groupName)) {
       grouped.set(groupName, {
@@ -197,10 +194,8 @@ export function useNavGroups() {
     // 헤더+푸터 두 인스턴스가 동시에 구독해도 채널명이 충돌하지 않도록 useId 기반으로 유니크화.
     const channel = supabase
       .channel(`nav-groups-page-contents-${instanceId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_contents' },
-        () => loadNavGroups()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_contents' }, () =>
+        loadNavGroups()
       )
       .subscribe();
 

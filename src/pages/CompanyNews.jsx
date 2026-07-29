@@ -45,12 +45,7 @@ function renderContent(content) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return (
-      <div
-        className="notice-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;
@@ -59,8 +54,7 @@ function renderContent(content) {
 function CompanyIntro({ page }) {
   const title = cleanText(page?.title) || '위닝에듀';
   const subtitle =
-    cleanText(page?.subtitle) ||
-    '학생의 학습 과정과 입시 전략을 데이터와 멘토링으로 연결합니다.';
+    cleanText(page?.subtitle) || '학생의 학습 과정과 입시 전략을 데이터와 멘토링으로 연결합니다.';
   const body = cleanText(page?.body);
   const bottomImages = normalizeArray(page?.image_urls).filter(Boolean);
 
@@ -106,7 +100,8 @@ function CompanyIntro({ page }) {
                 className="h-24 w-auto rounded-xl bg-white/95 p-3 object-contain"
               />
               <p className="mt-6 text-sm font-bold leading-6 text-white/75">
-                회사소개 상단 이미지는 관리자 페이지의 세부 페이지 관리에서<br />
+                회사소개 상단 이미지는 관리자 페이지의 세부 페이지 관리에서
+                <br />
                 company-intro 항목으로 변경할 수 있습니다.
               </p>
             </div>
@@ -144,7 +139,7 @@ export default function CompanyNews() {
           .eq('is_active', true)
           .order('is_pinned', { ascending: false })
           .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
       ]);
 
       if (!alive) return;
@@ -177,10 +172,7 @@ export default function CompanyNews() {
     if (!q) return rows;
 
     return rows.filter((row) =>
-      [row.title, row.content, row.file_name]
-        .join(' ')
-        .toLowerCase()
-        .includes(q),
+      [row.title, row.content, row.file_name].join(' ').toLowerCase().includes(q)
     );
   }, [keyword, rows]);
 
@@ -191,7 +183,11 @@ export default function CompanyNews() {
 
   if (selectedId && selectedRow) {
     const images = normalizeArray(selectedRow.image_urls);
-    const finalImages = images.length ? images : selectedRow.image_url ? [selectedRow.image_url] : [];
+    const finalImages = images.length
+      ? images
+      : selectedRow.image_url
+        ? [selectedRow.image_url]
+        : [];
     const attachments = normalizeArray(selectedRow.attachments);
 
     return (
@@ -312,7 +308,8 @@ export default function CompanyNews() {
 
           <div className="mx-auto mt-10">
             <p className="mb-7 text-base font-semibold text-slate-500">
-              총 <span className="font-black text-[#0B73C9]">{filteredRows.length}</span>건의 소식이 있습니다.
+              총 <span className="font-black text-[#0B73C9]">{filteredRows.length}</span>건의 소식이
+              있습니다.
             </p>
 
             {loading ? (

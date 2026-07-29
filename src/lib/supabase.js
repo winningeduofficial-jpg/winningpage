@@ -7,7 +7,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase 환경변수가 설정되지 않았습니다.');
 }
 
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
-);
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');

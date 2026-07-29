@@ -53,7 +53,11 @@ export const FALLBACK_NAV_GROUPS = [
       { label: '대학원입학 프로그램', to: '/page/premium-graduate-school', sortOrder: 3 },
       { label: '해외명문대 진학컨설팅', to: '/page/premium-global-university', sortOrder: 4 },
       { label: '국제학교 학습관리', to: '/page/premium-international-school', sortOrder: 5 },
-      { label: '국제・해외고 국내대 입학컨설팅', to: '/page/premium-returning-student', sortOrder: 6 }
+      {
+        label: '국제・해외고 국내대 입학컨설팅',
+        to: '/page/premium-returning-student',
+        sortOrder: 6
+      }
     ]
   },
   {

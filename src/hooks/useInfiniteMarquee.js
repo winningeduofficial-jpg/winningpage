@@ -89,17 +89,10 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
     if (!container || !enabled) return undefined;
 
     const updateRepeatCount = () => {
-      const cycleWidth = measureCycleWidth(
-        container,
-        itemCountRef.current,
-        repeatCountRef.current,
-      );
+      const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
       const { clientWidth } = container;
       if (!cycleWidth || !clientWidth) return;
-      const needed = Math.max(
-        MIN_REPEAT_COUNT,
-        Math.ceil(clientWidth / cycleWidth) + 2,
-      );
+      const needed = Math.max(MIN_REPEAT_COUNT, Math.ceil(clientWidth / cycleWidth) + 2);
       if (needed > repeatCountRef.current) {
         setRepeatCount(needed);
       }
@@ -120,11 +113,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
     if (!container || !enabled) return undefined;
 
     const positionAtMiddle = () => {
-      const cycleWidth = measureCycleWidth(
-        container,
-        itemCountRef.current,
-        repeatCountRef.current,
-      );
+      const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
       if (cycleWidth) {
         container.scrollTo({ left: cycleWidth, behavior: 'auto' });
       }
@@ -158,10 +147,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       previousTime = currentTime;
 
       const isPaused =
-        reducedMotion ||
-        hoveringRef.current ||
-        draggingRef.current ||
-        touchActiveRef.current;
+        reducedMotion || hoveringRef.current || draggingRef.current || touchActiveRef.current;
 
       if (container) {
         if (!isPaused) {
@@ -178,11 +164,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
         // pause 중 수동 스크롤(휠/트랙패드/드래그)도 같은 scrollLeft 좌표계이므로
         // 항상 normalize — 사용자가 카피 스트립 물리적 끝에 도달하는 것을 방지.
         // 래핑은 실측 주기(cycleWidth)의 정확한 배수라 시각적으로 seamless.
-        normalizeScrollPosition(
-          container,
-          itemCountRef.current,
-          repeatCountRef.current,
-        );
+        normalizeScrollPosition(container, itemCountRef.current, repeatCountRef.current);
       }
 
       animationFrameRef.current = window.requestAnimationFrame(animate);
@@ -204,18 +186,14 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       detachWindowReleaseRef.current?.();
       detachWindowReleaseRef.current = null;
     },
-    [],
+    []
   );
 
   // 가운데 사이클 시작점으로 재배치 (탭 전환 등 콘텐츠 교체 시 소비 측에서 호출)
   const recenter = useCallback(() => {
     const container = scrollRef.current;
     if (!container || itemCountRef.current <= 1) return;
-    const cycleWidth = measureCycleWidth(
-      container,
-      itemCountRef.current,
-      repeatCountRef.current,
-    );
+    const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
     if (cycleWidth) {
       container.scrollTo({ left: cycleWidth, behavior: 'auto' });
     }
@@ -228,11 +206,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       window.clearTimeout(touchResumeTimerRef.current);
       touchResumeTimerRef.current = window.setTimeout(() => {
         touchActiveRef.current = false;
-        normalizeScrollPosition(
-          scrollRef.current,
-          itemCountRef.current,
-          repeatCountRef.current,
-        );
+        normalizeScrollPosition(scrollRef.current, itemCountRef.current, repeatCountRef.current);
       }, TOUCH_RESUME_DELAY);
     };
 
@@ -244,11 +218,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       const deltaX = event.clientX - dragLastXRef.current;
       dragLastXRef.current = event.clientX;
       container.scrollLeft -= deltaX;
-      normalizeScrollPosition(
-        container,
-        itemCountRef.current,
-        repeatCountRef.current,
-      );
+      normalizeScrollPosition(container, itemCountRef.current, repeatCountRef.current);
     };
 
     const detachWindowRelease = () => {
@@ -314,7 +284,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       // 이미지 네이티브 드래그가 드래그-투-스크롤을 가로채지 않도록 차단
       onDragStart: (event) => {
         event.preventDefault();
-      },
+      }
     };
   }, []);
 
@@ -350,11 +320,7 @@ function measureCycleWidth(container, itemCount, repeatCount = MIN_REPEAT_COUNT)
   return container.scrollWidth / repeatCount;
 }
 
-function normalizeScrollPosition(
-  container,
-  itemCount,
-  repeatCount = MIN_REPEAT_COUNT,
-) {
+function normalizeScrollPosition(container, itemCount, repeatCount = MIN_REPEAT_COUNT) {
   if (!container) return;
 
   const cycleWidth = measureCycleWidth(container, itemCount, repeatCount);
