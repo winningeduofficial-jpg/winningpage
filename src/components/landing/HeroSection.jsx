@@ -204,18 +204,18 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
 
   return (
     <section aria-label="메인 히어로" className="w-full">
-      {/* lg 가로 배치: gap은 시안 40px×0.8347=33.39→2.09rem(33.44px)
-          — max-w-content(1200px, 콘텐츠 1136px)에서 1136×0.9699+33.44=1135.25px로 오버플로 없음
-          lg 상하 패딩: 헤더 하단→배너 81px×0.8347=67.61→4.23rem, 인디케이터 하단→섹션 끝 37px×0.8347=30.88→1.93rem */}
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-[2.09rem] lg:pb-[1.93rem] lg:pt-[4.23rem]">
+      {/* lg 가로 배치: gap 18px(1101x480 시안 원값)→1.125rem
+          좌 73.89%(813.28/1100.6) + 우 24.47%(269.32/1100.6)
+          lg 상단 패딩: 헤더 하단→배너 120px→7.5rem. pb는 0 — 다음 섹션 pt에서 갭 처리(섹션 수직 리듬 규칙) */}
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-[1.125rem] lg:pb-0 lg:pt-[7.5rem]">
         {/* 좌측 캐러셀 969×429 + 카드 바깥 하단 인디케이터 */}
         {leftSlideCount > 0 && (
-          <div className="flex w-full flex-col items-center lg:basis-[72.85%] lg:grow lg:shrink-0">
+          <div className="flex w-full flex-col items-center lg:basis-[73.89%] lg:grow lg:shrink-0">
             <div
               role="region"
               aria-roledescription="carousel"
               aria-label="메인 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[2rem] bg-[#050D2B] aspect-[969/429] hero-reveal-left"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-[969/429] hero-reveal-left"
               onMouseEnter={leftCarousel.onMouseEnter}
               onMouseLeave={leftCarousel.onMouseLeave}
               onFocusCapture={leftCarousel.onFocusCapture}
@@ -312,12 +312,12 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
 
         {/* 우측 캐러셀 321×429 + 카드 바깥 하단 인디케이터 */}
         {rightSlideCount > 0 && (
-          <div className="flex w-full max-w-[20.0625rem] flex-col items-center md:max-w-[26rem] lg:max-w-none lg:basis-[24.14%] lg:grow lg:shrink-0">
+          <div className="flex w-full max-w-[20.0625rem] flex-col items-center md:max-w-[26rem] lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
             <div
               role="region"
               aria-roledescription="carousel"
               aria-label="이벤트 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#0039B6] to-[#001950] aspect-[321/429] hero-reveal-right"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-gradient-to-b from-[#0039B6] to-[#001950] aspect-[321/429] hero-reveal-right"
               onMouseEnter={rightCarousel.onMouseEnter}
               onMouseLeave={rightCarousel.onMouseLeave}
               onFocusCapture={rightCarousel.onFocusCapture}
