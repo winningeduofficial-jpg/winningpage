@@ -28,101 +28,102 @@ const serviceIconMap = {
   default: ClipboardList
 };
 
-/* 카드 셸 — 시안(1889:4876, 1920 캔버스) 실측 → 1136 환산(×0.8347 = 1136/그리드 실폭 1361)
-   높이 217→181.1px(11.32rem, lg), radius 30→25px(1.5625rem, lg), 테두리 1px #D7D7D7(시안),
-   그림자 0 4px 8px 4px rgba(128,128,128,0.3) → 0 3.3 6.7 3.3(색·투명도는 원값 유지).
+/* 카드 셸 — 0729 시안(2207:12970, 1100 캔버스) 실측(px÷16=rem, 환산 계수 폐기).
+   높이 179px(11.1875rem, lg), radius 25px(1.5625rem, lg, 기존 유지), 보더 없음,
+   그림자 알파 0.125(현행 유지 — 시안 셸 opacity 40%의 유효값 근사, 의도적 불일치).
    hover는 시안에 없는 구현측 인터랙션 — 동작은 유지하되 그림자 색만 기본과 동계열로 통일. */
 const CARD_CLASS =
   'group relative block h-[11.5625rem] w-full overflow-hidden rounded-[1.875rem] bg-white ' +
   'shadow-[0_0.2063rem_0.4188rem_0.2063rem_rgba(128,128,128,0.125)] transition-[background-color,box-shadow] duration-200 ' +
   '[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 ' +
-  'lg:h-[11.32rem] lg:rounded-[1.5625rem]';
+  'lg:h-[11.1875rem] lg:rounded-[1.5625rem]';
 
 // 카드 일러스트 hover/focus 리프트 — 터치 기기에는 hover 없이 :active만 적용
 const ILLUSTRATION_LIFT_CLASS =
   'service-illustration [@media(hover:hover)]:group-hover:-translate-y-[0.1875rem] ' +
   'group-focus-visible:-translate-y-[0.1875rem] active:translate-y-[0.0625rem]';
 
-/* 카드별 일러스트 배치 (lg 전용) — 시안 실측(1920, 카드 상대좌표) → 1136 환산(×0.8347).
+/* 카드별 일러스트 배치 (lg 전용) — 0729 시안(2207:12970, 1100 캔버스, 카드 상대좌표) 실측(px÷16=rem).
+   무료진단·목표관리·콜멘토는 시안 직접 실측치. 수행평가·자기평가·심화탐구는 시안 미제공 —
+   구 시안(카드 356.4×181.1) 배치 비율을 신 카드(352×179, sx≈0.9877 / sy≈0.9883)로 재산정.
    시안은 세로 중앙이 아닌 카드 상단 기준 배치이며 카드마다 본체 크기·우측 여백이 다르고
-   수행평가만 18.66° 회전. 받침 그림자는 동일 자산(136×29, 무료진단만 124.4×26.5)을
-   카드 하단 기준 shadowBottom만큼 띄워 본체 하단과 ~5-10px 겹치게 깐다.
-   boxW: 래퍼 폭(회전 카드는 회전 후 bbox 폭), w/h: 본체 이미지, top: 본체 상단 오프셋
-   (수행평가는 bbox top 21.2 + (bboxH 138.4 − 본체 103.5)/2 = 38.7px — 회전 원점이 중앙이므로 보정).
+   수행평가만 18.66° 회전. 받침 그림자는 동일 자산을 카드 하단 기준 shadowBottom만큼 띄워
+   본체 하단과 겹치게 깐다(그림자 위치는 시안 미제공 — 구 값을 동일 비율로 재산정).
+   boxW: 래퍼 폭(회전 카드는 회전 후 bbox 폭), w/h: 본체 이미지, top: 본체 상단 오프셋.
    인덱스 = sort_order 순 = 시안 카드 순서. */
 const ILLUSTRATION_LAYOUTS = [
-  // 무료진단 — 본체 146×123.1 / right 60 / top 48 / 그림자 124.4×26.5, 하단 44.1
+  // 무료진단 — 시안 실측 본체 118.9×100.2 / top 39.1 / right 53
   {
-    boxW: '7.62rem',
-    w: '7.62rem',
-    h: '6.42rem',
-    right: '3.13rem',
-    top: '2.5rem',
+    boxW: '7.43rem',
+    w: '7.43rem',
+    h: '6.26rem',
+    right: '3.31rem',
+    top: '2.44rem',
     rotate: '0deg',
-    shadowW: '6.49rem',
-    shadowH: '1.38rem',
-    shadowBottom: '2.3rem'
+    shadowW: '6.41rem',
+    shadowH: '1.36rem',
+    shadowBottom: '2.27rem'
   },
-  // 목표관리 — 본체 137×151 / right 51 / top 21 / 그림자 하단 26
+  // 목표관리 — 시안 실측 본체 113.8×125.0 / top 17.4 / right 42
   {
-    boxW: '7.15rem',
-    w: '7.15rem',
-    h: '7.88rem',
-    right: '2.66rem',
-    top: '1.1rem',
+    boxW: '7.11rem',
+    w: '7.11rem',
+    h: '7.81rem',
+    right: '2.63rem',
+    top: '1.09rem',
     rotate: '0deg',
-    shadowW: '7.09rem',
-    shadowH: '1.51rem',
-    shadowBottom: '1.36rem'
+    shadowW: '7rem',
+    shadowH: '1.49rem',
+    shadowBottom: '1.34rem'
   },
-  // 콜멘토 — 본체 175.2×144 / right 47.8 / top 25 / 그림자 하단 21
+  // 콜멘토 — 시안 실측 본체 134.2×110.3 / top 29.9 / right 37
   {
-    boxW: '9.14rem',
-    w: '9.14rem',
-    h: '7.51rem',
-    right: '2.49rem',
-    top: '1.3rem',
+    boxW: '8.39rem',
+    w: '8.39rem',
+    h: '6.89rem',
+    right: '2.31rem',
+    top: '1.87rem',
     rotate: '0deg',
-    shadowW: '7.09rem',
-    shadowH: '1.51rem',
-    shadowBottom: '1.1rem'
+    shadowW: '7rem',
+    shadowH: '1.49rem',
+    shadowBottom: '1.09rem'
   },
-  // 수행평가 — 본체 151×124 회전 18.66° → bbox 182.7×165.8 / bbox right ~2 / bbox top 25.4 / 그림자 하단 23
+  // 수행평가 — 구 배치 재산정(회전 18.66° 유지)
   {
-    boxW: '9.53rem',
-    w: '7.88rem',
-    h: '6.47rem',
+    boxW: '9.41rem',
+    w: '7.78rem',
+    h: '6.39rem',
     right: '0.1rem',
-    top: '2.42rem',
+    top: '2.39rem',
     rotate: '18.66deg',
-    shadowW: '7.09rem',
-    shadowH: '1.51rem',
-    shadowBottom: '1.2rem'
+    shadowW: '7rem',
+    shadowH: '1.49rem',
+    shadowBottom: '1.19rem'
   },
-  // 자기평가 — 본체 146×144 / right 52 / top 35 / 그림자 하단 18
+  // 자기평가 — 구 배치 재산정
   {
-    boxW: '7.62rem',
-    w: '7.62rem',
-    h: '7.51rem',
-    right: '2.71rem',
-    top: '1.83rem',
+    boxW: '7.53rem',
+    w: '7.53rem',
+    h: '7.42rem',
+    right: '2.68rem',
+    top: '1.81rem',
     rotate: '0deg',
-    shadowW: '7.09rem',
-    shadowH: '1.51rem',
-    shadowBottom: '0.94rem'
+    shadowW: '7rem',
+    shadowH: '1.49rem',
+    shadowBottom: '0.93rem'
   },
-  // 심화탐구 — 본체 169.3×133 / right 44.7 / top 45 / 그림자 하단 23
+  // 심화탐구 — 구 배치 재산정
   {
-    boxW: '8.83rem',
-    w: '8.83rem',
-    h: '6.94rem',
-    right: '2.33rem',
-    top: '2.35rem',
+    boxW: '8.72rem',
+    w: '8.72rem',
+    h: '6.86rem',
+    right: '2.3rem',
+    top: '2.32rem',
     rotate: '0deg',
-    shadowW: '7.09rem',
-    shadowH: '1.51rem',
-    shadowBottom: '1.2rem'
+    shadowW: '7rem',
+    shadowH: '1.49rem',
+    shadowBottom: '1.19rem'
   }
 ];
 
@@ -139,17 +140,17 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
           카드가 이미 449.5px에 도달해 원래 값이 안전하므로 그대로 두고,
           그 미만(모바일 단독 구간)만 pr-[6rem]으로 축소한다. 단, pr만 줄이면 절대 위치인
           우측 일러스트(아래 두 분기)와 겹치므로 모바일에서 일러스트도 함께 축소한다.
-          lg 3열(열폭 356.4px)은 시안 환산으로 재산정: pl 50→41.7px(2.61rem),
-          pt 60→50.1px(3.13rem), pr 200×0.8347≈167px(10.44rem),
-          이름→설명 20→16.7px(1.04rem). */}
-      <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[2.75rem] sm:pl-[2.75rem] sm:pr-[12.5rem] lg:gap-[1.04rem] lg:pl-[2.61rem] lg:pr-[10.44rem] lg:pt-[3.13rem]">
-        {/* 이름 24→20px(1.25rem, lg) — 자간은 시안 -0.48/24 = -0.02em, em 단위라 축소 시 비율 유지 */}
+          lg 3열(열폭 352px)은 0729 시안 실측(px÷16=rem): pl 40.7px(2.54rem),
+          pt 48.8px(3.05rem), 이름→설명 gap 16.3px(1.02rem).
+          pr(10.44rem)은 시안 미제공 — 기존 값 유지. */}
+      <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[2.75rem] sm:pl-[2.75rem] sm:pr-[12.5rem] lg:gap-[1.02rem] lg:pl-[2.54rem] lg:pr-[10.44rem] lg:pt-[3.05rem]">
+        {/* 이름 24→20px(1.25rem, lg, 시안 원값 유지) — 자간은 시안 -0.48/24 = -0.02em, em 단위라 축소 시 비율 유지 */}
         <span className="block break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] lg:text-[1.25rem]">
           {service.name}
         </span>
-        {/* 설명 16px 환산 13.4px < 본문 가독성 하한 14px → 0.875rem 클램프 */}
+        {/* 설명 lg 13.1px(0.82rem) — 시안 문자값 충실(사용자 확정, 가독성 클램프 폐기) */}
         {service.description && (
-          <span className="block whitespace-pre-line break-keep text-[1rem] font-medium leading-[1.4] text-[#525252] lg:text-[0.875rem]">
+          <span className="block whitespace-pre-line break-keep text-[1rem] font-medium leading-[1.4] text-[#525252] lg:text-[0.82rem]">
             {service.description}
           </span>
         )}
@@ -226,8 +227,8 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
 
 /**
  * 핵심 서비스 섹션 (명세 3.3)
- * - 아이브로우 + 2줄 2톤 대제목(1행 #808080, 2행 #013262) + 3열×2행 카드 그리드
- *   (시안 1889:4876, 1920 캔버스 카드 427×217 → 1136 환산 ×0.8347)
+ * - 아이브로우(accent) + 2줄 2톤 대제목(1행 #525252, 2행 #013262) + 3열×2행 카드 그리드
+ *   (0729 시안 2207:12970, 1100 캔버스, 카드 352×179px÷16=rem)
  * - 카드: 좌측 텍스트(제목/설명) + 우측 3D 일러스트(icon_image_url, 없으면 lucide 폴백)
  * - 일러스트: lg 미만은 세로 중앙, lg는 시안 카드별 상단 기준 배치(크기·여백·회전 차등)
  * - 카드 전체가 link 필드로 이동하는 클릭 영역 (기본 /services)
@@ -247,25 +248,23 @@ export default function ServicesSection({ services = [] }) {
 
   return (
     <section aria-label="핵심 서비스" className="bg-white">
-      {/* 섹션 상하 여백 — 시안 상 119.6 / 하 120px → 환산 99.8/100.2px ≈ 6.25rem (lg) */}
-      <div className="mx-auto w-full max-w-content px-5 pb-10 pt-10 sm:px-8 lg:pb-[6.25rem] lg:pt-[6.25rem]">
-        {/* 헤더 — 시안 1920 실측 → 1136 환산(×0.8347): 아이브로우 20→16.7px(1.04rem),
-            대제목 44→36.7px(2.29rem). 자간은 시안 -0.88/44 = -0.02em — em 단위라 축소 시 비율 유지 */}
-        <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#013262] lg:text-[1.04rem]">
-          핵심 서비스
-        </p>
-        {/* 대제목 2톤 — 시안: 1행 #808080, 2행 #013262 */}
-        <h2 className="mt-[0.625rem] text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.29rem]">
-          <span className="block text-[#808080]">진학의 순간들을</span>
+      {/* 섹션 상하 여백 — pt: 합격선배→서비스 갭 100px(6.25rem, lg), pb: 0(lg, 다음 섹션이 여백 담당) */}
+      <div className="mx-auto w-full max-w-content px-5 pb-10 pt-10 sm:px-8 lg:pb-0 lg:pt-[6.25rem]">
+        {/* 헤더 — 0729 시안 실측(px÷16=rem): 아이브로우 20px(1.25rem, accent, Regular),
+            대제목 32px(2rem, lg). 대제목 자간 -0.04rem은 lg 폰트 2rem 기준 -0.02em과 동일 비율 */}
+        <p className="text-[1.25rem] font-normal leading-[1.3] text-accent">핵심 서비스</p>
+        {/* 대제목 2톤 — 시안: 1행 #525252, 2행 #013262. 모바일/sm은 lg 축소 비율(32/36.64≈0.8734)로 비례 축소 */}
+        <h2 className="mt-[0.375rem] text-[1.53rem] font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[1.97rem] lg:text-[2rem]">
+          <span className="block text-[#525252]">진학의 순간들을</span>
           <span className="block text-[#013262]">막막하지 않도록. 필요한 만큼만.</span>
         </h2>
 
         {/* 3열×2행 카드 그리드 (모바일+태블릿 1열 → lg 3열, 시안과 동일)
             — md(768px)에서 2열로 전환하면 카드 폭이 좁아져 2줄 고정 설명이 3~4줄로 깨짐(태블릿 실측).
             768~1023 구간은 1열로 유지해 모바일과 같은 넉넉한 카드 폭(텍스트 공간)을 확보한다.
-            lg 3열: 콘텐츠 1136px 기준 열폭 (1136 − 2×33.4)/3 = 356.4px — 시안 427×0.8347과 일치.
-            간격 40→33.4px(2.09rem), 대제목→그리드 99.4→83px(5.19rem). */}
-        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-8 lg:mt-[5.19rem] lg:grid-cols-3 lg:gap-[2.09rem]">
+            lg 3열: 콘텐츠 1100px 기준 열폭 (1100 − 2×20)/3 = 352px(grid 1fr로 자동).
+            열 gap 20px(1.25rem) / 행 gap 29px(1.8125rem), 대제목→그리드 39px(2.4375rem). */}
+        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-8 lg:mt-[2.4375rem] lg:grid-cols-3 lg:gap-x-[1.25rem] lg:gap-y-[1.8125rem]">
           {visibleServices.map((service, index) => (
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard
