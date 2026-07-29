@@ -476,7 +476,7 @@ export default function Header() {
             <div className="h-[2rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-3 py-1.5 text-sm font-medium text-[#1e293b] whitespace-nowrap">
+              <div className="flex shrink-0 items-center gap-2.5 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-3 py-1.5 text-sm font-medium text-[#1e293b] whitespace-nowrap">
                 <span className="rounded bg-[#013262] px-2 py-1 text-xs text-white">
                   {csatDDay}
                 </span>
@@ -678,36 +678,34 @@ export default function Header() {
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
             이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
         <div
-          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
-              : isMegaPanelClosing
-                ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
-                : 'invisible opacity-0 pointer-events-none'
-          }`}
+          className={`fixed inset-x-0 top-[4.25rem] bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${isMegaPanelOpen
+            ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
+            : isMegaPanelClosing
+              ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
+              : 'invisible opacity-0 pointer-events-none'
+            }`}
           onClick={() => setActiveMega(null)}
           aria-hidden="true"
         />
 
         <div
-          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
-              : isMegaPanelClosing
-                ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
-                : 'invisible opacity-0 -translate-y-2 pointer-events-none'
-          }`}
+          className={`fixed left-0 top-[4.25rem] z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${isMegaPanelOpen
+            ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
+            : isMegaPanelClosing
+              ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
+              : 'invisible opacity-0 -translate-y-2 pointer-events-none'
+            }`}
           aria-hidden={!isMegaPanelOpen}
           onMouseEnter={clearMegaCloseTimer}
           onMouseLeave={scheduleMegaClose}
         >
-            {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
+          {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
                 1920 밴드 — 헤더 계정 그룹과 같은 축)를 같은 grid cell(col-start-1 row-start-1)에
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
-            <div className="grid">
-              {/* 좌표계 2(1200 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8 +
+          <div className="grid">
+            {/* 좌표계 2(1200 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8 +
                   marginLeft(NAV_GUARD)로 컬럼 0의 시작 x를 nav 아이템 0의 시작 x와 맞춘다(이
                   정렬은 아래 회색 존/카드 폴리시 변경과 무관하게 그대로 유지). 컬럼 폭이
                   8.75rem(140px, 시안 132px과 거의 1:1)으로 넓어지면서 "해외명문대 진학컨설팅" 등
@@ -719,38 +717,38 @@ export default function Header() {
                   컬럼 상단 그룹 타이틀(서비스/프리미엄/...)은 바로 위 nav 아이템과 문구가
                   완전히 중복되어 제거했다 — 첫 아이템이 기존 타이틀 자리(패널 상단 py-6=1.5rem)
                   에서 바로 시작하며, 타이틀이 쓰던 간격은 패널 상단 패딩이 그대로 흡수한다. */}
-              <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
-                <div
-                  className="grid"
-                  style={{
-                    marginLeft: NAV_GUARD,
-                    gridTemplateColumns: `repeat(5, ${NAV_ITEM_W})`,
-                    columnGap: NAV_GAP
-                  }}
-                >
-                  {navGroups.map((group) => (
-                    <div key={`mega-col-${group.title}`} className="flex flex-col gap-3">
-                      {group.items.map((item) => (
-                        <Link
-                          key={`mega-${group.title}-${item.to}-${item.label}`}
-                          to={item.to}
-                          onClick={() => setActiveMega(null)}
-                          className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+            <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
+              <div
+                className="grid"
+                style={{
+                  marginLeft: NAV_GUARD,
+                  gridTemplateColumns: `repeat(5, ${NAV_ITEM_W})`,
+                  columnGap: NAV_GAP
+                }}
+              >
+                {navGroups.map((group) => (
+                  <div key={`mega-col-${group.title}`} className="flex flex-col gap-3">
+                    {group.items.map((item) => (
+                      <Link
+                        key={`mega-${group.title}-${item.to}-${item.label}`}
+                        to={item.to}
+                        onClick={() => setActiveMega(null)}
+                        className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
               </div>
+            </div>
 
-              {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
+            {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
                   mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에 겹치므로
                   바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
                   pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
-              <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-                {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
+            <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
+              {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
                     (파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
                     붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
                     서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 박스 자연 높이(카드+5rem)가
@@ -761,53 +759,53 @@ export default function Header() {
                     4방향 동일 패딩(p-10)은 그대로 두고 박스 자체의 우측 기준점만 8px 우측으로
                     옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
                     맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
-                <div
-                  className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
-                  style={{ transform: 'translateX(0.5rem)' }}
-                >
-                  {/* 프로모 카드: 콘텐츠 하드코딩. 추후 admin에서 편집 가능한 배너로 전환 후보.
+              <div
+                className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
+                style={{ transform: 'translateX(0.5rem)' }}
+              >
+                {/* 프로모 카드: 콘텐츠 하드코딩. 추후 admin에서 편집 가능한 배너로 전환 후보.
                       Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
                       rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
                       버튼 68px/rounded-[16px]/20px SemiBold) 기준 0.8 컴팩트 스케일 환산.
                       쉐도우는 실측 이펙트 그대로 적용: DROP_SHADOW(0,4,16,rgba(0,0,0,.06)) +
                       inset 하이라이트(회색 존 위에 얹힌 카드의 유리질감 재현), 기존
                       shadow-[0_18px_45px_...]는 패널 전체 쉐도우를 잘못 재사용한 값이었다. */}
+                <div
+                  className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
+                  style={{ width: MEGA_PROMO_W }}
+                >
                   <div
-                    className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
-                    style={{ width: MEGA_PROMO_W }}
+                    className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
+                    aria-hidden="true"
+                  />
+                  <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
+                    월 2만원 대로 시작하는 입시 관리!
+                  </p>
+                  <p className="mt-2 text-sm leading-[1.4] text-[#525252]">
+                    학업·교내활동, 탐구, 학종, 교과, 면접까지
+                    <br />
+                    AI로 무제한 점검하세요
+                  </p>
+
+                  <img
+                    src="/images/mega-menu-promo.png"
+                    alt=""
+                    className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
+                  />
+
+                  <Link
+                    to="/login"
+                    onClick={() => setActiveMega(null)}
+                    className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
                   >
-                    <div
-                      className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
-                      aria-hidden="true"
-                    />
-                    <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
-                      월 2만원 대로 시작하는 입시 관리!
-                    </p>
-                    <p className="mt-2 text-sm leading-[1.4] text-[#525252]">
-                      학업·교내활동, 탐구, 학종, 교과, 면접까지
-                      <br />
-                      AI로 무제한 점검하세요
-                    </p>
-
-                    <img
-                      src="/images/mega-menu-promo.png"
-                      alt=""
-                      className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
-                    />
-
-                    <Link
-                      to="/login"
-                      onClick={() => setActiveMega(null)}
-                      className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
-                    >
-                      로그인하기
-                    </Link>
-                  </div>
+                    로그인하기
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
+      </>
 
       <MobileNavDrawer
         open={mobileNavOpen}
