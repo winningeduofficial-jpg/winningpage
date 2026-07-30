@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { MY_MENU } from './myMenuItems';
@@ -208,6 +208,47 @@ export default function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavTriggerRef = useRef(null);
   const navGroups = useNavGroups();
+  const { pathname } = useLocation();
+
+  // 현재 경로 기반 GNB 활성 그룹 판정(사용자 확정 스펙, 2단계):
+  // 1단계 — 그룹의 후보 경로(group.to + items[].to 중 내부 경로만) 중 pathname과 정확히
+  //   같은 것이 있으면 그 그룹이 활성.
+  // 2단계 — 1단계에서 아무 그룹도 안 걸렸을 때만, 후보 경로의 첫 세그먼트와 pathname의 첫
+  //   세그먼트가 같으면 활성. /page/<slug>는 여러 그룹에 걸쳐 있어 첫 세그먼트로 비교하면
+  //   전 그룹이 동시에 활성화되므로 2단계 비교에서 제외(1단계 정확 일치에만 참여)한다.
+  // 세그먼트가 없는 경로(예: '/')는 2단계에서 제외 — 홈은 어느 nav 그룹에도 속하지 않는다.
+  // navGroups 순회 순서상 먼저 오는 그룹 하나만 활성으로 삼아 동시 활성을 방지한다.
+  const activePathTitle = useMemo(() => {
+    function firstSegment(path) {
+      const segment = String(path || '')
+        .split('/')
+        .filter(Boolean)[0];
+      return segment || null;
+    }
+
+    function internalCandidates(group) {
+      const raw = [group?.to, ...((Array.isArray(group?.items) ? group.items : []).map((item) => item?.to))];
+      return raw.filter((to) => typeof to === 'string' && to.startsWith('/'));
+    }
+
+    for (const group of navGroups) {
+      if (internalCandidates(group).includes(pathname)) {
+        return group.title;
+      }
+    }
+
+    const pathSegment = firstSegment(pathname);
+    if (!pathSegment) return null;
+
+    for (const group of navGroups) {
+      const segmentCandidates = internalCandidates(group).filter((to) => !to.startsWith('/page/'));
+      if (segmentCandidates.some((to) => firstSegment(to) === pathSegment)) {
+        return group.title;
+      }
+    }
+
+    return null;
+  }, [navGroups, pathname]);
 
   // 메가 유지영역(nav 메뉴 블록 + 메가 패널) 전용 공유 close 타이머 —
   // 두 영역이 헤더 안에서 서로 다른 DOM 서브트리(nav 오버레이 / 패널)라 완전히 붙어있지
@@ -627,6 +668,7 @@ export default function Header() {
           >
             {navGroups.map((group) => {
               const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
+              const isPathActive = activePathTitle === group.title;
 
               return (
                 <div
@@ -645,6 +687,7 @@ export default function Header() {
                     type="button"
                     aria-haspopup="true"
                     aria-expanded={activeMega === group.title}
+                    aria-current={isPathActive ? 'page' : undefined}
                     onFocus={() => {
                       clearMegaCloseTimer();
                       hasDropdown && setActiveMega(group.title);
@@ -654,10 +697,12 @@ export default function Header() {
                       hasDropdown &&
                         setActiveMega((prev) => (prev === group.title ? null : group.title));
                     }}
-                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base font-medium leading-[1.4] tracking-[-0.02em] transition ${
-                      activeMega === group.title
-                        ? 'text-[#013262]'
-                        : 'text-[#4d4d4d] hover:text-[#013262]'
+                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
+                      isPathActive
+                        ? 'font-semibold text-[#013262]'
+                        : activeMega === group.title
+                          ? 'font-medium text-[#013262]'
+                          : 'font-medium text-[#4d4d4d] hover:text-[#013262]'
                     }`}
                   >
                     {group.title}
