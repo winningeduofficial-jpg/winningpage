@@ -26,6 +26,12 @@ const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
+// TODO(백엔드 §5.5 순서5): is_email_available→auth.signUp→verifyOtp→complete_signup_profile
+// 실제 RPC 시퀀스가 연결되기 전까지는 완료 버튼이 mockApi.completeParentSignup만 호출해
+// 실제 계정/프로필을 생성하지 않는다. 배포 환경에서 학부모 가입을 노출하지 않도록 이
+// feature flag(VITE_PARENT_SIGNUP_ENABLED='true')가 켜진 경우에만 폼을 렌더링한다.
+const PARENT_SIGNUP_ENABLED = import.meta.env.VITE_PARENT_SIGNUP_ENABLED === 'true';
+
 const AGREEMENT_KEYS = ['service', 'privacyRequired', 'marketing'];
 const AGREEMENT_LABELS = [
   { key: 'service', label: '위닝에듀 이용약관', required: true, to: '/terms/parent/service' },
@@ -175,6 +181,18 @@ export default function ParentForm() {
     setSubmitting(false);
 
     navigate('/signup/parent/link');
+  }
+
+  if (!PARENT_SIGNUP_ENABLED) {
+    return (
+      <AuthLayout>
+        <AuthTitle line1="학부모 회원가입은 준비 중입니다" />
+
+        <p className="w-full text-center text-sm text-ink">
+          실제 계정 생성 연동이 완료된 후 오픈될 예정입니다. 잠시 후 다시 시도해 주세요.
+        </p>
+      </AuthLayout>
+    );
   }
 
   return (

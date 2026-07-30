@@ -93,9 +93,21 @@ function readStoredFlow() {
   }
 }
 
+// 민감 필드(비밀번호/인증코드)는 sessionStorage에 평문으로 남기지 않는다 — 새로고침 복구
+// 시에는 사용자가 다시 입력해야 하며, 이 필드들은 저장 대상에서 제외한다.
+const SENSITIVE_FORM_KEYS = ['password', 'phoneCode', 'emailCode'];
+
 function writeStoredFlow(state) {
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const sanitizedFormData = { ...state.formData };
+    SENSITIVE_FORM_KEYS.forEach((key) => {
+      delete sanitizedFormData[key];
+    });
+
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...state, formData: sanitizedFormData })
+    );
   } catch (error) {
     console.error('signup-flow 세션 저장소 쓰기 오류:', error);
   }
