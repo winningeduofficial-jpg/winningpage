@@ -20,12 +20,45 @@ import {
   AgreementList
 } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
+import { supabase } from '../../lib/supabase';
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
 import { REGION_OPTIONS } from './StudentForm';
 
 // AS-IS 재학구분 enum(§2.2: "초·중·고·N수생·기타") 그대로 채택.
 const SCHOOL_TYPE_OPTIONS = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
+
+// 14세 미만 가입 플로우는 아직 백엔드 연동이 없는 데드엔드라 기본 off — StudentBirth.jsx/
+// Under14Verify.jsx와 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
+const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidPassword(value) {
+  return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
+}
+
+// StudentForm.jsx의 동명 헬퍼와 동일 — 공유 훅/유틸 추출은 StudentForm 소유권 밖이라
+// 최소한의 인라인 복제로 둔다.
+function getFriendlyEmailError(errorMessage) {
+  if (!errorMessage) return '회원가입 중 문제가 발생했습니다.';
+
+  if (errorMessage.includes('User already registered')) {
+    return '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.';
+  }
+
+  if (errorMessage.includes('Password should be at least')) {
+    return '비밀번호는 최소 6자 이상으로 입력해 주세요.';
+  }
+
+  if (errorMessage.includes('Invalid email')) {
+    return '이메일 형식이 올바르지 않습니다.';
+  }
+
+  return errorMessage;
+}
 
 // §3.3 C-1 약관 6행 중 7825 정본 기준(본인 인증을 위한 정보 수집) — §5.2 약관 라우트 표
 // (/terms/student/{service|privacy|identity|marketing|promotion}) 그대로 매핑.
@@ -65,13 +98,19 @@ export default function Under14Form() {
     agreements,
     updateFormData,
     updateAgreements,
+    updateVerification,
     setAllAgreements
   } = useSignup();
+  const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
 
-  // §3.2 흐름: S1(생년월일) -> U0(PASS 안내) -> U1(이 화면). 학생 유형이 아니거나 법정대리인
-  // PASS 인증을 아직 마치지 않은 상태로 직접 URL 진입 시 순서대로 되돌린다.
+  // §3.2 흐름: S1(생년월일) -> U0(PASS 안내) -> U1(이 화면). 학생 유형이 아니거나, 플래그가
+  // off이거나, 법정대리인 PASS 인증을 아직 마치지 않은 상태로 직접 URL 진입 시 순서대로 되돌린다.
   useEffect(() => {
     if (memberType !== 'student') {
+      navigate('/signup', { replace: true });
+      return;
+    }
+    if (!UNDER14_SIGNUP_ENABLED) {
       navigate('/signup', { replace: true });
       return;
     }
@@ -89,6 +128,136 @@ export default function Under14Form() {
     () => STUDENT_AGREEMENT_ITEMS.every((item) => agreements[item.key]),
     [agreements]
   );
+
+  // --- 이메일 인증: StudentForm(C-1)의 requestEmailCode/verifyEmailCode Supabase OTP
+  // 시퀀스를 그대로 재사용한다(중복확인 → auth.signUp으로 OTP 발송 → auth.verifyOtp) —
+  // 이전에는 "인증번호 보내기" 클릭이 아무 동작도 하지 않는 no-op 스텁이었다.
+  async function requestEmailCode() {
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setEmailMessage({ text: '이메일을 먼저 입력해 주세요.', status: 'error' });
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setEmailMessage({ text: '이메일 형식이 올바르지 않습니다.', status: 'error' });
+      return;
+    }
+
+    setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
+
+    const { data, error } = await supabase.rpc('is_email_available', {
+      check_email: normalizedEmail
+    });
+
+    if (error) {
+      console.error('이메일 중복확인 오류:', error);
+      updateVerification('email', { checked: false, available: false });
+      setEmailMessage({
+        text: '중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+        status: 'error'
+      });
+      return;
+    }
+
+    if (data !== true) {
+      updateVerification('email', { checked: true, available: false });
+      setEmailMessage({
+        text: '이메일이 중복됩니다. 로그인 페이지에서 로그인해 주세요.',
+        status: 'error'
+      });
+      return;
+    }
+
+    updateVerification('email', { checked: true, available: true });
+
+    if (!isValidPassword(formData.password)) {
+      setEmailMessage({
+        text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
+        status: 'error'
+      });
+      return;
+    }
+
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (_error) {
+      // ignore
+    }
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password: formData.password,
+      options: {
+        data: {
+          email: normalizedEmail,
+          name: formData.name.trim(),
+          full_name: formData.name.trim(),
+          member_type: 'student',
+          role: 'user'
+        }
+      }
+    });
+
+    if (signUpError) {
+      setEmailMessage({ text: getFriendlyEmailError(signUpError.message), status: 'error' });
+      return;
+    }
+
+    updateVerification('email', { requested: true });
+    setEmailMessage({ text: '입력한 이메일로 인증코드를 발송했습니다.', status: 'default' });
+  }
+
+  async function verifyEmailCode() {
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const token = formData.emailCode.trim();
+
+    if (!verification.email.requested) {
+      setEmailMessage({ text: '먼저 인증번호를 발송해 주세요.', status: 'error' });
+      return;
+    }
+
+    if (!token) {
+      setEmailMessage({ text: '인증코드를 입력해 주세요.', status: 'error' });
+      return;
+    }
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token,
+      type: 'signup'
+    });
+
+    if (error) {
+      updateVerification('email', { verified: false });
+      setEmailMessage({ text: '인증번호가 틀립니다.', status: 'error' });
+      return;
+    }
+
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUser = userData.user;
+
+    if (currentUser?.id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, member_type')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (profile?.email && profile?.member_type) {
+        updateVerification('email', { verified: false });
+        setEmailMessage({
+          text: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.',
+          status: 'error'
+        });
+        return;
+      }
+    }
+
+    updateVerification('email', { verified: true });
+    setEmailMessage({ text: '이메일 인증이 완료되었습니다.', status: 'success' });
+  }
 
   // TODO: 버튼 활성화 조건이 시안에 명시돼 있지 않음(§3.3 D-2: "빈 폼 기본만 존재... 확인
   // 필요"). 필수 필드 전부 입력 + 필수 약관 전부 동의를 임시 기준으로 채택 — 실제 검증 규칙은
@@ -169,10 +338,11 @@ export default function Under14Form() {
           value={formData.email}
           onChange={(v) => updateFormData({ email: v })}
           placeholder="이메일을 입력 해주세요"
-          actionLabel="인증번호 보내기"
-          onAction={() => {
-            // TODO: 이메일 인증코드 발송 연동(기존 Supabase OTP 시퀀스 재사용 — §5.5 순서 5).
-          }}
+          actionLabel={verification.email.requested ? '인증번호 다시 보내기' : '인증번호 보내기'}
+          onAction={requestEmailCode}
+          actionDisabled={verification.email.verified}
+          helperText={emailMessage.text}
+          status={emailMessage.status}
         />
 
         <TextField
@@ -183,6 +353,10 @@ export default function Under14Form() {
           value={formData.emailCode}
           onChange={(v) => updateFormData({ emailCode: v })}
           placeholder="이메일 인증코드 6자리를 입력해주세요"
+          actionLabel="확인"
+          onAction={verifyEmailCode}
+          actionDisabled={!verification.email.requested || verification.email.verified}
+          disabled={!verification.email.requested}
         />
 
         <TextField
@@ -246,7 +420,7 @@ export default function Under14Form() {
           placeholder="전화번호를 입력 해주세요"
         />
 
-        <InfoCard variant="info">
+        <InfoCard variant="card">
           [학부모 휴대폰번호 수집 안내] 위닝에듀 서비스 이용에 필요한 안내와 공지사항을 제공하기
           위해 학부모(법정대리인)의 휴대폰번호를 수집합니다.
         </InfoCard>

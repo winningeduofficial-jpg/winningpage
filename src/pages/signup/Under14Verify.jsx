@@ -13,19 +13,29 @@ import { Check } from 'lucide-react';
 import { AuthLayout, AuthTitle, InfoCard, PrimaryButton } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
 
+// 14세 미만 가입 플로우는 아직 백엔드 연동이 없는 데드엔드라 기본 off — StudentBirth.jsx와
+// 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
+const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
+
 export default function Under14Verify() {
   const navigate = useNavigate();
   const { memberType, isUnder14, updateVerification } = useSignup();
 
   // §3.2 흐름: S0(유형선택, 학생) -> S1(생년월일) -> 만 14세 미만 -> U0(이 화면).
-  // memberType 없이 직접 진입하면 처음부터, 만 14세 이상으로 판정된 상태면 C-1 폼으로 되돌린다.
+  // memberType 없이 직접 진입하면 처음부터, 플래그가 off면 아예 이 플로우를 열지 않으므로
+  // /signup으로 되돌린다. isUnder14가 true로 확정되지 않은 모든 경우(false=14세 이상 확정,
+  // null=생년월일 미입력/판정 불가 포함)는 B-2(생년월일 입력)로 되돌려 대칭적으로 가드한다.
   useEffect(() => {
     if (memberType !== 'student') {
       navigate('/signup', { replace: true });
       return;
     }
-    if (isUnder14 === false) {
-      navigate('/signup/student', { replace: true });
+    if (!UNDER14_SIGNUP_ENABLED) {
+      navigate('/signup', { replace: true });
+      return;
+    }
+    if (isUnder14 !== true) {
+      navigate('/signup/student/birth', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberType, isUnder14]);

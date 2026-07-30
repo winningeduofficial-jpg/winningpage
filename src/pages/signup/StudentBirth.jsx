@@ -3,42 +3,25 @@
 // → 만 14세 이상이면 /signup/student(C-1), 미만이면 /signup/student/under14/verify(D-1)로 이동.
 //
 // 연령 판정은 setBirthDate 호출 후 컨텍스트 state 갱신을 기다리지 않고(setState는 비동기),
-// 이 파일 안에 SignupContext.jsx의 computeIsUnder14와 동일한 규칙을 복제해 제출 시점에
-// 즉시 분기 판단에 사용한다(§3.3 B-2: "생일이 지나지 않은 경우 만 14세 미만으로 처리").
+// 제출 시점에 즉시 분기 판단이 필요하다. 중복 구현을 피하기 위해 SignupContext.jsx가
+// export하는 computeIsUnder14(강화된 검증: 1900년 미만/미래 날짜/Date 롤오버 거부)를
+// 그대로 재사용한다(§3.3 B-2: "생일이 지나지 않은 경우 만 14세 미만으로 처리").
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthLayout, AuthTitle, TextField, PrimaryButton } from '../../components/auth';
-import { useSignup } from '../../context/SignupContext';
+import { AuthLayout, AuthTitle, TextField, PrimaryButton, InfoCard } from '../../components/auth';
+import { useSignup, computeIsUnder14 } from '../../context/SignupContext';
 
-function computeIsUnder14(birthDate8) {
-  if (!birthDate8 || birthDate8.length !== 8) return null;
-
-  const year = Number(birthDate8.slice(0, 4));
-  const month = Number(birthDate8.slice(4, 6));
-  const day = Number(birthDate8.slice(6, 8));
-
-  if (!year || !month || !day) return null;
-
-  const birth = new Date(year, month - 1, day);
-  if (Number.isNaN(birth.getTime())) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-
-  const hasHadBirthdayThisYear =
-    today.getMonth() > birth.getMonth() ||
-    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
-
-  if (!hasHadBirthdayThisYear) age -= 1;
-
-  return age < 14;
-}
+// 14세 미만 가입 플로우(D-1 PASS 본인인증 스텁 등)는 아직 백엔드 연동이 없는 데드엔드라
+// 기본 off. off인 배포에서는 14세 미만으로 판정돼도 under14 라우트로 보내지 않고 준비 중
+// 안내만 표시한다(Under14Verify/Under14Form의 URL 직접 진입 가드와 짝을 이룬다).
+const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
 
 export default function StudentBirth() {
   const navigate = useNavigate();
   const { memberType, birthDate, setBirthDate } = useSignup();
   const [value, setValue] = useState(birthDate || '');
   const [error, setError] = useState('');
+  const [showUnder14ComingSoon, setShowUnder14ComingSoon] = useState(false);
 
   // memberType 없이(예: 새로고침 전 이탈, 직접 URL 진입) 이 화면에 들어온 경우 첫 단계로 되돌림.
   useEffect(() => {
@@ -51,6 +34,7 @@ export default function StudentBirth() {
   function handleChange(next) {
     setValue(next.replace(/\D/g, '').slice(0, 8));
     if (error) setError('');
+    if (showUnder14ComingSoon) setShowUnder14ComingSoon(false);
   }
 
   function handleContinue() {
@@ -63,6 +47,11 @@ export default function StudentBirth() {
 
     if (isUnder14 === null) {
       setError('올바른 생년월일을 입력해 주세요.');
+      return;
+    }
+
+    if (isUnder14 && !UNDER14_SIGNUP_ENABLED) {
+      setShowUnder14ComingSoon(true);
       return;
     }
 
@@ -94,6 +83,12 @@ export default function StudentBirth() {
         />
 
         <PrimaryButton onClick={handleContinue}>계속하기</PrimaryButton>
+
+        {showUnder14ComingSoon && (
+          <InfoCard variant="card">
+            만 14세 미만 가입은 준비 중입니다. 잠시 후 다시 시도해 주세요.
+          </InfoCard>
+        )}
       </div>
     </AuthLayout>
   );
