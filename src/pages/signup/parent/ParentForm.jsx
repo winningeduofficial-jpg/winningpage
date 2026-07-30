@@ -55,8 +55,11 @@ export default function ParentForm() {
 
   // 학부모 폼으로 직접 진입(새로고침/직접 URL)한 경우에도 이 화면은 학부모 플로우의
   // 시작점이므로 memberType을 강제로 되돌리지 않고 'parent'로 확정한다.
+  // 단, PARENT_SIGNUP_ENABLED가 꺼진 배포에서는 memberType을 'parent'로 바꾸지 않는다 —
+  // 이 값이 그대로 유지돼야 LinkChoice 등 이후 온보딩 화면들의 "memberType !== 'parent'"
+  // 가드가 그대로 작동해 미완성 학부모 플로우 진입을 막는다.
   useEffect(() => {
-    if (memberType !== 'parent') {
+    if (PARENT_SIGNUP_ENABLED && memberType !== 'parent') {
       setMemberType('parent');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

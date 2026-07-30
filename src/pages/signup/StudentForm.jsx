@@ -25,7 +25,8 @@ import {
 import { useSignup } from '../../context/SignupContext';
 import { supabase } from '../../lib/supabase';
 
-const REGION_OPTIONS = [
+// Under14Form(D-2)도 동일 지역 목록(17개 시도 + '기타')을 쓰므로 이 상수를 공유한다.
+export const REGION_OPTIONS = [
   '서울',
   '부산',
   '대구',
@@ -111,13 +112,15 @@ export default function StudentForm() {
   const navigate = useNavigate();
   const {
     memberType,
+    isUnder14,
     formData,
     updateFormData,
     agreements,
     updateAgreements,
     setAllAgreements,
     verification,
-    updateVerification
+    updateVerification,
+    setSignupCompleted
   } = useSignup();
 
   const [loading, setLoading] = useState(false);
@@ -127,11 +130,13 @@ export default function StudentForm() {
 
   // B-1(회원유형 선택)을 건너뛰고 직접 진입한 경우의 가드 — SignupContext 계약 주석
   // ("memberType===null인데 폼 단계 라우트에 직접 진입 시 /signup으로 redirect") 참고.
+  // memberType===null(직접 진입) 또는 14세 미만(isUnder14!==false, 즉 true/null 미확정 포함)인
+  // 경우에도 이 화면(14세 이상 전용)에 머무르지 않도록 함께 막는다.
   useEffect(() => {
-    if (memberType && memberType !== 'student') {
+    if (memberType !== 'student' || isUnder14 !== false) {
       navigate('/signup', { replace: true });
     }
-  }, [memberType, navigate]);
+  }, [memberType, isUnder14, navigate]);
 
   const passwordValid = formData.password ? isValidPassword(formData.password) : null;
   const allRequiredAgreed = REQUIRED_AGREEMENT_KEYS.every((key) => agreements[key]);
@@ -142,8 +147,22 @@ export default function StudentForm() {
     checked: agreements[item.key]
   }));
 
+  // AS-IS(구 Signup.jsx updateForm) 동작 복원: 이메일/전화번호 값이 바뀌면 이미 진행된 인증
+  // 상태가 더 이상 유효하지 않으므로 해당 인증 플래그를 초기값으로 되돌린다. updateVerification은
+  // SignupContext state를 갱신하고 그 즉시 sessionStorage('signup-flow')에도 반영되므로(§5.3)
+  // 새로고침 후에도 리셋된 상태 그대로 복구된다.
   function handleField(key) {
-    return (value) => updateFormData({ [key]: value });
+    return (value) => {
+      updateFormData({ [key]: value });
+
+      if (key === 'email') {
+        updateVerification('email', { requested: false, verified: false, checked: false, available: false });
+      }
+
+      if (key === 'phone') {
+        updateVerification('phone', { requested: false, verified: false });
+      }
+    };
   }
 
   function handleToggleAllAgreements() {
@@ -465,6 +484,9 @@ export default function StudentForm() {
         setFormError('회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.');
         return;
       }
+
+      // C-2(StudentComplete) 진입 가드용 완료 플래그 — RPC 성공 직후에만 true로 설정한다.
+      setSignupCompleted(true);
 
       // AS-IS 정책 유지: 가입 완료 직후 세션을 파기(signOut)한다.
       // TODO(§3.3 C-2 "함의"): C-2 완료 화면은 "무료 진단 시작하기" CTA로 바로 진입하는

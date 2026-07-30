@@ -50,7 +50,8 @@ const INITIAL_STATE = {
   formData: INITIAL_FORM_DATA,
   agreements: INITIAL_AGREEMENTS,
   verification: INITIAL_VERIFICATION,
-  linkCode: null // 학생 가입 완료 후 발급되는 학부모 연동 코드(C-2)
+  linkCode: null, // 학생 가입 완료 후 발급되는 학부모 연동 코드(C-2)
+  signupCompleted: false // 가입 성공(complete_signup_profile RPC 성공) 직후 true — C-2 진입 가드용
 };
 
 // 만 나이 계산: 생일이 이미 지났으면 연도 차, 아직 안 지났으면 연도 차 - 1.
@@ -193,6 +194,10 @@ export function SignupProvider({ children }) {
     setState((prev) => ({ ...prev, linkCode }));
   }
 
+  function setSignupCompleted(signupCompleted) {
+    setState((prev) => ({ ...prev, signupCompleted }));
+  }
+
   function resetSignup() {
     clearStoredFlow();
     setState({ ...INITIAL_STATE });
@@ -209,6 +214,7 @@ export function SignupProvider({ children }) {
       setAllAgreements,
       updateVerification,
       setLinkCode,
+      setSignupCompleted,
       resetSignup
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

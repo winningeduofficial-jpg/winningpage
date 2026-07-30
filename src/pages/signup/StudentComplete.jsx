@@ -14,20 +14,25 @@ function generateMockLinkCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// 자녀 연동 코드 발급/표시는 백엔드 발급 API가 없어 mock으로 대체한 것이라(위 TODO) 실제
+// 배포 경로에는 노출하지 않는다 — 이 플래그가 켜진 경우에만 mock 코드 섹션을 렌더링한다.
+const CHILD_LINK_ENABLED = import.meta.env.VITE_CHILD_LINK_ENABLED === 'true';
+
 export default function StudentComplete() {
   const navigate = useNavigate();
-  const { formData, linkCode, setLinkCode, resetSignup } = useSignup();
+  const { formData, linkCode, setLinkCode, signupCompleted, resetSignup } = useSignup();
   const [copied, setCopied] = useState(false);
 
-  // StudentForm을 거치지 않고 직접 진입한 경우(이름 없음)의 가드.
+  // StudentForm의 complete_signup_profile RPC 성공 직후에만 setSignupCompleted(true)가
+  // 호출되므로, 이 화면을 거치지 않고 직접 진입(새로고침 포함)한 경우를 이 플래그로 막는다.
   useEffect(() => {
-    if (!formData.name?.trim()) {
+    if (!signupCompleted) {
       navigate('/signup/student', { replace: true });
     }
-  }, [formData.name, navigate]);
+  }, [signupCompleted, navigate]);
 
   useEffect(() => {
-    if (!linkCode) {
+    if (CHILD_LINK_ENABLED && !linkCode) {
       setLinkCode(generateMockLinkCode());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,19 +79,24 @@ export default function StudentComplete() {
 
       <p className="text-center text-xl text-ink">{studentName} 학생, 위닝에듀에 온 걸 환영해요</p>
 
-      <div className="flex w-full flex-col gap-4">
-        <InfoCard variant="card">
-          코드를 학부모님께 알려주면 학부모 대시보드에 내 학습 현황이 자동으로 연결돼요
-        </InfoCard>
+      {/* TODO: 실제 연동 코드는 백엔드 발급 API 응답값으로 교체 — 현재는 6자리 mock(위
+          generateMockLinkCode). 백엔드 미연동 상태로는 배포 경로에 노출하지 않도록
+          VITE_CHILD_LINK_ENABLED 플래그로 감싼다. */}
+      {CHILD_LINK_ENABLED && (
+        <div className="flex w-full flex-col gap-4">
+          <InfoCard variant="card">
+            코드를 학부모님께 알려주면 학부모 대시보드에 내 학습 현황이 자동으로 연결돼요
+          </InfoCard>
 
-        <div className="flex w-full items-center justify-center rounded-[0.875rem] border border-line py-4 text-xl font-medium text-accent">
-          {linkCode}
+          <div className="flex w-full items-center justify-center rounded-[0.875rem] border border-line py-4 text-xl font-medium text-accent">
+            {linkCode}
+          </div>
+
+          <TextLinkButton as="button" tone="accent" size="xs" underline onClick={handleCopyCode}>
+            {copied ? '복사되었습니다' : '코드 복사하기'}
+          </TextLinkButton>
         </div>
-
-        <TextLinkButton as="button" tone="accent" size="xs" underline onClick={handleCopyCode}>
-          {copied ? '복사되었습니다' : '코드 복사하기'}
-        </TextLinkButton>
-      </div>
+      )}
 
       <div className="flex w-full flex-col gap-3">
         <PrimaryButton size="default" radius="default" onClick={handleStartDiagnosis}>

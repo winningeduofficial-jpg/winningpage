@@ -7,7 +7,7 @@
 //  - "학부모 정보 (필수)" 섹션 추가(전화번호 + 수집 안내 + 법정대리인 동의 체크).
 // 약관 동의 항목은 D-2 전용 차이가 스펙에 기록돼 있지 않아 C-1(학생 6항목 중 필수3/선택2 —
 // 7825 정본 채택분)과 동일 구성으로 채택한다.
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import {
@@ -20,13 +20,9 @@ import {
   AgreementList
 } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
-
-// AS-IS Signup.jsx(§2.2)의 17개 시도 select 관례를 그대로 채택(§3.3 C-1 예시 데이터 "울산"과
-// 표기 형식 일치 — "울산광역시"가 아닌 "울산").
-const REGION_OPTIONS = [
-  '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
-  '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
-];
+// AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
+// (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
+import { REGION_OPTIONS } from './StudentForm';
 
 // AS-IS 재학구분 enum(§2.2: "초·중·고·N수생·기타") 그대로 채택.
 const SCHOOL_TYPE_OPTIONS = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
@@ -111,10 +107,13 @@ export default function Under14Form() {
     formData.guardianConsent &&
     STUDENT_AGREEMENT_ITEMS.filter((item) => item.required).every((item) => agreements[item.key]);
 
+  const [showNextComingSoon, setShowNextComingSoon] = useState(false);
+
   // TODO(다음 단계 미확정): §3.3 D-2 "U1 -> U2 다음 단계(화면 데이터 없음 — 확인 필요)".
-  // 실제 다음 라우트/제출 시퀀스가 정해지기 전까지 스텁으로 남겨둔다.
+  // 실제 다음 라우트/제출 시퀀스가 정해지기 전까지 스텁으로 남겨두되, ParentForm의 "준비
+  // 중" 안내 패턴과 동일하게 클릭 시 사용자에게 안내 문구를 노출한다.
   function handleNext() {
-    console.warn('[Under14Form] TODO: D-2 다음 단계 화면/라우트가 시안에 정의되지 않음.');
+    setShowNextComingSoon(true);
   }
 
   return (
@@ -270,6 +269,10 @@ export default function Under14Form() {
           onToggleItem={(key) => updateAgreements({ [key]: !agreements[key] })}
         />
       </section>
+
+      {showNextComingSoon && (
+        <InfoCard variant="info">다음 단계 준비 중입니다. 잠시 후 다시 시도해 주세요.</InfoCard>
+      )}
 
       {/* §3.3 D-2: "다음" 버튼 400×52px(C-1/D-1과 달리 이 버튼은 사이즈 매트릭스 불일치가
           기록돼 있지 않아 스펙에 명시된 52px/default 그대로 사용 — D-1 PASS 버튼과는 별개 판단). */}
