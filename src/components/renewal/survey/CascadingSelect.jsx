@@ -8,7 +8,11 @@ const LEVEL_META = [
   { key: 'detailType', label: '세부 전형명', placeholder: '세부 전형을 선택해 주세요' }
 ];
 
-// 미리보기용 샘플 데이터 — 실존 대학명을 사용한 하드코딩 옵션.
+// ⚠️ 더미 데이터 — 1차(디자인 구현) 전용 임시물이다. SPEC-fd-ver3-v2 §8-B11=(a).
+// 대학/학과/전형/입결 마스터 데이터는 repo·DB 어디에도 없고 2차에서 확보·이관한다(§10-10).
+// 목적은 "드롭다운이 열리고 · chevron 이 회전하고 · 단계별로 활성화되는" 상태를 눈으로 검수하는 것뿐이며,
+// 실제 입시 정보로서의 정확성은 보장하지 않는다. 2차 전환 시 이 상수를 지우고 `levels[].options`
+// (이미 열려 있는 prop)로 실데이터를 주입하면 컴포넌트 자체는 무변경이다.
 // 학과/전형유형은 대학 선택에 종속되고, 세부 전형명은 대학+전형유형에 종속된다.
 const UNIVERSITY_DATA = {
   건국대학교: {
@@ -145,7 +149,7 @@ export default function CascadingSelect({ levels, value, onChange }) {
   return (
     <div
       ref={containerRef}
-      className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5"
+      className="grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,14.25rem)] lg:gap-5"
     >
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || '';
@@ -155,7 +159,13 @@ export default function CascadingSelect({ levels, value, onChange }) {
 
         return (
           <div key={level.key} className="relative flex min-w-0 flex-col gap-2">
-            <p className="text-base font-medium leading-5 text-[#525252]">{level.label}</p>
+            <p
+              className={`text-base font-medium leading-5 ${
+                enabled ? 'text-[#525252]' : 'text-[#D7D7D7]'
+              }`}
+            >
+              {level.label}
+            </p>
 
             <button
               type="button"
@@ -163,23 +173,24 @@ export default function CascadingSelect({ levels, value, onChange }) {
               aria-haspopup="listbox"
               aria-expanded={isOpen}
               onClick={() => enabled && setOpenIndex(isOpen ? null : index)}
-              className={`flex h-[4.25rem] w-full items-center justify-between gap-3 rounded-[1.25rem] border px-5 text-left text-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 ${
+              className={`flex h-[4.25rem] w-full items-center justify-between gap-6 rounded-[1.25rem] border px-5 text-left text-xl font-normal leading-5 transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30 ${
                 !enabled
-                  ? 'cursor-not-allowed border-[#EDEDED] bg-[#FAFAFA] text-[#d7d7d7]'
+                  ? 'cursor-not-allowed border-[#D7D7D7] bg-[#F5F5F5] text-[#D7D7D7]'
                   : isOpen
-                    ? 'border-[#013262] bg-white text-[#525252]'
+                    ? 'border-[#013262] bg-white text-[#181D24]'
                     : selected
-                      ? 'border-[#013262] bg-white text-[#525252] hover:bg-[#F1F8FF]/40'
-                      : 'border-[#d7d7d7] bg-white text-[#d7d7d7] hover:border-[#013262]/40'
+                      ? 'border-[#013262] bg-white text-[#181D24] hover:border-[#B0B0B0]'
+                      : 'border-[#D7D7D7] bg-white text-[#D7D7D7] hover:border-[#B0B0B0]'
               }`}
             >
               <span className="truncate">
                 {selected || (enabled ? level.placeholder : '이전 항목을 먼저 선택해 주세요')}
               </span>
+              {/* chevron: lucide-react ChevronDown 24 유지 (§7 C-7 — 별도 SVG 추출 안 함) */}
               <ChevronDown
                 size={24}
-                className={`shrink-0 transition-transform ${isOpen ? 'rotate-180 text-[#013262]' : ''} ${
-                  !enabled ? 'text-[#d7d7d7]' : selected ? 'text-[#013262]' : 'text-[#d7d7d7]'
+                className={`shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180 text-[#013262]' : ''} ${
+                  !enabled ? 'text-[#D7D7D7]' : selected ? 'text-[#013262]' : 'text-[#D7D7D7]'
                 }`}
               />
             </button>

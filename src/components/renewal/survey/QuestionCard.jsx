@@ -2,26 +2,66 @@
  * QuestionCard
  * Figma: hsokTD6OilcNEXyCR24sn4 / 1889:13222 ("설문조사 선택한 상태")
  *
- * 번호 원형 배지 + 카테고리 라벨 + 질문 타이틀 + 보조문구를 감싸는 카드 셸.
+ * 번호 배지 + 카테고리 라벨 + 질문 타이틀 + 보조문구를 감싸는 카드 셸.
  * 실제 선택 UI(OptionGroup 등)는 children으로 전달한다.
+ *
+ * 시안 실측 (1889:10745 외):
+ *   카드 radius 40 (2.5rem) / padding 상하 40 (2.5rem) 좌우 60 (3.75rem)
+ *   번호 배지 40×40 (2.5rem) radius 8 (0.5rem) bg #D7D7D7, 숫자 #808080
+ *   배지 ↔ 카테고리 라벨 gap 20 (1.25rem) / 배지행 ↔ 질문 gap 12 (0.75rem)
+ *   질문 ↔ 보조문구 gap 0 (1889:8804 h40 → 1889:8805 y40) / 질문블록 ↔ 입력영역 gap 20 (1.25rem)
+ *   질문 24px Medium — 시안 line-height 20px는 아티팩트라 정상 행간 1.4를 적용한다.
+ *
+ * maxSelect가 있는 복수선택 문항은 헤더 우측에 `2 / 3` 카운터를 노출한다
+ * (SPEC-fd-ver3-v2 §9-A3 — disabled 만으로는 이유가 전달되지 않는다).
  */
-export default function QuestionCard({ number, category, title, helper, children }) {
+export default function QuestionCard({
+  number,
+  category,
+  title,
+  helper,
+  maxSelect,
+  selectedCount = 0,
+  children
+}) {
+  const showCounter = Number.isFinite(maxSelect);
+  const counterReached = showCounter && selectedCount >= maxSelect;
+
   return (
     <div className="flex w-full flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 sm:rounded-[2.5rem] sm:px-10 sm:py-10 lg:px-[3.75rem]">
       <div className="flex w-full flex-col gap-5">
         <div className="flex w-full flex-col gap-3">
-          <div className="flex items-center gap-5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#d7d7d7] text-xl font-medium text-[#808080]">
-              {number}
-            </span>
-            {category && <p className="text-base font-medium text-[#d7d7d7]">{category}</p>}
+          <div className="flex w-full items-center justify-between gap-5">
+            <div className="flex items-center gap-5">
+              {number != null && (
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#D7D7D7] text-xl font-medium leading-5 text-[#808080]">
+                  {number}
+                </span>
+              )}
+              {category && (
+                <p className="text-base font-medium leading-5 text-[#D7D7D7]">{category}</p>
+              )}
+            </div>
+
+            {showCounter && (
+              <p
+                aria-live="polite"
+                className={`shrink-0 text-sm font-medium leading-5 ${
+                  counterReached ? 'text-[#013262]' : 'text-[#808080]'
+                }`}
+              >
+                {selectedCount} / {maxSelect}
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <h3 className="break-keep text-xl font-medium leading-snug text-[#525252] sm:text-2xl">
+          <div className="flex flex-col gap-0">
+            <h3 className="break-keep text-xl font-medium leading-[1.4] text-[#525252] sm:text-2xl">
               {title}
             </h3>
-            {helper && <p className="break-keep text-base font-medium text-[#d7d7d7]">{helper}</p>}
+            {helper && (
+              <p className="break-keep text-base font-medium leading-5 text-[#D7D7D7]">{helper}</p>
+            )}
           </div>
         </div>
 

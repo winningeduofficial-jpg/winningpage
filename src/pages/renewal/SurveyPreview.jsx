@@ -10,10 +10,18 @@ import GradeInputGrid from '../../components/renewal/survey/GradeInputGrid';
 import CascadingSelect from '../../components/renewal/survey/CascadingSelect';
 import { renewalSurveyQuestions } from '../../data/renewalSurveyQuestions';
 
+/**
+ * 시안상 hug 폭 칩 wrap 으로 배치되는 문항.
+ * 데이터의 `type` 은 `radio-row` / `checkbox-row` 지만 시안(1889:10745 · 10784 · 10829 · 9866)은
+ * 전폭 행이 아니라 내용 기준 hug 칩이다. `renewalSurveyQuestions.js` 는 이번 범위 밖이라
+ * 데이터 대신 렌더 계층에서 시안을 따른다.
+ * → 후속 태스크에서 type 을 `radio-chip` / `checkbox-chip` 으로 분리하면 이 상수는 제거한다.
+ */
+const CHIP_LAYOUT_QUESTION_IDS = new Set(['q13', 'q14', 'q16', 'q17', 'q18']);
+
 function isAnswered(type, value) {
   if (value == null) return false;
-  if (type === 'checkbox-row' || type === 'chip-multi')
-    return Array.isArray(value) && value.length > 0;
+  if (type === 'checkbox-row') return Array.isArray(value) && value.length > 0;
   if (type === 'likert') return typeof value === 'object' && Object.keys(value).length > 0;
   if (type === 'grade-grid') {
     return (
@@ -28,20 +36,14 @@ function isAnswered(type, value) {
 }
 
 function AnswerField({ question, value, onChange }) {
+  const chipLayout = CHIP_LAYOUT_QUESTION_IDS.has(question.id);
+
   switch (question.type) {
     case 'radio-row':
-      return (
-        <OptionGroup
-          variant="row"
-          options={question.options}
-          value={value ?? null}
-          onChange={onChange}
-        />
-      );
     case 'radio-chip':
       return (
         <OptionGroup
-          variant="chip"
+          variant={question.type === 'radio-chip' || chipLayout ? 'chip' : 'row'}
           options={question.options}
           value={value ?? null}
           onChange={onChange}
@@ -50,20 +52,10 @@ function AnswerField({ question, value, onChange }) {
     case 'checkbox-row':
       return (
         <OptionGroup
-          variant="row"
+          variant={chipLayout ? 'chip' : 'row'}
           multiple
-          max={question.max}
-          options={question.options}
-          value={value ?? []}
-          onChange={onChange}
-        />
-      );
-    case 'chip-multi':
-      return (
-        <OptionGroup
-          variant="chip"
-          multiple
-          max={question.max}
+          maxSelect={question.maxSelect}
+          exclusiveValues={question.exclusiveValues}
           options={question.options}
           value={value ?? []}
           onChange={onChange}
@@ -90,6 +82,7 @@ function AnswerField({ question, value, onChange }) {
       return (
         <ConditionalTextInput
           placeholder={question.extra?.placeholder}
+          multiline={Boolean(question.multiline)}
           value={value ?? ''}
           onChange={onChange}
         />
@@ -106,6 +99,7 @@ function EmbeddedField({ question, value, onChange }) {
       <ConditionalTextInput
         label={question.title}
         placeholder={question.extra?.placeholder}
+        multiline={Boolean(question.multiline)}
         value={value ?? ''}
         onChange={onChange}
       />
@@ -114,7 +108,7 @@ function EmbeddedField({ question, value, onChange }) {
 
   return (
     <div className="flex w-full flex-col items-start gap-3">
-      <p className="text-base font-medium text-[#525252]">{question.title}</p>
+      <p className="text-base font-medium leading-5 text-[#525252]">{question.title}</p>
       <AnswerField question={question} value={value} onChange={onChange} />
     </div>
   );
@@ -157,8 +151,10 @@ export default function SurveyPreview() {
     <main className="min-h-screen w-full bg-[#FBFAFA] pt-[calc(7.5rem-var(--wn-header-h))]">
       <Header />
 
-      <section className="w-full py-16 sm:py-20 lg:py-[7.5rem]">
+      {/* 상단 패딩은 <main> 의 헤더 오프셋이 단독으로 소유한다 → section 은 하단만. */}
+      <section className="w-full pb-16 sm:pb-20 lg:pb-[7.5rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          {/* 컬럼 스택 gap 60 — 타이틀 블록 / 카드 스택 / 하단 배너가 형제로 이 갭을 공유한다. */}
           <div className="mx-auto flex w-full max-w-content flex-col items-start gap-[3.75rem]">
             <div className="flex w-full max-w-[37.25rem] flex-col items-start gap-5 text-[#525252]">
               <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.75rem]">
@@ -171,11 +167,12 @@ export default function SurveyPreview() {
               </p>
             </div>
 
+            {/* 카드 스택 gap 40 */}
             <div className="flex w-full flex-col items-start gap-10">
               {mainQuestions.map((question) => {
                 const value = answers[question.id];
                 const children = embeddedByParent[question.id] || [];
-                const parentAnswered = isAnswered(question.type, value);
+                const selectedCount = Array.isArray(value) ? value.length : 0;
 
                 return (
                   <QuestionCard
@@ -184,6 +181,8 @@ export default function SurveyPreview() {
                     category={question.category}
                     title={question.title}
                     helper={question.helper}
+                    maxSelect={question.maxSelect}
+                    selectedCount={selectedCount}
                   >
                     <AnswerField
                       question={question}
@@ -191,8 +190,10 @@ export default function SurveyPreview() {
                       onChange={(nextValue) => handleAnswer(question.id, nextValue)}
                     />
 
-                    {parentAnswered && children.length > 0 && (
-                      <div className="flex w-full flex-col items-start gap-5 border-t border-[#EDEDED] pt-5">
+                    {/* 1차 스펙은 무분기 — 하위 블록은 부모 응답 여부와 무관하게 항상 노출한다.
+                        시안 1889:8893 선택지 컨테이너와 같은 컬럼 · gap 12 · 구분선 없음. */}
+                    {children.length > 0 && (
+                      <div className="flex w-full flex-col items-start gap-3">
                         {children.map((embedded) => (
                           <EmbeddedField
                             key={embedded.id}
@@ -206,9 +207,9 @@ export default function SurveyPreview() {
                   </QuestionCard>
                 );
               })}
-
-              <SurveyProgress remaining={remaining} disabled={!allAnswered} />
             </div>
+
+            <SurveyProgress remaining={remaining} disabled={!allAnswered} />
           </div>
         </div>
       </section>
