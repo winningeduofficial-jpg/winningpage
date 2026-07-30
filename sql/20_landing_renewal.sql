@@ -157,12 +157,12 @@ insert into public.program_categories (name, description, link, icon, icon_image
 select v.name, v.description, v.link, 'default', v.icon_image_url, v.sort_order, true
 from (
   values
-    ('무료진단', E'무료로 경험하는\n위닝 AE시스템',        '/free-diagnosis', '/images/landing/services/free-diagnosis.png',         1),
-    ('목표관리', E'목표 대학과\n진로에 맞춘 관리 서비스',  '/services',       '/images/landing/services/goal-management.png',        2),
-    ('콜멘토',   E'필요한 순간에\n멘토와 바로 연결',       '/services',       '/images/landing/services/call-mentor.png',            3),
-    ('수행평가', E'수행평가를\n함께 완성',                 '/services',       '/images/landing/services/performance-assessment.png', 4),
-    ('자기평가', E'문항 해석부터\n구조 설계까지',          '/services',       '/images/landing/services/self-assessment.png',        5),
-    ('심화탐구', E'주제 추천부터\n탐구 설계까지',          '/services',       '/images/landing/services/deep-inquiry.png',           6)
+    ('무료진단', E'무료로 경험하는\n위닝 AE시스템',        '/free-diagnosis',                     '/images/landing/services/free-diagnosis.png',         1),
+    ('목표관리', E'목표 대학과\n진로에 맞춘 관리 서비스',  '/page/services-goal',                 '/images/landing/services/goal-management.png',        2),
+    ('콜멘토',   E'필요한 순간에\n멘토와 바로 연결',       '/page/services-content',              '/images/landing/services/call-mentor.png',            3),
+    ('수행평가', E'수행평가를\n함께 완성',                 '/page/services-ai-performance',       '/images/landing/services/performance-assessment.png', 4),
+    ('자기평가', E'문항 해석부터\n구조 설계까지',          '/page/services-self-assessment',      '/images/landing/services/self-assessment.png',        5),
+    ('심화탐구', E'주제 추천부터\n탐구 설계까지',          '/page/services-in-depth-research',    '/images/landing/services/deep-inquiry.png',           6)
 ) as v(name, description, link, icon_image_url, sort_order)
 where not exists (
   select 1 from public.program_categories pc where pc.name = v.name

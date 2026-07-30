@@ -113,6 +113,12 @@ export default function SiteFooter() {
               >
                 개인정보처리방침
               </Link>
+              <Link
+                to="/refund"
+                className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0"
+              >
+                환불규정
+              </Link>
             </div>
             <p className="text-sm text-[#525252]">© All rights reserved.</p>
           </div>

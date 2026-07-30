@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 const fallbackReviews = [
@@ -53,9 +54,9 @@ export default function ReviewSection() {
             </h2>
           </div>
 
-          <a href="/reviews" className="text-sm font-bold text-blue-600">
+          <Link to="/reviews" className="text-sm font-bold text-blue-600">
             더보기 →
-          </a>
+          </Link>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">

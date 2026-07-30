@@ -76,7 +76,7 @@ function ColumnHeader({ title, moreLink, moreLabel }) {
   return (
     <div className="flex items-center gap-[0.489rem]">
       <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem] text-[#525252]">
-        {title}
+        <Link to={moreLink}>{title}</Link>
       </h3>
       <Link
         to={moreLink}
