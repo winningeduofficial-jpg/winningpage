@@ -400,10 +400,10 @@ export const renewalSurveyQuestions = [
     options: [],
     extra: {
       levels: [
-        { key: 'university', label: '대학 선택', placeholder: '대학을 선택해 주세요' },
-        { key: 'department', label: '학과 또는 모집단위', placeholder: '학과를 선택해 주세요' },
-        { key: 'admissionType', label: '전형 유형', placeholder: '전형 유형을 선택해 주세요' },
-        { key: 'detailType', label: '세부 전형명', placeholder: '세부 전형을 선택해 주세요' }
+        { key: 'university', label: '대학 선택', placeholder: '건국대학교' },
+        { key: 'department', label: '학과 또는 모집단위', placeholder: '경영학과' },
+        { key: 'admissionType', label: '전형 유형', placeholder: '학생부종합' },
+        { key: 'detailType', label: '세부 전형명', placeholder: 'KU자기추천' }
       ]
     }
   },

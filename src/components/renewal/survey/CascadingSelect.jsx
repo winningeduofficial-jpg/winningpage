@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 
+// 플레이스홀더는 Figma 시안 `1889:10708`(survey-10656.md §2.6)의 필드 표시값 원문이다
+// (`건국대학교` / `경영학과` / `학생부종합` / `KU자기추천`). 안내문이 아니라 예시 값이며,
+// 시안에서 4개 값 텍스트 모두 `#D7D7D7`(플레이스홀더 컬러)로 그려져 있어 미선택 상태를 나타낸다.
+// 이전 문구(`대학을 선택해 주세요` 등)는 시안 근거가 없는 자체 작문이었고, 필드 가용폭 138px 에
+// 실측 166~245px 라 잘리고 있었다. 시안 값은 최장 약 110px 로 절단이 발생하지 않는다.
 const LEVEL_META = [
-  { key: 'university', label: '대학 선택', placeholder: '대학을 선택해 주세요' },
-  { key: 'department', label: '학과 또는 모집단위', placeholder: '학과를 선택해 주세요' },
-  { key: 'admissionType', label: '전형 유형', placeholder: '전형 유형을 선택해 주세요' },
-  { key: 'detailType', label: '세부 전형명', placeholder: '세부 전형을 선택해 주세요' }
+  { key: 'university', label: '대학 선택', placeholder: '건국대학교' },
+  { key: 'department', label: '학과 또는 모집단위', placeholder: '경영학과' },
+  { key: 'admissionType', label: '전형 유형', placeholder: '학생부종합' },
+  { key: 'detailType', label: '세부 전형명', placeholder: 'KU자기추천' }
 ];
+
+// 비활성 상태 전용 문구는 시안에 없다 — 4필드 모두 자기 예시 값을 그대로 표시한다
+// (활성/비활성은 disabled 동작·스타일로만 구분한다).
 
 // ⚠️ 더미 데이터 — 1차(디자인 구현) 전용 임시물이다. SPEC-fd-ver3-v2 §8-B11=(a).
 // 대학/학과/전형/입결 마스터 데이터는 repo·DB 어디에도 없고 2차에서 확보·이관한다(§10-10).
@@ -146,10 +154,15 @@ export default function CascadingSelect({ levels, value, onChange }) {
     setOpenIndex(null);
   }
 
+  // 4열 고정 그리드는 228×4 + 20×3 = 972 를 요구한다. lg(1024) 에서 카드 내부 가용 폭은
+  // 1024 − 64(sm:px-8) − 120(카드 lg:px-[3.75rem]) = 840 뿐이라 그리드가 카드 밖으로 튀어나갔다.
+  // wide(74rem/1184) 부터는 컨테이너가 max-w-content(1164) 로 고정되어 가용 폭이
+  // 1164 − 64 − 120 = 980 ≥ 972 가 되므로 여기서 4열을 켠다.
+  // 1184 미만은 sm(640) 부터의 2×2 를 유지한다 — 3열은 4번째 필드만 홀로 남아 계단식 순서가 깨진다.
   return (
     <div
       ref={containerRef}
-      className="grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,14.25rem)] lg:gap-5"
+      className="grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-2 wide:grid-cols-[repeat(4,14.25rem)] wide:gap-5"
     >
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || '';
@@ -183,9 +196,7 @@ export default function CascadingSelect({ levels, value, onChange }) {
                       : 'border-[#D7D7D7] bg-white text-[#D7D7D7] hover:border-[#B0B0B0]'
               }`}
             >
-              <span className="truncate">
-                {selected || (enabled ? level.placeholder : '이전 항목을 먼저 선택해 주세요')}
-              </span>
+              <span className="truncate">{selected || level.placeholder}</span>
               {/* chevron: lucide-react ChevronDown 24 유지 (§7 C-7 — 별도 SVG 추출 안 함) */}
               <ChevronDown
                 size={24}
