@@ -77,10 +77,10 @@ export const renewalSurveyQuestions = [
   },
   {
     id: 'q3-target-reason',
-    // Figma 원문 라벨이 위 q3-target-major와 동일하게 표기되어 있음 (원문 그대로 유지)
+    // Figma 원문 라벨이 q3-target-major 와 중복 표기된 오탈자 — 사용자 확정 문구로 교체
     number: null,
     category: null,
-    title: '희망 학과 또는 모집단위 (선택입력)',
+    title: '그 목표를 선택한 이유',
     helper: null,
     type: 'radio-row',
     options: [
@@ -199,7 +199,7 @@ export const renewalSurveyQuestions = [
       '일부 과목은 상승하고 일부는 비슷해요',
       '큰 변화 없이 정제되어 있어요',
       '일부 과목이 하락하고 있어요',
-      '사람마다 성적 변동이 큰 편이예요',
+      '과목마다 성적 변동이 큰 편이에요',
       '아직 비교할 시험 결과가 부족해요'
     ],
     extra: {}

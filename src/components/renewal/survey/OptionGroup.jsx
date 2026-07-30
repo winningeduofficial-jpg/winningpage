@@ -67,7 +67,7 @@ export default function OptionGroup({
               variant === 'row' ? 'w-full' : 'w-auto'
             } ${
               active
-                ? 'border-[#013262] bg-[#F1F8FF]'
+                ? 'border-[#013262] bg-[#E9F4FF]'
                 : 'border-[#d7d7d7] bg-white hover:border-[#013262]/40'
             } ${maxReached ? 'cursor-not-allowed opacity-50' : ''}`}
           >

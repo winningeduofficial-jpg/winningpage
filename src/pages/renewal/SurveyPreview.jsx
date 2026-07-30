@@ -154,7 +154,7 @@ export default function SurveyPreview() {
   const allAnswered = answeredCount >= mainQuestions.length;
 
   return (
-    <main className="min-h-screen w-full bg-[#FBFAFA]">
+    <main className="min-h-screen w-full bg-[#FBFAFA] pt-[calc(7.5rem-var(--wn-header-h))]">
       <Header />
 
       <section className="w-full py-16 sm:py-20 lg:py-[7.5rem]">
