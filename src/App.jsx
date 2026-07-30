@@ -24,6 +24,8 @@ import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
 import FreeDiagnosisLanding from './pages/renewal/FreeDiagnosisLanding';
+import SurveyStepShell from './pages/renewal/SurveyStepShell';
+import SurveyStepPage from './pages/renewal/SurveyStepPage';
 import SurveyPreview from './pages/renewal/SurveyPreview';
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
@@ -56,7 +58,15 @@ export default function App() {
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/free-diagnosis" element={<FreeDiagnosisLanding />} />
-          <Route path="/free-diagnosis/survey" element={<SurveyPreview />} />
+          <Route path="/free-diagnosis/survey" element={<SurveyStepShell />}>
+            {/* /survey 진입은 스텝1로 명시 리다이렉트. 없으면 최하단 catch-all 이 홈으로 삼킨다. */}
+            <Route index element={<Navigate to="/free-diagnosis/survey/1" replace />} />
+            {/* 정적 세그먼트를 :step 보다 먼저 선언 — v6 랭킹상 정적이 우선이지만 의도를 코드로 고정한다. */}
+            <Route path="preview" element={<SurveyPreview />} />
+            <Route path=":step" element={<SurveyStepPage />} />
+            {/* /survey/1/2 같은 초과 세그먼트 방어. 반드시 마지막. */}
+            <Route path="*" element={<Navigate to="/free-diagnosis/survey/1" replace />} />
+          </Route>
 
           <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
           <Route path="/admission/results" element={<AdmissionResults />} />
