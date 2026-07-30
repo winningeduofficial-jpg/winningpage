@@ -4,8 +4,12 @@
 // 그대로 재현("Figma 문구는 오타 포함 원문 그대로 인용한다" 원칙).
 // 초대 대상은 학부모 본인 계정 정보(SignupContext.formData)와 무관한 자녀 개인 정보이므로
 // 컨텍스트에 넣지 않고 이 페이지 로컬 상태로만 관리한다.
-// TODO(백엔드 §4.2-3): 초대 레코드 생성/SMS 발송/`/join/:code` 딥링크는 전부 신규 백엔드 —
-// mockApi.sendChildInvite는 placeholder.
+// TODO(백엔드 §4.2-3): 초대 레코드 생성/SMS 발송은 전부 신규 백엔드 — mockApi.sendChildInvite는
+// placeholder. 초대 링크는 토큰 딥링크(`/join/:code`)가 아니라 공통 가입 링크 발송으로
+// 확정(2026-07-30 기획 결정).
+// NOTE: 공통 링크 방식에서는 아래 "자동으로 연결돼요" 문구가 가리키는 가입-연결 자동화가
+// 토큰 없이는 불가능함 — 실제로는 가입 후 연결코드로 연결하는 흐름이 되어야 하며 이 동작은
+// 백엔드/기획 확정 필요(문구 자체는 Figma 시안 원문이라 수정하지 않음).
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout, AuthTitle, TextField, PrimaryButton, InfoCard } from '../../../components/auth';

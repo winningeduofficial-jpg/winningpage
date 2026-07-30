@@ -6,7 +6,8 @@
 // TODO(백엔드 §5.5 순서5): 학부모 가입 완료 시퀀스(is_email_available→signUp→verifyOtp→
 //   complete_signup_profile)는 기존 RPC를 재사용할 예정 — 이 mock은 그 자리의 placeholder.
 // TODO(백엔드 §4.2-3): 연결코드 발급/조회 RPC, 보호자-자녀 관계 테이블, 초대 레코드+SMS
-//   발송+`/join/:code` 딥링크는 전부 신규 백엔드 설계 대상.
+//   발송은 전부 신규 백엔드 설계 대상. 초대 링크는 토큰 딥링크(`/join/:code`)가 아니라
+//   공통 가입 링크 발송으로 확정(2026-07-30 기획 결정).
 
 const MOCK_DELAY = 500;
 
@@ -56,8 +57,11 @@ export async function connectChild(_code) {
   return { success: true };
 }
 
+// 공통 가입 링크 발송으로 확정(2026-07-30 기획 결정) — 토큰 딥링크(`/join/:code`) 미사용.
+// SMS 실발송은 여전히 백엔드 TODO(§4.2-3).
 export async function sendChildInvite({ name: _name, phone: _phone }) {
   await delay();
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return { success: true, inviteUrl: `winningedu.kr/join/${code}` };
+  const inviteUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/signup` : 'winningedu.kr/signup';
+  return { success: true, inviteUrl };
 }

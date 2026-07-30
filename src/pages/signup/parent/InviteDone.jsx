@@ -1,6 +1,7 @@
 // [E-7] 초대 전송 완료 — docs/login-signup-renewal-spec.md §3.3 E-7, 노드 2393:11662.
-// InviteChild(E-6)에서 navigate state로 전달된 childName/inviteUrl을 표시. 초대 코드
-// 생성/만료/가입 시 자동 연결 로직은 전부 백엔드 신규(§4.2-3 GAP) — inviteUrl은 mock 값.
+// InviteChild(E-6)에서 navigate state로 전달된 childName/inviteUrl을 표시. 가입 시 자동
+// 연결 로직은 전부 백엔드 신규(§4.2-3 GAP) — inviteUrl은 공통 가입 링크 mock 값
+// (토큰 딥링크 미사용, 2026-07-30 기획 결정).
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout, AuthTitle, TextField, OutlineButton, TextLinkButton } from '../../../components/auth';
@@ -12,7 +13,7 @@ export default function InviteDone() {
   const { memberType, resetSignup } = useSignup();
 
   const childName = location.state?.childName || '';
-  const inviteUrl = location.state?.inviteUrl || 'winningedu.kr/join/8F3K2D';
+  const inviteUrl = location.state?.inviteUrl || 'winningedu.kr/signup';
 
   useEffect(() => {
     if (memberType !== 'parent') {
