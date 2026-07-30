@@ -55,13 +55,13 @@ const FLOATING_BADGES = [
 ];
 
 const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-[#525252] sm:text-[1.75rem] md:text-[2.75rem]';
+  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] sm:text-[1.75rem] md:text-[2rem]';
 
 // 히어로 전용 타이포 — SECTION_HEADING_CLASS는 다른 섹션과 공유하므로 별도 정의.
 const HERO_EYEBROW_CLASS =
-  'text-[1.25rem] font-normal leading-[1.6] text-[#0B84FD] sm:text-[1.375rem] md:text-[1.5rem]';
+  'text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]';
 const HERO_HEADLINE_CLASS =
-  'break-keep max-w-[56rem] text-[1.75rem] font-bold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2.75rem] lg:max-w-none lg:whitespace-nowrap';
+  'break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem] lg:max-w-none lg:whitespace-nowrap';
 const HERO_SUBTEXT_CLASS =
   'text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]';
 
@@ -73,7 +73,7 @@ const HERO_GRAIN_CLASS =
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-20 md:pt-[6.25rem] lg:pb-0">
+    <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0">
       <img
         src={heroGlow}
         alt=""
@@ -104,7 +104,7 @@ function HeroSection() {
           지금 시작하기
         </Link>
 
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-5.75rem]">
+        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
           <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
             <img
               src={heroBrowserV2}
@@ -122,15 +122,15 @@ function HeroSection() {
 
 function StepsSection() {
   return (
-    <section className="bg-white pt-20 pb-10">
+    <section className="bg-white pt-20 pb-10 md:pt-[8.75rem] md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>
+        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>
           학생부 업로드 없이,
           <br />
           20분이면 완성하는 무료진단
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-8">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 md:mt-[3.125rem] lg:grid-cols-4 lg:gap-8">
           {STEPS.map((item) => (
             <div
               key={item.step}
@@ -153,11 +153,11 @@ function StepsSection() {
 
 function AudienceSection() {
   return (
-    <section className="bg-white pt-20 pb-10">
+    <section className="bg-white pt-20 pb-10 md:pt-[15.625rem] md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>이런 학생에게 무료 진단을 추천해요</h2>
+        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 무료 진단을 추천해요</h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 md:mt-[3.75rem] lg:grid-cols-3 lg:gap-8">
           {AUDIENCE.map((item) => (
             <article
               key={item.titleLines.join('')}
@@ -190,9 +190,9 @@ function AudienceSection() {
 
 function BenefitsSection() {
   return (
-    <section className="bg-white pb-10 pt-20">
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-14">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>무료진단으로 얻을 수 있는 것</h2>
+    <section className="bg-white pb-10 pt-20 md:pt-[15rem] md:pb-0">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-[3.75rem]">
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>무료진단으로 얻을 수 있는 것</h2>
 
         <div className="w-full max-w-[60.625rem] rounded-[0.75rem] border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
           <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -222,18 +222,13 @@ function BenefitsSection() {
 
 function MacbookShowcase() {
   return (
-    <section className="relative overflow-hidden bg-white py-16 sm:py-20 md:py-24 lg:py-[9rem]">
+    <section className="relative overflow-hidden bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
       <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS}`}>
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#525252]`}>
           지금 내 입시 좌표를 확인 해보세요
         </h2>
 
-        <div className="relative mx-auto mt-16 flex max-w-[58rem] flex-col items-center sm:mt-20 md:mt-24 lg:mt-28">
-          <div
-            className="pointer-events-none absolute -z-10 aspect-[3/2] w-[185%] max-w-none rounded-full bg-[radial-gradient(ellipse_at_center,rgba(11,132,253,0.28),rgba(11,132,253,0.1)_45%,transparent_78%)] blur-3xl"
-            aria-hidden="true"
-          />
-
+        <div className="relative mx-auto mt-16 flex max-w-[58rem] flex-col items-center sm:mt-20 md:mt-[4.3125rem]">
           <div className="relative w-full">
             <img
               src={macbookMockup}
@@ -283,8 +278,8 @@ function MacbookShowcase() {
 
 function BottomCta() {
   return (
-    <section className="bg-[#172437] py-14 md:py-20 lg:py-[7.5rem]">
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8">
+    <section className="bg-[#172437] py-14 md:mt-[14.75rem] md:pt-[8.8125rem] md:pb-[8.875rem]">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-[3.75rem]">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
           어서 무료진단을 경험해보세요
         </h2>
@@ -305,7 +300,7 @@ export default function FreeDiagnosisLanding() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[5.25rem]">
+      <main className="min-h-screen bg-white pt-[calc(6.25rem-var(--wn-header-h))]">
         <HeroSection />
         <StepsSection />
         <AudienceSection />
