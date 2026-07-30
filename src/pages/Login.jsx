@@ -10,7 +10,14 @@ function safeRedirect(value) {
     // origin 비교로 판단해야 백슬래시('/\evil.com')처럼 startsWith('//') 검사를
     // 우회하는 프로토콜 상대 URL도 브라우저의 URL 파싱과 동일하게 차단된다.
     const u = new URL(value, window.location.origin);
-    return u.origin === window.location.origin ? u.pathname + u.search + u.hash : '/';
+    if (u.origin !== window.location.origin) return '/';
+
+    const path = u.pathname + u.search + u.hash;
+    // pathname 자체가 '//' 또는 '/\'로 시작하면 브라우저가 프로토콜 상대 URL로 해석해
+    // window.location.href 대입 시 외부 사이트로 이동할 수 있으므로 최종 차단한다.
+    if (path.startsWith('//') || path.startsWith('/\\')) return '/';
+
+    return path;
   } catch {
     return '/';
   }
