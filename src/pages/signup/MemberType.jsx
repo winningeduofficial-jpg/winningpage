@@ -12,10 +12,17 @@ import { useSignup } from '../../context/SignupContext';
 
 export default function MemberType() {
   const navigate = useNavigate();
-  const { setMemberType } = useSignup();
+  const { resetForMemberType } = useSignup();
 
+  // 유형을 다시 고르는 경우(뒤로가기 등)를 포함해 항상 이 화면이 유형 "전환"의 진입점이므로
+  // setMemberType 대신 resetForMemberType을 사용한다 — 이전 유형에서 남은 formData/agreements/
+  // verification/signupCompleted/parentSignupCompleted를 함께 초기화해 상태 오염을 막는다
+  // (SignupContext 계약 참고). 학부모 카드는 VITE_PARENT_SIGNUP_ENABLED가 꺼져 있어도 일단
+  // /signup/parent로 이동시킨다(ParentForm이 "준비 중" 안내를 자체 표시). memberType이
+  // 'parent'로 확정되더라도, 학부모 온보딩(E-2~E-8) 각 화면은 parentSignupCompleted 가드로
+  // 별도 보호되므로 ParentForm에서 실제 가입을 완료하지 않는 한 하위 화면으로 진입할 수 없다.
   function handleSelect(memberType) {
-    setMemberType(memberType);
+    resetForMemberType(memberType);
 
     if (memberType === 'student') {
       navigate('/signup/student/birth');

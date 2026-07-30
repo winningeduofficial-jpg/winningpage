@@ -15,16 +15,19 @@ import { UserCheck, UserPlus } from 'lucide-react';
 export default function LinkChoice({ mode = 'initial' }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { memberType, resetSignup } = useSignup();
+  const { memberType, parentSignupCompleted, resetSignup } = useSignup();
 
   const childName = location.state?.childName || '';
 
+  // memberType만으로는 가드가 뚫린다(선택만 하고 실제 가입은 완료하지 않은 채 URL 직접
+  // 진입 가능) — ParentForm의 handleSubmit이 성공해야만 true가 되는 parentSignupCompleted를
+  // 함께 요구해 학부모 온보딩(E-2~E-8) 진입을 실제 가입 완료 이후로 한정한다.
   useEffect(() => {
-    if (memberType !== 'parent') {
+    if (memberType !== 'parent' || !parentSignupCompleted) {
       navigate('/signup', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType]);
+  }, [memberType, parentSignupCompleted]);
 
   function handleSkip() {
     if (mode === 'add') {

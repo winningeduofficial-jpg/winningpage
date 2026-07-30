@@ -21,14 +21,16 @@ const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;
 export default function InviteChild() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { memberType } = useSignup();
+  const { memberType, parentSignupCompleted } = useSignup();
 
+  // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
+  // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
   useEffect(() => {
-    if (memberType !== 'parent') {
+    if (memberType !== 'parent' || !parentSignupCompleted) {
       navigate('/signup', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType]);
+  }, [memberType, parentSignupCompleted]);
 
   const [name, setName] = useState(location.state?.childName || '');
   const [phone, setPhone] = useState('');

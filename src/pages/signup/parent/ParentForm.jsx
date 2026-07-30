@@ -50,14 +50,18 @@ export default function ParentForm() {
     updateAgreements,
     setAllAgreements,
     verification,
-    updateVerification
+    updateVerification,
+    setParentSignupCompleted
   } = useSignup();
 
   // 학부모 폼으로 직접 진입(새로고침/직접 URL)한 경우에도 이 화면은 학부모 플로우의
   // 시작점이므로 memberType을 강제로 되돌리지 않고 'parent'로 확정한다.
-  // 단, PARENT_SIGNUP_ENABLED가 꺼진 배포에서는 memberType을 'parent'로 바꾸지 않는다 —
-  // 이 값이 그대로 유지돼야 LinkChoice 등 이후 온보딩 화면들의 "memberType !== 'parent'"
-  // 가드가 그대로 작동해 미완성 학부모 플로우 진입을 막는다.
+  // 단, PARENT_SIGNUP_ENABLED가 꺼진 배포에서는 memberType을 'parent'로 바꾸지 않는다.
+  // LinkChoice 등 이후 온보딩 화면들의 1차 가드는 이제 memberType이 아니라
+  // parentSignupCompleted(이 화면에서 실제 가입(handleSubmit)이 성공해야만 true가 됨)이므로,
+  // PARENT_SIGNUP_ENABLED가 꺼져 있으면 이 화면이 "준비 중" 안내만 렌더링해 handleSubmit
+  // 자체가 실행되지 않아 하위 화면 진입이 자연히 막힌다. memberType을 여기서 함부로 바꾸지
+  // 않는 것은 그 위에 남겨두는 방어적 2차 안전장치다.
   useEffect(() => {
     if (PARENT_SIGNUP_ENABLED && memberType !== 'parent') {
       setMemberType('parent');
@@ -180,8 +184,14 @@ export default function ParentForm() {
     setSubmitting(true);
     // TODO(백엔드 §5.5 순서5): 실제 가입은 is_email_available→signUp→verifyOtp→
     // complete_signup_profile RPC 시퀀스를 재사용해야 한다. 지금은 mock으로 대체.
-    await completeParentSignup(formData);
+    const result = await completeParentSignup(formData);
     setSubmitting(false);
+
+    if (!result?.success) return;
+
+    // E-2~E-8(LinkChoice/LinkCode/LinkDone/InviteChild/InviteDone/ParentHome) 진입 가드용
+    // 완료 플래그 — 실제 가입 성공 직후에만 true로 설정한다(signupCompleted와 동일 패턴).
+    setParentSignupCompleted(true);
 
     navigate('/signup/parent/link');
   }
@@ -203,7 +213,7 @@ export default function ParentForm() {
       <AuthTitle line1="회원가입 정보를 입력해주세요" />
 
       <div className="flex w-full flex-col gap-5">
-        <p className="text-sm font-medium text-ink">학부모 기본 정보 (필수)</p>
+        <h2 className="w-full text-lg font-semibold text-ink">학부모 기본 정보 (필수)</h2>
 
         <TextField
           label="이름"
@@ -293,7 +303,7 @@ export default function ParentForm() {
       </div>
 
       <div className="flex w-full flex-col gap-5">
-        <p className="text-sm font-medium text-ink">약관 동의</p>
+        <h2 className="w-full text-lg font-semibold text-ink">약관 동의</h2>
 
         <AgreementList
           items={AGREEMENT_LABELS.map((item) => ({ ...item, checked: agreements[item.key] }))}

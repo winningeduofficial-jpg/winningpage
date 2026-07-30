@@ -12,14 +12,16 @@ import { useSignup } from '../../../context/SignupContext';
 
 export default function ParentHome() {
   const navigate = useNavigate();
-  const { memberType, formData, resetSignup } = useSignup();
+  const { memberType, parentSignupCompleted, formData, resetSignup } = useSignup();
 
+  // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
+  // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
   useEffect(() => {
-    if (memberType !== 'parent') {
+    if (memberType !== 'parent' || !parentSignupCompleted) {
       navigate('/signup', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType]);
+  }, [memberType, parentSignupCompleted]);
 
   function handleGoHome() {
     resetSignup();
