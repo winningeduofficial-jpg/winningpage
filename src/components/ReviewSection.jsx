@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 const fallbackReviews = [
@@ -6,20 +7,21 @@ const fallbackReviews = [
     id: 1,
     student_name: '김OO 학생',
     school_result: '서울대학교 합격',
-    content: 'AI 분석과 컨설팅 덕분에 제 강점을 정확히 알고, 목표 대학에 맞는 전략을 세울 수 있었습니다.',
+    content:
+      'AI 분석과 컨설팅 덕분에 제 강점을 정확히 알고, 목표 대학에 맞는 전략을 세울 수 있었습니다.'
   },
   {
     id: 2,
     student_name: '이OO 학생',
     school_result: '연세대학교 합격',
-    content: '수행평가와 세특 방향이 분명해져서 학생부 전체 흐름을 안정적으로 만들 수 있었습니다.',
+    content: '수행평가와 세특 방향이 분명해져서 학생부 전체 흐름을 안정적으로 만들 수 있었습니다.'
   },
   {
     id: 3,
     student_name: '박OO 학생',
     school_result: '고려대학교 합격',
-    content: '막연했던 학습 관리가 데이터로 보이니 매주 무엇을 보완해야 하는지 알 수 있었습니다.',
-  },
+    content: '막연했던 학습 관리가 데이터로 보이니 매주 무엇을 보완해야 하는지 알 수 있었습니다.'
+  }
 ];
 
 export default function ReviewSection() {
@@ -52,9 +54,9 @@ export default function ReviewSection() {
             </h2>
           </div>
 
-          <a href="/reviews" className="text-sm font-bold text-blue-600">
+          <Link to="/reviews" className="text-sm font-bold text-blue-600">
             더보기 →
-          </a>
+          </Link>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
@@ -63,17 +65,11 @@ export default function ReviewSection() {
               key={review.id}
               className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
             >
-              <p className="text-sm leading-7 text-slate-700">
-                “{review.content}”
-              </p>
+              <p className="text-sm leading-7 text-slate-700">“{review.content}”</p>
 
               <div className="mt-6 border-t border-slate-200 pt-4">
-                <p className="font-extrabold text-slate-900">
-                  {review.student_name}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-blue-600">
-                  {review.school_result}
-                </p>
+                <p className="font-extrabold text-slate-900">{review.student_name}</p>
+                <p className="mt-1 text-sm font-semibold text-blue-600">{review.school_result}</p>
               </div>
             </article>
           ))}

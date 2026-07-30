@@ -1,11 +1,36 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}"
-  ],
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
-    extend: {}
+    extend: {
+      maxWidth: {
+        // 전 페이지 공통 컨텐츠 영역 최대 폭 (패딩 px-8 포함 1164px, 내부 콘텐츠 1100px — 0729 시안).
+        // lg 이상에서 px-8(64px) 좌우 패딩이 붙으므로 1164 − 64 = 1100px가 실제 콘텐츠 폭.
+        // 헤더/푸터/프리헤더(1500px)와 의도적으로 좁게 설계된 페이지는 예외.
+        content: '72.75rem'
+      },
+      colors: {
+        // 0729 시안 공통 아이브로/포인트 색.
+        accent: '#0B84FD'
+      },
+      screens: {
+        // 헤더 데스크톱 인라인 nav+계정 메뉴 전환 시점(0729 시안 2207:12337 재산정).
+        // nav 5칸이 고정폭(NAV_CELL_W 6.25rem×5 + NAV_CELL_GAP 3rem×4 = 43.25rem/692px)으로
+        // 바뀌면서(과거 유동 clamp 폭 최대 47.75rem/764px보다도 좁음) 필요한 여유가 줄었다.
+        // 밴드 패딩(px-8→2xl:px-[7.5rem] 램프, Header.jsx 참고)이 desktop 브레이크포인트
+        // 바로 위에서는 아직 px-8(32px)이므로, 그 구간을 기준으로 nav 우측 끝(logo 우측 끝
+        // 기준 6.04rem + nav 692px)과 계정 그룹 좌측 끝(로그인/관리자 상태 실측폭 약
+        // 31.176rem/499px)이 32px 이상 여유를 두고 공존 가능한 최소값을 계산해 90rem(1440px)로
+        // 낮췄다(과거 93rem 대비 -3rem). 2xl(96rem)에서 밴드 패딩이 7.5rem으로 커져도 그 시점엔
+        // 컨텐츠 영역이 이미 충분히 넓어져(콘텐츠 좌측 시작 x > 로고 우측 끝) 재충돌하지
+        // 않음을 계산으로 확인했다(자세한 산정은 Header.jsx 상단 좌표계 주석 참고).
+        // 실제 계정 그룹 폭은 로그인 이름 길이에 따라 가변이라 Playwright 실측으로 별도
+        // 검증이 필요하다(기존에도 동일하게 미결이던 리스크 — 이번 변경으로 새로 생긴 것은 아님).
+        // desktop 브레이크포인트 사용처는 Header.jsx/MobileNavDrawer.jsx뿐이며 값 변경 시
+        // 두 컴포넌트가 자동으로 새 임계값을 따른다(별도 상수 동기화 불필요).
+        desktop: '90rem'
+      }
+    }
   },
   plugins: []
 };

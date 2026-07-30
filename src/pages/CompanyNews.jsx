@@ -45,12 +45,7 @@ function renderContent(content) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return (
-      <div
-        className="notice-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;
@@ -59,14 +54,13 @@ function renderContent(content) {
 function CompanyIntro({ page }) {
   const title = cleanText(page?.title) || '위닝에듀';
   const subtitle =
-    cleanText(page?.subtitle) ||
-    '학생의 학습 과정과 입시 전략을 데이터와 멘토링으로 연결합니다.';
+    cleanText(page?.subtitle) || '학생의 학습 과정과 입시 전략을 데이터와 멘토링으로 연결합니다.';
   const body = cleanText(page?.body);
   const bottomImages = normalizeArray(page?.image_urls).filter(Boolean);
 
   return (
     <section className="border-b border-[#E7ECF2] bg-[#F7F9FC]">
-      <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:py-20">
+      <div className="mx-auto grid max-w-content gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:py-20">
         <div>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
             <Building2 size={25} />
@@ -106,7 +100,8 @@ function CompanyIntro({ page }) {
                 className="h-24 w-auto rounded-xl bg-white/95 p-3 object-contain"
               />
               <p className="mt-6 text-sm font-bold leading-6 text-white/75">
-                회사소개 상단 이미지는 관리자 페이지의 세부 페이지 관리에서<br />
+                회사소개 상단 이미지는 관리자 페이지의 세부 페이지 관리에서
+                <br />
                 company-intro 항목으로 변경할 수 있습니다.
               </p>
             </div>
@@ -144,7 +139,7 @@ export default function CompanyNews() {
           .eq('is_active', true)
           .order('is_pinned', { ascending: false })
           .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
       ]);
 
       if (!alive) return;
@@ -177,10 +172,7 @@ export default function CompanyNews() {
     if (!q) return rows;
 
     return rows.filter((row) =>
-      [row.title, row.content, row.file_name]
-        .join(' ')
-        .toLowerCase()
-        .includes(q),
+      [row.title, row.content, row.file_name].join(' ').toLowerCase().includes(q)
     );
   }, [keyword, rows]);
 
@@ -191,14 +183,18 @@ export default function CompanyNews() {
 
   if (selectedId && selectedRow) {
     const images = normalizeArray(selectedRow.image_urls);
-    const finalImages = images.length ? images : selectedRow.image_url ? [selectedRow.image_url] : [];
+    const finalImages = images.length
+      ? images
+      : selectedRow.image_url
+        ? [selectedRow.image_url]
+        : [];
     const attachments = normalizeArray(selectedRow.attachments);
 
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
-          <section className="mx-auto max-w-[1180px] px-6 py-16">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
+          <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
               onClick={() => setSearchParams({})}
@@ -288,10 +284,10 @@ export default function CompanyNews() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <CompanyIntro page={introPage} />
 
-        <section className="mx-auto max-w-[1280px] px-6 py-16 lg:py-20">
+        <section className="mx-auto max-w-content px-6 py-16 lg:py-20">
           <div className="text-center">
             <p className="text-sm font-black text-[#B88737]">WINNING NEWS</p>
             <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">회사소식</h2>
@@ -300,7 +296,7 @@ export default function CompanyNews() {
             </p>
           </div>
 
-          <div className="mx-auto mt-12 flex h-14 max-w-[1120px] items-center border-b border-[#111827]">
+          <div className="mx-auto mt-12 flex h-14 items-center border-b border-[#111827]">
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -310,9 +306,10 @@ export default function CompanyNews() {
             <Search size={29} strokeWidth={1.7} className="mr-4 text-slate-500" />
           </div>
 
-          <div className="mx-auto mt-10 max-w-[1120px]">
+          <div className="mx-auto mt-10">
             <p className="mb-7 text-base font-semibold text-slate-500">
-              총 <span className="font-black text-[#0B73C9]">{filteredRows.length}</span>건의 소식이 있습니다.
+              총 <span className="font-black text-[#0B73C9]">{filteredRows.length}</span>건의 소식이
+              있습니다.
             </p>
 
             {loading ? (

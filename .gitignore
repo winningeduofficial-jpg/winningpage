@@ -35,6 +35,7 @@ Thumbs.db
 
 # Supabase local temp
 supabase/.temp/
-
 .vercel
-.env*
+
+# seed-landing-storage.mjs 산출물 (환경별 URL 매핑)
+landing-url-map.json

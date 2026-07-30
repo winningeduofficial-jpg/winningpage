@@ -7,7 +7,16 @@ const PAID_SERVICE_CONFIGS = [
     serviceKey: 'suhaeng',
     serviceName: 'AI 수행평가 서비스',
     match(service = {}) {
-      const text = [service.name, service.title, service.label, service.description, service.desc, service.link, service.to, service.slug]
+      const text = [
+        service.name,
+        service.title,
+        service.label,
+        service.description,
+        service.desc,
+        service.link,
+        service.to,
+        service.slug
+      ]
         .map((v) => String(v || '').toLowerCase())
         .join(' ');
 
@@ -25,7 +34,16 @@ const PAID_SERVICE_CONFIGS = [
     serviceKey: 'goal',
     serviceName: '목표관리 서비스',
     match(service = {}) {
-      const text = [service.name, service.title, service.label, service.description, service.desc, service.link, service.to, service.slug]
+      const text = [
+        service.name,
+        service.title,
+        service.label,
+        service.description,
+        service.desc,
+        service.link,
+        service.to,
+        service.slug
+      ]
         .map((v) => String(v || '').toLowerCase())
         .join(' ');
 
@@ -45,7 +63,6 @@ const PAID_SERVICE_CONFIGS = [
 export function getPaidServiceConfig(service) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
-
 
 function setGlobalLoadingCursor(isLoading) {
   if (typeof document === 'undefined') return;
@@ -144,4 +161,3 @@ export async function openPaidServiceOrAlert(event, service) {
     }, 600);
   }
 }
-

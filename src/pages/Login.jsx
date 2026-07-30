@@ -107,12 +107,12 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+    <main className="min-h-screen bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
       <section className="relative overflow-hidden border-b border-[#0D1B2A]/10 bg-[linear-gradient(120deg,#081321_0%,#0D1B2A_42%,#142B45_100%)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.28),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.18),transparent_32%)]" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
-        <div className="relative mx-auto grid min-h-[calc(100vh-84px)] max-w-[1280px] items-center gap-10 px-6 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
+        <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-content items-center gap-10 px-6 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
           <div className="max-w-2xl text-white">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#D7B56D]/45 bg-[#D7B56D]/10 px-4 py-2 text-sm font-black text-[#E5C677] shadow-[0_12px_34px_rgba(0,0,0,0.18)]">
               <Sparkles size={16} fill="currentColor" />
@@ -152,9 +152,7 @@ export default function Login() {
           <div className="mx-auto w-full max-w-[480px]">
             <div className="rounded-[34px] border border-white/70 bg-white p-7 shadow-[0_28px_80px_rgba(13,27,42,0.28)] md:p-9">
               <div>
-                <p className="text-sm font-black text-[#B88737]">
-                  WINNING EDU LOGIN
-                </p>
+                <p className="text-sm font-black text-[#B88737]">WINNING EDU LOGIN</p>
 
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
                   로그인
@@ -163,9 +161,7 @@ export default function Login() {
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                    이메일
-                  </span>
+                  <span className="mb-2 block text-sm font-black text-[#0D1B2A]">이메일</span>
 
                   <div className="flex h-14 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
                     <Mail size={19} className="text-[#8B95A1]" />
@@ -183,9 +179,7 @@ export default function Login() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                    비밀번호
-                  </span>
+                  <span className="mb-2 block text-sm font-black text-[#0D1B2A]">비밀번호</span>
 
                   <div className="flex h-14 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
                     <LockKeyhole size={19} className="text-[#8B95A1]" />
@@ -215,10 +209,7 @@ export default function Login() {
                 >
                   {loading ? '로그인 처리 중...' : '로그인'}
                   {!loading && (
-                    <ArrowRight
-                      size={18}
-                      className="transition group-hover:translate-x-1"
-                    />
+                    <ArrowRight size={18} className="transition group-hover:translate-x-1" />
                   )}
                 </button>
               </form>
@@ -237,10 +228,7 @@ export default function Login() {
 
               <p className="mt-6 text-center text-sm font-bold text-[#6B7280]">
                 아직 계정이 없나요?{' '}
-                <Link
-                  to="/signup"
-                  className="font-black text-[#B88737] hover:text-[#8F6421]"
-                >
+                <Link to="/signup" className="font-black text-[#B88737] hover:text-[#8F6421]">
                   회원가입
                 </Link>
               </p>

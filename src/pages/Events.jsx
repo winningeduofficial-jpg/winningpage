@@ -49,19 +49,10 @@ function renderNoticeContent(content) {
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
 
   if (hasHtml) {
-    return (
-      <div
-        className="notice-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
   }
 
-  return (
-    <div className="notice-content whitespace-pre-line">
-      {content}
-    </div>
-  );
+  return <div className="notice-content whitespace-pre-line">{content}</div>;
 }
 
 export default function Events() {
@@ -116,12 +107,7 @@ export default function Events() {
         .map((file) => (typeof file === 'string' ? file : file?.name || ''))
         .join(' ');
 
-      const text = [
-        notice.title,
-        notice.content,
-        notice.file_name,
-        attachmentsText
-      ]
+      const text = [notice.title, notice.content, notice.file_name, attachmentsText]
         .join(' ')
         .toLowerCase();
 
@@ -142,8 +128,8 @@ export default function Events() {
       <>
         <Header />
 
-        <main className="min-h-screen bg-white pt-[84px]">
-          <section className="mx-auto max-w-[1180px] px-6 py-16">
+        <main className="min-h-screen bg-white pt-16">
+          <section className="mx-auto max-w-content px-6 py-16">
             <button
               type="button"
               onClick={() => setSearchParams({})}
@@ -198,9 +184,7 @@ export default function Events() {
 
                 {attachments.length > 0 ? (
                   <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">
-                      첨부파일
-                    </p>
+                    <p className="mb-3 text-sm font-black text-[#111827]">첨부파일</p>
 
                     <div className="space-y-2">
                       {attachments.map((file, index) => {
@@ -224,9 +208,7 @@ export default function Events() {
                   </div>
                 ) : selectedNotice.file_url ? (
                   <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">
-                      첨부파일
-                    </p>
+                    <p className="mb-3 text-sm font-black text-[#111827]">첨부파일</p>
 
                     <a
                       href={selectedNotice.file_url}
@@ -251,19 +233,17 @@ export default function Events() {
     <>
       <Header />
 
-      <main className="min-h-screen bg-white pt-[84px]">
-        <section className="mx-auto max-w-[1500px] px-8 py-16">
+      <main className="min-h-screen bg-white pt-16">
+        <section className="mx-auto max-w-content px-8 py-16">
           <div className="text-center">
-            <h1 className="text-[44px] font-black tracking-[-0.04em] text-[#222]">
-              공지사항
-            </h1>
+            <h1 className="text-[44px] font-black tracking-[-0.04em] text-[#222]">공지사항</h1>
 
             <p className="mt-6 text-[26px] font-medium tracking-[-0.03em] text-gray-500">
               위닝에듀 알림
             </p>
           </div>
 
-          <div className="mx-auto mt-16 flex max-w-[1340px] items-center border-b border-[#222] pb-4">
+          <div className="mx-auto mt-16 flex items-center border-b border-[#222] pb-4">
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -274,12 +254,9 @@ export default function Events() {
             <Search size={38} strokeWidth={1.6} className="text-gray-600" />
           </div>
 
-          <div className="mx-auto mt-14 max-w-[1340px]">
+          <div className="mx-auto mt-14">
             <p className="mb-8 text-[20px] font-medium text-gray-600">
-              총{' '}
-              <span className="font-black text-[#00A6D6]">
-                {filteredNotices.length}
-              </span>
+              총 <span className="font-black text-[#00A6D6]">{filteredNotices.length}</span>
               건의 자료가 있습니다.
             </p>
 
@@ -302,9 +279,7 @@ export default function Events() {
                       type="button"
                       onClick={() => setSearchParams({ id: String(notice.id) })}
                       className={`min-h-[118px] border px-6 py-7 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-                        isHighlight
-                          ? 'border-[#e2e4cf] bg-[#f2f3d8]'
-                          : 'border-gray-200 bg-white'
+                        isHighlight ? 'border-[#e2e4cf] bg-[#f2f3d8]' : 'border-gray-200 bg-white'
                       }`}
                     >
                       <h2 className="line-clamp-1 text-[22px] font-black tracking-[-0.03em] text-[#111827]">
@@ -326,4 +301,3 @@ export default function Events() {
     </>
   );
 }
-

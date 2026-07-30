@@ -38,7 +38,11 @@ export default function Gallery() {
     const q = keyword.trim().toLowerCase();
     if (!q) return rows;
 
-    return rows.filter((row) => String(row.title || '').toLowerCase().includes(q));
+    return rows.filter((row) =>
+      String(row.title || '')
+        .toLowerCase()
+        .includes(q)
+    );
   }, [rows, keyword]);
 
   useEffect(() => {
@@ -103,8 +107,8 @@ export default function Gallery() {
     return (
       <div className="min-h-screen bg-white text-[#0D1B2A]">
         <Header />
-        <main className="pt-[84px]">
-          <section className="mx-auto max-w-[1180px] px-6 py-16">
+        <main className="pt-16">
+          <section className="mx-auto max-w-content px-6 py-16">
             {loading ? (
               <div className="py-24 text-center text-sm font-bold text-gray-500">
                 불러오는 중입니다.
@@ -166,14 +170,14 @@ export default function Gallery() {
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
       <Header />
-      <main className="pt-[84px]">
-        <section className="mx-auto max-w-[1280px] px-6 py-16">
+      <main className="pt-16">
+        <section className="mx-auto max-w-content px-6 py-16">
           <div className="text-center">
             <h1 className="text-4xl font-black tracking-[-0.04em]">교육컬럼</h1>
             <p className="mt-6 text-xl font-medium text-gray-500">입시·학습 전략 자료</p>
           </div>
 
-          <div className="mx-auto mt-14 flex h-14 max-w-[1160px] items-center border-b border-[#111827]">
+          <div className="mx-auto mt-14 flex h-14 items-center border-b border-[#111827]">
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -184,7 +188,8 @@ export default function Gallery() {
           </div>
 
           <div className="mt-12 text-lg font-medium text-gray-500">
-            총 <span className="font-black text-[#0086d1]">{filteredRows.length}</span>건의 자료가 있습니다.
+            총 <span className="font-black text-[#0086d1]">{filteredRows.length}</span>건의 자료가
+            있습니다.
           </div>
 
           {loading ? (

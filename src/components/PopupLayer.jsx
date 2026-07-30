@@ -73,9 +73,7 @@ export default function PopupLayer() {
             className="w-[360px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
           >
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h3 className="text-base font-black text-[#0D1B2A]">
-                {popup.title}
-              </h3>
+              <h3 className="text-base font-black text-[#0D1B2A]">{popup.title}</h3>
 
               <button
                 type="button"
@@ -91,7 +89,8 @@ export default function PopupLayer() {
                 type="button"
                 onClick={() => {
                   if (!popup.url) return;
-                  if (popup.open_new_window) window.open(popup.url, '_blank', 'noopener,noreferrer');
+                  if (popup.open_new_window)
+                    window.open(popup.url, '_blank', 'noopener,noreferrer');
                   else window.location.href = popup.url;
                 }}
                 className="block w-full"

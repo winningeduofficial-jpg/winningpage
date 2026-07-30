@@ -12,7 +12,7 @@ import { getCart, saveCart } from '../lib/cart';
 const PAY_METHODS = [
   { key: 'tosspay', label: '토스페이', tossMethod: 'CARD' }, // 간편결제는 카드창 내에서 제공
   { key: 'card', label: '신용 / 체크카드', tossMethod: 'CARD' },
-  { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' },
+  { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' }
 ];
 
 function Accordion({ title, open, onToggle, children }) {
@@ -24,7 +24,10 @@ function Accordion({ title, open, onToggle, children }) {
         className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[14px] font-bold text-[#0D1B2A]"
       >
         <span>{title}</span>
-        <ChevronDown size={18} className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          size={18}
+          className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open && <div className="border-t border-slate-100 px-4 py-3.5">{children}</div>}
     </div>
@@ -40,7 +43,11 @@ function AgreementText({ text }) {
         const t = line.trim();
         if (t === '') return <div key={i} className="h-2" />;
         const heading =
-          /^제\d+조/.test(t) || /^\[.*\]$/.test(t) || /^<.*>$/.test(t) || /^부칙/.test(t) || /^\d+\.\s/.test(t);
+          /^제\d+조/.test(t) ||
+          /^\[.*\]$/.test(t) ||
+          /^<.*>$/.test(t) ||
+          /^부칙/.test(t) ||
+          /^\d+\.\s/.test(t);
         if (heading) {
           return (
             <p key={i} className="mt-2.5 font-bold text-[#0D1B2A]">
@@ -111,7 +118,7 @@ export default function Checkout() {
           title: c.title,
           discount: c.discount_amount,
           minAmount: c.min_amount || 0,
-          validUntil: c.valid_until,
+          validUntil: c.valid_until
         }))
       );
     })();
@@ -120,7 +127,10 @@ export default function Checkout() {
     };
   }, []);
 
-  const checkedItems = useMemo(() => items.filter((i) => checkedIds.has(i.id)), [items, checkedIds]);
+  const checkedItems = useMemo(
+    () => items.filter((i) => checkedIds.has(i.id)),
+    [items, checkedIds]
+  );
   const allChecked = items.length > 0 && checkedIds.size === items.length;
 
   // 금액 계산
@@ -132,7 +142,8 @@ export default function Checkout() {
   const couponDiscount = useMemo(() => {
     let sum = 0;
     coupons.forEach((c) => {
-      if (selectedCouponIds.has(c.id) && subtotal >= (c.minAmount || 0)) sum += Number(c.discount || 0);
+      if (selectedCouponIds.has(c.id) && subtotal >= (c.minAmount || 0))
+        sum += Number(c.discount || 0);
     });
     return Math.min(sum, subtotal);
   }, [coupons, selectedCouponIds, subtotal]);
@@ -196,12 +207,12 @@ export default function Checkout() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
         },
         body: JSON.stringify({
           items: checkedItems.map((i) => ({ id: i.id })),
-          couponIds: Array.from(selectedCouponIds),
-        }),
+          couponIds: Array.from(selectedCouponIds)
+        })
       });
 
       let order = {};
@@ -230,11 +241,18 @@ export default function Checkout() {
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: user?.email ?? undefined,
         ...(method === 'CARD'
-          ? { card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false } }
+          ? {
+              card: {
+                useEscrow: false,
+                flowMode: 'DEFAULT',
+                useCardPoint: false,
+                useAppCardOnly: false
+              }
+            }
           : {}),
         ...(method === 'VIRTUAL_ACCOUNT'
           ? { virtualAccount: { cashReceipt: { type: '소득공제' }, validHours: 24 } }
-          : {}),
+          : {})
       });
     } catch (err) {
       // 결제창을 닫으면 USER_CANCEL 로 들어온다.
@@ -251,7 +269,7 @@ export default function Checkout() {
     return (
       <>
         <Header />
-        <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-[84px] text-center">
+        <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
           <h1 className="text-2xl font-black text-[#0D1B2A]">선택한 상품이 없습니다</h1>
           <p className="mt-3 text-slate-500">결제할 서비스를 먼저 선택해주세요.</p>
           <Link
@@ -269,14 +287,18 @@ export default function Checkout() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-white pt-[84px]">
-        <div className="mx-auto max-w-[1180px] px-6 py-14">
-          <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">결제하기</h1>
+      <main className="min-h-screen bg-white pt-16">
+        <div className="mx-auto max-w-content px-6 py-14">
+          <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">
+            결제하기
+          </h1>
 
           <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
             {/* 좌측: 주문 상품 */}
             <section>
-              <h2 className="mb-5 text-[22px] font-black text-[#0D1B2A]">주문 상품 {items.length}</h2>
+              <h2 className="mb-5 text-[22px] font-black text-[#0D1B2A]">
+                주문 상품 {items.length}
+              </h2>
 
               <button type="button" onClick={toggleAll} className="mb-4 flex items-center gap-2">
                 <span
@@ -294,14 +316,23 @@ export default function Checkout() {
                   const isChecked = checkedIds.has(item.id);
                   const hasDiscount = Number(item.listPrice) > Number(item.price);
                   return (
-                    <div key={item.id} className="flex gap-3 rounded-2xl border border-slate-200 p-5">
-                      <button type="button" onClick={() => toggleItem(item.id)} className="mt-0.5 shrink-0">
+                    <div
+                      key={item.id}
+                      className="flex gap-3 rounded-2xl border border-slate-200 p-5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleItem(item.id)}
+                        className="mt-0.5 shrink-0"
+                      >
                         <span
                           className={`flex h-[22px] w-[22px] items-center justify-center rounded-[6px] border transition ${
                             isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
                           }`}
                         >
-                          {isChecked && <Check size={14} strokeWidth={3.5} className="text-white" />}
+                          {isChecked && (
+                            <Check size={14} strokeWidth={3.5} className="text-white" />
+                          )}
                         </span>
                       </button>
 
@@ -310,16 +341,26 @@ export default function Checkout() {
                           <p className="text-[15px] font-bold text-[#0D1B2A]">{item.name}</p>
                           <div className="flex shrink-0 flex-col items-end leading-tight">
                             {hasDiscount && (
-                              <span className="text-[12px] text-slate-400 line-through">{formatKRW(item.listPrice)}</span>
+                              <span className="text-[12px] text-slate-400 line-through">
+                                {formatKRW(item.listPrice)}
+                              </span>
                             )}
                             <span className="flex items-center gap-2">
-                              {item.badge && <span className="text-[13px] font-bold text-blue-600">{item.badge}</span>}
-                              <span className="text-[15px] font-black text-[#0D1B2A]">{formatKRW(item.price)}</span>
+                              {item.badge && (
+                                <span className="text-[13px] font-bold text-blue-600">
+                                  {item.badge}
+                                </span>
+                              )}
+                              <span className="text-[15px] font-black text-[#0D1B2A]">
+                                {formatKRW(item.price)}
+                              </span>
                             </span>
                           </div>
                         </div>
                         {item.serviceDesc && (
-                          <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500">{item.serviceDesc}</p>
+                          <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500">
+                            {item.serviceDesc}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -343,7 +384,11 @@ export default function Checkout() {
               {/* 구매 전 확인사항 */}
               <div>
                 <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">구매 전 확인사항</h3>
-                <Accordion title="[구매 전 안내사항]" open={openNotice} onToggle={() => setOpenNotice((v) => !v)}>
+                <Accordion
+                  title="[구매 전 안내사항]"
+                  open={openNotice}
+                  onToggle={() => setOpenNotice((v) => !v)}
+                >
                   <AgreementText text={CHECKOUT_AGREEMENTS.purchaseNotice} />
                 </Accordion>
                 <RequiredCheck checked={agreeNotice} onChange={() => setAgreeNotice((v) => !v)}>
@@ -373,7 +418,9 @@ export default function Checkout() {
 
                 {coupons.length > 0 && (
                   <>
-                    <p className="mb-2 mt-5 text-[13px] font-bold text-slate-500">보유 쿠폰 {coupons.length}장</p>
+                    <p className="mb-2 mt-5 text-[13px] font-bold text-slate-500">
+                      보유 쿠폰 {coupons.length}장
+                    </p>
                     <div className="space-y-2">
                       {coupons.map((c) => {
                         const eligible = subtotal >= (c.minAmount || 0);
@@ -390,13 +437,19 @@ export default function Checkout() {
                           >
                             <span
                               className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
-                                isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                                isSelected
+                                  ? 'border-blue-600 bg-blue-600'
+                                  : 'border-slate-300 bg-white'
                               }`}
                             >
-                              {isSelected && <Check size={12} strokeWidth={3.5} className="text-white" />}
+                              {isSelected && (
+                                <Check size={12} strokeWidth={3.5} className="text-white" />
+                              )}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13.5px] font-bold text-[#0D1B2A]">{c.title}</span>
+                              <span className="block truncate text-[13.5px] font-bold text-[#0D1B2A]">
+                                {c.title}
+                              </span>
                               {c.validUntil && (
                                 <span className="block text-[11.5px] text-slate-400">
                                   {String(c.validUntil).replace(/-/g, '.')}까지
@@ -473,7 +526,9 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between border-t border-slate-100 pt-3">
                     <dt className="text-[15px] font-black text-[#0D1B2A]">총 결제 금액</dt>
-                    <dd className="text-[18px] font-black text-[#0D1B2A]">{formatKRW(payAmount)}</dd>
+                    <dd className="text-[18px] font-black text-[#0D1B2A]">
+                      {formatKRW(payAmount)}
+                    </dd>
                   </div>
                 </dl>
 
