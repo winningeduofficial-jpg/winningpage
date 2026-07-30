@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import Pricing from './pages/Pricing';
 import Checkout from './pages/Checkout';
@@ -30,6 +29,42 @@ import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
+import { SignupProvider } from './context/SignupContext';
+
+// 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
+import MemberType from './pages/signup/MemberType';
+import StudentBirth from './pages/signup/StudentBirth';
+import StudentForm from './pages/signup/StudentForm';
+import Under14Verify from './pages/signup/Under14Verify';
+import Under14Form from './pages/signup/Under14Form';
+import StudentComplete from './pages/signup/StudentComplete';
+import ParentForm from './pages/signup/parent/ParentForm';
+import LinkChoice from './pages/signup/parent/LinkChoice';
+import LinkCode from './pages/signup/parent/LinkCode';
+import LinkDone from './pages/signup/parent/LinkDone';
+import InviteChild from './pages/signup/parent/InviteChild';
+import InviteDone from './pages/signup/parent/InviteDone';
+import ParentHome from './pages/signup/parent/ParentHome';
+
+// 약관 8종(§5.2) — 학생 5종 + 학부모 3종, 전부 정적 문서 페이지
+import StudentService from './pages/terms/StudentService';
+import StudentPrivacy from './pages/terms/StudentPrivacy';
+import StudentIdentity from './pages/terms/StudentIdentity';
+import StudentMarketing from './pages/terms/StudentMarketing';
+import StudentPromotion from './pages/terms/StudentPromotion';
+import ParentService from './pages/terms/ParentService';
+import ParentPrivacy from './pages/terms/ParentPrivacy';
+import ParentMarketing from './pages/terms/ParentMarketing';
+
+// /signup 하위 라우트 전용 컨텍스트 경계 — 유형 선택부터 완료/온보딩까지 단계 간 데이터
+// (memberType/birthDate/폼데이터/인증 상태)를 SignupProvider(§5.3)로 공유한다.
+function SignupFlowLayout() {
+  return (
+    <SignupProvider>
+      <Outlet />
+    </SignupProvider>
+  );
+}
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -116,10 +151,39 @@ export default function App() {
           <Route path="/gallery/:id" element={<Gallery />} />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
+
+          {/* 로그인·회원가입 리뉴얼(§5.2) — 헤더/푸터 포함 풀 페이지가 시안 확정이므로
+              SiteLayout 안으로 편입(구 Login.jsx/Signup.jsx의 pt-16 보정 관례 그대로 재사용). */}
+          <Route path="/login" element={<Login />} />
+
+          <Route element={<SignupFlowLayout />}>
+            <Route path="/signup" element={<MemberType />} />
+            <Route path="/signup/student/birth" element={<StudentBirth />} />
+            <Route path="/signup/student" element={<StudentForm />} />
+            <Route path="/signup/student/under14/verify" element={<Under14Verify />} />
+            <Route path="/signup/student/under14" element={<Under14Form />} />
+            <Route path="/signup/student/complete" element={<StudentComplete />} />
+            <Route path="/signup/parent" element={<ParentForm />} />
+            <Route path="/signup/parent/link" element={<LinkChoice />} />
+            <Route path="/signup/parent/link/add" element={<LinkChoice mode="add" />} />
+            <Route path="/signup/parent/link/code" element={<LinkCode />} />
+            <Route path="/signup/parent/link/done" element={<LinkDone />} />
+            <Route path="/signup/parent/invite" element={<InviteChild />} />
+            <Route path="/signup/parent/invite/done" element={<InviteDone />} />
+            <Route path="/signup/parent/home" element={<ParentHome />} />
+          </Route>
+
+          {/* 약관 8종(§5.2) — 학생 5종 + 학부모 3종 */}
+          <Route path="/terms/student/service" element={<StudentService />} />
+          <Route path="/terms/student/privacy" element={<StudentPrivacy />} />
+          <Route path="/terms/student/identity" element={<StudentIdentity />} />
+          <Route path="/terms/student/marketing" element={<StudentMarketing />} />
+          <Route path="/terms/student/promotion" element={<StudentPromotion />} />
+          <Route path="/terms/parent/service" element={<ParentService />} />
+          <Route path="/terms/parent/privacy" element={<ParentPrivacy />} />
+          <Route path="/terms/parent/marketing" element={<ParentMarketing />} />
         </Route>
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
