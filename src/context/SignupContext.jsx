@@ -51,13 +51,17 @@ const INITIAL_STATE = {
   agreements: INITIAL_AGREEMENTS,
   verification: INITIAL_VERIFICATION,
   linkCode: null, // 학생 가입 완료 후 발급되는 학부모 연동 코드(C-2)
-  signupCompleted: false // 가입 성공(complete_signup_profile RPC 성공) 직후 true — C-2 진입 가드용
+  signupCompleted: false, // 가입 성공(complete_signup_profile RPC 성공) 직후 true — C-2 진입 가드용
+  parentSignupCompleted: false // 학부모 가입 성공 직후 true — signupCompleted와 동일 패턴의 학부모 온보딩 진입 가드용
 };
 
 // 만 나이 계산: 생일이 이미 지났으면 연도 차, 아직 안 지났으면 연도 차 - 1.
 // (§3.3 B-2: "연령 확인은 회원가입 시 입력하는 생년월일을 기준으로 하며, 생일이 지나지
 // 않은 경우 만 14세 미만으로 처리합니다" — 통상적인 만 나이 계산 규칙 그대로 적용)
-function computeIsUnder14(birthDate8) {
+// 유효하지 않은 입력(파싱 불가/Date 롤오버로 실제 날짜가 바뀐 경우/미래 날짜/1900년 이전
+// 비상식적인 연도)은 null을 반환하므로, 호출부는 null을 "계산 불가 → 에러 표시"로 다뤄야
+// 한다. StudentBirth 등 다른 화면에서 동일 로직을 중복 구현하지 않도록 export한다.
+export function computeIsUnder14(birthDate8) {
   if (!birthDate8 || birthDate8.length !== 8) return null;
 
   const year = Number(birthDate8.slice(0, 4));
@@ -65,11 +69,21 @@ function computeIsUnder14(birthDate8) {
   const day = Number(birthDate8.slice(6, 8));
 
   if (!year || !month || !day) return null;
+  if (year < 1900) return null; // 비상식적인 연도 거부
 
   const birth = new Date(year, month - 1, day);
   if (Number.isNaN(birth.getTime())) return null;
 
+  // Date는 month=13, day=32처럼 범위를 벗어난 값을 다음 달/해로 조용히 롤오버시켜
+  // 전혀 다른 날짜를 만들어낸다(예: 2024-02-30 → 2024-03-01). 역검증으로 이런
+  // 입력을 걸러낸다.
+  if (birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
+    return null;
+  }
+
   const today = new Date();
+  if (birth.getTime() > today.getTime()) return null; // 미래 날짜 거부
+
   let age = today.getFullYear() - birth.getFullYear();
 
   const hasHadBirthdayThisYear =
@@ -125,17 +139,31 @@ function clearStoredFlow() {
 function buildInitialState(stored) {
   if (!stored) return { ...INITIAL_STATE };
 
+  const formData = { ...INITIAL_FORM_DATA, ...(stored.formData || {}) };
+  const verification = {
+    ...INITIAL_VERIFICATION,
+    phone: { ...INITIAL_VERIFICATION.phone, ...(stored.verification?.phone || {}) },
+    email: { ...INITIAL_VERIFICATION.email, ...(stored.verification?.email || {}) },
+    pass: { ...INITIAL_VERIFICATION.pass, ...(stored.verification?.pass || {}) }
+  };
+
+  // SENSITIVE_FORM_KEYS(password 포함)는 세션 저장소에 절대 남지 않으므로, 복구 직후
+  // formData.password는 항상 빈 문자열이다. signUp 시 서버에 등록한 비밀번호와 새로고침
+  // 후 사용자가 다시 입력할 비밀번호가 서로 다를 수 있는데, phone/email 인증 완료 플래그만
+  // 그대로 복구되면 "인증은 완료됐지만 그 인증이 보장하는 비밀번호는 알 수 없다"는 불일치
+  // 상태가 된다. 이를 막기 위해 비밀번호가 비어 있으면 인증 상태를 INITIAL로 리셋해
+  // 재-signUp(재인증)을 강제한다.
+  if (!formData.password) {
+    verification.phone = { ...INITIAL_VERIFICATION.phone };
+    verification.email = { ...INITIAL_VERIFICATION.email };
+  }
+
   return {
     ...INITIAL_STATE,
     ...stored,
-    formData: { ...INITIAL_FORM_DATA, ...(stored.formData || {}) },
+    formData,
     agreements: { ...INITIAL_AGREEMENTS, ...(stored.agreements || {}) },
-    verification: {
-      ...INITIAL_VERIFICATION,
-      phone: { ...INITIAL_VERIFICATION.phone, ...(stored.verification?.phone || {}) },
-      email: { ...INITIAL_VERIFICATION.email, ...(stored.verification?.email || {}) },
-      pass: { ...INITIAL_VERIFICATION.pass, ...(stored.verification?.pass || {}) }
-    }
+    verification
   };
 }
 
@@ -198,6 +226,28 @@ export function SignupProvider({ children }) {
     setState((prev) => ({ ...prev, signupCompleted }));
   }
 
+  // signupCompleted(학생)와 동일 패턴 — 학부모 가입 성공 직후 true, sessionStorage로 영속.
+  function setParentSignupCompleted(parentSignupCompleted) {
+    setState((prev) => ({ ...prev, parentSignupCompleted }));
+  }
+
+  // 유형 선택(학생/학부모)을 되돌아가 다시 고를 때, 이전 유형에서 입력하던 폼데이터/동의/
+  // 인증/완료 플래그가 새 유형 흐름에 그대로 남아있으면 상태가 오염된다(예: 학부모로
+  // 전환했는데 학생 인증 플래그가 verified로 남는 등). memberType 설정과 동시에 관련
+  // 상태를 전부 INITIAL로 되돌려 안전하게 유형을 전환한다. birthDate/isUnder14/linkCode는
+  // 유형과 무관하게 유지한다.
+  function resetForMemberType(memberType) {
+    setState((prev) => ({
+      ...prev,
+      memberType,
+      formData: INITIAL_FORM_DATA,
+      agreements: INITIAL_AGREEMENTS,
+      verification: INITIAL_VERIFICATION,
+      signupCompleted: false,
+      parentSignupCompleted: false
+    }));
+  }
+
   function resetSignup() {
     clearStoredFlow();
     setState({ ...INITIAL_STATE });
@@ -215,6 +265,8 @@ export function SignupProvider({ children }) {
       updateVerification,
       setLinkCode,
       setSignupCompleted,
+      setParentSignupCompleted,
+      resetForMemberType,
       resetSignup
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
