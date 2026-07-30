@@ -1,0 +1,109 @@
+// [C-2] 학생 가입 완료 — docs/login-signup-renewal-spec.md §3.3 C-2,
+// 노드 2393:10548 = 2393:10182(픽셀 단위 동일 중복 프레임).
+// 학부모 연동 코드의 발급 주체/저장 위치가 시안 데이터에 없다(§4 GAP: 백엔드 신규
+// 기능) — 이 페이지는 임시로 6자리 mock 코드를 생성해 SignupContext.linkCode에 보관하고
+// 표시한다. TODO: StudentForm의 complete_signup_profile RPC 응답(또는 별도 발급 API)에서
+// 실제 코드를 받아 setLinkCode로 채우도록 교체해야 한다.
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthLayout, AuthTitle, InfoCard, PrimaryButton, TextLinkButton } from '../../components/auth';
+import { useSignup } from '../../context/SignupContext';
+
+// TODO: 실제 연동 코드는 백엔드 발급 API 응답값으로 교체 — 현재는 6자리 mock.
+function generateMockLinkCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export default function StudentComplete() {
+  const navigate = useNavigate();
+  const { formData, linkCode, setLinkCode, resetSignup } = useSignup();
+  const [copied, setCopied] = useState(false);
+
+  // StudentForm을 거치지 않고 직접 진입한 경우(이름 없음)의 가드.
+  useEffect(() => {
+    if (!formData.name?.trim()) {
+      navigate('/signup/student', { replace: true });
+    }
+  }, [formData.name, navigate]);
+
+  useEffect(() => {
+    if (!linkCode) {
+      setLinkCode(generateMockLinkCode());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const studentName = formData.name?.trim() || '회원';
+
+  async function handleCopyCode() {
+    if (!linkCode) return;
+
+    try {
+      await navigator.clipboard.writeText(linkCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      // TODO: 클립보드 API 미지원 환경 대비 폴백(예: 임시 textarea + execCommand) 필요.
+      console.error('연동 코드 복사 오류:', error);
+    }
+  }
+
+  function handleStartDiagnosis() {
+    // TODO(§3.3 C-2 "함의"): 이 화면은 "무료 진단 시작하기" CTA로 바로 진입하는 시안이라
+    // 가입 직후 로그인 상태 유지가 전제로 보인다. 그러나 StudentForm은 AS-IS 정책대로
+    // 가입 완료 시 signOut을 유지하므로, 실제로는 로그인 세션이 없는 상태에서 이 버튼을
+    // 누르게 된다 — 정책 확정 전까지는 그대로 두고 확인 필요.
+    resetSignup();
+    navigate('/free-diagnosis');
+  }
+
+  function handleGoHome() {
+    resetSignup();
+  }
+
+  return (
+    <AuthLayout>
+      <AuthTitle
+        line1={
+          <>
+            <span className="text-primary">{studentName}님</span>, 위닝에듀 회원이 되신 것을
+            환영해요
+          </>
+        }
+      />
+
+      <p className="text-center text-xl text-ink">{studentName} 학생, 위닝에듀에 온 걸 환영해요</p>
+
+      <div className="flex w-full flex-col gap-4">
+        <InfoCard variant="card">
+          코드를 학부모님께 알려주면 학부모 대시보드에 내 학습 현황이 자동으로 연결돼요
+        </InfoCard>
+
+        <div className="flex w-full items-center justify-center rounded-[0.875rem] border border-line py-4 text-xl font-medium text-accent">
+          {linkCode}
+        </div>
+
+        <TextLinkButton as="button" tone="accent" size="xs" underline onClick={handleCopyCode}>
+          {copied ? '복사되었습니다' : '코드 복사하기'}
+        </TextLinkButton>
+      </div>
+
+      <div className="flex w-full flex-col gap-3">
+        <PrimaryButton size="default" radius="default" onClick={handleStartDiagnosis}>
+          무료 진단 시작하기
+        </PrimaryButton>
+
+        <TextLinkButton
+          as="link"
+          to="/"
+          tone="muted"
+          weight="medium"
+          onClick={handleGoHome}
+          className="flex h-[3.25rem] w-full items-center justify-center"
+        >
+          홈으로 가기
+        </TextLinkButton>
+      </div>
+    </AuthLayout>
+  );
+}
