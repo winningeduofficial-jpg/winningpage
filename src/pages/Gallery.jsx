@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 function normalizeArray(value) {
@@ -106,7 +105,6 @@ export default function Gallery() {
 
     return (
       <div className="min-h-screen bg-white text-[#0D1B2A]">
-        <Header />
         <main className="pt-16">
           <section className="mx-auto max-w-content px-6 py-16">
             {loading ? (
@@ -169,7 +167,6 @@ export default function Gallery() {
 
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
-      <Header />
       <main className="pt-16">
         <section className="mx-auto max-w-content px-6 py-16">
           <div className="text-center">

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, ArrowLeft, Download } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 function normalizeArray(value) {
@@ -126,8 +125,6 @@ export default function Events() {
 
     return (
       <>
-        <Header />
-
         <main className="min-h-screen bg-white pt-16">
           <section className="mx-auto max-w-content px-6 py-16">
             <button
@@ -231,8 +228,6 @@ export default function Events() {
 
   return (
     <>
-      <Header />
-
       <main className="min-h-screen bg-white pt-16">
         <section className="mx-auto max-w-content px-8 py-16">
           <div className="text-center">

@@ -1,5 +1,3 @@
-import Header from '../components/Header';
-
 const SUSI_FIELDS = [
   '대학명',
   '중심전형',
@@ -31,7 +29,6 @@ const JUNGSI_FIELDS = [
 export default function AdmissionResults() {
   return (
     <div className="min-h-screen bg-white text-[#0D1B2A]">
-      <Header />
       <main className="pt-16">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14 text-center">

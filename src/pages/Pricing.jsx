@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronRight } from 'lucide-react';
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
 import { SERVICES, SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
 import { saveCart } from '../lib/cart';
@@ -117,7 +115,6 @@ export default function Pricing() {
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-white pt-16">
         {/* 타이틀 */}
         <section className="px-6 pb-4 pt-16 text-center">
@@ -204,8 +201,6 @@ export default function Pricing() {
             </section>
           ))}
         </div>
-
-        <SiteFooter />
       </main>
 
       {/* 하단 플로팅 결제바 */}

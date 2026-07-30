@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 import {
   ArrowRight,
@@ -262,8 +261,6 @@ export default function FreeDiagnosis() {
 
   return (
     <>
-      <Header />
-
       <main className="min-h-screen bg-[#F8F7F3] pt-[84px]">
         <section className="relative isolate overflow-hidden bg-[#0D1B2A] px-6 py-20 text-white">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_20%,rgba(214,176,106,0.22),transparent_32%),radial-gradient(circle_at_84%_8%,rgba(255,255,255,0.12),transparent_26%)]" />

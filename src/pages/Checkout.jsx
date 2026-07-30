@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
 import { getTossPayments, ANONYMOUS } from '../lib/toss';
 import { COUPONS, formatKRW } from '../data/pricingCatalog';
@@ -268,7 +266,6 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <>
-        <Header />
         <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
           <h1 className="text-2xl font-black text-[#0D1B2A]">선택한 상품이 없습니다</h1>
           <p className="mt-3 text-slate-500">결제할 서비스를 먼저 선택해주세요.</p>
@@ -279,14 +276,12 @@ export default function Checkout() {
             서비스 선택하러 가기
           </Link>
         </main>
-        <SiteFooter />
       </>
     );
   }
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-white pt-16">
         <div className="mx-auto max-w-content px-6 py-14">
           <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">
@@ -551,8 +546,6 @@ export default function Checkout() {
             </aside>
           </div>
         </div>
-
-        <SiteFooter />
       </main>
     </>
   );
