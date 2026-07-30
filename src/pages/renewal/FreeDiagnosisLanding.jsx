@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import SiteFooter from '../../components/SiteFooter';
@@ -11,9 +12,7 @@ import illustrationTrial from '../../assets/renewal/landing/illustration-trial.p
 import iconLock from '../../assets/renewal/landing/icon-lock-v2.png';
 import iconFolder from '../../assets/renewal/landing/icon-folder-v2.png';
 import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
-import macbookShadow from '../../assets/renewal/landing/macbook-shadow.svg';
-import macbookBottom from '../../assets/renewal/landing/macbook-bottom.svg';
-import macbookScreenContent from '../../assets/renewal/landing/macbook-screen-content-v2.png';
+import macbookFull from '../../assets/renewal/landing/macbook-full.png';
 
 const CTA_LINK_CLASS =
   'inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]';
@@ -56,18 +55,55 @@ const BENEFITS = [
 
 // 플로팅 칩 — 시안 절대좌표(x290~1605, 스팬 1315)가 max-w-content(1164) 밖이라 그대로 쓸 수 없다.
 // 맥북 박스(1008×591) 기준 %로 재해석: 좌 1개 / 우 2개라는 시안의 배치 관계와 세로 위치는 그대로 두고,
-// 가로 오버행만 Lid(rel x 98~914) 바깥 gap 20px 지점까지 당겼다.
-//   📊 left -140  (시안 -166) / 📋 left 934 (시안 927) / ✏️ left 934 (시안 948)
+// 가로 오버행만 Lid(rel x 98~914)에 "밀착"하는 한계까지 압축했다.
+//   📊 left -120 (칩 폭 218 → right 98 = Lid 좌단) / 📋·✏️ left 914 = Lid 우단
+// 시안 갭 46/13/34px을 포기하는 대신 칩 노출 하한이 1340 → 1248로 내려가 1280 랩톱을 살린다(확정).
+// top(201 / -69 / 344)은 시안 그대로.
 const MACBOOK_W = 1008;
 const MACBOOK_H = 591;
 const pctX = (px) => `${(px / MACBOOK_W) * 100}%`;
 const pctY = (px) => `${(px / MACBOOK_H) * 100}%`;
 
+// X/Y/회전을 별개 keyframes·별개 주기로 분리(축 분해)했다 — 셋의 합성 경로는
+// 최소공배주기가 사실상 존재하지 않아(리사주 도형) 눈이 패턴을 학습하지 못한다.
+// 주기·진폭이 칩마다 전부 다른 것 + 축마다 다른 delay를 준 것은 의도다. 절대 통일하지 마라.
+// 통일하면 위상만 다른 하나의 기계로 읽힌다.
 const FLOATING_BADGES = [
-  { emoji: '📊', label: '상세 진단 요약 카드', style: { left: pctX(-140), top: pctY(201) } },
-  { emoji: '📋', label: '보완 안내', style: { left: pctX(934), top: pctY(-69) } },
-  { emoji: '✏️', label: '나의 강점 정리본', style: { left: pctX(934), top: pctY(344) } }
+  {
+    emoji: '📊',
+    label: '상세 진단 요약 카드',
+    style: { left: pctX(-120), top: pctY(201) },
+    x: { amplitude: '0.375rem', duration: '4.3s', delay: '0s' },
+    y: { amplitude: '1rem', duration: '3.1s', delay: '-1.1s' },
+    rot: { amplitude: '1deg', duration: '5.7s', delay: '-2.3s' }
+  },
+  {
+    emoji: '📋',
+    label: '보완 안내',
+    style: { left: pctX(914), top: pctY(-69) },
+    x: { amplitude: '0.3125rem', duration: '5.1s', delay: '-0.4s' },
+    y: { amplitude: '0.8125rem', duration: '3.7s', delay: '-1.6s' },
+    rot: { amplitude: '1.2deg', duration: '6.3s', delay: '-3.4s' }
+  },
+  {
+    emoji: '✏️',
+    label: '나의 강점 정리본',
+    style: { left: pctX(914), top: pctY(344) },
+    x: { amplitude: '0.375rem', duration: '4.7s', delay: '-0.9s' },
+    y: { amplitude: '1.125rem', duration: '4.1s', delay: '-2.2s' },
+    rot: { amplitude: '0.8deg', duration: '6.9s', delay: '-4.1s' }
+  }
 ];
+
+// 맥북 통이미지(macbook-full.png) — 2208×1374 @2x = 1104×687 @1x.
+// 몸체(1008×591)를 사방 48px(@1x) 여백으로 감싼 형태라 몸체 원점은 이미지 안 (48, 48).
+// 칩 좌표계(몸체 1008×591 기준 %)를 유지하려면 박스는 그대로 두고 img만 음수 inset으로 밀어야 한다.
+const MACBOOK_IMG_STYLE = {
+  left: pctX(-48),
+  top: pctY(-48),
+  width: pctX(1104),
+  height: pctY(687)
+};
 
 // 시안 칩 폰트 굵기가 하나만 600, 둘은 500 → 시안 실수로 보고 셋 다 500으로 통일.
 const BADGE_BASE_CLASS =
@@ -151,7 +187,7 @@ function StepsSection() {
 
         {/* 시안 카드행 1180(280×4 + gap20×3)이 컨테이너 내부 1100을 초과 → 결정 B7(a): 카드 260(16.25rem)로 축소.
             검산: 260×4 + 20×3 = 1100 ✓ */}
-        <div className="mt-10 grid grid-cols-1 items-stretch justify-center gap-5 sm:grid-cols-2 sm:gap-6 md:mt-[3.125rem] lg:grid-cols-[repeat(4,16.25rem)] lg:gap-[1.25rem]">
+        <div className="mt-10 grid grid-cols-1 items-stretch justify-center gap-5 sm:grid-cols-2 sm:gap-6 md:mt-[3.125rem] wide:grid-cols-[repeat(4,16.25rem)] wide:gap-[1.25rem]">
           {STEPS.map((item) => (
             <div
               key={item.step}
@@ -184,7 +220,7 @@ function AudienceSection() {
         <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 무료 진단을 추천해요</h2>
 
         {/* 353×498 카드 3장 + gap 20 = 1099 → 컨테이너 내부 1100 안에 정확히 수용 */}
-        <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-[3.75rem] lg:grid-cols-[repeat(3,22.0625rem)] lg:gap-[1.25rem]">
+        <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-[3.75rem] wide:grid-cols-[repeat(3,22.0625rem)] wide:gap-[1.25rem]">
           {AUDIENCE.map((item) => (
             <article
               key={item.titleLines.join('')}
@@ -250,99 +286,135 @@ function BenefitsSection() {
   );
 }
 
-// 맥북 목업 — 시안(2240:4579)은 다크 벡터 조립이라 기존 실버 PNG로 재현 불가.
-// 전체 1008×591 박스를 aspect 비율로 잡고 내부 부품을 % 절대배치(=1008px에서 시안 실측치와 일치, 이하 폭에서는 등비 축소).
+// 맥북 목업 — 시안(2240:4579) 벡터 조립(Lid/DarkScreen/Screen/각인/shadow/bottom)을 전부 걷어내고
+// 그림자까지 구운 통이미지 1장으로 대체했다.
+// 칩이 몸체 1008×591 기준 %로 배치돼 있으므로 그 비율의 relative 박스는 유지하고,
+// img만 absolute + 음수 inset(-48)으로 밀어 몸체를 박스에 정확히 정렬한다.
 function MacbookMockup() {
+  const chipLayerRef = useRef(null);
+  const [chipsInView, setChipsInView] = useState(false);
+
+  // 이 섹션은 페이지 y2750 지점이라 대부분의 시간 화면 밖이다.
+  // 뷰포트에 들어와 있는 동안만 애니메이션을 돌린다(이탈 시 정지).
+  useEffect(() => {
+    const node = chipLayerRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      setChipsInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="relative mx-auto w-full max-w-[63rem] aspect-[1008/591]">
-      {/* Shadow — SVG 실제 박스는 993×98(코어 타원 905×10 + stdDeviation 22 블러).
-          시안 위치(코어 top 581)로 두면 박스 하단이 591을 44px 넘어가고, 섹션 overflow-hidden + pb0에
-          직선으로 잘린다. 코어를 맥북 접지면(Bottom 하단 y=580)에 유지한 채 박스를 591 안에 담으려면
-          블러를 세로로 압축하는 수밖에 없다(preserveAspectRatio="none").
-          → 박스 높이 98 → 22, top 569(=591-22). 코어 중심 569+11=580 = 접지면. 클리핑 없음. */}
+    <div className="relative mx-auto aspect-[1008/591] w-full max-w-[63rem]">
+      {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
+          (AdmissionGuidelines.jsx에 동일 관행 존재).
+          prefers-reduced-motion: no-preference **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값.
+
+          "움직임이 인위적이다" 피드백 원인은 닫힌 궤도 하나를 linear+alternate로 등속 왕복시킨 것.
+          → X/Y/회전을 keyframes 3종으로 완전히 분리(축 분해)하고 칩마다 셋의 주기를 전부 다르게 잡았다.
+          세 사인파의 합성 경로는 사실상 반복되지 않아(리사주 도형) 패턴 학습이 안 된다.
+          진폭은 --fd-x/--fd-y/--fd-rot로 각 칩 래퍼에 주입해 keyframes 자체는 공유한다. */}
+      <style>{`
+        @keyframes fd-chip-x {
+          from { transform: translateX(calc(var(--fd-x) * -1)); }
+          to { transform: translateX(var(--fd-x)); }
+        }
+        @keyframes fd-chip-y {
+          from { transform: translateY(0rem); }
+          to { transform: translateY(calc(var(--fd-y) * -1)); }
+        }
+        @keyframes fd-chip-rot {
+          from { transform: rotate(calc(var(--fd-rot) * -1)); }
+          to { transform: rotate(var(--fd-rot)); }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          /* ease-in-out + alternate = 축마다 단순조화운동(사인파). 부력 받는 물체의 가감속에 가깝다.
+             linear를 걷어낸 건 등속 왕복이 정확히 대칭이라 눈이 반환점을 즉시 포착하기 때문이다. */
+          .fd-chip-x[data-float='on'],
+          .fd-chip-y[data-float='on'],
+          .fd-chip-rot[data-float='on'] {
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+            animation-direction: alternate;
+            will-change: transform;
+          }
+          .fd-chip-x[data-float='on'] { animation-name: fd-chip-x; }
+          .fd-chip-y[data-float='on'] { animation-name: fd-chip-y; }
+          .fd-chip-rot[data-float='on'] { animation-name: fd-chip-rot; }
+        }
+      `}</style>
+
+      {/* 통이미지 2208×1374(@2x) = 1104×687(@1x). 몸체 오프셋 (48,48)만큼 음수 inset. */}
       <img
-        src={macbookShadow}
+        src={macbookFull}
         alt=""
         aria-hidden="true"
         draggable="false"
-        className="pointer-events-none absolute select-none"
-        style={{ left: pctX(8), top: pctY(569), width: pctX(993), height: pctY(22) }}
+        width={2208}
+        height={1374}
+        className="pointer-events-none absolute max-w-none select-none"
+        style={MACBOOK_IMG_STYLE}
       />
 
-      {/* Lid 816×554 — bg #1A202C, border 2px #4A5568, radius 28/28/4/4 */}
+      {/* 플로팅 칩 — 칩이 Lid 밖으로 오버행하므로 컨테이너 폭 여유가 있는 xl(1280+)에서만 띄운다.
+          아래 목록 블록이 xl:hidden이라 두 블록의 노출 구간은 xl 경계에서 정확히 상보다. */}
       <div
+        ref={chipLayerRef}
+        className="pointer-events-none absolute inset-0 hidden xl:block"
         aria-hidden="true"
-        className="absolute rounded-t-[1.75rem] rounded-b-[0.25rem] border-2 border-[#4A5568] bg-[#1A202C]"
-        style={{ left: pctX(98), top: 0, width: pctX(816), height: pctY(554) }}
-      />
-
-      {/* Dark Screen 806×528 — bg #000000, radius top 22 */}
-      <div
-        aria-hidden="true"
-        className="absolute rounded-t-[1.375rem] bg-black"
-        style={{ left: pctX(103), top: pctY(5), width: pctX(806), height: pctY(528) }}
-      />
-
-      {/* Screen 770×480 — bg #FFFFFF */}
-      <div
-        aria-hidden="true"
-        className="absolute bg-white"
-        style={{ left: pctX(119), top: pctY(31), width: pctX(770), height: pctY(480) }}
-      />
-
-      {/* Body 768×478 — 결과 화면 캡처(@2x 1536×956) */}
-      <img
-        src={macbookScreenContent}
-        alt="위닝에듀 무료진단 결과 리포트 화면"
-        width={1536}
-        height={956}
-        className="absolute object-cover object-left-top"
-        style={{ left: pctX(121), top: pctY(33), width: pctX(768), height: pctY(478) }}
-      />
-
-      {/* "Macbook Pro" 각인 — 13px Inter SemiBold, lh 0.9, #A0AEC0 */}
-      <span
-        aria-hidden="true"
-        className="absolute text-center text-[0.8125rem] font-semibold leading-[0.9] text-[#A0AEC0]"
-        style={{
-          left: pctX(463),
-          top: pctY(534),
-          width: pctX(83),
-          fontFamily: 'Inter, Pretendard, sans-serif'
-        }}
       >
-        Macbook Pro
-      </span>
-
-      {/* Bottom 1008×30 (Base 18 + Curve 12 + Groove) */}
-      <img
-        src={macbookBottom}
-        alt=""
-        aria-hidden="true"
-        draggable="false"
-        className="pointer-events-none absolute select-none"
-        style={{ left: 0, top: pctY(550), width: '100%', height: pctY(30) }}
-      />
-
-      {/* 플로팅 칩 — 데스크톱(lg+)에서만 맥북 주변에 띄운다 */}
-      <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
-        {FLOATING_BADGES.map((badge) => (
-          <span
-            key={badge.label}
-            style={badge.style}
-            className={`absolute h-[4.25rem] px-[1.25rem] text-[1.25rem] drop-shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.4)] ${BADGE_BASE_CLASS}`}
-          >
-            {badge.emoji} {badge.label}
-          </span>
-        ))}
+        {FLOATING_BADGES.map((badge) => {
+          const floatState = chipsInView ? 'on' : 'off';
+          return (
+            /* 바깥 래퍼 = 위치 전담(left/top 절대배치 + 진폭 CSS 변수 주입).
+               변수는 하위로 상속되므로 keyframes 3종은 자식 쪽에서 그대로 var()로 읽는다. */
+            <div
+              key={badge.label}
+              className="absolute"
+              style={{
+                ...badge.style,
+                '--fd-x': badge.x.amplitude,
+                '--fd-y': badge.y.amplitude,
+                '--fd-rot': badge.rot.amplitude
+              }}
+            >
+              <div
+                className="fd-chip-x inline-block"
+                data-float={floatState}
+                style={{ animationDuration: badge.x.duration, animationDelay: badge.x.delay }}
+              >
+                <div
+                  className="fd-chip-y inline-block"
+                  data-float={floatState}
+                  style={{ animationDuration: badge.y.duration, animationDelay: badge.y.delay }}
+                >
+                  {/* 회전 요소 = 실제 칩. drop-shadow → box-shadow: 시각 결과는 같고
+                      애니메이션 중 필터 래스터화 비용이 사라진다. */}
+                  <span
+                    className={`fd-chip-rot h-[4.25rem] px-[1.25rem] text-[1.25rem] shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.4)] ${BADGE_BASE_CLASS}`}
+                    data-float={floatState}
+                    style={{ animationDuration: badge.rot.duration, animationDelay: badge.rot.delay }}
+                  >
+                    {badge.emoji} {badge.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
+// 섹션 overflow-hidden은 제거했다 — 구시안 radial 글로우 잔재였고, 맥북 통이미지 전환으로
+// shadow 클리핑 문제도 소멸했다. 칩은 xl(1280+)에서만 뜨므로 뷰포트를 넘을 일이 없다.
 function MacbookShowcase() {
   return (
-    <section className="relative overflow-hidden bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
+    <section className="relative bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
       <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#525252]`}>
           지금 내 입시 좌표를 확인 해보세요
@@ -351,7 +423,9 @@ function MacbookShowcase() {
         <div className="relative mx-auto mt-16 flex flex-col items-center sm:mt-20 md:mt-[4.3125rem]">
           <MacbookMockup />
 
-          <div className="mt-8 flex w-full max-w-[26rem] flex-col gap-3 lg:hidden">
+          {/* 칩 목록 — <768 세로 스택 / ≥768 가로 1행 중앙정렬(칩 3개 합 약 590px) / ≥1280 숨김.
+              위 데스크톱 칩 레이어가 hidden xl:block + aria-hidden이라 노출 구간이 xl 경계에서 상보다. */}
+          <div className="mt-8 flex w-full max-w-[26rem] flex-col gap-3 md:max-w-none md:flex-row md:flex-wrap md:justify-center md:gap-4 xl:hidden">
             {FLOATING_BADGES.map((badge) => (
               <span
                 key={badge.label}
