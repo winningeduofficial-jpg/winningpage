@@ -5,8 +5,15 @@ import { AuthLayout, AuthTitle, TextField, PrimaryButton, TextLinkButton } from 
 
 // 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
 function safeRedirect(value) {
-  if (value && value.startsWith('/') && !value.startsWith('//')) return value;
-  return '/';
+  if (!value) return '/';
+  try {
+    // origin 비교로 판단해야 백슬래시('/\evil.com')처럼 startsWith('//') 검사를
+    // 우회하는 프로토콜 상대 URL도 브라우저의 URL 파싱과 동일하게 차단된다.
+    const u = new URL(value, window.location.origin);
+    return u.origin === window.location.origin ? u.pathname + u.search + u.hash : '/';
+  } catch {
+    return '/';
+  }
 }
 
 export default function Login() {
