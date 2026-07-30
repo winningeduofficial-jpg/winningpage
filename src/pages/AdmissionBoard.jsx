@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Download, Search } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 const CATEGORY_META = {
@@ -164,7 +163,6 @@ export default function AdmissionBoard() {
 
     return (
       <>
-        <Header />
         <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
             <div className="mx-auto max-w-content px-6 py-14">
@@ -278,7 +276,6 @@ export default function AdmissionBoard() {
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14">

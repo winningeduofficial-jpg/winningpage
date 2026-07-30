@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 import admissionHwpSections from '../data/admissionHwpSections.json';
 
@@ -4851,8 +4850,6 @@ export default function AdmissionGuidelines() {
 
   return (
     <div className="min-h-screen bg-[#F4F1EA] text-[#10243E]">
-      <Header />
-
       <main className="pt-16">
         <div className="mx-auto max-w-content px-4 py-6 md:px-8">
           <section className="mb-8 overflow-hidden rounded-[26px] border border-[#10243E]/10 bg-[#10243E] shadow-[0_18px_42px_rgba(16,36,62,0.16)]">

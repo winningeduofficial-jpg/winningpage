@@ -1,5 +1,3 @@
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import { getLegalDoc } from '../data/legalDocs';
 
 // 조/항 제목 라인 판별
@@ -19,7 +17,6 @@ export default function Legal({ docKey }) {
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-white pt-16">
         <div className="mx-auto max-w-[880px] px-6 py-16">
           <h1 className="text-[30px] font-black tracking-[-0.02em] text-[#0D1B2A]">
@@ -56,7 +53,6 @@ export default function Legal({ docKey }) {
             )}
           </div>
         </div>
-        <SiteFooter />
       </main>
     </>
   );

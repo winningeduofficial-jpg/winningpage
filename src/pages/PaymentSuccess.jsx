@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
 import { clearCart } from '../lib/cart';
 import { COMPANY } from '../data/company';
@@ -110,7 +108,6 @@ export default function PaymentSuccess() {
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-white pt-16">
         {status === 'confirming' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
@@ -180,8 +177,6 @@ export default function PaymentSuccess() {
             </button>
           </div>
         )}
-
-        <SiteFooter />
       </main>
     </>
   );

@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import HeroSection from '../components/landing/HeroSection';
 import AcceptanceSection from '../components/landing/AcceptanceSection';
 import ServicesSection from '../components/landing/ServicesSection';
@@ -413,8 +411,6 @@ export default function Home() {
 
   return (
     <>
-      <Header />
-
       <HomePopupLayer popups={popups} onClose={closePopup} onCloseToday={closePopupToday} />
 
       <main
@@ -434,8 +430,6 @@ export default function Home() {
 
         {/* 공지사항 섹션: 실 DB(company_news/notices) 기준 — 0건이어도 항상 렌더, 컬럼별 빈 상태 문구 표시 */}
         <NewsSection companyNews={companyNews} notices={notices} />
-
-        <SiteFooter />
       </main>
     </>
   );

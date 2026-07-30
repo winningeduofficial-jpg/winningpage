@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 function renderAnswer(answer) {
@@ -60,8 +59,6 @@ export default function Faq() {
 
   return (
     <>
-      <Header />
-
       <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="mx-auto max-w-content px-6 py-12">
           <div className="relative h-[150px] overflow-hidden rounded-xl bg-[#0D1B2A]">
