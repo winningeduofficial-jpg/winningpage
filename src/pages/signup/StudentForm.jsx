@@ -127,6 +127,7 @@ export default function StudentForm() {
   const [formError, setFormError] = useState('');
   const [phoneMessage, setPhoneMessage] = useState({ text: '', status: 'default' });
   const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
+  const [emailSending, setEmailSending] = useState(false);
 
   // B-1(회원유형 선택)을 건너뛰고 직접 진입한 경우의 가드 — SignupContext 계약 주석
   // ("memberType===null인데 폼 단계 라우트에 직접 진입 시 /signup으로 redirect") 참고.
@@ -202,12 +203,14 @@ export default function StudentForm() {
       setPhoneMessage({ text: '전화번호 인증이 완료되었습니다.', status: 'success' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.phoneCode]);
+  }, [formData.phoneCode, verification.phone.requested]);
 
   // --- 이메일 인증: 기존 Signup.jsx 시퀀스 그대로(중복확인 → signUp으로 OTP 발송) ---
   // 시안(§3.3 C-1 표)에는 이메일 필드 액션이 "인증번호 보내기" 하나뿐이라 중복확인과
   // OTP 발송을 한 번의 클릭으로 묶었다(AS-IS는 중복확인/인증요청 버튼이 분리돼 있었음).
   async function requestEmailCode() {
+    if (emailSending) return;
+
     const normalizedEmail = formData.email.trim().toLowerCase();
 
     setFormError('');
@@ -222,68 +225,73 @@ export default function StudentForm() {
       return;
     }
 
+    setEmailSending(true);
     setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
 
-    const { data, error } = await supabase.rpc('is_email_available', {
-      check_email: normalizedEmail
-    });
-
-    if (error) {
-      console.error('이메일 중복확인 오류:', error);
-      updateVerification('email', { checked: false, available: false });
-      setEmailMessage({
-        text: '중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
-    if (data !== true) {
-      updateVerification('email', { checked: true, available: false });
-      setEmailMessage({
-        text: '이메일이 중복됩니다. 로그인 페이지에서 로그인해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
-    updateVerification('email', { checked: true, available: true });
-
-    if (!isValidPassword(formData.password)) {
-      setEmailMessage({
-        text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
     try {
-      await supabase.auth.signOut({ scope: 'global' });
-    } catch (_error) {
-      // ignore
-    }
+      const { data, error } = await supabase.rpc('is_email_available', {
+        check_email: normalizedEmail
+      });
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password: formData.password,
-      options: {
-        data: {
-          email: normalizedEmail,
-          name: formData.name.trim(),
-          full_name: formData.name.trim(),
-          member_type: 'student',
-          role: 'user'
-        }
+      if (error) {
+        console.error('이메일 중복확인 오류:', error);
+        updateVerification('email', { checked: false, available: false });
+        setEmailMessage({
+          text: '중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+          status: 'error'
+        });
+        return;
       }
-    });
 
-    if (signUpError) {
-      setEmailMessage({ text: getFriendlyError(signUpError.message), status: 'error' });
-      return;
+      if (data !== true) {
+        updateVerification('email', { checked: true, available: false });
+        setEmailMessage({
+          text: '이메일이 중복됩니다. 로그인 페이지에서 로그인해 주세요.',
+          status: 'error'
+        });
+        return;
+      }
+
+      updateVerification('email', { checked: true, available: true });
+
+      if (!isValidPassword(formData.password)) {
+        setEmailMessage({
+          text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
+          status: 'error'
+        });
+        return;
+      }
+
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (_error) {
+        // ignore
+      }
+
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password: formData.password,
+        options: {
+          data: {
+            email: normalizedEmail,
+            name: formData.name.trim(),
+            full_name: formData.name.trim(),
+            member_type: 'student',
+            role: 'user'
+          }
+        }
+      });
+
+      if (signUpError) {
+        setEmailMessage({ text: getFriendlyError(signUpError.message), status: 'error' });
+        return;
+      }
+
+      updateVerification('email', { requested: true });
+      setEmailMessage({ text: '입력한 이메일로 인증코드를 발송했습니다.', status: 'default' });
+    } finally {
+      setEmailSending(false);
     }
-
-    updateVerification('email', { requested: true });
-    setEmailMessage({ text: '입력한 이메일로 인증코드를 발송했습니다.', status: 'default' });
   }
 
   // T1 계약 주석: "인증코드 확인용 별도 확인 버튼이 필요하면 이 슬롯 재사용하거나 페이지
@@ -577,7 +585,7 @@ export default function StudentForm() {
             verification.email.requested ? '인증번호 다시 보내기' : '인증번호 보내기'
           }
           onAction={requestEmailCode}
-          actionDisabled={verification.email.verified}
+          actionDisabled={emailSending || verification.email.verified}
           helperText={emailMessage.text}
           status={emailMessage.status}
           autoComplete="email"
