@@ -1,0 +1,791 @@
+[
+  {
+    "section": "hero",
+    "status": "changed",
+    "specSummary": "히어로 섹션(2181:10898) = 1920×750 흰 배경 프레임. 내부 \"01 - Sunset on Venus\"(2181:10899)가 x160/y0에 1600×875로 배치되고, 부모 750 높이 기준으로 하단 125px가 다음 섹션에 물림(부모 clipsContent=false, absoluteRenderBounds 높이 875).\n\n[레이아웃 구조 — 섹션 좌상단 기준 좌표]\n- 텍스트 블록(2181:10903): x239 / y100(=6.25rem), 1443×258(16.125rem), VERTICAL auto-layout, itemSpacing 24(1.5rem), padding 0, counterAxis CENTER → 1920 가로 정중앙 정렬.\n  - 아이브로 \"무료진단\"(2181:10904): y0, h38, Pretendard Regular 400, fontSize 24px(1.5rem), lineHeight 160%, letterSpacing 0, fill #0B84FD, CENTER.\n  - 헤드라인(2181:10905): y62, h42, Pretendard SemiBold 600, fontSize 32px(2rem), lineHeight 130%, letterSpacing -2%, fill #0F172A, CENTER, 1줄.\n  - 서브텍스트(2181:10906): y128, h38, Pretendard Medium 500, fontSize 24px(1.5rem), lineHeight 160%, letterSpacing 0, fill #525252, CENTER.\n  - CTA(2181:10907): y190, 300×68(18.75rem×4.25rem), fill #013262, cornerRadius 30(1.875rem), padding 24/60(1.5rem/3.75rem), HORIZONTAL CENTER/CENTER. 라벨(2181:10908) \"지금 시작하기\" Pretendard SemiBold 600, 20px(1.25rem), lineHeight 20px, #FFFFFF. DROP_SHADOW 이펙트는 존재하나 visible:false → 시안상 그림자 없음.\n- 브라우저 목업: 섹션 x415 / y408(25.5rem), 폭 1090.1953125px(68.137rem), 높이 470.998px(29.4375rem) → 가로 정중앙(center 960.1). cornerRadius 4.2586(원본 5px), DROP_SHADOW 3중(인스턴스 scale 0.851715 적용값 → 원본 0/10/50 rgba(0,0,0,.2), 0/20/30 rgba(0,0,0,.3), 0/0/1 rgba(0,0,0,.7)). 하단 879 → 섹션(750) 대비 129px(8.0625rem) 오버플로.\n  - 크롬 UI 인스턴스 2181:10910 (툴바 높이 67.29) + 설문화면 이미지 2181:11026(x415/y471, 1090.195×321.5, IMAGE CROP)의 2층 구성.\n\n[배경]\n- Gradient 그룹: 섹션 기준 x161 / y-92, 1600×1200.\n  - Eclipse(2181:11086): 820×820, 섹션 기준 x551/y233 → 중심 (961, 643), r410. LINEAR gradient(수직) #0B84FD α0.40 → #1170FF α0.46, LAYER_BLUR 200. ※ 글로우 SVG 뷰박스(1600×1200) 기준으로는 cx800 / cy735 / r410, 그라디언트 y 325→1145 — 현행 hero-glow.svg와 완전 동일(변경 없음).\n  - Planet(2181:11088): 232×232, 섹션 기준 x420/y637(SVG 좌표 x259/y729), LINEAR #7D40FF→#7230FF, LAYER_BLUR 80. 사용자 지시로 코드 제외 상태 → 제외 유지.\n  - Texture(2181:11089): 1600×1200, IMAGE TILE, scalingFactor 0.6090909(220px 원본 → 134px = 8.375rem 타일), blendMode OVERLAY.\n- 두 번째 Texture(2181:10902): 섹션 기준 x160/y0, 1600×1200, 동일 TILE/OVERLAY. → 그레인 총 2겹(현행 코드와 동일 구조).\n\n[색·타이포 요약] accent #0B84FD, 헤드라인 #0F172A, 본문 #525252, CTA #013262 / #FFFFFF. 폰트 전부 Pretendard(400/500/600). 섹션 상단 pt = 100px(6.25rem), pb = 0.",
+    "findings": [
+      {
+        "element": "헤드라인 h1 (2181:10905) fontSize",
+        "design": "32px → 2rem (Pretendard SemiBold, lineHeight 130%, letterSpacing -2%)",
+        "code": "md:text-[2.75rem] (44px) / sm:text-[2.25rem] / base text-[1.75rem]",
+        "action": "데스크톱 값을 md:text-[2rem]로 축소. 시안 텍스트 노드 높이 42px = 32×1.3로 교차검증됨(아이브로 24px 대비 폭 비율도 일치). sm/base 하향값도 32px 기준으로 재조정 필요(예: text-[1.5rem] sm:text-[1.75rem] md:text-[2rem])."
+      },
+      {
+        "element": "헤드라인 h1 font-weight",
+        "design": "Pretendard SemiBold = 600",
+        "code": "font-bold (700)",
+        "action": "HERO_HEADLINE_CLASS의 font-bold → font-semibold. lg:whitespace-nowrap는 32px에서 1줄이 여유 있으므로 유지 가능(시안도 1줄)."
+      },
+      {
+        "element": "브라우저 목업 폭",
+        "design": "1090.1953125px → 68.13720703125rem (섹션 x415~1505, 정중앙)",
+        "code": "max-w-[66.75rem] (1068px)",
+        "action": "전역 정책(시안 1090/1098/1100 폭 = max-w-content 토큰 체계)에 따라 max-w-[66.75rem] 제거하고 래퍼를 w-full로 두어 max-w-content(72.75rem) + px-8 내부 폭 1100px(68.75rem)를 그대로 채우게 변경."
+      },
+      {
+        "element": "CTA → 브라우저 목업 상단 간격",
+        "design": "50px → 3.125rem (텍스트 블록 하단 y358 → 목업 상단 y408)",
+        "code": "md:mt-[3.0625rem] (49px)",
+        "action": "md:mt-[3.125rem]로 1px 보정."
+      },
+      {
+        "element": "목업 하단 오버플로 / 히어로 섹션 박스 높이",
+        "design": "섹션 높이 750px, 목업 하단 879px → 129px(8.0625rem) 오버플로",
+        "code": "lg:mb-[-5.75rem] (-92px), lg:pb-0",
+        "action": "lg:mb-[-8.0625rem]로 확대해 섹션 박스가 750px에서 끝나도록. 단 폭을 1100px로 정규화하면 목업 높이가 475.2px가 되므로 실제 필요값은 -133.2px(-8.325rem) — 폭 변경과 함께 확정할 것."
+      },
+      {
+        "element": "CTA 그림자",
+        "design": "DROP_SHADOW(0,2,24 #0B84FD α0.5)가 정의돼 있으나 visible:false → 시안 렌더에 그림자 없음",
+        "code": "shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)]",
+        "action": "시안 기준으로는 그림자 제거. 의도적 인터랙션 폴리시라면 유지 결정을 명시(디자이너 확인 항목)."
+      },
+      {
+        "element": "배경 글로우 레이어 수직 위치",
+        "design": "Gradient 그룹 top = 섹션 상단 기준 -92px (-5.75rem), 폭 1600px, 높이 1200px, 가로 중앙. Eclipse 중심은 섹션 y643",
+        "code": "top-[-1.09%] (섹션 높이 비례 → 현재 섹션 높이 약 790~880px 기준 실효 -8.6px 내외)",
+        "action": "top을 고정값 top-[-5.75rem]로 교체(또는 섹션 750px 기준 -12.267%). 현재는 글로우가 시안 대비 약 83px 아래로 내려가 있음. 동일 좌표를 쓰는 그레인 레이어(aspect-[4/3] w-[83.34%])도 함께 교체."
+      },
+      {
+        "element": "Eclipse 그라디언트 자체 (hero-glow.svg)",
+        "design": "820×820, cx800 / cy735 / r410 (SVG 뷰박스 1600×1200), #0B84FD α0.40 → #1170FF α0.46, blur 200",
+        "code": "hero-glow.svg — cx800 cy735 r410, gradient y1=325 y2=1145, feGaussianBlur stdDeviation=100",
+        "action": "변경 없음 — 시안과 완전 일치. 이번 업데이트에서 Eclipse 좌표·크기·색 모두 그대로. 에셋 재추출 불필요."
+      },
+      {
+        "element": "Planet 원형 그라디언트 (2181:11088)",
+        "design": "232×232, 섹션 x420/y637, #7D40FF→#7230FF, LAYER_BLUR 80",
+        "code": "미구현 (사용자 지시로 제외)",
+        "action": "제외 유지. 시안에는 여전히 존재하나 코드 반영하지 않음."
+      },
+      {
+        "element": "아이브로 색상 토큰",
+        "design": "#0B84FD (전역 accent 토큰과 동일)",
+        "code": "text-[#0B84FD] 하드코딩 (HERO_EYEBROW_CLASS)",
+        "action": "tailwind.config.js에 colors.accent = '#0B84FD' 존재 → text-accent 토큰으로 교체."
+      }
+    ],
+    "assets": [
+      {
+        "nodeId": "2181:11026",
+        "purpose": "브라우저 목업 내부 설문화면 스크린샷 (image 224, IMAGE CROP, imageHash 4f23adf3d4dd4dc7686b5de0e496a6dca14cc407). 현재 코드는 크롬 UI와 합성한 통이미지 hero-browser-v2.png(2560×1106, aspect 2.3147 — 시안 1090.195/470.998=2.31465와 일치)로 대체 중이므로 폭만 조정되면 재추출 불필요",
+        "size": "1090.1953125×321.500732421875 (섹션 x415/y471)"
+      },
+      {
+        "nodeId": "2181:10910",
+        "purpose": "Chrome 브라우저 크롬(툴바+탭바) 인스턴스. 통이미지에 이미 포함됨",
+        "size": "1090.1953125×470.9984436035156 (섹션 x415/y408), radius 4.2586, 3중 drop-shadow"
+      },
+      {
+        "nodeId": "2181:11086",
+        "purpose": "배경 글로우 Eclipse — 현행 hero-glow.svg와 수치 완전 일치, 재추출 불필요",
+        "size": "820×820 (섹션 x551/y233), blur 200"
+      },
+      {
+        "nodeId": "2181:11088",
+        "purpose": "Planet 보라 글로우 — 사용자 지시로 코드 제외, 추출하지 않음",
+        "size": "232×232 (섹션 x420/y637), blur 80"
+      },
+      {
+        "nodeId": "2181:11089",
+        "purpose": "그레인 텍스처 타일 (imageHash bcfa0f2ecf6c15828a024b5c1166de4e07f82d98, TILE scalingFactor 0.6090909 → 134px/8.375rem 타일, OVERLAY). 현행 hero-grain.png(220×220)와 일치, 재추출 불필요",
+        "size": "1600×1200 (섹션 x161/y-92)"
+      },
+      {
+        "nodeId": "2181:10902",
+        "purpose": "동일 그레인 텍스처 2겹째 (히어로 프레임 직속, OVERLAY)",
+        "size": "1600×1200 (섹션 x160/y0)"
+      }
+    ],
+    "notes": "판정: changed. 디자이너 업데이트의 핵심은 **헤드라인 타이포 축소(44px/bold → 32px/semibold)** 1건이며, 나머지는 이전 구현의 미세 드리프트(목업 폭 1068 vs 1090, mt 49 vs 50, 하단 오버플로 -92 vs -129, 글로우 top 퍼센트값)입니다.\n\n검증 방법 및 교차확인:\n- 헤드라인 32px은 (a) 텍스트 노드 높이 42px = 32×1.3, (b) 아이브로(24px, h38=24×1.6)와의 글리프 폭 비율(Pretendard 한글 advance ≈ 0.87em로 3개 텍스트 모두 일관), (c) 1443px 스크린샷 실측 폭 675px으로 3중 확인했습니다. 44px이 아님이 확실합니다.\n- 좌표는 absoluteBoundingBox로 재검증(히어로 프레임 원점 11950,45911)했고, get_metadata의 상대좌표 해석(그룹 자식은 컨테이닝 프레임 기준)과 일치합니다.\n\n변경 없음(match) 확인 항목: 아이브로 24px/400/#0B84FD/lh160%, 서브텍스트 24px/500/#525252/lh160%, 요소 간 간격 24px×3(코드 mt-6), CTA 300×68/radius 30/#013262/20px SemiBold/흰 글자, 섹션 pt 100px(md:pt-[6.25rem]), 목업 radius 5px(rounded-[0.3125rem]) 및 3중 그림자 값, 글로우 Eclipse 기하·색·블러, 그레인 타일 134px + mix-blend-overlay + 2겹 구조.\n\n범위 밖이지만 인접 이슈 2건(각각 global-impl / 담당자에게 전달 권장):\n1. main 래퍼가 pt-[5.25rem](84px)로 헤더 높이를 소비 중 — 전역 정책상 헤더 64px(pt-16)이므로 20px 과다. 히어로 pt 100px과 합쳐져 시안 대비 상단이 20px 밀려 있습니다.\n2. 두 번째 그레인 레이어가 코드에서 inset-0(섹션 전폭 1920)인데 시안은 1600×1200(섹션 x160/y0) — OVERLAY 위 흰 배경이라 시각 영향은 거의 없어 findings에는 넣지 않았습니다.\n\n또한 목업 그림자는 시안이 인스턴스 스케일 0.851715가 적용된 값(42.586/25.551/0.8517 blur)인 반면 코드는 원본 스케일(50/30/1) 값을 씁니다. 실제 렌더 폭이 시안과 같아지면 그림자가 시안보다 약 17% 강하게 보이지만, 육안 차이는 미미해 findings에서 제외했습니다."
+  },
+  {
+    "section": "steps",
+    "status": "changed",
+    "specSummary": "[섹션 2162:1065 — 1920×588, 배경 #FFFFFF]\n· 구조: 세로 오토레이아웃, padding 120/120 (좌우 10 슬롭). 내부 콘텐츠 348 = 타이틀(90) + 갭 50 + 카드행(178) + 하단 슬롭 10.\n· 섹션 상단 pt = 120px(7.5rem), 정책상 pb = 0.\n· 타이틀 (2162:1072): \"학생부 업로드 없이,\\n20분이면 완성하는 무료진단\" — 명시적 개행 2줄, 좌측 정렬. fontSize 32px(2rem), Pretendard SemiBold(600), lineHeight 140%(leading-[1.4]), letterSpacing -2%(tracking-[-0.02em]), color #181D24. 텍스트 박스 1436×90, x=404 (1920 기준 좌측 404 → 정책 컨테이너 내부 좌측 410과 6px 차 → 컨테이너 좌측 정렬로 해석).\n· 타이틀 → 카드행 갭: 50px(3.125rem).\n· 카드행 (2162:1077): 가로 오토레이아웃, 전체 1180px(73.75rem), itemSpacing 20px(1.25rem), 1920 기준 중앙(x=370~1550). 카드 4개 각 280×178 고정.\n· 카드 (2162:1078 외 3): bg #FFFFFF, border 1px inside #D7D7D7, cornerRadius 20px(1.25rem), padding 40/30/40/30, 내용 세로 중앙정렬(실제 콘텐츠 110px가 178 안에서 중앙 → 상하 34px). effect DROP_SHADOW offset(0,12) blur 20 spread 0 color #D7D7D7 @40% → CSS `0 0.75rem 1.25rem rgba(215,215,215,0.4)`.\n· 카드 내부 세로 스택 (itemSpacing 20px):\n  1) 상단 그룹 (itemSpacing 4px, 높이 68)\n     - STEP 배지 프레임 (2162:1081): **fill 없음 / stroke 없음** (투명), cornerRadius 20, padding 8/12/8/12 → 실질 여백만 담당. 시안상 알약 배경 없음.\n       텍스트 \"STEP n\": 16px(1rem), Pretendard SemiBold(600), lineHeight 140%, letterSpacing 0%, color #013262.\n     - 카드 제목 \"문항 입력/상세 분석/결과 확인/서비스 추천\": 20px(1.25rem), Pretendard SemiBold(600), lineHeight 130%(leading-[1.3]), letterSpacing 0%, color #525252.\n     → STEP 텍스트 박스와 제목 텍스트 박스 사이 실질 간격 = 배지 하단패딩 8 + 갭 4 = 12px(0.75rem).\n  2) 설명문 (2162:1086 외): 폭 260px(16.25rem) 고정 1줄, 중앙정렬. 16px(1rem), Pretendard Medium(500), lineHeight 140%, letterSpacing 0%, color #525252.\n· 이미지/일러스트 fill 없음 (아이콘 0개).",
+    "findings": [
+      {
+        "element": "섹션 수직 패딩 (2162:1065)",
+        "design": "pt 120px → 7.5rem / pb 120px (정책상 pb=0, 아래 섹션이 자기 위 갭 소유)",
+        "code": "StepsSection: `pt-20 pb-10` = pt 5rem / pb 2.5rem",
+        "action": "pt-[7.5rem] pb-0 으로 변경. pb-10 제거하고 다음 섹션(AudienceSection)이 자기 pt를 소유하도록 정리"
+      },
+      {
+        "element": "타이틀 fontSize (2162:1072)",
+        "design": "32px → 2rem",
+        "code": "SECTION_HEADING_CLASS 의 `md:text-[2.75rem]` = 44px (2.75rem)",
+        "action": "이 섹션 데스크톱 타이틀을 2rem으로. 공유 SECTION_HEADING_CLASS를 그대로 쓰면 다른 섹션과 충돌하므로 무료진단 전용 헤딩 클래스 분리 필요"
+      },
+      {
+        "element": "타이틀 fontWeight",
+        "design": "Pretendard SemiBold / 600",
+        "code": "`font-bold` = 700",
+        "action": "font-semibold 로 변경"
+      },
+      {
+        "element": "타이틀 color",
+        "design": "#181D24",
+        "code": "`text-[#525252]`",
+        "action": "text-[#181D24] 로 변경"
+      },
+      {
+        "element": "타이틀 leading / tracking",
+        "design": "lineHeight 140% → leading-[1.4], letterSpacing -2% → tracking-[-0.02em]",
+        "code": "`leading-[1.4] tracking-[-0.02em]`",
+        "action": "일치 — 변경 없음 (fontSize/weight/color만 수정)"
+      },
+      {
+        "element": "타이틀 → 카드행 갭",
+        "design": "50px → 3.125rem",
+        "code": "`mt-10` = 2.5rem (40px)",
+        "action": "mt-[3.125rem] 로 변경"
+      },
+      {
+        "element": "카드행 전체 폭 / 컬럼 폭",
+        "design": "1180px(73.75rem) = 280×4 + 20×3, 1920 기준 중앙 (x 370~1550)",
+        "code": "`max-w-content px-5 sm:px-8` 내부 1100px 안에서 grid 4열 → 카드 폭 ≈ 251px",
+        "action": "정책(max-w-content 1164 + px-8 → 내부 1100)과 시안 1180이 충돌. 권장: 컨테이너 유지 + gap 20px 적용 → 카드 폭 (1100-60)/4 = 260px(16.25rem). 카드가 시안 대비 20px 좁아지므로 아래 '설명문 폭' 항목과 함께 판단 필요 (택1: 카드행만 max-w-[73.75rem]로 예외 허용)"
+      },
+      {
+        "element": "카드 간 gap",
+        "design": "itemSpacing 20px → 1.25rem",
+        "code": "`gap-5 sm:gap-6 lg:gap-8` → 데스크톱 2rem(32px)",
+        "action": "lg 브레이크포인트 gap을 1.25rem(gap-5)으로 통일"
+      },
+      {
+        "element": "카드 높이",
+        "design": "178px 고정 → 11.125rem (콘텐츠 110px 세로 중앙, 실질 상하 여백 34px)",
+        "code": "높이 auto — `sm:py-10`(40px) + 콘텐츠 → 약 190px",
+        "action": "h-[11.125rem] 고정 + 내부 세로 중앙정렬(justify-center)로 맞추거나, py를 34px(2.125rem)로 조정"
+      },
+      {
+        "element": "카드 drop shadow blur",
+        "design": "Figma DROP_SHADOW radius 20 / offset(0,12) / spread 0 / #D7D7D7 40% → `0 0.75rem 1.25rem rgba(215,215,215,0.4)`",
+        "code": "`shadow-[0_0.75rem_0.625rem_rgba(215,215,215,0.4)]` — blur 0.625rem(10px)",
+        "action": "blur를 1.25rem으로 수정"
+      },
+      {
+        "element": "STEP 배지 (2162:1081)",
+        "design": "fill 없음 / stroke 없음 / cornerRadius 20 / padding 8·12·8·12 — 시각적 알약 배경 없이 여백만 존재",
+        "code": "배지 래퍼 없음, `<p class=\"text-base font-semibold text-[#013262]\">` 단독",
+        "action": "배경·보더는 추가하지 말 것(시안에도 없음). 다만 상하 8px 여백이 빠져 있어 아래 '수직 간격' 항목으로 보정"
+      },
+      {
+        "element": "STEP 텍스트 ↔ 카드 제목 수직 간격",
+        "design": "배지 하단패딩 8px + 스택 갭 4px = 실질 12px(0.75rem). 텍스트 중심 간 36px",
+        "code": "`gap-1` = 0.25rem(4px). 텍스트 중심 간 약 30px",
+        "action": "내부 스택을 gap-3(0.75rem)로 변경 (아래 leading 지정과 함께 적용해야 36px 재현)"
+      },
+      {
+        "element": "STEP 텍스트 lineHeight",
+        "design": "140% → leading-[1.4] (16px 기준 22.4px, 시안 박스 22px)",
+        "code": "미지정 → Tailwind `text-base` 기본 1.5 (24px)",
+        "action": "leading-[1.4] 명시 추가"
+      },
+      {
+        "element": "카드 제목 lineHeight",
+        "design": "130% → leading-[1.3] (20px 기준 26px, 시안 박스 26px)",
+        "code": "미지정 → `text-xl` 기본 1.75rem(28px)",
+        "action": "leading-[1.3] 명시 추가"
+      },
+      {
+        "element": "카드 제목 타이포 (그 외)",
+        "design": "20px → 1.25rem, SemiBold 600, letterSpacing 0%, #525252",
+        "code": "`text-xl font-semibold text-[#525252]`",
+        "action": "일치 — leading만 추가"
+      },
+      {
+        "element": "STEP 텍스트 타이포 (그 외)",
+        "design": "16px → 1rem, SemiBold 600, letterSpacing 0%, #013262",
+        "code": "`text-base font-semibold text-[#013262]`",
+        "action": "일치 — leading만 추가"
+      },
+      {
+        "element": "설명문 폭 / 줄바꿈",
+        "design": "텍스트 박스 260px(16.25rem) 고정, 1줄 유지, 중앙정렬. 단 카드 280 − 좌우 padding 30×2 = 가용 220px 이라 시안 자체가 오버플로 상태",
+        "code": "`px-6 sm:px-[1.875rem]`(30px) + break-keep → 가용 220px에서 16px Pretendard Medium 텍스트가 2줄로 줄바꿈됨",
+        "action": "시안 1줄을 재현하려면 카드 좌우 padding을 축소해야 함(예: px-[0.625rem] → 가용 260px). 컨테이너 1100 기준 카드 260px이면 padding 0 필요 → 설계 결정 항목: (a) 카드행만 73.75rem 예외 + px-[0.625rem], (b) 2줄 줄바꿈 허용하고 카드 높이 auto"
+      },
+      {
+        "element": "설명문 타이포",
+        "design": "16px → 1rem, Pretendard Medium 500, lineHeight 140%, letterSpacing 0%, #525252, 중앙정렬",
+        "code": "`break-keep text-base font-medium leading-[1.4] text-[#525252]` + 부모 text-center",
+        "action": "일치 — 변경 없음"
+      },
+      {
+        "element": "카드 배경 / 보더 / radius / 좌우 padding",
+        "design": "#FFFFFF, 1px inside #D7D7D7, radius 20px(1.25rem), padding 좌우 30px(1.875rem)",
+        "code": "`bg-white border border-[#D7D7D7] rounded-[1.25rem] px-6 sm:px-[1.875rem]`",
+        "action": "일치 — 단 위 '설명문 폭' 결정에 따라 좌우 padding 재조정 가능"
+      },
+      {
+        "element": "섹션 배경색",
+        "design": "#FFFFFF",
+        "code": "`bg-white`",
+        "action": "일치 — 변경 없음"
+      },
+      {
+        "element": "hover 인터랙션",
+        "design": "시안에 hover 상태 정의 없음",
+        "code": "`transition hover:-translate-y-1 hover:shadow-[0_1rem_1.5rem_rgba(215,215,215,0.55)]`",
+        "action": "시안 외 추가 효과 — 유지 여부는 제품 판단. 유지 시 base shadow blur 수정(1.25rem)에 맞춰 hover shadow도 재조정 권장"
+      },
+      {
+        "element": "타이틀 좌측 정렬 기준",
+        "design": "타이틀 블록 x=404 (1920 기준). 정책 컨테이너 내부 좌측 = (1920−1164)/2 + 32 = 410",
+        "code": "`max-w-content px-5 sm:px-8` 컨테이너 좌측 정렬 → 410",
+        "action": "6px 차이는 토큰 체계 오차 범위 — 컨테이너 정렬 유지 (수정 불필요, 참고용)"
+      }
+    ],
+    "assets": [],
+    "notes": "· 담당 노드 2162:1065 서브트리에는 이미지/일러스트/아이콘 fill이 하나도 없음 → 추출 대상 에셋 없음.\n· 코드 위치: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx — `STEPS` 상수(20~25행), `StepsSection()` (123~152행). 별도 컴포넌트 파일 없음(src/components/renewal/ 아래에는 survey/, SurveyPreview.jsx만 존재).\n· 텍스트 카피는 시안과 코드가 4개 STEP 모두 완전 일치 (문항 입력 / 상세 분석 / 결과 확인 / 서비스 추천, 설명문 4종 모두 동일).\n· 크로스섹션 이슈: 타이틀이 `SECTION_HEADING_CLASS`(57~58행)를 AudienceSection·BenefitsSection·MacbookShowcase와 공유 중. 이 섹션 시안값은 32px/600/#181D24 인데, 다른 섹션이 44px/700/#525252를 요구하면 공유 클래스를 그대로 고칠 수 없음 → global-impl 쪽과 헤딩 토큰 정합 필요.\n· 시안 자체의 슬롭(디자이너 작업 흔적)으로 실제 렌더와 프레임 수치가 어긋나는 지점 3곳: (1) 카드 내부 콘텐츠 프레임 폭 290.19px가 카드 280px를 넘어 x=-5.09로 삐져나옴, (2) 카드 padding 40이지만 콘텐츠 110px가 178 안에서 중앙정렬되어 실질 상하 34px, (3) 카드행 래퍼에 좌우/상하 10px 슬롭 padding. 구현 시 렌더 결과 기준(중앙정렬·실질 34px·갭 50px)으로 맞출 것.\n· 미해결 설계 결정 2건 — 상위 판단 필요: ①카드행 1180px vs 컨테이너 1100px, ②설명문 1줄 유지를 위한 카드 좌우 padding 축소 여부. 두 건은 서로 연동됨(1180 예외를 허용하면 padding 30 유지 시에도 여전히 가용 220px이라 1줄 불가 → padding 축소가 핵심)."
+  },
+  {
+    "section": "recommend",
+    "status": "changed",
+    "specSummary": "[구조] 섹션 프레임 2162:1114 = 1920×843, bg #FFFFFF, pt/pb 120px. 내부 콘텐츠 프레임 2240:4247 = 1100폭 x=410 (전역 1100 토큰과 일치), VERTICAL auto-layout, itemSpacing 60px, padding 0.\n[타이틀] 2162:1119 \"이런 학생에게 무료 진단을 추천해요\" — 1100×45, Pretendard SemiBold(600), 32px(2rem), lineHeight 140%, letterSpacing -2%, color #181D24, 좌측 정렬.\n[카드 행] 2240:4246 = 1100×498, HORIZONTAL auto-layout, itemSpacing 20px(1.25rem), padding 0, counterAxisAlignItems CENTER. 카드 3장 각 353×498 (353*3 + 20*2 = 1099≈1100).\n[카드 배경] rounded-rect (2162:1124 / 2240:4224 / 2240:4230) — 353×498, fill #FBFAFA, cornerRadius 30px(1.875rem), 보더 없음, 그림자 없음.\n[카드 이미지] 카드별 배치가 다름. 카드1(2162:1134 \"image 357\") = 353×269, 카드 상단 y=0 flush, scaleMode CROP, radius 0. 카드2(2240:4236 \"image 280\")·카드3(2240:4238 \"image 281\") = 353×235, y=34 (카드 상단에서 34px 아래), scaleMode FILL. 세 카드 모두 이미지 하단은 y=269로 정렬됨.\n[텍스트 블록] 2162:1125 / 2240:4226 / 2240:4232 — 283×114, 카드 기준 x=31(좌패딩 31px, 우측 잔여 39px), y=313 (이미지 하단 269 → 갭 44px), 카드 하단까지 71px. VERTICAL auto-layout, itemSpacing 20px, padding 0.\n  · 제목 텍스트: 283×52, Pretendard SemiBold(600), 20px(1.25rem), lineHeight 130%, letterSpacing -2%, color #525252, 2줄 하드 개행.\n  · 설명 텍스트: 283×42, Pretendard Medium(500), 16px(1rem), lineHeight 130%, letterSpacing -2%, color #808080, 2줄 하드 개행.\n[카피] 코드와 100% 동일 (개행 위치 포함). 카드1 \"내 강점이 뭔지 / 아직 정리가 안된 학생\" + \"목표는 있는데 지금 무엇을 준비해야 / 할지 감이 안 잡히는 경우\", 카드2 \"어떤 학습부분에서 약한지 / 확인하고 싶은 학생\" + \"해야 할 건 많은데 우선순위가 / 서지 않아 시작이 어려운 경우\", 카드3 \"유료 서비스 전에 무료로 / 서비스를 경험해보고 싶은 분\" + \"내 위치를 데이터로 확인하고 / 맞는 서비스를 찾고 있는 경우\".\n[수직 리듬] 앞 섹션 2162:1065(스텝)의 pb=120 + 본 섹션 pt=120 → 전역 정책(자기 위 갭을 pt로 소유, pb=0) 적용 시 pt=240px(15rem), pb=0.",
+    "findings": [
+      {
+        "element": "섹션 수직 패딩 (AudienceSection <section>)",
+        "design": "pt 120px + 앞 섹션 pb 120px = 위 갭 240px → 15rem / pb 0",
+        "code": "pt-20 pb-10 (80px=5rem / 40px=2.5rem)",
+        "action": "전역 리듬 정책대로 `pt-[15rem] pb-0`으로 교체 (앞 StepsSection의 pb-10도 함께 제거되어야 총합이 맞음)"
+      },
+      {
+        "element": "섹션 타이틀 fontSize",
+        "design": "32px → 2rem",
+        "code": "SECTION_HEADING_CLASS: text-[1.5rem] sm:text-[1.75rem] md:text-[2.75rem] (데스크톱 44px)",
+        "action": "데스크톱 값을 md:text-[2rem]으로 축소. 단 SECTION_HEADING_CLASS는 4개 섹션 공유 클래스이므로 전역 결정 필요 (global-impl과 조율)"
+      },
+      {
+        "element": "섹션 타이틀 color",
+        "design": "#181D24",
+        "code": "text-[#525252]",
+        "action": "text-[#181D24]로 변경 (공유 클래스이므로 전역 조율)"
+      },
+      {
+        "element": "섹션 타이틀 fontWeight",
+        "design": "Pretendard SemiBold = 600",
+        "code": "font-bold (700)",
+        "action": "font-semibold으로 변경"
+      },
+      {
+        "element": "타이틀 → 카드 행 간격",
+        "design": "itemSpacing 60px → 3.75rem",
+        "code": "mt-10 (2.5rem = 40px)",
+        "action": "mt-[3.75rem]로 변경"
+      },
+      {
+        "element": "카드 간 갭",
+        "design": "20px → 1.25rem (353×3 + 20×2 = 1100)",
+        "code": "gap-6 (1.5rem) / lg:gap-8 (2rem)",
+        "action": "lg 기준 gap-5 (1.25rem)로 통일 — 그래야 카드 폭이 정확히 353px(22.0625rem)가 됨"
+      },
+      {
+        "element": "카드 높이",
+        "design": "353 × 498 고정 (498px → 31.125rem)",
+        "code": "높이 auto (내용에 따라 가변, 현재 약 235+padding+텍스트)",
+        "action": "lg 이상에서 h-[31.125rem] 고정하거나, 내부 요소 치수(이미지 269/235 + 갭 44 + 텍스트 114 + 하단 71)를 정확히 맞춰 498px가 되도록 재구성"
+      },
+      {
+        "element": "카드1 이미지 배치 (2162:1134)",
+        "design": "353×269 (aspect 353/269 ≈ 1.312), 카드 상단 y=0 flush, scaleMode CROP",
+        "code": "aspect-[3/2] w-full object-cover, 3장 모두 동일 처리 · 상단 offset 없음",
+        "action": "카드1만 aspect-[353/269] + 상단 flush로 분기. 카드 데이터에 이미지 높이/오프셋 필드 추가 필요"
+      },
+      {
+        "element": "카드2·3 이미지 배치 (2240:4236 / 2240:4238)",
+        "design": "353×235 (aspect 353/235 ≈ 1.502), 카드 상단에서 y=34 (2.125rem) 아래에 배치 — 위쪽 34px는 카드 배경 #FBFAFA 노출",
+        "code": "이미지가 카드 상단에 붙어 있음 (pt 없음)",
+        "action": "카드2·3 이미지 래퍼에 pt-[2.125rem] 추가 (또는 카드별 imageOffset 데이터화)"
+      },
+      {
+        "element": "카드 텍스트 블록 좌우 패딩",
+        "design": "좌 31px(1.9375rem), 텍스트 폭 283px(17.6875rem), 우 잔여 39px(2.4375rem) — 시안 상 비대칭",
+        "code": "px-7 (1.75rem=28px) sm:px-9 (2.25rem=36px)",
+        "action": "px-[1.9375rem] + 텍스트 max-w-[17.6875rem]로 맞춤 (좌 31 / 우 39 비대칭은 디자이너 배치값이므로 좌 31 기준 + 폭 283 고정 권장)"
+      },
+      {
+        "element": "이미지 → 텍스트 블록 상단 갭",
+        "design": "이미지 하단 269 → 텍스트 y=313, 갭 44px → 2.75rem",
+        "code": "py-8 (2rem = 32px)",
+        "action": "pt-[2.75rem]로 변경"
+      },
+      {
+        "element": "텍스트 블록 하단 여백",
+        "design": "텍스트 하단 427 → 카드 하단 498, 71px → 4.4375rem",
+        "code": "py-8 (2rem = 32px)",
+        "action": "pb-[4.4375rem]로 변경 (카드 고정 높이 498 유지 목적)"
+      },
+      {
+        "element": "카드 제목 ↔ 설명 간격",
+        "design": "itemSpacing 20px → 1.25rem",
+        "code": "gap-3 (0.75rem = 12px)",
+        "action": "gap-5 (1.25rem)로 변경"
+      },
+      {
+        "element": "카드 제목 fontSize",
+        "design": "20px → 1.25rem",
+        "code": "text-lg sm:text-xl md:text-[1.5rem] (데스크톱 24px)",
+        "action": "데스크톱 값을 1.25rem으로 — md:text-[1.5rem] 제거하고 sm:text-xl까지만 유지"
+      },
+      {
+        "element": "카드 설명 lineHeight",
+        "design": "130% → leading-[1.3] (16px × 1.3 = 20.8, 2줄 42px)",
+        "code": "leading-[1.4]",
+        "action": "leading-[1.3]으로 변경"
+      },
+      {
+        "element": "카드 설명 color",
+        "design": "#808080",
+        "code": "text-[#6B6B6B]",
+        "action": "text-[#808080]로 변경"
+      },
+      {
+        "element": "카드 hover 인터랙션",
+        "design": "시안에 그림자·보더·transform 없음 (fill #FBFAFA + radius 30px 단일)",
+        "code": "hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)]",
+        "action": "시안 외 추가 연출 — 유지 여부 사용자 확인 필요 (정지 상태는 시안과 일치하므로 blocker 아님)"
+      }
+    ],
+    "assets": [
+      {
+        "nodeId": "2162:1134",
+        "purpose": "카드1 상단 일러스트 (책상 앞 학생 - 강점 정리). 카드 상단 flush, scaleMode CROP. 로컬에 동일 일러스트 존재: src/assets/renewal/landing/illustration-strength.png (1397×1126, 투명배경) — 크롭 비율만 353:269로 조정 필요",
+        "size": "353×269 (@2x 706×538)"
+      },
+      {
+        "nodeId": "2240:4236",
+        "purpose": "카드2 상단 일러스트 (생각 구름 + 학생 - 약점 확인). 카드 상단에서 34px 아래, scaleMode FILL. 로컬 동일 자산: src/assets/renewal/landing/illustration-weakness.png (1536×1024)",
+        "size": "353×235 (@2x 706×470)"
+      },
+      {
+        "nodeId": "2240:4238",
+        "purpose": "카드3 상단 일러스트 (책더미 + 학생 - 무료 체험). 카드 상단에서 34px 아래, scaleMode FILL. 로컬 동일 자산: src/assets/renewal/landing/illustration-trial.png (1536×1024)",
+        "size": "353×235 (@2x 706×470)"
+      }
+    ],
+    "notes": "담당 파일: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx 의 `AudienceSection()` (154~189행) 및 `AUDIENCE` 상수 (27~43행). 별도 컴포넌트 파일 없이 페이지 내 인라인 정의됨.\n\n[구현 상태] 섹션 자체는 이미 구현되어 있고 카피/개행/카드 배경색(#FBFAFA)/radius(1.875rem)/콘텐츠 폭(max-w-content + px-8 = 1100px)/제목 leading·tracking은 시안과 일치. 나머지 치수·색·간격 17건이 불일치라 status는 \"changed\".\n\n[주의 1 — 카드별 이미지 배치가 다름] 시안에서 카드1 이미지만 353×269로 카드 상단에 flush이고, 카드2·3은 353×235로 y=34 오프셋을 가진다. 세 카드 모두 이미지 하단선이 y=269로 정렬된다. 현재 코드는 3장을 aspect-[3/2] 동일 처리하므로 AUDIENCE 데이터에 `imageHeight`/`imageOffsetTop` 필드를 추가해 카드별 분기가 필요하다. 다만 이것이 디자이너 의도인지(카드1만 이미지가 더 크고 상단까지 차오름) 아니면 배치 실수인지는 애매 — 스크린샷 상으로는 실제로 카드1만 위로 더 튀어나온 것이 보이므로 의도로 보이나, 사용자 확인 권장.\n\n[주의 2 — 공유 클래스 충돌] `SECTION_HEADING_CLASS`(57~58행)는 StepsSection/AudienceSection/BenefitsSection/MacbookShowcase 4곳이 공유한다. 본 섹션 시안은 32px/#181D24/SemiBold인데 현재 클래스는 44px/#525252/bold다. 다른 섹션 담당(steps-impl 등)의 시안값과 대조 후 공유 클래스를 일괄 갱신할지, 섹션별로 분리할지 전역 결정 필요.\n\n[주의 3 — 카드 폭 정확도] gap을 1.25rem으로 바꿔야만 (1100 - 40) / 3 = 353.33px가 되어 시안 353px과 일치한다. 현 lg:gap-8(32px)에서는 345.3px로 8px 좁다.\n\n[모바일] 시안에는 1920 데스크톱만 존재. 현재 코드의 grid-cols-1 / sm:grid-cols-2 / lg:grid-cols-3 브레이크포인트 전략은 시안 근거가 없으므로 유지 판단 (impeccable adapt)."
+  },
+  {
+    "section": "benefits",
+    "status": "changed",
+    "specSummary": "시안 2162:1135 (x411 y2181, 1098×569) — 세로 오토레이아웃, padding 120/0/120/0, itemSpacing 60, 가로·세로 CENTER, 배경 투명.\n[1] 타이틀 2162:1141 \"무료진단으로 얻을 수 있는 것\" — Pretendard SemiBold(600) 32px(2rem), lineHeight 140%, letterSpacing -2%, color #4D4D4D, 중앙정렬, 텍스트박스 353×45.\n[2] 롱카드 2162:1142 — 970×224, 섹션 내 x=64 (좌우 64씩 → 중앙), fill #FBFAFA, stroke #D7D7D7 1px INSIDE, cornerRadius 12(0.75rem), 그림자 없음.\n카드 내부 콘텐츠 프레임 2162:1144 — 915×166.048, 카드 기준 offset x=27.5 / y=29 (즉 카드 padding ≈ 좌우 27.5px(1.71875rem), 상하 29px(1.8125rem)). HORIZONTAL 오토레이아웃, itemSpacing 32(2rem), counterAxisAlignItems=MAX(하단 정렬).\n자식 순서/폭: [컬럼1 275] – 32 – [Line 2380 (w0)] – 32 – [컬럼2 256] – 32 – [Line 2382 (w0)] – 32 – [컬럼3 256] = 915. 구분선 x는 콘텐츠프레임 기준 307 / 627.\n[3] 각 컬럼 = 아이콘 100×100 (중앙) + 아이콘 하단으로부터 22px(1.375rem) 갭 + 라벨 텍스트.\n[4] 라벨 3종(\"상세 진단 요약 카드\" 2162:1150 / \"나의 강점 정리본\" 2162:1154 / \"보완 안내\" 2162:1162) — Pretendard SemiBold(600) 24px(1.5rem), lineHeight 130%, letterSpacing -2%, color #525252, 중앙정렬, 박스 높이 31.\n[5] 구분선 Line 2380/2382 — SOLID #D7D7D7, strokeWeight 1, 길이 166.048px(콘텐츠 프레임 전체 높이), 수직(rotation -90).\n[6] 아이콘 3종은 래스터가 아니라 벡터(FRAME > VECTOR/RECTANGLE) — 선형 그라디언트 + BACKGROUND_BLUR 효과 조합. Lock: #FF6161→#F52828 body + #FFB7B5 60% 글래스판(blur 8.38, radius 12.57) + 하이라이트. Folder: #7FC0FB→#4088F4 body + #B9DDFF 60% 글래스판(blur 8.93). Security(방패+체크): #75EDA1→#349256 body + #6AE092 60% 글래스판(blur 8.38).\n정책 반영: 섹션 pt=120px(7.5rem) 소유, pb는 0으로 두고 하단 120px은 다음 섹션 pt가 흡수.",
+    "findings": [
+      {
+        "element": "섹션 수직 패딩 (BenefitsSection <section>)",
+        "design": "pt 120px → 7.5rem, pb 120px (전역 정책상 pb=0, 하단 120은 다음 섹션 pt가 흡수)",
+        "code": "pb-10 pt-20 (pt 5rem / pb 2.5rem)",
+        "action": "pt-[7.5rem] pb-0 으로 변경. 다음 섹션(MacbookShowcase)이 자기 위 갭 7.5rem을 pt로 소유하도록 global-impl과 정렬"
+      },
+      {
+        "element": "타이틀↔카드 갭 (내부 flex-col gap)",
+        "design": "itemSpacing 60px → 3.75rem",
+        "code": "gap-10 md:gap-14 (2.5rem / 3.5rem)",
+        "action": "데스크톱 갭을 gap-[3.75rem]로 변경"
+      },
+      {
+        "element": "타이틀 폰트 크기 (2162:1141)",
+        "design": "fontSize 32px → 2rem",
+        "code": "SECTION_HEADING_CLASS md:text-[2.75rem] (44px → 2.75rem)",
+        "action": "이 섹션 타이틀은 2rem. SECTION_HEADING_CLASS는 다른 섹션과 공유하므로 공용 토큰을 2rem으로 내릴지 / 이 섹션만 override할지 global-impl 판단 필요"
+      },
+      {
+        "element": "타이틀 폰트 굵기 (2162:1141)",
+        "design": "Pretendard SemiBold, fontWeight 600",
+        "code": "font-bold (700)",
+        "action": "font-semibold(600)로 변경"
+      },
+      {
+        "element": "타이틀 색상 (2162:1141)",
+        "design": "#4D4D4D",
+        "code": "text-[#525252]",
+        "action": "text-[#4D4D4D]로 변경 (라벨 #525252와 다른 값임에 주의)"
+      },
+      {
+        "element": "카드 내부 패딩 (롱카드 div)",
+        "design": "좌우 27.5px → 1.71875rem, 상하 29px → 1.8125rem",
+        "code": "px-6 sm:px-10 py-10 md:py-12 (40px / 40~48px)",
+        "action": "데스크톱 px-[1.71875rem] py-[1.8125rem]로 변경"
+      },
+      {
+        "element": "아이콘↔라벨 갭",
+        "design": "22px → 1.375rem (아이콘 하단 113.048 → 라벨 상단 135.048)",
+        "code": "gap-4 (1rem)",
+        "action": "gap-[1.375rem]로 변경"
+      },
+      {
+        "element": "라벨 line-height (2162:1150/1154/1162)",
+        "design": "lineHeight 130% → leading-[1.3] (박스 높이 31px = 24×1.3)",
+        "code": "line-height 미지정 (Tailwind text-lg/xl 기본 leading 상속)",
+        "action": "라벨 <p>에 leading-[1.3] 추가"
+      },
+      {
+        "element": "세로 구분선 색상 (Line 2380/2382)",
+        "design": "stroke #D7D7D7, 1px",
+        "code": "divide-x divide-[#E2E2E2]",
+        "action": "divide-[#D7D7D7]로 변경 (카드 보더와 동일 색)"
+      },
+      {
+        "element": "구분선 높이 / 컬럼 여백 구조",
+        "design": "구분선은 콘텐츠 프레임 전체 높이 166.048px를 그대로 관통. 구분선 좌우로 각 32px(2rem) 여백",
+        "code": "grid divide-x — 구분선이 셀 전체 높이(패딩 포함)를 관통, 셀 좌우 여백은 sm:px-6(24px)",
+        "action": "컬럼 padding을 좌우 2rem(32px)으로 맞추고, 구분선 높이가 콘텐츠 높이(아이콘 상단~라벨 하단)와 일치하는지 확인"
+      },
+      {
+        "element": "3분할 컬럼 비율 / 구분선 위치",
+        "design": "컬럼 폭 275 / 256 / 256 (+ 32 갭 ×4). 구분선 x = 콘텐츠 프레임 기준 307, 627 → 카드 기준 334.5 (34.5%), 654.5 (67.5%)",
+        "code": "grid-cols-3 (균등 3분할) → 카드 기준 약 332.5 (34.3%), 637.5 (65.7%)",
+        "action": "두 번째 구분선이 시안 대비 약 17px 좌측. 픽셀 정합이 필요하면 grid-cols-[275fr_256fr_256fr] 또는 명시 폭으로 조정 (우선순위 낮음)"
+      },
+      {
+        "element": "아이콘 에셋 형식",
+        "design": "3종 모두 벡터 프레임 100×100 — 선형 그라디언트 + BACKGROUND_BLUR(8.38~8.93) 글래스 레이어",
+        "code": "icon-lock.png / icon-folder.png / icon-shield.png (래스터 import)",
+        "action": "디자이너가 아이콘을 갱신했는지 재확인 필요. BACKGROUND_BLUR는 SVG로 이관되지 않으므로 PNG 3x(300×300) 재추출 권장"
+      },
+      {
+        "element": "카드 배경/보더/radius (2162:1143)",
+        "design": "fill #FBFAFA, stroke #D7D7D7 1px INSIDE, radius 12px → 0.75rem, 폭 970px → 60.625rem",
+        "code": "bg-[#FBFAFA] border-[#D7D7D7] rounded-[0.75rem] max-w-[60.625rem]",
+        "action": "불일치 없음 (일치 확인용 기록)"
+      }
+    ],
+    "assets": [
+      {
+        "nodeId": "2162:1146",
+        "purpose": "Lock 아이콘 (상세 진단 요약 카드) — 벡터, #FF6161→#F52828 그라디언트 + 글래스 블러 레이어. 코드는 icon-lock.png 사용 중",
+        "size": "100×100 (PNG 3x 권장 300×300)"
+      },
+      {
+        "nodeId": "2162:1155",
+        "purpose": "Folder 아이콘 (나의 강점 정리본) — 벡터, #7FC0FB→#4088F4 그라디언트 + 글래스 블러 레이어. 코드는 icon-folder.png 사용 중",
+        "size": "100×100 (PNG 3x 권장 300×300)"
+      },
+      {
+        "nodeId": "2162:1163",
+        "purpose": "Settings/Security 방패+체크 아이콘 (보완 안내) — 벡터, #75EDA1→#349256 그라디언트 + 글래스 블러 레이어. 실제 그래픽은 자식 2162:1164(Security). 코드는 icon-shield.png 사용 중",
+        "size": "100×100 (PNG 3x 권장 300×300)"
+      }
+    ],
+    "notes": "구현 위치: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx 의 BenefitsSection() (약 191~220행), 데이터는 같은 파일 BENEFITS 상수(46~49행).\n\n섹션은 이미 구조적으로 구현되어 있고(롱카드 1개 + 3분할 + 세로 구분선), 카드 폭/배경/보더/radius/아이콘 100px는 시안과 일치. 불일치는 대부분 간격·타이포 값.\n\n주의 1 — 공유 클래스 충돌: 타이틀은 SECTION_HEADING_CLASS(md:text-[2.75rem] font-bold text-[#525252])를 쓰는데 이 섹션 시안값은 32px / SemiBold / #4D4D4D. 이 클래스는 MacbookShowcase 등 다른 섹션과 공유되므로 단독 수정 시 다른 섹션이 깨진다. 다른 섹션 담당 에이전트 결과와 대조해 공용 토큰을 32px/600/#4D4D4D로 내릴지 결정할 것 (각 섹션 시안이 모두 32px이면 공용 토큰 변경이 정답).\n\n주의 2 — 섹션 리듬: 시안 프레임은 pt 120 / pb 120을 둘 다 갖는데, 0729 확정 정책(각 섹션이 자기 위 갭을 pt로 소유, pb=0)에 따르면 이 섹션 pb는 0이고 하단 120px은 다음 섹션의 pt로 이관되어야 한다. 현재 코드 pb-10(40px)은 정책·시안 양쪽 모두와 불일치.\n\n주의 3 — 라벨 색(#525252)과 타이틀 색(#4D4D4D)이 시안에서 서로 다르다. 하나로 통일하지 말 것.\n\n모바일 대응: 시안은 1920 데스크톱 단일 프레임만 존재. 현 코드의 모바일 스택(grid-cols-1 + divide-y)은 시안에 근거가 없는 자체 adapt이며 유지해도 무방."
+  },
+  {
+    "section": "coordinates",
+    "status": "changed",
+    "specSummary": "노드 2162:1168 \"Frame 1597883690\" — 1920×1015 (y 2750~3765), 배경 순수 #FFFFFF 솔리드 단색(그라디언트/글로우 없음), clipsContent=true. 오토레이아웃 없음(전부 절대 배치).\n\n[1] 타이틀 2162:1176 \"지금 내 입시 좌표를 확인 해보세요\" — x240 y74, w1440 h45(텍스트박스 full-bleed 240 인셋, textAutoResize=HEIGHT, 가로 CENTER). fontSize 32px→2rem, Pretendard SemiBold(600), lineHeight 140%, letterSpacing -2%, color #525252. 섹션 상단 갭 = 74px→4.625rem (pt).\n\n[2] 중앙 Macbook Pro 디바이스 목업 2240:4579 (GROUP, 신규) — x456 y188, 1008×591 → 63rem × 36.9375rem, 가로 중앙(456+504=960). 타이틀 하단(119) → 디바이스 상단(188) 갭 = 69px→4.3125rem.\n · Shadow(2240:4580) ELLIPSE 905×10 at (508,769), fill #000000, LAYER_BLUR radius 44.\n · Top(2240:4581) GROUP 816×554 at (554,188).\n   - Lid(2240:4582) RECT 816×554 → 51rem×34.625rem, fill #1A202C, stroke #4A5568 2px INSIDE, radius tl/tr 28→1.75rem, br/bl 4→0.25rem.\n   - Dark Screen(2240:4583) RECT 806×528 at (559,193), fill #000000, radius tl/tr 22→1.375rem, br/bl 0.\n   - Screen Wrap(2240:4584) GROUP 770×480 at (575,219): Screen(2240:4585) RECT 770×480 fill #FFFFFF radius 0 + Body(2240:4597) VECTOR 768×478 at (577,221) — IMAGE fill(scaleMode FILL, hash f8d9747a6e3f1532784835379888597011312c2c) = 실제 진단 결과 화면 이미지.\n   - \"Macbook Pro\" 텍스트(2240:4587) at (919,722) 83×12, fontSize 13px→0.8125rem, Inter Semi Bold(600), lineHeight 90%, letterSpacing 0px, color #A0AEC0, CENTER.\n · Bottom(2240:4588) GROUP 1008×30 at (456,738):\n   - Base(2240:4589) 1008×18→63rem×1.125rem, fill #A3ACB1 + LINEAR gradient(0 #0D1012 → .0295 #CAD4DB → .0625 #242729 → .1336 #A3ACB1 → .866 #A3ACB1 → .9419 #242729 → .9713 #CAD4DB → 1 #0D1012), radius tl/tr 2→0.125rem.\n   - Bottom Curve(2240:4590) VECTOR 1008×12 at (456,756), fill #647279 + LINEAR(#7A7F83 → #0B0B0E).\n   - Groove(2240:4591) VECTOR 166.934×14 at (877.033,738), fill #96A1A8 + LINEAR(#3C3C3C 1a → transparent → #444444 1a).\n · Screen 이미지 영역의 디바이스 대비 인셋: left 11.806%, top 5.245%, w 76.389%, h 81.218%.\n\n[3] 플로팅 pill 3개 — 공통: fill #F5FAFF, cornerRadius 30→1.875rem, padding 20px 전방향→1.25rem, HORIZONTAL auto-layout(gap 10, HUG/HUG, CENTER/CENTER), DROP_SHADOW offset(0,4) blur 20 spread 0 color #0B84FD @40% → `0 0.25rem 1.25rem rgba(11,132,253,0.4)`. 텍스트 공통: fontSize 20px→1.25rem, lineHeight 140%, letterSpacing 0%, color #013262, 높이 28px.\n · A 2162:1179 \"📊 상세 진단 요약 카드\" — 218×68 → 13.625rem×4.25rem, at (290,389) → left 15.104% / top 389px(24.3125rem). font Pretendard **SemiBold(600)**.\n · B 2162:1187 \"✏️  나의 강점 정리본\"(이모지 뒤 공백 2칸) — 201×68 → 12.5625rem×4.25rem, at (1404,532), 우측 끝 1605 → right 16.406% / top 532px(33.25rem). font Pretendard **Medium(500)**.\n · C 2240:3967 \"📋 보완 안내\" — 139×68 → 8.6875rem×4.25rem, at (1383,119), 우측 끝 1522 → right 20.729% / top 119px(7.4375rem). font Pretendard **Medium(500)**.\n · 디바이스 기준 상대 위치(더 안정적): A = 디바이스 좌변에서 왼쪽 166px(10.375rem), 디바이스 상단+201px(12.5625rem) / B = 디바이스 우변에서 오른쪽 141px(8.8125rem), 상단+344px(21.5rem) / C = 우변에서 오른쪽 58px(3.625rem), 상단-69px(4.3125rem).\n\n[4] 수직 리듬 — 콘텐츠 종료(디바이스 그림자 바닥) y=779. 프레임 높이 1015이므로 하단 여백 236px(14.75rem)는 pb=0 정책상 다음 섹션의 pt로 이관.",
+    "findings": [
+      {
+        "element": "섹션 수직 패딩 (section 2162:1168)",
+        "design": "pt 74px → 4.625rem, pb 0 (콘텐츠 바닥 y=779, 이하 236px는 다음 섹션 pt로 이관)",
+        "code": "lg:py-[9rem] (상하 144px 동일) — src/pages/renewal/FreeDiagnosisLanding.jsx:225",
+        "action": "py-[9rem] → pt-[4.625rem] pb-0 으로 분리. 하단 236px(14.75rem)는 다음 섹션(BottomCta) pt가 흡수하도록 조정"
+      },
+      {
+        "element": "타이틀 fontSize/weight (2162:1176)",
+        "design": "32px → 2rem, Pretendard SemiBold(600)",
+        "code": "SECTION_HEADING_CLASS: md:text-[2.75rem](44px), font-bold(700) — L57-58, 적용 L227",
+        "action": "이 섹션 타이틀은 2rem/font-semibold. SECTION_HEADING_CLASS를 공유 중이므로 이 섹션 전용 클래스로 분리하거나 override 필요"
+      },
+      {
+        "element": "타이틀 → 디바이스 갭",
+        "design": "69px → 4.3125rem (타이틀 하단 119 → 디바이스 상단 188)",
+        "code": "lg:mt-28 (112px) — L231",
+        "action": "lg:mt-28 → mt-[4.3125rem]"
+      },
+      {
+        "element": "디바이스 목업 폭/비율 (2240:4579)",
+        "design": "1008×591 → 63rem × 36.9375rem (비율 1.7056), 가로 중앙",
+        "code": "컨테이너 max-w-[58rem](928px), img 931×562(비율 1.6566) — L231, L238-244",
+        "action": "컨테이너 max-w-[63rem]로 확대. 목업 에셋도 1008×591 비율로 재추출(현 PNG 비율 불일치)"
+      },
+      {
+        "element": "디바이스 목업 외형",
+        "design": "Lid #1A202C + stroke #4A5568 2px inside, radius 28/28/4/4, 하단 베젤에 \"Macbook Pro\" 라벨(13px→0.8125rem, Inter Semi Bold, #A0AEC0), Base는 #A3ACB1 그라디언트 1008폭",
+        "code": "macbook-mockup.png — 실버 바디, 노치 있음, \"Macbook Pro\" 라벨 없음",
+        "action": "2240:4579 노드를 1008×591로 재추출(또는 CSS로 재현). 현 PNG는 시안과 색·라벨·노치가 모두 다름"
+      },
+      {
+        "element": "Screen 내부 이미지 (2240:4597 Body, IMAGE fill)",
+        "design": "진단 결과 표 화면(우선순위/영역/현재 수준·목표 수준/현재 상태/필요한 것 6행 + 3개 텍스트 블록), 768×478 → 48rem × 29.875rem, imageHash f8d9747a6e3f1532784835379888597011312c2c",
+        "code": "macbook-screen-content.png = \"PAGE 2/2 학교생활 및 입시 준비도\" 레이더차트 화면, 991×484 — 내용이 완전히 다름",
+        "action": "2240:4597 이미지 fill 재추출해 macbook-screen-content.png 교체 (필수)"
+      },
+      {
+        "element": "Screen 이미지 인셋(디바이스 대비)",
+        "design": "left 11.806% / top 5.245% / w 76.389% / h 81.218%",
+        "code": "left-[12%] top-[5%] w-[76%] h-[82.8%] — L245",
+        "action": "목업 재추출 후 left-[11.806%] top-[5.245%] w-[76.389%] h-[81.218%] 로 정렬(모서리 radius도 시안은 0)"
+      },
+      {
+        "element": "배경 글로우",
+        "design": "섹션 fill = #FFFFFF 솔리드 단독. 그라디언트/글로우/블러 레이어 없음",
+        "code": "radial-gradient(rgba(11,132,253,0.28)…) + blur-3xl 글로우 div — L232-235",
+        "action": "글로우 div 제거 (시안에 존재하지 않음)"
+      },
+      {
+        "element": "Pill 패딩/높이 (2162:1179 / 2162:1187 / 2240:3967)",
+        "design": "padding 20px 전방향 → 1.25rem, 총 높이 68px → 4.25rem, gap 10px → 0.625rem",
+        "code": "px-5 py-3 (20/12px), 실높이 ≈48px — L261, L273",
+        "action": "px-5 py-3 → p-5 (전방향 1.25rem)로 변경해 높이 4.25rem 확보"
+      },
+      {
+        "element": "Pill 텍스트 타이포",
+        "design": "20px → 1.25rem, lineHeight 140%, letterSpacing 0, color #013262. weight는 pill별 상이: 📊 상세 진단 요약 카드 = SemiBold(600), ✏️ 나의 강점 정리본 = Medium(500), 📋 보완 안내 = Medium(500)",
+        "code": "text-base(16px) font-semibold 3개 모두 동일 — L261, L273",
+        "action": "text-[1.25rem] leading-[1.4]로 상향. weight는 badge별 분기(600/500/500) — 시안 불일치 가능성 있어 디자이너 확인 권장"
+      },
+      {
+        "element": "Pill 그림자",
+        "design": "DROP_SHADOW 0 4px 20px 0 rgba(11,132,253,0.4) → shadow-[0_0.25rem_1.25rem_rgba(11,132,253,0.4)]",
+        "code": "lg: shadow-[0_0.5rem_1.5rem_rgba(11,132,253,0.35)] / 모바일: shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.25)] — L261, L273",
+        "action": "두 곳 모두 0 0.25rem 1.25rem rgba(11,132,253,0.4)로 통일"
+      },
+      {
+        "element": "Pill 절대 배치 기준 컨테이너",
+        "design": "pill 좌표가 max-w-content(1164px) 범위 밖 — A left 290(1920 기준 15.104%), B right 315(16.406%), C right 398(20.729%)",
+        "code": "absolute inset-0 이 max-w-content px-8 컨테이너 기준 → A left-[1%](≈390px, 시안 대비 +100px), B right-[1%](우측끝 ≈1530, 시안 1605 대비 -75px), C right-[2%](≈1519, 시안 1522 근사) — L269-278",
+        "action": "pill 레이어를 max-w-content 밖(섹션 full-bleed) 또는 디바이스 컨테이너 기준으로 재배치. 권장: 디바이스 박스 기준 A=left -10.375rem/top 12.5625rem, B=right -8.8125rem/top 21.5rem, C=right -3.625rem/top -4.3125rem"
+      },
+      {
+        "element": "Pill 수직 위치",
+        "design": "섹션 top 기준 A 389px, B 532px, C 119px (콘텐츠 높이 779 기준 A 49.94% / B 68.29% / C 15.28%)",
+        "code": "A top-[52%], B(나의 강점) top-[70%], C(보완 안내) top-[15%] — L52-54",
+        "action": "컨테이너 기준 변경과 함께 49.94% / 68.29% / 15.28% (또는 디바이스 기준 px)로 보정"
+      },
+      {
+        "element": "Pill radius / 배경 / 텍스트 색",
+        "design": "radius 30px → 1.875rem, fill #F5FAFF, text #013262",
+        "code": "rounded-[1.875rem] bg-[#F5FAFF] text-[#013262]",
+        "action": "일치 — 수정 불필요 (참고용)"
+      }
+    ],
+    "assets": [
+      {
+        "nodeId": "2240:4597",
+        "purpose": "Macbook 화면 내부 진단 결과 이미지 (IMAGE fill, scaleMode FILL, imageHash f8d9747a6e3f1532784835379888597011312c2c). 현재 코드의 macbook-screen-content.png와 내용이 완전히 다르므로 재추출 필수",
+        "size": "768×478 (48rem × 29.875rem), @2x 권장 1536×956"
+      },
+      {
+        "nodeId": "2240:4579",
+        "purpose": "Macbook Pro 디바이스 목업 전체 (신규, 벡터 구성). 현 macbook-mockup.png(931×562 실버/노치/라벨없음)와 색·형태 불일치 → 재추출 또는 CSS 재현",
+        "size": "1008×591 (63rem × 36.9375rem), @2x 권장 2016×1182"
+      },
+      {
+        "nodeId": "2240:4584",
+        "purpose": "Screen Wrap — 화면 영역 단독 추출이 필요할 경우의 노드 (Screen 흰 배경 + Body 이미지)",
+        "size": "770×480 (48.125rem × 30rem)"
+      }
+    ],
+    "notes": "1) 파일 위치: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx 의 `MacbookShowcase()` (L223-282). 별도 컴포넌트 파일 없음(src/components/renewal/ 에는 survey/, SurveyPreview.jsx 만 존재).\n\n2) 가장 임팩트 큰 항목 2개: (a) 화면 내부 이미지가 시안과 완전히 다른 콘텐츠(레이더차트 vs 우선순위 표) — 2240:4597 재추출 필수. (b) pill 절대 배치의 기준 컨테이너가 max-w-content(1164px)라 시안 좌표(290~1605, 1315px 스팬)를 표현할 수 없음 — 레이어를 full-bleed 또는 디바이스 기준으로 옮겨야 함.\n\n3) SECTION_HEADING_CLASS(L57-58)는 StepsSection/AudienceSection/BenefitsSection과 공유된다. 이 섹션 시안값은 32px/600인데 공유 클래스는 44px/700이므로, 다른 섹션 담당 에이전트 결과와 대조 후 (전 섹션 32/600이면 토큰 자체 수정, 이 섹션만이면 로컬 override) 결정 필요.\n\n4) 시안 pill 3개의 font weight가 서로 다르다(600/500/500). 디자인 실수 가능성이 있어 구현 전 확인 권장 — 통일한다면 Medium(500) 쪽이 다수.\n\n5) 모바일 stacked badge 리스트(L257-266)는 시안(1920 데스크톱 단일)에 없는 코드측 반응형 adapt. 유지하되 타이포/그림자만 데스크톱 토큰과 통일 권장.\n\n6) 섹션 배경은 순수 #FFFFFF 단색. 코드의 radial 글로우는 이전 시안 잔재로 보이며 현 시안에는 없음.\n\n7) 시안 프레임 높이 1015 중 콘텐츠는 y=779에서 끝나 236px(14.75rem) 하단 여백이 남는다. pb=0 정책에 따라 이 값은 다음 섹션(BottomCta) pt로 이관되어야 하므로, BottomCta 담당과 정합 확인 필요."
+  },
+  {
+    "section": "cta",
+    "status": "partial",
+    "specSummary": "최종 CTA 섹션(2162:1193, 1920×473, y3765~4238). 배경은 **단색 #172437**(그라디언트 아님, 이펙트 없음). 구조: 섹션 > 내부 컨테이너(2162:1194, x240 y141, 1440×190, VERTICAL auto-layout, itemSpacing 60) > [타이틀 텍스트, 버튼 래퍼(1440×68, HORIZONTAL, center)] > 버튼(2162:1197, 300×68).\n\n수직 배치(실측): 섹션 top→컨텐츠 141px(8.8125rem), 컨텐츠 190px, 컨텐츠→섹션 bottom 142px(8.875rem). 합 141+62+60+68+142 = 473 ✔ (Figma 프레임에 paddingTop/Bottom=120이 저장돼 있으나 layoutMode=NONE이라 미적용 — 실제 렌더 값은 141/142).\n\n타이틀(2162:1195) \"어서 무료진단을 경험해보세요\": Pretendard Bold(700), fontSize 44px → 2.75rem, lineHeight 140% (박스 62px), letterSpacing -2% → -0.02em, fill #FFFFFF, textAlign CENTER, 폭 1440 FILL, textAutoResize HEIGHT.\n\n타이틀↔버튼 간격: itemSpacing 60px → 3.75rem.\n\nCTA 버튼(2162:1197): 300×68px (18.75rem × 4.25rem), cornerRadius 30px → 1.875rem, fill 단색 #013262, padding 24/60/24/60 (1.5rem / 3.75rem), auto-layout HORIZONTAL center/center. DROP_SHADOW(0 2 24, #0B84FD 50%)가 정의돼 있으나 **visible:false** → 시안상 그림자 없음.\n버튼 라벨(2162:1198) \"무료진단 시작하기 →\": Pretendard SemiBold(600), fontSize 20px → 1.25rem, lineHeight 20px(=1.0), letterSpacing 0, fill #FFFFFF. 화살표는 아이콘이 아니라 텍스트 \"→\" 리터럴.\n\n히어로 CTA(2181:10907 \"지금 시작하기\")와 **완전 동일 스타일**: 동일 컴포넌트명(Frame 1597883674), 300×68, r30, #013262, 20px SemiBold #FFF, padding 24/60, 동일한 비활성 그림자. 라벨 텍스트만 다름 → 코드에서 CTA_LINK_CLASS를 공유하는 현재 방식이 시안 의도와 일치.\n\n이미지/일러스트 fill 없음.",
+    "findings": [
+      {
+        "element": "섹션 수직 패딩 (BottomCta section)",
+        "design": "pt 141px → 8.8125rem, pb 142px → 8.875rem (실측: 내부 컨테이너 y=141, 473-190-141=142)",
+        "code": "py-14 md:py-20 lg:py-[7.5rem] → 데스크톱 120px (7.5rem)",
+        "action": "lg 브레이크포인트 py를 141/142px로 교정 (예: lg:pt-[8.8125rem] lg:pb-[8.875rem]). Figma 프레임의 padding=120 속성값은 layoutMode=NONE이라 미적용이므로 신뢰하지 말 것. 교정 시 섹션 총 높이가 473px로 시안과 정확히 일치함"
+      },
+      {
+        "element": "타이틀 ↔ CTA 버튼 간격",
+        "design": "itemSpacing 60px → 3.75rem",
+        "code": "gap-8 sm:gap-10 → 데스크톱 40px (2.5rem)",
+        "action": "데스크톱 갭을 60px로 상향 (md:gap-[3.75rem] 추가). 20px 부족"
+      },
+      {
+        "element": "CTA 버튼 그림자",
+        "design": "DROP_SHADOW 정의는 있으나 visible:false → 시안상 그림자 없음 (정의값은 0 2px 24px #0B84FD 50%)",
+        "code": "shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] (0 10px 25px #013262 40%) 적용 중",
+        "action": "시안엔 그림자가 꺼져 있음. 디자이너 의도 확인 필요 — 시안 그대로면 shadow 제거, 살릴 경우에도 색/오프셋이 다르므로 shadow-[0_0.125rem_1.5rem_rgba(11,132,253,0.5)]로 교체. 히어로 CTA도 동일 조건이므로 CTA_LINK_CLASS 공유 지점에서 함께 결정"
+      },
+      {
+        "element": "CTA 버튼 좌우 패딩",
+        "design": "paddingLeft/Right 60px → 3.75rem (paddingTop/Bottom 24px → 1.5rem)",
+        "code": "px-8 (32px), 수직은 h-14 / sm:h-[4.25rem] 고정 높이로 처리",
+        "action": "버튼 폭이 max-w-[18.75rem]=300px로 고정되고 내용이 중앙 정렬이라 렌더 결과는 동일 — 시각 영향 없음. 굳이 바꿀 필요 없으나 시안 충실도를 원하면 px-[3.75rem]"
+      },
+      {
+        "element": "컨텐츠 컨테이너 폭",
+        "design": "내부 컨테이너 1440px (x=240, 1920-240*2). 타이틀은 1440 FILL + CENTER 정렬",
+        "code": "max-w-content (72.75rem/1164px) + px-5 sm:px-8, items-center",
+        "action": "타이틀이 한 줄이고 전부 중앙 정렬이라 시각 차이 없음. 전역 max-w-content 토큰 정책 유지가 맞음 — 수정 불필요"
+      },
+      {
+        "element": "CTA 버튼 라벨 lineHeight",
+        "design": "lineHeight 20px (fontSize 20px, ratio 1.0), letterSpacing 0",
+        "code": "명시 없음 (Tailwind 기본 leading-normal ≈ 1.5)",
+        "action": "inline-flex + items-center로 수직 중앙 정렬되어 68px 고정 높이 안에서 시각 차이 없음. 낮은 우선순위 — 픽셀 일치가 필요하면 leading-[1.25rem] 추가"
+      },
+      {
+        "element": "모바일/태블릿 반응형 값",
+        "design": "시안은 1920 데스크톱 단일 브레이크포인트만 제공 (타이틀 44px, 버튼 300×68)",
+        "code": "타이틀 text-[1.5rem] sm:text-[1.75rem] md:text-[2.75rem], 버튼 h-14 → sm:h-[4.25rem], text-base → sm:text-[1.25rem]",
+        "action": "시안 미제공 구간이므로 판정 불가 — 현재 코드의 다운스케일은 합리적. 데스크톱(md 이상) 값만 시안 기준으로 판정했음"
+      }
+    ],
+    "assets": [],
+    "notes": "구현 위치: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx 의 BottomCta() (284~301행), 공유 버튼 클래스 CTA_LINK_CLASS (17~18행). 별도 컴포넌트 파일 없이 페이지 파일 내부에 인라인 정의돼 있음. src/components/renewal/ 아래에는 survey 관련 컴포넌트만 존재하며 CTA 관련 컴포넌트 없음.\n\n일치 확인된 항목 (수정 불필요):\n- 섹션 배경 #172437 단색 (그라디언트/오버레이/이펙트 없음) — 코드 bg-[#172437] 일치\n- 타이틀 44px/2.75rem, Bold 700, leading 1.4, tracking -0.02em, #FFFFFF, 중앙정렬 — 전부 일치\n- 버튼 폭 300px(18.75rem), 높이 68px(4.25rem), radius 30px(1.875rem), bg #013262, 라벨 20px(1.25rem) SemiBold 600 #FFFFFF — 전부 일치\n- 라벨 \"무료진단 시작하기 →\" 문자열 일치 (화살표는 아이콘 아님, 텍스트 리터럴이 맞음)\n\n히어로 CTA 동일성: 시안에서 히어로 버튼(2181:10907)과 최종 CTA 버튼(2162:1197)은 프레임명까지 동일한 완전 동일 스펙. 코드가 CTA_LINK_CLASS를 두 곳에서 공유하는 현재 구조가 시안 의도와 정확히 부합하므로, 그림자 처리 결정은 반드시 두 CTA에 동시 적용해야 함.\n\naccent 토큰(#0B84FD) 관련: 이 섹션에서 accent는 비활성 그림자 색으로만 등장하며 실제 렌더에는 사용되지 않음. 버튼 색은 accent가 아닌 #013262(딥 네이비)로, 다른 섹션의 #013262 사용과 일관됨.\n\n전역 섹션 리듬 정책(pt 소유 / pb=0)의 예외 섹션: 이 CTA는 자체 배경색을 가진 밴드이므로 상·하 내부 패딩을 모두 소유해야 함 (141/142). 위쪽 MacbookShowcase 섹션이 lg:py-[9rem]로 pb를 갖고 있어 시안의 y=3765 경계와 어긋날 수 있으니, 인접 섹션 담당자와 경계값 정합 확인 권장."
+  },
+  {
+    "section": "global-layout",
+    "status": "partial",
+    "specSummary": "■ 프레임 구조 — 2162:1020 \"무료진단\" 1920×4830, fill #FFFFFF. 내부에 본문 스택 2162:1021(1920×4830, VERTICAL auto-layout, itemSpacing=0, padding=0, align CENTER, fill 없음)과 헤더 2240:2706(1920×64, y=0, 본문 위 overlay)이 형제로 존재. 즉 섹션 사이 명시적 갭은 0이며 각 섹션이 자기 패딩을 소유 → 0729 \"섹션이 자기 위 갭을 pt로 소유\" 정책과 구조적으로 호환.\n\n■ 섹션 경계·배경(전부 프레임-절대 y)\n1) 히어로 2181:10898 — y 0~750(h750), fill #FFFFFF 풀블리드, clipsContent=false. 내부 텍스트블록 2181:10903 y100~358(x239 w1443), 브라우저 목업 2181:10910 y408~879(x415 w1090.195) → 섹션 하단을 129px 넘어 다음 섹션을 침범. 목업 안 스크린샷 이미지 2181:11026 y471~792.5.\n2) 4STEP 2162:1065 — y 750~1338(h588), fill #FFFFFF 풀블리드, VERTICAL AL pt=120 pb=120 pl/pr=10 itemSpacing=10. 타이틀 2162:1072 y890~980(x404 w1436, align LEFT, 32px). 카드행 2162:1077 y1030~1208(x370 w1180, HORIZONTAL AL itemSpacing=20, 카드 280×178 ×4).\n3) 추천 2162:1114 — y 1338~2181(h843), fill #FFFFFF 풀블리드, pt=120 pb=120. 컨텐츠 2240:4247 x410 w1100 y1458~2061(VERTICAL AL itemSpacing=60). 타이틀 45h(LEFT), 카드행 498h(353/353/354 + gap 20).\n4) 얻을것 2162:1135 — y 2181~2750(h569). ★섹션 프레임 자체가 x411 w1098 (풀블리드 아님), fill 없음(루트 #FFFFFF 비침). VERTICAL AL pt=120 pb=120 itemSpacing=60. 타이틀 2162:1141 y2301~2346(CENTER). 카드 2162:1142 x475 w970 y2406~2630.\n5) 입시좌표 2162:1168 — y 2750~3765(h1015), fill #FFFFFF 풀블리드, clipsContent=true, padding=0(자유배치). 타이틀 2162:1176 y2824~2869(x240 w1440, CENTER). 맥북 2240:4579 x456 w1008 y2938~3529. 배지 3개: 2240:3967(x1383 y2869), 2162:1179(x290 y3139), 2162:1187(x1404 y3282). 맥북 하단 3529 → 섹션 끝 3765까지 236px 빈 여백.\n6) CTA 2162:1193 — y 3765~4238(h473), fill #172437 풀블리드. 컨텐츠 2162:1194 x240 w1440 y3906~4096(VERTICAL AL itemSpacing=60): 헤딩 62h(CENTER, 44px) + 버튼 프레임 68h(버튼 x810 w300).\n7) 푸터 2240:3270 — y 4238~4830 (범위 제외, 경계만).\n\n■ 정책 정규화(각 섹션 pt 소유 / pb=0) 시안 실측 pt\n히어로 100px(6.25rem, 헤더 64px overlay 포함 → 헤더 아래 실여백 36px/2.25rem) · 4STEP 140px(8.75rem, 단 히어로 목업이 129px 침범해 실시각 갭 11px) · 추천 250px(15.625rem = 4STEP pb130 + 자체 120) · 얻을것 240px(15rem = 120+120) · 입시좌표 194px(12.125rem = 120+74) · CTA 377px(23.5625rem = 236+141) · 푸터 142px(8.875rem = CTA pb).\n\n■ 컨텐츠 폭 판정 (max-w-content=72.75rem/1164px, px-8 포함 내부 1100px)\n- 1100(x410, 추천) / 1098(x411, 얻을것) → max-w-content 내부폭 그대로. 1098은 ±2px 시안 드리프트, 1100으로 해석.\n- 1440(x240) / 1443(x239) / 1436(x404) → 컨테이너 아님. 전부 CENTER 또는 LEFT 정렬된 **텍스트 노드의 박스 폭**(1920 − 240×2 = 1440 거터 기준으로 늘려둔 것). 실제 렌더 폭이 아니므로 코드에서는 max-w-content 안의 text-center/text-left로 흡수하면 됨.\n- 1180(x370, 4STEP 카드행) → ★유일하게 1100 체계를 벗어난 실컨테이너(카드 280×4 + gap 20×3). 같은 섹션 타이틀은 x404이라 좌측이 34px 어긋나고 추천 섹션 x410과도 불일치 → 시안 정렬 드리프트로 판정, 1100 체계로 통일 권장.\n- 1090.195(히어로 목업, 68.137rem) / 1008(맥북, 63rem) / 970(얻을것 카드, 60.625rem) → 모두 1100 내부에 들어가는 서브 컨테이너.",
+    "findings": [
+      {
+        "element": "main 상단 헤더 오프셋 (FreeDiagnosisLanding.jsx:308)",
+        "design": "헤더 2240:2706 = 64px(4rem) overlay, 히어로 eyebrow 상단 y=100px(6.25rem) → 헤더 아래 실여백 36px(2.25rem)",
+        "code": "main pt-[5.25rem](84px) + HeroSection md:pt-[6.25rem](100px) = 184px",
+        "action": "main을 pt-16(4rem/64px)으로 교체하고 히어로 pt를 md:pt-[2.25rem](36px)로 낮춰 합계 100px(6.25rem)을 맞춘다. 현재 84px 초과 (Header.jsx는 아직 h-[84px] 구헤더 — header-impl 교체 후 동기 필요)"
+      },
+      {
+        "element": "히어로 섹션 하단 오버플로 (HeroSection 목업 wrapper, :107)",
+        "design": "히어로 프레임 750px 하단을 브라우저 목업(2181:10910 B=879)이 129px(8.0625rem) 침범, 섹션 clipsContent=false",
+        "code": "section overflow-hidden + lg:pb-0 + 목업 div lg:mb-[-5.75rem](-92px)",
+        "action": "negative margin을 lg:mb-[-8.0625rem](-129px)로 조정. 동시에 히어로 section의 overflow-hidden이 이 침범과 글로우 확산까지 잘라내므로, 글로우 전용 래퍼에만 클립을 걸고 섹션 자체는 overflow-visible로 바꿔야 시안과 동일해진다"
+      },
+      {
+        "element": "4STEP 섹션 pt (StepsSection, :125)",
+        "design": "140px = 8.75rem (섹션 프레임 750 → 타이틀 890; 섹션 pt=120 + 내부 오프셋 20)",
+        "code": "pt-20 = 5rem / 80px",
+        "action": "pt-[8.75rem]로 확대 (60px 부족). 단 히어로 목업이 129px 침범하므로 시각적 여백은 11px가 되는 것이 시안 의도"
+      },
+      {
+        "element": "4STEP 섹션 pb (StepsSection, :125)",
+        "design": "130px = 8.125rem (카드 B=1208 → 섹션 끝 1338)",
+        "code": "pb-10 = 2.5rem / 40px",
+        "action": "정책(pb=0)에 따라 pb 제거하고 130px을 다음 섹션(추천) pt에 합산"
+      },
+      {
+        "element": "추천 섹션 실질 pt (AudienceSection, :156)",
+        "design": "250px = 15.625rem (4STEP pb 130 + 추천 자체 pt 120)",
+        "code": "Steps pb-10(40) + Audience pt-20(80) = 120px",
+        "action": "Steps pb-0으로 두고 Audience를 pt-[15.625rem]로 (130px 부족)"
+      },
+      {
+        "element": "얻을것 섹션 실질 pt (BenefitsSection, :193)",
+        "design": "240px = 15rem (추천 pb 120 + 얻을것 자체 pt 120)",
+        "code": "Audience pb-10(40) + Benefits pt-20(80) = 120px",
+        "action": "Audience pb-0, Benefits를 pt-[15rem]로 (120px 부족)"
+      },
+      {
+        "element": "입시좌표 섹션 실질 pt (MacbookShowcase, :225)",
+        "design": "194px = 12.125rem (얻을것 pb 120 + 섹션 상단→타이틀 74)",
+        "code": "Benefits pb-10(40) + Macbook lg:py-[9rem] pt(144) = 184px",
+        "action": "Benefits pb-0, Macbook을 lg:pt-[12.125rem]로 (10px 부족)"
+      },
+      {
+        "element": "입시좌표 섹션 pb / 하단 여백 (MacbookShowcase, :225)",
+        "design": "236px = 14.75rem (맥북 B=3529 → 섹션 끝 3765). 시안에서 유독 큰 하단 여백",
+        "code": "lg:py-[9rem] pb = 144px",
+        "action": "정책(pb=0)대로 pb 제거하고 236px을 CTA pt에 합산. 이 236px은 시안 실측값이며 다른 섹션의 120px 리듬과 다르므로 디자이너 의도 확인 권장"
+      },
+      {
+        "element": "CTA 섹션 실질 pt (BottomCta, :286)",
+        "design": "377px = 23.5625rem (입시좌표 pb 236 + CTA 자체 pt 141)",
+        "code": "Macbook pb(144) + CTA lg:py-[7.5rem] pt(120) = 264px",
+        "action": "Macbook pb-0, CTA를 lg:pt-[23.5625rem]로 (113px 부족)"
+      },
+      {
+        "element": "CTA 섹션 내부 pt/pb (BottomCta, :286)",
+        "design": "pt 141px(8.8125rem), pb 142px(8.875rem) — 섹션 3765~4238, 컨텐츠 3906~4096",
+        "code": "lg:py-[7.5rem] = 120px / 120px",
+        "action": "CTA 자체 상단 여백 141px, 하단 142px 반영 (각 21/22px 부족)"
+      },
+      {
+        "element": "푸터 위 갭 (SiteFooter 앞, :317)",
+        "design": "142px = 8.875rem (CTA 버튼 B=4096 → 푸터 T=4238)",
+        "code": "CTA lg:py-[7.5rem] pb = 120px",
+        "action": "CTA pb를 142px로 하거나 정책대로 푸터가 pt-[8.875rem]을 소유. 22px 부족"
+      },
+      {
+        "element": "섹션 pb 정책 위반 (전 섹션)",
+        "design": "0729 정책: 각 섹션이 자기 위 갭을 pt로 소유, pb=0",
+        "code": "Steps/Audience/Benefits pb-10, Macbook lg:py-[9rem], CTA lg:py-[7.5rem] — 5개 섹션 모두 pb 보유",
+        "action": "모든 섹션 pb 제거 후 위 정규화 pt 값(140/250/240/194/377/142)으로 재배분"
+      },
+      {
+        "element": "4STEP 카드행 컨테이너 폭 (StepsSection grid, :133)",
+        "design": "1180px = 73.75rem @ x=370 (카드 280px/17.5rem × 4 + gap 20px/1.25rem × 3). max-w-content 내부 1100보다 80px 넓음",
+        "code": "max-w-content(내부 1100) + lg:grid-cols-4 lg:gap-8(2rem/32px) → 카드 실폭 251px",
+        "action": "시안 1180은 같은 섹션 타이틀(x404)·추천 섹션(x410)과 좌측이 어긋난 드리프트로 판정 → 1100 유지하되 gap을 lg:gap-5(1.25rem/20px)로 낮춰 카드 265px 확보. 1180을 그대로 살릴지 디자이너 확인 필요"
+      },
+      {
+        "element": "4STEP 타이틀 좌측 기준선 (StepsSection h2, :127)",
+        "design": "타이틀 박스 x=404 w=1436 (align LEFT) — 카드행 x=370, 추천 섹션 x=410과 각각 34px/6px 어긋남",
+        "code": "max-w-content px-8 → x=410 (추천 섹션과 동일)",
+        "action": "코드가 정합. 시안 404/370은 드리프트로 보고 410(max-w-content) 유지. 1436 텍스트박스 폭은 컨테이너가 아니므로 무시"
+      },
+      {
+        "element": "추천 섹션 카드 gap (AudienceSection grid, :160)",
+        "design": "gap 20px = 1.25rem (353 + 20 + 353 + 20 + 354 = 1100)",
+        "code": "lg:gap-8 = 2rem / 32px → 카드 345.33px",
+        "action": "lg:gap-5(1.25rem)로 변경해 카드 353.33px 확보"
+      },
+      {
+        "element": "히어로 브라우저 목업 폭 (:107)",
+        "design": "1090.195px = 68.137rem @ x=415 (좌우 여백 415씩, 1100 컨테이너 안쪽)",
+        "code": "max-w-[66.75rem] = 1068px",
+        "action": "max-w-[68.137rem]로 확대 (22px 좁음)"
+      },
+      {
+        "element": "맥북 목업 폭 (MacbookShowcase, :231)",
+        "design": "1008px = 63rem @ x=456",
+        "code": "max-w-[58rem] = 928px",
+        "action": "max-w-[63rem]로 확대 (80px 좁음)"
+      },
+      {
+        "element": "입시좌표 섹션 clip 동작 (MacbookShowcase, :225)",
+        "design": "2162:1168 clipsContent=true — 배지·글로우가 섹션 밖으로 나가지 않음",
+        "code": "section overflow-hidden ✓",
+        "action": "일치. 단 배지 위치는 시안이 절대좌표(x290/1383/1404, y3139/2869/3282)이고 코드는 %기반(left-[1%] 등)이라 1920 기준 재검증 필요"
+      }
+    ],
+    "assets": [
+      {
+        "nodeId": "2181:11026",
+        "purpose": "히어로 브라우저 목업 스크린샷 (image 224) — 히어로 하단 129px 오버플로 계산의 기준",
+        "size": "1090.195×321.5 (프레임 내 y471~792.5)"
+      },
+      {
+        "nodeId": "2181:11089",
+        "purpose": "히어로 그레인 텍스처 (Texture, TILE fill) — 섹션 clip 여부에 영향",
+        "size": "1600×1200"
+      },
+      {
+        "nodeId": "2181:11086",
+        "purpose": "히어로 글로우 Eclipse (그라디언트) — 섹션 경계를 넘어 확산",
+        "size": "820×820"
+      },
+      {
+        "nodeId": "2240:4579",
+        "purpose": "입시좌표 섹션 맥북 목업 그룹 — 섹션 폭 판정 기준(1008px/63rem)",
+        "size": "1008×591"
+      },
+      {
+        "nodeId": "2240:4585",
+        "purpose": "맥북 화면 컨텐츠 (Screen)",
+        "size": "770×480"
+      },
+      {
+        "nodeId": "2162:1134",
+        "purpose": "추천 카드 1 이미지 (image 357)",
+        "size": "353×269"
+      },
+      {
+        "nodeId": "2240:4236",
+        "purpose": "추천 카드 2 이미지 (image 280)",
+        "size": "353×235"
+      },
+      {
+        "nodeId": "2240:4238",
+        "purpose": "추천 카드 3 이미지 (image 281)",
+        "size": "353×235"
+      }
+    ],
+    "notes": "■ 판정 요약\n- status=partial: 6개 섹션 모두 코드에 구현되어 있고 순서·배경색(전부 white, CTA만 #172437)은 시안과 일치. 그러나 수직 리듬은 전 구간 불일치이며 0729 \"pb=0\" 정책도 미적용 상태.\n- 코드의 데스크톱 리듬 총합(히어로 아래~푸터 위)은 시안 대비 약 435px 부족: 4STEP -60, 추천 -130, 얻을것 -120, 입시좌표 -10, CTA -113, 푸터 -22.\n\n■ 시안 드리프트로 판정한 값 (코드 수정 불필요, 오히려 코드가 정합)\n- 얻을것 섹션 1098 @x411 → 1100 @x410 (max-w-content)로 해석.\n- 4STEP 타이틀 x=404, 카드행 x=370 → 추천 섹션의 x=410 기준선으로 통일 권장. 특히 카드행 1180px은 같은 프레임 안에서 타이틀과 34px 어긋나 있어 의도된 예외 컨테이너로 보기 어렵다. **다만 \"4개 카드 × 280px\"이라는 카드 치수가 의도된 것이라면 1100 안에서는 265px밖에 안 나오므로, 1180 유지 vs 카드 265px 축소 중 어느 쪽인지는 디자이너 확인이 필요하다.**\n- 1440/1443/1436 폭은 전부 텍스트 노드 박스(1920−240×2 거터 기준)일 뿐 컨테이너가 아니다. 이 값들을 컨테이너로 오독해 max-w-[90rem] 같은 걸 넣으면 안 된다.\n\n■ 확인이 필요한 시안 이상치\n- 입시좌표 섹션(2162:1168)의 하단 여백 236px: 다른 섹션의 120px 리듬에서 크게 벗어난다. 섹션 높이 1015px 중 맥북 하단(3529) 이후가 전부 빈 공간이라, 삭제된 컨텐츠의 잔재일 가능성이 있다. 그대로 구현하면 CTA 앞에 377px 공백이 생긴다.\n- 히어로 브라우저 목업(2181:10910, h=471) 안에서 스크린샷 이미지(2181:11026)는 y471~792.5까지만 차고, 브라우저 바디 아래 86.5px은 빈 흰색이다. 목업 하단이 흰색으로 페이드되는 연출로 보이나, 코드에서는 이미지 하단이 그대로 잘려 있어 negative margin 값(-129px)을 그대로 쓰면 빈 흰 영역까지 겹치게 된다. 히어로 담당 에이전트와 오버플로 기준점(879 vs 792.5)을 맞춰야 한다.\n\n■ 헤더 의존성\nHeader.jsx는 아직 구시안(h-[84px], max-w-[1500px])이라 main의 pt-[5.25rem]=84px는 현재 헤더와는 정합이다. header-impl이 64px 헤더로 교체한 뒤에야 pt-16으로 내릴 수 있으므로 순서 의존이 있다.\n\n■ 참고 파일 경로\n- 시안 대상: Figma hsokTD6OilcNEXyCR24sn4 / 2162:1020\n- 구현: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/pages/renewal/FreeDiagnosisLanding.jsx\n- 토큰: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/tailwind.config.js (maxWidth.content = 72.75rem, colors.accent = #0B84FD 확인 완료)\n- 헤더: /Users/hyunsoo/uwellnow/winningpage-free-diagnosis/src/components/Header.jsx"
+  }
+]
