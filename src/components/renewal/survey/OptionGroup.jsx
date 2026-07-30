@@ -15,7 +15,7 @@ import radioUnchecked from '../../../assets/renewal/radio-unchecked.svg';
  *   라벨 line-height 는 시안 원값(20px, 비율 1.0)을 승계하지 않고 1.4 를 쓴다 (SPEC 3.1-6 예외).
  *
  * 상태 (SPEC-fd-ver3-v2 §9-A1):
- *   selected      bg #E9F4FF / border #013262 / 라벨 #013262      (시안 실측)
+ *   selected      bg #F1F8FF / border #013262 / 라벨 #013262      (시안 실측 — #E9F4FF 는 범용 변수 `메인 채우기` 오적용, 2026-07-30 중재 확정)
  *   hover(미선택)  border #013262 20% + bg #FBFAFA, transition 150ms
  *   hover(선택됨)  변화 없음
  *   focus         :focus-visible 만 — outline 2px #0B84FD, offset 2px
@@ -103,7 +103,7 @@ export default function OptionGroup({
                 variant === 'row' ? 'w-full' : 'w-auto'
               } ${
                 active
-                  ? 'border-[#013262] bg-[#E9F4FF]'
+                  ? 'border-[#013262] bg-[#F1F8FF]'
                   : error
                     ? 'border-[#D92D20] bg-white'
                     : 'border-[#D7D7D7] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]'
