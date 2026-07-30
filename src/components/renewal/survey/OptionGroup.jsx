@@ -6,6 +6,7 @@ import radioUnchecked from '../../../assets/renewal/radio-unchecked.svg';
  * Figma: hsokTD6OilcNEXyCR24sn4 / 1889:13222 ("설문조사 선택한 상태")
  *
  * variant='chip' → 내용 기준 hug 폭 칩을 flex-wrap 나열 (Q1·Q2·Q8하위·Q13·Q14·Q16·Q17·Q18)
+ *                  단 <640 에서는 전폭 리스트로 폴백한다 (칩 2개가 한 줄에 못 들어가는 폭).
  * variant='row'  → 전폭(w-full) 리스트 행 (Q3·Q4·Q5·Q8·Q10·Q12·Q3-C)
  *
  * 행/칩 공통 규격 (시안 실측):
@@ -75,9 +76,14 @@ export default function OptionGroup({
     onChange([...withoutExclusive, optionValue]);
   }
 
+  // chip 은 hug 폭이라 375(가용 277px)에서는 어떤 두 칩도 한 줄에 못 들어간다. 결과가
+  // "폭이 제각각인 칩이 1개씩 세로로 쌓여 우측 끝이 톱니처럼 어긋나는" 배치라, 같은 화면의
+  // variant='row' 문항과 정렬 규칙이 충돌했다. <640 은 row 와 동일한 전폭 리스트로 통일한다.
+  // ≥640 은 wrap 유지 + items-stretch — 같은 wrap 행의 칩이 라벨 줄 수와 무관하게 높이를 공유한다
+  // (items-start 면 2줄 칩만 혼자 길어져 행 안에서 높이 편차가 난다).
   const containerClass =
     variant === 'chip'
-      ? 'flex w-full flex-wrap items-start gap-3'
+      ? 'flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch'
       : 'flex w-full flex-col items-start gap-3';
 
   return (
@@ -100,7 +106,7 @@ export default function OptionGroup({
               disabled={isDisabled}
               onClick={() => handleSelect(optionValue)}
               className={`flex min-h-[4.25rem] items-center gap-6 rounded-[1.25rem] border px-5 py-3.5 text-left transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                variant === 'row' ? 'w-full' : 'w-auto'
+                variant === 'row' ? 'w-full' : 'w-full sm:w-auto'
               } ${
                 active
                   ? 'border-[#013262] bg-[#F1F8FF]'

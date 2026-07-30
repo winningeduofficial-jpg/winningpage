@@ -28,7 +28,10 @@ export default function QuestionCard({
   const counterReached = showCounter && selectedCount >= maxSelect;
 
   return (
-    <div className="flex w-full flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 sm:rounded-[2.5rem] sm:px-10 sm:py-10 lg:px-[3.75rem]">
+    // 좌우 padding 60(3.75rem)은 시안 전제(컨테이너 1164 / 카드 콘텐츠 992)가 실제로 확보되는
+    // wide(1184) 부터만 켠다. lg(1024) 에 걸어 두면 1024~1183 에서 콘텐츠 폭을 40px 더 갉아
+    // 리커트 척도 컬럼이 77.0px 까지 눌린다(→ 80.7px). ≥1184 는 60 그대로라 시안 정합 불변.
+    <div className="flex w-full flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-[3.75rem]">
       <div className="flex w-full flex-col gap-5">
         <div className="flex w-full flex-col gap-3">
           <div className="flex w-full items-center justify-between gap-5">

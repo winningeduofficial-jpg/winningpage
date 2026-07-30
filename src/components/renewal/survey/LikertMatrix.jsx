@@ -21,8 +21,12 @@
  *   구분선은 에셋이 아니라 CSS border 1px #D7D7D7 (1px 이 피치에 더해지지 않도록 24px 박스 안에 넣는다)
  *   문장 14px Regular #525252 / 척도 라벨 14px Medium #525252 center / 라디오 24 (1.5rem)
  *
- * 한국어 줄바꿈: 척도 라벨·문장 모두 `break-keep`(word-break: keep-all). 없으면 768 에서 척도 라벨이
+ * 한국어 줄바꿈: 척도 라벨·문장 모두 `break-keep`(word-break: keep-all). 없으면 좁은 폭에서 척도 라벨이
  *   `매우 그렇/다` 처럼, 1440 에서 문장이 `구체적/으로` 처럼 어절 중간에서 잘린다.
+ *
+ * 반응형 게이트 (§9-A5):
+ *   ≥1024  데스크톱 매트릭스 (fr 배분이 성립하는 최소 폭 — 척도 컬럼 80.7px)
+ *   <1024  문장 단위 카드 분해 (가로 스크롤 금지 — 척도 헤더가 시야에서 사라진다)
  */
 const DEFAULT_SCALE = [
   '매우 그렇다',
@@ -73,8 +77,12 @@ export default function LikertMatrix({
 
   return (
     <div className="w-full max-w-[62rem]">
-      {/* Desktop / tablet: 992 균등 grid, 문장 행마다 radiogroup 1개 */}
-      <div className="hidden md:block">
+      {/* Desktop: 992 균등 grid, 문장 행마다 radiogroup 1개.
+          게이트가 md(768) 였을 때 척도 컬럼이 56.9px 까지 눌려 `별로 그렇지 않다`가 3줄로 접혔다
+          (상단 주석의 하한 92 는 물론 fr 배분의 전제 자체가 무너지는 폭이다).
+          lg(1024) 부터 켜면 QuestionCard padding 40(§D6) 기준 척도 컬럼 80.7px 로 2줄이 유지되고,
+          768~1023 은 아래 문장 카드 분해 레이아웃이 받는다 (SPEC §9-A5). */}
+      <div className="hidden lg:block">
         <div className="grid items-center pb-5" style={{ gridTemplateColumns: GRID_TEMPLATE }}>
           <span aria-hidden="true" />
           {scale.map((label) => (
@@ -127,15 +135,19 @@ export default function LikertMatrix({
         </div>
       </div>
 
-      {/* Mobile: 문장 단위 카드 분해 + 5점 가로 배치 (§9-A5) */}
-      <div className="flex flex-col gap-3 md:hidden">
+      {/* Mobile / tablet(<1024): 문장 단위 카드 분해 + 5점 가로 배치 (§9-A5).
+          가로 스크롤은 척도 헤더가 시야에서 사라지므로 쓰지 않는다 — 카드마다 척도 라벨을 재노출한다. */}
+      <div className="flex flex-col gap-3 lg:hidden">
         {rows.map((row) => (
           <div key={row.key} className="rounded-2xl border border-[#EDEDED] bg-white p-4">
             <p className="mb-3 break-keep text-base leading-6 text-[#525252]">{row.text}</p>
+            {/* items-stretch: 라벨 줄 수(375 기준 1~3줄)가 달라도 5칸 버튼 높이가 최장 라벨로 통일된다.
+                items-start 였을 때 73.5 / 73.5 / 59.75 / 87.25 / 87.25 로 27.5px 편차가 났다.
+                버튼 자신이 flex-col + items-center 라 라디오 원은 여전히 상단 정렬을 유지한다. */}
             <div
               role="radiogroup"
               aria-label={row.text}
-              className="flex items-start justify-between gap-1"
+              className="flex items-stretch justify-between gap-1"
             >
               {scale.map((label, columnIndex) => {
                 const checked = value[row.key] === columnIndex;
@@ -150,7 +162,7 @@ export default function LikertMatrix({
                   >
                     <RadioDot checked={checked} />
                     <span
-                      className={`break-keep text-[0.6875rem] leading-tight ${
+                      className={`break-keep text-[0.625rem] leading-tight sm:text-[0.6875rem] md:text-sm ${
                         checked ? 'font-semibold text-[#013262]' : 'text-[#808080]'
                       }`}
                     >

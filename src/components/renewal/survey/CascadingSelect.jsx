@@ -159,10 +159,14 @@ export default function CascadingSelect({ levels, value, onChange }) {
   // wide(74rem/1184) 부터는 컨테이너가 max-w-content(1164) 로 고정되어 가용 폭이
   // 1164 − 64 − 120 = 980 ≥ 972 가 되므로 여기서 4열을 켠다.
   // 1184 미만은 sm(640) 부터의 2×2 를 유지한다 — 3열은 4번째 필드만 홀로 남아 계단식 순서가 깨진다.
+  // 2열 트랙에는 상한 22rem(352) 을 건다. 순수 1fr 이면 1024 에서 필드 하나가 407px 까지 벌어져
+  // (시안 228 대비 1.79배) `건국대학교` 같은 짧은 값 하나에 과대한 폭이 배정되고 문항 밀도가 무너진다.
+  // 640(235) · 768(299) 은 상한 미만이라 현행 폭 그대로다. 최장 표시값 `KU자기추천`(20px 약 110px)은
+  // 235px 필드의 가용 텍스트 폭 147px 안에 들어가 절단이 없다. <640 은 1열 세로 4단 (§9-A5).
   return (
     <div
       ref={containerRef}
-      className="grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-2 wide:grid-cols-[repeat(4,14.25rem)] wide:gap-5"
+      className="grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-[repeat(2,minmax(0,22rem))] sm:justify-start wide:grid-cols-[repeat(4,14.25rem)] wide:gap-5"
     >
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || '';

@@ -23,7 +23,12 @@ const STEPS = [
 ];
 
 // 시안은 카드마다 이미지 규격이 다르다 — 카드1 353×269/top 0(상단 플러시), 카드2·3 353×235/top 34.
-// 아래 imageClass는 wide(1184px~)에서만 적용되고 그 이하는 기존 aspect-[3/2] 유지.
+// 즉 셋 다 이미지 영역의 "바닥"이 y269에 맞고 카드2·3만 위에 34 여백이 붙는 구조다.
+// 원본 픽셀이 정확히 그 비율이다: strength 706×538 = 353:269, weakness/trial 706×470 = 353:235.
+// 그래서 wide 미만에서도 이미지 박스를 일괄 aspect-[353/269]로 두고 object-contain+object-bottom
+// 으로 바닥을 맞추면, 카드1은 무손실 정합(비율 동일) / 카드2·3은 상단에 boxW×34/353 여백이
+// 자동 생성돼 시안 구조가 전 폭에서 그대로 보존된다(과거 aspect-[3/2]는 카드1을 세로 12.5% 잘랐다).
+// 아래 imageClass의 고정 높이/마진은 wide(1184px~) 전용이다.
 const AUDIENCE = [
   {
     image: illustrationStrength,
@@ -217,17 +222,29 @@ function AudienceSection() {
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 무료 진단을 추천해요</h2>
 
-        {/* 353×498 카드 3장 + gap 20 = 1099 → 컨테이너 내부 1100 안에 정확히 수용 */}
+        {/* 353×498 카드 3장 + gap 20 = 1099 → 컨테이너 내부 1100 안에 정확히 수용.
+            3열은 wide(1184)에서만 성립한다 — lg(1024) 내부 950으로 3열을 짜면 카드 300.67,
+            카드 패딩 px-9(72)을 빼면 텍스트 폭 228.67이라 시안이 <br/>로 직접 끊어놓은 최장 행
+            ('서비스를 경험해보고 싶은 분' ≈250 / '목표는 있는데 지금 무엇을 준비해야' ≈252)이
+            한 줄에 안 들어가 2줄 구조가 3~4줄로 붕괴한다. 그래서 640~1183은 2열을 유지하고,
+            3장 중 마지막 1장이 좌측에 고아로 남는 문제만 아래 last: 규칙으로 해소한다. */}
         <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-[3.75rem] wide:grid-cols-[repeat(3,22.0625rem)] wide:gap-[1.25rem]">
           {AUDIENCE.map((item) => (
             <article
               key={item.titleLines.join('')}
-              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] wide:h-[31.125rem]"
+              /* 640~1183: 마지막 카드를 2칸 스팬 + 중앙정렬한다. 스팬 영역 폭 W(=행 전체)에 대해
+                 calc(50% - 0.75rem) = W/2 − 12 = (W − gap24)/2 이므로 폭이 앞 두 장과 정확히 같다
+                 (실측 검산: vw640 컨테이너 566 → 271 = 실측 컬럼 폭 일치).
+                 wide(3열)에서는 이 규칙을 되돌린다. `max-wide:` 한 방으로 끝내고 싶지만 이 프로젝트는
+                 screens가 px(기본) + rem(wide·desktop) 혼용이라 Tailwind가 max- 계열 변형 생성을
+                 거부한다("mixed units" 경고) — 조용히 무효 클래스가 되므로 max- 변형은 쓰면 안 된다.
+                 대신 wide: 로 되돌린다(생성 순서상 wide 규칙이 sm 규칙 뒤라 ≥1184에서 이긴다). */
+              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] sm:last:col-span-2 sm:last:mx-auto sm:last:w-[calc(50%_-_0.75rem)] wide:h-[31.125rem] wide:last:col-auto wide:last:mx-0 wide:last:w-auto"
             >
               <img
                 src={item.image}
                 alt={item.titleLines.join(' ')}
-                className={`aspect-[3/2] w-full shrink-0 object-cover wide:aspect-auto wide:w-[22.0625rem] ${item.imageClass}`}
+                className={`aspect-[353/269] w-full shrink-0 object-contain object-bottom wide:aspect-auto wide:w-[22.0625rem] ${item.imageClass}`}
               />
               <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 wide:ml-[1.9375rem] wide:mt-[2.75rem] wide:w-[17.6875rem] wide:gap-5 wide:p-0">
                 <p className="break-keep text-lg font-semibold leading-[1.3] tracking-[-0.025rem] text-[#525252] sm:text-xl md:text-[1.25rem]">
@@ -408,11 +425,18 @@ function MacbookMockup() {
   );
 }
 
-// 섹션 overflow-hidden은 제거했다 — 구시안 radial 글로우 잔재였고, 맥북 통이미지 전환으로
-// shadow 클리핑 문제도 소멸했다. 칩은 xl(1280+)에서만 뜨므로 뷰포트를 넘을 일이 없다.
+// 섹션 overflow-hidden은 쓰지 않는다 — 스크롤 컨테이너를 만들고 세로 그림자까지 잘라낸다.
+// 대신 overflow-x-clip으로 가로 축만 자른다. 맥북 통이미지는 박스 폭의 -4.7619%~+109.5238%로
+// 절대배치돼 좌우로 각각 boxW×4.7619%(=구운 그림자 여백 48px @1x)만큼 bleed 하는데,
+// 박스가 컨테이너 폭에 붙는 461~639 / 737~1103 구간에서 이 bleed가 컨테이너 좌우 패딩
+// (px-5=20 / sm:px-8=32)을 초과해 문서 전체에 가로 스크롤을 만들었다(1080에서 최대 16px).
+// 섹션은 뷰포트 폭 블록이므로 클립 경계 = 뷰포트 경계다 → 화면 안에 들어오는 그림자는 그대로
+// 보이고, ≥1104에서는 애초에 넘치는 픽셀이 없어 데스크톱 렌더가 바이트 단위로 불변이다.
+// overflow-y는 visible로 남으므로 세로 그림자 bleed도 그대로다(clip이어야 하는 이유).
+// 칩은 xl(1280+)에서만 뜨고 그 폭에서는 뷰포트 안에 들어온다.
 function MacbookShowcase() {
   return (
-    <section className="relative bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
+    <section className="relative overflow-x-clip bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
       <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#525252]`}>
           지금 내 입시 좌표를 확인 해보세요
