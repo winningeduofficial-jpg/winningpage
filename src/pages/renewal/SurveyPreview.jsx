@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import Header from '../../components/Header';
-import SiteFooter from '../../components/SiteFooter';
 import QuestionCard from '../../components/renewal/survey/QuestionCard';
 import OptionGroup from '../../components/renewal/survey/OptionGroup';
 import ConditionalTextInput from '../../components/renewal/survey/ConditionalTextInput';
@@ -148,11 +146,9 @@ export default function SurveyPreview() {
   const allAnswered = answeredCount >= mainQuestions.length;
 
   return (
-    <main className="min-h-screen w-full bg-[#FBFAFA] pt-[calc(7.5rem-var(--wn-header-h))]">
-      <Header />
-
-      {/* 상단 패딩은 <main> 의 헤더 오프셋이 단독으로 소유한다 → section 은 하단만. */}
-      <section className="w-full pb-16 sm:pb-20 lg:pb-[7.5rem]">
+    <main className="min-h-screen w-full bg-[#FBFAFA] pt-16">
+      {/* 상단 패딩 56px(3.5rem)은 이 section이 소유한다 — <main>은 pt-16으로 헤더만 비운다. */}
+      <section className="w-full pt-14 pb-16 sm:pb-20 lg:pb-[7.5rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           {/* 컬럼 스택 gap 60 — 타이틀 블록 / 카드 스택 / 하단 배너가 형제로 이 갭을 공유한다. */}
           <div className="mx-auto flex w-full max-w-content flex-col items-start gap-[3.75rem]">
@@ -213,8 +209,6 @@ export default function SurveyPreview() {
           </div>
         </div>
       </section>
-
-      <SiteFooter />
     </main>
   );
 }

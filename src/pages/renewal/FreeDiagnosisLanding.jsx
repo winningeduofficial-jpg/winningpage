@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header';
-import SiteFooter from '../../components/SiteFooter';
 
 import heroBrowserV2 from '../../assets/renewal/landing/hero-browser-v2.png';
 import heroGlow from '../../assets/renewal/landing/hero-glow.svg';
@@ -128,7 +126,7 @@ const HERO_GRAIN_CLASS =
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0">
+    <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
       <img
         src={heroGlow}
         alt=""
@@ -462,19 +460,13 @@ function BottomCta() {
 
 export default function FreeDiagnosisLanding() {
   return (
-    <>
-      <Header />
-
-      <main className="min-h-screen bg-white pt-[calc(6.25rem-var(--wn-header-h))]">
-        <HeroSection />
-        <StepsSection />
-        <AudienceSection />
-        <BenefitsSection />
-        <MacbookShowcase />
-        <BottomCta />
-      </main>
-
-      <SiteFooter />
-    </>
+    <main className="min-h-screen bg-white pt-16">
+      <HeroSection />
+      <StepsSection />
+      <AudienceSection />
+      <BenefitsSection />
+      <MacbookShowcase />
+      <BottomCta />
+    </main>
   );
 }
