@@ -23,23 +23,23 @@ const STEPS = [
 ];
 
 // 시안은 카드마다 이미지 규격이 다르다 — 카드1 353×269/top 0(상단 플러시), 카드2·3 353×235/top 34.
-// 아래 imageClass는 lg(데스크톱)에서만 적용되고 그 이하는 기존 aspect-[3/2] 유지.
+// 아래 imageClass는 wide(1184px~)에서만 적용되고 그 이하는 기존 aspect-[3/2] 유지.
 const AUDIENCE = [
   {
     image: illustrationStrength,
-    imageClass: 'lg:mt-0 lg:h-[16.8125rem]',
+    imageClass: 'wide:mt-0 wide:h-[16.8125rem]',
     titleLines: ['내 강점이 뭔지', '아직 정리가 안된 학생'],
     descLines: ['목표는 있는데 지금 무엇을 준비해야', '할지 감이 안 잡히는 경우']
   },
   {
     image: illustrationWeakness,
-    imageClass: 'lg:mt-[2.125rem] lg:h-[14.6875rem]',
+    imageClass: 'wide:mt-[2.125rem] wide:h-[14.6875rem]',
     titleLines: ['어떤 학습부분에서 약한지', '확인하고 싶은 학생'],
     descLines: ['해야 할 건 많은데 우선순위가', '서지 않아 시작이 어려운 경우']
   },
   {
     image: illustrationTrial,
-    imageClass: 'lg:mt-[2.125rem] lg:h-[14.6875rem]',
+    imageClass: 'wide:mt-[2.125rem] wide:h-[14.6875rem]',
     titleLines: ['유료 서비스 전에 무료로', '서비스를 경험해보고 싶은 분'],
     descLines: ['내 위치를 데이터로 확인하고', '맞는 서비스를 찾고 있는 경우']
   }
@@ -222,14 +222,14 @@ function AudienceSection() {
           {AUDIENCE.map((item) => (
             <article
               key={item.titleLines.join('')}
-              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] lg:h-[31.125rem]"
+              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] wide:h-[31.125rem]"
             >
               <img
                 src={item.image}
                 alt={item.titleLines.join(' ')}
-                className={`aspect-[3/2] w-full shrink-0 object-cover lg:aspect-auto lg:w-[22.0625rem] ${item.imageClass}`}
+                className={`aspect-[3/2] w-full shrink-0 object-cover wide:aspect-auto wide:w-[22.0625rem] ${item.imageClass}`}
               />
-              <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 lg:ml-[1.9375rem] lg:mt-[2.75rem] lg:w-[17.6875rem] lg:gap-5 lg:p-0">
+              <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 wide:ml-[1.9375rem] wide:mt-[2.75rem] wide:w-[17.6875rem] wide:gap-5 wide:p-0">
                 <p className="break-keep text-lg font-semibold leading-[1.3] tracking-[-0.025rem] text-[#525252] sm:text-xl md:text-[1.25rem]">
                   {item.titleLines[0]}
                   <br />
