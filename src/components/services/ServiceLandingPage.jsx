@@ -70,6 +70,14 @@ function Hero({ hero }) {
             {hero.ctaLabel}
           </Link>
         )}
+
+        {hero.visual && (
+          <img
+            src={hero.visual.src}
+            alt={hero.visual.alt}
+            className="mt-4 w-full max-w-[43rem] rounded-2xl border border-[#E8EDF3] shadow-[0_1rem_2.5rem_rgba(1,50,98,0.12)]"
+          />
+        )}
       </div>
     </section>
   );
@@ -135,6 +143,13 @@ function Process({ process }) {
               key={step.title}
               className="flex flex-col rounded-[1.5rem] bg-white p-6 shadow-[0_0.375rem_1rem_rgba(1,50,98,0.06)]"
             >
+              {step.image && (
+                <img
+                  src={step.image.src}
+                  alt={step.image.alt}
+                  className="mb-4 h-32 w-full rounded-xl object-cover object-top"
+                />
+              )}
               <span className="text-[0.8125rem] font-bold tracking-[0.04em] text-[#0B84FD]">
                 STEP {index + 1}
               </span>
@@ -163,15 +178,27 @@ function Audience({ audience }) {
           {audience.items.map((item) => (
             <div
               key={item.title}
-              className="rounded-[1.5rem] border border-[#E8EDF3] bg-white p-6"
+              className="overflow-hidden rounded-[1.5rem] border border-[#E8EDF3] bg-white"
             >
-              <PenLine className="h-5 w-5 text-[#0B84FD]" />
-              <p className="mt-4 text-[1.0625rem] font-semibold leading-[1.4] text-[#013262]">
-                {item.title}
-              </p>
-              <p className="mt-2 text-[0.875rem] font-medium leading-[1.6] text-[#525252]">
-                {item.desc}
-              </p>
+              {item.image ? (
+                <img
+                  src={item.image.src}
+                  alt={item.image.alt}
+                  className="h-36 w-full object-cover object-top"
+                />
+              ) : (
+                <div className="pt-6 pl-6">
+                  <PenLine className="h-5 w-5 text-[#0B84FD]" />
+                </div>
+              )}
+              <div className="p-6 pt-4">
+                <p className="text-[1.0625rem] font-semibold leading-[1.4] text-[#013262]">
+                  {item.title}
+                </p>
+                <p className="mt-2 text-[0.875rem] font-medium leading-[1.6] text-[#525252]">
+                  {item.desc}
+                </p>
+              </div>
             </div>
           ))}
         </div>

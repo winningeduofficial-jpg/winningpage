@@ -8,6 +8,26 @@
 // 하단 CTA가 /free-diagnosis(기존 실제 라우트)로 안내한다 — 결제 UI 없음(껍데기 아님, 실제 이동).
 import { SERVICES as PRICING_SERVICES } from './pricingCatalog';
 
+// 시안 이미지 에셋(Figma 1889:6944·1889:6486·1907:20783·1907:21352 노드 렌더 기반, alpha 보존 원본에서 채택).
+import goalHeroDashboard from '../assets/services/goal/hero-dashboard.png';
+import goalStepGoalSetting from '../assets/services/goal/step-goal-setting.png';
+import goalStepAnalysis from '../assets/services/goal/step-analysis.png';
+import goalStepTimePlan from '../assets/services/goal/step-time-plan.png';
+import goalStepExecution from '../assets/services/goal/step-execution.png';
+
+import perfAudienceTopic from '../assets/services/performance/audience-topic.jpg';
+import perfAudienceResearch from '../assets/services/performance/audience-research.jpg';
+import perfAudienceStructure from '../assets/services/performance/audience-structure.jpg';
+import perfAudienceQuality from '../assets/services/performance/audience-quality.jpg';
+
+import saAudienceWriting from '../assets/services/self-assessment/audience-writing.jpg';
+import saAudienceOrganizing from '../assets/services/self-assessment/audience-organizing.jpg';
+import saAudienceStructure from '../assets/services/self-assessment/audience-structure.jpg';
+import saAudienceQuality from '../assets/services/self-assessment/audience-quality.jpg';
+
+import researchThinkingBooks from '../assets/services/research/thinking-books.jpg';
+import researchThinkingMindmap from '../assets/services/research/thinking-mindmap.jpg';
+
 const GOAL_PRODUCTS = PRICING_SERVICES.find((service) => service.key === 'goal')?.products || [];
 const SUHAENG_PRODUCTS =
   PRICING_SERVICES.find((service) => service.key === 'suhaeng')?.products || [];
@@ -21,7 +41,11 @@ export const SERVICE_LANDING_CONTENT = {
       subtitle: '데이터가 합격을 만들고, 실행이 결과를 만듭니다',
       ctaLabel: '지금 시작하기',
       ctaTo: '/pricing',
-      paidServiceName: '목표관리 서비스'
+      paidServiceName: '목표관리 서비스',
+      visual: {
+        src: goalHeroDashboard,
+        alt: 'TMP 주간 성장 리포트 대시보드 화면 — 이번 주 공부 시간, 목표 달성률, 목표군 내 위치를 보여준다'
+      }
     },
     highlights: {
       title: '위닝 목표관리의 핵심 포인트',
@@ -45,11 +69,24 @@ export const SERVICE_LANDING_CONTENT = {
       steps: [
         {
           title: '목표 설정',
-          desc: '목표 대학・학과를 정하고 현재 위치와 목표 확률을 확인합니다.'
+          desc: '목표 대학・학과를 정하고 현재 위치와 목표 확률을 확인합니다.',
+          image: { src: goalStepGoalSetting, alt: '목표 대학・학과를 정하는 학생 일러스트' }
         },
-        { title: '학습 분석', desc: '성적과 활동을 진단해 강점과 약점을 파악합니다.' },
-        { title: '목표 시간 제안', desc: '합격에 필요한 학습 시간을 과목별로 제안합니다.' },
-        { title: '전략 실행 & 점검', desc: '주간 실행을 점검하고 목표를 꾸준히 관리합니다.' }
+        {
+          title: '학습 분석',
+          desc: '성적과 활동을 진단해 강점과 약점을 파악합니다.',
+          image: { src: goalStepAnalysis, alt: '성적과 활동을 진단하며 고민하는 학생 일러스트' }
+        },
+        {
+          title: '목표 시간 제안',
+          desc: '합격에 필요한 학습 시간을 과목별로 제안합니다.',
+          image: { src: goalStepTimePlan, alt: '과목별 학습 시간을 계획하는 학생 일러스트' }
+        },
+        {
+          title: '전략 실행 & 점검',
+          desc: '주간 실행을 점검하고 목표를 꾸준히 관리합니다.',
+          image: { src: goalStepExecution, alt: '쌓인 자료를 점검하며 실행을 관리하는 학생 일러스트' }
+        }
       ]
     },
     audience: {
@@ -172,10 +209,26 @@ export const SERVICE_LANDING_CONTENT = {
     audience: {
       title: '이런 학생에게 수행평가를 추천해요',
       items: [
-        { title: '주제 선정이 막막한 학생', desc: '관심 주제나 방향 설정부터 어려운 학생' },
-        { title: '자료 분석이 어려운 학생', desc: '믿을 자료와 분석 방법이 필요한 학생' },
-        { title: '구성・전개가 어려운 학생', desc: '논리적 흐름과 구성을 고민하는 학생' },
-        { title: '완성도를 높이고 싶은 학생', desc: '마지막 점검과 보완이 더 필요한 학생' }
+        {
+          title: '주제 선정이 막막한 학생',
+          desc: '관심 주제나 방향 설정부터 어려운 학생',
+          image: { src: perfAudienceTopic, alt: '수행평가 주제 선정을 고민하는 학생' }
+        },
+        {
+          title: '자료 분석이 어려운 학생',
+          desc: '믿을 자료와 분석 방법이 필요한 학생',
+          image: { src: perfAudienceResearch, alt: '자료 분석 방법을 고민하는 학생' }
+        },
+        {
+          title: '구성・전개가 어려운 학생',
+          desc: '논리적 흐름과 구성을 고민하는 학생',
+          image: { src: perfAudienceStructure, alt: '보고서 구성과 전개를 고민하는 학생' }
+        },
+        {
+          title: '완성도를 높이고 싶은 학생',
+          desc: '마지막 점검과 보완이 더 필요한 학생',
+          image: { src: perfAudienceQuality, alt: '수행평가 완성도를 점검하는 학생' }
+        }
       ]
     },
     outcomes: {
@@ -258,10 +311,26 @@ export const SERVICE_LANDING_CONTENT = {
     audience: {
       title: '이런 학생에게 자기평가 서비스를 추천해요',
       items: [
-        { title: '작성이 막막한 학생', desc: '어디서부터 시작할지 모르겠는 학생' },
-        { title: '정리가 어려운 학생', desc: '경험은 있는데 어떻게 풀지 막막한 학생' },
-        { title: '구성이 어려운 학생', desc: '설득력 있는 흐름과 구성이 어려운 학생' },
-        { title: '완성도를 높이고 싶은 학생', desc: '초안은 있으나 더 다듬고 싶은 학생' }
+        {
+          title: '작성이 막막한 학생',
+          desc: '어디서부터 시작할지 모르겠는 학생',
+          image: { src: saAudienceWriting, alt: '자기평가서 작성을 어디서부터 시작할지 고민하는 학생' }
+        },
+        {
+          title: '정리가 어려운 학생',
+          desc: '경험은 있는데 어떻게 풀지 막막한 학생',
+          image: { src: saAudienceOrganizing, alt: '경험을 어떻게 정리할지 고민하는 학생' }
+        },
+        {
+          title: '구성이 어려운 학생',
+          desc: '설득력 있는 흐름과 구성이 어려운 학생',
+          image: { src: saAudienceStructure, alt: '설득력 있는 구성을 고민하는 학생' }
+        },
+        {
+          title: '완성도를 높이고 싶은 학생',
+          desc: '초안은 있으나 더 다듬고 싶은 학생',
+          image: { src: saAudienceQuality, alt: '자기평가서 초안을 다듬는 학생' }
+        }
       ]
     },
     outcomes: {
@@ -353,10 +422,26 @@ export const SERVICE_LANDING_CONTENT = {
     audience: {
       title: '이런 학생에게 심화탐구 서비스를 추천해요',
       items: [
-        { title: '주제가 막막한 학생', desc: '관심사에서 탐구 주제를 잡기 어려운 학생' },
-        { title: '설계가 어려운 학생', desc: '가설・방법・계획을 세우기 어려운 학생' },
-        { title: '자료 정리가 필요한 학생', desc: '자료를 모으고 해석하는 데 어려움을 겪는 학생' },
-        { title: '완성도를 높이고 싶은 학생', desc: '초안은 있으나 더 다듬고 싶은 학생' }
+        {
+          title: '주제가 막막한 학생',
+          desc: '관심사에서 탐구 주제를 잡기 어려운 학생',
+          image: { src: researchThinkingBooks, alt: '탐구 주제를 고민하는 학생' }
+        },
+        {
+          title: '설계가 어려운 학생',
+          desc: '가설・방법・계획을 세우기 어려운 학생',
+          image: { src: researchThinkingMindmap, alt: '탐구 설계를 고민하는 학생' }
+        },
+        {
+          title: '자료 정리가 필요한 학생',
+          desc: '자료를 모으고 해석하는 데 어려움을 겪는 학생',
+          image: { src: researchThinkingMindmap, alt: '자료를 정리하는 학생' }
+        },
+        {
+          title: '완성도를 높이고 싶은 학생',
+          desc: '초안은 있으나 더 다듬고 싶은 학생',
+          image: { src: researchThinkingBooks, alt: '탐구 보고서 완성도를 다듬는 학생' }
+        }
       ]
     },
     outcomes: {
