@@ -3,7 +3,7 @@ import MentorSection from '../../components/landing/MentorSection';
 import CmButton from '../../components/callmentor/CmButton';
 import CmSectionHeading from '../../components/callmentor/CmSectionHeading';
 import { supabase } from '../../lib/supabase';
-import heroCallMockup from '../../assets/callmentor/hero-call-mockup.jpg';
+import heroCallMockup from '../../assets/callmentor/hero-call-mockup.png';
 import stepDiagnosis from '../../assets/callmentor/step-diagnosis.jpg';
 import stepMentorMatch from '../../assets/callmentor/step-mentor-match.jpg';
 import stepCall from '../../assets/callmentor/step-call.jpg';
@@ -12,13 +12,16 @@ import audienceCareer from '../../assets/callmentor/audience-career.png';
 import audienceEntranceExam from '../../assets/callmentor/audience-entrance-exam.png';
 import audienceStudyMethod from '../../assets/callmentor/audience-study-method.jpg';
 import audienceMotivation from '../../assets/callmentor/audience-motivation.png';
+import iconValueCheck from '../../assets/callmentor/icon-value-check.svg';
+import iconValuePlan from '../../assets/callmentor/icon-value-plan.svg';
+import iconValueCard from '../../assets/callmentor/icon-value-card.svg';
 
 /**
- * 콜멘토 랜딩 (docs/callmentor-spec.md §5.1, node `2063:7718`) — 랜딩 1장만 구현.
+ * 콜멘토 랜딩 (scratchpad/callmentor-rebuild-spec.md, node `2555:7083`) — 랜딩 1장만 구현.
  * 신청/결제/멘토선택 등 하위 플로우는 이번 범위 제외 — 관련 CTA는 앵커 또는 기존 라우트로
  * 임시 연결한다(자세한 내용은 각 CTA 주석 참고).
  *
- * 헤더/푸터는 SiteLayout이 렌더한다(§3-15 정본) — 이 페이지는 개별 import하지 않는다.
+ * 헤더/푸터는 SiteLayout이 렌더한다 — 이 페이지는 개별 import하지 않는다.
  */
 
 // 콘텐츠 컨테이너 — dev 랜딩 정본 토큰 max-w-content(72.75rem) 그대로 사용(다른 페이지와 폭 통일).
@@ -48,14 +51,17 @@ function normalizeMentorRow(row) {
 
 const VALUE_CARDS = [
   {
+    icon: iconValueCheck,
     title: '핵심 문제 1가지',
     desc: '여러 고민 중 지금 가장 발목 잡는 문제를 정확히 짚어드립니다.'
   },
   {
+    icon: iconValuePlan,
     title: '실행 계획 3가지',
     desc: '오늘부터 바로 할 수 있는 구체적인 행동으로 정리해드립니다.'
   },
   {
+    icon: iconValueCard,
     title: '액션카드 + 재점검',
     desc: '정리된 카드를 받고, 1주 뒤 실천 여부를 다시 확인합니다.'
   }
@@ -68,29 +74,28 @@ const STEP_CARDS = [
   { caption: '4. 1주 후 실천 재점검', image: stepReview, alt: '노트에 실천 계획을 적는 모습' }
 ];
 
-// ⚠️ 4장 모두 부제가 동일 — 시안 원본 카피 미완성(§5.1.7). 코드로 임의 보강하지 않고 그대로 반영.
 const AUDIENCE_CARDS = [
   {
     title: '진로가 고민인 학생',
-    desc: '전공 학과 방향을 함께 정리',
+    desc: '희망 학과를 못 정했거나 여러 개를 두고 고민하는 경우',
     image: audienceCareer,
     alt: '진로를 고민하며 책상에 앉아있는 학생 일러스트'
   },
   {
-    title: '입시가 막막한 학생',
-    desc: '전공 학과 방향을 함께 정리',
+    title: '멘탈이 부족한 학생',
+    desc: '노력해도 결과가 안 나와 의욕이 떨어진 경우',
     image: audienceEntranceExam,
     alt: '입시 고민에 펜을 든 채 생각하는 학생 일러스트'
   },
   {
     title: '공부법이 고민인 학생',
-    desc: '전공 학과 방향을 함께 정리',
+    desc: '시간은 쓰는데 성적이 정체된 경우',
     image: audienceStudyMethod,
     alt: '마인드맵과 메모로 공부법을 고민하는 학생 일러스트'
   },
   {
     title: '동기가 필요한 학생',
-    desc: '전공 학과 방향을 함께 정리',
+    desc: '같은 시기를 지나온 사람의 이야기가 필요한 경우',
     image: audienceMotivation,
     alt: '책을 읽으며 동기를 다지는 학생 일러스트'
   }
@@ -113,18 +118,6 @@ const REVIEW_CARDS = [
     content: '공부 시간이 아니라 방법이 문제였다는 걸 알게 됐어요'
   }
 ];
-
-function ValueCardIcon({ index }) {
-  // S2 아이콘 3종 자리 — 원 시안은 SVG 3종(별도 에셋)이나 미확보 상태라 러프 도형으로 대체.
-  return (
-    <div
-      aria-hidden="true"
-      className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#013262] text-[1.1rem] font-semibold text-[#013262]"
-    >
-      {index + 1}
-    </div>
-  );
-}
 
 export default function Callmentor() {
   const [mentors, setMentors] = useState([]);
@@ -197,38 +190,38 @@ export default function Callmentor() {
             </div>
           </div>
 
-          {/* 히어로 비주얼 — 손+아이폰 합성. 시안 원본 손 사진 위에 통화 화면 스크린샷을 합성한 에셋. */}
+          {/* 히어로 비주얼 — 손+아이폰 합성(시안 Group 4, node 2555:7136 확정 렌더). 소스 비율 754:919 그대로 유지(object-cover 크롭 방지). */}
           <img
             src={heroCallMockup}
             alt="콜멘토 전화 상담 통화 화면을 보여주는 손에 든 아이폰"
-            className="h-[22rem] w-full max-w-[26rem] shrink-0 rounded-[2rem] object-cover lg:h-[28.6875rem]"
+            className="w-full max-w-[26rem] shrink-0 aspect-[754/919] rounded-[2rem] object-cover"
           />
         </div>
       </section>
 
       {/* 섹션 2 — 상담을 통해 */}
-      <section aria-label="상담을 통해 얻는 것" className="bg-[#F4F4F6] py-[7.5rem]">
+      <section aria-label="상담을 통해 얻는 것" className="bg-white py-[7.5rem]">
         <div className={`${CONTAINER} flex flex-col gap-[3.75rem]`}>
           <CmSectionHeading
             weight="semibold"
             heading={
               <>
                 <span className="block text-[#0F172A]">상담을 통해</span>
-                <span className="block text-[#013262]">문제를 확인할 수 있어요</span>
+                <span className="block text-[#AF9364]">문제를 확인할 수 있어요</span>
               </>
             }
           />
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-[6.25rem]">
-            {VALUE_CARDS.map((card, index) => (
+            {VALUE_CARDS.map((card) => (
               <div
                 key={card.title}
-                className="flex flex-col items-center gap-8 rounded-[2.5rem] bg-white p-10 text-center"
+                className="flex flex-col items-center gap-8 rounded-[2.5rem] border border-[#D7D7D7] bg-white/10 p-10 text-center"
               >
-                <ValueCardIcon index={index} />
-                <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#0F172A]">
+                <img src={card.icon} alt="" aria-hidden="true" className="h-10 w-10" />
+                <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#AF9364]">
                   {card.title}
                 </h3>
-                <p className="text-[1.25rem] font-medium leading-[1.4] text-[#525252]">
+                <p className="text-[1.25rem] font-medium leading-[1.4] text-[#AF9364]">
                   {card.desc}
                 </p>
               </div>
@@ -246,8 +239,9 @@ export default function Callmentor() {
         <div className={`${CONTAINER} flex flex-col gap-[3.75rem]`}>
           <CmSectionHeading
             heading="무엇을 물어야 할지 몰라도 괜찮아요"
+            headingColor="#525252"
             sub="위닝의 4단계의 꼼꼼한 상담 진행 순서"
-            subColor="#013262"
+            subColor="#525252"
           />
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEP_CARDS.map((step) => (
@@ -343,14 +337,14 @@ export default function Callmentor() {
       </section>
 
       {/* 섹션 7 — 하단 CTA */}
-      <section aria-label="신청 유도" className="bg-[#F4F4F6] py-[7.5rem]">
+      <section aria-label="신청 유도" className="bg-black py-[7.5rem]">
         <div className={`${CONTAINER} flex flex-col items-center gap-[3.75rem] text-center`}>
-          <h2 className="text-[2rem] font-semibold leading-[1.4] text-[#0F172A]">
+          <h2 className="text-[2rem] font-semibold leading-[1.4] text-white">
             아직도 고민이신가요?
           </h2>
           {/* 신청/결제 플로우는 이번 범위 제외 — 확정 전까지 기존 요금 안내(/pricing)로 임시 연결.
-              최종 목적지는 §5.1.8 CTA 목적지 표 참고([추후 확정]). */}
-          <CmButton variant="primary" to="/pricing" className="font-semibold">
+              최종 목적지는 추후 확정. */}
+          <CmButton variant="white" to="/pricing" className="font-semibold">
             콜멘토 서비스 신청하기 →
           </CmButton>
         </div>
