@@ -11,6 +11,7 @@ import stepReview from '../../assets/callmentor/step-review.jpg';
 import audienceCareer from '../../assets/callmentor/audience-career.png';
 import audienceEntranceExam from '../../assets/callmentor/audience-entrance-exam.png';
 import audienceStudyMethod from '../../assets/callmentor/audience-study-method.jpg';
+import audienceMotivation from '../../assets/callmentor/audience-motivation.png';
 
 /**
  * 콜멘토 랜딩 (docs/callmentor-spec.md §5.1, node `2063:7718`) — 랜딩 1장만 구현.
@@ -68,7 +69,6 @@ const STEP_CARDS = [
 ];
 
 // ⚠️ 4장 모두 부제가 동일 — 시안 원본 카피 미완성(§5.1.7). 코드로 임의 보강하지 않고 그대로 반영.
-// image: 4번째(동기가 필요한 학생) 카드는 시안 원본 소스(책 읽는 포즈)를 에셋으로 확보하지 못해 null — 그라디언트 placeholder 유지.
 const AUDIENCE_CARDS = [
   {
     title: '진로가 고민인 학생',
@@ -88,7 +88,12 @@ const AUDIENCE_CARDS = [
     image: audienceStudyMethod,
     alt: '마인드맵과 메모로 공부법을 고민하는 학생 일러스트'
   },
-  { title: '동기가 필요한 학생', desc: '전공 학과 방향을 함께 정리', image: null }
+  {
+    title: '동기가 필요한 학생',
+    desc: '전공 학과 방향을 함께 정리',
+    image: audienceMotivation,
+    alt: '책을 읽으며 동기를 다지는 학생 일러스트'
+  }
 ];
 
 const REVIEW_CARDS = [
@@ -288,19 +293,11 @@ export default function Callmentor() {
                 key={card.title}
                 className="overflow-hidden rounded-[1.25rem] bg-white"
               >
-                {card.image ? (
-                  <img
-                    src={card.image}
-                    alt={card.alt}
-                    className="h-[15.4375rem] w-full object-cover"
-                  />
-                ) : (
-                  // ⚠️ 시안 원본 소스(책 읽는 포즈) 에셋 미확보 — 그라디언트 placeholder 유지.
-                  <div
-                    aria-hidden="true"
-                    className="h-[15.4375rem] w-full bg-gradient-to-br from-[#DCE3EA] to-[#B9C2CC]"
-                  />
-                )}
+                <img
+                  src={card.image}
+                  alt={card.alt}
+                  className="h-[15.4375rem] w-full object-cover"
+                />
                 <div className="px-[2.125rem] py-6">
                   <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#525252]">
                     {card.title}
