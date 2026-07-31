@@ -3,7 +3,9 @@ import { supabase } from '../lib/supabase';
 import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v2';
+// v3: 콜멘토 링크가 /page/services-content → /services/callmentor 로 바뀌어(callmentor-spec.md)
+// 구 캐시에 남은 사용자에게도 즉시 새 경로가 보이도록 키 버전을 올린다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v3';
 
 export function cleanText(value) {
   return String(value || '').trim();
@@ -29,6 +31,38 @@ function resolveMenuLink(slug) {
   if (value.startsWith('/')) return value;
 
   return `/page/${value}`;
+}
+
+// 승격된 서비스 페이지 슬러그 → 신규 전용 라우트 매핑 (premium-apply 전례와 동일 취지의
+// 일반화 — 이 worktree엔 그 커밋이 없어 매핑 자체를 여기 새로 둔다).
+// DB(page_contents)가 구 슬러그(/page/services-goal 등)를 계속 갖고 있어도 헤더 메가메뉴・
+// 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
+// /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
+// 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
+const PROMOTED_SLUG_ROUTES = {
+  'services-goal': '/services/goal',
+  'services-ai-performance': '/services/performance',
+  'services-self-assessment': '/services/self-assessment',
+  'services-in-depth-research': '/services/research'
+};
+
+function applyPromotedSlugRoutes(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+
+  function remap(to) {
+    const match = cleanText(to).match(/^\/page\/([^/]+)$/);
+    const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
+    return promoted || to;
+  }
+
+  return source.map((group) => ({
+    ...group,
+    to: remap(group.to),
+    items: (Array.isArray(group.items) ? group.items : []).map((item) => ({
+      ...item,
+      to: remap(item.to)
+    }))
+  }));
 }
 
 function ensureFreeDiagnosisInService(groups) {
@@ -64,7 +98,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return ensureFreeDiagnosisInService(parsed);
+    return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(parsed));
   } catch {
     return null;
   }
@@ -96,9 +130,17 @@ function buildNavGroups(rows) {
     if (!slug) return;
 
     const isCompanyIntro = slug === 'company-intro';
-    // 라벨은 DB menu_label을 그대로 쓰되(강제 치환 제거), CompanyNews 페이지가 소비하는
-    // slug 'company-intro' → '/company-news' 링크 매핑만 유지한다.
-    const itemLink = isCompanyIntro ? '/company-news' : resolveMenuLink(slug);
+    // 콜멘토 랜딩 신설(docs/callmentor-spec.md) — DB page_contents의 구 슬러그
+    // 'services-content'가 아직 남아 있어도 신규 라우트로 보낸다(DB 레코드 정리는 별도, 이번
+    // 범위 제외). App.jsx의 `/page/services-content` → `/services/callmentor` 리다이렉트와 세트.
+    const isCallMentor = slug === 'services-content';
+    // 라벨은 DB menu_label을 그대로 쓰되(강제 치환 제거), CompanyNews/콜멘토 페이지가 소비하는
+    // slug → 전용 라우트 매핑만 유지한다.
+    const itemLink = isCompanyIntro
+      ? '/company-news'
+      : isCallMentor
+        ? '/services/callmentor'
+        : resolveMenuLink(slug);
     const savedGroupOrder = Number(item.menu_group_order);
     const groupOrder =
       Number.isFinite(savedGroupOrder) && savedGroupOrder > 0
@@ -143,7 +185,7 @@ function buildNavGroups(rows) {
       };
     });
 
-  return ensureFreeDiagnosisInService(groups);
+  return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(groups));
 }
 
 // 헤더 메가메뉴·푸터가 공유하는 내비게이션 그룹 훅.
@@ -152,7 +194,9 @@ function buildNavGroups(rows) {
 export function useNavGroups() {
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [navGroups, setNavGroups] = useState(() => {
-    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
+    return applyPromotedSlugRoutes(
+      ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+    );
   });
 
   useEffect(() => {
