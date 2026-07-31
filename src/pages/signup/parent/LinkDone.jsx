@@ -57,8 +57,8 @@ export default function LinkDone() {
         <div className="flex flex-row justify-center gap-6 sm:gap-[4.125rem]">
           {MOCK_METRICS.map((metric) => (
             <div key={metric.label} className="flex flex-col items-center gap-1">
-              <p className="text-2xl font-medium text-ink">{metric.value}</p>
-              <p className="text-base text-line">{metric.label}</p>
+              <p className="whitespace-nowrap text-2xl font-medium text-ink">{metric.value}</p>
+              <p className="whitespace-nowrap text-base text-line">{metric.label}</p>
             </div>
           ))}
         </div>

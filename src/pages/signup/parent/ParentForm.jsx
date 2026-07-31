@@ -210,7 +210,7 @@ export default function ParentForm() {
 
   return (
     <AuthLayout>
-      <AuthTitle line1="회원가입 정보를 입력해주세요" />
+      <AuthTitle line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해주세요</span>} />
 
       <div className="flex w-full flex-col gap-5">
         <h2 className="w-full text-lg font-semibold text-ink">학부모 기본 정보 (필수)</h2>

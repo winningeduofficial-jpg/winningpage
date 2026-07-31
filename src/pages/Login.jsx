@@ -151,12 +151,17 @@ export default function Login() {
           status={message ? 'error' : 'default'}
         />
 
-        <PrimaryButton type="submit" disabled={!canSubmit || loading} loading={loading}>
+        <PrimaryButton
+          type="submit"
+          disabled={!canSubmit || loading}
+          loading={loading}
+          className="md:mt-8"
+        >
           {loading ? '로그인 처리 중...' : '로그인'}
         </PrimaryButton>
       </form>
 
-      <p className="text-center text-base text-ink">
+      <p className="whitespace-nowrap text-center text-base text-ink">
         아직 위닝에듀 회원이 아니신가요?{' '}
         <TextLinkButton as="link" to="/signup" tone="primary" size="md" weight="semibold">
           회원가입

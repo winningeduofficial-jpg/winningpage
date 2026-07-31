@@ -62,8 +62,8 @@ export default function StudentBirth() {
   return (
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1="학생의 생년월일을 입력해 주세요" />
-        <p className="break-keep text-base font-medium text-ink sm:text-xl">
+        <AuthTitle line1={<span className="sm:whitespace-nowrap">학생의 생년월일을 입력해 주세요</span>} />
+        <p className="break-keep text-base font-medium text-ink sm:text-xl sm:whitespace-nowrap">
           만 14세 미만은 보호자(법정대리인) 동의가 필요해요
         </p>
       </div>

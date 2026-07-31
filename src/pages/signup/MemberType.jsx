@@ -36,7 +36,7 @@ export default function MemberType() {
       <AuthTitle
         line1="성공적인 진학의 시작,"
         line1Color="primary"
-        line2="위닝에듀에 오신 것을 환영해요"
+        line2={<span className="sm:whitespace-nowrap">위닝에듀에 오신 것을 환영해요</span>}
         line2Color="ink"
       />
 

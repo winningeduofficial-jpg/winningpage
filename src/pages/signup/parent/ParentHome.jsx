@@ -37,12 +37,12 @@ export default function ParentHome() {
           line2={formData.name ? `${formData.name} 학부모님` : '학부모님'}
           line2Color="ink"
         />
-        <p className="break-keep text-base font-medium text-ink sm:text-xl">
+        <p className="break-keep text-base font-medium text-ink sm:text-xl sm:whitespace-nowrap">
           자녀 앱 설정 &gt; 연결코드에서 6자리 숫자를 확인할 수 있어요
         </p>
       </div>
 
-      <div className="flex w-full items-center justify-center rounded-2xl border border-line px-6 py-10 text-base text-ink-sub">
+      <div className="flex w-full items-center justify-center rounded-2xl border border-line px-6 py-4 text-base text-ink-sub">
         아직 연결된 자녀가 없어요
       </div>
 

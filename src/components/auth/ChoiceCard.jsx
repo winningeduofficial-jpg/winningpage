@@ -34,7 +34,7 @@ export default function ChoiceCard({
       <div>
         <p className="text-xl font-medium text-ink-title">{title}</p>
 
-        {description && <p className="mt-2 text-base text-ink">{description}</p>}
+        {description && <p className="mt-2 break-keep text-base text-ink">{description}</p>}
       </div>
     </button>
   );

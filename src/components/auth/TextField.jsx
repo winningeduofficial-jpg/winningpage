@@ -1,7 +1,8 @@
 // 텍스트 입력 필드 — docs/login-signup-renewal-spec.md §3.0/§3.3(C-1/D-2/E-1)/§5.1.
 // 라벨(0.875rem/14px) + 입력(높이 3.25rem 기본/3.75rem variant, radius 0.75rem 고정 —
-// 높이만 52/60px 두 계열이고 radius 12px는 시안 전 화면 공통) + 우측 액션 링크 슬롯
-// (예: "인증번호 보내기") + 하단 헬퍼/에러/성공 3상태 메시지.
+// 높이만 52/60px 두 계열이고 radius 12px는 시안 전 화면 공통) + 인풋 아래 우측 정렬 액션
+// 링크 슬롯(예: "인증번호 보내기" — 인풋 풀폭 유지를 위해 입력 행이 아닌 하단 행에 배치,
+// §시안 이탈 조정 T2) + 하단 헬퍼/에러/성공 3상태 메시지.
 // active(border-primary)는 status(메시지 색)와 별개 개념이다 — C-1 에러 상태에서도
 // 필드 테두리는 #d7d7d7 그대로 유지되는 반면, E-3(연결코드 인식) 같은 화면은 메시지 상태와
 // 무관하게 테두리만 primary로 바뀐다. 그래서 border 강조는 별도 active prop으로 제어한다.
@@ -68,40 +69,43 @@ export default function TextField({
         </label>
       )}
 
-      <div className={`flex items-center gap-2 ${shake ? 'auth-field-shake' : ''}`}>
-        <input
-          id={fieldId}
-          name={name}
-          type={type}
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          disabled={disabled}
-          readOnly={readOnly}
-          required={required}
-          aria-describedby={helperText ? `${fieldId}-helper` : undefined}
-          aria-invalid={status === 'error'}
-          className={`w-full min-w-0 flex-1 rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''}`}
-        />
+      <input
+        id={fieldId}
+        name={name}
+        type={type}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        disabled={disabled}
+        readOnly={readOnly}
+        required={required}
+        aria-describedby={helperText ? `${fieldId}-helper` : undefined}
+        aria-invalid={status === 'error'}
+        className={`w-full rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''} ${shake ? 'auth-field-shake' : ''}`}
+      />
 
-        {actionLabel && (
+      {actionLabel && (
+        // 인풋 풀폭 유지를 위해 액션 링크를 입력 행이 아닌 하단 우측 정렬 행으로 배치
+        // (시안 §3.3 C-1/D-2/E-1 공통: 인풋은 항상 풀폭, 액션은 인풋 아래 우측).
+        // 터치 히트영역 확장은 TextLinkButton과 동일한 px-1 py-2 -mx-1 -my-2 관례를 따른다.
+        <div className="mt-2 flex justify-end">
           <button
             type="button"
             onClick={onAction}
             disabled={actionDisabled}
-            className="flex min-h-[2.75rem] shrink-0 items-center whitespace-nowrap text-xs font-normal text-ink underline underline-offset-2 disabled:cursor-not-allowed disabled:text-line"
+            className="inline-flex items-center px-1 py-2 -mx-1 -my-2 whitespace-nowrap text-xs font-normal text-ink underline underline-offset-2 disabled:cursor-not-allowed disabled:text-line"
           >
             {actionLabel}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {helperText && (
         <p
           id={`${fieldId}-helper`}
           role="status"
-          className={`auth-message-enter mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
+          className={`auth-message-enter mt-2 break-keep text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
         >
           {helperText}
         </p>

@@ -6,6 +6,10 @@
 // w-full 위 상한(max-w)일 뿐이라 유동폭 자체는 원래도 성립했고, 여백만 모바일 우선으로 램프.
 export default function TermsPageLayout({
   title,
+  pageTitle, // 페이지 대제목(예: "이용약관"). 지정 시 32px H1은 이 값으로, title은 그 아래
+  // 14px SemiBold 문서 제목 서브헤딩으로 배치된다(시안 §3.3 F: 대제목 + 문서 제목 2단 구성
+  // 화면 전용 — 예: StudentService). 지정하지 않으면(기본) title이 그대로 32px H1로 렌더되는
+  // 기존 동작을 유지해 이 prop을 쓰지 않는 나머지 약관 페이지는 영향받지 않는다.
   effectiveDate, // 부칙 시행일(있는 문서만). 없으면 미노출 — 없다고 임의로 만들지 않는다.
   children,
   className = ''
@@ -13,13 +17,15 @@ export default function TermsPageLayout({
   return (
     <main className="min-h-screen w-full bg-white pt-16">
       <div
-        className={`auth-step-enter mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] ${className}`}
+        className={`auth-step-enter mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] lg:px-0 ${className}`}
       >
-        <header className="flex flex-col gap-2">
+        <header className={`flex flex-col ${pageTitle ? 'gap-8 md:gap-10' : 'gap-2'}`}>
           {/* 타이틀 32px SemiBold — §3.3 F 공통 템플릿. tracking -0.64px(-0.04rem)은 AuthTitle과 동일 값. */}
           <h1 className="break-keep text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] text-ink-title sm:text-[2rem]">
-            {title}
+            {pageTitle || title}
           </h1>
+          {/* pageTitle이 있을 때만 문서 제목을 14px SemiBold 서브헤딩으로 추가 렌더(§3.3 F). */}
+          {pageTitle && <p className="text-sm font-semibold text-ink-title">{title}</p>}
           {effectiveDate && <p className="text-sm text-ink-sub">시행일 {effectiveDate}</p>}
         </header>
 

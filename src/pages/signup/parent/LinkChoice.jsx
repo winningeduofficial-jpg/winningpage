@@ -51,7 +51,7 @@ export default function LinkChoice({ mode = 'initial' }) {
         <AuthTitle
           line1="회원이 되신 것을 환영해요!"
           line1Color="ink"
-          line2="자녀 연결하면 학습 현황을 볼 수 있어요"
+          line2={<span className="sm:whitespace-nowrap">자녀 연결하면 학습 현황을 볼 수 있어요</span>}
           line2Color="primary"
         />
       )}

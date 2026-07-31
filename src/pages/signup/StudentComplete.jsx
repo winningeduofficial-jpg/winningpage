@@ -97,15 +97,22 @@ export default function StudentComplete() {
           VITE_CHILD_LINK_ENABLED 플래그로 감싼다. */}
       {CHILD_LINK_ENABLED && (
         <div className="flex w-full flex-col gap-4">
-          <InfoCard variant="card">
+          <InfoCard variant="card" className="text-center">
             코드를 학부모님께 알려주면 학부모 대시보드에 내 학습 현황이 자동으로 연결돼요
           </InfoCard>
 
-          <div className="flex w-full items-center justify-center rounded-[0.875rem] border border-line py-4 text-xl font-medium text-accent">
+          <div className="flex w-full items-center justify-center rounded-[0.875rem] py-4 text-xl font-medium text-accent">
             {linkCode}
           </div>
 
-          <TextLinkButton as="button" tone="accent" size="xs" underline onClick={handleCopyCode}>
+          <TextLinkButton
+            as="button"
+            tone="accent"
+            size="xs"
+            underline
+            onClick={handleCopyCode}
+            className="self-center"
+          >
             {copied ? '복사되었습니다' : '코드 복사하기'}
           </TextLinkButton>
         </div>

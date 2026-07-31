@@ -521,7 +521,10 @@ export default function StudentForm() {
     <AuthLayout>
       {/* TODO: C-1 자체 타이틀 문구는 시안 데이터에 없음(§3.3 C-1) — 동일 톤인 E-1 문구로
           임시 대체. 디자이너 확인 후 확정 문구로 교체 필요. */}
-      <AuthTitle line1="회원가입 정보를 입력해주세요" line1Color="ink" />
+      <AuthTitle
+        line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해주세요</span>}
+        line1Color="ink"
+      />
 
       {formError && (
         <p role="alert" className="w-full text-sm text-error">

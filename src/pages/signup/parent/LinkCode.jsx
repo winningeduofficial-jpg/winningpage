@@ -90,7 +90,7 @@ export default function LinkCode() {
   return (
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1="자녀의 연결코드를 입력해 주세요" />
+        <AuthTitle line1={<span className="sm:whitespace-nowrap">자녀의 연결코드를 입력해 주세요</span>} />
         <p className="break-keep text-base font-medium text-ink sm:text-xl">
           자녀 마의페이지 &gt; 연결코드에서
           <br />

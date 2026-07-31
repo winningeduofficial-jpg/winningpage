@@ -4,7 +4,7 @@
 // 별도 추출 원문이 terms-fulltext.md에 없어(§6.2: 별도 확보가 명시된 노드는 학부모 버전
 // 2393:9385/2393:9483뿐) 학부모 버전 전문을 그대로 재사용하되, 학부모 전제를 설명하는 도입부
 // 문장(만 19세 이상 성인 전제 등)만 학생 페이지에 부적합하므로 제외했다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, { TermsArticleBody, TermsPendingNotice } from '../../components/auth/TermsPageLayout';
 
 const BODY = `제1조 (목적)
 본 약관은 주식회사 위닝에듀(이하 "회사")가 운영하는 웹사이트 및 모바일 애플리케이션 등 온라인 플랫폼(이하 "서비스")을 통해 제공하는 온라인교육서비스, 교육콘텐츠 제작 및 제공 서비스, 위닝콜멘토서비스, 입시·학습 관리 서비스, 입시컨설팅 등의 이용과 관련하여 회사와 회원 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
@@ -222,7 +222,20 @@ const BODY = `제1조 (목적)
 
 export default function StudentService() {
   return (
-    <TermsPageLayout title="학생회원 위닝에듀 이용약관" effectiveDate="2026-08-01">
+    // 시안(2393-9255)은 페이지 대제목 "이용약관"(32px) 아래 문서 제목 "학생회원 위닝에듀
+    // 이용약관"(14px SemiBold)의 2단 구성이고, 시안에 없는 "시행일" 캡션 라인은 제거한다
+    // (본문 내 부칙 조항의 시행일 문구는 BODY 자체에 남아 있으므로 별개).
+    <TermsPageLayout pageTitle="이용약관" title="학생회원 위닝에듀 이용약관">
+      {/* TODO(§6.2 데이터 갭): 시안 노드 2393:9287에 학생회원 전용 도입부 2문단(회원 연령에
+          따라 본인 또는 법정대리인이 동의 주체가 된다는 안내)이 있으나 T1 추출 데이터
+          (docs/terms-fulltext.md·-2.md)에 해당 원문이 없어 임의로 작성하지 않는다("데이터에
+          없는 사항은 확인 필요로 표기" 원칙, TermsPendingNotice 관례). Figma 재추출 후 이
+          안내 대신 원문 2문단을 BODY 앞에 그대로 추가할 것. */}
+      <TermsPendingNotice>
+        학생회원 전용 도입부 원문 미확보(노드 2393:9287) — Figma 재추출 후 본문 상단에 원문
+        그대로 추가 필요.
+      </TermsPendingNotice>
+
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );

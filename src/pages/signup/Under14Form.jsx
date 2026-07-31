@@ -297,7 +297,7 @@ export default function Under14Form() {
       {/* TODO: C-1/D-2 두 화면 모두 스펙에 타이틀 원문이 명시돼 있지 않음(§3.3 C-1/D-2에
           타이틀 문구 인용 없음) — 동일 역할의 E-1(학부모 폼) 타이틀 "회원가입 정보를
           입력해주세요"를 임시로 재사용. 디자이너 확인 후 교체할 것. */}
-      <AuthTitle line1="회원가입 정보를 입력해주세요" />
+      <AuthTitle line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해주세요</span>} />
 
       <section className="flex w-full flex-col gap-3">
         <h2 className="text-xl font-medium text-ink">
