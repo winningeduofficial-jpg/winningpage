@@ -61,7 +61,7 @@ export default function TextField({
           required={required}
           aria-describedby={helperText ? `${fieldId}-helper` : undefined}
           aria-invalid={status === 'error'}
-          className={`w-full flex-1 rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''}`}
+          className={`w-full min-w-0 flex-1 rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''}`}
         />
 
         {actionLabel && (
@@ -69,7 +69,7 @@ export default function TextField({
             type="button"
             onClick={onAction}
             disabled={actionDisabled}
-            className="shrink-0 whitespace-nowrap text-xs font-normal text-ink underline underline-offset-2 disabled:cursor-not-allowed disabled:text-line"
+            className="flex min-h-[2.75rem] shrink-0 items-center whitespace-nowrap text-xs font-normal text-ink underline underline-offset-2 disabled:cursor-not-allowed disabled:text-line"
           >
             {actionLabel}
           </button>

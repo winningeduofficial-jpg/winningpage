@@ -23,7 +23,7 @@ export default function AgreementRow({
         role="checkbox"
         aria-checked={checked}
         onClick={onToggle}
-        className="flex flex-1 items-center gap-3 text-left"
+        className="-my-4 flex flex-1 items-center gap-3 py-4 text-left"
       >
         <span
           aria-hidden="true"
@@ -43,7 +43,7 @@ export default function AgreementRow({
       </button>
 
       {to && (
-        <Link to={to} aria-label={`${label} 상세 보기`} className="shrink-0 text-line">
+        <Link to={to} aria-label={`${label} 상세 보기`} className="shrink-0 -m-3 p-3 text-line">
           <ChevronRight size={20} />
         </Link>
       )}

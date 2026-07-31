@@ -48,9 +48,9 @@ export default function Under14Verify() {
   }
 
   return (
-    <AuthLayout maxWidth="66.5rem" spacingY="6.25rem" gap="2.5rem">
+    <AuthLayout width="wide">
       {/* 타이틀 1064px 폭(§3.3 D-1) — 표준 400px AuthLayout 폭으로는 2번째 줄이 줄바꿈되므로
-          이 화면만 maxWidth를 넓게 override하고, 하위 카드/버튼은 각자 폭을 좁혀 중앙 정렬한다. */}
+          이 화면만 width="wide"로 넓게 지정하고, 하위 카드/버튼은 각자 폭을 좁혀 중앙 정렬한다. */}
       <AuthTitle
         line1="만 14세미만 회원의 가입을 위해"
         line2="최초 1회 법정대리인의 본인인증 절차가 필요합니다."

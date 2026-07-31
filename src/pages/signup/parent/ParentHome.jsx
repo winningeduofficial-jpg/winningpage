@@ -37,7 +37,7 @@ export default function ParentHome() {
           line2={formData.name ? `${formData.name} 학부모님` : '학부모님'}
           line2Color="ink"
         />
-        <p className="text-xl font-medium text-ink">
+        <p className="break-keep text-base font-medium text-ink sm:text-xl">
           자녀 앱 설정 &gt; 연결코드에서 6자리 숫자를 확인할 수 있어요
         </p>
       </div>

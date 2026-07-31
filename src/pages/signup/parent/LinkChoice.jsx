@@ -56,7 +56,7 @@ export default function LinkChoice({ mode = 'initial' }) {
         />
       )}
 
-      <div className="flex flex-row gap-5">
+      <div className="flex w-full flex-col items-center gap-4 md:w-auto md:flex-row md:gap-5">
         <ChoiceCard
           size="md"
           icon={<UserCheck className="h-12 w-12 text-primary" strokeWidth={1.5} />}

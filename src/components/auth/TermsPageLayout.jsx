@@ -2,6 +2,8 @@
 // 헤더/푸터는 SiteLayout이 담당한다고 가정(AuthLayout과 동일 관례) — 이 컴포넌트는 본문만
 // 책임진다. AuthLayout(400px 중앙 정렬)과 달리 약관 페이지는 1100px(68.75rem) 좌측 정렬
 // 컬럼이므로(§3.0 "본문 1100px 좌측 정렬 컬럼(py 100, gap 40)") 별도 컴포넌트로 분리했다.
+// 반응형(adapt.md): 인라인 style은 브레이크포인트를 못 태우므로 클래스로 이전 — 1100px은
+// w-full 위 상한(max-w)일 뿐이라 유동폭 자체는 원래도 성립했고, 여백만 모바일 우선으로 램프.
 export default function TermsPageLayout({
   title,
   effectiveDate, // 부칙 시행일(있는 문서만). 없으면 미노출 — 없다고 임의로 만들지 않는다.
@@ -11,17 +13,11 @@ export default function TermsPageLayout({
   return (
     <main className="min-h-screen w-full bg-white pt-16">
       <div
-        className={`mx-auto flex w-full flex-col items-start px-6 ${className}`}
-        style={{
-          maxWidth: '68.75rem', // 1100px
-          paddingTop: '6.25rem', // py 100px
-          paddingBottom: '6.25rem',
-          rowGap: '2.5rem' // 섹션 gap 40px
-        }}
+        className={`mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] ${className}`}
       >
         <header className="flex flex-col gap-2">
           {/* 타이틀 32px SemiBold — §3.3 F 공통 템플릿. tracking -0.64px(-0.04rem)은 AuthTitle과 동일 값. */}
-          <h1 className="text-[2rem] font-semibold leading-[1.4] tracking-[-0.04rem] text-ink-title">
+          <h1 className="break-keep text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] text-ink-title sm:text-[2rem]">
             {title}
           </h1>
           {effectiveDate && <p className="text-sm text-ink-sub">시행일 {effectiveDate}</p>}

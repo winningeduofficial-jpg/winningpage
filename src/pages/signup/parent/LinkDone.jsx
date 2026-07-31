@@ -46,15 +46,15 @@ export default function LinkDone() {
         line2Color="ink"
       />
 
-      <div className="w-full rounded-[1.25rem] border border-line px-8 py-8 text-center">
+      <div className="w-full rounded-[1.25rem] border border-line px-5 py-6 text-center sm:px-8 sm:py-8">
         <p className="text-xl font-medium text-ink-title">{child?.name}</p>
         <p className="mt-2 text-base text-ink-sub">
           {[child?.grade, child?.school].filter(Boolean).join(' / ')}
         </p>
 
-        <div className="mx-auto my-6 w-[20rem] border-t border-line" />
+        <div className="mx-auto my-6 w-full max-w-[20rem] border-t border-line" />
 
-        <div className="flex flex-row justify-center gap-[4.125rem]">
+        <div className="flex flex-row justify-center gap-6 sm:gap-[4.125rem]">
           {MOCK_METRICS.map((metric) => (
             <div key={metric.label} className="flex flex-col items-center gap-1">
               <p className="text-2xl font-medium text-ink">{metric.value}</p>

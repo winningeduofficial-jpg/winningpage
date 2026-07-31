@@ -77,7 +77,9 @@ export default function StudentComplete() {
         }
       />
 
-      <p className="text-center text-xl text-ink">{studentName} 학생, 위닝에듀에 온 걸 환영해요</p>
+      <p className="break-keep text-center text-base text-ink sm:text-xl">
+        {studentName} 학생, 위닝에듀에 온 걸 환영해요
+      </p>
 
       {/* TODO: 실제 연동 코드는 백엔드 발급 API 응답값으로 교체 — 현재는 6자리 mock(위
           generateMockLinkCode). 백엔드 미연동 상태로는 배포 경로에 노출하지 않도록

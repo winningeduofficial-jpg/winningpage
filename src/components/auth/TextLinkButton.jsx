@@ -38,7 +38,9 @@ export default function TextLinkButton({
   underline = false,
   className = ''
 }) {
-  const classes = `inline-flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-50 ${
+  // 반응형(adapt.md 터치 44px): 인라인 문장 속 텍스트 링크도 히트영역을 확장한다. px-1 py-2
+  // -mx-1 -my-2로 패딩만큼 음수 마진을 상쇄해 시각적 레이아웃(줄 흐름·간격)은 그대로 유지한다.
+  const classes = `inline-flex items-center justify-center px-1 py-2 -mx-1 -my-2 transition disabled:cursor-not-allowed disabled:opacity-50 ${
     TONE_CLASSES[tone] || TONE_CLASSES.primary
   } ${SIZE_CLASSES[size] || SIZE_CLASSES.md} ${WEIGHT_CLASSES[weight] || WEIGHT_CLASSES.semibold} ${
     underline ? 'underline underline-offset-2' : ''

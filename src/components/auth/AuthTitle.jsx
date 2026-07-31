@@ -15,7 +15,7 @@ export default function AuthTitle({
 
   return (
     <h1
-      className={`text-[2rem] font-semibold leading-[1.4] tracking-[-0.04rem] ${
+      className={`break-keep text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[2rem] ${
         align === 'center' ? 'text-center' : 'text-left'
       } ${className}`}
     >

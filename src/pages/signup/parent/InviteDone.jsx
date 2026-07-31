@@ -33,7 +33,7 @@ export default function InviteDone() {
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
         <AuthTitle line1="초대 링크를 문자로 보내드렸어요" />
-        <p className="text-xl font-medium text-ink">
+        <p className="break-keep text-base font-medium text-ink sm:text-xl">
           {childName ? `${childName}님에게 초대 문자를 전송했습니다.` : '초대 문자를 전송했습니다.'}
         </p>
       </div>

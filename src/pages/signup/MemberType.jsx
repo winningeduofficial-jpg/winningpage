@@ -40,7 +40,7 @@ export default function MemberType() {
         line2Color="ink"
       />
 
-      <div className="flex flex-row gap-3">
+      <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row">
         <ChoiceCard
           size="lg"
           icon={<GraduationCap className="h-[3.5rem] w-[3.5rem] text-primary" strokeWidth={1.5} />}

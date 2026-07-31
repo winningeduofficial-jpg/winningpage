@@ -75,7 +75,11 @@ const STUDENT_AGREEMENT_ITEMS = [
 // 이 파일 안에 비공개로 둔다(AS-IS Signup.jsx의 파일 내부 CheckBox 관례와 동일).
 function InlineCheckbox({ checked, onToggle, children }) {
   return (
-    <button type="button" onClick={onToggle} className="flex items-center gap-2 text-left">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex min-h-[2.75rem] items-center gap-2 text-left"
+    >
       <span
         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
           checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'

@@ -91,7 +91,7 @@ export default function LinkCode() {
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
         <AuthTitle line1="자녀의 연결코드를 입력해 주세요" />
-        <p className="text-xl font-medium text-ink">
+        <p className="break-keep text-base font-medium text-ink sm:text-xl">
           자녀 마의페이지 &gt; 연결코드에서
           <br />
           6자리 숫자를 확인할 수 있어요
