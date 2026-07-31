@@ -3,6 +3,14 @@ import MentorSection from '../../components/landing/MentorSection';
 import CmButton from '../../components/callmentor/CmButton';
 import CmSectionHeading from '../../components/callmentor/CmSectionHeading';
 import { supabase } from '../../lib/supabase';
+import heroCallMockup from '../../assets/callmentor/hero-call-mockup.jpg';
+import stepDiagnosis from '../../assets/callmentor/step-diagnosis.jpg';
+import stepMentorMatch from '../../assets/callmentor/step-mentor-match.jpg';
+import stepCall from '../../assets/callmentor/step-call.jpg';
+import stepReview from '../../assets/callmentor/step-review.jpg';
+import audienceCareer from '../../assets/callmentor/audience-career.png';
+import audienceEntranceExam from '../../assets/callmentor/audience-entrance-exam.png';
+import audienceStudyMethod from '../../assets/callmentor/audience-study-method.jpg';
 
 /**
  * 콜멘토 랜딩 (docs/callmentor-spec.md §5.1, node `2063:7718`) — 랜딩 1장만 구현.
@@ -53,18 +61,34 @@ const VALUE_CARDS = [
 ];
 
 const STEP_CARDS = [
-  '1. 무료 진단',
-  '2. 내 상황에 맞는 멘토 매칭',
-  '3. 30분 전화 상담',
-  '4. 1주 후 실천 재점검'
+  { caption: '1. 무료 진단', image: stepDiagnosis, alt: '노트북으로 무료 진단을 진행하는 모습' },
+  { caption: '2. 내 상황에 맞는 멘토 매칭', image: stepMentorMatch, alt: '책상에서 노트북을 보며 매칭 결과를 확인하는 학생' },
+  { caption: '3. 30분 전화 상담', image: stepCall, alt: '전화로 멘토와 상담하는 학생' },
+  { caption: '4. 1주 후 실천 재점검', image: stepReview, alt: '노트에 실천 계획을 적는 모습' }
 ];
 
 // ⚠️ 4장 모두 부제가 동일 — 시안 원본 카피 미완성(§5.1.7). 코드로 임의 보강하지 않고 그대로 반영.
+// image: 4번째(동기가 필요한 학생) 카드는 시안 원본 소스(책 읽는 포즈)를 에셋으로 확보하지 못해 null — 그라디언트 placeholder 유지.
 const AUDIENCE_CARDS = [
-  { title: '진로가 고민인 학생', desc: '전공 학과 방향을 함께 정리' },
-  { title: '입시가 막막한 학생', desc: '전공 학과 방향을 함께 정리' },
-  { title: '공부법이 고민인 학생', desc: '전공 학과 방향을 함께 정리' },
-  { title: '동기가 필요한 학생', desc: '전공 학과 방향을 함께 정리' }
+  {
+    title: '진로가 고민인 학생',
+    desc: '전공 학과 방향을 함께 정리',
+    image: audienceCareer,
+    alt: '진로를 고민하며 책상에 앉아있는 학생 일러스트'
+  },
+  {
+    title: '입시가 막막한 학생',
+    desc: '전공 학과 방향을 함께 정리',
+    image: audienceEntranceExam,
+    alt: '입시 고민에 펜을 든 채 생각하는 학생 일러스트'
+  },
+  {
+    title: '공부법이 고민인 학생',
+    desc: '전공 학과 방향을 함께 정리',
+    image: audienceStudyMethod,
+    alt: '마인드맵과 메모로 공부법을 고민하는 학생 일러스트'
+  },
+  { title: '동기가 필요한 학생', desc: '전공 학과 방향을 함께 정리', image: null }
 ];
 
 const REVIEW_CARDS = [
@@ -168,18 +192,12 @@ export default function Callmentor() {
             </div>
           </div>
 
-          {/* 히어로 비주얼 — 원 시안은 손+아이폰 합성 사진(754×918) 1장. 실 에셋 미확보라
-              플레이스홀더 카드로 대체(§5.1.3 섹션1 "권장 구현" 참고 — 추후 PNG/WebP 1장 교체). */}
-          <div
-            aria-hidden="true"
-            className="flex h-[22rem] w-full max-w-[26rem] shrink-0 items-center justify-center rounded-[2rem] bg-gradient-to-b from-[#AF9364] to-[#0F172A] text-center text-white lg:h-[28.6875rem]"
-          >
-            <span className="px-8 text-[1.25rem] font-medium leading-[1.5] opacity-90">
-              콜멘토 통화 화면
-              <br />
-              (이미지 자리)
-            </span>
-          </div>
+          {/* 히어로 비주얼 — 손+아이폰 합성. 시안 원본 손 사진 위에 통화 화면 스크린샷을 합성한 에셋. */}
+          <img
+            src={heroCallMockup}
+            alt="콜멘토 전화 상담 통화 화면을 보여주는 손에 든 아이폰"
+            className="h-[22rem] w-full max-w-[26rem] shrink-0 rounded-[2rem] object-cover lg:h-[28.6875rem]"
+          />
         </div>
       </section>
 
@@ -227,11 +245,16 @@ export default function Callmentor() {
             subColor="#013262"
           />
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {STEP_CARDS.map((caption) => (
+            {STEP_CARDS.map((step) => (
               <div
-                key={caption}
-                className="relative flex h-[15.4375rem] items-end overflow-hidden rounded-[1.875rem] bg-gradient-to-b from-[#3A3A3A] to-[#0A0A0A]"
+                key={step.caption}
+                className="relative flex h-[15.4375rem] items-end overflow-hidden rounded-[1.875rem]"
               >
+                <img
+                  src={step.image}
+                  alt={step.alt}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
@@ -241,7 +264,7 @@ export default function Callmentor() {
                   }}
                 />
                 <p className="relative z-10 px-5 pb-6 text-[1.5rem] font-semibold leading-[1.3] text-white">
-                  {caption}
+                  {step.caption}
                 </p>
               </div>
             ))}
@@ -265,10 +288,19 @@ export default function Callmentor() {
                 key={card.title}
                 className="overflow-hidden rounded-[1.25rem] bg-white"
               >
-                <div
-                  aria-hidden="true"
-                  className="h-[15.4375rem] w-full bg-gradient-to-br from-[#DCE3EA] to-[#B9C2CC]"
-                />
+                {card.image ? (
+                  <img
+                    src={card.image}
+                    alt={card.alt}
+                    className="h-[15.4375rem] w-full object-cover"
+                  />
+                ) : (
+                  // ⚠️ 시안 원본 소스(책 읽는 포즈) 에셋 미확보 — 그라디언트 placeholder 유지.
+                  <div
+                    aria-hidden="true"
+                    className="h-[15.4375rem] w-full bg-gradient-to-br from-[#DCE3EA] to-[#B9C2CC]"
+                  />
+                )}
                 <div className="px-[2.125rem] py-6">
                   <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#525252]">
                     {card.title}
