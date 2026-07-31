@@ -6,6 +6,7 @@
 // 실제 코드를 받아 setLinkCode로 채우도록 교체해야 한다.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { AuthLayout, AuthTitle, InfoCard, PrimaryButton, TextLinkButton } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
 
@@ -68,6 +69,16 @@ export default function StudentComplete() {
 
   return (
     <AuthLayout>
+      {/* 가입 완료 축하 모먼트(impeccable animate 제안 5) — 배지 1개만, 과하지 않게.
+          celebrate-badge는 mount 1회만 재생되며(route 재진입 시에만 다시 보임)
+          prefers-reduced-motion 시 index.css에서 애니메이션이 꺼지고 배지는 정적으로 보인다. */}
+      <div
+        aria-hidden="true"
+        className="celebrate-badge flex h-16 w-16 items-center justify-center rounded-full bg-surface-info text-primary"
+      >
+        <Sparkles className="h-8 w-8" strokeWidth={1.75} />
+      </div>
+
       <AuthTitle
         line1={
           <>

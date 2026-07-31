@@ -34,7 +34,7 @@ export default function OutlineButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center border bg-white font-semibold transition ${
+      className={`flex items-center justify-center border bg-white font-semibold transition active:scale-[0.97] motion-reduce:active:scale-100 ${
         fullWidth ? 'w-full' : ''
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${RADIUS_CLASSES[radius] || RADIUS_CLASSES.default} ${
         disabled ? 'cursor-not-allowed opacity-50' : ''

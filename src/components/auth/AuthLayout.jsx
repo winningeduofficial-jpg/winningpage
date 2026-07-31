@@ -33,7 +33,7 @@ export default function AuthLayout({
   return (
     <main className={`min-h-screen w-full bg-white pt-16 ${className}`}>
       <div
-        className={`mx-auto flex w-full flex-col items-center px-6 ${
+        className={`auth-step-enter mx-auto flex w-full flex-col items-center px-6 ${
           WIDTH_CLASSES[width] || WIDTH_CLASSES.default
         } ${SPACING_CLASSES[spacing] || SPACING_CLASSES.default} ${
           GAP_CLASSES[gap] || GAP_CLASSES.default

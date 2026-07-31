@@ -127,6 +127,7 @@ export default function LinkCode() {
           radius="lg"
           onClick={handleConnect}
           disabled={!selected || connecting || looking}
+          loading={connecting}
         >
           {buttonLabel}
         </PrimaryButton>

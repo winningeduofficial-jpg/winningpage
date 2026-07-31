@@ -313,7 +313,7 @@ export default function ParentForm() {
         />
       </div>
 
-      <PrimaryButton onClick={handleSubmit} disabled={!canSubmit || submitting}>
+      <PrimaryButton onClick={handleSubmit} disabled={!canSubmit || submitting} loading={submitting}>
         가입 완료하기
       </PrimaryButton>
     </AuthLayout>

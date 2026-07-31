@@ -87,7 +87,7 @@ export default function InviteChild() {
           필요해요. 자녀가 링크로 가입할 때 동의 절차가 함께 진행돼요.
         </InfoCard>
 
-        <PrimaryButton size="lg" onClick={handleSubmit} disabled={!canSubmit || sending}>
+        <PrimaryButton size="lg" onClick={handleSubmit} disabled={!canSubmit || sending} loading={sending}>
           문자로 초대 보내기
         </PrimaryButton>
       </div>

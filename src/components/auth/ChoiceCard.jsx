@@ -25,7 +25,7 @@ export default function ChoiceCard({
       type={type}
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex flex-col items-center justify-center gap-4 rounded-3xl border bg-white px-6 py-6 text-center transition md:rounded-[2.5rem] ${
+      className={`flex flex-col items-center justify-center gap-4 rounded-3xl border bg-white px-6 py-6 text-center transition active:scale-[0.98] motion-reduce:active:scale-100 md:rounded-[2.5rem] ${
         selected ? 'border-primary ring-2 ring-primary/10' : 'border-line'
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.lg} ${className}`}
     >

@@ -78,7 +78,7 @@ export default function SelectField({
         <p
           id={`${fieldId}-helper`}
           role="status"
-          className={`mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
+          className={`auth-message-enter mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
         >
           {helperText}
         </p>

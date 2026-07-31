@@ -682,7 +682,13 @@ export default function StudentForm() {
         </p>
       )}
 
-      <PrimaryButton size="lg" radius="default" disabled={!canSubmit} onClick={handleSubmit}>
+      <PrimaryButton
+        size="lg"
+        radius="default"
+        disabled={!canSubmit}
+        loading={loading}
+        onClick={handleSubmit}
+      >
         {loading ? '가입 처리 중...' : '가입 완료하기'}
       </PrimaryButton>
     </AuthLayout>

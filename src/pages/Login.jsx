@@ -151,7 +151,7 @@ export default function Login() {
           status={message ? 'error' : 'default'}
         />
 
-        <PrimaryButton type="submit" disabled={!canSubmit || loading}>
+        <PrimaryButton type="submit" disabled={!canSubmit || loading} loading={loading}>
           {loading ? '로그인 처리 중...' : '로그인'}
         </PrimaryButton>
       </form>

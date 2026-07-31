@@ -12,8 +12,12 @@ export default function AgreementRow({
   checked = false,
   onToggle,
   to, // 약관 상세 페이지 경로(chevron 클릭 시 이동). 없으면 chevron 미노출.
+  index = 0, // AgreementList가 매기는 행 순서 — "모두 동의" stagger의 --i로만 쓰인다.
+  staggered = false, // AgreementList가 "모두 동의합니다"로 체크될 때만 true(개별 클릭 시 false).
   className = ''
 }) {
+  const showCheckPop = staggered && checked;
+
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-lg bg-surface-card px-5 py-4 ${className}`}
@@ -27,9 +31,10 @@ export default function AgreementRow({
       >
         <span
           aria-hidden="true"
+          style={showCheckPop ? { animationDelay: `calc(var(--i) * 40ms)`, '--i': index } : undefined}
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
             checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'
-          }`}
+          } ${showCheckPop ? 'auth-check-pop' : ''}`}
         >
           <Check size={14} strokeWidth={3} />
         </span>

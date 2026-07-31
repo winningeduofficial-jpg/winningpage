@@ -13,7 +13,7 @@ export default function TermsPageLayout({
   return (
     <main className="min-h-screen w-full bg-white pt-16">
       <div
-        className={`mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] ${className}`}
+        className={`auth-step-enter mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] ${className}`}
       >
         <header className="flex flex-col gap-2">
           {/* 타이틀 32px SemiBold — §3.3 F 공통 템플릿. tracking -0.64px(-0.04rem)은 AuthTitle과 동일 값. */}
