@@ -12,10 +12,9 @@ import { supabase } from '../../lib/supabase';
  * 헤더/푸터는 SiteLayout이 렌더한다(§3-15 정본) — 이 페이지는 개별 import하지 않는다.
  */
 
-// 콘텐츠 컨테이너 — 시안 실측 1440(90rem) 중앙 정렬. max-w-content(72.75rem)와는 별개 폭이라
-// 이 페이지 전용으로 둔다(§5.1.3 컨테이너 폭 충돌 메모). 좌우 여백은 사이트 공통 관례(px-5 sm:px-8)로
-// 러프 적응 — 시안의 고정 240px 여백은 1920 뷰포트 전제라 반응형에 그대로 못 쓴다.
-const CONTAINER = 'mx-auto w-full max-w-[90rem] px-5 sm:px-8';
+// 콘텐츠 컨테이너 — dev 랜딩 정본 토큰 max-w-content(72.75rem) 그대로 사용(다른 페이지와 폭 통일).
+// 좌우 여백은 사이트 공통 관례(px-5 sm:px-8).
+const CONTAINER = 'mx-auto w-full max-w-content px-5 sm:px-8';
 
 // home_mentor_strategies row → MentorSection/MentorCard props 정규화 (Home.jsx normalizeMentorRow와 동일 로직)
 function normalizeMentorRow(row) {
@@ -91,7 +90,7 @@ function ValueCardIcon({ index }) {
   return (
     <div
       aria-hidden="true"
-      className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#AF9364] text-[1.1rem] font-semibold text-[#AF9364]"
+      className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#013262] text-[1.1rem] font-semibold text-[#013262]"
     >
       {index + 1}
     </div>
@@ -185,14 +184,14 @@ export default function Callmentor() {
       </section>
 
       {/* 섹션 2 — 상담을 통해 */}
-      <section aria-label="상담을 통해 얻는 것" className="bg-black py-[7.5rem]">
+      <section aria-label="상담을 통해 얻는 것" className="bg-[#F4F4F6] py-[7.5rem]">
         <div className={`${CONTAINER} flex flex-col gap-[3.75rem]`}>
           <CmSectionHeading
             weight="semibold"
             heading={
               <>
-                <span className="block text-white">상담을 통해</span>
-                <span className="block text-[#AF9364]">문제를 확인할 수 있어요</span>
+                <span className="block text-[#0F172A]">상담을 통해</span>
+                <span className="block text-[#013262]">문제를 확인할 수 있어요</span>
               </>
             }
           />
@@ -200,13 +199,13 @@ export default function Callmentor() {
             {VALUE_CARDS.map((card, index) => (
               <div
                 key={card.title}
-                className="flex flex-col items-center gap-8 rounded-[2.5rem] bg-white/10 p-10 text-center"
+                className="flex flex-col items-center gap-8 rounded-[2.5rem] bg-white p-10 text-center"
               >
                 <ValueCardIcon index={index} />
-                <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#AF9364]">
+                <h3 className="text-[1.5rem] font-semibold leading-[1.3] text-[#0F172A]">
                   {card.title}
                 </h3>
-                <p className="text-[1.25rem] font-medium leading-[1.4] text-[#AF9364]">
+                <p className="text-[1.25rem] font-medium leading-[1.4] text-[#525252]">
                   {card.desc}
                 </p>
               </div>
@@ -219,12 +218,13 @@ export default function Callmentor() {
       <section
         id="callmentor-steps"
         aria-label="상담 진행 순서"
-        className="bg-black py-[7.5rem]"
+        className="bg-white py-[7.5rem]"
       >
         <div className={`${CONTAINER} flex flex-col gap-[3.75rem]`}>
           <CmSectionHeading
             heading="무엇을 물어야 할지 몰라도 괜찮아요"
             sub="위닝의 4단계의 꼼꼼한 상담 진행 순서"
+            subColor="#013262"
           />
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEP_CARDS.map((caption) => (
@@ -314,14 +314,14 @@ export default function Callmentor() {
       </section>
 
       {/* 섹션 7 — 하단 CTA */}
-      <section aria-label="신청 유도" className="bg-black py-[7.5rem]">
+      <section aria-label="신청 유도" className="bg-[#F4F4F6] py-[7.5rem]">
         <div className={`${CONTAINER} flex flex-col items-center gap-[3.75rem] text-center`}>
-          <h2 className="text-[2rem] font-semibold leading-[1.4] text-white">
+          <h2 className="text-[2rem] font-semibold leading-[1.4] text-[#0F172A]">
             아직도 고민이신가요?
           </h2>
           {/* 신청/결제 플로우는 이번 범위 제외 — 확정 전까지 기존 요금 안내(/pricing)로 임시 연결.
               최종 목적지는 §5.1.8 CTA 목적지 표 참고([추후 확정]). */}
-          <CmButton variant="white" to="/pricing" className="font-semibold">
+          <CmButton variant="primary" to="/pricing" className="font-semibold">
             콜멘토 서비스 신청하기 →
           </CmButton>
         </div>
