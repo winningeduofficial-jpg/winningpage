@@ -1,5 +1,6 @@
-// 서비스 랜딩 4종(목표관리/수행평가/자기평가/심화탐구) 콘텐츠 — 신 라우트 /services/*.
-// 카피 출처: Figma REST 노드 실측(1889:6944, 1889:6486, 1907:20783, 1907:21352) 텍스트 레이어.
+// 서비스 랜딩 3종(수행평가/자기평가/심화탐구) 콘텐츠 — 신 라우트 /services/*.
+// 목표관리(goal)는 src/pages/services/GoalManagement.jsx 전용 bespoke 구현이라 이 파일에서 빠졌다.
+// 카피 출처: Figma REST 노드 실측(1889:6486, 1907:20783, 1907:21352) 텍스트 레이어.
 // 스타일 값은 이 파일이 아닌 각 섹션 컴포넌트(src/components/services)가 dev 랜딩 정본을 따라 담당.
 //
 // pricing이 있는 서비스(goal/suhaeng)는 실제 Supabase products 테이블에 해당 상품이 존재해
@@ -8,13 +9,9 @@
 // 하단 CTA가 /free-diagnosis(기존 실제 라우트)로 안내한다 — 결제 UI 없음(껍데기 아님, 실제 이동).
 import { SERVICES as PRICING_SERVICES } from './pricingCatalog';
 
-// 시안 이미지 에셋(Figma 1889:6944·1889:6486·1907:20783·1907:21352 노드 렌더 기반, alpha 보존 원본에서 채택).
-import goalHeroDashboard from '../assets/services/goal/hero-dashboard.png';
-import goalStepGoalSetting from '../assets/services/goal/step-goal-setting.png';
-import goalStepAnalysis from '../assets/services/goal/step-analysis.png';
-import goalStepTimePlan from '../assets/services/goal/step-time-plan.png';
-import goalStepExecution from '../assets/services/goal/step-execution.png';
-
+// 시안 이미지 에셋(Figma 1889:6486·1907:20783·1907:21352 노드 렌더 기반, alpha 보존 원본에서 채택).
+// 목표관리(goal)는 src/pages/services/GoalManagement.jsx 전용 bespoke 구현으로 분리돼
+// 이 파일의 공용 콘텐츠 객체를 더 이상 쓰지 않는다 — 에셋 import·goal 콘텐츠 블록 제거.
 import perfAudienceTopic from '../assets/services/performance/audience-topic.jpg';
 import perfAudienceResearch from '../assets/services/performance/audience-research.jpg';
 import perfAudienceStructure from '../assets/services/performance/audience-structure.jpg';
@@ -28,139 +25,10 @@ import saAudienceQuality from '../assets/services/self-assessment/audience-quali
 import researchThinkingBooks from '../assets/services/research/thinking-books.jpg';
 import researchThinkingMindmap from '../assets/services/research/thinking-mindmap.jpg';
 
-const GOAL_PRODUCTS = PRICING_SERVICES.find((service) => service.key === 'goal')?.products || [];
 const SUHAENG_PRODUCTS =
   PRICING_SERVICES.find((service) => service.key === 'suhaeng')?.products || [];
 
 export const SERVICE_LANDING_CONTENT = {
-  goal: {
-    slug: 'goal',
-    hero: {
-      eyebrow: '목표관리',
-      title: '목표의 합격 확률을 관리합니다',
-      subtitle: '데이터가 합격을 만들고, 실행이 결과를 만듭니다',
-      ctaLabel: '지금 시작하기',
-      ctaTo: '/pricing',
-      paidServiceName: '목표관리 서비스',
-      visual: {
-        src: goalHeroDashboard,
-        alt: 'TMP 주간 성장 리포트 대시보드 화면 — 이번 주 공부 시간, 목표 달성률, 목표군 내 위치를 보여준다'
-      }
-    },
-    highlights: {
-      title: '위닝 목표관리의 핵심 포인트',
-      items: [
-        {
-          title: '데이터 기반 목표 확률',
-          desc: '성적과 활동을 데이터로 분석해 목표 대학・학과 합격 확률을 확인합니다.'
-        },
-        {
-          title: '맞춤 학습 시간 제안',
-          desc: '목표 확률과 현재 위치를 비교해 과목별 우선순위와 학습 시간을 제안합니다.'
-        },
-        {
-          title: '주간 리포트 알림',
-          desc: '매주 실행 현황을 정리해 카카오톡 알림톡으로 학부모님께 전달합니다.'
-        }
-      ]
-    },
-    process: {
-      title: '위닝 목표관리, 단계별로 이렇게 관리합니다',
-      steps: [
-        {
-          title: '목표 설정',
-          desc: '목표 대학・학과를 정하고 현재 위치와 목표 확률을 확인합니다.',
-          image: { src: goalStepGoalSetting, alt: '목표 대학・학과를 정하는 학생 일러스트' }
-        },
-        {
-          title: '학습 분석',
-          desc: '성적과 활동을 진단해 강점과 약점을 파악합니다.',
-          image: { src: goalStepAnalysis, alt: '성적과 활동을 진단하며 고민하는 학생 일러스트' }
-        },
-        {
-          title: '목표 시간 제안',
-          desc: '합격에 필요한 학습 시간을 과목별로 제안합니다.',
-          image: { src: goalStepTimePlan, alt: '과목별 학습 시간을 계획하는 학생 일러스트' }
-        },
-        {
-          title: '전략 실행 & 점검',
-          desc: '주간 실행을 점검하고 목표를 꾸준히 관리합니다.',
-          image: { src: goalStepExecution, alt: '쌓인 자료를 점검하며 실행을 관리하는 학생 일러스트' }
-        }
-      ]
-    },
-    audience: {
-      title: '이런 학생에게 목표관리 서비스를 추천해요',
-      items: [
-        {
-          title: '방향이 막막한 학생',
-          desc: '어떤 대학을 목표로 해야 할지, 지금 뭘 해야 할지 막막한 학생'
-        },
-        {
-          title: '실행이 어려운 학생',
-          desc: '계획은 세우지만 매번 실행과 점검이 흐지부지되는 학생'
-        },
-        {
-          title: '명확한 목표가 필요한 학생',
-          desc: '성적은 나오는데 목표까지 어떻게 가야 할지 모르겠는 학생'
-        },
-        {
-          title: '함께 관리하고 싶은 학부모',
-          desc: '아이의 학습 진행을 함께 확인하고 소통하고 싶은 학부모'
-        }
-      ]
-    },
-    outcomes: {
-      title: '목표관리로 달라지는 것들',
-      items: ['성적 향상', '학습 습관 형성', '학습 시간 최적화', '합격 확률 향상', '부모님 안심']
-    },
-    testimonials: {
-      title: '목표관리 서비스를 받아본 학생&학부모 후기',
-      items: [
-        {
-          quote: '매일 뭘 해야 할지 콕 짚어주니, 미루던 습관이 줄었습니다.',
-          badge: '고2 김OO'
-        },
-        {
-          quote: '주간 리포트로 아이 상황을 함께 볼 수 있어 안심이 됩니다.',
-          badge: '고2 학부모'
-        },
-        {
-          quote: '내 목표 대학까지의 확률이 눈에 보이니까, 막연하던 공부가 방향이 생겼어요.',
-          badge: '고2 김OO'
-        }
-      ]
-    },
-    faq: {
-      title: '자주 묻는 질문',
-      items: [
-        {
-          q: '합격 확률은 어떻게 계산되나요?',
-          a: '성적, 모의고사 결과, 활동 데이터를 종합해 목표 대학・학과 기준으로 산출합니다. 세부 산출 기준은 상담에서 자세히 안내드립니다.'
-        },
-        {
-          q: '목표 학습 시간은 어떻게 제안되나요?',
-          a: '현재 성취도와 목표 확률의 격차를 기준으로 과목별 우선순위와 주간 학습 시간을 제안합니다.'
-        },
-        {
-          q: '학부모에게 어떤 알림이 오나요?',
-          a: '매주 학습 리포트가 카카오톡 알림톡으로 전송되며, 목표 달성률・학습 시간・학습 순위를 확인할 수 있습니다.'
-        },
-        {
-          q: '개인 정보는 안전하게 관리되나요?',
-          a: '수집된 정보는 서비스 제공 목적에 한해 안전하게 관리됩니다. 자세한 내용은 개인정보처리방침을 확인해 주세요.'
-        }
-      ]
-    },
-    pricing: {
-      title: '목표관리 이용권 구매하기',
-      note: '한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.',
-      products: GOAL_PRODUCTS,
-      ctaLabel: '이용권 구매하러 가기',
-      ctaTo: '/pricing'
-    }
-  },
-
   performance: {
     slug: 'performance',
     hero: {
