@@ -10,8 +10,11 @@ import MentorCard from './MentorCard';
  * @param {object} props
  * @param {Array<object>} props.mentors
  *   home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조.
+ * @param {'default'|'callmentor'} [props.variant='default']
+ *   콜멘토 랜딩(docs/callmentor-spec.md 5.1.3 섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션
+ *   배경/패딩만 다르다 — 신규 컴포넌트 대신 이 variant로 흡수한다(재합성 0).
  */
-export default function MentorSection({ mentors = [] }) {
+export default function MentorSection({ mentors = [], variant = 'default' }) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
     itemCount: mentors.length
   });
@@ -21,18 +24,31 @@ export default function MentorSection({ mentors = [] }) {
   // 2개 이상일 때만 N배 반복 마퀴(기본 3배, 훅이 폭에 맞춰 자동 증가), 1개면 원본만 정적 렌더
   const isMarquee = mentors.length > 1;
   const renderIndices = isMarquee ? repeatIndices : mentors.map((_, index) => index);
+  const isCallMentor = variant === 'callmentor';
 
   return (
     <section
       aria-label="위닝 멘토"
-      className="mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]"
+      className={
+        isCallMentor
+          ? 'mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-[7.5rem] pb-[8.75rem]'
+          : 'mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]'
+      }
     >
       <div className="flex w-full flex-col gap-[2.5rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <p className="text-[1.25rem] font-normal leading-[1.3] text-accent">멘토스 소개</p>
+          <p
+            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? 'text-[#AF9364]' : 'text-accent'}`}
+          >
+            멘토스 소개
+          </p>
           <h2 className="mt-[0.5rem] break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
-            <span className="text-[#013262]">위닝과 함께 합격한 선배에게 </span>
-            <span className="text-[#808080]">멘토 상담을 받아보세요</span>
+            <span className={isCallMentor ? 'text-[#AF9364]' : 'text-[#013262]'}>
+              위닝과 함께 합격한 선배에게{' '}
+            </span>
+            <span className={isCallMentor ? 'text-[#0F172A]' : 'text-[#808080]'}>
+              멘토 상담을 받아보세요
+            </span>
           </h2>
         </div>
 

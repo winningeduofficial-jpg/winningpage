@@ -342,7 +342,7 @@ export const services = [
     id: 'preview-svc-03',
     name: '콜멘토',
     description: '필요한 순간에\n멘토와 바로 연결',
-    link: '/page/services-content',
+    link: '/services/callmentor',
     icon: 'default',
     icon_image_url: '/images/landing/services/call-mentor.png',
     sort_order: 3,

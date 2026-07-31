@@ -52,7 +52,7 @@ export const FALLBACK_NAV_GROUPS = [
     items: [
       { label: '무료진단', to: '/free-diagnosis', sortOrder: 1 },
       { label: '목표관리', to: '/page/services-goal', sortOrder: 2 },
-      { label: '콜멘토', to: '/page/services-content', sortOrder: 3 },
+      { label: '콜멘토', to: '/services/callmentor', sortOrder: 3 },
       { label: '수행평가', to: '/page/services-ai-performance', sortOrder: 4 },
       { label: '자기평가', to: '/page/services-self-assessment', sortOrder: 5 },
       { label: '심화탐구', to: '/page/services-in-depth-research', sortOrder: 6 }

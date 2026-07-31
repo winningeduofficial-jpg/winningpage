@@ -10,6 +10,7 @@ import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import FreeDiagnosis from './pages/FreeDiagnosis';
+import Callmentor from './pages/services/Callmentor';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
@@ -55,6 +56,10 @@ export default function App() {
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
+
+          <Route path="/services/callmentor" element={<Callmentor />} />
+          {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
+          <Route path="/page/services-content" element={<Navigate to="/services/callmentor" replace />} />
 
           <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
           <Route path="/admission/results" element={<AdmissionResults />} />
