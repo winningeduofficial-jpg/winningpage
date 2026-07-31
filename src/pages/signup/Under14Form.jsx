@@ -102,6 +102,9 @@ export default function Under14Form() {
     setAllAgreements
   } = useSignup();
   const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
+  // StudentForm(P0)과 동일 이슈: 이메일 인증 액션이 비밀번호 미입력 상태에서 이메일 필드에
+  // 비밀번호 에러를 던지는 것을 막기 위해 비밀번호 유효할 때까지 액션 자체를 막는다.
+  const emailActionBlockedByPassword = !isValidPassword(formData.password);
 
   // §3.2 흐름: S1(생년월일) -> U0(PASS 안내) -> U1(이 화면). 학생 유형이 아니거나, 플래그가
   // off이거나, 법정대리인 PASS 인증을 아직 마치지 않은 상태로 직접 URL 진입 시 순서대로 되돌린다.
@@ -340,9 +343,11 @@ export default function Under14Form() {
           placeholder="이메일을 입력 해주세요"
           actionLabel={verification.email.requested ? '인증번호 다시 보내기' : '인증번호 보내기'}
           onAction={requestEmailCode}
-          actionDisabled={verification.email.verified}
-          helperText={emailMessage.text}
-          status={emailMessage.status}
+          actionDisabled={verification.email.verified || emailActionBlockedByPassword}
+          helperText={
+            emailActionBlockedByPassword ? '비밀번호 입력 후 인증할 수 있어요' : emailMessage.text
+          }
+          status={emailActionBlockedByPassword ? 'default' : emailMessage.status}
         />
 
         <TextField

@@ -59,7 +59,9 @@ export default function TextField({
           disabled={disabled}
           readOnly={readOnly}
           required={required}
-          className={`w-full flex-1 rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-line focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''}`}
+          aria-describedby={helperText ? `${fieldId}-helper` : undefined}
+          aria-invalid={status === 'error'}
+          className={`w-full flex-1 rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''}`}
         />
 
         {actionLabel && (
@@ -75,7 +77,11 @@ export default function TextField({
       </div>
 
       {helperText && (
-        <p className={`mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}>
+        <p
+          id={`${fieldId}-helper`}
+          role="status"
+          className={`mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
+        >
           {helperText}
         </p>
       )}

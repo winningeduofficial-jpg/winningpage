@@ -16,10 +16,13 @@ export default function AgreementList({
     <div className={`flex flex-col gap-2 ${className}`}>
       <button
         type="button"
+        role="checkbox"
+        aria-checked={allChecked}
         onClick={onToggleAll}
         className="flex items-center gap-3 rounded-lg bg-surface-card px-5 py-4 text-left"
       >
         <span
+          aria-hidden="true"
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
             allChecked
               ? 'border-primary bg-primary text-white'

@@ -22,7 +22,7 @@ export default function ChoiceCard({
       onClick={onClick}
       aria-pressed={selected}
       className={`flex flex-col items-center justify-center gap-4 rounded-[2.5rem] border bg-white px-6 py-6 text-center transition ${
-        selected ? 'border-primary' : 'border-line'
+        selected ? 'border-primary ring-2 ring-primary/10' : 'border-line'
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.lg} ${className}`}
     >
       {icon && <div className="flex items-center justify-center">{icon}</div>}

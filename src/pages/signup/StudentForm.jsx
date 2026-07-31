@@ -140,6 +140,7 @@ export default function StudentForm() {
   }, [memberType, isUnder14, navigate]);
 
   const passwordValid = formData.password ? isValidPassword(formData.password) : null;
+  const emailActionBlockedByPassword = !isValidPassword(formData.password);
   const allRequiredAgreed = REQUIRED_AGREEMENT_KEYS.every((key) => agreements[key]);
   const allAgreed = STUDENT_AGREEMENT_KEYS.every((key) => agreements[key]);
 
@@ -381,7 +382,8 @@ export default function StudentForm() {
     return '';
   }
 
-  const canSubmit = !loading && validateForm() === '';
+  const submitValidationMessage = validateForm();
+  const canSubmit = !loading && submitValidationMessage === '';
 
   async function handleSubmit() {
     setFormError('');
@@ -521,7 +523,11 @@ export default function StudentForm() {
           임시 대체. 디자이너 확인 후 확정 문구로 교체 필요. */}
       <AuthTitle line1="회원가입 정보를 입력해주세요" line1Color="ink" />
 
-      {formError && <p className="w-full text-sm text-error">{formError}</p>}
+      {formError && (
+        <p role="alert" className="w-full text-sm text-error">
+          {formError}
+        </p>
+      )}
 
       <section className="flex w-full flex-col gap-4">
         <h2 className="w-full text-lg font-semibold text-ink">
@@ -585,9 +591,11 @@ export default function StudentForm() {
             verification.email.requested ? '인증번호 다시 보내기' : '인증번호 보내기'
           }
           onAction={requestEmailCode}
-          actionDisabled={emailSending || verification.email.verified}
-          helperText={emailMessage.text}
-          status={emailMessage.status}
+          actionDisabled={emailSending || verification.email.verified || emailActionBlockedByPassword}
+          helperText={
+            emailActionBlockedByPassword ? '비밀번호 입력 후 인증할 수 있어요' : emailMessage.text
+          }
+          status={emailActionBlockedByPassword ? 'default' : emailMessage.status}
           autoComplete="email"
           required
         />
@@ -667,6 +675,12 @@ export default function StudentForm() {
           onToggleItem={handleToggleAgreement}
         />
       </section>
+
+      {!canSubmit && !loading && submitValidationMessage && (
+        <p role="status" className="w-full text-xs text-ink-sub">
+          {submitValidationMessage}
+        </p>
+      )}
 
       <PrimaryButton size="lg" radius="default" disabled={!canSubmit} onClick={handleSubmit}>
         {loading ? '가입 처리 중...' : '가입 완료하기'}

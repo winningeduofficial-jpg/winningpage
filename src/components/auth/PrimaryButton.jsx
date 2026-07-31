@@ -33,7 +33,7 @@ export default function PrimaryButton({
         fullWidth ? 'w-full' : ''
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${RADIUS_CLASSES[radius] || RADIUS_CLASSES.default} ${
         disabled
-          ? 'cursor-not-allowed bg-line text-surface-footer'
+          ? 'cursor-not-allowed bg-line text-white'
           : 'bg-primary text-white hover:bg-primary/90'
       } ${className}`}
     >

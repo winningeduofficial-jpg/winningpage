@@ -53,7 +53,9 @@ export default function SelectField({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           required={required}
-          className={`w-full appearance-none rounded-xl border border-line bg-white px-5 pr-12 text-base outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${value ? 'text-ink' : 'text-line'}`}
+          aria-describedby={helperText ? `${fieldId}-helper` : undefined}
+          aria-invalid={status === 'error'}
+          className={`w-full appearance-none rounded-xl border border-line bg-white px-5 pr-12 text-base outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${value ? 'text-ink' : 'text-ink-sub'}`}
         >
           <option value="" disabled hidden>
             {placeholder}
@@ -73,7 +75,11 @@ export default function SelectField({
       </div>
 
       {helperText && (
-        <p className={`mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}>
+        <p
+          id={`${fieldId}-helper`}
+          role="status"
+          className={`mt-2 text-xs ${STATUS_TEXT_CLASSES[status] || STATUS_TEXT_CLASSES.default}`}
+        >
           {helperText}
         </p>
       )}

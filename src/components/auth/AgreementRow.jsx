@@ -1,6 +1,7 @@
 // 약관 동의 개별 행 — docs/login-signup-renewal-spec.md §3.3(C-1/E-1)/§5.1, 시안 2393:7943.
 // 카드 bg-surface-card, radius 0.5rem(8px, 카드/안내 카드 계열 radius), 좌측부터 체크박스 →
-// 필수/선택 배지(필수 text-primary/선택 text-line) → 약관명 순, 우측 펼침 chevron(약관 페이지로
+// 필수/선택 배지(필수 text-primary/선택 text-ink-sub — text-line은 대비 1.38:1로 판독 불가라 상향) →
+// 약관명 순, 우측 펼침 chevron(약관 페이지로
 // 링크 이동 — §3.3 F: "별도 풀페이지가 존재하므로 페이지 이동으로 추정" 채택).
 import { ChevronRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -19,10 +20,13 @@ export default function AgreementRow({
     >
       <button
         type="button"
+        role="checkbox"
+        aria-checked={checked}
         onClick={onToggle}
         className="flex flex-1 items-center gap-3 text-left"
       >
         <span
+          aria-hidden="true"
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
             checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'
           }`}
@@ -31,7 +35,7 @@ export default function AgreementRow({
         </span>
 
         <span className="flex items-center gap-2 text-sm text-ink">
-          <span className={required ? 'text-primary' : 'text-line'}>
+          <span className={required ? 'text-primary' : 'text-ink-sub'}>
             {required ? '필수' : '선택'}
           </span>
           {label}
