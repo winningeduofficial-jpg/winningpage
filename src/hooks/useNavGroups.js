@@ -39,28 +39,30 @@ function resolveMenuLink(slug) {
 // 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
 // /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
 // 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
-const PROMOTED_SLUG_ROUTES = {
+export const PROMOTED_SLUG_ROUTES = {
   'services-goal': '/services/goal',
   'services-ai-performance': '/services/performance',
   'services-self-assessment': '/services/self-assessment',
   'services-in-depth-research': '/services/research'
 };
 
+// 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
+// 단일 링크만 다루는 소비처(ServicesSection 등)도 이 함수 하나로 재사용한다.
+export function resolvePromotedSlugLink(to) {
+  const match = cleanText(to).match(/^\/page\/([^/]+)$/);
+  const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
+  return promoted || to;
+}
+
 function applyPromotedSlugRoutes(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
-  function remap(to) {
-    const match = cleanText(to).match(/^\/page\/([^/]+)$/);
-    const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
-    return promoted || to;
-  }
-
   return source.map((group) => ({
     ...group,
-    to: remap(group.to),
+    to: resolvePromotedSlugLink(group.to),
     items: (Array.isArray(group.items) ? group.items : []).map((item) => ({
       ...item,
-      to: remap(item.to)
+      to: resolvePromotedSlugLink(item.to)
     }))
   }));
 }

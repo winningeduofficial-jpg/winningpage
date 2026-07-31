@@ -106,6 +106,18 @@ export const FALLBACK_NAV_GROUPS = [
   }
 ];
 
+// program_categories(DB) 서비스명 → 서비스 6종 정본 라우트. ServicesSection 카드 클릭 링크가
+// DB link 컬럼에 죽은 값(레거시 '/services' 스텁 등)을 담고 있을 때의 이름 기반 안전망.
+// FALLBACK_NAV_GROUPS의 '서비스' 그룹 라벨・경로와 동일한 소스오브트루스로 유지할 것.
+export const SERVICE_NAME_ROUTES = {
+  무료진단: '/free-diagnosis',
+  목표관리: '/services/goal',
+  콜멘토: '/services/callmentor',
+  수행평가: '/services/performance',
+  자기평가: '/services/self-assessment',
+  심화탐구: '/services/research'
+};
+
 export const MENU_GROUP_ORDER = {
   서비스: 1,
   프리미엄: 2,
