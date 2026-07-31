@@ -46,10 +46,10 @@ export default function LinkDone() {
         line2Color="ink"
       />
 
-      <div className="w-full rounded-[1.25rem] border border-line px-5 py-6 text-center sm:px-8 sm:py-8">
-        <p className="text-xl font-medium text-ink-title">{child?.name}</p>
-        <p className="mt-2 text-base text-ink-sub">
-          {[child?.grade, child?.school].filter(Boolean).join(' / ')}
+      <div className="w-full rounded-[1.25rem] border border-line px-5 py-6 sm:px-8 sm:py-8">
+        <p className="text-left text-xl font-medium text-ink-title">{child?.name}</p>
+        <p className="mt-2 text-left text-base text-ink-sub">
+          {[child?.grade, child?.school].filter(Boolean).join(' ')}
         </p>
 
         <div className="mx-auto my-6 w-full max-w-[20rem] border-t border-line" />

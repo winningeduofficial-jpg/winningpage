@@ -8,6 +8,8 @@
 // 기록된 문구를 그대로 재현한 것.
 // TODO(백엔드 §4.2-3): 연결코드 발급/조회 RPC, 보호자-자녀 관계 테이블 미구현 — mockApi.js
 // 의 findChildByLinkCode/connectChild는 전부 placeholder.
+// TODO(시안 확인): 2393-10969 프레임 실측 여백은 py200/gap80이나 다른 화면군 다수 규칙인
+// py100/gap40과 불일치 — 이 페이지는 py100/gap40(다수 규칙)을 유지, 시안 쪽 확인 필요.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -92,7 +94,8 @@ export default function LinkCode() {
       <div className="flex flex-col items-center gap-3 text-center">
         <AuthTitle line1={<span className="sm:whitespace-nowrap">자녀의 연결코드를 입력해 주세요</span>} />
         <p className="break-keep text-base font-medium text-ink sm:text-xl">
-          자녀 마의페이지 &gt; 연결코드에서
+          {/* 시안 갱신: '마의페이지'는 오타로 확인되어 '마이페이지'로 수정(원문 오타 재현 대상 아님). */}
+          자녀 마이페이지 &gt; 연결코드에서
           <br />
           6자리 숫자를 확인할 수 있어요
         </p>
