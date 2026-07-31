@@ -37,6 +37,7 @@ import StudentBirth from './pages/signup/StudentBirth';
 import StudentForm from './pages/signup/StudentForm';
 import Under14Verify from './pages/signup/Under14Verify';
 import Under14Form from './pages/signup/Under14Form';
+import UnifiedSignupForm from './pages/signup/UnifiedSignupForm';
 import StudentComplete from './pages/signup/StudentComplete';
 import ParentForm from './pages/signup/parent/ParentForm';
 import LinkChoice from './pages/signup/parent/LinkChoice';
@@ -55,6 +56,11 @@ import StudentPromotion from './pages/terms/StudentPromotion';
 import ParentService from './pages/terms/ParentService';
 import ParentPrivacy from './pages/terms/ParentPrivacy';
 import ParentMarketing from './pages/terms/ParentMarketing';
+
+// 신규 노드 2516-1974('통합 가입 폼', docs/impl-status-recheck.md §4) — 시안 미확정(손그림
+// 낙서) 임시 라우트라 플래그가 켜져 있을 때만 등록한다. 꺼져 있으면 라우트 자체가 없으므로
+// 직접 URL 진입도 자연히 막힌다(UnifiedSignupForm.jsx 내부의 이중 방어 useEffect와 함께).
+const UNIFIED_SIGNUP_ENABLED = import.meta.env.VITE_UNIFIED_SIGNUP_ENABLED === 'true';
 
 // /signup 하위 라우트 전용 컨텍스트 경계 — 유형 선택부터 완료/온보딩까지 단계 간 데이터
 // (memberType/birthDate/폼데이터/인증 상태)를 SignupProvider(§5.3)로 공유한다.
@@ -162,6 +168,9 @@ export default function App() {
             <Route path="/signup/student" element={<StudentForm />} />
             <Route path="/signup/student/under14/verify" element={<Under14Verify />} />
             <Route path="/signup/student/under14" element={<Under14Form />} />
+            {UNIFIED_SIGNUP_ENABLED && (
+              <Route path="/signup/unified" element={<UnifiedSignupForm />} />
+            )}
             <Route path="/signup/student/complete" element={<StudentComplete />} />
             <Route path="/signup/parent" element={<ParentForm />} />
             <Route path="/signup/parent/link" element={<LinkChoice />} />
