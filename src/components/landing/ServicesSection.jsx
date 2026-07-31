@@ -11,6 +11,24 @@ import {
   Target,
   Users
 } from 'lucide-react';
+import { resolvePromotedSlugLink } from '../../hooks/useNavGroups';
+import { SERVICE_NAME_ROUTES } from '../../data/navigation';
+
+// DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
+// 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.
+const DEAD_SERVICE_LINK_FALLBACK = '/free-diagnosis';
+
+// service.link 해석 순서: 1) /page/services-* 구슬러그면 신규 라우트로 승격(useNavGroups와
+// 동일 매핑 재사용) 2) 그래도 죽은 값('/services')·빈 값이면 서비스명으로 정본 라우트 매칭
+// 3) 그것도 없으면 무료진단으로 폴백.
+function resolveServiceLink(service) {
+  const raw = String(service?.link || '').trim();
+  const promoted = resolvePromotedSlugLink(raw);
+
+  if (promoted && promoted !== '/services') return promoted;
+
+  return SERVICE_NAME_ROUTES[String(service?.name || '').trim()] || DEAD_SERVICE_LINK_FALLBACK;
+}
 
 const ICON_SHADOW_SRC = '/images/landing/services/icon-shadow.png';
 
@@ -128,7 +146,7 @@ const ILLUSTRATION_LAYOUTS = [
 ];
 
 function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
-  const link = service.link || '/services';
+  const link = resolveServiceLink(service);
   const isExternal = /^https?:\/\//i.test(link);
   const FallbackIcon = serviceIconMap[service.icon] || serviceIconMap.default;
 
@@ -231,7 +249,8 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
  *   (0729 시안 2207:12970, 1100 캔버스, 카드 352×179px÷16=rem)
  * - 카드: 좌측 텍스트(제목/설명) + 우측 3D 일러스트(icon_image_url, 없으면 lucide 폴백)
  * - 일러스트: lg 미만은 세로 중앙, lg는 시안 카드별 상단 기준 배치(크기·여백·회전 차등)
- * - 카드 전체가 link 필드로 이동하는 클릭 영역 (기본 /services)
+ * - 카드 전체가 link 필드로 이동하는 클릭 영역 (resolveServiceLink — 죽은 값/공백은
+ *   서비스명 매칭 후 최종 /free-diagnosis로 폴백)
  *
  * @param {object} props
  * @param {Array<{id: string, name: string, description?: string, link?: string,
