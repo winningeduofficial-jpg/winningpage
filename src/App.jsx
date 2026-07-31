@@ -9,6 +9,7 @@ import Checkout from './pages/Checkout';
 import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
+import FreeDiagnosis from './pages/FreeDiagnosis';
 import Callmentor from './pages/services/Callmentor';
 import GoalManagement from './pages/services/GoalManagement';
 import PerformanceAssessment from './pages/services/PerformanceAssessment';
@@ -28,10 +29,6 @@ import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
-import FreeDiagnosisLanding from './pages/renewal/FreeDiagnosisLanding';
-import SurveyStepShell from './pages/renewal/SurveyStepShell';
-import SurveyStepPage from './pages/renewal/SurveyStepPage';
-import SurveyPreview from './pages/renewal/SurveyPreview';
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -62,16 +59,7 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/free-diagnosis" element={<FreeDiagnosisLanding />} />
-          <Route path="/free-diagnosis/survey" element={<SurveyStepShell />}>
-            {/* /survey 진입은 스텝1로 명시 리다이렉트. 없으면 최하단 catch-all 이 홈으로 삼킨다. */}
-            <Route index element={<Navigate to="/free-diagnosis/survey/1" replace />} />
-            {/* 정적 세그먼트를 :step 보다 먼저 선언 — v6 랭킹상 정적이 우선이지만 의도를 코드로 고정한다. */}
-            <Route path="preview" element={<SurveyPreview />} />
-            <Route path=":step" element={<SurveyStepPage />} />
-            {/* /survey/1/2 같은 초과 세그먼트 방어. 반드시 마지막. */}
-            <Route path="*" element={<Navigate to="/free-diagnosis/survey/1" replace />} />
-          </Route>
+          <Route path="/free-diagnosis" element={<FreeDiagnosis />} />
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}

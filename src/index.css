@@ -14,10 +14,6 @@
   --winning-white: #ffffff;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* Header.jsx 는 h-16(64px) fixed 이고 스페이서를 반환하지 않는다.
-     본문 래퍼가 이 값으로 상단 오프셋을 계산한다. */
-  --wn-header-h: 4rem;
 }
 
 html {
