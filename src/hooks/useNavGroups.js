@@ -31,6 +31,38 @@ function resolveMenuLink(slug) {
   return `/page/${value}`;
 }
 
+// 승격된 서비스 페이지 슬러그 → 신규 전용 라우트 매핑 (premium-apply 전례와 동일 취지의
+// 일반화 — 이 worktree엔 그 커밋이 없어 매핑 자체를 여기 새로 둔다).
+// DB(page_contents)가 구 슬러그(/page/services-goal 등)를 계속 갖고 있어도 헤더 메가메뉴・
+// 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
+// /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
+// 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
+const PROMOTED_SLUG_ROUTES = {
+  'services-goal': '/services/goal',
+  'services-ai-performance': '/services/performance',
+  'services-self-assessment': '/services/self-assessment',
+  'services-in-depth-research': '/services/research'
+};
+
+function applyPromotedSlugRoutes(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+
+  function remap(to) {
+    const match = cleanText(to).match(/^\/page\/([^/]+)$/);
+    const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
+    return promoted || to;
+  }
+
+  return source.map((group) => ({
+    ...group,
+    to: remap(group.to),
+    items: (Array.isArray(group.items) ? group.items : []).map((item) => ({
+      ...item,
+      to: remap(item.to)
+    }))
+  }));
+}
+
 function ensureFreeDiagnosisInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
@@ -64,7 +96,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return ensureFreeDiagnosisInService(parsed);
+    return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(parsed));
   } catch {
     return null;
   }
@@ -143,7 +175,7 @@ function buildNavGroups(rows) {
       };
     });
 
-  return ensureFreeDiagnosisInService(groups);
+  return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(groups));
 }
 
 // 헤더 메가메뉴·푸터가 공유하는 내비게이션 그룹 훅.
@@ -152,7 +184,9 @@ function buildNavGroups(rows) {
 export function useNavGroups() {
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [navGroups, setNavGroups] = useState(() => {
-    return ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS);
+    return applyPromotedSlugRoutes(
+      ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+    );
   });
 
   useEffect(() => {
