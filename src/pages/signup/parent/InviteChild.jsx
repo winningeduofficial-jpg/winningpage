@@ -51,7 +51,7 @@ export default function InviteChild() {
   return (
     <AuthLayout spacing="tall" gap="wide">
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1="아직 회원이 아닌 자녀에게" line2="초대를 보낼게요" />
+        <AuthTitle line1="아직 회원이 아닌 자녀에게" line2="초대를 보낼게요" line2Color="ink" />
         <p className="break-keep text-base font-medium text-ink sm:text-xl">
           초대 링크로 자녀가 직접 가입하면 자동으로 연결돼요
         </p>

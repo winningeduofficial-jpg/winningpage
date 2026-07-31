@@ -533,9 +533,7 @@ export default function StudentForm() {
       )}
 
       <section className="flex w-full flex-col gap-4">
-        <h2 className="w-full text-lg font-semibold text-ink">
-          학생 정보 <span className="text-primary">(필수)</span>
-        </h2>
+        <h2 className="w-full text-lg font-semibold text-ink">학생정보 (필수)</h2>
 
         <TextField
           label="이름"

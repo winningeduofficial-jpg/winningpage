@@ -60,10 +60,8 @@ export default function Under14Verify() {
 
       <div className="w-full max-w-[25.25rem]">
         <InfoCard variant="card">
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-              <Check size={14} strokeWidth={3} />
-            </span>
+          <div className="flex items-center gap-3">
+            <Check size={20} strokeWidth={2} className="shrink-0 text-line" />
             <span className="font-medium text-primary">필수</span>
             <span className="text-ink">학부모로서 자녀의 위닝에듀 회원가입에 동의</span>
           </div>

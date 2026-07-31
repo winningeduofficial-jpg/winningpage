@@ -296,8 +296,8 @@ export default function Under14Form() {
     <AuthLayout>
       {/* TODO: C-1/D-2 두 화면 모두 스펙에 타이틀 원문이 명시돼 있지 않음(§3.3 C-1/D-2에
           타이틀 문구 인용 없음) — 동일 역할의 E-1(학부모 폼) 타이틀 "회원가입 정보를
-          입력해주세요"를 임시로 재사용. 디자이너 확인 후 교체할 것. */}
-      <AuthTitle line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해주세요</span>} />
+          입력해 주세요"를 임시로 재사용. 디자이너 확인 후 교체할 것. */}
+      <AuthTitle line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해 주세요</span>} />
 
       <section className="flex w-full flex-col gap-3">
         <h2 className="text-xl font-medium text-ink">
@@ -393,7 +393,7 @@ export default function Under14Form() {
         />
 
         <SelectField
-          label="재학 구분"
+          label="재학 구분 선택"
           id="under14-school-type"
           name="schoolType"
           size="lg"
@@ -430,8 +430,9 @@ export default function Under14Form() {
         />
 
         <InfoCard variant="card">
-          [학부모 휴대폰번호 수집 안내] 위닝에듀 서비스 이용에 필요한 안내와 공지사항을 제공하기
-          위해 학부모(법정대리인)의 휴대폰번호를 수집합니다.
+          <span className="block font-medium">[학부모 휴대폰번호 수집 안내]</span>
+          위닝에듀 서비스 이용에 필요한 안내와 공지사항을 제공하기 위해 학부모(법정대리인)의
+          휴대폰번호를 수집합니다.
         </InfoCard>
 
         <InlineCheckbox

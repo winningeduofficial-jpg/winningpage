@@ -42,7 +42,7 @@ export default function ParentHome() {
         </p>
       </div>
 
-      <div className="flex w-full items-center justify-center rounded-2xl border border-line px-6 py-4 text-base text-ink-sub">
+      <div className="flex w-full items-center justify-center rounded-2xl border border-line px-6 py-4 text-base text-ink">
         아직 연결된 자녀가 없어요
       </div>
 

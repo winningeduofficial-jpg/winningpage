@@ -6,7 +6,6 @@
 // 실제 코드를 받아 setLinkCode로 채우도록 교체해야 한다.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
 import { AuthLayout, AuthTitle, InfoCard, PrimaryButton, TextLinkButton } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
 
@@ -40,6 +39,10 @@ export default function StudentComplete() {
   }, []);
 
   const studentName = formData.name?.trim() || '회원';
+  // 시안 호칭은 성을 뗀 이름만 사용(예: '김주원' → '주원님'). 한국식 3자 이상 이름 기준
+  // 첫 글자를 성으로 간주해 제외한다. TODO: 남궁/황보 등 복성(2자 성)은 미대응 — 첫
+  // 한 글자만 성으로 취급하는 단순 규칙이라 복성 이름은 잘못 잘릴 수 있다.
+  const greetingName = studentName.length >= 3 ? studentName.slice(1) : studentName;
 
   async function handleCopyCode() {
     if (!linkCode) return;
@@ -69,21 +72,11 @@ export default function StudentComplete() {
 
   return (
     <AuthLayout>
-      {/* 가입 완료 축하 모먼트(impeccable animate 제안 5) — 배지 1개만, 과하지 않게.
-          celebrate-badge는 mount 1회만 재생되며(route 재진입 시에만 다시 보임)
-          prefers-reduced-motion 시 index.css에서 애니메이션이 꺼지고 배지는 정적으로 보인다. */}
-      <div
-        aria-hidden="true"
-        className="celebrate-badge flex h-16 w-16 items-center justify-center rounded-full bg-surface-info text-primary"
-      >
-        <Sparkles className="h-8 w-8" strokeWidth={1.75} />
-      </div>
-
       <AuthTitle
         line1={
           <>
-            <span className="text-primary">{studentName}님</span>, 위닝에듀 회원이 되신 것을
-            환영해요
+            <span className="text-ink">{greetingName}님</span>
+            <span className="text-primary">, 위닝에듀 회원이 되신 것을 환영해요</span>
           </>
         }
       />
