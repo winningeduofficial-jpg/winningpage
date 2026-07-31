@@ -28,7 +28,11 @@ const BODY = `본 약관은 위닝에듀 학생회원가입 시 회원의 연령
 
 export default function StudentIdentity() {
   return (
-    <TermsPageLayout title="학생회원 본인 인증을 위한 정보 수집" effectiveDate="2026-08-01">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학생회원 본인 인증을 위한 정보 수집"
+      effectiveDate="2026-08-01"
+    >
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );

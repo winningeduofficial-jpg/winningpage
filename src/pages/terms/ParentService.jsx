@@ -227,7 +227,11 @@ ${ARTICLES}`;
 
 export default function ParentService() {
   return (
-    <TermsPageLayout title="학부모회원 위닝에듀 이용약관" effectiveDate="2026-08-01">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학부모회원 위닝에듀 이용약관"
+      effectiveDate="2026-08-01"
+    >
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );

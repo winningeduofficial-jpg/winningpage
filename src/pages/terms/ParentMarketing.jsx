@@ -54,7 +54,11 @@ const BODY = `본 동의는 선택 사항이며, 동의하지 않아도 위닝�
 
 export default function ParentMarketing() {
   return (
-    <TermsPageLayout title="학부모회원 마케팅 목적의 개인정보 수집 및 이용" effectiveDate="2026-08-01">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학부모회원 마케팅 목적의 개인정보 수집 및 이용"
+      effectiveDate="2026-08-01"
+    >
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );

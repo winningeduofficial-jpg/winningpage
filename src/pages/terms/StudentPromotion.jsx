@@ -19,7 +19,11 @@ import TermsPageLayout, { TermsSection } from '../../components/auth/TermsPageLa
 
 export default function StudentPromotion() {
   return (
-    <TermsPageLayout title="학생회원 합격사례·후기 홍보 활용 동의" effectiveDate="2026-08-01">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학생회원 합격사례·후기 홍보 활용 동의"
+      effectiveDate="2026-08-01"
+    >
       <p className="text-xs leading-[1.85] text-ink">
         위닝에듀(이하 "회사")는 회원의 합격 사례, 성적 향상 사례 및 서비스 이용후기를 다른 회원 및
         예비 회원에게 소개하기 위한 홍보 자료로 활용하고자 합니다. 본 동의는 전적으로 선택

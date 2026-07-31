@@ -119,7 +119,11 @@ const BODY = `학부모회원은 만 19세 이상 성인을 전제로 하며, �
 
 export default function ParentPrivacy() {
   return (
-    <TermsPageLayout title="학부모회원 개인정보 수집 및 이용" effectiveDate="2026-08-01">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학부모회원 개인정보 수집 및 이용"
+      effectiveDate="2026-08-01"
+    >
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );
