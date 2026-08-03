@@ -518,13 +518,13 @@ function ManagementSection() {
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {MANAGEMENT_CARDS.map((card) => (
-            <div key={card.title} className="rounded-xl bg-[#F6F5F4] px-6 py-7">
-              <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
+            <div key={card.title} className="rounded-xl bg-[#F6F5F4] px-6 py-7 md:min-h-[10rem] md:pb-0 md:pt-9">
+              <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
                 {card.title}
               </p>
               {/* 시안 원본은 이 카드군만 #808080을 쓰지만, 프로젝트 회색 하한선(#767676 이상 —
                   ServiceLandingPage.jsx 선례)을 지키기 위해 더 진한 톤으로 대체했다. */}
-              <p className="mt-3 break-keep text-[1rem] font-medium leading-[1.5] text-[#767676]">
+              <p className="mt-3 break-keep text-[1rem] font-medium leading-[1.3125] text-[#767676] md:mt-5">
                 {card.desc}
               </p>
             </div>
