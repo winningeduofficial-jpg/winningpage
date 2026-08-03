@@ -47,8 +47,8 @@ export const SERVICES = [
         id: 'goal-12m',
         name: '[12개월] 위닝 목표관리',
         listPrice: 360000,
-        price: 252000,
-        badge: '30% 할인',
+        price: 216000,
+        badge: '40% 할인',
         recommended: true
       }
     ]
