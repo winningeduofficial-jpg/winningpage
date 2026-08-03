@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, CheckCircle2 } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
@@ -239,26 +239,47 @@ const OUTCOME_ITEMS = [
   { icon: outcomeShield, label: '부모님 안심' }
 ];
 
-// 폰 목업 주변 플로팅 배지 — 시안 절대좌표를 폰 박스(372×780.5) 기준 %로 환산해
-// FreeDiagnosisLanding의 맥북 칩 배치 관행을 그대로 따랐다(스펙 §S7 좌표 실측 기반).
+// 폰 목업 주변 플로팅 배지 — 시안 1889:7243 실측 좌표(1920px 프레임 기준)를 폰 박스
+// (x=911 y=161, 372×781) 기준 %/rem으로 환산했다. FreeDiagnosisLanding(MacbookMockup)의
+// 부유 칩 배치·애니메이션 관행을 그대로 이식한다(스펙 §A5/§B).
+//   📊 매주 리포트 자동 발송: x585 y435 351×104 (폰 좌측 중단)
+//   📋 이번 주 성과를 한눈에: x703 y713 262×104 (폰 좌하단)
+//   ✏️ PDF 리포트 확인:      x1231 y713 240×104 (폰 우하단)
+// left = (badge.x − phone.x)/phone.w × 100, top = (badge.y − phone.y)/phone.h × 100
+// (기존 % 체계 유지, 근사값과 일치 확인).
+// width는 폰 목업 렌더 폭(max-w-[20rem]=320px)을 1x 기준으로 badge.w/phone.w × 20rem 환산
+// (기존 코드의 고정 rem 폭 관행을 유지 — % width는 absolute 중첩 레이어에서 해석이 불안정해 배제).
+//
+// X/Y/회전을 keyframes 3종으로 분리(축 분해)하고 칩마다 진폭·주기·delay를 모두 다르게 뒀다
+// (FreeDiagnosisLanding FLOATING_BADGES 선례 — 세 사인파 합성 경로가 사실상 반복되지 않는
+// 리사주 도형 원리로 패턴 학습을 막는다. 절대 통일하지 말 것).
 const PHONE_BADGES = [
   {
     emoji: '📊',
     title: '매주 리포트 자동 발송',
     desc: '따로 챙기지 않아도 카카오톡 알림톡으로 도착해요',
-    style: { left: '-87%', top: '35%' }
+    style: { left: '-87.63%', top: '35.08%', width: '18.87rem' },
+    x: { amplitude: '0.375rem', duration: '4.5s', delay: '0s' },
+    y: { amplitude: '1rem', duration: '3.3s', delay: '-1.2s' },
+    rot: { amplitude: '1deg', duration: '5.9s', delay: '-2.4s' }
   },
   {
     emoji: '📋',
     title: '이번 주 성과를 한눈에',
     desc: '목표 달성률, 학습 시간, 순위률 요약',
-    style: { left: '-56%', top: '71%' }
+    style: { left: '-55.91%', top: '70.68%', width: '14.09rem' },
+    x: { amplitude: '0.3125rem', duration: '5.3s', delay: '-0.5s' },
+    y: { amplitude: '0.8125rem', duration: '3.9s', delay: '-1.7s' },
+    rot: { amplitude: '1.2deg', duration: '6.5s', delay: '-3.5s' }
   },
   {
     emoji: '✏️',
     title: 'PDF 리포트 확인',
     desc: '클릭 한 번으로 전체 내용을 열람',
-    style: { left: '86%', top: '71%' }
+    style: { left: '86.02%', top: '70.68%', width: '12.9rem' },
+    x: { amplitude: '0.375rem', duration: '4.9s', delay: '-1s' },
+    y: { amplitude: '1.125rem', duration: '4.3s', delay: '-2.3s' },
+    rot: { amplitude: '0.8deg', duration: '7.1s', delay: '-4.2s' }
   }
 ];
 
@@ -565,6 +586,22 @@ function OutcomesSection() {
 }
 
 function PhoneReportSection() {
+  const chipLayerRef = useRef(null);
+  const [chipsInView, setChipsInView] = useState(false);
+
+  // 이 섹션도 스크롤 상당히 아래(md:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
+  // 애니메이션을 돌린다(FreeDiagnosisLanding MacbookMockup과 동일 훅 구조).
+  useEffect(() => {
+    const node = chipLayerRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      setChipsInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className="overflow-x-clip bg-white pt-16 sm:pt-20 md:pt-[16.125rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
@@ -575,20 +612,52 @@ function PhoneReportSection() {
               <br />
               확인 할 수 있어요
             </h2>
-            <p className="mt-4 break-keep text-[1.0625rem] font-medium leading-[1.6] text-[#525252]">
+            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252]">
               매주 정리된 리포트가 카카오톡 알림톡으로 도착하고, 달성률부터 학습시간까지 한눈에
               확인할 수 있어요.
             </p>
           </div>
 
           <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0">
+            {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
+                (FreeDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
+                **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값. */}
+            <style>{`
+              @keyframes goal-chip-x {
+                from { transform: translateX(calc(var(--gc-x) * -1)); }
+                to { transform: translateX(var(--gc-x)); }
+              }
+              @keyframes goal-chip-y {
+                from { transform: translateY(0rem); }
+                to { transform: translateY(calc(var(--gc-y) * -1)); }
+              }
+              @keyframes goal-chip-rot {
+                from { transform: rotate(calc(var(--gc-rot) * -1)); }
+                to { transform: rotate(var(--gc-rot)); }
+              }
+              @media (prefers-reduced-motion: no-preference) {
+                .goal-chip-x[data-float='on'],
+                .goal-chip-y[data-float='on'],
+                .goal-chip-rot[data-float='on'] {
+                  animation-timing-function: ease-in-out;
+                  animation-iteration-count: infinite;
+                  animation-direction: alternate;
+                  will-change: transform;
+                }
+                .goal-chip-x[data-float='on'] { animation-name: goal-chip-x; }
+                .goal-chip-y[data-float='on'] { animation-name: goal-chip-y; }
+                .goal-chip-rot[data-float='on'] { animation-name: goal-chip-rot; }
+              }
+            `}</style>
+
             <img
               src={phoneReportMockup}
               alt="아이폰 화면 속 카카오톡 알림톡 — 주간 목표관리 리포트 도착 카드, 목표 달성률 84%, 총 학습시간 32시간 10분, 학습 순위 상위 12%"
               className="relative z-0 w-full"
             />
 
-            {/* 플로팅 배지 — lg 미만은 폰 하단에 스택으로, lg 이상은 시안 좌표 기반 절대배치로 노출 */}
+            {/* 플로팅 배지 — lg 미만은 폰 하단에 스택으로(기존 목록 UI 그대로), lg 이상은
+                시안(1889:7243) 좌표 기반 절대배치 + 부유 애니메이션 */}
             <div className="mt-6 flex flex-col gap-3 lg:hidden">
               {PHONE_BADGES.map((badge) => (
                 <div
@@ -606,23 +675,56 @@ function PhoneReportSection() {
             </div>
 
             <div
+              ref={chipLayerRef}
               className="pointer-events-none absolute inset-0 hidden lg:block"
               aria-hidden="true"
             >
-              {PHONE_BADGES.map((badge) => (
-                <div
-                  key={badge.title}
-                  className="absolute w-[13.75rem] rounded-2xl bg-white px-5 py-3 text-left shadow-[0_0.5rem_1.5rem_rgba(1,50,98,0.16)]"
-                  style={badge.style}
-                >
-                  <p className="text-[0.9375rem] font-semibold leading-[1.4] text-[#013262]">
-                    {badge.emoji} {badge.title}
-                  </p>
-                  <p className="mt-1 break-keep text-[0.75rem] font-medium leading-[1.5] text-[#013262]/80">
-                    {badge.desc}
-                  </p>
-                </div>
-              ))}
+              {PHONE_BADGES.map((badge) => {
+                const floatState = chipsInView ? 'on' : 'off';
+                return (
+                  /* 바깥 래퍼 = 위치 전담(left/top/width 절대배치 + 진폭 CSS 변수 주입).
+                     변수는 하위로 상속되므로 keyframes 3종은 자식 쪽에서 그대로 var()로 읽는다. */
+                  <div
+                    key={badge.title}
+                    className="absolute"
+                    style={{
+                      ...badge.style,
+                      '--gc-x': badge.x.amplitude,
+                      '--gc-y': badge.y.amplitude,
+                      '--gc-rot': badge.rot.amplitude
+                    }}
+                  >
+                    <div
+                      className="goal-chip-x block w-full"
+                      data-float={floatState}
+                      style={{ animationDuration: badge.x.duration, animationDelay: badge.x.delay }}
+                    >
+                      <div
+                        className="goal-chip-y block w-full"
+                        data-float={floatState}
+                        style={{ animationDuration: badge.y.duration, animationDelay: badge.y.delay }}
+                      >
+                        {/* 회전 요소 = 실제 칩(시안 1889:7243 실측): bg #F1F8FF, radius 40px,
+                            padding 20px, shadow accent(#0B84FD) 40% off(0,2) blur20 */}
+                        <div
+                          className="goal-chip-rot w-full rounded-[2.5rem] bg-[#F1F8FF] p-5 text-left shadow-[0_0.125rem_1.25rem_rgba(11,132,253,0.4)]"
+                          data-float={floatState}
+                          style={{ animationDuration: badge.rot.duration, animationDelay: badge.rot.delay }}
+                        >
+                          <p className="text-[1.25rem] font-medium leading-[1.4] text-[#013262]">
+                            {badge.emoji} {badge.title}
+                          </p>
+                          {/* 시안 원본 #808080 → 프로젝트 회색 하한선(#767676 이상 —
+                              ManagementSection/StageSection 선례)으로 클램프 */}
+                          <p className="mt-[0.625rem] break-keep text-[1rem] font-normal leading-[1.625] text-[#767676]">
+                            {badge.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
