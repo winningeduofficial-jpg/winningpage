@@ -844,11 +844,11 @@ function PricingSection() {
             return (
               <div
                 key={product.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 md:h-[7.25rem]"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 md:h-[6.625rem]"
               >
                 <span className="flex items-center gap-5">
                   <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#D7D7D7]"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#D7D7D7] md:h-[1.375rem] md:w-[1.375rem]"
                     aria-hidden="true"
                   >
                     <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
@@ -896,7 +896,7 @@ function PricingSection() {
 
         <Link
           to="/pricing"
-          className="mt-8 inline-flex h-14 items-center justify-center rounded-[1.25rem] border border-[#0B84FD] bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem] md:h-[4.25rem] md:w-[18.75rem] md:px-0"
+          className="mt-8 inline-flex h-14 items-center justify-center rounded-[1.25rem] border border-[#0B84FD] bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem] md:h-[3.875rem] md:w-[17.125rem] md:px-0"
         >
           이용권 구매하기
         </Link>
