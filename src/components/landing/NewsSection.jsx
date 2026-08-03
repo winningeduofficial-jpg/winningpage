@@ -160,7 +160,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           위닝에듀의 새로운 소식
         </h2>
 
-        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[3.8125rem] md:grid-cols-2 md:gap-[1.3125rem]">
+        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[3.8125rem] md:grid-cols-2 md:gap-[1rem]">
           {/* 좌: 회사소식 */}
           <div>
             <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
