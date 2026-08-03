@@ -323,20 +323,63 @@ export function stripHtmlToText(value) {
   );
 }
 
+// colspan/rowspan을 실제 그리드 컬럼 인덱스로 펼쳐서 반환한다. 이걸 하지 않으면
+// (구현 이전 버전) 병합 헤더 셀 하나가 배열의 칸 1개만 차지하게 되어, 상위 헤더
+// 행(그룹명)과 하위 헤더 행(연도/지표)의 컬럼 인덱스가 서로 어긋난다 — 그 결과
+// buildGroupNameForColumn/normalizeRecruitmentExactHtml의 colspan 계산이 실제
+// 데이터 컬럼 수와 맞지 않아 전형 그룹 헤더가 옆 전형의 컬럼까지 침범하는 문제가
+// 발생했다(가톨릭관동대/고려대 사례).
 export function parseHtmlTableRows(html) {
   const source = String(html || '');
   const rowMatches = source.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  return rowMatches
-    .map((rowHtml) => {
-      const cellMatches = rowHtml.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
-      return cellMatches.map((cellHtml) => {
-        const openTag = (cellHtml.match(/^<t[hd][^>]*>/i) || [''])[0];
-        const isBlank = /blank-cell/.test(openTag);
-        const text = stripHtmlToText(cellHtml);
-        return isBlank && !text ? '' : text;
-      });
-    })
-    .filter((row) => row.some((cell) => clean(cell)));
+
+  const rowSpanCarry = [];
+  const grid = [];
+
+  rowMatches.forEach((rowHtml) => {
+    const cellMatches = rowHtml.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
+    const row = [];
+    let col = 0;
+
+    const placeCarried = () => {
+      while (rowSpanCarry[col] && rowSpanCarry[col].remaining > 0) {
+        row[col] = rowSpanCarry[col].value;
+        rowSpanCarry[col].remaining -= 1;
+        col += 1;
+      }
+    };
+
+    placeCarried();
+
+    cellMatches.forEach((cellHtml) => {
+      const openTag = (cellHtml.match(/^<t[hd][^>]*>/i) || [''])[0];
+      const isBlank = /blank-cell/.test(openTag);
+      const text = stripHtmlToText(cellHtml);
+      const value = isBlank && !text ? '' : text;
+      const colspan = Math.max(
+        1,
+        parseInt((openTag.match(/colspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1
+      );
+      const rowspan = Math.max(
+        1,
+        parseInt((openTag.match(/rowspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1
+      );
+
+      for (let i = 0; i < colspan; i += 1) {
+        row[col] = value;
+        if (rowspan > 1) {
+          rowSpanCarry[col] = { value, remaining: rowspan - 1 };
+        }
+        col += 1;
+        placeCarried();
+      }
+    });
+
+    placeCarried();
+    grid.push(row);
+  });
+
+  return grid.filter((row) => row.some((cell) => clean(cell)));
 }
 
 export function padRows(rows) {

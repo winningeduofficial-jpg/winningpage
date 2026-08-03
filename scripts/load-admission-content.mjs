@@ -78,14 +78,15 @@ async function resolveCredentials() {
   };
 }
 
-// 카테고리 하나에 대해: JSON에 이미 있는 *_html은 그대로 보존, 없으면 페이지
-// 모달과 동일한 buildRawSectionHtml 경로로 생성한다.
-function buildCategoryHtml(sectionKey, hwpRow, universityName) {
+// 카테고리 하나에 대해: JSON에 이미 있는 *_html은 그대로 보존, 없으면 DB에 현재
+// 저장돼 있는 값을 보존(재실행이 어드민 수기 편집을 되돌리지 않도록), 그것도 없으면
+// 페이지 모달과 동일한 buildRawSectionHtml 경로로 생성한다.
+function buildCategoryHtml(sectionKey, hwpRow, dbRow, universityName) {
   const htmlKey = CATEGORY_HTML_KEY[sectionKey];
-  const existingHtml = clean(hwpRow?.[htmlKey]);
+  const existingHtml = clean(hwpRow?.[htmlKey]) || clean(dbRow?.[htmlKey]);
   if (existingHtml) return { html: existingHtml, source: 'preserved' };
 
-  const rawText = clean(hwpRow?.[sectionKey]);
+  const rawText = clean(hwpRow?.[sectionKey]) || clean(dbRow?.[sectionKey]);
   if (!rawText) return { html: '', source: 'empty' };
 
   const generated = buildRawSectionHtml(rawText, sectionKey, hwpRow, universityName);
@@ -116,9 +117,23 @@ async function main() {
   }
   const supabase = createClient(url, serviceKey);
 
+  // is_active/detail_status/raw 6종/html 6종도 함께 가져온다 — 재실행 시 이미
+  // DB에 있는(어드민이 손으로 편집했을 수 있는) 값을 보존하기 위한 COALESCE 기준값이다.
+  const existingColumns = [
+    'id',
+    'university_name',
+    'university_key',
+    'admission_year',
+    'region',
+    'is_active',
+    'detail_status',
+    ...CATEGORY_KEYS,
+    ...CATEGORY_KEYS.map((key) => CATEGORY_HTML_KEY[key])
+  ].join(', ');
+
   const { data: existingRows, error: fetchError } = await supabase
     .from(TABLE)
-    .select('id, university_name, university_key, admission_year, region')
+    .select(existingColumns)
     .eq('admission_year', admissionYear);
   if (fetchError) throw new Error(`기존 행 조회 실패: ${fetchError.message}`);
 
@@ -149,14 +164,16 @@ async function main() {
       university_name: dbRow.university_name,
       university_key: dbRow.university_key,
       region: dbRow.region,
-      detail_status: clean(hwpRow.detail_status) || 'normal',
+      // 신규 행에만 기본값을 채우고 기존 행은 어드민이 지정한 값을 보존한다:
+      // JSON에 값이 있으면 그것을 우선하되, 없으면 DB 현재 값 → 최종 기본값 순으로 폴백.
+      detail_status: clean(hwpRow.detail_status) || clean(dbRow.detail_status) || 'normal',
       matched_hwp_name: clean(hwpRow.hwp_source_name) || universityName,
-      is_active: true
+      is_active: typeof dbRow.is_active === 'boolean' ? dbRow.is_active : true
     };
 
     CATEGORY_KEYS.forEach((key) => {
-      payload[key] = clean(hwpRow[key]);
-      const { html, source } = buildCategoryHtml(key, hwpRow, universityName);
+      payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
+      const { html, source } = buildCategoryHtml(key, hwpRow, dbRow, universityName);
       payload[CATEGORY_HTML_KEY[key]] = html;
       categoryStats[key][source] += 1;
     });

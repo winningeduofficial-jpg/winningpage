@@ -609,42 +609,79 @@ const CONFIGS = {
 
       {
         key: 'previous_year_changes',
-        label: '전년도와 차이점(수시)(HTML)',
+        label: '전년도와 차이점(수시) 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 HTML도 함께 갱신하세요.',
+        type: 'textarea',
+        rows: 8
+      },
+      {
+        key: 'previous_year_changes_html',
+        label: '전년도와 차이점(수시) HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 8
       },
       {
         key: 'selection_method',
-        label: '전형방법(HTML 표)',
+        label: '전형방법 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'selection_method_html',
+        label: '전형방법 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 12
       },
       {
         key: 'minimum_requirements',
-        label: '최저학력기준(HTML 표)',
+        label: '최저학력기준 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'minimum_requirements_html',
+        label: '최저학력기준 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 12
       },
       {
         key: 'exam_schedule',
-        label: '대학별고사일(HTML 표)',
+        label: '대학별고사일 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 10
+      },
+      {
+        key: 'exam_schedule_html',
+        label: '대학별고사일 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 10
       },
       {
         key: 'school_record_method',
-        label: '학생부반영방법(HTML)',
+        label: '학생부반영방법 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 14
+      },
+      {
+        key: 'school_record_method_html',
+        label: '학생부반영방법 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 14
       },
       {
         key: 'recruitment_quota',
-        label: '모집인원 버튼명',
-        type: 'text'
+        label: '모집인원 및 입결 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
       },
       {
         key: 'recruitment_result_html',
-        label: '모집인원 및 입결(HTML 표)',
+        label: '모집인원 및 입결 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 18
       },
@@ -675,16 +712,23 @@ const CONFIGS = {
       university_key: '',
       matched_hwp_name: '',
       previous_year_changes: '',
+      previous_year_changes_html: '',
       selection_method: '',
+      selection_method_html: '',
       minimum_requirements: '',
+      minimum_requirements_html: '',
       exam_schedule: '',
+      exam_schedule_html: '',
       school_record_method: '',
-      recruitment_quota: '모집인원 및 입결',
+      school_record_method_html: '',
+      recruitment_quota: '',
       recruitment_result_html: '',
       jungsi_guideline_url: '',
       memo: '',
       detail_status: '상세입력완료'
     },
+
+    validate: admissionGuidelinesValidate,
 
     FormPreview: AdmissionParsingPreview
   },
@@ -3287,6 +3331,26 @@ function MentorCardFormPreview({ form, onPatch }) {
   );
 }
 
+// admissionGuidelines 저장 직전 가드: 이미 존재하던 행을 수정하면서(신규 등록은 대상 아님)
+// 공개 페이지가 실제로 렌더하는 *_html 필드 중 하나라도 원래 값과 달라지면, 어떤 카테고리가
+// 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+function admissionGuidelinesValidate(form, row) {
+  if (!row) return null;
+
+  const changedLabels = HWP_SECTION_ORDER.filter((key) => {
+    const htmlKey = HWP_SECTION_HTML_KEYS[key];
+    return cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+  }).map((key) => HWP_SECTION_LABELS[key]);
+
+  if (changedLabels.length === 0) return null;
+
+  const proceed = window.confirm(
+    `다음 항목의 공개 페이지 HTML이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
+  );
+
+  return proceed ? null : '저장이 취소되었습니다.';
+}
+
 // admissionGuidelines 편집 폼 전용: HWP 원문 텍스트를 붙여넣으면 공유 파싱 모듈(admissionParsing.js)로
 // 6개 카테고리(raw + *_html)를 자동으로 채우고, 실제 공개 페이지 모달과 동일한 표 스타일로 미리보기를
 // 렌더한다. 번호("1.~6.") 마커가 없어 자동 분할이 안 되는 원문이면, 좌측 필드 목록에 이미 있는
@@ -3295,19 +3359,51 @@ function MentorCardFormPreview({ form, onPatch }) {
 function AdmissionParsingPreview({ form, onPatch }) {
   const [hwpSource, setHwpSource] = useState('');
   const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
+  // 카테고리별 "파싱 결과로 기존 HTML 덮어쓰기" 동의 체크박스 상태. 기본은 비동의(false) —
+  // 이미 값이 있는 카테고리는 사용자가 명시적으로 동의해야만 덮어쓴다.
+  const [overwriteConsent, setOverwriteConsent] = useState({});
 
+  function toggleConsent(key) {
+    setOverwriteConsent((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // 카테고리 원문 → HTML 파싱 결과를 patch로 만든다. 저장된 큐레이션 HTML을 파괴하지
+  // 않기 위해 두 가지를 지킨다:
+  // (a) 파싱 결과가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존 HTML을
+  //     지우지 않는다(빈 문자열로 덮어써서 공개 페이지에서 항목이 사라지는 것을 방지).
+  // (b) 이미 HTML 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠 경우에만
+  //     patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해 호출부가 안내한다.
   function buildPreviewPatch(sourceForm) {
     const patch = {};
+    const skipped = [];
+
     HWP_SECTION_ORDER.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      patch[htmlKey] = buildHwpCategoryHtml(
+      const generated = buildHwpCategoryHtml(
         key,
         sourceForm[key],
         sourceForm,
         sourceForm.university_name
       );
+      if (!generated) return;
+
+      const hasExisting = Boolean(cleanAdmissionText(sourceForm[htmlKey]));
+      if (hasExisting && !overwriteConsent[key]) {
+        skipped.push(HWP_SECTION_LABELS[key]);
+        return;
+      }
+
+      patch[htmlKey] = generated;
     });
-    return patch;
+
+    return { patch, skipped };
+  }
+
+  function warnSkipped(skipped) {
+    if (!skipped.length) return;
+    alert(
+      `다음 카테고리는 이미 HTML이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+    );
   }
 
   function runAutoParse() {
@@ -3334,12 +3430,16 @@ function AdmissionParsingPreview({ form, onPatch }) {
     const mergedRaw = { ...form, ...rawPatch };
 
     setSplitStatus('auto');
-    onPatch({ ...rawPatch, ...buildPreviewPatch(mergedRaw) });
+    const { patch, skipped } = buildPreviewPatch(mergedRaw);
+    onPatch({ ...rawPatch, ...patch });
+    warnSkipped(skipped);
   }
 
   function refreshPreview() {
     setSplitStatus((prev) => prev || 'manual');
-    onPatch(buildPreviewPatch(form));
+    const { patch, skipped } = buildPreviewPatch(form);
+    onPatch(patch);
+    warnSkipped(skipped);
   }
 
   return (
@@ -3386,9 +3486,22 @@ function AdmissionParsingPreview({ form, onPatch }) {
       <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
         {HWP_SECTION_ORDER.map((key) => {
           const html = form[HWP_SECTION_HTML_KEYS[key]];
+          const hasExisting = Boolean(cleanAdmissionText(html));
           return (
             <div key={key}>
-              <h3 className="mb-1 text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
+                {hasExisting && (
+                  <label className="flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(overwriteConsent[key])}
+                      onChange={() => toggleConsent(key)}
+                    />
+                    파싱 결과로 덮어쓰기 동의
+                  </label>
+                )}
+              </div>
               {html ? (
                 <div className="admission-existing-html" dangerouslySetInnerHTML={{ __html: html }} />
               ) : (
@@ -3579,7 +3692,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     }
 
     if (config.validate) {
-      const error = config.validate(form);
+      const error = config.validate(form, row);
       if (error) {
         alert(error);
         return;
