@@ -9,12 +9,10 @@ import {
   X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import admissionHwpSections from '../data/admissionHwpSections.json';
 import {
   buildRawSectionHtml,
   buildResourceIndex,
   clean,
-  findHwpSectionData,
   findResourceRow,
   getFirstUrl,
   getSectionText,
@@ -69,979 +67,12 @@ const REGION_LABEL_POSITIONS = {
   제주: { x: 26, y: 91 }
 };
 
-const UNIVERSITY_DIRECTORY = [
-  {
-    region: '강원',
-    name: '가톨릭관동대학교'
-  },
-  {
-    region: '강원',
-    name: '강원대학교(강릉)'
-  },
-  {
-    region: '강원',
-    name: '강원대학교(원주)'
-  },
-  {
-    region: '강원',
-    name: '강원대학교(춘천삼척)'
-  },
-  {
-    region: '강원',
-    name: '경동대학교(고성문막)'
-  },
-  {
-    region: '강원',
-    name: '상지대학교'
-  },
-  {
-    region: '강원',
-    name: '연세대학교(미래)'
-  },
-  {
-    region: '강원',
-    name: '춘천교육대학교'
-  },
-  {
-    region: '강원',
-    name: '한라대학교'
-  },
-  {
-    region: '강원',
-    name: '한림대학교'
-  },
-  {
-    region: '경기',
-    name: '가천대학교(성남)'
-  },
-  {
-    region: '경기',
-    name: '가톨릭대학교(부천)'
-  },
-  {
-    region: '경기',
-    name: '강남대학교'
-  },
-  {
-    region: '경기',
-    name: '경기대학교(수원)'
-  },
-  {
-    region: '경기',
-    name: '경동대학교(양주)'
-  },
-  {
-    region: '경기',
-    name: '경희대학교(용인)'
-  },
-  {
-    region: '경기',
-    name: '국립한국교통대학교(의왕)'
-  },
-  {
-    region: '경기',
-    name: '단국대학교(죽전)'
-  },
-  {
-    region: '경기',
-    name: '대진대학교'
-  },
-  {
-    region: '경기',
-    name: '동양대학교(동두천)'
-  },
-  {
-    region: '경기',
-    name: '루터대학교'
-  },
-  {
-    region: '경기',
-    name: '명지대학교(용인)'
-  },
-  {
-    region: '경기',
-    name: '서울신학대학교'
-  },
-  {
-    region: '경기',
-    name: '서울장신대학교'
-  },
-  {
-    region: '경기',
-    name: '성결대학교'
-  },
-  {
-    region: '경기',
-    name: '성균관대학교(수원)'
-  },
-  {
-    region: '경기',
-    name: '수원가톨릭대학교'
-  },
-  {
-    region: '경기',
-    name: '수원대학교'
-  },
-  {
-    region: '경기',
-    name: '신한대학교(의정부/동두천)'
-  },
-  {
-    region: '경기',
-    name: '아신대학교'
-  },
-  {
-    region: '경기',
-    name: '아주대학교'
-  },
-  {
-    region: '경기',
-    name: '안양대학교(안양)'
-  },
-  {
-    region: '경기',
-    name: '예원예술대학교(양주)'
-  },
-  {
-    region: '경기',
-    name: '용인대학교'
-  },
-  {
-    region: '경기',
-    name: '을지대학교(성남의정부)'
-  },
-  {
-    region: '경기',
-    name: '중부대학교(고양)'
-  },
-  {
-    region: '경기',
-    name: '중앙대학교(안성)'
-  },
-  {
-    region: '경기',
-    name: '중앙승가대학교'
-  },
-  {
-    region: '경기',
-    name: '차의과학대학교'
-  },
-  {
-    region: '경기',
-    name: '칼빈대학교'
-  },
-  {
-    region: '경기',
-    name: '평택대학교'
-  },
-  {
-    region: '경기',
-    name: '한경국립대학교'
-  },
-  {
-    region: '경기',
-    name: '한국공학대학교'
-  },
-  {
-    region: '경기',
-    name: '한국외국어대학교(용인)'
-  },
-  {
-    region: '경기',
-    name: '한국항공대학교'
-  },
-  {
-    region: '경기',
-    name: '한세대학교'
-  },
-  {
-    region: '경기',
-    name: '한신대학교'
-  },
-  {
-    region: '경기',
-    name: '한양대학교(ERICA)'
-  },
-  {
-    region: '경기',
-    name: '협성대학교'
-  },
-  {
-    region: '경기',
-    name: '화성의과학대학교'
-  },
-  {
-    region: '경남',
-    name: '가야대학교'
-  },
-  {
-    region: '경남',
-    name: '경남대학교'
-  },
-  {
-    region: '경남',
-    name: '경상국립대학교(진주)'
-  },
-  {
-    region: '경남',
-    name: '경상국립대학교(통영)'
-  },
-  {
-    region: '경남',
-    name: '국립창원대학교'
-  },
-  {
-    region: '경남',
-    name: '부산대학교(양산밀양)'
-  },
-  {
-    region: '경남',
-    name: '부산장신대학교'
-  },
-  {
-    region: '경남',
-    name: '인제대학교'
-  },
-  {
-    region: '경남',
-    name: '진주교육대학교'
-  },
-  {
-    region: '경남',
-    name: '창신대학교'
-  },
-  {
-    region: '경북',
-    name: '경북대학교(상주)'
-  },
-  {
-    region: '경북',
-    name: '경운대학교'
-  },
-  {
-    region: '경북',
-    name: '경일대학교'
-  },
-  {
-    region: '경북',
-    name: '국립경국대학교'
-  },
-  {
-    region: '경북',
-    name: '국립금오공과대학교'
-  },
-  {
-    region: '경북',
-    name: '김천대학교'
-  },
-  {
-    region: '경북',
-    name: '대구가톨릭대학교'
-  },
-  {
-    region: '경북',
-    name: '대구대학교'
-  },
-  {
-    region: '경북',
-    name: '대구예술대학교'
-  },
-  {
-    region: '경북',
-    name: '대구한의대학교'
-  },
-  {
-    region: '경북',
-    name: '대신대학교'
-  },
-  {
-    region: '경북',
-    name: '동국대학교(WISE)'
-  },
-  {
-    region: '경북',
-    name: '동양대학교(영주)'
-  },
-  {
-    region: '경북',
-    name: '신경주대학교'
-  },
-  {
-    region: '경북',
-    name: '영남대학교'
-  },
-  {
-    region: '경북',
-    name: '영남신학대학교'
-  },
-  {
-    region: '경북',
-    name: '위덕대학교'
-  },
-  {
-    region: '경북',
-    name: '한동대학교'
-  },
-  {
-    region: '광주',
-    name: '광신대학교'
-  },
-  {
-    region: '광주',
-    name: '광주교육대학교'
-  },
-  {
-    region: '광주',
-    name: '광주대학교'
-  },
-  {
-    region: '광주',
-    name: '광주여자대학교'
-  },
-  {
-    region: '광주',
-    name: '남부대학교'
-  },
-  {
-    region: '광주',
-    name: '송원대학교'
-  },
-  {
-    region: '광주',
-    name: '전남대학교(광주)'
-  },
-  {
-    region: '광주',
-    name: '조선대학교'
-  },
-  {
-    region: '광주',
-    name: '호남대학교'
-  },
-  {
-    region: '광주',
-    name: '호남신학대학교'
-  },
-  {
-    region: '대구',
-    name: '경북대학교(대구)'
-  },
-  {
-    region: '대구',
-    name: '계명대학교'
-  },
-  {
-    region: '대구',
-    name: '대구교육대학교'
-  },
-  {
-    region: '대전',
-    name: '건양대학교(대전)'
-  },
-  {
-    region: '대전',
-    name: '국립한밭대학교'
-  },
-  {
-    region: '대전',
-    name: '대전대학교'
-  },
-  {
-    region: '대전',
-    name: '대전신학대학교'
-  },
-  {
-    region: '대전',
-    name: '목원대학교'
-  },
-  {
-    region: '대전',
-    name: '배재대학교'
-  },
-  {
-    region: '대전',
-    name: '우송대학교'
-  },
-  {
-    region: '대전',
-    name: '을지대학교(대전)'
-  },
-  {
-    region: '대전',
-    name: '충남대학교'
-  },
-  {
-    region: '대전',
-    name: '한국침례신학대학교'
-  },
-  {
-    region: '대전',
-    name: '한남대학교'
-  },
-  {
-    region: '부산',
-    name: '경성대학교'
-  },
-  {
-    region: '부산',
-    name: '고신대학교'
-  },
-  {
-    region: '부산',
-    name: '국립부경대학교'
-  },
-  {
-    region: '부산',
-    name: '국립한국해양대학교'
-  },
-  {
-    region: '부산',
-    name: '동명대학교'
-  },
-  {
-    region: '부산',
-    name: '동서대학교'
-  },
-  {
-    region: '부산',
-    name: '동아대학교'
-  },
-  {
-    region: '부산',
-    name: '동의대학교'
-  },
-  {
-    region: '부산',
-    name: '부산가톨릭대학교'
-  },
-  {
-    region: '부산',
-    name: '부산교육대학교'
-  },
-  {
-    region: '부산',
-    name: '부산대학교(부산)'
-  },
-  {
-    region: '부산',
-    name: '부산외국어대학교'
-  },
-  {
-    region: '부산',
-    name: '신라대학교'
-  },
-  {
-    region: '부산',
-    name: '영산대학교'
-  },
-  {
-    region: '서울',
-    name: '가톨릭대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '감리교신학대학교'
-  },
-  {
-    region: '서울',
-    name: '강서대학교'
-  },
-  {
-    region: '서울',
-    name: '건국대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '경기대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '경희대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '고려대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '광운대학교'
-  },
-  {
-    region: '서울',
-    name: '국민대학교'
-  },
-  {
-    region: '서울',
-    name: '덕성여자대학교'
-  },
-  {
-    region: '서울',
-    name: '동국대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '동덕여자대학교'
-  },
-  {
-    region: '서울',
-    name: '명지대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '삼육대학교'
-  },
-  {
-    region: '서울',
-    name: '상명대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '서강대학교'
-  },
-  {
-    region: '서울',
-    name: '서경대학교'
-  },
-  {
-    region: '서울',
-    name: '서울과학기술대학교'
-  },
-  {
-    region: '서울',
-    name: '서울교육대학교'
-  },
-  {
-    region: '서울',
-    name: '서울기독대학교'
-  },
-  {
-    region: '서울',
-    name: '서울대학교'
-  },
-  {
-    region: '서울',
-    name: '서울시립대학교'
-  },
-  {
-    region: '서울',
-    name: '서울여자대학교'
-  },
-  {
-    region: '서울',
-    name: '서울한영대학교'
-  },
-  {
-    region: '서울',
-    name: '성공회대학교'
-  },
-  {
-    region: '서울',
-    name: '성균관대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '성신여자대학교'
-  },
-  {
-    region: '서울',
-    name: '세종대학교'
-  },
-  {
-    region: '서울',
-    name: '숙명여자대학교'
-  },
-  {
-    region: '서울',
-    name: '숭실대학교'
-  },
-  {
-    region: '서울',
-    name: '연세대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '이화여자대학교'
-  },
-  {
-    region: '서울',
-    name: '장로회신학대학교'
-  },
-  {
-    region: '서울',
-    name: '중앙대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '총신대학교'
-  },
-  {
-    region: '서울',
-    name: '추계예술대학교'
-  },
-  {
-    region: '서울',
-    name: '태재대학교'
-  },
-  {
-    region: '서울',
-    name: '한국성서대학교'
-  },
-  {
-    region: '서울',
-    name: '한국예술종합학교'
-  },
-  {
-    region: '서울',
-    name: '한국외국어대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '한국체육대학교'
-  },
-  {
-    region: '서울',
-    name: '한성대학교'
-  },
-  {
-    region: '서울',
-    name: '한양대학교(서울)'
-  },
-  {
-    region: '서울',
-    name: '홍익대학교(서울)'
-  },
-  {
-    region: '세종',
-    name: '고려대학교(세종)'
-  },
-  {
-    region: '세종',
-    name: '대전가톨릭대학교'
-  },
-  {
-    region: '세종',
-    name: '홍익대학교(세종)'
-  },
-  {
-    region: '울산',
-    name: '울산대학교'
-  },
-  {
-    region: '인천',
-    name: '가천대학교(인천)'
-  },
-  {
-    region: '인천',
-    name: '경인교육대학교'
-  },
-  {
-    region: '인천',
-    name: '안양대학교(강화)'
-  },
-  {
-    region: '인천',
-    name: '인천가톨릭대학교(인천/강화)'
-  },
-  {
-    region: '인천',
-    name: '인천대학교'
-  },
-  {
-    region: '인천',
-    name: '인하대학교'
-  },
-  {
-    region: '인천',
-    name: '청운대학교(인천)'
-  },
-  {
-    region: '전남',
-    name: '광주가톨릭대학교'
-  },
-  {
-    region: '전남',
-    name: '국립목포대학교'
-  },
-  {
-    region: '전남',
-    name: '국립목포해양대학교'
-  },
-  {
-    region: '전남',
-    name: '국립순천대학교'
-  },
-  {
-    region: '전남',
-    name: '동신대학교'
-  },
-  {
-    region: '전남',
-    name: '목포가톨릭대학교'
-  },
-  {
-    region: '전남',
-    name: '세한대학교(영암)'
-  },
-  {
-    region: '전남',
-    name: '영산선학대학교'
-  },
-  {
-    region: '전남',
-    name: '전남대학교(여수)'
-  },
-  {
-    region: '전남',
-    name: '초당대학교'
-  },
-  {
-    region: '전북',
-    name: '국립군산대학교'
-  },
-  {
-    region: '전북',
-    name: '예수대학교'
-  },
-  {
-    region: '전북',
-    name: '예원예술대학교(임실)'
-  },
-  {
-    region: '전북',
-    name: '우석대학교(삼례)'
-  },
-  {
-    region: '전북',
-    name: '원광대학교'
-  },
-  {
-    region: '전북',
-    name: '전북대학교'
-  },
-  {
-    region: '전북',
-    name: '전주교육대학교'
-  },
-  {
-    region: '전북',
-    name: '전주대학교'
-  },
-  {
-    region: '전북',
-    name: '한일장신대학교'
-  },
-  {
-    region: '전북',
-    name: '호원대학교'
-  },
-  {
-    region: '제주',
-    name: '제주국제대학교'
-  },
-  {
-    region: '제주',
-    name: '제주대학교'
-  },
-  {
-    region: '충남',
-    name: '건양대학교(논산)'
-  },
-  {
-    region: '충남',
-    name: '공주교육대학교'
-  },
-  {
-    region: '충남',
-    name: '국립공주대학교'
-  },
-  {
-    region: '충남',
-    name: '금강대학교'
-  },
-  {
-    region: '충남',
-    name: '나사렛대학교'
-  },
-  {
-    region: '충남',
-    name: '남서울대학교'
-  },
-  {
-    region: '충남',
-    name: '단국대학교(천안)'
-  },
-  {
-    region: '충남',
-    name: '백석대학교'
-  },
-  {
-    region: '충남',
-    name: '상명대학교(천안)'
-  },
-  {
-    region: '충남',
-    name: '선문대학교'
-  },
-  {
-    region: '충남',
-    name: '세한대학교(당진)'
-  },
-  {
-    region: '충남',
-    name: '순천향대학교'
-  },
-  {
-    region: '충남',
-    name: '유원대학교(아산)'
-  },
-  {
-    region: '충남',
-    name: '중부대학교(금산)'
-  },
-  {
-    region: '충남',
-    name: '청운대학교(홍성)'
-  },
-  {
-    region: '충남',
-    name: '한국기술교육대학교'
-  },
-  {
-    region: '충남',
-    name: '한국전통문화대학교'
-  },
-  {
-    region: '충남',
-    name: '한서대학교'
-  },
-  {
-    region: '충남',
-    name: '호서대학교'
-  },
-  {
-    region: '충북',
-    name: '가톨릭꽃동네대학교'
-  },
-  {
-    region: '충북',
-    name: '건국대학교(글로컬)'
-  },
-  {
-    region: '충북',
-    name: '국립한국교통대학교(충주증평)'
-  },
-  {
-    region: '충북',
-    name: '극동대학교'
-  },
-  {
-    region: '충북',
-    name: '서원대학교'
-  },
-  {
-    region: '충북',
-    name: '세명대학교'
-  },
-  {
-    region: '충북',
-    name: '우석대학교(진천)'
-  },
-  {
-    region: '충북',
-    name: '유원대학교(영동)'
-  },
-  {
-    region: '충북',
-    name: '중원대학교'
-  },
-  {
-    region: '충북',
-    name: '청주교육대학교'
-  },
-  {
-    region: '충북',
-    name: '청주대학교'
-  },
-  {
-    region: '충북',
-    name: '충북대학교'
-  },
-  {
-    region: '충북',
-    name: '한국교원대학교'
-  }
-];
+const SPECIAL_GROUP_META = {
+  police: { label: '경찰대' },
+  science: { label: '과학기술원' },
+  academy: { label: '사관학교' }
+};
 
-const SPECIAL_UNIVERSITY_GROUPS = [
-  {
-    key: 'police',
-    label: '경찰대',
-    description: '경찰대학 입학자료',
-    items: [
-      {
-        region: '충남',
-        name: '경찰대학'
-      }
-    ]
-  },
-  {
-    key: 'science',
-    label: '과학기술원',
-    description: '과학기술원 및 특수 이공계 대학 자료',
-    items: [
-      {
-        region: '광주',
-        name: '광주과학기술원'
-      },
-      {
-        region: '대구',
-        name: '대구경북과학기술원'
-      },
-      {
-        region: '대전',
-        name: '한국과학기술원'
-      },
-      {
-        region: '울산',
-        name: '울산과학기술원'
-      },
-      {
-        region: '경북',
-        name: '포항공과대학교'
-      },
-      {
-        region: '전남',
-        name: '한국에너지공과대학교'
-      }
-    ]
-  },
-  {
-    key: 'academy',
-    label: '사관학교',
-    description: '사관학교·국군간호사관학교 입학자료',
-    items: [
-      {
-        region: '서울',
-        name: '육군사관학교'
-      },
-      {
-        region: '경남',
-        name: '해군사관학교'
-      },
-      {
-        region: '충북',
-        name: '공군사관학교'
-      },
-      {
-        region: '대전',
-        name: '국군간호사관학교'
-      }
-    ]
-  }
-];
-
-const SPECIAL_UNIVERSITY_DIRECTORY = SPECIAL_UNIVERSITY_GROUPS.flatMap((group) => group.items);
-const ALL_UNIVERSITY_DIRECTORY = [...UNIVERSITY_DIRECTORY, ...SPECIAL_UNIVERSITY_DIRECTORY];
 const LIST_PAGE_SIZE = 15;
 
 const KOREA_MAP_SVG =
@@ -1137,38 +168,18 @@ function InfoButton({ section, row, universityName, onOpen, label = '보기' }) 
   const shouldWrapRaw = wrappedRawKeys.includes(section.key);
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
-  const hasHwpSource = Boolean(
-    row?.hwp_match_method || row?.hwp_source_name || findHwpSectionData(universityName)
-  );
-  const preferExistingHtmlKeys = [
-    'minimum_requirements',
-    'exam_schedule',
-    'school_record_method',
-    'recruitment_quota'
-  ];
-  const shouldPreferExistingHtml =
-    Boolean(htmlContent) && preferExistingHtmlKeys.includes(section.key);
-  const content = shouldPreferExistingHtml
+  // DB 행의 *_html을 우선 렌더. 없으면 raw 필드를 모듈 파서(buildRawSectionHtml)로
+  // 렌더하는 fallback 1겹만 유지(안전망), 그것도 없으면 원문 텍스트/빈 값 그대로 둔다.
+  const content = htmlContent
     ? sanitizeAdmissionRenderedHtml(
         withHwpSectionHeading(
           `<div class="admission-existing-html">${htmlContent}</div>`,
           section.key
         )
       )
-    : hasHwpSource && hasMeaningfulRaw
+    : hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-      : htmlContent
-        ? sanitizeAdmissionRenderedHtml(
-            withHwpSectionHeading(
-              `<div class="admission-existing-html">${htmlContent}</div>`,
-              section.key
-            )
-          )
-        : looksLikeHtml(rawTextContent)
-          ? sanitizeAdmissionRenderedHtml(rawTextContent)
-          : hasMeaningfulRaw
-            ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-            : rawTextContent;
+      : rawTextContent;
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   // 1882:681/1882:1291 실측: 데이터 셀은 버튼(배경/보더)이 아니라 언더라인 텍스트.
   const linkClass =
@@ -1758,6 +769,8 @@ export default function AdmissionGuidelines() {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedSpecialGroupKey, setSelectedSpecialGroupKey] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [universities, setUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(true);
   const [resourceRows, setResourceRows] = useState([]);
   const [tooltip, setTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
   const [selectedInfo, setSelectedInfo] = useState(null);
@@ -1795,6 +808,36 @@ export default function AdmissionGuidelines() {
     }
 
     loadResourceRows();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadUniversities() {
+      const { data, error } = await supabase
+        .from('admission_universities')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (!alive) return;
+
+      if (error) {
+        console.error('대학 목록 조회 실패:', error);
+        setUniversities([]);
+        setUniversitiesLoading(false);
+        return;
+      }
+
+      setUniversities(data || []);
+      setUniversitiesLoading(false);
+    }
+
+    loadUniversities();
 
     return () => {
       alive = false;
@@ -1933,9 +976,28 @@ export default function AdmissionGuidelines() {
   const mergedResourceRows = useMemo(() => mergeHwpResourceRows(resourceRows), [resourceRows]);
   const resourceIndex = useMemo(() => buildResourceIndex(mergedResourceRows), [mergedResourceRows]);
 
+  const regularUniversities = useMemo(
+    () => universities.filter((university) => !university.special_group),
+    [universities]
+  );
+
+  const specialGroups = useMemo(() => {
+    const grouped = new Map();
+    universities.forEach((university) => {
+      if (!university.special_group) return;
+      if (!grouped.has(university.special_group)) grouped.set(university.special_group, []);
+      grouped.get(university.special_group).push(university);
+    });
+    return Array.from(grouped.entries()).map(([key, items]) => ({
+      key,
+      label: SPECIAL_GROUP_META[key]?.label || key,
+      items
+    }));
+  }, [universities]);
+
   const selectedSpecialGroup = useMemo(
-    () => SPECIAL_UNIVERSITY_GROUPS.find((group) => group.key === selectedSpecialGroupKey) || null,
-    [selectedSpecialGroupKey]
+    () => specialGroups.find((group) => group.key === selectedSpecialGroupKey) || null,
+    [specialGroups, selectedSpecialGroupKey]
   );
 
   const specialUniversities = useMemo(
@@ -1945,17 +1007,17 @@ export default function AdmissionGuidelines() {
 
   const regionUniversities = useMemo(() => {
     if (!selectedRegion) return [];
-    return UNIVERSITY_DIRECTORY.filter((university) => university.region === selectedRegion);
-  }, [selectedRegion]);
+    return regularUniversities.filter((university) => university.region === selectedRegion);
+  }, [selectedRegion, regularUniversities]);
 
   const globalSearchUniversities = useMemo(() => {
     const q = keyword.trim().toLowerCase();
     if (selectedRegion || selectedSpecialGroupKey) return [];
-    if (!q) return ALL_UNIVERSITY_DIRECTORY;
-    return ALL_UNIVERSITY_DIRECTORY.filter((university) =>
+    if (!q) return universities;
+    return universities.filter((university) =>
       `${university.region} ${university.name}`.toLowerCase().includes(q)
     );
-  }, [keyword, selectedRegion, selectedSpecialGroupKey]);
+  }, [keyword, selectedRegion, selectedSpecialGroupKey, universities]);
 
   const visibleUniversities = useMemo(() => {
     const q = keyword.trim().toLowerCase();
@@ -2152,7 +1214,12 @@ export default function AdmissionGuidelines() {
                 </div>
 
                 <div className="grid gap-2">
-                  {SPECIAL_UNIVERSITY_GROUPS.map((group) => (
+                  {universitiesLoading ? (
+                    <div className="rounded-xl border border-[#d7d7d7] bg-white px-4 py-3 text-sm font-medium text-[#8f8f8f]">
+                      불러오는 중입니다.
+                    </div>
+                  ) : (
+                    specialGroups.map((group) => (
                     <button
                       key={group.key}
                       type="button"
@@ -2179,7 +1246,8 @@ export default function AdmissionGuidelines() {
                         보기
                       </span>
                     </button>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </aside>
@@ -2196,7 +1264,9 @@ export default function AdmissionGuidelines() {
                         {currentListTitle}
                       </span>
                       <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
-                        <span className="text-[#0b84fd]">{visibleUniversities.length}</span>
+                        <span className="text-[#0b84fd]">
+                          {universitiesLoading ? '-' : visibleUniversities.length}
+                        </span>
                         <span className="text-[#525252]">개교</span>
                       </span>
                     </h2>
@@ -2230,7 +1300,13 @@ export default function AdmissionGuidelines() {
                 </div>
               </div>
 
-              {visibleUniversities.length === 0 ? (
+              {universitiesLoading ? (
+                <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
+                  <p className="text-lg font-semibold text-[#525252]">
+                    대학 목록을 불러오는 중입니다.
+                  </p>
+                </div>
+              ) : visibleUniversities.length === 0 ? (
                 <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
                   <p className="text-lg font-semibold text-[#525252]">검색 결과가 없습니다.</p>
                   <p className="mt-2 text-sm font-medium text-[#808080]">

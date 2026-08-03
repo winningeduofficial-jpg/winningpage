@@ -1,6 +1,5 @@
 // HWP 기반 대입모집요강 데이터의 순수 파싱·정규화·HTML 생성 로직 모음.
 // React/DOM 의존 없이 동작해야 하며, 브라우저와 node(스크립트) 양쪽에서 import 가능해야 한다.
-import admissionHwpSections from '../data/admissionHwpSections.json' with { type: 'json' };
 
 export function clean(value) {
   return String(value || '').trim();
@@ -2692,98 +2691,16 @@ export function findResourceRow(university, resourceIndex) {
   return resourceIndex.uniqueBaseMap.get(baseKey) || null;
 }
 
-export const HWP_SECTION_FIELD_KEYS = [
-  'previous_year_changes',
-  'selection_method',
-  'minimum_requirements',
-  'exam_schedule',
-  'school_record_method',
-  'recruitment_quota'
-];
-
-export const HWP_SECTION_HTML_KEYS = [
-  'previous_year_changes_html',
-  'selection_method_html',
-  'minimum_requirements_html',
-  'exam_schedule_html',
-  'school_record_method_html',
-  'recruitment_result_html'
-];
-
-export function findHwpSectionData(name) {
-  const target = clean(name);
-  if (!target) return null;
-
-  if (admissionHwpSections[target]) return admissionHwpSections[target];
-
-  const targetKey = normalizeName(target);
-  return (
-    Object.values(admissionHwpSections).find((item) => {
-      if (!item) return false;
-      return (
-        normalizeName(item.university_name) === targetKey ||
-        normalizeName(item.hwp_source_name) === targetKey
-      );
-    }) || null
-  );
-}
-
-export function buildHwpResourceRow(universityName, hwpData) {
-  const row = {
-    university_name: universityName,
-    name: universityName,
-    detail_status: hwpData?.detail_status || 'normal',
-    is_active: true,
-    hwp_source_name: hwpData?.hwp_source_name || '',
-    hwp_match_method: hwpData?.match_method || 'hwp'
-  };
-
-  HWP_SECTION_FIELD_KEYS.forEach((key) => {
-    const value = clean(hwpData?.[key]);
-    if (value) row[key] = value;
-  });
-
-  HWP_SECTION_HTML_KEYS.forEach((key) => {
-    const value = clean(hwpData?.[key]);
-    if (value) row[key] = value;
-  });
-
-  return row;
-}
-
+// DB(admission_university_resources) 행을 university 정규화 이름 기준으로
+// 중복 제거한다. 과거에는 admissionHwpSections.json 데이터를 여기서 우선
+// 병합했으나, 해당 데이터는 이미 DB의 *_html(6종)/raw(6종) 컬럼으로 적재되어
+// 있으므로 더 이상 JSON을 참조하지 않는다.
 export function mergeHwpResourceRows(rows) {
   const mergedMap = new Map();
 
-  Object.entries(admissionHwpSections).forEach(([universityName, hwpData]) => {
-    const hwpRow = buildHwpResourceRow(universityName, hwpData);
-    const key = normalizeName(universityName);
-    if (key) mergedMap.set(key, hwpRow);
-  });
-
-  (rows || []).forEach((originalRow) => {
-    const fullName =
-      getFullResourceName(originalRow) || clean(originalRow?.university_name || originalRow?.name);
-    const hwpData =
-      findHwpSectionData(fullName) ||
-      findHwpSectionData(originalRow?.university_name) ||
-      findHwpSectionData(originalRow?.name) ||
-      findHwpSectionData(originalRow?.university_key);
-
-    const row = { ...originalRow };
-    if (hwpData) {
-      row.hwp_source_name = hwpData.hwp_source_name || row.hwp_source_name || '';
-      row.hwp_match_method = hwpData.match_method || row.hwp_match_method || 'hwp';
-      HWP_SECTION_FIELD_KEYS.forEach((key) => {
-        const hwpValue = clean(hwpData[key]);
-        if (hwpValue) row[key] = hwpValue;
-      });
-      HWP_SECTION_HTML_KEYS.forEach((key) => {
-        const hwpValue = clean(hwpData[key]);
-        if (hwpValue) row[key] = hwpValue;
-      });
-    }
-
-    const key = normalizeName(getFullResourceName(row) || fullName);
+  (rows || []).forEach((row) => {
+    const fullName = getFullResourceName(row) || clean(row?.university_name || row?.name);
+    const key = normalizeName(fullName);
     if (key) mergedMap.set(key, row);
   });
 
