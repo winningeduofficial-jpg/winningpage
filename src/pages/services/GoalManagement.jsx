@@ -211,25 +211,25 @@ function HeroSection() {
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
-        <p className="text-[1.5rem] font-normal leading-[1.4] text-accent">목표관리</p>
+        <p className="text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]">목표관리</p>
 
-        <h1 className="mt-4 max-w-[40rem] break-keep text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[2rem] md:mt-6">
+        <h1 className="mt-6 break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
           목표의 합격 확률을 관리합니다
         </h1>
 
-        <p className="mt-4 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.5rem] md:mt-6">
+        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
           데이터가 합격을 만들고, 실행이 결과를 만듭니다
         </p>
 
         <button
           type="button"
           onClick={(event) => openPaidServiceOrAlert(event, HERO_SERVICE)}
-          className="mt-7 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-6"
+          className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기
         </button>
 
-        <div className="relative z-10 mx-auto mt-12 w-full max-w-[68.125rem] sm:mt-16 md:mt-[3.125rem]">
+        <div className="relative z-10 mx-auto mt-8 w-full max-w-[68.125rem] sm:mt-10 md:mt-[3.125rem]">
           <div className="overflow-hidden rounded-[0.75rem] border border-[#E5E7EB] bg-white shadow-[0_1.25rem_2.5rem_rgba(1,50,98,0.16)]">
             <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5">
               <span className="flex gap-1.5">
