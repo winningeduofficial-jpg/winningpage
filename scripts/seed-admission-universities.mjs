@@ -1,0 +1,159 @@
+// =====================================================================
+// admission_universities 대학 마스터 테이블 시드 스크립트
+//
+// src/pages/AdmissionGuidelines.jsx의 UNIVERSITY_DIRECTORY(일반 대학)와
+// SPECIAL_UNIVERSITY_GROUPS(경찰대/과학기술원/사관학교 그룹)를 소스코드
+// 텍스트에서 직접 파싱해 admission_universities에 upsert(name 기준)한다.
+//
+// 사용법:
+//   node scripts/seed-admission-universities.mjs [--dry-run]
+//
+// 키 조회 순서 (하드코딩 금지):
+//   1) SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY 환경변수
+//   2) --keys-file <path> 로 지정한 JSON (Supabase 대시보드 API keys export 형식,
+//      name === 'service_role' 항목의 api_key 사용)
+//   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
+//
+// 안전장치:
+//   - upsert onConflict: 'name' — 재실행해도 중복 insert 되지 않음(idempotent).
+//   - --dry-run 이면 파싱 결과 개수·샘플만 출력하고 DB에 쓰지 않음.
+// =====================================================================
+
+import { createClient } from '@supabase/supabase-js';
+import { readFile } from 'node:fs/promises';
+import { parseArgs } from 'node:util';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, '..');
+const SOURCE_FILE = path.join(REPO_ROOT, 'src/pages/AdmissionGuidelines.jsx');
+const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
+const DEFAULT_KEYS_FILE =
+  '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
+
+const { values: args } = parseArgs({
+  options: {
+    'dry-run': { type: 'boolean', default: false },
+    'keys-file': { type: 'string' }
+  }
+});
+
+// ---------------------------------------------------------------------
+// 1) 소스 파싱: UNIVERSITY_DIRECTORY + SPECIAL_UNIVERSITY_GROUPS
+// ---------------------------------------------------------------------
+async function parseUniversitySource() {
+  const text = await readFile(SOURCE_FILE, 'utf-8');
+
+  const directoryMatch = text.match(
+    /const UNIVERSITY_DIRECTORY = \[([\s\S]*?)\n\];/
+  );
+  if (!directoryMatch) {
+    throw new Error('UNIVERSITY_DIRECTORY 블록을 찾을 수 없습니다.');
+  }
+  const entryRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
+  const generalRows = [];
+  let m;
+  while ((m = entryRe.exec(directoryMatch[1])) !== null) {
+    generalRows.push({ region: m[1], name: m[2], special_group: null });
+  }
+
+  const groupsMatch = text.match(
+    /const SPECIAL_UNIVERSITY_GROUPS = \[([\s\S]*?)\n\];/
+  );
+  if (!groupsMatch) {
+    throw new Error('SPECIAL_UNIVERSITY_GROUPS 블록을 찾을 수 없습니다.');
+  }
+  const groupBlockRe = /\{\s*key:\s*'([^']+)'[\s\S]*?items:\s*\[([\s\S]*?)\]\s*\}/g;
+  const specialRows = [];
+  let g;
+  while ((g = groupBlockRe.exec(groupsMatch[1])) !== null) {
+    const groupKey = g[1];
+    const itemsBlock = g[2];
+    const itemRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
+    let im;
+    while ((im = itemRe.exec(itemsBlock)) !== null) {
+      specialRows.push({ region: im[1], name: im[2], special_group: groupKey });
+    }
+  }
+
+  const rows = [...generalRows, ...specialRows].map((row, index) => ({
+    ...row,
+    sort_order: index
+  }));
+
+  return rows;
+}
+
+// ---------------------------------------------------------------------
+// 2) 서비스 키 로드
+// ---------------------------------------------------------------------
+async function resolveCredentials() {
+  const envUrl = process.env.SEED_SUPABASE_URL;
+  const envKey = process.env.SEED_SERVICE_ROLE_KEY;
+  if (envUrl && envKey) {
+    return { url: envUrl, serviceKey: envKey };
+  }
+
+  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
+  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
+  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
+  if (!serviceEntry) {
+    throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
+  }
+  return {
+    url: `https://${DEV_PROJECT_REF}.supabase.co`,
+    serviceKey: serviceEntry.api_key
+  };
+}
+
+// ---------------------------------------------------------------------
+// 3) 실행
+// ---------------------------------------------------------------------
+async function main() {
+  const rows = await parseUniversitySource();
+
+  const byRegion = rows.reduce((acc, r) => {
+    acc[r.region] = (acc[r.region] || 0) + 1;
+    return acc;
+  }, {});
+  const byGroup = rows.reduce((acc, r) => {
+    const key = r.special_group || 'none';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log(`파싱 결과: 총 ${rows.length}행`);
+  console.log('region별 분포:', byRegion);
+  console.log('special_group별 분포:', byGroup);
+  console.log('샘플(처음 3 / 마지막 3):', [
+    ...rows.slice(0, 3),
+    ...rows.slice(-3)
+  ]);
+
+  if (args['dry-run']) {
+    console.log('--dry-run: DB에 쓰지 않고 종료합니다.');
+    return;
+  }
+
+  const { url, serviceKey } = await resolveCredentials();
+  if (!url.includes(DEV_PROJECT_REF)) {
+    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+  }
+  const supabase = createClient(url, serviceKey);
+
+  const { error, count } = await supabase
+    .from('admission_universities')
+    .upsert(rows, { onConflict: 'name', count: 'exact' });
+
+  if (error) {
+    throw new Error(`upsert 실패: ${error.message}`);
+  }
+  console.log(`upsert 완료: ${count ?? rows.length}행 처리`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
