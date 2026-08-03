@@ -35,6 +35,10 @@ const GOAL_PRODUCTS = PRICING_SERVICES.find((service) => service.key === 'goal')
 // 컨테이너 폭 — 시안은 섹션마다 1100/1436/1443/1600px로 제각각이지만(스펙 §4),
 // dev 정본 토큰 max-w-content(72.75rem≈1164px, 내부 실콘텐츠 1100px)로 전 섹션을 통일했다.
 // 러프 구현 원칙(픽셀 재현 아님) + 기존 페이지들과의 리듬 일관성을 우선한 결정.
+// 수직 스페이싱 — 모바일/태블릿은 기존 generic 값을 유지하고, 데스크톱(md:)은
+// 무료진단(FreeDiagnosisLanding.jsx) 컨벤션을 따라 시안(1889:6944) 실측 rem 값을 섹션별로
+// 개별 지정한다. 섹션 하단 여백은 다음 섹션의 md:pt-가 담당하며(마지막 섹션만 pb 보유),
+// 전 섹션 동일값(lg:pt-[6.25rem])을 쓰던 이전 리듬은 폐기했다.
 const SECTION_HEADING_CLASS =
   'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]';
 
@@ -197,7 +201,7 @@ const FAQ_ITEMS = [
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[6.25rem]">
       <img
         src={heroAura}
         alt=""
@@ -209,23 +213,23 @@ function HeroSection() {
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
         <p className="text-[1.5rem] font-normal leading-[1.4] text-accent">목표관리</p>
 
-        <h1 className="mt-4 max-w-[40rem] break-keep text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[2rem]">
+        <h1 className="mt-4 max-w-[40rem] break-keep text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[2rem] md:mt-6">
           목표의 합격 확률을 관리합니다
         </h1>
 
-        <p className="mt-4 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.5rem]">
+        <p className="mt-4 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.5rem] md:mt-6">
           데이터가 합격을 만들고, 실행이 결과를 만듭니다
         </p>
 
         <button
           type="button"
           onClick={(event) => openPaidServiceOrAlert(event, HERO_SERVICE)}
-          className="mt-7 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347]"
+          className="mt-7 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-6"
         >
           지금 시작하기
         </button>
 
-        <div className="relative z-10 mx-auto mt-12 w-full max-w-[68.125rem] sm:mt-16">
+        <div className="relative z-10 mx-auto mt-12 w-full max-w-[68.125rem] sm:mt-16 md:mt-[3.125rem]">
           <div className="overflow-hidden rounded-[0.75rem] border border-[#E5E7EB] bg-white shadow-[0_1.25rem_2.5rem_rgba(1,50,98,0.16)]">
             <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5">
               <span className="flex gap-1.5">
@@ -251,7 +255,7 @@ function HeroSection() {
 
 function ProcessSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[6.25rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>
           위닝 목표관리의
@@ -259,7 +263,7 @@ function ProcessSection() {
           4단계 핵심 프로세스
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {PROCESS_STEPS.map((item, index) => (
             <div
               key={item.title}
@@ -282,7 +286,7 @@ function ProcessSection() {
 
 function StageSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.75rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>단계별로, 목표를 관리합니다</h2>
 
@@ -291,7 +295,7 @@ function StageSection() {
             해치므로 탭은 시안 그대로의 정적 시각 요소로만 두고(비인터랙티브), 아래 5개 카드는
             "목표 설정" 탭 콘텐츠를 그대로 노출한다. */}
         <div
-          className="mt-8 flex gap-8 overflow-x-auto border-b border-[#E5E7EB] sm:mt-10"
+          className="mt-8 flex gap-8 overflow-x-auto border-b border-[#E5E7EB] sm:mt-10 md:mt-[3.75rem]"
           role="tablist"
           aria-label="목표관리 단계"
         >
@@ -311,7 +315,7 @@ function StageSection() {
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 sm:grid-cols-3 lg:grid-cols-5 lg:gap-6">
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 md:mt-[2.75rem] sm:grid-cols-3 lg:grid-cols-5 lg:gap-6">
           {STAGE_CARDS.map((card) => (
             <div key={card.title} className="flex flex-col gap-4">
               <div className="flex h-40 items-center justify-center rounded-xl border border-[#D7D7D7] bg-[#FBFAFA]">
@@ -335,13 +339,13 @@ function StageSection() {
 
 function AudienceSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[17.9375rem]">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>
           이런 학생에게 <span className="text-accent">목표관리 서비스를 추천</span>해요
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4">
           {AUDIENCE_CARDS.map((item) => (
             <article
               key={item.title}
@@ -366,11 +370,11 @@ function AudienceSection() {
 
 function ManagementSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.875rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표 달성까지, 이 모든 걸 함께 관리합니다</h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {MANAGEMENT_CARDS.map((card) => (
             <div key={card.title} className="rounded-xl bg-[#F6F5F4] px-6 py-7">
               <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
@@ -391,11 +395,11 @@ function ManagementSection() {
 
 function OutcomesSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[15rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리로 달라지는 것들</h2>
 
-        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-8 sm:mt-10 sm:grid-cols-5 sm:gap-0 sm:divide-x sm:divide-[#E5E7EB] sm:px-4">
+        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-8 sm:mt-10 md:mt-[2.25rem] sm:grid-cols-5 sm:gap-0 sm:divide-x sm:divide-[#E5E7EB] sm:px-4">
           {OUTCOME_ITEMS.map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-3 px-4 py-2 text-center">
               <img src={item.icon} alt="" aria-hidden="true" className="h-12 w-12 sm:h-14 sm:w-14" />
@@ -412,7 +416,7 @@ function OutcomesSection() {
 
 function PhoneReportSection() {
   return (
-    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 md:pt-[16.125rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
           <div className="max-w-[26rem] text-center lg:text-left">
@@ -479,11 +483,11 @@ function PhoneReportSection() {
 
 function TestimonialsSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.375rem]">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리 서비스를 받아본 학생&학부모 후기</h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[4.25rem] lg:grid-cols-3">
           {TESTIMONIALS.map((item) => (
             <figure
               key={item.quote}
@@ -543,11 +547,11 @@ function FaqSection() {
   const [openIndex, setOpenIndex] = useState(-1);
 
   return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[15.1875rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>자주 묻는 질문</h2>
 
-        <div className="mt-8 sm:mt-10">
+        <div className="mt-8 sm:mt-10 md:mt-[3.75rem]">
           {FAQ_ITEMS.map((item, index) => (
             <FaqItem
               key={item.q}
@@ -566,11 +570,11 @@ function PricingSection() {
   if (!GOAL_PRODUCTS.length) return null;
 
   return (
-    <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]">
+    <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
 
-        <div className="mt-10 overflow-hidden rounded-2xl border border-[#E5E7EB] text-left sm:mt-12">
+        <div className="mt-10 overflow-hidden rounded-2xl border border-[#E5E7EB] text-left sm:mt-12 md:mt-[4.1875rem]">
           {GOAL_PRODUCTS.map((product) => {
             const hasDiscount = product.listPrice > product.price;
             return (
@@ -613,7 +617,7 @@ function PricingSection() {
 
         <Link
           to="/pricing"
-          className="mt-8 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347]"
+          className="mt-8 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem]"
         >
           이용권 구매하기
         </Link>
