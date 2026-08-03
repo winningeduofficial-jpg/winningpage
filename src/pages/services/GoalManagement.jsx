@@ -480,23 +480,25 @@ function StageSection() {
 function AudienceSection() {
   return (
     <section className="bg-white pt-16 sm:pt-20 md:pt-[17.9375rem]">
-      <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
+      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>
-          이런 학생에게 <span className="text-accent">목표관리 서비스를 추천</span>해요
+          이런 학생에게 <span className="text-[#013262]">목표관리 서비스를 추천해요</span>
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 wide:grid-cols-[repeat(4,16.25rem)] wide:justify-center">
           {AUDIENCE_CARDS.map((item) => (
             <article
               key={item.title}
-              className="flex flex-col overflow-hidden rounded-2xl bg-[#FBFAFA] text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)]"
+              className="flex flex-col overflow-hidden rounded-[1.25rem] bg-[#FBFAFA] text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)]"
             >
-              <img src={item.image} alt={item.title} className="h-44 w-full object-cover" />
-              <div className="flex flex-1 flex-col gap-2 px-6 py-6">
-                <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#0F172A]">
+              <div className="flex h-44 w-full items-end md:h-[13.5625rem]">
+                <img src={item.image} alt={item.title} className="w-full object-contain" />
+              </div>
+              <div className="flex flex-1 flex-col px-6 pb-6 pt-6 md:px-[2.125rem] md:pb-10 md:pt-[3.9375rem]">
+                <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
                   {item.title}
                 </p>
-                <p className="break-keep text-[1rem] font-medium leading-[1.5] text-[#525252]">
+                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.375] text-[#525252] md:mt-[1.4375rem]">
                   {item.desc}
                 </p>
               </div>
