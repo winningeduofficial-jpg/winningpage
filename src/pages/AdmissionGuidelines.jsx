@@ -5356,10 +5356,10 @@ export default function AdmissionGuidelines() {
           onClick={() => setSelectedInfo(null)}
         >
           <div
-            className="admission-modal-sheet flex max-h-[92vh] w-full max-w-[1440px] flex-col overflow-hidden bg-white"
+            className="admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="admission-modal-sheet-head relative px-6 pb-4 pt-8 md:px-[5.625rem] md:pb-6 md:pt-[6.25rem]">
+            <div className="admission-modal-sheet-head relative px-6 pb-4 pt-8 md:px-12 md:pb-5 md:pt-10">
               <button
                 type="button"
                 onClick={() => setSelectedInfo(null)}
@@ -5371,13 +5371,13 @@ export default function AdmissionGuidelines() {
               <p className="text-center text-[1rem] font-medium text-[#013262]">
                 {selectedInfo.universityName}
               </p>
-              <h3 className="admission-modal-sheet-title mt-1 text-xl md:text-[2rem]">
+              <h3 className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
                 {selectedInfo.title}
               </h3>
             </div>
             <div
               ref={modalBodyRef}
-              className="admission-modal-body flex-1 overflow-auto bg-white px-6 py-4 text-[14px] font-semibold leading-7 text-[#525252] md:px-[5.625rem]"
+              className="admission-modal-body flex-1 overflow-auto bg-white px-6 py-4 text-[14px] font-semibold leading-7 text-[#525252] md:px-12"
             >
               {selectedInfo.isHtml ? (
                 <div
@@ -5402,7 +5402,7 @@ export default function AdmissionGuidelines() {
                 </div>
               </div>
             ) : null}
-            <div className="border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-[5.625rem] md:pb-[3.75rem] md:pt-4">
+            <div className="border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4">
               <button
                 type="button"
                 onClick={() => setSelectedInfo(null)}
