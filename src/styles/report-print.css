@@ -57,13 +57,12 @@
     margin: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
-    break-after: page;
-    page-break-after: always; /* 구형 브라우저 호환 */
   }
 
-  .fd-report-sheet:last-of-type {
-    break-after: auto;
-    page-break-after: auto;
+  /* 시트 사이에만 개행 — 형제 요소 추가에 안전 */
+  .fd-report-sheet + .fd-report-sheet {
+    break-before: page;
+    page-break-before: page;
   }
 
   .fd-print-area * {
