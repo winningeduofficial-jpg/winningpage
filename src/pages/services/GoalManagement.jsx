@@ -541,11 +541,19 @@ function OutcomesSection() {
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리로 달라지는 것들</h2>
 
-        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-8 sm:mt-10 md:mt-[2.25rem] sm:grid-cols-5 sm:gap-0 sm:divide-x sm:divide-[#E5E7EB] sm:px-4">
+        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-8 sm:mt-10 md:mt-[2.25rem] sm:grid-cols-5 sm:gap-0 sm:divide-x sm:divide-[#D7D7D7] sm:px-4 md:h-[10.625rem] md:px-0 md:py-0 md:items-center">
           {OUTCOME_ITEMS.map((item) => (
-            <div key={item.label} className="flex flex-col items-center gap-3 px-4 py-2 text-center">
-              <img src={item.icon} alt="" aria-hidden="true" className="h-12 w-12 sm:h-14 sm:w-14" />
-              <p className="text-[1.125rem] font-medium leading-[1.4] text-[#0F172A]">
+            <div
+              key={item.label}
+              className="flex flex-col items-center gap-3 px-4 py-2 text-center md:my-[0.9375rem] md:h-[8.75rem] md:justify-center md:py-0"
+            >
+              <img
+                src={item.icon}
+                alt=""
+                aria-hidden="true"
+                className="h-12 w-12 sm:h-14 sm:w-14 md:h-20 md:w-20"
+              />
+              <p className="text-[1.125rem] font-medium leading-[1.3] text-[#525252] md:text-[1.25rem]">
                 {item.label}
               </p>
             </div>
