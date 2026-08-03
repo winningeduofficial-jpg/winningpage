@@ -796,8 +796,9 @@ function FaqItem({ item, isOpen, onToggle }) {
         />
       </button>
       {/* 시안 fs24·fw400·#808080은 프로젝트 회색 하한 #767676으로 클램프 */}
+      {/* 시안(2155:3931)은 콘텐츠 1440px 기준 24px 한 줄이나, 본 사이트 콘텐츠는 1100px — 최장 답변이 24px에선 1168px로 넘쳐 22px(1071px)로 축소 수납 */}
       {isOpen && (
-        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.5rem] md:font-normal">
+        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.375rem] md:font-normal">
           {item.a}
         </p>
       )}
