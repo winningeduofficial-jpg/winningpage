@@ -1,4 +1,4 @@
-import { Navigate, useOutletContext, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import QuestionCardList from '../../components/renewal/survey/QuestionCardList';
 import SurveyProgress from '../../components/renewal/survey/SurveyProgress';
 import {
@@ -17,6 +17,7 @@ import {
 export default function SurveyStepPage() {
   const { step: rawStep } = useParams(); // 훅은 early return 앞에 전부 호출
   const { answers, setAnswer } = useOutletContext();
+  const navigate = useNavigate();
 
   const step = parseStepParam(rawStep);
   if (step === null) return <Navigate to={SURVEY_FIRST_STEP_PATH} replace />;
@@ -31,8 +32,8 @@ export default function SurveyStepPage() {
         onAnswer={setAnswer}
       />
       {isLastStep ? (
-        // 제출 CTA — 활성 마크업까지만. onClick 을 붙이지 않는다(결과 리포트 미정).
-        <SurveyProgress disabled={false} />
+        // 제출 CTA — 결과 리포트 라우트로 이동만 한다(응답 제출/저장 로직 없음).
+        <SurveyProgress disabled={false} onClick={() => navigate('/free-diagnosis/report')} />
       ) : (
         <SurveyProgress remaining={getRemainingAfterStep(step)} disabled />
       )}
