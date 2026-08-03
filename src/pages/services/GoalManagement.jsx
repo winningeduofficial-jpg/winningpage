@@ -366,17 +366,20 @@ function ProcessSection() {
           4단계 핵심 프로세스
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        {/* 시안(1889:7004) 카드 폭 280px, 4장 총폭 1180px는 컨테이너 max-w-content(1164px)를
+            넘어선다 — wide(74rem) 이상에서 폭을 276px(17.25rem)로 클램프해 총폭을 1164px에
+            맞춘다. */}
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[4.375rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 wide:grid-cols-[repeat(4,17.25rem)] wide:justify-center">
           {PROCESS_STEPS.map((item, index) => (
             <div
               key={item.title}
-              className="flex flex-col items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-6 py-8 text-center transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
+              className="flex flex-col items-center rounded-[1.25rem] border border-[#D7D7D7] bg-white px-4 pb-6 pt-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
             >
               <span className="text-[1rem] font-semibold text-[#013262]">STEP {index + 1}</span>
-              <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
+              <p className="mt-3 text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
                 {item.title}
               </p>
-              <p className="break-keep text-[1rem] font-medium leading-[1.5] text-[#525252]">
+              <p className="mt-5 break-keep text-[1rem] font-medium leading-[1.375] text-[#525252]">
                 {item.desc}
               </p>
             </div>
