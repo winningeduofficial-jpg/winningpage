@@ -201,7 +201,7 @@ const FAQ_ITEMS = [
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[6.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
       <img
         src={heroAura}
         alt=""
@@ -229,8 +229,8 @@ function HeroSection() {
           지금 시작하기
         </button>
 
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[68.125rem] sm:mt-10 md:mt-[3.125rem]">
-          <div className="overflow-hidden rounded-[0.75rem] border border-[#E5E7EB] bg-white shadow-[0_1.25rem_2.5rem_rgba(1,50,98,0.16)]">
+        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
+          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
             <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5">
               <span className="flex gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
@@ -255,7 +255,7 @@ function HeroSection() {
 
 function ProcessSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[6.25rem]">
+    <section className="bg-white pt-16 sm:pt-20 md:pt-[8.75rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>
           위닝 목표관리의
