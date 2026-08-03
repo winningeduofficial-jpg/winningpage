@@ -1051,13 +1051,16 @@ const INFO_SECTIONS = [
     label: '대학별고사일',
     lines: ['대학별', '고사일'],
     key: 'exam_schedule',
-    htmlKey: 'exam_schedule_html'
+    htmlKey: 'exam_schedule_html',
+    // 1882:681/1882:1291 헤더 실측: 이 컬럼만 텍스트 컬러 #013262(남색) 강조.
+    headAccent: true
   },
   {
     label: '학생부반영방법',
     lines: ['학생부', '반영방법'],
     key: 'school_record_method',
-    htmlKey: 'school_record_method_html'
+    htmlKey: 'school_record_method_html',
+    headAccent: true
   },
   {
     label: '모집인원 및 입결',
@@ -3727,7 +3730,18 @@ function getSectionText(row, key) {
 }
 
 function ButtonLabel({ item }) {
-  return <span className="whitespace-nowrap">{item.label}</span>;
+  if (item.lines?.length > 1) {
+    return (
+      <span className="admission-directory-head-label">
+        {item.lines.map((line, idx) => (
+          <span key={idx} className="admission-directory-head-line">
+            {line}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return <span className="admission-directory-head-label whitespace-nowrap">{item.label}</span>;
 }
 
 function getFullResourceName(row) {
@@ -3875,7 +3889,7 @@ function mergeHwpResourceRows(rows) {
   return Array.from(mergedMap.values());
 }
 
-function InfoButton({ section, row, universityName, onOpen }) {
+function InfoButton({ section, row, universityName, onOpen, label = '보기' }) {
   const rawTextContent = resolveSectionText(row, section);
   const htmlContent =
     section.htmlKey &&
@@ -3926,13 +3940,14 @@ function InfoButton({ section, row, universityName, onOpen }) {
             ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
             : rawTextContent;
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
-  const baseClass =
-    'inline-flex h-9 min-w-[3.5rem] items-center justify-center whitespace-nowrap rounded-[0.375rem] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
+  // 1882:681/1882:1291 실측: 데이터 셀은 버튼(배경/보더)이 아니라 언더라인 텍스트.
+  const linkClass =
+    'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
 
   if (!content) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border-transparent bg-transparent text-[#9ea7b3]`}
+        className="admission-directory-cell-empty inline-flex items-center justify-center whitespace-nowrap"
         title={`${section.label}: 등록된 정보가 없습니다.`}
       >
         -
@@ -3944,23 +3959,23 @@ function InfoButton({ section, row, universityName, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(section, content, isHtmlContent)}
-      className={`${baseClass} border-[#d7d7d7] bg-white text-[#525252] underline decoration-[#d7d7d7] underline-offset-2 hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white hover:decoration-white`}
+      className={linkClass}
       title={`${section.label} 보기`}
     >
-      보기
+      {label}
     </button>
   );
 }
 
 function LinkButton({ section, row }) {
   const url = getFirstUrl(row, section.keys);
-  const baseClass =
-    'inline-flex h-9 min-w-[3.5rem] items-center justify-center whitespace-nowrap rounded-[0.375rem] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
+  const linkClass =
+    'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
 
   if (!url) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border-transparent bg-transparent text-[#9ea7b3]`}
+        className="admission-directory-cell-empty inline-flex items-center justify-center whitespace-nowrap"
         title="정시모집요강 URL이 아직 등록되지 않았습니다."
       >
         -
@@ -3969,13 +3984,7 @@ function LinkButton({ section, row }) {
   }
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className={`${baseClass} border-[#bcdcff] bg-[#e9f4ff] text-[#013262] underline decoration-[#bcdcff] underline-offset-2 hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white hover:decoration-white`}
-      title={`${section.label} 열기`}
-    >
+    <a href={url} target="_blank" rel="noreferrer" className={linkClass} title={`${section.label} 열기`}>
       보기
     </a>
   );
@@ -3994,10 +4003,12 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
   const isCategory = row?.detail_status === 'category';
 
   return (
-    <tr>
+    <tr className="admission-directory-row">
       <th scope="row" className="admission-directory-name-cell">
-        <span className="admission-directory-region">{university.region}</span>
-        <span className="admission-directory-name">{university.name}</span>
+        <span className="admission-directory-name-group">
+          <span className="admission-directory-name">{university.name}</span>
+          <span className="admission-directory-region">{university.region}</span>
+        </span>
       </th>
 
       {isCategory ? (
@@ -4006,6 +4017,7 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
             section={CATEGORY_INFO_SECTIONS[0]}
             row={row}
             universityName={university.name}
+            label="통합 자료 보기"
             onOpen={(openedSection, content, isHtml = false) =>
               openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)
             }
@@ -4039,21 +4051,15 @@ function UniversityResourceTable({ universities, resourceIndex, onOpenInfo }) {
   return (
     <div className="admission-directory-table-shell">
       <table className="admission-directory-table">
+        {/* 1882:681/1882:1291 실측: 그룹헤더(수시/정시) 없이 단일 행 8컬럼. */}
         <thead>
           <tr>
-            <th rowSpan="2" className="admission-directory-sticky-head">
-              대학명
-            </th>
-            <th colSpan={INFO_SECTIONS.length} className="admission-directory-group-head">
-              수시
-            </th>
-            <th className="admission-directory-group-head admission-directory-regular-head">
-              정시
-            </th>
-          </tr>
-          <tr>
+            <th className="admission-directory-sticky-head">대학명</th>
             {INFO_SECTIONS.map((section) => (
-              <th key={section.key}>
+              <th
+                key={section.key}
+                className={section.headAccent ? 'admission-directory-head-accent' : undefined}
+              >
                 <ButtonLabel item={section} />
               </th>
             ))}
@@ -4836,7 +4842,10 @@ export default function AdmissionGuidelines() {
   return (
     <div className="min-h-screen bg-[#f9fafb] text-[#013262]">
       <main className="pt-16">
-        <div className="mx-auto max-w-content px-4 py-8 md:px-8">
+        {/* 페이지 한정 폭 확장(1882:681 실측: 지도 514px + gap 32px + 표 894px = 1440px 콘텐츠).
+            전역 max-w-content(72.75rem) 토큰은 다른 페이지 영향 없이 그대로 두고, 이 페이지의
+            루트 컨테이너만 넓힌다(94rem = 1440px 콘텐츠 + md:px-8 좌우 패딩 64px). */}
+        <div className="mx-auto max-w-[94rem] px-4 py-8 md:px-8">
           <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <h1 className="break-keep text-[32px] font-semibold leading-tight tracking-[-0.03em] text-[#525252] md:text-[44px]">
               대학모집요강
@@ -4875,7 +4884,8 @@ export default function AdmissionGuidelines() {
 
           {isQaMode ? <AdmissionQaPanel rows={mergedResourceRows} /> : null}
 
-          <section className="grid gap-6 lg:grid-cols-[32%_1fr] lg:items-start">
+          {/* 1882:681 실측: 지도 514 / 표 894 ≈ 36.5% / 63.5%, gap 32px(2rem). */}
+          <section className="grid gap-6 lg:grid-cols-[36.5%_1fr] lg:items-start lg:gap-8">
             <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
               <div className="relative">
                 <div
@@ -5010,62 +5020,70 @@ export default function AdmissionGuidelines() {
                   />
 
                   {totalPages > 1 ? (
+                    // 1882:1291(1882:1833) 실측: 화살표쌍 gap 9px, 블록간 gap 20px,
+                    // 번호 버튼은 32x32 정사각·간격 0(딱 붙음), 활성만 남색 필채움 원형.
                     <nav
-                      className="mt-8 flex flex-wrap items-center justify-center gap-1.5"
+                      className="mt-8 flex flex-wrap items-center justify-center gap-5"
                       aria-label="페이지네이션"
                     >
-                      <button
-                        type="button"
-                        onClick={() => goToPage(1)}
-                        disabled={safeCurrentPage === 1}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                        aria-label="처음 페이지"
-                      >
-                        <ChevronsLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => goToPage(Math.max(1, safeCurrentPage - 1))}
-                        disabled={safeCurrentPage === 1}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                        aria-label="이전 페이지"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-
-                      {paginationNumbers.map((pageNumber) => (
+                      <div className="flex items-center gap-[9px]">
                         <button
-                          key={pageNumber}
                           type="button"
-                          onClick={() => goToPage(pageNumber)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
-                            pageNumber === safeCurrentPage
-                              ? 'bg-[#013262] text-white shadow-sm'
-                              : 'text-[#667085] hover:bg-[#e9f4ff] hover:text-[#013262]'
-                          }`}
+                          onClick={() => goToPage(1)}
+                          disabled={safeCurrentPage === 1}
+                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="처음 페이지"
                         >
-                          {pageNumber}
+                          <ChevronsLeft className="h-4 w-4" />
                         </button>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => goToPage(Math.max(1, safeCurrentPage - 1))}
+                          disabled={safeCurrentPage === 1}
+                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="이전 페이지"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
-                        disabled={safeCurrentPage === totalPages}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                        aria-label="다음 페이지"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => goToPage(totalPages)}
-                        disabled={safeCurrentPage === totalPages}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                        aria-label="마지막 페이지"
-                      >
-                        <ChevronsRight className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center">
+                        {paginationNumbers.map((pageNumber) => (
+                          <button
+                            key={pageNumber}
+                            type="button"
+                            onClick={() => goToPage(pageNumber)}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
+                              pageNumber === safeCurrentPage
+                                ? 'bg-[#013262] font-medium text-white'
+                                : 'font-normal text-[#525252] hover:text-[#013262]'
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-[9px]">
+                        <button
+                          type="button"
+                          onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
+                          disabled={safeCurrentPage === totalPages}
+                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="다음 페이지"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => goToPage(totalPages)}
+                          disabled={safeCurrentPage === totalPages}
+                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="마지막 페이지"
+                        >
+                          <ChevronsRight className="h-4 w-4" />
+                        </button>
+                      </div>
                     </nav>
                   ) : null}
                 </>
@@ -5100,30 +5118,45 @@ export default function AdmissionGuidelines() {
         .admission-modal-x-scroll::-webkit-scrollbar-thumb { background: #bcdcff; border-radius: 999px; }
         .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #0b84fd; }
 
-        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #d7d7d7; border-radius: 16px; background: #fff; box-shadow: 0 18px 42px rgba(16, 36, 62, 0.07); }
-        .admission-directory-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; font-size: 12.5px; line-height: 1.3; }
+        /* 1882:681/1882:1291 실측 재구현.
+           모바일(lg 미만, <64rem)은 기존 카드형 + 가로 스크롤 + sticky 1열 유지.
+           데스크톱(lg 이상)은 시안 그대로: 카드/그림자 없는 flat 표, 상/하단만 검정 1px,
+           헤더 #f9fafb bg, 행 구분선 #dfdfdf, 8컬럼 스크롤 없이 전부 노출. */
+        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #d7d7d7; border-radius: 1rem; background: #fff; box-shadow: 0 1.125rem 2.625rem rgba(16, 36, 62, 0.07); }
+        .admission-directory-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; font-size: 0.78125rem; line-height: 1.3; }
         .admission-directory-table th,
-        .admission-directory-table td { border-right: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; padding: 8px 8px; vertical-align: middle; text-align: center; }
+        .admission-directory-table td { border-right: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; padding: 0.5rem; vertical-align: middle; text-align: center; }
         .admission-directory-table tr > *:first-child { border-left: 0; }
-        .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #013262; color: #fff; font-weight: 950; white-space: nowrap; }
-        .admission-directory-table thead tr:nth-child(2) th { top: 37px; background: #013262; color: #fff; }
-        .admission-directory-table .admission-directory-group-head { background: #013262; color: #fff; font-size: 13px; letter-spacing: -0.02em; }
-        .admission-directory-table .admission-directory-regular-head { border-left: 2px solid #0b84fd; }
+        .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #013262; color: #fff; font-weight: 700; white-space: nowrap; }
         .admission-directory-sticky-head,
-        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 11.875rem; max-width: 14.375rem; background: #ffffff; }
+        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 7.25rem; max-width: 8.25rem; background: #ffffff; }
         .admission-directory-sticky-head { background: #013262 !important; color: #fff !important; }
-        .admission-directory-name-cell { text-align: left !important; color: #013262; }
-        .admission-directory-region { display: inline-flex; margin-bottom: 4px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
-        .admission-directory-name { display: block; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
-        .admission-directory-category-cell { background: #e9f4ff; }
-        @media (max-width: 45rem) {
-          .admission-directory-sticky-head,
-          .admission-directory-name-cell { min-width: 7.25rem; max-width: 8.25rem; }
-          .admission-directory-table { font-size: 11px; }
+        .admission-directory-name-group { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.625rem; }
+        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; text-decoration: underline; text-decoration-skip-ink: auto; word-break: keep-all; white-space: normal; }
+        .admission-directory-region { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 2.625rem; height: 1.5rem; padding: 0 0.625rem; border-radius: 999px; background: #013262; color: #fff; font-size: 0.75rem; line-height: 1.3; font-weight: 500; white-space: nowrap; }
+        .admission-directory-category-cell { background: transparent; }
+        .admission-directory-cell-link { color: #525252; font-size: 0.78125rem; letter-spacing: -0.02em; text-decoration: underline; text-decoration-skip-ink: auto; }
+        .admission-directory-cell-empty { color: #525252; font-size: 0.78125rem; }
+        .admission-directory-head-label { display: inline-flex; flex-direction: column; align-items: center; }
+        .admission-directory-head-line { display: block; line-height: 1.2; }
+
+        @media (min-width: 64rem) {
+          .admission-directory-table-shell { overflow-x: visible; border: none; border-radius: 0; background: transparent; box-shadow: none; }
+          .admission-directory-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 0.875rem; line-height: 1.4; border-bottom: 1px solid #000; }
           .admission-directory-table th,
-          .admission-directory-table td { padding: 6px 6px; }
-          .admission-directory-name { font-size: 12.5px; }
-          .admission-directory-region { font-size: 9.5px; padding: 2px 6px; }
+          .admission-directory-table td { border-right: 0; border-bottom: 0; padding: 0; }
+          .admission-directory-table thead th { position: static; top: auto; background: #f9fafb; color: #525252; font-weight: 500; font-size: 1rem; letter-spacing: -0.02em; white-space: normal; border-top: 1px solid #000; height: 4.625rem; }
+          .admission-directory-table thead th.admission-directory-sticky-head { background: #f9fafb !important; color: #525252 !important; width: 13.75rem; }
+          .admission-directory-table thead th.admission-directory-head-accent { color: #013262; }
+          .admission-directory-table tbody tr { border-top: 1px solid #dfdfdf; }
+          .admission-directory-table tbody td,
+          .admission-directory-table tbody th { height: 3.9375rem; }
+          .admission-directory-sticky-head,
+          .admission-directory-name-cell { position: static; min-width: 0; max-width: none; background: transparent; }
+          .admission-directory-name-cell { color: inherit; }
+          .admission-directory-name,
+          .admission-directory-cell-link,
+          .admission-directory-cell-empty { font-size: 0.875rem; letter-spacing: -0.02em; }
         }
 
         .admission-modal-sheet { background: #fff; border: none; border-radius: 1.5rem; box-shadow: 0 1.875rem 5rem -1.25rem rgba(1, 50, 98, 0.35); }
