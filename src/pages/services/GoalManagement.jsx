@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
 import { formatKRW, SERVICES as PRICING_SERVICES } from '../../data/pricingCatalog';
 
@@ -837,50 +837,65 @@ function PricingSection() {
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
 
-        <div className="mt-10 overflow-hidden rounded-2xl border border-[#E5E7EB] text-left sm:mt-12 md:mt-[4.1875rem]">
+        <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 md:mt-[4.1875rem]">
           {GOAL_PRODUCTS.map((product) => {
             const hasDiscount = product.listPrice > product.price;
             return (
               <div
                 key={product.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E7EB] px-6 py-6 last:border-b-0 sm:px-8"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 md:h-[7.25rem]"
               >
-                <span className="flex items-center gap-3">
-                  <CheckCircle2 className="h-6 w-6 shrink-0 text-[#013262]" aria-hidden="true" />
-                  <span className="text-[1.0625rem] font-medium text-[#0F172A] sm:text-[1.5rem]">
+                <span className="flex items-center gap-5">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#D7D7D7]"
+                    aria-hidden="true"
+                  >
+                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                  </span>
+                  <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
                     {product.name}
                   </span>
                   {product.recommended && (
-                    <span className="rounded-md bg-accent px-2 py-1 text-[0.75rem] font-bold text-white">
+                    <span className="rounded-xl bg-accent px-3 py-1.5 text-[1rem] font-medium text-white">
                       추천
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-2">
-                  {hasDiscount && (
-                    <span className="text-[0.875rem] text-[#8a8a8a] line-through">
-                      {formatKRW(product.listPrice)}
+                <span className="flex flex-col items-end">
+                  {hasDiscount ? (
+                    <>
+                      <span className="text-[0.875rem] font-normal text-[#D7D7D7] line-through md:text-[1.25rem]">
+                        {formatKRW(product.listPrice)}
+                      </span>
+                      <span className="flex items-center gap-4">
+                        {product.badge && (
+                          <span className="text-[0.875rem] font-medium text-[#013262] md:text-[1rem]">
+                            {product.badge}
+                          </span>
+                        )}
+                        <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
+                          {formatKRW(product.price)}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
+                      {formatKRW(product.price)}
                     </span>
                   )}
-                  {product.badge && (
-                    <span className="text-[0.875rem] font-bold text-accent">{product.badge}</span>
-                  )}
-                  <span className="text-[1.0625rem] font-bold text-[#0F172A] sm:text-[1.25rem]">
-                    {formatKRW(product.price)}
-                  </span>
                 </span>
               </div>
             );
           })}
         </div>
 
-        <p className="mt-4 break-keep text-[0.875rem] font-medium text-[#767676]">
+        <p className="mt-3 break-keep text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1.125rem]">
           한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
         </p>
 
         <Link
           to="/pricing"
-          className="mt-8 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem]"
+          className="mt-8 inline-flex h-14 items-center justify-center rounded-[1.25rem] border border-[#0B84FD] bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem] md:h-[4.25rem] md:w-[18.75rem] md:px-0"
         >
           이용권 구매하기
         </Link>
