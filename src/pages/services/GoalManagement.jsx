@@ -363,7 +363,7 @@ function ProcessSection() {
         <h2 className={SECTION_HEADING_CLASS}>
           위닝 목표관리의
           <br />
-          4단계 핵심 프로세스
+          <span className="font-bold text-[#013262]">4단계 핵심 프로세스</span>
         </h2>
 
         {/* 시안(1889:7004) 카드 폭 280px, 4장 총폭 1180px는 컨테이너 max-w-content(1164px)를
