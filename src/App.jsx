@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -41,12 +41,6 @@ function ScrollToTop() {
     window.scrollTo(0, 0);
   }, [pathname, hash]);
   return null;
-}
-
-// 구 라우트 /gallery/:id → 신규 /info/column/:id 로 id를 보존한 채 리다이렉트.
-function GalleryIdRedirect() {
-  const { id } = useParams();
-  return <Navigate to={`/info/column/${id}`} replace />;
 }
 
 export default function App() {
@@ -123,8 +117,6 @@ export default function App() {
           <Route path="/info/column" element={<ColumnHome />} />
           <Route path="/info/column/list" element={<ColumnList />} />
           <Route path="/info/column/:id" element={<ColumnDetail />} />
-          <Route path="/gallery" element={<Navigate to="/info/column" replace />} />
-          <Route path="/gallery/:id" element={<GalleryIdRedirect />} />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
         </Route>
