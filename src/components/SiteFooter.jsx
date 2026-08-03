@@ -5,7 +5,7 @@ import { useNavGroups } from '../hooks/useNavGroups';
 // 결제/랜딩 공용 푸터. 사업자 정보 + 이용약관/개인정보처리방침 링크 포함.
 // 메뉴 컬럼은 헤더 메가메뉴와 동일한 useNavGroups()(DB → 캐시 → fallback)를 공유한다.
 // lg+ 데스크톱: 로고와 메뉴 격자 모두 컨텐츠 영역(max-w-content) 안에서 한 flex 컨테이너로
-// 배치한다. 메뉴 컬럼은 시안 2207:13215(0729) 기준 — 컬럼은 hug(콘텐츠 폭), gap 3.75rem(60px),
+// 배치한다. 메뉴 컬럼은 시안 2657:2789(0731) 기준 — 컬럼은 hug(콘텐츠 폭), gap 3.125rem(50px),
 // 블록은 컨텐츠 영역 우측 정렬. 단 "프리미엄" 컬럼만 긴 서브아이템 라벨("국제・해외고 국내대
 // 입학컨설팅")이 시안대로 2줄 래핑되도록 max-w-[8.25rem](132px)을 유지한다.
 
@@ -58,7 +58,7 @@ export default function SiteFooter() {
             />
           </Link>
 
-          <div className="flex gap-[3.75rem]">
+          <div className="flex gap-[3.125rem]">
             {navGroups.map((group) => (
               <nav
                 key={group.title}
@@ -112,12 +112,6 @@ export default function SiteFooter() {
                 className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0"
               >
                 개인정보처리방침
-              </Link>
-              <Link
-                to="/refund"
-                className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0"
-              >
-                환불규정
               </Link>
             </div>
             <p className="text-sm text-[#525252]">© All rights reserved.</p>
