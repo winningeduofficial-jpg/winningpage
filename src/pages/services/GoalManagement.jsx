@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, CheckCircle2 } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
@@ -401,60 +401,68 @@ function StageSection() {
             그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — 시안 추가 시
             STAGE_CONTENT에 등록한다. 그 전까지는 비활성(disabled) 처리한다. */}
         <div
-          className="mt-8 flex gap-8 overflow-x-auto border-b border-[#E5E7EB] sm:mt-10 md:mt-[3.75rem]"
+          className="mt-8 flex items-center gap-5 overflow-x-auto sm:mt-10 md:mt-[3.75rem] md:gap-10"
           role="tablist"
           aria-label="목표관리 단계"
         >
-          {STAGE_TABS.map((tab) => {
+          {STAGE_TABS.map((tab, index) => {
             const isParentTab = !STAGE_CONTENT[tab];
             const isActive = tab === activeTab;
 
-            if (isParentTab) {
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  disabled
-                  aria-disabled="true"
-                  aria-selected={false}
-                  className="shrink-0 cursor-default whitespace-nowrap pb-4 text-[1.125rem] font-medium text-[#A3A3A3]"
-                >
-                  {tab}
-                </button>
-              );
-            }
-
             return (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveTab(tab)}
-                className={`shrink-0 whitespace-nowrap pb-4 text-[1.125rem] font-medium ${
-                  isActive
-                    ? 'border-b-2 border-[#013262] text-[#013262]'
-                    : 'text-[#A3A3A3]'
-                }`}
-              >
-                {tab}
-              </button>
+              <Fragment key={tab}>
+                {isParentTab ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    disabled
+                    aria-disabled="true"
+                    aria-selected={false}
+                    className="shrink-0 cursor-default whitespace-nowrap text-[1.125rem] font-medium text-[#D7D7D7] md:text-[1.5rem] md:leading-[1.2917]"
+                  >
+                    {tab}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveTab(tab)}
+                    className={`shrink-0 whitespace-nowrap text-[1.125rem] md:text-[1.5rem] md:leading-[1.2917] ${
+                      isActive
+                        ? 'font-semibold text-[#525252]'
+                        : 'font-medium text-[#D7D7D7]'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                )}
+                {index < STAGE_TABS.length - 1 && (
+                  <span aria-hidden="true" className="h-[1.875rem] w-px shrink-0 bg-[#D7D7D7]" />
+                )}
+              </Fragment>
             );
           })}
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 md:mt-[2.75rem] sm:grid-cols-3 lg:grid-cols-5 lg:gap-6">
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 md:mt-[2.75rem] sm:grid-cols-3 lg:grid-cols-5 lg:gap-[1.1875rem]">
           {activeCards.map((card) => (
-            <div key={`${activeTab}-${card.title}`} className="flex flex-col gap-4">
+            <div key={`${activeTab}-${card.title}`} className="flex flex-col gap-4 md:gap-10">
               <div className="flex h-40 items-center justify-center rounded-xl border border-[#D7D7D7] bg-[#FBFAFA]">
-                <img src={card.icon} alt="" aria-hidden="true" className="h-24 w-24 object-contain" />
+                <img
+                  src={card.icon}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-24 w-24 object-contain md:h-[8.5rem] md:w-[8.5rem]"
+                />
               </div>
               <div>
-                <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#0F172A]">
+                <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
                   {card.title}
                 </p>
-                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.5] text-[#525252]">
+                {/* 시안 원본은 #808080이나, 프로젝트 회색 하한선(#767676 이상)을 지키기 위해
+                    더 진한 톤으로 클램프한다 — ManagementSection 선례 참고. */}
+                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.3125] text-[#767676] md:mt-5">
                   {card.desc}
                 </p>
               </div>
