@@ -553,7 +553,7 @@ function OutcomesSection() {
                 aria-hidden="true"
                 className="h-12 w-12 sm:h-14 sm:w-14 md:h-20 md:w-20"
               />
-              <p className="text-[1.125rem] font-medium leading-[1.3] text-[#525252] md:text-[1.25rem]">
+              <p className="text-[1.125rem] font-medium leading-[1.3] text-[#0F172A] md:text-[1.25rem] md:text-[#525252]">
                 {item.label}
               </p>
             </div>
