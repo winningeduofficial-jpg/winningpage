@@ -102,6 +102,8 @@ function SignupFlowLayout() {
 
 const Admin = lazy(() => import('./pages/Admin'));
 
+import FreeDiagnosisReport from './pages/renewal/FreeDiagnosisReport';
+
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -186,6 +188,7 @@ export default function App() {
             />
             <Route path="/app/goal/onboarding/:step" element={<GoalOnboarding />} />
           </Route>
+          <Route path="/free-diagnosis/report" element={<FreeDiagnosisReport />} />
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
