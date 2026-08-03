@@ -258,7 +258,9 @@ const PHONE_BADGES = [
     emoji: '📊',
     title: '매주 리포트 자동 발송',
     desc: '따로 챙기지 않아도 카카오톡 알림톡으로 도착해요',
-    style: { left: '-87.63%', top: '35.08%', width: '18.87rem' },
+    // 시안(1889:7243) 고정폭 351px — 제목 1줄+설명 1줄 유지, 칩 높이는
+    // p-5(40) + title 28 + gap 10 + desc 26 = 104px로 자연히 맞춰진다.
+    style: { left: '-87.63%', top: '35.08%', width: '21.9375rem' },
     x: { amplitude: '0.375rem', duration: '4.5s', delay: '0s' },
     y: { amplitude: '1rem', duration: '3.3s', delay: '-1.2s' },
     rot: { amplitude: '1deg', duration: '5.9s', delay: '-2.4s' }
@@ -267,7 +269,8 @@ const PHONE_BADGES = [
     emoji: '📋',
     title: '이번 주 성과를 한눈에',
     desc: '목표 달성률, 학습 시간, 순위률 요약',
-    style: { left: '-55.91%', top: '70.68%', width: '14.09rem' },
+    // 시안 고정폭 262px
+    style: { left: '-55.91%', top: '70.68%', width: '16.375rem' },
     x: { amplitude: '0.3125rem', duration: '5.3s', delay: '-0.5s' },
     y: { amplitude: '0.8125rem', duration: '3.9s', delay: '-1.7s' },
     rot: { amplitude: '1.2deg', duration: '6.5s', delay: '-3.5s' }
@@ -276,7 +279,8 @@ const PHONE_BADGES = [
     emoji: '✏️',
     title: 'PDF 리포트 확인',
     desc: '클릭 한 번으로 전체 내용을 열람',
-    style: { left: '86.02%', top: '70.68%', width: '12.9rem' },
+    // 시안 고정폭 240px
+    style: { left: '86.02%', top: '70.68%', width: '15rem' },
     x: { amplitude: '0.375rem', duration: '4.9s', delay: '-1s' },
     y: { amplitude: '1.125rem', duration: '4.3s', delay: '-2.3s' },
     rot: { amplitude: '0.8deg', duration: '7.1s', delay: '-4.2s' }
