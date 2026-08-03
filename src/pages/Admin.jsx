@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import MentorCard from '../components/landing/MentorCard';
+import {
+  HWP_SECTION_ORDER,
+  HWP_SECTION_LABELS,
+  HWP_SECTION_HTML_KEYS,
+  splitHwpTextIntoSections,
+  buildHwpCategoryHtml,
+  clean as cleanAdmissionText
+} from '../lib/admissionParsing';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -41,6 +49,7 @@ const MENU_GROUPS = [
       { key: 'companyNews', label: '회사소식' },
       { key: 'admissionSusiJungsi', label: '수시·정시' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
+      { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
       { key: 'galleries', label: '교육컬럼' },
       { key: 'faqs', label: '자주하는질문' },
@@ -82,6 +91,28 @@ const MENU_GROUPS = [
       { key: 'refunds', label: '환불 요청 내역' }
     ]
   }
+];
+
+// AdmissionGuidelines.jsx의 REGION_ORDER와 동일하게 유지한다.
+// 여기 없는 지역 문자열을 입력하면 공개 페이지의 지역별 목록/지도에 노출되지 않는다.
+const ADMISSION_REGION_OPTIONS = [
+  '강원',
+  '경기',
+  '경남',
+  '경북',
+  '광주',
+  '대구',
+  '대전',
+  '부산',
+  '서울',
+  '세종',
+  '울산',
+  '인천',
+  '전남',
+  '전북',
+  '제주',
+  '충남',
+  '충북'
 ];
 
 const CONFIGS = {
@@ -653,6 +684,51 @@ const CONFIGS = {
       jungsi_guideline_url: '',
       memo: '',
       detail_status: '상세입력완료'
+    },
+
+    FormPreview: AdmissionParsingPreview
+  },
+
+  admissionUniversities: {
+    title: '대학 목록 관리',
+    table: 'admission_universities',
+    searchPlaceholder: '대학명 또는 지역을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `대학별 모집요강 화면(지역별 대학 목록/지도)에 노출되는 대학 마스터입니다. 일반 대학은 특별군을 비워두고, 경찰대·과학기술원·사관학교만 해당 특별군을 지정하세요.`,
+
+    columns: [
+      { key: 'region', label: '지역' },
+      { key: 'name', label: '대학명' },
+      { key: 'special_group', label: '특별군' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'region', label: '지역', type: 'select', options: ADMISSION_REGION_OPTIONS, required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true },
+      {
+        key: 'special_group',
+        label: '특별군',
+        type: 'select',
+        help: '일반 대학은 비워두세요(선택 안 함). 특별전형 대학군만 지정합니다.',
+        options: [
+          { value: 'police', label: '경찰대' },
+          { value: 'science', label: '과학기술원' },
+          { value: 'academy', label: '사관학교' }
+        ]
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+
+    defaults: {
+      is_active: true,
+      region: '',
+      name: '',
+      special_group: '',
+      sort_order: 0
     }
   },
 
@@ -3207,6 +3283,231 @@ function MentorCardFormPreview({ form, onPatch }) {
           </ul>
         )}
       </div>
+    </section>
+  );
+}
+
+// admissionGuidelines 편집 폼 전용: HWP 원문 텍스트를 붙여넣으면 공유 파싱 모듈(admissionParsing.js)로
+// 6개 카테고리(raw + *_html)를 자동으로 채우고, 실제 공개 페이지 모달과 동일한 표 스타일로 미리보기를
+// 렌더한다. 번호("1.~6.") 마커가 없어 자동 분할이 안 되는 원문이면, 좌측 필드 목록에 이미 있는
+// 카테고리별 raw textarea에 직접 나눠 붙여넣는 fallback을 안내하고 "미리보기 새로고침"으로 그 값을
+// 기준으로 HTML을 재생성한다.
+function AdmissionParsingPreview({ form, onPatch }) {
+  const [hwpSource, setHwpSource] = useState('');
+  const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
+
+  function buildPreviewPatch(sourceForm) {
+    const patch = {};
+    HWP_SECTION_ORDER.forEach((key) => {
+      const htmlKey = HWP_SECTION_HTML_KEYS[key];
+      patch[htmlKey] = buildHwpCategoryHtml(
+        key,
+        sourceForm[key],
+        sourceForm,
+        sourceForm.university_name
+      );
+    });
+    return patch;
+  }
+
+  function runAutoParse() {
+    if (!cleanAdmissionText(hwpSource)) {
+      alert('HWP 원문 텍스트를 먼저 붙여넣어 주세요.');
+      return;
+    }
+
+    const sections = splitHwpTextIntoSections(hwpSource);
+    const found = HWP_SECTION_ORDER.some((key) => cleanAdmissionText(sections[key]));
+
+    if (!found) {
+      setSplitStatus('fallback');
+      alert(
+        '번호(1.~6.) 마커를 찾지 못해 카테고리 자동 분할에 실패했습니다.\n좌측 각 카테고리의 원문 입력란에 항목별로 직접 붙여넣은 뒤 "미리보기 새로고침"을 눌러주세요.'
+      );
+      return;
+    }
+
+    const rawPatch = {};
+    HWP_SECTION_ORDER.forEach((key) => {
+      if (cleanAdmissionText(sections[key])) rawPatch[key] = sections[key];
+    });
+    const mergedRaw = { ...form, ...rawPatch };
+
+    setSplitStatus('auto');
+    onPatch({ ...rawPatch, ...buildPreviewPatch(mergedRaw) });
+  }
+
+  function refreshPreview() {
+    setSplitStatus((prev) => prev || 'manual');
+    onPatch(buildPreviewPatch(form));
+  }
+
+  return (
+    <section className="admission-parsing-preview bg-white p-5 shadow">
+      <h2 className="text-sm font-black">HWP 원문 파싱 · 미리보기</h2>
+      <p className="mt-1 text-xs font-bold leading-5 text-gray-500">
+        모집요강 원문 전체(번호 &quot;1.~6.&quot; 포함)를 붙여넣고 파싱을 실행하면 좌측 6개 카테고리
+        원문/HTML 필드가 자동으로 채워집니다. 자동 분할이 안 되면 좌측 각 카테고리 원문 입력란에
+        직접 나눠 붙여넣은 뒤 &quot;미리보기 새로고침&quot;을 눌러주세요.
+      </p>
+
+      <textarea
+        value={hwpSource}
+        onChange={(e) => setHwpSource(e.target.value)}
+        rows={12}
+        placeholder="HWP에서 복사한 모집요강 원문 전체를 붙여넣으세요"
+        className="mt-3 w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none"
+      />
+
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={runAutoParse}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+        >
+          파싱 실행(자동 분할)
+        </button>
+        <button
+          type="button"
+          onClick={refreshPreview}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+        >
+          미리보기 새로고침(좌측 원문 기준)
+        </button>
+      </div>
+
+      {splitStatus === 'fallback' && (
+        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
+          자동 분할 실패 — 좌측 각 카테고리 원문(raw) 입력란에 카테고리별로 직접 붙여넣은 뒤
+          &quot;미리보기 새로고침&quot;을 눌러주세요.
+        </p>
+      )}
+
+      <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
+        {HWP_SECTION_ORDER.map((key) => {
+          const html = form[HWP_SECTION_HTML_KEYS[key]];
+          return (
+            <div key={key}>
+              <h3 className="mb-1 text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
+              {html ? (
+                <div className="admission-existing-html" dangerouslySetInnerHTML={{ __html: html }} />
+              ) : (
+                <p className="text-xs font-bold text-gray-400">
+                  미리보기 없음 — 원문을 입력하고 파싱을 실행하세요.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 아래 클래스들은 AdmissionGuidelines.jsx 모달 스타일과 동일하게 유지한다(공개 페이지와 동일한 표 시각). */}
+      <style>{`
+        .admission-parsing-preview .admission-scroll-table,
+        .admission-parsing-preview .admission-table-wrap,
+        .admission-parsing-preview .admission-existing-html { scrollbar-width: none; }
+        .admission-parsing-preview .admission-scroll-table::-webkit-scrollbar,
+        .admission-parsing-preview .admission-table-wrap::-webkit-scrollbar,
+        .admission-parsing-preview .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
+        .admission-table-wrap,
+        .admission-existing-html,
+        .admission-raw-section-wrap { width: 100%; max-width: 100%; }
+        .admission-table-wrap { overflow-x: auto; }
+        .admission-existing-html { overflow-x: auto; }
+        .admission-existing-html table,
+        .admission-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-existing-html th,
+        .admission-table-wrap th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
+        .admission-existing-html td,
+        .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
+        .admission-existing-html td.left,
+        .admission-table-wrap td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
+        .admission-clean-block { width: 100%; }
+        .admission-clean-line { margin: 0 0 10px; color: #525252; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
+        .admission-clean-note { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-subhead { margin: 18px 0 8px; color: #013262; font-size: 14px; font-weight: 900; }
+        .admission-mini-table, .admission-result-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-mini-table th, .admission-result-table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
+        .admission-mini-table td, .admission-result-table td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
+        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
+        .admission-result-note { margin-bottom: 14px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 12px 14px; color: #667085; font-size: 12.5px; line-height: 1.7; font-weight: 800; word-break: keep-all; }
+        .admission-readable-body { display: grid; gap: 8px; }
+        .admission-subhead-card { margin-top: 8px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
+        .admission-normal-line,
+        .admission-long-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 13px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 750; word-break: keep-all; }
+        .admission-numbered-line { background: #f9fafb; }
+        .admission-long-line { white-space: normal; }
+        .admission-token-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 10px 12px; }
+        .admission-token-label { color: #013262; font-size: 13px; line-height: 1.5; font-weight: 950; white-space: nowrap; }
+        .admission-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .admission-token-list span { min-width: 34px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 5px 8px; color: #525252; font-size: 13px; line-height: 1.35; font-weight: 900; text-align: center; white-space: nowrap; }
+        .admission-wide-sheet { min-width: 760px; width: max-content; display: grid; gap: 4px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 10px; }
+        .admission-wide-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 10px; padding: 9px 10px; color: #525252; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
+        .admission-raw-pre { min-width: 760px; margin: 0; border: 1px solid #d7d7d7; border-radius: 16px; background: #ffffff; padding: 16px; color: #525252; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .admission-safe-text-block { border-radius: 0; border-top: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; border-left: 0; border-right: 0; }
+
+        .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #d7d7d7; background: #fff; }
+        .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
+        .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
+        .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
+        .admission-table-compact td:first-child { background: #f9fafb; color: #013262; font-weight: 950; }
+        .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
+        .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
+        .admission-bullet-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
+        .admission-bullet-list li { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-subtitle-line { margin-bottom: 10px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-weight: 950; }
+        .admission-text-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+        .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-recruit-table { min-width: 760px; }
+        .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
+        .admission-recruit-table .unit-cell { min-width: 160px; max-width: 260px; }
+        .admission-recruit-table .recruit-values-cell { min-width: 140px; text-align: left; white-space: normal; vertical-align: top; }
+        .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
+        .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 9px; padding: 5px 7px; color: #525252; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
+        .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
+
+        .admission-selection-table { min-width: 720px; }
+        .admission-selection-table th:nth-child(4),
+        .admission-selection-table td:nth-child(4) { min-width: 280px; text-align: left; white-space: normal; word-break: keep-all; line-height: 1.62; }
+        .admission-selection-table .selection-type-cell { background: #f9fafb; color: #013262; font-weight: 950; }
+        .admission-selection-table .selection-name-cell { font-weight: 900; }
+        .admission-selection-table .selection-seat-cell { color: #013262; font-weight: 950; }
+        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 140px; border: 1px solid #d7d7d7; border-radius: 999px; padding: 3px 7px; background: #f9fafb; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
+        .admission-minimum-badge.has { border-color: #bcdcff; background: #e9f4ff; color: #0b84fd; }
+        .admission-minimum-badge.none { color: #667085; }
+
+        .admission-change-scroll-table { overflow-x: auto; }
+        .admission-change-table .change-no-cell { font-weight: 950; color: #0b84fd; }
+        .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #013262; word-break: keep-all; }
+        .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
+        .admission-change-lines { display: flex; flex-direction: column; gap: 6px; }
+        .admission-change-line { border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 8px 10px; color: #525252; font-weight: 850; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
+        .admission-change-pair-list { display: flex; flex-direction: column; gap: 8px; }
+        .admission-change-arrow-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+        .admission-change-arrow-before, .admission-change-arrow-after { min-width: 0; border: 1px solid #d7d7d7; border-radius: 12px; padding: 10px; background: #f9fafb; }
+        .admission-change-arrow-after { background: #e9f4ff; border-color: #bcdcff; }
+        .admission-change-arrow-icon { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; font-size: 18px; }
+        .admission-change-simple { color: #525252; font-weight: 850; line-height: 1.65; white-space: normal; word-break: keep-all; }
+
+        .admission-record-info-table td:first-child { min-width: 120px; color: #013262; background: #f9fafb; font-weight: 950; }
+        .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-special-wrap { display: grid; gap: 16px; }
+        .admission-special-block { display: grid; gap: 8px; }
+        .admission-special-title { border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
+        .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
+        .admission-special-table td:first-child { min-width: 120px; background: #f9fafb; color: #013262; font-weight: 950; }
+
+        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
+        .admission-modal-body .admission-result-note,
+        .admission-modal-body .admission-header-summary,
+        .admission-modal-body .admission-recruit-legend { display: none !important; }
+        .muted { color: #667085; }
+      `}</style>
     </section>
   );
 }

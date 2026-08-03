@@ -2617,6 +2617,44 @@ export function buildRecruitmentResultHtml(value) {
   return buildSmartRawHtml(value, 'recruitment_quota');
 }
 
+// admission_university_resources 컬럼 매핑: 카테고리 raw 키 → 대응하는 *_html 컬럼 키.
+// recruitment_quota만 실 서비스에서 recruitment_result_html이라는 별도 컬럼명을 쓴다.
+export const HWP_SECTION_HTML_KEYS = {
+  previous_year_changes: 'previous_year_changes_html',
+  selection_method: 'selection_method_html',
+  minimum_requirements: 'minimum_requirements_html',
+  exam_schedule: 'exam_schedule_html',
+  school_record_method: 'school_record_method_html',
+  recruitment_quota: 'recruitment_result_html'
+};
+
+// HWP에서 복사한 원문 전체 텍스트를 "1.~6." 번호 마커 기준으로 6개 카테고리 원문으로 분할한다.
+// 마커를 하나도 찾지 못하면 전 카테고리가 빈 문자열로 반환되며, 호출부는 이를 자동 분할 실패로
+// 간주하고 카테고리별 개별 붙여넣기(fallback) 입력을 안내해야 한다.
+export function splitHwpTextIntoSections(fullText) {
+  const result = {};
+  HWP_SECTION_ORDER.forEach((key) => {
+    result[key] = sliceNumberedSection(fullText, key);
+  });
+  return result;
+}
+
+// 카테고리 원문(raw) → 미리보기/저장용 HTML 한 번에 생성.
+// recruitment_quota는 buildRawSectionHtml이 안전한 <pre> 텍스트만 만들도록 되어 있어
+// (실 서비스에서 recruitment_result_html은 보통 손으로 다듬은 HTML 표로 관리되기 때문),
+// 어드민 파싱 미리보기에서는 buildRecruitmentResultHtml(표 파서)을 직접 사용해
+// 다른 카테고리와 동일하게 표 형태 미리보기를 제공한다.
+export function buildHwpCategoryHtml(sectionKey, rawText, row = null, universityName = '') {
+  const value = clean(rawText);
+  if (!value) return '';
+  if (sectionKey === 'recruitment_quota') {
+    return sanitizeAdmissionRenderedHtml(
+      withHwpSectionHeading(buildRecruitmentResultHtml(value), sectionKey)
+    );
+  }
+  return buildRawSectionHtml(value, sectionKey, row, universityName);
+}
+
 export function normalizeName(value) {
   return clean(value)
     .replace(/\s+/g, '')
