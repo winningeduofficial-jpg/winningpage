@@ -373,7 +373,7 @@ function ProcessSection() {
           {PROCESS_STEPS.map((item, index) => (
             <div
               key={item.title}
-              className="flex flex-col items-center rounded-[1.25rem] border border-[#D7D7D7] bg-white px-4 pb-6 pt-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
+              className="flex flex-col items-center rounded-[1.25rem] border border-[#D7D7D7] bg-white px-6 pb-8 pt-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)] md:px-4 md:pb-6"
             >
               <span className="text-[1rem] font-semibold text-[#013262]">STEP {index + 1}</span>
               <p className="mt-3 text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
