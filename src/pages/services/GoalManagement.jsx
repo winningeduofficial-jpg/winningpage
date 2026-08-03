@@ -21,6 +21,20 @@ import outcomeFolder from '../../assets/services/goal/outcome-folder.png';
 import outcomeSettings from '../../assets/services/goal/outcome-settings.png';
 import outcomeShield from '../../assets/services/goal/outcome-shield.png';
 import phoneReportMockup from '../../assets/services/goal/phone-report-mockup.png';
+import stageDiagJuggler from '../../assets/services/goal/stage-diag-juggler.png';
+import stageDiagSmartphone from '../../assets/services/goal/stage-diag-smartphone.png';
+import stageDiagMeditation from '../../assets/services/goal/stage-diag-meditation.png';
+import stageDiagTreadmill from '../../assets/services/goal/stage-diag-treadmill.png';
+import stageDiagWeightlifting from '../../assets/services/goal/stage-diag-weightlifting.png';
+import stagePlanLaptopChair from '../../assets/services/goal/stage-plan-laptop-chair.png';
+import stagePlanAi from '../../assets/services/goal/stage-plan-ai.png';
+import stageAlarm from '../../assets/services/goal/stage-alarm.png';
+import stagePlanWriting from '../../assets/services/goal/stage-plan-writing.png';
+import stagePlanCoffee from '../../assets/services/goal/stage-plan-coffee.png';
+import stageExecLaptopWork from '../../assets/services/goal/stage-exec-laptop-work.png';
+import stageExecHeart from '../../assets/services/goal/stage-exec-heart.png';
+import stageExecStrength from '../../assets/services/goal/stage-exec-strength.png';
+import stageExecWizard from '../../assets/services/goal/stage-exec-wizard.png';
 
 // 목표관리 서비스 랜딩 — /services/goal (구 경로 /page/services-goal)
 // Figma 시안(1889:6944, "목표관리" 프레임) 전용 구현. 다른 3종 서비스 랜딩과 달리
@@ -63,38 +77,127 @@ const PROCESS_STEPS = [
 
 const STAGE_TABS = ['목표 설정', '성적 진단', '학습 설계', '실행 관리', '학부모 안내'];
 
-// 시안(1889:7053)은 5개 카드 중 2~5번 설명 문구가 전부 "과목과 관심사에 맞는 탐구 주제 후보를
-// 제안합니다."로 동일한 placeholder가 남아있다(다른 서비스 카피가 잘못 복붙된 것으로 추정 —
-// 스펙 문서에도 결함으로 명시됨). 그대로 옮기면 카드마다 제목과 무관한 문장이 반복돼 오히려
-// 사용자에게 결함을 노출하므로, 각 카드 제목에 맞는 설명으로 대체했다(구조·순서·아이콘·제목은
-// 시안 그대로). 상세는 반환 userNotes 참고.
-const STAGE_CARDS = [
-  {
-    icon: iconBinoculars,
-    title: '목표 대학・학과 설정',
-    desc: '희망 대학과 학과를 정해 목표를 구체화합니다.'
-  },
-  {
-    icon: iconWarrior,
-    title: '현재 위치 파악',
-    desc: '성적과 활동 데이터로 지금의 위치를 진단합니다.'
-  },
-  {
-    icon: iconTablet,
-    title: '목표 확률 분석',
-    desc: '목표 대비 합격 확률을 데이터로 분석합니다.'
-  },
-  {
-    icon: iconWriting,
-    title: '매일 실행 목표 게시',
-    desc: '오늘 해야 할 학습 목표를 매일 안내합니다.'
-  },
-  {
-    icon: iconStrength,
-    title: '목표 현황 안내',
-    desc: '목표 달성 현황을 한눈에 확인할 수 있게 안내합니다.'
-  }
-];
+// 탭별 카드 콘텐츠 — Figma 시안 3종(2063:11610 성적진단, 2063:11744 학습설계,
+// 2063:11878 실행관리)을 반영해 탭마다 실제 카드가 전환되도록 구성했다. '목표 설정' 탭은
+// 기존 확정 콘텐츠(구 STAGE_CARDS)를 그대로 이전했다. '학부모 안내' 탭은 시안 파일을
+// 전수 확인했으나 콘텐츠가 존재하지 않아 비활성 탭으로 남긴다(아래 StageSection 참고) —
+// 시안이 추가되면 이 맵에 '학부모 안내' 키를 등록한다.
+//
+// 시안(1889:7053, 목표 설정 탭)은 5개 카드 중 2~5번 설명 문구가 전부 "과목과 관심사에 맞는
+// 탐구 주제 후보를 제안합니다."로 동일한 placeholder가 남아있다(다른 서비스 카피가 잘못
+// 복붙된 것으로 추정 — 스펙 문서에도 결함으로 명시됨). 그대로 옮기면 카드마다 제목과 무관한
+// 문장이 반복돼 오히려 사용자에게 결함을 노출하므로, 각 카드 제목에 맞는 설명으로 대체했다
+// (구조·순서·아이콘·제목은 시안 그대로).
+const STAGE_CONTENT = {
+  '목표 설정': [
+    {
+      icon: iconBinoculars,
+      title: '목표 대학・학과 설정',
+      desc: '희망 대학과 학과를 정해 목표를 구체화합니다.'
+    },
+    {
+      icon: iconWarrior,
+      title: '현재 위치 파악',
+      desc: '성적과 활동 데이터로 지금의 위치를 진단합니다.'
+    },
+    {
+      icon: iconTablet,
+      title: '목표 확률 분석',
+      desc: '목표 대비 합격 확률을 데이터로 분석합니다.'
+    },
+    {
+      icon: iconWriting,
+      title: '매일 실행 목표 게시',
+      desc: '오늘 해야 할 학습 목표를 매일 안내합니다.'
+    },
+    {
+      icon: iconStrength,
+      title: '목표 현황 안내',
+      desc: '목표 달성 현황을 한눈에 확인할 수 있게 안내합니다.'
+    }
+  ],
+  '성적 진단': [
+    {
+      icon: stageDiagJuggler,
+      title: '과목별 성적 진단',
+      desc: '과목별 성적 흐름과 등급 변화를 추적합니다.'
+    },
+    {
+      icon: stageDiagSmartphone,
+      title: '강・약점 분석',
+      desc: '어떤 단원・영역이 부족한지 데이터로 짚어냅니다.'
+    },
+    {
+      icon: stageDiagMeditation,
+      title: '오답 패턴 파악',
+      desc: '반복되는 실수 유형을 찾아 개선 포인트를 제시합니다.'
+    },
+    {
+      icon: stageDiagTreadmill,
+      title: '목표 대비 격차',
+      desc: '목표 대학 기준과의 격차를 수치로 보여줍니다.'
+    },
+    {
+      icon: stageDiagWeightlifting,
+      title: '전형별 유불리',
+      desc: '수시・정시 전형별로 유리한 방향을 안내합니다.'
+    }
+  ],
+  '학습 설계': [
+    {
+      icon: stagePlanLaptopChair,
+      title: '맞춤 학습 설계',
+      desc: '진단 결과를 바탕으로 개인별 학습 계획을 설계합니다.'
+    },
+    {
+      icon: stagePlanAi,
+      title: '주간 플래너',
+      desc: '주 단위 학습 분량을 자동으로 배분합니다.'
+    },
+    {
+      icon: stageAlarm,
+      title: '목표 학습 시간',
+      desc: '합격에 필요한 목표 학습 시간을 제안합니다.'
+    },
+    {
+      icon: stagePlanWriting,
+      title: '과제・오답 관리',
+      desc: '과제와 오답을 놓치지 않도록 관리합니다.'
+    },
+    {
+      icon: stagePlanCoffee,
+      title: '계획 조정',
+      desc: '실행 결과에 따라 계획을 유연하게 조정합니다.'
+    }
+  ],
+  '실행 관리': [
+    {
+      icon: stageExecLaptopWork,
+      title: '매일 실행 점검',
+      desc: '매일의 목표 실행 여부를 체크하고 기록합니다.'
+    },
+    {
+      icon: stageAlarm,
+      title: '일정・시험 알림',
+      desc: '시험・제출・마감 일정을 놓치지 않게 알려줍니다.'
+    },
+    {
+      icon: stageExecHeart,
+      title: '진도・성취도 기록',
+      desc: '과목별 진도와 성취도를 함께 기록합니다.'
+    },
+    {
+      icon: stageExecStrength,
+      title: '실행 피드백',
+      desc: '실행이 흐트러지면 바로 피드백을 제공합니다.'
+    },
+    {
+      icon: stageExecWizard,
+      title: '주간 리포트',
+      desc: '한 주의 실행 결과를 리포트로 정리합니다.'
+    }
+  ]
+};
 
 const AUDIENCE_CARDS = [
   {
@@ -285,39 +388,65 @@ function ProcessSection() {
 }
 
 function StageSection() {
+  const [activeTab, setActiveTab] = useState(STAGE_TABS[0]);
+  const activeCards = STAGE_CONTENT[activeTab] || [];
+
   return (
     <section className="bg-white pt-16 sm:pt-20 md:pt-[13.75rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>단계별로, 목표를 관리합니다</h2>
 
-        {/* 탭 — 시안(1889:7060)은 이 프레임 하나에서 "목표 설정" 탭만 활성 상태로 캡처돼 있고
-            나머지 4탭의 카드 콘텐츠는 시안에 없다. 없는 콘텐츠를 추정해 채우면 오히려 신뢰를
-            해치므로 탭은 시안 그대로의 정적 시각 요소로만 두고(비인터랙티브), 아래 5개 카드는
-            "목표 설정" 탭 콘텐츠를 그대로 노출한다. */}
+        {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
+            카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
+            그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — 시안 추가 시
+            STAGE_CONTENT에 등록한다. 그 전까지는 비활성(disabled) 처리한다. */}
         <div
           className="mt-8 flex gap-8 overflow-x-auto border-b border-[#E5E7EB] sm:mt-10 md:mt-[3.75rem]"
           role="tablist"
           aria-label="목표관리 단계"
         >
-          {STAGE_TABS.map((tab, index) => (
-            <span
-              key={tab}
-              role="tab"
-              aria-selected={index === 0}
-              className={`shrink-0 whitespace-nowrap pb-4 text-[1.125rem] font-medium ${
-                index === 0
-                  ? 'border-b-2 border-[#013262] text-[#013262]'
-                  : 'text-[#A3A3A3]'
-              }`}
-            >
-              {tab}
-            </span>
-          ))}
+          {STAGE_TABS.map((tab) => {
+            const isParentTab = !STAGE_CONTENT[tab];
+            const isActive = tab === activeTab;
+
+            if (isParentTab) {
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  disabled
+                  aria-disabled="true"
+                  aria-selected={false}
+                  className="shrink-0 cursor-default whitespace-nowrap pb-4 text-[1.125rem] font-medium text-[#A3A3A3]"
+                >
+                  {tab}
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab)}
+                className={`shrink-0 whitespace-nowrap pb-4 text-[1.125rem] font-medium ${
+                  isActive
+                    ? 'border-b-2 border-[#013262] text-[#013262]'
+                    : 'text-[#A3A3A3]'
+                }`}
+              >
+                {tab}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 md:mt-[2.75rem] sm:grid-cols-3 lg:grid-cols-5 lg:gap-6">
-          {STAGE_CARDS.map((card) => (
-            <div key={card.title} className="flex flex-col gap-4">
+          {activeCards.map((card) => (
+            <div key={`${activeTab}-${card.title}`} className="flex flex-col gap-4">
               <div className="flex h-40 items-center justify-center rounded-xl border border-[#D7D7D7] bg-[#FBFAFA]">
                 <img src={card.icon} alt="" aria-hidden="true" className="h-24 w-24 object-contain" />
               </div>
