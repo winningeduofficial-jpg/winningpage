@@ -32,6 +32,7 @@ import FreeDiagnosisLanding from './pages/renewal/FreeDiagnosisLanding';
 import SurveyStepShell from './pages/renewal/SurveyStepShell';
 import SurveyStepPage from './pages/renewal/SurveyStepPage';
 import SurveyPreview from './pages/renewal/SurveyPreview';
+import FreeDiagnosisReport from './pages/renewal/FreeDiagnosisReport';
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -72,6 +73,7 @@ export default function App() {
             {/* /survey/1/2 같은 초과 세그먼트 방어. 반드시 마지막. */}
             <Route path="*" element={<Navigate to="/free-diagnosis/survey/1" replace />} />
           </Route>
+          <Route path="/free-diagnosis/report" element={<FreeDiagnosisReport />} />
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}

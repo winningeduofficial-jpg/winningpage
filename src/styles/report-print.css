@@ -1,0 +1,73 @@
+/*
+ * report-print.css
+ * 무료진단 결과 리포트 전용 인쇄 스타일. FreeDiagnosisReport.jsx 에서만 import 한다.
+ *
+ * 핵심 트릭 — rem 균등 축소: 리포트 내부 길이가 전부 rem 이므로 print 에서
+ * html font-size 만 3mm 로 바꾸면 시트 70rem → 210mm(A4 폭 정확 일치),
+ * 99.0588rem → 297.18mm ≈ A4 높이. 시안 1120:1584.94 비율(0.70665)이
+ * A4 비율(0.7071)과 사실상 동일해 별도 transform/scale 이 필요 없다.
+ *
+ * 전제: 리포트 컴포넌트 내 CSS 길이값은 전부 rem (px 절대 금지) — 구현 에이전트가
+ * px 클래스를 1개라도 쓰면 인쇄에서만 어긋난다(화면은 정상이라 발견이 늦다).
+ * 예외: border 1px 헤어라인, SVG viewBox 내부 좌표(컨테이너 종속)만 허용.
+ *
+ * 이 파일은 Vite 전역 번들에 포함되므로 셀렉터를 전부 .fd-* 접두 클래스로 한정해
+ * 다른 페이지와 충돌하지 않도록 한다. (기존 코드베이스에 @media print 셀렉터 없음.)
+ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html {
+    font-size: 3mm !important; /* 70rem 시트 → 210mm(A4 폭) */
+  }
+
+  header,
+  footer {
+    display: none !important; /* SiteLayout 의 Header(fixed)·SiteFooter */
+  }
+
+  .fd-no-print {
+    display: none !important; /* PDF 다운로드 버튼 */
+  }
+
+  .fd-print-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    background: #fff !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .fd-sheet-stack {
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .fd-report-sheet {
+    width: 70rem !important;
+    height: 297mm !important; /* 297.18mm 오버플로 방지 고정 */
+    min-height: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    break-after: page;
+    page-break-after: always; /* 구형 브라우저 호환 */
+  }
+
+  .fd-report-sheet:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .fd-print-area * {
+    -webkit-print-color-adjust: exact !important; /* 뱃지 bg·바 fill·의미색 보존 */
+    print-color-adjust: exact !important;
+  }
+}
