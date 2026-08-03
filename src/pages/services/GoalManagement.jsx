@@ -311,19 +311,19 @@ const TESTIMONIALS = [
 const FAQ_ITEMS = [
   {
     q: '합격 확률은 어떻게 계산되나요?',
-    a: '성적, 모의고사 결과, 활동 데이터를 종합해 목표 대학・학과 기준으로 산출합니다. 세부 산출 기준은 상담에서 자세히 안내드립니다.'
+    a: '누적된 진학 데이터와 학생의 성적・활동 데이터를 비교・분석해 목표 대학・학과와의 상대적 위치를 참고 지표로 제시합니다.'
   },
   {
     q: '목표 학습 시간은 어떻게 제안되나요?',
-    a: '현재 성취도와 목표 확률의 격차를 기준으로 과목별 우선순위와 주간 학습 시간을 제안합니다.'
+    a: '목표 대비 현재 격차와 남은 기간을 바탕으로 과목별 필요 학습량을 산출해 주・일 단위 목표 시간으로 제안합니다.'
   },
   {
     q: '학부모에게 어떤 알림이 오나요?',
-    a: '매주 학습 리포트가 카카오톡 알림톡으로 전송되며, 목표 달성률・학습 시간・학습 순위를 확인할 수 있습니다.'
+    a: '매일 목표 학습 시간과 실행률, 목표 이탈 알림, 주간・월간 리포트가 문자로 발송됩니다.'
   },
   {
     q: '개인 정보는 안전하게 관리되나요?',
-    a: '수집된 정보는 서비스 제공 목적에 한해 안전하게 관리됩니다. 자세한 내용은 개인정보처리방침을 확인해 주세요.'
+    a: '수집 정보는 개인정보처리방침에 따라 목적 범위 내에서만 이용・보관하며, 학생 본인 및 학부모 동의 절차를 따릅니다.'
   }
 ];
 
@@ -779,7 +779,7 @@ function TestimonialsSection() {
 
 function FaqItem({ item, isOpen, onToggle }) {
   return (
-    <div className="border-b border-[#E5E7EB] py-6">
+    <div className="border-b border-[#D7D7D7] py-6 last:border-b-0 md:py-8">
       <button
         type="button"
         onClick={onToggle}
@@ -795,8 +795,9 @@ function FaqItem({ item, isOpen, onToggle }) {
           }`}
         />
       </button>
+      {/* 시안 fs24·fw400·#808080은 프로젝트 회색 하한 #767676으로 클램프 */}
       {isOpen && (
-        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#525252]">
+        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.5rem] md:font-normal">
           {item.a}
         </p>
       )}
