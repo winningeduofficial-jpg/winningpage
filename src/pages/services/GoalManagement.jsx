@@ -829,6 +829,7 @@ function FaqSection() {
   );
 }
 
+// 시안 콘텐츠 폭 1206 대비 1100 스케일(×0.91) 폰트 환산
 function PricingSection() {
   if (!GOAL_PRODUCTS.length) return null;
 
@@ -852,11 +853,11 @@ function PricingSection() {
                   >
                     <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                   </span>
-                  <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
+                  <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
                     {product.name}
                   </span>
                   {product.recommended && (
-                    <span className="rounded-xl bg-accent px-3 py-1.5 text-[1rem] font-medium text-white">
+                    <span className="rounded-xl bg-accent px-3 py-1.5 text-[0.9375rem] font-medium text-white">
                       추천
                     </span>
                   )}
@@ -864,22 +865,22 @@ function PricingSection() {
                 <span className="flex flex-col items-end">
                   {hasDiscount ? (
                     <>
-                      <span className="text-[0.875rem] font-normal text-[#D7D7D7] line-through md:text-[1.25rem]">
+                      <span className="text-[0.875rem] font-normal text-[#D7D7D7] line-through md:text-[1.125rem]">
                         {formatKRW(product.listPrice)}
                       </span>
                       <span className="flex items-center gap-4">
                         {product.badge && (
-                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-[#013262] md:text-[1.5rem]">
+                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-[#013262] md:text-[1.375rem]">
                             {product.badge}
                           </span>
                         )}
-                        <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
+                        <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
                           {formatKRW(product.price)}
                         </span>
                       </span>
                     </>
                   ) : (
-                    <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
+                    <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
                       {formatKRW(product.price)}
                     </span>
                   )}
@@ -889,7 +890,7 @@ function PricingSection() {
           })}
         </div>
 
-        <p className="mt-3 break-keep text-left text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1.125rem]">
+        <p className="mt-3 break-keep text-left text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1rem]">
           한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
         </p>
 
