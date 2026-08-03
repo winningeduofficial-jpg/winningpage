@@ -3927,15 +3927,15 @@ function InfoButton({ section, row, universityName, onOpen }) {
             : rawTextContent;
   const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
   const baseClass =
-    'inline-flex h-11 min-w-[84px] items-center justify-center whitespace-nowrap rounded-[6px] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
+    'inline-flex h-9 min-w-[3.5rem] items-center justify-center whitespace-nowrap rounded-[0.375rem] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
 
   if (!content) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border-transparent bg-[#f9fafb] text-[#9ea7b3]`}
-        title="등록된 정보가 없습니다."
+        className={`${baseClass} cursor-not-allowed border-transparent bg-transparent text-[#9ea7b3]`}
+        title={`${section.label}: 등록된 정보가 없습니다.`}
       >
-        <ButtonLabel item={section} />
+        -
       </span>
     );
   }
@@ -3944,10 +3944,10 @@ function InfoButton({ section, row, universityName, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(section, content, isHtmlContent)}
-      className={`${baseClass} border-[#d7d7d7] bg-white text-[#525252] hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white`}
+      className={`${baseClass} border-[#d7d7d7] bg-white text-[#525252] underline decoration-[#d7d7d7] underline-offset-2 hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white hover:decoration-white`}
       title={`${section.label} 보기`}
     >
-      <ButtonLabel item={section} />
+      보기
     </button>
   );
 }
@@ -3955,15 +3955,15 @@ function InfoButton({ section, row, universityName, onOpen }) {
 function LinkButton({ section, row }) {
   const url = getFirstUrl(row, section.keys);
   const baseClass =
-    'inline-flex h-11 min-w-[84px] items-center justify-center whitespace-nowrap rounded-[6px] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
+    'inline-flex h-9 min-w-[3.5rem] items-center justify-center whitespace-nowrap rounded-[0.375rem] border px-3 text-center text-[13px] font-medium tracking-[-0.01em] transition';
 
   if (!url) {
     return (
       <span
-        className={`${baseClass} cursor-not-allowed border-transparent bg-[#f9fafb] text-[#9ea7b3]`}
+        className={`${baseClass} cursor-not-allowed border-transparent bg-transparent text-[#9ea7b3]`}
         title="정시모집요강 URL이 아직 등록되지 않았습니다."
       >
-        <ButtonLabel item={section} />
+        -
       </span>
     );
   }
@@ -3973,10 +3973,10 @@ function LinkButton({ section, row }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={`${baseClass} border-[#bcdcff] bg-[#e9f4ff] text-[#013262] hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white`}
+      className={`${baseClass} border-[#bcdcff] bg-[#e9f4ff] text-[#013262] underline decoration-[#bcdcff] underline-offset-2 hover:border-[#0b84fd] hover:bg-[#0b84fd] hover:text-white hover:decoration-white`}
       title={`${section.label} 열기`}
     >
-      <ButtonLabel item={section} />
+      보기
     </a>
   );
 }
@@ -3988,41 +3988,6 @@ function openUniversityInfo(onOpenInfo, university, openedSection, content, isHt
     content,
     isHtml
   });
-}
-
-function UniversityCard({ university, row, onOpenInfo }) {
-  const infoSections = row?.detail_status === 'category' ? CATEGORY_INFO_SECTIONS : INFO_SECTIONS;
-
-  return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_6px_18px_rgba(13,27,42,0.04)] md:flex-row md:items-center md:justify-between md:gap-6">
-      <div className="flex shrink-0 items-center gap-3 md:min-w-[220px]">
-        <h3 className="break-keep text-[19px] font-bold leading-snug tracking-[-0.02em] text-[#525252]">
-          {university.name}
-        </h3>
-        <span className="inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full bg-[#e9f4ff] px-3 text-[13px] font-medium text-[#525252]">
-          {university.region}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {infoSections.map((section) => (
-          <InfoButton
-            key={section.key}
-            section={section}
-            row={row}
-            universityName={university.name}
-            onOpen={(openedSection, content, isHtml = false) =>
-              openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)
-            }
-          />
-        ))}
-
-        {LINK_SECTIONS.map((section) => (
-          <LinkButton key={section.label} section={section} row={row} />
-        ))}
-      </div>
-    </article>
-  );
 }
 
 function UniversityResourceRow({ university, row, onOpenInfo }) {
@@ -4749,7 +4714,8 @@ export default function AdmissionGuidelines() {
 
   const globalSearchUniversities = useMemo(() => {
     const q = keyword.trim().toLowerCase();
-    if (!q || selectedRegion || selectedSpecialGroupKey) return [];
+    if (selectedRegion || selectedSpecialGroupKey) return [];
+    if (!q) return ALL_UNIVERSITY_DIRECTORY;
     return ALL_UNIVERSITY_DIRECTORY.filter((university) =>
       `${university.region} ${university.name}`.toLowerCase().includes(q)
     );
@@ -4782,8 +4748,7 @@ export default function AdmissionGuidelines() {
   const currentListTitle =
     selectedSpecialGroup?.label ||
     selectedRegion ||
-    (isGlobalSearchMode ? '검색 결과' : '지역 선택');
-  const hasActiveList = Boolean(selectedRegion || selectedSpecialGroupKey || isGlobalSearchMode);
+    (isGlobalSearchMode ? '검색 결과' : '전체');
   const isQaMode =
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('qa') === '1';
 
@@ -4912,28 +4877,32 @@ export default function AdmissionGuidelines() {
 
           <section className="grid gap-6 lg:grid-cols-[32%_1fr] lg:items-start">
             <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
-              <div
-                ref={mapRef}
-                className="admission-map relative p-4 md:p-6"
-                onClick={handleMapClick}
-                onMouseMove={handleMapMove}
-                onMouseLeave={() =>
-                  setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev))
-                }
-                dangerouslySetInnerHTML={{ __html: KOREA_MAP_SVG }}
-              />
-              {selectedLabelPosition ? (
+              <div className="relative">
                 <div
-                  className="pointer-events-none absolute rounded-xl bg-black px-3 py-2 text-sm font-medium text-white shadow-lg"
-                  style={{
-                    left: `${selectedLabelPosition.x}%`,
-                    top: `${selectedLabelPosition.y}%`,
-                    transform: 'translate(-50%, -50%)'
-                  }}
-                >
-                  {selectedRegion}
-                </div>
-              ) : null}
+                  ref={mapRef}
+                  className="admission-map relative p-4 md:p-6"
+                  onClick={handleMapClick}
+                  onMouseMove={handleMapMove}
+                  onMouseLeave={() =>
+                    setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev))
+                  }
+                  dangerouslySetInnerHTML={{ __html: KOREA_MAP_SVG }}
+                />
+                {selectedLabelPosition ? (
+                  <div className="pointer-events-none absolute inset-4 md:inset-6">
+                    <div
+                      className="absolute rounded-xl bg-black px-3 py-2 text-sm font-medium text-white shadow-lg"
+                      style={{
+                        left: `${selectedLabelPosition.x}%`,
+                        top: `${selectedLabelPosition.y}%`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      {selectedRegion}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
               <div className="border-t border-[#e5e7eb] px-5 pb-5 pt-4">
                 <div className="mb-3">
@@ -4986,18 +4955,11 @@ export default function AdmissionGuidelines() {
                       <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] text-[#525252] md:text-[32px]">
                         {currentListTitle}
                       </span>
-                      {hasActiveList ? (
-                        <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
-                          <span className="text-[#0b84fd]">{visibleUniversities.length}</span>
-                          <span className="text-[#525252]">개교</span>
-                        </span>
-                      ) : null}
+                      <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
+                        <span className="text-[#0b84fd]">{visibleUniversities.length}</span>
+                        <span className="text-[#525252]">개교</span>
+                      </span>
                     </h2>
-                    {!hasActiveList ? (
-                      <p className="mt-3 text-sm font-medium text-[#808080]">
-                        지도 또는 지역 버튼을 선택하세요.
-                      </p>
-                    ) : null}
                   </div>
 
                   <div className="flex flex-wrap gap-2 2xl:justify-end">
@@ -5028,15 +4990,7 @@ export default function AdmissionGuidelines() {
                 </div>
               </div>
 
-              {!selectedRegion && !selectedSpecialGroupKey && !keyword.trim() ? (
-                <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-[#d7d7d7] bg-[#f9fafb] px-6 text-center">
-                  <div>
-                    <p className="text-xl font-semibold text-[#525252]">
-                      지도에서 지역을 선택하거나 왼쪽 별도 분류 대학을 선택하면 목록이 표시됩니다.
-                    </p>
-                  </div>
-                </div>
-              ) : visibleUniversities.length === 0 ? (
+              {visibleUniversities.length === 0 ? (
                 <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
                   <p className="text-lg font-semibold text-[#525252]">검색 결과가 없습니다.</p>
                   <p className="mt-2 text-sm font-medium text-[#808080]">
@@ -5045,23 +4999,15 @@ export default function AdmissionGuidelines() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden lg:block">
-                    <UniversityResourceTable
-                      universities={pagedUniversities}
-                      resourceIndex={resourceIndex}
-                      onOpenInfo={setSelectedInfo}
-                    />
-                  </div>
-                  <div className="grid gap-3 lg:hidden">
-                    {pagedUniversities.map((university) => (
-                      <UniversityCard
-                        key={`${university.region}-${university.name}`}
-                        university={university}
-                        row={findResourceRow(university, resourceIndex)}
-                        onOpenInfo={setSelectedInfo}
-                      />
-                    ))}
-                  </div>
+                  <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[#8f8f8f] md:hidden">
+                    좌우로 밀어 표를 확인하세요
+                    <ChevronRight className="h-3 w-3" />
+                  </p>
+                  <UniversityResourceTable
+                    universities={pagedUniversities}
+                    resourceIndex={resourceIndex}
+                    onOpenInfo={setSelectedInfo}
+                  />
 
                   {totalPages > 1 ? (
                     <nav
@@ -5164,12 +5110,21 @@ export default function AdmissionGuidelines() {
         .admission-directory-table .admission-directory-group-head { background: #013262; color: #fff; font-size: 13px; letter-spacing: -0.02em; }
         .admission-directory-table .admission-directory-regular-head { border-left: 2px solid #0b84fd; }
         .admission-directory-sticky-head,
-        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 190px; max-width: 230px; background: #ffffff; }
+        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 11.875rem; max-width: 14.375rem; background: #ffffff; }
         .admission-directory-sticky-head { background: #013262 !important; color: #fff !important; }
         .admission-directory-name-cell { text-align: left !important; color: #013262; }
         .admission-directory-region { display: inline-flex; margin-bottom: 4px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 999px; padding: 2px 7px; font-size: 10.5px; font-weight: 950; }
         .admission-directory-name { display: block; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
         .admission-directory-category-cell { background: #e9f4ff; }
+        @media (max-width: 45rem) {
+          .admission-directory-sticky-head,
+          .admission-directory-name-cell { min-width: 7.25rem; max-width: 8.25rem; }
+          .admission-directory-table { font-size: 11px; }
+          .admission-directory-table th,
+          .admission-directory-table td { padding: 6px 6px; }
+          .admission-directory-name { font-size: 12.5px; }
+          .admission-directory-region { font-size: 9.5px; padding: 2px 6px; }
+        }
 
         .admission-modal-sheet { background: #fff; border: none; border-radius: 1.5rem; box-shadow: 0 1.875rem 5rem -1.25rem rgba(1, 50, 98, 0.35); }
         .admission-modal-sheet-head { border-bottom: 1px solid #e5e7eb; background: #ffffff; }
