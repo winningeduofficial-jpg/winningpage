@@ -5311,21 +5311,43 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-special-title,
         .admission-modal-body .admission-subtitle-line { margin-top: 8px; border: 0; border-left: 0; border-radius: 0; background: transparent; color: #000; padding: 0; font-size: 13px; line-height: 1.45; font-weight: 950; }
         .admission-modal-body .admission-scroll-table { border: 0; border-radius: 0; background: #fff; }
+        /* Figma 1882:4416(전년도와 차이점)/1882:4934(전형방법)/1882:5487(최저학력기준) 실측 재구현.
+           세로 그리드 없이 가로선만: 헤더 상단 #000 1px, 바디 행 구분선 #dfdfdf 1px, 테이블 하단 #000 1px.
+           셀 16px(1rem) Pretendard Medium(500) #525252, 행 높이 63px 상당(1.25rem 1rem 패딩으로 재현). */
         .admission-modal-body .admission-data-table,
         .admission-modal-body .admission-mini-table,
         .admission-modal-body .admission-result-table,
         .admission-modal-body .admission-existing-html table,
-        .admission-modal-body .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: 2px solid #013262; border-bottom: 2px solid #013262; font-size: 12px; line-height: 1.32; table-layout: auto; }
+        .admission-modal-body .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: none; border-bottom: 1px solid #000; font-size: 1rem; line-height: 1.4; table-layout: auto; }
         .admission-modal-body .admission-data-table th,
         .admission-modal-body .admission-mini-table th,
         .admission-modal-body .admission-result-table th,
         .admission-modal-body .admission-existing-html th,
-        .admission-modal-body .admission-table-wrap th { background: #f9fafb !important; color: #013262 !important; border: 1px solid #d7d7d7; padding: 5px 8px; font-weight: 950; text-align: center; white-space: nowrap; }
+        .admission-modal-body .admission-table-wrap th { background: #f9fafb !important; color: #525252 !important; border: 0; border-top: 1px solid #000; padding: 1.25rem 1rem; font-weight: 500; letter-spacing: -0.02em; text-align: center; white-space: nowrap; }
         .admission-modal-body .admission-data-table td,
         .admission-modal-body .admission-mini-table td,
         .admission-modal-body .admission-result-table td,
         .admission-modal-body .admission-existing-html td,
-        .admission-modal-body .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 5px 8px; color: #525252; font-weight: 800; vertical-align: middle; }
+        .admission-modal-body .admission-table-wrap td { border: 0; border-top: 1px solid #dfdfdf; padding: 1.25rem 1rem; color: #525252; font-weight: 500; letter-spacing: -0.02em; vertical-align: middle; }
+        /* 모바일은 시안(데스크톱 1260px 폭) 그대로 적용 시 고정폭 컬럼이 과도하게 좁아져
+           1~2글자 단위 줄바꿈이 발생 → 폰트/패딩만 축소해 가독성 회귀 방지. */
+        @media (max-width: 48rem) {
+          .admission-modal-body .admission-data-table,
+          .admission-modal-body .admission-mini-table,
+          .admission-modal-body .admission-result-table,
+          .admission-modal-body .admission-existing-html table,
+          .admission-modal-body .admission-table-wrap table { font-size: 0.8125rem; line-height: 1.4; }
+          .admission-modal-body .admission-data-table th,
+          .admission-modal-body .admission-mini-table th,
+          .admission-modal-body .admission-result-table th,
+          .admission-modal-body .admission-existing-html th,
+          .admission-modal-body .admission-table-wrap th,
+          .admission-modal-body .admission-data-table td,
+          .admission-modal-body .admission-mini-table td,
+          .admission-modal-body .admission-result-table td,
+          .admission-modal-body .admission-existing-html td,
+          .admission-modal-body .admission-table-wrap td { padding: 0.625rem 0.5rem; }
+        }
         .admission-modal-body .admission-data-table td:first-child,
         .admission-modal-body .admission-result-table td:first-child,
         .admission-modal-body .admission-mini-table td:first-child,
