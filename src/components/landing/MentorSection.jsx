@@ -61,7 +61,7 @@ export default function MentorSection({ mentors = [], variant = 'default' }) {
             className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
-              className={`flex w-max min-w-full items-center gap-8 px-5 sm:px-8 ${
+              className={`flex w-max min-w-full items-center gap-[1.5625rem] px-5 sm:px-8 ${
                 isMarquee ? '' : 'justify-center'
               }`}
             >

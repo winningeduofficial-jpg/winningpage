@@ -31,10 +31,12 @@ const MAX_ROWS = 3;
 // 시안(Figma 1907:14893) 배지 3색 — 값이 없거나 매핑에 없는 카테고리는 배지를 렌더하지 않는다.
 // 공지는 시안 원값(#FFC4C4/#FF7373)이 대비 1.75:1로 WCAG 미달이라 타 칩과 같은 패턴
 // (연한 동계열 틴트 배경 + 진한 동계열 텍스트, 7.88:1)으로 보정.
+// 0803 시안(2207:12336)의 '중요' 카테고리도 동일 조정 팔레트('공지'와 동색)를 적용한다.
 const CATEGORY_BADGE_STYLES = {
   보도자료: { bg: '#E9F4FF', text: '#013262' },
   파트너십: { bg: '#EEFFE9', text: '#016215' },
-  공지: { bg: '#FFE9E9', text: '#8F1616' }
+  공지: { bg: '#FFE9E9', text: '#8F1616' },
+  중요: { bg: '#FFE9E9', text: '#8F1616' }
 };
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
@@ -53,15 +55,15 @@ function formatDate(value) {
   return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10).replace(/-/g, '.');
 }
 
-// 배지 폭은 4자 라벨(보도자료) 기준 2.446rem(39.13px) 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
+// 배지 폭은 0803 시안 기준 4rem(64px) 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
 function CategoryBadge({ category }) {
   const style = category ? CATEGORY_BADGE_STYLES[category] : null;
 
-  if (!category) return <span aria-hidden="true" className="w-[2.446rem] shrink-0" />;
+  if (!category) return <span aria-hidden="true" className="w-[4rem] shrink-0" />;
 
   return (
     <span
-      className="inline-flex w-[2.446rem] shrink-0 items-center justify-center rounded-[0.391rem] px-[0.391rem] py-[0.196rem] text-[0.489rem] font-medium leading-[1.4] tracking-[-0.0125rem] whitespace-nowrap"
+      className="inline-flex w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
       style={{
         backgroundColor: style?.bg ?? '#F1F5F9',
         color: style?.text ?? '#525252'
@@ -110,9 +112,9 @@ function NewsRow({ item, basePath }) {
         to={`${basePath}?id=${item.id}`}
         className="flex flex-col gap-1 px-[0.489rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[2.641rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:py-0"
       >
-        <div className="flex min-w-0 items-center gap-4 sm:contents">
+        <div className="flex min-w-0 items-center gap-[1.956rem] sm:contents">
           <CategoryBadge category={item.category} />
-          <p className="min-w-0 flex-1 truncate text-[0.7825rem] font-medium leading-[1.4] tracking-[-0.0157rem] text-[#525252]">
+          <p className="min-w-0 flex-1 truncate text-[1rem] font-medium leading-[1.4] tracking-[-0.02rem] text-[#525252]">
             {item.title}
           </p>
         </div>
@@ -143,7 +145,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           <div>
             <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
             {newsRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[0.978rem]">
                 {newsRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/company-news" />
                 ))}
@@ -160,7 +162,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           <div>
             <ColumnHeader title="공지사항" moreLink="/events" moreLabel="공지사항 더보기" />
             {noticeRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[0.978rem]">
                 {noticeRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/events" />
                 ))}
