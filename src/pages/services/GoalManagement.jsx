@@ -333,8 +333,8 @@ function HeroSection() {
         </button>
 
         <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5">
+          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">
+            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5 md:shrink-0">
               <span className="flex gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
                 <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
@@ -347,7 +347,7 @@ function HeroSection() {
             <img
               src={heroDashboard}
               alt="TMP 주간 성장 리포트 대시보드 화면 — 이번 주 공부 시간, 목표 달성률, 목표군 내 위치를 보여준다"
-              className="w-full"
+              className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
             />
           </div>
         </div>
