@@ -494,7 +494,7 @@ function AudienceSection() {
               <div className="flex h-44 w-full items-end md:h-[13.5625rem]">
                 <img src={item.image} alt={item.title} className="w-full object-contain" />
               </div>
-              <div className="flex flex-1 flex-col px-6 pb-6 pt-6 md:px-[2.125rem] md:pb-10 md:pt-[3.9375rem]">
+              <div className="flex flex-1 flex-col px-6 pb-6 pt-6 md:pl-[2.125rem] md:pr-[1.3125rem] md:pb-10 md:pt-[3.9375rem]">
                 <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
                   {item.title}
                 </p>
