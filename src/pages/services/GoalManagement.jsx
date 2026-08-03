@@ -622,7 +622,12 @@ function PhoneReportSection() {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mt-[3.8125rem]">
+          {/* lg:mr — PDF 리포트 칩(아래 PHONE_BADGES 3번째, left 86.02%·width 15rem)이
+              폰(렌더 폭 20rem=320px) 우측 밖으로 86.02%*320+240-320 ≈ 195.26px(12.2rem)
+              돌출해 max-w-content 밖으로 넘치는 문제. 시안(1889:7243) 실측 여백 227px은
+              372px 폭 폰 기준이라 그대로 쓰면(14.1875rem) 렌더 폭(320px)에는 과도 —
+              위 계산값(12.2rem)에 subpixel 버퍼를 더한 12.5rem(200px)으로 수납. */}
+          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mr-[12.5rem] lg:mt-[3.8125rem]">
             {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
                 (FreeDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
                 **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값. */}
