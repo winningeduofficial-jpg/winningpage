@@ -14,7 +14,7 @@ import { ChevronRight } from 'lucide-react';
  * 수직 리듬: 상단(멘토→뉴스) 120px→md:pt-[7.5rem], 하단(뉴스→푸터) 120px→md:pb-[7.5rem]
  * (이 섹션이 다음 푸터와의 갭을 소유하는 예외 케이스). 모바일은 서비스 섹션 선례 비율
  * 0.4(=40/100, ServicesSection pt-10/lg:pt-[6.25rem] 참고)로 축소한 pt-12/pb-12(3rem/48px).
- * 타이틀→그리드 61px→md:mt-[3.8125rem], 컬럼 헤더→리스트 15.65px→md:mt-[0.978rem]
+ * 타이틀→그리드 61px→md:mt-[3.8125rem], 컬럼 헤더→리스트 24px(0803 재스펙 3015:14378)→md:mt-[1.5rem]
  * (모바일 gap은 기존 유지, 시안에 모바일 분기 값 없음).
  *
  * @param {object} props
@@ -29,14 +29,14 @@ import { ChevronRight } from 'lucide-react';
 const MAX_ROWS = 3;
 
 // 시안(Figma 1907:14893) 배지 3색 — 값이 없거나 매핑에 없는 카테고리는 배지를 렌더하지 않는다.
-// 공지는 시안 원값(#FFC4C4/#FF7373)이 대비 1.75:1로 WCAG 미달이라 타 칩과 같은 패턴
-// (연한 동계열 틴트 배경 + 진한 동계열 텍스트, 7.88:1)으로 보정.
-// 0803 시안(2207:12336)의 '중요' 카테고리도 동일 조정 팔레트('공지'와 동색)를 적용한다.
+// 공지/중요 칩은 시안 원값 #FFC4C4/#FF7373 — 대비 1.75:1로 WCAG 미달이나 0803 재스펙
+// (3015:14378)에서 디자이너가 원값을 유지했고 사용자 지시로 원값 적용
+// (이전 보정 팔레트 #FFE9E9/#8F1616 폐기).
 const CATEGORY_BADGE_STYLES = {
   보도자료: { bg: '#E9F4FF', text: '#013262' },
   파트너십: { bg: '#EEFFE9', text: '#016215' },
-  공지: { bg: '#FFE9E9', text: '#8F1616' },
-  중요: { bg: '#FFE9E9', text: '#8F1616' }
+  공지: { bg: '#FFC4C4', text: '#FF7373' },
+  중요: { bg: '#FFC4C4', text: '#FF7373' }
 };
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
@@ -55,7 +55,8 @@ function formatDate(value) {
   return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10).replace(/-/g, '.');
 }
 
-// 배지 폭은 0803 시안 기준 4rem(64px) 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
+// 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
+// '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
 function CategoryBadge({ category }) {
   const style = category ? CATEGORY_BADGE_STYLES[category] : null;
 
@@ -63,7 +64,7 @@ function CategoryBadge({ category }) {
 
   return (
     <span
-      className="inline-flex w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
+      className="inline-flex min-w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
       style={{
         backgroundColor: style?.bg ?? '#F1F5F9',
         color: style?.text ?? '#525252'
@@ -110,7 +111,7 @@ function NewsRow({ item, basePath }) {
           간격이 그대로 복원된다(데스크톱 렌더 불변). */}
       <Link
         to={`${basePath}?id=${item.id}`}
-        className="flex flex-col gap-1 px-[0.489rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[2.641rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:py-0"
+        className="flex flex-col gap-1 px-[0.489rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[1.625rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-0 sm:py-0"
       >
         <div className="flex min-w-0 items-center gap-[1.956rem] sm:contents">
           <CategoryBadge category={item.category} />
@@ -145,7 +146,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           <div>
             <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
             {newsRows.length > 0 ? (
-              <ul className="mt-10 space-y-[1.5rem] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {newsRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/company-news" />
                 ))}
@@ -162,7 +163,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           <div>
             <ColumnHeader title="공지사항" moreLink="/events" moreLabel="공지사항 더보기" />
             {noticeRows.length > 0 ? (
-              <ul className="mt-10 space-y-[1.5rem] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {noticeRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/events" />
                 ))}
