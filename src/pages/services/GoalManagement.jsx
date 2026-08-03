@@ -869,7 +869,7 @@ function PricingSection() {
                       </span>
                       <span className="flex items-center gap-4">
                         {product.badge && (
-                          <span className="text-[0.875rem] font-medium text-[#013262] md:text-[1rem]">
+                          <span className="text-[0.875rem] font-medium text-[#013262] md:text-[1.5rem]">
                             {product.badge}
                           </span>
                         )}
@@ -889,7 +889,7 @@ function PricingSection() {
           })}
         </div>
 
-        <p className="mt-3 break-keep text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1.125rem]">
+        <p className="mt-3 break-keep text-left text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1.125rem]">
           한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
         </p>
 
