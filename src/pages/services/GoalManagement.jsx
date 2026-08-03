@@ -609,20 +609,20 @@ function PhoneReportSection() {
   return (
     <section className="overflow-x-clip bg-white pt-16 sm:pt-20 md:pt-[16.125rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
-          <div className="max-w-[26rem] text-center lg:text-left">
+        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
+          <div className="max-w-[26rem] text-center lg:max-w-[36.4375rem] lg:text-left">
             <h2 className={SECTION_HEADING_CLASS}>
               아이의 일주일 목표 관리를
               <br />
               확인 할 수 있어요
             </h2>
-            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252]">
+            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] md:mt-[1.4375rem]">
               매주 정리된 리포트가 카카오톡 알림톡으로 도착하고, 달성률부터 학습시간까지 한눈에
               확인할 수 있어요.
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0">
+          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mt-[3.8125rem]">
             {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
                 (FreeDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
                 **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값. */}
