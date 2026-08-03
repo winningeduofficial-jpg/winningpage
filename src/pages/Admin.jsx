@@ -42,7 +42,7 @@ const MENU_GROUPS = [
       { key: 'admissionSusiJungsi', label: '수시·정시' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
       { key: 'admissionResults', label: '입결정보' },
-      { key: 'galleries', label: '교육컬럼' },
+      { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
       { key: 'freeDiagnosis', label: '무료진단 관리' }
     ]
@@ -925,16 +925,18 @@ const CONFIGS = {
   },
 
   galleries: {
-    title: '교육컬럼',
+    title: '교육칼럼',
     table: 'galleries',
-    searchPlaceholder: '교육컬럼 제목을 검색하세요',
+    searchPlaceholder: '교육칼럼 제목을 검색하세요',
     order: 'created_at',
     homepage: true,
-    guideText: `교육컬럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
+    guideText: `교육칼럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
       { key: 'content', label: '본문' },
+      { key: 'category', label: '카테고리' },
+      { key: 'is_featured', label: '인기', type: 'boolean' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
@@ -942,14 +944,32 @@ const CONFIGS = {
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'content', label: '본문', type: 'textarea' },
-      { key: 'image_urls', label: '이미지', type: 'multiImage' }
+      { key: 'image_urls', label: '이미지', type: 'multiImage' },
+      {
+        key: 'category',
+        label: '카테고리',
+        type: 'select',
+        // = columnData.js COLUMN_CATEGORIES
+        options: [
+          '학습관리 방법',
+          '수시 및 정시 전략',
+          '특목고 입학',
+          '해외 및 대학원',
+          '입시제도 변화',
+          '대학 입시 제로',
+          '학생부•수행평가•세특'
+        ]
+      },
+      { key: 'is_featured', label: '이번주 인기 노출', type: 'radioBoolean' }
     ],
     defaults: {
       is_active: true,
       title: '',
       content: '',
       image_url: '',
-      image_urls: []
+      image_urls: [],
+      category: '학습관리 방법',
+      is_featured: false
     }
   },
 
