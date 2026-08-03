@@ -852,7 +852,7 @@ function PricingSection() {
                   >
                     <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                   </span>
-                  <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
+                  <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
                     {product.name}
                   </span>
                   {product.recommended && (
@@ -869,17 +869,17 @@ function PricingSection() {
                       </span>
                       <span className="flex items-center gap-4">
                         {product.badge && (
-                          <span className="text-[0.875rem] font-medium text-[#013262] md:text-[1.5rem]">
+                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-[#013262] md:text-[1.5rem]">
                             {product.badge}
                           </span>
                         )}
-                        <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
+                        <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
                           {formatKRW(product.price)}
                         </span>
                       </span>
                     </>
                   ) : (
-                    <span className="text-[1.0625rem] font-medium text-[#525252] sm:text-[1.5rem]">
+                    <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.5rem]">
                       {formatKRW(product.price)}
                     </span>
                   )}
