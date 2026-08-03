@@ -17,6 +17,10 @@ import { ChevronRight } from 'lucide-react';
  * 타이틀→그리드 61px→md:mt-[3.8125rem], 컬럼 헤더→리스트 24px(0803 재스펙 3015:14378)→md:mt-[1.5rem]
  * (모바일 gap은 기존 유지, 시안에 모바일 분기 값 없음).
  *
+ * 인터랙션: 행/헤더 레이아웃 치수(행 26px·pitch 50px·시안 색값)는 불변, hover/focus는
+ * absolute 오버레이 레이어(sm+에서 -12px 확장 라운드 면)로만 표현 — --ease-out-quart
+ * 150ms(Header.jsx 관례), prefers-reduced-motion은 motion-reduce:transition-none으로 가드.
+ *
  * @param {object} props
  * @param {Array<{id: string, title: string, created_at: string, category?: string|null,
  *   sort_order?: number}>} props.companyNews
@@ -60,11 +64,11 @@ function formatDate(value) {
 function CategoryBadge({ category }) {
   const style = category ? CATEGORY_BADGE_STYLES[category] : null;
 
-  if (!category) return <span aria-hidden="true" className="w-[4rem] shrink-0" />;
+  if (!category) return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 
   return (
     <span
-      className="inline-flex min-w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
+      className="relative inline-flex min-w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
       style={{
         backgroundColor: style?.bg ?? '#F1F5F9',
         color: style?.text ?? '#525252'
@@ -77,18 +81,20 @@ function CategoryBadge({ category }) {
 
 function ColumnHeader({ title, moreLink, moreLabel }) {
   return (
-    <div className="flex items-center gap-[0.489rem]">
-      <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem] text-[#525252]">
-        <Link to={moreLink}>{title}</Link>
-      </h3>
+    <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem]">
       <Link
         to={moreLink}
         aria-label={moreLabel}
-        className="relative flex h-6 w-6 items-center justify-center text-[#525252] transition-colors duration-150 hover:text-[#013262] max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-['']"
+        className="group relative inline-flex items-center gap-[0.489rem] rounded-[0.5rem] text-[#525252] transition-colors duration-150 ease-[var(--ease-out-quart)] hover:text-[#013262] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B84FD] focus-visible:ring-offset-4 motion-reduce:transition-none max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-['']"
       >
-        <ChevronRight size={19} aria-hidden="true" />
+        {title}
+        <ChevronRight
+          size={19}
+          aria-hidden="true"
+          className="transition-transform duration-150 ease-[var(--ease-out-quart)] group-hover:translate-x-[0.125rem] motion-reduce:transition-none motion-reduce:transform-none"
+        />
       </Link>
-    </div>
+    </h3>
   );
 }
 
@@ -111,17 +117,30 @@ function NewsRow({ item, basePath }) {
           간격이 그대로 복원된다(데스크톱 렌더 불변). */}
       <Link
         to={`${basePath}?id=${item.id}`}
-        className="flex flex-col gap-1 px-[0.489rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[1.625rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-0 sm:py-0"
+        className="group relative flex flex-col gap-1 rounded-[0.75rem] px-[0.489rem] py-4 focus-visible:outline-none sm:h-[1.625rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-0 sm:py-0"
       >
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-[0.75rem] bg-[#F1F5F9] opacity-0 transition-opacity duration-150 ease-[var(--ease-out-quart)] group-hover:opacity-100 group-focus-visible:opacity-100 group-focus-visible:ring-2 group-focus-visible:ring-[#0B84FD] motion-reduce:transition-none sm:-inset-x-[0.75rem] sm:-inset-y-[0.75rem]"
+        />
         <div className="flex min-w-0 items-center gap-[1.956rem] sm:contents">
           <CategoryBadge category={item.category} />
-          <p className="min-w-0 flex-1 truncate text-[1rem] font-medium leading-[1.4] tracking-[-0.02rem] text-[#525252]">
+          <p className="relative min-w-0 flex-1 truncate text-[1rem] font-medium leading-[1.4] tracking-[-0.02rem] text-[#525252] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#013262] motion-reduce:transition-none">
             {item.title}
           </p>
         </div>
-        <span className="shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7]">
-          {formatDate(item.created_at)}
-        </span>
+        {item.created_at ? (
+          <time
+            dateTime={String(item.created_at).slice(0, 10)}
+            className="relative shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#808080] motion-reduce:transition-none"
+          >
+            {formatDate(item.created_at)}
+          </time>
+        ) : (
+          <span className="relative shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#808080] motion-reduce:transition-none">
+            {formatDate(item.created_at)}
+          </span>
+        )}
       </Link>
     </li>
   );
@@ -154,7 +173,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 회사소식이 없습니다."
-                className="mt-6 h-16 md:mt-[0.978rem] md:h-[2.641rem]"
+                className="mt-6 h-16 md:mt-[1.5rem] md:h-[7.875rem]"
               />
             )}
           </div>
@@ -171,7 +190,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 공지사항이 없습니다."
-                className="mt-6 h-16 md:mt-[0.978rem] md:h-[2.641rem]"
+                className="mt-6 h-16 md:mt-[1.5rem] md:h-[7.875rem]"
               />
             )}
           </div>
