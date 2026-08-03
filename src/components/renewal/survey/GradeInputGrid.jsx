@@ -47,7 +47,7 @@ export default function GradeInputGrid({ groups, value, onChange }) {
           {/* 열 수는 명시 고정한다. sm 이상을 auto-fill(100px) 로 두면
               (a) 열 수가 3→4→5→7 로 폭에 따라 튀면서 폭마다 다른 그룹이 고아 행을 만들고
               (b) 남는 폭이 트랙으로 흡수되지 않아 그리드 우측에 34~38px 사공간이 생겼다.
-              1fr 트랙 + 명시 열 수면 트랙 폭이 640→109.5 / 768→89 / 1024→110.6 으로 단조롭고
+              1fr 트랙 + 명시 열 수면 트랙 폭이 640→109.5 / 768→89 / 1024→110.6 으로 89~111px 대역에 머물고
               라벨 최장값 `1학년 1학기`(16px 실측 73.56px)도 truncate 없이 들어간다.
               wide(1184) 이상은 시안 규격(100px 고정 트랙)으로 복귀한다. */}
           <div className="grid w-full grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 wide:grid-cols-[repeat(auto-fill,6.25rem)]">

@@ -79,11 +79,11 @@ export default function OptionGroup({
   // chip 은 hug 폭이라 375(가용 277px)에서는 어떤 두 칩도 한 줄에 못 들어간다. 결과가
   // "폭이 제각각인 칩이 1개씩 세로로 쌓여 우측 끝이 톱니처럼 어긋나는" 배치라, 같은 화면의
   // variant='row' 문항과 정렬 규칙이 충돌했다. <640 은 row 와 동일한 전폭 리스트로 통일한다.
-  // ≥640 은 wrap 유지 + items-stretch — 같은 wrap 행의 칩이 라벨 줄 수와 무관하게 높이를 공유한다
-  // (items-start 면 2줄 칩만 혼자 길어져 행 안에서 높이 편차가 난다).
+  // ≥640 은 wrap 유지 — align-items 기본값(normal→stretch)이 이미 같은 효과를 낸다.
+  // 같은 wrap 행의 칩이 라벨 줄 수와 무관하게 높이를 공유하므로 sm:items-stretch 클래스는 불필요하다.
   const containerClass =
     variant === 'chip'
-      ? 'flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch'
+      ? 'flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap'
       : 'flex w-full flex-col items-start gap-3';
 
   return (
