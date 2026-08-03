@@ -47,15 +47,15 @@ export default function ColumnHome() {
   }, [restRows, category]);
 
   return (
-    <main className="pt-16">
+    <main className="bg-white pt-16">
       {!loading && rows.length === 0 ? (
-        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
+        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
           <p className="text-sm font-bold text-gray-400">등록된 교육칼럼이 없습니다.</p>
         </div>
       ) : (
         <>
           <section className="pt-16 sm:pt-20 md:pt-[11rem]">
-            <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+            <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
               <h2 className={SECTION_TITLE}>이번주 가장 인기 있는 칼럼</h2>
 
               {loading ? (
@@ -68,7 +68,7 @@ export default function ColumnHome() {
                     <ColumnCard column={heroLarge} variant="heroLarge" />
 
                     {heroSmalls.length > 0 && (
-                      <div className="flex flex-col gap-6 lg:w-[26rem] lg:shrink-0">
+                      <div className="flex flex-col gap-6 lg:w-[40.75rem] lg:shrink-0">
                         {heroSmalls.map((row) => (
                           <ColumnCard key={row.id} column={row} variant="heroSmall" />
                         ))}
@@ -82,7 +82,7 @@ export default function ColumnHome() {
 
           {!loading && (
             <section className="mt-24 pb-20 sm:pb-24 md:mt-[11.5rem] md:pb-[10rem]">
-              <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+              <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
                 <div className="flex items-center justify-between">
                   <h2 className={SECTION_TITLE}>카테고리별 보기</h2>
                   <Link

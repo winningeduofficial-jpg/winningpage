@@ -78,8 +78,8 @@ export default function ColumnDetail() {
 
   if (loading) {
     return (
-      <main className="pt-16">
-        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
+      <main className="bg-white pt-16">
+        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
           <p className="text-sm font-bold text-gray-400">불러오는 중입니다.</p>
         </div>
       </main>
@@ -88,8 +88,8 @@ export default function ColumnDetail() {
 
   if (!post) {
     return (
-      <main className="pt-16">
-        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
+      <main className="bg-white pt-16">
+        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
           <h1 className="text-xl font-bold text-[#525252]">게시글을 찾을 수 없습니다.</h1>
           <Link
             to="/info/column"
@@ -123,7 +123,7 @@ export default function ColumnDetail() {
             aria-label="공유하기"
             className="flex h-12 w-12 items-center justify-center rounded-full text-[#525252] transition-colors hover:bg-[#F4F4F4]"
           >
-            <Share2 size={28} />
+            <Share2 size={34} />
           </button>
 
           {sharePopoverOpen && (
@@ -134,7 +134,7 @@ export default function ColumnDetail() {
                 aria-label="링크 복사"
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F4F4F4] text-[#525252]"
               >
-                <LinkIcon size={22} />
+                <LinkIcon size={35} />
               </button>
               <span className="text-xs font-medium text-[#7A7A7A]">
                 {copied ? '복사되었습니다' : '링크 복사'}
@@ -147,7 +147,7 @@ export default function ColumnDetail() {
   );
 
   return (
-    <main className="pt-16">
+    <main className="bg-white pt-16">
       {coverUrl ? (
         <>
           <img
@@ -156,18 +156,18 @@ export default function ColumnDetail() {
             className="h-[26rem] w-full object-cover md:h-[42.0625rem]"
           />
           <section className="mt-16 md:mt-[8.25rem]">
-            <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
+            <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">{titleBlock}</div>
           </section>
         </>
       ) : (
         <div className="flex h-[26rem] w-full flex-col justify-end bg-[#F4F4F4] pb-10 md:h-[42.0625rem] md:pb-[6.25rem]">
-          <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
+          <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">{titleBlock}</div>
         </div>
       )}
 
       <section>
-        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <div className="prose prose-lg mt-16 max-w-none whitespace-pre-wrap break-keep leading-8 text-[#525252] md:mt-[8rem]">
+        <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
+          <div className={`prose prose-lg mt-16 max-w-none whitespace-pre-wrap break-keep leading-8 text-[#525252] ${coverUrl ? 'md:mt-[8rem]' : 'md:mt-[5.9375rem]'}`}>
             {post.content}
           </div>
 
@@ -188,7 +188,7 @@ export default function ColumnDetail() {
 
       {relatedRows.length > 0 && (
         <section className="mt-20 pb-20 sm:pb-24 md:mt-[8.25rem] md:pb-[8.25rem]">
-          <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
             <h2 className="break-keep text-[2.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-black">
               함께 읽으면 좋은 글
             </h2>
@@ -205,7 +205,7 @@ export default function ColumnDetail() {
                   type="button"
                   onClick={() => setRelatedStart((prev) => prev + RELATED_PAGE_SIZE)}
                   aria-label="다음 관련 글"
-                  className="absolute -right-4 top-1/2 flex h-12 w-[3.125rem] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#525252] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)] sm:right-0 sm:translate-x-1/2"
+                  className="absolute -right-4 top-1/2 flex h-12 w-[3.125rem] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#525252] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)] sm:right-0 sm:translate-x-1/2 wide:top-[15.125rem]"
                 >
                   <ChevronRight size={24} />
                 </button>

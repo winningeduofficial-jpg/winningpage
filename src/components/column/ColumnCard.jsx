@@ -27,7 +27,7 @@ function MetaRow({ column, className = '' }) {
   const viewCount = getViewCount(column);
 
   return (
-    <div className={`flex items-center gap-5 text-base font-normal leading-[1.3] text-[#7A7A7A] ${className}`}>
+    <div className={`flex items-center gap-5 text-base font-normal leading-[1.3] tracking-[-0.02em] text-[#7A7A7A] ${className}`}>
       <span>{formatDate(getDisplayDate(column))}</span>
       {viewCount !== null && (
         <span className="inline-flex items-center gap-[0.3125rem]">
@@ -54,13 +54,13 @@ export default function ColumnCard({ column, variant = 'grid' }) {
             className="aspect-[10/7] h-auto w-full"
           />
           {hasCategory && (
-            <span className="absolute right-6 top-[1.625rem] rounded-full bg-[#013262] px-6 py-3 text-xl font-medium leading-[1.4] text-white">
+            <span className="absolute right-6 top-[1.625rem] rounded-full bg-[#013262] px-6 py-3 text-xl font-medium leading-[1.4] tracking-[-0.02em] text-white">
               {categoryLabel}
             </span>
           )}
         </div>
 
-        <div className="mt-8 max-w-[21rem]">
+        <div className="mt-8 max-w-[24rem]">
           <h3 className="text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
             {column.title}
           </h3>
@@ -81,7 +81,7 @@ export default function ColumnCard({ column, variant = 'grid' }) {
 
         <div className="flex min-w-0 flex-1 flex-col gap-3.5">
           {hasCategory && (
-            <span className="w-fit rounded-full border border-[#D7D7D7] bg-white px-6 py-1.5 text-sm font-medium leading-[1.4] text-[#525252]">
+            <span className="w-fit rounded-full border border-[#D7D7D7] bg-white px-6 py-1.5 text-sm font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
               {categoryLabel}
             </span>
           )}
