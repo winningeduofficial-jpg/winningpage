@@ -1556,7 +1556,15 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-scroll-table::-webkit-scrollbar,
         .admission-modal-body .admission-table-wrap::-webkit-scrollbar,
         .admission-modal-body .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
-        .admission-modal-x-scroll-shell { flex: 0 0 auto; border-top: 1px solid #d7d7d7; background: #fff; padding: 5px 24px 4px; }
+        /* BLOCK3(2026-08-04): 쉘의 좌우 padding(24px 고정)이 모달 본문(.admission-modal-body,
+           px-6/md:px-12 = 24px/48px)보다 데스크톱에서 24px씩 더 좁아, 프록시 스크롤바의
+           트랙 폭(쉘 clientWidth)이 실제 표 래퍼 clientWidth보다 넓어진다. 그 결과 inner에
+           표.scrollWidth를 그대로 넣어도 트랙 안에 다 들어가 스크롤이 0이 되는 5건이 있었다.
+           쉘 padding을 모달 본문과 동일한 반응형 값으로 맞춰 두 컨테이너의 실폭 비율을 일치시킨다. */
+        .admission-modal-x-scroll-shell { flex: 0 0 auto; border-top: 1px solid #d7d7d7; background: #fff; padding: 0.3125rem 1.5rem 0.25rem; }
+        @media (min-width: 48rem) {
+          .admission-modal-x-scroll-shell { padding-left: 3rem; padding-right: 3rem; }
+        }
         .admission-modal-x-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #bcdcff #f9fafb; }
         .admission-modal-x-scroll-inner { height: 1px; }
         .admission-modal-x-scroll::-webkit-scrollbar { height: 7px; }
@@ -1730,6 +1738,12 @@ export default function AdmissionGuidelines() {
           .admission-change-table-v87 th:nth-child(2), .admission-change-table-v87 td:nth-child(2) { width: 180px; }
         }
         .admission-score-table th, .admission-score-table td { padding: 8px 9px; }
+        /* BLOCK2(2026-08-04): 석차등급 환산표(.admission-score-table)는 .admission-data-table의
+           베이스 규칙(td.left { min-width:150px })을 그대로 상속해 col0/col1(둘 다 class="left")이
+           150px씩 고정되고, 값은 40개 표 중 39개가 "100"(5자 이하)이라 대부분 유휴 공간이었다.
+           그 결과 표 실폭이 래퍼(1014px)를 넘어 '비고' 열이 잘렸다. 모달 스코프에서만 min-width를
+           풀고, 헤더(center)/데이터(기존 left) 중심선이 어긋나던 것도 center로 통일한다. */
+        .admission-modal-body .admission-score-table td.left { min-width: 0; text-align: center; }
         .admission-record-info-table td:first-child { min-width: 160px; color: #013262; background: #f9fafb; font-weight: 950; }
         .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
 
@@ -1739,6 +1753,19 @@ export default function AdmissionGuidelines() {
         .admission-special-table { min-width: 860px; }
         .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
         .admission-special-table td:first-child { min-width: 150px; background: #f9fafb; color: #013262; font-weight: 950; }
+        /* WARN8(2026-08-04): 통합 자료 보기(별도분류 대학, 경찰대/과학기술원/사관학교) 모달은
+           8종의 서로 다른 표 스키마(2~6열)가 섞여 있어 최저학력기준류처럼 컬럼별 %고정 배분을
+           적용할 수 없다(컬럼 의미가 표마다 다름 — 실측 근거 참고).
+           1차 시도(width:max-content !important로 모바일과 동일한 콘텐츠기반 자동폭+가로스크롤을
+           데스크톱에도 적용)는 실측 결과 무효였다 — htmlTable()이 idx 0·1 두 컬럼 모두에
+           class="left"를 부여하는데(admissionParsing.js:308), 베이스(비모달) 규칙
+           .admission-table-wrap td.left { min-width:160px }가 두 컬럼 모두를 인위적으로
+           최소 160px까지 부풀려(예: "학년도"/"모집인원" 두 컬럼이 나란히 408px) table-layout:auto의
+           max-content 계산 자체가 왜곡됐다. width 트릭 대신 BLOCK2(석차등급 환산표)와 동일하게
+           원인(min-width:160px 상속)을 모달 스코프에서 제거해 콘텐츠 실수요대로 자동 배분되게
+           한다. 헤더(center)/본문(기존 left) 정렬 불일치도 나머지 6종 모달과 동일하게 center로
+           통일한다. */
+        .admission-modal-body .admission-special-table td.left { min-width: 0; text-align: center; }
         .admission-modal-body .admission-raw-section-wrap,
         .admission-modal-body .admission-existing-html { background: #fff; border: 0; border-radius: 0; padding: 0; }
         .admission-modal-body .admission-table-wrap { background: #fff; }
@@ -1757,7 +1784,12 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-subhead { color: #525252; font-weight: 500; }
         /* Figma 1882:4416(전년도와 차이점)/1882:4934(전형방법)/1882:5487(최저학력기준) 실측 재구현.
            세로 그리드 없이 가로선만: 헤더 상단 #000 1px, 바디 행 구분선 #dfdfdf 1px, 테이블 하단 #000 1px.
-           셀 16px(1rem) Pretendard Medium(500) #525252, 행 높이 63px 상당(1.25rem 1rem 패딩으로 재현). */
+           셀 16px(1rem) Pretendard Medium(500) #525252, 행 높이 63px 상당(1.25rem 1rem 패딩으로 재현).
+           주의(2026-08-04 발견): 아래 선택자(...admission-table-wrap table)는 class 2개+type 1개로
+           specificity (0,2,1)이라 개별 표(.admission-selection-table 등, class 2개=(0,2,0))의
+           table-layout:fixed보다 항상 우선해 auto로 되돌려버린다 — 6종 모달 전부의 %/rem 컬럼폭
+           배분이 "고정폭"이 아니라 콘텐츠에 흔들리는 힌트로만 동작하던 잠재 결함. 각 표 규칙에
+           !important로 fixed를 강제해 원래 의도(모든 컬럼 폭 주석의 rem/px 산술)를 되살렸다. */
         .admission-modal-body .admission-data-table,
         .admission-modal-body .admission-mini-table,
         .admission-modal-body .admission-result-table,
@@ -1832,18 +1864,38 @@ export default function AdmissionGuidelines() {
            기존엔 4/5번째 컬럼 폭이 뒤바뀌어 전형방법(내용이 가장 긴 컬럼)이 오히려 가장 좁았다 —
            고정 4컬럼만 폭을 주고 전형방법은 width 미지정으로 남겨 table-layout: fixed 아래에서
            잔여 폭을 전부 가져가게 한다. 5개 컬럼 전부 center 정렬(시안 실측), 전형명/전형방법의
-           좌측정렬(.left)도 제거한다. */
-        .admission-modal-body .admission-selection-table { table-layout: fixed; width: 100%; min-width: 0; }
-        .admission-modal-body .admission-selection-table th:nth-child(1),
-        .admission-modal-body .admission-selection-table td:nth-child(1) { width: 11.25rem; min-width: 0; text-align: center; }
-        .admission-modal-body .admission-selection-table th:nth-child(2),
-        .admission-modal-body .admission-selection-table td:nth-child(2) { width: 15rem; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-selection-table th:nth-child(3),
-        .admission-modal-body .admission-selection-table td:nth-child(3) { width: 11.25rem; min-width: 0; text-align: center; }
-        .admission-modal-body .admission-selection-table th:nth-child(4),
-        .admission-modal-body .admission-selection-table td:nth-child(4) { width: 11.25rem; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-selection-table th:nth-child(5),
-        .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; padding-left: 1rem; padding-right: 1rem; }
+           좌측정렬(.left)도 제거한다.
+           2026-08-04 재실측(29개 대학·103행): 데스크톱 모달 표 총폭은 78vw가 70rem 캡에
+           걸리는 vw>=1436px 구간에서만 1014px로 고정되며(1280px에서 약892px, 1366px에서
+           약960px — WARN12 정정), 그 폭 기준으로 시안 고정값(180/240/180/180=780px) 대비
+           핵심 콘텐츠 컬럼인
+           전형방법(auto)의 실제 렌더 폭은 234px뿐이라 wrap률이 48.5%까지 치솟았다. 전형(자연폭
+           median/p80/max 전부 59px)·인원(median58/max71px, 숫자 전용)·최저(p95 73px)는 실수요
+           대비 과잉 배정이었으므로 4컬럼을 6.5/13.5/7/7.5rem(합 34.5rem=552px)로 축소하고,
+           남는 462px을 전형방법(auto)에 되돌려 wrap률을 48.5%→17.5%로 낮춘다.
+           BLOCK4(2026-08-04): 위 rem 고정합(34.5rem=552px)은 모달 시트 실폭이
+           0.78*vw-96(md:px-12)-10(scrollbar-gutter) 인 769~844px 뷰포트(iPad Air 820px,
+           iPad Pro 11" 834px 등)에서 552px를 밑돌아 auto 열(전형방법)이 0px로 붕괴한다.
+           rem 고정 배분을 데스크톱 확정 구간에서만 적용하고, 그 아래는 아래 %기반 모바일
+           규칙이 이어받도록 한다. 최초에는 경계를 552px가 딱 넘는 지점(53rem)으로 잡았으나,
+           실측(table-layout:fixed !important 적용 후 재검증) 결과 552~702px 사이(예: 900px
+           뷰포트, 표 실폭 596px)에서는 col5가 0은 아니어도 44px로 압축돼 word-break:keep-all과
+           충돌해 실제로 표가 컨테이너를 넘치는(overflow) 사례를 발견했다. col5가 최소
+           ~150px(중앙값 199px 콘텐츠가 1~2줄에 들어갈 여유)를 확보하는 지점까지 경계를
+           65rem(1040px)으로 올린다: 0.78*1040-106=705px, col5=705-552=153px. */
+        .admission-modal-body .admission-selection-table { table-layout: fixed !important; width: 100%; min-width: 0; }
+        @media (min-width: 65rem) {
+          .admission-modal-body .admission-selection-table th:nth-child(1),
+          .admission-modal-body .admission-selection-table td:nth-child(1) { width: 6.5rem; min-width: 0; text-align: center; }
+          .admission-modal-body .admission-selection-table th:nth-child(2),
+          .admission-modal-body .admission-selection-table td:nth-child(2) { width: 13.5rem; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+          .admission-modal-body .admission-selection-table th:nth-child(3),
+          .admission-modal-body .admission-selection-table td:nth-child(3) { width: 7rem; min-width: 0; text-align: center; }
+          .admission-modal-body .admission-selection-table th:nth-child(4),
+          .admission-modal-body .admission-selection-table td:nth-child(4) { width: 7.5rem; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; }
+          .admission-modal-body .admission-selection-table th:nth-child(5),
+          .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; padding-left: 1rem; padding-right: 1rem; }
+        }
 
         /* 최저학력기준 모달 컬럼 폭 실측 재배분(2026-08-04, 18개 대학·89행 DB 실측):
            각 컬럼 자연폭(줄바꿈 없이 필요한 폭) 분포 — 전형 중앙값86/p95 127/최대174px(예:
@@ -1854,12 +1906,15 @@ export default function AdmissionGuidelines() {
            과소해 짧은 전형/비고가 잦은 줄바꿈이 났다. 실측 분포에 맞춰 18%/21%/31%/8%/22%로
            재배분(전형·비고 확대, 대상·반영 영역 축소, 최저 유지) — 표 전체 1014px 기준 각 컬럼
            내용 상자가 p80~p95 구간을 커버하도록(전형은 최댓값 174px 케이스까지 1줄로 커버하려
-           31%(반영 영역)에서 1%p를 옮겨 18%로 소폭 확대). */
-        .admission-modal-body .admission-minimum-table { table-layout: fixed; width: 100%; min-width: 0; }
+           31%(반영 영역)에서 1%p를 옮겨 18%로 소폭 확대).
+           WARN6(2026-08-04) 후속: 29개 표 재실측 결과 16/29가 전형 전 행 5자 이하("일반" 등)라
+           18%도 여전히 과잉이었고, 반대로 대상(21%)은 4건에서 5~7줄 wrap이 남았다. 전형을
+           12%로 축소하고 남는 폭을 대상(27%)으로 이전한다(반영영역/최저/비고는 유지). */
+        .admission-modal-body .admission-minimum-table { table-layout: fixed !important; width: 100%; min-width: 0; }
         .admission-modal-body .admission-minimum-table th:nth-child(1),
-        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 18%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 12%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(2),
-        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: 21%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: 27%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(3),
         .admission-modal-body .admission-minimum-table td:nth-child(3) { width: 31%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(4),
@@ -1873,20 +1928,40 @@ export default function AdmissionGuidelines() {
         /* 대학별고사일 모달 컬럼 폭 재배분(2026-08-04, 14개 대학·48행 실측): 3번째(일정) 컬럼은
            기존 35% 배정에 실제 콘텐츠 최댓값이 173px(약 18%)에 불과해 대부분 과잉 여백이었고,
            2번째(대상) 컬럼은 45% 배정에도 p95 730px 케이스가 잦아 줄바꿈이 남았다. 일정을
-           20%로 줄이고 대상을 63%로 늘려 재배분(전형은 17%로 소폭 축소, 실측 p95 164px 커버). */
-        .admission-modal-body .admission-exam-table { table-layout: fixed; width: 100%; min-width: 0; }
+           20%로 줄이고 대상을 63%로 늘려 재배분(전형은 17%로 소폭 축소, 실측 p95 164px 커버).
+           BLOCK1 재수정(2026-08-04, 가천대학교(성남) 실측): 위 재배분은 23개교 표본에선
+           타당했으나, 모집단위를 '전형' 셀에 나열해 183자까지 들어가는 극단 케이스(가천대(성남))가
+           17%(172px)에서 1512px 19줄/375px 75줄로 붕괴했다. 1·2열을 40%/40%로 재배분해 '전형'
+           열에도 안전 여유를 준다(대상 63%→40%도 p80 303px 기준 여전히 넉넉히 커버). */
+        .admission-modal-body .admission-exam-table { table-layout: fixed !important; width: 100%; min-width: 0; }
         .admission-modal-body .admission-exam-table th:nth-child(1),
-        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 17%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-exam-table th:nth-child(2),
-        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 63%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-exam-table th:nth-child(3),
         .admission-modal-body .admission-exam-table td:nth-child(3) { width: 20%; text-align: center; white-space: normal; word-break: keep-all; }
 
-        .admission-modal-body .admission-record-info-table { table-layout: fixed; width: 100%; min-width: 0; }
+        /* 학생부반영방법 모달 컬럼 폭 재배분(2026-08-04, 30개 대학·39행 실측): 구분(라벨) 컬럼은
+           기존 25%(≈254px)가 최대 필요치보다 과잉이었다. 20%(≈203px)로 축소하고 남는 여백을
+           내용(서술형 반영 규정 텍스트, p80 1238px/최대 2375px)으로 넘겨 80%로 확대한다.
+           WARN12 정정: 위 "중앙값160/p80 160/최대179.5px"는 39행(608행 중 6.4%) 표본 실측치이자,
+           표본 자체가 line 1733의 전역 min-width:160px에 클램프된 렌더 폭을 잰 것이라 자연폭이
+           아니다(진짜 자연폭 median/p80/p95는 약71px, 최대 427px). 표본 부족으로 최댓값을
+           놓쳤을 가능성이 있어 20%도 보수적으로 유지했었음.
+           WARN7(2026-08-04) 후속: 43개 표 재실측 결과 35/43이 전 행 5자 이하 라벨("반영교과"
+           등)이라 20%도 여전히 과잉 — 14%로 추가 축소하고 남는 폭을 내용(86%)으로 이전한다. */
+        .admission-modal-body .admission-record-info-table { table-layout: fixed !important; width: 100%; min-width: 0; }
         .admission-modal-body .admission-record-info-table th:nth-child(1),
-        .admission-modal-body .admission-record-info-table td:nth-child(1) { width: 25%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-record-info-table td:nth-child(1) { width: 14%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-record-info-table th:nth-child(2),
-        .admission-modal-body .admission-record-info-table td:nth-child(2) { width: 75%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-record-info-table td:nth-child(2) { width: 86%; text-align: center; white-space: normal; word-break: keep-all; }
+        /* 375px 실측: line 1733의 전역 td:first-child(min-width: 160px)가 모바일에서
+           20/80 비율을 무력화해 구분 컬럼을 강제로 약 52%(160px)까지 부풀리고 내용 컬럼을
+           150px로 짓눌렀다. 모바일 폭에서만 min-width를 콘텐츠 실수요(약 70~90px)에 맞춰
+           4.5rem(72px)로 낮춰 내용 컬럼에 여백을 돌려준다. */
+        @media (max-width: 48rem) {
+          .admission-modal-body .admission-record-info-table td:first-child { min-width: 4.5rem; }
+        }
 
         /* 1882:4416 전년도와 차이점 모달 실측: 시안엔 번호 컬럼이 없는 2컬럼(변경 항목 36% / 변경 내용
            64%) 표다. 기존 구현은 번호 컬럼(3컬럼)을 포함하므로 모달 스코프에서만 숨기고 남은 2컬럼
@@ -1904,11 +1979,11 @@ export default function AdmissionGuidelines() {
            위 클래스 기반 폭 규칙이 무효화된다. 클래스 유무와 무관하게 모달이 열린 section.key
            (data-section)를 기준으로 위치(:nth-child) 규칙을 강제해 DB 실측 데이터에도 동일하게
            적용되도록 한다. */
-        .admission-modal-body[data-section="minimum_requirements"] table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body[data-section="minimum_requirements"] table { table-layout: fixed !important; width: 100%; min-width: 0; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(1),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(1) { width: 18%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(1) { width: 12%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(2),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(2) { width: 21%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(2) { width: 27%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(3),
         .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 31%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(4),
@@ -1916,29 +1991,48 @@ export default function AdmissionGuidelines() {
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(5),
         .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 22%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
 
-        .admission-modal-body[data-section="exam_schedule"] table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body[data-section="exam_schedule"] table { table-layout: fixed !important; width: 100%; min-width: 0; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(1),
-        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(1) { width: 17%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(1) { width: 40%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(2),
-        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(2) { width: 63%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(2) { width: 40%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(3),
         .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { width: 20%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
 
+        /* WARN10(2026-08-04): 375px에서 일정 셀("10.31.(토)~11.01.(일)")이 공백 없는 날짜
+           토큰 중간에서 쪼개짐 — 모바일 전용 overflow-wrap:anywhere(아래 48rem 블록)가
+           word-break:keep-all보다 우선 적용돼 발생. 일정 컬럼만 예외로 되돌린다. */
+        @media (max-width: 48rem) {
+          .admission-modal-body .admission-exam-table td:nth-child(3),
+          .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { overflow-wrap: normal; word-break: keep-all; }
+        }
+
         /* WARN19: 전형방법 모달 컬럼폭이 rem 고정값(합 48.75rem)이라 48rem 미만(모바일)에서
            고정폭 합이 컨테이너 폭을 넘어 5번째(전형방법) 컬럼이 0에 가깝게 수축한다.
-           모바일 폭에서만 %로 전환해 비율(전형14/전형명19/인원14/최저14/전형방법 잔여39)을
-           유지한 채 함께 줄어들도록 한다. */
-        @media (max-width: 48rem) {
+           모바일 폭에서만 %로 전환해 비율을 유지한 채 함께 줄어들도록 한다.
+           BLOCK4: 데스크톱 rem 규칙이 min-width:65rem로 스코프됐으므로 이 %규칙의 상한도
+           동일하게 65rem으로 올려, rem 고정 배분이 col5를 지나치게 좁게 만드는 552~702px
+           구간(간극)까지 %기반으로 이어받는다.
+           WARN11(2026-08-04): 기존 14/19/14/14(잔여39)는 데스크톱 재실측(전형 max31px,
+           인원 max40px 상당)과 같은 근거로 과잉 배정이었다 — 375px 표 실폭(약295px) 기준
+           전형방법 콘텐츠가 99px로 눌려 전 행이 wrap됐다. 전형/인원/최저를 축소하고 남는
+           폭을 전형방법(잔여, 54% 이상)에 되돌린다. */
+        @media (max-width: 65rem) {
+          /* BLOCK4 검증 중 발견: 베이스(비모달) .admission-selection-table th/td:nth-child(N)
+             (line ~1695 부근)의 min-width(82/210/72/420/82)·max-width(760/110)가 동일
+             specificity라 소스 순서상 여전히 살아있어, width:%가 min-width에 눌려 무력화되고
+             있었다(예: 820px에서 col1이 9%(약48px)가 아니라 min-width 82px로 렌더). % 규칙에도
+             desktop 블록과 동일하게 min-width:0/max-width:none을 명시해 실제로 반영되게 한다. */
           .admission-modal-body .admission-selection-table th:nth-child(1),
-          .admission-modal-body .admission-selection-table td:nth-child(1) { width: 14%; }
+          .admission-modal-body .admission-selection-table td:nth-child(1) { width: 9%; min-width: 0; max-width: none; }
           .admission-modal-body .admission-selection-table th:nth-child(2),
-          .admission-modal-body .admission-selection-table td:nth-child(2) { width: 19%; }
+          .admission-modal-body .admission-selection-table td:nth-child(2) { width: 19%; min-width: 0; max-width: none; }
           .admission-modal-body .admission-selection-table th:nth-child(3),
-          .admission-modal-body .admission-selection-table td:nth-child(3) { width: 14%; }
+          .admission-modal-body .admission-selection-table td:nth-child(3) { width: 9%; min-width: 0; max-width: none; }
           .admission-modal-body .admission-selection-table th:nth-child(4),
-          .admission-modal-body .admission-selection-table td:nth-child(4) { width: 14%; }
+          .admission-modal-body .admission-selection-table td:nth-child(4) { width: 9%; min-width: 0; max-width: none; }
           .admission-modal-body .admission-selection-table th:nth-child(5),
-          .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; padding-left: 0.5rem; padding-right: 0.5rem; }
+          .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; min-width: 0; max-width: none; padding-left: 0.5rem; padding-right: 0.5rem; }
         }
 
         /* 최저학력기준 모달 375px 실측: 데스크톱 비율(최저 8%) 그대로면 모바일 표 폭(약
