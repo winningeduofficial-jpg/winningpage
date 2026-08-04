@@ -6,7 +6,7 @@ import CategoryChips from '../../components/column/CategoryChips';
 import { ALL_CATEGORY, fetchActiveColumns, getCategoryLabel, pickFeaturedColumns } from './columnData';
 
 const SECTION_TITLE =
-  'break-keep text-[2.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]';
+  'break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]';
 
 export default function ColumnHome() {
   const [rows, setRows] = useState([]);
@@ -49,13 +49,13 @@ export default function ColumnHome() {
   return (
     <main className="bg-white pt-16">
       {!loading && rows.length === 0 ? (
-        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
+        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
           <p className="text-sm font-bold text-gray-400">등록된 교육칼럼이 없습니다.</p>
         </div>
       ) : (
         <>
-          <section className="pt-16 sm:pt-20 md:pt-[11rem]">
-            <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
+          <section className="pt-16 sm:pt-20 md:pt-[8.5rem]">
+            <div className="mx-auto w-full max-w-content px-5 sm:px-8">
               <h2 className={SECTION_TITLE}>이번주 가장 인기 있는 칼럼</h2>
 
               {loading ? (
@@ -64,11 +64,11 @@ export default function ColumnHome() {
                 </div>
               ) : (
                 heroLarge && (
-                  <div className="mt-12 flex flex-col gap-10 lg:flex-row lg:gap-9">
+                  <div className="mt-12 flex flex-col gap-10 wide:flex-row wide:gap-9">
                     <ColumnCard column={heroLarge} variant="heroLarge" />
 
                     {heroSmalls.length > 0 && (
-                      <div className="flex flex-col gap-6 lg:w-[40.75rem] lg:shrink-0">
+                      <div className="flex flex-col gap-6 wide:w-[29rem] wide:shrink-0">
                         {heroSmalls.map((row) => (
                           <ColumnCard key={row.id} column={row} variant="heroSmall" />
                         ))}
@@ -81,8 +81,8 @@ export default function ColumnHome() {
           </section>
 
           {!loading && (
-            <section className="mt-24 pb-20 sm:pb-24 md:mt-[11.5rem] md:pb-[10rem]">
-              <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
+            <section className="mt-24 pb-20 sm:pb-24 md:mt-[8.75rem] md:pb-[7.5rem]">
+              <div className="mx-auto w-full max-w-content px-5 sm:px-8">
                 <div className="flex items-center justify-between">
                   <h2 className={SECTION_TITLE}>카테고리별 보기</h2>
                   <Link
@@ -94,7 +94,7 @@ export default function ColumnHome() {
                   </Link>
                 </div>
 
-                <div className="mt-[3.375rem]">
+                <div className="mt-10">
                   <CategoryChips active={category} onChange={setCategory} align="left" />
                 </div>
 
@@ -103,7 +103,7 @@ export default function ColumnHome() {
                     등록된 교육칼럼이 없습니다.
                   </div>
                 ) : (
-                  <div className="mt-[3.375rem] grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 wide:grid-cols-4">
+                  <div className="mt-10 grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 wide:grid-cols-4">
                     {filteredGridRows.map((row) => (
                       <ColumnCard key={row.id} column={row} variant="grid" />
                     ))}

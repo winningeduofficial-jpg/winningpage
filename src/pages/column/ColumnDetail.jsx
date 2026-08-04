@@ -79,7 +79,7 @@ export default function ColumnDetail() {
   if (loading) {
     return (
       <main className="bg-white pt-16">
-        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
+        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
           <p className="text-sm font-bold text-gray-400">불러오는 중입니다.</p>
         </div>
       </main>
@@ -89,7 +89,7 @@ export default function ColumnDetail() {
   if (!post) {
     return (
       <main className="bg-white pt-16">
-        <div className="mx-auto w-full max-w-[94rem] px-5 py-24 text-center sm:px-8">
+        <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
           <h1 className="text-xl font-bold text-[#525252]">게시글을 찾을 수 없습니다.</h1>
           <Link
             to="/info/column"
@@ -106,13 +106,13 @@ export default function ColumnDetail() {
     <div className="flex flex-col gap-2">
       <Link
         to="/info/column"
-        className="w-fit text-xl font-semibold leading-[1.4] tracking-[-0.02em] text-accent"
+        className="w-fit text-base font-semibold leading-[1.4] tracking-[-0.02em] text-accent"
       >
         교육칼럼
       </Link>
 
       <div className="flex items-start justify-between gap-6">
-        <h1 className="break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.75rem]">
+        <h1 className="break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
           {post.title}
         </h1>
 
@@ -123,7 +123,7 @@ export default function ColumnDetail() {
             aria-label="공유하기"
             className="flex h-12 w-12 items-center justify-center rounded-full text-[#525252] transition-colors hover:bg-[#F4F4F4]"
           >
-            <Share2 size={34} />
+            <Share2 size={24} />
           </button>
 
           {sharePopoverOpen && (
@@ -153,21 +153,21 @@ export default function ColumnDetail() {
           <img
             src={coverUrl}
             alt={post.title || ''}
-            className="h-[26rem] w-full object-cover md:h-[42.0625rem]"
+            className="h-[26rem] w-full object-cover md:h-[34rem]"
           />
-          <section className="mt-16 md:mt-[8.25rem]">
-            <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">{titleBlock}</div>
+          <section className="mt-16 md:mt-[6.25rem]">
+            <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
           </section>
         </>
       ) : (
-        <div className="flex h-[26rem] w-full flex-col justify-end bg-[#F4F4F4] pb-10 md:h-[42.0625rem] md:pb-[6.25rem]">
-          <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">{titleBlock}</div>
+        <div className="flex h-[26rem] w-full flex-col justify-end bg-[#F4F4F4] pb-10 md:h-[34rem] md:pb-[6.25rem]">
+          <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
         </div>
       )}
 
       <section>
-        <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
-          <div className={`prose prose-lg mt-16 max-w-none whitespace-pre-wrap break-keep leading-8 text-[#525252] ${coverUrl ? 'md:mt-[8rem]' : 'md:mt-[5.9375rem]'}`}>
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          <div className={`mt-16 max-w-[45rem] whitespace-pre-wrap break-keep leading-8 text-[#525252] ${coverUrl ? 'md:mt-[6rem]' : 'md:mt-[5.9375rem]'}`}>
             {post.content}
           </div>
 
@@ -187,13 +187,13 @@ export default function ColumnDetail() {
       </section>
 
       {relatedRows.length > 0 && (
-        <section className="mt-20 pb-20 sm:pb-24 md:mt-[8.25rem] md:pb-[8.25rem]">
-          <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
-            <h2 className="break-keep text-[2.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-black">
+        <section className="mt-20 pb-20 sm:pb-24 md:mt-[6.25rem] md:pb-[8.25rem]">
+          <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+            <h2 className="break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-black">
               함께 읽으면 좋은 글
             </h2>
 
-            <div className="relative mt-[2.875rem]">
+            <div className="relative mt-10">
               <div className="grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 wide:grid-cols-4">
                 {visibleRelated.map((row) => (
                   <ColumnCard key={row.id} column={row} variant="grid" />
@@ -205,7 +205,7 @@ export default function ColumnDetail() {
                   type="button"
                   onClick={() => setRelatedStart((prev) => prev + RELATED_PAGE_SIZE)}
                   aria-label="다음 관련 글"
-                  className="absolute -right-4 top-1/2 flex h-12 w-[3.125rem] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#525252] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)] sm:right-0 sm:translate-x-1/2 wide:top-[15.125rem]"
+                  className="absolute -right-4 top-1/2 flex h-12 w-[3.125rem] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#525252] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)] sm:right-0 sm:translate-x-1/2 wide:top-[5.6875rem]"
                 >
                   <ChevronRight size={24} />
                 </button>

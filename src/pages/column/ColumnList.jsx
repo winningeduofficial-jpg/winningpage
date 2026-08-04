@@ -62,9 +62,9 @@ export default function ColumnList() {
 
   return (
     <main className="bg-white pt-16">
-      <section className="pb-20 pt-16 sm:pb-24 sm:pt-20 md:pt-[13.75rem]">
-        <div className="mx-auto w-full max-w-[94rem] px-5 sm:px-8">
-          <h1 className="break-keep text-center text-[2.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+      <section className="pb-20 pt-16 sm:pb-24 sm:pt-20 md:pt-[10rem]">
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          <h1 className="break-keep text-center text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
             교육칼럼
           </h1>
 
@@ -72,31 +72,31 @@ export default function ColumnList() {
             <CategoryChips active={category} onChange={setCategory} align="center" />
           </div>
 
-          <div className="mt-16 flex flex-col gap-6 sm:mt-[5.75rem] sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-16 flex flex-col gap-6 sm:mt-[4.5rem] sm:flex-row sm:items-center sm:justify-between">
             {hasViewCounts ? (
               <div className="relative inline-flex w-fit shrink-0 items-center">
                 <select
                   value={sortKey}
                   onChange={(e) => setSortKey(e.target.value)}
-                  className="appearance-none bg-transparent pr-10 text-[2rem] font-semibold leading-[1.3] text-[#525252] outline-none"
+                  className="appearance-none bg-transparent pr-10 text-2xl font-semibold leading-[1.3] text-[#525252] outline-none"
                 >
                   <option value={SORT_LATEST}>최신순</option>
                   <option value={SORT_VIEWS}>조회순</option>
                 </select>
-                <ChevronDown size={28} className="pointer-events-none absolute right-0 text-[#525252]" />
+                <ChevronDown size={22} className="pointer-events-none absolute right-0 text-[#525252]" />
               </div>
             ) : (
-              <div className="text-[2rem] font-semibold leading-[1.3] text-[#525252]">최신순</div>
+              <div className="text-2xl font-semibold leading-[1.3] text-[#525252]">최신순</div>
             )}
 
-            <div className="relative h-14 w-full rounded-2xl border border-[#D7D7D7] bg-white sm:h-[3.5rem] sm:w-[26.5rem]">
+            <div className="relative h-14 w-full rounded-2xl border border-[#D7D7D7] bg-white sm:w-[21rem]">
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="키워드를 입력해 검색해보세요"
-                className="h-full w-full bg-transparent px-8 pr-14 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
+                className="h-full w-full bg-transparent px-5 pr-12 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
               />
-              <Search size={32} className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#D7D7D7]" />
+              <Search size={22} className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#D7D7D7]" />
             </div>
           </div>
 
