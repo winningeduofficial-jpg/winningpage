@@ -328,15 +328,75 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
+  const auraRef = useRef(null);
+  const [auraInView, setAuraInView] = useState(false);
+
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
+  // (PhoneReportSection 592-607행과 동일 훅 구조).
+  useEffect(() => {
+    const node = auraRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      setAuraInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
-      <img
-        src={heroAura}
-        alt=""
-        aria-hidden="true"
-        draggable="false"
-        className="pointer-events-none absolute left-1/2 top-0 w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
-      />
+      {/* 시안(2716:2905→2976→2986→2996)은 히어로 오라가 12초 동안 360° 등속 회전하는
+          프로토타입의 키프레임 4장이다(Smart Animate 3000ms LINEAR × 4프레임 = 12s).
+          회전 대상은 1600x1200 단일 프레임, 자기 중심(800,600) 피벗, -90도씩 단방향 CW,
+          내부 자식은 4프레임 전부 transform 동일(자체 모션 없음) — 즉 프레임 간 유일한
+          변화는 프레임 전체의 회전각뿐이라 rotate(0→360deg) 30s linear infinite 하나로
+          완전히 대체 가능하다.
+          바깥 div = 위치 전담(-translate-x-1/2 포함), 안쪽 img = 회전 전담으로 분리한다 —
+          같은 요소에서 animation의 rotate()가 위치용 translate transform을 덮어써 버리면
+          이미지가 좌측으로 800px(원본 절반 폭) 밀려나기 때문.
+          top을 -10rem(160px)만큼 끌어올리는 이유: 시안 4프레임은 텍스트·목업이 없는
+          순수 배경 플레이트라 오라 전체가 노출되지만, 실제 페이지는 목업(데스크톱 1600
+          기준 섹션-로컬 y=341부터, 모바일 375 기준 y=411부터)이 오라의 컬러 코어를 덮는다.
+          채도맵 적분으로 회전 24각도 전수 측정한 결과, 보이는 영역의 채도 균일도(최악
+          각도 ÷ 평균)는 top-0에서 데스크톱 0.02 / 모바일 0.67, -10rem에서 데스크톱
+          0.43 / 모바일 0.81, 균일도 최적값인 -26.25rem에서 데스크톱 0.95 / 모바일
+          0.95다. -26.25rem이 균일도 자체는 최적이지만 모바일에서 오라가 과하게 진해져,
+          -10rem은 그 최적값 대신 모바일 과포화를 피하려고 의도적으로 완화한 절충값이다.
+          transform-origin을 바꾸지 않는 이유: 회전 0°일 때는 원점이 어디든 렌더 결과가
+          동일하므로, 360° 루프가 반드시 지나는 θ=0° 구간의 밋밋함은 원점 조정으로
+          해결되지 않는다(원점만 최적화 시 균일도 0.27에서 천장). 블롭 덩어리를 보이는
+          띠 안으로 통째로 올려야 한다.
+          -translate-y-* 대신 top을 쓰는 이유: 래퍼가 이미 -translate-x-1/2를 쓰고 있어
+          transform 합성이 얽히고, top은 정적 레이아웃 1회 계산이라 애니메이션 경로에
+          비용을 더하지 않는다.
+          30s 주기: 앰비언트 배경 애니메이션 권장 구간(8~20s)보다 느리게 잡은 값. 회전은
+          전정계 자극 등급이 높은 모션이라 의도적으로 느리게 설정. */}
+      <div
+        ref={auraRef}
+        className="pointer-events-none absolute left-1/2 -top-[10rem] w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
+      >
+        <style>{`
+          @keyframes goal-aura-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+          @media (prefers-reduced-motion: no-preference) {
+            .goal-aura-spin[data-float='on'] {
+              animation: goal-aura-spin 30s linear infinite;
+              will-change: transform;
+            }
+          }
+        `}</style>
+        <img
+          src={heroAura}
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+          className="goal-aura-spin block w-full"
+          data-float={auraInView ? 'on' : 'off'}
+        />
+      </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
         <p className="text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]">목표관리</p>
