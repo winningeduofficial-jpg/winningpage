@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronRight, Link as LinkIcon, Share2 } from 'lucide-react';
+import ColumnBody from '../../components/column/ColumnBody';
 import ColumnCard from '../../components/column/ColumnCard';
 import {
   ALL_CATEGORY,
@@ -47,6 +48,7 @@ export default function ColumnDetail() {
 
   const coverUrl = post ? getCoverUrl(post) : '';
   const remainingImages = post ? normalizeImageUrls(post).slice(1) : [];
+  const hasBlocks = Boolean(post?.content_json?.blocks?.length > 0);
 
   const relatedRows = useMemo(() => {
     if (!post) return [];
@@ -167,11 +169,9 @@ export default function ColumnDetail() {
 
       <section>
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <div className={`mt-16 max-w-[45rem] whitespace-pre-wrap break-keep leading-8 text-[#525252] ${coverUrl ? 'md:mt-[6rem]' : 'md:mt-[5.9375rem]'}`}>
-            {post.content}
-          </div>
+          <ColumnBody post={post} className={`mt-16 ${coverUrl ? 'md:mt-[6rem]' : 'md:mt-[5.9375rem]'}`} />
 
-          {remainingImages.length > 0 && (
+          {remainingImages.length > 0 && !hasBlocks && (
             <div className="mt-10 space-y-5">
               {remainingImages.map((url, index) => (
                 <img
