@@ -14,8 +14,12 @@ import { ChevronRight } from 'lucide-react';
  * 수직 리듬: 상단(멘토→뉴스) 120px→md:pt-[7.5rem], 하단(뉴스→푸터) 120px→md:pb-[7.5rem]
  * (이 섹션이 다음 푸터와의 갭을 소유하는 예외 케이스). 모바일은 서비스 섹션 선례 비율
  * 0.4(=40/100, ServicesSection pt-10/lg:pt-[6.25rem] 참고)로 축소한 pt-12/pb-12(3rem/48px).
- * 타이틀→그리드 61px→md:mt-[3.8125rem], 컬럼 헤더→리스트 15.65px→md:mt-[0.978rem]
+ * 타이틀→그리드 61px→md:mt-[3.8125rem], 컬럼 헤더→리스트 24px(0803 재스펙 3015:14378)→md:mt-[1.5rem]
  * (모바일 gap은 기존 유지, 시안에 모바일 분기 값 없음).
+ *
+ * 인터랙션: 행/헤더 레이아웃 치수(행 26px·pitch 50px·시안 색값)는 불변, hover/focus는
+ * absolute 오버레이 레이어(sm+에서 -12px 확장 라운드 면)로만 표현 — --ease-out-quart
+ * 150ms(Header.jsx 관례), prefers-reduced-motion은 motion-reduce:transition-none으로 가드.
  *
  * @param {object} props
  * @param {Array<{id: string, title: string, created_at: string, category?: string|null,
@@ -29,12 +33,14 @@ import { ChevronRight } from 'lucide-react';
 const MAX_ROWS = 3;
 
 // 시안(Figma 1907:14893) 배지 3색 — 값이 없거나 매핑에 없는 카테고리는 배지를 렌더하지 않는다.
-// 공지는 시안 원값(#FFC4C4/#FF7373)이 대비 1.75:1로 WCAG 미달이라 타 칩과 같은 패턴
-// (연한 동계열 틴트 배경 + 진한 동계열 텍스트, 7.88:1)으로 보정.
+// 공지/중요 칩은 시안 원값 #FFC4C4/#FF7373 — 대비 1.75:1로 WCAG 미달이나 0803 재스펙
+// (3015:14378)에서 디자이너가 원값을 유지했고 사용자 지시로 원값 적용
+// (이전 보정 팔레트 #FFE9E9/#8F1616 폐기).
 const CATEGORY_BADGE_STYLES = {
   보도자료: { bg: '#E9F4FF', text: '#013262' },
   파트너십: { bg: '#EEFFE9', text: '#016215' },
-  공지: { bg: '#FFE9E9', text: '#8F1616' }
+  공지: { bg: '#FFC4C4', text: '#FF7373' },
+  중요: { bg: '#FFC4C4', text: '#FF7373' }
 };
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
@@ -53,15 +59,16 @@ function formatDate(value) {
   return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10).replace(/-/g, '.');
 }
 
-// 배지 폭은 4자 라벨(보도자료) 기준 2.446rem(39.13px) 고정 — 모든 행 제목 정렬용, 카테고리 없으면 동일 폭 스페이서.
+// 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
+// '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
 function CategoryBadge({ category }) {
   const style = category ? CATEGORY_BADGE_STYLES[category] : null;
 
-  if (!category) return <span aria-hidden="true" className="w-[2.446rem] shrink-0" />;
+  if (!category) return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 
   return (
     <span
-      className="inline-flex w-[2.446rem] shrink-0 items-center justify-center rounded-[0.391rem] px-[0.391rem] py-[0.196rem] text-[0.489rem] font-medium leading-[1.4] tracking-[-0.0125rem] whitespace-nowrap"
+      className="relative inline-flex min-w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
       style={{
         backgroundColor: style?.bg ?? '#F1F5F9',
         color: style?.text ?? '#525252'
@@ -74,18 +81,20 @@ function CategoryBadge({ category }) {
 
 function ColumnHeader({ title, moreLink, moreLabel }) {
   return (
-    <div className="flex items-center gap-[0.489rem]">
-      <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem] text-[#525252]">
-        <Link to={moreLink}>{title}</Link>
-      </h3>
+    <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem]">
       <Link
         to={moreLink}
         aria-label={moreLabel}
-        className="relative flex h-6 w-6 items-center justify-center text-[#525252] transition-colors duration-150 hover:text-[#013262] max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-['']"
+        className="group relative inline-flex items-center gap-[0.489rem] rounded-[0.5rem] text-[#525252] transition-colors duration-150 ease-[var(--ease-out-quart)] hover:text-[#013262] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B84FD] focus-visible:ring-offset-4 motion-reduce:transition-none max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-['']"
       >
-        <ChevronRight size={19} aria-hidden="true" />
+        {title}
+        <ChevronRight
+          size={19}
+          aria-hidden="true"
+          className="transition-transform duration-150 ease-[var(--ease-out-quart)] group-hover:translate-x-[0.125rem] motion-reduce:transition-none motion-reduce:transform-none"
+        />
       </Link>
-    </div>
+    </h3>
   );
 }
 
@@ -108,17 +117,30 @@ function NewsRow({ item, basePath }) {
           간격이 그대로 복원된다(데스크톱 렌더 불변). */}
       <Link
         to={`${basePath}?id=${item.id}`}
-        className="flex flex-col gap-1 px-[0.489rem] py-4 transition-colors duration-150 hover:bg-[#F1F5F9] sm:h-[2.641rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:py-0"
+        className="group relative flex flex-col gap-1 rounded-[0.75rem] px-[0.489rem] py-4 focus-visible:outline-none sm:h-[1.625rem] sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-0 sm:py-0"
       >
-        <div className="flex min-w-0 items-center gap-4 sm:contents">
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-[0.75rem] bg-[#F1F5F9] opacity-0 transition-opacity duration-150 ease-[var(--ease-out-quart)] group-hover:opacity-100 group-focus-visible:opacity-100 group-focus-visible:ring-2 group-focus-visible:ring-[#0B84FD] motion-reduce:transition-none sm:-inset-x-[0.75rem] sm:-inset-y-[0.75rem]"
+        />
+        <div className="flex min-w-0 items-center gap-[1.956rem] sm:contents">
           <CategoryBadge category={item.category} />
-          <p className="min-w-0 flex-1 truncate text-[0.7825rem] font-medium leading-[1.4] tracking-[-0.0157rem] text-[#525252]">
+          <p className="relative min-w-0 flex-1 truncate text-[1rem] font-medium leading-[1.4] tracking-[-0.02rem] text-[#525252] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#013262] motion-reduce:transition-none">
             {item.title}
           </p>
         </div>
-        <span className="shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7]">
-          {formatDate(item.created_at)}
-        </span>
+        {item.created_at ? (
+          <time
+            dateTime={String(item.created_at).slice(0, 10)}
+            className="relative shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#808080] motion-reduce:transition-none"
+          >
+            {formatDate(item.created_at)}
+          </time>
+        ) : (
+          <span className="relative shrink-0 text-[0.7825rem] leading-[1.4] tracking-[-0.0157rem] text-[#D7D7D7] transition-colors duration-150 ease-[var(--ease-out-quart)] group-hover:text-[#808080] motion-reduce:transition-none">
+            {formatDate(item.created_at)}
+          </span>
+        )}
       </Link>
     </li>
   );
@@ -138,12 +160,12 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           위닝에듀의 새로운 소식
         </h2>
 
-        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[3.8125rem] md:grid-cols-2 md:gap-[1.3125rem]">
+        <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[3.8125rem] md:grid-cols-2 md:gap-[2.3125rem]">
           {/* 좌: 회사소식 */}
           <div>
             <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
             {newsRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {newsRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/company-news" />
                 ))}
@@ -151,7 +173,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 회사소식이 없습니다."
-                className="mt-6 h-16 md:mt-[0.978rem] md:h-[2.641rem]"
+                className="mt-6 h-16 md:mt-[1.5rem] md:h-[7.875rem]"
               />
             )}
           </div>
@@ -160,7 +182,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
           <div>
             <ColumnHeader title="공지사항" moreLink="/events" moreLabel="공지사항 더보기" />
             {noticeRows.length > 0 ? (
-              <ul className="mt-10 divide-y divide-[#D7D7D7] md:mt-[0.978rem]">
+              <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {noticeRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/events" />
                 ))}
@@ -168,7 +190,7 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
             ) : (
               <EmptyRows
                 message="등록된 공지사항이 없습니다."
-                className="mt-6 h-16 md:mt-[0.978rem] md:h-[2.641rem]"
+                className="mt-6 h-16 md:mt-[1.5rem] md:h-[7.875rem]"
               />
             )}
           </div>

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
 import { formatKRW, SERVICES as PRICING_SERVICES } from '../../data/pricingCatalog';
 
@@ -328,15 +328,75 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
+  const auraRef = useRef(null);
+  const [auraInView, setAuraInView] = useState(false);
+
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
+  // (PhoneReportSection 592-607행과 동일 훅 구조).
+  useEffect(() => {
+    const node = auraRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      setAuraInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
-      <img
-        src={heroAura}
-        alt=""
-        aria-hidden="true"
-        draggable="false"
-        className="pointer-events-none absolute left-1/2 top-0 w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
-      />
+      {/* 시안(2716:2905→2976→2986→2996)은 히어로 오라가 12초 동안 360° 등속 회전하는
+          프로토타입의 키프레임 4장이다(Smart Animate 3000ms LINEAR × 4프레임 = 12s).
+          회전 대상은 1600x1200 단일 프레임, 자기 중심(800,600) 피벗, -90도씩 단방향 CW,
+          내부 자식은 4프레임 전부 transform 동일(자체 모션 없음) — 즉 프레임 간 유일한
+          변화는 프레임 전체의 회전각뿐이라 rotate(0→360deg) 30s linear infinite 하나로
+          완전히 대체 가능하다.
+          바깥 div = 위치 전담(-translate-x-1/2 포함), 안쪽 img = 회전 전담으로 분리한다 —
+          같은 요소에서 animation의 rotate()가 위치용 translate transform을 덮어써 버리면
+          이미지가 좌측으로 800px(원본 절반 폭) 밀려나기 때문.
+          top을 -10rem(160px)만큼 끌어올리는 이유: 시안 4프레임은 텍스트·목업이 없는
+          순수 배경 플레이트라 오라 전체가 노출되지만, 실제 페이지는 목업(데스크톱 1600
+          기준 섹션-로컬 y=341부터, 모바일 375 기준 y=411부터)이 오라의 컬러 코어를 덮는다.
+          채도맵 적분으로 회전 24각도 전수 측정한 결과, 보이는 영역의 채도 균일도(최악
+          각도 ÷ 평균)는 top-0에서 데스크톱 0.02 / 모바일 0.67, -10rem에서 데스크톱
+          0.43 / 모바일 0.81, 균일도 최적값인 -26.25rem에서 데스크톱 0.95 / 모바일
+          0.95다. -26.25rem이 균일도 자체는 최적이지만 모바일에서 오라가 과하게 진해져,
+          -10rem은 그 최적값 대신 모바일 과포화를 피하려고 의도적으로 완화한 절충값이다.
+          transform-origin을 바꾸지 않는 이유: 회전 0°일 때는 원점이 어디든 렌더 결과가
+          동일하므로, 360° 루프가 반드시 지나는 θ=0° 구간의 밋밋함은 원점 조정으로
+          해결되지 않는다(원점만 최적화 시 균일도 0.27에서 천장). 블롭 덩어리를 보이는
+          띠 안으로 통째로 올려야 한다.
+          -translate-y-* 대신 top을 쓰는 이유: 래퍼가 이미 -translate-x-1/2를 쓰고 있어
+          transform 합성이 얽히고, top은 정적 레이아웃 1회 계산이라 애니메이션 경로에
+          비용을 더하지 않는다.
+          30s 주기: 앰비언트 배경 애니메이션 권장 구간(8~20s)보다 느리게 잡은 값. 회전은
+          전정계 자극 등급이 높은 모션이라 의도적으로 느리게 설정. */}
+      <div
+        ref={auraRef}
+        className="pointer-events-none absolute left-1/2 -top-[10rem] w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
+      >
+        <style>{`
+          @keyframes goal-aura-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+          @media (prefers-reduced-motion: no-preference) {
+            .goal-aura-spin[data-float='on'] {
+              animation: goal-aura-spin 30s linear infinite;
+              will-change: transform;
+            }
+          }
+        `}</style>
+        <img
+          src={heroAura}
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+          className="goal-aura-spin block w-full"
+          data-float={auraInView ? 'on' : 'off'}
+        />
+      </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
         <p className="text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]">목표관리</p>
@@ -371,7 +431,7 @@ function HeroSection() {
             </div>
             <img
               src={heroDashboard}
-              alt="TMP 주간 성장 리포트 대시보드 화면 — 이번 주 공부 시간, 목표 달성률, 목표군 내 위치를 보여준다"
+              alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
               className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
             />
           </div>
@@ -796,8 +856,9 @@ function FaqItem({ item, isOpen, onToggle }) {
         />
       </button>
       {/* 시안 fs24·fw400·#808080은 프로젝트 회색 하한 #767676으로 클램프 */}
+      {/* 시안(2155:3931)은 콘텐츠 1440px 기준 24px 한 줄이나, 본 사이트 콘텐츠는 1100px — 최장 답변이 24px에선 1168px로 넘쳐 22px(1071px)로 축소 수납 */}
       {isOpen && (
-        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.5rem] md:font-normal">
+        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.375rem] md:font-normal">
           {item.a}
         </p>
       )}
@@ -828,6 +889,7 @@ function FaqSection() {
   );
 }
 
+// 시안 콘텐츠 폭 1206 대비 1100 스케일(×0.91) 폰트 환산
 function PricingSection() {
   if (!GOAL_PRODUCTS.length) return null;
 
@@ -836,50 +898,65 @@ function PricingSection() {
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
 
-        <div className="mt-10 overflow-hidden rounded-2xl border border-[#E5E7EB] text-left sm:mt-12 md:mt-[4.1875rem]">
+        <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 md:mt-[4.1875rem]">
           {GOAL_PRODUCTS.map((product) => {
             const hasDiscount = product.listPrice > product.price;
             return (
               <div
                 key={product.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E7EB] px-6 py-6 last:border-b-0 sm:px-8"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 md:h-[6.625rem]"
               >
-                <span className="flex items-center gap-3">
-                  <CheckCircle2 className="h-6 w-6 shrink-0 text-[#013262]" aria-hidden="true" />
-                  <span className="text-[1.0625rem] font-medium text-[#0F172A] sm:text-[1.5rem]">
+                <span className="flex items-center gap-5">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#D7D7D7] md:h-[1.375rem] md:w-[1.375rem]"
+                    aria-hidden="true"
+                  >
+                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                  </span>
+                  <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
                     {product.name}
                   </span>
                   {product.recommended && (
-                    <span className="rounded-md bg-accent px-2 py-1 text-[0.75rem] font-bold text-white">
+                    <span className="rounded-xl bg-accent px-3 py-1.5 text-[0.9375rem] font-medium text-white">
                       추천
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-2">
-                  {hasDiscount && (
-                    <span className="text-[0.875rem] text-[#8a8a8a] line-through">
-                      {formatKRW(product.listPrice)}
+                <span className="flex flex-col items-end">
+                  {hasDiscount ? (
+                    <>
+                      <span className="text-[0.875rem] font-normal text-[#D7D7D7] line-through md:text-[1.125rem]">
+                        {formatKRW(product.listPrice)}
+                      </span>
+                      <span className="flex items-center gap-4">
+                        {product.badge && (
+                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-[#013262] md:text-[1.375rem]">
+                            {product.badge}
+                          </span>
+                        )}
+                        <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
+                          {formatKRW(product.price)}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
+                      {formatKRW(product.price)}
                     </span>
                   )}
-                  {product.badge && (
-                    <span className="text-[0.875rem] font-bold text-accent">{product.badge}</span>
-                  )}
-                  <span className="text-[1.0625rem] font-bold text-[#0F172A] sm:text-[1.25rem]">
-                    {formatKRW(product.price)}
-                  </span>
                 </span>
               </div>
             );
           })}
         </div>
 
-        <p className="mt-4 break-keep text-[0.875rem] font-medium text-[#767676]">
+        <p className="mt-3 break-keep text-left text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1rem]">
           한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
         </p>
 
         <Link
           to="/pricing"
-          className="mt-8 inline-flex h-14 items-center justify-center rounded-xl bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem]"
+          className="mt-8 inline-flex h-14 items-center justify-center rounded-[1.25rem] border border-[#0B84FD] bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem] md:h-[3.875rem] md:w-[17.125rem] md:px-0"
         >
           이용권 구매하기
         </Link>

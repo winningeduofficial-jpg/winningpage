@@ -896,7 +896,7 @@ export default function AdmissionGuidelines() {
       setResourcesLoading(true);
       setResourcesError(false);
 
-      // 경량 뷰(sql/37_admission_resource_index_view.sql) — 목록 셀은 "보기"/"-"
+      // 경량 뷰(sql/39_admission_resource_index_view.sql) — 목록 셀은 "보기"/"-"
       // 판정만 필요하므로 raw/html 본문 없이 has_* 존재 여부 불리언만 가져온다.
       // 본문 select('*')는 218행 합계 5MB+ 응답으로 statement timeout(57014)을
       // 유발했다. 본문은 모달 오픈 시 admission_university_resources에서

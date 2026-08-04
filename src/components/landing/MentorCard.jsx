@@ -4,8 +4,9 @@
  * - badge/title_lines/photo_url/photo 중 하나라도 없는 row는 카드를 렌더하지 않음(null 반환)
  * - 마퀴/클론 로직은 MentorSection이 소유 — 이 컴포넌트는 isClone 여부만 받아 aria-hidden 처리
  * - 관리자 라이브 프리뷰에서도 동일 컴포넌트를 사용해 프리뷰=실렌더를 보장
- * - 0729 시안(카드 200px 폭)은 DB의 210 기준 원본 좌표를 그대로 두고 렌더 시 RENDER_SCALE(200/210)을
- *   곱해서 축소한다 — DB 마이그레이션 없이 시안에 맞춘다.
+ * - 0803 시안(카드 156px 폭, 시안 실값 155.84 — 210 원본 대비 ×0.742 균일 축소)은 DB의 210 기준
+ *   원본 좌표를 그대로 두고 렌더 시 RENDER_SCALE(156/210)을 곱해서 축소한다 — DB 마이그레이션 없이
+ *   시안에 맞춘다.
  *
  * @param {object} props
  * @param {{
@@ -31,8 +32,9 @@
  *   badge/title_lines/photo_url/photo 중 하나라도 없으면 null (카드 미노출)
  */
 
-// 0729 시안 카드 200px 폭 기준 렌더 스케일 (DB는 여전히 210 기준 원본 좌표를 저장)
-const RENDER_SCALE = 200 / 210;
+// 0803 시안 카드 156px 폭 (시안 실값 155.84, 210 원본 대비 ×0.742 균일 축소) 기준 렌더 스케일
+// (DB는 여전히 210 기준 원본 좌표를 저장) — 이 스케일 하나로 높이/radius/텍스트/사진 좌표가 함께 축소된다.
+const RENDER_SCALE = 156 / 210;
 
 // 210 기준 카드 고정 치수(px) — 렌더 시 RENDER_SCALE 적용 후 rem 환산
 const CARD_HEIGHT_PX = 360;

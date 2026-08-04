@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
+import { ChevronDown, Menu, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { MY_MENU } from './myMenuItems';
 import MobileNavDrawer from './MobileNavDrawer';
@@ -513,13 +513,8 @@ export default function Header() {
             <div className="h-[2rem] w-[16rem]" aria-hidden="true" />
           ) : shouldShowLoggedInHeader ? (
             <>
-              <div className="flex shrink-0 items-center gap-2.5 rounded-lg border border-[#d7d7d7] bg-[#f9fafb] px-3 py-1.5 text-sm font-medium text-[#1e293b] whitespace-nowrap">
-                <span className="rounded bg-[#013262] px-2 py-1 text-xs text-white">
-                  {csatDDay}
-                </span>
-                <span className="inline-block">
-                  {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
-                </span>
+              <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-[#013262] whitespace-nowrap">
+                {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
               </div>
 
               <div
@@ -530,7 +525,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -574,7 +569,6 @@ export default function Header() {
                 onClick={handleLogout}
                 className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
-                <LogOut size={14} />
                 로그아웃
               </button>
             </>
@@ -588,7 +582,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
                 >
                   마이페이지
                   <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
@@ -620,7 +614,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 로그아웃
               </button>
