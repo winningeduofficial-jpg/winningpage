@@ -19,6 +19,8 @@ import InDepthResearch from './pages/services/InDepthResearch';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
+import AdmissionCases from './pages/admission/AdmissionCases';
+import AdmissionCaseDetail from './pages/admission/AdmissionCaseDetail';
 import AdmissionGuidelines from './pages/AdmissionGuidelines';
 import AdmissionResults from './pages/AdmissionResults';
 import ColumnHome from './pages/column/ColumnHome';
@@ -95,13 +97,13 @@ export default function App() {
           <Route path="/admission/results" element={<AdmissionResults />} />
 
           {/* 수시와 정시는 각각 자신의 category만 조회합니다. */}
-          <Route path="/admission/susi" element={<AdmissionBoard />} />
-          <Route path="/admission/jungsi" element={<AdmissionBoard />} />
-          <Route path="/admission/susi/:id" element={<AdmissionBoard />} />
-          <Route path="/admission/jungsi/:id" element={<AdmissionBoard />} />
+          <Route path="/admission/susi" element={<AdmissionCases />} />
+          <Route path="/admission/jungsi" element={<AdmissionCases />} />
+          <Route path="/admission/susi/:id" element={<AdmissionCaseDetail />} />
+          <Route path="/admission/jungsi/:id" element={<AdmissionCaseDetail />} />
 
           {/* 메인 합격생 카드에서 사용하는 통합 상세 주소는 유지합니다. */}
-          <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
+          <Route path="/admission/susi-jungsi/:id" element={<AdmissionCaseDetail />} />
           <Route
             path="/admission/susi-jungsi"
             element={<Navigate to="/admission/susi" replace />}
