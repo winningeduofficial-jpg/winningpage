@@ -867,10 +867,11 @@ const CONFIGS = {
     searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다.`,
+    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
     columns: [
       { key: 'category', label: '구분' },
       { key: 'title', label: '제목' },
+      { key: 'content', label: '본문', type: 'truncate' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
       { key: 'show_on_home', label: '메인 합격생 노출', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
@@ -890,7 +891,14 @@ const CONFIGS = {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'show_on_home', label: '메인 합격생 영역에 노출', type: 'checkbox' },
-      { key: 'content', label: '내용', type: 'textarea' },
+      {
+        key: 'content',
+        label: '내용',
+        type: 'blockEditor',
+        folder: 'admission-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
         key: 'attachments',
@@ -913,6 +921,17 @@ const CONFIGS = {
       image_urls: [],
       attachments: [],
       sort_order: 1
+    },
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    formToPayload: (form) => {
+      const { __blocks_content, ...rest } = form;
+      const blocks = __blocks_content || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        content: blocksToPlainText(blocks)
+      };
     }
   },
 
