@@ -1845,30 +1845,42 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-selection-table th:nth-child(5),
         .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; padding-left: 1rem; padding-right: 1rem; }
 
-        /* 1882:5487 최저학력기준 모달 실측 비율(전형130/대상flex/반영영역500/최저100/비고180 ≈
-           10%/flex/40%/8%/14%) 재현. 전 컬럼 center, 대상 컬럼만 width 미지정으로 잔여 폭 흡수. */
+        /* 최저학력기준 모달 컬럼 폭 실측 재배분(2026-08-04, 18개 대학·89행 DB 실측):
+           각 컬럼 자연폭(줄바꿈 없이 필요한 폭) 분포 — 전형 중앙값86/p95 127/최대174px(예:
+           "일반, 가톨릭지도자추천"), 대상 중앙값100/p80 222px, 반영 영역 중앙값=p80 309px(예:
+           "국어 반영 / 수학 반영 / 영어 반영 / 탐구 2과목"), 최저 중앙값65/최대72px, 비고
+           중앙값39(대부분 빈값)/p80 242px(예: "탐구 영역 2개 과목 평균 (소수점 이하 버림)").
+           기존 10%/flex(~28%)/40%/8%/14%는 반영 영역·최저·대상이 실수요보다 과다, 전형·비고가
+           과소해 짧은 전형/비고가 잦은 줄바꿈이 났다. 실측 분포에 맞춰 18%/21%/31%/8%/22%로
+           재배분(전형·비고 확대, 대상·반영 영역 축소, 최저 유지) — 표 전체 1014px 기준 각 컬럼
+           내용 상자가 p80~p95 구간을 커버하도록(전형은 최댓값 174px 케이스까지 1줄로 커버하려
+           31%(반영 영역)에서 1%p를 옮겨 18%로 소폭 확대). */
         .admission-modal-body .admission-minimum-table { table-layout: fixed; width: 100%; min-width: 0; }
         .admission-modal-body .admission-minimum-table th:nth-child(1),
-        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 10%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 18%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(2),
-        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: auto; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: 21%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(3),
-        .admission-modal-body .admission-minimum-table td:nth-child(3) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(3) { width: 31%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(4),
         .admission-modal-body .admission-minimum-table td:nth-child(4) { width: 8%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-minimum-table th:nth-child(5),
-        .admission-modal-body .admission-minimum-table td:nth-child(5) { width: 14%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table td:nth-child(5) { width: 22%; text-align: center; white-space: normal; word-break: keep-all; }
 
         /* 나머지 3종(대학별고사일/학생부반영방법/모집인원 및 입결)도 동일 디자인 언어로 정렬 —
            장식 없음, 헤더 배경·룰은 위 공통 규칙을 그대로 상속, 컬럼 수에 맞춘 합리적 폭 배분,
            균일 행 높이(공통 padding 1.25rem 1rem 상속). */
+        /* 대학별고사일 모달 컬럼 폭 재배분(2026-08-04, 14개 대학·48행 실측): 3번째(일정) 컬럼은
+           기존 35% 배정에 실제 콘텐츠 최댓값이 173px(약 18%)에 불과해 대부분 과잉 여백이었고,
+           2번째(대상) 컬럼은 45% 배정에도 p95 730px 케이스가 잦아 줄바꿈이 남았다. 일정을
+           20%로 줄이고 대상을 63%로 늘려 재배분(전형은 17%로 소폭 축소, 실측 p95 164px 커버). */
         .admission-modal-body .admission-exam-table { table-layout: fixed; width: 100%; min-width: 0; }
         .admission-modal-body .admission-exam-table th:nth-child(1),
-        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 20%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 17%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-exam-table th:nth-child(2),
-        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 45%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 63%; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body .admission-exam-table th:nth-child(3),
-        .admission-modal-body .admission-exam-table td:nth-child(3) { width: 35%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table td:nth-child(3) { width: 20%; text-align: center; white-space: normal; word-break: keep-all; }
 
         .admission-modal-body .admission-record-info-table { table-layout: fixed; width: 100%; min-width: 0; }
         .admission-modal-body .admission-record-info-table th:nth-child(1),
@@ -1894,23 +1906,23 @@ export default function AdmissionGuidelines() {
            적용되도록 한다. */
         .admission-modal-body[data-section="minimum_requirements"] table { table-layout: fixed; width: 100%; min-width: 0; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(1),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(1) { width: 10%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(1) { width: 18%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(2),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(2) { width: auto; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(2) { width: 21%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(3),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 40%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 31%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(4),
         .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(4) { width: 8%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(5),
-        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 14%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 22%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
 
         .admission-modal-body[data-section="exam_schedule"] table { table-layout: fixed; width: 100%; min-width: 0; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(1),
-        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(1) { width: 20%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(1) { width: 17%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(2),
-        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(2) { width: 45%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(2) { width: 63%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
         .admission-modal-body[data-section="exam_schedule"] table th:nth-child(3),
-        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { width: 35%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { width: 20%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
 
         /* WARN19: 전형방법 모달 컬럼폭이 rem 고정값(합 48.75rem)이라 48rem 미만(모바일)에서
            고정폭 합이 컨테이너 폭을 넘어 5번째(전형방법) 컬럼이 0에 가깝게 수축한다.
@@ -1927,6 +1939,25 @@ export default function AdmissionGuidelines() {
           .admission-modal-body .admission-selection-table td:nth-child(4) { width: 14%; }
           .admission-modal-body .admission-selection-table th:nth-child(5),
           .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; padding-left: 0.5rem; padding-right: 0.5rem; }
+        }
+
+        /* 최저학력기준 모달 375px 실측: 데스크톱 비율(최저 8%) 그대로면 모바일 표 폭(약
+           285px)에서 최저 컬럼이 23px까지 줄어 "최저" 헤더 두 글자가 세로로 쪼개진다.
+           가로 스크롤은 없지만 가독성이 떨어져 모바일 폭에서만 최저를 15%로 넓히고 반영
+           영역·비고에서 나눠 빌려온다(전형18/대상21/반영영역27/최저15/비고19). */
+        @media (max-width: 48rem) {
+          .admission-modal-body .admission-minimum-table th:nth-child(3),
+          .admission-modal-body .admission-minimum-table td:nth-child(3),
+          .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(3),
+          .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 27%; }
+          .admission-modal-body .admission-minimum-table th:nth-child(4),
+          .admission-modal-body .admission-minimum-table td:nth-child(4),
+          .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(4),
+          .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(4) { width: 15%; }
+          .admission-modal-body .admission-minimum-table th:nth-child(5),
+          .admission-modal-body .admission-minimum-table td:nth-child(5),
+          .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(5),
+          .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 19%; }
         }
 
         .muted { color: #667085; }
