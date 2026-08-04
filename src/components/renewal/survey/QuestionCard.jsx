@@ -14,6 +14,12 @@
  *
  * maxSelect가 있는 복수선택 문항은 헤더 우측에 `2 / 3` 카운터를 노출한다
  * (SPEC-fd-ver3-v2 §9-A3 — disabled 만으로는 이유가 전달되지 않는다).
+ *
+ * `questionId`가 있으면 `id={`q-${questionId}`}` 앵커를 달아 하단 CTA의 "미완료" 클릭이
+ * 이 카드로 스크롤할 수 있게 한다. 고정 헤더(64px)에 가리지 않도록 scroll-mt를 둔다.
+ * `highlighted`면 일시적으로 링을 켜서 "여기를 봐달라"는 안내를 준다(오류색이 아니라
+ * 기존 선택 상태 #013262/#E9F4FF와 겹치지 않는 앰버 톤 — useUnansweredNavigation이 3초
+ * 내외로 또는 응답 시 꺼준다).
  */
 export default function QuestionCard({
   number,
@@ -22,6 +28,8 @@ export default function QuestionCard({
   helper,
   maxSelect,
   selectedCount = 0,
+  questionId,
+  highlighted = false,
   children
 }) {
   const showCounter = Number.isFinite(maxSelect);
@@ -31,7 +39,14 @@ export default function QuestionCard({
     // 좌우 padding 60(3.75rem)은 시안 전제(컨테이너 1164 / 카드 콘텐츠 992)가 실제로 확보되는
     // wide(1184) 부터만 켠다. lg(1024) 에 걸어 두면 1024~1183 에서 콘텐츠 폭을 40px 더 갉아
     // 리커트 척도 컬럼이 77.0px 까지 눌린다(→ 80.7px). ≥1184 는 60 그대로라 시안 정합 불변.
-    <div className="flex w-full flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-[3.75rem]">
+    <div
+      id={questionId != null ? `q-${questionId}` : undefined}
+      className={`flex w-full scroll-mt-20 flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 ring-4 ring-offset-4 transition-shadow duration-700 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-[3.75rem] ${
+        highlighted
+          ? 'ring-[#FDB022] ring-offset-[#FBFAFA]'
+          : 'ring-transparent ring-offset-transparent'
+      }`}
+    >
       <div className="flex w-full flex-col gap-5">
         <div className="flex w-full flex-col gap-3">
           <div className="flex w-full items-center justify-between gap-5">

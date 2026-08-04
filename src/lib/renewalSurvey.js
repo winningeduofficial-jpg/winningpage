@@ -9,6 +9,11 @@ import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions';
 
 export const SURVEY_TOTAL_STEPS = 5;
 export const SURVEY_FIRST_STEP_PATH = '/free-diagnosis/survey/1';
+export const SURVEY_REPORT_PATH = '/free-diagnosis/report';
+
+export function getStepPath(step) {
+  return `/free-diagnosis/survey/${step}`;
+}
 
 export const surveyMainQuestions = renewalSurveyQuestions
   .filter((question) => question.number != null)
@@ -27,10 +32,28 @@ export function getStepQuestions(step) {
   return surveyMainQuestions.filter((question) => question.page === step);
 }
 
-// 시안 하단 배너 값. 응답 수와 무관한 정적 파생치다.
-// 1→16, 2→11, 3→9, 4→5, 5→0
+// 다음 스텝 이후에 남아 있는 문항 수(응답 무관). 1→16, 2→11, 3→9, 4→5, 5→0
 export function getRemainingAfterStep(step) {
   return surveyMainQuestions.filter((question) => question.page > step).length;
+}
+
+/**
+ * 진행(다음 스텝 이동) 요건에 들어가는 문항.
+ * - 중첩 문항(number:null / extra.embeddedIn)은 surveyMainQuestions 단계에서 이미 제외된다.
+ * - `optional: true` 로 표시된 선택입력 문항(q19 주관식)은 화면에는 나오지만 요건에서 뺀다.
+ */
+export function getStepRequiredQuestions(step) {
+  return getStepQuestions(step).filter((question) => question.optional !== true);
+}
+
+export function getStepUnansweredCount(step, answers) {
+  return getStepRequiredQuestions(step).filter(
+    (question) => !isAnswered(question.type, answers?.[question.id])
+  ).length;
+}
+
+export function isStepComplete(step, answers) {
+  return getStepUnansweredCount(step, answers) === 0;
 }
 
 // '1'~'5' 만 통과. '01' · '1.0' · '1abc' · ' 1' 전부 거부.

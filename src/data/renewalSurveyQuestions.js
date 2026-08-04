@@ -469,6 +469,8 @@ export const renewalSurveyQuestions = [
     helper: null,
     type: 'text',
     multiline: true,
+    // 주관식 자유서술 — 선택입력이라 스텝 진행(제출) 요건에서 제외한다.
+    optional: true,
     options: [],
     extra: {
       // 시안 입력 영역 992 × 105 px = 62rem × 6.5625rem, 콘텐츠 상단 정렬(items-start)

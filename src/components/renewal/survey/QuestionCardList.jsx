@@ -6,8 +6,11 @@ import { surveyEmbeddedByParent } from '../../../lib/renewalSurvey';
 /**
  * 카드 스택 gap 40. 스텝 페이지는 getStepQuestions(step) 결과를,
  * preview 는 19문항 전부를 넘긴다 — 렌더 코드는 한 벌뿐이다.
+ *
+ * `highlightedId`는 하단 CTA의 "미완료" 클릭으로 스크롤된 첫 미응답 문항 id
+ * (useUnansweredNavigation) — 해당 카드에만 일시 하이라이트를 켠다.
  */
-export default function QuestionCardList({ questions, answers, onAnswer }) {
+export default function QuestionCardList({ questions, answers, onAnswer, highlightedId }) {
   return (
     <div className="flex w-full flex-col items-start gap-10">
       {questions.map((question) => {
@@ -24,6 +27,8 @@ export default function QuestionCardList({ questions, answers, onAnswer }) {
             helper={question.helper}
             maxSelect={question.maxSelect}
             selectedCount={selectedCount}
+            questionId={question.id}
+            highlighted={question.id === highlightedId}
           >
             <AnswerField
               question={question}
