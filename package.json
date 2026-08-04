@@ -10,6 +10,9 @@
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"*.{js,cjs}\" index.html"
   },
   "dependencies": {
+    "@blocknote/ariakit": "0.52.1",
+    "@blocknote/core": "0.52.1",
+    "@blocknote/react": "0.52.1",
     "@supabase/supabase-js": "^2.48.0",
     "@tosspayments/tosspayments-sdk": "^2.7.1",
     "@vitejs/plugin-react": "^4.3.4",
