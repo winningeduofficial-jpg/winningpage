@@ -293,8 +293,8 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
     <tr className="admission-directory-row">
       <th scope="row" className="admission-directory-name-cell">
         <span className="admission-directory-name-group">
-          <span className="admission-directory-name">{university.name}</span>
           <span className="admission-directory-region">{university.region}</span>
+          <span className="admission-directory-name">{university.name}</span>
         </span>
       </th>
 
@@ -1580,7 +1580,8 @@ export default function AdmissionGuidelines() {
         .admission-directory-sticky-head,
         .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 7.25rem; max-width: 8.25rem; background: #ffffff; }
         .admission-directory-sticky-head { background: #013262 !important; color: #fff !important; }
-        .admission-directory-name-group { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.625rem; }
+        .admission-directory-name-group { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 0.625rem; }
+        .admission-directory-table .admission-directory-name-cell { text-align: left; }
         .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; text-decoration: underline; text-decoration-skip-ink: auto; word-break: keep-all; white-space: normal; }
         .admission-directory-region { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 2.625rem; height: 1.5rem; padding: 0 0.625rem; border-radius: 999px; background: #013262; color: #fff; font-size: 0.75rem; line-height: 1.3; font-weight: 500; white-space: nowrap; }
         .admission-directory-category-cell { background: transparent; }
