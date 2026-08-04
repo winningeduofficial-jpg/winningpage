@@ -397,6 +397,10 @@ export const renewalSurveyQuestions = [
     title: '목표 대학 입결 조회',
     helper: null,
     type: 'cascade',
+    // 목표 대학 미정 학생(q3 "아직 구체적인 목표가 없어요" 등)도 진단을 완주할 수 있어야 한다.
+    // 채점 명세(엑셀 08_합격가능성)에 "입결 자료 없음 → 보조 점수 70 중립, 구간 미산출" 경로가
+    // 이미 존재하므로 q15 미응답도 정상 채점 가능 — 진행 필수 요건에서 제외한다.
+    optional: true,
     options: [],
     extra: {
       levels: [
