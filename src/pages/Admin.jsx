@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronDown,
@@ -17,6 +17,10 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import MentorCard from '../components/landing/MentorCard';
+import BlockEditor from '../components/editor/BlockEditor';
+import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
+import { blocksToPlainText } from '../lib/blockToPlainText';
+import { plainTextToBlocks } from '../lib/plainTextToBlocks';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -934,7 +938,7 @@ const CONFIGS = {
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
-      { key: 'content', label: '본문' },
+      { key: 'content', label: '본문', type: 'truncate' },
       { key: 'category', label: '카테고리' },
       { key: 'is_featured', label: '인기', type: 'boolean' },
       { key: 'is_active', label: '노출', type: 'boolean' },
@@ -943,7 +947,15 @@ const CONFIGS = {
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'content', label: '본문', type: 'textarea' },
+      {
+        key: 'content',
+        label: '본문',
+        type: 'blockEditor',
+        required: true,
+        folder: 'column-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'image_urls', label: '이미지', type: 'multiImage' },
       {
         key: 'category',
@@ -970,6 +982,17 @@ const CONFIGS = {
       image_urls: [],
       category: '학습관리 방법',
       is_featured: false
+    },
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    formToPayload: (form) => {
+      const { __blocks_content, ...rest } = form;
+      const blocks = __blocks_content || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        content: blocksToPlainText(blocks)
+      };
     }
   },
 
@@ -2716,6 +2739,14 @@ function formatListValue(value, type) {
   return `${list.length}개`;
 }
 
+function truncateText(value, maxLength = 10) {
+  if (value === null || value === undefined || value === '') return '-';
+  const flat = String(value).replace(/\r?\n/g, ' ');
+  const chars = Array.from(flat);
+  if (chars.length <= maxLength) return flat;
+  return `${chars.slice(0, maxLength).join('')}…`;
+}
+
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(() => new Set(MENU_GROUPS.map((group) => group.title)));
 
@@ -3231,14 +3262,60 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
+  const [dirty, setDirty] = useState(false);
+  // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
+  const editorRefs = useRef(new Map());
+  // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
+  // null이면 닫힘 — 라이브 갱신 없음, 에디터로 되돌아가는 데이터 경로 없음.
+  const [previewPost, setPreviewPost] = useState(null);
+  const blockEditorField = (config.fields || []).find((field) => field.type === 'blockEditor');
+
+  function getEditorRef(key) {
+    if (!editorRefs.current.has(key)) editorRefs.current.set(key, { current: null });
+    return editorRefs.current.get(key);
+  }
+
+  function openPreview() {
+    if (!blockEditorField) return;
+    const editorRef = editorRefs.current.get(blockEditorField.key);
+    const blocks = editorRef?.current ? editorRef.current.getBlocks() : [];
+
+    setPreviewPost({
+      title: form.title,
+      category: form.category,
+      image_urls: form.image_urls,
+      image_url: form.image_url,
+      content_json: { blocks },
+      content: blocksToPlainText(blocks)
+    });
+  }
 
   const readonly = config.readOnly;
 
+  // 편집 중 이탈 시 작업 유실을 막기 위한 최소 가드. 정확도보다 "경고가 뜨는 것" 자체가 핵심이라
+  // 편집 여부 판정은 단순하게(필드 변경 또는 에디터 영역 입력 감지) 둔다.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    function handleBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirty]);
+
+  function handleCancel() {
+    if (dirty && !window.confirm('저장하지 않은 변경사항이 있습니다. 나가시겠습니까?')) return;
+    onCancel();
+  }
+
   function change(key, value) {
+    setDirty(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function patch(values) {
+    setDirty(true);
     setForm((prev) => ({ ...prev, ...values }));
   }
 
@@ -3286,7 +3363,19 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     }
 
     for (const field of config.fields || []) {
-      if (field.required && String(form[field.key] ?? '').trim() === '') {
+      if (!field.required) continue;
+
+      // uncontrolled 에디터는 form[key]가 애초에 채워지지 않으므로 ref로 별도 판정한다.
+      if (field.type === 'blockEditor') {
+        const editorRef = editorRefs.current.get(field.key);
+        if (!editorRef?.current || editorRef.current.isEmpty()) {
+          alert(`${field.label} 항목을 입력해주세요.`);
+          return;
+        }
+        continue;
+      }
+
+      if (String(form[field.key] ?? '').trim() === '') {
         alert(`${field.label} 항목을 입력해주세요.`);
         return;
       }
@@ -3300,7 +3389,18 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
       }
     }
 
-    onSave(form);
+    let merged = form;
+    const blockEditorFields = (config.fields || []).filter((field) => field.type === 'blockEditor');
+    if (blockEditorFields.length > 0) {
+      merged = { ...form };
+      for (const field of blockEditorFields) {
+        const editorRef = editorRefs.current.get(field.key);
+        merged[`__blocks_${field.key}`] = editorRef?.current ? editorRef.current.getBlocks() : [];
+      }
+    }
+
+    setDirty(false);
+    onSave(merged);
   }
 
   return (
@@ -3344,7 +3444,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                     )
                   ) : (
                     <>
-                      {!['file', 'multiImage', 'multiFile'].includes(field.type) &&
+                      {!['file', 'multiImage', 'multiFile', 'blockEditor'].includes(field.type) &&
                         !(field.type === 'image' && field.hideUrlInput) && (
                           <AdminInput
                             field={field}
@@ -3353,6 +3453,29 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                             disabled={readonly}
                           />
                         )}
+
+                      {field.type === 'blockEditor' && (
+                        // onInput/onKeyDown은 BlockNote가 내부에 렌더하는 contenteditable DOM에서
+                        // 버블링돼 올라온다 — BlockEditor 자체를 건드리지 않고 dirty만 감지한다.
+                        <div
+                          onInput={() => setDirty(true)}
+                          onKeyDown={() => setDirty(true)}
+                        >
+                          <BlockEditor
+                            ref={getEditorRef(field.key)}
+                            key={row?.id ?? 'new'}
+                            initialContent={
+                              form[`${field.key}_json`]?.blocks ??
+                              (form[field.key] ? plainTextToBlocks(form[field.key]) : undefined)
+                            }
+                            uploadFile={async (file) => {
+                              const uploaded = await onUpload(file, field);
+                              if (!uploaded?.[0]?.url) throw new Error('이미지 업로드에 실패했습니다.');
+                              return uploaded[0].url;
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {field.type === 'image' && (
                         <div className="mt-3 flex items-center gap-3">
@@ -3542,9 +3665,19 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
+        {!readonly && blockEditorField && (
+          <button
+            type="button"
+            onClick={openPreview}
+            className="h-10 border border-[#2348ff] bg-white px-5 text-sm font-black text-[#2348ff]"
+          >
+            미리보기
+          </button>
+        )}
+
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="h-10 bg-[#4b5563] px-5 text-sm font-black text-white"
         >
           취소
@@ -3556,6 +3689,8 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
           </button>
         )}
       </div>
+
+      <ColumnPreviewModal open={Boolean(previewPost)} onClose={() => setPreviewPost(null)} post={previewPost} />
     </form>
   );
 }
@@ -3644,6 +3779,8 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                         )
                       ) : column.type === 'fileList' ? (
                         formatListValue(row[column.key], column.type)
+                      ) : column.type === 'truncate' ? (
+                        truncateText(row[column.key])
                       ) : (
                         formatValue(row[column.key], column.type)
                       )}
