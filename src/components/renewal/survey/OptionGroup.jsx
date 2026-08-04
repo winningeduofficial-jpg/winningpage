@@ -79,11 +79,18 @@ export default function OptionGroup({
   // chip 은 hug 폭이라 375(가용 277px)에서는 어떤 두 칩도 한 줄에 못 들어간다. 결과가
   // "폭이 제각각인 칩이 1개씩 세로로 쌓여 우측 끝이 톱니처럼 어긋나는" 배치라, 같은 화면의
   // variant='row' 문항과 정렬 규칙이 충돌했다. <640 은 row 와 동일한 전폭 리스트로 통일한다.
-  // ≥640 은 wrap 유지 — align-items 기본값(normal→stretch)이 이미 같은 효과를 낸다.
-  // 같은 wrap 행의 칩이 라벨 줄 수와 무관하게 높이를 공유하므로 sm:items-stretch 클래스는 불필요하다.
+  //
+  // 640~767 구간: hug wrap 을 그대로 쓰면 문항별 선택지 길이 편차 때문에 칩 2개가 한 줄에
+  // 못 들어가는 문항(q13·q14 등)만 단독 행이 되어 우측에 큰 공백이 남고, 다른 문항(q1·q2)과
+  // 행 구성이 들쭉날쭉해진다(톱니). 이 구간은 hug 를 버리고 2열 균등 그리드로 전환해 격자를
+  // 고정한다 — <640 전폭 1열 → 640~767 2열 그리드 → ≥768 hug wrap 으로 시각적으로 연속된다.
+  // 그리드는 기본 align-items: stretch 라 같은 행 칩이 라벨 줄 수와 무관하게 높이를 공유한다.
+  // 선택지가 홀수 개면 마지막 칩이 그리드에서 혼자 남는데, 좌측 정렬(칩 폭만 차지, 우측 공백)보다
+  // 전폭 스팬이 더 자연스럽다고 실측 확인되어(q1 @640/700/767, 5지 문항) col-span-2 로 전폭 처리한다.
+  // ≥768 은 flex-wrap hug 로 복귀 — align-items 기본값(normal→stretch)이 이미 같은 효과를 낸다.
   const containerClass =
     variant === 'chip'
-      ? 'flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap'
+      ? 'flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:[&>*:nth-child(odd):last-child]:col-span-2 md:flex md:flex-row md:flex-wrap'
       : 'flex w-full flex-col items-start gap-3';
 
   return (
@@ -106,7 +113,7 @@ export default function OptionGroup({
               disabled={isDisabled}
               onClick={() => handleSelect(optionValue)}
               className={`flex min-h-[4.25rem] items-center gap-6 rounded-[1.25rem] border px-5 py-3.5 text-left transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                variant === 'row' ? 'w-full' : 'w-full sm:w-auto'
+                variant === 'row' ? 'w-full' : 'w-full md:w-auto'
               } ${
                 active
                   ? 'border-[#013262] bg-[#F1F8FF]'

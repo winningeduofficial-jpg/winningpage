@@ -117,7 +117,14 @@ export default function LikertMatrix({
                       aria-checked={checked}
                       aria-label={`${row.text} - ${label}`}
                       onClick={() => handleSelect(row.key, columnIndex)}
-                      className="flex items-center justify-center rounded-full py-2 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      /* 히트 영역 확장 (WCAG 2.5.5, 44px 하한): 시안 확정 행 피치 64(행40+구분선24)를
+                         지키기 위해 시각 크기(40, RadioDot 24)는 그대로 두고, ::after 로 상하 각 2px씩만
+                         투명 확장한다 (40 + 2 + 2 = 44). 인접 행과의 실제 간격은 24px이므로 20px 여유가
+                         남아 겹치지 않는다. 가로는 grid 컬럼 stretch 로 버튼이 이미 컬럼 폭 전체
+                         (1024 기준 80.7px)를 차지해 44px를 넉넉히 초과하므로 별도 확장이 불필요하다.
+                         포커스 링은 버튼 자신의 실제 박스(40px)에 그려지므로 44px 히트 영역과 무관하게
+                         시각 라디오에 그대로 붙는다. */
+                      className="relative flex items-center justify-center rounded-full py-2 after:absolute after:inset-x-0 after:-top-0.5 after:-bottom-0.5 after:content-[''] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
                       <RadioDot checked={checked} />
                     </button>
