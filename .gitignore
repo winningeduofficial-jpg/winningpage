@@ -42,3 +42,6 @@ landing-url-map.json
 
 # 작업용 명세·분석 문서 (커밋하지 않는다 — 사용자 확정 2026-07-30)
 docs/
+
+# Playwright MCP 브라우저 검증 산출물 (스냅샷·콘솔 로그)
+.playwright-mcp/
