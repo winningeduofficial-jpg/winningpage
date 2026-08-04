@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -27,11 +27,12 @@ import ColumnDetail from './pages/column/ColumnDetail';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
-import Admin from './pages/Admin';
 import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
+
+const Admin = lazy(() => import('./pages/Admin'));
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -133,7 +134,17 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedAdmin>
-              <Admin />
+              <Suspense
+                fallback={
+                  <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
+                    <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+                      관리자 페이지 불러오는 중...
+                    </div>
+                  </main>
+                }
+              >
+                <Admin />
+              </Suspense>
             </ProtectedAdmin>
           }
         />
