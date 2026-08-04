@@ -1,4 +1,5 @@
 import '../../styles/report-print.css';
+import '../../styles/report-responsive.css';
 import renewalReportSample from '../../data/renewalReportSample';
 import ReportPageOne from '../../components/renewal/report/ReportPageOne';
 import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
@@ -13,10 +14,12 @@ import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
  *   main 상단 오프셋은 기존 설문 셸과 동일한 pt-16(4rem) 관례를 따른다.
  * - fd-print-area / fd-report-sheet / fd-no-print 클래스는 report-print.css 의 계약이므로
  *   섹션 컴포넌트가 들어와도 그대로 유지해야 한다.
+ * - 좁은 뷰포트 반응형: report-responsive.css 가 .fd-report-sheet 를 transform: scale() 로
+ *   비례 축소해 가로 스크롤 없이 화면에 맞춘다(레이아웃 리플로우 없음, 인쇄는 영향 없음).
  */
 export default function FreeDiagnosisReport() {
   return (
-    <main className="fd-print-area min-h-screen w-full overflow-x-auto bg-[#FBFAFA] pt-16">
+    <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
       <div className="fd-sheet-stack flex flex-col items-center gap-[6.25rem] pt-[6.25rem] pb-[6.25rem]">
         <ReportPageOne data={renewalReportSample} />
         <ReportPageTwo data={renewalReportSample} />
