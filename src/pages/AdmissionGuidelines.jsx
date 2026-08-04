@@ -156,22 +156,39 @@ function ButtonLabel({ item }) {
   return <span className="admission-directory-head-label whitespace-nowrap">{item.label}</span>;
 }
 
-function InfoButton({ section, row, universityName, onOpen, label = '보기' }) {
+// wrappedRawKeys: raw 텍스트를 buildRawSectionHtml로 감쌀 카테고리 6종.
+// resolveInfoContent(모달 on-demand fetch 후 실행)와 InfoButton의 존재 여부
+// 판정(sectionHasContent, 목록 단계) 양쪽에서 공유한다.
+const WRAPPED_RAW_SECTION_KEYS = [
+  'previous_year_changes',
+  'selection_method',
+  'minimum_requirements',
+  'exam_schedule',
+  'school_record_method',
+  'recruitment_quota'
+];
+
+// 목록 단계(경량 뷰 admission_university_resource_index)는 본문 없이
+// has_<컬럼> 존재 여부 불리언만 갖고 있다. "html이 있거나 raw가 있으면 활성"
+// 규칙은 기존 InfoButton의 content 유무 판정과 동일한 의미를 유지한다.
+function sectionHasContent(row, section) {
+  if (!row) return false;
+  const rawFlag = Boolean(row[`has_${section.key}`]);
+  const htmlFlag = section.htmlKey ? Boolean(row[`has_${section.htmlKey}`]) : false;
+  return rawFlag || htmlFlag;
+}
+
+// 모달 on-demand fetch(admission_university_resources, id 기준 필요 컬럼만)
+// 응답을 받은 뒤 실제 렌더용 content/isHtml을 계산한다. 과거 InfoButton이
+// 목록 렌더 시 동기로 하던 계산을 그대로 옮긴 것 — 판정 로직은 동일하다.
+function resolveInfoContent(row, section, universityName) {
   const rawTextContent = resolveSectionText(row, section);
   const htmlContent =
     section.htmlKey &&
     !hasDifferentNumberedSectionOnly(stripHtmlToText(row?.[section.htmlKey]), section.key)
       ? clean(row?.[section.htmlKey])
       : '';
-  const wrappedRawKeys = [
-    'previous_year_changes',
-    'selection_method',
-    'minimum_requirements',
-    'exam_schedule',
-    'school_record_method',
-    'recruitment_quota'
-  ];
-  const shouldWrapRaw = wrappedRawKeys.includes(section.key);
+  const shouldWrapRaw = WRAPPED_RAW_SECTION_KEYS.includes(section.key);
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
   // DB 행의 *_html을 우선 렌더. 없으면 raw 필드를 모듈 파서(buildRawSectionHtml)로
@@ -189,12 +206,33 @@ function InfoButton({ section, row, universityName, onOpen, label = '보기' }) 
     : hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
       : rawTextContent;
-  const isHtmlContent = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
+  const isHtml = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
+  return { content, isHtml };
+}
+
+// 모달 on-demand fetch 시 필요한 컬럼만 select 한다. detail_status/university_key/
+// campus는 resolveInfoContent → buildRawSectionHtml → buildSmartRawHtml/
+// buildSpecialCategoryHtml이 카테고리 판정(경찰대/사관학교/과기원)에 참조하므로
+// 카테고리와 무관하게 항상 포함한다.
+function buildInfoSelectColumns(section) {
+  const columns = new Set([
+    'id',
+    'university_name',
+    'university_key',
+    'campus',
+    'detail_status',
+    section.key
+  ]);
+  if (section.htmlKey) columns.add(section.htmlKey);
+  return Array.from(columns).join(',');
+}
+
+function InfoButton({ section, row, onOpen, label = '보기' }) {
   // 1882:681/1882:1291 실측: 데이터 셀은 버튼(배경/보더)이 아니라 언더라인 텍스트.
   const linkClass =
     'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
 
-  if (!content) {
+  if (!sectionHasContent(row, section)) {
     return (
       <span
         className="admission-directory-cell-empty inline-flex items-center justify-center whitespace-nowrap"
@@ -208,7 +246,7 @@ function InfoButton({ section, row, universityName, onOpen, label = '보기' }) 
   return (
     <button
       type="button"
-      onClick={() => onOpen(section, content, isHtmlContent)}
+      onClick={() => onOpen(section)}
       className={linkClass}
       title={`${section.label} 보기`}
     >
@@ -240,13 +278,11 @@ function LinkButton({ section, row }) {
   );
 }
 
-function openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml = false) {
-  onOpenInfo({
-    universityName: university.name,
-    title: openedSection.label,
-    content,
-    isHtml
-  });
+// InfoButton 클릭 시 모달을 즉시 로딩 상태로 열고, 실제 본문은 onOpenInfo(부모의
+// handleOpenInfo)가 university/section/row(경량 행 — id만 필요)를 받아 on-demand
+// fetch한다. 본문을 여기서 미리 계산하지 않는다.
+function requestUniversityInfo(onOpenInfo, university, openedSection, row) {
+  onOpenInfo({ universityName: university.name, section: openedSection, row });
 }
 
 function UniversityResourceRow({ university, row, onOpenInfo }) {
@@ -266,11 +302,8 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
           <InfoButton
             section={CATEGORY_INFO_SECTIONS[0]}
             row={row}
-            universityName={university.name}
             label="통합 자료 보기"
-            onOpen={(openedSection, content, isHtml = false) =>
-              openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)
-            }
+            onOpen={(openedSection) => requestUniversityInfo(onOpenInfo, university, openedSection, row)}
           />
         </td>
       ) : (
@@ -279,10 +312,7 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
             <InfoButton
               section={section}
               row={row}
-              universityName={university.name}
-              onOpen={(openedSection, content, isHtml = false) =>
-                openUniversityInfo(onOpenInfo, university, openedSection, content, isHtml)
-              }
+              onOpen={(openedSection) => requestUniversityInfo(onOpenInfo, university, openedSection, row)}
             />
           </td>
         ))
@@ -709,7 +739,7 @@ function AdmissionQaPanel({ rows }) {
   const warnCount = issues.filter((issue) => issue.severity !== 'error').length;
 
   return (
-    <section className="mb-8 rounded-[24px] border border-[#F04438]/25 bg-white p-5 shadow-[0_12px_30px_rgba(13,27,42,0.08)]">
+    <section className="mb-8 rounded-3xl border border-[#F04438]/25 bg-white p-5 shadow-[0_12px_30px_rgba(13,27,42,0.08)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">ADMISSION QA MODE</p>
@@ -790,6 +820,65 @@ export default function AdmissionGuidelines() {
   const modalBodyRef = useRef(null);
   const modalXScrollRef = useRef(null);
   const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
+  // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { content, isHtml }.
+  // 같은 셀 재클릭 시 재요청하지 않는다.
+  const infoCacheRef = useRef(new Map());
+
+  // 정보 버튼 클릭 시 그 카테고리에 필요한 컬럼만 admission_university_resources에서
+  // id로 조회해 본문을 계산한다. selectedInfo.cacheKey와 비교해 응답 시점에 이미
+  // 다른 셀/모달로 넘어갔으면(레이스) 조용히 무시한다.
+  async function fetchInfoContent(universityName, section, row, cacheKey) {
+    try {
+      const { data, error } = await supabase
+        .from('admission_university_resources')
+        .select(buildInfoSelectColumns(section))
+        .eq('id', row.id)
+        .single();
+
+      if (error || !data) throw error || new Error('empty admission_university_resources response');
+
+      const resolved = resolveInfoContent(data, section, universityName);
+      infoCacheRef.current.set(cacheKey, resolved);
+
+      setSelectedInfo((prev) =>
+        prev && prev.cacheKey === cacheKey ? { ...prev, ...resolved, status: 'ready' } : prev
+      );
+    } catch (err) {
+      console.error('상세 자료 조회 실패:', err);
+      setSelectedInfo((prev) => (prev && prev.cacheKey === cacheKey ? { ...prev, status: 'error' } : prev));
+    }
+  }
+
+  function handleOpenInfo({ universityName, section, row }) {
+    if (!row?.id) return;
+    const cacheKey = `${row.id}:${section.key}`;
+    const cached = infoCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      setSelectedInfo({ universityName, title: section.label, cacheKey, section, row, status: 'ready', ...cached });
+      return;
+    }
+
+    setSelectedInfo({
+      universityName,
+      title: section.label,
+      cacheKey,
+      section,
+      row,
+      status: 'loading',
+      content: '',
+      isHtml: false
+    });
+
+    fetchInfoContent(universityName, section, row, cacheKey);
+  }
+
+  function handleRetryInfo() {
+    if (!selectedInfo) return;
+    const { universityName, section, row, cacheKey } = selectedInfo;
+    setSelectedInfo((prev) => (prev ? { ...prev, status: 'loading' } : prev));
+    fetchInfoContent(universityName, section, row, cacheKey);
+  }
 
   useEffect(() => {
     if (!selectedInfo) return;
@@ -806,8 +895,13 @@ export default function AdmissionGuidelines() {
       setResourcesLoading(true);
       setResourcesError(false);
 
+      // 경량 뷰(sql/37_admission_resource_index_view.sql) — 목록 셀은 "보기"/"-"
+      // 판정만 필요하므로 raw/html 본문 없이 has_* 존재 여부 불리언만 가져온다.
+      // 본문 select('*')는 218행 합계 5MB+ 응답으로 statement timeout(57014)을
+      // 유발했다. 본문은 모달 오픈 시 admission_university_resources에서
+      // id 기준 on-demand 조회한다(handleOpenInfo/fetchInfoContent 참고).
       const { data, error } = await supabase
-        .from('admission_university_resources')
+        .from('admission_university_resource_index')
         .select('*')
         .eq('is_active', true)
         .eq('admission_year', ACTIVE_ADMISSION_YEAR);
@@ -1157,10 +1251,7 @@ export default function AdmissionGuidelines() {
   return (
     <div className="min-h-screen bg-[#f9fafb] text-[#013262]">
       <main className="pt-16">
-        {/* 페이지 한정 폭 확장(1882:681 실측: 지도 514px + gap 32px + 표 894px = 1440px 콘텐츠).
-            전역 max-w-content(72.75rem) 토큰은 다른 페이지 영향 없이 그대로 두고, 이 페이지의
-            루트 컨테이너만 넓힌다(94rem = 1440px 콘텐츠 + md:px-8 좌우 패딩 64px). */}
-        <div className="mx-auto max-w-[94rem] px-4 py-8 md:px-8">
+        <div className="mx-auto max-w-content px-6 py-8 md:px-8">
           <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <h1 className="break-keep text-[32px] font-semibold leading-tight tracking-[-0.03em] text-[#525252] md:text-[44px]">
               대학모집요강
@@ -1189,7 +1280,7 @@ export default function AdmissionGuidelines() {
 
               <span
                 title="학년도 선택은 준비 중입니다."
-                className="flex h-14 w-full shrink-0 cursor-not-allowed items-center justify-between gap-3 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-6 text-[15px] font-semibold text-[#8f8f8f] sm:w-[218px]"
+                className="flex h-14 w-full shrink-0 cursor-not-allowed items-center justify-between gap-3 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-6 text-[15px] font-semibold text-[#8f8f8f] sm:w-[13.5rem]"
               >
                 2026학년도
                 <ChevronDown className="h-4 w-4 shrink-0 text-[#c8ccd2]" />
@@ -1199,8 +1290,14 @@ export default function AdmissionGuidelines() {
 
           {isQaMode ? <AdmissionQaPanel rows={mergedResourceRows} /> : null}
 
-          {/* 1882:681 실측: 지도 514 / 표 894 ≈ 36.5% / 63.5%, gap 32px(2rem). */}
-          <section className="grid gap-6 lg:grid-cols-[36.5%_1fr] lg:items-start lg:gap-8">
+          {/* 표가 primary(8컬럼 정보 링크), 지도는 secondary 필터 UI — 표에 더 넓은 폭을 배분(26%).
+              전역 max-w-content(72.75rem) 폭에서 표 8컬럼이 가로 스크롤 없이 들어오도록.
+              gap 32px(2rem). 2단 그리드 자체는 lg(1024px)부터 유지 — wide로 늦추면
+              1024~1183px 구간에서 지도가 전체 폭(1단 스택)으로 확대되어 secondary UI가
+              과대해진다. 대신 표 내부 데스크톱/모바일 전환만 wide(1184px)로 늦춰
+              lg(1024px)에서 컨테이너 내부 폭이 960px로 줄어드는 함정(tailwind.config.js
+              참고) 구간을 표가 자체 가로 스크롤로 흡수한다(아래 <style> 74rem 미디어쿼리 참고). */}
+          <section className="grid gap-6 lg:grid-cols-[26%_1fr] lg:items-start lg:gap-8">
             <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
               <div className="relative">
                 <div
@@ -1277,16 +1374,16 @@ export default function AdmissionGuidelines() {
 
             <section
               ref={listSectionRef}
-              className="min-w-0 scroll-mt-24 rounded-2xl border border-[#d7d7d7] bg-white p-5 shadow-[0_10px_28px_rgba(13,27,42,0.04)] md:p-8"
+              className="min-w-0 scroll-mt-24 rounded-2xl border border-[#d7d7d7] bg-white p-5 shadow-[0_10px_28px_rgba(13,27,42,0.04)] md:p-8 wide:rounded-none wide:border-0 wide:bg-transparent wide:p-0 wide:shadow-none"
             >
               <div className="mb-6 border-b border-[#e5e7eb] pb-6">
                 <div className="grid gap-5 2xl:grid-cols-[auto_1fr] 2xl:items-center">
                   <div className="min-w-0">
                     <h2 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-keep">
-                      <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] text-[#525252] md:text-[32px]">
+                      <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] text-[#525252] md:text-[32px]">
                         {currentListTitle}
                       </span>
-                      <span className="whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
+                      <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
                         <span className="text-[#0b84fd]">
                           {universitiesLoading ? '-' : visibleUniversities.length}
                         </span>
@@ -1301,7 +1398,7 @@ export default function AdmissionGuidelines() {
                         key={region}
                         type="button"
                         onClick={() => selectRegion(region)}
-                        className={`h-10 min-w-[58px] rounded-full px-4 text-sm font-semibold transition ${
+                        className={`h-10 min-w-[3.5rem] rounded-full px-4 text-sm font-semibold transition ${
                           selectedRegion === region
                             ? 'bg-[#013262] text-white shadow-sm'
                             : 'bg-[#f9fafb] text-[#667085] hover:bg-[#e9f4ff] hover:text-[#013262]'
@@ -1352,7 +1449,7 @@ export default function AdmissionGuidelines() {
                 </div>
               ) : (
                 <>
-                  <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[#8f8f8f] md:hidden">
+                  <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[#8f8f8f] wide:hidden">
                     좌우로 밀어 표를 확인하세요
                     <ChevronRight className="h-3 w-3" />
                   </p>
@@ -1368,7 +1465,7 @@ export default function AdmissionGuidelines() {
                   <UniversityResourceTable
                     universities={pagedUniversities}
                     resourceIndex={resourceIndex}
-                    onOpenInfo={setSelectedInfo}
+                    onOpenInfo={handleOpenInfo}
                   />
 
                   {totalPages > 1 ? (
@@ -1378,7 +1475,7 @@ export default function AdmissionGuidelines() {
                       className="mt-8 flex flex-wrap items-center justify-center gap-5"
                       aria-label="페이지네이션"
                     >
-                      <div className="flex items-center gap-[9px]">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => goToPage(1)}
@@ -1416,7 +1513,7 @@ export default function AdmissionGuidelines() {
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-[9px]">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
@@ -1471,10 +1568,13 @@ export default function AdmissionGuidelines() {
         .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #0b84fd; }
 
         /* 1882:681/1882:1291 실측 재구현.
-           모바일(lg 미만, <64rem)은 기존 카드형 + 가로 스크롤 + sticky 1열 유지.
-           데스크톱(lg 이상)은 시안 그대로: 카드/그림자 없는 flat 표, 상/하단만 검정 1px,
+           모바일(wide 미만, <74rem)은 기존 카드형 + 가로 스크롤 + sticky 1열 유지.
+           lg(1024px)~wide 미만 구간은 컨테이너 내부 폭이 960px로 줄어드는 함정
+           (tailwind.config.js 참고)이라 이 표는 wide(1184px)부터 flat 데스크톱 모드로
+           전환한다 — 그 아래는 전부 스크롤 표.
+           데스크톱(wide 이상)은 시안 그대로: 카드/그림자 없는 flat 표, 상/하단만 검정 1px,
            헤더 #f9fafb bg, 행 구분선 #dfdfdf, 8컬럼 스크롤 없이 전부 노출. */
-        .admission-directory-table-shell { width: 100%; overflow-x: auto; border: 1px solid #d7d7d7; border-radius: 1rem; background: #fff; box-shadow: 0 1.125rem 2.625rem rgba(16, 36, 62, 0.07); }
+        .admission-directory-table-shell { width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid #d7d7d7; border-radius: 1rem; background: #fff; box-shadow: 0 1.125rem 2.625rem rgba(16, 36, 62, 0.07); }
         .admission-directory-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; font-size: 0.78125rem; line-height: 1.3; }
         .admission-directory-table th,
         .admission-directory-table td { border-right: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; padding: 0.5rem; vertical-align: middle; text-align: center; }
@@ -1489,16 +1589,19 @@ export default function AdmissionGuidelines() {
         .admission-directory-category-cell { background: transparent; }
         .admission-directory-cell-link { color: #525252; font-size: 0.78125rem; letter-spacing: -0.02em; text-decoration: underline; text-decoration-skip-ink: auto; }
         .admission-directory-cell-empty { color: #525252; font-size: 0.78125rem; }
-        .admission-directory-head-label { display: inline-flex; flex-direction: column; align-items: center; }
+        .admission-directory-head-label { display: inline-flex; flex-direction: column; align-items: center; word-break: keep-all; }
         .admission-directory-head-line { display: block; line-height: 1.2; }
 
-        @media (min-width: 64rem) {
+        @media (min-width: 74rem) {
           .admission-directory-table-shell { overflow-x: visible; border: none; border-radius: 0; background: transparent; box-shadow: none; }
           .admission-directory-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 0.875rem; line-height: 1.4; border-bottom: 1px solid #000; }
           .admission-directory-table th,
-          .admission-directory-table td { border-right: 0; border-bottom: 0; padding: 0; }
-          .admission-directory-table thead th { position: static; top: auto; background: #f9fafb; color: #525252; font-weight: 500; font-size: 1rem; letter-spacing: -0.02em; white-space: normal; border-top: 1px solid #000; height: 4.625rem; }
-          .admission-directory-table thead th.admission-directory-sticky-head { background: #f9fafb !important; color: #525252 !important; width: 13.75rem; }
+          .admission-directory-table td { border-right: 0; border-bottom: 0; padding: 0 0.5rem; }
+          .admission-directory-table thead th { position: static; top: auto; background: #f9fafb; color: #525252; font-weight: 500; font-size: 0.875rem; letter-spacing: -0.02em; white-space: normal; border-top: 1px solid #000; height: 3.75rem; }
+          .admission-directory-table thead th.admission-directory-sticky-head { background: #f9fafb !important; color: #525252 !important; width: 12rem; }
+          /* "전년도와 차이점(수시)" 헤더는 2어절 중 "차이점(수시)"(약 68.5px)가 균등 분배폭보다
+             넓어 3줄로 더 꺾인다 — 이 컬럼만 살짝 넓혀 2줄을 유지(나머지 6컬럼은 여유가 있어 흡수). */
+          .admission-directory-table thead th:nth-child(2) { width: 5.5rem; }
           .admission-directory-table thead th.admission-directory-head-accent { color: #013262; }
           .admission-directory-table tbody tr { border-top: 1px solid #dfdfdf; }
           .admission-directory-table tbody td,
@@ -1517,8 +1620,8 @@ export default function AdmissionGuidelines() {
         .admission-table-wrap,
         .admission-existing-html,
         .admission-raw-section-wrap { width: 100%; max-width: 100%; }
-        .admission-table-wrap { overflow-x: auto; }
-        .admission-existing-html { overflow-x: auto; }
+        .admission-table-wrap { overflow-x: auto; overflow-y: hidden; }
+        .admission-existing-html { overflow-x: auto; overflow-y: hidden; }
         .admission-existing-html table,
         .admission-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
         .admission-existing-html th,
@@ -1567,11 +1670,6 @@ export default function AdmissionGuidelines() {
         .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
         .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
 
-        .admission-exact-hwp-table { min-width: 1280px; border-collapse: collapse; }
-        .admission-exact-hwp-table th { background: #f9fafb; color: #525252; font-weight: 950; text-align: center; white-space: nowrap; }
-        .admission-exact-hwp-table td { text-align: center; vertical-align: middle; white-space: nowrap; }
-        .admission-exact-hwp-table td:first-child, .admission-exact-hwp-table th:first-child { font-weight: 900; }
-        .admission-exact-hwp-table .blank-cell { color: transparent; background: #f9fafb; }
         .admission-recruit-table { min-width: 1100px; }
         .admission-normalized-recruit-table { min-width: 1280px; }
         .admission-normalized-recruit-table th.fixed-head { left: 0; z-index: 4; }
@@ -1614,16 +1712,7 @@ export default function AdmissionGuidelines() {
         .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #013262; word-break: keep-all; }
         .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
         .admission-change-table .change-note-cell { text-align: left; white-space: normal; line-height: 1.65; color: #667085; font-weight: 850; word-break: keep-all; }
-        .admission-change-inline-flow { display: grid; grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); gap: 12px; align-items: stretch; }
-        .admission-change-side { border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 12px; padding: 10px 12px; min-width: 0; }
-        .admission-change-side.after { background: #e9f4ff; border-color: #bcdcff; }
-        .admission-change-mini-label { display: inline-flex; margin-bottom: 6px; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 950; }
-        .admission-change-side.after .admission-change-mini-label { color: #0b84fd; }
         .admission-change-arrow { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; }
-        .admission-change-list { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-start; }
-        .admission-change-list.line-list { gap: 6px; flex-direction: column; }
-        .admission-change-list span { display: inline-flex; max-width: 100%; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 999px; padding: 6px 9px; color: #525252; font-size: 12.5px; line-height: 1.35; font-weight: 850; white-space: normal; word-break: normal; overflow-wrap: anywhere; }
-        .admission-change-list.line-list span { border-radius: 10px; width: fit-content; max-width: 100%; }
         .admission-change-simple { color: #525252; font-weight: 850; line-height: 1.65; white-space: normal; word-break: keep-all; }
         .admission-change-table-v87 th:nth-child(1), .admission-change-table-v87 td:nth-child(1) { width: 58px; text-align: center; }
         .admission-change-table-v87 th:nth-child(2), .admission-change-table-v87 td:nth-child(2) { width: 260px; }
@@ -1637,7 +1726,7 @@ export default function AdmissionGuidelines() {
         .admission-change-arrow-icon { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; font-size: 18px; }
         .admission-change-arrow-before .admission-change-simple, .admission-change-arrow-after .admission-change-simple { color: #013262; font-weight: 900; }
         .admission-change-arrow-before .admission-change-line, .admission-change-arrow-after .admission-change-line { padding: 6px 8px; border-radius: 8px; }
-        @media (max-width: 720px) {
+        @media (max-width: 48rem) {
           .admission-change-arrow-row { grid-template-columns: 1fr; }
           .admission-change-arrow-icon { transform: rotate(90deg); }
           .admission-change-table-v87 th:nth-child(2), .admission-change-table-v87 td:nth-child(2) { width: 180px; }
@@ -1718,7 +1807,7 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-change-arrow-after { background: #fff; }
         .admission-modal-body .admission-change-arrow-icon { color: #013262; }
         .muted { color: #667085; }
-        @media (max-width: 720px) {
+        @media (max-width: 48rem) {
           .admission-token-row { grid-template-columns: 1fr; }
           .admission-wide-sheet { min-width: 760px; }
         }
@@ -1742,7 +1831,7 @@ export default function AdmissionGuidelines() {
               >
                 <X className="h-5 w-5" />
               </button>
-              <p className="text-center text-[1rem] font-medium text-[#013262]">
+              <p className="text-center text-base font-medium text-[#013262]">
                 {selectedInfo.universityName}
               </p>
               <h3 className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
@@ -1751,15 +1840,37 @@ export default function AdmissionGuidelines() {
             </div>
             <div
               ref={modalBodyRef}
-              className="admission-modal-body flex-1 overflow-auto bg-white px-6 py-4 text-[14px] font-semibold leading-7 text-[#525252] md:px-12"
+              className="admission-modal-body flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12"
             >
-              {selectedInfo.isHtml ? (
+              {selectedInfo.status === 'loading' ? (
+                <div
+                  className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[#8f8f8f]"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
+                  불러오는 중입니다...
+                </div>
+              ) : selectedInfo.status === 'error' ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-16 text-sm font-semibold text-red-500">
+                  <p>상세 자료를 불러오지 못했습니다.</p>
+                  <button
+                    type="button"
+                    onClick={handleRetryInfo}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : selectedInfo.isHtml ? (
                 <div
                   className="admission-table-wrap"
                   dangerouslySetInnerHTML={{ __html: selectedInfo.content }}
                 />
-              ) : (
+              ) : selectedInfo.content ? (
                 <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
+              ) : (
+                <div className="whitespace-pre-wrap text-[#8f8f8f]">등록된 정보가 없습니다.</div>
               )}
             </div>
             {selectedInfo.isHtml && modalXScroll.visible ? (
@@ -1780,7 +1891,7 @@ export default function AdmissionGuidelines() {
               <button
                 type="button"
                 onClick={() => setSelectedInfo(null)}
-                className="inline-flex h-12 min-w-[6.25rem] items-center justify-center rounded-xl bg-[#0b84fd] px-8 text-[1rem] font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-[1.25rem]"
+                className="inline-flex h-12 min-w-[6.25rem] items-center justify-center rounded-xl bg-[#0b84fd] px-8 text-base font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-xl"
               >
                 닫기
               </button>
