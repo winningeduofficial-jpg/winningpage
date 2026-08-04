@@ -105,44 +105,46 @@ export const SERVICES = [
     key: 'suhaeng',
     name: '위닝 AI수행평가',
     desc: 'AI 수행평가 서비스는 과목, 단원, 진로, 학생의 기존 활동을 바탕으로 수행평가 주제를 추천하고 탐구 구조를 잡아주는 서비스입니다. 단순한 답안 작성이 아니라 주제 선정, 자료 방향, 탐구 질문, 발표 구조까지 관리할 수 있습니다.',
+    // 가격: Figma 시안(2393:12326) 실측값으로 교체. 기존 값(4900/4900, 9000/9000,
+    // 26667/24000, 54000/43200, 108000/75600)은 시안과 불일치했다.
     products: [
       {
         id: 'suhaeng-1',
         name: '[1회 이용권] 위닝 AI수행평가',
-        listPrice: 4900,
-        price: 4900,
+        listPrice: 3500,
+        price: 3500,
         badge: null,
         recommended: false
       },
       {
         id: 'suhaeng-2',
         name: '[1개월 2회] 위닝 AI수행평가',
-        listPrice: 9000,
-        price: 9000,
+        listPrice: 5000,
+        price: 5000,
         badge: null,
         recommended: false
       },
       {
         id: 'suhaeng-6',
         name: '[3개월 6회 이용권] 위닝 AI수행평가',
-        listPrice: 26667,
-        price: 24000,
+        listPrice: 15000,
+        price: 13500,
         badge: '10% 할인',
         recommended: false
       },
       {
         id: 'suhaeng-14',
         name: '[6개월 14회 이용권] 위닝 AI수행평가',
-        listPrice: 54000,
-        price: 43200,
+        listPrice: 30000,
+        price: 24000,
         badge: '20% 할인',
         recommended: false
       },
       {
         id: 'suhaeng-30',
         name: '[12개월 30회 이용권] 위닝 AI수행평가',
-        listPrice: 108000,
-        price: 75600,
+        listPrice: 60000,
+        price: 42000,
         badge: '30% 할인',
         recommended: true
       }
