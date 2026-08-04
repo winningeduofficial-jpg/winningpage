@@ -17,7 +17,11 @@ function refundStatus(s) {
 const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
-const MEMBER_TYPES = ['학생', '학부모', '멘토', '기타'];
+const MEMBER_TYPES = [
+  { value: 'student', label: '학생' },
+  { value: 'parent',  label: '학부모' },
+  { value: 'teacher', label: '멘토·교사' }
+];
 const REGION_OPTIONS = [
   '서울',
   '부산',
@@ -411,10 +415,10 @@ export default function MyPage() {
             >
               <option value="">선택</option>
               {MEMBER_TYPES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+  <option key={item.value} value={item.value}>
+    {item.label}
+  </option>
+))}
             </select>
           </label>
 
