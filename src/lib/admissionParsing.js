@@ -73,8 +73,22 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// WARN17: DB 정규화 스크립트(scripts/normalize-admission-html.mjs)가 이미 적용한 매핑을
+// 생성기(파서) 쪽에도 동일하게 반영한다 — Admin '파싱 실행'으로 *_html이 재생성되면
+// 이 함수를 거치므로, 여기 없으면 향후 재파싱 시 판별된 PUA 문자가 다시 새어 나온다.
+// 판별 근거는 scripts/normalize-admission-html.mjs의 주석과 동일(HWP 원문자 ①②가 보조
+// 평면 PUA-A 코드로 내보내진 케이스만 확정 매핑, 그 외 PUA는 손대지 않는다).
+const KNOWN_PUA_CODEPOINT_MAP = { 0xf02ce: '①', 0xf02cf: '②' };
+export function replaceKnownPuaChars(value) {
+  let text = String(value || '');
+  for (const [codePoint, replacement] of Object.entries(KNOWN_PUA_CODEPOINT_MAP)) {
+    text = text.split(String.fromCodePoint(Number(codePoint))).join(replacement);
+  }
+  return text;
+}
+
 export function normalizeAdmissionText(value) {
-  return clean(value)
+  return replaceKnownPuaChars(clean(value))
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/\u0000/g, '')
@@ -1086,7 +1100,10 @@ export function normalizeSelectionMinimum(value) {
   if (!v || /^[-–—]$/.test(v)) return '-';
   const marked = v.match(/^([◯○●]+)(?:\(([^)]+)\))?$/);
   if (marked) return marked[2] ? `있음: ${marked[2]}` : '있음';
-  return v.replace(/,/g, '·');
+  // WARN17: Figma 1882:4934 "최저" 컬럼 sampleValues("의/약", "의/약/간")는 슬래시 구분자를
+  // 쓰고, scripts/normalize-admission-html.mjs가 이미 DB의 배지 값을 전부 슬래시로 통일했다
+  // (normalizeBadgeSeparators). 생성기도 동일하게 슬래시로 맞춰 재파싱 시 회귀를 막는다.
+  return v.replace(/,/g, '/');
 }
 
 export function isSelectionMethodLike(value) {
@@ -1391,7 +1408,7 @@ export function buildExamScheduleHtml(lines, sectionKey) {
   return `
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['전형', '대상', '일정'], rows)}
+      ${htmlTable(['전형', '대상', '일정'], rows, { className: 'admission-data-table admission-exam-table' })}
     </div>
   `;
 }
@@ -1617,7 +1634,7 @@ export function buildMinimumRequirementsHtml(lines, sectionKey) {
   return sanitizeAdmissionRenderedHtml(`
     <div class="admission-raw-section-wrap">
       <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-      ${htmlTable(['전형', '대상', '반영 영역', '최저', '비고'], rows)}
+      ${htmlTable(['전형', '대상', '반영 영역', '최저', '비고'], rows, { className: 'admission-data-table admission-minimum-table' })}
     </div>
   `);
 }

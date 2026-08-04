@@ -1742,7 +1742,9 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-raw-section-wrap,
         .admission-modal-body .admission-existing-html { background: #fff; border: 0; border-radius: 0; padding: 0; }
         .admission-modal-body .admission-table-wrap { background: #fff; }
-        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 16px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
+        /* 모달 헤더에 이미 "가톨릭대학교(서울)" + 카테고리 타이틀이 있어 절 번호 제목("2. 전형방법" 등)은
+           중복 — 시안(1882:4416/4934/5487) 어디에도 존재하지 않으므로 모달 스코프에서만 숨긴다. */
+        .admission-modal-body .admission-hwp-section-title { display: none; }
         .admission-modal-body .admission-result-note,
         .admission-modal-body .admission-header-summary,
         .admission-modal-body .admission-recruit-legend { display: none !important; }
@@ -1750,6 +1752,9 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-special-title,
         .admission-modal-body .admission-subtitle-line { margin-top: 8px; border: 0; border-left: 0; border-radius: 0; background: transparent; color: #000; padding: 0; font-size: 13px; line-height: 1.45; font-weight: 950; }
         .admission-modal-body .admission-scroll-table { border: 0; border-radius: 0; background: #fff; }
+        /* WARN20: 3종 실측(첫 컬럼·헤더 강조 없음, #525252 Medium 통일)과 동일한 원칙을
+           나머지 카테고리의 소제목에도 일관 적용 — 네이비/900 강조를 평문으로 되돌린다. */
+        .admission-modal-body .admission-subhead { color: #525252; font-weight: 500; }
         /* Figma 1882:4416(전년도와 차이점)/1882:4934(전형방법)/1882:5487(최저학력기준) 실측 재구현.
            세로 그리드 없이 가로선만: 헤더 상단 #000 1px, 바디 행 구분선 #dfdfdf 1px, 테이블 하단 #000 1px.
            셀 16px(1rem) Pretendard Medium(500) #525252, 행 높이 63px 상당(1.25rem 1rem 패딩으로 재현). */
@@ -1786,15 +1791,23 @@ export default function AdmissionGuidelines() {
           .admission-modal-body .admission-result-table td,
           .admission-modal-body .admission-existing-html td,
           .admission-modal-body .admission-table-wrap td { padding: 0.625rem 0.5rem; }
+          /* 375px 스모크에서 발견: word-break:keep-all은 공백 없는 한국어 토큰(예: "지역균형",
+             "학교장추천")을 줄바꿈하지 못해, 컬럼 폭이 극도로 좁아지는 모바일에서 텍스트가
+             셀 경계를 넘어 옆 컬럼과 겹쳐 보인다. overflow-wrap:anywhere를 함께 줘서 다른
+             줄바꿈 지점이 없을 때만 강제로 줄바꿈하도록 안전장치를 추가한다(넓은 화면/충분한
+             폭에서는 자연 줄바꿈이 우선되므로 시안 재현에 영향 없음). */
+          .admission-modal-body table td,
+          .admission-modal-body table th { overflow-wrap: anywhere; }
         }
+        /* 1882:4934/5487 실측: 첫 컬럼(전형 등) 색상·굵기 강조 없음 — 나머지 셀과 완전히 동일한
+           배경/색/굵기(#525252, Medium 500). 과거 네이비·볼드 강조는 시안 근거가 없어 평문으로 되돌린다. */
         .admission-modal-body .admission-data-table td:first-child,
         .admission-modal-body .admission-result-table td:first-child,
         .admission-modal-body .admission-mini-table td:first-child,
         .admission-modal-body .admission-selection-table .selection-type-cell,
         .admission-modal-body .admission-record-info-table td:first-child,
-        .admission-modal-body .admission-special-table td:first-child { background: #fff; color: #013262; font-weight: 950; }
-        .admission-modal-body .admission-change-arrow-before,
-        .admission-modal-body .admission-change-arrow-after,
+        .admission-modal-body .admission-special-table td:first-child,
+        .admission-modal-body .admission-normalized-recruit-table td:first-child { background: #fff; color: #525252; font-weight: 500; }
         .admission-modal-body .admission-change-line,
         .admission-modal-body .admission-normal-line,
         .admission-modal-body .admission-long-line,
@@ -1802,8 +1815,120 @@ export default function AdmissionGuidelines() {
         .admission-modal-body .admission-info-list > div,
         .admission-modal-body .admission-bullet-list li,
         .admission-modal-body .admission-text-line { border: 1px solid #d7d7d7; border-radius: 0; background: #fff; color: #525252; }
-        .admission-modal-body .admission-change-arrow-after { background: #fff; }
-        .admission-modal-body .admission-change-arrow-icon { color: #013262; }
+        /* WARN13(1882:4416): 시안은 변경 전/후를 알약·색상 박스 없이 "A → B" 순수 텍스트
+           한 줄로 표기한다. 현재 DB 207/207행은 이미 admission-change-plain-cell 경로만
+           쓰지만(이 박스 경로는 비활성 legacy), 재발 방지를 위해 박스 자체도 완전히
+           무장식으로 리셋해둔다. */
+        .admission-modal-body .admission-change-arrow-before,
+        .admission-modal-body .admission-change-arrow-after { border: 0; border-radius: 0; background: transparent; padding: 0; color: #525252; }
+        .admission-modal-body .admission-change-arrow-icon { color: #525252; }
+
+        /* 1882:4934 실측: 최저 컬럼 알약(pill) 배지 크롬 제거, 값만 평문으로. */
+        .admission-modal-body .admission-minimum-badge { display: inline; min-width: 0; max-width: none; border: 0; border-radius: 0; background: transparent; padding: 0; color: #525252; font-size: 1rem; font-weight: 500; line-height: 1.4; white-space: normal; }
+        .admission-modal-body .admission-minimum-badge.has,
+        .admission-modal-body .admission-minimum-badge.none { color: #525252; }
+
+        /* 1882:4934 컬럼 폭 실측(전형180/전형명240/인원180/최저180 고정 + 전형방법 flex 잔여) 재현.
+           기존엔 4/5번째 컬럼 폭이 뒤바뀌어 전형방법(내용이 가장 긴 컬럼)이 오히려 가장 좁았다 —
+           고정 4컬럼만 폭을 주고 전형방법은 width 미지정으로 남겨 table-layout: fixed 아래에서
+           잔여 폭을 전부 가져가게 한다. 5개 컬럼 전부 center 정렬(시안 실측), 전형명/전형방법의
+           좌측정렬(.left)도 제거한다. */
+        .admission-modal-body .admission-selection-table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body .admission-selection-table th:nth-child(1),
+        .admission-modal-body .admission-selection-table td:nth-child(1) { width: 11.25rem; min-width: 0; text-align: center; }
+        .admission-modal-body .admission-selection-table th:nth-child(2),
+        .admission-modal-body .admission-selection-table td:nth-child(2) { width: 15rem; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-selection-table th:nth-child(3),
+        .admission-modal-body .admission-selection-table td:nth-child(3) { width: 11.25rem; min-width: 0; text-align: center; }
+        .admission-modal-body .admission-selection-table th:nth-child(4),
+        .admission-modal-body .admission-selection-table td:nth-child(4) { width: 11.25rem; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-selection-table th:nth-child(5),
+        .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; min-width: 0; max-width: none; text-align: center; white-space: normal; word-break: keep-all; padding-left: 1rem; padding-right: 1rem; }
+
+        /* 1882:5487 최저학력기준 모달 실측 비율(전형130/대상flex/반영영역500/최저100/비고180 ≈
+           10%/flex/40%/8%/14%) 재현. 전 컬럼 center, 대상 컬럼만 width 미지정으로 잔여 폭 흡수. */
+        .admission-modal-body .admission-minimum-table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body .admission-minimum-table th:nth-child(1),
+        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 10%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table th:nth-child(2),
+        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: auto; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table th:nth-child(3),
+        .admission-modal-body .admission-minimum-table td:nth-child(3) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table th:nth-child(4),
+        .admission-modal-body .admission-minimum-table td:nth-child(4) { width: 8%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-minimum-table th:nth-child(5),
+        .admission-modal-body .admission-minimum-table td:nth-child(5) { width: 14%; text-align: center; white-space: normal; word-break: keep-all; }
+
+        /* 나머지 3종(대학별고사일/학생부반영방법/모집인원 및 입결)도 동일 디자인 언어로 정렬 —
+           장식 없음, 헤더 배경·룰은 위 공통 규칙을 그대로 상속, 컬럼 수에 맞춘 합리적 폭 배분,
+           균일 행 높이(공통 padding 1.25rem 1rem 상속). */
+        .admission-modal-body .admission-exam-table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body .admission-exam-table th:nth-child(1),
+        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 20%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table th:nth-child(2),
+        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 45%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-exam-table th:nth-child(3),
+        .admission-modal-body .admission-exam-table td:nth-child(3) { width: 35%; text-align: center; white-space: normal; word-break: keep-all; }
+
+        .admission-modal-body .admission-record-info-table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body .admission-record-info-table th:nth-child(1),
+        .admission-modal-body .admission-record-info-table td:nth-child(1) { width: 25%; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body .admission-record-info-table th:nth-child(2),
+        .admission-modal-body .admission-record-info-table td:nth-child(2) { width: 75%; text-align: center; white-space: normal; word-break: keep-all; }
+
+        /* 1882:4416 전년도와 차이점 모달 실측: 시안엔 번호 컬럼이 없는 2컬럼(변경 항목 36% / 변경 내용
+           64%) 표다. 기존 구현은 번호 컬럼(3컬럼)을 포함하므로 모달 스코프에서만 숨기고 남은 2컬럼
+           폭을 재분배한다 — 목록/어드민 프리뷰가 쓰는 3컬럼 구조 자체는 바꾸지 않는다. */
+        .admission-modal-body .admission-change-table-v87 th:nth-child(1),
+        .admission-modal-body .admission-change-table-v87 td:nth-child(1) { display: none; }
+        .admission-modal-body .admission-change-table-v87 th:nth-child(2),
+        .admission-modal-body .admission-change-table-v87 td:nth-child(2) { width: 36%; text-align: center; }
+        .admission-modal-body .admission-change-table-v87 th:nth-child(3),
+        .admission-modal-body .admission-change-table-v87 td:nth-child(3) { width: 64%; text-align: center; }
+
+        /* BLOCK5: 최저학력기준(minimum_requirements)·대학별고사일(exam_schedule)은 실제 DB
+           html 126/180행이 admission-minimum-table/admission-exam-table 클래스를 갖지 않고
+           순수 admission-data-table만 저장돼 있어(파서 fallback만 쓰이는 신규 클래스는 미도달)
+           위 클래스 기반 폭 규칙이 무효화된다. 클래스 유무와 무관하게 모달이 열린 section.key
+           (data-section)를 기준으로 위치(:nth-child) 규칙을 강제해 DB 실측 데이터에도 동일하게
+           적용되도록 한다. */
+        .admission-modal-body[data-section="minimum_requirements"] table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(1),
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(1) { width: 10%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(2),
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(2) { width: auto; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(3),
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 40%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(4),
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(4) { width: 8%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(5),
+        .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 14%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+
+        .admission-modal-body[data-section="exam_schedule"] table { table-layout: fixed; width: 100%; min-width: 0; }
+        .admission-modal-body[data-section="exam_schedule"] table th:nth-child(1),
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(1) { width: 20%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table th:nth-child(2),
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(2) { width: 45%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+        .admission-modal-body[data-section="exam_schedule"] table th:nth-child(3),
+        .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { width: 35%; min-width: 0; text-align: center; white-space: normal; word-break: keep-all; }
+
+        /* WARN19: 전형방법 모달 컬럼폭이 rem 고정값(합 48.75rem)이라 48rem 미만(모바일)에서
+           고정폭 합이 컨테이너 폭을 넘어 5번째(전형방법) 컬럼이 0에 가깝게 수축한다.
+           모바일 폭에서만 %로 전환해 비율(전형14/전형명19/인원14/최저14/전형방법 잔여39)을
+           유지한 채 함께 줄어들도록 한다. */
+        @media (max-width: 48rem) {
+          .admission-modal-body .admission-selection-table th:nth-child(1),
+          .admission-modal-body .admission-selection-table td:nth-child(1) { width: 14%; }
+          .admission-modal-body .admission-selection-table th:nth-child(2),
+          .admission-modal-body .admission-selection-table td:nth-child(2) { width: 19%; }
+          .admission-modal-body .admission-selection-table th:nth-child(3),
+          .admission-modal-body .admission-selection-table td:nth-child(3) { width: 14%; }
+          .admission-modal-body .admission-selection-table th:nth-child(4),
+          .admission-modal-body .admission-selection-table td:nth-child(4) { width: 14%; }
+          .admission-modal-body .admission-selection-table th:nth-child(5),
+          .admission-modal-body .admission-selection-table td:nth-child(5) { width: auto; padding-left: 0.5rem; padding-right: 0.5rem; }
+        }
+
         .muted { color: #667085; }
         @media (max-width: 48rem) {
           .admission-token-row { grid-template-columns: 1fr; }
@@ -1829,7 +1954,7 @@ export default function AdmissionGuidelines() {
               >
                 <X className="h-5 w-5" />
               </button>
-              <p className="text-center text-base font-medium text-[#013262]">
+              <p className="text-center text-base font-medium tracking-[-0.02em] text-[#013262]">
                 {selectedInfo.universityName}
               </p>
               <h3 className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
@@ -1838,6 +1963,7 @@ export default function AdmissionGuidelines() {
             </div>
             <div
               ref={modalBodyRef}
+              data-section={selectedInfo.section?.key || ''}
               className="admission-modal-body flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12"
             >
               {selectedInfo.status === 'loading' ? (
