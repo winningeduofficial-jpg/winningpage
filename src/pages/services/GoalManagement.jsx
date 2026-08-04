@@ -431,7 +431,7 @@ function HeroSection() {
             </div>
             <img
               src={heroDashboard}
-              alt="TMP 주간 성장 리포트 대시보드 화면 — 이번 주 공부 시간, 목표 달성률, 목표군 내 위치를 보여준다"
+              alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
               className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
             />
           </div>
