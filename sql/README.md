@@ -12,6 +12,7 @@ Supabase SQL Editor에서 **파일명 접두어 순서대로** 실행합니다. 
 | 32 | `32_news_categories.sql` | 랜딩 "소식" 섹션 카테고리 배지(Figma 1907:14893): `company_news`/`notices`에 nullable `category` 컬럼 추가 + dev 테스트 행(Test1~3) 시드 UPDATE(마커 가드) | `00_base_schema.sql`의 `company_news`/`notices` 필요 |
 | 33 | `33_drop_mentor_legacy_image.sql` | 멘토 성공전략 구버전 통이미지 완전 제거: `home_mentor_strategies.image_url` 컬럼 drop (되돌릴 수 없음 — 실행 전 백업 권장) | `30_landing_admin_media.sql`의 카드 분해 컬럼(badge/title_lines/photo_url 등)으로 전환 완료된 상태 필요 |
 | 36 | `36_column_renewal.sql` | 교육칼럼 리뉴얼: `galleries`에 category/view_count/published_at/is_featured 컬럼 추가 + published_at 백필 + 조회용 인덱스 3종 (idempotent) | `00_base_schema.sql`의 `galleries` 필요 |
+| 37 | `37_column_block_content.sql` | 교육칼럼 블록 에디터: `galleries`에 `content_json jsonb` 컬럼 추가 (idempotent). `content`(text)는 평문 미러로 계속 유지 | `00_base_schema.sql`의 `galleries` 필요. `36_column_renewal.sql`과 독립 실행 가능 |
 
 > `partner_universities`(학교리스트 섹션) 테이블·RLS·시드는 2026-07-27 최종본에서 섹션 자체가 삭제되어 이 파일에서 제거됨. 이미 실행된 운영 DB에 테이블이 남아있다면 별도 `drop table` 정리는 필요 시 수동 진행.
 
