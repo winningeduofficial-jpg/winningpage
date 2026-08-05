@@ -12,6 +12,7 @@
 --   [5] parent_child_links     : 학부모-자녀 연결 (학생 승인 필수)
 --   [6] phone_verifications    : 휴대폰 인증코드 (서버 전용)
 --   [7] complete_signup_profile 확장 (학부모·멘토 가입 개통, 약관 이력 기록)
+--   [8] 연결 RPC 4종 (요청/응답/해제/코드 재발급)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -790,6 +791,308 @@ grant execute on function public.complete_signup_profile(
 
 
 -- =====================================================================
+-- [8] 연결 RPC 4종
+--
+-- 전부 security definer라 RLS를 우회한다. 따라서 각 함수가 auth.uid()로
+-- "당사자인지"를 직접 판정해야 한다 — 인자로 받은 id를 그대로 믿지 않는다.
+--
+-- 예외는 영문 snake_case로 던진다. 프론트가 message 문자열로 매칭한다.
+-- 새 예외를 추가하면 기존 예외명의 부분문자열이 되지 않는지 확인할 것
+-- (프론트가 includes()로 매칭하므로 'link_not_found'와 'not_found' 같은
+--  포함 관계가 생기면 잘못된 분기를 탄다).
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- request_parent_link(code) : 학부모가 연결코드로 연결을 요청한다
+--
+-- 승인이 불가능한 상황(학생에게 이미 승인된 학부모가 있음)은 요청 시점에
+-- 막는다. 통과시켜봐야 학생이 승인할 수 없는 pending이 쌓일 뿐이다.
+-- ---------------------------------------------------------------------
+create or replace function public.request_parent_link(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_parent_id  uuid;
+  v_code       text;
+  v_code_id    uuid;
+  v_student_id uuid;
+  v_link_id    uuid;
+  v_status     text;
+begin
+  v_parent_id := auth.uid();
+
+  if v_parent_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  -- 회원유형 검증: FK로는 강제할 수 없어 여기서 본다([5] 주석 참고)
+  if not exists (
+    select 1 from public.profiles
+    where id = v_parent_id and member_type = 'parent'
+  ) then
+    raise exception 'not_a_parent';
+  end if;
+
+  -- 학부모가 소문자로 입력해도 받아준다. 코드 자체는 항상 대문자로 저장된다.
+  v_code := upper(trim(coalesce(p_code, '')));
+
+  if v_code !~ '^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$' then
+    raise exception 'invalid_code_format';
+  end if;
+
+  select id, student_id into v_code_id, v_student_id
+  from public.student_link_codes
+  where code = v_code
+    and is_active;
+
+  if v_student_id is null then
+    raise exception 'link_code_not_found';
+  end if;
+
+  if v_student_id = v_parent_id then
+    raise exception 'cannot_link_self';
+  end if;
+
+  -- 자녀 1명 : 학부모 1명 — 이미 승인된 학부모가 있으면 요청 자체를 막는다.
+  if exists (
+    select 1 from public.parent_child_links
+    where student_id = v_student_id and status = 'approved'
+  ) then
+    raise exception 'student_already_linked';
+  end if;
+
+  -- 이 학부모와의 기존 요청 상태를 먼저 확인해 23505 대신 구분되는 예외를 던진다.
+  select status into v_status
+  from public.parent_child_links
+  where parent_id = v_parent_id
+    and student_id = v_student_id
+    and status in ('pending', 'approved');
+
+  if v_status = 'pending' then
+    raise exception 'link_already_requested';
+  end if;
+
+  insert into public.parent_child_links (parent_id, student_id, link_code_id)
+  values (v_parent_id, v_student_id, v_code_id)
+  returning id into v_link_id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'link_id', v_link_id,
+    'status', 'pending',
+    'student_name', (select name from public.profiles where id = v_student_id)
+  );
+end;
+$function$;
+
+-- ---------------------------------------------------------------------
+-- respond_parent_link(link_id, approve) : 학생이 승인 또는 거절한다
+--
+-- 승인 시 같은 학생에게 온 다른 pending 요청은 함께 거절 처리한다.
+-- 자녀 1명 : 학부모 1명이라 어차피 승인될 수 없는 요청이고, 남겨두면
+-- 학생 화면에 영원히 처리되지 않는 항목으로 남는다.
+-- ---------------------------------------------------------------------
+create or replace function public.respond_parent_link(
+  p_link_id uuid,
+  p_approve boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_student_id uuid;
+  v_status     text;
+  v_new_status text;
+  v_rejected   int := 0;
+begin
+  v_student_id := auth.uid();
+
+  if v_student_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_approve is null then
+    raise exception 'approve_required';
+  end if;
+
+  -- 당사자(학생) 본인의 요청만 응답할 수 있다. 남의 link_id를 넣으면
+  -- 조회 자체가 안 되므로 link_not_found로 끝난다.
+  select status into v_status
+  from public.parent_child_links
+  where id = p_link_id
+    and student_id = v_student_id;
+
+  if v_status is null then
+    raise exception 'link_not_found';
+  end if;
+
+  if v_status <> 'pending' then
+    raise exception 'link_not_pending';
+  end if;
+
+  if p_approve then
+    if exists (
+      select 1 from public.parent_child_links
+      where student_id = v_student_id and status = 'approved'
+    ) then
+      raise exception 'student_already_linked';
+    end if;
+
+    -- 승인될 수 없게 된 나머지 요청을 먼저 정리한다.
+    update public.parent_child_links
+    set status = 'rejected', responded_at = now()
+    where student_id = v_student_id
+      and status = 'pending'
+      and id <> p_link_id;
+
+    get diagnostics v_rejected = row_count;
+
+    v_new_status := 'approved';
+  else
+    v_new_status := 'rejected';
+  end if;
+
+  update public.parent_child_links
+  set status = v_new_status, responded_at = now()
+  where id = p_link_id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'link_id', p_link_id,
+    'status', v_new_status,
+    'auto_rejected', v_rejected   -- 함께 정리된 다른 요청 수
+  );
+end;
+$function$;
+
+-- ---------------------------------------------------------------------
+-- revoke_parent_link(link_id) : 연결 해제 / 요청 철회
+--
+-- 학생과 학부모 양쪽 모두 호출할 수 있다. 학부모는 자기가 보낸 요청을
+-- 철회하는 용도로, 학생은 승인했던 연결을 끊는 용도로 쓴다.
+-- 누가 끊었는지는 revoked_by에 남는다.
+-- ---------------------------------------------------------------------
+create or replace function public.revoke_parent_link(p_link_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_uid    uuid;
+  v_status text;
+begin
+  v_uid := auth.uid();
+
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select status into v_status
+  from public.parent_child_links
+  where id = p_link_id
+    and (student_id = v_uid or parent_id = v_uid);
+
+  if v_status is null then
+    raise exception 'link_not_found';
+  end if;
+
+  if v_status not in ('pending', 'approved') then
+    raise exception 'link_not_active';
+  end if;
+
+  update public.parent_child_links
+  set status = 'revoked',
+      revoked_at = now(),
+      revoked_by = v_uid
+  where id = p_link_id;
+
+  return jsonb_build_object('ok', true, 'link_id', p_link_id, 'status', 'revoked');
+end;
+$function$;
+
+-- ---------------------------------------------------------------------
+-- reissue_link_code() : 학생이 본인 연결코드를 재발급한다
+--
+-- 인자를 받지 않는다 — 대상은 항상 auth.uid()다. 내부의
+-- issue_student_link_code(uuid)는 학생을 인자로 지정할 수 있어 노출하면
+-- 안 되므로([4] 주석), 회원용 입구를 이 함수로 따로 낸다.
+--
+-- 구 코드로 들어온 pending 요청은 함께 거절 처리한다.
+-- 재발급의 의미가 "이전 코드 무효화"인데 그 코드로 들어온 요청이 살아 있으면
+-- 무효화가 아니게 된다. 승인된 연결은 그대로 둔다(2026-07-31 잠정 결정).
+-- ※ 이 처리는 기획 미확정 항목이다. "pending도 유지"로 정해지면 아래
+--   update 블록만 지우면 된다.
+-- ---------------------------------------------------------------------
+create or replace function public.reissue_link_code()
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_student_id uuid;
+  v_old_code_id uuid;
+  v_code       text;
+  v_rejected   int := 0;
+begin
+  v_student_id := auth.uid();
+
+  if v_student_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles
+    where id = v_student_id and member_type = 'student'
+  ) then
+    raise exception 'not_a_student';
+  end if;
+
+  select id into v_old_code_id
+  from public.student_link_codes
+  where student_id = v_student_id
+    and is_active;
+
+  v_code := public.issue_student_link_code(v_student_id);
+
+  if v_old_code_id is not null then
+    update public.parent_child_links
+    set status = 'rejected', responded_at = now()
+    where student_id = v_student_id
+      and status = 'pending'
+      and link_code_id = v_old_code_id;
+
+    get diagnostics v_rejected = row_count;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'link_code', v_code,
+    'rejected_pending', v_rejected
+  );
+end;
+$function$;
+
+-- 4종 모두 회원이 직접 호출한다 — authenticated에 execute가 있어야 한다.
+-- (anon은 auth.uid()가 null이라 not_authenticated로 끝나지만 아예 막는다)
+revoke all on function public.request_parent_link(text)          from public, anon;
+revoke all on function public.respond_parent_link(uuid, boolean)  from public, anon;
+revoke all on function public.revoke_parent_link(uuid)            from public, anon;
+revoke all on function public.reissue_link_code()                 from public, anon;
+
+grant execute on function public.request_parent_link(text)         to authenticated, service_role;
+grant execute on function public.respond_parent_link(uuid, boolean) to authenticated, service_role;
+grant execute on function public.revoke_parent_link(uuid)          to authenticated, service_role;
+grant execute on function public.reissue_link_code()               to authenticated, service_role;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -1146,6 +1449,157 @@ grant execute on function public.complete_signup_profile(
 --   end;
 --
 --   raise notice '[7] 전체 통과 (link_code=%)', v_first;
+-- end $$;
+--
+-- rollback;
+--
+-- -- [8-a] 연결 RPC 4종 권한: authenticated true / anon false
+-- select p.proname, r.rolname,
+--        has_function_privilege(r.rolname, p.oid, 'execute') as can_execute
+-- from pg_proc p
+-- cross join (values ('anon'), ('authenticated')) as r(rolname)
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname in ('request_parent_link', 'respond_parent_link',
+--                     'revoke_parent_link', 'reissue_link_code')
+-- order by p.proname, r.rolname;
+--
+-- -- [8-b] 연결 플로우 전체 시나리오 (이 커밋의 인수 테스트)
+-- --
+-- -- set_config로 호출자를 바꿔가며 학부모A/학부모B/학생을 연기한다.
+-- -- 전체가 begin/rollback 안이라 profiles 변경까지 포함해 아무것도 남지 않는다.
+-- -- 에러 없이 끝나면 통과. 실패는 '실패: ...' 메시지로 나온다.
+--
+-- begin;
+--
+-- do $$
+-- declare
+--   v_ids     uuid[];
+--   v_pa      uuid;   -- 학부모 A
+--   v_pb      uuid;   -- 학부모 B
+--   v_st      uuid;   -- 학생
+--   v_code    text;
+--   v_code2   text;
+--   v_link_a  uuid;
+--   v_link_b  uuid;
+--   v_res     jsonb;
+--   v_status  text;
+-- begin
+--   select array_agg(id order by created_at) into v_ids
+--   from (select id, created_at from auth.users order by created_at limit 3) t;
+--
+--   if coalesce(array_length(v_ids, 1), 0) < 3 then
+--     raise exception '검증 중단: auth.users에 계정이 3건 이상 필요합니다.';
+--   end if;
+--
+--   v_pa := v_ids[1]; v_pb := v_ids[2]; v_st := v_ids[3];
+--
+--   insert into public.profiles (id, member_type, name) values
+--     (v_pa, 'parent',  '학부모A'),
+--     (v_pb, 'parent',  '학부모B'),
+--     (v_st, 'student', '학생')
+--   on conflict (id) do update
+--   set member_type = excluded.member_type, name = excluded.name;
+--
+--   delete from public.parent_child_links where student_id = v_st;
+--   update public.student_link_codes set is_active = false where student_id = v_st;
+--   v_code := public.issue_student_link_code(v_st);
+--
+--   -- 1) 학부모 A가 요청 → pending
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pa)::text, true);
+--   v_res := public.request_parent_link(lower(v_code));   -- 소문자 입력도 받아야 한다
+--   v_link_a := (v_res ->> 'link_id')::uuid;
+--   if v_res ->> 'status' <> 'pending' then
+--     raise exception '실패: 최초 요청이 pending이 아닙니다 (%).', v_res;
+--   end if;
+--
+--   -- 2) 같은 학부모의 중복 요청 → link_already_requested
+--   begin
+--     perform public.request_parent_link(v_code);
+--     raise exception '실패: 중복 요청이 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'link_already_requested' then raise; end if;
+--   end;
+--
+--   -- 3) 다른 학부모 B의 요청은 허용된다
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pb)::text, true);
+--   v_link_b := (public.request_parent_link(v_code) ->> 'link_id')::uuid;
+--
+--   -- 4) 학생이 A를 승인 → B의 pending이 함께 거절돼야 한다
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_st)::text, true);
+--   v_res := public.respond_parent_link(v_link_a, true);
+--   if (v_res ->> 'auto_rejected')::int <> 1 then
+--     raise exception '실패: 다른 pending이 자동 거절되지 않았습니다 (%).', v_res;
+--   end if;
+--
+--   select status into v_status from public.parent_child_links where id = v_link_b;
+--   if v_status <> 'rejected' then
+--     raise exception '실패: B의 상태가 rejected가 아닙니다 (%).', v_status;
+--   end if;
+--
+--   -- 5) 이미 연결된 학생에게 B가 다시 요청 → student_already_linked
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pb)::text, true);
+--   begin
+--     perform public.request_parent_link(v_code);
+--     raise exception '실패: 이미 연결된 학생에게 요청이 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'student_already_linked' then raise; end if;
+--   end;
+--
+--   -- 6) 학생이 연결 해제 → 이후 B의 재요청이 가능해야 한다
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_st)::text, true);
+--   perform public.revoke_parent_link(v_link_a);
+--
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pb)::text, true);
+--   v_link_b := (public.request_parent_link(v_code) ->> 'link_id')::uuid;
+--
+--   -- 7) 학생이 코드 재발급 → 코드가 바뀌고, 구 코드로 온 pending이 거절된다
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_st)::text, true);
+--   v_res := public.reissue_link_code();
+--   v_code2 := v_res ->> 'link_code';
+--
+--   if v_code2 = v_code then
+--     raise exception '실패: 재발급했는데 코드가 그대로입니다 (%).', v_code2;
+--   end if;
+--
+--   if (v_res ->> 'rejected_pending')::int <> 1 then
+--     raise exception '실패: 구 코드의 pending이 정리되지 않았습니다 (%).', v_res;
+--   end if;
+--
+--   -- 8) 구 코드는 더 이상 통하지 않는다
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pb)::text, true);
+--   begin
+--     perform public.request_parent_link(v_code);
+--     raise exception '실패: 폐기된 코드가 아직 통합니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'link_code_not_found' then raise; end if;
+--   end;
+--
+--   -- 9) 형식 오류 / 학생이 학부모 RPC 호출
+--   begin
+--     perform public.request_parent_link('abc');
+--     raise exception '실패: 잘못된 형식이 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'invalid_code_format' then raise; end if;
+--   end;
+--
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_st)::text, true);
+--   begin
+--     perform public.request_parent_link(v_code2);
+--     raise exception '실패: 학생이 학부모용 RPC를 호출했는데 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'not_a_parent' then raise; end if;
+--   end;
+--
+--   -- 10) 남의 요청에 응답 시도 → link_not_found (당사자 판정)
+--   perform set_config('request.jwt.claims', json_build_object('sub', v_pa)::text, true);
+--   begin
+--     perform public.respond_parent_link(v_link_b, true);
+--     raise exception '실패: 당사자가 아닌데 응답이 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'link_not_found' then raise; end if;
+--   end;
+--
+--   raise notice '[8] 전체 통과 (old=%, new=%)', v_code, v_code2;
 -- end $$;
 --
 -- rollback;
