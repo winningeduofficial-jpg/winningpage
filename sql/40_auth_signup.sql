@@ -8,8 +8,9 @@
 --   [1] profiles.member_type 회원유형 제약 (student/parent/mentor)
 --   [2] terms                  : 약관 버전 레지스트리
 --   [3] user_term_agreements   : 회원별 약관 동의 이력 (버전 단위)
+--   [4] student_link_codes     : 학생 연결코드(재발급형) + 발급 함수
 --
--- 의존: 00_base_schema.sql (profiles, is_winning_admin())
+-- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
 
 -- 1회성 데이터 보정을 최초 1회만 적용하기 위한 마커 테이블.
@@ -233,6 +234,166 @@ create policy "user_term_agreements own read" on public.user_term_agreements
 
 
 -- =====================================================================
+-- [4] student_link_codes : 학생 연결코드 (재발급형)
+--
+-- 2026-07-31 미팅 확정 모델:
+--   - 코드는 "학생에게 귀속"된다. 1회성 초대(child_invitations) 모델이 아니다.
+--   - 자동 회전 없음. 학생이 마이페이지에서 재발급을 눌렀을 때만 새 코드가
+--     생기고, 이전 코드는 is_active=false로 남겨 이력을 보존한다.
+--   - 숫자+영문 6자리 (기존 숫자 6자리 폐기).
+--
+-- 알파벳 31자 '23456789ABCDEFGHJKMNPQRSTUVWXYZ' — 0/O, 1/I/L을 뺐다.
+-- 코드를 육성으로 불러주거나 손으로 받아적는 상황(학부모-자녀)이 기본이라
+-- 혼동되는 글자를 빼는 쪽이 경우의 수(31^6 = 약 8.8억)보다 중요하다.
+--
+-- 코드 유출 위험도: 코드를 안다고 연결되지 않는다. 학부모의 연결 요청은
+-- pending으로 쌓이고 학생 승인이 있어야 approved가 된다([5] parent_child_links).
+-- =====================================================================
+
+create table if not exists public.student_link_codes (
+  id             uuid primary key default gen_random_uuid(),
+  student_id     uuid not null references auth.users(id) on delete cascade,
+  code           text not null,
+  is_active      boolean not null default true,
+  issued_at      timestamptz not null default now(),
+  deactivated_at timestamptz,
+  created_at     timestamptz not null default now(),
+  constraint student_link_codes_code_format
+    check (code ~ '^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$')
+);
+
+-- 활성 코드는 전역에서 유일해야 한다 — 학부모가 코드만으로 학생을 특정하므로.
+-- 비활성 코드는 중복을 허용한다(이력 보존이 목적이고, 조회는 활성 건만 본다).
+create unique index if not exists student_link_codes_active_code_key
+  on public.student_link_codes (code) where is_active;
+
+-- 학생당 활성 코드는 1건. 재발급이 "교체"가 되도록 보장한다.
+create unique index if not exists student_link_codes_active_student_key
+  on public.student_link_codes (student_id) where is_active;
+
+create index if not exists student_link_codes_student_idx
+  on public.student_link_codes (student_id, issued_at desc);
+
+alter table public.student_link_codes enable row level security;
+
+-- 본인(학생) 조회만 + 관리자. 학부모의 코드 조회는 RLS를 타지 않는다 —
+-- api/lookup-child.js가 service_role로 조회하며 rate limit을 건다(커밋 8).
+-- write 정책은 두지 않는다: 발급은 아래 security definer 함수 경유만 허용.
+drop policy if exists "student_link_codes own read" on public.student_link_codes;
+create policy "student_link_codes own read" on public.student_link_codes
+  for select using (student_id = auth.uid() or public.is_winning_admin());
+
+-- ---------------------------------------------------------------------
+-- generate_link_code_string() : 코드 문자열 6자 생성 (충돌 검사 없음)
+--
+-- random() 대신 pgcrypto를 쓴다. pgcrypto는 extensions 스키마에 설치돼
+-- 있으므로(00_base_schema.sql:18) search_path와 무관하게 스키마 한정 호출한다.
+--
+-- 256 % 31 = 8이라 바이트를 그냥 31로 나눈 나머지를 쓰면 앞쪽 8글자가 더
+-- 자주 나온다. 248(=8*31) 이상인 바이트는 버리고 다시 뽑아 편향을 없앤다.
+-- ---------------------------------------------------------------------
+create or replace function public.generate_link_code_string()
+returns text
+language plpgsql
+volatile
+set search_path to 'public'
+as $function$
+declare
+  c_alphabet constant text := '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  c_len      constant int  := length(c_alphabet);              -- 31
+  c_limit    constant int  := (256 / c_len) * c_len;           -- 248
+  v_code text := '';
+  v_byte int;
+begin
+  while length(v_code) < 6 loop
+    v_byte := get_byte(extensions.gen_random_bytes(1), 0);
+    if v_byte < c_limit then
+      v_code := v_code || substr(c_alphabet, (v_byte % c_len) + 1, 1);
+    end if;
+  end loop;
+
+  return v_code;
+end;
+$function$;
+
+-- ---------------------------------------------------------------------
+-- issue_student_link_code(student_id) : 발급/재발급 (내부 전용)
+--
+-- 기존 활성 코드를 비활성화하고 새 코드를 1건 만든다. 코드 충돌 시 재시도.
+--
+-- 내부 전용인 이유: 인자로 학생을 지정하므로 그대로 노출하면 아무나 남의
+-- 코드를 갈아치울 수 있다. 회원 대상 재발급은 auth.uid()로 본인을 판정하는
+-- reissue_link_code RPC로 따로 낸다(커밋 6). 이 함수는 그 RPC와
+-- complete_signup_profile(커밋 5)이 내부에서만 호출한다.
+-- 두 호출자 모두 security definer라 소유자 권한으로 실행되므로,
+-- authenticated에 execute를 주지 않아도 정상 동작한다.
+-- ---------------------------------------------------------------------
+create or replace function public.issue_student_link_code(p_student_id uuid)
+returns text
+language plpgsql
+volatile
+security definer
+set search_path to 'public'
+as $function$
+declare
+  c_max_attempt constant int := 10;
+  v_code       text;
+  v_attempt    int := 0;
+  v_constraint text;
+begin
+  if p_student_id is null then
+    raise exception 'student_id_required';
+  end if;
+
+  -- 이력 보존: 삭제가 아니라 비활성화. 학생당 활성 1건 인덱스를 위해 선행한다.
+  update public.student_link_codes
+  set is_active = false,
+      deactivated_at = now()
+  where student_id = p_student_id
+    and is_active;
+
+  loop
+    v_attempt := v_attempt + 1;
+    v_code := public.generate_link_code_string();
+
+    begin
+      insert into public.student_link_codes (student_id, code)
+      values (p_student_id, v_code);
+
+      return v_code;
+    exception when unique_violation then
+      get stacked diagnostics v_constraint = constraint_name;
+
+      -- 같은 학생에 대해 발급이 동시에 들어온 경우(재발급 버튼 연타 등).
+      -- 재시도해도 계속 막히므로 즉시 구분되는 예외로 던진다.
+      if v_constraint = 'student_link_codes_active_student_key' then
+        raise exception 'link_code_issue_conflict';
+      end if;
+
+      -- 그 외(코드 충돌)는 새 코드로 재시도.
+      if v_attempt >= c_max_attempt then
+        raise exception 'link_code_generation_failed';
+      end if;
+    end;
+  end loop;
+end;
+$function$;
+
+-- 내부 전용 함수 — 클라이언트(anon/authenticated) 직접 호출을 차단한다.
+--
+-- 주의: `revoke ... from public`만으로는 뚫린 채로 남는다. Supabase는 public
+-- 스키마의 함수에 anon/authenticated EXECUTE를 기본 부여하는데, 그건 PUBLIC
+-- 의사롤이 아니라 각 롤에 직접 걸린 권한이라 PUBLIC 회수로는 사라지지 않는다.
+-- 두 롤을 명시적으로 회수해야 한다. (검증: 아래 [4-e])
+revoke all on function public.generate_link_code_string()
+  from public, anon, authenticated;
+revoke all on function public.issue_student_link_code(uuid)
+  from public, anon, authenticated;
+
+grant execute on function public.issue_student_link_code(uuid) to service_role;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -258,3 +419,60 @@ create policy "user_term_agreements own read" on public.user_term_agreements
 -- select tablename, policyname, cmd
 -- from pg_policies where tablename in ('terms', 'user_term_agreements')
 -- order by tablename, policyname;
+--
+-- -- [4-a] 코드 형식: 20건 뽑아 전부 6자 / 허용 알파벳인지
+-- select c,
+--        c ~ '^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$' as format_ok
+-- from (select public.generate_link_code_string() as c
+--       from generate_series(1, 20)) t;
+--
+-- -- [4-b] 글자 편향: 10000건 * 6자 = 60000글자를 뽑아 31종이 고르게 나오는지.
+-- -- 기대 평균 약 1935회. 특정 글자만 25% 이상 튀면 편향 제거가 깨진 것.
+-- -- 제외 글자(0,1,I,L,O)가 단 한 건도 없어야 한다.
+-- select ch, count(*) as n
+-- from (
+--   select substr(public.generate_link_code_string(), i, 1) as ch
+--   from generate_series(1, 10000), generate_series(1, 6) as g(i)
+-- ) t
+-- group by ch order by n;
+--
+-- -- [4-c] 발급/재발급 (dev에서만 — 실제 행이 생긴다)
+-- -- 학생 계정 하나를 골라 두 번 발급하면 활성 1건 + 비활성 1건이 돼야 한다.
+-- -- select id, email from public.profiles where member_type = 'student' limit 5;
+-- -- select public.issue_student_link_code('<student uuid>');
+-- -- select public.issue_student_link_code('<student uuid>');
+-- -- select code, is_active, issued_at, deactivated_at
+-- -- from public.student_link_codes
+-- -- where student_id = '<student uuid>' order by issued_at desc;
+--
+-- -- [4-d] 중복 방어 (반드시 23505가 나야 정상)
+-- -- 활성 행을 그대로 복제 시도 — 코드 유일·학생당 1건 인덱스 양쪽에 걸린다.
+-- -- insert into public.student_link_codes (student_id, code)
+-- -- select student_id, code from public.student_link_codes where is_active limit 1;
+-- --
+-- -- 형식 제약도 확인 (반드시 23514가 나야 정상 — 소문자 + 5자리)
+-- -- 활성 코드가 없는 계정을 골라야 학생당 1건 인덱스(23505)에 먼저 안 걸린다.
+-- -- insert into public.student_link_codes (student_id, code)
+-- -- select p.id, 'abc12' from public.profiles p
+-- -- where not exists (select 1 from public.student_link_codes s
+-- --                   where s.student_id = p.id and s.is_active)
+-- -- limit 1;
+--
+-- -- [4-e] 내부 전용 함수가 클라이언트에 노출되지 않았는지
+-- -- anon/authenticated는 반드시 can_execute = false 여야 한다.
+-- -- (service_role은 issue_student_link_code만 true, generate 쪽은 false여도 무방)
+-- select p.proname, r.rolname, has_function_privilege(r.rolname, p.oid, 'execute') as can_execute
+-- from pg_proc p
+-- cross join (values ('anon'), ('authenticated'), ('service_role')) as r(rolname)
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname in ('generate_link_code_string', 'issue_student_link_code')
+-- order by p.proname, r.rolname;
+--
+-- -- [4-e'] 위가 true로 나오면 실제 부여 주체를 여기서 확인한다.
+-- -- proacl에 anon=X/... 또는 authenticated=X/... 항목이 남아 있으면
+-- -- revoke 대상에서 빠진 것이다(PUBLIC 회수만으로는 안 지워진다).
+-- select p.proname, coalesce(p.proacl::text, '(기본값 상속)') as proacl
+-- from pg_proc p
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname in ('generate_link_code_string', 'issue_student_link_code')
+-- order by p.proname;
