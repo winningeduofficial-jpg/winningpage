@@ -9,6 +9,7 @@
 --   [2] terms                  : 약관 버전 레지스트리
 --   [3] user_term_agreements   : 회원별 약관 동의 이력 (버전 단위)
 --   [4] student_link_codes     : 학생 연결코드(재발급형) + 발급 함수
+--   [5] parent_child_links     : 학부모-자녀 연결 (학생 승인 필수)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -394,6 +395,99 @@ grant execute on function public.issue_student_link_code(uuid) to service_role;
 
 
 -- =====================================================================
+-- [5] parent_child_links : 학부모-자녀 연결
+--
+-- 2026-07-31 미팅 확정:
+--   - 학부모가 코드를 입력해 요청하면 pending. 학생이 마이페이지에서
+--     승인해야 approved가 된다. 즉시 연결이 아니다.
+--   - 카디널리티: 학부모 1명 : 자녀 N명, 자녀 1명 : 학부모 1명.
+--     즉 한 학부모는 여러 자녀를 관리하지만, 한 학생에게 연결된 학부모는
+--     한 명뿐이다. (2026-08-05 확인 — 그 전 기록의 "학생 1 : 학부모 N"은 오기)
+--
+-- 상태 4종:
+--   pending   요청됨, 학생 응답 대기
+--   approved  학생이 승인 (실제 연결)
+--   rejected  학생이 거절
+--   revoked   연결 해제 (승인 후 해제 또는 학부모의 요청 철회)
+--
+-- rejected/revoked 행은 지우지 않고 쌓는다. 이력이 남아야 "거절 후 재요청"
+-- 반복을 나중에 제한할 수 있고, 분쟁 시 근거가 된다.
+--
+-- 아직 기획 미확정이라 DB로 강제하지 않은 것들 (커밋 6 RPC나 추후 처리):
+--   - 거절 후 재요청 횟수/쿨타임 제한
+--   - 코드 재발급 시 pending 요청을 함께 정리할지
+--     (승인된 연결은 유지로 잠정 결정. link_code_id가 남아 있어서 나중에
+--      "구 코드로 들어온 pending"만 골라내는 게 가능하다.)
+--
+-- parent_id가 실제로 학부모 회원인지는 check로 강제할 수 없다(교차 테이블).
+-- 커밋 6의 request_parent_link RPC에서 member_type을 검증한다.
+-- =====================================================================
+
+create table if not exists public.parent_child_links (
+  id           uuid primary key default gen_random_uuid(),
+  parent_id    uuid not null references auth.users(id) on delete cascade,
+  student_id   uuid not null references auth.users(id) on delete cascade,
+  status       text not null default 'pending'
+               check (status in ('pending', 'approved', 'rejected', 'revoked')),
+  -- 어떤 코드로 요청됐는지 (감사·재발급 처리 판단용). 코드 행은 삭제되지 않고
+  -- is_active=false로 남으므로 실제로 null이 되는 경우는 거의 없다.
+  link_code_id uuid references public.student_link_codes(id) on delete set null,
+  requested_at timestamptz not null default now(),
+  responded_at timestamptz,                    -- 학생이 승인/거절한 시각
+  revoked_at   timestamptz,
+  revoked_by   uuid references auth.users(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  constraint parent_child_links_not_self check (parent_id <> student_id)
+);
+
+-- 같은 (학부모, 학생) 쌍에 대해 "살아있는" 연결은 1건만 존재한다.
+-- pending과 approved를 한 인덱스로 묶는 이유:
+--   - pending 중복 → 학부모가 같은 요청을 계속 밀어넣어 학생 알림을 도배하는 걸 막는다
+--   - 이미 approved인데 새 pending → 무의미한 재요청을 막는다
+-- rejected/revoked는 제외되므로, 거절·해제된 뒤에는 다시 요청할 수 있다.
+create unique index if not exists parent_child_links_open_pair_key
+  on public.parent_child_links (parent_id, student_id)
+  where status in ('pending', 'approved');
+
+-- 자녀 1명 : 학부모 1명 — 학생당 승인된 연결은 전역에서 1건뿐이다.
+--
+-- 'approved'만 대상으로 하고 pending은 뺐다. pending까지 묶으면 엉뚱한
+-- 학부모가 코드를 잘못 입력해 요청을 걸어둔 것만으로 진짜 학부모가 요청
+-- 자체를 못 하는 잠금 상태가 된다. 여러 학부모가 요청을 넣는 것은 허용하되
+-- 학생이 승인할 수 있는 건 한 명뿐이고, 두 번째 승인은 이 인덱스가 막는다.
+--
+-- 커밋 6 respond_parent_link에서 처리할 것:
+--   - 이미 승인된 학부모가 있으면 student_already_linked 예외
+--   - 승인 시 같은 학생의 다른 pending 요청은 함께 rejected 처리
+create unique index if not exists parent_child_links_approved_student_key
+  on public.parent_child_links (student_id)
+  where status = 'approved';
+
+-- 학생 마이페이지: 나에게 온 대기/승인 목록
+create index if not exists parent_child_links_student_idx
+  on public.parent_child_links (student_id, status, requested_at desc);
+
+-- 학부모 화면: 내 자녀 목록
+create index if not exists parent_child_links_parent_idx
+  on public.parent_child_links (parent_id, status, requested_at desc);
+
+alter table public.parent_child_links enable row level security;
+
+-- 양방향 select: 학부모도 학생도 자기가 당사자인 연결을 볼 수 있어야 한다.
+-- (학부모는 자녀 목록, 학생은 승인 대기 목록)
+-- write 정책은 두지 않는다 — 요청/승인/거절/해제는 전부 커밋 6의
+-- security definer RPC 경유. 클라이언트가 status를 직접 approved로
+-- 바꿀 수 있으면 학생 승인 절차 자체가 무의미해진다.
+drop policy if exists "parent_child_links party read" on public.parent_child_links;
+create policy "parent_child_links party read" on public.parent_child_links
+  for select using (
+    parent_id = auth.uid()
+    or student_id = auth.uid()
+    or public.is_winning_admin()
+  );
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -467,6 +561,132 @@ grant execute on function public.issue_student_link_code(uuid) to service_role;
 -- where p.pronamespace = 'public'::regnamespace
 --   and p.proname in ('generate_link_code_string', 'issue_student_link_code')
 -- order by p.proname, r.rolname;
+--
+-- -- [5-a] 연결 테이블 인덱스·제약 확인
+-- select indexname, indexdef from pg_indexes
+-- where tablename = 'parent_child_links' order by indexname;
+--
+-- select conname, pg_get_constraintdef(oid) from pg_constraint
+-- where conrelid = 'public.parent_child_links'::regclass order by conname;
+--
+-- -- [5-a2] 계정 현황 진단 (이 파일의 검증 대상은 아니고 dev 상태 확인용)
+-- --
+-- -- auth.users > profiles 인 것 자체는 정상일 수 있다. 가입을 끝까지 마치지
+-- -- 않은 계정(=complete_signup_profile 미호출)이 그렇다. 가입 완료 RPC가
+-- -- insert ... on conflict (id) do update(00_base_schema.sql:1208)라서
+-- -- profiles 행이 없어도 그 시점에 스스로 만든다.
+-- select
+--   (select count(*) from auth.users)      as auth_users,
+--   (select count(*) from public.profiles) as profiles;
+--
+-- -- profiles가 없는 계정 목록
+-- select u.id, u.email, u.created_at
+-- from auth.users u
+-- where not exists (select 1 from public.profiles p where p.id = u.id)
+-- order by u.created_at;
+--
+-- -- 다만 handle_new_user 트리거(00_base_schema.sql:1548)가 dev에 실제로
+-- -- 붙어 있는지는 확인해둘 것. 없으면 가입 완료 전까지 profiles 행이 아예
+-- -- 없어서 Header/MyPage의 프로필 조회가 빈 값으로 돈다.
+-- -- 행이 1건 나와야 정상이다.
+-- select t.tgname, c.relname as on_table, p.proname as calls
+-- from pg_trigger t
+-- join pg_class c on c.oid = t.tgrelid
+-- join pg_proc  p on p.oid = t.tgfoid
+-- where not t.tgisinternal
+--   and p.proname = 'handle_new_user';
+--
+-- -- [5-b] 상태 전이 시나리오 일괄 검증
+-- -- 에러 없이 끝나면 통과. 실패 지점은 '실패: ...' 예외 메시지로 나온다.
+-- -- (검증용 행은 블록 끝에서 스스로 지운다. 시작 시 해당 쌍에 기존 행이
+-- --  있으면 실데이터 훼손을 피하려고 아무것도 안 하고 중단한다.)
+-- do $$
+-- declare
+--   v_ids      uuid[];
+--   v_parent_a uuid;
+--   v_parent_b uuid;
+--   v_student  uuid;
+--   v_id_a     uuid;
+--   v_id_b     uuid;
+-- begin
+--   -- FK가 auth.users를 참조하므로 계정도 거기서 고른다. profiles는 가입을
+--   -- 끝까지 마치지 않은 계정이 빠져 있을 수 있어 기준으로 쓰면 안 된다.
+--   select array_agg(id order by created_at) into v_ids
+--   from (select id, created_at from auth.users order by created_at limit 3) t;
+--
+--   if coalesce(array_length(v_ids, 1), 0) < 3 then
+--     raise exception '검증 중단: auth.users에 계정이 3건 이상 필요합니다 (현재 %건).',
+--       coalesce(array_length(v_ids, 1), 0);
+--   end if;
+--
+--   v_parent_a := v_ids[1];
+--   v_parent_b := v_ids[2];
+--   v_student  := v_ids[3];
+--
+--   if exists (
+--     select 1 from public.parent_child_links where student_id = v_student
+--   ) then
+--     raise exception '검증 중단: 선택된 학생에게 이미 연결 행이 있습니다.';
+--   end if;
+--
+--   -- 1) 최초 요청은 pending으로 생성된다
+--   insert into public.parent_child_links (parent_id, student_id)
+--   values (v_parent_a, v_student) returning id into v_id_a;
+--
+--   -- 2) 같은 학부모의 pending 중복 요청은 거부된다 (알림 도배 방지)
+--   begin
+--     insert into public.parent_child_links (parent_id, student_id)
+--     values (v_parent_a, v_student);
+--     raise exception '실패: pending 중복이 허용됐습니다.';
+--   exception when unique_violation then null;
+--   end;
+--
+--   -- 3) 다른 학부모의 pending 요청은 허용된다 (코드 오입력 잠금 방지)
+--   insert into public.parent_child_links (parent_id, student_id)
+--   values (v_parent_b, v_student) returning id into v_id_b;
+--
+--   -- 4) 승인은 학생당 1건뿐 — A 승인 후 B 승인은 거부된다 (핵심 규칙)
+--   update public.parent_child_links
+--   set status = 'approved', responded_at = now() where id = v_id_a;
+--   begin
+--     update public.parent_child_links
+--     set status = 'approved', responded_at = now() where id = v_id_b;
+--     raise exception '실패: 한 학생에게 학부모 2명이 승인됐습니다.';
+--   exception when unique_violation then null;
+--   end;
+--
+--   -- 5) 이미 approved인데 같은 학부모가 새로 요청하는 것도 거부된다
+--   begin
+--     insert into public.parent_child_links (parent_id, student_id)
+--     values (v_parent_a, v_student);
+--     raise exception '실패: approved 상태에서 새 요청이 허용됐습니다.';
+--   exception when unique_violation then null;
+--   end;
+--
+--   -- 6) 연결이 해제되면 다른 학부모가 승인될 수 있다
+--   update public.parent_child_links
+--   set status = 'revoked', revoked_at = now() where id = v_id_a;
+--   update public.parent_child_links
+--   set status = 'approved', responded_at = now() where id = v_id_b;
+--
+--   -- 7) 자기 자신과의 연결은 거부된다
+--   begin
+--     insert into public.parent_child_links (parent_id, student_id)
+--     values (v_parent_a, v_parent_a);
+--     raise exception '실패: 자기 자신 연결이 허용됐습니다.';
+--   exception when check_violation then null;
+--   end;
+--
+--   delete from public.parent_child_links where student_id = v_student;
+--
+--   raise notice '[5] 전체 통과';
+-- end $$;
+--
+-- -- [5-c] 양방향 select RLS + write 정책 부재 확인
+-- -- parent_child_links 행은 SELECT 하나만 나와야 한다.
+-- select tablename, policyname, cmd from pg_policies
+-- where tablename in ('student_link_codes', 'parent_child_links')
+-- order by tablename, policyname;
 --
 -- -- [4-e'] 위가 true로 나오면 실제 부여 주체를 여기서 확인한다.
 -- -- proacl에 anon=X/... 또는 authenticated=X/... 항목이 남아 있으면
