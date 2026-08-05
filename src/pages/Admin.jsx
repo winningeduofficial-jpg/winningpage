@@ -4861,8 +4861,8 @@ export default function Admin() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <h1 className="text-xl font-black">{config.title}</h1>
                       {config.homepage && (
                         <div className="mt-1 space-y-1">
@@ -4883,7 +4883,7 @@ export default function Admin() {
                       <button
                         type="button"
                         onClick={createRow}
-                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white"
+                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
                       >
                         <Plus size={14} />
                         등록
