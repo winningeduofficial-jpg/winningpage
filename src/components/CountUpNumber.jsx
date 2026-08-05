@@ -15,12 +15,11 @@ export default function CountUpNumber({
       <span
         ref={ref}
         aria-hidden="true"
-        className={`inline-block text-right tabular-nums ${className}`}
-        // Pretendard가 tnum 글리프를 갖고 있는지 미확인이라, tabular-nums만 믿지
-        // 않고 최종 문자열 길이만큼 min-width를 확보한다(보수적 선택).
-        // 값이 0에서 target까지 단조 증가하고 소수 자릿수가 고정이므로
-        // 중간 문자열이 최종 문자열보다 길어지는 경우는 없다.
-        style={{ minWidth: `${finalText.length}ch` }}
+        className={`inline-block tabular-nums ${className}`}
+        // useCountUp이 정수부를 0으로 패딩해 렌더 문자열 길이를 처음부터
+        // 고정하므로 min-width/text-right 없이도 폭이 흔들리지 않는다.
+        // tabular-nums는 그대로 유지 — 자릿수가 고정돼도 글리프 폭 차이는
+        // 폰트에 따라 남을 수 있다.
       >
         {finalText}
       </span>

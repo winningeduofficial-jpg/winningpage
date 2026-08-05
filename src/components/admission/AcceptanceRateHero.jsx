@@ -163,38 +163,44 @@ export default function AcceptanceRateHero() {
     <section className="pt-16 sm:pt-20 md:pt-[6.25rem]">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         {hasRates && (
-          <>
-            <p className="text-xl font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
-              {years}개년 평균
-            </p>
-
-            <div className="mt-3 flex flex-col items-center gap-2 sm:mt-4 sm:flex-row sm:items-end sm:justify-center sm:gap-4">
+          // 시안(1882:6520) 실측: 아이브로·라벨은 좌측선이 같은 하나의 컬럼이고
+          // (아이브로가 그룹 중앙 정렬이 아니다), 숫자·%는 그 오른쪽에 붙는다.
+          // 숫자가 라벨보다 커서(leading-none이어도) 행 높이를 부풀리지 않도록
+          // 컬럼과 숫자 그룹을 items-end로 바닥만 맞추고, 잉크 하단 차이(≈9.7px)는
+          // 숫자 그룹에 별도 translate-y로 준다.
+          <div className="mt-3 flex flex-col items-center gap-2 sm:mt-4 sm:flex-row sm:items-end sm:justify-center sm:gap-[1.2125rem]">
+            {/* 시안 잉크 간격 18.6px, leading 합 14.1px 보정 → 박스 간격 4.5px(0.28125rem) */}
+            <div className="flex flex-col items-center gap-2 sm:items-start sm:gap-[0.28125rem]">
+              <p className="text-xl font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
+                {years}개년 평균
+              </p>
               <span className="text-2xl font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
                 목표 대학 합격률
               </span>
-              <span className="flex items-end gap-1">
-                <CountUpNumber
-                  value={average}
-                  decimals={1}
-                  srLabel={`${average.toFixed(1)}퍼센트`}
-                  className="text-[3.5rem] font-semibold leading-none tracking-[-0.03em] text-accent sm:text-[5rem]"
-                />
-                <span
-                  aria-hidden="true"
-                  className="pb-1 text-xl font-semibold leading-none text-[#525252] sm:pb-2 sm:text-2xl"
-                >
-                  %
-                </span>
-              </span>
             </div>
-          </>
+            <span className="flex items-end gap-1 sm:translate-y-[0.60625rem] sm:gap-[0.55625rem]">
+              <CountUpNumber
+                value={average}
+                decimals={1}
+                srLabel={`${average.toFixed(1)}퍼센트`}
+                className="text-[3.5rem] font-semibold leading-none tracking-[-0.03em] text-accent sm:text-[5rem]"
+              />
+              {/* % 잉크 하단이 라벨보다 4.8px 아래여야 함(현재 12.7px 초과분 7.9px 보정) → pb-4 */}
+              <span
+                aria-hidden="true"
+                className="pb-1 text-xl font-semibold leading-none text-[#525252] sm:pb-4"
+              >
+                %
+              </span>
+            </span>
+          </div>
         )}
 
         {hasLogos && (
           <div
             className={
               hasRates
-                ? 'mt-12 flex flex-col items-center gap-8 sm:mt-16'
+                ? 'mt-12 flex flex-col items-center gap-8 sm:mt-[6.3125rem]'
                 : 'flex flex-col items-center gap-8'
             }
           >

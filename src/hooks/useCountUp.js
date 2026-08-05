@@ -4,6 +4,19 @@ import { useEffect, useRef } from 'react';
 // 1 - 2^-10 = 0.999…로 끝나 최종값이 미세하게 어긋난다.
 const easeOutExpo = (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t));
 
+// 정수부를 target의 자릿수만큼 0으로 패딩한다("00.0" → "95.4").
+// 렌더 문자열 길이를 처음부터 끝까지 고정해 CountUpNumber가 min-width 없이도
+// 흔들리지 않게 한다.
+const formatPadded = (value, decimals, intDigits) => {
+  const fixed = value.toFixed(decimals);
+  const negative = fixed.startsWith('-');
+  const raw = negative ? fixed.slice(1) : fixed;
+  const [intPart, decPart] = raw.split('.');
+  const paddedInt = intPart.padStart(intDigits, '0');
+  const result = decPart !== undefined ? `${paddedInt}.${decPart}` : paddedInt;
+  return negative ? `-${result}` : result;
+};
+
 /**
  * 숫자 카운트업 훅. 반환한 ref를 텍스트 노드를 가진 엘리먼트에 붙인다.
  * 프레임마다 setState 하지 않고 el.textContent를 직접 갱신한다(리렌더 0회).
@@ -27,9 +40,12 @@ export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
     if (!el) return undefined;
     if (!Number.isFinite(target)) return undefined;
 
+    // target 자체의 정수 자릿수를 패딩 폭으로 쓴다 — 95.4 → 2자리, 100.0 → 3자리.
+    const intDigits = Math.max(1, Math.trunc(Math.abs(target)).toString().length);
+
     const paint = (value) => {
       lastValueRef.current = value;
-      el.textContent = value.toFixed(decimals);
+      el.textContent = formatPadded(value, decimals, intDigits);
     };
 
     // JS 애니메이션은 CSS @media가 잡아주지 않는다 — matchMedia로 직접 분기.
