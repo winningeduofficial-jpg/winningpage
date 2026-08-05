@@ -7,10 +7,21 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // 구 캐시에 남은 사용자에게도 즉시 새 경로가 보이도록 키 버전을 올린다.
 // v4: 교육칼럼이 /gallery → /info/column 으로 이관(edu-column-renewal-spec.md) — 구 캐시에 남은
 // '교육컬럼'/'/gallery' 잔존을 차단하기 위해 다시 bump.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4';
+// v5: DB page_contents.menu_label에 '교육컬럼'(오타) 이 저장돼 헤더/푸터에 그대로 노출되던 문제.
+// normalizeMenuLabel로 런타임 상시 치환하도록 고쳤지만, 이미 오타를 캐싱한 사용자에게도 즉시
+// 반영되도록 키 버전을 한 번 더 bump한다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v5';
 
 export function cleanText(value) {
   return String(value || '').trim();
+}
+
+// DB page_contents.menu_label에 '컬럼'(오타, 올바른 표기는 '칼럼')이 섞여 들어와도 메뉴 라벨에
+// 그대로 노출되지 않도록 상시 치환한다. DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정
+// 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
+// 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
+export function normalizeMenuLabel(label) {
+  return cleanText(label).replaceAll('컬럼', '칼럼');
 }
 
 function safeJsonStringify(value) {
@@ -181,7 +192,7 @@ function buildNavGroups(rows) {
     }
 
     group.items.push({
-      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      label: normalizeMenuLabel(cleanText(item.menu_label) || cleanText(item.title) || groupName),
       to: itemLink,
       sortOrder
     });
