@@ -10,6 +10,7 @@
 --   [3] user_term_agreements   : 회원별 약관 동의 이력 (버전 단위)
 --   [4] student_link_codes     : 학생 연결코드(재발급형) + 발급 함수
 --   [5] parent_child_links     : 학부모-자녀 연결 (학생 승인 필수)
+--   [6] phone_verifications    : 휴대폰 인증코드 (서버 전용)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -488,6 +489,72 @@ create policy "parent_child_links party read" on public.parent_child_links
 
 
 -- =====================================================================
+-- [6] phone_verifications : 휴대폰 인증코드 (서버 전용)
+--
+-- 이메일 인증은 Supabase Auth email OTP를 그대로 쓰므로 테이블이 필요 없다.
+-- 휴대폰만 알림톡(알리고)이라 자체 구현이다.
+--
+-- 이 테이블은 클라이언트가 절대 건드리면 안 된다:
+--   - RLS를 켜고 정책을 하나도 만들지 않는다 → 정책 없는 RLS는 전면 거부다.
+--   - 추가로 anon/authenticated의 테이블 권한 자체를 회수한다. Supabase가
+--     public 스키마 테이블에 기본 부여를 하기 때문에, RLS만 믿지 않고
+--     권한도 같이 막는 이중 방어다([4-e]에서 함수로 같은 함정을 겪었다).
+--   - 접근은 service_role(= api/send-phone-code.js)뿐이다.
+--
+-- 평문 코드를 저장하지 않는 것만으로는 부족하다. 6자리 숫자는 경우의 수가
+-- 100만뿐이라 단순 SHA-256은 DB만 새어도 즉시 역산된다. 그래서 서버가
+-- 가진 비밀키(PHONE_CODE_SECRET, Vercel env)로 HMAC을 걸어 저장한다.
+-- 키는 DB에 두지 않는다 — DB 덤프만으로는 복원할 수 없어야 하므로.
+--   code_hash = hex(hmac_sha256(phone || ':' || code, PHONE_CODE_SECRET))
+--
+-- 무차별 대입 방어는 해시가 아니라 attempt_count가 담당한다. 코드 자체가
+-- 6자리라 시도 횟수를 막지 않으면 해시를 어떻게 걸든 의미가 없다.
+-- =====================================================================
+
+create table if not exists public.phone_verifications (
+  id            uuid primary key default gen_random_uuid(),
+  phone         text not null,                  -- 숫자만 정규화해 저장 (하이픈 없음)
+  code_hash     text not null,                  -- 평문 코드는 저장하지 않는다
+  purpose       text not null default 'signup'
+                check (purpose in ('signup', 'parent_signup', 'phone_change')),
+  -- 가입 전 인증이라 대부분 null. 로그인 상태에서의 번호 변경만 값이 있다.
+  user_id       uuid references auth.users(id) on delete cascade,
+  attempt_count int not null default 0,         -- 검증 시도 횟수 (무차별 대입 차단)
+  verified_at   timestamptz,                    -- 검증 성공 시각
+  consumed_at   timestamptz,                    -- 가입 완료에 실제로 사용된 시각 (재사용 방지)
+  expires_at    timestamptz not null,
+  request_ip    inet,                           -- 전화번호 우회 도배 차단용
+  created_at    timestamptz not null default now(),
+  constraint phone_verifications_phone_format check (phone ~ '^[0-9]{9,11}$'),
+  constraint phone_verifications_attempt_range check (attempt_count >= 0)
+);
+
+-- 발송 쿨타임(60초)·시간당 5회·일 10회 판정과, 검증 시 "가장 최근 유효 코드"
+-- 조회가 전부 이 인덱스를 탄다.
+create index if not exists phone_verifications_phone_idx
+  on public.phone_verifications (phone, created_at desc);
+
+-- 전화번호를 바꿔가며 도배하는 경우를 IP 기준으로 잡기 위한 보조 인덱스.
+create index if not exists phone_verifications_ip_idx
+  on public.phone_verifications (request_ip, created_at desc)
+  where request_ip is not null;
+
+-- 만료 레코드 정리(배치)용.
+create index if not exists phone_verifications_expires_idx
+  on public.phone_verifications (expires_at);
+
+alter table public.phone_verifications enable row level security;
+
+-- 정책을 의도적으로 하나도 만들지 않는다.
+-- RLS가 켜져 있고 정책이 없으면 service_role을 제외한 모든 접근이 거부된다.
+-- 혹시 나중에 누가 "조회가 안 되는데요" 하고 정책을 추가하지 않도록 남긴다:
+-- 인증코드는 발급한 서버만 알아야 하고, 본인조차 조회할 이유가 없다.
+
+-- 이중 방어: 테이블 권한 자체를 회수한다(Supabase 기본 부여 무력화).
+revoke all on table public.phone_verifications from anon, authenticated;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -687,6 +754,30 @@ create policy "parent_child_links party read" on public.parent_child_links
 -- select tablename, policyname, cmd from pg_policies
 -- where tablename in ('student_link_codes', 'parent_child_links')
 -- order by tablename, policyname;
+--
+-- -- [6-a] RLS는 켜져 있고 정책은 0건이어야 한다 (= 전면 거부)
+-- select c.relname, c.relrowsecurity as rls_enabled,
+--        (select count(*) from pg_policies p
+--          where p.schemaname = 'public' and p.tablename = c.relname) as policy_count
+-- from pg_class c
+-- where c.oid = 'public.phone_verifications'::regclass;
+--
+-- -- [6-b] anon/authenticated는 테이블 권한 자체가 없어야 한다
+-- -- (RLS 전면 거부 + 권한 회수 이중 방어. service_role만 true)
+-- select r.rolname,
+--        has_table_privilege(r.rolname, 'public.phone_verifications', 'select') as can_select,
+--        has_table_privilege(r.rolname, 'public.phone_verifications', 'insert') as can_insert
+-- from (values ('anon'), ('authenticated'), ('service_role')) as r(rolname)
+-- order by r.rolname;
+--
+-- -- [6-c] 전화번호 형식 제약 (반드시 23514가 나야 정상 — 하이픈 포함)
+-- -- insert into public.phone_verifications (phone, code_hash, expires_at)
+-- -- values ('010-1234-5678', 'x', now() + interval '3 minutes');
+--
+-- -- 숫자만이면 통과해야 한다 (확인 후 지운다)
+-- -- insert into public.phone_verifications (phone, code_hash, expires_at)
+-- -- values ('01012345678', 'dummy', now() + interval '3 minutes');
+-- -- delete from public.phone_verifications where code_hash = 'dummy';
 --
 -- -- [4-e'] 위가 true로 나오면 실제 부여 주체를 여기서 확인한다.
 -- -- proacl에 anon=X/... 또는 authenticated=X/... 항목이 남아 있으면
