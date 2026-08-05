@@ -1,6 +1,5 @@
-/* BlockEditor 전용 스타일 — .bn-* 클래스를 에디터 래퍼(.block-editor) 스코프 안에서만 덮는다.
-   전역 오염 금지. 값은 공개 렌더러(src/components/column/ColumnBody.jsx) 실측과 동일하게 유지한다 —
-   두 벌을 따로 관리하지 않고 이 파일이 항상 그 값을 그대로 참조한다. */
+/* BlockEditor 크롬 전용 스타일 — 프레임·시트·그림자만 담는다.
+   본문 타이포그래피는 blockNoteContent.css(.bn-doc)가 정본이며 에디터와 공개 렌더러가 공유한다. */
 
 /* 하드 보더 대신 그림자로 편집 영역을 "문서 시트"처럼 보이게 한다.
    .block-editor-frame(옅은 틴트)이 감싸고 그 안에 흰 시트(.block-editor)가 뜬다 — 시트가
@@ -13,12 +12,9 @@
   cursor: text;
 }
 
-/* 시트 패딩이 넉넉해지면서 본문 첫 글자가 더 이상 제목 인풋과 좌측 정렬되지 않는다 —
-   시트가 필드 영역 안에서 자연스러운 문서로 보이는 쪽을 우선하고 정렬 기준은 여기로 재조정했다. */
 /* box-sizing: border-box(전역 preflight)에서는 padding이 max-width 안쪽으로 먹혀 실제 글자
-   폭이 좁아진다. 공개 렌더러(ColumnBody.jsx RICH_BASE max-w-[45rem], 패딩 없음)와 글자 폭을
-   맞추려면 겉폭을 "45rem + 좌우 패딩"으로 키워야 한다 — 패딩 값이 뷰포트별로 다르므로
-   max-width도 각 분기마다 함께 맞춘다. */
+   폭이 좁아진다. 공개 렌더러의 45rem 본문 폭과 글자 폭을 맞추려면 겉폭을 "45rem + 좌우 패딩"으로
+   키워야 한다 — 패딩 값이 뷰포트별로 다르므로 max-width도 각 분기마다 함께 맞춘다. */
 .block-editor {
   max-width: calc(45rem + 3rem); /* 45rem 글자 폭 + 좌우 패딩 1.5rem*2 */
   width: 100%;
@@ -41,109 +37,5 @@
 }
 
 .block-editor .bn-editor {
-  padding-inline: 0;
-  font-family: inherit;
   min-height: 20rem;
-}
-
-.block-editor .bn-default-styles {
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 400;
-  color: #525252;
-}
-
-.block-editor [data-content-type='paragraph'] {
-  line-height: 2rem;
-  color: #525252;
-}
-
-.block-editor strong,
-.block-editor b {
-  font-weight: 600;
-}
-
-.block-editor a {
-  color: #013262;
-  text-decoration: underline;
-}
-
-/* font-size/font-weight는 BlockNote 기본 CSS가 더 높은 특이도로 강제 지정하므로
-   여기서만 예외적으로 !important를 쓴다(다른 속성은 필요 없음). */
-.block-editor .bn-block-content[data-content-type='heading'][data-level='2'] {
-  font-size: 1.25rem !important;
-  font-weight: 600 !important;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: #525252;
-}
-
-.block-editor .bn-block-content[data-content-type='heading'][data-level='3'] {
-  font-size: 1.125rem !important;
-  font-weight: 600 !important;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: #525252;
-}
-
-@media (min-width: 40rem) {
-  .block-editor .bn-block-content[data-content-type='heading'][data-level='2'] {
-    font-size: 1.5rem !important;
-  }
-
-  .block-editor .bn-block-content[data-content-type='heading'][data-level='3'] {
-    font-size: 1.25rem !important;
-  }
-}
-
-.block-editor img {
-  border-radius: 0.75rem;
-}
-
-/* 배경색 지정 — BlockNote 팔레트(회색·갈색·빨강 등)와 무관하게 공개 렌더러
-   (ColumnBody.jsx HeadingBlock)와 동일한 민트로 통일한다. 배경 미지정 블록은
-   data-background-color 속성 자체가 렌더링되지 않으므로(@blocknote/core
-   defaultProps.ts renderHTML) 이 선택자는 실제로 색을 지정한 블록에만 걸린다. */
-.block-editor .bn-block-content[data-background-color] {
-  background-color: #e6f1eb;
-}
-
-.block-editor .bn-block:has(> .bn-block-content[data-background-color]) {
-  background-color: #e6f1eb;
-}
-
-/* level 2(H-B, 풀폭 밴드) 배경은 공개 렌더러처럼 라운드+패딩을 줘서 "밴드"로 보이게 한다.
-   level 3(H-C)는 공개 렌더러에서 텍스트 폭에만 걸리는 인라인 하이라이트인데, BlockNote의
-   backgroundColor는 텍스트 마크가 아니라 블록 단위 prop이라 에디터에서 텍스트 폭만 강조하는
-   건 스키마 확장 없이는 재현 불가 — 여기서는 색상만 맞추고 폭은 블록 전체로 남겨둔다. */
-.block-editor .bn-block-content[data-content-type='heading'][data-level='2'][data-background-color] {
-  border-radius: 0.25rem;
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
-}
-
-/* 콜아웃 — 공개 렌더러(ColumnBody.jsx CalloutBlock)와 육안 동일 유지 */
-.block-editor .editor-callout {
-  display: flex;
-  gap: 0.75rem;
-  margin: 1.5rem 0;
-  padding: 1rem 1.25rem;
-  border-radius: 1rem;
-  background: #f4f4f4;
-}
-
-.block-editor .editor-callout__icon {
-  flex-shrink: 0;
-  font-size: 1.25rem;
-}
-
-.block-editor .editor-callout__body {
-  flex: 1;
-}
-
-@media (min-width: 40rem) {
-  .block-editor .editor-callout {
-    gap: 2rem;
-    padding: 1.25rem 2.25rem;
-  }
 }

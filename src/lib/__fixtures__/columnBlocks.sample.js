@@ -1,5 +1,6 @@
-// ColumnBody 렌더러 회귀 확인용 fixture. 손으로 작성한 BlockNote 블록 JSON 샘플.
-// 지원 블록 전 타입 + 미지원 타입(table) + javascript: 링크(safeHref 차단 확인용)를 포함한다.
+// 본문 렌더 회귀 확인용 fixture. 손으로 작성한 BlockNote 블록 JSON 샘플.
+// 지원 블록 전 타입 + table + javascript: 링크를 포함한다.
+// (자체 매핑 렌더러는 폐기됐고 본문은 BlockNote 자체 렌더 경로가 그린다 — 링크 위생은 BlockNote가 담당.)
 // galleries.content_json 저장 형태와 동일하게 { v, editor, blocks } 로 감싼다.
 
 export const columnBlocksSample = {

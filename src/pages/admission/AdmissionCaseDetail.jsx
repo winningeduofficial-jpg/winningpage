@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import ColumnBody from '../../components/column/ColumnBody';
+import ColumnBody, { hasBlockContent } from '../../components/column/ColumnBody';
 import { CATEGORY_LABELS, fetchAdmissionCaseById, normalizeImageUrls } from './admissionCaseData';
 
 export default function AdmissionCaseDetail() {
@@ -26,7 +26,7 @@ export default function AdmissionCaseDetail() {
 
   // row.category('susi'|'jungsi')로 목록 경로 판정. 미확정/부재 시 기본 '/admission/susi'.
   const listPath = post && CATEGORY_LABELS[post.category] ? `/admission/${post.category}` : '/admission/susi';
-  const hasBlocks = Boolean(post?.content_json?.blocks?.length > 0);
+  const hasBlocks = hasBlockContent(post);
   const fallbackImages = post ? normalizeImageUrls(post) : [];
 
   if (loading) {

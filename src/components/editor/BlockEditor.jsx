@@ -1,43 +1,17 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { BlockNoteSchema, defaultBlockSpecs, filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
+import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { ko } from '@blocknote/core/locales';
 import { BlockNoteView } from '@blocknote/ariakit';
-import { createReactBlockSpec, getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react';
+import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from '@blocknote/react';
 import { blocksToPlainText } from '../../lib/blockToPlainText';
+import { columnSchema } from './columnSchema';
 // @blocknote/ariakit/style.css 하나가 core+react+ariakit 스타일을 전부 포함하는 자체완결 번들이다
 // (실측 확인). 각 패키지는 JS 엔트리에서 CSS를 자동 import하지 않으므로 명시적으로 붙여야 한다 —
 // 안 하면 슬래시 메뉴·툴바가 배경/보더 없이 무너진 채로 렌더된다. inter.css 폰트만 의도적으로 생략한다.
+// 이 CSS들은 반드시 이 lazy 모듈 안에서 import한다 — 상위 정적 모듈로 올리면 초기 번들에 남는다.
 import '@blocknote/ariakit/style.css';
-import './blockEditor.css';
-
-// 강조 박스(callout). variant 프롭은 만들지 않는다 — 허용값이 하나뿐인 확장은 speculative generality다.
-const Callout = createReactBlockSpec(
-  {
-    type: 'callout',
-    propSchema: {
-      icon: { default: '💡' }
-    },
-    content: 'inline'
-  },
-  {
-    render: ({ block, contentRef }) => (
-      <div className="editor-callout">
-        <span className="editor-callout__icon" contentEditable={false} aria-hidden="true">
-          {block.props.icon}
-        </span>
-        <div className="editor-callout__body" ref={contentRef} />
-      </div>
-    )
-  }
-);
-
-// 스키마는 모듈 스코프 싱글턴 — 렌더마다 재생성하지 않는다.
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    callout: Callout()
-  }
-});
+import './blockNoteContent.css'; // 공용 본문 스타일(.bn-doc) — 크롬보다 먼저
+import './blockEditor.css'; // 에디터 크롬 전용
 
 // 설치된 @blocknote/react@0.52.1 실측 key 값(node_modules/@blocknote/react/dist/blocknote-react.js:2636-2660).
 // title이 아니라 key로 걸러야 한다 — dictionary: ko 적용 시 title이 한글로 바뀌어 title 매칭은 전부 실패한다.
@@ -71,10 +45,27 @@ function getCustomSlashMenuItems(editor) {
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'callout' })
   };
 
-  return [...defaultItems, calloutItem];
+  const imageRowItem = {
+    title: '이미지 2단',
+    subtext: '이미지 두 장을 같은 줄에 나란히 배치합니다',
+    aliases: ['2단', '가로배치', '나란히', 'imagerow', '이미지2'],
+    group: '미디어',
+    icon: <span aria-hidden="true">🖼️</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'imageRow' })
+  };
+
+  // imageRowItem을 기본 image 아이템 바로 뒤에 끼워 같은 '미디어' 그룹 런에 합류시킨다.
+  // 배열 끝에 붙이면 group '강조'인 calloutItem 뒤라 슬래시 메뉴가 group이 바뀔 때마다 헤더를
+  // 새로 찍어 '미디어' 헤더가 두 번 렌더된다(제목…기본 블록…미디어/이미지…강조/강조 박스…미디어/이미지 2단).
+  const imageIndex = defaultItems.findIndex((item) => item.key === 'image');
+  const items = [...defaultItems];
+  items.splice(imageIndex + 1, 0, imageRowItem);
+  items.push(calloutItem);
+
+  return items;
 }
 
-function isEmptyDocument(blocks) {
+export function isEmptyDocument(blocks) {
   if (!Array.isArray(blocks) || blocks.length === 0) return true;
   return blocks.every((block) => block.type === 'paragraph' && blocksToPlainText([block]).trim() === '');
 }
@@ -83,7 +74,7 @@ function isEmptyDocument(blocks) {
 const BlockEditor = forwardRef(function BlockEditor({ initialContent, uploadFile }, ref) {
   const editor = useCreateBlockNote(
     {
-      schema,
+      schema: columnSchema,
       dictionary: ko,
       uploadFile,
       initialContent: Array.isArray(initialContent) && initialContent.length > 0 ? initialContent : undefined
@@ -136,7 +127,8 @@ const BlockEditor = forwardRef(function BlockEditor({ initialContent, uploadFile
       {/* theme="light": OS가 다크 모드여도 BlockNote가 :where(.dark, .dark *) 팔레트로
           전환되지 않도록 강제한다 — 미지정 시 os.colorSchemePreference(matchMedia)를 따라가
           관리자 화면 전체가 라이트인데 에디터만 다크로 렌더되는 문제가 있었다(실측 확인). */}
-      <div className="block-editor" translate="no" ref={sheetRef} onClick={focusIfFrameClicked}>
+      {/* .block-editor = 크롬(폭·패딩·그림자), .bn-doc = 공개 렌더러와 공유하는 본문 타이포그래피 */}
+      <div className="block-editor bn-doc" translate="no" ref={sheetRef} onClick={focusIfFrameClicked}>
         <BlockNoteView editor={editor} theme="light" slashMenu={false}>
           <SuggestionMenuController
             triggerCharacter="/"
