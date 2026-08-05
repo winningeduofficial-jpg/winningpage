@@ -24,7 +24,7 @@ import {
  * 하단 CTA(사용자 확정 사양, 2026-08-03):
  * - 미완료: "모든 항목에 응답해주세요" — 클릭해도 다음 스텝으로 넘어가지 않고
  *   첫 미응답 문항으로 스크롤 + 하이라이트한다(useUnansweredNavigation).
- * - 완료: "N개 항목이 남았어요"(N = getRemainingAfterStep, 이 스텝 이후 남는 전체 문항 수) —
+ * - 완료: "N개 문항이 남았어요"(N = getRemainingAfterStep, 이 스텝 이후 남는 전체 문항 수) —
  *   마지막 스텝은 "진단 결과 보기". 클릭하면 다음 스텝(또는 리포트)으로 이동한다.
  */
 export default function SurveyStepPage() {
@@ -55,7 +55,7 @@ export default function SurveyStepPage() {
   const label = stepComplete
     ? isLastStep
       ? '진단 결과 보기'
-      : `${getRemainingAfterStep(step)}개 항목이 남았어요`
+      : `${getRemainingAfterStep(step)}개 문항이 남았어요`
     : '모든 항목에 응답해주세요';
 
   const handleClick = stepComplete

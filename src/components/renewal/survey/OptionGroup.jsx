@@ -10,13 +10,16 @@ import radioUnchecked from '../../../assets/renewal/radio-unchecked.svg';
  * variant='row'  → 전폭(w-full) 리스트 행 (Q3·Q4·Q5·Q8·Q10·Q12·Q3-C)
  *
  * 행/칩 공통 규격 (시안 실측):
- *   min-h 68 (4.25rem) / bg #FFFFFF / border 1px #D7D7D7 / radius 20 (1.25rem)
+ *   min-h 68 (4.25rem) / bg #FFFFFF / border 1px #D9D9D9 / radius 20 (1.25rem)
  *   padding 14·20 (0.875rem·1.25rem) / 아이콘 24 ↔ 라벨 gap 24 (1.5rem) / 행간 gap 12 (0.75rem)
  *   높이는 min-h — 375px 뷰포트에서 최장 라벨이 3줄이 되어도 넘치지 않는다.
  *   라벨 line-height 는 시안 원값(20px, 비율 1.0)을 승계하지 않고 1.4 를 쓴다 (SPEC 3.1-6 예외).
  *
  * 상태 (SPEC-fd-ver3-v2 §9-A1):
- *   selected      bg #F1F8FF / border #013262 / 라벨 #013262      (시안 실측 — #E9F4FF 는 범용 변수 `메인 채우기` 오적용, 2026-07-30 중재 확정)
+ *   selected      bg #E9F4FF / border #013262 / 라벨 #013262
+ *                 (2026-07-30 에는 #F1F8FF 로 중재했으나, 2026-08-05 Figma REST 실측(1889:13222
+ *                 선택 상태 시안, 선택지 프레임 fill)에서 #E9F4FF 확인되어 시안값으로 환원.
+ *                 미선택 테두리도 같은 실측 근거로 #D9D9D9.)
  *   hover(미선택)  border #013262 20% + bg #FBFAFA, transition 150ms
  *   hover(선택됨)  변화 없음
  *   focus         :focus-visible 만 — outline 2px #0B84FD, offset 2px
@@ -116,10 +119,10 @@ export default function OptionGroup({
                 variant === 'row' ? 'w-full' : 'w-full md:w-auto'
               } ${
                 active
-                  ? 'border-[#013262] bg-[#F1F8FF]'
+                  ? 'border-[#013262] bg-[#E9F4FF]'
                   : error
                     ? 'border-[#D92D20] bg-white'
-                    : 'border-[#D7D7D7] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]'
+                    : 'border-[#D9D9D9] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]'
               } ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <img
