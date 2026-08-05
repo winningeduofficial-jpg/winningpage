@@ -260,7 +260,7 @@ export default function UnifiedSignupForm() {
       setEmailMessage({
         text:
           stage === 'password'
-            ? '인증은 완료했으나 비밀번호 설정에 실패했습니다. 다시 시도해 주세요.'
+            ? '인증은 됐지만 비밀번호 설정에 실패했습니다. 인증번호를 다시 요청해 주세요.'
             : MESSAGES.codeMismatch,
         status: 'error'
       });

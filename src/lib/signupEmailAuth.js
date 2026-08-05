@@ -125,6 +125,21 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
 }
 
 /**
+ * "새 비밀번호가 기존과 같다"는 거부인지 판별한다.
+ *
+ * 이어가기에서 사용자가 이전 시도와 같은 비밀번호를 입력하면 Supabase가
+ * same_password로 거부한다. 하지만 우리 목적은 "계정 비밀번호를 방금 입력한
+ * 값과 일치시키는 것"이고, 이미 같다면 그 목적은 달성된 상태다. 실패로
+ * 취급하면 같은 비밀번호를 쓴 사용자가 가입을 끝낼 수 없게 된다.
+ */
+function isSamePasswordError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  return code === 'same_password' || message.includes('different from the old password');
+}
+
+/**
  * 인증코드를 검증한다. 이어가기였다면 이번에 입력한 비밀번호로 갱신한다.
  *
  * 비밀번호를 다시 쓰는 이유: 이어가기 경로에서는 지금 폼에 입력한 비밀번호가
@@ -150,7 +165,14 @@ export async function verifySignupEmailCode({ email, token, mode, password, resu
 
   if (resumed && password) {
     const { error: passwordError } = await supabase.auth.updateUser({ password });
-    if (passwordError) return { error: passwordError, stage: 'password' };
+
+    // 이미 같은 비밀번호면 목적이 달성된 것이므로 성공으로 본다.
+    if (passwordError && !isSamePasswordError(passwordError)) {
+      // OTP는 1회용이라 이 시점에 이미 소모됐다. 사용자가 같은 코드로 다시
+      // 시도하면 403이 나므로, 호출부는 재발송을 안내해야 한다.
+      console.error('비밀번호 설정 실패:', passwordError);
+      return { error: passwordError, stage: 'password' };
+    }
   }
 
   return { ok: true };
