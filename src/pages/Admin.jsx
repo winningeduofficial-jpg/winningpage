@@ -127,6 +127,12 @@ const ADMISSION_CASES_TABS = [
   { key: 'admissionCaseLogos', label: '대학 로고' }
 ];
 
+// DB 저장값은 susi/jungsi 그대로 유지하고 화면 표기만 한글로 바꾼다.
+const ADMISSION_CASE_CATEGORY_OPTIONS = [
+  { value: 'susi', label: '수시' },
+  { value: 'jungsi', label: '정시' }
+];
+
 const CONFIGS = {
   popups: {
     title: '팝업 관리',
@@ -1033,7 +1039,7 @@ const CONFIGS = {
     homepage: true,
     guideText: `합격 사례 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
     columns: [
-      { key: 'category', label: '구분' },
+      { key: 'category', label: '구분', options: ADMISSION_CASE_CATEGORY_OPTIONS },
       { key: 'title', label: '제목' },
       { key: 'content', label: '본문', type: 'truncate' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
@@ -1049,7 +1055,7 @@ const CONFIGS = {
         key: 'category',
         label: '구분',
         type: 'select',
-        options: ['susi', 'jungsi'],
+        options: ADMISSION_CASE_CATEGORY_OPTIONS,
         required: true
       },
       { key: 'title', label: '제목', type: 'text', required: true },
@@ -2957,8 +2963,15 @@ function FreeDiagnosisAdmin() {
   );
 }
 
-function formatValue(value, type) {
+function formatValue(value, type, options) {
   if (value === null || value === undefined || value === '') return '-';
+
+  if (Array.isArray(options)) {
+    const matched = options.find(
+      (option) => option && typeof option === 'object' && option.value === value
+    );
+    if (matched) return matched.label;
+  }
 
   if (type === 'boolean') return value ? '사용' : '미사용';
 
@@ -2986,6 +2999,8 @@ function csvEscape(value) {
 
 function downloadCsv(filename, rows, columns) {
   const header = columns.map((column) => csvEscape(column.label)).join(',');
+  // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
+  // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
   const body = rows
     .map((row) =>
       columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
@@ -4040,7 +4055,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
                     ) : (
-                      <div className="py-2 text-sm">{formatValue(form[field.key], field.type)}</div>
+                      <div className="py-2 text-sm">{formatValue(form[field.key], field.type, field.options)}</div>
                     )
                   ) : (
                     <>
@@ -4382,7 +4397,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                       ) : column.type === 'truncate' ? (
                         truncateText(row[column.key])
                       ) : (
-                        formatValue(row[column.key], column.type)
+                        formatValue(row[column.key], column.type, column.options)
                       )}
                     </td>
                   ))}
