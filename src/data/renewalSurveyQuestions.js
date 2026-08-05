@@ -60,7 +60,8 @@ export const renewalSurveyQuestions = [
     number: null,
     page: 1,
     category: null,
-    title: '목표대학 (선택입력)',
+    // `(선택입력)` 표기는 선택 상태 시안(1889:13222)에만 있던 것이며 정본(8753)에는 없음.
+    title: '목표대학',
     helper: null,
     type: 'text',
     options: [],
@@ -75,7 +76,8 @@ export const renewalSurveyQuestions = [
     number: null,
     page: 1,
     category: null,
-    title: '희망 학과 또는 모집단위 (선택입력)',
+    // `(선택입력)` 표기는 선택 상태 시안(1889:13222)에만 있던 것이며 정본(8753)에는 없음.
+    title: '희망 학과 또는 모집단위',
     helper: null,
     type: 'text',
     options: [],
@@ -91,7 +93,7 @@ export const renewalSurveyQuestions = [
     number: null,
     page: 1,
     category: null,
-    title: '그 목표를 선택한 이유',
+    title: '목표 선정 이유',
     helper: null,
     type: 'radio-row',
     options: [
