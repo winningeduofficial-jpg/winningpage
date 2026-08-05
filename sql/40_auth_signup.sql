@@ -11,6 +11,7 @@
 --   [4] student_link_codes     : 학생 연결코드(재발급형) + 발급 함수
 --   [5] parent_child_links     : 학부모-자녀 연결 (학생 승인 필수)
 --   [6] phone_verifications    : 휴대폰 인증코드 (서버 전용)
+--   [7] complete_signup_profile 확장 (학부모·멘토 가입 개통, 약관 이력 기록)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -555,6 +556,240 @@ revoke all on table public.phone_verifications from anon, authenticated;
 
 
 -- =====================================================================
+-- [7] complete_signup_profile 확장
+--
+-- 원본: 00_base_schema.sql:1099. 바뀌는 점 5가지.
+--
+-- 1) school_type 필수를 student일 때만으로 분기
+--    원본은 전 회원에게 school_type을 요구한다(00_base_schema.sql:1147).
+--    학부모·멘토에게는 재학 구분이 없으므로 이 검증 하나 때문에 두 유형은
+--    가입 자체가 불가능했다. 이 커밋의 핵심 목적이다.
+--
+-- 2) member_type 3종 검증
+--    원본은 빈 문자열만 막아서 아무 문자열이나 통과했다. [1]에서 profiles에
+--    check를 걸었으므로 그대로 두면 23514가 그대로 프론트에 노출된다.
+--    프론트가 매칭할 수 있는 invalid_member_type 예외로 바꿔 던진다.
+--
+-- 3) p_identity_required_agreed 추가 (프론트가 남긴 GAP)
+--    "본인 인증을 위한 정보 수집" 필수 동의가 클라이언트에서만 검증되고
+--    서버로 전달될 자리가 없었다(StudentForm.jsx TODO). student에게만 필수다
+--    — 학부모 약관 목록에는 이 항목이 없다(ParentForm.jsx:37-39).
+--
+-- 4) student면 연결코드 1건 발급
+--    이미 활성 코드가 있으면 새로 만들지 않는다. 이 함수는 프로필 수정 성격의
+--    재호출이 가능한데, 그때마다 코드가 바뀌면 "자동 회전 없음" 확정과
+--    어긋나고 학부모가 받아둔 코드가 조용히 죽는다.
+--
+-- 5) 약관 동의를 user_term_agreements에 버전 단위로 기록
+--    profiles의 불리언 컬럼은 "지금 동의 상태"만 알 뿐 어느 버전에 동의했는지
+--    모른다. 기존 컬럼도 계속 채우지만(읽는 코드가 있다), 이력의 정본은
+--    user_term_agreements다. 그래서 identity 동의는 profiles에 컬럼을 새로
+--    만들지 않았다 — 레거시 중복을 하나 더 늘리지 않기 위해서다.
+--
+-- 시그니처가 바뀌므로 구 13인자 함수를 반드시 drop한다. 남겨두면 오버로드가
+-- 되어 PostgREST 호출이 모호해지고, 프론트가 계속 구 함수를 불러 약관 이력이
+-- 기록되지 않는다. 호출부(StudentForm.jsx)를 같은 커밋에서 함께 고친다.
+-- =====================================================================
+
+drop function if exists public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean
+);
+
+create or replace function public.complete_signup_profile(
+  p_name                      text,
+  p_username                  text,
+  p_phone                     text,
+  p_email                     text,
+  p_region                    text,
+  p_school_type               text,
+  p_school_name               text,
+  p_member_type               text,
+  p_terms_service_agreed      boolean,
+  p_privacy_required_agreed   boolean,
+  p_identity_required_agreed  boolean,
+  p_privacy_optional_agreed   boolean,
+  p_marketing_agreed          boolean,
+  p_ads_agreed                boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_user_id     uuid;
+  v_name        text;
+  v_username    text;
+  v_phone       text;
+  v_email       text;
+  v_region      text;
+  v_school_type text;
+  v_school_name text;
+  v_member_type text;
+  v_link_code   text;
+begin
+  v_user_id := auth.uid();
+
+  if v_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  v_name        := trim(coalesce(p_name, ''));
+  v_email       := lower(trim(coalesce(p_email, '')));
+  v_username    := lower(trim(coalesce(nullif(p_username, ''), v_email)));
+  v_phone       := trim(coalesce(p_phone, ''));
+  v_region      := trim(coalesce(p_region, ''));
+  v_school_type := trim(coalesce(p_school_type, ''));
+  v_school_name := trim(coalesce(p_school_name, ''));
+  v_member_type := lower(trim(coalesce(p_member_type, '')));
+
+  if v_name = '' then
+    raise exception 'name_required';
+  end if;
+
+  if v_email = '' then
+    raise exception 'email_required';
+  end if;
+
+  if v_username = '' then
+    v_username := v_email;
+  end if;
+
+  if v_region = '' then
+    raise exception 'region_required';
+  end if;
+
+  if v_member_type = '' then
+    raise exception 'member_type_required';
+  end if;
+
+  if v_member_type not in ('student', 'parent', 'mentor') then
+    raise exception 'invalid_member_type';
+  end if;
+
+  -- 재학 구분은 학생에게만 필수. 학부모·멘토는 이 값을 가지지 않는다.
+  if v_member_type = 'student' and v_school_type = '' then
+    raise exception 'school_type_required';
+  end if;
+
+  if coalesce(p_terms_service_agreed, false) is not true then
+    raise exception 'terms_service_required';
+  end if;
+
+  if coalesce(p_privacy_required_agreed, false) is not true then
+    raise exception 'privacy_required';
+  end if;
+
+  -- 본인 인증 정보 수집 동의는 학생 약관에만 있는 항목이다.
+  if v_member_type = 'student'
+     and coalesce(p_identity_required_agreed, false) is not true then
+    raise exception 'identity_required';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles
+    where lower(trim(email)) = v_email
+      and id <> v_user_id
+  ) then
+    raise exception 'duplicate_email';
+  end if;
+
+  insert into public.profiles (
+    id, name, username, phone, email, region,
+    school_type, school_name, member_type, role,
+    terms_service_agreed, privacy_required_agreed, privacy_optional_agreed,
+    marketing_agreed, ads_agreed, updated_at
+  )
+  values (
+    v_user_id, v_name, v_username, v_phone, v_email, v_region,
+    nullif(v_school_type, ''), nullif(v_school_name, ''), v_member_type, 'user',
+    coalesce(p_terms_service_agreed, false),
+    coalesce(p_privacy_required_agreed, false),
+    coalesce(p_privacy_optional_agreed, false),
+    coalesce(p_marketing_agreed, false),
+    coalesce(p_ads_agreed, false),
+    now()
+  )
+  on conflict (id) do update
+  set
+    name                    = excluded.name,
+    username                = excluded.username,
+    phone                   = excluded.phone,
+    email                   = excluded.email,
+    region                  = excluded.region,
+    school_type             = excluded.school_type,
+    school_name             = excluded.school_name,
+    member_type             = excluded.member_type,
+    role                    = coalesce(public.profiles.role, 'user'),
+    terms_service_agreed    = excluded.terms_service_agreed,
+    privacy_required_agreed = excluded.privacy_required_agreed,
+    privacy_optional_agreed = excluded.privacy_optional_agreed,
+    marketing_agreed        = excluded.marketing_agreed,
+    ads_agreed              = excluded.ads_agreed,
+    updated_at              = now();
+
+  -- 약관 동의 이력 (버전 단위).
+  -- 회원유형에 해당하는 활성 약관 + 전체 공통 약관을 대상으로 한다.
+  -- 멘토는 아직 약관 행이 없어 아무것도 기록되지 않는다 — 멘토 약관 화면·본문이
+  -- 만들어지면 [2] 시드에 추가하면 이 함수는 그대로 두고 동작한다.
+  -- 선택 약관의 '거부'도 false로 남긴다(미응답과 구분해야 분쟁 대응이 된다).
+  insert into public.user_term_agreements (user_id, term_id, agreed)
+  select
+    v_user_id,
+    t.id,
+    case
+      when t.code ~ '_identity$'                        then coalesce(p_identity_required_agreed, false)
+      when t.profile_column = 'terms_service_agreed'    then coalesce(p_terms_service_agreed, false)
+      when t.profile_column = 'privacy_required_agreed' then coalesce(p_privacy_required_agreed, false)
+      when t.profile_column = 'marketing_agreed'        then coalesce(p_marketing_agreed, false)
+      when t.profile_column = 'ads_agreed'              then coalesce(p_ads_agreed, false)
+      else false
+    end
+  from public.terms t
+  where t.is_active
+    and t.audience in (v_member_type, 'common')
+  on conflict (user_id, term_id) do update
+  set agreed    = excluded.agreed,
+      agreed_at = now();
+
+  -- 학생 연결코드: 없을 때만 발급한다(재호출로 코드가 회전하면 안 된다).
+  if v_member_type = 'student' then
+    select code into v_link_code
+    from public.student_link_codes
+    where student_id = v_user_id
+      and is_active;
+
+    if v_link_code is null then
+      v_link_code := public.issue_student_link_code(v_user_id);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_user_id,
+    'email', v_email,
+    'member_type', v_member_type,
+    'link_code', v_link_code   -- 학생이 아니면 null
+  );
+end;
+$function$;
+
+-- 가입 완료는 이메일 OTP 검증 직후(=로그인 상태)에 호출된다. anon은 호출할
+-- 이유가 없고, 호출해도 not_authenticated로 끝난다 — 아예 막아둔다.
+revoke all on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) from public, anon;
+
+grant execute on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) to authenticated, service_role;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -778,6 +1013,142 @@ revoke all on table public.phone_verifications from anon, authenticated;
 -- -- insert into public.phone_verifications (phone, code_hash, expires_at)
 -- -- values ('01012345678', 'dummy', now() + interval '3 minutes');
 -- -- delete from public.phone_verifications where code_hash = 'dummy';
+--
+-- -- [7-a] 구 13인자 함수가 남아 있지 않은지 — 반드시 1행(14인자)만 나와야 한다.
+-- -- 2행이 나오면 오버로드 상태이고, PostgREST 호출이 모호해지거나 프론트가
+-- -- 계속 구 함수를 불러 약관 이력이 기록되지 않는다.
+-- select p.oid::regprocedure as signature,
+--        pg_get_function_arguments(p.oid) as args
+-- from pg_proc p
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname = 'complete_signup_profile';
+--
+-- -- [7-b] 호출 권한: authenticated true / anon false
+-- select r.rolname, has_function_privilege(r.rolname, p.oid, 'execute') as can_execute
+-- from pg_proc p
+-- cross join (values ('anon'), ('authenticated'), ('service_role')) as r(rolname)
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname = 'complete_signup_profile'
+-- order by r.rolname;
+--
+-- -- [7-c] 학부모 가입이 실제로 뚫리는지 (이 커밋의 핵심 확인)
+-- --
+-- -- auth.uid()가 필요하므로 JWT 클레임을 흉내낸다. 전체가 begin/rollback으로
+-- -- 감싸여 있어 아무 행도 남지 않는다. <uuid>는 auth.users의 실제 계정으로
+-- -- 바꿔 넣을 것: select id, email from auth.users order by created_at;
+-- --
+-- -- 기대: school_type을 null로 줘도 에러 없이 ok=true가 나온다.
+-- -- (수정 전 함수라면 여기서 school_type_required로 죽는다)
+-- --
+-- -- begin;
+-- -- set local request.jwt.claims = '{"sub":"<uuid>"}';
+-- --
+-- -- select public.complete_signup_profile(
+-- --   '테스트학부모', null, '01000000000', 'parent-test@example.com', '서울',
+-- --   null, null, 'parent',
+-- --   true,   -- terms_service
+-- --   true,   -- privacy_required
+-- --   false,  -- identity        (학부모에겐 필수 아님)
+-- --   false,  -- privacy_optional
+-- --   false,  -- marketing
+-- --   false   -- ads
+-- -- );
+-- --
+-- -- -- 약관 이력이 학부모 3종으로 기록됐는지 (student 약관은 섞이면 안 된다)
+-- -- select t.code, t.version, a.agreed
+-- -- from public.user_term_agreements a
+-- -- join public.terms t on t.id = a.term_id
+-- -- where a.user_id = '<uuid>'
+-- -- order by t.code;
+-- --
+-- -- rollback;
+--
+-- -- [7-d] 학생 가입: 연결코드 발급 + 재호출해도 회전하지 않는지
+-- --        거부 케이스(identity 미동의 / 잘못된 회원유형)까지 한 번에 확인한다.
+-- --
+-- -- uuid 수동 치환이 필요 없다 — set_config로 세션에 sub를 심고 auth.uid()를
+-- -- 그대로 쓴다. 전체가 begin/rollback 안이라 아무 행도 남지 않는다.
+-- -- 에러 없이 끝나면 통과. 실패는 '실패: ...' 메시지로 나온다.
+--
+-- begin;
+--
+-- select set_config(
+--   'request.jwt.claims',
+--   json_build_object('sub', (select id from auth.users order by created_at limit 1))::text,
+--   true
+-- );
+--
+-- do $$
+-- declare
+--   v_first  text;
+--   v_second text;
+-- begin
+--   -- 1) 학생 가입 → 연결코드가 발급돼야 한다
+--   v_first := (public.complete_signup_profile(
+--     '테스트학생', null, '01000000001', 'student-test@example.com', '서울',
+--     '고등학교', '테스트고', 'student',
+--     true, true, true, false, false, false
+--   )) ->> 'link_code';
+--
+--   if v_first is null then
+--     raise exception '실패: 학생인데 link_code가 발급되지 않았습니다.';
+--   end if;
+--
+--   if v_first !~ '^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$' then
+--     raise exception '실패: link_code 형식이 어긋납니다 (%).', v_first;
+--   end if;
+--
+--   -- 2) 같은 인자로 재호출 → 코드가 그대로여야 한다 (자동 회전 없음)
+--   v_second := (public.complete_signup_profile(
+--     '테스트학생', null, '01000000001', 'student-test@example.com', '서울',
+--     '고등학교', '테스트고', 'student',
+--     true, true, true, false, false, false
+--   )) ->> 'link_code';
+--
+--   if v_first is distinct from v_second then
+--     raise exception '실패: 재호출로 코드가 회전했습니다 (% -> %).', v_first, v_second;
+--   end if;
+--
+--   -- 3) 학생인데 identity 미동의 → identity_required
+--   begin
+--     perform public.complete_signup_profile(
+--       '테스트학생', null, '01000000001', 'student-test@example.com', '서울',
+--       '고등학교', '테스트고', 'student',
+--       true, true, false, false, false, false
+--     );
+--     raise exception '실패: identity 미동의가 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'identity_required' then raise; end if;
+--   end;
+--
+--   -- 4) 학생인데 school_type 없음 → school_type_required (학생에겐 여전히 필수)
+--   begin
+--     perform public.complete_signup_profile(
+--       '테스트학생', null, '01000000001', 'student-test@example.com', '서울',
+--       null, null, 'student',
+--       true, true, true, false, false, false
+--     );
+--     raise exception '실패: 학생인데 school_type 없이 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'school_type_required' then raise; end if;
+--   end;
+--
+--   -- 5) 구 표기 'teacher' → invalid_member_type
+--   begin
+--     perform public.complete_signup_profile(
+--       '테스트', null, '01000000002', 'x-test@example.com', '서울',
+--       null, null, 'teacher',
+--       true, true, false, false, false, false
+--     );
+--     raise exception '실패: teacher가 통과했습니다.';
+--   exception when sqlstate 'P0001' then
+--     if sqlerrm <> 'invalid_member_type' then raise; end if;
+--   end;
+--
+--   raise notice '[7] 전체 통과 (link_code=%)', v_first;
+-- end $$;
+--
+-- rollback;
 --
 -- -- [4-e'] 위가 true로 나오면 실제 부여 주체를 여기서 확인한다.
 -- -- proacl에 anon=X/... 또는 authenticated=X/... 항목이 남아 있으면

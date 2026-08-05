@@ -438,10 +438,10 @@ export default function StudentForm() {
           p_member_type: 'student',
           p_terms_service_agreed: agreements.service,
           p_privacy_required_agreed: agreements.privacyRequired,
-          // TODO(§4 GAP): identityRequired("본인 인증을 위한 정보 수집")는 현재
-          // complete_signup_profile RPC에 대응 파라미터가 없다. 클라이언트 단 필수 동의
-          // 검증(validateForm)만 수행 중이며, 백엔드에 p_identity_required_agreed 파라미터
-          // 추가 여부를 확인해야 한다.
+          // identityRequired("본인 인증을 위한 정보 수집") — sql/40_auth_signup.sql [7]에서
+          // 파라미터가 추가되어 GAP 해소됨. 서버가 학생에 한해 필수로 검증하고,
+          // 동의 이력은 user_term_agreements에 약관 버전 단위로 기록된다.
+          p_identity_required_agreed: agreements.identityRequired,
           p_privacy_optional_agreed: agreements.privacyOptional,
           p_marketing_agreed: agreements.marketing,
           p_ads_agreed: agreements.ads
@@ -468,6 +468,16 @@ export default function StudentForm() {
 
         if (errorMessage.includes('privacy_required')) {
           setFormError('개인정보 필수 동의가 필요합니다.');
+          return;
+        }
+
+        if (errorMessage.includes('identity_required')) {
+          setFormError('본인 인증을 위한 정보 수집 동의가 필요합니다.');
+          return;
+        }
+
+        if (errorMessage.includes('invalid_member_type')) {
+          setFormError('회원 유형이 올바르지 않습니다. 처음부터 다시 시도해 주세요.');
           return;
         }
 
