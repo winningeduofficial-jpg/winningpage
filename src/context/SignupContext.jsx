@@ -39,7 +39,17 @@ const INITIAL_AGREEMENTS = {
 
 const INITIAL_VERIFICATION = {
   phone: { requested: false, verified: false },
-  email: { requested: false, verified: false, checked: false, available: false },
+  // mode/resumed: 인증코드를 어떤 API로 보냈는지 기억한다. 신규 가입은 signUp
+  // (verifyOtp type 'signup'), 중단된 가입 이어가기는 signInWithOtp(type 'email')라
+  // 검증 호출이 달라진다. src/lib/signupEmailAuth.js 참고.
+  email: {
+    requested: false,
+    verified: false,
+    checked: false,
+    available: false,
+    mode: null,
+    resumed: false
+  },
   pass: { verified: false } // 법정대리인 PASS 본인인증(D-1)
 };
 

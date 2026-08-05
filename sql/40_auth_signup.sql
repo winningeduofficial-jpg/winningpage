@@ -13,6 +13,7 @@
 --   [6] phone_verifications    : 휴대폰 인증코드 (서버 전용)
 --   [7] complete_signup_profile 확장 (학부모·멘토 가입 개통, 약관 이력 기록)
 --   [8] 연결 RPC 4종 (요청/응답/해제/코드 재발급)
+--   [9] check_email_signup_state : 가입 중단 계정 이어가기 판정
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1093,6 +1094,102 @@ grant execute on function public.reissue_link_code()               to authentica
 
 
 -- =====================================================================
+-- [9] check_email_signup_state : 가입 중단 계정 이어가기 판정
+--
+-- 문제
+--   가입 시퀀스는 이메일 인증을 위해 auth.signUp()을 먼저 호출한다. 그래서
+--   약관까지 입력하고 "가입 완료"를 누르지 않은 채 이탈하면 auth.users에는
+--   행이 남고 profiles는 비어 있는 상태가 된다.
+--   그런데 is_email_available(00_base_schema.sql:1280)은 profiles와 auth.users를
+--   OR로 묶어 판정하므로 이 상태를 "중복"으로 보고 로그인하라고 안내한다.
+--   사용자는 가입도 못 하고 쓸 수 있는 계정도 없는 막다른 길에 갇힌다.
+--
+-- 왜 "계정 생성을 미루기"로 풀지 않는가
+--   Supabase Auth는 이메일 OTP를 보내려면 auth.users 행이 먼저 있어야 한다.
+--   계정 없이 이메일만 검증하는 경로가 없다. 그걸 피하려면 이메일 인증을
+--   자체 구현(테이블 + 자체 SMTP)해야 하는데 발송 신뢰성까지 떠안게 된다.
+--   그래서 "생성을 막기"가 아니라 "이어서 가입하기"로 푼다.
+--
+-- 반환값 4종. 이어가기를 둘로 쪼갠 이유는 재발송 API가 다르기 때문이다.
+--   'available'             아무 데도 없음
+--                           → auth.signUp() / verifyOtp type 'signup'
+--   'resumable_unverified'  계정 있음, 이메일 미인증 (코드 입력 전 이탈)
+--                           → auth.signUp() 재호출이 확인메일을 재발송한다
+--   'resumable_verified'    계정 있음, 이메일 인증됨 (가입 완료 직전 이탈)
+--                           → signUp은 "이미 등록됨"으로 막히므로
+--                             signInWithOtp({shouldCreateUser:false}) / type 'email'
+--   'taken'                 가입 완료됨 → 로그인 안내
+--
+-- ※ signInWithOtp는 "Confirm signup"이 아니라 **Magic Link 템플릿**으로 나간다.
+--   그 템플릿도 {{ .Token }}을 쓰도록 고쳐두지 않으면 이어가기 경로에서만
+--   다시 매직링크가 발송된다.
+--
+-- 가입 완료 판정은 member_type이 채워졌는지로 한다. profiles 행 자체는
+-- handle_new_user 트리거가 auth.signUp 시점에 미리 만들어버리므로 행의
+-- 존재만으로는 완료 여부를 알 수 없다. member_type은 complete_signup_profile만
+-- 채운다([7]).
+--
+-- 주의: 이 함수는 "이 이메일이 가입돼 있는가"를 로그인 전에 알려주므로
+-- 계정 존재 여부가 노출된다. 다만 기존 is_email_available도 동일하게
+-- 노출하고 있고, 가입 화면의 중복확인 UI 자체가 그걸 전제로 한다.
+-- =====================================================================
+
+create or replace function public.check_email_signup_state(p_email text)
+returns text
+language plpgsql
+stable
+security definer
+set search_path to 'public', 'auth'
+as $function$
+declare
+  v_email     text;
+  v_auth_id   uuid;
+  v_confirmed timestamptz;
+  v_completed boolean;
+begin
+  v_email := lower(trim(coalesce(p_email, '')));
+
+  if v_email = '' then
+    return 'available';
+  end if;
+
+  select u.id, u.email_confirmed_at
+    into v_auth_id, v_confirmed
+  from auth.users u
+  where lower(trim(u.email)) = v_email
+  limit 1;
+
+  -- 계정이 없어도 profiles에 같은 이메일이 있으면 가입된 것으로 본다
+  -- (계정이 지워졌는데 프로필만 남은 비정상 상태 방어).
+  select exists (
+    select 1
+    from public.profiles p
+    where lower(trim(p.email)) = v_email
+      and p.member_type is not null
+  ) into v_completed;
+
+  if v_completed then
+    return 'taken';
+  end if;
+
+  if v_auth_id is not null then
+    if v_confirmed is null then
+      return 'resumable_unverified';
+    end if;
+    return 'resumable_verified';
+  end if;
+
+  return 'available';
+end;
+$function$;
+
+-- 가입 화면은 로그인 전(anon)에 호출한다.
+revoke all on function public.check_email_signup_state(text) from public;
+grant execute on function public.check_email_signup_state(text)
+  to anon, authenticated, service_role;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -1603,6 +1700,29 @@ grant execute on function public.reissue_link_code()               to authentica
 -- end $$;
 --
 -- rollback;
+--
+-- -- [9-a] 실제 계정들이 각각 어떤 상태로 판정되는지
+-- -- 가입을 마친 계정은 taken, 이메일 인증만 하고 이탈한 계정은
+-- -- resumable_verified, 코드 입력 전 이탈은 resumable_unverified가 나와야 한다.
+-- select
+--   u.email,
+--   u.email_confirmed_at is not null as email_confirmed,
+--   p.member_type,
+--   public.check_email_signup_state(u.email) as state
+-- from auth.users u
+-- left join public.profiles p on p.id = u.id
+-- order by u.created_at;
+--
+-- -- 없는 이메일은 available
+-- select public.check_email_signup_state('nobody-' || gen_random_uuid() || '@example.com');
+--
+-- -- [9-b] anon이 호출할 수 있어야 한다 (가입 화면은 로그인 전이다)
+-- select r.rolname, has_function_privilege(r.rolname, p.oid, 'execute') as can_execute
+-- from pg_proc p
+-- cross join (values ('anon'), ('authenticated')) as r(rolname)
+-- where p.pronamespace = 'public'::regnamespace
+--   and p.proname = 'check_email_signup_state'
+-- order by r.rolname;
 --
 -- -- [4-e'] 위가 true로 나오면 실제 부여 주체를 여기서 확인한다.
 -- -- proacl에 anon=X/... 또는 authenticated=X/... 항목이 남아 있으면

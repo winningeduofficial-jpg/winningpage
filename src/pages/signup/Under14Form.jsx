@@ -21,6 +21,14 @@ import {
 } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
 import { supabase } from '../../lib/supabase';
+import {
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  EMAIL_STATE,
+  MESSAGES,
+  sendSignupEmailCode,
+  verifySignupEmailCode
+} from '../../lib/signupEmailAuth';
+import { useCooldown } from '../../hooks/useCooldown';
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
 import { REGION_OPTIONS } from './StudentForm';
@@ -106,6 +114,7 @@ export default function Under14Form() {
     setAllAgreements
   } = useSignup();
   const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
+  const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
   // StudentForm(P0)과 동일 이슈: 이메일 인증 액션이 비밀번호 미입력 상태에서 이메일 필드에
   // 비밀번호 에러를 던지는 것을 막기 위해 비밀번호 유효할 때까지 액션 자체를 막는다.
   const emailActionBlockedByPassword = !isValidPassword(formData.password);
@@ -136,10 +145,17 @@ export default function Under14Form() {
     [agreements]
   );
 
-  // --- 이메일 인증: StudentForm(C-1)의 requestEmailCode/verifyEmailCode Supabase OTP
-  // 시퀀스를 그대로 재사용한다(중복확인 → auth.signUp으로 OTP 발송 → auth.verifyOtp) —
+  // --- 이메일 인증: src/lib/signupEmailAuth.js의 공용 시퀀스를 쓴다.
+  // (상태 확인 → OTP 발송 → OTP 검증. 가입 중단 계정이면 이어서 가입한다)
   // 이전에는 "인증번호 보내기" 클릭이 아무 동작도 하지 않는 no-op 스텁이었다.
   async function requestEmailCode() {
+    // Supabase Auth가 서버에서 같은 간격으로 막고 있다. 여기서 먼저 잡아주지
+    // 않으면 연타가 전부 실패 응답으로 돌아오면서 시간당 발송 할당량만 태운다.
+    if (emailCooldown.active) {
+      setEmailMessage({ text: MESSAGES.cooldown(emailCooldown.remaining), status: 'error' });
+      return;
+    }
+
     const normalizedEmail = formData.email.trim().toLowerCase();
 
     if (!normalizedEmail) {
@@ -154,31 +170,7 @@ export default function Under14Form() {
 
     setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
 
-    const { data, error } = await supabase.rpc('is_email_available', {
-      check_email: normalizedEmail
-    });
-
-    if (error) {
-      console.error('이메일 중복확인 오류:', error);
-      updateVerification('email', { checked: false, available: false });
-      setEmailMessage({
-        text: '중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
-    if (data !== true) {
-      updateVerification('email', { checked: true, available: false });
-      setEmailMessage({
-        text: '이메일이 중복됩니다. 로그인 페이지에서 로그인해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
-    updateVerification('email', { checked: true, available: true });
-
+    // signUp이 비밀번호를 요구하므로 발송 전에 먼저 막는다.
     if (!isValidPassword(formData.password)) {
       setEmailMessage({
         text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
@@ -187,33 +179,41 @@ export default function Under14Form() {
       return;
     }
 
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-    } catch (_error) {
-      // ignore
-    }
-
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { state, mode, resumed, error } = await sendSignupEmailCode({
       email: normalizedEmail,
       password: formData.password,
-      options: {
-        data: {
-          email: normalizedEmail,
-          name: formData.name.trim(),
-          full_name: formData.name.trim(),
-          member_type: 'student',
-          role: 'user'
-        }
-      }
+      name: formData.name.trim(),
+      memberType: 'student'
     });
 
-    if (signUpError) {
-      setEmailMessage({ text: getFriendlyEmailError(signUpError.message), status: 'error' });
+    if (error) {
+      console.error('이메일 인증코드 발송 오류:', error);
+      updateVerification('email', { checked: false, available: false });
+      setEmailMessage({
+        text: state ? getFriendlyEmailError(error.message) : MESSAGES.checkFailed,
+        status: 'error'
+      });
       return;
     }
 
-    updateVerification('email', { requested: true });
-    setEmailMessage({ text: '입력한 이메일로 인증코드를 발송했습니다.', status: 'default' });
+    if (state === EMAIL_STATE.TAKEN) {
+      updateVerification('email', { checked: true, available: false });
+      setEmailMessage({ text: MESSAGES.taken, status: 'error' });
+      return;
+    }
+
+    updateVerification('email', {
+      checked: true,
+      available: true,
+      requested: true,
+      mode,
+      resumed
+    });
+    emailCooldown.start();
+    setEmailMessage({
+      text: resumed ? MESSAGES.resumed : MESSAGES.sent,
+      status: 'default'
+    });
   }
 
   async function verifyEmailCode() {
@@ -230,15 +230,23 @@ export default function Under14Form() {
       return;
     }
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { error, stage } = await verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      type: 'signup'
+      mode: verification.email.mode,
+      password: formData.password,
+      resumed: verification.email.resumed
     });
 
     if (error) {
       updateVerification('email', { verified: false });
-      setEmailMessage({ text: '인증번호가 틀립니다.', status: 'error' });
+      setEmailMessage({
+        text:
+          stage === 'password'
+            ? '인증은 됐지만 비밀번호 설정에 실패했습니다. 다시 시도해 주세요.'
+            : MESSAGES.codeMismatch,
+        status: 'error'
+      });
       return;
     }
 
@@ -345,9 +353,19 @@ export default function Under14Form() {
           value={formData.email}
           onChange={(v) => updateFormData({ email: v })}
           placeholder="이메일을 입력 해주세요"
-          actionLabel={verification.email.requested ? '인증번호 다시 보내기' : '인증번호 보내기'}
+          actionLabel={
+            emailCooldown.active
+              ? `${emailCooldown.remaining}초 후 재발송`
+              : verification.email.requested
+                ? '인증번호 다시 보내기'
+                : '인증번호 보내기'
+          }
           onAction={requestEmailCode}
-          actionDisabled={verification.email.verified || emailActionBlockedByPassword}
+          actionDisabled={
+            emailCooldown.active ||
+            verification.email.verified ||
+            emailActionBlockedByPassword
+          }
           helperText={
             emailActionBlockedByPassword ? '비밀번호 입력 후 인증할 수 있어요' : emailMessage.text
           }
