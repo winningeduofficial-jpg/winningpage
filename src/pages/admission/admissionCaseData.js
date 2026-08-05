@@ -76,3 +76,76 @@ export async function fetchAdmissionCaseById(id) {
 
   return data || null;
 }
+
+/**
+ * 히어로 합격률 폴백 — Figma 1929:656 원본 데이터.
+ * 합계 477 / 5 = 95.4 (기존 하드코딩 '5개년 평균 95.4%'와 일치).
+ * sql/41_admission_case_hero.sql 미적용 환경에서도 화면이 현재와 동일하게 보이도록 한다.
+ */
+export const FALLBACK_ACCEPTANCE_RATES = [
+  { year: 2021, rate: 92 },
+  { year: 2022, rate: 97 },
+  { year: 2023, rate: 95 },
+  { year: 2024, rate: 95 },
+  { year: 2025, rate: 98 }
+];
+
+/**
+ * 노출 중인 연도별 합격률. 테이블 미생성/조회 실패면 폴백 상수를 반환한다.
+ * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을
+ * 그대로 반환한다 — 호출부가 "조회 실패"와 "의도적으로 0건"을 구분해야 하므로
+ * 여기서 빈 배열을 폴백으로 덮어써서는 안 된다.
+ * select('*') 고정 — 마이그레이션 미적용 환경에서도 죽지 않게 하는 규약(fetchAdmissionCases와 동일).
+ * @returns {Promise<Array<{ year: number, rate: number }>>}
+ */
+export async function fetchAcceptanceRates() {
+  const { data, error } = await supabase
+    .from('admission_acceptance_rates')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('year', { ascending: true });
+
+  if (error) {
+    console.error('연도별 합격률 조회 실패:', error);
+    return FALLBACK_ACCEPTANCE_RATES;
+  }
+
+  return data || [];
+}
+
+/**
+ * 히어로 대학 로고 스트립. 테이블 미생성/조회 실패면 null을 반환해 호출부
+ * (AcceptanceRateHero)가 번들 로고 12종 폴백을 유지하게 한다. 정상 응답이면
+ * 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을 그대로
+ * 반환해 호출부가 로고 스트립 자체를 숨길 수 있게 한다.
+ * @returns {Promise<Array<{ id: string, name: string, logo_url: string,
+ *   display_height_rem: number, opacity: number, sort_order: number }> | null>}
+ */
+export async function fetchAdmissionCaseLogos() {
+  const { data, error } = await supabase
+    .from('admission_case_logos')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('합격 대학 로고 조회 실패:', error);
+    return null;
+  }
+
+  return data || [];
+}
+
+/**
+ * 합격률 평균(소수 첫째 자리 반올림). 어드민 요약값과 동일한 계산.
+ * @param {Array<{ rate: number | string }>} rates
+ * @returns {number}
+ */
+export function computeAcceptanceAverage(rates) {
+  const list = (rates || []).filter((row) => Number.isFinite(Number(row?.rate)));
+  if (list.length === 0) return 0;
+  const sum = list.reduce((acc, row) => acc + Number(row.rate), 0);
+  return Math.round((sum / list.length) * 10) / 10;
+}
