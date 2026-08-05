@@ -494,12 +494,13 @@ const CONFIGS = {
     searchPlaceholder: '대학명을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 순서대로 나열되며 절반씩 두 줄로 나뉩니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
+    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 표시 줄에서 지정한 대로 1행/2행에 배치되며, 시안은 1행 7개·2행 5개 구성입니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
     columns: [
       { key: 'logo_url', label: '로고', type: 'image' },
       { key: 'name', label: '대학명' },
       { key: 'display_height_rem', label: '표시 높이(rem)' },
       { key: 'opacity', label: '투명도' },
+      { key: 'row_no', label: '표시 줄' },
       { key: 'sort_order', label: '순서' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
@@ -532,6 +533,17 @@ const CONFIGS = {
         required: true,
         help: '0 초과 1 이하. 기본 1, 감광 로고는 0.7 또는 0.8'
       },
+      {
+        key: 'row_no',
+        label: '표시 줄',
+        type: 'select',
+        required: true,
+        options: [
+          { value: '1', label: '1행' },
+          { value: '2', label: '2행' }
+        ],
+        help: '시안은 1행 7개 · 2행 5개 구성입니다'
+      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
     rowToForm: (row) => ({
@@ -540,12 +552,14 @@ const CONFIGS = {
         row.display_height_rem === null || row.display_height_rem === undefined
           ? ''
           : String(row.display_height_rem),
-      opacity: row.opacity === null || row.opacity === undefined ? '' : String(row.opacity)
+      opacity: row.opacity === null || row.opacity === undefined ? '' : String(row.opacity),
+      row_no: row.row_no === null || row.row_no === undefined ? '1' : String(row.row_no)
     }),
     formToPayload: (form) => ({
       ...form,
       display_height_rem: Number.parseFloat(form.display_height_rem),
-      opacity: Number.parseFloat(form.opacity)
+      opacity: Number.parseFloat(form.opacity),
+      row_no: Number.parseInt(form.row_no, 10)
     }),
     validate: (form) => {
       const height = Number.parseFloat(form.display_height_rem);
@@ -556,6 +570,10 @@ const CONFIGS = {
       if (!Number.isFinite(opacity) || opacity <= 0 || opacity > 1) {
         return '투명도는 0 초과 1 이하 숫자로 입력해 주세요.';
       }
+      const rowNo = Number.parseInt(form.row_no, 10);
+      if (rowNo !== 1 && rowNo !== 2) {
+        return '표시 줄은 1행 또는 2행 중에서 선택해 주세요.';
+      }
       return '';
     },
     defaults: {
@@ -564,6 +582,7 @@ const CONFIGS = {
       logo_url: '',
       display_height_rem: '2',
       opacity: '1',
+      row_no: '1',
       sort_order: 1
     }
   },

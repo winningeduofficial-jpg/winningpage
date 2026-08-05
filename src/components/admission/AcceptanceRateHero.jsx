@@ -77,14 +77,21 @@ function toLogoItems(dbRows) {
     name: row.name,
     heightRem: Number(row.display_height_rem) || 2,
     widthRem: undefined,
-    opacity: Number(row.opacity) || 1
+    opacity: Number(row.opacity) || 1,
+    // row_no 없거나 2가 아니면 1행으로 취급 — 마이그레이션 미적용 환경 대비.
+    rowNo: Number(row.row_no) === 2 ? 2 : 1
   }));
 }
 
-// DB 로고는 sort_order 순 평면 배열 → 앞쪽이 한 개 더 많게 2줄로 균등 분할.
+// DB 로고는 sort_order 순 정렬된 상태로 들어온다 — row_no(1|2) 기준으로만 줄을 나누고
+// 줄 내부 순서는 재정렬하지 않는다.
 function splitIntoTwoRows(list) {
-  const half = Math.ceil(list.length / 2);
-  return [list.slice(0, half), list.slice(half)];
+  const row1 = [];
+  const row2 = [];
+  list.forEach((item) => {
+    (item.rowNo === 2 ? row2 : row1).push(item);
+  });
+  return [row1, row2];
 }
 
 function LogoRow({ logos }) {
