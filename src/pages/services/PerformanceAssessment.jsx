@@ -34,31 +34,75 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 
 const HERO_SERVICE = { name: 'AI 수행평가 서비스', to: '/pricing' };
 
-// 컨테이너 폭 및 배율 — Figma 시안의 디자인 콘텐츠 컬럼은 섹션 공통 1436px이고, 우리
-// 컨테이너(max-w-content, 좌우 패딩 안쪽 실폭)는 1100px이다. 배율 = 1100 ÷ 1436 ≈ 0.766.
+// 컨테이너 폭 및 배율 — [3차 재확정, 이번 수정] 이전 버전은 "전 섹션에 배율 0.766 일괄
+// 적용"으로 명시했으나 Figma REST 절대좌표 실측 결과 이는 사실과 다르다. 이 시안
+// (2393:12043, 프레임 좌단 x=47410) 안에는 좌표계가 섹션별로 섞여 있다 — 배율은 섹션마다
+// 판정해서 적용해야 한다:
 //
-// [배율 적용 범위 — 전면 재환산, 사용자 결정] 이 배율은 치수(카드・박스 폭/높이, 이미지
-// 박스, 아이콘, 버튼, 배지, cornerRadius, 내부 패딩)・폰트・섹션 "내부" 여백(헤딩→콘텐츠 gap,
-// 요소 간 gap 등) 전부에 적용한다. 폰트는 round(시안값 × 0.766)에 최소 13px 하한을 둔다.
-// 예외 둘: ① 각 <section> 태그의 padding-top/bottom(섹션 간 갭)은 아래 "섹션 간 갭 정책"이
-// 별도로 정하므로 이번 배율 적용 대상이 아니다. ② HeroSection은 목표관리
-// (GoalManagement.jsx)・무료진단(FreeDiagnosisLanding.jsx)과 규격을 통일한 3페이지 공통
-// 스펙이라 제외한다(HeroSection 내부 주석 참고). 테두리 두께 1px은 시각적 선명도를 위해
-// 환산하지 않고 그대로 유지한다.
+//   좌표계 A(배율 1.0) — 콘텐츠 좌단 x=47820, 오프셋 410=(1920−1100)÷2, 폭 1100px. 이미 우리
+//     컨테이너(max-w-content 안쪽 실폭 1100px)와 동일 폭으로 설계돼 시안값을 그대로 쓴다.
+//     확인된 섹션: CoachingSection(2393:12141, 이미지박스 353×3+gap20×2=1099),
+//     AudienceSection(2393:12179, 카드 260×4+gap20×3=1100),
+//     StageSummarySection(2393:12209, 카드 260×4+gap20×3=1100).
+//   좌표계 B(배율 ≈0.766) — 콘텐츠 좌단 x=47652, 오프셋 242=(1920−1436)÷2, 폭 1436px. 우리
+//     컨테이너보다 넓게 설계된 컬럼이라 1100÷1436≈0.766을 적용한다. OutcomesSection・
+//     TestimonialsSection・FaqSection・PricingSection이 이 컬럼값을 참조한 기존 구현을 유지
+//     하며, 이번 수정에서 REST로 재검증하지는 않았다(스코프 밖).
+//   ProcessSection(2393:12092, "완성까지의 흐름")은 카드 4장 합 실폭이 시안 원본 1180px로
+//     A(1100)도 B(1436)도 아니다. 형제 페이지 목표관리(GoalManagement.jsx:454-457)는 동일한
+//     1180 케이스를 wide(74rem) 이상 카드 276px로 클램프해 max-w-content "전체" 폭(1164px,
+//     좌우 px-8 패딩 영역까지 채움)에 맞췄지만, 이 페이지는 그 값을 따르지 않는다 — 페이지 내
+//     다른 3개 카드 그리드(CoachingSection・AudienceSection・StageSummarySection, 전부 좌표계
+//     A)와 헤딩이 모두 컨테이너 "안쪽" 실폭 1100・카드 좌단 x≈195(px-8 안쪽)에 맞춰져 있는데,
+//     ProcessSection만 1164를 쓰면 카드 좌단이 x≈163으로 32px 더 왼쪽에서 시작해 같은 페이지
+//     안에서 새로운 좌단 어긋남이 생긴다(팀 Playwright 실측으로 확인). 이번 작업의 발단 자체가
+//     "레이아웃이 다른 페이지와 상이하다"는 지적이므로, 페이지 "내부" 정렬 일관성을 목표관리와의
+//     값 일치보다 우선해 컨테이너 실폭 1100(카드 260×4+gap20×3)에 맞춘다 — 나머지 3개 섹션과
+//     완전히 같은 값이다.
 //
-// [재측정 경위 — 과거 배율 1.0 판단 정정] 이전 작업은 "시안 콘텐츠 폭"을 텍스트 레이어
-// 기준으로 측정해(auto-layout stretch로 부모 컨테이너 폭까지 늘어나 렌더되는 특성 때문에
-// 실제보다 넓게 측정됨) 카드/박스 실폭이 이미 1100px에 근접한다고 보고 치수・폰트는 배율
-// 1.0(시안값 그대로), 여백만 부분 환산했다. 그러나 시안의 진짜 콘텐츠 컬럼은 1436px로 우리
-// 컬럼(1100px)보다 훨씬 넓어, 시안값을 그대로 넣은 요소가 좁은 컬럼 안에서 상대적으로 과대해
-// 보이는 문제가 실사용에서 확인됐다(예: 코칭 이미지박스 353px = 시안 컬럼의 24.6%인데 우리
-// 컬럼에선 32%). 아래는 그 과거 판단의 기록(카드 합 실폭 기준 배율)이며 더 이상 유효하지
-// 않다 — 지금은 위 0.766 배율로 전면 재확정했다:
-//   히어로               카드/목업 실폭 1099px → 배율 1.000(그대로 유지 — 위 제외 사유 ②)
-//   완성까지의 흐름       카드 4장 합 실폭 1180px → (과거) 배율 0.932
-//   네 가지 영역으로 코칭  카드 3장 합 실폭 1100px → (과거) 배율 1.000
-//   이런 학생에게 추천     카드 4장 합 실폭 1097px → (과거) 배율 1.003
-//   네 단계로 차근차근     카드 4장 합 실폭 1100px → (과거) 배율 1.000
+//   헤딩 텍스트 레이어는 auto-layout stretch로 부모 폭까지 늘어나 렌더되는 특성이 있어(아래
+//   "재측정 경위" 참고) 헤딩 좌표만으로 좌표계를 판정하면 안 되고 카드・이미지 등 고정폭
+//   콘텐츠로 판정해야 한다 — 예: StageSummarySection은 헤딩이 B(x=47652)에 걸려 있어도
+//   카드는 A(x=47820)다. 우리 코드는 헤딩・카드가 같은 max-w-content 컨테이너 안 요소라 애초에
+//   좌단이 갈라질 수 없으므로(둘 다 컨테이너 padding 기준 정렬) 카드 실측(A)을 신뢰하고 별도
+//   보정은 하지 않았다.
+//
+// [배율 적용 범위] 위 배율(A=1.0, B≈0.766, C≈0.932)은 섹션마다 카드/그리드의 폭・gap(및
+// 폭・gap에 종속돼 시안 종횡비 유지가 필요한 높이)에만 적용한다. 폰트・색・문구・섹션 순서・
+// 섹션 pt/pb는 이번 수정 범위가 아니다(기존 0.766 일괄판단 시절 값을 그대로 둔다). 예외 둘:
+// ① 각 <section> 태그의 padding-top/bottom(섹션 간 갭)은 아래 "섹션 간 갭 정책"이 별도로
+// 정하므로 적용 대상이 아니다. ② HeroSection은 목표관리(GoalManagement.jsx)・무료진단
+// (FreeDiagnosisLanding.jsx)과 규격을 통일한 3페이지 공통 스펙이라 제외한다(HeroSection 내부
+// 주석 참고). 테두리 두께 1px은 환산하지 않고 그대로 유지한다.
+//
+// [폰트 배율 정정, 이번 수정] 위 정책상 배율은 애초에 폰트에 적용 대상이 아니었으나, 실제로는
+// 이 파일 다수 구간에 레이아웃 배율(0.766)이 폰트 크기에까지 함께 곱해져 있었다(헤딩 32→24px,
+// 카드 제목 20→15px, 설명 17→13px 등 — "카드 폭에 쓰던 배율을 폰트에도 적용한" 잘못).
+// 형제 서비스 랜딩 3개(SelfAssessment.jsx・InDepthResearch.jsx・GoalManagement.jsx)는 폰트
+// 크기에 이 배율을 전혀 적용하지 않고 전 페이지 공통값을 그대로 쓴다 — 이번 수정으로 그 정본을
+// 따라 헤딩・카드 제목・카드 설명 폰트 크기를 형제 페이지의 대응 섹션 값으로 되돌렸다(각 섹션
+// 주석 참고). 레이아웃 치수(폭・gap・여백)에 대한 배율 적용 자체는 이번 수정 대상이 아니다.
+//
+// [재측정 경위] 최초 버전은 "시안 콘텐츠 폭"을 텍스트 레이어 기준으로 측정해(auto-layout
+// stretch로 부모 컨테이너 폭까지 늘어나 렌더되는 특성 때문에 실제보다 넓게 측정됨) 카드/박스
+// 실폭이 이미 1100px에 근접한다고 보고 배율 1.0으로 판단했다. 다음 버전은 반대로 "전 섹션
+// 0.766"으로 일괄 재확정했으나, 이번 Figma REST 절대좌표 실측(카드/이미지 등 고정폭 요소
+// 기준)으로 위 A/B/C 세 좌표계가 섹션별로 섞여 있음이 최종 확인됐다.
+//
+// [카드 내부 배율 혼용 정정, 이번 수정] 위 A/B/C 판정은 카드/그리드의 "박스"(폭・gap) 기준으로만
+// 내려졌고, 그 박스 "안쪽" 치수(내부 padding・pl/pr・요소 간 mt/gap 등)에는 과거 "전 섹션
+// 0.766" 시절 값이 그대로 남아 있던 지점이 다수 발견됐다(예: 카드 폭은 260으로 배율 1.0인데
+// 카드 안 텍스트 padding-left는 옛 0.766값 그대로라 오른쪽에 빈 공간이 남는 버그). 원칙:
+// **한 박스를 배율 1.0으로 그렸으면 그 박스 안쪽 치수도 전부 배율 1.0이어야 한다 — 한 요소
+// 안에서 배율을 섞지 않는다.** ProcessSection・CoachingSection・AudienceSection・
+// StageSummarySection 카드 내부를 Figma REST로 재실측해 혼재된 0.766 잔재를 전부 1.0으로
+// 되돌렸다(각 섹션 해당 지점 주석 참고). CoachingSection lg 고정 패널 높이・AudienceSection
+// wide 고정 카드 높이는 내부 여백이 늘어나며 기존 고정값으로는 콘텐츠가 넘칠 수 있어 함께
+// 키웠다(각 섹션 주석 근거 참고, 정확한 줄바꿈은 브라우저 확인 필요).
+// [카드 패딩 원칙, 이번 수정] 카드 안 컨텐츠 폭은 max-width로 제한하지 않고 카드 패딩으로만
+// 결정한다 — 텍스트 요소에 개별 max-w/pl/pr을 붙여 폭을 좁히지 말고, 카드 자체의 padding만
+// 조정해 남는 폭을 텍스트가 그대로 채우게 한다(AudienceSection・StageSummarySection 재정정,
+// 형제 페이지 SelfAssessment.jsx・InDepthResearch.jsx 대응 카드 정본).
 // ── 섹션 간 갭 정책(사용자 결정, 이번 재환산과 무관하게 유지) ──────────────────
 // 인접한 두 섹션의 배경색이 같으면 시안 갭을 ×0.67로 축소하고, 배경색이 바뀌면 시안 갭을
 // 그대로 유지한다. 이유: 배경에 경계선이 생기면(색이 바뀌면) 그 갭이 위/아래 두 덩어리로
@@ -81,14 +125,17 @@ const HERO_SERVICE = { name: 'AI 수행평가 서비스', to: '/pricing' };
 // 배경이 바뀌는 경계에서는 앞 섹션이 자신의 pb를 직접 가져야 색 경계가 정확한 위치에
 // 생긴다(CoachingSection pb, StageSummarySection pb 참고 — 둘 다 뒤 섹션 배경이 바뀌는
 // 경계라 예외적으로 pb를 직접 갖는다).
-// 헤딩 폰트 — 시안 실측 fs32(2393:12299 등)를 배율 0.766 매핑표(32→24)로 환산해 md 이상
-// 1.5rem(24px)으로 고정한다. lg 오버라이드는 제거했다 — 컨테이너가 max-w-content(1100px 안쪽
-// 실폭)로 고정돼 lg 이상에서도 폭이 늘지 않으므로 헤딩이 더 커질 이유가 없다. sm:는 저장소
-// generic 값(1.75rem)을 그대로 유지한다(전역 규칙 6 — 모바일/sm 값은 미환산).
-// 이 상수는 파일 전용(다른 페이지가 import하지 않음 — 각 서비스 랜딩이 동일 이름으로 자체
-// 정의를 갖는 구조라 정의 변경이 이 파일에만 영향을 준다, grep 확인 완료)이라 직접 수정했다.
+// 헤딩 폰트 — [정정, 이번 수정] 이전 버전은 시안 실측 fs32를 배율 0.766으로 환산해 md 이상
+// 24px(1.5rem)로 축소 고정했었다. 이는 위 "[폰트 배율 정정]" 주석의 버그 사례 그 자체다 —
+// 폰트는 애초에 배율 적용 대상이 아니다. 형제 3개 서비스 랜딩(SelfAssessment.jsx・
+// InDepthResearch.jsx・GoalManagement.jsx)은 전부 동일한 문자열
+// "sm:text-[1.75rem] lg:text-[2rem]"(md에서 축소 없이 lg에서 32px까지 커짐)을 쓴다 — 이
+// 페이지만 md에서 28px을 24px로 되돌리는 역행 계단이 있었다. 형제 정본과 문자 그대로 동일한
+// 값으로 교체한다. 이 상수는 파일 전용(다른 페이지가 import하지 않음 — 각 서비스 랜딩이 동일
+// 이름으로 자체 정의를 갖는 구조라 정의 변경이 이 파일에만 영향을 준다, grep 확인 완료)이라
+// 직접 수정했다.
 const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] md:text-[1.5rem]';
+  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]';
 
 // 브랜드 남색 — 시안 실측값은 #013162이지만 dev 정본 토큰은 #013262(한 자리 차이, 스펙 §3).
 // "코드가 정본" 원칙에 따라 dev 토큰으로 통일한다.
@@ -370,7 +417,13 @@ function HeroSection() {
           className="perf-aura-spin absolute left-0 top-[-16.6667%] aspect-square w-full"
           data-float={auraInView ? 'on' : 'off'}
         >
-          <img src={heroAura} alt="" aria-hidden="true" draggable="false" className="block w-full" />
+          <img
+            src={heroAura}
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            className="block w-full"
+          />
         </div>
       </div>
       <div
@@ -443,46 +496,71 @@ function ProcessSection() {
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>위닝 수행평가와 함께하는 완성까지의 흐름</h2>
 
-        {/* 헤딩→카드 gap 시안 실측 60px(2393:12092) × 0.766 ≈ 46px = md:mt-[2.875rem].
-            카드 280×178 × 0.766 → 214×136(wide:grid-cols-[repeat(4,13.375rem)],
-            wide:h-[8.5rem]), 카드 간 gap 20 × 0.766 ≈ 15px(gap-[0.9375rem]).
-            검산: 4×214 + 3×15 = 901 ≤ 1100(컨테이너 실폭) → wide:justify-center로 그리드를
-            중앙 정렬한다. wide 미만(모바일~lg)은 저장소 컨벤션대로 고정 폭/높이 없이 콘텐츠에
-            맞춰 자유롭게 늘어난다(목표관리 ProcessSection과 동일한 clamp 전략). */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 md:mt-[2.875rem] lg:grid-cols-4 wide:grid-cols-[repeat(4,13.375rem)] wide:justify-center">
-          {/* 카드: bg #FFFFFF, border 1px #D7D7D7(두께는 환산 제외), radius 20×0.766≈15px
-              (rounded-[0.9375rem]), 내부 VERTICAL gap 20×0.766≈15px(gap-[0.9375rem]). 그림자는
-              목표관리(GoalManagement.jsx) ProcessSection과 동일 값을 유지한다(치수 카테고리
-              밖 — 스펙에서 shadow는 환산 대상으로 명시되지 않았다).
+        {/* [재확정, 이번 수정] 카드 4장 합 실폭이 시안 원본 1180px(280×4+20×3)로 A(1100)도
+            B(1436)도 아니지만, 페이지 내부 정렬 일관성을 우선해 컨테이너 실폭 1100에 맞춘다
+            (파일 상단 주석 참고 — 목표관리처럼 1164로 클램프하면 이 섹션 카드 좌단만 페이지의
+            다른 3개 그리드・헤딩보다 32px 왼쪽으로 어긋난다). Audience/StageSummary와 완전히
+            동일한 값: 카드 260×4, gap 20×3 → md:grid-cols-4 균등 분할로 자연히 260px이
+            나온다((1100−20×3)÷4=260) — 별도 클램프 폭 지정 불필요. 검산: 4×260+3×20=1100
+            (컨테이너 실폭) 정확히 채운다.
+            헤딩→카드 gap(md:mt-[2.875rem]=46px)은 폭・gap・높이가 아니라 스코프 밖이라
+            건드리지 않았다(기존 값 유지). */}
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 md:mt-[2.875rem] md:grid-cols-4 md:gap-5 wide:grid-cols-[repeat(4,16.25rem)] wide:justify-center">
+          {/* 카드: bg #FFFFFF, border 1px #D7D7D7(두께는 환산 제외). radius는 스코프(카드
+              padding・max-w・pl/pr・mt/gap・이미지 박스 크기) 밖이라 기존 값을 그대로 둔다
+              (rounded-[0.9375rem] — 과거 0.766 환산값 그대로). 그림자는 목표관리
+              (GoalManagement.jsx) ProcessSection과 동일 값을 유지한다.
 
-              박스 모델(2393:12092 재실측) — 시안 카드 280×178 안에 콘텐츠 프레임이 상하 22px
-              여백으로 "중앙 배치"돼 있다(카드/콘텐츠 폭 차는 음수). 22×0.766≈17px도 py 고정값
-              대신 기존과 동일하게 justify-center로 자연히 얻는다(고정 높이가 있는 wide에서만
-              유효, wide 미만은 시각적 여유를 위해 py-10 유지 후 wide:py-0으로 해제).
-              가로는 카드 폭(214px)과 설명 max-w(199px)를 좌우 패딩 없이(px-0) 맞춘다 — 패딩을
-              두면 가용 폭이 좁아져 STEP 1 설명 1줄이 넘쳐 3줄로 깨진다(구 280px 카드 때와 동일
-              이유). */}
+              [카드 내부 배율 정정, 이번 수정] REST 실측(2393:12092, 카드 'Frame 1597882210')
+              결과 STEP 뱃지 내부 padding・배지↔제목 gap・제목그룹↔설명 gap이 옛 0.766값
+              그대로 남아 있었다(카드 폭은 이미 260으로 확정 상태인데 내부만 옛 배율 — 파일 상단
+              "카드 내부 배율 혼용 정정" 주석의 버그 패턴). 아래 세 값을 실측 원본으로 되돌렸다:
+              뱃지 내부 padding 8×12(py-[0.5rem] px-[0.75rem], 이전 6×9=8×12×0.766) —
+              배지 프레임(75×38)과 내부 텍스트(51×22) bbox 차로 산출. 배지↔제목 gap 4px
+              (gap-[0.25rem], 이전 3px=4×0.766) — 배지 하단(y+38)과 제목 상단 차. 제목그룹↔설명
+              gap 20px(gap-[1.25rem], 이전 15px=20×0.766) — 제목그룹 하단(y+70)과 설명 텍스트
+              상단 차, STEP1~4 카드 전부 동일하게 확인.
+
+              [카드 패딩 재정정, 이번 수정] 사용자 지적("패딩값이 좀 커") 반영. 좌우 패딩이
+              0이라 카드 폭(260px)을 텍스트가 꽉 채우면서(설명은 max-w-[12.4375rem]로만 제어)
+              상하 py-10(40px)만 있어 카드가 형제보다 53px 더 컸다. 자기평가・심화탐구
+              ProcessSection이 정확히 일치하는 값(px-6 py-8 = 24/32)을 쓰므로 그대로 이식했다 —
+              둘이 갈리지 않는 값이라 판단 여지가 없다. 높이는 계속 고정하지 않는다(콘텐츠 자연
+              높이) — 패딩이 줄며 카드도 자연히 형제 수준(180px대)으로 낮아진다. 설명
+              max-w-[12.4375rem](199px)는 이번 수정에서 유지한다 — 카드 패딩 부재로 생긴
+              어정쩡한 여백이 아니라, 심화탐구 ProcessSection(InDepthResearch.jsx:343)의
+              동일 구조・동일 값으로 STEP 3/4 시안 명시 개행과 자리를 맞추기 위한 의도적 줄바꿈
+              제어라 "컨텐츠 폭은 카드 패딩으로 결정" 원칙의 대상(Audience・StageSummary처럼
+              옛 배율 잔재로 생긴 비대칭 클램프)과는 성격이 다르다. */}
           {PROCESS_STEPS.map((item) => (
             <div
               key={item.step}
-              className="flex flex-col items-center justify-center gap-[0.9375rem] rounded-[0.9375rem] border border-[#D7D7D7] bg-white px-0 py-10 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)] wide:h-[8.5rem] wide:py-0"
+              className="flex flex-col items-center justify-center gap-[1.25rem] rounded-[0.9375rem] border border-[#D7D7D7] bg-white px-6 py-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
             >
-              {/* 상단 그룹: VERTICAL gap 4×0.766≈3px(gap-[0.1875rem]). STEP 뱃지는 padding만
-                  있고 배경・테두리 없음 — 텍스트 색만 브랜드 남색. 뱃지 패딩 8/12 × 0.766 ≈
-                  6/9px(py-[0.375rem] px-[0.5625rem]), cornerRadius 20×0.766≈15px
-                  (rounded-[0.9375rem]). 폰트: STEP 16→13(전역 매핑표, 하한), 타이틀 20→15. */}
-              <div className="flex flex-col items-center gap-[0.1875rem]">
+              {/* [폰트 정정] 이 섹션(위닝 수행평가와 함께하는 완성까지의 흐름)은
+                  심화탐구 ProcessSection("심화탐구, 이렇게 완성돼요")과 구조가 동일하다 — STEP
+                  뱃지+제목을 gap-[0.25rem]로 묶은 내부 그룹, 설명에 max-w-[12.4375rem] 제한,
+                  전부 이 파일과 심화탐구 코드가 원래 공유하던 구조다. 폰트는 그 심화탐구 값을
+                  그대로 가져온다: STEP 13→16px(text-[1rem]), 타이틀 15→20px(text-[1.25rem]).
+                  이전 버전의 13px/15px는 폭에 쓰던 0.766 배율을 폰트에도 곱한 값이었다(위
+                  "[폰트 배율 정정]" 주석 참고). radius(rounded-[0.9375rem])는 레이아웃 치수라
+                  스코프 밖 — 변경하지 않았다. */}
+              <div className="flex flex-col items-center gap-[0.25rem]">
                 <span
-                  className="rounded-[0.9375rem] px-[0.5625rem] py-[0.375rem] text-[0.8125rem] font-semibold leading-[1.4]"
+                  className="rounded-[0.9375rem] px-[0.75rem] py-[0.5rem] text-[1rem] font-semibold leading-[1.4]"
                   style={{ color: BRAND_NAVY }}
                 >
                   {item.step}
                 </span>
-                <p className="text-[0.9375rem] font-semibold leading-[1.4] text-[#525252]">{item.title}</p>
+                <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
+                  {item.title}
+                </p>
               </div>
-              {/* 설명 최대 폭 260 × 0.766 ≈ 199px(max-w-[12.4375rem]). 폰트 16→13. 명시적 2줄
-                  개행은 유지 — 199px 폭에서 각 줄이 접히지 않는지 확인 완료(검증 섹션 참고). */}
-              <p className="mx-auto max-w-[12.4375rem] break-keep text-[0.8125rem] font-medium leading-[1.4] text-[#525252]">
+              {/* 설명 폰트 13→16px(text-[1rem], 심화탐구 desc와 동일값). max-w-[12.4375rem](199px)
+                  자체는 레이아웃 치수라 유지 — 카드 높이가 고정되지 않은 섹션(위 주석 "높이는
+                  고정하지 않는다" 참고)이라 폰트가 커져 줄바꿈이 늘어나도 카드가 자연스럽게
+                  늘어나며 잘리지 않는다. 명시적 2줄 개행은 유지. */}
+              <p className="mx-auto max-w-[12.4375rem] break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]">
                 {item.desc.map((line, index) => (
                   <Fragment key={line}>
                     {index > 0 && <br />}
@@ -557,44 +635,73 @@ function CoachingSection() {
           })}
         </div>
 
-        {/* 카드 — 탭바 하단→카드 gap 55 × 0.766 ≈ 42px(md:mt-[2.625rem]). 이미지 박스
-            353×153 × 0.766 → 270×117(wide:grid-cols-[repeat(3,16.875rem)],
-            h-[7.3125rem]), radius 12×0.766≈9px(rounded-[0.5625rem]), 카드 간 gap
-            20×0.766≈15px(gap-[0.9375rem])는 모든 브레이크포인트에서 동일. 검산: 3×270 + 2×15
-            = 840 ≤ 1100(컨테이너 실폭) → wide:justify-center로 중앙 정렬. wide(74rem)
-            미만은 ProcessSection과 동일한 clamp 전략으로 고정 폭 없이 유동 처리한다. */}
+        {/* [좌표계 A, 이번 수정] REST 실측(2393:12141) 결과 이미지박스가 x=47820(오프셋 410,
+            좌표계 A)에서 353×153 크기・gap 20px로 배치돼 있어 배율 1.0(시안값 그대로)을 쓴다.
+            이전 버전은 여기도 0.766을 적용해(이미지박스 270×117) 좁혀놨었다 — 게다가 gap 클래스
+            자체가 실제로는 어느 브레이크포인트에서도 오버라이드되지 않아(gap-5=20px 그대로)
+            "gap-[0.9375rem](15px)"라던 이전 주석은 코드와 불일치했다(gap 자체는 우연히 이미
+            정답인 20px였다). 탭바 하단→카드 gap(md:mt-[2.625rem]=42px)은 폭・gap・높이가
+            아니라 스코프 밖이라 건드리지 않았다.
+            이미지 박스 353×153(wide:grid-cols-[repeat(3,22.0625rem)], h-[9.5625rem]), 카드 간
+            gap 20px(gap-5, 미변경). 검산: 3×353 + 2×20 = 1099 ≈ 1100(컨테이너 실폭)을 정확히
+            채운다 → wide:justify-center로 중앙 정렬. radius・내부 패딩・폰트는 스코프 밖이라
+            기존 0.766 기반 값(rounded-[0.5625rem] 등)을 그대로 둔다. wide(74rem) 미만은
+            ProcessSection과 동일한 clamp 전략으로 고정 폭 없이 유동 처리한다. */}
         <div
           id="coaching-tabpanel"
           role="tabpanel"
           aria-labelledby={`coaching-tab-${COACHING_TABS.indexOf(activeTab)}`}
-          // lg 이상에서 패널 높이를 187px(11.6875rem, 244×0.766 실측 최솟값 환산)로 고정 —
-          // 탭 전환 시 섹션 전체 높이가 튀는 걸 막기 위한 사용자 지시. "주제 추천" 탭만
-          // 3번째 카드 설명이 2줄로 감싸져 더 높아질 수 있으며, 이 초과분은 잘라내지 않고
-          // (overflow 유지) 패널 밖으로 자연스럽게 흘러나가게 둔다 — 카드에 배경/테두리가
-          // 없고 섹션 하단 여백이 충분해 시각적으로 문제없다.
+          // lg 이상에서 패널 높이를 고정 — 탭 전환 시 섹션 전체 높이가 튀는 걸 막기 위한
+          // 사용자 지시. [높이 재계산, 이번 수정] 카드 제목・설명 폰트를 15px/13px에서
+          // 18px/18px로 키운 데다(아래 카드 폰트 주석 참고), 이미지↔제목 gap과 제목↔설명 gap도
+          // 옛 0.766값(16px/15px)에서 실측 원본(21px/20px)으로 복원되면서(아래 카드 내부 배율
+          // 주석 참고) 기존 고정값 264px(16.5rem)로는 커진 콘텐츠가 잘린다. 이미지박스(153px,
+          // 고정・레이아웃 치수라 미변경) + 이미지↔제목 gap(21px) + 제목 1줄(18px×1.4≈25px) +
+          // 제목↔설명 gap(20px) + 설명 최대 2줄(18px×1.4×2≈50px) ≈ 269px을 기준으로 여유를
+          // 더해 272px(17rem)로 고정한다 — 자기평가 StageSection 탭패널이 동일한 방식(5탭 중
+          // 최대 높이로 고정)을 쓴 선례를 따른다. 정확한 줄바꿈은 브라우저 실측이 필요해(이
+          // 세션은 브라우저 도구 접근 불가) 다소 여유를 둔 추정값이다 — 잘림 여부는 사용자
+          // 브라우저 확인 필요.
           // lg 미만은 이 그리드가 grid-cols-1/sm:grid-cols-2로 카드가 여러 줄로 감싸이므로
           // (단일 행이 아니므로) 고정 높이를 걸면 레이아웃이 깨져 lg: 이상에만 적용한다.
-          className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 md:mt-[2.625rem] lg:h-[11.6875rem] lg:grid-cols-3 wide:grid-cols-[repeat(3,16.875rem)] wide:justify-center"
+          className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 md:mt-[2.625rem] lg:h-[17rem] lg:grid-cols-3 wide:grid-cols-[repeat(3,22.0625rem)] wide:justify-center"
         >
           {activeCards.map((card) => (
             <div key={`${activeTab}-${card.title}`} className="flex flex-col text-left">
-              <div className="flex h-[7.3125rem] items-center justify-center rounded-[0.5625rem] bg-[#F9FAFB]">
+              <div className="flex h-[9.5625rem] items-center justify-center rounded-[0.5625rem] bg-[#F9FAFB]">
+                {/* [0.766 잔재 정정, 이번 수정] 이미지 박스(153px)는 이미 배율 1.0인데 아이콘만
+                    옛 배율(133×0.766≈102=h-[6.375rem])이 남아 박스 대비 작게 보였다(파일 상단
+                    "한 요소 안에서 배율을 섞지 않는다" 원칙 위반). REST 재실측(2393:12141) 결과
+                    아이콘 3종 실제 크기는 binoculars 131.3 / sisyphus 135.0 / lightbulb 130.0으로
+                    제각각이지만, 각자의 이미지 박스(353×153) 안 여백이 좌우 약 110px・상하 약
+                    11px로 셋 다 동일하게 중앙 배치돼 있어 — 크기 차(최대 5px, 3.7%)는 아이콘 자체
+                    내부 여백 차이일 뿐 "다른 크기로 보이도록" 의도된 것이 아니라고 판단해 대표값
+                    하나로 통일한다. 대표값은 세 실측값의 평균(≈132.1px)에 가장 가까운 rem 단위
+                    132px(=8.25rem)를 채택했다 — 이미지 박스(153px) 안에 여백 약 10.5px씩
+                    남아 시안 실측 여백(약 11px)과 거의 일치하고, 박스를 넘치지도 않는다. */}
                 <img
                   src={card.icon}
                   alt=""
                   aria-hidden="true"
-                  className="h-[6.375rem] w-[6.375rem] object-contain"
+                  className="h-[8.25rem] w-[8.25rem] object-contain"
                 />
               </div>
-              {/* 이미지 박스 하단→제목 gap 21×0.766≈16px(mt-4). 폰트 20→15(text-[0.9375rem])
-                  w500 lh1.4 색 #525252 */}
-              <p className="mt-4 text-[0.9375rem] font-medium leading-[1.4] text-[#525252]">
+              {/* [카드 내부 배율 정정, 이번 수정] REST 실측(2393:12141, 카드1 이미지박스
+                  'Rectangle 240656975' 153px 하단 → 제목 텍스트 상단) 결과 이미지 박스 하단→
+                  제목 gap이 21px인데 코드는 mt-4(16px=21×0.766)로 옛 0.766값이 남아 있었다 —
+                  카드 폭(353px, 이미 배율 1.0 확정)과 내부 gap의 배율이 섞여 있던 사례(파일
+                  상단 "카드 내부 배율 혼용 정정" 주석 참고). mt-[1.3125rem](21px)로 되돌렸다.
+                  [폰트] 이 섹션은 자기평가 StageSection과 카드 구조가 동일해 그 폰트값을
+                  그대로 가져온다: 제목 15→18px(text-[1.125rem]), 굵기도 자기평가와 동일하게
+                  font-semibold로 맞춘다(이전 font-medium은 형제 페이지와 다른 굵기). */}
+              <p className="mt-[1.3125rem] text-[1.125rem] font-semibold leading-[1.4] text-[#525252]">
                 {card.title}
               </p>
-              {/* 제목 하단→설명 gap 20×0.766≈15px(mt-[0.9375rem]). 폰트 16→13
-                  (text-[0.8125rem]) w400 lh1.4 — 시안 원본 #808080은 프로젝트 회색 하한선
-                  (#767676 이상 — GoalManagement StageSection 선례)으로 클램프한다. */}
-              <p className="mt-[0.9375rem] break-keep text-[0.8125rem] font-normal leading-[1.4] text-[#767676]">
+              {/* 설명 폰트 13→18px(text-[1.125rem], 자기평가 desc와 동일값). 시안 원본 #808080은
+                  프로젝트 회색 하한선(#767676 이상 — GoalManagement StageSection 선례)으로
+                  클램프한 기존 색은 유지(색은 스코프 밖). [카드 내부 배율 정정] 제목↔설명 gap도
+                  같은 이유로 실측 원본 20px로 복원(이전 mt-[0.9375rem]=15px=20×0.766). */}
+              <p className="mt-[1.25rem] break-keep text-[1.125rem] font-medium leading-[1.4] text-[#767676]">
                 {card.desc}
               </p>
             </div>
@@ -617,46 +724,56 @@ function AudienceSection() {
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={SECTION_HEADING_CLASS}>이런 학생에게 수행평가를 추천해요</h2>
 
-        {/* 헤딩→카드 gap 93 × 0.766 ≈ 71px(md:mt-[4.4375rem]). 카드 4장 260×354 × 0.766 →
-            199×271, bg #FFFFFF, radius 16×0.766≈12px(=rounded-xl, 12px는 Tailwind xl 토큰과
-            정확히 일치), 가로 gap 20×0.766≈15px(md:gap-[0.9375rem]). 검산: 4×199+3×15=841 ≤
-            1100(컨테이너 실폭) — 더 이상 정확히 꽉 차지 않으므로 ProcessSection/CoachingSection과
-            동일한 clamp 전략(wide 이상에서만 고정 폭 그리드 + wide:justify-center로 중앙 정렬)을
-            도입했다. wide 미만은 md:grid-cols-4 균등 분할로 유동 처리한다. */}
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 md:mt-[4.4375rem] md:grid-cols-4 md:gap-[0.9375rem] wide:grid-cols-[repeat(4,12.4375rem)] wide:justify-center">
+        {/* [좌표계 재판정, 이번 수정] 이 섹션 카드 그리드는 Figma REST 실측(2393:12179) 결과
+            좌표계 A(카드 x=47820 = 프레임 좌단 47410 + 410 = (1920−1100)÷2, 즉 우리 컨테이너
+            실폭 1100 정중앙 배치)에 속한다 — 헤딩 텍스트 레이어 자체는 auto-layout stretch로
+            1436폭까지 늘어나 보이지만(파일 상단 배율 주석의 "재측정 경위" 참고) 그건 텍스트
+            프레임의 렌더 특성일 뿐 실제 카드 배치와는 무관하다. 따라서 배율은 0.766이 아니라
+            1.0(시안 px 그대로)이다.
+            헤딩→카드 gap 93px 그대로 유지(md:mt-[4.4375rem]). 카드 4장 폭 260px(시안 그대로),
+            가로 gap 20px(md:gap-5). 이미지 영역은 143px(187×0.766)→187px(md:h-[11.6875rem])로
+            되돌렸다(아래 카드 참고). radius・폰트 등 그 외 치수는 스코프 밖이라 기존값을
+            유지한다. 검산: 4×260+3×20=1100(컨테이너 실폭) 정확히 채운다. wide 미만은
+            ProcessSection/CoachingSection과 동일한 clamp 전략(md:grid-cols-4 균등 분할)을
+            유지한다.
+            [카드 높이, 이번 수정] 고정 높이(wide:h-[24rem] 등)를 제거했다 — 정본 자기평가
+            AudienceSection(SelfAssessment.jsx:454-468)이 고정 높이 없이 CSS grid의 기본
+            align-items:stretch로 같은 행 카드 높이를 자연스럽게 맞추는 방식이라 그대로 따랐다.
+            폭이 넓어지고(max-width 클램프 제거) 패딩도 줄어 실제 콘텐츠 높이가 줄기 때문에
+            고정값을 새로 계산하는 것보다 자연 높이가 더 안전하고 형제 페이지와도 동일하다. */}
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 md:mt-[4.4375rem] md:grid-cols-4 md:gap-5 wide:grid-cols-[repeat(4,16.25rem)] wide:justify-center">
           {AUDIENCE_CARDS.map((item) => (
             <article
               key={item.title}
-              className="flex flex-col overflow-hidden rounded-xl bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)] wide:h-[16.9375rem]"
+              className="flex flex-col overflow-hidden rounded-xl bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)]"
             >
               {/* 이미지 영역 — 카드 상단 기준 고정 높이 컨테이너. 시안 원본 이미지 4장의 실제
                   표시 높이가 제각각인데 전부 하단선에 정렬돼 있다 — 고정 높이 컨테이너 +
-                  object-cover object-bottom으로 하단 기준 크롭해 재현한다. 높이 187×0.766≈
-                  143px(md:h-[8.9375rem]). 실제 소스 파일 4장 모두 가로세로비가 컨테이너보다
-                  넓어(1.40~1.50) 좌우만 살짝 잘리고 상하 크롭은 거의 없다 — object-bottom은
-                  방어적으로 유지. */}
-              <div className="h-44 w-full overflow-hidden md:h-[8.9375rem]">
+                  object-cover object-bottom으로 하단 기준 크롭해 재현한다. 높이 187px(시안
+                  그대로, md:h-[11.6875rem] — 카드 폭 확장과 함께 배율 1.0으로 되돌림, 위 그리드
+                  주석 참고). 실제 소스 파일 4장 모두 가로세로비가 컨테이너보다 넓어(1.40~1.50)
+                  좌우만 살짝 잘리고 상하 크롭은 거의 없다 — object-bottom은 방어적으로 유지. */}
+              <div className="h-44 w-full overflow-hidden md:h-[11.6875rem]">
                 <img
                   src={item.image}
                   alt={item.title}
                   className="h-full w-full object-cover object-bottom"
                 />
               </div>
-              {/* 제목 @ 이미지 하단 51×0.766≈39px(md:mt-[2.4375rem]), 카드 좌측에서 26×0.766≈
-                  20px 들여쓰기(=pl-5, Tailwind 토큰과 일치). 좌우 패딩은 비대칭이다 — 원본
-                  시안도 좌26/우5(각 ×0.766≈20/4)로 비대칭이었다(md:pl-5 md:pr-1). 대칭 처리 시
-                  설명 가용폭이 좁아져 줄바꿈이 늘고 카드가 부풀어 오르는 문제가 있었던 선례
-                  (구현 이력 참고) — 비대칭을 유지한다. fs20→15(text-[0.9375rem]) w600 lh1.4
-                  색 #525252(시안 원본이 #0F172A가 아니라 #525252임에 유의). 설명은 제목 하단
-                  25×0.766≈19px(md:mt-[1.1875rem]), fs14→13(md:text-[0.8125rem]) w500 lh1.4
-                  동색. 카드 하단 여백 45×0.766≈34px(md:pb-[2.125rem]). 카드 높이는 카드 폭과
-                  함께 wide:h-[16.9375rem](271px)로 4장 균일 고정 — wide 미만은 콘텐츠 길이에
-                  맞춰 자유롭게 늘어난다(ProcessSection/CoachingSection과 동일 clamp 컨벤션). */}
-              <div className="flex flex-1 flex-col px-6 py-6 md:pb-[2.125rem] md:pl-5 md:pr-1 md:pt-[2.4375rem]">
-                <p className="text-[0.9375rem] font-semibold leading-[1.4] text-[#525252]">
+              {/* [카드 패딩 재정정, 이번 수정] 사용자 지적("좌26/우5 비대칭이 어정쩡하고,
+                  패딩값 자체도 크다") 반영. 이 카드는 자기평가 AudienceSection(고정 높이 이미지
+                  + object-cover, SelfAssessment.jsx:454-468)과 폰트・색이 완전히 일치한다(제목
+                  18px w600 lh1.4 #525252, 설명 16px w500 lh1.5 #525252) — 심화탐구 쪽은 제목
+                  20px에 tracking까지 달라 구조가 다르므로 자기평가를 이 카드의 정본으로 삼는다.
+                  자기평가 카드는 md 오버라이드 없이 전 브레이크포인트 px-6 py-6(24px 대칭) +
+                  제목↔설명 gap-2(8px)이므로 그대로 이식했다 — 좌26/우5 비대칭・pt51/pb45・
+                  gap25는 전부 제거하고, 폭은 카드 padding(24px 대칭)이 남기는 만큼만 텍스트가
+                  채운다(파일 상단 "카드 패딩 원칙" 참고). */}
+              <div className="flex flex-1 flex-col gap-2 px-6 py-6">
+                <p className="text-[1.125rem] font-semibold leading-[1.4] text-[#525252]">
                   {item.title}
                 </p>
-                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.5] text-[#525252] md:mt-[1.1875rem] md:text-[0.8125rem] md:leading-[1.4]">
+                <p className="break-keep text-[1rem] font-medium leading-[1.5] text-[#525252]">
                   {item.desc}
                 </p>
               </div>
@@ -688,32 +805,39 @@ function StageSummarySection() {
             덧붙인다). */}
         <h2 className={`${SECTION_HEADING_CLASS} text-center`}>네 단계로 차근차근</h2>
 
-        {/* 헤딩→카드 gap 87 × 0.766 ≈ 67px(md:mt-[4.1875rem]). 카드 4장 260×159 × 0.766 →
-            199×122, radius 12×0.766≈9px(rounded-[0.5625rem]), 가로 gap 20×0.766≈15px
-            (md:gap-[0.9375rem]). 4×199+3×15=841 ≤ 1100(컨테이너 실폭) → 더 이상 정확히 꽉
-            차지 않으므로 ProcessSection/CoachingSection/AudienceSection과 동일한 clamp
-            전략(wide 이상 고정 폭 그리드 + wide:justify-center)을 적용한다. */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 md:mt-[4.1875rem] md:grid-cols-4 md:gap-[0.9375rem] wide:grid-cols-[repeat(4,12.4375rem)] wide:justify-center">
+        {/* [좌표계 재판정, 이번 수정] REST 실측(2393:12209) 결과 카드는 x=47820(좌표계 A,
+            AudienceSection과 동일한 1100 정중앙 배치)이다. 헤딩 텍스트는 x=47652(1436 좌단,
+            좌표계 B)로 168px 어긋나 있으나 — 심화탐구 Outcomes(InDepthResearch.jsx:471 주석)
+            에서 동일하게 겪은 시안 결함으로 판단해 카드 쪽 실측(좌표계 A)을 신뢰한다. 우리
+            코드는 헤딩・카드가 같은 max-w-content 컨테이너 안 요소라 애초에 좌단이 갈라질 수
+            없으므로 별도 정렬 보정은 불필요하다.
+            헤딩→카드 gap 87px 그대로 유지(md:mt-[4.1875rem]). 카드 4장 폭 260px(시안 그대로),
+            가로 gap 20px(md:gap-5). radius・폰트 등 그 외 치수는 스코프 밖이라 기존값을
+            유지한다. 검산: 4×260+3×20=1100(컨테이너 실폭) 정확히 채운다.
+            [카드 높이, 이번 수정] 고정 높이(wide:h-[9.9375rem])를 제거했다 — 정본 심화탐구
+            FiveStepsSection(InDepthResearch.jsx:424-435)이 고정 높이 없이 CSS grid의 기본
+            align-items:stretch로 같은 행 카드 높이를 자연스럽게 맞추는 방식이라 그대로 따랐다.
+            아래 max-width 클램프 제거로 설명 줄 수가 줄어 콘텐츠 높이가 더 낮아지므로, 고정값을
+            새로 계산하기보다 자연 높이(그리드 stretch)가 가장 안전하고 형제 페이지와도 동일하다. */}
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 md:mt-[4.1875rem] md:grid-cols-4 md:gap-5 wide:grid-cols-[repeat(4,16.25rem)] wide:justify-center">
           {STAGE_SUMMARY_CARDS.map((card) => (
             <div
               key={card.title}
-              className="rounded-[0.5625rem] bg-white px-6 py-7 text-left wide:h-[7.625rem] md:px-0 md:py-0 md:pt-[0.875rem]"
+              className="rounded-[0.5625rem] bg-white px-6 py-7 text-left md:pb-[1.875rem] md:pt-[2.125rem]"
             >
-              {/* 제목 상단 오프셋 18×0.766≈14px(md:pt-[0.875rem], 위 컨테이너), 좌측 들여쓰기
-                  20×0.766≈15px(md:pl-[0.9375rem]). 폰트 24→18(md:text-[1.125rem]) w600
-                  lh1.4 색 #191D23. */}
-              <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#0F172A] md:pl-[0.9375rem] md:text-[1.125rem] md:text-[#191D23]">
+              {/* [카드 패딩 재정정, 이번 수정] 사용자 지적("0/35 비대칭이 어정쩡하고, 패딩값
+                  자체도 크다") 반영. 폰트(제목 20px w600 lh1.4, 설명 16px w500 lh1.4 #767676,
+                  제목↔설명 gap 15px)는 이미 심화탐구 FiveStepsSection과 일치하는 정본이라
+                  손대지 않았다(스코프 확정). 카드 좌우 padding은 텍스트에 붙은 pl(제목 20px,
+                  설명 17px)로 흉내 내던 것을 걷어내고, 심화탐구 카드처럼 카드 자체에
+                  px-6(24px 대칭)을 준다. 세로는 심화탐구 카드 pt-[2.125rem](34px)/
+                  pb-[1.875rem](30px)를 그대로 이식했다(자기평가는 제목 폰트가 달라 참고하지
+                  않음). 폭은 max-width 클램프 없이 카드 padding(24px 대칭)이 남기는 만큼만
+                  텍스트가 채운다(파일 상단 "카드 패딩 원칙" 참고). */}
+              <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#0F172A] md:text-[#191D23]">
                 {card.title}
               </p>
-              {/* 설명 상단 오프셋 72×0.766≈55px — 제목 오프셋(14) + 제목 렌더 높이(fs18×lh1.4≈
-                  25px) + gap(20×0.766≈15px, md:mt-[0.9375rem]) ≈ 54px로 근사한다. 폰트
-                  16→13(md:text-[0.8125rem]) w500 lh1.4, 폭 225×0.766≈172px
-                  (md:max-w-[10.75rem]), 좌측 들여쓰기 17×0.766≈13px(md:pl-[0.8125rem]). 시안
-                  원본 색 #808080은 프로젝트 회색 하한선(#767676 이상 — GoalManagement
-                  StageSection 선례)으로 클램프한다. 첫 카드 설명만 3줄이고 나머지는 2줄 —
-                  172px 폭에서 3줄로 감싸지는지, 카드 높이 122px을 넘지 않는지 검증 완료(파일
-                  하단 검증 섹션 참고). */}
-              <p className="mt-3 break-keep text-[1rem] font-medium leading-[1.5] text-[#767676] md:mt-[0.9375rem] md:max-w-[10.75rem] md:pl-[0.8125rem] md:text-[0.8125rem] md:leading-[1.4]">
+              <p className="mt-3 break-keep text-[1rem] font-medium leading-[1.4] text-[#767676] md:mt-[0.9375rem]">
                 {card.desc}
               </p>
             </div>
@@ -734,17 +858,24 @@ function OutcomesSection() {
 
         {/* 헤딩→박스 gap 60 × 0.766 ≈ 46px(md:mt-[2.875rem]). 바깥 박스 높이 224 × 0.766 ≈
             172px(md:h-[10.75rem]), 배경 #F9FAFB, 테두리 1px #D9D9D9(환산 제외), radius
-            12×0.766≈9px(rounded-[0.5625rem]). 내부 상하 패딩(칸 my로 구현) 29×0.766≈22px
-            (md:my-[1.375rem]), 칸 높이 172−22×2=128px(md:h-[8rem]). 4칸 구분선 #D7D7D7,
-            아이콘 100×0.766≈77px(md:h-[4.8125rem] md:w-[4.8125rem]), 아이콘→라벨 gap
-            20×0.766≈15px(md:gap-[0.9375rem]). 폰트: 라벨 24→18(md:text-[1.125rem]) —
-            GoalManagement.jsx OutcomesSection과 동일 형태(1박스+세로 구분선 4칸, 박스
-            py-0 + 칸 my로 내부 높이 확보)로 정합. */}
+            12×0.766≈9px(rounded-[0.5625rem]). 4칸 구분선 #D7D7D7, 아이콘 100×0.766≈77px
+            (md:h-[4.8125rem] md:w-[4.8125rem]), 아이콘→라벨 gap 20×0.766≈15px
+            (md:gap-[0.9375rem]). 폰트: 라벨 24→18(md:text-[1.125rem]) — GoalManagement.jsx
+            OutcomesSection과 동일 형태(1박스+세로 구분선 4칸)로 정합.
+            [카드 패딩 재정정, 이번 수정] 사용자 지적("패딩값이 좀 커") 반영. 이전에는 칸
+            상하 패딩을 md:py-0으로 지우고 대신 md:my-[1.375rem](22px 마진) + md:h-[8rem]
+            고정 높이 + md:justify-center로 172px 박스 안 세로 위치를 재현했는데, 결과적으로
+            칸 자체의 상하 padding은 0이 됐다(형제는 8px). 자기평가・심화탐구 OutcomesSection
+            (SelfAssessment.jsx:526)은 칸에 md 오버라이드 자체가 없다 — 그대로 이식해 my/고정
+            높이/justify-center를 전부 제거하고 base px-4 py-2(16/8, 형제와 동일)만 남긴다.
+            바깥 박스는 md:h-[10.75rem] md:items-center를 유지하므로(스코프 밖, 섹션 자체
+            높이는 이번 지적 대상 아님) 칸이 자연 높이로 줄어도 그 안에서 그대로 세로 중앙
+            정렬된다. */}
         <div className="mt-8 grid grid-cols-2 gap-6 rounded-[0.5625rem] border border-[#D9D9D9] bg-[#F9FAFB] px-6 py-8 sm:mt-10 md:mt-[2.875rem] sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-[#D7D7D7] sm:px-4 md:h-[10.75rem] md:px-0 md:py-0 md:items-center">
           {OUTCOME_ITEMS.map((item) => (
             <div
               key={item.label}
-              className="flex flex-col items-center gap-3 px-4 py-2 text-center md:my-[1.375rem] md:h-[8rem] md:justify-center md:gap-[0.9375rem] md:py-0"
+              className="flex flex-col items-center gap-3 px-4 py-2 text-center md:gap-[0.9375rem]"
             >
               <img
                 src={item.icon}
@@ -781,12 +912,15 @@ function TestimonialsSection() {
           {TESTIMONIALS.map((item) => (
             // 카드 bg #F9FAFB・radius 40×0.766≈31px(rounded-[1.9375rem])・DROP_SHADOW
             // offset(0,2) blur4 rgba(213,213,213,.25)(치수 카테고리 밖 — 환산 대상 아님).
-            // 상하 패딩 56×0.766≈43px(md:py-[2.6875rem], 기존값과 일치), 좌우 패딩
-            // 40×0.766≈31px(md:px-[1.9375rem]). 높이는 고정하지 않는다 — 그리드 기본
-            // align-items:stretch로 두 카드 높이를 맞춘다.
+            // 높이는 고정하지 않는다 — 그리드 기본 align-items:stretch로 두 카드 높이를 맞춘다.
+            // [카드 패딩 재정정, 이번 수정] 사용자 지적("패딩값이 좀 커") 반영. 이전
+            // md:px-[1.9375rem]/md:py-[2.6875rem](31/43, 비대칭)는 자기평가・심화탐구
+            // TestimonialsSection(둘 다 p-[1.875rem]=30 대칭, md 오버라이드 없음)과 갈리는
+            // 값이었다 — 형제가 정확히 일치하는 값이라 판단 여지 없이 그대로 이식, 전
+            // 브레이크포인트 p-[1.875rem](30 대칭)로 통일한다.
             <figure
               key={item.quote}
-              className="flex flex-col rounded-[1.9375rem] bg-[#F9FAFB] p-7 text-left shadow-[0_0.125rem_0.25rem_rgba(213,213,213,0.25)] md:px-[1.9375rem] md:py-[2.6875rem]"
+              className="flex flex-col rounded-[1.9375rem] bg-[#F9FAFB] p-[1.875rem] text-left shadow-[0_0.125rem_0.25rem_rgba(213,213,213,0.25)]"
             >
               {/* 헤더 행(이모지+이름) — 인용문보다 위. 이모지 40→31(md:text-[1.9375rem],
                   leading 52×0.766≈40px=md:leading-[2.5rem]), 이모지→이름 gap
