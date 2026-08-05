@@ -820,6 +820,10 @@ export default function AdmissionGuidelines() {
   const [currentPage, setCurrentPage] = useState(1);
   const modalBodyRef = useRef(null);
   const modalXScrollRef = useRef(null);
+  const modalSheetRef = useRef(null);
+  const modalCloseButtonRef = useRef(null);
+  // 모달을 연 트리거(목록의 "보기" 버튼). 닫힐 때 포커스를 여기로 되돌린다.
+  const modalTriggerRef = useRef(null);
   const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
   // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { content, isHtml }.
   // 같은 셀 재클릭 시 재요청하지 않는다.
@@ -852,6 +856,7 @@ export default function AdmissionGuidelines() {
 
   function handleOpenInfo({ universityName, section, row }) {
     if (!row?.id) return;
+    modalTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const cacheKey = `${row.id}:${section.key}`;
     const cached = infoCacheRef.current.get(cacheKey);
 
@@ -888,6 +893,75 @@ export default function AdmissionGuidelines() {
       if (modalXScrollRef.current) modalXScrollRef.current.scrollLeft = 0;
     });
   }, [selectedInfo?.universityName, selectedInfo?.title]);
+
+  const isModalOpen = Boolean(selectedInfo);
+
+  // 모달 접근성: Escape 닫기, 포커스 트랩, 배경 스크롤 잠금, 닫힐 때 트리거로 포커스 복귀.
+  // 로딩/에러/본문 상태 전환마다 재실행되지 않도록 selectedInfo 전체가 아니라
+  // 열림 여부(isModalOpen)에만 의존한다.
+  useEffect(() => {
+    if (!isModalOpen) return undefined;
+
+    const sheet = modalSheetRef.current;
+    const previouslyFocused = modalTriggerRef.current;
+    const focusableSelector =
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const getFocusable = () =>
+      sheet
+        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter((el) => el.offsetParent !== null)
+        : [];
+
+    const rafId = window.requestAnimationFrame(() => {
+      modalCloseButtonRef.current?.focus();
+    });
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSelectedInfo(null);
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 배경 스크롤 잠금. 스크롤바가 사라지며 레이아웃이 흔들리지 않도록 그만큼 padding으로 보정한다.
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+      modalTriggerRef.current = null;
+    };
+  }, [isModalOpen]);
 
   useEffect(() => {
     let alive = true;
@@ -2067,11 +2141,16 @@ export default function AdmissionGuidelines() {
           onClick={() => setSelectedInfo(null)}
         >
           <div
+            ref={modalSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admission-modal-university-name admission-modal-title"
             className="admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="admission-modal-sheet-head relative px-6 pb-4 pt-8 md:px-12 md:pb-5 md:pt-10">
               <button
+                ref={modalCloseButtonRef}
                 type="button"
                 onClick={() => setSelectedInfo(null)}
                 aria-label="닫기"
@@ -2079,10 +2158,13 @@ export default function AdmissionGuidelines() {
               >
                 <X className="h-5 w-5" />
               </button>
-              <p className="text-center text-base font-medium tracking-[-0.02em] text-[#013262]">
+              <p
+                id="admission-modal-university-name"
+                className="text-center text-base font-medium tracking-[-0.02em] text-[#013262]"
+              >
                 {selectedInfo.universityName}
               </p>
-              <h3 className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
+              <h3 id="admission-modal-title" className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
                 {selectedInfo.title}
               </h3>
             </div>
