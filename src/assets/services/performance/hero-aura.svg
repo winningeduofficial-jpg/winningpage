@@ -1,0 +1,35 @@
+<!-- 시안 3105:4740 (언클립 독립 프레임, 히어로 2393:12079 `Gradient` 그룹 851×869 @ (375,166)의
+     회전 소스) 실측 — 전부 내부 1600폭 프레임 좌표계 기준:
+     Eclipse ELLIPSE 820×820 @ (375,215), 중심(785,625) r410, GRADIENT_LINEAR 세로
+       (y215~1035) stop0 #FF7BCA op1.0 / stop1 #FFC56E op0.46, LAYER_BLUR 200
+     Planet  ELLIPSE 600×600 @ (626,166), 중심(926,466) r300, GRADIENT_LINEAR 세로
+       (y166~766) stop0 #F22FB0 op1.0 / stop1 #F58A25 op0, LAYER_BLUR 100
+     회전 피벗은 4프레임(2716:2003→2069→2135→2201) 전부 1600×1200 좌표계의 중심(800,600)으로
+     일치한다. viewBox를 0 0 1600 1200으로 두면 블러 언클립 점유 범위(Eclipse x175~1395/
+     y15~1235, Planet x526~1326/y66~866)가 y축 상하로 잘려 회전 시 각도에 따라 직선 크롭
+     경계가 드러난다. 그래서 viewBox를 "0 -200 1600 1600"으로 정사각 언클립했다 — 중심이
+     (800,600)으로 피벗과 정확히 일치하고, y −200~1400 범위가 두 도형의 블러 언클립 점유
+     범위(위 union: x175~1395/y15~1235)를 모두 여유 있게 포함한다. Texture(1600×1200 TILE
+     OVERLAY)는 Gradient 그룹의 형제라 회전하지 않으므로 이 SVG에는 포함하지 않는다 —
+     페이지 쪽 기존 그레인 레이어(heroGrain PNG, 회전 래퍼 밖)로 별도 구현한다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -200 1600 1600" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="perfHeroAuraEclipse" x1="785" y1="215" x2="785" y2="1035" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF7BCA" stop-opacity="1" />
+      <stop offset="1" stop-color="#FFC56E" stop-opacity="0.46" />
+    </linearGradient>
+    <filter id="perfHeroAuraEclipseBlur" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="100" />
+    </filter>
+    <linearGradient id="perfHeroAuraPlanet" x1="926" y1="166" x2="926" y2="766" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F22FB0" stop-opacity="1" />
+      <stop offset="1" stop-color="#F58A25" stop-opacity="0" />
+    </linearGradient>
+    <filter id="perfHeroAuraPlanetBlur" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="50" />
+    </filter>
+  </defs>
+
+  <circle cx="785" cy="625" r="410" fill="url(#perfHeroAuraEclipse)" filter="url(#perfHeroAuraEclipseBlur)" />
+  <circle cx="926" cy="466" r="300" fill="url(#perfHeroAuraPlanet)" filter="url(#perfHeroAuraPlanetBlur)" />
+</svg>

@@ -82,7 +82,7 @@ export const FALLBACK_NAV_GROUPS = [
       { label: '입결정보', to: '/admission/results', sortOrder: 2 },
       { label: '수시정시합격', to: '/admission/susi-jungsi', sortOrder: 3 },
       { label: '특목고합격', to: '/page/admission-special-highschool-results', sortOrder: 4 },
-      { label: '교육컬럼', to: '/gallery', sortOrder: 5 }
+      { label: '교육칼럼', to: '/info/column', sortOrder: 5 }
     ]
   },
   {
@@ -105,6 +105,18 @@ export const FALLBACK_NAV_GROUPS = [
     ]
   }
 ];
+
+// program_categories(DB) 서비스명 → 서비스 6종 정본 라우트. ServicesSection 카드 클릭 링크가
+// DB link 컬럼에 죽은 값(레거시 '/services' 스텁 등)을 담고 있을 때의 이름 기반 안전망.
+// FALLBACK_NAV_GROUPS의 '서비스' 그룹 라벨・경로와 동일한 소스오브트루스로 유지할 것.
+export const SERVICE_NAME_ROUTES = {
+  무료진단: '/free-diagnosis',
+  목표관리: '/services/goal',
+  콜멘토: '/services/callmentor',
+  수행평가: '/services/performance',
+  자기평가: '/services/self-assessment',
+  심화탐구: '/services/research'
+};
 
 export const MENU_GROUP_ORDER = {
   서비스: 1,
