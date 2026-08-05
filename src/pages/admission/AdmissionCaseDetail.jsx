@@ -74,7 +74,7 @@ export default function AdmissionCaseDetail() {
 
       <section className="pb-20 sm:pb-24 md:pb-[8.25rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <ColumnBody post={post} className="mt-16 md:mt-[5rem]" />
+          <ColumnBody post={post} className="mt-16 md:mt-[8rem]" />
 
           {!hasBlocks && fallbackImages.length > 0 && (
             <div className="mt-10 space-y-5">

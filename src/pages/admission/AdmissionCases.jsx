@@ -72,7 +72,7 @@ export default function AdmissionCases() {
                 등록된 합격 사례가 없습니다.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 wide:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-9 sm:grid-cols-2 wide:grid-cols-4">
                 {rows.map((row) => (
                   <AdmissionCaseCard key={row.id} row={row} />
                 ))}
