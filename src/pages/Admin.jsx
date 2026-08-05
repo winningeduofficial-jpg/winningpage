@@ -51,9 +51,7 @@ const MENU_GROUPS = [
     items: [
       { key: 'notices', label: '공지사항' },
       { key: 'companyNews', label: '회사소식' },
-      { key: 'admissionSusiJungsi', label: '수시·정시' },
-      { key: 'acceptanceRates', label: '연도별 합격률' },
-      { key: 'admissionCaseLogos', label: '합격 대학 로고' },
+      { key: 'admissionSusiJungsi', label: '수시정시합격' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
       { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
@@ -119,6 +117,14 @@ const ADMISSION_REGION_OPTIONS = [
   '제주',
   '충남',
   '충북'
+];
+
+// 수시정시합격 페이지는 사이드바에 admissionSusiJungsi 하나만 노출하고, 그 안에서
+// 서브탭으로 admission_posts/admission_acceptance_rates/admission_case_logos를 전환한다.
+const ADMISSION_CASES_TABS = [
+  { key: 'admissionSusiJungsi', label: '합격 사례' },
+  { key: 'acceptanceRates', label: '연도별 합격률' },
+  { key: 'admissionCaseLogos', label: '대학 로고' }
 ];
 
 const CONFIGS = {
@@ -429,6 +435,7 @@ const CONFIGS = {
   acceptanceRates: {
     title: '연도별 합격률',
     table: 'admission_acceptance_rates',
+    tabs: ADMISSION_CASES_TABS,
     searchPlaceholder: '연도를 검색하세요',
     order: 'sort_order',
     homepage: true,
@@ -481,8 +488,9 @@ const CONFIGS = {
   },
 
   admissionCaseLogos: {
-    title: '합격 대학 로고',
+    title: '대학 로고',
     table: 'admission_case_logos',
+    tabs: ADMISSION_CASES_TABS,
     searchPlaceholder: '대학명을 검색하세요',
     order: 'sort_order',
     homepage: true,
@@ -997,13 +1005,14 @@ const CONFIGS = {
   },
 
   admissionSusiJungsi: {
-    title: '수시·정시',
+    title: '합격 사례',
     table: 'admission_posts',
     fixedCategories: ['susi', 'jungsi'],
-    searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '합격 사례 게시글 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
+    guideText: `합격 사례 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
     columns: [
       { key: 'category', label: '구분' },
       { key: 'title', label: '제목' },
@@ -3024,6 +3033,9 @@ function truncateText(value, maxLength = 10) {
 
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(() => new Set(MENU_GROUPS.map((group) => group.title)));
+  // 자식 탭(acceptanceRates/admissionCaseLogos)에 있을 때도 사이드바에서는
+  // 탭 목록의 첫 번째 key(admissionSusiJungsi)를 기준으로 활성 항목을 매칭한다.
+  const sidebarActiveKey = CONFIGS[activeKey]?.tabs ? CONFIGS[activeKey].tabs[0].key : activeKey;
 
   function toggle(title) {
     setOpen((prev) => {
@@ -3064,7 +3076,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
                       type="button"
                       onClick={() => setActiveKey(item.key)}
                       className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                        activeKey === item.key
+                        sidebarActiveKey === item.key
                           ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
                           : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
                       }`}
@@ -4782,6 +4794,25 @@ export default function Admin() {
               </div>
             ) : (
               <>
+                {config.tabs && (
+                  <div className="mb-4 flex gap-2">
+                    {config.tabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveKey(tab.key)}
+                        className={`h-9 border px-5 text-sm font-black transition ${
+                          activeKey === tab.key
+                            ? 'border-[#2348ff] bg-[#2348ff] text-white'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mb-6 bg-white px-6 py-5 shadow">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-2">
