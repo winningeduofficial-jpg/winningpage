@@ -2999,9 +2999,11 @@ function csvEscape(value) {
 
 function downloadCsv(filename, rows, columns) {
   const header = columns.map((column) => csvEscape(column.label)).join(',');
+  // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
+  // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
   const body = rows
     .map((row) =>
-      columns.map((column) => csvEscape(formatValue(row[column.key], column.type, column.options))).join(',')
+      columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
     )
     .join('\n');
 
