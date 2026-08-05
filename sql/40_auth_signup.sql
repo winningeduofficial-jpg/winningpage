@@ -15,6 +15,7 @@
 --   [8] 연결 RPC 4종 (요청/응답/해제/코드 재발급)
 --   [9] check_email_signup_state : 가입 중단 계정 이어가기 판정
 --  [10] link_code_lookups        : 연결코드 조회 이력 + 한도 (서버 전용)
+--  [11] identity_verifications   : NICE 본인확인 결과 (CI/DI, 서버 전용)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1238,6 +1239,99 @@ alter table public.link_code_lookups enable row level security;
 -- 정책을 두지 않는다(전면 거부) + 기본 부여 권한도 회수한다.
 -- 조회 이력은 본인이 볼 이유가 없고, 서버만 쓰고 읽는다.
 revoke all on table public.link_code_lookups from anon, authenticated;
+
+
+-- =====================================================================
+-- [11] identity_verifications : NICE 본인확인 결과
+--
+-- 이 테이블에는 서비스에서 가장 민감한 값이 들어간다 — 실명, 생년월일,
+-- 휴대폰번호, 그리고 CI(연계정보)/DI(중복가입확인정보). 다루는 원칙:
+--
+--   - 서버 전용. RLS 정책을 두지 않고(전면 거부) 테이블 권한까지 회수한다.
+--     본인조차 조회할 이유가 없다 — 확인이 끝나면 결과는 profiles로 옮겨가고
+--     이 표는 근거로만 남는다.
+--   - CI/DI는 개인정보처리방침에 수집 항목으로 이미 명시돼 있다
+--     (src/pages/terms/StudentIdentity.jsx:18 "연계정보(CI), 중복가입확인정보(DI)").
+--     명시되지 않은 값을 추가로 저장하지 않는다.
+--
+-- 흐름
+--   1) 서버가 request_id를 만들고 status='pending'으로 한 행을 먼저 남긴다.
+--   2) 사용자가 NICE 표준창에서 인증한다.
+--   3) 콜백이 돌아오면 그 request_id 행을 찾아 결과를 채우고 'verified'로 바꾼다.
+--   request_id를 미리 심어두는 이유는, 콜백이 우리가 시작시킨 요청인지
+--   확인할 수단이 그것뿐이기 때문이다(위조 콜백 차단).
+--
+-- user_id가 nullable인 이유
+--   가입 전에 본인확인을 하는 경로(만 14세 미만 법정대리인 인증)가 있어서
+--   인증 시점에 계정이 없을 수 있다. 가입이 끝나면 그때 연결한다.
+--
+-- 아직 정하지 않은 것 (기획 확인 필요)
+--   - 보관 기간. 인증 이력을 얼마나 두고 언제 파기할지.
+--   - DI 중복 시 정책. 한 사람(DI)당 계정 하나로 강제할지, 허용하되 표시만
+--     할지. 강제하려면 아래 di 인덱스를 partial unique로 바꾸면 된다.
+--     처리방침이 DI를 "중복가입확인정보"로 수집한다고 밝히고 있어 의도는
+--     분명하지만, 차단이냐 경고냐는 운영 판단이라 지금은 열어둔다.
+-- =====================================================================
+
+create table if not exists public.identity_verifications (
+  id           uuid primary key default gen_random_uuid(),
+  -- 우리가 발급하는 거래 식별자. 콜백 진위 확인의 기준.
+  request_id   text not null,
+  -- 가입 전 인증이면 null. 가입 완료 시 연결한다.
+  user_id      uuid references auth.users(id) on delete set null,
+  purpose      text not null default 'signup'
+               check (purpose in ('signup', 'under14_guardian', 'phone_change')),
+  status       text not null default 'pending'
+               check (status in ('pending', 'verified', 'failed', 'expired')),
+
+  -- 인증 결과 (verified일 때만 채워진다)
+  ci           text,   -- 연계정보
+  di           text,   -- 중복가입확인정보
+  name         text,
+  birth_date   date,
+  gender       text,
+  nationality  text,   -- 내국인/외국인 구분
+  mobile       text,
+  carrier      text,   -- 통신사
+  auth_method  text,   -- PASS / SMS / 공동인증서 등 NICE가 알려주는 인증 수단
+
+  -- 생년월일로 서버가 판정한 값. 클라이언트 입력을 믿지 않기 위한 것으로,
+  -- 만 14세 판정 기준이 기획에서 미확정이던 문제를 인증 결과로 대체한다.
+  is_under14   boolean,
+
+  -- 실패 원인 추적용 (NICE가 돌려주는 코드/메시지)
+  error_code   text,
+  error_message text,
+
+  request_ip   inet,
+  requested_at timestamptz not null default now(),
+  verified_at  timestamptz,
+  -- 표준창을 열어두고 방치한 요청을 정리하기 위한 기한
+  expires_at   timestamptz not null,
+  created_at   timestamptz not null default now()
+);
+
+-- 콜백은 request_id로 원 요청을 찾는다. 중복 발급되면 안 된다.
+create unique index if not exists identity_verifications_request_id_key
+  on public.identity_verifications (request_id);
+
+-- 중복가입 확인용 조회. 지금은 유니크가 아니다 — 같은 사람이 여러 번
+-- 인증할 수 있고, "한 사람당 계정 하나"를 강제할지는 미확정이다.
+create index if not exists identity_verifications_di_idx
+  on public.identity_verifications (di) where di is not null;
+
+create index if not exists identity_verifications_user_idx
+  on public.identity_verifications (user_id, verified_at desc)
+  where user_id is not null;
+
+-- 만료 요청 정리(배치)용
+create index if not exists identity_verifications_pending_idx
+  on public.identity_verifications (expires_at) where status = 'pending';
+
+alter table public.identity_verifications enable row level security;
+
+-- 정책 없음(전면 거부) + 기본 부여 권한 회수. phone_verifications와 동일 원칙.
+revoke all on table public.identity_verifications from anon, authenticated;
 
 
 -- =====================================================================
