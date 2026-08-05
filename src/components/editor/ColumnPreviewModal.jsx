@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import ColumnBody from '../column/ColumnBody';
+import ColumnBody, { getContentBlocks } from '../column/ColumnBody';
 import { getCoverUrl } from '../../pages/column/columnData';
+import { isEmptyDocument } from './BlockEditor';
 
 // 온디맨드 스냅샷 렌더러 — 에디터 state를 구독하지 않는다.
 // post는 "미리보기" 버튼을 눌렀을 때 editorRef.getBlocks()를 1회 호출해 만든 스냅샷이며,
@@ -36,7 +37,11 @@ export default function ColumnPreviewModal({ open, onClose, post }) {
   if (!open) return null;
 
   const coverUrl = post ? getCoverUrl(post) : '';
-  const isEmpty = !String(post?.content ?? '').trim();
+  // hasBlockContent(길이만 검사)는 항상 true다 — BlockNote 문서는 항상 최소 1개의 빈 paragraph를
+  // 포함하기 때문에, 본문을 안 쓴 미리보기도 절대 "비어 있음"으로 판정되지 않았다.
+  // isEmptyDocument(전부 빈 paragraph인지 검사)를 재사용한다 — 이미지·구분선만 있는 문서는
+  // 빈 paragraph가 아니므로 여전히 "비어 있지 않음"으로 판정된다(기존 의도 유지).
+  const isEmpty = isEmptyDocument(getContentBlocks(post)) && !String(post?.content ?? '').trim();
 
   return (
     <div

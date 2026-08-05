@@ -51,7 +51,7 @@ const MENU_GROUPS = [
     items: [
       { key: 'notices', label: '공지사항' },
       { key: 'companyNews', label: '회사소식' },
-      { key: 'admissionSusiJungsi', label: '수시·정시' },
+      { key: 'admissionSusiJungsi', label: '수시정시합격' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
       { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
@@ -117,6 +117,14 @@ const ADMISSION_REGION_OPTIONS = [
   '제주',
   '충남',
   '충북'
+];
+
+// 수시정시합격 페이지는 사이드바에 admissionSusiJungsi 하나만 노출하고, 그 안에서
+// 서브탭으로 admission_posts/admission_acceptance_rates/admission_case_logos를 전환한다.
+const ADMISSION_CASES_TABS = [
+  { key: 'admissionSusiJungsi', label: '합격 사례' },
+  { key: 'acceptanceRates', label: '연도별 합격률' },
+  { key: 'admissionCaseLogos', label: '대학 로고' }
 ];
 
 const CONFIGS = {
@@ -420,6 +428,161 @@ const CONFIGS = {
       subtitle: '',
       count: null,
       track: 'general',
+      sort_order: 1
+    }
+  },
+
+  acceptanceRates: {
+    title: '연도별 합격률',
+    table: 'admission_acceptance_rates',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '연도를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 '목표 대학 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
+    ListSummary: AcceptanceRateSummary,
+    columns: [
+      { key: 'year', label: '연도' },
+      { key: 'rate', label: '합격률(%)' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'year', label: '연도', type: 'number', required: true, help: '예: 2025 (중복 등록 불가)' },
+      {
+        key: 'rate',
+        label: '합격률(%)',
+        type: 'text',
+        required: true,
+        help: '0~100 사이 숫자. 소수점 한 자리까지 입력 가능(예: 95.4)'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      rate: row.rate === null || row.rate === undefined ? '' : String(row.rate)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      year: Number(form.year || 0),
+      rate: Number.parseFloat(form.rate)
+    }),
+    validate: (form) => {
+      const year = Number(form.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return '연도는 2000~2100 사이 정수로 입력해 주세요.';
+      }
+      const rate = Number.parseFloat(form.rate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+        return '합격률은 0~100 사이 숫자로 입력해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      year: new Date().getFullYear(),
+      rate: '',
+      sort_order: 1
+    }
+  },
+
+  admissionCaseLogos: {
+    title: '대학 로고',
+    table: 'admission_case_logos',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '대학명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 표시 줄에서 지정한 대로 1행/2행에 배치되며, 시안은 1행 7개·2행 5개 구성입니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
+    columns: [
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'name', label: '대학명' },
+      { key: 'display_height_rem', label: '표시 높이(rem)' },
+      { key: 'opacity', label: '투명도' },
+      { key: 'row_no', label: '표시 줄' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true, help: '대체 텍스트로도 쓰입니다' },
+      {
+        key: 'logo_url',
+        label: '로고 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true,
+        compress: true,
+        help: '여백 없이 크롭한 PNG(투명 배경) / 1MB 이하',
+        imageSpec: { maxMB: 1 },
+        folder: 'admission/university-logos',
+        cacheControl: '31536000, immutable'
+      },
+      {
+        key: 'display_height_rem',
+        label: '표시 높이(rem)',
+        type: 'text',
+        required: true,
+        help: '시안 기준 1.1~2.4. 소수점 세 자리까지 입력 가능(예: 1.858)'
+      },
+      {
+        key: 'opacity',
+        label: '투명도',
+        type: 'text',
+        required: true,
+        help: '0 초과 1 이하. 기본 1, 감광 로고는 0.7 또는 0.8'
+      },
+      {
+        key: 'row_no',
+        label: '표시 줄',
+        type: 'select',
+        required: true,
+        options: [
+          { value: '1', label: '1행' },
+          { value: '2', label: '2행' }
+        ],
+        help: '시안은 1행 7개 · 2행 5개 구성입니다'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      display_height_rem:
+        row.display_height_rem === null || row.display_height_rem === undefined
+          ? ''
+          : String(row.display_height_rem),
+      opacity: row.opacity === null || row.opacity === undefined ? '' : String(row.opacity),
+      row_no: row.row_no === null || row.row_no === undefined ? '1' : String(row.row_no)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      display_height_rem: Number.parseFloat(form.display_height_rem),
+      opacity: Number.parseFloat(form.opacity),
+      row_no: Number.parseInt(form.row_no, 10)
+    }),
+    validate: (form) => {
+      const height = Number.parseFloat(form.display_height_rem);
+      if (!Number.isFinite(height) || height <= 0 || height > 10) {
+        return '표시 높이는 0 초과 10 이하 숫자(rem)로 입력해 주세요.';
+      }
+      const opacity = Number.parseFloat(form.opacity);
+      if (!Number.isFinite(opacity) || opacity <= 0 || opacity > 1) {
+        return '투명도는 0 초과 1 이하 숫자로 입력해 주세요.';
+      }
+      const rowNo = Number.parseInt(form.row_no, 10);
+      if (rowNo !== 1 && rowNo !== 2) {
+        return '표시 줄은 1행 또는 2행 중에서 선택해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      name: '',
+      logo_url: '',
+      display_height_rem: '2',
+      opacity: '1',
+      row_no: '1',
       sort_order: 1
     }
   },
@@ -861,16 +1024,18 @@ const CONFIGS = {
   },
 
   admissionSusiJungsi: {
-    title: '수시·정시',
+    title: '합격 사례',
     table: 'admission_posts',
     fixedCategories: ['susi', 'jungsi'],
-    searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '합격 사례 게시글 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다.`,
+    guideText: `합격 사례 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
     columns: [
       { key: 'category', label: '구분' },
       { key: 'title', label: '제목' },
+      { key: 'content', label: '본문', type: 'truncate' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
       { key: 'show_on_home', label: '메인 합격생 노출', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
@@ -890,7 +1055,14 @@ const CONFIGS = {
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'show_on_home', label: '메인 합격생 영역에 노출', type: 'checkbox' },
-      { key: 'content', label: '내용', type: 'textarea' },
+      {
+        key: 'content',
+        label: '내용',
+        type: 'blockEditor',
+        folder: 'admission-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
         key: 'attachments',
@@ -913,6 +1085,17 @@ const CONFIGS = {
       image_urls: [],
       attachments: [],
       sort_order: 1
+    },
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    formToPayload: (form) => {
+      const { __blocks_content, ...rest } = form;
+      const blocks = __blocks_content || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        content: blocksToPlainText(blocks)
+      };
     }
   },
 
@@ -2869,6 +3052,9 @@ function truncateText(value, maxLength = 10) {
 
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(() => new Set(MENU_GROUPS.map((group) => group.title)));
+  // 자식 탭(acceptanceRates/admissionCaseLogos)에 있을 때도 사이드바에서는
+  // 탭 목록의 첫 번째 key(admissionSusiJungsi)를 기준으로 활성 항목을 매칭한다.
+  const sidebarActiveKey = CONFIGS[activeKey]?.tabs ? CONFIGS[activeKey].tabs[0].key : activeKey;
 
   function toggle(title) {
     setOpen((prev) => {
@@ -2909,7 +3095,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
                       type="button"
                       onClick={() => setActiveKey(item.key)}
                       className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                        activeKey === item.key
+                        sidebarActiveKey === item.key
                           ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
                           : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
                       }`}
@@ -4271,6 +4457,28 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
   );
 }
 
+function AcceptanceRateSummary({ rows }) {
+  const active = (rows || []).filter((row) => row.is_active);
+  if (active.length === 0) return null;
+
+  const average = active.reduce((sum, row) => sum + Number(row.rate || 0), 0) / active.length;
+
+  return (
+    <div className="mb-6 grid grid-cols-2 bg-white text-center text-sm shadow">
+      <div className="border p-4">
+        <div className="font-black">노출 연도 수</div>
+        <div className="mt-2 font-bold">{active.length}개년</div>
+      </div>
+      <div className="border p-4">
+        <div className="font-black">홈페이지 표시값</div>
+        <div className="mt-2 font-bold text-blue-600">
+          {active.length}개년 평균 {average.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MoneySummary({ activeKey, rows }) {
   if (!['payments', 'settlements', 'dailySettlements', 'refunds'].includes(activeKey)) return null;
 
@@ -4605,6 +4813,25 @@ export default function Admin() {
               </div>
             ) : (
               <>
+                {config.tabs && (
+                  <div className="mb-4 flex gap-2">
+                    {config.tabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveKey(tab.key)}
+                        className={`h-9 border px-5 text-sm font-black transition ${
+                          activeKey === tab.key
+                            ? 'border-[#2348ff] bg-[#2348ff] text-white'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mb-6 bg-white px-6 py-5 shadow">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-2">
@@ -4653,8 +4880,8 @@ export default function Admin() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <h1 className="text-xl font-black">{config.title}</h1>
                       {config.homepage && (
                         <div className="mt-1 space-y-1">
@@ -4675,7 +4902,7 @@ export default function Admin() {
                       <button
                         type="button"
                         onClick={createRow}
-                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white"
+                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
                       >
                         <Plus size={14} />
                         등록
@@ -4685,6 +4912,7 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
+                {config.ListSummary && <config.ListSummary rows={rows} />}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">

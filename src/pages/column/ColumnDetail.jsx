@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronRight, Link as LinkIcon, Share2 } from 'lucide-react';
-import ColumnBody from '../../components/column/ColumnBody';
+import ColumnBody, { hasBlockContent } from '../../components/column/ColumnBody';
 import ColumnCard from '../../components/column/ColumnCard';
 import {
   ALL_CATEGORY,
@@ -48,7 +48,7 @@ export default function ColumnDetail() {
 
   const coverUrl = post ? getCoverUrl(post) : '';
   const remainingImages = post ? normalizeImageUrls(post).slice(1) : [];
-  const hasBlocks = Boolean(post?.content_json?.blocks?.length > 0);
+  const hasBlocks = hasBlockContent(post);
 
   const relatedRows = useMemo(() => {
     if (!post) return [];
