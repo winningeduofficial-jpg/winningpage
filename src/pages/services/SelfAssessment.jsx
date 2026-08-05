@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 
+import { alertServiceNotReady } from '../../lib/paidServiceAccess';
 import heroAura from '../../assets/services/self-assessment/hero-aura.svg';
 import heroGrain from '../../assets/renewal/landing/hero-grain.png';
 import iconBinoculars from '../../assets/services/goal/icon-binoculars.png';
@@ -34,10 +34,12 @@ import outcomeCalendar from '../../assets/services/goal/outcome-calendar.png';
 // 와 같은 방식으로 components/services/ServiceLandingPage 공용 스켈레톤을 벗어나 bespoke로
 // 구현했다(구 SERVICE_LANDING_CONTENT.selfAssessment 항목은 serviceLandingContent.js에서 함께
 // 제거 — goal/performance 선례와 동일).
-// 자기평가는 products 테이블에 해당 상품이 없어 결제 연동 없이 CTA를 /free-diagnosis로 안내한다
-// (기존 ServiceLandingPage 스켈레톤의 paidServiceName: null 분기와 동일한 처리).
-
-const HERO_CTA_TO = '/free-diagnosis';
+// 자기평가는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
+// 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
+// paidServiceAccess.js — 심화탐구・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
+// /free-diagnosis로 임시 우회했으나(기존 ServiceLandingPage 스켈레톤의 paidServiceName: null
+// 분기와 동일한 처리) 무료진단 안내는 히어로 문구와 모순돼 폐기했다. 상세 페이지가 생기면
+// PAID_SERVICE_CONFIGS에 등록하고 openPaidServiceOrAlert로 교체한다.
 
 // 컨테이너 폭 — 시안은 섹션마다 1436~1444px(1920 기준)로 드리프트하지만, StageSection 실측
 // (1441×0.766 ≈ 1104 ≈ 1100)이 dev 정본 토큰 max-w-content(안쪽 실폭 1100px)와 정확히 맞아
@@ -279,12 +281,13 @@ function HeroSection() {
           문항 핵심을 파악하고 나만의 강점을 구조화해, 학생이 스스로 완성하도록 돕습니다
         </p>
 
-        <Link
-          to={HERO_CTA_TO}
+        <button
+          type="button"
+          onClick={alertServiceNotReady}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기
-        </Link>
+        </button>
 
         {/* 브라우저 목업 — 시안(2181:10054)은 크롬 UI만 있고 실제 서비스 화면 자식 노드
             자체가 없다(빈 흰 화면, 스펙 §11-1 M1). 크롬 프레임 지오메트리(폭/그림자/상단
