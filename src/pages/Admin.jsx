@@ -52,6 +52,8 @@ const MENU_GROUPS = [
       { key: 'notices', label: '공지사항' },
       { key: 'companyNews', label: '회사소식' },
       { key: 'admissionSusiJungsi', label: '수시·정시' },
+      { key: 'acceptanceRates', label: '연도별 합격률' },
+      { key: 'admissionCaseLogos', label: '합격 대학 로고' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
       { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
@@ -420,6 +422,140 @@ const CONFIGS = {
       subtitle: '',
       count: null,
       track: 'general',
+      sort_order: 1
+    }
+  },
+
+  acceptanceRates: {
+    title: '연도별 합격률',
+    table: 'admission_acceptance_rates',
+    searchPlaceholder: '연도를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 '목표 대학 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
+    ListSummary: AcceptanceRateSummary,
+    columns: [
+      { key: 'year', label: '연도' },
+      { key: 'rate', label: '합격률(%)' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'year', label: '연도', type: 'number', required: true, help: '예: 2025 (중복 등록 불가)' },
+      {
+        key: 'rate',
+        label: '합격률(%)',
+        type: 'text',
+        required: true,
+        help: '0~100 사이 숫자. 소수점 한 자리까지 입력 가능(예: 95.4)'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      rate: row.rate === null || row.rate === undefined ? '' : String(row.rate)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      year: Number(form.year || 0),
+      rate: Number.parseFloat(form.rate)
+    }),
+    validate: (form) => {
+      const year = Number(form.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return '연도는 2000~2100 사이 정수로 입력해 주세요.';
+      }
+      const rate = Number.parseFloat(form.rate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+        return '합격률은 0~100 사이 숫자로 입력해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      year: new Date().getFullYear(),
+      rate: '',
+      sort_order: 1
+    }
+  },
+
+  admissionCaseLogos: {
+    title: '합격 대학 로고',
+    table: 'admission_case_logos',
+    searchPlaceholder: '대학명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 순서대로 나열되며 절반씩 두 줄로 나뉩니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
+    columns: [
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'name', label: '대학명' },
+      { key: 'display_height_rem', label: '표시 높이(rem)' },
+      { key: 'opacity', label: '투명도' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true, help: '대체 텍스트로도 쓰입니다' },
+      {
+        key: 'logo_url',
+        label: '로고 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true,
+        compress: true,
+        help: '여백 없이 크롭한 PNG(투명 배경) / 1MB 이하',
+        imageSpec: { maxMB: 1 },
+        folder: 'admission/university-logos',
+        cacheControl: '31536000, immutable'
+      },
+      {
+        key: 'display_height_rem',
+        label: '표시 높이(rem)',
+        type: 'text',
+        required: true,
+        help: '시안 기준 1.1~2.4. 소수점 세 자리까지 입력 가능(예: 1.858)'
+      },
+      {
+        key: 'opacity',
+        label: '투명도',
+        type: 'text',
+        required: true,
+        help: '0 초과 1 이하. 기본 1, 감광 로고는 0.7 또는 0.8'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      display_height_rem:
+        row.display_height_rem === null || row.display_height_rem === undefined
+          ? ''
+          : String(row.display_height_rem),
+      opacity: row.opacity === null || row.opacity === undefined ? '' : String(row.opacity)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      display_height_rem: Number.parseFloat(form.display_height_rem),
+      opacity: Number.parseFloat(form.opacity)
+    }),
+    validate: (form) => {
+      const height = Number.parseFloat(form.display_height_rem);
+      if (!Number.isFinite(height) || height <= 0 || height > 10) {
+        return '표시 높이는 0 초과 10 이하 숫자(rem)로 입력해 주세요.';
+      }
+      const opacity = Number.parseFloat(form.opacity);
+      if (!Number.isFinite(opacity) || opacity <= 0 || opacity > 1) {
+        return '투명도는 0 초과 1 이하 숫자로 입력해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      name: '',
+      logo_url: '',
+      display_height_rem: '2',
+      opacity: '1',
       sort_order: 1
     }
   },
@@ -4290,6 +4426,28 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
   );
 }
 
+function AcceptanceRateSummary({ rows }) {
+  const active = (rows || []).filter((row) => row.is_active);
+  if (active.length === 0) return null;
+
+  const average = active.reduce((sum, row) => sum + Number(row.rate || 0), 0) / active.length;
+
+  return (
+    <div className="mb-6 grid grid-cols-2 bg-white text-center text-sm shadow">
+      <div className="border p-4">
+        <div className="font-black">노출 연도 수</div>
+        <div className="mt-2 font-bold">{active.length}개년</div>
+      </div>
+      <div className="border p-4">
+        <div className="font-black">홈페이지 표시값</div>
+        <div className="mt-2 font-bold text-blue-600">
+          {active.length}개년 평균 {average.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MoneySummary({ activeKey, rows }) {
   if (!['payments', 'settlements', 'dailySettlements', 'refunds'].includes(activeKey)) return null;
 
@@ -4704,6 +4862,7 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
+                {config.ListSummary && <config.ListSummary rows={rows} />}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
