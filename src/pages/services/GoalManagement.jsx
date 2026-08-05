@@ -2,7 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
-import { formatKRW, SERVICES as PRICING_SERVICES } from '../../data/pricingCatalog';
+import { formatKRW } from '../../data/pricingCatalog';
+import { useProducts } from '../../lib/products';
 
 import heroAura from '../../assets/services/goal/hero-aura.png';
 import heroDashboard from '../../assets/services/goal/hero-dashboard.png';
@@ -40,11 +41,10 @@ import stageExecWizard from '../../assets/services/goal/stage-exec-wizard.png';
 // Figma 시안(1889:6944, "목표관리" 프레임) 전용 구현. 다른 3종 서비스 랜딩과 달리
 // components/services/ServiceLandingPage 공용 스켈레톤을 쓰지 않는다 — 시안 섹션 구조가
 // 4종 공용으로 흡수하기엔 폭/색/카드 배치가 이질적이라(스펙 §4) 목표관리만 bespoke로 뗐다.
-// 가격/CTA 연동(SERVICES 카탈로그, openPaidServiceOrAlert)은 공용 로직 그대로 재사용한다.
+// 가격/CTA 연동(Supabase products 테이블 'goal' 서비스 조회, openPaidServiceOrAlert)은
+// 공용 로직 그대로 재사용한다. 가격의 유일한 신뢰 소스는 Supabase이며 프론트 폴백은 없다.
 
 const HERO_SERVICE = { name: '목표관리 서비스', to: '/pricing' };
-
-const GOAL_PRODUCTS = PRICING_SERVICES.find((service) => service.key === 'goal')?.products || [];
 
 // 컨테이너 폭 — 시안은 섹션마다 1100/1436/1443/1600px로 제각각이지만(스펙 §4),
 // dev 정본 토큰 max-w-content(72.75rem≈1164px, 내부 실콘텐츠 1100px)로 전 섹션을 통일했다.
@@ -891,7 +891,41 @@ function FaqSection() {
 
 // 시안 콘텐츠 폭 1206 대비 1100 스케일(×0.91) 폰트 환산
 function PricingSection() {
-  if (!GOAL_PRODUCTS.length) return null;
+  const { services, loading, error, refetch } = useProducts('goal');
+  const goalProducts = services[0]?.products || [];
+
+  if (loading) {
+    return (
+      <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
+        <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
+          <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
+          <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 md:mt-[4.1875rem]">
+            이용권 정보를 불러오는 중입니다.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error || goalProducts.length === 0) {
+    return (
+      <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
+        <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
+          <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
+          <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 md:mt-[4.1875rem]">
+            요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+          </p>
+          <button
+            type="button"
+            onClick={refetch}
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] px-6 text-[0.9375rem] font-semibold text-[#013262] transition hover:bg-[#F1F8FF]"
+          >
+            다시 시도
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
@@ -899,7 +933,7 @@ function PricingSection() {
         <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
 
         <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 md:mt-[4.1875rem]">
-          {GOAL_PRODUCTS.map((product) => {
+          {goalProducts.map((product) => {
             const hasDiscount = product.listPrice > product.price;
             return (
               <div

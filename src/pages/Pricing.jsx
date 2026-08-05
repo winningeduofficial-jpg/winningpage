@@ -1,66 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { SERVICES, SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
+import { SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
+import { useProducts } from '../lib/products';
 import { saveCart } from '../lib/cart';
-
-// Supabase products 행 → 서비스별 그룹 구조로 변환
-function groupProducts(rows) {
-  const map = new Map();
-  (rows || []).forEach((r) => {
-    if (!map.has(r.service_key)) {
-      map.set(r.service_key, {
-        key: r.service_key,
-        name: r.service_name,
-        desc: r.service_desc || '',
-        order: Number.isFinite(r.service_sort_order) ? r.service_sort_order : 99,
-        products: []
-      });
-    }
-    map.get(r.service_key).products.push({
-      id: r.id,
-      name: r.name,
-      listPrice: r.list_price,
-      price: r.price,
-      badge: r.badge,
-      recommended: !!r.is_recommended
-    });
-  });
-  return Array.from(map.values()).sort((a, b) => a.order - b.order);
-}
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const [services, setServices] = useState(SERVICES); // 폴백으로 시작
+  const { services, loading, error, refetch } = useProducts();
   // 서비스별 단일 선택: { [serviceKey]: productId }
   const [selected, setSelected] = useState({});
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select(
-          'id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active'
-        )
-        .eq('is_active', true)
-        .order('service_sort_order', { ascending: true })
-        .order('sort_order', { ascending: true });
-
-      if (!alive) return;
-      if (error) {
-        // 테이블 미생성 등 → 폴백 카탈로그 유지
-        console.warn('products 조회 실패, 폴백 카탈로그 사용:', error.message);
-        return;
-      }
-      const grouped = groupProducts(data);
-      if (grouped.length > 0) setServices(grouped);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   function toggle(serviceKey, productId) {
     setSelected((prev) => {
@@ -126,7 +76,28 @@ export default function Pricing() {
 
         {/* 서비스 섹션들 */}
         <div className="mx-auto max-w-[900px] px-6 pb-40 pt-10">
-          {services.map((service) => (
+          {loading && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-500">
+              요금 정보를 불러오는 중입니다.
+            </div>
+          )}
+
+          {!loading && (error || services.length === 0) && (
+            <div className="rounded-2xl border border-red-200 bg-white p-10 text-center">
+              <p className="text-sm font-bold text-red-600">
+                요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+              </p>
+              <button
+                type="button"
+                onClick={refetch}
+                className="mt-4 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-bold text-[#0D1B2A] transition hover:bg-slate-50"
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && services.map((service) => (
             <section key={service.key} className="mb-16">
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-2xl font-black text-[#0D1B2A]">{service.name}</h2>

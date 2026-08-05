@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getTossPayments, ANONYMOUS } from '../lib/toss';
-import { COUPONS, formatKRW } from '../data/pricingCatalog';
+import { formatKRW } from '../data/pricingCatalog';
 import { CHECKOUT_AGREEMENTS } from '../data/legalDocs';
 import { getCart, saveCart } from '../lib/cart';
 
@@ -86,7 +86,8 @@ export default function Checkout() {
   const [items, setItems] = useState(() => getCart());
   const [checkedIds, setCheckedIds] = useState(() => new Set(getCart().map((i) => i.id)));
 
-  const [coupons, setCoupons] = useState(COUPONS);
+  const [coupons, setCoupons] = useState([]);
+  const [couponError, setCouponError] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
   const [couponCode, setCouponCode] = useState('');
 
@@ -97,7 +98,8 @@ export default function Checkout() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 쿠폰 목록 로드 (실패 시 폴백 유지)
+  // 쿠폰 목록 로드. 쿠폰은 선택 요소라 조회 실패 시에도 결제 자체는 막지 않되,
+  // 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역 안내로 노출한다.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -108,9 +110,14 @@ export default function Checkout() {
         .eq('is_active', true)
         .gte('valid_until', today)
         .order('discount_amount', { ascending: false });
-      if (!alive || error || !data) return;
+      if (!alive) return;
+      if (error) {
+        console.warn('쿠폰 조회 실패:', error.message);
+        setCouponError(true);
+        return;
+      }
       setCoupons(
-        data.map((c) => ({
+        (data || []).map((c) => ({
           id: c.id,
           code: c.code,
           title: c.title,
@@ -410,6 +417,12 @@ export default function Checkout() {
                     적용
                   </button>
                 </div>
+
+                {couponError && (
+                  <p className="mt-3 text-[12.5px] font-bold text-red-500">
+                    쿠폰을 불러오지 못했습니다.
+                  </p>
+                )}
 
                 {coupons.length > 0 && (
                   <>

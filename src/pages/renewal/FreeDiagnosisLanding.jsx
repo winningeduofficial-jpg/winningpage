@@ -130,15 +130,96 @@ const HERO_GRAIN_CLASS =
   'pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay';
 
 function HeroSection() {
+  const glowRef = useRef(null);
+  const [glowInView, setGlowInView] = useState(false);
+
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
+  // (GoalManagement.jsx HeroSection과 동일 훅 구조).
+  useEffect(() => {
+    const node = glowRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      setGlowInView(entries.some((entry) => entry.isIntersecting));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
-      <img
-        src={heroGlow}
-        alt=""
-        aria-hidden="true"
-        draggable="false"
-        className="pointer-events-none absolute left-1/2 top-[-1.09%] w-[83.34%] max-w-none -translate-x-1/2 select-none"
-      />
+      {/* 시안(2716:2804→2873→2882→2891)은 히어로 글로우가 360° 등속 회전하는 프로토타입의
+          키프레임 4장이다(Smart Animate 3000ms LINEAR × 4프레임 = 12s 재생). 실제 구현
+          주기는 12s가 아닌 30s로 완화했다 — 회전은 전정계 자극 등급이 높은 모션이라
+          앰비언트 배경 애니메이션 권장 구간(8~20s)보다도 느리게 잡는다는 목표관리 선례
+          (GoalManagement.jsx 349~373행)를 그대로 따른 것이다.
+          회전 대상은 `05 - Poseidon's Realm`(1600×1200) 단일 프레임, 자기 중심(800,600)
+          피벗, -90도씩 단방향 회전, 내부 자식(Eclipse/Planet/그레인)은 4프레임 전부 transform
+          동일(자체 모션 없음) — 프레임 간 유일한 변화는 프레임 전체 회전각뿐이므로
+          rotate(0→360deg) 30s linear infinite 하나로 완전히 대체 가능하다.
+
+          시안 노드 3091:4717(독립 Poseidon 프레임 1600×1200) 실측: Eclipse ELLIPSE
+          820×820 @ (390,254) 중심(800,664) blur200, Planet ELLIPSE 232×232 @
+          (259,658) 중심(375,774) blur80. 블러 포함 실제 점유 범위는 Eclipse
+          x190~1410/y54~1274, Planet x179~571/y578~970 — 기존 SVG의 1600×1200
+          뷰박스로는 Eclipse 블러 하단이 잘려 회전 중 각도에 따라 크롭 직선이
+          드러났다. 그래서 hero-glow.svg의 뷰박스를 "0 -200 1600 1600"(정사각,
+          중심 800,600 = Figma 피벗)으로 언클립했고, 그 결과 이미지가 정사각이
+          되어 아래 배치도 함께 바뀌었다.
+
+          바깥 div(glowRef) = 위치 전담. Figma Poseidon 프레임(1600×1200)에
+          대응하는 박스이며 left-1/2 top-[-1.09%] w-[83.34%] -translate-x-1/2는
+          변경하지 않는다 — 현재 위치의 채도 균일도가 0.49로 목표관리가 채택한
+          0.43과 동급이라 톤이 이미 일관돼 있다. 다만 이제 내부에 정사각 SVG를
+          담아야 하므로 aspect-[4/3]를 직접 명시해 래퍼 높이를 고정한다(과거엔
+          img 높이가 자동으로 이 비율을 만들어줬다).
+
+          안쪽 .fd-hero-spin = 회전 전담이자 실제 정사각(1600×1600) SVG 배치.
+          위치 래퍼 폭을 w라 하면 aspect-[4/3]인 래퍼의 높이는 0.75w, 안쪽
+          정사각(w-full, aspect-square)의 높이는 w다. 세로로 중심 정렬하려면
+          위아래 여백이 각각 (0.75w − w)/2 = −0.125w씩 필요하다. CSS의 top
+          퍼센트는 containing block 높이(=래퍼 높이 0.75w) 기준이므로
+          top% × 0.75w = −0.125w → top% = −0.125/0.75 = −16.6667%. SVG 단위로는
+          −0.125w = 정사각 변 1600 기준 −200, 즉 위아래로 정확히 200씩(=1600−1200
+          의 절반) 넘친다 — Figma 언클립 여유분(뷰박스 y −200~1400)과 일치한다.
+          이렇게 하면 정사각 SVG 중심이 래퍼 중심과 정확히 일치하고, 그 중심이 곧 SVG
+          뷰박스 중심(800,600) = Figma 회전 피벗이므로 transform-origin은 기본값
+          50% 50% 그대로 두면 된다(별도 선언 금지 — GoalManagement.jsx 355~357행과
+          동일 근거로, 같은 요소에 위치용 translate와 회전용 rotate를 같이 걸면
+          rotate가 translate를 덮어써 이미지가 밀려나므로 위치/회전을 별도
+          요소로 분리해 둔 구조이기도 하다).
+
+          그레인 2장은 모두 회전 밖(위치 래퍼의 형제)에 둔다. 예전에 그레인 1장을
+          회전 래퍼 안에 넣었던 적이 있는데, transform이 걸린 요소는 새 stacking
+          context를 만들어 그 안의 mix-blend-mode: overlay가 섹션의 bg-white를
+          backdrop으로 잡지 못하고 검정/투명에 합성되어 그레인이 전면 노출되는
+          회귀가 있었다. 첫 번째 그레인(Poseidon 프레임 안 Texture, 1600×1200
+          @ (0,0))은 위치 래퍼와 동일한 배치 클래스를 그대로 쓰고, 두 번째
+          그레인(`01 - Sunset on Venus` 히어로 전체 직속 Texture)은 inset-0을
+          유지한다 — 두 장 다 정지 상태이며 회전하는 것은 Eclipse/Planet 블롭뿐이다. */}
+      <div
+        ref={glowRef}
+        className="pointer-events-none absolute left-1/2 top-[-1.09%] aspect-[4/3] w-[83.34%] max-w-none -translate-x-1/2 select-none"
+      >
+        <style>{`
+          @keyframes fd-hero-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+          @media (prefers-reduced-motion: no-preference) {
+            .fd-hero-spin[data-float='on'] {
+              animation: fd-hero-spin 30s linear infinite;
+              will-change: transform;
+            }
+          }
+        `}</style>
+        <div
+          className="fd-hero-spin absolute left-0 top-[-16.6667%] aspect-square w-full"
+          data-float={glowInView ? 'on' : 'off'}
+        >
+          <img src={heroGlow} alt="" aria-hidden="true" draggable="false" className="block w-full" />
+        </div>
+      </div>
       <div
         aria-hidden="true"
         style={HERO_GRAIN_STYLE}
