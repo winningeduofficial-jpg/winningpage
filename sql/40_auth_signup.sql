@@ -14,6 +14,7 @@
 --   [7] complete_signup_profile 확장 (학부모·멘토 가입 개통, 약관 이력 기록)
 --   [8] 연결 RPC 4종 (요청/응답/해제/코드 재발급)
 --   [9] check_email_signup_state : 가입 중단 계정 이어가기 판정
+--  [10] link_code_lookups        : 연결코드 조회 이력 + 한도 (서버 전용)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1187,6 +1188,56 @@ $function$;
 revoke all on function public.check_email_signup_state(text) from public;
 grant execute on function public.check_email_signup_state(text)
   to anon, authenticated, service_role;
+
+
+-- =====================================================================
+-- [10] link_code_lookups : 연결코드 조회 이력
+--
+-- api/lookup-child.js가 코드로 학생을 미리보기할 때마다 한 줄씩 남긴다.
+-- 두 가지 목적이 있다.
+--
+-- 1) 한도 판정
+--    조회 결과로 미성년자의 이름과 학교가 노출된다. 코드가 31^6(약 8.8억)이라
+--    전수 대입은 비현실적이지만, 한도가 없으면 시도 자체를 막을 수단이 없다.
+--    특히 "실패한 조회"가 연속되는 것은 정상 사용에서는 거의 없고 추측의
+--    신호이므로, 전체 횟수보다 실패 횟수를 더 좁게 제한한다.
+--
+-- 2) 감사 추적
+--    누가 어떤 코드를 언제 조회했는지 남는다. 아동 개인정보가 걸린
+--    조회라 사후에 확인할 수 있어야 한다.
+--
+-- phone_verifications와 같은 이유로 서버 전용이다 — RLS 정책 없음 + 권한 회수.
+-- =====================================================================
+
+create table if not exists public.link_code_lookups (
+  id         uuid primary key default gen_random_uuid(),
+  -- 로그인한 학부모만 조회할 수 있으므로 null이 되지 않는다.
+  -- 계정이 지워져도 이력은 남기려면 set null이 맞지만, 감사 목적상
+  -- 대상 계정이 사라진 이력은 의미가 옅어 cascade로 함께 정리한다.
+  actor_id   uuid not null references auth.users(id) on delete cascade,
+  code       text not null,
+  found      boolean not null,
+  request_ip inet,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists link_code_lookups_actor_idx
+  on public.link_code_lookups (actor_id, created_at desc);
+
+create index if not exists link_code_lookups_ip_idx
+  on public.link_code_lookups (request_ip, created_at desc)
+  where request_ip is not null;
+
+-- 실패 조회만 빠르게 세기 위한 부분 인덱스
+create index if not exists link_code_lookups_failed_idx
+  on public.link_code_lookups (actor_id, created_at desc)
+  where not found;
+
+alter table public.link_code_lookups enable row level security;
+
+-- 정책을 두지 않는다(전면 거부) + 기본 부여 권한도 회수한다.
+-- 조회 이력은 본인이 볼 이유가 없고, 서버만 쓰고 읽는다.
+revoke all on table public.link_code_lookups from anon, authenticated;
 
 
 -- =====================================================================
