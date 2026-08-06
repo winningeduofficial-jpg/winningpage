@@ -4015,7 +4015,10 @@ function AdmissionParsingPreview({ form, onPatch }) {
         .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
         .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
         .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
-        .admission-table-compact td:first-child { background: #f9fafb; color: #013262; font-weight: 950; }
+        /* 2026-08-06 제거: .admission-table-compact td:first-child — htmlTable()이
+           className을 함께 받으면(score/recordInfo 실호출부가 항상 그렇다) compact
+           옵션을 통째로 덮어써 이 클래스가 실제로는 어디에도 안 붙는다(admissionLayout.js
+           도 동일 실측으로 이 클래스를 붙이지 않음). 죽은 규칙. */
         .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
         .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }

@@ -1763,7 +1763,10 @@ export default function AdmissionGuidelines() {
         .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
         .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
         .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
-        .admission-table-compact td:first-child { background: #f9fafb; color: #013262; font-weight: 950; }
+        /* 2026-08-06 제거: .admission-table-compact td:first-child — htmlTable()이
+           className을 함께 받으면(score/recordInfo 실호출부가 항상 그렇다) compact
+           옵션을 통째로 덮어써 이 클래스가 실제로는 어디에도 안 붙는다(admissionLayout.js
+           도 동일 실측으로 이 클래스를 붙이지 않음). 죽은 규칙. */
         .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
         .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
@@ -2008,17 +2011,15 @@ export default function AdmissionGuidelines() {
            WARN6(2026-08-04) 후속: 29개 표 재실측 결과 16/29가 전형 전 행 5자 이하("일반" 등)라
            18%도 여전히 과잉이었고, 반대로 대상(21%)은 4건에서 5~7줄 wrap이 남았다. 전형을
            12%로 축소하고 남는 폭을 대상(27%)으로 이전한다(반영영역/최저/비고는 유지). */
-        .admission-modal-body .admission-minimum-table { table-layout: fixed !important; width: 100%; min-width: 0; }
-        .admission-modal-body .admission-minimum-table th:nth-child(1),
-        .admission-modal-body .admission-minimum-table td:nth-child(1) { width: 12%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-minimum-table th:nth-child(2),
-        .admission-modal-body .admission-minimum-table td:nth-child(2) { width: 27%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-minimum-table th:nth-child(3),
-        .admission-modal-body .admission-minimum-table td:nth-child(3) { width: 31%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-minimum-table th:nth-child(4),
-        .admission-modal-body .admission-minimum-table td:nth-child(4) { width: 8%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-minimum-table th:nth-child(5),
-        .admission-modal-body .admission-minimum-table td:nth-child(5) { width: 22%; text-align: center; white-space: normal; word-break: keep-all; }
+        /* 2026-08-06 제거: .admission-modal-body .admission-minimum-table 클래스 기반
+           폭 규칙(구) — dev DB 실측 결과 minimum_requirements_html 207/207건 전부
+           이 클래스를 갖지 않아(순수 admission-data-table만 저장) 지금 단 한 셀에도
+           적용되지 않는다(BLOCK5, 아래 :nth-child([data-section="minimum_requirements"])
+           규칙이 실제 적용 경로다). 구조화 렌더(ADMISSION_JSON_ENABLED)가 켜지면
+           React 렌더러가 이 클래스를 실제로 붙이므로, 규칙을 되살려두면 그 시점에
+           화면이 갑자기 바뀐다 — 사용자 결정(현행 모습 유지)에 따라 규칙 자체를
+           지운다. 클래스는 계속 붙지만(Gate A2용 renderDocToHtml 골든 유지) 대응
+           규칙이 없어 화면은 그대로다. */
 
         /* 나머지 3종(대학별고사일/학생부반영방법/모집인원 및 입결)도 동일 디자인 언어로 정렬 —
            장식 없음, 헤더 배경·룰은 위 공통 규칙을 그대로 상속, 컬럼 수에 맞춘 합리적 폭 배분,
@@ -2031,13 +2032,12 @@ export default function AdmissionGuidelines() {
            타당했으나, 모집단위를 '전형' 셀에 나열해 183자까지 들어가는 극단 케이스(가천대(성남))가
            17%(172px)에서 1512px 19줄/375px 75줄로 붕괴했다. 1·2열을 40%/40%로 재배분해 '전형'
            열에도 안전 여유를 준다(대상 63%→40%도 p80 303px 기준 여전히 넉넉히 커버). */
-        .admission-modal-body .admission-exam-table { table-layout: fixed !important; width: 100%; min-width: 0; }
-        .admission-modal-body .admission-exam-table th:nth-child(1),
-        .admission-modal-body .admission-exam-table td:nth-child(1) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-exam-table th:nth-child(2),
-        .admission-modal-body .admission-exam-table td:nth-child(2) { width: 40%; text-align: center; white-space: normal; word-break: keep-all; }
-        .admission-modal-body .admission-exam-table th:nth-child(3),
-        .admission-modal-body .admission-exam-table td:nth-child(3) { width: 20%; text-align: center; white-space: normal; word-break: keep-all; }
+        /* 2026-08-06 제거: .admission-modal-body .admission-exam-table 클래스 기반
+           폭 규칙(구) — dev DB 실측 결과 exam_schedule_html 207/207건 전부 이
+           클래스를 갖지 않아 지금 적용되지 않는다(BLOCK5, 아래
+           [data-section="exam_schedule"] 규칙이 실제 적용 경로다). 사유는 바로
+           위 admission-minimum-table 제거 사유와 동일(구조화 렌더 켜져도 화면
+           불변 유지). */
 
         /* 학생부반영방법 모달 컬럼 폭 재배분(2026-08-04, 30개 대학·39행 실측): 구분(라벨) 컬럼은
            기존 25%(≈254px)가 최대 필요치보다 과잉이었다. 20%(≈203px)로 축소하고 남는 여백을
@@ -2101,7 +2101,8 @@ export default function AdmissionGuidelines() {
            토큰 중간에서 쪼개짐 — 모바일 전용 overflow-wrap:anywhere(아래 48rem 블록)가
            word-break:keep-all보다 우선 적용돼 발생. 일정 컬럼만 예외로 되돌린다. */
         @media (max-width: 48rem) {
-          .admission-modal-body .admission-exam-table td:nth-child(3),
+          /* 2026-08-06: .admission-modal-body .admission-exam-table 선택자 제거(죽은
+             클래스, 위 참고) — [data-section="exam_schedule"] 선택자만 실제 적용 경로다. */
           .admission-modal-body[data-section="exam_schedule"] table td:nth-child(3) { overflow-wrap: normal; word-break: keep-all; }
         }
 
@@ -2138,16 +2139,13 @@ export default function AdmissionGuidelines() {
            가로 스크롤은 없지만 가독성이 떨어져 모바일 폭에서만 최저를 15%로 넓히고 반영
            영역·비고에서 나눠 빌려온다(전형18/대상21/반영영역27/최저15/비고19). */
         @media (max-width: 48rem) {
-          .admission-modal-body .admission-minimum-table th:nth-child(3),
-          .admission-modal-body .admission-minimum-table td:nth-child(3),
+          /* 2026-08-06: .admission-modal-body .admission-minimum-table 선택자 제거(죽은
+             클래스, 위 참고) — [data-section="minimum_requirements"] 선택자만 실제
+             적용 경로다. */
           .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(3),
           .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(3) { width: 27%; }
-          .admission-modal-body .admission-minimum-table th:nth-child(4),
-          .admission-modal-body .admission-minimum-table td:nth-child(4),
           .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(4),
           .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(4) { width: 15%; }
-          .admission-modal-body .admission-minimum-table th:nth-child(5),
-          .admission-modal-body .admission-minimum-table td:nth-child(5),
           .admission-modal-body[data-section="minimum_requirements"] table th:nth-child(5),
           .admission-modal-body[data-section="minimum_requirements"] table td:nth-child(5) { width: 19%; }
         }
