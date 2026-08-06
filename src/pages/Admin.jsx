@@ -30,6 +30,12 @@ import {
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import { getAdmissionActiveYear, setAdmissionActiveYear } from '../lib/admissionSettings';
+import {
+  exportAdmissionRowsToXlsx,
+  parseAdmissionRowsFromXlsx,
+  BULK_XLSX_COLUMNS
+} from '../lib/admissionBulkXlsx';
+import * as XLSX from 'xlsx';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
@@ -914,7 +920,7 @@ const CONFIGS = {
     homepage: true,
     excel: true,
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
-    ListSummary: AdmissionActiveYearSummary,
+    ListSummary: AdmissionListSummary,
 
     columns: [
       { key: 'admission_year', label: '연도' },
@@ -5050,6 +5056,22 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
 // 않은 이유는 그 함수가 설정 저장만 하는 게 책임이고, 리소스 테이블
 // 행 수를 아는 건 호출부(이 파일)의 책임이라고 team-lead가 판단했기
 // 때문이다.
+//
+// admissionGuidelines.ListSummary의 실제 진입점. 연도 표시·변경(기존
+// AdmissionActiveYearSummary, 안 건드림)과 엑셀 일괄 왕복 패널(신규
+// AdmissionBulkXlsxPanel)을 세로로 쌓아 렌더한다 — 한 줄에 몰아넣으면
+// "연도 표시+입력+버튼+다운로드+업로드"가 뒤섞여 복잡해진다는 판단
+// (설계 문서 §2). onReload는 AdminForm의 loadRows를 그대로 받아
+// 엑셀 적용 후 목록을 재조회하는 데 쓴다.
+function AdmissionListSummary({ rows, onReload }) {
+  return (
+    <>
+      <AdmissionActiveYearSummary rows={rows} />
+      <AdmissionBulkXlsxPanel rows={rows} onReload={onReload} />
+    </>
+  );
+}
+
 function AdmissionActiveYearSummary({ rows }) {
   const [activeYear, setActiveYear] = useState(null);
   const [loadingActiveYear, setLoadingActiveYear] = useState(true);
@@ -5139,6 +5161,326 @@ function AdmissionActiveYearSummary({ rows }) {
           {saving ? '저장 중…' : '변경'}
         </button>
       </div>
+    </div>
+  );
+}
+
+// 대입모집요강 218행 전체를 26컬럼 xlsx(src/lib/admissionBulkXlsx.js,
+// 사용자가 준 모집요강.xlsx와 동일 포맷)로 일괄 왕복한다. 설계 문서
+// (docs/admission-bulk-xlsx-ui-design.md, 커밋 대상 아님) §3의 흐름을
+// 그대로 구현했다:
+//   다운로드(항상 전체, 필터 무시) → 업로드(파일 선택만으로는 반영 안
+//   됨) → 미리보기(신규/수정/거부/잘림보존/html파싱실패 건수 +
+//   errors 항상 펼침 + warnings 4그룹, 건수는 항상 보이고 목록만 접힘)
+//   → "영향받는 N행을 확인했습니다" 체크박스로 게이트된 적용 → 재조회.
+//
+// warnings.type 계약(team-lead가 phase0와 확정, 커밋 8669438)을 그대로
+// 쓴다 — reason 문자열은 파싱하지 않고 표시 전용으로만 쓴다. 4그룹
+// 분류가 이 UI에서 제일 중요한 판단이다: htmlParseFailedRegenerated는
+// 이름이 다른 "보존형"과 비슷해 보이지만 실제로는 값이 바뀐다(표
+// 구조가 단순해질 수 있음) — 나머지 보존형(truncated/regressionSkipped/
+// htmlParseFailedPreserved, "반영 안 됨")과 같은 그룹에 넣으면 관리자가
+// 오해하므로 별도 그룹("반영됐지만 품질 주의")으로 시각적으로 분리한다.
+const BULK_XLSX_WARNING_GROUPS = [
+  {
+    key: 'notApplied',
+    label: '반영 안 됨 — 기존 값 유지',
+    tone: 'neutral',
+    types: ['truncated', 'regressionSkipped', 'htmlParseFailedPreserved']
+  },
+  {
+    key: 'regeneratedCaution',
+    label: '반영됨 — 품질 주의(표 구조가 단순해질 수 있음)',
+    tone: 'warning',
+    types: ['htmlParseFailedRegenerated']
+  },
+  {
+    key: 'emptied',
+    label: '이 카테고리가 비워짐(저장 안 됨)',
+    tone: 'neutral',
+    types: ['importFailed']
+  },
+  {
+    key: 'newUniversity',
+    label: '신규 대학 추가(오타 확인 필요)',
+    tone: 'info',
+    types: ['newUniversity']
+  }
+];
+
+const BULK_XLSX_TONE_CLASS = {
+  neutral: 'border-gray-300 bg-gray-50 text-gray-700',
+  warning: 'border-amber-400 bg-amber-50 text-amber-700',
+  info: 'border-blue-300 bg-blue-50 text-blue-700'
+};
+
+// existingRows 맵 값에 담을 6개 raw 카테고리 컬럼 — CATEGORY_KEYS와
+// 이름이 같다(admissionBulkXlsx.js는 이 파일에 export 안 돼 있어 여기서
+// HWP_SECTION_JSON_KEYS의 키로 다시 뽑는다). html 파싱 실패 시 "raw가
+// 안 바뀌었나" 비교에 쓰인다 — 빠뜨리면 항상 "다름"으로 판정돼
+// 불필요한 재생성이 일어난다(team-lead가 명시적으로 강조한 지점).
+const BULK_XLSX_RAW_CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// 표 단위 xlsx(tableBlockXlsx.js)와 같은 이유로 XLSX.writeFile 대신
+// XLSX.write(버퍼만 생성) + 수동 다운로드를 쓴다 — writeFile의 Node
+// ESM/CJS 환경 감지 불안정 이슈를 겪은 적이 있어(그건 노드 검증
+// 스크립트 얘기지만) 프로덕션 경로도 동일 패턴으로 통일해둔다.
+function triggerXlsxDownload(workbook, fileName) {
+  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function AdmissionBulkXlsxPanel({ rows, onReload }) {
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  const totalRows = (rows || []).length;
+
+  function handleDownload() {
+    const { workbook, truncatedCells } = exportAdmissionRowsToXlsx(rows || []);
+    setExportTruncatedCells(truncatedCells);
+    const today = new Date();
+    const fileName = `모집요강_전체_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+    if (typeof document !== 'undefined') {
+      triggerXlsxDownload(workbook, fileName);
+    }
+  }
+
+  function buildExistingRowsMap() {
+    const map = new Map();
+    (rows || []).forEach((row) => {
+      const key = `${row.admission_year}::${row.university_key}`;
+      const value = { id: row.id };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonColumn) => {
+        value[jsonColumn] = row[jsonColumn];
+      });
+      BULK_XLSX_RAW_CATEGORY_KEYS.forEach((rawKey) => {
+        value[rawKey] = row[rawKey];
+      });
+      map.set(key, value);
+    });
+    return map;
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const workbook = XLSX.read(reader.result, { type: 'array' });
+        const existingRows = buildExistingRowsMap();
+        const result = parseAdmissionRowsFromXlsx(workbook, existingRows);
+        setParseResult(result);
+      } catch (err) {
+        setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+      }
+    };
+    reader.onerror = () => {
+      setParseErrors(['파일을 읽지 못했습니다.']);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+    const { error } = await supabase
+      .from('admission_university_resources')
+      .upsert(parseResult.rows, { onConflict: 'admission_year,university_key' });
+    if (error) {
+      setApplying(false);
+      alert(`엑셀 적용 실패: ${error.message}`);
+      return;
+    }
+    const { summary } = parseResult;
+    setApplying(false);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult ? parseResult.summary.willInsert + parseResult.summary.willUpdate : 0;
+
+  return (
+    <div className="mb-6 bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            {`엑셀(xlsx) 전체 ${totalRows}행 다운로드`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            엑셀(xlsx) 업로드
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="모집요강 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다.
+            이 파일을 그대로 재업로드하면 해당 컬럼은 자동으로 보존됩니다(데이터 손상 아님, 스킵 처리).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((msg, idx) => (
+            <p key={idx}>{msg}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 잘림 보존 {parseResult.summary.truncatedCellSkipCount}컬럼 · html
+            파싱 실패 {parseResult.summary.htmlParseFailedCount}컬럼
+          </p>
+
+          {parseResult.summary.newYears.length > 0 && (
+            <p className="mt-2 rounded border border-blue-300 bg-blue-50 px-2 py-1.5 font-bold text-blue-700">
+              신규 연도: {parseResult.summary.newYears.join(', ')}학년도 — 이 파일에 새 연도 데이터가
+              포함돼 있습니다.
+            </p>
+          )}
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.admissionYear ?? '-'}학년도 · {err.universityKey || '(키 없음)'} —{' '}
+                    {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {BULK_XLSX_WARNING_GROUPS.map((group) => {
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            if (items.length === 0) return null;
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {items.length}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.admissionYear ?? '-'}학년도 · {w.universityKey || '(키 없음)'}
+                        {w.column ? ` · ${w.column}` : ''} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying ? '적용 중…' : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5598,7 +5940,7 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
-                {config.ListSummary && <config.ListSummary rows={rows} />}
+                {config.ListSummary && <config.ListSummary rows={rows} onReload={loadRows} />}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
