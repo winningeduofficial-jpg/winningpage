@@ -5389,10 +5389,16 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
 
       {parseResult && (
         <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          {/* truncatedCellSkipCount/htmlParseFailedCount는 하위호환용 집계라
+              여기선 안 쓴다(team-lead 지시) — warningCounts만 쓰면
+              htmlParseFailedPreserved/htmlParseFailedRegenerated가 합쳐진
+              값과 갈라진 값을 동시에 보여줘 건수가 안 맞는 것처럼 보이는
+              혼란을 피한다. 경고 총건수도 warningCounts를 그대로 더한다
+              (문자열 매칭·직접 재계산 안 함). */}
           <p className="font-black text-[#2348ff]">
             신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
-            {parseResult.summary.willSkip}건 · 잘림 보존 {parseResult.summary.truncatedCellSkipCount}컬럼 · html
-            파싱 실패 {parseResult.summary.htmlParseFailedCount}컬럼
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
           </p>
 
           {parseResult.summary.newYears.length > 0 && (
@@ -5419,8 +5425,16 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
           )}
 
           {BULK_XLSX_WARNING_GROUPS.map((group) => {
+            // 건수는 lib이 준 warningCounts에서 합산한다(직접 세지 말라는
+            // team-lead 지시) — 상세 목록은 어차피 개별 항목이 필요해
+            // warnings 배열을 그대로 필터링한다(같은 type 기준이라 두
+            // 값은 항상 같다).
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
             const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
-            if (items.length === 0) return null;
             const isOpen = Boolean(expandedGroups[group.key]);
             return (
               <div key={group.key} className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}>
@@ -5430,7 +5444,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                   className="flex w-full items-center justify-between text-left font-black"
                 >
                   <span>
-                    {group.label} — {items.length}건
+                    {group.label} — {groupCount}건
                   </span>
                   <span>{isOpen ? '접기' : '자세히 보기'}</span>
                 </button>
