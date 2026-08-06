@@ -18,7 +18,8 @@
 --  [11] identity_verifications   : NICE 본인확인 결과 (CI/DI, 서버 전용)
 --  [12] identity_verifications   : NICE 「통합인증」 규격 반영 (컬럼 추가)
 --  [13] complete_signup_profile  : 지역 필수를 학생 전용으로 (학부모 가입 개통)
---  [14] complete_signup_profile  : 휴대폰 인증 서버 강제 + 소비 처리
+--  [14] complete_signup_profile  : 휴대폰 인증 서버 강제 + 소비 처리 (학부모)
+--  [15] complete_signup_profile  : 휴대폰 인증 강제를 학생까지 확대
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1835,6 +1836,247 @@ begin
   );
 end;
 $function$;
+
+
+-- =====================================================================
+-- [15] complete_signup_profile : 휴대폰 인증 강제를 학생까지 확대
+--
+-- [14]는 학부모만 강제했다. `StudentForm`(C-1)의 휴대폰 인증이 그때는 API를 부르지
+-- 않는 클라이언트 스텁이라, 학생까지 요구하면 동작 중인 가입이 전부 깨졌기 때문이다.
+-- 2026-08-06에 StudentForm을 `src/lib/phoneVerification.js`로 배선해 실제 서버 검증을
+-- 거치게 했으므로 이제 학생도 강제할 수 있다.
+--
+-- 왜 'mentor'는 빼는가
+--   멘토 가입 화면이 아직 없다. 만들 때 휴대폰 인증을 넣고 그때 조건에 추가한다.
+--   지금 넣어두면 화면이 생기는 순간 원인 모를 phone_not_verified로 막힌다.
+--
+-- ⚠️ 이 섹션을 실행하기 전에 프론트 배포가 먼저 나가야 한다.
+--   순서가 뒤집히면 구버전 프론트(스텁 인증)를 쓰는 사용자가 가입을 완료할 수 없다.
+--   [14]와 이 섹션의 차이는 `phone_not_verified` 조건 한 줄뿐이다.
+-- =====================================================================
+
+create or replace function public.complete_signup_profile(
+  p_name                      text,
+  p_username                  text,
+  p_phone                     text,
+  p_email                     text,
+  p_region                    text,
+  p_school_type               text,
+  p_school_name               text,
+  p_member_type               text,
+  p_terms_service_agreed      boolean,
+  p_privacy_required_agreed   boolean,
+  p_identity_required_agreed  boolean,
+  p_privacy_optional_agreed   boolean,
+  p_marketing_agreed          boolean,
+  p_ads_agreed                boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_user_id      uuid;
+  v_name         text;
+  v_username     text;
+  v_phone        text;
+  v_phone_digits text;
+  v_pv_id        uuid;
+  v_email        text;
+  v_region       text;
+  v_school_type  text;
+  v_school_name  text;
+  v_member_type  text;
+  v_link_code    text;
+begin
+  v_user_id := auth.uid();
+
+  if v_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  v_name        := trim(coalesce(p_name, ''));
+  v_email       := lower(trim(coalesce(p_email, '')));
+  v_username    := lower(trim(coalesce(nullif(p_username, ''), v_email)));
+  v_phone       := trim(coalesce(p_phone, ''));
+  v_region      := trim(coalesce(p_region, ''));
+  v_school_type := trim(coalesce(p_school_type, ''));
+  v_school_name := trim(coalesce(p_school_name, ''));
+  v_member_type := lower(trim(coalesce(p_member_type, '')));
+
+  -- 저장은 입력값 그대로 두고(기존 동작 유지), 조회만 숫자로 정규화한다.
+  v_phone_digits := regexp_replace(v_phone, '[^0-9]', '', 'g');
+
+  if v_name = '' then
+    raise exception 'name_required';
+  end if;
+
+  if v_email = '' then
+    raise exception 'email_required';
+  end if;
+
+  if v_username = '' then
+    v_username := v_email;
+  end if;
+
+  if v_member_type = '' then
+    raise exception 'member_type_required';
+  end if;
+
+  if v_member_type not in ('student', 'parent', 'mentor') then
+    raise exception 'invalid_member_type';
+  end if;
+
+  -- 지역·재학 구분은 학생에게만 필수([13]).
+  if v_member_type = 'student' and v_region = '' then
+    raise exception 'region_required';
+  end if;
+
+  if v_member_type = 'student' and v_school_type = '' then
+    raise exception 'school_type_required';
+  end if;
+
+  if coalesce(p_terms_service_agreed, false) is not true then
+    raise exception 'terms_service_required';
+  end if;
+
+  if coalesce(p_privacy_required_agreed, false) is not true then
+    raise exception 'privacy_required';
+  end if;
+
+  -- 본인 인증 정보 수집 동의는 학생 약관에만 있는 항목이다.
+  if v_member_type = 'student'
+     and coalesce(p_identity_required_agreed, false) is not true then
+    raise exception 'identity_required';
+  end if;
+
+  -- ── 휴대폰 인증 확인 ────────────────────────────────────────────
+  if v_phone_digits <> '' then
+    select id into v_pv_id
+    from public.phone_verifications
+    where phone = v_phone_digits
+      and verified_at is not null
+      and consumed_at is null
+      and verified_at > now() - interval '30 minutes'
+    order by verified_at desc
+    limit 1;
+  end if;
+
+  -- [15]: 학생도 포함. 멘토는 가입 화면이 생길 때 추가한다.
+  if v_member_type in ('parent', 'student') and v_pv_id is null then
+    raise exception 'phone_not_verified';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles
+    where lower(trim(email)) = v_email
+      and id <> v_user_id
+  ) then
+    raise exception 'duplicate_email';
+  end if;
+
+  insert into public.profiles (
+    id, name, username, phone, email, region,
+    school_type, school_name, member_type, role,
+    terms_service_agreed, privacy_required_agreed, privacy_optional_agreed,
+    marketing_agreed, ads_agreed, updated_at
+  )
+  values (
+    v_user_id, v_name, v_username, v_phone, v_email, nullif(v_region, ''),
+    nullif(v_school_type, ''), nullif(v_school_name, ''), v_member_type, 'user',
+    coalesce(p_terms_service_agreed, false),
+    coalesce(p_privacy_required_agreed, false),
+    coalesce(p_privacy_optional_agreed, false),
+    coalesce(p_marketing_agreed, false),
+    coalesce(p_ads_agreed, false),
+    now()
+  )
+  on conflict (id) do update
+  set
+    name                    = excluded.name,
+    username                = excluded.username,
+    phone                   = excluded.phone,
+    email                   = excluded.email,
+    region                  = excluded.region,
+    school_type             = excluded.school_type,
+    school_name             = excluded.school_name,
+    member_type             = excluded.member_type,
+    role                    = coalesce(public.profiles.role, 'user'),
+    terms_service_agreed    = excluded.terms_service_agreed,
+    privacy_required_agreed = excluded.privacy_required_agreed,
+    privacy_optional_agreed = excluded.privacy_optional_agreed,
+    marketing_agreed        = excluded.marketing_agreed,
+    ads_agreed              = excluded.ads_agreed,
+    updated_at              = now();
+
+  -- 인증 기록을 소비 처리한다. 같은 인증으로 두 번 가입할 수 없게 한다.
+  if v_pv_id is not null then
+    update public.phone_verifications
+    set consumed_at = now()
+    where id = v_pv_id;
+  end if;
+
+  -- 약관 동의 이력 (버전 단위).
+  insert into public.user_term_agreements (user_id, term_id, agreed)
+  select
+    v_user_id,
+    t.id,
+    case
+      when t.code ~ '_identity$'                        then coalesce(p_identity_required_agreed, false)
+      when t.profile_column = 'terms_service_agreed'    then coalesce(p_terms_service_agreed, false)
+      when t.profile_column = 'privacy_required_agreed' then coalesce(p_privacy_required_agreed, false)
+      when t.profile_column = 'marketing_agreed'        then coalesce(p_marketing_agreed, false)
+      when t.profile_column = 'ads_agreed'              then coalesce(p_ads_agreed, false)
+      else false
+    end
+  from public.terms t
+  where t.is_active
+    and t.audience in (v_member_type, 'common')
+  on conflict (user_id, term_id) do update
+  set agreed    = excluded.agreed,
+      agreed_at = now();
+
+  -- 학생 연결코드: 없을 때만 발급한다(재호출로 코드가 회전하면 안 된다).
+  if v_member_type = 'student' then
+    select code into v_link_code
+    from public.student_link_codes
+    where student_id = v_user_id
+      and is_active;
+
+    if v_link_code is null then
+      v_link_code := public.issue_student_link_code(v_user_id);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_user_id,
+    'email', v_email,
+    'member_type', v_member_type,
+    'link_code', v_link_code   -- 학생이 아니면 null
+  );
+end;
+$function$;
+
+-- create or replace는 기존 권한을 유지하므로 기능상 재선언이 필수는 아니다.
+-- 그래도 남겨두는 이유가 둘 있다.
+--   1) 이 함수의 권한 의도(anon 금지)를 섹션만 봐도 알 수 있다.
+--   2) Supabase SQL Editor가 "새로 만든 테이블에 RLS 켜기" 기능으로 쿼리 끝에
+--      ALTER TABLE을 덧붙이는데, 함수 본문이 마지막 문장이면 declare 변수를
+--      테이블로 오인해 본문을 닫는 달러 인용 태그를 지워버린다(2026-08-06 발생,
+--      unterminated dollar-quoted string). 뒤에 문장이 하나 더 있으면 주입
+--      지점이 밀려 그 사고가 나지 않는다.
+revoke all on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) from public, anon;
+
+grant execute on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) to authenticated, service_role;
 
 
 -- =====================================================================

@@ -13,9 +13,11 @@
 // 가입시키려면 상태에 따라 signUp / signInWithOtp를 갈라 써야 하는데, 세 가입
 // 화면이 같은 시퀀스를 복제하고 있어 분기가 어긋날 위험이 컸다.
 //
-// 전화번호 인증(카카오톡 OTP)은 AS-IS에 대응하는 백엔드 API가 없어 핸들러를 스텁으로
-// 구현했다(TODO 표시, requestPhoneCode/자동 검증 useEffect 참고).
-import { useEffect, useState } from 'react';
+// 전화번호 인증은 src/lib/phoneVerification.js를 거쳐 실제 서버가 판정한다
+// (발송 /api/send-phone-code, 검증 /api/verify-phone-code). 예전 스텁처럼
+// "6자리 입력 = 통과"가 아니며, 가입 RPC도 인증 여부를 다시 확인한다
+// (sql/40_auth_signup.sql [15]).
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AuthLayout,
@@ -35,6 +37,12 @@ import {
   verifySignupEmailCode
 } from '../../lib/signupEmailAuth';
 import { useCooldown } from '../../hooks/useCooldown';
+import {
+  isValidMobile,
+  normalizePhone,
+  sendPhoneCode,
+  verifyPhoneCode
+} from '../../lib/phoneVerification';
 
 // Under14Form(D-2)도 동일 지역 목록(17개 시도 + '기타')을 쓰므로 이 상수를 공유한다.
 export const REGION_OPTIONS = [
@@ -97,8 +105,10 @@ function isValidPassword(value) {
   return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
 }
 
+// 하이픈 유무와 무관하게 판정한다. 서버(api/_lib/phoneCode.js)와 같은 규칙을 쓰려고
+// lib에 위임한다 — 프론트만 느슨하면 발송 단계에서 invalid_phone으로 되돌아온다.
 function isValidPhone(value) {
-  return /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(value);
+  return isValidMobile(value);
 }
 
 function getFriendlyError(errorMessage) {
@@ -137,6 +147,10 @@ export default function StudentForm() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [phoneMessage, setPhoneMessage] = useState({ text: '', status: 'default' });
+  const [phoneSending, setPhoneSending] = useState(false);
+  const phoneCooldown = useCooldown(60);
+  // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
+  const lastPhoneAttempt = useRef('');
   const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
   const [emailSending, setEmailSending] = useState(false);
   const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
@@ -187,36 +201,88 @@ export default function StudentForm() {
     updateAgreements({ [key]: !agreements[key] });
   }
 
-  // --- 전화번호 인증(카카오톡 OTP) — 스텁 ---
-  // TODO: 카카오톡 인증번호 발송/검증 백엔드 연동 필요(시안 데이터에 API 계약 없음, §4 GAP).
-  // 현재는 "발송" 클릭 시 requested=true만 표시하고, 인증번호 6자리가 입력되면 자동으로
-  // verified=true 처리하는 임시 동작이다. 코드 불일치/만료 등 실패 케이스는 재현하지 않는다
-  // — 실제 API 연동 시 verifyPhoneCode 쪽에 실패 분기를 추가할 것.
-  function requestPhoneCode() {
+  // --- 전화번호 인증(알림톡/SMS) ---
+  // 발송은 /api/send-phone-code, 검증은 /api/verify-phone-code가 담당한다.
+  // 판정을 서버가 하므로 예전 스텁처럼 "6자리 입력 = 통과"가 아니다.
+  //
+  // ⚠️ 서버가 시도를 5회로 끊는다. 같은 코드를 두 번 보내지 않도록 마지막 시도값을
+  //   기억한다 — 지웠다 다시 입력하는 것만으로 기회가 깎이면 안 된다.
+  async function requestPhoneCode() {
     setFormError('');
 
-    if (!isValidPhone(formData.phone.trim())) {
+    if (!isValidPhone(formData.phone)) {
       setPhoneMessage({ text: '전화번호를 올바르게 입력해 주세요.', status: 'error' });
       return;
     }
 
-    // TODO: 카카오톡 인증번호 발송 API 호출로 교체.
-    updateVerification('phone', { requested: true, verified: false });
-    setPhoneMessage({ text: '카카오톡으로 인증번호를 발송했습니다.', status: 'default' });
+    if (phoneCooldown.active) {
+      setPhoneMessage({
+        text: `인증번호는 ${phoneCooldown.remaining}초 후에 다시 보낼 수 있어요.`,
+        status: 'error'
+      });
+      return;
+    }
+
+    setPhoneSending(true);
+    setPhoneMessage({ text: '', status: 'default' });
+
+    try {
+      const result = await sendPhoneCode(formData.phone, 'signup');
+
+      if (!result.ok) {
+        // 한도에 걸린 경우 서버가 알려준 대기 시간을 그대로 반영한다.
+        if (result.retryAfter) phoneCooldown.start();
+        setPhoneMessage({ text: result.message, status: 'error' });
+        return;
+      }
+
+      lastPhoneAttempt.current = '';
+      updateVerification('phone', { requested: true, verified: false });
+      updateFormData({ phoneCode: '' });
+      phoneCooldown.start();
+      setPhoneMessage({
+        // 운영에서 dryRun이 true면 문자가 실제로 나가지 않은 것이다.
+        text: result.dryRun
+          ? '테스트 모드입니다 — 실제 문자는 발송되지 않았습니다.'
+          : '카카오톡으로 인증번호를 발송했습니다.',
+        status: 'default'
+      });
+    } finally {
+      setPhoneSending(false);
+    }
   }
 
   useEffect(() => {
-    // TODO: 실제로는 서버 검증 응답을 받아야 한다 — 현재는 6자리 입력 시 임시로 통과 처리.
+    const code = formData.phoneCode;
+
     if (
-      verification.phone.requested &&
-      !verification.phone.verified &&
-      formData.phoneCode.trim().length === 6
+      code.length !== 6 ||
+      !verification.phone.requested ||
+      verification.phone.verified ||
+      lastPhoneAttempt.current === code
     ) {
-      updateVerification('phone', { verified: true });
-      setPhoneMessage({ text: '전화번호 인증이 완료되었습니다.', status: 'success' });
+      return;
     }
+
+    lastPhoneAttempt.current = code;
+
+    verifyPhoneCode(formData.phone, code).then((result) => {
+      if (result.ok) {
+        updateVerification('phone', { verified: true });
+        setPhoneMessage({ text: '전화번호 인증이 완료되었습니다.', status: 'success' });
+        return;
+      }
+
+      setPhoneMessage({ text: result.message, status: 'error' });
+
+      // 시도가 소진되거나 만료되면 재발송 외에 길이 없다. 다음 입력이 다시
+      // 시도되도록 잠금을 푼다.
+      if (result.reason === 'too_many_attempts' || result.reason === 'code_expired') {
+        lastPhoneAttempt.current = '';
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.phoneCode, verification.phone.requested]);
+  }, [formData.phoneCode]);
 
   // --- 이메일 인증: 기존 Signup.jsx 시퀀스 그대로(중복확인 → signUp으로 OTP 발송) ---
   // 시안(§3.3 C-1 표)에는 이메일 필드 액션이 "인증번호 보내기" 하나뿐이라 중복확인과
@@ -579,9 +645,11 @@ export default function StudentForm() {
           value={formData.phone}
           onChange={handleField('phone')}
           placeholder="전화번호를 입력 해주세요"
-          actionLabel="인증번호 보내기"
+          actionLabel={
+            phoneCooldown.active ? `${phoneCooldown.remaining}초 후 다시 보내기` : '인증번호 보내기'
+          }
           onAction={requestPhoneCode}
-          actionDisabled={verification.phone.verified}
+          actionDisabled={phoneSending || phoneCooldown.active || verification.phone.verified}
           helperText={phoneMessage.text}
           status={phoneMessage.status}
           autoComplete="tel"
@@ -594,12 +662,23 @@ export default function StudentForm() {
           name="phoneCode"
           size="lg"
           value={formData.phoneCode}
-          onChange={handleField('phoneCode')}
+          onChange={(value) => updateFormData({ phoneCode: value.replace(/\D/g, '').slice(0, 6) })}
           placeholder="카카오톡으로 보낸 인증번호를 입력 해주세요"
-          actionLabel="인증번호 다시 보내기"
+          actionLabel={
+            phoneCooldown.active
+              ? `${phoneCooldown.remaining}초 후 다시 보내기`
+              : '인증번호 다시 보내기'
+          }
           onAction={requestPhoneCode}
-          actionDisabled={!verification.phone.requested || verification.phone.verified}
-          disabled={!verification.phone.requested}
+          actionDisabled={
+            !verification.phone.requested ||
+            phoneSending ||
+            phoneCooldown.active ||
+            verification.phone.verified
+          }
+          helperText={phoneMessage.text}
+          status={verification.phone.verified ? 'success' : phoneMessage.status}
+          disabled={!verification.phone.requested || verification.phone.verified}
         />
 
         <TextField
