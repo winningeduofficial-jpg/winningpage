@@ -17,6 +17,12 @@
 //      가려진 결함을 드러내기 위해 그 직전 단계(buildSmartRawHtml, 치환 전)의
 //      출력을 기준으로 센다.
 //   6. admission-table-wrap 이중 중첩 문서 수
+//   7. 마스킹 정규식(/undefined|NaN|\[object Object\]|null\s*null/gi) 오탐
+//      실측 — 항목 5의 매칭이 진짜 결함(정확히 undefined/NaN/[object Object]/
+//      null null)인지, 대소문자만 우연히 일치한 오탐(예: "Finance"의 "nan")
+//      인지 분류한다. sanitizeAdmissionRenderedHtml:47이 gi 플래그를 쓰고
+//      있어 오탐이면 실제 서비스에서도 "Finance" → "Fi-ce" 식으로 데이터가
+//      손상된다 — 이 스크립트는 규모만 드러내고 고치지 않는다.
 //
 // 사용법:
 //   node scripts/measure-admission-json-scope.mjs                 # DB 실측(키 필요)
@@ -51,8 +57,15 @@ const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
 const HTML_COLUMNS = Object.values(HWP_SECTION_HTML_KEYS);
 
 const MASKED_TOKEN_RE = /undefined|NaN|\[object Object\]|null\s*null/gi;
+// 항목 7: 대소문자까지 정확히 일치해야 "진짜 결함"이다. sanitizeAdmissionRenderedHtml
+// 자체의 정규식(위 MASKED_TOKEN_RE와 동일 패턴, gi 플래그)은 대소문자를 가리지
+// 않으므로, 이 판별과 실제 프로덕션 치환 동작은 별개다 — 판별은 "치환이 정당했는가"만
+// 본다.
+const REAL_DEFECT_RE = /^(undefined|NaN|\[object Object\]|null\s*null)$/;
 const TABLE_WRAP_CLASS_RE = /\badmission-table-wrap\b/g;
 const CLASS_ATTR_RE = /class="([^"]*)"/g;
+const MASKED_TOKEN_CONTEXT = 40;
+const MASKED_TOKEN_SAMPLE_LIMIT = 10;
 
 const { values: args } = parseArgs({
   options: {
@@ -124,18 +137,45 @@ export function countMaskedTokenMatches(html) {
   return matches ? matches.length : 0;
 }
 
-// 항목 5(핵심): sanitizeAdmissionRenderedHtml은 buildRawSectionHtml/buildHwpCategoryHtml의
-// "마지막" 단계에서 마스킹 패턴을 '-'로 치환한다. 저장된(최종) html은 이미 치환이
-// 끝난 상태라 여기서 세면 항상 0이다 — 가려진 결함을 드러내려면 그 직전 단계인
-// buildSmartRawHtml(raw, key, row, name)의 출력(치환 전)에서 세야 한다.
-export function countMaskedTokenMatchesPreSanitize(raw, key, row, universityName) {
+// 항목 7: 매칭된 문자열이 대소문자까지 정확히 진짜 결함 패턴인지 판별.
+// 그 외(대소문자 변형 등)는 정규식이 gi 플래그를 쓰는 탓에 걸린 오탐이다.
+export function classifyMaskedTokenMatch(matchedText) {
+  return REAL_DEFECT_RE.test(String(matchedText || '')) ? 'defect' : 'false-positive';
+}
+
+// 항목 5·7(핵심): sanitizeAdmissionRenderedHtml은 buildRawSectionHtml/
+// buildHwpCategoryHtml의 "마지막" 단계에서 마스킹 패턴을 '-'로 치환한다.
+// 저장된(최종) html은 이미 치환이 끝난 상태라 여기서 세면 항상 0이다 —
+// 가려진 결함을 드러내려면 그 직전 단계인 buildSmartRawHtml(raw, key,
+// row, name)의 출력(치환 전)에서 매칭 지점을 전부 모아야 한다.
+export function collectMaskedTokenFindings(raw, key, row, universityName) {
   let html;
   try {
     html = buildSmartRawHtml(raw, key, row, universityName);
   } catch {
-    return 0;
+    return [];
   }
-  return countMaskedTokenMatches(html);
+  const text = String(html || '');
+  const findings = [];
+  // MASKED_TOKEN_RE는 다른 함수에서도 exec 없이(match만) 재사용되므로,
+  // lastIndex 상태를 공유하지 않도록 exec용 인스턴스를 매번 새로 만든다.
+  const re = new RegExp(MASKED_TOKEN_RE.source, MASKED_TOKEN_RE.flags);
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const matchedText = m[0];
+    const start = Math.max(0, m.index - MASKED_TOKEN_CONTEXT);
+    const end = Math.min(text.length, m.index + matchedText.length + MASKED_TOKEN_CONTEXT);
+    findings.push({
+      universityName,
+      category: key,
+      matchedText,
+      classification: classifyMaskedTokenMatch(matchedText),
+      context: text.slice(start, end)
+    });
+    // 폭 0 매칭 방지(이 패턴은 전부 폭>0이라 실질적으로 불필요하지만 안전장치로 둔다).
+    if (m[0].length === 0) re.lastIndex += 1;
+  }
+  return findings;
 }
 
 // 항목 3: 현행 파서가 저장 html을 재생성하는지 여부.
@@ -162,9 +202,12 @@ function measureCategory(key, docs) {
     regenMatchCount: 0,
     regenComparedCount: 0,
     maskedTokenMatches: 0,
+    maskedTokenDefectCount: 0,
+    maskedTokenFalsePositiveCount: 0,
     doubleNestedDocs: 0
   };
   const classDocCount = new Map();
+  const maskedTokenFindings = [];
 
   docs.forEach(({ raw, html, row, universityName }) => {
     const cleanRaw = clean(raw);
@@ -183,7 +226,13 @@ function measureCategory(key, docs) {
       if (countTableWrapOccurrences(cleanHtml) >= 2) stats.doubleNestedDocs += 1;
     }
     if (cleanRaw) {
-      stats.maskedTokenMatches += countMaskedTokenMatchesPreSanitize(cleanRaw, key, row, universityName);
+      const findings = collectMaskedTokenFindings(cleanRaw, key, row, universityName);
+      findings.forEach((finding) => {
+        stats.maskedTokenMatches += 1;
+        if (finding.classification === 'defect') stats.maskedTokenDefectCount += 1;
+        else stats.maskedTokenFalsePositiveCount += 1;
+      });
+      maskedTokenFindings.push(...findings);
     }
     if (cleanRaw && cleanHtml) {
       stats.regenComparedCount += 1;
@@ -198,7 +247,7 @@ function measureCategory(key, docs) {
     .slice(0, 20)
     .map(([className, docCount]) => ({ className, docCount }));
 
-  return { ...stats, classInventory };
+  return { ...stats, classInventory, maskedTokenFindings };
 }
 
 // -----------------------------------------------------------------------
@@ -294,6 +343,29 @@ function printReport(source, results) {
       console.log(`  ${String(docCount).padStart(4)}  ${className}`);
     });
   });
+
+  console.log('\n--- 7) 마스킹 정규식(/undefined|NaN|[object Object]|null null/gi) 오탐 실측 ---');
+  const allFindings = results.flatMap((r) => r.maskedTokenFindings);
+  const defectFindings = allFindings.filter((f) => f.classification === 'defect');
+  const falsePositiveFindings = allFindings.filter((f) => f.classification === 'false-positive');
+  console.log(
+    `전체 매칭 ${allFindings.length}건 = 진짜 결함 ${defectFindings.length}건 + 오탐 ${falsePositiveFindings.length}건`
+  );
+  if (falsePositiveFindings.length) {
+    console.log(`오탐 샘플(최대 ${MASKED_TOKEN_SAMPLE_LIMIT}건, 영향받은 대학/카테고리/원본 문자열):`);
+    falsePositiveFindings.slice(0, MASKED_TOKEN_SAMPLE_LIMIT).forEach((f) => {
+      console.log(`  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`);
+    });
+    if (falsePositiveFindings.length > MASKED_TOKEN_SAMPLE_LIMIT) {
+      console.log(`  ... 외 ${falsePositiveFindings.length - MASKED_TOKEN_SAMPLE_LIMIT}건 생략`);
+    }
+  }
+  if (defectFindings.length) {
+    console.log(`진짜 결함 샘플(최대 ${MASKED_TOKEN_SAMPLE_LIMIT}건):`);
+    defectFindings.slice(0, MASKED_TOKEN_SAMPLE_LIMIT).forEach((f) => {
+      console.log(`  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`);
+    });
+  }
 }
 
 async function main() {
