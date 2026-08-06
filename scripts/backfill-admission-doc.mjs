@@ -1,6 +1,17 @@
 // =====================================================================
 // admission_university_resources *_json(구조화 문서 AdmissionDoc) 백필 스크립트
 //
+// ⚠ 역할 변경(Phase 5 완료 후, team-lead 지시): 정본은 이제
+// scripts/import-legacy-admission-html.mjs다. 그 스크립트가 저장 HTML을
+// 진짜 구조화 doc으로 재구성하는 데 성공하고(실측: 1253/1253셀 100%),
+// 이 스크립트는 raw만 있고 html은 없는 셀만 doc으로 만들 뿐 raw+html이
+// 둘 다 있는 셀은 무조건 curated-html RawHtmlBlock으로 승격 없이 보존
+// 한다(이 파일 원래 설계 그대로). 즉 이 스크립트 혼자서는 임포터가 만드는
+// 구조화 결과에 못 미친다 — **임포터가 실패(needsReview)로 분류한 셀의
+// rawHtml 폴백 전용**으로 역할을 좁힌다. 임포터 실패가 현재 0건이라
+// 사실상 대기 상태지만, 운영 데이터나 신규 대학에서 임포터가 실패하는
+// 셀이 나올 수 있어 폐기하지 않고 유지한다.
+//
 // 배경: sql/43_admission_section_json.sql이 *_json 6종 jsonb 컬럼을
 // 추가한다(실행은 사용자가 Supabase SQL Editor에서 수동). 이 스크립트는
 // raw/html 기존 값으로부터 doc을 계산해 그 컬럼을 채운다. *_html은

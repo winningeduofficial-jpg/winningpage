@@ -320,12 +320,26 @@ function truncateForReport(text, context = 100) {
   return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
 }
 
-// 실측: minimum_requirements/exam_schedule의 legacy 저장 HTML은 <table>
-// class가 "admission-data-table"뿐이고 variant 접미어(admission-minimum-
-// table 등)가 없다(더 오래된 생성 경로 — recordInfo/score/selection/
-// change는 접미어가 그대로 있다). 이건 표 재구성 성공 여부와 무관한 legacy
-// 방언 차이라 <table> class 한정으로 "한쪽이 다른 쪽의 부분집합이면(둘 다
-// admission-data-table 포함)" 허용한다 — 다른 태그·다른 속성에는 적용하지
+// ⚠ 이 허용은 "표면 포맷 차이"가 아니라 실제 시각 변화를 동반한다 —
+// 판정 기준(구조 재구성의 정확성)은 옳지만 결과를 조용히 넘기면 안 된다.
+//
+// 실측(DB 전수): <table> class에 variant 접미어(admission-minimum-table
+// 등)가 붙어 있는 셀 수 —
+//   minimum_requirements_html 207건 중 0건 / exam_schedule_html 207건
+//   중 0건 (더 오래된 생성 경로) / school_record_method_html 207건 중
+//   207건 / recruitment_result_html 207건 중 200건 / selection_method_html
+//   218건 중 198건 / previous_year_changes_html 207건 중 207건(change는
+//   variant 전용 class를 별도로 쓰지 않아 항상 일치).
+// `.admission-modal-body .admission-minimum-table`(그리고 -exam-table)에
+// 실제 CSS(table-layout:fixed !important + th/td:nth-child(n){width:n%})가
+// 걸려 있다 — 접미어가 없으면 이 규칙이 죽어 표가 table-layout:auto로
+// 렌더된다. minimum_requirements/exam_schedule 414셀(각 207건)은 지금
+// 이 상태다. 임포트된 doc을 렌더하면 접미어가 복원돼 규칙이 되살아나고
+// 표 레이아웃이 auto → fixed + %폭으로 바뀐다(방향은 개선일 공산이 크나
+// 시각 변화이므로 백필 적용 전 별도 확인 필요 — 실행 시 콘솔에도
+// "4-1) 시각 변화 경고" 섹션으로 셀 수를 명시적으로 출력한다).
+//
+// 이 허용은 <table> class 한정이다 — 다른 태그·다른 속성에는 적용하지
 // 않는다(진짜 불일치를 가리는 일반 규칙으로 확대하지 않는다).
 function tableClassCompatible(classA, classB) {
   const setA = new Set(classA.split(' ').filter(Boolean));
@@ -432,6 +446,15 @@ export function compareDomEquivalence(htmlA, htmlB) {
 // 데이터 재구성 성공 여부와 무관한 이미 알려진 레거시 포맷 차이라(change/
 // selection_method는 애초에 이 래핑이 없다 — 실측), 비교 전 양쪽에서
 // 제거한다. Gate B의 빈 note/legend div 제거와 같은 성격의 "허용 diff"다.
+//
+// (table class 접미어 허용과 달리) 이 정규화는 **공개 화면에 시각 영향이
+// 없다** — 공개 모달 CSS가 admission-hwp-section-title을 display:none으로
+// 숨긴다(AdmissionGuidelines.jsx:1848). 헤딩 유무 차이가 사용자에게
+// 보이는 건 어드민 미리보기뿐이고, 거기서는 오히려 헤딩이 "복원"돼
+// 어떤 섹션인지 더 명확해진다(현행 어드민이 이 타이틀을 보이게
+// 스타일링한다 — Admin.jsx:3865 부근). admission-table-wrap 자체는
+// 모달이 바깥에서 한 겹 더 씌우므로 이중 중첩이 이미 현재 상태이고,
+// 임포트 후에도 동일하게 유지된다(구조가 바뀌지 않음).
 // -----------------------------------------------------------------------
 function stripLeadingTableWrap(html) {
   const m = /^\s*<div class="admission-table-wrap">\s*([\s\S]*)<\/div>\s*$/.exec(html);
@@ -575,7 +598,9 @@ async function main() {
   console.log(`처리 대상: ${rows.length}행`);
 
   console.log('\n=== 3) 계산/분류(임포트 시도 + DOM 동형성 검증) ===');
-  const stats = Object.fromEntries(targetCategories.map((key) => [key, { imported: 0, needsReview: 0, skip: 0 }]));
+  const stats = Object.fromEntries(
+    targetCategories.map((key) => [key, { imported: 0, needsReview: 0, skip: 0, byCandidate: {} }])
+  );
   const needsReviewSamples = Object.fromEntries(targetCategories.map((key) => [key, []]));
   const rowPatches = [];
 
@@ -593,6 +618,8 @@ async function main() {
       if (result.classification === 'imported') {
         patch[HWP_SECTION_JSON_KEYS[key]] = result.doc;
         hasChange = true;
+        const s = stats[key];
+        s.byCandidate[result.candidateName] = (s.byCandidate[result.candidateName] || 0) + 1;
       }
     });
 
@@ -606,6 +633,25 @@ async function main() {
     const rate = denom ? ((s.imported / denom) * 100).toFixed(2) : '100.00';
     console.log(`  - ${key}: imported ${s.imported} / needsReview ${s.needsReview} / skip(원본 없음) ${s.skip}  → 성공률 ${rate}%`);
   });
+
+  // table 클래스 접미어 부분집합 허용(admissionParsing.js의 tableClassCompatible
+  // 근거 주석 참고)이 실제로 적용된 규모 — minimum_requirements/exam_schedule의
+  // 저장 HTML은 <table class="admission-data-table">뿐이라(접미어 없음)
+  // .admission-modal-body .admission-minimum-table 등의 nth-child 폭 CSS가
+  // 지금 적용되지 않고 있다. 임포트된 doc을 렌더하면 접미어가 붙어 그 CSS가
+  // 새로 적용된다 — "표면 포맷 차이"가 아니라 실제 표 레이아웃 변화다.
+  const TABLE_CLASS_SUFFIX_IMPACT_CATEGORIES = ['minimum_requirements', 'exam_schedule'];
+  const suffixImpact = TABLE_CLASS_SUFFIX_IMPACT_CATEGORIES.filter((key) => targetCategories.includes(key)).map(
+    (key) => ({ key, count: stats[key].byCandidate.table || 0 })
+  );
+  if (suffixImpact.length) {
+    console.log('\n=== 4-1) 시각 변화 경고 — table class 접미어 복원으로 CSS가 새로 적용되는 셀 ===');
+    suffixImpact.forEach(({ key, count }) => {
+      console.log(
+        `  - ${key}: ${count}건 — admission-data-table만 있던 <table>에 admission-${key === 'minimum_requirements' ? 'minimum' : 'exam'}-table이 붙어 nth-child 폭 CSS(table-layout:fixed + %폭)가 되살아납니다. 표 레이아웃이 auto → fixed로 바뀔 것으로 예상됩니다.`
+      );
+    });
+  }
 
   console.log('\n=== 5) needsReview 샘플(카테고리별 최대 10건, 유형 포함) ===');
   targetCategories.forEach((key) => {
