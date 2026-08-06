@@ -42,20 +42,8 @@ export async function completeParentSignup(_formData) {
   return { success: true };
 }
 
-// §3.3 C-2 예시 연동 코드(990624)를 mock 조회 데이터로 재사용.
-const MOCK_CHILD_BY_CODE = {
-  990624: { name: '김주원', grade: '고3', school: '울산외국어고등학교' }
-};
-
-export async function findChildByLinkCode(code) {
-  await delay();
-  return MOCK_CHILD_BY_CODE[code] || null;
-}
-
-export async function connectChild(_code) {
-  await delay(300);
-  return { success: true };
-}
+// findChildByLinkCode / connectChild는 실 연동으로 옮겨갔다 → src/lib/parentLink.js
+// (lookupChild = api/lookup-child.js, requestParentLink = request_parent_link RPC).
 
 // 공통 가입 링크 발송으로 확정(2026-07-30 기획 결정) — 토큰 딥링크(`/join/:code`) 미사용.
 // SMS 실발송은 여전히 백엔드 TODO(§4.2-3).

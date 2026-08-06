@@ -43,6 +43,10 @@ export default function TextField({
   disabled = false,
   readOnly = false,
   autoComplete,
+  // 연결코드처럼 대문자 영숫자만 받는 필드용. 모바일 자동 대문자화와 맞춤법
+  // 밑줄이 오히려 방해가 되는 경우가 있어 호출부가 끌 수 있게 둔다.
+  autoCapitalize,
+  spellCheck,
   required = false,
   className = ''
 }) {
@@ -77,6 +81,8 @@ export default function TextField({
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
+        spellCheck={spellCheck}
         disabled={disabled}
         readOnly={readOnly}
         required={required}
