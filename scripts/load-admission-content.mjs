@@ -25,8 +25,19 @@
 // 총량이 줄어들면 덮어쓰지 않고 기존 값을 보존한다(jsonSource=
 // 'regressionSkipped'로 집계). validateAdmissionDoc은 스키마 형태만
 // 보고 "정보가 덜 풍부해졌는지"는 보지 않는다 — 그게 2026-08-06 사고가
-// 조용히 지나갈 뻔한 이유였다. --force-regenerate는 이 가드까지 함께
-// 무시한다(정말로 강제로 덮어쓰고 싶을 때만 쓰는 탈출구).
+// 조용히 지나갈 뻔한 이유였다.
+//
+// --force-regenerate와 --ignore-regression은 **분리된 플래그다**(의도
+// 분리 — team-lead 지적: "재계산 강제"와 "품질 저하 허용"을 한 플래그로
+// 묶으면 이번 사고와 같은 실패 모드를 다시 만든다):
+//   --force-regenerate  1단(기존 보존) 단축만 건너뛴다. 가드는 그대로
+//                        작동한다 — 재계산 결과가 나빠지면 여전히
+//                        regressionSkipped로 보존한다.
+//   --ignore-regression  가드 자체를 무시한다(단독으로도 의미 있다 —
+//                        1단은 그대로 작동하되, 혹시 2)/3)이 실행되는
+//                        경우에 한해 가드만 끈다). "무조건 덮어쓰기"를
+//                        하려면 두 플래그를 함께 써야 한다. 사용 시
+//                        콘솔에 큰 경고를 띄운다.
 //
 // 이 정책은 어드민 Admin.jsx의 buildPreviewPatch(raw 우선 — "관리자가
 // 방금 원문을 고쳤으니 raw가 정본")와 **의도적으로 다르다.** 이 스크립트는
@@ -57,7 +68,8 @@
 //   node scripts/load-admission-content.mjs                    # dry-run(기본, 아무것도 안 씀)
 //   node scripts/load-admission-content.mjs --apply             # 실제 적용
 //   node scripts/load-admission-content.mjs --apply --admission-year 2027
-//   node scripts/load-admission-content.mjs --apply --force-regenerate  # 기존 json도 강제 재계산(가드 포함 무시)
+//   node scripts/load-admission-content.mjs --apply --force-regenerate  # 기존 json도 재계산(가드는 유지)
+//   node scripts/load-admission-content.mjs --apply --force-regenerate --ignore-regression  # 무조건 덮어쓰기(위험)
 //
 // 키 조회 순서(하드코딩 금지) — scripts/seed-admission-universities.mjs와 동일:
 //   1) SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY 환경변수
@@ -68,6 +80,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
@@ -126,7 +139,12 @@ async function resolveCredentials() {
 // blockCount(구조 개수)와 textLength(모든 문자열 값의 총 길이 — 셀 텍스트뿐
 // 아니라 role/label 등도 섞여 들어가지만, "더 자세한 doc일수록 대체로 더
 // 크다"는 근사로는 충분하다)를 함께 본다.
-function sumStringLength(value) {
+//
+// 순수 함수로 분리해 scripts/test-admission-doc-regression-guard.mjs가
+// DB/스크립트 실행 없이 직접 부를 수 있게 export한다(team-lead 지적:
+// "코드 리뷰만으로는 부족하다, 가드가 실행 경로를 한 번도 안 타봤다" —
+// 실데이터로는 트리거되지 않으므로 합성 테스트가 유일한 검증 수단이다).
+export function sumStringLength(value) {
   if (typeof value === 'string') return value.length;
   if (Array.isArray(value)) return value.reduce((acc, v) => acc + sumStringLength(v), 0);
   if (value && typeof value === 'object') {
@@ -134,9 +152,26 @@ function sumStringLength(value) {
   }
   return 0;
 }
-function docRichness(doc) {
+export function docRichness(doc) {
   if (!doc || !Array.isArray(doc.blocks)) return { blockCount: 0, textLength: 0 };
   return { blockCount: doc.blocks.length, textLength: sumStringLength(doc.blocks) };
+}
+
+// existingDoc이 없으면 비교할 대상이 없으니 항상 통과(skip:false)한다.
+// candidateDoc이 blockCount 또는 textLength 어느 하나라도 existingDoc보다
+// 작으면 회귀로 본다(둘 다 같거나 늘면 통과 — 동일한 경우도 통과해야
+// 한다, "줄어들면"이지 "같지 않으면"이 아니다).
+export function shouldSkipForRegression(existingDoc, candidateDoc) {
+  if (!existingDoc) return { skip: false };
+  const before = docRichness(existingDoc);
+  const after = docRichness(candidateDoc);
+  if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
+    return {
+      skip: true,
+      detail: `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`
+    };
+  }
+  return { skip: false };
 }
 
 // 카테고리 하나(html+json)를 함께 계산한다.
@@ -157,10 +192,11 @@ function docRichness(doc) {
 //      동일 패턴).
 // 2)/3)에서 후보를 만들었는데(=1)에서 그냥 보존하지 못하고 지나온 경우 —
 // 기존 json이 아예 없었거나, 있었지만 무효했거나, forceRegenerate로
-// 강제 재계산한 경우) 기존 doc(있다면)보다 blockCount 또는 textLength가
-// 줄어들면 덮어쓰지 않고 기존 값을 보존한다(jsonSource='regressionSkipped').
-// forceRegenerate는 이 가드도 함께 무시한다.
-function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRegenerate) {
+// 강제 재계산한 경우) shouldSkipForRegression으로 기존 doc보다 정보량이
+// 줄었는지 본다. 줄었으면 덮어쓰지 않고 기존 값을 보존한다
+// (jsonSource='regressionSkipped'). ignoreRegression이 true면 이 검사를
+// 건너뛴다(forceRegenerate와는 독립된 플래그 — 파일 최상단 정책 설명 참고).
+function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRegenerate, ignoreRegression) {
   const htmlKey = CATEGORY_HTML_KEY[sectionKey];
   const jsonKey = CATEGORY_JSON_KEY[sectionKey];
   const existingHtml = clean(hwpRow?.[htmlKey]) || clean(dbRow?.[htmlKey]);
@@ -235,16 +271,16 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
   }
 
   // 정보량 감소 가드: 후보가 있고, 비교할 기존 doc이 있고(무효해도 상관
-  // 없다 — 형태는 틀려도 정보 자체는 남아 있을 수 있다), forceRegenerate가
-  // 아니면 적용한다.
+  // 없다 — 형태는 틀려도 정보 자체는 남아 있을 수 있다), ignoreRegression이
+  // 아니면 적용한다. forceRegenerate와는 별개다 — force는 1단만 건너뛸 뿐,
+  // 가드 자체는 ignoreRegression을 따로 줘야 꺼진다.
   let doc = candidate;
-  if (candidate !== undefined && existingDoc && !forceRegenerate) {
-    const before = docRichness(existingDoc);
-    const after = docRichness(candidate);
-    if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
+  if (candidate !== undefined && existingDoc && !ignoreRegression) {
+    const guard = shouldSkipForRegression(existingDoc, candidate);
+    if (guard.skip) {
       doc = undefined;
       jsonSource = 'regressionSkipped';
-      jsonDetail = `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`;
+      jsonDetail = guard.detail;
     }
   }
 
@@ -257,6 +293,7 @@ async function main() {
       apply: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
       'force-regenerate': { type: 'boolean', default: false },
+      'ignore-regression': { type: 'boolean', default: false },
       'keys-file': { type: 'string' },
       'admission-year': { type: 'string', default: '2027' },
       'skip-equivalence-check': { type: 'boolean', default: false }
@@ -271,8 +308,18 @@ async function main() {
   }
   if (args['force-regenerate']) {
     console.warn(
-      '--force-regenerate: 기존 json이 유효해도 다시 계산하고, 정보량 감소 가드도 무시합니다. ' +
-        '정말로 의도한 것이 맞는지 확인하세요.'
+      '--force-regenerate: 기존 json이 유효해도 다시 계산합니다(가드는 그대로 작동 — ' +
+        '재계산 결과가 나빠지면 regressionSkipped로 보존됩니다).'
+    );
+  }
+  if (args['ignore-regression']) {
+    console.warn(
+      '\n' +
+        '########################################################\n' +
+        '# 경고: --ignore-regression — 품질 회귀 검사를 끕니다. #\n' +
+        '# 이번 사고(2026-08-06)의 재발 경로입니다.             #\n' +
+        '# 정말로 의도한 것이 맞는지 다시 확인하세요.           #\n' +
+        '########################################################\n'
     );
   }
 
@@ -379,7 +426,8 @@ async function main() {
         hwpRow,
         dbRow,
         universityName,
-        args['force-regenerate']
+        args['force-regenerate'],
+        args['ignore-regression']
       );
 
       payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
@@ -464,7 +512,14 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// isMainModule 가드 — 이 모듈이 순수 함수(docRichness/shouldSkipForRegression)
+// export 대상으로 import될 수 있으므로(scripts/test-admission-doc-regression-
+// guard.mjs) main()이 import 시점에 곧바로 실행돼 실제 Supabase 호출을
+// 시도하는 사고를 막는다.
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
