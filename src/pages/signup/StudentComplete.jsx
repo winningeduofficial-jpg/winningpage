@@ -49,10 +49,9 @@ export default function StudentComplete() {
   }
 
   function handleStartDiagnosis() {
-    // TODO(§3.3 C-2 "함의"): 이 화면은 "무료 진단 시작하기" CTA로 바로 진입하는 시안이라
-    // 가입 직후 로그인 상태 유지가 전제로 보인다. 그러나 StudentForm은 AS-IS 정책대로
-    // 가입 완료 시 signOut을 유지하므로, 실제로는 로그인 세션이 없는 상태에서 이 버튼을
-    // 누르게 된다 — 정책 확정 전까지는 그대로 두고 확인 필요.
+    // resetSignup은 가입 플로우 상태(sessionStorage + 컨텍스트)만 비운다. 로그인
+    // 세션은 건드리지 않으므로 이 CTA는 로그인된 채로 진단에 들어간다
+    // (StudentForm이 가입 후 signOut 하지 않도록 2026-08-06에 바꿨다).
     resetSignup();
     navigate('/free-diagnosis');
   }

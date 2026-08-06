@@ -595,17 +595,12 @@ export default function StudentForm() {
       // C-2(StudentComplete) 진입 가드용 완료 플래그 — RPC 성공 직후에만 true로 설정한다.
       setSignupCompleted(true);
 
-      // AS-IS 정책 유지: 가입 완료 직후 세션을 파기(signOut)한다.
-      // TODO(§3.3 C-2 "함의"): C-2 완료 화면은 "무료 진단 시작하기" CTA로 바로 진입하는
-      // 시안이라 가입 직후 로그인 상태 유지가 전제로 보인다 — AS-IS(가입 완료 시 signOut
-      // 후 로그인 유도)와 정면 충돌한다(정책 확인 필요). 정책이 확정되기 전까지는 기존
-      // 동작(signOut)을 그대로 둔다.
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (signOutError) {
-        console.error('가입 완료 후 로그아웃 오류:', signOutError);
-      }
-
+      // ⚠️ 가입 완료 후 signOut 하지 않는다 (2026-08-06 정책 확정)
+      //   예전에는 AS-IS를 따라 여기서 세션을 파기했다. 그런데 다음 화면(C-2)의
+      //   "무료 진단 시작하기" CTA가 바로 진단으로 들어가는 시안이라, 로그아웃된
+      //   상태로 넘어가면 사용자가 방금 만든 계정으로 다시 로그인해야 했다.
+      //   ParentForm도 같은 이유로 세션을 유지한다(그쪽은 자녀 연결 조회가 로그인을
+      //   요구해서 더 강하게 필요하다).
       navigate('/signup/student/complete');
     } catch (error) {
       setFormError(`가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`);
