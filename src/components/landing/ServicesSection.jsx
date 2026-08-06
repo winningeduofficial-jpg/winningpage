@@ -12,7 +12,7 @@ import {
   Users
 } from 'lucide-react';
 import { resolvePromotedSlugLink } from '../../hooks/useNavGroups';
-import { SERVICE_NAME_ROUTES } from '../../data/navigation';
+import { SERVICE_NAME_ROUTES, normalizeServiceName } from '../../data/navigation';
 
 // DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
 // 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.
@@ -149,6 +149,9 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
   const link = resolveServiceLink(service);
   const isExternal = /^https?:\/\//i.test(link);
   const FallbackIcon = serviceIconMap[service.icon] || serviceIconMap.default;
+  // DB(program_categories.name)에 남은 구 이름('무료진단')을 화면 표시용으로 치환.
+  // 상세: navigation.js의 normalizeServiceName 주석 참고.
+  const displayName = normalizeServiceName(service.name);
 
   const content = (
     <>
@@ -164,7 +167,7 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
       <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[2.75rem] sm:pl-[2.75rem] sm:pr-[12.5rem] lg:gap-[1.02rem] lg:pl-[2.54rem] lg:pr-[10.44rem] lg:pt-[3.05rem]">
         {/* 이름 24→20px(1.25rem, lg, 시안 원값 유지) — 자간은 시안 -0.48/24 = -0.02em, em 단위라 축소 시 비율 유지 */}
         <span className="block break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] lg:text-[1.25rem]">
-          {service.name}
+          {displayName}
         </span>
         {/* 설명 lg 13.1px(0.82rem) — 시안 문자값 충실(사용자 확정, 가독성 클램프 폐기) */}
         {service.description && (
@@ -228,7 +231,7 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
         href={link}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`${service.name} 바로가기`}
+        aria-label={`${displayName} 바로가기`}
         className={CARD_CLASS}
       >
         {content}
@@ -237,7 +240,7 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
   }
 
   return (
-    <Link to={link} aria-label={`${service.name} 바로가기`} className={CARD_CLASS}>
+    <Link to={link} aria-label={`${displayName} 바로가기`} className={CARD_CLASS}>
       {content}
     </Link>
   );
