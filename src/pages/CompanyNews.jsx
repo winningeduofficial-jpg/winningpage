@@ -15,10 +15,9 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 
 // 회사소개(/company-news) — Figma 시안(1882:19182 "회사소개", 1920×6363) 전면 재작성.
 // 라우트 · 헤더/푸터(SiteLayout 전역 렌더) · Supabase 조회/검색/상세/첨부 기능은 그대로 두고
-// 히어로~회사소식까지 5개 섹션을 시안 실측대로 새로 짰다(스펙: hero/mission/business/location/
-// news.md, 담당자 실측 완료본). 컨테이너는 전 섹션 max-w-content px-5 sm:px-8 로 통일했다
-// (시안 섹션별 실폭 1417/1174/1277 드리프트는 좌단 정렬 일관성을 위해 정규화 — 각 스펙 문서
-// §7~9 근거).
+// 히어로~회사소식까지 5개 섹션을 시안 실측대로 새로 짰다. 컨테이너는 전 섹션 max-w-content
+// px-5 sm:px-8 로 통일했다(시안 섹션별 실폭 1417/1174/1277 드리프트는 좌단 정렬 일관성을
+// 위해 정규화).
 //
 // 섹션 간 상단 여백(1920 시안 → ×0.766, 배경 전환 없는 경계만 ×0.67 추가 축소):
 //   Hero(다크)→Mission(사진)     배경 전환, 축소 없음 — 히어로 자체 높이로 자연 경계
@@ -30,11 +29,11 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 // 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
 // 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(무료진단·수시카드·프리미엄만 Bold)인데 확대
-// 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다(hero.md §7-4).
-// "수시카드"는 코드 정본 라우트가 없어(hero.md §8) 다른 5장처럼 Link 로 보내지 않고, 서비스
+// 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다.
+// "수시카드"는 코드 정본 라우트가 없어 다른 5장처럼 Link 로 보내지 않고, 서비스
 // 준비중 alert(alertServiceNotReady)로 안내한다 — 자기평가·심화탐구 CTA와 동일한 처리다.
 // 목표관리 카드 설명 텍스트만 시안 실측이 #ffffff 로 다른 5장(배경색의 밝은 틴트)과 규칙이
-// 다르다(hero.md §7-5, 시안 결함 추정) — 카피가 아닌 색 값 판단은 임의 확정하지 않고 실측값을
+// 다르다(시안 결함으로 추정) — 카피가 아닌 색 값 판단은 임의 확정하지 않고 실측값을
 // 보수적으로 유지했다. 카드 설명 텍스트의 opacity는 WCAG AA(4.5:1) 검증 결과 0.7에서 6장 중
 // 4장이 미달해 0.95로 상향했다(리뷰 실측: susi/mentor/perf/premium 전부 4.5:1 이상 확보).
 
@@ -67,7 +66,7 @@ const HERO_CARDS = [
     title: '수시카드',
     desc: ['체계적이고 논리적인', '수시전략'],
     best: false,
-    route: null // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리 (hero.md §8)
+    route: null // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
   },
   {
     key: 'mentor',
@@ -122,7 +121,7 @@ const BUSINESS_CARDS = [
   }
 ];
 // ⚠ 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
-// U+30FB(・)로 통일돼 있어 그 관용을 따랐다(business.md §5 실측 메모 참고).
+// U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
 
 // -------------------------------------------------------------------------
 // Location — 캠퍼스 카드 8장 (1882:19312)
@@ -151,7 +150,7 @@ const CAMPUS_CARDS = [
 ];
 
 // 연계 협력기관 카드 3장 — 카드1만 시안이 설명문(제목)/브랜드명(부제) 위계가 다른 2·3과
-// 반대인데(location.md §8-2), 카피 변경 권한이 없어 시안 그대로 옮겼다.
+// 반대인데, 카피 변경 권한이 없어 시안 그대로 옮겼다.
 const PARTNER_CARDS = [
   {
     key: 'chloe-winning-art',
@@ -182,7 +181,7 @@ const PARTNER_CARDS = [
     logoWidth: 'w-[13rem]'
   }
 ];
-// ⚠ "바로가기" 5개 링크의 목적지 URL이 시안·프로토타입 어디에도 없다(location.md §10-1).
+// ⚠ "바로가기" 5개 링크의 목적지 URL이 시안·프로토타입 어디에도 없다.
 // href 를 지어내지 않고 null로 두어, 클릭 시 alertServiceNotReady로 "준비중" 안내만 한다.
 
 const NEWS_PREVIEW_COUNT = 5;
@@ -274,8 +273,8 @@ function HeroSection({ page }) {
             </p>
           )}
 
-          {/* 카드 그리드 검산: 데스크톱 3열 × 2행, gap 0(맞닿는 타일이 시안 핵심 구성 — hero.md
-              §7-7). 모바일은 2열 × 3행, 768~1023 구간은 3열 × 2행으로 미리 전환해 타일이
+          {/* 카드 그리드 검산: 데스크톱 3열 × 2행, gap 0(맞닿는 타일이 시안 핵심 구성).
+              모바일은 2열 × 3행, 768~1023 구간은 3열 × 2행으로 미리 전환해 타일이
               과도하게 부풀지 않게 한다. */}
           <div className="mt-[1.625rem] grid grid-cols-2 sm:grid-cols-3 lg:grid-rows-2">
             {HERO_CARDS.map((card) => {
@@ -339,7 +338,7 @@ function HeroSection({ page }) {
 // -------------------------------------------------------------------------
 // [2] Mission / Vision / Talents — 전면 사진 배경 + 좌측 3블록
 // 시안엔 dim 오버레이 레이어가 없어 실측 렌더에서 텍스트가 사진 밝은 영역에 묻힌다
-// (mission.md §7-1) — 시안에 없는 좌→우 그라디언트 스크림을 추가로 넣었다(근거를 여기 남긴다).
+// — 시안에 없는 좌→우 그라디언트 스크림을 추가로 넣었다(근거를 여기 남긴다).
 // -------------------------------------------------------------------------
 const MISSION_BLOCKS = [
   {
@@ -444,8 +443,8 @@ function BusinessSection() {
         </h2>
 
         {/* 3열 폭 검산: (1100 − 30×2) / 3 = 346.7px, 시안 370×0.937(카드폭 정규화 비율) = 346.7px ✓
-            (business.md §7 — 폰트를 시안 1:1로 유지하려면 컨테이너를 max-w-content로 정규화하고
-            카드 내부는 카드폭 비율 0.937로 환산해야 한다). 768~1023 구간은 sm:grid-cols-2로
+            (폰트를 시안 1:1로 유지하려면 컨테이너를 max-w-content로 정규화하고 카드 내부는
+            카드폭 비율 0.937로 환산해야 한다). 768~1023 구간은 sm:grid-cols-2로
             채워 카드 한 장이 컨테이너 전폭을 차지해 여백만 남는 것을 막는다. */}
         <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[4.1875rem] lg:grid-cols-3 lg:gap-[1.875rem]">
           {BUSINESS_CARDS.map((card) => (
@@ -564,7 +563,7 @@ function LocationSection() {
           여러 지점의 센터와 전문 연계기관을 통해 입시의 전 영역을 지원합니다.
         </h2>
 
-        {/* 캠퍼스 카드 그리드 — 375: 1열 / 768: 2열 / 1024↑: 3열 (location.md §9) */}
+        {/* 캠퍼스 카드 그리드 — 375: 1열 / 768: 2열 / 1024↑: 3열 */}
         <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-[0.875rem] lg:mt-[2.6875rem] lg:grid-cols-3 lg:gap-4">
           {CAMPUS_CARDS.map((campus) => (
             <CampusCard key={campus.key} campus={campus} />
@@ -727,8 +726,8 @@ function NewsSection({ rows, loading, onSelect, keyword, setKeyword, expanded, s
           <h2 className="text-[1.5rem] font-bold leading-[1.4] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
             회사소식
           </h2>
-          {/* "더보기" — 시안 색 #D7D7D7는 흰 배경 대비 AA 크게 미달 → #A0A0A0으로 상향
-              (news.md §8-4). 펼친 뒤에는 검색 UI가 대신 나오므로 버튼을 숨긴다. 노출 조건을
+          {/* "더보기" — 시안 색 #D7D7D7는 흰 배경 대비 AA 크게 미달 → #A0A0A0으로 상향.
+              펼친 뒤에는 검색 UI가 대신 나오므로 버튼을 숨긴다. 노출 조건을
               rows.length > 0으로 완화해 5건 이하인 DB 상태에서도 검색·총건수 표기에 도달할
               수 있게 한다(전에는 5건 넘을 때만 진입 가능해 검색 UI 자체에 닿을 방법이 없었다). */}
           {!expanded && rows.length > 0 && (
