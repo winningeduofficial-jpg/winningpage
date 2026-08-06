@@ -376,29 +376,28 @@ function MissionSection() {
         decoding="async"
         className="absolute inset-0 -z-10 h-full w-full object-cover"
       />
-      {/* 시안에 없는 스크림 — 사진 위 흰 텍스트 대비 확보용(정규화 근거는 위 섹션 주석 참고).
-          sm 미만: 컨테이너 폭이 화면 폭과 같아 뷰포트 기준 좌→우 그라디언트로도 텍스트가 충분히
-          덮이므로 기존 전면 dim 유지 — 컨테이너 기준으로 바꾸면 텍스트가 px-5(약 5% 지점)에서
-          시작해 그라디언트 진한 구간(18%~) 이전 투명 구간에 놓여 오히려 대비가 빠진다.
-          sm 이상: 텍스트는 가운데 정렬된 max-w-content(1164px) 컨테이너에 고정인데, 기존
-          뷰포트 기준 그라디언트는 화면 폭을 따라 늘어나 초광폭에서 실패한다 — 3440 실측에서
-          텍스트 우측 dim 이 0.2까지 옅어지고, 동시에 object-cover 세로 crop 이 63%→35%로
-          심해져 텍스트 뒤에 오던 어두운 인물 실루엣이 화면 밖으로 밀려나 밝은 배경이 그 자리를
-          채우면서 각 블록 둘째 줄이 거의 안 보였다. 스크림을 컨텐츠 폭(min(100%, 118rem))에
-          고정해 화면이 넓어져도 텍스트를 따라가게 한다. */}
+      {/* 시안에 없는 스크림 — 사진 위 흰 텍스트 대비 확보용. 6개 뷰포트 × 줄박스 전수 픽셀
+          조사(WCAG AA 4.5:1, 본문 17~20px/weight 600이라 대형 텍스트 예외 없음)로 재조정했다.
+          sm 이상(데스크톱): 램프 종점을 텍스트 우측 끝이 아니라 콘텐츠 컨테이너 우단까지
+          늘렸다 — 종점이 텍스트 끝과 겹치던 이전 버전은 그 지점이 사진에서 가장 밝은 흰 서류
+          다발(RGB 226~234)과 맞물려 60개 줄 중 최대 25줄이 AA 미달이었다. 우단까지 늘리면
+          그 밝은 구간 전체가 스크림 안에 들어와 미달이 375 전용 4줄로 줄어든다. 중간 정지점
+          3개(0.69/0.54/0.35)는 알파 선형 보간(0.625/0.45/0.275)보다 전 구간에서 더 진하게
+          잡았다 — 밝은 배경 위에서는 알파 선형 보간이 램프 시작부의 지각 밝기(L*) 변화를 가장
+          급격하게 만들어(증분 16.6/11.5/9.2/8.4) 그 구간이 "낭떠러지"로 보인다. 배경 휘도
+          0.83 기준 L* 등간격으로 정지점을 재배치해 이 문제를 없앴다.
+          sm 미만(모바일): object-fit: cover의 스케일 결정축이 375/768에서는 높이라 가로는
+          47%만 남는 크롭이 되고(좌우 방향성이 의미 없음), 게다가 우측 알파가 0.20까지
+          떨어진다. 좌우 그라디언트 대신 평면 스크림(0.75)으로 대체한다. */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 sm:hidden" style={{ background: 'rgba(0,0,0,0.75)' }} />
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/45 to-black/20 sm:hidden"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-y-0 -z-10 hidden sm:block"
+        className="absolute inset-0 -z-10 hidden sm:block"
         style={{
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'min(100%, 118rem)',
+          '--c': 'min(100%, 72.75rem)',
+          '--x0': 'calc(50% - var(--c) / 2)',
           background:
-            'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.72) 18%, rgba(0,0,0,0.72) 52%, transparent 78%)'
+            'linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)'
         }}
       />
 
@@ -412,7 +411,7 @@ function MissionSection() {
                 className="mb-5 ml-0 block h-9 w-0.5 bg-[#D8D8D8] sm:ml-3 sm:mb-7 sm:h-12 lg:ml-4 lg:mb-[2.5rem] lg:h-16"
               />
             )}
-            <p className="text-[0.75rem] font-medium leading-[1.3] text-[#E9F4FF] sm:text-[0.8125rem] lg:text-[0.875rem]">
+            <p className="text-[0.75rem] font-medium leading-[1.3] text-white sm:text-[0.8125rem] lg:text-[0.875rem]">
               {block.label}
             </p>
             <p
