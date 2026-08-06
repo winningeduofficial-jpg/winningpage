@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useInView } from '../../hooks/useInView';
 
 import ServiceProcessCards from '../../components/services/ServiceProcessCards';
 import heroBrowserV2 from '../../assets/renewal/landing/hero-browser-v2.png';
@@ -132,21 +132,9 @@ const HERO_GRAIN_CLASS =
   'pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay';
 
 function HeroSection() {
-  const glowRef = useRef(null);
-  const [glowInView, setGlowInView] = useState(false);
-
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
-  // (GoalManagement.jsx HeroSection과 동일 훅 구조).
-  useEffect(() => {
-    const node = glowRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setGlowInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (GoalManagement.jsx HeroSection과 동일 useInView 훅 구조).
+  const [glowRef, glowInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
@@ -369,21 +357,9 @@ function BenefitsSection() {
 // 칩이 몸체 1008×591 기준 %로 배치돼 있으므로 그 비율의 relative 박스는 유지하고,
 // img만 absolute + 음수 inset(-48)으로 밀어 몸체를 박스에 정확히 정렬한다.
 function MacbookMockup() {
-  const chipLayerRef = useRef(null);
-  const [chipsInView, setChipsInView] = useState(false);
-
   // 이 섹션은 페이지 y2750 지점이라 대부분의 시간 화면 밖이다.
   // 뷰포트에 들어와 있는 동안만 애니메이션을 돌린다(이탈 시 정지).
-  useEffect(() => {
-    const node = chipLayerRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setChipsInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const [chipLayerRef, chipsInView] = useInView();
 
   return (
     <div className="relative mx-auto aspect-[1008/591] w-full max-w-[63rem]">

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
+import { useInView } from '../../hooks/useInView';
 
 import ServiceSection from '../../components/services/ServiceSection';
 import ServiceProcessCards from '../../components/services/ServiceProcessCards';
@@ -10,6 +10,7 @@ import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel
 import ServiceTestimonials from '../../components/services/ServiceTestimonials';
 import ServiceFaq from '../../components/services/ServiceFaq';
 import ServicePricingSection from '../../components/services/ServicePricingSection';
+import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
 
 import heroAura from '../../assets/services/performance/hero-aura.svg';
 import heroGrain from '../../assets/renewal/landing/hero-grain.png';
@@ -268,21 +269,9 @@ const FAQ_ITEMS = [
 // 히어로는 페이지 고유 섹션이라 공통화 대상이 아니다(오라 회전 애니메이션・브라우저 목업의
 // 위치값이 4페이지 전부 다름). 이 함수는 이번 공통 컴포넌트 전환에서 손대지 않았다.
 function HeroSection() {
-  const auraRef = useRef(null);
-  const [auraInView, setAuraInView] = useState(false);
-
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
-  // (GoalManagement.jsx / FreeDiagnosisLanding.jsx HeroSection과 동일 훅 구조).
-  useEffect(() => {
-    const node = auraRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setAuraInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (서비스 랜딩 4종 + FreeDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
+  const [auraRef, auraInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
@@ -387,24 +376,12 @@ function HeroSection() {
             HeroSection 목업 구조를 그대로 이식했다(사용자 지시 — 세 히어로 공통 규격 통일).
             시안(2393:12091)은 크롬 UI는 벡터로 존재하나 본문 콘텐츠가 완전히 비어있어(스펙
             §2-4) 본문은 계속 빈 배경으로 두되, 크롬 툴바 색상은 수행평가 기존 구현을 유지한다. */}
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#DFE1E5] px-4 py-2.5 md:shrink-0">
-              <span className="flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ED6A5E]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#F6BE4F]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#62C554]" />
-              </span>
-              <span className="flex-1 truncate rounded-full bg-[#F1F3F4] px-4 py-1 text-center text-[0.75rem] text-[#767676]">
-                https://www.winningedu.com
-              </span>
-            </div>
-            <div
-              className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
-              aria-hidden="true"
-            />
-          </div>
-        </div>
+        <ServiceHeroBrowserFrame>
+          <div
+            className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
+            aria-hidden="true"
+          />
+        </ServiceHeroBrowserFrame>
       </div>
     </section>
   );

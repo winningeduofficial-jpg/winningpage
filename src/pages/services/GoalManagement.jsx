@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
+import { useInView } from '../../hooks/useInView';
 
 // 서비스 랜딩 4종 공통 컴포넌트 — 정본은 InDepthResearch.jsx(심화탐구)다.
 // 섹션 껍데기·카드 마크업·타이포는 전부 아래 컴포넌트가 소유하고, 이 파일에는
@@ -13,6 +13,7 @@ import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel
 import ServiceTestimonials from '../../components/services/ServiceTestimonials';
 import ServiceFaq from '../../components/services/ServiceFaq';
 import ServicePricingSection from '../../components/services/ServicePricingSection';
+import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
 import { SECTION_HEADING_CLASS } from '../../components/services/serviceTokens';
 
 import heroAura from '../../assets/services/goal/hero-aura.png';
@@ -337,21 +338,9 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
-  const auraRef = useRef(null);
-  const [auraInView, setAuraInView] = useState(false);
-
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
-  // (PhoneReportSection 592-607행과 동일 훅 구조).
-  useEffect(() => {
-    const node = auraRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setAuraInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + FreeDiagnosisLanding 공통 useInView).
+  const [auraRef, auraInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
@@ -426,25 +415,13 @@ function HeroSection() {
           지금 시작하기
         </button>
 
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#DFE1E5] px-4 py-2.5 md:shrink-0">
-              <span className="flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ED6A5E]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#F6BE4F]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#62C554]" />
-              </span>
-              <span className="flex-1 truncate rounded-full bg-[#F1F3F4] px-4 py-1 text-center text-[0.75rem] text-[#767676]">
-                https://www.winningedu.com
-              </span>
-            </div>
-            <img
-              src={heroDashboard}
-              alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
-              className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
-            />
-          </div>
-        </div>
+        <ServiceHeroBrowserFrame>
+          <img
+            src={heroDashboard}
+            alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
+            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
+          />
+        </ServiceHeroBrowserFrame>
       </div>
     </section>
   );
@@ -528,21 +505,9 @@ function OutcomesSection() {
 }
 
 function PhoneReportSection() {
-  const chipLayerRef = useRef(null);
-  const [chipsInView, setChipsInView] = useState(false);
-
   // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
   // 애니메이션을 돌린다(FreeDiagnosisLanding MacbookMockup과 동일 훅 구조).
-  useEffect(() => {
-    const node = chipLayerRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setChipsInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const [chipLayerRef, chipsInView] = useInView();
 
   return (
     <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-[16.125rem]">
@@ -554,7 +519,7 @@ function PhoneReportSection() {
               <br />
               확인 할 수 있어요
             </h2>
-            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] md:mt-[1.4375rem]">
+            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] lg:mt-[1.4375rem]">
               매주 정리된 리포트가 카카오톡 알림톡으로 도착하고, 달성률부터 학습시간까지 한눈에
               확인할 수 있어요.
             </p>
