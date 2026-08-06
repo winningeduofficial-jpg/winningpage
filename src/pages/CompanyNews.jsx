@@ -27,11 +27,8 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 //   Location(회색)→News(흰)      배경 전환 — Location lg:pb-[7.5625rem] / News lg:pt-[4.6875rem]
 //   News(흰)→Footer(#f9fafb)     배경 전환, 시안 249px 그대로 — News lg:pb-[11.9375rem]
 //
-// 폰트 블로커 — 히어로 카드 타이틀 6개는 시안상 "BM 우아한 세리프"이나 코드베이스에 웹폰트가
-// 전혀 없다(assets.md §3-1). 웹폰트를 새로 들여오지 않고, tailwind.config.js의 font-serif를
-// 알려진 한글 세리프 시스템 폰트(Noto Serif KR/나눔명조/바탕 등) 우선 스택으로 명시해 OS 기본
-// serif(라틴 위주라 한글 폴백이 OS마다 제각각)보다 편차를 줄이는 선에서 근사했다 — 웹폰트
-// 확보 전까지의 임시 처리.
+// 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
+// SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
 // 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(무료진단·수시카드·프리미엄만 Bold)인데 확대
 // 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다(hero.md §7-4).
 // "수시카드"는 코드 정본 라우트가 없어(hero.md §8) 다른 5장처럼 Link 로 보내지 않고, 서비스
@@ -299,8 +296,8 @@ function HeroSection({ page }) {
                     <br />
                     {card.desc[1]}
                   </span>
-                  {/* 타이틀 서체 — 파일 상단 폰트 블로커 주석 참고(font-serif 임시 대체). */}
-                  <span className="mt-2 block text-center font-serif text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.9375rem]">
+                  {/* 타이틀 서체 — 파일 상단 주석 참고(font-grace, font-bold 필수 동반). */}
+                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.9375rem]">
                     {card.title}
                   </span>
                 </>

@@ -13,22 +13,6 @@ export default {
         // 0729 시안 공통 아이브로/포인트 색.
         accent: '#0B84FD'
       },
-      fontFamily: {
-        // CompanyNews.jsx 히어로 카드 타이틀(font-serif) 전용 — 시안 서체 "BM 우아한 세리프"
-        // 웹폰트를 아직 확보하지 못해(assets.md §3-1 blocker) Tailwind 기본 font-serif를 임시
-        // 대체로 쓰되, 기본값(ui-serif/Georgia 등 라틴 세리프)은 한글에서 폴백이 OS마다
-        // 제각각이라 알려진 한글 세리프 시스템 폰트를 명시적으로 먼저 시도해 폴백 편차를
-        // 줄인다. 웹폰트 확보 후 맨 앞에 교체한다.
-        serif: [
-          '"Noto Serif KR"',
-          '"Nanum Myeongjo"',
-          'Batang',
-          '"AppleMyungjo"',
-          'ui-serif',
-          'Georgia',
-          'serif'
-        ]
-      },
       screens: {
         // 헤더 데스크톱 인라인 nav+계정 메뉴 전환 시점(0729 시안 2207:12337 재산정).
         // nav 5칸이 고정폭(NAV_CELL_W 6.25rem×5 + NAV_CELL_GAP 3rem×4 = 43.25rem/692px)으로
