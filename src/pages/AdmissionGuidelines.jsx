@@ -18,7 +18,6 @@ import {
   getFirstUrl,
   getSectionText,
   hasDifferentNumberedSectionOnly,
-  looksLikeHtml,
   mergeHwpResourceRows,
   normalizeChangeTokenSpacing,
   normalizeRecruitmentExactHtml,
@@ -27,6 +26,9 @@ import {
   stripHtmlToText,
   withHwpSectionHeading
 } from '../lib/admissionParsing';
+import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc } from '../lib/admissionDoc';
+import AdmissionSectionView from '../components/admission/AdmissionSectionView';
+import SafeHtml from '../components/admission/SafeHtml';
 
 const REGION_ORDER = [
   '강원',
@@ -124,7 +126,7 @@ const INFO_SECTIONS = [
     key: 'recruitment_quota',
     htmlKey: 'recruitment_result_html'
   }
-];
+].map((section) => ({ ...section, jsonKey: HWP_SECTION_JSON_KEYS[section.key] }));
 
 const LINK_SECTIONS = [
   {
@@ -157,17 +159,22 @@ function ButtonLabel({ item }) {
   return <span className="admission-directory-head-label whitespace-nowrap">{item.label}</span>;
 }
 
-// wrappedRawKeys: raw 텍스트를 buildRawSectionHtml로 감쌀 카테고리 6종.
-// resolveInfoContent(모달 on-demand fetch 후 실행)와 InfoButton의 존재 여부
-// 판정(sectionHasContent, 목록 단계) 양쪽에서 공유한다.
-const WRAPPED_RAW_SECTION_KEYS = [
-  'previous_year_changes',
-  'selection_method',
-  'minimum_requirements',
-  'exam_schedule',
-  'school_record_method',
-  'recruitment_quota'
-];
+// sql/43(*_json 6종 jsonb 컬럼)이 dev DB에 실제 적용된 뒤 별도 커밋에서
+// true로 뒤집는다(team-lead 지시, 2026-08-06). false인 동안은 select에서
+// json 컬럼을 아예 빼고 doc 분기도 타지 않는다 — 컬럼이 없는 상태에서
+// select에 넣으면 PostgREST가 에러를 낸다. 즉 이 상수가 false면 이 커밋
+// 이전과 100% 동일하게 동작한다(html/text 분기만 씀).
+export const ADMISSION_JSON_ENABLED = false;
+
+// ?jsonrender=0 킬스위치 — 배포 없이 즉시 doc 렌더를 끄고 legacy html/text
+// 경로로 되돌리기 위함. ADMISSION_JSON_ENABLED와 함께 buildInfoSelectColumns/
+// resolveInfoContent 양쪽에서 반드시 같이 써서 "select는 껐는데 렌더는
+// 켜짐" 같은 불일치가 나지 않게 한다.
+function isDocRenderEnabled() {
+  if (!ADMISSION_JSON_ENABLED) return false;
+  if (typeof window === 'undefined') return true;
+  return new URLSearchParams(window.location.search).get('jsonrender') !== '0';
+}
 
 // 목록 단계(경량 뷰 admission_university_resource_index)는 본문 없이
 // has_<컬럼> 존재 여부 불리언만 갖고 있다. "html이 있거나 raw가 있으면 활성"
@@ -180,8 +187,23 @@ function sectionHasContent(row, section) {
 }
 
 // 모달 on-demand fetch(admission_university_resources, id 기준 필요 컬럼만)
-// 응답을 받은 뒤 실제 렌더용 content/isHtml을 계산한다. 과거 InfoButton이
-// 목록 렌더 시 동기로 하던 계산을 그대로 옮긴 것 — 판정 로직은 동일하다.
+// 응답을 받은 뒤 실제 렌더용 값을 계산한다. 과거 InfoButton이 목록 렌더 시
+// 동기로 하던 계산을 그대로 옮긴 것 — html/text 판정 로직은 legacy와 동일,
+// doc 분기만 새로 얹었다.
+//
+// 반환 shape: { mode, doc, html, text, isHtml }
+//   mode: 'doc' | 'html' | 'text' — 모달 렌더러가 그대로 스위치한다.
+//   isHtml: 하위호환 필드. 값을 계속 채운다 — :2207 부근 프록시 가로
+//     스크롤바 셸이 selectedInfo.isHtml && modalXScroll.visible로 게이팅돼
+//     있어, 이 필드를 없애면 스크롤바가 조용히 사라진다. doc/html 분기 모두
+//     true, text 분기만 false.
+//
+// legacy 대비 의도된 동작 변경 1건: 예전엔 WRAPPED_RAW_SECTION_KEYS(6개
+// 섹션 키 전부)에 해당하면 isHtml이 사실상 무조건 true였다 — 20자 미만
+// raw 원문(html도 안 만들어진 상태)까지 dangerouslySetInnerHTML에
+// 미이스케이프 텍스트로 그대로 주입되던 버그였다. 이제는 html이 실제로
+// 만들어졌을 때만 isHtml=true이고, 그 외(20자 미만 raw 등)는 text 분기로
+// 평문 렌더한다.
 function resolveInfoContent(row, section, universityName) {
   const rawTextContent = resolveSectionText(row, section);
   const htmlContent =
@@ -189,16 +211,15 @@ function resolveInfoContent(row, section, universityName) {
     !hasDifferentNumberedSectionOnly(stripHtmlToText(row?.[section.htmlKey]), section.key)
       ? clean(row?.[section.htmlKey])
       : '';
-  const shouldWrapRaw = WRAPPED_RAW_SECTION_KEYS.includes(section.key);
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
   // DB 행의 *_html을 우선 렌더. 없으면 raw 필드를 모듈 파서(buildRawSectionHtml)로
-  // 렌더하는 fallback 1겹만 유지(안전망), 그것도 없으면 원문 텍스트/빈 값 그대로 둔다.
+  // 렌더하는 fallback 1겹만 유지(안전망), 그것도 없으면 html 없음으로 둔다.
   // 저장된 html이 이미 admission-existing-html/admission-raw-section-wrap을 포함하면
   // (buildRawSectionHtml/buildHwpCategoryHtml 결과를 그대로 저장한 경우) 한 겹 더
   // 감싸지 않는다 — 이중 스크롤 컨테이너(overflow-x:auto 중첩)를 방지한다.
   const alreadyWrapped = /admission-existing-html|admission-raw-section-wrap/.test(htmlContent);
-  const content = htmlContent
+  const html = htmlContent
     ? sanitizeAdmissionRenderedHtml(
         alreadyWrapped
           ? withHwpSectionHeading(htmlContent, section.key)
@@ -206,9 +227,20 @@ function resolveInfoContent(row, section, universityName) {
       )
     : hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-      : rawTextContent;
-  const isHtml = Boolean(content) && (shouldWrapRaw || looksLikeHtml(content));
-  return { content, isHtml };
+      : '';
+
+  if (isDocRenderEnabled() && section.jsonKey) {
+    const doc = row?.[section.jsonKey];
+    if (doc && validateAdmissionDoc(doc).ok && !isEmptyDoc(doc)) {
+      return { mode: 'doc', doc, html, text: '', isHtml: true };
+    }
+  }
+
+  if (html) {
+    return { mode: 'html', doc: null, html, text: '', isHtml: true };
+  }
+
+  return { mode: 'text', doc: null, html: '', text: rawTextContent, isHtml: false };
 }
 
 // 모달 on-demand fetch 시 필요한 컬럼만 select 한다. detail_status/university_key/
@@ -225,6 +257,10 @@ function buildInfoSelectColumns(section) {
     section.key
   ]);
   if (section.htmlKey) columns.add(section.htmlKey);
+  // ADMISSION_JSON_ENABLED가 false인 동안은(sql/43 dev DB 적용 전) 이 컬럼을
+  // 절대 select에 넣지 않는다 — 없는 컬럼을 select하면 PostgREST가 에러를
+  // 낸다.
+  if (isDocRenderEnabled() && section.jsonKey) columns.add(section.jsonKey);
   return Array.from(columns).join(',');
 }
 
@@ -825,7 +861,7 @@ export default function AdmissionGuidelines() {
   // 모달을 연 트리거(목록의 "보기" 버튼). 닫힐 때 포커스를 여기로 되돌린다.
   const modalTriggerRef = useRef(null);
   const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
-  // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { content, isHtml }.
+  // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { mode, doc, html, text, isHtml }.
   // 같은 셀 재클릭 시 재요청하지 않는다.
   const infoCacheRef = useRef(new Map());
 
@@ -872,7 +908,10 @@ export default function AdmissionGuidelines() {
       section,
       row,
       status: 'loading',
-      content: '',
+      mode: 'text',
+      doc: null,
+      html: '',
+      text: '',
       isHtml: false
     });
 
@@ -2193,13 +2232,16 @@ export default function AdmissionGuidelines() {
                     다시 시도
                   </button>
                 </div>
-              ) : selectedInfo.isHtml ? (
-                <div
-                  className="admission-table-wrap"
-                  dangerouslySetInnerHTML={{ __html: selectedInfo.content }}
-                />
-              ) : selectedInfo.content ? (
-                <div className="whitespace-pre-wrap">{selectedInfo.content}</div>
+              ) : selectedInfo.mode === 'doc' ? (
+                <div className="admission-table-wrap">
+                  <AdmissionSectionView doc={selectedInfo.doc} sectionKey={selectedInfo.section?.key} surface="public" />
+                </div>
+              ) : selectedInfo.mode === 'html' ? (
+                <div className="admission-table-wrap">
+                  <SafeHtml html={selectedInfo.html} className="admission-existing-html" />
+                </div>
+              ) : selectedInfo.text ? (
+                <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
               ) : (
                 <div className="whitespace-pre-wrap text-[#8f8f8f]">등록된 정보가 없습니다.</div>
               )}
