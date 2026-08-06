@@ -21,7 +21,7 @@
 -- 포함:
 --   1) special_highschool_cases 신규 테이블 (특목고 합격 사례 카드)
 --      + is_active·school_type / sort_order / year 인덱스 3종
---      + school_type CHECK(자사고/외고/영재고/과학고) + RLS
+--      + school_type CHECK(자사고/외고/국제고/영재고/과학고) + RLS
 --      + 합격 사례 38건 시드 (테이블이 비어있을 때만 — UNIQUE 없음)
 --   2) special_highschool_acceptance_rates 신규 테이블 (연도별 합격률)
 --      컬럼명이 admission_acceptance_rates 와 정확히 동일 — 공용 프론트
@@ -79,7 +79,7 @@ alter table public.special_highschool_cases
   drop constraint if exists special_highschool_cases_school_type_check;
 alter table public.special_highschool_cases
   add constraint special_highschool_cases_school_type_check
-  check (school_type in ('자사고', '외고', '영재고', '과학고'));
+  check (school_type in ('자사고', '외고', '국제고', '영재고', '과학고'));
 
 create index if not exists special_highschool_cases_active_type_idx
   on public.special_highschool_cases using btree (is_active, school_type);
@@ -108,9 +108,13 @@ create policy "special_highschool_cases_admin_all" on public."special_highschool
 --   부산일과학고등학교이나, 시안 정본 표기를 따르기로 사용자가
 --   확정했다.
 -- [school_type] 시안 카드에는 학교 유형 텍스트가 없다 — 학교명 기반
---   추정 분류다. 부산국제고 6건은 시안 탭에 '국제고'가 없어 '외고'로
---   편입했다(시안 탭 카피를 바꾸지 않는 쪽 선택). 영재고는 데이터
---   0건이다. 사용자 확인 필요 항목.
+--   추정 분류다. 부산국제고 6건은 최초 시드 당시 시안 탭에 '국제고'가
+--   없어 '외고'로 편입했으나, 2026-08 웹서치 검증 결과 부산국제고는
+--   외고가 아니라 국제고(공립 특수목적고, 국제계열)로 확인되어 '국제고'로
+--   정정한다(탭도 함께 신설). 거창대성고는 웹서치상 일반고이나 사용자가
+--   '자사고' 유지를 결정해 그대로 둔다. 부일외고는 2024학년도부터
+--   자사고이나 이 시드의 사례 6건이 전부 2019~2021년(외고 시절)이라
+--   '외고' 유지가 결정됐다. 영재고는 데이터 0건이다.
 -- [정렬] sort_order 는 시안의 카드 배치 순서(좌→우, 상→하)다. 공개
 --   페이지는 sort_order asc → year desc → created_at asc 로 읽는다.
 -- [멱등] UNIQUE 제약이 없으므로 "테이블이 비어있을 때만" insert 한다.
@@ -134,8 +138,8 @@ from (values
   ('김천고',        '자사고', 2021, '노O우', '합격자', '브니엘중', 10, true),
   ('부산일과고',    '과학고', 2021, '이O진', '합격자', '',         11, true),
   ('부산일과고',    '과학고', 2021, '양O연', '합격자', '금명중',   12, true),
-  ('부산국제고',    '외고',   2021, '박O준', '합격자', '',         13, true),
-  ('부산국제고',    '외고',   2021, '김O형', '합격자', '',         14, true),
+  ('부산국제고',    '국제고', 2021, '박O준', '합격자', '',         13, true),
+  ('부산국제고',    '국제고', 2021, '김O형', '합격자', '',         14, true),
   ('부일외고',      '외고',   2021, '박O경', '합격자', '',         15, true),
   ('부일외고',      '외고',   2021, '김O하', '합격자', '',         16, true),
   ('부일외고',      '외고',   2021, '조O지', '합격자', '화신중',   17, true),
@@ -143,10 +147,10 @@ from (values
   ('부산과학고',    '과학고', 2020, '윤O경', '합격자', '',         19, true),
   ('광양제철고',    '자사고', 2020, '서O미', '합격자', '',         20, true),
   ('김천고',        '자사고', 2020, '윤O현', '합격자', '',         21, true),
-  ('부산국제고',    '외고',   2020, '김O희', '합격생', '',         22, true),
+  ('부산국제고',    '국제고', 2020, '김O희', '합격생', '',         22, true),
   ('부산과학고',    '과학고', 2020, '이O윤', '합격자', '',         23, true),
-  ('부산국제고',    '외고',   2020, '김O지', '합격자', '',         24, true),
-  ('부산국제고',    '외고',   2020, '김O현', '합격자', '',         25, true),
+  ('부산국제고',    '국제고', 2020, '김O지', '합격자', '',         24, true),
+  ('부산국제고',    '국제고', 2020, '김O현', '합격자', '',         25, true),
   ('부산외고',      '외고',   2020, '이O아', '합격생', '',         26, true),
   ('경남외고',      '외고',   2020, '김O주', '합격자', '',         27, true),
   ('부일외고',      '외고',   2020, '정O혁', '합격자', '',         28, true),
@@ -154,7 +158,7 @@ from (values
   ('광양제철고',    '자사고', 2019, '이O조', '합격생', '화명중',   30, true),
   ('부일외고',      '외고',   2019, '윤O서', '합격자', '',         31, true),
   ('광양제철고',    '자사고', 2019, '강O주', '합격자', '덕천여중', 32, true),
-  ('부산국제고',    '외고',   2019, '이O주', '합격자', '화명동',   33, true),
+  ('부산국제고',    '국제고', 2019, '이O주', '합격자', '화명동',   33, true),
   ('부일외고',      '외고',   2019, '이O성', '합격생', '분포중',   34, true),
   ('현대청운고',    '자사고', 2019, '오O혁', '합격자', '',         35, true),
   ('김천고',        '자사고', 2018, '박O규', '합격자', '사직중',   36, true),
@@ -226,10 +230,20 @@ values
     (2025, 98, 5, true)
 on conflict (year) do nothing;
 
+-- ---------------------------------------------------------------------
+-- 3) 기존 적용분 정정 — 부산국제고는 외고가 아니라 국제고다(2026-08 웹서치 검증).
+--    최초 시드가 '외고'로 들어간 환경을 수렴시킨다. 이미 '국제고'인 행과
+--    관리자가 의도적으로 다른 값으로 바꾼 행은 건드리지 않는다.
+-- ---------------------------------------------------------------------
+update public.special_highschool_cases
+   set school_type = '국제고', updated_at = now()
+ where school_name = '부산국제고'
+   and school_type = '외고';
+
 -- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- select count(*) from public.special_highschool_cases;                        -- 기대: 38
--- select school_type, count(*) from public.special_highschool_cases group by 1; -- 기대: 자사고 19 / 외고 14 / 과학고 5
+-- select school_type, count(*) from public.special_highschool_cases group by 1; -- 기대: 자사고 19 / 외고 8 / 국제고 6 / 과학고 5
 -- select count(*) as years, round(avg(rate),1) from public.special_highschool_acceptance_rates where is_active = true; -- 기대: 5 / 95.4
 -- select count(*) from public.special_highschool_cases where student_name not like '%O%';  -- 기대: 0 (전건 마스킹 확인)

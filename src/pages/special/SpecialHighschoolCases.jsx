@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AcceptanceRateHero from '../../components/admission/AcceptanceRateHero';
 import SpecialHighschoolCaseCard from '../../components/special/SpecialHighschoolCaseCard';
 import {
@@ -7,6 +7,8 @@ import {
   fetchSpecialHighschoolCases,
   filterByType
 } from './specialHighschoolData';
+
+const TABPANEL_ID = 'special-hs-tabpanel';
 
 export default function SpecialHighschoolCases() {
   const [rows, setRows] = useState([]);
@@ -29,6 +31,26 @@ export default function SpecialHighschoolCases() {
     };
   }, []);
 
+  // 로딩 중에는 '전체' 탭만 노출한다(다른 탭이 잠깐 나타났다가 사라지는
+  // 깜빡임을 막기 위함). 데이터가 도착하면 사례가 1건이라도 있는 탭만
+  // 한 번에 확정된 목록으로 전환된다.
+  const visibleTabs = useMemo(() => {
+    if (loading) {
+      return SPECIAL_HS_TABS.filter((item) => item.key === 'all');
+    }
+    const availableTypes = new Set(rows.map((row) => row.school_type));
+    return SPECIAL_HS_TABS.filter((item) => item.key === 'all' || availableTypes.has(item.key));
+  }, [rows, loading]);
+
+  // 선택된 탭이 더 이상 존재하지 않게 되면(예: 마지막 사례가 비활성화됨)
+  // '전체'로 되돌린다.
+  useEffect(() => {
+    if (loading) return;
+    if (!visibleTabs.some((item) => item.key === tab)) {
+      setTab('all');
+    }
+  }, [loading, visibleTabs, tab]);
+
   const visible = filterByType(rows, tab);
 
   return (
@@ -46,13 +68,15 @@ export default function SpecialHighschoolCases() {
           </p>
 
           <div className="mt-9 flex items-center gap-4 sm:mt-11" role="tablist">
-            {SPECIAL_HS_TABS.map((item, index) => (
+            {visibleTabs.map((item, index) => (
               <div key={item.key} className="flex items-center gap-4">
                 {index > 0 && <span className="h-6 w-px bg-[#D7D7D7]" aria-hidden="true" />}
                 <button
                   type="button"
+                  id={`special-hs-tab-${item.key}`}
                   role="tab"
                   aria-selected={tab === item.key}
+                  aria-controls={TABPANEL_ID}
                   onClick={() => setTab(item.key)}
                   className={`text-2xl font-semibold leading-[1.3] tracking-[-0.02em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
                     tab === item.key ? 'text-[#525252]' : 'text-[#D7D7D7]'
@@ -64,7 +88,12 @@ export default function SpecialHighschoolCases() {
             ))}
           </div>
 
-          <div className="mt-9">
+          <div
+            className="mt-9"
+            id={TABPANEL_ID}
+            role="tabpanel"
+            aria-labelledby={`special-hs-tab-${tab}`}
+          >
             {loading ? (
               <div className="py-24 text-center text-sm font-bold text-gray-400">
                 불러오는 중입니다.

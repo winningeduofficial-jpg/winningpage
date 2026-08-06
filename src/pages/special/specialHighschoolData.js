@@ -1,11 +1,13 @@
 import { supabase } from '../../lib/supabase';
 
-// 시안(2239:1559) 탭 5개. 'all' 외의 key는 DB special_highschool_cases.school_type 값과
-// 정확히 일치해야 한다(DB CHECK 제약 및 어드민 select 옵션과 동일 값).
+// 시안(2239:1559) 기반 탭 + 국제고(2026-08 웹서치 검증으로 부산국제고는 외고가
+// 아니라 국제고로 확인되어 신설). 'all' 외의 key는 DB special_highschool_cases.
+// school_type 값과 정확히 일치해야 한다(DB CHECK 제약 및 어드민 select 옵션과 동일 값).
 export const SPECIAL_HS_TABS = [
   { key: 'all', label: '전체' },
   { key: '자사고', label: '자사고' },
   { key: '외고', label: '외고' },
+  { key: '국제고', label: '국제고' },
   { key: '영재고', label: '영재고' },
   { key: '과학고', label: '과학고' }
 ];
