@@ -36,6 +36,7 @@ import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
 import { plainTextToBlocks } from '../lib/plainTextToBlocks';
+import { FAQ_CATEGORIES } from '../data/faqCategories';
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -72,6 +73,7 @@ const MENU_GROUPS = [
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
       { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
+      { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
       { key: 'freeDiagnosis', label: '무료진단 관리' }
@@ -1218,76 +1220,119 @@ const CONFIGS = {
     order: 'result_year',
     homepage: true,
     excel: true,
-    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요.`,
+    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요. 대량 등록 시 (학년도, 모집시기, 대학, 모집단위, 전형명, 반영교과) 조합이 중복되면 저장이 거부되니, Import 전에 중복 행이 없는지 먼저 확인하세요.`,
     columns: [
       { key: 'result_year', label: '연도' },
-      { key: 'university_name', label: '대학명' },
-      { key: 'department', label: '모집단위' },
       { key: 'recruitment_period', label: '모집시기' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'department_name', label: '모집단위' },
       { key: 'screening_category', label: '전형유형' },
       { key: 'admission_track', label: '전형명' },
-      { key: 'score_label', label: '성적표시' },
-      { key: 'subject_reflection', label: '반영교과/영역' },
+      { key: 'grade_70', label: '70%컷' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'result_year', label: '연도', type: 'number', required: true },
+      { key: 'result_year', label: '학년도', type: 'number', required: true },
+      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'], required: true },
+      { key: 'university_key', label: '대학 키값', type: 'text', required: true },
       { key: 'university_name', label: '대학명', type: 'text', required: true },
-      { key: 'campus', label: '캠퍼스', type: 'text' },
-      { key: 'region', label: '지역', type: 'text' },
-      { key: 'college', label: '단과대학', type: 'text' },
-      { key: 'department', label: '모집단위', type: 'text', required: true },
-      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'] },
+      { key: 'department_key', label: '모집단위 키값', type: 'text', required: true },
+      { key: 'department_name', label: '모집단위', type: 'text', required: true },
+      {
+        key: 'main_track',
+        label: '중심전형',
+        type: 'select',
+        options: ['학생부교과', '학생부종합', '논술', '실기', '기타']
+      },
       {
         key: 'screening_category',
         label: '전형유형',
         type: 'select',
-        options: ['학생부교과', '학생부종합', '정시', '실기', '기타']
+        options: ['일반', '추천형', '농어촌', '기회균형', '논술', '기타']
       },
-      { key: 'admission_track', label: '전형명', type: 'text' },
-      { key: 'selection_name', label: '세부 전형명', type: 'text' },
-      { key: 'score_basis', label: '발표 기준', type: 'text' },
-      { key: 'score_value', label: '성적 숫자값', type: 'number' },
-      { key: 'score_label', label: '성적 표시문구', type: 'text' },
-      { key: 'score_unit', label: '성적 단위', type: 'text' },
-      { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      { key: 'admission_track', label: '전형명', type: 'text', required: true, help: '전형명 원문 그대로 입력합니다.' },
+      { key: 'grade_50', label: '50%컷', type: 'number' },
+      { key: 'grade_70', label: '70%컷', type: 'number' },
+      { key: 'grade_85', label: '85%컷', type: 'number' },
+      { key: 'grade_90', label: '90%컷', type: 'number' },
+      { key: 'converted_score', label: '환산점수', type: 'number' },
+      { key: 'percentile', label: '백분위', type: 'number' },
       { key: 'quota', label: '모집인원', type: 'number' },
-      { key: 'applicants', label: '지원자수', type: 'number' },
       { key: 'competition_rate', label: '경쟁률', type: 'number' },
-      { key: 'additional_pass_count', label: '충원합격', type: 'number' },
-      { key: 'min_csats', label: '수능최저', type: 'text' },
-      { key: 'reflection_method', label: '반영방법', type: 'textarea' },
-      { key: 'source_title', label: '출처명', type: 'text' },
-      { key: 'source_url', label: '출처 URL', type: 'text' },
-      { key: 'memo', label: '메모', type: 'textarea' }
+      { key: 'waitlist_rank', label: '충원순위', type: 'text' },
+      { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      { key: 'source_sheet', label: '출처 시트', type: 'text' },
+      { key: 'source_row', label: '출처 행번호', type: 'number' },
+      { key: 'note', label: '메모', type: 'textarea' }
     ],
     defaults: {
       is_active: true,
       result_year: 2025,
-      university_name: '',
-      campus: '',
-      region: '',
-      college: '',
-      department: '',
       recruitment_period: '수시',
-      screening_category: '학생부교과',
+      university_key: '',
+      university_name: '',
+      department_key: '',
+      department_name: '',
+      main_track: '학생부교과',
+      screening_category: '일반',
       admission_track: '',
-      selection_name: '',
-      score_basis: '최종등록자',
-      score_value: 0,
-      score_label: '',
-      score_unit: '내신등급',
-      subject_reflection: '',
+      grade_50: null,
+      grade_70: null,
+      grade_85: null,
+      grade_90: null,
+      converted_score: null,
+      percentile: null,
       quota: 0,
-      applicants: 0,
       competition_rate: 0,
-      additional_pass_count: 0,
-      min_csats: '',
-      reflection_method: '',
-      source_title: '',
-      source_url: '',
-      memo: ''
+      waitlist_rank: '',
+      subject_reflection: '',
+      source_sheet: '',
+      source_row: null,
+      note: ''
+    }
+  },
+
+  trendingDepartments: {
+    title: '지금 뜨고 있는 학과',
+    table: 'trending_departments',
+    searchPlaceholder: '대학명 또는 학과명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `랜딩 입결정보 영역에 노출되는 학과 칩 목록입니다. 대학 키값·모집단위 키값을 입력하면 칩 클릭 시 해당 상세로 딥링크되고, 비워두면 칩이 비활성 상태로 표시됩니다.`,
+    columns: [
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'department_name', label: '학과명' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'university_name', label: '대학명', type: 'text', required: true },
+      { key: 'department_name', label: '학과명', type: 'text', required: true },
+      { key: 'university_key', label: '대학 키값', type: 'text', help: '입결정보 상세 딥링크(?u=)용. 비워두면 칩이 비활성으로 표시됩니다.' },
+      { key: 'department_key', label: '모집단위 키값', type: 'text', help: '입결정보 상세 딥링크(?d=)용.' },
+      {
+        key: 'logo_url',
+        label: '대학 로고 이미지',
+        type: 'image',
+        compress: true,
+        help: '정방형 권장. 저작권 확인 전까지는 비워둘 수 있습니다.',
+        imageSpec: { width: 1, height: 1, aspectOnly: true, maxMB: 1 },
+        folder: 'admission/trending-departments',
+        cacheControl: '31536000, immutable'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      university_name: '',
+      department_name: '',
+      university_key: '',
+      department_key: '',
+      logo_url: '',
+      sort_order: 0
     }
   },
 
@@ -1572,18 +1617,46 @@ const CONFIGS = {
     table: 'faqs',
     searchPlaceholder: '질문을 검색하세요',
     order: 'sort_order',
+    previewTitleKey: 'question',
+    previewLabel: 'FAQ',
     columns: [
+      { key: 'category', label: '카테고리' },
       { key: 'question', label: '질문' },
-      { key: 'answer', label: '답변' },
+      { key: 'answer', label: '답변', type: 'truncate' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'category', label: '카테고리', type: 'select', options: FAQ_CATEGORIES },
       { key: 'question', label: '질문', type: 'text', required: true },
-      { key: 'answer', label: '답변', type: 'textarea' },
+      {
+        key: 'answer',
+        label: '답변',
+        type: 'blockEditor',
+        required: true,
+        folder: 'faq-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
-    defaults: { is_active: true, question: '', answer: '', sort_order: 1 }
+    defaults: { is_active: true, category: '', question: '', answer: '', sort_order: 1 },
+    // blockEditor(field.key='answer')는 initialContent를 form[`${field.key}_json`]에서 읽는다(관례).
+    // 그런데 FAQ의 정본 컬럼명은 answer_json이 아니라 content_json(계약 §2)이라 이름이 어긋난다 —
+    // 편집 진입 시 row.content_json을 answer_json으로 옮겨 관례 코드가 그대로 맞물리게 한다.
+    rowToForm: (row) => ({ ...row, answer_json: row.content_json }),
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(answer)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    // 주의: 교육칼럼/합격사례 선례는 평문 미러 컬럼이 content지만 FAQ는 answer다.
+    formToPayload: (form) => {
+      const { __blocks_answer, answer_json, ...rest } = form;
+      const blocks = __blocks_answer || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        answer: blocksToPlainText(blocks)
+      };
+    }
   },
 
   members: {
@@ -3256,7 +3329,11 @@ function searchable(row) {
 }
 
 function csvEscape(value) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const raw = String(value ?? '');
+  // CSV formula injection 방어 — Excel/Sheets는 따옴표로 감싼 필드여도
+  // 선두 = + - @ 및 탭/CR을 수식으로 해석한다. 선행 작은따옴표로 무력화한다.
+  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function downloadCsv(filename, rows, columns) {
@@ -4364,7 +4441,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     const blocks = editorRef?.current ? editorRef.current.getBlocks() : [];
 
     setPreviewPost({
-      title: form.title,
+      title: form[config.previewTitleKey ?? 'title'],
       category: form.category,
       image_urls: form.image_urls,
       image_url: form.image_url,
@@ -4844,7 +4921,12 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         )}
       </div>
 
-      <ColumnPreviewModal open={Boolean(previewPost)} onClose={() => setPreviewPost(null)} post={previewPost} />
+      <ColumnPreviewModal
+        open={Boolean(previewPost)}
+        onClose={() => setPreviewPost(null)}
+        post={previewPost}
+        label={config.previewLabel}
+      />
     </form>
   );
 }

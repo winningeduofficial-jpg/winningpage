@@ -1,141 +1,177 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { FAQ_CATEGORIES } from '../data/faqCategories';
+import FaqCategoryTabs from '../components/faq/FaqCategoryTabs';
+import FaqAccordionRow from '../components/faq/FaqAccordionRow';
+import { getFaqTabId, FAQ_TABPANEL_ID } from '../components/faq/faqTabId';
 
-function renderAnswer(answer) {
-  if (!answer) return null;
+// '전체'는 DB category 값이 아니라 UI 전용 키다 — faqs.category 에는 절대
+// 저장하지 않는다(계약 §1).
+const ALL_TAB = '전체';
 
-  const hasHtml = /<\/?[a-z][\s\S]*>/i.test(answer);
-
-  if (hasHtml) {
-    return <div className="faq-answer" dangerouslySetInnerHTML={{ __html: answer }} />;
-  }
-
-  return <div className="faq-answer whitespace-pre-line">{answer}</div>;
-}
+const EMPTY_STATE_CLASS = 'py-24 text-center text-sm font-bold text-gray-400';
 
 export default function Faq() {
   const [faqs, setFaqs] = useState([]);
-  const [keyword, setKeyword] = useState('');
-  const [openedId, setOpenedId] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  async function loadFaqs() {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from('faqs')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: false });
-
-    setLoading(false);
-
-    if (error) {
-      console.error('FAQ 조회 오류:', error);
-      setFaqs([]);
-      return;
-    }
-
-    setFaqs(data || []);
-  }
+  const [activeTab, setActiveTab] = useState(ALL_TAB);
+  const [keyword, setKeyword] = useState('');
+  const [openId, setOpenId] = useState(null);
 
   useEffect(() => {
-    loadFaqs();
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+
+      // select('*') 유지 — 마이그레이션 미적용 환경에서도(category/content_json
+      // 컬럼이 없더라도) 조회 자체는 죽지 않는다.
+      const { data, error } = await supabase
+        .from('faqs')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (!alive) return;
+
+      if (error) {
+        console.error('FAQ 조회 오류:', error);
+        setFaqs([]);
+      } else {
+        setFaqs(data || []);
+      }
+
+      setLoading(false);
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const filteredFaqs = useMemo(() => {
+  // 로딩 중에는 '전체' 탭만 노출한다(SpecialHighschoolCases.jsx 선례 복제) —
+  // 데이터 도착 전에 다른 탭이 잠깐 나타났다 사라지는 깜빡임을 막는다.
+  const visibleTabs = useMemo(() => {
+    if (loading) return [ALL_TAB];
+
+    // category 가 빈 문자열(마이그레이션 전 기존 행)이면 어떤 카테고리 탭에도
+    // 안 잡히고 '전체'에만 노출된다.
+    const available = new Set(faqs.map((faq) => faq.category || ''));
+    return [ALL_TAB, ...FAQ_CATEGORIES.filter((category) => available.has(category))];
+  }, [faqs, loading]);
+
+  // 선택된 탭이 사라지면(예: 마지막 항목이 비활성화됨) '전체'로 폴백한다.
+  useEffect(() => {
+    if (loading) return;
+    if (!visibleTabs.includes(activeTab)) setActiveTab(ALL_TAB);
+  }, [loading, visibleTabs, activeTab]);
+
+  const isSearching = keyword.trim().length > 0;
+
+  const categoryFiltered = useMemo(() => {
+    if (activeTab === ALL_TAB) return faqs;
+    return faqs.filter((faq) => (faq.category || '') === activeTab);
+  }, [faqs, activeTab]);
+
+  const searchFiltered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
-
-    if (!q) return faqs;
-
-    return faqs.filter((faq) => [faq.question, faq.answer].join(' ').toLowerCase().includes(q));
+    if (!q) return [];
+    return faqs.filter((faq) => `${faq.question} ${faq.answer || ''}`.toLowerCase().includes(q));
   }, [faqs, keyword]);
 
+  const visibleFaqs = isSearching ? searchFiltered : categoryFiltered;
+
+  function handleTabChange(tab) {
+    setActiveTab(tab);
+    setOpenId(null);
+  }
+
+  function handleKeywordChange(event) {
+    setKeyword(event.target.value);
+    setOpenId(null);
+  }
+
   function toggleFaq(id) {
-    setOpenedId((prev) => (prev === id ? null : id));
+    setOpenId((prev) => (prev === id ? null : id));
+  }
+
+  function renderList(emptyMessage) {
+    if (loading) {
+      return <div className={EMPTY_STATE_CLASS}>불러오는 중입니다.</div>;
+    }
+
+    if (visibleFaqs.length === 0) {
+      return <div className={EMPTY_STATE_CLASS}>{emptyMessage}</div>;
+    }
+
+    return (
+      <div>
+        {visibleFaqs.map((faq) => (
+          <FaqAccordionRow key={faq.id} faq={faq} isOpen={openId === faq.id} onToggle={() => toggleFaq(faq.id)} />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <>
-      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
-        <section className="mx-auto max-w-content px-6 py-12">
-          <div className="relative h-[150px] overflow-hidden rounded-xl bg-[#0D1B2A]">
-            <img
-              src="/images/faq-banner.jpg"
-              alt=""
-              className="h-full w-full object-cover opacity-70"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+    <main className="min-h-screen bg-white pt-16">
+      {/* 헤더 하단 → 제목 상단 여백: 시안 149px × 0.766(스케일 팩터) ≈ 114px = 7.125rem.
+          모바일은 pt-16(64px)을 유지해 데스크톱보다 좁게 둔다. */}
+      <section className="pb-20 pt-16 sm:pb-24 sm:pt-[7.125rem]">
+        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+          {/* 시안 실측: 제목과 검색창은 같은 행이 아니라 제목 아래에 검색창이
+              우측 정렬로 놓인다(제목 하단→검색창 상단 12px × 0.766 ≈ 9px).
+              모바일은 세로 스택 + 검색창 w-full 을 그대로 유지한다. */}
+          <div className="flex flex-col gap-6 sm:gap-[0.5625rem]">
+            <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.75rem]">
+              FAQ
+            </h1>
 
-            <div className="absolute inset-0 bg-black/25" />
-
-            <div className="absolute inset-0 flex items-center justify-center">
-              <h1 className="text-[34px] font-black tracking-[-0.04em] text-white">
-                자주하는 질문
-              </h1>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-16">
-            <div className="mb-10 flex items-center border-b border-[#222] pb-4">
+            <div className="relative h-11 w-full rounded-[0.625rem] border border-[#D7D7D7] bg-white sm:w-[23.625rem] sm:self-end">
               <input
                 value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="검색어를 입력해주세요"
-                className="h-12 flex-1 border-0 bg-transparent text-[20px] font-medium text-[#222] placeholder:text-gray-400 focus:outline-none"
+                onChange={handleKeywordChange}
+                placeholder="키워드 검색"
+                aria-label="FAQ 키워드 검색"
+                className="h-full w-full bg-transparent pl-5 pr-12 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
               />
-              <Search size={32} strokeWidth={1.7} className="text-gray-600" />
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#1F1F1F]"
+              />
             </div>
-
-            {loading ? (
-              <div className="py-24 text-center text-lg font-bold text-gray-400">
-                FAQ를 불러오는 중입니다.
-              </div>
-            ) : filteredFaqs.length === 0 ? (
-              <div className="py-24 text-center text-lg font-bold text-gray-400">
-                등록된 FAQ가 없습니다.
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {filteredFaqs.map((faq) => {
-                  const isOpen = openedId === faq.id;
-
-                  return (
-                    <article
-                      key={faq.id}
-                      className="rounded-2xl border border-[#cfd6df] bg-white px-8 py-7"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleFaq(faq.id)}
-                        className="flex w-full items-center justify-between gap-6 text-left"
-                      >
-                        <h2 className="break-keep text-[24px] font-black tracking-[-0.04em] text-black">
-                          {faq.question}
-                        </h2>
-
-                        <span className="shrink-0 rounded-full bg-[#454C56] px-7 py-3 text-[15px] font-black text-white">
-                          {isOpen ? '접기 ↑' : '자세히보기 ↓'}
-                        </span>
-                      </button>
-
-                      {isOpen && (
-                        <div className="mt-8 border-t border-gray-300 pt-6 text-[17px] font-medium leading-[1.85] tracking-[-0.03em] text-[#111827]">
-                          {renderAnswer(faq.answer)}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
           </div>
-        </section>
-      </main>
-    </>
+
+          {isSearching ? (
+            // 검색 모드에서는 탭 바가 DOM에서 사라진다. tab/tabpanel 롤을 유지한 채
+            // 탭 버튼만 없애면 aria-controls/aria-labelledby가 죽은 id를 가리키게 되므로
+            // (ServiceFaq.jsx:41-43 이 경고하는 것과 동일한 axe aria-valid-attr-value
+            // 위반) 검색 모드는 tab/tabpanel 롤을 아예 벗기고 aria-live 영역으로 분기한다.
+            // aria-live는 "검색 결과 N건" 문구에만 건다 — section 전체에 걸면 검색은
+            // 디바운스가 없어 키 입력마다 스크린리더가 결과 목록 전체를 재낭독한다.
+            <section className="mt-8 lg:mt-[5.375rem]">
+              <p aria-live="polite" className="text-base font-semibold leading-5 tracking-[-0.02em] text-[#525252]">
+                검색 결과 <span className="text-[#013262]">{visibleFaqs.length}건</span>
+              </p>
+              <div className="mt-3 border-t border-[#D7D7D7]">
+                {renderList(`'${keyword.trim()}'에 대한 검색 결과가 없습니다.`)}
+              </div>
+            </section>
+          ) : (
+            <>
+              <div className="mt-8 lg:mt-[5.375rem]">
+                <FaqCategoryTabs tabs={visibleTabs} active={activeTab} onChange={handleTabChange} />
+              </div>
+
+              <div id={FAQ_TABPANEL_ID} role="tabpanel" aria-labelledby={getFaqTabId(activeTab)}>
+                {renderList('등록된 질문이 없습니다.')}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }
