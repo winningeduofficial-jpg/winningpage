@@ -42,8 +42,16 @@
 // 으로 기존 doc(있다면)보다 정보량이 줄었는지 본다. 줄었으면 그 카테고리도
 // 통째로 미기록하고 warnings에 담는다.
 //
-// 잘림 마커가 있는 셀은 행 전체를 거부한다(errors에 담고 payload를 아예
-// 안 만든다) — 잘린 html/raw를 그대로 doc으로 만들면 표가 깨진다.
+// 잘림 마커 처리(2026-08-06 재설계): 처음엔 잘림 마커가 있는 셀이 하나만
+// 있어도 행 전체를 거부했다. 그런데 실측 결과 잘림은 항상
+// recruitment_result_html 한 컬럼에서만 난다(218행 중 23행, 다른 25개
+// 컬럼은 0건) — 행 전체를 거부하면 그 23개교는 university_name 오타 같은
+// 사소한 것도 엑셀로 못 고친다. 그래서 **6개 콘텐츠 카테고리(raw+html)는
+// 컬럼(카테고리) 단위로만 스킵**한다 — 그 카테고리의 doc/html/raw를
+// 전부 payload에서 빼고(기존 DB 값 보존) 나머지 카테고리·메타데이터는
+// 정상 처리한다. 메타데이터 컬럼(university_name/region/memo 등)이
+// 잘린 경우는(실측 0건, 짧은 식별자·URL이라 사실상 안 남) 행 전체를
+// 거부한다 — 발생한 적 없는 경로라 굳이 컬럼 단위로 세분화하지 않았다.
 // =====================================================================
 
 import * as XLSX from 'xlsx';
@@ -92,6 +100,25 @@ const CATEGORY_XLSX_HTML_COLUMN = {
   school_record_method: 'school_record_method_html',
   recruitment_quota: 'recruitment_result_html'
 };
+
+// 메타데이터 컬럼(콘텐츠 카테고리 6종 제외) 중 잘림 마커를 검사할 대상.
+// admission_year/university_key/id/is_active/created_at/updated_at은
+// 짧은 식별자·불리언·타임스탬프라 잘릴 일이 사실상 없어 제외했다 —
+// 애초에 매칭 키(연도/university_key)가 잘리면 행 자체가 무의미해져
+// 아래 필수값 검사에서 걸러진다.
+const METADATA_COLUMNS_FOR_TRUNCATION_CHECK = [
+  'source_name',
+  'source_version',
+  'region',
+  'university_name',
+  'campus',
+  'jungsi_guideline_url',
+  'official_source_url',
+  'memo',
+  'detail_status',
+  'matched_hwp_name',
+  'matched_text_name'
+];
 
 // 엑셀 셀 문자 수 한도(SheetJS가 쓰기 시점에 이 값으로 throw한다 —
 // src/components/admission/editor/xlsx/tableBlockXlsx.js에서 이미 실측
@@ -241,7 +268,7 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  *   rows: Array<Record<string, unknown>>,
  *   errors: Array<{ row: number, admissionYear: unknown, universityKey: unknown, reason: string }>,
  *   warnings: Array<{ row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string }>,
- *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number }
+ *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number, truncatedCellSkipCount: number }
  * }}
  */
 export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
@@ -254,6 +281,11 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   let willUpdate = 0;
   let willSkip = 0;
   let newUniversityCount = 0;
+  // 잘림 마커 때문에 카테고리 하나만 스킵된 셀 수(행 자체는 정상 처리됨).
+  // willSkip과 원인이 다르므로 섞지 않는다 — willSkip은 행 전체가 통째로
+  // 안 쓰인 경우(errors와 1:1), 이건 행은 쓰였는데 그 안의 셀 하나만
+  // 기존 값으로 보존된 경우다.
+  let truncatedCellSkipCount = 0;
   const newYearsSet = new Set();
 
   if (!worksheet) {
@@ -262,7 +294,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       rows,
       errors,
       warnings,
-      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount }
+      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount, truncatedCellSkipCount }
     };
   }
 
@@ -293,16 +325,18 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     const universityKey = clean(rowObj.university_key);
     const universityName = clean(rowObj.university_name);
 
-    // 잘림 마커 검사 — 26칸 전부(어느 칸이 잘렸든 행을 거부한다).
-    const hasTruncationMarker = rawRow.some(
-      (cell) => typeof cell === 'string' && cell.includes(TRUNCATION_MARKER)
+    // 잘림 마커 검사(메타데이터 컬럼만, 행 전체 거부) — 콘텐츠 카테고리
+    // 6종의 잘림은 아래 CATEGORY_KEYS.forEach 안에서 컬럼 단위로 따로
+    // 처리한다(행을 거부하지 않는다).
+    const truncatedMetadataColumns = METADATA_COLUMNS_FOR_TRUNCATION_CHECK.filter(
+      (col) => typeof rowObj[col] === 'string' && rowObj[col].includes(TRUNCATION_MARKER)
     );
-    if (hasTruncationMarker) {
+    if (truncatedMetadataColumns.length) {
       errors.push({
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
-        reason: '잘림 마커가 포함된 셀이 있어 행을 거부합니다(잘린 채로 반영하면 데이터가 손상됩니다).'
+        reason: `잘림 마커가 있는 메타데이터 컬럼(${truncatedMetadataColumns.join(', ')})이 있어 행을 거부합니다(잘린 채로 반영하면 데이터가 손상됩니다).`
       });
       willSkip += 1;
       return;
@@ -368,11 +402,33 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     const referenceRow = { university_name: universityName, detail_status: payload.detail_status };
 
     CATEGORY_KEYS.forEach((sectionKey) => {
-      const rawText = clean(rowObj[sectionKey]);
+      const xlsxHtmlColumn = CATEGORY_XLSX_HTML_COLUMN[sectionKey];
+      const rawCellValue = rowObj[sectionKey];
+      const htmlCellValue = xlsxHtmlColumn ? rowObj[xlsxHtmlColumn] : undefined;
+      const rawTruncated = typeof rawCellValue === 'string' && rawCellValue.includes(TRUNCATION_MARKER);
+      const htmlTruncated = typeof htmlCellValue === 'string' && htmlCellValue.includes(TRUNCATION_MARKER);
+
+      // 잘림 마커가 있으면 이 카테고리는 raw/html/json 전부 payload에서
+      // 뺀다(기존 DB 값 보존) — 잘린 원문으로 doc을 새로 만들려는 시도
+      // 자체를 안 한다(회귀 가드와 겹쳐 적용될 일이 없다: 후보를 아예
+      // 안 만드니 shouldSkipForRegression까지 갈 필요가 없다).
+      if (rawTruncated || htmlTruncated) {
+        truncatedCellSkipCount += 1;
+        const truncatedCols = [rawTruncated ? sectionKey : null, htmlTruncated ? xlsxHtmlColumn : null].filter(Boolean);
+        warnings.push({
+          row: rowIndex,
+          admissionYear,
+          universityKey,
+          column: sectionKey,
+          reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${truncatedCols.join(', ')})`
+        });
+        return;
+      }
+
+      const rawText = clean(rawCellValue);
       payload[sectionKey] = rawText || null;
 
-      const xlsxHtmlColumn = CATEGORY_XLSX_HTML_COLUMN[sectionKey];
-      const uploadedHtml = xlsxHtmlColumn ? clean(rowObj[xlsxHtmlColumn]) : '';
+      const uploadedHtml = xlsxHtmlColumn ? clean(htmlCellValue) : '';
       const dbHtmlColumn = HWP_SECTION_HTML_KEYS[sectionKey];
       const jsonColumn = HWP_SECTION_JSON_KEYS[sectionKey];
       const existingDoc = existing?.[jsonColumn];
@@ -415,7 +471,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       willUpdate,
       willSkip,
       newYears: [...newYearsSet].sort((a, b) => a - b),
-      newUniversityCount
+      newUniversityCount,
+      truncatedCellSkipCount
     }
   };
 }

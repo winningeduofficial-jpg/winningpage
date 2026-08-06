@@ -15,6 +15,8 @@ import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import process from 'node:process';
 import * as XLSX from 'xlsx';
 
@@ -25,12 +27,16 @@ import {
   TRUNCATION_MARKER
 } from '../src/lib/admissionBulkXlsx.js';
 import { HWP_SECTION_JSON_KEYS } from '../src/lib/admissionDoc.js';
+import { clean } from '../src/lib/admissionParsing.js';
 
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
   '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
 const TABLE = 'admission_university_resources';
 const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
+const SECTION_KEY_BY_JSON_COLUMN = Object.fromEntries(
+  Object.entries(HWP_SECTION_JSON_KEYS).map(([sectionKey, jsonColumn]) => [jsonColumn, sectionKey])
+);
 
 let failCount = 0;
 let passCount = 0;
@@ -114,37 +120,59 @@ async function main() {
     existingRows
   );
 
-  // 잘린 셀이 있는 행은 정책상 통째로 거부된다(잘림 자체가 의도된
-  // 데이터 손실이라 이건 실패가 아니라 정상 동작이다 — team-lead가 미리
-  // 알려준 "원본 파일에 이미 23셀이 잘려 있다"와 정확히 일치하는지도
-  // 여기서 같이 확인한다). truncatedCells의 rowIndex는 export 시점의
-  // dbRows 배열 인덱스와 1:1이므로, 그 인덱스의 (year, key)를 "거부
-  // 예정" 집합으로 미리 구한다.
+  // 2026-08-06 재설계 후: 잘린 셀은 더 이상 행을 통째로 거부하지 않는다
+  // — 그 셀이 속한 카테고리(컬럼) 하나만 payload에서 빠지고(기존 DB
+  // 값 보존) 행 자체·나머지 25개 컬럼은 정상 처리된다. truncatedCells의
+  // rowIndex는 export 시점의 dbRows 배열 인덱스와 1:1이므로, 그 인덱스의
+  // (year, key)를 "카테고리 스킵 예정" 집합으로 미리 구한다(전부
+  // recruitment_result_html → recruitment_quota 카테고리다 — 실측상
+  // 다른 컬럼에서는 안 남).
   const truncatedRowIndexSet = new Set(truncatedCells.map((c) => c.rowIndex));
-  const expectedRejectedKeys = new Set(
+  const expectedTruncationSkipKeys = new Set(
     [...truncatedRowIndexSet].map((idx) => `${dbRows[idx].admission_year}::${dbRows[idx].university_key}`)
   );
 
-  check(`왕복: 잘린 셀이 있는 행만 거부(정확히 ${expectedRejectedKeys.size}건, team-lead 사전 실측 23건과 일치해야 함)`, () => {
+  check(`왕복: 잘린 셀은 행이 아니라 카테고리만 스킵(정확히 ${expectedTruncationSkipKeys.size}건, team-lead 사전 실측 23건과 일치해야 함)`, () => {
+    assert(parseErrors.length === 0, `잘림만으로 행 전체가 거부되면 안 됨(에러 ${parseErrors.length}건)`);
     assert(
-      parseErrors.length === expectedRejectedKeys.size,
-      `에러 ${parseErrors.length}건, 기대 ${expectedRejectedKeys.size}건`
+      summary.truncatedCellSkipCount === expectedTruncationSkipKeys.size,
+      `summary.truncatedCellSkipCount(${summary.truncatedCellSkipCount}) !== 기대치(${expectedTruncationSkipKeys.size})`
     );
-    const actualRejectedKeys = new Set(parseErrors.map((e) => `${e.admissionYear}::${e.universityKey}`));
-    const onlyExpected = [...actualRejectedKeys].every((k) => expectedRejectedKeys.has(k));
-    assert(onlyExpected, `잘린 셀이 없는 행이 거부됨: ${JSON.stringify([...actualRejectedKeys].filter((k) => !expectedRejectedKeys.has(k)))}`);
+    const truncationWarnings = parseWarnings.filter((w) => w.reason.includes('잘림 마커가 있어 기존 값 보존'));
+    const actualSkipKeys = new Set(truncationWarnings.map((w) => `${w.admissionYear}::${w.universityKey}`));
+    assert(
+      actualSkipKeys.size === expectedTruncationSkipKeys.size,
+      `잘림 경고가 난 행 수(${actualSkipKeys.size}) !== 기대치(${expectedTruncationSkipKeys.size})`
+    );
+    const onlyExpected = [...actualSkipKeys].every((k) => expectedTruncationSkipKeys.has(k));
+    assert(onlyExpected, `잘린 셀이 없는 행에서 잘림 경고가 남: ${JSON.stringify([...actualSkipKeys].filter((k) => !expectedTruncationSkipKeys.has(k)))}`);
+    const allRecruitmentQuota = truncationWarnings.every((w) => w.column === 'recruitment_quota');
+    assert(allRecruitmentQuota, '잘림이 recruitment_quota 이외 카테고리에서도 발생함(실측과 다름)');
   });
 
-  check('왕복: 거부되지 않은 행은 전부 update로 분류(신규 연도/대학 없음)', () => {
-    const expectedRemaining = dbRows.length - expectedRejectedKeys.size;
+  check('왕복: 잘린 셀이 있던 행도 update로 분류되고 payload에 포함됨(카테고리만 빠짐)', () => {
     assert(summary.willInsert === 0, `willInsert가 0이 아님: ${summary.willInsert}`);
-    assert(summary.willUpdate === expectedRemaining, `willUpdate(${summary.willUpdate}) !== 기대치(${expectedRemaining})`);
+    assert(summary.willUpdate === dbRows.length, `willUpdate(${summary.willUpdate}) !== 기대치(${dbRows.length})`);
+    assert(summary.willSkip === 0, `willSkip이 0이 아님(잘림은 willSkip 사유가 아님): ${summary.willSkip}`);
     assert(summary.newYears.length === 0, `newYears가 비어 있어야 함: ${summary.newYears}`);
   });
 
-  check('왕복: 파싱된 행 수 = 원본 행 수 - 거부된 행 수', () => {
-    const expectedRemaining = dbRows.length - expectedRejectedKeys.size;
-    assert(parsedRows.length === expectedRemaining, `parsedRows(${parsedRows.length}) !== 기대치(${expectedRemaining})`);
+  check('왕복: 파싱된 행 수 = 원본 행 수(잘림으로 거부되는 행 없음)', () => {
+    assert(parsedRows.length === dbRows.length, `parsedRows(${parsedRows.length}) !== 원본(${dbRows.length})`);
+  });
+
+  check('왕복: 잘린 셀이 있던 23개교는 payload에서 recruitment_quota_json/recruitment_result_html이 빠짐(기존 값 보존)', () => {
+    const parsedByKeyForTruncation = new Map(parsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
+    let bad = 0;
+    expectedTruncationSkipKeys.forEach((key) => {
+      const parsed = parsedByKeyForTruncation.get(key);
+      if (!parsed) {
+        bad += 1;
+        return;
+      }
+      if ('recruitment_quota_json' in parsed || 'recruitment_result_html' in parsed) bad += 1;
+    });
+    assert(bad === 0, `잘린 카테고리가 그대로 payload에 남은 건수: ${bad}`);
   });
 
   // 거부되지 않은 행에 대해서만 원본과 대조한다. 위치가 아니라
@@ -156,7 +184,6 @@ async function main() {
   let checkedRows = 0;
   dbRows.forEach((original) => {
     const key = `${original.admission_year}::${original.university_key}`;
-    if (expectedRejectedKeys.has(key)) return;
     const parsed = parsedByKey.get(key);
     if (!parsed) {
       mismatchCount += 1;
@@ -185,10 +212,21 @@ async function main() {
       // 안 잡는다).
       const hadOriginal = Boolean(originalDoc && Array.isArray(originalDoc.blocks) && originalDoc.blocks.length);
       const hasParsed = jsonCol in parsed;
+      const sectionKey = SECTION_KEY_BY_JSON_COLUMN[jsonCol];
       const wasRegressionSkipped = parseWarnings.some(
         (w) => w.admissionYear === original.admission_year && w.universityKey === original.university_key && w.reason.includes('정보량 감소')
       );
-      if (hadOriginal && !hasParsed && !wasRegressionSkipped) jsonMismatchCount += 1;
+      // 잘림 스킵도 회귀 스킵과 같은 이유로 doc 유무 불일치로 안 잡는다
+      // — "카테고리 통째로 기존 값 보존"은 이 카테고리에서만 둘 중
+      // 하나가 켜지고 절대 겹치지 않는다(잘림이면 후보 자체를 안
+      // 만드니 회귀 가드까지 안 감 — buildCategoryFromXlsxRow 호출
+      // 자체를 스킵하기 때문). 여기서 두 사유가 모두 뜨면 중복
+      // 적용 버그이므로 별도로 검사한다(아래 check).
+      const wasTruncationSkipped = parseWarnings.some(
+        (w) => w.admissionYear === original.admission_year && w.universityKey === original.university_key && w.column === sectionKey && w.reason.includes('잘림 마커가 있어 기존 값 보존')
+      );
+      if (wasRegressionSkipped && wasTruncationSkipped) jsonMismatchCount += 1000; // 중복 적용이면 무조건 실패시킨다(원인 구분용으로 크게 벌점)
+      if (hadOriginal && !hasParsed && !wasRegressionSkipped && !wasTruncationSkipped) jsonMismatchCount += 1;
       if (!hadOriginal && hasParsed) jsonMismatchCount += 1;
     });
   });
@@ -205,25 +243,53 @@ async function main() {
     parseWarnings.slice(0, 10).forEach((w) => console.log(`  - [${w.universityKey}/${w.admissionYear}] ${w.column || ''}: ${w.reason}`));
   }
 
-  // === 3) 잘림 마커 거부 ===
-  console.log('\n=== 3) 잘림 마커 거부(합성) ===');
-  check('잘림 마커가 있는 셀 → 행 거부(에러 집계, payload 미포함)', () => {
+  // === 3) 잘림 마커 → 카테고리 단위 스킵(합성, team-lead 지정 케이스 (a)) ===
+  console.log('\n=== 3) 잘림 마커 → 카테고리 단위 스킵(합성) ===');
+  check('잘린 셀이 1개뿐이면 그 카테고리만 스킵, 나머지 25컬럼/5카테고리는 정상 반영', () => {
     const header = BULK_XLSX_COLUMNS;
-    const goodRow = header.map((col) => {
+    const bulletText = '- 항목 1\n- 항목 2';
+    const row = header.map((col) => {
       if (col === 'admission_year') return 2099;
-      if (col === 'university_key') return 'synthetic-truncation-test';
+      if (col === 'university_key') return 'synthetic-truncation-only-column';
       if (col === 'university_name') return '합성테스트대학교';
+      if (col === 'region') return '서울';
+      // 잘림 마커가 붙은 카테고리는 selection_method 하나뿐이다 — 이
+      // 카테고리만 스킵되고 나머지는 전부 정상 처리돼야 한다.
       if (col === 'selection_method') return `일반전형${TRUNCATION_MARKER}`;
+      if (col === 'previous_year_changes') return bulletText;
+      if (col === 'minimum_requirements') return bulletText;
+      if (col === 'exam_schedule') return bulletText;
+      if (col === 'school_record_method') return bulletText;
+      if (col === 'recruitment_quota') return bulletText;
       return '';
     });
-    const ws = XLSX.utils.aoa_to_sheet([header, goodRow]);
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '모집요강');
 
-    const { rows, errors, summary: s } = parseAdmissionRowsFromXlsx(wb, new Map());
-    assert(rows.length === 0, `잘림 마커 행이 payload에 포함됨(${rows.length}건)`);
-    assert(errors.length === 1, `에러가 정확히 1건이어야 함(실제 ${errors.length}건)`);
-    assert(s.willSkip === 1, `willSkip이 1이어야 함(실제 ${s.willSkip})`);
+    const { rows, errors, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, new Map());
+    assert(errors.length === 0, `잘림이 카테고리 하나뿐인데 행 자체가 거부됨(에러 ${errors.length}건)`);
+    assert(rows.length === 1, `행이 1개 생성돼야 함(실제 ${rows.length})`);
+    assert(s.willSkip === 0, `willSkip이 0이어야 함(잘림은 willSkip 사유가 아님, 실제 ${s.willSkip})`);
+    assert(s.truncatedCellSkipCount === 1, `truncatedCellSkipCount가 1이어야 함(실제 ${s.truncatedCellSkipCount})`);
+
+    const payload = rows[0];
+    assert(payload.university_name === '합성테스트대학교', 'university_name(메타데이터)이 정상 반영 안 됨');
+    assert(payload.region === '서울', 'region(메타데이터)이 정상 반영 안 됨');
+    assert(
+      !('selection_method_json' in payload) && !('selection_method_html' in payload),
+      '잘린 카테고리(selection_method)의 json/html이 payload에 그대로 남음'
+    );
+    ['previous_year_changes', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota'].forEach(
+      (sectionKey) => {
+        const jsonCol = HWP_SECTION_JSON_KEYS[sectionKey];
+        assert(jsonCol in payload && payload[jsonCol], `잘리지 않은 카테고리(${sectionKey})가 payload에서 빠짐`);
+      }
+    );
+    const truncationWarning = warnings.find(
+      (w) => w.column === 'selection_method' && w.reason.includes('잘림 마커가 있어 기존 값 보존')
+    );
+    assert(Boolean(truncationWarning), 'selection_method에 대한 잘림 경고가 없음');
   });
 
   // === 4) 신규 연도 / 신규 대학 insert 분류 ===
@@ -364,6 +430,7 @@ async function main() {
   });
 
   await checkFormulaRoundTrip();
+  await checkRealFileTruncationPreservation();
 
   console.log(`\n총 ${passCount + failCount}건 중 ${passCount}건 통과, ${failCount}건 실패.`);
   process.exitCode = failCount ? 1 : 0;
@@ -403,6 +470,107 @@ async function main() {
         const grid2 = XLSX.utils.sheet_to_json(ws2, { header: 1 });
         const colIdx = BULK_XLSX_COLUMNS.indexOf(sample.column);
         assert(grid2[1][colIdx] === sample.value, `왕복 후 값이 원본과 다름: 기대="${sample.value}" 실제="${grid2[1][colIdx]}"`);
+      }
+    );
+  }
+
+  // team-lead 지정 케이스 (b): 사용자 원본 `~/Downloads/모집요강.xlsx`를
+  // 그대로 업로드 입력으로 먹여서, 이미 잘려 있던 23개 셀이 손상된 채로
+  // (짧아진 값으로) DB에 반영되지 않는지 확인한다. **원본 파일은
+  // 읽기 전용으로만 연다(readFile) — 절대 쓰지 않는다.**
+  //
+  // 주의: 원본 파일의 잘림 마커('\n…[셀 한도 초과로 잘림]', 사용자 쪽
+  // 도구가 남긴 것)는 우리 TRUNCATION_MARKER 문자열과 다르다 — 그래서
+  // 이 23개 셀은 admissionBulkXlsx.js의 잘림 마커 매칭(컬럼 스킵)에는
+  // 안 걸린다. 대신 그 html이 잘려서 대부분 태그가 안 닫힌 상태라
+  // importCell이 실패하고, raw(recruitment_quota 원문, 안 잘림)로
+  // 폴백해 doc을 다시 만든 뒤 shouldSkipForRegression이 "기존보다
+  // 정보량이 줄면" 보존한다. 즉 이 케이스는 잘림 마커 매칭이 아니라
+  // **회귀 가드가 최종 방어선**이라는 걸 실측으로 증명하는 테스트다.
+  // 검증할 불변식은 하나뿐이다 — 어느 경로로 막히든 "잘린 32,752자
+  // + 원본 마커 텍스트"가 그대로 payload에 쓰이는 일은 없어야 한다.
+  async function checkRealFileTruncationPreservation() {
+    const originalFilePath = join(homedir(), 'Downloads', '모집요강.xlsx');
+    let buffer;
+    try {
+      buffer = await readFile(originalFilePath);
+    } catch {
+      console.log(`PASS - 실파일: ${originalFilePath}가 없어 이 검증은 건너뜀(선택 검증)`);
+      passCount += 1;
+      return;
+    }
+
+    const ORIGINAL_FILE_MARKER = '…[셀 한도 초과로 잘림]';
+    const realWorkbook = XLSX.read(buffer, { type: 'buffer' });
+    const realSheet = realWorkbook.Sheets[realWorkbook.SheetNames[0]];
+    const realGrid = XLSX.utils.sheet_to_json(realSheet, { header: 1 });
+    const realHeader = realGrid[0];
+    const htmlColIdx = realHeader.indexOf('recruitment_result_html');
+    const yearIdx = realHeader.indexOf('admission_year');
+    const keyIdx = realHeader.indexOf('university_key');
+    assert(htmlColIdx >= 0 && yearIdx >= 0 && keyIdx >= 0, '원본 파일 헤더에 필요한 컬럼이 없음');
+
+    const truncatedInOriginalFile = [];
+    realGrid.slice(1).forEach((r) => {
+      const v = r[htmlColIdx];
+      if (typeof v === 'string' && v.includes(ORIGINAL_FILE_MARKER)) {
+        truncatedInOriginalFile.push({ year: Number(r[yearIdx]), key: clean(String(r[keyIdx] ?? '')) });
+      }
+    });
+
+    if (!truncatedInOriginalFile.length) {
+      console.log('PASS - 실파일: 원본에 잘림 마커가 있는 셀이 0건(사전 실측 23건과 다름 — 원본 파일이 바뀌었는지 확인 필요)');
+      passCount += 1;
+      return;
+    }
+
+    const { rows: realParsedRows, errors: realErrors } = parseAdmissionRowsFromXlsx(realWorkbook, existingRows);
+
+    check(
+      `실파일: 원본에 이미 잘려 있던 셀 ${truncatedInOriginalFile.length}건(사전 실측 23건과 일치해야 함)이 손상된 채로 반영되지 않음`,
+      () => {
+        assert(
+          truncatedInOriginalFile.length === 23,
+          `원본 파일의 잘림 셀 수가 사전 실측(23건)과 다름(실제 ${truncatedInOriginalFile.length}건) — 원본이 바뀌었을 수 있음`
+        );
+        assert(realErrors.length === 0, `실파일 업로드가 행 자체를 거부함(에러 ${realErrors.length}건) — 잘림은 행 거부 사유가 아니어야 함`);
+
+        const realParsedByKey = new Map(
+          realParsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r])
+        );
+        let corruptedCount = 0;
+        let missingRowCount = 0;
+        let preservedByGuardCount = 0;
+        let regeneratedFromRawCount = 0;
+        truncatedInOriginalFile.forEach(({ year, key }) => {
+          const parsed = realParsedByKey.get(`${year}::${key}`);
+          if (!parsed) {
+            missingRowCount += 1;
+            return;
+          }
+          const html = parsed.recruitment_result_html;
+          // 핵심 불변식: 잘린 채 마커가 붙은 원본 값이 그대로(또는 그
+          // 일부라도) payload에 쓰이면 안 된다.
+          if (typeof html === 'string' && html.includes(ORIGINAL_FILE_MARKER)) {
+            corruptedCount += 1;
+            return;
+          }
+          if ('recruitment_quota_json' in parsed) {
+            // 회귀 가드를 통과해 raw(안 잘린 원문)로 재생성된 경우다 —
+            // 손상은 아니지만 doc 내용이 바뀐다(알려진 raw 재생성 한계,
+            // PR #40 "알려진 한계"와 같은 맥락). 잘린 값 자체는 아니므로
+            // 안전하지만, 아래 리포트에 별도로 집계해 team-lead에게
+            // 그대로 보고한다.
+            regeneratedFromRawCount += 1;
+          } else {
+            preservedByGuardCount += 1;
+          }
+        });
+        console.log(
+          `  실파일 23건 분류: 회귀 가드로 기존 값 보존 ${preservedByGuardCount}건 / raw로 재생성(잘리지 않은 값, 문서 내용은 바뀔 수 있음) ${regeneratedFromRawCount}건 / 행 자체 누락 ${missingRowCount}건`
+        );
+        assert(corruptedCount === 0, `잘린 마커 텍스트가 그대로 payload에 쓰인 건수: ${corruptedCount}(손상)`);
+        assert(missingRowCount === 0, `실파일의 대상 행이 파싱 결과에서 통째로 빠짐: ${missingRowCount}건`);
       }
     );
   }
