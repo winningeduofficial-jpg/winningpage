@@ -48,19 +48,18 @@ const TABLE = 'admission_university_resources';
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
 const MAX_DIFF_SAMPLES = 30;
 
-const { values: args } = parseArgs({
-  options: {
-    'admission-year': { type: 'string', default: '2027' },
-    'keys-file': { type: 'string' }
-  }
-});
-
-async function resolveCredentials() {
+// CLI 인자는 직접 실행(isMainModule) 분기 안에서만 파싱해 함수 인자로
+// 넘긴다 — runDriftVerification은 export된 함수라 다른 스크립트가
+// import해서 재사용할 수 있는데, 예전엔 파일 최상위에서 parseArgs를
+// 즉시 호출해서 그 호출자의 process.argv에 이 스크립트가 모르는 플래그가
+// 있으면 import 시점에 그대로 throw했다(2026-08-06 build-admission-html-
+// golden.mjs 사고와 동일 유형 — 내가 이 파일을 만들면서도 반복했다).
+async function resolveCredentials(keysFileOverride) {
   const envUrl = process.env.SEED_SUPABASE_URL;
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (envUrl && envKey) return { url: envUrl, serviceKey: envKey };
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
+  const keysFile = keysFileOverride || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
   const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
   const serviceEntry = raw.find((entry) => entry.name === 'service_role');
   if (!serviceEntry) throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
@@ -70,9 +69,8 @@ async function resolveCredentials() {
   };
 }
 
-export async function runDriftVerification({ verbose = true } = {}) {
-  const admissionYear = Number(args['admission-year']);
-  const { url, serviceKey } = await resolveCredentials();
+export async function runDriftVerification({ verbose = true, admissionYear = 2027, keysFile } = {}) {
+  const { url, serviceKey } = await resolveCredentials(keysFile);
   if (!url.includes(DEV_PROJECT_REF)) {
     throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
   }
@@ -151,7 +149,14 @@ export async function runDriftVerification({ verbose = true } = {}) {
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
-  runDriftVerification()
+  const args = parseArgs({
+    options: {
+      'admission-year': { type: 'string', default: '2027' },
+      'keys-file': { type: 'string' }
+    }
+  }).values;
+
+  runDriftVerification({ admissionYear: Number(args['admission-year']), keysFile: args['keys-file'] })
     .then(({ mismatches }) => {
       process.exitCode = mismatches.length ? 1 : 0;
     })

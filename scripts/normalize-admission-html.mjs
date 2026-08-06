@@ -46,6 +46,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
@@ -70,15 +71,11 @@ const CATEGORY_HTML_KEY = {
 const CATEGORY_KEYS = Object.keys(CATEGORY_HTML_KEY);
 const HTML_COLUMNS = Object.values(CATEGORY_HTML_KEY);
 
-const { values: args } = parseArgs({
-  options: {
-    apply: { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    category: { type: 'string' }, // 디버그용: 특정 카테고리(raw key)만 처리
-    'sample-count': { type: 'string', default: '5' },
-    'backup-file': { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다 — 이 모듈의 순수 정규화 함수들을
+// 재사용하려고 import만 하는 호출자가 여기 없는 플래그를 쓰면 import
+// 시점에 그대로 throw하던 결함(2026-08-06 build-admission-html-golden.mjs
+// 사고와 동일 유형)을 막는다.
+let args = {};
 
 // -----------------------------------------------------------------------
 // 자격증명
@@ -307,6 +304,16 @@ function assertIdempotent(original, once, htmlColumn, context) {
 // 메인
 // -----------------------------------------------------------------------
 async function main() {
+  args = parseArgs({
+    options: {
+      apply: { type: 'boolean', default: false },
+      'keys-file': { type: 'string' },
+      category: { type: 'string' }, // 디버그용: 특정 카테고리(raw key)만 처리
+      'sample-count': { type: 'string', default: '5' },
+      'backup-file': { type: 'string' }
+    }
+  }).values;
+
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
     throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
@@ -491,7 +498,7 @@ function diffSnippet(before, after, context = 30) {
   return { before: beforeSnippet, after: afterSnippet };
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('normalize-admission-html.mjs');
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

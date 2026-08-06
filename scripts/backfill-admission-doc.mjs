@@ -51,6 +51,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 import { buildRawSectionDoc, renderDocToHtml, HWP_SECTION_HTML_KEYS, clean } from '../src/lib/admissionParsing.js';
@@ -65,17 +66,12 @@ const CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 const HTML_COLUMNS_BY_KEY = HWP_SECTION_HTML_KEYS;
 const JSON_COLUMNS_BY_KEY = HWP_SECTION_JSON_KEYS;
 
-const { values: args } = parseArgs({
-  options: {
-    apply: { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    category: { type: 'string' },
-    university: { type: 'string' },
-    limit: { type: 'string' },
-    'backup-file': { type: 'string' },
-    restore: { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다 — 예전엔 파일 최상위에서 parseArgs를
+// 즉시 호출했는데, process.argv가 프로세스 전역이라 이 모듈의 순수 함수
+// (classifyCell 등)를 재사용하려고 import만 하는 호출자가 여기 없는 플래그를
+// 쓰면 import 시점에 그대로 throw했다(2026-08-06 build-admission-html-
+// golden.mjs 사고와 동일 유형 — 잔여 5개 파일을 한 번에 정리하며 고친다).
+let args = {};
 
 // -----------------------------------------------------------------------
 // 자격증명 — scripts/measure-admission-json-scope.mjs와 동일 컨벤션.
@@ -177,6 +173,18 @@ function assertGenerationIdempotent(rawText, sectionKey, row, universityName) {
 // 메인
 // -----------------------------------------------------------------------
 async function main() {
+  args = parseArgs({
+    options: {
+      apply: { type: 'boolean', default: false },
+      'keys-file': { type: 'string' },
+      category: { type: 'string' },
+      university: { type: 'string' },
+      limit: { type: 'string' },
+      'backup-file': { type: 'string' },
+      restore: { type: 'string' }
+    }
+  }).values;
+
   if (args.category && !CATEGORY_KEYS.includes(args.category)) {
     throw new Error(`알 수 없는 --category: ${args.category} (허용: ${CATEGORY_KEYS.join(', ')})`);
   }
@@ -424,7 +432,7 @@ async function runRestore(supabase, backupPath) {
   }
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('backfill-admission-doc.mjs');
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

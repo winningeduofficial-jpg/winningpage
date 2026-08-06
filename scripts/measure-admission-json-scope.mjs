@@ -40,6 +40,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
@@ -67,14 +68,11 @@ const CLASS_ATTR_RE = /class="([^"]*)"/g;
 const MASKED_TOKEN_CONTEXT = 40;
 const MASKED_TOKEN_SAMPLE_LIMIT = 10;
 
-const { values: args } = parseArgs({
-  options: {
-    'bundle-only': { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    'admission-year': { type: 'string', default: '2027' },
-    json: { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다 — 이 모듈의 순수 측정 함수들을
+// 재사용하려고 import만 하는 호출자가 여기 없는 플래그를 쓰면 import
+// 시점에 그대로 throw하던 결함(2026-08-06 build-admission-html-golden.mjs
+// 사고와 동일 유형)을 막는다.
+let args = {};
 
 // -----------------------------------------------------------------------
 // 자격증명 — 키가 없고 --bundle-only도 아니면 명확한 에러로 종료한다.
@@ -369,6 +367,15 @@ function printReport(source, results) {
 }
 
 async function main() {
+  args = parseArgs({
+    options: {
+      'bundle-only': { type: 'boolean', default: false },
+      'keys-file': { type: 'string' },
+      'admission-year': { type: 'string', default: '2027' },
+      json: { type: 'string' }
+    }
+  }).values;
+
   const admissionYear = Number(args['admission-year']);
   let source;
   let results;
@@ -391,7 +398,7 @@ async function main() {
   }
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('measure-admission-json-scope.mjs');
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);
