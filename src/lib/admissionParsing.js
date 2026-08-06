@@ -2791,6 +2791,434 @@ export function buildHwpCategoryHtml(sectionKey, rawText, row = null, university
   return buildRawSectionHtml(value, sectionKey, row, universityName);
 }
 
+// =====================================================================
+// 구조화 문서(AdmissionDoc) 생성기 — 기존 HTML 빌더의 무변경 병렬 미러.
+// 위 buildXxxHtml 함수는 한 글자도 고치지 않는다. 아래 함수들은 같은
+// parse*Rows / buildRecordInfoRows / buildGradeScoreBlocks 순수 함수를
+// 그대로 소비해 HTML 대신 구조화 blocks를 만든다 — 파싱 로직 이중 구현
+// 금지 원칙을 지킨다. 스키마는 src/lib/admissionDoc.js.
+//
+// 이 파일은 admissionDoc.js를 import하지 않는다(순환 의존 없음 — 반대
+// 방향 의존만 존재). 아래 함수가 만드는 객체는 AdmissionDoc 인터페이스를
+// 따르지만 타입 검증은 호출부(어드민/백필 스크립트)가
+// validateAdmissionDoc으로 별도 수행한다.
+// =====================================================================
+
+// TODO(Phase 3): 빌드 시점 git short sha 주입 배선(Vite define)이 아직
+// 없어 고정 태그를 쓴다. DB에 실제로 쓰기 시작하는 커밋에서 배선한다.
+const DOC_GENERATOR_TAG = 'admissionParsing@phase2-lib';
+
+function makeDoc(sectionKey, blocks, { source = 'parser', warnings, wrapModifier } = {}) {
+  const doc = {
+    v: 1,
+    section: sectionKey,
+    source,
+    generator: DOC_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
+  };
+  if (wrapModifier) doc.wrapModifier = wrapModifier;
+  if (warnings && warnings.length) doc.warnings = warnings;
+  return doc;
+}
+
+// previous_year_changes: buildPreviousYearChangesHtml 미러. 이 카테고리는
+// 원래도 plainList 폴백이 없다(parseChangeItems가 "없음" 특수 케이스까지
+// 항상 최소 1행을 반환하므로).
+function buildChangeDocBlocks(lines) {
+  const items = parseChangeItems(lines);
+  return [
+    {
+      kind: 'table',
+      variant: 'change',
+      columns: [
+        { role: 'no', label: '번호' },
+        { role: 'title', label: '변경 항목' },
+        { role: 'content', label: '변경 내용' }
+      ],
+      rows: items.map((item) => [item.no, item.title, item.content])
+    }
+  ];
+}
+
+// selection_method: buildSelectionMethodHtml 미러.
+function buildSelectionDocBlocks(lines, sectionKey, warnings) {
+  const validRows = parseSelectionMethodRows(lines);
+  if (!validRows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'selection',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'name', label: '전형명' },
+        { role: 'seats', label: '인원' },
+        { role: 'minimum', label: '최저' },
+        { role: 'method', label: '전형방법' }
+      ],
+      rows: validRows.map((r) => {
+        const minimum = normalizeSelectionMinimum(r.minimum);
+        return [
+          r.type || '-',
+          r.name || '-',
+          r.seats || '-',
+          { text: minimum, badge: minimum === '-' ? 'minimumNone' : 'minimumHas' },
+          r.method || '-'
+        ];
+      })
+    }
+  ];
+}
+
+// exam_schedule: buildExamScheduleHtml 미러. "없음" 특수 케이스는 rows로
+// 표현 불가한 별도 렌더(emptyBox)라 그대로 분기 유지.
+function buildExamDocBlocks(lines, sectionKey, warnings) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return [{ kind: 'emptyBox', message: '대학별고사일 없음' }];
+  }
+  const rows = parseExamScheduleRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'exam',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'target', label: '대상' },
+        { role: 'schedule', label: '일정' }
+      ],
+      rows
+    }
+  ];
+}
+
+// minimum_requirements: buildMinimumRequirementsHtml 미러.
+function buildMinimumDocBlocks(lines, sectionKey, warnings) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return [{ kind: 'emptyBox', message: '수능 최저학력기준 없음' }];
+  }
+  const rows = parseMinimumRequirementRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  if (rows.some((r) => r[2] && r[2] !== '-')) {
+    warnings.push({ code: 'subject-marks-flattened' });
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'minimum',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'target', label: '대상' },
+        { role: 'areas', label: '반영 영역' },
+        { role: 'minimum', label: '최저' },
+        { role: 'note', label: '비고' }
+      ],
+      rows
+    }
+  ];
+}
+
+// school_record_method: buildStudentRecordHtml 미러. 이 카테고리는 원래도
+// plainList 폴백이 없다 — infoRows/scoreBlocks가 전부 비어도 그대로
+// 빈 blocks를 반환한다(원본은 빈 wrap을 그대로 반환).
+function buildRecordDocBlocks(lines) {
+  const firstGradeIdx = lines.findIndex((line) =>
+    /^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(line))
+  );
+  const infoLines = firstGradeIdx >= 0 ? lines.slice(0, firstGradeIdx) : lines;
+  const tableLines = firstGradeIdx >= 0 ? lines.slice(firstGradeIdx) : [];
+
+  const blocks = [];
+  const infoRows = buildRecordInfoRows(infoLines);
+  if (infoRows.length) {
+    blocks.push({
+      kind: 'table',
+      variant: 'recordInfo',
+      columns: [
+        { role: 'type', label: '구분' },
+        { role: 'content', label: '내용' }
+      ],
+      rows: infoRows
+    });
+  }
+
+  buildGradeScoreBlocks(tableLines).forEach(({ metric, headers, rows }) => {
+    blocks.push({ kind: 'heading', text: `${metric} 환산표` });
+    blocks.push({
+      kind: 'table',
+      variant: 'score',
+      columns: [{ role: 'type', label: '구분' }, ...headers.map((h) => ({ role: 'data', label: h }))],
+      rows
+    });
+  });
+
+  return blocks;
+}
+
+// recruitment_quota: buildRecruitmentHtml 미러.
+function buildRecruitDocBlocks(lines, sectionKey, warnings) {
+  const { rows, groupLabels, footnotes } = parseRecruitmentRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+
+  if (groupLabels.length) warnings.push({ code: 'chunk-split-heuristic' });
+  let usedInferredLabel = false;
+
+  const dataRows = rows.map((row) => {
+    const seriesCells = groupLabels.map((_, idx) => {
+      const chunk = row.chunks[idx] || [];
+      if (!chunk.length) return { chips: [] };
+      const labels = recruitChunkLabelMap(chunk);
+      if (chunk.length !== 5) usedInferredLabel = true;
+      return {
+        chips: chunk.map((value, chunkIdx) => ({
+          label: labels[chunkIdx] || `값 ${chunkIdx + 1}`,
+          value
+        }))
+      };
+    });
+    return [row.group || '-', row.unit || '-', ...seriesCells];
+  });
+
+  if (usedInferredLabel) warnings.push({ code: 'label-inferred' });
+
+  const blocks = [
+    {
+      kind: 'table',
+      variant: 'recruit',
+      columns: [
+        { role: 'group', label: '계열/대학' },
+        { role: 'unit', label: '모집단위' },
+        ...groupLabels.map((label) => ({ role: 'series', label }))
+      ],
+      rows: dataRows
+    }
+  ];
+  const cleanedFootnotes = footnotes.filter(Boolean);
+  if (cleanedFootnotes.length) blocks.push({ kind: 'footnote', items: cleanedFootnotes });
+  return blocks;
+}
+
+// buildPlainListHtml 미러. exam/minimum/selection/recruit이 rows 0행일 때
+// 공유하는 폴백이자, buildSpecialCategoryDoc의 비특수대학 분기이기도 하다.
+function buildPlainListDocBlocks(lines) {
+  const items = [];
+  let bullets = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    bullets.forEach((line) => {
+      items.push({ type: 'bullet', text: line.replace(/^\d+\.\s*/, '') });
+    });
+    bullets = [];
+  };
+
+  lines.forEach((line) => {
+    if (/^\d+\.\s*/.test(line)) {
+      bullets.push(line);
+      return;
+    }
+    flushBullets();
+    if (/^(주요변경사항|※|\*)/.test(line)) {
+      items.push({ type: 'subtitle', text: line });
+    } else {
+      items.push({ type: 'text', text: line });
+    }
+  });
+  flushBullets();
+
+  return [{ kind: 'plainList', items }];
+}
+
+// 특수대학 표 헤더 라벨 → Column.role 추정. role은 렌더에 관여하지 않는
+// 문서화용 메타데이터라 매핑이 없으면 'data'로 떨어져도 무해하다.
+const SPECIAL_COLUMN_ROLE_MAP = {
+  구분: 'type',
+  전형명: 'name',
+  전형: 'type',
+  인원: 'seats',
+  모집인원: 'seats',
+  전형방법: 'method',
+  수능최저: 'minimum',
+  정시: 'note',
+  학년도: 'series',
+  내용: 'content',
+  과목: 'name',
+  출제범위: 'content',
+  '문항수/시간': 'content',
+  배점: 'seats',
+  '변경 사항': 'content',
+  육군사관학교: 'series',
+  해군사관학교: 'series',
+  공군사관학교: 'series',
+  국군간호사관학교: 'series'
+};
+function inferSpecialColumnRole(label) {
+  return SPECIAL_COLUMN_ROLE_MAP[label] || 'data';
+}
+
+function buildSpecialGroupBlock(title, headers, rows) {
+  return {
+    kind: 'group',
+    title,
+    children: [
+      {
+        kind: 'table',
+        variant: 'special',
+        columns: headers.map((label) => ({ role: inferSpecialColumnRole(label), label })),
+        rows
+      }
+    ]
+  };
+}
+
+// buildScienceSpecialHtml 미러.
+function buildScienceSpecialDoc(universityName) {
+  const data =
+    SCIENCE_SPECIAL_DATA[universityName] || SCIENCE_SPECIAL_DATA[removeCampus(universityName)] || null;
+  if (!data) return makeDoc('selection_method', [], { source: 'bundled-special' });
+
+  const blocks = [
+    {
+      kind: 'note',
+      text: `${data.displayName} 입학자료를 전형별로 다시 정리한 내용입니다. 모집인원, 면접일, 전형방법, 수능최저, 정시 선발 여부를 한 표에서 확인할 수 있습니다.`
+    },
+    buildSpecialGroupBlock(
+      '2027 수시·정시 전형 요약',
+      ['전형명', '인원', '면접일', '전형방법', '수능최저', '정시'],
+      data.summaryRows
+    )
+  ];
+  if (data.competitionRows?.length) {
+    blocks.push(
+      buildSpecialGroupBlock('수시 3개년 경쟁률', ['전형', '2026학년도', '2025학년도', '2024학년도'], data.competitionRows)
+    );
+  }
+  if (data.changeRows?.length) {
+    blocks.push(buildSpecialGroupBlock('전년도와의 차이점', ['구분', '변경 사항'], data.changeRows));
+  }
+  if (data.evaluationRows?.length) {
+    blocks.push(buildSpecialGroupBlock('서류·면접 평가 방법', ['구분', '내용'], data.evaluationRows));
+  }
+
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildPoliceSpecialHtml 미러.
+function buildPoliceSpecialDoc() {
+  const blocks = [
+    { kind: 'note', text: '경찰대학 입학자료를 일정, 선발 구조, 평가 요소, 최근 경쟁률로 나누어 정리한 내용입니다.' },
+    buildSpecialGroupBlock('전형 일정', ['구분', '내용'], POLICE_SPECIAL_DATA.scheduleRows),
+    buildSpecialGroupBlock('선발 구조', ['구분', '내용'], POLICE_SPECIAL_DATA.summaryRows),
+    buildSpecialGroupBlock('1차 시험', ['과목', '출제범위', '문항수/시간', '배점'], POLICE_SPECIAL_DATA.firstTestRows),
+    buildSpecialGroupBlock('학생부·수능 반영', ['구분', '내용'], POLICE_SPECIAL_DATA.studentRows),
+    buildSpecialGroupBlock('최근 3개년 경쟁률', ['학년도', '모집인원', '경쟁률'], POLICE_SPECIAL_DATA.competitionRows),
+    buildSpecialGroupBlock(
+      '최근 3개년 1차 시험 최초 합격자 평균',
+      ['학년도', '국어', '영어', '수학', '평균'],
+      POLICE_SPECIAL_DATA.firstPassRows
+    )
+  ];
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildAcademySpecialHtml 미러.
+function buildAcademySpecialDoc() {
+  const blocks = [
+    {
+      kind: 'note',
+      text: '사관학교와 국군간호사관학교 입학자료를 일정, 모집인원, 1차 시험, 가산점으로 나누어 정리한 내용입니다.'
+    },
+    buildSpecialGroupBlock(
+      '전형 일정 비교',
+      ['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'],
+      ACADEMY_SPECIAL_DATA.scheduleRows
+    ),
+    buildSpecialGroupBlock(
+      '모집인원 및 선발 구조',
+      ['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'],
+      ACADEMY_SPECIAL_DATA.quotaRows
+    ),
+    buildSpecialGroupBlock('1차 시험 및 가산점', ['구분', '내용'], ACADEMY_SPECIAL_DATA.firstTestRows),
+    buildSpecialGroupBlock('국방미래인재전형 참고', ['구분', '내용'], ACADEMY_SPECIAL_DATA.futureRows)
+  ];
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildSpecialCategoryHtml 미러.
+export function buildSpecialCategoryDoc(rawValue, row, universityName) {
+  const name = clean(universityName || row?.university_name || row?.university_key);
+  if (name === '경찰대학') return buildPoliceSpecialDoc();
+  if (['육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'].includes(name))
+    return buildAcademySpecialDoc();
+  if (SCIENCE_SPECIAL_DATA[name] || SCIENCE_SPECIAL_DATA[removeCampus(name)]) return buildScienceSpecialDoc(name);
+  return makeDoc('selection_method', buildPlainListDocBlocks(splitAdmissionLines(rawValue), 'selection_method'));
+}
+
+// buildSmartRawHtml 미러.
+export function buildSmartRawDoc(value, sectionKey, row = null, universityName = '') {
+  if (row?.detail_status === 'category' && sectionKey === 'selection_method') {
+    return buildSpecialCategoryDoc(value, row, universityName);
+  }
+
+  const lines = splitAdmissionLines(value).filter((line) => clean(line) !== '표 값');
+  if (!lines.length) return makeDoc(sectionKey, []);
+
+  const warnings = [];
+  let blocks;
+  if (sectionKey === 'previous_year_changes') blocks = buildChangeDocBlocks(lines);
+  else if (sectionKey === 'selection_method') blocks = buildSelectionDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'exam_schedule') blocks = buildExamDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'minimum_requirements') blocks = buildMinimumDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'school_record_method') blocks = buildRecordDocBlocks(lines);
+  else if (sectionKey === 'recruitment_quota') blocks = buildRecruitDocBlocks(lines, sectionKey, warnings);
+  else blocks = buildPlainListDocBlocks(lines, sectionKey);
+
+  return makeDoc(sectionKey, blocks, { warnings });
+}
+
+// buildRawSectionHtml의 3분기를 정확히 미러링한다: looksLikeHtml →
+// RawHtmlBlock{input-was-html} / recruitment_quota → PreTextBlock /
+// 그 외 → buildSmartRawDoc.
+export function buildRawSectionDoc(value, sectionKey, row = null, universityName = '') {
+  if (looksLikeHtml(value)) {
+    return makeDoc(sectionKey, [{ kind: 'rawHtml', html: String(value || ''), reason: 'input-was-html' }], {
+      source: 'html-import'
+    });
+  }
+  if (sectionKey === 'recruitment_quota') {
+    const text = splitAdmissionLines(value)
+      .map((line) => sanitizeAdmissionDisplayText(line))
+      .filter(Boolean)
+      .join('\n');
+    return makeDoc(sectionKey, text ? [{ kind: 'preText', text }] : []);
+  }
+  return buildSmartRawDoc(value, sectionKey, row, universityName);
+}
+
+// buildHwpCategoryHtml 미러. recruitment_quota에서 표 파서를 강제한다
+// (buildRecruitmentResultHtml과 동일) — 어드민이 html과 json을 서로 다른
+// 빌더로 만들면 병행 저장 계약이 이 카테고리에서만 깨진다.
+export function buildHwpCategoryDoc(sectionKey, rawText, row = null, universityName = '') {
+  const value = clean(rawText);
+  if (!value) return makeDoc(sectionKey, []);
+  if (sectionKey === 'recruitment_quota') {
+    return buildSmartRawDoc(value, 'recruitment_quota', row, universityName);
+  }
+  return buildRawSectionDoc(value, sectionKey, row, universityName);
+}
+
 export function normalizeName(value) {
   return clean(value)
     .replace(/\s+/g, '')
