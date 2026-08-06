@@ -85,7 +85,7 @@ import process from 'node:process';
 
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
 import { buildRawSectionHtml, buildHwpCategoryDoc, clean, normalizeName } from '../src/lib/admissionParsing.js';
-import { validateAdmissionDoc } from '../src/lib/admissionDoc.js';
+import { validateAdmissionDoc, shouldSkipForRegression } from '../src/lib/admissionDoc.js';
 // importCell은 2026-08-06 src/lib/admissionHtmlImport.js로 이동했다(위치만
 // 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에서 가져왔지만,
 // 이 스크립트가 그 파일을 import하면 Node 전용 코드까지 딸려 들어와서
@@ -139,45 +139,12 @@ async function resolveCredentials() {
   };
 }
 
-// doc 하나의 "정보량"을 근사한다 — validateAdmissionDoc은 스키마 형태만
-// 보고 풍부함은 안 보므로, 정보량 감소 가드는 별도로 이 근사치를 쓴다.
-// blockCount(구조 개수)와 textLength(모든 문자열 값의 총 길이 — 셀 텍스트뿐
-// 아니라 role/label 등도 섞여 들어가지만, "더 자세한 doc일수록 대체로 더
-// 크다"는 근사로는 충분하다)를 함께 본다.
-//
-// 순수 함수로 분리해 scripts/test-admission-doc-regression-guard.mjs가
-// DB/스크립트 실행 없이 직접 부를 수 있게 export한다(team-lead 지적:
-// "코드 리뷰만으로는 부족하다, 가드가 실행 경로를 한 번도 안 타봤다" —
-// 실데이터로는 트리거되지 않으므로 합성 테스트가 유일한 검증 수단이다).
-export function sumStringLength(value) {
-  if (typeof value === 'string') return value.length;
-  if (Array.isArray(value)) return value.reduce((acc, v) => acc + sumStringLength(v), 0);
-  if (value && typeof value === 'object') {
-    return Object.values(value).reduce((acc, v) => acc + sumStringLength(v), 0);
-  }
-  return 0;
-}
-export function docRichness(doc) {
-  if (!doc || !Array.isArray(doc.blocks)) return { blockCount: 0, textLength: 0 };
-  return { blockCount: doc.blocks.length, textLength: sumStringLength(doc.blocks) };
-}
-
-// existingDoc이 없으면 비교할 대상이 없으니 항상 통과(skip:false)한다.
-// candidateDoc이 blockCount 또는 textLength 어느 하나라도 existingDoc보다
-// 작으면 회귀로 본다(둘 다 같거나 늘면 통과 — 동일한 경우도 통과해야
-// 한다, "줄어들면"이지 "같지 않으면"이 아니다).
-export function shouldSkipForRegression(existingDoc, candidateDoc) {
-  if (!existingDoc) return { skip: false };
-  const before = docRichness(existingDoc);
-  const after = docRichness(candidateDoc);
-  if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
-    return {
-      skip: true,
-      detail: `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`
-    };
-  }
-  return { skip: false };
-}
+// 정보량 감소 가드(docRichness/sumStringLength/shouldSkipForRegression)는
+// 2026-08-06 src/lib/admissionDoc.js로 이동했다(위치만 이동, 동작 동일) —
+// 어드민 일괄 엑셀 업로드(admissionBulkXlsx.js)가 브라우저에서 같은
+// 가드를 재사용해야 하는데, 이 파일은 node:fs/promises·supabase client
+// 생성이 있어 브라우저 번들에 못 들어간다. scripts/test-admission-doc-
+// regression-guard.mjs의 import 경로도 함께 옮겼다.
 
 // 카테고리 하나(html+json)를 함께 계산한다.
 //
@@ -517,10 +484,11 @@ async function main() {
   );
 }
 
-// isMainModule 가드 — 이 모듈이 순수 함수(docRichness/shouldSkipForRegression)
-// export 대상으로 import될 수 있으므로(scripts/test-admission-doc-regression-
-// guard.mjs) main()이 import 시점에 곧바로 실행돼 실제 Supabase 호출을
-// 시도하는 사고를 막는다.
+// isMainModule 가드 — 이 파일은 현재 아무것도 export하지 않지만(순수
+// 함수는 전부 admissionDoc.js/admissionHtmlImport.js로 옮겨졌다), 다른
+// 스크립트가 나중에 여기서 뭔가를 재사용하려고 import할 가능성을 막는
+// 안전망으로 계속 둔다 — main()이 import 시점에 곧바로 실행돼 실제
+// Supabase 호출을 시도하는 사고를 이미 한 번 겪었다(2026-08-06).
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {

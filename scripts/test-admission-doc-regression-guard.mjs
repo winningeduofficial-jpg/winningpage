@@ -16,7 +16,9 @@
 // 종료 코드: 전부 통과하면 0, 하나라도 실패하면 1.
 // =====================================================================
 
-import { shouldSkipForRegression } from './load-admission-content.mjs';
+// 2026-08-06 src/lib/admissionDoc.js로 이동했다(위치만 이동, 동작 동일) —
+// 원래 load-admission-content.mjs에 있었다.
+import { shouldSkipForRegression } from '../src/lib/admissionDoc.js';
 
 function makeDoc(blockTexts) {
   return {

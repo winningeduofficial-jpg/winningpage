@@ -247,6 +247,48 @@ export function validateAdmissionDoc(doc) {
   return { ok: errors.length === 0, errors };
 }
 
+// doc 하나의 "정보량"을 근사한다 — validateAdmissionDoc은 스키마 형태만
+// 보고 풍부함은 안 보므로, 정보량 감소 가드는 별도로 이 근사치를 쓴다.
+// blockCount(구조 개수)와 textLength(모든 문자열 값의 총 길이 — 셀 텍스트뿐
+// 아니라 role/label 등도 섞여 들어가지만, "더 자세한 doc일수록 대체로 더
+// 크다"는 근사로는 충분하다)를 함께 본다.
+//
+// 2026-08-06: scripts/load-admission-content.mjs에서 이 파일로 이동했다
+// (위치만 이동, 동작 동일) — 어드민 일괄 엑셀 업로드(admissionBulkXlsx.js)
+// 가 브라우저에서 같은 회귀 가드를 재사용해야 하는데, 원래 위치는
+// node:fs/promises·supabase client 생성이 있어 브라우저 번들에 못
+// 들어갔다. 순수 함수라 admissionDoc.js(스키마/검증 모듈)에 자연스럽게
+// 속한다.
+export function sumStringLength(value) {
+  if (typeof value === 'string') return value.length;
+  if (Array.isArray(value)) return value.reduce((acc, v) => acc + sumStringLength(v), 0);
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce((acc, v) => acc + sumStringLength(v), 0);
+  }
+  return 0;
+}
+export function docRichness(doc) {
+  if (!doc || !Array.isArray(doc.blocks)) return { blockCount: 0, textLength: 0 };
+  return { blockCount: doc.blocks.length, textLength: sumStringLength(doc.blocks) };
+}
+
+// existingDoc이 없으면 비교할 대상이 없으니 항상 통과(skip:false)한다.
+// candidateDoc이 blockCount 또는 textLength 어느 하나라도 existingDoc보다
+// 작으면 회귀로 본다(둘 다 같거나 늘면 통과 — 동일한 경우도 통과해야
+// 한다, "줄어들면"이지 "같지 않으면"이 아니다).
+export function shouldSkipForRegression(existingDoc, candidateDoc) {
+  if (!existingDoc) return { skip: false };
+  const before = docRichness(existingDoc);
+  const after = docRichness(candidateDoc);
+  if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
+    return {
+      skip: true,
+      detail: `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`
+    };
+  }
+  return { skip: false };
+}
+
 /**
  * @param {unknown} value
  * @returns {unknown}
