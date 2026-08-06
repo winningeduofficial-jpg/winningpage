@@ -219,6 +219,20 @@ export function exportAdmissionRowsToXlsx(rows) {
   return { workbook, truncatedCells };
 }
 
+// warnings/errors 배열을 type별 건수로 접는다. UI가 목록을 접어도
+// 종류별 건수는 항상 보여야 한다는 요구사항 때문에 summary에 넣는다
+// — 개별 카운터 변수를 늘려가며 수동으로 세면 새 type을 추가할 때마다
+// 카운터를 빼먹기 쉽다(이미 한 번 그런 패턴이었다: truncatedCellSkipCount/
+// htmlParseFailedCount를 각각 손으로 증가시켰다). 배열 자체가 진실의
+// 원천이므로 여기서 한 번만 접는다.
+function buildTypeCounts(items) {
+  return items.reduce((acc, item) => {
+    const key = item.type || 'unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
 function parseBooleanCell(value, fallback = true) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value !== 0;
@@ -315,14 +329,27 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  *   school_record_method/recruitment_quota, html 파싱 실패 시 "raw가
  *   안 바뀌었나" 비교용)을 담아야 한다. 호출부가 DB에서 미리 조회해
  *   넘긴다 — 이 lib은 DB를 안 만진다.
+ * warnings/errors는 둘 다 `type`으로 종류를 구분한다(열거형 — UI는
+ * `reason` 문자열을 파싱하지 말고 `type`으로 분기·집계해야 한다.
+ * `reason`은 사람이 읽는 설명 전용이다). `summary.warningCounts`/
+ * `errorCounts`는 각 배열을 `type`별로 센 것 — 목록을 접어도 건수는
+ * 항상 보여야 하는 UI 요구사항 때문에 추가했다.
+ *
  * @returns {{
  *   rows: Array<Record<string, unknown>>,
- *   errors: Array<{ row: number, admissionYear: unknown, universityKey: unknown, reason: string }>,
+ *   errors: Array<{
+ *     row: number, admissionYear: unknown, universityKey: unknown, reason: string,
+ *     type: 'sheetNotFound' | 'truncatedMetadata' | 'missingRequiredFields' | 'missingUniversityName'
+ *   }>,
  *   warnings: Array<{
  *     row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string,
  *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'htmlParseFailedPreserved' | 'htmlParseFailedRegenerated'
  *   }>,
- *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number, truncatedCellSkipCount: number, htmlParseFailedCount: number }
+ *   summary: {
+ *     willInsert: number, willUpdate: number, willSkip: number, newYears: number[],
+ *     newUniversityCount: number, truncatedCellSkipCount: number, htmlParseFailedCount: number,
+ *     warningCounts: Record<string, number>, errorCounts: Record<string, number>
+ *   }
  * }}
  */
 export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
@@ -348,12 +375,22 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   const newYearsSet = new Set();
 
   if (!worksheet) {
-    errors.push({ row: -1, admissionYear: null, universityKey: null, reason: '시트를 찾을 수 없습니다.' });
+    errors.push({ row: -1, admissionYear: null, universityKey: null, type: 'sheetNotFound', reason: '시트를 찾을 수 없습니다.' });
     return {
       rows,
       errors,
       warnings,
-      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount, truncatedCellSkipCount, htmlParseFailedCount }
+      summary: {
+        willInsert,
+        willUpdate,
+        willSkip,
+        newYears: [],
+        newUniversityCount,
+        truncatedCellSkipCount,
+        htmlParseFailedCount,
+        warningCounts: buildTypeCounts(warnings),
+        errorCounts: buildTypeCounts(errors)
+      }
     };
   }
 
@@ -395,6 +432,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
+        type: 'truncatedMetadata',
         reason: `잘림 마커가 있는 메타데이터 컬럼(${truncatedMetadataColumns.join(', ')})이 있어 행을 거부합니다(잘린 채로 반영하면 데이터가 손상됩니다).`
       });
       willSkip += 1;
@@ -406,13 +444,14 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
+        type: 'missingRequiredFields',
         reason: 'admission_year 또는 university_key가 비어 있습니다.'
       });
       willSkip += 1;
       return;
     }
     if (!universityName) {
-      errors.push({ row: rowIndex, admissionYear, universityKey, reason: 'university_name이 비어 있습니다.' });
+      errors.push({ row: rowIndex, admissionYear, universityKey, type: 'missingUniversityName', reason: 'university_name이 비어 있습니다.' });
       willSkip += 1;
       return;
     }
@@ -557,7 +596,9 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       newYears: [...newYearsSet].sort((a, b) => a - b),
       newUniversityCount,
       truncatedCellSkipCount,
-      htmlParseFailedCount
+      htmlParseFailedCount,
+      warningCounts: buildTypeCounts(warnings),
+      errorCounts: buildTypeCounts(errors)
     }
   };
 }

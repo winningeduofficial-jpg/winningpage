@@ -162,6 +162,21 @@ async function main() {
     assert(allRecruitmentQuota, '잘림이 recruitment_quota 이외 카테고리에서도 발생함(실측과 다름)');
   });
 
+  check('왕복: warnings 전부 type 필드를 가지고, summary.warningCounts가 실제 배열과 일치', () => {
+    const untyped = parseWarnings.filter((w) => !w.type);
+    assert(untyped.length === 0, `type이 없는 warning이 있음(${untyped.length}건)`);
+    assert(summary.warningCounts, 'summary.warningCounts가 없음');
+    const totalFromCounts = Object.values(summary.warningCounts).reduce((a, b) => a + b, 0);
+    assert(totalFromCounts === parseWarnings.length, `warningCounts 합(${totalFromCounts}) !== warnings.length(${parseWarnings.length})`);
+    assert(
+      summary.warningCounts.truncated === expectedTruncationSkipKeys.size,
+      `warningCounts.truncated(${summary.warningCounts.truncated}) !== 기대치(${expectedTruncationSkipKeys.size})`
+    );
+    assert(summary.errorCounts, 'summary.errorCounts가 없음');
+    const totalErrorsFromCounts = Object.values(summary.errorCounts).reduce((a, b) => a + b, 0);
+    assert(totalErrorsFromCounts === parseErrors.length, `errorCounts 합(${totalErrorsFromCounts}) !== errors.length(${parseErrors.length})`);
+  });
+
   check('왕복: 잘린 셀이 있던 행도 update로 분류되고 payload에 포함됨(카테고리만 빠짐)', () => {
     assert(summary.willInsert === 0, `willInsert가 0이 아님: ${summary.willInsert}`);
     assert(summary.willUpdate === dbRows.length, `willUpdate(${summary.willUpdate}) !== 기대치(${dbRows.length})`);
@@ -364,7 +379,9 @@ async function main() {
     const { rows, errors, summary: s } = parseAdmissionRowsFromXlsx(wb, new Map());
     assert(rows.length === 0, `payload가 비어 있어야 함(실제 ${rows.length}건)`);
     assert(errors.length === 1, `에러가 1건이어야 함(실제 ${errors.length})`);
+    assert(errors[0].type === 'missingRequiredFields', `에러 type이 missingRequiredFields여야 함(실제 ${errors[0].type})`);
     assert(s.willSkip === 1, `willSkip=1이어야 함(실제 ${s.willSkip})`);
+    assert(s.errorCounts.missingRequiredFields === 1, `errorCounts.missingRequiredFields가 1이어야 함(실제 ${s.errorCounts.missingRequiredFields})`);
   });
 
   // === 6) 회귀 가드 ===
