@@ -8,11 +8,12 @@
 // 함수 모듈(leaf)이라 React.lazy 경계를 넘는 정적 import여도 번들 분리에
 // 영향이 없다.
 //
-// sql/43(*_json 6종 jsonb 컬럼)이 dev DB에 적용되고 백필까지 끝난 뒤
-// 별도 커밋에서 true로 뒤집는다. false인 동안은 select에서 json 컬럼을
-// 아예 빼고 doc 분기도 타지 않는다 — 컬럼이 없는 상태에서 select에
-// 넣으면 PostgREST가 에러를 낸다.
-export const ADMISSION_JSON_ENABLED = false;
+// sql/43 적용 + 백필 완료(2026-08-06, dev) 후 활성화. 백필 실측:
+// *_json not-null 1253/1253, blocks 길이 0인 행 0건, rawHtml 블록 보유
+// 셀 0건(전 카테고리 실제 구조화), has_*_json 뷰 플래그가 not-null
+// 카운트와 정확히 일치, UPDATE 실패 0건. `?jsonrender=0`으로 런타임 중
+// legacy html/text 경로로 즉시 복귀 가능(배포 없이).
+export const ADMISSION_JSON_ENABLED = true;
 
 // ?jsonrender=0 킬스위치 — 배포 없이 즉시 doc 렌더를 끄고 legacy html/text
 // 경로로 되돌리기 위함. ADMISSION_JSON_ENABLED와 함께 이 함수 하나로만
