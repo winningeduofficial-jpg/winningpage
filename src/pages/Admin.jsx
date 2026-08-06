@@ -23,9 +23,10 @@ import {
   HWP_SECTION_HTML_KEYS,
   splitHwpTextIntoSections,
   buildHwpCategoryHtml,
+  buildHwpCategoryDoc,
   clean as cleanAdmissionText
 } from '../lib/admissionParsing';
-import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc } from '../lib/admissionDoc';
+import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
@@ -3771,20 +3772,28 @@ function MentorCardFormPreview({ form, onPatch }) {
 }
 
 // admissionGuidelines 저장 직전 가드: 이미 존재하던 행을 수정하면서(신규 등록은 대상 아님)
-// 공개 페이지가 실제로 렌더하는 *_html 필드 중 하나라도 원래 값과 달라지면, 어떤 카테고리가
-// 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+// 공개 페이지가 실제로 렌더하는 *_html/*_json 필드 중 하나라도 원래 값과 달라지면, 어떤
+// 카테고리가 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+//
+// doc(jsonb) 변경은 문자열 비교로 못 잡는다 — form[jsonKey]/row[jsonKey]는 객체라 단순
+// 비교식으로 두면 서로 다른 객체끼리도 항상 '[object Object]' === '[object Object]'로
+// "같음" 판정된다(실질적으로 이 가드가 무력화된다). stableStringifyDoc로 deep 비교해야
+// 실제 doc 변경을 잡는다(generatedAt은 stableStringifyDoc이 비교에서 알아서 뺀다).
 function admissionGuidelinesValidate(form, row) {
   if (!row) return null;
 
   const changedLabels = HWP_SECTION_ORDER.filter((key) => {
     const htmlKey = HWP_SECTION_HTML_KEYS[key];
-    return cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+    const jsonKey = HWP_SECTION_JSON_KEYS[key];
+    const htmlChanged = cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+    const docChanged = stableStringifyDoc(form[jsonKey] ?? null) !== stableStringifyDoc(row[jsonKey] ?? null);
+    return htmlChanged || docChanged;
   }).map((key) => HWP_SECTION_LABELS[key]);
 
   if (changedLabels.length === 0) return null;
 
   const proceed = window.confirm(
-    `다음 항목의 공개 페이지 HTML이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
+    `다음 항목의 공개 페이지 내용이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
   );
 
   return proceed ? null : '저장이 취소되었습니다.';
@@ -3806,42 +3815,71 @@ function AdmissionParsingPreview({ form, onPatch }) {
     setOverwriteConsent((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // 카테고리 원문 → HTML 파싱 결과를 patch로 만든다. 저장된 큐레이션 HTML을 파괴하지
-  // 않기 위해 두 가지를 지킨다:
-  // (a) 파싱 결과가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존 HTML을
-  //     지우지 않는다(빈 문자열로 덮어써서 공개 페이지에서 항목이 사라지는 것을 방지).
-  // (b) 이미 HTML 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠 경우에만
-  //     patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해 호출부가 안내한다.
+  // 카테고리 원문 → HTML+문서(doc) 파싱 결과를 patch로 만든다. 저장된 큐레이션 값을
+  // 파괴하지 않기 위해 세 가지를 지킨다:
+  // (a) 파싱 결과(html)가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존
+  //     값을 지우지 않는다(빈 문자열/빈 doc으로 덮어써서 공개 페이지에서 항목이
+  //     사라지는 것을 방지).
+  // (b) 이미 html 또는 doc 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠
+  //     경우에만 patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해
+  //     호출부가 안내한다.
+  // (c) html과 doc은 반드시 같은 원문(sourceForm[key])에서 buildHwpCategoryHtml/
+  //     buildHwpCategoryDoc로 동시에 만든다 — 서로 다른 시점/다른 소스에서 만들면
+  //     공개 페이지(doc 기준)와 어드민 미리보기(예전엔 html만 봄)가 어긋난다. 이게
+  //     바로 이번에 고치는 결함이다: 이전에는 patch[htmlKey]만 채우고 patch[jsonKey]가
+  //     아예 없어서, 스위치(ADMISSION_JSON_ENABLED)가 켜진 뒤로는 관리자가 원문을
+  //     고쳐 파싱을 실행해도 공개 페이지(doc을 읽음)에 반영되지 않았다.
+  //     doc이 validateAdmissionDoc을 통과하지 못하면 jsonKey는 쓰지 않는다(기존 값
+  //     보존) — 대신 docFailures로 반환해 호출부가 관리자에게 실패 사유를 보여준다.
+  //     html은 그 경우에도 계속 갱신한다(원래도 무손실 폴백 경로라, doc이 실패해도
+  //     html까지 막을 이유는 없다 — 적어도 html은 최신으로 유지된다).
   function buildPreviewPatch(sourceForm) {
     const patch = {};
     const skipped = [];
+    const docFailures = [];
 
     HWP_SECTION_ORDER.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      const generated = buildHwpCategoryHtml(
-        key,
-        sourceForm[key],
-        sourceForm,
-        sourceForm.university_name
-      );
-      if (!generated) return;
+      const jsonKey = HWP_SECTION_JSON_KEYS[key];
+      const rawText = sourceForm[key];
 
-      const hasExisting = Boolean(cleanAdmissionText(sourceForm[htmlKey]));
+      const generatedHtml = buildHwpCategoryHtml(key, rawText, sourceForm, sourceForm.university_name);
+      if (!generatedHtml) return;
+
+      const existingDoc = sourceForm[jsonKey];
+      const hasExisting = (existingDoc && !isEmptyDoc(existingDoc)) || Boolean(cleanAdmissionText(sourceForm[htmlKey]));
       if (hasExisting && !overwriteConsent[key]) {
         skipped.push(HWP_SECTION_LABELS[key]);
         return;
       }
 
-      patch[htmlKey] = generated;
+      patch[htmlKey] = generatedHtml;
+
+      const generatedDoc = buildHwpCategoryDoc(key, rawText, sourceForm, sourceForm.university_name);
+      const docValidation = validateAdmissionDoc(generatedDoc);
+      if (!docValidation.ok) {
+        docFailures.push({ label: HWP_SECTION_LABELS[key], errors: docValidation.errors });
+        return;
+      }
+
+      patch[jsonKey] = generatedDoc;
     });
 
-    return { patch, skipped };
+    return { patch, skipped, docFailures };
   }
 
   function warnSkipped(skipped) {
     if (!skipped.length) return;
     alert(
-      `다음 카테고리는 이미 HTML이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+      `다음 카테고리는 이미 내용이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+    );
+  }
+
+  function warnDocFailures(docFailures) {
+    if (!docFailures.length) return;
+    const detail = docFailures.map((f) => `- ${f.label}: ${f.errors.join(' / ')}`).join('\n');
+    alert(
+      `다음 카테고리는 구조화 문서 생성에 실패해 기존 값을 보존했습니다(HTML만 갱신됨):\n${detail}\n\n공개 페이지에 반영하려면 원문을 다시 확인하거나 개발팀에 문의하세요.`
     );
   }
 
@@ -3869,16 +3907,18 @@ function AdmissionParsingPreview({ form, onPatch }) {
     const mergedRaw = { ...form, ...rawPatch };
 
     setSplitStatus('auto');
-    const { patch, skipped } = buildPreviewPatch(mergedRaw);
+    const { patch, skipped, docFailures } = buildPreviewPatch(mergedRaw);
     onPatch({ ...rawPatch, ...patch });
     warnSkipped(skipped);
+    warnDocFailures(docFailures);
   }
 
   function refreshPreview() {
     setSplitStatus((prev) => prev || 'manual');
-    const { patch, skipped } = buildPreviewPatch(form);
+    const { patch, skipped, docFailures } = buildPreviewPatch(form);
     onPatch(patch);
     warnSkipped(skipped);
+    warnDocFailures(docFailures);
   }
 
   return (
