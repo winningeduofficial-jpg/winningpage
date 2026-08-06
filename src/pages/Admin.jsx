@@ -31,6 +31,7 @@ import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringif
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
+import AdmissionSurface from '../components/admission/AdmissionSurface';
 import DocBlocksEditor from '../components/admission/editor/DocBlocksEditor';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
@@ -4181,7 +4182,11 @@ function AdmissionParsingPreview({ form, onPatch }) {
         </p>
       )}
 
-      <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
+      {/* admission-modal-body는 여기 쓰지 않는다 — AdmissionGuidelines.jsx의 모달 스코프
+          규칙에 기대는 죽은 참조였다(이 페이지엔 그 CSS가 로드되지 않는다, 2026-08-06
+          전수조사로 확인). data-section은 카테고리별로 다르므로 아래 map 안 개별 항목에
+          붙인다(minimum_requirements/exam_schedule 폭 규칙이 카테고리 단위이기 때문). */}
+      <div className="mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
         {HWP_SECTION_ORDER.map((key) => {
           const html = form[HWP_SECTION_HTML_KEYS[key]];
           const doc = isDocRenderEnabled() ? form[HWP_SECTION_JSON_KEYS[key]] : null;
@@ -4191,7 +4196,7 @@ function AdmissionParsingPreview({ form, onPatch }) {
           // 체크박스 노출 조건은 html뿐 아니라 doc 존재 여부도 함께 본다.
           const hasExisting = docOk || Boolean(cleanAdmissionText(html));
           return (
-            <div key={key}>
+            <div key={key} className="admission-surface" data-section={key}>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
                 {hasExisting && (
@@ -4224,7 +4229,12 @@ function AdmissionParsingPreview({ form, onPatch }) {
         })}
       </div>
 
-      {/* 아래 클래스들은 AdmissionGuidelines.jsx 모달 스타일과 동일하게 유지한다(공개 페이지와 동일한 표 시각). */}
+      {/* 표/블록 표면 스타일은 이제 AdmissionSurface.jsx가 소유한다(2단계, 2026-08-06
+          사용자 지시 "컴포넌트화") — 여기 있던 자체 사본(그리드 테두리·13px·#013262 헤더 등,
+          공개 모달의 수십 차례 Figma 재조정을 못 따라가 드리프트됐었다)은 삭제했다.
+          이 페이지에 남기는 건 이 표 시스템과 무관한 것들뿐이다: .admission-parsing-preview
+          스크롤바 숨김(HWP 원문 파싱 미리보기 패널 전용, AdmissionSurface 범위 밖)과
+          범용 유틸리티 .muted. */}
       <style>{`
         .admission-parsing-preview .admission-scroll-table,
         .admission-parsing-preview .admission-table-wrap,
@@ -4232,106 +4242,6 @@ function AdmissionParsingPreview({ form, onPatch }) {
         .admission-parsing-preview .admission-scroll-table::-webkit-scrollbar,
         .admission-parsing-preview .admission-table-wrap::-webkit-scrollbar,
         .admission-parsing-preview .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
-        .admission-table-wrap,
-        .admission-existing-html,
-        .admission-raw-section-wrap { width: 100%; max-width: 100%; }
-        .admission-table-wrap { overflow-x: auto; }
-        .admission-existing-html { overflow-x: auto; }
-        .admission-existing-html table,
-        .admission-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-existing-html th,
-        .admission-table-wrap th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
-        .admission-existing-html td,
-        .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
-        .admission-existing-html td.left,
-        .admission-table-wrap td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
-        .admission-clean-block { width: 100%; }
-        .admission-clean-line { margin: 0 0 10px; color: #525252; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
-        .admission-clean-note { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-subhead { margin: 18px 0 8px; color: #013262; font-size: 14px; font-weight: 900; }
-        .admission-mini-table, .admission-result-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-mini-table th, .admission-result-table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
-        .admission-mini-table td, .admission-result-table td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
-        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
-        .admission-result-note { margin-bottom: 14px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 12px 14px; color: #667085; font-size: 12.5px; line-height: 1.7; font-weight: 800; word-break: keep-all; }
-        .admission-readable-body { display: grid; gap: 8px; }
-        .admission-subhead-card { margin-top: 8px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
-        .admission-normal-line,
-        .admission-long-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 13px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 750; word-break: keep-all; }
-        .admission-numbered-line { background: #f9fafb; }
-        .admission-long-line { white-space: normal; }
-        .admission-token-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 10px 12px; }
-        .admission-token-label { color: #013262; font-size: 13px; line-height: 1.5; font-weight: 950; white-space: nowrap; }
-        .admission-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
-        .admission-token-list span { min-width: 34px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 5px 8px; color: #525252; font-size: 13px; line-height: 1.35; font-weight: 900; text-align: center; white-space: nowrap; }
-        .admission-wide-sheet { min-width: 760px; width: max-content; display: grid; gap: 4px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 10px; }
-        .admission-wide-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 10px; padding: 9px 10px; color: #525252; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
-        .admission-raw-pre { min-width: 760px; margin: 0; border: 1px solid #d7d7d7; border-radius: 16px; background: #ffffff; padding: 16px; color: #525252; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-        .admission-safe-text-block { border-radius: 0; border-top: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; border-left: 0; border-right: 0; }
-
-        .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #d7d7d7; background: #fff; }
-        .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
-        .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
-        .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
-        /* 2026-08-06 제거: .admission-table-compact td:first-child — htmlTable()이
-           className을 함께 받으면(score/recordInfo 실호출부가 항상 그렇다) compact
-           옵션을 통째로 덮어써 이 클래스가 실제로는 어디에도 안 붙는다(admissionLayout.js
-           도 동일 실측으로 이 클래스를 붙이지 않음). 죽은 규칙. */
-        .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
-        .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
-        .admission-bullet-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
-        .admission-bullet-list li { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-subtitle-line { margin-bottom: 10px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-weight: 950; }
-        .admission-text-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-        .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-
-        .admission-recruit-table { min-width: 760px; }
-        .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
-        .admission-recruit-table .unit-cell { min-width: 160px; max-width: 260px; }
-        .admission-recruit-table .recruit-values-cell { min-width: 140px; text-align: left; white-space: normal; vertical-align: top; }
-        .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
-        .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 9px; padding: 5px 7px; color: #525252; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
-        .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
-
-        .admission-selection-table { min-width: 720px; }
-        .admission-selection-table th:nth-child(4),
-        .admission-selection-table td:nth-child(4) { min-width: 280px; text-align: left; white-space: normal; word-break: keep-all; line-height: 1.62; }
-        .admission-selection-table .selection-type-cell { background: #f9fafb; color: #013262; font-weight: 950; }
-        .admission-selection-table .selection-name-cell { font-weight: 900; }
-        .admission-selection-table .selection-seat-cell { color: #013262; font-weight: 950; }
-        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 140px; border: 1px solid #d7d7d7; border-radius: 999px; padding: 3px 7px; background: #f9fafb; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
-        .admission-minimum-badge.has { border-color: #bcdcff; background: #e9f4ff; color: #0b84fd; }
-        .admission-minimum-badge.none { color: #667085; }
-
-        .admission-change-scroll-table { overflow-x: auto; }
-        .admission-change-table .change-no-cell { font-weight: 950; color: #0b84fd; }
-        .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #013262; word-break: keep-all; }
-        .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
-        .admission-change-lines { display: flex; flex-direction: column; gap: 6px; }
-        .admission-change-line { border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 8px 10px; color: #525252; font-weight: 850; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
-        .admission-change-pair-list { display: flex; flex-direction: column; gap: 8px; }
-        .admission-change-arrow-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 10px; align-items: stretch; }
-        .admission-change-arrow-before, .admission-change-arrow-after { min-width: 0; border: 1px solid #d7d7d7; border-radius: 12px; padding: 10px; background: #f9fafb; }
-        .admission-change-arrow-after { background: #e9f4ff; border-color: #bcdcff; }
-        .admission-change-arrow-icon { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; font-size: 18px; }
-        .admission-change-simple { color: #525252; font-weight: 850; line-height: 1.65; white-space: normal; word-break: keep-all; }
-
-        .admission-record-info-table td:first-child { min-width: 120px; color: #013262; background: #f9fafb; font-weight: 950; }
-        .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-
-        .admission-special-wrap { display: grid; gap: 16px; }
-        .admission-special-block { display: grid; gap: 8px; }
-        .admission-special-title { border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
-        .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
-        .admission-special-table td:first-child { min-width: 120px; background: #f9fafb; color: #013262; font-weight: 950; }
-
-        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
-        .admission-modal-body .admission-result-note,
-        .admission-modal-body .admission-header-summary,
-        .admission-modal-body .admission-recruit-legend { display: none !important; }
         .muted { color: #667085; }
       `}</style>
     </section>
@@ -4581,6 +4491,15 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         </p>
       )}
 
+      {/* 2단계(2026-08-06): 표 표면 스타일을 공개 모달과 공유 — field.group이
+          있는 config(현재 admissionGuidelines뿐)에서만 렌더한다. showSectionTitle/
+          showChangeNoColumn 둘 다 어드민 전용 값 — 절 제목 노출, 전년도와 차이점
+          번호 컬럼 노출(구 죽은 Admin.jsx 스타일을 AdmissionSurface.jsx가 되살림).
+          공개 모달은 자기 자신의 <AdmissionSurface />(기본값 false/false)를 따로
+          렌더하므로(별개 라우트, 동시 마운트 안 됨) 여기서 true로 켜도 공개로 새지
+          않는다. */}
+      {(config.fields || []).some((field) => field.group) && <AdmissionSurface showSectionTitle showChangeNoColumn />}
+
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="min-w-0 flex-1 bg-white shadow">
           {buildFieldRenderItems(
@@ -4612,7 +4531,19 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
             // 맞춰 이 순서가 그대로 나온다.
             if (field.group) {
               return (
-                <div key={field.key} className="border-b border-[#edf0f4] px-5 py-4">
+                <div
+                  key={field.key}
+                  // admission-surface: 표 표면 스타일을 공개 모달과 공유(2단계,
+                  // AdmissionSurface.jsx 참고) — 이 행이 admissionDoc 필드일 때만
+                  // data-section을 실어 minimum_requirements/exam_schedule 폭
+                  // 규칙이 걸리게 한다(다른 필드 타입엔 표가 없어 무해).
+                  className={
+                    field.type === 'admissionDoc'
+                      ? 'admission-surface border-b border-[#edf0f4] px-5 py-4'
+                      : 'border-b border-[#edf0f4] px-5 py-4'
+                  }
+                  data-section={field.type === 'admissionDoc' ? field.group : undefined}
+                >
                   {field.type === 'admissionDoc' && (
                     <AdmissionDocFieldEditor field={field} form={form} onPatch={patch} onDirty={() => setDirty(true)} />
                   )}
