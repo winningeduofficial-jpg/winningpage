@@ -1,9 +1,20 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronDown, Check } from 'lucide-react';
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
-import { formatKRW } from '../../data/pricingCatalog';
-import { useProducts } from '../../lib/products';
+import { useInView } from '../../hooks/useInView';
+
+// 서비스 랜딩 4종 공통 컴포넌트 — 정본은 InDepthResearch.jsx(심화탐구)다.
+// 섹션 껍데기·카드 마크업·타이포는 전부 아래 컴포넌트가 소유하고, 이 파일에는
+// 데이터 배열과 이 페이지 고유 섹션(Hero / PhoneReport)만 남긴다.
+import ServiceSection from '../../components/services/ServiceSection';
+import ServiceProcessCards from '../../components/services/ServiceProcessCards';
+import ServiceTabsPanel from '../../components/services/ServiceTabsPanel';
+import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
+import ServiceStepCards from '../../components/services/ServiceStepCards';
+import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel';
+import ServiceTestimonials from '../../components/services/ServiceTestimonials';
+import ServiceFaq from '../../components/services/ServiceFaq';
+import ServicePricingSection from '../../components/services/ServicePricingSection';
+import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
+import { SECTION_HEADING_CLASS } from '../../components/services/serviceTokens';
 
 import heroAura from '../../assets/services/goal/hero-aura.png';
 import heroDashboard from '../../assets/services/goal/hero-dashboard.png';
@@ -38,23 +49,22 @@ import stageExecStrength from '../../assets/services/goal/stage-exec-strength.pn
 import stageExecWizard from '../../assets/services/goal/stage-exec-wizard.png';
 
 // 목표관리 서비스 랜딩 — /services/goal (구 경로 /page/services-goal)
-// Figma 시안(1889:6944, "목표관리" 프레임) 전용 구현. 다른 3종 서비스 랜딩과 달리
-// components/services/ServiceLandingPage 공용 스켈레톤을 쓰지 않는다 — 시안 섹션 구조가
-// 4종 공용으로 흡수하기엔 폭/색/카드 배치가 이질적이라(스펙 §4) 목표관리만 bespoke로 뗐다.
+// Figma 시안(1889:6944, "목표관리" 프레임)에서 출발했으나, 레이아웃 정본은 시안이 아니라
+// 심화탐구(InDepthResearch.jsx)다. 섹션 껍데기·카드·탭·FAQ·가격은 전부
+// components/services/ 공통 컴포넌트로 수렴했고, 이 파일에는 데이터 배열과 이 페이지
+// 고유 섹션(HeroSection / PhoneReportSection)만 남는다.
 // 가격/CTA 연동(Supabase products 테이블 'goal' 서비스 조회, openPaidServiceOrAlert)은
 // 공용 로직 그대로 재사용한다. 가격의 유일한 신뢰 소스는 Supabase이며 프론트 폴백은 없다.
 
 const HERO_SERVICE = { name: '목표관리 서비스', to: '/pricing' };
 
 // 컨테이너 폭 — 시안은 섹션마다 1100/1436/1443/1600px로 제각각이지만(스펙 §4),
-// dev 정본 토큰 max-w-content(72.75rem≈1164px, 내부 실콘텐츠 1100px)로 전 섹션을 통일했다.
-// 러프 구현 원칙(픽셀 재현 아님) + 기존 페이지들과의 리듬 일관성을 우선한 결정.
-// 수직 스페이싱 — 모바일/태블릿은 기존 generic 값을 유지하고, 데스크톱(md:)은
-// 무료진단(FreeDiagnosisLanding.jsx) 컨벤션을 따라 시안(1889:6944) 실측 rem 값을 섹션별로
-// 개별 지정한다. 섹션 하단 여백은 다음 섹션의 md:pt-가 담당하며(마지막 섹션만 pb 보유),
-// 전 섹션 동일값(lg:pt-[6.25rem])을 쓰던 이전 리듬은 폐기했다.
-const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]';
+// dev 정본 토큰 max-w-content(72.75rem≈1164px, 내부 실콘텐츠 1100px)로 전 섹션을 통일했다
+// (ServiceSection 이 소유).
+// 수직 스페이싱 — 모바일/sm 은 ServiceSection 이 고정(pt-16 sm:pt-20)하고, 데스크톱만
+// 시안(1889:6944) 실측 rem 값을 섹션별로 className 에 리터럴로 넘긴다. 브레이크포인트는
+// 기준 페이지에 맞춰 md: → lg: 로 이관했다. 섹션 하단 여백은 다음 섹션의 lg:pt-가
+// 담당하며 마지막 섹션(가격)만 pb 를 갖는다.
 
 const PROCESS_STEPS = [
   {
@@ -328,21 +338,9 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
-  const auraRef = useRef(null);
-  const [auraInView, setAuraInView] = useState(false);
-
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
-  // (PhoneReportSection 592-607행과 동일 훅 구조).
-  useEffect(() => {
-    const node = auraRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setAuraInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + FreeDiagnosisLanding 공통 useInView).
+  const [auraRef, auraInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
@@ -417,25 +415,13 @@ function HeroSection() {
           지금 시작하기
         </button>
 
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F5F6F8] px-4 py-2.5 md:shrink-0">
-              <span className="flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
-              </span>
-              <span className="flex-1 truncate rounded-full border border-[#E5E7EB] bg-white px-4 py-1 text-center text-[0.75rem] text-[#767676]">
-                https://www.winningedu.com
-              </span>
-            </div>
-            <img
-              src={heroDashboard}
-              alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
-              className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
-            />
-          </div>
-        </div>
+        <ServiceHeroBrowserFrame>
+          <img
+            src={heroDashboard}
+            alt="목표관리 대시보드 화면 — 좌측 메뉴, 오늘의 목표 학습 시간 입력과 진행률, 우측 이상・최소 목표 대학의 수시・정시 합격 확률을 보여준다"
+            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
+          />
+        </ServiceHeroBrowserFrame>
       </div>
     </section>
   );
@@ -443,231 +429,88 @@ function HeroSection() {
 
 function ProcessSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[8.75rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>
+    <ServiceSection
+      className="lg:pt-[8.75rem]"
+      heading={
+        <>
           위닝 목표관리의
           <br />
-          <span className="font-bold text-[#013262]">4단계 핵심 프로세스</span>
-        </h2>
-
-        {/* 시안(1889:7004) 카드 폭 280px, 4장 총폭 1180px는 컨테이너 max-w-content(1164px)를
-            넘어선다 — wide(74rem) 이상에서 폭을 276px(17.25rem)로 클램프해 총폭을 1164px에
-            맞춘다. */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[4.375rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 wide:grid-cols-[repeat(4,17.25rem)] wide:justify-center">
-          {PROCESS_STEPS.map((item, index) => (
-            <div
-              key={item.title}
-              className="flex flex-col items-center rounded-[1.25rem] border border-[#D7D7D7] bg-white px-6 pb-8 pt-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)] md:px-4 md:pb-6"
-            >
-              <span className="text-[1rem] font-semibold text-[#013262]">STEP {index + 1}</span>
-              <p className="mt-3 text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
-                {item.title}
-              </p>
-              <p className="mt-5 break-keep text-[1rem] font-medium leading-[1.375] text-[#525252]">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+          <span className="text-[#013262]">4단계 핵심 프로세스</span>
+        </>
+      }
+    >
+      {/* STEP 라벨은 데이터가 아니라 index 로 생성된다(ServiceProcessCards).
+          시안 카드 폭 280px 를 wide(74rem)에서 276px 로 클램프하던 고정폭 그리드는
+          기준 페이지에 wide 분기가 없어 폐기했다. */}
+      <ServiceProcessCards items={PROCESS_STEPS} />
+    </ServiceSection>
   );
 }
 
 function StageSection() {
-  const [activeTab, setActiveTab] = useState(STAGE_TABS[0]);
-  const activeCards = STAGE_CONTENT[activeTab] || [];
-
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.75rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>단계별로, 목표를 관리합니다</h2>
-
-        {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
-            카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
-            그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — 시안 추가 시
-            STAGE_CONTENT에 등록한다. 그 전까지는 비활성(disabled) 처리한다. */}
-        <div
-          className="mt-8 flex items-center gap-5 overflow-x-auto sm:mt-10 md:mt-[3.75rem] md:gap-10"
-          role="tablist"
-          aria-label="목표관리 단계"
-        >
-          {STAGE_TABS.map((tab, index) => {
-            const isParentTab = !STAGE_CONTENT[tab];
-            const isActive = tab === activeTab;
-
-            return (
-              <Fragment key={tab}>
-                {isParentTab ? (
-                  <button
-                    type="button"
-                    role="tab"
-                    disabled
-                    aria-disabled="true"
-                    aria-selected={false}
-                    className="shrink-0 cursor-default whitespace-nowrap text-[1.125rem] font-medium text-[#D7D7D7] md:text-[1.5rem] md:leading-[1.2917]"
-                  >
-                    {tab}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    onClick={() => setActiveTab(tab)}
-                    className={`shrink-0 whitespace-nowrap text-[1.125rem] md:text-[1.5rem] md:leading-[1.2917] ${
-                      isActive
-                        ? 'font-semibold text-[#525252]'
-                        : 'font-medium text-[#D7D7D7]'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                )}
-                {index < STAGE_TABS.length - 1 && (
-                  <span aria-hidden="true" className="h-[1.875rem] w-px shrink-0 bg-[#D7D7D7]" />
-                )}
-              </Fragment>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 md:mt-[2.75rem] sm:grid-cols-3 lg:grid-cols-5 lg:gap-[1.1875rem]">
-          {activeCards.map((card) => (
-            <div key={`${activeTab}-${card.title}`} className="flex flex-col gap-4 md:gap-10">
-              <div className="flex h-40 items-center justify-center rounded-xl border border-[#D7D7D7] bg-[#FBFAFA]">
-                <img
-                  src={card.icon}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-24 w-24 object-contain md:h-[8.5rem] md:w-[8.5rem]"
-                />
-              </div>
-              <div>
-                <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
-                  {card.title}
-                </p>
-                {/* 시안 원본은 #808080이나, 프로젝트 회색 하한선(#767676 이상)을 지키기 위해
-                    더 진한 톤으로 클램프한다 — ManagementSection 선례 참고. */}
-                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.3125] text-[#767676] md:mt-5">
-                  {card.desc}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <ServiceSection className="lg:pt-[13.75rem]" heading="단계별로, 목표를 관리합니다">
+      {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
+          카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
+          그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — STAGE_CONTENT 에
+          키가 없으면 ServiceTabsPanel 이 자동으로 비활성 처리한다. 시안 추가 시 키만 등록하면
+          별도 분기 없이 활성화된다. */}
+      <ServiceTabsPanel
+        tabs={STAGE_TABS}
+        content={STAGE_CONTENT}
+        columns={5}
+        ariaLabel="목표관리 단계"
+        idPrefix="stage"
+      />
+    </ServiceSection>
   );
 }
 
 function AudienceSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[17.9375rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>
+    <ServiceSection
+      className="lg:pt-[17.9375rem]"
+      heading={
+        <>
           이런 학생에게 <span className="text-[#013262]">목표관리 서비스를 추천해요</span>
-        </h2>
-
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 wide:grid-cols-[repeat(4,16.25rem)] wide:justify-center">
-          {AUDIENCE_CARDS.map((item) => (
-            <article
-              key={item.title}
-              className="flex flex-col overflow-hidden rounded-[1.25rem] bg-[#FBFAFA] text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)]"
-            >
-              <div className="flex h-44 w-full items-end md:h-[13.5625rem]">
-                <img src={item.image} alt={item.title} className="w-full object-contain" />
-              </div>
-              <div className="flex flex-1 flex-col px-6 pb-6 pt-6 md:pl-[2.125rem] md:pr-[1.3125rem] md:pb-10 md:pt-[3.9375rem]">
-                <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
-                  {item.title}
-                </p>
-                <p className="mt-2 break-keep text-[1rem] font-medium leading-[1.375] text-[#525252] md:mt-[1.4375rem]">
-                  {item.desc}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
+        </>
+      }
+    >
+      {/* 일러스트 PNG 라 imageFit 은 기본값 contain — 레터박스 여백은 카드 배경이 채운다. */}
+      <ServiceAudienceCards items={AUDIENCE_CARDS} />
+    </ServiceSection>
   );
 }
 
 function ManagementSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.875rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>목표 달성까지, 이 모든 걸 함께 관리합니다</h2>
-
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 md:mt-[3.75rem] sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-          {MANAGEMENT_CARDS.map((card) => (
-            <div key={card.title} className="rounded-xl bg-[#F6F5F4] px-6 py-7 md:min-h-[10rem] md:pb-0 md:pt-9">
-              <p className="text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
-                {card.title}
-              </p>
-              {/* 시안 원본은 이 카드군만 #808080을 쓰지만, 프로젝트 회색 하한선(#767676 이상 —
-                  ServiceLandingPage.jsx 선례)을 지키기 위해 더 진한 톤으로 대체했다. */}
-              <p className="mt-3 break-keep text-[1rem] font-medium leading-[1.3125] text-[#767676] md:mt-5">
-                {card.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <ServiceSection
+      className="lg:pt-[13.875rem]"
+      heading="목표 달성까지, 이 모든 걸 함께 관리합니다"
+    >
+      {/* 카드 마크업이 '다섯 단계로 차근차근' 스텝 카드와 100% 동일해 새 컴포넌트를 만들지
+          않고 ServiceStepCards 를 3열로 재사용한다(6장 = 3열 2행). */}
+      <ServiceStepCards items={MANAGEMENT_CARDS} columns={3} />
+    </ServiceSection>
   );
 }
 
 function OutcomesSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[15rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>목표관리로 달라지는 것들</h2>
-
-        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-8 sm:mt-10 md:mt-[2.25rem] sm:grid-cols-5 sm:gap-0 sm:divide-x sm:divide-[#D7D7D7] sm:px-4 md:h-[10.625rem] md:px-0 md:py-0 md:items-center">
-          {OUTCOME_ITEMS.map((item) => (
-            <div
-              key={item.label}
-              className="flex flex-col items-center gap-3 px-4 py-2 text-center md:my-[0.9375rem] md:h-[8.75rem] md:justify-center md:py-0"
-            >
-              <img
-                src={item.icon}
-                alt=""
-                aria-hidden="true"
-                className="h-12 w-12 sm:h-14 sm:w-14 md:h-20 md:w-20"
-              />
-              <p className="text-[1.125rem] font-medium leading-[1.3] text-[#0F172A] md:text-[1.25rem] md:text-[#525252]">
-                {item.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <ServiceSection className="lg:pt-[15rem]" heading="목표관리로 달라지는 것들">
+      {/* items 5장 → ServiceOutcomesPanel 이 sm:grid-cols-5 를 자동 적용한다. */}
+      <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
+    </ServiceSection>
   );
 }
 
 function PhoneReportSection() {
-  const chipLayerRef = useRef(null);
-  const [chipsInView, setChipsInView] = useState(false);
-
-  // 이 섹션도 스크롤 상당히 아래(md:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
+  // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
   // 애니메이션을 돌린다(FreeDiagnosisLanding MacbookMockup과 동일 훅 구조).
-  useEffect(() => {
-    const node = chipLayerRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setChipsInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const [chipLayerRef, chipsInView] = useInView();
 
   return (
-    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 md:pt-[16.125rem]">
+    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-[16.125rem]">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
           <div className="max-w-[26rem] text-center lg:max-w-[36.4375rem] lg:text-left">
@@ -676,7 +519,7 @@ function PhoneReportSection() {
               <br />
               확인 할 수 있어요
             </h2>
-            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] md:mt-[1.4375rem]">
+            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] lg:mt-[1.4375rem]">
               매주 정리된 리포트가 카카오톡 알림톡으로 도착하고, 달성률부터 학습시간까지 한눈에
               확인할 수 있어요.
             </p>
@@ -804,198 +647,22 @@ function PhoneReportSection() {
 
 function TestimonialsSection() {
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[13.375rem]">
-      <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>목표관리 서비스를 받아본 학생&학부모 후기</h2>
-
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 md:mt-[4.25rem] lg:grid-cols-3">
-          {TESTIMONIALS.map((item) => (
-            <figure
-              key={item.quote}
-              className="flex h-full flex-col justify-between rounded-2xl bg-[#F8F9FA] p-7 text-left"
-            >
-              <blockquote className="break-keep text-[1.25rem] font-normal leading-[1.5] text-[#525252]">
-                “{item.quote}”
-              </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#F1F1F1] text-[1.75rem]"
-                >
-                  😉
-                </span>
-                <span className="text-[0.9375rem] font-semibold text-[#0F172A]">
-                  {item.name}
-                  <span className="ml-1 font-medium text-[#767676]">{item.tag}</span>
-                </span>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FaqItem({ item, isOpen, onToggle }) {
-  return (
-    <div className="border-b border-[#D7D7D7] py-6 last:border-b-0 md:py-8">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-4 text-left"
-      >
-        <span className="break-keep text-[1.125rem] font-medium text-[#525252] sm:text-[1.5rem]">
-          {item.q}
-        </span>
-        <ChevronDown
-          className={`h-6 w-6 shrink-0 text-[#525252] transition-transform ${
-            isOpen ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-      {/* 시안 fs24·fw400·#808080은 프로젝트 회색 하한 #767676으로 클램프 */}
-      {/* 시안(2155:3931)은 콘텐츠 1440px 기준 24px 한 줄이나, 본 사이트 콘텐츠는 1100px — 최장 답변이 24px에선 1168px로 넘쳐 22px(1071px)로 축소 수납 */}
-      {isOpen && (
-        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-[#767676] md:mt-8 md:text-[1.375rem] md:font-normal">
-          {item.a}
-        </p>
-      )}
-    </div>
+    <ServiceSection
+      className="lg:pt-[13.375rem]"
+      heading="목표관리 서비스를 받아본 학생&학부모 후기"
+    >
+      {/* 이모지는 데이터에 없으므로 ServiceTestimonials 기본값 '😉' 가 그대로 쓰인다.
+          tag 는 이름 아래 줄바꿈으로 렌더된다(문구 무변경). */}
+      <ServiceTestimonials items={TESTIMONIALS} columns={3} />
+    </ServiceSection>
   );
 }
 
 function FaqSection() {
-  const [openIndex, setOpenIndex] = useState(-1);
-
   return (
-    <section className="bg-white pt-16 sm:pt-20 md:pt-[15.1875rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>자주 묻는 질문</h2>
-
-        <div className="mt-8 sm:mt-10 md:mt-[3.75rem]">
-          {FAQ_ITEMS.map((item, index) => (
-            <FaqItem
-              key={item.q}
-              item={item}
-              isOpen={openIndex === index}
-              onToggle={() => setOpenIndex((prev) => (prev === index ? -1 : index))}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// 시안 콘텐츠 폭 1206 대비 1100 스케일(×0.91) 폰트 환산
-function PricingSection() {
-  const { services, loading, error, refetch } = useProducts('goal');
-  const goalProducts = services[0]?.products || [];
-
-  if (loading) {
-    return (
-      <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
-        <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
-          <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
-          <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 md:mt-[4.1875rem]">
-            이용권 정보를 불러오는 중입니다.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
-  if (error || goalProducts.length === 0) {
-    return (
-      <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
-        <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
-          <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
-          <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 md:mt-[4.1875rem]">
-            요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
-          </p>
-          <button
-            type="button"
-            onClick={refetch}
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] px-6 text-[0.9375rem] font-semibold text-[#013262] transition hover:bg-[#F1F8FF]"
-          >
-            다시 시도
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 md:pb-[6.875rem] md:pt-[15.1875rem]">
-      <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>목표관리 이용권 구매하기</h2>
-
-        <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 md:mt-[4.1875rem]">
-          {goalProducts.map((product) => {
-            const hasDiscount = product.listPrice > product.price;
-            return (
-              <div
-                key={product.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 md:h-[6.625rem]"
-              >
-                <span className="flex items-center gap-5">
-                  <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#D7D7D7] md:h-[1.375rem] md:w-[1.375rem]"
-                    aria-hidden="true"
-                  >
-                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-                  </span>
-                  <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
-                    {product.name}
-                  </span>
-                  {product.recommended && (
-                    <span className="rounded-xl bg-accent px-3 py-1.5 text-[0.9375rem] font-medium text-white">
-                      추천
-                    </span>
-                  )}
-                </span>
-                <span className="flex flex-col items-end">
-                  {hasDiscount ? (
-                    <>
-                      <span className="text-[0.875rem] font-normal text-[#D7D7D7] line-through md:text-[1.125rem]">
-                        {formatKRW(product.listPrice)}
-                      </span>
-                      <span className="flex items-center gap-4">
-                        {product.badge && (
-                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-[#013262] md:text-[1.375rem]">
-                            {product.badge}
-                          </span>
-                        )}
-                        <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
-                          {formatKRW(product.price)}
-                        </span>
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-[1.0625rem] font-medium tracking-[-0.02em] text-[#525252] sm:text-[1.375rem]">
-                      {formatKRW(product.price)}
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <p className="mt-3 break-keep text-left text-[0.875rem] font-medium text-[#525252] md:mt-3 md:text-[1rem]">
-          한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
-        </p>
-
-        <Link
-          to="/pricing"
-          className="mt-8 inline-flex h-14 items-center justify-center rounded-[1.25rem] border border-[#0B84FD] bg-[#013262] px-8 text-[1.25rem] font-semibold text-white transition hover:bg-[#012347] md:mt-[3.75rem] md:h-[3.875rem] md:w-[17.125rem] md:px-0"
-        >
-          이용권 구매하기
-        </Link>
-      </div>
-    </section>
+    <ServiceSection className="lg:pt-[15.1875rem]" heading="자주 묻는 질문">
+      <ServiceFaq items={FAQ_ITEMS} />
+    </ServiceSection>
   );
 }
 
@@ -1011,7 +678,15 @@ export default function GoalManagement() {
       <PhoneReportSection />
       <TestimonialsSection />
       <FaqSection />
-      <PricingSection />
+      {/* 가격 섹션 — 상품명・금액・할인 배지는 전부 Supabase('goal') 원본 그대로이고,
+          안내문・CTA 라벨・로딩/에러 문구도 문자 단위로 보존된다. 여기서 넘기는 것은
+          레이아웃(섹션 패딩)과 헤딩・CTA 목적지뿐이다. */}
+      <ServicePricingSection
+        serviceKey="goal"
+        heading="목표관리 이용권 구매하기"
+        cta={{ label: '이용권 구매하기', to: '/pricing' }}
+        className="pb-20 sm:pb-24 lg:pb-[6.875rem] lg:pt-[15.1875rem]"
+      />
     </main>
   );
 }

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useInView } from '../../hooks/useInView';
 
+import ServiceProcessCards from '../../components/services/ServiceProcessCards';
 import heroBrowserV2 from '../../assets/renewal/landing/hero-browser-v2.png';
 import heroGlow from '../../assets/renewal/landing/hero-glow.svg';
 import heroGrain from '../../assets/renewal/landing/hero-grain.png';
@@ -15,11 +16,12 @@ import macbookFull from '../../assets/renewal/landing/macbook-full.png';
 const CTA_LINK_CLASS =
   'inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]';
 
+// STEP 라벨은 데이터에 두지 않는다 — ServiceProcessCards 가 index 로 생성한다.
 const STEPS = [
-  { step: 'STEP 1', title: '문항 입력', desc: '학년, 성적 흐름을 간단히 입력해요' },
-  { step: 'STEP 2', title: '상세 분석', desc: '지금 겪는 어려움을 선택해요' },
-  { step: 'STEP 3', title: '결과 확인', desc: '응답을 바탕으로 유형을 분석해요' },
-  { step: 'STEP 4', title: '서비스 추천', desc: '가장 먼저 필요한 서비스를 추천해요' }
+  { title: '문항 입력', desc: '학년, 성적 흐름을 간단히 입력해요' },
+  { title: '상세 분석', desc: '지금 겪는 어려움을 선택해요' },
+  { title: '결과 확인', desc: '응답을 바탕으로 유형을 분석해요' },
+  { title: '서비스 추천', desc: '가장 먼저 필요한 서비스를 추천해요' }
 ];
 
 // 시안은 카드마다 이미지 규격이 다르다 — 카드1 353×269/top 0(상단 플러시), 카드2·3 353×235/top 34.
@@ -130,21 +132,9 @@ const HERO_GRAIN_CLASS =
   'pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay';
 
 function HeroSection() {
-  const glowRef = useRef(null);
-  const [glowInView, setGlowInView] = useState(false);
-
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
-  // (GoalManagement.jsx HeroSection과 동일 훅 구조).
-  useEffect(() => {
-    const node = glowRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setGlowInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (GoalManagement.jsx HeroSection과 동일 useInView 훅 구조).
+  const [glowRef, glowInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
@@ -269,29 +259,9 @@ function StepsSection() {
           20분이면 완성하는 무료진단
         </h2>
 
-        {/* 시안 카드행 1180(280×4 + gap20×3)이 컨테이너 내부 1100을 초과 → 결정 B7(a): 카드 260(16.25rem)로 축소.
-            검산: 260×4 + 20×3 = 1100 ✓ */}
-        <div className="mt-10 grid grid-cols-1 items-stretch justify-center gap-5 sm:grid-cols-2 sm:gap-6 md:mt-[3.125rem] wide:grid-cols-[repeat(4,16.25rem)] wide:gap-[1.25rem]">
-          {STEPS.map((item) => (
-            <div
-              key={item.step}
-              className="flex flex-col items-center justify-center gap-5 rounded-[1.25rem] border border-[#D7D7D7] bg-white px-6 py-8 text-center shadow-[0_0.75rem_0.625rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_1rem_1.5rem_rgba(215,215,215,0.55)] sm:px-[1.875rem] sm:py-10 lg:min-h-[11.125rem] lg:px-[1.875rem] lg:py-[2.5rem]"
-            >
-              <div className="flex flex-col items-center gap-1">
-                {/* STEP 배지 — 시안상 배경·보더 없음(여백만 담당). padding 8/12 */}
-                <p className="rounded-[1.25rem] px-[0.75rem] py-[0.5rem] text-base font-semibold leading-[1.4] text-[#013262]">
-                  {item.step}
-                </p>
-                <p className="text-xl font-semibold leading-[1.3] text-[#525252]">{item.title}</p>
-              </div>
-              {/* 260 − 좌우 패딩 60 = 200 가용이라 시안 260px 1줄이 불가 → 2줄 래핑 허용(B7).
-                  2줄 + py40이면 시안 고정높이 178을 넘으므로 min-h로 완화하고 grid stretch로 4장 높이를 맞춘다. */}
-              <p className="break-keep text-base font-medium leading-[1.4] text-[#525252]">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* 이 카드행은 심화탐구 기준 ServiceProcessCards 로 수렴했다. 기존 무료진단 시안
+            결정(B7)은 폐기. */}
+        <ServiceProcessCards items={STEPS} />
       </div>
     </section>
   );
@@ -387,21 +357,9 @@ function BenefitsSection() {
 // 칩이 몸체 1008×591 기준 %로 배치돼 있으므로 그 비율의 relative 박스는 유지하고,
 // img만 absolute + 음수 inset(-48)으로 밀어 몸체를 박스에 정확히 정렬한다.
 function MacbookMockup() {
-  const chipLayerRef = useRef(null);
-  const [chipsInView, setChipsInView] = useState(false);
-
   // 이 섹션은 페이지 y2750 지점이라 대부분의 시간 화면 밖이다.
   // 뷰포트에 들어와 있는 동안만 애니메이션을 돌린다(이탈 시 정지).
-  useEffect(() => {
-    const node = chipLayerRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setChipsInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const [chipLayerRef, chipsInView] = useInView();
 
   return (
     <div className="relative mx-auto aspect-[1008/591] w-full max-w-[63rem]">
