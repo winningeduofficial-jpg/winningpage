@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useInView } from '../../hooks/useInView';
 
 import { alertServiceNotReady } from '../../lib/paidServiceAccess';
+import ServiceSection from '../../components/services/ServiceSection';
+import ServiceProcessCards from '../../components/services/ServiceProcessCards';
+import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
+import ServiceStepCards from '../../components/services/ServiceStepCards';
+import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel';
+import ServiceTestimonials from '../../components/services/ServiceTestimonials';
+import ServiceFaq from '../../components/services/ServiceFaq';
+import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
 import heroAura from '../../assets/services/in-depth-research/hero-aura.svg';
 import heroGrain from '../../assets/renewal/landing/hero-grain.png';
 import audienceTopic from '../../assets/services/research/audience-topic.png';
@@ -46,31 +53,32 @@ import outcomeCalendar from '../../assets/services/research/outcome-calendar.png
 //   Testi→Faq          (168+100)×0.67 = 180 → lg:pt-[11.25rem]
 //   Faq→Footer          217 (배경 전환, 축소 없음) → lg:pb-[13.5625rem]
 // 이전 구현은 전 섹션 lg:pt-[6.25rem] 단일값이었다 — 정책 계산값이 아니라 임시 균일값이었으므로
-// 위 표대로 경계별 차등으로 교체했다.
-const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]';
+// 위 표대로 경계별 차등으로 교체했다. 이 값들만 ServiceSection 의 className 으로 넘긴다.
+//
+// 섹션 마크업은 전부 components/services/ 공통 컴포넌트로 수렴했다(2026-08-05). 이 페이지가
+// 기준(canonical)이지만 로컬 구현을 유지하면 공통 컴포넌트를 고쳐도 기준에 반영되지 않는
+// 역전 상태가 되므로, 나머지 3종과 동일하게 전 섹션이 컴포넌트를 통해서만 렌더된다.
+// SECTION_HEADING_CLASS 도 serviceTokens.js 단일 정본이며 ServiceSection 이 소유한다.
 
 // 가운뎃점 표기 — 시안 원문은 U+00B7 `·`와 U+30FB `・`를 혼용한다(같은 프레임 안에서도 타이틀은
 // U+30FB, 설명은 U+00B7). 페이지 전역·3종 선례 페이지가 전부 U+30FB로 통일돼 있어 코드 정본을
 // 따라 아래 전 카피를 U+30FB로 맞췄다.
+
+// STEP 라벨은 데이터에 두지 않는다 — ServiceProcessCards 가 index 로 생성한다.
 const PROCESS_STEPS = [
   {
-    step: 'STEP 1',
     title: '주제 선택',
     desc: '관심 분야에서 탐구 주제를 함께 정합니다.'
   },
   {
-    step: 'STEP 2',
     title: '탐구 설계',
     desc: '주제・가설・방법・계획을 설계합니다.'
   },
   {
-    step: 'STEP 3',
     title: '자료・수행',
     desc: '학생이 자료를 수집하고 탐구를 수행합니다.'
   },
   {
-    step: 'STEP 4',
     title: '완성・피드백',
     desc: '학생이 완성한 결과물을 평가하고 피드백합니다.'
   }
@@ -168,21 +176,9 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
-  const auraRef = useRef(null);
-  const [auraInView, setAuraInView] = useState(false);
-
-  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 공통 훅 구조
-  // (PerformanceAssessment / SelfAssessment HeroSection 선례 그대로).
-  useEffect(() => {
-    const node = auraRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver((entries) => {
-      setAuraInView(entries.some((entry) => entry.isIntersecting));
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + FreeDiagnosisLanding
+  // 공통 useInView 훅 구조.
+  const [auraRef, auraInView] = useInView();
 
   return (
     // 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리・수행평가・자기평가 히어로와 동일 규격
@@ -284,329 +280,12 @@ function HeroSection() {
             #FF5F57/#FEBC2E/#28C840, border 있는 흰 주소창은 시안 근거가 없었다).
             하단 음수 마진은 시안 오버플로 111px(→85px)보다 큰 선례값(126.3px)을 쓴다 — 4페이지
             공통 규격 우선. */}
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#DFE1E5] px-4 py-2.5 md:shrink-0">
-              <span className="flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ED6A5E]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#F6BE4F]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#62C554]" />
-              </span>
-              <span className="flex-1 truncate rounded-full bg-[#F1F3F4] px-4 py-1 text-center text-[0.75rem] text-[#767676]">
-                https://www.winningedu.com
-              </span>
-            </div>
-            <div
-              className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
-              aria-hidden="true"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProcessSection() {
-  return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[5rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        {/* 시안 원문은 쉼표 뒤 스페이스 2개(U+0020 ×2)지만 HTML은 연속 공백을 접으므로 렌더
-            결과가 같다 → 1스페이스 유지(디자인 파일 오타로 판단). 정렬은 시안도 LEFT다. */}
-        <h2 className={SECTION_HEADING_CLASS}>심화탐구, 이렇게 완성돼요</h2>
-
-        {/* 4열 폭 검산: (1100 − 30×3) / 4 = 252.5px, 시안 331×0.766 = 253.5px ✓
-            헤딩→카드행 gap은 시안 실효 90px(itemSpacing 80 + 래퍼 padding 10) × 0.766 = 69px. */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[4.3125rem] lg:grid-cols-4 lg:gap-[1.875rem]">
-          {PROCESS_STEPS.map((item) => (
-            // 기본 상태 그림자를 상시 적용한다 — 시안은 offset(0,12)/radius 20/#D7D7D7 40%가
-            // 항상 켜져 있다(이전 구현은 hover에만 있어 기본 상태가 밋밋했다).
-            // 카드 높이는 고정하지 않는다: 시안 상하 여백이 카드마다 33/22px로 갈리는 것은
-            // 패딩이 아니라 수직 중앙 정렬이고, 미환산 폰트에서는 콘텐츠가 시안 178px를 넘긴다.
-            <div
-              key={item.step}
-              className="flex flex-col items-center justify-center gap-[0.9375rem] rounded-[1.25rem] border border-[#D7D7D7] bg-white px-6 py-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
-            >
-              {/* 시안 내부 리듬은 균등 12px가 아니라 2단이다: 뱃지↔타이틀 4px(→3px),
-                  상단그룹↔설명 20px(→15px). STEP 뱃지는 radius 20 + padding을 갖고 있지만
-                  fills/strokes가 전부 비어 있어(렌더 캡처로도 확인) 배경 없이 구현한다. */}
-              <div className="flex flex-col items-center gap-[0.1875rem]">
-                <span className="text-[1rem] font-semibold leading-[1.4] text-[#013262]">
-                  {item.step}
-                </span>
-                <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
-                  {item.title}
-                </p>
-              </div>
-              {/* 설명 폭 260 × 0.766 = 199px. 시안은 STEP 3/4에 명시 개행이 있으나 이 폭 +
-                  break-keep이면 같은 자리에서 자연 개행되므로 강제 <br/>은 넣지 않았다. */}
-              <p className="mx-auto max-w-[12.4375rem] break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function AudienceSection() {
-  return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[10rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        {/* 시안(1907:21472)은 characterStyleOverrides로 "이런 학생에게 "(#525252) +
-            "심화 탐구 서비스를 추천해요"(#013262) 2-tone 좌측 정렬이다. 컨테이너의 text-center를
-            제거하고 강조 런만 네이비로 넣었다(자기평가 AudienceSection과 동일한 처리 — accent
-            #0B84FD가 아니라 #013262). 기본 색은 SECTION_HEADING_CLASS(#0F172A) 코드 정본 유지. */}
-        <h2 className={SECTION_HEADING_CLASS}>
-          이런 학생에게 <span className="text-[#013262]">심화 탐구 서비스를 추천해요</span>
-        </h2>
-
-        {/* 4열 폭 검산: (1100 − 16×3) / 4 = 263px, 시안 345×0.766 = 264.3px ✓
-            (시안 gap 20 → 15.3px지만 gap-4(16px)로 올려야 총폭이 1100 안에 정확히 떨어진다:
-             264.3×4 + 15.3×3 = 1103.1 로 3.1px 초과) */}
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-4">
-          {AUDIENCE_CARDS.map((item) => (
-            // 카드 배경은 시안 #F9FAFB = dev 카드 배경 토큰과 정확히 일치(이전 #FBFAFA는 오타).
-            // 시안은 그림자 없음 — 호버 그림자만 코드 관용으로 남긴다.
-            <article
-              key={item.title}
-              className="flex flex-col overflow-hidden rounded-2xl bg-[#F9FAFB] text-left transition hover:-translate-y-1 hover:shadow-[0_1rem_2rem_rgba(82,82,82,0.14)]"
-            >
-              {/* 시안 이미지 인셋은 카드마다 6~36px로 제각각이다(원본 일러스트 여백 차이를
-                  디자이너가 눈대중으로 얹은 것) → 고정 높이 이미지 영역 하나로 통일했다.
-                  221 × 0.766 = 169.3px = 10.5rem.
-                  object-cover였을 때 원본 비율(1.24 vs 1.50)이 서로 달라 카드1・4(비율 1.24)만
-                  상하로 크게 잘려 확대돼 보이는 문제가 있었다(실측 노출률 79% vs 96%) → 잘림 없는
-                  object-contain으로 교체. 카드 배경(#F9FAFB)이 그대로 뒤에 깔려 있어 레터박스
-                  여백도 시안처럼 자연스럽게 카드색으로 채워진다. */}
-              <img
-                src={item.image}
-                alt={item.title}
-                className="h-[10.5rem] w-full object-contain"
-              />
-              {/* 제목↔본문 간격은 시안 30px(→23px) — 이전 gap-2(8px)는 시안보다 훨씬 촘촘했다.
-                  하단 패딩 51px(→39px), 좌우 34px(→26px ≈ px-6). */}
-              <div className="flex flex-1 flex-col gap-[1.4375rem] px-6 pb-[2.4375rem] pt-[1.75rem]">
-                <p className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]">
-                  {item.title}
-                </p>
-                {/* 본문 16px를 환산하면 12.3px로 가독성 하한 미달 → 시안 절대치 1rem 유지. */}
-                <p className="break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]">
-                  {item.desc}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FiveStepsSection() {
-  const [firstRow, secondRow] = [FIVE_STEPS.slice(0, 3), FIVE_STEPS.slice(3)];
-
-  return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[12.625rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>다섯 단계로 차근차근</h2>
-
-        {/* 3열 폭 검산: (1100 − 30×2) / 3 = 346.7px, 시안 453×0.7644 = 346.3px ✓
-            (섹션 C의 실 콘텐츠 박스는 프레임 1520이 아니라 카드 행 1439 = 453×3 + 40×2 이다.
-             1520은 1920 안에서 좌240/우160 비대칭이라 오토레이아웃 잔재로 판정) */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-3 lg:gap-[1.875rem]">
-          {firstRow.map((item) => (
-            // 카드 배경 #F5F5F7은 시안 실측값(이전 #F0F2F5는 근거 없음). 패딩은 시안 실효
-            // pt 44 / pb 40 / px 30.5 → ×0.7644 = 33.6 / 30.6 / 23.3.
-            // radius 12는 스케일 미적용(rounded-xl 유지).
-            <div key={item.title} className="rounded-xl bg-[#F5F5F7] px-6 pb-[1.875rem] pt-[2.125rem]">
-              {/* 시안은 title/desc가 둘 다 24px이고 weight(600/500)·색·lineHeight로만 위계를
-                  만든다. 환산하면 18.35px/18.35px인데, 코드 정본은 이미 1.25rem/1rem으로 위계를
-                  벌려놨고 페이지 내 다른 카드 섹션과 리듬이 맞아 코드 값을 유지했다. */}
-              <p className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]">
-                {item.title}
-              </p>
-              {/* 시안 desc 색은 #808080으로 가독성 하한 미달 → #767676으로 상향. */}
-              <p className="mt-[0.9375rem] break-keep text-[1rem] font-medium leading-[1.4] text-[#767676]">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* 2행 — 시안(1907:21515)은 946px 폭으로 1439 안에서 정중앙. 946 × 0.7644 = 723px =
-            45.25rem. 폭 검산: (724 − 30) / 2 = 347px ✓ (1행 카드폭 346.7과 일치)
-            카드 내부 텍스트는 1행과 동일하게 좌정렬이다 — 이전 구현의 text-center는 시안 근거가
-            없어 제거했다. */}
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mx-auto lg:mt-[1.875rem] lg:max-w-[45.25rem] lg:gap-[1.875rem]">
-          {secondRow.map((item) => (
-            <div
-              key={item.title}
-              className="rounded-xl bg-[#F5F5F7] px-6 pb-[1.875rem] pt-[2.125rem] text-left"
-            >
-              <p className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]">
-                {item.title}
-              </p>
-              <p className="mt-[0.9375rem] break-keep text-[1rem] font-medium leading-[1.4] text-[#767676]">
-                {item.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function OutcomesSection() {
-  return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[10.75rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={SECTION_HEADING_CLASS}>심화탐구로 달라지는 것들</h2>
-
-        {/* 패널 폭 — 시안은 헤더 좌단(x=82823)이 카드 좌단(x=82972.5)보다 149.5px 왼쪽에 매달려
-            있다. 바로 앞 섹션(FiveSteps)은 헤더/카드 좌단이 정확히 일치하므로 이건 시안 결함으로
-            판단하고, 코드 정본대로 헤더 = 카드 = max-w-content 좌단 일치 + 카드 full-width로
-            구현했다(시안 그대로면 1100 컨테이너 안에 872px 카드가 중앙에 떠 있고 헤더만 좌단에
-            붙는 기형이 된다).
-            4열 폭 검산: 1100 / 4 = 275px, 시안 열폭 292/290/290/273 × 0.7618 = 222/221/221/208 —
-            시안 열폭 편차는 그룹 bbox 오차라 균등 4열로 정규화했다.
-            보더/구분선은 시안 #D9D9D9 / #D7D7D7 두 색을 dev 보더 토큰 #D7D7D7 하나로 통일했다
-            (2단계 차이라 육안 구분 불가, 오히려 카드 외곽선과 구분선이 정합된다).
-            카드 배경 #F9FAFB는 시안 실측 = 토큰 정본 일치(이전 #FBFAFA는 오타). */}
-        <div className="mt-8 grid grid-cols-2 gap-6 rounded-xl border border-[#D7D7D7] bg-[#F9FAFB] px-6 py-[1.375rem] sm:mt-10 sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-[#D7D7D7] sm:px-4 lg:mt-[3.75rem]">
-          {OUTCOME_ITEMS.map((item) => (
-            // 아이콘 100 × 0.7618 = 76.2px = 4.75rem, 아이콘↔라벨 18 → 13.75px = 0.875rem.
-            // 라벨은 시안 weight 600 / #525252 (이전 font-medium / #0F172A는 근거 없음).
-            <div
-              key={item.label}
-              className="flex flex-col items-center gap-[0.875rem] px-4 py-2 text-center"
-            >
-              <img
-                src={item.icon}
-                alt=""
-                aria-hidden="true"
-                className="h-12 w-12 sm:h-[4.75rem] sm:w-[4.75rem]"
-              />
-              <p className="text-[1.125rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]">
-                {item.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TestimonialsSection() {
-  return (
-    <section className="bg-white pt-16 sm:pt-20 lg:pt-[10rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        {/* 헤딩 정렬 — 시안 헤딩 x가 카드 좌단 x와 동일한 좌측 정렬이다(컨테이너 text-center
-            제거). 시안 색은 #525252지만 페이지 8개 섹션이 공유하는 SECTION_HEADING_CLASS
-            코드 정본(#0F172A)을 유지했다. */}
-        <h2 className={SECTION_HEADING_CLASS}>심화탐구 서비스를 받아본 학생들의 후기</h2>
-
-        {/* 3열 폭 검산: (1100 − 46×2) / 3 = 336px, 시안 440×0.766 = 337px ✓ */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 lg:mt-[3.75rem] lg:grid-cols-3 lg:gap-[2.875rem]">
-          {TESTIMONIALS.map((item) => (
-            // 카드 배경 #F9FAFB = 시안 실측 = 토큰 정본(이전 #F8F9FA는 근사값).
-            // radius 40 → 30.6px = rounded-[2rem], padding 40 → 30.6px = p-[1.875rem],
-            // 그림자 offset(0,2)/blur 4/rgba(213,213,213,0.25)는 시안 실측 그대로.
-            <figure
-              key={item.quote}
-              className="flex h-full flex-col justify-between rounded-[2rem] bg-[#F9FAFB] p-[1.875rem] text-left shadow-[0_0.125rem_0.25rem_rgba(213,213,213,0.25)]"
-            >
-              {/* 블록 순서 — 시안은 이름행이 위, 인용문이 아래다. 선례 3종이 전부 인용문 → 이름
-                  순이라 4페이지 리듬 일관성을 우선해 코드 정본을 유지했다. 이모지 원형 칩과
-                  따옴표 래핑도 시안에 없는 코드 추가분이지만 선례와 동일하게 유지. */}
-              <blockquote className="break-keep text-[1.0625rem] font-normal leading-[1.5] text-[#525252]">
-                “{item.quote}”
-              </blockquote>
-              {/* 이름 색 시안값 #808080은 가독성 하한 미달 → #767676으로 상향. */}
-              <figcaption className="mt-[0.9375rem] flex items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#F1F1F1] text-[1.75rem]"
-                >
-                  {item.emoji}
-                </span>
-                <span className="text-[0.875rem] font-medium text-[#767676]">{item.name}</span>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FaqItem({ item, isOpen, onToggle }) {
-  // 시안 구분선은 LINE 3개뿐 — 마지막 항목 뒤에는 선이 없다(last:border-b-0).
-  // 시안 stroke #D9D9D9는 dev 보더 토큰 #D7D7D7로 정규화.
-  return (
-    <div className="border-b border-[#D7D7D7] py-6 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-4 text-left"
-      >
-        {/* 질문 24 × 0.766 = 18.4px = 1.125rem. 이전 구현의 sm:text-[1.5rem] 반응형 확대는
-            환산 정책 위반이라 제거했다. 질문 행은 열림/닫힘에 스타일 차이가 전혀 없다
-            (시안 두 상태 노드 대조 확인) — 하이라이트·배경 변화 없음. */}
-        <span className="break-keep text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
-          {item.q}
-        </span>
-        {/* chevron 24 × 0.766 = 18.4px. 시안은 24×24 래퍼가 양 상태 모두 90° 회전돼 있고
-            (컴포넌트 붙여넣기 잔재) 내부 벡터만 열림에서 추가 180° 회전한다 — 래퍼의 90°는
-            재현하지 않고 실질 의미인 rotate-180만 구현한다. 색 #808080 → #767676 상향. */}
-        <ChevronDown
-          className={`h-[1.125rem] w-[1.125rem] shrink-0 text-[#767676] transition-transform ${
-            isOpen ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-      {isOpen && (
-        // 질문↔답변 32 × 0.766 = 24.5px = mt-6. 시안 답변 lineHeight(20/33.6/31.2/20)는 h=40
-        // 고정 프레임에서 생긴 Figma 잔여 노이즈라 그대로 옮기지 않고 선례값 1.6을 쓴다.
-        // 답변 색 #808080 → #767676 상향.
-        <p className="mt-6 break-keep text-[1.125rem] font-normal leading-[1.6] text-[#767676]">
-          {item.a}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function FaqSection() {
-  // 시안 펼침 보드(2181:9318)는 4개가 모두 열려 있으나 이는 답변 전문 표시용 스펙 보드이지
-  // 동작 정의가 아니다 — 선례대로 단일 open을 유지한다.
-  const [openIndex, setOpenIndex] = useState(-1);
-
-  return (
-    // FAQ→푸터는 페이지에서 유일한 배경 전환 경계라 시안 하단 여백 217px를 ×0.67 축소 없이
-    // 그대로 쓴다(lg:pb-[13.5625rem]). 자기평가의 동일 경계값(113px)보다 크지만 시안 실측 차이다.
-    <section className="bg-white pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pb-[13.5625rem] lg:pt-[11.25rem]">
-      <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        {/* 헤딩 크기 — 펼침 보드(2181:9318)만 44px이고 페이지 안 8개 섹션 헤딩은 전부 32px이다.
-            떼어놓은 보드의 확대 표기로 판단해 SECTION_HEADING_CLASS(32px)를 그대로 쓴다. */}
-        <h2 className={SECTION_HEADING_CLASS}>자주 묻는 질문</h2>
-
-        {/* 헤딩→목록 60 × 0.766 = 46px = 2.875rem. */}
-        <div className="mt-8 sm:mt-10 lg:mt-[2.875rem]">
-          {FAQ_ITEMS.map((item, index) => (
-            <FaqItem
-              key={item.q}
-              item={item}
-              isOpen={openIndex === index}
-              onToggle={() => setOpenIndex((prev) => (prev === index ? -1 : index))}
-            />
-          ))}
-        </div>
+        <ServiceHeroBrowserFrame>
+          <div
+            className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
+            aria-hidden="true"
+          />
+        </ServiceHeroBrowserFrame>
       </div>
     </section>
   );
@@ -616,12 +295,59 @@ export default function InDepthResearch() {
   return (
     <main className="min-h-screen bg-white pt-16">
       <HeroSection />
-      <ProcessSection />
-      <AudienceSection />
-      <FiveStepsSection />
-      <OutcomesSection />
-      <TestimonialsSection />
-      <FaqSection />
+
+      {/* 프로세스 — 시안 원문은 쉼표 뒤 스페이스 2개(U+0020 ×2)지만 HTML은 연속 공백을
+          접으므로 렌더 결과가 같다 → 1스페이스 유지(디자인 파일 오타로 판단).
+          4열 폭 검산: (1100 − 30×3) / 4 = 252.5px, 시안 331×0.766 = 253.5px ✓ */}
+      <ServiceSection className="lg:pt-[5rem]" heading="심화탐구, 이렇게 완성돼요">
+        <ServiceProcessCards items={PROCESS_STEPS} />
+      </ServiceSection>
+
+      {/* 추천 대상 — 시안(1907:21472)은 characterStyleOverrides로 "이런 학생에게 "(#525252) +
+          "심화 탐구 서비스를 추천해요"(#013262) 2-tone 좌측 정렬이다. 강조 런만 네이비로
+          넣는다(자기평가 선례와 동일 — accent #0B84FD가 아니라 #013262). 카드 이미지는
+          일러스트 PNG라 잘림 없는 imageFit 기본값(contain)을 쓴다. */}
+      <ServiceSection
+        className="lg:pt-[10rem]"
+        heading={
+          <>
+            이런 학생에게 <span className="text-[#013262]">심화 탐구 서비스를 추천해요</span>
+          </>
+        }
+      >
+        <ServiceAudienceCards items={AUDIENCE_CARDS} />
+      </ServiceSection>
+
+      {/* 다섯 단계 — 3장 + 2장(중앙 정렬) 배치는 splitLastRow 가 담당한다.
+          3열 폭 검산: (1100 − 30×2) / 3 = 346.7px, 시안 453×0.7644 = 346.3px ✓
+          (섹션 C의 실 콘텐츠 박스는 프레임 1520이 아니라 카드 행 1439 = 453×3 + 40×2 이다.
+           1520은 1920 안에서 좌240/우160 비대칭이라 오토레이아웃 잔재로 판정) */}
+      <ServiceSection className="lg:pt-[12.625rem]" heading="다섯 단계로 차근차근">
+        <ServiceStepCards items={FIVE_STEPS} splitLastRow />
+      </ServiceSection>
+
+      {/* 성과 — 시안은 헤더 좌단(x=82823)이 카드 좌단(x=82972.5)보다 149.5px 왼쪽에 매달려
+          있으나, 바로 앞 섹션은 헤더/카드 좌단이 정확히 일치하므로 시안 결함으로 판단하고
+          헤더 = 카드 = max-w-content 좌단 일치 + 패널 full-width 로 정규화했다. */}
+      <ServiceSection className="lg:pt-[10.75rem]" heading="심화탐구로 달라지는 것들">
+        <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
+      </ServiceSection>
+
+      {/* 후기 — 시안 헤딩 색은 #525252지만 페이지 전 섹션이 공유하는 헤딩 정본(#0F172A)을
+          유지한다. 3열 폭 검산: (1100 − 46×2) / 3 = 336px, 시안 440×0.766 = 337px ✓ */}
+      <ServiceSection className="lg:pt-[10rem]" heading="심화탐구 서비스를 받아본 학생들의 후기">
+        <ServiceTestimonials items={TESTIMONIALS} />
+      </ServiceSection>
+
+      {/* FAQ — 헤딩 크기는 펼침 보드(2181:9318)만 44px이고 페이지 안 섹션 헤딩은 전부 32px라
+          헤딩 정본(32px)을 그대로 쓴다. FAQ→푸터는 페이지에서 유일한 배경 전환 경계라 시안
+          하단 여백 217px를 ×0.67 축소 없이 그대로 쓴다(lg:pb-[13.5625rem]). */}
+      <ServiceSection
+        className="pb-20 sm:pb-24 lg:pb-[13.5625rem] lg:pt-[11.25rem]"
+        heading="자주 묻는 질문"
+      >
+        <ServiceFaq items={FAQ_ITEMS} />
+      </ServiceSection>
     </main>
   );
 }
