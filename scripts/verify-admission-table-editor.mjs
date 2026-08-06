@@ -763,17 +763,21 @@ async function main() {
     const pass = result.ok === true && result.unchanged === true;
     record('15b. 왕복 무손실 — selection({text,badge} 셀)', pass, JSON.stringify(result.ok ? { unchanged: result.unchanged } : result));
   }
-  // ⚠ chips({recruit} variant)는 dev DB에 실제 데이터가 0건이다(team-lead가
-  // 2026-08-06 실DB 조회로 확인 — 구버전 recruit 방언은 정규화 과정에서
-  // 전부 recruitExact로 바뀌었고, 새로 생성되는 doc도 recruitExact만 쓴다).
+  // ⚠ 정정(2026-08-06): chips({recruit} variant)는 dev DB에 **7건 존재한다**
+  // (명지대학교(용인/서울)·단국대학교(죽전)·인천대학교·한국외국어대학교
+  // (용인/서울)·서경대학교 — team-lead 재확인). 애초 "0건"은 phase0 QA
+  // 스크립트의 정규식 버그(닫는 따옴표 직전 매치를 걸러냄)였다 — 이 주석도
+  // 그 오탐을 그대로 옮겨 적었던 것이라 함께 고친다.
   // 위 15a(recruitExact)/15b(selection badge)는 브라우저가 실제로 내보낸
   // xlsx 바이트로 별도 재확인했지만(team-lead 요청, import1→export2→import2
-  // 왕복 blocksEqual true), chips 경로는 실데이터 표본이 없어 아래 합성
-  // 테스트가 유일한 커버리지다 — 실데이터로 재검증할 방법 자체가 없다.
+  // 왕복 blocksEqual true), chips는 실데이터가 있어도 **그 xlsx 왕복 자체는
+  // 아직 실파일로 검증하지 못했다** — 아래는 합성 데이터 테스트다(실데이터
+  // 표본으로 재검증하려면 위 7개교 중 하나에서 recruit 표를 실제로
+  // 내보내 봐야 한다).
   {
     const result = roundTrip(recruitRoundTripBlock, 'recruitment_quota');
     const pass = result.ok === true && result.unchanged === true;
-    record('15c. 왕복 무손실 — recruit({chips} 셀, 빈 chips 포함, ※ 합성 데이터 전용 — 실DB 0건)', pass, JSON.stringify(result.ok ? { unchanged: result.unchanged } : result));
+    record('15c. 왕복 무손실 — recruit({chips} 셀, 빈 chips 포함, ※ 합성 데이터 — 실데이터 7건 존재하나 xlsx 왕복 실파일 미검증)', pass, JSON.stringify(result.ok ? { unchanged: result.unchanged } : result));
   }
 
   // 15d) 컬럼 수 고정 variant 조작 → 거부
