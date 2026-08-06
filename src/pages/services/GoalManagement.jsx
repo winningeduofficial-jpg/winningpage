@@ -250,7 +250,7 @@ const OUTCOME_ITEMS = [
 ];
 
 // 폰 목업 주변 플로팅 배지 — 시안 1889:7243 실측 좌표(1920px 프레임 기준)를 폰 박스
-// (x=911 y=161, 372×781) 기준 %/rem으로 환산했다. FreeDiagnosisLanding(MacbookMockup)의
+// (x=911 y=161, 372×781) 기준 %/rem으로 환산했다. LearningDiagnosisLanding(MacbookMockup)의
 // 부유 칩 배치·애니메이션 관행을 그대로 이식한다(스펙 §A5/§B).
 //   📊 매주 리포트 자동 발송: x585 y435 351×104 (폰 좌측 중단)
 //   📋 이번 주 성과를 한눈에: x703 y713 262×104 (폰 좌하단)
@@ -261,7 +261,7 @@ const OUTCOME_ITEMS = [
 // (기존 코드의 고정 rem 폭 관행을 유지 — % width는 absolute 중첩 레이어에서 해석이 불안정해 배제).
 //
 // X/Y/회전을 keyframes 3종으로 분리(축 분해)하고 칩마다 진폭·주기·delay를 모두 다르게 뒀다
-// (FreeDiagnosisLanding FLOATING_BADGES 선례 — 세 사인파 합성 경로가 사실상 반복되지 않는
+// (LearningDiagnosisLanding FLOATING_BADGES 선례 — 세 사인파 합성 경로가 사실상 반복되지 않는
 // 리사주 도형 원리로 패턴 학습을 막는다. 절대 통일하지 말 것).
 const PHONE_BADGES = [
   {
@@ -339,7 +339,7 @@ const FAQ_ITEMS = [
 
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
-  // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + FreeDiagnosisLanding 공통 useInView).
+  // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + LearningDiagnosisLanding 공통 useInView).
   const [auraRef, auraInView] = useInView();
 
   return (
@@ -506,7 +506,7 @@ function OutcomesSection() {
 
 function PhoneReportSection() {
   // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
-  // 애니메이션을 돌린다(FreeDiagnosisLanding MacbookMockup과 동일 훅 구조).
+  // 애니메이션을 돌린다(LearningDiagnosisLanding MacbookMockup과 동일 훅 구조).
   const [chipLayerRef, chipsInView] = useInView();
 
   return (
@@ -532,7 +532,7 @@ function PhoneReportSection() {
               위 계산값(12.2rem)에 subpixel 버퍼를 더한 12.5rem(200px)으로 수납. */}
           <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mr-[12.5rem] lg:mt-[3.8125rem]">
             {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
-                (FreeDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
+                (LearningDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
                 **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값. */}
             <style>{`
               @keyframes goal-chip-x {

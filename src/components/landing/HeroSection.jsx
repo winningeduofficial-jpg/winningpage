@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { resolvePromotedSlugLink } from '../../hooks/useNavGroups';
 
 /** 좌측 메인 배너 캐러셀 자동 전환 간격 (ms) — 10s */
 const MAIN_BANNER_INTERVAL = 10000;
@@ -231,8 +232,10 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                 style={{ transform: `translateX(-${leftCarousel.activeIndex * 100}%)` }}
               >
                 {leftSlides.map((banner, index) => {
-                  // link_url 우선, 없으면 레거시 button_link (Home.jsx select 목록 참조)
-                  const clickUrl = banner.link_url || banner.button_link;
+                  // link_url 우선, 없으면 레거시 button_link (Home.jsx select 목록 참조).
+                  // DB에 저장된 구 라우트('/free-diagnosis' 등)는 승격 매핑으로 신 라우트 치환 —
+                  // 매핑에 없는 값은 원본 그대로 통과하므로 외부 URL에도 안전하다.
+                  const clickUrl = resolvePromotedSlugLink(banner.link_url || banner.button_link);
                   const label = banner.title || `메인 배너 ${index + 1}`;
                   const isActive = index === leftCarousel.activeIndex;
 
