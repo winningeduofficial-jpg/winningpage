@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import CountUpNumber from '../CountUpNumber';
 import {
-  FALLBACK_ACCEPTANCE_RATES,
+  HERO_SCOPES,
+  DEFAULT_HERO_SCOPE,
   computeAcceptanceAverage,
   fetchAcceptanceRates,
   fetchAdmissionCaseLogos
@@ -119,9 +120,12 @@ function LogoRow({ logos }) {
   );
 }
 
-export default function AcceptanceRateHero() {
-  // 초기값을 폴백으로 두어 첫 페인트부터 '5개년 평균 95.4%'가 나온다(레이아웃 시프트 없음).
-  const [rates, setRates] = useState(FALLBACK_ACCEPTANCE_RATES);
+export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
+  const { heroLabel, fallbackRates } = HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
+  // 초기값을 scope별 폴백으로 두어 첫 페인트부터 '5개년 평균 95.4%'가 나온다(레이아웃 시프트 없음).
+  // scope는 마운트 후 바뀌지 않는 프레젠테이션 prop이라 lazy 초기화만으로 충분하고,
+  // 조회 결과는 아래 useEffect가 scope 변경 시마다 다시 fetchAcceptanceRates(scope)로 덮어쓴다.
+  const [rates, setRates] = useState(() => fallbackRates);
   const [logoRows, setLogoRows] = useState(FALLBACK_LOGO_ROWS);
 
   useEffect(() => {
@@ -129,7 +133,7 @@ export default function AcceptanceRateHero() {
 
     (async () => {
       const [rateRows, logoDbRows] = await Promise.all([
-        fetchAcceptanceRates(),
+        fetchAcceptanceRates(scope),
         fetchAdmissionCaseLogos()
       ]);
       if (!alive) return;
@@ -148,7 +152,7 @@ export default function AcceptanceRateHero() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [scope]);
 
   const years = rates.length;
   const average = computeAcceptanceAverage(rates);
@@ -175,7 +179,7 @@ export default function AcceptanceRateHero() {
                 {years}개년 평균
               </p>
               <span className="text-2xl font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
-                목표 대학 합격률
+                {heroLabel}
               </span>
             </div>
             <span className="flex items-end gap-1 sm:translate-y-[0.60625rem] sm:gap-[0.55625rem]">

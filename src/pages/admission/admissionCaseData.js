@@ -8,6 +8,38 @@ export const CATEGORY_LABELS = {
 export const CASE_CATEGORIES = ['susi', 'jungsi'];
 
 /**
+ * 히어로 scope — 코드는 공용, 데이터는 **테이블 자체가 다르다**.
+ * 대학 로고 스트립(admission_case_logos)은 scope와 무관하게 두 페이지가 공유한다
+ * (시안 실측 결과 로고 12종·1행 7개/2행 5개 배치가 완전히 동일).
+ */
+export const HERO_SCOPES = {
+  'susi-jungsi': {
+    ratesTable: 'admission_acceptance_rates',
+    heroLabel: '목표 대학 합격률',
+    fallbackRates: [
+      { year: 2021, rate: 92 },
+      { year: 2022, rate: 97 },
+      { year: 2023, rate: 95 },
+      { year: 2024, rate: 95 },
+      { year: 2025, rate: 98 }
+    ]
+  },
+  'special-highschool': {
+    ratesTable: 'special_highschool_acceptance_rates',
+    heroLabel: '목표 특목고 합격률',
+    fallbackRates: [
+      { year: 2021, rate: 92 },
+      { year: 2022, rate: 97 },
+      { year: 2023, rate: 95 },
+      { year: 2024, rate: 95 },
+      { year: 2025, rate: 98 }
+    ]
+  }
+};
+
+export const DEFAULT_HERO_SCOPE = 'susi-jungsi';
+
+/**
  * admission_posts.image_urls(jsonb/string/array 혼재) → 문자열 배열로 정규화.
  * columnData.js normalizeImageUrls 이식.
  */
@@ -81,6 +113,8 @@ export async function fetchAdmissionCaseById(id) {
  * 히어로 합격률 폴백 — Figma 1929:656 원본 데이터.
  * 합계 477 / 5 = 95.4 (기존 하드코딩 '5개년 평균 95.4%'와 일치).
  * sql/41_admission_case_hero.sql 미적용 환경에서도 화면이 현재와 동일하게 보이도록 한다.
+ * 하위호환용 — scope별 폴백은 HERO_SCOPES[scope].fallbackRates를 쓴다
+ * (수시정시/특목고가 서로 다른 폴백을 가질 수 있어야 하므로).
  */
 export const FALLBACK_ACCEPTANCE_RATES = [
   { year: 2021, rate: 92 },
@@ -98,9 +132,10 @@ export const FALLBACK_ACCEPTANCE_RATES = [
  * select('*') 고정 — 마이그레이션 미적용 환경에서도 죽지 않게 하는 규약(fetchAdmissionCases와 동일).
  * @returns {Promise<Array<{ year: number, rate: number }>>}
  */
-export async function fetchAcceptanceRates() {
+export async function fetchAcceptanceRates(scope = DEFAULT_HERO_SCOPE) {
+  const scopeConfig = HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
   const { data, error } = await supabase
-    .from('admission_acceptance_rates')
+    .from(scopeConfig.ratesTable)
     .select('*')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
@@ -108,7 +143,7 @@ export async function fetchAcceptanceRates() {
 
   if (error) {
     console.error('연도별 합격률 조회 실패:', error);
-    return FALLBACK_ACCEPTANCE_RATES;
+    return scopeConfig.fallbackRates;
   }
 
   return data || [];

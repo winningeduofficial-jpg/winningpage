@@ -21,6 +21,7 @@ import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
 import AdmissionCases from './pages/admission/AdmissionCases';
 import AdmissionCaseDetail from './pages/admission/AdmissionCaseDetail';
+import SpecialHighschoolCases from './pages/special/SpecialHighschoolCases';
 import AdmissionGuidelines from './pages/AdmissionGuidelines';
 import AdmissionResults from './pages/AdmissionResults';
 import ColumnHome from './pages/column/ColumnHome';
@@ -92,6 +93,10 @@ export default function App() {
             path="/page/services-in-depth-research"
             element={<Navigate to="/services/research" replace />}
           />
+          <Route
+            path="/page/admission-special-highschool-results"
+            element={<Navigate to="/admission/special-highschool" replace />}
+          />
 
           <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
           <Route path="/admission/results" element={<AdmissionResults />} />
@@ -108,6 +113,9 @@ export default function App() {
             path="/admission/susi-jungsi"
             element={<Navigate to="/admission/susi" replace />}
           />
+
+          {/* 특목고합격 — 카드가 링크가 아니라 상세 라우트는 두지 않는다(시안 2239:1559에 상세 없음). */}
+          <Route path="/admission/special-highschool" element={<SpecialHighschoolCases />} />
 
           <Route path="/admission/essay" element={<AdmissionBoard />} />
           <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
