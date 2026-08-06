@@ -483,6 +483,39 @@ async function main() {
     record('12c. DocBlocksEditor 스모크 렌더 — 9종 블록 전부 예외 없이 디스패치(group은 읽기 전용 요약)', pass, threw ? out : `len=${out.length}`);
   }
 
+  // ── 13) plainList 항목 추가·삭제·순서 변경(2026-08-06 보완) ───────────
+  {
+    const PlainListBlockEditor = await loadModule(
+      'src/components/admission/editor/blocks/PlainListBlockEditor.jsx',
+      'default'
+    );
+    const block = { kind: 'plainList', items: [{ type: 'text', text: 'a' }, { type: 'bullet', text: 'b' }] };
+
+    // docBlockOperations의 제네릭 배열 함수를 items에 직접 재사용해도
+    // 동일하게 동작하는지(컴포넌트 내부와 같은 함수 재사용 확인).
+    const appended = docOps.appendBlock(block.items, { type: 'text', text: 'c' });
+    const removed = docOps.removeBlockAt(appended, 0);
+    const moved = docOps.moveBlock(removed, 0, 1);
+    const pass =
+      appended.length === 3 &&
+      removed.length === 2 &&
+      removed[0].text === 'b' &&
+      moved[0].text === 'c' &&
+      moved[1].text === 'b';
+    record('13a. plainList items 추가·삭제·순서변경 — docBlockOperations 제네릭 함수 재사용 확인', pass, JSON.stringify({ appended, removed, moved }));
+
+    let threw = false;
+    let out = '';
+    try {
+      out = renderToStaticMarkup(React.createElement(PlainListBlockEditor, { block, onChange: () => {} }));
+    } catch (err) {
+      threw = true;
+      out = String(err && err.stack ? err.stack : err);
+    }
+    const renderPass = !threw && out.includes('항목 추가') && out.includes('삭제');
+    record('13b. PlainListBlockEditor 스모크 렌더 — 항목 추가/삭제 버튼 존재', renderPass, threw ? out : `len=${out.length}`);
+  }
+
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');
   let fail = 0;
   for (const r of results) {
