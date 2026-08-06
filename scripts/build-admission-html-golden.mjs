@@ -57,7 +57,7 @@ import { writeFile, stat, mkdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
@@ -75,13 +75,6 @@ const DEFAULT_HASH_OUT_PATH = path.join(REPO_ROOT, 'tests/fixtures/admission-htm
 const DEFAULT_FULL_OUT_PATH = path.join(REPO_ROOT, '.golden-cache/admission-html-golden.full.json');
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
 export const GOLDEN_PATHS = ['rawSectionHtml', 'hwpCategoryHtml', 'recruitmentResultHtml'];
-
-const { values: args } = parseArgs({
-  options: {
-    out: { type: 'string' },
-    'full-out': { type: 'string' }
-  }
-});
 
 // 대학명 → 카테고리 → 경로 3단 중첩 객체 생성(전문, 로컬 캐시 전용).
 export function buildGolden() {
@@ -170,7 +163,22 @@ async function writeJson(filePath, data) {
   return size;
 }
 
+// parseArgs는 여기(main 안)에서만 호출한다 — 예전엔 파일 최상위에서 즉시
+// 호출했는데, process.argv는 프로세스 전역이라 이 모듈을 import만 하는
+// scripts/verify-admission-doc-equivalence.mjs 쪽 호출자가 이 모듈이 모르는
+// 플래그(예: --dry-run)를 쓰면 import 시점에 그대로 throw했다(2026-08-06
+// 사고: load-admission-content.mjs --dry-run이 이 때문에 죽었고, 그걸
+// 플래그 없이 재실행하다 실제 DB에 잘못된 값이 써졌다). main()은 이미
+// isMainModule 가드로 직접 실행 때만 도는데, parseArgs만 가드 밖에
+// 있었던 게 원인이었다 — 이제 이 함수 안으로 옮겨 같은 가드를 받는다.
 async function main() {
+  const { values: args } = parseArgs({
+    options: {
+      out: { type: 'string' },
+      'full-out': { type: 'string' }
+    }
+  });
+
   console.log('=== 1) 멱등성 검증(같은 프로세스 내 2회 생성 비교) ===');
   assertIdempotent();
   console.log('통과: 전문·해시 골든 모두 2회 생성 결과가 동일합니다.');
@@ -196,7 +204,7 @@ async function main() {
   );
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('build-admission-html-golden.mjs');
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);
