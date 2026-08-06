@@ -45,3 +45,8 @@ docs/
 
 # Playwright MCP 브라우저 검증 산출물 (스냅샷·콘솔 로그)
 .playwright-mcp/
+
+# 대입모집요강 HTML 골든 전문 캐시 — tests/fixtures/admission-html-golden.json(해시)의
+# 로컬 디버깅용 원본. scripts/build-admission-html-golden.mjs로 언제든 재생성 가능하므로
+# 커밋하지 않는다.
+/.golden-cache/
