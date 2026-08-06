@@ -276,3 +276,95 @@ export function stableStringifyDoc(doc) {
   const { generatedAt, ...rest } = doc;
   return JSON.stringify(sortKeysDeep(rest));
 }
+
+// 구 buildAdmissionVisualAudit(AdmissionGuidelines.jsx)은 생성 HTML에
+// 정규식을 걸어 QA 신호를 뽑았다 — doc 파이프라인에서는 성립하지 않는다
+// (그 패널이 실제로는 index 뷰 행을 받아 raw 본문이 없어 사실상 항상
+// 0건인 죽은 검수였다는 것도 실측으로 확인됨, 설계 §7-F). 이 함수는 doc
+// 구조 자체를 훑어 대체 신호를 뽑는다. 페이지 쪽 배선은 이 커밋 범위
+// 밖이다(safehtml 담당) — 여기서는 export만 해둔다.
+
+// 값이 있어야 정상인 "라벨/이름류" role. 이 role의 컬럼이 숫자로만
+// 채워져 있으면 파싱 단계에서 컬럼이 밀렸을 가능성을 의심할 신호다
+// (예: 전형명 칸에 인원 숫자가 들어감). score/exam처럼 헤더 자체가
+// 숫자인 role('data')은 대상이 아니다 — 오탐이 된다.
+const LABEL_LIKE_ROLES = new Set(['type', 'name', 'title', 'group', 'series', 'unit']);
+
+function cellText(cell) {
+  if (cell == null) return '';
+  if (typeof cell === 'string') return cell;
+  if (typeof cell === 'object') {
+    if (typeof cell.text === 'string') return cell.text;
+    if (Array.isArray(cell.chips)) return cell.chips.map((c) => c.value).join(' ');
+  }
+  return '';
+}
+
+function isCellEmpty(cell) {
+  const text = cellText(cell).trim();
+  if (text) return false;
+  if (cell && typeof cell === 'object' && Array.isArray(cell.chips)) return cell.chips.length === 0;
+  return true;
+}
+
+function lintTableBlock(block, findings) {
+  const rowCount = block.rows.length;
+  const colCount = block.columns.length;
+  findings.totalCells += rowCount * colCount;
+
+  block.rows.forEach((row) => {
+    row.forEach((cell) => {
+      if (isCellEmpty(cell)) findings.emptyCells += 1;
+    });
+  });
+
+  block.columns.forEach((column, colIdx) => {
+    if (!LABEL_LIKE_ROLES.has(column.role)) return;
+    const values = block.rows.map((row) => cellText(row[colIdx]).trim()).filter(Boolean);
+    if (values.length && values.every((v) => /^\d+(\.\d+)?$/.test(v))) {
+      findings.numericOnlyLabelColumns.push({
+        variant: block.variant,
+        role: column.role,
+        label: column.label,
+        columnIndex: colIdx
+      });
+    }
+  });
+}
+
+function lintBlocks(blocks, findings) {
+  (blocks || []).forEach((block) => {
+    if (!block || typeof block !== 'object') return;
+    if (block.kind === 'table') lintTableBlock(block, findings);
+    else if (block.kind === 'rawHtml') findings.rawHtmlBlockCount += 1;
+    else if (block.kind === 'group') lintBlocks(block.children, findings);
+  });
+}
+
+/**
+ * doc 구조를 훑어 QA 신호를 뽑는다(렌더 무영향, 읽기 전용). 빈 셀 비율,
+ * 숫자만 든 라벨류 컬럼(파싱 컬럼 밀림 의심), warnings·rawHtml 잔량을
+ * 집계한다.
+ * @param {AdmissionDoc} doc
+ * @returns {{
+ *   totalCells: number, emptyCells: number, emptyCellRatio: number,
+ *   numericOnlyLabelColumns: {variant?: string, role: string, label: string, columnIndex: number}[],
+ *   rawHtmlBlockCount: number, warnings: Warning[]
+ * }}
+ */
+export function lintAdmissionDoc(doc) {
+  const findings = {
+    totalCells: 0,
+    emptyCells: 0,
+    numericOnlyLabelColumns: [],
+    rawHtmlBlockCount: 0
+  };
+
+  if (!isEmptyDoc(doc)) lintBlocks(doc.blocks, findings);
+
+  return {
+    ...findings,
+    emptyCellRatio: findings.totalCells ? findings.emptyCells / findings.totalCells : 0,
+    warnings: Array.isArray(doc?.warnings) ? doc.warnings : []
+  };
+}
