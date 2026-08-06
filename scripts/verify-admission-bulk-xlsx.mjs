@@ -24,10 +24,12 @@ import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
   BULK_XLSX_COLUMNS,
-  TRUNCATION_MARKER
+  TRUNCATION_MARKER,
+  MAX_XLSX_CELL_LENGTH
 } from '../src/lib/admissionBulkXlsx.js';
-import { HWP_SECTION_JSON_KEYS } from '../src/lib/admissionDoc.js';
+import { HWP_SECTION_JSON_KEYS, stableStringifyDoc } from '../src/lib/admissionDoc.js';
 import { clean } from '../src/lib/admissionParsing.js';
+import { importCell } from '../src/lib/admissionHtmlImport.js';
 
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
@@ -95,6 +97,31 @@ function buildExistingRowsMap(dbRows) {
 // 내려받았다가 다시 올리는" 왕복과 최대한 가깝게 만든다(메모리상 workbook
 // 객체를 그대로 재사용하면 셀 타입 변환 등 실제 파일 IO에서만 드러나는
 // 문제를 놓칠 수 있다).
+// doc 안의 chips 셀({chips:[{label,value}]}, recruit variant 값 셀)을
+// block/row/cell 등장 순서 그대로 펼친다. stableStringifyDoc(deep 비교,
+// generatedAt 제외)와 별개로, "chips 배열의 순서·개수·내용이 보존되는가"
+// 라는 team-lead의 구체 요구를 doc 구조와 무관하게 직접 확인하기 위한
+// 전용 비교용이다(예: 열/행이 통째로 하나 빠져도 stableStringifyDoc은
+// 당연히 잡지만, 이 함수는 그 실패를 "몇 번째 칩이 다른가"까지 바로
+// 보여준다).
+function extractChipsSequence(doc) {
+  const sequence = [];
+  if (!doc || !Array.isArray(doc.blocks)) return sequence;
+  doc.blocks.forEach((block, blockIdx) => {
+    if (block.kind !== 'table' || !Array.isArray(block.rows)) return;
+    block.rows.forEach((row, rowIdx) => {
+      row.forEach((cell, cellIdx) => {
+        if (cell && typeof cell === 'object' && Array.isArray(cell.chips)) {
+          cell.chips.forEach((chip, chipIdx) => {
+            sequence.push({ blockIdx, rowIdx, cellIdx, chipIdx, label: chip.label ?? null, value: chip.value ?? null });
+          });
+        }
+      });
+    });
+  });
+  return sequence;
+}
+
 function roundTripWorkbook(workbook) {
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
   return XLSX.read(buffer, { type: 'buffer' });
@@ -580,6 +607,127 @@ async function main() {
       const cellValue = grid[idx + 1][memoCol];
       assert(cellValue === value, `memo 셀 값이 원본과 다름(idx=${idx}): 기대="${value}" 실제="${cellValue}"`);
     });
+  });
+
+  // === 8) chips 셀(recruit variant) 실데이터 왕복 검증 — PR #40 "알려진
+  // 한계"(합성 테스트로만 커버) 해소. dbRows(1번 섹션에서 이미 조회)에서
+  // recruitment_quota_json에 chips 셀이 있는 행만 골라 별도 워크북으로
+  // 왕복시킨다(전체 218행과 섞지 않아 원인 분리가 쉽다).
+  console.log('\n=== 8) chips 셀(recruit variant) 실데이터 왕복 검증 ===');
+
+  function hasChipsBlocks(doc) {
+    if (!doc || !Array.isArray(doc.blocks)) return false;
+    return doc.blocks.some(
+      (block) =>
+        block.kind === 'table' &&
+        Array.isArray(block.rows) &&
+        block.rows.some((row) => row.some((cell) => cell && typeof cell === 'object' && Array.isArray(cell.chips)))
+    );
+  }
+
+  const chipsRows = dbRows.filter((row) => hasChipsBlocks(row.recruitment_quota_json));
+  console.log(`dev DB에서 chips 셀이 있는 행: ${chipsRows.length}건(사전 실측 7건과 비교)`);
+  chipsRows.forEach((row) => {
+    const seq = extractChipsSequence(row.recruitment_quota_json);
+    console.log(`  - [${row.university_name}/${row.admission_year}] chips 총 ${seq.length}개`);
+  });
+
+  check(`chips 셀 실데이터 ${chipsRows.length}건 왕복: 비잘림 행은 deep-equal, 잘림 행은 손대지 않고 보존`, () => {
+    assert(chipsRows.length > 0, 'chips 셀이 있는 행을 하나도 못 찾음(사전 실측 7건과 다름 — dev DB가 바뀌었을 수 있음)');
+
+    const { workbook: chipsWorkbook, truncatedCells: chipsTruncatedCells } = exportAdmissionRowsToXlsx(chipsRows);
+    const truncatedIds = new Set(chipsTruncatedCells.map((c) => c.id));
+    const chipsRoundTripped = roundTripWorkbook(chipsWorkbook);
+    const chipsExistingRows = buildExistingRowsMap(chipsRows);
+    const { rows: parsedChipsRows } = parseAdmissionRowsFromXlsx(chipsRoundTripped, chipsExistingRows);
+    const parsedByKey = new Map(parsedChipsRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
+
+    let deepEqualCount = 0;
+    let preservedTruncatedCount = 0;
+    const mismatches = [];
+
+    chipsRows.forEach((original) => {
+      const key = `${original.admission_year}::${original.university_key}`;
+      const parsed = parsedByKey.get(key);
+      if (!parsed) {
+        mismatches.push(`${key}: 행 자체가 파싱 결과에서 빠짐`);
+        return;
+      }
+      const wasTruncated = truncatedIds.has(original.id);
+      if (wasTruncated) {
+        // 잘린 행은 카테고리 단위 스킵이 먼저 개입해야 한다(17566df) —
+        // chips 파서까지 갈 필요 없이 기존 값을 그대로 보존해야 옳다.
+        if ('recruitment_quota_json' in parsed) {
+          mismatches.push(`${key}: 잘렸는데 재생성됨(기존 값 보존이 안 됨)`);
+        } else {
+          preservedTruncatedCount += 1;
+        }
+        return;
+      }
+      // 안 잘린 행 — html 그대로 왕복 후 재임포트한 doc이 원본과
+      // deep-equal 해야 한다(stableStringifyDoc, generatedAt 제외).
+      const beforeStr = stableStringifyDoc(original.recruitment_quota_json);
+      const afterStr = stableStringifyDoc(parsed.recruitment_quota_json);
+      if (beforeStr !== afterStr) {
+        mismatches.push(`${key}: doc 전체가 deep-equal 아님`);
+      } else {
+        deepEqualCount += 1;
+      }
+      // chips 배열의 순서·개수·내용 전용 비교(team-lead 명시 요구) —
+      // doc 전체가 같으면 이것도 당연히 같아야 하지만, 실패 시 정확히
+      // 몇 번째 칩이 다른지 바로 보여주기 위해 별도로도 확인한다.
+      const beforeChips = extractChipsSequence(original.recruitment_quota_json);
+      const afterChips = extractChipsSequence(parsed.recruitment_quota_json);
+      if (JSON.stringify(beforeChips) !== JSON.stringify(afterChips)) {
+        mismatches.push(`${key}: chips 순서/개수/내용 불일치(전 ${beforeChips.length}개 → 후 ${afterChips.length}개)`);
+      }
+    });
+
+    console.log(
+      `  chips ${chipsRows.length}건 분류: 왕복 후 deep-equal ${deepEqualCount}건 / 잘림으로 미재생성·보존 ${preservedTruncatedCount}건`
+    );
+    assert(mismatches.length === 0, `불일치 ${mismatches.length}건: ${mismatches.join(' / ')}`);
+    assert(
+      deepEqualCount + preservedTruncatedCount === chipsRows.length,
+      `분류되지 않은 행이 있음(deep-equal ${deepEqualCount} + 보존 ${preservedTruncatedCount} !== 전체 ${chipsRows.length})`
+    );
+  });
+
+  // 위 검증은 32,767자 제한 때문에 7건 중 5건이 "잘림 스킵"으로 빠져
+  // 실제로 chips 파서(importRecruitExactDocFromHtml/
+  // importRecruitLegacyDocFromHtml)를 안 탄다 — 잘림 보호는 확인됐지만
+  // 파서 정확도 자체는 2/7만 실증한 셈이다. 아래는 32,767자 제한을
+  // 우회해(엑셀 셀 크기 제약과 무관하게, 순수 파서 충실도만) 5건 전부
+  // 실제 DB html 그대로 재파싱해 chips가 보존되는지 별도로 확인한다
+  // (엑셀 왕복 자체는 아니다 — importCell 단계만 떼어 검증).
+  check('chips 셀 5건(잘림 때문에 위에서 미검증) — html 전체 그대로 재파싱해도 chips 보존 확인(엑셀 셀 크기 제약과 분리)', () => {
+    const truncatedChipsRows = chipsRows.filter((row) => {
+      const html = row.recruitment_result_html;
+      return typeof html === 'string' && html.length > MAX_XLSX_CELL_LENGTH;
+    });
+    assert(truncatedChipsRows.length === 5, `잘림 대상 chips 행 수가 사전 확인(5건)과 다름(실제 ${truncatedChipsRows.length}건)`);
+
+    const parserMismatches = [];
+    truncatedChipsRows.forEach((row) => {
+      const key = `${row.admission_year}::${row.university_key}`;
+      const html = row.recruitment_result_html;
+      const result = importCell('recruitment_quota', html, { university_name: row.university_name });
+      if (result.classification !== 'imported') {
+        parserMismatches.push(`${key}: importCell이 실패함(${result.classification}: ${result.reason || ''})`);
+        return;
+      }
+      const beforeStr = stableStringifyDoc(row.recruitment_quota_json);
+      const afterStr = stableStringifyDoc(result.doc);
+      if (beforeStr !== afterStr) {
+        parserMismatches.push(`${key}: 전체 html 재파싱 결과가 원본 doc과 deep-equal 아님`);
+      }
+      const beforeChips = extractChipsSequence(row.recruitment_quota_json);
+      const afterChips = extractChipsSequence(result.doc);
+      if (JSON.stringify(beforeChips) !== JSON.stringify(afterChips)) {
+        parserMismatches.push(`${key}: chips 순서/개수/내용 불일치(전 ${beforeChips.length}개 → 후 ${afterChips.length}개)`);
+      }
+    });
+    assert(parserMismatches.length === 0, `불일치 ${parserMismatches.length}건: ${parserMismatches.join(' / ')}`);
   });
 
   await checkFormulaRoundTrip();
