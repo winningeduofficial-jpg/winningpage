@@ -25,6 +25,7 @@ import {
   buildHwpCategoryHtml,
   clean as cleanAdmissionText
 } from '../lib/admissionParsing';
+import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc } from '../lib/admissionDoc';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
@@ -1019,19 +1020,65 @@ const CONFIGS = {
       matched_hwp_name: '',
       previous_year_changes: '',
       previous_year_changes_html: '',
+      // *_json 6종은 jsonb 컬럼이다 — 빈 문자열('')은 타입 에러를 낸다.
+      // sql/43 적용 전에는 컬럼 자체가 없어 select에 안 잡히지만, 적용 후
+      // 신규 행을 만들 때(AdminForm이 row 없이 defaults만 스프레드하는
+      // 경로) 여기 없으면 undefined가 payload에 실려 upsert가 컬럼을
+      // 아예 건드리지 않게 되므로, 명시적으로 null을 채워둔다.
+      previous_year_changes_json: null,
       selection_method: '',
       selection_method_html: '',
+      selection_method_json: null,
       minimum_requirements: '',
       minimum_requirements_html: '',
+      minimum_requirements_json: null,
       exam_schedule: '',
       exam_schedule_html: '',
+      exam_schedule_json: null,
       school_record_method: '',
       school_record_method_html: '',
+      school_record_method_json: null,
       recruitment_quota: '',
       recruitment_result_html: '',
+      recruitment_quota_json: null,
       jungsi_guideline_url: '',
       memo: '',
       detail_status: '상세입력완료'
+    },
+
+    // jsonb(*_json) 컬럼 방어(sql/43 적용 전 선배포). AdminForm 초기값이
+    // {...row}, 저장 payload가 {...form}인 일반 경로를 그대로 쓰면, jsonb
+    // 컬럼이 생기는 순간 객체가 form에 그대로 실렸다가 저장 시 (아직 이
+    // config의 fields엔 *_json 타입 필드가 없어 당장은 아니지만) 향후
+    // textarea 필드가 추가되면 [object Object]로 렌더된 뒤 그 문자열이
+    // 그대로 DB에 저장돼 원본 jsonb를 파괴한다. rowToForm/formToPayload로
+    // 객체 형태를 명시적으로 유지·검증한다.
+    rowToForm: (row) => {
+      const form = { ...row };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonKey) => {
+        // jsonb는 객체 그대로 보관한다(문자열화 금지). 컬럼이 아직 없으면
+        // (sql/43 적용 전) row[jsonKey]가 undefined이므로 null로 채운다.
+        form[jsonKey] = row?.[jsonKey] ?? null;
+      });
+      return form;
+    },
+    formToPayload: (form) => {
+      const payload = { ...form };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonKey) => {
+        const doc = form[jsonKey];
+        // doc이 없거나(null/undefined — sql/43 적용 전에는 rowToForm/defaults가
+        // 항상 null을 채우므로 이 분기가 사실상 전부다) validate 실패 시
+        // payload에서 아예 제외한다. 이 컬럼을 건드리지 않겠다는 뜻이지,
+        // null로 명시 저장하겠다는 뜻이 아니다 — 컬럼이 없는 동안(sql/43
+        // 적용 전) 여기서 항상 delete로 빠지므로 payload가 기존과 완전히
+        // 동일해진다(무해함의 근거). 존재하는 DB 값을 지우지도 않는다.
+        if (doc === null || doc === undefined || !validateAdmissionDoc(doc).ok) {
+          delete payload[jsonKey];
+          return;
+        }
+        payload[jsonKey] = doc;
+      });
+      return payload;
     },
 
     validate: admissionGuidelinesValidate,
