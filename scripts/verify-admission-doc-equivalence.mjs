@@ -19,12 +19,21 @@
 // buildHwpCategoryHtml/buildRecruitmentResultHtml)가 만드는 HTML의
 // sha256이 골든과 바이트 단위로 일치하는지.
 //
-// Gate B (구조, 허용 diff 2 — TODO Phase 2): renderToStaticMarkup(doc)
-// vs renderDocToHtml(doc) 정규화 DOM 비교. doc 파이프라인(admissionDoc.js,
-// AdmissionSectionView 등)이 아직 없어 이번 커밋에서는 자리만 잡는다.
-//   TODO(Phase 2): admissionDoc 스키마 + React 렌더 컴포넌트 도입 후,
-//   허용 diff 2종(빈 admission-result-note / admission-recruit-legend
-//   제거)만 열어두고 그 외 전부 실패시키는 runGateB() 추가.
+// Gate A2 (해시, 허용 diff 0): doc 파이프라인 도입 후 추가. renderDocToHtml
+// (buildRawSectionDoc(raw, key, row, name))와 renderDocToHtml
+// (buildHwpCategoryDoc(key, raw, row, name))이 골든의 rawSectionHtml/
+// hwpCategoryHtml 셀과 바이트 단위로 일치하는지. recruitmentResultHtml
+// (buildRecruitmentResultHtml의 wrap 없는 원시 출력)은 renderDocToHtml의
+// 계약 밖이라(항상 heading wrap을 포함) Gate A2 비교 대상이 아니다 —
+// 그 경로는 Gate A가 이미 커버한다.
+//
+// Gate B (구조, 허용 diff 2 — TODO Phase 3): renderToStaticMarkup(doc)
+// vs renderDocToHtml(doc) 정규화 DOM 비교. React 렌더 컴포넌트
+// (src/components/admission/)가 별도 병렬 작업으로 아직 진행 중이라
+// 이번 커밋에서는 자리만 잡는다.
+//   TODO(Phase 3): React 렌더 컴포넌트 도입 후, 허용 diff 2종(빈
+//   admission-result-note / admission-recruit-legend 제거)만 열어두고
+//   그 외 전부 실패시키는 runGateB() 추가.
 //
 // 전문 캐시가 없을 때(mismatch 디버깅용, 게이트 판정에는 불필요) 재구성:
 //   git worktree add ../wp-golden-base <골든이 그린이던 커밋 SHA>
@@ -44,7 +53,15 @@ import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import golden from '../tests/fixtures/admission-html-golden.json' with { type: 'json' };
-import { buildGolden, buildHashGolden, buildCellKey } from './build-admission-html-golden.mjs';
+import { buildGolden, buildHashGolden, buildCellKey, hashString } from './build-admission-html-golden.mjs';
+import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
+import {
+  buildRawSectionDoc,
+  buildHwpCategoryDoc,
+  renderDocToHtml,
+  HWP_SECTION_HTML_KEYS,
+  clean
+} from '../src/lib/admissionParsing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -175,11 +192,108 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
   return { total, matched, matchRate, mismatches };
 }
 
+const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
+const GATE_A2_PATHS = ['rawSectionHtml', 'hwpCategoryHtml'];
+
+function docBuilderForPath(pathName) {
+  if (pathName === 'rawSectionHtml') return buildRawSectionDoc;
+  if (pathName === 'hwpCategoryHtml') {
+    // buildHwpCategoryDoc(sectionKey, rawText, ...) — 인자 순서가 나머지와
+    // 다르다(buildRawSectionDoc은 (value, sectionKey, ...)).
+    return (value, sectionKey, row, universityName) =>
+      buildHwpCategoryDoc(sectionKey, value, row, universityName);
+  }
+  throw new Error(`알 수 없는 Gate A2 경로: ${pathName}`);
+}
+
+export async function runGateA2Verification({ verbose = true } = {}) {
+  const universityNames = Object.keys(admissionHwpSections);
+  const mismatches = [];
+  let total = 0;
+  let matched = 0;
+
+  universityNames.forEach((universityName) => {
+    const row = admissionHwpSections[universityName];
+    CATEGORY_KEYS.forEach((key) => {
+      const raw = clean(row[key]);
+      if (!raw) return;
+
+      GATE_A2_PATHS.forEach((pathName) => {
+        const cellKey = buildCellKey(universityName, key, pathName);
+        const expected = golden.cells[cellKey];
+        if (!expected) return; // 골든에 없는 셀(빈 출력 등)은 비교 대상 아님 — Gate A가 이미 다룬다.
+        total += 1;
+
+        let rendered = null;
+        let error = null;
+        try {
+          const doc = docBuilderForPath(pathName)(raw, key, row, universityName);
+          rendered = renderDocToHtml(doc, key);
+        } catch (err) {
+          error = err;
+        }
+
+        if (error) {
+          mismatches.push({
+            key: cellKey,
+            reason: `렌더링 오류: ${error.message}`,
+            expectedBytes: expected.bytes,
+            actualBytes: null
+          });
+          return;
+        }
+
+        const actualHash = hashString(rendered);
+        if (actualHash === expected.sha256) {
+          matched += 1;
+        } else {
+          mismatches.push({
+            key: cellKey,
+            reason: '해시 불일치',
+            expectedBytes: expected.bytes,
+            actualBytes: Buffer.byteLength(rendered, 'utf-8'),
+            rendered
+          });
+        }
+      });
+    });
+  });
+
+  const matchRate = total ? (matched / total) * 100 : 100;
+
+  if (verbose) {
+    console.log(
+      `[doc-equivalence] Gate A2: 골든 셀 ${total}개 중 ${matched}개 해시 일치 (${matchRate.toFixed(2)}%)`
+    );
+    if (mismatches.length) {
+      console.error(`[doc-equivalence] Gate A2 불일치 ${mismatches.length}건:`);
+      const fullCache = await loadFullCacheIfPresent();
+      mismatches.slice(0, MAX_DIFF_SAMPLES).forEach((m) => {
+        const [universityName, category, pathName] = m.key.split('|');
+        console.error(`  - ${m.key}: ${m.reason} (기존 ${m.expectedBytes}자 → 현재 ${m.actualBytes ?? 0}자)`);
+        if (fullCache && m.rendered !== undefined) {
+          const before = fullCache?.[universityName]?.[category]?.[pathName] || '';
+          const { before: beforeSnippet, after: afterSnippet } = diffSnippet(before, m.rendered);
+          console.error(`      전: ...${beforeSnippet}...`);
+          console.error(`      후: ...${afterSnippet}...`);
+        }
+      });
+      if (mismatches.length > MAX_DIFF_SAMPLES) {
+        console.error(`  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`);
+      }
+    } else {
+      console.log('[doc-equivalence] Gate A2 전 항목 100% 일치.');
+    }
+  }
+
+  return { total, matched, matchRate, mismatches };
+}
+
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
-  runDocEquivalenceVerification()
-    .then(({ mismatches }) => {
-      process.exit(mismatches.length ? 1 : 0);
+  Promise.all([runDocEquivalenceVerification(), runGateA2Verification()])
+    .then(([gateA, gateA2]) => {
+      process.exit(gateA.mismatches.length || gateA2.mismatches.length ? 1 : 0);
     })
     .catch((err) => {
       console.error(err);
