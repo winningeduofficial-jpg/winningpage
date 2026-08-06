@@ -113,3 +113,18 @@ export function recruitExactFixedCellClassName(idx) {
 export function isGenericLeftColumn(idx) {
   return idx === 0 || idx === 1;
 }
+
+// ── 셀 편집 UI 종류(표 편집기 전용) ──────────────────────────────────
+// 어떤 (variant, role) 조합이 Cell의 3형태(문자열/{text,badge}/{chips}) 중
+// 무엇을 쓰는지 판정한다. blocks/tables/SelectionTable.jsx의
+// `role === 'minimum'` 분기, blocks/tables/RecruitTable.jsx의
+// `role === 'group' || role === 'unit'` 분기와 정확히 같은 조건을 그대로
+// 옮긴 것이다 — 표시 컴포넌트를 고치지 않고(Gate B 바이트 계약 보호)
+// 편집기가 같은 판정을 공유하도록 이 함수 하나로 뽑아냈다. 표시 컴포넌트
+// 쪽 조건이 바뀌면 이 함수도 같이 바꿔야 한다(현재는 인라인 조건 중복 —
+// 표시 컴포넌트를 이 함수를 쓰도록 리팩터하는 건 별도 작업).
+export function getCellKind(variant, role) {
+  if (variant === 'selection' && role === 'minimum') return 'badge';
+  if (variant === 'recruit' && role !== 'group' && role !== 'unit') return 'chips';
+  return 'text';
+}
