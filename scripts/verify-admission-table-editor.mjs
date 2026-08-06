@@ -267,9 +267,71 @@ async function main() {
       out = String(err && err.stack ? err.stack : err);
     }
     const inputCount = (out.match(/<input/g) || []).length;
-    // 헤더 라벨+role 입력 2개 * 5컬럼 + 바디 셀 입력(문자열 4개 + badge 1개) * 2행 = 10 + 10 = 20
-    const pass = !threw && inputCount > 0 && out.includes('열 추가') && out.includes('행 추가');
-    record('6. TableBlockEditor 스모크 렌더(예외 없음, 편집 UI 요소 존재)', pass, threw ? out : `inputCount=${inputCount}`);
+    // 2026-08-06 위계 재정리 후: 기본 상태(열 설정 닫힘)에서는 컬럼 라벨
+    // 입력 5개(헤더) + 바디 셀 입력 2행×5셀=10개(badge 셀도 <input> 1개
+    // 뿐 — select는 <input> 아님) + 항상 존재하는 숨김 xlsx 파일 input
+    // 1개(가져오기 버튼이 트리거) = 16개만 렌더된다. role/정렬/열
+    // 추가삭제는 "열 설정" 토글 뒤로 숨었으므로 기본 렌더에는 없어야
+    // 한다(selection은 컬럼 수 고정 variant라 "열 추가" 자체가 영영 없고,
+    // "열 삭제"는 설정을 펼쳐야만 나온다). 대신 고정 사유 안내 문구는
+    // 토글과 무관하게 항상 보여야 한다.
+    const pass =
+      !threw &&
+      inputCount === 16 &&
+      out.includes('행 추가') &&
+      out.includes('열 설정') &&
+      !out.includes('열 삭제') &&
+      out.includes('컬럼 수가 고정');
+    record('6. TableBlockEditor 스모크 렌더(예외 없음, 기본 상태는 라벨·셀만 — role/정렬/열조작은 숨김)', pass, threw ? out : `inputCount=${inputCount}`);
+  }
+
+  // ── 6b) "열 설정" 토글을 펼치면 숨겼던 컨트롤이 실제로 나타나는지 —
+  //   기능을 지운 게 아니라 접근 경로만 옮겼다는 걸 별도로 증명한다.
+  //   렌더된 정적 마크업에는 React 이벤트 핸들러가 없어 클릭을 흉내낼 수
+  //   없으므로, TableBlockEditor 대신 컴포넌트가 넘겨주는 상태 없이 직접
+  //   같은 위치의 자식(TableGroupHeaderEditor)을 expanded:true로 렌더해
+  //   그 경로가 실제로 존재하는지 확인한다(score는 컬럼 수 고정이 아니므로
+  //   "+ 열 추가"까지 같이 검증 가능 — TableBlockEditor를 그대로 쓰되
+  //   score 블록으로 조립하는 건 상태를 못 바꾸니, ColumnRoleEditor·
+  //   TableGroupHeaderEditor를 열린 상태로 직접 렌더해 그 두 조각이
+  //   여전히 정상 동작함을 확인한다).
+  {
+    const TableGroupHeaderEditor = await loadModule(
+      'src/components/admission/editor/TableGroupHeaderEditor.jsx',
+      'default'
+    );
+    const collapsed = renderToStaticMarkup(
+      React.createElement(TableGroupHeaderEditor, {
+        groups: [{ name: 'g', count: 2 }],
+        fixedColumnCount: 1,
+        columnsLength: 3,
+        expanded: false,
+        onUpdateGroupField: () => {},
+        onAddGroup: () => {},
+        onRemoveGroup: () => {},
+        onUpdateFixedColumnCount: () => {},
+        onEnableGroups: () => {}
+      })
+    );
+    const expanded = renderToStaticMarkup(
+      React.createElement(TableGroupHeaderEditor, {
+        groups: [{ name: 'g', count: 2 }],
+        fixedColumnCount: 1,
+        columnsLength: 3,
+        expanded: true,
+        onUpdateGroupField: () => {},
+        onAddGroup: () => {},
+        onRemoveGroup: () => {},
+        onUpdateFixedColumnCount: () => {},
+        onEnableGroups: () => {}
+      })
+    );
+    const pass =
+      collapsed.includes('합계') &&
+      !collapsed.includes('그룹 추가') &&
+      expanded.includes('그룹 추가') &&
+      expanded.includes('고정 컬럼 수');
+    record('6b. TableGroupHeaderEditor expanded 토글 — 접힘은 요약만, 펼침은 편집 필드까지', pass, `collapsed=${collapsed}\nexpanded=${expanded}`);
   }
 
   // ── 7) IME 조합 로직 — 순수 상태 전이 검증(실제 브라우저 이벤트는 재현 불가) ──

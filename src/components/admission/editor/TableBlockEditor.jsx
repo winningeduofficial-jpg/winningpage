@@ -18,6 +18,17 @@ import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBl
 // 배선은 이번 범위 밖 — 호출부가 validation(반환값 3번째 인자로 노출)을
 // 보고 저장 가능 여부를 스스로 판단한다.
 //
+// 위계(2026-08-06 사용자 지적 반영 — "위계 수정 필요 + 너무 복잡하다"):
+//   1차(가장 강조): 데이터 셀 입력 — 관리자가 매번 만지는 값
+//   2차: 행 추가/삭제/순서 — 일상적이지만 셀보다는 드묾
+//   3차(가장 약하게, 회색 소형): xlsx 내보내기/가져오기, 열 설정 토글,
+//     2단 헤더 구성 — 구조 변경이라 드묾. 한 툴바에 모은다
+// role·정렬·열 추가삭제는 "열 설정" 토글 뒤로 숨긴다(role은 셀 편집기
+// 종류를 바꾸는 값이라 상시 노출은 오히려 사고 위험 — 기능은 지우지
+// 않고 접근 경로만 좁힌다). 컬럼 수 고정 variant는 열 추가삭제 버튼을
+// disabled로 그리지 않고 아예 렌더하지 않는다 — 그 자리에 사유 한 줄만
+// 남긴다.
+//
 // props:
 //   section: SectionKey (validateAdmissionDoc이 doc.section 검사에 씀)
 //   block: TableBlock
@@ -34,6 +45,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
     [section, block]
   );
   const columnMutationAllowed = columnMutationBlockReason === null;
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [xlsxOversized, setXlsxOversized] = useState([]);
   const [xlsxImportErrors, setXlsxImportErrors] = useState([]);
   const [xlsxImportPreview, setXlsxImportPreview] = useState(null); // { block, changeSummary, unchanged }
@@ -155,11 +167,12 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         </div>
       )}
 
-      <div className="mb-2 flex items-center gap-2">
-        <button type="button" onClick={handleExportXlsx} className="text-xs font-bold text-[#2348ff]">
+      {/* 3차(구조 변경) 툴바 — 회색 소형, 한 줄에 모음. 자주 안 씀. */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#e5e7eb] pb-2 text-[11px] font-bold text-gray-500">
+        <button type="button" onClick={handleExportXlsx} className="hover:text-gray-700">
           xlsx로 내보내기
         </button>
-        <button type="button" onClick={() => xlsxFileInputRef.current?.click()} className="text-xs font-bold text-[#2348ff]">
+        <button type="button" onClick={() => xlsxFileInputRef.current?.click()} className="hover:text-gray-700">
           xlsx 가져오기
         </button>
         <input
@@ -170,7 +183,18 @@ export default function TableBlockEditor({ section, block, onChange, universityN
           className="hidden"
           aria-label="xlsx 파일 선택"
         />
+        <button
+          type="button"
+          onClick={() => setShowColumnSettings((v) => !v)}
+          className={showColumnSettings ? 'text-[#2348ff]' : 'hover:text-gray-700'}
+        >
+          {showColumnSettings ? '열 설정 닫기' : '열 설정(role·정렬·열 추가삭제)'}
+        </button>
       </div>
+
+      {!columnMutationAllowed && (
+        <p className="mb-2 text-[11px] font-bold text-gray-400">{columnMutationBlockReason}</p>
+      )}
 
       {xlsxImportErrors.length > 0 && (
         <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
@@ -229,6 +253,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         groups={block.groups}
         fixedColumnCount={block.fixedColumnCount}
         columnsLength={block.columns.length}
+        expanded={showColumnSettings}
         onUpdateGroupField={updateGroupField}
         onAddGroup={addGroup}
         onRemoveGroup={removeGroup}
@@ -243,51 +268,53 @@ export default function TableBlockEditor({ section, block, onChange, universityN
               {block.columns.map((column, colIdx) => (
                 <th key={colIdx}>
                   <div className="flex flex-col gap-1 p-1">
+                    {/* 1차 — 라벨은 기본 노출. 데이터 셀과 함께 관리자가 늘 만지는 값. */}
                     <ImeSafeInput
                       type="text"
                       value={column.label ?? ''}
                       onCommit={(next) => updateColumnField(colIdx, 'label', next)}
                       aria-label={`컬럼 ${colIdx + 1} 라벨`}
-                      className="admission-cell-editor-input w-full border border-[#d7d7d7] px-1.5 py-1 text-xs font-bold"
+                      className="admission-cell-editor-input w-full border border-[#9ca3af] px-1.5 py-1 text-xs font-bold"
                     />
-                    <ColumnRoleEditor
-                      variant={block.variant}
-                      role={column.role}
-                      onChange={(next) => updateColumnField(colIdx, 'role', next)}
-                    />
-                    <select
-                      value={column.align ?? ''}
-                      onChange={(e) => updateColumnField(colIdx, 'align', e.target.value || undefined)}
-                      aria-label={`컬럼 ${colIdx + 1} 정렬`}
-                      className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
-                    >
-                      <option value="">(기본 정렬)</option>
-                      <option value="left">left</option>
-                      <option value="center">center</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => removeColumn(colIdx)}
-                      disabled={!columnMutationAllowed || block.columns.length <= 1}
-                      title={columnMutationBlockReason || undefined}
-                      className="text-[11px] font-bold text-red-500 disabled:cursor-not-allowed disabled:text-gray-300"
-                    >
-                      열 삭제
-                    </button>
+                    {showColumnSettings && (
+                      <>
+                        <ColumnRoleEditor
+                          variant={block.variant}
+                          role={column.role}
+                          onChange={(next) => updateColumnField(colIdx, 'role', next)}
+                        />
+                        <select
+                          value={column.align ?? ''}
+                          onChange={(e) => updateColumnField(colIdx, 'align', e.target.value || undefined)}
+                          aria-label={`컬럼 ${colIdx + 1} 정렬`}
+                          className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
+                        >
+                          <option value="">(기본 정렬)</option>
+                          <option value="left">left</option>
+                          <option value="center">center</option>
+                        </select>
+                        {columnMutationAllowed && (
+                          <button
+                            type="button"
+                            onClick={() => removeColumn(colIdx)}
+                            disabled={block.columns.length <= 1}
+                            className="text-[11px] font-bold text-red-500 disabled:cursor-not-allowed disabled:text-gray-300"
+                          >
+                            열 삭제
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </th>
               ))}
-              <th>
-                <button
-                  type="button"
-                  onClick={addColumn}
-                  disabled={!columnMutationAllowed}
-                  title={columnMutationBlockReason || undefined}
-                  className="text-xs font-bold text-[#2348ff] disabled:cursor-not-allowed disabled:text-gray-300"
-                >
-                  + 열 추가
-                </button>
-              </th>
+              {showColumnSettings && columnMutationAllowed && (
+                <th>
+                  <button type="button" onClick={addColumn} className="text-[11px] font-bold text-gray-500 hover:text-gray-700">
+                    + 열 추가
+                  </button>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -303,13 +330,14 @@ export default function TableBlockEditor({ section, block, onChange, universityN
                   </td>
                 ))}
                 <td>
-                  <div className="flex items-center gap-1">
+                  {/* 2차 — 행 조작. 셀 편집보다는 드물지만 일상 작업이라 열 설정보다 진하게. */}
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => moveRow(rowIdx, -1)}
                       disabled={rowIdx === 0}
                       aria-label={`행 ${rowIdx + 1} 위로`}
-                      className="text-xs disabled:text-gray-300"
+                      className="text-sm font-bold text-gray-600 disabled:text-gray-300"
                     >
                       ↑
                     </button>
@@ -318,7 +346,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
                       onClick={() => moveRow(rowIdx, 1)}
                       disabled={rowIdx === block.rows.length - 1}
                       aria-label={`행 ${rowIdx + 1} 아래로`}
-                      className="text-xs disabled:text-gray-300"
+                      className="text-sm font-bold text-gray-600 disabled:text-gray-300"
                     >
                       ↓
                     </button>
@@ -338,7 +366,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         </table>
       </div>
 
-      <button type="button" onClick={addRow} className="mt-2 text-xs font-bold text-[#2348ff]">
+      <button type="button" onClick={addRow} className="mt-2 text-sm font-bold text-[#2348ff]">
         + 행 추가
       </button>
     </div>

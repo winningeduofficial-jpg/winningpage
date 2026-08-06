@@ -13,6 +13,22 @@ const KIND_LABELS = {
   footnote: '각주(footnote)'
 };
 
+// 블록 헤더 표기용 짧은 이름(2026-08-06 사용자 지적 반영 — "#1 table" 같은
+// 내부 kind 표기 대신 관리자가 읽을 라벨로). group/rawHtml은 추가 대상은
+// 아니지만(ALL_BLOCK_KINDS 밖) 이미 doc에 있을 수 있어 블록 헤더 표기는
+// 필요하다.
+const SHORT_KIND_LABELS = {
+  table: '표',
+  note: '안내 문구',
+  emptyBox: '빈 상태 박스',
+  heading: '소제목',
+  plainList: '목록',
+  preText: '원문 텍스트',
+  footnote: '각주',
+  group: '그룹',
+  rawHtml: '원본 HTML(레거시)'
+};
+
 // AdmissionDoc.blocks 배열 전체를 편집하는 최상위 컴포넌트. controlled —
 // blocks/onChange만 받는다. universityName/sectionLabel은 하위 table
 // 블록의 xlsx 파일명 구성용으로 그대로 흘려보낸다(선택 — 없어도 동작).
@@ -66,7 +82,7 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
           <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
             <span className="text-[11px] font-bold text-gray-500">
-              #{idx + 1} {block.kind}
+              {SHORT_KIND_LABELS[block.kind] || block.kind} {idx + 1}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -107,13 +123,14 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         </div>
       ))}
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
+      {/* 3차(구조 변경) — 블록 추가는 드묾. 회색 소형으로 낮추고 위쪽에 구분선. */}
+      <div className="flex flex-col gap-1 border-t border-[#e5e7eb] pt-2">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-gray-500">
           <select
             value={addKind}
             onChange={(e) => setAddKind(e.target.value)}
             aria-label="추가할 블록 종류"
-            className="border border-[#d7d7d7] px-1 py-1 text-xs"
+            className="border border-[#d7d7d7] px-1 py-1 text-[11px] font-normal text-gray-700"
           >
             {visibleKinds.map((kind) => (
               <option key={kind} value={kind}>
@@ -121,11 +138,11 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
               </option>
             ))}
           </select>
-          <button type="button" onClick={addBlock} className="text-xs font-bold text-[#2348ff]">
+          <button type="button" onClick={addBlock} className="hover:text-gray-700">
             + 블록 추가
           </button>
           {advanced.length > 0 && (
-            <label className="ml-2 flex items-center gap-1 text-[11px] font-bold text-gray-500">
+            <label className="ml-2 flex items-center gap-1">
               <input
                 type="checkbox"
                 checked={showAdvanced}

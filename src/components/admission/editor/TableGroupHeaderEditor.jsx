@@ -7,10 +7,16 @@ import ImeSafeInput from './ImeSafeInput';
 // sum(groups.count)+fixedColumnCount===columns.length 위반 여부는
 // TableBlockEditor 상단의 validateBlocks 결과 배너가 실시간으로 보여준다
 // (에러 문자열 자체에 "현재 합계 vs columns.length"가 담겨 있다).
+//
+// 2단 헤더 구성은 3차(구조 변경, 드묾) — expanded(TableBlockEditor의
+// "열 설정" 토글과 공유)가 false면 편집 가능한 필드는 숨기고 한 줄
+// 요약(또는 미구성 안내)만 보여준다. 기능은 그대로다 — 접근 경로만
+// 열 설정 토글 뒤로 옮긴 것.
 export default function TableGroupHeaderEditor({
   groups,
   fixedColumnCount,
   columnsLength,
+  expanded,
   onUpdateGroupField,
   onAddGroup,
   onRemoveGroup,
@@ -18,9 +24,10 @@ export default function TableGroupHeaderEditor({
   onEnableGroups
 }) {
   if (!groups) {
+    if (!expanded) return null;
     return (
       <div className="mb-2 rounded border border-dashed border-[#d7d7d7] p-2">
-        <button type="button" onClick={onEnableGroups} className="text-xs font-bold text-[#2348ff]">
+        <button type="button" onClick={onEnableGroups} className="text-[11px] font-bold text-gray-500 hover:text-gray-700">
           + 2단 헤더(그룹) 구성 추가
         </button>
       </div>
@@ -29,6 +36,15 @@ export default function TableGroupHeaderEditor({
 
   const groupSum = groups.reduce((sum, g) => sum + (Number(g.count) || 0), 0);
   const total = groupSum + (Number(fixedColumnCount) || 0);
+
+  if (!expanded) {
+    return (
+      <p className="mb-2 text-[11px] font-bold text-gray-400">
+        2단 헤더 — 그룹 {groups.length}개 · 고정 컬럼 {fixedColumnCount ?? 0}개 · 합계 {total}/{columnsLength}
+        {total !== columnsLength ? ' (불일치 — 열 설정에서 확인)' : ' (일치)'}
+      </p>
+    );
+  }
 
   return (
     <div className="mb-2 rounded border border-[#d7d7d7] p-2">
@@ -77,7 +93,7 @@ export default function TableGroupHeaderEditor({
           </div>
         ))}
       </div>
-      <button type="button" onClick={onAddGroup} className="mt-1 text-[11px] font-bold text-[#2348ff]">
+      <button type="button" onClick={onAddGroup} className="mt-1 text-[11px] font-bold text-gray-500 hover:text-gray-700">
         + 그룹 추가
       </button>
     </div>

@@ -9,7 +9,7 @@ export default function TextCellEditor({ value, onChange }) {
       type="text"
       value={text}
       onCommit={onChange}
-      className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
+      className="admission-cell-editor-input w-full border border-[#9ca3af] px-2 py-1.5 text-sm"
     />
   );
 }
