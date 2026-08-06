@@ -4232,16 +4232,20 @@ function AdmissionParsingPreview({ form, onPatch }) {
       {/* 표/블록 표면 스타일은 이제 AdmissionSurface.jsx가 소유한다(2단계, 2026-08-06
           사용자 지시 "컴포넌트화") — 여기 있던 자체 사본(그리드 테두리·13px·#013262 헤더 등,
           공개 모달의 수십 차례 Figma 재조정을 못 따라가 드리프트됐었다)은 삭제했다.
-          이 페이지에 남기는 건 이 표 시스템과 무관한 것들뿐이다: .admission-parsing-preview
-          스크롤바 숨김(HWP 원문 파싱 미리보기 패널 전용, AdmissionSurface 범위 밖)과
-          범용 유틸리티 .muted. */}
+          이 페이지에 남기는 건 이 표 시스템과 무관한 범용 유틸리티 .muted뿐이다.
+          ⚠ 2026-08-06 결함 수정: .admission-parsing-preview 스코프의 가로 스크롤바
+          숨김 규칙(scrollbar-width:none 등)을 여기서 지웠다 — 이 패널의 6개 카테고리에
+          admission-surface를 붙이면서(위 map 안) 이 패널의 .admission-scroll-table도
+          그 숨김 규칙 대상이 됐는데, 공개 모달과 달리 이 페이지엔 대체 스크롤 수단
+          (.admission-modal-x-scroll 프록시)이 없다 — 관리자가 870px 컨테이너 안에서
+          1567px 표(모집인원및입결 등)를 스크롤할 방법 자체를 잃었다(실측: scrollLeft
+          강제 설정하면 스크롤은 되는데 스크롤바가 안 보여 존재를 알 방법이 없었다).
+          이 규칙을 처음 넣은 688ee97에는 스크롤 관련 근거 주석이 없다 — "모달과 동일하게
+          유지"라는 범용 문구뿐이라, 프록시 스크롤바 전제(공개 모달 전용 장치, BLOCK3
+          쉘 padding 계산에 의존)를 검증 없이 그대로 복사해온 것으로 보인다. 프록시를
+          어드민에 옮기지 않고(공개 전용 장치를 옮기면 그 계산을 다시 맞춰야 함) 대신
+          네이티브 스크롤바가 보이도록 숨김 규칙 자체를 없앴다. */}
       <style>{`
-        .admission-parsing-preview .admission-scroll-table,
-        .admission-parsing-preview .admission-table-wrap,
-        .admission-parsing-preview .admission-existing-html { scrollbar-width: none; }
-        .admission-parsing-preview .admission-scroll-table::-webkit-scrollbar,
-        .admission-parsing-preview .admission-table-wrap::-webkit-scrollbar,
-        .admission-parsing-preview .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
         .muted { color: #667085; }
       `}</style>
     </section>
