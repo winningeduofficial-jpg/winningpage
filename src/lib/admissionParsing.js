@@ -3608,6 +3608,211 @@ export function renderDocToHtml(doc, sectionKey) {
   return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(inner, sectionKey));
 }
 
+// =====================================================================
+// Phase 5 — legacy HTML(curated-html RawHtmlBlock) → 구조화 doc 임포터.
+//
+// 현행 parseHtmlTableRows(:346)는 colspan/rowspan을 그리드로 펼쳐서
+// 병합 "사실"을 폐기한다(recruitExact 2단 헤더처럼 병합 자체가 의미인
+// 경우 복원 불가). parseHtmlTableGrid는 헤더의 colSpan/rowSpan을
+// 보존하고, 바디는 실측(DB 717셀 전수 확인 — 바디 병합 0건, 헤더만
+// 976건)에 근거해 직사각형으로 가정하되 방어적으로 병합을 감지해
+// hasBodyMerge 플래그로 알린다(감지 시 호출부가 구조화를 포기하고
+// rawHtml을 유지해야 한다는 신호).
+// =====================================================================
+
+function extractSpanAttrs(openTag) {
+  const colSpan = Math.max(1, parseInt((openTag.match(/colspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1);
+  const rowSpan = Math.max(1, parseInt((openTag.match(/rowspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1);
+  return { colSpan, rowSpan };
+}
+
+function extractClassAttr(openTag) {
+  const m = openTag.match(/class\s*=\s*["']([^"']*)["']/i);
+  return m ? m[1] : '';
+}
+
+function extractCellInnerHtml(cellHtml) {
+  return cellHtml.replace(/^<t[hd][^>]*>/i, '').replace(/<\/t[hd]>\s*$/i, '');
+}
+
+// <thead> 안의 <th> 셀을 행별로 {text, className, innerHtml, colSpan, rowSpan}
+// 배열로 추출한다. 그리드로 펼치지 않는다 — groups/fixedColumnCount 도출에
+// span 원본값이 그대로 필요하기 때문이다.
+function extractHeaderRows(theadHtml) {
+  const rowMatches = String(theadHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  return rowMatches.map((rowHtml) => {
+    const cellMatches = rowHtml.match(/<th[\s\S]*?<\/th>/gi) || [];
+    return cellMatches.map((cellHtml) => {
+      const openTag = (cellHtml.match(/^<th[^>]*>/i) || [''])[0];
+      const { colSpan, rowSpan } = extractSpanAttrs(openTag);
+      return {
+        text: clean(stripHtmlToText(cellHtml)),
+        className: extractClassAttr(openTag),
+        innerHtml: extractCellInnerHtml(cellHtml),
+        colSpan,
+        rowSpan
+      };
+    });
+  });
+}
+
+// 헤더가 정확히 2행이면 recruitExact류 2단 헤더로 간주한다. 1행 rowSpan=2
+// 셀은 fixedColumnCount(양쪽 헤더에 걸친 고정 컬럼), colSpan>1 셀은
+// groups(그 아래 하위 헤더 colSpan개를 묶는 그룹)로 환원한다.
+// ⚠ 현재 실제 2단 헤더 HTML 샘플로 검증되지 않았다(이번 커밋 대상인
+// previous_year_changes/selection_method는 둘 다 1행 헤더) — recruitment_
+// quota 임포트 착수 시 재검증 필요.
+function deriveHeaderGroups(headerRows) {
+  if (headerRows.length !== 2) return { groups: undefined, fixedColumnCount: undefined };
+  const firstRow = headerRows[0];
+  const groups = [];
+  let fixedColumnCount = 0;
+  firstRow.forEach((cell) => {
+    if (cell.rowSpan >= 2) {
+      fixedColumnCount += 1;
+    } else {
+      groups.push({ name: cell.text, count: cell.colSpan });
+    }
+  });
+  return { groups, fixedColumnCount };
+}
+
+// <tbody> 안의 <tr>/<td>를 행별로 {text, className, innerHtml} 배열로
+// 추출한다(직사각형 가정 — 펼치지 않는다). colspan/rowspan>1인 셀을
+// 하나라도 발견하면 hasMerge=true로 표시한다(방어적 감지 — 실측상 0건).
+function extractBodyRows(tbodyHtml) {
+  const rowMatches = String(tbodyHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  let hasMerge = false;
+  const rows = rowMatches
+    .map((rowHtml) => {
+      const cellMatches = rowHtml.match(/<td[\s\S]*?<\/td>/gi) || [];
+      return cellMatches.map((cellHtml) => {
+        const openTag = (cellHtml.match(/^<td[^>]*>/i) || [''])[0];
+        const { colSpan, rowSpan } = extractSpanAttrs(openTag);
+        if (colSpan > 1 || rowSpan > 1) hasMerge = true;
+        return {
+          text: clean(stripHtmlToText(cellHtml)),
+          className: extractClassAttr(openTag),
+          innerHtml: extractCellInnerHtml(cellHtml)
+        };
+      });
+    })
+    .filter((row) => row.length > 0);
+  return { rows, hasMerge };
+}
+
+/**
+ * legacy 저장 HTML의 <table>을 구조화된 그리드로 파싱한다(값 하나 =
+ * 셀 하나, 병합은 폐기하지 않고 헤더는 span 그대로, 바디는 병합 감지만).
+ * @param {string} html
+ * @returns {{headerRows: object[][], bodyRows: object[][], hasBodyMerge: boolean, groups?: {name:string,count:number}[], fixedColumnCount?: number}}
+ */
+export function parseHtmlTableGrid(html) {
+  const source = String(html || '');
+  const theadMatch = source.match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
+  const tbodyMatch = source.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+
+  const headerRows = theadMatch ? extractHeaderRows(theadMatch[1]) : [];
+  const { rows: bodyRows, hasMerge: hasBodyMerge } = tbodyMatch
+    ? extractBodyRows(tbodyMatch[1])
+    : { rows: [], hasMerge: false };
+  const { groups, fixedColumnCount } = deriveHeaderGroups(headerRows);
+
+  return { headerRows, bodyRows, hasBodyMerge, groups, fixedColumnCount };
+}
+
+// previous_year_changes legacy HTML → TableBlock{variant:'change'} doc.
+// 실패(컬럼 수 불일치·바디 병합 감지 등) 시 null — 호출부가 rawHtml
+// 폴백을 결정한다. buildChangeTableHtml(:941)의 클래스 계약을 그대로
+// 소비한다: change-no-cell/change-title-cell/change-content-cell(내부
+// div.admission-change-plain-cell 또는 빈 값이면 span.muted).
+export function importChangeDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 3) return null;
+    const [noCell, titleCell, contentCell] = row;
+    rows.push([noCell.text, titleCell.text, contentCell.text]);
+  }
+
+  return {
+    v: 1,
+    section: 'previous_year_changes',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'change',
+        columns: [
+          { role: 'no', label: '번호' },
+          { role: 'title', label: '변경 항목' },
+          { role: 'content', label: '변경 내용' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// selection_method legacy HTML → TableBlock{variant:'selection'} doc.
+// buildSelectionMethodTable(:1194)의 클래스 계약을 그대로 소비한다:
+// selection-type-cell/selection-name-cell/selection-seat-cell/
+// selection-minimum-cell(내부 span.admission-minimum-badge.has|none)/
+// selection-method-cell.
+export function importSelectionDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 5) return null;
+    const [typeCell, nameCell, seatsCell, minimumCell, methodCell] = row;
+    const badgeMatch = minimumCell.innerHtml.match(/admission-minimum-badge\s+(has|none)/i);
+    const badge = badgeMatch
+      ? badgeMatch[1].toLowerCase() === 'has'
+        ? 'minimumHas'
+        : 'minimumNone'
+      : minimumCell.text === '-'
+        ? 'minimumNone'
+        : 'minimumHas';
+    rows.push([
+      typeCell.text || '-',
+      nameCell.text || '-',
+      seatsCell.text || '-',
+      { text: minimumCell.text, badge },
+      methodCell.text || '-'
+    ]);
+  }
+
+  return {
+    v: 1,
+    section: 'selection_method',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'selection',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'name', label: '전형명' },
+          { role: 'seats', label: '인원' },
+          { role: 'minimum', label: '최저' },
+          { role: 'method', label: '전형방법' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+const LEGACY_IMPORT_GENERATOR_TAG = 'import-legacy-admission-html@phase5';
+
 export function normalizeName(value) {
   return clean(value)
     .replace(/\s+/g, '')
