@@ -27,6 +27,7 @@ import {
   withHwpSectionHeading
 } from '../lib/admissionParsing';
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc } from '../lib/admissionDoc';
+import { isDocRenderEnabled } from '../lib/admissionFlags';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 
@@ -159,22 +160,6 @@ function ButtonLabel({ item }) {
   return <span className="admission-directory-head-label whitespace-nowrap">{item.label}</span>;
 }
 
-// sql/43(*_json 6종 jsonb 컬럼)이 dev DB에 실제 적용된 뒤 별도 커밋에서
-// true로 뒤집는다(team-lead 지시, 2026-08-06). false인 동안은 select에서
-// json 컬럼을 아예 빼고 doc 분기도 타지 않는다 — 컬럼이 없는 상태에서
-// select에 넣으면 PostgREST가 에러를 낸다. 즉 이 상수가 false면 이 커밋
-// 이전과 100% 동일하게 동작한다(html/text 분기만 씀).
-export const ADMISSION_JSON_ENABLED = false;
-
-// ?jsonrender=0 킬스위치 — 배포 없이 즉시 doc 렌더를 끄고 legacy html/text
-// 경로로 되돌리기 위함. ADMISSION_JSON_ENABLED와 함께 buildInfoSelectColumns/
-// resolveInfoContent 양쪽에서 반드시 같이 써서 "select는 껐는데 렌더는
-// 켜짐" 같은 불일치가 나지 않게 한다.
-function isDocRenderEnabled() {
-  if (!ADMISSION_JSON_ENABLED) return false;
-  if (typeof window === 'undefined') return true;
-  return new URLSearchParams(window.location.search).get('jsonrender') !== '0';
-}
 
 // 목록 단계(경량 뷰 admission_university_resource_index)는 본문 없이
 // has_<컬럼> 존재 여부 불리언만 갖고 있다. "html이 있거나 raw가 있으면 활성"
