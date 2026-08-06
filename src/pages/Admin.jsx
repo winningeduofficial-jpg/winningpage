@@ -934,13 +934,15 @@ const CONFIGS = {
         label: '전년도와 차이점(수시) 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 문서와 HTML 미러를 함께 갱신하세요.',
         type: 'textarea',
-        rows: 8
+        rows: 8,
+        group: 'previous_year_changes'
       },
       {
         key: 'previous_year_changes_json',
         label: '전년도와 차이점(수시) 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'previous_year_changes'
+        sectionKey: 'previous_year_changes',
+        group: 'previous_year_changes'
       },
       {
         key: 'previous_year_changes_html',
@@ -948,20 +950,23 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 8,
-        readOnly: true
+        readOnly: true,
+        group: 'previous_year_changes'
       },
       {
         key: 'selection_method',
         label: '전형방법 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'selection_method'
       },
       {
         key: 'selection_method_json',
         label: '전형방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'selection_method'
+        sectionKey: 'selection_method',
+        group: 'selection_method'
       },
       {
         key: 'selection_method_html',
@@ -969,20 +974,23 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 12,
-        readOnly: true
+        readOnly: true,
+        group: 'selection_method'
       },
       {
         key: 'minimum_requirements',
         label: '최저학력기준 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'minimum_requirements'
       },
       {
         key: 'minimum_requirements_json',
         label: '최저학력기준 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'minimum_requirements'
+        sectionKey: 'minimum_requirements',
+        group: 'minimum_requirements'
       },
       {
         key: 'minimum_requirements_html',
@@ -990,20 +998,23 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 12,
-        readOnly: true
+        readOnly: true,
+        group: 'minimum_requirements'
       },
       {
         key: 'exam_schedule',
         label: '대학별고사일 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 10
+        rows: 10,
+        group: 'exam_schedule'
       },
       {
         key: 'exam_schedule_json',
         label: '대학별고사일 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'exam_schedule'
+        sectionKey: 'exam_schedule',
+        group: 'exam_schedule'
       },
       {
         key: 'exam_schedule_html',
@@ -1011,20 +1022,23 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 10,
-        readOnly: true
+        readOnly: true,
+        group: 'exam_schedule'
       },
       {
         key: 'school_record_method',
         label: '학생부반영방법 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 14
+        rows: 14,
+        group: 'school_record_method'
       },
       {
         key: 'school_record_method_json',
         label: '학생부반영방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'school_record_method'
+        sectionKey: 'school_record_method',
+        group: 'school_record_method'
       },
       {
         key: 'school_record_method_html',
@@ -1032,20 +1046,23 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 14,
-        readOnly: true
+        readOnly: true,
+        group: 'school_record_method'
       },
       {
         key: 'recruitment_quota',
         label: '모집인원 및 입결 원문(raw)',
         help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'recruitment_quota'
       },
       {
         key: 'recruitment_quota_json',
         label: '모집인원 및 입결 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
-        sectionKey: 'recruitment_quota'
+        sectionKey: 'recruitment_quota',
+        group: 'recruitment_quota'
       },
       {
         key: 'recruitment_result_html',
@@ -1053,7 +1070,8 @@ const CONFIGS = {
         help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
         rows: 18,
-        readOnly: true
+        readOnly: true,
+        group: 'recruitment_quota'
       },
       {
         key: 'jungsi_guideline_url',
@@ -4243,12 +4261,91 @@ function AdmissionParsingPreview({ form, onPatch }) {
   );
 }
 
+// 2026-08-06 사용자 지적("어드민이 너무 무겁다", 폼 높이 9,873px = 화면
+// 11.4개, input 502개) — 근본 원인은 위계가 아니라 구조였다: 6개 카테고리
+// (raw+문서+html 미러 3필드씩 18필드)를 한 폼에 전부 펼쳐 동시 렌더했다.
+// 카테고리를 아코디언으로 묶어 한 번에 하나만 마운트한다 — CSS로 숨기는
+// 게 아니라(display:none) 접힌 카테고리의 field row 자체를 렌더 리스트에서
+// 뺀다(buildFieldRenderItems가 expandedGroup !== field.group인 필드를
+// 아예 items에 안 넣음) — React가 그 서브트리를 만들지 않으므로 DOM
+// 노드·리렌더 비용이 실제로 준다. field.group이 없는 필드(admissionGuidelines
+// 외 모든 config)는 항상 그대로 렌더돼 다른 화면은 영향 없다.
+
+// 카테고리 헤더에 보여줄 한 줄 요약. doc이 있으면 표/블록 개수, 없으면
+// 원문 유무만 판정한다 — 관리자가 어느 카테고리를 열지 판단하는 용도라
+// 정확한 렌더 결과 예측까지는 필요 없다(그건 펼쳐서 문서 편집기로 본다).
+function summarizeHwpSection(sectionKey, form) {
+  const jsonKey = HWP_SECTION_JSON_KEYS[sectionKey];
+  const doc = jsonKey ? form[jsonKey] : null;
+  const blocks = doc && Array.isArray(doc.blocks) ? doc.blocks : [];
+  if (!blocks.length) {
+    return cleanAdmissionText(form[sectionKey]) ? '원문 있음(문서 미생성)' : '내용 없음';
+  }
+  const tableBlocks = blocks.filter((block) => block.kind === 'table');
+  const parts = [];
+  if (tableBlocks.length) {
+    const first = tableBlocks[0];
+    const cols = Array.isArray(first.columns) ? first.columns.length : 0;
+    const rowCount = Array.isArray(first.rows) ? first.rows.length : 0;
+    parts.push(`표 ${tableBlocks.length}개 · ${cols}열 ${rowCount}행`);
+  }
+  const otherCount = blocks.length - tableBlocks.length;
+  if (otherCount > 0) parts.push(`블록 ${otherCount}개`);
+  return parts.join(' · ') || `블록 ${blocks.length}개`;
+}
+
+// fields를 순서 그대로 훑으며 field.group이 있는 항목은 그룹당 헤더 1개로
+// 묶고, 그 그룹이 펼쳐진 상태(expandedGroup === field.group)일 때만 실제
+// field 항목을 뒤에 끼워 넣는다. group이 없는 필드는 항상 그대로 통과.
+function buildFieldRenderItems(fields, expandedGroup, form) {
+  const items = [];
+  const seenGroups = new Set();
+  fields.forEach((field) => {
+    if (!field.group) {
+      items.push({ type: 'field', field });
+      return;
+    }
+    if (!seenGroups.has(field.group)) {
+      seenGroups.add(field.group);
+      items.push({
+        type: 'header',
+        groupKey: field.group,
+        label: HWP_SECTION_LABELS[field.group] || field.group,
+        summary: summarizeHwpSection(field.group, form)
+      });
+    }
+    if (expandedGroup === field.group) {
+      items.push({ type: 'field', field });
+    }
+  });
+  return items;
+}
+
+function CategoryAccordionHeader({ item, isOpen, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-left transition hover:bg-[#f3f4f6]"
+    >
+      <span className="flex items-center gap-2 text-sm font-black">
+        <span className={`text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>▸</span>
+        {item.label}
+      </span>
+      <span className="text-xs font-bold text-gray-500">{item.summary}</span>
+    </button>
+  );
+}
+
 function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
   const [dirty, setDirty] = useState(false);
+  // 카테고리 아코디언(field.group 있는 config, 현재는 admissionGuidelines
+  // 뿐) — 한 번에 최대 1개 그룹만 펼침. null이면 전부 접힘(기본 상태).
+  const [expandedGroup, setExpandedGroup] = useState(null);
   // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
   const editorRefs = useRef(new Map());
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
@@ -4409,9 +4506,24 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="min-w-0 flex-1 bg-white shadow">
-          {(config.fields || config.columns)
-            .filter((field) => !field.showIf || field.showIf(form))
-            .map((field) => (
+          {buildFieldRenderItems(
+            (config.fields || config.columns).filter((field) => !field.showIf || field.showIf(form)),
+            expandedGroup,
+            form
+          ).map((item) => {
+            if (item.type === 'header') {
+              const isOpen = expandedGroup === item.groupKey;
+              return (
+                <CategoryAccordionHeader
+                  key={`group-header-${item.groupKey}`}
+                  item={item}
+                  isOpen={isOpen}
+                  onToggle={() => setExpandedGroup(isOpen ? null : item.groupKey)}
+                />
+              );
+            }
+            const field = item.field;
+            return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
                 <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
                   {field.label}
@@ -4662,7 +4774,8 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
         </div>
 
         {config.FormPreview && (
