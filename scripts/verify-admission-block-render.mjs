@@ -508,6 +508,32 @@ async function main() {
     record('root — 섹션 제목(HWP_SECTION_TITLES) + admission-raw-section-wrap 형제 배치', pass, out);
   }
 
+  // 2026-08-06 dev DB 실측 확정: curated-html이 이미 admission-hwp-section-title을
+  // 품고 있으면(534셀) withHwpSectionHeading과 동일 규칙으로 제목 렌더를
+  // 생략해야 한다 — 안 그러면 어드민 화면에서 제목이 두 번 찍힌다.
+  {
+    const doc = baseDoc([
+      {
+        kind: 'rawHtml',
+        html: '<div class="admission-hwp-section-title">2. 전형방법</div><div class="admission-scroll-table">x</div>',
+        reason: 'curated-html'
+      }
+    ]);
+    const out = render(doc, 'selection_method');
+    const titleCount = (out.match(/admission-hwp-section-title/g) || []).length;
+    const pass = titleCount === 1; // rawHtml 안의 것 하나만 — AdmissionSectionView가 또 추가하지 않음
+    record('root — 선두 rawHtml에 이미 heading 있으면 제목 중복 렌더 안 함', pass, `titleCount=${titleCount} ${out}`);
+  }
+  {
+    const doc = baseDoc([
+      { kind: 'rawHtml', html: '<div class="admission-scroll-table">heading 없는 본문</div>', reason: 'curated-html' }
+    ]);
+    const out = render(doc, 'selection_method');
+    const titleCount = (out.match(/admission-hwp-section-title/g) || []).length;
+    const pass = titleCount === 1 && out.includes('2. 전형방법'); // 이 경우엔 정상적으로 렌더돼야 함
+    record('root — 선두 rawHtml에 heading 없으면 제목 정상 렌더', pass, `titleCount=${titleCount} ${out}`);
+  }
+
   {
     const out = render(null);
     record('root — doc null이면 렌더 없음', out === '', out);
