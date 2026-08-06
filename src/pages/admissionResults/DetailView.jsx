@@ -12,11 +12,13 @@
 //   - 집계·포맷은 전부 src/lib/admissionResults.js (순수 함수). 이 파일은 그리기만 한다.
 //   - Q3(admission_results 통합 테이블 원본 행, recruitment_period='수시')는 조회 1회.
 //     탭 전환은 클라이언트 필터이며 재요청하지 않는다(buildDetailModel 결과를 useMemo로 잡아 둔다).
-//   - dev DB의 admission_results는 현재 0행이라 빈 상태가 v1의 기본 화면이다.
+//   - dev DB의 admission_results는 더미 시드 434행이 들어가 있다. 데이터가 전혀 없는
+//     모집단위를 조회하면 빈 상태(DetailEmptyBlock)로 떨어진다.
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import Sparkline from '../../components/charts/Sparkline';
 import { buildDetailModel, EMPTY_CELL, RESULT_YEARS } from '../../lib/admissionResults';
 import { fetchSusiResultRows } from '../../lib/admissionResultsQueries';
 import { CONTAINER } from './constants';
@@ -24,184 +26,6 @@ import { ErrorBlock, LoadingBlock } from './StateBlocks';
 
 // 섹션 세로 리듬. SelfAssessment.jsx의 랜딩/서비스형 관례.
 const SECTION_RHYTHM = 'pt-16 sm:pt-20 lg:pt-[6.25rem]';
-
-// ---------------------------------------------------------------------------
-// 스파크라인 — 인라인 SVG (외부 차트 라이브러리 의존 금지)
-// ---------------------------------------------------------------------------
-
-// viewBox 좌표계. width:100%/height:auto로 유동하며 뷰포트 폭에 따라 균등 확대된다.
-const SPARK = {
-  width: 400,
-  height: 112,
-  // 첫 점의 말풍선(폭 32 → 좌측 16)과 등급 스케일 라벨이 겹치지 않을 만큼 띄운다.
-  padLeft: 48,
-  padRight: 20, // 마지막 점의 말풍선(폭 32)이 잘리지 않을 만큼
-  topY: 36, // 상단 구분선 = 스케일 상한(등급이 좋은 쪽)
-  axisY: 90, // 축선 = 스케일 하한
-  bubbleW: 32,
-  bubbleH: 18
-};
-
-// 등급 축 도메인. 등급은 1이 최상이므로 y를 반전한다(작은 값이 위).
-// 시안 1882:2958이 2.7과 3.2를 같은 y에 그린 것은 오류라 재현하지 않는다(명세 §8).
-function gradeDomain(values) {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  let lo = Math.max(1, Math.floor((min - 0.4) * 2) / 2);
-  let hi = Math.min(9, Math.ceil((max + 0.4) * 2) / 2);
-  if (hi - lo < 1) {
-    hi = Math.min(9, lo + 1);
-    lo = Math.max(1, hi - 1);
-  }
-  return { lo, hi };
-}
-
-function Sparkline({ series, label }) {
-  const points = (series ?? []).filter((point) => point.value != null);
-
-  // 값이 하나도 없으면 축만 남은 빈 차트가 되므로 아예 그리지 않는다.
-  if (points.length === 0) return null;
-
-  const { lo, hi } = gradeDomain(points.map((point) => point.value));
-  const count = series.length;
-  const span = SPARK.width - SPARK.padLeft - SPARK.padRight;
-  const step = count > 1 ? span / (count - 1) : 0;
-  const plotH = SPARK.axisY - SPARK.topY;
-
-  const xOf = (index) => SPARK.padLeft + (count > 1 ? index * step : span / 2);
-  const yOf = (value) => SPARK.topY + ((value - lo) / (hi - lo)) * plotH;
-
-  const marks = series.map((point, index) => ({
-    ...point,
-    x: xOf(index),
-    y: point.value == null ? null : yOf(point.value)
-  }));
-
-  // 인접한 두 실측점만 잇는다(결측 연도를 건너뛰어 직선으로 잇지 않는다 — 추세 왜곡 방지).
-  const segments = [];
-  for (let i = 1; i < marks.length; i += 1) {
-    const prev = marks[i - 1];
-    const curr = marks[i];
-    if (prev.y != null && curr.y != null)
-      segments.push({ key: `${prev.year}-${curr.year}`, prev, curr });
-  }
-
-  const summary = points.map((point) => `${point.year}년 ${point.displayValue}등급`).join(', ');
-
-  return (
-    <svg
-      viewBox={`0 0 ${SPARK.width} ${SPARK.height}`}
-      role="img"
-      aria-label={`${label ?? ''} 연도별 등급 추이: ${summary}`}
-      className="h-auto w-full"
-    >
-      {/* 상/하단 가로선 */}
-      <line
-        x1={SPARK.padLeft}
-        y1={SPARK.topY}
-        x2={SPARK.width - SPARK.padRight}
-        y2={SPARK.topY}
-        stroke="#d7d7d7"
-        strokeWidth="1"
-      />
-      <line
-        x1={SPARK.padLeft}
-        y1={SPARK.axisY}
-        x2={SPARK.width - SPARK.padRight}
-        y2={SPARK.axisY}
-        stroke="#d7d7d7"
-        strokeWidth="1"
-      />
-
-      {/* 등급 스케일 라벨 (위가 좋은 등급) */}
-      <text x={SPARK.padLeft - 24} y={SPARK.topY + 4} textAnchor="end" fontSize="11" fill="#525252">
-        {lo}
-      </text>
-      <text
-        x={SPARK.padLeft - 24}
-        y={SPARK.axisY + 4}
-        textAnchor="end"
-        fontSize="11"
-        fill="#525252"
-      >
-        {hi}
-      </text>
-
-      {/* 연도 눈금 */}
-      {marks.map((mark) => (
-        <line
-          key={`tick-${mark.year}`}
-          x1={mark.x}
-          y1={SPARK.axisY - 8}
-          x2={mark.x}
-          y2={SPARK.axisY}
-          stroke="#d7d7d7"
-          strokeWidth="1"
-        />
-      ))}
-
-      {/* 추세선 */}
-      {segments.map((segment) => (
-        <line
-          key={`seg-${segment.key}`}
-          x1={segment.prev.x}
-          y1={segment.prev.y}
-          x2={segment.curr.x}
-          y2={segment.curr.y}
-          stroke="#013262"
-          strokeWidth="1.5"
-          strokeOpacity="0.35"
-        />
-      ))}
-
-      {/* 데이터 점 + 값 말풍선 */}
-      {marks
-        .filter((mark) => mark.y != null)
-        .map((mark) => (
-          <g key={`point-${mark.year}`}>
-            <rect
-              x={mark.x - SPARK.bubbleW / 2}
-              y={mark.y - 32}
-              width={SPARK.bubbleW}
-              height={SPARK.bubbleH}
-              rx="4"
-              fill="#000000"
-            />
-            <polygon
-              points={`${mark.x - 5},${mark.y - 14} ${mark.x + 5},${mark.y - 14} ${mark.x},${mark.y - 9}`}
-              fill="#000000"
-            />
-            <text
-              x={mark.x}
-              y={mark.y - 19}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="11"
-              fontWeight="600"
-              fill="#ffffff"
-            >
-              {mark.displayValue}
-            </text>
-            <circle cx={mark.x} cy={mark.y} r="6" fill="#013262" />
-          </g>
-        ))}
-
-      {/* 연도 라벨 — 결측 연도는 흐리게 두되 축에서 지우지는 않는다 */}
-      {marks.map((mark) => (
-        <text
-          key={`year-${mark.year}`}
-          x={mark.x}
-          y={SPARK.axisY + 18}
-          textAnchor="middle"
-          fontSize="11"
-          fill={mark.y == null ? '#d7d7d7' : '#525252'}
-        >
-          {String(mark.year).slice(2)}
-        </text>
-      ))}
-    </svg>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // 요약 카드
@@ -617,7 +441,7 @@ export default function DetailView({
           {model.trackSummaries.length > 0 && (
             <section className={SECTION_RHYTHM} aria-label="중심전형 요약">
               <div className={CONTAINER}>
-                <div className="grid gap-6 sm:grid-cols-2 lg:gap-8">
+                <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
                   {model.trackSummaries.map((card) => (
                     <SummaryCard key={card.track} card={card} />
                   ))}
