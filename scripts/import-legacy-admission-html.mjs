@@ -36,6 +36,7 @@
 //   node scripts/import-legacy-admission-html.mjs --category recruitment_quota
 //   node scripts/import-legacy-admission-html.mjs --university 단국대학교(죽전)
 //   node scripts/import-legacy-admission-html.mjs --limit 20
+//   node scripts/import-legacy-admission-html.mjs --restore <backup.json> --apply
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -106,7 +107,8 @@ const { values: args } = parseArgs({
     category: { type: 'string' },
     university: { type: 'string' },
     limit: { type: 'string' },
-    'backup-file': { type: 'string' }
+    'backup-file': { type: 'string' },
+    restore: { type: 'string' }
   }
 });
 
@@ -560,10 +562,7 @@ async function main() {
   const targetCategories = args.category ? [args.category] : SUPPORTED_CATEGORY_KEYS;
   targetCategories.forEach((key) => {
     if (!SUPPORTED_CATEGORY_KEYS.includes(key)) {
-      throw new Error(
-        `이번 착수 범위 밖 카테고리입니다: ${key} (지원: ${SUPPORTED_CATEGORY_KEYS.join(', ')}). ` +
-          '나머지 4종(minimum/exam/school_record/recruitment)은 이 2종 결과를 보고 재판단합니다.'
-      );
+      throw new Error(`알 수 없는 --category: ${key} (지원: ${SUPPORTED_CATEGORY_KEYS.join(', ')})`);
     }
   });
   const limit = args.limit ? Number(args.limit) : null;
@@ -573,6 +572,11 @@ async function main() {
     throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
   }
   const supabase = createClient(url, serviceKey);
+
+  if (args.restore) {
+    await runRestore(supabase, args.restore);
+    return;
+  }
 
   console.log(`=== 1) 자격 확인 (${args.apply ? 'apply' : 'dry-run'} 모드) ===`);
   console.log(`대상 카테고리: ${targetCategories.join(', ')}${args.university ? ` / 대학: ${args.university}` : ''}${limit ? ` / limit: ${limit}` : ''}`);
@@ -716,6 +720,40 @@ async function main() {
   console.log(`재감사 결과: 기대값과 다른 잔여 건수 = ${residual}`);
   if (residual !== 0 || failedUpdates.length) {
     console.error('경고: 잔여 건수 또는 실패 건수가 0이 아닙니다.');
+    process.exitCode = 1;
+  }
+}
+
+// -----------------------------------------------------------------------
+// --restore: 백업 파일(조회 시점 전체 스냅샷)에 기록된 *_json 값으로
+// 되돌린다. 백업은 항상 조회 즉시(적용 이전) 찍히므로, 이 파일로 복원하면
+// 이번 --apply가 쓰기 전 상태로 정확히 돌아간다.
+// -----------------------------------------------------------------------
+async function runRestore(supabase, backupPath) {
+  console.log(`=== 백업 복원: ${backupPath} ===`);
+  const backupRows = JSON.parse(await readFile(backupPath, 'utf-8'));
+  console.log(`백업 행 수: ${backupRows.length}`);
+
+  if (!args.apply) {
+    console.log('dry-run 모드입니다. --apply를 추가하면 실제로 복원합니다.');
+    console.log(`복원 대상 컬럼: ${Object.values(HWP_SECTION_JSON_KEYS).join(', ')}`);
+    return;
+  }
+
+  let restored = 0;
+  const failed = [];
+  for (const row of backupRows) {
+    const patch = {};
+    Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonCol) => {
+      patch[jsonCol] = row[jsonCol] ?? null;
+    });
+    const { error } = await supabase.from(TABLE).update(patch).eq('id', row.id);
+    if (error) failed.push({ id: row.id, universityName: row.university_name, message: error.message });
+    else restored += 1;
+  }
+  console.log(`복원 완료: ${restored}행, 실패 ${failed.length}건.`);
+  if (failed.length) {
+    failed.forEach((f) => console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`));
     process.exitCode = 1;
   }
 }
