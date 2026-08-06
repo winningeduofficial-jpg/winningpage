@@ -29,6 +29,7 @@ import {
 } from '../lib/admissionParsing';
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
 import { isDocRenderEnabled } from '../lib/admissionFlags';
+import { getAdmissionActiveYear, setAdmissionActiveYear } from '../lib/admissionSettings';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
@@ -913,6 +914,7 @@ const CONFIGS = {
     homepage: true,
     excel: true,
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
+    ListSummary: AdmissionActiveYearSummary,
 
     columns: [
       { key: 'admission_year', label: '연도' },
@@ -5023,6 +5025,119 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
             <ChevronsRight size={15} className="mx-auto" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 대입모집요강 공개 노출 연도 표시·변경(admissionGuidelines의 ListSummary —
+// AcceptanceRateSummary와 같은 확장점, 목록 페이지 헤더에서만 렌더된다.
+// 상세 편집 폼(아코디언)과 완전히 다른 렌더 트리라 폼 무게(input 14개,
+// 3,744px)에 영향이 없다 — 2026-08-06 사용자의 "어드민이 너무 무겁다"
+// 지적 이후 이 제약을 지키기 위해 일부러 폼 밖에 둔 것.
+//
+// 드롭다운을 안 쓰고 숫자 입력 + 버튼을 쓴다 — 지금 admission_year가
+// 2027 하나뿐이라(dev DB 실측) 선택지 1개짜리 select는 phase0가 공개
+// 쪽에서 거부한 것과 같은 문제("없는 기능을 있는 것처럼 보이게 함")를
+// admin에도 만든다. 숫자 입력은 연도 개수와 무관하게 항상 동작한다.
+//
+// ⚠ 자유 입력의 대가 — 데이터 없는 연도를 공개로 지정하면 공개
+// 페이지가 통째로 빈 화면이 된다(team-lead 지적, 2026-08-06). 저장
+// 직전에 그 연도의 행 수를 이 컴포넌트가 이미 들고 있는 rows(목록
+// 조회가 이미 전체 행을 가져온다 — PAGE_SIZE는 화면 표시에만 쓰이는
+// 클라이언트 슬라이스, loadRows의 select('*')엔 .range()가 없다)에서
+// 세어 0이면 확인을 받는다. 검증을 admissionSettings.js에 넣지
+// 않은 이유는 그 함수가 설정 저장만 하는 게 책임이고, 리소스 테이블
+// 행 수를 아는 건 호출부(이 파일)의 책임이라고 team-lead가 판단했기
+// 때문이다.
+function AdmissionActiveYearSummary({ rows }) {
+  const [activeYear, setActiveYear] = useState(null);
+  const [loadingActiveYear, setLoadingActiveYear] = useState(true);
+  const [draftYear, setDraftYear] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAdmissionActiveYear(supabase).then((year) => {
+      if (cancelled) return;
+      setActiveYear(year);
+      setDraftYear(String(year));
+      setLoadingActiveYear(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeYearCount = activeYear
+    ? (rows || []).filter((row) => Number(row.admission_year) === activeYear).length
+    : 0;
+
+  async function handleChangeYear() {
+    const year = Number(draftYear);
+    // 4자리 상식선 제한 — 999999 같은 값이 통과하면 안 된다(team-lead 지적).
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      alert('연도는 2000~2100 사이 정수로 입력해 주세요.');
+      return;
+    }
+
+    const matchCount = (rows || []).filter((row) => Number(row.admission_year) === year).length;
+    if (matchCount === 0) {
+      const proceed = window.confirm(
+        `${year}학년도 데이터가 0개교입니다. 이대로 공개 연도를 지정하면 공개 페이지의 대학별 모집요강이 통째로 빈 화면이 됩니다.\n\n그래도 지정하시겠습니까?`
+      );
+      if (!proceed) return;
+    }
+
+    setSaving(true);
+    const result = await setAdmissionActiveYear(supabase, year);
+    if (!result.ok) {
+      setSaving(false);
+      alert(`공개 연도 저장 실패: ${result.error}`);
+      return;
+    }
+
+    // 낙관적 표시 대신 실제 값을 재조회한다 — 이 값이 고객 노출을 좌우하므로
+    // 저장이 실제로 반영됐는지(RLS 등으로 조용히 무시되지 않았는지) 확인한다.
+    const confirmedYear = await getAdmissionActiveYear(supabase);
+    setActiveYear(confirmedYear);
+    setDraftYear(String(confirmedYear));
+    setSaving(false);
+    alert(`공개 연도를 ${confirmedYear}학년도로 변경했습니다.`);
+  }
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 text-sm shadow">
+      <div className="font-black">
+        {loadingActiveYear ? (
+          '공개 연도 확인 중…'
+        ) : (
+          <>
+            현재 공개 연도: <span className="text-blue-600">{activeYear}학년도</span>
+            {' · '}
+            {activeYearCount}개교
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          value={draftYear}
+          onChange={(e) => setDraftYear(e.target.value)}
+          min={2000}
+          max={2100}
+          disabled={loadingActiveYear || saving}
+          className="h-9 w-24 border border-[#9ca3af] px-2 text-sm outline-none disabled:bg-gray-100"
+          aria-label="새 공개 연도"
+        />
+        <button
+          type="button"
+          onClick={handleChangeYear}
+          disabled={loadingActiveYear || saving}
+          className="h-9 bg-[#2348ff] px-4 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? '저장 중…' : '변경'}
+        </button>
       </div>
     </div>
   );
