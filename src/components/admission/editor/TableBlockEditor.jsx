@@ -273,13 +273,15 @@ export default function TableBlockEditor({ section, block, onChange, universityN
               {block.columns.map((column, colIdx) => (
                 <th key={colIdx}>
                   <div className="flex flex-col gap-1 p-1">
-                    {/* 1차 — 라벨은 기본 노출. 데이터 셀과 함께 관리자가 늘 만지는 값. */}
+                    {/* 1차 — 라벨은 기본 노출. 데이터 셀과 함께 관리자가 늘 만지는 값.
+                        공개 표 헤더 텍스트처럼 보이도록 평상시 테두리·배경
+                        투명, hover/focus에서만 드러낸다(셀 입력과 동일 원칙). */}
                     <ImeSafeInput
                       type="text"
                       value={column.label ?? ''}
                       onCommit={(next) => updateColumnField(colIdx, 'label', next)}
                       aria-label={`컬럼 ${colIdx + 1} 라벨`}
-                      className="admission-cell-editor-input w-full border border-[#9ca3af] px-1.5 py-1 text-xs font-bold"
+                      className="admission-cell-editor-input w-full border border-transparent bg-transparent px-1.5 py-1 text-xs font-bold outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
                     />
                     {showColumnSettings && (
                       <>

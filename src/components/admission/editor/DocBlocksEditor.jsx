@@ -78,50 +78,80 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         </div>
       )}
 
-      {blocks.map((block, idx) => (
-        <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
-          <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
-            <span className="text-[11px] font-bold text-gray-500">
-              {SHORT_KIND_LABELS[block.kind] || block.kind} {idx + 1}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => moveBlockUpDown(idx, -1)}
-                disabled={idx === 0}
-                aria-label={`블록 ${idx + 1} 위로`}
-                className="text-xs disabled:text-gray-300"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                onClick={() => moveBlockUpDown(idx, 1)}
-                disabled={idx === blocks.length - 1}
-                aria-label={`블록 ${idx + 1} 아래로`}
-                className="text-xs disabled:text-gray-300"
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                onClick={() => removeBlock(idx)}
-                aria-label={`블록 ${idx + 1} 삭제`}
-                className="text-xs font-bold text-red-500"
-              >
-                블록 삭제
-              </button>
+      {blocks.map((block, idx) => {
+        const isTable = block.kind === 'table';
+        // 표 블록은 카드 껍데기(테두리+헤더바)를 벗긴다 — 표 자체가 이미
+        // .admission-scroll-table 테두리를 갖고 있어 이중 테두리였고,
+        // "공개 모달과 같은 모양" 요구상 표가 페이지에 바로 앉아야 한다.
+        // 블록 조작(순서변경·삭제)은 없앤 게 아니라 우상단 호버 아이콘으로
+        // 옮겼다 — group-hover로 평상시엔 숨긴다. 비표 블록(note/footnote
+        // 등)은 원래도 작아 카드로 감싸도 무겁지 않으니 그대로 둔다.
+        const blockControls = (
+          <>
+            <button
+              type="button"
+              onClick={() => moveBlockUpDown(idx, -1)}
+              disabled={idx === 0}
+              aria-label={`블록 ${idx + 1} 위로`}
+              className="text-xs disabled:text-gray-300"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              onClick={() => moveBlockUpDown(idx, 1)}
+              disabled={idx === blocks.length - 1}
+              aria-label={`블록 ${idx + 1} 아래로`}
+              className="text-xs disabled:text-gray-300"
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              onClick={() => removeBlock(idx)}
+              aria-label={`블록 ${idx + 1} 삭제`}
+              className="text-xs font-bold text-red-500"
+            >
+              블록 삭제
+            </button>
+          </>
+        );
+
+        if (isTable) {
+          return (
+            <div key={idx} className="group relative mb-4">
+              <div className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded border border-[#e5e7eb] bg-white/95 px-1.5 py-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+                {blockControls}
+              </div>
+              <AdmissionBlockEditor
+                section={section}
+                block={block}
+                onChange={(next) => updateBlock(idx, next)}
+                universityName={universityName}
+                sectionLabel={sectionLabel}
+              />
             </div>
+          );
+        }
+
+        return (
+          <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
+            <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
+              <span className="text-[11px] font-bold text-gray-500">
+                {SHORT_KIND_LABELS[block.kind] || block.kind} {idx + 1}
+              </span>
+              <div className="flex items-center gap-1">{blockControls}</div>
+            </div>
+            <AdmissionBlockEditor
+              section={section}
+              block={block}
+              onChange={(next) => updateBlock(idx, next)}
+              universityName={universityName}
+              sectionLabel={sectionLabel}
+            />
           </div>
-          <AdmissionBlockEditor
-            section={section}
-            block={block}
-            onChange={(next) => updateBlock(idx, next)}
-            universityName={universityName}
-            sectionLabel={sectionLabel}
-          />
-        </div>
-      ))}
+        );
+      })}
 
       {/* 3차(구조 변경) — 블록 추가는 드묾. 회색 소형으로 낮추고 위쪽에 구분선. */}
       <div className="flex flex-col gap-1 border-t border-[#e5e7eb] pt-2">

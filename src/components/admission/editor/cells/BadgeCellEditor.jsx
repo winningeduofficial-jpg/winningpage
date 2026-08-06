@@ -21,7 +21,7 @@ export default function BadgeCellEditor({ value, onChange }) {
         type="text"
         value={text}
         onCommit={commitText}
-        className="admission-cell-editor-input w-full border border-[#9ca3af] px-2 py-1.5 text-sm"
+        className="admission-cell-editor-input w-full border border-transparent bg-transparent px-2 py-1.5 text-sm outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
       />
       <select
         value={badge}

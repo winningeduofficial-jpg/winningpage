@@ -930,18 +930,18 @@ const CONFIGS = {
       { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
 
       {
-        key: 'previous_year_changes',
-        label: '전년도와 차이점(수시) 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 문서와 HTML 미러를 함께 갱신하세요.',
-        type: 'textarea',
-        rows: 8,
-        group: 'previous_year_changes'
-      },
-      {
         key: 'previous_year_changes_json',
         label: '전년도와 차이점(수시) 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'previous_year_changes',
+        group: 'previous_year_changes'
+      },
+      {
+        key: 'previous_year_changes',
+        label: '전년도와 차이점(수시) 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 문서와 HTML 미러를 함께 갱신하세요.',
+        type: 'textarea',
+        rows: 8,
         group: 'previous_year_changes'
       },
       {
@@ -954,18 +954,18 @@ const CONFIGS = {
         group: 'previous_year_changes'
       },
       {
-        key: 'selection_method',
-        label: '전형방법 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
-        type: 'textarea',
-        rows: 12,
-        group: 'selection_method'
-      },
-      {
         key: 'selection_method_json',
         label: '전형방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'selection_method',
+        group: 'selection_method'
+      },
+      {
+        key: 'selection_method',
+        label: '전형방법 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
+        type: 'textarea',
+        rows: 12,
         group: 'selection_method'
       },
       {
@@ -978,18 +978,18 @@ const CONFIGS = {
         group: 'selection_method'
       },
       {
-        key: 'minimum_requirements',
-        label: '최저학력기준 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
-        type: 'textarea',
-        rows: 12,
-        group: 'minimum_requirements'
-      },
-      {
         key: 'minimum_requirements_json',
         label: '최저학력기준 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'minimum_requirements',
+        group: 'minimum_requirements'
+      },
+      {
+        key: 'minimum_requirements',
+        label: '최저학력기준 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
+        type: 'textarea',
+        rows: 12,
         group: 'minimum_requirements'
       },
       {
@@ -1002,18 +1002,18 @@ const CONFIGS = {
         group: 'minimum_requirements'
       },
       {
-        key: 'exam_schedule',
-        label: '대학별고사일 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
-        type: 'textarea',
-        rows: 10,
-        group: 'exam_schedule'
-      },
-      {
         key: 'exam_schedule_json',
         label: '대학별고사일 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'exam_schedule',
+        group: 'exam_schedule'
+      },
+      {
+        key: 'exam_schedule',
+        label: '대학별고사일 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
+        type: 'textarea',
+        rows: 10,
         group: 'exam_schedule'
       },
       {
@@ -1026,18 +1026,18 @@ const CONFIGS = {
         group: 'exam_schedule'
       },
       {
-        key: 'school_record_method',
-        label: '학생부반영방법 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
-        type: 'textarea',
-        rows: 14,
-        group: 'school_record_method'
-      },
-      {
         key: 'school_record_method_json',
         label: '학생부반영방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'school_record_method',
+        group: 'school_record_method'
+      },
+      {
+        key: 'school_record_method',
+        label: '학생부반영방법 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
+        type: 'textarea',
+        rows: 14,
         group: 'school_record_method'
       },
       {
@@ -1050,18 +1050,18 @@ const CONFIGS = {
         group: 'school_record_method'
       },
       {
-        key: 'recruitment_quota',
-        label: '모집인원 및 입결 원문(raw)',
-        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
-        type: 'textarea',
-        rows: 12,
-        group: 'recruitment_quota'
-      },
-      {
         key: 'recruitment_quota_json',
         label: '모집인원 및 입결 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
         type: 'admissionDoc',
         sectionKey: 'recruitment_quota',
+        group: 'recruitment_quota'
+      },
+      {
+        key: 'recruitment_quota',
+        label: '모집인원 및 입결 원문(raw)',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
+        type: 'textarea',
+        rows: 12,
         group: 'recruitment_quota'
       },
       {
@@ -4523,6 +4523,39 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
               );
             }
             const field = item.field;
+
+            // 카테고리 그룹(현재는 admissionGuidelines의 6개 섹션) 안쪽은
+            // "공개 모달과 같은 모양" 요구에 맞춰 220px 라벨 열을 쓰지
+            // 않는다 — 카테고리명은 이미 아코디언 헤더에 있어 필드
+            // 라벨을 반복할 이유가 없다. 문서 편집기(json)가 유일한 주
+            // 콘텐츠로 details 없이 바로 보이고, 원문(raw)·HTML 미러는
+            // 둘 다 details로 강등하되 원문을 미러보다 위에 둔다(원문은
+            // 파싱 실행의 입력이라 관리자가 실제로 쓰고, 미러는 읽기
+            // 전용 참고 자료다) — 필드 배열 순서를 json→raw→html로
+            // 맞춰 이 순서가 그대로 나온다.
+            if (field.group) {
+              return (
+                <div key={field.key} className="border-b border-[#edf0f4] px-5 py-4">
+                  {field.type === 'admissionDoc' && (
+                    <AdmissionDocFieldEditor field={field} form={form} onPatch={patch} onDirty={() => setDirty(true)} />
+                  )}
+                  {field.type === 'textarea' && (
+                    <details className="group">
+                      <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
+                        {field.readOnly ? 'HTML 미러 보기(자동 생성, 편집 불가)' : '원문(raw) 보기/편집'}
+                      </summary>
+                      <div className="mt-2">
+                        {field.help && (
+                          <p className="mb-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
+                        )}
+                        <AdminInput field={field} value={form[field.key]} onChange={change} disabled={readonly} />
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
                 <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
