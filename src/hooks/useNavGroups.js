@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { isAdminUser } from '../lib/demoAccess';
 import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
@@ -109,6 +110,47 @@ function ensureFreeDiagnosisInService(groups) {
       ...group,
       to: group.to || '/free-diagnosis',
       items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
+    };
+  });
+}
+
+// 어드민 전용 '성장설계'(/services/growth)를 '서비스' 그룹에 삽입한다. ensureFreeDiagnosisInService와
+// 형태는 같지만 적용 지점이 다르다 — page_contents(DB)는 dev 공용이라 여기 슬러그를 추가하면
+// 이 라우트가 없는 다른 브랜치 전부에서 메뉴 링크가 뜨고 App.jsx의 path="*"에 걸려 홈으로
+// 튕긴다. 그래서 DB를 건드리지 않고 이 훅에서 코드로 주입한다. '수행평가' 다음, '자기평가' 앞이
+// 20260806 확정 순서(무료진단·목표관리·콜멘토·수행평가·성장설계·자기평가·심화탐구)이고,
+// '자기평가'를 못 찾으면(DB 변경 등) 그룹 끝에 append해 항목 자체가 사라지지 않게 한다.
+function insertGrowthPlanningInService(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+  const growthLink = '/services/growth';
+
+  return source.map((group) => {
+    if (cleanText(group?.title) !== '서비스') {
+      return group;
+    }
+
+    const items = Array.isArray(group.items) ? group.items : [];
+    // 재계산(realtime 갱신 등)으로 이 함수가 다시 호출돼도 중복 삽입되지 않도록 기존 항목을
+    // 먼저 제거하고 다시 계산한다.
+    const withoutGrowth = items.filter((item) => cleanText(item?.to) !== growthLink);
+
+    const selfAssessmentIndex = withoutGrowth.findIndex((item) => {
+      const label = cleanText(item?.label).replace(/\s+/g, '');
+      return label === '자기평가' || cleanText(item?.to) === '/services/self-assessment';
+    });
+
+    const growthItem = { label: '성장설계', to: growthLink, sortOrder: 0 };
+    const nextItems = [...withoutGrowth];
+
+    if (selfAssessmentIndex === -1) {
+      nextItems.push(growthItem);
+    } else {
+      nextItems.splice(selfAssessmentIndex, 0, growthItem);
+    }
+
+    return {
+      ...group,
+      items: nextItems
     };
   });
 }
@@ -224,6 +266,22 @@ export function useNavGroups() {
       ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
     );
   });
+  // 어드민 여부가 확정되기 전엔 false로 두어 '성장설계'를 렌더하지 않는다(넣었다 지우며
+  // 깜빡이는 것보다, 확정 후 늦게 나타나는 편이 낫다는 요구사항).
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    isAdminUser().then((result) => {
+      if (!alive) return;
+      setIsAdmin(result);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -275,5 +333,8 @@ export function useNavGroups() {
     };
   }, [instanceId]);
 
-  return navGroups;
+  // '성장설계' 주입은 여기(최종 반환값)에만 적용한다 — writeCachedNavGroups/readCachedNavGroups
+  // 경로에는 절대 섞지 않는다. 캐시에 들어가면 어드민 계정으로 한 번 채워진 캐시가 로그아웃・
+  // 다른 계정 전환 후에도 localStorage에서 되살아나 비어드민에게 노출될 수 있기 때문이다.
+  return isAdmin ? insertGrowthPlanningInService(navGroups) : navGroups;
 }

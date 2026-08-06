@@ -36,6 +36,21 @@ import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
 
 const Admin = lazy(() => import('./pages/Admin'));
+// 고객사 HTML 목업 5종 데모 라우트 — lazy가 핵심이다. 가드(ProtectedAdmin)를 통과하기 전엔
+// HTML 문자열이 든 청크를 네트워크에서 받지도 않는다.
+const DemoIndex = lazy(() => import('./pages/demo/DemoIndex'));
+const DemoFrame = lazy(() => import('./pages/demo/DemoFrame'));
+
+// 데모 라우트 공용 Suspense fallback — /admin 것과 같은 스타일로 맞춘다.
+function DemoFallback() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
+      <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_1.125rem_2.8125rem_rgba(13,27,42,0.10)]">
+        데모 페이지 불러오는 중...
+      </div>
+    </main>
+  );
+}
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -154,6 +169,40 @@ export default function App() {
                 }
               >
                 <Admin />
+              </Suspense>
+            </ProtectedAdmin>
+          }
+        />
+
+        {/* 고객사 목업 5종 데모 — SiteLayout 밖(/admin과 같은 층위)에 둔다. 5개 전부 자체
+            크롬(헤더/푸터 또는 전체화면 앱 UI)을 갖고 있어 사이트 헤더/푸터와 겹치면 크롬이
+            이중화된다. growth-intro는 /services/growth로 고정 승격한다. */}
+        <Route
+          path="/demo"
+          element={
+            <ProtectedAdmin>
+              <Suspense fallback={<DemoFallback />}>
+                <DemoIndex />
+              </Suspense>
+            </ProtectedAdmin>
+          }
+        />
+        <Route
+          path="/demo/:demoKey"
+          element={
+            <ProtectedAdmin>
+              <Suspense fallback={<DemoFallback />}>
+                <DemoFrame />
+              </Suspense>
+            </ProtectedAdmin>
+          }
+        />
+        <Route
+          path="/services/growth"
+          element={
+            <ProtectedAdmin>
+              <Suspense fallback={<DemoFallback />}>
+                <DemoFrame demoKeyOverride="growth-intro" />
               </Suspense>
             </ProtectedAdmin>
           }
