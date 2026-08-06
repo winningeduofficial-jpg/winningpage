@@ -320,9 +320,6 @@ function truncateForReport(text, context = 100) {
   return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
 }
 
-// ⚠ 이 허용은 "표면 포맷 차이"가 아니라 실제 시각 변화를 동반한다 —
-// 판정 기준(구조 재구성의 정확성)은 옳지만 결과를 조용히 넘기면 안 된다.
-//
 // 실측(DB 전수): <table> class에 variant 접미어(admission-minimum-table
 // 등)가 붙어 있는 셀 수 —
 //   minimum_requirements_html 207건 중 0건 / exam_schedule_html 207건
@@ -331,13 +328,14 @@ function truncateForReport(text, context = 100) {
 //   218건 중 198건 / previous_year_changes_html 207건 중 207건(change는
 //   variant 전용 class를 별도로 쓰지 않아 항상 일치).
 // `.admission-modal-body .admission-minimum-table`(그리고 -exam-table)에
-// 실제 CSS(table-layout:fixed !important + th/td:nth-child(n){width:n%})가
-// 걸려 있다 — 접미어가 없으면 이 규칙이 죽어 표가 table-layout:auto로
-// 렌더된다. minimum_requirements/exam_schedule 414셀(각 207건)은 지금
-// 이 상태다. 임포트된 doc을 렌더하면 접미어가 복원돼 규칙이 되살아나고
-// 표 레이아웃이 auto → fixed + %폭으로 바뀐다(방향은 개선일 공산이 크나
-// 시각 변화이므로 백필 적용 전 별도 확인 필요 — 실행 시 콘솔에도
-// "4-1) 시각 변화 경고" 섹션으로 셀 수를 명시적으로 출력한다).
+// table-layout:fixed !important + th/td:nth-child(n){width:n%} CSS가
+// 걸려 있었다 — 접미어가 없어 이 규칙이 죽어 있던 상태였다(임포트된 doc을
+// 렌더하면 접미어가 붙어 규칙이 되살아날 뻔했다). **접미어 클래스는
+// 복원되지만 해당 CSS 규칙을 제거했으므로 화면 변화 없음(사용자 결정,
+// 2026-08-06)** — 이 죽은 CSS 규칙을 지우는 쪽으로 처리한다
+// (AdmissionGuidelines.jsx, safehtml 담당). 임포터·렌더러는 그대로 두고
+// 접미어를 계속 붙인다 — 안 붙이게 바꾸면 renderDocToHtml이 골든과
+// 어긋나 Gate A2가 깨진다.
 //
 // 이 허용은 <table> class 한정이다 — 다른 태그·다른 속성에는 적용하지
 // 않는다(진짜 불일치를 가리는 일반 규칙으로 확대하지 않는다).
@@ -645,10 +643,10 @@ async function main() {
     (key) => ({ key, count: stats[key].byCandidate.table || 0 })
   );
   if (suffixImpact.length) {
-    console.log('\n=== 4-1) 시각 변화 경고 — table class 접미어 복원으로 CSS가 새로 적용되는 셀 ===');
+    console.log('\n=== 4-1) table class 접미어 복원 참고(화면 변화 없음, 사용자 결정 2026-08-06) ===');
     suffixImpact.forEach(({ key, count }) => {
       console.log(
-        `  - ${key}: ${count}건 — admission-data-table만 있던 <table>에 admission-${key === 'minimum_requirements' ? 'minimum' : 'exam'}-table이 붙어 nth-child 폭 CSS(table-layout:fixed + %폭)가 되살아납니다. 표 레이아웃이 auto → fixed로 바뀔 것으로 예상됩니다.`
+        `  - ${key}: ${count}건 — admission-data-table만 있던 <table>에 admission-${key === 'minimum_requirements' ? 'minimum' : 'exam'}-table이 붙는다. 이 접미어에 걸려 있던 nth-child 폭 CSS는 제거됐으므로(safehtml 처리) 화면 변화는 없다.`
       );
     });
   }
