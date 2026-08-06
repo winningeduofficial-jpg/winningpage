@@ -12,7 +12,8 @@
 // 사실상 대기 상태지만, 운영 데이터나 신규 대학에서 임포터가 실패하는
 // 셀이 나올 수 있어 폐기하지 않고 유지한다.
 //
-// 배경: sql/43_admission_section_json.sql이 *_json 6종 jsonb 컬럼을
+// 배경: sql/47_admission_section_json.sql(구 sql/43 — origin/dev와
+// 번호 충돌해 2026-08-06 재번호)이 *_json 6종 jsonb 컬럼을
 // 추가한다(실행은 사용자가 Supabase SQL Editor에서 수동). 이 스크립트는
 // raw/html 기존 값으로부터 doc을 계산해 그 컬럼을 채운다. *_html은
 // 절대 건드리지 않는다(무손상 미러 유지).
@@ -221,19 +222,19 @@ async function main() {
   ];
   const jsonColumns = CATEGORY_KEYS.map((key) => JSON_COLUMNS_BY_KEY[key]);
 
-  // sql/43_admission_section_json.sql이 아직 실행되지 않은 DB(신규 dev,
-  // 또는 사용자가 아직 수동 적용 전인 운영)에서는 *_json 컬럼 자체가
-  // 없다. dry-run(분류/집계)은 raw+html만 있으면 되므로, json 컬럼
-  // select가 42703(컬럼 없음)으로 실패하면 경고만 남기고 그 컬럼 없이
-  // 재시도한다 — --apply는 이 경우 sql/43 미실행을 스스로 감지해 아래서
-  // 막는다.
+  // sql/47_admission_section_json.sql(구 sql/43 — origin/dev와 번호
+  // 충돌해 2026-08-06 재번호)이 아직 실행되지 않은 DB(신규 dev, 또는
+  // 사용자가 아직 수동 적용 전인 운영)에서는 *_json 컬럼 자체가 없다.
+  // dry-run(분류/집계)은 raw+html만 있으면 되므로, json 컬럼 select가
+  // 42703(컬럼 없음)으로 실패하면 경고만 남기고 그 컬럼 없이 재시도한다
+  // — --apply는 이 경우 sql/47 미실행을 스스로 감지해 아래서 막는다.
   let jsonColumnsExist = true;
   let query = supabase.from(TABLE).select([...baseColumns, ...jsonColumns].join(', ')).order('id');
   if (args.university) query = query.eq('university_name', args.university);
   let { data: allRows, error: fetchError } = await query;
   if (fetchError && /does not exist/i.test(fetchError.message)) {
     console.warn(
-      `[경고] *_json 컬럼이 아직 없습니다(sql/43_admission_section_json.sql 미실행으로 보입니다): ${fetchError.message}`
+      `[경고] *_json 컬럼이 아직 없습니다(sql/47_admission_section_json.sql 미실행으로 보입니다): ${fetchError.message}`
     );
     console.warn('[경고] json 컬럼 없이 raw/html만으로 재조회합니다(분류/집계는 가능, --apply는 차단됩니다).');
     jsonColumnsExist = false;
@@ -244,7 +245,7 @@ async function main() {
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
   if (args.apply && !jsonColumnsExist) {
     throw new Error(
-      '*_json 컬럼이 없어 --apply를 실행할 수 없습니다. sql/43_admission_section_json.sql을 ' +
+      '*_json 컬럼이 없어 --apply를 실행할 수 없습니다. sql/47_admission_section_json.sql을 ' +
         'Supabase SQL Editor에서 먼저 실행하세요.'
     );
   }

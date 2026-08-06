@@ -114,7 +114,8 @@ const CATEGORY_HTML_KEY = {
 const CATEGORY_KEYS = Object.keys(CATEGORY_HTML_KEY);
 
 // *_json 컬럼 매핑 — recruitment_quota만 html 쪽이 recruitment_result_html로
-// 어긋나 있을 뿐, json은 6개 전부 `<rawKey>_json` 접미어로 통일이다(sql/43 정본).
+// 어긋나 있을 뿐, json은 6개 전부 `<rawKey>_json` 접미어로 통일이다(sql/47 정본,
+// 구 sql/43 — origin/dev와 번호 충돌해 2026-08-06 재번호).
 const CATEGORY_JSON_KEY = {
   previous_year_changes: 'previous_year_changes_json',
   selection_method: 'selection_method_json',
