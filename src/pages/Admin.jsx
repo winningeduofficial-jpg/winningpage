@@ -25,11 +25,33 @@ import {
   buildHwpCategoryHtml,
   clean as cleanAdmissionText
 } from '../lib/admissionParsing';
-import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc } from '../lib/admissionDoc';
+import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc } from '../lib/admissionDoc';
+import AdmissionSectionView from '../components/admission/AdmissionSectionView';
+import SafeHtml from '../components/admission/SafeHtml';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
 import { plainTextToBlocks } from '../lib/plainTextToBlocks';
+
+// AdmissionGuidelines.jsx의 ADMISSION_JSON_ENABLED와 반드시 같은 값을
+// 유지해야 한다(같은 sql/43 적용 여부에 대한 게이팅). 페이지 간 정적 import로
+// 공유하지 않는 이유: AdmissionGuidelines는 App.jsx에서 즉시 로드,
+// Admin은 React.lazy 지연 로드라 cross-page import 시 번들 분리 경계가
+// 어떻게 되는지 프로덕션 빌드로 직접 확인할 수 없었다(빌드 실행 금지 지시).
+// src/lib/도 이번 작업 범위에서 수정 금지라 공유 상수를 둘 자연스러운
+// 위치가 없다 — 안전하게 값만 복제하고 주석으로 동기화 의무를 명시했다.
+// sql/43 dev DB 적용 후 이 값을 true로 뒤집을 때 AdmissionGuidelines.jsx
+// 쪽도 반드시 같이 뒤집어야 한다.
+const ADMISSION_JSON_ENABLED = false;
+
+// resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
+// buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
+// 포함하지만, 과거 다른 경로로 저장된 값은 admission-existing-html을 이미
+// 포함할 수도 있다. 이미 자기 래퍼가 있으면 SafeHtml에 className을 더
+// 주지 않는다 — 안 그러면 admission-existing-html이 이중으로 붙어
+// overflow-x:auto 스크롤 컨테이너가 중첩된다(공개 모달에서 실제로 발생했던
+// 버그와 동일 패턴).
+const ADMISSION_EXISTING_WRAP_RE = /admission-existing-html|admission-raw-section-wrap/;
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -3913,7 +3935,12 @@ function AdmissionParsingPreview({ form, onPatch }) {
       <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
         {HWP_SECTION_ORDER.map((key) => {
           const html = form[HWP_SECTION_HTML_KEYS[key]];
-          const hasExisting = Boolean(cleanAdmissionText(html));
+          const doc = ADMISSION_JSON_ENABLED ? form[HWP_SECTION_JSON_KEYS[key]] : null;
+          const docOk = Boolean(doc && validateAdmissionDoc(doc).ok && !isEmptyDoc(doc));
+          // buildPreviewPatch는 아직 htmlKey만 채운다(jsonKey 동시 생성은 별도
+          // 커밋 범위) — 그래도 doc이 이미 저장돼 있을 수 있으니(백필 등) 동의
+          // 체크박스 노출 조건은 html뿐 아니라 doc 존재 여부도 함께 본다.
+          const hasExisting = docOk || Boolean(cleanAdmissionText(html));
           return (
             <div key={key}>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -3929,8 +3956,15 @@ function AdmissionParsingPreview({ form, onPatch }) {
                   </label>
                 )}
               </div>
-              {html ? (
-                <div className="admission-existing-html" dangerouslySetInnerHTML={{ __html: html }} />
+              {docOk ? (
+                <AdmissionSectionView doc={doc} sectionKey={key} surface="admin" />
+              ) : html ? (
+                // html은 buildHwpCategoryHtml → buildRawSectionHtml 경로로 만들어지며
+                // 보통 admission-raw-section-wrap을 자체 포함한다. 다만 이 필드는
+                // 과거에 다른 경로로 저장된 값(admission-existing-html 자체 포함
+                // 여부가 다를 수 있음)도 들어올 수 있어, 공개 모달과 동일하게
+                // "이미 자기 래퍼를 가졌는지" 검사해 이중 래핑을 피한다.
+                <SafeHtml html={html} className={ADMISSION_EXISTING_WRAP_RE.test(html) ? undefined : 'admission-existing-html'} />
               ) : (
                 <p className="text-xs font-bold text-gray-400">
                   미리보기 없음 — 원문을 입력하고 파싱을 실행하세요.
