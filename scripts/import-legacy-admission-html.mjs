@@ -42,6 +42,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 import {
@@ -100,17 +101,15 @@ const IMPORTER_CHAINS = {
 };
 const SUPPORTED_CATEGORY_KEYS = Object.keys(IMPORTER_CHAINS);
 
-const { values: args } = parseArgs({
-  options: {
-    apply: { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    category: { type: 'string' },
-    university: { type: 'string' },
-    limit: { type: 'string' },
-    'backup-file': { type: 'string' },
-    restore: { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다(모듈 스코프에는 빈 객체로 시작) —
+// 예전엔 파일 최상위에서 parseArgs를 즉시 호출했는데, process.argv가
+// 프로세스 전역이라 이 모듈을 import만 하는 호출자(예: load-admission-
+// content.mjs가 importCell을 재사용)가 여기 없는 플래그(예: --admission-year)
+// 를 쓰면 import 시점에 그대로 throw했다(2026-08-06 build-admission-html-
+// golden.mjs와 동일한 사고 유형 — 그쪽을 고치며 발견해 여기도 함께 고친다).
+// resolveCredentials/main/runRestore는 이 변수를 클로저로 참조하고,
+// main()이 실행 시작 시 실제 값을 채워 넣는다.
+let args = {};
 
 // -----------------------------------------------------------------------
 // 자격증명
@@ -563,6 +562,18 @@ export function importCell(sectionKey, dbHtml, row) {
 // 메인
 // -----------------------------------------------------------------------
 async function main() {
+  args = parseArgs({
+    options: {
+      apply: { type: 'boolean', default: false },
+      'keys-file': { type: 'string' },
+      category: { type: 'string' },
+      university: { type: 'string' },
+      limit: { type: 'string' },
+      'backup-file': { type: 'string' },
+      restore: { type: 'string' }
+    }
+  }).values;
+
   const targetCategories = args.category ? [args.category] : SUPPORTED_CATEGORY_KEYS;
   targetCategories.forEach((key) => {
     if (!SUPPORTED_CATEGORY_KEYS.includes(key)) {
@@ -762,7 +773,7 @@ async function runRestore(supabase, backupPath) {
   }
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('import-legacy-admission-html.mjs');
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);
