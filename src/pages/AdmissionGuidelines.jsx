@@ -2237,8 +2237,14 @@ export default function AdmissionGuidelines() {
                   <AdmissionSectionView doc={selectedInfo.doc} sectionKey={selectedInfo.section?.key} surface="public" />
                 </div>
               ) : selectedInfo.mode === 'html' ? (
+                // resolveInfoContent의 html은 항상 자기 래퍼(admission-existing-html
+                // 또는 admission-raw-section-wrap)를 문자열 안에 이미 갖고 있다
+                // (alreadyWrapped 분기, :219-226 부근). 여기서 className을 또
+                // 주면 admission-existing-html이 이중으로 붙어 overflow-x:auto
+                // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
+                // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
                 <div className="admission-table-wrap">
-                  <SafeHtml html={selectedInfo.html} className="admission-existing-html" />
+                  <SafeHtml html={selectedInfo.html} />
                 </div>
               ) : selectedInfo.text ? (
                 <div className="whitespace-pre-wrap">{selectedInfo.text}</div>

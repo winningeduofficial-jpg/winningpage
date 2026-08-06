@@ -264,6 +264,14 @@ export function sanitizeToReact(html, parseDocument) {
 
 /**
  * @param {{ html: string, className?: string }} props
+ *
+ * className이 없으면 정상(비degraded) 경로에서는 감싸는 <div>를 만들지
+ * 않고 Fragment로 자식만 반환한다(2026-08-06 감사 반영) — 호출부가 이미
+ * 자기 래퍼(admission-existing-html/admission-raw-section-wrap)를 문자열에
+ * 갖고 있는 html을 넘길 때(AdmissionGuidelines.jsx의 resolveInfoContent가
+ * 그렇다), SafeHtml이 불필요한 빈 래퍼 div까지 하나 더 얹지 않게 하기
+ * 위함이다. degraded(평문 격하) 경로는 <pre>의 공백 보존 의미가 필요해
+ * className 유무와 무관하게 항상 <pre>를 유지한다.
  */
 export default function SafeHtml({ html, className }) {
   const result = sanitizeToReact(html);
@@ -271,6 +279,10 @@ export default function SafeHtml({ html, className }) {
 
   if (result.degraded) {
     return <pre className={className}>{result.children}</pre>;
+  }
+
+  if (!className) {
+    return <>{result.children}</>;
   }
 
   return <div className={className}>{result.children}</div>;
