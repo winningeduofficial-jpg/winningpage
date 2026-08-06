@@ -44,7 +44,12 @@ export function sanitizeAdmissionRenderedHtml(html) {
       .replace(/([>\s])[◯○●☆★♥♡❤]+\s*/g, '$1')
       .replace(/\s+[◯○●☆★♥♡❤]+(?=\s*<\/t[dh]>)/g, '')
       // 렌더링 중 일부 셀에서 undefined/NaN/object가 그대로 노출되는 것을 차단한다.
-      .replace(/undefined|NaN|\[object Object\]|null\s*null/gi, '-')
+      // 대소문자 무시(i) 플래그를 쓰지 않는다 — 실측(커밋 7d3973f) 결과 진짜
+      // 결함은 0건이고, i 플래그 탓에 "Finance"의 "nan"이 /NaN/i에 매칭돼
+      // "Fi-ce"로 치환되는 데이터 손상 오탐이 2건 있었다(한국외대 용인·서울
+      // exam_schedule). 정확 표기(undefined/NaN/[object Object]/null null)만
+      // 잡는 게 원래 의도다.
+      .replace(/undefined|NaN|\[object Object\]|null\s*null/g, '-')
       .replace(/\s{2,}/g, ' ')
   );
 }
