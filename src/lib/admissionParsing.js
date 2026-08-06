@@ -964,16 +964,19 @@ export function buildChangeTableHtml(rows) {
   `;
 }
 
-export function buildPreviousYearChangesHtml(lines, sectionKey) {
+// Phase 1 절단면: previous_year_changes의 행 추출부만 순수 함수로 분리.
+// buildPreviousYearChangesHtml은 이 결과를 buildChangeValueHtml로 html화한
+// 뒤 buildChangeTableHtml에 넘기는 얇은 래퍼로 남는다. "없음" 특수 케이스도
+// 여기서 {no,title,content} 1건으로 통일해 반환한다(원래도 title/no가 이미
+// html이 아닌 값이라 표현에 문제 없다).
+export function parseChangeItems(lines) {
   const cleaned = lines
     .map(clean)
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
-    return buildChangeTableHtml([
-      { no: '1', title: '변경 사항', html: buildChangeValueHtml('전년도와 동일') }
-    ]);
+    return [{ no: '1', title: '변경 사항', content: '전년도와 동일' }];
   }
 
   const items = [];
@@ -1010,14 +1013,23 @@ export function buildPreviousYearChangesHtml(lines, sectionKey) {
     }
   });
 
-  const rows = expandedItems.map((item, idx) => {
+  return expandedItems.map((item, idx) => {
     const parsed = parseChangeRowTitleAndContent(item.text);
     return {
       no: `${idx + 1}`,
       title: parsed.title,
-      html: buildChangeValueHtml(parsed.content)
+      content: parsed.content
     };
   });
+}
+
+export function buildPreviousYearChangesHtml(lines, sectionKey) {
+  const items = parseChangeItems(lines);
+  const rows = items.map((item) => ({
+    no: item.no,
+    title: item.title,
+    html: buildChangeValueHtml(item.content)
+  }));
 
   return buildChangeTableHtml(rows);
 }
@@ -1214,7 +1226,9 @@ export function buildSelectionMethodTable(rows) {
   `;
 }
 
-export function buildSelectionMethodHtml(lines, sectionKey) {
+// Phase 1 절단면: validRows 확정까지가 순수 파싱, 그 이후(폴백 판정 +
+// 렌더)만 buildSelectionMethodHtml에 남긴다.
+export function parseSelectionMethodRows(lines) {
   const idx = lines.findIndex((line) => clean(line) === '전형방법');
   const start = idx >= 0 ? idx + 1 : 0;
   const ignored = new Set(['전형', '유형', '전형명', '인원', '최저', '전형방법']);
@@ -1349,6 +1363,11 @@ export function buildSelectionMethodHtml(lines, sectionKey) {
   const validRows = rows.filter(
     (row) => row.name && row.name !== '-' && !isNumericNoiseCell(row.name)
   );
+  return validRows;
+}
+
+export function buildSelectionMethodHtml(lines, sectionKey) {
+  const validRows = parseSelectionMethodRows(lines);
   if (!validRows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
@@ -1358,16 +1377,10 @@ export function buildSelectionMethodHtml(lines, sectionKey) {
   `;
 }
 
-export function buildExamScheduleHtml(lines, sectionKey) {
-  if (lines.some((line) => clean(line) === '없음')) {
-    return `
-      <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        <div class="admission-empty-box">대학별고사일 없음</div>
-      </div>
-    `;
-  }
-
+// Phase 1 절단면: 폴백 판정("없음" 특수 케이스)은 rows로 표현할 수 없는
+// 별도 렌더(빈 박스)라 buildExamScheduleHtml에 남기고, 그 다음 행 추출부만
+// 분리한다.
+export function parseExamScheduleRows(lines) {
   const headerEnd = Math.max(
     lines.findIndex((line) => clean(line) === '날짜'),
     lines.findIndex((line) => clean(line) === '일정')
@@ -1403,6 +1416,21 @@ export function buildExamScheduleHtml(lines, sectionKey) {
 
   if (pending.length)
     rows.push([pending[0] || lastType || '-', pending.slice(1).join(' / ') || '-', '-']);
+
+  return rows;
+}
+
+export function buildExamScheduleHtml(lines, sectionKey) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return `
+      <div class="admission-raw-section-wrap">
+        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
+        <div class="admission-empty-box">대학별고사일 없음</div>
+      </div>
+    `;
+  }
+
+  const rows = parseExamScheduleRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
@@ -1522,16 +1550,10 @@ export function splitMinimumLabel(labelParts, lastType) {
   };
 }
 
-export function buildMinimumRequirementsHtml(lines, sectionKey) {
-  if (lines.some((line) => clean(line) === '없음')) {
-    return `
-      <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        <div class="admission-empty-box">수능 최저학력기준 없음</div>
-      </div>
-    `;
-  }
-
+// Phase 1 절단면: "없음" 특수 케이스(rows로 표현 불가한 빈 박스 렌더)는
+// buildMinimumRequirementsHtml에 남기고, flush() 완료까지의 행 추출부만
+// 분리한다.
+export function parseMinimumRequirementRows(lines) {
   const headerStart = lines.findIndex((line) => clean(line) === '국');
   const headerEnd = lines.findIndex((line) => clean(line) === '비고');
   const subjectHeaders =
@@ -1629,6 +1651,20 @@ export function buildMinimumRequirementsHtml(lines, sectionKey) {
   });
   flush();
 
+  return rows;
+}
+
+export function buildMinimumRequirementsHtml(lines, sectionKey) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return `
+      <div class="admission-raw-section-wrap">
+        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
+        <div class="admission-empty-box">수능 최저학력기준 없음</div>
+      </div>
+    `;
+  }
+
+  const rows = parseMinimumRequirementRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   return sanitizeAdmissionRenderedHtml(`
@@ -2100,7 +2136,9 @@ export function buildRecruitCell(values) {
   </div>`;
 }
 
-export function buildRecruitmentHtml(lines, sectionKey) {
+// Phase 1 절단면: 렌더 직전(rows/groupLabels/footnotes 확정)까지가 순수
+// 파싱이다. buildRecruitmentHtml은 이 결과로 폴백 판정 + 렌더만 한다.
+export function parseRecruitmentRows(lines) {
   const pattern = ['27', '26', '26', '25', '26'];
   let dataStart = -1;
   let yearStart = -1;
@@ -2184,6 +2222,11 @@ export function buildRecruitmentHtml(lines, sectionKey) {
     i = Math.max(j, i + 1);
   }
 
+  return { rows, groupLabels, footnotes };
+}
+
+export function buildRecruitmentHtml(lines, sectionKey) {
+  const { rows, groupLabels, footnotes } = parseRecruitmentRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   const headerCells = ['계열/대학', '모집단위', ...groupLabels];
