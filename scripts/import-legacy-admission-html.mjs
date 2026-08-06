@@ -11,10 +11,15 @@
 // 헤더 <th> 병합만 976건). parseHtmlTableGrid(admissionParsing.js)가
 // 이 전제로 헤더 span은 보존하고 바디는 직사각형으로 추출한다.
 //
-// 이번 착수 범위: previous_year_changes(change, 3컬럼) / selection_method
-// (selection, 5컬럼) **2개만**. 나머지 4종(minimum/exam/school_record/
-// recruitment)은 이 둘의 성공률을 보고 재판단한다(recruitment은 특히
-// recruitExact 2단 헤더 복원이 미검증 상태라 더 위험하다).
+// 대상 카테고리 6종 전부: previous_year_changes(change, 3컬럼) /
+// selection_method(selection, 5컬럼 + 특수대학 11개교는 생성) /
+// minimum_requirements·exam_schedule(표+emptyBox+plainList 3단 폴백) /
+// school_record_method(recordInfo+score 혼합) / recruitment_quota
+// (recruitExact 2단 헤더 + 구버전 recruit chips + plainList).
+//
+// detail_status='category' 11개교(경찰대학/사관학교4/과기원6)는 원본이
+// 하드코딩 상수(SCIENCE_SPECIAL_DATA 등)라 역파싱하지 않는다 —
+// buildSpecialCategoryDoc으로 생성한 뒤 동일하게 DOM 동형 검증만 한다.
 //
 // 검증: 바이트가 아니라 DOM 동형성이다. renderDocToHtml(importedDoc)와
 // 원본 dbHtml을 정규화 DOM으로 비교한다(scripts/verify-admission-doc-
@@ -27,8 +32,8 @@
 // 실행은 전부 dry-run이다. --apply는 구현만 하고 실행하지 않는다.**
 //
 // 사용법:
-//   node scripts/import-legacy-admission-html.mjs                         # dry-run, 2개 카테고리 전체
-//   node scripts/import-legacy-admission-html.mjs --category selection_method
+//   node scripts/import-legacy-admission-html.mjs                         # dry-run, 6개 카테고리 전체
+//   node scripts/import-legacy-admission-html.mjs --category recruitment_quota
 //   node scripts/import-legacy-admission-html.mjs --university 단국대학교(죽전)
 //   node scripts/import-legacy-admission-html.mjs --limit 20
 // =====================================================================
@@ -41,6 +46,14 @@ import process from 'node:process';
 import {
   importChangeDocFromHtml,
   importSelectionDocFromHtml,
+  importExamDocFromHtml,
+  importMinimumDocFromHtml,
+  importEmptyBoxDocFromHtml,
+  importPlainListDocFromHtml,
+  importRecordDocFromHtml,
+  importRecruitExactDocFromHtml,
+  importRecruitLegacyDocFromHtml,
+  buildSpecialCategoryDoc,
   renderDocToHtml,
   HWP_SECTION_HTML_KEYS,
   clean
@@ -51,13 +64,40 @@ const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_BACKUP_DIR = '/Users/hyunsoo/uwellnow/.admission-doc-backups';
 const TABLE = 'admission_university_resources';
 
-// 이번 착수 범위 2종만. 나머지는 IMPORTERS에 없어 --category로 지정하면
-// 명확한 에러로 거부한다(조용히 스킵하지 않는다).
-const IMPORTERS = {
-  previous_year_changes: importChangeDocFromHtml,
-  selection_method: importSelectionDocFromHtml
+// 카테고리별 시도 순서(표 → emptyBox → plainList). 앞선 임포터가 null을
+// 반환하거나 DOM 동형 검증에 실패하면 다음으로 넘어간다 — 전부 실패하면
+// needsReview(강행 금지).
+const IMPORTER_CHAINS = {
+  previous_year_changes: [
+    { name: 'table', run: (html) => importChangeDocFromHtml(html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('previous_year_changes', html) }
+  ],
+  selection_method: [
+    { name: 'table', run: (html) => importSelectionDocFromHtml(html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('selection_method', html) }
+  ],
+  minimum_requirements: [
+    { name: 'table', run: (html) => importMinimumDocFromHtml(html) },
+    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('minimum_requirements', html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('minimum_requirements', html) }
+  ],
+  exam_schedule: [
+    { name: 'table', run: (html) => importExamDocFromHtml(html) },
+    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('exam_schedule', html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('exam_schedule', html) }
+  ],
+  school_record_method: [
+    { name: 'record', run: (html) => importRecordDocFromHtml(html) },
+    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('school_record_method', html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('school_record_method', html) }
+  ],
+  recruitment_quota: [
+    { name: 'recruitExact', run: (html) => importRecruitExactDocFromHtml(html) },
+    { name: 'recruitLegacy', run: (html) => importRecruitLegacyDocFromHtml(html) },
+    { name: 'plainList', run: (html) => importPlainListDocFromHtml('recruitment_quota', html) }
+  ]
 };
-const SUPPORTED_CATEGORY_KEYS = Object.keys(IMPORTERS);
+const SUPPORTED_CATEGORY_KEYS = Object.keys(IMPORTER_CHAINS);
 
 const { values: args } = parseArgs({
   options: {
@@ -280,6 +320,22 @@ function truncateForReport(text, context = 100) {
   return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
 }
 
+// 실측: minimum_requirements/exam_schedule의 legacy 저장 HTML은 <table>
+// class가 "admission-data-table"뿐이고 variant 접미어(admission-minimum-
+// table 등)가 없다(더 오래된 생성 경로 — recordInfo/score/selection/
+// change는 접미어가 그대로 있다). 이건 표 재구성 성공 여부와 무관한 legacy
+// 방언 차이라 <table> class 한정으로 "한쪽이 다른 쪽의 부분집합이면(둘 다
+// admission-data-table 포함)" 허용한다 — 다른 태그·다른 속성에는 적용하지
+// 않는다(진짜 불일치를 가리는 일반 규칙으로 확대하지 않는다).
+function tableClassCompatible(classA, classB) {
+  const setA = new Set(classA.split(' ').filter(Boolean));
+  const setB = new Set(classB.split(' ').filter(Boolean));
+  if (!setA.has('admission-data-table') || !setB.has('admission-data-table')) return false;
+  const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
+  for (const cls of smaller) if (!larger.has(cls)) return false;
+  return true;
+}
+
 function compareElementNodes(a, b, pathLabel) {
   const tagA = a.tagName.toLowerCase();
   const tagB = b.tagName.toLowerCase();
@@ -293,6 +349,9 @@ function compareElementNodes(a, b, pathLabel) {
   const attrKeys = new Set([...Object.keys(attrsA), ...Object.keys(attrsB)]);
   for (const key of attrKeys) {
     if ((attrsA[key] ?? '') !== (attrsB[key] ?? '')) {
+      if (tagA === 'table' && key === 'class' && tableClassCompatible(attrsA.class ?? '', attrsB.class ?? '')) {
+        continue;
+      }
       return {
         ok: false,
         reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? '')}" vs "${truncateForReport(attrsB[key] ?? '')}"`,
@@ -366,49 +425,111 @@ export function compareDomEquivalence(htmlA, htmlB) {
 }
 
 // -----------------------------------------------------------------------
-// 셀 하나 임포트 시도. 반환: { classification: 'imported'|'needsReview'|'skip', doc?, reason? }
+// 저장 HTML 717셀(minimum/exam/school_record/recruitment)이 자체
+// admission-table-wrap을 갖고 헤딩 타이틀은 없는 반면(설계 §9.2 "이중
+// 중첩" — 모달이 바깥에 하나 더 씌운다), renderDocToHtml은 항상 헤딩 +
+// admission-raw-section-wrap 단일 레이어를 낸다. 이 표면 구조 차이는
+// 데이터 재구성 성공 여부와 무관한 이미 알려진 레거시 포맷 차이라(change/
+// selection_method는 애초에 이 래핑이 없다 — 실측), 비교 전 양쪽에서
+// 제거한다. Gate B의 빈 note/legend div 제거와 같은 성격의 "허용 diff"다.
 // -----------------------------------------------------------------------
-export function importCell(sectionKey, dbHtml, universityName) {
-  const html = clean(dbHtml);
-  if (!html) return { classification: 'skip' };
+function stripLeadingTableWrap(html) {
+  const m = /^\s*<div class="admission-table-wrap">\s*([\s\S]*)<\/div>\s*$/.exec(html);
+  return m ? m[1] : html;
+}
+function stripLeadingHeading(html) {
+  return html.replace(/^\s*<div class="admission-hwp-section-title">[\s\S]*?<\/div>\s*/, '');
+}
+function compareStoredHtmlEquivalence(rendered, stored) {
+  const storedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(stored);
+  const renderedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(rendered);
+  const storedHasTableWrap = /^\s*<div class="admission-table-wrap">/.test(stored);
 
-  const importer = IMPORTERS[sectionKey];
-  if (!importer) return { classification: 'skip' };
+  // 저장 HTML은 heading을 갖거나(change/selection_method — 이 경우는 그대로
+  // 엄격 비교) 갖지 않는다(minimum/exam/school_record/recruitment 대부분,
+  // 그리고 school_record_method의 극소수 예외 2건도 table-wrap 유무와
+  // 무관하게 heading이 없다). 저장 쪽에 heading이 없는데 렌더 쪽에만 있으면
+  // (renderDocToHtml은 항상 붙인다) 그 차이만 제거하고 비교한다.
+  let normalizedRendered = rendered;
+  if (renderedHasHeading && !storedHasHeading) {
+    normalizedRendered = stripLeadingHeading(rendered);
+  }
+  const normalizedStored = storedHasTableWrap ? stripLeadingTableWrap(stored) : stored;
 
+  return compareDomEquivalence(normalizedRendered, normalizedStored);
+}
+
+// -----------------------------------------------------------------------
+// 후보 doc 하나(임포터 또는 생성기 결과)를 검증한다: 멱등 assert →
+// renderDocToHtml 재렌더 → DOM 동형 비교. 성공해야만 'imported'.
+// -----------------------------------------------------------------------
+function tryCandidate(buildDoc, sectionKey, html, universityName, candidateName) {
   let doc;
   try {
-    doc = importer(html);
+    doc = buildDoc();
   } catch (err) {
-    return { classification: 'needsReview', reason: `파싱 예외: ${err.message}`, kind: 'parse-exception' };
+    return { classification: 'needsReview', reason: `${candidateName}: 예외 ${err.message}`, kind: 'exception' };
   }
   if (!doc) {
-    return {
-      classification: 'needsReview',
-      reason: '표 구조 파싱 실패(컬럼 수 불일치 또는 바디 병합 감지)',
-      kind: 'parse-failure'
-    };
+    return { classification: 'needsReview', reason: `${candidateName}: 구조 파싱 실패`, kind: 'parse-failure' };
   }
 
-  // 멱등 assert: 같은 입력으로 2회 생성해 stableStringifyDoc(generatedAt
-  // 제외)이 같아야 한다.
   const once = stableStringifyDoc(doc);
-  const twice = stableStringifyDoc(importer(html));
+  const twice = stableStringifyDoc(buildDoc());
   if (once !== twice) {
-    throw new Error(`멱등성 위반: ${universityName} / ${sectionKey} — importer를 2회 호출한 결과가 다릅니다.`);
+    throw new Error(
+      `멱등성 위반: ${universityName} / ${sectionKey} (${candidateName}) — 2회 호출 결과(generatedAt 제외)가 다릅니다.`
+    );
   }
 
   let rendered;
   try {
     rendered = renderDocToHtml(doc, sectionKey);
   } catch (err) {
-    return { classification: 'needsReview', reason: `재렌더 예외: ${err.message}`, kind: 'render-exception' };
+    return { classification: 'needsReview', reason: `${candidateName}: 재렌더 예외 ${err.message}`, kind: 'render-exception' };
   }
 
-  const comparison = compareDomEquivalence(rendered, html);
+  const comparison = compareStoredHtmlEquivalence(rendered, html);
   if (!comparison.ok) {
-    return { classification: 'needsReview', reason: comparison.reason, kind: 'dom-mismatch', doc };
+    return { classification: 'needsReview', reason: `${candidateName}: ${comparison.reason}`, kind: 'dom-mismatch', doc };
   }
-  return { classification: 'imported', doc };
+  return { classification: 'imported', doc, candidateName };
+}
+
+// -----------------------------------------------------------------------
+// 셀 하나 임포트 시도. 반환: { classification: 'imported'|'needsReview'|'skip', doc?, reason?, kind? }
+// row: DB 행 전체(detail_status 판정에 필요).
+// -----------------------------------------------------------------------
+export function importCell(sectionKey, dbHtml, row) {
+  const html = clean(dbHtml);
+  const universityName = row.university_name;
+
+  // 특수대학 11개교: 원본이 하드코딩 상수(SCIENCE_SPECIAL_DATA 등)라
+  // 역파싱하지 않는다 — buildSpecialCategoryDoc으로 생성 후 동일하게
+  // DOM 동형 검증만 한다(통과해야 imported).
+  if (sectionKey === 'selection_method' && row.detail_status === 'category') {
+    if (!html) return { classification: 'skip' };
+    return tryCandidate(
+      () => buildSpecialCategoryDoc(null, row, universityName),
+      sectionKey,
+      html,
+      universityName,
+      'generate:special'
+    );
+  }
+
+  if (!html) return { classification: 'skip' };
+
+  const chain = IMPORTER_CHAINS[sectionKey] || [];
+  if (!chain.length) return { classification: 'skip' };
+
+  const attempts = [];
+  for (const { name, run } of chain) {
+    const result = tryCandidate(() => run(html), sectionKey, html, universityName, name);
+    if (result.classification === 'imported') return result;
+    attempts.push(result.reason);
+  }
+  return { classification: 'needsReview', reason: attempts.join(' / '), kind: 'all-attempts-failed' };
 }
 
 // -----------------------------------------------------------------------
@@ -441,7 +562,7 @@ async function main() {
 
   const htmlColumns = targetCategories.map((key) => HWP_SECTION_HTML_KEYS[key]);
   const jsonColumns = targetCategories.map((key) => HWP_SECTION_JSON_KEYS[key]);
-  const selectColumns = ['id', 'university_name', 'updated_at', ...htmlColumns].join(', ');
+  const selectColumns = ['id', 'university_name', 'detail_status', 'updated_at', ...htmlColumns].join(', ');
 
   let query = supabase.from(TABLE).select(selectColumns).order('id');
   if (args.university) query = query.eq('university_name', args.university);
@@ -464,7 +585,7 @@ async function main() {
 
     targetCategories.forEach((key) => {
       const dbHtml = row[HWP_SECTION_HTML_KEYS[key]];
-      const result = importCell(key, dbHtml, row.university_name);
+      const result = importCell(key, dbHtml, row);
       stats[key][result.classification] += 1;
       if (result.classification === 'needsReview' && needsReviewSamples[key].length < 10) {
         needsReviewSamples[key].push({ university: row.university_name, kind: result.kind, reason: result.reason });
@@ -533,7 +654,7 @@ async function main() {
   console.log('\n=== 7) 재감사 ===');
   const { data: verifyRows, error: verifyError } = await supabase
     .from(TABLE)
-    .select(['id', 'university_name', ...htmlColumns, ...jsonColumns].join(', '))
+    .select(['id', 'university_name', 'detail_status', ...htmlColumns, ...jsonColumns].join(', '))
     .order('id');
   if (verifyError) throw new Error(`재감사 조회 실패: ${verifyError.message}`);
 
@@ -542,7 +663,7 @@ async function main() {
     if (args.university && row.university_name !== args.university) return;
     targetCategories.forEach((key) => {
       const dbHtml = row[HWP_SECTION_HTML_KEYS[key]];
-      const expected = importCell(key, dbHtml, row.university_name);
+      const expected = importCell(key, dbHtml, row);
       if (expected.classification !== 'imported') return;
       const actualDoc = row[HWP_SECTION_JSON_KEYS[key]];
       if (!actualDoc || stableStringifyDoc(actualDoc) !== stableStringifyDoc(expected.doc)) residual += 1;

@@ -3488,6 +3488,60 @@ function renderRecruitBlocksHtml(blocks) {
   `);
 }
 
+// recruitExact variant 렌더러 — Phase 5 legacy 임포터(recruitment_quota
+// 저장 HTML 207건 중 200건이 admission-normalized-recruit-table, 2단
+// 헤더) 검증 전용이다. 현행 파서(buildRecruitmentHtml)는 이 variant를
+// 절대 생성하지 않는다(recruitExact 스키마는 정의만 되어 있었다 — 설계
+// §4.2). RecruitExactTable.jsx(React)의 fixedColumns/groups 처리를
+// 그대로 미러링한다. 실측: 저장 HTML에 admission-result-note/legend div가
+// 없어 여기도 넣지 않는다(다른 recruit variant와 다른 점).
+function renderRecruitExactBlockHtml(table) {
+  const fixedCount = table.fixedColumnCount || 0;
+  const fixedColumns = table.columns.slice(0, fixedCount);
+  const groups = table.groups || [];
+  const dataColumns = table.columns.slice(fixedCount);
+
+  const fixedHeaderHtml = fixedColumns
+    .map((c) => `<th rowspan="2" class="fixed-head">${escapeHtml(c.label)}</th>`)
+    .join('');
+  const groupHeaderHtml = groups
+    .map((g) => `<th colspan="${g.count}" class="recruit-group-head">${escapeHtml(g.name)}</th>`)
+    .join('');
+  const metricHeaderHtml = dataColumns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
+
+  const bodyHtml = table.rows
+    .map(
+      (row) => `
+    <tr>
+      ${row
+        .slice(0, fixedCount)
+        .map(
+          (cell, idx) =>
+            `<td class="left ${idx === 0 ? 'series-cell' : ''}">${cell ? escapeHtml(cell) : '<span class="muted">-</span>'}</td>`
+        )
+        .join('')}
+      ${row
+        .slice(fixedCount)
+        .map((cell) => `<td>${cell ? escapeHtml(cell) : '<span class="muted">-</span>'}</td>`)
+        .join('')}
+    </tr>
+  `
+    )
+    .join('');
+
+  return `
+    <div class="admission-scroll-table">
+      <table class="admission-data-table admission-normalized-recruit-table">
+        <thead>
+          <tr>${fixedHeaderHtml}${groupHeaderHtml}</tr>
+          <tr>${metricHeaderHtml}</tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 // 특수대학(경찰대학/사관학교4종/과기원6종) 3개 소스 함수 미러. 첫 GroupBlock의
 // title로 어느 소스였는지 판별한다(제목이 함수별로 고정·유일해 안전).
 // buildScienceSpecialHtml만 선택 슬롯 3개가 삼항 연산자(`data.xxxRows?.length
@@ -3582,7 +3636,13 @@ function renderInnerHtmlForDoc(doc, sectionKey) {
     return table ? renderMinimumBlockHtml(table) : '';
   }
   if (sectionKey === 'school_record_method') return renderRecordBlocksHtml(blocks);
-  if (sectionKey === 'recruitment_quota') return renderRecruitBlocksHtml(blocks);
+  if (sectionKey === 'recruitment_quota') {
+    const table = blocks.find((b) => b.kind === 'table');
+    if (table && table.variant === 'recruitExact') {
+      return `<div class="admission-raw-section-wrap">${renderRecruitExactBlockHtml(table)}</div>`;
+    }
+    return renderRecruitBlocksHtml(blocks);
+  }
 
   return '';
 }
@@ -3808,6 +3868,326 @@ export function importSelectionDocFromHtml(html) {
         rows
       }
     ]
+  };
+}
+
+// htmlTable(:294)/buildRecruitCell(:2164) 계열은 빈 값을
+// <span class="muted">-</span>로 렌더한다. 그 셀의 stripHtmlToText 결과는
+// "-"(muted span의 텍스트 콘텐츠)라 리터럴 "-"와 구분이 안 된다 — doc에는
+// ''(빈 문자열)으로 저장해야 렌더러가 다시 muted span을 재현한다.
+function cellValueOrMuted(cell) {
+  return /class="muted"/.test(cell.innerHtml) ? '' : cell.text;
+}
+
+// exam_schedule legacy HTML → TableBlock{variant:'exam'} doc.
+export function importExamDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 3) return null;
+    rows.push(row.map((cell) => cellValueOrMuted(cell)));
+  }
+  return {
+    v: 1,
+    section: 'exam_schedule',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'exam',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'target', label: '대상' },
+          { role: 'schedule', label: '일정' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// minimum_requirements legacy HTML → TableBlock{variant:'minimum'} doc.
+export function importMinimumDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 5) return null;
+    rows.push(row.map((cell) => cellValueOrMuted(cell)));
+  }
+  return {
+    v: 1,
+    section: 'minimum_requirements',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'minimum',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'target', label: '대상' },
+          { role: 'areas', label: '반영 영역' },
+          { role: 'minimum', label: '최저' },
+          { role: 'note', label: '비고' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// admission-empty-box(수능 최저학력기준 없음 / 대학별고사일 없음) 단독
+// wrap → EmptyBoxBlock doc. table 임포터가 실패했을 때 시도한다.
+export function importEmptyBoxDocFromHtml(sectionKey, html) {
+  const source = String(html || '');
+  const m = source.match(/<div class="admission-empty-box">([\s\S]*?)<\/div>/i);
+  if (!m) return null;
+  const message = clean(stripHtmlToText(m[1]));
+  if (!message) return null;
+  return {
+    v: 1,
+    section: sectionKey,
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [{ kind: 'emptyBox', message }]
+  };
+}
+
+// admission-readable-body(admission-bullet-list/admission-subtitle-line/
+// admission-text-line) → PlainListBlock doc. table/emptyBox 임포터가
+// 모두 실패했을 때 마지막으로 시도한다.
+export function importPlainListDocFromHtml(sectionKey, html) {
+  const source = String(html || '');
+  const bodyMatch = source.match(/<div class="admission-readable-body">([\s\S]*?)<\/div>\s*<\/div>\s*$/i);
+  if (!bodyMatch) return null;
+  const bodyHtml = bodyMatch[1];
+
+  const items = [];
+  const nodeRe = /<ul class="admission-bullet-list">([\s\S]*?)<\/ul>|<div class="admission-subtitle-line">([\s\S]*?)<\/div>|<div class="admission-text-line">([\s\S]*?)<\/div>/gi;
+  let m;
+  while ((m = nodeRe.exec(bodyHtml)) !== null) {
+    if (m[1] !== undefined) {
+      const liRe = /<li>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      while ((liMatch = liRe.exec(m[1])) !== null) {
+        items.push({ type: 'bullet', text: clean(stripHtmlToText(liMatch[1])) });
+      }
+    } else if (m[2] !== undefined) {
+      items.push({ type: 'subtitle', text: clean(stripHtmlToText(m[2])) });
+    } else if (m[3] !== undefined) {
+      items.push({ type: 'text', text: clean(stripHtmlToText(m[3])) });
+    }
+  }
+  if (!items.length) return null;
+
+  return {
+    v: 1,
+    section: sectionKey,
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [{ kind: 'plainList', items }]
+  };
+}
+
+// school_record_method 전용 — <table>과 <div class="admission-subhead">를
+// 문서 등장 순서대로 추출한다(recordInfo 0~1개 + (heading,score) 쌍 0개
+// 이상이 형제로 나열된 구조 — 실측 확인, GroupBlock으로 묶여있지 않다).
+function extractOrderedTableFragments(html) {
+  const fragments = [];
+  const tableRe = /<table([^>]*)>([\s\S]*?)<\/table>/gi;
+  let m;
+  while ((m = tableRe.exec(html)) !== null) {
+    fragments.push({ type: 'table', index: m.index, className: extractClassAttr(m[1]), raw: m[0] });
+  }
+  const headingRe = /<div class="admission-subhead">([\s\S]*?)<\/div>/gi;
+  while ((m = headingRe.exec(html)) !== null) {
+    fragments.push({ type: 'heading', index: m.index, text: clean(stripHtmlToText(m[1])) });
+  }
+  fragments.sort((a, b) => a.index - b.index);
+  return fragments;
+}
+
+// school_record_method legacy HTML → [TableBlock{recordInfo}?, (HeadingBlock,
+// TableBlock{score})...] doc. buildRecordDocBlocks(생성기)와 동일한 blocks
+// 모양을 만들어 기존 renderRecordBlocksHtml을 그대로 재사용해 렌더한다.
+export function importRecordDocFromHtml(html) {
+  const fragments = extractOrderedTableFragments(html);
+  if (!fragments.length) return null;
+
+  const blocks = [];
+  let pendingHeading = null;
+
+  for (const frag of fragments) {
+    if (frag.type === 'heading') {
+      pendingHeading = frag.text;
+      continue;
+    }
+    const grid = parseHtmlTableGrid(frag.raw);
+    if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+    if (frag.className.includes('admission-record-info-table')) {
+      const rows = [];
+      for (const row of grid.bodyRows) {
+        if (row.length !== 2) return null;
+        rows.push(row.map((cell) => cellValueOrMuted(cell)));
+      }
+      blocks.push({
+        kind: 'table',
+        variant: 'recordInfo',
+        columns: [
+          { role: 'type', label: '구분' },
+          { role: 'content', label: '내용' }
+        ],
+        rows
+      });
+      pendingHeading = null;
+    } else if (frag.className.includes('admission-score-table')) {
+      if (!pendingHeading) return null; // 헤딩 없는 score 표 — 예상 못한 모양, 강행하지 않는다
+      const headerCells = grid.headerRows[0] || [];
+      if (!headerCells.length) return null;
+      const rows = [];
+      for (const row of grid.bodyRows) {
+        if (row.length !== headerCells.length) return null;
+        rows.push(row.map((cell) => cellValueOrMuted(cell)));
+      }
+      blocks.push({ kind: 'heading', text: pendingHeading });
+      blocks.push({
+        kind: 'table',
+        variant: 'score',
+        columns: headerCells.map((c, idx) => ({ role: idx === 0 ? 'type' : 'data', label: c.text })),
+        rows
+      });
+      pendingHeading = null;
+    } else {
+      return null; // 알 수 없는 표 — 강행하지 않는다
+    }
+  }
+
+  if (!blocks.length) return null;
+  return {
+    v: 1,
+    section: 'school_record_method',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
+  };
+}
+
+// recruitment_quota — admission-normalized-recruit-table(2단 헤더, 저장
+// HTML 207건 중 200건) → TableBlock{variant:'recruitExact'} doc. 이 커밋
+// 이전에는 groups/fixedColumnCount 경로가 실검증된 적이 없다.
+export function importRecruitExactDocFromHtml(html) {
+  if (!/admission-normalized-recruit-table/.test(String(html || ''))) return null;
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  if (grid.headerRows.length !== 2 || grid.groups === undefined || grid.fixedColumnCount === undefined) return null;
+
+  const fixedCount = grid.fixedColumnCount;
+  const totalColumns = fixedCount + grid.groups.reduce((sum, g) => sum + g.count, 0);
+  // validateAdmissionDoc 불변식(§2.4-4)을 임포트 시점에 먼저 확인한다 —
+  // 어긋나면 needsReview로 보내고 절대 강행하지 않는다.
+  if (grid.bodyRows.some((row) => row.length !== totalColumns)) return null;
+
+  const fixedHeaderCells = grid.headerRows[0].filter((c) => c.rowSpan >= 2);
+  const metricHeaderCells = grid.headerRows[1] || [];
+  if (fixedHeaderCells.length !== fixedCount || metricHeaderCells.length !== totalColumns - fixedCount) return null;
+
+  const columns = [
+    ...fixedHeaderCells.map((c, idx) => ({ role: idx === 0 ? 'series' : 'unit', label: c.text })),
+    ...metricHeaderCells.map((c) => ({ role: 'data', label: c.text }))
+  ];
+  const rows = grid.bodyRows.map((row) => row.map((cell) => cellValueOrMuted(cell)));
+
+  return {
+    v: 1,
+    section: 'recruitment_quota',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'recruitExact',
+        columns,
+        rows,
+        groups: grid.groups,
+        fixedColumnCount: fixedCount
+      }
+    ]
+  };
+}
+
+// recruitment_quota — admission-recruit-table(chips 기반, 저장 HTML
+// 207건 중 7건 — admission-normalized-recruit-table 도입 전 구버전).
+// buildRecruitCell(:2164)이 만드는 <div class="admission-recruit-cell-values">
+// <span><b>라벨</b>값</span>...</div> 구조를 역파싱한다.
+export function importRecruitLegacyDocFromHtml(html) {
+  const source = String(html || '');
+  if (!/admission-recruit-table\b/.test(source) || /admission-normalized-recruit-table/.test(source)) return null;
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length || !grid.headerRows.length) return null;
+
+  const headerCells = grid.headerRows[0];
+  if (headerCells.length < 3) return null;
+  const groupLabels = headerCells.slice(2).map((c) => c.text);
+
+  const chipRe = /<span><b>([^<]*)<\/b>([^<]*)<\/span>/g;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== headerCells.length) return null;
+    const [groupCell, unitCell, ...valueCells] = row;
+    const seriesCells = valueCells.map((cell) => {
+      if (/class="muted"/.test(cell.innerHtml)) return { chips: [] };
+      const chips = [];
+      let m;
+      chipRe.lastIndex = 0;
+      while ((m = chipRe.exec(cell.innerHtml)) !== null) {
+        chips.push({ label: clean(decodeBasicHtmlEntities(m[1])), value: clean(decodeBasicHtmlEntities(m[2])) });
+      }
+      if (!chips.length) return null; // 예상 못한 셀 모양 — 강행하지 않는다
+      return { chips };
+    });
+    if (seriesCells.some((c) => c === null)) return null;
+    rows.push([groupCell.text || '-', unitCell.text || '-', ...seriesCells]);
+  }
+
+  const blocks = [
+    {
+      kind: 'table',
+      variant: 'recruit',
+      columns: [
+        { role: 'group', label: headerCells[0].text },
+        { role: 'unit', label: headerCells[1].text },
+        ...groupLabels.map((label) => ({ role: 'series', label }))
+      ],
+      rows
+    }
+  ];
+  // buildRecruitmentHtml(:2288)의 footnotes.filter(Boolean).join(' ')를
+  // 역으로 통짜 텍스트 1건으로 담는다 — 원래 몇 개 문자열이 join됐는지는
+  // 저장 HTML만으로 복원 불가하지만, FootnoteBlock 렌더는 join(' ')이라
+  // 1건짜리 items로도 바이트 동일하게 재현된다.
+  const footnoteMatch = String(html || '').match(/<div class="admission-footnote">([\s\S]*?)<\/div>/i);
+  if (footnoteMatch) {
+    const footnoteText = clean(stripHtmlToText(footnoteMatch[1]));
+    if (footnoteText) blocks.push({ kind: 'footnote', items: [footnoteText] });
+  }
+
+  return {
+    v: 1,
+    section: 'recruitment_quota',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
   };
 }
 
