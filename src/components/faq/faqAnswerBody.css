@@ -1,0 +1,33 @@
+/* faqAnswerBody.css — FAQ 답변 패널 전용 오버라이드. .faq-answer-body 스코프 밖
+   (교육칼럼 등 ColumnBody의 다른 사용처)에는 영향을 주지 않는다. 모든 규칙은
+   blockNoteContent.css / @blocknote/ariakit 스타일보다 클래스 셀렉터 개수를
+   하나 더 갖도록 써서(specificity로 명시적 우위) import 순서에 기대지 않고 이긴다.
+   ColumnBody.jsx / ColumnBodyBlockNote.jsx / blockNoteContent.css 자체는 건드리지 않는다. */
+
+/* 6. BlockNote가 .bn-editor에 까는 흰 배경(--bn-colors-editor-background:#fff)을
+   투명하게 — #F9FAFB 패널 위에 흰 박스가 떠 보이는 문제. */
+.faq-answer-body .bn-doc .bn-editor {
+  background-color: transparent;
+}
+
+/* 7. ColumnBody RICH_BASE/PLAIN_BASE에 박힌 max-w-[45rem](720px) 폭 제한 해제 — FAQ
+   답변은 교육칼럼과 달리 패널 폭(1100px)을 그대로 쓰는 게 시안이다.
+   .bn-doc: 리치 렌더(BlockNote 마운트 후). 직계 자식 div: 청크 로딩 전 평문 폴백(PLAIN_BASE). */
+.faq-answer-body .bn-doc,
+.faq-answer-body > div {
+  max-width: none;
+}
+
+/* 8. 답변 폰트 20px(시안). line-height는 건드리지 않는다 — 리치 렌더는
+   [data-content-type='paragraph']에 이미 line-height: 2rem(32px)이 걸려 있고,
+   평문 폴백은 leading-8(32px)이라 20 × 1.6 = 32px 목표와 우연히 일치한다.
+   - 직계 자식 div: 평문 폴백(PLAIN_BASE)의 text-base(1rem) 오버라이드.
+   - .bn-default-styles: 리치 렌더 루트(.bn-editor와 동일 엘리먼트)에 붙는 클래스로,
+     blockNoteContent.css의 font-size: 1rem 을 오버라이드하면 하위 paragraph가 상속한다. */
+.faq-answer-body > div {
+  font-size: 1.25rem;
+}
+
+.faq-answer-body .bn-doc .bn-default-styles {
+  font-size: 1.25rem;
+}
