@@ -7,7 +7,7 @@ import { isEmptyDocument } from './BlockEditor';
 // 온디맨드 스냅샷 렌더러 — 에디터 state를 구독하지 않는다.
 // post는 "미리보기" 버튼을 눌렀을 때 editorRef.getBlocks()를 1회 호출해 만든 스냅샷이며,
 // 여기서 에디터로 되돌아가는 데이터 경로는 없다(읽기 전용).
-export default function ColumnPreviewModal({ open, onClose, post }) {
+export default function ColumnPreviewModal({ open, onClose, post, label = '교육칼럼' }) {
   useEffect(() => {
     if (!open) return undefined;
 
@@ -48,7 +48,7 @@ export default function ColumnPreviewModal({ open, onClose, post }) {
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
       role="dialog"
       aria-modal="true"
-      aria-label="교육칼럼 미리보기"
+      aria-label={`${label} 미리보기`}
     >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
@@ -81,7 +81,7 @@ export default function ColumnPreviewModal({ open, onClose, post }) {
               바깥은 넉넉한 폭만 주고 실제 캡은 ColumnBody에 맡긴다. */}
           <div className="mx-auto w-full max-w-[52rem] px-5 py-10 sm:px-8">
             <p className="mb-2 text-base font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
-              교육칼럼
+              {label}
             </p>
             <h1 className="mb-8 break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
               {post?.title || '(제목 없음)'}

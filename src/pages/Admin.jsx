@@ -29,6 +29,7 @@ import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
 import { plainTextToBlocks } from '../lib/plainTextToBlocks';
+import { FAQ_CATEGORIES } from '../data/faqCategories';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -1487,18 +1488,46 @@ const CONFIGS = {
     table: 'faqs',
     searchPlaceholder: '질문을 검색하세요',
     order: 'sort_order',
+    previewTitleKey: 'question',
+    previewLabel: 'FAQ',
     columns: [
+      { key: 'category', label: '카테고리' },
       { key: 'question', label: '질문' },
-      { key: 'answer', label: '답변' },
+      { key: 'answer', label: '답변', type: 'truncate' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'category', label: '카테고리', type: 'select', options: FAQ_CATEGORIES },
       { key: 'question', label: '질문', type: 'text', required: true },
-      { key: 'answer', label: '답변', type: 'textarea' },
+      {
+        key: 'answer',
+        label: '답변',
+        type: 'blockEditor',
+        required: true,
+        folder: 'faq-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
-    defaults: { is_active: true, question: '', answer: '', sort_order: 1 }
+    defaults: { is_active: true, category: '', question: '', answer: '', sort_order: 1 },
+    // blockEditor(field.key='answer')는 initialContent를 form[`${field.key}_json`]에서 읽는다(관례).
+    // 그런데 FAQ의 정본 컬럼명은 answer_json이 아니라 content_json(계약 §2)이라 이름이 어긋난다 —
+    // 편집 진입 시 row.content_json을 answer_json으로 옮겨 관례 코드가 그대로 맞물리게 한다.
+    rowToForm: (row) => ({ ...row, answer_json: row.content_json }),
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(answer)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    // 주의: 교육칼럼/합격사례 선례는 평문 미러 컬럼이 content지만 FAQ는 answer다.
+    formToPayload: (form) => {
+      const { __blocks_answer, answer_json, ...rest } = form;
+      const blocks = __blocks_answer || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        answer: blocksToPlainText(blocks)
+      };
+    }
   },
 
   members: {
@@ -4073,7 +4102,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     const blocks = editorRef?.current ? editorRef.current.getBlocks() : [];
 
     setPreviewPost({
-      title: form.title,
+      title: form[config.previewTitleKey ?? 'title'],
       category: form.category,
       image_urls: form.image_urls,
       image_url: form.image_url,
@@ -4482,7 +4511,12 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         )}
       </div>
 
-      <ColumnPreviewModal open={Boolean(previewPost)} onClose={() => setPreviewPost(null)} post={previewPost} />
+      <ColumnPreviewModal
+        open={Boolean(previewPost)}
+        onClose={() => setPreviewPost(null)}
+        post={previewPost}
+        label={config.previewLabel}
+      />
     </form>
   );
 }
