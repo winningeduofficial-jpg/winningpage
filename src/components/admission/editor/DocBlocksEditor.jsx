@@ -14,9 +14,9 @@ const ADDABLE_KINDS = [
 ];
 
 // AdmissionDoc.blocks 배열 전체를 편집하는 최상위 컴포넌트. controlled —
-// blocks/onChange만 받는다. Admin.jsx 배선(저장·doc 전체 조립)은 이번
-// 범위 밖이다.
-export default function DocBlocksEditor({ section, blocks, onChange }) {
+// blocks/onChange만 받는다. universityName/sectionLabel은 하위 table
+// 블록의 xlsx 파일명 구성용으로 그대로 흘려보낸다(선택 — 없어도 동작).
+export default function DocBlocksEditor({ section, blocks, onChange, universityName, sectionLabel }) {
   const [addKind, setAddKind] = useState(ADDABLE_KINDS[0].kind);
   const validation = useMemo(() => validateBlocks(section, blocks), [section, blocks]);
 
@@ -86,7 +86,13 @@ export default function DocBlocksEditor({ section, blocks, onChange }) {
               </button>
             </div>
           </div>
-          <AdmissionBlockEditor section={section} block={block} onChange={(next) => updateBlock(idx, next)} />
+          <AdmissionBlockEditor
+            section={section}
+            block={block}
+            onChange={(next) => updateBlock(idx, next)}
+            universityName={universityName}
+            sectionLabel={sectionLabel}
+          />
         </div>
       ))}
 

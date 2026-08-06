@@ -24,12 +24,14 @@ import {
   splitHwpTextIntoSections,
   buildHwpCategoryHtml,
   buildHwpCategoryDoc,
+  renderDocToHtml,
   clean as cleanAdmissionText
 } from '../lib/admissionParsing';
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
+import DocBlocksEditor from '../components/admission/editor/DocBlocksEditor';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
@@ -930,80 +932,128 @@ const CONFIGS = {
       {
         key: 'previous_year_changes',
         label: '전년도와 차이점(수시) 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 HTML도 함께 갱신하세요.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 문서와 HTML 미러를 함께 갱신하세요.',
         type: 'textarea',
         rows: 8
       },
       {
+        key: 'previous_year_changes_json',
+        label: '전년도와 차이점(수시) 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'previous_year_changes'
+      },
+      {
         key: 'previous_year_changes_html',
-        label: '전년도와 차이점(수시) HTML(공개 페이지 렌더값)',
+        label: '전년도와 차이점(수시) HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 8
+        rows: 8,
+        readOnly: true
       },
       {
         key: 'selection_method',
         label: '전형방법 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
         rows: 12
       },
       {
+        key: 'selection_method_json',
+        label: '전형방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'selection_method'
+      },
+      {
         key: 'selection_method_html',
-        label: '전형방법 HTML(공개 페이지 렌더값)',
+        label: '전형방법 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        readOnly: true
       },
       {
         key: 'minimum_requirements',
         label: '최저학력기준 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
         rows: 12
       },
       {
+        key: 'minimum_requirements_json',
+        label: '최저학력기준 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'minimum_requirements'
+      },
+      {
         key: 'minimum_requirements_html',
-        label: '최저학력기준 HTML(공개 페이지 렌더값)',
+        label: '최저학력기준 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        readOnly: true
       },
       {
         key: 'exam_schedule',
         label: '대학별고사일 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
         rows: 10
       },
       {
+        key: 'exam_schedule_json',
+        label: '대학별고사일 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'exam_schedule'
+      },
+      {
         key: 'exam_schedule_html',
-        label: '대학별고사일 HTML(공개 페이지 렌더값)',
+        label: '대학별고사일 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 10
+        rows: 10,
+        readOnly: true
       },
       {
         key: 'school_record_method',
         label: '학생부반영방법 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
         rows: 14
       },
       {
+        key: 'school_record_method_json',
+        label: '학생부반영방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'school_record_method'
+      },
+      {
         key: 'school_record_method_html',
-        label: '학생부반영방법 HTML(공개 페이지 렌더값)',
+        label: '학생부반영방법 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 14
+        rows: 14,
+        readOnly: true
       },
       {
         key: 'recruitment_quota',
         label: '모집인원 및 입결 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 아래 "문서"(정본)를 읽습니다.',
         type: 'textarea',
         rows: 12
       },
       {
+        key: 'recruitment_quota_json',
+        label: '모집인원 및 입결 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'recruitment_quota'
+      },
+      {
         key: 'recruitment_result_html',
-        label: '모집인원 및 입결 HTML(공개 페이지 렌더값)',
+        label: '모집인원 및 입결 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 18
+        rows: 18,
+        readOnly: true
       },
       {
         key: 'jungsi_guideline_url',
@@ -1059,13 +1109,14 @@ const CONFIGS = {
       detail_status: '상세입력완료'
     },
 
-    // jsonb(*_json) 컬럼 방어(sql/43 적용 전 선배포). AdminForm 초기값이
-    // {...row}, 저장 payload가 {...form}인 일반 경로를 그대로 쓰면, jsonb
-    // 컬럼이 생기는 순간 객체가 form에 그대로 실렸다가 저장 시 (아직 이
-    // config의 fields엔 *_json 타입 필드가 없어 당장은 아니지만) 향후
-    // textarea 필드가 추가되면 [object Object]로 렌더된 뒤 그 문자열이
-    // 그대로 DB에 저장돼 원본 jsonb를 파괴한다. rowToForm/formToPayload로
-    // 객체 형태를 명시적으로 유지·검증한다.
+    // jsonb(*_json) 컬럼 방어. AdminForm 초기값이 {...row}, 저장 payload가
+    // {...form}인 일반 경로를 그대로 쓰면, jsonb 컬럼 값(객체)이 form에
+    // 그대로 실렸다가 textarea 등 문자열 전제 필드로 렌더될 경우
+    // [object Object]로 깨진 채 저장돼 원본 jsonb를 파괴할 수 있다.
+    // *_json 필드는 이제 type:'admissionDoc'(AdmissionDocFieldEditor)
+    // 전용 렌더러를 쓰므로 그 사고 경로 자체는 없지만, rowToForm/
+    // formToPayload는 여전히 객체 형태 유지·저장 시 재검증의 유일한
+    // 관문이라 그대로 둔다.
     rowToForm: (row) => {
       const form = { ...row };
       Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonKey) => {
@@ -3351,6 +3402,11 @@ function AdminTopbar({ onLogout }) {
 function AdminInput({ field, value, onChange, disabled }) {
   const base =
     'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100';
+  // field.readOnly: 폼 전체 disabled와 별개로 "이 필드 하나만" 편집 불가로
+  // 만든다(예: *_html 미러 — doc이 정본이고 이 필드는 자동 생성값이라
+  // 직접 고치면 안 됨). HTML readOnly 속성은 disabled와 달리 값 선택·복사는
+  // 허용한다 — 미러 값을 참고용으로 보되 못 고치게 하는 목적에 더 맞는다.
+  const readOnly = Boolean(field.readOnly);
 
   if (field.type === 'textarea') {
     return (
@@ -3358,8 +3414,9 @@ function AdminInput({ field, value, onChange, disabled }) {
         value={value || ''}
         onChange={(e) => onChange(field.key, e.target.value)}
         disabled={disabled}
+        readOnly={readOnly}
         rows={field.rows || 5}
-        className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100"
+        className={`w-full resize-y border border-[#9ca3af] px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100 ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
       />
     );
   }
@@ -3435,7 +3492,68 @@ function AdminInput({ field, value, onChange, disabled }) {
         onChange(field.key, next);
       }}
       disabled={disabled}
-      className={base}
+      readOnly={readOnly}
+      className={`${base} ${readOnly ? 'bg-gray-50 text-gray-500' : ''}`}
+    />
+  );
+}
+
+// admissionGuidelines 전용 필드 렌더러(type:'admissionDoc'). field.key는
+// jsonKey(예: selection_method_json), field.sectionKey는 SectionKey(예:
+// 'selection_method')다. DocBlocksEditor(문서 블록 배열 편집기)를 감싸고,
+// 편집 즉시 병행 저장 계약(doc·html 동시 갱신)을 지킨다 — doc이 바뀔 때마다
+// renderDocToHtml로 htmlKey 미러도 같은 자리에서 다시 만든다. 이렇게
+// 해야 doc만 고치고 html이 낡는 사고(2026-08-06에 실제로 있었던 결함,
+// 27b397e에서 "파싱 실행" 경로는 고쳤지만 편집기 경로는 이번에 처음
+// 배선된다)가 편집기에서도 재발하지 않는다.
+function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
+  const sectionKey = field.sectionKey;
+  const htmlKey = HWP_SECTION_HTML_KEYS[sectionKey];
+  const existing = form[field.key];
+  const doc =
+    existing && typeof existing === 'object' && Array.isArray(existing.blocks)
+      ? existing
+      : {
+          v: 1,
+          section: sectionKey,
+          source: 'manual',
+          generator: 'admin-editor',
+          generatedAt: new Date().toISOString(),
+          blocks: []
+        };
+
+  function handleBlocksChange(nextBlocks) {
+    const nextDoc = { ...doc, blocks: nextBlocks, source: 'manual', generatedAt: new Date().toISOString() };
+    const nextPatch = { [field.key]: nextDoc };
+    // doc(정본)은 형태와 무관하게 항상 patch에 실린다 — 편집 중 일시적으로
+    // 불변식을 어기는 상태(예: 열 개수 변경 중간 단계)도 그대로 저장 시도
+    // 대상이 된다(저장 게이트는 formToPayload가 validateAdmissionDoc으로
+    // 별도로 막는다). html 미러는 doc이 유효할 때만, 그리고 renderDocToHtml
+    // 예외에 대비해 try/catch로 감싸 만든다 — 이 렌더러가 일부 variant에서
+    // 방어적이지 않고(예: renderSelectionTable이 row 길이를 검증 없이
+    // row[3]로 접근) 예상 밖 형태에 예외를 던지는 걸 직접 재현 확인했다.
+    // 실패해도 doc은 정상 저장되고 html 미러 갱신만 건너뛴다(직전 값 유지) —
+    // 페이지 전체가 죽는 것보다 훨씬 안전하다.
+    if (htmlKey) {
+      if (validateAdmissionDoc(nextDoc).ok) {
+        try {
+          nextPatch[htmlKey] = renderDocToHtml(nextDoc, sectionKey);
+        } catch (err) {
+          console.error('renderDocToHtml 실패 — html 미러 갱신을 건너뜁니다(doc은 정상 저장됩니다):', err);
+        }
+      }
+    }
+    onDirty();
+    onPatch(nextPatch);
+  }
+
+  return (
+    <DocBlocksEditor
+      section={sectionKey}
+      blocks={doc.blocks}
+      onChange={handleBlocksChange}
+      universityName={form.university_name}
+      sectionLabel={HWP_SECTION_LABELS[sectionKey]}
     />
   );
 }
@@ -4306,7 +4424,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                     )
                   ) : (
                     <>
-                      {!['file', 'multiImage', 'multiFile', 'blockEditor'].includes(field.type) &&
+                      {!['file', 'multiImage', 'multiFile', 'blockEditor', 'admissionDoc'].includes(field.type) &&
                         !(field.type === 'image' && field.hideUrlInput) && (
                           <AdminInput
                             field={field}
@@ -4315,6 +4433,15 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                             disabled={readonly}
                           />
                         )}
+
+                      {field.type === 'admissionDoc' && (
+                        <AdmissionDocFieldEditor
+                          field={field}
+                          form={form}
+                          onPatch={patch}
+                          onDirty={() => setDirty(true)}
+                        />
+                      )}
 
                       {field.type === 'blockEditor' && (
                         // onInput/onKeyDown은 BlockNote가 내부에 렌더하는 contenteditable DOM에서

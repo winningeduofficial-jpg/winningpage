@@ -10,10 +10,20 @@ import GroupBlockSummary from './blocks/GroupBlockSummary';
 // Block.kind 디스패처(편집판). AdmissionSectionView/blocks/renderBlock.jsx
 // (표시판)와 나란한 구조지만 재사용하지 않는다 — 표시판은 Gate B 바이트
 // 계약 보호 대상이라 편집 관심사를 섞으면 안 된다.
-export default function AdmissionBlockEditor({ section, block, onChange }) {
+// universityName/sectionLabel은 table 블록의 xlsx 파일명 구성용으로만
+// TableBlockEditor에 전달한다(선택 — 없어도 동작).
+export default function AdmissionBlockEditor({ section, block, onChange, universityName, sectionLabel }) {
   switch (block.kind) {
     case 'table':
-      return <TableBlockEditor section={section} block={block} onChange={onChange} />;
+      return (
+        <TableBlockEditor
+          section={section}
+          block={block}
+          onChange={onChange}
+          universityName={universityName}
+          sectionLabel={sectionLabel}
+        />
+      );
     case 'note':
       return <NoteBlockEditor block={block} onChange={onChange} />;
     case 'emptyBox':
