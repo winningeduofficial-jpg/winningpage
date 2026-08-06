@@ -463,7 +463,11 @@ function stripLeadingTableWrap(html) {
 function stripLeadingHeading(html) {
   return html.replace(/^\s*<div class="admission-hwp-section-title">[\s\S]*?<\/div>\s*/, '');
 }
-function compareStoredHtmlEquivalence(rendered, stored) {
+// export: scripts/verify-admission-doc-html-drift.mjs가 재사용한다(현재 저장된
+// json을 renderDocToHtml로 재렌더한 결과와 현재 저장된 html을 같은 허용 diff
+// 기준으로 비교하기 위함 — 임포트 시점의 검증 기준과 동일해야 "드리프트"의
+// 의미가 일관된다).
+export function compareStoredHtmlEquivalence(rendered, stored) {
   const storedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(stored);
   const renderedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(rendered);
   const storedHasTableWrap = /^\s*<div class="admission-table-wrap">/.test(stored);
