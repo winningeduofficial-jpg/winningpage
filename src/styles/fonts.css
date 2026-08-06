@@ -1,0 +1,20 @@
+/* 우아한세리프(GraceSerif) — Pear Type Foundry / 이희배, SIL Open Font License 1.1.
+   라이선스 전문: public/fonts/GraceSerif-LICENSE.txt (OFL 조건 2 — 재배포 시 동봉 의무).
+   공식 배포는 OTF/TTF뿐이라 공식 ZIP의 TTF를 fontTools로 순수 woff2 압축해 커밋했다.
+   서브셋하지 않았다 — 서브셋은 OFL상 Modified Version이라 RFN 때문에 내부 name table을
+   개명해야 한다(FAQ 2.6). 순수 압축은 원 이름 유지가 허용된다(FAQ 2.2.1).
+
+   Bold(700) 1종만 로드한다. 사용처가 CompanyNews.jsx 히어로 카드 타이틀(font-bold) 한 줄뿐이라
+   Regular를 받아도 렌더되는 글자가 0개다.
+   이 패밀리를 font-bold 없이 쓰면 유일한 700 face 가 선택돼 의도한 굵기와 다르게(항상 Bold 로)
+   조용히 렌더된다 — 렌더 품질 저하가 없어 육안 검출이 어렵다. 반드시 font-bold 와 함께 쓸 것.
+
+   local() 을 넣지 마라: OS 설치본에 의존하면 개발자 기기와 사용자 기기의 렌더가 계속 갈린다.
+   같은 이유로 Tailwind 폴백 스택에도 '우아한세리프'(OS 설치본 전용 이름)를 넣지 않는다. */
+@font-face {
+  font-family: 'GraceSerif';
+  src: url('/fonts/GraceSerif-Bold-v1.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
