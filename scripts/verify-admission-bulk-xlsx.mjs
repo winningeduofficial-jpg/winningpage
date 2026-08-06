@@ -322,8 +322,90 @@ async function main() {
     assert(regressionWarnings.length >= 1, '정보량 감소 경고가 있어야 함');
   });
 
+  // === 7) formula injection 방어 — 셀 타입 강제(t:'s')가 값을 하나도
+  // 안 바꾸면서 수식으로 해석될 여지를 없애는지 확인한다. dev의
+  // csvEscape(선행 작은따옴표 접두사)와 달리 접두사를 안 붙이므로,
+  // "붙였다가 못 걷어내서 왕복이 깨지는" 실패 모드 자체가 없다.
+  console.log('\n=== 7) formula injection 방어(셀 타입 강제) ===');
+
+  const DANGEROUS_PREFIXES = ['=1+1', '+41 1234 5678', '-학교장추천자, 학교생활우수자, 논술', '@SUM(A1)', '\t탭 선두', '\r캐리지리턴 선두'];
+
+  check('합성: 위험 접두사 셀 전부 t=\'s\'로 강제되고 수식(f) 없음, 값도 원본 그대로', () => {
+    const syntheticRows = DANGEROUS_PREFIXES.map((value, idx) => ({
+      id: `synthetic-${idx}`,
+      admission_year: 2027,
+      university_key: `formula-test-${idx}`,
+      university_name: `수식테스트대학교${idx}`,
+      memo: value,
+      selection_method: value
+    }));
+    const { workbook } = exportAdmissionRowsToXlsx(syntheticRows);
+    const sheetName = workbook.SheetNames[0];
+    const ws = workbook.Sheets[sheetName];
+
+    let formulaCellCount = 0;
+    let nonStringTypedCount = 0;
+    Object.keys(ws).forEach((addr) => {
+      if (addr.startsWith('!')) return;
+      const cell = ws[addr];
+      if (cell.f !== undefined) formulaCellCount += 1;
+      if (typeof cell.v === 'string' && cell.t !== 's') nonStringTypedCount += 1;
+    });
+    assert(formulaCellCount === 0, `수식(f) 프로퍼티를 가진 셀이 있으면 안 됨(실제 ${formulaCellCount}건)`);
+    assert(nonStringTypedCount === 0, `문자열 값인데 t='s'가 아닌 셀이 있으면 안 됨(실제 ${nonStringTypedCount}건)`);
+
+    // 값 자체가 원본과 정확히 동일한지(접두사 미삽입) 확인
+    const memoCol = BULK_XLSX_COLUMNS.indexOf('memo');
+    const grid = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    DANGEROUS_PREFIXES.forEach((value, idx) => {
+      const cellValue = grid[idx + 1][memoCol];
+      assert(cellValue === value, `memo 셀 값이 원본과 다름(idx=${idx}): 기대="${value}" 실제="${cellValue}"`);
+    });
+  });
+
+  await checkFormulaRoundTrip();
+
   console.log(`\n총 ${passCount + failCount}건 중 ${passCount}건 통과, ${failCount}건 실패.`);
   process.exitCode = failCount ? 1 : 0;
+
+  // 실데이터에서 위험 접두사로 시작하는 셀을 찾아 왕복 검증한다(team-lead
+  // 실측 사례 "- 학교장추천자, 학교생활우수자, 논술 …"와 같은 종류가
+  // 실제로 존재하는지, 있다면 export→파일 IO 왕복→import 후에도 완전히
+  // 동일한지 증명한다).
+  async function checkFormulaRoundTrip() {
+    const DANGEROUS_PREFIX_RE = /^[=+\-@\t\r]/;
+    const textColumns = ['previous_year_changes', 'selection_method', 'minimum_requirements', 'exam_schedule', 'school_record_method', 'recruitment_quota', 'memo'];
+    let sample = null;
+    for (const row of dbRows) {
+      for (const col of textColumns) {
+        const v = row[col];
+        if (typeof v === 'string' && DANGEROUS_PREFIX_RE.test(v)) {
+          sample = { universityKey: row.university_key, admissionYear: row.admission_year, column: col, value: v };
+          break;
+        }
+      }
+      if (sample) break;
+    }
+
+    if (!sample) {
+      console.log('PASS - 실데이터: 위험 접두사(=+-@탭/CR)로 시작하는 셀 없음(합성 테스트로 커버됨)');
+      passCount += 1;
+      return;
+    }
+
+    check(
+      `실데이터: [${sample.universityKey}] ${sample.column} 위험 접두사 셀("${sample.value.slice(0, 30)}...") 왕복 무손실`,
+      () => {
+        const { workbook: singleWb } = exportAdmissionRowsToXlsx([{ id: 'x', admission_year: sample.admissionYear, university_key: sample.universityKey, university_name: 'x', [sample.column]: sample.value }]);
+        const buf = XLSX.write(singleWb, { bookType: 'xlsx', type: 'buffer' });
+        const reread = XLSX.read(buf, { type: 'buffer' });
+        const ws2 = reread.Sheets[reread.SheetNames[0]];
+        const grid2 = XLSX.utils.sheet_to_json(ws2, { header: 1 });
+        const colIdx = BULK_XLSX_COLUMNS.indexOf(sample.column);
+        assert(grid2[1][colIdx] === sample.value, `왕복 후 값이 원본과 다름: 기대="${sample.value}" 실제="${grid2[1][colIdx]}"`);
+      }
+    );
+  }
 }
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;

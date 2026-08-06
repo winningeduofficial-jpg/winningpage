@@ -114,10 +114,47 @@ function truncateIfNeeded(value, location, truncatedCells) {
   return value.slice(0, keep) + TRUNCATION_MARKER;
 }
 
+// formula injection(CSV/수식 주입) 방어 — src/pages/Admin.jsx의 csvEscape
+// (커밋 1a57fc8, dev)가 CSV 내보내기에 쓴 것과 같은 위협 모델이지만 xlsx는
+// 해법이 다르다. dev의 csvEscape는 값 앞에 작은따옴표(')를 붙이는
+// 텍스트 접두사 방식이다 — CSV는 셀 타입 메타데이터가 없어서 Excel이
+// 파일을 열 때(가져오기 시점) 원문 텍스트 자체를 보고 "=/+/-/@로
+// 시작하면 수식"이라고 휴리스틱으로 판단하기 때문에, 그 판단을 무력화
+// 하려면 텍스트 자체를 바꿔야 한다. 하지만 그 접두사를 다시 걷어내지
+// 않으면(또는 원본에 이미 있던 작은따옴표와 구분 못 하면) 왕복이 깨진다
+// — 이 파일의 최우선 요구사항과 정면으로 충돌한다.
+//
+// xlsx(OOXML)는 셀마다 명시적 타입을 파일에 직접 저장한다. SheetJS의
+// aoa_to_sheet가 JS 문자열을 셀로 만들면 기본값이 이미 문자열 타입
+// (쓰기 시점 XML에서 `t="str"`, `<f>`(수식) 태그는 전혀 안 붙는다 —
+// 직접 XLSX.write로 만든 파일의 원시 XML을 unzip해 확인함, "=1+1"을
+// 넣어도 `<c t="str"><v>=1+1</v></c>`만 나오고 `<f>` 태그는 없다)이라,
+// Excel/Sheets가 이 셀의 <v> 내용을 다시 수식으로 파싱하지 않는다(그
+// 파싱은 CSV를 "가져올 때"만 하는 별도 경로다 — 이미 타입이 박힌
+// xlsx를 열 때는 타입을 신뢰하고 문자열로만 표시한다). 즉 값을 조금도
+// 바꾸지 않고 이미 안전하다.
+//
+// 그 암묵적 동작에만 기대지 않고, 셀 타입을 명시적으로 강제해 이 계약을
+// 코드로 못박는다(SheetJS 버전이 바뀌어도 안전 — 아래 verify 스크립트가
+// 매 셀의 t/f를 직접 검사해 회귀를 잡는다).
+function forceStringCellTypes(worksheet) {
+  Object.keys(worksheet).forEach((address) => {
+    if (address.startsWith('!')) return;
+    const cell = worksheet[address];
+    if (cell && typeof cell.v === 'string') {
+      cell.t = 's';
+      delete cell.f; // 혹시라도 수식으로 잡혔으면(현재는 안 그렇다) 제거
+    }
+  });
+  return worksheet;
+}
+
 /**
  * DB 행 배열(26컬럼 필드를 가진 객체) → xlsx workbook. 32,767자를 넘는
  * 셀은 조용히 자르지 않고, 잘린 자리에 TRUNCATION_MARKER를 남긴 뒤
- * truncatedCells에 기록한다(호출부가 경고를 띄울 수 있게).
+ * truncatedCells에 기록한다(호출부가 경고를 띄울 수 있게). 모든 문자열
+ * 셀은 명시적으로 's'(문자열) 타입으로 강제한다(formula injection 방어
+ * — 위 주석 참고, 값 자체는 조금도 바뀌지 않아 왕복 무손실이다).
  * @param {Array<Record<string, unknown>>} rows
  * @returns {{ workbook: import('xlsx').WorkBook, truncatedCells: Array<{ id: unknown, rowIndex: number, column: string, originalLength: number }> }}
  */
@@ -130,7 +167,7 @@ export function exportAdmissionRowsToXlsx(rows) {
     })
   );
 
-  const worksheet = XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]);
+  const worksheet = forceStringCellTypes(XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, '모집요강');
 
