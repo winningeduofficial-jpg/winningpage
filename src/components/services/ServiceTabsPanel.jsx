@@ -25,8 +25,9 @@ import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from './serviceTokens';
 // 탭 폰트의 md 반응형 확대(md:text-[1.5rem])는 3원칙 1번 위반이라 폐기했다.
 //
 // ⚠ Tailwind JIT: 열 수 매핑은 반드시 리터럴 lookup 객체로 쓴다.
-// 지원 개수: 3(기본값, 수행평가・자기평가) / 5(목표관리). 미등록 columns 는 3열로 폴백한다
-// (기본값과 동일 — className 에 'undefined' 문자열이 박히는 걸 막는다).
+// 지원 개수: 3(기본값, 수행평가・자기평가) / 5(목표관리). 미등록 columns 값은 폴백 없이
+// 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에 띄게 깨지므로 호출자가
+// 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
 const TAB_PANEL_COLS = { 3: 'sm:grid-cols-3 lg:grid-cols-3', 5: 'sm:grid-cols-3 lg:grid-cols-5' };
 
 export default function ServiceTabsPanel({
@@ -81,24 +82,21 @@ export default function ServiceTabsPanel({
         id={`${idPrefix}-tabpanel`}
         role="tabpanel"
         aria-labelledby={`${idPrefix}-tab-${tabs.indexOf(activeTab)}`}
-        className={`mt-8 grid grid-cols-1 items-start gap-5 sm:mt-10 lg:mt-[1.875rem] ${TAB_PANEL_COLS[columns] ?? TAB_PANEL_COLS[3]} lg:gap-[1.875rem] ${panelHeightClass}`}
+        className={`mt-8 grid grid-cols-1 items-start gap-5 sm:mt-10 lg:mt-[1.875rem] ${TAB_PANEL_COLS[columns]} lg:gap-[1.875rem] ${panelHeightClass}`}
       >
         {activeCards.map((card) => (
           <div key={`${activeTab}-${card.title}`} className="flex flex-col text-left">
             <div className="flex aspect-[453/200] items-center justify-center rounded-[0.5625rem] border border-[#D7D7D7] bg-[#F9FAFB]">
-              {/* ⚠ 아이콘 크기는 반드시 박스에 상대적이어야 한다. 박스 높이는 aspect-[453/200]
-                  이라 카드 폭에 종속되는데(columns=5 · 1100px 컨테이너면 박스 높이 86.5px),
-                  아이콘에 고정 138px(h-[8.625rem])을 주면 박스 밖으로 25.75px씩 삐져나와
-                  아래 제목을 덮는다(플렉스 아이템의 min-height:auto 는 transferred size
-                  suggestion = 폭×200/453 로 확정되므로 박스가 아이콘에 맞춰 늘어나지 않는다).
-                  69% = 시안 비율 그대로(138/200)라 데스크톱 렌더는 동일하고, 열 수·뷰포트가
-                  바뀌어도 비율이 유지된다. max-h 는 퍼센트 높이가 해석되지 않는 환경을 위한
-                  안전망(시안 절대치)이다. */}
+              {/* 아이콘은 시안 절대치 138px 고정이다. 박스는 aspect-[453/200]이지만 플렉스
+                  아이템의 min-height:auto content-based minimum 이 작동해, 카드가 좁아 aspect
+                  유도 높이가 138px 밑으로 내려가면 박스가 아이콘에 맞춰 늘어난다(실측: 5열
+                  1100px 컨테이너에서 aspect 유도 86.5px → 실제 140px). 따라서 아이콘이 박스를
+                  넘치는 일은 구조적으로 없다. 대신 그 구간에서는 453:200 비율이 지켜지지 않는다. */}
               <img
                 src={card.icon}
                 alt=""
                 aria-hidden="true"
-                className="h-[69%] max-h-[8.625rem] w-auto max-w-[80%] object-contain"
+                className="h-[8.625rem] w-[8.625rem] object-contain"
               />
             </div>
             <p className={`mt-4 ${CARD_TITLE_CLASS}`}>{card.title}</p>

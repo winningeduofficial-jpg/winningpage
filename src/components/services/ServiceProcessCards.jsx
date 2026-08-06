@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 
-import { CARD_DESC_CLASS } from './serviceTokens';
+import { CARD_TITLE_CLASS, CARD_DESC_CLASS } from './serviceTokens';
 
 // '완성까지의 흐름' 4단계 카드 그리드.
 //
@@ -32,9 +32,7 @@ export default function ServiceProcessCards({ items }) {
             <span className="text-[1rem] font-semibold leading-[1.4] text-[#013262]">
               {`STEP ${index + 1}`}
             </span>
-            <p className="text-[1.25rem] font-semibold leading-[1.4] text-[#525252]">
-              {item.title}
-            </p>
+            <p className={CARD_TITLE_CLASS}>{item.title}</p>
           </div>
           <p className={CARD_DESC_CLASS}>
             {Array.isArray(item.desc)

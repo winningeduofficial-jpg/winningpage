@@ -16,7 +16,8 @@ import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from './serviceTokens';
 // ⚠ Tailwind JIT: columns→클래스 매핑은 반드시 아래처럼 리터럴 lookup 객체로 쓴다.
 //    `lg:grid-cols-${n}` 템플릿 조립은 클래스가 생성되지 않아 조용히 깨진다.
 // 지원 개수: 3(기본값, 심화탐구・자기평가・목표관리 ManagementSection) / 4(수행평가). 미등록
-// columns 는 3열로 폴백한다(기본값과 동일 — className 에 'undefined' 문자열이 박히는 걸 막는다).
+// columns 값은 폴백 없이 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에
+// 띄게 깨지므로 호출자가 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
 const STEP_COLS = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' };
 
 // 패딩은 시안 실효 pt 44 / pb 40 / px 30.5 → ×0.766 = 34 / 30 / 23.
@@ -39,7 +40,7 @@ export default function ServiceStepCards({ items, columns = 3, splitLastRow = fa
   return (
     <>
       <div
-        className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] ${STEP_COLS[columns] ?? STEP_COLS[3]} lg:gap-[1.875rem]`}
+        className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] ${STEP_COLS[columns]} lg:gap-[1.875rem]`}
       >
         {firstRow.map((item) => (
           <StepCard key={item.title} item={item} />
