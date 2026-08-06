@@ -2923,8 +2923,12 @@ function renderRecordBlocksHtml(blocks) {
   `;
 }
 
+// total 함수 — table(variant==='recruit')이 없으면 예외 대신 빈 문자열을
+// 반환한다(호출부인 renderInnerHtmlForDoc이 이미 존재를 확인하고 부르지만,
+// 이 함수가 다른 경로에서 직접 불려도 안전하도록 방어한다).
 function renderRecruitBlocksHtml(blocks) {
-  const table = blocks.find((b) => b.kind === 'table');
+  const table = blocks.find((b) => b.kind === 'table' && b.variant === 'recruit');
+  if (!table) return '';
   const footnoteBlock = blocks.find((b) => b.kind === 'footnote');
   const groupLabels = table.columns.slice(2).map((c) => c.label);
   const headerCells = table.columns.map((c) => c.label);
@@ -3083,6 +3087,94 @@ function renderSpecialBlocksHtml(blocks) {
   `;
 }
 
+// -----------------------------------------------------------------------
+// renderDocToHtml을 total 함수로 만들기 위한 범용 폴백(2026-08-06,
+// safehtml이 어드민 배선 중 실제로 재현한 크래시 대응 — 계약: 유효한
+// AdmissionDoc이면 어떤 블록 조합이 와도 renderDocToHtml은 절대 던지지
+// 않는다).
+//
+// 배경: validateAdmissionDoc은 "이 섹션엔 반드시 table이 있어야 한다"를
+// 강제하지 않는다. 그런데 섹션별 렌더러(renderRecruitBlocksHtml 등)는
+// 그 table의 존재를 전제로 무가드 접근했다 — recruitment_quota doc에
+// note 블록만 있으면 validate는 통과하는데 렌더는 예외를 던졌다. 지금까지
+// 실데이터(HWP 파싱/legacy 임포트)는 항상 "표가 있는" 정상 doc만 만들어서
+// 이 경로를 한 번도 안 탔지만, 어드민 표 편집기(DocBlocksEditor.jsx)가
+// 임의 블록 조합(표 없이 note만 등)을 만들 수 있게 되면서 처음 실측됐다.
+//
+// 각 섹션 분기도 함께 고쳤다: 예전엔 kind==='table'만 보고 찾았는데,
+// 그러면 다른 섹션용 table(예: 편집기가 새로 추가한 "generic 2컬럼"
+// table)이 우연히 껴 있어도 그걸 붙잡아 그 섹션 전용 렌더러(예:
+// renderSelectionTable의 row[3].text 접근)에 넘겨 크래시할 수 있었다.
+// variant까지 맞는 table만 찾도록 좁혔다 — 못 찾으면 이 폴백으로 온다.
+// -----------------------------------------------------------------------
+
+// 블록 하나를 "이 블록만 있다면 이렇게 보여준다" 수준으로 렌더한다(각
+// View 컴포넌트가 쓰는 클래스와 동일 — NoteView/FootnoteView/HeadingView
+// 재현). 모르는 kind나 필수 값이 빈 블록은 빈 문자열(스킵)만 반환하고
+// 절대 던지지 않는다.
+function renderFallbackBlockBodyHtml(block) {
+  switch (block.kind) {
+    case 'note':
+      return block.text ? `<div class="admission-result-note">${escapeHtml(block.text)}</div>` : '';
+    case 'footnote': {
+      const text = (block.items || []).filter(Boolean).join(' ');
+      return text ? `<div class="admission-footnote">${escapeHtml(text)}</div>` : '';
+    }
+    case 'heading':
+      return block.text ? `<div class="admission-subhead">${escapeHtml(block.text)}</div>` : '';
+    case 'emptyBox':
+      return block.message ? `<div class="admission-empty-box">${escapeHtml(block.message)}</div>` : '';
+    case 'preText':
+      return block.text ? `<pre class="admission-raw-pre admission-safe-text-block">${escapeHtml(block.text)}</pre>` : '';
+    case 'plainList': {
+      const body = [];
+      let bulletGroup = [];
+      const flush = () => {
+        if (!bulletGroup.length) return;
+        body.push(
+          `<ul class="admission-bullet-list">${bulletGroup.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`
+        );
+        bulletGroup = [];
+      };
+      (block.items || []).forEach((item) => {
+        if (item.type === 'bullet') {
+          bulletGroup.push(item.text);
+          return;
+        }
+        flush();
+        const cls = item.type === 'subtitle' ? 'admission-subtitle-line' : 'admission-text-line';
+        body.push(`<div class="${cls}">${escapeHtml(item.text)}</div>`);
+      });
+      flush();
+      return body.length ? `<div class="admission-readable-body">${body.join('')}</div>` : '';
+    }
+    case 'table':
+      if (!Array.isArray(block.columns) || !Array.isArray(block.rows) || !block.columns.length) return '';
+      return htmlTable(block.columns.map((c) => c.label), block.rows, { className: 'admission-data-table' });
+    case 'rawHtml':
+      return block.html ? sanitizeAdmissionRenderedHtml(block.html) : '';
+    // group은 편집기(DocBlocksEditor.jsx)의 추가 가능 목록에 없어(특수대학
+    // 전용, wrapModifier==='special' 경로로만 생성) 여기서 만날 일이
+    // 없어야 정상이다. 그래도 나타나면 던지지 말고 조용히 스킵한다.
+    default:
+      return '';
+  }
+}
+
+// 섹션이 기대하는 핵심 블록(대개 table)을 못 찾았을 때 쓰는 범용 폴백.
+// 있는 블록만 최대한 렌더하고, 무엇을 못 찾아서 폴백으로 왔는지 HTML
+// 주석으로 남긴다(sanitizeAdmissionRenderedHtml은 정규식 치환이라 주석을
+// 지우지 않는다 — 진단용, 실데이터 경로는 안 타므로 골든 무영향).
+function renderFallbackBlocksHtml(blocks, sectionKey, reason) {
+  const bodies = blocks.map(renderFallbackBlockBodyHtml).filter(Boolean);
+  return sanitizeAdmissionRenderedHtml(`
+    <div class="admission-raw-section-wrap">
+      <!-- renderDocToHtml fallback: section=${sectionKey}, reason=${reason} -->
+      ${bodies.join('')}
+    </div>
+  `);
+}
+
 // buildSmartRawHtml 미러(렌더 쪽) — sectionKey별로 buildXxxHtml이 만들던
 // "안쪽" HTML(자체 admission-raw-section-wrap 포함, heading/최종 sanitize
 // 제외)을 doc.blocks에서 재현한다.
@@ -3096,31 +3188,44 @@ function renderInnerHtmlForDoc(doc, sectionKey) {
   if (blocks.length === 1 && blocks[0].kind === 'preText') return renderPreTextBlockHtml(blocks[0]);
 
   if (sectionKey === 'previous_year_changes') {
-    const table = blocks.find((b) => b.kind === 'table');
-    return table ? renderChangeBlockHtml(table) : '';
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'change');
+    if (table) return renderChangeBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'change 표 블록 없음');
   }
   if (sectionKey === 'selection_method') {
-    const table = blocks.find((b) => b.kind === 'table');
-    return table ? renderSelectionBlockHtml(table) : '';
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'selection');
+    if (table) return renderSelectionBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'selection 표 블록 없음');
   }
   if (sectionKey === 'exam_schedule') {
-    const table = blocks.find((b) => b.kind === 'table');
-    return table ? renderExamBlockHtml(table) : '';
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'exam');
+    if (table) return renderExamBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'exam 표 블록 없음');
   }
   if (sectionKey === 'minimum_requirements') {
-    const table = blocks.find((b) => b.kind === 'table');
-    return table ? renderMinimumBlockHtml(table) : '';
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'minimum');
+    if (table) return renderMinimumBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'minimum 표 블록 없음');
   }
-  if (sectionKey === 'school_record_method') return renderRecordBlocksHtml(blocks);
+  if (sectionKey === 'school_record_method') {
+    const hasRecognizedShape = blocks.some(
+      (b, idx) =>
+        (b.kind === 'table' && b.variant === 'recordInfo') ||
+        (b.kind === 'heading' && blocks[idx + 1]?.kind === 'table' && blocks[idx + 1]?.variant === 'score')
+    );
+    if (hasRecognizedShape) return renderRecordBlocksHtml(blocks);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'recordInfo/score 표 블록 없음');
+  }
   if (sectionKey === 'recruitment_quota') {
-    const table = blocks.find((b) => b.kind === 'table');
+    const table = blocks.find((b) => b.kind === 'table' && (b.variant === 'recruit' || b.variant === 'recruitExact'));
     if (table && table.variant === 'recruitExact') {
       return `<div class="admission-raw-section-wrap">${renderRecruitExactBlockHtml(table)}</div>`;
     }
-    return renderRecruitBlocksHtml(blocks);
+    if (table) return renderRecruitBlocksHtml(blocks);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'recruit/recruitExact 표 블록 없음');
   }
 
-  return '';
+  return renderFallbackBlocksHtml(blocks, sectionKey, '알 수 없는 sectionKey');
 }
 
 /**
