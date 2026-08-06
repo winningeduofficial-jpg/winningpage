@@ -16,6 +16,7 @@ import path from 'node:path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as esbuild from 'esbuild';
+import * as XLSX from 'xlsx';
 
 const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
 
@@ -27,7 +28,7 @@ async function loadModule(entry, exportName) {
     jsx: 'automatic',
     jsxImportSource: 'react',
     platform: 'node',
-    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server'],
+    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server', 'xlsx'],
     write: false
   });
   const code = result.outputFiles[0].text;
@@ -514,6 +515,136 @@ async function main() {
     }
     const renderPass = !threw && out.includes('항목 추가') && out.includes('삭제');
     record('13b. PlainListBlockEditor 스모크 렌더 — 항목 추가/삭제 버튼 존재', renderPass, threw ? out : `len=${out.length}`);
+  }
+
+  // ── 14) xlsx 내보내기 ─────────────────────────────────────────────────
+  const xlsxModule = await loadModule('src/components/admission/editor/xlsx/tableBlockXlsx.js');
+  const {
+    serializeCellForXlsx,
+    findOversizedCells,
+    buildTableBlockWorksheet,
+    buildXlsxFileName,
+    exportTableBlockToXlsx,
+    MAX_XLSX_CELL_LENGTH
+  } = xlsxModule;
+
+  // 14a) Cell 3형태 직렬화 규칙
+  {
+    const pass =
+      serializeCellForXlsx('일반 문자열') === '일반 문자열' &&
+      serializeCellForXlsx({ text: '3등급', badge: 'minimumHas' }) === '3등급 [최저있음]' &&
+      serializeCellForXlsx({ text: '', badge: 'minimumHas' }) === '[최저있음]' &&
+      serializeCellForXlsx({ text: '-', badge: 'minimumNone' }) === '- [최저없음]' &&
+      serializeCellForXlsx({ chips: [{ label: '27 인원', value: '18' }, { label: '26 인원', value: '17' }] }) ===
+        '27 인원: 18\n26 인원: 17' &&
+      serializeCellForXlsx({ chips: [] }) === '' &&
+      serializeCellForXlsx('') === '' &&
+      serializeCellForXlsx(null) === '';
+    record('14a. serializeCellForXlsx — 문자열/{text,badge}/{chips} 직렬화 규칙', pass, '');
+  }
+
+  // 14b) 32,767자 초과 셀 탐지
+  {
+    const big = 'a'.repeat(MAX_XLSX_CELL_LENGTH + 1);
+    const block = {
+      kind: 'table',
+      variant: 'score',
+      columns: [{ role: 'type', label: '구분' }, { role: 'data', label: '국어' }],
+      rows: [['x', big]]
+    };
+    const oversized = findOversizedCells(block);
+    const pass = oversized.length === 1 && oversized[0].area === 'body' && oversized[0].row === 0 && oversized[0].col === 1 && oversized[0].length === big.length;
+    record('14b. findOversizedCells — 32,767자 초과 셀을 정확한 위치로 찾아냄', pass, JSON.stringify(oversized));
+  }
+  {
+    // 실측 최대치(DB 최대 셀 39,658자, .golden-cache 실측 근거)도 정확히 걸리는지.
+    const dbMaxLikeCell = 'x'.repeat(39658);
+    const block = { kind: 'table', variant: 'score', columns: [{ role: 'data', label: 'A' }], rows: [[dbMaxLikeCell]] };
+    const oversized = findOversizedCells(block);
+    const pass = oversized.length === 1 && oversized[0].length === 39658;
+    record('14c. findOversizedCells — DB 실측 최대 셀 크기(39,658자)도 초과로 탐지', pass, JSON.stringify(oversized));
+  }
+
+  // 14d) recruitExact(2단 헤더) → 병합 셀이 groups/fixedColumnCount와 일치
+  {
+    const recruitExactForXlsx = {
+      kind: 'table',
+      variant: 'recruitExact',
+      columns: [
+        { role: 'series', label: '계열' },
+        { role: 'unit', label: '모집단위' },
+        { role: 'data', label: '27 인원' },
+        { role: 'data', label: '26 인원' },
+        { role: 'data', label: '27 경쟁률' }
+      ],
+      fixedColumnCount: 2,
+      groups: [{ name: '일반전형', count: 2 }, { name: '지역균형', count: 1 }],
+      rows: [['인문', '국어교육과', '18', '17', '3.2']]
+    };
+    const ws = buildTableBlockWorksheet(recruitExactForXlsx);
+    const merges = ws['!merges'] || [];
+    // 고정 컬럼 2개: rowspan(0,c)~(1,c) — c=0,1
+    const fixedMerges = merges.filter((m) => m.s.r === 0 && m.e.r === 1);
+    // 그룹 2개: (0, startCol)~(0, startCol+count-1) — 일반전형(2,3), 지역균형(4,4)는 colspan 없음(count=1)
+    const groupMerges = merges.filter((m) => m.s.r === 0 && m.e.r === 0);
+    const pass =
+      fixedMerges.length === 2 &&
+      fixedMerges.some((m) => m.s.c === 0 && m.e.c === 0) &&
+      fixedMerges.some((m) => m.s.c === 1 && m.e.c === 1) &&
+      groupMerges.length === 1 && // count=1인 지역균형은 colspan 병합이 필요 없어 !merges에 안 들어감(1x1 병합은 무의미)
+      groupMerges[0].s.c === 2 &&
+      groupMerges[0].e.c === 3;
+    record('14d. buildTableBlockWorksheet — recruitExact 병합 셀이 groups/fixedColumnCount와 일치(고정 rowspan 2개 + 그룹 colspan 1개)', pass, JSON.stringify(merges));
+
+    // 헤더 2행 + 바디 1행 = 총 3행, aoa 데이터로 재확인
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const pass2 = aoa.length === 3 && aoa[0][0] === '계열' && aoa[0][2] === '일반전형' && aoa[1][2] === '27 인원' && aoa[2][0] === '인문';
+    record('14e. buildTableBlockWorksheet — 헤더 2행(고정 라벨/그룹명 + 데이터 라벨) + 바디 행 배치 확인', pass2, JSON.stringify(aoa));
+  }
+
+  // 14f) groups 없는 일반 표 → 1단 헤더, 병합 없음
+  {
+    const ws = buildTableBlockWorksheet(scoreBlock);
+    const pass = !ws['!merges'] || ws['!merges'].length === 0;
+    record('14f. buildTableBlockWorksheet — groups 없으면 병합 셀 없음(1단 헤더)', pass, JSON.stringify(ws['!merges']));
+  }
+
+  // 14g) buildXlsxFileName — 대학명·카테고리·날짜 포함
+  {
+    const name = buildXlsxFileName({ universityName: '가톨릭관동대학교', sectionLabel: '모집인원 및 입결', date: new Date(2026, 7, 6) });
+    const pass = name === '가톨릭관동대학교_모집인원 및 입결_20260806.xlsx';
+    record('14g. buildXlsxFileName — 대학명_카테고리_YYYYMMDD.xlsx 형식', pass, name);
+  }
+
+  // 14h) exportTableBlockToXlsx — 워크북 결과 직접 검사
+  // (참고: XLSX.writeFile 자체의 저장 경로는 검증하지 않는다. 노드에서
+  // 직접 확인한 결과 SheetJS의 자체 환경 감지가 CJS require로 부르면
+  // 저장되고 ESM import로 부르면 "cannot save file" 예외를 내는 불안정한
+  // 동작이 있었다 — 그래서 프로덕션 코드 자체를 XLSX.write(버퍼만 생성,
+  // 환경 감지 없음) + 직접 다운로드 트리거로 바꿨고(typeof document 가드),
+  // 이 함수는 document가 없는 노드에서는 다운로드를 건너뛰고 workbook을
+  // 그대로 반환한다 — 그 workbook 내용을 검사한다.)
+  {
+    const result = exportTableBlockToXlsx(selectionBlock, { universityName: '가톨릭관동대학교', sectionLabel: '전형방법' });
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    const sheetNames = result.workbook?.SheetNames || [];
+    const pass =
+      result.ok === true &&
+      result.fileName === `가톨릭관동대학교_전형방법_${expectedDate}.xlsx` &&
+      sheetNames.length === 2 &&
+      sheetNames.includes('표') &&
+      sheetNames.includes('형식 설명');
+    record('14h. exportTableBlockToXlsx — 정상 케이스: ok:true, 파일명 형식, 시트 2개(표/형식 설명)', pass, JSON.stringify({ fileName: result.fileName, sheetNames }));
+  }
+
+  // 14i) exportTableBlockToXlsx — 초과 셀 있으면 workbook을 만들지 않고 ok:false
+  {
+    const big = 'a'.repeat(MAX_XLSX_CELL_LENGTH + 1);
+    const block = { kind: 'table', variant: 'score', columns: [{ role: 'data', label: 'A' }], rows: [[big]] };
+    const result = exportTableBlockToXlsx(block, { universityName: 'X대학교' });
+    const pass = result.ok === false && result.oversized.length === 1 && result.fileName === null && result.workbook === undefined;
+    record('14i. exportTableBlockToXlsx — 32,767자 초과 시 workbook 미생성(조용한 truncate 아님), oversized 목록 반환', pass, JSON.stringify(result));
   }
 
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { getTableVariantLayout, getCellKind } from '../admissionLayout';
 import CellEditor from './cells/CellEditor';
 import ImeSafeInput from './ImeSafeInput';
@@ -6,6 +6,7 @@ import ColumnRoleEditor from './ColumnRoleEditor';
 import TableGroupHeaderEditor from './TableGroupHeaderEditor';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
 import * as ops from './tableBlockOperations';
+import { exportTableBlockToXlsx } from './xlsx/tableBlockXlsx';
 
 // TableBlock(AdmissionDoc) 편집 코어. blocks/tables/*.jsx(표시 전용,
 // Gate B 바이트 계약 보호 대상)를 재사용하지 않고 별도로 구현한다 —
@@ -22,7 +23,9 @@ import * as ops from './tableBlockOperations';
 //   onChange(nextBlock): 구조/셀 변경마다 호출. 검증 실패 상태도 그대로
 //     흘려보낸다(막지 않음) — 저장 버튼 비활성화는 validation.ok를 보고
 //     호출부가 결정한다.
-export default function TableBlockEditor({ section, block, onChange }) {
+//   universityName/sectionLabel(선택): xlsx 파일명 구성용. Admin.jsx
+//     배선 전이라 생략 가능(생략 시 buildXlsxFileName의 기본값을 쓴다).
+export default function TableBlockEditor({ section, block, onChange, universityName, sectionLabel }) {
   const layout = getTableVariantLayout(block.variant);
   const validation = useMemo(() => validateTableBlock(section, block), [section, block]);
   const columnMutationBlockReason = useMemo(
@@ -30,6 +33,7 @@ export default function TableBlockEditor({ section, block, onChange }) {
     [section, block]
   );
   const columnMutationAllowed = columnMutationBlockReason === null;
+  const [xlsxOversized, setXlsxOversized] = useState([]);
 
   function roleKindOf(column) {
     return getCellKind(block.variant, column?.role);
@@ -89,6 +93,11 @@ export default function TableBlockEditor({ section, block, onChange }) {
     onChange({ ...block, groups: [], fixedColumnCount: block.columns.length });
   }
 
+  function handleExportXlsx() {
+    const result = exportTableBlockToXlsx(block, { universityName, sectionLabel });
+    setXlsxOversized(result.ok ? [] : result.oversized);
+  }
+
   return (
     <div className="admission-table-editor">
       {!validation.ok && (
@@ -97,6 +106,29 @@ export default function TableBlockEditor({ section, block, onChange }) {
           <ul className="mt-1 list-disc pl-4">
             {validation.errors.map((error, idx) => (
               <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mb-2 flex items-center gap-2">
+        <button type="button" onClick={handleExportXlsx} className="text-xs font-bold text-[#2348ff]">
+          xlsx로 내보내기
+        </button>
+      </div>
+
+      {xlsxOversized.length > 0 && (
+        <div className="mb-2 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            셀 하나가 엑셀 문자 수 한도(32,767자)를 넘어 내보내지 못했습니다 — 잘라내지 않고 중단합니다. 아래 셀을
+            줄인 뒤 다시 시도하세요:
+          </p>
+          <ul className="mt-1 list-disc pl-4">
+            {xlsxOversized.map((cell, idx) => (
+              <li key={idx}>
+                {cell.area === 'header' ? '헤더' : `본문 행 ${cell.row + 1}`} · {cell.columnLabel || `컬럼 ${cell.col + 1}`} ·{' '}
+                {cell.length.toLocaleString()}자
+              </li>
             ))}
           </ul>
         </div>
