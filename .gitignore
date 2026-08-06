@@ -1,5 +1,10 @@
 # Dependencies
 node_modules/
+# 워크트리에서는 node_modules를 실제 디렉터리가 아니라 심볼릭 링크로 둔다
+# (../winningpage-dev/node_modules). 위 트레일링 슬래시 패턴은 디렉터리만
+# 매칭하고 심볼릭 링크는 매칭하지 않아 git status에 untracked로 뜬다 —
+# 파일 타입 무관하게 이름으로 매칭하도록 슬래시 접두 패턴을 추가한다.
+/node_modules
 
 # Build output
 dist/
