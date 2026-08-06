@@ -2284,10 +2284,6 @@ export function buildSmartRawHtml(value, sectionKey, row = null, universityName 
   return buildPlainListHtml(lines, sectionKey);
 }
 
-export function sanitizeExistingHtml(value) {
-  return clean(value);
-}
-
 export function buildSafeTextSectionHtml(value, sectionKey) {
   const text = splitAdmissionLines(value)
     .map((line) => sanitizeAdmissionDisplayText(line))
