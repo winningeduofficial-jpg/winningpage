@@ -105,13 +105,22 @@ function ensureLearningDiagnosisInService(groups) {
 
     const items = Array.isArray(group.items) ? group.items : [];
     const withoutLearningDiagnosis = items.filter((item) => {
-      // 아래 두 리터럴('무료진단' / '/free-diagnosis')은 화면 출력값이 아니라
-      // DB page_contents(menu_label / slug)에서 온 구(舊) 항목을 걸러내는 비교 계약이다.
-      // 개명(학습진단) 시에도 의도적으로 남겨둔다 — 바꾸면 DB 구 항목이 필터를 통과해
-      // '학습진단'(코드 주입)과 '무료진단'(DB, 죽은 링크)이 메뉴에 중복 노출된다.
-      // DB 마이그레이션 시 이 줄도 함께 '학습진단' / '/learning-diagnosis'로 바꿔야 한다.
+      // 구 리터럴('무료진단' / '/free-diagnosis')과 신 리터럴('학습진단' / '/learning-diagnosis')을
+      // 모두 걸러낸다. 세 가지를 동시에 만족시키기 위해서다 —
+      // (a) DB page_contents에 남아있는 구 항목 제거,
+      // (b) 이 함수가 아래에서 주입하는 '학습진단' 항목이 캐시(localStorage)에 저장됐다가 다음
+      //     렌더에서 readCachedNavGroups를 통해 다시 이 함수에 들어올 때 재주입되는 것을 방지
+      //     (멱등성 보장 — 신 리터럴만 안 걸러내면 캐시를 거친 두 번째 렌더에서 메뉴에 항목이
+      //     두 번 나온다),
+      // (c) DB를 신규 이름으로 마이그레이션한 뒤에도 DB 항목과 코드 주입 항목이 중복되지 않도록.
       const label = cleanText(item?.label).replace(/\s+/g, '');
-      return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
+      const to = cleanText(item?.to);
+      return (
+        label !== '무료진단' &&
+        label !== '학습진단' &&
+        to !== '/free-diagnosis' &&
+        to !== '/learning-diagnosis'
+      );
     });
 
     return {
