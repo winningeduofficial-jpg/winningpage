@@ -9,7 +9,7 @@
 // 보존(재생성하지 않음)한다.
 //
 // 실행 순서:
-//   1) scripts/verify-admission-html-snapshot.mjs로 회귀 검증(불일치 시 중단)
+//   1) scripts/verify-admission-doc-equivalence.mjs로 회귀 검증(불일치 시 중단)
 //   2) university_name 매칭(정확 일치 → normalizeName 폴백)
 //   3) 카테고리별 payload 계산(기존 html 보존 우선, 없으면 buildRawSectionHtml)
 //   4) upsert onConflict: 'admission_year,university_key'
@@ -27,16 +27,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
 import { buildRawSectionHtml, clean, normalizeName } from '../src/lib/admissionParsing.js';
-import { runSnapshotVerification } from './verify-admission-html-snapshot.mjs';
+import { runDocEquivalenceVerification } from './verify-admission-doc-equivalence.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
   '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
@@ -47,7 +43,7 @@ const { values: args } = parseArgs({
     'dry-run': { type: 'boolean', default: false },
     'keys-file': { type: 'string' },
     'admission-year': { type: 'string', default: '2027' },
-    'skip-snapshot-check': { type: 'boolean', default: false }
+    'skip-equivalence-check': { type: 'boolean', default: false }
   }
 });
 
@@ -94,14 +90,14 @@ function buildCategoryHtml(sectionKey, hwpRow, dbRow, universityName) {
 }
 
 async function main() {
-  console.log('=== 1) 스냅샷 회귀 검증 ===');
-  if (args['skip-snapshot-check']) {
-    console.warn('--skip-snapshot-check: 검증을 건너뜁니다(권장하지 않음).');
+  console.log('=== 1) 골든 대조 회귀 검증(Gate A) ===');
+  if (args['skip-equivalence-check']) {
+    console.warn('--skip-equivalence-check: 검증을 건너뜁니다(권장하지 않음).');
   } else {
-    const { total, matched, matchRate, mismatches } = await runSnapshotVerification();
+    const { total, matched, matchRate, mismatches } = await runDocEquivalenceVerification();
     if (mismatches.length) {
       console.error(
-        `스냅샷 검증 실패: ${total}건 중 ${matched}건만 일치(${matchRate.toFixed(2)}%). 적재를 중단합니다.`
+        `골든 대조 검증 실패: ${total}건 중 ${matched}건만 일치(${matchRate.toFixed(2)}%). 적재를 중단합니다.`
       );
       process.exit(1);
     }
