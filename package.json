@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "// dev:api": "api/ 서버리스 함수까지 함께 띄운다. vite만으로는 /api/* 가 SPA HTML로 떨어져 휴대폰 인증·연결코드 조회·본인확인이 전부 실패한다.",
+    "dev:api": "vercel dev --listen 3000",
     "build": "vite build",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"*.{js,cjs}\" index.html"
