@@ -7,16 +7,26 @@
 // AdmissionGuidelines.jsx)이 실제 쓰는 것과 동일한 빌드 경로(buildRawSectionHtml)로
 // 생성하며, JSON에 이미 들어 있는 *_html 값은 그대로 보존(재생성하지 않음)한다.
 //
-// *_json 정책 — "html이 있으면 html에서, 없을 때만 raw에서"(2026-08-06
-// 사고 이후 확정):
-//   1) 기존 html(보존 대상)이 있으면 → import-legacy-admission-html.mjs의
-//      파서 체인(importCell, Phase 5 백필과 동일 경로)으로 그 html에서
-//      json을 재구성한다.
-//   2) html이 없어서 이번에 raw로 새로 만든 경우에만 → buildHwpCategoryDoc으로
-//      raw에서 직접 doc을 생성한다.
-//   3) 어느 쪽도 안 되면(원자료 없음/파싱 실패) 그 컬럼은 payload에서
-//      아예 뺀다(기존 DB 값 보존 — Admin.jsx formToPayload와 동일한
-//      "delete=무해" 패턴).
+// *_json 정책 — 3단 우선순위 + 정보량 감소 가드(2026-08-06 사고 이후 확정):
+//   1) 기존 json이 있고 validateAdmissionDoc 통과 → 그대로 보존(아무것도
+//      안 씀, 계산조차 안 함). --force-regenerate를 줘야 이 단계를
+//      건너뛰고 2)/3)을 강제로 다시 계산한다.
+//   2) 기존 json이 없거나(또는 무효/--force-regenerate) + html이 있으면
+//      → import-legacy-admission-html.mjs의 파서 체인(importCell, Phase 5
+//      백필과 동일 경로)으로 그 html에서 json을 재구성한다.
+//   3) 2)도 안 되고 raw가 있으면 → buildHwpCategoryDoc으로 raw에서 직접
+//      doc을 생성한다.
+//   4) 셋 다 안 되면 그 컬럼은 payload에서 아예 뺀다(기존 DB 값 보존 —
+//      Admin.jsx formToPayload와 동일한 "delete=무해" 패턴).
+//
+// 정보량 감소 가드: 2)/3)에서 만든 후보가 "기존에 이미 있던 doc"(1)에서
+// 그냥 보존하지 않고 지나온 경우 — 즉 기존 json이 있었지만 무효했거나
+// --force-regenerate로 강제 재계산한 경우)보다 blocks 수 또는 텍스트
+// 총량이 줄어들면 덮어쓰지 않고 기존 값을 보존한다(jsonSource=
+// 'regressionSkipped'로 집계). validateAdmissionDoc은 스키마 형태만
+// 보고 "정보가 덜 풍부해졌는지"는 보지 않는다 — 그게 2026-08-06 사고가
+// 조용히 지나갈 뻔한 이유였다. --force-regenerate는 이 가드까지 함께
+// 무시한다(정말로 강제로 덮어쓰고 싶을 때만 쓰는 탈출구).
 //
 // 이 정책은 어드민 Admin.jsx의 buildPreviewPatch(raw 우선 — "관리자가
 // 방금 원문을 고쳤으니 raw가 정본")와 **의도적으로 다르다.** 이 스크립트는
@@ -38,7 +48,8 @@
 // 실행 순서:
 //   1) scripts/verify-admission-doc-equivalence.mjs로 회귀 검증(불일치 시 중단)
 //   2) university_name 매칭(정확 일치 → normalizeName 폴백)
-//   3) 카테고리별 payload 계산(html은 기존 보존 우선, json은 html-first)
+//   3) 카테고리별 payload 계산(html은 기존 보존 우선, json은 3단 우선순위 +
+//      정보량 감소 가드)
 //   4) --apply일 때만 upsert onConflict: 'admission_year,university_key'
 //   5) 적재 후 행수 · html/json 채움률 확인 SQL 결과 출력
 //
@@ -46,6 +57,7 @@
 //   node scripts/load-admission-content.mjs                    # dry-run(기본, 아무것도 안 씀)
 //   node scripts/load-admission-content.mjs --apply             # 실제 적용
 //   node scripts/load-admission-content.mjs --apply --admission-year 2027
+//   node scripts/load-admission-content.mjs --apply --force-regenerate  # 기존 json도 강제 재계산(가드 포함 무시)
 //
 // 키 조회 순서(하드코딩 금지) — scripts/seed-admission-universities.mjs와 동일:
 //   1) SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY 환경변수
@@ -109,23 +121,51 @@ async function resolveCredentials() {
   };
 }
 
+// doc 하나의 "정보량"을 근사한다 — validateAdmissionDoc은 스키마 형태만
+// 보고 풍부함은 안 보므로, 정보량 감소 가드는 별도로 이 근사치를 쓴다.
+// blockCount(구조 개수)와 textLength(모든 문자열 값의 총 길이 — 셀 텍스트뿐
+// 아니라 role/label 등도 섞여 들어가지만, "더 자세한 doc일수록 대체로 더
+// 크다"는 근사로는 충분하다)를 함께 본다.
+function sumStringLength(value) {
+  if (typeof value === 'string') return value.length;
+  if (Array.isArray(value)) return value.reduce((acc, v) => acc + sumStringLength(v), 0);
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce((acc, v) => acc + sumStringLength(v), 0);
+  }
+  return 0;
+}
+function docRichness(doc) {
+  if (!doc || !Array.isArray(doc.blocks)) return { blockCount: 0, textLength: 0 };
+  return { blockCount: doc.blocks.length, textLength: sumStringLength(doc.blocks) };
+}
+
 // 카테고리 하나(html+json)를 함께 계산한다.
 //
 // html: 기존 값(JSON 소스 또는 DB) 우선 보존, 없으면 페이지 모달과 동일한
 // buildRawSectionHtml 경로로 생성한다.
 //
-// json: html과 반대 정책이다 — "보존 우선"이 아니라 "html-first 재구성".
-// 이미 있는(보존된) html이 있으면 importCell(import-legacy-admission-
-// html.mjs, Phase 5 백필과 동일 파서 체인)로 그 html에서 doc을 다시
-// 뽑는다. html이 없어서 이번에 raw로 새로 만든 경우에만 raw 자체에서
-// buildHwpCategoryDoc(어드민 buildPreviewPatch와 동일 빌더)으로 doc을
-// 만든다. 어느 쪽도 doc을 못 만들면(파싱 실패/원자료 없음) 그 컬럼은
-// payload에서 아예 뺀다 — 기존 DB 값을 보존한다는 뜻이지 지운다는 뜻이
-// 아니다(Admin.jsx formToPayload와 동일 패턴).
-function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
+// json: 3단 우선순위 + 정보량 감소 가드(2026-08-06 사고 이후 확정, 파일
+// 최상단 정책 설명 참고):
+//   1) 기존 json이 있고 validateAdmissionDoc 통과 → 그대로 보존(계산 자체를
+//      안 함). forceRegenerate가 true면 이 단계를 건너뛴다.
+//   2) 기존 html이 있으면 importCell(import-legacy-admission-html.mjs,
+//      Phase 5 백필과 동일 파서 체인)로 그 html에서 doc을 다시 뽑는다.
+//   3) 2)도 안 되고 raw가 있으면 buildHwpCategoryDoc(어드민 buildPreviewPatch와
+//      동일 빌더)으로 raw에서 직접 doc을 만든다.
+//   4) 셋 다 안 되면 payload에서 그 컬럼을 아예 뺀다 — 기존 DB 값을
+//      보존한다는 뜻이지 지운다는 뜻이 아니다(Admin.jsx formToPayload와
+//      동일 패턴).
+// 2)/3)에서 후보를 만들었는데(=1)에서 그냥 보존하지 못하고 지나온 경우 —
+// 기존 json이 아예 없었거나, 있었지만 무효했거나, forceRegenerate로
+// 강제 재계산한 경우) 기존 doc(있다면)보다 blockCount 또는 textLength가
+// 줄어들면 덮어쓰지 않고 기존 값을 보존한다(jsonSource='regressionSkipped').
+// forceRegenerate는 이 가드도 함께 무시한다.
+function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRegenerate) {
   const htmlKey = CATEGORY_HTML_KEY[sectionKey];
+  const jsonKey = CATEGORY_JSON_KEY[sectionKey];
   const existingHtml = clean(hwpRow?.[htmlKey]) || clean(dbRow?.[htmlKey]);
   const rawText = clean(hwpRow?.[sectionKey]) || clean(dbRow?.[sectionKey]);
+  const existingDoc = dbRow?.[jsonKey] || null;
 
   let html;
   let htmlSource;
@@ -140,12 +180,20 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
     htmlSource = 'empty';
   }
 
-  let doc;
+  const existingDocValid = Boolean(existingDoc) && validateAdmissionDoc(existingDoc).ok;
+
+  // 1단: 기존 json이 이미 유효하면 계산 자체를 하지 않는다.
+  if (existingDocValid && !forceRegenerate) {
+    return { html, htmlSource, doc: undefined, jsonSource: 'preserved', jsonDetail: undefined };
+  }
+
+  let candidate;
   let jsonSource;
   let jsonDetail;
+
   if (existingHtml) {
-    // importCell은 row.university_name/row.detail_status를 참조한다(특수대학
-    // 판정). dbRow가 매칭된 행 전체라 그대로 넘긴다.
+    // 2단: importCell은 row.university_name/row.detail_status를 참조한다
+    // (특수대학 판정). dbRow가 매칭된 행 전체라 그대로 넘긴다.
     let result;
     try {
       result = importCell(sectionKey, existingHtml, dbRow);
@@ -156,7 +204,7 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
     }
     if (result) {
       if (result.classification === 'imported') {
-        doc = result.doc;
+        candidate = result.doc;
         jsonSource = 'imported-from-html';
       } else {
         jsonSource = result.classification === 'skip' ? 'skip' : 'needsReview';
@@ -164,6 +212,7 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
       }
     }
   } else if (rawText) {
+    // 3단
     let generated;
     try {
       generated = buildHwpCategoryDoc(sectionKey, rawText, dbRow, universityName);
@@ -174,7 +223,7 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
     if (generated) {
       const { ok, errors } = validateAdmissionDoc(generated);
       if (ok) {
-        doc = generated;
+        candidate = generated;
         jsonSource = 'generated-from-raw';
       } else {
         jsonSource = 'invalid';
@@ -185,6 +234,20 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName) {
     jsonSource = 'empty';
   }
 
+  // 정보량 감소 가드: 후보가 있고, 비교할 기존 doc이 있고(무효해도 상관
+  // 없다 — 형태는 틀려도 정보 자체는 남아 있을 수 있다), forceRegenerate가
+  // 아니면 적용한다.
+  let doc = candidate;
+  if (candidate !== undefined && existingDoc && !forceRegenerate) {
+    const before = docRichness(existingDoc);
+    const after = docRichness(candidate);
+    if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
+      doc = undefined;
+      jsonSource = 'regressionSkipped';
+      jsonDetail = `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`;
+    }
+  }
+
   return { html, htmlSource, doc, jsonSource, jsonDetail };
 }
 
@@ -193,6 +256,7 @@ async function main() {
     options: {
       apply: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
+      'force-regenerate': { type: 'boolean', default: false },
       'keys-file': { type: 'string' },
       'admission-year': { type: 'string', default: '2027' },
       'skip-equivalence-check': { type: 'boolean', default: false }
@@ -203,6 +267,12 @@ async function main() {
     console.warn(
       '--dry-run 플래그는 더 이상 의미가 없습니다(기본이 이미 dry-run입니다). ' +
         '실제로 적용하려면 --apply를 쓰세요.'
+    );
+  }
+  if (args['force-regenerate']) {
+    console.warn(
+      '--force-regenerate: 기존 json이 유효해도 다시 계산하고, 정보량 감소 가드도 무시합니다. ' +
+        '정말로 의도한 것이 맞는지 확인하세요.'
     );
   }
 
@@ -267,7 +337,17 @@ async function main() {
   const jsonStats = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [
       key,
-      { 'imported-from-html': 0, 'generated-from-raw': 0, empty: 0, skip: 0, needsReview: 0, invalid: 0, exception: 0 }
+      {
+        preserved: 0,
+        'imported-from-html': 0,
+        'generated-from-raw': 0,
+        regressionSkipped: 0,
+        empty: 0,
+        skip: 0,
+        needsReview: 0,
+        invalid: 0,
+        exception: 0
+      }
     ])
   );
   const jsonFailures = [];
@@ -298,7 +378,8 @@ async function main() {
         key,
         hwpRow,
         dbRow,
-        universityName
+        universityName,
+        args['force-regenerate']
       );
 
       payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
@@ -307,7 +388,12 @@ async function main() {
 
       const jsonKey = CATEGORY_JSON_KEY[key];
       jsonStats[key][jsonSource] += 1;
-      if (jsonSource === 'needsReview' || jsonSource === 'invalid' || jsonSource === 'exception') {
+      if (
+        jsonSource === 'needsReview' ||
+        jsonSource === 'invalid' ||
+        jsonSource === 'exception' ||
+        jsonSource === 'regressionSkipped'
+      ) {
         jsonFailures.push({ universityName, key, source: jsonSource, detail: jsonDetail });
       }
       // doc이 undefined면 payload에서 이 컬럼을 아예 뺀다 — upsert가 기존
@@ -333,16 +419,17 @@ async function main() {
     );
   });
 
-  console.log('\n카테고리별 JSON 생성 결과(html에서 임포트/raw에서 생성/원자료없음/실패류-기존보존):');
+  console.log('\n카테고리별 JSON 생성 결과(기존보존/html임포트/raw생성/원자료없음/실패류-기존보존):');
   CATEGORY_KEYS.forEach((key) => {
     const s = jsonStats[key];
     console.log(
-      `  - ${key} (${CATEGORY_JSON_KEY[key]}): html임포트 ${s['imported-from-html']} / raw생성 ${s['generated-from-raw']} / ` +
-        `원자료없음 ${s.empty} / skip ${s.skip} / needsReview(기존보존) ${s.needsReview} / 검증실패(기존보존) ${s.invalid} / 예외(기존보존) ${s.exception}`
+      `  - ${key} (${CATEGORY_JSON_KEY[key]}): 기존보존(1단) ${s.preserved} / html임포트(2단) ${s['imported-from-html']} / ` +
+        `raw생성(3단) ${s['generated-from-raw']} / 원자료없음 ${s.empty} / skip ${s.skip} / ` +
+        `정보량감소로보존 ${s.regressionSkipped} / needsReview(기존보존) ${s.needsReview} / 검증실패(기존보존) ${s.invalid} / 예외(기존보존) ${s.exception}`
     );
   });
   if (jsonFailures.length) {
-    console.log(`\nJSON 생성 실패 상세(${jsonFailures.length}건 중 최대 20건):`);
+    console.log(`\nJSON 실패/보존 상세(${jsonFailures.length}건 중 최대 20건, regressionSkipped 포함):`);
     jsonFailures.slice(0, 20).forEach((f) => {
       console.log(`  - [${f.universityName}] ${f.key} (${f.source}): ${f.detail}`);
     });
