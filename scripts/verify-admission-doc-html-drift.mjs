@@ -9,8 +9,9 @@
 // 서로 다른 셀을 찾아낸다. 앞으로도 어드민 수정 후 정기적으로 돌려
 // 어긋남을 조기에 잡는 안전망 용도다.
 //
-// 비교 기준은 scripts/import-legacy-admission-html.mjs가 백필 시점에
-// 쓴 것과 동일한 compareStoredHtmlEquivalence를 재사용한다(heading/
+// 비교 기준은 백필 시점(scripts/import-legacy-admission-html.mjs)에 쓴 것과
+// 동일한 compareStoredHtmlEquivalence(src/lib/admissionHtmlImport.js,
+// 2026-08-06 이동)를 재사용한다(heading/
 // table-wrap 유무, table class 접미어 허용 등 이미 알려진 "허용 diff"는
 // 여기서도 동일하게 무시해야 "드리프트"가 그 이후의 진짜 변경만
 // 가리킨다 — 기준이 다르면 백필 시점부터 있던 구조 차이까지 오탐으로
@@ -39,7 +40,10 @@ import process from 'node:process';
 
 import { renderDocToHtml, HWP_SECTION_HTML_KEYS, clean } from '../src/lib/admissionParsing.js';
 import { HWP_SECTION_JSON_KEYS } from '../src/lib/admissionDoc.js';
-import { compareStoredHtmlEquivalence } from './import-legacy-admission-html.mjs';
+// compareStoredHtmlEquivalence는 2026-08-06 src/lib/admissionHtmlImport.js로
+// 이동했다(위치만 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에
+// 있었다.
+import { compareStoredHtmlEquivalence } from '../src/lib/admissionHtmlImport.js';
 
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
