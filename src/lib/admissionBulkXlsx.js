@@ -52,6 +52,24 @@
 // 정상 처리한다. 메타데이터 컬럼(university_name/region/memo 등)이
 // 잘린 경우는(실측 0건, 짧은 식별자·URL이라 사실상 안 남) 행 전체를
 // 거부한다 — 발생한 적 없는 경로라 굳이 컬럼 단위로 세분화하지 않았다.
+//
+// html 파싱 실패 시 조용한 raw 재생성 방지(같은 날 추가): 위 잘림 마커
+// 매칭은 우리 마커 문자열(TRUNCATION_MARKER)에만 반응한다 — 다른 도구가
+// 남긴 마커(예: 사용자 원본 파일의 '\n…[셀 한도 초과로 잘림]', 우리
+// 것과 문자열이 다르다)는 안 걸린다. 그래도 잘린 html은 태그가 안
+// 닫혀 있어 대개 importCell 파싱에 실패하므로, "html 파싱 실패"라는
+// 사실 자체를 출처와 무관한 신호로 쓴다 — 마커 문자열을 추가로 늘리는
+// 방향(끝이 없다)이 아니라, 파싱 실패 시 raw 비교로 대응한다:
+//   - html 파싱 실패 + 기존 doc 있음 + 업로드 raw == DB raw(안 바뀜)
+//     → 재생성 자체를 시도하지 않고 기존 doc 보존 + warnings.
+//   - html 파싱 실패 + 기존 doc 있음 + 업로드 raw != DB raw(의도적 수정)
+//     → raw로 재생성하되(회귀 가드도 그대로 통과해야 함) 결과가
+//     payload에 실제로 반영되면 **반드시 warnings에 남긴다**("표 구조가
+//     단순해질 수 있습니다") — 이전엔 회귀 가드만 통과하면 경고 없이
+//     조용히 교체됐다(회귀 가드는 정보량만 보고 표 구조 손실은 못 잡음
+//     — `load-admission-content.mjs` 사고와 같은 실패 모드).
+//   - 기존 doc이 없으면(신규 카테고리) 이 분기를 타지 않는다 — 덮어쓸
+//     기존 값이 없어 "조용한 교체" 위험 자체가 없다.
 // =====================================================================
 
 import * as XLSX from 'xlsx';
@@ -213,10 +231,27 @@ function parseBooleanCell(value, fallback = true) {
 // 카테고리 하나(doc+html)를 계산한다. 반환: { doc, html, jsonSource,
 // jsonDetail } — doc/html이 undefined면 그 카테고리는 payload에서
 // 아예 뺀다(기존 값 보존).
-function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc, referenceRow) {
+//
+// html 파싱 실패 시 조용한 raw 재생성 방지(2026-08-06 재설계): html이
+// 있는데 파싱에 실패하고 기존 doc이 있으면(existingDoc), 곧바로 raw로
+// 재생성하지 않고 먼저 "업로드 raw가 기존 DB raw와 같은가"를 본다.
+//   - 같다 → 관리자가 이 카테고리를 손대지 않았다는 뜻이다(html만 깨져
+//     있을 뿐). 재생성 자체를 시도하지 않고 기존 doc을 그대로 보존한다
+//     (jsonSource: 'htmlParseFailedPreserved').
+//   - 다르다 → 관리자가 의도적으로 raw를 고쳤다는 뜻이다. raw로
+//     재생성은 하되(회귀 가드도 그대로 통과해야 한다 — 아래에서 한 번만
+//     평가한다), 결과가 회귀 가드를 통과해 payload에 실제로 반영되면
+//     'regeneratedFromRawAfterHtmlParseFailure'로 표시해 반드시 경고가
+//     남게 한다. 이전엔 회귀 가드만 통과하면 경고 없이 조용히 교체됐다
+//     — 그 조용한 경로가 문제였다(회귀 가드는 정보량만 보고 표 구조
+//     손실은 못 잡는다).
+// existingDoc이 없으면(신규 카테고리) 이 분기는 타지 않는다 — 덮어쓸
+// 기존 값 자체가 없어 "조용한 교체" 위험이 없다.
+function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc, existingRawText, referenceRow) {
   let candidate;
   let html;
   let detail;
+  let htmlParseFailed = false;
 
   if (uploadedHtml) {
     const result = importCell(sectionKey, uploadedHtml, referenceRow);
@@ -224,7 +259,15 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
       candidate = result.doc;
       html = uploadedHtml;
     } else {
+      htmlParseFailed = true;
       detail = `html→doc 임포트 실패(${result.classification}): ${result.reason || ''}`;
+    }
+  }
+
+  if (candidate === undefined && htmlParseFailed && existingDoc) {
+    const rawUnchanged = clean(rawText) === clean(existingRawText || '');
+    if (rawUnchanged) {
+      return { doc: undefined, html: undefined, jsonSource: 'htmlParseFailedPreserved', jsonDetail: detail };
     }
   }
 
@@ -252,6 +295,10 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
     return { doc: undefined, html: undefined, jsonSource: 'regressionSkipped', jsonDetail: guard.detail };
   }
 
+  if (htmlParseFailed) {
+    return { doc: candidate, html, jsonSource: 'regeneratedFromRawAfterHtmlParseFailure', jsonDetail: detail };
+  }
+
   return { doc: candidate, html, jsonSource: uploadedHtml && html === uploadedHtml ? 'imported-from-html' : 'generated-from-raw' };
 }
 
@@ -260,15 +307,22 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  * errors/warnings + 적용 전 미리보기용 summary.
  *
  * @param {import('xlsx').WorkBook} workbook
- * @param {Map<string, { id: unknown, [jsonKey: string]: unknown }>} existingRows
- *   `${admission_year}::${university_key}` 키. 값은 최소 id와 6개
- *   *_json(HWP_SECTION_JSON_KEYS 값)을 담아야 한다(회귀 가드 비교용).
- *   호출부가 DB에서 미리 조회해 넘긴다 — 이 lib은 DB를 안 만진다.
+ * @param {Map<string, { id: unknown, [jsonKey: string]: unknown, [rawSectionKey: string]: unknown }>} existingRows
+ *   `${admission_year}::${university_key}` 키. 값은 최소 id, 6개
+ *   *_json(HWP_SECTION_JSON_KEYS 값, 회귀 가드 비교용), 그리고 6개
+ *   raw 카테고리 컬럼(CATEGORY_KEYS와 같은 이름 — previous_year_changes/
+ *   selection_method/minimum_requirements/exam_schedule/
+ *   school_record_method/recruitment_quota, html 파싱 실패 시 "raw가
+ *   안 바뀌었나" 비교용)을 담아야 한다. 호출부가 DB에서 미리 조회해
+ *   넘긴다 — 이 lib은 DB를 안 만진다.
  * @returns {{
  *   rows: Array<Record<string, unknown>>,
  *   errors: Array<{ row: number, admissionYear: unknown, universityKey: unknown, reason: string }>,
- *   warnings: Array<{ row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string }>,
- *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number, truncatedCellSkipCount: number }
+ *   warnings: Array<{
+ *     row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string,
+ *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'htmlParseFailedPreserved' | 'htmlParseFailedRegenerated'
+ *   }>,
+ *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number, truncatedCellSkipCount: number, htmlParseFailedCount: number }
  * }}
  */
 export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
@@ -286,6 +340,11 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   // 안 쓰인 경우(errors와 1:1), 이건 행은 쓰였는데 그 안의 셀 하나만
   // 기존 값으로 보존된 경우다.
   let truncatedCellSkipCount = 0;
+  // html 파싱이 실패해 raw 경로로 넘어간 카테고리 수(보존됐든 재생성
+  // 됐든 둘 다 센다 — 원인이 "html 파싱 실패"로 같다). truncatedCellSkipCount/
+  // 회귀 가드와도 원인이 달라 섞지 않는다(잘림 마커도 없고 정보량도
+  // 안 줄었는데 html 자체가 파싱이 안 된 경우다).
+  let htmlParseFailedCount = 0;
   const newYearsSet = new Set();
 
   if (!worksheet) {
@@ -294,7 +353,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       rows,
       errors,
       warnings,
-      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount, truncatedCellSkipCount }
+      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount, truncatedCellSkipCount, htmlParseFailedCount }
     };
   }
 
@@ -372,6 +431,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           row: rowIndex,
           admissionYear,
           universityKey,
+          type: 'newUniversity',
           reason: `신규 대학 추가(이미 있는 연도 ${admissionYear}에 새 university_key) — 오타가 아닌지 확인하세요.`
         });
       }
@@ -420,6 +480,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           admissionYear,
           universityKey,
           column: sectionKey,
+          type: 'truncated',
           reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${truncatedCols.join(', ')})`
         });
         return;
@@ -432,24 +493,47 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       const dbHtmlColumn = HWP_SECTION_HTML_KEYS[sectionKey];
       const jsonColumn = HWP_SECTION_JSON_KEYS[sectionKey];
       const existingDoc = existing?.[jsonColumn];
+      const existingRawText = existing?.[sectionKey];
 
       const { doc, html, jsonSource, jsonDetail } = buildCategoryFromXlsxRow(
         sectionKey,
         rawText,
         uploadedHtml,
         existingDoc,
+        existingRawText,
         referenceRow
       );
 
       if (jsonSource === 'failed') {
-        warnings.push({ row: rowIndex, admissionYear, universityKey, column: sectionKey, reason: jsonDetail });
+        warnings.push({ row: rowIndex, admissionYear, universityKey, column: sectionKey, type: 'importFailed', reason: jsonDetail });
       } else if (jsonSource === 'regressionSkipped') {
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
+          type: 'regressionSkipped',
           reason: `정보량 감소로 기존 값 보존: ${jsonDetail}`
+        });
+      } else if (jsonSource === 'htmlParseFailedPreserved') {
+        htmlParseFailedCount += 1;
+        warnings.push({
+          row: rowIndex,
+          admissionYear,
+          universityKey,
+          column: sectionKey,
+          type: 'htmlParseFailedPreserved',
+          reason: `html 파싱 실패로 기존 값 보존(업로드 원문이 기존 DB 원문과 동일함): ${jsonDetail}`
+        });
+      } else if (jsonSource === 'regeneratedFromRawAfterHtmlParseFailure') {
+        htmlParseFailedCount += 1;
+        warnings.push({
+          row: rowIndex,
+          admissionYear,
+          universityKey,
+          column: sectionKey,
+          type: 'htmlParseFailedRegenerated',
+          reason: `html 파싱 실패로 raw에서 재생성했습니다 — 표 구조가 단순해질 수 있습니다: ${jsonDetail}`
         });
       }
 
@@ -472,7 +556,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       willSkip,
       newYears: [...newYearsSet].sort((a, b) => a - b),
       newUniversityCount,
-      truncatedCellSkipCount
+      truncatedCellSkipCount,
+      htmlParseFailedCount
     }
   };
 }

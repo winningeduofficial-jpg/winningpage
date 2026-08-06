@@ -37,6 +37,10 @@ const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
 const SECTION_KEY_BY_JSON_COLUMN = Object.fromEntries(
   Object.entries(HWP_SECTION_JSON_KEYS).map(([sectionKey, jsonColumn]) => [jsonColumn, sectionKey])
 );
+// admissionBulkXlsx.js는 CATEGORY_KEYS를 export하지 않는다 —
+// HWP_SECTION_JSON_KEYS의 키가 곧 6개 raw 카테고리 컬럼명과 같다
+// (admissionDoc.js 참고).
+const CATEGORY_RAW_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 
 let failCount = 0;
 let passCount = 0;
@@ -72,6 +76,14 @@ function buildExistingRowsMap(dbRows) {
     const key = `${row.admission_year}::${row.university_key}`;
     const entry = { id: row.id };
     JSON_COLUMNS.forEach((col) => {
+      entry[col] = row[col];
+    });
+    // html 파싱 실패 시 "업로드 raw == 기존 DB raw" 비교에 쓴다
+    // (admissionBulkXlsx.js의 새 existingRows 계약 — raw 카테고리
+    // 컬럼도 포함해야 한다). BULK_XLSX_COLUMNS에 이미 포함된 컬럼이라
+    // dbRows select에는 추가 컬럼이 필요 없다(1번 섹션의 selectColumns
+    // 참고).
+    CATEGORY_RAW_KEYS.forEach((col) => {
       entry[col] = row[col];
     });
     map.set(key, entry);
@@ -213,20 +225,23 @@ async function main() {
       const hadOriginal = Boolean(originalDoc && Array.isArray(originalDoc.blocks) && originalDoc.blocks.length);
       const hasParsed = jsonCol in parsed;
       const sectionKey = SECTION_KEY_BY_JSON_COLUMN[jsonCol];
-      const wasRegressionSkipped = parseWarnings.some(
-        (w) => w.admissionYear === original.admission_year && w.universityKey === original.university_key && w.reason.includes('정보량 감소')
-      );
-      // 잘림 스킵도 회귀 스킵과 같은 이유로 doc 유무 불일치로 안 잡는다
-      // — "카테고리 통째로 기존 값 보존"은 이 카테고리에서만 둘 중
-      // 하나가 켜지고 절대 겹치지 않는다(잘림이면 후보 자체를 안
-      // 만드니 회귀 가드까지 안 감 — buildCategoryFromXlsxRow 호출
-      // 자체를 스킵하기 때문). 여기서 두 사유가 모두 뜨면 중복
-      // 적용 버그이므로 별도로 검사한다(아래 check).
-      const wasTruncationSkipped = parseWarnings.some(
-        (w) => w.admissionYear === original.admission_year && w.universityKey === original.university_key && w.column === sectionKey && w.reason.includes('잘림 마커가 있어 기존 값 보존')
-      );
-      if (wasRegressionSkipped && wasTruncationSkipped) jsonMismatchCount += 1000; // 중복 적용이면 무조건 실패시킨다(원인 구분용으로 크게 벌점)
-      if (hadOriginal && !hasParsed && !wasRegressionSkipped && !wasTruncationSkipped) jsonMismatchCount += 1;
+      // 이 (행, 카테고리)에 실제로 남은 "기존 값 보존" 계열 경고를 전부
+      // 모은다 — type 필드로 구분한다(예전엔 reason 문자열 부분매칭이라
+      // column 필터도 없었다: 다른 카테고리 경고가 같은 행에 있으면
+      // false-positive로 "보존됨" 취급될 수 있었다). 정확히 1가지
+      // 사유로만 보존돼야 한다 — 2가지 이상이면 중복 적용 버그다.
+      const preservationWarningTypes = parseWarnings
+        .filter(
+          (w) =>
+            w.admissionYear === original.admission_year &&
+            w.universityKey === original.university_key &&
+            w.column === sectionKey &&
+            ['regressionSkipped', 'truncated', 'htmlParseFailedPreserved'].includes(w.type)
+        )
+        .map((w) => w.type);
+      const wasPreservedForKnownReason = preservationWarningTypes.length > 0;
+      if (preservationWarningTypes.length > 1) jsonMismatchCount += 1000; // 중복 적용이면 무조건 실패시킨다(원인 구분용으로 크게 벌점)
+      if (hadOriginal && !hasParsed && !wasPreservedForKnownReason) jsonMismatchCount += 1;
       if (!hadOriginal && hasParsed) jsonMismatchCount += 1;
     });
   });
@@ -388,6 +403,127 @@ async function main() {
     assert(regressionWarnings.length >= 1, '정보량 감소 경고가 있어야 함');
   });
 
+  // === 6-1) html 파싱 실패 → 조용한 raw 재생성 방지(team-lead 지정,
+  // 마커 문자열이 우리 것과 다른 도구가 잘랐을 때도 안전해야 함) ===
+  console.log('\n=== 6-1) html 파싱 실패 시 raw 비교 분기(합성) ===');
+
+  const MALFORMED_HTML = '이것은 유효한 표 구조가 아닌 임의의 문자열입니다(태그도 없고 파싱 불가)';
+
+  check('html 파싱 실패 + 업로드 raw == 기존 DB raw → 재생성 시도 없이 기존 값 보존 + htmlParseFailedPreserved 경고', () => {
+    const sameRawText = '- 동일 원문 그대로(관리자가 안 건드림)';
+    const existing = new Map([
+      [
+        '2099::html-parse-fail-preserved-test',
+        {
+          id: 'fake-id-preserved',
+          minimum_requirements_json: { v: 1, section: 'minimum_requirements', blocks: [{ kind: 'plainList', items: [{ type: 'bullet', text: '기존 항목' }] }] },
+          minimum_requirements: sameRawText
+        }
+      ]
+    ]);
+    const header = BULK_XLSX_COLUMNS;
+    const row = header.map((col) => {
+      if (col === 'admission_year') return 2099;
+      if (col === 'university_key') return 'html-parse-fail-preserved-test';
+      if (col === 'university_name') return 'html파싱실패보존테스트대학교';
+      if (col === 'minimum_requirements') return sameRawText;
+      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
+      return '';
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    assert(rows.length === 1, '행 자체는 생성돼야 함');
+    assert(
+      rows[0].minimum_requirements_json === undefined && rows[0].minimum_requirements_html === undefined,
+      'raw가 안 바뀌었는데 재생성돼 payload에 들어감(기존 값 보존이 안 됨)'
+    );
+    assert(s.htmlParseFailedCount === 1, `htmlParseFailedCount가 1이어야 함(실제 ${s.htmlParseFailedCount})`);
+    const w = warnings.find((x) => x.type === 'htmlParseFailedPreserved');
+    assert(Boolean(w), 'htmlParseFailedPreserved 타입 경고가 없음');
+    assert(w.column === 'minimum_requirements', `경고의 column이 잘못됨(실제 ${w.column})`);
+  });
+
+  check('html 파싱 실패 + 업로드 raw != 기존 DB raw(의도적 수정) → raw로 재생성하고 htmlParseFailedRegenerated 경고(회귀 아님)', () => {
+    const oldRawText = '- 기존 원문';
+    const newRawText = '- 새 원문 항목 1\n- 새 원문 항목 2\n- 새 원문 항목 3';
+    const existing = new Map([
+      [
+        '2099::html-parse-fail-regenerated-test',
+        {
+          id: 'fake-id-regenerated',
+          minimum_requirements_json: { v: 1, section: 'minimum_requirements', blocks: [{ kind: 'plainList', items: [{ type: 'bullet', text: '짧은 기존 항목' }] }] },
+          minimum_requirements: oldRawText
+        }
+      ]
+    ]);
+    const header = BULK_XLSX_COLUMNS;
+    const row = header.map((col) => {
+      if (col === 'admission_year') return 2099;
+      if (col === 'university_key') return 'html-parse-fail-regenerated-test';
+      if (col === 'university_name') return 'html파싱실패재생성테스트대학교';
+      if (col === 'minimum_requirements') return newRawText;
+      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
+      return '';
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    assert(rows.length === 1, '행 자체는 생성돼야 함');
+    assert(
+      rows[0].minimum_requirements_json !== undefined,
+      'raw를 의도적으로 고쳤는데(정보량도 늘었는데) 재생성이 안 됨'
+    );
+    assert(s.htmlParseFailedCount === 1, `htmlParseFailedCount가 1이어야 함(실제 ${s.htmlParseFailedCount})`);
+    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated');
+    assert(Boolean(regenWarning), 'htmlParseFailedRegenerated 타입 경고가 없음');
+    const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
+    assert(!regressionWarning, '회귀 가드가 개입하면 안 되는 케이스인데(정보량이 늘었음) regressionSkipped 경고가 남음');
+  });
+
+  check('html 파싱 실패 + 업로드 raw != 기존 DB raw + 재생성 결과가 기존보다 정보량 감소 → 회귀 가드가 우선 적용(중복 집계 없음)', () => {
+    const oldRawText = '- 기존 원문 A\n- 기존 원문 B\n- 기존 원문 C';
+    const newRawText = '- 짧아진 새 원문';
+    const richExistingDoc = {
+      v: 1,
+      section: 'minimum_requirements',
+      blocks: [
+        { kind: 'plainList', items: [{ type: 'bullet', text: 'x'.repeat(200) }, { type: 'bullet', text: 'y'.repeat(200) }, { type: 'bullet', text: 'z'.repeat(200) }] }
+      ]
+    };
+    const existing = new Map([
+      [
+        '2099::html-parse-fail-regression-priority-test',
+        { id: 'fake-id-regression-priority', minimum_requirements_json: richExistingDoc, minimum_requirements: oldRawText }
+      ]
+    ]);
+    const header = BULK_XLSX_COLUMNS;
+    const row = header.map((col) => {
+      if (col === 'admission_year') return 2099;
+      if (col === 'university_key') return 'html-parse-fail-regression-priority-test';
+      if (col === 'university_name') return 'html파싱실패회귀우선테스트대학교';
+      if (col === 'minimum_requirements') return newRawText;
+      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
+      return '';
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    assert(rows.length === 1, '행 자체는 생성돼야 함');
+    assert(rows[0].minimum_requirements_json === undefined, '정보량이 줄었는데 회귀 가드가 안 막음');
+    assert(s.htmlParseFailedCount === 0, `회귀 가드가 먼저 막은 케이스는 htmlParseFailedCount에 안 잡혀야 함(실제 ${s.htmlParseFailedCount})`);
+    const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
+    assert(Boolean(regressionWarning), 'regressionSkipped 경고가 있어야 함');
+    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated' || x.type === 'htmlParseFailedPreserved');
+    assert(!regenWarning, '회귀 가드와 html 파싱 실패 경고가 같은 셀에 중복으로 남음');
+  });
+
   // === 7) formula injection 방어 — 셀 타입 강제(t:'s')가 값을 하나도
   // 안 바꾸면서 수식으로 해석될 여지를 없애는지 확인한다. dev의
   // csvEscape(선행 작은따옴표 접두사)와 달리 접두사를 안 붙이므로,
@@ -524,10 +660,13 @@ async function main() {
       return;
     }
 
-    const { rows: realParsedRows, errors: realErrors } = parseAdmissionRowsFromXlsx(realWorkbook, existingRows);
+    const { rows: realParsedRows, errors: realErrors, warnings: realWarnings } = parseAdmissionRowsFromXlsx(
+      realWorkbook,
+      existingRows
+    );
 
     check(
-      `실파일: 원본에 이미 잘려 있던 셀 ${truncatedInOriginalFile.length}건(사전 실측 23건과 일치해야 함)이 손상된 채로 반영되지 않음`,
+      `실파일: 원본에 이미 잘려 있던 셀 ${truncatedInOriginalFile.length}건(사전 실측 23건과 일치해야 함)이 손상된 채로 반영되지 않고 전부 warnings에 잡힘`,
       () => {
         assert(
           truncatedInOriginalFile.length === 23,
@@ -542,6 +681,8 @@ async function main() {
         let missingRowCount = 0;
         let preservedByGuardCount = 0;
         let regeneratedFromRawCount = 0;
+        let noWarningCount = 0;
+        let doubleWarningCount = 0;
         truncatedInOriginalFile.forEach(({ year, key }) => {
           const parsed = realParsedByKey.get(`${year}::${key}`);
           if (!parsed) {
@@ -555,22 +696,33 @@ async function main() {
             corruptedCount += 1;
             return;
           }
+
+          const cellWarnings = realWarnings.filter(
+            (w) => w.admissionYear === year && w.universityKey === key && w.column === 'recruitment_quota'
+          );
+          const relevantTypes = ['regressionSkipped', 'htmlParseFailedPreserved', 'htmlParseFailedRegenerated'];
+          const matchingWarnings = cellWarnings.filter((w) => relevantTypes.includes(w.type));
+          if (matchingWarnings.length === 0) noWarningCount += 1;
+          if (matchingWarnings.length > 1) doubleWarningCount += 1;
+
           if ('recruitment_quota_json' in parsed) {
             // 회귀 가드를 통과해 raw(안 잘린 원문)로 재생성된 경우다 —
             // 손상은 아니지만 doc 내용이 바뀐다(알려진 raw 재생성 한계,
             // PR #40 "알려진 한계"와 같은 맥락). 잘린 값 자체는 아니므로
-            // 안전하지만, 아래 리포트에 별도로 집계해 team-lead에게
-            // 그대로 보고한다.
+            // 안전하지만, 이제는 htmlParseFailedRegenerated 경고가
+            // 반드시 남아야 한다(team-lead 지적 — 이전엔 0건이었음).
             regeneratedFromRawCount += 1;
           } else {
             preservedByGuardCount += 1;
           }
         });
         console.log(
-          `  실파일 23건 분류: 회귀 가드로 기존 값 보존 ${preservedByGuardCount}건 / raw로 재생성(잘리지 않은 값, 문서 내용은 바뀔 수 있음) ${regeneratedFromRawCount}건 / 행 자체 누락 ${missingRowCount}건`
+          `  실파일 23건 분류: 기존 값 보존(회귀 가드 또는 raw 동일) ${preservedByGuardCount}건 / raw로 재생성(잘리지 않은 값, 경고 동반) ${regeneratedFromRawCount}건 / 행 자체 누락 ${missingRowCount}건`
         );
         assert(corruptedCount === 0, `잘린 마커 텍스트가 그대로 payload에 쓰인 건수: ${corruptedCount}(손상)`);
         assert(missingRowCount === 0, `실파일의 대상 행이 파싱 결과에서 통째로 빠짐: ${missingRowCount}건`);
+        assert(noWarningCount === 0, `warnings가 안 남은(조용히 처리된) 건수: ${noWarningCount}건 — team-lead 지적 사항(이전엔 17건)`);
+        assert(doubleWarningCount === 0, `같은 셀에 경고가 중복으로 남은 건수: ${doubleWarningCount}건(회귀 가드와 html 파싱 실패 경고가 겹침)`);
       }
     );
   }
