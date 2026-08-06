@@ -3534,6 +3534,12 @@ function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
     // row[3]로 접근) 예상 밖 형태에 예외를 던지는 걸 직접 재현 확인했다.
     // 실패해도 doc은 정상 저장되고 html 미러 갱신만 건너뛴다(직전 값 유지) —
     // 페이지 전체가 죽는 것보다 훨씬 안전하다.
+    // ⚠ renderDocToHtml이 total 함수(어떤 유효 doc에도 안 던지도록,
+    // phase0 담당)가 된 뒤에도 이 try/catch는 지우지 마라 — 심층 방어다.
+    // DocBlocksEditor의 섹션별 블록 추가 제한(같은 커밋)이 "흔치 않은
+    // 조합"을 1차로 막아주지만, 그 제한을 우회하는 경로(예: xlsx
+    // 가져오기로 다른 섹션 doc을 억지로 붙여넣는 경우)까지 커버하는 건
+    // 이 try/catch뿐이다.
     if (htmlKey) {
       if (validateAdmissionDoc(nextDoc).ok) {
         try {

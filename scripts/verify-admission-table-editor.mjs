@@ -834,6 +834,55 @@ async function main() {
     record('15m. summarizeBlockChange — 행 추가 1 / 셀 변경 1 정확히 계산', pass, JSON.stringify(summary));
   }
 
+  // ── 16) 섹션별 블록 추가 선택지 제한(2026-08-06, renderDocToHtml 크래시 방지) ──
+  {
+    const { primary, advanced } = docOps.getAddableKindsForSection('previous_year_changes');
+    const pass = JSON.stringify(primary) === JSON.stringify(['table']) && !advanced.includes('table') && advanced.includes('note');
+    record('16a. previous_year_changes — primary=[table]만(buildChangeDocBlocks 실측)', pass, JSON.stringify({ primary, advanced }));
+  }
+  {
+    const { primary } = docOps.getAddableKindsForSection('recruitment_quota');
+    const pass = JSON.stringify(primary) === JSON.stringify(['table', 'footnote', 'plainList', 'preText']);
+    record('16b. recruitment_quota — primary=[table,footnote,plainList,preText](buildRecruitDocBlocks+buildRawSectionDoc 실측)', pass, JSON.stringify(primary));
+  }
+  {
+    const { primary } = docOps.getAddableKindsForSection('school_record_method');
+    const pass = JSON.stringify(primary) === JSON.stringify(['table', 'heading']);
+    record('16c. school_record_method — primary=[table,heading](buildRecordDocBlocks 실측, plainList 폴백 없음 반영)', pass, JSON.stringify(primary));
+  }
+  {
+    // 'note'/'group'은 어느 섹션에서도 primary에 없어야 한다(build*DocBlocks 6종 중 top-level note 생성 0건).
+    const sections = ['previous_year_changes', 'selection_method', 'exam_schedule', 'minimum_requirements', 'school_record_method', 'recruitment_quota'];
+    const pass = sections.every((s) => {
+      const { primary } = docOps.getAddableKindsForSection(s);
+      return !primary.includes('note') && !primary.includes('group');
+    });
+    record('16d. note/group은 6개 섹션 전부 primary에서 제외(top-level 생성기 없음 실측)', pass, '');
+  }
+  {
+    // primary + advanced = 전체 종류(중복 없이), 어느 섹션이든.
+    const { primary, advanced } = docOps.getAddableKindsForSection('exam_schedule');
+    const union = new Set([...primary, ...advanced]);
+    const pass = union.size === docOps.ALL_BLOCK_KINDS.length && primary.every((k) => !advanced.includes(k));
+    record('16e. primary/advanced가 전체 종류를 중복 없이 분할', pass, JSON.stringify({ primary, advanced }));
+  }
+  {
+    // DocBlocksEditor 스모크 렌더 — 제한된 섹션(previous_year_changes)에서
+    // 드롭다운 기본 노출이 'table' 하나뿐이고, '고급' 체크박스가 존재하는지.
+    const out = renderToStaticMarkup(
+      React.createElement(DocBlocksEditor, { section: 'previous_year_changes', blocks: [], onChange: () => {} })
+    );
+    const optionCount = (out.match(/<option/g) || []).length;
+    const pass = optionCount === 1 && out.includes('고급');
+    record('16f. DocBlocksEditor 스모크 렌더 — 제한 섹션은 드롭다운 옵션 1개(table)만, 고급 토글 존재', pass, `optionCount=${optionCount}`);
+  }
+  {
+    // 미지정/알 수 없는 section은 primary가 빈 배열 → advanced가 전체.
+    const { primary, advanced } = docOps.getAddableKindsForSection('unknown_section');
+    const pass = primary.length === 0 && advanced.length === docOps.ALL_BLOCK_KINDS.length;
+    record('16g. 알 수 없는 section — primary 빈 배열, advanced가 전체 종류', pass, JSON.stringify({ primary, advanced }));
+  }
+
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');
   let fail = 0;
   for (const r of results) {
