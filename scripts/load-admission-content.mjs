@@ -8,15 +8,27 @@
 // buildRawSectionHtml)로 생성하며, JSON에 이미 들어 있는 *_html 값은 그대로
 // 보존(재생성하지 않음)한다.
 //
+// **기본값은 dry-run이다.** 실제로 쓰려면 --apply를 명시해야 한다(저장소
+// 관례 — normalize-admission-html.mjs/backfill-admission-doc.mjs/
+// import-legacy-admission-html.mjs 전부 동일, 여기만 반대였다). 예전
+// 기본값(--dry-run 없으면 즉시 적용)이 2026-08-06 사고의 직접 원인이었다
+// — --dry-run이 build-admission-html-golden.mjs의 최상위 parseArgs
+// 버그(별도 커밋에서 수정)로 크래시하자 플래그 없이 재실행했다가 실제
+// DB에 값이 잘못 써졌다. 구버전 호출 습관 보호를 위해 --dry-run 플래그는
+// 남겨두되 이제 아무 효과가 없다(항상 dry-run이 기본이므로) — 대신
+// 경고를 띄운다.
+//
 // 실행 순서:
 //   1) scripts/verify-admission-doc-equivalence.mjs로 회귀 검증(불일치 시 중단)
 //   2) university_name 매칭(정확 일치 → normalizeName 폴백)
 //   3) 카테고리별 payload 계산(기존 html 보존 우선, 없으면 buildRawSectionHtml)
-//   4) upsert onConflict: 'admission_year,university_key'
+//   4) --apply일 때만 upsert onConflict: 'admission_year,university_key'
 //   5) 적재 후 행수 · html 채움률 확인 SQL 결과 출력
 //
 // 사용법:
-//   node scripts/load-admission-content.mjs [--dry-run] [--admission-year 2027]
+//   node scripts/load-admission-content.mjs                    # dry-run(기본, 아무것도 안 씀)
+//   node scripts/load-admission-content.mjs --apply             # 실제 적용
+//   node scripts/load-admission-content.mjs --apply --admission-year 2027
 //
 // 키 조회 순서(하드코딩 금지) — scripts/seed-admission-universities.mjs와 동일:
 //   1) SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY 환경변수
@@ -38,14 +50,7 @@ const DEFAULT_KEYS_FILE =
   '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
 const TABLE = 'admission_university_resources';
 
-const { values: args } = parseArgs({
-  options: {
-    'dry-run': { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    'admission-year': { type: 'string', default: '2027' },
-    'skip-equivalence-check': { type: 'boolean', default: false }
-  }
-});
+let args = {};
 
 // 카테고리 key -> DB html 컬럼 매핑. 페이지의 INFO_SECTIONS(AdmissionGuidelines.jsx)
 // 정의와 동일하다.
@@ -90,6 +95,23 @@ function buildCategoryHtml(sectionKey, hwpRow, dbRow, universityName) {
 }
 
 async function main() {
+  args = parseArgs({
+    options: {
+      apply: { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
+      'keys-file': { type: 'string' },
+      'admission-year': { type: 'string', default: '2027' },
+      'skip-equivalence-check': { type: 'boolean', default: false }
+    }
+  }).values;
+
+  if (args['dry-run']) {
+    console.warn(
+      '--dry-run 플래그는 더 이상 의미가 없습니다(기본이 이미 dry-run입니다). ' +
+        '실제로 적용하려면 --apply를 쓰세요.'
+    );
+  }
+
   console.log('=== 1) 골든 대조 회귀 검증(Gate A) ===');
   if (args['skip-equivalence-check']) {
     console.warn('--skip-equivalence-check: 검증을 건너뜁니다(권장하지 않음).');
@@ -192,8 +214,8 @@ async function main() {
     );
   });
 
-  if (args['dry-run']) {
-    console.log('\n--dry-run: DB에 쓰지 않고 종료합니다.');
+  if (!args.apply) {
+    console.log('\ndry-run(기본값): DB에 쓰지 않고 종료합니다. 실제로 적용하려면 --apply를 쓰세요.');
     return;
   }
 
