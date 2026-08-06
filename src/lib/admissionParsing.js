@@ -1396,6 +1396,10 @@ export function parseExamScheduleRows(lines) {
 
   data.forEach((line) => {
     if (isDateLike(line)) {
+      // 정제 시점 통일: 분류(isDateLike)는 원문 line으로 이미 끝났으므로,
+      // 여기서부터는 행 확정 값이다 — htmlTable(:307) 렌더 시점 대신
+      // 여기서 sanitizeAdmissionDisplayText를 적용한다. 멱등(실측 108835줄
+      // 0건 위반)이라 htmlTable이 다시 적용해도 결과는 동일하다.
       if (pending.length) {
         let type = pending[0] || lastType;
         let target = pending.slice(1).join(' / ');
@@ -1403,10 +1407,18 @@ export function parseExamScheduleRows(lines) {
           type = lastType;
           target = pending[0];
         }
-        rows.push([type || '-', target || '-', line]);
+        rows.push([
+          sanitizeAdmissionDisplayText(type || '-'),
+          sanitizeAdmissionDisplayText(target || '-'),
+          sanitizeAdmissionDisplayText(line)
+        ]);
         lastType = type || lastType;
       } else {
-        rows.push([lastType || '-', '-', line]);
+        rows.push([
+          sanitizeAdmissionDisplayText(lastType || '-'),
+          sanitizeAdmissionDisplayText('-'),
+          sanitizeAdmissionDisplayText(line)
+        ]);
       }
       pending = [];
     } else {
@@ -1415,7 +1427,11 @@ export function parseExamScheduleRows(lines) {
   });
 
   if (pending.length)
-    rows.push([pending[0] || lastType || '-', pending.slice(1).join(' / ') || '-', '-']);
+    rows.push([
+      sanitizeAdmissionDisplayText(pending[0] || lastType || '-'),
+      sanitizeAdmissionDisplayText(pending.slice(1).join(' / ') || '-'),
+      sanitizeAdmissionDisplayText('-')
+    ]);
 
   return rows;
 }
@@ -1604,12 +1620,15 @@ export function parseMinimumRequirementRows(lines) {
           .filter((note) => !shouldSkipMinimumNote(note))
       )
     ].join(' ');
+    // 정제 시점 통일: marks 분류(isRequirementMark 등)는 이미 끝난 뒤이므로,
+    // htmlTable(:307) 렌더 시점 대신 행 확정 시점에 sanitizeAdmissionDisplayText를
+    // 적용한다(멱등이라 htmlTable이 다시 적용해도 결과 동일).
     rows.push([
-      split.type || '-',
-      split.target || '-',
-      formatRequirementMarks(marks, subjectHeaders) || '-',
-      minimum || '-',
-      noteText || '-'
+      sanitizeAdmissionDisplayText(split.type || '-'),
+      sanitizeAdmissionDisplayText(split.target || '-'),
+      sanitizeAdmissionDisplayText(formatRequirementMarks(marks, subjectHeaders) || '-'),
+      sanitizeAdmissionDisplayText(minimum || '-'),
+      sanitizeAdmissionDisplayText(noteText || '-')
     ]);
     label = [];
     marks = [];
