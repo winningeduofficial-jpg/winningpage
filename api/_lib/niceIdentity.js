@@ -232,9 +232,14 @@ async function postJson(path, { authorization, body }) {
   }
 
   if (payload?.result_code !== OK) {
-    throw new Error(
+    // result_code를 error에 달아둔다. 호출부가 "NICE가 거절한 것"과 "NICE에
+    // 닿지 못한 것"을 구분해야 사용자에게 맞는 안내를 할 수 있다 —
+    // 전자는 재시도해도 그대로고, 후자만 "잠시 후 다시"가 맞다.
+    const error = new Error(
       `NICE 요청 실패 (${path}): ${payload?.result_code} ${payload?.result_message || ''}`.trim()
     );
+    error.niceResultCode = String(payload?.result_code || '');
+    throw error;
   }
 
   return payload;
@@ -349,7 +354,9 @@ export async function fetchAuthResult({
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
-    throw new Error('NICE 인증 결과의 무결성 검증에 실패했습니다.');
+    const error = new Error('NICE 인증 결과의 무결성 검증에 실패했습니다.');
+    error.integrityFailed = true;
+    throw error;
   }
 
   return decryptPayload(encData, key);

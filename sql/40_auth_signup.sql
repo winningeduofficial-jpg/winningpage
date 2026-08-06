@@ -16,6 +16,7 @@
 --   [9] check_email_signup_state : 가입 중단 계정 이어가기 판정
 --  [10] link_code_lookups        : 연결코드 조회 이력 + 한도 (서버 전용)
 --  [11] identity_verifications   : NICE 본인확인 결과 (CI/DI, 서버 전용)
+--  [12] identity_verifications   : NICE 「통합인증」 규격 반영 (컬럼 추가)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1335,6 +1336,65 @@ revoke all on table public.identity_verifications from anon, authenticated;
 
 
 -- =====================================================================
+-- [12] identity_verifications : NICE 「통합인증」 규격 반영
+--
+-- [11]은 「아이디 본인확인」 규격을 전제로 만들었는데, 우리 계약 상품은
+-- 「통합인증」이었다(2026-08-06 확인). 흐름이 달라서 콜백까지 들고 가야 하는
+-- 값이 바뀐다. [11]은 이미 실행됐으므로 수정하지 않고 여기서 컬럼만 더한다.
+--
+-- 왜 이 값들을 저장해야 하나
+--   통합인증의 복호화 키는 요청마다 다르고, PBKDF2(ticket, transaction_id,
+--   iterators)로 유도한다. ticket·iterators는 토큰 발급 응답에서, transaction_id는
+--   표준창 URL 발급 응답에서 나온다. 셋 중 하나라도 없으면 콜백이 와도
+--   결과를 열어볼 수 없다. access_token은 캐시해도 되지만 ticket은 트랜잭션과
+--   묶어 보관해야 한다 — 토큰이 갱신되면 ticket도 바뀌기 때문이다.
+--
+-- ⚠️ auth_ticket은 복호화 키 재료라 사실상 비밀값이다. 이 표가 서버 전용
+--    (RLS 전면 거부 + 권한 회수)인 전제가 [11]보다 더 중요해졌다.
+--
+-- 콜백 상관관계
+--   NICE 콜백은 web_transaction_id **하나만** 들고 온다. 우리 pending 행을
+--   찾을 열쇠가 없어서, 표준창 URL을 발급할 때 return_url에 ?rid=<request_id>를
+--   붙여 되돌려받는다. return_url은 사전 등록 없이 요청마다 자유 지정이고
+--   쿼리스트링도 그대로 받아준다(2026-08-06 실호출 확인, 234자까지).
+--
+--   rid는 URL에 노출되므로 그것만으로 신뢰하지 않는다. 실제 검증은 NICE의
+--   /auth/result 호출이 담당한다 — web_transaction_id가 맞지 않으면 거기서
+--   실패한다. consumed_at으로 1회용도 강제한다.
+-- =====================================================================
+
+-- NICE 인증 트랜잭션 id (/auth/url 응답). 복호화 키의 salt.
+alter table public.identity_verifications
+  add column if not exists transaction_id text;
+
+-- 토큰 발급 응답의 ticket. 복호화 키의 password.
+alter table public.identity_verifications
+  add column if not exists auth_ticket text;
+
+-- 토큰 발급 응답의 iterators. PBKDF2 반복 횟수 — 토큰마다 달라진다(97/72 관측).
+alter table public.identity_verifications
+  add column if not exists auth_iterators integer;
+
+-- 콜백이 들고 오는 값. /auth/result 호출에 필요하다.
+alter table public.identity_verifications
+  add column if not exists web_transaction_id text;
+
+-- 가입 RPC가 이 인증을 소비한 시점. 같은 인증을 두 번 쓰지 못하게 한다.
+alter table public.identity_verifications
+  add column if not exists consumed_at timestamptz;
+
+comment on column public.identity_verifications.request_id is
+  'NICE request_no(20~50자). 우리가 발급하고 return_url ?rid= 로 되돌려받는다.';
+comment on column public.identity_verifications.auth_ticket is
+  '복호화 키 재료(비밀값). 절대 클라이언트에 노출 금지.';
+
+-- 아직 소비되지 않은 verified 건을 가입 RPC가 찾을 때 쓴다.
+create index if not exists identity_verifications_unconsumed_idx
+  on public.identity_verifications (request_id)
+  where status = 'verified' and consumed_at is null;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인
@@ -1877,3 +1937,24 @@ revoke all on table public.identity_verifications from anon, authenticated;
 -- where p.pronamespace = 'public'::regnamespace
 --   and p.proname in ('generate_link_code_string', 'issue_student_link_code')
 -- order by p.proname;
+--
+-- -- [12-a] 통합인증 컬럼 5종이 실제로 붙었는지
+-- select column_name, data_type, is_nullable
+-- from information_schema.columns
+-- where table_schema = 'public' and table_name = 'identity_verifications'
+--   and column_name in ('transaction_id', 'auth_ticket', 'auth_iterators',
+--                       'web_transaction_id', 'consumed_at')
+-- order by column_name;
+--
+-- -- [12-b] 서버 전용이 유지되는지 — anon/authenticated에 권한이 남아 있으면 안 된다.
+-- -- 결과가 0행이어야 정상이다.
+-- select grantee, privilege_type
+-- from information_schema.role_table_grants
+-- where table_schema = 'public' and table_name = 'identity_verifications'
+--   and grantee in ('anon', 'authenticated');
+--
+-- -- [12-c] 정책이 하나도 없어야 한다(RLS 켜짐 + 정책 없음 = 전면 거부).
+-- select relrowsecurity as rls_enabled,
+--        (select count(*) from pg_policies
+--         where schemaname = 'public' and tablename = 'identity_verifications') as policy_count
+-- from pg_class where oid = 'public.identity_verifications'::regclass;
