@@ -9,8 +9,8 @@ import Checkout from './pages/Checkout';
 import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
-import FreeDiagnosis from './pages/FreeDiagnosis';
-import FreeDiagnosisLanding from './pages/renewal/FreeDiagnosisLanding';
+import LearningDiagnosis from './pages/LearningDiagnosis';
+import LearningDiagnosisLanding from './pages/renewal/LearningDiagnosisLanding';
 import Callmentor from './pages/services/Callmentor';
 import GoalManagement from './pages/services/GoalManagement';
 import PerformanceAssessment from './pages/services/PerformanceAssessment';
@@ -65,8 +65,8 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/free-diagnosis" element={<FreeDiagnosisLanding />} />
-          <Route path="/free-diagnosis/survey" element={<FreeDiagnosis />} />
+          <Route path="/learning-diagnosis" element={<LearningDiagnosisLanding />} />
+          <Route path="/learning-diagnosis/survey" element={<LearningDiagnosis />} />
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}

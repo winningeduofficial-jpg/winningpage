@@ -270,25 +270,25 @@ const FAQ_ITEMS = [
 // 위치값이 4페이지 전부 다름). 이 함수는 이번 공통 컴포넌트 전환에서 손대지 않았다.
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
-  // (서비스 랜딩 4종 + FreeDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
+  // (서비스 랜딩 4종 + LearningDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
   const [auraRef, auraInView] = useInView();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
-      {/* 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리(GoalManagement.jsx)/무료진단
-          (FreeDiagnosisLanding.jsx) 히어로와 동일 규격으로 통일했다(사용자 지시 — 1600px
+      {/* 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리(GoalManagement.jsx)/학습진단
+          (LearningDiagnosisLanding.jsx) 히어로와 동일 규격으로 통일했다(사용자 지시 — 1600px
           실측 대조 결과 두 페이지가 이미 공통 규격을 이루고 있어 그 규격을 정본으로 삼는다).
           시안(2393:12079)이 이 값과 어긋나도 코드가 정본이라는 프로젝트 원칙을 따른다. */}
       {/* 시안(2393:12079)의 `Gradient` 그룹 851×869 @ (375,166)이 4프레임(2716:2003→2069→2135→2201)
           에서 0°/−90°/−180°/+90°로 회전하는 프로토타입이다 — 자식(Eclipse/Planet)은 4프레임 전부
           transform 동일(자체 모션 없음), 피벗은 전부 (800,600) = 1600×1200 좌표계의 중심으로 일치한다.
           즉 프레임 간 유일한 변화는 그룹 전체 회전각뿐이므로 rotate(0→360deg) 무한 반복 하나로 완전히
-          대체된다. 시안 주기는 4×3000ms=12초지만, 목표관리(GoalManagement.jsx)·무료진단
-          (FreeDiagnosisLanding.jsx) 히어로에서 회전은 전정계 자극 등급이 높은 모션이라 앰비언트
+          대체된다. 시안 주기는 4×3000ms=12초지만, 목표관리(GoalManagement.jsx)·학습진단
+          (LearningDiagnosisLanding.jsx) 히어로에서 회전은 전정계 자극 등급이 높은 모션이라 앰비언트
           배경 애니메이션 권장 구간(8~20s)보다도 느린 30초를 채택한 선례가 있어, 3개 서비스 랜딩 간
           모션 리듬 일관성을 위해 이 페이지도 동일하게 30s로 통일한다.
 
-          레이어 구조는 FreeDiagnosisLanding.jsx HeroSection(위치/회전 분리)과 동일하게 따른다 —
+          레이어 구조는 LearningDiagnosisLanding.jsx HeroSection(위치/회전 분리)과 동일하게 따른다 —
           같은 요소에 위치용 translate와 회전용 rotate를 같이 걸면 rotate가 translate를 덮어써
           이미지가 밀려나기 때문에 위치 전담 div와 회전 전담 div를 분리한다.
 
@@ -308,7 +308,7 @@ function HeroSection() {
 
           그레인(아래 별도 div)은 회전 밖(위치 래퍼의 형제)에 둔다 — transform이 걸린 요소는 새
           stacking context를 만들어 mix-blend-overlay가 섹션의 bg-white를 backdrop으로 잡지 못하고
-          검정/투명에 합성돼 그레인이 전면 노출되는 회귀가 FreeDiagnosisLanding에서 실제로 있었다. */}
+          검정/투명에 합성돼 그레인이 전면 노출되는 회귀가 LearningDiagnosisLanding에서 실제로 있었다. */}
       <div
         ref={auraRef}
         className="pointer-events-none absolute left-1/2 top-0 aspect-[4/3] w-[100rem] max-w-none -translate-x-1/2 select-none"

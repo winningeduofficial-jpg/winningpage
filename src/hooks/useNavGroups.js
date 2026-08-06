@@ -63,7 +63,12 @@ export const PROMOTED_SLUG_ROUTES = {
 // 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
 // DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
 const PROMOTED_PATH_ROUTES = {
-  '/gallery': '/info/column'
+  '/gallery': '/info/column',
+  // 무료진단 → 학습진단 개명. DB(program_categories.link / banners.button_link /
+  // page_contents.slug)에 아직 '/free-diagnosis'가 남아 있고 App.jsx에서 그 라우트는
+  // 삭제됐으므로(catch-all → '/') 링크가 죽는다. DB 레코드 수정은 운영자 몫이라
+  // '/gallery' 선례와 동일하게 코드측 안전망을 둔다. DB 정리 후 제거 가능.
+  '/free-diagnosis': '/learning-diagnosis'
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
@@ -90,7 +95,7 @@ function applyPromotedSlugRoutes(groups) {
   }));
 }
 
-function ensureFreeDiagnosisInService(groups) {
+function ensureLearningDiagnosisInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => {
@@ -99,15 +104,29 @@ function ensureFreeDiagnosisInService(groups) {
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
-    const withoutFreeDiagnosis = items.filter((item) => {
+    const withoutLearningDiagnosis = items.filter((item) => {
+      // 구 리터럴('무료진단' / '/free-diagnosis')과 신 리터럴('학습진단' / '/learning-diagnosis')을
+      // 모두 걸러낸다. 세 가지를 동시에 만족시키기 위해서다 —
+      // (a) DB page_contents에 남아있는 구 항목 제거,
+      // (b) 이 함수가 아래에서 주입하는 '학습진단' 항목이 캐시(localStorage)에 저장됐다가 다음
+      //     렌더에서 readCachedNavGroups를 통해 다시 이 함수에 들어올 때 재주입되는 것을 방지
+      //     (멱등성 보장 — 신 리터럴만 안 걸러내면 캐시를 거친 두 번째 렌더에서 메뉴에 항목이
+      //     두 번 나온다),
+      // (c) DB를 신규 이름으로 마이그레이션한 뒤에도 DB 항목과 코드 주입 항목이 중복되지 않도록.
       const label = cleanText(item?.label).replace(/\s+/g, '');
-      return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
+      const to = cleanText(item?.to);
+      return (
+        label !== '무료진단' &&
+        label !== '학습진단' &&
+        to !== '/free-diagnosis' &&
+        to !== '/learning-diagnosis'
+      );
     });
 
     return {
       ...group,
-      to: group.to || '/free-diagnosis',
-      items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
+      to: group.to || '/learning-diagnosis',
+      items: [{ label: '학습진단', to: '/learning-diagnosis', sortOrder: 0 }, ...withoutLearningDiagnosis]
     };
   });
 }
@@ -123,7 +142,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(parsed));
+    return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(parsed));
   } catch {
     return null;
   }
@@ -210,7 +229,7 @@ function buildNavGroups(rows) {
       };
     });
 
-  return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(groups));
+  return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(groups));
 }
 
 // 헤더 메가메뉴·푸터가 공유하는 내비게이션 그룹 훅.
@@ -220,7 +239,7 @@ export function useNavGroups() {
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [navGroups, setNavGroups] = useState(() => {
     return applyPromotedSlugRoutes(
-      ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+      ensureLearningDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
     );
   });
 

@@ -48,9 +48,9 @@ export const MEGA_COL_GAP = '0.5rem';
 export const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
-    to: '/free-diagnosis',
+    to: '/learning-diagnosis',
     items: [
-      { label: '무료진단', to: '/free-diagnosis', sortOrder: 1 },
+      { label: '학습진단', to: '/learning-diagnosis', sortOrder: 1 },
       { label: '목표관리', to: '/services/goal', sortOrder: 2 },
       { label: '콜멘토', to: '/services/callmentor', sortOrder: 3 },
       { label: '수행평가', to: '/services/performance', sortOrder: 4 },
@@ -110,13 +110,30 @@ export const FALLBACK_NAV_GROUPS = [
 // DB link 컬럼에 죽은 값(레거시 '/services' 스텁 등)을 담고 있을 때의 이름 기반 안전망.
 // FALLBACK_NAV_GROUPS의 '서비스' 그룹 라벨・경로와 동일한 소스오브트루스로 유지할 것.
 export const SERVICE_NAME_ROUTES = {
-  무료진단: '/free-diagnosis',
+  학습진단: '/learning-diagnosis',
   목표관리: '/services/goal',
   콜멘토: '/services/callmentor',
   수행평가: '/services/performance',
   자기평가: '/services/self-assessment',
   심화탐구: '/services/research'
 };
+
+// program_categories(DB) name 컬럼에 아직 남아있는 구 이름 → 화면 표시용 신 이름 매핑.
+// 무료진단 → 학습진단 개명 후 링크는 useNavGroups의 PROMOTED_PATH_ROUTES가 이미 신규 라우트로
+// 보내고 있지만, DB name 자체가 여전히 '무료진단'이라 서비스 카드에 구 이름이 그대로 노출된다.
+// DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정 금지)이라 PROMOTED_PATH_ROUTES와 같은
+// 취지로 여기에 안전망을 둔다. DB 값이 '무료진단'/'무료 진단'(공백 포함) 어느 쪽으로 저장돼
+// 있을지 확실치 않아 공백을 제거한 뒤 키를 비교한다. DB name을 '학습진단'으로 마이그레이션하면
+// 이 매핑은 더 이상 아무것도 치환하지 않는 상태가 되어 자연히 무해해진다(그때 제거 가능).
+const SERVICE_NAME_OVERRIDES = {
+  무료진단: '학습진단'
+};
+
+export function normalizeServiceName(name) {
+  const trimmed = String(name || '').trim();
+  const key = trimmed.replace(/\s+/g, '');
+  return SERVICE_NAME_OVERRIDES[key] || trimmed;
+}
 
 export const MENU_GROUP_ORDER = {
   서비스: 1,

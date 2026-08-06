@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * 엘리먼트가 뷰포트에 걸쳐 있는 동안만 true인 상태를 반환하는 훅.
- * 서비스 랜딩 4종 + FreeDiagnosisLanding의 히어로 오라 회전/부유 애니메이션이
+ * 서비스 랜딩 4종 + LearningDiagnosisLanding의 히어로 오라 회전/부유 애니메이션이
  * 화면 밖에서도 계속 도는 리페인트 비용을 막기 위해 쓰인다(GoalManagement.jsx
  * HeroSection 선례가 원본).
  *
