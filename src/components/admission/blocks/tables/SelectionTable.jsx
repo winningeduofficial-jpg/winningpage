@@ -3,6 +3,8 @@ import { getTableVariantLayout, SELECTION_CELL_CLASS_BY_ROLE, selectionEmptyFall
 // buildSelectionMethodTable(admissionParsing.js:1194) 재현.
 // 빈값은 muted span이 아니라 리터럴 '-'(escapeHtml(row.type || '-') 계열).
 // minimum 컬럼만 admission-minimum-badge 배지로 감싼다.
+// ⚠ 아래 `role === 'minimum'` 조건은 admissionLayout.js의 getCellKind와 동기화돼야
+// 한다(editor/TableBlockEditor.jsx가 그 함수로 badge 편집기를 고른다) — 한쪽만 바꾸면 편집기와 표시가 어긋난다.
 export default function SelectionTable({ columns, rows }) {
   const layout = getTableVariantLayout('selection');
 

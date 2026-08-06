@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { getTableVariantLayout, getCellKind } from '../admissionLayout';
 import CellEditor from './cells/CellEditor';
 import ImeSafeInput from './ImeSafeInput';
+import ColumnRoleEditor from './ColumnRoleEditor';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
 import * as ops from './tableBlockOperations';
 
@@ -97,13 +98,10 @@ export default function TableBlockEditor({ section, block, onChange }) {
                       aria-label={`컬럼 ${colIdx + 1} 라벨`}
                       className="admission-cell-editor-input w-full border border-[#d7d7d7] px-1.5 py-1 text-xs font-bold"
                     />
-                    <ImeSafeInput
-                      type="text"
-                      value={column.role ?? ''}
-                      onCommit={(next) => updateColumnField(colIdx, 'role', next)}
-                      aria-label={`컬럼 ${colIdx + 1} role`}
-                      placeholder="role"
-                      className="admission-cell-editor-input w-full border border-[#d7d7d7] px-1.5 py-1 text-[11px] text-gray-500"
+                    <ColumnRoleEditor
+                      variant={block.variant}
+                      role={column.role}
+                      onChange={(next) => updateColumnField(colIdx, 'role', next)}
                     />
                     <select
                       value={column.align ?? ''}

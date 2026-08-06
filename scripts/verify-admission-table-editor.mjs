@@ -49,9 +49,10 @@ async function main() {
   const ops = await loadModule('src/components/admission/editor/tableBlockOperations.js');
   const layout = await loadModule('src/components/admission/admissionLayout.js');
   const TableBlockEditor = await loadModule('src/components/admission/editor/TableBlockEditor.jsx', 'default');
+  const ColumnRoleEditor = await loadModule('src/components/admission/editor/ColumnRoleEditor.jsx', 'default');
 
   const { validateTableBlock, getColumnMutationBlockReason, resolveCellKind, emptyCellForKind } = validation;
-  const { getCellKind } = layout;
+  const { getCellKind, getKnownRolesForVariant, defaultNewColumnRole } = layout;
 
   // ── 샘플 블록 ──────────────────────────────────────────────────────
   const selectionBlock = {
@@ -315,6 +316,41 @@ async function main() {
       pass1 && pass2,
       JSON.stringify({ r1, r2 })
     );
+  }
+
+  // ── 8) role 드롭다운 제한(2026-08-06 감사 반영) ──────────────────────
+  {
+    const pass =
+      JSON.stringify(getKnownRolesForVariant('selection')) === JSON.stringify(['type', 'name', 'seats', 'minimum', 'method']) &&
+      JSON.stringify(getKnownRolesForVariant('change')) === JSON.stringify(['no', 'title', 'content']) &&
+      JSON.stringify(getKnownRolesForVariant('recruit')) === JSON.stringify(['group', 'unit', 'series']) &&
+      JSON.stringify(getKnownRolesForVariant('generic')) === JSON.stringify([]);
+    record('8a. getKnownRolesForVariant — admissionParsing.js doc 생성기 소스와 일치(selection/change/recruit/generic)', pass, '');
+  }
+  {
+    const pass = defaultNewColumnRole('score') === 'data' && defaultNewColumnRole('recruit') === 'series' && defaultNewColumnRole('generic') === '';
+    record('8b. defaultNewColumnRole — variant별 목록 마지막 항목(비어있으면 "")', pass, '');
+  }
+  {
+    // addColumn이 이제 'col${n}' 대신 알려진 role을 기본으로 쓰는지 —
+    // score는 컬럼 수 비고정이라 addColumn이 실제로 반영된다.
+    const added = ops.addColumn(scoreBlock);
+    const newColumn = added.columns[added.columns.length - 1];
+    const pass = newColumn.role === 'data' && getCellKind('score', newColumn.role) === 'text';
+    record('8c. addColumn 기본 role이 defaultNewColumnRole(variant)를 씀("col${n}" 아님)', pass, JSON.stringify(newColumn));
+  }
+  {
+    const knownOut = renderToStaticMarkup(
+      React.createElement(ColumnRoleEditor, { variant: 'selection', role: 'minimum', onChange: () => {} })
+    );
+    const unknownOut = renderToStaticMarkup(
+      React.createElement(ColumnRoleEditor, { variant: 'selection', role: 'my-custom-role', onChange: () => {} })
+    );
+    const pass =
+      !knownOut.includes('연결되지 않습니다') && // 알려진 role은 경고 없음
+      unknownOut.includes('연결되지 않습니다') && // 목록에 없는 값은(기존 데이터 포함) 경고
+      unknownOut.includes('my-custom-role'); // 직접 입력 필드에 현재 값 유지
+    record('8d. ColumnRoleEditor — 알려진 role은 경고 없음, 미지 role은 경고+현재값 보존', pass, `known=${knownOut}\nunknown=${unknownOut}`);
   }
 
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');

@@ -2,6 +2,8 @@ import { getTableVariantLayout, RECRUIT_FIXED_CELL_CLASS_BY_ROLE, recruitFixedEm
 
 // buildRecruitmentHtml(admissionParsing.js:2261) + buildRecruitCell(:2164) 재현.
 // group/unit은 리터럴 '-' 폴백, 값 셀은 chips 구조(없으면 muted span).
+// ⚠ 아래 `role === 'group' || role === 'unit'` 조건은 admissionLayout.js의 getCellKind와
+// 동기화돼야 한다(editor/TableBlockEditor.jsx가 그 함수로 chips 편집기를 고른다) — 한쪽만 바꾸면 편집기와 표시가 어긋난다.
 export default function RecruitTable({ columns, rows }) {
   const layout = getTableVariantLayout('recruit');
 

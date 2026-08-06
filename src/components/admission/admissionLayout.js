@@ -128,3 +128,52 @@ export function getCellKind(variant, role) {
   if (variant === 'recruit' && role !== 'group' && role !== 'unit') return 'chips';
   return 'text';
 }
+
+// ── variant별 알려진 role 목록(표 편집기 role 드롭다운 전용) ────────────
+// DB 조회 권한이 없어(dev DB 직접 집계는 team-lead 소관) 실데이터 집계
+// 대신 admissionParsing.js의 doc 생성기 코드를 읽어 실제로 만들어지는
+// role 문자열을 그대로 옮겼다(추측이 아니라 생성기 소스 그대로) —
+// 각 항목 옆에 생성기 함수/좌표를 남긴다. selection/change는 이미 있는
+// SELECTION_CELL_CLASS_BY_ROLE/CHANGE_CELL_CLASS_BY_ROLE 키를 그대로
+// 재사용해 값이 두 곳에서 어긋날 여지를 없앴다.
+export const KNOWN_ROLES_BY_VARIANT = {
+  selection: Object.keys(SELECTION_CELL_CLASS_BY_ROLE), // type,name,seats,minimum,method
+  change: Object.keys(CHANGE_CELL_CLASS_BY_ROLE), // no,title,content
+  // exam_schedule doc 생성기(admissionParsing.js:2493/3465): 전형/대상/일정.
+  exam: ['type', 'target', 'schedule'],
+  // minimum_requirements doc 생성기(:2520/3495): 전형/대상/반영 영역/최저/비고.
+  minimum: ['type', 'target', 'areas', 'minimum', 'note'],
+  // school_record_method(recordInfo) doc 생성기(:2548/3608): 구분/내용.
+  recordInfo: ['type', 'content'],
+  // recruitment_quota(score 환산표) doc 생성기(:2564): 구분(type) + 등급별
+  // 컬럼 전부 data. 헤더 라벨(과목명 등)은 매 대학·학년마다 달라지지만
+  // role 자체는 이 2종으로 고정.
+  score: ['type', 'data'],
+  // recruitment_quota(recruit, admission-recruit-table chips 계열) doc
+  // 생성기(:2604-2608/3728-3732): group/unit + 값 컬럼은 전부 series.
+  recruit: [...Object.keys(RECRUIT_FIXED_CELL_CLASS_BY_ROLE), 'series'],
+  // recruitment_quota(recruitExact, 2단 헤더) legacy 임포터(:3666-3668):
+  // 고정 컬럼 idx0=series/그 외=unit, 데이터 컬럼은 전부 data.
+  recruitExact: ['series', 'unit', 'data'],
+  // 특수대학(경찰대/사관학교/과기원) SPECIAL_COLUMN_ROLE_MAP(:2655-2674) 값
+  // 전체 + inferSpecialColumnRole 기본 폴백(data).
+  special: ['type', 'name', 'seats', 'method', 'minimum', 'note', 'series', 'content', 'data'],
+  // 어느 생성기도 만들지 않는 탈출구 variant(admissionLayout.js 상단 주석
+  // "실측 근거 없음") — 알려진 role이 없다.
+  generic: []
+};
+
+export function getKnownRolesForVariant(variant) {
+  return KNOWN_ROLES_BY_VARIANT[variant] || [];
+}
+
+// 새 컬럼의 기본 role. 목록 마지막 항목을 쓴다 — 위 목록은 구조/고정
+// 역할을 앞에, "추가로 늘어나는" 역할(series/data 등)을 뒤에 두도록
+// 의도적으로 정렬했다(예: recruit=[group,unit,series], score=[type,data]).
+// 새로 추가하는 컬럼은 대개 그 "늘어나는" 종류이므로 마지막 항목이 합리적
+// 기본값이다. 목록이 비어 있으면(generic) 빈 문자열 — 편집기가 곧바로
+// "직접 입력" 경고 상태로 보여준다.
+export function defaultNewColumnRole(variant) {
+  const roles = getKnownRolesForVariant(variant);
+  return roles.length ? roles[roles.length - 1] : '';
+}
