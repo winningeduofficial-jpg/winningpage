@@ -65,7 +65,7 @@ const MENU_GROUPS = [
       { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
-      { key: 'freeDiagnosis', label: '무료진단 관리' }
+      { key: 'learningDiagnosis', label: '학습진단 관리' }
     ]
   },
   {
@@ -1790,8 +1790,8 @@ const CONFIGS = {
     defaults: { capacity: 0, applicant_count: 0, confirmed_count: 0, remaining_count: 0 }
   },
 
-  freeDiagnosis: {
-    title: '무료진단 관리',
+  learningDiagnosis: {
+    title: '학습진단 관리',
     custom: true,
     searchPlaceholder: ''
   },
@@ -2446,7 +2446,7 @@ function ProgramSelector({ programs, value, onChange }) {
   );
 }
 
-function FreeDiagnosisAdmin() {
+function LearningDiagnosisAdmin() {
   const [questions, setQuestions] = useState([]);
   const [options, setOptions] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -2494,7 +2494,7 @@ function FreeDiagnosisAdmin() {
 
     const error = questionRes.error || optionRes.error || programRes.error;
     if (error) {
-      alert(`무료진단 데이터 조회 실패: ${error.message}`);
+      alert(`학습진단 데이터 조회 실패: ${error.message}`);
       return;
     }
 
@@ -2779,7 +2779,7 @@ function FreeDiagnosisAdmin() {
       <div className="bg-white px-6 py-5 shadow">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black">무료진단 관리</h1>
+            <h1 className="text-xl font-black">학습진단 관리</h1>
             <p className="mt-1 text-sm font-bold text-red-500">
               질문 내용, 답변 내용, 중복 선택 여부, 답변별 추천 프로그램을 이 화면에서 수정합니다.
             </p>
@@ -2794,7 +2794,7 @@ function FreeDiagnosisAdmin() {
 
       {loading ? (
         <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
-          무료진단 데이터를 불러오는 중입니다.
+          학습진단 데이터를 불러오는 중입니다.
         </div>
       ) : (
         <>
@@ -5101,13 +5101,13 @@ export default function Admin() {
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
           {config.custom ? (
-            // custom 삼항의 일반화 지점. 선례(freeDiagnosis)는 CustomComponent를 지정하지 않으므로
+            // custom 삼항의 일반화 지점. 선례(learningDiagnosis)는 CustomComponent를 지정하지 않으므로
             // 기존 하드코딩 동작이 그대로 보존된다 — 회귀 위험 0. 신규 섹션(premiumBookPages)은
             // config.CustomComponent로 자기 컴포넌트를 지정한다.
             config.CustomComponent ? (
               <config.CustomComponent />
             ) : (
-              <FreeDiagnosisAdmin />
+              <LearningDiagnosisAdmin />
             )
           ) : mode === 'list' ? (
             config.comingSoon ? (

@@ -65,7 +65,12 @@ export const PROMOTED_SLUG_ROUTES = {
 // 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
 // DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
 const PROMOTED_PATH_ROUTES = {
-  '/gallery': '/info/column'
+  '/gallery': '/info/column',
+  // 무료진단 → 학습진단 개명. DB(program_categories.link / banners.button_link /
+  // page_contents.slug)에 아직 '/free-diagnosis'가 남아 있고 App.jsx에서 그 라우트는
+  // 삭제됐으므로(catch-all → '/') 링크가 죽는다. DB 레코드 수정은 운영자 몫이라
+  // '/gallery' 선례와 동일하게 코드측 안전망을 둔다. DB 정리 후 제거 가능.
+  '/free-diagnosis': '/learning-diagnosis'
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
@@ -92,7 +97,7 @@ function applyPromotedSlugRoutes(groups) {
   }));
 }
 
-function ensureFreeDiagnosisInService(groups) {
+function ensureLearningDiagnosisInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => {
@@ -101,15 +106,20 @@ function ensureFreeDiagnosisInService(groups) {
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
-    const withoutFreeDiagnosis = items.filter((item) => {
+    const withoutLearningDiagnosis = items.filter((item) => {
+      // 아래 두 리터럴('무료진단' / '/free-diagnosis')은 화면 출력값이 아니라
+      // DB page_contents(menu_label / slug)에서 온 구(舊) 항목을 걸러내는 비교 계약이다.
+      // 개명(학습진단) 시에도 의도적으로 남겨둔다 — 바꾸면 DB 구 항목이 필터를 통과해
+      // '학습진단'(코드 주입)과 '무료진단'(DB, 죽은 링크)이 메뉴에 중복 노출된다.
+      // DB 마이그레이션 시 이 줄도 함께 '학습진단' / '/learning-diagnosis'로 바꿔야 한다.
       const label = cleanText(item?.label).replace(/\s+/g, '');
       return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
     });
 
     return {
       ...group,
-      to: group.to || '/free-diagnosis',
-      items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
+      to: group.to || '/learning-diagnosis',
+      items: [{ label: '학습진단', to: '/learning-diagnosis', sortOrder: 0 }, ...withoutLearningDiagnosis]
     };
   });
 }
@@ -125,7 +135,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(parsed));
+    return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(parsed));
   } catch {
     return null;
   }
@@ -212,7 +222,7 @@ function buildNavGroups(rows) {
       };
     });
 
-  return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(groups));
+  return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(groups));
 }
 
 // 헤더 메가메뉴·푸터가 공유하는 내비게이션 그룹 훅.
@@ -222,7 +232,7 @@ export function useNavGroups() {
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [navGroups, setNavGroups] = useState(() => {
     return applyPromotedSlugRoutes(
-      ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+      ensureLearningDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
     );
   });
 

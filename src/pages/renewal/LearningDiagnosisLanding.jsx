@@ -218,7 +218,7 @@ function HeroSection() {
       <div aria-hidden="true" style={HERO_GRAIN_STYLE} className={`${HERO_GRAIN_CLASS} inset-0`} />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
-        <p className={HERO_EYEBROW_CLASS}>무료진단</p>
+        <p className={HERO_EYEBROW_CLASS}>학습진단</p>
 
         <h1 className={`mt-6 ${HERO_HEADLINE_CLASS}`}>
           학생부 업로드 없이 나에게 딱 맞는 서비스를 추천받아요
@@ -227,7 +227,7 @@ function HeroSection() {
         <p className={`mt-6 ${HERO_SUBTEXT_CLASS}`}>설문조사로 나의 강점과 약점을 찾아드려요</p>
 
         <Link
-          to="/free-diagnosis/survey"
+          to="/learning-diagnosis/survey"
           className={`${CTA_LINK_CLASS} mt-6 bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-[#013262]`}
         >
           지금 시작하기
@@ -237,7 +237,7 @@ function HeroSection() {
           <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
             <img
               src={heroBrowserV2}
-              alt="위닝에듀 무료진단 문항 화면이 담긴 브라우저 목업"
+              alt="위닝에듀 학습진단 문항 화면이 담긴 브라우저 목업"
               width={1280}
               height={553}
               className="w-full"
@@ -256,10 +256,10 @@ function StepsSection() {
         <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>
           학생부 업로드 없이,
           <br />
-          20분이면 완성하는 무료진단
+          20분이면 완성하는 학습진단
         </h2>
 
-        {/* 이 카드행은 심화탐구 기준 ServiceProcessCards 로 수렴했다. 기존 무료진단 시안
+        {/* 이 카드행은 심화탐구 기준 ServiceProcessCards 로 수렴했다. 기존 학습진단 시안
             결정(B7)은 폐기. */}
         <ServiceProcessCards items={STEPS} />
       </div>
@@ -271,7 +271,7 @@ function AudienceSection() {
   return (
     <section className="bg-white pt-20 pb-10 md:pt-[15.625rem] md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 무료 진단을 추천해요</h2>
+        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 학습 진단을 추천해요</h2>
 
         {/* 353×498 카드 3장 + gap 20 = 1099 → 컨테이너 내부 1100 안에 정확히 수용.
             3열은 wide(1184)에서만 성립한다 — lg(1024) 내부 950으로 3열을 짜면 카드 300.67,
@@ -321,7 +321,7 @@ function BenefitsSection() {
   return (
     <section className="bg-white pb-10 pt-20 md:pt-[15rem] md:pb-0">
       <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-[3.75rem]">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>무료진단으로 얻을 수 있는 것</h2>
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>학습진단으로 얻을 수 있는 것</h2>
 
         <div className="w-full max-w-[60.625rem] rounded-[0.75rem] border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
           <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -507,21 +507,21 @@ function BottomCta() {
     <section className="bg-[#172437] py-14 md:mt-[14.75rem] md:pt-[8.8125rem] md:pb-[8.875rem]">
       <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-[3.75rem]">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
-          어서 무료진단을 경험해보세요
+          어서 학습진단을 경험해보세요
         </h2>
 
         <Link
-          to="/free-diagnosis/survey"
+          to="/learning-diagnosis/survey"
           className={`${CTA_LINK_CLASS} bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-white`}
         >
-          무료진단 시작하기 →
+          학습진단 시작하기 →
         </Link>
       </div>
     </section>
   );
 }
 
-export default function FreeDiagnosisLanding() {
+export default function LearningDiagnosisLanding() {
   return (
     <main className="min-h-screen bg-white pt-16">
       <HeroSection />

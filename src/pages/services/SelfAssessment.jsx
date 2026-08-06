@@ -45,8 +45,8 @@ import outcomeCalendar from '../../assets/services/goal/outcome-calendar.png';
 // 자기평가는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
 // 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
 // paidServiceAccess.js — 심화탐구・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
-// /free-diagnosis로 임시 우회했으나(기존 ServiceLandingPage 스켈레톤의 paidServiceName: null
-// 분기와 동일한 처리) 무료진단 안내는 히어로 문구와 모순돼 폐기했다. 상세 페이지가 생기면
+// /learning-diagnosis로 임시 우회했으나(기존 ServiceLandingPage 스켈레톤의 paidServiceName: null
+// 분기와 동일한 처리) 학습진단 안내는 히어로 문구와 모순돼 폐기했다. 상세 페이지가 생기면
 // PAID_SERVICE_CONFIGS에 등록하고 openPaidServiceOrAlert로 교체한다.
 
 // 컨테이너 폭 — 시안은 섹션마다 1436~1444px(1920 기준)로 드리프트하지만, StageSection 실측
@@ -207,7 +207,7 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
-  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + FreeDiagnosisLanding
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + LearningDiagnosisLanding
   // 공통 useInView 훅 구조(PerformanceAssessment.jsx HeroSection 선례).
   const [auraRef, auraInView] = useInView();
 
@@ -257,7 +257,7 @@ function HeroSection() {
       </div>
       {/* 그레인 — 회전 래퍼의 형제(밖)에 둔다. transform이 걸린 요소는 새 stacking context를
           만들어 mix-blend-overlay가 섹션 배경(bg-white)을 backdrop으로 못 잡고 그레인이 전면
-          노출되는 회귀가 실제로 있었다(수행평가・무료진단 선례). */}
+          노출되는 회귀가 실제로 있었다(수행평가・학습진단 선례). */}
       <div
         aria-hidden="true"
         style={{ backgroundImage: `url(${heroGrain})` }}

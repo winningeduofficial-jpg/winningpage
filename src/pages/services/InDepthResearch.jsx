@@ -29,7 +29,7 @@ import outcomeCalendar from '../../assets/services/research/outcome-calendar.png
 // 심화탐구는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
 // 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
 // paidServiceAccess.js — 자기평가・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
-// /free-diagnosis로 임시 우회했으나(자기평가서 선례와 동일한 처리) 무료진단 안내는 히어로
+// /learning-diagnosis로 임시 우회했으나(자기평가서 선례와 동일한 처리) 학습진단 안내는 히어로
 // 문구와 모순돼 폐기했다. 상세 페이지가 생기면 PAID_SERVICE_CONFIGS에 등록하고
 // openPaidServiceOrAlert로 교체한다.
 
@@ -176,7 +176,7 @@ const FAQ_ITEMS = [
 ];
 
 function HeroSection() {
-  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + FreeDiagnosisLanding
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + LearningDiagnosisLanding
   // 공통 useInView 훅 구조.
   const [auraRef, auraInView] = useInView();
 
@@ -230,7 +230,7 @@ function HeroSection() {
       </div>
       {/* 그레인 — 회전 래퍼의 형제(밖)에 둔다. transform이 걸린 요소는 새 stacking context를
           만들어 mix-blend-overlay가 섹션 배경(bg-white)을 backdrop으로 못 잡고 그레인이 전면
-          노출되는 회귀가 실제로 있었다(수행평가・무료진단 선례). 타일 8.375rem은 시안 Texture의
+          노출되는 회귀가 실제로 있었다(수행평가・학습진단 선례). 타일 8.375rem은 시안 Texture의
           imageRef(bcfa0f2e…, 220×220) × scalingFactor 0.609091 = 134px 실측값이며, opacity-40은
           시안(opacity 1 + OVERLAY)보다 옅다 — 4페이지 통일값을 우선했다. */}
       <div
