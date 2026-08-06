@@ -1,26 +1,24 @@
 // [C-2] 학생 가입 완료 — docs/login-signup-renewal-spec.md §3.3 C-2,
 // 노드 2393:10548 = 2393:10182(픽셀 단위 동일 중복 프레임).
-// 학부모 연동 코드의 발급 주체/저장 위치가 시안 데이터에 없다(§4 GAP: 백엔드 신규
-// 기능) — 이 페이지는 임시로 6자리 mock 코드를 생성해 SignupContext.linkCode에 보관하고
-// 표시한다. TODO: StudentForm의 complete_signup_profile RPC 응답(또는 별도 발급 API)에서
-// 실제 코드를 받아 setLinkCode로 채우도록 교체해야 한다.
+//
+// 연결코드는 가입 RPC가 발급한다(sql/40_auth_signup.sql [7] — complete_signup_profile이
+// student_link_codes에 없으면 issue_student_link_code로 만들고 응답의 link_code로 준다).
+// StudentForm이 그 값을 SignupContext에 넣어주므로 이 화면은 **표시만** 한다.
+//
+// ⚠️ 예전에는 이 화면이 6자리 mock 코드를 직접 만들어 보여줬다. 그 코드는 DB에 없어서
+//   학부모가 입력하면 link_code_not_found가 났다 — 화면상으로는 정상이라 발견이 어렵다.
+//   여기서 코드를 "만들어내면" 안 된다. 없으면 없다고 보여줘야 한다.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthLayout, AuthTitle, InfoCard, PrimaryButton, TextLinkButton } from '../../components/auth';
 import { useSignup } from '../../context/SignupContext';
 
-// TODO: 실제 연동 코드는 백엔드 발급 API 응답값으로 교체 — 현재는 6자리 mock.
-function generateMockLinkCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-// 자녀 연동 코드 발급/표시는 백엔드 발급 API가 없어 mock으로 대체한 것이라(위 TODO) 실제
-// 배포 경로에는 노출하지 않는다 — 이 플래그가 켜진 경우에만 mock 코드 섹션을 렌더링한다.
+// 연결코드 안내 노출 여부. 학부모 연결 기능 오픈 시점에 맞춰 켠다.
 const CHILD_LINK_ENABLED = import.meta.env.VITE_CHILD_LINK_ENABLED === 'true';
 
 export default function StudentComplete() {
   const navigate = useNavigate();
-  const { formData, linkCode, setLinkCode, signupCompleted, resetSignup } = useSignup();
+  const { formData, linkCode, signupCompleted, resetSignup } = useSignup();
   const [copied, setCopied] = useState(false);
 
   // StudentForm의 complete_signup_profile RPC 성공 직후에만 setSignupCompleted(true)가
@@ -30,13 +28,6 @@ export default function StudentComplete() {
       navigate('/signup/student', { replace: true });
     }
   }, [signupCompleted, navigate]);
-
-  useEffect(() => {
-    if (CHILD_LINK_ENABLED && !linkCode) {
-      setLinkCode(generateMockLinkCode());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const studentName = formData.name?.trim() || '회원';
   // 시안 호칭은 성을 뗀 이름만 사용(예: '김주원' → '주원님'). 한국식 3자 이상 이름 기준
@@ -85,16 +76,15 @@ export default function StudentComplete() {
         {studentName} 학생, 위닝에듀에 온 걸 환영해요
       </p>
 
-      {/* TODO: 실제 연동 코드는 백엔드 발급 API 응답값으로 교체 — 현재는 6자리 mock(위
-          generateMockLinkCode). 백엔드 미연동 상태로는 배포 경로에 노출하지 않도록
-          VITE_CHILD_LINK_ENABLED 플래그로 감싼다. */}
-      {CHILD_LINK_ENABLED && (
+      {/* 코드가 없으면 빈 자리를 보여주는 대신 안내로 대체한다. 여기서 임의의 코드를
+          만들어 채우면 학부모가 입력했을 때 찾을 수 없는 코드가 된다. */}
+      {CHILD_LINK_ENABLED && linkCode && (
         <div className="flex w-full flex-col gap-4">
           <InfoCard variant="card" className="text-center">
             코드를 학부모님께 알려주면 학부모 대시보드에 내 학습 현황이 자동으로 연결돼요
           </InfoCard>
 
-          <div className="flex w-full items-center justify-center rounded-[0.875rem] py-4 text-xl font-medium text-accent">
+          <div className="flex w-full items-center justify-center rounded-[0.875rem] py-4 text-xl font-medium tracking-[0.2em] text-accent">
             {linkCode}
           </div>
 
@@ -109,6 +99,12 @@ export default function StudentComplete() {
             {copied ? '복사되었습니다' : '코드 복사하기'}
           </TextLinkButton>
         </div>
+      )}
+
+      {CHILD_LINK_ENABLED && !linkCode && (
+        <InfoCard variant="card" className="text-center">
+          연결코드는 마이페이지에서 확인할 수 있어요
+        </InfoCard>
       )}
 
       <div className="flex w-full flex-col gap-3">

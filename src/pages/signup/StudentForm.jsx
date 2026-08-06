@@ -141,7 +141,8 @@ export default function StudentForm() {
     setAllAgreements,
     verification,
     updateVerification,
-    setSignupCompleted
+    setSignupCompleted,
+    setLinkCode
   } = useSignup();
 
   const [loading, setLoading] = useState(false);
@@ -582,6 +583,13 @@ export default function StudentForm() {
       if (!profileResult?.ok) {
         setFormError('회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.');
         return;
+      }
+
+      // 연결코드는 RPC가 발급해 응답에 담아준다(sql/40_auth_signup.sql [7] link_code).
+      // 이걸 넘기지 않으면 C-2가 화면용 코드를 따로 만들어 보여주게 되는데, 그 코드는
+      // DB에 없어서 학부모가 입력해도 link_code_not_found가 난다.
+      if (profileResult.link_code) {
+        setLinkCode(profileResult.link_code);
       }
 
       // C-2(StudentComplete) 진입 가드용 완료 플래그 — RPC 성공 직후에만 true로 설정한다.
