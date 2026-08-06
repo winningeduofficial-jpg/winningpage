@@ -477,6 +477,15 @@ function normalizeWhitespaceText(text) {
   return String(text || '').replace(/\s+/g, ' ').trim();
 }
 
+// Gate B 불일치 리포트용 — recruitment_quota의 <pre> 원문처럼 셀 하나가
+// 수만 자인 경우 reason 문자열에 통째로 박히면 콘솔 로그가 읽을 수 없게
+// 길어진다. 앞뒤 100자만 남기고 가운데를 생략 표시한다.
+function truncateForReport(text, context = 100) {
+  const s = String(text ?? '');
+  if (s.length <= context * 2) return s;
+  return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
+}
+
 // 공백 정규화(빈 텍스트 노드/주석 무시, 텍스트는 trim+공백 압축) + 허용
 // diff 2종 제거를 동시에 적용해 "의미 있는" 자식만 남긴다.
 function collectSignificantChildren(node) {
@@ -527,7 +536,7 @@ function compareElementNodes(a, b, pathLabel) {
     if ((attrsA[key] ?? '') !== (attrsB[key] ?? '')) {
       return {
         ok: false,
-        reason: `${nextPath} 속성 ${key} 불일치: "${attrsA[key] ?? ''}" vs "${attrsB[key] ?? ''}"`,
+        reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? '')}" vs "${truncateForReport(attrsB[key] ?? '')}"`,
         path: nextPath
       };
     }
@@ -552,7 +561,7 @@ function compareElementNodes(a, b, pathLabel) {
       if (ca.text !== cb.text) {
         return {
           ok: false,
-          reason: `${nextPath} idx=${i} 텍스트 불일치: "${ca.text}" vs "${cb.text}"`,
+          reason: `${nextPath} idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
           path: nextPath
         };
       }
@@ -589,7 +598,11 @@ function compareHtmlFragments(htmlReact, htmlMirror) {
     }
     if (ca.kind === 'text') {
       if (ca.text !== cb.text) {
-        return { ok: false, reason: `최상위 idx=${i} 텍스트 불일치: "${ca.text}" vs "${cb.text}"`, path: '/' };
+        return {
+          ok: false,
+          reason: `최상위 idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
+          path: '/'
+        };
       }
       continue;
     }
