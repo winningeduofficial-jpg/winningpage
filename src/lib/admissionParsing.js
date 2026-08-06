@@ -1840,7 +1840,13 @@ export function buildRecordInfoRows(lines) {
   return normalizeStudentRecordInfoRows(rows);
 }
 
-export function buildGradeScoreTables(lines) {
+// Phase 1 절단면: buildGradeScoreTables는 루프 안에서 metric/headers/rows를
+// 만든 뒤 즉시 escapeHtml + htmlTable로 HTML화해 절단면이 없던 유일한
+// 지점이다. buildGradeScoreBlocks가 구조({metric,headers,rows}[])만 반환하고,
+// buildGradeScoreTables는 그 결과를 renderGradeScoreTable로 렌더하는 얇은
+// 래퍼로 남는다. 템플릿 리터럴의 공백·개행은 골든 바이트 비교 대상이라
+// 원본 그대로 유지한다.
+export function buildGradeScoreBlocks(lines) {
   const blocks = [];
   let i = 0;
 
@@ -1910,14 +1916,22 @@ export function buildGradeScoreTables(lines) {
     }
 
     if (headers.length && rows.length) {
-      blocks.push(`
-        <div class="admission-subhead">${escapeHtml(metric)} 환산표</div>
-        ${htmlTable(['구분', ...headers], rows, { compact: true, className: 'admission-data-table admission-score-table' })}
-      `);
+      blocks.push({ metric, headers, rows });
     }
   }
 
   return blocks;
+}
+
+function renderGradeScoreTable({ metric, headers, rows }) {
+  return `
+        <div class="admission-subhead">${escapeHtml(metric)} 환산표</div>
+        ${htmlTable(['구분', ...headers], rows, { compact: true, className: 'admission-data-table admission-score-table' })}
+      `;
+}
+
+export function buildGradeScoreTables(lines) {
+  return buildGradeScoreBlocks(lines).map(renderGradeScoreTable);
 }
 
 export function buildStudentRecordHtml(lines, sectionKey) {
