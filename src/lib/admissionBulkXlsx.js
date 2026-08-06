@@ -204,7 +204,7 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  *   rows: Array<Record<string, unknown>>,
  *   errors: Array<{ row: number, admissionYear: unknown, universityKey: unknown, reason: string }>,
  *   warnings: Array<{ row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string }>,
- *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[] }
+ *   summary: { willInsert: number, willUpdate: number, willSkip: number, newYears: number[], newUniversityCount: number }
  * }}
  */
 export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
@@ -216,11 +216,17 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   let willInsert = 0;
   let willUpdate = 0;
   let willSkip = 0;
+  let newUniversityCount = 0;
   const newYearsSet = new Set();
 
   if (!worksheet) {
     errors.push({ row: -1, admissionYear: null, universityKey: null, reason: '시트를 찾을 수 없습니다.' });
-    return { rows, errors, warnings, summary: { willInsert, willUpdate, willSkip, newYears: [] } };
+    return {
+      rows,
+      errors,
+      warnings,
+      summary: { willInsert, willUpdate, willSkip, newYears: [], newUniversityCount }
+    };
   }
 
   // 연도별 관리: DB에 이미 존재하는 연도 집합(existingRows 키에서 추출) —
@@ -290,6 +296,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       if (!knownYears.has(String(admissionYear))) {
         newYearsSet.add(admissionYear);
       } else {
+        newUniversityCount += 1;
         warnings.push({
           row: rowIndex,
           admissionYear,
@@ -370,7 +377,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       willInsert,
       willUpdate,
       willSkip,
-      newYears: [...newYearsSet].sort((a, b) => a - b)
+      newYears: [...newYearsSet].sort((a, b) => a - b),
+      newUniversityCount
     }
   };
 }

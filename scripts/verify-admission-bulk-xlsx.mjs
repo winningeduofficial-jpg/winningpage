@@ -244,6 +244,7 @@ async function main() {
     assert(rows.length === 1, `행이 1개 생성돼야 함(실제 ${rows.length})`);
     assert(s.willInsert === 1 && s.willUpdate === 0, `willInsert=1,willUpdate=0이어야 함(실제 ${JSON.stringify(s)})`);
     assert(s.newYears.includes(9999), `newYears에 9999가 없음: ${s.newYears}`);
+    assert(s.newUniversityCount === 0, `완전히 새 연도인데 newUniversityCount가 0이 아님(실제 ${s.newUniversityCount})`);
     const newUniWarnings = warnings.filter((w) => w.reason.includes('신규 대학 추가'));
     assert(newUniWarnings.length === 0, '완전히 새 연도인데 "신규 대학 추가" 경고가 나면 안 됨');
   });
@@ -265,6 +266,7 @@ async function main() {
     const { warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existingRows);
     assert(s.willInsert === 1, `willInsert=1이어야 함(실제 ${s.willInsert})`);
     assert(!s.newYears.includes(knownYear), `이미 아는 연도가 newYears에 잘못 들어감: ${s.newYears}`);
+    assert(s.newUniversityCount === 1, `summary.newUniversityCount가 1이어야 함(실제 ${s.newUniversityCount})`);
     const newUniWarnings = warnings.filter((w) => w.reason.includes('신규 대학 추가'));
     assert(newUniWarnings.length === 1, `"신규 대학 추가" 경고가 정확히 1건이어야 함(실제 ${newUniWarnings.length})`);
   });
