@@ -688,32 +688,6 @@ export function normalizeChangeTokenSpacing(text) {
     .trim();
 }
 
-export function countCharInText(text, char) {
-  return (String(text || '').match(new RegExp('\\' + char, 'g')) || []).length;
-}
-
-export function trimComparisonFragment(text) {
-  let value = normalizeChangeTokenSpacing(text)
-    .replace(/^[-–—•·\s]*→\s*/, '')
-    .trim();
-
-  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼
-  // 변경 설명의 괄호가 비교값으로 밀려 들어간 경우만 제거한다.
-  value = value.replace(/^.*?(?:변경|신설|폐지|개편|증가|감소|확대|축소)\s*\((?=[^)]*$)/, '');
-
-  let open = countCharInText(value, '(');
-  let close = countCharInText(value, ')');
-  while (close > open && /\)\s*$/.test(value)) {
-    value = value.replace(/\)\s*$/, '').trim();
-    close -= 1;
-  }
-  while (open > close && /\(\s*$/.test(value)) {
-    value = value.replace(/\(\s*$/, '').trim();
-    open -= 1;
-  }
-  return normalizeChangeTokenSpacing(value);
-}
-
 export function splitSubnumberedChangeItem(text) {
   const raw = clean(text);
   if (!raw) return [];
@@ -783,67 +757,6 @@ export function parseChangeRowTitleAndContent(text) {
       .trim() || '주요 변경';
 
   return { title, content };
-}
-
-export function splitChangePairs(content) {
-  let raw = normalizeChangeTokenSpacing(content);
-  if (!raw) return [];
-
-  // 표 변환 중 앞에 붙은 화살표/불릿이 연도 비교 분리를 방해하지 않도록 선제 제거한다.
-  raw = raw
-    .replace(/^[-–—•·\s]*→\s*/, '')
-    .replace(/^[-–—•·]+\s*/, '')
-    .trim();
-
-  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼 괄호 안에 비교값이 들어 있는 경우,
-  // 비교값만 사용한다. 제목은 parseChangeRowTitleAndContent에서 이미 분리한다.
-  const bracketedOnlyPair = raw.match(
-    /^.{2,90}?(?:변경|신설|폐지|통폐합|개편|분리|통합|확대|축소|증가|감소)\s*\((.+→.+)\)$/
-  );
-  if (bracketedOnlyPair) raw = normalizeChangeTokenSpacing(bracketedOnlyPair[1]);
-
-  const labelled = raw.match(
-    /^(?:변경\s*전|개편\s*전|구조개편\s*전)\s*(.*?)(?:변경\s*후|개편\s*후|구조개편\s*후)\s*(.+)$/
-  );
-  if (labelled) {
-    const before = trimComparisonFragment(labelled[1]);
-    const after = trimComparisonFragment(labelled[2]);
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  // 2026학년도와 2027학년도가 같은 변경 항목에 함께 있으면 무조건 2026 → 2027 비교로 분리한다.
-  const y2026 = raw.indexOf('2026학년도');
-  const y2027 = raw.indexOf('2027학년도');
-  if (y2026 >= 0 && y2027 > y2026) {
-    const before = trimComparisonFragment(raw.slice(y2026, y2027));
-    const after = trimComparisonFragment(raw.slice(y2027));
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  // 여러 개의 A → B가 / 로 이어진 경우 각각 비교쌍으로 분리한다.
-  const slashParts = raw
-    .split(/\s+\/\s+/)
-    .map(normalizeChangeTokenSpacing)
-    .filter(Boolean);
-  if (slashParts.length >= 2 && slashParts.every((part) => part.includes('→'))) {
-    return slashParts
-      .map((part) => {
-        const [beforeRaw, ...afterPartsRaw] = part.split('→').map(normalizeChangeTokenSpacing);
-        const before = trimComparisonFragment(beforeRaw);
-        const after = trimComparisonFragment(afterPartsRaw.join(' → '));
-        return { before: before || '-', after: after || '-' };
-      })
-      .filter((pair) => pair.before || pair.after);
-  }
-
-  if (raw.includes('→')) {
-    const [beforeRaw, ...afterPartsRaw] = raw.split('→').map(normalizeChangeTokenSpacing);
-    const before = trimComparisonFragment(beforeRaw);
-    const after = trimComparisonFragment(afterPartsRaw.join(' → '));
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  return [];
 }
 
 export function buildChangeValueHtml(content) {
