@@ -18,6 +18,7 @@
 --  [11] identity_verifications   : NICE 본인확인 결과 (CI/DI, 서버 전용)
 --  [12] identity_verifications   : NICE 「통합인증」 규격 반영 (컬럼 추가)
 --  [13] complete_signup_profile  : 지역 필수를 학생 전용으로 (학부모 가입 개통)
+--  [14] complete_signup_profile  : 휴대폰 인증 서버 강제 + 소비 처리
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1599,6 +1600,241 @@ grant execute on function public.complete_signup_profile(
   text, text, text, text, text, text, text, text,
   boolean, boolean, boolean, boolean, boolean, boolean
 ) to authenticated, service_role;
+
+
+-- =====================================================================
+-- [14] complete_signup_profile : 휴대폰 인증을 서버에서 강제하고 소비 처리
+--
+-- 무엇이 문제였나
+--   `api/verify-phone-code.js`가 인증을 확인하고 `verified_at`을 찍지만, 가입 RPC가
+--   그걸 **한 번도 확인하지 않았다**. 그래서 클라이언트가 인증 단계를 통째로
+--   건너뛰고 가입을 완료할 수 있었다. 프론트 가드는 우회하면 그만이라 방어가 아니다.
+--   verify-phone-code.js의 주석이 "consumed_at은 실제 가입 완료 시점에 찍어야 한다"고
+--   적어뒀는데, 찍는 주체가 없었다.
+--
+-- 왜 학부모만 강제하나
+--   지금 실제로 서버 인증을 거치는 폼은 학부모(E-1)뿐이다.
+--     - `StudentForm`(C-1)의 휴대폰 인증은 아직 **클라이언트 스텁**이다. API를 부르지
+--       않으므로 여기서 강제하면 **동작 중인 학생 가입이 전부 깨진다**.
+--     - `Under14Form`(D-2)은 "학생 명의의 핸드폰이 없어요"를 허용하고, 애초에 가입
+--       RPC를 부르지 않는다(제출이 스텁).
+--   클라이언트가 만족시킬 수 없는 조건을 서버가 요구하면 기능이 죽는다. 그래서
+--   **StudentForm을 실 API에 배선한 뒤 학생도 함께 강제**하는 것이 다음 단계다.
+--
+-- 소비(consume)는 유형과 무관하게 한다
+--   인증 기록이 있으면 유형을 가리지 않고 `consumed_at`을 찍는다. 같은 인증으로
+--   두 번 가입하는 것을 막기 위해서다.
+--
+-- 30분 창
+--   인증 직후 폼을 마저 채우는 시간을 감안한 값이다. 무기한으로 두면 예전에 인증해둔
+--   번호로 나중에 가입할 수 있어 인증의 의미가 옅어진다.
+-- =====================================================================
+
+create or replace function public.complete_signup_profile(
+  p_name                      text,
+  p_username                  text,
+  p_phone                     text,
+  p_email                     text,
+  p_region                    text,
+  p_school_type               text,
+  p_school_name               text,
+  p_member_type               text,
+  p_terms_service_agreed      boolean,
+  p_privacy_required_agreed   boolean,
+  p_identity_required_agreed  boolean,
+  p_privacy_optional_agreed   boolean,
+  p_marketing_agreed          boolean,
+  p_ads_agreed                boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_user_id     uuid;
+  v_name        text;
+  v_username    text;
+  v_phone       text;
+  v_phone_digits text;
+  v_pv_id       uuid;
+  v_email       text;
+  v_region      text;
+  v_school_type text;
+  v_school_name text;
+  v_member_type text;
+  v_link_code   text;
+begin
+  v_user_id := auth.uid();
+
+  if v_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  v_name        := trim(coalesce(p_name, ''));
+  v_email       := lower(trim(coalesce(p_email, '')));
+  v_username    := lower(trim(coalesce(nullif(p_username, ''), v_email)));
+  v_phone       := trim(coalesce(p_phone, ''));
+  v_region      := trim(coalesce(p_region, ''));
+  v_school_type := trim(coalesce(p_school_type, ''));
+  v_school_name := trim(coalesce(p_school_name, ''));
+  v_member_type := lower(trim(coalesce(p_member_type, '')));
+
+  -- 저장은 입력값 그대로 두고(기존 동작 유지), 조회만 숫자로 정규화한다.
+  v_phone_digits := regexp_replace(v_phone, '[^0-9]', '', 'g');
+
+  if v_name = '' then
+    raise exception 'name_required';
+  end if;
+
+  if v_email = '' then
+    raise exception 'email_required';
+  end if;
+
+  if v_username = '' then
+    v_username := v_email;
+  end if;
+
+  if v_member_type = '' then
+    raise exception 'member_type_required';
+  end if;
+
+  if v_member_type not in ('student', 'parent', 'mentor') then
+    raise exception 'invalid_member_type';
+  end if;
+
+  -- 지역·재학 구분은 학생에게만 필수([13]).
+  if v_member_type = 'student' and v_region = '' then
+    raise exception 'region_required';
+  end if;
+
+  if v_member_type = 'student' and v_school_type = '' then
+    raise exception 'school_type_required';
+  end if;
+
+  if coalesce(p_terms_service_agreed, false) is not true then
+    raise exception 'terms_service_required';
+  end if;
+
+  if coalesce(p_privacy_required_agreed, false) is not true then
+    raise exception 'privacy_required';
+  end if;
+
+  -- 본인 인증 정보 수집 동의는 학생 약관에만 있는 항목이다.
+  if v_member_type = 'student'
+     and coalesce(p_identity_required_agreed, false) is not true then
+    raise exception 'identity_required';
+  end if;
+
+  -- ── 휴대폰 인증 확인 ────────────────────────────────────────────
+  -- 아직 소비되지 않은 최근 인증 건을 찾는다. 재발송으로 여러 건이 쌓일 수 있어
+  -- 가장 최근 것을 쓴다.
+  if v_phone_digits <> '' then
+    select id into v_pv_id
+    from public.phone_verifications
+    where phone = v_phone_digits
+      and verified_at is not null
+      and consumed_at is null
+      and verified_at > now() - interval '30 minutes'
+    order by verified_at desc
+    limit 1;
+  end if;
+
+  if v_member_type = 'parent' and v_pv_id is null then
+    raise exception 'phone_not_verified';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles
+    where lower(trim(email)) = v_email
+      and id <> v_user_id
+  ) then
+    raise exception 'duplicate_email';
+  end if;
+
+  insert into public.profiles (
+    id, name, username, phone, email, region,
+    school_type, school_name, member_type, role,
+    terms_service_agreed, privacy_required_agreed, privacy_optional_agreed,
+    marketing_agreed, ads_agreed, updated_at
+  )
+  values (
+    v_user_id, v_name, v_username, v_phone, v_email, nullif(v_region, ''),
+    nullif(v_school_type, ''), nullif(v_school_name, ''), v_member_type, 'user',
+    coalesce(p_terms_service_agreed, false),
+    coalesce(p_privacy_required_agreed, false),
+    coalesce(p_privacy_optional_agreed, false),
+    coalesce(p_marketing_agreed, false),
+    coalesce(p_ads_agreed, false),
+    now()
+  )
+  on conflict (id) do update
+  set
+    name                    = excluded.name,
+    username                = excluded.username,
+    phone                   = excluded.phone,
+    email                   = excluded.email,
+    region                  = excluded.region,
+    school_type             = excluded.school_type,
+    school_name             = excluded.school_name,
+    member_type             = excluded.member_type,
+    role                    = coalesce(public.profiles.role, 'user'),
+    terms_service_agreed    = excluded.terms_service_agreed,
+    privacy_required_agreed = excluded.privacy_required_agreed,
+    privacy_optional_agreed = excluded.privacy_optional_agreed,
+    marketing_agreed        = excluded.marketing_agreed,
+    ads_agreed              = excluded.ads_agreed,
+    updated_at              = now();
+
+  -- 인증 기록을 소비 처리한다. 같은 인증으로 두 번 가입할 수 없게 한다.
+  if v_pv_id is not null then
+    update public.phone_verifications
+    set consumed_at = now()
+    where id = v_pv_id;
+  end if;
+
+  -- 약관 동의 이력 (버전 단위). [7]/[13]과 동일하다.
+  insert into public.user_term_agreements (user_id, term_id, agreed)
+  select
+    v_user_id,
+    t.id,
+    case
+      when t.code ~ '_identity$'                        then coalesce(p_identity_required_agreed, false)
+      when t.profile_column = 'terms_service_agreed'    then coalesce(p_terms_service_agreed, false)
+      when t.profile_column = 'privacy_required_agreed' then coalesce(p_privacy_required_agreed, false)
+      when t.profile_column = 'marketing_agreed'        then coalesce(p_marketing_agreed, false)
+      when t.profile_column = 'ads_agreed'              then coalesce(p_ads_agreed, false)
+      else false
+    end
+  from public.terms t
+  where t.is_active
+    and t.audience in (v_member_type, 'common')
+  on conflict (user_id, term_id) do update
+  set agreed    = excluded.agreed,
+      agreed_at = now();
+
+  -- 학생 연결코드: 없을 때만 발급한다(재호출로 코드가 회전하면 안 된다).
+  if v_member_type = 'student' then
+    select code into v_link_code
+    from public.student_link_codes
+    where student_id = v_user_id
+      and is_active;
+
+    if v_link_code is null then
+      v_link_code := public.issue_student_link_code(v_user_id);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_user_id,
+    'email', v_email,
+    'member_type', v_member_type,
+    'link_code', v_link_code   -- 학생이 아니면 null
+  );
+end;
+$function$;
 
 
 -- =====================================================================
