@@ -261,7 +261,12 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         onEnableGroups={enableGroups}
       />
 
-      <div className={layout.scrollWrapClassName}>
+      {/* 폼 자체가 가로로 안 밀리도록 이 안에서만 가로 스크롤한다(공개
+          모달의 .admission-scroll-table과 같은 원리) — 편집기는 라벨
+          input/role select 등으로 표시용보다 넓어질 수 있어 max-w-full +
+          overflow-x-auto를 직접 강제한다(공유 CSS 클래스에만 기대지
+          않음, 2026-08-06 폼 가로 넘침 실측 반영). */}
+      <div className={`${layout.scrollWrapClassName} max-w-full overflow-x-auto`}>
         <table className={layout.tableClassName}>
           <thead>
             <tr>

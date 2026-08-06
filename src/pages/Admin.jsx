@@ -4421,7 +4421,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                   )}
                 </div>
 
-                <div className="px-5 py-3">
+                <div className="min-w-0 px-5 py-3">
                   {readonly ? (
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
@@ -4431,14 +4431,27 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                   ) : (
                     <>
                       {!['file', 'multiImage', 'multiFile', 'blockEditor', 'admissionDoc'].includes(field.type) &&
-                        !(field.type === 'image' && field.hideUrlInput) && (
+                        !(field.type === 'image' && field.hideUrlInput) &&
+                        // readOnly textarea(예: *_html 미러)는 3차 정보 — 데이터 셀보다
+                        // 큰 자리를 차지하지 않도록 기본 접힘(details/summary)으로 감싼다.
+                        // 기능(값 확인·복사)은 그대로, 펼쳐야 보이게만 바꾼 것.
+                        (field.type === 'textarea' && field.readOnly ? (
+                          <details className="group">
+                            <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
+                              HTML 미러 보기(자동 생성, 편집 불가)
+                            </summary>
+                            <div className="mt-2">
+                              <AdminInput field={field} value={form[field.key]} onChange={change} disabled={readonly} />
+                            </div>
+                          </details>
+                        ) : (
                           <AdminInput
                             field={field}
                             value={form[field.key]}
                             onChange={change}
                             disabled={readonly}
                           />
-                        )}
+                        ))}
 
                       {field.type === 'admissionDoc' && (
                         <AdmissionDocFieldEditor
