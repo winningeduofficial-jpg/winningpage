@@ -376,10 +376,30 @@ function MissionSection() {
         decoding="async"
         className="absolute inset-0 -z-10 h-full w-full object-cover"
       />
-      {/* 시안에 없는 스크림 — 사진 위 흰 텍스트 대비 확보용(정규화 근거는 위 섹션 주석 참고). */}
+      {/* 시안에 없는 스크림 — 사진 위 흰 텍스트 대비 확보용(정규화 근거는 위 섹션 주석 참고).
+          sm 미만: 컨테이너 폭이 화면 폭과 같아 뷰포트 기준 좌→우 그라디언트로도 텍스트가 충분히
+          덮이므로 기존 전면 dim 유지 — 컨테이너 기준으로 바꾸면 텍스트가 px-5(약 5% 지점)에서
+          시작해 그라디언트 진한 구간(18%~) 이전 투명 구간에 놓여 오히려 대비가 빠진다.
+          sm 이상: 텍스트는 가운데 정렬된 max-w-content(1164px) 컨테이너에 고정인데, 기존
+          뷰포트 기준 그라디언트는 화면 폭을 따라 늘어나 초광폭에서 실패한다 — 3440 실측에서
+          텍스트 우측 dim 이 0.2까지 옅어지고, 동시에 object-cover 세로 crop 이 63%→35%로
+          심해져 텍스트 뒤에 오던 어두운 인물 실루엣이 화면 밖으로 밀려나 밝은 배경이 그 자리를
+          채우면서 각 블록 둘째 줄이 거의 안 보였다. 스크림을 컨텐츠 폭(min(100%, 118rem))에
+          고정해 화면이 넓어져도 텍스트를 따라가게 한다. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/45 to-black/20 sm:bg-gradient-to-r sm:from-black/60 sm:via-black/30 sm:to-transparent"
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/45 to-black/20 sm:hidden"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-y-0 -z-10 hidden sm:block"
+        style={{
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(100%, 118rem)',
+          background:
+            'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.72) 18%, rgba(0,0,0,0.72) 52%, transparent 78%)'
+        }}
       />
 
       <div className="mx-auto flex w-full max-w-content flex-col px-5 sm:px-8">
