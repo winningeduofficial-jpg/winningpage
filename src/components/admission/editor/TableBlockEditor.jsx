@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { getTableVariantLayout, getCellKind } from '../admissionLayout';
 import CellEditor from './cells/CellEditor';
 import ImeSafeInput from './ImeSafeInput';
@@ -6,7 +7,7 @@ import ColumnRoleEditor from './ColumnRoleEditor';
 import TableGroupHeaderEditor from './TableGroupHeaderEditor';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
 import * as ops from './tableBlockOperations';
-import { exportTableBlockToXlsx } from './xlsx/tableBlockXlsx';
+import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBlockXlsx';
 
 // TableBlock(AdmissionDoc) 편집 코어. blocks/tables/*.jsx(표시 전용,
 // Gate B 바이트 계약 보호 대상)를 재사용하지 않고 별도로 구현한다 —
@@ -34,6 +35,9 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   );
   const columnMutationAllowed = columnMutationBlockReason === null;
   const [xlsxOversized, setXlsxOversized] = useState([]);
+  const [xlsxImportErrors, setXlsxImportErrors] = useState([]);
+  const [xlsxImportPreview, setXlsxImportPreview] = useState(null); // { block, changeSummary, unchanged }
+  const xlsxFileInputRef = useRef(null);
 
   function roleKindOf(column) {
     return getCellKind(block.variant, column?.role);
@@ -98,6 +102,46 @@ export default function TableBlockEditor({ section, block, onChange, universityN
     setXlsxOversized(result.ok ? [] : result.oversized);
   }
 
+  // 가져오기는 바로 반영하지 않는다 — 미리보기(변경 요약 또는 "변경
+  // 없음")를 먼저 보여주고, 관리자가 "적용"을 눌러야 onChange가 실행된다.
+  function handleImportFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    if (!file) return;
+
+    setXlsxImportErrors([]);
+    setXlsxImportPreview(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const workbook = XLSX.read(reader.result, { type: 'array' });
+        const result = importTableBlockFromXlsx(workbook, block, section);
+        if (!result.ok) {
+          setXlsxImportErrors(result.errors);
+          return;
+        }
+        setXlsxImportPreview(result);
+      } catch (err) {
+        setXlsxImportErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+      }
+    };
+    reader.onerror = () => {
+      setXlsxImportErrors(['파일을 읽지 못했습니다.']);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function applyXlsxImport() {
+    if (!xlsxImportPreview) return;
+    onChange(xlsxImportPreview.block);
+    setXlsxImportPreview(null);
+  }
+
+  function cancelXlsxImport() {
+    setXlsxImportPreview(null);
+  }
+
   return (
     <div className="admission-table-editor">
       {!validation.ok && (
@@ -115,7 +159,54 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         <button type="button" onClick={handleExportXlsx} className="text-xs font-bold text-[#2348ff]">
           xlsx로 내보내기
         </button>
+        <button type="button" onClick={() => xlsxFileInputRef.current?.click()} className="text-xs font-bold text-[#2348ff]">
+          xlsx 가져오기
+        </button>
+        <input
+          ref={xlsxFileInputRef}
+          type="file"
+          accept=".xlsx"
+          onChange={handleImportFileChange}
+          className="hidden"
+          aria-label="xlsx 파일 선택"
+        />
       </div>
+
+      {xlsxImportErrors.length > 0 && (
+        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          <p>가져오기를 거부했습니다(기존 값 보존) — 아래 문제를 고친 뒤 다시 시도하세요:</p>
+          <ul className="mt-1 list-disc pl-4">
+            {xlsxImportErrors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {xlsxImportPreview && (
+        <div className="mb-2 rounded border border-[#2348ff] bg-[#eef2ff] px-3 py-2 text-xs font-bold text-[#2348ff]">
+          {xlsxImportPreview.unchanged ? (
+            <p>가져온 파일이 현재 표와 내용상 동일합니다(변경 없음).</p>
+          ) : (
+            <>
+              <p>가져오기 미리보기 — 아직 적용되지 않았습니다:</p>
+              <ul className="mt-1 list-disc pl-4 font-normal">
+                <li>행 추가 {xlsxImportPreview.changeSummary.rowsAdded}개 / 삭제 {xlsxImportPreview.changeSummary.rowsRemoved}개</li>
+                <li>셀 변경 {xlsxImportPreview.changeSummary.cellsChanged}개</li>
+                <li>컬럼 구성 변경: {xlsxImportPreview.changeSummary.columnsChanged ? '있음' : '없음'}</li>
+              </ul>
+            </>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" onClick={applyXlsxImport} className="rounded bg-[#2348ff] px-3 py-1 text-white">
+              적용
+            </button>
+            <button type="button" onClick={cancelXlsxImport} className="rounded border border-[#2348ff] px-3 py-1">
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {xlsxOversized.length > 0 && (
         <div className="mb-2 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">

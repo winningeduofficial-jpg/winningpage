@@ -27,7 +27,8 @@
 //     개행(\n)으로 이어붙인다(엑셀 Alt+Enter 줄바꿈과 동일한 형태로
 //     보인다). 빈 배열은 빈 문자열.
 import * as XLSX from 'xlsx';
-import { getKnownRolesForVariant } from '../../admissionLayout';
+import { getKnownRolesForVariant, getCellKind, defaultNewColumnRole } from '../../admissionLayout';
+import { validateTableBlock, blocksEqual } from '../tableEditorValidation';
 
 // 엑셀 셀 문자 수 한도(SheetJS가 XLSX.writeFile 시점에 실제로 이 값으로
 // throw한다 — 직접 재현 확인함). 사전 검사로 이 예외를 만나기 전에
@@ -36,6 +37,10 @@ export const MAX_XLSX_CELL_LENGTH = 32767;
 
 const BADGE_HAS_SUFFIX = ' [최저있음]';
 const BADGE_NONE_SUFFIX = ' [최저없음]';
+// 직렬화 접미어를 역파싱하는 정규식 — deserializeCellFromXlsx가 쓴다.
+// 셀 끝에 붙는 " [최저있음]"/" [최저없음]"만 매칭한다(값 중간에 우연히
+// 같은 문자열이 있어도 끝이 아니면 매칭 안 됨).
+const BADGE_SUFFIX_RE = /\s?\[최저(있음|없음)\]$/;
 
 export function serializeCellForXlsx(cell) {
   if (cell === null || cell === undefined) return '';
@@ -206,4 +211,213 @@ function triggerBrowserDownload(workbook, fileName) {
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+}
+
+// =====================================================================
+// 가져오기(⑤) — 내보내기가 만든 형식의 역함수. "신뢰하지 마라"가 원칙:
+// 관리자가 엑셀에서 무슨 짓을 했는지 알 수 없다. 파싱 성공 ≠ 데이터
+// 정상이므로, 구조 불변식은 새로 만들지 않고 validateAdmissionDoc(를
+// 감싼 validateTableBlock)에게 그대로 위임한다 — 컬럼 수 고정 variant
+// 위반, groups 합 불일치, rows 길이 불일치를 전부 그 한 번의 호출이
+// 잡아준다(아래 참고 — 이 파일에서 그 규칙을 다시 구현하지 않는다).
+// =====================================================================
+
+/**
+ * 셀 텍스트를 kind(column의 role로 결정된 기대 형태)에 맞춰 역직렬화한다.
+ * kind는 항상 role에서 나온다(텍스트 모양을 보고 추측하지 않는다) — 그래야
+ * "우연히 badge 접미어와 같은 문자열을 담은 일반 텍스트 셀"을 잘못
+ * badge로 오인하는 사고가 없다(역도 마찬가지: role이 badge인데 텍스트가
+ * 접미어 없이 들어오면 has/none 여부는 기본값 minimumNone으로 폴백 —
+ * 관리자가 표 편집기에서 직접 고칠 수 있다).
+ */
+export function deserializeCellFromXlsx(rawValue, kind) {
+  const text = rawValue === null || rawValue === undefined ? '' : String(rawValue);
+
+  if (kind === 'chips') {
+    if (!text) return { chips: [] };
+    const lines = text.split('\n');
+    const allMatch = lines.every((line) => line.includes(': '));
+    if (!allMatch) {
+      // 형식이 "label: value" 줄바꿈 규칙을 안 지키면(관리자가 손으로
+      // 다른 걸 써넣은 경우) 데이터를 조용히 버리지 않는다 — 원문 전체를
+      // 라벨 하나짜리 칩으로 보존해 표 편집기에서 눈에 띄게 하고 직접
+      // 고칠 수 있게 한다.
+      return { chips: [{ label: text, value: '' }] };
+    }
+    return {
+      chips: lines.map((line) => {
+        const idx = line.indexOf(': ');
+        return { label: line.slice(0, idx), value: line.slice(idx + 2) };
+      })
+    };
+  }
+
+  if (kind === 'badge') {
+    const match = text.match(BADGE_SUFFIX_RE);
+    if (match) {
+      return { text: text.slice(0, text.length - match[0].length), badge: match[1] === '있음' ? 'minimumHas' : 'minimumNone' };
+    }
+    return { text, badge: 'minimumNone' };
+  }
+
+  return text;
+}
+
+// row0의 세로 병합(고정 컬럼, rowspan=2)과 가로 병합(그룹, colspan=count)
+// 좌표로부터 fixedColumnCount/groups를 복원한다. count=1인 그룹은
+// 내보내기가 병합을 안 넣으므로(1칸짜리 병합은 무의미) 병합이 없는
+// 컬럼을 count=1 그룹으로 취급한다.
+function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
+  const verticalMerges = merges.filter((m) => m.s.r === 0 && m.e.r === 1 && m.s.c === m.e.c);
+  const fixedCols = verticalMerges.map((m) => m.s.c).sort((a, b) => a - b);
+  const fixedColumnCount = fixedCols.length;
+  const contiguousFromZero = fixedCols.every((c, idx) => c === idx);
+  if (!contiguousFromZero) {
+    return { error: '고정 컬럼(세로 병합) 구성이 0번 컬럼부터 연속되지 않습니다 — 헤더 병합 구조가 손상된 것으로 보입니다.' };
+  }
+
+  const horizontalSpanByStart = new Map(
+    merges.filter((m) => m.s.r === 0 && m.e.r === 0 && m.e.c > m.s.c).map((m) => [m.s.c, m.e.c])
+  );
+
+  const groups = [];
+  let c = fixedColumnCount;
+  while (c < totalColumns) {
+    const spanEnd = horizontalSpanByStart.get(c);
+    if (spanEnd !== undefined) {
+      groups.push({ name: String(row0Labels[c] ?? ''), count: spanEnd - c + 1 });
+      c = spanEnd + 1;
+    } else {
+      groups.push({ name: String(row0Labels[c] ?? ''), count: 1 });
+      c += 1;
+    }
+  }
+
+  return { fixedColumnCount, groups };
+}
+
+/**
+ * TableBlock 변경 요약(행 추가/삭제 수, 셀 변경 수, 컬럼 구성 변경 여부) —
+ * 가져오기 미리보기 UI가 "무엇이 바뀌는지" 보여줄 때 쓴다.
+ */
+export function summarizeBlockChange(oldBlock, newBlock) {
+  const rowsAdded = Math.max(0, newBlock.rows.length - oldBlock.rows.length);
+  const rowsRemoved = Math.max(0, oldBlock.rows.length - newBlock.rows.length);
+
+  let cellsChanged = 0;
+  const commonRows = Math.min(oldBlock.rows.length, newBlock.rows.length);
+  for (let r = 0; r < commonRows; r += 1) {
+    const oldRow = oldBlock.rows[r];
+    const newRow = newBlock.rows[r];
+    const commonCols = Math.min(oldRow.length, newRow.length);
+    for (let c = 0; c < commonCols; c += 1) {
+      if (JSON.stringify(oldRow[c]) !== JSON.stringify(newRow[c])) cellsChanged += 1;
+    }
+  }
+
+  const columnsChanged = JSON.stringify(oldBlock.columns) !== JSON.stringify(newBlock.columns);
+
+  return { rowsAdded, rowsRemoved, cellsChanged, columnsChanged };
+}
+
+/**
+ * xlsx 워크북 → TableBlock. referenceBlock(가져오기 대상이 되는 기존
+ * 블록)의 variant/columns를 구조 기준(역할·정렬)으로 삼는다 — 시트에는
+ * role이 담겨 있지 않기 때문이다(라벨만 편집 가능). 컬럼 수가 바뀌면
+ * 새/사라진 컬럼의 role은 defaultNewColumnRole(variant)로 채우거나
+ * 버려진다.
+ *
+ * 구조 불변식(컬럼 수 고정 variant, groups 합, rows 길이)은 이 함수가
+ * 재구현하지 않는다 — 후보 블록을 일단 만들고 validateTableBlock에
+ * 그대로 맡긴다. 실패하면 후보를 버리고 ok:false + validateAdmissionDoc
+ * 원본 에러 메시지를 그대로 반환한다("억지로 고쳐서 넣지 마라").
+ *
+ * @returns {{ ok: boolean, errors?: string[], block?: object,
+ *   changeSummary?: object, unchanged?: boolean }}
+ */
+export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
+  const worksheet = workbook.Sheets?.['표'];
+  if (!worksheet) {
+    return { ok: false, errors: ['"표" 시트를 찾을 수 없습니다 — 이 편집기로 내보낸 xlsx 파일이 맞는지 확인하세요.'] };
+  }
+
+  // defval을 주지 않는다 — 그러면 SheetJS가 시트 전체에서 가장 넓은 행에
+  // 맞춰 모든 행(헤더 포함)을 그 폭으로 강제 패딩해버려서, "이 행이
+  // 실제로 몇 칸을 채웠는지"(행 길이 초과 판정에 필수)를 알 수 없게
+  // 된다. defval 없이 읽으면 각 행 배열의 길이가 그 행이 실제로 채운
+  // 마지막 칸까지만 반영된다(직접 재현 확인함).
+  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 }).map((row) =>
+    row.map((cell) => (cell === undefined || cell === null ? '' : String(cell)))
+  );
+
+  const hasGroups = Boolean(referenceBlock.groups);
+  const headerRowCount = hasGroups ? 2 : 1;
+  const headerRows = grid.slice(0, headerRowCount);
+  // 헤더 이후 완전히 빈 행(엑셀 트레일링 공백 등)은 제외한다 — 의도적으로
+  // 넣은 빈 행과 구분할 방법이 없어, "전부 빈 칸"만 제외 대상으로 삼는다.
+  const bodyRowsRaw = grid.slice(headerRowCount).filter((row) => row.some((cell) => cell !== ''));
+
+  if (headerRows.length < headerRowCount || headerRows.some((row) => row.length === 0)) {
+    return { ok: false, errors: ['헤더 행을 읽을 수 없습니다 — 시트 구조가 예상과 다릅니다.'] };
+  }
+
+  let columns;
+  let groups;
+  let fixedColumnCount;
+
+  if (hasGroups) {
+    const merges = worksheet['!merges'] || [];
+    const totalColumns = Math.max(headerRows[0].length, headerRows[1]?.length || 0);
+    const reconstructed = reconstructGroupsFromMerges(merges, headerRows[0], totalColumns);
+    if (reconstructed.error) {
+      return { ok: false, errors: [reconstructed.error] };
+    }
+    ({ fixedColumnCount, groups } = reconstructed);
+
+    columns = [];
+    for (let c = 0; c < fixedColumnCount; c += 1) {
+      columns.push({ role: referenceBlock.columns[c]?.role ?? defaultNewColumnRole(referenceBlock.variant), label: String(headerRows[0][c] ?? '') });
+    }
+    for (let c = fixedColumnCount; c < totalColumns; c += 1) {
+      columns.push({ role: referenceBlock.columns[c]?.role ?? defaultNewColumnRole(referenceBlock.variant), label: String(headerRows[1][c] ?? '') });
+    }
+  } else {
+    columns = headerRows[0].map((label, idx) => {
+      const refCol = referenceBlock.columns[idx];
+      return {
+        role: refCol?.role ?? defaultNewColumnRole(referenceBlock.variant),
+        label: String(label ?? ''),
+        ...(refCol?.align ? { align: refCol.align } : {})
+      };
+    });
+  }
+
+  const targetColumnCount = columns.length;
+  const rows = bodyRowsRaw.map((row) => {
+    // 짧은 행은 빈 셀로 채운다. 긴 행은 여기서 자르지 않는다 — 그대로
+    // candidate에 실어 validateTableBlock의 rows.length===columns.length
+    // 불변식이 거부하게 한다("길면 거부"를 이 파일에서 재구현하지 않고
+    // 기존 검증기에 위임).
+    const padded = row.length < targetColumnCount ? [...row, ...new Array(targetColumnCount - row.length).fill('')] : row;
+    return padded.map((cell, colIdx) => deserializeCellFromXlsx(cell, getCellKind(referenceBlock.variant, columns[colIdx]?.role)));
+  });
+
+  const candidate = {
+    ...referenceBlock,
+    columns,
+    rows,
+    ...(hasGroups ? { groups, fixedColumnCount } : {})
+  };
+
+  const validation = validateTableBlock(section, candidate);
+  if (!validation.ok) {
+    return { ok: false, errors: validation.errors };
+  }
+
+  return {
+    ok: true,
+    block: candidate,
+    changeSummary: summarizeBlockChange(referenceBlock, candidate),
+    unchanged: blocksEqual(section, referenceBlock, candidate)
+  };
 }

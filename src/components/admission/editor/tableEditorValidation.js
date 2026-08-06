@@ -8,7 +8,7 @@
 // 그 이유로 거부하는지"를 실제로 확인하는 프로브 방식을 쓴다 — 맵이 나중에
 // 바뀌어도 이 판정이 자동으로 따라간다(값 복제 방식의 동기화 누락 위험을
 // 원천 차단).
-import { validateAdmissionDoc } from '../../../lib/admissionDoc';
+import { validateAdmissionDoc, stableStringifyDoc } from '../../../lib/admissionDoc';
 
 // 편집 중인 Block 배열(문서 전체 또는 그 일부)을 최소 AdmissionDoc으로
 // 감싸 validateAdmissionDoc에 넘긴다. section은 validateAdmissionDoc이
@@ -29,6 +29,24 @@ export function validateBlocks(section, blocks) {
 /** TableBlock 하나만 검증할 때의 축약형. */
 export function validateTableBlock(section, block) {
   return validateBlocks(section, [block]);
+}
+
+/**
+ * TableBlock 두 개가 (generatedAt 등을 제외하고) 내용상 동일한지 비교한다.
+ * xlsx 가져오기(⑤)가 "변경 없음" 판정에 쓴다 — stableStringifyDoc이 이미
+ * 하는 키 정렬·generatedAt 제외를 블록 단위 비교에도 그대로 재사용한다.
+ */
+export function blocksEqual(section, blockA, blockB) {
+  const wrap = (block) =>
+    stableStringifyDoc({
+      v: 1,
+      section,
+      source: 'manual',
+      generator: 'compare',
+      generatedAt: 'x',
+      blocks: [block]
+    });
+  return wrap(blockA) === wrap(blockB);
 }
 
 function buildColumnAddProbe(block) {
