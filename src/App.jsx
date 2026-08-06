@@ -113,6 +113,13 @@ export default function App() {
           <Route path="/learning-diagnosis" element={<LearningDiagnosisLanding />} />
           <Route path="/learning-diagnosis/survey" element={<LearningDiagnosis />} />
 
+          {/* 구 경로(무료진단) 호환. 외부 링크·북마크 보호용이라 영구 유지한다 */}
+          <Route path="/free-diagnosis" element={<Navigate to="/learning-diagnosis" replace />} />
+          <Route
+            path="/free-diagnosis/survey"
+            element={<Navigate to="/learning-diagnosis/survey" replace />}
+          />
+
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
           <Route path="/page/services-content" element={<Navigate to="/services/callmentor" replace />} />

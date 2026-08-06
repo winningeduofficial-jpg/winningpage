@@ -97,19 +97,19 @@ export default function LearningDiagnosis() {
 
       const [questionRes, optionRes, programRes] = await Promise.all([
         supabase
-          .from('free_diagnosis_questions')
+          .from('learning_diagnosis_questions')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
         supabase
-          .from('free_diagnosis_options')
+          .from('learning_diagnosis_options')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
         supabase
-          .from('free_diagnosis_programs')
+          .from('learning_diagnosis_programs')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })

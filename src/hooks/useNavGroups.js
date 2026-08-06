@@ -10,7 +10,12 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // v5: DB page_contents.menu_label에 '교육컬럼'(오타) 이 저장돼 헤더/푸터에 그대로 노출되던 문제.
 // normalizeMenuLabel로 런타임 상시 치환하도록 고쳤지만, 이미 오타를 캐싱한 사용자에게도 즉시
 // 반영되도록 키 버전을 한 번 더 bump한다.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v5';
+// v6: 무료진단 → 학습진단 DB 마이그레이션(테이블 rename + program_categories/page_contents/banners
+// 데이터 값 일괄 치환). 코드측 안전망이던 PROMOTED_PATH_ROUTES의 '/free-diagnosis' 매핑과
+// navigation.js의 SERVICE_NAME_OVERRIDES를 제거했다. App.jsx에 영구 리다이렉트가 추가돼 구
+// 링크('/free-diagnosis')가 죽지는 않지만, 캐싱된 구 라벨('무료진단')이 화면에 그대로 노출되는
+// 것을 막고 리다이렉트 한 홉을 절약하기 위해 키를 bump한다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v6';
 
 export function cleanText(value) {
   return String(value || '').trim();
@@ -65,12 +70,7 @@ export const PROMOTED_SLUG_ROUTES = {
 // 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
 // DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
 const PROMOTED_PATH_ROUTES = {
-  '/gallery': '/info/column',
-  // 무료진단 → 학습진단 개명. DB(program_categories.link / banners.button_link /
-  // page_contents.slug)에 아직 '/free-diagnosis'가 남아 있고 App.jsx에서 그 라우트는
-  // 삭제됐으므로(catch-all → '/') 링크가 죽는다. DB 레코드 수정은 운영자 몫이라
-  // '/gallery' 선례와 동일하게 코드측 안전망을 둔다. DB 정리 후 제거 가능.
-  '/free-diagnosis': '/learning-diagnosis'
+  '/gallery': '/info/column'
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
@@ -107,14 +107,24 @@ function ensureLearningDiagnosisInService(groups) {
 
     const items = Array.isArray(group.items) ? group.items : [];
     const withoutLearningDiagnosis = items.filter((item) => {
-      // 구 리터럴('무료진단' / '/free-diagnosis')과 신 리터럴('학습진단' / '/learning-diagnosis')을
-      // 모두 걸러낸다. 세 가지를 동시에 만족시키기 위해서다 —
-      // (a) DB page_contents에 남아있는 구 항목 제거,
-      // (b) 이 함수가 아래에서 주입하는 '학습진단' 항목이 캐시(localStorage)에 저장됐다가 다음
-      //     렌더에서 readCachedNavGroups를 통해 다시 이 함수에 들어올 때 재주입되는 것을 방지
-      //     (멱등성 보장 — 신 리터럴만 안 걸러내면 캐시를 거친 두 번째 렌더에서 메뉴에 항목이
-      //     두 번 나온다),
-      // (c) DB를 신규 이름으로 마이그레이션한 뒤에도 DB 항목과 코드 주입 항목이 중복되지 않도록.
+      // 신 리터럴('학습진단' / '/learning-diagnosis')과 구 리터럴('무료진단' / '/free-diagnosis')을
+      // 모두 걸러낸 뒤, 아래에서 '학습진단' 항목을 항상 맨 앞에 한 번만 주입한다.
+      //
+      // 신 리터럴은 필수다 —
+      // (a) 멱등성: 이 함수가 주입한 항목이 캐시(localStorage)에 저장됐다가 다음 렌더에서
+      //     readCachedNavGroups를 통해 다시 들어올 때 재주입되는 것을 막는다. 안 걸러내면
+      //     캐시를 거친 두 번째 렌더부터 메뉴에 항목이 두 번 나온다.
+      // (b) DB(page_contents)를 신 이름으로 마이그레이션한 뒤 DB 항목과 코드 주입 항목이
+      //     중복되지 않도록.
+      //
+      // 구 리터럴도 남긴다(제거 안 함) — dev DB는 이번에 마이그레이션되지만 운영 DB는 나중에
+      // dump 재이관으로 처리되는 별도 일정이고, 그 사이 운영 page_contents에는 '무료진단' /
+      // '/free-diagnosis' 항목이 그대로 남아 있다. 캐시 키를 v6으로 bump했어도 DB가 계속
+      // 구 값을 내려주면 소용이 없다. 구 리터럴을 지우면 그 항목이 필터를 통과해 코드가
+      // 주입하는 '학습진단'과 나란히 메뉴에 중복 노출된다(링크 자체는 App.jsx의
+      // '/free-diagnosis' 리다이렉트로 살아 있지만, 같은 메뉴가 두 번 보이는 건 그대로 버그).
+      // 두 줄 비용으로 그 창을 막을 수 있어 유지가 이득이다. 운영 DB까지 이관이 끝나면
+      // 구 리터럴 두 줄은 제거해도 된다.
       const label = cleanText(item?.label).replace(/\s+/g, '');
       const to = cleanText(item?.to);
       return (

@@ -151,13 +151,13 @@ alter table public.program_categories add column if not exists icon_image_url te
 -- 기존 행을 먼저 비활성화한 뒤 insert를 실행하세요. (upsert 대용 — name 기준)
 -- update public.program_categories
 --   set is_active = false
---   where name not in ('무료진단', '목표관리', '콜멘토', '수행평가', '자기평가', '심화탐구');
+--   where name not in ('학습진단', '목표관리', '콜멘토', '수행평가', '자기평가', '심화탐구');
 
 insert into public.program_categories (name, description, link, icon, icon_image_url, sort_order, is_active)
 select v.name, v.description, v.link, 'default', v.icon_image_url, v.sort_order, true
 from (
   values
-    ('무료진단', E'무료로 경험하는\n위닝 AE시스템',        '/free-diagnosis',                     '/images/landing/services/free-diagnosis.png',         1),
+    ('학습진단', E'무료로 경험하는\n위닝 AE시스템',        '/learning-diagnosis',                 '/images/landing/services/free-diagnosis.png',         1),
     ('목표관리', E'목표 대학과\n진로에 맞춘 관리 서비스',  '/page/services-goal',                 '/images/landing/services/goal-management.png',        2),
     ('콜멘토',   E'필요한 순간에\n멘토와 바로 연결',       '/page/services-content',              '/images/landing/services/call-mentor.png',            3),
     ('수행평가', E'수행평가를\n함께 완성',                 '/page/services-ai-performance',       '/images/landing/services/performance-assessment.png', 4),
@@ -178,7 +178,7 @@ set description    = v.description,
     is_active      = true
 from (
   values
-    ('무료진단', E'무료로 경험하는\n위닝 AE시스템',        '/images/landing/services/free-diagnosis.png',         1),
+    ('학습진단', E'무료로 경험하는\n위닝 AE시스템',        '/images/landing/services/free-diagnosis.png',         1),
     ('목표관리', E'목표 대학과\n진로에 맞춘 관리 서비스',  '/images/landing/services/goal-management.png',        2),
     ('콜멘토',   E'필요한 순간에\n멘토와 바로 연결',       '/images/landing/services/call-mentor.png',            3),
     ('수행평가', E'수행평가를\n함께 완성',                 '/images/landing/services/performance-assessment.png', 4),

@@ -2474,17 +2474,17 @@ function LearningDiagnosisAdmin() {
 
     const [questionRes, optionRes, programRes] = await Promise.all([
       supabase
-        .from('free_diagnosis_questions')
+        .from('learning_diagnosis_questions')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_options')
+        .from('learning_diagnosis_options')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_programs')
+        .from('learning_diagnosis_programs')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
@@ -2573,7 +2573,7 @@ function LearningDiagnosisAdmin() {
 
     setSaving(true);
 
-    const { error } = await supabase.from('free_diagnosis_questions').insert({
+    const { error } = await supabase.from('learning_diagnosis_questions').insert({
       title,
       description: newQuestion.description || '',
       input_type: newQuestion.input_type || 'single',
@@ -2605,7 +2605,7 @@ function LearningDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .update({
         title: question.title,
         description: question.description || '',
@@ -2631,7 +2631,7 @@ function LearningDiagnosisAdmin() {
       return;
 
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .delete()
       .eq('id', question.id);
     if (error) {
@@ -2644,7 +2644,7 @@ function LearningDiagnosisAdmin() {
 
   async function createOption(questionId) {
     const questionOptions = optionsByQuestion[questionId] || [];
-    const { error } = await supabase.from('free_diagnosis_options').insert({
+    const { error } = await supabase.from('learning_diagnosis_options').insert({
       question_id: questionId,
       label: '',
       program_ids: [],
@@ -2668,7 +2668,7 @@ function LearningDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_options')
+      .from('learning_diagnosis_options')
       .update({
         label: option.label,
         program_ids: normalizeProgramIds(option.program_ids),
@@ -2690,7 +2690,7 @@ function LearningDiagnosisAdmin() {
   async function deleteOption(option) {
     if (!window.confirm('이 답변을 삭제하시겠습니까?')) return;
 
-    const { error } = await supabase.from('free_diagnosis_options').delete().eq('id', option.id);
+    const { error } = await supabase.from('learning_diagnosis_options').delete().eq('id', option.id);
     if (error) {
       alert(`답변 삭제 실패: ${error.message}`);
       return;
@@ -2707,7 +2707,7 @@ function LearningDiagnosisAdmin() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from('free_diagnosis_programs').insert({
+    const { error } = await supabase.from('learning_diagnosis_programs').insert({
       ...newProgram,
       title,
       sort_order: Number(newProgram.sort_order || 1),
@@ -2732,7 +2732,7 @@ function LearningDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_programs')
+      .from('learning_diagnosis_programs')
       .update({
         title: program.title,
         badge: program.badge || '',
@@ -2765,7 +2765,7 @@ function LearningDiagnosisAdmin() {
     )
       return;
 
-    const { error } = await supabase.from('free_diagnosis_programs').delete().eq('id', program.id);
+    const { error } = await supabase.from('learning_diagnosis_programs').delete().eq('id', program.id);
     if (error) {
       alert(`추천 프로그램 삭제 실패: ${error.message}`);
       return;

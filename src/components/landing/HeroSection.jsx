@@ -233,8 +233,9 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
               >
                 {leftSlides.map((banner, index) => {
                   // link_url 우선, 없으면 레거시 button_link (Home.jsx select 목록 참조).
-                  // DB에 저장된 구 라우트('/free-diagnosis' 등)는 승격 매핑으로 신 라우트 치환 —
+                  // DB에 저장된 구 라우트('/gallery' 등)는 승격 매핑으로 신 라우트 치환 —
                   // 매핑에 없는 값은 원본 그대로 통과하므로 외부 URL에도 안전하다.
+                  // ('/free-diagnosis'는 이 매핑이 아니라 App.jsx의 <Navigate replace> 라우트가 처리한다.)
                   const clickUrl = resolvePromotedSlugLink(banner.link_url || banner.button_link);
                   const label = banner.title || `메인 배너 ${index + 1}`;
                   const isActive = index === leftCarousel.activeIndex;
