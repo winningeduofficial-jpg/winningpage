@@ -2808,6 +2808,31 @@ export function buildHwpCategoryHtml(sectionKey, rawText, row = null, university
 // 없어 고정 태그를 쓴다. DB에 실제로 쓰기 시작하는 커밋에서 배선한다.
 const DOC_GENERATOR_TAG = 'admissionParsing@phase2-lib';
 
+// 정제 시점 통일(§2.5) 공용 헬퍼 — htmlTable(:294) 계열(exam/minimum/
+// recordInfo/score/special)이 렌더 시점에 셀마다 적용해온
+// sanitizeAdmissionDisplayText를, doc 생성 시점(행 확정 직후)으로 옮길 때
+// 쓴다. 문자열만 담는 rows(각 variant 전부 plain string[][])에만 쓴다 —
+// selection/recruit처럼 객체 셀(badge/chips)이 섞인 variant에는 쓰지 않는다.
+function sanitizeTableCellRows(rows) {
+  return rows.map((row) => row.map((cell) => sanitizeAdmissionDisplayText(cell)));
+}
+
+// change/plainList 전용 — sanitizeAdmissionDisplayText는 문맥과 무관하게
+// 마크(◯○●☆★)를 지우지만, renderDocToHtml 최종 단계의
+// sanitizeAdmissionRenderedHtml(HTML 문자열 대상)은 '>' 또는 공백 "뒤"에
+// 오는 마크만 지운다(실측: "수능최저○ → ..."처럼 앞 글자에 붙은 마크는
+// 보존, "○ 학과명"처럼 공백 뒤 마크는 제거). doc 생성 시점에 미리
+// 정제하면서 sanitizeAdmissionDisplayText를 그대로 썼다가 숙명여자대학교
+// previous_year_changes 1건에서 이 위치 조건 차이로 Gate A2가 깨졌다
+// (골든은 "○" 보존, sanitizeAdmissionDisplayText는 위치 무관하게 제거).
+// 이 함수는 문자열 시작 또는 공백 뒤에 오는 마크만 지워 실제 렌더 시점
+// 동작을 정확히 재현한다.
+function stripLeadingAdmissionMarks(text) {
+  return String(text || '')
+    .replace(/(^|\s)[◯○●]\s*\d+\s*/g, '$1')
+    .replace(/(^|\s)[◯○●☆★♥♡❤]+\s*/g, '$1');
+}
+
 function makeDoc(sectionKey, blocks, { source = 'parser', warnings, wrapModifier } = {}) {
   const doc = {
     v: 1,
@@ -2836,7 +2861,17 @@ function buildChangeDocBlocks(lines) {
         { role: 'title', label: '변경 항목' },
         { role: 'content', label: '변경 내용' }
       ],
-      rows: items.map((item) => [item.no, item.title, item.content])
+      // 정제 시점 통일: 원래는 renderDocToHtml의 최종 sanitizeAdmissionRenderedHtml
+      // 래핑에서만 ◯○●☆★ 등이 걷혔다(예: "○ 학과명 → 새 학과명"). doc은
+      // React 렌더러도 그대로 소비하므로(그쪽은 그 래핑을 거치지 않는다),
+      // 행 확정 시점에 미리 정제해 저장한다. content는 위치 조건이 있는
+      // stripLeadingAdmissionMarks를 쓴다(sanitizeAdmissionDisplayText는
+      // 위치 무관하게 지워 렌더 시점 실제 동작과 어긋난다 — 위 주석 참고).
+      rows: items.map((item) => [
+        sanitizeAdmissionDisplayText(item.no),
+        sanitizeAdmissionDisplayText(item.title),
+        stripLeadingAdmissionMarks(item.content)
+      ])
     }
   ];
 }
@@ -2859,6 +2894,9 @@ function buildSelectionDocBlocks(lines, sectionKey, warnings) {
         { role: 'minimum', label: '최저' },
         { role: 'method', label: '전형방법' }
       ],
+      // method는 정제 없이 저장돼왔고 renderDocToHtml 최종 wrap의
+      // sanitizeAdmissionRenderedHtml에서만 마크가 걷혔다(예: "100 / ● / 100").
+      // stripLeadingAdmissionMarks로 그 위치 조건을 재현해 미리 정제한다.
       rows: validRows.map((r) => {
         const minimum = normalizeSelectionMinimum(r.minimum);
         return [
@@ -2866,7 +2904,7 @@ function buildSelectionDocBlocks(lines, sectionKey, warnings) {
           r.name || '-',
           r.seats || '-',
           { text: minimum, badge: minimum === '-' ? 'minimumNone' : 'minimumHas' },
-          r.method || '-'
+          stripLeadingAdmissionMarks(r.method) || '-'
         ];
       })
     }
@@ -2947,7 +2985,11 @@ function buildRecordDocBlocks(lines) {
         { role: 'type', label: '구분' },
         { role: 'content', label: '내용' }
       ],
-      rows: infoRows
+      // 정제 시점 통일(§2.5) — htmlTable(:294)이 렌더 시점에 셀마다
+      // sanitizeAdmissionDisplayText를 적용해왔다(예: 리터럴 '-' → 빈 값 →
+      // muted span). React 렌더러는 이 래핑을 거치지 않고 doc 값을 그대로
+      // 쓰므로, 행 확정 시점(여기)에 미리 정제해 저장한다.
+      rows: sanitizeTableCellRows(infoRows)
     });
   }
 
@@ -2957,7 +2999,7 @@ function buildRecordDocBlocks(lines) {
       kind: 'table',
       variant: 'score',
       columns: [{ role: 'type', label: '구분' }, ...headers.map((h) => ({ role: 'data', label: h }))],
-      rows
+      rows: sanitizeTableCellRows(rows)
     });
   });
 
@@ -3016,10 +3058,14 @@ function buildPlainListDocBlocks(lines) {
   const items = [];
   let bullets = [];
 
+  // 정제 시점 통일(§2.5) — buildPlainListHtml은 자체 정제 없이 escapeHtml만
+  // 하고, 마크 제거는 renderDocToHtml 최종 wrap의 sanitizeAdmissionRenderedHtml
+  // 에서 일어났다. React 렌더러는 그 wrap을 거치지 않으므로 행 확정 시점에
+  // 미리 정제한다.
   const flushBullets = () => {
     if (!bullets.length) return;
     bullets.forEach((line) => {
-      items.push({ type: 'bullet', text: line.replace(/^\d+\.\s*/, '') });
+      items.push({ type: 'bullet', text: sanitizeAdmissionDisplayText(line.replace(/^\d+\.\s*/, '')) });
     });
     bullets = [];
   };
@@ -3031,9 +3077,9 @@ function buildPlainListDocBlocks(lines) {
     }
     flushBullets();
     if (/^(주요변경사항|※|\*)/.test(line)) {
-      items.push({ type: 'subtitle', text: line });
+      items.push({ type: 'subtitle', text: sanitizeAdmissionDisplayText(line) });
     } else {
-      items.push({ type: 'text', text: line });
+      items.push({ type: 'text', text: sanitizeAdmissionDisplayText(line) });
     }
   });
   flushBullets();
@@ -3077,7 +3123,10 @@ function buildSpecialGroupBlock(title, headers, rows) {
         kind: 'table',
         variant: 'special',
         columns: headers.map((label) => ({ role: inferSpecialColumnRole(label), label })),
-        rows
+        // SCIENCE_SPECIAL_DATA/POLICE_SPECIAL_DATA/ACADEMY_SPECIAL_DATA는
+        // 손으로 정리한 하드코딩 상수라 리터럴 '-' 등이 그대로 들어있다.
+        // htmlTable 렌더 시점 정제와 동일하게 여기서 미리 정제한다.
+        rows: sanitizeTableCellRows(rows)
       }
     ]
   };
