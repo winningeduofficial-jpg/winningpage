@@ -54,17 +54,6 @@ export function sanitizeAdmissionRenderedHtml(html) {
   );
 }
 
-export function hasRawAdmissionMark(value) {
-  return RAW_ADMISSION_MARK_RE.test(clean(value));
-}
-
-export function looksLikeRawAdmissionMarkFragment(value) {
-  const text = clean(value);
-  if (!text) return false;
-  if (/[◯○●☆★♥♡❤]/.test(text)) return true;
-  return false;
-}
-
 export function looksLikeHtml(value) {
   return /<\s*(table|div|ul|ol|li|p|h[1-6]|section|article)\b/i.test(String(value || ''));
 }
@@ -680,58 +669,6 @@ export function normalizeRecruitmentExactHtml(html, fallbackText) {
   `);
 }
 
-export function summarizeChangeNote(title, before, after) {
-  const text = `${title} ${before} ${after}`;
-  if (/지원\s*자격|졸업|검정고시/.test(text)) return '지원 자격 변경';
-  if (/모집\s*인원|선발\s*인원|정원|명\s*→|\d+\s*명/.test(text)) return '모집인원 변경';
-  if (/최저|수능/.test(text)) return '수능최저 변경';
-  if (/전형\s*방법|반영\s*비율|서류|면접|논술|교과|성취도|평가요소/.test(text))
-    return '전형방법 변경';
-  if (/명칭|학과명|전공명/.test(text)) return '모집단위 명칭 변경';
-  if (/신설/.test(text)) return '신설';
-  if (/폐지|미모집/.test(text)) return '폐지/미모집';
-  if (/학사구조|구조개편|통폐합|통합|분리|개편/.test(text)) return '모집단위 개편';
-  return '주요 변경사항';
-}
-
-export function splitReadableChangeChunks(text) {
-  const source = clean(text);
-  if (!source) return [];
-
-  const prepared = source
-    .replace(/\s*\/\s*/g, ' / ')
-    .replace(/\s*;\s*/g, ' / ')
-    .replace(/\s*,\s*/g, ', ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  if (prepared.length <= 90 && !/[\/;]/.test(prepared)) return [prepared];
-
-  const bySlash = prepared
-    .split(/\s+\/\s+/)
-    .map(clean)
-    .filter(Boolean);
-  if (bySlash.length >= 2) return bySlash;
-
-  const byComma = prepared.split(/,\s*/).map(clean).filter(Boolean);
-  if (byComma.length >= 3 && prepared.length > 70) return byComma;
-
-  const words = prepared.split(/\s+/).filter(Boolean);
-  const out = [];
-  let buf = '';
-  words.forEach((word) => {
-    const next = buf ? `${buf} ${word}` : word;
-    if (next.length > 56 && buf) {
-      out.push(buf);
-      buf = word;
-    } else {
-      buf = next;
-    }
-  });
-  if (buf) out.push(buf);
-  return out.length ? out : [prepared];
-}
-
 export function normalizeChangeTokenSpacing(text) {
   return clean(text)
     .replace(/(\d+)\s*합\s*(\d+)/g, '$1합$2')
@@ -897,39 +834,6 @@ export function splitChangePairs(content) {
   }
 
   return [];
-}
-
-export function buildChangePlainListHtml(text) {
-  const value = normalizeChangeTokenSpacing(text);
-  if (!value) return '<span class="muted">-</span>';
-  const chunks = splitReadableChangeChunks(value);
-  if (chunks.length <= 1) {
-    return `<div class="admission-change-simple">${escapeHtml(value)}</div>`;
-  }
-  return `
-    <div class="admission-change-lines">
-      ${chunks.map((chunk) => `<div class="admission-change-line">${escapeHtml(chunk)}</div>`).join('')}
-    </div>
-  `;
-}
-
-export function buildChangePairsHtml(pairs) {
-  if (!pairs || !pairs.length) return '<span class="muted">-</span>';
-  return `
-    <div class="admission-change-pair-list">
-      ${pairs
-        .map(
-          (pair) => `
-        <div class="admission-change-arrow-row">
-          <div class="admission-change-arrow-before">${buildChangePlainListHtml(pair.before)}</div>
-          <div class="admission-change-arrow-icon">→</div>
-          <div class="admission-change-arrow-after">${buildChangePlainListHtml(pair.after)}</div>
-        </div>
-      `
-        )
-        .join('')}
-    </div>
-  `;
 }
 
 export function buildChangeValueHtml(content) {
@@ -2705,25 +2609,6 @@ export function buildSmartRawHtml(value, sectionKey, row = null, universityName 
 
 export function sanitizeExistingHtml(value) {
   return clean(value);
-}
-
-export function wrapExistingHtml(value, sectionKey) {
-  const html = sanitizeExistingHtml(value);
-  if (!html) return '';
-
-  const hasOwnNote = /admission-result-note|admission-section-note/.test(html);
-  const note = hasOwnNote
-    ? ''
-    : `<div class="admission-result-note">${SECTION_NOTES[sectionKey] || ''}</div>`;
-
-  return `
-    <div class="admission-raw-section-wrap">
-      ${note}
-      <div class="admission-existing-html">
-        ${html}
-      </div>
-    </div>
-  `;
 }
 
 export function buildSafeTextSectionHtml(value, sectionKey) {
