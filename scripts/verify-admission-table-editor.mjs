@@ -47,11 +47,13 @@ const record = (name, pass, detail) => results.push({ name, pass, detail });
 async function main() {
   const validation = await loadModule('src/components/admission/editor/tableEditorValidation.js');
   const ops = await loadModule('src/components/admission/editor/tableBlockOperations.js');
+  const docOps = await loadModule('src/components/admission/editor/docBlockOperations.js');
   const layout = await loadModule('src/components/admission/admissionLayout.js');
   const TableBlockEditor = await loadModule('src/components/admission/editor/TableBlockEditor.jsx', 'default');
   const ColumnRoleEditor = await loadModule('src/components/admission/editor/ColumnRoleEditor.jsx', 'default');
+  const DocBlocksEditor = await loadModule('src/components/admission/editor/DocBlocksEditor.jsx', 'default');
 
-  const { validateTableBlock, getColumnMutationBlockReason, resolveCellKind, emptyCellForKind } = validation;
+  const { validateTableBlock, validateBlocks, getColumnMutationBlockReason, resolveCellKind, emptyCellForKind } = validation;
   const { getCellKind, getKnownRolesForVariant, defaultNewColumnRole } = layout;
 
   // ── 샘플 블록 ──────────────────────────────────────────────────────
@@ -351,6 +353,134 @@ async function main() {
       unknownOut.includes('연결되지 않습니다') && // 목록에 없는 값은(기존 데이터 포함) 경고
       unknownOut.includes('my-custom-role'); // 직접 입력 필드에 현재 값 유지
     record('8d. ColumnRoleEditor — 알려진 role은 경고 없음, 미지 role은 경고+현재값 보존', pass, `known=${knownOut}\nunknown=${unknownOut}`);
+  }
+
+  // ── 9) 그룹 헤더(groups/fixedColumnCount) 편집 ───────────────────────
+  const recruitExactBlockFull = {
+    kind: 'table',
+    variant: 'recruitExact',
+    columns: [
+      { role: 'series', label: '계열' },
+      { role: 'unit', label: '모집단위' },
+      { role: 'data', label: '27 인원' },
+      { role: 'data', label: '26 인원' }
+    ],
+    fixedColumnCount: 2,
+    groups: [{ name: '일반전형', count: 2 }],
+    rows: [['인문', '국어교육과', '18', '17']]
+  };
+  {
+    // 불변식이 성립하는 초기 상태
+    const ok = validateTableBlock('recruitment_quota', recruitExactBlockFull);
+    // count를 3으로 늘리면(합계 2+3=5 ≠ columns.length 4) 위반 감지돼야 함
+    const broken = ops.updateGroupField(recruitExactBlockFull, 0, 'count', 3);
+    const brokenResult = validateTableBlock('recruitment_quota', broken);
+    const pass = ok.ok && !brokenResult.ok && brokenResult.errors.some((e) => e.includes('groups 합('));
+    record('9a. 그룹 count 변경으로 sum(groups)+fixedColumnCount≠columns.length 위반 감지', pass, JSON.stringify({ ok, brokenResult }));
+  }
+  {
+    // count를 3으로 늘리는 대신 fixedColumnCount를 1로 줄이면(2+1=3≠4) 여전히 위반
+    // fixedColumnCount를 원래(2)에서 그대로 두고 group count 3, fixedColumnCount 1로 맞추면 4로 재일치
+    const rebalanced = ops.updateFixedColumnCount(ops.updateGroupField(recruitExactBlockFull, 0, 'count', 3), 1);
+    const result = validateTableBlock('recruitment_quota', rebalanced);
+    const pass = result.ok; // 3+1=4=columns.length
+    record('9b. fixedColumnCount 변경 후 재검증 — 합계를 다시 맞추면 통과', pass, JSON.stringify(result));
+  }
+  {
+    const added = ops.addGroup(recruitExactBlockFull);
+    const pass = added.groups.length === 2 && added.groups[1].count === 0 && validateTableBlock('recruitment_quota', added).ok;
+    record('9c. addGroup — count:0으로 추가돼 불변식을 깨지 않음', pass, JSON.stringify(added.groups));
+  }
+  {
+    const removed = ops.removeGroup(recruitExactBlockFull, 0);
+    // count 2짜리 그룹을 통째로 지우면 합계가 0+2=2≠4로 깨짐(의도된 동작 —
+    // 그룹 삭제 시 해당 컬럼도 같이 지우는 자동 동기화는 이번 범위 밖).
+    const result = validateTableBlock('recruitment_quota', removed);
+    const pass = removed.groups.length === 0 && !result.ok;
+    record('9d. removeGroup — 그룹 자체는 지워지되(컬럼은 안 지워짐) 불변식 위반이 배너로 드러남(의도된 동작)', pass, JSON.stringify(result));
+  }
+
+  // ── 10) footnote 편집 후 validate 통과 ────────────────────────────────
+  {
+    const footnoteBlock = { kind: 'footnote', items: ['교직과정'] };
+    const next = { ...footnoteBlock, items: [...footnoteBlock.items, '자율전공 과정'] };
+    const result = validateBlocks('recruitment_quota', [next]);
+    const pass = result.ok && next.items.join(' ') === '교직과정 자율전공 과정';
+    record('10. footnote 편집(항목 추가) 후 validateAdmissionDoc 통과 + join(\' \') 미리보기 문자열 확인', pass, JSON.stringify({ next, result }));
+  }
+
+  // ── 11) 비표 블록 4종 편집 후 validate 통과 ───────────────────────────
+  {
+    const cases = [
+      { kind: 'note', before: { kind: 'note', text: '' }, after: { kind: 'note', text: '실제 안내' } },
+      { kind: 'emptyBox', before: { kind: 'emptyBox', message: '' }, after: { kind: 'emptyBox', message: '없음' } },
+      { kind: 'heading', before: { kind: 'heading', text: '' }, after: { kind: 'heading', text: '국어 환산표' } },
+      {
+        kind: 'plainList',
+        before: { kind: 'plainList', items: [{ type: 'text', text: 'x' }] },
+        after: { kind: 'plainList', items: [{ type: 'bullet', text: 'y' }] }
+      }
+    ];
+    let allPass = true;
+    const detail = [];
+    for (const c of cases) {
+      const result = validateBlocks('selection_method', [c.after]);
+      const changed = JSON.stringify(c.after) !== JSON.stringify(c.before);
+      const ok = result.ok && changed;
+      allPass = allPass && ok;
+      detail.push(`${c.kind}: changed=${changed} validate.ok=${result.ok}`);
+    }
+    record('11. 비표 블록 4종(note/emptyBox/heading/plainList) 편집 후 validateAdmissionDoc 통과', allPass, detail.join('\n'));
+  }
+
+  // ── 12) 블록 순서 변경 무결성(DocBlocksEditor) ────────────────────────
+  {
+    const blocks = [
+      { kind: 'note', text: 'A' },
+      { kind: 'heading', text: 'B' },
+      { kind: 'emptyBox', message: 'C' }
+    ];
+    const moved = docOps.moveBlock(blocks, 0, 1);
+    const pass =
+      moved.length === 3 &&
+      moved[0].kind === 'heading' &&
+      moved[1].kind === 'note' &&
+      moved[2].kind === 'emptyBox' &&
+      validateBlocks('selection_method', moved).ok;
+    record('12a. moveBlock — 순서만 바뀌고 각 블록 내용은 그대로, validate 통과', pass, JSON.stringify(moved));
+  }
+  {
+    const blocks = [{ kind: 'note', text: 'A' }];
+    const added = docOps.appendBlock(blocks, docOps.createDefaultBlock('footnote'));
+    const removed = docOps.removeBlockAt(added, 0);
+    const pass = added.length === 2 && added[1].kind === 'footnote' && removed.length === 1 && removed[0].kind === 'footnote';
+    record('12b. appendBlock/removeBlockAt — 추가·삭제 데이터 무결성', pass, JSON.stringify({ added, removed }));
+  }
+  {
+    // DocBlocksEditor 구조적 스모크 렌더 — group/rawHtml 포함 전 종류 디스패치 확인
+    const blocks = [
+      { kind: 'table', variant: 'selection', columns: [{ role: 'type', label: '전형' }], rows: [['x']] },
+      { kind: 'note', text: 'n' },
+      { kind: 'emptyBox', message: 'e' },
+      { kind: 'heading', text: 'h' },
+      { kind: 'preText', text: 'p' },
+      { kind: 'plainList', items: [{ type: 'text', text: 'l' }] },
+      { kind: 'footnote', items: ['f'] },
+      { kind: 'group', title: 'g', children: [{ kind: 'note', text: 'child' }] },
+      { kind: 'rawHtml', html: '<div>r</div>', reason: 'curated-html' }
+    ];
+    let threw = false;
+    let out = '';
+    try {
+      out = renderToStaticMarkup(
+        React.createElement(DocBlocksEditor, { section: 'selection_method', blocks, onChange: () => {} })
+      );
+    } catch (err) {
+      threw = true;
+      out = String(err && err.stack ? err.stack : err);
+    }
+    const pass = !threw && out.includes('블록 추가') && out.includes('읽기 전용 요약');
+    record('12c. DocBlocksEditor 스모크 렌더 — 9종 블록 전부 예외 없이 디스패치(group은 읽기 전용 요약)', pass, threw ? out : `len=${out.length}`);
   }
 
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');

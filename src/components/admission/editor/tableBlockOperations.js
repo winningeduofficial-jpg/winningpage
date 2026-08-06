@@ -57,3 +57,34 @@ export function moveRow(block, rowIdx, delta) {
   nextRows.splice(targetIdx, 0, moved);
   return { ...block, rows: nextRows };
 }
+
+// ── recruitExact 2단 헤더(groups/fixedColumnCount) 편집 ──────────────
+// 열 자체는 컬럼 수 고정 프로브(getColumnMutationBlockReason)가 이미
+// 막아준다 — 여기서는 groups[].count/fixedColumnCount를 자유롭게
+// 조정하게 해주고, sum(groups.count)+fixedColumnCount===columns.length
+// 불변식 위반 여부는 validateBlocks가(TableBlockEditor의 검증 배너를
+// 통해) 실시간으로 알려준다. "몇 개가 비는지/남는지"는 그 에러 문자열
+// (admissionDoc.js: "groups 합(...) + fixedColumnCount(...)가
+// columns.length(...)와 다릅니다")이 이미 담고 있어 여기서 따로
+// 계산하지 않는다.
+export function updateGroupField(block, groupIdx, field, fieldValue) {
+  const nextGroups = (block.groups || []).map((g, i) => (i === groupIdx ? { ...g, [field]: fieldValue } : g));
+  return { ...block, groups: nextGroups };
+}
+
+export function addGroup(block) {
+  // count:0으로 시작 — 추가 자체는 불변식을 절대 깨지 않는다(합계 불변).
+  // 실제 컬럼을 그 그룹에 배정하는 건 이번 범위 밖(열 자체는 여전히
+  // 고정) — 관리자가 count를 조정하면서 검증 배너로 맞춰야 한다.
+  const nextGroups = [...(block.groups || []), { name: '새 그룹', count: 0 }];
+  return { ...block, groups: nextGroups };
+}
+
+export function removeGroup(block, groupIdx) {
+  const nextGroups = (block.groups || []).filter((_, i) => i !== groupIdx);
+  return { ...block, groups: nextGroups };
+}
+
+export function updateFixedColumnCount(block, value) {
+  return { ...block, fixedColumnCount: value };
+}

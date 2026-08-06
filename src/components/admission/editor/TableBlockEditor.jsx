@@ -3,6 +3,7 @@ import { getTableVariantLayout, getCellKind } from '../admissionLayout';
 import CellEditor from './cells/CellEditor';
 import ImeSafeInput from './ImeSafeInput';
 import ColumnRoleEditor from './ColumnRoleEditor';
+import TableGroupHeaderEditor from './TableGroupHeaderEditor';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
 import * as ops from './tableBlockOperations';
 
@@ -64,6 +65,30 @@ export default function TableBlockEditor({ section, block, onChange }) {
     onChange(ops.moveRow(block, rowIdx, delta));
   }
 
+  function updateGroupField(groupIdx, field, fieldValue) {
+    onChange(ops.updateGroupField(block, groupIdx, field, fieldValue));
+  }
+
+  function addGroup() {
+    onChange(ops.addGroup(block));
+  }
+
+  function removeGroup(groupIdx) {
+    onChange(ops.removeGroup(block, groupIdx));
+  }
+
+  function updateFixedColumnCount(value) {
+    onChange(ops.updateFixedColumnCount(block, value));
+  }
+
+  // groups가 아직 없는 표에 2단 헤더 구성을 처음 붙일 때: fixedColumnCount를
+  // 현재 컬럼 수로 초기화해 불변식(sum(groups.count)+fixedColumnCount===
+  // columns.length)이 groups:[] 상태에서 곧바로 성립하게 한다(빈 groups는
+  // 합계 0이므로 fixedColumnCount가 전체를 떠맡아야 함).
+  function enableGroups() {
+    onChange({ ...block, groups: [], fixedColumnCount: block.columns.length });
+  }
+
   return (
     <div className="admission-table-editor">
       {!validation.ok && (
@@ -77,12 +102,16 @@ export default function TableBlockEditor({ section, block, onChange }) {
         </div>
       )}
 
-      {block.groups && block.groups.length > 0 && (
-        <p className="mb-2 text-[11px] font-bold text-gray-500">
-          그룹 헤더: {block.groups.map((g) => `${g.name}(${g.count})`).join(', ')} · 고정 컬럼{' '}
-          {block.fixedColumnCount ?? 0}개 — 이 편집기에서는 그룹 헤더를 편집할 수 없습니다(다음 작업).
-        </p>
-      )}
+      <TableGroupHeaderEditor
+        groups={block.groups}
+        fixedColumnCount={block.fixedColumnCount}
+        columnsLength={block.columns.length}
+        onUpdateGroupField={updateGroupField}
+        onAddGroup={addGroup}
+        onRemoveGroup={removeGroup}
+        onUpdateFixedColumnCount={updateFixedColumnCount}
+        onEnableGroups={enableGroups}
+      />
 
       <div className={layout.scrollWrapClassName}>
         <table className={layout.tableClassName}>

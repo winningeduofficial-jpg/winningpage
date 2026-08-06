@@ -10,19 +10,25 @@
 // 원천 차단).
 import { validateAdmissionDoc } from '../../../lib/admissionDoc';
 
-// 편집 중인 TableBlock 하나를 최소 AdmissionDoc으로 감싸 validateAdmissionDoc에
-// 넘긴다. section은 validateAdmissionDoc이 SECTION_KEYS 소속 여부를 검사하는
-// 데만 쓰인다.
-export function validateTableBlock(section, block) {
+// 편집 중인 Block 배열(문서 전체 또는 그 일부)을 최소 AdmissionDoc으로
+// 감싸 validateAdmissionDoc에 넘긴다. section은 validateAdmissionDoc이
+// SECTION_KEYS 소속 여부를 검사하는 데만 쓰인다. DocBlocksEditor(문서
+// 블록 배열 편집)와 TableBlockEditor(표 1개 편집) 양쪽이 공유한다.
+export function validateBlocks(section, blocks) {
   const doc = {
     v: 1,
     section,
     source: 'manual',
     generator: 'table-editor',
     generatedAt: new Date().toISOString(),
-    blocks: [block]
+    blocks
   };
   return validateAdmissionDoc(doc);
+}
+
+/** TableBlock 하나만 검증할 때의 축약형. */
+export function validateTableBlock(section, block) {
+  return validateBlocks(section, [block]);
 }
 
 function buildColumnAddProbe(block) {
