@@ -41,6 +41,19 @@
 //     2컬럼 전제라 3컬럼엔 안 맞으므로, 켜면 대신 베이스 규칙
 //     58px/260px/auto로 폴백한다 — 아래 CSS admission-change-table-v87
 //     기본 규칙 참고).
+//
+// 죽은 CSS 정리(3단계, 2026-08-06, 사용자 지시 "죽은 css 정리"): 1단계에서
+// AdmissionGuidelines.jsx 428줄을 통째로 옮길 때 실제로는 아무 데서도 안
+// 쓰이는 클래스 16개가 죽은 채로 같이 따라왔다 — React 컴포넌트(blocks/*)·
+// admissionParsing.js HTML 생성기·.golden-cache/admission-html-golden.full.json
+// (실 DB 데이터 스냅샷) 전부에서 0건 확인 후 제거했다: admission-clean-block/
+// -line/-note, admission-mini-table, admission-result-table, admission-normal-line,
+// admission-numbered-line, admission-long-line, admission-token-row/-label/-list,
+// admission-wide-sheet/-line, admission-header-summary, admission-info-list,
+// admission-subhead-card. (admission-result-note/admission-readable-body/
+// admission-raw-pre/admission-safe-text-block/admission-recruit-legend/
+// admission-bullet-list처럼 이름이 비슷해 헷갈리기 쉬운 것들은 전부 실사용
+// 확인 후 남겼다.)
 export default function AdmissionSurface({ showSectionTitle = false, showChangeNoColumn = false }) {
   return (
     <style>{`
@@ -57,27 +70,9 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
         .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
         .admission-existing-html td.left,
         .admission-table-wrap td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
-        .admission-clean-block { width: 100%; }
-        .admission-clean-line { margin: 0 0 10px; color: #525252; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
-        .admission-clean-note { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-subhead { margin: 18px 0 8px; color: #013262; font-size: 14px; font-weight: 900; }
-        .admission-mini-table, .admission-result-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-mini-table th, .admission-result-table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
-        .admission-mini-table td, .admission-result-table td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
-        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
         .admission-result-note { margin-bottom: 14px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 12px 14px; color: #667085; font-size: 12.5px; line-height: 1.7; font-weight: 800; word-break: keep-all; }
         .admission-readable-body { display: grid; gap: 8px; }
-        .admission-subhead-card { margin-top: 8px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
-        .admission-normal-line,
-        .admission-long-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 13px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 750; word-break: keep-all; }
-        .admission-numbered-line { background: #f9fafb; }
-        .admission-long-line { white-space: normal; }
-        .admission-token-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 10px 12px; }
-        .admission-token-label { color: #013262; font-size: 13px; line-height: 1.5; font-weight: 950; white-space: nowrap; }
-        .admission-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
-        .admission-token-list span { min-width: 34px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 5px 8px; color: #525252; font-size: 13px; line-height: 1.35; font-weight: 900; text-align: center; white-space: nowrap; }
-        .admission-wide-sheet { min-width: 980px; width: max-content; display: grid; gap: 4px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 10px; }
-        .admission-wide-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 10px; padding: 9px 10px; color: #525252; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
         .admission-raw-pre { min-width: 980px; margin: 0; border: 1px solid #d7d7d7; border-radius: 16px; background: #ffffff; padding: 16px; color: #525252; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
         .admission-safe-text-block { border-radius: 0; border-top: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; border-left: 0; border-right: 0; }
 
@@ -90,15 +85,12 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
            className을 함께 받으면(score/recordInfo 실호출부가 항상 그렇다) compact
            옵션을 통째로 덮어써 이 클래스가 실제로는 어디에도 안 붙는다(admissionLayout.js
            도 동일 실측으로 이 클래스를 붙이지 않음). 죽은 규칙. */
-        .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
-        .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
         .admission-bullet-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
         .admission-bullet-list li { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-subtitle-line { margin-bottom: 10px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-weight: 950; }
         .admission-text-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
         .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-        .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
 
         .admission-recruit-table { min-width: 1100px; }
         .admission-normalized-recruit-table { min-width: 1280px; }
@@ -197,9 +189,7 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
           ? '.admission-surface .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }'
           : '.admission-surface .admission-hwp-section-title { display: none; }'}
         .admission-surface .admission-result-note,
-        .admission-surface .admission-header-summary,
         .admission-surface .admission-recruit-legend { display: none !important; }
-        .admission-surface .admission-subhead-card,
         .admission-surface .admission-special-title,
         .admission-surface .admission-subtitle-line { margin-top: 8px; border: 0; border-left: 0; border-radius: 0; background: transparent; color: #000; padding: 0; font-size: 13px; line-height: 1.45; font-weight: 950; }
         .admission-surface .admission-scroll-table { border: 0; border-radius: 0; background: #fff; }
@@ -215,36 +205,24 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
            배분이 "고정폭"이 아니라 콘텐츠에 흔들리는 힌트로만 동작하던 잠재 결함. 각 표 규칙에
            !important로 fixed를 강제해 원래 의도(모든 컬럼 폭 주석의 rem/px 산술)를 되살렸다. */
         .admission-surface .admission-data-table,
-        .admission-surface .admission-mini-table,
-        .admission-surface .admission-result-table,
         .admission-surface .admission-existing-html table,
         .admission-surface .admission-table-wrap table { width: 100%; border-collapse: collapse; border-top: none; border-bottom: 1px solid #000; font-size: 1rem; line-height: 1.4; table-layout: auto; }
         .admission-surface .admission-data-table th,
-        .admission-surface .admission-mini-table th,
-        .admission-surface .admission-result-table th,
         .admission-surface .admission-existing-html th,
         .admission-surface .admission-table-wrap th { background: #f9fafb !important; color: #525252 !important; border: 0; border-top: 1px solid #000; padding: 1.25rem 1rem; font-weight: 500; letter-spacing: -0.02em; text-align: center; white-space: nowrap; }
         .admission-surface .admission-data-table td,
-        .admission-surface .admission-mini-table td,
-        .admission-surface .admission-result-table td,
         .admission-surface .admission-existing-html td,
         .admission-surface .admission-table-wrap td { border: 0; border-top: 1px solid #dfdfdf; padding: 1.25rem 1rem; color: #525252; font-weight: 500; letter-spacing: -0.02em; vertical-align: middle; }
         /* 모바일은 시안(데스크톱 1260px 폭) 그대로 적용 시 고정폭 컬럼이 과도하게 좁아져
            1~2글자 단위 줄바꿈이 발생 → 폰트/패딩만 축소해 가독성 회귀 방지. */
         @media (max-width: 48rem) {
           .admission-surface .admission-data-table,
-          .admission-surface .admission-mini-table,
-          .admission-surface .admission-result-table,
           .admission-surface .admission-existing-html table,
           .admission-surface .admission-table-wrap table { font-size: 0.8125rem; line-height: 1.4; }
           .admission-surface .admission-data-table th,
-          .admission-surface .admission-mini-table th,
-          .admission-surface .admission-result-table th,
           .admission-surface .admission-existing-html th,
           .admission-surface .admission-table-wrap th,
           .admission-surface .admission-data-table td,
-          .admission-surface .admission-mini-table td,
-          .admission-surface .admission-result-table td,
           .admission-surface .admission-existing-html td,
           .admission-surface .admission-table-wrap td { padding: 0.625rem 0.5rem; }
           /* 375px 스모크에서 발견: word-break:keep-all은 공백 없는 한국어 토큰(예: "지역균형",
@@ -258,17 +236,11 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
         /* 1882:4934/5487 실측: 첫 컬럼(전형 등) 색상·굵기 강조 없음 — 나머지 셀과 완전히 동일한
            배경/색/굵기(#525252, Medium 500). 과거 네이비·볼드 강조는 시안 근거가 없어 평문으로 되돌린다. */
         .admission-surface .admission-data-table td:first-child,
-        .admission-surface .admission-result-table td:first-child,
-        .admission-surface .admission-mini-table td:first-child,
         .admission-surface .admission-selection-table .selection-type-cell,
         .admission-surface .admission-record-info-table td:first-child,
         .admission-surface .admission-special-table td:first-child,
         .admission-surface .admission-normalized-recruit-table td:first-child { background: #fff; color: #525252; font-weight: 500; }
         .admission-surface .admission-change-line,
-        .admission-surface .admission-normal-line,
-        .admission-surface .admission-long-line,
-        .admission-surface .admission-token-row,
-        .admission-surface .admission-info-list > div,
         .admission-surface .admission-bullet-list li,
         .admission-surface .admission-text-line { border: 1px solid #d7d7d7; border-radius: 0; background: #fff; color: #525252; }
         /* WARN13(1882:4416): 시안은 변경 전/후를 알약·색상 박스 없이 "A → B" 순수 텍스트
@@ -473,10 +445,6 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
           .admission-surface[data-section="minimum_requirements"] table td:nth-child(5) { width: 19%; }
         }
 
-        @media (max-width: 48rem) {
-          .admission-token-row { grid-template-columns: 1fr; }
-          .admission-wide-sheet { min-width: 760px; }
-        }
     `}</style>
   );
 }
