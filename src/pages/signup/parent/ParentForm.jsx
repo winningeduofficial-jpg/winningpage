@@ -1,10 +1,20 @@
 // [E-1] 학부모 회원가입 폼 — docs/login-signup-renewal-spec.md §3.3 E-1, 노드 2393:10666.
 // 학생 폼(C-1)과 달리 지역/재학구분/학교명 없음, 약관 4행(모두동의+3항목)만 사용.
-// 전화/이메일 인증은 §4.2-1 백엔드(카카오 알림톡) 미구현 상태라 mockApi.js의 placeholder로
-// 대체하고, 인증코드 필드는 6자리 입력이 채워지는 즉시 자동 검증한다(TextField의 액션 링크
-// 슬롯은 스펙대로 "인증번호 보내기"/"인증번호 다시 보내기"에만 사용하고, 별도 "확인" 버튼은
-// 두지 않음 — T1 계약 주석 참고).
-import { useEffect, useState } from 'react';
+// 인증코드 필드는 6자리가 채워지는 즉시 자동 검증한다(TextField의 액션 링크 슬롯은
+// 스펙대로 "인증번호 보내기"/"인증번호 다시 보내기"에만 사용하고 별도 "확인" 버튼은 두지 않음).
+//
+// ⚠️ 가입 완료 후 signOut 하지 않는다
+//   StudentForm은 가입 직후 세션을 파기하지만 학부모는 그러면 안 된다. 바로 다음
+//   화면(E-2~E-4)의 자녀 연결코드 조회가 로그인을 요구하기 때문이다
+//   (api/lookup-child.js — 조회 결과에 미성년자의 이름과 학교가 들어간다).
+//   여기서 signOut을 넣으면 다음 화면이 통째로 not_authenticated로 죽는다.
+//
+// ⚠️ 인증번호 검증은 서버가 한다
+//   mock은 발송 코드를 클라이언트에 내려주고 프론트가 비교했다. 지금은
+//   /api/verify-phone-code가 판정하고, 서버가 시도를 5회로 끊는다. 그래서 같은
+//   코드를 반복 전송하지 않도록 마지막 시도값을 기억한다 — 지웠다 다시 입력하는
+//   것만으로 시도가 깎이면 안 된다.
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AuthLayout,
@@ -14,22 +24,27 @@ import {
   AgreementList
 } from '../../../components/auth';
 import { useSignup } from '../../../context/SignupContext';
+import { supabase } from '../../../lib/supabase';
+import { useCooldown } from '../../../hooks/useCooldown';
 import {
-  requestPhoneVerificationCode,
-  verifyPhoneVerificationCode,
-  requestEmailVerificationCode,
-  verifyEmailVerificationCode,
-  completeParentSignup
-} from './mockApi';
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  EMAIL_STATE,
+  MESSAGES as EMAIL_MESSAGES,
+  sendSignupEmailCode,
+  verifySignupEmailCode
+} from '../../../lib/signupEmailAuth';
+import {
+  isValidMobile,
+  normalizePhone,
+  sendPhoneCode,
+  verifyPhoneCode
+} from '../../../lib/phoneVerification';
 
-const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
-// TODO(백엔드 §5.5 순서5): is_email_available→auth.signUp→verifyOtp→complete_signup_profile
-// 실제 RPC 시퀀스가 연결되기 전까지는 완료 버튼이 mockApi.completeParentSignup만 호출해
-// 실제 계정/프로필을 생성하지 않는다. 배포 환경에서 학부모 가입을 노출하지 않도록 이
-// feature flag(VITE_PARENT_SIGNUP_ENABLED='true')가 켜진 경우에만 폼을 렌더링한다.
+// 실계정을 만드는 화면이라 배포 노출은 플래그로 통제한다.
+// (VITE_PARENT_SIGNUP_ENABLED='true')
 const PARENT_SIGNUP_ENABLED = import.meta.env.VITE_PARENT_SIGNUP_ENABLED === 'true';
 
 const AGREEMENT_KEYS = ['service', 'privacyRequired', 'marketing'];
@@ -37,6 +52,18 @@ const AGREEMENT_LABELS = [
   { key: 'service', label: '위닝에듀 이용약관', required: true, to: '/terms/parent/service' },
   { key: 'privacyRequired', label: '개인정보 수집 및 이용', required: true, to: '/terms/parent/privacy' },
   { key: 'marketing', label: '마케팅 목적의 개인정보 수집 및 이용', required: false, to: '/terms/parent/marketing' }
+];
+
+const RPC_ERRORS = [
+  ['duplicate_email', '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.'],
+  ['not_authenticated', '로그인 세션이 만료되었습니다. 이메일 인증을 다시 진행해 주세요.'],
+  ['terms_service_required', '이용약관 필수 동의가 필요합니다.'],
+  ['privacy_required', '개인정보 필수 동의가 필요합니다.'],
+  ['invalid_member_type', '회원 유형이 올바르지 않습니다. 처음부터 다시 시도해 주세요.'],
+  ['name_required', '이름을 입력해 주세요.'],
+  // region_required는 sql/40 [13]에서 학생 전용으로 바뀌었다. 그래도 남겨두는 이유는
+  // [13]이 아직 적용되지 않은 환경에서 원인을 바로 알아보기 위해서다.
+  ['region_required', '서버 스키마가 최신이 아닙니다(sql/40 [13] 미적용). 관리자에게 문의해 주세요.']
 ];
 
 export default function ParentForm() {
@@ -54,14 +81,6 @@ export default function ParentForm() {
     setParentSignupCompleted
   } = useSignup();
 
-  // 학부모 폼으로 직접 진입(새로고침/직접 URL)한 경우에도 이 화면은 학부모 플로우의
-  // 시작점이므로 memberType을 강제로 되돌리지 않고 'parent'로 확정한다.
-  // 단, PARENT_SIGNUP_ENABLED가 꺼진 배포에서는 memberType을 'parent'로 바꾸지 않는다.
-  // LinkChoice 등 이후 온보딩 화면들의 1차 가드는 이제 memberType이 아니라
-  // parentSignupCompleted(이 화면에서 실제 가입(handleSubmit)이 성공해야만 true가 됨)이므로,
-  // PARENT_SIGNUP_ENABLED가 꺼져 있으면 이 화면이 "준비 중" 안내만 렌더링해 handleSubmit
-  // 자체가 실행되지 않아 하위 화면 진입이 자연히 막힌다. memberType을 여기서 함부로 바꾸지
-  // 않는 것은 그 위에 남겨두는 방어적 2차 안전장치다.
   useEffect(() => {
     if (PARENT_SIGNUP_ENABLED && memberType !== 'parent') {
       setMemberType('parent');
@@ -69,87 +88,196 @@ export default function ParentForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [phoneMockCode, setPhoneMockCode] = useState('');
-  const [emailMockCode, setEmailMockCode] = useState('');
   const [phoneSending, setPhoneSending] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
-  const [phoneError, setPhoneError] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [phoneMessage, setPhoneMessage] = useState({ text: '', status: 'default' });
+  const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
   const [passwordError, setPasswordError] = useState('');
+  const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // 전화 인증코드 6자리가 채워지면 자동 검증(별도 "확인" 버튼 없이 처리).
+  const phoneCooldown = useCooldown(60);
+  const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
+
+  // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
+  const lastPhoneAttempt = useRef('');
+  const lastEmailAttempt = useRef('');
+
+  const normalizedEmail = formData.email.trim().toLowerCase();
+  const normalizedPhone = normalizePhone(formData.phone);
+
+  // ── 휴대폰 ────────────────────────────────────────────────────────
   useEffect(() => {
+    const code = formData.phoneCode;
+
     if (
-      formData.phoneCode.length === 6 &&
-      verification.phone.requested &&
-      !verification.phone.verified
+      code.length !== 6 ||
+      !verification.phone.requested ||
+      verification.phone.verified ||
+      lastPhoneAttempt.current === code
     ) {
-      verifyPhoneVerificationCode(formData.phone, formData.phoneCode, phoneMockCode).then(
-        (ok) => {
-          if (ok) {
-            updateVerification('phone', { verified: true });
-            setPhoneError('');
-          } else {
-            setPhoneError('인증번호가 틀립니다');
-          }
-        }
-      );
+      return;
     }
+
+    lastPhoneAttempt.current = code;
+
+    verifyPhoneCode(normalizedPhone, code).then((result) => {
+      if (result.ok) {
+        updateVerification('phone', { verified: true });
+        setPhoneMessage({ text: '인증되었습니다', status: 'success' });
+        return;
+      }
+
+      setPhoneMessage({ text: result.message, status: 'error' });
+
+      // 시도가 소진되면 재발송 외에는 길이 없다. 다음 입력이 다시 시도되도록 푼다.
+      if (result.reason === 'too_many_attempts' || result.reason === 'code_expired') {
+        lastPhoneAttempt.current = '';
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.phoneCode]);
 
-  // 이메일 인증코드 6자리가 채워지면 자동 검증.
-  useEffect(() => {
-    if (
-      formData.emailCode.length === 6 &&
-      verification.email.requested &&
-      !verification.email.verified
-    ) {
-      verifyEmailVerificationCode(formData.email, formData.emailCode, emailMockCode).then(
-        (ok) => {
-          if (ok) {
-            updateVerification('email', { verified: true });
-            setEmailError('');
-          } else {
-            setEmailError('인증번호가 틀립니다');
-          }
-        }
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.emailCode]);
-
   async function handleSendPhoneCode() {
-    if (!PHONE_REGEX.test(formData.phone)) {
-      setPhoneError('올바른 전화번호를 입력해 주세요');
+    if (!isValidMobile(formData.phone)) {
+      setPhoneMessage({ text: '올바른 전화번호를 입력해 주세요', status: 'error' });
       return;
     }
 
     setPhoneSending(true);
-    setPhoneError('');
+    setPhoneMessage({ text: '', status: 'default' });
 
-    const { mockCode } = await requestPhoneVerificationCode(formData.phone);
-    setPhoneMockCode(mockCode);
-    updateVerification('phone', { requested: true, verified: false });
-    updateFormData({ phoneCode: '' });
-    setPhoneSending(false);
+    try {
+      const result = await sendPhoneCode(normalizedPhone, 'parent_signup');
+
+      if (!result.ok) {
+        if (result.retryAfter) phoneCooldown.start();
+        setPhoneMessage({ text: result.message, status: 'error' });
+        return;
+      }
+
+      lastPhoneAttempt.current = '';
+      updateVerification('phone', { requested: true, verified: false });
+      updateFormData({ phoneCode: '' });
+      phoneCooldown.start();
+      setPhoneMessage({
+        // 운영에서 dryRun이 true면 문자가 실제로 나가지 않은 것이다.
+        text: result.dryRun
+          ? '테스트 모드입니다 — 실제 문자는 발송되지 않았습니다.'
+          : '인증번호를 보냈습니다.',
+        status: 'default'
+      });
+    } finally {
+      setPhoneSending(false);
+    }
   }
 
+  // ── 이메일 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const token = formData.emailCode;
+
+    if (
+      token.length !== 6 ||
+      !verification.email.requested ||
+      verification.email.verified ||
+      lastEmailAttempt.current === token
+    ) {
+      return;
+    }
+
+    lastEmailAttempt.current = token;
+
+    verifySignupEmailCode({
+      email: normalizedEmail,
+      token,
+      mode: verification.email.mode,
+      password: formData.password,
+      resumed: verification.email.resumed
+    }).then(({ error, stage }) => {
+      if (error) {
+        updateVerification('email', { verified: false });
+        setEmailMessage({
+          text:
+            stage === 'password'
+              ? '인증은 됐지만 비밀번호 설정에 실패했습니다. 인증번호를 다시 요청해 주세요.'
+              : EMAIL_MESSAGES.codeMismatch,
+          status: 'error'
+        });
+        return;
+      }
+
+      updateVerification('email', { verified: true });
+      setEmailMessage({ text: '인증되었습니다', status: 'success' });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.emailCode]);
+
   async function handleSendEmailCode() {
-    if (!EMAIL_REGEX.test(formData.email)) {
-      setEmailError('올바른 이메일을 입력해 주세요');
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      setEmailMessage({ text: '올바른 이메일을 입력해 주세요', status: 'error' });
+      return;
+    }
+
+    // signUp이 비밀번호를 요구하므로 발송 전에 먼저 막는다.
+    if (!PASSWORD_REGEX.test(formData.password)) {
+      setEmailMessage({
+        text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
+        status: 'error'
+      });
+      return;
+    }
+
+    if (emailCooldown.active) {
+      setEmailMessage({ text: EMAIL_MESSAGES.cooldown(emailCooldown.remaining), status: 'error' });
       return;
     }
 
     setEmailSending(true);
-    setEmailError('');
+    setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
 
-    const { mockCode } = await requestEmailVerificationCode(formData.email);
-    setEmailMockCode(mockCode);
-    updateVerification('email', { requested: true, verified: false });
-    updateFormData({ emailCode: '' });
-    setEmailSending(false);
+    try {
+      const { state, mode, resumed, error } = await sendSignupEmailCode({
+        email: normalizedEmail,
+        password: formData.password,
+        name: formData.name.trim(),
+        memberType: 'parent'
+      });
+
+      if (error) {
+        console.error('이메일 인증코드 발송 오류:', error);
+        updateVerification('email', { checked: false, available: false });
+        setEmailMessage({
+          // state가 없으면 상태 조회 자체가 실패한 것이고, 있으면 발송이 실패한 것이다.
+          text: state ? error.message : EMAIL_MESSAGES.checkFailed,
+          status: 'error'
+        });
+        return;
+      }
+
+      if (state === EMAIL_STATE.TAKEN) {
+        updateVerification('email', { checked: true, available: false });
+        setEmailMessage({ text: EMAIL_MESSAGES.taken, status: 'error' });
+        return;
+      }
+
+      lastEmailAttempt.current = '';
+      updateVerification('email', {
+        checked: true,
+        available: true,
+        requested: true,
+        verified: false,
+        mode,
+        resumed
+      });
+      updateFormData({ emailCode: '' });
+      emailCooldown.start();
+      setEmailMessage({
+        text: resumed ? EMAIL_MESSAGES.resumed : EMAIL_MESSAGES.sent,
+        status: 'default'
+      });
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   function handlePasswordChange(value) {
@@ -182,18 +310,65 @@ export default function ParentForm() {
     if (!canSubmit || submitting) return;
 
     setSubmitting(true);
-    // TODO(백엔드 §5.5 순서5): 실제 가입은 is_email_available→signUp→verifyOtp→
-    // complete_signup_profile RPC 시퀀스를 재사용해야 한다. 지금은 mock으로 대체.
-    const result = await completeParentSignup(formData);
-    setSubmitting(false);
+    setFormError('');
 
-    if (!result?.success) return;
+    try {
+      // 이메일 OTP 검증 직후라 세션이 있어야 한다. 확인하지 않고 RPC를 부르면
+      // not_authenticated만 보고 원인을 짐작해야 한다.
+      const { data: userData, error: getUserError } = await supabase.auth.getUser();
 
-    // E-2~E-8(LinkChoice/LinkCode/LinkDone/InviteChild/InviteDone/ParentHome) 진입 가드용
-    // 완료 플래그 — 실제 가입 성공 직후에만 true로 설정한다(signupCompleted와 동일 패턴).
-    setParentSignupCompleted(true);
+      if (getUserError || !userData?.user?.id) {
+        setFormError('이메일 인증 세션을 찾을 수 없습니다. 다시 인증해 주세요.');
+        return;
+      }
 
-    navigate('/signup/parent/link');
+      if ((userData.user.email || '').toLowerCase() !== normalizedEmail) {
+        setFormError('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+        return;
+      }
+
+      const { data: result, error } = await supabase.rpc('complete_signup_profile', {
+        p_name: formData.name.trim(),
+        p_username: normalizedEmail,
+        p_phone: normalizedPhone,
+        p_email: normalizedEmail,
+        // 학부모 폼은 지역/재학구분/학교명을 받지 않는다 → sql/40 [13]에서
+        // 이 셋을 학생 전용 필수로 바꿨다.
+        p_region: null,
+        p_school_type: null,
+        p_school_name: null,
+        p_member_type: 'parent',
+        p_terms_service_agreed: agreements.service,
+        p_privacy_required_agreed: agreements.privacyRequired,
+        // 아래 셋은 학부모 폼에 체크박스가 없다. 받지 않은 동의를 true로 보내면 안 된다.
+        p_identity_required_agreed: false,
+        p_privacy_optional_agreed: false,
+        p_marketing_agreed: agreements.marketing,
+        p_ads_agreed: false
+      });
+
+      if (error) {
+        const message = String(error.message || '').toLowerCase();
+        const matched = RPC_ERRORS.find(([code]) => message.includes(code));
+
+        setFormError(matched ? matched[1] : `회원 정보 저장 중 문제가 발생했습니다: ${error.message}`);
+        return;
+      }
+
+      if (!result?.ok) {
+        setFormError('회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.');
+        return;
+      }
+
+      setParentSignupCompleted(true);
+
+      // ⚠️ 여기서 signOut 하지 않는다 — 파일 상단 주석 참고.
+      navigate('/signup/parent/link');
+    } catch (error) {
+      setFormError(`가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!PARENT_SIGNUP_ENABLED) {
@@ -207,6 +382,10 @@ export default function ParentForm() {
       </AuthLayout>
     );
   }
+
+  const phoneResendLabel = phoneCooldown.active
+    ? `${phoneCooldown.remaining}초 후 다시 보내기`
+    : '인증번호 다시 보내기';
 
   return (
     <AuthLayout>
@@ -235,9 +414,9 @@ export default function ParentForm() {
           placeholder="전화번호를 입력 해주세요"
           actionLabel="인증번호 보내기"
           onAction={handleSendPhoneCode}
-          actionDisabled={phoneSending || verification.phone.verified}
-          helperText={phoneError || undefined}
-          status={phoneError ? 'error' : 'default'}
+          actionDisabled={phoneSending || phoneCooldown.active || verification.phone.verified}
+          helperText={verification.phone.verified ? undefined : phoneMessage.text || undefined}
+          status={verification.phone.verified ? 'default' : phoneMessage.status}
           required
         />
 
@@ -248,14 +427,17 @@ export default function ParentForm() {
           value={formData.phoneCode}
           onChange={(value) => updateFormData({ phoneCode: value.replace(/\D/g, '').slice(0, 6) })}
           placeholder="카카오톡으로 보낸 인증번호를 입력 해주세요"
-          actionLabel="인증번호 다시 보내기"
+          actionLabel={phoneResendLabel}
           onAction={handleSendPhoneCode}
-          actionDisabled={!verification.phone.requested || phoneSending || verification.phone.verified}
-          helperText={
-            verification.phone.verified ? '인증되었습니다' : phoneError || undefined
+          actionDisabled={
+            !verification.phone.requested ||
+            phoneSending ||
+            phoneCooldown.active ||
+            verification.phone.verified
           }
-          status={verification.phone.verified ? 'success' : phoneError ? 'error' : 'default'}
-          disabled={!verification.phone.requested}
+          helperText={phoneMessage.text || undefined}
+          status={verification.phone.verified ? 'success' : phoneMessage.status}
+          disabled={!verification.phone.requested || verification.phone.verified}
         />
 
         <TextField
@@ -266,11 +448,13 @@ export default function ParentForm() {
           value={formData.email}
           onChange={(value) => updateFormData({ email: value })}
           placeholder="이메일을 입력 해주세요"
-          actionLabel="인증번호 보내기"
+          actionLabel={
+            emailCooldown.active ? `${emailCooldown.remaining}초 후 다시 보내기` : '인증번호 보내기'
+          }
           onAction={handleSendEmailCode}
-          actionDisabled={emailSending || verification.email.verified}
-          helperText={emailError || undefined}
-          status={emailError ? 'error' : 'default'}
+          actionDisabled={emailSending || emailCooldown.active || verification.email.verified}
+          helperText={verification.email.verified ? undefined : emailMessage.text || undefined}
+          status={verification.email.verified ? 'default' : emailMessage.status}
           required
         />
 
@@ -281,11 +465,9 @@ export default function ParentForm() {
           value={formData.emailCode}
           onChange={(value) => updateFormData({ emailCode: value.replace(/\D/g, '').slice(0, 6) })}
           placeholder="이메일 인증코드 6자리를 입력해주세요"
-          helperText={
-            verification.email.verified ? '인증되었습니다' : emailError || undefined
-          }
-          status={verification.email.verified ? 'success' : emailError ? 'error' : 'default'}
-          disabled={!verification.email.requested}
+          helperText={emailMessage.text || undefined}
+          status={verification.email.verified ? 'success' : emailMessage.status}
+          disabled={!verification.email.requested || verification.email.verified}
         />
 
         <TextField
@@ -312,6 +494,8 @@ export default function ParentForm() {
           onToggleItem={(key) => updateAgreements({ [key]: !agreements[key] })}
         />
       </div>
+
+      {formError && <p className="w-full text-center text-sm text-red-500">{formError}</p>}
 
       <PrimaryButton onClick={handleSubmit} disabled={!canSubmit || submitting} loading={submitting}>
         가입 완료하기

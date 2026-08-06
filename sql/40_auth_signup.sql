@@ -17,6 +17,7 @@
 --  [10] link_code_lookups        : 연결코드 조회 이력 + 한도 (서버 전용)
 --  [11] identity_verifications   : NICE 본인확인 결과 (CI/DI, 서버 전용)
 --  [12] identity_verifications   : NICE 「통합인증」 규격 반영 (컬럼 추가)
+--  [13] complete_signup_profile  : 지역 필수를 학생 전용으로 (학부모 가입 개통)
 --
 -- 의존: 00_base_schema.sql (profiles, is_winning_admin(), extensions.pgcrypto)
 -- =====================================================================
@@ -1392,6 +1393,212 @@ comment on column public.identity_verifications.auth_ticket is
 create index if not exists identity_verifications_unconsumed_idx
   on public.identity_verifications (request_id)
   where status = 'verified' and consumed_at is null;
+
+
+-- =====================================================================
+-- [13] complete_signup_profile : 지역 필수를 학생일 때만으로 분기
+--
+-- [7]에서 school_type을 학생 전용으로 바꿨는데 region은 그대로 전 회원 필수로
+-- 남아 있었다. 그런데 학부모 가입 폼(E-1, 노드 2393:10666)에는 지역 입력 자체가
+-- 없다 — 학생 폼과 달리 지역/재학구분/학교명을 받지 않는다. 그래서 학부모는
+-- 폼을 아무리 채워도 이 RPC에서 region_required로 막혀 **가입을 완료할 수 없었다**.
+-- 2026-08-06 프론트 배선 중 발견.
+--
+-- profiles.region은 테이블 차원에서 nullable이라(00_base_schema.sql:787) 검증만
+-- 풀면 된다. 함수 본문 전체를 다시 쓰는 이유는 create or replace가 부분 수정을
+-- 지원하지 않기 때문이고, [7]은 이미 실행됐으므로 수정하지 않고 여기서 교체한다.
+--
+-- [7]과의 차이는 두 곳뿐이다:
+--   1) region 검사를 member_type 확정 이후로 옮기고 학생일 때만 요구한다.
+--   2) upsert에서 region을 nullif로 감싼다 — 지역이 없는 회원에게 빈 문자열을
+--      넣으면 "입력했는데 비었다"와 "받지 않는다"가 구분되지 않는다.
+-- =====================================================================
+
+create or replace function public.complete_signup_profile(
+  p_name                      text,
+  p_username                  text,
+  p_phone                     text,
+  p_email                     text,
+  p_region                    text,
+  p_school_type               text,
+  p_school_name               text,
+  p_member_type               text,
+  p_terms_service_agreed      boolean,
+  p_privacy_required_agreed   boolean,
+  p_identity_required_agreed  boolean,
+  p_privacy_optional_agreed   boolean,
+  p_marketing_agreed          boolean,
+  p_ads_agreed                boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_user_id     uuid;
+  v_name        text;
+  v_username    text;
+  v_phone       text;
+  v_email       text;
+  v_region      text;
+  v_school_type text;
+  v_school_name text;
+  v_member_type text;
+  v_link_code   text;
+begin
+  v_user_id := auth.uid();
+
+  if v_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  v_name        := trim(coalesce(p_name, ''));
+  v_email       := lower(trim(coalesce(p_email, '')));
+  v_username    := lower(trim(coalesce(nullif(p_username, ''), v_email)));
+  v_phone       := trim(coalesce(p_phone, ''));
+  v_region      := trim(coalesce(p_region, ''));
+  v_school_type := trim(coalesce(p_school_type, ''));
+  v_school_name := trim(coalesce(p_school_name, ''));
+  v_member_type := lower(trim(coalesce(p_member_type, '')));
+
+  if v_name = '' then
+    raise exception 'name_required';
+  end if;
+
+  if v_email = '' then
+    raise exception 'email_required';
+  end if;
+
+  if v_username = '' then
+    v_username := v_email;
+  end if;
+
+  if v_member_type = '' then
+    raise exception 'member_type_required';
+  end if;
+
+  if v_member_type not in ('student', 'parent', 'mentor') then
+    raise exception 'invalid_member_type';
+  end if;
+
+  -- 지역·재학 구분은 학생에게만 필수. 학부모·멘토 폼은 받지 않는다.
+  if v_member_type = 'student' and v_region = '' then
+    raise exception 'region_required';
+  end if;
+
+  if v_member_type = 'student' and v_school_type = '' then
+    raise exception 'school_type_required';
+  end if;
+
+  if coalesce(p_terms_service_agreed, false) is not true then
+    raise exception 'terms_service_required';
+  end if;
+
+  if coalesce(p_privacy_required_agreed, false) is not true then
+    raise exception 'privacy_required';
+  end if;
+
+  -- 본인 인증 정보 수집 동의는 학생 약관에만 있는 항목이다.
+  if v_member_type = 'student'
+     and coalesce(p_identity_required_agreed, false) is not true then
+    raise exception 'identity_required';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles
+    where lower(trim(email)) = v_email
+      and id <> v_user_id
+  ) then
+    raise exception 'duplicate_email';
+  end if;
+
+  insert into public.profiles (
+    id, name, username, phone, email, region,
+    school_type, school_name, member_type, role,
+    terms_service_agreed, privacy_required_agreed, privacy_optional_agreed,
+    marketing_agreed, ads_agreed, updated_at
+  )
+  values (
+    v_user_id, v_name, v_username, v_phone, v_email, nullif(v_region, ''),
+    nullif(v_school_type, ''), nullif(v_school_name, ''), v_member_type, 'user',
+    coalesce(p_terms_service_agreed, false),
+    coalesce(p_privacy_required_agreed, false),
+    coalesce(p_privacy_optional_agreed, false),
+    coalesce(p_marketing_agreed, false),
+    coalesce(p_ads_agreed, false),
+    now()
+  )
+  on conflict (id) do update
+  set
+    name                    = excluded.name,
+    username                = excluded.username,
+    phone                   = excluded.phone,
+    email                   = excluded.email,
+    region                  = excluded.region,
+    school_type             = excluded.school_type,
+    school_name             = excluded.school_name,
+    member_type             = excluded.member_type,
+    role                    = coalesce(public.profiles.role, 'user'),
+    terms_service_agreed    = excluded.terms_service_agreed,
+    privacy_required_agreed = excluded.privacy_required_agreed,
+    privacy_optional_agreed = excluded.privacy_optional_agreed,
+    marketing_agreed        = excluded.marketing_agreed,
+    ads_agreed              = excluded.ads_agreed,
+    updated_at              = now();
+
+  -- 약관 동의 이력 (버전 단위). [7]과 동일하다.
+  insert into public.user_term_agreements (user_id, term_id, agreed)
+  select
+    v_user_id,
+    t.id,
+    case
+      when t.code ~ '_identity$'                        then coalesce(p_identity_required_agreed, false)
+      when t.profile_column = 'terms_service_agreed'    then coalesce(p_terms_service_agreed, false)
+      when t.profile_column = 'privacy_required_agreed' then coalesce(p_privacy_required_agreed, false)
+      when t.profile_column = 'marketing_agreed'        then coalesce(p_marketing_agreed, false)
+      when t.profile_column = 'ads_agreed'              then coalesce(p_ads_agreed, false)
+      else false
+    end
+  from public.terms t
+  where t.is_active
+    and t.audience in (v_member_type, 'common')
+  on conflict (user_id, term_id) do update
+  set agreed    = excluded.agreed,
+      agreed_at = now();
+
+  -- 학생 연결코드: 없을 때만 발급한다(재호출로 코드가 회전하면 안 된다).
+  if v_member_type = 'student' then
+    select code into v_link_code
+    from public.student_link_codes
+    where student_id = v_user_id
+      and is_active;
+
+    if v_link_code is null then
+      v_link_code := public.issue_student_link_code(v_user_id);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_user_id,
+    'email', v_email,
+    'member_type', v_member_type,
+    'link_code', v_link_code   -- 학생이 아니면 null
+  );
+end;
+$function$;
+
+revoke all on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) from public, anon;
+
+grant execute on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) to authenticated, service_role;
 
 
 -- =====================================================================
