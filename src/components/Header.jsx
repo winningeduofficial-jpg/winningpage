@@ -13,6 +13,7 @@ import {
   NAV_CELL_W,
   NAV_GUARD
 } from '../data/navigation';
+import megaPromoDiagnosisImg from '../assets/mega/promo-diagnosis.png';
 
 const CSAT_DATE = '2026-11-19';
 const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
@@ -41,6 +42,29 @@ const LOGO_W = '4.04rem';
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
 // 동일 0.8 스케일로 환산해 아래 카드 JSX에 반영했다.)
 const MEGA_PROMO_W = '23rem';
+// 프로모 카드 콘텐츠(로그인 상태별 분기, 시안 3153:5209 로그인된 메가헤더 / 카드 프레임
+// 3144:2883 — 크기·간격·그림자·타이포는 비로그인 카드(1483:926)와 완전히 동일해 상수는
+// 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 이 두 상수 객체로 분기한다.
+const MEGA_PROMO_GUEST = {
+  title: '월 2만원 대로 시작하는 입시 관리!',
+  subtitle: (
+    <>
+      학업·교내활동, 탐구, 학종, 교과, 면접까지
+      <br />
+      AI로 무제한 점검하세요
+    </>
+  ),
+  image: '/images/mega-menu-promo.png',
+  ctaLabel: '로그인하기',
+  ctaTo: '/login'
+};
+const MEGA_PROMO_MEMBER = {
+  title: '나에게 딱 맞는 서비스를 추천받아요',
+  subtitle: '무료 설문조사로 나의 강점과 약점을 찾아보세요',
+  image: megaPromoDiagnosisImg,
+  ctaLabel: '무료진단 하기',
+  ctaTo: '/free-diagnosis'
+};
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
 // 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
 // py-10과 동일 값) 패딩으로 감싸는 고정 크기 박스. 존 크기 = 카드 + 2.5rem×2 상수로,
@@ -476,6 +500,9 @@ export default function Header() {
   // 그룹별 콘텐츠 스위칭 로직은 불필요하다.
   const isMegaPanelOpen = megaPanelPhase === 'open';
   const isMegaPanelClosing = megaPanelPhase === 'closing';
+  // 프로모 카드 콘텐츠는 프로필 로딩 완료 여부(shouldShowLoggedInHeader)와 무관하게
+  // "로그인했는가"만으로 2분기한다(사용자 확정).
+  const megaPromo = isLoggedIn ? MEGA_PROMO_MEMBER : MEGA_PROMO_GUEST;
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
@@ -810,13 +837,18 @@ export default function Header() {
                 className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
                 style={{ transform: 'translateX(0.5rem)' }}
               >
-                {/* 프로모 카드: 콘텐츠 하드코딩. 추후 admin에서 편집 가능한 배너로 전환 후보.
+                {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
+                      편집 가능한 배너로 전환 후보.
                       Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
                       rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
                       버튼 68px/rounded-[16px]/20px SemiBold) 기준 0.8 컴팩트 스케일 환산.
                       쉐도우는 실측 이펙트 그대로 적용: DROP_SHADOW(0,4,16,rgba(0,0,0,.06)) +
                       inset 하이라이트(회색 존 위에 얹힌 카드의 유리질감 재현), 기존
-                      shadow-[0_18px_45px_...]는 패널 전체 쉐도우를 잘못 재사용한 값이었다. */}
+                      shadow-[0_18px_45px_...]는 패널 전체 쉐도우를 잘못 재사용한 값이었다.
+                      로그인 분기 근거: 시안 3153:5209(로그인된 메가헤더) — 카드 프레임 3144:2883은
+                      비로그인 카드(1483:926)와 크기·간격·그림자·타이포가 완전히 동일해 위 스케일
+                      값은 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 megaPromo
+                      (MEGA_PROMO_GUEST/MEGA_PROMO_MEMBER)로 교체한다. */}
                 <div
                   className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
                   style={{ width: MEGA_PROMO_W }}
@@ -826,26 +858,24 @@ export default function Header() {
                     aria-hidden="true"
                   />
                   <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
-                    월 2만원 대로 시작하는 입시 관리!
+                    {megaPromo.title}
                   </p>
-                  <p className="mt-2 text-sm leading-[1.4] text-[#525252]">
-                    학업·교내활동, 탐구, 학종, 교과, 면접까지
-                    <br />
-                    AI로 무제한 점검하세요
+                  <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
+                    {megaPromo.subtitle}
                   </p>
 
                   <img
-                    src="/images/mega-menu-promo.png"
+                    src={megaPromo.image}
                     alt=""
                     className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
                   />
 
                   <Link
-                    to="/login"
+                    to={megaPromo.ctaTo}
                     onClick={() => setActiveMega(null)}
                     className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
                   >
-                    로그인하기
+                    {megaPromo.ctaLabel}
                   </Link>
                 </div>
               </div>

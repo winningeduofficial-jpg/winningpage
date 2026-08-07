@@ -3,6 +3,7 @@ import MentorSection from '../../components/landing/MentorSection';
 import CmButton from '../../components/callmentor/CmButton';
 import CmSectionHeading from '../../components/callmentor/CmSectionHeading';
 import { supabase } from '../../lib/supabase';
+import { alertServiceNotReady } from '../../lib/paidServiceAccess';
 import heroCallMockup from '../../assets/callmentor/hero-call-mockup.png';
 import stepDiagnosis from '../../assets/callmentor/step-diagnosis.jpg';
 import stepMentorMatch from '../../assets/callmentor/step-mentor-match.jpg';
@@ -180,8 +181,14 @@ export default function Callmentor() {
               핵심 문제 하나와 실행 계획을 정리해 드립니다.
             </p>
             <div className="flex flex-col gap-5 sm:flex-row">
-              <CmButton variant="primary" to="/free-diagnosis">
-                무료진단으로 시작하기 →
+              {/* 콜멘토는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가
+                  없어, 클릭 시 이동 대신 "서비스 준비중입니다" alert로 안내한다
+                  (alertServiceNotReady, paidServiceAccess.js — 자기평가・심화탐구와 동일 처리,
+                  2026-08-05 사용자 확정). 라벨도 무료진단을 명시하던 "무료진단으로 시작하기 →"에서
+                  다른 두 페이지와 통일된 "지금 시작하기"로 바꿨다(준비중 alert와 라벨의 모순 방지).
+                  to prop을 빼면 CmButton이 자동으로 <button>으로 렌더한다. */}
+              <CmButton variant="primary" onClick={alertServiceNotReady}>
+                지금 시작하기
               </CmButton>
               {/* 하위 플로우(상담 안내) 미구현 범위 — 우선 4단계 진행 순서 섹션으로 인페이지 스크롤 */}
               <CmButton variant="outline" href="#callmentor-steps">

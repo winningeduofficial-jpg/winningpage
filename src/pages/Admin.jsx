@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronDown,
@@ -17,6 +17,19 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import MentorCard from '../components/landing/MentorCard';
+import {
+  HWP_SECTION_ORDER,
+  HWP_SECTION_LABELS,
+  HWP_SECTION_HTML_KEYS,
+  splitHwpTextIntoSections,
+  buildHwpCategoryHtml,
+  clean as cleanAdmissionText
+} from '../lib/admissionParsing';
+import BlockEditor from '../components/editor/BlockEditor';
+import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
+import { blocksToPlainText } from '../lib/blockToPlainText';
+import { plainTextToBlocks } from '../lib/plainTextToBlocks';
+import { FAQ_CATEGORIES } from '../data/faqCategories';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -39,10 +52,13 @@ const MENU_GROUPS = [
     items: [
       { key: 'notices', label: '공지사항' },
       { key: 'companyNews', label: '회사소식' },
-      { key: 'admissionSusiJungsi', label: '수시·정시' },
+      { key: 'admissionSusiJungsi', label: '수시정시합격' },
+      { key: 'specialHighschool', label: '특목고합격' },
       { key: 'admissionGuidelines', label: '대학별 모집요강' },
+      { key: 'admissionUniversities', label: '대학 목록 관리' },
       { key: 'admissionResults', label: '입결정보' },
-      { key: 'galleries', label: '교육컬럼' },
+      { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
+      { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
       { key: 'freeDiagnosis', label: '무료진단 관리' }
     ]
@@ -82,6 +98,64 @@ const MENU_GROUPS = [
       { key: 'refunds', label: '환불 요청 내역' }
     ]
   }
+];
+
+// AdmissionGuidelines.jsx의 REGION_ORDER와 동일하게 유지한다.
+// 여기 없는 지역 문자열을 입력하면 공개 페이지의 지역별 목록/지도에 노출되지 않는다.
+const ADMISSION_REGION_OPTIONS = [
+  '강원',
+  '경기',
+  '경남',
+  '경북',
+  '광주',
+  '대구',
+  '대전',
+  '부산',
+  '서울',
+  '세종',
+  '울산',
+  '인천',
+  '전남',
+  '전북',
+  '제주',
+  '충남',
+  '충북'
+];
+
+// 수시정시합격 페이지는 사이드바에 admissionSusiJungsi 하나만 노출하고, 그 안에서
+// 서브탭으로 admission_posts/admission_acceptance_rates/admission_case_logos를 전환한다.
+const ADMISSION_CASES_TABS = [
+  { key: 'admissionSusiJungsi', label: '합격 사례' },
+  { key: 'acceptanceRates', label: '연도별 합격률' },
+  { key: 'admissionCaseLogos', label: '대학 로고' }
+];
+
+// DB 저장값은 susi/jungsi 그대로 유지하고 화면 표기만 한글로 바꾼다.
+const ADMISSION_CASE_CATEGORY_OPTIONS = [
+  { value: 'susi', label: '수시' },
+  { value: 'jungsi', label: '정시' }
+];
+
+// 특목고합격 — 사이드바에 specialHighschool 하나만 노출하고 그 안에서 서브탭으로 전환한다.
+// 히어로 대학 로고는 수시정시합격과 같은 테이블(admission_case_logos)을 공유하므로
+// 여기에 로고 탭을 만들지 않는다 — 같은 데이터의 편집 입구가 둘이 되면 드리프트가 난다.
+const SPECIAL_HIGHSCHOOL_TABS = [
+  { key: 'specialHighschool', label: '합격 사례' },
+  { key: 'specialHighschoolRates', label: '연도별 합격률' }
+];
+
+// 공개 페이지 탭(전체/자사고/외고/국제고/영재고/과학고) 및 DB CHECK 제약과 동일하게 유지할 것.
+const SPECIAL_HIGHSCHOOL_TYPE_OPTIONS = [
+  { value: '자사고', label: '자사고' },
+  { value: '외고', label: '외고' },
+  { value: '국제고', label: '국제고' },
+  { value: '영재고', label: '영재고' },
+  { value: '과학고', label: '과학고' }
+];
+
+const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
+  { value: '합격자', label: '합격자' },
+  { value: '합격생', label: '합격생' }
 ];
 
 const CONFIGS = {
@@ -389,6 +463,271 @@ const CONFIGS = {
     }
   },
 
+  specialHighschool: {
+    title: '특목고 합격 사례',
+    table: 'special_highschool_cases',
+    tabs: SPECIAL_HIGHSCHOOL_TABS,
+    searchPlaceholder: '학교명 또는 학생명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `특목고 합격 페이지의 합격 사례 카드입니다. 구분(자사고/외고/국제고/영재고/과학고)이 공개 페이지의 탭 필터와 그대로 연결되며, 여기 없는 구분은 선택할 수 없습니다. 학생명은 반드시 마스킹해 입력하세요(허용 문자: O, ○, *, 예: 홍O동) — 실명 노출은 개인정보 위반입니다. 출신 중학교는 있는 경우에만 입력하며, 비워 두면 카드에 표시되지 않습니다. 순서 숫자가 작을수록 앞에 나옵니다. 상단 합격률 숫자는 '연도별 합격률' 탭에서 관리하고, 그 아래 대학 로고 줄은 '수시정시합격 > 대학 로고'에서 관리합니다(두 페이지가 같은 로고를 공유합니다).`,
+    columns: [
+      { key: 'school_type', label: '구분' },
+      { key: 'school_name', label: '학교명' },
+      { key: 'year', label: '연도' },
+      { key: 'student_name', label: '학생명' },
+      { key: 'result_label', label: '표기' },
+      { key: 'middle_school', label: '출신 중학교' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'school_type', label: '구분', type: 'select', options: SPECIAL_HIGHSCHOOL_TYPE_OPTIONS, required: true, help: '공개 페이지 탭 필터와 연결됩니다' },
+      { key: 'school_name', label: '학교명', type: 'text', required: true, help: '카드에 크게 표시되는 값입니다 (예: 광양제철고)' },
+      { key: 'year', label: '연도', type: 'number', required: true, help: '고입 합격 연도 (예: 2022)' },
+      { key: 'student_name', label: '학생명', type: 'text', required: true, help: '반드시 마스킹해 입력 (O, ○, * 중 하나 사용, 예: 홍O동)' },
+      { key: 'result_label', label: '표기', type: 'select', options: SPECIAL_HIGHSCHOOL_LABEL_OPTIONS, required: true, help: `카드 문구가 'N년 고입 합격자/합격생'으로 바뀝니다` },
+      { key: 'middle_school', label: '출신 중학교', type: 'text', help: '있는 경우만 입력. 비우면 카드에 표시되지 않습니다' },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    formToPayload: (form) => ({
+      ...form,
+      year: Number(form.year || 0),
+      middle_school: String(form.middle_school || '')
+    }),
+    validate: (form) => {
+      const year = Number(form.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return '연도는 2000~2100 사이 정수로 입력해 주세요.';
+      }
+      if (!/[O○*]/.test(String(form.student_name || ''))) {
+        return '학생명은 개인정보 보호를 위해 마스킹해 입력해 주세요 (O, ○, * 중 하나 사용, 예: 홍O동).';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      school_type: '자사고',
+      school_name: '',
+      year: new Date().getFullYear(),
+      student_name: '',
+      result_label: '합격자',
+      middle_school: '',
+      sort_order: 1
+    }
+  },
+
+  specialHighschoolRates: {
+    title: '연도별 합격률',
+    table: 'special_highschool_acceptance_rates',
+    tabs: SPECIAL_HIGHSCHOOL_TABS,
+    searchPlaceholder: '연도를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `특목고 합격 페이지 상단 '목표 특목고 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 수시정시합격 페이지의 합격률과는 완전히 별개 데이터이며 서로 영향을 주지 않습니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
+    ListSummary: AcceptanceRateSummary,
+    columns: [
+      { key: 'year', label: '연도' },
+      { key: 'rate', label: '합격률(%)' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'year', label: '연도', type: 'number', required: true, help: '예: 2025 (중복 등록 불가)' },
+      {
+        key: 'rate',
+        label: '합격률(%)',
+        type: 'text',
+        required: true,
+        help: '0~100 사이 숫자. 소수점 한 자리까지 입력 가능(예: 95.4)'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      rate: row.rate === null || row.rate === undefined ? '' : String(row.rate)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      year: Number(form.year || 0),
+      rate: Number.parseFloat(form.rate)
+    }),
+    validate: (form) => {
+      const year = Number(form.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return '연도는 2000~2100 사이 정수로 입력해 주세요.';
+      }
+      const rate = Number.parseFloat(form.rate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+        return '합격률은 0~100 사이 숫자로 입력해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      year: new Date().getFullYear(),
+      rate: '',
+      sort_order: 1
+    }
+  },
+
+  acceptanceRates: {
+    title: '연도별 합격률',
+    table: 'admission_acceptance_rates',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '연도를 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 '목표 대학 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
+    ListSummary: AcceptanceRateSummary,
+    columns: [
+      { key: 'year', label: '연도' },
+      { key: 'rate', label: '합격률(%)' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'year', label: '연도', type: 'number', required: true, help: '예: 2025 (중복 등록 불가)' },
+      {
+        key: 'rate',
+        label: '합격률(%)',
+        type: 'text',
+        required: true,
+        help: '0~100 사이 숫자. 소수점 한 자리까지 입력 가능(예: 95.4)'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      rate: row.rate === null || row.rate === undefined ? '' : String(row.rate)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      year: Number(form.year || 0),
+      rate: Number.parseFloat(form.rate)
+    }),
+    validate: (form) => {
+      const year = Number(form.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return '연도는 2000~2100 사이 정수로 입력해 주세요.';
+      }
+      const rate = Number.parseFloat(form.rate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+        return '합격률은 0~100 사이 숫자로 입력해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      year: new Date().getFullYear(),
+      rate: '',
+      sort_order: 1
+    }
+  },
+
+  admissionCaseLogos: {
+    title: '대학 로고',
+    table: 'admission_case_logos',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '대학명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 표시 줄에서 지정한 대로 1행/2행에 배치되며, 시안은 1행 7개·2행 5개 구성입니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
+    columns: [
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'name', label: '대학명' },
+      { key: 'display_height_rem', label: '표시 높이(rem)' },
+      { key: 'opacity', label: '투명도' },
+      { key: 'row_no', label: '표시 줄' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true, help: '대체 텍스트로도 쓰입니다' },
+      {
+        key: 'logo_url',
+        label: '로고 이미지',
+        type: 'image',
+        required: true,
+        hideUrlInput: true,
+        compress: true,
+        help: '여백 없이 크롭한 PNG(투명 배경) / 1MB 이하',
+        imageSpec: { maxMB: 1 },
+        folder: 'admission/university-logos',
+        cacheControl: '31536000, immutable'
+      },
+      {
+        key: 'display_height_rem',
+        label: '표시 높이(rem)',
+        type: 'text',
+        required: true,
+        help: '시안 기준 1.1~2.4. 소수점 세 자리까지 입력 가능(예: 1.858)'
+      },
+      {
+        key: 'opacity',
+        label: '투명도',
+        type: 'text',
+        required: true,
+        help: '0 초과 1 이하. 기본 1, 감광 로고는 0.7 또는 0.8'
+      },
+      {
+        key: 'row_no',
+        label: '표시 줄',
+        type: 'select',
+        required: true,
+        options: [
+          { value: '1', label: '1행' },
+          { value: '2', label: '2행' }
+        ],
+        help: '시안은 1행 7개 · 2행 5개 구성입니다'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    rowToForm: (row) => ({
+      ...row,
+      display_height_rem:
+        row.display_height_rem === null || row.display_height_rem === undefined
+          ? ''
+          : String(row.display_height_rem),
+      opacity: row.opacity === null || row.opacity === undefined ? '' : String(row.opacity),
+      row_no: row.row_no === null || row.row_no === undefined ? '1' : String(row.row_no)
+    }),
+    formToPayload: (form) => ({
+      ...form,
+      display_height_rem: Number.parseFloat(form.display_height_rem),
+      opacity: Number.parseFloat(form.opacity),
+      row_no: Number.parseInt(form.row_no, 10)
+    }),
+    validate: (form) => {
+      const height = Number.parseFloat(form.display_height_rem);
+      if (!Number.isFinite(height) || height <= 0 || height > 10) {
+        return '표시 높이는 0 초과 10 이하 숫자(rem)로 입력해 주세요.';
+      }
+      const opacity = Number.parseFloat(form.opacity);
+      if (!Number.isFinite(opacity) || opacity <= 0 || opacity > 1) {
+        return '투명도는 0 초과 1 이하 숫자로 입력해 주세요.';
+      }
+      const rowNo = Number.parseInt(form.row_no, 10);
+      if (rowNo !== 1 && rowNo !== 2) {
+        return '표시 줄은 1행 또는 2행 중에서 선택해 주세요.';
+      }
+      return '';
+    },
+    defaults: {
+      is_active: true,
+      name: '',
+      logo_url: '',
+      display_height_rem: '2',
+      opacity: '1',
+      row_no: '1',
+      sort_order: 1
+    }
+  },
+
   pageContents: {
     title: '세부 페이지 관리',
     table: 'page_contents',
@@ -578,42 +917,79 @@ const CONFIGS = {
 
       {
         key: 'previous_year_changes',
-        label: '전년도와 차이점(수시)(HTML)',
+        label: '전년도와 차이점(수시) 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 HTML도 함께 갱신하세요.',
+        type: 'textarea',
+        rows: 8
+      },
+      {
+        key: 'previous_year_changes_html',
+        label: '전년도와 차이점(수시) HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 8
       },
       {
         key: 'selection_method',
-        label: '전형방법(HTML 표)',
+        label: '전형방법 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'selection_method_html',
+        label: '전형방법 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 12
       },
       {
         key: 'minimum_requirements',
-        label: '최저학력기준(HTML 표)',
+        label: '최저학력기준 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
+      },
+      {
+        key: 'minimum_requirements_html',
+        label: '최저학력기준 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 12
       },
       {
         key: 'exam_schedule',
-        label: '대학별고사일(HTML 표)',
+        label: '대학별고사일 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 10
+      },
+      {
+        key: 'exam_schedule_html',
+        label: '대학별고사일 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 10
       },
       {
         key: 'school_record_method',
-        label: '학생부반영방법(HTML)',
+        label: '학생부반영방법 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 14
+      },
+      {
+        key: 'school_record_method_html',
+        label: '학생부반영방법 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 14
       },
       {
         key: 'recruitment_quota',
-        label: '모집인원 버튼명',
-        type: 'text'
+        label: '모집인원 및 입결 원문(raw)',
+        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        type: 'textarea',
+        rows: 12
       },
       {
         key: 'recruitment_result_html',
-        label: '모집인원 및 입결(HTML 표)',
+        label: '모집인원 및 입결 HTML(공개 페이지 렌더값)',
         type: 'textarea',
         rows: 18
       },
@@ -644,15 +1020,67 @@ const CONFIGS = {
       university_key: '',
       matched_hwp_name: '',
       previous_year_changes: '',
+      previous_year_changes_html: '',
       selection_method: '',
+      selection_method_html: '',
       minimum_requirements: '',
+      minimum_requirements_html: '',
       exam_schedule: '',
+      exam_schedule_html: '',
       school_record_method: '',
-      recruitment_quota: '모집인원 및 입결',
+      school_record_method_html: '',
+      recruitment_quota: '',
       recruitment_result_html: '',
       jungsi_guideline_url: '',
       memo: '',
       detail_status: '상세입력완료'
+    },
+
+    validate: admissionGuidelinesValidate,
+
+    FormPreview: AdmissionParsingPreview
+  },
+
+  admissionUniversities: {
+    title: '대학 목록 관리',
+    table: 'admission_universities',
+    searchPlaceholder: '대학명 또는 지역을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `대학별 모집요강 화면(지역별 대학 목록/지도)에 노출되는 대학 마스터입니다. 일반 대학은 특별군을 비워두고, 경찰대·과학기술원·사관학교만 해당 특별군을 지정하세요.`,
+
+    columns: [
+      { key: 'region', label: '지역' },
+      { key: 'name', label: '대학명' },
+      { key: 'special_group', label: '특별군' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'region', label: '지역', type: 'select', options: ADMISSION_REGION_OPTIONS, required: true },
+      { key: 'name', label: '대학명', type: 'text', required: true },
+      {
+        key: 'special_group',
+        label: '특별군',
+        type: 'select',
+        help: '일반 대학은 비워두세요(선택 안 함). 특별전형 대학군만 지정합니다.',
+        options: [
+          { value: 'police', label: '경찰대' },
+          { value: 'science', label: '과학기술원' },
+          { value: 'academy', label: '사관학교' }
+        ]
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+
+    defaults: {
+      is_active: true,
+      region: '',
+      name: '',
+      special_group: '',
+      sort_order: 0
     }
   },
 
@@ -663,90 +1091,135 @@ const CONFIGS = {
     order: 'result_year',
     homepage: true,
     excel: true,
-    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요.`,
+    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요. 대량 등록 시 (학년도, 모집시기, 대학, 모집단위, 전형명, 반영교과) 조합이 중복되면 저장이 거부되니, Import 전에 중복 행이 없는지 먼저 확인하세요.`,
     columns: [
       { key: 'result_year', label: '연도' },
-      { key: 'university_name', label: '대학명' },
-      { key: 'department', label: '모집단위' },
       { key: 'recruitment_period', label: '모집시기' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'department_name', label: '모집단위' },
       { key: 'screening_category', label: '전형유형' },
       { key: 'admission_track', label: '전형명' },
-      { key: 'score_label', label: '성적표시' },
-      { key: 'subject_reflection', label: '반영교과/영역' },
+      { key: 'grade_70', label: '70%컷' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
-      { key: 'result_year', label: '연도', type: 'number', required: true },
+      { key: 'result_year', label: '학년도', type: 'number', required: true },
+      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'], required: true },
+      { key: 'university_key', label: '대학 키값', type: 'text', required: true },
       { key: 'university_name', label: '대학명', type: 'text', required: true },
-      { key: 'campus', label: '캠퍼스', type: 'text' },
-      { key: 'region', label: '지역', type: 'text' },
-      { key: 'college', label: '단과대학', type: 'text' },
-      { key: 'department', label: '모집단위', type: 'text', required: true },
-      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'] },
+      { key: 'department_key', label: '모집단위 키값', type: 'text', required: true },
+      { key: 'department_name', label: '모집단위', type: 'text', required: true },
+      {
+        key: 'main_track',
+        label: '중심전형',
+        type: 'select',
+        options: ['학생부교과', '학생부종합', '논술', '실기', '기타']
+      },
       {
         key: 'screening_category',
         label: '전형유형',
         type: 'select',
-        options: ['학생부교과', '학생부종합', '정시', '실기', '기타']
+        options: ['일반', '추천형', '농어촌', '기회균형', '논술', '기타']
       },
-      { key: 'admission_track', label: '전형명', type: 'text' },
-      { key: 'selection_name', label: '세부 전형명', type: 'text' },
-      { key: 'score_basis', label: '발표 기준', type: 'text' },
-      { key: 'score_value', label: '성적 숫자값', type: 'number' },
-      { key: 'score_label', label: '성적 표시문구', type: 'text' },
-      { key: 'score_unit', label: '성적 단위', type: 'text' },
-      { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      { key: 'admission_track', label: '전형명', type: 'text', required: true, help: '전형명 원문 그대로 입력합니다.' },
+      { key: 'grade_50', label: '50%컷', type: 'number' },
+      { key: 'grade_70', label: '70%컷', type: 'number' },
+      { key: 'grade_85', label: '85%컷', type: 'number' },
+      { key: 'grade_90', label: '90%컷', type: 'number' },
+      { key: 'converted_score', label: '환산점수', type: 'number' },
+      { key: 'percentile', label: '백분위', type: 'number' },
       { key: 'quota', label: '모집인원', type: 'number' },
-      { key: 'applicants', label: '지원자수', type: 'number' },
       { key: 'competition_rate', label: '경쟁률', type: 'number' },
-      { key: 'additional_pass_count', label: '충원합격', type: 'number' },
-      { key: 'min_csats', label: '수능최저', type: 'text' },
-      { key: 'reflection_method', label: '반영방법', type: 'textarea' },
-      { key: 'source_title', label: '출처명', type: 'text' },
-      { key: 'source_url', label: '출처 URL', type: 'text' },
-      { key: 'memo', label: '메모', type: 'textarea' }
+      { key: 'waitlist_rank', label: '충원순위', type: 'text' },
+      { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      { key: 'source_sheet', label: '출처 시트', type: 'text' },
+      { key: 'source_row', label: '출처 행번호', type: 'number' },
+      { key: 'note', label: '메모', type: 'textarea' }
     ],
     defaults: {
       is_active: true,
       result_year: 2025,
-      university_name: '',
-      campus: '',
-      region: '',
-      college: '',
-      department: '',
       recruitment_period: '수시',
-      screening_category: '학생부교과',
+      university_key: '',
+      university_name: '',
+      department_key: '',
+      department_name: '',
+      main_track: '학생부교과',
+      screening_category: '일반',
       admission_track: '',
-      selection_name: '',
-      score_basis: '최종등록자',
-      score_value: 0,
-      score_label: '',
-      score_unit: '내신등급',
-      subject_reflection: '',
+      grade_50: null,
+      grade_70: null,
+      grade_85: null,
+      grade_90: null,
+      converted_score: null,
+      percentile: null,
       quota: 0,
-      applicants: 0,
       competition_rate: 0,
-      additional_pass_count: 0,
-      min_csats: '',
-      reflection_method: '',
-      source_title: '',
-      source_url: '',
-      memo: ''
+      waitlist_rank: '',
+      subject_reflection: '',
+      source_sheet: '',
+      source_row: null,
+      note: ''
+    }
+  },
+
+  trendingDepartments: {
+    title: '지금 뜨고 있는 학과',
+    table: 'trending_departments',
+    searchPlaceholder: '대학명 또는 학과명을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `랜딩 입결정보 영역에 노출되는 학과 칩 목록입니다. 대학 키값·모집단위 키값을 입력하면 칩 클릭 시 해당 상세로 딥링크되고, 비워두면 칩이 비활성 상태로 표시됩니다.`,
+    columns: [
+      { key: 'logo_url', label: '로고', type: 'image' },
+      { key: 'university_name', label: '대학명' },
+      { key: 'department_name', label: '학과명' },
+      { key: 'sort_order', label: '순서' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'university_name', label: '대학명', type: 'text', required: true },
+      { key: 'department_name', label: '학과명', type: 'text', required: true },
+      { key: 'university_key', label: '대학 키값', type: 'text', help: '입결정보 상세 딥링크(?u=)용. 비워두면 칩이 비활성으로 표시됩니다.' },
+      { key: 'department_key', label: '모집단위 키값', type: 'text', help: '입결정보 상세 딥링크(?d=)용.' },
+      {
+        key: 'logo_url',
+        label: '대학 로고 이미지',
+        type: 'image',
+        compress: true,
+        help: '정방형 권장. 저작권 확인 전까지는 비워둘 수 있습니다.',
+        imageSpec: { width: 1, height: 1, aspectOnly: true, maxMB: 1 },
+        folder: 'admission/trending-departments',
+        cacheControl: '31536000, immutable'
+      },
+      { key: 'sort_order', label: '순서', type: 'number' }
+    ],
+    defaults: {
+      is_active: true,
+      university_name: '',
+      department_name: '',
+      university_key: '',
+      department_key: '',
+      logo_url: '',
+      sort_order: 0
     }
   },
 
   admissionSusiJungsi: {
-    title: '수시·정시',
+    title: '합격 사례',
     table: 'admission_posts',
     fixedCategories: ['susi', 'jungsi'],
-    searchPlaceholder: '수시·정시 게시글 제목을 검색하세요',
+    tabs: ADMISSION_CASES_TABS,
+    searchPlaceholder: '합격 사례 게시글 제목을 검색하세요',
     order: 'sort_order',
     homepage: true,
-    guideText: `수시·정시 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다.`,
+    guideText: `합격 사례 게시글의 첫 번째 본문 이미지를 메인 화면 합격생 카드로 사용할 수 있습니다. '메인 합격생 영역에 노출'을 체크한 게시글만 표시되며, 카드를 누르면 해당 게시글 상세로 이동합니다. 본문은 블록 에디터로 작성합니다.`,
     columns: [
-      { key: 'category', label: '구분' },
+      { key: 'category', label: '구분', options: ADMISSION_CASE_CATEGORY_OPTIONS },
       { key: 'title', label: '제목' },
+      { key: 'content', label: '본문', type: 'truncate' },
       { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
       { key: 'show_on_home', label: '메인 합격생 노출', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
@@ -760,13 +1233,20 @@ const CONFIGS = {
         key: 'category',
         label: '구분',
         type: 'select',
-        options: ['susi', 'jungsi'],
+        options: ADMISSION_CASE_CATEGORY_OPTIONS,
         required: true
       },
       { key: 'title', label: '제목', type: 'text', required: true },
       { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
       { key: 'show_on_home', label: '메인 합격생 영역에 노출', type: 'checkbox' },
-      { key: 'content', label: '내용', type: 'textarea' },
+      {
+        key: 'content',
+        label: '내용',
+        type: 'blockEditor',
+        folder: 'admission-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
         key: 'attachments',
@@ -789,6 +1269,17 @@ const CONFIGS = {
       image_urls: [],
       attachments: [],
       sort_order: 1
+    },
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    formToPayload: (form) => {
+      const { __blocks_content, ...rest } = form;
+      const blocks = __blocks_content || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        content: blocksToPlainText(blocks)
+      };
     }
   },
 
@@ -925,31 +1416,70 @@ const CONFIGS = {
   },
 
   galleries: {
-    title: '교육컬럼',
+    title: '교육칼럼',
     table: 'galleries',
-    searchPlaceholder: '교육컬럼 제목을 검색하세요',
+    searchPlaceholder: '교육칼럼 제목을 검색하세요',
     order: 'created_at',
     homepage: true,
-    guideText: `교육컬럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
+    guideText: `교육칼럼 썸네일 이미지: 1200px × 900px / 비율: 4:3 / 형식: JPG 또는 PNG / 권장 용량: 1~2MB 이하 / 목록 썸네일은 4:3 기준으로 중앙 크롭됩니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'image_urls', label: '이미지', type: 'imageList' },
-      { key: 'content', label: '본문' },
+      { key: 'content', label: '본문', type: 'truncate' },
+      { key: 'category', label: '카테고리' },
+      { key: 'is_featured', label: '인기', type: 'boolean' },
       { key: 'is_active', label: '노출', type: 'boolean' },
       { key: 'created_at', label: '작성일', type: 'date' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'title', label: '제목', type: 'text', required: true },
-      { key: 'content', label: '본문', type: 'textarea' },
-      { key: 'image_urls', label: '이미지', type: 'multiImage' }
+      {
+        key: 'content',
+        label: '본문',
+        type: 'blockEditor',
+        required: true,
+        folder: 'column-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
+      { key: 'image_urls', label: '이미지', type: 'multiImage' },
+      {
+        key: 'category',
+        label: '카테고리',
+        type: 'select',
+        // = columnData.js COLUMN_CATEGORIES
+        options: [
+          '학습관리 방법',
+          '수시 및 정시 전략',
+          '특목고 입학',
+          '해외 및 대학원',
+          '입시제도 변화',
+          '대학 입시 제로',
+          '학생부•수행평가•세특'
+        ]
+      },
+      { key: 'is_featured', label: '이번주 인기 노출', type: 'radioBoolean' }
     ],
     defaults: {
       is_active: true,
       title: '',
       content: '',
       image_url: '',
-      image_urls: []
+      image_urls: [],
+      category: '학습관리 방법',
+      is_featured: false
+    },
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    formToPayload: (form) => {
+      const { __blocks_content, ...rest } = form;
+      const blocks = __blocks_content || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        content: blocksToPlainText(blocks)
+      };
     }
   },
 
@@ -958,18 +1488,46 @@ const CONFIGS = {
     table: 'faqs',
     searchPlaceholder: '질문을 검색하세요',
     order: 'sort_order',
+    previewTitleKey: 'question',
+    previewLabel: 'FAQ',
     columns: [
+      { key: 'category', label: '카테고리' },
       { key: 'question', label: '질문' },
-      { key: 'answer', label: '답변' },
+      { key: 'answer', label: '답변', type: 'truncate' },
       { key: 'is_active', label: '노출', type: 'boolean' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'category', label: '카테고리', type: 'select', options: FAQ_CATEGORIES },
       { key: 'question', label: '질문', type: 'text', required: true },
-      { key: 'answer', label: '답변', type: 'textarea' },
+      {
+        key: 'answer',
+        label: '답변',
+        type: 'blockEditor',
+        required: true,
+        folder: 'faq-body',
+        compress: true,
+        imageSpec: { maxMB: 3 }
+      },
       { key: 'sort_order', label: '순서', type: 'number' }
     ],
-    defaults: { is_active: true, question: '', answer: '', sort_order: 1 }
+    defaults: { is_active: true, category: '', question: '', answer: '', sort_order: 1 },
+    // blockEditor(field.key='answer')는 initialContent를 form[`${field.key}_json`]에서 읽는다(관례).
+    // 그런데 FAQ의 정본 컬럼명은 answer_json이 아니라 content_json(계약 §2)이라 이름이 어긋난다 —
+    // 편집 진입 시 row.content_json을 answer_json으로 옮겨 관례 코드가 그대로 맞물리게 한다.
+    rowToForm: (row) => ({ ...row, answer_json: row.content_json }),
+    // ref pull(blockEditor)은 form.__blocks_<key>에 임시로 실린다 — 정본(content_json)과
+    // 평문 미러(answer)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
+    // 주의: 교육칼럼/합격사례 선례는 평문 미러 컬럼이 content지만 FAQ는 answer다.
+    formToPayload: (form) => {
+      const { __blocks_answer, answer_json, ...rest } = form;
+      const blocks = __blocks_answer || [];
+      return {
+        ...rest,
+        content_json: { v: 1, editor: 'blocknote@0.52.1', blocks },
+        answer: blocksToPlainText(blocks)
+      };
+    }
   },
 
   members: {
@@ -2612,8 +3170,15 @@ function FreeDiagnosisAdmin() {
   );
 }
 
-function formatValue(value, type) {
+function formatValue(value, type, options) {
   if (value === null || value === undefined || value === '') return '-';
+
+  if (Array.isArray(options)) {
+    const matched = options.find(
+      (option) => option && typeof option === 'object' && option.value === value
+    );
+    if (matched) return matched.label;
+  }
 
   if (type === 'boolean') return value ? '사용' : '미사용';
 
@@ -2636,11 +3201,17 @@ function searchable(row) {
 }
 
 function csvEscape(value) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const raw = String(value ?? '');
+  // CSV formula injection 방어 — Excel/Sheets는 따옴표로 감싼 필드여도
+  // 선두 = + - @ 및 탭/CR을 수식으로 해석한다. 선행 작은따옴표로 무력화한다.
+  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function downloadCsv(filename, rows, columns) {
   const header = columns.map((column) => csvEscape(column.label)).join(',');
+  // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
+  // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
   const body = rows
     .map((row) =>
       columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
@@ -2697,8 +3268,19 @@ function formatListValue(value, type) {
   return `${list.length}개`;
 }
 
+function truncateText(value, maxLength = 10) {
+  if (value === null || value === undefined || value === '') return '-';
+  const flat = String(value).replace(/\r?\n/g, ' ');
+  const chars = Array.from(flat);
+  if (chars.length <= maxLength) return flat;
+  return `${chars.slice(0, maxLength).join('')}…`;
+}
+
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(() => new Set(MENU_GROUPS.map((group) => group.title)));
+  // 자식 탭(acceptanceRates/admissionCaseLogos)에 있을 때도 사이드바에서는
+  // 탭 목록의 첫 번째 key(admissionSusiJungsi)를 기준으로 활성 항목을 매칭한다.
+  const sidebarActiveKey = CONFIGS[activeKey]?.tabs ? CONFIGS[activeKey].tabs[0].key : activeKey;
 
   function toggle(title) {
     setOpen((prev) => {
@@ -2739,7 +3321,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
                       type="button"
                       onClick={() => setActiveKey(item.key)}
                       className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                        activeKey === item.key
+                        sidebarActiveKey === item.key
                           ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
                           : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
                       }`}
@@ -3207,19 +3789,359 @@ function MentorCardFormPreview({ form, onPatch }) {
   );
 }
 
+// admissionGuidelines 저장 직전 가드: 이미 존재하던 행을 수정하면서(신규 등록은 대상 아님)
+// 공개 페이지가 실제로 렌더하는 *_html 필드 중 하나라도 원래 값과 달라지면, 어떤 카테고리가
+// 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+function admissionGuidelinesValidate(form, row) {
+  if (!row) return null;
+
+  const changedLabels = HWP_SECTION_ORDER.filter((key) => {
+    const htmlKey = HWP_SECTION_HTML_KEYS[key];
+    return cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+  }).map((key) => HWP_SECTION_LABELS[key]);
+
+  if (changedLabels.length === 0) return null;
+
+  const proceed = window.confirm(
+    `다음 항목의 공개 페이지 HTML이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
+  );
+
+  return proceed ? null : '저장이 취소되었습니다.';
+}
+
+// admissionGuidelines 편집 폼 전용: HWP 원문 텍스트를 붙여넣으면 공유 파싱 모듈(admissionParsing.js)로
+// 6개 카테고리(raw + *_html)를 자동으로 채우고, 실제 공개 페이지 모달과 동일한 표 스타일로 미리보기를
+// 렌더한다. 번호("1.~6.") 마커가 없어 자동 분할이 안 되는 원문이면, 좌측 필드 목록에 이미 있는
+// 카테고리별 raw textarea에 직접 나눠 붙여넣는 fallback을 안내하고 "미리보기 새로고침"으로 그 값을
+// 기준으로 HTML을 재생성한다.
+function AdmissionParsingPreview({ form, onPatch }) {
+  const [hwpSource, setHwpSource] = useState('');
+  const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
+  // 카테고리별 "파싱 결과로 기존 HTML 덮어쓰기" 동의 체크박스 상태. 기본은 비동의(false) —
+  // 이미 값이 있는 카테고리는 사용자가 명시적으로 동의해야만 덮어쓴다.
+  const [overwriteConsent, setOverwriteConsent] = useState({});
+
+  function toggleConsent(key) {
+    setOverwriteConsent((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // 카테고리 원문 → HTML 파싱 결과를 patch로 만든다. 저장된 큐레이션 HTML을 파괴하지
+  // 않기 위해 두 가지를 지킨다:
+  // (a) 파싱 결과가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존 HTML을
+  //     지우지 않는다(빈 문자열로 덮어써서 공개 페이지에서 항목이 사라지는 것을 방지).
+  // (b) 이미 HTML 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠 경우에만
+  //     patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해 호출부가 안내한다.
+  function buildPreviewPatch(sourceForm) {
+    const patch = {};
+    const skipped = [];
+
+    HWP_SECTION_ORDER.forEach((key) => {
+      const htmlKey = HWP_SECTION_HTML_KEYS[key];
+      const generated = buildHwpCategoryHtml(
+        key,
+        sourceForm[key],
+        sourceForm,
+        sourceForm.university_name
+      );
+      if (!generated) return;
+
+      const hasExisting = Boolean(cleanAdmissionText(sourceForm[htmlKey]));
+      if (hasExisting && !overwriteConsent[key]) {
+        skipped.push(HWP_SECTION_LABELS[key]);
+        return;
+      }
+
+      patch[htmlKey] = generated;
+    });
+
+    return { patch, skipped };
+  }
+
+  function warnSkipped(skipped) {
+    if (!skipped.length) return;
+    alert(
+      `다음 카테고리는 이미 HTML이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+    );
+  }
+
+  function runAutoParse() {
+    if (!cleanAdmissionText(hwpSource)) {
+      alert('HWP 원문 텍스트를 먼저 붙여넣어 주세요.');
+      return;
+    }
+
+    const sections = splitHwpTextIntoSections(hwpSource);
+    const found = HWP_SECTION_ORDER.some((key) => cleanAdmissionText(sections[key]));
+
+    if (!found) {
+      setSplitStatus('fallback');
+      alert(
+        '번호(1.~6.) 마커를 찾지 못해 카테고리 자동 분할에 실패했습니다.\n좌측 각 카테고리의 원문 입력란에 항목별로 직접 붙여넣은 뒤 "미리보기 새로고침"을 눌러주세요.'
+      );
+      return;
+    }
+
+    const rawPatch = {};
+    HWP_SECTION_ORDER.forEach((key) => {
+      if (cleanAdmissionText(sections[key])) rawPatch[key] = sections[key];
+    });
+    const mergedRaw = { ...form, ...rawPatch };
+
+    setSplitStatus('auto');
+    const { patch, skipped } = buildPreviewPatch(mergedRaw);
+    onPatch({ ...rawPatch, ...patch });
+    warnSkipped(skipped);
+  }
+
+  function refreshPreview() {
+    setSplitStatus((prev) => prev || 'manual');
+    const { patch, skipped } = buildPreviewPatch(form);
+    onPatch(patch);
+    warnSkipped(skipped);
+  }
+
+  return (
+    <section className="admission-parsing-preview bg-white p-5 shadow">
+      <h2 className="text-sm font-black">HWP 원문 파싱 · 미리보기</h2>
+      <p className="mt-1 text-xs font-bold leading-5 text-gray-500">
+        모집요강 원문 전체(번호 &quot;1.~6.&quot; 포함)를 붙여넣고 파싱을 실행하면 좌측 6개 카테고리
+        원문/HTML 필드가 자동으로 채워집니다. 자동 분할이 안 되면 좌측 각 카테고리 원문 입력란에
+        직접 나눠 붙여넣은 뒤 &quot;미리보기 새로고침&quot;을 눌러주세요.
+      </p>
+
+      <textarea
+        value={hwpSource}
+        onChange={(e) => setHwpSource(e.target.value)}
+        rows={12}
+        placeholder="HWP에서 복사한 모집요강 원문 전체를 붙여넣으세요"
+        className="mt-3 w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none"
+      />
+
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={runAutoParse}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+        >
+          파싱 실행(자동 분할)
+        </button>
+        <button
+          type="button"
+          onClick={refreshPreview}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+        >
+          미리보기 새로고침(좌측 원문 기준)
+        </button>
+      </div>
+
+      {splitStatus === 'fallback' && (
+        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
+          자동 분할 실패 — 좌측 각 카테고리 원문(raw) 입력란에 카테고리별로 직접 붙여넣은 뒤
+          &quot;미리보기 새로고침&quot;을 눌러주세요.
+        </p>
+      )}
+
+      <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
+        {HWP_SECTION_ORDER.map((key) => {
+          const html = form[HWP_SECTION_HTML_KEYS[key]];
+          const hasExisting = Boolean(cleanAdmissionText(html));
+          return (
+            <div key={key}>
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
+                {hasExisting && (
+                  <label className="flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(overwriteConsent[key])}
+                      onChange={() => toggleConsent(key)}
+                    />
+                    파싱 결과로 덮어쓰기 동의
+                  </label>
+                )}
+              </div>
+              {html ? (
+                <div className="admission-existing-html" dangerouslySetInnerHTML={{ __html: html }} />
+              ) : (
+                <p className="text-xs font-bold text-gray-400">
+                  미리보기 없음 — 원문을 입력하고 파싱을 실행하세요.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 아래 클래스들은 AdmissionGuidelines.jsx 모달 스타일과 동일하게 유지한다(공개 페이지와 동일한 표 시각). */}
+      <style>{`
+        .admission-parsing-preview .admission-scroll-table,
+        .admission-parsing-preview .admission-table-wrap,
+        .admission-parsing-preview .admission-existing-html { scrollbar-width: none; }
+        .admission-parsing-preview .admission-scroll-table::-webkit-scrollbar,
+        .admission-parsing-preview .admission-table-wrap::-webkit-scrollbar,
+        .admission-parsing-preview .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
+        .admission-table-wrap,
+        .admission-existing-html,
+        .admission-raw-section-wrap { width: 100%; max-width: 100%; }
+        .admission-table-wrap { overflow-x: auto; }
+        .admission-existing-html { overflow-x: auto; }
+        .admission-existing-html table,
+        .admission-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-existing-html th,
+        .admission-table-wrap th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
+        .admission-existing-html td,
+        .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
+        .admission-existing-html td.left,
+        .admission-table-wrap td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
+        .admission-clean-block { width: 100%; }
+        .admission-clean-line { margin: 0 0 10px; color: #525252; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
+        .admission-clean-note { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-subhead { margin: 18px 0 8px; color: #013262; font-size: 14px; font-weight: 900; }
+        .admission-mini-table, .admission-result-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-mini-table th, .admission-result-table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
+        .admission-mini-table td, .admission-result-table td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
+        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
+        .admission-result-note { margin-bottom: 14px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 12px 14px; color: #667085; font-size: 12.5px; line-height: 1.7; font-weight: 800; word-break: keep-all; }
+        .admission-readable-body { display: grid; gap: 8px; }
+        .admission-subhead-card { margin-top: 8px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
+        .admission-normal-line,
+        .admission-long-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 13px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 750; word-break: keep-all; }
+        .admission-numbered-line { background: #f9fafb; }
+        .admission-long-line { white-space: normal; }
+        .admission-token-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 10px 12px; }
+        .admission-token-label { color: #013262; font-size: 13px; line-height: 1.5; font-weight: 950; white-space: nowrap; }
+        .admission-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .admission-token-list span { min-width: 34px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 5px 8px; color: #525252; font-size: 13px; line-height: 1.35; font-weight: 900; text-align: center; white-space: nowrap; }
+        .admission-wide-sheet { min-width: 760px; width: max-content; display: grid; gap: 4px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 10px; }
+        .admission-wide-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 10px; padding: 9px 10px; color: #525252; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
+        .admission-raw-pre { min-width: 760px; margin: 0; border: 1px solid #d7d7d7; border-radius: 16px; background: #ffffff; padding: 16px; color: #525252; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .admission-safe-text-block { border-radius: 0; border-top: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; border-left: 0; border-right: 0; }
+
+        .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #d7d7d7; background: #fff; }
+        .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
+        .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
+        .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
+        .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
+        .admission-table-compact td:first-child { background: #f9fafb; color: #013262; font-weight: 950; }
+        .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
+        .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
+        .admission-bullet-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
+        .admission-bullet-list li { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-subtitle-line { margin-bottom: 10px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-weight: 950; }
+        .admission-text-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
+        .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+        .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-recruit-table { min-width: 760px; }
+        .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
+        .admission-recruit-table .unit-cell { min-width: 160px; max-width: 260px; }
+        .admission-recruit-table .recruit-values-cell { min-width: 140px; text-align: left; white-space: normal; vertical-align: top; }
+        .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
+        .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 9px; padding: 5px 7px; color: #525252; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
+        .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
+
+        .admission-selection-table { min-width: 720px; }
+        .admission-selection-table th:nth-child(4),
+        .admission-selection-table td:nth-child(4) { min-width: 280px; text-align: left; white-space: normal; word-break: keep-all; line-height: 1.62; }
+        .admission-selection-table .selection-type-cell { background: #f9fafb; color: #013262; font-weight: 950; }
+        .admission-selection-table .selection-name-cell { font-weight: 900; }
+        .admission-selection-table .selection-seat-cell { color: #013262; font-weight: 950; }
+        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 140px; border: 1px solid #d7d7d7; border-radius: 999px; padding: 3px 7px; background: #f9fafb; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
+        .admission-minimum-badge.has { border-color: #bcdcff; background: #e9f4ff; color: #0b84fd; }
+        .admission-minimum-badge.none { color: #667085; }
+
+        .admission-change-scroll-table { overflow-x: auto; }
+        .admission-change-table .change-no-cell { font-weight: 950; color: #0b84fd; }
+        .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #013262; word-break: keep-all; }
+        .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
+        .admission-change-lines { display: flex; flex-direction: column; gap: 6px; }
+        .admission-change-line { border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 8px 10px; color: #525252; font-weight: 850; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
+        .admission-change-pair-list { display: flex; flex-direction: column; gap: 8px; }
+        .admission-change-arrow-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+        .admission-change-arrow-before, .admission-change-arrow-after { min-width: 0; border: 1px solid #d7d7d7; border-radius: 12px; padding: 10px; background: #f9fafb; }
+        .admission-change-arrow-after { background: #e9f4ff; border-color: #bcdcff; }
+        .admission-change-arrow-icon { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; font-size: 18px; }
+        .admission-change-simple { color: #525252; font-weight: 850; line-height: 1.65; white-space: normal; word-break: keep-all; }
+
+        .admission-record-info-table td:first-child { min-width: 120px; color: #013262; background: #f9fafb; font-weight: 950; }
+        .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
+
+        .admission-special-wrap { display: grid; gap: 16px; }
+        .admission-special-block { display: grid; gap: 8px; }
+        .admission-special-title { border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
+        .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
+        .admission-special-table td:first-child { min-width: 120px; background: #f9fafb; color: #013262; font-weight: 950; }
+
+        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
+        .admission-modal-body .admission-result-note,
+        .admission-modal-body .admission-header-summary,
+        .admission-modal-body .admission-recruit-legend { display: none !important; }
+        .muted { color: #667085; }
+      `}</style>
+    </section>
+  );
+}
+
 function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
+  const [dirty, setDirty] = useState(false);
+  // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
+  const editorRefs = useRef(new Map());
+  // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
+  // null이면 닫힘 — 라이브 갱신 없음, 에디터로 되돌아가는 데이터 경로 없음.
+  const [previewPost, setPreviewPost] = useState(null);
+  const blockEditorField = (config.fields || []).find((field) => field.type === 'blockEditor');
+
+  function getEditorRef(key) {
+    if (!editorRefs.current.has(key)) editorRefs.current.set(key, { current: null });
+    return editorRefs.current.get(key);
+  }
+
+  function openPreview() {
+    if (!blockEditorField) return;
+    const editorRef = editorRefs.current.get(blockEditorField.key);
+    const blocks = editorRef?.current ? editorRef.current.getBlocks() : [];
+
+    setPreviewPost({
+      title: form[config.previewTitleKey ?? 'title'],
+      category: form.category,
+      image_urls: form.image_urls,
+      image_url: form.image_url,
+      content_json: { blocks },
+      content: blocksToPlainText(blocks)
+    });
+  }
 
   const readonly = config.readOnly;
 
+  // 편집 중 이탈 시 작업 유실을 막기 위한 최소 가드. 정확도보다 "경고가 뜨는 것" 자체가 핵심이라
+  // 편집 여부 판정은 단순하게(필드 변경 또는 에디터 영역 입력 감지) 둔다.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    function handleBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirty]);
+
+  function handleCancel() {
+    if (dirty && !window.confirm('저장하지 않은 변경사항이 있습니다. 나가시겠습니까?')) return;
+    onCancel();
+  }
+
   function change(key, value) {
+    setDirty(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function patch(values) {
+    setDirty(true);
     setForm((prev) => ({ ...prev, ...values }));
   }
 
@@ -3267,21 +4189,44 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     }
 
     for (const field of config.fields || []) {
-      if (field.required && String(form[field.key] ?? '').trim() === '') {
+      if (!field.required) continue;
+
+      // uncontrolled 에디터는 form[key]가 애초에 채워지지 않으므로 ref로 별도 판정한다.
+      if (field.type === 'blockEditor') {
+        const editorRef = editorRefs.current.get(field.key);
+        if (!editorRef?.current || editorRef.current.isEmpty()) {
+          alert(`${field.label} 항목을 입력해주세요.`);
+          return;
+        }
+        continue;
+      }
+
+      if (String(form[field.key] ?? '').trim() === '') {
         alert(`${field.label} 항목을 입력해주세요.`);
         return;
       }
     }
 
     if (config.validate) {
-      const error = config.validate(form);
+      const error = config.validate(form, row);
       if (error) {
         alert(error);
         return;
       }
     }
 
-    onSave(form);
+    let merged = form;
+    const blockEditorFields = (config.fields || []).filter((field) => field.type === 'blockEditor');
+    if (blockEditorFields.length > 0) {
+      merged = { ...form };
+      for (const field of blockEditorFields) {
+        const editorRef = editorRefs.current.get(field.key);
+        merged[`__blocks_${field.key}`] = editorRef?.current ? editorRef.current.getBlocks() : [];
+      }
+    }
+
+    setDirty(false);
+    onSave(merged);
   }
 
   return (
@@ -3321,11 +4266,11 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
                     ) : (
-                      <div className="py-2 text-sm">{formatValue(form[field.key], field.type)}</div>
+                      <div className="py-2 text-sm">{formatValue(form[field.key], field.type, field.options)}</div>
                     )
                   ) : (
                     <>
-                      {!['file', 'multiImage', 'multiFile'].includes(field.type) &&
+                      {!['file', 'multiImage', 'multiFile', 'blockEditor'].includes(field.type) &&
                         !(field.type === 'image' && field.hideUrlInput) && (
                           <AdminInput
                             field={field}
@@ -3334,6 +4279,29 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                             disabled={readonly}
                           />
                         )}
+
+                      {field.type === 'blockEditor' && (
+                        // onInput/onKeyDown은 BlockNote가 내부에 렌더하는 contenteditable DOM에서
+                        // 버블링돼 올라온다 — BlockEditor 자체를 건드리지 않고 dirty만 감지한다.
+                        <div
+                          onInput={() => setDirty(true)}
+                          onKeyDown={() => setDirty(true)}
+                        >
+                          <BlockEditor
+                            ref={getEditorRef(field.key)}
+                            key={row?.id ?? 'new'}
+                            initialContent={
+                              form[`${field.key}_json`]?.blocks ??
+                              (form[field.key] ? plainTextToBlocks(form[field.key]) : undefined)
+                            }
+                            uploadFile={async (file) => {
+                              const uploaded = await onUpload(file, field);
+                              if (!uploaded?.[0]?.url) throw new Error('이미지 업로드에 실패했습니다.');
+                              return uploaded[0].url;
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {field.type === 'image' && (
                         <div className="mt-3 flex items-center gap-3">
@@ -3523,9 +4491,19 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
+        {!readonly && blockEditorField && (
+          <button
+            type="button"
+            onClick={openPreview}
+            className="h-10 border border-[#2348ff] bg-white px-5 text-sm font-black text-[#2348ff]"
+          >
+            미리보기
+          </button>
+        )}
+
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="h-10 bg-[#4b5563] px-5 text-sm font-black text-white"
         >
           취소
@@ -3537,6 +4515,13 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
           </button>
         )}
       </div>
+
+      <ColumnPreviewModal
+        open={Boolean(previewPost)}
+        onClose={() => setPreviewPost(null)}
+        post={previewPost}
+        label={config.previewLabel}
+      />
     </form>
   );
 }
@@ -3625,8 +4610,10 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                         )
                       ) : column.type === 'fileList' ? (
                         formatListValue(row[column.key], column.type)
+                      ) : column.type === 'truncate' ? (
+                        truncateText(row[column.key])
                       ) : (
-                        formatValue(row[column.key], column.type)
+                        formatValue(row[column.key], column.type, column.options)
                       )}
                     </td>
                   ))}
@@ -3695,6 +4682,28 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
           <button type="button" onClick={() => setPage(totalPages)} className="h-9 w-10">
             <ChevronsRight size={15} className="mx-auto" />
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AcceptanceRateSummary({ rows }) {
+  const active = (rows || []).filter((row) => row.is_active);
+  if (active.length === 0) return null;
+
+  const average = active.reduce((sum, row) => sum + Number(row.rate || 0), 0) / active.length;
+
+  return (
+    <div className="mb-6 grid grid-cols-2 bg-white text-center text-sm shadow">
+      <div className="border p-4">
+        <div className="font-black">노출 연도 수</div>
+        <div className="mt-2 font-bold">{active.length}개년</div>
+      </div>
+      <div className="border p-4">
+        <div className="font-black">홈페이지 표시값</div>
+        <div className="mt-2 font-bold text-blue-600">
+          {active.length}개년 평균 {average.toFixed(1)}%
         </div>
       </div>
     </div>
@@ -4035,6 +5044,25 @@ export default function Admin() {
               </div>
             ) : (
               <>
+                {config.tabs && (
+                  <div className="mb-4 flex gap-2">
+                    {config.tabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveKey(tab.key)}
+                        className={`h-9 border px-5 text-sm font-black transition ${
+                          activeKey === tab.key
+                            ? 'border-[#2348ff] bg-[#2348ff] text-white'
+                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mb-6 bg-white px-6 py-5 shadow">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-2">
@@ -4083,8 +5111,8 @@ export default function Admin() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <h1 className="text-xl font-black">{config.title}</h1>
                       {config.homepage && (
                         <div className="mt-1 space-y-1">
@@ -4105,7 +5133,7 @@ export default function Admin() {
                       <button
                         type="button"
                         onClick={createRow}
-                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white"
+                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
                       >
                         <Plus size={14} />
                         등록
@@ -4115,6 +5143,7 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
+                {config.ListSummary && <config.ListSummary rows={rows} />}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">

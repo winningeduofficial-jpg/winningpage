@@ -1,0 +1,70 @@
+<!-- 자기평가 히어로 오라 — 시안 3248:2343 "04 - Fragment of Saturn"(1600×1180 언클립 원본 프레임)
+     실측. 좌표는 전부 그 프레임 좌상단 기준:
+       Eclipse      ELLIPSE 820×820 @ (390,170) → 중심(800,580) r410
+                    GRADIENT_LINEAR 세로(y170~990) stop0 #FF7A00 op0 / stop1 #FF5858 op1
+                    LAYER_BLUR radius 200 → CSS stdDeviation 100
+       Rectangle 31 VECTOR 445×516 @ (578,322) 평행사변형 → 중심(800.5,580)
+                    path M0 0 L445 110.736 L445 516 L0 405.264 Z (절대좌표로 환산해 인라인)
+                    GRADIENT_LINEAR 세로(y322~838) stop0 #CCCBFF op1 / stop1 #00FFF0 op1
+                    LAYER_BLUR radius 150 → CSS stdDeviation 75
+       Texture      RECTANGLE 1600×1200 @ (0,-20), IMAGE TILE, blendMode OVERLAY,
+                    imageRef bcfa0f2ecf6c15828a024b5c1166de4e07f82d98 (220×220,
+                    scalingFactor 0.609091 → 타일 134px = 8.375rem).
+                    → 기존 src/assets/renewal/landing/hero-grain.png와 md5 동일. 신규 에셋 불필요.
+
+     회전 피벗: 애니메이션 4프레임(2716:3011 / 3076 / 3082 / 3088)이 0°/90°/180°/270°이고
+     relativeTransform을 역산하면 세 프레임 모두 피벗이 Eclipse 중심 한 점으로 일치한다.
+     원본 3248:2343에서는 그 점이 Texture 사각형의 중심(800,580)과도 정확히 일치한다.
+     → 정사각 뷰박스를 그 점 중심으로 대칭 확장: viewBox "0 -220 1600 1600" (중심 800,580).
+
+     언클립 검증: 피벗에서 가장 먼 렌더 지점은 Eclipse의 블러 외곽 410+3σ(300)=710,
+     Rectangle 31은 340+3σ(225)=565. 둘 다 정사각 내접원 반지름 800 미만이므로 어떤 각도로
+     회전해도 직선 크롭 경계가 생기지 않는다. 필터 영역도 userSpaceOnUse로 뷰박스 전체를 덮어
+     기본 -10%/+10% 필터 리전에 의한 블러 절단을 막는다(퍼센트 리전은 445폭 도형에서 3σ=225를
+     못 덮어 잘린다).
+
+     Texture(그레인)는 이 SVG에 넣지 않는다 — 사용자 확정 요구대로 그레인은 고정이고 그 안의
+     블롭만 회전한다. 또 transform이 걸린 요소는 새 stacking context를 만들어 내부의
+     mix-blend-overlay가 섹션 배경을 backdrop으로 잡지 못한다. 그레인은 반드시 회전 래퍼 밖
+     형제 레이어로 둘 것. 흰 <rect> 배경도 넣지 않는다(그레인 backdrop 파괴). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -220 1600 1600" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="saHeroAuraEclipse" x1="800" y1="170" x2="800" y2="990" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF7A00" stop-opacity="0" />
+      <stop offset="1" stop-color="#FF5858" stop-opacity="1" />
+    </linearGradient>
+    <linearGradient id="saHeroAuraShard" x1="800.5" y1="322" x2="800.5" y2="838" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#CCCBFF" stop-opacity="1" />
+      <stop offset="1" stop-color="#00FFF0" stop-opacity="1" />
+    </linearGradient>
+    <filter
+      id="saHeroAuraEclipseBlur"
+      filterUnits="userSpaceOnUse"
+      x="0"
+      y="-220"
+      width="1600"
+      height="1600"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur stdDeviation="100" />
+    </filter>
+    <filter
+      id="saHeroAuraShardBlur"
+      filterUnits="userSpaceOnUse"
+      x="0"
+      y="-220"
+      width="1600"
+      height="1600"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur stdDeviation="75" />
+    </filter>
+  </defs>
+
+  <circle cx="800" cy="580" r="410" fill="url(#saHeroAuraEclipse)" filter="url(#saHeroAuraEclipseBlur)" />
+  <path
+    d="M578 322L1023 432.736L1023 838L578 727.264L578 322Z"
+    fill="url(#saHeroAuraShard)"
+    filter="url(#saHeroAuraShardBlur)"
+  />
+</svg>

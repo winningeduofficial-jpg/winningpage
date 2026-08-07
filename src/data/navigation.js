@@ -81,8 +81,8 @@ export const FALLBACK_NAV_GROUPS = [
       { label: '대입모집요강', to: '/admission/guidelines', sortOrder: 1 },
       { label: '입결정보', to: '/admission/results', sortOrder: 2 },
       { label: '수시정시합격', to: '/admission/susi-jungsi', sortOrder: 3 },
-      { label: '특목고합격', to: '/page/admission-special-highschool-results', sortOrder: 4 },
-      { label: '교육컬럼', to: '/gallery', sortOrder: 5 }
+      { label: '특목고합격', to: '/admission/special-highschool', sortOrder: 4 },
+      { label: '교육칼럼', to: '/info/column', sortOrder: 5 }
     ]
   },
   {

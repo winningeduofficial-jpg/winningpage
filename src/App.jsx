@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, lazy, Suspense } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import MyPage from './pages/MyPage';
@@ -18,13 +19,17 @@ import InDepthResearch from './pages/services/InDepthResearch';
 import Services from './pages/Services';
 import LearningAnalysis from './pages/LearningAnalysis';
 import AdmissionBoard from './pages/AdmissionBoard';
+import AdmissionCases from './pages/admission/AdmissionCases';
+import AdmissionCaseDetail from './pages/admission/AdmissionCaseDetail';
+import SpecialHighschoolCases from './pages/special/SpecialHighschoolCases';
 import AdmissionGuidelines from './pages/AdmissionGuidelines';
 import AdmissionResults from './pages/AdmissionResults';
-import Gallery from './pages/Gallery';
+import ColumnHome from './pages/column/ColumnHome';
+import ColumnList from './pages/column/ColumnList';
+import ColumnDetail from './pages/column/ColumnDetail';
 import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
-import Admin from './pages/Admin';
 import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
 import ProtectedAdmin from './components/ProtectedAdmin';
@@ -71,6 +76,8 @@ function SignupFlowLayout() {
     </SignupProvider>
   );
 }
+
+const Admin = lazy(() => import('./pages/Admin'));
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -128,22 +135,29 @@ export default function App() {
             path="/page/services-in-depth-research"
             element={<Navigate to="/services/research" replace />}
           />
+          <Route
+            path="/page/admission-special-highschool-results"
+            element={<Navigate to="/admission/special-highschool" replace />}
+          />
 
           <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
           <Route path="/admission/results" element={<AdmissionResults />} />
 
           {/* 수시와 정시는 각각 자신의 category만 조회합니다. */}
-          <Route path="/admission/susi" element={<AdmissionBoard />} />
-          <Route path="/admission/jungsi" element={<AdmissionBoard />} />
-          <Route path="/admission/susi/:id" element={<AdmissionBoard />} />
-          <Route path="/admission/jungsi/:id" element={<AdmissionBoard />} />
+          <Route path="/admission/susi" element={<AdmissionCases />} />
+          <Route path="/admission/jungsi" element={<AdmissionCases />} />
+          <Route path="/admission/susi/:id" element={<AdmissionCaseDetail />} />
+          <Route path="/admission/jungsi/:id" element={<AdmissionCaseDetail />} />
 
           {/* 메인 합격생 카드에서 사용하는 통합 상세 주소는 유지합니다. */}
-          <Route path="/admission/susi-jungsi/:id" element={<AdmissionBoard />} />
+          <Route path="/admission/susi-jungsi/:id" element={<AdmissionCaseDetail />} />
           <Route
             path="/admission/susi-jungsi"
             element={<Navigate to="/admission/susi" replace />}
           />
+
+          {/* 특목고합격 — 카드가 링크가 아니라 상세 라우트는 두지 않는다(시안 2239:1559에 상세 없음). */}
+          <Route path="/admission/special-highschool" element={<SpecialHighschoolCases />} />
 
           <Route path="/admission/essay" element={<AdmissionBoard />} />
           <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
@@ -153,8 +167,9 @@ export default function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/company-news" element={<CompanyNews />} />
           <Route path="/faq" element={<Faq />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/gallery/:id" element={<Gallery />} />
+          <Route path="/info/column" element={<ColumnHome />} />
+          <Route path="/info/column/list" element={<ColumnList />} />
+          <Route path="/info/column/:id" element={<ColumnDetail />} />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
 
@@ -203,7 +218,17 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedAdmin>
-              <Admin />
+              <Suspense
+                fallback={
+                  <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
+                    <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+                      관리자 페이지 불러오는 중...
+                    </div>
+                  </main>
+                }
+              >
+                <Admin />
+              </Suspense>
             </ProtectedAdmin>
           }
         />

@@ -5,10 +5,23 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
 // v3: 콜멘토 링크가 /page/services-content → /services/callmentor 로 바뀌어(callmentor-spec.md)
 // 구 캐시에 남은 사용자에게도 즉시 새 경로가 보이도록 키 버전을 올린다.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v3';
+// v4: 교육칼럼이 /gallery → /info/column 으로 이관(edu-column-renewal-spec.md) — 구 캐시에 남은
+// '교육컬럼'/'/gallery' 잔존을 차단하기 위해 다시 bump.
+// v5: DB page_contents.menu_label에 '교육컬럼'(오타) 이 저장돼 헤더/푸터에 그대로 노출되던 문제.
+// normalizeMenuLabel로 런타임 상시 치환하도록 고쳤지만, 이미 오타를 캐싱한 사용자에게도 즉시
+// 반영되도록 키 버전을 한 번 더 bump한다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v5';
 
 export function cleanText(value) {
   return String(value || '').trim();
+}
+
+// DB page_contents.menu_label에 '컬럼'(오타, 올바른 표기는 '칼럼')이 섞여 들어와도 메뉴 라벨에
+// 그대로 노출되지 않도록 상시 치환한다. DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정
+// 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
+// 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
+export function normalizeMenuLabel(label) {
+  return cleanText(label).replaceAll('컬럼', '칼럼');
 }
 
 function safeJsonStringify(value) {
@@ -43,13 +56,24 @@ export const PROMOTED_SLUG_ROUTES = {
   'services-goal': '/services/goal',
   'services-ai-performance': '/services/performance',
   'services-self-assessment': '/services/self-assessment',
-  'services-in-depth-research': '/services/research'
+  'services-in-depth-research': '/services/research',
+  'admission-special-highschool-results': '/admission/special-highschool',
+  gallery: '/info/column'
+};
+
+// 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
+// DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
+const PROMOTED_PATH_ROUTES = {
+  '/gallery': '/info/column'
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
 // 단일 링크만 다루는 소비처(ServicesSection 등)도 이 함수 하나로 재사용한다.
 export function resolvePromotedSlugLink(to) {
-  const match = cleanText(to).match(/^\/page\/([^/]+)$/);
+  const value = cleanText(to);
+  if (PROMOTED_PATH_ROUTES[value]) return PROMOTED_PATH_ROUTES[value];
+
+  const match = value.match(/^\/page\/([^/]+)$/);
   const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
   return promoted || to;
 }
@@ -169,7 +193,7 @@ function buildNavGroups(rows) {
     }
 
     group.items.push({
-      label: cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      label: normalizeMenuLabel(cleanText(item.menu_label) || cleanText(item.title) || groupName),
       to: itemLink,
       sortOrder
     });

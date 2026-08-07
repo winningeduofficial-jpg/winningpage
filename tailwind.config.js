@@ -61,6 +61,27 @@ export default {
         // 20px을 더해 1184px = 74rem을 데스크톱 그리드 전환 임계값으로 잡았다.
         // 사용처: 랜딩 4STEP·추천대상 그리드, 설문 CascadingSelect.
         wide: '74rem'
+      },
+      fontFamily: {
+        // 회사소개 히어로 카드 타이틀 전용 디스플레이 세리프.
+        // 서체 = "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배, SIL OFL 1.1).
+        // @font-face 는 src/styles/fonts.css. Bold(700) 1종만 로드하므로
+        // 이 패밀리를 font-bold 없이 쓰면 유일한 700 face 가 선택돼 항상 Bold 로 조용히 렌더된다
+        // (렌더 품질 저하가 없어 육안 검출이 어렵다). 반드시 font-bold 와 함께 쓸 것.
+        //
+        // 첫 항목 'GraceSerif' 만이 우리가 셀프호스팅한 웹폰트에 매칭된다.
+        // 뒤쪽 시스템 세리프는 swap 구간 및 폰트 로드 실패 시의 0바이트 보험이며
+        // 전부 "OS 에 설치돼 있을 때만" 적중한다.
+        // '우아한세리프' 를 여기 넣지 마라 — 웹폰트가 아니라 OS 로컬 설치본에만 매칭돼
+        // 폰트가 설치된 작업자 기기에서 로드 실패를 가려버린다(local() 을 금지한 이유와 동일).
+        grace: [
+          'GraceSerif',
+          '"Noto Serif KR"',
+          '"Nanum Myeongjo"',
+          'Batang',
+          'AppleMyungjo',
+          'serif'
+        ]
       }
     }
   },
