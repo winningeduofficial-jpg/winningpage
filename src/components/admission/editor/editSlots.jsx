@@ -25,24 +25,31 @@ import ColumnRoleEditor from './ColumnRoleEditor';
 // 핸들러를 받아 마크업만 만든다.
 
 /**
- * 편집 모드 파리티 **동결값**(설계 §4·§6 Step 5).
+ * 편집 모드 파리티(설계 §4·§6 Step 5의 동결값 → Step 7에서 승인분만 플립).
  *
- * 네 값 전부 "현행 어드민 화면을 그대로 재현한다"는 뜻이지 설계 의도가
- * 아니다. 구조만 통합하고 겉모습은 바꾸지 않기 위한 잠금이며, 플립은
- * Step 7(승인 범위 7a+7d)에서 **플래그당 1커밋**으로 따로 한다.
+ * 이름의 "FROZEN"은 Step 5에서 네 값 전부가 "현행 어드민 화면을 그대로
+ * 재현한다"는 잠금이었던 데서 왔다. 2026-08-07 사용자가 7a+7d를 승인해
+ * 그중 cellClassNames가 풀렸고, **남은 동결은 groupHeader/emptyFallback
+ * 둘(=7b/7c 잔여)** 이다. 이름은 스펙 문서(§4·§6)와 검증 스크립트 주석이
+ * 이 식별자로 부르고 있어 유지한다.
  *
- * - cellClassNames: false — 구 `:331`의 클래스 없는 <td> 재현. true로 켜면
- *   AdmissionSurface.jsx:83 `.admission-data-table td.left{min-width:150px}`
- *   등이 편집표에도 걸려 **어드민 표 폭이 바뀐다**(=7a).
- * - groupHeader: 'flatten' — 구 `:271-326`이 recruitExact에서도 thead를 항상
- *   1행으로 그렸다. 그룹명은 표 밖 TableGroupHeaderEditor가 다룬다.
- * - emptyFallback: false — 빈 셀에 '-' / '주요 변경' 리터럴을 넣지 않는다
- *   (편집 중인 빈 input에 표시용 폴백이 끼어들면 값처럼 보인다).
+ * - cellClassNames: true — ✅ **7a 플립(2026-08-07 승인)**. 편집 <td>가 뷰와
+ *   같은 role 기반 className을 받는다. 그 결과 AdmissionSurface.jsx:83
+ *   `.admission-data-table td.left{min-width:150px}`, `:101-102`, `:162`,
+ *   `:184` 등의 폭·정렬 규칙이 편집표에도 걸려 **어드민 표 폭이 바뀐다** —
+ *   이것이 이 플립의 목적이고, 게이트가 아니라 육안으로 확인할 변화다.
+ *   되돌리려면 이 한 값을 false로 되돌리면 된다(골격/슬롯 무관).
+ * - groupHeader: 'flatten' — 🚩 **동결 유지(7c, 이번 범위 밖)**. 구 `:271-326`이
+ *   recruitExact에서도 thead를 항상 1행으로 그렸다. 그룹명은 표 밖
+ *   TableGroupHeaderEditor가 다룬다.
+ * - emptyFallback: false — 🚩 **동결 유지(7b, 이번 범위 밖)**. 빈 셀에 '-' /
+ *   '주요 변경' 리터럴을 넣지 않는다(편집 중인 빈 input에 표시용 폴백이
+ *   끼어들면 값처럼 보인다).
  * - scrollWrapExtra — 구 `:269`의 `max-w-full overflow-x-auto`. 폼이 가로로
  *   밀리지 않도록 편집기만 직접 강제한다(2026-08-06 폼 가로 넘침 실측 반영).
  */
 export const EDIT_PARITY_FROZEN = {
-  cellClassNames: false,
+  cellClassNames: true,
   groupHeader: 'flatten',
   emptyFallback: false,
   scrollWrapExtra: 'max-w-full overflow-x-auto'

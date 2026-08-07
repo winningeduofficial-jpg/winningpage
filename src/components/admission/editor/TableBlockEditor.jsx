@@ -13,9 +13,10 @@ import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBl
 // 마크업(라벨 input·셀 편집기·행/열 조작 버튼)은 editSlots.jsx가 슬롯으로
 // 넣는다.
 //
-// ⚠ 이 통합은 **구조만** 합친 것이고 어드민 화면은 통합 전과 바이트
-// 동일하다. 그 동결을 editSlots.jsx의 EDIT_PARITY_FROZEN이 담당하며,
-// 겉모습 변경(td 클래스 부여 / 행·열 컨트롤 표 밖 이동)은 별도 단계다.
+// 겉모습은 editSlots.jsx의 EDIT_PARITY_FROZEN이 플래그로 관리한다. 통합
+// 자체(Step 5)는 어드민 화면을 바이트 동일하게 유지했고, 2026-08-07
+// 승인분만 플립됐다 — ✅ 7a(td에 뷰와 같은 role className 부여). 남은
+// 🚩 7b(빈 셀 폴백)·7c(2단 병합 헤더)는 플래그 동결 그대로다.
 //
 // controlled 컴포넌트: block/onChange만 받는다. 저장·영속화·Admin.jsx
 // 배선은 이번 범위 밖 — 호출부가 validation(반환값 3번째 인자로 노출)을
@@ -274,10 +275,10 @@ export default function TableBlockEditor({ section, block, onChange, universityN
 
       {/* 표 골격은 표시 경로와 같은 컴포넌트 한 벌. 편집 고유 마크업은
           전부 editSlots가 넣고, 이 컴포넌트는 <table> 태그를 직접 만들지
-          않는다. parity가 EDIT_PARITY_FROZEN이므로 나가는 DOM은 자체
-          <table> 시절과 바이트 동일하다 — 스크롤 래퍼의
+          않는다. parity가 EDIT_PARITY_FROZEN이라 <td> className은 이제
+          뷰와 같은 소스에서 나오고(7a), 스크롤 래퍼의
           `max-w-full overflow-x-auto`(폼 가로 넘침 방지, 2026-08-06 실측
-          반영)도 scrollWrapExtra로 그대로 유지된다. */}
+          반영)는 scrollWrapExtra로 편집기에만 남는다. */}
       <AdmissionTable block={block} mode="edit" slots={editSlots} parity={EDIT_PARITY_FROZEN} />
 
       <button type="button" onClick={addRow} className="mt-2 text-sm font-bold text-[#2348ff]">
