@@ -1,12 +1,18 @@
 // 대입모집요강 표(TableBlock) → 골격 모델. 표를 "무엇을 어떻게 그릴지"의
 // 서술(descriptor)로 바꾸는 순수 함수 모음이다.
 //
-// 존재 이유: 현재 표 마크업을 만드는 코드경로가 3벌(표시 React 5개 렌더러 /
-// 편집 React TableBlockEditor 자체 <table> / HTML 미러 renderDocToHtml)이고,
+// 존재 이유: 표 마크업을 만드는 코드경로가 3벌(표시 React 5개 렌더러 /
+// 편집 React TableBlockEditor 자체 <table> / HTML 미러 renderDocToHtml)이었고,
 // 그중 표시·편집 두 벌이 셀 className·빈값 폴백·병합(rowSpan/colSpan)·셀 종류
-// 판정을 각자 인라인으로 중복 보유하고 있었다. admissionLayout.js:117-125가
-// "표시 컴포넌트를 이 함수를 쓰도록 리팩터하는 건 별도 작업"이라고 예약해 둔
-// 자리가 바로 이 모듈이다.
+// 판정을 각자 인라인으로 중복 보유하고 있었다. 그 두 벌이 이 모듈로 합쳐졌다
+// — 표시 렌더러 5개는 삭제됐고(구 blocks/tables/*), 편집기는 자체 <table>을
+// 버리고 AdmissionTable에 위임한다. 남은 3번째(HTML 미러)는 Gate A2의 바이트
+// 계약이 걸려 있어 의도적으로 통합하지 않는다(설계 §8-3).
+//
+// 셀 종류(text/badge/chips) 판정은 admissionLayout.getCellKind 하나가 정본이고
+// describeCell이 표시(cellClassNameOf/cellViewOf)와 편집(edit.kind) 양쪽에
+// 같은 값을 흘려보낸다 — 조건을 양쪽에 인라인으로 적어 두고 손으로 맞추던
+// 구조가 여기서 끝난다.
 //
 // 순수 데이터/함수만 둔다(JSX 없음) — admissionLayout.js:6-7과 같은 이유로,
 // 이 프로젝트의 vite/esbuild 설정은 .jsx/.tsx만 JSX로 트랜스파일하고 .js는
@@ -108,18 +114,22 @@ function selectionBadgeOf(cell, resolvedText) {
  * ''(빈 문자열)과 undefined의 차이를 의도적으로 보존한다 —
  * selection/change는 `맵[role] || ''`이라 미지정 role에서 ''를 내고,
  * generic/recruitExact는 조건 불충족 시 undefined(속성 자체 없음)를 낸다.
+ *
+ * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
  */
-function cellClassNameOf(block, variant, role, colIdx) {
+function cellClassNameOf(block, variant, role, colIdx, kind) {
   switch (variant) {
     case 'selection':
-      // SelectionTable.jsx:26
+      // 구 SelectionTable.jsx:26
       return SELECTION_CELL_CLASS_BY_ROLE[role] || '';
     case 'change':
-      // ChangeTable.jsx:23
+      // 구 ChangeTable.jsx:23
       return CHANGE_CELL_CLASS_BY_ROLE[role] || '';
     case 'recruit':
-      // RecruitTable.jsx:27(고정열) / :38(값 셀)
-      return role === 'group' || role === 'unit'
+      // 구 RecruitTable.jsx:27(고정열) / :38(값 셀). 고정열 판정은
+      // getCellKind가 정본 — recruit에서 kind==='text'가 곧 role∈{group,unit}
+      // (chips를 쓰지 않는 컬럼)이며, 구 코드의 인라인 조건과 같은 분기다.
+      return kind !== 'chips'
         ? RECRUIT_FIXED_CELL_CLASS_BY_ROLE[role]
         : 'recruit-values-cell';
     case 'recruitExact':
@@ -134,41 +144,52 @@ function cellClassNameOf(block, variant, role, colIdx) {
   }
 }
 
-/** 셀 안쪽 리프 정본. 현행 5개 렌더러의 셀 내부 분기를 그대로 옮긴 것. */
-function cellViewOf(block, variant, role, colIdx, raw, text) {
+/**
+ * 셀 안쪽 리프 정본. 구 5개 렌더러의 셀 내부 분기를 그대로 옮긴 것.
+ *
+ * selection의 badge 셀과 recruit의 chips 셀은 "이 (variant, role)이 Cell
+ * 3형태 중 무엇을 쓰는가"와 같은 판정이므로 getCellKind 결과(kind)로
+ * 분기한다 — 구 코드가 `role === 'minimum'` / `role === 'group' || 'unit'`을
+ * 표시 컴포넌트에 인라인으로 또 적어 두고 손으로 맞추던 자리다.
+ * change의 `role === 'content'`는 getCellKind가 모르는(전부 'text') 표시
+ * 전용 분기라 그대로 인라인으로 남는다 — 중복이 아니다.
+ *
+ * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
+ */
+function cellViewOf(block, variant, role, colIdx, raw, text, kind) {
   const base = { leaf: 'literal', text, badge: null, chips: null, fallback: '' };
 
   switch (variant) {
     case 'selection': {
-      if (role === 'minimum') {
-        // SelectionTable.jsx:29-44
+      if (kind === 'badge') {
+        // 구 SelectionTable.jsx:29-44
         const fallback = '-';
         return { ...base, leaf: 'badge', fallback, badge: selectionBadgeOf(raw, text || fallback) };
       }
-      // SelectionTable.jsx:46-50 — 빈값은 muted span이 아니라 리터럴 '-'.
+      // 구 SelectionTable.jsx:46-50 — 빈값은 muted span이 아니라 리터럴 '-'.
       return { ...base, leaf: 'literal', fallback: selectionEmptyFallback(role) };
     }
     case 'change': {
       if (role === 'content') {
-        // ChangeTable.jsx:26-36 — 값이 있으면 plain-cell div, 없으면 muted span.
+        // 구 ChangeTable.jsx:26-36 — 값이 있으면 plain-cell div, 없으면 muted span.
         return text ? { ...base, leaf: 'changePlain' } : { ...base, leaf: 'muted' };
       }
-      // ChangeTable.jsx:38-42 — no='-' / title='주요 변경' 리터럴 폴백.
+      // 구 ChangeTable.jsx:38-42 — no='-' / title='주요 변경' 리터럴 폴백.
       return { ...base, leaf: 'literal', fallback: CHANGE_EMPTY_FALLBACK_BY_ROLE[role] || '-' };
     }
     case 'recruit': {
-      if (role === 'group' || role === 'unit') {
-        // RecruitTable.jsx:26-34
+      if (kind !== 'chips') {
+        // 구 RecruitTable.jsx:26-34 (고정열 group/unit)
         return { ...base, leaf: 'literal', fallback: recruitFixedEmptyFallback() };
       }
-      // RecruitTable.jsx:36-51
+      // 구 RecruitTable.jsx:36-51
       const chips = cellChipsOf(raw);
       return chips && chips.length
         ? { ...base, leaf: 'chips', chips }
         : { ...base, leaf: 'muted', chips };
     }
     default:
-      // RecruitExactTable.jsx:38-39 / GenericTable.jsx:22-27 — 동일 규칙.
+      // 구 RecruitExactTable.jsx:38-39 / GenericTable.jsx:22-27 — 동일 규칙.
       return text ? { ...base, leaf: 'literal' } : { ...base, leaf: 'muted' };
   }
 }
@@ -278,17 +299,20 @@ export function describeCell(block, rowIdx, colIdx) {
   const raw = row[colIdx];
   const role = columns[colIdx]?.role;
   const text = cellTextOf(raw);
+  // 셀 종류 판정 단일 정본. 표시(className/leaf)와 편집(kind) 양쪽이 이 한
+  // 값에서 갈라진다 — getCellKind를 여기서 한 번만 부르고 아래로 흘린다.
+  const kind = getCellKind(variant, role);
 
   return {
     rowIdx,
     colIdx,
     role,
-    className: cellClassNameOf(block, variant, role, colIdx),
+    className: cellClassNameOf(block, variant, role, colIdx, kind),
     raw,
-    view: cellViewOf(block, variant, role, colIdx, raw, text),
-    // 편집 UI 종류: role 기반 판정(admissionLayout.js:126-130)을 셀 실제 형태로
-    // 보정한다(tableEditorValidation.js:91-97). 두 함수를 여기서 합성해 두는
-    // 것이 "kind 판정 단일 정본"의 실체다.
-    edit: { kind: resolveCellKind(getCellKind(variant, role), raw) }
+    view: cellViewOf(block, variant, role, colIdx, raw, text, kind),
+    // 편집 UI 종류: role 기반 판정(kind)을 셀 실제 형태로 보정한다
+    // (tableEditorValidation.js resolveCellKind). 표시 쪽은 role 판정만 쓰고
+    // 편집 쪽만 값 형태 보정을 덧씌우는 것이 현행 동작이다.
+    edit: { kind: resolveCellKind(kind, raw) }
   };
 }

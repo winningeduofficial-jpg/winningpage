@@ -114,15 +114,17 @@ export function isGenericLeftColumn(idx) {
   return idx === 0 || idx === 1;
 }
 
-// ── 셀 편집 UI 종류(표 편집기 전용) ──────────────────────────────────
+// ── 셀 종류 판정(표시·편집 공용 정본) ────────────────────────────────
 // 어떤 (variant, role) 조합이 Cell의 3형태(문자열/{text,badge}/{chips}) 중
-// 무엇을 쓰는지 판정한다. blocks/tables/SelectionTable.jsx의
-// `role === 'minimum'` 분기, blocks/tables/RecruitTable.jsx의
-// `role === 'group' || role === 'unit'` 분기와 정확히 같은 조건을 그대로
-// 옮긴 것이다 — 표시 컴포넌트를 고치지 않고(Gate B 바이트 계약 보호)
-// 편집기가 같은 판정을 공유하도록 이 함수 하나로 뽑아냈다. 표시 컴포넌트
-// 쪽 조건이 바뀌면 이 함수도 같이 바꿔야 한다(현재는 인라인 조건 중복 —
-// 표시 컴포넌트를 이 함수를 쓰도록 리팩터하는 건 별도 작업).
+// 무엇을 쓰는지 판정한다. 표시와 편집이 이 조건을 각자 인라인으로 갖고 있던
+// 시절이 있었으나(구 blocks/tables/SelectionTable.jsx의 `role === 'minimum'`,
+// RecruitTable.jsx의 `role === 'group' || role === 'unit'`) 그 파일들은
+// 삭제됐고, 지금은 table/tableModel.js:describeCell이 이 함수를 한 번 불러
+// 표시(<td> className·셀 리프)와 편집(CellEditor 디스패치) 양쪽에 같은 값을
+// 흘려보낸다. 즉 조건이 이 파일 한 곳에만 있으므로 "표시 쪽이 바뀌면 여기도
+// 같이 고쳐라"는 수동 동기화 의무는 더 이상 없다.
+// ⚠ 이 함수를 고치면 편집 UI뿐 아니라 공개 화면 마크업(Gate B, 실데이터
+// 2506건)이 함께 움직인다. 그것이 단일 정본의 대가이자 안전장치다.
 export function getCellKind(variant, role) {
   if (variant === 'selection' && role === 'minimum') return 'badge';
   if (variant === 'recruit' && role !== 'group' && role !== 'unit') return 'chips';
