@@ -105,6 +105,13 @@ export default function AdmissionModalShell({
     });
 
     function handleKeyDown(event) {
+      // IME 조합 중(한글 자모를 조립하는 동안)의 Escape/Tab 은 "입력 취소"를
+      // 뜻하지 "모달 닫기"가 아니다. 가드가 없으면 한글을 치다 Escape 한 번에
+      // 편집 모달이 닫히고 dirty confirm 이 조합 중간에 뜬다. 공개 모달은
+      // 본문에 입력 요소가 0개라 관측 변화가 없다(그래서 이 커밋을 1줄로
+      // 격리했다). keyCode 229 는 isComposing 을 안 주는 구형 IME 폴백이다.
+      if (event.isComposing || event.keyCode === 229) return;
+
       if (event.key === 'Escape') {
         event.preventDefault();
         onCloseRef.current?.();
