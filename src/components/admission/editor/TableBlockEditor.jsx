@@ -1,18 +1,21 @@
 import { useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { getTableVariantLayout, getCellKind } from '../admissionLayout';
-import CellEditor from './cells/CellEditor';
-import ImeSafeInput from './ImeSafeInput';
-import ColumnRoleEditor from './ColumnRoleEditor';
+import AdmissionTable from '../table/AdmissionTable';
 import TableGroupHeaderEditor from './TableGroupHeaderEditor';
+import createEditSlots, { EDIT_PARITY_FROZEN } from './editSlots';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
 import * as ops from './tableBlockOperations';
 import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBlockXlsx';
 
-// TableBlock(AdmissionDoc) 편집 코어. blocks/tables/*.jsx(표시 전용,
-// Gate B 바이트 계약 보호 대상)를 재사용하지 않고 별도로 구현한다 —
-// 셀 클래스/빈값 규칙은 admissionLayout.js를 공유해 편집 중에도 표시와
-// 같은 룩을 유지한다(편집기 자체는 편집 UI라 표시용 DOM과 1:1은 아니다).
+// TableBlock(AdmissionDoc) 편집 코어. 표 골격(<div>/<table>/<thead>/<tr>/
+// <th>/<td>)은 자체 구현하지 않고 table/AdmissionTable.jsx **한 벌**에
+// 위임한다 — 표시 경로(TableBlockView)와 같은 컴포넌트다. 편집 고유
+// 마크업(라벨 input·셀 편집기·행/열 조작 버튼)은 editSlots.jsx가 슬롯으로
+// 넣는다.
+//
+// ⚠ 이 통합은 **구조만** 합친 것이고 어드민 화면은 통합 전과 바이트
+// 동일하다. 그 동결을 editSlots.jsx의 EDIT_PARITY_FROZEN이 담당하며,
+// 겉모습 변경(td 클래스 부여 / 행·열 컨트롤 표 밖 이동)은 별도 단계다.
 //
 // controlled 컴포넌트: block/onChange만 받는다. 저장·영속화·Admin.jsx
 // 배선은 이번 범위 밖 — 호출부가 validation(반환값 3번째 인자로 노출)을
@@ -38,7 +41,6 @@ import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBl
 //   universityName/sectionLabel(선택): xlsx 파일명 구성용. Admin.jsx
 //     배선 전이라 생략 가능(생략 시 buildXlsxFileName의 기본값을 쓴다).
 export default function TableBlockEditor({ section, block, onChange, universityName, sectionLabel }) {
-  const layout = getTableVariantLayout(block.variant);
   const validation = useMemo(() => validateTableBlock(section, block), [section, block]);
   const columnMutationBlockReason = useMemo(
     () => getColumnMutationBlockReason(section, block),
@@ -50,10 +52,6 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   const [xlsxImportErrors, setXlsxImportErrors] = useState([]);
   const [xlsxImportPreview, setXlsxImportPreview] = useState(null); // { block, changeSummary, unchanged }
   const xlsxFileInputRef = useRef(null);
-
-  function roleKindOf(column) {
-    return getCellKind(block.variant, column?.role);
-  }
 
   function updateCell(rowIdx, colIdx, nextCellValue) {
     onChange(ops.updateCell(block, rowIdx, colIdx, nextCellValue));
@@ -153,6 +151,19 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   function cancelXlsxImport() {
     setXlsxImportPreview(null);
   }
+
+  // 편집 리프(<th>/<td> 안쪽 + 행·열 조작 컨트롤). 토글 상태와 핸들러에
+  // 의존하므로 매 렌더 새로 만든다 — 구 인라인 JSX와 생성 빈도가 같다.
+  const editSlots = createEditSlots({
+    showColumnSettings,
+    columnMutationAllowed,
+    onUpdateColumnField: updateColumnField,
+    onRemoveColumn: removeColumn,
+    onAddColumn: addColumn,
+    onUpdateCell: updateCell,
+    onMoveRow: moveRow,
+    onRemoveRow: removeRow
+  });
 
   return (
     <div className="admission-table-editor">
@@ -261,117 +272,13 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         onEnableGroups={enableGroups}
       />
 
-      {/* 폼 자체가 가로로 안 밀리도록 이 안에서만 가로 스크롤한다(공개
-          모달의 .admission-scroll-table과 같은 원리) — 편집기는 라벨
-          input/role select 등으로 표시용보다 넓어질 수 있어 max-w-full +
-          overflow-x-auto를 직접 강제한다(공유 CSS 클래스에만 기대지
-          않음, 2026-08-06 폼 가로 넘침 실측 반영). */}
-      <div className={`${layout.scrollWrapClassName} max-w-full overflow-x-auto`}>
-        <table className={layout.tableClassName}>
-          <thead>
-            <tr>
-              {block.columns.map((column, colIdx) => (
-                <th key={colIdx}>
-                  <div className="flex flex-col gap-1 p-1">
-                    {/* 1차 — 라벨은 기본 노출. 데이터 셀과 함께 관리자가 늘 만지는 값.
-                        공개 표 헤더 텍스트처럼 보이도록 평상시 테두리·배경
-                        투명, hover/focus에서만 드러낸다(셀 입력과 동일 원칙). */}
-                    <ImeSafeInput
-                      type="text"
-                      value={column.label ?? ''}
-                      onCommit={(next) => updateColumnField(colIdx, 'label', next)}
-                      aria-label={`컬럼 ${colIdx + 1} 라벨`}
-                      className="admission-cell-editor-input w-full border border-transparent bg-transparent px-1.5 py-1 text-xs font-bold outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
-                    />
-                    {showColumnSettings && (
-                      <>
-                        <ColumnRoleEditor
-                          variant={block.variant}
-                          role={column.role}
-                          onChange={(next) => updateColumnField(colIdx, 'role', next)}
-                        />
-                        <select
-                          value={column.align ?? ''}
-                          onChange={(e) => updateColumnField(colIdx, 'align', e.target.value || undefined)}
-                          aria-label={`컬럼 ${colIdx + 1} 정렬`}
-                          className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
-                        >
-                          <option value="">(기본 정렬)</option>
-                          <option value="left">left</option>
-                          <option value="center">center</option>
-                        </select>
-                        {columnMutationAllowed && (
-                          <button
-                            type="button"
-                            onClick={() => removeColumn(colIdx)}
-                            disabled={block.columns.length <= 1}
-                            className="text-[11px] font-bold text-red-500 disabled:cursor-not-allowed disabled:text-gray-300"
-                          >
-                            열 삭제
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </th>
-              ))}
-              {showColumnSettings && columnMutationAllowed && (
-                <th>
-                  <button type="button" onClick={addColumn} className="text-[11px] font-bold text-gray-500 hover:text-gray-700">
-                    + 열 추가
-                  </button>
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {block.rows.map((row, rowIdx) => (
-              <tr key={rowIdx}>
-                {row.map((cell, colIdx) => (
-                  <td key={colIdx}>
-                    <CellEditor
-                      roleKind={roleKindOf(block.columns[colIdx])}
-                      value={cell}
-                      onChange={(next) => updateCell(rowIdx, colIdx, next)}
-                    />
-                  </td>
-                ))}
-                <td>
-                  {/* 2차 — 행 조작. 셀 편집보다는 드물지만 일상 작업이라 열 설정보다 진하게. */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => moveRow(rowIdx, -1)}
-                      disabled={rowIdx === 0}
-                      aria-label={`행 ${rowIdx + 1} 위로`}
-                      className="text-sm font-bold text-gray-600 disabled:text-gray-300"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveRow(rowIdx, 1)}
-                      disabled={rowIdx === block.rows.length - 1}
-                      aria-label={`행 ${rowIdx + 1} 아래로`}
-                      className="text-sm font-bold text-gray-600 disabled:text-gray-300"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(rowIdx)}
-                      aria-label={`행 ${rowIdx + 1} 삭제`}
-                      className="text-xs font-bold text-red-500"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* 표 골격은 표시 경로와 같은 컴포넌트 한 벌. 편집 고유 마크업은
+          전부 editSlots가 넣고, 이 컴포넌트는 <table> 태그를 직접 만들지
+          않는다. parity가 EDIT_PARITY_FROZEN이므로 나가는 DOM은 자체
+          <table> 시절과 바이트 동일하다 — 스크롤 래퍼의
+          `max-w-full overflow-x-auto`(폼 가로 넘침 방지, 2026-08-06 실측
+          반영)도 scrollWrapExtra로 그대로 유지된다. */}
+      <AdmissionTable block={block} mode="edit" slots={editSlots} parity={EDIT_PARITY_FROZEN} />
 
       <button type="button" onClick={addRow} className="mt-2 text-sm font-bold text-[#2348ff]">
         + 행 추가

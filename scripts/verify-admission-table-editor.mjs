@@ -956,6 +956,101 @@ async function main() {
     record('16g. 알 수 없는 section — primary 빈 배열, advanced가 전체 종류', pass, JSON.stringify({ primary, advanced }));
   }
 
+  // ── 17) 표 골격 단일성 계약(설계 §7-3 T1/T2/T3) ───────────────────────
+  // 편집기가 자체 <table>을 폐기하고 table/AdmissionTable.jsx에 위임한 뒤로
+  // 성립하는 계약이다. **뷰 DOM == 편집 DOM을 단언하지 않는다** — 파리티
+  // 플래그로 의도적으로 다르게 두고 있어(EDIT_PARITY_FROZEN) 그 단언은
+  // 애초에 성립할 수 없다. 대신 (T1) 골격 문자열, (T2) 컬럼 수, (T3) 셀
+  // kind 판정 정본 세 가지만 못 박는다.
+  {
+    const AdmissionTable = await loadModule('src/components/admission/table/AdmissionTable.jsx', 'default');
+    const tableModel = await loadModule('src/components/admission/table/tableModel.js');
+
+    const viewOut = renderToStaticMarkup(
+      React.createElement(AdmissionTable, { block: selectionBlock, mode: 'view' })
+    );
+    const editOut = renderToStaticMarkup(
+      React.createElement(TableBlockEditor, { section: 'selection_method', block: selectionBlock, onChange: () => {} })
+    );
+
+    // T1) 골격 단일성 — 스크롤 래퍼 <div>와 <table>의 class가 같은 소스에서
+    //   나오는지. 편집 쪽에만 붙는 토큰은 parity.scrollWrapExtra 두 개뿐이며,
+    //   그 밖의 토큰이 하나라도 갈라지면 골격이 두 벌로 되돌아갔다는 뜻이다.
+    {
+      const skeletonOf = (html) => {
+        const m = html.match(/<div class="([^"]*)"><table class="([^"]*)">/);
+        return m ? { wrap: m[1].split(' ').filter(Boolean), table: m[2] } : null;
+      };
+      const viewSkeleton = skeletonOf(viewOut);
+      const editSkeleton = skeletonOf(editOut);
+      const EDIT_ONLY_WRAP_TOKENS = ['max-w-full', 'overflow-x-auto']; // EDIT_PARITY_FROZEN.scrollWrapExtra
+      const editWrapBase = editSkeleton
+        ? editSkeleton.wrap.filter((t) => !EDIT_ONLY_WRAP_TOKENS.includes(t))
+        : null;
+      const pass =
+        Boolean(viewSkeleton && editSkeleton) &&
+        JSON.stringify(editWrapBase) === JSON.stringify(viewSkeleton.wrap) &&
+        editSkeleton.table === viewSkeleton.table &&
+        EDIT_ONLY_WRAP_TOKENS.every((t) => editSkeleton.wrap.includes(t));
+      record(
+        '17a. T1 골격 단일성 — 뷰/편집의 <div>·<table> class가 동일(편집은 scrollWrapExtra 2토큰만 추가)',
+        pass,
+        JSON.stringify({ viewSkeleton, editSkeleton })
+      );
+    }
+
+    // T2) 컬럼 수 계약 — describeTable의 columnCount가 정본이고, 편집 DOM의
+    //   행당 <td> 수는 그 값 + rowTrailing 1개다. 🚩 Step 7d에서 rowTrailing이
+    //   사라지면 이 기대값을 columnCount로 낮춰야 하고, 그때 이 단언이
+    //   "컬럼 수가 실제로 뷰와 일치했다"의 증거가 된다.
+    {
+      const desc = tableModel.describeTable(selectionBlock);
+      const tdTotal = (editOut.match(/<td/g) || []).length;
+      const tdPerRow = tdTotal / selectionBlock.rows.length;
+      const pass =
+        desc !== null &&
+        desc.columnCount === selectionBlock.columns.length &&
+        Number.isInteger(tdPerRow) &&
+        tdPerRow === desc.columnCount + 1; // +1 = EDIT_PARITY_FROZEN 하의 rowTrailing
+      record(
+        '17b. T2 컬럼 수 계약 — describeTable.columnCount === columns.length, 편집 행당 <td> === columnCount + rowTrailing(1)',
+        pass,
+        JSON.stringify({ columnCount: desc?.columnCount, columnsLength: selectionBlock.columns.length, tdTotal, tdPerRow })
+      );
+    }
+
+    // T3) kind 단일 정본 — describeCell(...).edit.kind가
+    //   resolveCellKind(getCellKind(variant, role), cell)와 항상 같은가.
+    //   admissionLayout.getCellKind의 "표시 컴포넌트 조건이 바뀌면 이 함수도
+    //   같이 바꿔야 한다"(수동 동기화 의무 G7)를 코드가 아니라 테스트로
+    //   봉인한다 — 편집기가 두 함수를 따로 부르던 시절의 드리프트 통로를 닫는다.
+    {
+      const VARIANTS = ['selection', 'change', 'recruit', 'recruitExact', 'generic', 'exam', 'minimum', 'recordInfo', 'score', 'special'];
+      const CELL_SHAPES = ['문자열 셀', { text: '3등급', badge: 'minimumHas' }, { chips: [{ label: '27 인원', value: '18' }] }];
+      const EXTRA_ROLES = ['minimum', 'group', 'unit', 'data', undefined];
+      let checked = 0;
+      const mismatches = [];
+      for (const variant of VARIANTS) {
+        const roles = [...new Set([...getKnownRolesForVariant(variant), ...EXTRA_ROLES])];
+        for (const role of roles) {
+          for (const cell of CELL_SHAPES) {
+            const probeBlock = { kind: 'table', variant, columns: [{ role, label: 'L' }], rows: [[cell]] };
+            const actual = tableModel.describeCell(probeBlock, 0, 0).edit.kind;
+            const expected = resolveCellKind(getCellKind(variant, role), cell);
+            checked += 1;
+            if (actual !== expected) mismatches.push({ variant, role, cell, actual, expected });
+          }
+        }
+      }
+      const pass = mismatches.length === 0 && checked >= VARIANTS.length * CELL_SHAPES.length;
+      record(
+        `17c. T3 kind 단일 정본 — describeCell().edit.kind === resolveCellKind(getCellKind(variant, role), cell) 전수 대조(${checked}조합)`,
+        pass,
+        JSON.stringify(mismatches)
+      );
+    }
+  }
+
   console.log('=== 섹션 문서 표 편집 코어 검증 결과 ===\n');
   let fail = 0;
   for (const r of results) {
