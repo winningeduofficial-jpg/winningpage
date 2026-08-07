@@ -198,6 +198,16 @@ function classSetsEqual(actual, expected) {
   return true;
 }
 
+// 설계 §7-2 ② — thead 마크업 완전 문자열 골든용. 첫 <thead>…</thead>를
+// 있는 그대로(속성 순서·케이싱 포함) 잘라낸다. 정규화하지 않는 것이 핵심이다:
+// 정규화하는 순간 rowSpan/colSpan 케이싱이나 class 위치 변화를 놓친다.
+function theadOf(out) {
+  const start = out.indexOf('<thead>');
+  const end = out.indexOf('</thead>');
+  if (start === -1 || end === -1) return '';
+  return out.slice(start, end + '</thead>'.length);
+}
+
 function findTagWithExactClass(out, tag, expectedClass) {
   const re = new RegExp(`<${tag}\\b[^>]*class="([^"]*)"`, 'g');
   let m = re.exec(out);
@@ -354,6 +364,69 @@ async function main() {
     record('table:recruitExact — 2단 헤더(rowSpan/colSpan) + series-cell + muted', pass, out);
   }
 
+  // ── 설계 §7-2 ② — recruitExact 비대칭 픽스처 + thead 완전 문자열 골든 ──
+  //
+  // 바로 위 픽스처는 fixedColumnCount:2 / groups count 2라 rowspan과 colspan이
+  // 둘 다 2다. 즉 두 속성을 서로 뒤바꿔도, 헤더 두 행의 순서를 뒤집어도
+  // `/rowspan="2"/i && /colspan="2"/i` 단언이 그대로 통과한다. 아래 픽스처는
+  // fixedColumnCount:1 / groups count 3·2로 세 숫자를 전부 다르게 만들어
+  // 그 자리바꿈을 실제로 잡는다.
+  //
+  // 골든 문자열은 "예뻐서" 고른 값이 아니라 통합 이전 렌더러(blocks/tables/
+  // RecruitExactTable.jsx)와 바이트 동일함이 확인된 현행 출력이다. 여기서
+  // 한 글자라도 달라지면 공개 표 DOM이 바뀐 것이므로 골든을 고치기 전에
+  // 왜 바뀌었는지부터 답해야 한다. rowspan은 소문자, colSpan은 카멜 —
+  // react-dom 18.3.1 SSR의 실측 케이싱 비대칭이며 의도적으로 보존한다.
+  {
+    const doc = baseDoc([
+      {
+        kind: 'table',
+        variant: 'recruitExact',
+        columns: [
+          { role: 'series', label: '계열' },
+          { role: 'unit', label: '가군' },
+          { role: 'data', label: '나군' },
+          { role: 'data', label: '다군' },
+          { role: 'data', label: '라군' },
+          { role: 'data', label: '마군' }
+        ],
+        fixedColumnCount: 1,
+        groups: [
+          { name: '수시', count: 3 },
+          { name: '정시', count: 2 }
+        ],
+        rows: [['인문', '1', '2', '3', '4', '5']]
+      }
+    ]);
+    const out = render(doc);
+    const GOLDEN_THEAD =
+      '<thead><tr>' +
+      '<th rowspan="2" class="fixed-head">계열</th>' +
+      '<th colSpan="3" class="recruit-group-head">수시</th>' +
+      '<th colSpan="2" class="recruit-group-head">정시</th>' +
+      '</tr><tr>' +
+      '<th>가군</th><th>나군</th><th>다군</th><th>라군</th><th>마군</th>' +
+      '</tr></thead>';
+    record(
+      'table:recruitExact 비대칭(fixed=1, groups 3+2) — thead 완전 문자열 골든',
+      theadOf(out) === GOLDEN_THEAD,
+      `actual=${theadOf(out)}`
+    );
+    // fixedColumnCount:1이므로 series-cell은 0열 하나뿐이고 1열은 left도 아니다
+    // (대칭 픽스처에서는 1열이 left라 이 차이가 드러나지 않는다).
+    const GOLDEN_TBODY =
+      '<tbody><tr>' +
+      '<td class="left series-cell">인문</td>' +
+      '<td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>' +
+      '</tr></tbody>';
+    const tbody = out.slice(out.indexOf('<tbody>'), out.indexOf('</tbody>') + 8);
+    record(
+      'table:recruitExact 비대칭 — tbody 고정열 경계(td 클래스) 골든',
+      tbody === GOLDEN_TBODY,
+      `actual=${tbody}`
+    );
+  }
+
   for (const variant of ['exam', 'minimum', 'recordInfo', 'score', 'special']) {
     const expectedTableClass = {
       exam: 'admission-data-table admission-exam-table',
@@ -384,6 +457,13 @@ async function main() {
       hasClass(out, 'muted') &&
       !out.includes('admission-table-compact'); // 실측: compact는 현재 어느 variant에도 적용되지 않는다
     record(`table:${variant} — GenericTable idx0·1 left + muted, compact 미적용`, pass, out);
+    // 설계 §7-2 ② — generic 계열 thead 완전 문자열 골든. 그룹 헤더가 없는
+    // 단일 행이고 <th>에 클래스도 span도 붙지 않는다는 것이 계약이다.
+    record(
+      `table:${variant} — thead 완전 문자열 골든(1행, class/span 없음)`,
+      theadOf(out) === '<thead><tr><th>A</th><th>B</th><th>C</th></tr></thead>',
+      `actual=${theadOf(out)}`
+    );
   }
 
   // ── 비표 블록 9종 ──────────────────────────────────────────────────
