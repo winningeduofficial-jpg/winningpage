@@ -174,9 +174,9 @@ export default function App() {
           }
         />
 
-        {/* 고객사 목업 5종 데모 — SiteLayout 밖(/admin과 같은 층위)에 둔다. 5개 전부 자체
-            크롬(헤더/푸터 또는 전체화면 앱 UI)을 갖고 있어 사이트 헤더/푸터와 겹치면 크롬이
-            이중화된다. growth-intro는 /services/growth로 고정 승격한다. */}
+        {/* /demo, /demo/:demoKey — 고객사 목업 데모 원문(어드민 전용). SiteLayout 밖(/admin과
+            같은 층위)에 둔다. 자체 크롬(헤더/푸터 또는 전체화면 앱 UI)을 갖고 있어 사이트
+            헤더/푸터와 겹치면 크롬이 이중화된다. */}
         <Route
           path="/demo"
           element={
@@ -197,14 +197,16 @@ export default function App() {
             </ProtectedAdmin>
           }
         />
+
+        {/* /services/growth — 서비스 7종 랜딩 중 하나로 비로그인 포함 전원 공개. 렌더하는 실체는
+            고객사 제공 HTML 목업(growth-intro)이라 위 /demo 라우트들과 같은 이유로 SiteLayout
+            밖에 두지만, 접근 통제는 걸지 않는다. */}
         <Route
           path="/services/growth"
           element={
-            <ProtectedAdmin>
-              <Suspense fallback={<DemoFallback />}>
-                <DemoFrame demoKeyOverride="growth-intro" />
-              </Suspense>
-            </ProtectedAdmin>
+            <Suspense fallback={<DemoFallback />}>
+              <DemoFrame demoKeyOverride="growth-intro" />
+            </Suspense>
           }
         />
 

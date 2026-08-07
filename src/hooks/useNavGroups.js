@@ -1,6 +1,5 @@
 import { useEffect, useId, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { isAdminUser } from '../lib/demoAccess';
 import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
@@ -114,8 +113,9 @@ function ensureFreeDiagnosisInService(groups) {
   });
 }
 
-// 어드민 전용 '성장설계'(/services/growth)를 '서비스' 그룹에 삽입한다. ensureFreeDiagnosisInService와
-// 형태는 같지만 적용 지점이 다르다 — page_contents(DB)는 dev 공용이라 여기 슬러그를 추가하면
+// '성장설계'(/services/growth)를 '서비스' 그룹에 삽입한다. 비로그인 포함 전원에게 노출되며,
+// 라우트 접근 통제(있다면)는 App.jsx가 별도로 담당한다. ensureFreeDiagnosisInService와 형태는
+// 같지만 적용 지점이 다르다 — page_contents(DB)는 dev 공용이라 여기 슬러그를 추가하면
 // 이 라우트가 없는 다른 브랜치 전부에서 메뉴 링크가 뜨고 App.jsx의 path="*"에 걸려 홈으로
 // 튕긴다. 그래서 DB를 건드리지 않고 이 훅에서 코드로 주입한다. '수행평가' 다음, '자기평가' 앞이
 // 20260806 확정 순서(무료진단·목표관리·콜멘토·수행평가·성장설계·자기평가·심화탐구)이고,
@@ -266,22 +266,6 @@ export function useNavGroups() {
       ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
     );
   });
-  // 어드민 여부가 확정되기 전엔 false로 두어 '성장설계'를 렌더하지 않는다(넣었다 지우며
-  // 깜빡이는 것보다, 확정 후 늦게 나타나는 편이 낫다는 요구사항).
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-
-    isAdminUser().then((result) => {
-      if (!alive) return;
-      setIsAdmin(result);
-    });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -334,7 +318,9 @@ export function useNavGroups() {
   }, [instanceId]);
 
   // '성장설계' 주입은 여기(최종 반환값)에만 적용한다 — writeCachedNavGroups/readCachedNavGroups
-  // 경로에는 절대 섞지 않는다. 캐시에 들어가면 어드민 계정으로 한 번 채워진 캐시가 로그아웃・
-  // 다른 계정 전환 후에도 localStorage에서 되살아나 비어드민에게 노출될 수 있기 때문이다.
-  return isAdmin ? insertGrowthPlanningInService(navGroups) : navGroups;
+  // 경로(즉 DB·캐시)에는 절대 섞지 않는다. page_contents(DB)는 dev의 전 브랜치가 공유하므로
+  // DB나 캐시에 넣으면 /services/growth 라우트가 없는 다른 브랜치에서도 메뉴 링크가 뜨고
+  // App.jsx의 path="*"에 걸려 홈으로 튕긴다. 같은 파일의 ensureFreeDiagnosisInService가 이미
+  // 동일한 방식(최종 반환값에서만 주입)을 쓰고 있다.
+  return insertGrowthPlanningInService(navGroups);
 }
