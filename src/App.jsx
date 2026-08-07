@@ -31,6 +31,7 @@ import Events from './pages/Events';
 import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import DynamicPage from './pages/DynamicPage';
+import PremiumApply from './pages/PremiumApply';
 import CompanyNews from './pages/CompanyNews';
 import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
@@ -172,6 +173,10 @@ export default function App() {
           <Route path="/info/column" element={<ColumnHome />} />
           <Route path="/info/column/list" element={<ColumnList />} />
           <Route path="/info/column/:id" element={<ColumnDetail />} />
+
+          {/* 이용신청 > 프리미엄 이용 — 구 슬러그(/page/premium-apply)는 전용 라우트로 리다이렉트 */}
+          <Route path="/premium-apply" element={<PremiumApply />} />
+          <Route path="/page/premium-apply" element={<Navigate to="/premium-apply" replace />} />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
 
