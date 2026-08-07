@@ -1,11 +1,14 @@
-import { getTableVariantLayout, RECRUIT_FIXED_CELL_CLASS_BY_ROLE, recruitFixedEmptyFallback } from '../../admissionLayout';
+import { describeTable, describeCell } from '../../table/tableModel';
 
 // buildRecruitmentHtml(admissionParsing.js:2261) + buildRecruitCell(:2164) 재현.
 // group/unit은 리터럴 '-' 폴백, 값 셀은 chips 구조(없으면 muted span).
-// ⚠ 아래 `role === 'group' || role === 'unit'` 조건은 admissionLayout.js의 getCellKind와
-// 동기화돼야 한다(editor/TableBlockEditor.jsx가 그 함수로 chips 편집기를 고른다) — 한쪽만 바꾸면 편집기와 표시가 어긋난다.
+//
+// 셀 className과 `role === 'group' || role === 'unit'` 조건은 이제
+// table/tableModel.js가 단독 보유한다(이전에는 이 파일이 인라인으로 들고 있어
+// admissionLayout.js의 getCellKind와 수동 동기화 의무가 있었다).
 export default function RecruitTable({ columns, rows }) {
-  const layout = getTableVariantLayout('recruit');
+  const block = { variant: 'recruit', columns, rows };
+  const { layout } = describeTable(block);
 
   return (
     <div className={layout.scrollWrapClassName}>
@@ -20,25 +23,22 @@ export default function RecruitTable({ columns, rows }) {
         <tbody>
           {rows.map((row, rowIdx) => (
             <tr key={rowIdx}>
-              {row.map((cell, colIdx) => {
-                const role = columns[colIdx]?.role;
+              {row.map((_cell, colIdx) => {
+                const { className, view } = describeCell(block, rowIdx, colIdx);
 
-                if (role === 'group' || role === 'unit') {
-                  const className = RECRUIT_FIXED_CELL_CLASS_BY_ROLE[role];
-                  const cellText = typeof cell === 'string' ? cell : cell?.text;
+                if (view.leaf === 'literal') {
                   return (
                     <td key={colIdx} className={className}>
-                      {cellText || recruitFixedEmptyFallback()}
+                      {view.text || view.fallback}
                     </td>
                   );
                 }
 
-                const chips = cell && typeof cell === 'object' && Array.isArray(cell.chips) ? cell.chips : null;
                 return (
-                  <td key={colIdx} className="recruit-values-cell">
-                    {chips && chips.length ? (
+                  <td key={colIdx} className={className}>
+                    {view.leaf === 'chips' ? (
                       <div className="admission-recruit-cell-values">
-                        {chips.map((chip, chipIdx) => (
+                        {view.chips.map((chip, chipIdx) => (
                           <span key={chipIdx}>
                             <b>{chip.label}</b>
                             {chip.value}
