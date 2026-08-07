@@ -75,7 +75,7 @@ const HERO_CARDS = [
     tint: '#f2bc92',
     title: '콜멘토',
     desc: ['나만의 1:1', '입시 멘토링'],
-    best: false,
+    best: true,
     route: '/services/callmentor'
   },
   {
@@ -93,7 +93,7 @@ const HERO_CARDS = [
     tint: '#a0c99c',
     title: '프리미엄',
     desc: ['전문가가 직접 관리하는', '밀착 컨설팅'],
-    best: true,
+    best: false,
     route: '/page/premium-a'
   }
 ];
