@@ -58,6 +58,7 @@ export const PROMOTED_SLUG_ROUTES = {
   'services-self-assessment': '/services/self-assessment',
   'services-in-depth-research': '/services/research',
   'admission-special-highschool-results': '/admission/special-highschool',
+  'premium-apply': '/premium-apply',
   gallery: '/info/column'
 };
 
