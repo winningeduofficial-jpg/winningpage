@@ -6,8 +6,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  RotateCcw,
-  X
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
@@ -32,6 +31,8 @@ import { getAdmissionActiveYear } from '../lib/admissionSettings';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
+import AdmissionModalShell from '../components/admission/modal/AdmissionModalShell';
+import useModalProxyXScroll from '../components/admission/modal/modalProxyXScroll';
 
 const REGION_ORDER = [
   '강원',
@@ -852,11 +853,14 @@ export default function AdmissionGuidelines() {
   const [tooltip, setTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  // 모달 본문/프록시 트랙 ref는 여기 남는다 — 프록시 스크롤바 계산의 입력이라
+  // 껍데기(AdmissionModalShell)가 아니라 이 페이지가 소유한다. 시트/닫기 버튼
+  // ref와 포커스 트랩·ESC·배경 스크롤 잠금은 껍데기로 옮겼다.
   const modalBodyRef = useRef(null);
   const modalXScrollRef = useRef(null);
-  const modalSheetRef = useRef(null);
-  const modalCloseButtonRef = useRef(null);
   // 모달을 연 트리거(목록의 "보기" 버튼). 닫힐 때 포커스를 여기로 되돌린다.
+  // 껍데기가 아니라 페이지가 소유한다 — 트리거를 아는 것은 "여는 쪽"이고,
+  // 클릭 시점에 잡아야 그 뒤 포커스가 어디로 가든 원래 자리가 보존된다.
   const modalTriggerRef = useRef(null);
   const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
   // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { mode, doc, html, text, isHtml }.
@@ -931,74 +935,9 @@ export default function AdmissionGuidelines() {
     });
   }, [selectedInfo?.universityName, selectedInfo?.title]);
 
-  const isModalOpen = Boolean(selectedInfo);
-
-  // 모달 접근성: Escape 닫기, 포커스 트랩, 배경 스크롤 잠금, 닫힐 때 트리거로 포커스 복귀.
-  // 로딩/에러/본문 상태 전환마다 재실행되지 않도록 selectedInfo 전체가 아니라
-  // 열림 여부(isModalOpen)에만 의존한다.
-  useEffect(() => {
-    if (!isModalOpen) return undefined;
-
-    const sheet = modalSheetRef.current;
-    const previouslyFocused = modalTriggerRef.current;
-    const focusableSelector =
-      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-    const getFocusable = () =>
-      sheet
-        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter((el) => el.offsetParent !== null)
-        : [];
-
-    const rafId = window.requestAnimationFrame(() => {
-      modalCloseButtonRef.current?.focus();
-    });
-
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setSelectedInfo(null);
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-
-      const focusable = getFocusable();
-      if (!focusable.length) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-
-    // 배경 스크롤 잠금. 스크롤바가 사라지며 레이아웃이 흔들리지 않도록 그만큼 padding으로 보정한다.
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
-    document.body.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    return () => {
-      window.cancelAnimationFrame(rafId);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
-      if (previouslyFocused && document.contains(previouslyFocused)) {
-        previouslyFocused.focus();
-      }
-      modalTriggerRef.current = null;
-    };
-  }, [isModalOpen]);
+  // 모달 접근성(Escape 닫기 / 포커스 트랩 / 배경 스크롤 잠금 / 닫힐 때 트리거로
+  // 포커스 복귀)은 AdmissionModalShell이 소유한다. 껍데기가 열려 있는 동안에만
+  // 마운트되므로 원본의 `[isModalOpen]` 단일 의존성과 동일한 수명을 갖는다.
 
   // app_settings에서 공개 노출 연도를 조회한다. 실패해도 던지지 않고
   // DEFAULT_ADMISSION_ACTIVE_YEAR로 이미 초기화된 state를 그대로 둔다(폴백은
@@ -1099,123 +1038,16 @@ export default function AdmissionGuidelines() {
     });
   }, [selectedRegion]);
 
-  useEffect(() => {
-    if (!selectedInfo) {
-      setModalXScroll({ visible: false, width: 0 });
-      return undefined;
-    }
-
-    const body = modalBodyRef.current;
-    const bar = modalXScrollRef.current;
-    if (!body) return undefined;
-
-    let activeTarget = null;
-    let syncing = false;
-    let rafId = 0;
-
-    const getHorizontalTargets = () =>
-      Array.from(
-        body.querySelectorAll(
-          '.admission-scroll-table, .admission-table-wrap, .admission-existing-html'
-        )
-      ).filter((element) => element.scrollWidth > element.clientWidth + 6);
-
-    const pickTarget = () => {
-      const targets = getHorizontalTargets();
-      if (!targets.length) return null;
-      return targets.reduce((best, current) => {
-        const bestOverflow = best.scrollWidth - best.clientWidth;
-        const currentOverflow = current.scrollWidth - current.clientWidth;
-        return currentOverflow > bestOverflow ? current : best;
-      }, targets[0]);
-    };
-
-    const syncTargetsFromBar = () => {
-      if (!bar || syncing) return;
-      const target = activeTarget || pickTarget();
-      if (!target) return;
-
-      syncing = true;
-      const maxBar = Math.max(1, bar.scrollWidth - bar.clientWidth);
-      const ratio = bar.scrollLeft / maxBar;
-      getHorizontalTargets().forEach((element) => {
-        const maxElement = Math.max(0, element.scrollWidth - element.clientWidth);
-        element.scrollLeft = maxElement * ratio;
-      });
-      window.requestAnimationFrame(() => {
-        syncing = false;
-      });
-    };
-
-    const syncBarFromTarget = (target) => {
-      if (!bar || syncing || !target) return;
-
-      syncing = true;
-      const maxTarget = Math.max(1, target.scrollWidth - target.clientWidth);
-      const maxBar = Math.max(0, bar.scrollWidth - bar.clientWidth);
-      const ratio = target.scrollLeft / maxTarget;
-      bar.scrollLeft = maxBar * ratio;
-      window.requestAnimationFrame(() => {
-        syncing = false;
-      });
-    };
-
-    const refresh = () => {
-      activeTarget = pickTarget();
-      if (!activeTarget) {
-        setModalXScroll({ visible: false, width: 0 });
-        return;
-      }
-
-      setModalXScroll({ visible: true, width: activeTarget.scrollWidth });
-      window.requestAnimationFrame(() => syncBarFromTarget(activeTarget));
-    };
-
-    const scheduleRefresh = () => {
-      window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(refresh);
-    };
-
-    const onTargetScroll = (event) => {
-      activeTarget = event.currentTarget;
-      syncBarFromTarget(activeTarget);
-    };
-
-    const attachTargetListeners = () => {
-      getHorizontalTargets().forEach((element) => {
-        element.removeEventListener('scroll', onTargetScroll);
-        element.addEventListener('scroll', onTargetScroll, { passive: true });
-      });
-    };
-
-    scheduleRefresh();
-    const timeoutId = window.setTimeout(() => {
-      refresh();
-      attachTargetListeners();
-    }, 80);
-
-    bar?.addEventListener('scroll', syncTargetsFromBar, { passive: true });
-    body.addEventListener('scroll', scheduleRefresh, { passive: true });
-    window.addEventListener('resize', scheduleRefresh);
-
-    const observer = new ResizeObserver(() => {
-      scheduleRefresh();
-      attachTargetListeners();
-    });
-    observer.observe(body);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      window.cancelAnimationFrame(rafId);
-      bar?.removeEventListener('scroll', syncTargetsFromBar);
-      body.removeEventListener('scroll', scheduleRefresh);
-      window.removeEventListener('resize', scheduleRefresh);
-      getHorizontalTargets().forEach((element) =>
-        element.removeEventListener('scroll', onTargetScroll)
-      );
-      observer.disconnect();
-    };
-  }, [selectedInfo, modalXScroll.visible]);
+  // 프록시 가로 스크롤바 배선은 modalProxyXScroll.js로 통째 이동했다(로직 무변경).
+  // 의존성 [selectedInfo, visible]의 `visible` 자기참조는 그 파일 주석 참고 —
+  // 떨어뜨리면 마크업은 그대로인 채 스크롤 거리만 0이 되는 무증상 사망이다.
+  useModalProxyXScroll({
+    selectedInfo,
+    bodyRef: modalBodyRef,
+    barRef: modalXScrollRef,
+    visible: modalXScroll.visible,
+    setModalXScroll
+  });
 
   const mergedResourceRows = useMemo(() => mergeHwpResourceRows(resourceRows), [resourceRows]);
   const resourceIndex = useMemo(() => buildResourceIndex(mergedResourceRows), [mergedResourceRows]);
@@ -1759,44 +1591,40 @@ export default function AdmissionGuidelines() {
       `}</style>
 
       {selectedInfo ? (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 px-4"
-          onClick={() => setSelectedInfo(null)}
-        >
-          <div
-            ref={modalSheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admission-modal-university-name admission-modal-title"
-            className="admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="admission-modal-sheet-head relative px-6 pb-4 pt-8 md:px-12 md:pb-5 md:pt-10">
-              <button
-                ref={modalCloseButtonRef}
-                type="button"
-                onClick={() => setSelectedInfo(null)}
-                aria-label="닫기"
-                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] md:right-6 md:top-6"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <p
-                id="admission-modal-university-name"
-                className="text-center text-base font-medium tracking-[-0.02em] text-[#013262]"
-              >
-                {selectedInfo.universityName}
-              </p>
-              <h3 id="admission-modal-title" className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
-                {selectedInfo.title}
-              </h3>
-            </div>
-            <div
-              ref={modalBodyRef}
-              data-section={selectedInfo.section?.key || ''}
-              className="admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12"
+        <AdmissionModalShell
+          onClose={() => setSelectedInfo(null)}
+          triggerRef={modalTriggerRef}
+          eyebrow={selectedInfo.universityName}
+          title={selectedInfo.title}
+          bodyRef={modalBodyRef}
+          bodyProps={{ 'data-section': selectedInfo.section?.key || '' }}
+          belowBody={
+            selectedInfo.isHtml && modalXScroll.visible ? (
+              <div className="admission-modal-x-scroll-shell">
+                <div
+                  ref={modalXScrollRef}
+                  className="admission-modal-x-scroll"
+                  aria-label="표 좌우 이동"
+                >
+                  <div
+                    className="admission-modal-x-scroll-inner"
+                    style={{ width: `${Math.max(modalXScroll.width, 1)}px` }}
+                  />
+                </div>
+              </div>
+            ) : null
+          }
+          footer={
+            <button
+              type="button"
+              onClick={() => setSelectedInfo(null)}
+              className="inline-flex h-12 min-w-[6.25rem] items-center justify-center rounded-xl bg-[#0b84fd] px-8 text-base font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-xl"
             >
-              {/* AdmissionSurface: 표/블록 표면 스타일을 소유하는 공유 컴포넌트
+              닫기
+            </button>
+          }
+        >
+          {/* AdmissionSurface: 표/블록 표면 스타일을 소유하는 공유 컴포넌트
                   (2026-08-06 컴포넌트화, 어드민 편집기와 공유 — src/components/admission/
                   AdmissionSurface.jsx 헤더 주석 참고). 이 div가 이미 ref/스크롤/레이아웃을
                   갖고 있어 별도로 감싸지 않고 admission-surface 클래스 + data-section만
@@ -1843,32 +1671,7 @@ export default function AdmissionGuidelines() {
               ) : (
                 <div className="whitespace-pre-wrap text-[#8f8f8f]">등록된 정보가 없습니다.</div>
               )}
-            </div>
-            {selectedInfo.isHtml && modalXScroll.visible ? (
-              <div className="admission-modal-x-scroll-shell">
-                <div
-                  ref={modalXScrollRef}
-                  className="admission-modal-x-scroll"
-                  aria-label="표 좌우 이동"
-                >
-                  <div
-                    className="admission-modal-x-scroll-inner"
-                    style={{ width: `${Math.max(modalXScroll.width, 1)}px` }}
-                  />
-                </div>
-              </div>
-            ) : null}
-            <div className="border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4">
-              <button
-                type="button"
-                onClick={() => setSelectedInfo(null)}
-                className="inline-flex h-12 min-w-[6.25rem] items-center justify-center rounded-xl bg-[#0b84fd] px-8 text-base font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-xl"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
+        </AdmissionModalShell>
       ) : null}
 
       <style>

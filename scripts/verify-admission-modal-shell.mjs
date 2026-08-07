@@ -168,6 +168,7 @@ export default function __ModalRegionHarness({ selectedInfo, modalXScroll }) {
   const modalCloseButtonRef = __useRef(null);
   const modalBodyRef = __useRef(null);
   const modalXScrollRef = __useRef(null);
+  const modalTriggerRef = __useRef(null);
   const setSelectedInfo = () => {};
   const handleRetryInfo = () => {};
   return (
