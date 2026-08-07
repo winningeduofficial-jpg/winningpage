@@ -4055,7 +4055,11 @@ function admissionGuidelinesValidate(form, row) {
 // 렌더한다. 번호("1.~6.") 마커가 없어 자동 분할이 안 되는 원문이면, 좌측 필드 목록에 이미 있는
 // 카테고리별 raw textarea에 직접 나눠 붙여넣는 fallback을 안내하고 "미리보기 새로고침"으로 그 값을
 // 기준으로 HTML을 재생성한다.
-function AdmissionParsingPreview({ form, onPatch }) {
+// locked: 카테고리 편집 다이얼로그가 열려 있는 동안 true. 파싱 실행은
+// buildPreviewPatch로 **6섹션을 한 번에** patch하므로, 모달에서 편집 중인
+// 섹션 doc이 발밑에서 통째로 갈릴 수 있다. 오버레이가 이미 클릭을 막지만
+// 상태를 정합시키기 위해 버튼 자체를 disabled로 둔다(모달을 닫으면 풀린다).
+function AdmissionParsingPreview({ form, onPatch, locked = false }) {
   const [hwpSource, setHwpSource] = useState('');
   const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
   // 카테고리별 "파싱 결과로 기존 HTML 덮어쓰기" 동의 체크박스 상태. 기본은 비동의(false) —
@@ -4193,18 +4197,27 @@ function AdmissionParsingPreview({ form, onPatch }) {
         <button
           type="button"
           onClick={runAutoParse}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+          disabled={locked}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           파싱 실행(자동 분할)
         </button>
         <button
           type="button"
           onClick={refreshPreview}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+          disabled={locked}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           미리보기 새로고침(좌측 원문 기준)
         </button>
       </div>
+
+      {locked && (
+        <p className="mt-2 rounded border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-xs font-black leading-5 text-[#2348ff]">
+          카테고리 편집 창이 열려 있는 동안에는 파싱을 실행할 수 없습니다. 파싱은 6개 카테고리를 한
+          번에 덮어쓰므로 편집 중인 내용이 사라질 수 있습니다.
+        </p>
+      )}
 
       {splitStatus === 'fallback' && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
@@ -4910,7 +4923,7 @@ function AdminForm({
 
         {config.FormPreview && (
           <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
-            <config.FormPreview form={form} onPatch={patch} />
+            <config.FormPreview form={form} onPatch={patch} locked={Boolean(modalSection)} />
           </div>
         )}
       </div>
@@ -4985,7 +4998,25 @@ function AdminForm({
 function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSection }) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
-  const pageRows = rows.slice(start, start + PAGE_SIZE);
+  const pageRows = useMemo(() => rows.slice(start, start + PAGE_SIZE), [rows, start]);
+
+  // 섹션 요약(summarizeHwpSection)은 페이지당 최대 60회(10행 × 6컬럼) 호출되고
+  // jsonb doc의 blocks 배열을 훑는다. 셀에서 직접 부르면 keyword 검색 타이핑
+  // 한 글자마다 전부 재계산된다 — 페이지 행이 실제로 바뀔 때만 1회 계산한다.
+  // admissionSection 컬럼이 없는 35개 config에서는 null이라 비용이 0이다.
+  const sectionColumns = config.columns.filter((column) => column.type === 'admissionSection');
+  const sectionSummaries = useMemo(() => {
+    if (sectionColumns.length === 0) return null;
+    return pageRows.map((row) => {
+      const summaries = {};
+      sectionColumns.forEach((column) => {
+        summaries[column.sectionKey] = summarizeHwpSection(column.sectionKey, row);
+      });
+      return summaries;
+    });
+    // config.columns는 모듈 레벨 CONFIGS 리터럴이라 참조가 안정적이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageRows, config.columns]);
 
   return (
     <div className="bg-white p-6 shadow">
@@ -5070,15 +5101,16 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
                         // [수정] 1클릭으로 편집 다이얼로그가 열린다.
                         // title에 요약("표 2개 · 5열 12행")을 실어 어느 칸이
                         // 무거운지 열기 전에 알 수 있게 한다.
-                        // summarizeHwpSection은 row[jsonKey]/row[sectionKey]만
-                        // 읽는 순수 함수라 목록 row를 그대로 넘길 수 있다
-                        // (loadRows가 select('*')이므로 추가 fetch 0).
-                        summarizeHwpSection(column.sectionKey, row) === '내용 없음' ? (
+                        // 요약은 위 useMemo가 페이지 단위로 미리 계산한 값이다
+                        // (summarizeHwpSection은 row[jsonKey]/row[sectionKey]만
+                        // 읽는 순수 함수라 목록 row를 그대로 넘길 수 있고,
+                        // loadRows가 select('*')이므로 추가 fetch도 0이다).
+                        sectionSummaries?.[index]?.[column.sectionKey] === '내용 없음' ? (
                           <span className="text-gray-300">-</span>
                         ) : (
                           <button
                             type="button"
-                            title={summarizeHwpSection(column.sectionKey, row)}
+                            title={sectionSummaries?.[index]?.[column.sectionKey]}
                             onClick={() => onOpenSection?.(row, column.sectionKey)}
                             className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white"
                           >
