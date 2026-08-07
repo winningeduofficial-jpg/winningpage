@@ -549,6 +549,14 @@ async function main() {
 
   // ── 결과 출력 ──────────────────────────────────────────────────────
   console.log('=== 섹션 문서 React 렌더 컴포넌트 검증 결과 ===\n');
+  // 상시 경고: Gate B(verify-admission-doc-equivalence.mjs, 실데이터 2506건)
+  // 코퍼스에는 아래 4종이 0건이다(2026-08-07 실측 — variant 집계 change 414 /
+  // selection 396 / recordInfo 414 / exam 360 / score 370 / minimum 252 /
+  // recruit 207 / special 84, kind 집계에 rawHtml·keyValue 없음). 즉 이 경로들의
+  // 회귀는 Gate B가 GREEN이어도 전혀 잡히지 않는다 — 아래 합성 픽스처가 유일한 탐지기다.
+  console.log(
+    '[block-render] ⚠ Gate B 실데이터 코퍼스(2506건) 미포함 경로 — variant: recruitExact/generic, kind: rawHtml/keyValue. 이 4종은 아래 합성 픽스처가 유일한 회귀 탐지기다.\n'
+  );
   let failCount = 0;
   for (const r of results) {
     console.log(`[${r.pass ? 'PASS' : 'FAIL'}] ${r.name}`);
