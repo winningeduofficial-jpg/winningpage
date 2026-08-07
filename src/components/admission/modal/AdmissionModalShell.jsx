@@ -31,9 +31,11 @@ import { X } from 'lucide-react';
 // 남아 있고 `open` 은 그 안쪽에서 항상 true 다. `open` 은 상태를 nullable
 // 하게 읽지 않는 호출부(어드민)를 위한 것이다.
 //
-// 스타일(.admission-modal-*)은 아직 이 파일이 소유하지 않는다 —
-// AdmissionGuidelines.jsx 의 <style> 에 그대로 있다. 마크업 추출과 CSS
-// 반출을 한 커밋에 섞으면 픽셀이 흔들렸을 때 범인을 특정할 수 없다.
+// 스타일(.admission-modal-*)은 형제 파일 AdmissionModalStyles.jsx 가
+// 소유한다. 이 컴포넌트가 직접 렌더하지 않는 이유는 그 <style> 노드가
+// 오버레이 서브트리 안으로 들어가면 공개 모달의 DOM 바이트가 달라져
+// 골든이 통째로 깨지기 때문이다 — 호출부가 자기 화면 어딘가에서 한 번
+// 렌더한다(공개: AdmissionGuidelines.jsx, 어드민: AdmissionSectionEditModal).
 
 // AdmissionGuidelines.jsx 원문 그대로.
 export const PUBLIC_SHEET_CLASS =

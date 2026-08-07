@@ -32,6 +32,7 @@ import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
 import AdmissionModalShell from '../components/admission/modal/AdmissionModalShell';
+import AdmissionModalStyles from '../components/admission/modal/AdmissionModalStyles';
 import useModalProxyXScroll from '../components/admission/modal/modalProxyXScroll';
 
 const REGION_ORDER = [
@@ -1511,30 +1512,14 @@ export default function AdmissionGuidelines() {
         </div>
       ) : null}
 
-      <style>{`
-        .admission-modal-body { overscroll-behavior: contain; scrollbar-gutter: stable; }
-        .admission-modal-body .admission-scroll-table,
-        .admission-modal-body .admission-table-wrap,
-        .admission-modal-body .admission-existing-html { scrollbar-width: none; }
-        .admission-modal-body .admission-scroll-table::-webkit-scrollbar,
-        .admission-modal-body .admission-table-wrap::-webkit-scrollbar,
-        .admission-modal-body .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
-        /* BLOCK3(2026-08-04): 쉘의 좌우 padding(24px 고정)이 모달 본문(.admission-modal-body,
-           px-6/md:px-12 = 24px/48px)보다 데스크톱에서 24px씩 더 좁아, 프록시 스크롤바의
-           트랙 폭(쉘 clientWidth)이 실제 표 래퍼 clientWidth보다 넓어진다. 그 결과 inner에
-           표.scrollWidth를 그대로 넣어도 트랙 안에 다 들어가 스크롤이 0이 되는 5건이 있었다.
-           쉘 padding을 모달 본문과 동일한 반응형 값으로 맞춰 두 컨테이너의 실폭 비율을 일치시킨다. */
-        .admission-modal-x-scroll-shell { flex: 0 0 auto; border-top: 1px solid #d7d7d7; background: #fff; padding: 0.3125rem 1.5rem 0.25rem; }
-        @media (min-width: 48rem) {
-          .admission-modal-x-scroll-shell { padding-left: 3rem; padding-right: 3rem; }
-        }
-        .admission-modal-x-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #bcdcff #f9fafb; }
-        .admission-modal-x-scroll-inner { height: 1px; }
-        .admission-modal-x-scroll::-webkit-scrollbar { height: 7px; }
-        .admission-modal-x-scroll::-webkit-scrollbar-track { background: #f9fafb; border-radius: 999px; }
-        .admission-modal-x-scroll::-webkit-scrollbar-thumb { background: #bcdcff; border-radius: 999px; }
-        .admission-modal-x-scroll::-webkit-scrollbar-thumb:hover { background: #0b84fd; }
+      {/* 모달 껍데기(.admission-modal-*) CSS 는 이 페이지가 아니라
+          AdmissionModalStyles 가 소유한다(2026-08-07) — 어드민 편집 모달이
+          같은 껍데기를 쓰려면 CSS 도 라우트를 넘어 따라가야 하기 때문이다.
+          규칙 문자열·순서·specificity 는 그대로 옮겼고 <style> 노드 위치만
+          이 블록 바로 뒤로 이동했다(공개 픽셀 불변). */}
+      <AdmissionModalStyles />
 
+      <style>{`
         /* 1882:681/1882:1291 실측 재구현.
            모바일(wide 미만, <74rem)은 기존 카드형 + 가로 스크롤 + sticky 1열 유지.
            lg(1024px)~wide 미만 구간은 컨테이너 내부 폭이 960px로 줄어드는 함정
@@ -1582,10 +1567,6 @@ export default function AdmissionGuidelines() {
           .admission-directory-cell-link,
           .admission-directory-cell-empty { font-size: 0.875rem; letter-spacing: -0.02em; }
         }
-
-        .admission-modal-sheet { background: #fff; border: none; border-radius: 1.5rem; box-shadow: 0 1.875rem 5rem -1.25rem rgba(1, 50, 98, 0.35); }
-        .admission-modal-sheet-head { border-bottom: 1px solid #e5e7eb; background: #ffffff; }
-        .admission-modal-sheet-title { text-align: center; color: #525252; font-weight: 600; text-decoration: none; letter-spacing: -0.02em; }
 
         .muted { color: #667085; }
       `}</style>
