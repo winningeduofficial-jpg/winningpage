@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 
+import Chip from '../Chip';
+
 /**
  * 뉴스 섹션 (0729 시안 Figma node 2207:13148, 1101×293 재구현) — 독립 풀폭 섹션
  * - 중앙 타이틀 + 2컬럼(좌 회사소식 / 우 공지사항) 각 최대 3행 리스트
  * - 각 행 = 카테고리 배지 pill(선택) + 제목(ellipsis) + 우측 날짜. 썸네일 없음.
- * - 헤더 chevron → 더보기 (회사소식 /company-news, 공지사항 /events)
+ * - 헤더 chevron → 더보기 (회사소식 /company-news/list, 공지사항 /events)
  * - 행 클릭 → 상세 (?id= 쿼리 파라미터 기반 기존 상세 라우트)
  *
  * 컨테이너 폭: 프로젝트 공통 max-w-content(72.75rem, lg 내부 1100px) 토큰 사용.
@@ -32,16 +34,25 @@ import { ChevronRight } from 'lucide-react';
 
 const MAX_ROWS = 3;
 
-// 시안(Figma 1907:14893) 배지 3색 — 값이 없거나 매핑에 없는 카테고리는 배지를 렌더하지 않는다.
-// 공지/중요 칩은 시안 원값 #FFC4C4/#FF7373 — 대비 1.75:1로 WCAG 미달이나 0803 재스펙
+// 시안(Figma 1907:14893) 배지 3색 → 공통 Chip 의 tone 토큰 매핑.
+// 색 hex 는 전부 src/components/Chip.jsx 가 소유한다(TONE_STYLES).
+//
+// 공지/중요 배지의 coral(#FFC4C4/#FF7373)은 대비 1.75:1로 WCAG 미달이나 0803 재스펙
 // (3015:14378)에서 디자이너가 원값을 유지했고 사용자 지시로 원값 적용
-// (이전 보정 팔레트 #FFE9E9/#8F1616 폐기).
-const CATEGORY_BADGE_STYLES = {
-  보도자료: { bg: '#E9F4FF', text: '#013262' },
-  파트너십: { bg: '#EEFFE9', text: '#016215' },
-  공지: { bg: '#FFC4C4', text: '#FF7373' },
-  중요: { bg: '#FFC4C4', text: '#FF7373' }
+// (이전 보정 팔레트 #FFE9E9/#8F1616 폐기). ⚠ 게시판 중요 칩(Chip tone="red",
+// #FFD9D9/#991E1E)과는 별개 물건이다 — 한쪽 값을 다른 쪽에 복사하지 말 것.
+//
+// ★ 렌더 조건: category 값 자체가 없으면 배지 대신 스페이서를 그린다.
+//   값은 있는데 이 표에 없는 카테고리는 gray 폴백으로 **렌더된다**(기존 동작 그대로).
+const CATEGORY_BADGE_TONES = {
+  보도자료: 'blue',
+  파트너십: 'green',
+  공지: 'coral',
+  중요: 'coral'
 };
+
+/** 매핑에 없는 카테고리의 폴백 tone(기존 #F1F5F9/#525252 리터럴과 동일). */
+const CATEGORY_BADGE_FALLBACK_TONE = 'gray';
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
 // toISOString() 단독 사용 시 KST 00:00~08:59 생성 글이 전날로 표시되는 문제 방지.
@@ -62,20 +73,16 @@ function formatDate(value) {
 // 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
 // '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
 function CategoryBadge({ category }) {
-  const style = category ? CATEGORY_BADGE_STYLES[category] : null;
-
   if (!category) return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 
   return (
-    <span
-      className="relative inline-flex min-w-[4rem] shrink-0 items-center justify-center rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] whitespace-nowrap"
-      style={{
-        backgroundColor: style?.bg ?? '#F1F5F9',
-        color: style?.text ?? '#525252'
-      }}
+    <Chip
+      tone={CATEGORY_BADGE_TONES[category] ?? CATEGORY_BADGE_FALLBACK_TONE}
+      size="md"
+      className="relative min-w-[4rem] shrink-0"
     >
       {category}
-    </span>
+    </Chip>
   );
 }
 
@@ -163,7 +170,11 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
         <div className="mt-[3.75rem] grid grid-cols-1 gap-[3.75rem] md:mt-[3.8125rem] md:grid-cols-2 md:gap-[2.3125rem]">
           {/* 좌: 회사소식 */}
           <div>
-            <ColumnHeader title="회사소식" moreLink="/company-news" moreLabel="회사소식 더보기" />
+            <ColumnHeader
+              title="회사소식"
+              moreLink="/company-news/list"
+              moreLabel="회사소식 더보기"
+            />
             {newsRows.length > 0 ? (
               <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {newsRows.map((item) => (
