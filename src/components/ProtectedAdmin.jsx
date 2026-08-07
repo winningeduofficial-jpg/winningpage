@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { buildLoginUrl } from '../lib/authRedirect';
 
 export default function ProtectedAdmin({ children }) {
   const location = useLocation();
@@ -60,7 +61,7 @@ export default function ProtectedAdmin({ children }) {
   }
 
   if (status === 'guest') {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to={buildLoginUrl(location.pathname + location.search)} replace />;
   }
 
   if (status === 'forbidden') {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { buildLoginUrl } from '../lib/authRedirect';
 import {
   ArrowRight,
   BarChart3,
@@ -351,7 +352,7 @@ export default function FreeDiagnosis() {
                     회원가입하기
                   </Link>
                   <Link
-                    to="/login"
+                    to={buildLoginUrl('/free-diagnosis/survey')}
                     className="inline-flex h-12 items-center justify-center rounded-xl border border-[#0D1B2A]/18 bg-white px-6 text-sm font-black text-[#0D1B2A] transition hover:bg-[#FFF8E8]"
                   >
                     로그인하기

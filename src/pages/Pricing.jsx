@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
 import { useProducts } from '../lib/products';
 import { saveCart } from '../lib/cart';
+import { buildLoginUrl } from '../lib/authRedirect';
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function Pricing() {
     // 로그인 안 됐으면 로그인 페이지로 → 로그인 후 바로 결제 페이지로 복귀
     const { data } = await supabase.auth.getSession();
     if (!data?.session?.user) {
-      navigate('/login?redirect=/checkout');
+      navigate(buildLoginUrl('/checkout'), { replace: true });
       return;
     }
     navigate('/checkout');

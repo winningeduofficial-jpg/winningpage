@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useInView } from '../../hooks/useInView';
 
 import { alertServiceNotReady } from '../../lib/paidServiceAccess';
-import { isAdminUser } from '../../lib/demoAccess';
+import { getDemoAccessState } from '../../lib/demoAccess';
+import { buildLoginUrl } from '../../lib/authRedirect';
 import ServiceSection from '../../components/services/ServiceSection';
 import ServiceProcessCards from '../../components/services/ServiceProcessCards';
 import ServiceTabsPanel from '../../components/services/ServiceTabsPanel';
@@ -214,15 +215,26 @@ function HeroSection() {
   const [auraRef, auraInView] = useInView();
   const navigate = useNavigate();
 
-  // 히어로 CTA — 어드민이면 데모 라우트(/demo/self-assessment)로 보내고, 아니면 기존 준비중
-  // alert 그대로 유지한다(죽은 CTA 2건만 배선하기로 확정, ProtectedAdmin과 동일 기준을 쓰는
-  // demoAccess.js). 실제 접근 통제는 라우트의 ProtectedAdmin이 최종 방어선이다.
+  // 히어로 CTA — 로그인 게이트 3분기(demoAccess.js의 getDemoAccessState, ProtectedAdmin과
+  // 동일 기준을 재사용). 비로그인은 /login으로 보내 복귀지를 이 랜딩 자신으로 남기고(자동
+  // 재실행은 하지 않는다 — 로그인 후 다시 CTA를 눌러야 한다), 어드민은 데모 라우트로,
+  // 로그인했지만 비어드민이면 기존 준비중 alert 그대로 유지한다. 실제 접근 통제는 라우트의
+  // ProtectedAdmin이 최종 방어선이다.
   async function handleHeroCta(event) {
-    if (await isAdminUser()) {
+    const access = await getDemoAccessState();
+
+    if (access === 'admin') {
       event?.preventDefault?.();
       navigate('/demo/self-assessment');
       return;
     }
+
+    if (access === 'guest') {
+      event?.preventDefault?.();
+      navigate(buildLoginUrl('/services/self-assessment'), { replace: true });
+      return;
+    }
+
     alertServiceNotReady(event);
   }
 
