@@ -1555,7 +1555,8 @@ const CONFIGS = {
       { key: 'region', label: '거주구분', type: 'select', options: ['관내', '관외'] },
       { key: 'school_type', label: '학교구분', type: 'text' },
       { key: 'school_name', label: '학교명', type: 'text' },
-      { key: 'member_type', label: '회원유형', type: 'select', options: ['student', 'parent', 'teacher'] },
+      // sql/40_auth_signup.sql profiles_member_type_check와 일치 (구 'teacher' → 'mentor')
+      { key: 'member_type', label: '회원유형', type: 'select', options: ['student', 'parent', 'mentor'] },
       { key: 'role', label: '권한', type: 'select', options: ['user', 'admin'] },
       { key: 'is_active', label: '사용 여부', type: 'radioBoolean' },
       { key: 'sms_agreed', label: 'SMS수신동의', type: 'checkbox' },
