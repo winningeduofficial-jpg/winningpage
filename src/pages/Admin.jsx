@@ -796,7 +796,7 @@ const CONFIGS = {
   //   ① PDF 1개 업로드 → 브라우저에서 16장 WebP로 변환 → 미리보기 → [적용] 일괄 upsert (bespoke 패널)
   //   ② 개별 페이지 1장만 고칠 때는 아래 fields/columns 기반 제네릭 편집(PremiumBookAdmin 내부에서
   //      AdminTable/AdminForm을 그대로 재사용)
-  // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(freeDiagnosis → FreeDiagnosisAdmin)을
+  // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(learningDiagnosis → LearningDiagnosisAdmin)을
   // config.CustomComponent로 일반화한 것이다 — 아래 Admin() 렌더 분기, PremiumBookAdmin 참고.
   premiumBookPages: {
     title: '프리미엄 책자 관리',

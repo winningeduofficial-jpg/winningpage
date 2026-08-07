@@ -53,7 +53,7 @@ export default function StudentComplete() {
     // 세션은 건드리지 않으므로 이 CTA는 로그인된 채로 진단에 들어간다
     // (StudentForm이 가입 후 signOut 하지 않도록 2026-08-06에 바꿨다).
     resetSignup();
-    navigate('/free-diagnosis');
+    navigate('/learning-diagnosis');
   }
 
   function handleGoHome() {
@@ -108,7 +108,7 @@ export default function StudentComplete() {
 
       <div className="flex w-full flex-col gap-3">
         <PrimaryButton size="default" radius="default" onClick={handleStartDiagnosis}>
-          무료 진단 시작하기
+          학습 진단 시작하기
         </PrimaryButton>
 
         <TextLinkButton
