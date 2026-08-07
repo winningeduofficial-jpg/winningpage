@@ -193,12 +193,21 @@ export function describeTable(block) {
  * ⚠ recruitExact에서 groups가 비어 있으면 첫 행에 고정열 <th>만 남고,
  * fixedColumnCount가 columns.length 이상이면 둘째 <tr>이 빈 채로 나간다 —
  * 현행(RecruitExactTable.jsx:16-33)이 그러므로 "개선"하지 않고 그대로 둔다.
+ *
+ * @param {Object} block
+ * @param {{groupHeader?: 'render'|'flatten'}} [options]
+ *   groupHeader: 'flatten'이면 recruitExact도 컬럼 1행으로 편다. 편집 화면이
+ *   thead를 항상 1행으로 그리고 그룹명은 표 밖 폼에서 다루기 때문이며
+ *   (TableBlockEditor.jsx:271-326), 그 파리티를 골격이 아니라 이 모델에서
+ *   내는 이유는 "헤더 한 행이 무엇으로 채워지는가"의 정본을 한 곳에 두기
+ *   위해서다. 기본값은 'render' — 뷰 동작은 조금도 바뀌지 않는다.
  * @returns {HeaderDesc}
  */
-export function describeHeader(block) {
+export function describeHeader(block, options) {
   const columns = Array.isArray(block?.columns) ? block.columns : [];
+  const flatten = options?.groupHeader === 'flatten';
 
-  if (block?.variant === 'recruitExact') {
+  if (!flatten && block?.variant === 'recruitExact') {
     const fixedCount = block.fixedColumnCount || 0;
     const topCells = [];
 

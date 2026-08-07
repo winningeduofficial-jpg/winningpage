@@ -1,53 +1,13 @@
-import { describeTable, describeCell } from '../../table/tableModel';
+import AdmissionTable from '../../table/AdmissionTable';
 
-// buildSelectionMethodTable(admissionParsing.js:1194) 재현.
-// 빈값은 muted span이 아니라 리터럴 '-'(escapeHtml(row.type || '-') 계열).
-// minimum 컬럼만 admission-minimum-badge 배지로 감싼다.
+// 이관 shim. 표 골격이 table/AdmissionTable.jsx 한 벌로 합쳐지면서 이 파일의
+// 마크업은 전부 그쪽으로 옮겨졌고, 여기 남은 것은 `{columns, rows}` props를
+// block 한 덩어리로 바꿔 주는 어댑터뿐이다.
 //
-// 셀 className·배지 추론·빈값 폴백은 이제 table/tableModel.js가 단독 보유한다
-// (이전에는 이 파일이 `role === 'minimum'` 조건을 인라인으로 들고 있어
-// admissionLayout.js의 getCellKind와 수동 동기화 의무가 있었다). 이 파일은
-// 모델이 낸 서술을 JSX로 펴기만 하며, 마크업 자체는 한 글자도 바뀌지 않았다.
+// 왜 지금 지우지 않는가: scripts/verify-admission-table-model.mjs가 이 5개
+// 파일을 엔트리로 하드코딩해 코퍼스 2500여 건을 대조하고 있어, 지우는 순간
+// 골격 교체와 하니스 폐기가 한 커밋에 섞인다. 도입과 삭제를 다른 커밋으로
+// 끊는 것이 이 마이그레이션의 유일한 비가역 지점 관리 방법이다(설계 §6 Step 4).
 export default function SelectionTable({ columns, rows }) {
-  const block = { variant: 'selection', columns, rows };
-  const { layout } = describeTable(block);
-
-  return (
-    <div className={layout.scrollWrapClassName}>
-      <table className={layout.tableClassName}>
-        <thead>
-          <tr>
-            {columns.map((col, idx) => (
-              <th key={idx}>{col.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIdx) => (
-            <tr key={rowIdx}>
-              {row.map((_cell, colIdx) => {
-                const { className, view } = describeCell(block, rowIdx, colIdx);
-
-                if (view.leaf === 'badge') {
-                  return (
-                    <td key={colIdx} className={className}>
-                      <span className={`admission-minimum-badge ${view.badge}`}>
-                        {view.text || view.fallback}
-                      </span>
-                    </td>
-                  );
-                }
-
-                return (
-                  <td key={colIdx} className={className}>
-                    {view.text || view.fallback}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  return <AdmissionTable block={{ variant: 'selection', columns, rows }} />;
 }

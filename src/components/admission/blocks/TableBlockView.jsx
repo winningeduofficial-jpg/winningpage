@@ -1,37 +1,11 @@
-import SelectionTable from './tables/SelectionTable';
-import ChangeTable from './tables/ChangeTable';
-import RecruitTable from './tables/RecruitTable';
-import RecruitExactTable from './tables/RecruitExactTable';
-import GenericTable from './tables/GenericTable';
+import AdmissionTable from '../table/AdmissionTable';
 
-// TableBlock.variant 디스패처. exam/minimum/recordInfo/score/special/generic은
-// 전부 htmlTable(admissionParsing.js:294) 계열이라 GenericTable 하나로 공용한다.
+// TableBlock 뷰 진입점. 예전에는 variant별 렌더러 5개를 디스패치했지만,
+// 이제 골격이 한 벌(table/AdmissionTable.jsx)이고 variant 분기는 전부
+// table/tableModel.js가 흡수했으므로 여기서 고를 것이 없다.
+//
+// block 가드(columns/rows가 배열인가)도 AdmissionTable이 describeTable로
+// 흡수했다 — 뷰 진입점만이 아니라 편집 진입점도 같은 보호를 받게 하기 위해서다.
 export default function TableBlockView({ block }) {
-  if (!block || !Array.isArray(block.columns) || !Array.isArray(block.rows)) return null;
-
-  switch (block.variant) {
-    case 'selection':
-      return <SelectionTable columns={block.columns} rows={block.rows} />;
-    case 'change':
-      return <ChangeTable columns={block.columns} rows={block.rows} />;
-    case 'recruit':
-      return <RecruitTable columns={block.columns} rows={block.rows} />;
-    case 'recruitExact':
-      return (
-        <RecruitExactTable
-          columns={block.columns}
-          rows={block.rows}
-          groups={block.groups}
-          fixedColumnCount={block.fixedColumnCount}
-        />
-      );
-    case 'exam':
-    case 'minimum':
-    case 'recordInfo':
-    case 'score':
-    case 'special':
-    case 'generic':
-    default:
-      return <GenericTable variant={block.variant} columns={block.columns} rows={block.rows} />;
-  }
+  return <AdmissionTable block={block} />;
 }
