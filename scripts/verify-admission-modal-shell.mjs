@@ -414,6 +414,147 @@ function verifyProxyDeps(record) {
   );
 }
 
+// ── 9a9f3f0 재발 방지 소스 스캔 락 ─────────────────────────────────────
+//
+// 커밋 9a9f3f0 이 고친 사고: 공개 모달 전용 스코프 규칙
+//   .admission-modal-body .admission-scroll-table { scrollbar-width: none }
+// 이 어드민 화면에 딸려 들어갔다. 공개는 그 대신 하단 프록시 바를 그리므로
+// 문제가 없지만 어드민에는 프록시가 없다 — 관리자가 870px 컨테이너 안에서
+// 1567px 표를 스크롤할 수단 자체를 잃었다(스크롤은 되는데 스크롤바가 안
+// 보여 존재를 알 방법이 없었다).
+//
+// 방어는 "클래스 이름을 아예 다르게 한다"(어드민 = admission-editor-modal-body)
+// 이고, 이 게이트가 그 방어를 기계로 못박는다: 아래 파일들의 **문자열 리터럴
+// 안에** admission-modal-body 가 등장하면 실패다.
+//
+// ⚠ 나이브 grep 금지 — Admin.jsx / AdmissionSectionEditModal.jsx 의 주석에
+// 이 문자열이 설명으로 등장한다(바로 이 사고를 설명하는 주석이다). 그래서
+// 주석을 먼저 걷어내고 문자열 리터럴만 본다. 아래 stripCommentsKeepStrings 는
+// 문자열/템플릿/정규식 상태를 추적하며 주석만 지운다(URL 의 '//' 오탐 방지).
+const SCAN_TARGETS = [
+  'src/pages/Admin.jsx',
+  'src/components/admission/editor' // 디렉터리면 재귀
+];
+const FORBIDDEN_CLASS = 'admission-modal-body';
+
+function stripCommentsKeepStrings(src) {
+  let out = '';
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i];
+    const next = src[i + 1];
+    if (c === '/' && next === '/') {
+      while (i < n && src[i] !== '\n') i += 1;
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      i += 2;
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      out += c;
+      i += 1;
+      while (i < n) {
+        if (src[i] === '\\') {
+          out += src[i] + (src[i + 1] ?? '');
+          i += 2;
+          continue;
+        }
+        out += src[i];
+        if (src[i] === quote) {
+          i += 1;
+          break;
+        }
+        i += 1;
+      }
+      continue;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
+function collectScanFiles() {
+  const files = [];
+  for (const target of SCAN_TARGETS) {
+    const abs = path.join(REPO_ROOT, target);
+    if (!fs.existsSync(abs)) continue;
+    if (fs.statSync(abs).isDirectory()) {
+      const walk = (dir) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const child = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(child);
+          else if (/\.(jsx?|tsx?)$/.test(entry.name)) files.push(child);
+        }
+      };
+      walk(abs);
+    } else {
+      files.push(abs);
+    }
+  }
+  return files;
+}
+
+// 주석을 걷어낸 소스에서 문자열/템플릿 리터럴만 모은다.
+function stringLiteralsOf(strippedSrc) {
+  const literals = [];
+  const re = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
+  let m = re.exec(strippedSrc);
+  while (m) {
+    literals.push(m[1] ?? m[2] ?? m[3] ?? '');
+    m = re.exec(strippedSrc);
+  }
+  return literals;
+}
+
+function verifyModalBodyClassLock(record) {
+  const files = collectScanFiles();
+  const hits = [];
+  for (const file of files) {
+    const stripped = stripCommentsKeepStrings(fs.readFileSync(file, 'utf8'));
+    for (const literal of stringLiteralsOf(stripped)) {
+      if (literal.includes(FORBIDDEN_CLASS)) {
+        hits.push(`${path.relative(REPO_ROOT, file)} → ${JSON.stringify(literal.slice(0, 120))}`);
+      }
+    }
+  }
+  record(
+    'lock:no-admission-modal-body-in-admin',
+    hits.length === 0,
+    hits.length === 0
+      ? `스캔 ${files.length}개 파일, 문자열 리터럴 히트 0 (주석 히트는 의도적으로 제외)`
+      : `어드민 소스의 문자열 리터럴에 "${FORBIDDEN_CLASS}" 가 있다 — 9a9f3f0 사고 재발 경로다. ` +
+          `어드민 본문은 admission-editor-modal-body 를 써라.\n      ${hits.join('\n      ')}`
+  );
+}
+
+// 스캔 자체가 공허하지 않은지(주석만 걸러내고 실제 리터럴은 잡는지) 자기 검사.
+function verifyLockIsNotVacuous(record) {
+  const sample = `
+    // 주석에 admission-modal-body 가 있어도 통과해야 한다
+    /* 블록 주석 admission-modal-body */
+    const a = 'https://example.com/x'; // URL 의 // 가 문자열을 깨면 안 된다
+    const ok = 'admission-editor-modal-body flex-1';
+  `;
+  const bad = `${sample}\n    const bad = "admission-modal-body flex-1";`;
+  const goodHits = stringLiteralsOf(stripCommentsKeepStrings(sample)).filter((s) =>
+    s.includes(FORBIDDEN_CLASS)
+  );
+  const badHits = stringLiteralsOf(stripCommentsKeepStrings(bad)).filter((s) =>
+    s.includes(FORBIDDEN_CLASS)
+  );
+  record(
+    'lock:self-check',
+    goodHits.length === 0 && badHits.length === 1,
+    `주석 전용 샘플 히트 ${goodHits.length}(기대 0) / 실제 className 샘플 히트 ${badHits.length}(기대 1)`
+  );
+}
+
 // 브라우저 캡처 골든 대조. 새 캡처 JSON 을 인자로 받아 케이스별로
 // outerHTML 문자열 완전 일치 + 프록시 실측 수치 일치를 본다.
 function verifyBrowser(capturedPath, record) {
@@ -476,6 +617,8 @@ async function main() {
   } else {
     await verifySsr(results, record);
     verifyProxyDeps(record);
+    verifyLockIsNotVacuous(record);
+    verifyModalBodyClassLock(record);
   }
 
   let passed = 0;
