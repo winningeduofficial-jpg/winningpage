@@ -32,6 +32,7 @@ import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import DynamicPage from './pages/DynamicPage';
 import CompanyNews from './pages/CompanyNews';
+import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import SiteLayout from './components/SiteLayout';
 import { SignupProvider } from './context/SignupContext';
@@ -166,6 +167,7 @@ export default function App() {
 
           <Route path="/events" element={<Events />} />
           <Route path="/company-news" element={<CompanyNews />} />
+          <Route path="/company-news/list" element={<CompanyNewsList />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/info/column" element={<ColumnHome />} />
           <Route path="/info/column/list" element={<ColumnList />} />
