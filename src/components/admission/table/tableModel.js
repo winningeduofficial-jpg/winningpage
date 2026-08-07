@@ -53,7 +53,7 @@ import { resolveCellKind } from '../editor/tableEditorValidation';
  * @property {number|undefined} colSpan   ⚠ 현행 계산 그대로. "1이면 생략" 최적화 금지
  */
 
-/** @typedef {{ rows: { cells: HeaderCellDesc[] }[] }} HeaderDesc */  // rows.length === 1 | 2
+/** @typedef {{ rows: { cells: HeaderCellDesc[] }[] }} HeaderDesc */ // rows.length === 1 | 2
 
 /**
  * 바디 셀 한 칸. 뷰가 필요한 것(view)과 편집이 필요한 것(edit)을 하위 객체로

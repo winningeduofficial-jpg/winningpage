@@ -141,7 +141,11 @@ function makeOldRenderer(mod) {
           fixedColumnCount: block.fixedColumnCount
         });
       default:
-        return h(GenericTable, { variant: block.variant, columns: block.columns, rows: block.rows });
+        return h(GenericTable, {
+          variant: block.variant,
+          columns: block.columns,
+          rows: block.rows
+        });
     }
   };
 }
@@ -153,12 +157,18 @@ function makeModelRenderer(mod) {
   function renderLeaf(view) {
     switch (view.leaf) {
       case 'badge':
-        return h('span', { className: `admission-minimum-badge ${view.badge}` }, view.text || view.fallback);
+        return h(
+          'span',
+          { className: `admission-minimum-badge ${view.badge}` },
+          view.text || view.fallback
+        );
       case 'chips':
         return h(
           'div',
           { className: 'admission-recruit-cell-values' },
-          view.chips.map((chip, chipIdx) => h('span', { key: chipIdx }, h('b', null, chip.label), chip.value))
+          view.chips.map((chip, chipIdx) =>
+            h('span', { key: chipIdx }, h('b', null, chip.label), chip.value)
+          )
         );
       case 'changePlain':
         return h('div', { className: 'admission-change-plain-cell' }, view.text || view.fallback);
@@ -190,7 +200,12 @@ function makeModelRenderer(mod) {
               headerRow.cells.map((cell) =>
                 h(
                   'th',
-                  { key: cell.key, className: cell.className, rowSpan: cell.rowSpan, colSpan: cell.colSpan },
+                  {
+                    key: cell.key,
+                    className: cell.className,
+                    rowSpan: cell.rowSpan,
+                    colSpan: cell.colSpan
+                  },
                   cell.label
                 )
               )
@@ -206,7 +221,11 @@ function makeModelRenderer(mod) {
               { key: rowIdx },
               row.map((_cell, colIdx) => {
                 const cellDesc = describeCell(block, rowIdx, colIdx);
-                return h('td', { key: colIdx, className: cellDesc.className }, renderLeaf(cellDesc.view));
+                return h(
+                  'td',
+                  { key: colIdx, className: cellDesc.className },
+                  renderLeaf(cellDesc.view)
+                );
               })
             )
           )
@@ -324,7 +343,17 @@ function syntheticCases() {
     rows: [
       ['인문', '국어교육과', { chips: [{ label: '27 인원', value: '18' }] }, { chips: [] }],
       ['', '', {}, 'text-shaped'],
-      ['', '', { chips: [{ label: 'a', value: '1' }, { label: 'b', value: '2' }] }, null]
+      [
+        '',
+        '',
+        {
+          chips: [
+            { label: 'a', value: '1' },
+            { label: 'b', value: '2' }
+          ]
+        },
+        null
+      ]
     ]
   });
 
@@ -481,7 +510,9 @@ async function main() {
   });
 
   console.log('=== 표 모델 차등 대조(구 렌더러 vs tableModel) ===\n');
-  console.log(`[table-model] 코퍼스 표 블록 ${corpusCases.length}건 + 합성 픽스처 ${synthetic.length}건`);
+  console.log(
+    `[table-model] 코퍼스 표 블록 ${corpusCases.length}건 + 합성 픽스처 ${synthetic.length}건`
+  );
   console.log(
     `[table-model] variant 분포: ${Object.entries(variantTally)
       .sort((a, b) => b[1] - a[1])
