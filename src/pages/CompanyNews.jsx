@@ -128,22 +128,35 @@ const BUSINESS_CARDS = [
 // Location — 캠퍼스 카드 8장 (1882:19312)
 // -------------------------------------------------------------------------
 const CAMPUS_CARDS = [
-  { key: 'sejong', name: '위닝에듀 세종캠퍼스', address: ['세종 마음안1로 61'] },
+  {
+    key: 'sejong',
+    name: '위닝에듀 세종캠퍼스',
+    address: ['세종 마음안1로 61'],
+    href: 'https://naver.me/ximXcCHi'
+  },
   {
     key: 'hwamyeong',
     name: '위닝에듀 화명캠퍼스',
-    address: ['부산 북구 화명대로 40', '현천휴먼 타워, 8층']
+    address: ['부산 북구 화명대로 40', '현천휴먼 타워, 8층'],
+    href: 'https://naver.me/FFqICy0L'
   },
-  { key: 'centum', name: '위닝에듀 센텀캠퍼스', address: ['부산 해운대구 센텀1로 9 S동 24층'] },
+  {
+    key: 'centum',
+    name: '위닝에듀 센텀캠퍼스',
+    address: ['부산 해운대구 센텀1로 9 S동 24층'],
+    href: 'https://naver.me/5gFDq5b6'
+  },
   {
     key: 'cheonan',
     name: '위닝에듀 천안캠퍼스',
-    address: ['충남 천안시 서북구 불당23로 73-27 파크힐']
+    address: ['충남 천안시 서북구 불당23로 73-27 파크힐'],
+    href: 'https://naver.me/xydFeL4Z'
   },
   {
     key: 'jeju',
     name: '위닝에듀 제주캠퍼스',
-    address: ['제주 제주시 애월읍 엄장로 55 106동 3층']
+    address: ['제주 제주시 애월읍 엄장로 55 106동 3층'],
+    href: 'https://naver.me/xCjzg3XD'
   },
   { key: 'daejeon', name: '위닝에듀 대전캠퍼스', address: [], comingSoon: true },
   { key: 'daechi', name: '위닝에듀 대치캠퍼스', address: [], comingSoon: true },
@@ -157,10 +170,11 @@ const PARTNER_CARDS = [
     key: 'chloe-winning-art',
     title: '미대입시 실기/비실기\n전문 연계기관',
     subtitle: '클로이위닝 미술학원',
+    brand: '클로이위닝 미술학원', // title/subtitle 위계가 카드마다 달라 링크 aria-label용 브랜드명을 별도로 둔다
     links: [
-      { label: '해운센텀점', href: null },
-      { label: '정관점', href: null },
-      { label: '천안점', href: null }
+      { label: '해운센텀점', href: 'https://naver.me/5r9K3YCL' },
+      { label: '정관점', href: 'https://naver.me/5UEceSEF' },
+      { label: '천안점', href: 'https://naver.me/xKthcxAW' }
     ],
     logo: partnerChloeWinningArt,
     logoWidth: 'w-[16.7rem]'
@@ -169,7 +183,8 @@ const PARTNER_CARDS = [
     key: 'jungsang-language',
     title: '정상어학원',
     subtitle: '어학 교육 전문 연계기관',
-    links: [{ label: '화명캠퍼스', href: null }],
+    brand: '정상어학원',
+    links: [{ label: '화명캠퍼스', href: 'https://naver.me/FY3j5eyl' }],
     logo: partnerJungsangLanguage,
     logoWidth: 'w-[13rem]'
   },
@@ -177,13 +192,16 @@ const PARTNER_CARDS = [
     key: 'jungsang-math',
     title: '정상수학학원',
     subtitle: '수학 교육 전문 연계기관',
-    links: [{ label: '부산캠퍼스', href: null }],
+    brand: '정상수학학원',
+    links: [{ label: '부산캠퍼스', href: 'https://naver.me/GkRHGKeZ' }],
     logo: partnerJungsangMath,
     logoWidth: 'w-[13rem]'
   }
 ];
-// ⚠ "바로가기" 5개 링크의 목적지 URL이 시안·프로토타입 어디에도 없다.
-// href 를 지어내지 않고 null로 두어, 클릭 시 alertServiceNotReady로 "준비중" 안내만 한다.
+// "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
+// (target="_blank" rel="noopener noreferrer")으로 연다. href가 있는 링크는 <a>, 없는 경우
+// (지금은 없지만 데이터에 href: null이 다시 들어올 가능성을 막지 않기 위해)는 방어적으로
+// <button onClick={alertServiceNotReady}> 폴백을 PartnerCard 내부에 유지한다.
 
 const NEWS_PREVIEW_COUNT = 5;
 
@@ -305,7 +323,12 @@ function HeroSection({ page }) {
                 'relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white';
 
               return card.route ? (
-                <Link key={card.key} to={card.route} style={{ backgroundColor: card.bg }} className={className}>
+                <Link
+                  key={card.key}
+                  to={card.route}
+                  style={{ backgroundColor: card.bg }}
+                  className={className}
+                >
                   {content}
                 </Link>
               ) : (
@@ -360,7 +383,10 @@ const MISSION_BLOCKS = [
         Winning Edu
       </>
     ),
-    lines: ['학생 한 명의 가능성을 믿고, 10년 이상의', '현장 노하우와 전문성으로 함께 성장하는 사람']
+    lines: [
+      '학생 한 명의 가능성을 믿고, 10년 이상의',
+      '현장 노하우와 전문성으로 함께 성장하는 사람'
+    ]
   }
 ];
 
@@ -388,7 +414,11 @@ function MissionSection() {
           sm 미만(모바일): object-fit: cover의 스케일 결정축이 375/768에서는 높이라 가로는
           47%만 남는 크롭이 되고(좌우 방향성이 의미 없음), 게다가 우측 알파가 0.20까지
           떨어진다. 좌우 그라디언트 대신 평면 스크림(0.75)으로 대체한다. */}
-      <div aria-hidden="true" className="absolute inset-0 -z-10 sm:hidden" style={{ background: 'rgba(0,0,0,0.75)' }} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 sm:hidden"
+        style={{ background: 'rgba(0,0,0,0.75)' }}
+      />
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden sm:block"
@@ -437,8 +467,7 @@ function BusinessSection() {
           사업영역
         </p>
         <h2 className="mx-auto mt-5 max-w-[36rem] break-keep text-center text-[1.5rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
-          위닝에듀는 기술을 기반으로{' '}
-          <br className="hidden lg:inline" />
+          위닝에듀는 기술을 기반으로 <br className="hidden lg:inline" />
           경계없는 입시지원을 제공합니다
         </h2>
 
@@ -477,16 +506,21 @@ function BusinessSection() {
 // -------------------------------------------------------------------------
 // [4] Location + 연계 협력기관
 // -------------------------------------------------------------------------
-// 목적지가 없어(캠퍼스 상세 라우트 미정) PartnerCard와 동일하게 alertServiceNotReady로
-// "준비중" 안내한다 — 호버 스타일·화살표로 클릭 가능해 보이는데 실제로는 아무 반응이 없던
-// 문제를 해소한다. button은 phrasing content만 허용해 내부를 전부 span(+block/flex)으로 짠다.
+// 캠퍼스 8곳 중 5곳(세종·화명·센텀·천안·제주)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
+// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대전·대치·분당)은 아직 지점이 열리지 않아
+// href가 없다(comingSoon) — 이 카드는 <button>으로 남기고 클릭 시 "오픈예정입니다." 전용
+// 안내만 띄운다(PartnerCard의 alertServiceNotReady "준비중" 문구와 의도가 달라 구분했다).
+// href 유무로 <a>/<button>을 분기하되(as-element), 카드 내부 구조(span 트리)·치수·간격은
+// 두 분기에서 동일하게 공유해 시각 형태 차이가 없게 한다.
+function alertComingSoon() {
+  alert('오픈예정입니다.');
+}
+
 function CampusCard({ campus }) {
-  return (
-    <button
-      type="button"
-      onClick={alertServiceNotReady}
-      className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-[#013262] hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
-    >
+  const hasLink = Boolean(campus.href);
+
+  const content = (
+    <>
       <span className="block">
         <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">분점</span>
         <span className="mt-[0.375rem] block break-keep text-[1.125rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.25rem] lg:text-[1.5rem]">
@@ -494,19 +528,55 @@ function CampusCard({ campus }) {
         </span>
       </span>
       {/* 원형 화살표 버튼 — 헤더 행이 아닌 주소와 같은 하단 행에 items-end로 배치(시안:
-          우측 하단 정렬). */}
+          우측 하단 정렬). 오픈예정 카드는 원을 옅은 회색 #EDEDED(섹션 배경 #F6F7FB와
+          카드 보더 #D9D9D9 사이 톤, 페이지 팔레트 안에서 선택) + 중간 회색 화살표
+          #767676로 바꿔, 활성 카드의 "검은 원(#323232) + 흰 화살표"와 채움 자체가
+          역전되도록 한다. 화살표 대 원 배경 대비는 약 4.2:1로 형태가 또렷이 읽히면서,
+          두 상태를 나란히 놓았을 때 "옅은 원 = 아직 누를 단계가 아님"이 한눈에
+          구분된다. */}
       <span className="mt-3 flex items-end justify-between gap-3">
         <span className="block min-h-[2.4rem] break-keep text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
           {campus.comingSoon ? '오픈예정' : campus.address.join(', ')}
         </span>
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]"
+          className={
+            hasLink
+              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]'
+              : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-[2.125rem] sm:w-[2.125rem]'
+          }
         >
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </span>
       </span>
-    </button>
+    </>
+  );
+
+  if (!hasLink) {
+    // disabled 대신 실제로 동작하는 button — 클릭하면 "오픈예정입니다." 알럿이 뜨므로
+    // disabled 속성은 붙이지 않는다(aria-disabled도 붙이지 않음: 클릭이 막혀 있지 않다).
+    // hover 시 보더/배경이 네이비로 바뀌던 강조도 제거해 "누를 수 있어 보이는" 오인을 줄인다.
+    return (
+      <button
+        type="button"
+        onClick={alertComingSoon}
+        className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={campus.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-[#013262] hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+    >
+      {content}
+      <span className="sr-only"> (새 창에서 열림)</span>
+    </a>
   );
 }
 
@@ -520,27 +590,58 @@ function PartnerCard({ partner }) {
         <p className="mt-2 text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
           {partner.subtitle}
         </p>
-        <span aria-hidden="true" className="mt-[1.0625rem] block h-[0.0625rem] w-full bg-[#D7D7D7]" />
+        <span
+          aria-hidden="true"
+          className="mt-[1.0625rem] block h-[0.0625rem] w-full bg-[#D7D7D7]"
+        />
         <div className="mt-[1.125rem] flex flex-col gap-3">
-          {partner.links.map((link) => (
-            <button
-              key={link.label}
-              type="button"
-              onClick={alertServiceNotReady}
-              className="flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]"
-            >
-              <span>{link.label}</span>
-              <span className="inline-flex items-center gap-1 border-b border-[#525252]">
-                바로가기
-                <ArrowUpRight className="h-[0.875rem] w-[0.875rem]" aria-hidden="true" />
-              </span>
-            </button>
-          ))}
+          {partner.links.map((link) => {
+            const linkClassName =
+              'flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]';
+            const linkContent = (
+              <>
+                <span>{link.label}</span>
+                <span className="inline-flex items-center gap-1 border-b border-[#525252]">
+                  바로가기
+                  <ArrowUpRight className="h-[0.875rem] w-[0.875rem]" aria-hidden="true" />
+                </span>
+              </>
+            );
+
+            // href 없는 데이터가 다시 들어올 경우를 위한 방어적 폴백 — 지금 5개는 전부
+            // href가 있어 이 분기를 타지 않는다.
+            if (!link.href) {
+              return (
+                <button
+                  key={link.label}
+                  type="button"
+                  onClick={alertServiceNotReady}
+                  className={linkClassName}
+                >
+                  {linkContent}
+                </button>
+              );
+            }
+
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${partner.brand} ${link.label} 바로가기 (새 창에서 열림)`}
+                className={linkClassName}
+              >
+                {linkContent}
+                <span className="sr-only"> (새 창에서 열림)</span>
+              </a>
+            );
+          })}
         </div>
       </div>
       <img
         src={partner.logo}
-        alt={partner.subtitle}
+        alt=""
         loading="lazy"
         decoding="async"
         className={`mt-6 self-end ${partner.logoWidth} max-w-full object-contain opacity-30`}
@@ -558,8 +659,7 @@ function LocationSection() {
           Location
         </p>
         <h2 className="mt-4 max-w-[40rem] break-keep text-[1.375rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.5rem]">
-          전국 어디서든, 필요한 입시 관리를 한곳에서{' '}
-          <br className="hidden sm:inline" />
+          전국 어디서든, 필요한 입시 관리를 한곳에서 <br className="hidden sm:inline" />
           여러 지점의 센터와 전문 연계기관을 통해 입시의 전 영역을 지원합니다.
         </h2>
 
@@ -621,7 +721,9 @@ function NewsDetail({ row, onBack }) {
             {/* 여기에는 '중요' 칩이 없다 — 칩 노출은 게시판(BoardTable, 시안 2235:3741) 전용으로
                 사용자가 확정했고, 회사소식 상세/목록에 있던 칩은 그에 따라 제거했다.
                 is_pinned 는 계속 살아 있지만 이제 정렬(상단 고정)에만 쓰인다(fetch 의 order 참조). */}
-            <p className="mb-3 text-sm font-medium text-[#767676]">{formatBoardDate(row.created_at)}</p>
+            <p className="mb-3 text-sm font-medium text-[#767676]">
+              {formatBoardDate(row.created_at)}
+            </p>
             <h1 className="break-keep text-[1.5rem] font-bold leading-[1.35] text-[#525252] sm:text-[1.75rem]">
               {row.title}
             </h1>
@@ -731,7 +833,10 @@ function NewsSection({ rows, loading, onSelect }) {
             </Link>
           )}
         </div>
-        <span aria-hidden="true" className="mt-[1.125rem] block h-[0.0625rem] w-full bg-[#525252]" />
+        <span
+          aria-hidden="true"
+          className="mt-[1.125rem] block h-[0.0625rem] w-full bg-[#525252]"
+        />
 
         <div className="mt-[2.25rem] flex flex-col gap-3 sm:gap-[1.125rem]">
           {loading ? (
