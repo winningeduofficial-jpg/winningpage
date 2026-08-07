@@ -5097,26 +5097,55 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
                         )
                       ) : column.type === 'admissionSection' ? (
                         // 공개 목록 표의 [보기] 셀과 같은 자리·같은 어포던스.
-                        // 내용이 없으면 공개와 동일하게 "-"(비활성), 있으면
-                        // [수정] 1클릭으로 편집 다이얼로그가 열린다.
+                        // 셀 1클릭으로 같은 껍데기의 편집 다이얼로그가 열린다.
                         // title에 요약("표 2개 · 5열 12행")을 실어 어느 칸이
                         // 무거운지 열기 전에 알 수 있게 한다.
                         // 요약은 위 useMemo가 페이지 단위로 미리 계산한 값이다
                         // (summarizeHwpSection은 row[jsonKey]/row[sectionKey]만
                         // 읽는 순수 함수라 목록 row를 그대로 넘길 수 있고,
                         // loadRows가 select('*')이므로 추가 fetch도 0이다).
-                        sectionSummaries?.[index]?.[column.sectionKey] === '내용 없음' ? (
-                          <span className="text-gray-300">-</span>
-                        ) : (
-                          <button
-                            type="button"
-                            title={sectionSummaries?.[index]?.[column.sectionKey]}
-                            onClick={() => onOpenSection?.(row, column.sectionKey)}
-                            className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white"
-                          >
-                            수정
-                          </button>
-                        )
+                        //
+                        // ⚠ 빈 칸도 반드시 열려야 한다 (2026-08-07)
+                        // ----------------------------------------
+                        // 사용자 요청: "모든 다이얼로그에서 '비었을 때 추가'
+                        // 기능이 있어야 해." 조사 결과 다이얼로그 **안**은 이미
+                        // 완비였다 — 6섹션 × (블록0 / emptyBox 1개 / group만)
+                        // 18케이스를 SSR 해보면 전부 블록 추가 셀렉트가 나온다
+                        // (DocBlocksEditor의 추가 UI는 blocks.map 바깥에 있고
+                        // blocks.length 조건이 없다). 진짜 구멍은 "다이얼로그를
+                        // 못 연다"였다: 여기 있던 `'내용 없음' → <span>-</span>`
+                        // 게이트가 dev DB 55칸(특수대학 11개교 × 5카테고리)을
+                        // 통째로 죽여놨다. 그 11개교는 전형방법 1칸만 내용이
+                        // 있고 나머지 5칸이 전부 비어 있어, 목록에서는 영영
+                        // 내용을 채워 넣을 수 없었다.
+                        // 지금은 폼(✏️)의 CategorySectionButton이 요약과 무관하게
+                        // 6개를 항상 렌더해 우회로가 되고 있지만, 그 ✏️는 다음
+                        // 커밋에서 사라진다 — 게이트를 먼저 연다.
+                        // 모달 쪽 배선은 이미 되어 있다: AdmissionDocFieldEditor가
+                        // 값이 없으면 blocks:[] 인 source:'manual' doc을 합성한다.
+                        //
+                        // 어포던스만 구분한다 — 빈 칸은 회색 점선 [추가],
+                        // 내용 있는 칸은 기존 파랑 [수정]. 라벨을 통일하지 않는
+                        // 이유는 목록을 훑을 때 "어디가 비었나"가 한눈에 보여야
+                        // 하기 때문이다(기존 `-`가 주던 정보를 잃지 않는다).
+                        (() => {
+                          const summary = sectionSummaries?.[index]?.[column.sectionKey];
+                          const empty = summary === '내용 없음';
+                          return (
+                            <button
+                              type="button"
+                              title={summary}
+                              onClick={() => onOpenSection?.(row, column.sectionKey)}
+                              className={
+                                empty
+                                  ? 'rounded border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-black text-gray-400 transition hover:border-[#2348ff] hover:text-[#2348ff]'
+                                  : 'rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white'
+                              }
+                            >
+                              {empty ? '추가' : '수정'}
+                            </button>
+                          );
+                        })()
                       ) : column.type === 'fileList' ? (
                         formatListValue(row[column.key], column.type)
                       ) : column.type === 'truncate' ? (
