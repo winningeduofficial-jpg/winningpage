@@ -792,15 +792,22 @@ const CONFIGS = {
     table: 'notices',
     searchPlaceholder: '공지사항 제목을 검색하세요',
     order: 'sort_order',
+    // 공개면(게시판)과 동일한 정렬을 어드민 목록에도 적용해 "보이는 순서 = 노출 순서"를 맞춘다
+    orderBy: [
+      ['is_pinned', false],
+      ['sort_order', true],
+      ['created_at', false]
+    ],
     homepage: true,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'category', label: '메인 배지' },
-      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
-      { key: 'created_at', label: '작성일', type: 'date' }
+      { key: 'created_at', label: '작성일', type: 'date' },
+      { key: 'view_count', label: '조회수' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
@@ -811,7 +818,7 @@ const CONFIGS = {
         type: 'select',
         options: ['보도자료', '파트너십', '공지']
       },
-      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -842,16 +849,23 @@ const CONFIGS = {
     table: 'company_news',
     searchPlaceholder: '회사소식 제목을 검색하세요',
     order: 'sort_order',
+    // 공개면(게시판)과 동일한 정렬을 어드민 목록에도 적용해 "보이는 순서 = 노출 순서"를 맞춘다
+    orderBy: [
+      ['is_pinned', false],
+      ['sort_order', true],
+      ['created_at', false]
+    ],
     homepage: true,
     guideText: `회사소식 페이지 하단 게시판과 메인 페이지 우측 미리보기에 함께 노출됩니다. 회사소개 상단 내용은 '세부 페이지 관리'의 company-intro 항목을 사용합니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'category', label: '메인 배지' },
-      { key: 'is_pinned', label: '주요소식 고정', type: 'boolean' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
-      { key: 'created_at', label: '작성일', type: 'date' }
+      { key: 'created_at', label: '작성일', type: 'date' },
+      { key: 'view_count', label: '조회수' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
@@ -862,7 +876,7 @@ const CONFIGS = {
         type: 'select',
         options: ['보도자료', '파트너십', '공지']
       },
-      { key: 'is_pinned', label: '주요소식 고정', type: 'checkbox' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -4794,7 +4808,12 @@ export default function Admin() {
 
     const orderColumn = config.order || 'created_at';
 
-    if (config.fixedCategory || config.fixedCategories) {
+    if (Array.isArray(config.orderBy)) {
+      // 테이블별 정렬 오버라이드 — 선언한 설정에만 적용되고 다른 탭은 아래 기본 분기를 그대로 탄다
+      for (const [column, ascending] of config.orderBy) {
+        query = query.order(column, { ascending });
+      }
+    } else if (config.fixedCategory || config.fixedCategories) {
       query = query
         .order('is_pinned', { ascending: false })
         .order('sort_order', { ascending: true })
@@ -4939,6 +4958,9 @@ export default function Admin() {
 
     delete payload.created_at;
     delete payload.updated_at;
+    // 조회수는 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row 스냅샷이라,
+    // 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여 롤백된다.
+    delete payload.view_count;
 
     if (Array.isArray(payload.image_urls) && payload.image_urls.length > 0 && !payload.image_url) {
       payload.image_url = payload.image_urls[0];
