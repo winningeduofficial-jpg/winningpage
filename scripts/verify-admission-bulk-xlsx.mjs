@@ -437,7 +437,7 @@ async function main() {
     assert(relatedWarnings.length === 0, `raw 동일인데 경고가 남음(${relatedWarnings.length}건) — "경고 불필요"가 team-lead 명시 요구다`);
   });
 
-  check('raw 변경(의도적 수정, 정보량 증가) → raw에서 재생성 + htmlParseFailedRegenerated 경고 필수(회귀 가드는 안 걸림, type 이름은 Admin.jsx 하위호환으로 유지)', () => {
+  check('raw 변경(의도적 수정, 정보량 증가) → raw에서 재생성 + rawChangedRegenerated 경고 필수(회귀 가드는 안 걸림)', () => {
     const oldRawText = '- 기존 원문';
     const newRawText = '- 새 원문 항목 1\n- 새 원문 항목 2\n- 새 원문 항목 3';
     const existing = new Map([
@@ -465,13 +465,13 @@ async function main() {
     const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
     assert(rows.length === 1, '행 자체는 생성돼야 함');
     assert(rows[0].minimum_requirements_json !== undefined, 'raw를 의도적으로 고쳤는데(정보량도 늘었는데) 재생성이 안 됨');
-    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated');
-    assert(Boolean(regenWarning), 'htmlParseFailedRegenerated 타입 경고가 없음(type 이름은 유지, 트리거만 raw 비교로 바뀜)');
+    const regenWarning = warnings.find((x) => x.type === 'rawChangedRegenerated');
+    assert(Boolean(regenWarning), 'rawChangedRegenerated 타입 경고가 없음');
     const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
     assert(!regressionWarning, '회귀 가드가 개입하면 안 되는 케이스인데(정보량이 늘었음) regressionSkipped 경고가 남음');
   });
 
-  check('raw 변경인데 재생성 결과가 기존보다 정보량 감소 → 회귀 가드 우선 적용(htmlParseFailedRegenerated와 중복 없음)', () => {
+  check('raw 변경인데 재생성 결과가 기존보다 정보량 감소 → 회귀 가드 우선 적용(rawChangedRegenerated와 중복 없음)', () => {
     const oldRawText = '- 기존 원문 A\n- 기존 원문 B\n- 기존 원문 C';
     const newRawText = '- 짧아진 새 원문';
     const richExistingDoc = {
@@ -504,8 +504,8 @@ async function main() {
     assert(rows[0].minimum_requirements_json === undefined, '정보량이 줄었는데 회귀 가드가 안 막음');
     const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
     assert(Boolean(regressionWarning), 'regressionSkipped 경고가 있어야 함');
-    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated');
-    assert(!regenWarning, '회귀 가드와 htmlParseFailedRegenerated 경고가 같은 셀에 중복으로 남음');
+    const regenWarning = warnings.find((x) => x.type === 'rawChangedRegenerated');
+    assert(!regenWarning, '회귀 가드와 rawChangedRegenerated 경고가 같은 셀에 중복으로 남음');
   });
 
   check('기존 doc 없음(신규 카테고리, 비교 대상 없음) → raw에서 그냥 생성, 경고 불필요', () => {
@@ -642,8 +642,8 @@ async function main() {
       // 회귀 가드를 통과했다면(예상 밖 경로) 최소한 chips는 보존돼야
       // 하고, 반드시 경고가 남아야 한다(조용한 교체는 절대 안 됨).
       const afterChips = extractChipsSequence(rows[0].recruitment_quota_json);
-      const regenWarning = warnings.find((w) => w.type === 'htmlParseFailedRegenerated');
-      assert(Boolean(regenWarning), '재생성됐는데 htmlParseFailedRegenerated 경고가 없음(조용한 교체)');
+      const regenWarning = warnings.find((w) => w.type === 'rawChangedRegenerated');
+      assert(Boolean(regenWarning), '재생성됐는데 rawChangedRegenerated 경고가 없음(조용한 교체)');
       assert(
         JSON.stringify(beforeChips) === JSON.stringify(afterChips),
         `재생성 후 chips가 달라짐(전 ${beforeChips.length}개 → 후 ${afterChips.length}개) — 경고는 있었지만 손실이 실제로 발생함`

@@ -207,9 +207,8 @@ export function exportAdmissionRowsToXlsx(rows) {
 // warnings/errors 배열을 type별 건수로 접는다. UI가 목록을 접어도
 // 종류별 건수는 항상 보여야 한다는 요구사항 때문에 summary에 넣는다
 // — 개별 카운터 변수를 늘려가며 수동으로 세면 새 type을 추가할 때마다
-// 카운터를 빼먹기 쉽다(이미 한 번 그런 패턴이었다: truncatedCellSkipCount/
-// htmlParseFailedCount를 각각 손으로 증가시켰다). 배열 자체가 진실의
-// 원천이므로 여기서 한 번만 접는다.
+// 카운터를 빼먹기 쉽다(이미 한 번 그런 패턴으로 필드를 여러 개 손으로
+// 늘려간 적이 있다). 배열 자체가 진실의 원천이므로 여기서 한 번만 접는다.
 function buildTypeCounts(items) {
   return items.reduce((acc, item) => {
     const key = item.type || 'unknown';
@@ -316,9 +315,8 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, existingDoc, existingRawT
  *   }>,
  *   warnings: Array<{
  *     row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string,
- *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'htmlParseFailedRegenerated'
- *   }>, // 'htmlParseFailedRegenerated'는 이름이 남아있을 뿐 트리거는 raw
- *      // 비교다(Admin.jsx가 이 문자열에 이미 의존해 이름을 안 바꿨다).
+ *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'rawChangedRegenerated'
+ *   }>,
  *   summary: {
  *     willInsert: number, willUpdate: number, willSkip: number, newYears: number[],
  *     newUniversityCount: number, truncatedCellSkipCount: number,
@@ -531,31 +529,19 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           reason: `정보량 감소로 기존 값 보존: ${jsonDetail}`
         });
       } else if (jsonSource === 'rawChangedRegenerated') {
-        // type 값은 의도적으로 'htmlParseFailedRegenerated' 그대로
-        // 유지한다(이름을 안 바꿨다) — Admin.jsx(safehtml, 커밋 시점
-        // 기준 이미 구현됨)가 이 문자열을 BULK_XLSX_WARNING_GROUPS에
-        // 하드코딩해 "반영됨 — 품질 주의" 그룹으로 분리해 보여주고
-        // 있다. 트리거 조건은 html 파싱 실패에서 raw 비교로 바뀌었지만
-        // ("표 구조가 단순해질 수 있는 재생성"이라는 사용자 노출 의미는
-        // 동일) 이름을 새로 붙이면 이미 배포된 UI 분류가 깨진다 — 계약
-        // 변경은 보고 후 승인이 원칙이라 이름은 그대로 두고 트리거
-        // 조건만 바꿨다.
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
-          type: 'htmlParseFailedRegenerated',
-          reason: '원문 수정으로 문서를 다시 생성했습니다 — 표 구조가 단순해질 수 있습니다.'
+          type: 'rawChangedRegenerated',
+          reason: '원문(raw)이 기존과 달라 문서를 다시 생성했습니다 — 표 구조가 단순해질 수 있습니다.'
         });
       }
       // 'rawUnchangedPreserved'는 경고를 만들지 않는다 — 안 고쳤으니
       // 안 바뀌는 정상 동작이다(위 buildCategoryFromXlsxRow 주석 참고).
-      // 예전엔 이 경로(당시 이름 htmlParseFailedPreserved)도 경고를
-      // 남겼지만, 이번 재설계에서 "경고 불필요"로 명시적으로 바뀌었다
-      // — Admin.jsx의 '반영 안 됨' 그룹은 이제 truncated/regressionSkipped
-      // 만으로도 여전히 유효하게 동작한다(항목 수만 줄어들 뿐 깨지지
-      // 않는다).
+      // 이 jsonSource는 warnings에 절대 등장하지 않으므로 type 열거형
+      // 에도 넣지 않는다(죽은 값을 만들지 않는다 — team-lead 지적).
 
       if (doc !== undefined) {
         payload[jsonColumn] = doc;
