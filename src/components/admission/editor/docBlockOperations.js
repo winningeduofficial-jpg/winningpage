@@ -98,7 +98,8 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION = {
 // 없다(경찰대/사관학교/과기원 전용 buildSpecialCategoryDoc이 'note'를
 // 만들긴 하지만 전부 'group'의 children 안에서만이고, 그 group 자체도
 // 특수대학 하드코딩 데이터 전용이라 관리자가 손으로 추가할 대상이
-// 아니다 — GroupBlockSummary도 편집을 지원하지 않는다). 실측(team-lead
+// 아니다 — GroupBlockEditor는 이미 있는 group의 children 표만 편집하고
+// 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
 export const ALL_BLOCK_KINDS = ['table', 'note', 'emptyBox', 'heading', 'plainList', 'preText', 'footnote'];

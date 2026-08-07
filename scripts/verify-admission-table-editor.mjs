@@ -17,6 +17,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as esbuild from 'esbuild';
 import * as XLSX from 'xlsx';
+import { buildSpecialCategoryDoc, renderDocToHtml } from '../src/lib/admissionParsing.js';
 
 const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
 
@@ -572,8 +573,178 @@ async function main() {
       threw = true;
       out = String(err && err.stack ? err.stack : err);
     }
-    const pass = !threw && out.includes('블록 추가') && out.includes('읽기 전용 요약');
-    record('12c. DocBlocksEditor 스모크 렌더 — 9종 블록 전부 예외 없이 디스패치(group은 읽기 전용 요약)', pass, threw ? out : `len=${out.length}`);
+    const pass =
+      !threw && out.includes('블록 추가') && out.includes('그룹 제목·구성 변경은 지원하지 않습니다');
+    record('12c. DocBlocksEditor 스모크 렌더 — 9종 블록 전부 예외 없이 디스패치(group은 children 표 편집기로)', pass, threw ? out : `len=${out.length}`);
+  }
+
+  // ── 12d~12h) group 중첩 표 편집(GroupBlockEditor) ─────────────────────
+  // 특수대학(경찰대·사관학교·과기원) 데이터만 kind:'group'을 쓴다. 열어준
+  // 축은 children 표 내부(셀·행·열)뿐이고, 제목·구성(생성·제거·순서)은
+  // renderSpecialBlocksHtml의 제목 하드코딩 화이트리스트 때문에 잠겨 있다.
+  // 아래 5건이 그 계약을 각각 못 박는다.
+  const policeFixtureBlocks = [
+    { kind: 'note', text: '경찰대학 입학자료를 일정과 1차 시험으로 나누어 정리한 내용입니다.' },
+    {
+      kind: 'group',
+      title: '전형 일정',
+      children: [
+        {
+          kind: 'table',
+          variant: 'special',
+          columns: [
+            { role: 'type', label: '구분' },
+            { role: 'content', label: '내용' }
+          ],
+          rows: [['원서접수', '2026. 6. 19.(금) ~ 6. 29.(월)']]
+        }
+      ]
+    },
+    {
+      kind: 'group',
+      title: '1차 시험',
+      children: [
+        {
+          kind: 'table',
+          variant: 'special',
+          columns: [
+            { role: 'type', label: '과목' },
+            { role: 'content', label: '출제범위' },
+            { role: 'content', label: '문항수/시간' },
+            { role: 'content', label: '배점' }
+          ],
+          rows: [['국어', '화법과 언어, 독서와 작문, 문학', '45문항/60분', '100점']]
+        }
+      ]
+    }
+  ];
+  let groupFixtureOut = '';
+  let groupFixtureThrew = false;
+  {
+    try {
+      groupFixtureOut = renderToStaticMarkup(
+        React.createElement(DocBlocksEditor, {
+          section: 'selection_method',
+          blocks: policeFixtureBlocks,
+          onChange: () => {}
+        })
+      );
+    } catch (err) {
+      groupFixtureThrew = true;
+      groupFixtureOut = String(err && err.stack ? err.stack : err);
+    }
+    const pass =
+      !groupFixtureThrew &&
+      groupFixtureOut.includes('admission-data-table') &&
+      groupFixtureOut.includes('value="원서접수"') &&
+      groupFixtureOut.includes('value="45문항/60분"');
+    record(
+      '12d. group 중첩 SSR — 경찰대 축약 픽스처(note+group 2개, special 표)가 예외 없이 렌더되고 중첩 셀 값이 편집 input으로 나온다(순환 참조 회귀 탐지)',
+      pass,
+      groupFixtureThrew ? groupFixtureOut : `len=${groupFixtureOut.length}`
+    );
+  }
+  {
+    // group title은 텍스트 노드로만 나와야 한다 — <input value="전형 일정">이
+    // 생기는 순간 renderSpecialBlocksHtml의 제목 화이트리스트가 깨진다.
+    const titlesAsValue = ['전형 일정', '1차 시험'].filter((t) => groupFixtureOut.includes(`value="${t}"`));
+    const titlesAsText = ['전형 일정', '1차 시험'].every((t) => groupFixtureOut.includes(`>${t}<`));
+    const pass = !groupFixtureThrew && titlesAsValue.length === 0 && titlesAsText;
+    record(
+      '12e. group title은 편집 input이 아니다 — 제목이 value 속성에 없고 텍스트 노드로만 존재(제목 편집 UI 유입 탐지)',
+      pass,
+      JSON.stringify({ titlesAsValue, titlesAsText })
+    );
+  }
+  {
+    // onChange 체인 — 컴포넌트 함수를 직접 호출해 자식 편집기 element의
+    // onChange를 꺼내 부른다(SSR 문자열로는 상호작용을 재현할 수 없다).
+    const GroupBlockEditor = await loadModule(
+      'src/components/admission/editor/blocks/GroupBlockEditor.jsx',
+      'default'
+    );
+    const block = {
+      kind: 'group',
+      title: '전형 일정',
+      children: [
+        { kind: 'table', variant: 'special', columns: [{ role: 'type', label: '구분' }], rows: [['원서접수']] },
+        { kind: 'table', variant: 'special', columns: [{ role: 'type', label: '구분' }], rows: [['서류제출']] }
+      ]
+    };
+    const before = JSON.stringify(block);
+    let captured = null;
+    const element = GroupBlockEditor({ section: 'selection_method', block, onChange: (next) => { captured = next; } });
+    const childEditors = React.Children.toArray(element.props.children).filter(
+      (child) => child && child.props && child.props.block && child.props.block.kind === 'table'
+    );
+    const nextChild = { ...block.children[0], rows: [['원서접수(수정)']] };
+    if (childEditors[0]) childEditors[0].props.onChange(nextChild);
+    const pass =
+      childEditors.length === 2 &&
+      captured !== null &&
+      captured.title === '전형 일정' &&
+      captured.children.length === 2 &&
+      captured.children[0].rows[0][0] === '원서접수(수정)' &&
+      captured.children[1].rows[0][0] === '서류제출' &&
+      JSON.stringify(block) === before;
+    record(
+      '12f. group children onChange 체인 — 자식 표 1개 수정이 group 통째로 닫혀 올라오고 형제·title·children 길이는 불변(저장 경로 회귀)',
+      pass,
+      JSON.stringify({ childEditors: childEditors.length, captured })
+    );
+  }
+  {
+    // 소스 락 — group 단위 구성 변경 UI가 흘러 들어오는 것을 막는다.
+    const src = fs.readFileSync(
+      path.join(REPO_ROOT, 'src/components/admission/editor/blocks/GroupBlockEditor.jsx'),
+      'utf8'
+    );
+    const forbidden = ['블록 추가', '↑', '↓', '삭제'].filter((token) => src.includes(token));
+    const pass = forbidden.length === 0 && src.includes('AdmissionBlockEditor');
+    record(
+      '12g. 소스 락 — GroupBlockEditor.jsx에 group 생성·제거·순서 변경 토큰이 없다(구성 변경 UI 유입 탐지)',
+      pass,
+      JSON.stringify({ forbidden })
+    );
+  }
+  {
+    // renderDocToHtml 왕복 — 실데이터(경찰대) doc의 group children 셀 1개를
+    // 편집기와 같은 경로(docOps.updateBlockAt)로 고쳐 미러를 다시 만든다.
+    // 새 값이 미러에 나타나되 <table> 개수·group 제목 개수가 그대로여야
+    // 한다 — 하나라도 줄면 제목 화이트리스트가 어긋난 것이다.
+    const doc = buildSpecialCategoryDoc('', { detail_status: 'category' }, '경찰대학');
+    const beforeHtml = renderDocToHtml(doc, 'selection_method');
+    const groupIdx = doc.blocks.findIndex((b) => b.kind === 'group');
+    const targetGroup = doc.blocks[groupIdx];
+    const targetChild = targetGroup.children[0];
+    const nextRows = targetChild.rows.map((row, i) =>
+      i === 0 ? row.map((cell, j) => (j === row.length - 1 ? '검증용 수정값' : cell)) : row
+    );
+    const nextGroup = {
+      ...targetGroup,
+      children: docOps.updateBlockAt(targetGroup.children, 0, { ...targetChild, rows: nextRows })
+    };
+    const nextDoc = { ...doc, blocks: docOps.updateBlockAt(doc.blocks, groupIdx, nextGroup) };
+    const afterHtml = renderDocToHtml(nextDoc, 'selection_method');
+    const count = (html, re) => (html.match(re) || []).length;
+    const pass =
+      groupIdx >= 0 &&
+      !beforeHtml.includes('검증용 수정값') &&
+      afterHtml.includes('검증용 수정값') &&
+      count(beforeHtml, /<table/g) === count(afterHtml, /<table/g) &&
+      count(beforeHtml, /admission-special-title/g) === count(afterHtml, /admission-special-title/g) &&
+      count(afterHtml, /admission-special-title/g) === doc.blocks.filter((b) => b.kind === 'group').length;
+    record(
+      '12h. renderDocToHtml 왕복 — group children 셀 수정이 html 미러에 반영되고 <table>·group 제목 개수는 불변(renderSpecialBlocksHtml 제목 화이트리스트 소실 탐지)',
+      pass,
+      JSON.stringify({
+        groupIdx,
+        tables: [count(beforeHtml, /<table/g), count(afterHtml, /<table/g)],
+        titles: [count(beforeHtml, /admission-special-title/g), count(afterHtml, /admission-special-title/g)],
+        groups: doc.blocks.filter((b) => b.kind === 'group').length,
+        applied: afterHtml.includes('검증용 수정값')
+      })
+    );
   }
 
   // ── 13) plainList 항목 추가·삭제·순서 변경(2026-08-06 보완) ───────────

@@ -5,7 +5,7 @@ import HeadingBlockEditor from './blocks/HeadingBlockEditor';
 import PreTextBlockEditor from './blocks/PreTextBlockEditor';
 import PlainListBlockEditor from './blocks/PlainListBlockEditor';
 import FootnoteBlockEditor from './blocks/FootnoteBlockEditor';
-import GroupBlockSummary from './blocks/GroupBlockSummary';
+import GroupBlockEditor from './blocks/GroupBlockEditor';
 
 // Block.kind 디스패처(편집판). AdmissionSectionView/blocks/renderBlock.jsx
 // (표시판)와 나란한 구조지만 재사용하지 않는다 — 표시판은 Gate B 바이트
@@ -37,8 +37,18 @@ export default function AdmissionBlockEditor({ section, block, onChange, univers
     case 'footnote':
       return <FootnoteBlockEditor block={block} onChange={onChange} />;
     case 'group':
-      // 중첩 편집 범위 밖(1단계 읽기 전용 요약만) — GroupBlockSummary 주석 참고.
-      return <GroupBlockSummary block={block} />;
+      // 중첩 children 표 편집기로 디스패치(자기 자신을 다시 부르는 순환 —
+      // 표시판 renderBlock ⇄ GroupView와 같은 구조다). 열리는 축은 children
+      // 표 내부뿐이고, 제목·구성은 잠겨 있다 — GroupBlockEditor 주석 참고.
+      return (
+        <GroupBlockEditor
+          section={section}
+          block={block}
+          onChange={onChange}
+          universityName={universityName}
+          sectionLabel={sectionLabel}
+        />
+      );
     case 'rawHtml':
       return (
         <p className="p-2 text-[11px] text-gray-400">
