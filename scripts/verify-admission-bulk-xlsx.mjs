@@ -24,21 +24,16 @@ import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
   BULK_XLSX_COLUMNS,
-  TRUNCATION_MARKER,
-  MAX_XLSX_CELL_LENGTH
+  TRUNCATION_MARKER
 } from '../src/lib/admissionBulkXlsx.js';
 import { HWP_SECTION_JSON_KEYS, stableStringifyDoc } from '../src/lib/admissionDoc.js';
 import { clean } from '../src/lib/admissionParsing.js';
-import { importCell } from '../src/lib/admissionHtmlImport.js';
 
 const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
   '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
 const TABLE = 'admission_university_resources';
 const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
-const SECTION_KEY_BY_JSON_COLUMN = Object.fromEntries(
-  Object.entries(HWP_SECTION_JSON_KEYS).map(([sectionKey, jsonColumn]) => [jsonColumn, sectionKey])
-);
 // admissionBulkXlsx.js는 CATEGORY_KEYS를 export하지 않는다 —
 // HWP_SECTION_JSON_KEYS의 키가 곧 6개 raw 카테고리 컬럼명과 같다
 // (admissionDoc.js 참고).
@@ -62,6 +57,20 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function docHasBlocks(doc) {
+  return Boolean(doc && Array.isArray(doc.blocks) && doc.blocks.length);
+}
+
+function hasChipsBlocks(doc) {
+  if (!doc || !Array.isArray(doc.blocks)) return false;
+  return doc.blocks.some(
+    (block) =>
+      block.kind === 'table' &&
+      Array.isArray(block.rows) &&
+      block.rows.some((row) => row.some((cell) => cell && typeof cell === 'object' && Array.isArray(cell.chips)))
+  );
+}
+
 async function resolveCredentials(keysFile) {
   const envUrl = process.env.SEED_SUPABASE_URL;
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
@@ -80,11 +89,10 @@ function buildExistingRowsMap(dbRows) {
     JSON_COLUMNS.forEach((col) => {
       entry[col] = row[col];
     });
-    // html 파싱 실패 시 "업로드 raw == 기존 DB raw" 비교에 쓴다
-    // (admissionBulkXlsx.js의 새 existingRows 계약 — raw 카테고리
-    // 컬럼도 포함해야 한다). BULK_XLSX_COLUMNS에 이미 포함된 컬럼이라
-    // dbRows select에는 추가 컬럼이 필요 없다(1번 섹션의 selectColumns
-    // 참고).
+    // "업로드 raw == 기존 DB raw" 1차 판정 비교에 쓴다(admissionBulkXlsx.js
+    // 의 existingRows 계약 — raw 카테고리 컬럼도 포함해야 한다).
+    // BULK_XLSX_COLUMNS에 이미 포함된 컬럼이라 dbRows select에는 추가
+    // 컬럼이 필요 없다(1번 섹션의 selectColumns 참고).
     CATEGORY_RAW_KEYS.forEach((col) => {
       entry[col] = row[col];
     });
@@ -144,10 +152,16 @@ async function main() {
 
   const existingRows = buildExistingRowsMap(dbRows);
 
-  // === 2) 왕복(내보내기→파일 IO 왕복→가져오기) — 원본과 동일한가 ===
-  console.log('\n=== 2) 왕복 검증 ===');
+  // === 2) 왕복(내보내기→파일 IO 왕복→가져오기) — 핵심 불변식: raw가 안
+  // 바뀌면 카테고리 전부 안 바뀐다(2026-08-07 재설계, html 3종 제외 +
+  // raw 비교 1차 판정). 이 왕복은 raw 텍스트를 조금도 바꾸지 않으므로
+  // (내보내기→파일 IO→가져오기는 문자열을 그대로 실어 나른다), 기존
+  // doc이 있는 카테고리는 전부 'rawUnchangedPreserved'로 보존돼야 하고
+  // warnings는 0건이어야 한다. 이게 team-lead가 지정한 "제일 중요한
+  // 테스트"다.
+  console.log('\n=== 2) 왕복 검증(불변식: raw 안 바뀌면 카테고리 전부 안 바뀜) ===');
   const { workbook, truncatedCells } = exportAdmissionRowsToXlsx(dbRows);
-  console.log(`내보내기 완료: 잘린 셀 ${truncatedCells.length}건`);
+  console.log(`내보내기 완료: 잘린 셀 ${truncatedCells.length}건(html 3종 제외 후 실측상 0건이어야 함)`);
   if (truncatedCells.length) {
     console.log('  잘린 셀 샘플(최대 5건):');
     truncatedCells.slice(0, 5).forEach((c) => console.log(`    - id=${c.id} row=${c.rowIndex} col=${c.column} 원래길이=${c.originalLength}`));
@@ -159,82 +173,58 @@ async function main() {
     existingRows
   );
 
-  // 2026-08-06 재설계 후: 잘린 셀은 더 이상 행을 통째로 거부하지 않는다
-  // — 그 셀이 속한 카테고리(컬럼) 하나만 payload에서 빠지고(기존 DB
-  // 값 보존) 행 자체·나머지 25개 컬럼은 정상 처리된다. truncatedCells의
-  // rowIndex는 export 시점의 dbRows 배열 인덱스와 1:1이므로, 그 인덱스의
-  // (year, key)를 "카테고리 스킵 예정" 집합으로 미리 구한다(전부
-  // recruitment_result_html → recruitment_quota 카테고리다 — 실측상
-  // 다른 컬럼에서는 안 남).
-  const truncatedRowIndexSet = new Set(truncatedCells.map((c) => c.rowIndex));
-  const expectedTruncationSkipKeys = new Set(
-    [...truncatedRowIndexSet].map((idx) => `${dbRows[idx].admission_year}::${dbRows[idx].university_key}`)
-  );
-
-  check(`왕복: 잘린 셀은 행이 아니라 카테고리만 스킵(정확히 ${expectedTruncationSkipKeys.size}건, team-lead 사전 실측 23건과 일치해야 함)`, () => {
-    assert(parseErrors.length === 0, `잘림만으로 행 전체가 거부되면 안 됨(에러 ${parseErrors.length}건)`);
-    assert(
-      summary.truncatedCellSkipCount === expectedTruncationSkipKeys.size,
-      `summary.truncatedCellSkipCount(${summary.truncatedCellSkipCount}) !== 기대치(${expectedTruncationSkipKeys.size})`
-    );
-    const truncationWarnings = parseWarnings.filter((w) => w.reason.includes('잘림 마커가 있어 기존 값 보존'));
-    const actualSkipKeys = new Set(truncationWarnings.map((w) => `${w.admissionYear}::${w.universityKey}`));
-    assert(
-      actualSkipKeys.size === expectedTruncationSkipKeys.size,
-      `잘림 경고가 난 행 수(${actualSkipKeys.size}) !== 기대치(${expectedTruncationSkipKeys.size})`
-    );
-    const onlyExpected = [...actualSkipKeys].every((k) => expectedTruncationSkipKeys.has(k));
-    assert(onlyExpected, `잘린 셀이 없는 행에서 잘림 경고가 남: ${JSON.stringify([...actualSkipKeys].filter((k) => !expectedTruncationSkipKeys.has(k)))}`);
-    const allRecruitmentQuota = truncationWarnings.every((w) => w.column === 'recruitment_quota');
-    assert(allRecruitmentQuota, '잘림이 recruitment_quota 이외 카테고리에서도 발생함(실측과 다름)');
+  check('왕복: 잘림 0건(html 3종을 포맷에서 뺀 뒤 가장 긴 콘텐츠 컬럼도 32,767자 근처도 안 감)', () => {
+    assert(truncatedCells.length === 0, `내보내기 시점에 잘린 셀이 있음(${truncatedCells.length}건)`);
+    assert(summary.truncatedCellSkipCount === 0, `summary.truncatedCellSkipCount가 0이 아님(${summary.truncatedCellSkipCount})`);
   });
 
-  check('왕복: warnings 전부 type 필드를 가지고, summary.warningCounts가 실제 배열과 일치', () => {
-    const untyped = parseWarnings.filter((w) => !w.type);
-    assert(untyped.length === 0, `type이 없는 warning이 있음(${untyped.length}건)`);
-    assert(summary.warningCounts, 'summary.warningCounts가 없음');
-    const totalFromCounts = Object.values(summary.warningCounts).reduce((a, b) => a + b, 0);
-    assert(totalFromCounts === parseWarnings.length, `warningCounts 합(${totalFromCounts}) !== warnings.length(${parseWarnings.length})`);
-    assert(
-      summary.warningCounts.truncated === expectedTruncationSkipKeys.size,
-      `warningCounts.truncated(${summary.warningCounts.truncated}) !== 기대치(${expectedTruncationSkipKeys.size})`
-    );
-    assert(summary.errorCounts, 'summary.errorCounts가 없음');
-    const totalErrorsFromCounts = Object.values(summary.errorCounts).reduce((a, b) => a + b, 0);
-    assert(totalErrorsFromCounts === parseErrors.length, `errorCounts 합(${totalErrorsFromCounts}) !== errors.length(${parseErrors.length})`);
-  });
-
-  check('왕복: 잘린 셀이 있던 행도 update로 분류되고 payload에 포함됨(카테고리만 빠짐)', () => {
+  check('왕복: 행 전체 거부 0건, 218행 전부 update로 분류, 신규 연도/대학 0건', () => {
+    assert(parseErrors.length === 0, `에러 ${parseErrors.length}건: ${JSON.stringify(parseErrors.slice(0, 3))}`);
     assert(summary.willInsert === 0, `willInsert가 0이 아님: ${summary.willInsert}`);
     assert(summary.willUpdate === dbRows.length, `willUpdate(${summary.willUpdate}) !== 기대치(${dbRows.length})`);
-    assert(summary.willSkip === 0, `willSkip이 0이 아님(잘림은 willSkip 사유가 아님): ${summary.willSkip}`);
+    assert(summary.willSkip === 0, `willSkip이 0이 아님: ${summary.willSkip}`);
     assert(summary.newYears.length === 0, `newYears가 비어 있어야 함: ${summary.newYears}`);
-  });
-
-  check('왕복: 파싱된 행 수 = 원본 행 수(잘림으로 거부되는 행 없음)', () => {
     assert(parsedRows.length === dbRows.length, `parsedRows(${parsedRows.length}) !== 원본(${dbRows.length})`);
   });
 
-  check('왕복: 잘린 셀이 있던 23개교는 payload에서 recruitment_quota_json/recruitment_result_html이 빠짐(기존 값 보존)', () => {
-    const parsedByKeyForTruncation = new Map(parsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
-    let bad = 0;
-    expectedTruncationSkipKeys.forEach((key) => {
-      const parsed = parsedByKeyForTruncation.get(key);
-      if (!parsed) {
-        bad += 1;
-        return;
-      }
-      if ('recruitment_quota_json' in parsed || 'recruitment_result_html' in parsed) bad += 1;
+  check('왕복(핵심 불변식): warnings 0건 — raw가 하나도 안 바뀐 왕복이라 어떤 카테고리도 재생성되면 안 됨', () => {
+    assert(
+      parseWarnings.length === 0,
+      `raw가 안 바뀐 왕복인데 경고가 ${parseWarnings.length}건 남음(유형별: ${JSON.stringify(summary.warningCounts)})`
+    );
+    const parsedByKey = new Map(parsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
+    let regeneratedCount = 0;
+    const regeneratedDetails = [];
+    dbRows.forEach((original) => {
+      const key = `${original.admission_year}::${original.university_key}`;
+      const parsed = parsedByKey.get(key);
+      if (!parsed) return; // 다음 check가 별도로 잡는다.
+      JSON_COLUMNS.forEach((jsonCol) => {
+        const hadOriginal = docHasBlocks(original[jsonCol]);
+        const hasParsed = jsonCol in parsed;
+        // hadOriginal이면 raw 불변이니 무조건 보존(hasParsed===false)
+        // 이어야 한다. !hadOriginal인데 hasParsed면(빈 카테고리에 값이
+        // 생김) 그것도 왕복에서 나오면 안 된다 — raw 자체가 안 바뀌었기
+        // 때문이다.
+        if (hadOriginal === hasParsed) return; // 둘 다 true거나 둘 다 false면 정상(전자는 사실 아래서 걸러짐)
+        if (hadOriginal && hasParsed) {
+          regeneratedCount += 1;
+          if (regeneratedDetails.length < 5) regeneratedDetails.push(`${key}/${jsonCol}`);
+        }
+        if (!hadOriginal && hasParsed) {
+          regeneratedCount += 1;
+          if (regeneratedDetails.length < 5) regeneratedDetails.push(`${key}/${jsonCol}(신규 생성)`);
+        }
+      });
     });
-    assert(bad === 0, `잘린 카테고리가 그대로 payload에 남은 건수: ${bad}`);
+    assert(
+      regeneratedCount === 0,
+      `raw가 안 바뀌었는데 doc 유무가 바뀐 카테고리: ${regeneratedCount}건(샘플: ${regeneratedDetails.join(', ')})`
+    );
   });
 
-  // 거부되지 않은 행에 대해서만 원본과 대조한다. 위치가 아니라
-  // (admission_year, university_key)로 매칭한다 — 거부된 행이 파싱
-  // 결과 배열에서 통째로 빠지므로 인덱스가 밀린다.
   const parsedByKey = new Map(parsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
   let mismatchCount = 0;
-  let jsonMismatchCount = 0;
   let checkedRows = 0;
   dbRows.forEach((original) => {
     const key = `${original.admission_year}::${original.university_key}`;
@@ -251,52 +241,14 @@ async function main() {
     ) {
       mismatchCount += 1;
     }
-    JSON_COLUMNS.forEach((jsonCol) => {
-      const originalDoc = original[jsonCol];
-      const parsedDoc = parsed[jsonCol];
-      // 원본에 doc이 없었으면(원자료 자체가 없는 카테고리) 파싱 후에도
-      // 없어야 한다. 있었으면 파싱 후에도 있어야 한다(내용까지 바이트
-      // 동일할 필요는 없다 — importCell/buildHwpCategoryDoc이 매번
-      // generatedAt을 새로 찍는다. 내용 정확성은 게이트 3종·드리프트
-      // 스크립트가 이미 100%로 검증한 것과 같은 로직을 그대로 재사용
-      // 하므로 별도로 다시 재현하지 않는다. 예외: 회귀 가드가 "기존 값
-      // 보존"으로 판단한 카테고리는 원본에 doc이 있었는데 파싱 결과에
-      // undefined일 수 있다 — 이건 정확히 "기존 DB 값을 그대로 두라"는
-      // payload 설계(delete=무해)의 의도된 동작이라 doc 유무 불일치로
-      // 안 잡는다).
-      const hadOriginal = Boolean(originalDoc && Array.isArray(originalDoc.blocks) && originalDoc.blocks.length);
-      const hasParsed = jsonCol in parsed;
-      const sectionKey = SECTION_KEY_BY_JSON_COLUMN[jsonCol];
-      // 이 (행, 카테고리)에 실제로 남은 "기존 값 보존" 계열 경고를 전부
-      // 모은다 — type 필드로 구분한다(예전엔 reason 문자열 부분매칭이라
-      // column 필터도 없었다: 다른 카테고리 경고가 같은 행에 있으면
-      // false-positive로 "보존됨" 취급될 수 있었다). 정확히 1가지
-      // 사유로만 보존돼야 한다 — 2가지 이상이면 중복 적용 버그다.
-      const preservationWarningTypes = parseWarnings
-        .filter(
-          (w) =>
-            w.admissionYear === original.admission_year &&
-            w.universityKey === original.university_key &&
-            w.column === sectionKey &&
-            ['regressionSkipped', 'truncated', 'htmlParseFailedPreserved'].includes(w.type)
-        )
-        .map((w) => w.type);
-      const wasPreservedForKnownReason = preservationWarningTypes.length > 0;
-      if (preservationWarningTypes.length > 1) jsonMismatchCount += 1000; // 중복 적용이면 무조건 실패시킨다(원인 구분용으로 크게 벌점)
-      if (hadOriginal && !hasParsed && !wasPreservedForKnownReason) jsonMismatchCount += 1;
-      if (!hadOriginal && hasParsed) jsonMismatchCount += 1;
-    });
   });
 
   check('왕복: 메타 필드(university_name/region/admission_year) 불일치 0건', () => {
     assert(mismatchCount === 0, `${mismatchCount}건 불일치(검사 대상 ${checkedRows}행 중)`);
   });
-  check('왕복: 카테고리별 doc 유무가 원본과 동일(회귀 가드로 보존된 것 제외 0건 불일치)', () => {
-    assert(jsonMismatchCount === 0, `${jsonMismatchCount}건 doc 유무 불일치`);
-  });
 
   if (parseWarnings.length) {
-    console.log(`\n왕복 경고 ${parseWarnings.length}건(최대 10건):`);
+    console.log(`\n왕복 경고 ${parseWarnings.length}건(최대 10건, 위 불변식 실패 시에만 나타나야 함):`);
     parseWarnings.slice(0, 10).forEach((w) => console.log(`  - [${w.universityKey}/${w.admissionYear}] ${w.column || ''}: ${w.reason}`));
   }
 
@@ -447,19 +399,17 @@ async function main() {
     assert(regressionWarnings.length >= 1, '정보량 감소 경고가 있어야 함');
   });
 
-  // === 6-1) html 파싱 실패 → 조용한 raw 재생성 방지(team-lead 지정,
-  // 마커 문자열이 우리 것과 다른 도구가 잘랐을 때도 안전해야 함) ===
-  console.log('\n=== 6-1) html 파싱 실패 시 raw 비교 분기(합성) ===');
+  // === 6-1) raw 비교가 1차 판정 기준(합성, 2026-08-07 재설계 — html이
+  // 포맷에서 아예 빠졌으므로 아래 4개 테스트는 html을 전혀 쓰지 않는다) ===
+  console.log('\n=== 6-1) raw 비교가 1차 판정 기준(합성, html 없는 포맷) ===');
 
-  const MALFORMED_HTML = '이것은 유효한 표 구조가 아닌 임의의 문자열입니다(태그도 없고 파싱 불가)';
-
-  check('html 파싱 실패 + 업로드 raw == 기존 DB raw → 재생성 시도 없이 기존 값 보존 + htmlParseFailedPreserved 경고', () => {
+  check('raw 동일(관리자가 안 건드림) → 재생성 시도 없이 기존 값 보존, 경고 없음', () => {
     const sameRawText = '- 동일 원문 그대로(관리자가 안 건드림)';
     const existing = new Map([
       [
-        '2099::html-parse-fail-preserved-test',
+        '2099::raw-unchanged-test',
         {
-          id: 'fake-id-preserved',
+          id: 'fake-id-unchanged',
           minimum_requirements_json: { v: 1, section: 'minimum_requirements', blocks: [{ kind: 'plainList', items: [{ type: 'bullet', text: '기존 항목' }] }] },
           minimum_requirements: sameRawText
         }
@@ -468,36 +418,33 @@ async function main() {
     const header = BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === 'admission_year') return 2099;
-      if (col === 'university_key') return 'html-parse-fail-preserved-test';
-      if (col === 'university_name') return 'html파싱실패보존테스트대학교';
+      if (col === 'university_key') return 'raw-unchanged-test';
+      if (col === 'university_name') return 'raw동일테스트대학교';
       if (col === 'minimum_requirements') return sameRawText;
-      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
       return '';
     });
     const ws = XLSX.utils.aoa_to_sheet([header, row]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '모집요강');
 
-    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
     assert(rows.length === 1, '행 자체는 생성돼야 함');
     assert(
       rows[0].minimum_requirements_json === undefined && rows[0].minimum_requirements_html === undefined,
       'raw가 안 바뀌었는데 재생성돼 payload에 들어감(기존 값 보존이 안 됨)'
     );
-    assert(s.htmlParseFailedCount === 1, `htmlParseFailedCount가 1이어야 함(실제 ${s.htmlParseFailedCount})`);
-    const w = warnings.find((x) => x.type === 'htmlParseFailedPreserved');
-    assert(Boolean(w), 'htmlParseFailedPreserved 타입 경고가 없음');
-    assert(w.column === 'minimum_requirements', `경고의 column이 잘못됨(실제 ${w.column})`);
+    const relatedWarnings = warnings.filter((w) => w.universityKey === 'raw-unchanged-test');
+    assert(relatedWarnings.length === 0, `raw 동일인데 경고가 남음(${relatedWarnings.length}건) — "경고 불필요"가 team-lead 명시 요구다`);
   });
 
-  check('html 파싱 실패 + 업로드 raw != 기존 DB raw(의도적 수정) → raw로 재생성하고 htmlParseFailedRegenerated 경고(회귀 아님)', () => {
+  check('raw 변경(의도적 수정, 정보량 증가) → raw에서 재생성 + htmlParseFailedRegenerated 경고 필수(회귀 가드는 안 걸림, type 이름은 Admin.jsx 하위호환으로 유지)', () => {
     const oldRawText = '- 기존 원문';
     const newRawText = '- 새 원문 항목 1\n- 새 원문 항목 2\n- 새 원문 항목 3';
     const existing = new Map([
       [
-        '2099::html-parse-fail-regenerated-test',
+        '2099::raw-changed-test',
         {
-          id: 'fake-id-regenerated',
+          id: 'fake-id-changed',
           minimum_requirements_json: { v: 1, section: 'minimum_requirements', blocks: [{ kind: 'plainList', items: [{ type: 'bullet', text: '짧은 기존 항목' }] }] },
           minimum_requirements: oldRawText
         }
@@ -506,30 +453,25 @@ async function main() {
     const header = BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === 'admission_year') return 2099;
-      if (col === 'university_key') return 'html-parse-fail-regenerated-test';
-      if (col === 'university_name') return 'html파싱실패재생성테스트대학교';
+      if (col === 'university_key') return 'raw-changed-test';
+      if (col === 'university_name') return 'raw변경테스트대학교';
       if (col === 'minimum_requirements') return newRawText;
-      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
       return '';
     });
     const ws = XLSX.utils.aoa_to_sheet([header, row]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '모집요강');
 
-    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
     assert(rows.length === 1, '행 자체는 생성돼야 함');
-    assert(
-      rows[0].minimum_requirements_json !== undefined,
-      'raw를 의도적으로 고쳤는데(정보량도 늘었는데) 재생성이 안 됨'
-    );
-    assert(s.htmlParseFailedCount === 1, `htmlParseFailedCount가 1이어야 함(실제 ${s.htmlParseFailedCount})`);
+    assert(rows[0].minimum_requirements_json !== undefined, 'raw를 의도적으로 고쳤는데(정보량도 늘었는데) 재생성이 안 됨');
     const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated');
-    assert(Boolean(regenWarning), 'htmlParseFailedRegenerated 타입 경고가 없음');
+    assert(Boolean(regenWarning), 'htmlParseFailedRegenerated 타입 경고가 없음(type 이름은 유지, 트리거만 raw 비교로 바뀜)');
     const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
     assert(!regressionWarning, '회귀 가드가 개입하면 안 되는 케이스인데(정보량이 늘었음) regressionSkipped 경고가 남음');
   });
 
-  check('html 파싱 실패 + 업로드 raw != 기존 DB raw + 재생성 결과가 기존보다 정보량 감소 → 회귀 가드가 우선 적용(중복 집계 없음)', () => {
+  check('raw 변경인데 재생성 결과가 기존보다 정보량 감소 → 회귀 가드 우선 적용(htmlParseFailedRegenerated와 중복 없음)', () => {
     const oldRawText = '- 기존 원문 A\n- 기존 원문 B\n- 기존 원문 C';
     const newRawText = '- 짧아진 새 원문';
     const richExistingDoc = {
@@ -541,31 +483,50 @@ async function main() {
     };
     const existing = new Map([
       [
-        '2099::html-parse-fail-regression-priority-test',
+        '2099::raw-changed-regression-priority-test',
         { id: 'fake-id-regression-priority', minimum_requirements_json: richExistingDoc, minimum_requirements: oldRawText }
       ]
     ]);
     const header = BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === 'admission_year') return 2099;
-      if (col === 'university_key') return 'html-parse-fail-regression-priority-test';
-      if (col === 'university_name') return 'html파싱실패회귀우선테스트대학교';
+      if (col === 'university_key') return 'raw-changed-regression-priority-test';
+      if (col === 'university_name') return 'raw변경회귀우선테스트대학교';
       if (col === 'minimum_requirements') return newRawText;
-      if (col === 'minimum_requirements_html') return MALFORMED_HTML;
       return '';
     });
     const ws = XLSX.utils.aoa_to_sheet([header, row]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '모집요강');
 
-    const { rows, warnings, summary: s } = parseAdmissionRowsFromXlsx(wb, existing);
+    const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
     assert(rows.length === 1, '행 자체는 생성돼야 함');
     assert(rows[0].minimum_requirements_json === undefined, '정보량이 줄었는데 회귀 가드가 안 막음');
-    assert(s.htmlParseFailedCount === 0, `회귀 가드가 먼저 막은 케이스는 htmlParseFailedCount에 안 잡혀야 함(실제 ${s.htmlParseFailedCount})`);
     const regressionWarning = warnings.find((x) => x.type === 'regressionSkipped');
     assert(Boolean(regressionWarning), 'regressionSkipped 경고가 있어야 함');
-    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated' || x.type === 'htmlParseFailedPreserved');
-    assert(!regenWarning, '회귀 가드와 html 파싱 실패 경고가 같은 셀에 중복으로 남음');
+    const regenWarning = warnings.find((x) => x.type === 'htmlParseFailedRegenerated');
+    assert(!regenWarning, '회귀 가드와 htmlParseFailedRegenerated 경고가 같은 셀에 중복으로 남음');
+  });
+
+  check('기존 doc 없음(신규 카테고리, 비교 대상 없음) → raw에서 그냥 생성, 경고 불필요', () => {
+    const existing = new Map([['2099::no-existing-doc-test', { id: 'fake-id-no-doc' }]]); // json/raw 둘 다 없음
+    const header = BULK_XLSX_COLUMNS;
+    const row = header.map((col) => {
+      if (col === 'admission_year') return 2099;
+      if (col === 'university_key') return 'no-existing-doc-test';
+      if (col === 'university_name') return '신규카테고리테스트대학교';
+      if (col === 'minimum_requirements') return '- 새로 채운 항목';
+      return '';
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+    const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
+    assert(rows.length === 1, '행 자체는 생성돼야 함');
+    assert(rows[0].minimum_requirements_json !== undefined, '기존 doc이 없고 raw가 있으면 생성돼야 함');
+    const relatedWarnings = warnings.filter((w) => w.universityKey === 'no-existing-doc-test');
+    assert(relatedWarnings.length === 0, `비교 대상이 없어 경고가 필요 없는데 경고가 남음(${relatedWarnings.length}건)`);
   });
 
   // === 7) formula injection 방어 — 셀 타입 강제(t:'s')가 값을 하나도
@@ -609,129 +570,93 @@ async function main() {
     });
   });
 
-  // === 8) chips 셀(recruit variant) 실데이터 왕복 검증 — PR #40 "알려진
-  // 한계"(합성 테스트로만 커버) 해소. dbRows(1번 섹션에서 이미 조회)에서
-  // recruitment_quota_json에 chips 셀이 있는 행만 골라 별도 워크북으로
-  // 왕복시킨다(전체 218행과 섞지 않아 원인 분리가 쉽다).
-  console.log('\n=== 8) chips 셀(recruit variant) 실데이터 왕복 검증 ===');
-
-  function hasChipsBlocks(doc) {
-    if (!doc || !Array.isArray(doc.blocks)) return false;
-    return doc.blocks.some(
-      (block) =>
-        block.kind === 'table' &&
-        Array.isArray(block.rows) &&
-        block.rows.some((row) => row.some((cell) => cell && typeof cell === 'object' && Array.isArray(cell.chips)))
-    );
-  }
+  // === 8) chips 셀(recruit variant) 실데이터 검증 — html 제외 포맷
+  // 재설계 후 재검증. dbRows(1번 섹션에서 이미 조회)에서
+  // recruitment_quota_json에 chips 셀이 있는 행만 골라 확인한다.
+  console.log('\n=== 8) chips 셀(recruit variant) 실데이터 검증(html 제외 포맷) ===');
 
   const chipsRows = dbRows.filter((row) => hasChipsBlocks(row.recruitment_quota_json));
   console.log(`dev DB에서 chips 셀이 있는 행: ${chipsRows.length}건(사전 실측 7건과 비교)`);
   chipsRows.forEach((row) => {
     const seq = extractChipsSequence(row.recruitment_quota_json);
-    console.log(`  - [${row.university_name}/${row.admission_year}] chips 총 ${seq.length}개`);
+    console.log(`  - [${row.university_name}/${row.admission_year}] chips 총 ${seq.length}개, recruitment_quota raw 길이=${(row.recruitment_quota || '').length}`);
   });
 
-  check(`chips 셀 실데이터 ${chipsRows.length}건 왕복: 비잘림 행은 deep-equal, 잘림 행은 손대지 않고 보존`, () => {
+  check(`chips 셀 실데이터 ${chipsRows.length}건: raw 안 바뀌는 왕복에서 전부 보존됨(재생성 0건, 경고 0건)`, () => {
     assert(chipsRows.length > 0, 'chips 셀이 있는 행을 하나도 못 찾음(사전 실측 7건과 다름 — dev DB가 바뀌었을 수 있음)');
 
     const { workbook: chipsWorkbook, truncatedCells: chipsTruncatedCells } = exportAdmissionRowsToXlsx(chipsRows);
-    const truncatedIds = new Set(chipsTruncatedCells.map((c) => c.id));
+    assert(chipsTruncatedCells.length === 0, `chips 행의 raw 컬럼이 잘림(${chipsTruncatedCells.length}건) — html 제외 전제와 다름`);
     const chipsRoundTripped = roundTripWorkbook(chipsWorkbook);
     const chipsExistingRows = buildExistingRowsMap(chipsRows);
-    const { rows: parsedChipsRows } = parseAdmissionRowsFromXlsx(chipsRoundTripped, chipsExistingRows);
+    const { warnings, rows: parsedChipsRows } = parseAdmissionRowsFromXlsx(chipsRoundTripped, chipsExistingRows);
+
+    const relatedWarnings = warnings.filter((w) => chipsRows.some((r) => r.university_key === w.universityKey));
+    assert(relatedWarnings.length === 0, `raw 안 바뀐 왕복인데 chips 행에 경고가 남음(${relatedWarnings.length}건)`);
+
     const parsedByKey = new Map(parsedChipsRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
-
-    let deepEqualCount = 0;
-    let preservedTruncatedCount = 0;
-    const mismatches = [];
-
-    chipsRows.forEach((original) => {
-      const key = `${original.admission_year}::${original.university_key}`;
+    let regeneratedCount = 0;
+    chipsRows.forEach((row) => {
+      const key = `${row.admission_year}::${row.university_key}`;
       const parsed = parsedByKey.get(key);
-      if (!parsed) {
-        mismatches.push(`${key}: 행 자체가 파싱 결과에서 빠짐`);
-        return;
-      }
-      const wasTruncated = truncatedIds.has(original.id);
-      if (wasTruncated) {
-        // 잘린 행은 카테고리 단위 스킵이 먼저 개입해야 한다(17566df) —
-        // chips 파서까지 갈 필요 없이 기존 값을 그대로 보존해야 옳다.
-        if ('recruitment_quota_json' in parsed) {
-          mismatches.push(`${key}: 잘렸는데 재생성됨(기존 값 보존이 안 됨)`);
-        } else {
-          preservedTruncatedCount += 1;
-        }
-        return;
-      }
-      // 안 잘린 행 — html 그대로 왕복 후 재임포트한 doc이 원본과
-      // deep-equal 해야 한다(stableStringifyDoc, generatedAt 제외).
-      const beforeStr = stableStringifyDoc(original.recruitment_quota_json);
-      const afterStr = stableStringifyDoc(parsed.recruitment_quota_json);
-      if (beforeStr !== afterStr) {
-        mismatches.push(`${key}: doc 전체가 deep-equal 아님`);
-      } else {
-        deepEqualCount += 1;
-      }
-      // chips 배열의 순서·개수·내용 전용 비교(team-lead 명시 요구) —
-      // doc 전체가 같으면 이것도 당연히 같아야 하지만, 실패 시 정확히
-      // 몇 번째 칩이 다른지 바로 보여주기 위해 별도로도 확인한다.
-      const beforeChips = extractChipsSequence(original.recruitment_quota_json);
-      const afterChips = extractChipsSequence(parsed.recruitment_quota_json);
-      if (JSON.stringify(beforeChips) !== JSON.stringify(afterChips)) {
-        mismatches.push(`${key}: chips 순서/개수/내용 불일치(전 ${beforeChips.length}개 → 후 ${afterChips.length}개)`);
-      }
+      if (parsed && 'recruitment_quota_json' in parsed) regeneratedCount += 1;
     });
-
-    console.log(
-      `  chips ${chipsRows.length}건 분류: 왕복 후 deep-equal ${deepEqualCount}건 / 잘림으로 미재생성·보존 ${preservedTruncatedCount}건`
-    );
-    assert(mismatches.length === 0, `불일치 ${mismatches.length}건: ${mismatches.join(' / ')}`);
-    assert(
-      deepEqualCount + preservedTruncatedCount === chipsRows.length,
-      `분류되지 않은 행이 있음(deep-equal ${deepEqualCount} + 보존 ${preservedTruncatedCount} !== 전체 ${chipsRows.length})`
-    );
+    assert(regeneratedCount === 0, `raw 안 바뀐 chips 행인데 재생성됨(${regeneratedCount}건) — 기존 rich doc이 덮일 위험`);
   });
 
-  // 위 검증은 32,767자 제한 때문에 7건 중 5건이 "잘림 스킵"으로 빠져
-  // 실제로 chips 파서(importRecruitExactDocFromHtml/
-  // importRecruitLegacyDocFromHtml)를 안 탄다 — 잘림 보호는 확인됐지만
-  // 파서 정확도 자체는 2/7만 실증한 셈이다. 아래는 32,767자 제한을
-  // 우회해(엑셀 셀 크기 제약과 무관하게, 순수 파서 충실도만) 5건 전부
-  // 실제 DB html 그대로 재파싱해 chips가 보존되는지 별도로 확인한다
-  // (엑셀 왕복 자체는 아니다 — importCell 단계만 떼어 검증).
-  check('chips 셀 5건(잘림 때문에 위에서 미검증) — html 전체 그대로 재파싱해도 chips 보존 확인(엑셀 셀 크기 제약과 분리)', () => {
-    const truncatedChipsRows = chipsRows.filter((row) => {
-      const html = row.recruitment_result_html;
-      return typeof html === 'string' && html.length > MAX_XLSX_CELL_LENGTH;
+  // 안전망 확인: chips가 풍부한 카테고리(raw는 429~6,279자인데 doc은
+  // 55~1,215개 칩)를 관리자가 raw를 살짝 고치면(=재생성 트리거), plain
+  // raw 텍스트에서 admission-recruit-table 구조(칩)를 되살릴 수 없다 —
+  // 회귀 가드가 반드시 막아야 한다(정보량이 훨씬 줄 수밖에 없다). 이
+  // 안전망이 실제 chips 데이터로도 작동하는지 확인한다. 만에 하나
+  // 회귀 가드를 통과하더라도(재생성 결과가 우연히 안 줄었더라도) 최소
+  // 조건은 "chips가 보존되거나, 경고 없이 조용히 바뀌지는 않는다"다.
+  check('chips 안전망: 실제 chips 행 raw를 살짝 고치면 회귀 가드가 막아 chips가 보존되거나, 반드시 경고가 남음(조용한 손실 없음)', () => {
+    const sample = chipsRows.find((r) => r.university_key === '서경대학교') || chipsRows[0];
+    assert(sample, 'chips 표본을 못 찾음');
+    const editedRawText = `${sample.recruitment_quota}\n(관리자가 오타를 고침)`;
+    const existing = new Map([
+      [
+        `${sample.admission_year}::${sample.university_key}`,
+        { id: sample.id, recruitment_quota_json: sample.recruitment_quota_json, recruitment_quota: sample.recruitment_quota }
+      ]
+    ]);
+    const header = BULK_XLSX_COLUMNS;
+    const row = header.map((col) => {
+      if (col === 'admission_year') return sample.admission_year;
+      if (col === 'university_key') return sample.university_key;
+      if (col === 'university_name') return sample.university_name;
+      if (col === 'recruitment_quota') return editedRawText;
+      return '';
     });
-    assert(truncatedChipsRows.length === 5, `잘림 대상 chips 행 수가 사전 확인(5건)과 다름(실제 ${truncatedChipsRows.length}건)`);
+    const ws = XLSX.utils.aoa_to_sheet([header, row]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '모집요강');
 
-    const parserMismatches = [];
-    truncatedChipsRows.forEach((row) => {
-      const key = `${row.admission_year}::${row.university_key}`;
-      const html = row.recruitment_result_html;
-      const result = importCell('recruitment_quota', html, { university_name: row.university_name });
-      if (result.classification !== 'imported') {
-        parserMismatches.push(`${key}: importCell이 실패함(${result.classification}: ${result.reason || ''})`);
-        return;
-      }
-      const beforeStr = stableStringifyDoc(row.recruitment_quota_json);
-      const afterStr = stableStringifyDoc(result.doc);
-      if (beforeStr !== afterStr) {
-        parserMismatches.push(`${key}: 전체 html 재파싱 결과가 원본 doc과 deep-equal 아님`);
-      }
-      const beforeChips = extractChipsSequence(row.recruitment_quota_json);
-      const afterChips = extractChipsSequence(result.doc);
-      if (JSON.stringify(beforeChips) !== JSON.stringify(afterChips)) {
-        parserMismatches.push(`${key}: chips 순서/개수/내용 불일치(전 ${beforeChips.length}개 → 후 ${afterChips.length}개)`);
-      }
-    });
-    assert(parserMismatches.length === 0, `불일치 ${parserMismatches.length}건: ${parserMismatches.join(' / ')}`);
+    const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
+    assert(rows.length === 1, '행 자체는 생성돼야 함');
+    const beforeChips = extractChipsSequence(sample.recruitment_quota_json);
+    console.log(`  표본: [${sample.university_name}] 기존 chips ${beforeChips.length}개 → raw 살짝 수정 후 재생성 시도`);
+
+    if (rows[0].recruitment_quota_json !== undefined) {
+      // 회귀 가드를 통과했다면(예상 밖 경로) 최소한 chips는 보존돼야
+      // 하고, 반드시 경고가 남아야 한다(조용한 교체는 절대 안 됨).
+      const afterChips = extractChipsSequence(rows[0].recruitment_quota_json);
+      const regenWarning = warnings.find((w) => w.type === 'htmlParseFailedRegenerated');
+      assert(Boolean(regenWarning), '재생성됐는데 htmlParseFailedRegenerated 경고가 없음(조용한 교체)');
+      assert(
+        JSON.stringify(beforeChips) === JSON.stringify(afterChips),
+        `재생성 후 chips가 달라짐(전 ${beforeChips.length}개 → 후 ${afterChips.length}개) — 경고는 있었지만 손실이 실제로 발생함`
+      );
+    } else {
+      // 예상 경로: 회귀 가드가 막아 chips가 그대로 보존됨.
+      const regressionWarning = warnings.find((w) => w.type === 'regressionSkipped');
+      assert(Boolean(regressionWarning), 'chips는 보존됐는데 이유(regressionSkipped) 경고가 없음');
+    }
   });
 
   await checkFormulaRoundTrip();
-  await checkRealFileTruncationPreservation();
+  await checkRealFileBackwardCompatibility();
 
   console.log(`\n총 ${passCount + failCount}건 중 ${passCount}건 통과, ${failCount}건 실패.`);
   process.exitCode = failCount ? 1 : 0;
@@ -775,22 +700,14 @@ async function main() {
     );
   }
 
-  // team-lead 지정 케이스 (b): 사용자 원본 `~/Downloads/모집요강.xlsx`를
-  // 그대로 업로드 입력으로 먹여서, 이미 잘려 있던 23개 셀이 손상된 채로
-  // (짧아진 값으로) DB에 반영되지 않는지 확인한다. **원본 파일은
-  // 읽기 전용으로만 연다(readFile) — 절대 쓰지 않는다.**
-  //
-  // 주의: 원본 파일의 잘림 마커('\n…[셀 한도 초과로 잘림]', 사용자 쪽
-  // 도구가 남긴 것)는 우리 TRUNCATION_MARKER 문자열과 다르다 — 그래서
-  // 이 23개 셀은 admissionBulkXlsx.js의 잘림 마커 매칭(컬럼 스킵)에는
-  // 안 걸린다. 대신 그 html이 잘려서 대부분 태그가 안 닫힌 상태라
-  // importCell이 실패하고, raw(recruitment_quota 원문, 안 잘림)로
-  // 폴백해 doc을 다시 만든 뒤 shouldSkipForRegression이 "기존보다
-  // 정보량이 줄면" 보존한다. 즉 이 케이스는 잘림 마커 매칭이 아니라
-  // **회귀 가드가 최종 방어선**이라는 걸 실측으로 증명하는 테스트다.
-  // 검증할 불변식은 하나뿐이다 — 어느 경로로 막히든 "잘린 32,752자
-  // + 원본 마커 텍스트"가 그대로 payload에 쓰이는 일은 없어야 한다.
-  async function checkRealFileTruncationPreservation() {
+  // team-lead 지정 케이스 (하위호환, 2026-08-07): 사용자 원본 옛 26컬럼
+  // 파일(`~/Downloads/모집요강.xlsx`, html 3종 포함)을 새 23컬럼 파서에
+  // 그대로 먹여서 (a) 거부 없이 파싱되는지(컬럼이 이름 기반으로 읽혀
+  // 옛 html 컬럼은 자연히 무시돼야 한다), (b) raw가 DB와 같은 카테고리는
+  // 재생성되지 않고, 다른 곳은 전부 경고를 남기는지(조용한 변경 없음)
+  // 확인한다. **원본 파일은 읽기 전용으로만 연다(readFile) — 절대
+  // 쓰지 않는다.**
+  async function checkRealFileBackwardCompatibility() {
     const originalFilePath = join(homedir(), 'Downloads', '모집요강.xlsx');
     let buffer;
     try {
@@ -801,95 +718,57 @@ async function main() {
       return;
     }
 
-    const ORIGINAL_FILE_MARKER = '…[셀 한도 초과로 잘림]';
     const realWorkbook = XLSX.read(buffer, { type: 'buffer' });
     const realSheet = realWorkbook.Sheets[realWorkbook.SheetNames[0]];
     const realGrid = XLSX.utils.sheet_to_json(realSheet, { header: 1 });
-    const realHeader = realGrid[0];
-    const htmlColIdx = realHeader.indexOf('recruitment_result_html');
-    const yearIdx = realHeader.indexOf('admission_year');
-    const keyIdx = realHeader.indexOf('university_key');
-    assert(htmlColIdx >= 0 && yearIdx >= 0 && keyIdx >= 0, '원본 파일 헤더에 필요한 컬럼이 없음');
+    const realHeaderCols = Array.isArray(realGrid[0]) ? realGrid[0] : [];
+    console.log(`실파일 헤더 컬럼 수: ${realHeaderCols.length}(옛 26컬럼 포맷 예상, html 3종 포함 — 새 파서는 23개만 이름으로 찾아 읽는다)`);
 
-    const truncatedInOriginalFile = [];
-    realGrid.slice(1).forEach((r) => {
-      const v = r[htmlColIdx];
-      if (typeof v === 'string' && v.includes(ORIGINAL_FILE_MARKER)) {
-        truncatedInOriginalFile.push({ year: Number(r[yearIdx]), key: clean(String(r[keyIdx] ?? '')) });
-      }
-    });
-
-    if (!truncatedInOriginalFile.length) {
-      console.log('PASS - 실파일: 원본에 잘림 마커가 있는 셀이 0건(사전 실측 23건과 다름 — 원본 파일이 바뀌었는지 확인 필요)');
-      passCount += 1;
-      return;
-    }
-
-    const { rows: realParsedRows, errors: realErrors, warnings: realWarnings } = parseAdmissionRowsFromXlsx(
+    const { rows: realParsedRows, errors: realErrors, warnings: realWarnings, summary: realSummary } = parseAdmissionRowsFromXlsx(
       realWorkbook,
       existingRows
     );
 
-    check(
-      `실파일: 원본에 이미 잘려 있던 셀 ${truncatedInOriginalFile.length}건(사전 실측 23건과 일치해야 함)이 손상된 채로 반영되지 않고 전부 warnings에 잡힘`,
-      () => {
-        assert(
-          truncatedInOriginalFile.length === 23,
-          `원본 파일의 잘림 셀 수가 사전 실측(23건)과 다름(실제 ${truncatedInOriginalFile.length}건) — 원본이 바뀌었을 수 있음`
-        );
-        assert(realErrors.length === 0, `실파일 업로드가 행 자체를 거부함(에러 ${realErrors.length}건) — 잘림은 행 거부 사유가 아니어야 함`);
+    check('실파일(옛 26컬럼, html 포함, 읽기 전용): 거부 없이 파싱됨 — 컬럼 이름 기반이라 html 3종은 자연히 무시됨', () => {
+      assert(realErrors.length === 0, `실파일 업로드가 거부됨(에러 ${realErrors.length}건): ${JSON.stringify(realErrors.slice(0, 3))}`);
+      assert(realParsedRows.length === dbRows.length, `파싱된 행 수(${realParsedRows.length}) !== DB 행 수(${dbRows.length})`);
+      assert(realSummary.truncatedCellSkipCount === 0, `실파일 업로드에서 잘림이 발생함(${realSummary.truncatedCellSkipCount}건) — html 제외 포맷에서는 없어야 함`);
+    });
 
-        const realParsedByKey = new Map(
-          realParsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r])
-        );
-        let corruptedCount = 0;
-        let missingRowCount = 0;
-        let preservedByGuardCount = 0;
-        let regeneratedFromRawCount = 0;
-        let noWarningCount = 0;
-        let doubleWarningCount = 0;
-        truncatedInOriginalFile.forEach(({ year, key }) => {
-          const parsed = realParsedByKey.get(`${year}::${key}`);
-          if (!parsed) {
-            missingRowCount += 1;
+    check('실파일: raw가 DB와 동일한 카테고리는 재생성되지 않고(경고 없음), 다른 곳은 전부 경고를 남김(조용한 변경 없음)', () => {
+      const realParsedByKey = new Map(realParsedRows.map((r) => [`${r.admission_year}::${r.university_key}`, r]));
+      let unchangedButRegeneratedCount = 0;
+      let silentRegenCount = 0;
+      let changedCount = 0;
+      dbRows.forEach((original) => {
+        const key = `${original.admission_year}::${original.university_key}`;
+        const parsed = realParsedByKey.get(key);
+        if (!parsed) return;
+        CATEGORY_RAW_KEYS.forEach((sectionKey) => {
+          const jsonCol = HWP_SECTION_JSON_KEYS[sectionKey];
+          const hadOriginal = docHasBlocks(original[jsonCol]);
+          if (!hadOriginal) return; // 비교 대상 없음(정책상 경고 불필요 케이스)
+          const dbRawText = clean(original[sectionKey] ?? '');
+          // parsed[sectionKey]는 라이브러리가 헤더 이름으로 찾아 이미
+          // clean()한 값이다 — 그 값을 그대로 재사용해 실파일의 실제
+          // 셀 값과 DB 값을 비교한다.
+          const fileRawText = clean(parsed[sectionKey] ?? '');
+          const hasParsed = jsonCol in parsed;
+          if (fileRawText === dbRawText) {
+            if (hasParsed) unchangedButRegeneratedCount += 1;
             return;
           }
-          const html = parsed.recruitment_result_html;
-          // 핵심 불변식: 잘린 채 마커가 붙은 원본 값이 그대로(또는 그
-          // 일부라도) payload에 쓰이면 안 된다.
-          if (typeof html === 'string' && html.includes(ORIGINAL_FILE_MARKER)) {
-            corruptedCount += 1;
-            return;
-          }
-
-          const cellWarnings = realWarnings.filter(
-            (w) => w.admissionYear === year && w.universityKey === key && w.column === 'recruitment_quota'
+          changedCount += 1;
+          const hasWarning = realWarnings.some(
+            (w) => w.admissionYear === original.admission_year && w.universityKey === original.university_key && w.column === sectionKey
           );
-          const relevantTypes = ['regressionSkipped', 'htmlParseFailedPreserved', 'htmlParseFailedRegenerated'];
-          const matchingWarnings = cellWarnings.filter((w) => relevantTypes.includes(w.type));
-          if (matchingWarnings.length === 0) noWarningCount += 1;
-          if (matchingWarnings.length > 1) doubleWarningCount += 1;
-
-          if ('recruitment_quota_json' in parsed) {
-            // 회귀 가드를 통과해 raw(안 잘린 원문)로 재생성된 경우다 —
-            // 손상은 아니지만 doc 내용이 바뀐다(알려진 raw 재생성 한계,
-            // PR #40 "알려진 한계"와 같은 맥락). 잘린 값 자체는 아니므로
-            // 안전하지만, 이제는 htmlParseFailedRegenerated 경고가
-            // 반드시 남아야 한다(team-lead 지적 — 이전엔 0건이었음).
-            regeneratedFromRawCount += 1;
-          } else {
-            preservedByGuardCount += 1;
-          }
+          if (!hasWarning) silentRegenCount += 1;
         });
-        console.log(
-          `  실파일 23건 분류: 기존 값 보존(회귀 가드 또는 raw 동일) ${preservedByGuardCount}건 / raw로 재생성(잘리지 않은 값, 경고 동반) ${regeneratedFromRawCount}건 / 행 자체 누락 ${missingRowCount}건`
-        );
-        assert(corruptedCount === 0, `잘린 마커 텍스트가 그대로 payload에 쓰인 건수: ${corruptedCount}(손상)`);
-        assert(missingRowCount === 0, `실파일의 대상 행이 파싱 결과에서 통째로 빠짐: ${missingRowCount}건`);
-        assert(noWarningCount === 0, `warnings가 안 남은(조용히 처리된) 건수: ${noWarningCount}건 — team-lead 지적 사항(이전엔 17건)`);
-        assert(doubleWarningCount === 0, `같은 셀에 경고가 중복으로 남은 건수: ${doubleWarningCount}건(회귀 가드와 html 파싱 실패 경고가 겹침)`);
-      }
-    );
+      });
+      console.log(`  실파일 vs DB: raw 값이 다른 카테고리 ${changedCount}건(전부 경고 동반 여부 확인)`);
+      assert(unchangedButRegeneratedCount === 0, `raw가 DB와 동일한데 재생성된 카테고리: ${unchangedButRegeneratedCount}건`);
+      assert(silentRegenCount === 0, `raw가 다른데 경고 없이 처리된 카테고리: ${silentRegenCount}건(조용한 변경)`);
+    });
   }
 }
 

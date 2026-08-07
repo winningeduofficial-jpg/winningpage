@@ -1,82 +1,79 @@
 // =====================================================================
 // 대입모집요강 일괄 엑셀 왕복(admission_university_resources 전체 행 ↔
-// 사용자가 준 `모집요강.xlsx`와 동일한 26컬럼 포맷).
+// 23컬럼 포맷 — html 3종 제외, 2026-08-07 재설계).
 //
 // 이 파일은 순수 함수만 담는다. DB 접근·React/DOM 의존 없음 — 어드민
 // 목록 페이지(safehtml 담당)가 이 함수들을 호출하고, DB 조회/쓰기는
 // 호출부가 한다(이 lib은 "무엇을 쓸지"만 계산한다).
 //
-// 컬럼 순서(26개, 사용자가 준 원본 파일 그대로 — 새로 추가/재배열하지
-// 않는다): id / admission_year / source_name / source_version / region /
-// university_name / university_key / campus / previous_year_changes /
-// selection_method / minimum_requirements / exam_schedule /
-// school_record_method / recruitment_quota / jungsi_guideline_url /
-// official_source_url / memo / detail_status / matched_hwp_name /
-// is_active / created_at / updated_at / recruitment_result_html /
-// matched_text_name / minimum_requirements_html / school_record_method_html
+// 컬럼 순서(23개, 사용자가 준 원본 26컬럼 파일에서 html 3종만 뺐다 —
+// 나머지 23개는 순서 그대로): id / admission_year / source_name /
+// source_version / region / university_name / university_key / campus /
+// previous_year_changes / selection_method / minimum_requirements /
+// exam_schedule / school_record_method / recruitment_quota /
+// jungsi_guideline_url / official_source_url / memo / detail_status /
+// matched_hwp_name / is_active / created_at / updated_at / matched_text_name
 //
-// 원본 포맷의 특징(그대로 따른다):
-//   - html 컬럼은 6종이 아니라 **3종만**(recruitment_result_html /
-//     minimum_requirements_html / school_record_method_html) 있다.
-//     previous_year_changes/selection_method/exam_schedule은 xlsx에
-//     html 칸 자체가 없다.
-//   - *_json 6종은 아예 없다. 업로드 시 doc은 항상 재생성한다(아래 정책).
+// 2026-08-07 재설계 배경(사용자 지시): 원래 26컬럼 포맷엔 html 3종
+// (recruitment_result_html/minimum_requirements_html/
+// school_record_method_html)이 있었는데, 잘림(32,767자 초과)이 실측상
+// 전부 이 3종에서만 났다(218행 중 23행, 다른 컬럼은 0건 — 17566df).
+// html은 애초에 파생물(정본은 *_json, html은 미러이고 Stage 1~4로
+// 폐기 예정)이라 엑셀 포맷에서 아예 뺐다 — 잘림 문제 자체가 없어진다
+// (html 뺀 나머지 최대 셀 길이는 6,279자, 32,767 근처도 안 간다).
+//
+// 원본 포맷과 달라진 점: *_json 6종은 원본에도 없었다(업로드 시 doc은
+// 항상 재생성 또는 보존, 아래 정책). 빈 컬럼(source_name/source_version/
+// campus/jungsi_guideline_url/official_source_url/memo)은 지금 DB가
+// 비어 있을 뿐 그대로 남긴다 — 관리자가 엑셀로 채울 수 있어야 한다.
 //
 // 매칭 키: (admission_year, university_key)다. id는 참고용으로만 읽고
 // 매칭·payload 어디에도 쓰지 않는다(연도별 관리 도입, 2026-08-06 —
 // 스키마에 이미 unique(admission_year, university_key) 제약이 있다).
 //
-// doc/html 재생성 정책(임포터 정책과 동일, 어드민 buildPreviewPatch의
-// raw-우선과는 의도적으로 다르다 — 이건 새 소스를 업로드하는 흐름이라
-// html-우선이 맞다):
-//   1) 업로드된 html이 있고 비어있지 않으면 → 그 html에서 doc 임포트
-//      (importCell, src/lib/admissionHtmlImport.js). 성공하면 html은
-//      업로드된 값을 그대로 쓴다.
-//   2) 1)이 없거나 실패하면, raw가 있으면 → buildHwpCategoryDoc으로 doc
-//      생성 + renderDocToHtml로 html 미러를 새로 만든다(업로드된 html을
-//      그대로 살리지 않는다 — 실패한 html과 새 doc이 어긋나면 드리프트가
-//      난다).
-//   3) 어느 쪽도 안 되면 그 카테고리는 payload에서 통째로 뺀다(json/html
-//      둘 다) — 기존 DB 값 보존("delete=무해" 패턴).
-// 카테고리별로 후보 doc이 나오면 shouldSkipForRegression(admissionDoc.js)
-// 으로 기존 doc(있다면)보다 정보량이 줄었는지 본다. 줄었으면 그 카테고리도
-// 통째로 미기록하고 warnings에 담는다.
+// doc/html 재생성 정책(2026-08-07 재설계 — html-우선을 버리고 raw
+// 비교를 1차 판정 기준으로 올렸다. html이 포맷에서 빠졌으니 "html 파싱
+// 실패했을 때만 raw를 본다"는 예전 2차 방어로는 218행 전부가 매번
+// raw 재생성을 타게 된다 — 그러면 안 된다):
+//   1) 기존 doc이 있고, 업로드 raw == 기존 DB raw(관리자가 안 건드림)
+//      → **아무것도 하지 않는다.** doc·html 둘 다 기존 값 그대로,
+//      재생성 자체를 시도하지 않는다. 경고 불필요 — 안 고쳤으니 안
+//      바뀌는 게 정상 동작이다.
+//   2) 기존 doc이 있고, 업로드 raw != 기존 DB raw(의도적 수정) →
+//      raw에서 buildHwpCategoryDoc으로 doc 재생성 + renderDocToHtml로
+//      html 미러 재생성. shouldSkipForRegression(admissionDoc.js)으로
+//      기존보다 정보량이 줄었는지 본다(회귀 가드는 그대로 적용) —
+//      줄었으면 통째로 미기록 + warnings. 안 줄었으면 실제로 반영하고
+//      **반드시 warnings를 남긴다**("원문 수정으로 문서를 다시
+//      생성했습니다 — 표 구조가 단순해질 수 있습니다", raw 재생성은
+//      표 구조 손실 위험이 있는 알려진 한계다 — `load-admission-
+//      content.mjs` 사고와 같은 실패 모드를 warnings로 막는다).
+//   3) 기존 doc이 없으면(신규 대학/연도, 또는 기존 행은 있으나 그
+//      카테고리가 비어 있던 경우) → 비교 대상이 없으니 raw에서 그냥
+//      생성한다. 경고 불필요.
+//   4) raw도 없고 기존 doc도 없으면 그 카테고리는 payload에서 통째로
+//      뺀다(json/html 둘 다, "delete=무해" 패턴).
+// **"안 고친 카테고리는 절대 안 바뀐다"가 이 정책의 불변식이다.**
 //
-// 잘림 마커 처리(2026-08-06 재설계): 처음엔 잘림 마커가 있는 셀이 하나만
-// 있어도 행 전체를 거부했다. 그런데 실측 결과 잘림은 항상
-// recruitment_result_html 한 컬럼에서만 난다(218행 중 23행, 다른 25개
-// 컬럼은 0건) — 행 전체를 거부하면 그 23개교는 university_name 오타 같은
-// 사소한 것도 엑셀로 못 고친다. 그래서 **6개 콘텐츠 카테고리(raw+html)는
-// 컬럼(카테고리) 단위로만 스킵**한다 — 그 카테고리의 doc/html/raw를
-// 전부 payload에서 빼고(기존 DB 값 보존) 나머지 카테고리·메타데이터는
-// 정상 처리한다. 메타데이터 컬럼(university_name/region/memo 등)이
-// 잘린 경우는(실측 0건, 짧은 식별자·URL이라 사실상 안 남) 행 전체를
-// 거부한다 — 발생한 적 없는 경로라 굳이 컬럼 단위로 세분화하지 않았다.
+// 잘림 마커 방어(17566df, 2026-08-06)는 남겨뒀다 — 지금은 실측상 0건
+// (html이 빠져서 잘릴 셀이 없다)이지만, 다른 컬럼이 나중에 32,767자를
+// 넘을 가능성 자체를 막는 방어 로직이라 코드는 유지한다(검증 스크립트가
+// 0건임을 계속 확인한다). 잘림 마커가 있는 카테고리(raw)는 그 카테고리
+// 만 스킵하고(기존 DB 값 보존), 메타데이터 컬럼이 잘리면 행 전체를
+// 거부한다(둘 다 기존과 동일한 동작, html 컬럼 대상만 빠졌다).
 //
-// html 파싱 실패 시 조용한 raw 재생성 방지(같은 날 추가): 위 잘림 마커
-// 매칭은 우리 마커 문자열(TRUNCATION_MARKER)에만 반응한다 — 다른 도구가
-// 남긴 마커(예: 사용자 원본 파일의 '\n…[셀 한도 초과로 잘림]', 우리
-// 것과 문자열이 다르다)는 안 걸린다. 그래도 잘린 html은 태그가 안
-// 닫혀 있어 대개 importCell 파싱에 실패하므로, "html 파싱 실패"라는
-// 사실 자체를 출처와 무관한 신호로 쓴다 — 마커 문자열을 추가로 늘리는
-// 방향(끝이 없다)이 아니라, 파싱 실패 시 raw 비교로 대응한다:
-//   - html 파싱 실패 + 기존 doc 있음 + 업로드 raw == DB raw(안 바뀜)
-//     → 재생성 자체를 시도하지 않고 기존 doc 보존 + warnings.
-//   - html 파싱 실패 + 기존 doc 있음 + 업로드 raw != DB raw(의도적 수정)
-//     → raw로 재생성하되(회귀 가드도 그대로 통과해야 함) 결과가
-//     payload에 실제로 반영되면 **반드시 warnings에 남긴다**("표 구조가
-//     단순해질 수 있습니다") — 이전엔 회귀 가드만 통과하면 경고 없이
-//     조용히 교체됐다(회귀 가드는 정보량만 보고 표 구조 손실은 못 잡음
-//     — `load-admission-content.mjs` 사고와 같은 실패 모드).
-//   - 기존 doc이 없으면(신규 카테고리) 이 분기를 타지 않는다 — 덮어쓸
-//     기존 값이 없어 "조용한 교체" 위험 자체가 없다.
+// 하위호환(2026-08-07): 옛 26컬럼 파일(html 포함)을 업로드해도 거부하지
+// 않는다 — 헤더 행을 실제로 읽어 **컬럼 이름으로** 값을 찾는다(위치
+// 고정 인덱스가 아니다). BULK_XLSX_COLUMNS에 없는 컬럼(옛 html 3종
+// 포함)은 그냥 무시된다 — html을 읽어서 쓰지 않는다(위 정책에 html
+// 자체가 없다). 이 방식은 컬럼이 없어도(구버전 필드 부재) 안전하고
+// (undefined로 처리), 컬럼 순서가 달라도 안전하다.
 // =====================================================================
 
 import * as XLSX from 'xlsx';
 
 import { buildHwpCategoryDoc, renderDocToHtml, HWP_SECTION_HTML_KEYS, clean } from './admissionParsing.js';
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, shouldSkipForRegression } from './admissionDoc.js';
-import { importCell } from './admissionHtmlImport.js';
 
 export const BULK_XLSX_COLUMNS = [
   'id',
@@ -101,23 +98,11 @@ export const BULK_XLSX_COLUMNS = [
   'is_active',
   'created_at',
   'updated_at',
-  'recruitment_result_html',
-  'matched_text_name',
-  'minimum_requirements_html',
-  'school_record_method_html'
+  'matched_text_name'
 ];
 
 // 6개 카테고리 → raw 컬럼명(1:1, BULK_XLSX_COLUMNS의 컬럼명과 동일하다).
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
-
-// 6개 카테고리 → xlsx의 html 컬럼명. 원본 포맷에 html 칸이 있는 3종만
-// 채운다 — 나머지 3종(previous_year_changes/selection_method/exam_schedule)
-// 은 xlsx에 칸이 없으므로 매핑도 없다(항상 raw 경로만 탄다).
-const CATEGORY_XLSX_HTML_COLUMN = {
-  minimum_requirements: 'minimum_requirements_html',
-  school_record_method: 'school_record_method_html',
-  recruitment_quota: 'recruitment_result_html'
-};
 
 // 메타데이터 컬럼(콘텐츠 카테고리 6종 제외) 중 잘림 마커를 검사할 대상.
 // admission_year/university_key/id/is_active/created_at/updated_at은
@@ -195,7 +180,7 @@ function forceStringCellTypes(worksheet) {
 }
 
 /**
- * DB 행 배열(26컬럼 필드를 가진 객체) → xlsx workbook. 32,767자를 넘는
+ * DB 행 배열(23컬럼 필드를 가진 객체) → xlsx workbook. 32,767자를 넘는
  * 셀은 조용히 자르지 않고, 잘린 자리에 TRUNCATION_MARKER를 남긴 뒤
  * truncatedCells에 기록한다(호출부가 경고를 띄울 수 있게). 모든 문자열
  * 셀은 명시적으로 's'(문자열) 타입으로 강제한다(formula injection 방어
@@ -246,46 +231,33 @@ function parseBooleanCell(value, fallback = true) {
 // jsonDetail } — doc/html이 undefined면 그 카테고리는 payload에서
 // 아예 뺀다(기존 값 보존).
 //
-// html 파싱 실패 시 조용한 raw 재생성 방지(2026-08-06 재설계): html이
-// 있는데 파싱에 실패하고 기존 doc이 있으면(existingDoc), 곧바로 raw로
-// 재생성하지 않고 먼저 "업로드 raw가 기존 DB raw와 같은가"를 본다.
-//   - 같다 → 관리자가 이 카테고리를 손대지 않았다는 뜻이다(html만 깨져
-//     있을 뿐). 재생성 자체를 시도하지 않고 기존 doc을 그대로 보존한다
-//     (jsonSource: 'htmlParseFailedPreserved').
-//   - 다르다 → 관리자가 의도적으로 raw를 고쳤다는 뜻이다. raw로
-//     재생성은 하되(회귀 가드도 그대로 통과해야 한다 — 아래에서 한 번만
-//     평가한다), 결과가 회귀 가드를 통과해 payload에 실제로 반영되면
-//     'regeneratedFromRawAfterHtmlParseFailure'로 표시해 반드시 경고가
-//     남게 한다. 이전엔 회귀 가드만 통과하면 경고 없이 조용히 교체됐다
-//     — 그 조용한 경로가 문제였다(회귀 가드는 정보량만 보고 표 구조
-//     손실은 못 잡는다).
-// existingDoc이 없으면(신규 카테고리) 이 분기는 타지 않는다 — 덮어쓸
-// 기존 값 자체가 없어 "조용한 교체" 위험이 없다.
-function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc, existingRawText, referenceRow) {
+// raw 비교가 1차 판정 기준이다(2026-08-07 재설계, html 포맷 제외에 따른
+// 후속 — html-우선 임포트를 버렸다):
+//   - 기존 doc이 있고 업로드 raw == 기존 DB raw → 재생성 자체를 시도
+//     하지 않고 기존 doc·html을 그대로 보존한다(jsonSource:
+//     'rawUnchangedPreserved'). 정상 동작이라 경고를 만들지 않는다 —
+//     안 고쳤으니 안 바뀌는 게 맞다(호출부도 이 jsonSource에는 warnings를
+//     안 쌓는다).
+//   - 기존 doc이 있고 업로드 raw != 기존 DB raw(의도적 수정) → raw에서
+//     재생성하고(회귀 가드 통과 필요), 통과해 실제로 반영되면
+//     'rawChangedRegenerated'로 표시해 호출부가 반드시 경고를 남기게
+//     한다(raw 재생성은 표 구조가 단순해질 수 있는 알려진 한계다).
+//   - 기존 doc이 없으면(신규 대학/연도, 또는 그 카테고리가 비어 있던
+//     기존 행) 비교 대상이 없다 — raw에서 그냥 생성한다("generated-
+//     from-raw", 경고 불필요).
+function buildCategoryFromXlsxRow(sectionKey, rawText, existingDoc, existingRawText, referenceRow) {
+  if (existingDoc) {
+    const rawUnchanged = clean(rawText) === clean(existingRawText || '');
+    if (rawUnchanged) {
+      return { doc: undefined, html: undefined, jsonSource: 'rawUnchangedPreserved' };
+    }
+  }
+
   let candidate;
   let html;
   let detail;
-  let htmlParseFailed = false;
 
-  if (uploadedHtml) {
-    const result = importCell(sectionKey, uploadedHtml, referenceRow);
-    if (result.classification === 'imported') {
-      candidate = result.doc;
-      html = uploadedHtml;
-    } else {
-      htmlParseFailed = true;
-      detail = `html→doc 임포트 실패(${result.classification}): ${result.reason || ''}`;
-    }
-  }
-
-  if (candidate === undefined && htmlParseFailed && existingDoc) {
-    const rawUnchanged = clean(rawText) === clean(existingRawText || '');
-    if (rawUnchanged) {
-      return { doc: undefined, html: undefined, jsonSource: 'htmlParseFailedPreserved', jsonDetail: detail };
-    }
-  }
-
-  if (candidate === undefined && rawText) {
+  if (rawText) {
     try {
       const generated = buildHwpCategoryDoc(sectionKey, rawText, referenceRow, referenceRow.university_name);
       const { ok, errors } = validateAdmissionDoc(generated);
@@ -301,7 +273,7 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
   }
 
   if (candidate === undefined) {
-    return { doc: undefined, html: undefined, jsonSource: rawText || uploadedHtml ? 'failed' : 'empty', jsonDetail: detail };
+    return { doc: undefined, html: undefined, jsonSource: rawText ? 'failed' : 'empty', jsonDetail: detail };
   }
 
   const guard = shouldSkipForRegression(existingDoc, candidate);
@@ -309,11 +281,7 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
     return { doc: undefined, html: undefined, jsonSource: 'regressionSkipped', jsonDetail: guard.detail };
   }
 
-  if (htmlParseFailed) {
-    return { doc: candidate, html, jsonSource: 'regeneratedFromRawAfterHtmlParseFailure', jsonDetail: detail };
-  }
-
-  return { doc: candidate, html, jsonSource: uploadedHtml && html === uploadedHtml ? 'imported-from-html' : 'generated-from-raw' };
+  return { doc: candidate, html, jsonSource: existingDoc ? 'rawChangedRegenerated' : 'generated-from-raw' };
 }
 
 /**
@@ -326,14 +294,19 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  *   *_json(HWP_SECTION_JSON_KEYS 값, 회귀 가드 비교용), 그리고 6개
  *   raw 카테고리 컬럼(CATEGORY_KEYS와 같은 이름 — previous_year_changes/
  *   selection_method/minimum_requirements/exam_schedule/
- *   school_record_method/recruitment_quota, html 파싱 실패 시 "raw가
- *   안 바뀌었나" 비교용)을 담아야 한다. 호출부가 DB에서 미리 조회해
+ *   school_record_method/recruitment_quota, "업로드 raw가 기존 DB raw와
+ *   같은가" 1차 판정 비교용)을 담아야 한다. 호출부가 DB에서 미리 조회해
  *   넘긴다 — 이 lib은 DB를 안 만진다.
  * warnings/errors는 둘 다 `type`으로 종류를 구분한다(열거형 — UI는
  * `reason` 문자열을 파싱하지 말고 `type`으로 분기·집계해야 한다.
  * `reason`은 사람이 읽는 설명 전용이다). `summary.warningCounts`/
  * `errorCounts`는 각 배열을 `type`별로 센 것 — 목록을 접어도 건수는
  * 항상 보여야 하는 UI 요구사항 때문에 추가했다.
+ *
+ * 컬럼은 **이름으로** 찾는다(위치 고정 인덱스가 아니다) — 옛 26컬럼
+ * 파일(html 3종 포함)을 업로드해도 거부하지 않고, BULK_XLSX_COLUMNS에
+ * 있는 23개만 이름으로 찾아 읽는다. 나머지(옛 html 컬럼 등)는 그냥
+ * 무시된다.
  *
  * @returns {{
  *   rows: Array<Record<string, unknown>>,
@@ -343,11 +316,12 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, uploadedHtml, existingDoc
  *   }>,
  *   warnings: Array<{
  *     row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string,
- *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'htmlParseFailedPreserved' | 'htmlParseFailedRegenerated'
- *   }>,
+ *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'htmlParseFailedRegenerated'
+ *   }>, // 'htmlParseFailedRegenerated'는 이름이 남아있을 뿐 트리거는 raw
+ *      // 비교다(Admin.jsx가 이 문자열에 이미 의존해 이름을 안 바꿨다).
  *   summary: {
  *     willInsert: number, willUpdate: number, willSkip: number, newYears: number[],
- *     newUniversityCount: number, truncatedCellSkipCount: number, htmlParseFailedCount: number,
+ *     newUniversityCount: number, truncatedCellSkipCount: number,
  *     warningCounts: Record<string, number>, errorCounts: Record<string, number>
  *   }
  * }}
@@ -365,13 +339,10 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   // 잘림 마커 때문에 카테고리 하나만 스킵된 셀 수(행 자체는 정상 처리됨).
   // willSkip과 원인이 다르므로 섞지 않는다 — willSkip은 행 전체가 통째로
   // 안 쓰인 경우(errors와 1:1), 이건 행은 쓰였는데 그 안의 셀 하나만
-  // 기존 값으로 보존된 경우다.
+  // 기존 값으로 보존된 경우다. html이 포맷에서 빠져 지금은 실측상 0건
+  // 이지만(가장 긴 콘텐츠 컬럼도 6,279자, 32,767 근처도 안 감), 다른
+  // 컬럼이 나중에 한도를 넘을 수 있어 방어 로직 자체는 남겨뒀다.
   let truncatedCellSkipCount = 0;
-  // html 파싱이 실패해 raw 경로로 넘어간 카테고리 수(보존됐든 재생성
-  // 됐든 둘 다 센다 — 원인이 "html 파싱 실패"로 같다). truncatedCellSkipCount/
-  // 회귀 가드와도 원인이 달라 섞지 않는다(잘림 마커도 없고 정보량도
-  // 안 줄었는데 html 자체가 파싱이 안 된 경우다).
-  let htmlParseFailedCount = 0;
   const newYearsSet = new Set();
 
   if (!worksheet) {
@@ -387,7 +358,6 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
         newYears: [],
         newUniversityCount,
         truncatedCellSkipCount,
-        htmlParseFailedCount,
         warningCounts: buildTypeCounts(warnings),
         errorCounts: buildTypeCounts(errors)
       }
@@ -405,7 +375,19 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   });
 
   const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  const bodyRows = grid.slice(1); // 헤더 1행 제외(순서 검증은 하지 않는다 — 컬럼 개수/순서는 항상 BULK_XLSX_COLUMNS로 취급)
+  // 헤더 행을 실제로 읽어 컬럼 이름 → 인덱스 맵을 만든다(위치 고정
+  // 인덱스가 아니다) — 옛 26컬럼 파일(html 3종 포함)이나 컬럼 순서가
+  // 다른 파일이 와도 안전하다. BULK_XLSX_COLUMNS에 없는 컬럼(옛 html
+  // 등)은 맵에는 들어가지만 아래에서 아예 조회하지 않아 자연히 무시된다.
+  const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
+  const columnIndexByName = new Map();
+  headerRow.forEach((name, idx) => {
+    const key = typeof name === 'string' ? name.trim() : name;
+    if (key !== undefined && key !== null && key !== '' && !columnIndexByName.has(key)) {
+      columnIndexByName.set(key, idx);
+    }
+  });
+  const bodyRows = grid.slice(1);
 
   bodyRows.forEach((rawRow, rowIndex) => {
     // 완전히 빈 행(엑셀 트레일링 공백 등)은 조용히 건너뛴다 — 집계에도
@@ -413,8 +395,9 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     if (!rawRow.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')) return;
 
     const rowObj = {};
-    BULK_XLSX_COLUMNS.forEach((col, i) => {
-      rowObj[col] = rawRow[i];
+    BULK_XLSX_COLUMNS.forEach((col) => {
+      const idx = columnIndexByName.get(col);
+      rowObj[col] = idx === undefined ? undefined : rawRow[idx];
     });
 
     const admissionYear = Number(rowObj.admission_year);
@@ -501,26 +484,21 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     const referenceRow = { university_name: universityName, detail_status: payload.detail_status };
 
     CATEGORY_KEYS.forEach((sectionKey) => {
-      const xlsxHtmlColumn = CATEGORY_XLSX_HTML_COLUMN[sectionKey];
       const rawCellValue = rowObj[sectionKey];
-      const htmlCellValue = xlsxHtmlColumn ? rowObj[xlsxHtmlColumn] : undefined;
       const rawTruncated = typeof rawCellValue === 'string' && rawCellValue.includes(TRUNCATION_MARKER);
-      const htmlTruncated = typeof htmlCellValue === 'string' && htmlCellValue.includes(TRUNCATION_MARKER);
 
-      // 잘림 마커가 있으면 이 카테고리는 raw/html/json 전부 payload에서
-      // 뺀다(기존 DB 값 보존) — 잘린 원문으로 doc을 새로 만들려는 시도
-      // 자체를 안 한다(회귀 가드와 겹쳐 적용될 일이 없다: 후보를 아예
-      // 안 만드니 shouldSkipForRegression까지 갈 필요가 없다).
-      if (rawTruncated || htmlTruncated) {
+      // 잘림 마커가 있으면 이 카테고리는 raw/json/html 전부 payload에서
+      // 뺀다(기존 DB 값 보존) — html이 포맷에서 빠져 지금은 실측상 0건
+      // 이지만, 방어 로직 자체는 남겨뒀다(위 파일 헤더 주석 참고).
+      if (rawTruncated) {
         truncatedCellSkipCount += 1;
-        const truncatedCols = [rawTruncated ? sectionKey : null, htmlTruncated ? xlsxHtmlColumn : null].filter(Boolean);
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
           type: 'truncated',
-          reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${truncatedCols.join(', ')})`
+          reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${sectionKey})`
         });
         return;
       }
@@ -528,7 +506,6 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       const rawText = clean(rawCellValue);
       payload[sectionKey] = rawText || null;
 
-      const uploadedHtml = xlsxHtmlColumn ? clean(htmlCellValue) : '';
       const dbHtmlColumn = HWP_SECTION_HTML_KEYS[sectionKey];
       const jsonColumn = HWP_SECTION_JSON_KEYS[sectionKey];
       const existingDoc = existing?.[jsonColumn];
@@ -537,7 +514,6 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       const { doc, html, jsonSource, jsonDetail } = buildCategoryFromXlsxRow(
         sectionKey,
         rawText,
-        uploadedHtml,
         existingDoc,
         existingRawText,
         referenceRow
@@ -554,27 +530,32 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           type: 'regressionSkipped',
           reason: `정보량 감소로 기존 값 보존: ${jsonDetail}`
         });
-      } else if (jsonSource === 'htmlParseFailedPreserved') {
-        htmlParseFailedCount += 1;
-        warnings.push({
-          row: rowIndex,
-          admissionYear,
-          universityKey,
-          column: sectionKey,
-          type: 'htmlParseFailedPreserved',
-          reason: `html 파싱 실패로 기존 값 보존(업로드 원문이 기존 DB 원문과 동일함): ${jsonDetail}`
-        });
-      } else if (jsonSource === 'regeneratedFromRawAfterHtmlParseFailure') {
-        htmlParseFailedCount += 1;
+      } else if (jsonSource === 'rawChangedRegenerated') {
+        // type 값은 의도적으로 'htmlParseFailedRegenerated' 그대로
+        // 유지한다(이름을 안 바꿨다) — Admin.jsx(safehtml, 커밋 시점
+        // 기준 이미 구현됨)가 이 문자열을 BULK_XLSX_WARNING_GROUPS에
+        // 하드코딩해 "반영됨 — 품질 주의" 그룹으로 분리해 보여주고
+        // 있다. 트리거 조건은 html 파싱 실패에서 raw 비교로 바뀌었지만
+        // ("표 구조가 단순해질 수 있는 재생성"이라는 사용자 노출 의미는
+        // 동일) 이름을 새로 붙이면 이미 배포된 UI 분류가 깨진다 — 계약
+        // 변경은 보고 후 승인이 원칙이라 이름은 그대로 두고 트리거
+        // 조건만 바꿨다.
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
           type: 'htmlParseFailedRegenerated',
-          reason: `html 파싱 실패로 raw에서 재생성했습니다 — 표 구조가 단순해질 수 있습니다: ${jsonDetail}`
+          reason: '원문 수정으로 문서를 다시 생성했습니다 — 표 구조가 단순해질 수 있습니다.'
         });
       }
+      // 'rawUnchangedPreserved'는 경고를 만들지 않는다 — 안 고쳤으니
+      // 안 바뀌는 정상 동작이다(위 buildCategoryFromXlsxRow 주석 참고).
+      // 예전엔 이 경로(당시 이름 htmlParseFailedPreserved)도 경고를
+      // 남겼지만, 이번 재설계에서 "경고 불필요"로 명시적으로 바뀌었다
+      // — Admin.jsx의 '반영 안 됨' 그룹은 이제 truncated/regressionSkipped
+      // 만으로도 여전히 유효하게 동작한다(항목 수만 줄어들 뿐 깨지지
+      // 않는다).
 
       if (doc !== undefined) {
         payload[jsonColumn] = doc;
@@ -596,7 +577,6 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       newYears: [...newYearsSet].sort((a, b) => a - b),
       newUniversityCount,
       truncatedCellSkipCount,
-      htmlParseFailedCount,
       warningCounts: buildTypeCounts(warnings),
       errorCounts: buildTypeCounts(errors)
     }
