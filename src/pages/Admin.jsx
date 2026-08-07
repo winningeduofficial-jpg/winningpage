@@ -5177,29 +5177,36 @@ function AdmissionActiveYearSummary({ rows }) {
 // (docs/admission-bulk-xlsx-ui-design.md, 커밋 대상 아님) §3의 흐름을
 // 그대로 구현했다:
 //   다운로드(항상 전체, 필터 무시) → 업로드(파일 선택만으로는 반영 안
-//   됨) → 미리보기(신규/수정/거부/잘림보존/html파싱실패 건수 +
+//   됨) → 미리보기(신규/수정/거부/잘림보존/raw변경재생성 건수 +
 //   errors 항상 펼침 + warnings 4그룹, 건수는 항상 보이고 목록만 접힘)
 //   → "영향받는 N행을 확인했습니다" 체크박스로 게이트된 적용 → 재조회.
 //
-// warnings.type 계약(team-lead가 phase0와 확정, 커밋 8669438)을 그대로
+// warnings.type 계약(team-lead가 phase0와 확정, 최종 b0d05c0)을 그대로
 // 쓴다 — reason 문자열은 파싱하지 않고 표시 전용으로만 쓴다. 4그룹
-// 분류가 이 UI에서 제일 중요한 판단이다: htmlParseFailedRegenerated는
+// 분류가 이 UI에서 제일 중요한 판단이다: rawChangedRegenerated는
 // 이름이 다른 "보존형"과 비슷해 보이지만 실제로는 값이 바뀐다(표
-// 구조가 단순해질 수 있음) — 나머지 보존형(truncated/regressionSkipped/
-// htmlParseFailedPreserved, "반영 안 됨")과 같은 그룹에 넣으면 관리자가
-// 오해하므로 별도 그룹("반영됐지만 품질 주의")으로 시각적으로 분리한다.
+// 구조가 단순해질 수 있음) — 나머지 보존형(truncated/regressionSkipped,
+// "반영 안 됨")과 같은 그룹에 넣으면 관리자가 오해하므로 별도 그룹
+// ("반영됐지만 품질 주의")으로 시각적으로 분리한다.
+//
+// 엑셀 포맷에서 html 3종이 빠지면서(26→23컬럼) "html 파싱 실패"라는
+// 상태 자체가 없어졌다 — 이제 트리거는 raw 비교뿐이다: 업로드 raw가
+// DB raw와 같으면 경고 자체가 안 생기고(raw가 안 바뀐 카테고리의
+// "보존" type이 열거형에서 아예 빠졌다 — emit된 적 없는 죽은 값이라
+// 정리됐다), 다르면 raw에서 재생성하고 rawChangedRegenerated 경고가
+// 남는다.
 const BULK_XLSX_WARNING_GROUPS = [
   {
     key: 'notApplied',
     label: '반영 안 됨 — 기존 값 유지',
     tone: 'neutral',
-    types: ['truncated', 'regressionSkipped', 'htmlParseFailedPreserved']
+    types: ['truncated', 'regressionSkipped']
   },
   {
     key: 'regeneratedCaution',
     label: '반영됨 — 품질 주의(표 구조가 단순해질 수 있음)',
     tone: 'warning',
-    types: ['htmlParseFailedRegenerated']
+    types: ['rawChangedRegenerated']
   },
   {
     key: 'emptied',
@@ -5396,12 +5403,13 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
 
       {parseResult && (
         <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
-          {/* truncatedCellSkipCount/htmlParseFailedCount는 하위호환용 집계라
-              여기선 안 쓴다(team-lead 지시) — warningCounts만 쓰면
-              htmlParseFailedPreserved/htmlParseFailedRegenerated가 합쳐진
-              값과 갈라진 값을 동시에 보여줘 건수가 안 맞는 것처럼 보이는
-              혼란을 피한다. 경고 총건수도 warningCounts를 그대로 더한다
-              (문자열 매칭·직접 재계산 안 함). */}
+          {/* truncatedCellSkipCount 같은 개별 집계 필드는 여기서 안 쓰고
+              warningCounts만 쓴다(team-lead 지시) — type별 건수를 lib이
+              그대로 주므로 문자열 매칭·직접 재계산을 안 한다. 경고
+              총건수도 warningCounts 값을 그대로 더한 것이다. 엑셀
+              포맷에서 html 3종이 빠지면서(26→23컬럼) "html 파싱" 개념
+              자체가 없어져 그쪽 집계 필드도 lib에서 정리됐다 — 애초에
+              이 컴포넌트가 그 필드를 쓴 적이 없어 갱신할 코드는 없었다. */}
           <p className="font-black text-[#2348ff]">
             신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
             {parseResult.summary.willSkip}건 · 경고{' '}
