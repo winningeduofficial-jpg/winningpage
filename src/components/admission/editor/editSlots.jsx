@@ -4,10 +4,17 @@ import ColumnRoleEditor from './ColumnRoleEditor';
 
 // 표 골격(table/AdmissionTable.jsx)의 **편집 모드 리프**. viewSlots.jsx가
 // 표시 쪽 <th>/<td> 안쪽을 소유하는 것과 정확히 대칭이며, 여기서도
-// <div>/<table>/<thead>/<tr>은 한 개도 만들지 않는다 — 골격은 전부
-// AdmissionTable.jsx가 소유한다. 예외는 rowTrailing/headTrailing 두 슬롯이
-// 내보내는 여분 <td>/<th> 하나씩인데, 그건 "골격 밖 컨트롤"을 현행 어드민
-// 화면과 바이트 동일하게 유지하기 위한 **동결 조치**다(설계 §4).
+// <div>/<table>/<thead>/<tr>/<th>/<td>를 한 개도 만들지 않는다 — 골격은
+// 전부 AdmissionTable.jsx가 소유한다.
+//
+// **슬롯은 header/cell 둘뿐이다**(설계 §4·§6 Step 7d, 2026-08-07 승인).
+// 골격을 바꾸는 컨트롤은 골격 밖에 둔다는 원칙에 따라 행 조작(↑/↓/삭제)의
+// 여분 <td>(rowTrailing)와 열 추가의 여분 <th>(headTrailing)를 제거했고,
+// 그 컨트롤들은 TableBlockEditor가 표 바깥에서 렌더한다. 그 결과 편집 DOM의
+// 컬럼 수가 columns.length가 되어 뷰와 정확히 일치한다 — 여분 컬럼과
+// AdmissionSurface.jsx:129-141의 `table-layout: fixed` + nth-child 폭 규칙이
+// 충돌하던 원인이 사라진다. 슬롯을 되살리지 말 것: 표 안에 컬럼 수를 바꾸는
+// 마크업을 다시 넣으면 "골격 한 벌"이 그 자리에서 깨진다.
 //
 // 이 파일의 마크업은 전부 TableBlockEditor.jsx가 직접 들고 있던 자체
 // <table>(구 :269-378)에서 **문자 그대로** 옮겨온 것이다. 클래스 문자열,
@@ -18,8 +25,9 @@ import ColumnRoleEditor from './ColumnRoleEditor';
 //
 // 위계(2026-08-06 사용자 지적 반영)도 그대로 옮겼다:
 //   1차 라벨 input · 셀 편집기 = 상시 노출
-//   2차 행 조작(↑/↓/삭제) = 상시 노출, 진하게
-//   3차 role·정렬·열 삭제·열 추가 = "열 설정" 토글 뒤
+//   2차 행 조작(↑/↓/삭제) = 상시 노출, 진하게 — 위치만 표 밖으로 옮겼다
+//   3차 role·정렬·열 삭제 = "열 설정" 토글 뒤(열 추가도 같은 토글 뒤이되
+//     표 밖)
 //
 // 훅 0 / state 0. 상태는 전부 TableBlockEditor가 들고, 여기는 그 값과
 // 핸들러를 받아 마크업만 만든다.
@@ -56,7 +64,7 @@ export const EDIT_PARITY_FROZEN = {
 };
 
 /**
- * 편집 슬롯 4종을 만든다.
+ * 편집 슬롯 2종(header/cell)을 만든다.
  *
  * viewSlots는 상태가 없어 모듈 상수 하나로 끝나지만 편집 슬롯은 토글 상태와
  * 변경 핸들러가 필요하다. 그래서 `AdmissionTable`의 `MODE_DEFAULTS`에 정적
@@ -70,21 +78,15 @@ export const EDIT_PARITY_FROZEN = {
  * @param {boolean} deps.columnMutationAllowed 컬럼 수 고정 variant면 false
  * @param {(colIdx:number, field:string, value:unknown)=>void} deps.onUpdateColumnField
  * @param {(colIdx:number)=>void} deps.onRemoveColumn
- * @param {()=>void} deps.onAddColumn
  * @param {(rowIdx:number, colIdx:number, next:unknown)=>void} deps.onUpdateCell
- * @param {(rowIdx:number, delta:number)=>void} deps.onMoveRow
- * @param {(rowIdx:number)=>void} deps.onRemoveRow
- * @returns {{header:Function, cell:Function, rowTrailing:Function, headTrailing:Function}}
+ * @returns {{header:Function, cell:Function}}
  */
 export default function createEditSlots({
   showColumnSettings,
   columnMutationAllowed,
   onUpdateColumnField,
   onRemoveColumn,
-  onAddColumn,
-  onUpdateCell,
-  onMoveRow,
-  onRemoveRow
+  onUpdateCell
 }) {
   return {
     // <th> 안쪽 — 구 TableBlockEditor.jsx:275-315
@@ -150,60 +152,11 @@ export default function createEditSlots({
         value={cellDesc.raw}
         onChange={(next) => onUpdateCell(cellDesc.rowIdx, cellDesc.colIdx, next)}
       />
-    ),
+    )
 
-    // <tr> 끝 여분 <td> — 구 TableBlockEditor.jsx:339-369.
-    // 🚩 Step 7d에서 이 슬롯을 제거하고 컨트롤을 표 밖으로 옮기면 DOM 컬럼
-    // 수가 columns.length가 되어 뷰와 일치한다. 지금은 동결이다.
-    rowTrailing: (rowIdx, rowCount) => (
-      <td>
-        {/* 2차 — 행 조작. 셀 편집보다는 드물지만 일상 작업이라 열 설정보다 진하게. */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onMoveRow(rowIdx, -1)}
-            disabled={rowIdx === 0}
-            aria-label={`행 ${rowIdx + 1} 위로`}
-            className="text-sm font-bold text-gray-600 disabled:text-gray-300"
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            onClick={() => onMoveRow(rowIdx, 1)}
-            disabled={rowIdx === rowCount - 1}
-            aria-label={`행 ${rowIdx + 1} 아래로`}
-            className="text-sm font-bold text-gray-600 disabled:text-gray-300"
-          >
-            ↓
-          </button>
-          <button
-            type="button"
-            onClick={() => onRemoveRow(rowIdx)}
-            aria-label={`행 ${rowIdx + 1} 삭제`}
-            className="text-xs font-bold text-red-500"
-          >
-            삭제
-          </button>
-        </div>
-      </td>
-    ),
-
-    // thead 끝 여분 <th> — 구 TableBlockEditor.jsx:318-324.
-    // 구 코드가 `{showColumnSettings && columnMutationAllowed && (<th>…)}`로
-    // 조건부 렌더였으므로 여기서도 조건 불충족 시 null을 돌려준다(골격은
-    // null을 받으면 여분 <th>를 아예 만들지 않는다). 🚩 Step 7d 제거 대상.
-    headTrailing: () =>
-      showColumnSettings && columnMutationAllowed ? (
-        <th>
-          <button
-            type="button"
-            onClick={onAddColumn}
-            className="text-[11px] font-bold text-gray-500 hover:text-gray-700"
-          >
-            + 열 추가
-          </button>
-        </th>
-      ) : null
+    // rowTrailing / headTrailing 슬롯은 Step 7d에서 제거됐다. 행 조작(↑/↓/
+    // 삭제)과 "+ 열 추가"는 TableBlockEditor가 표 바깥에서 렌더한다 —
+    // 마크업 자체는 구 :339-369 / :318-324에서 그대로 옮겨갔고 여기서
+    // 사라진 것은 그것을 감싸던 여분 <td>/<th>뿐이다.
   };
 }

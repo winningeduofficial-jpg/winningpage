@@ -1000,22 +1000,42 @@ async function main() {
     }
 
     // T2) 컬럼 수 계약 — describeTable의 columnCount가 정본이고, 편집 DOM의
-    //   행당 <td> 수는 그 값 + rowTrailing 1개다. 🚩 Step 7d에서 rowTrailing이
-    //   사라지면 이 기대값을 columnCount로 낮춰야 하고, 그때 이 단언이
-    //   "컬럼 수가 실제로 뷰와 일치했다"의 증거가 된다.
+    //   행당 <td> 수가 정확히 그 값이다.
+    //
+    //   ⚠ 2026-08-07(Step 7d) 갱신: 이전 기대값은 `columnCount + 1`이었다
+    //   — rowTrailing 슬롯이 행마다 여분 <td>를 하나씩 붙였기 때문이다.
+    //   7d에서 그 슬롯(과 headTrailing)을 제거하고 행/열 조작을 표 밖으로
+    //   옮겼으므로 여분 컬럼이 사라졌고, 이제 이 단언이 원래 예고된 대로
+    //   **"편집 컬럼 수가 실제로 뷰와 일치했다"의 증거**가 된다.
+    //   기대값을 낮추면서 단언은 오히려 셋으로 늘렸다(약화 금지):
+    //     ① 편집 행당 <td> === columnCount
+    //     ② 편집 <th> 수 === columnCount (headTrailing 여분 <th> 부활 탐지.
+    //        `<thead`가 걸리지 않도록 `<th` 뒤 구분자를 요구한다)
+    //     ③ 편집 행당 <td> === 뷰 행당 <td> (두 경로 직접 대조)
     {
       const desc = tableModel.describeTable(selectionBlock);
       const tdTotal = (editOut.match(/<td/g) || []).length;
       const tdPerRow = tdTotal / selectionBlock.rows.length;
+      const viewTdPerRow = (viewOut.match(/<td/g) || []).length / selectionBlock.rows.length;
+      const thCount = (editOut.match(/<th[\s>]/g) || []).length;
       const pass =
         desc !== null &&
         desc.columnCount === selectionBlock.columns.length &&
         Number.isInteger(tdPerRow) &&
-        tdPerRow === desc.columnCount + 1; // +1 = EDIT_PARITY_FROZEN 하의 rowTrailing
+        tdPerRow === desc.columnCount &&
+        thCount === desc.columnCount &&
+        tdPerRow === viewTdPerRow;
       record(
-        '17b. T2 컬럼 수 계약 — describeTable.columnCount === columns.length, 편집 행당 <td> === columnCount + rowTrailing(1)',
+        '17b. T2 컬럼 수 계약 — describeTable.columnCount === columns.length, 편집 행당 <td>·<th> === columnCount === 뷰 행당 <td>(7d 이후 여분 컬럼 0)',
         pass,
-        JSON.stringify({ columnCount: desc?.columnCount, columnsLength: selectionBlock.columns.length, tdTotal, tdPerRow })
+        JSON.stringify({
+          columnCount: desc?.columnCount,
+          columnsLength: selectionBlock.columns.length,
+          tdTotal,
+          tdPerRow,
+          viewTdPerRow,
+          thCount
+        })
       );
     }
 

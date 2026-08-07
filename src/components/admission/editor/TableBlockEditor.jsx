@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import AdmissionTable from '../table/AdmissionTable';
+import { describeCell } from '../table/tableModel';
 import TableGroupHeaderEditor from './TableGroupHeaderEditor';
 import createEditSlots, { EDIT_PARITY_FROZEN } from './editSlots';
 import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
@@ -15,8 +16,15 @@ import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBl
 //
 // 겉모습은 editSlots.jsx의 EDIT_PARITY_FROZEN이 플래그로 관리한다. 통합
 // 자체(Step 5)는 어드민 화면을 바이트 동일하게 유지했고, 2026-08-07
-// 승인분만 플립됐다 — ✅ 7a(td에 뷰와 같은 role className 부여). 남은
+// 승인분만 플립됐다 — ✅ 7a(td에 뷰와 같은 role className 부여),
+// ✅ 7d(행/열 컨트롤을 표 밖으로 → DOM 컬럼 수가 뷰와 일치). 남은
 // 🚩 7b(빈 셀 폴백)·7c(2단 병합 헤더)는 플래그 동결 그대로다.
+//
+// 7d 이후의 배치 원칙: **골격(컬럼 수·행 수)을 바꾸는 컨트롤은 표 안에
+// 두지 않는다.** 행 조작은 표 아래 "행 순서·삭제" 목록에, "+ 열 추가"는
+// 열 설정 토글 뒤 표 위에 둔다. 열 설정(role·정렬·열 삭제)만 <th> 안에
+// 남는데, 그건 컬럼 수를 바꾸지 않아 골격을 흔들지 않고 2026-08-06 사용자
+// 지적을 반영한 배치이기 때문이다(설계 §9 Q2 확정).
 //
 // controlled 컴포넌트: block/onChange만 받는다. 저장·영속화·Admin.jsx
 // 배선은 이번 범위 밖 — 호출부가 validation(반환값 3번째 인자로 노출)을
@@ -153,17 +161,28 @@ export default function TableBlockEditor({ section, block, onChange, universityN
     setXlsxImportPreview(null);
   }
 
-  // 편집 리프(<th>/<td> 안쪽 + 행·열 조작 컨트롤). 토글 상태와 핸들러에
-  // 의존하므로 매 렌더 새로 만든다 — 구 인라인 JSX와 생성 빈도가 같다.
+  // 표 밖 행 조작 목록에 붙일 행 식별 힌트. "행 3"이 표의 몇 번째 줄인지
+  // 세지 않아도 되도록 그 행의 첫 비어 있지 않은 셀 텍스트를 보여준다.
+  // 텍스트 추출은 tableModel이 정본이라 여기서 다시 구현하지 않는다
+  // (구 7곳 중복을 합쳐 놓은 자리에 8번째를 만들지 말 것 — 설계 §2-2 G6).
+  function rowPreviewText(rowIdx) {
+    const row = Array.isArray(block.rows?.[rowIdx]) ? block.rows[rowIdx] : [];
+    for (let colIdx = 0; colIdx < row.length; colIdx += 1) {
+      const text = describeCell(block, rowIdx, colIdx).view.text.trim();
+      if (text) return text;
+    }
+    return '(빈 행)';
+  }
+
+  // 편집 리프(<th>/<td> 안쪽). 토글 상태와 핸들러에 의존하므로 매 렌더 새로
+  // 만든다 — 구 인라인 JSX와 생성 빈도가 같다. 행/열 조작 컨트롤은 슬롯이
+  // 아니라 이 컴포넌트가 표 밖에서 직접 렌더한다(7d).
   const editSlots = createEditSlots({
     showColumnSettings,
     columnMutationAllowed,
     onUpdateColumnField: updateColumnField,
     onRemoveColumn: removeColumn,
-    onAddColumn: addColumn,
-    onUpdateCell: updateCell,
-    onMoveRow: moveRow,
-    onRemoveRow: removeRow
+    onUpdateCell: updateCell
   });
 
   return (
@@ -273,13 +292,75 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         onEnableGroups={enableGroups}
       />
 
+      {/* 3차 — "+ 열 추가". 구 thead 끝 여분 <th> 안에 있던 버튼을 마크업
+          그대로 표 밖으로 옮긴 것이다(7d). 조건도 구 headTrailing과 같다:
+          열 설정을 펼쳤고 컬럼 수 변경이 허용된 variant일 때만 나타난다. */}
+      {showColumnSettings && columnMutationAllowed && (
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={addColumn}
+            className="text-[11px] font-bold text-gray-500 hover:text-gray-700"
+          >
+            + 열 추가
+          </button>
+        </div>
+      )}
+
       {/* 표 골격은 표시 경로와 같은 컴포넌트 한 벌. 편집 고유 마크업은
           전부 editSlots가 넣고, 이 컴포넌트는 <table> 태그를 직접 만들지
           않는다. parity가 EDIT_PARITY_FROZEN이라 <td> className은 이제
-          뷰와 같은 소스에서 나오고(7a), 스크롤 래퍼의
-          `max-w-full overflow-x-auto`(폼 가로 넘침 방지, 2026-08-06 실측
-          반영)는 scrollWrapExtra로 편집기에만 남는다. */}
+          뷰와 같은 소스에서 나오고(7a), 행/열 조작 슬롯이 사라져 DOM 컬럼
+          수도 뷰와 같다(7d). 스크롤 래퍼의 `max-w-full overflow-x-auto`
+          (폼 가로 넘침 방지, 2026-08-06 실측 반영)는 scrollWrapExtra로
+          편집기에만 남는다. */}
       <AdmissionTable block={block} mode="edit" slots={editSlots} parity={EDIT_PARITY_FROZEN} />
+
+      {/* 2차 — 행 조작. 구 <tr> 끝 여분 <td> 안에 있던 ↑/↓/삭제를 마크업
+          그대로 표 밖으로 옮긴 것이다(7d). 버튼이 표에서 떨어져 나오면서
+          "몇 번째 행인가"를 잃으므로 행 번호와 그 행의 첫 텍스트를 함께
+          보여준다 — aria-label(`행 N 위로` 등)은 구 마크업 그대로다. */}
+      {block.rows.length > 0 && (
+        <div className="mt-2">
+          <p className="mb-1 text-xs font-bold text-gray-500">행 순서·삭제</p>
+          <ul className="flex flex-col gap-1">
+            {block.rows.map((_row, rowIdx) => (
+              <li key={rowIdx} className="flex items-center gap-2">
+                <span className="w-10 shrink-0 text-xs font-bold text-gray-500">행 {rowIdx + 1}</span>
+                <span className="min-w-0 flex-1 truncate text-xs text-gray-600">{rowPreviewText(rowIdx)}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => moveRow(rowIdx, -1)}
+                    disabled={rowIdx === 0}
+                    aria-label={`행 ${rowIdx + 1} 위로`}
+                    className="text-sm font-bold text-gray-600 disabled:text-gray-300"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveRow(rowIdx, 1)}
+                    disabled={rowIdx === block.rows.length - 1}
+                    aria-label={`행 ${rowIdx + 1} 아래로`}
+                    className="text-sm font-bold text-gray-600 disabled:text-gray-300"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(rowIdx)}
+                    aria-label={`행 ${rowIdx + 1} 삭제`}
+                    className="text-xs font-bold text-red-500"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <button type="button" onClick={addRow} className="mt-2 text-sm font-bold text-[#2348ff]">
         + 행 추가
