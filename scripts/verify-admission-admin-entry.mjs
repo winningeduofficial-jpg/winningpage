@@ -37,6 +37,10 @@
 //   형태가 **정확히 1개** 있어야 한다. 앵커가 깨지면 스크립트가 죽는다
 //   (조용히 통과하지 않는다).
 //
+// 항목 번호 배분
+//   entry:1~3  빈 카테고리 칸 진입 허용        (슬라이스 SSR)
+//   entry:4~8  목록 '관리' 열 ✏️ config 게이팅 (소스 락)
+//
 // 실행: node scripts/verify-admission-admin-entry.mjs
 // 제약: npm install 금지, jsdom 없음. esbuild(transform) + react-dom/server 만.
 // =====================================================================
@@ -52,6 +56,9 @@ const ADMIN_REL = 'src/pages/Admin.jsx';
 
 const CELL_SLICE_START = "column.type === 'admissionSection' ? (";
 const CELL_SLICE_END = ") : column.type === 'fileList' ? (";
+
+// 관리 열(✏️/🗑) 슬라이스 앵커. 소스 전체에서 정확히 1개여야 한다.
+const MANAGE_ANCHOR = 'onClick={() => onEdit(row)}';
 
 const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 
@@ -94,6 +101,67 @@ export default function SectionCellHarness({ sectionSummaries, index, column, ro
   const tmpFile = path.join(
     REPO_ROOT,
     `.tmp-admin-entry-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+  );
+  fs.writeFileSync(tmpFile, out.code);
+  try {
+    const mod = await import(`file://${tmpFile}`);
+    return mod.default;
+  } finally {
+    fs.rmSync(tmpFile, { force: true });
+  }
+}
+
+// ── 관리 열 <td> 기계 슬라이스 ────────────────────────────────────────
+//
+// 두 번째 검사 축(entry:4~8): 목록 '관리' 열의 행 수정(✏️) 버튼.
+// 2026-08-07 사용자 지시 "이제 '디테일한 수정'은 필요없어. 여기서 수정버튼을
+// 삭제해줘." 인데, 그 ✏️ 한 줄은 AdminTable 이라는 **단일 컴포넌트**에 있고
+// 36개 config 가 공유한다. 무조건 지우면 나머지 35개 메뉴의 수정 진입점이
+// 통째로 사라지고, settlements 는 같은 버튼을 `config.readOnly ? <Eye/>` 로
+// 상세보기에 쓰고 있어 그것까지 동반 사망한다. 그래서 `config.hideRowEdit`
+// 스위치로 admissionGuidelines 1개 메뉴에만 적용했다.
+//
+// 여기서도 소스 문자열이 아니라 **실제 렌더**를 본다(entry:1~3 과 같은 이유).
+// config 3종을 실제로 먹여보면 "게이팅이 좁게 잘 걸렸는가"가 직접 나온다.
+function sliceManageCell(source) {
+  const first = source.indexOf(MANAGE_ANCHOR);
+  if (first === -1 || source.indexOf(MANAGE_ANCHOR, first + 1) !== -1) {
+    throw new Error(
+      `관리 열 앵커 "${MANAGE_ANCHOR}" 가 정확히 1개가 아니다. ` +
+        '리팩터로 앵커가 사라졌다면 이 스크립트 상단의 슬라이스 규칙을 읽고 복원하라.'
+    );
+  }
+  const start = source.lastIndexOf('<td', first);
+  const end = source.indexOf('</td>', first);
+  if (start === -1 || end === -1) throw new Error('관리 열 <td> 경계를 찾지 못했다.');
+  return source.slice(start, end + '</td>'.length);
+}
+
+// 아이콘(lucide-react)은 번들하지 않고 스텁으로 갈아끼운다 — 이 검사의 관심사는
+// "어떤 버튼이 렌더되는가"이지 아이콘 모양이 아니다. data-icon 으로 식별한다.
+async function loadManageCell(sliceText) {
+  const harness = `
+import React from 'react';
+const Eye = () => <i data-icon="eye" />;
+const Edit3 = () => <i data-icon="edit3" />;
+const Trash2 = () => <i data-icon="trash2" />;
+export default function ManageCellHarness({ config, row, onEdit, onDelete }) {
+  return (
+    <table><tbody><tr>
+      ${sliceText}
+    </tr></tbody></table>
+  );
+}
+`;
+  const out = await esbuild.transform(harness, {
+    loader: 'jsx',
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+    format: 'esm'
+  });
+  const tmpFile = path.join(
+    REPO_ROOT,
+    `.tmp-admin-manage-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
   );
   fs.writeFileSync(tmpFile, out.code);
   try {
@@ -201,6 +269,183 @@ async function main() {
       "빈 칸 라벨은 '추가', 내용/원문 있는 칸 라벨은 '수정'",
       pass,
       JSON.stringify({ empty, filled, rawOnly })
+    );
+  }
+
+  // ===================================================================
+  // entry:4~8 — 목록 '관리' 열 행 수정(✏️) 버튼 게이팅
+  //
+  // 사용자 지시(2026-08-07): "이제 '디테일한 수정'은 필요없어. [관리 열]에서
+  // 수정버튼을 삭제해줘." 카테고리 6칸이 각각 1클릭으로 편집 다이얼로그를
+  // 여는 구조가 되면서 행 전체 폼은 중복 진입점이 됐다.
+  //
+  // 그런데 그 ✏️ 한 줄은 **AdminTable 이라는 단일 컴포넌트**에 있고 36개
+  // config 가 공유한다. 무조건 지우면 나머지 35개 메뉴의 행 수정 진입점이
+  // 통째로 사라지고, settlements 는 같은 버튼을 `config.readOnly ? <Eye/>` 로
+  // **상세보기**에 쓰고 있어 그것까지 동반 사망한다. 그래서
+  // `config.hideRowEdit` 스위치로 admissionGuidelines 1개 메뉴에만 적용했다.
+  //
+  // 여기부터는 SSR 이 아니라 소스 락이다. 관리 열은 config 36개 × 렌더
+  // 조건의 조합이라 "어떤 JSX 가 어떤 조건 아래 있는가"가 곧 계약이고,
+  // 그건 소스 형태로 보는 게 정확하다(verify-admission-modal-shell.mjs 의
+  // `lock:` 항목들과 같은 방식).
+  // ===================================================================
+
+  // 주석에는 계약 문자열이 설명 목적으로 잔뜩 등장한다(이 저장소 관행).
+  // 락은 **코드**를 봐야 하므로 주석을 걷어낸 사본에서 검사한다.
+  const code = adminSrc
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '') // JSX 주석 {/* … */}
+    .replace(/\/\*[\s\S]*?\*\//g, '') // 블록 주석
+    .replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1'); // 줄 주석(URL 의 // 는 제외)
+
+  // 어떤 인덱스가 어떤 config 블록 안에 있는지 판정한다.
+  // config 는 `const CONFIGS = { <key>: { … }, … }` 형태의 최상위 객체다.
+  const configKeyAt = (index) => {
+    const head = code.slice(0, index);
+    const re = /\n {2}([A-Za-z_$][\w$]*): \{/g;
+    let last = null;
+    let m = re.exec(head);
+    while (m) {
+      last = m[1];
+      m = re.exec(head);
+    }
+    return last;
+  };
+
+  // 관리 열 <td> 안쪽(✏️/🗑 이 사는 블록)만 잘라낸다.
+  const manageCell = (() => {
+    const anchor = code.indexOf('onClick={() => onEdit(row)}');
+    if (anchor === -1) return null;
+    const start = code.lastIndexOf('<td', anchor);
+    const end = code.indexOf('</td>', anchor);
+    if (start === -1 || end === -1) return null;
+    return code.slice(start, end + '</td>'.length);
+  })();
+
+  // ── entry:4 — ✏️ 가 hideRowEdit 로 게이팅돼 있다 ─────────────────────
+  {
+    const pass =
+      Boolean(manageCell) &&
+      /\{!config\.hideRowEdit && \(\s*<button/.test(manageCell) &&
+      manageCell.includes('onClick={() => onEdit(row)}');
+    record(
+      'entry:4',
+      '관리 열의 onEdit(row) 버튼이 `{!config.hideRowEdit && (` 로 감싸져 있다',
+      pass,
+      manageCell ? manageCell.slice(0, 500) : '관리 열 <td> 를 찾지 못했다'
+    );
+  }
+
+  // ── entry:5 — hideRowEdit 이 admissionGuidelines 1곳에만 있다 ────────
+  {
+    const decls = [...code.matchAll(/\bhideRowEdit:\s*true\b/g)];
+    const owners = decls.map((m) => configKeyAt(m.index));
+    const pass = decls.length === 1 && owners[0] === 'admissionGuidelines';
+    record(
+      'entry:5',
+      '`hideRowEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)',
+      pass,
+      JSON.stringify({ count: decls.length, owners })
+    );
+  }
+
+  // ── entry:6 — 🗑 은 그대로 살아 있다 ────────────────────────────────
+  //
+  // 사용자는 🗑 를 언급하지 않았고, 지우면 행 삭제 경로가 완전히 사라진다
+  // (엑셀 일괄은 insert/update 만 한다).
+  {
+    const pass =
+      Boolean(manageCell) &&
+      /\{!config\.readOnly && \(\s*<button/.test(manageCell) &&
+      manageCell.includes('onClick={() => onDelete(row)}') &&
+      manageCell.includes('<Trash2 size={17} />');
+    record(
+      'entry:6',
+      '🗑(onDelete) 버튼이 여전히 존재하고 !config.readOnly 게이트를 유지한다(사용자 미언급 = 손대지 않음)',
+      pass,
+      manageCell ? manageCell.slice(0, 800) : '관리 열 <td> 를 찾지 못했다'
+    );
+  }
+
+  // ── entry:7 — settlements 의 👁 분기가 살아 있다 ────────────────────
+  {
+    const pass =
+      Boolean(manageCell) &&
+      /config\.readOnly \? <Eye size=\{17\} \/> : <Edit3 size=\{17\} \/>/.test(manageCell);
+    record(
+      'entry:7',
+      '`config.readOnly ? <Eye /> : <Edit3 />` 분기가 그대로다(readOnly 메뉴의 상세보기 파손 방지)',
+      pass,
+      manageCell ? manageCell.slice(0, 500) : '관리 열 <td> 를 찾지 못했다'
+    );
+  }
+
+  // ── entry:8 — 신규 등록 경로(HWP 파싱 패널)가 살아 있다 ─────────────
+  //
+  // ✏️ 를 지우면 기존 행에서는 파싱 패널에 못 들어간다(폼 우측 sticky 컬럼에만
+  // 산다). 하지만 [등록] 신규 폼은 별도 진입점이라 계속 살아야 한다 —
+  // 여기서 배선이 조용히 끊기면 "원문 붙여넣기 → 6카테고리 생성" 경로가
+  // 어디에도 남지 않는다.
+  {
+    const wired = /FormPreview:\s*AdmissionParsingPreview/.test(code);
+    const rendered = /<config\.FormPreview\b/.test(code);
+    const defined = /function AdmissionParsingPreview\(/.test(code);
+    const pass = wired && rendered && defined;
+    record(
+      'entry:8',
+      'AdmissionParsingPreview 가 여전히 config.FormPreview 로 배선·렌더된다(신규 등록 폼의 HWP 파싱 경로 생존)',
+      pass,
+      JSON.stringify({ wired, rendered, defined })
+    );
+  }
+
+  // ── entry:9 — 게이팅이 **실제 렌더**에서 정확히 1개 메뉴에만 걸린다 ──
+  //
+  // entry:4~8 은 전부 소스 문자열 락이라 "플래그를 읽기는 하는데 렌더 결과는
+  // 틀린" 경우를 못 잡는다(예: 조건을 반대로 쓰거나, 게이팅을 🗑 쪽에 걸거나).
+  // 관리 열 <td> 를 실제로 잘라내 config 3종을 먹여보고 결과 DOM 을 본다.
+  //
+  //   A. { hideRowEdit: true }  = admissionGuidelines → ✏️ 없음 · 🗑 있음
+  //   B. {}                     = 나머지 34개 메뉴    → ✏️ 있음 · 🗑 있음
+  //   C. { readOnly: true }     = settlements 등      → 👁 있음 · 🗑 없음
+  //
+  // B 가 이 스크립트의 핵심이다 — "✏️ 를 지워라"를 무조건 삭제로 구현하면
+  // 여기서 즉시 걸린다.
+  {
+    const ManageCell = await loadManageCell(sliceManageCell(adminSrc));
+    const renderManage = (config) => {
+      const clicks = [];
+      const html = renderToStaticMarkup(
+        React.createElement(ManageCell, {
+          config,
+          row: { id: 'fixture' },
+          onEdit: (...a) => clicks.push(['edit', ...a]),
+          onDelete: (...a) => clicks.push(['delete', ...a])
+        })
+      );
+      return {
+        edit: html.includes('data-icon="edit3"'),
+        eye: html.includes('data-icon="eye"'),
+        trash: html.includes('data-icon="trash2"'),
+        html
+      };
+    };
+    const a = renderManage({ hideRowEdit: true });
+    const b = renderManage({});
+    const c = renderManage({ readOnly: true });
+    const pass =
+      !a.edit && !a.eye && a.trash && // 대학모집요강: 행 수정 진입점만 사라진다
+      b.edit && !b.eye && b.trash && // 나머지 34개: 완전 보존
+      c.eye && !c.edit && !c.trash; // readOnly: 👁 상세보기 보존, 🗑 없음
+    record(
+      'entry:9',
+      '관리 열 실제 렌더 — hideRowEdit=✏️만 사라짐 / 기본 config=✏️🗑 보존 / readOnly=👁 보존(35개 메뉴 동반 파괴 차단)',
+      pass,
+      JSON.stringify({
+        hideRowEdit: { edit: a.edit, eye: a.eye, trash: a.trash },
+        default: { edit: b.edit, eye: b.eye, trash: b.trash },
+        readOnly: { edit: c.edit, eye: c.eye, trash: c.trash }
+      })
     );
   }
 

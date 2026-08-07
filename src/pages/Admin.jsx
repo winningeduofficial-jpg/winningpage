@@ -930,6 +930,23 @@ const CONFIGS = {
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
     ListSummary: AdmissionListSummary,
 
+    // 목록 '관리' 열의 행 수정(✏️) 버튼을 이 메뉴에서만 숨긴다.
+    // 사용자 지시(2026-08-07): "이제 '디테일한 수정'은 필요없어. 여기서
+    // 수정버튼을 삭제해줘." — 카테고리 6칸이 각각 [수정] 1클릭으로 편집
+    // 다이얼로그를 여는 구조가 되면서 행 전체 폼은 중복 진입점이 됐다.
+    //
+    // ⚠ 이 플래그를 다른 config 로 복사하지 마라. AdminTable 의 ✏️ 한 줄을
+    // 35개 메뉴가 공유하고, settlements 는 같은 버튼을 👁 상세보기로 쓴다.
+    // (scripts/verify-admission-admin-entry.mjs 의 entry:2 가 소스 전체에서
+    //  hideRowEdit 이 정확히 1회만 등장하는지 락을 건다.)
+    //
+    // 🔴 이 플래그로 잃는 것(사용자 고지 완료): 기존 행의 메타 9필드
+    // (노출 여부·입학연도·지역·대학명·대학 키값·원문 대학명·정시 URL·메모·
+    // 상태)와 HWP 원문 붙여넣기 파싱 패널이 폼에만 있어, 이미 등록된 행에
+    // 대해서는 AdmissionBulkXlsxPanel 엑셀 왕복이 유일한 수정 경로가 된다.
+    // [등록] 신규 폼은 별도 진입점(:6157 부근)이라 그대로 살아 있다.
+    hideRowEdit: true,
+
     // 목록 표를 공개 서비스 표와 같은 모양으로 만든다(2026-08-07 사용자 지시
     // "서비스 모달 구조를 그대로 따라가라", 직전 피드백 "아직도 2뎁스잖아").
     // 공개는 목록 셀 [보기] 1클릭이면 표가 든 다이얼로그가 열린다. 어드민도
@@ -5158,14 +5175,26 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
 
                   <td className="px-3 py-3">
                     <div className="flex justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => onEdit(row)}
-                        className="text-gray-500 hover:text-black"
-                      >
-                        {config.readOnly ? <Eye size={17} /> : <Edit3 size={17} />}
-                      </button>
+                      {/* config.hideRowEdit: 행 전체 폼(✏️/👁)으로 들어가는
+                          진입점을 끈다. AdminTable 은 36개 config 가 공유하는
+                          단일 컴포넌트라 이 한 줄이 전 메뉴의 수정 진입점이고,
+                          settlements 의 👁 상세보기까지 같은 버튼이다 —
+                          무조건 지우면 35개 메뉴가 함께 죽는다. 그래서
+                          config.excel / config.noCreate / config.readOnly 와
+                          같은 "공용 렌더 + config 스위치" 패턴으로 켠다. */}
+                      {!config.hideRowEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(row)}
+                          className="text-gray-500 hover:text-black"
+                        >
+                          {config.readOnly ? <Eye size={17} /> : <Edit3 size={17} />}
+                        </button>
+                      )}
 
+                      {/* 🗑 은 손대지 않는다 — 사용자 미언급이고, 지우면 행
+                          삭제 경로가 완전히 사라진다(엑셀 일괄은 insert/update
+                          만 한다). 기존 !config.readOnly 게이팅 그대로. */}
                       {!config.readOnly && (
                         <button
                           type="button"
