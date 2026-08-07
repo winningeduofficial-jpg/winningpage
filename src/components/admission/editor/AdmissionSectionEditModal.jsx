@@ -1,6 +1,7 @@
 import AdmissionModalShell from '../modal/AdmissionModalShell';
 import AdmissionModalStyles from '../modal/AdmissionModalStyles';
 import AdmissionSurface from '../AdmissionSurface';
+import AdmissionEditorSurface from './AdmissionEditorSurface';
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.
 //
@@ -64,9 +65,14 @@ export default function AdmissionSectionEditModal({
   return (
     <>
       {/* 모달 껍데기 CSS·표면 CSS 는 어드민 라우트에도 로드돼야 한다.
-          둘 다 <style> 만 렌더하는 컴포넌트라 DOM 노드를 만들지 않는다. */}
+          셋 다 <style> 만 렌더하는 컴포넌트라 DOM 노드를 만들지 않는다.
+          AdmissionEditorSurface 는 공개와 갈리는 **편집 전용** 폭 규칙만 갖고
+          있고, 반드시 AdmissionSurface 뒤에 와야 하는 건 아니지만(셀렉터
+          specificity 가 더 높다) 읽는 사람이 "공개 → 편집 덮어쓰기" 순서로
+          이해하도록 뒤에 둔다. */}
       <AdmissionModalStyles />
       <AdmissionSurface showSectionTitle showChangeNoColumn />
+      <AdmissionEditorSurface />
       <AdmissionModalShell
         open
         onClose={onClose}
