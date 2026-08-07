@@ -918,7 +918,14 @@ const CONFIGS = {
     searchPlaceholder: '대학명, 지역, 전형 내용을 검색하세요',
     order: 'university_name',
     homepage: true,
-    excel: true,
+    // config.excel(공용 CSV 다운로드 스위치) 없음(의도) — 6컬럼(admission_year/
+    // region/university_name/matched_hwp_name/detail_status/is_active,
+    // 전부 BULK_XLSX_COLUMNS에 포함돼 있어 기능 후퇴 없음) 대신
+    // AdmissionBulkXlsxPanel의 23컬럼 xlsx로 통일한다(2026-08-07 사용자
+    // 지시 — "엑셀 다운로드 버튼이 여러 개다, 우리가 개발한 걸로
+    // 통일해라"). 이 플래그는 14개 메뉴가 공유하는 공용 렌더 코드
+    // (:5900 부근)를 켜는 스위치라 여기서만 뺐다 — 다른 config·공용
+    // 코드는 손대지 않았다.
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
     ListSummary: AdmissionListSummary,
 
@@ -5350,14 +5357,14 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
             onClick={handleDownload}
             className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
           >
-            {`엑셀(xlsx) 전체 ${totalRows}행 다운로드`}
+            {`엑셀 다운로드 (전체 ${totalRows}행)`}
           </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
           >
-            엑셀(xlsx) 업로드
+            엑셀 업로드
           </button>
           <input
             ref={fileInputRef}
