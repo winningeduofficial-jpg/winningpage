@@ -40,6 +40,7 @@ import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
 import DocBlocksEditor from '../components/admission/editor/DocBlocksEditor';
+import AdmissionSectionEditModal from '../components/admission/editor/AdmissionSectionEditModal';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
@@ -929,13 +930,28 @@ const CONFIGS = {
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
     ListSummary: AdmissionListSummary,
 
+    // 목록 표를 공개 서비스 표와 같은 모양으로 만든다(2026-08-07 사용자 지시
+    // "서비스 모달 구조를 그대로 따라가라", 직전 피드백 "아직도 2뎁스잖아").
+    // 공개는 목록 셀 [보기] 1클릭이면 표가 든 다이얼로그가 열린다. 어드민도
+    // 셀 [수정] 1클릭으로 같은 껍데기의 편집 다이얼로그가 열리게 한다.
+    // 라벨은 공개 INFO_SECTIONS(AdmissionGuidelines.jsx)와 문자 그대로 동일.
+    //
+    // type:'admissionSection'은 AdminTable 셀 스위치에 **가산된 분기 1개**다.
+    // AdminTable은 36개 config가 공유하므로, 기존 분기를 고치지 않고 새 type을
+    // 더하는 방식만 안전하다(다른 35개 config는 이 type을 쓰지 않는다).
     columns: [
       { key: 'admission_year', label: '연도' },
       { key: 'region', label: '지역' },
       { key: 'university_name', label: '대학명' },
       { key: 'matched_hwp_name', label: '원문 대학명' },
       { key: 'detail_status', label: '상태' },
-      { key: 'is_active', label: '노출', type: 'boolean' }
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      ...HWP_SECTION_ORDER.map((key) => ({
+        key: `__section_${key}`,
+        label: HWP_SECTION_LABELS[key],
+        type: 'admissionSection',
+        sectionKey: key
+      }))
     ],
 
     fields: [
@@ -4270,12 +4286,15 @@ function AdmissionParsingPreview({ form, onPatch }) {
 // 2026-08-06 사용자 지적("어드민이 너무 무겁다", 폼 높이 9,873px = 화면
 // 11.4개, input 502개) — 근본 원인은 위계가 아니라 구조였다: 6개 카테고리
 // (raw+문서+html 미러 3필드씩 18필드)를 한 폼에 전부 펼쳐 동시 렌더했다.
-// 카테고리를 아코디언으로 묶어 한 번에 하나만 마운트한다 — CSS로 숨기는
-// 게 아니라(display:none) 접힌 카테고리의 field row 자체를 렌더 리스트에서
-// 뺀다(buildFieldRenderItems가 expandedGroup !== field.group인 필드를
-// 아예 items에 안 넣음) — React가 그 서브트리를 만들지 않으므로 DOM
-// 노드·리렌더 비용이 실제로 준다. field.group이 없는 필드(admissionGuidelines
-// 외 모든 config)는 항상 그대로 렌더돼 다른 화면은 영향 없다.
+// 카테고리를 묶어 한 번에 하나만 마운트한다 — CSS로 숨기는 게 아니라
+// (display:none) 열지 않은 카테고리의 field row 자체를 렌더 트리에서 뺀다 —
+// React가 그 서브트리를 만들지 않으므로 DOM 노드·리렌더 비용이 실제로 준다.
+// field.group이 없는 필드(admissionGuidelines 외 모든 config)는 항상 그대로
+// 렌더돼 다른 화면은 영향 없다.
+// 2026-08-07 이후 "여는 장치"는 아코디언이 아니라 편집 다이얼로그다:
+// buildFieldRenderItems는 group 필드를 아예 items에 안 넣고(헤더만 남긴다),
+// 실제 field는 modalSection === field.group일 때 모달 본문이 마운트한다.
+// 동시 마운트 최대 1개라는 불변식은 그대로다.
 
 // 카테고리 헤더에 보여줄 한 줄 요약. doc이 있으면 표/블록 개수, 없으면
 // 원문 유무만 판정한다 — 관리자가 어느 카테고리를 열지 판단하는 용도라
@@ -4301,9 +4320,15 @@ function summarizeHwpSection(sectionKey, form) {
 }
 
 // fields를 순서 그대로 훑으며 field.group이 있는 항목은 그룹당 헤더 1개로
-// 묶고, 그 그룹이 펼쳐진 상태(expandedGroup === field.group)일 때만 실제
-// field 항목을 뒤에 끼워 넣는다. group이 없는 필드는 항상 그대로 통과.
-function buildFieldRenderItems(fields, expandedGroup, form) {
+// 묶는다. group이 없는 필드는 항상 그대로 통과.
+//
+// 2026-08-07: 카테고리 필드를 폼 안에서 인라인으로 펼치지 않는다. 펼침 대상이
+// 아코디언에서 편집 다이얼로그로 바뀌었기 때문이다(사용자 지시 "서비스 모달
+// 구조를 그대로"). 위 주석의 원래 목적 — 접힌 카테고리의 서브트리를 아예
+// 만들지 않아 폼 높이 9,873px / input 502개를 3,744px / 14개로 줄인 것 — 은
+// 그대로 유지된다: 카테고리 필드는 이제 폼이 아니라 모달이 마운트하고,
+// 모달은 한 번에 최대 1개만 열린다(modalSection이 단일 값).
+function buildFieldRenderItems(fields, form) {
   const items = [];
   const seenGroups = new Set();
   fields.forEach((field) => {
@@ -4320,38 +4345,101 @@ function buildFieldRenderItems(fields, expandedGroup, form) {
         summary: summarizeHwpSection(field.group, form)
       });
     }
-    if (expandedGroup === field.group) {
-      items.push({ type: 'field', field });
-    }
   });
   return items;
 }
 
-function CategoryAccordionHeader({ item, isOpen, onToggle }) {
+// 구 CategoryAccordionHeader. 같은 자리·같은 모양이지만 여는 대상이 인라인
+// 펼침이 아니라 편집 다이얼로그다 — ▸ 회전 표시 대신 "수정" 어포던스를 둔다
+// (목록 셀의 [수정]과 같은 동작, 같은 모달).
+function CategorySectionButton({ item, onOpen }) {
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={onOpen}
       className="flex w-full items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-left transition hover:bg-[#f3f4f6]"
     >
-      <span className="flex items-center gap-2 text-sm font-black">
-        <span className={`text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>▸</span>
-        {item.label}
+      <span className="text-sm font-black">{item.label}</span>
+      <span className="flex items-center gap-3">
+        <span className="text-xs font-bold text-gray-500">{item.summary}</span>
+        <span className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff]">
+          수정
+        </span>
       </span>
-      <span className="text-xs font-bold text-gray-500">{item.summary}</span>
     </button>
   );
 }
 
-function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
+// 카테고리(field.group) 필드 1개의 편집 UI. 아코디언이 폼 안에서 렌더하던
+// 것을 **재타이핑 없이** 그대로 떼어 온 것 — 편집 다이얼로그 본문이 이걸
+// 쓴다. 문서 편집기(admissionDoc)가 주 콘텐츠로 details 없이 바로 보이고,
+// 원문(raw)·HTML 미러는 둘 다 details로 강등하되 원문을 미러보다 위에 둔다
+// (원문은 파싱 실행의 입력이라 관리자가 실제로 쓰고, 미러는 읽기 전용 참고
+// 자료다) — 필드 배열 순서가 json→raw→html이라 그 순서가 그대로 나온다.
+// 220px 라벨 열을 쓰지 않는 것도 원본 그대로다: 카테고리명은 이미 모달
+// 제목에 있어 필드 라벨을 반복할 이유가 없다.
+function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {
+  return (
+    <div
+      // admission-surface: 표 표면 스타일을 공개 모달과 공유(AdmissionSurface.jsx
+      // 참고) — 이 행이 admissionDoc 필드일 때만 data-section을 실어
+      // minimum_requirements/exam_schedule 폭 규칙이 걸리게 한다(다른 필드
+      // 타입엔 표가 없어 무해). 좌우 px-5는 모달 본문이 이미 px-6/md:px-12를
+      // 갖고 있어 뺐다.
+      className={
+        field.type === 'admissionDoc'
+          ? 'admission-surface border-b border-[#edf0f4] py-4'
+          : 'border-b border-[#edf0f4] py-4'
+      }
+      data-section={field.type === 'admissionDoc' ? field.group : undefined}
+    >
+      {field.type === 'admissionDoc' && (
+        <AdmissionDocFieldEditor field={field} form={form} onPatch={onPatch} onDirty={onDirty} />
+      )}
+      {field.type === 'textarea' && (
+        <details className="group">
+          <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
+            {field.readOnly ? 'HTML 미러 보기(자동 생성, 편집 불가)' : '원문(raw) 보기/편집'}
+          </summary>
+          <div className="mt-2">
+            {field.help && (
+              <p className="mb-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
+            )}
+            <AdminInput field={field} value={form[field.key]} onChange={onChange} disabled={readonly} />
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function AdminForm({
+  config,
+  mode,
+  row,
+  onCancel,
+  onSave,
+  onUpload,
+  origin = 'form',
+  initialSection = null
+}) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
   const [dirty, setDirty] = useState(false);
-  // 카테고리 아코디언(field.group 있는 config, 현재는 admissionGuidelines
-  // 뿐) — 한 번에 최대 1개 그룹만 펼침. null이면 전부 접힘(기본 상태).
-  const [expandedGroup, setExpandedGroup] = useState(null);
+  // 열려 있는 카테고리 편집 다이얼로그의 섹션 키(field.group 있는 config,
+  // 현재는 admissionGuidelines 뿐). null이면 닫힘 — 한 번에 최대 1개.
+  //
+  // 모드 A(origin === 'list'): 목록 셀 [수정]으로 들어오면 initialSection이
+  //   실려 와 마운트 즉시 모달이 열린다. 폼은 오버레이 뒤에서 저장 엔진으로만
+  //   산다 — 사용자에게는 "목록 → 다이얼로그" 1뎁스로 보인다(공개와 동일).
+  // 모드 B(origin === 'form'): 기존 ✏️ 경로. 폼 화면의 카테고리 버튼으로 연다.
+  const [modalSection, setModalSection] = useState(initialSection);
+  // 모달 푸터 [저장]이 실제 <form>의 submit을 발화시키기 위한 ref.
+  // requestSubmit()은 click() 우회와 달리 onSubmit 핸들러와 HTML 검증을
+  // 정상적으로 태운다 — 저장 경로가 폼 하단 [저장]과 완전히 동일해진다.
+  const formRef = useRef(null);
   // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
   const editorRefs = useRef(new Map());
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
@@ -4396,6 +4484,23 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   function handleCancel() {
     if (dirty && !window.confirm('저장하지 않은 변경사항이 있습니다. 나가시겠습니까?')) return;
     onCancel();
+  }
+
+  // 모달 닫기(푸터 버튼 / X / ESC / 오버레이 공통). 두 모드의 유일한 차이가
+  // 여기다.
+  //   모드 A: 모달 닫기 = 폼 이탈이므로 기존 handleCancel을 그대로 호출한다
+  //          (dirty면 기존 confirm이 뜨고, 확인하면 목록으로 복귀).
+  //          새 confirm을 만들지 않는다 — 경고는 한 벌이어야 한다.
+  //   모드 B: 폼 화면으로 복귀할 뿐이라 아무것도 유실되지 않는다. 편집 상태는
+  //          모달이 아니라 이 AdminForm의 form state가 들고 있고 모달은 그
+  //          창일 뿐이다. 여기에 "변경 유실 경고"를 붙이면 거짓말이므로 붙이지
+  //          않는다(대신 모달 헤드의 '● 저장 안 됨' 뱃지와 푸터 안내문).
+  function closeSectionModal() {
+    if (origin === 'list') {
+      handleCancel();
+      return;
+    }
+    setModalSection(null);
   }
 
   function change(key, value) {
@@ -4492,8 +4597,20 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     onSave(merged);
   }
 
+  // 모달 본문에 넣을 카테고리 필드 3개(문서 json / 원문 raw / html 미러).
+  const groupFields = (config.fields || []).filter((field) => field.group === modalSection);
+
   return (
-    <form onSubmit={submit}>
+    // 모달을 <form>의 **형제**로 둔다. 편집 input이 <form> 안에 있으면 셀에서
+    // Enter를 치는 순간 폼이 암묵 제출되는데(기존 결함), 모달에서는 그게
+    // "의도치 않은 저장 → setMode('list') → 모달 소멸"로 악화된다. 모달 입력은
+    // 전부 controlled React state라 <form> 밖에 있어도 form/patch에 아무 영향이
+    // 없다 — 부작용으로 기존 Enter-제출 결함이 모달 경로에서 사라진다.
+    //
+    // 아래 <form> 본문은 들여쓰기를 그대로 뒀다. 한 단계 더 들여쓰면 380줄이
+    // 통째로 diff에 잡혀 실제 변경(래핑 + 모달 추가)이 묻힌다.
+    <>
+    <form ref={formRef} onSubmit={submit}>
       <h1 className="mb-5 text-2xl font-black text-[#111827]">
         {config.title} {mode === 'create' ? '등록' : readonly ? '상세' : '수정'}
       </h1>
@@ -4523,65 +4640,18 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         <div className="min-w-0 flex-1 bg-white shadow">
           {buildFieldRenderItems(
             (config.fields || config.columns).filter((field) => !field.showIf || field.showIf(form)),
-            expandedGroup,
             form
           ).map((item) => {
             if (item.type === 'header') {
-              const isOpen = expandedGroup === item.groupKey;
               return (
-                <CategoryAccordionHeader
+                <CategorySectionButton
                   key={`group-header-${item.groupKey}`}
                   item={item}
-                  isOpen={isOpen}
-                  onToggle={() => setExpandedGroup(isOpen ? null : item.groupKey)}
+                  onOpen={() => setModalSection(item.groupKey)}
                 />
               );
             }
             const field = item.field;
-
-            // 카테고리 그룹(현재는 admissionGuidelines의 6개 섹션) 안쪽은
-            // "공개 모달과 같은 모양" 요구에 맞춰 220px 라벨 열을 쓰지
-            // 않는다 — 카테고리명은 이미 아코디언 헤더에 있어 필드
-            // 라벨을 반복할 이유가 없다. 문서 편집기(json)가 유일한 주
-            // 콘텐츠로 details 없이 바로 보이고, 원문(raw)·HTML 미러는
-            // 둘 다 details로 강등하되 원문을 미러보다 위에 둔다(원문은
-            // 파싱 실행의 입력이라 관리자가 실제로 쓰고, 미러는 읽기
-            // 전용 참고 자료다) — 필드 배열 순서를 json→raw→html로
-            // 맞춰 이 순서가 그대로 나온다.
-            if (field.group) {
-              return (
-                <div
-                  key={field.key}
-                  // admission-surface: 표 표면 스타일을 공개 모달과 공유(2단계,
-                  // AdmissionSurface.jsx 참고) — 이 행이 admissionDoc 필드일 때만
-                  // data-section을 실어 minimum_requirements/exam_schedule 폭
-                  // 규칙이 걸리게 한다(다른 필드 타입엔 표가 없어 무해).
-                  className={
-                    field.type === 'admissionDoc'
-                      ? 'admission-surface border-b border-[#edf0f4] px-5 py-4'
-                      : 'border-b border-[#edf0f4] px-5 py-4'
-                  }
-                  data-section={field.type === 'admissionDoc' ? field.group : undefined}
-                >
-                  {field.type === 'admissionDoc' && (
-                    <AdmissionDocFieldEditor field={field} form={form} onPatch={patch} onDirty={() => setDirty(true)} />
-                  )}
-                  {field.type === 'textarea' && (
-                    <details className="group">
-                      <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
-                        {field.readOnly ? 'HTML 미러 보기(자동 생성, 편집 불가)' : '원문(raw) 보기/편집'}
-                      </summary>
-                      <div className="mt-2">
-                        {field.help && (
-                          <p className="mb-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
-                        )}
-                        <AdminInput field={field} value={form[field.key]} onChange={change} disabled={readonly} />
-                      </div>
-                    </details>
-                  )}
-                </div>
-              );
-            }
 
             return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
@@ -4878,10 +4948,41 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         label={config.previewLabel}
       />
     </form>
+
+      {/* 공개 모달과 **같은 껍데기**(AdmissionModalShell)를 쓰는 편집
+          다이얼로그. 본문만 뷰어 대신 편집 필드를 넣는다. */}
+      <AdmissionSectionEditModal
+        open={Boolean(modalSection)}
+        sectionKey={modalSection}
+        sectionLabel={HWP_SECTION_LABELS[modalSection] || modalSection}
+        universityName={form.university_name}
+        dirty={dirty}
+        origin={origin}
+        onClose={closeSectionModal}
+        // 저장은 폼 하단 [저장]과 **완전히 같은 단일 경로**다: requestSubmit →
+        // submit(required 검사 → config.validate confirm) → onSave(merged) →
+        // saveRow → formToPayload → update().eq('id') → setMode('list').
+        // AdminForm이 언마운트되면서 모달도 함께 사라지고 목록으로 돌아간다 —
+        // 공개 모달(닫으면 목록)과 같은 루프다. 부분 저장 경로는 만들지 않는다.
+        onSave={() => formRef.current?.requestSubmit()}
+      >
+        {groupFields.map((field) => (
+          <AdmissionGroupField
+            key={field.key}
+            field={field}
+            form={form}
+            readonly={readonly}
+            onChange={change}
+            onPatch={patch}
+            onDirty={() => setDirty(true)}
+          />
+        ))}
+      </AdmissionSectionEditModal>
+    </>
   );
 }
 
-function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
+function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSection }) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageRows = rows.slice(start, start + PAGE_SIZE);
@@ -4962,6 +5063,27 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                           </div>
                         ) : (
                           '-'
+                        )
+                      ) : column.type === 'admissionSection' ? (
+                        // 공개 목록 표의 [보기] 셀과 같은 자리·같은 어포던스.
+                        // 내용이 없으면 공개와 동일하게 "-"(비활성), 있으면
+                        // [수정] 1클릭으로 편집 다이얼로그가 열린다.
+                        // title에 요약("표 2개 · 5열 12행")을 실어 어느 칸이
+                        // 무거운지 열기 전에 알 수 있게 한다.
+                        // summarizeHwpSection은 row[jsonKey]/row[sectionKey]만
+                        // 읽는 순수 함수라 목록 row를 그대로 넘길 수 있다
+                        // (loadRows가 select('*')이므로 추가 fetch 0).
+                        summarizeHwpSection(column.sectionKey, row) === '내용 없음' ? (
+                          <span className="text-gray-300">-</span>
+                        ) : (
+                          <button
+                            type="button"
+                            title={summarizeHwpSection(column.sectionKey, row)}
+                            onClick={() => onOpenSection?.(row, column.sectionKey)}
+                            className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white"
+                          >
+                            수정
+                          </button>
                         )
                       ) : column.type === 'fileList' ? (
                         formatListValue(row[column.key], column.type)
@@ -5582,6 +5704,9 @@ export default function Admin() {
   const [activeKey, setActiveKey] = useState('popups');
   const [mode, setMode] = useState('list');
   const [editingRow, setEditingRow] = useState(null);
+  // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
+  // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
+  const [pendingSection, setPendingSection] = useState(null);
   const [rows, setRows] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
@@ -5658,6 +5783,7 @@ export default function Admin() {
   useEffect(() => {
     setMode('list');
     setEditingRow(null);
+    setPendingSection(null);
     setKeyword('');
     setPage(1);
     loadRows();
@@ -5734,11 +5860,22 @@ export default function Admin() {
 
   function createRow() {
     setEditingRow(null);
+    setPendingSection(null);
     setMode('create');
   }
 
   function editRow(row) {
     setEditingRow(row);
+    setPendingSection(null);
+    setMode('edit');
+  }
+
+  // 목록 셀 [수정] → 폼을 마운트하되 곧바로 그 섹션의 편집 다이얼로그를 연다.
+  // 진입 경로는 editRow와 같고(같은 AdminForm, 같은 저장 경로), 다른 것은
+  // "어느 섹션 모달을 들고 시작하느냐"와 "닫으면 목록으로 돌아가느냐"뿐이다.
+  function openRowSection(row, sectionKey) {
+    setEditingRow(row);
+    setPendingSection(sectionKey);
     setMode('edit');
   }
 
@@ -5826,6 +5963,7 @@ export default function Admin() {
     );
     setMode('list');
     setEditingRow(null);
+    setPendingSection(null);
     await loadRows();
   }
 
@@ -5983,6 +6121,7 @@ export default function Admin() {
                     setPage={setPage}
                     onEdit={editRow}
                     onDelete={deleteRow}
+                    onOpenSection={openRowSection}
                   />
                 )}
               </>
@@ -5992,9 +6131,12 @@ export default function Admin() {
               config={config}
               mode={mode}
               row={editingRow}
+              origin={pendingSection ? 'list' : 'form'}
+              initialSection={pendingSection}
               onCancel={() => {
                 setMode('list');
                 setEditingRow(null);
+                setPendingSection(null);
               }}
               onSave={saveRow}
               onUpload={uploadImage}
