@@ -334,6 +334,36 @@ async function main() {
     record('6b. TableGroupHeaderEditor expanded 토글 — 접힘은 요약만, 펼침은 편집 필드까지', pass, `collapsed=${collapsed}\nexpanded=${expanded}`);
   }
 
+  // ── 6c) rowPreviewText — 비문자열 셀(text가 number)이어도 죽지 않는지 ────
+  // tableModel.js:90-93 cellTextOf는 cell.text가 null/undefined일 때만 ''로
+  // 바꾸고 숫자 등은 그대로 통과시킨다. TableBlockEditor.jsx의
+  // rowPreviewText는 그 결과에 .trim()을 걸어 표 밖 행 목록 미리보기를
+  // 만드는데, 문자열이 아닌 값이 오면 과거에는 TypeError로 편집기 전체가
+  // 죽었다(String()으로 감싸 수정). 앞 3칸은 빈 문자열(스킵), 4번째 칸만
+  // {text:10, badge}로 숫자 text를 줘서 rowPreviewText가 실제로 그 칸까지
+  // 도달해 .trim()을 타도록 만든다.
+  {
+    const numericCellBlock = {
+      ...selectionBlock,
+      rows: [
+        ['', '', '', { text: 10, badge: 'minimumHas' }, ''],
+        selectionBlock.rows[1]
+      ]
+    };
+    let out = '';
+    let threw = false;
+    try {
+      out = renderToStaticMarkup(
+        React.createElement(TableBlockEditor, { section: 'selection_method', block: numericCellBlock, onChange: () => {} })
+      );
+    } catch (err) {
+      threw = true;
+      out = String(err && err.stack ? err.stack : err);
+    }
+    const pass = !threw && out.includes('>10<');
+    record('6c. rowPreviewText — text가 숫자인 badge 셀도 예외 없이 렌더(미리보기 "10" 노출)', pass, threw ? out : `len=${out.length}`);
+  }
+
   // ── 7) IME 조합 로직 — 순수 상태 전이 검증(실제 브라우저 이벤트는 재현 불가) ──
   // ImeSafeInput의 알고리즘을 그대로 복제해 상태 전이만 검증한다. 실제
   // compositionstart/compositionend 이벤트 디스패치와 브라우저 IME 렌더는

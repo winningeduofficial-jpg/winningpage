@@ -168,7 +168,10 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   function rowPreviewText(rowIdx) {
     const row = Array.isArray(block.rows?.[rowIdx]) ? block.rows[rowIdx] : [];
     for (let colIdx = 0; colIdx < row.length; colIdx += 1) {
-      const text = describeCell(block, rowIdx, colIdx).view.text.trim();
+      // view.text는 cellTextOf가 문자열 변환 없이 원값을 통과시키는 경로라
+      // 숫자 등 비문자열 셀이 그대로 나올 수 있다(tableModel.js:90-93).
+      // .trim()이 문자열 메서드라 String()으로 감싸지 않으면 여기서 죽는다.
+      const text = String(describeCell(block, rowIdx, colIdx).view.text).trim();
       if (text) return text;
     }
     return '(빈 행)';
