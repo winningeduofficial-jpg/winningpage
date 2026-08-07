@@ -747,6 +747,107 @@ async function main() {
     );
   }
 
+  // ── 12i) 빈 상태에서도 "블록 추가" 수단이 있다 ────────────────────────
+  // 사용자 요구 "모든 다이얼로그에서 '비었을 때 추가' 기능이 있어야 해".
+  // 다이얼로그 안쪽은 이미 완비돼 있었고(추가 UI가 blocks.map 바깥에
+  // 무조건 렌더된다) 진짜 구멍은 목록 진입 경로였다(b1bf4c2에서 메움,
+  // verify-admission-admin-entry.mjs entry:6~8). 여기서는 "이미 됐다"는
+  // 그 전제 자체를 영구 게이트로 승격한다 — 누가 나중에 추가 UI에
+  // blocks.length 조건을 달면 이 18케이스가 먼저 깨진다.
+  //
+  // 빈 상태 3종: 블록 0개 / emptyBox 1개뿐 / group 1개뿐(특수대학 모양).
+  // 6섹션 × 3 = 18케이스 전부에서 셀렉트가 존재하고, 그 셀렉트의 option
+  // 집합이 그 섹션의 primary 종류와 정확히 일치해야 한다(개수만 세면
+  // 종류가 뒤바뀐 회귀를 놓친다).
+  {
+    const EMPTY_STATES = [
+      ['blocks:0', []],
+      ['emptyBox:1', [{ kind: 'emptyBox', message: '' }]],
+      [
+        'group:1',
+        [
+          {
+            kind: 'group',
+            title: '전형 일정',
+            children: [
+              {
+                kind: 'table',
+                variant: 'special',
+                columns: [
+                  { role: 'type', label: '구분' },
+                  { role: 'content', label: '내용' }
+                ],
+                rows: [['원서접수', '2026. 6. 19.(금)']]
+              }
+            ]
+          }
+        ]
+      ]
+    ];
+    // 기대값은 소스에서 파생하지 않고 여기 리터럴로 못 박는다 —
+    // getAddableKindsForSection을 그대로 다시 읽으면 "primary 목록에서
+    // emptyBox가 조용히 빠지는" 회귀(빈 상태 박스를 못 만들게 되는,
+    // 이 요구사항의 핵심 회귀)를 테스트가 같이 따라가 버린다.
+    const EXPECTED_PRIMARY = {
+      previous_year_changes: ['table'],
+      selection_method: ['table', 'plainList'],
+      exam_schedule: ['table', 'emptyBox', 'plainList'],
+      minimum_requirements: ['table', 'emptyBox', 'plainList'],
+      school_record_method: ['table', 'heading'],
+      recruitment_quota: ['table', 'footnote', 'plainList', 'preText']
+    };
+    const SECTIONS = Object.keys(EXPECTED_PRIMARY);
+    // 추가 셀렉트의 option만 골라낸다 — 표 셀/열 설정의 다른 <select>가
+    // 섞이면 개수 단언이 무의미해진다.
+    const addSelectOptionValues = (html) => {
+      const start = html.indexOf('aria-label="추가할 블록 종류"');
+      if (start < 0) return null;
+      const end = html.indexOf('</select>', start);
+      if (end < 0) return null;
+      return [...html.slice(start, end).matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
+    };
+
+    const failures = [];
+    let checked = 0;
+    for (const section of SECTIONS) {
+      const primary = EXPECTED_PRIMARY[section];
+      const actualPrimary = docOps.getAddableKindsForSection(section).primary;
+      if (JSON.stringify(actualPrimary) !== JSON.stringify(primary)) {
+        failures.push(`${section}: primary 매핑이 기대와 다름 actual=${JSON.stringify(actualPrimary)} expected=${JSON.stringify(primary)}`);
+      }
+      for (const [stateLabel, blocks] of EMPTY_STATES) {
+        checked += 1;
+        let out = '';
+        try {
+          out = renderToStaticMarkup(
+            React.createElement(DocBlocksEditor, { section, blocks, onChange: () => {} })
+          );
+        } catch (err) {
+          failures.push(`${section}/${stateLabel}: threw ${String(err && err.message ? err.message : err)}`);
+          continue;
+        }
+        const values = addSelectOptionValues(out);
+        if (!out.includes('+ 블록 추가')) {
+          failures.push(`${section}/${stateLabel}: '+ 블록 추가' 버튼 없음`);
+          continue;
+        }
+        if (values === null) {
+          failures.push(`${section}/${stateLabel}: 추가 셀렉트 없음`);
+          continue;
+        }
+        if (JSON.stringify(values) !== JSON.stringify(primary)) {
+          failures.push(`${section}/${stateLabel}: options=${JSON.stringify(values)} expected=${JSON.stringify(primary)}`);
+        }
+      }
+    }
+    const pass = checked === 18 && failures.length === 0;
+    record(
+      '12i. 빈 상태 추가 수단 — 6섹션 × 3빈상태(블록0/emptyBox1/group1) 18케이스 전부에서 "+ 블록 추가" 셀렉트가 존재하고 option 집합이 섹션 primary와 일치',
+      pass,
+      JSON.stringify({ checked, failures })
+    );
+  }
+
   // ── 13) plainList 항목 추가·삭제·순서 변경(2026-08-06 보완) ───────────
   {
     const PlainListBlockEditor = await loadModule(
