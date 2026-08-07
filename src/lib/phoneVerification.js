@@ -13,8 +13,13 @@
 //   같은 코드를 반복해서 보내지 않도록 주의해야 한다 — 자동 검증을 걸어두면
 //   지웠다 다시 입력하는 것만으로 시도가 깎인다.
 
+// 이미 가입에 쓰인 번호일 때의 문구. 발송 API(reason:'phone_taken')와 가입 RPC
+// (duplicate_phone) 양쪽에서 같은 말을 해야 해서 상수로 뽑아 export한다.
+export const DUPLICATE_PHONE_MESSAGE = '중복된 전화번호입니다.';
+
 const MESSAGES = {
   invalid_phone: '휴대폰 번호 형식이 올바르지 않습니다.',
+  phone_taken: DUPLICATE_PHONE_MESSAGE,
   invalid_code_format: '인증번호 6자리를 입력해 주세요.',
   code_not_found: '인증번호를 먼저 요청해 주세요.',
   code_expired: '인증번호가 만료되었습니다. 다시 요청해 주세요.',

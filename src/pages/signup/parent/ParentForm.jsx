@@ -30,10 +30,12 @@ import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES as EMAIL_MESSAGES,
+  applySignupPassword,
   sendSignupEmailCode,
   verifySignupEmailCode
 } from '../../../lib/signupEmailAuth';
 import {
+  DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
   sendPhoneCode,
@@ -61,6 +63,11 @@ const RPC_ERRORS = [
   ['privacy_required', '개인정보 필수 동의가 필요합니다.'],
   ['invalid_member_type', '회원 유형이 올바르지 않습니다. 처음부터 다시 시도해 주세요.'],
   ['name_required', '이름을 입력해 주세요.'],
+  // sql/40 [16] — 전화번호는 계정당 하나다. 발송 단계에서 걸러지지만 동시 가입
+  // 경합으로 여기까지 올 수 있다.
+  ['duplicate_phone', DUPLICATE_PHONE_MESSAGE],
+  // sql/40 [16]이 아직 적용되지 않은 환경에서는 unique 인덱스 위반 원문이 올라온다.
+  ['profiles_phone_unique', DUPLICATE_PHONE_MESSAGE],
   // sql/40 [14] — 서버가 휴대폰 인증을 직접 확인한다. 프론트 가드를 우회했거나
   // 인증 후 30분이 지났거나, 이미 그 인증으로 가입한 경우다.
   ['phone_not_verified', '휴대폰 인증이 확인되지 않습니다. 인증번호를 다시 받아 인증해 주세요.'],
@@ -155,6 +162,15 @@ export default function ParentForm() {
 
       if (!result.ok) {
         if (result.retryAfter) phoneCooldown.start();
+
+        // 이미 가입에 쓰인 번호라 문자가 나가지 않았다. 인증코드 필드를 열어두면
+        // 사용자가 오지 않을 문자를 기다리게 된다.
+        if (result.reason === 'phone_taken') {
+          updateVerification('phone', { requested: false, verified: false });
+          setPhoneMessage({ text: DUPLICATE_PHONE_MESSAGE, status: 'error' });
+          return;
+        }
+
         setPhoneMessage({ text: result.message, status: 'error' });
         return;
       }
@@ -193,19 +209,11 @@ export default function ParentForm() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
-      password: formData.password,
-      resumed: verification.email.resumed
-    }).then(({ error, stage }) => {
+      mode: verification.email.mode
+    }).then(({ error }) => {
       if (error) {
         updateVerification('email', { verified: false });
-        setEmailMessage({
-          text:
-            stage === 'password'
-              ? '인증은 됐지만 비밀번호 설정에 실패했습니다. 인증번호를 다시 요청해 주세요.'
-              : EMAIL_MESSAGES.codeMismatch,
-          status: 'error'
-        });
+        setEmailMessage({ text: EMAIL_MESSAGES.codeMismatch, status: 'error' });
         return;
       }
 
@@ -221,15 +229,9 @@ export default function ParentForm() {
       return;
     }
 
-    // signUp이 비밀번호를 요구하므로 발송 전에 먼저 막는다.
-    if (!PASSWORD_REGEX.test(formData.password)) {
-      setEmailMessage({
-        text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
-        status: 'error'
-      });
-      return;
-    }
-
+    // 비밀번호는 여기서 요구하지 않는다. 비어 있으면 임시 비밀번호로 계정이
+    // 만들어지고, 실제 값은 가입 완료 직전 applySignupPassword가 채운다
+    // (src/lib/signupEmailAuth.js).
     if (emailCooldown.active) {
       setEmailMessage({ text: EMAIL_MESSAGES.cooldown(emailCooldown.remaining), status: 'error' });
       return;
@@ -327,6 +329,15 @@ export default function ParentForm() {
 
       if ((userData.user.email || '').toLowerCase() !== normalizedEmail) {
         setFormError('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+        return;
+      }
+
+      // 이메일 인증 시점의 계정 비밀번호는 임시값일 수 있다. 여기서 폼에 입력된
+      // 값으로 맞추지 않으면 사용자가 방금 정한 비밀번호로 로그인할 수 없다.
+      const { error: passwordError } = await applySignupPassword(formData.password);
+
+      if (passwordError) {
+        setFormError('비밀번호 설정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         return;
       }
 

@@ -2080,6 +2080,279 @@ grant execute on function public.complete_signup_profile(
 
 
 -- =====================================================================
+-- [16] 전화번호 1계정 1번호 : unique 인덱스 + duplicate_phone
+--
+-- 한 번호로 계정을 여러 개 만들 수 없게 한다.
+--
+-- 왜 두 겹인가
+--   인덱스만 있으면 위반이 "duplicate key value violates unique constraint ..."
+--   원문으로 올라와서 화면이 "중복된 전화번호입니다"로 바꿔 말할 수가 없다.
+--   반대로 함수 검사만 있으면 동시에 들어온 두 요청이 서로를 못 보고 둘 다
+--   통과한다. 그래서 인덱스가 최종 판정, 함수 검사가 문구 담당이다.
+--   (프론트는 여기까지 오기 전에 /api/send-phone-code에서 먼저 걸러낸다 —
+--    reason:'phone_taken'. 그건 편의일 뿐 판정이 아니다.)
+--
+-- 왜 정규화해서 거는가
+--   profiles.phone은 입력값을 그대로 저장한다([7] 이후 동일). 그래서 같은 번호가
+--   '01012345678'과 '010-1234-5678' 두 표기로 들어올 수 있는데, 원문 그대로
+--   유니크를 걸면 이 둘이 서로 다른 값이 되어 중복을 못 막는다.
+--
+-- 왜 member_type is not null 조건인가
+--   handle_new_user 트리거가 auth.signUp 시점에 profiles 행을 미리 만든다([9]).
+--   가입을 끝내지 않은 그 행들까지 세면, 인증만 하고 이탈한 사람 때문에 정작
+--   본인이 다시 가입할 수 없게 된다. 가입 완료 판정은 [9]와 같은 기준을 쓴다.
+--
+-- ⚠️ 인덱스 생성 전에 기존 데이터가 이미 유니크한지 확인할 것.
+--   중복이 있으면 create index가 실패한다. 확인 쿼리:
+--     select regexp_replace(phone, '[^0-9]', '', 'g') as digits, count(*)
+--     from public.profiles
+--     where member_type is not null
+--       and regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') <> ''
+--     group by 1 having count(*) > 1;
+--
+-- ※ 대시보드에서 이미 phone에 유니크를 걸어뒀다면 이 인덱스와 둘 다 존재하게
+--   된다. 동작에는 문제가 없지만(더 엄격한 쪽이 이 인덱스다) 원문 표기 기준의
+--   기존 인덱스는 정리하는 편이 낫다.
+-- =====================================================================
+
+create unique index if not exists profiles_phone_unique_idx
+  on public.profiles (regexp_replace(phone, '[^0-9]', '', 'g'))
+  where member_type is not null
+    and phone is not null
+    and regexp_replace(phone, '[^0-9]', '', 'g') <> '';
+
+-- [15]와의 차이는 duplicate_phone 검사 한 블록뿐이다.
+create or replace function public.complete_signup_profile(
+  p_name                      text,
+  p_username                  text,
+  p_phone                     text,
+  p_email                     text,
+  p_region                    text,
+  p_school_type               text,
+  p_school_name               text,
+  p_member_type               text,
+  p_terms_service_agreed      boolean,
+  p_privacy_required_agreed   boolean,
+  p_identity_required_agreed  boolean,
+  p_privacy_optional_agreed   boolean,
+  p_marketing_agreed          boolean,
+  p_ads_agreed                boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_user_id      uuid;
+  v_name         text;
+  v_username     text;
+  v_phone        text;
+  v_phone_digits text;
+  v_pv_id        uuid;
+  v_email        text;
+  v_region       text;
+  v_school_type  text;
+  v_school_name  text;
+  v_member_type  text;
+  v_link_code    text;
+begin
+  v_user_id := auth.uid();
+
+  if v_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  v_name        := trim(coalesce(p_name, ''));
+  v_email       := lower(trim(coalesce(p_email, '')));
+  v_username    := lower(trim(coalesce(nullif(p_username, ''), v_email)));
+  v_phone       := trim(coalesce(p_phone, ''));
+  v_region      := trim(coalesce(p_region, ''));
+  v_school_type := trim(coalesce(p_school_type, ''));
+  v_school_name := trim(coalesce(p_school_name, ''));
+  v_member_type := lower(trim(coalesce(p_member_type, '')));
+
+  -- 저장은 입력값 그대로 두고(기존 동작 유지), 조회만 숫자로 정규화한다.
+  v_phone_digits := regexp_replace(v_phone, '[^0-9]', '', 'g');
+
+  if v_name = '' then
+    raise exception 'name_required';
+  end if;
+
+  if v_email = '' then
+    raise exception 'email_required';
+  end if;
+
+  if v_username = '' then
+    v_username := v_email;
+  end if;
+
+  if v_member_type = '' then
+    raise exception 'member_type_required';
+  end if;
+
+  if v_member_type not in ('student', 'parent', 'mentor') then
+    raise exception 'invalid_member_type';
+  end if;
+
+  -- 지역·재학 구분은 학생에게만 필수([13]).
+  if v_member_type = 'student' and v_region = '' then
+    raise exception 'region_required';
+  end if;
+
+  if v_member_type = 'student' and v_school_type = '' then
+    raise exception 'school_type_required';
+  end if;
+
+  if coalesce(p_terms_service_agreed, false) is not true then
+    raise exception 'terms_service_required';
+  end if;
+
+  if coalesce(p_privacy_required_agreed, false) is not true then
+    raise exception 'privacy_required';
+  end if;
+
+  -- 본인 인증 정보 수집 동의는 학생 약관에만 있는 항목이다.
+  if v_member_type = 'student'
+     and coalesce(p_identity_required_agreed, false) is not true then
+    raise exception 'identity_required';
+  end if;
+
+  -- ── 휴대폰 인증 확인 ────────────────────────────────────────────
+  if v_phone_digits <> '' then
+    select id into v_pv_id
+    from public.phone_verifications
+    where phone = v_phone_digits
+      and verified_at is not null
+      and consumed_at is null
+      and verified_at > now() - interval '30 minutes'
+    order by verified_at desc
+    limit 1;
+  end if;
+
+  -- [15]: 학생도 포함. 멘토는 가입 화면이 생길 때 추가한다.
+  if v_member_type in ('parent', 'student') and v_pv_id is null then
+    raise exception 'phone_not_verified';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles
+    where lower(trim(email)) = v_email
+      and id <> v_user_id
+  ) then
+    raise exception 'duplicate_email';
+  end if;
+
+  -- ── [16] 전화번호 중복 ──────────────────────────────────────────
+  -- 가입을 끝낸 다른 계정이 같은 번호를 쓰고 있으면 막는다. 표기가 달라도
+  -- 같은 번호는 같은 번호이므로 양쪽 모두 숫자만 남겨 비교한다.
+  if v_phone_digits <> '' and exists (
+    select 1
+    from public.profiles
+    where id <> v_user_id
+      and member_type is not null
+      and regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') = v_phone_digits
+  ) then
+    raise exception 'duplicate_phone';
+  end if;
+
+  insert into public.profiles (
+    id, name, username, phone, email, region,
+    school_type, school_name, member_type, role,
+    terms_service_agreed, privacy_required_agreed, privacy_optional_agreed,
+    marketing_agreed, ads_agreed, updated_at
+  )
+  values (
+    v_user_id, v_name, v_username, v_phone, v_email, nullif(v_region, ''),
+    nullif(v_school_type, ''), nullif(v_school_name, ''), v_member_type, 'user',
+    coalesce(p_terms_service_agreed, false),
+    coalesce(p_privacy_required_agreed, false),
+    coalesce(p_privacy_optional_agreed, false),
+    coalesce(p_marketing_agreed, false),
+    coalesce(p_ads_agreed, false),
+    now()
+  )
+  on conflict (id) do update
+  set
+    name                    = excluded.name,
+    username                = excluded.username,
+    phone                   = excluded.phone,
+    email                   = excluded.email,
+    region                  = excluded.region,
+    school_type             = excluded.school_type,
+    school_name             = excluded.school_name,
+    member_type             = excluded.member_type,
+    role                    = coalesce(public.profiles.role, 'user'),
+    terms_service_agreed    = excluded.terms_service_agreed,
+    privacy_required_agreed = excluded.privacy_required_agreed,
+    privacy_optional_agreed = excluded.privacy_optional_agreed,
+    marketing_agreed        = excluded.marketing_agreed,
+    ads_agreed              = excluded.ads_agreed,
+    updated_at              = now();
+
+  -- 인증 기록을 소비 처리한다. 같은 인증으로 두 번 가입할 수 없게 한다.
+  if v_pv_id is not null then
+    update public.phone_verifications
+    set consumed_at = now()
+    where id = v_pv_id;
+  end if;
+
+  -- 약관 동의 이력 (버전 단위).
+  insert into public.user_term_agreements (user_id, term_id, agreed)
+  select
+    v_user_id,
+    t.id,
+    case
+      when t.code ~ '_identity$'                        then coalesce(p_identity_required_agreed, false)
+      when t.profile_column = 'terms_service_agreed'    then coalesce(p_terms_service_agreed, false)
+      when t.profile_column = 'privacy_required_agreed' then coalesce(p_privacy_required_agreed, false)
+      when t.profile_column = 'marketing_agreed'        then coalesce(p_marketing_agreed, false)
+      when t.profile_column = 'ads_agreed'              then coalesce(p_ads_agreed, false)
+      else false
+    end
+  from public.terms t
+  where t.is_active
+    and t.audience in (v_member_type, 'common')
+  on conflict (user_id, term_id) do update
+  set agreed    = excluded.agreed,
+      agreed_at = now();
+
+  -- 학생 연결코드: 없을 때만 발급한다(재호출로 코드가 회전하면 안 된다).
+  if v_member_type = 'student' then
+    select code into v_link_code
+    from public.student_link_codes
+    where student_id = v_user_id
+      and is_active;
+
+    if v_link_code is null then
+      v_link_code := public.issue_student_link_code(v_user_id);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_user_id,
+    'email', v_email,
+    'member_type', v_member_type,
+    'link_code', v_link_code   -- 학생이 아니면 null
+  );
+end;
+$function$;
+
+-- 권한 의도(anon 금지) 재확인 + 본문 뒤에 문장을 하나 더 두는 목적은 [15] 주석 참고.
+revoke all on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) from public, anon;
+
+grant execute on function public.complete_signup_profile(
+  text, text, text, text, text, text, text, text,
+  boolean, boolean, boolean, boolean, boolean, boolean
+) to authenticated, service_role;
+
+
+-- =====================================================================
 -- 검증용 SELECT (실행 후 수동 확인용 — 주석 해제하고 실행)
 -- =====================================================================
 -- -- [1] 회원유형 분포 + 제약 존재 확인

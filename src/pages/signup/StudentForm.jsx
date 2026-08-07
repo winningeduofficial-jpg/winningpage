@@ -17,6 +17,16 @@
 // (발송 /api/send-phone-code, 검증 /api/verify-phone-code). 예전 스텁처럼
 // "6자리 입력 = 통과"가 아니며, 가입 RPC도 인증 여부를 다시 확인한다
 // (sql/40_auth_signup.sql [15]).
+//
+// 2026-08-07 변경 3건
+//  1. 이메일 인증에 걸려 있던 "비밀번호 먼저" 선행 조건을 없앴다. 비밀번호 필드가
+//     이메일보다 아래에 있어서 사용자가 내려갔다 되돌아와야 했다. 계정 비밀번호는
+//     가입 완료 직전 applySignupPassword가 맞춘다(src/lib/signupEmailAuth.js).
+//  2. 이메일 인증코드도 휴대폰과 똑같이 6자리가 채워지면 자동 검증한다. "확인"
+//     버튼을 없앴다.
+//  3. 이미 가입에 쓰인 전화번호는 "인증번호 보내기" 단계에서 걸러낸다
+//     (/api/send-phone-code reason:'phone_taken'). 경합으로 뚫린 경우는 가입 RPC의
+//     duplicate_phone이 잡는다(sql/40_auth_signup.sql [16]).
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -33,11 +43,13 @@ import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
+  applySignupPassword,
   sendSignupEmailCode,
   verifySignupEmailCode
 } from '../../lib/signupEmailAuth';
 import { useCooldown } from '../../hooks/useCooldown';
 import {
+  DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
   sendPhoneCode,
@@ -155,6 +167,9 @@ export default function StudentForm() {
   const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
   const [emailSending, setEmailSending] = useState(false);
   const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
+  // 이메일 OTP도 1회용이라 같은 코드를 두 번 검증하면 403이 난다. 휴대폰과 동일하게
+  // 마지막 시도값을 기억해 자동 검증이 같은 값으로 재시도하지 않게 한다.
+  const lastEmailAttempt = useRef('');
 
   // B-1(회원유형 선택)을 건너뛰고 직접 진입한 경우의 가드 — SignupContext 계약 주석
   // ("memberType===null인데 폼 단계 라우트에 직접 진입 시 /signup으로 redirect") 참고.
@@ -167,7 +182,6 @@ export default function StudentForm() {
   }, [memberType, isUnder14, navigate]);
 
   const passwordValid = formData.password ? isValidPassword(formData.password) : null;
-  const emailActionBlockedByPassword = !isValidPassword(formData.password);
   const allRequiredAgreed = REQUIRED_AGREEMENT_KEYS.every((key) => agreements[key]);
   const allAgreed = STUDENT_AGREEMENT_KEYS.every((key) => agreements[key]);
 
@@ -185,11 +199,14 @@ export default function StudentForm() {
       updateFormData({ [key]: value });
 
       if (key === 'email') {
+        lastEmailAttempt.current = '';
         updateVerification('email', { requested: false, verified: false, checked: false, available: false });
       }
 
       if (key === 'phone') {
+        lastPhoneAttempt.current = '';
         updateVerification('phone', { requested: false, verified: false });
+        setPhoneMessage({ text: '', status: 'default' });
       }
     };
   }
@@ -233,6 +250,15 @@ export default function StudentForm() {
       if (!result.ok) {
         // 한도에 걸린 경우 서버가 알려준 대기 시간을 그대로 반영한다.
         if (result.retryAfter) phoneCooldown.start();
+
+        // 이미 가입에 쓰인 번호다. 서버가 문자를 보내지 않았으므로 인증코드
+        // 필드를 열어두면 안 된다.
+        if (result.reason === 'phone_taken') {
+          updateVerification('phone', { requested: false, verified: false });
+          setPhoneMessage({ text: DUPLICATE_PHONE_MESSAGE, status: 'error' });
+          return;
+        }
+
         setPhoneMessage({ text: result.message, status: 'error' });
         return;
       }
@@ -316,15 +342,9 @@ export default function StudentForm() {
     setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
 
     try {
-      // signUp이 비밀번호를 요구하므로 발송 전에 먼저 막는다.
-      if (!isValidPassword(formData.password)) {
-        setEmailMessage({
-          text: '비밀번호를 영문/숫자/특수문자 포함 6자 이상으로 먼저 입력해 주세요.',
-          status: 'error'
-        });
-        return;
-      }
-
+      // 비밀번호는 여기서 요구하지 않는다(파일 상단 2026-08-07 변경 1번).
+      // 아직 비어 있으면 임시 비밀번호로 계정이 만들어지고, 실제 값은
+      // 가입 완료 직전 applySignupPassword가 채운다.
       const { state, mode, resumed, error } = await sendSignupEmailCode({
         email: normalizedEmail,
         password: formData.password,
@@ -350,13 +370,16 @@ export default function StudentForm() {
       }
 
       // 이어가기(resumed)도 진행 가능한 상태이므로 available로 표시한다.
+      lastEmailAttempt.current = '';
       updateVerification('email', {
         checked: true,
         available: true,
         requested: true,
+        verified: false,
         mode,
         resumed
       });
+      updateFormData({ emailCode: '' });
       emailCooldown.start();
       setEmailMessage({
         text: resumed ? MESSAGES.resumed : MESSAGES.sent,
@@ -367,68 +390,64 @@ export default function StudentForm() {
     }
   }
 
-  // T1 계약 주석: "인증코드 확인용 별도 확인 버튼이 필요하면 이 슬롯 재사용하거나 페이지
-  // 쪽에서 별도 버튼 추가" — 시안 표(§3.3 C-1 #5)에는 이메일 인증코드 필드의 부가 UI가
-  // 없지만 OTP 검증 트리거가 반드시 필요해 액션 슬롯을 "확인" 버튼으로 재사용한다.
-  async function verifyEmailCode() {
+  // 6자리가 채워지면 곧바로 검증한다 — 휴대폰(알림톡) 인증과 같은 방식이라
+  // 별도 "확인" 버튼을 두지 않는다(파일 상단 2026-08-07 변경 2번).
+  // ParentForm(E-1)이 이미 쓰던 패턴이다.
+  useEffect(() => {
+    const token = formData.emailCode;
+
+    if (
+      token.length !== 6 ||
+      !verification.email.requested ||
+      verification.email.verified ||
+      lastEmailAttempt.current === token
+    ) {
+      return;
+    }
+
+    lastEmailAttempt.current = token;
+
     const normalizedEmail = formData.email.trim().toLowerCase();
-    const token = formData.emailCode.trim();
 
-    setFormError('');
-
-    if (!verification.email.requested) {
-      setEmailMessage({ text: '먼저 인증번호를 발송해 주세요.', status: 'error' });
-      return;
-    }
-
-    if (!token) {
-      setEmailMessage({ text: '인증코드를 입력해 주세요.', status: 'error' });
-      return;
-    }
-
-    const { error, stage } = await verifySignupEmailCode({
+    verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
-      password: formData.password,
-      resumed: verification.email.resumed
-    });
-
-    if (error) {
-      updateVerification('email', { verified: false });
-      setEmailMessage({
-        text:
-          stage === 'password'
-            ? '인증은 됐지만 비밀번호 설정에 실패했습니다. 인증번호를 다시 요청해 주세요.'
-            : MESSAGES.codeMismatch,
-        status: 'error'
-      });
-      return;
-    }
-
-    const { data: userData } = await supabase.auth.getUser();
-    const currentUser = userData.user;
-
-    if (currentUser?.id) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, member_type')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (profile?.email && profile?.member_type) {
+      mode: verification.email.mode
+    }).then(async ({ error }) => {
+      if (error) {
         updateVerification('email', { verified: false });
-        setEmailMessage({
-          text: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.',
-          status: 'error'
-        });
+        setEmailMessage({ text: MESSAGES.codeMismatch, status: 'error' });
         return;
       }
-    }
 
-    updateVerification('email', { verified: true });
-    setEmailMessage({ text: '이메일 인증이 완료되었습니다.', status: 'success' });
-  }
+      // 인증에 성공한 계정이 이미 가입을 끝낸 계정일 수 있다(발송 시점과 지금
+      // 사이에 다른 창에서 가입을 마친 경우). 그대로 두면 기존 회원의 프로필을
+      // 덮어쓰는 요청으로 이어진다.
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUser = userData.user;
+
+      if (currentUser?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, member_type')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        if (profile?.email && profile?.member_type) {
+          updateVerification('email', { verified: false });
+          setEmailMessage({
+            text: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.',
+            status: 'error'
+          });
+          return;
+        }
+      }
+
+      updateVerification('email', { verified: true });
+      setEmailMessage({ text: '이메일 인증이 완료되었습니다.', status: 'success' });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.emailCode]);
 
   function validateForm() {
     const normalizedName = formData.name.trim();
@@ -480,9 +499,7 @@ export default function StudentForm() {
     try {
       const normalizedName = formData.name.trim();
       const normalizedEmail = formData.email.trim().toLowerCase();
-      const normalizedPhone = String(formData.phone || '')
-        .replaceAll('-', '')
-        .trim();
+      const normalizedPhone = normalizePhone(formData.phone);
       const normalizedSchoolName =
         formData.schoolType === 'N수생' ? '' : formData.schoolName.trim();
 
@@ -502,6 +519,16 @@ export default function StudentForm() {
 
       if ((currentUser.email || '').toLowerCase() !== normalizedEmail) {
         setFormError('인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.');
+        return;
+      }
+
+      // 계정 비밀번호를 폼에 입력된 값으로 맞춘다. 이메일 인증 시점에는 임시
+      // 비밀번호였을 수 있어서(파일 상단 변경 1번) 이 호출을 빠뜨리면 방금 정한
+      // 비밀번호로 로그인할 수 없다.
+      const { error: passwordError } = await applySignupPassword(formData.password);
+
+      if (passwordError) {
+        setFormError('비밀번호 설정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         return;
       }
 
@@ -533,6 +560,16 @@ export default function StudentForm() {
 
         if (errorMessage.includes('duplicate_email')) {
           setFormError('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.');
+          return;
+        }
+
+        // sql/40 [16]. unique 인덱스 위반(23505)은 [16] 미적용 환경에서 같은 상황이
+        // 원문 메시지로 올라오는 경우를 위한 대비다.
+        if (
+          errorMessage.includes('duplicate_phone') ||
+          (errorMessage.includes('duplicate key') && errorMessage.includes('phone'))
+        ) {
+          setFormError(DUPLICATE_PHONE_MESSAGE);
           return;
         }
 
@@ -701,32 +738,29 @@ export default function StudentForm() {
                 : '인증번호 보내기'
           }
           onAction={requestEmailCode}
-          actionDisabled={
-            emailSending ||
-            emailCooldown.active ||
-            verification.email.verified ||
-            emailActionBlockedByPassword
-          }
-          helperText={
-            emailActionBlockedByPassword ? '비밀번호 입력 후 인증할 수 있어요' : emailMessage.text
-          }
-          status={emailActionBlockedByPassword ? 'default' : emailMessage.status}
+          actionDisabled={emailSending || emailCooldown.active || verification.email.verified}
+          // 발송 이후의 안내·에러는 인증코드 필드 쪽에서 보여준다. 두 필드가 같은
+          // 문구를 동시에 띄우면 어느 쪽 이야기인지 알기 어렵다. status도 함께
+          // 내려야 한다 — 문구 없이 status만 error면 이 입력만 이유 없이 흔들린다.
+          helperText={verification.email.requested ? undefined : emailMessage.text}
+          status={verification.email.requested ? 'default' : emailMessage.status}
           autoComplete="email"
           required
         />
 
+        {/* 6자리가 채워지면 자동 검증한다 — 휴대폰 인증번호 필드와 동일하게 "확인"
+            버튼이 없다. 검증 결과는 아래 helperText로 나온다. */}
         <TextField
           label="이메일 인증코드"
           id="student-email-code"
           name="emailCode"
           size="lg"
           value={formData.emailCode}
-          onChange={handleField('emailCode')}
+          onChange={(value) => updateFormData({ emailCode: value.replace(/\D/g, '').slice(0, 6) })}
           placeholder="이메일 인증코드 6자리를 입력해주세요"
-          actionLabel="확인"
-          onAction={verifyEmailCode}
-          actionDisabled={!verification.email.requested || verification.email.verified}
-          disabled={!verification.email.requested}
+          helperText={emailMessage.text}
+          status={verification.email.verified ? 'success' : emailMessage.status}
+          disabled={!verification.email.requested || verification.email.verified}
         />
 
         <TextField

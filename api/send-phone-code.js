@@ -8,10 +8,13 @@
 // 4겹으로 건다 — 번호별 쿨타임/시간당/일일, IP별, 전역 일일 상한.
 // (api/_lib/phoneCode.js checkSendLimits)
 //
-// ⚠️ 남은 구멍: 인증 성공 사실이 아직 가입 RPC와 연결돼 있지 않다.
-//   complete_signup_profile은 휴대폰 인증 여부를 보지 않으므로, 클라이언트가
-//   이 단계를 건너뛰고 가입을 완료할 수 있다. 학부모 가입 폼을 실서버에 붙일 때
-//   phone_verifications.verified_at을 RPC에서 확인하도록 함께 막아야 한다.
+// 인증 성공 사실은 가입 RPC가 다시 확인한다(sql/40_auth_signup.sql [14]/[15] —
+// phone_verifications.verified_at 조회 후 consumed_at으로 소비). 그래서 이 단계를
+// 건너뛰고 가입을 완료할 수는 없다.
+//
+// 가입 목적 발송은 이미 가입에 쓰인 번호를 먼저 걸러낸다(reason:'phone_taken').
+// 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
+// duplicate_phone이 잡는다.
 
 import { createSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import {
@@ -31,6 +34,48 @@ import { getChannel, isDryRun, sendVerificationCode } from './_lib/aligo.js';
 export const config = { runtime: 'nodejs' };
 
 const ALLOWED_PURPOSES = ['signup', 'parent_signup', 'phone_change'];
+
+// 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가
+// 자기 자신과 중복으로 잡히는데, 이 엔드포인트는 인증이 없어서 본인을 구분할 수 없다.
+const SIGNUP_PURPOSES = ['signup', 'parent_signup'];
+
+/**
+ * 010-1234-5678 형태로 되돌린다.
+ *
+ * profiles.phone은 입력값을 그대로 저장해서(complete_signup_profile) 하이픈이 섞인
+ * 행이 있다. 조회는 숫자만으로 하고 싶지만 PostgREST에서 정규화 함수를 쓸 수 없어
+ * 두 표기를 모두 대조한다.
+ */
+function toHyphenated(digits) {
+  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return digits;
+}
+
+/**
+ * 이미 가입이 끝난 계정이 쓰고 있는 번호인지 본다.
+ *
+ * member_type이 채워진 행만 센다. 이메일 인증만 하고 이탈한 계정은 트리거가
+ * profiles 행을 미리 만들어두지만 아직 번호가 없고, 있더라도 가입이 끝난 게
+ * 아니다(sql/40_auth_signup.sql [9]와 같은 판정 기준).
+ */
+async function isPhoneTaken(supabase, phone) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .not('member_type', 'is', null)
+    .or(`phone.eq.${phone},phone.eq.${toHyphenated(phone)}`)
+    .limit(1);
+
+  // 조회가 실패했다고 발송까지 막으면 장애가 가입 전면 중단으로 번진다.
+  // 최종 방어선은 DB의 unique 인덱스와 가입 RPC(duplicate_phone)다.
+  if (error) {
+    console.error('[send-phone-code] 번호 중복 조회 실패:', error);
+    return false;
+  }
+
+  return Array.isArray(data) && data.length > 0;
+}
 
 const LIMIT_MESSAGES = {
   cooldown: '잠시 후에 다시 시도해 주세요.',
@@ -61,6 +106,16 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createSupabaseAdmin();
+
+    // 한도 검사보다 먼저 본다. 어차피 가입할 수 없는 번호에 문자 요금과
+    // 쿨타임을 쓸 이유가 없다.
+    if (SIGNUP_PURPOSES.includes(purpose) && (await isPhoneTaken(supabase, phone))) {
+      return res.status(409).json({
+        ok: false,
+        reason: 'phone_taken',
+        detail: '중복된 전화번호입니다.'
+      });
+    }
 
     const limit = await checkSendLimits(supabase, { phone, ip });
 

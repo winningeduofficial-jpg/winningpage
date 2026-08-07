@@ -21,6 +21,15 @@
 // ※ resumable_verified 경로는 "Confirm signup"이 아니라 **Magic Link** 템플릿으로
 //   나간다. Supabase 대시보드에서 그 템플릿도 {{ .Token }}을 쓰도록 고쳐두지
 //   않으면 이 경로에서만 매직링크가 발송된다.
+//
+// 비밀번호는 언제 계정에 반영되나 (2026-08-07 변경)
+//   예전에는 "비밀번호를 먼저 입력해야 이메일 인증 버튼이 열리는" 구조였다.
+//   signUp이 비밀번호를 요구하기 때문인데, 화면 순서상 비밀번호 필드가 이메일
+//   아래에 있어서 사용자가 아래로 내려갔다 되돌아와야 했다.
+//   이제는 발송 시점에 비밀번호가 없으면 임시 비밀번호로 계정을 만들고, 가입
+//   완료 직전(applySignupPassword)에 폼에 입력된 실제 비밀번호로 덮어쓴다.
+//   그래서 **가입을 끝내는 화면은 반드시 applySignupPassword를 호출해야 한다** —
+//   호출하지 않으면 계정에 임시 비밀번호가 남아 로그인이 불가능해진다.
 
 import { supabase } from './supabase';
 
@@ -64,13 +73,31 @@ export async function checkEmailSignupState(email) {
 }
 
 /**
+ * signUp에 넘길 임시 비밀번호를 만든다.
+ *
+ * 이메일 인증만 하려는 시점에는 사용자가 아직 비밀번호를 입력하지 않았을 수 있는데,
+ * Supabase signUp은 비밀번호를 반드시 요구한다. 추측 가능한 고정값을 쓰면 인증만
+ * 마치고 이탈한 계정에 누구나 로그인할 수 있으므로 매번 난수로 만든다.
+ * (영문 대·소문자 + 숫자 + 특수문자를 모두 포함해 폼과 같은 정책을 만족시킨다)
+ */
+function generateTempPassword() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+
+  const body = Array.from(bytes, (byte) => byte.toString(36)).join('');
+
+  return `Aa1!${body}`;
+}
+
+/**
  * 인증코드를 발송한다. 상태에 따라 신규 가입/이어가기를 알아서 고른다.
  *
  * @param {object} params
- * @param {string} params.email      정규화된(소문자·trim) 이메일
- * @param {string} params.password   폼에 입력된 비밀번호
+ * @param {string} params.email       정규화된(소문자·trim) 이메일
+ * @param {string} [params.password]  폼에 입력된 비밀번호. 비어 있으면 임시 비밀번호로
+ *                                    계정을 만들고, 실제 값은 applySignupPassword가 채운다.
  * @param {string} params.name
- * @param {string} params.memberType 'student' | 'parent' | 'mentor'
+ * @param {string} params.memberType  'student' | 'parent' | 'mentor'
  * @returns {Promise<{state?: string, mode?: string, resumed?: boolean, error?: Error}>}
  *          state가 'taken'이면 발송하지 않는다. mode는 검증 단계에 그대로 넘긴다.
  */
@@ -103,7 +130,8 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
   // 미확인 계정에 대한 signUp 재호출은 확인메일을 다시 보낸다.
   const { error } = await supabase.auth.signUp({
     email,
-    password,
+    // 비밀번호 입력 여부와 무관하게 인증을 진행시키기 위한 임시값(파일 상단 주석).
+    password: password || generateTempPassword(),
     options: {
       data: {
         email,
@@ -140,39 +168,51 @@ function isSamePasswordError(error) {
 }
 
 /**
- * 인증코드를 검증한다. 이어가기였다면 이번에 입력한 비밀번호로 갱신한다.
+ * 인증코드를 검증한다.
  *
- * 비밀번호를 다시 쓰는 이유: 이어가기 경로에서는 지금 폼에 입력한 비밀번호가
- * 계정에 반영되지 않은 상태일 수 있다(이전 시도의 비밀번호가 남아 있다).
- * 검증 직후에는 세션이 있으므로 여기서 맞춰준다.
+ * 비밀번호는 여기서 건드리지 않는다. 발송 시점의 계정 비밀번호는 임시값이거나
+ * 이전 시도의 값일 수 있는데, 그걸 맞추는 일은 가입을 끝내는 순간에
+ * applySignupPassword가 한다. 검증 단계에서 같이 처리하면 "인증은 됐는데
+ * 비밀번호 설정만 실패" 같은 어중간한 상태가 생기고, OTP는 이미 소모된 뒤라
+ * 사용자가 손쓸 방법이 없다.
  *
  * @param {object} params
  * @param {string} params.email
  * @param {string} params.token
- * @param {string} params.mode     sendSignupEmailCode가 돌려준 mode
- * @param {string} [params.password]
- * @param {boolean} [params.resumed]
- * @returns {Promise<{ok?: boolean, error?: Error, stage?: 'verify'|'password'}>}
+ * @param {string} params.mode  sendSignupEmailCode가 돌려준 mode
+ * @returns {Promise<{ok?: boolean, error?: Error}>}
  */
-export async function verifySignupEmailCode({ email, token, mode, password, resumed }) {
+export async function verifySignupEmailCode({ email, token, mode }) {
   const { error } = await supabase.auth.verifyOtp({
     email,
     token,
     type: mode || OTP_MODE.SIGNUP
   });
 
-  if (error) return { error, stage: 'verify' };
+  if (error) return { error };
 
-  if (resumed && password) {
-    const { error: passwordError } = await supabase.auth.updateUser({ password });
+  return { ok: true };
+}
 
-    // 이미 같은 비밀번호면 목적이 달성된 것이므로 성공으로 본다.
-    if (passwordError && !isSamePasswordError(passwordError)) {
-      // OTP는 1회용이라 이 시점에 이미 소모됐다. 사용자가 같은 코드로 다시
-      // 시도하면 403이 나므로, 호출부는 재발송을 안내해야 한다.
-      console.error('비밀번호 설정 실패:', passwordError);
-      return { error: passwordError, stage: 'password' };
-    }
+/**
+ * 폼에 입력된 비밀번호를 계정에 반영한다. 가입 완료 직전에 호출한다.
+ *
+ * 발송 시점에는 임시 비밀번호였을 수도, 이어가기라면 이전 시도의 비밀번호가
+ * 남아 있을 수도 있다. 어느 쪽이든 여기서 사용자가 실제로 입력한 값으로 맞춘다.
+ * 이 호출을 빠뜨리면 사용자가 방금 정한 비밀번호로 로그인할 수 없다.
+ *
+ * @param {string} password
+ * @returns {Promise<{ok?: boolean, error?: Error}>}
+ */
+export async function applySignupPassword(password) {
+  if (!password) return { ok: true };
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  // 이미 같은 비밀번호면 목적이 달성된 것이므로 성공으로 본다.
+  if (error && !isSamePasswordError(error)) {
+    console.error('비밀번호 설정 실패:', error);
+    return { error };
   }
 
   return { ok: true };
