@@ -848,6 +848,35 @@ async function main() {
     );
   }
 
+  // ── 12j) DocBlocksEditor — group 카드에는 ↑↓/삭제가 없다(2026-08-08 사용자 승인) ──
+  //
+  // 첫 group 삭제·순서 이동이 renderSpecialBlocksHtml의 제목 화이트리스트를
+  // 깨 공개 미러를 통째로 무너뜨린다(실측 4053B→165B, 표 6→0). group 카드
+  // 헤더에서 ↑↓/삭제를 아예 없앤다 — 내부(표·셀·행·열) 편집은 유지한다.
+  {
+    const mixedBlocks = [
+      { kind: 'group', title: '전형 일정', children: [{ kind: 'note', text: 'child' }] },
+      { kind: 'note', text: '두 번째 블록' }
+    ];
+    const out = renderToStaticMarkup(
+      React.createElement(DocBlocksEditor, { section: 'selection_method', blocks: mixedBlocks, onChange: () => {} })
+    );
+    const groupHasControls =
+      out.includes('aria-label="블록 1 위로"') ||
+      out.includes('aria-label="블록 1 아래로"') ||
+      out.includes('aria-label="블록 1 삭제"');
+    const nonGroupHasControls =
+      out.includes('aria-label="블록 2 위로"') &&
+      out.includes('aria-label="블록 2 아래로"') &&
+      out.includes('aria-label="블록 2 삭제"');
+    const pass = !groupHasControls && nonGroupHasControls;
+    record(
+      '12j. group 카드(1번)는 ↑↓/삭제 컨트롤이 없고, 비-group 카드(2번)는 그대로 있다',
+      pass,
+      out
+    );
+  }
+
   // ── 13) plainList 항목 추가·삭제·순서 변경(2026-08-06 보완) ───────────
   {
     const PlainListBlockEditor = await loadModule(

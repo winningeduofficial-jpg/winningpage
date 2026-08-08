@@ -134,13 +134,23 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
           );
         }
 
+        // group 카드는 조작 버튼(↑↓/삭제)을 렌더하지 않는다 — 사용자 승인
+        // (2026-08-08): 첫 group 삭제·순서 이동이 renderSpecialBlocksHtml의
+        // 제목 화이트리스트를 깨 공개 미러를 통째로 무너뜨린다(실측
+        // 4053B→165B, 표 6→0). "group 순서·구성을 못 바꾸게 된다"는
+        // 트레이드오프는 감수한다. group 내부(표·셀·행·열) 편집은 그대로
+        // 살아 있다 — GroupBlockEditor가 이미 렌더하는 안내문("그룹 제목·
+        // 구성 변경은 지원하지 않습니다")이 이유를 설명하므로 헤더에
+        // 별도 안내를 더 얹지 않는다.
+        const isGroup = block.kind === 'group';
+
         return (
           <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
             <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
               <span className="text-[11px] font-bold text-gray-500">
                 {SHORT_KIND_LABELS[block.kind] || block.kind} {idx + 1}
               </span>
-              <div className="flex items-center gap-1">{blockControls}</div>
+              {!isGroup && <div className="flex items-center gap-1">{blockControls}</div>}
             </div>
             <AdmissionBlockEditor
               section={section}
