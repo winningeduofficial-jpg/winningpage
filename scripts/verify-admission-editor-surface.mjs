@@ -347,6 +347,34 @@ async function main() {
     );
   }
 
+  // ── surf:10 — 모바일 최저 컬럼 폭이 65rem 미만에서도 잘리지 않을 만큼 넓다 ──
+  //
+  // 2026-08-08: 1000px 창 실측(input 21px, 21칸 중 12칸 잘림)으로 기존 16%가
+  // 부족함이 드러나 32%로 재보정했다(AdmissionEditorSurface.jsx 산출 과정
+  // 주석 참고 — 768px 기준 필요치 31.0%가 상한). 30% 미만으로 되돌아가면
+  // (예: 원래 값 16%로 회귀) 이 게이트가 잡는다 — 정확한 32% 고정 대신
+  // 하한선(30%)으로 두어, 이후 실측으로 미세 조정할 여지는 남긴다.
+  {
+    const rules = [...editorCss.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map((m) => ({
+      head: m[1].trim(),
+      body: m[2].trim()
+    }));
+    const col4Rules = rules.filter(
+      (r) => r.head.includes('.admission-selection-table') && r.head.includes('nth-child(4)')
+    );
+    const mobileWidth = col4Rules
+      .map((r) => (r.body.match(/width:\s*([^;]+)/) || [])[1]?.trim())
+      .find((w) => /%$/.test(w || ''));
+    const mobilePercent = mobileWidth ? Number(mobileWidth.replace('%', '')) : NaN;
+    const pass = Number.isFinite(mobilePercent) && mobilePercent >= 30;
+    record(
+      'surf:10',
+      "모바일·태블릿(max-width:65rem) 최저 컬럼 폭이 30% 이상이다(2026-08-08 재보정 — 16% 회귀 차단)",
+      pass,
+      JSON.stringify({ mobileWidth, mobilePercent })
+    );
+  }
+
   console.log('=== 어드민 편집 전용 표면 CSS 격리 검증 결과 ===\n');
   let failCount = 0;
   for (const r of results) {

@@ -72,12 +72,43 @@ export default function AdmissionEditorSurface() {
         }
 
         /* 모바일·태블릿 구간 — AdmissionSurface 가 %기반(9/19/9/9/auto)으로
-           이어받는 구간이다. 같은 비율 감각을 유지한 채 최저만 9% → 16%.
-           편집 크롬 73px 은 폭에 비례하지 않는 고정값이라 좁은 폭에서 더
-           크게 눌린다. */
+           이어받는 구간이다. 같은 비율 감각을 유지한 채 최저만 9% → 16%로
+           한 차례 넓혔었는데, 2026-08-08 재지적(1000px 창 실측: input
+           21px, 21칸 중 12칸 잘림)으로 16%도 부족함이 드러나 32%로 재보정.
+           편집 크롬(select+gap+input 보더/패딩 ≈73px)은 폭에 비례하지 않는
+           고정값이라 컨테이너가 좁을수록 텍스트 영역을 더 크게 깎아먹는다
+           — 그래서 %도 desktop(9%→16%, 1.8배)보다 더 크게 올려야 같은
+           여유가 난다.
+           ⚠ 방법론 고지: 이 저장소는 브라우저 실측을 정본으로 삼는 관행이지만
+           (위 :45-52 데스크톱 값이 그 예), 이번 보정은 브라우저 도구 없이
+           CSS 캐스케이드를 역산하고 team-lead 가 제공한 1000px 실측 1건을
+           앵커로 교차검증한 결과다 — 아래 산출 과정을 남긴다.
+             1) 1000px 앵커 역산: 16%일 때 input 21px(실측) → content-box
+                21+54.5(gap4+select50.5)=75.5px → td 75.5+32(패딩,
+                AdmissionSurface :210-215 1.25rem 1rem)=107.5px →
+                0.78*1000-96(md:px-12)-10(scrollbar-gutter) 공식(:264-266
+                BLOCK4 실측 문서)과 대조하면 tableWidth≈673px, 107.5/673=
+                15.97%(≈16%, 공식이 실측과 일치 — 아래 역산의 근거).
+             2) 목표 content-box는 desktop 11rem 도출값과 동일(63.9px 텍스트
+                자연폭 + 73px 크롬 = 136.9px) — 텍스트·크롬 모두 폰트 크기가
+                같으면 뷰포트와 무관한 값이기 때문이다.
+             3) 1000px(패딩32): 필요 td=136.9+32=168.9px → 168.9/673=25.1%.
+             4) 768px(0.78*768-106=493px, 이 폭에서는 AdmissionSurface
+                :218-227 의 @media(max-width:48rem) 로 셀 패딩이 1.25rem 1rem
+                →0.625rem 0.5rem 로 줄어 좌우 합 16px): 필요 td=136.9+16=
+                152.9px → 152.9/493=31.0%.
+             5) 두 값 중 더 좁은 768px 기준(31.0%)이 상한을 정한다 — 32%로
+                올림. 1000px 에서는 32%*673=215.4px(content-box 183.4,
+                text_area 110.9px)로 11rem(text_area 71.5px, 잘림 0.2%=
+                557행 중 1행, 조선대 162.9px 이상치뿐)보다 넉넉해 잘림은
+                이상치 1건 수준으로 수렴한다. 768px 에서도 text_area≈69.3px
+                로 11rem 상당(71.5px)에 근접 — 이상치 제외 사실상 0에
+                수렴한다(48rem 이하에서 표 font-size 가 0.8125rem 로도
+                줄어 select/input 도 함께 작아진다면 실제 여유는 이 계산보다
+                더 크다 — 위 산출은 크롬이 안 줄어든다고 가정한 보수값). */
         @media (max-width: 65rem) {
           .admission-surface .admission-table-editor .admission-selection-table th:nth-child(4),
-          .admission-surface .admission-table-editor .admission-selection-table td:nth-child(4) { width: 16%; min-width: 0; max-width: none; }
+          .admission-surface .admission-table-editor .admission-selection-table td:nth-child(4) { width: 32%; min-width: 0; max-width: none; }
         }
     `}</style>
   );
