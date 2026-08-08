@@ -3022,67 +3022,53 @@ function renderRecruitExactBlockHtml(table) {
   `;
 }
 
-// 특수대학(경찰대학/사관학교4종/과기원6종) 3개 소스 함수 미러. 첫 GroupBlock의
-// title로 어느 소스였는지 판별한다(제목이 함수별로 고정·유일해 안전).
-// buildScienceSpecialHtml만 선택 슬롯 3개가 삼항 연산자(`data.xxxRows?.length
-// ? specialBlock(...) : ''`)라 데이터가 없어도 빈 문자열 슬롯 자체는 항상
-// 템플릿에 남는다 — GroupBlock이 없는 슬롯도 renderGroup이 ''을 반환해
-// 그 자리를 그대로 재현한다.
+// 특수대학(경찰대학/사관학교4종/과기원6종) 3개 소스 함수 미러.
+//
+// 2026-08-08 이전: 첫 GroupBlock의 title로 소스를 판별해 그 소스가 쓰는
+// group 제목들을 하드코딩 순서로 하나씩 조회(renderGroup(title))해
+// 그렸다. 그 결과 blocks 배열에 없는 title은 항상 빈 문자열이었고 —
+// 거꾸로 하드코딩 목록에 없는 title(관리자가 편집기로 새로 추가한 최상위
+// 블록)은 blocks 배열에 실제로 들어 있어도 절대 렌더되지 않았다(추가가
+// "조용히 무시"됨, team-lead 실측: 4053B → 4053B 무변화).
+//
+// 지금은 blocks 배열을 순서대로 순회한다. kind별 렌더 방식은 이전과
+// 동일(note는 무조건 div, group은 specialBlock+중첩 표)하되 title로
+// 조회하지 않고 배열에 실제로 있는 블록만, 있는 순서대로 그린다. 3개
+// 소스 빌더(buildPoliceSpecialDoc/buildAcademySpecialDoc/
+// buildScienceSpecialDoc)가 만드는 blocks는 항상 [note, group, group...]
+// 순서라 기존 데이터의 출력은 바이트 단위로 그대로다(Gate A/A2 재검증
+// 완료). group도 아니고 note도 아닌 블록(관리자가 새로 추가한 top-level
+// table/plainList/heading 등, docBlockOperations.js의
+// PRIMARY_ADDABLE_KINDS_BY_SECTION.selection_method 참고)은
+// renderFallbackBlockBodyHtml(그 종류를 "이 블록만 있다면" 수준으로
+// 렌더하는 범용 함수, :3115)로 그려 최소한 무시되지 않고 나타나게 한다.
 function renderSpecialBlocksHtml(blocks) {
-  const noteBlock = blocks.find((b) => b.kind === 'note');
-  const groups = blocks.filter((b) => b.kind === 'group');
-  const noteHtml = `<div class="admission-result-note">${escapeHtml(noteBlock ? noteBlock.text : '')}</div>`;
-
-  const renderGroup = (title) => {
-    const group = groups.find((g) => g.title === title);
-    if (!group) return '';
-    const tableHtml = group.children
-      .map((child) =>
-        htmlTable(
-          child.columns.map((c) => c.label),
-          child.rows,
-          { className: 'admission-data-table admission-special-table' }
-        )
-      )
-      .join('');
-    return specialBlock(group.title, tableHtml);
-  };
-
-  const firstTitle = groups[0]?.title;
-
-  if (firstTitle === '2027 수시·정시 전형 요약') {
-    return `
-    <div class="admission-raw-section-wrap admission-special-wrap">
-      ${noteHtml}
-      ${renderGroup('2027 수시·정시 전형 요약')}
-      ${renderGroup('수시 3개년 경쟁률')}
-      ${renderGroup('전년도와의 차이점')}
-      ${renderGroup('서류·면접 평가 방법')}
-    </div>
-  `;
-  }
-
-  if (firstTitle === '전형 일정') {
-    return `
-    <div class="admission-raw-section-wrap admission-special-wrap">
-      ${noteHtml}
-      ${renderGroup('전형 일정')}
-      ${renderGroup('선발 구조')}
-      ${renderGroup('1차 시험')}
-      ${renderGroup('학생부·수능 반영')}
-      ${renderGroup('최근 3개년 경쟁률')}
-      ${renderGroup('최근 3개년 1차 시험 최초 합격자 평균')}
-    </div>
-  `;
-  }
+  const bodyHtml = blocks
+    .map((block) => {
+      if (block.kind === 'note') {
+        return `<div class="admission-result-note">${escapeHtml(block.text || '')}</div>`;
+      }
+      if (block.kind === 'group') {
+        const tableHtml = (block.children || [])
+          .map((child) =>
+            child.kind === 'table'
+              ? htmlTable(
+                  child.columns.map((c) => c.label),
+                  child.rows,
+                  { className: 'admission-data-table admission-special-table' }
+                )
+              : renderFallbackBlockBodyHtml(child)
+          )
+          .join('');
+        return specialBlock(block.title, tableHtml);
+      }
+      return renderFallbackBlockBodyHtml(block);
+    })
+    .join('\n      ');
 
   return `
     <div class="admission-raw-section-wrap admission-special-wrap">
-      ${noteHtml}
-      ${renderGroup('전형 일정 비교')}
-      ${renderGroup('모집인원 및 선발 구조')}
-      ${renderGroup('1차 시험 및 가산점')}
-      ${renderGroup('국방미래인재전형 참고')}
+      ${bodyHtml}
     </div>
   `;
 }

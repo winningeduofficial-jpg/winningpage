@@ -12,7 +12,12 @@
 // 종료 코드: 전부 통과하면 0, 하나라도 실패하면 1.
 // =====================================================================
 
-import { renderDocToHtml, buildRawSectionHtml, buildRawSectionDoc } from '../src/lib/admissionParsing.js';
+import {
+  renderDocToHtml,
+  buildRawSectionHtml,
+  buildRawSectionDoc,
+  buildSpecialCategoryDoc
+} from '../src/lib/admissionParsing.js';
 import { validateAdmissionDoc } from '../src/lib/admissionDoc.js';
 import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
 
@@ -165,6 +170,54 @@ SECTION_KEYS.forEach((sectionKey) => {
         `바이트 불일치(${universityName}/${sectionKey}) — 이 렌더러 수정이 정상 경로를 건드렸다는 뜻이다. ` +
           `expected.length=${expectedHtml.length}, actual.length=${actualHtml.length}`
       );
+    }
+  });
+});
+
+// === 4) 특수대학(wrapModifier==='special') doc — 새 top-level 블록을
+//    blocks 배열에 추가하면 renderDocToHtml 결과에 실제로 반영되는지.
+//
+// 2026-08-08 이전 renderSpecialBlocksHtml은 첫 GroupBlock의 title로 소스
+// (경찰대/사관학교/과기원)를 판별한 뒤 그 소스 전용 하드코딩 제목
+// 목록만 하나씩 조회해서 그렸다 — blocks 배열에 새 블록(관리자가
+// DocBlocksEditor로 추가한 table/plainList/heading 등)이 실제로 들어가도
+// 하드코딩 목록에 없는 한 절대 렌더되지 않았다("조용한 무시", team-lead
+// 실측: 4053B → 4053B 무변화). 이 케이스가 그 회귀를 잡는다 — 경찰대
+// (police, firstTitle='전형 일정'), 육군사관학교(academy, firstTitle=
+// '전형 일정 비교'), 포항공과대학교(science, firstTitle='2027 수시·정시
+// 전형 요약') 세 소스 분기를 전부 대표로 확인한다.
+[
+  { name: '경찰대학', source: 'police' },
+  { name: '육군사관학교', source: 'academy' },
+  { name: '포항공과대학교', source: 'science' }
+].forEach(({ name, source }) => {
+  check(`selection_method / 특수대학(${source}:${name}) — 새 top-level table 블록이 렌더에 반영됨`, () => {
+    const doc = buildSpecialCategoryDoc('', { detail_status: 'category', university_name: name }, name);
+    if (doc.wrapModifier !== 'special') {
+      throw new Error(`테스트 전제 붕괴 — ${name} doc이 wrapModifier==='special'이 아니다: ${doc.wrapModifier}`);
+    }
+    const before = renderDocToHtml(doc, 'selection_method');
+
+    const marker = `테스트마커-${source}-${Date.now()}`;
+    doc.blocks.push({
+      kind: 'table',
+      variant: 'generic',
+      columns: [
+        { role: 'type', label: '구분' },
+        { role: 'content', label: '내용' }
+      ],
+      rows: [['새 항목', marker]]
+    });
+
+    const { ok, errors } = validateAdmissionDoc(doc);
+    if (!ok) throw new Error(`블록 추가 후 doc이 validateAdmissionDoc을 통과하지 못함: ${errors.join('; ')}`);
+
+    const after = renderDocToHtml(doc, 'selection_method');
+    if (after === before) {
+      throw new Error('새 블록을 추가해도 렌더 결과가 바뀌지 않았다 — 최상위 블록 추가가 조용히 무시됨(회귀).');
+    }
+    if (!after.includes(marker)) {
+      throw new Error(`새로 추가한 블록의 내용(${marker})이 렌더 결과에 포함되지 않았다.`);
     }
   });
 });
