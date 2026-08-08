@@ -38,8 +38,10 @@
 //   (조용히 통과하지 않는다).
 //
 // 항목 번호 배분
-//   entry:1~3  빈 카테고리 칸 진입 허용        (슬라이스 SSR)
-//   entry:4~8  목록 '관리' 열 ✏️ config 게이팅 (소스 락)
+//   entry:1~3   빈 카테고리 칸 진입 허용                    (슬라이스 SSR)
+//   entry:4~8   목록 '관리' 열 ✏️ config 게이팅              (소스 락)
+//   entry:9     관리 열 실제 렌더(✏️/👁/🗑 3-config 대조)     (슬라이스 SSR)
+//   entry:10~12 목록 '관리' 열 ⚙️(메타 전용 모달) 진입점·모달 (소스 락 + SSR)
 //
 // 실행: node scripts/verify-admission-admin-entry.mjs
 // 제약: npm install 금지, jsdom 없음. esbuild(transform) + react-dom/server 만.
@@ -50,6 +52,34 @@ import path from 'node:path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as esbuild from 'esbuild';
+
+// 실제 소스 파일(.jsx)을 번들해 import한다 — AdmissionMetaEditModal.jsx는
+// supabase 등 외부 부작용 의존이 없는 순수 컴포넌트라, verify-admission-
+// table-editor.mjs의 loadModule과 같은 기법을 그대로 쓸 수 있다.
+async function loadModule(entry, exportName) {
+  const result = await esbuild.build({
+    entryPoints: [path.join(REPO_ROOT, entry)],
+    bundle: true,
+    format: 'esm',
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+    platform: 'node',
+    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server', 'lucide-react'],
+    write: false
+  });
+  const code = result.outputFiles[0].text;
+  const tmpFile = path.join(
+    REPO_ROOT,
+    `.tmp-admin-entry-module-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+  );
+  fs.writeFileSync(tmpFile, code);
+  try {
+    const mod = await import(`file://${tmpFile}`);
+    return exportName ? mod[exportName] : mod.default;
+  } finally {
+    fs.rmSync(tmpFile, { force: true });
+  }
+}
 
 const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
 const ADMIN_REL = 'src/pages/Admin.jsx';
@@ -145,7 +175,8 @@ import React from 'react';
 const Eye = () => <i data-icon="eye" />;
 const Edit3 = () => <i data-icon="edit3" />;
 const Trash2 = () => <i data-icon="trash2" />;
-export default function ManageCellHarness({ config, row, onEdit, onDelete }) {
+const Settings = () => <i data-icon="settings" />;
+export default function ManageCellHarness({ config, row, onEdit, onDelete, onOpenMetaEdit }) {
   return (
     <table><tbody><tr>
       ${sliceText}
@@ -446,6 +477,140 @@ async function main() {
         default: { edit: b.edit, eye: b.eye, trash: b.trash },
         readOnly: { edit: c.edit, eye: c.eye, trash: c.trash }
       })
+    );
+  }
+
+  // ===================================================================
+  // entry:10~12 — 목록 '관리' 열 ⚙️(메타 전용 모달) 진입점
+  //
+  // 사용자 지시(2026-08-08): "아직도 '수정'이 너무 복잡해보여서. 메타만
+  // 수정하는거로 하자. HWP 원문 붙여넣기 파싱은 필요없어." ✏️(행 전체
+  // 폼)가 hideRowEdit로 숨겨진 이 메뉴에, 메타 9필드만 고치는 경량 모달
+  // (AdmissionMetaEditModal) 진입점을 config.showMetaEdit 스위치로 켰다.
+  // entry:4~9와 같은 두 축(소스 락 + 실제 렌더)으로 못 박는다.
+  // ===================================================================
+
+  // ── entry:10 — showMetaEdit 이 admissionGuidelines 1곳에만 있다 ──────
+  {
+    const decls = [...code.matchAll(/\bshowMetaEdit:\s*true\b/g)];
+    const owners = decls.map((m) => configKeyAt(m.index));
+    const pass = decls.length === 1 && owners[0] === 'admissionGuidelines';
+    record(
+      'entry:10',
+      '`showMetaEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)',
+      pass,
+      JSON.stringify({ count: decls.length, owners })
+    );
+  }
+
+  // ── entry:11 — ⚙️ 가 실제 렌더에서 showMetaEdit config 에만 나오고, 클릭하면 onOpenMetaEdit(row) 를 조건 없이 부른다 ──
+  {
+    const ManageCell = await loadManageCell(sliceManageCell(adminSrc));
+    const renderWithMeta = (config) => {
+      const clicks = [];
+      const element = React.createElement(ManageCell, {
+        config,
+        row: { id: 'fixture' },
+        onEdit: () => {},
+        onDelete: () => {},
+        onOpenMetaEdit: (...a) => clicks.push(a)
+      });
+      const html = renderToStaticMarkup(element);
+      const settingsIcon = html.includes('data-icon="settings"');
+      // 클릭까지 재현한다(entry:2와 같은 이유 — 버튼이 있어도 핸들러가
+      // 조건부면 의미가 없다). 트리에서 aria-label로 정확히 집는다.
+      function findByAriaLabel(node, label) {
+        if (!node || typeof node !== 'object') return null;
+        if (Array.isArray(node)) {
+          for (const child of node) {
+            const hit = findByAriaLabel(child, label);
+            if (hit) return hit;
+          }
+          return null;
+        }
+        if (node.props?.['aria-label'] === label) return node;
+        return findByAriaLabel(node.props?.children, label);
+      }
+      const button = findByAriaLabel(element.type(element.props), '메타 정보 수정');
+      button?.props?.onClick?.();
+      return { settingsIcon, hasButton: Boolean(button), clicks };
+    };
+    const withFlag = renderWithMeta({ showMetaEdit: true });
+    const withoutFlag = renderWithMeta({});
+    const pass =
+      withFlag.settingsIcon &&
+      withFlag.hasButton &&
+      withFlag.clicks.length === 1 &&
+      withFlag.clicks[0][0].id === 'fixture' &&
+      !withoutFlag.settingsIcon &&
+      !withoutFlag.hasButton;
+    record(
+      'entry:11',
+      'showMetaEdit=true 인 config 만 ⚙️(data-icon="settings")를 렌더하고 클릭 시 onOpenMetaEdit(row)를 조건 없이 호출한다; 기본 config 는 렌더하지 않는다',
+      pass,
+      JSON.stringify({ withFlag, withoutFlag })
+    );
+  }
+
+  // ── entry:12 — AdmissionMetaEditModal: 9필드 전부 렌더되고, 표 편집기·HWP 파싱 패널은 없다 ──
+  {
+    const AdmissionMetaEditModal = await loadModule(
+      'src/components/admission/editor/AdmissionMetaEditModal.jsx'
+    );
+    const row = {
+      id: 'fixture',
+      university_name: '검증대학교',
+      matched_hwp_name: '검증대學校',
+      university_key: 'geomjeung',
+      region: '서울',
+      admission_year: 2027,
+      jungsi_guideline_url: 'https://example.com/jungsi.pdf',
+      memo: '검증용 메모',
+      is_active: true,
+      detail_status: '상세입력완료'
+    };
+    let html = '';
+    let threw = false;
+    try {
+      html = renderToStaticMarkup(
+        React.createElement(AdmissionMetaEditModal, { row, onClose: () => {}, onSave: async () => true })
+      );
+    } catch (err) {
+      threw = true;
+      html = String(err && err.stack ? err.stack : err);
+    }
+    const requiredLabels = [
+      '대학명',
+      '원문 대학명',
+      '대학 키값',
+      '지역',
+      '입학연도',
+      '정시모집요강 URL',
+      '메모',
+      '노출 여부',
+      '상태'
+    ];
+    const missingLabels = requiredLabels.filter((label) => !html.includes(label));
+    // 표 편집기·HWP 파싱 패널이 흘러 들어오지 않는다는 것을 구조로 못 박는다
+    // (AdmissionMetaEditModal은 애초에 그 컴포넌트들을 import하지 않으므로
+    // 이 문자열들은 그 컴포넌트가 렌더될 때만 나올 수 있다). <style> 블록은
+    // 먼저 걷어낸다 — AdmissionModalStyles가 그리는 공용 CSS 셀렉터 텍스트에
+    // 'admission-scroll-table' 같은 클래스명이 문자 그대로 등장해 오탐을 낸다
+    // (실제 DOM 엘리먼트가 아니라 셀렉터 문자열이다).
+    const htmlWithoutStyleTags = html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '');
+    const forbiddenMarkers = [
+      'admission-scroll-table', // TableBlockEditor(표 편집기)의 스크롤 래퍼
+      'admission-data-table', // 표 셀 그리드
+      'HWP 원문 파싱', // AdmissionParsingPreview 패널 헤딩
+      '열 추가', // 표 편집기 열 조작
+      '행 추가' // 표 편집기 행 조작
+    ].filter((marker) => htmlWithoutStyleTags.includes(marker));
+    const pass = !threw && missingLabels.length === 0 && forbiddenMarkers.length === 0;
+    record(
+      'entry:12',
+      'AdmissionMetaEditModal — 메타 9필드 라벨이 전부 렌더되고, 표 편집기·HWP 파싱 패널 마커는 없다',
+      pass,
+      threw ? html : JSON.stringify({ missingLabels, forbiddenMarkers, len: html.length })
     );
   }
 

@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings,
   Trash2,
   UploadCloud
 } from 'lucide-react';
@@ -41,6 +42,7 @@ import SafeHtml from '../components/admission/SafeHtml';
 import AdmissionSurface from '../components/admission/AdmissionSurface';
 import DocBlocksEditor from '../components/admission/editor/DocBlocksEditor';
 import AdmissionSectionEditModal from '../components/admission/editor/AdmissionSectionEditModal';
+import AdmissionMetaEditModal from '../components/admission/editor/AdmissionMetaEditModal';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
@@ -946,6 +948,13 @@ const CONFIGS = {
     // 대해서는 AdmissionBulkXlsxPanel 엑셀 왕복이 유일한 수정 경로가 된다.
     // [등록] 신규 폼은 별도 진입점(:6157 부근)이라 그대로 살아 있다.
     hideRowEdit: true,
+
+    // ✏️(행 전체 폼)를 대신할 메타 전용 경량 진입점(⚙️). 사용자 지시
+    // (2026-08-08): "아직도 '수정'이 너무 복잡해보여서. 메타만 수정하는거로
+    // 하자. HWP 원문 붙여넣기 파싱은 필요없어." AdminTable의 관리 열
+    // 렌더 조건 1개를 이 config에만 추가한다 — hideRowEdit과 같은
+    // "공용 렌더 + config 스위치" 패턴, 다른 35개 메뉴는 이 플래그를 안 쓴다.
+    showMetaEdit: true,
 
     // 목록 표를 공개 서비스 표와 같은 모양으로 만든다(2026-08-07 사용자 지시
     // "서비스 모달 구조를 그대로 따라가라", 직전 피드백 "아직도 2뎁스잖아").
@@ -5012,7 +5021,7 @@ function AdminForm({
   );
 }
 
-function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSection }) {
+function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSection, onOpenMetaEdit }) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageRows = useMemo(() => rows.slice(start, start + PAGE_SIZE), [rows, start]);
@@ -5189,6 +5198,21 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
                           className="text-gray-500 hover:text-black"
                         >
                           {config.readOnly ? <Eye size={17} /> : <Edit3 size={17} />}
+                        </button>
+                      )}
+
+                      {/* config.showMetaEdit: ✏️(행 전체 폼) 대신 메타 9필드만
+                          고치는 경량 모달(AdmissionMetaEditModal) 진입점.
+                          admissionGuidelines 1개 메뉴에만 켠다 — hideRowEdit과
+                          같은 "공용 렌더 + config 스위치" 패턴. */}
+                      {config.showMetaEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMetaEdit?.(row)}
+                          aria-label="메타 정보 수정"
+                          className="text-gray-500 hover:text-black"
+                        >
+                          <Settings size={17} />
                         </button>
                       )}
 
@@ -5797,6 +5821,9 @@ export default function Admin() {
   // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
   // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
   const [pendingSection, setPendingSection] = useState(null);
+  // 관리 열 ⚙️(메타 전용 모달)이 열려 있는 행. null이면 닫힘 — mode는
+  // 'list'로 그대로 두고 오버레이만 뜬다(목록 셀 [수정]과 같은 1뎁스 UX).
+  const [metaEditRow, setMetaEditRow] = useState(null);
   const [rows, setRows] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
@@ -5874,6 +5901,7 @@ export default function Admin() {
     setMode('list');
     setEditingRow(null);
     setPendingSection(null);
+    setMetaEditRow(null);
     setKeyword('');
     setPage(1);
     loadRows();
@@ -6070,6 +6098,36 @@ export default function Admin() {
     await loadRows();
   }
 
+  // AdmissionMetaEditModal 저장 경로. saveRow와 같은 변환(config.rowToForm/
+  // formToPayload)·같은 table·같은 supabase update를 그대로 타되, saveRow가
+  // 의존하는 editingRow/mode 상태는 건드리지 않는다(목록은 계속 'list'
+  // 모드다) — 그래서 saveRow를 직접 호출하지 않고 같은 변환만 재사용한다.
+  //
+  // *_json/*_html을 건드리지 않는 이유: rowToForm(row)이 이미 그 컬럼들을
+  // row 원본 값 그대로 채우고, metaForm(9필드)은 그 키들을 포함하지 않으므로
+  // merged[jsonKey] === row[jsonKey]다. formToPayload는 그 값이 그대로면
+  // 동일한 값을 다시 실어 보내거나(변경 없음), null/무효면 payload에서
+  // 아예 delete한다(컬럼을 건드리지 않음) — 어느 경우에도 카테고리 콘텐츠는
+  // 달라지지 않는다.
+  async function saveAdmissionMeta(row, metaForm) {
+    const merged = { ...(config.rowToForm ? config.rowToForm(row) : row), ...metaForm };
+    const payload = config.formToPayload ? config.formToPayload(merged) : merged;
+    delete payload.created_at;
+    delete payload.updated_at;
+
+    const { error } = await supabase.from(config.table).update(payload).eq('id', row.id).select('*').single();
+
+    if (error) {
+      alert(`수정 실패: ${error.message}`);
+      return false;
+    }
+
+    alert('저장 완료');
+    setMetaEditRow(null);
+    await loadRows();
+    return true;
+  }
+
   function downloadExcel() {
     downloadCsv(
       `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
@@ -6212,6 +6270,15 @@ export default function Admin() {
                     onEdit={editRow}
                     onDelete={deleteRow}
                     onOpenSection={openRowSection}
+                    onOpenMetaEdit={setMetaEditRow}
+                  />
+                )}
+
+                {metaEditRow && (
+                  <AdmissionMetaEditModal
+                    row={metaEditRow}
+                    onClose={() => setMetaEditRow(null)}
+                    onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
                   />
                 )}
               </>
