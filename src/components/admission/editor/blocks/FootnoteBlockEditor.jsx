@@ -28,7 +28,7 @@ export default function FootnoteBlockEditor({ block, onChange }) {
 
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">각주(footnote)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">각주</label>
       <div className="flex flex-col gap-1">
         {items.map((item, idx) => (
           <div key={idx} className="flex items-center gap-1">

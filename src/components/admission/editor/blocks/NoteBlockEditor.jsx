@@ -4,7 +4,7 @@ import ImeSafeInput from '../ImeSafeInput';
 export default function NoteBlockEditor({ block, onChange }) {
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">안내 문구(note)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">안내 문구</label>
       <ImeSafeInput
         type="text"
         value={block.text ?? ''}

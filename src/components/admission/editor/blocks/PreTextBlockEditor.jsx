@@ -4,7 +4,7 @@ import ImeSafeTextarea from '../ImeSafeTextarea';
 export default function PreTextBlockEditor({ block, onChange }) {
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">원문 텍스트(preText)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">원문 텍스트</label>
       <ImeSafeTextarea
         rows={8}
         value={block.text ?? ''}

@@ -52,7 +52,7 @@ export default function AdmissionBlockEditor({ section, block, onChange, univers
     case 'rawHtml':
       return (
         <p className="p-2 text-[11px] text-gray-400">
-          rawHtml 블록은 이 편집기에서 수정할 수 없습니다(레거시 승계 콘텐츠, reason: {block.reason || '미상'}).
+          원본 HTML(레거시)은 이 편집기에서 수정할 수 없습니다(레거시 승계 콘텐츠, 사유: {block.reason || '미상'}).
         </p>
       );
     default:

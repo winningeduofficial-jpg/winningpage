@@ -4,7 +4,7 @@ import ImeSafeInput from '../ImeSafeInput';
 export default function EmptyBoxBlockEditor({ block, onChange }) {
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">빈 상태 문구(emptyBox)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">내용 없음 안내 문구</label>
       <ImeSafeInput
         type="text"
         value={block.message ?? ''}

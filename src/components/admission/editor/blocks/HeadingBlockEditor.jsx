@@ -4,7 +4,7 @@ import ImeSafeInput from '../ImeSafeInput';
 export default function HeadingBlockEditor({ block, onChange }) {
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">소제목(heading)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">소제목</label>
       <ImeSafeInput
         type="text"
         value={block.text ?? ''}

@@ -574,7 +574,7 @@ async function main() {
       out = String(err && err.stack ? err.stack : err);
     }
     const pass =
-      !threw && out.includes('블록 추가') && out.includes('그룹 제목·구성 변경은 지원하지 않습니다');
+      !threw && out.includes('내용 추가') && out.includes('그룹 제목·구성 변경은 지원하지 않습니다');
     record('12c. DocBlocksEditor 스모크 렌더 — 9종 블록 전부 예외 없이 디스패치(group은 children 표 편집기로)', pass, threw ? out : `len=${out.length}`);
   }
 
@@ -699,7 +699,9 @@ async function main() {
       path.join(REPO_ROOT, 'src/components/admission/editor/blocks/GroupBlockEditor.jsx'),
       'utf8'
     );
-    const forbidden = ['블록 추가', '↑', '↓', '삭제'].filter((token) => src.includes(token));
+    // '블록 추가'는 2026-08-08 문구 정리로 '내용 추가'가 됐다(DocBlocksEditor.jsx) —
+    // 락 대상 토큰도 같이 갱신해야 의도(구성 변경 UI 유입 탐지)가 유지된다.
+    const forbidden = ['내용 추가', '↑', '↓', '삭제'].filter((token) => src.includes(token));
     const pass = forbidden.length === 0 && src.includes('AdmissionBlockEditor');
     record(
       '12g. 소스 락 — GroupBlockEditor.jsx에 group 생성·제거·순서 변경 토큰이 없다(구성 변경 UI 유입 탐지)',
@@ -800,7 +802,7 @@ async function main() {
     // 추가 셀렉트의 option만 골라낸다 — 표 셀/열 설정의 다른 <select>가
     // 섞이면 개수 단언이 무의미해진다.
     const addSelectOptionValues = (html) => {
-      const start = html.indexOf('aria-label="추가할 블록 종류"');
+      const start = html.indexOf('aria-label="추가할 내용 종류"');
       if (start < 0) return null;
       const end = html.indexOf('</select>', start);
       if (end < 0) return null;
@@ -827,8 +829,8 @@ async function main() {
           continue;
         }
         const values = addSelectOptionValues(out);
-        if (!out.includes('+ 블록 추가')) {
-          failures.push(`${section}/${stateLabel}: '+ 블록 추가' 버튼 없음`);
+        if (!out.includes('+ 내용 추가')) {
+          failures.push(`${section}/${stateLabel}: '+ 내용 추가' 버튼 없음`);
           continue;
         }
         if (values === null) {
@@ -842,7 +844,7 @@ async function main() {
     }
     const pass = checked === 18 && failures.length === 0;
     record(
-      '12i. 빈 상태 추가 수단 — 6섹션 × 3빈상태(블록0/emptyBox1/group1) 18케이스 전부에서 "+ 블록 추가" 셀렉트가 존재하고 option 집합이 섹션 primary와 일치',
+      '12i. 빈 상태 추가 수단 — 6섹션 × 3빈상태(블록0/emptyBox1/group1) 18케이스 전부에서 "+ 내용 추가" 셀렉트가 존재하고 option 집합이 섹션 primary와 일치',
       pass,
       JSON.stringify({ checked, failures })
     );
@@ -862,18 +864,67 @@ async function main() {
       React.createElement(DocBlocksEditor, { section: 'selection_method', blocks: mixedBlocks, onChange: () => {} })
     );
     const groupHasControls =
-      out.includes('aria-label="블록 1 위로"') ||
-      out.includes('aria-label="블록 1 아래로"') ||
-      out.includes('aria-label="블록 1 삭제"');
+      out.includes('aria-label="내용 1 위로"') ||
+      out.includes('aria-label="내용 1 아래로"') ||
+      out.includes('aria-label="내용 1 삭제"');
     const nonGroupHasControls =
-      out.includes('aria-label="블록 2 위로"') &&
-      out.includes('aria-label="블록 2 아래로"') &&
-      out.includes('aria-label="블록 2 삭제"');
+      out.includes('aria-label="내용 2 위로"') &&
+      out.includes('aria-label="내용 2 아래로"') &&
+      out.includes('aria-label="내용 2 삭제"');
     const pass = !groupHasControls && nonGroupHasControls;
     record(
       '12j. group 카드(1번)는 ↑↓/삭제 컨트롤이 없고, 비-group 카드(2번)는 그대로 있다',
       pass,
       out
+    );
+  }
+
+  // ── 12k) 편집기 문구 — 내부 kind 표기가 화면에 남지 않는다(2026-08-08 사용자 지적) ──
+  //
+  // "'블록 추가'의 의미를 솔직히 파악하기 어려워." — KIND_LABELS(추가 셀렉트)가
+  // 헤더 배지와 달리 "표(table, generic 2컬럼으로 시작)" 같은 내부 스키마
+  // 표기를 그대로 노출하고 있었다. BLOCK_KIND_LABELS로 단일화하고 5종
+  // 블록 편집기 자체 라벨·rawHtml 안내문에서도 괄호 kind 표기를 뺐다.
+  {
+    const blocks = [
+      { kind: 'table', variant: 'selection', columns: [{ role: 'type', label: '전형' }], rows: [['x']] },
+      { kind: 'note', text: 'n' },
+      { kind: 'emptyBox', message: 'e' },
+      { kind: 'heading', text: 'h' },
+      { kind: 'preText', text: 'p' },
+      { kind: 'plainList', items: [{ type: 'text', text: 'l' }] },
+      { kind: 'footnote', items: ['f'] },
+      { kind: 'rawHtml', html: '<div>r</div>', reason: 'curated-html' }
+    ];
+    const out = renderToStaticMarkup(
+      React.createElement(DocBlocksEditor, { section: 'recruitment_quota', blocks, onChange: () => {} })
+    );
+    const forbiddenTokens = [
+      '(note)',
+      '(heading)',
+      '(emptyBox)',
+      '(plainList)',
+      '(preText)',
+      '(footnote)',
+      'generic 2컬럼',
+      'rawHtml 블록은',
+      '블록 추가',
+      '블록 삭제',
+      '추가할 블록 종류'
+    ].filter((token) => out.includes(token));
+    const requiredTokens = [
+      '+ 내용 추가',
+      '이 내용 삭제',
+      '추가할 내용 종류',
+      '내용 없음 안내 문구',
+      '고급(이 항목에 잘 안 쓰는 종류도 표시)',
+      '원본 HTML(레거시)은 이 편집기에서 수정할 수 없습니다'
+    ].filter((token) => !out.includes(token));
+    const pass = forbiddenTokens.length === 0 && requiredTokens.length === 0;
+    record(
+      '12k. 편집기 문구 정리 — 내부 kind 괄호 표기·"블록" 용어가 화면에서 사라지고 순화된 한글 문구로 대체됐다',
+      pass,
+      JSON.stringify({ forbiddenTokens, requiredTokens })
     );
   }
 

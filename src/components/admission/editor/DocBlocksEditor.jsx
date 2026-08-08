@@ -3,24 +3,18 @@ import AdmissionBlockEditor from './AdmissionBlockEditor';
 import { validateBlocks } from './tableEditorValidation';
 import * as docOps from './docBlockOperations';
 
-const KIND_LABELS = {
-  table: '표(table, generic 2컬럼으로 시작)',
-  note: '안내 문구(note)',
-  emptyBox: '빈 상태 박스(emptyBox)',
-  heading: '소제목(heading)',
-  plainList: '목록(plainList)',
-  preText: '원문 텍스트(preText)',
-  footnote: '각주(footnote)'
-};
-
-// 블록 헤더 표기용 짧은 이름(2026-08-06 사용자 지적 반영 — "#1 table" 같은
-// 내부 kind 표기 대신 관리자가 읽을 라벨로). group/rawHtml은 추가 대상은
-// 아니지만(ALL_BLOCK_KINDS 밖) 이미 doc에 있을 수 있어 블록 헤더 표기는
-// 필요하다.
-const SHORT_KIND_LABELS = {
+// 블록 kind → 화면 표기 라벨. 헤더 배지("표 1" 등)와 추가 셀렉트 옵션이
+// 이 한 곳만 본다(2026-08-06 사용자 지적으로 헤더는 먼저 한글화됐는데
+// 추가 셀렉트는 "표(table, generic 2컬럼으로 시작)" 같은 내부 스키마
+// 표기가 그대로 남아 있었다 — 2026-08-08 재지적: "'블록 추가'의 의미를
+// 솔직히 파악하기 어려워"). group/rawHtml은 추가 대상은 아니지만
+// (ALL_BLOCK_KINDS 밖) 이미 doc에 있을 수 있어 헤더 표기는 필요하다.
+// emptyBox는 다른 kind와 달리 원어 라벨을 그대로 줄이지 않고 뜻을
+// 풀어 썼다 — "빈 상태 박스"는 그 자체로 무슨 상태인지 짐작하기 어렵다.
+const BLOCK_KIND_LABELS = {
   table: '표',
   note: '안내 문구',
-  emptyBox: '빈 상태 박스',
+  emptyBox: '내용 없음 안내 문구',
   heading: '소제목',
   plainList: '목록',
   preText: '원문 텍스트',
@@ -92,7 +86,7 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
               type="button"
               onClick={() => moveBlockUpDown(idx, -1)}
               disabled={idx === 0}
-              aria-label={`블록 ${idx + 1} 위로`}
+              aria-label={`내용 ${idx + 1} 위로`}
               className="text-xs disabled:text-gray-300"
             >
               ↑
@@ -101,7 +95,7 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
               type="button"
               onClick={() => moveBlockUpDown(idx, 1)}
               disabled={idx === blocks.length - 1}
-              aria-label={`블록 ${idx + 1} 아래로`}
+              aria-label={`내용 ${idx + 1} 아래로`}
               className="text-xs disabled:text-gray-300"
             >
               ↓
@@ -109,10 +103,10 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
             <button
               type="button"
               onClick={() => removeBlock(idx)}
-              aria-label={`블록 ${idx + 1} 삭제`}
+              aria-label={`내용 ${idx + 1} 삭제`}
               className="text-xs font-bold text-red-500"
             >
-              블록 삭제
+              이 내용 삭제
             </button>
           </>
         );
@@ -148,7 +142,7 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
           <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
             <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
               <span className="text-[11px] font-bold text-gray-500">
-                {SHORT_KIND_LABELS[block.kind] || block.kind} {idx + 1}
+                {BLOCK_KIND_LABELS[block.kind] || block.kind} {idx + 1}
               </span>
               {!isGroup && <div className="flex items-center gap-1">{blockControls}</div>}
             </div>
@@ -169,17 +163,17 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
           <select
             value={addKind}
             onChange={(e) => setAddKind(e.target.value)}
-            aria-label="추가할 블록 종류"
+            aria-label="추가할 내용 종류"
             className="border border-[#d7d7d7] px-1 py-1 text-[11px] font-normal text-gray-700"
           >
             {visibleKinds.map((kind) => (
               <option key={kind} value={kind}>
-                {KIND_LABELS[kind] || kind}
+                {BLOCK_KIND_LABELS[kind] || kind}
               </option>
             ))}
           </select>
           <button type="button" onClick={addBlock} className="hover:text-gray-700">
-            + 블록 추가
+            + 내용 추가
           </button>
           {advanced.length > 0 && (
             <label className="ml-2 flex items-center gap-1">
@@ -191,13 +185,13 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
                   if (!e.target.checked && advanced.includes(addKind)) setAddKind(primary[0] || advanced[0]);
                 }}
               />
-              고급(이 섹션에 흔치 않은 블록도 표시)
+              고급(이 항목에 잘 안 쓰는 종류도 표시)
             </label>
           )}
         </div>
         {showAdvanced && isAdvancedKindSelected && (
           <p className="text-[11px] font-bold text-amber-600">
-            이 블록은 이 섹션에서 잘 쓰이지 않는 종류입니다 — 문서에는 저장되지만 공개 페이지 HTML 미러에는
+            이 내용은 이 항목에서 잘 쓰이지 않는 종류입니다 — 문서에는 저장되지만 공개 페이지 HTML 미러에는
             반영되지 않거나 정보가 누락될 수 있습니다.
           </p>
         )}

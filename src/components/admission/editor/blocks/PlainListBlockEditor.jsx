@@ -33,7 +33,7 @@ export default function PlainListBlockEditor({ block, onChange }) {
 
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">목록(plainList)</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">목록</label>
       {items.length === 0 && <p className="text-[11px] text-gray-400">항목 없음</p>}
       <div className="flex flex-col gap-1">
         {items.map((item, idx) => (
