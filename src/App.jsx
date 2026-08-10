@@ -43,6 +43,8 @@ import { SignupProvider } from './context/SignupContext';
 // SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
 // 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
 import GoalAppLayout from './components/goal/GoalAppLayout';
+import RequireGoalAccess from './components/goal/RequireGoalAccess';
+import GoalOnboarding from './pages/goal/Onboarding';
 import GoalDashboard from './pages/goal/Dashboard';
 import GoalTargetUniversity from './pages/goal/TargetUniversity';
 import GoalTimer from './pages/goal/Timer';
@@ -157,6 +159,18 @@ export default function App() {
             element={<Navigate to="/app/learning-diagnosis/survey" replace />}
           />
 
+          {/* 목표관리 온보딩(설문 7단계) — 시안상 공통 헤더/푸터가 있고 사이드바가 없어
+              SiteLayout 안에 둔다(GoalAppLayout 사이드바 셸에는 넣지 않는다). RequireGoalAccess가
+              로그인・이용권 판정을 적용하되, 온보딩 경로 자체는 3단계(온보딩 완료 판정)를
+              건너뛴다 — 자세한 이유는 RequireGoalAccess.jsx 상단 주석 참고. */}
+          <Route element={<RequireGoalAccess />}>
+            <Route
+              path="/app/goal/onboarding"
+              element={<Navigate to="/app/goal/onboarding/step-1" replace />}
+            />
+            <Route path="/app/goal/onboarding/:step" element={<GoalOnboarding />} />
+          </Route>
+
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
           <Route path="/page/services-content" element={<Navigate to="/services/callmentor" replace />} />
@@ -261,20 +275,23 @@ export default function App() {
 
         <Route path="/mypage" element={<MyPage />} />
 
-        {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 결제 게이트·온보딩 완료 가드는
-            아직 미확정이라 이번 단계에서는 적용하지 않는다(GoalAppLayout.jsx 상단 TODO 참고). */}
-        <Route element={<GoalAppLayout />}>
-          <Route path="/app/goal" element={<GoalDashboard />} />
-          <Route path="/app/goal/target-university" element={<GoalTargetUniversity />} />
-          <Route path="/app/goal/timer" element={<GoalTimer />} />
-          <Route path="/app/goal/daily-record" element={<GoalDailyRecord />} />
-          <Route path="/app/goal/weekly-plan" element={<GoalWeeklyPlan />} />
-          <Route path="/app/goal/efforts" element={<GoalEfforts />} />
-          <Route path="/app/goal/reports/growth" element={<GoalGrowthReport />} />
-          <Route path="/app/goal/grades" element={<GoalGrades />} />
-          <Route path="/app/goal/reports/direction" element={<GoalDirectionReport />} />
-          <Route path="/app/goal/schedules" element={<GoalSchedules />} />
-          <Route path="/app/goal/profile" element={<GoalProfile />} />
+        {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 진입 가드(로그인 → 이용권 →
+            온보딩 완료 → 대시보드)는 RequireGoalAccess가 소유한다(2026-08-10 확정,
+            GoalAppLayout.jsx 상단 TODO는 해소됨). */}
+        <Route element={<RequireGoalAccess />}>
+          <Route element={<GoalAppLayout />}>
+            <Route path="/app/goal" element={<GoalDashboard />} />
+            <Route path="/app/goal/target-university" element={<GoalTargetUniversity />} />
+            <Route path="/app/goal/timer" element={<GoalTimer />} />
+            <Route path="/app/goal/daily-record" element={<GoalDailyRecord />} />
+            <Route path="/app/goal/weekly-plan" element={<GoalWeeklyPlan />} />
+            <Route path="/app/goal/efforts" element={<GoalEfforts />} />
+            <Route path="/app/goal/reports/growth" element={<GoalGrowthReport />} />
+            <Route path="/app/goal/grades" element={<GoalGrades />} />
+            <Route path="/app/goal/reports/direction" element={<GoalDirectionReport />} />
+            <Route path="/app/goal/schedules" element={<GoalSchedules />} />
+            <Route path="/app/goal/profile" element={<GoalProfile />} />
+          </Route>
         </Route>
         <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
