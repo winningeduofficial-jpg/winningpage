@@ -21,7 +21,7 @@ import iconValueCard from '../../assets/callmentor/icon-value-card.svg';
 
 /**
  * 콜멘토 랜딩 — 골드(#AF9364 · #BF923D) 강조색과 검정 하단 CTA 밴드를 사수한 프리미엄
- * 포지셔닝 페이지(사용자 확정). 나머지 5개 서비스 랜딩(무료진단·목표관리·수행평가·
+ * 포지셔닝 페이지(사용자 확정). 나머지 5개 서비스 랜딩(학습진단·목표관리·수행평가·
  * 자기평가·심화탐구)의 네이비 #013262 로 갈아엎지 않는다 — 골드/블랙은 실수가 아니라
  * 의도된 차별화다. 섹션 구성도 기존 7섹션(Hero / 상담을 통해 / 4단계 진행 순서 /
  * 이런 학생에게 / 멘토스 소개 / 후기 / 하단 CTA) 그대로 고정한다 — 추가・삭제 없음.
@@ -116,7 +116,7 @@ const VALUE_CARDS = [
 ];
 
 const STEP_CARDS = [
-  { caption: '1. 무료 진단', image: stepDiagnosis, alt: '노트북으로 무료 진단을 진행하는 모습' },
+  { caption: '1. 학습 진단', image: stepDiagnosis, alt: '노트북으로 학습 진단을 진행하는 모습' },
   { caption: '2. 내 상황에 맞는 멘토 매칭', image: stepMentorMatch, alt: '책상에서 노트북을 보며 매칭 결과를 확인하는 학생' },
   { caption: '3. 30분 전화 상담', image: stepCall, alt: '전화로 멘토와 상담하는 학생' },
   { caption: '4. 1주 후 실천 재점검', image: stepReview, alt: '노트에 실천 계획을 적는 모습' }
@@ -230,7 +230,7 @@ export default function Callmentor() {
               {/* 콜멘토는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가
                   없어, 클릭 시 이동 대신 "서비스 준비중입니다" alert로 안내한다
                   (alertServiceNotReady, paidServiceAccess.js — 자기평가・심화탐구와 동일 처리,
-                  2026-08-05 사용자 확정). 라벨도 무료진단을 명시하던 "무료진단으로 시작하기 →"에서
+                  2026-08-05 사용자 확정). 라벨도 학습진단을 명시하던 "학습진단으로 시작하기 →"에서
                   다른 두 페이지와 통일된 "지금 시작하기"로 바꿨다(준비중 alert와 라벨의 모순 방지).
                   to prop을 빼면 CmButton이 자동으로 <button>으로 렌더한다. */}
               <CmButton variant="primary" onClick={alertServiceNotReady}>

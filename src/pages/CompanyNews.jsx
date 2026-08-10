@@ -29,7 +29,7 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 //
 // 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
-// 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(무료진단·수시카드·프리미엄만 Bold)인데 확대
+// 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(학습진단·수시카드·프리미엄만 Bold)인데 확대
 // 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다.
 // "수시카드"는 코드 정본 라우트가 없어 다른 5장처럼 Link 로 보내지 않고, 서비스
 // 준비중 alert(alertServiceNotReady)로 안내한다 — 자기평가·심화탐구 CTA와 동일한 처리다.
@@ -46,10 +46,10 @@ const HERO_CARDS = [
     key: 'free',
     bg: '#013262',
     tint: '#bddfff',
-    title: '무료진단',
+    title: '학습진단',
     desc: ['나에게 필요한', '서비스 진단'],
     best: true,
-    route: '/free-diagnosis'
+    route: '/learning-diagnosis'
   },
   {
     key: 'goal',
@@ -106,7 +106,7 @@ const BUSINESS_CARDS = [
     key: 'ai-platform',
     image: bizAiPlatform,
     title: 'AI 학습 플랫폼',
-    desc: '목표관리・수시예측\n콜멘토・AI 수행평가・무료진단'
+    desc: '목표관리・수시예측\n콜멘토・AI 수행평가・학습진단'
   },
   {
     key: 'consulting',

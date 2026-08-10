@@ -65,7 +65,7 @@ const MENU_GROUPS = [
       { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
-      { key: 'freeDiagnosis', label: '무료진단 관리' }
+      { key: 'learningDiagnosis', label: '학습진단 관리' }
     ]
   },
   {
@@ -796,7 +796,7 @@ const CONFIGS = {
   //   ① PDF 1개 업로드 → 브라우저에서 16장 WebP로 변환 → 미리보기 → [적용] 일괄 upsert (bespoke 패널)
   //   ② 개별 페이지 1장만 고칠 때는 아래 fields/columns 기반 제네릭 편집(PremiumBookAdmin 내부에서
   //      AdminTable/AdminForm을 그대로 재사용)
-  // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(freeDiagnosis → FreeDiagnosisAdmin)을
+  // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(learningDiagnosis → LearningDiagnosisAdmin)을
   // config.CustomComponent로 일반화한 것이다 — 아래 Admin() 렌더 분기, PremiumBookAdmin 참고.
   premiumBookPages: {
     title: '프리미엄 책자 관리',
@@ -1790,8 +1790,8 @@ const CONFIGS = {
     defaults: { capacity: 0, applicant_count: 0, confirmed_count: 0, remaining_count: 0 }
   },
 
-  freeDiagnosis: {
-    title: '무료진단 관리',
+  learningDiagnosis: {
+    title: '학습진단 관리',
     custom: true,
     searchPlaceholder: ''
   },
@@ -2446,7 +2446,7 @@ function ProgramSelector({ programs, value, onChange }) {
   );
 }
 
-function FreeDiagnosisAdmin() {
+function LearningDiagnosisAdmin() {
   const [questions, setQuestions] = useState([]);
   const [options, setOptions] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -2474,17 +2474,17 @@ function FreeDiagnosisAdmin() {
 
     const [questionRes, optionRes, programRes] = await Promise.all([
       supabase
-        .from('free_diagnosis_questions')
+        .from('learning_diagnosis_questions')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_options')
+        .from('learning_diagnosis_options')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_programs')
+        .from('learning_diagnosis_programs')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
@@ -2494,7 +2494,7 @@ function FreeDiagnosisAdmin() {
 
     const error = questionRes.error || optionRes.error || programRes.error;
     if (error) {
-      alert(`무료진단 데이터 조회 실패: ${error.message}`);
+      alert(`학습진단 데이터 조회 실패: ${error.message}`);
       return;
     }
 
@@ -2573,7 +2573,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
 
-    const { error } = await supabase.from('free_diagnosis_questions').insert({
+    const { error } = await supabase.from('learning_diagnosis_questions').insert({
       title,
       description: newQuestion.description || '',
       input_type: newQuestion.input_type || 'single',
@@ -2605,7 +2605,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .update({
         title: question.title,
         description: question.description || '',
@@ -2631,7 +2631,7 @@ function FreeDiagnosisAdmin() {
       return;
 
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .delete()
       .eq('id', question.id);
     if (error) {
@@ -2644,7 +2644,7 @@ function FreeDiagnosisAdmin() {
 
   async function createOption(questionId) {
     const questionOptions = optionsByQuestion[questionId] || [];
-    const { error } = await supabase.from('free_diagnosis_options').insert({
+    const { error } = await supabase.from('learning_diagnosis_options').insert({
       question_id: questionId,
       label: '',
       program_ids: [],
@@ -2668,7 +2668,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_options')
+      .from('learning_diagnosis_options')
       .update({
         label: option.label,
         program_ids: normalizeProgramIds(option.program_ids),
@@ -2690,7 +2690,7 @@ function FreeDiagnosisAdmin() {
   async function deleteOption(option) {
     if (!window.confirm('이 답변을 삭제하시겠습니까?')) return;
 
-    const { error } = await supabase.from('free_diagnosis_options').delete().eq('id', option.id);
+    const { error } = await supabase.from('learning_diagnosis_options').delete().eq('id', option.id);
     if (error) {
       alert(`답변 삭제 실패: ${error.message}`);
       return;
@@ -2707,7 +2707,7 @@ function FreeDiagnosisAdmin() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from('free_diagnosis_programs').insert({
+    const { error } = await supabase.from('learning_diagnosis_programs').insert({
       ...newProgram,
       title,
       sort_order: Number(newProgram.sort_order || 1),
@@ -2732,7 +2732,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_programs')
+      .from('learning_diagnosis_programs')
       .update({
         title: program.title,
         badge: program.badge || '',
@@ -2765,7 +2765,7 @@ function FreeDiagnosisAdmin() {
     )
       return;
 
-    const { error } = await supabase.from('free_diagnosis_programs').delete().eq('id', program.id);
+    const { error } = await supabase.from('learning_diagnosis_programs').delete().eq('id', program.id);
     if (error) {
       alert(`추천 프로그램 삭제 실패: ${error.message}`);
       return;
@@ -2779,7 +2779,7 @@ function FreeDiagnosisAdmin() {
       <div className="bg-white px-6 py-5 shadow">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black">무료진단 관리</h1>
+            <h1 className="text-xl font-black">학습진단 관리</h1>
             <p className="mt-1 text-sm font-bold text-red-500">
               질문 내용, 답변 내용, 중복 선택 여부, 답변별 추천 프로그램을 이 화면에서 수정합니다.
             </p>
@@ -2794,7 +2794,7 @@ function FreeDiagnosisAdmin() {
 
       {loading ? (
         <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
-          무료진단 데이터를 불러오는 중입니다.
+          학습진단 데이터를 불러오는 중입니다.
         </div>
       ) : (
         <>
@@ -5101,13 +5101,13 @@ export default function Admin() {
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
           {config.custom ? (
-            // custom 삼항의 일반화 지점. 선례(freeDiagnosis)는 CustomComponent를 지정하지 않으므로
+            // custom 삼항의 일반화 지점. 선례(learningDiagnosis)는 CustomComponent를 지정하지 않으므로
             // 기존 하드코딩 동작이 그대로 보존된다 — 회귀 위험 0. 신규 섹션(premiumBookPages)은
             // config.CustomComponent로 자기 컴포넌트를 지정한다.
             config.CustomComponent ? (
               <config.CustomComponent />
             ) : (
-              <FreeDiagnosisAdmin />
+              <LearningDiagnosisAdmin />
             )
           ) : mode === 'list' ? (
             config.comingSoon ? (

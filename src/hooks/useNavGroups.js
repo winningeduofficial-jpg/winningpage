@@ -10,7 +10,12 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // v5: DB page_contents.menu_label에 '교육컬럼'(오타) 이 저장돼 헤더/푸터에 그대로 노출되던 문제.
 // normalizeMenuLabel로 런타임 상시 치환하도록 고쳤지만, 이미 오타를 캐싱한 사용자에게도 즉시
 // 반영되도록 키 버전을 한 번 더 bump한다.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v5';
+// v6: 무료진단 → 학습진단 DB 마이그레이션(테이블 rename + program_categories/page_contents/banners
+// 데이터 값 일괄 치환). 코드측 안전망이던 PROMOTED_PATH_ROUTES의 '/free-diagnosis' 매핑과
+// navigation.js의 SERVICE_NAME_OVERRIDES를 제거했다. App.jsx에 영구 리다이렉트가 추가돼 구
+// 링크('/free-diagnosis')가 죽지는 않지만, 캐싱된 구 라벨('무료진단')이 화면에 그대로 노출되는
+// 것을 막고 리다이렉트 한 홉을 절약하기 위해 키를 bump한다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v6';
 
 export function cleanText(value) {
   return String(value || '').trim();
@@ -92,7 +97,7 @@ function applyPromotedSlugRoutes(groups) {
   }));
 }
 
-function ensureFreeDiagnosisInService(groups) {
+function ensureLearningDiagnosisInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => {
@@ -101,15 +106,39 @@ function ensureFreeDiagnosisInService(groups) {
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
-    const withoutFreeDiagnosis = items.filter((item) => {
+    const withoutLearningDiagnosis = items.filter((item) => {
+      // 신 리터럴('학습진단' / '/learning-diagnosis')과 구 리터럴('무료진단' / '/free-diagnosis')을
+      // 모두 걸러낸 뒤, 아래에서 '학습진단' 항목을 항상 맨 앞에 한 번만 주입한다.
+      //
+      // 신 리터럴은 필수다 —
+      // (a) 멱등성: 이 함수가 주입한 항목이 캐시(localStorage)에 저장됐다가 다음 렌더에서
+      //     readCachedNavGroups를 통해 다시 들어올 때 재주입되는 것을 막는다. 안 걸러내면
+      //     캐시를 거친 두 번째 렌더부터 메뉴에 항목이 두 번 나온다.
+      // (b) DB(page_contents)를 신 이름으로 마이그레이션한 뒤 DB 항목과 코드 주입 항목이
+      //     중복되지 않도록.
+      //
+      // 구 리터럴도 남긴다(제거 안 함) — dev DB는 이번에 마이그레이션되지만 운영 DB는 나중에
+      // dump 재이관으로 처리되는 별도 일정이고, 그 사이 운영 page_contents에는 '무료진단' /
+      // '/free-diagnosis' 항목이 그대로 남아 있다. 캐시 키를 v6으로 bump했어도 DB가 계속
+      // 구 값을 내려주면 소용이 없다. 구 리터럴을 지우면 그 항목이 필터를 통과해 코드가
+      // 주입하는 '학습진단'과 나란히 메뉴에 중복 노출된다(링크 자체는 App.jsx의
+      // '/free-diagnosis' 리다이렉트로 살아 있지만, 같은 메뉴가 두 번 보이는 건 그대로 버그).
+      // 두 줄 비용으로 그 창을 막을 수 있어 유지가 이득이다. 운영 DB까지 이관이 끝나면
+      // 구 리터럴 두 줄은 제거해도 된다.
       const label = cleanText(item?.label).replace(/\s+/g, '');
-      return label !== '무료진단' && cleanText(item?.to) !== '/free-diagnosis';
+      const to = cleanText(item?.to);
+      return (
+        label !== '무료진단' &&
+        label !== '학습진단' &&
+        to !== '/free-diagnosis' &&
+        to !== '/learning-diagnosis'
+      );
     });
 
     return {
       ...group,
-      to: group.to || '/free-diagnosis',
-      items: [{ label: '무료진단', to: '/free-diagnosis', sortOrder: 0 }, ...withoutFreeDiagnosis]
+      to: group.to || '/learning-diagnosis',
+      items: [{ label: '학습진단', to: '/learning-diagnosis', sortOrder: 0 }, ...withoutLearningDiagnosis]
     };
   });
 }
@@ -125,7 +154,7 @@ function readCachedNavGroups() {
       return null;
     }
 
-    return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(parsed));
+    return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(parsed));
   } catch {
     return null;
   }
@@ -212,7 +241,7 @@ function buildNavGroups(rows) {
       };
     });
 
-  return applyPromotedSlugRoutes(ensureFreeDiagnosisInService(groups));
+  return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(groups));
 }
 
 // 헤더 메가메뉴·푸터가 공유하는 내비게이션 그룹 훅.
@@ -222,7 +251,7 @@ export function useNavGroups() {
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [navGroups, setNavGroups] = useState(() => {
     return applyPromotedSlugRoutes(
-      ensureFreeDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+      ensureLearningDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
     );
   });
 

@@ -62,8 +62,8 @@ const MEGA_PROMO_MEMBER = {
   title: '나에게 딱 맞는 서비스를 추천받아요',
   subtitle: '무료 설문조사로 나의 강점과 약점을 찾아보세요',
   image: megaPromoDiagnosisImg,
-  ctaLabel: '무료진단 하기',
-  ctaTo: '/free-diagnosis'
+  ctaLabel: '학습진단 하기',
+  ctaTo: '/learning-diagnosis'
 };
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
 // 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
