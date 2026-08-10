@@ -68,6 +68,51 @@
 // 포함)은 그냥 무시된다 — html을 읽어서 쓰지 않는다(위 정책에 html
 // 자체가 없다). 이 방식은 컬럼이 없어도(구버전 필드 부재) 안전하고
 // (undefined로 처리), 컬럼 순서가 달라도 안전하다.
+//
+// 빈 셀 → NOT NULL 컬럼 결함 수정(2026-08-10, team-lead 실측): 적용
+// 단계(호출부의 upsert)가 "not-null constraint" 위반으로 죽는 결함이
+// 있었다 — 우리가 내보낸 파일을 그대로 다시 올려도 실패했다(왕복이
+// 안 닫혀 있었다). 원인은 이 파일이 빈 셀을 전부 `clean(x) || null`
+// (즉 null)로 매핑했는데, admission_university_resources의
+// source_name/source_version/region 3개는 NOT NULL이기 때문이다(id/
+// admission_year/university_name/university_key/is_active/created_at/
+// updated_at도 NOT NULL이지만 이 라이브러리가 아예 null로 쓰지 않거나
+// —is_active는 parseBooleanCell이 fallback true— DB가 관리하거나(id/
+// created_at/updated_at) 이미 별도로 필수값 검사를 하고 있어(university_
+// name/university_key) 이 결함과 무관하다). sql/00_base_schema.sql
+// 실측 기준 admission_university_resources의 NOT NULL 컬럼은 이
+// 9개(id/admission_year/source_name/source_version/region/university_
+// name/university_key/is_active/created_at/updated_at)가 전부다 —
+// campus/jungsi_guideline_url/official_source_url/memo/detail_status/
+// matched_hwp_name/matched_text_name과 6개 raw 카테고리 컬럼은 전부
+// nullable이라 이 결함과 무관하다(빈 셀 → null이 그대로 맞다).
+//
+// 두 컬럼(source_name/source_version)과 region은 성격이 달라 처리를
+// 나눴다(이 기능의 불변식 "안 고친 행은 절대 안 바뀐다"이 판단 기준):
+//   - source_name/source_version: DB에 기본값이 있다(각각 '2027쎈
+//     (SEN)진학 Preview'/'V.7월2일')지만, 실측상 dev DB의 218/218 행이
+//     이미 빈 문자열('')이지 그 기본값이 아니다(초기 적재 시 기본값이
+//     실제로 쓰인 적이 없다). 그래서 빈 셀 → ''(clean()의 반환값을
+//     그대로 씀, `|| null` 제거)로 매핑한다 — 안 고친 행은 ''→''로
+//     그대로 남고(왕복 폐쇄), clean()은 항상 문자열을 반환하므로 절대
+//     null이 되지 않아 NOT NULL을 항상 만족한다.
+//   - region: NOT NULL인데 DB 기본값이 없고(대학 리소스 행에서 지역은
+//     의미 있는 기본값을 정할 수 없는 필드다), 실측상 dev DB의 218/218
+//     행 전부 실제 지역명으로 채워져 있다(빈 값이 있었던 적이 없다).
+//     그래서 university_name/university_key와 동급으로 취급한다 —
+//     비어 있으면 신규든 기존이든 무조건 행을 거부한다(아래 필수값
+//     검사). "빈 셀이면 기존 DB 값을 유지"하는 대체안도 검토했으나,
+//     이 라이브러리는 순수 함수라 존재하지 않는 신규 행에는 유지할
+//     기존 값 자체가 없고, 실측상 이 필드가 비어 있던 적이 한 번도
+//     없어 거부해도 정상 업로드를 막지 않는다 — 가장 단순하고 안전한
+//     선택이다.
+//
+// 같은 패턴이 하나 더 있었다: 6개 raw 카테고리 컬럼(previous_year_
+// changes 등, CATEGORY_KEYS)도 `rawText || null`을 썼다 — nullable이라
+// upsert가 죽지는 않지만, 실측(모집요강_수정본.xlsx 검증 중 발견)상
+// dev DB에 raw가 이미 ''인 행이 11개 있어 안 고친 채 재업로드하면
+// ''→null로 조용히 바뀌었다(불변식 위반, 아래 CATEGORY_KEYS.forEach
+// 안에서 같이 고쳤다 — `|| null` 제거, `''` 유지).
 // =====================================================================
 
 import * as XLSX from 'xlsx';
@@ -401,6 +446,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     const admissionYear = Number(rowObj.admission_year);
     const universityKey = clean(rowObj.university_key);
     const universityName = clean(rowObj.university_name);
+    const region = clean(rowObj.region);
 
     // 잘림 마커 검사(메타데이터 컬럼만, 행 전체 거부) — 콘텐츠 카테고리
     // 6종의 잘림은 아래 CATEGORY_KEYS.forEach 안에서 컬럼 단위로 따로
@@ -420,13 +466,20 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       return;
     }
 
-    if (!admissionYear || !universityKey) {
+    // region은 위 파일 헤더 주석(2026-08-10)의 이유로 university_name/
+    // university_key와 동급 필수값이다 — NOT NULL인데 DB 기본값이 없고,
+    // 실측상 비어 있던 적이 없어 거부해도 정상 업로드를 막지 않는다.
+    if (!admissionYear || !universityKey || !region) {
+      const missing = [];
+      if (!admissionYear) missing.push('admission_year');
+      if (!universityKey) missing.push('university_key');
+      if (!region) missing.push('region');
       errors.push({
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
         type: 'missingRequiredFields',
-        reason: 'admission_year 또는 university_key가 비어 있습니다.'
+        reason: `${missing.join(', ')}가 비어 있습니다.`
       });
       willSkip += 1;
       return;
@@ -463,10 +516,17 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       admission_year: admissionYear,
       university_key: universityKey,
       university_name: universityName,
-      region: clean(rowObj.region) || null,
+      // region은 위에서 이미 필수값 검사를 통과했으니(비어 있으면 행
+      // 자체가 거부돼 여기 도달하지 않는다) clean()된 값을 그대로 쓴다.
+      region,
       campus: clean(rowObj.campus) || null,
-      source_name: clean(rowObj.source_name) || null,
-      source_version: clean(rowObj.source_version) || null,
+      // source_name/source_version: NOT NULL이지만 `|| null`을 쓰지
+      // 않는다(위 파일 헤더 주석 2026-08-10 참고) — clean()은 항상
+      // 문자열('' 포함)을 반환하므로 이 값을 그대로 쓰면 절대 null이
+      // 되지 않아 제약을 항상 만족하고, 안 고친 행은 ''→''로 그대로
+      // 남는다(실측상 dev DB 218/218 행이 이미 '').
+      source_name: clean(rowObj.source_name),
+      source_version: clean(rowObj.source_version),
       jungsi_guideline_url: clean(rowObj.jungsi_guideline_url) || null,
       official_source_url: clean(rowObj.official_source_url) || null,
       memo: clean(rowObj.memo) || null,
@@ -502,7 +562,15 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       }
 
       const rawText = clean(rawCellValue);
-      payload[sectionKey] = rawText || null;
+      // 이 6개 raw 카테고리 컬럼은 nullable이라 `''`든 `null`이든 upsert가
+      // 죽지는 않지만, source_name/source_version과 같은 클래스의 문제가
+      // 여기도 있었다(2026-08-10 실측: 모집요강_수정본.xlsx 검증 중
+      // 발견 — dev DB에 raw가 이미 ''인 행 11개가 있는데, 안 고친 채로
+      // 재업로드하면 `|| null`이 ''를 null로 바꿔 "안 고친 행은 안
+      // 바뀐다" 불변식을 조용히 깼다. 코드베이스 전체에 이 컬럼을
+      // `=== null`로 구분해 쓰는 곳이 없어(grep 확인) '' 유지가 안전
+      // 하다 — 그대로 둔다).
+      payload[sectionKey] = rawText;
 
       const dbHtmlColumn = HWP_SECTION_HTML_KEYS[sectionKey];
       const jsonColumn = HWP_SECTION_JSON_KEYS[sectionKey];

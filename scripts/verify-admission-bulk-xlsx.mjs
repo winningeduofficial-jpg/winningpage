@@ -135,6 +135,62 @@ function roundTripWorkbook(workbook) {
   return XLSX.read(buffer, { type: 'buffer' });
 }
 
+// admission_university_resources의 NOT NULL 컬럼 목록을 sql/00_base_
+// schema.sql의 CREATE TABLE 정의에서 직접 읽는다(하드코딩 회피 —
+// team-lead 지시). information_schema 조회(실제 dev DB에 쿼리)가 더
+// 권위 있는 소스이지만, 이 테이블은 ALTER TABLE로 NOT NULL을 바꾼
+// 이력이 없고(sql/ 전체에서 admission_university_resources를 건드리는
+// alter는 컬럼 추가뿐 — grep 확인됨) CREATE TABLE 시점 정의가 곧
+// 현재 제약과 같다. 파일 파싱이 DB 왕복 없이 더 빠르고, 이 리포에서
+// sql/이 스키마 정본이라는 컨벤션과도 맞는다.
+async function getNotNullColumnsFromSchema() {
+  const schemaPath = new URL('../sql/00_base_schema.sql', import.meta.url);
+  const sql = await readFile(schemaPath, 'utf-8');
+  // 정확히 이 테이블만 잡는다(끝에 닫는 따옴표가 바로 오는지 확인) —
+  // admission_university_resources_backup_20260709/_backup_before_fix6
+  // 같은 백업 테이블은 이름이 더 길어 이 마커와 매칭되지 않는다.
+  const startMarker = 'create table if not exists public."admission_university_resources" (';
+  const startIdx = sql.indexOf(startMarker);
+  if (startIdx === -1) {
+    throw new Error('sql/00_base_schema.sql에서 admission_university_resources 테이블 정의를 못 찾음');
+  }
+  const afterStart = sql.slice(startIdx + startMarker.length);
+  const endIdx = afterStart.indexOf('\n);');
+  if (endIdx === -1) {
+    throw new Error('admission_university_resources 테이블 정의의 닫는 괄호(");")를 못 찾음');
+  }
+  const body = afterStart.slice(0, endIdx);
+  const notNullColumns = [];
+  body.split('\n').forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.toLowerCase().startsWith('constraint')) return;
+    if (/\bNOT NULL\b/i.test(trimmed)) {
+      notNullColumns.push(trimmed.split(/\s+/)[0]);
+    }
+  });
+  return notNullColumns;
+}
+
+// payload 행 배열이 NOT NULL 컬럼을 위반하지 않는지 검사한다. 이
+// 라이브러리가 아예 안 건드리는 컬럼(예: created_at/updated_at, insert
+// 시의 id — 코드 주석상 "DB가 관리")은 payload에 키 자체가 없으므로
+// 검사 대상에서 자연히 빠진다(hasOwnProperty로 존재하는 키만 검사) —
+// 이게 실제 upsert 동작과 같다: 키가 없으면 DB 기본값/기존 값에
+// 위임되고, 키가 있는데 값이 null이면 그 즉시 upsert가 제약 위반으로
+// 실패한다(2026-08-10 결함이 정확히 이 케이스였다).
+function assertNotNullColumnsSatisfied(rows, notNullColumns) {
+  const violations = [];
+  rows.forEach((row, idx) => {
+    notNullColumns.forEach((col) => {
+      if (!Object.prototype.hasOwnProperty.call(row, col)) return;
+      if (row[col] === null || row[col] === undefined) {
+        violations.push(`row[${idx}](${row.university_key || '?'}).${col}`);
+      }
+    });
+  });
+  return violations;
+}
+
 async function main() {
   const { values: args } = parseArgs({
     options: { 'keys-file': { type: 'string' } }
@@ -143,6 +199,9 @@ async function main() {
   const { url, serviceKey } = await resolveCredentials(keysFile);
   if (!url.includes(DEV_PROJECT_REF)) throw new Error('dev 프로젝트가 아닙니다. 중단합니다.');
   const supabase = createClient(url, serviceKey);
+
+  const notNullColumns = await getNotNullColumnsFromSchema();
+  console.log(`admission_university_resources NOT NULL 컬럼(sql/00_base_schema.sql 실측): ${notNullColumns.join(', ')}`);
 
   console.log('=== 1) DB 조회(읽기 전용) ===');
   const selectColumns = [...BULK_XLSX_COLUMNS, ...JSON_COLUMNS].join(', ');
@@ -247,6 +306,20 @@ async function main() {
     assert(mismatchCount === 0, `${mismatchCount}건 불일치(검사 대상 ${checkedRows}행 중)`);
   });
 
+  // 2026-08-10 결함 재현 테스트: team-lead 실측(우리가 내보낸 파일을
+  // 그대로 재업로드해도 실패)이 정확히 이 218행 왕복이었다 — 실제 DB의
+  // source_name/source_version이 218/218 빈 문자열이라 이 왕복이 그
+  // 케이스를 자연히 포함한다. "null이 아니다" 수준이 아니라 sql/에서
+  // 읽은 실제 NOT NULL 컬럼 목록 전체를 기준으로 검사한다(나중에
+  // 컬럼이 늘어도 하드코딩 없이 잡힌다).
+  check('왕복(핵심 불변식): NOT NULL 컬럼 위반 0건 — 실제 218행을 그대로 재업로드해도 upsert가 죽지 않음', () => {
+    const violations = assertNotNullColumnsSatisfied(parsedRows, notNullColumns);
+    assert(
+      violations.length === 0,
+      `NOT NULL 컬럼 위반 ${violations.length}건(샘플: ${violations.slice(0, 5).join(', ')}) — upsert가 "null value in column ... violates not-null constraint"로 죽는다`
+    );
+  });
+
   if (parseWarnings.length) {
     console.log(`\n왕복 경고 ${parseWarnings.length}건(최대 10건, 위 불변식 실패 시에만 나타나야 함):`);
     parseWarnings.slice(0, 10).forEach((w) => console.log(`  - [${w.universityKey}/${w.admissionYear}] ${w.column || ''}: ${w.reason}`));
@@ -309,6 +382,7 @@ async function main() {
       if (col === 'admission_year') return 9999;
       if (col === 'university_key') return 'brand-new-university';
       if (col === 'university_name') return '신규연도대학교';
+      if (col === 'region') return '서울';
       return '';
     });
     const ws = XLSX.utils.aoa_to_sheet([header, row]);
@@ -332,6 +406,7 @@ async function main() {
       if (col === 'admission_year') return knownYear;
       if (col === 'university_key') return 'brand-new-university-same-year';
       if (col === 'university_name') return '같은연도신규대학교';
+      if (col === 'region') return '서울';
       return '';
     });
     const ws = XLSX.utils.aoa_to_sheet([header, row]);
@@ -382,6 +457,7 @@ async function main() {
       if (col === 'admission_year') return 2099;
       if (col === 'university_key') return 'regression-test-university';
       if (col === 'university_name') return '회귀테스트대학교';
+      if (col === 'region') return '서울';
       if (col === 'previous_year_changes') return '전년도와 동일';
       return '';
     });
@@ -420,6 +496,7 @@ async function main() {
       if (col === 'admission_year') return 2099;
       if (col === 'university_key') return 'raw-unchanged-test';
       if (col === 'university_name') return 'raw동일테스트대학교';
+      if (col === 'region') return '서울';
       if (col === 'minimum_requirements') return sameRawText;
       return '';
     });
@@ -455,6 +532,7 @@ async function main() {
       if (col === 'admission_year') return 2099;
       if (col === 'university_key') return 'raw-changed-test';
       if (col === 'university_name') return 'raw변경테스트대학교';
+      if (col === 'region') return '서울';
       if (col === 'minimum_requirements') return newRawText;
       return '';
     });
@@ -492,6 +570,7 @@ async function main() {
       if (col === 'admission_year') return 2099;
       if (col === 'university_key') return 'raw-changed-regression-priority-test';
       if (col === 'university_name') return 'raw변경회귀우선테스트대학교';
+      if (col === 'region') return '서울';
       if (col === 'minimum_requirements') return newRawText;
       return '';
     });
@@ -515,6 +594,7 @@ async function main() {
       if (col === 'admission_year') return 2099;
       if (col === 'university_key') return 'no-existing-doc-test';
       if (col === 'university_name') return '신규카테고리테스트대학교';
+      if (col === 'region') return '서울';
       if (col === 'minimum_requirements') return '- 새로 채운 항목';
       return '';
     });
@@ -626,6 +706,7 @@ async function main() {
       if (col === 'admission_year') return sample.admission_year;
       if (col === 'university_key') return sample.university_key;
       if (col === 'university_name') return sample.university_name;
+      if (col === 'region') return sample.region;
       if (col === 'recruitment_quota') return editedRawText;
       return '';
     });
@@ -654,6 +735,125 @@ async function main() {
       assert(Boolean(regressionWarning), 'chips는 보존됐는데 이유(regressionSkipped) 경고가 없음');
     }
   });
+
+  // === 9) NOT NULL 폐쇄 회귀 테스트(합성, 2026-08-10 결함 수정) ===
+  // 섹션 2가 실제 218행으로 이미 이 결함을 잡지만, dev DB 데이터가
+  // 나중에 정리되면(예: source_name/source_version이 실제 값으로
+  // 채워지면) 그 회귀 커버리지가 조용히 사라진다. 아래는 실제 DB
+  // 데이터 상태와 무관하게 "NOT NULL 컬럼이 빈 문자열인 행" 형태를
+  // 합성으로 고정해 항상 이 결함을 재현·검증한다.
+  console.log('\n=== 9) NOT NULL 폐쇄 회귀 테스트(합성, 2026-08-10 결함 수정) ===');
+
+  check(
+    '실제 DB 형태(NOT NULL 컬럼이 빈 문자열인 행 포함)를 export→재import해도 NOT NULL 위반 없음(왕복 폐쇄)',
+    () => {
+      // dev DB 실측(218/218 행)과 동일한 형태: source_name/source_version이
+      // 빈 문자열('') — team-lead가 실측한 "우리가 내보낸 파일을 그대로
+      // 재업로드해도 실패" 시나리오를 dev DB 상태와 무관하게 고정 재현한다.
+      const dbShapedRow = {
+        id: 'not-null-closure-test-id',
+        admission_year: 2099,
+        university_key: 'not-null-closure-test',
+        university_name: '폐쇄테스트대학교',
+        region: '서울',
+        source_name: '',
+        source_version: '',
+        campus: null,
+        jungsi_guideline_url: null,
+        official_source_url: null,
+        memo: null,
+        is_active: true
+      };
+      const { workbook, truncatedCells } = exportAdmissionRowsToXlsx([dbShapedRow]);
+      assert(truncatedCells.length === 0, '합성 행인데 잘림이 발생함(선행 조건 실패)');
+      const roundTripped = roundTripWorkbook(workbook);
+      const existing = new Map([
+        [
+          `${dbShapedRow.admission_year}::${dbShapedRow.university_key}`,
+          {
+            id: dbShapedRow.id,
+            region: dbShapedRow.region,
+            source_name: dbShapedRow.source_name,
+            source_version: dbShapedRow.source_version
+          }
+        ]
+      ]);
+      const { rows, errors } = parseAdmissionRowsFromXlsx(roundTripped, existing);
+      assert(errors.length === 0, `합성 행이 거부됨(에러 ${errors.length}건): ${JSON.stringify(errors)}`);
+      assert(rows.length === 1, `행이 1개 생성돼야 함(실제 ${rows.length})`);
+      const violations = assertNotNullColumnsSatisfied(rows, notNullColumns);
+      assert(
+        violations.length === 0,
+        `NOT NULL 컬럼 위반: ${violations.join(', ')} — 이게 team-lead가 실측한 결함이다(안 고친 행을 그대로 재업로드해도 upsert가 실패)`
+      );
+      assert(rows[0].source_name === '', `source_name이 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].source_name)})`);
+      assert(
+        rows[0].source_version === '',
+        `source_version이 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].source_version)})`
+      );
+    }
+  );
+
+  check(
+    'region이 빈 셀이면 신규/기존 무관하게 행 거부(NOT NULL이고 DB 기본값이 없는 필드 — 조용한 null 삽입 방지)',
+    () => {
+      const header = BULK_XLSX_COLUMNS;
+      const row = header.map((col) => {
+        if (col === 'admission_year') return 2099;
+        if (col === 'university_key') return 'region-missing-test';
+        if (col === 'university_name') return 'region누락테스트대학교';
+        return ''; // region도 비워둠
+      });
+      const ws = XLSX.utils.aoa_to_sheet([header, row]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+      const { rows, errors } = parseAdmissionRowsFromXlsx(wb, new Map());
+      assert(rows.length === 0, `region이 비었는데 payload가 생성됨(실제 ${rows.length}건) — NOT NULL 위반 위험`);
+      assert(
+        errors.length === 1 && errors[0].type === 'missingRequiredFields',
+        `region 누락이 missingRequiredFields로 거부돼야 함(실제 ${JSON.stringify(errors[0])})`
+      );
+      assert(errors[0].reason.includes('region'), `에러 이유에 region이 명시돼야 함(실제 "${errors[0].reason}")`);
+    }
+  );
+
+  check(
+    'raw 카테고리 컬럼이 기존 DB에서 이미 빈 문자열이면, 안 고친 채 재업로드해도 raw가 \'\'로 보존됨(null로 바뀌지 않음)',
+    () => {
+      // 2026-08-10 실측(모집요강_수정본.xlsx 검증 중 발견): 이 6개 raw
+      // 컬럼은 nullable이라 upsert가 죽지는 않지만, source_name/
+      // source_version과 같은 `|| null` 패턴이 여기도 있어 안 고친 행의
+      // raw가 조용히 ''→null로 바뀌었다. dev DB 실측상 11개 행이 이
+      // 상태였다(previous_year_changes 등).
+      const existing = new Map([
+        [
+          '2099::raw-empty-preserved-test',
+          { id: 'fake-id-raw-empty', minimum_requirements_json: undefined, minimum_requirements: '' }
+        ]
+      ]);
+      const header = BULK_XLSX_COLUMNS;
+      const row = header.map((col) => {
+        if (col === 'admission_year') return 2099;
+        if (col === 'university_key') return 'raw-empty-preserved-test';
+        if (col === 'university_name') return 'raw빈값보존테스트대학교';
+        if (col === 'region') return '서울';
+        // minimum_requirements 셀은 비워둔다(기존 DB도 '').
+        return '';
+      });
+      const ws = XLSX.utils.aoa_to_sheet([header, row]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '모집요강');
+
+      const { rows, errors } = parseAdmissionRowsFromXlsx(wb, existing);
+      assert(errors.length === 0, `합성 행이 거부됨(에러 ${errors.length}건)`);
+      assert(rows.length === 1, `행이 1개 생성돼야 함(실제 ${rows.length})`);
+      assert(
+        rows[0].minimum_requirements === '',
+        `minimum_requirements가 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].minimum_requirements)}) — null로 바뀌면 "안 고친 행은 안 바뀐다" 불변식 위반`
+      );
+    }
+  );
 
   await checkFormulaRoundTrip();
   await checkRealFileBackwardCompatibility();
