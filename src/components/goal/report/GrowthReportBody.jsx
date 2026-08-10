@@ -1,0 +1,133 @@
+import GoalTabs from '../GoalTabs';
+import ReportHeroCard from './ReportHeroCard';
+import ReportSection from './ReportSection';
+import GoalAchievementCard from './GoalAchievementCard';
+import StudyTimeBarChartCard from './StudyTimeBarChartCard';
+import ConditionListCard from './ConditionListCard';
+import SubjectShareCard from './SubjectShareCard';
+import TimeSlotEfficiencyCard from './TimeSlotEfficiencyCard';
+import DistractionCard from './DistractionCard';
+import CoreItemsCard from './CoreItemsCard';
+import ConditionTileCard from './ConditionTileCard';
+import AdmissionChanceCard from './AdmissionChanceCard';
+import LearningTypeCard from './LearningTypeCard';
+import StrategyListCard from './StrategyListCard';
+import ExpectedEffectCard from './ExpectedEffectCard';
+import MentorCommentCard from './MentorCommentCard';
+import { weeklyGrowthReport, monthlyGrowthReport, monthlyAdmissionChance } from '../../../data/goalReportMock';
+import { mockAdmissionChance } from '../../../data/goalMock';
+
+const PERIOD_TABS = [
+  { value: 'weekly', label: '주간' },
+  { value: 'monthly', label: '월간' }
+];
+
+// 성장 리포트 본문(#33 주간 / #34 월간) — parent-view-spec.md §1-3/§4 원칙에 따라 셸과 완전히
+// 분리된 재사용 컴포넌트다. 이번 범위는 학생 뷰(GoalAppLayout)만 이 컴포넌트를 감싸지만, 나중에
+// 학부모 뷰 셸(GoalViewerLayout, parent-view-spec.md §2)이 동일한 `period`/`onPeriodChange`만
+// 넘기면 그대로 재사용 가능하도록 이 파일 안에 `if (isParent)` 류의 뷰어 분기를 절대 두지 않는다.
+// 데이터는 이 컴포넌트가 스스로 소유한다(뷰어가 데이터를 주입할 필요가 없다 — parent-view-spec.md
+// §1-3 "카피 전문 — 동일. 본문 리포트는 100% 공유 컴포넌트로 구현").
+//
+// 주간/월간 차이는 오직 데이터 단위뿐이다(요일 7 ↔ 주차 4, Row1 카드①의 확장 여부, Row4 존재
+// 여부) — 컴포넌트 트리는 동일하게 두고 데이터로만 분기한다(작업 지시 준수).
+//
+// 헤더 구조(탭 → 타이틀 순, `GoalPageHeader` 미사용)는 학습방향 리포트(DirectionReportBody, 타이틀
+// → 탭 순)와 다르다. 판정: 시안 자체가 다르다 — part-11.md #33 세로 구조표는 `1. 탭 y=106` →
+// `2. 페이지 타이틀 y=271` 순으로 탭이 타이틀보다 위에 있는 반면, part-13.md #37은 `100 페이지
+// 타이틀` → `216 탭` 순으로 반대다. 두 화면은 사이드바 메뉴도 서로 다른 항목(성장 리포트 ↔
+// 학습방향 리포트)이라 시안 확인 결과 이 차이는 구현 버그가 아니라 원본 시안의 의도적 차이로
+// 판단해 각자 자기 시안 순서를 그대로 유지한다(작업 지시 "시안이 서로 다르면 시안을 따르되 그
+// 사실을 주석으로 남길 것" 적용 — 강제 통일하지 않음).
+export default function GrowthReportBody({ period, onPeriodChange }) {
+  const report = period === 'monthly' ? monthlyGrowthReport : weeklyGrowthReport;
+  const admissionData = period === 'monthly' ? monthlyAdmissionChance : mockAdmissionChance;
+
+  return (
+    <div className="max-w-goal-content px-[3rem] pb-24 pt-[3.75rem]">
+      <GoalTabs
+        tabs={PERIOD_TABS}
+        value={period}
+        onChange={onPeriodChange}
+        ariaLabel="리포트 기간"
+        gap="1.875rem"
+      />
+
+      <div className="mt-6 flex flex-wrap items-baseline gap-3">
+        <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">{report.heading}</h1>
+        <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">{report.periodLabel}</span>
+      </div>
+
+      <div className="mt-6">
+        <ReportHeroCard narrative={report.hero.narrative} kpis={report.hero.kpis} />
+      </div>
+
+      <div className="mt-10 flex flex-col gap-10">
+        <ReportSection label={report.overview.label} subLabel={report.overview.subLabel}>
+          {/* Row1 — 비균등 3열. 시안 실측 372/720/196을 그대로 고정폭 쓰지 않고 가운데 칸을
+              fr로 흘려보내 콘텐츠 우측 끝까지 재배분한다(결함8: 월간 Row1 우측 끝 1414 미정렬 수정). */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[23.25rem_1fr_12.25rem]">
+            <GoalAchievementCard
+              title={report.overview.achievement.title}
+              variant={period}
+              rows={report.overview.achievement.rows ?? report.overview.achievement.summaryRows}
+              weeks={report.overview.achievement.weeks}
+            />
+            <StudyTimeBarChartCard
+              title={report.overview.studyTime.title}
+              bars={report.overview.studyTime.bars}
+              unit={report.overview.studyTime.unit}
+            />
+            <ConditionListCard title={report.overview.condition.title} rows={report.overview.condition.rows} />
+          </div>
+        </ReportSection>
+
+        <ReportSection label={report.execution.label} subLabel={report.execution.subLabel}>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <SubjectShareCard {...report.execution.subjectShare} />
+            <TimeSlotEfficiencyCard
+              title={report.execution.timeSlot.title}
+              rows={report.execution.timeSlot.rows}
+              tip={report.execution.timeSlot.tip}
+            />
+            <DistractionCard
+              title={report.execution.distraction.title}
+              rows={report.execution.distraction.rows}
+              tip={report.execution.distraction.tip}
+            />
+          </div>
+        </ReportSection>
+
+        <ReportSection label={report.outcome.label} subLabel={report.outcome.subLabel}>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <CoreItemsCard
+              title={report.outcome.coreItems.title}
+              rows={report.outcome.coreItems.rows}
+              tip={report.outcome.coreItems.tip}
+            />
+            <ConditionTileCard
+              title={report.outcome.conditionTiles.title}
+              tiles={report.outcome.conditionTiles.tiles}
+              tip={report.outcome.conditionTiles.tip}
+            />
+            <AdmissionChanceCard title={report.outcome.admission.title} data={admissionData} />
+          </div>
+        </ReportSection>
+
+        {period === 'monthly' && report.strategy && (
+          <ReportSection label={report.strategy.label} subLabel={report.strategy.subLabel}>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_1fr_27rem]">
+              <LearningTypeCard {...report.strategy.learningType} />
+              <StrategyListCard {...report.strategy.plan} />
+              <ExpectedEffectCard {...report.strategy.expectedEffect} />
+            </div>
+          </ReportSection>
+        )}
+      </div>
+
+      <div className="mt-10">
+        <MentorCommentCard dateLabel={report.mentorComment.dateLabel} body={report.mentorComment.body} />
+      </div>
+    </div>
+  );
+}
