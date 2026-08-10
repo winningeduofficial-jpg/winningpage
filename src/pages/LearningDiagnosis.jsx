@@ -51,7 +51,7 @@ function optionClass(active) {
 
 
 
-export default function FreeDiagnosis() {
+export default function LearningDiagnosis() {
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState(null);
   const [started, setStarted] = useState(false);
@@ -97,19 +97,19 @@ export default function FreeDiagnosis() {
 
       const [questionRes, optionRes, programRes] = await Promise.all([
         supabase
-          .from('free_diagnosis_questions')
+          .from('learning_diagnosis_questions')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
         supabase
-          .from('free_diagnosis_options')
+          .from('learning_diagnosis_options')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
         supabase
-          .from('free_diagnosis_programs')
+          .from('learning_diagnosis_programs')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
@@ -121,7 +121,7 @@ export default function FreeDiagnosis() {
 
       const error = questionRes.error || optionRes.error || programRes.error;
       if (error) {
-        setConfigError('무료진단 설정을 불러오지 못했습니다. 관리자에서 무료진단 테이블 설정을 확인해 주세요.');
+        setConfigError('학습진단 설정을 불러오지 못했습니다. 관리자에서 학습진단 테이블 설정을 확인해 주세요.');
         setQuestions([]);
         setOptions([]);
         setPrograms([]);
@@ -268,7 +268,7 @@ export default function FreeDiagnosis() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-[#D6B06A] backdrop-blur">
                 <Sparkles size={17} />
-                무료 진단 서비스
+                학습 진단 서비스
               </div>
 
               <h1 className="mt-7 break-keep text-4xl font-black leading-[1.18] tracking-[-0.055em] md:text-6xl">
@@ -285,7 +285,7 @@ export default function FreeDiagnosis() {
                   onClick={startDiagnosis}
                   className="inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-7 text-base font-black text-[#0D1B2A] shadow-[0_18px_40px_rgba(0,0,0,0.22)] transition hover:bg-[#F2EBDD]"
                 >
-                  지금 바로 무료진단하기
+                  지금 바로 학습진단하기
                   <ArrowRight size={20} />
                 </button>
 
@@ -335,7 +335,7 @@ export default function FreeDiagnosis() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-                      무료 진단은 회원가입 후 이용할 수 있습니다.
+                      학습 진단은 회원가입 후 이용할 수 있습니다.
                     </h2>
                     <p className="mt-2 break-keep text-sm font-bold leading-6 text-slate-600">
                       진단 결과를 학생 정보와 연결해 관리하기 위해 로그인 또는 회원가입이 필요합니다.
@@ -367,7 +367,7 @@ export default function FreeDiagnosis() {
     <div className="space-y-6">
       {loadingConfig && (
         <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-          무료진단 문항을 불러오는 중입니다.
+          학습진단 문항을 불러오는 중입니다.
         </div>
       )}
 
@@ -379,7 +379,7 @@ export default function FreeDiagnosis() {
 
       {!loadingConfig && !configError && questions.length === 0 && (
         <div className="rounded-[30px] border border-[#0D1B2A]/10 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-[0_18px_45px_rgba(13,27,42,0.07)]">
-          등록된 무료진단 질문이 없습니다. 관리자에서 질문을 추가해 주세요.
+          등록된 학습진단 질문이 없습니다. 관리자에서 질문을 추가해 주세요.
         </div>
       )}
 
@@ -445,7 +445,7 @@ export default function FreeDiagnosis() {
         disabled={!canSubmit}
         className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] text-base font-black text-white shadow-[0_20px_45px_rgba(13,27,42,0.20)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-45"
       >
-        무료진단 결과 확인하기
+        학습진단 결과 확인하기
         <ArrowRight size={20} />
       </button>
     </div>
@@ -458,7 +458,7 @@ export default function FreeDiagnosis() {
                 <div>
                   <p className="text-sm font-black text-[#B88737]">DIAGNOSIS RESULT</p>
                   <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#0D1B2A]">
-                    무료 진단 결과
+                    학습 진단 결과
                   </h2>
                   <div className="mt-3 space-y-1 break-keep text-sm font-bold leading-6 text-slate-600">
                     {selectedSummary.length > 0 ? (

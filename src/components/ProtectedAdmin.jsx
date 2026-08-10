@@ -60,7 +60,12 @@ export default function ProtectedAdmin({ children }) {
   }
 
   if (status === 'guest') {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    // §5.2: 로그인 후 원래 경로 복귀는 ?redirect= 쿼리 관례로 통일(Login.jsx가 location.state를
+    // 읽지 않고 ?redirect만 읽는다).
+    const redirectPath = `${location.pathname}${location.search}${location.hash}`;
+    return (
+      <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />
+    );
   }
 
   if (status === 'forbidden') {

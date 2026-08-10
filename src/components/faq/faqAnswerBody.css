@@ -18,16 +18,26 @@
   max-width: none;
 }
 
-/* 8. 답변 폰트 20px(시안). line-height는 건드리지 않는다 — 리치 렌더는
-   [data-content-type='paragraph']에 이미 line-height: 2rem(32px)이 걸려 있고,
-   평문 폴백은 leading-8(32px)이라 20 × 1.6 = 32px 목표와 우연히 일치한다.
-   - 직계 자식 div: 평문 폴백(PLAIN_BASE)의 text-base(1rem) 오버라이드.
-   - .bn-default-styles: 리치 렌더 루트(.bn-editor와 동일 엘리먼트)에 붙는 클래스로,
-     blockNoteContent.css의 font-size: 1rem 을 오버라이드하면 하위 paragraph가 상속한다. */
-.faq-answer-body > div {
-  font-size: 1.25rem;
-}
+/* 8. (삭제됨 — 규칙 번호는 재사용하지 않는다. 이 파일의 번호는 파일 내 순서가 아니라
+   FAQ 리뉴얼 스펙의 항목 번호라 6부터 시작한다.)
+   원래 이 자리엔 "답변 폰트 20px(시안)" 규칙이 있었다. 시안이 답변 본문을 20px로
+   그렸기 때문에 `.faq-answer-body > div`(평문 폴백)와
+   `.faq-answer-body .bn-doc .bn-default-styles`(리치 렌더) 양쪽에 font-size: 1.25rem
+   을 얹어 기반값 1rem을 덮어쓰고 있었다.
 
-.faq-answer-body .bn-doc .bn-default-styles {
-  font-size: 1.25rem;
-}
+   2026-08-07 사용자 지시로 답변 폰트를 질문(16px, FaqAccordionRow의 text-base)과
+   통일하기 위해 이 규칙을 삭제했다. 오버라이드를 1rem으로 바꿔 얹지 않고 규칙 자체를
+   지운 이유는 두 경로의 기반값이 이미 1rem이기 때문이다 — 리치 렌더는
+   blockNoteContent.css의 `.bn-doc .bn-default-styles { font-size: 1rem }`,
+   평문 폴백은 ColumnBody.jsx PLAIN_BASE의 text-base(1rem). 규칙 8만 지우면 양쪽이
+   저절로 16px로 돌아가므로 덧칠할 오버라이드가 없다.
+
+   부수효과(의도적으로 그대로 둠): line-height는 건드리지 않았다. 리치 렌더는
+   [data-content-type='paragraph']의 line-height: 2rem(32px), 평문 폴백은
+   leading-8(32px)로 둘 다 고정값이라, 폰트가 20→16px가 되면서 행간비가
+   32/20 = 1.6 에서 32/16 = 2.0 으로 늘어났다. 지시 범위가 폰트 크기였고 2.0은 본문
+   가독성상 허용 범위라 유지한다. 행간을 1.6으로 되돌리려면 폰트가 아니라 위 두 곳의
+   line-height를 손대야 한다(그러면 교육칼럼 등 다른 ColumnBody 사용처에 영향이
+   가지 않도록 .faq-answer-body 스코프로 감쌀 것).
+
+   20px로 되돌리려면 이 주석을 위 두 셀렉터 + font-size: 1.25rem 규칙으로 복원하면 된다. */

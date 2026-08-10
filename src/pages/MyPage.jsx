@@ -17,10 +17,13 @@ function refundStatus(s) {
 const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
+// value는 DB 저장값 — sql/40_auth_signup.sql의 profiles_member_type_check
+// (student/parent/mentor)와 일치해야 한다. 구 'teacher'는 마이그레이션에서
+// 'mentor'로 정규화됐다.
 const MEMBER_TYPES = [
   { value: 'student', label: '학생' },
   { value: 'parent',  label: '학부모' },
-  { value: 'teacher', label: '멘토·교사' }
+  { value: 'mentor',  label: '멘토·교사' }
 ];
 const REGION_OPTIONS = [
   '서울',

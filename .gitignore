@@ -55,3 +55,5 @@ docs/
 # 로컬 디버깅용 원본. scripts/build-admission-html-golden.mjs로 언제든 재생성 가능하므로
 # 커밋하지 않는다.
 /.golden-cache/
+
+spike/

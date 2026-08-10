@@ -110,7 +110,7 @@ and not exists (
 --    교체한 뒤 재실행하면 로컬경로 조건이 다시 뚫려 행이 중복 삽입되므로 사용하지 않는다.
 -- ---------------------------------------------------------------------
 insert into public.banners (title, highlight, subtitle, image_url, button_text, button_link, sort_order, is_active)
-select '메인 배너', null, null, '/images/landing/hero/main-banner-full.png', null, '/free-diagnosis', 1, true
+select '메인 배너', null, null, '/images/landing/hero/main-banner-full.png', null, '/learning-diagnosis', 1, true
 where not exists (
   select 1 from public.schema_migrations
   where version = '30_banners_hero_seed_v1'

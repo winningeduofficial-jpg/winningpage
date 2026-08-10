@@ -14,6 +14,13 @@
   --winning-white: #ffffff;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* 로그인·회원가입 리뉴얼(auth 플로우) 모션 duration 토큰 — impeccable animate 100/300/500 rule. */
+  --duration-instant: 120ms;
+  --duration-fast: 180ms;
+  --duration-base: 240ms;
+  --duration-slow: 320ms;
+  --duration-celebrate: 640ms;
 }
 
 html {
@@ -389,6 +396,117 @@ select {
 
   .service-illustration {
     transition: none !important;
+  }
+}
+
+/* 로그인·회원가입 리뉴얼(auth 플로우) 모션 — impeccable animate.
+   transform/opacity 중심, ease-out 지수 커브. 대상: AuthLayout/TermsPageLayout 스텝 전환,
+   TextField/SelectField 상태 메시지·에러 shake, AgreementRow 전체동의 stagger, ChoiceCard
+   선택, StudentComplete 축하 배지. 콘텐츠 가시성을 애니메이션에 gate하지 않는다(기본 상태는
+   항상 완전히 보이며, 아래 클래스는 그 등장을 강화만 한다). */
+.auth-step-enter {
+  animation: authStepEnter var(--duration-slow) var(--ease-out-quint) both;
+}
+
+.auth-message-enter {
+  animation: authMessageEnter var(--duration-fast) var(--ease-out-quart) both;
+}
+
+.auth-field-shake {
+  animation: authFieldShake var(--duration-slow) var(--ease-out-quart);
+}
+
+.auth-check-pop {
+  animation: authCheckPop 220ms var(--ease-out-quart) both;
+}
+
+.celebrate-badge {
+  animation: celebrateBadge var(--duration-celebrate) var(--ease-out-expo) both;
+}
+
+@keyframes authStepEnter {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes authMessageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes authFieldShake {
+  10%,
+  90% {
+    transform: translateX(-0.0625rem);
+  }
+
+  20%,
+  80% {
+    transform: translateX(0.125rem);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translateX(-0.25rem);
+  }
+
+  40%,
+  60% {
+    transform: translateX(0.25rem);
+  }
+}
+
+@keyframes authCheckPop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes celebrateBadge {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-step-enter,
+  .auth-message-enter,
+  .auth-field-shake,
+  .auth-check-pop,
+  .celebrate-badge {
+    animation: none !important;
   }
 }
 

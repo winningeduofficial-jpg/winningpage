@@ -11,8 +11,8 @@ import MentorCard from './MentorCard';
  * @param {Array<object>} props.mentors
  *   home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조.
  * @param {'default'|'callmentor'} [props.variant='default']
- *   콜멘토 랜딩(docs/callmentor-spec.md 5.1.3 섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션
- *   배경/패딩만 다르다 — 신규 컴포넌트 대신 이 variant로 흡수한다(재합성 0).
+ *   콜멘토 랜딩(섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션 배경/패딩만 다르다 — 신규
+ *   컴포넌트 대신 이 variant로 흡수한다(재합성 0).
  */
 export default function MentorSection({ mentors = [], variant = 'default' }) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
@@ -31,7 +31,7 @@ export default function MentorSection({ mentors = [], variant = 'default' }) {
       aria-label="위닝 멘토"
       className={
         isCallMentor
-          ? 'mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-[7.5rem] pb-[8.75rem]'
+          ? 'mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-[2.5rem] lg:pb-[7.5rem]'
           : 'mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]'
       }
     >

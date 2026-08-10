@@ -48,6 +48,10 @@ import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
 import { plainTextToBlocks } from '../lib/plainTextToBlocks';
 import { FAQ_CATEGORIES } from '../data/faqCategories';
+// BookViewer는 표현 전용 컴포넌트라 가볍다(bookPairing.js + book-viewer.css) — 정적 import 대상은
+// pdfjs-dist뿐이다(PremiumBookAdmin 참고). BookViewer까지 동적 import하면 얻는 것 없이 미리보기 전환에
+// 스피너만 하나 더 생긴다.
+import BookViewer from '../components/premiumBook/BookViewer';
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -71,7 +75,9 @@ const MENU_GROUPS = [
       { key: 'universityAcceptances', label: '합격생 대학 관리' },
       { key: 'programCategories', label: '핵심 서비스' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
-      { key: 'pageContents', label: '세부 페이지 관리' }
+      { key: 'pageContents', label: '세부 페이지 관리' },
+      { key: 'premiumBookPages', label: '프리미엄 책자 관리' },
+      { key: 'premiumConsults', label: '프리미엄 상담 신청' }
     ]
   },
   {
@@ -87,7 +93,7 @@ const MENU_GROUPS = [
       { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
-      { key: 'freeDiagnosis', label: '무료진단 관리' }
+      { key: 'learningDiagnosis', label: '학습진단 관리' }
     ]
   },
   {
@@ -183,6 +189,14 @@ const SPECIAL_HIGHSCHOOL_TYPE_OPTIONS = [
 const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
   { value: '합격자', label: '합격자' },
   { value: '합격생', label: '합격생' }
+];
+
+// DB 저장값은 영문 키 그대로 유지하고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
+const PREMIUM_CONSULT_STATUS_OPTIONS = [
+  { value: 'new', label: '신규' },
+  { value: 'contacted', label: '연락함' },
+  { value: 'done', label: '완료' },
+  { value: 'cancelled', label: '취소' }
 ];
 
 const CONFIGS = {
@@ -814,20 +828,109 @@ const CONFIGS = {
     }
   },
 
+  // 프리미엄 이용(BOOK) 책자 페이지. 입수 경로 2개(명세 §6 A):
+  //   ① PDF 1개 업로드 → 브라우저에서 16장 WebP로 변환 → 미리보기 → [적용] 일괄 upsert (bespoke 패널)
+  //   ② 개별 페이지 1장만 고칠 때는 아래 fields/columns 기반 제네릭 편집(PremiumBookAdmin 내부에서
+  //      AdminTable/AdminForm을 그대로 재사용)
+  // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(learningDiagnosis → LearningDiagnosisAdmin)을
+  // config.CustomComponent로 일반화한 것이다 — 아래 Admin() 렌더 분기, PremiumBookAdmin 참고.
+  premiumBookPages: {
+    title: '프리미엄 책자 관리',
+    table: 'premium_book_pages',
+    searchPlaceholder: '',
+    // 정정(spec B-1): CONFIGS가 실제로 읽는 키는 order다 — orderColumn은 loadRows 지역변수 이름일
+    // 뿐이다(Admin.jsx:loadRows, `const orderColumn = config.order || 'created_at'`).
+    order: 'sort_order',
+    homepage: true,
+    custom: true,
+    CustomComponent: PremiumBookAdmin,
+    guideText: `PDF 1개를 올리면 자동으로 각 페이지가 이미지로 변환되어 미리보기 후 [적용]으로 일괄 반영됩니다. 개별 페이지 1장만 교체할 때는 아래 목록에서 해당 행을 수정하세요. 행 단위 교체라 전량 교체 시 신판/구판 혼재 구간이 생길 수 있습니다 — 트래픽이 적은 시간대 작업을 권장합니다. 이미 페이지를 열어둔 사용자는 새로고침 전까지 구 이미지를 봅니다. 페이지 번호(sort_order)는 UNIQUE가 아니라 자유롭게 재배치할 수 있으나, 중복 시 목록 상단에 경고가 표시됩니다.`,
+    columns: [
+      { key: 'sort_order', label: '페이지 번호' },
+      { key: 'image_url', label: '이미지', type: 'image' }
+    ],
+    fields: [
+      { key: 'sort_order', label: '페이지 번호', type: 'number', required: true },
+      {
+        key: 'image_url',
+        label: '이미지',
+        type: 'image',
+        imageSpec: { maxMB: 2 },
+        folder: 'premium-book'
+      }
+    ],
+    // create 모드는 config.defaults만으로 폼을 초기화한다(Admin.jsx AdminForm,
+    // `return { ...(config.defaults || {}) }`) — 없으면 sort_order NOT NULL이 23502 raw alert를 띄운다.
+    defaults: { sort_order: 1, image_url: '' }
+  },
+
+  // 프리미엄 상담 신청 내역 — sql/48_premium_consult.sql(premium_consult_requests)이 정본.
+  // 신청자 원본(이름/연락처/이메일/서비스/문의내용)은 운영자가 고칠 이유가 없어 읽기 전용으로 두고
+  // status·admin_note만 편집 가능하게 한다. 신규 상담 생성 경로는 공개 신청폼(PremiumApply.jsx)
+  // 하나뿐이라 noCreate로 어드민의 수기 생성 자체를 막는다.
+  premiumConsults: {
+    title: '프리미엄 상담 신청 내역',
+    table: 'premium_consult_requests',
+    searchPlaceholder: '이름, 연락처, 이메일 검색',
+    // loadRows: orderColumn이 'sort_order'가 아니면 내림차순 정렬이라(Admin.jsx:loadRows 참고)
+    // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
+    order: 'created_at',
+    noCreate: true,
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
+    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
+    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
+    retentionNotice:
+      '상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.',
+    columns: [
+      { key: 'created_at', label: '신청일시', type: 'datetime' },
+      { key: 'name', label: '이름' },
+      { key: 'phone', label: '연락처' },
+      { key: 'email', label: '이메일' },
+      { key: 'service', label: '상담 서비스' },
+      { key: 'message', label: '문의 내용', type: 'truncate' },
+      { key: 'status', label: '상태', options: PREMIUM_CONSULT_STATUS_OPTIONS }
+    ],
+    fields: [
+      { key: 'created_at', label: '신청일시', type: 'datetime', readOnly: true },
+      { key: 'name', label: '이름', type: 'text', readOnly: true },
+      { key: 'phone', label: '연락처', type: 'text', readOnly: true },
+      { key: 'email', label: '이메일', type: 'text', readOnly: true },
+      { key: 'service', label: '상담 서비스', type: 'text', readOnly: true },
+      { key: 'message', label: '문의 내용', type: 'textarea', readOnly: true },
+      {
+        key: 'status',
+        label: '상태',
+        type: 'select',
+        options: PREMIUM_CONSULT_STATUS_OPTIONS,
+        required: true
+      },
+      { key: 'admin_note', label: '운영 메모', type: 'textarea' }
+    ],
+    defaults: { status: 'new', admin_note: '' }
+  },
+
   notices: {
     title: '공지사항',
     table: 'notices',
     searchPlaceholder: '공지사항 제목을 검색하세요',
     order: 'sort_order',
+    // 공개면(게시판)과 동일한 정렬을 어드민 목록에도 적용해 "보이는 순서 = 노출 순서"를 맞춘다
+    orderBy: [
+      ['is_pinned', false],
+      ['sort_order', true],
+      ['created_at', false]
+    ],
     homepage: true,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'category', label: '메인 배지' },
-      { key: 'is_pinned', label: '최상단 고정', type: 'boolean' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
-      { key: 'created_at', label: '작성일', type: 'date' }
+      { key: 'created_at', label: '작성일', type: 'date' },
+      { key: 'view_count', label: '조회수' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
@@ -838,7 +941,7 @@ const CONFIGS = {
         type: 'select',
         options: ['보도자료', '파트너십', '공지']
       },
-      { key: 'is_pinned', label: '최상단 고정', type: 'checkbox' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -869,16 +972,23 @@ const CONFIGS = {
     table: 'company_news',
     searchPlaceholder: '회사소식 제목을 검색하세요',
     order: 'sort_order',
+    // 공개면(게시판)과 동일한 정렬을 어드민 목록에도 적용해 "보이는 순서 = 노출 순서"를 맞춘다
+    orderBy: [
+      ['is_pinned', false],
+      ['sort_order', true],
+      ['created_at', false]
+    ],
     homepage: true,
     guideText: `회사소식 페이지 하단 게시판과 메인 페이지 우측 미리보기에 함께 노출됩니다. 회사소개 상단 내용은 '세부 페이지 관리'의 company-intro 항목을 사용합니다.`,
     columns: [
       { key: 'title', label: '제목' },
       { key: 'category', label: '메인 배지' },
-      { key: 'is_pinned', label: '주요소식 고정', type: 'boolean' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'boolean' },
       { key: 'image_urls', label: '본문 이미지', type: 'imageList' },
       { key: 'attachments', label: '첨부파일', type: 'fileList' },
       { key: 'is_active', label: '노출', type: 'boolean' },
-      { key: 'created_at', label: '작성일', type: 'date' }
+      { key: 'created_at', label: '작성일', type: 'date' },
+      { key: 'view_count', label: '조회수' }
     ],
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
@@ -889,7 +999,7 @@ const CONFIGS = {
         type: 'select',
         options: ['보도자료', '파트너십', '공지']
       },
-      { key: 'is_pinned', label: '주요소식 고정', type: 'checkbox' },
+      { key: 'is_pinned', label: '중요(상단 고정)', type: 'checkbox' },
       { key: 'content', label: '내용', type: 'textarea' },
       { key: 'image_urls', label: '본문 이미지', type: 'multiImage' },
       {
@@ -1755,7 +1865,8 @@ const CONFIGS = {
       { key: 'region', label: '거주구분', type: 'select', options: ['관내', '관외'] },
       { key: 'school_type', label: '학교구분', type: 'text' },
       { key: 'school_name', label: '학교명', type: 'text' },
-      { key: 'member_type', label: '회원유형', type: 'select', options: ['student', 'parent', 'teacher'] },
+      // sql/40_auth_signup.sql profiles_member_type_check와 일치 (구 'teacher' → 'mentor')
+      { key: 'member_type', label: '회원유형', type: 'select', options: ['student', 'parent', 'mentor'] },
       { key: 'role', label: '권한', type: 'select', options: ['user', 'admin'] },
       { key: 'is_active', label: '사용 여부', type: 'radioBoolean' },
       { key: 'sms_agreed', label: 'SMS수신동의', type: 'checkbox' },
@@ -1934,8 +2045,8 @@ const CONFIGS = {
     defaults: { capacity: 0, applicant_count: 0, confirmed_count: 0, remaining_count: 0 }
   },
 
-  freeDiagnosis: {
-    title: '무료진단 관리',
+  learningDiagnosis: {
+    title: '학습진단 관리',
     custom: true,
     searchPlaceholder: ''
   },
@@ -2590,7 +2701,7 @@ function ProgramSelector({ programs, value, onChange }) {
   );
 }
 
-function FreeDiagnosisAdmin() {
+function LearningDiagnosisAdmin() {
   const [questions, setQuestions] = useState([]);
   const [options, setOptions] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -2618,17 +2729,17 @@ function FreeDiagnosisAdmin() {
 
     const [questionRes, optionRes, programRes] = await Promise.all([
       supabase
-        .from('free_diagnosis_questions')
+        .from('learning_diagnosis_questions')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_options')
+        .from('learning_diagnosis_options')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
-        .from('free_diagnosis_programs')
+        .from('learning_diagnosis_programs')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
@@ -2638,7 +2749,7 @@ function FreeDiagnosisAdmin() {
 
     const error = questionRes.error || optionRes.error || programRes.error;
     if (error) {
-      alert(`무료진단 데이터 조회 실패: ${error.message}`);
+      alert(`학습진단 데이터 조회 실패: ${error.message}`);
       return;
     }
 
@@ -2717,7 +2828,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
 
-    const { error } = await supabase.from('free_diagnosis_questions').insert({
+    const { error } = await supabase.from('learning_diagnosis_questions').insert({
       title,
       description: newQuestion.description || '',
       input_type: newQuestion.input_type || 'single',
@@ -2749,7 +2860,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .update({
         title: question.title,
         description: question.description || '',
@@ -2775,7 +2886,7 @@ function FreeDiagnosisAdmin() {
       return;
 
     const { error } = await supabase
-      .from('free_diagnosis_questions')
+      .from('learning_diagnosis_questions')
       .delete()
       .eq('id', question.id);
     if (error) {
@@ -2788,7 +2899,7 @@ function FreeDiagnosisAdmin() {
 
   async function createOption(questionId) {
     const questionOptions = optionsByQuestion[questionId] || [];
-    const { error } = await supabase.from('free_diagnosis_options').insert({
+    const { error } = await supabase.from('learning_diagnosis_options').insert({
       question_id: questionId,
       label: '',
       program_ids: [],
@@ -2812,7 +2923,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_options')
+      .from('learning_diagnosis_options')
       .update({
         label: option.label,
         program_ids: normalizeProgramIds(option.program_ids),
@@ -2834,7 +2945,7 @@ function FreeDiagnosisAdmin() {
   async function deleteOption(option) {
     if (!window.confirm('이 답변을 삭제하시겠습니까?')) return;
 
-    const { error } = await supabase.from('free_diagnosis_options').delete().eq('id', option.id);
+    const { error } = await supabase.from('learning_diagnosis_options').delete().eq('id', option.id);
     if (error) {
       alert(`답변 삭제 실패: ${error.message}`);
       return;
@@ -2851,7 +2962,7 @@ function FreeDiagnosisAdmin() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from('free_diagnosis_programs').insert({
+    const { error } = await supabase.from('learning_diagnosis_programs').insert({
       ...newProgram,
       title,
       sort_order: Number(newProgram.sort_order || 1),
@@ -2876,7 +2987,7 @@ function FreeDiagnosisAdmin() {
 
     setSaving(true);
     const { error } = await supabase
-      .from('free_diagnosis_programs')
+      .from('learning_diagnosis_programs')
       .update({
         title: program.title,
         badge: program.badge || '',
@@ -2909,7 +3020,7 @@ function FreeDiagnosisAdmin() {
     )
       return;
 
-    const { error } = await supabase.from('free_diagnosis_programs').delete().eq('id', program.id);
+    const { error } = await supabase.from('learning_diagnosis_programs').delete().eq('id', program.id);
     if (error) {
       alert(`추천 프로그램 삭제 실패: ${error.message}`);
       return;
@@ -2923,7 +3034,7 @@ function FreeDiagnosisAdmin() {
       <div className="bg-white px-6 py-5 shadow">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black">무료진단 관리</h1>
+            <h1 className="text-xl font-black">학습진단 관리</h1>
             <p className="mt-1 text-sm font-bold text-red-500">
               질문 내용, 답변 내용, 중복 선택 여부, 답변별 추천 프로그램을 이 화면에서 수정합니다.
             </p>
@@ -2938,7 +3049,7 @@ function FreeDiagnosisAdmin() {
 
       {loading ? (
         <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
-          무료진단 데이터를 불러오는 중입니다.
+          학습진단 데이터를 불러오는 중입니다.
         </div>
       ) : (
         <>
@@ -3387,6 +3498,21 @@ function formatValue(value, type, options) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toISOString().slice(0, 10);
+  }
+
+  if (type === 'datetime') {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    // toISOString()은 UTC라 KST 00~09시 신청 건이 하루 전날로 잘린다 — Asia/Seoul 고정 표시.
+    return date.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
   }
 
   return String(value);
@@ -4704,7 +4830,7 @@ function AdminForm({
                 </div>
 
                 <div className="min-w-0 px-5 py-3">
-                  {readonly ? (
+                  {readonly || field.readOnly ? (
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
                     ) : (
@@ -5842,6 +5968,72 @@ function MoneySummary({ activeKey, rows }) {
   );
 }
 
+// Admin()이 AdminForm에 onUpload로 넘기던 함수. 컴포넌트 상태를 전혀 참조하지 않는 순수 함수라
+// PremiumBookAdmin(제네릭 개별 페이지 편집)도 그대로 재사용할 수 있도록 모듈 스코프로 뺐다.
+async function uploadImage(files, field = {}) {
+  const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
+  if (fileList.length === 0) return [];
+
+  const uploaded = [];
+
+  for (const rawFile of fileList) {
+    const willCompress = isCompressibleField(field);
+
+    if (field.imageSpec) {
+      const proceed = await validateImageSpec(rawFile, field.imageSpec, {
+        skipMaxMB: willCompress
+      });
+      if (!proceed) continue;
+    }
+
+    const file = await maybeCompressImage(rawFile, field);
+
+    if (willCompress && field.imageSpec?.maxMB && !validateMaxMB(file, field.imageSpec.maxMB)) {
+      continue;
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
+
+    const safeName =
+      file.name
+        .replace(/\.[^/.]+$/, '')
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'upload';
+
+    const folder =
+      field.folder ||
+      (field.type === 'file' || field.type === 'multiFile' ? 'notice-files' : 'admin');
+
+    const path = `${folder}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}-${safeName}.${ext}`;
+
+    const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, file, {
+      cacheControl: field.cacheControl || '3600',
+      upsert: false
+    });
+
+    if (error) {
+      alert(`업로드 실패: ${error.message}`);
+      continue;
+    }
+
+    const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+
+    uploaded.push({
+      name: file.name,
+      url: data.publicUrl,
+      size: file.size,
+      type: file.type
+    });
+  }
+
+  return uploaded;
+}
+
 export default function Admin() {
   const [activeKey, setActiveKey] = useState('popups');
   const [mode, setMode] = useState('list');
@@ -5890,7 +6082,12 @@ export default function Admin() {
 
     const orderColumn = config.order || 'created_at';
 
-    if (config.fixedCategory || config.fixedCategories) {
+    if (Array.isArray(config.orderBy)) {
+      // 테이블별 정렬 오버라이드 — 선언한 설정에만 적용되고 다른 탭은 아래 기본 분기를 그대로 탄다
+      for (const [column, ascending] of config.orderBy) {
+        query = query.order(column, { ascending });
+      }
+    } else if (config.fixedCategory || config.fixedCategories) {
       query = query
         .order('is_pinned', { ascending: false })
         .order('sort_order', { ascending: true })
@@ -5940,69 +6137,9 @@ export default function Admin() {
     window.location.replace('/');
   }
 
-  async function uploadImage(files, field = {}) {
-    const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
-    if (fileList.length === 0) return [];
-
-    const uploaded = [];
-
-    for (const rawFile of fileList) {
-      const willCompress = isCompressibleField(field);
-
-      if (field.imageSpec) {
-        const proceed = await validateImageSpec(rawFile, field.imageSpec, {
-          skipMaxMB: willCompress
-        });
-        if (!proceed) continue;
-      }
-
-      const file = await maybeCompressImage(rawFile, field);
-
-      if (willCompress && field.imageSpec?.maxMB && !validateMaxMB(file, field.imageSpec.maxMB)) {
-        continue;
-      }
-
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
-
-      const safeName =
-        file.name
-          .replace(/\.[^/.]+$/, '')
-          .normalize('NFKD')
-          .replace(/[^a-zA-Z0-9_-]/g, '_')
-          .replace(/_+/g, '_')
-          .replace(/^_+|_+$/g, '')
-          .slice(0, 50) || 'upload';
-
-      const folder =
-        field.folder ||
-        (field.type === 'file' || field.type === 'multiFile' ? 'notice-files' : 'admin');
-
-      const path = `${folder}/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}-${safeName}.${ext}`;
-
-      const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, file, {
-        cacheControl: field.cacheControl || '3600',
-        upsert: false
-      });
-
-      if (error) {
-        alert(`업로드 실패: ${error.message}`);
-        continue;
-      }
-
-      const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
-
-      uploaded.push({
-        name: file.name,
-        url: data.publicUrl,
-        size: file.size,
-        type: file.type
-      });
-    }
-
-    return uploaded;
-  }
+  // uploadImage는 컴포넌트 상태에 의존하지 않는 순수 함수라 모듈 스코프로 뺐다 — PremiumBookAdmin의
+  // 제네릭 개별 페이지 편집(AdminForm onUpload)에서도 그대로 재사용한다. 정의는 파일 하단, Admin() 선언
+  // 직전 참고.
 
   function createRow() {
     setEditingRow(null);
@@ -6048,6 +6185,9 @@ export default function Admin() {
 
     delete payload.created_at;
     delete payload.updated_at;
+    // 조회수는 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row 스냅샷이라,
+    // 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여 롤백된다.
+    delete payload.view_count;
 
     if (Array.isArray(payload.image_urls) && payload.image_urls.length > 0 && !payload.image_url) {
       payload.image_url = payload.image_urls[0];
@@ -6172,7 +6312,14 @@ export default function Admin() {
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
           {config.custom ? (
-            <FreeDiagnosisAdmin />
+            // custom 삼항의 일반화 지점. 선례(learningDiagnosis)는 CustomComponent를 지정하지 않으므로
+            // 기존 하드코딩 동작이 그대로 보존된다 — 회귀 위험 0. 신규 섹션(premiumBookPages)은
+            // config.CustomComponent로 자기 컴포넌트를 지정한다.
+            config.CustomComponent ? (
+              <config.CustomComponent />
+            ) : (
+              <LearningDiagnosisAdmin />
+            )
           ) : mode === 'list' ? (
             config.comingSoon ? (
               <div className="bg-white p-10 shadow">
@@ -6267,6 +6414,11 @@ export default function Admin() {
                           )}
                         </div>
                       )}
+                      {config.retentionNotice && (
+                        <p className="mt-1 text-xs font-bold text-gray-500">
+                          {config.retentionNotice}
+                        </p>
+                      )}
                     </div>
 
                     {!config.noCreate && !config.readOnly && (
@@ -6280,6 +6432,13 @@ export default function Admin() {
                       </button>
                     )}
                   </div>
+
+                  {config.rowCapWarning && rows.length >= 1000 && (
+                    <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+                      조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회 상한으로 오래된 신청
+                      건이 목록에서 빠졌을 수 있습니다. 전체 건수가 아닙니다.
+                    </p>
+                  )}
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
@@ -6329,6 +6488,506 @@ export default function Admin() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// 프리미엄 이용(BOOK) 책자 — bespoke 패널(PDF 업로드→변환→미리보기→적용) + 개별 페이지 제네릭 CRUD를
+// 한 컴포넌트 안에 함께 렌더한다. config.custom이 all-or-nothing이라(Admin() 최상단 렌더 분기) 이
+// 섹션이 선택되면 Admin()의 제네릭 list/create/edit 경로 자체가 통째로 스킵되기 때문이다 — 그래서
+// "개별 페이지 1장 교체" 요구(명세 §6 A ①)를 살리려면 AdminTable/AdminForm을 이 컴포넌트가 직접
+// 다시 호출해야 한다. 두 컴포넌트는 Admin() 상태를 참조하지 않는 순수 프레젠테이션 함수라 재사용에
+// 문제가 없다(props만 받는다).
+//
+// PDF→WebP 변환은 명세 §D2 확정안을 그대로 따른다:
+//   - pdfjs-dist는 반드시 핸들러(handleConvert) 안에서 동적 import한다. Admin은 App.jsx:39에서
+//     lazy() 청크라 정적 import하면 pdfjs worker(약 372KB gzip)가 이미 무거운 Admin 청크에 얹힌다.
+//   - worker는 new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)로 배선한다
+//     (spike/index.html에서 Vite 6 + pdfjs-dist v6 조합으로 실측 확인된 방식).
+//   - 각 페이지를 가로 1024px 목표로 렌더하고 canvas.toBlob('image/webp', 0.8)로 인코딩한다.
+//   - toBlob 포맷 가드 필수 — MDN 명세상 브라우저가 WebP 인코딩을 지원하지 않으면 조용히 PNG를
+//     반환한다(에러 없음). blob.type이 'image/webp'가 아니면 그 자리에서 변환을 중단한다.
+//   - 순차 렌더 + 페이지마다 canvas.width = 0; canvas.height = 0으로 해제해 16장을 동시에 들고
+//     있지 않는다.
+//
+// [적용]은 2단계 시퀀싱이다(명세 §D2) — 원본 PDF + WebP 16장 업로드가 전량 성공한 뒤에만
+// premium_book_pages를 건드린다. 업로드 도중 실패하면 DB는 아예 호출하지 않는다(부분 반영 방지).
+// upsert는 sort_order UNIQUE가 없어(sql/47_premium_book.sql) id 하이드레이션이 필수다 — 변환 직전이
+// 아니라 "적용" 시점에 기존 행을 조회해 sort_order→id 맵을 만들고, 그 id를 실어 PK 기준 upsert한다.
+// 중복 sort_order가 있으면 어느 id에 실어야 할지 판정 불가능하므로 그 자리에서 중단한다.
+function PremiumBookAdmin() {
+  const config = CONFIGS.premiumBookPages;
+
+  // ---- 개별 페이지 제네릭 목록(요구 C — 명세 §6 A ②) ----
+  const [rows, setRows] = useState([]);
+  const [rowsLoading, setRowsLoading] = useState(false);
+  const [mode, setMode] = useState('list');
+  const [editingRow, setEditingRow] = useState(null);
+  const [page, setPage] = useState(1);
+
+  // ---- PDF 업로드 → 변환 ----
+  const [pdfFile, setPdfFile] = useState(null);
+  const [converting, setConverting] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [convertError, setConvertError] = useState('');
+
+  // ---- 변환 결과(저장 전) — 미리보기는 BookViewer가 그대로 소비한다 ----
+  const [previewPages, setPreviewPages] = useState([]); // [{ sort_order, image_url: blobUrl }]
+  const [webpBlobs, setWebpBlobs] = useState([]); // Blob[] — 적용 시 이 원본을 그대로 업로드한다
+
+  // ---- 적용(저장) ----
+  const [applying, setApplying] = useState(false);
+  const [applyStatus, setApplyStatus] = useState('');
+  const [applyError, setApplyError] = useState('');
+
+  const blobUrlsRef = useRef([]);
+  const convertTokenRef = useRef(0);
+
+  function revokePreviewUrls() {
+    for (const url of blobUrlsRef.current) URL.revokeObjectURL(url);
+    blobUrlsRef.current = [];
+  }
+
+  async function loadRows() {
+    setRowsLoading(true);
+    const { data, error } = await supabase
+      .from('premium_book_pages')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    setRowsLoading(false);
+
+    if (error) {
+      console.error(error);
+      alert(`${config.title} 조회 실패: ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    setRows(data || []);
+  }
+
+  useEffect(() => {
+    loadRows();
+    // 언마운트·재변환 시 blob URL 누수 방지(명세 §D2).
+    return () => revokePreviewUrls();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const duplicateSortOrders = useMemo(() => {
+    const seen = new Set();
+    const dupes = new Set();
+    for (const row of rows) {
+      const key = row.sort_order;
+      if (seen.has(key)) dupes.add(key);
+      seen.add(key);
+    }
+    return [...dupes].sort((a, b) => a - b);
+  }, [rows]);
+
+  function createRow() {
+    setEditingRow(null);
+    setMode('create');
+  }
+
+  function editRow(row) {
+    setEditingRow(row);
+    setMode('edit');
+  }
+
+  async function deleteRow(row) {
+    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+
+    const { error } = await supabase.from('premium_book_pages').delete().eq('id', row.id);
+
+    if (error) {
+      alert(`삭제 실패: ${error.message}`);
+      return;
+    }
+
+    await loadRows();
+  }
+
+  async function saveRow(form) {
+    const payload = {
+      sort_order: Number(form.sort_order) || 1,
+      image_url: form.image_url || ''
+    };
+
+    if (mode === 'create') {
+      const { error } = await supabase.from('premium_book_pages').insert(payload);
+      if (error) {
+        alert(`등록 실패: ${error.message}`);
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from('premium_book_pages')
+        .update(payload)
+        .eq('id', editingRow.id);
+      if (error) {
+        alert(`수정 실패: ${error.message}`);
+        return;
+      }
+    }
+
+    alert('저장 완료');
+    setMode('list');
+    setEditingRow(null);
+    await loadRows();
+  }
+
+  function handlePickPdf(e) {
+    const file = e.target.files?.[0] || null;
+    revokePreviewUrls();
+    setPdfFile(file);
+    setPreviewPages([]);
+    setWebpBlobs([]);
+    setConvertError('');
+    setApplyStatus('');
+    setApplyError('');
+  }
+
+  async function handleConvert() {
+    if (!pdfFile) {
+      alert('PDF 파일을 먼저 선택하세요.');
+      return;
+    }
+    if (converting || applying) return;
+
+    const token = ++convertTokenRef.current;
+    revokePreviewUrls();
+    setConvertError('');
+    setApplyStatus('');
+    setApplyError('');
+    setPreviewPages([]);
+    setWebpBlobs([]);
+    setConverting(true);
+    setProgress({ done: 0, total: 0 });
+
+    try {
+      // 정적 import 금지 — 핸들러 안에서만 로드해 별도 청크로 분리한다(명세 §D2).
+      const pdfjs = await import('pdfjs-dist');
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).toString();
+
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      const pageCount = pdfDoc.numPages;
+
+      if (convertTokenRef.current !== token) return;
+      setProgress({ done: 0, total: pageCount });
+
+      const targetWidth = 1024;
+      const blobs = [];
+      const urls = [];
+
+      for (let n = 1; n <= pageCount; n++) {
+        if (convertTokenRef.current !== token) {
+          // 변환 도중 새 PDF가 선택됐다 — 이번 결과는 버린다.
+          urls.forEach((url) => URL.revokeObjectURL(url));
+          return;
+        }
+
+        const pdfPage = await pdfDoc.getPage(n);
+        const baseViewport = pdfPage.getViewport({ scale: 1 });
+        const scale = targetWidth / baseViewport.width;
+        const viewport = pdfPage.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        const ctx = canvas.getContext('2d');
+
+        await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (b) => (b ? resolve(b) : reject(new Error('canvas.toBlob returned null'))),
+            'image/webp',
+            0.8
+          );
+        });
+
+        // toBlob 포맷 가드(명세 §D2) — 미지원 브라우저는 조용히 PNG를 반환한다. 가드 없이
+        // 넘어가면 16장이 통째로 PNG로 저장돼도 아무도 알아채지 못한다.
+        if (blob.type !== 'image/webp') {
+          canvas.width = 0;
+          canvas.height = 0;
+          throw new Error(
+            `이 브라우저는 WebP 인코딩을 지원하지 않습니다(반환된 포맷: ${blob.type || '알 수 없음'}). ` +
+              `Chrome 등 WebP 인코딩을 지원하는 브라우저에서 다시 시도하세요.`
+          );
+        }
+
+        blobs.push(blob);
+        urls.push(URL.createObjectURL(blob));
+
+        // 16장을 동시에 캔버스에 들고 있지 않도록 매 페이지 처리 후 즉시 해제한다.
+        canvas.width = 0;
+        canvas.height = 0;
+
+        setProgress({ done: n, total: pageCount });
+      }
+
+      if (convertTokenRef.current !== token) {
+        urls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+
+      blobUrlsRef.current = urls;
+      setWebpBlobs(blobs);
+      setPreviewPages(urls.map((url, i) => ({ sort_order: i + 1, image_url: url })));
+    } catch (err) {
+      console.error(err);
+      setConvertError(err?.message || 'PDF 변환에 실패했습니다.');
+    } finally {
+      if (convertTokenRef.current === token) setConverting(false);
+    }
+  }
+
+  async function handleApply() {
+    if (!pdfFile || webpBlobs.length === 0) {
+      alert('먼저 PDF를 변환하세요.');
+      return;
+    }
+    if (applying) return;
+
+    setApplying(true);
+    setApplyError('');
+    setApplyStatus('원본 PDF 업로드 중...');
+
+    try {
+      // a. 원본 PDF — 고정 경로 upsert(명세 §D3b). 다운로드 버튼은 만들지 않지만 원본은 보관한다.
+      const { error: pdfError } = await supabase.storage
+        .from('banners')
+        .upload('premium-book/booklet.pdf', pdfFile, {
+          upsert: true,
+          cacheControl: '3600'
+        });
+
+      if (pdfError) {
+        throw new Error(`원본 PDF 업로드 실패 — 적용 중단: ${pdfError.message}`);
+      }
+
+      // b. WebP 16장 — 전량 성공해야 다음 단계(DB)로 넘어간다(2단계 시퀀싱, 명세 §D2).
+      const urls = [];
+      for (let i = 0; i < webpBlobs.length; i++) {
+        setApplyStatus(`페이지 이미지 업로드 중 (${i + 1}/${webpBlobs.length})...`);
+        const path = `premium-book/p${String(i + 1).padStart(2, '0')}.webp`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('banners')
+          .upload(path, webpBlobs[i], { upsert: true, cacheControl: '3600' });
+
+        if (uploadError) {
+          throw new Error(
+            `${i + 1}번째 페이지 이미지 업로드 실패 — 적용 중단(DB는 변경되지 않았습니다): ${uploadError.message}`
+          );
+        }
+
+        const { data } = supabase.storage.from('banners').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+
+      // c. id 하이드레이션 upsert(명세 §D2 확정 문단) — sort_order UNIQUE가 없어 conflict target을
+      // 지정할 수 없다. 기존 행을 조회해 sort_order→id 맵을 만들고 그 id를 실어 PK 기준 upsert한다.
+      setApplyStatus('데이터베이스 반영 중...');
+
+      const { data: existing, error: existingError } = await supabase
+        .from('premium_book_pages')
+        .select('id, sort_order');
+
+      if (existingError) {
+        throw new Error(
+          `기존 페이지 조회 실패 — 적용 중단(이미지는 업로드됐지만 DB는 변경되지 않았습니다): ${existingError.message}`
+        );
+      }
+
+      const idBySort = new Map();
+      for (const row of existing || []) {
+        if (idBySort.has(row.sort_order)) {
+          throw new Error(
+            `sort_order ${row.sort_order} 중복 — 어느 행에 실어야 할지 판정할 수 없어 적용을 중단합니다. ` +
+              `이미지는 업로드됐지만 DB는 변경되지 않았습니다. 아래 목록에서 중복 행을 먼저 정리하세요.`
+          );
+        }
+        idBySort.set(row.sort_order, row.id);
+      }
+
+      const upsertRows = urls.map((url, i) => ({
+        ...(idBySort.has(i + 1) ? { id: idBySort.get(i + 1) } : {}),
+        sort_order: i + 1,
+        image_url: url
+      }));
+
+      const { error: upsertError } = await supabase.from('premium_book_pages').upsert(upsertRows);
+
+      if (upsertError) {
+        throw new Error(
+          `페이지 upsert 실패(이미지는 업로드됐습니다): ${upsertError.message}`
+        );
+      }
+
+      // d. 새 책자가 더 짧으면 잉여 행 삭제.
+      const stale = (existing || [])
+        .filter((row) => row.sort_order > urls.length)
+        .map((row) => row.id);
+
+      if (stale.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('premium_book_pages')
+          .delete()
+          .in('id', stale);
+
+        if (deleteError) {
+          throw new Error(
+            `잉여 페이지 삭제 실패(페이지 upsert 자체는 성공했습니다): ${deleteError.message}`
+          );
+        }
+      }
+
+      setApplyStatus(`적용 완료 — ${urls.length}장 반영됨`);
+      await loadRows();
+    } catch (err) {
+      console.error(err);
+      setApplyError(err?.message || '적용 중 알 수 없는 오류가 발생했습니다.');
+      setApplyStatus('');
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="mb-1 text-2xl font-black text-[#111827]">{config.title}</h1>
+
+      {config.homepage && (
+        <div className="mb-4 space-y-1">
+          <p className="text-sm font-bold text-red-500">
+            이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
+          </p>
+          {config.guideText && (
+            <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
+              {config.guideText}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* bespoke 패널 — PDF 1개 업로드 → 변환 → 미리보기 → 적용 */}
+      <div className="mb-6 bg-white p-6 shadow">
+        <h2 className="mb-1 text-lg font-black">PDF 일괄 변환·적용</h2>
+        <p className="mb-4 text-sm font-bold text-gray-500">
+          운영자는 PDF 파일 하나만 올리면 됩니다. 변환·미리보기까지는 저장되지 않고, [적용]을 눌러야
+          실제로 반영됩니다.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+            <UploadCloud size={16} />
+            PDF 선택
+            <input type="file" accept="application/pdf" className="hidden" onChange={handlePickPdf} />
+          </label>
+
+          <span className="text-sm font-bold text-gray-600">
+            {pdfFile ? pdfFile.name : '선택된 파일 없음'}
+          </span>
+
+          <button
+            type="button"
+            onClick={handleConvert}
+            disabled={!pdfFile || converting || applying}
+            className="inline-flex h-9 items-center gap-2 bg-[#2348ff] px-4 text-sm font-black text-white disabled:opacity-40"
+          >
+            {converting ? `변환 중 (${progress.done}/${progress.total || '?'})` : 'PDF 변환'}
+          </button>
+
+          {previewPages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={applying || converting}
+              className="inline-flex h-9 items-center gap-2 border border-red-500 bg-red-50 px-4 text-sm font-black text-red-600 disabled:opacity-40"
+            >
+              {applying ? '적용 중...' : `적용 (${previewPages.length}장 반영)`}
+            </button>
+          )}
+        </div>
+
+        {convertError && <p className="mt-3 text-sm font-bold text-red-600">{convertError}</p>}
+        {applyStatus && <p className="mt-3 text-sm font-bold text-blue-600">{applyStatus}</p>}
+        {applyError && <p className="mt-3 text-sm font-bold text-red-600">{applyError}</p>}
+
+        {previewPages.length > 0 && (
+          <div className="mt-6">
+            <p className="mb-2 text-sm font-black text-gray-700">
+              미리보기 — 아직 저장 전 상태입니다. [적용]을 눌러야 반영됩니다.
+            </p>
+            <BookViewer pages={previewPages} />
+          </div>
+        )}
+      </div>
+
+      {/* 개별 페이지 제네릭 목록 — 요구 C. AdminTable/AdminForm을 그대로 재사용한다. */}
+      {mode === 'list' ? (
+        <>
+          {duplicateSortOrders.length > 0 && (
+            <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+              페이지 번호(sort_order) 중복: {duplicateSortOrders.join(', ')} — 정렬·표시 순서가
+              어긋날 수 있습니다. 아래 목록에서 먼저 정리하세요.
+            </div>
+          )}
+
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={loadRows}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <RefreshCw size={14} />
+              초기화
+            </button>
+
+            <button
+              type="button"
+              onClick={createRow}
+              className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
+            >
+              <Plus size={14} />
+              등록
+            </button>
+          </div>
+
+          {rowsLoading ? (
+            <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+              데이터를 불러오는 중입니다.
+            </div>
+          ) : (
+            <AdminTable
+              config={config}
+              rows={rows}
+              page={page}
+              setPage={setPage}
+              onEdit={editRow}
+              onDelete={deleteRow}
+            />
+          )}
+        </>
+      ) : (
+        <AdminForm
+          config={config}
+          mode={mode}
+          row={editingRow}
+          onCancel={() => {
+            setMode('list');
+            setEditingRow(null);
+          }}
+          onSave={saveRow}
+          onUpload={uploadImage}
+        />
+      )}
     </div>
   );
 }
