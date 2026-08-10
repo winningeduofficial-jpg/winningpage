@@ -1,0 +1,198 @@
+/* blockNoteContent.css — 에디터/공개 렌더러 공용 본문 스타일. .bn-doc 스코프(전역 오염 금지).
+   에디터 크롬(프레임·시트·그림자)은 blockEditor.css에 남는다. */
+
+.bn-doc {
+  word-break: keep-all;
+}
+
+.bn-doc .bn-editor {
+  padding-inline: 0;
+  font-family: inherit;
+}
+
+.bn-doc .bn-default-styles {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #525252;
+}
+
+.bn-doc [data-content-type='paragraph'] {
+  line-height: 2rem;
+  color: #525252;
+}
+
+.bn-doc strong,
+.bn-doc b {
+  font-weight: 600;
+}
+
+.bn-doc a {
+  color: #013262;
+  text-decoration: underline;
+}
+
+/* font-size/font-weight만 !important — BlockNote 기본 CSS가 더 높은 특이도로 강제한다. */
+.bn-doc .bn-block-content[data-content-type='heading'][data-level='2'] {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #525252;
+}
+
+.bn-doc .bn-block-content[data-content-type='heading'][data-level='3'] {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #525252;
+}
+
+@media (min-width: 40rem) {
+  .bn-doc .bn-block-content[data-content-type='heading'][data-level='2'] {
+    font-size: 1.5rem !important;
+  }
+
+  .bn-doc .bn-block-content[data-content-type='heading'][data-level='3'] {
+    font-size: 1.25rem !important;
+  }
+}
+
+.bn-doc img {
+  border-radius: 0.75rem;
+}
+
+/* data-background-color가 heading이 아닌 블록(현재 실데이터엔 없음)에 붙는 경우는 손대지 않는다.
+   @blocknote/ariakit 코어 CSS에 이미 `.bn-block:has(>.bn-block-content[data-background-color=...])`
+   가 색상별 --bn-colors-highlights-*-background 변수로 내장돼 있어 그대로 안전한 폴백이 된다
+   (헤드리스 크롬 CSS.getMatchedStylesForNode로 직접 확인). heading만 아래에서 재정의한다. */
+
+/* heading 하이라이트는 시안에서 형광펜처럼 텍스트 폭에만 붙는다(전체 720px 밴드가 아님).
+   그런데 코어의 `.bn-block:has(...)` 규칙이 .bn-block(부모, 항상 블록 전체 폭)에 자체 배경을
+   칠하므로, 우리가 자식에 텍스트 폭 배경을 칠해도 그 뒤로 코어 기본색 전체 폭 밴드가 그대로
+   비쳐 보인다 — 실제로 헤드리스 크롬 스크린샷에서 코어 기본 핑크(#f4dfeb)가 그렇게 새어
+   나오는 것을 확인했다. 그래서 heading에 한해 .bn-block과 .bn-block-content 양쪽을 투명으로
+   되돌리고, 실제 색은 .bn-inline-content(h2/h3)에만 칠한다.
+   .bn-block-content는 코어가 flex로 고정한 컨테이너라 항상 블록 전체 폭(width:100%)이지만,
+   그 안의 .bn-inline-content는 flex item이라 flex-basis:auto 기본값 덕에 이미 콘텐츠 폭만큼만
+   차지한다(실측: 720px 밴드 안에서 h3 자체 폭은 123~189px) — 그래서 배경·패딩을 부모가 아니라
+   이 자식에 걸면 텍스트 폭 하이라이트가 된다. display:inline 대안은 flex item이라 브라우저가
+   강제로 블록화해 무효함을 헤드리스 크롬으로 직접 확인했다 — 그래서 display는 그대로 두고
+   width만 조정한다. 줄바꿈 시엔 width:fit-content가 가용 폭까지 차오르며 사각 밴드가 되는데
+   (피그마의 줄 단위 형광펜과는 다름), 실제 데이터는 모두 한 줄이라 문제되지 않는다. */
+.bn-doc .bn-block:has(> .bn-block-content[data-content-type='heading'][data-background-color]) {
+  background-color: transparent;
+}
+
+.bn-doc .bn-block-content[data-content-type='heading'][data-background-color] {
+  background-color: transparent;
+}
+
+.bn-doc .bn-block-content[data-content-type='heading'][data-background-color] > .bn-inline-content {
+  background-color: #e8f1ec; /* green 및 그 외 값 폴백 — 시안 실측 민트 #E8F1EC */
+  width: fit-content;
+  max-width: 100%;
+  padding-inline: 0.125rem;
+  padding-block: 0.125rem;
+  border-radius: 0; /* 시안 확대 실측 — 모서리 둥글기 없음 */
+}
+
+.bn-doc .bn-block-content[data-content-type='heading'][data-background-color='pink'] > .bn-inline-content {
+  background-color: #fbe9e7; /* 시안 실측 분홍 #FBE9E7 */
+}
+
+/* 콜아웃 — 클래스명 .editor-callout* 은 그대로 둔다(리네임은 순수 churn) */
+.bn-doc .editor-callout {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: #f4f4f4;
+}
+
+.bn-doc .editor-callout__icon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.bn-doc .editor-callout__body {
+  flex: 1;
+}
+
+@media (min-width: 40rem) {
+  .bn-doc .editor-callout {
+    gap: 2rem;
+    padding: 1.25rem 2.25rem;
+  }
+}
+
+/* ── 이미지 넘침 방어 (필수) ─────────────────────────────
+   previewWidth(1205px 등)나 fit-content가 45rem(720px) 컬럼을 넘지 않게 한다.
+   flex item의 min-width:auto 때문에 브라우저별로 축소가 막힐 수 있다. */
+.bn-doc [data-file-block] .bn-file-block-content-wrapper {
+  max-width: 100%;
+}
+
+.bn-doc .bn-visual-media {
+  height: auto;
+}
+
+/* ── 읽기 전용 전용 방어 ─────────────────────────────────
+   .bn-editor는 editable={false}에서 contenteditable="false"가 된다(prosemirror-view).
+   BlockNote 자신의 CSS도 .bn-editor[contenteditable=true] 셀렉터를 쓴다 = 속성 토글 확정. */
+.bn-doc .bn-editor[contenteditable='false'] [data-file-block] .bn-file-block-content-wrapper {
+  cursor: default;
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+/* url=''인 image/file 블록이 공개 페이지에 "이미지 추가" 버튼으로 노출되는 것을 막는다.
+   0.52.1 AddFileButton은 isEditable을 보지 않는다(dist 실측). */
+.bn-doc .bn-editor[contenteditable='false'] .bn-block-content[data-file-block]:has(.bn-add-file-button) {
+  display: none;
+}
+
+/* ── imageRow ────────────────────────────────────────── */
+.bn-doc .image-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  margin-block: 0.25rem;
+}
+
+.bn-doc .image-row__slot {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.bn-doc .image-row__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
+
+.bn-doc .image-row__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  border: 0.0625rem dashed #d7d7d7;
+  border-radius: 0.75rem;
+  background: #fafafa;
+  color: #7a7a7a;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.bn-doc .image-row__input {
+  display: none;
+}
+
+/* 양쪽 슬롯이 모두 빈 imageRow는 ImageRowRender가 null을 반환하지만, BlockNote의
+   .bn-block-content 래퍼 자체는 흐름에 남아 정체불명 여백(~6px)을 만든다. */
+.bn-doc .bn-editor[contenteditable='false'] .bn-block-content[data-content-type='imageRow']:empty {
+  display: none;
+}

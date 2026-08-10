@@ -173,21 +173,13 @@ export default function Signup() {
     function clearSupabaseStorage() {
       try {
         Object.keys(window.localStorage).forEach((key) => {
-          if (
-            key.startsWith('sb-') ||
-            key.includes('supabase') ||
-            key.includes('auth-token')
-          ) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
             window.localStorage.removeItem(key);
           }
         });
 
         Object.keys(window.sessionStorage).forEach((key) => {
-          if (
-            key.startsWith('sb-') ||
-            key.includes('supabase') ||
-            key.includes('auth-token')
-          ) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
             window.sessionStorage.removeItem(key);
           }
         });
@@ -567,9 +559,10 @@ export default function Signup() {
     try {
       const normalizedName = form.name.trim();
       const normalizedEmail = form.email.trim().toLowerCase();
-      const normalizedPhone = String(form.phone || '').replaceAll('-', '').trim();
-      const normalizedSchoolName =
-        form.schoolType === 'N수생' ? '' : form.schoolName.trim();
+      const normalizedPhone = String(form.phone || '')
+        .replaceAll('-', '')
+        .trim();
+      const normalizedSchoolName = form.schoolType === 'N수생' ? '' : form.schoolName.trim();
 
       setMessage('사용자 인증 정보를 확인하는 중입니다.');
 
@@ -671,21 +664,13 @@ export default function Signup() {
 
       try {
         Object.keys(window.localStorage).forEach((key) => {
-          if (
-            key.startsWith('sb-') ||
-            key.includes('supabase') ||
-            key.includes('auth-token')
-          ) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
             window.localStorage.removeItem(key);
           }
         });
 
         Object.keys(window.sessionStorage).forEach((key) => {
-          if (
-            key.startsWith('sb-') ||
-            key.includes('supabase') ||
-            key.includes('auth-token')
-          ) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
             window.sessionStorage.removeItem(key);
           }
         });
@@ -705,7 +690,7 @@ export default function Signup() {
 
   if (checkingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
         <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
           로그인 상태 확인 중...
         </div>
@@ -714,12 +699,12 @@ export default function Signup() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] pt-[84px] text-[#0D1B2A]">
+    <main className="min-h-screen bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
       <section className="relative overflow-hidden border-b border-[#0D1B2A]/10 bg-[linear-gradient(120deg,#081321_0%,#0D1B2A_44%,#142B45_100%)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(184,135,55,0.25),transparent_30%),radial-gradient(circle_at_18%_76%,rgba(47,111,237,0.15),transparent_32%)]" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
-        <div className="relative mx-auto max-w-[1180px] px-6 py-14 lg:px-8">
+        <div className="relative mx-auto max-w-content px-6 py-14 lg:px-8">
           <div className="mx-auto max-w-3xl text-center text-white">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#D7B56D]/45 bg-[#D7B56D]/10 px-4 py-2 text-sm font-black text-[#E5C677] shadow-[0_12px_34px_rgba(0,0,0,0.18)]">
               <Sparkles size={16} fill="currentColor" />
@@ -747,9 +732,24 @@ export default function Signup() {
                 />
 
                 <div className="relative grid grid-cols-3">
-                  <StepBadge number="01" title="약관 동의" active={step >= 1} current={step === 1} />
-                  <StepBadge number="02" title="정보 입력" active={step >= 2} current={step === 2} />
-                  <StepBadge number="03" title="가입 완료" active={step >= 3} current={step === 3} />
+                  <StepBadge
+                    number="01"
+                    title="약관 동의"
+                    active={step >= 1}
+                    current={step === 1}
+                  />
+                  <StepBadge
+                    number="02"
+                    title="정보 입력"
+                    active={step >= 2}
+                    current={step === 2}
+                  />
+                  <StepBadge
+                    number="03"
+                    title="가입 완료"
+                    active={step >= 3}
+                    current={step === 3}
+                  />
                 </div>
               </div>
             )}
@@ -763,9 +763,7 @@ export default function Signup() {
             {step === 0 && (
               <section>
                 <div className="mb-8 text-center">
-                  <p className="text-sm font-black text-[#B88737]">
-                    SELECT MEMBER TYPE
-                  </p>
+                  <p className="text-sm font-black text-[#B88737]">SELECT MEMBER TYPE</p>
 
                   <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">
                     회원 유형을 선택해 주세요
@@ -796,10 +794,7 @@ export default function Signup() {
 
                 <p className="mt-6 text-center text-sm font-bold text-[#64748B]">
                   이미 계정이 있나요?{' '}
-                  <Link
-                    to="/login"
-                    className="font-black text-[#B88737] hover:text-[#8F6421]"
-                  >
+                  <Link to="/login" className="font-black text-[#B88737] hover:text-[#8F6421]">
                     로그인
                   </Link>
                 </p>
@@ -835,7 +830,8 @@ export default function Signup() {
                     </p>
 
                     <p className="mt-1 text-sm font-bold leading-6 text-[#64748B]">
-                      이용약관, 개인정보 처리 및 이용 안내, 마케팅 및 광고성 정보 수신 동의 항목을 한 번에 선택합니다.
+                      이용약관, 개인정보 처리 및 이용 안내, 마케팅 및 광고성 정보 수신 동의 항목을
+                      한 번에 선택합니다.
                     </p>
                   </div>
                 </button>
@@ -900,7 +896,8 @@ export default function Signup() {
                 </div>
 
                 <p className="mt-5 text-sm font-bold leading-6 text-[#8B95A1]">
-                  선택 항목에 동의하지 않아도 회원가입은 가능하나, 맞춤형 서비스 안내나 이벤트 혜택 제공이 제한될 수 있습니다.
+                  선택 항목에 동의하지 않아도 회원가입은 가능하나, 맞춤형 서비스 안내나 이벤트 혜택
+                  제공이 제한될 수 있습니다.
                 </p>
 
                 <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
@@ -998,9 +995,7 @@ export default function Signup() {
                     />
 
                     <div>
-                      <label className="mb-2 block text-sm font-black text-[#0D1B2A]">
-                        이메일
-                      </label>
+                      <label className="mb-2 block text-sm font-black text-[#0D1B2A]">이메일</label>
 
                       <div className="flex gap-2">
                         <div className="flex h-14 flex-1 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
@@ -1149,9 +1144,7 @@ export default function Signup() {
                   <Check size={38} />
                 </div>
 
-                <p className="mt-8 text-sm font-black text-[#B88737]">
-                  SIGN UP COMPLETE
-                </p>
+                <p className="mt-8 text-sm font-black text-[#B88737]">SIGN UP COMPLETE</p>
 
                 <h2 className="mt-2 text-4xl font-black tracking-[-0.04em]">
                   회원가입이 완료되었습니다.
@@ -1194,13 +1187,9 @@ function MemberTypeCard({ icon, caption, title, buttonText, onClick }) {
         {icon}
       </div>
 
-      <p className="mt-8 text-lg font-bold text-[#64748B]">
-        {caption}
-      </p>
+      <p className="mt-8 text-lg font-bold text-[#64748B]">{caption}</p>
 
-      <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
-        {title}
-      </h3>
+      <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">{title}</h3>
 
       <button
         type="button"
@@ -1226,11 +1215,7 @@ function StepBadge({ number, title, active, current }) {
         {current ? number : active ? <Check size={22} /> : number}
       </div>
 
-      <p
-        className={`mt-3 text-sm font-black ${
-          active ? 'text-[#0D1B2A]' : 'text-[#94A3B8]'
-        }`}
-      >
+      <p className={`mt-3 text-sm font-black ${active ? 'text-[#0D1B2A]' : 'text-[#94A3B8]'}`}>
         {title}
       </p>
     </div>
@@ -1256,11 +1241,7 @@ function CheckBox({ checked, large = false }) {
 function AgreementRow({ checked, label, required = false, onToggle, onView }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[#0D1B2A]/8 px-5 py-4 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex flex-1 items-center gap-4 text-left"
-      >
+      <button type="button" onClick={onToggle} className="flex flex-1 items-center gap-4 text-left">
         <CheckBox checked={checked} />
 
         <p className="text-sm font-extrabold text-[#334155] md:text-base">
@@ -1295,9 +1276,7 @@ function TermsModal({ title, content, onClose }) {
           <X size={22} />
         </button>
 
-        <p className="text-sm font-black text-[#B88737]">
-          TERMS DETAIL
-        </p>
+        <p className="text-sm font-black text-[#B88737]">TERMS DETAIL</p>
 
         <h3 className="mt-2 pr-12 text-3xl font-black tracking-[-0.04em] text-[#0D1B2A]">
           {title}
@@ -1333,9 +1312,7 @@ function InputField({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-black text-[#0D1B2A]">
-        {label}
-      </span>
+      <span className="mb-2 block text-sm font-black text-[#0D1B2A]">{label}</span>
 
       <div
         className={`flex h-14 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)] ${
@@ -1361,9 +1338,7 @@ function InputField({
 function SelectField({ label, icon, value, onChange, placeholder, options }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-black text-[#0D1B2A]">
-        {label}
-      </span>
+      <span className="mb-2 block text-sm font-black text-[#0D1B2A]">{label}</span>
 
       <div className="flex h-14 items-center gap-3 rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 transition focus-within:border-[#B88737] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(184,135,55,0.12)]">
         <span className="text-[#8B95A1]">{icon}</span>

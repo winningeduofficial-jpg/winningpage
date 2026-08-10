@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Download, Search } from 'lucide-react';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
 
 const CATEGORY_META = {
@@ -46,7 +45,9 @@ function formatDate(value) {
 }
 
 function getContentPreview(value) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  const text = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!text) return '';
   return text.length > 120 ? `${text.slice(0, 120)}...` : text;
 }
@@ -66,7 +67,9 @@ export default function AdmissionBoard() {
   const params = useParams();
   const location = useLocation();
   const pathCategory = location.pathname.split('/').filter(Boolean)[1];
-  const category = params.category || (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
+  const category =
+    params.category ||
+    (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
   const id = params.id;
   const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
 
@@ -85,7 +88,8 @@ export default function AdmissionBoard() {
         .map((file) => (typeof file === 'string' ? file : file?.name || ''))
         .join(' ');
 
-      const target = `${row.title || ''} ${row.content || ''} ${row.file_name || ''} ${attachmentsText}`.toLowerCase();
+      const target =
+        `${row.title || ''} ${row.content || ''} ${row.file_name || ''} ${attachmentsText}`.toLowerCase();
       return target.includes(q);
     });
   }, [rows, keyword]);
@@ -96,14 +100,12 @@ export default function AdmissionBoard() {
     async function loadList() {
       setLoading(true);
 
-      let query = supabase
-        .from('admission_posts')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('admission_posts').select('*').eq('is_active', true);
 
-      query = category === 'susi-jungsi'
-        ? query.in('category', ['susi', 'jungsi'])
-        : query.eq('category', category);
+      query =
+        category === 'susi-jungsi'
+          ? query.in('category', ['susi', 'jungsi'])
+          : query.eq('category', category);
 
       const { data, error } = await query
         .order('is_pinned', { ascending: false })
@@ -161,10 +163,9 @@ export default function AdmissionBoard() {
 
     return (
       <>
-        <Header />
-        <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-            <div className="mx-auto max-w-[1180px] px-6 py-14">
+            <div className="mx-auto max-w-content px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
               <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{detailMeta.title}</h1>
             </div>
@@ -194,7 +195,9 @@ export default function AdmissionBoard() {
                         중요
                       </span>
                     )}
-                    <span className="text-sm font-bold text-gray-500">{formatDate(post.created_at)}</span>
+                    <span className="text-sm font-bold text-gray-500">
+                      {formatDate(post.created_at)}
+                    </span>
                   </div>
 
                   <h2 className="text-3xl font-black tracking-[-0.04em]">{post.title}</h2>
@@ -273,17 +276,16 @@ export default function AdmissionBoard() {
 
   return (
     <>
-      <Header />
-      <main className="min-h-screen bg-white pt-[84px] text-[#0D1B2A]">
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-          <div className="mx-auto max-w-[1180px] px-6 py-14">
+          <div className="mx-auto max-w-content px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
             <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{routeMeta.title}</h1>
             <p className="mt-4 text-base font-medium text-gray-500">{routeMeta.description}</p>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1180px] px-6 py-12">
+        <section className="mx-auto max-w-content px-6 py-12">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-2">
               <Link
@@ -334,7 +336,8 @@ export default function AdmissionBoard() {
               </div>
             ) : (
               filteredRows.map((row) => {
-                const attachmentCount = normalizeArray(row.attachments).length || (row.file_url ? 1 : 0);
+                const attachmentCount =
+                  normalizeArray(row.attachments).length || (row.file_url ? 1 : 0);
 
                 return (
                   <Link

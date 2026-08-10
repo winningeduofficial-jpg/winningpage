@@ -85,10 +85,8 @@ export default function HeroSlider() {
 
     const channel = supabase
       .channel('public-banners-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'banners' },
-        () => loadBanners()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () =>
+        loadBanners()
       )
       .subscribe();
 

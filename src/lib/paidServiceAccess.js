@@ -7,7 +7,16 @@ const PAID_SERVICE_CONFIGS = [
     serviceKey: 'suhaeng',
     serviceName: 'AI 수행평가 서비스',
     match(service = {}) {
-      const text = [service.name, service.title, service.label, service.description, service.desc, service.link, service.to, service.slug]
+      const text = [
+        service.name,
+        service.title,
+        service.label,
+        service.description,
+        service.desc,
+        service.link,
+        service.to,
+        service.slug
+      ]
         .map((v) => String(v || '').toLowerCase())
         .join(' ');
 
@@ -25,7 +34,16 @@ const PAID_SERVICE_CONFIGS = [
     serviceKey: 'goal',
     serviceName: '목표관리 서비스',
     match(service = {}) {
-      const text = [service.name, service.title, service.label, service.description, service.desc, service.link, service.to, service.slug]
+      const text = [
+        service.name,
+        service.title,
+        service.label,
+        service.description,
+        service.desc,
+        service.link,
+        service.to,
+        service.slug
+      ]
         .map((v) => String(v || '').toLowerCase())
         .join(' ');
 
@@ -46,6 +64,16 @@ export function getPaidServiceConfig(service) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
+const SERVICE_NOT_READY_MESSAGE = '서비스 준비중입니다.';
+
+// 상세 페이지(= PAID_SERVICE_CONFIGS 등록 서비스)가 아직 없는 서비스의 히어로 CTA용 핸들러.
+// 자기평가・심화탐구・콜멘토 3종이 여기 해당한다(2026-08-05, 사용자 확정). 서비스가 실제 앱을
+// 갖추면 PAID_SERVICE_CONFIGS에 등록하고 이 핸들러를 openPaidServiceOrAlert로 교체한다.
+export function alertServiceNotReady(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  window.alert(SERVICE_NOT_READY_MESSAGE);
+}
 
 function setGlobalLoadingCursor(isLoading) {
   if (typeof document === 'undefined') return;
@@ -144,4 +172,3 @@ export async function openPaidServiceOrAlert(event, service) {
     }, 600);
   }
 }
-

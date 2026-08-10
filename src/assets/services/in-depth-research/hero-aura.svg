@@ -1,0 +1,68 @@
+<!-- 심화탐구 히어로 오라 — 시안 3248:2355 "02 - Distance Nebulae"(1600×1200 언클립 원본
+     프레임) 실측. 좌표는 전부 그 프레임 좌상단 기준:
+       Eclipse      ELLIPSE 820×820 @ (390,131) → 중심(800,541) r410
+                    GRADIENT_LINEAR 세로(y131~951) stop0 #00C2FF op0 / stop1 #FF29C3 op1
+                    LAYER_BLUR radius 200 → CSS stdDeviation 100
+       Rectangle 29 RECTANGLE 394×559 @ (603,510) 축정렬 직사각형 → 중심(800,789.5)
+                    path M0 0 L394 0 L394 559 L0 559 Z (절대좌표로 환산해 인라인)
+                    GRADIENT_LINEAR 세로(y510~1069) stop0 #184BFF op0 / stop1 #174AFF op1
+                    LAYER_BLUR radius 200 → CSS stdDeviation 100
+       Texture      RECTANGLE 1600×1200 @ (0,0), IMAGE TILE, blendMode OVERLAY,
+                    imageRef bcfa0f2ecf6c15828a024b5c1166de4e07f82d98 (220×220,
+                    scalingFactor 0.609091 → 타일 134px = 8.375rem).
+                    → 기존 src/assets/renewal/landing/hero-grain.png와 imageRef 동일. 신규 에셋 불필요.
+
+     자기평가(3248:2343)의 Rectangle 31은 평행사변형 VECTOR였지만 심화탐구의 Rectangle 29는
+     회전·기울임 없는 축정렬 직사각형이다(relativeTransform [[1,0,603],[0,1,510]]).
+     선례 path를 복사하지 말 것.
+
+     회전 피벗: 애니메이션 4프레임(2716:3097 / 3162 / 3168 / 3174)이 0°/90°/180°/270°이고
+     좌표를 역산하면 Eclipse와 Rectangle 29의 피벗이 (800,600) 한 점으로 일치한다
+     (180°: Eclipse 중심 541↔659 중점 600, Rect29 중심 789.5↔410.5 중점 600. ±90°도
+     (x,y)→(∓y,±x) 사상으로 8개 좌표 전부 일치).
+     이는 Texture 사각형(1600×1200)의 중심이며, 자기평가와 달리 Eclipse 중심(800,541)이
+     아니다(피벗보다 59px 위). Eclipse를 피벗으로 잡으면 어긋난다.
+     → 정사각 뷰박스를 그 점 중심으로 대칭 확장: viewBox "-40 -240 1680 1680".
+
+     언클립 검증: 피벗에서 가장 먼 렌더 지점은 Rectangle 29의 하단 코너 √(197²+469²)=508.69
+     + 3σ(300) = 808.69, Eclipse는 59+410+3σ(300) = 769. 둘 다 정사각 내접원 반지름 840
+     미만이므로 어떤 각도로 회전해도 직선 크롭 경계가 생기지 않는다(1600 정사각=반지름 800이면
+     808.69가 넘쳐 잘린다 — 자기평가의 1600 뷰박스를 그대로 복사하지 말 것). 필터 영역도
+     userSpaceOnUse로 뷰박스 전체를 덮어 기본 -10%/+10% 필터 리전에 의한 블러 절단을 막는다
+     (퍼센트 리전은 394폭 도형에서 3σ=300을 못 덮어 잘린다).
+     두 도형의 LAYER_BLUR radius가 200으로 동일하므로 필터는 하나만 정의해 공유한다.
+
+     Texture(그레인)는 이 SVG에 넣지 않는다 — 그레인은 고정이고 그 안의 블롭만 회전한다.
+     또 transform이 걸린 요소는 새 stacking context를 만들어 내부의 mix-blend-overlay가
+     섹션 배경을 backdrop으로 잡지 못한다. 그레인은 반드시 회전 래퍼 밖 형제 레이어로 둘 것.
+     흰 <rect> 배경도 넣지 않는다(그레인 backdrop 파괴). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -240 1680 1680" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="idrHeroAuraEclipse" x1="800" y1="131" x2="800" y2="951" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00C2FF" stop-opacity="0" />
+      <stop offset="1" stop-color="#FF29C3" stop-opacity="1" />
+    </linearGradient>
+    <linearGradient id="idrHeroAuraShard" x1="800" y1="510" x2="800" y2="1069" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#184BFF" stop-opacity="0" />
+      <stop offset="1" stop-color="#174AFF" stop-opacity="1" />
+    </linearGradient>
+    <filter
+      id="idrHeroAuraBlur"
+      filterUnits="userSpaceOnUse"
+      x="-40"
+      y="-240"
+      width="1680"
+      height="1680"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur stdDeviation="100" />
+    </filter>
+  </defs>
+
+  <circle cx="800" cy="541" r="410" fill="url(#idrHeroAuraEclipse)" filter="url(#idrHeroAuraBlur)" />
+  <path
+    d="M603 510L997 510L997 1069L603 1069L603 510Z"
+    fill="url(#idrHeroAuraShard)"
+    filter="url(#idrHeroAuraBlur)"
+  />
+</svg>

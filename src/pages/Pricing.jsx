@@ -1,66 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronRight } from 'lucide-react';
-import Header from '../components/Header';
-import SiteFooter from '../components/SiteFooter';
 import { supabase } from '../lib/supabase';
-import { SERVICES, SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
+import { SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
+import { useProducts } from '../lib/products';
 import { saveCart } from '../lib/cart';
-
-// Supabase products 행 → 서비스별 그룹 구조로 변환
-function groupProducts(rows) {
-  const map = new Map();
-  (rows || []).forEach((r) => {
-    if (!map.has(r.service_key)) {
-      map.set(r.service_key, {
-        key: r.service_key,
-        name: r.service_name,
-        desc: r.service_desc || '',
-        order: Number.isFinite(r.service_sort_order) ? r.service_sort_order : 99,
-        products: [],
-      });
-    }
-    map.get(r.service_key).products.push({
-      id: r.id,
-      name: r.name,
-      listPrice: r.list_price,
-      price: r.price,
-      badge: r.badge,
-      recommended: !!r.is_recommended,
-    });
-  });
-  return Array.from(map.values()).sort((a, b) => a.order - b.order);
-}
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const [services, setServices] = useState(SERVICES); // 폴백으로 시작
+  const { services, loading, error, refetch } = useProducts();
   // 서비스별 단일 선택: { [serviceKey]: productId }
   const [selected, setSelected] = useState({});
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active')
-        .eq('is_active', true)
-        .order('service_sort_order', { ascending: true })
-        .order('sort_order', { ascending: true });
-
-      if (!alive) return;
-      if (error) {
-        // 테이블 미생성 등 → 폴백 카탈로그 유지
-        console.warn('products 조회 실패, 폴백 카탈로그 사용:', error.message);
-        return;
-      }
-      const grouped = groupProducts(data);
-      if (grouped.length > 0) setServices(grouped);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   function toggle(serviceKey, productId) {
     setSelected((prev) => {
@@ -88,14 +38,17 @@ export default function Pricing() {
         listPrice: product.listPrice,
         price: product.price,
         badge: product.badge,
-        recommended: product.recommended,
+        recommended: product.recommended
       });
     });
     return items;
   }, [services, selected]);
 
   const totalPrice = selectedItems.reduce((sum, it) => sum + Number(it.price || 0), 0);
-  const listTotal = selectedItems.reduce((sum, it) => sum + Number(it.listPrice || it.price || 0), 0);
+  const listTotal = selectedItems.reduce(
+    (sum, it) => sum + Number(it.listPrice || it.price || 0),
+    0
+  );
   const discountTotal = listTotal - totalPrice;
 
   async function goCheckout() {
@@ -112,8 +65,7 @@ export default function Pricing() {
 
   return (
     <>
-      <Header />
-      <main className="min-h-screen bg-white pt-[84px]">
+      <main className="min-h-screen bg-white pt-16">
         {/* 타이틀 */}
         <section className="px-6 pb-4 pt-16 text-center">
           <p className="text-sm font-black text-blue-600">나에게 맞는 서비스를 선택해주세요</p>
@@ -124,14 +76,37 @@ export default function Pricing() {
 
         {/* 서비스 섹션들 */}
         <div className="mx-auto max-w-[900px] px-6 pb-40 pt-10">
-          {services.map((service) => (
+          {loading && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-500">
+              요금 정보를 불러오는 중입니다.
+            </div>
+          )}
+
+          {!loading && (error || services.length === 0) && (
+            <div className="rounded-2xl border border-red-200 bg-white p-10 text-center">
+              <p className="text-sm font-bold text-red-600">
+                요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+              </p>
+              <button
+                type="button"
+                onClick={refetch}
+                className="mt-4 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-bold text-[#0D1B2A] transition hover:bg-slate-50"
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && services.map((service) => (
             <section key={service.key} className="mb-16">
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-2xl font-black text-[#0D1B2A]">{service.name}</h2>
                 <ChevronRight size={22} strokeWidth={3} className="text-[#0D1B2A]" />
               </div>
               {service.desc && (
-                <p className="mb-6 max-w-[760px] text-[13px] leading-relaxed text-slate-500">{service.desc}</p>
+                <p className="mb-6 max-w-[760px] text-[13px] leading-relaxed text-slate-500">
+                  {service.desc}
+                </p>
               )}
 
               <div className="space-y-3">
@@ -155,9 +130,13 @@ export default function Pricing() {
                             isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
                           }`}
                         >
-                          {isSelected && <Check size={15} strokeWidth={3.5} className="text-white" />}
+                          {isSelected && (
+                            <Check size={15} strokeWidth={3.5} className="text-white" />
+                          )}
                         </span>
-                        <span className="truncate text-[15px] font-bold text-[#0D1B2A]">{product.name}</span>
+                        <span className="truncate text-[15px] font-bold text-[#0D1B2A]">
+                          {product.name}
+                        </span>
                         {product.recommended && (
                           <span className="shrink-0 rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white">
                             추천
@@ -167,13 +146,19 @@ export default function Pricing() {
 
                       <span className="flex shrink-0 flex-col items-end leading-tight">
                         {hasDiscount && (
-                          <span className="text-[12px] text-slate-400 line-through">{formatKRW(product.listPrice)}</span>
+                          <span className="text-[12px] text-slate-400 line-through">
+                            {formatKRW(product.listPrice)}
+                          </span>
                         )}
                         <span className="flex items-center gap-2">
                           {product.badge && (
-                            <span className="text-[13px] font-bold text-blue-600">{product.badge}</span>
+                            <span className="text-[13px] font-bold text-blue-600">
+                              {product.badge}
+                            </span>
                           )}
-                          <span className="text-[15px] font-black text-[#0D1B2A]">{formatKRW(product.price)}</span>
+                          <span className="text-[15px] font-black text-[#0D1B2A]">
+                            {formatKRW(product.price)}
+                          </span>
                         </span>
                       </span>
                     </button>
@@ -187,8 +172,6 @@ export default function Pricing() {
             </section>
           ))}
         </div>
-
-        <SiteFooter />
       </main>
 
       {/* 하단 플로팅 결제바 */}
@@ -202,7 +185,9 @@ export default function Pricing() {
               </div>
               <div className="text-center">
                 <p className="text-[13px] font-medium text-slate-500">총 할인금액</p>
-                <p className="mt-1 text-[19px] font-black text-blue-600">{formatKRW(discountTotal)}</p>
+                <p className="mt-1 text-[19px] font-black text-blue-600">
+                  {formatKRW(discountTotal)}
+                </p>
               </div>
             </div>
             <button
