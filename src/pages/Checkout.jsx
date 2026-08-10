@@ -15,21 +15,31 @@ const PAY_METHODS = [
   { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' }
 ];
 
+// 아코디언 헤더 = 시안 'UI 라벨' 스케일(1920 실측 14px w500 lh20 #525252). 390 프레임에
+// 이 라벨의 별도 수치가 없어 브레이크포인트를 만들지 않고 14px 한 값으로 둔다(아래 다른
+// UI 라벨들도 같은 판단). 셰브론은 시안에 수치가 없어 보조 텍스트 토큰(ink.sub)을 쓴다 —
+// line(#d7d7d7)은 흰 배경에서 아이콘으로 쓰기엔 너무 옅다.
+// 섹션 헤딩('주문 상품 N' · '구매 전 확인사항' · '쿠폰 선택' · '결제 수단 선택' · '결제 금액').
+// 시안 실측 — 390(1882:13552) 20px w600 lh26 ls-0.4 / 1920(3437:2974) 32px w600 lh45 ls-0.64.
+// lh 비율만 갈린다(26/20 = 1.3, 45/32 = 1.406)라 leading 을 sm 에서 함께 올리고,
+// ls 는 두 폭 모두 size × 0.02 (20×0.02 = 0.4, 32×0.02 = 0.64)라 -0.02em 한 값으로 덮인다.
+// '결제 금액'만 1920 인벤토리에 개별 항목이 없지만 같은 위계의 섹션 제목이라 함께 묶었다.
+// (h2/h3 태그 구분은 문서 구조라 그대로 두고 타입 스케일만 통일한다 — 시안은 셋을 같은 크기로 그린다.)
+const SECTION_HEADING =
+  'text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2rem] sm:leading-[1.4]';
+
 function Accordion({ title, open, onToggle, children }) {
   return (
-    <div className="rounded-xl border border-slate-200">
+    <div className="rounded-xl border border-line">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[14px] font-bold text-[#0D1B2A]"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[0.875rem] font-medium leading-[1.25rem] text-ink"
       >
         <span>{title}</span>
-        <ChevronDown
-          size={18}
-          className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`}
-        />
+        <ChevronDown size={18} className={`text-ink-sub transition ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="border-t border-slate-100 px-4 py-3.5">{children}</div>}
+      {open && <div className="border-t border-line px-4 py-3.5">{children}</div>}
     </div>
   );
 }
@@ -47,8 +57,8 @@ function Accordion({ title, open, onToggle, children }) {
 function AgreementText({ text, docTitle }) {
   const lines = text.split('\n');
   return (
-    <div className="max-h-[7.625rem] overflow-y-auto pr-1.5 text-[12px] leading-relaxed text-slate-500 sm:max-h-[15rem]">
-      {docTitle && <p className="mb-1.5 font-bold text-[#0D1B2A]">{docTitle}</p>}
+    <div className="max-h-[7.625rem] overflow-y-auto pr-1.5 text-[0.75rem] font-normal leading-relaxed text-ink sm:max-h-[15rem]">
+      {docTitle && <p className="mb-1.5 font-semibold text-ink">{docTitle}</p>}
       {lines.map((line, i) => {
         const t = line.trim();
         if (t === '') return <div key={i} className="h-2" />;
@@ -60,7 +70,7 @@ function AgreementText({ text, docTitle }) {
           /^\d+\.\s/.test(t);
         if (heading) {
           return (
-            <p key={i} className="mt-2.5 font-bold text-[#0D1B2A]">
+            <p key={i} className="mt-2.5 font-semibold text-ink">
               {t}
             </p>
           );
@@ -88,15 +98,23 @@ function RequiredCheck({ checked, onChange, children }) {
     <button type="button" onClick={onChange} className="mt-2.5 flex items-center gap-2 text-left">
       <span
         className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
-          checked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+          checked ? 'border-primary bg-primary' : 'border-line bg-white'
         }`}
       >
         {checked && <Check size={12} strokeWidth={3.5} className="text-white" />}
       </span>
-      <span className="text-[12.5px] text-slate-500">
-        <span className="mr-1 font-bold text-blue-600">필수</span>
-        {children}
+      {/* '필수' 와 확인 문구는 시안에서 서로 다른 스타일이라 한 span 으로 묶지 않는다.
+          · 필수 — 390 실측 12px w500 #013262, 1920 은 두 곳의 색이 갈린다(#191d23 / #013262).
+            #191d23 은 토큰이 없어 가장 근접한 ink.title(#181d24)이 되겠지만, 같은 화면 안
+            두 배지가 다른 색인 건 시안 쪽 흔들림으로 보고 390 과 일치하고 토큰 주석이
+            "'필수' 라벨"로 지목한 primary(#013262) 하나로 통일했다.
+          · 확인 문구 — 1920 실측 14px w400 lh20 #808080(= ink.sub). 390 수치가 없어 한 값. */}
+      {/* 간격은 부모 button 의 gap-2(8px)가 낸다 — 시안 1280 프레임(1882-13399) 실측
+          체크박스 우단 12 → '필수' x=20 이 정확히 8px 다. 별도 mr 를 얹지 않는다. */}
+      <span className="text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
+        필수
       </span>
+      <span className="text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">{children}</span>
     </button>
   );
 }
@@ -296,12 +314,20 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <>
+        {/* 빈 장바구니는 시안에 없다. 주문서 H1(390 32 / 1920 50)을 그대로 쓰면 카드 없는
+            센터 레이아웃에서 과하게 크므로, 사이트 지배 헤딩인 섹션 H2 스케일
+            (랜딩 실측 32px w600 lh45, 390 은 24px)로 한 단 낮춰 결제 실패 화면과 형제로 맞췄다.
+            본문·CTA 는 주문서의 상품설명문(16px w400)·CTA(14/20 w600) 스케일 재사용. */}
         <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
-          <h1 className="text-2xl font-black text-[#0D1B2A]">선택한 상품이 없습니다</h1>
-          <p className="mt-3 text-slate-500">결제할 서비스를 먼저 선택해주세요.</p>
+          <h1 className="text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2rem]">
+            선택한 상품이 없습니다
+          </h1>
+          <p className="mt-3 text-[0.875rem] font-normal leading-[1.375rem] text-ink sm:text-[1rem]">
+            결제할 서비스를 먼저 선택해주세요.
+          </p>
           <Link
             to="/pricing"
-            className="mt-8 rounded-xl bg-[#0D1B2A] px-8 py-3.5 text-sm font-black text-white transition hover:bg-[#162A40]"
+            className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] text-white transition hover:brightness-125"
           >
             서비스 선택하러 가기
           </Link>
@@ -327,7 +353,11 @@ export default function Checkout() {
             폭별 inner = min(뷰포트 − 64, 1100): 1920/1440/1280 → 1100, 768 → 704.
             sm 미만은 상한(1164)에 걸리지 않으므로 px-5(20×2 = 40px)가 폭을 정한다 → 390 → 350. */}
         <div className="mx-auto w-full max-w-content px-5 py-14 sm:px-8">
-          <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">
+          {/* H1 — 시안 실측 390(1882:13552) 32px w600 lh45 ls-0.64, 1920(3437:2974) 50px w600
+              lh70 ls-1. 두 값 모두 lh/size ≈ 1.4(44.8/45, 70/70)이고 ls = size × -0.02em
+              (32×0.02=0.64, 50×0.02=1.0)이라 leading/tracking 은 비율 한 벌로 덮인다.
+              색은 #525252 = ink 다(ink.title 이 아니다). 무게는 w900 → w600. */}
+          <h1 className="mb-12 text-[2rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[3.125rem]">
             결제하기
           </h1>
 
@@ -341,60 +371,65 @@ export default function Checkout() {
               제목은 truncate = white-space:nowrap 이라 min-content 가 제목 전체 폭이고, 부모
               span 의 min-w-0 는 '내재 크기 기여'를 줄이지 못한다(실측 확인 — min-w-0 를 떼도,
               flex-1 까지 떼도 트랙 하한이 제목 5종 전부에서 소수점까지 동일했다. 기여를 깎는
-              효과는 0px 다) → 트랙 하한 = 32(px-4 좌우) + 2(border 1px 좌우) + 18(체크박스)
-              + 12(gap) + 167.27(제목 nowrap) + 12(gap) + 47.01(금액) = 290.28px,
-              width:min-content 실측 290.28px 로 잔차 0.
-              · 167.27 은 '학기 초 얼리버드 특별 할인 쿠폰'(16자) 기준이고 제목이 1px 늘면 하한도
-                1px 늘어난다(제목 5종에서 '하한 − 제목 nowrap' = 123.01 로 고정).
-              · 47.01 은 '-6,000원'의 max-content 58.68 이 아니라 min-content 다. 금액 span 은
+              효과는 0px 다).
+              ※ 아래 수치는 시안 타이포 정렬(쿠폰 제목 13.5px w700 → base 12px w500 / sm 14px w500,
+                 금액 13.5px w900 → base 12px w500)에 맞춰 전부 재실측한 값이다. 폰트가 작아져
+                 하한도 함께 내려갔으므로 예전 290.28/289.98/123.01/167.27/47.01 은 폐기됐다.
+              layout 320(뷰포트 330)에서 제목을 최장값 '학기 초 얼리버드 특별 할인 쿠폰'(16자)으로
+              바꿔 실측 → 트랙 하한 = 32(px-4 좌우) + 2(border 1px 좌우) + 18(체크박스) + 12(gap)
+              + 149.48(제목 nowrap) + 12(gap) + 37.18(금액 min-content) = 262.66px,
+              width:min-content 실측 262.66px 로 잔차 0.
+              · 149.48 은 위 최장 제목 기준(base 12px w500)이고 제목이 1px 늘면 하한도 1px 늘어난다
+                ('하한 − 제목 nowrap' = 32+2+18+12+12+37.18 = 113.18 고정).
+              · 37.18 은 '-2,000원'의 max-content 47.55 가 아니라 min-content 다. 금액 span 은
                 nowrap 이 아니어서(shrink-0 는 내재 크기와 무관) CJK 줄바꿈 기회가 살아 있고
-                '원'(11.67) 앞에서 끊긴 '-6,000' 47.01 이 최소 기여다 — 여기에 max-content 를
-                넣으면 하한을 11.67px 과대평가한다.
-              · 위 값들은 실행 중인 앱(동일 Tailwind 빌드 · Pretendard Variable)에 이 쿠폰 행과
-                같은 클래스 문자열의 버튼을 주입해 실측한 것이다. 시안 수치가 아니다.
+                '원' 앞에서 끊긴 '-2,000' 이 최소 기여다 — max-content 를 넣으면 하한을
+                47.55 − 37.18 = 10.37px 과대평가한다.
+              · 위 값들은 실행 중인 앱(동일 Tailwind 빌드 · Pretendard Variable)의 실제 /checkout
+                쿠폰 행을 측정한 것이다. 시안 수치가 아니다.
               전역 규약(px-5, 좌우 20px)에서 sm 미만 inner = W − 40 이므로 320 → 280,
-              330 → 290, 390 → 350 이다(실측 확인). 즉 320·330 은 inner 가 트랙 하한보다 좁아
-              암시적 auto 트랙이면 트랙이 inner 를 무시하고 하한 폭으로 버티며 우패딩(20px)을
-              잠식한다. 규약 전환 후 실제 /checkout 쿠폰 행에 위 최장 제목을 주입해 320 에서
-              재실측한 결과: 행 min-content 289.98px(위 표의 290.28 과 0.3px 차 — 과거 값은 별도
-              주입 버튼 기준), grid-cols-1 을 떼면 트랙이 280 → 289.98 로 잠기고 우패딩을
-              9.98px 잠식, grid-cols-1 이면 트랙 = inner = 280.
-              문서 폭은 두 경우 모두 320(= clientWidth)이라 가로 스크롤까지는 가지 않는다
-              (좌패딩 20 + 289.98 = 309.98 < 320) — 잠식이 시작되는 지점이라 방어는 그대로
-              필요하다. 390 은 여유가 350 − 289.98 = 60.02px(한글 5자, 1자 11.67)뿐이라 쿠폰
-              제목이 5자만 길어져도 같은 잠식이 시작된다. index.css:38 의
+              330 → 290, 390 → 350 이다(실측 확인). 타이포를 시안 값으로 내린 뒤에는 하한
+              262.66 < inner 280 이라 320 에서도 잠식이 사라졌다(grid-cols-1 을 떼도 트랙 280 ·
+              문서 폭 320 으로 실측 동일, grid-cols-1 이면 트랙 = inner = 280).
+              즉 지금은 여유 구간이지만 방어는 유지한다 — 하한은 제목 길이에 1:1로 붙고 390 기준
+              여유가 350 − 262.66 = 87.34px 뿐이어서, 제목이 그만큼 길어지면 트랙이 다시 inner 를
+              무시하고 우패딩(20px)을 잠식한다. index.css:38 의
               min-width:min(320px,100%) 가 320 을 지원 폭으로 명시해 둔 상태다.
               grid-cols-1 = repeat(1,minmax(0,1fr)) 이라 트랙 하한이 0 이 되어 트랙 = inner 로
               풀리고 truncate 가 의도대로 작동한다. desktop 쪽 1fr → minmax(0,1fr) 도 같은
               방어다(1fr = minmax(auto,1fr) 이라 min-content 하한이 그대로 붙는다. 지금은 좌
-              컬럼 652 가 카드 min-content 206.8 을 크게 웃돌아 무해하지만, nowrap 콘텐츠가
-              늘면 같은 사고다).
+              컬럼 652 가 카드 min-content 248.71 을 크게 웃돌아 무해하지만, nowrap 콘텐츠가
+              늘면 같은 사고다. 248.71 은 상품명을 시안 값(sm 24px w500)으로 올린 뒤 재실측한
+              값이다 — 예전 206.8 은 상품명 15px w700 기준이라 폐기).
               25rem = 400px 로 우 컬럼 폭은 불변, 프로젝트 단위 규칙(rem)에 맞춘 환산이다.
 
               전역 컨텐츠 규약을 쓰면 desktop(1440) 이상에서 inner 가 1100 으로 고정되므로
               좌 컬럼은 폭에 무관하게 1100 − 48(gap-12) − 400 = 652px 로 일정하다(1440·1512·
               1920 전부 동일). 시안 1920 의 좌 1070 은 콘텐츠 1518 전제(1518−48−400)라 함께
               폐기된 값이다.
-              652 는 1280 시안이 폼에 쓰는 570 보다 넓고 카드 min-content 206.8 의 3배가 넘어
+              652 는 1280 시안이 폼에 쓰는 570 보다 넓고 카드 min-content 248.71 의 2.6배라
               좁아서 깨지는 폭이 아니므로 2컬럼 전환점은 desktop 그대로 둔다 — 이 전환점은
               컨테이너 폭과 무관한 별건이고, 헤더 GNB 가 인라인으로 바뀌는 시점(desktop 90rem)과
               레이아웃 전환을 일치시킨다는 근거로 선택된 값이다(시안 1280 프레임 = 1컬럼 만족). */}
           <div className="grid grid-cols-1 gap-12 desktop:grid-cols-[minmax(0,1fr)_25rem]">
             {/* 좌측: 주문 상품 */}
             <section>
-              <h2 className="mb-5 text-[22px] font-black text-[#0D1B2A]">
-                주문 상품 {items.length}
-              </h2>
+              <h2 className={`mb-5 ${SECTION_HEADING}`}>주문 상품 {items.length}</h2>
 
               <button type="button" onClick={toggleAll} className="mb-4 flex items-center gap-2">
                 <span
                   className={`flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border transition ${
-                    allChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                    allChecked ? 'border-primary bg-primary' : 'border-line bg-white'
                   }`}
                 >
                   {allChecked && <Check size={13} strokeWidth={3.5} className="text-white" />}
                 </span>
-                <span className="text-[14px] font-bold text-[#0D1B2A]">전체 선택</span>
+                {/* 시안 실측 — 390 12px w500 lh20 #525252(ls 없음) / 1920 20px w500 lh28 ls-0.4.
+                    390 에는 ls 가 없어 tracking 을 sm 에서만 준다. lh 는 20 → 1.25rem,
+                    28 → 1.75rem 로 정확히 떨어지므로 비율 대신 rem 임의값을 쓴다. */}
+                <span className="text-[0.75rem] font-medium leading-[1.25rem] text-ink sm:text-[1.25rem] sm:leading-[1.75rem] sm:tracking-[-0.02em]">
+                  전체 선택
+                </span>
               </button>
 
               <div className="space-y-3">
@@ -404,7 +439,7 @@ export default function Checkout() {
                   return (
                     <div
                       key={item.id}
-                      className="flex gap-3 rounded-2xl border border-slate-200 p-5"
+                      className="flex gap-3 rounded-2xl border border-line p-5"
                     >
                       <button
                         type="button"
@@ -413,7 +448,7 @@ export default function Checkout() {
                       >
                         <span
                           className={`flex h-[22px] w-[22px] items-center justify-center rounded-[6px] border transition ${
-                            isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                            isChecked ? 'border-primary bg-primary' : 'border-line bg-white'
                           }`}
                         >
                           {isChecked && (
@@ -424,20 +459,33 @@ export default function Checkout() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-4">
-                          <p className="text-[15px] font-bold text-[#0D1B2A]">{item.name}</p>
-                          <div className="flex shrink-0 flex-col items-end leading-tight">
+                          {/* 상품명 — 시안 실측 390 14px w500 lh18 ls-0.28 / 1920 24px w500 lh31
+                              ls-0.48. lh/size 가 양쪽 모두 ≈1.3(18.2/18, 31.2/31)이고
+                              ls = size × -0.02em 이라 leading·tracking 은 한 벌로 덮인다. */}
+                          <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink sm:text-[1.5rem]">
+                            {item.name}
+                          </p>
+                          <div className="flex shrink-0 flex-col items-end">
+                            {/* 정가 취소선 — 390 12px w500 lh20 #d7d7d7 ls-0.24 /
+                                1920 20px w400 lh28 #d9d9d9 ls-0.4. #d9d9d9 는 토큰이 없어
+                                가장 근접한 line(#d7d7d7, 오차 2/255)으로 통일했다(390 은 정확히 이 값).
+                                무게만 390 w500 → 1920 w400 로 갈려 sm 에서 되돌린다. */}
                             {hasDiscount && (
-                              <span className="text-[12px] text-slate-400 line-through">
+                              <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through sm:text-[1.25rem] sm:font-normal sm:leading-[1.75rem]">
                                 {formatKRW(item.listPrice)}
                               </span>
                             )}
                             <span className="flex items-center gap-2">
+                              {/* 할인 배지 — 1920 은 별도 노드로 20px w500 #013262 지만,
+                                  390 은 '약 8%할인 55,000원' 이 금액과 한 텍스트 노드라
+                                  13px w500 #525252 로 금액과 같은 색이다. 그 차이를 그대로 옮긴다.
+                                  (390 13px lh20 = 1.25rem, 1920 20px lh28 = 1.75rem) */}
                               {item.badge && (
-                                <span className="text-[13px] font-bold text-blue-600">
+                                <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[1.25rem] sm:leading-[1.75rem] sm:text-primary">
                                   {item.badge}
                                 </span>
                               )}
-                              <span className="text-[15px] font-black text-[#0D1B2A]">
+                              <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[1.25rem] sm:leading-[1.75rem]">
                                 {formatKRW(item.price)}
                               </span>
                             </span>
@@ -449,7 +497,7 @@ export default function Checkout() {
                             cart.js 저장 스키마의 serviceDesc 자체는 유지 — 세션에 남은 구버전
                             카트와의 하위호환 때문. */}
                         {item.serviceDesc && (
-                          <p className="mt-2 hidden text-[12.5px] leading-relaxed text-slate-500 sm:block">
+                          <p className="mt-2 hidden text-[1rem] font-normal leading-[1.375rem] text-ink-sub sm:block">
                             {item.serviceDesc}
                           </p>
                         )}
@@ -466,7 +514,9 @@ export default function Checkout() {
                 <button
                   type="button"
                   onClick={removeChecked}
-                  className="mt-4 text-[13px] font-bold text-slate-400 underline underline-offset-4 transition hover:text-slate-600"
+                  // 390 실측 12px w500 #013262. 1920 개별 수치는 없어 그 폭의 UI 라벨 기본값
+                  // 14px 로 올린다. 밑줄은 시안 근거가 없지만 링크형 affordance 라 유지.
+                  className="mt-4 text-[0.75rem] font-medium leading-[1.25rem] text-primary underline underline-offset-4 transition hover:brightness-125 sm:text-[0.875rem]"
                 >
                   선택 삭제
                 </button>
@@ -486,7 +536,7 @@ export default function Checkout() {
             <aside className="mx-auto w-full max-w-[35.625rem] space-y-10">
               {/* 구매 전 확인사항 */}
               <div>
-                <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">구매 전 확인사항</h3>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
                 <Accordion
                   title="[구매 전 안내사항]"
                   open={openNotice}
@@ -501,26 +551,28 @@ export default function Checkout() {
 
               {/* 쿠폰 선택 */}
               <div>
-                <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">쿠폰 선택</h3>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
                 <div className="flex gap-2">
                   <input
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && applyCouponCode()}
                     placeholder="쿠폰 코드 입력"
-                    className="h-11 flex-1 rounded-lg border border-slate-200 px-3.5 text-[13px] text-[#0D1B2A] placeholder:text-slate-400 focus:border-blue-500"
+                    // placeholder 는 시안 실측 14px w500 #d9d9d9 → 토큰 line(#d7d7d7).
+                    // 입력값 색은 토큰 주석이 지정한 본문/입력값 기본 ink(#525252).
+                    className="h-11 flex-1 rounded-lg border border-line px-3.5 text-[0.875rem] font-medium leading-[1.25rem] text-ink placeholder:font-medium placeholder:text-line focus:border-primary"
                   />
                   <button
                     type="button"
                     onClick={applyCouponCode}
-                    className="h-11 shrink-0 rounded-lg border border-slate-300 px-5 text-[13px] font-bold text-[#0D1B2A] transition hover:bg-slate-50"
+                    className="h-11 shrink-0 rounded-lg border border-line px-5 text-[0.875rem] font-medium leading-[1.25rem] text-ink transition hover:bg-surface-card"
                   >
                     적용
                   </button>
                 </div>
 
                 {couponError && (
-                  <p className="mt-3 text-[12.5px] font-bold text-red-500">
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
                     쿠폰을 불러오지 못했습니다.
                   </p>
                 )}
@@ -531,7 +583,7 @@ export default function Checkout() {
                     용어는 시안 정본인 '보유 쿠폰 N장'(덤프 18/18 프레임)에 맞춰 '보유한'으로
                     통일했다. 조회 실패는 위 couponError 가 이미 안내하므로 겹쳐 쓰지 않는다. */}
                 {couponsLoaded && !couponError && coupons.length === 0 && (
-                  <p className="mt-5 text-[13px] font-bold text-slate-400">
+                  <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
                     보유한 쿠폰이 없습니다.
                   </p>
                 )}
@@ -539,7 +591,8 @@ export default function Checkout() {
                 {coupons.length > 0 && (
                   <>
                     {/* 시안 정본 문구 — 덤프 18개 프레임 전부 '보유 쿠폰 2장'. */}
-                    <p className="mb-2 mt-5 text-[13px] font-bold text-slate-500">
+                    {/* 시안 실측 14px w400 lh20 #525252 — '쿠폰 사용 안함' 과 같은 스타일. */}
+                    <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink">
                       보유 쿠폰 {coupons.length}장
                     </p>
                     <div className="space-y-2">
@@ -553,14 +606,12 @@ export default function Checkout() {
                             disabled={!eligible}
                             onClick={() => toggleCoupon(c.id)}
                             className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                              isSelected ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200'
+                              isSelected ? 'border-primary bg-surface-info' : 'border-line'
                             } ${eligible ? '' : 'opacity-45'}`}
                           >
                             <span
                               className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
-                                isSelected
-                                  ? 'border-blue-600 bg-blue-600'
-                                  : 'border-slate-300 bg-white'
+                                isSelected ? 'border-primary bg-primary' : 'border-line bg-white'
                               }`}
                             >
                               {isSelected && (
@@ -568,18 +619,25 @@ export default function Checkout() {
                               )}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13.5px] font-bold text-[#0D1B2A]">
+                              {/* 쿠폰명 — 390 실측 '회원가입 특별할인' 12px w500 lh20 #525252,
+                                  1920 은 그 폭의 UI 라벨 기본값 14px w500 lh20 #525252. */}
+                              <span className="block truncate text-[0.75rem] font-medium leading-[1.25rem] text-ink sm:text-[0.875rem]">
                                 {c.title}
                               </span>
+                              {/* 만료일 — 시안 실측 12px w400 #808080. lh 값이 없어 사이트 기본
+                                  비율 1.4 를 쓴다(16.8px — 2줄 블록을 조밀하게 유지). */}
                               {c.validUntil && (
-                                <span className="block text-[11.5px] text-slate-400">
+                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
                                   {String(c.validUntil).replace(/-/g, '.')}까지
                                 </span>
                               )}
                             </span>
                             {/* 시안(1882-10111·3437-2974 등)은 '-6,000원'처럼 단위까지 붙는다.
                                 이 파일의 다른 금액과 동일하게 formatKRW를 경유시킨다. */}
-                            <span className="shrink-0 text-[13.5px] font-black text-[#0D1B2A]">
+                            {/* 할인액에는 시안 개별 수치가 없다. 크기는 이 폭의 UI 라벨 기본값
+                                (390 12 / 1920 14, w500 lh20), 색은 토큰 주석이 '강조·할인' 으로
+                                지정한 primary(#013262)를 쓴다 — 아래 결제금액 할인 행과 같다. */}
+                            <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
                               -{formatKRW(c.discount)}
                             </span>
                           </button>
@@ -590,7 +648,12 @@ export default function Checkout() {
                       <button
                         type="button"
                         onClick={() => setSelectedCouponIds(new Set())}
-                        className="text-[12.5px] font-bold text-slate-400 underline underline-offset-4 hover:text-slate-600"
+                        // 시안 실측 14px w400 lh20 #525252 ('보유 쿠폰 N장' 과 같은 스타일).
+                        // hover 는 ink-title(#181d24)을 쓰고 있었으나 그 토큰은 시안이 로그인 H1
+                        // 에서만 쓰는 색이라 근거가 없다. 기본 상태(text-ink)는 시안과 일치하므로
+                        // 건드리지 않고, hover 만 이 파일의 다른 링크형 요소('선택 삭제' 등)와 같은
+                        // brightness 필터 방식으로 바꿨다(밝은 배경이라 어둡게 = brightness-90).
+                        className="text-[0.875rem] font-normal leading-[1.25rem] text-ink underline underline-offset-4 transition hover:brightness-90"
                       >
                         쿠폰 사용 안함
                       </button>
@@ -601,7 +664,7 @@ export default function Checkout() {
 
               {/* 결제 수단 선택 */}
               <div>
-                <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">결제 수단 선택</h3>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 수단 선택</h3>
                 {/* 390 시안(1882-11814 등 6장)은 결제수단 버튼을 세로 1열, 폭 160px(=10rem)
                     가운데 정렬로 그린다. 1280 시안은 3열(실측 184.67px×3 + gap 8)이다.
                     시안 BP가 390/1280/1920뿐이라 전환점 sm(640)은 보간 판단값이다. */}
@@ -611,10 +674,13 @@ export default function Checkout() {
                       type="button"
                       key={m.key}
                       onClick={() => setPayMethod(m.key)}
-                      className={`h-11 rounded-lg border text-[13px] font-bold transition ${
+                      // 시안 실측 — 선택 14px w500 #013262, 미선택 1920 #808080 / 390 #7a7a7a.
+                      // #7a7a7a 는 토큰이 없어 가장 근접한 ink.sub(#808080, 오차 6/255)로
+                      // 통일했다(1920 은 정확히 이 값). 두 폭 모두 14px 라 크기 분기는 없다.
+                      className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-[1.25rem] transition ${
                         payMethod === m.key
-                          ? 'border-blue-600 bg-blue-50/50 text-blue-600'
-                          : 'border-slate-200 text-[#0D1B2A] hover:bg-slate-50'
+                          ? 'border-primary bg-surface-info text-primary'
+                          : 'border-line text-ink-sub hover:bg-surface-card'
                       }`}
                     >
                       {m.label}
@@ -647,18 +713,20 @@ export default function Checkout() {
 
               {/* 결제 금액 */}
               <div>
-                <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">결제 금액</h3>
-                <dl className="space-y-3 text-[14px]">
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>
+                {/* 금액 행 라벨·값은 시안 'UI 라벨' 스케일 14px w500 lh20 #525252 로 통일한다.
+                    할인 행의 값만 토큰 주석이 '강조·할인' 으로 지정한 primary 를 쓴다. */}
+                <dl className="space-y-3 text-[0.875rem] font-medium leading-[1.25rem] text-ink">
                   <div className="flex justify-between">
-                    <dt className="text-slate-500">판매가</dt>
-                    <dd className="font-bold text-[#0D1B2A]">{formatKRW(listTotal)}</dd>
+                    <dt>판매가</dt>
+                    <dd>{formatKRW(listTotal)}</dd>
                   </div>
                   {/* 시안 3437-2974(쿠폰 적용 상태)는 '할인가'(상품할인)와 '쿠폰 할인가'를 별도 행으로
                       나눈다. 합계 로직(discountTotal·payAmount)은 그대로라 총액은 불변이다.
                       쿠폰 미적용 base 프레임(1882-10111)에는 쿠폰 행이 없으므로 0원일 때 숨긴다. */}
                   <div className="flex justify-between">
-                    <dt className="text-slate-500">할인가</dt>
-                    <dd className="font-bold text-blue-600">
+                    <dt>할인가</dt>
+                    <dd className="text-primary">
                       {productDiscount > 0 ? `-${formatKRW(productDiscount)}` : formatKRW(0)}
                     </dd>
                   </div>
@@ -668,18 +736,21 @@ export default function Checkout() {
                           붙여쓴 '쿠폰할인가', 1280·1920 프레임 8/8(1882-13258·16903·17763·18617,
                           3437-2974·3580·3885·4187)은 공백이 있는 '쿠폰 할인가'.
                           전환점은 이 파일의 다른 보간과 같은 sm(640)으로 통일. */}
-                      <dt className="text-slate-500">
+                      <dt>
                         <span className="sm:hidden">쿠폰할인가</span>
                         <span className="hidden sm:inline">쿠폰 할인가</span>
                       </dt>
-                      <dd className="font-bold text-blue-600">-{formatKRW(couponDiscount)}</dd>
+                      <dd className="text-primary">-{formatKRW(couponDiscount)}</dd>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-slate-100 pt-3">
-                    <dt className="text-[15px] font-black text-[#0D1B2A]">총 결제 금액</dt>
-                    <dd className="text-[18px] font-black text-[#0D1B2A]">
-                      {formatKRW(payAmount)}
-                    </dd>
+                  {/* 합계 행은 시안 인벤토리에 개별 수치가 없다. 위 금액 행(14px w500)보다
+                      한 단 위, 섹션 헤딩(390 20 / 1920 32)보다는 아래여야 하므로
+                      390 16px / 1920 20px w600 으로 보간했다. 20px 은 시안이 CTA·상품금액에
+                      실제로 쓰는 값이라 스케일 밖으로 벗어나지 않는다.
+                      라벨과 값을 같은 크기로 둔 것도 시안 금액 행들과 같은 규칙이다. */}
+                  <div className="flex justify-between border-t border-line pt-3 text-[1rem] font-semibold leading-[1.4] sm:text-[1.25rem] sm:leading-[1.75rem]">
+                    <dt>총 결제 금액</dt>
+                    <dd>{formatKRW(payAmount)}</dd>
                   </div>
                 </dl>
 
@@ -687,15 +758,21 @@ export default function Checkout() {
                   type="button"
                   onClick={handlePay}
                   disabled={!canPay}
-                  className={`mt-6 w-full rounded-xl py-4 text-[15px] font-black transition ${
+                  // CTA — 시안 실측 390 14px w600 lh20 #ffffff / 1920 20px w600 lh28 #ffffff.
+                  // ls 는 두 폭 모두 없어 tracking 을 주지 않는다. 배경색은 시안 인벤토리에
+                  // 텍스트 색만 있으나 브랜드 CTA 색은 primary(#013262) 이고 결제 실패 화면
+                  // CTA 도 이미 이 토큰이다. 비활성은 토큰 주석대로 line 배경 + 푸터 배경색 텍스트.
+                  className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:text-[1.25rem] sm:leading-[1.75rem] ${
                     canPay
-                      ? 'bg-[#0D1B2A] text-white hover:bg-[#162A40]'
-                      : 'cursor-not-allowed bg-slate-200 text-slate-400'
+                      ? 'bg-primary text-white hover:brightness-125'
+                      : 'cursor-not-allowed bg-line text-surface-footer'
                   }`}
                 >
                   {loading ? '결제창 여는 중…' : `${formatKRW(payAmount)} 결제하기`}
                 </button>
-                <p className="mt-3 text-center text-[11px] text-slate-400">
+                {/* 시안에 없는 안내문. 시안 최소 크기가 12px 이라 11px → 12px w400 로 올리고
+                    보조 텍스트 토큰(ink.sub)을 쓴다. */}
+                <p className="mt-3 text-center text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
                   결제는 토스페이먼츠를 통해 안전하게 처리됩니다.
                 </p>
               </div>

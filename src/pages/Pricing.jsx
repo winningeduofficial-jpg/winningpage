@@ -91,8 +91,22 @@ export default function Pricing() {
       <main className="min-h-screen bg-white pt-16">
         {/* 타이틀. 좌우 패딩은 아래 콘텐츠 컨테이너와 같은 리듬(390 1.25rem / sm 이상 2rem). */}
         <section className="px-5 pb-4 pt-16 text-center sm:px-8">
-          <p className="text-sm font-black text-accent">나에게 맞는 서비스를 선택해주세요</p>
-          <h1 className="mt-3 text-3xl font-black tracking-[-0.02em] text-ink-title sm:text-[2.5rem]">
+          {/* 아이브로 — 시안 실측. 390(1882:16307) 16px w600 lh22 #0b84fd ls-0.32,
+              1920(3408:4832 / 텍스트 3408:4872 높이 28 로 lh 교차확인) 20px w600 lh28 #0b84fd.
+              rem: 16px = 1rem / lh22 = 1.375rem / 20px = 1.25rem / lh28 = 1.75rem.
+              ls 는 두 밴드 모두 -0.02em 이다(-0.32/16 = -0.02, 1920 은 -0.4/20 = -0.02) →
+              한 클래스로 통일. 기존 14px w900 은 시안에 없는 값이었다(시안 최대 무게 w700). */}
+          <p className="text-[1rem] font-semibold leading-[1.375rem] tracking-[-0.02em] text-accent sm:text-[1.25rem] sm:leading-[1.75rem]">
+            나에게 맞는 서비스를 선택해주세요
+          </p>
+          {/* H1 — 390 24px w600 lh34 #525252 ls-0.48 / 1920 50px w600 lh70 #525252 ls-1
+              (텍스트 3408:4873 높이 70 으로 lh 교차확인). ls 는 양쪽 모두 -0.02em
+              (-0.48/24 = -0.02, -1/50 = -0.02).
+              rem: 24px = 1.5rem / lh34 = 2.125rem / 50px = 3.125rem / lh70 = 4.375rem.
+              색은 ink(#525252) — 시안 본문 기본색이다. ink-title(#181d24)은 시안이 실제로
+              그 색을 쓰는 로그인 H1 전용이라 여기서는 쓰지 않는다.
+              기존 40px w900 lh36(0.9배)은 "작고 무겁고 타이트"해서 시안 위계와 반대였다. */}
+          <h1 className="mt-3 text-[1.5rem] font-semibold leading-[2.125rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
             결제할 서비스를 선택해주세요
           </h1>
         </section>
@@ -129,10 +143,14 @@ export default function Pricing() {
               <p className="text-sm font-bold text-error">
                 요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
               </p>
+              {/* 이 버튼만 ink-title(#181d24) + w700 이 남아 있었다. 같은 파일의 타이포 주석들이
+                  이미 "ink-title 은 시안 근거 없음(로그인 H1 전용 토큰)" 이라고 적고 있으므로
+                  본문 기본색 ink(#525252) + 시안 최다 무게 w500 으로 정정했다.
+                  크기(text-sm)는 시안에 없는 에러 분기 UI 라 현행 유지. */}
               <button
                 type="button"
                 onClick={refetch}
-                className="mt-4 rounded-lg border border-line px-5 py-2.5 text-sm font-bold text-ink-title transition hover:bg-surface-card"
+                className="mt-4 rounded-lg border border-line px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-surface-card"
               >
                 다시 시도
               </button>
@@ -141,8 +159,22 @@ export default function Pricing() {
 
           {!loading && !error && services.map((service) => (
             <section key={service.key} className="mb-16">
-              <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-2xl font-black text-ink-title">{service.name}</h2>
+              {/* 아래 여백이 390 에서만 mb-3(12px)인 이유: 시안 타이포로 내리면 이 행의 높이가
+                  h2 lh20 로 정해져 '자세히보기' 앵커(17px) 아래 슬랙이 1.5px 뿐이다.
+                  44×44 오버레이(사용자 확정)가 앵커 아래로 넘치는 양 (44 − 17)/2 = 13.5px 을
+                  덮으려면 1.5 + 여백 ≥ 13.5, 즉 여백 ≥ 12px 이어야 한다 → mb-3.
+                  mb-2(8px)면 4.5px 이 아래 요소 위로 겹쳐 44px 중 일부가 실질적으로 죽는다.
+                  sm 이상은 행 높이가 h2 lh49 라 슬랙 (49−22)/2 = 13.5px 만으로 이미 충분하므로
+                  기존 8px(sm:mb-2)을 그대로 유지한다. */}
+              <div className="mb-3 flex items-center gap-2 sm:mb-2">
+                {/* 서비스명 — 390 18px w600 lh20 #525252 ls-0.36 / 1920 38px w700 lh49
+                    #525252 ls-0.76 (시안 텍스트 3408:5260 높이 49 로 lh 교차확인).
+                    ls 양쪽 -0.02em(-0.36/18, -0.76/38).
+                    rem: 18px = 1.125rem / lh20 = 1.25rem / 38px = 2.375rem / lh49 = 3.0625rem.
+                    기존 24px w900 #181d24 → 시안엔 없는 무게·색이었다. */}
+                <h2 className="text-[1.125rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[2.375rem] sm:font-bold sm:leading-[3.0625rem]">
+                  {service.name}
+                </h2>
                 {/* 390 시안(1882-16307, 프레임 1882:16340)의 이 줄은 자식이 정확히 둘이다 —
                     서비스명 텍스트(w96) + 8px 뒤 '자세히보기' 텍스트(x104 w52 h17). 셰브론
                     아이콘이 없다. 반대로 1920 시안(1882-10810)과 1280 시안(1882-15190,
@@ -157,12 +189,22 @@ export default function Pricing() {
                     검증 통과값(390 inner 350 / 플랜 행 64px / 1920 inner 1100)에 영향이 없다.
                     패딩+음수마진 방식은 금지: h2 와의 시안 gap 8px(gap-2)을 음수마진이
                     잠식해 8 − 11 = −3px, 즉 제목과 3px 겹친다.
-                    실측 링크 박스 — sm 이상 22×22(셰브론), 390 56.18×19.5(문구).
+                    실측 링크 박스 — sm 이상 22×22(셰브론), 390 은 문구 타이포를 시안값
+                    (12px/lh17)으로 내린 뒤 약 52×17.
                       · 세로: top-1/2 + h-11 + -translate-y-1/2 → 앵커 높이와 무관하게 두
                         밴드 모두 44px. 아래로 넘치는 양 = (44 − 앵커높이)/2 = sm 11px /
-                        390 12.25px 이고, 앵커 하단~설명 문단(<p>) 상단 실측 여유가
-                        sm 13px / 390 14.25px 이라 설명 문단의 클릭을 훔치지 않는다
-                        (여유 = 행 32px 안에서 앵커 아래 남는 슬랙 + mb-2 8px).
+                        390 약 13.5px.
+                        sm 이상은 행 높이가 h2 lh49 로 정해져 앵커 아래 슬랙 (49−22)/2 =
+                        13.5px + mb-2 8px = 21.5px > 11px 이라 아래 요소를 침범하지 않는다.
+                        390 은 h2 를 시안값(18px/lh20)으로 내리면서 행 높이가 20px 로 줄어
+                        앵커 아래 슬랙이 1.5px 뿐이다. 그래서 오버레이를 줄이는 대신 이 행의
+                        아래 여백을 390 에서만 mb-3(12px)로 키워 1.5 + 12 = 13.5px 를 확보했다
+                        (위 헤더 행 주석의 산식). 실측 확인: 앵커 하단 → 설명 문단 상단 여유
+                        13px, 오버레이 하단 지점이 링크로 히트된다.
+                        추가 안전장치로 바로 아래 형제(설명 문단 <p> 와 플랜 목록 컨테이너)에
+                        `relative` 를 붙였다 — 둘 다 이 Link 보다 DOM 뒤이고 z-index 가 auto 라
+                        나중에 페인트되므로, 서브픽셀 반올림으로 1px 이라도 겹치면 그 지점의
+                        히트 테스트를 아래 요소가 가져간다(레이아웃·시각 변화는 0).
                         위로 넘치는 만큼은 섹션 mb-16(64px, 첫 섹션은 컨테이너 pt-10 40px)
                         의 빈 여백이라 겹칠 대상이 없다.
                       · 가로: 390 은 앵커가 이미 56.18px(≥44)이라 w-full 로 충분.
@@ -176,9 +218,17 @@ export default function Pricing() {
                   <Link
                     to={SERVICE_DETAIL_ROUTES[service.key]}
                     aria-label={`${service.name} 자세히보기`}
-                    className="relative inline-flex shrink-0 items-center text-ink-title after:absolute after:left-0 after:top-1/2 after:h-11 after:w-full after:-translate-y-1/2 after:content-[''] sm:after:-left-2 sm:after:w-11"
+                    className="relative inline-flex shrink-0 items-center text-ink after:absolute after:left-0 after:top-1/2 after:h-11 after:w-full after:-translate-y-1/2 after:content-[''] sm:after:-left-2 sm:after:w-11"
                   >
-                    <span className="text-[0.8125rem] font-bold underline underline-offset-2 sm:hidden">
+                    {/* 390 시안(1882:16307) '자세히보기' = 12px w500 lh17 #7a7a7a.
+                        #7a7a7a 는 토큰이 없어 가장 가까운 ink-sub(#808080, 차이 6)로 쓴다
+                        — ink(#525252)는 차이 40 으로 훨씬 멀다.
+                        rem: 12px = 0.75rem / lh17 = 1.0625rem. ls 는 시안이 주지 않아 넣지 않는다.
+                        기존 13px w700 은 시안에 없는 무게였다. 밑줄은 시안 인벤토리에 명시가
+                        없어 기존 표현을 유지한다(이번 작업 범위는 타이포·색·간격).
+                        셰브론(sm 이상) 색도 시안 본문 기본색 ink(#525252)로 내렸다 — 같은 행의
+                        서비스명이 #525252 이고, 시안에 ink-title(#181d24)을 쓰는 근거가 없다. */}
+                    <span className="text-[0.75rem] font-medium leading-[1.0625rem] text-ink-sub underline underline-offset-2 sm:hidden">
                       자세히보기
                     </span>
                     <ChevronRight
@@ -197,15 +247,29 @@ export default function Pricing() {
                     SERVICE_DETAIL_ROUTES 에 susi 를 추가하는 것만으로 문구(390)와
                     셰브론(sm 이상)이 함께 되살아난다. */}
               </div>
+              {/* 설명문 — 390 12px w500 lh17 #7a7a7a(→ ink-sub) / 1920 20px w500 lh28 #808080
+                  (시안 텍스트 3408:4881 이 1240×56 = 2줄 × lh28 로 교차확인).
+                  rem: 12px = 0.75rem / lh17 = 1.0625rem / 20px = 1.25rem / lh28 = 1.75rem.
+                  ls 는 시안 인벤토리에 없어 넣지 않는다.
+                  max-w-[47.5rem](760px) 를 뺀 이유: 시안 설명문 폭은 1240px(컨테이너 1252 의
+                  거의 전폭)이라 상한이 아니라 전폭이 정본이다. 13px 시절엔 760 상한이 무해했지만
+                  20px 로 올리면 시안의 2줄이 4줄로 접혀 위계가 깨진다. 우리 콘텐츠 inner 는
+                  최대 1100px 으로 시안 1240 보다 좁아, 상한을 없애도 시안보다 넓어질 일이 없다.
+                  390 은 컨테이너 inner 350 이라 760 상한이 애초에 걸리지 않았다 → 무변화.
+                  `relative` 는 위 '자세히보기' 44×44 오버레이와의 히트테스트 순서용이다
+                  (위 주석의 390 4px 넘침 항목 참고 — 시각·레이아웃 영향 없음). */}
               {service.desc && (
-                <p className="mb-6 max-w-[47.5rem] text-[0.8125rem] leading-relaxed text-ink-sub">
+                <p className="relative mb-6 text-[0.75rem] font-medium leading-[1.0625rem] text-ink-sub sm:text-[1.25rem] sm:leading-[1.75rem]">
                   {service.desc}
                 </p>
               )}
 
               {/* 390 시안의 플랜 행 간격은 8px(1882:16346 이하 행 y = 0/72/144/216, 행 높이 64
                   → 간격 8px)이라 space-y-2, sm 이상은 기존 space-y-3(12px)을 유지한다. */}
-              <div className="space-y-2 sm:space-y-3">
+              {/* `relative` 는 설명문 <p> 와 같은 이유(자세히보기 오버레이 히트테스트 순서).
+                  설명문이 없는 서비스(desc 빈 값)에서는 이 컨테이너가 링크 바로 아래 형제가
+                  되므로 여기에도 필요하다. */}
+              <div className="relative space-y-2 sm:space-y-3">
                 {service.products.map((product) => {
                   const isSelected = selected[service.key] === product.id;
                   const hasDiscount = product.listPrice > product.price;
@@ -233,22 +297,42 @@ export default function Pricing() {
                   // 그래서 가장자리~내용 거리를 시안 상하값과 같은 12px 로 맞추되 그 12 를
                   // border 1 + 패딩 11(0.6875rem) 로 쪼갠다 → 1+11+40+11+1 = 64 ✓.
                   // 1행짜리 행(내용 20px)은 1+11+20+11+1 = 44 라 min-h-[4rem](64px, border-box)
-                  // 가 하한으로 받쳐 64 가 된다. sm 이상은 기존 20px 패딩 유지(sm:p-5).
+                  // 가 하한으로 받쳐 64 가 된다. lg 이상은 기존 20px 패딩 유지(lg:p-5 — 전환점을
+                  // sm 에서 lg 로 옮긴 근거는 아래 ★ 항목).
                   // p-* 는 4방향이라 좌우도 12 가 된다(시안 좌우 15 와 3px 차). 행 outer 가
                   // 310 → 350 으로 넓어져 좌우 여백은 시안보다 오히려 넉넉하고, 높이 64 를
                   // 정확히 맞추는 쪽을 택한 결과다 — 좌우만 15 로 떼어낼 이유가 없다.
+                  //
+                  // ★ 플랜 행의 확대 전환점은 `sm`(640) 이 아니라 `lg`(1024) 다.
+                  // 시안 캔버스는 390(1882:16307)과 1280(1882:15190·1882:15614) 둘뿐이고
+                  // 640~1023 은 시안이 정의하지 않은 파생 구간이다. 전환점을 sm 에 두면 그 구간의
+                  // 컨테이너 inner 가 576~960px 뿐인데 라벨이 24px 로 뛰어, 실측 14행 중
+                  // 640 에서 4행 / 768 에서 1행이 2줄로 접혔다(잘림·가로 스크롤은 없지만 행 높이가
+                  // 73/101/104px 로 갈려 위계가 들쭉날쭉했다). 그래서 이 행의 확대를 통째로
+                  // lg 로 옮기고 640~1023 은 390 확정 행을 그대로 쓴다 —
+                  // 근거 있는 두 값(390 / 1280)만 쓰고 18px 같은 중간 단계는 발명하지 않는다.
+                  // 함께 옮긴 클래스(이 button 하위 전부, 같은 전환점을 쓰던 항목들):
+                  //   행 박스 min-h-0 · gap-4 · p-5 / 좌측 그룹 gap-3 / 체크박스 h-6 w-6 +
+                  //   체크 아이콘 0.9375rem / 라벨 text-[1.5rem] leading-[1.9375rem] +
+                  //   라벨 표현 전환(shortLabel↔상품명 전문) / '추천' 배지 inline-block /
+                  //   금액 블록 w-auto + leading-[1.9375rem] / 정가 취소선 20px w400 lh28 /
+                  //   금액 한 줄 표현(hidden)↔배지·금액 분리 표현(flex).
+                  // 라벨만 옮기고 금액을 sm 에 두면 같은 행에서 폭을 나눠 쓰는 두 블록의 크기가
+                  // 640~1023 에서 어긋나므로 반드시 한 세트로 움직여야 한다.
+                  // 이 button 밖(서비스명 h2 · 자세히보기/셰브론 · 설명문 · 단일선택 안내 ·
+                  // 컨테이너 패딩 · 요약바)은 접힘과 무관하고 각자 sm 근거가 따로 있어 손대지 않았다.
                   return (
                     <button
                       type="button"
                       key={product.id}
                       onClick={() => toggle(service.key, product.id)}
-                      className={`flex min-h-[4rem] w-full items-center justify-between gap-5 rounded-2xl border p-[0.6875rem] text-left transition sm:min-h-0 sm:gap-4 sm:p-5 ${
+                      className={`flex min-h-[4rem] w-full items-center justify-between gap-5 rounded-2xl border p-[0.6875rem] text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
                         isSelected
                           ? 'border-accent bg-surface-info ring-1 ring-accent/30'
                           : 'border-line bg-white hover:border-ink-sub'
                       }`}
                     >
-                      <span className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <span className="flex min-w-0 items-center gap-2 lg:gap-3">
                         {/* 체크박스는 390 시안 16px(1rem), sm 이상은 기존 24px(1.5rem).
                             390 좌측 그룹 예산 = 행 inner 폭 − 좌↔우 gap 20 − 금액블록 126.
                             전역 컨텐츠 규약(px-5)에서 390 컨테이너 inner = 350 이므로
@@ -264,35 +348,56 @@ export default function Pricing() {
                             아이콘은 테두리를 덮는다. size 속성 대신 클래스로 지정해야 BP 분기가
                             먹는다(lucide 의 size 는 width/height 프리젠테이션 속성이고 CSS 가 이긴다). */}
                         <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition sm:h-6 sm:w-6 ${
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition lg:h-6 lg:w-6 ${
                             isSelected ? 'border-accent bg-accent' : 'border-line bg-white'
                           }`}
                         >
                           {isSelected && (
                             <Check
                               strokeWidth={3.5}
-                              className="h-3 w-3 text-white sm:h-[0.9375rem] sm:w-[0.9375rem]"
+                              className="h-3 w-3 text-white lg:h-[0.9375rem] lg:w-[0.9375rem]"
                             />
                           )}
                         </span>
-                        {/* 390은 대괄호 구간만(shortLabel), sm 이상은 상품명 전문
+                        {/* 1023 이하는 대괄호 구간만(shortLabel), lg 이상은 상품명 전문
                             (1920 시안 1882-10810 / 1280 시안 1882-15190).
                             한국어 상품명이 어절 중간에서 끊기지 않도록 truncate 대신 break-keep.
                             390 타이포는 시안 실측(1882:16307 라벨 TEXT 110×20)대로
                             13px(0.8125rem) / lh 20px(1.25rem) / weight 500 이다. 15px 이면
                             '[12개월 30회 이용권]' 이 110px 을 넘어 2줄로 접혔다.
-                            sm 이상은 기존 15px / bold / 상속 lh(1.5 = leading-normal) 유지. */}
-                        <span className="break-keep text-[0.8125rem] font-medium leading-[1.25rem] text-ink-title sm:text-[0.9375rem] sm:font-bold sm:leading-normal">
-                          <span className="sm:hidden">{shortLabel}</span>
-                          <span className="hidden sm:inline">{product.name}</span>
+                            lg 이상은 시안(1280 = 1882:15190 / 1920 = 3408:4832) 실측
+                            24px w500 lh31 #525252 ls-0.48 다(rem: 24px = 1.5rem / lh31 = 1.9375rem).
+                            전환점이 sm 이 아니라 lg 인 이유는 위 button 주석의 ★ 항목 참고 —
+                            shortLabel↔전문 전환도 라벨 크기와 한 세트라 같이 옮겼다. 전환점만
+                            옮기고 표현을 sm 에 남기면 640~1023 이 '13px + 상품명 전문' 이라는
+                            어느 시안에도 없는 제3의 상태가 된다(390 은 13px+shortLabel,
+                            1280 은 24px+전문). shortLabel 의 근거(서비스명이 바로 위 h2 에 이미
+                            있어 전문은 중복)는 폭에 의존하지 않으므로 1023 까지 그대로 성립한다.
+                            ls 는 양쪽 밴드 모두 -0.02em(390 -0.26/13, 1280·1920 -0.48/24) →
+                            단일 클래스. 390 은 ls 가 붙어 글자폭이 오히려 줄어드므로 확정
+                            예산(라벨 몫 156px, 최장 라벨 112.8px)에 여유가 더 생긴다.
+                            색은 양쪽 시안 모두 #525252 = ink 다(기존 ink-title 은 근거 없음). */}
+                        <span className="break-keep text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:leading-[1.9375rem]">
+                          <span className="lg:hidden">{shortLabel}</span>
+                          <span className="hidden lg:inline">{product.name}</span>
                         </span>
-                        {/* '추천' 배지는 sm 이상 시안에만 있고 390 시안(1882-16307, 1882-16017)
-                            에는 0건이라 모바일에서 숨긴다. 배지 개수는 BP 별로 다르다 —
+                        {/* '추천' 배지는 1280·1920 시안에만 있고 390 시안(1882-16307, 1882-16017)
+                            에는 0건이라 1023 이하에서 숨긴다(노출 전환점도 라벨과 한 세트로
+                            sm → lg 로 옮겼다 — 배지 타이포는 BP 고정 16px 이라 13px 라벨 옆에
+                            남겨 두면 배지가 라벨보다 큰 위계 역전이 생기고, 390 확정 표현에는
+                            애초에 배지가 없다). 배지 개수는 BP 별로 다르다 —
                             1920 은 1882-10810 이 2건, 3408-4832 가 3건이고 1280(1882-15190,
                             1882-15614)은 3건이다. 어느 상품에 붙는지는 시안이 아니라 DB
                             (products.recommended)가 정본이라 개수 차이는 코드에 반영하지 않는다. */}
+                        {/* 배지 타이포는 시안 인벤토리대로 16px w500 #ffffff
+                            (rem: 16px = 1rem). 기존 11px w700 은 시안에 없는 값이다.
+                            base 값은 부모가 hidden lg:inline-block 이라 렌더되지 않는다.
+                            (참고: 시안 텍스트 3408:4945 의 폭 28px 은 CJK 2자 × 14px 에 더
+                            가까워 14px 일 여지가 있으나, 같은 프레임의 텍스트 노드들이
+                            고정 크기로 리사이즈돼 있어 폭/높이로는 판정이 불가하다 →
+                            REST 스타일 실측인 인벤토리 값 16px 을 따른다.) */}
                         {product.recommended && (
-                          <span className="hidden shrink-0 rounded-md bg-accent px-2 py-0.5 text-[0.6875rem] font-bold text-white sm:inline-block">
+                          <span className="hidden shrink-0 rounded-md bg-accent px-2 py-0.5 text-[1rem] font-medium text-white lg:inline-block">
                             추천
                           </span>
                         )}
@@ -304,35 +409,63 @@ export default function Pricing() {
                           폭을 열어두면 금액 텍스트가 라벨 공간을 잠식해 라벨이 접힌다.
                           2행 스택(정가 위 / 할인 아래)은 이미 시안 구조와 같고, 각 행 lh 를
                           20px 으로 두어 블록 높이가 20+20 = 40px = 시안값이 된다.
-                          sm 이상은 기존 w-auto + leading-tight 유지. */}
-                      <span className="flex w-[7.875rem] shrink-0 flex-col items-end leading-[1.25rem] sm:w-auto sm:leading-tight">
+                          lg 이상은 w-auto 로 풀고 lh 만 시안 판매가 값(31px = 1.9375rem)으로
+                          바꾼다 — 기존 leading-tight(1.25배)는 24px 에서 30px 로 시안 31 과
+                          어긋나고, 정가 줄은 아래에서 lh28 로 따로 덮는다. 결과 블록 높이
+                          28 + 31 = 59px 로, 시안 1920 금액 블록(3408:4910 = 67×60,
+                          두 줄 28 + gap 4)과 1px 차다.
+                          전환점이 sm → lg 로 옮겨진 이유는 위 button 주석의 ★ 항목 참고. 126px
+                          고정폭이 1023 까지 유지되지만, 그 구간은 아래 '한 줄' 표현(13px)을 쓰고
+                          최장 문구 '40%할인 180,000원' 이 122.6px 이라 126 예산 안에 들어온다. */}
+                      <span className="flex w-[7.875rem] shrink-0 flex-col items-end leading-[1.25rem] lg:w-auto lg:leading-[1.9375rem]">
+                        {/* 정가 취소선 — 390 12px w500 lh20 #d7d7d7 ls-0.24 /
+                            1920 20px w400 lh28 #d9d9d9 ls-0.4.
+                            #d9d9d9 는 토큰이 없어 가장 가까운 line(#d7d7d7, 차이 2)로 쓴다 —
+                            390 시안이 이미 정확히 #d7d7d7 이라 두 밴드가 한 토큰으로 수렴한다.
+                            390 lh20 은 부모의 leading-[1.25rem] 상속으로 이미 맞다.
+                            rem: 12px = 0.75rem / 20px = 1.25rem / lh28 = 1.75rem.
+                            ls 는 양쪽 -0.02em(-0.24/12, -0.4/20).
+                            기존 12px w400 #808080(ink-sub) 은 취소선인데도 본문 보조색과 같아
+                            '비활성' 위계가 드러나지 않았다. */}
                         {hasDiscount && (
-                          <span className="text-[0.75rem] text-ink-sub line-through">
+                          <span className="text-[0.75rem] font-medium tracking-[-0.02em] text-line line-through lg:text-[1.25rem] lg:font-normal lg:leading-[1.75rem]">
                             {formatKRW(product.listPrice)}
                           </span>
                         )}
-                        {/* 390: 할인 라벨과 금액이 한 줄 단일 텍스트('약 11%할인 80,000원').
-                            sm 이상: 시안(1920 = 1882-10810 / 1280 = 1882-15190)대로 라벨(blue)과
-                            금액을 두 요소로 분리. */}
+                        {/* 1023 이하(390 확정 표현): 할인 라벨과 금액이 한 줄 단일 텍스트
+                            ('약 11%할인 80,000원').
+                            lg 이상: 시안(1920 = 1882-10810 / 1280 = 1882-15190)대로 라벨(blue)과
+                            금액을 두 요소로 분리. 전환점 이동 근거는 위 button 주석 ★ 항목. */}
                         {/* 390 금액 블록 폭이 시안대로 126px 이라 이 한 줄이 126px 안에 들어가야
                             한다. 최장 문구 '40%할인 180,000원' 실측 폭은 15px 에서 141.5px 로
                             126 을 넘어 2줄이 됐다(행 높이 86px). 13px 이면 141.5×13/15 ≈ 122.6px
                             로 1줄이며, 라벨과 같은 13px 이라 390 타이포 단계도 일관된다.
                             14px 은 141.5×14/15 ≈ 132px 로 여전히 초과.
-                            이 span 자체가 sm:hidden(390 전용)이라 sm 값은 아래 sm:flex 블록이
-                            그대로 15px 을 쓴다 — 데스크톱은 무변경. */}
-                        <span className="text-[0.8125rem] font-black text-ink-title sm:hidden">
+                            이 span 자체가 lg:hidden(1023 이하 전용)이고, lg 값은 아래 lg:flex
+                            블록이 따로 정한다. */}
+                        {/* 390 확정 타이포(13px/lh20/w500 #525252 ls-0.26)를 그대로 쓴다.
+                            기존 w900 → w500, ink-title → ink 로만 내렸다. 무게가 줄고 ls 가
+                            음수라 최장 문구('40%할인 180,000원') 폭은 기존 122.6px 보다 더
+                            줄어들어 126px 예산이 깨질 위험이 없다. */}
+                        <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-ink lg:hidden">
                           {compactBadge
                             ? `${compactBadge} ${formatKRW(product.price)}`
                             : formatKRW(product.price)}
                         </span>
-                        <span className="hidden items-center gap-2 sm:flex">
+                        <span className="hidden items-center gap-2 lg:flex">
+                          {/* 할인 배지 — 시안 1920 24px w500 #013262 ls-0.48
+                              (텍스트 3408:4915 '10% 할인' 폭 92px 이 24px 상당으로 교차확인).
+                              색은 primary(#013262) = 시안 강조·할인색이다. 기존 13px w700
+                              accent(#0b84fd)는 크기·무게·색 셋 다 이탈이었다.
+                              lh 는 부모의 lg:leading-[1.9375rem](31px)을 상속한다. */}
                           {product.badge && (
-                            <span className="text-[0.8125rem] font-bold text-accent">
+                            <span className="text-[1.5rem] font-medium tracking-[-0.02em] text-primary">
                               {product.badge}
                             </span>
                           )}
-                          <span className="text-[0.9375rem] font-black text-ink-title">
+                          {/* 판매가 — 시안 1920 24px w500 lh31 #525252 ls-0.48.
+                              기존 15px w900 ink-title 대비 "크고 가볍게"로 되돌린 것이다. */}
+                          <span className="text-[1.5rem] font-medium tracking-[-0.02em] text-ink">
                             {formatKRW(product.price)}
                           </span>
                         </span>
@@ -342,8 +475,16 @@ export default function Pricing() {
                 })}
               </div>
 
+              {/* 단일선택 안내 — 390 12px w500 lh17 #525252(ls 없음) /
+                  1920 18px w500 lh25 #525252 ls-0.36(= -0.02em)
+                  (시안 텍스트 3408:4956 이 1209×25 로 lh25 교차확인).
+                  rem: 12px = 0.75rem / lh17 = 1.0625rem / 18px = 1.125rem / lh25 = 1.5625rem.
+                  ls 는 1920 만 준다 — 390 시안에는 없다.
+                  색은 ink(#525252). 기존 12px w400 ink-sub(#808080) 는 시안보다 흐렸다. */}
               {service.products.length > 1 && (
-                <p className="mt-4 text-[0.75rem] text-ink-sub">{SINGLE_SELECT_NOTICE}</p>
+                <p className="mt-4 text-[0.75rem] font-medium leading-[1.0625rem] text-ink sm:text-[1.125rem] sm:leading-[1.5625rem] sm:tracking-[-0.02em]">
+                  {SINGLE_SELECT_NOTICE}
+                </p>
               )}
             </section>
           ))}
@@ -358,12 +499,16 @@ export default function Pricing() {
           // 배경은 아래 sm+ 고정 바와 같은 토큰을 쓴다.
           //   배경   surface.info(#e9f4ff) — 두 요약 UI가 각자 하드코딩하던 e3eeff의 토큰 대응값
           //   금액강조 primary(#013262), CTA accent(#0B84FD) — 390 시안 실측색과 일치
-          // (sm+ 고정 바의 할인금액은 기존 색 역할을 유지해 accent 다. 통일 여부는 사용자 판단.)
+          // (sm+ 고정 바의 총 할인금액도 1280 시안 실측 #013262 확인 후 primary 로 정정해
+          //  두 요약 UI 의 색 역할이 이제 일치한다 — :587 주석 참고.)
           <div className="bg-surface-info px-5 py-7 sm:hidden">
             <dl className="space-y-2.5 text-[0.875rem]">
               <div className="flex items-baseline justify-between gap-4">
+                {/* 390 요약 밴드(1882:16017)는 스타일 인벤토리에 항목이 없어 크기(14px)는
+                    현행을 유지하고, 시안 규약에서 확실히 벗어난 것만 되돌린다:
+                    값 색 ink-title(#181d24) → ink(#525252, 시안 본문 기본색). */}
                 <dt className="font-medium text-ink-sub">총 판매가</dt>
-                <dd className="font-bold text-ink-title">{formatKRW(listTotal)}</dd>
+                <dd className="font-bold text-ink">{formatKRW(listTotal)}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="font-medium text-ink-sub">총 할인금액</dt>
@@ -378,7 +523,8 @@ export default function Pricing() {
               </div>
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="font-medium text-ink-sub">총 결제금액</dt>
-                <dd className="text-[1rem] font-black text-primary">{formatKRW(totalPrice)}</dd>
+                {/* w900 은 시안 무게 범위(w400~w700) 밖이라 w700 으로 내린다. */}
+                <dd className="text-[1rem] font-bold text-primary">{formatKRW(totalPrice)}</dd>
               </div>
             </dl>
             <button
@@ -395,41 +541,65 @@ export default function Pricing() {
       {/* 하단 플로팅 결제바 — sm 이상 전용(모바일은 위 인플로우 요약 블록이 대체한다). */}
       {selectedItems.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 hidden bg-surface-info shadow-[0_-0.375rem_1.5rem_rgba(13,27,42,0.08)] sm:block">
-          {/* 요약 바 내부 컨테이너는 본문 컨테이너(:120)와 **폭 토큰 `max-w-content` +
+          {/* 요약 바 내부 컨테이너는 본문 컨테이너(:134)와 **폭 토큰 `max-w-content` +
               좌우 패딩 `px-5 sm:px-8`** 이 같아야 한다 — 클래스 문자열 전체가 같은 것은
               아니다(이쪽은 flex/items-center/justify-between/gap-6/py-5 가 더 붙고, 본문은
               pb-16 pt-10 sm:pb-40 을 쓴다). 근거는 위 본문 컨테이너 주석 참고.
               폭만 맞추고 좌우 패딩이 다르면 요약바 텍스트가 플랜 행보다 좌우로 밀려
               들어가므로, 폭 토큰과 좌우 패딩은 반드시 함께 수정해야 한다.
-              base `px-5` 는 부모가 hidden sm:block(:388)이라 렌더되지 않는다 — 실제로
+              base `px-5` 는 부모가 hidden sm:block(:543)이라 렌더되지 않는다 — 실제로
               적용되는 건 sm 쪽 px-8 뿐이다. 그래도 남겨 두는 이유는 본문의 좌우 패딩
               토큰과 문자 단위로 대조할 수 있게 하려는 것이고, sm 미만에서는 부모가
               숨기므로 무해하다. */}
           <div className="mx-auto flex w-full max-w-content items-center justify-between gap-6 px-5 py-5 sm:px-8">
             {/* 부모가 hidden sm:block 이라 base 값은 절대 적용되지 않는다 → 단일 gap-16. */}
             <div className="flex items-center gap-16">
+              {/* 요약바 라벨 — 시안 1920 16px w500 lh22 (텍스트 3408:5176 '총 판매가' 60×22 로
+                  lh22 교차확인) / 1280 시안(1882:15190·1882:15614) 실측도 16px w500 이라 크기·무게가
+                  두 밴드에서 일치한다. rem: 16px = 1rem / lh22 = 1.375rem.
+                  ls 는 시안 인벤토리에 없어 넣지 않는다.
+                  색 — 1280 실측은 라벨·'총 판매가' 값 모두 #36393e 로 팔레트에 토큰이 없다.
+                  최근접 토큰을 실제로 계산해 골랐다(#36393e = rgb(54,57,62)):
+                    · ink #525252 = rgb(82,82,82) → 채널차 (28,25,20), |Δ| 합 73, 유클리드
+                      √(784+625+400) = √1809 ≈ 42.5
+                    · ink-title #181d24 = rgb(24,29,36) → 채널차 (30,28,26), |Δ| 합 84,
+                      유클리드 √(900+784+676) = √2360 ≈ 48.6
+                  두 지표 모두 ink 가 가깝다(42.5 < 48.6) → 라벨·총 판매가 값 둘 다 ink 유지.
+                  새 hex 를 하드코딩하지 않는다(tailwind.config.js 수정 금지).
+                  값 크기·무게 — 1280 시안 실측 24px w500 이다(직전 라운드의 20px w600 은 시안
+                  노드 폭 역산으로 추정한 값이라 폐기했다. 역산 기준값 자체가 틀렸다).
+                  rem: 24px = 1.5rem, 무게 font-medium.
+                  값 lh — 시안 요약바의 라벨/값 프레임 높이 기록이 lh20~3 대로 비정상이라 폭·높이
+                  역산을 쓰지 않는다. 대신 같은 시안이 24px 텍스트에 실제로 쓰는 lh31
+                  (1.9375rem — 이 파일 플랜 라벨·판매가의 sm 값과 동일)을 재사용했다.
+                  비율 31/24 ≈ 1.29 로 leading-tight(1.25)~normal(1.5) 사이이고,
+                  블록 높이 = 라벨 lh22 + mt-1(4) + 값 31 = 57px < 컨테이너 내부 높이
+                  (py-5 = 20+20 을 뺀 나머지)라 라벨과 값이 겹치지 않는다.
+                  결과 바 높이 = 40 + 57 = 97px (CTA 쪽은 py-3.5×2 + lh28 = 56px 로 더 낮다). */}
               <div className="text-center">
-                <p className="text-[0.8125rem] font-medium text-ink-sub">총 판매가</p>
-                <p className="mt-1 text-[1.1875rem] font-black text-ink-title">
+                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">총 판매가</p>
+                <p className="mt-1 text-[1.5rem] font-medium leading-[1.9375rem] text-ink">
                   {formatKRW(listTotal)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-[0.8125rem] font-medium text-ink-sub">총 할인금액</p>
-                {/* 데스크톱 고정 바는 '현행 유지' 범위이므로 색 역할을 바꾸지 않는다 —
-                    기존 blue-600(#2563eb)의 토큰 대응값인 accent(#0B84FD)를 쓴다.
-                    (모바일 밴드는 390 시안 실측색이 네이비라 primary 를 쓴다. 1920/1280 요약바의
-                    시안 실측색은 확인 수단이 없어 통일 여부는 사용자 판단 대기.) */}
-                <p className="mt-1 text-[1.1875rem] font-black text-accent">
+                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">총 할인금액</p>
+                {/* 총 할인금액 값 색 — 1280 시안(1882:15190) 실측 #013262 = primary 다.
+                    직전 라운드의 accent(#0B84FD, 옛 blue-600 승계값)는 실측 근거가 없던 잔존값이라
+                    정정했다. 이제 390 밴드(:520, 390 시안 실측색이 네이비)와 sm+ 가 같은 토큰을
+                    쓴다 — 같은 정보가 폭에 따라 다른 색이던 문제가 해소된다. */}
+                <p className="mt-1 text-[1.5rem] font-medium leading-[1.9375rem] text-primary">
                   {formatKRW(discountTotal)}
                 </p>
               </div>
             </div>
-            {/* CTA 는 모바일 밴드와 동일하게 accent. 그림자 틴트도 accent(#0B84FD) rgb 로 맞춘다. */}
+            {/* CTA 는 모바일 밴드와 동일하게 accent. 그림자 틴트도 accent(#0B84FD) rgb 로 맞춘다.
+                타이포는 시안 1920 실측 20px w500 lh28 #ffffff ls-0.4(= -0.02em).
+                rem: 20px = 1.25rem / lh28 = 1.75rem. 기존 15px w700 대비 "크고 가볍게". */}
             <button
               type="button"
               onClick={goCheckout}
-              className="shrink-0 rounded-lg bg-accent px-8 py-3.5 text-[0.9375rem] font-bold text-white shadow-[0_0.625rem_1.625rem_rgba(11,132,253,0.28)] transition hover:brightness-95"
+              className="shrink-0 rounded-lg bg-accent px-8 py-3.5 text-[1.25rem] font-medium leading-[1.75rem] tracking-[-0.02em] text-white shadow-[0_0.625rem_1.625rem_rgba(11,132,253,0.28)] transition hover:brightness-95"
             >
               {formatKRW(totalPrice)} 결제하기
             </button>

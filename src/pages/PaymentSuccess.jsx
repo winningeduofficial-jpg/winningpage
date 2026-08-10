@@ -6,7 +6,14 @@ import { clearCart } from '../lib/cart';
 import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
 import { COMPANY } from '../data/company';
 
-const ACCENT = '#2563EB';
+// 색은 전부 tailwind 토큰으로 쓴다(하드코딩 hex 없음). 이전 ACCENT = '#2563EB' 는
+// 시안 어느 캔버스에도 없는 값이었다 — 완료 화면 시안을 픽셀 실측하면
+//   390(1882:14145)  체크 아이콘·CTA = #013262 (= primary)
+//   1920(1882:13833) 체크 아이콘·CTA = #191d23 (토큰 없음, 최근접 ink.title #181d24)
+// 로 캔버스끼리 갈린다. 브레이크포인트마다 CTA 색이 바뀌는 편보다 브랜드 네이비로
+// 통일하는 편이 맞다고 판단해 두 폭 모두 primary 를 쓴다 — 390 시안 실측색과 일치하고,
+// 같은 플로우의 로그인 CTA(PrimaryButton = bg-primary)와도 같은 색이 된다.
+// (1920 차콜은 사용자 재확인 대기 항목으로 보고했다.)
 
 // 부여된 program_key → '프로그램 시작하기' 목적지.
 //
@@ -358,22 +365,25 @@ export default function PaymentSuccess() {
       <main className="min-h-screen bg-white pt-16">
         {status === 'confirming' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-            <div
-              className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200"
-              style={{ borderTopColor: ACCENT }}
-            />
-            <p className="mt-5 text-lg font-bold text-[#0D1B2A]">결제 승인 처리 중…</p>
+            {/* 시안에 없는 과도 상태. 색·타입은 시안 규약 안에서 고른다 —
+                트랙 border-line(#d7d7d7), 진행 border-t-primary, 문구는 시안 CTA 단계와
+                같은 16px w600 #525252. */}
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-primary" />
+            <p className="mt-5 text-base font-semibold text-ink">결제 승인 처리 중…</p>
           </div>
         )}
 
         {status === 'error' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-            <h1 className="text-2xl font-black text-red-600">
+            {/* 시안에 없는 실패 상태. 완료 화면의 타입 단계(H1 / CTA 16px)를 그대로 재사용하고
+                색만 error 토큰으로 바꾼다. font-black(w900)은 시안 최대 무게(w700)를 넘으므로
+                제거했다. */}
+            <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-error">
               {errorMsg || '결제 승인에 실패했습니다.'}
             </h1>
             <Link
               to="/pricing"
-              className="mt-8 rounded-xl bg-[#0D1B2A] px-8 py-3.5 text-sm font-black text-white transition hover:bg-[#162A40]"
+              className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
             >
               결제 페이지로 돌아가기
             </Link>
@@ -400,22 +410,39 @@ export default function PaymentSuccess() {
              8px(640) / 7px(700) 비어져 나간 상태였다. 규약 안에서 클램프되는
              편이 낫다는 판단이다. */
           <div className="mx-auto w-full max-w-content px-5 py-12 text-center sm:px-8 sm:py-16">
-            <CheckCircle2 size={64} strokeWidth={2} color={ACCENT} className="mx-auto" />
-            <h1 className="mt-8 text-[2.25rem] font-black tracking-[-0.02em] text-[#0D1B2A]">
+            {/* color prop 대신 className 으로 색을 준다 — lucide 아이콘은 stroke=currentColor
+                이므로 text-primary 가 그대로 선 색이 된다(하드코딩 hex 제거). */}
+            <CheckCircle2 size={64} strokeWidth={2} className="mx-auto text-primary" />
+            {/* H1 시안 실측: 390(1882:14145) 24px w600 lh31 #525252 ls-0.48 /
+                1920(1882:13833) 50px w600 lh70 #525252 ls-1. 두 폭 모두 ls = 크기 × -0.02
+                이라 tracking 단일값. lh 는 31/16 = 1.9375rem, 70/16 = 4.375rem.
+                이전 값(36px w900 #0D1B2A)은 시안보다 작고 무거웠다 — 시안 위계는
+                '크고 가볍게'다. */}
+            <h1 className="mt-8 text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
               주문이 완료됐어요!
             </h1>
 
-            <div className="mx-auto mt-10 w-full max-w-[40.625rem] rounded-2xl border border-slate-200 px-5 py-5 text-left shadow-[0_10px_40px_rgba(13,27,42,0.06)] sm:mt-12 sm:px-8 sm:py-6">
+            {/* 명세 카드 테두리는 시안 픽셀 실측 #d7d7d7 = line 토큰이다(이전 slate-200
+                = #e2e8f0 은 토큰 밖 색). 시안 카드에는 그림자가 없어 하드코딩 rgba
+                그림자도 함께 걷어냈다 — 폭 max-w-[40.625rem]과 radius 는 확정값이라 유지. */}
+            <div className="mx-auto mt-10 w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:mt-12 sm:px-8 sm:py-6">
               <dl>
                 {rows.map((row) => (
                   <div
                     key={row.label}
                     className="flex items-center justify-between gap-3 py-3 sm:gap-6 sm:py-4"
                   >
-                    <dt className="shrink-0 text-[0.875rem] font-bold text-[#111111]">
+                    {/* 명세 행 시안 실측: 라벨·값이 완전히 같은 한 단계다 —
+                        14px w500 lh20 #525252 (1882:13833 에서 이 스타일이 39회 반복,
+                        390 도 동일 크기). 이전 코드는 값만 15px w700 #111111 로 키워
+                        시안에 없는 단계를 만들고 있었다. 그래서 dd 를 dt 와 같은 값으로
+                        내려 시안의 단계 수(H1 / 명세 14px / CTA 16px = 3단계)에 맞춘다.
+                        ls: 1920 시안은 이 크기에 자간을 주지 않으므로(390 만 -0.14)
+                        tracking 을 붙이지 않는다. */}
+                    <dt className="shrink-0 text-[0.875rem] font-medium leading-5 text-ink">
                       {row.label}
                     </dt>
-                    <dd className="break-all text-right text-[0.9375rem] font-bold text-[#111111]">
+                    <dd className="break-all text-right text-[0.875rem] font-medium leading-5 text-ink">
                       {row.value}
                     </dd>
                   </div>
@@ -433,12 +460,19 @@ export default function PaymentSuccess() {
                 '이용 중인 서비스' 목록에 입장 수단이 없어서(src/pages/MyPage.jsx:
                 470-497, openPaidServiceOrAlert 호출 0건) 지킬 수 없는 약속이다.
                 마이페이지에 입장 버튼이 들어가면 그때 되살릴 문구다. */}
+            {/* 이 안내 박스는 시안에 없는 블록이다(시안 완료 화면은 H1·명세·CTA 3요소뿐).
+                그래서 새 타입 단계를 만들지 않고 시안의 명세 단계(14px #525252)에 얹어
+                무게·색으로만 위계를 만든다 — 라벨 w600 / 본문 w500 / 문의 w500 ink.sub.
+                기본 배경은 시안 토큰 surface.info(#e9f4ff, '안내 박스' 용도)로 바꿨다
+                (이전 blue-50/blue-100 은 토큰 밖 색). 실패 분기의 amber 는 error(빨강)로
+                올리면 '등록 지연'을 결제 실패로 오인시키므로 경고 톤을 유지한다 —
+                경고용 토큰이 없어 tailwind 기본 팔레트를 그대로 남겼다(잔여 항목). */}
             <div
               className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-8 ${
-                grantFailed ? 'border-amber-200 bg-amber-50/60' : 'border-blue-100 bg-blue-50/50'
+                grantFailed ? 'border-amber-200 bg-amber-50/60' : 'border-line bg-surface-info'
               }`}
             >
-              <p className="text-[0.875rem] font-black text-[#0D1B2A]">
+              <p className="text-[0.875rem] font-semibold leading-5 text-ink">
                 {isWaitingDeposit
                   ? '입금 안내'
                   : needsLogin
@@ -451,7 +485,10 @@ export default function PaymentSuccess() {
               </p>
               {/* 문구는 각 상태에서 "검증 가능한 사실"만 남긴 초안이다 — 최종 문안은
                   사용자 승인 대기(입장 앱 없는 상품 안내 / 비회원 결제 안내 2건). */}
-              <p className="mt-2 break-keep text-[0.8125rem] leading-relaxed text-slate-600">
+              {/* 크기·무게·색은 시안 명세 단계(14px w500 #525252)와 같게 두고, lh 만
+                  leading-relaxed 를 유지한다 — 시안의 lh20(1.43)은 한 줄짜리 명세 행 기준
+                  값이라 3~4줄 문단에 그대로 쓰면 답답해진다. */}
+              <p className="mt-2 break-keep text-[0.875rem] font-medium leading-relaxed text-ink">
                 {isWaitingDeposit
                   ? '위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다.'
                   : needsLogin
@@ -468,7 +505,9 @@ export default function PaymentSuccess() {
                             ? '결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요.'
                             : '결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요.'}
               </p>
-              <p className="mt-3 text-[0.78125rem] font-bold text-slate-500">
+              {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
+                  ink.sub(#808080)로 표현한다(무게는 본문과 같은 w500). */}
+              <p className="mt-3 text-[0.875rem] font-medium leading-5 text-ink-sub">
                 문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의{' '}
                 {COMPANY.centerTel}
               </p>
@@ -495,8 +534,7 @@ export default function PaymentSuccess() {
                       key={item.serviceKey}
                       type="button"
                       onClick={(event) => handleStart(event, item)}
-                      className="w-full rounded-xl py-4 text-[0.9375rem] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95 sm:w-auto sm:px-16"
-                      style={{ backgroundColor: ACCENT }}
+                      className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                     >
                       {entries.length > 1 ? `${item.label} 시작하기` : '프로그램 시작하기'}
                     </button>
@@ -505,24 +543,21 @@ export default function PaymentSuccess() {
               ) : needsLogin ? (
                 <Link
                   to="/login"
-                  className="block w-full rounded-xl py-4 text-center text-[0.9375rem] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95 sm:mx-auto sm:w-auto sm:px-16"
-                  style={{ backgroundColor: ACCENT }}
+                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                 >
                   로그인하고 이용하기
                 </Link>
               ) : needsSignup ? (
                 <Link
                   to="/signup"
-                  className="block w-full rounded-xl py-4 text-center text-[0.9375rem] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95 sm:mx-auto sm:w-auto sm:px-16"
-                  style={{ backgroundColor: ACCENT }}
+                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                 >
                   회원가입하고 이용 등록하기
                 </Link>
               ) : grantPermanent ? (
                 <a
                   href={`tel:${COMPANY.centerTel}`}
-                  className="block w-full rounded-xl py-4 text-center text-[0.9375rem] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95 sm:mx-auto sm:w-auto sm:px-16"
-                  style={{ backgroundColor: ACCENT }}
+                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                 >
                   센터로 문의하기
                 </a>
@@ -530,8 +565,7 @@ export default function PaymentSuccess() {
                 <button
                   type="button"
                   onClick={() => navigate(FALLBACK_PATH)}
-                  className="w-full rounded-xl py-4 text-[0.9375rem] font-black text-white shadow-[0_12px_30px_rgba(53,56,238,0.28)] transition hover:brightness-95 sm:w-auto sm:px-16"
-                  style={{ backgroundColor: ACCENT }}
+                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                 >
                   마이페이지에서 확인하기
                 </button>
