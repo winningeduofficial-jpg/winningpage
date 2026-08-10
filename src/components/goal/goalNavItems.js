@@ -10,9 +10,9 @@ export const GOAL_NAV_GROUPS = [
   {
     group: '홈',
     items: [
-      { label: '대시보드', to: '/goal' },
-      { label: '내 목표 대학', to: '/goal/target-university' },
-      { label: '열공 타이머', to: '/goal/timer', getBadge: (d) => (d?.timerRunning ? '진행중' : null) }
+      { label: '대시보드', to: '/app/goal' },
+      { label: '내 목표 대학', to: '/app/goal/target-university' },
+      { label: '열공 타이머', to: '/app/goal/timer', getBadge: (d) => (d?.timerRunning ? '진행중' : null) }
     ]
   },
   {
@@ -20,19 +20,19 @@ export const GOAL_NAV_GROUPS = [
     items: [
       {
         label: '오늘의 공부 기록',
-        to: '/goal/daily-record',
+        to: '/app/goal/daily-record',
         getBadge: (d) => (d?.dailyRecordDone ? null : '미기록')
       },
-      { label: '주간 학습 계획표', to: '/goal/weekly-plan' },
-      { label: '나의 노력', to: '/goal/efforts' }
+      { label: '주간 학습 계획표', to: '/app/goal/weekly-plan' },
+      { label: '나의 노력', to: '/app/goal/efforts' }
     ]
   },
   {
     group: '분석',
     items: [
-      { label: '성장 리포트', to: '/goal/reports/growth' },
-      { label: '성적 관리', to: '/goal/grades' },
-      { label: '학습방향 리포트', to: '/goal/reports/direction' }
+      { label: '성장 리포트', to: '/app/goal/reports/growth' },
+      { label: '성적 관리', to: '/app/goal/grades' },
+      { label: '학습방향 리포트', to: '/app/goal/reports/direction' }
     ]
   },
   {
@@ -40,7 +40,7 @@ export const GOAL_NAV_GROUPS = [
     items: [
       {
         label: '중요일정',
-        to: '/goal/schedules',
+        to: '/app/goal/schedules',
         getBadge: (d) => (d?.scheduleCount ? String(d.scheduleCount) : null)
       }
     ]
@@ -48,4 +48,4 @@ export const GOAL_NAV_GROUPS = [
 ];
 
 // 사이드바 하단 유틸 링크(그룹 밖, 활성 하이라이트 대상 아님).
-export const GOAL_NAV_FOOTER = { label: '내 정보 수정', to: '/goal/profile' };
+export const GOAL_NAV_FOOTER = { label: '내 정보 수정', to: '/app/goal/profile' };

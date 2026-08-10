@@ -41,7 +41,7 @@ export default function GoalSidebar() {
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
-                      end={item.to === '/goal'}
+                      end={item.to === '/app/goal'}
                       className={({ isActive }) =>
                         [
                           'mx-[0.625rem] flex h-[2.25rem] items-center justify-between rounded-lg pl-[3.125rem] pr-4 text-[0.875rem] leading-[1.4] transition-colors',

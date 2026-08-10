@@ -15,7 +15,7 @@ export default function TimerSummaryBar({ totalSeconds }) {
         </span>
       </div>
       <Link
-        to="/goal/daily-record"
+        to="/app/goal/daily-record"
         className="flex h-[2.4375rem] shrink-0 items-center justify-center rounded-full bg-ink-strong px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white"
       >
         전체 종료 후 기록

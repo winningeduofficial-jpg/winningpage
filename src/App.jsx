@@ -40,7 +40,8 @@ import { SignupProvider } from './context/SignupContext';
 
 // 목표관리 학생 앱(goal-app-shell) — 사이드바 셸 + 서브페이지 10종. docs/figma-goal/00-INDEX.md
 // §5-1 기준 마케팅 헤더/푸터를 쓰지 않는 별개 앱 셸이라 `/mypage`·`/admin`과 같은 방식으로
-// SiteLayout 밖에 라우트 그룹으로 둔다. `/services/goal`(마케팅 상세)과는 별개 라우트.
+// SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
+// 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
 import GoalAppLayout from './components/goal/GoalAppLayout';
 import GoalDashboard from './pages/goal/Dashboard';
 import GoalTargetUniversity from './pages/goal/TargetUniversity';
@@ -243,17 +244,17 @@ export default function App() {
         {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 결제 게이트·온보딩 완료 가드는
             아직 미확정이라 이번 단계에서는 적용하지 않는다(GoalAppLayout.jsx 상단 TODO 참고). */}
         <Route element={<GoalAppLayout />}>
-          <Route path="/goal" element={<GoalDashboard />} />
-          <Route path="/goal/target-university" element={<GoalTargetUniversity />} />
-          <Route path="/goal/timer" element={<GoalTimer />} />
-          <Route path="/goal/daily-record" element={<GoalDailyRecord />} />
-          <Route path="/goal/weekly-plan" element={<GoalWeeklyPlan />} />
-          <Route path="/goal/efforts" element={<GoalEfforts />} />
-          <Route path="/goal/reports/growth" element={<GoalGrowthReport />} />
-          <Route path="/goal/grades" element={<GoalGrades />} />
-          <Route path="/goal/reports/direction" element={<GoalDirectionReport />} />
-          <Route path="/goal/schedules" element={<GoalSchedules />} />
-          <Route path="/goal/profile" element={<GoalProfile />} />
+          <Route path="/app/goal" element={<GoalDashboard />} />
+          <Route path="/app/goal/target-university" element={<GoalTargetUniversity />} />
+          <Route path="/app/goal/timer" element={<GoalTimer />} />
+          <Route path="/app/goal/daily-record" element={<GoalDailyRecord />} />
+          <Route path="/app/goal/weekly-plan" element={<GoalWeeklyPlan />} />
+          <Route path="/app/goal/efforts" element={<GoalEfforts />} />
+          <Route path="/app/goal/reports/growth" element={<GoalGrowthReport />} />
+          <Route path="/app/goal/grades" element={<GoalGrades />} />
+          <Route path="/app/goal/reports/direction" element={<GoalDirectionReport />} />
+          <Route path="/app/goal/schedules" element={<GoalSchedules />} />
+          <Route path="/app/goal/profile" element={<GoalProfile />} />
         </Route>
         <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
