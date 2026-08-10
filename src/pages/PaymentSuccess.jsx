@@ -381,10 +381,25 @@ export default function PaymentSuccess() {
         )}
 
         {status === 'done' && (
-          /* 시안 확정 실측: 완료 카드 폭 650px 고정(=40.625rem, 1920·1280·390 동일).
-             바깥 컨테이너는 폭을 잡지 않고 좌우 패딩만 줘서, 390(콘텐츠 310px)에서
-             카드가 패딩 안쪽으로 줄어들며 가로 스크롤이 생기지 않게 한다. */
-          <div className="px-5 py-12 text-center sm:px-6 sm:py-16">
+          /* 시안 확정 실측: 완료 카드 폭 650px 고정(=40.625rem, 1920·1280 동일).
+             카드의 max-w-[40.625rem] 은 시안 확정값이라 건드리지 않고, 바깥
+             컨테이너를 전역 컨텐츠 영역 규약 `mx-auto w-full max-w-content px-5
+             sm:px-8` 로 통일한다(Pricing.jsx:100-119 주석의 근거 참고. 세로
+             패딩만 이 화면 고유값으로 남긴다).
+             폭별 규약 inner = sm 이상 min(layout − 64, 1100) / sm 미만 layout − 40:
+             390 → 350, 768 → 704, 1280·1920 → 1100. 카드는 inner 와 650 중
+             작은 쪽이 되므로 layout 714(= 650 + 64) 이상에서 650 으로 고정되고,
+             그 아래에서는 규약 inner 안쪽으로 줄어들어 가로 스크롤이 없다.
+             sm 게이터를 px-6(24) 에서 규약값 px-8(32) 로 올렸다. 그 결과
+             layout 640~713 밴드에서만 카드가 좁아진다 — 이전 카드 = min(layout −
+             48, 650), 지금 = min(layout − 64, 650) 이므로 차이는 640~698 에서
+             16px(640: 592 → 576 / 698: 650 → 634), 700 에서 14px(650 → 636),
+             713 에서 1px(650 → 649), 714 부터 0 이다(실측 확인).
+             의도된 변경이다 — 이 밴드는 시안이 없는 파생 구간이고(시안 캔버스는
+             390/1280/1920), 이전 값은 카드가 규약 콘텐츠 밴드 밖으로 좌우 각
+             8px(640) / 7px(700) 비어져 나간 상태였다. 규약 안에서 클램프되는
+             편이 낫다는 판단이다. */
+          <div className="mx-auto w-full max-w-content px-5 py-12 text-center sm:px-8 sm:py-16">
             <CheckCircle2 size={64} strokeWidth={2} color={ACCENT} className="mx-auto" />
             <h1 className="mt-8 text-[2.25rem] font-black tracking-[-0.02em] text-[#0D1B2A]">
               주문이 완료됐어요!
@@ -419,7 +434,7 @@ export default function PaymentSuccess() {
                 470-497, openPaidServiceOrAlert 호출 0건) 지킬 수 없는 약속이다.
                 마이페이지에 입장 버튼이 들어가면 그때 되살릴 문구다. */}
             <div
-              className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-6 ${
+              className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-8 ${
                 grantFailed ? 'border-amber-200 bg-amber-50/60' : 'border-blue-100 bg-blue-50/50'
               }`}
             >

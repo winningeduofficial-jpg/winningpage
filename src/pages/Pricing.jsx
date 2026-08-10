@@ -18,7 +18,7 @@ import { saveCart } from '../lib/cart';
 // 여부는 결정 대기 항목 — 라우트가 생기면 여기 한 줄 추가로 복구된다).
 // diagnose(학습진단)는 여기 없는 것이 정상이다 — 누락이 아니라 사용자 확정 정책이다.
 // 재료는 둘 다 실재한다: 라우트 /learning-diagnosis(src/App.jsx) 도 있고, dev DB 실측
-// 활성 service_key 에도 diagnose 가 1건 있다(sql/52_pricing_susi_restore.sql:11 기록
+// 활성 service_key 에도 diagnose 가 1건 있다(sql/53_pricing_susi_restore.sql:45 기록
 // = goal 4 / mentor 1 / suhaeng 5 / diagnose 1, service_sort_order 99).
 // 그럼에도 요금 페이지에서는 학습진단 상세로 "링크하지 않는다" — 학습진단은 무료라
 // 결제 플로우에서 빼기로 사용자가 확정했다. 따라서 '링크 대상이 있는데 빠졌다' 는
@@ -89,8 +89,8 @@ export default function Pricing() {
   return (
     <>
       <main className="min-h-screen bg-white pt-16">
-        {/* 타이틀. 좌우 패딩은 아래 콘텐츠 컨테이너와 같은 리듬(390 2.5rem / sm 이상 1.5rem). */}
-        <section className="px-10 pb-4 pt-16 text-center sm:px-6">
+        {/* 타이틀. 좌우 패딩은 아래 콘텐츠 컨테이너와 같은 리듬(390 1.25rem / sm 이상 2rem). */}
+        <section className="px-5 pb-4 pt-16 text-center sm:px-8">
           <p className="text-sm font-black text-accent">나에게 맞는 서비스를 선택해주세요</p>
           <h1 className="mt-3 text-3xl font-black tracking-[-0.02em] text-ink-title sm:text-[2.5rem]">
             결제할 서비스를 선택해주세요
@@ -98,32 +98,26 @@ export default function Pricing() {
         </section>
 
         {/* 서비스 섹션들.
-            콘텐츠 폭은 시안 실측을 rem으로 환산한다. max-w 는 Tailwind 기본
-            box-sizing:border-box 기준이라 좌우 패딩을 포함한 outer 값이다 — 그래서 시안
-            '콘텐츠(inner)' 폭에 sm 이상 좌우 패딩 px-6(24px×2 = 48px)을 더해 잡는다.
-              1280 프레임 inner 1040px + 48 = 1088px ÷16 = 68rem
-              1920 프레임 inner 1596px + 48 = 1644px ÷16 = 102.75rem
-            (시안 inner 값을 max-w 에 그대로 넣으면 실제 inner 가 992/1548px 로 48px 부족해진다.)
-            상한을 base→desktop 2단으로만 끊으면 1088~1440 구간 내내 inner 가 1040 에 고정돼
-            1439px 에서 좌우 여백이 (1439−1088)/2 + 24 ≈ 200px 까지 벌어지고(1920 시안의 162px
-            보다도 넓다 = 뷰포트가 커질수록 여백이 좁아지는 역전), 1440px 에서 상한이 1644px 로
-            바뀌는 순간 inner 1040 → 1392px, 여백 200 → 24px 로 급점프한다.
-            시안에 1280~1920 중간 프레임이 없으므로 중간 BP 값을 발명하는 대신, 두 시안 프레임을
-            동시에 정확히 만족하는 단일 유동식으로 둔다:
-              max-w = min(102.75rem, max(68rem, 100vw − 12rem))
-              · 12rem(192px) = 1280 프레임 좌우 여백 120×2(240px) − 좌우 패딩 48px
-              · 1280px → max(1088, 1280−192=1088) = 1088 → inner 1040, 여백 120 (시안 일치)
-              · 1920px → min(1644, 1920−192=1728) = 1644 → inner 1596,
-                여백 (1920−1644)/2 + 24 = 162 (시안 일치)
-              · 그 사이(예: 1366px) → 1174 → inner 1126, 여백 120 으로 연속. 하한/유동 교차점이
-                정확히 1280px 이라 점프가 없고 inner·여백이 모두 단조 증가한다.
-              · 하한 68rem 덕분에 1088px 미만(모바일 포함)에서는 100vw 항이 지배하지 못한다.
-            390 프레임은 콘텐츠 310px = 뷰포트 390 − 좌우 40px이라 상한(max-w)이 아니라 좌우
-            패딩으로 잡는다 — 상한을 걸면 390보다 넓은 모바일에서 콘텐츠가 310px에 묶여 여백만
-            늘어난다. px-10 = 2.5rem = 40px, sm 이상은 기존 px-6 유지.
+            컨테이너는 프로젝트 공통 관용구 `mx-auto w-full max-w-content px-5 sm:px-8` 를 쓴다
+            (정의: components/landing/NewsSection.jsx:13 주석, tailwind.config.js:6-11).
+            max-w-content = 72.75rem = outer 1164px 이고 sm 이상에서 px-8(32×2 = 64px)이 붙어
+            실제 콘텐츠 폭은 1164 − 64 = 1100px 이다. Header.jsx:683(좌표계 2 = nav·메가 컬럼)
+            과 SiteFooter.jsx:64(lg+ 브랜치)가 같은 토큰 + px-8 이라 본문 좌단이 그 둘과 정확히
+            일치한다 — 이게 이 규약을 쓰는 이유다. 실측(layout/본문 콘텐츠 좌단 = 헤더 nav 좌단
+            = 푸터 lg 좌단): 1920 → 410, 1440 → 170, 1280 → 90(nav 는 desktop 미만이라 숨지만
+            푸터와 90 일치), 768 → 32, 390 → 20.
+            단 헤더 '로고'는 좌표계 1(max-w-[120rem] px-8 / 2xl:px-[7.5rem]) 위에 있어 이 규약과
+            정렬 대상이 아니다 — 로고 좌단은 1920 에서 120, 1440·1280 에서 32 다(Header.jsx:22-28
+            의 두 좌표계 주석 참고). 푸터 모바일 브랜치(SiteFooter.jsx:31)는 px-6 라 390 에서
+            좌단 24 로 우리 20 과 4px 다르지만, 이는 랜딩 섹션(px-5 sm:px-8)들도 동일한
+            전역 기존 거동이라 이 페이지에서 손대지 않는다.
+            시안 1920 프레임의 콘텐츠 1596px 은 채택하지 않는다
+            (사용자 확정: 결제 화면도 전역 컨텐츠 영역 규약을 따른다).
+            폭별 inner = min(뷰포트 − 64, 1100): 1920/1440/1280 → 1100, 768 → 704.
+            sm 미만은 상한(1164)에 걸리지 않으므로 px-5(20×2 = 40px)가 폭을 정한다 → 390 → 350.
             하단 여백: sm 이상은 고정 결제바(높이 약 5.5rem)를 피하려고 pb-40을 유지하고,
             모바일은 요약 블록이 문서 흐름에 들어오므로 pb-16으로 줄인다. */}
-        <div className="mx-auto max-w-[min(102.75rem,max(68rem,100vw_-_12rem))] px-10 pb-16 pt-10 sm:px-6 sm:pb-40">
+        <div className="mx-auto w-full max-w-content px-5 pb-16 pt-10 sm:px-8 sm:pb-40">
           {loading && (
             <div className="rounded-2xl border border-line bg-white p-10 text-center text-sm font-bold text-ink-sub">
               요금 정보를 불러오는 중입니다.
@@ -160,7 +154,7 @@ export default function Pricing() {
 
                     히트영역: 링크 박스 자체는 시안대로 두고(글자·아이콘 크기 = 시안값)
                     ::after 오버레이로만 44×44 을 확보한다 — 레이아웃에 참여하지 않으므로
-                    검증 통과값(390 inner 310 / 플랜 행 64px / 1920 inner 1596)에 영향이 없다.
+                    검증 통과값(390 inner 350 / 플랜 행 64px / 1920 inner 1100)에 영향이 없다.
                     패딩+음수마진 방식은 금지: h2 와의 시안 gap 8px(gap-2)을 음수마진이
                     잠식해 8 − 11 = −3px, 즉 제목과 3px 겹친다.
                     실측 링크 박스 — sm 이상 22×22(셰브론), 390 56.18×19.5(문구).
@@ -225,15 +219,24 @@ export default function Pricing() {
                   const compactBadge = product.badge
                     ? product.badge.replace(/%\s+할인/, '%할인')
                     : '';
-                  // 플랜 행 390 시안 실측(1882:16307 의 행 outer Frame 1597883375 = 310×64,
-                  // padding 12 전방향 / inner Frame 1597883431 = 280×40, gap 20):
+                  // 플랜 행 390 시안 실측(1882:16307 metadata 재확인 — 행 outer
+                  // Frame 1597883375(1882:16346) = 310×64 / inner Frame 1597883431(1882:16347)
+                  // = 280×40 at x=15,y=12, gap 20):
+                  // → 시안 패딩은 전방향 균일이 아니다. 좌우 15(310 − 280 = 30 = 15×2),
+                  //   상하 12(12 + 40 + 12 = 64). 아래 높이 유도는 상하 12 만 쓴다.
+                  // → outer 310 은 시안값이고 현행 렌더 폭이 아니다. 전역 컨텐츠 규약
+                  //   (mx-auto max-w-content px-5)으로 390 의 행 outer 는 350 이다(실측).
+                  //   310 을 목표값으로 되돌리지 말 것.
                   // 시안 행 높이 64 = 12 + 내용 40 + 12 이지만, Figma 의 stroke 는 레이아웃을
                   // 먹지 않고 패딩 안쪽에 겹쳐 그려진다. CSS 는 border 가 폭·높이를 차지하므로
                   // (auto 높이 = border 2 + 패딩 + 내용) 패딩을 12 로 두면 64 가 아니라 66 이 된다.
-                  // 그래서 프레임 가장자리~내용 거리를 시안과 같은 12px 로 맞추되 그 12 를
+                  // 그래서 가장자리~내용 거리를 시안 상하값과 같은 12px 로 맞추되 그 12 를
                   // border 1 + 패딩 11(0.6875rem) 로 쪼갠다 → 1+11+40+11+1 = 64 ✓.
                   // 1행짜리 행(내용 20px)은 1+11+20+11+1 = 44 라 min-h-[4rem](64px, border-box)
                   // 가 하한으로 받쳐 64 가 된다. sm 이상은 기존 20px 패딩 유지(sm:p-5).
+                  // p-* 는 4방향이라 좌우도 12 가 된다(시안 좌우 15 와 3px 차). 행 outer 가
+                  // 310 → 350 으로 넓어져 좌우 여백은 시안보다 오히려 넉넉하고, 높이 64 를
+                  // 정확히 맞추는 쪽을 택한 결과다 — 좌우만 15 로 떼어낼 이유가 없다.
                   return (
                     <button
                       type="button"
@@ -248,13 +251,15 @@ export default function Pricing() {
                       <span className="flex min-w-0 items-center gap-2 sm:gap-3">
                         {/* 체크박스는 390 시안 16px(1rem), sm 이상은 기존 24px(1.5rem).
                             390 좌측 그룹 예산 = 행 inner 폭 − 좌↔우 gap 20 − 금액블록 126.
-                            행 inner = 310 − border 1×2(2) − 패딩 11×2(22) = 286
+                            전역 컨텐츠 규약(px-5)에서 390 컨테이너 inner = 350 이므로
+                            행 inner = 350 − border 1×2(2) − 패딩 11×2(22) = 326
                             (border 를 빼는 이유: src/index.css:5 의 * { box-sizing: border-box }
-                             때문에 행의 310px 안에 테두리 2px 이 포함된다.)
-                            → 좌측 그룹 286 − 20 − 126 = 140px, 라벨 몫은 140 − 체크 16 − gap 8
-                            = 116px 로 시안 라벨 110px 을 덮는다(실측 최장 '[12개월 30회 이용권]'
-                            = 112.8px). 체크박스 24px 이면 8px 을 더 먹어 라벨이 108px 로 모자라니
-                            390 은 16px 이어야 한다.
+                             때문에 행의 350px 안에 테두리 2px 이 포함된다.)
+                            → 좌측 그룹 326 − 20 − 126 = 180px, 라벨 몫은 180 − 체크 16 − gap 8
+                            = 156px 로 실측 최장 '[12개월 30회 이용권]' 112.8px 을 넉넉히 덮는다.
+                            (과거 px-10 시절 inner 310 에서는 라벨 몫이 116px 뿐이라 체크박스를
+                             16px 로 줄이는 것이 폭 제약이기도 했다. 규약 전환으로 그 제약은
+                             사라졌고, 16px 은 이제 순수하게 390 시안 실측 근거로만 남는다.)
                             체크 아이콘도 박스에 맞춰 12px(h-3)로 줄인다 — 16px 박스에 15px
                             아이콘은 테두리를 덮는다. size 속성 대신 클래스로 지정해야 BP 분기가
                             먹는다(lucide 의 size 는 width/height 프리젠테이션 속성이고 CSS 가 이긴다). */}
@@ -294,8 +299,9 @@ export default function Pricing() {
                       </span>
 
                       {/* 금액 블록: 390 시안 실측(Frame 1597883433 = 126×40)대로 폭을 126px
-                          (7.875rem)로 고정 + shrink-0 → 남는 좌측 140px 를 라벨 그룹이 온전히
-                          받는다. 폭을 열어두면 금액 텍스트가 라벨 공간을 잠식해 라벨이 접힌다.
+                          (7.875rem)로 고정 + shrink-0 → 남는 좌측(전역 규약 inner 350 기준
+                          180px, 위 체크박스 주석의 산식)을 라벨 그룹이 온전히 받는다.
+                          폭을 열어두면 금액 텍스트가 라벨 공간을 잠식해 라벨이 접힌다.
                           2행 스택(정가 위 / 할인 아래)은 이미 시안 구조와 같고, 각 행 lh 를
                           20px 으로 두어 블록 높이가 20+20 = 40px = 시안값이 된다.
                           sm 이상은 기존 w-auto + leading-tight 유지. */}
@@ -346,14 +352,14 @@ export default function Pricing() {
         {/* 모바일 결제 요약 (시안 1882-16017) — 390 시안은 하단 고정 바가 아니라 마지막 서비스
             섹션 아래에 붙는 문서 흐름 밴드다. 3행(총 판매가/총 할인금액/총 결제금액) + 풀폭 CTA.
             뷰포트 좌우를 꽉 채우는 밴드라 콘텐츠 컨테이너 밖(main 직속)에 둔다.
-            내부 좌우 패딩은 위 콘텐츠 컨테이너와 같은 px-10(2.5rem)으로 맞춰 390에서 행이
-            콘텐츠 컬럼과 정렬되게 한다. */}
+            내부 좌우 패딩은 위 콘텐츠 컨테이너의 모바일 패딩과 같은 px-5(1.25rem)로 맞춰
+            390에서 행이 콘텐츠 컬럼과 정렬되게 한다(sm 이상은 hidden 이라 base 값만 쓰인다). */}
         {selectedItems.length > 0 && (
           // 배경은 아래 sm+ 고정 바와 같은 토큰을 쓴다.
           //   배경   surface.info(#e9f4ff) — 두 요약 UI가 각자 하드코딩하던 e3eeff의 토큰 대응값
           //   금액강조 primary(#013262), CTA accent(#0B84FD) — 390 시안 실측색과 일치
           // (sm+ 고정 바의 할인금액은 기존 색 역할을 유지해 accent 다. 통일 여부는 사용자 판단.)
-          <div className="bg-surface-info px-10 py-7 sm:hidden">
+          <div className="bg-surface-info px-5 py-7 sm:hidden">
             <dl className="space-y-2.5 text-[0.875rem]">
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="font-medium text-ink-sub">총 판매가</dt>
@@ -389,11 +395,17 @@ export default function Pricing() {
       {/* 하단 플로팅 결제바 — sm 이상 전용(모바일은 위 인플로우 요약 블록이 대체한다). */}
       {selectedItems.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 hidden bg-surface-info shadow-[0_-0.375rem_1.5rem_rgba(13,27,42,0.08)] sm:block">
-          {/* 요약 바 내부 폭·좌우 패딩을 본문 컨테이너와 완전히 동일하게 맞춘다(위 컨테이너의
-              max-w 유동식 산정 근거 주석 참고) — 과거 1100px 고정이라 본문(852px)보다 넓었고,
-              폭만 맞추고 패딩이 px-8 로 남으면 요약바 텍스트가 플랜 행보다 좌우 8px 안쪽으로
-              들어간다. 두 값은 반드시 함께 수정해야 한다. */}
-          <div className="mx-auto flex max-w-[min(102.75rem,max(68rem,100vw_-_12rem))] items-center justify-between gap-6 px-6 py-5">
+          {/* 요약 바 내부 컨테이너는 본문 컨테이너(:120)와 **폭 토큰 `max-w-content` +
+              좌우 패딩 `px-5 sm:px-8`** 이 같아야 한다 — 클래스 문자열 전체가 같은 것은
+              아니다(이쪽은 flex/items-center/justify-between/gap-6/py-5 가 더 붙고, 본문은
+              pb-16 pt-10 sm:pb-40 을 쓴다). 근거는 위 본문 컨테이너 주석 참고.
+              폭만 맞추고 좌우 패딩이 다르면 요약바 텍스트가 플랜 행보다 좌우로 밀려
+              들어가므로, 폭 토큰과 좌우 패딩은 반드시 함께 수정해야 한다.
+              base `px-5` 는 부모가 hidden sm:block(:388)이라 렌더되지 않는다 — 실제로
+              적용되는 건 sm 쪽 px-8 뿐이다. 그래도 남겨 두는 이유는 본문의 좌우 패딩
+              토큰과 문자 단위로 대조할 수 있게 하려는 것이고, sm 미만에서는 부모가
+              숨기므로 무해하다. */}
+          <div className="mx-auto flex w-full max-w-content items-center justify-between gap-6 px-5 py-5 sm:px-8">
             {/* 부모가 hidden sm:block 이라 base 값은 절대 적용되지 않는다 → 단일 gap-16. */}
             <div className="flex items-center gap-16">
               <div className="text-center">
