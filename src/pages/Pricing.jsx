@@ -156,12 +156,33 @@ export default function Pricing() {
                     (390 은 4건 / 10810·15190·15614 는 모두 0건).
                     그래서 두 표현을 하나의 Link 안에 담아(문구 sm:hidden / 셰브론 hidden sm:block)
                     BP 무관하게 실제로 클릭 가능한 요소가 되게 한다. 기존에는 sm 이상에서
-                    셰브론이 클릭 불가 장식으로 남아 있었다. */}
+                    셰브론이 클릭 불가 장식으로 남아 있었다.
+
+                    히트영역: 링크 박스 자체는 시안대로 두고(글자·아이콘 크기 = 시안값)
+                    ::after 오버레이로만 44×44 을 확보한다 — 레이아웃에 참여하지 않으므로
+                    검증 통과값(390 inner 310 / 플랜 행 64px / 1920 inner 1596)에 영향이 없다.
+                    패딩+음수마진 방식은 금지: h2 와의 시안 gap 8px(gap-2)을 음수마진이
+                    잠식해 8 − 11 = −3px, 즉 제목과 3px 겹친다.
+                    실측 링크 박스 — sm 이상 22×22(셰브론), 390 56.18×19.5(문구).
+                      · 세로: top-1/2 + h-11 + -translate-y-1/2 → 앵커 높이와 무관하게 두
+                        밴드 모두 44px. 아래로 넘치는 양 = (44 − 앵커높이)/2 = sm 11px /
+                        390 12.25px 이고, 앵커 하단~설명 문단(<p>) 상단 실측 여유가
+                        sm 13px / 390 14.25px 이라 설명 문단의 클릭을 훔치지 않는다
+                        (여유 = 행 32px 안에서 앵커 아래 남는 슬랙 + mb-2 8px).
+                        위로 넘치는 만큼은 섹션 mb-16(64px, 첫 섹션은 컨테이너 pt-10 40px)
+                        의 빈 여백이라 겹칠 대상이 없다.
+                      · 가로: 390 은 앵커가 이미 56.18px(≥44)이라 w-full 로 충분.
+                        sm 이상은 22px 뿐이라 확장이 필요한데 좌측 여유는 h2 와의 gap 8px
+                        까지다 → -left-2(−8) + w-11(44) 로 좌 8 / 우 14 비대칭 확장
+                        (8 + 22 + 14 = 44 ✓). 우측은 이 행의 빈 공간이라 잠식할 대상이 없다.
+                        대칭 확장(-inset 11)이면 h2 마지막 3px 이 링크 히트영역에 먹힌다.
+                    이 수치들은 뷰포트 폭에 의존하지 않는다(앵커 크기·gap 모두 BP 고정값)
+                    → 시안이 없는 구간(640~1183 / 1440~1919)에도 보간 없이 그대로 성립한다. */}
                 {SERVICE_DETAIL_ROUTES[service.key] ? (
                   <Link
                     to={SERVICE_DETAIL_ROUTES[service.key]}
                     aria-label={`${service.name} 자세히보기`}
-                    className="inline-flex shrink-0 items-center text-ink-title"
+                    className="relative inline-flex shrink-0 items-center text-ink-title after:absolute after:left-0 after:top-1/2 after:h-11 after:w-full after:-translate-y-1/2 after:content-[''] sm:after:-left-2 sm:after:w-11"
                   >
                     <span className="text-[0.8125rem] font-bold underline underline-offset-2 sm:hidden">
                       자세히보기
