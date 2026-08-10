@@ -7,7 +7,11 @@ export default {
         // 전 페이지 공통 컨텐츠 영역 최대 폭 (패딩 px-8 포함 1164px, 내부 콘텐츠 1100px — 0729 시안).
         // lg 이상에서 px-8(64px) 좌우 패딩이 붙으므로 1164 − 64 = 1100px가 실제 콘텐츠 폭.
         // 헤더/푸터/프리헤더(1500px)와 의도적으로 좁게 설계된 페이지는 예외.
-        content: '72.75rem'
+        content: '72.75rem',
+        // 목표관리 앱(goal-app-shell) 콘텐츠 폭 — docs/figma-goal/00-INDEX.md §6-3.
+        // 서브페이지는 리포트 기준 1340px로 통일, 대시보드(메인+레일 합)만 1488px.
+        'goal-content': '83.75rem',
+        'goal-dashboard': '93rem'
       },
       colors: {
         // 0729 시안 공통 아이브로/포인트 색.
@@ -15,6 +19,10 @@ export default {
         // 로그인·회원가입 리뉴얼(로그인/회원가입/약관 화면) 신규 토큰 — docs/login-signup-renewal-spec.md §3.0/§5.4.
         // Primary/Primary(#013262): 브랜드 네이비, 활성 버튼·강조 텍스트·'필수' 라벨.
         primary: '#013262',
+        // 목표관리 앱(goal-app-shell) 조언 뱃지 pill — docs/figma-goal/00-INDEX.md §6-1 `action`.
+        action: '#3799ff',
+        // 목표관리 앱 「나의 노력」 모달 선택 칩 텍스트/보더 — 00-INDEX.md §6-1 `gold`/`Text/Gold`.
+        gold: '#af9364',
         ink: {
           // --01(#525252): 본문 텍스트, 입력값.
           DEFAULT: '#525252',
@@ -23,7 +31,9 @@ export default {
           // --텍스트(#808080): 푸터 카테고리 등 보조 텍스트.
           sub: '#808080',
           // --텍스트---타이틀(#181d24): 타이틀 색 토큰(로그인 화면에서 확인).
-          title: '#181d24'
+          title: '#181d24',
+          // 목표관리 앱 Text/Strong(#191D23): 페이지·카드 제목, 사이드바 활성 메뉴 — 00-INDEX.md §6-1.
+          strong: '#191D23'
         },
         // (비활성, #d7d7d7): placeholder, 비활성 버튼, 보더, '선택' 라벨, 미체크.
         line: '#d7d7d7',
@@ -35,7 +45,71 @@ export default {
           // 푸터 배경(#f9fafb): 푸터, 비활성 버튼 텍스트.
           footer: '#f9fafb',
           // --메인-채우기(#e9f4ff): 안내 박스, 자녀 미리보기 카드 배경.
-          info: '#e9f4ff'
+          info: '#e9f4ff',
+          // 목표관리 앱 Surface/01~04(00-INDEX.md §6-1) — 진행바 트랙·채움, 보조 버튼, 사이드바·카드 배경.
+          // 01(#D9D9D9): 진행바 트랙, 비활성 버튼.
+          '01': '#D9D9D9',
+          // 02(#D1E8FF): 진행바 채움.
+          '02': '#D1E8FF',
+          // 03(#E9F4FF): 보조 버튼('이전'), 선택된 라디오.
+          '03': '#E9F4FF',
+          // 04(#F5F5F7): 사이드바·카드 배경.
+          '04': '#F5F5F7'
+        },
+        // 목표관리 앱(goal-app-shell) 전용 실측색·추정색 — docs/figma-goal/00-INDEX.md §6-1/§6-3, part-09~11.
+        // 전부 Figma 변수 미연결(디자이너 확인 전) 또는 스크린샷 육안 판독값이며, 서로 다른 파트 문서가
+        // 상충하는 경우(과목 색 등) part-09 판독을 정본으로 채택했다 — 자세한 내용은 작업 보고 참조.
+        goal: {
+          // 변수 미연결 실측색(00-INDEX.md §6-1 하단).
+          sidebar: '#F9F8F7', // 사이드바 배경(카드 배경 surface.04와 별개 톤)
+          card: '#FBFBFA', // 카드 기본(neutral) 배경
+          activePill: '#EAECEF', // 사이드바 활성 메뉴 pill 배경
+          // 우측 레일 카드 톤 4종 — 00-INDEX.md §6-4 "신규 정의 필요 토큰" §3.
+          cardTone: {
+            neutral: '#FBFBFA',
+            mint: '#EAF1EC',
+            blue: '#F8FBFE',
+            cream: '#FEF6ED'
+          },
+          // 인사이트 팁 박스 톤 4종(part-11 #33 D/F/G/H 카드) — 정확한 HEX 미기재, 근사값 (추정).
+          insight: {
+            info: '#E9F4FF', // (추정) 연파랑 — 💡 박스(surface.03 재사용)
+            warn: '#FBE8D2', // (추정) 연베이지 — 🚨 박스
+            success: '#E3F3E6', // (추정) 연초록 — ✅ 박스
+            time: '#EAF4FF' // (추정) 연파랑(시간 계열, info와 미세 구분) — ⌚️ 박스
+          },
+          // 과목 색 5종(국·수·영·탐·기타) — part-09 §"공통 과목 색" 육안 판독 기준 (추정).
+          // ⚠︎ part-11 §167~190(나의 노력 칩)은 국어=red/수학=orange/영어=yellow/탐구=green으로 다르게
+          // 판독해 상충한다. 시각적 팔레트가 아직 미확정이라 part-09 쪽(도트·프로그레스 공통색)을 채택.
+          subject: {
+            korean: '#FCE4EC', // (추정) 연한 핑크
+            math: '#E3F2FD', // (추정) 연한 하늘색
+            english: '#FFF8E1', // (추정) 연한 크림/옐로
+            science: '#E8F5E9', // (추정) 연한 그린(탐구)
+            etc: '#F1EDE7' // (추정) 문서 미기재 — 중립 웜그레이로 신규 정의
+          },
+          // 과목 색 진한 2단계 — 도트·진행바 채움 전용(코드 검수 결함 §2). subject.* 파스텔은
+          // 배경(칩) 전용으로 남겨두고, 16px 도트/진행바 채움처럼 surface-01(#D9D9D9)·surface-04
+          // (#F5F5F7) 위에 얹히는 요소는 여기 진한 톤을 쓴다. 전부 기존 파스텔의 진한 대응색으로
+          // 근사한 신규 정의값이다(디자이너 확인 전) — src/components/goal/subjectTokens.js에서
+          // 헬퍼로 함께 제공한다.
+          subjectStrong: {
+            korean: '#F48FB1', // (추정) subject.korean(#FCE4EC) 진한 대응색
+            math: '#64B5F6', // (추정) subject.math(#E3F2FD) 진한 대응색
+            english: '#FFD54F', // (추정) subject.english(#FFF8E1) 진한 대응색
+            science: '#81C784', // (추정) subject.science(#E8F5E9) 진한 대응색
+            etc: '#BCAFA0' // (추정) subject.etc(#F1EDE7) 진한 대응색
+          },
+          // 요일 색 7종(주간 학습 계획표 헤더 칩/카드 톤) — part-10 §"요일별 색상 코딩" 육안 판독 (추정).
+          weekday: {
+            mon: '#FCE7EE', // (추정) 연한 핑크·로즈
+            tue: '#FDEBDD', // (추정) 연한 피치·오렌지
+            wed: '#FDF6D8', // (추정) 연한 옐로우
+            thu: '#E6F4E9', // (추정) 연한 그린
+            fri: '#E7F0FD', // (추정) 연한 블루
+            sat: '#EDEDED', // (추정) 연한 그레이
+            sun: '#EDEDED' // (추정) 연한 그레이(카드 없음)
+          }
         }
       },
       screens: {
