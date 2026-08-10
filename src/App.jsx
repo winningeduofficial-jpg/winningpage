@@ -110,6 +110,9 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
+          {/* 결제 실패도 완료와 같은 셸(헤더/푸터 포함)을 쓴다 — 실패 화면에서
+              GNB·문의 연락처가 사라지면 이탈 경로가 없어진다. */}
+          <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/learning-diagnosis" element={<LearningDiagnosisLanding />} />
           <Route path="/learning-diagnosis/survey" element={<LearningDiagnosis />} />
 
@@ -223,7 +226,6 @@ export default function App() {
         </Route>
 
         <Route path="/mypage" element={<MyPage />} />
-        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
