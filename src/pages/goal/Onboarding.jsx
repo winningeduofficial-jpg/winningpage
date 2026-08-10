@@ -42,7 +42,8 @@ function OnboardingWizard() {
     naesin,
     mockExam,
     studyHours,
-    dailySchedule
+    dailySchedule,
+    resetOnboardingFlow
   } = useGoalOnboarding();
 
   const stepIndex = STEP_ORDER.indexOf(step);
@@ -67,6 +68,9 @@ function OnboardingWizard() {
   // 7단계 "다음" 클릭 = 온보딩 완료. #11(전면 딤)을 "학습량 계산 중" 로딩으로 간주해 잠깐
   // 오버레이를 띄운 뒤 대시보드로 이동한다(작업 지시 §확정 사항 3). 서버 저장은 하지 않으므로
   // 최종 제출은 콘솔 로그 + markOnboardingDone() 완료 표시로 대체한다(작업 지시 §확정 사항 4).
+  // markOnboardingDone() 직후 resetOnboardingFlow()로 sessionStorage에 남아있던 스텝 간
+  // 입력값(GoalOnboardingContext.jsx의 'goal-onboarding-flow')을 정리한다 — 완료 플래그와
+  // 입력값은 별개 저장소라 완료 시점에 입력값 쪽도 명시적으로 비워야 한다.
   function handleFinish() {
     setIsCalculating(true);
 
@@ -83,6 +87,7 @@ function OnboardingWizard() {
         dailySchedule
       });
       markOnboardingDone();
+      resetOnboardingFlow();
       navigate('/app/goal');
     }, CALCULATING_DURATION_MS);
   }
