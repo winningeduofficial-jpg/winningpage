@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import BookViewer from '../components/premiumBook/BookViewer';
 import { usePremiumBookPages } from '../components/premiumBook/usePremiumBookPages';
@@ -11,6 +11,11 @@ import { usePremiumBookPages } from '../components/premiumBook/usePremiumBookPag
 // 전담한다(명세 §5.1). BookViewer는 components/premiumBook/ 공용 컴포넌트로 이관됐다 —
 // 어드민 미리보기가 두 번째 소비자가 되면서 자체 DB 조회 전제가 깨졌기 때문이다. 이 파일에
 // 있던 하드코딩 BOOK_SPREADS는 그 자리를 채우던 껍데기라 제거했다.
+//
+// 상담 신청 폼은 /api/create-consult-request 로 실제 저장된다. 검증은 브라우저 기본
+// required 대신 자체 규칙(validateForm)으로 처리한다 — 브라우저 말풍선은 스타일을
+// 맞출 수 없고 한국어 문구도 제어가 안 되기 때문에, noValidate로 끄고 필드별 오류를
+// 화면에 직접 그린다.
 
 // 셀렉트 옵션 — 시안에 목록이 없어(B-13) 헤더·푸터 「프리미엄」 6개 프로그램 라벨
 // (src/data/navigation.js FALLBACK_NAV_GROUPS)을 정본으로 그대로 쓴다.
@@ -32,11 +37,60 @@ const INITIAL_FORM = {
   agree: false
 };
 
-function FormField({ label, children }) {
+// DOM 순서와 동일 — 첫 오류 필드로 포커스를 옮길 때 이 순서대로 훑는다.
+const FIELD_ORDER = ['name', 'phone', 'email', 'service', 'message', 'agree'];
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_ALLOWED_PATTERN = /^[0-9-]+$/;
+
+// 서버(api/create-consult-request.js)와 동일한 규칙. 클라이언트에서 먼저 걸러 왕복을
+// 줄이되, 최종 검증은 서버가 다시 한다.
+function validateForm(form) {
+  const errors = {};
+
+  const name = form.name.trim();
+  if (!name) {
+    errors.name = '이름을 입력해주세요.';
+  } else if (name.length > 40) {
+    errors.name = '이름은 40자 이내로 입력해주세요.';
+  }
+
+  const phone = form.phone.trim();
+  const phoneDigits = phone.replace(/[^0-9]/g, '');
+  if (!phone) {
+    errors.phone = '연락처를 입력해주세요.';
+  } else if (!PHONE_ALLOWED_PATTERN.test(phone)) {
+    errors.phone = '연락처는 숫자와 하이픈(-)만 입력할 수 있습니다.';
+  } else if (phoneDigits.length < 9 || phoneDigits.length > 13) {
+    errors.phone = '연락처 자릿수를 확인해주세요.';
+  }
+
+  const email = form.email.trim();
+  if (email && !EMAIL_PATTERN.test(email)) {
+    errors.email = '이메일 형식을 확인해주세요.';
+  }
+
+  if (!form.service || !SERVICE_OPTIONS.includes(form.service)) {
+    errors.service = '이용하고 싶으신 서비스를 선택해주세요.';
+  }
+
+  if (form.message.length > 1000) {
+    errors.message = '문의사항은 1000자 이내로 입력해주세요.';
+  }
+
+  if (!form.agree) {
+    errors.agree = '개인정보 수집·이용에 동의해주세요.';
+  }
+
+  return errors;
+}
+
+function FormField({ label, error, children }) {
   return (
     <div className="flex flex-col gap-2">
       <label className="text-sm font-normal text-black">{label}</label>
       {children}
+      {error ? <p className="text-xs font-normal text-red-600">{error}</p> : null}
     </div>
   );
 }
@@ -44,26 +98,73 @@ function FormField({ label, children }) {
 const inputClass =
   'h-12 w-full rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-[#013262] focus:outline-none';
 
+const inputErrorClass = 'border-red-400 focus:border-red-500';
+
 export default function PremiumApply() {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const { pages, loading, error, retry } = usePremiumBookPages();
+
+  const fieldRefs = {
+    name: useRef(null),
+    phone: useRef(null),
+    email: useRef(null),
+    service: useRef(null),
+    message: useRef(null),
+    agree: useRef(null)
+  };
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  // 상담 신청 저장용 백엔드 테이블이 아직 없다(B급 — 범위 밖). 폼 유효성만 확인하고
-  // 화면 상으로 접수 완료 상태만 보여주는 UI 껍데기다.
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+    if (submitting) return; // 중복 클릭으로 두 번 신청되는 것을 막는다.
 
-    if (!form.name || !form.phone || !form.email || !form.service || !form.message || !form.agree) {
-      window.alert('필수 항목을 모두 입력하고 개인정보 수집·이용에 동의해주세요.');
+    const nextErrors = validateForm(form);
+    setErrors(nextErrors);
+    setSubmitError('');
+
+    const firstErrorKey = FIELD_ORDER.find((key) => nextErrors[key]);
+    if (firstErrorKey) {
+      fieldRefs[firstErrorKey].current?.focus();
       return;
     }
 
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/create-consult-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          service: form.service,
+          message: form.message.trim(),
+          agree: form.agree
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        setSubmitError(data.error || '상담 신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+
+      setForm(INITIAL_FORM);
+      setErrors({});
+      setSubmitted(true);
+    } catch {
+      setSubmitError('네트워크 오류로 상담 신청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -101,7 +202,8 @@ export default function PremiumApply() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-9">
+              // noValidate: 브라우저 기본 검증 말풍선 대신 validateForm 결과로 필드별 오류를 직접 그린다.
+              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-9">
                 <div className="flex flex-col gap-1.5">
                   <p className="text-xl font-medium leading-[2.0625rem] text-[#525252]">
                     문의사항을 남겨주세요
@@ -113,48 +215,48 @@ export default function PremiumApply() {
 
                 <div className="flex flex-col gap-6">
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <FormField label="이름 *">
+                    <FormField label="이름 *" error={errors.name}>
                       <input
+                        ref={fieldRefs.name}
                         type="text"
-                        required
                         value={form.name}
                         onChange={(e) => updateField('name', e.target.value)}
                         placeholder="예 : 홍길동"
-                        className={inputClass}
+                        className={`${inputClass} ${errors.name ? inputErrorClass : ''}`}
                       />
                     </FormField>
-                    <FormField label="연락처 *">
+                    <FormField label="연락처 *" error={errors.phone}>
                       <input
+                        ref={fieldRefs.phone}
                         type="tel"
-                        required
                         value={form.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                         placeholder="010-0000-0000"
-                        className={inputClass}
+                        className={`${inputClass} ${errors.phone ? inputErrorClass : ''}`}
                       />
                     </FormField>
                   </div>
 
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <FormField label="이메일 *">
+                    <FormField label="이메일" error={errors.email}>
                       <input
+                        ref={fieldRefs.email}
                         type="email"
-                        required
                         value={form.email}
                         onChange={(e) => updateField('email', e.target.value)}
                         placeholder="example@winningedu.com"
-                        className={inputClass}
+                        className={`${inputClass} ${errors.email ? inputErrorClass : ''}`}
                       />
                     </FormField>
-                    <FormField label="이용하고 싶으신 서비스 *">
+                    <FormField label="이용하고 싶으신 서비스 *" error={errors.service}>
                       <div className="relative">
                         <select
-                          required
+                          ref={fieldRefs.service}
                           value={form.service}
                           onChange={(e) => updateField('service', e.target.value)}
                           className={`${inputClass} appearance-none pr-10 ${
                             form.service ? 'text-[#1e293b]' : 'text-[#767676]'
-                          }`}
+                          } ${errors.service ? inputErrorClass : ''}`}
                         >
                           <option value="" disabled>
                             이용 서비스 선택
@@ -170,39 +272,60 @@ export default function PremiumApply() {
                     </FormField>
                   </div>
 
-                  <FormField label="문의사항 *">
+                  <FormField label="문의사항" error={errors.message}>
                     <textarea
-                      required
+                      ref={fieldRefs.message}
                       value={form.message}
                       onChange={(e) => updateField('message', e.target.value)}
                       rows={5}
-                      className="w-full resize-none rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] focus:border-[#013262] focus:outline-none"
+                      className={`w-full resize-none rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] focus:border-[#013262] focus:outline-none ${
+                        errors.message ? inputErrorClass : ''
+                      }`}
                     />
                   </FormField>
 
-                  {/* 개인정보 수집·이용 동의 — 시안에 없으나(B-72) 국내 서비스 법적 필수라 기본값으로 추가 */}
-                  <label className="flex items-start gap-2 text-sm font-normal leading-5 text-[#525252]">
-                    <input
-                      type="checkbox"
-                      required
-                      checked={form.agree}
-                      onChange={(e) => updateField('agree', e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#d7d7d7] text-[#013262] focus:ring-[#013262]"
-                    />
-                    <span>
-                      개인정보 수집·이용에 동의합니다.{' '}
-                      <a href="/privacy" className="font-medium text-[#013262] underline">
-                        내용 보기
-                      </a>
-                    </span>
-                  </label>
+                  <div className="flex flex-col gap-1.5">
+                    {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — legalDocs.js 「4. 보유 및 이용기간」과 표현 일치 */}
+                    <label className="flex items-start gap-2 text-sm font-normal leading-5 text-[#525252]">
+                      <input
+                        ref={fieldRefs.agree}
+                        type="checkbox"
+                        checked={form.agree}
+                        onChange={(e) => updateField('agree', e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#d7d7d7] text-[#013262] focus:ring-[#013262]"
+                      />
+                      <span>
+                        이름, 연락처, 이메일, 문의 내용을 상담 진행 및 안내를 위해 수집하며 상담
+                        종료 후 2년간 보관합니다. 동의하지 않으실 수 있으나 이 경우 상담 신청이
+                        제한됩니다.{' '}
+                        {/* 새 탭으로 열어 작성 중인 폼(이름·연락처·문의 내용)이 리로드로 날아가지 않게 한다 */}
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-[#013262] underline"
+                        >
+                          내용 보기
+                        </a>
+                      </span>
+                    </label>
+                    {errors.agree ? (
+                      <p className="text-xs font-normal text-red-600">{errors.agree}</p>
+                    ) : null}
+                  </div>
                 </div>
+
+                {submitError ? (
+                  <p className="text-center text-sm font-medium text-red-600">{submitError}</p>
+                ) : null}
 
                 <button
                   type="submit"
-                  className="flex h-[3.25rem] w-full items-center justify-center rounded-[0.625rem] bg-[#013262] text-sm font-semibold text-white transition hover:bg-[#012347]"
+                  disabled={submitting}
+                  className="flex h-[3.25rem] w-full items-center justify-center rounded-[0.625rem] bg-[#013262] text-sm font-semibold text-white transition hover:bg-[#012347] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  상담 신청하기
+                  {submitting ? '접수 중…' : '상담 신청하기'}
                 </button>
               </form>
             )}

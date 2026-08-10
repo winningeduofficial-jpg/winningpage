@@ -49,7 +49,8 @@ const MENU_GROUPS = [
       { key: 'programCategories', label: '핵심 서비스' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' },
-      { key: 'premiumBookPages', label: '프리미엄 책자 관리' }
+      { key: 'premiumBookPages', label: '프리미엄 책자 관리' },
+      { key: 'premiumConsults', label: '프리미엄 상담 신청' }
     ]
   },
   {
@@ -161,6 +162,14 @@ const SPECIAL_HIGHSCHOOL_TYPE_OPTIONS = [
 const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
   { value: '합격자', label: '합격자' },
   { value: '합격생', label: '합격생' }
+];
+
+// DB 저장값은 영문 키 그대로 유지하고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
+const PREMIUM_CONSULT_STATUS_OPTIONS = [
+  { value: 'new', label: '신규' },
+  { value: 'contacted', label: '연락함' },
+  { value: 'done', label: '완료' },
+  { value: 'cancelled', label: '취소' }
 ];
 
 const CONFIGS = {
@@ -826,6 +835,52 @@ const CONFIGS = {
     // create 모드는 config.defaults만으로 폼을 초기화한다(Admin.jsx AdminForm,
     // `return { ...(config.defaults || {}) }`) — 없으면 sort_order NOT NULL이 23502 raw alert를 띄운다.
     defaults: { sort_order: 1, image_url: '' }
+  },
+
+  // 프리미엄 상담 신청 내역 — sql/48_premium_consult.sql(premium_consult_requests)이 정본.
+  // 신청자 원본(이름/연락처/이메일/서비스/문의내용)은 운영자가 고칠 이유가 없어 읽기 전용으로 두고
+  // status·admin_note만 편집 가능하게 한다. 신규 상담 생성 경로는 공개 신청폼(PremiumApply.jsx)
+  // 하나뿐이라 noCreate로 어드민의 수기 생성 자체를 막는다.
+  premiumConsults: {
+    title: '프리미엄 상담 신청 내역',
+    table: 'premium_consult_requests',
+    searchPlaceholder: '이름, 연락처, 이메일 검색',
+    // loadRows: orderColumn이 'sort_order'가 아니면 내림차순 정렬이라(Admin.jsx:loadRows 참고)
+    // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
+    order: 'created_at',
+    noCreate: true,
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
+    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
+    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
+    retentionNotice:
+      '상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.',
+    columns: [
+      { key: 'created_at', label: '신청일시', type: 'datetime' },
+      { key: 'name', label: '이름' },
+      { key: 'phone', label: '연락처' },
+      { key: 'email', label: '이메일' },
+      { key: 'service', label: '상담 서비스' },
+      { key: 'message', label: '문의 내용', type: 'truncate' },
+      { key: 'status', label: '상태', options: PREMIUM_CONSULT_STATUS_OPTIONS }
+    ],
+    fields: [
+      { key: 'created_at', label: '신청일시', type: 'datetime', readOnly: true },
+      { key: 'name', label: '이름', type: 'text', readOnly: true },
+      { key: 'phone', label: '연락처', type: 'text', readOnly: true },
+      { key: 'email', label: '이메일', type: 'text', readOnly: true },
+      { key: 'service', label: '상담 서비스', type: 'text', readOnly: true },
+      { key: 'message', label: '문의 내용', type: 'textarea', readOnly: true },
+      {
+        key: 'status',
+        label: '상태',
+        type: 'select',
+        options: PREMIUM_CONSULT_STATUS_OPTIONS,
+        required: true
+      },
+      { key: 'admin_note', label: '운영 메모', type: 'textarea' }
+    ],
+    defaults: { status: 'new', admin_note: '' }
   },
 
   notices: {
@@ -3245,6 +3300,21 @@ function formatValue(value, type, options) {
     return date.toISOString().slice(0, 10);
   }
 
+  if (type === 'datetime') {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    // toISOString()은 UTC라 KST 00~09시 신청 건이 하루 전날로 잘린다 — Asia/Seoul 고정 표시.
+    return date.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  }
+
   return String(value);
 }
 
@@ -4317,7 +4387,7 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                 </div>
 
                 <div className="px-5 py-3">
-                  {readonly ? (
+                  {readonly || field.readOnly ? (
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
                     ) : (
@@ -5203,6 +5273,11 @@ export default function Admin() {
                           )}
                         </div>
                       )}
+                      {config.retentionNotice && (
+                        <p className="mt-1 text-xs font-bold text-gray-500">
+                          {config.retentionNotice}
+                        </p>
+                      )}
                     </div>
 
                     {!config.noCreate && !config.readOnly && (
@@ -5216,6 +5291,13 @@ export default function Admin() {
                       </button>
                     )}
                   </div>
+
+                  {config.rowCapWarning && rows.length >= 1000 && (
+                    <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+                      조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회 상한으로 오래된 신청
+                      건이 목록에서 빠졌을 수 있습니다. 전체 건수가 아닙니다.
+                    </p>
+                  )}
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
