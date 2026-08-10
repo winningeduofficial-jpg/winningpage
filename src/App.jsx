@@ -127,14 +127,34 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/learning-diagnosis" element={<LearningDiagnosisLanding />} />
-          <Route path="/learning-diagnosis/survey" element={<LearningDiagnosis />} />
 
-          {/* 구 경로(무료진단) 호환. 외부 링크·북마크 보호용이라 영구 유지한다 */}
-          <Route path="/free-diagnosis" element={<Navigate to="/learning-diagnosis" replace />} />
+          {/* 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
+              /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...
+              목표관리(/app/goal/*)에 이어 학습진단도 이 규칙으로 이관했다. */}
+          <Route path="/services/learning-diagnosis" element={<LearningDiagnosisLanding />} />
+          {/* ⚠️ 설계 리스크 — 이 화면은 무료·체험 성격이라 로그인 없이 접근 가능해야 할 수 있다.
+              추후 /app/* 전체에 일괄 로그인 가드를 걸 때 이 라우트를 예외 처리해야 한다(이번
+              단계에서는 가드 자체를 구현하지 않는다). */}
+          <Route path="/app/learning-diagnosis/survey" element={<LearningDiagnosis />} />
+
+          {/* 구 경로 4종 호환. 외부 링크·북마크 보호용이라 영구 유지한다.
+              /free-diagnosis 계열은 원래 /learning-diagnosis로 2홉 리다이렉트였으나, 목적지가
+              신 경로로 바뀌면서 함께 갱신 — 항상 신 경로로 1홉만 거치도록 유지한다. */}
+          <Route
+            path="/learning-diagnosis"
+            element={<Navigate to="/services/learning-diagnosis" replace />}
+          />
+          <Route
+            path="/learning-diagnosis/survey"
+            element={<Navigate to="/app/learning-diagnosis/survey" replace />}
+          />
+          <Route
+            path="/free-diagnosis"
+            element={<Navigate to="/services/learning-diagnosis" replace />}
+          />
           <Route
             path="/free-diagnosis/survey"
-            element={<Navigate to="/learning-diagnosis/survey" replace />}
+            element={<Navigate to="/app/learning-diagnosis/survey" replace />}
           />
 
           <Route path="/services/callmentor" element={<Callmentor />} />
