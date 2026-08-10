@@ -10,6 +10,10 @@
 // 적용되고, 모바일 base는 축소된 값으로 램프한다. width는 항상 유동(px-6 안에서 max-w 상한).
 const WIDTH_CLASSES = {
   default: 'max-w-[25rem]', // 400px 콘텐츠 컬럼. 약관 안내 타이틀(1064px) 등 예외 화면은 'wide'.
+  // 결제 플로우 시안(1882-9058 계열)의 로그인 화면 콘텐츠 컬럼 실측 460px ÷16 = 28.75rem
+  // (1920·1280 동일). default(400px)를 바꾸면 이 컴포넌트를 공유하는 회원가입·약관 화면
+  // 전체가 함께 넓어지므로 로그인 전용 키로 분리했다 — Login.jsx 에서 width="login" 으로 옵트인.
+  login: 'max-w-[28.75rem]',
   wide: 'max-w-[66.5rem]' // D-1 등 예외 화면.
 };
 
@@ -25,7 +29,7 @@ const GAP_CLASSES = {
 
 export default function AuthLayout({
   children,
-  width = 'default', // 'default' | 'wide'
+  width = 'default', // 'default' | 'login' | 'wide'
   spacing = 'default', // 'default' | 'tall'
   gap = 'default', // 'default' | 'wide'
   className = ''

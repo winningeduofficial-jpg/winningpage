@@ -122,8 +122,10 @@ export default function Login() {
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
+  // width="login": 로그인만 콘텐츠 컬럼 460px(28.75rem) — 시안 실측.
+  // 회원가입·약관 화면은 AuthLayout 기본값(400px)을 그대로 쓴다.
   return (
-    <AuthLayout>
+    <AuthLayout width="login">
       <AuthTitle line1="진학의 첫단추," line2="위닝에듀에서 시작해요" />
 
       <form onSubmit={handleLogin} className="flex w-full flex-col gap-3">
@@ -133,7 +135,7 @@ export default function Login() {
           type="email"
           value={email}
           onChange={setEmail}
-          placeholder="이메일을 입력해 주세요"
+          placeholder="이메일을 입력해 주세요."
           autoComplete="email"
           required
         />
@@ -144,7 +146,7 @@ export default function Login() {
           type="password"
           value={password}
           onChange={setPassword}
-          placeholder="비밀번호를 입력해 주세요"
+          placeholder="비밀번호를 입력해 주세요."
           autoComplete="current-password"
           required
           helperText={message || undefined}
