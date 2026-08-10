@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getTossPayments, ANONYMOUS } from '../lib/toss';
@@ -7,9 +7,11 @@ import { formatKRW } from '../data/pricingCatalog';
 import { CHECKOUT_AGREEMENTS } from '../data/legalDocs';
 import { getCart, saveCart } from '../lib/cart';
 
+// 라벨은 시안 문자열 그대로. '신용 /체크 카드' 의 공백 위치(슬래시 앞에만 공백)는
+// 덤프 18개 프레임 전부에서 동일하다 — 코드의 '신용 / 체크카드' 와 달라 시안에 맞췄다.
 const PAY_METHODS = [
   { key: 'tosspay', label: '토스페이', tossMethod: 'CARD' }, // 간편결제는 카드창 내에서 제공
-  { key: 'card', label: '신용 / 체크카드', tossMethod: 'CARD' },
+  { key: 'card', label: '신용 /체크 카드', tossMethod: 'CARD' },
   { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' }
 ];
 
@@ -33,10 +35,20 @@ function Accordion({ title, open, onToggle, children }) {
 }
 
 // 약관 전문 (스크롤 영역). 제N조 / [소제목] / <소제목> / 번호 목차는 굵게.
-function AgreementText({ text }) {
+// docTitle: 결제 약관 아코디언에만 쓴다. 펼친 시안(3437-2625·1882-12381·1882-12689)에서
+//   결제 약관 본문은 '결제 서비스 이용 및 개인정보 처리 약관' 으로 시작하지만,
+//   구매 전 안내사항 본문은 '<환불규정>' 으로 바로 시작해 타이틀 라인이 없다.
+//   즉 일반 규칙이 아니라 결제 약관 한정이다. legalDocs.js 본문은 법무 확정 사항이라
+//   건드리지 않고, 표시 계층에서만 타이틀을 얹는다.
+// 스크롤 높이: 390 시안(1882-12689) 실측 122px ÷16 = 7.625rem, 1280/1920은 기존 240px ÷16 = 15rem.
+//   시안 BP가 390/1280/1920뿐이라 640~1183 구간엔 실측 근거가 없다. 이 파일의 보간 전환점은
+//   sm(640) 하나로 통일했다 — 서비스 설명 노출, 결제수단 3열, '쿠폰할인가' 문구가 모두 같은
+//   기준을 쓴다. (md(768)였던 이 값만 어긋나 있어 sm 으로 맞췄다.)
+function AgreementText({ text, docTitle }) {
   const lines = text.split('\n');
   return (
-    <div className="max-h-[240px] overflow-y-auto pr-1.5 text-[12px] leading-relaxed text-slate-500">
+    <div className="max-h-[7.625rem] overflow-y-auto pr-1.5 text-[12px] leading-relaxed text-slate-500 sm:max-h-[15rem]">
+      {docTitle && <p className="mb-1.5 font-bold text-[#0D1B2A]">{docTitle}</p>}
       {lines.map((line, i) => {
         const t = line.trim();
         if (t === '') return <div key={i} className="h-2" />;
@@ -63,6 +75,14 @@ function AgreementText({ text }) {
   );
 }
 
+// '필수' 배지는 시안에서도 인라인이다 — 1280 프레임(1882-13258) 실측: 확인 행 1882:13399
+// (h=20) 안에서 체크박스 x=0/y=4(12×12), '필수' x=20/y=0, '위 내용을 모두 확인하였습니다.'
+// x=53/y=0 으로 셋이 같은 줄에 놓인다. 현재 flex 한 줄 구성과 일치해 구조를 바꾸지 않았다.
+// (일부 1280 프레임은 결제 약관 아코디언 헤더까지 이 필수 행에 합쳐 놓았다. '위 내용을 모두
+//  확인하였습니다' 출현수 실측: 1280 6장 중 4장(1882-13258·16903·17763·18617)만 1건(=합침)이고
+//  1882-11516·12381 은 2건(=분리형), 390 6장·1920 6장은 전부 2건(=분리형)이다. 즉 합침은 1280
+//  안에서도 4/6 이고, 특히 약관을 펼친 1280 프레임(1882-12381)은 분리형이다. 합치면 확인 문구가
+//  사라지므로 코드는 분리형을 유지한다.)
 function RequiredCheck({ checked, onChange, children }) {
   return (
     <button type="button" onClick={onChange} className="mt-2.5 flex items-center gap-2 text-left">
@@ -82,12 +102,14 @@ function RequiredCheck({ checked, onChange, children }) {
 }
 
 export default function Checkout() {
-  const navigate = useNavigate();
   const [items, setItems] = useState(() => getCart());
   const [checkedIds, setCheckedIds] = useState(() => new Set(getCart().map((i) => i.id)));
 
   const [coupons, setCoupons] = useState([]);
   const [couponError, setCouponError] = useState(false);
+  // 조회 완료 여부. 빈 상태 문구를 로딩 중에 먼저 띄우면(0장 → '없습니다' → 목록)
+  // 화면이 한 번 깜빡이므로, 조회가 끝난 뒤에만 빈 상태를 그린다.
+  const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
   const [couponCode, setCouponCode] = useState('');
 
@@ -111,6 +133,7 @@ export default function Checkout() {
         .gte('valid_until', today)
         .order('discount_amount', { ascending: false });
       if (!alive) return;
+      setCouponsLoaded(true);
       if (error) {
         console.warn('쿠폰 조회 실패:', error.message);
         setCouponError(true);
@@ -290,12 +313,27 @@ export default function Checkout() {
   return (
     <>
       <main className="min-h-screen bg-white pt-16">
-        <div className="mx-auto max-w-content px-6 py-14">
+        {/* 주문서 콘텐츠 폭 — 시안 실측치는 '콘텐츠 폭'(좌우 패딩 제외)이고 이 div 는
+            box-sizing:border-box 라서 max-w 에는 패딩을 더한 outer 값을 넣어야 한다.
+            (같은 대조 기준: 전역 max-w-content 72.75rem = outer 1164 는 px-8(64) 기준이라
+            inner 1100. 이 페이지는 px-6(24)라서 outer−48 로 계산해야 한다 —
+            전역 토큰의 1100 을 그대로 가져다 쓰면 48px 틀린다.)
+            · 390  : 콘텐츠 310px → 좌우 마진 (390−310)/2 = 40px → px-10, 상한 미적용(유동)
+            · 1280 : 콘텐츠 960px  + px-6(24×2) → outer 1008px  = 63rem
+            · 1920 : 콘텐츠 1518px + px-6(24×2) → outer 1566px  = 97.875rem
+            1566 > desktop(1440) 이므로 고정 폭이 아니라 상한만 둔다 → 1440~1565 구간은
+            뷰포트를 따라 유동해 가로 스크롤이 생기지 않는다.
+            패딩 전환점 sm(640)은 시안 BP(390/1280/1920) 사이 보간 판단값이다. */}
+        <div className="mx-auto max-w-[63rem] px-10 py-14 sm:px-6 desktop:max-w-[97.875rem]">
           <h1 className="mb-12 text-[38px] font-black tracking-[-0.02em] text-[#0D1B2A]">
             결제하기
           </h1>
 
-          <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
+          {/* 2컬럼 전환 임계값: 시안 1280 프레임(1882-13258 등 6장)이 1컬럼(주문상품 888 위,
+              하단에 570 폭 스택)이므로 lg(1024) → desktop(90rem/1440)으로 올렸다.
+              tailwind screens에 lg 재정의가 없어 lg=1024, wide=1184이라 1280을 1컬럼으로 만드는
+              기존 토큰은 desktop뿐이다. */}
+          <div className="grid gap-12 desktop:grid-cols-[1fr_400px]">
             {/* 좌측: 주문 상품 */}
             <section>
               <h2 className="mb-5 text-[22px] font-black text-[#0D1B2A]">
@@ -359,8 +397,13 @@ export default function Checkout() {
                             </span>
                           </div>
                         </div>
+                        {/* 서비스 설명은 390 시안(1882-11814)에 없고 1280(1882-13258)·
+                            1920(1882-10111)에는 있다. 시안 BP가 셋뿐이라 실제 전환점은 실측
+                            근거가 없어 sm(640)으로 잡은 보간 판단값이다.
+                            cart.js 저장 스키마의 serviceDesc 자체는 유지 — 세션에 남은 구버전
+                            카트와의 하위호환 때문. */}
                         {item.serviceDesc && (
-                          <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500">
+                          <p className="mt-2 hidden text-[12.5px] leading-relaxed text-slate-500 sm:block">
                             {item.serviceDesc}
                           </p>
                         )}
@@ -370,6 +413,9 @@ export default function Checkout() {
                 })}
               </div>
 
+              {/* '선택 삭제'는 조건부 렌더를 유지한다. 덤프 18개 프레임 전부에 문자열이 있지만
+                  그 프레임들은 모두 항목이 선택된 상태라, '0건 선택 시에도 노출'의 시안 근거는
+                  없다. 상시 노출 + disabled 로 바꿨던 변경은 되돌렸다. */}
               {checkedIds.size > 0 && (
                 <button
                   type="button"
@@ -381,8 +427,13 @@ export default function Checkout() {
               )}
             </section>
 
-            {/* 우측: 확인/쿠폰/결제수단/금액 */}
-            <aside className="space-y-10">
+            {/* 우측: 확인/쿠폰/결제수단/금액.
+                desktop 미만에서는 주문상품 아래로 내려와 1컬럼이 되는데, 그때 본문 콘텐츠 폭
+                (1280 구간 inner = max-w 63rem − px-6 48px = 960px = 60rem) 전체로 늘어나면
+                폼이 과도하게 넓어진다. 시안 1280 프레임의 하단 스택 폭 570px
+                ÷16 = 35.625rem을 상한으로 걸고 가운데 정렬한다(시안도 888 안에서 좌우 인셋 159로
+                중앙 배치). desktop에서는 그리드 2번째 컬럼이 400px이라 이 상한은 걸리지 않는다. */}
+            <aside className="mx-auto w-full max-w-[35.625rem] space-y-10">
               {/* 구매 전 확인사항 */}
               <div>
                 <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">구매 전 확인사항</h3>
@@ -424,8 +475,20 @@ export default function Checkout() {
                   </p>
                 )}
 
+                {/* 쿠폰 0장 빈 상태. 시안에 없는 문구지만, 시드 쿠폰이 만료되면 0장이 기본
+                    화면이 되는데 아무것도 렌더하지 않으면 코드 입력칸만 남아 쿠폰 영역이
+                    고장난 것처럼 보인다 — 그 실제 결함을 막기 위해 남긴다.
+                    용어는 시안 정본인 '보유 쿠폰 N장'(덤프 18/18 프레임)에 맞춰 '보유한'으로
+                    통일했다. 조회 실패는 위 couponError 가 이미 안내하므로 겹쳐 쓰지 않는다. */}
+                {couponsLoaded && !couponError && coupons.length === 0 && (
+                  <p className="mt-5 text-[13px] font-bold text-slate-400">
+                    보유한 쿠폰이 없습니다.
+                  </p>
+                )}
+
                 {coupons.length > 0 && (
                   <>
+                    {/* 시안 정본 문구 — 덤프 18개 프레임 전부 '보유 쿠폰 2장'. */}
                     <p className="mb-2 mt-5 text-[13px] font-bold text-slate-500">
                       보유 쿠폰 {coupons.length}장
                     </p>
@@ -464,8 +527,10 @@ export default function Checkout() {
                                 </span>
                               )}
                             </span>
+                            {/* 시안(1882-10111·3437-2974 등)은 '-6,000원'처럼 단위까지 붙는다.
+                                이 파일의 다른 금액과 동일하게 formatKRW를 경유시킨다. */}
                             <span className="shrink-0 text-[13.5px] font-black text-[#0D1B2A]">
-                              -{Number(c.discount).toLocaleString('ko-KR')}
+                              -{formatKRW(c.discount)}
                             </span>
                           </button>
                         );
@@ -487,7 +552,10 @@ export default function Checkout() {
               {/* 결제 수단 선택 */}
               <div>
                 <h3 className="mb-4 text-[20px] font-black text-[#0D1B2A]">결제 수단 선택</h3>
-                <div className="grid grid-cols-3 gap-2">
+                {/* 390 시안(1882-11814 등 6장)은 결제수단 버튼을 세로 1열, 폭 160px(=10rem)
+                    가운데 정렬로 그린다. 1280 시안은 3열(실측 184.67px×3 + gap 8)이다.
+                    시안 BP가 390/1280/1920뿐이라 전환점 sm(640)은 보간 판단값이다. */}
+                <div className="mx-auto grid max-w-[10rem] grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
                   {PAY_METHODS.map((m) => (
                     <button
                       type="button"
@@ -505,12 +573,21 @@ export default function Checkout() {
                 </div>
 
                 <div className="mt-4">
+                  {/* 시안 C·D 전 프레임(1882-10111·3437-2974·1882-12689 등)은 아코디언 헤더를
+                      '결제 서비스 이용 약관, 개인정보 처리 동의'로 쓰고, 펼친 본문 첫 줄에
+                      '결제 서비스 이용 및 개인정보 처리 약관'(현재 코드 헤더 문구)을 타이틀로 둔다.
+                      두 문구가 모두 시안에 존재하므로 문구 손실 없이 위치만 시안에 맞췄다.
+                      기본 접힘은 유지 — 펼친 상태를 그린 프레임은 BP별 1장씩(3437-2625/
+                      1882-12381/1882-12689)뿐이고 base 및 나머지 15장은 모두 접혀 있다. */}
                   <Accordion
-                    title="결제 서비스 이용 및 개인정보 처리 약관"
+                    title="결제 서비스 이용 약관, 개인정보 처리 동의"
                     open={openTerms}
                     onToggle={() => setOpenTerms((v) => !v)}
                   >
-                    <AgreementText text={CHECKOUT_AGREEMENTS.paymentAgreement} />
+                    <AgreementText
+                      text={CHECKOUT_AGREEMENTS.paymentAgreement}
+                      docTitle="결제 서비스 이용 및 개인정보 처리 약관"
+                    />
                   </Accordion>
                   <RequiredCheck checked={agreeTerms} onChange={() => setAgreeTerms((v) => !v)}>
                     위 내용을 모두 확인하였습니다.
@@ -526,12 +603,28 @@ export default function Checkout() {
                     <dt className="text-slate-500">판매가</dt>
                     <dd className="font-bold text-[#0D1B2A]">{formatKRW(listTotal)}</dd>
                   </div>
+                  {/* 시안 3437-2974(쿠폰 적용 상태)는 '할인가'(상품할인)와 '쿠폰 할인가'를 별도 행으로
+                      나눈다. 합계 로직(discountTotal·payAmount)은 그대로라 총액은 불변이다.
+                      쿠폰 미적용 base 프레임(1882-10111)에는 쿠폰 행이 없으므로 0원일 때 숨긴다. */}
                   <div className="flex justify-between">
                     <dt className="text-slate-500">할인가</dt>
                     <dd className="font-bold text-blue-600">
-                      {discountTotal > 0 ? `-${formatKRW(discountTotal)}` : formatKRW(0)}
+                      {productDiscount > 0 ? `-${formatKRW(productDiscount)}` : formatKRW(0)}
                     </dd>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between">
+                      {/* 문구가 BP마다 다르다 — 390 프레임 4/4(1882-13552·17200·18057·18911)는
+                          붙여쓴 '쿠폰할인가', 1280·1920 프레임 8/8(1882-13258·16903·17763·18617,
+                          3437-2974·3580·3885·4187)은 공백이 있는 '쿠폰 할인가'.
+                          전환점은 이 파일의 다른 보간과 같은 sm(640)으로 통일. */}
+                      <dt className="text-slate-500">
+                        <span className="sm:hidden">쿠폰할인가</span>
+                        <span className="hidden sm:inline">쿠폰 할인가</span>
+                      </dt>
+                      <dd className="font-bold text-blue-600">-{formatKRW(couponDiscount)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t border-slate-100 pt-3">
                     <dt className="text-[15px] font-black text-[#0D1B2A]">총 결제 금액</dt>
                     <dd className="text-[18px] font-black text-[#0D1B2A]">
