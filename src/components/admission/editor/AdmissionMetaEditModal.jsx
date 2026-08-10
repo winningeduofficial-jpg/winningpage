@@ -31,6 +31,14 @@ export const ADMISSION_META_FIELDS = [
   { key: 'university_key', label: '대학 키값', type: 'text', required: true },
   { key: 'region', label: '지역', type: 'text', required: true },
   { key: 'admission_year', label: '입학연도', type: 'number', required: true },
+  // URL 2종은 반드시 붙여 놓는다 — 역할이 다른데 dev 218행 중 209행이 값까지
+  // 같아서, 떨어뜨려 두면 관리자가 어느 쪽을 고치는지 착각한다.
+  //   official_source_url  = 공개 목록에서 **대학명**을 눌렀을 때 가는 곳
+  //   jungsi_guideline_url = 공개 목록 **'정시모집요강' 셀 [보기]** 가 가는 곳
+  // required 를 주지 않는다: 미등록·자리표시자('-') 행이 실제로 존재하고,
+  // 필수화하면 그 행들의 저장이 통째로 막힌다. 공개 측은 http(s) 절대 URL이
+  // 아니면 링크를 걸지 않고 평문으로 떨어뜨리므로 빈 값이 화면을 깨지 않는다.
+  { key: 'official_source_url', label: '대학명 링크 URL', type: 'text' },
   { key: 'jungsi_guideline_url', label: '정시모집요강 URL', type: 'text' },
   { key: 'memo', label: '메모', type: 'textarea' },
   { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },

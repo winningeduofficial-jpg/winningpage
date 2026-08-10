@@ -1143,6 +1143,14 @@ const CONFIGS = {
         type: 'text'
       },
       {
+        // 공개 목록에서 대학명을 눌렀을 때 가는 곳. 위 정시모집요강 URL과는
+        // 다른 컬럼이다. hideRowEdit라 이 폼은 신규 등록에서만 열리지만,
+        // 여기 없으면 새로 만든 행이 링크 없이 태어난다.
+        key: 'official_source_url',
+        label: '대학명 링크 URL',
+        type: 'text'
+      },
+      {
         key: 'memo',
         label: '메모',
         type: 'textarea',
@@ -1187,6 +1195,7 @@ const CONFIGS = {
       recruitment_result_html: '',
       recruitment_quota_json: null,
       jungsi_guideline_url: '',
+      official_source_url: '',
       memo: '',
       detail_status: '상세입력완료'
     },
