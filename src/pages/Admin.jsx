@@ -968,7 +968,11 @@ const CONFIGS = {
     columns: [
       { key: 'admission_year', label: '연도' },
       { key: 'region', label: '지역' },
-      { key: 'university_name', label: '대학명' },
+      // type:'universityNameMeta' — 대학명 셀을 메타 수정 다이얼로그 진입점으로
+      // 만든다. admissionSection과 같은 방식의 **가산된 분기 1개**이고, 이
+      // type을 선언하는 config는 여기 하나뿐이라 나머지 35개 메뉴는 기존
+      // 폴백(formatValue) 그대로다.
+      { key: 'university_name', label: '대학명', type: 'universityNameMeta' },
       { key: 'matched_hwp_name', label: '원문 대학명' },
       { key: 'detail_status', label: '상태' },
       { key: 'is_active', label: '노출', type: 'boolean' },
@@ -5066,7 +5070,34 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
 
                   {config.columns.map((column) => (
                     <td key={column.key} className="px-3 py-3">
-                      {column.type === 'image' ? (
+                      {/* 대학명 = 메타 수정 다이얼로그 진입점.
+                          공개 목록에서 대학명을 누르면 그 대학 입시 홈페이지로
+                          가듯, 어드민에서 누르면 그 URL을 고칠 수 있는 창이
+                          열린다(사용자 지시 2026-08-10).
+
+                          관리 열 ⚙️ 는 그대로 둔다 — 같은 모달을 여는 진입점이
+                          2개가 되는 것뿐이고, ⚙️ 를 지우면 대학명 컬럼이 없는
+                          다른 config에서 메타 수정 경로가 사라진다.
+
+                          ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
+                          있어야 한다. scripts/verify-admission-admin-entry.mjs 는
+                          admissionSection 분기의 시작과 fileList 분기의 시작을
+                          앵커로 그 사이를 잘라내 하네스에
+                          sectionSummaries/index/column/row/onOpenSection 만
+                          주입한다. 이 분기가 그 사이에 끼면 onOpenMetaEdit
+                          미주입으로 스크립트가 ReferenceError 로 죽는다.
+                          (앵커 문자열을 이 주석에 그대로 복제하지도 말 것 —
+                          "정확히 1개" 조건이 깨져 슬라이스가 실패한다.) */}
+                      {column.type === 'universityNameMeta' && onOpenMetaEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMetaEdit(row)}
+                          title="대학 정보 수정 창 열기"
+                          className="text-left font-bold text-[#013262] underline underline-offset-2 transition hover:text-[#0b84fd]"
+                        >
+                          {formatValue(row[column.key], column.type, column.options)}
+                        </button>
+                      ) : column.type === 'image' ? (
                         row[column.key] ? (
                           column.showFileName ? (
                             <div className="flex items-center gap-2">
