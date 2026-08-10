@@ -88,7 +88,11 @@ function OnboardingWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-white pt-16">
+    // 페이지 배경(아주 옅은 회청색) — part-01.md:39 "카드만 흰색". 이 div가 SiteLayout(Header
+    // fixed / Outlet / SiteFooter) 안에서 헤더~푸터 사이를 채우는 실제 전체 폭 루트라 배경은
+    // 여기 둔다(OnboardingStepShell은 콘텐츠 폭 제한용 컨테이너라 배경을 주면 회색 패널이
+    // 떠 보인다). 정확한 HEX가 시안에 없어 기존 surface.04(#F5F5F7) 토큰으로 근사한다(추정).
+    <div className="min-h-screen bg-surface-04 pt-16">
       <OnboardingStepShell current={current} total={total}>
         {renderStep(step, { goPrev, goNext, onFinish: handleFinish })}
       </OnboardingStepShell>
