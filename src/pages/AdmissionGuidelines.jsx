@@ -286,8 +286,24 @@ function InfoButton({ section, row, onOpen, label = '보기' }) {
   );
 }
 
+// 외부 절대 URL만 링크로 승격한다.
+//
+// DB에는 "링크 없음"이 여러 형태로 들어있다: null, '', 그리고 자리표시자
+// '-'(해군사관학교의 jungsi_guideline_url이 실제로 그렇다). '-'를 그대로
+// href에 실으면 <a href="-">가 되어 절대 URL이 아니라 **상대경로**로 해석되고,
+// 클릭 시 SPA 라우트가 /admission/- 같은 곳으로 튄다(외부 이동도, 에러도
+// 아니어서 조용히 깨진다). getFirstUrl은 값의 존재만 보고 형태는 보지 않으므로
+// 여기서 한 번 더 거른다.
+//
+// admissionParsing.js의 getFirstUrl 자체는 건드리지 않는다 — 여러 게이트가
+// 읽는 공유 모듈이라 이 화면 사정으로 시그니처를 바꿀 이유가 없다.
+function externalUrl(value) {
+  const url = typeof value === 'string' ? value.trim() : '';
+  return /^https?:\/\//i.test(url) ? url : '';
+}
+
 function LinkButton({ section, row }) {
-  const url = getFirstUrl(row, section.keys);
+  const url = externalUrl(getFirstUrl(row, section.keys));
   const linkClass =
     'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
 
@@ -303,7 +319,13 @@ function LinkButton({ section, row }) {
   }
 
   return (
-    <a href={url} target="_blank" rel="noreferrer" className={linkClass} title={`${section.label} 열기`}>
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={linkClass}
+      title={`${section.label} 열기`}
+    >
       보기
     </a>
   );
@@ -319,12 +341,38 @@ function requestUniversityInfo(onOpenInfo, university, openedSection, row) {
 function UniversityResourceRow({ university, row, onOpenInfo }) {
   const isCategory = row?.detail_status === 'category';
 
+  // 대학명 → 그 대학 입시 홈페이지(official_source_url).
+  // 같은 표의 '정시모집요강' 버튼이 읽는 jungsi_guideline_url과는 다른
+  // 컬럼이다(dev에서 209행이 우연히 같은 값이라 잘못 배선해도 눈에 잘
+  // 띄지 않는다 — 헷갈리면 두 컬럼이 다른 9행으로 확인할 것).
+  //
+  // 링크가 없으면 <a>가 아니라 <span>으로 요소 타입 자체를 바꾼다.
+  // href="" / href="#" / pointer-events:none 로 "죽은 링크"를 만들지
+  // 않는다 — LinkButton/InfoButton이 빈 값에 쓰는 기존 관례와 동일하다.
+  // row가 null인 미매칭 대학(교대·예종 등)도 이 경로로 자동 폴백한다.
+  //
+  // 행 전체(<tr>)를 클릭 가능하게 만들지 않는다: 셀 안에 이미 [보기]
+  // 버튼들이 있어 중첩 인터랙티브 요소가 되고, 모바일 오탭을 부른다.
+  const nameUrl = externalUrl(row?.official_source_url);
+
   return (
     <tr className="admission-directory-row">
       <th scope="row" className="admission-directory-name-cell">
         <span className="admission-directory-name-group">
           <span className="admission-directory-region">{university.region}</span>
-          <span className="admission-directory-name">{university.name}</span>
+          {nameUrl ? (
+            <a
+              href={nameUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="admission-directory-name admission-directory-name-link"
+              title={`${university.name} 입시 홈페이지 열기`}
+            >
+              {university.name}
+            </a>
+          ) : (
+            <span className="admission-directory-name">{university.name}</span>
+          )}
         </span>
       </th>
 
@@ -1538,7 +1586,14 @@ export default function AdmissionGuidelines() {
         .admission-directory-sticky-head { background: #013262 !important; color: #fff !important; }
         .admission-directory-name-group { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 0.625rem; }
         .admission-directory-table .admission-directory-name-cell { text-align: left; }
-        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; text-decoration: underline; text-decoration-skip-ink: auto; word-break: keep-all; white-space: normal; }
+        /* 밑줄은 .admission-directory-name 이 아니라 -link 에만 건다.
+           예전엔 이름 전체에 밑줄이 있었지만 클릭은 되지 않았다 — 밑줄이
+           거짓 어포던스였다. 이제 밑줄 = 실제로 열리는 링크다. 링크가 없는
+           행(official_source_url 미등록·자리표시자·미매칭)은 밑줄이 사라지는데,
+           의도된 시각 변화다. */
+        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
+        .admission-directory-name-link { text-decoration: underline; text-decoration-skip-ink: auto; transition: color 0.15s; }
+        .admission-directory-name-link:hover { color: #0b84fd; }
         .admission-directory-region { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 2.625rem; height: 1.5rem; padding: 0 0.625rem; border-radius: 999px; background: #013262; color: #fff; font-size: 0.75rem; line-height: 1.3; font-weight: 500; white-space: nowrap; }
         .admission-directory-category-cell { background: transparent; }
         .admission-directory-cell-link { color: #525252; font-size: 0.78125rem; letter-spacing: -0.02em; text-decoration: underline; text-decoration-skip-ink: auto; }
