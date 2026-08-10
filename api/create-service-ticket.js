@@ -37,8 +37,30 @@ function normalizeStatus(value) {
   return clean(value).toLowerCase().replace(/\s/g, '');
 }
 
+// 부정 상태를 먼저 끊는다 — 아래 판정이 includes(부분일치)라서 그냥 두면
+// 'unpaid'.includes('paid') 와 'inactive'.includes('active') 가 모두 true 가 되고,
+// 환불로 회수한 행(api/_lib/programAccess.js 의 revokeProgramAccessForOrder 가
+// payment_status='refunded' + access_status='inactive' 로 내린다)이 access_status
+// 검사를 그대로 통과한다. 즉 회수가 입장을 막지 못한다.
+// 값은 스키마 CHECK(sql/00_base_schema.sql:836-837)와 admin_enrollments 의
+// 한글 자유입력 두 쪽을 함께 커버한다.
+const DENIED_PAYMENT_STATUSES = [
+  'unpaid',
+  'refunded',
+  'refund',
+  'cancelled',
+  'canceled',
+  '미납',
+  '미결제',
+  '환불',
+  '취소'
+];
+
+const DENIED_ACCESS_STATUSES = ['inactive', 'expired', 'suspended', '비활성', '정지', '만료', '중지'];
+
 function isPaidStatus(value) {
   const status = normalizeStatus(value);
+  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item))) return false;
   return [
     'paid',
     'active',
@@ -53,7 +75,11 @@ function isPaidStatus(value) {
 
 function isActiveStatus(value) {
   const status = normalizeStatus(value);
+  // 값이 비어 있으면 통과시키는 기존 관용은 유지한다(admin_enrollments 경로에는
+  // access_status 개념이 없어 빈 값이 정상이다). 다만 명시적으로 닫힌 상태는
+  // 부분일치 함정을 피해 먼저 끊는다.
   if (!status) return true;
+  if (DENIED_ACCESS_STATUSES.some((item) => status.includes(item))) return false;
   return ['active', '활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
 }
 

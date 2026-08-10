@@ -11,6 +11,7 @@
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from '@supabase/supabase-js';
+import { grantProgramAccessForOrder } from './_lib/programAccess.js';
 
 const TOSS_CONFIRM_URL = 'https://api.tosspayments.com/v1/payments/confirm';
 
@@ -60,6 +61,51 @@ function createSupabaseAdmin() {
   });
 }
 
+// 부여를 시도조차 하지 않은 경우의 응답 형태. grantProgramAccessForOrder 의
+// 반환 형태와 같게 유지해서 프런트(src/pages/PaymentSuccess.jsx)가 한 가지
+// 모양만 보게 한다.
+function accessNotAttempted(reason) {
+  return { ok: false, granted: [], serviceKeys: [], skipped: [], error: reason };
+}
+
+// 즉시 입장 모델(사용자 확정): 돈이 들어온 주문은 승인 직후 권한을 준다.
+// 부여 실패가 결제 승인을 되돌리면 안 되므로(승인은 이미 났다) 로그만 남기고
+// 결제 성공 응답을 유지한다. 대신 실패 사실은 응답 access 필드로 드러낸다 —
+// 그래야 사용자가 '프로그램 시작하기' 대신 문의 안내를 보고, 운영자가 로그로
+// 복구할 수 있다. 성공 페이지를 새로고침하면 멱등 upsert 로 자동 재시도된다.
+async function grantAndLog(supabaseAdmin, { orderId, userId, paidAt, restoreRevoked }) {
+  const access = await grantProgramAccessForOrder(supabaseAdmin, {
+    orderId,
+    userId,
+    paidAt,
+    restoreRevoked
+  });
+  if (!access.ok) {
+    console.error('program_access grant failed:', orderId, access.error);
+  }
+  return access;
+}
+
+// 멱등 재응답 경로의 재부여는 주문 소유자 본인만 트리거할 수 있어야 한다.
+//
+// 왜 여기만 인증을 거는가
+//   이 엔드포인트는 결제 승인 자체를 위해 열려 있어야 한다(승인의 근거는 토스
+//   승인 API 응답이고, 비회원 결제도 승인은 되어야 한다). 그런데 "이미 paid 인
+//   주문"으로 들어오면 토스 호출도 금액 비교도 없이 곧장 권한 부여가 실행된다 —
+//   성공 URL 을 북마크에서 다시 열거나 orderId 하나만 아는 요청 한 번으로 남의
+//   권한 상태를 되돌릴 수 있다는 뜻이다. 그래서 "새 승인"에는 인증을 걸지 않고
+//   (근거가 토스에 있다) "재부여"에만 소유자 확인을 건다.
+//   프런트는 이미 세션 토큰을 실어 보낸다(src/pages/PaymentSuccess.jsx:236-240).
+async function isOrderOwner(supabaseAdmin, req, order) {
+  const token = getBearerToken(req);
+  if (!token) return false;
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user?.id) return false;
+
+  return clean(data.user.id) === clean(order.user_id);
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -84,7 +130,8 @@ export default async function handler(req, res) {
     if (supabaseAdmin) {
       const { data } = await supabaseAdmin
         .from('orders')
-        .select('id, amount, status, raw')
+        // user_id / paid_at 은 권한 부여용이다(부여 대상 사용자 + 이용 시작 시각).
+        .select('id, user_id, amount, status, paid_at, raw')
         .eq('id', orderId)
         .maybeSingle();
       order = data ?? null;
@@ -95,6 +142,31 @@ export default async function handler(req, res) {
           // waiting_deposit 도 여기서 걸러야 한다. 안 그러면 미입금 상태에서 새로고침할 때마다
           // 토스 승인 API를 재호출한다.
           const raw = order.raw || {};
+          // 이미 paid 인 주문은 여기서 부여를 한 번 더 시도한다. 첫 승인 때
+          // 부여가 실패했더라도(결제는 성공 처리되므로) 성공 페이지 재방문으로
+          // 복구된다. waiting_deposit 은 아직 돈이 안 들어왔으므로 부여 금지 —
+          // 입금 확인 시 api/toss-webhook.js 가 부여한다.
+          //
+          // 단 이 재시도는 (a) 주문 소유자 본인만, (b) 회수·제재된 권한은 되살리지
+          // 않는 모드로만 돈다(restoreRevoked 를 넘기지 않는다 = false). 새 돈이
+          // 들어온 근거가 없는 호출이므로 "복구"까지만 허용하고 "복원"은 막는다.
+          let access;
+          if (order.status !== STATUS_PAID) {
+            access = accessNotAttempted('waiting_deposit');
+          } else if (!clean(order.user_id)) {
+            // 비회원 결제(orders.user_id = null). 부여 대상이 없다 — 소유자 확인
+            // 이전에 걸러서 프런트가 '영구 실패' 로 안내할 수 있게 한다.
+            access = accessNotAttempted('order_has_no_user');
+          } else if (!(await isOrderOwner(supabaseAdmin, req, order))) {
+            access = accessNotAttempted('not_order_owner');
+          } else {
+            access = await grantAndLog(supabaseAdmin, {
+              orderId,
+              userId: order.user_id,
+              paidAt: order.paid_at
+            });
+          }
+
           return res.status(200).json({
             ...raw,
             // raw 에 토스 status(DONE | WAITING_FOR_DEPOSIT)가 들어 있다. raw 가 없는
@@ -103,6 +175,7 @@ export default async function handler(req, res) {
             orderId,
             totalAmount: order.amount,
             alreadyConfirmed: true,
+            access,
           });
         }
         if (order.status === STATUS_CANCELED) {
@@ -151,6 +224,11 @@ export default async function handler(req, res) {
     // 승인 성공 → 주문을 확정한다. 단 가상계좌는 아직 입금 전이므로 paid 로 올리지
     // 않고, 입금 시각을 뜻하는 paid_at 도 비워 둔다.
     const waitingForDeposit = data.status === 'WAITING_FOR_DEPOSIT';
+    // 즉시 입장의 '이용 시작일'은 이 값에서 파생된다(orders 스키마는 그대로 두고
+    // paid_at 하나만 원천으로 쓴다 — 시작일/기간 컬럼을 새로 만들지 않는다).
+    const paidAt = waitingForDeposit ? null : new Date().toISOString();
+
+    let access = accessNotAttempted(supabaseAdmin ? 'order_not_found' : 'supabase_admin_unavailable');
 
     if (supabaseAdmin && order) {
       const { error: updateError } = await supabaseAdmin
@@ -159,7 +237,7 @@ export default async function handler(req, res) {
           status: waitingForDeposit ? STATUS_WAITING_DEPOSIT : STATUS_PAID,
           payment_key: paymentKey,
           method: data.method ?? null,
-          paid_at: waitingForDeposit ? null : new Date().toISOString(),
+          paid_at: paidAt,
           raw: data,
         })
         .eq('id', orderId);
@@ -168,9 +246,23 @@ export default async function handler(req, res) {
         // 승인 자체는 성공이므로 로깅만 하고 진행한다.
         console.error('orders update error:', updateError);
       }
+
+      // 가상계좌(waiting_deposit)에는 권한을 주지 않는다 — 계좌만 발급됐고 돈은
+      // 안 들어왔다. 입금 확인 시 api/toss-webhook.js 가 같은 모듈로 부여한다.
+      // 이 경로는 방금 토스 승인이 성공한 "새 결제"다. 이전에 환불로 회수된 권한이
+      // 있어도 되살려야 한다(재구매) → restoreRevoked: true. 운영자 제재
+      // (access_status='suspended')는 이 경로에서도 유지된다.
+      access = waitingForDeposit
+        ? accessNotAttempted('waiting_deposit')
+        : await grantAndLog(supabaseAdmin, {
+            orderId,
+            userId: order.user_id,
+            paidAt,
+            restoreRevoked: true
+          });
     }
 
-    return res.status(200).json(data);
+    return res.status(200).json({ ...data, access });
   } catch (err) {
     console.error('confirm-payment error:', err);
     return res.status(500).json({ error: String(err?.message ?? err) });
