@@ -174,10 +174,16 @@ export default function MyPage() {
       const [{ data: ord }, { data: reqs }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, order_name, amount, paid_at')
+          // 가상계좌는 승인 직후 paid 가 아니라 waiting_deposit 으로 기록된다
+          // (api/confirm-payment.js — 계좌 발급만 끝난 상태). paid 만 조회하면 입금 전
+          // 주문이 마이페이지에서 통째로 사라지므로 두 상태를 함께 읽고, 배지·환불 대상
+          // 판정을 위해 status 도 가져온다.
+          .select('id, order_name, amount, paid_at, status')
           .eq('user_id', user.id)
-          .eq('status', 'paid')
-          .order('paid_at', { ascending: false }),
+          .in('status', ['paid', 'waiting_deposit'])
+          // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
+          // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
+          .order('created_at', { ascending: false }),
         supabase
           .from('refund_requests')
           .select('id, order_id, order_name, amount, reason, status, created_at')
@@ -209,11 +215,15 @@ export default function MyPage() {
     setRefundForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // 환불 신청 대상은 실제 입금이 확인된 주문(paid)뿐이다. 가상계좌 미입금
+  // (waiting_deposit) 건은 아직 들어온 돈이 없어 환불할 대상이 아니므로 목록에서 뺀다.
+  const refundableOrders = orders.filter((o) => o.status === 'paid');
+
   async function submitRefund(e) {
     e.preventDefault();
     if (!user) return;
 
-    const order = orders.find((o) => o.id === refundForm.orderId);
+    const order = refundableOrders.find((o) => o.id === refundForm.orderId);
     if (!order) {
       setRefundMsg('환불할 결제 내역을 선택해 주세요.');
       return;
@@ -470,9 +480,18 @@ export default function MyPage() {
                     {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)} 결제` : ''}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                  결제완료
-                </span>
+                {/* 배지는 orders.status 파생값이다. waiting_deposit(가상계좌 발급 후 미입금)을
+                    '결제완료'로 찍으면 입금 전 주문을 오표기한다. 색은 환불 상태 배지와 같은
+                    규약을 따른다 — 완료 계열은 emerald, 대기 계열은 amber. */}
+                {o.status === 'waiting_deposit' ? (
+                  <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                    입금대기
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                    결제완료
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -513,7 +532,9 @@ export default function MyPage() {
           을 따릅니다. 신청 접수 후 검토 결과를 안내드립니다.
         </p>
 
-        {orders.length === 0 ? (
+        {/* 미입금(waiting_deposit) 주문은 환불 대상이 아니므로 refundableOrders 기준으로
+            폼 노출 여부를 판단한다. 입금대기 건만 있는 사용자는 이 빈 상태를 본다. */}
+        {refundableOrders.length === 0 ? (
           <div className="mt-6 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-6 text-center text-sm font-bold text-[#5B6573]">
             환불 신청 가능한 결제 내역이 없습니다.
           </div>
@@ -527,7 +548,7 @@ export default function MyPage() {
                 onChange={(e) => updateRefund('orderId', e.target.value)}
               >
                 <option value="">결제 내역 선택</option>
-                {orders.map((o) => (
+                {refundableOrders.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.order_name} · {formatKRW(o.amount)}
                     {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)}` : ''}

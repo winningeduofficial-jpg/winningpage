@@ -44,7 +44,11 @@ create table if not exists public.coupons (
 create table if not exists public.orders (
   id              text primary key,             -- 토스 orderId (서버 생성)
   user_id         uuid references auth.users (id) on delete set null,
-  status          text not null default 'pending', -- pending | paid | failed | canceled
+  -- pending | paid | waiting_deposit | failed | canceled
+  --   waiting_deposit : 가상계좌 계좌 발급 완료 + 입금 전(토스 WAITING_FOR_DEPOSIT).
+  --                     api/confirm-payment.js 가 기록하고 api/toss-webhook.js 가 paid 로 전이시킨다.
+  --   canceled        : 취소/부분취소/입금기한 만료(api/toss-webhook.js).
+  status          text not null default 'pending',
   order_name      text,
   list_amount     int  not null default 0,      -- 정가 합계
   discount_amount int  not null default 0,      -- 총 할인
