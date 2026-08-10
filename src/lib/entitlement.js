@@ -4,7 +4,7 @@
 // 이 값이 실수로 환경변수에 들어가도(Vercel 등) 프로덕션 번들에서는 활성화가 절대 불가능하다.
 // 플래그 단독으로 판정하면 그 안전장치가 사라진다.
 //
-// 서버(api/create-service-ticket.js의 hasPaidServiceAccess())는 이 플래그를 전혀 모른다.
+// 서버(api/_lib/serviceAccess.js의 hasPaidServiceAccess())는 이 플래그를 전혀 모른다.
 // 여기는 프런트 표시 전용이며, 실제 결제 게이트 우회는 src/lib/paidServiceAccess.js의
 // VITE_DISABLE_PAID_GATE가 담당한다. 두 플래그는 역할이 다르다(.env.example 참고).
 export const FAKE_ENTITLEMENT_ENABLED =
@@ -36,13 +36,67 @@ export function getMockPaidOrders() {
   ];
 }
 
-// 향후 /app/* 접근 가드가 쓸 판정 헬퍼.
-// 계약: 플래그가 켜져 있으면 무조건 true(로컬에서 이용권을 가진 것으로 간주).
-// 플래그가 꺼져 있으면 이 모듈은 아직 실제 판정 로직이 없으므로 null(판정 불가)을
-// 반환한다 — false가 아니다. 호출부는 null을 받으면 "이용권 없음"으로 단정하지 말고
-// 서버 판정(api/create-service-ticket.js의 hasPaidServiceAccess() 등)에 위임해야 한다.
-export function hasEntitlement(serviceKey) {
+import { supabase } from './supabase';
+
+// 이용권 판정은 서버 한 곳(api/_lib/serviceAccess.js hasPaidServiceAccess, program_access +
+// admin_enrollments 조회)이 정본이다. 이 모듈은 그 판정을 다시 구현하지 않고
+// /api/check-service-access를 호출해 물어보기만 한다.
+//
+// 과거(2026-08-10 이전) 이 함수는 orders 테이블을 직접 status='paid' + order_name 키워드
+// 매칭으로 조회했다. 서버 규칙(program_access/admin_enrollments 기준)과 완전히 달라서
+// program_access에만 기록된 결제자가 부당하게 차단되고, orders 행만 있는 사람은 통과하는
+// 불일치가 있었다. 게다가 admin_enrollments는 RLS가 is_admin() 전용이라 일반 사용자
+// 세션으로는 애초에 클라이언트에서 서버 규칙을 재현할 수 없었다. 그래서 조회를 서버로
+// 옮겼다 — 아래 함수는 그 엔드포인트를 부르기만 한다.
+//
+// 로컬 개발(npm run dev, Vite 단독) 주의: api/ 는 Vercel 서버리스 함수라 Vite 개발 서버만
+// 띄우면 /api/check-service-access가 존재하지 않는다(404 등) → 아래에서 항상 null(판정
+// 불가)로 떨어진다. 이 상황을 우회하려고 있는 게 FAKE_ENTITLEMENT_ENABLED(위 플래그)다 —
+// .env.local에 VITE_FAKE_ENTITLEMENT=true를 켜면 네트워크 호출 없이 즉시 true를 반환한다.
+// api/ 가 함께 뜨는 환경(vercel dev 등)이 아니라면 로컬에서는 이 플래그가 사실상 필수다.
+//
+// 반환값 계약(호출부, 특히 RequireGoalAccess.jsx가 반드시 구분해야 함):
+//   - FAKE_ENTITLEMENT_ENABLED가 켜져 있으면 조회 없이 즉시 true.
+//   - 로그인 세션이 없으면 null(판정 불가) — "로그인 안 됨"과 "이용권 없음"은 서로 다른
+//     사유다. 로그인 판정 자체는 가드의 1단계 책임이므로 여기서 false를 단정하지 않는다.
+//   - serviceKey를 서버가 모르면(400) null — 판정 기준 자체가 없다는 뜻.
+//   - 네트워크 오류·5xx 등 호출 자체가 실패하면 null(판정 불가). false로 단정하면 서버
+//     장애 중인 결제 사용자를 결제 페이지로 잘못 보내게 된다 — 호출부는 null을 받으면
+//     "미보유"로 취급해 곧장 리다이렉트하지 말고, 재시도 UI를 보여주거나 최소한 그
+//     자리에 머무르게 해야 한다(RequireGoalAccess.jsx 참고).
+//   - 그 외에는 서버가 준 실제 판정(true/false)을 그대로 반환한다.
+export async function hasEntitlement(serviceKey) {
   if (FAKE_ENTITLEMENT_ENABLED) return true;
-  void serviceKey;
-  return null;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData?.session;
+  if (!session?.user || !session?.access_token) return null;
+
+  try {
+    const response = await fetch('/api/check-service-access', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ service_key: serviceKey })
+    });
+
+    let result = {};
+    try {
+      result = await response.json();
+    } catch {
+      result = {};
+    }
+
+    if (!response.ok) {
+      console.error('[entitlement] check-service-access 실패:', response.status, result?.detail);
+      return null;
+    }
+
+    return result?.allowed === true;
+  } catch (error) {
+    console.error('[entitlement] check-service-access 호출 오류:', error);
+    return null;
+  }
 }
