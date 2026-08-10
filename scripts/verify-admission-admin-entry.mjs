@@ -42,6 +42,10 @@
 //   entry:4~8   목록 '관리' 열 ✏️ config 게이팅              (소스 락)
 //   entry:9     관리 열 실제 렌더(✏️/👁/🗑 3-config 대조)     (슬라이스 SSR)
 //   entry:10~12 목록 '관리' 열 ⚙️(메타 전용 모달) 진입점·모달 (소스 락 + SSR)
+//   entry:13    카테고리 편집 다이얼로그 — 원문/HTML 미러     (슬라이스 SSR)
+//               접힘 패널 제거(admissionDoc만 렌더)
+//   entry:14    config.fields의 원문/HTML 필드 정의 12개는    (소스 락)
+//               지워지지 않고 그대로 남아 있다(렌더만 껐다는 증거)
 //
 // 실행: node scripts/verify-admission-admin-entry.mjs
 // 제약: npm install 금지, jsdom 없음. esbuild(transform) + react-dom/server 만.
@@ -193,6 +197,65 @@ export default function ManageCellHarness({ config, row, onEdit, onDelete, onOpe
   const tmpFile = path.join(
     REPO_ROOT,
     `.tmp-admin-manage-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+  );
+  fs.writeFileSync(tmpFile, out.code);
+  try {
+    const mod = await import(`file://${tmpFile}`);
+    return mod.default;
+  } finally {
+    fs.rmSync(tmpFile, { force: true });
+  }
+}
+
+// ── AdmissionGroupField 기계 슬라이스 (entry:13) ─────────────────────
+//
+// 세 번째 검사 축: 카테고리 편집 다이얼로그 본문(AdmissionGroupField)이
+// 원문(raw)/HTML 미러 접힘 패널을 실제로 그리지 않는가. 사용자 지시
+// (2026-08-10) "원문(raw) 보기/편집, HTML 미러 보기 이 두가지도 dialog에서
+// 없애줘. 불필요해."
+//
+// 함수 하나를 통째로 슬라이스해 렌더한다 — entry:9의 sliceManageCell과
+// 같은 기법. AdmissionDocFieldEditor는 supabase 등 부작용 의존이 있는
+// 무거운 컴포넌트라 실제 구현 대신 식별 가능한 스텁으로 갈아끼운다(이
+// 검사의 관심사는 "raw/html 패널이 안 그려지는가"이지 문서 편집기
+// 내부가 아니다).
+const GROUP_FIELD_START =
+  'function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {';
+const GROUP_FIELD_END = '\nfunction AdminForm({';
+
+function sliceAdmissionGroupField(source) {
+  const start = source.indexOf(GROUP_FIELD_START);
+  if (start === -1 || source.indexOf(GROUP_FIELD_START, start + 1) !== -1) {
+    throw new Error(
+      `AdmissionGroupField 슬라이스 시작 앵커가 정확히 1개가 아니다. ` +
+        '리팩터로 시그니처가 바뀌었다면 이 스크립트의 GROUP_FIELD_START를 맞춰 고쳐라.'
+    );
+  }
+  const end = source.indexOf(GROUP_FIELD_END, start);
+  if (end === -1) {
+    throw new Error(`AdmissionGroupField 슬라이스 종료 앵커 "${GROUP_FIELD_END}" 를 찾지 못했다.`);
+  }
+  return source.slice(start, end).trim();
+}
+
+async function loadAdmissionGroupField(sliceText) {
+  const harness = `
+import React from 'react';
+function AdmissionDocFieldEditor({ field }) {
+  return <div data-testid="doc-editor" data-key={field.key} />;
+}
+${sliceText}
+export default AdmissionGroupField;
+`;
+  const out = await esbuild.transform(harness, {
+    loader: 'jsx',
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+    format: 'esm'
+  });
+  const tmpFile = path.join(
+    REPO_ROOT,
+    `.tmp-admin-groupfield-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
   );
   fs.writeFileSync(tmpFile, out.code);
   try {
@@ -611,6 +674,115 @@ async function main() {
       'AdmissionMetaEditModal — 메타 9필드 라벨이 전부 렌더되고, 표 편집기·HWP 파싱 패널 마커는 없다',
       pass,
       threw ? html : JSON.stringify({ missingLabels, forbiddenMarkers, len: html.length })
+    );
+  }
+
+  // ===================================================================
+  // entry:13~14 — 카테고리 편집 다이얼로그: 원문(raw)/HTML 미러 접힘 패널 제거
+  //
+  // 사용자 지시(2026-08-10): "원문(raw) 보기/편집, HTML 미러 보기 이
+  // 두가지도 dialog에서 없애줘. 불필요해." 대상은 AdmissionGroupField —
+  // AdmissionSectionEditModal(편집 다이얼로그) 본문이 groupFields.map으로
+  // 렌더하는 컴포넌트다(:4996 부근). AdminForm 본문의 readOnly textarea
+  // 접힘(:4719 부근)은 **다른 렌더 트리**(field.group이 없는 다른 35개
+  // 메뉴 전용, buildFieldRenderItems가 group 필드를 애초에 그 경로에서
+  // 뺀다)라 대상이 아니다 — 건드리지 않았다.
+  // ===================================================================
+
+  // ── entry:13 — 다이얼로그 SSR: raw/html 문구 없음, admissionDoc만 렌더 ──
+  {
+    const GroupField = await loadAdmissionGroupField(sliceAdmissionGroupField(adminSrc));
+    const rawField = { key: 'selection_method', type: 'textarea', group: 'selection_method' };
+    const htmlField = {
+      key: 'selection_method_html',
+      type: 'textarea',
+      readOnly: true,
+      group: 'selection_method'
+    };
+    const docField = {
+      key: 'selection_method_json',
+      type: 'admissionDoc',
+      sectionKey: 'selection_method',
+      group: 'selection_method'
+    };
+    const renderGroupField = (field) =>
+      renderToStaticMarkup(
+        React.createElement(GroupField, {
+          field,
+          form: { selection_method: '원문 텍스트', selection_method_html: '<p>미러</p>' },
+          readonly: false,
+          onChange: () => {},
+          onPatch: () => {},
+          onDirty: () => {}
+        })
+      );
+    const rawHtml = renderGroupField(rawField);
+    const htmlHtml = renderGroupField(htmlField);
+    const docHtml = renderGroupField(docField);
+    const combined = rawHtml + htmlHtml + docHtml;
+    const pass =
+      rawHtml === '' &&
+      htmlHtml === '' &&
+      !combined.includes('원문(raw) 보기/편집') &&
+      !combined.includes('HTML 미러 보기') &&
+      !combined.includes('<details') &&
+      docHtml.includes('data-testid="doc-editor"') &&
+      docHtml.includes('admission-surface');
+    record(
+      'entry:13',
+      '카테고리 편집 다이얼로그 본문(AdmissionGroupField) — raw/html 필드는 아무것도 렌더하지 않고(빈 문자열), admissionDoc 필드만 렌더된다; "원문(raw) 보기/편집"·"HTML 미러 보기"·<details> 마커 없음',
+      pass,
+      JSON.stringify({ rawHtml, htmlHtml, docHtmlLen: docHtml.length })
+    );
+  }
+
+  // ── entry:14 — 필드 정의 자체는 지워지지 않았다(렌더만 껐다는 증거) ──
+  //
+  // entry:13이 "안 그린다"만 보면 "필드를 통째로 지워서 안 그려지는" 경우와
+  // 구분이 안 된다. 필드를 지우면 rowToForm/formToPayload가 스프레드하는
+  // form 객체에서 그 키가 빠지는 게 아니라(스프레드는 row/form 전체를 그대로
+  // 옮긴다) config.fields 자체의 required 검사·문서 대상 판정 등에서 조용히
+  // 발을 잃을 수 있어 별도로 못 박는다. admissionGuidelines의 raw 6개 +
+  // html 6개 = 12개 필드 키가 각각 group과 함께 소스에 그대로 있는지 잠근다.
+  {
+    const HWP_KEYS = [
+      'previous_year_changes',
+      'selection_method',
+      'minimum_requirements',
+      'exam_schedule',
+      'school_record_method',
+      'recruitment_quota'
+    ];
+    const missing = [];
+    for (const key of HWP_KEYS) {
+      const rawDecl = new RegExp(`key:\\s*'${key}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?group:\\s*'${key}'`);
+      if (!rawDecl.test(code)) missing.push(`raw:${key}`);
+    }
+    // html 키는 3개(previous_year_changes_html/selection_method_html/
+    // minimum_requirements_html/exam_schedule_html/school_record_method_html)가
+    // <섹션>_html 규칙을 따르지만 recruitment_quota만 예외로
+    // recruitment_result_html이다(기존 컬럼명 불일치, 이 스크립트가 만든 게
+    // 아니라 기존 소스 그대로) — 매핑을 명시한다.
+    const HTML_KEY_MAP = {
+      previous_year_changes: 'previous_year_changes_html',
+      selection_method: 'selection_method_html',
+      minimum_requirements: 'minimum_requirements_html',
+      exam_schedule: 'exam_schedule_html',
+      school_record_method: 'school_record_method_html',
+      recruitment_quota: 'recruitment_result_html'
+    };
+    for (const [group, htmlKey] of Object.entries(HTML_KEY_MAP)) {
+      const htmlDecl = new RegExp(
+        `key:\\s*'${htmlKey}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?readOnly:\\s*true,[\\s\\S]{0,120}?group:\\s*'${group}'`
+      );
+      if (!htmlDecl.test(code)) missing.push(`html:${htmlKey}`);
+    }
+    const pass = missing.length === 0;
+    record(
+      'entry:14',
+      'admissionGuidelines.fields — raw 6개 + html 6개(총 12개) 필드 정의가 group과 함께 소스에 그대로 남아 있다(렌더 제거 ≠ 필드 삭제)',
+      pass,
+      JSON.stringify({ missing })
     );
   }
 

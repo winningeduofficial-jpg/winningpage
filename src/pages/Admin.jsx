@@ -4411,43 +4411,31 @@ function CategorySectionButton({ item, onOpen }) {
 
 // 카테고리(field.group) 필드 1개의 편집 UI. 아코디언이 폼 안에서 렌더하던
 // 것을 **재타이핑 없이** 그대로 떼어 온 것 — 편집 다이얼로그 본문이 이걸
-// 쓴다. 문서 편집기(admissionDoc)가 주 콘텐츠로 details 없이 바로 보이고,
-// 원문(raw)·HTML 미러는 둘 다 details로 강등하되 원문을 미러보다 위에 둔다
-// (원문은 파싱 실행의 입력이라 관리자가 실제로 쓰고, 미러는 읽기 전용 참고
-// 자료다) — 필드 배열 순서가 json→raw→html이라 그 순서가 그대로 나온다.
+// 쓴다. 문서 편집기(admissionDoc)만 그린다: 원문(raw)·HTML 미러(둘 다
+// field.type === 'textarea', group만 admissionDoc과 공유)는 사용자 지시
+// (2026-08-10) "원문(raw) 보기/편집, HTML 미러 보기 이 두가지도 dialog에서
+// 없애줘. 불필요해" 에 따라 렌더를 뺐다.
+//
+// ⚠ 필드 자체(config.fields의 raw/html 항목)는 지우지 않았다 — rowToForm이
+// row 전체를 스프레드해 form 상태에 그대로 실리고, formToPayload도 form을
+// 스프레드해 그대로 되돌려 보낸다(AdminForm.rowToForm/formToPayload,
+// :1198/:1207 부근). 여기서 렌더만 껐을 뿐 form[field.key]는 사용자가
+// 다이얼로그에서 손대지 않은 값 그대로 저장 왕복한다 — raw는 엑셀 대량
+// 업로드의 "업로드 raw == DB raw면 무변경" 판정 기준이고, html은 롤백
+// 수단·레거시 임포터 입력원이라 컬럼 자체를 없애면 안 된다.
 // 220px 라벨 열을 쓰지 않는 것도 원본 그대로다: 카테고리명은 이미 모달
 // 제목에 있어 필드 라벨을 반복할 이유가 없다.
 function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {
+  if (field.type !== 'admissionDoc') return null;
   return (
     <div
       // admission-surface: 표 표면 스타일을 공개 모달과 공유(AdmissionSurface.jsx
-      // 참고) — 이 행이 admissionDoc 필드일 때만 data-section을 실어
-      // minimum_requirements/exam_schedule 폭 규칙이 걸리게 한다(다른 필드
-      // 타입엔 표가 없어 무해). 좌우 px-5는 모달 본문이 이미 px-6/md:px-12를
-      // 갖고 있어 뺐다.
-      className={
-        field.type === 'admissionDoc'
-          ? 'admission-surface border-b border-[#edf0f4] py-4'
-          : 'border-b border-[#edf0f4] py-4'
-      }
-      data-section={field.type === 'admissionDoc' ? field.group : undefined}
+      // 참고) — minimum_requirements/exam_schedule 폭 규칙이 걸리게 한다.
+      // 좌우 px-5는 모달 본문이 이미 px-6/md:px-12를 갖고 있어 뺐다.
+      className="admission-surface border-b border-[#edf0f4] py-4"
+      data-section={field.group}
     >
-      {field.type === 'admissionDoc' && (
-        <AdmissionDocFieldEditor field={field} form={form} onPatch={onPatch} onDirty={onDirty} />
-      )}
-      {field.type === 'textarea' && (
-        <details className="group">
-          <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
-            {field.readOnly ? 'HTML 미러 보기(자동 생성, 편집 불가)' : '원문(raw) 보기/편집'}
-          </summary>
-          <div className="mt-2">
-            {field.help && (
-              <p className="mb-1 text-xs font-normal leading-5 text-gray-500">{field.help}</p>
-            )}
-            <AdminInput field={field} value={form[field.key]} onChange={onChange} disabled={readonly} />
-          </div>
-        </details>
-      )}
+      <AdmissionDocFieldEditor field={field} form={form} onPatch={onPatch} onDirty={onDirty} />
     </div>
   );
 }
