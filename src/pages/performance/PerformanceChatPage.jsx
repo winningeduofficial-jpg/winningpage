@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { useSession } from '../../context/SessionContext';
 import ChatTimeline from '../../components/performance/chat/ChatTimeline';
 import AiLoadingBubble from '../../components/performance/chat/AiLoadingBubble';
@@ -9,6 +9,7 @@ import GuideUploadCard from '../../components/performance/step2/GuideUploadCard'
 import ManualInfoForm from '../../components/performance/step2/ManualInfoForm';
 import TopicCardList from '../../components/performance/step3/TopicCardList';
 import TopicDetailModal from '../../components/performance/step3/TopicDetailModal';
+import DesignReportModal from '../../components/performance/step4/DesignReportModal';
 import QuotaExhaustedCard from '../../components/performance/quota/QuotaExhaustedCard';
 import {
   analyzeGuideUpload,
@@ -16,6 +17,7 @@ import {
   uploadGuidePhotos
 } from '../../lib/performance/guideUpload';
 import { recommendTopics } from '../../lib/performance/topics';
+import { requestDesignReport } from '../../lib/performance/designReport';
 
 // STEP1~STEP3 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
@@ -47,12 +49,15 @@ import { recommendTopics } from '../../lib/performance/topics';
 //   · §5.3/§5.4 재방문 분기(이어서 하기/새로 시작하기) — P13. 여기서는 `lastSession`/
 //     `latestDraft` 유무와 무관하게 항상 STEP1 인사말+폼을 그대로 보여준다.
 //   · 이전 값 프리필 — P13. `initialValues`를 비워 둔 채로 `BasicInfoForm`에 넘긴다.
-//   · §5.11 주제 상세 모달은 이 슬라이스(P9)에서 배선한다 — 카드 `onDetail` → `TopicDetailModal`
-//     오픈, `이 주제로 확정하기` → `handleConfirmTopic`(design-report API 호출은 P10 몫).
-//   · §5.12(STEP4 설계 리포트 생성) 본편 — 확정 직후엔 설계 리포트 로딩 상태로 넘어가는
-//     자리만 만들어 둔다(`designPhase`). 실제 `design-report` 호출·리포트 렌더는 P10.
+//   · §5.11 주제 상세 모달은 P9에서 배선했다 — 카드 `onDetail` → `TopicDetailModal` 오픈,
+//     `이 주제로 확정하기` → `handleConfirmTopic`.
 //   · §5.20 (A) 셸 상단 회차 배너 — 셸(`PerformanceAppLayout`) 소관이라 여기서 만들지 않는다.
 //     이 페이지가 담당하는 것은 (B) 인라인 소진 카드뿐이다.
+//
+// **STEP4(§5.12·§5.13, P10에서 배선)**
+//   확정 → `POST /api/performance/design-report`(주제 확정 + 리포트 생성이 서버에서 한
+//   트랜잭션) → 성공 시 `DesignReportModal` 자동 오픈. 호출·실패 분류는
+//   `src/lib/performance/designReport.js`.
 
 // §5.6 문구 원문. 두 줄로 쓰인 그대로 보존한다(`좋아요.` 뒤 줄바꿈).
 const GUIDE_INTRO =
@@ -84,6 +89,23 @@ const TOPIC_RESULT_MANUAL =
 // 유실되지 않는다"를 여기서도 한 번 더 지킨다.
 const QUOTA_DISMISSED_COPY =
   '입력한 내용은 그대로 저장돼 있어요. 이용권을 추가하면 이 자리에서 바로 이어서 진행할 수 있습니다.';
+
+/**
+ * §5.12 사용자 확정 말풍선 문구 원문. **곡선 따옴표(“ ”)를 쓴다**(§5.12 단정) — 시안이
+ * 직선 따옴표가 아니라 U+201C/U+201D를 썼고, 그것이 실측 대상이다.
+ */
+function buildConfirmBubble(title) {
+  return `“${title}”으로 확정할게요`;
+}
+
+// 시안 없음 — 제안. §5.13 모달을 닫으면(`창 닫고 작성하기`) 타임라인으로 돌아오는데,
+// STEP5 제출폼(§5.14)은 아직 없다. 그 자리에 아무것도 남기지 않으면 방금 만든 리포트로
+// 되돌아갈 길이 사라진다 — 리포트가 준비됐다는 사실과 다시 여는 경로를 남긴다.
+const DESIGN_READY_COPY =
+  '설계 리포트를 만들었어요. 자료・글 구조・작성 방향을 한 번에 정리했으니 확인하고 작성을 시작해 보세요.';
+
+// 시안 없음 — 제안. 실패해도 사용자가 갇히지 않아야 한다는 요구(§5.12 흐름)의 안내문.
+const DESIGN_FAILED_FALLBACK = '설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
 
 /**
  * STEP1 입력 요약 사용자 말풍선(§5.6 문구 원문).
@@ -156,25 +178,40 @@ export default function PerformanceChatPage() {
   //   원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로 교체되지 않는다
   //   — `topics` 상태가 이 사이에 바뀌지 않기 때문).
   //   **확정 경로는 다르다.** `handleConfirmTopic`이 `designPhase`를 `'loading'`으로 바꾸면
-  //   아래 STEP3 카드 렌더 조건(`designPhase === 'idle' ? … : null`)이 카드 목록을 통째로
+  //   아래 STEP3 메시지 렌더 조건(`designPhase === 'idle'`)이 카드 목록을 통째로
   //   언마운트한다 — React 18 배치로 카드 언마운트와 모달 언마운트가 같은 커밋에서 일어나므로
   //   `useModalBehavior`의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
   //   그래서 확정 경로는 자동 복귀에 기대지 않고 `designLoadingRef`로 새 포커스 목적지(STEP4
-  //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **P10 담당자 주의**:
-  //   이 컴포넌트에 카드 목록을 대체하는 새 렌더 트리를 추가한다면 같은 문제(트리거 detach)가
-  //   재발할 수 있으니 포커스 목적지를 반드시 함께 배선할 것.
+  //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **같은 이유로 P10이
+  //   추가한 설계 리포트 모달도 닫힐 때 포커스 목적지를 직접 지정한다**(`handleCloseDesignModal`).
   const [topicDetail, setTopicDetail] = useState(null);
 
-  // ── STEP4 설계 리포트 진입 자리(§5.12). **'loading'뿐이다** — 실제 `design-report` 호출과
-  //   결과 렌더는 P10 몫이라 그 이후 상태(완료/실패)를 아직 만들지 않는다. 확정된 주제가
-  //   있으면 카드 3장·재추천 버튼을 타임라인에서 걷고(§5.12 단정) 로딩 버블만 보여준다.
+  // ── STEP4 설계 리포트(§5.12 로딩 → §5.13 모달, P10에서 완성).
+  //   'idle'    주제 미확정 — STEP3 카드가 화면에 있다.
+  //   'loading' `design-report` 진행 중 → 로딩 버블(§5.12).
+  //   'ready'   리포트 수신 → 모달 자동 오픈 + 타임라인에 다시 열기 경로.
+  //   'failed'  실패 → 재시도 / 주제 재선택.
+  //
+  //   **`'idle'`로 되돌아오는 경로가 실재해야 한다.** P9는 확정 후 이 상태에서 나갈 수
+  //   없었고(단방향), 그 미결이 이 슬라이스의 배선으로 닫힌다 — 실패 시 `주제 다시 고르기`가
+  //   `'idle'`로 되돌린다. 실패 경로에서는 서버가 아무것도 커밋하지 않으므로(모델 호출 전
+  //   게이트는 물론, 커밋 RPC 실패도 주제 확정 없이 끝난다 — `design-report.js` 상단 표)
+  //   되돌아가 다른 주제를 고르는 것이 실제로 안전하다.
   const [designPhase, setDesignPhase] = useState('idle');
   const [confirmedTopic, setConfirmedTopic] = useState(null);
+  const [designReport, setDesignReport] = useState(null);
+  const [designError, setDesignError] = useState(null);
+  // 모달 개폐는 `designPhase`와 **별개 축**이다 — 닫아도 리포트는 그대로 남아야 다시 열 수 있다.
+  const [designModalOpen, setDesignModalOpen] = useState(false);
   // `designPhase === 'loading'`으로 전이할 때 새로 나타나는 STEP4 로딩 버블로 포커스를 옮기는
   // 데 쓴다(검토 A-2, 위 `topicDetail` 주석 참고). `ChatTimeline`에 이 ref를 `focusRef`로
   // 넘기면 `AiLoadingBubble` 루트에 배선되고, 그 항목의 래퍼가 자동으로 `aria-live="off"`가
   // 되어 `ChatTimeline`의 `aria-live="polite"`와 중복 낭독되지 않는다.
   const designLoadingRef = useRef(null);
+  // 모달을 닫을 때 포커스가 갈 자리(`설계 리포트 다시 보기` 버튼). 모달은 로딩 버블이
+  // 사라진 커밋에서 자동으로 열리므로 `useModalBehavior`가 기억한 트리거는 이미 detach된
+  // 노드다 — 복귀 대상을 여기서 직접 준다.
+  const designReopenRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -389,25 +426,101 @@ export default function PerformanceChatPage() {
   }
 
   /**
-   * `이 주제로 확정하기`(§5.11 하단, 모달의 유일한 확정 진입점). **여기서 확정 API를
-   * 부르지 않는다** — §10.2 P10이 "주제 확정 + 리포트 생성"을 `design-report` 한 트랜잭션
-   * 으로 묶는 설계이고(§8.6 근거, 외부 앱의 2회 왕복 결함 회피), 이 핸들러가 별도로 확정을
-   * 커밋하면 그 트랜잭션 경계가 깨진다. 지금 하는 일은 모달을 닫고 STEP4 설계 리포트
-   * 로딩 상태로 넘어가는 자리를 만드는 것뿐이다.
+   * 설계 리포트 1회 요청. **주제 확정과 리포트 생성이 서버에서 한 트랜잭션이다**(§8.6 —
+   * 외부 앱의 2회 왕복 결함 회피). 그래서 "확정만 하는" 호출은 존재하지 않는다.
    *
-   * TODO(P10): `design-report` API 호출 + 결과 렌더. 실패 처리(무차감·재시도 등)도 그때
-   * 함께 설계한다 — 지금은 로딩 버블에서 더 나아가지 않는다.
+   * 회차는 이 단계에서 깎이지 않는다(§9.3 「설계 리포트 생성·재생성 | 없음」) — 서버 응답도
+   * `charged:false` 고정이라 이 화면은 차감을 예측하지도 표시하지도 않는다.
    *
-   * ⚠️ **알려진 미결 (고치지 말 것 — P10과 함께 머지)**: `designPhase`를 `'idle'`로 되돌리는
-   * 경로가 없다. 지금은 `design-report` 응답이 상태를 다음으로 진행시킬 것을 전제한 설계라
-   * 확정 후에는 새로고침 외에 벗어날 수 없다 — 이 상태는 P10 없이는 단방향이다. (서버에
-   * 반쯤 확정된 고아 행이 남지는 않는다: 네트워크 호출이 전혀 없고 `performance_topics.selected`
-   * 도 건드리지 않아 새로고침하면 흔적 없이 사라진다.)
+   * **재시도는 `regenerate`를 보내지 않는다.** 같은 `topicId` 재요청은 서버에서 멱등 재생
+   * (모델 미호출)이라, 응답만 유실된 경우에는 저장된 리포트를 그대로 복구하고 아니면 새로
+   * 만든다. `regenerate:true`는 재생성 예산(2회)을 태우는 별개 행동이다.
+   */
+  async function requestDesign(topic) {
+    if (!accessToken || !createdSession || !topic) return;
+
+    setDesignPhase('loading');
+    setDesignError(null);
+
+    try {
+      const data = await requestDesignReport({
+        accessToken,
+        sessionId: createdSession.id,
+        topicId: topic.id
+      });
+
+      setDesignReport(data);
+      setDesignPhase('ready');
+      // §5.13 흐름도(`DesignLoading --> DesignReport`)대로 완성 즉시 모달을 연다.
+      setDesignModalOpen(true);
+    } catch (error) {
+      // 서버는 원 예외·모델 원문을 응답에 싣지 않는다(§8.6 공통 규약) — `userMessage`는
+      // 그대로 화면에 띄워도 되는 문구다. 콘솔에만 코드를 남긴다.
+      console.error('[performance] 설계 리포트 생성 실패:', error?.code, error);
+      setDesignError({
+        code: error?.code || 'UNKNOWN',
+        message: error?.userMessage || DESIGN_FAILED_FALLBACK,
+        // `TOPIC_ALREADY_CONFIRMED`에서만 실린다 — 복구 경로(아래 `step4-design-failed`)가 쓴다.
+        confirmedTopicId: error?.confirmedTopicId || null
+      });
+      setDesignPhase('failed');
+    }
+  }
+
+  /**
+   * `이 주제로 확정하기`(§5.11 하단, 모달의 유일한 확정 진입점). 주제 상세 모달을 닫고
+   * STEP4로 넘어간다(§5.12 — 카드 3장·재추천 버튼이 타임라인에서 제거되고 확정 말풍선 +
+   * 로딩 버블만 남는다).
    */
   function handleConfirmTopic(topic) {
     setConfirmedTopic(topic);
-    setDesignPhase('loading');
     setTopicDetail(null);
+    void requestDesign(topic);
+  }
+
+  /** 실패 후 재시도 — 같은 주제로 다시 요청한다(멱등 재생 또는 신규 생성). */
+  function handleRetryDesign() {
+    if (designPhase === 'loading') return;
+    void requestDesign(confirmedTopic);
+  }
+
+  /**
+   * 실패 후 `주제 다시 고르기` — STEP3 카드 화면으로 되돌린다. **이 경로가 P9의 단방향
+   * 미결을 닫는 지점이다.** 실패 경로에서는 서버가 주제 확정도 리포트도 커밋하지 않으므로
+   * (`design-report.js` 「실패 경로별 잔여 상태」 — 남는 것은 `design_attempt_count` 뿐)
+   * 다른 주제를 골라도 서버 상태와 어긋나지 않는다.
+   */
+  function handleBackToTopics() {
+    setDesignPhase('idle');
+    setConfirmedTopic(null);
+    setDesignError(null);
+  }
+
+  /**
+   * `TOPIC_ALREADY_CONFIRMED` 전용 복구 — 다른 탭에서(또는 이전 방문에서) 이미 다른 주제로
+   * 확정된 세션이다. 이 코드에서는 **재시도도 주제 재선택도 통하지 않는다**(무엇을 보내든
+   * 같은 409로 돌아온다). 유일하게 통하는 것은 서버가 알려준 확정 주제(`confirmedTopicId`)로
+   * 요청하는 것이고, 그러면 멱등 재생 경로로 저장된 리포트가 그대로 열린다(모델 미호출).
+   * @param {{id: string, title: string|null}} topic
+   */
+  function handleResumeConfirmedTopic(topic) {
+    if (designPhase === 'loading' || !topic?.id) return;
+    setConfirmedTopic(topic);
+    void requestDesign(topic);
+  }
+
+  /**
+   * §5.13 `창 닫고 작성하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
+   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `설계 리포트 다시 보기` 버튼으로
+   * 직접 옮긴다 — 모달을 연 트리거(STEP4 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   */
+  function handleCloseDesignModal() {
+    setDesignModalOpen(false);
+    requestAnimationFrame(() => designReopenRef.current?.focus());
+  }
+
+  function handleReopenDesignModal() {
+    setDesignModalOpen(true);
   }
 
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
@@ -541,35 +654,36 @@ export default function PerformanceChatPage() {
     });
   }
 
-  if (guideDone && topicPhase === 'ready') {
+  // 주제를 확정한 뒤(`designPhase !== 'idle'`)에는 이 메시지가 통째로 빠진다 — §5.12 단정
+  // 「추천 주제 카드 3장 + 재추천 버튼이 타임라인에서 **완전히 제거**되고, 사용자 확정
+  // 말풍선 + AI 로딩 말풍선만 남는다」. P9는 카드·버튼만 걷고 AI 안내 말풍선을 남겨
+  // 뒀는데(§5.12 본편이 P10 몫이었다) 이번에 말풍선까지 건다. 걷지 않으면 로딩 중에도
+  // 카드를 눌러 모달을 다시 열거나 재추천을 누를 수 있어 "이미 확정한 주제로 리포트를
+  // 만드는 중"이라는 상태와 화면이 어긋난다. 실패 후 `주제 다시 고르기`로 `'idle'`이 되면
+  // 그대로 되돌아온다.
+  if (guideDone && topicPhase === 'ready' && designPhase === 'idle') {
     messages.push({
       id: 'step3-topics',
       role: 'ai',
       kind: 'text',
       body: guideMode === 'manual' ? TOPIC_RESULT_MANUAL : TOPIC_RESULT_UPLOAD,
-      // 주제를 확정한 뒤(`designPhase !== 'idle'`)에는 카드·재추천 버튼을 걷는다(§5.12
-      // 단정 「추천 주제 카드 3장 + 재추천 버튼이 타임라인에서 완전히 제거되고」의 일부만
-      // 이식한다 — AI 안내 말풍선 자체를 지우는 것까지는 P10(§5.12 본편) 몫이라 남겨
-      // 둔다). 걷지 않으면 로딩 중에도 카드를 눌러 모달을 다시 열거나 재추천을 누를 수
-      // 있어 "이미 확정한 주제로 리포트를 만드는 중"이라는 상태와 화면이 어긋난다.
-      children:
-        designPhase === 'idle' ? (
-          // §5.10 실측은 말풍선 하단 → 첫 카드 상단이 1.25rem(20)인데 `AiMessage` 컬럼의
-          // 기본 gap은 1rem(16)이다(라벨↔말풍선·말풍선↔폼 카드가 전부 16이라 그렇게 고정됐다).
-          // 카드 묶음에만 0.25rem을 더해 실측 20을 맞춘다.
-          <div className="w-full pt-1">
-            <TopicCardList
-              topics={topics}
-              round={topicRound}
-              maxRounds={topicMaxRounds}
-              onDetail={handleTopicDetail}
-              onRegenerate={handleRegenerate}
-              regenerating={topicRegenerating}
-              roundLimited={topicRoundLimited}
-              error={topicError}
-            />
-          </div>
-        ) : null
+      children: (
+        // §5.10 실측은 말풍선 하단 → 첫 카드 상단이 1.25rem(20)인데 `AiMessage` 컬럼의
+        // 기본 gap은 1rem(16)이다(라벨↔말풍선·말풍선↔폼 카드가 전부 16이라 그렇게 고정됐다).
+        // 카드 묶음에만 0.25rem을 더해 실측 20을 맞춘다.
+        <div className="w-full pt-1">
+          <TopicCardList
+            topics={topics}
+            round={topicRound}
+            maxRounds={topicMaxRounds}
+            onDetail={handleTopicDetail}
+            onRegenerate={handleRegenerate}
+            regenerating={topicRegenerating}
+            roundLimited={topicRoundLimited}
+            error={topicError}
+          />
+        </div>
+      )
     });
   }
 
@@ -584,16 +698,81 @@ export default function PerformanceChatPage() {
     });
   }
 
+  if (confirmedTopic?.title && designPhase !== 'idle') {
+    // §5.12 사용자 확정 말풍선. 로딩·완료·실패 어느 상태에서도 남는다 — 확정은 되돌리지 않는
+    // 사실이고(되돌리는 것은 실패 후 `주제 다시 고르기`뿐이며 그때는 `confirmedTopic`째
+    // 비운다), 로딩 버블만 있고 무엇을 확정했는지 없는 화면은 §5.12 실측과 다르다.
+    // 제목을 모르는 복구 경로(`handleResumeConfirmedTopic`의 fallback)에서는 말풍선을
+    // 생략한다 — 빈 따옴표만 남은 문장을 만들지 않는다.
+    messages.push({
+      id: 'step4-confirm',
+      role: 'user',
+      kind: 'text',
+      body: buildConfirmBubble(confirmedTopic.title)
+    });
+  }
+
   if (designPhase === 'loading' && confirmedTopic) {
-    // STEP4 진입 자리(§5.12) — 로딩 버블만 재사용한다(`AiLoadingBubble` + `loadingCopy.js`
-    // `designReport` 쌍, 새 로딩 UI를 만들지 않는다). 실제 `design-report` 호출과 결과
-    // 렌더는 P10 몫이라 이 상태에서 더 나아가지 않는다(TODO(P10) 참고).
+    // STEP4 로딩(§5.12) — 로딩 버블을 재사용한다(`AiLoadingBubble` + `loadingCopy.js`
+    // `designReport` 쌍, 새 로딩 UI를 만들지 않는다).
     messages.push({
       id: 'step4-design-loading',
       kind: 'loading',
       payload: PERFORMANCE_LOADING_COPY.designReport,
       // 검토 A-2 — 이 항목이 나타나는 시점에 포커스를 옮긴다(위 `designLoadingRef` 이펙트).
       focusRef: designLoadingRef
+    });
+  }
+
+  if (designPhase === 'ready') {
+    // 모달이 자동으로 열리므로(§5.13 흐름도) 이 말풍선은 **모달을 닫은 뒤** 보이는 화면이다.
+    // STEP5 제출폼(§5.14)이 아직 없어 여기서 흐름이 끝나므로, 최소한 리포트로 되돌아갈 길은
+    // 남긴다. 다시 열기 버튼은 모달 닫기의 포커스 목적지이기도 하다(`handleCloseDesignModal`).
+    messages.push({
+      id: 'step4-design-ready',
+      role: 'ai',
+      kind: 'text',
+      body: DESIGN_READY_COPY,
+      children: (
+        <RetryButton ref={designReopenRef} onClick={handleReopenDesignModal}>
+          설계 리포트 다시 보기
+        </RetryButton>
+      )
+    });
+  }
+
+  if (designPhase === 'failed') {
+    // 실패해도 갇히지 않는다. 두 갈래로 나뉜다:
+    //   · `TOPIC_ALREADY_CONFIRMED` — 무엇을 보내도 같은 409다. 유일한 출구는 서버가 알려준
+    //     확정 주제로 요청해 저장된 리포트를 여는 것(`handleResumeConfirmedTopic`).
+    //     제목은 현재 카드 목록에서 찾아 붙이고, 없으면(다른 라운드의 주제) null로 둔다 —
+    //     그러면 확정 말풍선을 생략한다(가짜 제목을 지어내지 않는다).
+    //   · 그 외 — 재시도(같은 주제, 멱등)와 주제 재선택.
+    const alreadyConfirmedId =
+      designError?.code === 'TOPIC_ALREADY_CONFIRMED' ? designError.confirmedTopicId : null;
+    const resumeTopic = alreadyConfirmedId
+      ? topics.find((topic) => topic.id === alreadyConfirmedId) || { id: alreadyConfirmedId, title: null }
+      : null;
+
+    messages.push({
+      id: 'step4-design-failed',
+      role: 'ai',
+      kind: 'text',
+      body: designError?.message || DESIGN_FAILED_FALLBACK,
+      children: (
+        <div className="flex flex-wrap gap-3">
+          {resumeTopic ? (
+            <RetryButton onClick={() => handleResumeConfirmedTopic(resumeTopic)}>
+              확정한 주제의 리포트 열기
+            </RetryButton>
+          ) : (
+            <>
+              <RetryButton onClick={handleRetryDesign}>설계 리포트 다시 시도</RetryButton>
+              <RetryButton onClick={handleBackToTopics}>주제 다시 고르기</RetryButton>
+            </>
+          )}
+        </div>
+      )
     });
   }
 
@@ -642,6 +821,12 @@ export default function PerformanceChatPage() {
         onClose={handleCloseTopicDetail}
         onConfirm={handleConfirmTopic}
       />
+      <DesignReportModal
+        open={designModalOpen}
+        report={designReport}
+        topicTitle={confirmedTopic?.title}
+        onClose={handleCloseDesignModal}
+      />
     </div>
   );
 }
@@ -650,10 +835,14 @@ export default function PerformanceChatPage() {
  * 재시도 버튼. 시안에 대응 노드가 없어 §5.10 `다른 주제 다시 추천`(h 2.5rem, r0.625rem,
  * stroke `#d9d9d9`, 라벨 0.875rem w500 `#525252`)의 형태만 빌린다. 폭만 실측(8.125rem)을
  * 따르지 않고 내용에 맡긴다 — 라벨이 더 길어 고정폭에 넣으면 글자가 잘린다.
+ *
+ * `ref`를 받는 이유는 포커스 관리다 — 설계 리포트 모달을 닫을 때 복귀할 자리가 이 버튼이다
+ * (`handleCloseDesignModal`). 나머지 호출부는 ref를 넘기지 않는다.
  */
-function RetryButton({ children, onClick }) {
+const RetryButton = forwardRef(function RetryButton({ children, onClick }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors hover:border-ink-sub"
@@ -661,4 +850,4 @@ function RetryButton({ children, onClick }) {
       {children}
     </button>
   );
-}
+});

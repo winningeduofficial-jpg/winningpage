@@ -395,22 +395,33 @@ function bulletList(items) {
   return { kind: 'plainList', items: items.map((text) => ({ type: 'bullet', text })) };
 }
 
+/**
+ * 번호 목록. `PlainListView`의 `ordered` 확장(§8.5 「`ordered` 분기 + `<ol>`」)을 타고
+ * `<ol>`로 렌더된다 — 번호는 브라우저가 붙인다.
+ */
+function orderedList(items) {
+  return { kind: 'plainList', ordered: true, items: items.map((text) => ({ type: 'bullet', text })) };
+}
+
 /** 라벨 정의(`[{key,label}]`) + 모델 객체 → keyValue 블록. */
 function rowsFromLabels(labels, source) {
   return keyValueBlock(labels.map((row) => kvRow(row.label, source?.[row.key])));
 }
 
 /**
- * `분석 포인트`는 §5.13 실측상 유일한 **번호 목록**이다. 번호는 서버가 붙인다
- * (스키마에 `number` 타입 필드를 두지 않기 위함 — §8.4 완화책 ⓐ).
- * 모델이 습관적으로 `1. `을 이미 붙여 오는 경우를 대비해 접두 번호를 한 번 걷어낸 뒤
- * 다시 붙인다(이중 번호 방지). 이것은 출력 파싱이 아니라 라벨 정규화다.
+ * `분석 포인트`는 §5.13 실측상 유일한 **번호 목록**이다. 스키마에 `number` 타입 필드를
+ * 두지 않으므로(§8.4 완화책 ⓐ) 모델은 문자열만 낸다.
+ *
+ * **번호는 `<ol>`이 붙인다**(P10, 2026-08 변경). 초판은 서버가 `1. `을 텍스트에 박았는데,
+ * 그 텍스트가 `PlainListView`의 `<ul>`(disc 마커)에 들어가면 `• 1. …`로 마커가 두 개가
+ * 된다 — §8.5가 제시한 두 갈래("`ordered` 분기 + `<ol>`" / "번호를 `text`에 포함") 중
+ * 앞쪽으로 갈아탄 이유다. 여기서는 **모델이 습관적으로 붙여 오는 접두 번호를 걷어내기만**
+ * 한다(이중 번호 방지). 이것은 출력 파싱이 아니라 라벨 정규화다.
  */
 function numberedItems(items) {
   return (Array.isArray(items) ? items : [])
     .map((item) => trimmed(item).replace(/^\d+\s*[.)]\s*/, ''))
-    .filter(Boolean)
-    .map((text, index) => `${index + 1}. ${text}`);
+    .filter(Boolean);
 }
 
 /** `체크 1:` ~ `체크 5:` — 원문 뼈대(`find-resources.js:486-490`)의 라벨을 서버가 붙인다. */
@@ -516,7 +527,7 @@ function buildSections({ payload, resources, branchKey }) {
       return [
         keyValueBlock([kvRow(labelOf('core_goal'), direction.core_goal)]),
         ...(points.length
-          ? [{ kind: 'group', title: labelOf('analysis_points'), children: [bulletList(points)] }]
+          ? [{ kind: 'group', title: labelOf('analysis_points'), children: [orderedList(points)] }]
           : []),
         keyValueBlock([
           kvRow(labelOf('concept_expression'), direction.concept_expression),
