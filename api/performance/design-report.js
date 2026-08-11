@@ -89,16 +89,35 @@
 //      남긴다(조용히 버리지 않는다). 응답의 자료명·출처 정보·출처 링크는 전부
 //      `resourceById.get(handle)`이 돌려준 **DB 행 필드**이고, 모델 문자열이 들어가는
 //      칸은 `활용 포인트`(`use_point`) 하나뿐이다(§8.5 자료 카드 필드 표의 `source:'model'`).
-//   그래서 "모델이 URL을 환각한다"가 실패 모드로 존재할 수 없다.
+//   그래서 **자료 카드에 한해** "모델이 URL을 환각한다"가 실패 모드로 존재할 수 없다.
 //
-// ⚠ `핵심 개념`(`core_concepts`)은 §8.5 표상 `source:'db'`인데 **채울 컬럼이 아직 없다.**
-//   외부는 `content`의 `1. 자료 성격 / 2. 핵심 개념 / 3. 수행평가에서 활용` 번호 템플릿을
-//   정규식으로 잘라 썼는데(`find-resources.js:32-105`), 그 파서는 §12.4가 폐기로 지목했고
-//   (「강제되지 않는 관행에 전적으로 의존. 깨진 행은 학생에게 무내용 기본 문구가 나간다」)
-//   대체안인 「구조화 컬럼 신설 + 어드민 폼 분리」는 §11-Q73이 **미결**로 남아 있다.
-//   → 폐기된 파서를 되살리지 않고 `DESIGN_RESOURCE_FIELD_FALLBACKS.core_concepts`
-//     (원문 `find-resources.js:169` 문구)로 채운다. Q73이 정해지면 그 컬럼을 읽는
-//     한 줄로 바뀐다. **이것은 알려진 부채이며 보고에 적어 두었다.**
+// ⚠ 위 보장의 범위는 **`추천 자료 및 활용 포인트` 섹션의 카드 6필드까지다.** 리포트 본문
+//   에는 모델 원문이 그대로 실리는 칸이 더 있고, 그 칸에 모델이 자료명·기관명·URL을 적는
+//   것을 스키마가 막지는 못한다:
+//     · `chosen_resources[].use_point`(`resolveChosenResources`) — 카드 안의 유일한 모델 칸.
+//     · `writing_structure.steps[].rows[]`의 라벨·본문(`buildWritingStructureBlocks`).
+//       특히 **문항형 분기 원문이 `- 활용 가능한 자료:` 행을 직접 요구한다**
+//       (`prompts.js DESIGN_WRITING_BRANCHES.question`).
+//     · `overall_direction`의 4행.
+//   막는 것은 프롬프트 원칙 10·13조뿐이고 서버 검증은 없다(§12.4가 폐기한 "출력 텍스트를
+//   정규식으로 수술하기"를 되살리지 않기로 한 결과다). 다만 `href`는 서버가 `kvRow`의 3번째
+//   인자로만 붙이므로 이 칸들의 문자열이 **클릭 가능한 앵커가 되지는 않는다** — 렌더는 평문
+//   이다. 「모델이 지어낸 자료명이 평문으로 섞일 수 있다」는 `핵심 개념`(Q73)과 나란한
+//   **알려진 부채**이며, 실질 방어가 필요하다고 판정되면 정규식 후처리가 아니라
+//   "URL 패턴이 검출된 행을 거부"하는 게이트로 넣어야 한다(수술이 아니라 거부라 §12.4와
+//   충돌하지 않는다).
+//
+// ⚠ `핵심 개념`(`core_concepts`)은 §8.5 표상 `source:'db'`인데 **어느 필드를 쓸지가 미결이다.**
+//   행 자체는 이미 손에 있다 — 후보 맵이 들고 있는 위닝DB 행에 `content` 컬럼이 실려 온다
+//   (`knowledge.js`의 select 목록). 문제는 그 `content`가 `1. 자료 성격 / 2. 핵심 개념 /
+//   3. 수행평가에서 활용` 번호 템플릿이라는 **강제되지 않는 관행** 위에 있다는 것이다. 외부는
+//   그것을 정규식으로 잘라 썼는데(`find-resources.js:32-105`) §12.4가 그 파서를 폐기로 지목했고
+//   (「깨진 행은 학생에게 무내용 기본 문구가 나간다」) 대체안인 「구조화 컬럼 신설 + 어드민 폼
+//   분리」는 §11-Q73이 **미결**로 남아 있다.
+//   → 결정 전까지 `DESIGN_RESOURCE_FIELD_FALLBACKS.core_concepts`(원문 `find-resources.js:169`
+//     문구)로 채운다. Q73이 정해지면 그 컬럼(또는 `content` 앞 N자 절단)을 읽는 한 줄로
+//     바뀐다. **이것은 알려진 부채이며 보고에 적어 두었다** — 지금은 자료 3건의 이 행이 전부
+//     같은 문장으로 찍힌다.
 //
 // ─────────────────────────────────────────────────────────────────────
 // 4. 회차 — 이 파일은 차감하지 않는다 (이중 차감 불가 증명)
@@ -221,6 +240,24 @@ const STRUCTURE_RETRY = 1;
 const CONCLUSION_STEP_RE = /결론|마무리|후속\s*탐구/;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `출처 링크`를 클릭 가능한 `<a href>`로 승격해도 되는가(§8.5 「출처 링크 → `{label, href}`」).
+ *
+ * `winning_assessment_knowledge_items.source_link`는 CHECK 제약 없는 자유 텍스트다.
+ * `sql/53_performance.sql:278` 백필이 http(s)만 넣는 것은 **비어 있던 행에 한정**이라
+ * (`where source_link is null or btrim(source_link) = ''`) 어드민이 수기로 넣은
+ * `없음` · `국립중앙도서관 소장` · `p.132` 같은 값이 그대로 남아 있을 수 있다. 그런 값을
+ * `href`로 승격하면 ⓐ `<a href="없음">`이 SPA 내부 상대경로로 이동해 리포트 모달이
+ * 통째로 날아가고 ⓑ `javascript:` 스킴이면 React 18이 경고만 내고 렌더한다.
+ * 외부 원본은 이 칸을 평문으로만 렌더하며 `resource.link !== '없음'` 가드까지 뒀다
+ * (`find-resources.js:168`) — 링크 승격은 우리가 새로 만든 표면이므로 게이트도 우리가 만든다.
+ *
+ * 통과하지 못한 값은 **버린다**(빈 문자열). 그러면 `buildResourceBlocks`가 기존
+ * `DESIGN_RESOURCE_FIELD_FALLBACKS.link`('출처 링크 확인 필요') 문구를 `href` 없이 렌더한다 —
+ * 문구는 남고 앵커만 붙지 않는 동작이라 `kvRow` 주석이 이미 명시한 의도와 정확히 같다.
+ */
+const HTTP_URL_RE = /^https?:\/\//i;
 
 const SESSION_COLUMNS = [
   'id',
@@ -350,7 +387,16 @@ function resolveChosenResources(chosen, candidates) {
     if (usedHandles.has(handle)) continue;
     usedHandles.add(handle);
 
-    const link = trimmed(row.source_link);
+    // DB 행이라도 **스킴은 검증한다** — 자유 텍스트 컬럼이라 URL이 아닌 값이 섞일 수 있고,
+    // 그 값을 `href`로 승격하는 것은 우리가 새로 만든 표면이다(`HTTP_URL_RE` 주석).
+    const rawLink = trimmed(row.source_link);
+    const link = HTTP_URL_RE.test(rawLink) ? rawLink : '';
+
+    if (rawLink && !link) {
+      console.warn(
+        `[design-report] 자료 출처 링크가 http(s)가 아니라 링크를 붙이지 않았습니다 (knowledge_item=${row.id})`
+      );
+    }
 
     resources.push({
       id: row.id,
@@ -358,7 +404,12 @@ function resolveChosenResources(chosen, candidates) {
       title: trimmed(row.title),
       source: trimmed(row.source) || DESIGN_RESOURCE_FIELD_FALLBACKS.source,
       link,
-      // ⚠ Q73 미결. 폐기된 번호 섹션 파서(§12.4)를 되살리지 않고 원문 기본 문구를 쓴다.
+      // ⚠ Q73 미결. **행 자체는 있다** — `candidates.byHandle`이 들고 있는 위닝DB 행에
+      //   `content` 컬럼이 실려 온다(`knowledge.js` select 목록). 미결인 것은 "어느 필드를
+      //   어떤 형태로 이 칸에 넣을 것인가"다: 외부는 `content`의 `1. 자료 성격 / 2. 핵심 개념 /
+      //   3. 수행평가에서 활용` 번호 템플릿을 정규식으로 잘라 썼는데(`summarizeResourceContent`,
+      //   `find-resources.js:32-105`) 그 파서를 §12.4가 폐기로 지목했고, 대체안(구조화 컬럼
+      //   신설 + 어드민 폼 분리)이 §11-Q73 미결이다. 결정 전까지 원문 기본 문구를 쓴다.
       coreConcepts: DESIGN_RESOURCE_FIELD_FALLBACKS.core_concepts,
       // ── 유일한 모델 산출물.
       usePoint: trimmed(item?.use_point) || DESIGN_RESOURCE_FIELD_FALLBACKS.use_point,
@@ -524,10 +575,22 @@ function buildSections({ payload, resources, branchKey }) {
       // §5.13 실측 순서(중심 목표 → 분석 포인트 → 교과 개념… → 학생의 해석…)를 지키려고
       // 키-값 블록을 번호 목록 앞뒤로 가른다. `KeyValueView`의 행 계약은 `{label, content}`
       // 뿐이라 한 행 안에 목록을 넣을 수 없기 때문이다(§8.5 블록 계약 표).
+      //
+      // **`분석 포인트`만 group title로 나가는 이유와 콜론을 여기서 붙이는 이유**
+      // §5.13 원문 키는 형제 3개와 같은 `분석 포인트:`(같은 줄 위계)인데, 목록을 한 행에 넣을
+      // 수 없어 구조상 group으로 가를 수밖에 없다. 표시상 콜론은 보통 `PerformanceReportSurface`
+      // 가 `.admission-text-line b::after`로 붙이지만 group title(`.admission-special-title`)에는
+      // 그 규칙이 걸리지 않는다 — 그 규칙을 title까지 넓히면 `자료 1`·`서론 구성 방향`에도
+      // 콜론이 붙어 버린다. 그래서 **이 자리에서만** 조립 시점에 콜론을 붙인다. 라벨 상수
+      // (`DESIGN_SECTION_ROW_LABELS`)는 프롬프트 원문과 바이트 동일하게 그대로 두므로
+      // §12.1을 건드리지 않는다.
+      // ⚠ 남은 차이: group title은 `#525252`라 형제 3행(`#6b6b6b`)보다 한 단계 진하게 보인다.
+      //   §5.13에 이 자리의 색 실측이 없고, 색까지 맞추려면 `:has()` 같은 구조 의존 선택자나
+      //   블록 계약 확장이 필요해 여기서는 콜론만 맞췄다.
       return [
         keyValueBlock([kvRow(labelOf('core_goal'), direction.core_goal)]),
         ...(points.length
-          ? [{ kind: 'group', title: labelOf('analysis_points'), children: [orderedList(points)] }]
+          ? [{ kind: 'group', title: `${labelOf('analysis_points')}:`, children: [orderedList(points)] }]
           : []),
         keyValueBlock([
           kvRow(labelOf('concept_expression'), direction.concept_expression),
@@ -804,6 +867,15 @@ export default async function handler(req, res) {
 
     // ── 게이트 ② 생성 상한(§9.3 재생성 2회, §8.6 `429 RATE_LIMITED{limit:2}`).
     //    사용자에게 보이는 상한이며 **성공한 생성만** 센다.
+    //    ⚠ read-then-write다 — 여기서 읽는 값은 요청 시작 시점의 스냅샷이고 실제 +1은 모델
+    //    호출이 끝난 뒤 커밋 RPC 안에서 일어난다(sql/57). 그 사이(최대 `MODEL_TIMEOUT_MS`)에
+    //    같은 세션으로 동시 요청이 2건 들어오면 둘 다 이 게이트를 통과한 뒤 각각 +1 해서
+    //    **예산이 과다 소진될 수 있다**(아래 attempt 카운터와 같은 경합이며 방향은 fail-safe —
+    //    덜 세는 쪽이 아니라 더 세는 쪽으로 틀린다). 리포트 행이 2개가 되지는 않는다:
+    //    부분 UNIQUE + upsert가 세션당 design 1행을 강제한다(sql/57).
+    //    UI 경로에서는 나지 않는다(확정 버튼은 클릭 즉시 언마운트, `handleRetryDesign`에
+    //    `designPhase === 'loading'` 가드) — 멀티탭·직접 API 호출에서만 재현된다. 정밀 회계가
+    //    필요해지면 판정을 커밋 RPC 안으로 내려 같은 트랜잭션에서 판정+증가해야 한다.
     const generationCount = Number(sessionRow.design_generation_count) || 0;
     if (generationCount >= MAX_DESIGN_GENERATIONS) {
       return fail(
