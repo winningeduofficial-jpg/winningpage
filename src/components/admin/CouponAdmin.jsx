@@ -72,8 +72,8 @@ import { supabase } from '../../lib/supabase';
 // 수치로 확정돼 있고 신규 문구는 사용자 승인 대상이다). 아래 열 라벨 23개는
 // 팀 리드가 승인한 코퍼스 규범 문자열이다(2026-08-11).
 //
-// 라벨이 null 인 항목(email)은 아직 승인 대상이 아니다 — DB 컬럼명으로
-// 대체하던 폴백은 제거했다(FieldName 참고). 승인되면 이 상수만 채우면 된다.
+// DB 컬럼명으로 대체하던 폴백은 제거했다(FieldName 참고) — 라벨이 아직
+// 승인되지 않은 자리는 값 그대로 null 로 두어 아무것도 그리지 않는다.
 const FIELD_LABEL = {
   slug: '쿠폰 키', // 값을 바꾸면 시드 멱등성에 영향
   code: '고객 입력 코드',
@@ -100,7 +100,7 @@ const FIELD_LABEL = {
   granted_by: '발급 출처', // 값 자체는 signup(가입) / admin(직접) / event
   revoked_at: '회수 일시',
   revoke_reason: '회수 사유',
-  email: null // "사용자 검색(이메일·이름)" 성격 — 승인 대기, 목록에 없음
+  email: '이메일' // "사용자 검색(이메일·이름)" 라벨. 목록 칼럼엔 없고 검색 폼에서만 쓴다
 };
 
 // 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨. 승인 대기라 폴백은 '∞' —
@@ -110,46 +110,47 @@ const FIELD_LABEL = {
 const UNLIMITED_LABEL = null; // "무제한 / 무기한" 성격
 const UNLIMITED_FALLBACK = '∞';
 
-// 아이콘 전용 액션의 접근성 라벨. null 인 동안은 라벨을 붙이지 않는다 —
-// AdminTable 의 기존 수정/삭제 아이콘 버튼도 라벨이 없어(Admin.jsx:4674-4692)
-// 임의의 한국어를 새로 넣으면 이 화면만 다른 규범을 갖게 된다.
-const HISTORY_ACTION_LABEL = null; // "사용이력 보기" 성격
-const VOID_ACTION_LABEL = null; // "사용 취소(무효화)" 성격
-const BACK_ACTION_LABEL = null; // "목록으로 돌아가기" 성격
-const VOID_REASON_PLACEHOLDER = null; // "무효화 사유 입력" 성격
+// 아이콘 전용 액션의 접근성 라벨. 팀 리드가 승인한 코퍼스 규범 문자열이다
+// (2026-08-11) — AdminTable 의 기존 수정/삭제 아이콘 버튼(Admin.jsx:4674-4692)
+// 은 여전히 무라벨이지만, 이 화면은 승인된 라벨을 받았으므로 붙인다.
+const HISTORY_ACTION_LABEL = '사용 이력';
+const VOID_ACTION_LABEL = '무효화';
+const BACK_ACTION_LABEL = '목록으로';
+const VOID_REASON_PLACEHOLDER = '무효화 사유를 입력하세요';
 
 // fn_void_coupon_redemption 이 구분해 던지는 두 에러(sql/55 1-g절).
-// 42501 은 팀 리드가 승인한 문구다(2026-08-11). WC002 는 아직 승인 대상이
-// 아니다 — null 인 동안은 아래 alert 가 DB 원문(error.message:
-// 'redemption_not_found_or_already_voided')을 그대로 보여준다 — 뭉뚱그리지
-// 않는 것이 이 도메인의 관례다(Checkout.jsx:205 참고).
+// 42501 / WC002 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의 예상 밖
+// 코드(이 함수는 이 둘만 던지도록 설계돼 있어 이론상 도달하지 않는다)는
+// submitVoid 의 명시적 분기(MyPage.jsx REFUND_ERROR_TEXT 와 같은 패턴)에서
+// error.message 를 그대로 보여준다 — 이 도메인엔 "알 수 없는 오류" 전용
+// 한국어 문구가 아직 없어 새로 짓지 않는다.
 const VOID_ERROR_TEXT = {
   42501: '관리자 권한이 없습니다.',
-  WC002: null // "이미 무효화됐거나 없는 이력입니다" 성격 (errcode WC002) — 승인 대기
+  WC002: '이미 무효화되었거나 존재하지 않는 사용 이력입니다.'
 };
 
-// slug 중복은 저장 전에 막는다(요구사항). 문구가 없는 동안은
+// slug 중복은 저장 전에 막는다(요구사항).
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
-//   ② 차단 alert 는 AdminForm 의 기존 템플릿을 재사용한다.
-const SLUG_DUPLICATE_TEXT = null; // "이미 사용 중인 핸들입니다" 성격
+//   ② 차단 alert 는 아래 승인된 문구를 쓴다.
+const SLUG_DUPLICATE_TEXT = '이미 사용 중인 쿠폰 키입니다.';
 
-// ── 발급 관리(2026-08-11) 문구 자리 ────────────────────────────────────
-const GRANTS_ACTION_LABEL = null; // "발급 관리" 성격 (목록 행 액션)
-const REVOKE_ACTION_LABEL = null; // "발급 회수" 성격
-const REVOKE_REASON_PLACEHOLDER = null; // "회수 사유 입력" 성격
-const USER_SEARCH_PLACEHOLDER = null; // "이메일 또는 이름으로 사용자 검색" 성격
-// 이미 발급된 사용자를 검색 결과에서 표시하는 자리. 지금은 발급 버튼 자리에
-// 체크 아이콘만 두어(버튼 없음) "이미 가지고 있다"를 구조로 알린다.
-const ALREADY_GRANTED_TEXT = null; // "이미 발급됨" 성격
+// ── 발급 관리(2026-08-11 추가) 문구 ──────────────────────────────────────
+const GRANTS_ACTION_LABEL = '발급 이력';
+const REVOKE_ACTION_LABEL = '회수';
+const REVOKE_REASON_PLACEHOLDER = '회수 사유를 입력하세요';
+const USER_SEARCH_PLACEHOLDER = '이메일로 검색';
+// 이미 발급된 사용자를 검색 결과에서 표시하는 자리. 발급 버튼 자리에 체크
+// 아이콘을 두고(버튼 없음) 이 문구를 title/aria-label 로 붙인다.
+const ALREADY_GRANTED_TEXT = '이미 발급된 사용자입니다.';
 
 // fn_grant_coupon / fn_revoke_coupon_grant 가 구분해 던지는 에러(sql/55 1-i절).
-// 42501 / WC003 은 팀 리드가 승인한 문구다(2026-08-11). WC004 는 아직 승인
-// 대상이 아니다 — null 인 동안은 DB 원문(error.message)이 그대로 보인다 —
-// void 와 같은 규범이다.
+// 42501 / WC003 / WC004 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의
+// 예상 밖 코드는 submitGrant/submitRevoke 의 명시적 분기에서 error.message 를
+// 그대로 보여준다 — VOID_ERROR_TEXT 와 같은 규범이다.
 const GRANT_ERROR_TEXT = {
   42501: '관리자 권한이 없습니다.',
   WC003: '이미 회수되었거나 존재하지 않는 발급입니다.',
-  WC004: null // "발급형 쿠폰이 아닙니다" 성격 (조건형이거나 없는 쿠폰) — 승인 대기
+  WC004: '발급할 수 없는 쿠폰입니다.'
 };
 
 // ── 재사용한 기존 문구 (출처) ──────────────────────────────────────────
@@ -246,10 +247,19 @@ const FORM_KEYS = [
   'grant_on_signup'
 ];
 
-// coupons_grant_type_check 가 허용하는 값. 라디오 라벨로 이 문자열을 그대로
-// (mono 로) 쓴다 — FIELD_LABEL 폴백이 컬럼명을 그대로 보여주는 것과 같은
-// 규범이다. '조건형/발급형' 같은 한국어를 여기서 지어내지 않는다.
+// coupons_grant_type_check 가 허용하는 값. DB 에 쓰는 값은 반드시 이 두 문자열
+// 그대로다 — 아래 GRANT_TYPE_LABEL 은 화면 표시 전용이라 절대 payload 로
+// 흘려보내지 않는다(formToPayload 는 form.grant_type 원본을 그대로 쓴다).
 const GRANT_TYPES = ['auto', 'granted'];
+
+// grant_type 표시 라벨(팀 리드 승인, 2026-08-11). 목록 칼럼과 폼 라디오 둘 다
+// 이 라벨로 보여주고, DB 값·폼 상태(form.grant_type)는 GRANT_TYPES 의 영문을
+// 그대로 유지한다 — 어드민 폼이 한글 값을 영문 CHECK 컬럼에 써 결제(payments)
+// 등록이 실패하던 결함을 반복하지 않는다.
+const GRANT_TYPE_LABEL = {
+  auto: '조건형',
+  granted: '발급형'
+};
 
 // NULL 을 고를 수 있는 3개 필드. 3상태다:
 //   '' = 미선택(신규 등록의 기본값 — 저장이 막힌다)
@@ -631,9 +641,11 @@ export default function CouponAdmin() {
 
     if (error) {
       setActionBusy(false);
-      // 42501(관리자 아님)과 WC002(없음/이미 무효화)를 뭉뚱그리지 않는다.
-      // 문구가 승인되기 전까지는 DB 원문(error.message)을 그대로 보여준다.
-      alert(`수정 실패: ${VOID_ERROR_TEXT[error.code] ?? error.message}`);
+      // 명시적 분기(MyPage.jsx REFUND_ERROR_TEXT 와 같은 패턴) — 알려진
+      // 코드(42501/WC002)는 VOID_ERROR_TEXT 를, 그 밖의 예상 밖 코드는
+      // error.message 를 쓴다("문구가 없어서 대체"가 아니라 이 함수가 던지지
+      // 않도록 설계된 코드에 대한 진단 표시다).
+      alert(`수정 실패: ${error.code in VOID_ERROR_TEXT ? VOID_ERROR_TEXT[error.code] : error.message}`);
       return;
     }
 
@@ -750,7 +762,8 @@ export default function CouponAdmin() {
 
     if (error) {
       setActionBusy(false);
-      alert(`등록 실패: ${GRANT_ERROR_TEXT[error.code] ?? error.message}`);
+      // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
+      alert(`등록 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : error.message}`);
       return;
     }
 
@@ -770,7 +783,8 @@ export default function CouponAdmin() {
 
     if (error) {
       setActionBusy(false);
-      alert(`수정 실패: ${GRANT_ERROR_TEXT[error.code] ?? error.message}`);
+      // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
+      alert(`수정 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : error.message}`);
       return;
     }
 
@@ -895,9 +909,12 @@ export default function CouponAdmin() {
                           <td className="px-3 py-3">{nullableText(row.max_redemptions)}</td>
                           <td className="px-3 py-3">{flagMark(row.stackable)}</td>
 
-                          {/* 값(auto/granted)을 그대로 보여준다 — 폼의 라디오
-                              라벨과 같은 문자열이라 화면 사이에서 말이 바뀌지 않는다. */}
-                          <td className="px-3 py-3 font-mono text-[0.8125rem]">{row.grant_type}</td>
+                          {/* 표시는 GRANT_TYPE_LABEL(승인된 한국어 라벨) — DB 값
+                              auto/granted 는 이 칼럼에 노출하지 않는다. 폼의 라디오도
+                              같은 매핑을 쓰므로 화면 사이에서 말이 바뀌지 않는다. */}
+                          <td className="px-3 py-3">
+                            {GRANT_TYPE_LABEL[row.grant_type] ?? row.grant_type}
+                          </td>
                           <td className="px-3 py-3">{flagMark(row.grant_on_signup)}</td>
 
                           {/* 유효 건수 / 전체 건수(무효화 포함)를 둘 다 보여준다 —
@@ -1435,10 +1452,9 @@ export default function CouponAdmin() {
               )}
 
               {key === 'grant_type' && (
-                // 값(auto/granted)을 그대로 라벨로 쓴다 — FIELD_LABEL 폴백이
-                // 컬럼명을 그대로 보여주는 것과 같은 규범이고, 목록 셀에도 같은
-                // 문자열이 뜬다. is_active 의 '사용/미사용' 을 재사용하면
-                // "배포 방식" 이 "사용 여부" 로 읽혀 화면이 거짓말을 한다.
+                // 라벨은 GRANT_TYPE_LABEL(승인된 한국어) — value(라디오가 실제로
+                // 들고 있는 값)는 GRANT_TYPES 의 영문 그대로다. 저장 시에는
+                // form.grant_type(영문)이 그대로 payload 로 나간다(formToPayload).
                 <div className="flex items-center gap-6">
                   {GRANT_TYPES.map((value) => (
                     <label key={value} className="inline-flex items-center gap-2 text-sm font-bold">
@@ -1456,7 +1472,7 @@ export default function CouponAdmin() {
                           )
                         }
                       />
-                      <span className="font-mono text-[0.8125rem]">{value}</span>
+                      <span>{GRANT_TYPE_LABEL[value] ?? value}</span>
                     </label>
                   ))}
                 </div>

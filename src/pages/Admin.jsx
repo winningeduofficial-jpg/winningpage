@@ -2192,9 +2192,9 @@ const CONFIGS = {
   // 라벨 4종은 MyPage.jsx REFUND_STATUS 를 그대로 재사용한다(팀 리드 승인
   // 재사용 범위, 2026-08-11).
   //
-  // 그 외 컬럼(order_id/amount/reason/refund_bank/refund_account/refund_holder/
-  // admin_memo 등) 라벨은 승인된 한국어가 없다 — 지어내지 않고 DB 컬럼명을
-  // 그대로 쓴다. 팀 리드 확인 후 이 자리만 채우면 된다.
+  // 그 외 컬럼(order_id/order_name/amount/reason/user_id/refund_bank/
+  // refund_account/refund_holder/admin_memo/created_at) 라벨은 팀 리드가
+  // 승인한 코퍼스 규범 문자열이다(2026-08-11).
   refundRequests: {
     title: '환불 신청 내역', // MyPage.jsx:642 재사용(같은 데이터의 고객 쪽 헤딩)
     table: 'refund_requests',
@@ -2202,23 +2202,23 @@ const CONFIGS = {
     excel: true,
     noCreate: true,
     columns: [
-      { key: 'order_id', label: 'order_id' },
-      { key: 'amount', label: 'amount', type: 'money' },
-      { key: 'reason', label: 'reason' },
-      { key: 'status', label: 'status', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
-      { key: 'created_at', label: 'created_at', type: 'date' }
+      { key: 'order_id', label: '주문번호' },
+      { key: 'amount', label: '환불 신청 금액', type: 'money' },
+      { key: 'reason', label: '신청 사유' },
+      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'created_at', label: '신청 일시', type: 'date' }
     ],
     fields: [
-      { key: 'user_id', label: 'user_id', type: 'text' },
-      { key: 'order_id', label: 'order_id', type: 'text' },
-      { key: 'order_name', label: 'order_name', type: 'text' },
-      { key: 'amount', label: 'amount', type: 'number' },
-      { key: 'reason', label: 'reason', type: 'textarea' },
-      { key: 'refund_bank', label: 'refund_bank', type: 'text' },
-      { key: 'refund_account', label: 'refund_account', type: 'text' },
-      { key: 'refund_holder', label: 'refund_holder', type: 'text' },
-      { key: 'status', label: 'status', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
-      { key: 'admin_memo', label: 'admin_memo', type: 'textarea' }
+      { key: 'user_id', label: '신청자', type: 'text' },
+      { key: 'order_id', label: '주문번호', type: 'text' },
+      { key: 'order_name', label: '주문명', type: 'text' },
+      { key: 'amount', label: '환불 신청 금액', type: 'number' },
+      { key: 'reason', label: '신청 사유', type: 'textarea' },
+      { key: 'refund_bank', label: '은행', type: 'text' },
+      { key: 'refund_account', label: '계좌번호', type: 'text' },
+      { key: 'refund_holder', label: '예금주', type: 'text' },
+      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'admin_memo', label: '관리자 메모', type: 'textarea' }
     ]
   },
 
