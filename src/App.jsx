@@ -292,9 +292,12 @@ export default function App() {
           <Route path="/terms/parent/service" element={<ParentService />} />
           <Route path="/terms/parent/privacy" element={<ParentPrivacy />} />
           <Route path="/terms/parent/marketing" element={<ParentMarketing />} />
-        </Route>
 
-        <Route path="/mypage" element={<MyPage />} />
+          {/* 마이페이지 리뉴얼(Figma 3762:18713 학생/멘토, 3762:20390 학부모) — 공통
+              헤더/푸터가 있는 시안이라 SiteLayout 안으로 편입(구 /app/goal, /admin과 달리
+              별도 셸이 없다). 탭 상태는 MyPage.jsx 내부에서 ?tab= 쿼리로 관리한다. */}
+          <Route path="/mypage" element={<MyPage />} />
+        </Route>
 
         {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 진입 가드(로그인 → 이용권 →
             온보딩 완료 → 대시보드)는 RequireGoalAccess가 소유한다(2026-08-10 확정,
