@@ -8,7 +8,7 @@ const fallbackReviews = [
     student_name: '김OO 학생',
     school_result: '서울대학교 합격',
     content:
-      'AI 분석과 컨설팅 덕분에 제 강점을 정확히 알고, 목표 대학에 맞는 전략을 세울 수 있었습니다.'
+      '분석과 컨설팅 덕분에 제 강점을 정확히 알고, 목표 대학에 맞는 전략을 세울 수 있었습니다.'
   },
   {
     id: 2,

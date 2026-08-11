@@ -51,7 +51,7 @@ const MEGA_PROMO_GUEST = {
     <>
       학업·교내활동, 탐구, 학종, 교과, 면접까지
       <br />
-      AI로 무제한 점검하세요
+      무제한 점검하세요
     </>
   ),
   image: '/images/mega-menu-promo.png',

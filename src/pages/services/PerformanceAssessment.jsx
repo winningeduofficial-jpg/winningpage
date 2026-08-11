@@ -74,7 +74,7 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 // [가격 정본] 가격은 Supabase `products` 테이블(service_key='suhaeng')에서 조회한다.
 // 정본은 DB이며 프론트에는 가격을 하드코딩하지 않는다.
 
-const HERO_SERVICE = { name: 'AI 수행평가 서비스', to: '/pricing' };
+const HERO_SERVICE = { name: '수행평가 서비스', to: '/pricing' };
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
 // 배열의 각 원소가 한 줄이며 ServiceProcessCards 가 <br />로 잇는다.
@@ -443,7 +443,7 @@ export default function PerformanceAssessment() {
       {/* 문구・금액・상품 데이터는 Supabase 원본 그대로다 — 이 전환에서 한 글자도 바꾸지 않았다. */}
       <ServicePricingSection
         serviceKey="suhaeng"
-        heading="위닝AI 수행평가 이용권 구매하기"
+        heading="위닝 수행평가 이용권 구매하기"
         cta={{
           label: '이용권 구매하기',
           onClick: (event) => openPaidServiceOrAlert(event, HERO_SERVICE)
