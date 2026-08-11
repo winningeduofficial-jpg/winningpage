@@ -37,6 +37,11 @@ import {
   parseAdmissionRowsFromXlsx,
   BULK_XLSX_COLUMNS
 } from '../lib/admissionBulkXlsx';
+import {
+  exportAdmissionResultRowsToXlsx,
+  parseAdmissionResultRowsFromXlsx,
+  BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS
+} from '../lib/admissionResultsBulkXlsx';
 import * as XLSX from 'xlsx';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
@@ -64,6 +69,9 @@ import BookViewer from '../components/premiumBook/BookViewer';
 const ADMISSION_EXISTING_WRAP_RE = /admission-existing-html|admission-raw-section-wrap/;
 
 const PAGE_SIZE = 10;
+// CSV 청크 내보내기 1회 요청 크기. PostgREST 기본 응답 상한이 1,000행이라 이보다
+// 크게 잡아도 잘려 나온다 — 43k행이면 44회 왕복이다.
+const EXPORT_CHUNK = 1000;
 const IMAGE_BUCKET = 'banners';
 
 const MENU_GROUPS = [
@@ -854,8 +862,8 @@ const CONFIGS = {
     title: '프리미엄 책자 관리',
     table: 'premium_book_pages',
     searchPlaceholder: '',
-    // 정정(spec B-1): CONFIGS가 실제로 읽는 키는 order다 — orderColumn은 loadRows 지역변수 이름일
-    // 뿐이다(Admin.jsx:loadRows, `const orderColumn = config.order || 'created_at'`).
+    // 정정(spec B-1): CONFIGS가 실제로 읽는 키는 order다 — orderColumn은 쿼리 조립부의
+    // 지역변수 이름일 뿐이다(Admin.jsx:buildListQuery, `const orderColumn = config.order || 'created_at'`).
     order: 'sort_order',
     homepage: true,
     custom: true,
@@ -1415,14 +1423,38 @@ const CONFIGS = {
     table: 'admission_results',
     searchPlaceholder: '대학명, 모집단위, 전형명을 검색하세요',
     order: 'result_year',
+    // 서버 정렬 축을 sql/53의 admission_results_admin_order_idx(result_year desc, id desc)와
+    // 맞춘다. id 동점 처리축이 없으면 .range()로 끊어 읽을 때 페이지 경계에서 행이
+    // 중복·누락된다(같은 result_year 43k행 안에서 정렬 순서가 매 요청 달라질 수 있다).
+    orderBy: [
+      ['result_year', false],
+      ['id', false]
+    ],
+    // 43,170행 테이블 — 전량 클라이언트 로드가 불가능해 서버 페이지네이션으로 돌린다.
+    // rowCapWarning(1,000행 상한 경고)은 일부러 켜지 않는다: .range()로 PAGE_SIZE행만
+    // 받으므로 PostgREST 기본 상한에 닿을 일이 없고, 총 건수는 count로 따로 받는다.
+    serverPaginate: true,
+    // 서버 ilike 검색 대상. sql/53의 admission_results_search_trgm_idx가 덮는
+    // 3컬럼과 같아야 인덱스를 탄다.
+    searchColumns: ['university_name', 'department_name', 'admission_track'],
     homepage: true,
-    excel: true,
-    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요. 대량 등록 시 (학년도, 모집시기, 대학, 모집단위, 전형명, 반영교과) 조합이 중복되면 저장이 거부되니, Import 전에 중복 행이 없는지 먼저 확인하세요.`,
+    // config.excel(공용 CSV 다운로드 스위치) 없음(의도) — admissionGuidelines
+    // (:1051 부근)와 같은 사유. 기존 downloadExcel은 표시 포맷 CSV라 재적재가
+    // 안 되고(다운로드 → 수정 → 재업로드 왕복이 안 닫힌다), 버튼이 2개
+    // 공존하면 "엑셀 다운로드 버튼이 여러 개다, 우리가 개발한 걸로
+    // 통일해라"는 2026-08-07 사용자 지시를 다시 어기게 된다. 대신 아래
+    // ListSummary(AdmissionResultsBulkXlsxPanel)의 xlsx 왕복으로 통일한다.
+    // guideText(Supabase CSV Import 권장 안내)도 같은 이유로 지웠다 —
+    // 그 안내가 가리키던 수동 CSV Import 경로 자체가 이제 이 화면
+    // 엑셀 왕복으로 대체됐다.
+    ListSummary: AdmissionResultsListSummary,
     columns: [
       { key: 'result_year', label: '연도' },
-      { key: 'recruitment_period', label: '모집시기' },
       { key: 'university_name', label: '대학명' },
       { key: 'department_name', label: '모집단위' },
+      // 중심전형은 유일키 축이라 목록에서 안 보이면 같은 전형명의 교과/종합 2행을
+      // 구분할 수 없다. 비운 모집시기 자리를 그대로 이어받는다.
+      { key: 'main_track', label: '중심전형' },
       { key: 'screening_category', label: '전형유형' },
       { key: 'admission_track', label: '전형명' },
       { key: 'grade_70', label: '70%컷' },
@@ -1431,59 +1463,107 @@ const CONFIGS = {
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'result_year', label: '학년도', type: 'number', required: true },
-      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'], required: true },
       { key: 'university_key', label: '대학 키값', type: 'text', required: true },
       { key: 'university_name', label: '대학명', type: 'text', required: true },
       { key: 'department_key', label: '모집단위 키값', type: 'text', required: true },
       { key: 'department_name', label: '모집단위', type: 'text', required: true },
       {
+        // 원문 표기 그대로 저장한다 — sql/53의 CHECK가 교과|종합|논술|실기|기타만
+        // 허용하므로 '학생부교과' 같은 확장 표기를 넣으면 저장이 즉시 거부된다.
         key: 'main_track',
         label: '중심전형',
         type: 'select',
-        options: ['학생부교과', '학생부종합', '논술', '실기', '기타']
+        options: ['교과', '종합', '논술', '실기', '기타']
       },
       {
+        // 실데이터 11종 + 기타. sql/53 CHECK와 같은 도메인이라 여기 없는 값은 저장되지 않는다.
         key: 'screening_category',
         label: '전형유형',
         type: 'select',
-        options: ['일반', '추천형', '농어촌', '기회균형', '논술', '기타']
+        options: [
+          '일반',
+          '추천형',
+          '지역인재',
+          '농어촌',
+          '기회균형',
+          '특성화고',
+          '특수교육',
+          '논술',
+          '실기',
+          '성인학습자',
+          '재외국민',
+          '기타'
+        ]
       },
       { key: 'admission_track', label: '전형명', type: 'text', required: true, help: '전형명 원문 그대로 입력합니다.' },
-      { key: 'grade_50', label: '50%컷', type: 'number' },
-      { key: 'grade_70', label: '70%컷', type: 'number' },
-      { key: 'grade_85', label: '85%컷', type: 'number' },
-      { key: 'grade_90', label: '90%컷', type: 'number' },
-      { key: 'converted_score', label: '환산점수', type: 'number' },
-      { key: 'percentile', label: '백분위', type: 'number' },
-      { key: 'quota', label: '모집인원', type: 'number' },
-      { key: 'competition_rate', label: '경쟁률', type: 'number' },
+      // 지표 숫자 필드는 전부 nullable — 입력을 비우면 0이 아니라 null로 저장한다
+      // ("등급 0"·"경쟁률 0" 같은 값은 존재하지 않고, 전부 미공개를 뜻한다).
+      { key: 'grade_50', label: '50%컷', type: 'number', nullable: true },
+      { key: 'grade_70', label: '70%컷', type: 'number', nullable: true },
+      { key: 'grade_85', label: '85%컷', type: 'number', nullable: true },
+      { key: 'grade_90', label: '90%컷', type: 'number', nullable: true },
+      // 아래 5종은 sql/53에서 추가된 지표다. 공개 화면(v1)에는 노출하지 않지만
+      // 어드민에 필드가 없으면 적재된 값을 조회·수정할 방법이 사라진다.
+      { key: 'grade_avg', label: '합격자 평균등급', type: 'number', nullable: true },
+      { key: 'grade_min', label: '합격자 최저등급', type: 'number', nullable: true },
+      { key: 'grade_avg10', label: '10과목 평균등급', type: 'number', nullable: true },
+      { key: 'grade_min10', label: '10과목 최저등급', type: 'number', nullable: true },
+      { key: 'grade_first_avg', label: '최초합 평균등급', type: 'number', nullable: true },
+      { key: 'converted_score', label: '환산점수', type: 'number', nullable: true },
+      { key: 'percentile', label: '백분위', type: 'number', nullable: true },
+      { key: 'quota', label: '모집인원', type: 'number', nullable: true },
+      {
+        // 값 0은 "경쟁률 0"이 아니라 미공개다(적재 시 결측 승격). 어드민에서도 0을
+        // 넣지 말고 비워 두어야 공개 화면이 `0.00 : 1`을 정상값처럼 렌더하지 않는다.
+        key: 'competition_rate',
+        label: '경쟁률',
+        type: 'number',
+        nullable: true,
+        help: '미공개면 비워 두세요. 0을 넣으면 공개 화면에 경쟁률 0.00 : 1로 표시됩니다.'
+      },
       { key: 'waitlist_rank', label: '충원순위', type: 'text' },
       { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      {
+        // 유일키의 마지막 축. 같은 8축 조합이 실제로 2행 이상인 분할모집에서만
+        // 1, 2, … 로 올린다. 기본은 0.
+        key: 'variant_seq',
+        label: '분할모집 순번',
+        type: 'number',
+        help: '동일 전형이 분할모집으로 여러 행일 때만 0, 1, 2 … 로 구분합니다.'
+      },
       { key: 'source_sheet', label: '출처 시트', type: 'text' },
-      { key: 'source_row', label: '출처 행번호', type: 'number' },
+      { key: 'source_row', label: '출처 행번호', type: 'number', nullable: true },
       { key: 'note', label: '메모', type: 'textarea' }
     ],
     defaults: {
       is_active: true,
-      result_year: 2025,
-      recruitment_period: '수시',
+      result_year: 2026,
       university_key: '',
       university_name: '',
       department_key: '',
       department_name: '',
-      main_track: '학생부교과',
+      main_track: '교과',
       screening_category: '일반',
       admission_track: '',
       grade_50: null,
       grade_70: null,
       grade_85: null,
       grade_90: null,
+      grade_avg: null,
+      grade_min: null,
+      grade_avg10: null,
+      grade_min10: null,
+      grade_first_avg: null,
       converted_score: null,
       percentile: null,
-      quota: 0,
-      competition_rate: 0,
+      // 모집인원·경쟁률 기본값은 0이 아니라 null이다. 0으로 두면 신규 행이 전부
+      // "모집인원 0명 / 경쟁률 0.00 : 1"로 공개면에 나가, 적재 파이프라인이
+      // 경쟁률 0을 결측으로 승격시킨 취지가 어드민 경로로 되살아난다.
+      quota: null,
+      competition_rate: null,
       waitlist_rank: '',
       subject_reflection: '',
+      variant_seq: 0,
       source_sheet: '',
       source_row: null,
       note: ''
@@ -3632,16 +3712,26 @@ function csvEscape(value) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
-function downloadCsv(filename, rows, columns) {
-  const header = columns.map((column) => csvEscape(column.label)).join(',');
+function csvHeader(columns) {
+  return columns.map((column) => csvEscape(column.label)).join(',');
+}
+
+// 행 배열 → CSV 본문 줄들. 전량 로드 경로(downloadCsv)와 청크 내보내기(입결 43k행)가
+// 같은 이스케이프 규칙을 쓰도록 뽑아둔 것 — 청크 쪽은 받은 행 객체를 계속 붙들지 않고
+// 줄 문자열로 접어 모은다(43k행 × 30컬럼을 통째로 메모리에 쌓지 않기 위해).
+function csvBody(rows, columns) {
   // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
   // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
-  const body = rows
+  return rows
     .map((row) =>
       columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
     )
     .join('\n');
+}
 
+// 헤더/본문 문자열을 그대로 받아 파일로 떨군다. 청크 내보내기는 본문을 여러 번에
+// 나눠 만든 뒤 이어 붙여 넘기므로 rows 배열을 요구하지 않는 이 형태가 필요하다.
+function downloadCsvText(filename, header, body) {
   const blob = new Blob([`\ufeff${header}\n${body}`], {
     type: 'text/csv;charset=utf-8;'
   });
@@ -3654,6 +3744,10 @@ function downloadCsv(filename, rows, columns) {
   a.click();
 
   URL.revokeObjectURL(url);
+}
+
+function downloadCsv(filename, rows, columns) {
+  downloadCsvText(filename, csvHeader(columns), csvBody(rows, columns));
 }
 
 function normalizeArray(value) {
@@ -3879,7 +3973,16 @@ function AdminInput({ field, value, onChange, disabled }) {
       type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
       value={value ?? ''}
       onChange={(e) => {
-        const next = field.type === 'number' ? Number(e.target.value || 0) : e.target.value;
+        // field.nullable: 숫자 입력을 비우면 0이 아니라 null을 보낸다. 기본값을
+        // 0으로 두면 "미공개"와 "값이 0"이 구분되지 않아 공개면이 경쟁률
+        // 0.00 : 1, 모집인원 0명을 정상값처럼 렌더한다. 선언한 필드에만 적용되므로
+        // sort_order 같은 NOT NULL 숫자 컬럼은 기존 동작(빈 값 → 0) 그대로다.
+        const next =
+          field.type === 'number'
+            ? e.target.value === '' && field.nullable
+              ? null
+              : Number(e.target.value || 0)
+            : e.target.value;
         onChange(field.key, next);
       }}
       disabled={disabled}
@@ -5247,10 +5350,40 @@ function AdminForm({
   );
 }
 
-function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSection, onOpenMetaEdit }) {
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+function AdminTable({
+  config,
+  rows,
+  page,
+  setPage,
+  totalCount,
+  onEdit,
+  onDelete,
+  onOpenSection,
+  onOpenMetaEdit
+}) {
+  // 두 가지 조달 방식이 한 표를 공유한다.
+  //  - 기본(35개 config): loadRows가 전량을 가져오고 여기서 PAGE_SIZE로 잘라 쓴다.
+  //  - config.serverPaginate(입결 43k행): rows가 이미 "현재 페이지 PAGE_SIZE행"이라
+  //    자르면 안 되고, 전체 건수는 서버 count(totalCount)로 따로 받는다.
+  const serverPaginated = Boolean(config.serverPaginate);
+  const total = serverPaginated ? totalCount : rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
-  const pageRows = useMemo(() => rows.slice(start, start + PAGE_SIZE), [rows, start]);
+  const pageRows = useMemo(
+    () => (serverPaginated ? rows : rows.slice(start, start + PAGE_SIZE)),
+    [rows, start, serverPaginated]
+  );
+
+  // 페이지 번호 창. 기존에는 1~10을 고정 렌더했는데, 4,300페이지짜리 입결 목록에서는
+  // 그 방식으로 11페이지 이후에 도달할 방법이 없다(≫ 버튼으로 끝으로 점프한 뒤에도
+  // 번호줄은 1~10을 가리킨다). 현재 페이지를 가운데 두고 창을 굴린다 —
+  // totalPages ≤ 10이면 예전과 완전히 같은 1..N이 나온다.
+  const windowSize = Math.min(totalPages, 10);
+  const windowStart = Math.min(
+    Math.max(1, page - Math.floor(windowSize / 2)),
+    Math.max(1, totalPages - windowSize + 1)
+  );
+  const pageNumbers = Array.from({ length: windowSize }, (_, index) => windowStart + index);
 
   // 섹션 요약(summarizeHwpSection)은 페이지당 최대 60회(10행 × 6컬럼) 호출되고
   // jsonb doc의 blocks 배열을 훑는다. 셀에서 직접 부르면 keyword 검색 타이핑
@@ -5273,7 +5406,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
   return (
     <div className="bg-white p-6 shadow">
       <div className="mb-4 text-sm font-bold text-gray-500">
-        전체 <span className="text-blue-600">{rows.length}</span>건
+        전체 <span className="text-blue-600">{total.toLocaleString()}</span>건
       </div>
 
       <div className="overflow-x-auto">
@@ -5300,7 +5433,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
             ) : (
               pageRows.map((row, index) => (
                 <tr key={row.id} className="border-b border-gray-100">
-                  <td className="px-3 py-3">{rows.length - (start + index)}</td>
+                  <td className="px-3 py-3">{total - (start + index)}</td>
 
                   {config.columns.map((column) => (
                     <td key={column.key} className="px-3 py-3">
@@ -5490,7 +5623,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
         </table>
       </div>
 
-      <div className="mt-5 flex justify-center">
+      <div className="mt-5 flex flex-col items-center gap-2">
         <div className="inline-flex border border-gray-300">
           <button type="button" onClick={() => setPage(1)} className="h-9 w-10 border-r">
             <ChevronsLeft size={15} className="mx-auto" />
@@ -5503,7 +5636,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
             <ChevronLeft size={15} className="mx-auto" />
           </button>
 
-          {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((num) => (
+          {pageNumbers.map((num) => (
             <button
               key={num}
               type="button"
@@ -5527,6 +5660,14 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
             <ChevronsRight size={15} className="mx-auto" />
           </button>
         </div>
+
+        {/* 번호줄이 창(최대 10칸)만 보여주므로 지금 몇 번째인지 따로 알려준다.
+            페이지가 1장뿐인 대부분의 메뉴에서는 노이즈라 2장 이상일 때만 렌더한다. */}
+        {totalPages > 1 && (
+          <p className="text-xs font-bold text-gray-500">
+            {page.toLocaleString()} / {totalPages.toLocaleString()} 페이지
+          </p>
+        )}
       </div>
     </div>
   );
@@ -5547,7 +5688,9 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete, onOpenSecti
 // 페이지가 통째로 빈 화면이 된다(team-lead 지적, 2026-08-06). 저장
 // 직전에 그 연도의 행 수를 이 컴포넌트가 이미 들고 있는 rows(목록
 // 조회가 이미 전체 행을 가져온다 — PAGE_SIZE는 화면 표시에만 쓰이는
-// 클라이언트 슬라이스, loadRows의 select('*')엔 .range()가 없다)에서
+// 클라이언트 슬라이스, loadRows의 select('*')엔 .range()가 없다.
+// config.serverPaginate를 켠 탭만 예외로 서버에서 페이지 단위로 끊어
+// 받는데, admissionGuidelines는 그 탭이 아니라 전제가 그대로 유효하다)에서
 // 세어 0이면 확인을 받는다. 검증을 admissionSettings.js에 넣지
 // 않은 이유는 그 함수가 설정 저장만 하는 게 책임이고, 리소스 테이블
 // 행 수를 아는 건 호출부(이 파일)의 책임이라고 team-lead가 판단했기
@@ -6003,6 +6146,420 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
   );
 }
 
+// admissionResults.ListSummary의 진입점. AdmissionListSummary(모집요강)를
+// 재사용하지 않는다 — 그쪽은 AdmissionActiveYearSummary(공개 연도 지정)를
+// 함께 쌓는데, 입결은 공개 연도 개념이 없다(연도 자체가 result_year 행
+// 값이고 그 축이 이미 데이터로 존재한다). 두 도메인을 한 컴포넌트에
+// 억지로 묶으면 나중에 한쪽만 바뀌어도 다른 쪽 회귀를 걱정해야 한다.
+function AdmissionResultsListSummary({ onReload }) {
+  return <AdmissionResultsBulkXlsxPanel onReload={onReload} />;
+}
+
+// 입결정보(admission_results) 43,170행 전체를 29컬럼 xlsx
+// (src/lib/admissionResultsBulkXlsx.js)로 일괄 왕복한다. UX 흐름은
+// AdmissionBulkXlsxPanel(모집요강)과 동일하게 맞췄다 — 다운로드 →
+// 업로드 → 미리보기(신규/수정/거부/경고 건수 + 거부 행 목록 + 경고
+// 그룹 접기/펼치기) → 확인 체크박스로 게이트된 적용 → 재조회.
+//
+// 모집요강 패널과 다른 점은 전부 43,170행 규모 + coalesce() 표현식
+// 유일성 인덱스에서 온다(design brief (A)(B)):
+//   (A) props로 rows를 받지 않는다 — AdminTable이 config.serverPaginate
+//       탓에 현재 페이지 PAGE_SIZE행만 들고 있어(Admin.jsx:6305 부근),
+//       그걸 그대로 내보내면 10행짜리 파일이 나온다. 다운로드·업로드
+//       (existingIdSet 준비) 둘 다 이 컴포넌트가 자체적으로 PostgREST
+//       기본 상한(1,000행)에 맞춰 .range()로 청크 반복해 전량을 읽는다.
+//   (B) onConflict 기반 upsert를 쓰지 않는다 — sql/53의 유일성 인덱스가
+//       coalesce() 표현식이라 PostgREST onConflict가 컬럼 목록으로 못
+//       받는다. 대신 admissionResultsBulkXlsx.js가 이미 행마다 id 유무로
+//       insert/update를 갈라 payload를 만들어 주므로(id 없으면 insert,
+//       있으면 update — 있는데 DB에 없으면 파싱 단계에서 거부), 이
+//       컴포넌트는 그 분류를 그대로 받아 insert 배치는 .insert()로,
+//       update 배치는 .upsert(chunk, { onConflict: 'id' })로 나눠 보낸다.
+//       id는 이 테이블의 실제 기본키(평범한 컬럼 유일성)라 onConflict:'id'
+//       자체는 admission_university_resources 때와 달리 문제가 없다 —
+//       여기서 피한 건 "자연키 축(연도·대학·모집단위…)으로 onConflict를
+//       거는 것"이지 id 자체가 아니다.
+const RESULTS_TABLE = 'admission_results';
+// PostgREST 기본 응답 상한과 맞춘 읽기 청크 — 다운로드(전체 조회)와
+// existingIdSet 준비(id만 조회) 둘 다 이 크기로 .range() 반복한다.
+const RESULTS_READ_CHUNK = 1000;
+// insert/upsert 배치 크기. 43k행 전량이 한 번에 바뀌는 시나리오(연도
+// 전체 재적재 등)에서도 요청 하나가 과도하게 커지지 않게 나눈다.
+const RESULTS_APPLY_CHUNK = 500;
+
+const RESULTS_WARNING_GROUPS = [
+  {
+    key: 'allGradesEmpty',
+    label: '등급 9종이 전부 비어 있음',
+    tone: 'neutral',
+    types: ['allGradesEmpty']
+  },
+  {
+    key: 'competitionRateZero',
+    label: '경쟁률 0 — §Q2 정책상 미공개는 빈 값이어야 함',
+    tone: 'warning',
+    types: ['competitionRateZero']
+  },
+  {
+    key: 'gradeCutInversion',
+    label: '50%컷 > 70%컷 역전(원문 확인 필요)',
+    tone: 'warning',
+    types: ['gradeCutInversion']
+  }
+];
+
+// count는 head:true로 행 본문 없이 받는다 — 다운로드 버튼 라벨·진행률
+// 분모로만 쓰이므로 매번 새로 물어 최신 값을 반영한다(캐시하면 다른
+// 화면에서 추가/삭제된 행수가 안 맞을 수 있다).
+async function fetchResultsCount() {
+  const { count, error } = await supabase
+    .from(RESULTS_TABLE)
+    .select('id', { count: 'exact', head: true });
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+// 29컬럼 전량을 id 오름차순으로 청크 반복해 읽는다. order 없이 .range()만
+// 반복하면 PostgREST가 매 요청마다 정렬을 보장하지 않아(암묵적 순서)
+// 페이지 경계에서 행이 중복·누락될 수 있다 — id는 위닝 identity라 항상
+// 유일하고 단조증가라 경계 문제가 없다.
+async function fetchAllResultRows(onProgress) {
+  const total = await fetchResultsCount();
+  const all = [];
+  for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(RESULTS_TABLE)
+      .select(ADMISSION_RESULTS_BULK_XLSX_COLUMNS.join(', '))
+      .order('id', { ascending: true })
+      .range(from, from + RESULTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+// id 컬럼만 전량 읽어 Set으로 돌려준다 — parseAdmissionResultRowsFromXlsx의
+// existingIdSet 계약(파일의 id가 실제로 DB에 있는지 판정)에 쓴다. 29컬럼을
+// 전부 읽는 fetchAllResultRows보다 훨씬 가볍다(업로드 시 매번 새로 조회해도
+// 부담이 적다 — 그 사이 다른 관리자가 지운 id를 놓치지 않기 위해 캐시하지
+// 않는다).
+async function fetchAllResultIds(onProgress) {
+  const total = await fetchResultsCount();
+  const idSet = new Set();
+  for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(RESULTS_TABLE)
+      .select('id')
+      .order('id', { ascending: true })
+      .range(from, from + RESULTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    data.forEach((r) => idSet.add(r.id));
+    onProgress?.({ done: idSet.size, total });
+  }
+  return idSet;
+}
+
+function AdmissionResultsBulkXlsxPanel({ onReload }) {
+  const [totalRowCount, setTotalRowCount] = useState(null);
+  const [fetchProgress, setFetchProgress] = useState(null); // 다운로드 전량 읽기 진행률
+  const [idSetProgress, setIdSetProgress] = useState(null); // 업로드 검증용 id 전량 읽기 진행률
+  const [applyProgress, setApplyProgress] = useState(null); // 적용(insert/update) 진행률
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchResultsCount()
+      .then((count) => {
+        if (!cancelled) setTotalRowCount(count);
+      })
+      .catch(() => {
+        // 버튼 라벨용 참고 수치일 뿐이라 실패해도 화면을 막지 않는다 —
+        // 라벨은 그냥 "전체 -행"으로 남는다.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const busy = Boolean(fetchProgress || idSetProgress || applying);
+
+  async function handleDownload() {
+    if (busy) return;
+    try {
+      setFetchProgress({ done: 0, total: totalRowCount ?? 0 });
+      const allRows = await fetchAllResultRows((p) => setFetchProgress(p));
+      const { workbook, truncatedCells } = exportAdmissionResultRowsToXlsx(allRows);
+      setExportTruncatedCells(truncatedCells);
+      const today = new Date();
+      const fileName = `입결정보_전체_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+      if (typeof document !== 'undefined') {
+        triggerXlsxDownload(workbook, fileName);
+      }
+    } catch (err) {
+      alert(`엑셀 다운로드 실패: ${err.message}`);
+    } finally {
+      setFetchProgress(null);
+    }
+  }
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    try {
+      const buffer = await file.arrayBuffer();
+      setIdSetProgress({ done: 0, total: totalRowCount ?? 0 });
+      const existingIdSet = await fetchAllResultIds((p) => setIdSetProgress(p));
+      setIdSetProgress(null);
+
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const result = parseAdmissionResultRowsFromXlsx(workbook, existingIdSet);
+      setParseResult(result);
+    } catch (err) {
+      setIdSetProgress(null);
+      setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+    }
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+
+    // id 유무로 이미 갈라진 payload를 그대로 배치에 나눠 보낸다 — insert
+    // 배치는 .insert()(id 없음, identity 자동 채번), update 배치는
+    // .upsert(chunk, { onConflict: 'id' })(실제 기본키라 안전, 설계 브리핑
+    // (B) 참고). 두 배치는 컬럼 구성이 달라(update만 id를 가짐) 같은
+    // 요청에 섞지 않는다 — PostgREST가 배열 안 각 객체의 키 집합이
+    // 다르면 누락된 키를 일괄 default/null로 해석해 의도와 다르게 동작할
+    // 수 있다.
+    const insertRows = parseResult.rows.filter((row) => !('id' in row));
+    const updateRows = parseResult.rows.filter((row) => 'id' in row);
+    const total = insertRows.length + updateRows.length;
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < insertRows.length; i += RESULTS_APPLY_CHUNK) {
+        const chunk = insertRows.slice(i, i + RESULTS_APPLY_CHUNK);
+        const { error } = await supabase.from(RESULTS_TABLE).insert(chunk);
+        if (error) {
+          throw new Error(`신규 등록 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < updateRows.length; i += RESULTS_APPLY_CHUNK) {
+        const chunk = updateRows.slice(i, i + RESULTS_APPLY_CHUNK);
+        const { error } = await supabase.from(RESULTS_TABLE).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw new Error(`수정 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(`엑셀 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`);
+      onReload?.();
+      return;
+    }
+
+    const { summary } = parseResult;
+    setApplying(false);
+    setApplyProgress(null);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    fetchResultsCount()
+      .then((count) => setTotalRowCount(count))
+      .catch(() => {});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult ? parseResult.summary.willInsert + parseResult.summary.willUpdate : 0;
+
+  return (
+    <div className="mb-6 bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {fetchProgress
+              ? `읽는 중… ${fetchProgress.done.toLocaleString()} / ${fetchProgress.total.toLocaleString()}행`
+              : `엑셀 다운로드 (전체 ${totalRowCount === null ? '-' : totalRowCount.toLocaleString()}행)`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {idSetProgress
+              ? `업로드 검증 준비 중… ${idSetProgress.done.toLocaleString()} / ${idSetProgress.total.toLocaleString()}행`
+              : '엑셀 업로드'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="입결정보 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다.
+            이 파일을 그대로 재업로드하면 해당 행은 자동으로 거부됩니다(데이터 손상 아님).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((msg, idx) => (
+            <p key={idx}>{msg}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
+          </p>
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.resultYear ?? '-'}학년도 · {err.universityKey || '(대학 키 없음)'}/
+                    {err.departmentKey || '(모집단위 키 없음)'} · {err.admissionTrack || '(전형명 없음)'} —{' '}
+                    {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {RESULTS_WARNING_GROUPS.map((group) => {
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {groupCount}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.resultYear ?? '-'}학년도 · {w.universityKey || '(대학 키 없음)'}/
+                        {w.departmentKey || '(모집단위 키 없음)'} · {w.admissionTrack || '(전형명 없음)'} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount.toLocaleString()}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AcceptanceRateSummary({ rows }) {
   const active = (rows || []).filter((row) => row.is_active);
   if (active.length === 0) return null;
@@ -6145,27 +6702,33 @@ export default function Admin() {
   const [metaEditRow, setMetaEditRow] = useState(null);
   const [rows, setRows] = useState([]);
   const [keyword, setKeyword] = useState('');
+  // 서버 페이지네이션 탭에서 실제로 서버로 나가는 검색어. keyword는 타이핑마다
+  // 바뀌므로 그대로 쓰면 글자당 한 번씩 조회가 나간다 — 디바운스한 값만 넘긴다.
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  // 서버 페이지네이션 탭의 전체 건수(select count). 전량 로드 탭은 rows.length가
+  // 곧 전체라 이 값을 쓰지 않는다.
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  // CSV 청크 내보내기 진행 상태. null이면 진행 중 아님.
+  const [exporting, setExporting] = useState(null);
 
   const config = CONFIGS[activeKey];
 
   const filteredRows = useMemo(() => {
+    // 서버 페이지네이션 탭의 rows는 이미 "검색어가 적용된 현재 페이지 10행"이다.
+    // 여기서 클라이언트 필터를 또 걸면 그 10행 안에서 한 번 더 걸러진다.
+    if (config.serverPaginate) return rows;
     const q = keyword.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) => searchable(row).includes(q));
-  }, [rows, keyword]);
+  }, [rows, keyword, config.serverPaginate]);
 
-  async function loadRows() {
-    setLoading(true);
-
-    if (config.custom || config.comingSoon) {
-      setRows([]);
-      setLoading(false);
-      return;
-    }
-
-    let query = supabase.from(config.table).select('*');
+  // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
+  // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
+  // 범위(.range)와 count는 호출부가 붙인다.
+  function buildListQuery({ count } = {}) {
+    let query = supabase.from(config.table).select('*', count ? { count } : undefined);
 
     if (config.fixedCategory) {
       query = query.eq('category', config.fixedCategory);
@@ -6176,6 +6739,17 @@ export default function Admin() {
     if (config.fixedValues) {
       for (const [key, value] of Object.entries(config.fixedValues)) {
         query = query.eq(key, value);
+      }
+    }
+
+    // 서버 검색은 서버 페이지네이션 탭에만 있다. 그 외 탭은 전량을 들고 있으므로
+    // 예전처럼 filteredRows가 클라이언트에서 거른다.
+    if (config.serverPaginate && searchTerm && config.searchColumns?.length) {
+      // PostgREST or()는 콤마로 조건을, 괄호로 그룹을 끊는다. 검색어에 그 문자가
+      // 들어오면 구문 자체가 깨지고, %·_ 는 ilike 와일드카드로 새는 값이다.
+      const safe = searchTerm.replace(/[,()%_\\*]/g, ' ').trim();
+      if (safe) {
+        query = query.or(config.searchColumns.map((column) => `${column}.ilike.%${safe}%`).join(','));
       }
     }
 
@@ -6195,7 +6769,32 @@ export default function Admin() {
       query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
     }
 
-    const { data, error } = await query;
+    return query;
+  }
+
+  async function loadRows() {
+    setLoading(true);
+
+    if (config.custom || config.comingSoon) {
+      setRows([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
+    // 서버 페이지네이션 탭(입결 43,170행)은 현재 페이지 PAGE_SIZE행만 받는다.
+    // 예전에는 모든 탭이 select('*')로 전량을 끌어와 PostgREST 기본 1,000행
+    // 상한에 걸렸고(그래서 43k행 중 1,000행만 보였다), PAGE_SIZE는 그렇게 받아온
+    // 배열을 화면에서 자르는 클라이언트 슬라이스일 뿐이었다.
+    const paginate = Boolean(config.serverPaginate);
+    let query = buildListQuery({ count: paginate ? 'exact' : undefined });
+
+    if (paginate) {
+      const from = (page - 1) * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
+    }
+
+    const { data, error, count } = await query;
 
     setLoading(false);
 
@@ -6203,6 +6802,7 @@ export default function Admin() {
       console.error(error);
       alert(`${config.title} 조회 실패: ${error.message}`);
       setRows([]);
+      setTotalCount(0);
       return;
     }
 
@@ -6219,17 +6819,50 @@ export default function Admin() {
         : data || [];
 
     setRows(nextRows);
+    setTotalCount(paginate ? count ?? 0 : nextRows.length);
   }
 
-  useEffect(() => {
+  // 탭 전환. 목록 상태 초기화를 useEffect([activeKey])가 아니라 클릭 시점에 한
+  // 번에 묶는다 — 효과로 늦게 되돌리면 서버 페이지네이션 탭에서 "activeKey 변경 →
+  // (옛 page로) 조회 → page/keyword 리셋 → 재조회"로 요청이 두 번 나간다.
+  function changeTab(key) {
+    setActiveKey(key);
     setMode('list');
     setEditingRow(null);
     setPendingSection(null);
     setMetaEditRow(null);
     setKeyword('');
+    setSearchTerm('');
     setPage(1);
+  }
+
+  // 검색어 디바운스. 확정되는 순간 1페이지로 되돌린다 — 5페이지를 보다 검색하면
+  // 결과가 5페이지에 못 미쳐 빈 목록이 뜬다. 두 setState를 같은 타이머 안에서
+  // 부르므로 렌더는 1회, 따라서 조회도 1회다.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(keyword.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  // 조회 트리거. 서버 페이지네이션 탭만 page/searchTerm 변화에 반응한다 —
+  // 그 외 탭은 아래 두 값이 상수라 예전처럼 탭 전환 시 1회만 조회한다.
+  const serverPage = config.serverPaginate ? page : 0;
+  const serverTerm = config.serverPaginate ? searchTerm : '';
+
+  useEffect(() => {
     loadRows();
-  }, [activeKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, serverPage, serverTerm]);
+
+  // 삭제 등으로 총 건수가 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 당긴다.
+  useEffect(() => {
+    if (!config.serverPaginate || totalCount === 0) return;
+    const lastPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    if (page > lastPage) setPage(lastPage);
+  }, [config.serverPaginate, totalCount, page]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -6395,17 +7028,64 @@ export default function Admin() {
     return true;
   }
 
-  function downloadExcel() {
-    downloadCsv(
-      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
-      filteredRows,
-      config.columns
+  async function downloadExcel() {
+    const filename = `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    // 전량 로드 탭은 화면 rows가 곧 전체다 — 기존 경로 그대로.
+    if (!config.serverPaginate) {
+      downloadCsv(filename, filteredRows, config.columns);
+      return;
+    }
+
+    // 서버 페이지네이션 탭은 rows가 현재 페이지 10행뿐이라 그대로 쓰면 10행짜리
+    // 파일이 나온다. 목록과 같은 조건(buildListQuery)으로 서버에서 EXPORT_CHUNK행씩
+    // 끊어 받아, 청크마다 CSV 줄로 접어 모은다 — 43k행 행 객체를 한꺼번에 메모리에
+    // 쌓지 않고, await 사이마다 진행률이 화면에 갱신된다.
+    if (exporting) return;
+
+    if (totalCount === 0) {
+      alert('내보낼 데이터가 없습니다.');
+      return;
+    }
+
+    const proceed = window.confirm(
+      `${totalCount.toLocaleString()}건을 CSV로 내려받습니다.\n` +
+        `${EXPORT_CHUNK.toLocaleString()}건씩 나눠 받으므로 건수가 많으면 수십 초가 걸리고, ` +
+        `그동안 이 화면을 닫거나 다른 메뉴로 이동하면 안 됩니다.\n\n계속할까요?`
     );
+
+    if (!proceed) return;
+
+    setExporting({ done: 0, total: totalCount });
+
+    const parts = [];
+    let done = 0;
+
+    for (let from = 0; from < totalCount; from += EXPORT_CHUNK) {
+      const { data, error } = await buildListQuery().range(from, from + EXPORT_CHUNK - 1);
+
+      if (error) {
+        console.error(error);
+        setExporting(null);
+        alert(`CSV 내보내기 실패: ${error.message}`);
+        return;
+      }
+
+      // 빈 청크는 그 사이에 행이 지워졌다는 뜻 — 더 받아봐야 소용없다.
+      if (!data || data.length === 0) break;
+
+      parts.push(csvBody(data, config.columns));
+      done += data.length;
+      setExporting({ done, total: totalCount });
+    }
+
+    setExporting(null);
+    downloadCsvText(filename, csvHeader(config.columns), parts.join('\n'));
   }
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#111827]">
-      <AdminSidebar activeKey={activeKey} setActiveKey={setActiveKey} />
+      <AdminSidebar activeKey={activeKey} setActiveKey={changeTab} />
       <AdminTopbar onLogout={logout} />
 
       <main className="ml-[224px] pt-[56px]">
@@ -6436,7 +7116,7 @@ export default function Admin() {
                       <button
                         key={tab.key}
                         type="button"
-                        onClick={() => setActiveKey(tab.key)}
+                        onClick={() => changeTab(tab.key)}
                         className={`h-9 border px-5 text-sm font-black transition ${
                           activeKey === tab.key
                             ? 'border-[#2348ff] bg-[#2348ff] text-white'
@@ -6472,10 +7152,13 @@ export default function Admin() {
                         <button
                           type="button"
                           onClick={downloadExcel}
-                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                          disabled={Boolean(exporting)}
+                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Download size={14} />
-                          엑셀 다운로드
+                          {exporting
+                            ? `내보내는 중 ${Math.floor((exporting.done / Math.max(1, exporting.total)) * 100)}%`
+                            : '엑셀 다운로드'}
                         </button>
                       )}
                     </div>
@@ -6532,10 +7215,21 @@ export default function Admin() {
                     )}
                   </div>
 
+                  {/* rowCapWarning은 "전량 로드가 1,000행 상한에 잘렸다"는 경고라
+                      config.serverPaginate 탭에는 선언하지 않는다 — 그쪽은 .range()로
+                      PAGE_SIZE행만 받고 전체 건수를 count로 따로 받으므로 상한 자체에
+                      닿지 않는다. */}
                   {config.rowCapWarning && rows.length >= 1000 && (
                     <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
                       조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회 상한으로 오래된 신청
                       건이 목록에서 빠졌을 수 있습니다. 전체 건수가 아닙니다.
+                    </p>
+                  )}
+
+                  {exporting && (
+                    <p className="mt-4 rounded border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
+                      CSV 내보내는 중 — {exporting.done.toLocaleString()} /{' '}
+                      {exporting.total.toLocaleString()}건. 완료될 때까지 이 화면을 닫지 마세요.
                     </p>
                   )}
                 </div>
@@ -6553,6 +7247,7 @@ export default function Admin() {
                     rows={filteredRows}
                     page={page}
                     setPage={setPage}
+                    totalCount={totalCount}
                     onEdit={editRow}
                     onDelete={deleteRow}
                     onOpenSection={openRowSection}
