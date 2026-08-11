@@ -41,7 +41,13 @@ export default function RadarChart6({ axes, max = 100, rings = 4, className = ''
   return (
     <svg
       viewBox="0 0 446 399"
-      className={`h-[24.9375rem] w-[27.875rem] ${className}`}
+      // R3(2026-08-11) — viewBox 가 이미 내부 좌표계를 고정하므로 외부 크기만 fluid 로 바꾸면
+      // 벡터 전체(폴리곤·라벨 텍스트 포함)가 함께 스케일된다(축소 transform과 달리 브라우저
+      // 네이티브 SVG 스케일이라 별도 보정이 필요 없다). 모바일은 뷰포트 폭에 맞추되 320px 를
+      // 넘지 않게 해 라벨 겹침을 막고, lg 이상은 기존 고정 rem 치수를 그대로 유지한다.
+      // fd-radar-svg — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
+      // 값(24.9375rem/27.875rem)으로 강제한다.
+      className={`fd-radar-svg h-auto w-full max-w-[22rem] lg:h-[24.9375rem] lg:w-[27.875rem] lg:max-w-none ${className}`}
       role="img"
       aria-label="학습 6축 레이더 차트"
     >

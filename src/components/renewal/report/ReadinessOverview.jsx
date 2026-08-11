@@ -12,7 +12,9 @@ const ReadinessOverview = ({ scoreLabel, summaryLines }) => {
         <span className="text-[1.25rem] font-medium text-[#013262]">{scoreLabel}</span>
       </div>
 
-      <div className="mt-4 w-[30.5625rem] text-base font-normal leading-[1.3] text-[#808080]">
+      {/* fd-readiness-summary — 인쇄 훅(BLOCK 수정). report-print.css 가 기존
+          lg:w-[30.5625rem] 과 동일한 값으로 강제한다. */}
+      <div className="fd-readiness-summary mt-4 w-full text-base font-normal leading-[1.3] text-[#808080] lg:w-[30.5625rem]">
         {summaryLines.map((line, index) => (
           <p key={index}>{line}</p>
         ))}

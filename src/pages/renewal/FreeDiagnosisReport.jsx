@@ -42,8 +42,9 @@ function adaptSample(sample) {
  *   main 상단 오프셋은 기존 설문 셸과 동일한 pt-16(4rem) 관례를 따른다.
  * - fd-print-area / fd-report-sheet / fd-no-print 클래스는 report-print.css 의 계약이므로
  *   섹션 컴포넌트가 들어와도 그대로 유지해야 한다.
- * - 좁은 뷰포트 반응형: report-responsive.css 가 .fd-report-sheet 를 transform: scale() 로
- *   비례 축소해 가로 스크롤 없이 화면에 맞춘다(레이아웃 리플로우 없음, 인쇄는 영향 없음).
+ * - 좁은 뷰포트 반응형(R3, 2026-08-11): lg(1024px) 미만은 각 섹션 컴포넌트가 단일 컬럼으로
+ *   리플로우한다(축소 폐기 — report-responsive.css 상단 주석 참고). lg 이상은 기존 A4 고정
+ *   레이아웃 그대로다. 인쇄(@media print)는 항상 A4 2장 고정 — 화면 리플로우와 무관하다.
  */
 export default function FreeDiagnosisReport() {
   const location = useLocation();
@@ -74,11 +75,13 @@ export default function FreeDiagnosisReport() {
 
   return (
     <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
-      <div className="fd-sheet-stack flex flex-col items-center gap-[6.25rem] pt-[6.25rem] pb-[6.25rem]">
+      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem]">
         <ReportPageOne data={data} />
         <ReportPageTwo data={data} />
 
-        {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현. */}
+        {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현.
+            모바일에서도 살아 있어야 한다(A4 출력은 이 경로로만 얻는다) — 터치 타깃 h-[3.75rem]
+            (60px) 는 이미 2.75rem(44px) 최소 기준을 넘는다. */}
         <div className="fd-no-print">
           <button
             type="button"
