@@ -102,6 +102,7 @@
 //        오탐 방향이 "분량형으로 잡힌다"라 피해가 작고, 고치면 판정이 갈리므로 둔다.
 
 import { extractAnswerQuestions, guideTextFromSession } from './guide-structure.js';
+import { checkFieldsMinLength, countFieldsChars } from './submission-chars.js';
 
 // 재수출 — 제출폼 쪽 호출부가 판정 함수를 쓰려고 `guide-structure.js`를 따로 import 하면
 // 사본을 만들고 싶은 유혹이 생긴다. 진입점을 하나로 모아 그 유혹을 없앤다(파일 상단 ③).
@@ -111,9 +112,10 @@ export { isRubricLikeQuestion, extractAnswerQuestions, guideTextFromSession } fr
 // §12.2 3행이 「문항형 20개 상한 유지」로 명시적으로 지정한 값이다.
 export const MAX_QUESTION_FIELDS = 20;
 
-// 제출물 최소 길이. `api/evaluate-text.js:38` `submission_text.trim().length < 100`.
-// 임계값 100은 §12.2 마지막 행 결정으로 **유지**하고 측정 대상만 바꾼다(아래 참조).
-export const SUBMISSION_MIN_CHARS = 100;
+// 제출물 최소 길이(`api/evaluate-text.js:38` `submission_text.trim().length < 100`)와
+// 글자 수 계산식은 **`submission-chars.js`가 정본**이다 — STEP5 제출폼(브라우저)이 같은
+// 규칙을 읽어야 해서 의존 0인 잎 모듈로 내렸다(파일 하단 「글자 수」 절 참고).
+// 여기서는 그대로 재수출해 기존 import 경로를 유지한다.
 
 // 제출 스키마 8종의 `type` 값. DB(`performance_sessions.submission_schema.type`)와
 // 클라이언트 분기가 함께 읽는 열거라 상수로 고정한다.
@@ -425,11 +427,15 @@ export function resolveSessionSubmissionSchema(session = {}) {
 // (`356자`/`840자`/`421자`), **최소·최대 기준선 표기가 없다.** 그래서 `perField`가
 // 화면이 쓰는 값이고 `total`은 게이트 전용이다. 시안에 없는 `/100자` 같은 기준선을
 // 새로 그리지 않는다 — 필요해지면 §5.14를 고치는 게 먼저다.
+//
+// ⚠️ **계산 본체는 `submission-chars.js`로 내려갔다** — §8.3이 요구하는 「시안 카운터와
+//    동일 계산식 공유」의 상대편이 브라우저(STEP5 제출폼)이기 때문이다. 이 파일 전체를
+//    클라이언트 번들에 끌고 오는 대신, 의존이 0인 잎 모듈로 규칙만 내리고 여기서는
+//    **스키마 정규화를 먼저 태운 뒤 위임**한다(기존 시그니처·반환 모양은 그대로다).
+//    사본을 만들지 마라 — 두 벌이 되는 순간 "카운터는 통과인데 서버가 거절"이 생긴다.
 
-/** 필드 값 1개의 글자 수. 시안 카운터가 그대로 렌더하는 수(`{n}자`)다. */
-export function countFieldChars(value) {
-  return [...String(value ?? '').replace(/\s+/g, ' ').trim()].length;
-}
+// 잎 모듈 재수출 — 기존 import 경로(`submission-schema.js`)를 그대로 유지하기 위함이다.
+export { SUBMISSION_MIN_CHARS, countFieldChars } from './submission-chars.js';
 
 /**
  * 스키마 선언 필드만 골라 필드별·합계 글자 수를 낸다.
@@ -439,18 +445,7 @@ export function countFieldChars(value) {
  * 있어야 한다), `total`은 최소 길이 판정 입력이다.
  */
 export function countSubmissionChars(schema, fields = {}) {
-  const safe = normalizeSubmissionSchema(schema);
-  const source = fields && typeof fields === 'object' ? fields : {};
-  const perField = {};
-  let total = 0;
-
-  for (const field of safe.fields) {
-    const count = countFieldChars(source[field.key]);
-    perField[field.key] = count;
-    total += count;
-  }
-
-  return { perField, total };
+  return countFieldsChars(normalizeSubmissionSchema(schema).fields, fields);
 }
 
 /**
@@ -464,21 +459,7 @@ export function countSubmissionChars(schema, fields = {}) {
  * 엔드포인트가 정한다.
  */
 export function checkSubmissionMinLength(schema, fields = {}) {
-  const safe = normalizeSubmissionSchema(schema);
-  const source = fields && typeof fields === 'object' ? fields : {};
-  const { perField, total } = countSubmissionChars(safe, source);
-
-  const missingRequired = safe.fields
-    .filter((field) => field.required && perField[field.key] === 0)
-    .map((field) => field.label);
-
-  return {
-    ok: missingRequired.length === 0 && total >= SUBMISSION_MIN_CHARS,
-    total,
-    perField,
-    threshold: SUBMISSION_MIN_CHARS,
-    missingRequired
-  };
+  return checkFieldsMinLength(normalizeSubmissionSchema(schema).fields, fields);
 }
 
 // ─────────────────────────────────────────────────────────────────────
