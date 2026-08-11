@@ -22,6 +22,19 @@
 --  / 50_board_renewal.sql. 그래도 새로 겹치게 두지 않는다.)
 -- 짝 파일 54_program_access_grant.sql 도 같은 이유로 53 → 54 로 밀렸다.
 --
+-- 2026-08-11 후속 — 지목 기준이 id → slug 로 바뀌었다
+-- ---------------------------------------------------------------------
+-- sql/56_surrogate_uuid_keys.sql 이 products.id / coupons.id 를 uuid 대체키로
+-- 바꾸고 사람이 읽는 핸들을 slug 로 분리했다. 이 파일의 모든 문장(1-a insert,
+-- 1-b VALUES 조인, 1-c 라벨 정정, 2) 쿠폰 유효기간)이 상품·쿠폰을 리터럴로
+-- 지목하므로 전부 slug 기준으로 옮겼다 — id 는 이제 uuid 라 리터럴로 쓸 수
+-- 없다. 지목 대상 자체는 그대로다(같은 3개 상품, 같은 1개 쿠폰):
+--   'susi-30'     → slug 'susi-3'       (구 id 가 실제 3회권과 10배 어긋나 있었다)
+--   'signup-6000' → slug 'signup-2000'  (구 id 가 실제 할인액 2,000원과 어긋나 있었다)
+-- 마커('52_pricing_susi_restore_v1')는 그대로다 — 마커는 "이 파일이 이미
+-- 적용됐는가"만 묻고 키 형식과 무관하다. 여전히 절대 고치지 마라(맨 위 🚨).
+-- 1-b/1-c/2) 는 dev 에서 이미 0행이므로 이 치환이 dev 상태를 바꾸지 않는다.
+--
 -- 적용 상태: dev DB 적용 완료 (2026-08-10 14:30 UTC)
 -- ---------------------------------------------------------------------
 -- 대상: dev(gjowqdiopinhixfivnkx, 서울). 적용 후 실측 결과 —
@@ -132,13 +145,13 @@ create table if not exists public.schema_migrations (
 -- ---------------------------------------------------------------------
 -- 1-a) 행 자체가 없는 경우에만 신규 삽입.
 insert into public.products
-  (id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active)
+  (slug, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active)
 values
   ('susi-1',  'susi', '위닝 수시예측', '수시카드는 학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.', 2, 1, '[1회 이용권] 위닝 수시예측', 30000, 30000, null,        false, true),
   ('susi-2',  'susi', '위닝 수시예측', '수시카드는 학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.', 2, 2, '[2회 이용권] 위닝 수시예측', 60000, 55000, '약 8% 할인',  false, true),
-  ('susi-30', 'susi', '위닝 수시예측', '수시카드는 학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.', 2, 3, '[3회 이용권] 위닝 수시예측', 90000, 80000, '약 11% 할인', true,  true)
-on conflict (id) do nothing;
--- ↑ 이미 존재하는 id 는 이 문장이 절대 덮어쓰지 않는다(10번 시드와 동일 규약).
+  ('susi-3',  'susi', '위닝 수시예측', '수시카드는 학생의 내신, 비교과 흐름, 진로 방향, 희망 대학을 종합해 수시 지원 전략을 설계하는 관리 서비스입니다. 지원 가능성, 보완점, 전형별 준비 방향을 함께 확인할 수 있습니다.', 2, 3, '[3회 이용권] 위닝 수시예측', 90000, 80000, '약 11% 할인', true,  true)
+on conflict (slug) do nothing;
+-- ↑ 이미 존재하는 slug 는 이 문장이 절대 덮어쓰지 않는다(10번 시드와 동일 규약).
 --   기존 행의 복구는 아래 1-b/1-c 가 담당한다.
 
 -- ---------------------------------------------------------------------
@@ -166,11 +179,11 @@ update public.products p
        sort_order         = v.sort_order,
        is_active          = true
   from (values
-    ('susi-1',  1),
-    ('susi-2',  2),
-    ('susi-30', 3)
-  ) as v(id, sort_order)
- where p.id = v.id
+    ('susi-1', 1),
+    ('susi-2', 2),
+    ('susi-3', 3)
+  ) as v(slug, sort_order)
+ where p.slug = v.slug
    and not exists (
      select 1 from public.schema_migrations
      where version = '52_pricing_susi_restore_v1'
@@ -184,7 +197,7 @@ update public.products p
 -- ---------------------------------------------------------------------
 update public.products
    set name = '[3회 이용권] 위닝 수시예측'
- where id = 'susi-30'
+ where slug = 'susi-3'
    and name = '[12개월 30회 이용권] 위닝 수시예측';
 
 insert into public.schema_migrations (version)
@@ -216,7 +229,7 @@ where not exists (
 -- ---------------------------------------------------------------------
 update public.coupons
    set valid_until = '2026-12-31'
- where id = 'signup-6000'
+ where slug = 'signup-2000'
    and valid_until = '2026-08-15';
 
 -- ---------------------------------------------------------------------
@@ -237,14 +250,14 @@ update public.coupons
 --
 -- update public.coupons
 --    set valid_until = '2026-12-31'
---  where id in ('over40k-3000', 'over80k-5000')
+--  where slug in ('over40k-3000', 'over80k-5000')
 --    and valid_until is null;
 
 -- ---------------------------------------------------------------------
 -- 4) 적용 후 확인용 조회 (읽기 전용)
 -- ---------------------------------------------------------------------
 -- 수시예측 3건이 활성으로 잡히고 라벨이 '[N회 이용권]' 인지 확인.
-select id, service_key, service_sort_order, sort_order, name, list_price, price, badge, is_active
+select slug, id, service_key, service_sort_order, sort_order, name, list_price, price, badge, is_active
   from public.products
  where service_key = 'susi'
  order by sort_order;
@@ -257,7 +270,7 @@ select service_sort_order, service_key, count(*) as products
  order by service_sort_order;
 
 -- 오늘 기준으로 주문서에 노출될 쿠폰 (null valid_until 은 위 3-a 때문에 빠진다).
-select id, title, discount_amount, min_amount, valid_until, is_active
+select slug, id, title, discount_amount, min_amount, valid_until, is_active
   from public.coupons
  where is_active = true
    and valid_until >= current_date

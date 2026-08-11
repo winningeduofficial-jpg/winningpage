@@ -15,9 +15,11 @@
 //   막히지 않는다. 그래서 revokeProgramAccessForOrder 를 같은 모듈에 둔다.
 //
 // 누가 무엇을 샀는지는 order_items 에서 읽는다
-//   api/create-order.js:146-156 이 결제 시점에 product_id·service_key·name 을
+//   api/create-order.js:146-156 이 결제 시점에 product_slug·service_key·name 을
 //   모두 기록하므로, order_id 하나로 구매 상품군(service_key)을 복원할 수 있다.
-//   orders 에는 상품 정보가 없다(order_name 문자열뿐).
+//   orders 에는 상품 정보가 없다(order_name 문자열뿐). product_id 는 이제
+//   products.id(uuid) 를 가리키는 관계 컬럼이라 사람이 읽는 로그에는 쓸모가
+//   없다 — 진단 로그는 product_slug 를 쓴다(sql/56_surrogate_uuid_keys.sql 3)절).
 //
 // 정본 컬럼 = program_access.id
 //   PK 는 (id, program_key) 이고 id 만 NOT NULL 이다(sql/00_base_schema.sql:
@@ -81,7 +83,7 @@ const REVOKED_PAYMENT_STATUSES = ['refunded', 'cancelled'];
 async function readOrderPrograms(supabaseAdmin, orderId) {
   const { data: items, error } = await supabaseAdmin
     .from('order_items')
-    .select('product_id, service_key, name, price, quantity')
+    .select('product_slug, service_key, name, price, quantity')
     .eq('order_id', orderId);
 
   if (error) throw error;
@@ -102,7 +104,7 @@ async function readOrderPrograms(supabaseAdmin, orderId) {
     if (!programKey) {
       skipped.push({
         service_key: serviceKey || null,
-        product_id: clean(item.product_id) || null,
+        product_slug: clean(item.product_slug) || null,
         reason: 'no_program_key_mapping'
       });
       continue;
@@ -135,7 +137,7 @@ async function readOrderPrograms(supabaseAdmin, orderId) {
  *        해제는 운영자의 판단이고, 결제로 자동 해제되면 제재가 무력화된다.
  *
  * @returns {{ok:boolean, granted:string[], serviceKeys:string[],
- *            skipped:{service_key:?string,product_id:?string,reason:string}[],
+ *            skipped:{service_key:?string,product_slug:?string,reason:string}[],
  *            error:?string}}
  *          ok=true 는 "부여 시도가 에러 없이 끝났다"는 뜻이다. 매핑되는 상품이
  *          없으면 ok=true + granted=[] + skipped 에 이유가 담긴다.
@@ -204,7 +206,7 @@ export async function grantProgramAccessForOrder(
       if (clean(existing.access_status) === 'suspended') {
         result.skipped.push({
           service_key: null,
-          product_id: null,
+          product_slug: null,
           program_key: programKey,
           reason: 'suspended_by_admin'
         });
@@ -215,7 +217,7 @@ export async function grantProgramAccessForOrder(
       if (!restoreRevoked && REVOKED_PAYMENT_STATUSES.includes(clean(existing.payment_status))) {
         result.skipped.push({
           service_key: null,
-          product_id: null,
+          product_slug: null,
           program_key: programKey,
           reason: 'revoked_not_restored'
         });

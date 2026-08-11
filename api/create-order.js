@@ -72,7 +72,7 @@ export default async function handler(req, res) {
     // 1) 상품 조회 (서버 신뢰 가격)
     const { data: products, error: productError } = await supabaseAdmin
       .from('products')
-      .select('id, service_key, name, list_price, price, is_active')
+      .select('id, slug, service_key, name, list_price, price, is_active')
       .in('id', productIds)
       .eq('is_active', true);
 
@@ -111,6 +111,7 @@ export default async function handler(req, res) {
       p_order_name: orderName,
       p_items: products.map((p) => ({
         product_id: p.id,
+        product_slug: p.slug,
         service_key: p.service_key,
         name: p.name,
         list_price: Number(p.list_price || p.price || 0),

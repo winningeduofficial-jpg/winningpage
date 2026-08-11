@@ -178,18 +178,48 @@
 --   초기화됨). 그래서 이 두 함수는 아래에서 명시적으로 DROP FUNCTION 한 뒤
 --   CREATE 한다 — 재적용 후 반드시 pg_proc.proacl 로 권한을 재확인한다.
 --
--- P1-2 보류 (2026-08-11) — signup-6000 개명은 이번 패스에서 하지 않는다.
---   coupons.id 가 사람이 읽는 의미(금액 등)를 담고 있어 의미가 바뀔 때마다
---   id 자체를 바꿔야 하는 구조가 근본 문제이고, 개명은 그 증상만 처리하는
---   임시방편이다. 곧 coupons.id 를 surrogate key(uuid)로, 사람이 읽는
---   핸들은 별도 slug 컬럼으로 분리하는 마이그레이션이 예정돼 있다 —
---   지금 문자열 id 를 개명하면 FK 마이그레이션을 두 번 하게 된다. 그래서
---   sql/10·sql/55 어디의 signup-6000 문자열도 건드리지 않는다.
---   coupon_id 타입이 uuid 로 바뀌면 고쳐야 할 지점은 4)절 fn_redeem_coupons
---   의 advisory lock 키(hashtextextended 에 넘기는 coupon.id 가 text 여야
---   함 — uuid 는 암시적으로 text 로 캐스팅되지 않는다) 다 — 그 시점에
---   ::text 캐스팅을 추가해야 한다.
+-- P1-2 해소 (2026-08-11, 후속) — signup-6000 개명은 uuid 전환으로 처리됐다.
+--   이 절은 원래 "개명은 증상만 처리하는 임시방편이고, coupons.id 를
+--   surrogate key(uuid)로 + 사람이 읽는 핸들을 slug 로 분리하는 마이그레이션이
+--   예정돼 있으니 지금 문자열 id 를 개명하면 FK 마이그레이션을 두 번 하게
+--   된다" 며 개명을 보류해 뒀다. 그 마이그레이션이
+--   sql/56_surrogate_uuid_keys.sql 로 적용됐다:
+--     coupons.id   text 'signup-6000' → uuid 대체키
+--     coupons.slug text 'signup-2000'  (실제 할인액 2,000원 — 개명이 여기서 반영)
+--   그래서 이 파일에서 쿠폰을 지목하는 문장은 전부 slug 기준으로 바뀌었고
+--   (0)절 시드 UPDATE), 함수들의 쿠폰 식별자 인자·반환은 text → uuid 다.
+--   예고했던 수정 지점(4)절 advisory lock 의 hashtextextended 는 text 만
+--   받는다 — uuid 는 암시적으로 캐스팅되지 않는다)도 ::text 캐스팅으로
+--   함께 반영했다.
+--
+-- 전제 — sql/56_surrogate_uuid_keys.sql 이 먼저 적용돼 있어야 한다
+-- ---------------------------------------------------------------------
+--   아래 함수들은 coupons.id 가 uuid 라는 전제로 작성돼 있다. 전환 전
+--   스키마(text id)에서 실행하면 language sql 함수들(fn_coupon_is_redeemed
+--   등)은 생성 시점 본문 검사에서 uuid = text 비교로 실패하고, plpgsql
+--   함수들은 생성은 되지만 호출 시 깨진다 — 후자가 더 위험하다(조용히
+--   어긋난다). 그래서 파일 맨 앞에 전제 검사 가드를 두어 즉시 멈춘다.
 -- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 전제 검사 (실패 시 즉시 중단). 빈 DB 경로에서는 sql/10_pricing_orders.sql
+-- 이 처음부터 coupons.id 를 uuid 로 만들므로 이 가드는 통과한다.
+-- ---------------------------------------------------------------------
+do $$
+declare
+  v_type text;
+begin
+  select c.data_type into v_type
+    from information_schema.columns c
+   where c.table_schema = 'public' and c.table_name = 'coupons' and c.column_name = 'id';
+
+  if v_type is null then
+    raise exception 'public.coupons 가 없다 — sql/10_pricing_orders.sql 을 먼저 실행하세요.';
+  end if;
+  if v_type <> 'uuid' then
+    raise exception 'coupons.id 가 아직 % 다 — sql/56_surrogate_uuid_keys.sql 을 먼저 적용하세요.', v_type;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- 0) coupons.max_uses_per_user : 쿠폰별 1인당 사용 가능 횟수.
@@ -226,9 +256,10 @@ comment on column public.coupons.max_uses_per_user is
 -- 시드값 (사용자 확정, 2026-08-11): signup 계열(회원가입 축하, 1인 1회)만
 -- 명시적으로 1을 채운다. over40k-3000/over80k-5000 은 원래도 NULL(무제한)
 -- 이었고 DEFAULT 변경이 기존 행을 건드리지 않으므로 별도 UPDATE 불필요.
--- id 는 signup-6000 그대로다 — 개명은 보류한다(파일 상단 "P1-2 보류" 절 참고).
+-- 지목은 slug 로 한다 — id 는 이제 uuid 대체키라 리터럴로 쓸 수 없다
+-- (sql/56_surrogate_uuid_keys.sql). slug 는 'signup-2000'(실제 할인액 반영).
 update public.coupons set max_uses_per_user = 1
-  where id = 'signup-6000' and max_uses_per_user is distinct from 1;
+  where slug = 'signup-2000' and max_uses_per_user is distinct from 1;
 
 -- ---------------------------------------------------------------------
 -- 0-b) coupons.max_redemptions : 쿠폰 전체 발행량 상한 (P1-6, 2026-08-11).
@@ -288,7 +319,11 @@ alter table public.orders
 -- ---------------------------------------------------------------------
 create table if not exists public.coupon_redemptions (
   id              bigint generated always as identity primary key,
-  coupon_id       text not null references public.coupons (id) on delete cascade,
+  -- uuid — coupons.id 가 대체키로 바뀌었다(sql/56_surrogate_uuid_keys.sql).
+  -- 이미 이 테이블이 존재하는 DB 에서는 이 CREATE 가 no-op 이고, 컬럼 타입
+  -- 전환은 56 의 2-e)절이 수행한다. 삭제 규칙(cascade)은 아래 1-c)절이
+  -- restrict 로 덮는다 — 여기 리터럴은 신규 생성 시의 초기값일 뿐이다.
+  coupon_id       uuid not null references public.coupons (id) on delete cascade,
   -- nullable: 비회원(guest) 결제는 안정적 식별자가 없어 사용 횟수 제한을
   -- 적용할 수 없다(orders.user_id 도 이미 nullable — 같은 한계를 그대로
   -- 물려받는다). guest 는 fn_coupon_is_redeemed 판정에서 항상 "미소진"으로
@@ -420,11 +455,42 @@ create policy "coupon_redemptions admin select" on public.coupon_redemptions
 create policy "coupon_redemptions admin update" on public.coupon_redemptions
   for update using (public.is_admin()) with check (public.is_admin());
 
--- 1-e) signup-6000 개명(P1-2)은 보류한다 — 파일 상단 "P1-2 보류" 절 참고.
--- id/orders.coupon_id/sql/10 의 시드 문자열 전부 signup-6000 그대로 둔다.
+-- 1-e) signup-6000 개명(P1-2)은 sql/56_surrogate_uuid_keys.sql 이 해소했다 —
+-- 파일 상단 "P1-2 해소" 절 참고. 쿠폰 지목은 이제 slug('signup-2000') 다.
 
 -- ---------------------------------------------------------------------
--- 1-f) fn_void_coupon_redemption : 관리자 전용 취소(void) RPC (P1-4,
+-- 1-f) 전환 이전(text 쿠폰 식별자) 시그니처 정리 — 반드시 아래 함수 생성보다
+--    먼저 실행돼야 한다.
+--
+--    uuid 전환(sql/56_surrogate_uuid_keys.sql)으로 쿠폰 식별자를 받는 인자·
+--    반환 타입이 text → uuid 로 바뀌었다. PostgreSQL 은 인자 타입이 다르면
+--    CREATE OR REPLACE 가 아니라 **새 오버로드**를 만들고(이 파일 상단
+--    "함수 시그니처가 바뀌는 항목" 절에서 dev 로 직접 재현한 그 동작),
+--    반환 컬럼 타입이 바뀌면 REPLACE 자체를 거부한다("cannot change return
+--    type of existing function").
+--
+--    오버로드가 남는 것은 단순한 잔재가 아니라 사고 경로다:
+--      · fn_redeem_coupons 가 text[] 판과 uuid[] 판 두 벌 존재하면, PostgREST
+--        가 받은 JSON 문자열 배열은 양쪽 모두에 캐스팅 가능해 어느 쪽이
+--        선택될지 호출자가 통제할 수 없다(구 판이 뽑히면 uuid 컬럼과 text
+--        비교로 실패하거나, 최악의 경우 옛 판정 로직으로 주문이 생긴다).
+--      · fn_usable_coupons/fn_coupon_by_code/fn_revalidate_order_coupons 는
+--        시그니처가 그대로이고 반환 컬럼 타입만 바뀌므로 DROP 없이는 아예
+--        갱신되지 않는다.
+--    그래서 구 시그니처를 전부 명시적으로 DROP 한다. 빈 DB 에서는 전부
+--    no-op 이다(if exists). DROP 후 반드시 pg_proc.proacl 로 권한을
+--    재확인한다(파일 맨 끝 확인용 조회).
+-- ---------------------------------------------------------------------
+drop function if exists public.fn_coupon_is_redeemed(text, uuid, timestamptz);
+drop function if exists public.fn_coupon_is_redeemed(text, uuid, timestamptz, text);
+drop function if exists public.fn_coupon_global_redeemed(text, timestamptz);
+drop function if exists public.fn_coupon_global_redeemed(text, timestamptz, text);
+drop function if exists public.fn_coupon_by_code(text, integer);
+drop function if exists public.fn_revalidate_order_coupons(text);
+drop function if exists public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, text[]);
+
+-- ---------------------------------------------------------------------
+-- 1-g) fn_void_coupon_redemption : 관리자 전용 취소(void) RPC (P1-4,
 --    2026-08-11). 1-d)절 RLS(admin select/update)만으로도 인증된 관리자는
 --    voided_at 을 직접 UPDATE 할 수 있지만, 향후 만들어질 어드민
 --    "쿠폰관리" 화면이 호출하기엔 단일 RPC 가 더 다루기 쉽다(입력 검증 +
@@ -479,6 +545,9 @@ grant execute on function public.fn_void_coupon_redemption(bigint, text) to auth
 --    이 함수를 호출하는 상위 함수의 실행 컨텍스트(정의자 권한)에서는 이
 --    revoke 와 무관하게 정상 호출된다.
 --
+--    p_coupon_id 는 uuid 다(sql/56_surrogate_uuid_keys.sql 전환 반영).
+--    구 text 시그니처는 위 1-f)절이 DROP 한다.
+--
 --    2026-08-11 하드닝 — 세 가지를 바꿨다:
 --      · P0-1: "미소진임이 확실한 경우"만 열거하는 블랙리스트로 뒤집었다
 --        (파일 상단 "소진 판정" 절 참고) — status='failed', 또는
@@ -499,10 +568,8 @@ grant execute on function public.fn_void_coupon_redemption(bigint, text) to auth
 --        모르는 쿠폰은 fail-closed(소진 취급)로 막는다 — 이 파일의 P0-1
 --        원칙("모르는 상태는 소진")과 동일하다.
 -- ---------------------------------------------------------------------
-drop function if exists public.fn_coupon_is_redeemed(text, uuid, timestamptz);
-
 create or replace function public.fn_coupon_is_redeemed(
-  p_coupon_id         text,
+  p_coupon_id         uuid,
   p_user_id           uuid,
   p_at                timestamptz default now(),
   p_exclude_order_id  text default null
@@ -544,9 +611,9 @@ as $$
   );
 $$;
 
-revoke all on function public.fn_coupon_is_redeemed(text, uuid, timestamptz, text)
+revoke all on function public.fn_coupon_is_redeemed(uuid, uuid, timestamptz, text)
   from public, anon, authenticated;
-grant execute on function public.fn_coupon_is_redeemed(text, uuid, timestamptz, text) to service_role;
+grant execute on function public.fn_coupon_is_redeemed(uuid, uuid, timestamptz, text) to service_role;
 
 -- ---------------------------------------------------------------------
 -- 2-b) fn_coupon_global_redeemed : 전체 발행량(max_redemptions) 소진 판정
@@ -559,7 +626,7 @@ grant execute on function public.fn_coupon_is_redeemed(text, uuid, timestamptz, 
 --    어려워진다 — 대신 상태 판정 리터럴은 동일하게 맞춰 드리프트를 막는다.
 -- ---------------------------------------------------------------------
 create or replace function public.fn_coupon_global_redeemed(
-  p_coupon_id         text,
+  p_coupon_id         uuid,
   p_at                timestamptz default now(),
   p_exclude_order_id  text default null
 )
@@ -597,9 +664,9 @@ as $$
   );
 $$;
 
-revoke all on function public.fn_coupon_global_redeemed(text, timestamptz, text)
+revoke all on function public.fn_coupon_global_redeemed(uuid, timestamptz, text)
   from public, anon, authenticated;
-grant execute on function public.fn_coupon_global_redeemed(text, timestamptz, text) to service_role;
+grant execute on function public.fn_coupon_global_redeemed(uuid, timestamptz, text) to service_role;
 
 -- ---------------------------------------------------------------------
 -- 3) fn_usable_coupons : 사용 가능 쿠폰 목록 (클라이언트 + 서버 공용 조회).
@@ -629,7 +696,12 @@ drop function if exists public.fn_usable_coupons(integer);
 
 create or replace function public.fn_usable_coupons(p_subtotal integer default 0)
 returns table (
-  id              text,
+  -- uuid (sql/56_surrogate_uuid_keys.sql 전환). 반환 컬럼은 늘리지 않았다 —
+  -- slug 를 함께 돌려주면 편하겠지만, 이 함수는 anon 에 열려 있는 판정
+  -- 전용 창구이고 화면(Checkout.jsx)은 id 를 불투명한 선택 키로만 쓴다.
+  -- 어드민처럼 사람이 읽는 핸들이 필요한 소비자는 coupons 테이블을 직접
+  -- 조회한다(그쪽은 RLS 로 통제된다).
+  id              uuid,
   title           text,
   discount_amount integer,
   min_amount      integer,
@@ -684,9 +756,11 @@ begin
       public.fn_coupon_global_redeemed(c.id, now()) as is_sold_out
   ) as chk
   where c.is_active = true
-  -- P3: 할인액이 같은 쿠폰이 여럿이면 정렬이 안정적이지 않았다 — id 를
-  -- tie-break 로 추가한다.
-  order by c.discount_amount desc, c.id;
+  -- P3: 할인액이 같은 쿠폰이 여럿이면 정렬이 안정적이지 않았다 — tie-break 를
+  -- 추가한다. 전환 후에는 c.id 가 uuid(무작위)라 tie-break 로 쓰면 순서가
+  -- 환경마다·재시드마다 달라진다 — c.slug 로 잡는다(유니크하므로 tie-break
+  -- 로 충분하고, 전환 전 text id 정렬과 사실상 같은 순서가 나온다).
+  order by c.discount_amount desc, c.slug;
 end;
 $$;
 
@@ -715,9 +789,11 @@ grant execute on function public.fn_usable_coupons(integer) to anon, authenticat
 --    조건 미충족")를 그대로 유지하기 위해서다. 로그인 게이트(P1-7)와
 --    전체 발행량(P1-6) 판정도 fn_usable_coupons 와 동일하게 적용한다.
 -- ---------------------------------------------------------------------
+-- 반환 컬럼 id 가 text → uuid 로 바뀌어 REPLACE 가 거부된다. DROP 은 위
+-- 1-f)절이 한다(구 시그니처 정리와 같은 사안이라 한 곳에 모았다).
 create or replace function public.fn_coupon_by_code(p_code text, p_subtotal integer default 0)
 returns table (
-  id              text,
+  id              uuid,
   title           text,
   discount_amount integer,
   min_amount      integer,
@@ -803,9 +879,12 @@ grant execute on function public.fn_coupon_by_code(text, integer) to anon, authe
 --    — 전체 발행량(max_redemptions) 판정은 게스트에도 걸리므로 그 경우는
 --    ok=false 가 나올 수 있다(의도된 동작).
 -- ---------------------------------------------------------------------
+-- 반환 컬럼 coupon_id 가 text → uuid. DROP 은 위 1-f)절이 한다.
+-- 호출측(api/confirm-payment.js)은 이 값을 응답 필드 couponId 로 그대로
+-- 실어 보낼 뿐 문자열로 가공하지 않으므로 코드 변경이 필요 없다.
 create or replace function public.fn_revalidate_order_coupons(p_order_id text)
 returns table (
-  coupon_id text,
+  coupon_id uuid,
   ok        boolean,
   reason    text
 )
@@ -893,17 +972,26 @@ create or replace function public.fn_redeem_coupons(
   p_user_id       uuid,
   p_customer_email text,
   p_order_name    text,
-  p_items         jsonb,    -- [{product_id, service_key, name, list_price, price, quantity}]
+  p_items         jsonb,    -- [{product_id, product_slug, service_key, name, list_price, price, quantity}]
+                             -- product_id 는 uuid(products.id) 문자열, product_slug 는 구매 시점
+                             -- 스냅샷(products.slug, 없으면 null 허용 — sql/56_surrogate_uuid_keys.sql
+                             -- 3)절, 구 클라이언트 호환).
   p_list_amount   integer,
   p_subtotal      integer,  -- products 합산 판매가 (쿠폰 적용 전)
-  p_coupon_ids    text[]
+  -- uuid[] (sql/56_surrogate_uuid_keys.sql 전환). 클라이언트가 보내는
+  -- couponIds 는 fn_usable_coupons/fn_coupon_by_code 가 준 uuid 문자열이고,
+  -- PostgREST 가 JSON 문자열 배열을 uuid[] 로 캐스팅해 넘긴다 —
+  -- api/create-order.js 는 값을 가공하지 않아 코드 변경이 필요 없다.
+  -- 구 text[] 오버로드는 위 1-f)절이 DROP 한다(두 판이 공존하면 어느 쪽이
+  -- 뽑히는지 호출자가 통제할 수 없다).
+  p_coupon_ids    uuid[]
 )
 returns table (
   order_id           text,
   amount             integer,
   discount_amount    integer,
   coupon_discount    integer,
-  applied_coupon_ids text[]
+  applied_coupon_ids uuid[]
 )
 language plpgsql
 security definer
@@ -913,41 +1001,47 @@ declare
   v_now              timestamptz := now();
   v_coupon           record;
   v_coupon_discount  integer := 0;
-  v_applied_ids      text[] := '{}';
+  v_applied_ids      uuid[] := '{}';
   v_applied_discounts integer[] := '{}';
   -- 후보 배열(P1-8 stacking 정산 전, 개별 판정을 통과한 쿠폰들).
-  v_cand_ids         text[] := '{}';
+  v_cand_ids         uuid[] := '{}';
   v_cand_discounts   integer[] := '{}';
   v_cand_stackable   boolean[] := '{}';
   v_best_nonstack_idx integer;
   v_i                integer;
   v_discount_total   integer;
   v_amount           integer;
-  v_coupon_id_repr   text;
+  v_coupon_id_repr   uuid;
 begin
   if p_order_id is null or p_subtotal is null or p_list_amount is null then
     raise exception 'order_id/list_amount/subtotal required';
   end if;
 
   -- 1) 쿠폰 판정 (DB 쓰기는 아직 없음 — 주문이 아직 존재하지 않아도 되는
-  --    단계). coupons.id 오름차순으로 순회해 advisory lock 순서를 고정한다
+  --    단계). coupons.slug 오름차순으로 순회해 advisory lock 순서를 고정한다
   --    (여러 쿠폰을 같이 담아도 두 트랜잭션이 서로 다른 순서로 잠그며
   --    맞물리는 데드락이 나지 않는다 — 위 파일 상단 "동시성" 절 참고).
+  --    전환 전에는 id(text) 오름차순이었다. 데드락 방지에 필요한 것은 "모든
+  --    트랜잭션이 동일한 전순서를 쓴다" 뿐이고 slug 는 유니크 NOT NULL 이라
+  --    그 조건을 만족한다. uuid 대신 slug 를 쓰는 이유는 순회 순서가 곧
+  --    stacking 동률 tie-break 우선순위(아래 2)/3)단계)이기 때문이다 —
+  --    uuid 로 잡으면 그 우선순위가 환경마다 무작위로 달라지는데, slug 는
+  --    전환 전 text id 순서를 그대로 물려받아 기존 동작이 보존된다.
   for v_coupon in
-    select c.id, c.discount_amount, c.min_amount, c.valid_until, c.is_active,
+    select c.id, c.slug, c.discount_amount, c.min_amount, c.valid_until, c.is_active,
            c.max_uses_per_user, c.max_redemptions, c.stackable
     from public.coupons c
-    where c.id = any (coalesce(p_coupon_ids, '{}'::text[]))
-    order by c.id
+    where c.id = any (coalesce(p_coupon_ids, '{}'::uuid[]))
+    order by c.slug
   loop
     -- P1-6: 쿠폰 단독 락. 전체 발행량 판정은 게스트를 포함해 모두 걸려야
     -- 하므로 (coupon_id, user_id) 쌍 락만으로는 서로 다른 사용자(또는
     -- user_id 가 없는 게스트끼리)의 동시 요청을 직렬화하지 못한다. 상한이
     -- 없는(max_redemptions is null) 쿠폰은 지킬 게 없어 락을 생략한다.
-    -- coupons.id 가 향후 uuid 로 바뀌면(P1-2 보류 절 참고) v_coupon.id 는
-    -- text 가 아니게 되므로 이 줄에 ::text 캐스팅을 추가해야 한다.
+    -- ::text 캐스팅이 필수다 — hashtextextended 는 text 만 받고 uuid 는
+    -- 암시적으로 캐스팅되지 않는다(전환 전 이 파일이 예고해 둔 수정 지점).
     if v_coupon.max_redemptions is not null then
-      perform pg_advisory_xact_lock(hashtextextended(v_coupon.id, 1));
+      perform pg_advisory_xact_lock(hashtextextended(v_coupon.id::text, 1));
     end if;
 
     if p_user_id is not null then
@@ -961,8 +1055,10 @@ begin
       -- id='a'+user='b:c' 가 둘 다 'a:b:c'). 문자열을 잇지 않고
       -- hashtextextended 의 salt 인자에 user_id 해시를 실어 두 값을
       -- 섞는다 — salt=2 로 위 전역 락(salt=1)과 네임스페이스도 분리한다.
+      -- (uuid 전환 후에도 문자열 이어붙이기를 되살리지 않는다. ':' 앨리어싱
+      --  위험은 uuid 형식상 사라졌지만 salt 방식이 이미 더 안전하다.)
       perform pg_advisory_xact_lock(
-        hashtextextended(v_coupon.id, hashtextextended(p_user_id::text, 2))
+        hashtextextended(v_coupon.id::text, hashtextextended(p_user_id::text, 2))
       );
     end if;
 
@@ -995,7 +1091,7 @@ begin
   end loop;
 
   -- 2) P1-8 stacking 정산 — 비결합(stackable=false) 후보 중 할인액이 가장
-  --    큰 1장만 남긴다. 동률이면 배열에서 먼저 나온(coupons.id 오름차순이
+  --    큰 1장만 남긴다. 동률이면 배열에서 먼저 나온(coupons.slug 오름차순이
   --    이미 순회 순서였다) 쪽을 남긴다 — 안정적 tie-break.
   v_best_nonstack_idx := null;
   for v_i in 1 .. coalesce(array_length(v_cand_ids, 1), 0) loop
@@ -1010,7 +1106,7 @@ begin
   -- 3) 최종 적용 목록 조립 — stackable=true 는 전부, stackable=false 는
   --    위에서 고른 1장만. 동시에 P1-8 의 0원 방지: 이 쿠폰까지 더하면
   --    누적 할인이 소계에 도달(=결제 금액 0원)하는 경우 그 쿠폰만
-  --    건너뛴다(전체 주문을 실패시키지 않는다). coupons.id 오름차순
+  --    건너뛴다(전체 주문을 실패시키지 않는다). coupons.slug 오름차순
   --    (v_cand_* 배열의 원래 순서)을 그대로 적용 우선순위로 쓴다 —
   --    먼저 선택 가능했던 쿠폰이 먼저 자리를 차지한다.
   for v_i in 1 .. coalesce(array_length(v_cand_ids, 1), 0) loop
@@ -1053,11 +1149,15 @@ begin
   values
     (p_order_id, p_user_id, 'pending', p_order_name, p_list_amount, v_discount_total, v_amount, v_coupon_id_repr, p_customer_email);
 
-  -- 5) 주문 아이템
-  insert into public.order_items (order_id, product_id, service_key, name, list_price, price, quantity)
+  -- 5) 주문 아이템. product_id(uuid, 관계)와 product_slug(text, 구매 시점
+  --    스냅샷)를 함께 박는다 — 호출측이 둘 다 실어 보낸다(sql/56_surrogate_
+  --    uuid_keys.sql 3)절, api/create-order.js p_items). product_slug 가
+  --    없으면(구 클라이언트) null 을 그대로 허용한다.
+  insert into public.order_items (order_id, product_id, product_slug, service_key, name, list_price, price, quantity)
   select
     p_order_id,
-    i ->> 'product_id',
+    (i ->> 'product_id')::uuid,
+    i ->> 'product_slug',
     i ->> 'service_key',
     i ->> 'name',
     coalesce((i ->> 'list_price')::integer, 0),
@@ -1079,21 +1179,32 @@ begin
 end;
 $$;
 
-comment on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, text[]) is
-  '서버 전용(service_role). 주문/주문아이템 생성 + 쿠폰 귀속을 한 트랜잭션으로 원자 처리. subtotal/list_amount 는 호출측이 products 로 계산한 신뢰값이어야 한다. invalid_amount 예외는 errcode=WC001 (P3, 2026-08-11).';
+comment on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, uuid[]) is
+  '서버 전용(service_role). 주문/주문아이템 생성 + 쿠폰 귀속을 한 트랜잭션으로 원자 처리. subtotal/list_amount 는 호출측이 products 로 계산한 신뢰값이어야 한다. p_items[].product_id 는 products.id(uuid 문자열)를, p_items[].product_slug 는 products.slug(사람이 읽는 스냅샷)를 받는다 — order_items 에 관계(product_id, uuid FK)와 스냅샷(product_slug, text)을 함께 저장한다(sql/56_surrogate_uuid_keys.sql 3)절). invalid_amount 예외는 errcode=WC001 (P3, 2026-08-11).';
 
-revoke all on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, text[])
+revoke all on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, uuid[])
   from public, anon, authenticated;
-grant execute on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, text[])
+grant execute on function public.fn_redeem_coupons(text, uuid, text, text, jsonb, integer, integer, uuid[])
   to service_role;
 
 -- =====================================================================
 -- 확인용 (실행 후 눈으로 볼 것)
 -- =====================================================================
--- select * from public.fn_usable_coupons(0);       -- signup-6000 만 노출(상시 할인 2종은 below_min_amount)
--- select * from public.fn_usable_coupons(50000);   -- over40k-3000 만 추가 eligible 전환
--- select * from public.fn_usable_coupons(90000);   -- over40k-3000 + over80k-5000 eligible (단 stacking 은 fn_redeem_coupons 에서 1장으로 정산됨)
--- select proname, proacl from pg_proc where proname in (
+-- 반환 id 가 uuid 라 눈으로 알아보려면 coupons.slug 를 조인한다.
+-- select u.*, c.slug from public.fn_usable_coupons(0) u join public.coupons c on c.id = u.id;
+--   → slug 'signup-2000' 만 eligible(상시 할인 2종은 below_min_amount).
+--     비로그인(anon) 컨텍스트에서는 signup 계열이 login_required 다.
+-- select u.*, c.slug from public.fn_usable_coupons(50000) u join public.coupons c on c.id = u.id;
+--   → over40k-3000 이 추가로 eligible 전환.
+-- select u.*, c.slug from public.fn_usable_coupons(90000) u join public.coupons c on c.id = u.id;
+--   → over40k-3000 + over80k-5000 eligible (단 stacking 은 fn_redeem_coupons 에서 1장으로 정산됨)
+--
+-- 시그니처(전환 후 uuid 인자·반환)와 권한을 함께 확인한다 — 1-f)절 DROP 이
+-- 권한을 초기화하므로 재적용 후 반드시 본다. 목표:
+--   fn_usable_coupons / fn_coupon_by_code        → anon, authenticated, service_role
+--   fn_void_coupon_redemption                    → authenticated, service_role
+--   나머지 4개                                    → service_role 만
+-- select proname, pg_get_function_identity_arguments(oid) as args, proacl from pg_proc where proname in (
 --   'fn_coupon_is_redeemed','fn_coupon_global_redeemed','fn_usable_coupons',
 --   'fn_coupon_by_code','fn_revalidate_order_coupons','fn_redeem_coupons',
 --   'fn_void_coupon_redemption'
