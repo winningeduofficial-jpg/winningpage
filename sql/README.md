@@ -56,6 +56,10 @@ Supabase SQL Editor에서 **파일명 접두어 순서대로** 실행합니다. 
 
 > 43번(학습진단 리네이밍)은 `00_base_schema.sql`의 `free_diagnosis_*` 객체명도 함께 신 이름으로 갱신했다 — 00은 동결 스냅샷이 원칙이나, 빈 DB 신규 설치가 구 이름 테이블을 만든 뒤 43이 rename하는 이중 상태를 피하기 위한 예외다.
 
+> ⚠️ **54번(`54_performance_app.sql`)의 `consume_performance_credit` 정의는 구버전(program_access.meta 기반)이다.** `checkout-renewal` 브랜치(아직 push 전)의 `sql/64~66`이 같은 함수를 부여 원장 `program_access_grants` 기반으로 재작성해 dev DB에 이미 배포했다. 이 저장소는 마이그레이션 러너가 없어 파일 번호가 곧 수동 실행 순서이므로, 54번을 재실행하면 64~66의 신버전을 덮어쓴다 — 다만 조용히 meta 회계로 되돌아가지는 않는다. checkout-renewal이 `performance_credit_ledger.grant_id`를 NOT NULL로 추가했는데 구버전 본문은 그 컬럼을 채우지 않으므로, **첫 차감 시도에서 즉시 23502(not-null violation)로 큰소리로 실패한다.** 54번을 재실행했다면 반드시 64~66을 다시 적용해라.
+
+> ⚠️ **번호 54가 두 브랜치에서 각자 다른 파일로 충돌한다.** 이 브랜치(`performance-app`)는 `sql/54_performance_app.sql`을, `checkout-renewal` 브랜치는 `sql/54_program_access_grant.sql`(`program_access_grants` 테이블 신설 + `performance_credit_ledger.grant_id` 컬럼 추가로 추정 — 실물은 그쪽 브랜치에만 있다)을 같은 번호로 쓴다. **신규 DB를 처음부터 재생성할 때 실행 순서는 `54_performance_app.sql` → `54_program_access_grant.sql`이어야 한다** — 후자가 `performance_credit_ledger`(전자가 `:409`에서 생성)에 `grant_id` 컬럼을 ALTER로 추가하므로, 대상 테이블이 먼저 있어야 한다. 두 파일 모두 dev DB에는 이미 적용돼 있어 실질 피해는 없다. 파일 리네임(번호 정리)은 두 브랜치를 머지하는 쪽이 결정할 사안이라 여기서는 하지 않는다.
+
 ## 재실행 시 데이터 보존 원칙
 
 - `10_pricing_orders.sql`의 products/coupons 시드는 `on conflict (slug) do nothing` — 이미 존재하는 slug는 재실행으로 절대 덮어쓰지 않는다(`sql/56_surrogate_uuid_keys.sql`의 id/slug 분리 이후 충돌 대상이 대체키 `id`에서 사람이 읽는 자연키 `slug`로 바뀌었다). `api/create-order.js`가 products를 결제 신뢰값으로 읽으므로, 단종 상품·종료 쿠폰의 가격/노출 상태가 파일 재실행으로 롤백되면 실제 청구 금액이 바뀐다.

@@ -895,6 +895,26 @@ create policy "performance_session_vectors_select_own" on public."performance_se
 --   함께 판정이 바뀌는 변경이라 이 파일에서 하지 않고 (8)-ㅁ으로 넘긴다.
 -- ---------------------------------------------------------------------
 
+-- ⚠️⚠️⚠️ 구버전 경고 (2026-08-12) ⚠️⚠️⚠️
+-- 아래 consume_performance_credit 정의는 **meta 기반 구버전**이다(program_access.meta.
+-- quota_total/quota_used를 읽고 쓴다). `checkout-renewal` 브랜치(아직 push 전)가
+-- sql/64~66에서 이 함수를 **부여 원장(program_access_grants) 기반**으로 완전히
+-- 재작성해 dev DB(gjowqdiopinhixfivnkx)에 이미 배포했다 — program_access.meta의
+-- quota_total/quota_used 키는 그쪽 배포로 물리적으로 삭제됐고, program_access.
+-- access_expires_at/expires_at도 표시·호환 전용 미러로 강등됐다(정본 아님).
+-- 시그니처와 반환 키 8개(status/charged/quota_total/quota_used/quota_remaining/
+-- plan_ends_at/ledger_id/program_key)는 동일하게 유지되므로 호출부 코드는 그대로다.
+--
+-- 이 저장소는 마이그레이션 러너가 없어 **파일 번호가 곧 수동 실행 순서**다.
+-- 이 54번 파일을 재실행하면 아래 create or replace가 checkout-renewal의 신버전을
+-- 덮어쓴다 — 다만 **조용히 meta 회계로 되돌아가지는 않는다.** checkout-renewal이
+-- `performance_credit_ledger.grant_id`를 NOT NULL로 추가했는데, 구버전 본문은
+-- 그 컬럼을 채우지 않으므로 **첫 차감 시도에서 즉시 23502(not-null violation)로
+-- 큰소리로 실패한다.** 회계가 틀린 채 조용히 도는 것보다는 낫지만, 여전히 원인이
+-- 바로 보이지 않으면 헤매게 된다 — 54번을 재실행했다면 반드시 sql/64~66을 다시
+-- 적용해라(순서 그대로).
+-- ⚠️⚠️⚠️ ---------------------------- ⚠️⚠️⚠️
+--
 -- 시그니처가 바뀔 수 있으므로 같은 이름의 모든 오버로드를 oid로 훑어 drop한다
 -- (53_performance.sql (3-a)와 같은 방어 — 오버로드가 공존하면 PostgREST가
 -- 42725 function is not unique로 깨진다).
