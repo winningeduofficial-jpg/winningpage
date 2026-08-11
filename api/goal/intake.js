@@ -1,0 +1,621 @@
+// POST /api/goal/intake
+// Authorization: Bearer <access_token>
+//
+// 목표관리 온보딩(7단계 위저드) 1건을 저장하고, 확률 4종 · 일별 증분율 4종 ·
+// 요일별 목표 학습시간을 산출해 학생 마스터 행을 만든다.
+//
+// 요청 바디는 GoalOnboardingContext state 를 그대로 받는다
+// (GoalOnboardingContext.jsx:58-69 — 클라이언트가 이미 sessionStorage 에 이 모양으로 갖고 있다).
+// 계약 전문은 docs/figma-goal/goal-schema-design.md §9-3.
+//
+// ── 원본(외부 target 앱)과 다르게 가는 지점 ────────────────────────────────
+//  1. 원본은 전 API 가 무인증이고 `code` 문자열만 알면 타인 데이터를 쓸 수 있었다.
+//     여기서는 profile_id 가 오직 auth.getUser(token).user.id 에서만 나온다.
+//  2. 원본은 확률·주간목표를 **브라우저**가 계산해 보내고 서버가 그대로 저장했다
+//     (IntakeForm.tsx:1172-1284 → student.mjs:2405-2533). 여기서는 클라이언트가
+//     확률에 영향을 주는 값을 하나도 보내지 않는다 — 전부 이 파일이 서버에서
+//     src/lib/goal/calc/ 를 호출해 만든다.
+//  3. CORS 헤더를 붙이지 않는다. Authorization 은 CORS-safelisted 헤더가 아니라
+//     크로스오리진 요청은 preflight 를 유발하고 OPTIONS 는 405 로 떨어진다 —
+//     이것이 기본 방어선이다(§9-1).
+//
+// 계산 모듈은 동결돼 있다(203개 테스트). 여기서 재구현하지 않고 import 만 한다.
+// 특히 요일별 목표는 calculateWeekSchedule 을 그대로 호출한다 — 자습시간
+// 오버라이드 규칙을 이 파일에 베껴 쓰면 두 벌이 갈린다(buildWeeklySchedule 주석 참고).
+
+import {
+  GRADE_PERCENTILE,
+  buildInitialStudentState,
+  calcJeongsiCompositeFE,
+  calculateWeekSchedule,
+  calcAvailableHoursApprox,
+  getSchoolCutType,
+  kstYMD,
+  round1
+} from '../../src/lib/goal/calc/index.js';
+
+import {
+  PAID_MESSAGE,
+  appendProbabilityLog,
+  buildStudentPayload,
+  fetchStudentRow,
+  fetchStudentStateRow,
+  fetchTargetCuts,
+  openGoalSession,
+  upsertStudentRow
+} from '../_lib/goalRepo.js';
+
+export const config = { runtime: 'nodejs' };
+
+// ---------------------------------------------------------------------------
+// 온보딩 코드값 → 계산 모듈 리터럴 (§7-4)
+//
+// getSchoolCutType(primitives.js:43-47)은 정확히 '특목,자사,영재고' 또는 '특목고'
+// 두 리터럴만 special 로 판정한다. '특목・자사고'(온보딩 라벨)나 'special'(코드값)을
+// 그대로 저장하면 특목고 학생이 조용히 일반고 컷으로 계산된다.
+// calcStudentBonusRates(bonus.js:113-122)의 학년 오프셋도 '고1'/'고2' 리터럴 비교다.
+// ---------------------------------------------------------------------------
+
+const SCHOOL_TYPE_MAP = {
+  general: '일반고',
+  special: '특목고' // 미결 Q6 — '특목,자사,영재고' 와 둘 다 special 로 판정된다
+};
+
+// 중학교·초등학교는 grade_conversions 변환표가 필요해 아직 지원하지 않는다(§7-5, 미결 Q7).
+const UNSUPPORTED_SCHOOL_TYPES = ['middle', 'elementary'];
+
+const GRADE_MAP = {
+  g1: '고1',
+  g2: '고2',
+  g3: '고3'
+};
+
+// 라벨이 getRemainingNaesin 표의 키(primitives.js:59-72)와 글자 단위로 일치해야 한다.
+const NAESIN_ROUNDS = [
+  { key: 's1mid', label: '1학기 중간' },
+  { key: 's1final', label: '1학기 기말' },
+  { key: 's2mid', label: '2학기 중간' },
+  { key: 's2final', label: '2학기 기말' }
+];
+
+// 라벨이 getRemainingMogo 표의 키(primitives.js:88-103)와 일치해야 한다.
+// ⚠️ 고3 전용 '5모'·'7모' 는 우리 온보딩에 없어 고3 remain_mogo 가 실제보다
+// 최대 2 크게 나온다(미결 Q9 — 계산 모듈 동결 + 시안에 없어 그대로 둔다).
+const MOCK_ROUNDS = [
+  { key: 'mar', label: '3모' },
+  { key: 'jun', label: '6모' },
+  { key: 'sep', label: '9모' },
+  { key: 'oct', label: '10모' }
+];
+
+const MOCK_SUBJECTS = ['kor', 'math', 'eng', 'tam1', 'tam2'];
+
+// goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
+// 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
+const WEEKDAYS = [
+  { short: 'mon', long: 'monday', hasSchool: true },
+  { short: 'tue', long: 'tuesday', hasSchool: true },
+  { short: 'wed', long: 'wednesday', hasSchool: true },
+  { short: 'thu', long: 'thursday', hasSchool: true },
+  { short: 'fri', long: 'friday', hasSchool: true },
+  { short: 'sat', long: 'saturday', hasSchool: false },
+  { short: 'sun', long: 'sunday', hasSchool: false }
+];
+
+// goalOnboardingMock.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
+const DAILY_SCHEDULE_LIMITS = {
+  wakeUpHour: { min: 0, max: 23 },
+  sleepHour: { min: 0, max: 24 },
+  schoolStayHours: { min: 0, max: 24 },
+  academyHours: { min: 0, max: 24 }
+};
+
+const NAME_MAX_LENGTH = 100;
+const STUDY_HOURS_MAX = 24;
+
+// ---------------------------------------------------------------------------
+// 입력 검증 — 클라이언트 값을 하나도 믿지 않는다
+// ---------------------------------------------------------------------------
+
+function clean(value) {
+  return String(value ?? '').trim();
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * 숫자로 해석해도 되는 원시값인가.
+ *
+ * ⚠ 이 가드가 없으면 검증기(Number 기반)와 저장·소비(clean → 문자열)의 정의역이
+ *   갈린다. Number(true) = 1 이라 boolean 이 검증을 통과하는데 clean(true) = "true"
+ *   라 이후 Number("true") = NaN 이 되고, 그 NaN 이 두 갈래로 샌다.
+ *     (a) 모의고사: gradeToPercentile 이 GRADE_PERCENTILE[NaN] → undefined 를 읽어
+ *         TypeError → intake 최상위 catch → 500. 설계된 400 이 아니다.
+ *     (b) 내신:     round1 이 NaN 을 0 으로 접어 current_score 가 0 이 되고
+ *         (컬럼 주석은 1~9 등급이라고 명시한다), applyPreHighGradePenalty 의
+ *         clamp(1, 9)가 이를 **1등급(최상위)** 으로 올린다 — 아래 "전 회차 없음"
+ *         거절(NAESIN_ROUNDS.every)이 막으려는 바로 그 경로가 재개통된다.
+ *   객체·배열·boolean·null 을 원천 차단하고, 통과한 값은 normalizeGrade 로
+ *   숫자에서 되짚어 만든 문자열만 쓴다(clean 을 쓰지 않는다).
+ */
+function isNumericInput(raw) {
+  return typeof raw === 'number' || typeof raw === 'string';
+}
+
+// Step4Naesin.jsx:8-11 / Step5MockExam.jsx:8-11 의 isValidGrade 와 동일한 규칙.
+// (빈 문자열·공백은 Number('') = 0 이라 아래 범위 검사에서 걸린다.)
+function isValidGrade(raw) {
+  if (!isNumericInput(raw)) return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= 1 && num <= 9;
+}
+
+/**
+ * isValidGrade 를 통과한 값 → 정규화된 숫자 문자열.
+ * clean() 을 쓰면 검증(Number)과 저장(String)의 정의역이 갈리므로 쓰지 않는다.
+ * 여기서 한 번 숫자로 접어 두면 이후 소비 지점이 전부 같은 값을 본다 —
+ * deriveNaesin 의 Number(), gradeToPercentile 의 Number(),
+ * calcJeongsiCompositeFE 의 parseFloat(s.eng)(jeongsi.js:205).
+ */
+function normalizeGrade(raw) {
+  return String(Number(raw));
+}
+
+function isValidHours(raw, max) {
+  if (!isNumericInput(raw)) return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= 0 && num <= max;
+}
+
+function fail(detail) {
+  return { error: { status: 400, body: { detail } } };
+}
+
+function validateTarget(value, label) {
+  if (!isPlainObject(value)) return { error: fail(`${label} 정보가 올바르지 않습니다.`).error };
+
+  const university = clean(value.university);
+  const department = clean(value.department);
+
+  if (!university) return { error: fail(`${label} 대학을 선택해 주세요.`).error };
+  if (university.length > NAME_MAX_LENGTH || department.length > NAME_MAX_LENGTH) {
+    return { error: fail(`${label} 대학·학과 이름이 너무 깁니다.`).error };
+  }
+
+  return { value: { university, department } };
+}
+
+/**
+ * 요청 바디 전체를 화이트리스트로 검증하고 정규화한다.
+ * @returns {{error?:{status:number, body:object}, input?:object}}
+ */
+function validateIntakeBody(body) {
+  if (!isPlainObject(body)) return fail('요청 본문이 올바르지 않습니다.');
+
+  // ── 학교 유형 · 학년 ──────────────────────────────────────────────────
+  const schoolType = clean(body.schoolType);
+
+  if (UNSUPPORTED_SCHOOL_TYPES.includes(schoolType)) {
+    return {
+      error: {
+        status: 501,
+        body: {
+          detail: '중학교·초등학교 목표관리는 아직 준비 중입니다.',
+          reason: 'grade_unsupported'
+        }
+      }
+    };
+  }
+
+  if (!SCHOOL_TYPE_MAP[schoolType]) return fail('학교 유형을 선택해 주세요.');
+
+  const grade = clean(body.grade);
+  if (!GRADE_MAP[grade]) return fail('학년을 선택해 주세요.');
+
+  // ── 목표 대학 ────────────────────────────────────────────────────────
+  const idealTarget = validateTarget(body.upperUniversity, '이상 목표');
+  if (idealTarget.error) return { error: idealTarget.error };
+
+  const minTarget = validateTarget(body.lowerUniversity, '최소 목표');
+  if (minTarget.error) return { error: minTarget.error };
+
+  // ── 내신 ─────────────────────────────────────────────────────────────
+  if (!isPlainObject(body.naesin)) return fail('내신 성적이 올바르지 않습니다.');
+
+  const naesin = {};
+  for (const { key, label } of NAESIN_ROUNDS) {
+    const entry = body.naesin[key];
+    if (!isPlainObject(entry)) return fail(`내신 ${label} 입력이 누락되었습니다.`);
+
+    if (entry.none === true) {
+      naesin[key] = { value: '', none: true };
+      continue;
+    }
+
+    if (!isValidGrade(entry.value)) {
+      return fail(`내신 ${label} 등급은 1~9 사이여야 합니다.`);
+    }
+    naesin[key] = { value: normalizeGrade(entry.value), none: false };
+  }
+
+  // 전 회차가 '없음'이면 currentScore 가 0 이 되는데, applyPreHighGradePenalty 가
+  // 이를 [1, 9] 로 클램프해(primitives.js:169) **1등급(최상위)** 으로 접어버린다.
+  // 즉 성적 미입력이 조용히 최고 확률로 둔갑한다. 원본은 이 구멍을
+  // "고1 + 내신없음 → 중3 점수로 대체" 특례로 막았으나(IntakeForm.tsx:1176-1179)
+  // 우리 온보딩에는 중3 성적 입력란 자체가 없다. 그래서 여기서 거절한다.
+  // ⚠️ 결과적으로 내신이 아직 하나도 없는 고1 3월 학생은 온보딩을 진행할 수 없다.
+  if (NAESIN_ROUNDS.every(({ key }) => naesin[key].none)) {
+    return fail('내신 평균 등급을 최소 한 회차 이상 입력해 주세요.');
+  }
+
+  // ── 모의고사 ─────────────────────────────────────────────────────────
+  if (!isPlainObject(body.mockExam)) return fail('모의고사 성적이 올바르지 않습니다.');
+
+  const mockExam = {};
+  for (const { key, label } of MOCK_ROUNDS) {
+    const entry = body.mockExam[key];
+    if (!isPlainObject(entry)) return fail(`모의고사 ${label} 입력이 누락되었습니다.`);
+
+    if (entry.none === true) {
+      mockExam[key] = { none: true };
+      continue;
+    }
+
+    // Step5MockExam.jsx:21-24 와 동일하게 5과목 전부를 요구한다.
+    const round = { none: false };
+    for (const subject of MOCK_SUBJECTS) {
+      if (!isValidGrade(entry[subject])) {
+        return fail(`모의고사 ${label} 등급은 5과목 모두 1~9 사이여야 합니다.`);
+      }
+      round[subject] = normalizeGrade(entry[subject]);
+    }
+    mockExam[key] = round;
+  }
+
+  // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
+  if (!isPlainObject(body.studyHours)) return fail('요일별 자습 시간이 올바르지 않습니다.');
+
+  const studyHours = {};
+  for (const { short } of WEEKDAYS) {
+    if (!isValidHours(body.studyHours[short], STUDY_HOURS_MAX)) {
+      return fail('요일별 자습 시간은 0~24 사이여야 합니다.');
+    }
+    studyHours[short] = Number(body.studyHours[short]);
+  }
+
+  if (!isPlainObject(body.dailySchedule)) return fail('하루 일과가 올바르지 않습니다.');
+
+  const dailySchedule = {};
+  for (const [field, limit] of Object.entries(DAILY_SCHEDULE_LIMITS)) {
+    const raw = body.dailySchedule[field];
+    const value = Number(raw);
+    // isNumericInput 가드 사유는 isValidGrade 와 같다 — boolean·객체가 Number 로
+    // 조용히 0/1 이 되는 경로를 열어 두지 않는다.
+    if (!isNumericInput(raw) || !Number.isFinite(value) || value < limit.min || value > limit.max) {
+      return fail(`하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`);
+    }
+    dailySchedule[field] = value;
+  }
+
+  return {
+    input: {
+      schoolType,
+      grade,
+      ideal: idealTarget.value,
+      min: minTarget.value,
+      naesin,
+      mockExam,
+      studyHours,
+      dailySchedule
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 파생값 — 전부 동결된 계산 모듈에 위임한다
+// ---------------------------------------------------------------------------
+
+/** 내신: none 이 아닌 회차의 등급 평균과 마지막 회차 라벨. */
+function deriveNaesin(naesin) {
+  const taken = NAESIN_ROUNDS.filter(({ key }) => !naesin[key].none);
+  const sum = taken.reduce((acc, { key }) => acc + Number(naesin[key].value), 0);
+
+  return {
+    currentScore: round1(sum / taken.length),
+    lastNaesinExam: taken[taken.length - 1].label
+  };
+}
+
+/**
+ * 등급 1~9 → 백분위. GRADE_PERCENTILE 밴드의 중앙값을 쓴다 —
+ * 원본 칩 UI 의 "(안정)" 라벨이 붙는 값과 같다(getPercentileChips, jeongsi.js:162).
+ *
+ * GRADE_PERCENTILE(jeongsi.js:138-148)의 키는 정수 1~9 뿐인데 온보딩 검증은
+ * 소수 등급(2.5 등)도 통과시키므로, 밴드 조회 전에 반올림 후 [1,9] 로 클램프한다.
+ * (영어는 이 환산을 타지 않는다 — 아래 buildMogoScores 참고.)
+ */
+function gradeToPercentile(rawGrade) {
+  const numeric = Number(rawGrade);
+  // 방어선. validateIntakeBody 가 normalizeGrade 로 정규화하므로 정상 경로에서는
+  // 걸리지 않는다. Math.round(NaN) = NaN → Math.max(1, NaN) = NaN 이라 클램프가
+  // NaN 을 통과시키고 GRADE_PERCENTILE[NaN] = undefined 를 읽어 TypeError 가 나던
+  // 자리다 — 검증기를 통과한 입력으로 엔드포인트를 죽일 수 있었다.
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`[intake] gradeToPercentile: 등급이 숫자가 아니다 (${String(rawGrade)})`);
+  }
+  const index = Math.min(9, Math.max(1, Math.round(numeric)));
+  const band = GRADE_PERCENTILE[index];
+  return Math.round((band.min + band.max) / 2);
+}
+
+/**
+ * calcJeongsiCompositeFE(jeongsi.js:195-212)가 요구하는 회차별 객체를 만든다.
+ *
+ * 주의점 세 가지(전부 원본 동작이며 파리티를 유지해야 한다):
+ *  - eng 는 백분위가 아니라 **등급 문자열** 그대로다(getEnglishPenaltyFE 가
+ *    소수 등급을 선형보간하므로 반올림하지 않고 원문을 넘긴다).
+ *  - 영어는 평균이 아니라 "마지막으로 값이 있는 회차"가 덮어쓴다. 그래서 회차
+ *    삽입 순서(mar → jun → sep → oct)가 결과를 바꾼다.
+ *  - none 회차는 객체에서 아예 제외한다. 포함하면 미입력 과목 평균 0 이
+ *    3분할에 들어가 종합 백분위가 크게 낮아진다(jeongsi.js:207-209).
+ *    전 회차가 none 이면 빈 객체 → currentMogo 0 → 정시 확률 2종이 0 이 되는데,
+ *    이는 정상 경로다(pipeline.js:227-228).
+ */
+function buildMogoScores(mockExam) {
+  const scores = {};
+
+  for (const { key } of MOCK_ROUNDS) {
+    const round = mockExam[key];
+    if (round.none) continue;
+
+    scores[key] = {
+      kor: { percentile: gradeToPercentile(round.kor) },
+      math: { percentile: gradeToPercentile(round.math) },
+      eng: round.eng,
+      exp1: { percentile: gradeToPercentile(round.tam1) },
+      exp2: { percentile: gradeToPercentile(round.tam2) }
+    };
+  }
+
+  return scores;
+}
+
+function deriveMogo(mockExam) {
+  const taken = MOCK_ROUNDS.filter(({ key }) => !mockExam[key].none);
+
+  return {
+    currentMogo: calcJeongsiCompositeFE(buildMogoScores(mockExam)),
+    lastMogoExam: taken.length ? taken[taken.length - 1].label : ''
+  };
+}
+
+/**
+ * 요일별 목표 학습시간(study_schedule).
+ *
+ * 우리 온보딩은 공통 스테퍼 4개(기상/취침/학교체류/학원)만 받으므로 원본
+ * calcAvailableHours 의 요일별 계약(요일 7개 × 시각·학원 N쌍)을 채울 수 없다.
+ * 그래서 가용시간은 우리 앱 전용 근사 어댑터 calcAvailableHoursApprox
+ * (schedule.js:409-425)로 구한다.
+ *
+ * 그 다음 단계(대학 배율 곱 + 학생 자습시간 오버라이드)는 **calculateWeekSchedule
+ * 을 그대로 호출해서** 처리한다. 오버라이드 규칙(schedule.js:349-367)을 이 파일에
+ * 베껴 쓰면 동결된 계산 모듈과 두 벌이 되어 언젠가 갈린다.
+ *
+ * 그래서 weekSchedule 에는 "calcAvailableHours 를 통과하면 근사값이 그대로 나오는"
+ * 합성 입력을 넣는다:
+ *   wake = 0, sleep = 근사값 + 1.5, 등하교 시각 없음, 학원 0건
+ *   → calcAvailableHours = (sleep - wake) - 1.5 = 근사값  (schedule.js:282)
+ *   (등하교 시각이 없으면 parseFloat(undefined) = NaN 이라 학교 항이 통째로
+ *    건너뛰어지고, academies 가 빈 배열이라 학원 항도 없다.)
+ *
+ * 근사 오차 = 1.5 + (학원 건수 × 1) − 등교전자습시간 (schedule.js:394-398 실측).
+ * 이는 이미 계산 모듈에 문서화된 확정 사항이다.
+ */
+function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
+  const weekSchedule = {};
+  const selfStudyHours = {};
+
+  for (const { short, long, hasSchool } of WEEKDAYS) {
+    const available = calcAvailableHoursApprox(dailySchedule, hasSchool);
+    weekSchedule[long] = { wake: 0, sleep: available + 1.5, academies: [] };
+    selfStudyHours[long] = studyHours[short];
+  }
+
+  return calculateWeekSchedule({
+    idealUniv: ideal.university,
+    idealDept: ideal.department,
+    minUniv: min.university,
+    minDept: min.department,
+    weekSchedule,
+    selfStudyHours
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 핸들러
+// ---------------------------------------------------------------------------
+
+function readBody(req) {
+  const body = req.body;
+  if (typeof body !== 'string') return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ detail: 'Method not allowed' });
+  }
+
+  try {
+    // 1) 게이트 — 405 → 401 → 403 (§9-1)
+    const session = await openGoalSession(req);
+    if (session.error) {
+      return res.status(session.error.status).json(session.error.body);
+    }
+
+    const { supabaseAdmin, profileId, allowed } = session;
+
+    // 쓰기형이므로 미결제는 403 이다(조회형만 200 {allowed:false}).
+    if (!allowed) {
+      return res.status(403).json({ detail: PAID_MESSAGE });
+    }
+
+    // 2) 재온보딩 차단 (미결 Q3 기본안)
+    //    base_* 를 다시 계산하면 그동안 쌓인 Σdelta 가 옛 base 위에 얹혀 확률이 튄다.
+    //    status='awaiting_cuts'(onboarded_at = null) 인 행은 아직 확률이 없으므로
+    //    목표 대학을 바꿔 다시 시도할 수 있게 열어 둔다.
+    const existing = await fetchStudentRow(supabaseAdmin, profileId);
+    if (existing?.onboarded_at) {
+      return res.status(409).json({
+        detail: '이미 온보딩을 완료했습니다.',
+        reason: 'already_onboarded'
+      });
+    }
+
+    // 3) 입력 검증 + 4) 값 매핑
+    const validated = validateIntakeBody(readBody(req));
+    if (validated.error) {
+      return res.status(validated.error.status).json(validated.error.body);
+    }
+
+    const input = validated.input;
+    const schoolType = SCHOOL_TYPE_MAP[input.schoolType];
+    const grade = GRADE_MAP[input.grade];
+    const schoolCutType = getSchoolCutType(schoolType);
+
+    // 5) 성적 파생
+    const { currentScore, lastNaesinExam } = deriveNaesin(input.naesin);
+    const { currentMogo, lastMogoExam } = deriveMogo(input.mockExam);
+
+    // 6) 목표 대학 컷 4회 조회
+    //    파이프라인은 컷 누락을 에러로 알려주지 않는다 — calcNaesinProb 이 이를
+    //    확률 0 으로 접어버리기 때문이다(primitives.js:119). 그래서 존재 확인은
+    //    반드시 파이프라인 호출 전에 여기서 한다.
+    const { cuts, missing } = await fetchTargetCuts(supabaseAdmin, {
+      schoolCutType,
+      ideal: input.ideal,
+      min: input.min
+    });
+    const hasAllCuts = missing.length === 0;
+
+    // 7) 요일별 목표 학습시간
+    const weeklySchedule = buildWeeklySchedule(input);
+
+    // 8) 파이프라인
+    //    컷이 하나라도 없어도 여기서 파이프라인을 부른다 — current_score /
+    //    converted_grade / remain_* / week_* 가 정확히 같은 코드 경로에서
+    //    나오게 하기 위해서다(재구현 금지). 컷이 없을 때 나오는 확률 0 과
+    //    rate 는 아래에서 통째로 버리고 null 을 저장한다.
+    const now = new Date();
+    const state = buildInitialStudentState({
+      schoolType,
+      grade,
+      currentScore,
+      currentMogo,
+      lastNaesin: lastNaesinExam,
+      lastMogo: lastMogoExam,
+      remainingNaesin: null,
+      remainingMogo: null,
+      cuts,
+      // §7-5: 우리 온보딩은 1~9 등급만 받으므로 변환 대상 원점수가 애초에 없다.
+      // 고1·고2 는 conversionType 이 '5grade' 라 주입이 없으면 throw 한다.
+      convertedGrade: currentScore,
+      weeklySchedule,
+      now
+    });
+
+    // 9) 저장
+    const row = {
+      profile_id: profileId,
+
+      school_type: schoolType,
+      grade,
+
+      ideal_university: input.ideal.university,
+      ideal_department: input.ideal.department,
+      min_university: input.min.university,
+      min_department: input.min.department,
+
+      ideal_naesin_cut: cuts.idealNaesin,
+      ideal_jungsi_cut: cuts.idealJungsi,
+      min_naesin_cut: cuts.minNaesin,
+      min_jungsi_cut: cuts.minJungsi,
+
+      current_score: state.currentScore,
+      converted_grade: state.convertedGrade,
+      current_mogo: state.currentMogo,
+
+      remain_naesin: state.remainNaesin,
+      remain_mogo: state.remainMogo,
+      last_naesin_exam: lastNaesinExam,
+      last_mogo_exam: lastMogoExam,
+
+      naesin_scores: input.naesin,
+      mock_exam_scores: input.mockExam,
+
+      // 컷이 없으면 확률 4종을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).
+      base_ideal_susi: hasAllCuts ? state.baseProbs.idealSusi : null,
+      base_ideal_jungsi: hasAllCuts ? state.baseProbs.idealJungsi : null,
+      base_min_susi: hasAllCuts ? state.baseProbs.minSusi : null,
+      base_min_jungsi: hasAllCuts ? state.baseProbs.minJungsi : null,
+
+      rate_ideal_susi: hasAllCuts ? state.rates.idealSusiBonus : null,
+      rate_ideal_jungsi: hasAllCuts ? state.rates.idealJungsiBonus : null,
+      rate_min_susi: hasAllCuts ? state.rates.minSusiBonus : null,
+      rate_min_jungsi: hasAllCuts ? state.rates.minJungsiBonus : null,
+
+      study_schedule: state.weeklySchedule,
+      week_ideal: state.weekIdeal,
+      week_min: state.weekMin,
+
+      // 가상 날짜의 원점은 rate 와 같은 시점이어야 한다(§8 #14). rate 가 없는
+      // awaiting_cuts 행은 원점도 두지 않는다 — 첫 기록 제출은 어차피 막힌다.
+      actual_start_date: hasAllCuts ? kstYMD(now) : null,
+      onboarded_at: hasAllCuts ? now.toISOString() : null,
+      status: hasAllCuts ? 'active' : 'awaiting_cuts'
+    };
+
+    const savedRow = await upsertStudentRow(supabaseAdmin, row);
+
+    // 10) 컷 누락 — 입력은 버리지 않고 422 로 알린다(§9-3).
+    if (!hasAllCuts) {
+      return res.status(422).json({
+        detail: '목표 대학의 합격 기준 데이터가 아직 준비되지 않았습니다.',
+        reason: 'cut_not_found',
+        missing
+      });
+    }
+
+    // 11) 확률 스냅샷
+    await appendProbabilityLog(
+      supabaseAdmin,
+      profileId,
+      {
+        idealSusi: state.baseProbs.idealSusi,
+        idealJungsi: state.baseProbs.idealJungsi,
+        minSusi: state.baseProbs.minSusi,
+        minJungsi: state.baseProbs.minJungsi
+      },
+      'intake'
+    );
+
+    // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
+    //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다
+    //     (온보딩 직후에는 누적 증분이 0 이라 값은 base 와 같다).
+    const stateRow = await fetchStudentStateRow(supabaseAdmin, profileId);
+
+    return res.status(200).json({
+      ok: true,
+      student: buildStudentPayload(savedRow, stateRow, state.schoolCutType)
+    });
+  } catch (error) {
+    console.error('goal/intake error:', error);
+    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+  }
+}
