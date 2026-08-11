@@ -192,8 +192,10 @@ export function GoalOnboardingProvider({ children }) {
 
   // 온보딩 완료(7단계 "다음") 시 호출한다 — 저장된 입력값을 비우고 컨텍스트 state도
   // 초기값으로 되돌린다. src/pages/goal/Onboarding.jsx의 handleFinish가
-  // markOnboardingDone() 직후 이 함수를 호출하도록 배선돼 있다(SignupContext의
-  // resetSignup()과 같은 역할).
+  // submitGoalIntake()가 성공(200)/이미 완료(409)를 반환한 직후 이 함수를 호출하도록
+  // 배선돼 있다(SignupContext의 resetSignup()과 같은 역할). 2026-08-11 이전엔
+  // markOnboardingDone() 직후 호출이었으나, 이제 완료 판정은 서버(goal_students)가
+  // 정본이라 클라이언트 완료 플래그를 세우는 절차 자체가 없어졌다.
   function resetOnboardingFlow() {
     clearStoredFlow();
     setState(buildDefaultState());

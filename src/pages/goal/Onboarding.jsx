@@ -10,7 +10,7 @@ import Step5MockExam from '../../components/goal/onboarding/steps/Step5MockExam'
 import Step6StudyHours from '../../components/goal/onboarding/steps/Step6StudyHours';
 import Step7DailySchedule from '../../components/goal/onboarding/steps/Step7DailySchedule';
 import { GoalOnboardingProvider, useGoalOnboarding } from '../../context/GoalOnboardingContext';
-import { markOnboardingDone } from '../../lib/goalOnboarding';
+import { submitGoalIntake } from '../../lib/goalApi';
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.
@@ -34,6 +34,9 @@ function OnboardingWizard() {
   const { step } = useParams();
   const navigate = useNavigate();
   const [isCalculating, setIsCalculating] = useState(false);
+  // submitGoalIntake() 실패 시 화면에 남길 안내 배너. { tone: 'info' | 'error', message }.
+  // tone 'info'는 422(컷 데이터 준비 중) 전용 — 사용자 잘못이 아니므로 에러색을 쓰지 않는다.
+  const [submitError, setSubmitError] = useState(null);
   const {
     schoolType,
     grade,
@@ -66,30 +69,88 @@ function OnboardingWizard() {
   }
 
   // 7단계 "다음" 클릭 = 온보딩 완료. #11(전면 딤)을 "학습량 계산 중" 로딩으로 간주해 잠깐
-  // 오버레이를 띄운 뒤 대시보드로 이동한다(작업 지시 §확정 사항 3). 서버 저장은 하지 않으므로
-  // 최종 제출은 콘솔 로그 + markOnboardingDone() 완료 표시로 대체한다(작업 지시 §확정 사항 4).
-  // markOnboardingDone() 직후 resetOnboardingFlow()로 sessionStorage에 남아있던 스텝 간
-  // 입력값(GoalOnboardingContext.jsx의 'goal-onboarding-flow')을 정리한다 — 완료 플래그와
-  // 입력값은 별개 저장소라 완료 시점에 입력값 쪽도 명시적으로 비워야 한다.
-  function handleFinish() {
+  // 오버레이를 띄운 뒤 대시보드로 이동한다(작업 지시 §확정 사항 3).
+  //
+  // 2026-08-11: goal_students 테이블이 생겨 실제 제출은 submitGoalIntake()
+  // (src/lib/goalApi.js, POST /api/goal/intake)로 한다 — 더 이상 콘솔 로그로 대체하지
+  // 않는다. body는 GoalOnboardingContext state 8개 필드를 그대로 넘긴다(계약이 이미
+  // 일치하므로 변환 불필요, api/goal/intake.js 주석 참고).
+  //
+  // 분기(작업 지시 §서버 계약):
+  //   200(success) · 409(already-onboarded) — 서버가 이미 완료로 인정한다는 뜻이 같으므로
+  //     둘 다 계산 오버레이 → resetOnboardingFlow() → /app/goal 로 동일하게 처리한다.
+  //     서버가 진실이므로 클라이언트 완료 플래그(markOnboardingDone())는 더 이상 세우지
+  //     않는다 — 다음 진입 시 RequireGoalAccess의 3단계가 서버에 다시 물어본다.
+  //   422(cuts-missing) — 입력은 이미 서버에 저장됐다(status='awaiting_cuts'). 계산에
+  //     성공한 척 오버레이를 띄우면 안 된다 — 온보딩 화면에 머무르며 안내만 띄운다.
+  //   400(validation-error) — 정상 경로에선 나오지 않아야 할 방어적 분기. 입력 유지,
+  //     에러 메시지만 띄우고 재시도 가능케 한다.
+  //   401 → /login, 403 → /pricing?service=goal.
+  //   그 외(error: 500·네트워크 오류·예상 밖 상태) — 일반 에러, 입력 유지, 재시도 가능.
+  //
+  // 오버레이 최소 노출 시간: 네트워크 왕복이 CALCULATING_DURATION_MS보다 짧게 끝나도
+  // "계산 중" 연출이 순간 깜빡이지 않도록, 성공 경로에서는 경과 시간을 빼고 남은 시간만큼
+  // 더 기다렸다가 이동한다. 실패 경로는 오버레이를 즉시 내린다(실패했는데 계산 중인 척
+  // 붙잡아 둘 이유가 없다).
+  async function handleFinish() {
+    setSubmitError(null);
     setIsCalculating(true);
 
-    window.setTimeout(() => {
-      // eslint-disable-next-line no-console
-      console.log('[goal-onboarding] 온보딩 입력 완료:', {
-        schoolType,
-        grade,
-        upperUniversity,
-        lowerUniversity,
-        naesin,
-        mockExam,
-        studyHours,
-        dailySchedule
+    const startedAt = Date.now();
+    const result = await submitGoalIntake({
+      schoolType,
+      grade,
+      upperUniversity,
+      lowerUniversity,
+      naesin,
+      mockExam,
+      studyHours,
+      dailySchedule
+    });
+
+    if (result.kind === 'success' || result.kind === 'already-onboarded') {
+      const remaining = Math.max(0, CALCULATING_DURATION_MS - (Date.now() - startedAt));
+      window.setTimeout(() => {
+        resetOnboardingFlow();
+        navigate('/app/goal');
+      }, remaining);
+      return;
+    }
+
+    setIsCalculating(false);
+
+    if (result.kind === 'cuts-missing') {
+      setSubmitError({
+        tone: 'info',
+        message:
+          '입력하신 목표 대학의 합격 기준 데이터를 아직 준비 중이에요. 데이터가 준비되는 대로 학습량을 계산해 드릴게요.'
       });
-      markOnboardingDone();
-      resetOnboardingFlow();
-      navigate('/app/goal');
-    }, CALCULATING_DURATION_MS);
+      return;
+    }
+
+    if (result.kind === 'validation-error') {
+      setSubmitError({
+        tone: 'error',
+        message: result.detail || '입력 내용을 다시 확인해 주세요.'
+      });
+      return;
+    }
+
+    if (result.kind === 'no-session') {
+      navigate('/login');
+      return;
+    }
+
+    if (result.kind === 'not-allowed') {
+      navigate('/pricing?service=goal');
+      return;
+    }
+
+    // result.kind === 'error' — 500 / 네트워크 오류 / 예상 밖 상태코드.
+    setSubmitError({
+      tone: 'error',
+      message: '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+    });
   }
 
   return (
@@ -103,6 +164,23 @@ function OnboardingWizard() {
       </OnboardingStepShell>
 
       {isCalculating && <OnboardingCalculatingOverlay />}
+
+      {/* submitGoalIntake() 실패 안내 — 오버레이와 달리 화면을 가리지 않는다(422/400/
+          네트워크 오류 전부 온보딩 화면에 그대로 머무르며 재시도할 수 있어야 하므로).
+          tone 'info'(422, 컷 데이터 준비 중)는 사용자 잘못이 아니라 파랑 계열로,
+          'error'(400/500/네트워크)는 빨강 계열로 구분한다. */}
+      {submitError && (
+        <div
+          role="alert"
+          className={`fixed inset-x-0 bottom-[2rem] z-[55] mx-auto w-[calc(100%-2.5rem)] max-w-[28rem] rounded-[0.75rem] border px-[1.25rem] py-[1rem] text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
+            submitError.tone === 'error'
+              ? 'border-red-200 bg-red-50 text-red-600'
+              : 'border-blue-200 bg-blue-50 text-blue-700'
+          }`}
+        >
+          {submitError.message}
+        </div>
+      )}
     </div>
   );
 }
