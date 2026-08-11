@@ -2923,7 +2923,7 @@ function LearningDiagnosisAdmin() {
                   <TextInput
                     value={newProgram.title}
                     onChange={(value) => setNewProgram((prev) => ({ ...prev, title: value }))}
-                    placeholder="예: 위닝 AI 수행평가 서비스"
+                    placeholder="예: 위닝 수행평가 서비스"
                   />
                 </Field>
                 <Field label="상단 배지">
