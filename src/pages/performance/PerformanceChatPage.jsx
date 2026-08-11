@@ -127,12 +127,18 @@ export default function PerformanceChatPage() {
 
   // ── STEP3 상태
   //   'idle'      STEP2 미완료.
-  //   'loading'   추천/재추천 진행 중 → `AiLoadingBubble`(§5.9).
+  //   'loading'   **최초** 추천 진행 중 → `AiLoadingBubble`(§5.9).
   //   'ready'     3카드 렌더(§5.10).
   //   'quota'     `409 QUOTA_EXHAUSTED` → 인라인 소진 카드(§5.20 (B)).
   //   'dismissed' 소진 카드를 `나중에 하기`로 닫은 뒤.
   //   'failed'    소진 외 실패 + 보여 줄 주제가 아직 없음 → 재시도 안내.
   const [topicPhase, setTopicPhase] = useState('idle');
+  // 재추천 전용 플래그. **`topicPhase`를 `'loading'`으로 바꾸지 않는 것이 요점이다** —
+  // 그렇게 하면 `step3-topics` 메시지(카드 3장 + `다른 주제 다시 추천` 버튼)가 타임라인에서
+  // 통째로 빠지고, 방금 그 버튼을 누른 사용자의 포커스가 `<body>`로 떨어진다. 키보드
+  // 사용자는 위치를 잃고 Tab을 처음부터 다시 밟아야 하며, 새 카드가 도착해도 포커스는
+  // 돌아오지 않는다. 카드·버튼은 그대로 두고 로딩 버블만 그 아래에 덧붙인다.
+  const [topicRegenerating, setTopicRegenerating] = useState(false);
   const [topics, setTopics] = useState([]);
   const [topicRound, setTopicRound] = useState(0);
   const [topicMaxRounds, setTopicMaxRounds] = useState(3);
@@ -211,13 +217,17 @@ export default function PerformanceChatPage() {
    * 회차 차감은 서버가 AI 성공 이후에만 커밋하고(§9.3) 재추천은 `already_charged`로 무차감
    * 통과하므로, 이 화면은 차감을 예측하거나 표시하지 않는다.
    *
-   * @param {{isRegenerate?: boolean}} [options] `isRegenerate`면 실패 시 이미 받은 3카드
+   * @param {{isRegenerate?: boolean}} [options] `isRegenerate`면 ⓐ 진행 중에도 카드·버튼을
+   *   화면에 남기고(포커스 유지 — `topicRegenerating` 주석) ⓑ 실패 시 이미 받은 3카드
    *   화면으로 되돌리고 실패 사유만 카드 아래 한 줄로 알린다(있던 결과를 실패로 지우지 않는다).
    */
   async function requestTopics({ isRegenerate = false } = {}) {
     if (!accessToken || !createdSession) return;
 
-    setTopicPhase('loading');
+    // 최초 추천만 타임라인을 로딩 버블로 교체한다. 재추천은 기존 메시지를 남긴 채
+    // 플래그만 켜고, 로딩 버블은 카드 묶음 **아래**에 덧붙는다.
+    if (isRegenerate) setTopicRegenerating(true);
+    else setTopicPhase('loading');
     setTopicError(null);
 
     try {
@@ -237,6 +247,9 @@ export default function PerformanceChatPage() {
       console.error('[performance] 주제 추천 실패:', error?.code, error);
 
       if (error?.code === 'QUOTA_EXHAUSTED') {
+        // 재추천 경로에서는 정상적으로 도달하지 않는다 — 같은 세션이라 서버 RPC가
+        // `already_charged`를 돌려주는 것이 정상이고(§9.3), 소진이 막는 것은 새 세션
+        // 시작뿐이다(§5.20/Q54). 그래도 오면 소진 카드로 수렴시킨다.
         setQuotaPlanEndsAt(error.planEndsAt || null);
         setTopicPhase('quota');
         return;
@@ -253,6 +266,8 @@ export default function PerformanceChatPage() {
 
       setTopicError(error?.userMessage || '주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.');
       setTopicPhase(isRegenerate ? 'ready' : 'failed');
+    } finally {
+      if (isRegenerate) setTopicRegenerating(false);
     }
   }
 
@@ -328,7 +343,7 @@ export default function PerformanceChatPage() {
 
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
   function handleRegenerate() {
-    if (topicPhase === 'loading') return;
+    if (topicPhase === 'loading' || topicRegenerating) return;
     void requestTopics({ isRegenerate: true });
   }
 
@@ -464,11 +479,23 @@ export default function PerformanceChatPage() {
             maxRounds={topicMaxRounds}
             onDetail={handleTopicDetail}
             onRegenerate={handleRegenerate}
+            regenerating={topicRegenerating}
             roundLimited={topicRoundLimited}
             error={topicError}
           />
         </div>
       )
+    });
+  }
+
+  if (guideDone && topicPhase === 'ready' && topicRegenerating) {
+    // 재추천 진행 표시. 최초 추천과 달리 카드 묶음을 **대체하지 않고** 그 아래에 붙는다 —
+    // 카드·버튼이 남아 있어야 방금 버튼을 누른 사용자의 포커스가 유지된다.
+    // 문구는 최초 추천과 같은 쌍을 쓴다(같은 작업이다).
+    messages.push({
+      id: 'step3-regenerating',
+      kind: 'loading',
+      payload: PERFORMANCE_LOADING_COPY.topicRecommendation
     });
   }
 

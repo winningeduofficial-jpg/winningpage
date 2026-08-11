@@ -7,8 +7,8 @@
 //         그 구조는 이식 대상이 아니다. 여기서 보낼 게 두 개뿐인 것이 계약의 요점이다.
 //   성공  `200 { round, topics[3], quotaRemaining, charged, maxRounds, promptVersion, model, … }`
 //   실패  `409 QUOTA_EXHAUSTED { quotaRemaining:0, planEndsAt }` / `409 ROUND_LIMIT { round, maxRounds }`
-//         / `422 MODEL_CONTRACT_VIOLATION` / `503 MODEL_UNAVAILABLE` / `403 NO_ENTITLEMENT` …
-//         **전부 무차감이다.**
+//         / `429 TOPIC_ATTEMPT_LIMIT { maxAttempts }` / `422 MODEL_CONTRACT_VIOLATION`
+//         / `503 MODEL_UNAVAILABLE` / `403 NO_ENTITLEMENT` … **전부 무차감이다.**
 //
 // ── 회차 (§9.3) — 이 호출이 앱 전체에서 유일한 차감 지점이다
 //   차감은 서버가 AI 응답 **성공 이후**에만 RPC로 커밋한다. 클라이언트는 차감을 요청하지도,
@@ -31,6 +31,9 @@ const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인�
 const FALLBACK_MESSAGE = {
   QUOTA_EXHAUSTED: '이용 가능한 횟수를 모두 사용했어요.',
   ROUND_LIMIT: '주제 추천은 최대 3회까지 받을 수 있어요.',
+  // 429 — 성공 라운드 상한(ROUND_LIMIT)과 **다른 축**이다. 실패로 끝난 모델 호출까지
+  // 세는 세션당 시도 상한이라(sql/56) 재시도를 권하지 않는다.
+  TOPIC_ATTEMPT_LIMIT: '주제 추천을 너무 여러 번 요청했어요. 새 수행평가로 다시 시작해 주세요.',
   NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
   ENTITLEMENT_EXPIRED: '이용권 사용 기간이 끝났어요.',
   NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',

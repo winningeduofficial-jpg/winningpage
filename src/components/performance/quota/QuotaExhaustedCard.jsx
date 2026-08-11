@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import InlineCard from '../chat/InlineCard';
 
 // 회차 소진 인라인 카드 (표면 B) — docs/수행평가-상세-명세.md §5.20 / §9.3 / §8.6.
@@ -23,7 +22,7 @@ import InlineCard from '../chat/InlineCard';
 //   시안 인셋 불일치다 — 고정폭으로 옮기면 좁은 뷰포트에서 깨지므로 `flex-1`로 나누고
 //   사이 간격만 실측대로 1.25rem을 준다(GuideUploadCard와 동일 판단).
 //
-//   두 버튼 모두 공용 `PrimaryButton`/`OutlineButton`을 쓰지 않는다 — primary는 `<Link>`라
+//   두 버튼 모두 공용 `PrimaryButton`/`OutlineButton`을 쓰지 않는다 — primary는 `<a>`라
 //   `<button>` 프리미티브에 담기지 않고, secondary는 보더 색이 `performance-line`(#d9d9d9)
 //   이어야 하는데 `OutlineButton`의 `muted` 톤은 전역 `line`(#d7d7d7)이고 이 저장소엔
 //   tailwind-merge가 없어 `className`으로 덮으면 승자가 예측 불가다(OutlineButton 상단 주석).
@@ -34,6 +33,18 @@ import InlineCard from '../chat/InlineCard';
 //   그래서 ⓐ 설명 문구가 그 사실을 명시하고 ⓑ `나중에 하기`는 세션을 건드리지 않고
 //   **이 카드만 닫는다**(호출부의 `onDismiss`가 세션 상태를 그대로 둔다). 문구와 동작
 //   양쪽에서 같은 약속을 지키는 것이 이 카드의 핵심이다.
+//
+//   ⓒ **primary CTA도 이 약속을 지켜야 한다** — 그래서 `<Link>`가 아니라 새 탭 `<a>`다.
+//   같은 탭에서 라우트를 떠나면 `PerformanceChatPage`의 상태(`createdSession`·`guideMode`·
+//   `guideDone`·`manualText`·`uploadedCount`)가 전부 컴포넌트 로컬 `useState`라 언마운트와
+//   함께 사라진다. 재방문 분기·프리필은 P13 몫이라 아직 없고 `/app/performance/reports`도
+//   아직 플레이스홀더라, 결제 후 돌아온 사용자는 STEP1 인사말부터 다시 만나고 폼을 다시
+//   내면 `session.js`가 `409 UNCHARGED_SESSION_EXISTS`로 막는다 — 그런데 그 응답이 안내하는
+//   저장 리포트 화면이 없어서 어디로도 갈 수 없다. DB 로우는 살아 있어도 사용자 관점의
+//   "유실 없음"이 성립하지 않는다.
+//   새 탭으로 열면 채팅 탭의 상태가 그대로 살아 있고, 결제 후 돌아와 `나중에 하기` →
+//   `주제 추천 다시 시도`(호출부)만 누르면 입력값 그대로 이어진다. **P13 재개 화면이
+//   들어오면 같은 탭 이동으로 되돌려도 된다** — 그때까지의 임시 조치다.
 //
 // ── 소진 상태에서도 막히지 않는 것 (§5.20 결정 표 / Q54 정정)
 //   저장 리포트 열람, 진행 중(=이미 차감된) 세션 이어서 하기, 그 세션 안의 주제 재추천은
@@ -51,6 +62,9 @@ const LATER_LABEL = '나중에 하기';
 
 /** §5.20 CTA 목적지. 랜딩 가격 섹션(§13)이다. */
 const PURCHASE_TO = '/services/performance#pricing';
+
+/** 새 창 이동을 라벨에도 알린다(시각적 표시가 없는 링크라 접근성 이름으로만 전달된다). */
+const PURCHASE_ARIA_LABEL = `${PURCHASE_LABEL} (새 창)`;
 
 /**
  * `planEndsAt`(ISO)을 `2026. 8. 11.` 형태로. 파싱할 수 없으면 아무것도 렌더하지 않는다 —
@@ -87,12 +101,18 @@ export default function QuotaExhaustedCard({ planEndsAt = null, onDismiss }) {
       </div>
 
       <div className="mt-5 flex items-center gap-5">
-        <Link
-          to={PURCHASE_TO}
+        {/* 새 탭으로 연다 — 이유는 파일 상단 ⓒ. `<Link>`가 아니라 `<a>`인 것은
+            react-router가 `target="_blank"`에서 어차피 브라우저 기본 이동으로 넘기기 때문에
+            라우터를 경유할 이유가 없어서다. */}
+        <a
+          href={PURCHASE_TO}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={PURCHASE_ARIA_LABEL}
           className="flex h-[3.25rem] flex-1 items-center justify-center rounded-xl bg-primary text-base font-semibold text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"
         >
           {PURCHASE_LABEL}
-        </Link>
+        </a>
         <button
           type="button"
           onClick={onDismiss}

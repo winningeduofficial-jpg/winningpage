@@ -6,9 +6,11 @@
 //   → 200 { round, topics[3], quotaRemaining, charged }
 //   → 409 { error:{code:'QUOTA_EXHAUSTED'}, quotaRemaining:0, planEndsAt }
 //   → 409 { error:{code:'ROUND_LIMIT'} }
+//   → 429 { error:{code:'TOPIC_ATTEMPT_LIMIT'}, maxAttempts }   ← 계약 표에 없는 추가분(아래 게이트 ②)
 //   → 422 { error:{code:'MODEL_CONTRACT_VIOLATION'} }
 //   → 503 { error:{code:'MODEL_UNAVAILABLE'} }
-//   ROUND_LIMIT / MODEL_CONTRACT_VIOLATION / MODEL_UNAVAILABLE 은 **전부 무차감**이다.
+//   ROUND_LIMIT / TOPIC_ATTEMPT_LIMIT / MODEL_CONTRACT_VIOLATION / MODEL_UNAVAILABLE 은
+//   **전부 무차감**이다.
 //
 // ── 이 파일이 저장소 전체에서 유일한 회차 차감 지점이다 (§9.3)
 //    세션 생성·안내문 분석·설계 리포트·평가는 전부 무차감이고, 차감은 여기 "주제 추천
@@ -36,6 +38,17 @@
 //    프론트 정규식이 어긋나 카드가 2장만 뜨던 BLOCK이 거기서 나왔고, §8.4는 "텍스트
 //    파서를 폴백으로도 남기지 않는다 — 두 경로가 공존하면 재발한다"고 명시한다.
 //    이 파일의 유일한 파싱은 `JSON.parse` 한 줄이며, 형식 강제는 `responseSchema`가 한다.
+//
+// ── 모델 앞에 게이트 2개가 있다 (비용 방어, 둘 다 무차감)
+//    차감 RPC가 판정 권위를 독점하는 구조라 소진 판정이 모델 호출 **뒤**에야 나온다.
+//    그 사이가 비어 있으면 "회차를 다 쓴 계정이 풀 추론을 무한히 무료로 태우는" 통로가
+//    열리므로, RAG·모델을 부르기 직전에 두 가지를 본다:
+//      ① 소진 선차단 — 원장 행이 없고(=미차감 신규 세션) 잔여가 0이면 즉시 409.
+//         비권위적이라 새더라도 아래 RPC가 최종적으로 막는다.
+//      ② 세션당 모델 시도 상한 — `performance_sessions.topic_attempt_count`(sql/56).
+//         구조 실패(422/503)는 `performance_topics`에 행을 남기지 않아 `MAX_ROUNDS`가
+//         영원히 안 오른다. 그 축을 시도 카운터가 따로 센다(§9.2 「과금과 남용 방지를
+//         분리한다」 — 회차를 더 깎아 막지 않는다).
 //
 // ── 클라이언트는 프롬프트 입력을 보내지 않는다 (§8.6)
 //    외부는 학년·과목·진로·안내문을 요청 바디로 받아(`:56-64`) 그대로 프롬프트에 넣었다 —
@@ -93,6 +106,22 @@ const MODEL_TIMEOUT_MS = 50 * 1000;
 /** 구조 실패(절단·파싱 실패·계약 위반) 시 재시도 횟수. §8.4 「1회 재요청 후 실패 처리」. */
 const STRUCTURE_RETRY = 1;
 
+/**
+ * 세션당 **모델 호출 시도** 상한(sql/56, `performance_sessions.topic_attempt_count`).
+ * `MAX_ROUNDS`와는 **다른 축**이다 — 저쪽은 성공해서 `performance_topics`에 행이 남은
+ * 라운드만 센다.
+ *
+ * 왜 별도 축이 필요한가: `MODEL_CONTRACT_VIOLATION`(422)·`MODEL_UNAVAILABLE`(503)은
+ * 무차감이면서 `performance_topics`에 아무것도 남기지 않으므로 `nextRound`가 그대로다.
+ * 즉 구조 실패를 유도할 수 있는 입력이면 같은 세션에서 **무한 반복**이 가능하고, 1회당
+ * 임베딩 2회 + 최대 6회(과부하 재시도 3 × 구조 재시도 2)의 Gemini 생성 호출이 나간다.
+ * §9.2가 「과금과 남용 방지를 분리한다」고 정했으므로 회차를 더 깎아 막지 않고
+ * `analyze-guide.js`의 `MAX_ANALYSIS_PER_SESSION`과 같은 방식으로 시도 수에 상한을 건다.
+ *
+ * 성공 라운드 3회 + 정상 재시도를 넉넉히 덮는 값으로 10을 쓴다(analyze-guide와 같은 수치).
+ */
+const MAX_MODEL_ATTEMPTS_PER_SESSION = 10;
+
 /** 카드 부제 — 모델 산출물이 아니라 서버 고정 문자열이다(§8.3 `subtitle`, §13). */
 const TOPIC_SUBTITLE = '통합 수행평가 설계 리포트';
 
@@ -116,7 +145,10 @@ const SESSION_COLUMNS = [
   'previous_topic',
   'guide_input_mode',
   'guide_freetext',
-  'guide_json'
+  'guide_json',
+  // sql/56. 이 컬럼 없이 배포하면 PostgREST 42703으로 라우트 전체가 죽는다 —
+  // `analyze-guide.js`의 `guide_analysis_count`(sql/55)와 같은 선행 조건이다.
+  'topic_attempt_count'
 ].join(',');
 
 function fail(res, status, code, message, extra) {
@@ -389,10 +421,115 @@ export default async function handler(req, res) {
       });
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // 모델을 부르기 전에 거는 두 게이트. 둘 다 **무차감**이고 둘 다 비용 방어다.
+    // ─────────────────────────────────────────────────────────────────
+
+    // 이 세션이 이미 차감된 세션인가. `performance_credit_ledger.session_id`가 UNIQUE라
+    // 행 존재 = 차감 완료다(sql/54 1-7). 아래 두 게이트가 모두 이 값을 본다.
+    const { data: ledgerRow, error: ledgerLookupError } = await supabaseAdmin
+      .from('performance_credit_ledger')
+      .select('id')
+      .eq('session_id', sessionRow.id)
+      .maybeSingle();
+
+    if (ledgerLookupError) throw new Error(`차감 원장 조회 실패: ${ledgerLookupError.message}`);
+
+    const alreadyCharged = Boolean(ledgerRow);
+
+    // ── 게이트 ① 회차 소진 **선차단**(비권위적)
+    //    진입 게이트(위 `hasPaidServiceAccess`)는 보유 여부만 보고 잔여를 일부러 보지
+    //    않는다 — 판정과 차감을 RPC 한 트랜잭션에 묶기 위해서다. 그 결과 소진 판정이
+    //    모델 호출 **뒤**(아래 `quota_exhausted`)에야 나오는데, 그 지점까지 오려면
+    //    임베딩 2회 + 최대 6회의 Gemini 생성 호출을 이미 완주한 뒤다. 즉 회차를 다 쓴
+    //    사용자가 이 엔드포인트를 반복 호출하면 매번 풀 추론을 무료로 태울 수 있다
+    //    (409 응답은 `charged:false`라 억제 장치가 하나도 없다).
+    //
+    //    그래서 여기서 **미리 한 번 본다**. 두 조건을 모두 걸어야 §9.3/§5.20의
+    //    「이미 차감된 세션은 소진·만료 뒤에도 계속 진행(재추천 포함)」이 깨지지 않는다:
+    //      ⓐ 원장 행이 없다(= 아직 차감 안 된 신규 세션)  ⓑ 잔여가 정확히 0
+    //    `quotaRemaining === null`은 "정보 없음/무제한"이므로 차단하지 않는다.
+    //
+    //    **판정 권위는 그대로 RPC에 있다.** 여기서 TOCTOU로 새더라도 아래 차감 단계가
+    //    최종적으로 막으므로 동시성 정합성은 손상되지 않는다. 조회 실패도 통과시킨다 —
+    //    비권위적 최적화가 정상 경로를 죽이면 안 된다.
+    if (!alreadyCharged) {
+      try {
+        const preQuota = readQuotaSnapshot(
+          await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
+        );
+
+        if (preQuota.quotaRemaining === 0) {
+          return fail(res, 409, 'QUOTA_EXHAUSTED', '이용 가능한 횟수를 모두 사용했어요.', {
+            quotaRemaining: 0,
+            planEndsAt: preQuota.planEndsAt ?? null,
+            charged: false
+          });
+        }
+      } catch (quotaError) {
+        console.error('performance/recommend-topics 소진 선차단 조회 실패(무시):', quotaError);
+      }
+    }
+
+    // ── 게이트 ② 세션당 모델 시도 상한(sql/56)
+    //    성공 라운드 상한(`MAX_ROUNDS`)이 세지 못하는 축이다 — 위 상수 주석 참조.
+    const attemptCount = Number(sessionRow.topic_attempt_count) || 0;
+    if (attemptCount >= MAX_MODEL_ATTEMPTS_PER_SESSION) {
+      return fail(
+        res,
+        429,
+        'TOPIC_ATTEMPT_LIMIT',
+        '이 수행평가에서 주제 추천을 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.',
+        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false }
+      );
+    }
+
+    // 모델(임베딩 포함)을 실제로 부르기 **직전**에 올린다. 성공/실패 어느 쪽이든 비용은
+    // 이미 발생하므로 실패도 세어야 상한이 의미를 갖는다 — 애초에 이 게이트가 겨냥하는
+    // 것이 "실패만 반복하는" 경로다. (동시 요청 2건이 같은 값을 읽어 한 번을 덜 셀 수
+    // 있으나 이 값은 정밀 회계가 아니라 남용 상한이다. 정밀 회계가 필요한 회차 차감은
+    // `consume_performance_credit`이 `for update`로 한다 — analyze-guide.js와 같은 판단.)
+    const { error: attemptCounterError } = await supabaseAdmin
+      .from('performance_sessions')
+      .update({ topic_attempt_count: attemptCount + 1 })
+      .eq('id', sessionRow.id);
+
+    if (attemptCounterError) throw new Error(`주제 추천 시도 횟수 갱신 실패: ${attemptCounterError.message}`);
+
     const previousTopic = String(sessionRow.previous_topic || '').trim() || NO_PREVIOUS_TOPIC_TEXT;
     const gradeLabel = String(sessionRow.grade_label || '').trim();
     const subject = String(sessionRow.subject || '').trim();
     const career = String(sessionRow.career_goal || '').trim();
+
+    // ── RAG 질의문에 넣는 값은 **프롬프트와 같은 결합 규칙**을 쓴다 (§12.3 문자 단위 이식)
+    //    외부 앱은 결합 문자열 하나만 들고 다녔다 — 프론트가
+    //      `subject = `${group} / ${realSubject}``            (`suhaengpyeong/index.html:996`)
+    //      `gradeWithSemester = `${grade} ${semester}``       (`같은 파일 :1749`)
+    //    를 만들어 요청 바디에 실었고(`:1747-1748`), 서버는 **그 값을 프롬프트와 RAG에
+    //    똑같이** 넘겼다(`api/recommend-topics.js:83-92`(위닝DB) / `:94-104`(과거 수행) /
+    //    `:186-188`(프롬프트)). 즉 `현재 과목: 과학 / 고급 생명과학` · `학년: 고1 1학기`가
+    //    임베딩되는 것이 원문이다.
+    //
+    //    여기서는 §8.3 결정 ㄴ에 따라 컬럼을 분리 저장하므로(`grade_label`/`semester`,
+    //    `subject_group`/`subject`) 결합은 **사용 시점**에 한다. 프롬프트 쪽은 이미
+    //    `buildTopicRecommendationUser`가 `' / '`·`' '`로 결합하고 있으므로(prompts.js),
+    //    RAG에도 같은 값을 넘겨야 ⓐ 임베딩 문자열이 원문과 일치하고 ⓑ 같은 요청 안에서
+    //    프롬프트와 검색이 같은 과목 표기를 본다. 맨 과목명만 임베딩하면 질의문 템플릿만
+    //    원문이고 실제 벡터가 달라져, `knowledge.js`가 "튜닝된 그 조건 그대로"라고 못박은
+    //    threshold 0.50/0.48의 전제가 무너진다.
+    //
+    //    RPC 인자·정규화 결과는 바뀌지 않는다 — `getBaseGradeForRpc('고1 1학기') === '고1'`
+    //    (knowledge.js:270), `normalizeSubject('과학 / 고급 생명과학') === '과학'`(같은 파일
+    //    `:93`, 공백 제거 후 substring 매칭이라 결합형도 같은 교과군을 돌려준다).
+    //    바뀌는 것은 임베딩 입력 문자열뿐이다.
+    const ragSubject = [sessionRow.subject_group, subject]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' / ');
+
+    const ragGrade = [gradeLabel, String(sessionRow.semester || '').trim()]
+      .filter(Boolean)
+      .join(' ');
 
     // ── RAG 2소스. 둘 다 **프롬프트 보조 입력**이라 비어도 진행한다(dev 지식베이스가
     //    0행이면 `관련 위닝DB 항목 없음`이 렌더되는 것이 정상이다).
@@ -400,8 +537,8 @@ export default async function handler(req, res) {
     //    `profileId` 누락은 프로그래밍 오류로 던지므로 여기서만 감싼다.
     const knowledge = await loadDynamicAssessmentKnowledge({
       supabase: supabaseAdmin,
-      grade: gradeLabel,
-      subject,
+      grade: ragGrade,
+      subject: ragSubject,
       career,
       selectedTopic: previousTopic,
       assessmentInfo: assessmentText,
@@ -418,8 +555,8 @@ export default async function handler(req, res) {
       studentSessions = await loadRelevantStudentSessions({
         supabase: supabaseAdmin,
         profileId: userId,
-        grade: gradeLabel,
-        subject,
+        grade: ragGrade,
+        subject: ragSubject,
         career,
         selectedTopic: previousTopic,
         assessmentInfo: assessmentText
@@ -432,6 +569,11 @@ export default async function handler(req, res) {
       topicKnowledgeText: knowledge.text,
       studentHistoryText: formatRelevantStudentSessionsForPrompt(
         studentSessions.slice(0, STUDENT_HISTORY_PROMPT_LIMIT),
+        // **여기만 맨 `subject`다(결합값 금지).** 이 인자는 검색 질의문이 아니라
+        // `performance_session_vectors.subject`와의 **등가 비교** 대상이고
+        // (knowledge.js `sameSubject = r.subject === currentSubject`), 그 컬럼은
+        // `subject_group`과 별도로 맨 과목명을 담는다(sql/54 1-8). 결합값을 넘기면
+        // `현재 과목과의 관계: 같은 과목` 판정이 영구히 false가 된다.
         subject
       )
     });
@@ -677,3 +819,18 @@ export default async function handler(req, res) {
     return fail(res, 500, 'INTERNAL', '주제 추천에 실패했습니다.');
   }
 }
+
+// ── 실행 시간 (형제 라우트와 동일)
+//    `MODEL_TIMEOUT_MS`(50초)는 **`maxDuration: 60`을 전제로 잡은 총 예산**이다. 이 선언이
+//    없으면 Fluid compute가 꺼진 프로젝트의 기본 실행시간(Hobby 10초 / Pro 15초)이 적용돼
+//    50초 AbortController는 발화조차 못 하고 플랫폼이 먼저 함수를 죽인다. 그러면
+//      ① gemini-2.5-flash가 주제 3건 × 6섹션 장문을 만드는 **통상 경로**가 본문 없는 504로
+//         끊겨 `src/lib/performance/topics.js`의 `response.json().catch(()=>null)`이 null이
+//         되고 code='UNKNOWN'으로 떨어진다 — 원인이 사용자에게도 로그에도 남지 않는다.
+//      ② 모델이 14초대에 돌아온 경우가 더 나쁘다. `consume_performance_credit`은 자체
+//         트랜잭션으로 이미 커밋됐는데 직후 `performance_topics` INSERT나 응답 직렬화 중
+//         함수가 죽으면 사용자는 **차감만 당하고 주제 0건 + 504**를 받는다(재시도하면
+//         `already_charged`로 복구되지만, 상단 주석이 계약이라 선언한 "플랫폼이 함수를
+//         죽이기 전에 우리가 응답을 만들어 돌려준다"가 성립하지 않는다).
+//    `analyze-guide.js` / `admin-embed.js` / `cleanup-attachments.js`와 같은 60초를 쓴다.
+export const config = { runtime: 'nodejs', maxDuration: 60 };

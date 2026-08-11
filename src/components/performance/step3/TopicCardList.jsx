@@ -39,7 +39,9 @@ import TopicCard from './TopicCard';
  * @param {number} [maxRounds] 라운드 상한. 기본 3(§9.3).
  * @param {(topic: object) => void} [onDetail] 카드 클릭 → 상세 모달(P9). `onSelect`는 없다(§11.1 Q48).
  * @param {() => void} [onRegenerate] `다른 주제 다시 추천`.
- * @param {boolean} [regenerating] 재추천 요청 진행 중.
+ * @param {boolean} [regenerating] 재추천 요청 진행 중. 호출부(`PerformanceChatPage`)가
+ *   `topicPhase`를 `'loading'`으로 바꾸는 대신 이 플래그를 켠다 — 그래야 카드 3장과 이
+ *   버튼이 타임라인에 그대로 남아 **포커스가 유지되고**, 로딩 버블은 그 아래에 덧붙는다.
  * @param {boolean} [roundLimited] 서버가 `409 ROUND_LIMIT`을 돌려준 뒤 켜진다.
  * @param {string|null} [error] 재추천 실패 안내(모델 원문이 아니라 사람이 읽을 문구).
  */
@@ -55,18 +57,43 @@ export default function TopicCardList({
 }) {
   const limitReached = roundLimited || round >= maxRounds;
 
+  // 버튼을 잠그는 두 사유. **`disabled` 속성 대신 `aria-disabled`를 쓴다** — 포커스를 가진
+  // 버튼이 `disabled`가 되면 브라우저가 포커스를 `<body>`로 떨어뜨려서, 방금 이 버튼을
+  // 누른 키보드 사용자가 위치를 잃고 Tab을 처음부터 다시 밟아야 한다. `aria-disabled`는
+  // 포커스를 유지한 채 보조기술에 "비활성"을 알리므로, 대신 클릭 핸들러에서 막는다.
+  const locked = limitReached || regenerating;
+
+  function handleRegenerateClick() {
+    if (locked) return;
+    onRegenerate?.();
+  }
+
   return (
     <div className="flex w-full max-w-perf-bubble flex-col gap-5">
-      {topics.map((topic, index) => (
-        <TopicCard key={topic.id ?? index} index={index + 1} topic={topic} onDetail={onDetail} />
-      ))}
+      {/* 카드 3장은 **목록**이다. 형제 `div`로 늘어놓으면 스크린리더에 서로 무관한 버튼
+          3개로 읽혀 "항목 3개 / 지금 몇 번째"라는 문맥이 통째로 사라진다. 재추천 버튼과
+          상한 안내가 같은 컨테이너에 있어 바깥을 리스트로 승격할 수는 없으므로 카드만
+          감싼다. 바깥 `gap-5`가 그대로 마지막 카드↔버튼 1.25rem을 유지하므로 세로 리듬은
+          변하지 않는다. Tailwind preflight가 `list-style: none`을 걸면 Safari/VoiceOver가
+          리스트 롤을 떼어 버리므로 `role="list"`를 명시한다. */}
+      <ul role="list" className="flex flex-col gap-5">
+        {topics.map((topic, index) => (
+          <li key={topic.id ?? index} className="w-full">
+            <TopicCard index={index + 1} topic={topic} onDetail={onDetail} />
+          </li>
+        ))}
+      </ul>
 
       <div className="flex flex-col gap-2">
         <button
           type="button"
-          onClick={onRegenerate}
-          disabled={limitReached || regenerating}
-          className="flex h-10 w-[8.125rem] items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors hover:border-ink-sub disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-performance-line"
+          onClick={handleRegenerateClick}
+          aria-disabled={locked}
+          aria-busy={regenerating}
+          className={[
+            'flex h-10 w-[8.125rem] items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors',
+            locked ? 'cursor-not-allowed opacity-50' : 'hover:border-ink-sub'
+          ].join(' ')}
         >
           다른 주제 다시 추천
         </button>
