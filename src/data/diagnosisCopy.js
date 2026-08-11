@@ -8,8 +8,8 @@
 //   03_진단서술   NARRATIVE_COPY   P1 6영역 × 4상태 × 2필드(title·body)          =  48
 //   04_서비스     SERVICE_COPY     6서비스 × 3강도 + 6 × 4태그                    =  42
 //   05_구간_공통  ADMISSION_BAND_COPY 4 + PAGE_GRADE_COPY 10 + URGENCY_COPY 4
-//                 + COMMON_COPY 19 + TEMPLATE_COPY 18                             =  55
-//   01~05 합계                                                                    = 341
+//                 + COMMON_COPY 19 + TEMPLATE_COPY 20                             =  57
+//   01~05 합계                                                                    = 343
 //   06_금지어     BANNED_PHRASES   6유형 · 금지표현                                =  22
 //
 // 개수에 포함되지 않는 것(시트의 '키/구분' 열을 코드로 옮긴 식별자이지 문구가 아니다):
@@ -721,7 +721,7 @@ export const COMMON_COPY = {
   SKIP_NOTE: '일부 항목을 건너뛴 경우 해당 영역은 나머지 응답을 기준으로 산출됩니다.'
 }
 
-// 05 시트 '템플릿' 구분 18개. 점(.)이 든 키는 시트 표기를 그대로 유지한다(TOKEN_SCOPE 키와 1:1 대응).
+// 05 시트 '템플릿' 구분 20개(Q-29 확정으로 18 → 20). 점(.)이 든 키는 시트 표기를 그대로 유지한다(TOKEN_SCOPE 키와 1:1 대응).
 export const TEMPLATE_COPY = {
   headline: '{name} 학생, {head}',
   section_traits: '{name} 학생의 주요 학습 특성',
@@ -731,6 +731,10 @@ export const TEMPLATE_COPY = {
   'card_school.sub': '{grade} 단계',
   'card_urgent.title': '가장 시급한 영역',
   'card_urgent.sub': '목표까지 {gap}점 부족',
+  // Q-29 확정(2026-08-11, D1 사용자 승인) — 문구집 원문 출처가 아니라 신규 승인 문구다.
+  // gap<=0(모든 영역이 목표 점수 도달)일 때 card_urgent 제목·부제를 이 두 문장으로 동시 교체한다.
+  'card_goal_met.title': '가장 낮은 영역',
+  'card_goal_met.sub': '모든 영역이 목표 점수에 도달했습니다',
   page2_summary: '{high} 영역은 안정적으로 관리되고 있으나, {low} 영역을 목표 전형으로 연결하는 과정이 우선 보완 대상입니다.',
   admission_headline: '합격 가능성 예측 {prob}%',
   admission_source: '{university} {major} · {type} · {year}학년도 최종등록자 기준',
@@ -817,11 +821,10 @@ export const BANNED_PHRASES = [
 
 /**
  * 원본 문구집에 대응 문장이 없어 잠정으로 둔 사용자 노출 문자열.
- * 01~05 문구(341개)와 섞으면 CASE-10 개수 검산이 어긋나므로 반드시 이 객체 안에만 둔다.
+ * 01~05 문구(343개)와 섞으면 CASE-10 개수 검산이 어긋나므로 반드시 이 객체 안에만 둔다.
  *
- * TODO(Q-29): 문구 발주 대기.
- *   gap <= 0(PAGE1 최저 영역이 이미 TARGET_SCORE 이상)일 때 card_urgent.sub 에 들어갈 문구가 문구집에 없다.
- *   템플릿을 그대로 쓰면 '목표까지 0점 부족' / '목표까지 -3점 부족'이 렌더된다.
+ * Q-29 확정(2026-08-11): URGENT_GOAL_REACHED 는 삭제됐다. gap<=0 일 때는 이제 TEMPLATE_COPY 의
+ * 정식 키 `card_goal_met.title`/`card_goal_met.sub` 로 제목·부제를 함께 교체한다(diagnosisReport.js).
  * TODO(Q-01): VALUE_MISSING 은 §7.2 가 gpa·희망 진로 결측에 대해 지정한 유일한 노출 폴백이다.
  *   이름(student.name) 결측용 익명형 문구 2종은 아직 발주 전이라 여기에도 없다.
  *
@@ -830,6 +833,5 @@ export const BANNED_PHRASES = [
  * 이 값을 re-export 만 한다 — 두 벌로 존재하던 상태를 없앤다.
  */
 export const COPY_FALLBACK = {
-  URGENT_GOAL_REACHED: '목표 수준 도달',
   VALUE_MISSING: '미입력'
 }

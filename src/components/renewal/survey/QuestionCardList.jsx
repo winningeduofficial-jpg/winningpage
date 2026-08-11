@@ -27,7 +27,10 @@ function resolveConstraint(question, answers) {
   return GRADE_SYSTEM_INPUT_RULES[code] ?? GRADE_SYSTEM_INPUT_RULES.UNKNOWN;
 }
 
-export default function QuestionCardList({ questions, answers, onAnswer, highlightedId }) {
+// cascadeLevels: q15(cascade 타입) 전용 fetch 상태(options/loading/error) — SurveyStepShell 의
+// useAdmissionCascade 가 소유하고 여기를 거쳐 AnswerField 로 내려간다(B-1 확정). 다른 문항 타입은
+// 이 prop 을 받지 않는다 — AnswerField 가 question.type === 'cascade' 일 때만 소비한다.
+export default function QuestionCardList({ questions, answers, onAnswer, highlightedId, cascadeLevels }) {
   return (
     <div className="flex w-full flex-col items-start gap-10">
       {questions.map((question) => {
@@ -35,6 +38,7 @@ export default function QuestionCardList({ questions, answers, onAnswer, highlig
         const children = surveyEmbeddedByParent[question.id] || [];
         const selectedCount = Array.isArray(value) ? value.length : 0;
         const constraint = resolveConstraint(question, answers);
+        const highlighted = question.id === highlightedId;
 
         return (
           <QuestionCard
@@ -46,12 +50,14 @@ export default function QuestionCardList({ questions, answers, onAnswer, highlig
             maxSelect={question.maxSelect}
             selectedCount={selectedCount}
             questionId={question.id}
-            highlighted={question.id === highlightedId}
+            highlighted={highlighted}
           >
             <AnswerField
               question={question}
               value={value}
               constraint={constraint}
+              highlighted={highlighted}
+              cascadeLevels={question.type === 'cascade' ? cascadeLevels : undefined}
               onChange={(nextValue) => onAnswer(question.id, nextValue)}
             />
 

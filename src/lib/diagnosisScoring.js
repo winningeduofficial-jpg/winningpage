@@ -294,11 +294,10 @@ export function convertToNineScale(gradeSystem, raw) {
  * 3. 문항 → 영역 점수 (§4.2)
  * ================================================================== */
 
-/** 모의고사 홀수 칸 → 하위 짝수 내림 (§4.2.2 · TODO(Q-09) 선형보간으로 확정되면 여기만 바꾼다). */
+/** 모의고사 입력 칸수 → 교과 관리 aux 조회 (§4.2.2 · Q-09 확정, 6키 전부 룩업). */
 function mockFillPoints(filledCount) {
   const count = Number.isInteger(filledCount) ? clamp(filledCount, 0, 6) : 0;
-  const evenCount = count - (count % 2);
-  return MOCK_FILL_POINTS[evenCount] ?? 0;
+  return MOCK_FILL_POINTS[count] ?? 0;
 }
 
 /**
@@ -577,15 +576,36 @@ export function rankServices(input, areaScores) {
  * ================================================================== */
 
 /**
- * 8종 학생 유형 판정 (Q-05).
+ * 8종 학생 유형 판정 (Q-05 확정, 2026-08-11).
  *
- * TODO(Q-05): 판정 규칙이 배점표·문구집 어디에도 없다. 값을 창작하지 않고 항상 null 을 낸다.
- * null 폴백 조립(헤드라인 = PAGE_GRADE_COPY, 먼저 할 일 3 = 최저 3영역의 need.improve)은
- * buildReport 가 소유한다 — 그래야 Q-05 확정 전에도 리포트가 조립된다.
+ * 8단 결정트리는 폐기됐다 — 배점표·문구집 어디에도 판정 기준이 없어 나머지 4종
+ * (학습체계 안정형 · 균형 점검형 · 계획 과잉·실행 취약형 · 목표–실행 불균형형)을 창작할 근거가 없다.
+ * 최저 영역 룩업 기반 4종만 최초 매치로 구현하고, 그 외 조합은 값을 창작하지 않고 null 을 낸다
+ * (null 폴백 조립은 buildReport 가 소유 — 헤드라인 = PAGE_GRADE_COPY, 먼저 할 일 3 = 최저 3영역
+ * need.improve). 8종 판정 기준은 문구집 작성자에게 조회 대기 중이며(D2), 나오면 나머지 4종을 채운다.
  *
- * 두 인자는 지금 쓰이지 않지만 §6.2 가 못박은 시그니처라 그대로 둔다. 확정되면 본문만 채운다.
+ * 최초 매치 순서:
+ *   ① 리커트 24문장(7·9번) 응답값이 전부 동일 → null. Q-16(불성실 응답)의 최소 안전판이다.
+ *   ② STABILITY < 45 → 학습 부담 누적형. 임계 45 는 배점표 영역 상태 취약 기준(§4.2.1) 그대로다.
+ *      ②가 ③~⑤(축 취약)보다 앞서는 것은 판단이다 — 부담 신호를 축 취약보다 우선한다.
+ *   ③ 최저 영역 = GOAL(목표 설정) → 방향 탐색형
+ *   ④ 최저 영역 = TIME(시간 관리) → 시간관리 취약형
+ *   ⑤ 최저 영역 = FEEDBACK(학습 피드백) → 학습방법 점검형
+ *   ⑥ 그 외(최저 영역이 PLAN·EXEC·STABILITY) → null (현행 폴백 유지)
+ * 동점 타이브레이커는 신규 규칙을 만들지 않고 sortByScoreAsc 의 기존 area 고정 순서를 그대로 쓴다.
+ * 창작 상수 0개.
  */
 export function classifyStudentType(input, areaScores) {
+  const likert = { ...(input?.likert1 ?? {}), ...(input?.likert2 ?? {}) };
+  const answered = Object.values(likert).filter((value) => isUsableNumber(value));
+  if (answered.length > 0 && answered.every((value) => value === answered[0])) return null;
+
+  if (scoreOf(areaScores, 'STABILITY') < 45) return 'BURDEN_ACCUM';
+
+  const [lowest] = sortByScoreAsc(PAGE1_AREAS, areaScores);
+  if (lowest === 'GOAL') return 'DIRECTION_SEEK';
+  if (lowest === 'TIME') return 'TIME_WEAK';
+  if (lowest === 'FEEDBACK') return 'METHOD_REVIEW';
   return null;
 }
 
@@ -608,26 +628,29 @@ export function admissionMasterKey(schoolType) {
  * 합격 구간 (§4.6 · CASE-04 · CASE-04b · Q-28).
  * mine 이 컷과 정확히 같으면 상위 구간으로 귀속한다(`<=`).
  *
+ * Q-28 확정(2026-08-11) — 배점표 04는 '70%컷만 있을 때' 열의 안정 경계를 `70%컷 − 0.30`
+ * 으로 정의하며 이는 `cut50 ≡ cut70 − 0.30` 의 대입이다. 이 결측 대체 항등식(및 그 역
+ * `cut70 ≡ cut50 + 0.30`)을 그대로 반영해 4단 사다리 1벌로 통합한다. 둘 다 결측일 때만
+ * null(BAND_NODATA) — 그 외에는 cut50 단독도 정상 산출된다.
+ *
  * @returns {'STABLE'|'FIT'|'REACH'|'RISK'|null} null 은 BAND_NODATA 노출 신호다
  */
 export function admissionBand(mine, cuts) {
   if (!isUsableNumber(mine)) return null;
   const cut50 = isUsableNumber(cuts?.cut50) ? cuts.cut50 : null;
   const cut70 = isUsableNumber(cuts?.cut70) ? cuts.cut70 : null;
+  if (cut50 == null && cut70 == null) return null;
 
-  if (cut50 != null && cut70 != null) {
-    if (mine <= cut50) return 'STABLE';
-    if (mine <= cut70) return 'FIT';
-    return mine <= cut70 + ADMISSION_MARGIN ? 'REACH' : 'RISK';
-  }
-  if (cut70 != null) {
-    if (mine <= cut70 - ADMISSION_MARGIN) return 'STABLE';
-    if (mine <= cut70) return 'FIT';
-    return mine <= cut70 + ADMISSION_MARGIN ? 'REACH' : 'RISK';
-  }
-  // cut50 단독(Q-28) · 둘 다 없음 → 값을 창작하지 않는다. rev.1 코드는 이 경로에서
-  // `3.24 <= null` 이 false 로 평가돼 안정권 학생을 무조건 '위험'으로 표시했다.
-  return null;
+  // 컷은 DB numeric(4,2) 라 .8 류 끝자리가 흔하고, JS 부동소수점 덧뺄셈은 정확하지 않다
+  // (2.8 + 0.3 === 3.0999999999999996). 항등식 대입 직후 소수 2자리로 정규화해 경계에
+  // 정확히 걸친 학생이 부동소수점 오차로 잘못된 밴드를 받지 않게 한다. roundHalfUp 재사용
+  // — 새 반올림 헬퍼를 두지 않는다(모듈 서두 계약 2).
+  const c50 = roundHalfUp(cut50 ?? cut70 - ADMISSION_MARGIN, 2);
+  const c70 = roundHalfUp(cut70 ?? cut50 + ADMISSION_MARGIN, 2);
+  const reach = roundHalfUp(c70 + ADMISSION_MARGIN, 2);
+  if (mine <= c50) return 'STABLE';
+  if (mine <= c70) return 'FIT';
+  return mine <= reach ? 'REACH' : 'RISK';
 }
 
 /**

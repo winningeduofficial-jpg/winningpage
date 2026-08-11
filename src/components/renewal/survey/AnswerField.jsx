@@ -14,7 +14,14 @@ const CHIP_LAYOUT_QUESTION_IDS = new Set(['q13', 'q14', 'q16', 'q17', 'q18']);
 
 // `constraint` 는 형제 문항 응답에서 파생된 입력 규격(§3.4)이다. 현재는 grade-grid 만 소비하지만
 // 다른 타입으로 확장될 수 있어 시그니처에 단일 prop 으로 열어 둔다(QuestionCardList 가 유일한 생산자).
-export default function AnswerField({ question, value, constraint, onChange }) {
+// `highlighted` 는 QuestionCard 의 카드 단위 하이라이트와 동일 신호다(Q-10) — likert 만 소비해
+// 문장 단위 미응답 표시를 켠다.
+// `cascadeLevels` 는 cascade 타입(q15) 전용이다(B-1 확정) — SurveyStepShell 의 useAdmissionCascade
+// 가 채운 options/loading/error 를 담은 level 배열이며, QuestionCardList 가 유일한 생산자다.
+// 문항 데이터의 `question.extra.levels`(라벨/플레이스홀더만 있는 정적 배열)를 안전망으로 남긴다 —
+// 훅이 아직 값을 못 낸 첫 렌더나 향후 다른 렌더 경로에서 undefined 로 넘어와도 빈 배열 대신
+// 라벨은 보이는 상태로 떨어진다.
+export default function AnswerField({ question, value, constraint, highlighted = false, cascadeLevels, onChange }) {
   const chipLayout = CHIP_LAYOUT_QUESTION_IDS.has(question.id);
 
   switch (question.type) {
@@ -46,6 +53,7 @@ export default function AnswerField({ question, value, constraint, onChange }) {
           statements={question.extra?.statements}
           scale={question.extra?.scale}
           value={value ?? {}}
+          highlighted={highlighted}
           onChange={onChange}
         />
       );
@@ -60,7 +68,11 @@ export default function AnswerField({ question, value, constraint, onChange }) {
       );
     case 'cascade':
       return (
-        <CascadingSelect levels={question.extra?.levels} value={value ?? {}} onChange={onChange} />
+        <CascadingSelect
+          levels={cascadeLevels ?? question.extra?.levels}
+          value={value ?? {}}
+          onChange={onChange}
+        />
       );
     case 'text':
       return (

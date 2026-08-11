@@ -77,6 +77,10 @@ export function parseStepParam(raw) {
  */
 export function isQuestionAnswered(question, value) {
   if (!isAnswered(question?.type, value)) return false;
+  // Q-10 확정(2026-08-11) — 리커트는 12문장 전부 응답해야 통과한다(진행 게이트, 분모 산식은 무변경).
+  // extra.statements 가 문장 키의 정본이라 개수를 여기서 재선언하지 않고 그대로 참조한다.
+  if (question?.type === 'likert')
+    return Object.keys(value ?? {}).length >= (question.extra?.statements?.length ?? 0);
   const required = question?.requiredFields;
   if (!Array.isArray(required) || required.length === 0) return true;
   return required.every((key) => value?.[key] !== '' && value?.[key] != null);

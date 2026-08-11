@@ -55,7 +55,6 @@ import {
 import {
   AREA_CODES,
   AREA_LABEL,
-  BADGES,
   LEVEL_LABEL,
   PAGE1_AREAS,
   PAGE2_AREAS,
@@ -186,7 +185,8 @@ function formatDiagnosedAt(value) {
 
 /**
  * 헤드라인(§5.2 headline · §7.2).
- * 유형 판정이 미확정(Q-05)이라 head 는 상시 null 이고, 그때는 PAGE1 종합 등급 문구로 떨어진다.
+ * Q-05 확정(2026-08-11) — 유형 판정 4종만 구현됐다. 나머지 조합은 head 가 null 이고,
+ * 그때는 PAGE1 종합 등급 문구로 떨어진다.
  * 이름도 미수집(Q-01)이라 '{name} 학생, ' 접두는 통째로 빠진다 — 토큰 원문이 화면에 도달하면 안 된다.
  */
 function buildHeadlineLines(input, areaScores, page1Level) {
@@ -206,19 +206,21 @@ function buildHeadlineLines(input, areaScores, page1Level) {
  */
 function buildLearningAxes(areaScores) {
   const badgeByCode = new Map(priorityBadges(areaScores).map((row) => [row.code, row.badge]));
-  const keepBadge = BADGES[BADGES.length - 1]; // '유지' — need.keep 분기 조건(§5.1 · Q-06)
 
   return PAGE1_AREAS.map((code) => {
     const score = areaScores[code] ?? 0;
     const badge = badgeByCode.get(code);
     const need = areaCopy(code)?.need;
+    const state = stateOf(score);
     return {
       name: AREA_LABEL[code],
       score,
       badge,
-      status: STATE_LABEL.page1[stateOf(score)],
+      status: STATE_LABEL.page1[state],
       tone: toneOf(score),
-      need: (badge === keepBadge ? need?.keep : need?.improve) ?? COPY_FALLBACK.VALUE_MISSING
+      // W2 확정(2026-08-11) — 뱃지는 배점표대로 상대 순위 유지, '필요한 것' 조언만 절대 임계
+      // (70점 이상 = TOP)로 분기한다. 순위와 조언 축을 분리한다(문구집 03_진단서술 어휘 규율).
+      need: (state === 'TOP' ? need?.keep : need?.improve) ?? COPY_FALLBACK.VALUE_MISSING
     };
   });
 }
@@ -241,11 +243,13 @@ function buildSummaryCards(page1Overall, page2Overall, gap) {
       )
     },
     {
-      label: templateCopy('card_urgent.title'),
+      // Q-29 확정(2026-08-11) — gap <= 0(모든 영역이 목표 점수 도달)이면 제목·부제를
+      // card_goal_met 전용 키로 함께 교체한다. '가장 시급한 영역'이라 써 놓고 바로 아래에서
+      // '도달했다'고 말하는 자기모순을 막는다.
+      label: gap.reached ? templateCopy('card_goal_met.title') : templateCopy('card_urgent.title'),
       value: gap.lowestName,
-      // gap <= 0 이면 '목표까지 0점 부족'이 렌더된다 — 문구집에 대응 문장이 없어 폴백으로 막는다(A5 · Q-29).
       sub: gap.reached
-        ? COPY_FALLBACK.URGENT_GOAL_REACHED
+        ? templateCopy('card_goal_met.sub')
         : fill(templateCopy('card_urgent.sub'), { gap: gap.gap }, 'card_urgent.sub')
     }
   ];

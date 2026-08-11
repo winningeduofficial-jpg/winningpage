@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 /**
  * LikertMatrix
  * Figma: hsokTD6OilcNEXyCR24sn4 / 1889:9533 (Q9), 1889:9866 프레임 (Q11) — 12문장 × 5척도
@@ -27,6 +29,12 @@
  * 반응형 게이트 (§9-A5):
  *   ≥1024  데스크톱 매트릭스 (fr 배분이 성립하는 최소 폭 — 척도 컬럼 80.7px)
  *   <1024  문장 단위 카드 분해 (가로 스크롤 금지 — 척도 헤더가 시야에서 사라진다)
+ *
+ * 문장 단위 미응답 표시 (Q-10 확정, 2026-08-11):
+ *   12문장 전체 응답이 진행 게이트라(renewalSurvey.isQuestionAnswered), 카드 단위 하이라이트
+ *   (useUnansweredNavigation, QuestionCard 앰버 링 3초)만으로는 12문장 중 어느 것이 비었는지
+ *   보이지 않는다. `highlighted`(= 이 카드가 지금 스크롤 대상)일 때 미응답 문장 행에 같은 앰버
+ *   톤을 추가로 얹고, 카드 스크롤에 이어 첫 미응답 문장으로 한 번 더 스크롤한다.
  */
 const DEFAULT_SCALE = [
   '매우 그렇다',
@@ -66,13 +74,34 @@ export default function LikertMatrix({
   statements = [],
   scale = DEFAULT_SCALE,
   value = {},
+  highlighted = false,
   onChange
 }) {
   const rows = statements.map(normalizeStatement);
+  const missingKeys = new Set(rows.filter((row) => value[row.key] == null).map((row) => row.key));
+  const firstMissingKey = rows.find((row) => missingKeys.has(row.key))?.key ?? null;
+  const rowRefs = useRef({});
+
+  // 카드가 스크롤 대상이 되는 순간, 12문장 중 실제로 빈 문장으로 한 번 더 좁혀 스크롤한다 —
+  // 카드는 보여도 문장이 길어 스크롤 없이는 어느 행이 비었는지 눈에 안 들어온다.
+  // 데스크톱/모바일 두 레이아웃이 항상 함께 마운트돼 있으므로(§9-A5, hidden 클래스로만 전환)
+  // ref 는 뷰포트별로 따로 받아 두고 실제로 화면에 보이는(offsetParent 존재) 쪽만 스크롤한다.
+  useEffect(() => {
+    if (!highlighted || firstMissingKey == null) return undefined;
+    const entry = rowRefs.current[firstMissingKey];
+    const node = entry?.desktop?.offsetParent ? entry.desktop : entry?.mobile;
+    if (!node) return undefined;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    node.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+  }, [highlighted, firstMissingKey]);
 
   function handleSelect(rowKey, columnIndex) {
     if (!onChange) return;
     onChange({ ...value, [rowKey]: columnIndex });
+  }
+
+  function rowHighlightClass(rowKey) {
+    return highlighted && missingKeys.has(rowKey) ? 'bg-[#FFF7E6]' : '';
   }
 
   return (
@@ -99,9 +128,12 @@ export default function LikertMatrix({
           {rows.map((row, rowIndex) => (
             <div key={row.key}>
               <div
+                ref={(node) => {
+                  rowRefs.current[row.key] = { ...rowRefs.current[row.key], desktop: node };
+                }}
                 role="radiogroup"
                 aria-label={row.text}
-                className="grid h-10 items-center"
+                className={`grid h-10 items-center rounded-lg transition-colors duration-700 ${rowHighlightClass(row.key)}`}
                 style={{ gridTemplateColumns: GRID_TEMPLATE }}
               >
                 <p className="break-keep pr-8 text-sm font-normal leading-5 text-[#525252]">
@@ -146,7 +178,15 @@ export default function LikertMatrix({
           가로 스크롤은 척도 헤더가 시야에서 사라지므로 쓰지 않는다 — 카드마다 척도 라벨을 재노출한다. */}
       <div className="flex flex-col gap-3 lg:hidden">
         {rows.map((row) => (
-          <div key={row.key} className="rounded-2xl border border-[#EDEDED] bg-white p-4">
+          <div
+            key={row.key}
+            ref={(node) => {
+              rowRefs.current[row.key] = { ...rowRefs.current[row.key], mobile: node };
+            }}
+            className={`rounded-2xl border border-[#EDEDED] p-4 transition-colors duration-700 ${
+              highlighted && missingKeys.has(row.key) ? 'bg-[#FFF7E6]' : 'bg-white'
+            }`}
+          >
             <p className="mb-3 break-keep text-base leading-6 text-[#525252]">{row.text}</p>
             {/* items-stretch: 라벨 줄 수(375 기준 1~3줄)가 달라도 5칸 버튼 높이가 최장 라벨로 통일된다.
                 items-start 였을 때 73.5 / 73.5 / 59.75 / 87.25 / 87.25 로 27.5px 편차가 났다.
