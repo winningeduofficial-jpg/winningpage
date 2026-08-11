@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useModalBehavior } from '../../hooks/useModalBehavior';
 
 // 목표관리 앱 모달 6종 공용 셸 — docs/figma-goal/00-INDEX.md §5-4 `AppModal` / §6-3 "모달 규격(전 6종 공통)".
 // 이번 범위는 3종(과제 추가/중요일정 등록/모의고사 성적 추가)이지만, 폭 33.125rem + 좌우패딩
@@ -11,10 +12,13 @@ import { X } from 'lucide-react';
 // 열릴 때 첫 포커서블로 포커스 이동, 닫힐 때 트리거로 포커스 복귀까지 전부 이 셸이 담당한다
 // (시안엔 전혀 표현되지 않은 접근성 요구사항 — 00-INDEX.md §8-4 마지막 줄 근거).
 //
+// **동작 로직(위 4가지)은 `useModalBehavior`(src/hooks/useModalBehavior.js)로 옮겼다.** 그
+// 훅이 "닫힌 채 언마운트되는 경우에도 포커스 복귀"(스크롤 잠금과 같은 cleanup에 묶은 이유)를
+// 포함해 아래 동작 전부를 그대로 담당한다 — 수행평가 앱 주제 상세 모달(§5.11)이 프레젠테이션
+// 없이 이 동작만 재사용하기 때문에 분리했다. 이 파일은 이제 프레젠테이션(마크업·스타일)만 갖는다.
+//
 // 높이는 모달마다 다르다(468/574/574, part-06/07/08). 고정 height를 주지 않고 내용에 따라
 // 자라게 두고, max-h + overflow-y-auto로 뷰포트 초과만 방지한다.
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function AppModal({
   open,
@@ -30,75 +34,12 @@ export default function AppModal({
   className = ''
 }) {
   const panelRef = useRef(null);
-  const triggerElRef = useRef(null);
   const titleId = useId();
 
-  // 배경 스크롤 잠금 + 포커스 복귀(코드 검수 §5). 포커스 복귀를 별도 effect의 `open: true → false`
-  // 전이에만 의존하면, 모달이 열린 채로 컴포넌트가 언마운트되는 경우(예: TimerSummaryBar의 Link로
-  // 라우트가 바뀌는 경우) 복귀 로직이 실행되지 않고 포커스가 <body>로 떨어진다. 스크롤 잠금과
-  // 같은 cleanup에 묶어 언마운트 시에도 항상 실행되게 한다.
-  useEffect(() => {
-    if (!open) return undefined;
-
-    triggerElRef.current = document.activeElement;
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
-
-    return () => {
-      style.overflow = previousOverflow;
-      const trigger = triggerElRef.current;
-      if (trigger instanceof HTMLElement) {
-        trigger.focus();
-      }
-      triggerElRef.current = null;
-    };
-  }, [open]);
-
-  // 열릴 때 패널 내 첫 포커서블 엘리먼트로 포커스 이동.
-  useEffect(() => {
-    if (!open) return undefined;
-    const raf = requestAnimationFrame(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const first = panel.querySelector(FOCUSABLE_SELECTOR);
-      first?.focus();
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [open]);
-
-  // ESC 닫기 + Tab focus trap.
-  useEffect(() => {
-    if (!open) return undefined;
-
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR));
-      if (focusables.length === 0) return;
-
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  // ESC 닫기 + Tab focus trap + 배경 스크롤 잠금 + 포커스 이동/복귀 — 전부
+  // `useModalBehavior`(src/hooks/useModalBehavior.js)가 담당한다. 동작은 이전과 완전히
+  // 동일하다(그대로 옮긴 것이라 여기 다시 설명하지 않는다 — 근거는 그 훅 파일 참고).
+  useModalBehavior({ open, onClose, panelRef });
 
   if (!open) return null;
 
