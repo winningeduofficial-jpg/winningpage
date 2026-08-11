@@ -347,6 +347,16 @@ export default function PerformanceChatPage() {
     void requestTopics({ isRegenerate: true });
   }
 
+  /**
+   * 소진-해제(`dismissed`)·실패(`failed`) 카드의 `주제 추천 다시 시도` 버튼 공통 핸들러.
+   * `handleRegenerate`와 같은 가드를 쓴다 — 리렌더 전 연타로 `requestTopics`가 중복
+   * 발사되면 모델이 2회 호출되고 `topic_attempt_count`가 이중으로 오른다.
+   */
+  function handleRetryTopics() {
+    if (topicPhase === 'loading' || topicRegenerating) return;
+    void requestTopics();
+  }
+
   /** `나중에 하기`(§5.20) — 카드만 닫는다. 세션도 입력값도 건드리지 않는다. */
   function handleQuotaDismiss() {
     setTopicPhase('dismissed');
@@ -518,7 +528,7 @@ export default function PerformanceChatPage() {
       body: QUOTA_DISMISSED_COPY,
       // 다른 탭에서 이용권을 결제하고 돌아오는 경로가 실제로 있다 — 그때 새로고침 없이
       // 이어갈 수 있게 재시도 버튼을 남긴다. 회차가 그대로면 다시 소진 카드로 돌아간다.
-      children: <RetryButton onClick={() => requestTopics()}>주제 추천 다시 시도</RetryButton>
+      children: <RetryButton onClick={handleRetryTopics}>주제 추천 다시 시도</RetryButton>
     });
   }
 
@@ -530,7 +540,7 @@ export default function PerformanceChatPage() {
       body: topicError || '주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.',
       // 상한(`ROUND_LIMIT`)에 걸린 실패는 다시 눌러도 같은 결과라 재시도를 권하지 않는다.
       children: topicRoundLimited ? null : (
-        <RetryButton onClick={() => requestTopics()}>주제 추천 다시 시도</RetryButton>
+        <RetryButton onClick={handleRetryTopics}>주제 추천 다시 시도</RetryButton>
       )
     });
   }
