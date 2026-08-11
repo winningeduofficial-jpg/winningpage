@@ -40,11 +40,45 @@ function normalizeStatus(value) {
   return clean(value).toLowerCase().replace(/\s/g, '');
 }
 
+// 부정 신호 — 이 중 하나라도 부분 일치하면 즉시 미결제/비활성으로 본다.
+// 순수 부분 일치만 쓰면 '완납예정'.includes('완납'), '결제완료취소'.includes('결제완료'),
+// '이용중지'.includes('이용중') 처럼 부정 상태가 긍정으로 잘못 읽힌다. 부정 신호를
+// 먼저 걸러야 이 함정을 막는다. '납부대기'가 '대기'를 포함해 거부되는 것도
+// 의도한 동작이다(기본값이 결제완료로 읽히면 안 된다).
+const NEGATIVE_STATUS_SIGNALS = [
+  '미납',
+  '미결제',
+  '취소',
+  '환불',
+  '만료',
+  '중지',
+  '정지',
+  '대기',
+  '보류',
+  '해지',
+  '실패',
+  '거절',
+  '반려',
+  '예정',
+  '비활성',
+  '비정상'
+];
+
 export function isPaidStatus(value) {
   const status = normalizeStatus(value);
+  if (!status) return false;
+  if (NEGATIVE_STATUS_SIGNALS.some((item) => status.includes(item))) return false;
+
+  // program_access.payment_status는 CHECK 제약으로 영문 enum이 강제된다
+  // (unpaid/pending/paid/refunded/cancelled). 부분 일치를 쓰면
+  // 'unpaid'.includes('paid') === true 가 되어 미결제가 결제완료로 판정된다 —
+  // 그래서 영문은 정확 일치만 인정한다.
+  if (status === 'paid') return true;
+
+  // admin_enrollments.payment_status는 CHECK가 없는 어드민 자유 입력이라
+  // 한글 표기가 다양하게 들어온다. 위에서 부정 신호를 먼저 걸렀으므로
+  // 여기서는 부분 일치로 허용해도 안전하다.
   return [
-    'paid',
-    'active',
     '완납',
     '납부완료',
     '결제완료',
@@ -56,8 +90,19 @@ export function isPaidStatus(value) {
 
 export function isActiveStatus(value) {
   const status = normalizeStatus(value);
+  // 상태 미기입은 활성으로 본다. admin_enrollments에는 access_status
+  // 개념이 없어 이 값이 아예 비어서 넘어오는 경로가 있다 — 여기서 거부로
+  // 바꾸면 그 경로를 쓰는 기존 이용자가 막힌다. 그대로 유지한다.
   if (!status) return true;
-  return ['active', '활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
+  if (NEGATIVE_STATUS_SIGNALS.some((item) => status.includes(item))) return false;
+
+  // program_access.access_status도 CHECK 제약으로 영문 enum이 강제된다
+  // (inactive/active/expired/suspended). 부분 일치를 쓰면
+  // 'inactive'.includes('active') === true 가 되어 비활성이 활성으로
+  // 판정된다 — 그래서 영문은 정확 일치만 인정한다.
+  if (status === 'active') return true;
+
+  return ['활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
 }
 
 /** Authorization: Bearer <token> 헤더에서 토큰만 뽑는다. */
