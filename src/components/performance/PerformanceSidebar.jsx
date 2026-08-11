@@ -107,12 +107,13 @@ export default function PerformanceSidebar({
           텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
           현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
       <div className="min-h-[9.4375rem] px-perf-inset pt-[6.25rem]">
-        {/* 문구 정본 미확정(§11 Q79 — 「수행평가 화면인데 다른 제품(목표관리) 문구」가 미결로
-            남아 있다). 명세가 대체 문구를 정하지 않았으므로 **시안 원문을 그대로** 쓴다.
-            Q79가 `{이름}의 수행평가`로 확정되면 이 한 줄만 바꾼다. */}
+        {/* §11 Q79 확정: 이 화면은 수행평가 앱(/app/performance)이고 목표관리는 별개
+            제품이다. 시안 원문 `목표관리`는 목표관리 시안에서 셸을 가져온 흔적으로 보이며,
+            사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
+            우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
           <p className="text-[1.25rem] font-semibold leading-[1.625rem] text-ink-sub">
-            {profileName}의 목표관리
+            {profileName}의 수행평가
           </p>
         )}
         {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
