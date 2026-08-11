@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from '../../context/SessionContext';
 import ChatTimeline from '../../components/performance/chat/ChatTimeline';
 import AiLoadingBubble from '../../components/performance/chat/AiLoadingBubble';
@@ -151,9 +151,18 @@ export default function PerformanceChatPage() {
   const [quotaPlanEndsAt, setQuotaPlanEndsAt] = useState(null);
 
   // ── 주제 상세 모달(§5.11, P9). 열려 있는 주제 1건만 들고 있으면 된다 — 모달은
-  //   `topicDetail`이 있을 때만 렌더한다. 카드 목록(`topics`)은 그대로 두므로 모달을 닫으면
-  //   포커스가 원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로
-  //   교체되지 않는다 — `topics` 상태가 이 사이에 바뀌지 않기 때문).
+  //   `topicDetail`이 있을 때만 렌더한다.
+  //   **닫기 경로**(ESC/딤/`다른 주제 보기`)는 카드 목록(`topics`)을 그대로 두므로 포커스가
+  //   원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로 교체되지 않는다
+  //   — `topics` 상태가 이 사이에 바뀌지 않기 때문).
+  //   **확정 경로는 다르다.** `handleConfirmTopic`이 `designPhase`를 `'loading'`으로 바꾸면
+  //   아래 STEP3 카드 렌더 조건(`designPhase === 'idle' ? … : null`)이 카드 목록을 통째로
+  //   언마운트한다 — React 18 배치로 카드 언마운트와 모달 언마운트가 같은 커밋에서 일어나므로
+  //   `useModalBehavior`의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
+  //   그래서 확정 경로는 자동 복귀에 기대지 않고 `designLoadingRef`로 새 포커스 목적지(STEP4
+  //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **P10 담당자 주의**:
+  //   이 컴포넌트에 카드 목록을 대체하는 새 렌더 트리를 추가한다면 같은 문제(트리거 detach)가
+  //   재발할 수 있으니 포커스 목적지를 반드시 함께 배선할 것.
   const [topicDetail, setTopicDetail] = useState(null);
 
   // ── STEP4 설계 리포트 진입 자리(§5.12). **'loading'뿐이다** — 실제 `design-report` 호출과
@@ -161,6 +170,11 @@ export default function PerformanceChatPage() {
   //   있으면 카드 3장·재추천 버튼을 타임라인에서 걷고(§5.12 단정) 로딩 버블만 보여준다.
   const [designPhase, setDesignPhase] = useState('idle');
   const [confirmedTopic, setConfirmedTopic] = useState(null);
+  // `designPhase === 'loading'`으로 전이할 때 새로 나타나는 STEP4 로딩 버블로 포커스를 옮기는
+  // 데 쓴다(검토 A-2, 위 `topicDetail` 주석 참고). `ChatTimeline`에 이 ref를 `focusRef`로
+  // 넘기면 `AiLoadingBubble` 루트에 배선되고, 그 항목의 래퍼가 자동으로 `aria-live="off"`가
+  // 되어 `ChatTimeline`의 `aria-live="polite"`와 중복 낭독되지 않는다.
+  const designLoadingRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -187,6 +201,19 @@ export default function PerformanceChatPage() {
       alive = false;
     };
   }, [accessToken]);
+
+  // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
+  // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩
+  // 버블이 실제로 DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 포커스를 옮겨야 하므로
+  // `requestAnimationFrame`을 쓴다 — `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와
+  // 같은 패턴이다.
+  useEffect(() => {
+    if (designPhase !== 'loading') return undefined;
+    const raf = requestAnimationFrame(() => {
+      designLoadingRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [designPhase]);
 
   async function handleSubmit(values) {
     if (!accessToken || submitting) return;
@@ -370,6 +397,12 @@ export default function PerformanceChatPage() {
    *
    * TODO(P10): `design-report` API 호출 + 결과 렌더. 실패 처리(무차감·재시도 등)도 그때
    * 함께 설계한다 — 지금은 로딩 버블에서 더 나아가지 않는다.
+   *
+   * ⚠️ **알려진 미결 (고치지 말 것 — P10과 함께 머지)**: `designPhase`를 `'idle'`로 되돌리는
+   * 경로가 없다. 지금은 `design-report` 응답이 상태를 다음으로 진행시킬 것을 전제한 설계라
+   * 확정 후에는 새로고침 외에 벗어날 수 없다 — 이 상태는 P10 없이는 단방향이다. (서버에
+   * 반쯤 확정된 고아 행이 남지는 않는다: 네트워크 호출이 전혀 없고 `performance_topics.selected`
+   * 도 건드리지 않아 새로고침하면 흔적 없이 사라진다.)
    */
   function handleConfirmTopic(topic) {
     setConfirmedTopic(topic);
@@ -558,7 +591,9 @@ export default function PerformanceChatPage() {
     messages.push({
       id: 'step4-design-loading',
       kind: 'loading',
-      payload: PERFORMANCE_LOADING_COPY.designReport
+      payload: PERFORMANCE_LOADING_COPY.designReport,
+      // 검토 A-2 — 이 항목이 나타나는 시점에 포커스를 옮긴다(위 `designLoadingRef` 이펙트).
+      focusRef: designLoadingRef
     });
   }
 

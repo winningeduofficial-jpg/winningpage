@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import AiAvatar from './AiAvatar';
 
 // AI 로딩 카드 프리미티브 — docs/수행평가-상세-명세.md §5.3(정본 제안: "아이콘 1.5rem +
@@ -29,6 +30,11 @@ import AiAvatar from './AiAvatar';
 // 여기서 강제하지 않는다 — 타임라인 안에서 어느 시점에 라이브 리전으로 승격할지는
 // `ChatTimeline`이 메시지 히스토리 전체를 보고 결정할 몫이라, 루트에 임의 props를 그대로
 // 흘려보내 호출부가 필요할 때 얹을 수 있게만 열어 둔다.
+// **`ref`는 루트(아바타+컬럼 행)에 전달된다.** `PerformanceChatPage`가 STEP4 설계 리포트
+// 로딩 진입 시 이 카드로 포커스를 직접 옮기는 데 쓴다(검토 A-2 — 확정 경로는 카드 목록이
+// 통째로 언마운트돼 `useModalBehavior`의 트리거 복귀가 도달 불가하므로 호출부가 새 포커스
+// 목적지를 지정해야 한다). `ChatTimeline`이 메시지에 `focusRef`가 있으면 여기로 전달하고
+// `tabIndex={-1}`도 함께 준다(포커스 트랩 대상은 아니고 프로그램적 포커스 전용).
 /**
  * @param {string} title 로딩 제목. 문구 자체는 다음 단계(P7 이후)에서 이식한다 — 이 컴포넌트는
  *   형식만 만든다.
@@ -36,15 +42,12 @@ import AiAvatar from './AiAvatar';
  * @param {string} [label] 발신자 라벨. `AiMessage`와 동일 기본값.
  * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
  */
-export default function AiLoadingBubble({
-  title,
-  subtitle,
-  label = '위닝 AI 수행평가 서포터',
-  className = '',
-  ...rest
-}) {
+const AiLoadingBubble = forwardRef(function AiLoadingBubble(
+  { title, subtitle, label = '위닝 AI 수행평가 서포터', className = '', ...rest },
+  ref
+) {
   return (
-    <div className={['flex items-start gap-5', className].join(' ')} {...rest}>
+    <div ref={ref} className={['flex items-start gap-5', className].join(' ')} {...rest}>
       <AiAvatar />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
         <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">{label}</span>
@@ -65,7 +68,9 @@ export default function AiLoadingBubble({
       </div>
     </div>
   );
-}
+});
+
+export default AiLoadingBubble;
 
 function LoadingSparkle() {
   return (

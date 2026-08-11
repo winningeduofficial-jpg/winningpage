@@ -42,7 +42,14 @@ export function useModalBehavior({ open, onClose, panelRef }) {
     return () => {
       style.overflow = previousOverflow;
       const trigger = triggerElRef.current;
-      if (trigger instanceof HTMLElement) {
+      // `trigger instanceof HTMLElement`만으로는 문서에서 detach된 노드를 걸러내지 못한다
+      // (detach된 엘리먼트도 여전히 HTMLElement 인스턴스다). 예: 확정 액션이 트리거(카드)를
+      // 포함한 리스트를 통째로 언마운트하면서 같은 커밋에서 모달도 닫히는 경우, 이 cleanup이
+      // 실행되는 시점엔 이미 문서에서 떨어져 나간 노드에 `focus()`를 호출하게 되어 조용히
+      // 실패하고 포커스가 `<body>`로 떨어진다. `document.contains`로 아직 붙어 있는지 먼저
+      // 확인한다 — 그런 경로에서는 호출부가 별도로 포커스 목적지를 지정해야 한다(그 목적지
+      // 지정 책임은 이 훅이 아니라 호출부에 있다).
+      if (trigger instanceof HTMLElement && document.contains(trigger)) {
         trigger.focus();
       }
       triggerElRef.current = null;
