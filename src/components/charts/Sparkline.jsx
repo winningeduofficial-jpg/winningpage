@@ -4,6 +4,12 @@
 // "앞으로 다른 화면에도 차트를 만들 예정"을 확정하면서 재사용 가능한 차트 기반이 필요해져
 // Recharts(3.10.1)로 이관했다. prop 계약은 이관 이전과 동일하게 유지한다 — 호출부는 손대지 않는다.
 //
+// ⚠ 현재 연도 축은 2025·2026 2개년이라 이 컴포넌트는 화면에서 쓰이지 않는다.
+// 2점은 추세(trend)가 아니라 변화(change)이고, 아래 gradeDomain 최소 스팬 1.0 규칙이
+// 0.05 차이도 칸 전체로 벌려 없는 추세를 지어낸다(명세 §8.3). 2개년 화면은
+// components/charts/GradeDelta.jsx(슬로프 + Δ 배지)가 대신한다. 축이 3개년 이상으로
+// 복원되면 DetailView가 다시 이쪽으로 분기하므로 파일은 그대로 둔다(삭제 금지).
+//
 // 데이터 계약: series 생성 책임은 src/lib/admissionResults.js(buildTrackSeries)에 있다.
 // 이 컴포넌트는 그리기만 한다.
 //   series: { year: number, value: number|null, displayValue: string }[]
@@ -11,11 +17,12 @@
 //
 // 의도적으로 지키는 동작 (인라인 SVG 시절과 동일. 깨뜨리지 말 것):
 //   1. 결측 연도를 건너뛰어 잇지 않는다 — Line 기본값 connectNulls=false에 의존하되 명시한다.
+//      결측 연도가 중간에 끼면 선이 그 구간에서 끊긴다 — 없는 값을 이어 그리는 것보다 낫다.
 //   2. x축은 series 전체 길이 기준 고정 카테고리축 — 결측이어도 칸을 유지한다(value: null도 데이터에 포함).
 //   3. y축 반전 — 등급은 1이 최상이므로 작은 값이 위(YAxis reversed).
 //   4. gradeDomain() 4중 규칙(±0.4 여백 / 0.5 스냅 / [1,9] 클램프 / 최소 스팬 1.0) — YAxis domain에 직접 주입.
-//      auto-domain에 맡기지 않는다 — 4개년 값이 같으면 스팬 0이 되어 없는 추세가 생긴다.
-//   5. 값이 하나도 없으면 렌더 자체를 하지 않는다.
+//      auto-domain에 맡기지 않는다 — 모든 연도 값이 같으면 스팬 0이 되어 없는 추세가 생긴다.
+//   5. 연도가 3개 미만이거나 값 있는 점이 1개 이하면 렌더 자체를 하지 않는다.
 //   6. 결측 연도 라벨은 지우지 않고 흐리게만 둔다 — XAxis 커스텀 tick.
 //   7. 접근성 — 바깥 wrapper가 role="img" + 한국어 요약 aria-label 하나만 노출한다.
 //      Recharts 자체 accessibilityLayer(키보드 포커스 레이어)는 끈다(중복 노출 방지).
@@ -38,7 +45,12 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { CHART_COLORS, CHART_FONT_SIZE } from './chartTheme';
 
 // viewBox 시절과 같은 종횡비(400:112)를 유지해 시각 크기가 크게 달라지지 않게 한다.
+// 이 면적은 3개년 이상 꺾은선 기준이다 — 2점짜리 그림에 쓰면 데이터-잉크 비율이 최악이라
+// 2개년 축에서는 아예 이 컴포넌트를 부르지 않는다(파일 상단 주석 참고).
 const ASPECT_CLASS = 'aspect-[400/112]';
+
+// 축 최소 길이 가드. 2개년(=2점)은 GradeDelta 몫이라 여기서는 그리지 않는다.
+const MIN_SERIES_YEARS = 3;
 
 // margin.top은 말풍선이 "뒤집히지 않는" 일반적인 경우를 위한 최소 여유(상단 그리드선/
 // tick 자리)만 남긴다. 최상단 점 근처는 SparkActiveDot이 스스로 감지해 점 아래로 뒤집으므로
@@ -199,15 +211,21 @@ export default function Sparkline({ series, label }) {
     };
   }, []);
 
-  const points = (series ?? []).filter((point) => point.value != null);
+  const list = series ?? [];
+  const points = list.filter((point) => point.value != null);
 
-  // 값이 하나도 없으면 축만 남은 빈 차트가 되므로 아예 그리지 않는다(훅은 이미 위에서
-  // 전부 호출했으므로 이 조기 return이 훅 순서에 영향을 주지 않는다).
-  if (points.length === 0) return null;
+  // 아래 조기 return들은 훅이 이미 위에서 전부 호출된 뒤라 훅 순서에 영향을 주지 않는다.
+  //
+  // (a) 연도 축이 3개 미만이면 그리지 않는다 — 2점을 꺾은선으로 그리면 gradeDomain 최소
+  //     스팬 1.0이 미세 델타를 칸 전체로 벌려 없는 추세를 만든다(§8.3). 2개년은 GradeDelta 몫.
+  // (b) 값 있는 점이 1개 이하면 선이 없는 고아 점(또는 축만 남은 빈 차트)이 된다.
+  //     connectNulls=false와 겹쳐 "점 하나짜리 추이"라는 거짓 그림이 나오므로 막는다.
+  if (list.length < MIN_SERIES_YEARS) return null;
+  if (points.length <= 1) return null;
 
   const { lo, hi } = gradeDomain(points.map((point) => point.value));
   const summary = points.map((point) => `${point.year}년 ${point.displayValue}등급`).join(', ');
-  const valueByYear = new Map(series.map((point) => [point.year, point.value]));
+  const valueByYear = new Map(list.map((point) => [point.year, point.value]));
   const YearTick = makeYearTick(valueByYear);
 
   return (
@@ -218,7 +236,7 @@ export default function Sparkline({ series, label }) {
       className={`${ASPECT_CLASS} w-full`}
     >
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={series} margin={CHART_MARGIN} accessibilityLayer={false}>
+        <LineChart data={list} margin={CHART_MARGIN} accessibilityLayer={false}>
           {/* 상/하단 가로선 — YAxis의 두 tick(lo, hi)이 곧 도메인 경계이므로 그리드가
               원래의 상단 구분선/축선 역할을 그대로 겸한다. */}
           <CartesianGrid horizontal vertical={false} stroke={CHART_COLORS.grid} strokeWidth={1} />

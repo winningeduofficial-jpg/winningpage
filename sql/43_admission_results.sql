@@ -6,7 +6,7 @@
 --  기존 입결 데이터는 같은 도메인(대학·모집단위별 입결)이 두 개의
 --  서로 다른 포맷·테이블로 나뉘어 있었다.
 --   - admission_susi_results : long 포맷. year가 "행"으로 존재해서
---     4개년 비교 쿼리가 `where year in (...)` 한 번으로 끝난다.
+--     다개년 비교 쿼리가 `where year in (...)` 한 번으로 끝난다.
 --   - admission_jungsi_results : wide 포맷. 연도가 past_accept_2411 /
 --     past_70_2411 … past_accept_1911 / past_70_1911 처럼 "컬럼"에
 --     박혀 있다. 2025·2026학년도가 추가되려면 컬럼을 계속 늘려야 하고,
