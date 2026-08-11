@@ -213,9 +213,18 @@ ${row.content || ''}
  * **break이지 continue가 아니다** — 한 조각이 상한을 넘기면 그 뒤 조각은 더 짧더라도
  * 버린다. 유사도 내림차순 순서를 유지하기 위한 의도된 동작이므로 "빈틈 채우기"로
  * 고치지 마라(§12.3 「`packRows`의 break 동작은 유지」).
+ *
+ * **반환이 `{piece, row}` 쌍인 이유**(§12.4 「`extractDbResources` 텍스트 왕복 파서 →
+ * RAG 레이어가 `{rows, promptText}` 동시 반환」): 외부 앱은 이 함수가 만든 문자열을
+ * 나중에 정규식으로 되파싱해 자료 행을 복원했다(`find-resources.js:113-150`). 라벨 한
+ * 글자만 바뀌면 자료 0건이 되고 그 실패가 조용했다. 여기서는 **프롬프트에 실제로 들어간
+ * 행 그 자체**를 함께 돌려주므로 되파싱할 이유가 없다.
+ *
+ * 상한에 걸려 잘린 행을 함께 버리는 것이 중요하다 — 프롬프트에 내용이 들어가지 않은
+ * 자료를 호출부가 "모델이 고를 수 있는 후보"로 제시하면, 모델은 제목만 보고 고르게 된다.
  */
 function packRows(rows, maxChars, label) {
-  const pieces = [];
+  const packed = [];
   let total = 0;
 
   for (const row of rows) {
@@ -223,11 +232,11 @@ function packRows(rows, maxChars, label) {
 
     if (total + piece.length > maxChars) break;
 
-    pieces.push(piece);
+    packed.push({ piece, row });
     total += piece.length;
   }
 
-  return pieces;
+  return packed;
 }
 
 /**
@@ -361,15 +370,20 @@ async function loadByVectorSearch(db, {
 
   const rows = (data || []).slice(0, maxItems);
 
-  if (!rows.length) return { text: '', hitCount: 0 };
+  if (!rows.length) return { text: '', hitCount: 0, rows: [] };
 
   const label = knowledgeType === 'verified_resource'
     ? '전과목 유사도 기반 위닝 수행 자료 DB'
     : '전과목 유사도 기반 위닝 수행 주제 DB';
 
-  const pieces = packRows(rows, maxChars, label);
+  const packed = packRows(rows, maxChars, label);
 
-  return { text: pieces.join('\n\n'), hitCount: pieces.length };
+  return {
+    text: packed.map((entry) => entry.piece).join('\n\n'),
+    hitCount: packed.length,
+    // 프롬프트에 **실제로 들어간** 행만 돌려준다(packRows 주석 참조).
+    rows: packed.map((entry) => entry.row)
+  };
 }
 
 /**
@@ -461,11 +475,15 @@ async function loadByLegacyKeywordSearch(db, {
     .slice(0, maxItems)
     .map((item) => item.row);
 
-  if (!scored.length) return { text: '', hitCount: 0 };
+  if (!scored.length) return { text: '', hitCount: 0, rows: [] };
 
-  const pieces = packRows(scored, maxChars, '위닝DB 후보');
+  const packed = packRows(scored, maxChars, '위닝DB 후보');
 
-  return { text: pieces.join('\n\n'), hitCount: pieces.length };
+  return {
+    text: packed.map((entry) => entry.piece).join('\n\n'),
+    hitCount: packed.length,
+    rows: packed.map((entry) => entry.row)
+  };
 }
 
 /**
@@ -483,7 +501,12 @@ async function loadByLegacyKeywordSearch(db, {
  *   **service_role 클라이언트여야 결과가 나온다.**
  * @param {'topic'|'resource'} [params.purpose]
  * @returns {Promise<{text:string, source:'vector'|'keyword'|'none', hitCount:number,
- *   injectedChars:number, degraded:boolean}>}
+ *   injectedChars:number, degraded:boolean, rows:object[]}>}
+ *
+ * `rows`는 **프롬프트 문자열(`text`)에 실제로 들어간 위닝DB 행 그 자체**다(§12.4
+ * 「RAG 레이어가 `{rows, promptText}` 동시 반환」). 설계 리포트(P10)의 자료 소유권
+ * 재설계가 이 값을 쓴다 — 모델은 자료 id만 고르고, 응답에 실리는 자료명·출처·링크는
+ * 서버가 이 배열의 행에서 직접 채운다. 프롬프트 문자열을 되파싱하지 않는다.
  */
 export async function loadDynamicAssessmentKnowledge({
   supabase,
@@ -521,7 +544,8 @@ export async function loadDynamicAssessmentKnowledge({
         source: 'vector',
         hitCount: vector.hitCount,
         injectedChars: vector.text.length,
-        degraded: false
+        degraded: false,
+        rows: vector.rows
       };
     }
 
@@ -530,7 +554,8 @@ export async function loadDynamicAssessmentKnowledge({
       source: 'none',
       hitCount: 0,
       injectedChars: 0,
-      degraded: false
+      degraded: false,
+      rows: []
     };
   } catch (error) {
     console.error('전과목 RAG 위닝DB 검색 실패, 기존 키워드 검색으로 대체:', error);
@@ -546,7 +571,8 @@ export async function loadDynamicAssessmentKnowledge({
         hitCount: keyword.hitCount,
         injectedChars: keyword.text.length,
         // 벡터가 죽어서 여기까지 온 것 자체가 성능 저하다. 결과가 나와도 표시한다.
-        degraded: true
+        degraded: true,
+        rows: keyword.rows
       };
     }
 
@@ -555,7 +581,8 @@ export async function loadDynamicAssessmentKnowledge({
       source: 'none',
       hitCount: 0,
       injectedChars: 0,
-      degraded: true
+      degraded: true,
+      rows: []
     };
   } catch (error) {
     console.error('위닝DB 지식 조회 오류:', error);
@@ -566,7 +593,8 @@ export async function loadDynamicAssessmentKnowledge({
       source: 'none',
       hitCount: 0,
       injectedChars: 0,
-      degraded: true
+      degraded: true,
+      rows: []
     };
   }
 }
