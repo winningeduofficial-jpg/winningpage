@@ -762,6 +762,22 @@ revoke all on function public.fn_program_access_state(uuid, text[]) from public,
 grant execute on function public.fn_program_access_state(uuid, text[]) to service_role;
 
 
+-- ---------------------------------------------------------------------
+-- 8) 표시·호환 전용 컬럼 코멘트 (팀 리드 후속 지시)
+--    program_access.access_expires_at/expires_at 는 4)절
+--    fn_sync_program_access_cache 가 계속 채우지만(consume_performance_
+--    credit 이 쓰는 배포된 다른 RPC·기존 리더가 이 미러를 읽는다), 이
+--    파일이 재작성한 어떤 게이트도 이 두 컬럼을 판정 근거로 쓰지 않는다
+--    (6)/7)절 — 둘 다 fn_program_access_grants_summary 를 거쳐 원장에서
+--    직접 계산한다). 캐시와 원장이 어긋날 때 원본은 원장이다.
+-- ---------------------------------------------------------------------
+comment on column public.program_access.access_expires_at is
+  '정본 아님 — 표시·호환 전용. fn_sync_program_access_cache(sql/64 §7, sql/65 4절)가 부여 원장에서 파생해 채우는 미러값이다. 판정 근거는 program_access_grants(부여 원장)이고, 이 컬럼을 읽는 게이트는 이 저장소에 없다(sql/65 결함 B/정정 2).';
+
+comment on column public.program_access.expires_at is
+  '정본 아님 — 표시·호환 전용. access_expires_at 과 같은 값을 미러링한다(sql/64 (가)절 — 배포된 소비 함수가 coalesce(access_expires_at, expires_at) 로 읽으므로 두 컬럼을 함께 쓴다). 판정 근거는 program_access_grants(부여 원장)이다.';
+
+
 -- =====================================================================
 -- 확인용 (실행 후 눈으로 볼 것 — 아래는 주석, 자동 실행되지 않는다)
 -- =====================================================================
@@ -793,7 +809,11 @@ grant execute on function public.fn_program_access_state(uuid, text[]) to servic
 -- 적용 이력
 -- =====================================================================
 -- dev(gjowqdiopinhixfivnkx) 적용·검증: 2026-08-12(1차) → 팀 리드 정정
--- 5건 반영 재적용·재검증: 2026-08-12(2차, 이 버전). 운영 반영은 별도
--- 절차. 운영 DB(ucjlcvqvinspmrasvsug)는 이 작업 범위에서 읽기조차
--- 하지 않았다(지시).
+-- 5건 반영 재적용·재검증: 2026-08-12(2차) → 팀 리드가 "fn_sync 가 여전히
+-- meta 에 quota_total/quota_used/wc_mixed_term 을 쓴다"고 재지적,
+-- 실측(pg_proc.prosrc 직접 조회)으로 재확인한 결과 **2차 적용 시점에
+-- 이미 세 키를 전부 meta 에서 제거하도록 되어 있었다** — 코드 수정
+-- 없이 8)절 컬럼 코멘트만 추가하고 재적용·재검증: 2026-08-12(3차,
+-- 이 버전). 운영 반영은 별도 절차. 운영 DB(ucjlcvqvinspmrasvsug)는 이
+-- 작업 범위에서 읽기조차 하지 않았다(지시).
 -- =====================================================================
