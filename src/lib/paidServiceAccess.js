@@ -1,5 +1,12 @@
 import { supabase } from './supabase';
 
+// 로컬 QA 전용 결제 게이트 우회 플래그.
+// 사용법: .env.local에 VITE_DISABLE_PAID_GATE=true 를 추가하고 개발 서버를 재시작한다.
+// import.meta.env.DEV를 반드시 함께 검사한다 — 프로덕션 빌드는 항상 DEV=false이므로,
+// 이 값이 실수로 환경변수에 들어가도(Vercel 등) 프로덕션 번들에서는 우회가 절대 불가능하다.
+// 플래그 단독으로 판정하면 그 안전장치가 사라진다.
+const PAID_GATE_DISABLED = import.meta.env.DEV === true && import.meta.env.VITE_DISABLE_PAID_GATE === 'true';
+
 const PAID_MESSAGE = '유료결제이후 이용해주세요!';
 
 const PAID_SERVICE_CONFIGS = [
@@ -120,6 +127,12 @@ export async function openPaidServiceOrAlert(event, service) {
   event?.stopPropagation?.();
 
   if (!config) {
+    openNormalLink(service?.link || service?.to);
+    return true;
+  }
+
+  if (PAID_GATE_DISABLED) {
+    console.info(`[paidServiceAccess] 로컬 결제 게이트 우회: ${config.serviceKey} (${config.serviceName})`);
     openNormalLink(service?.link || service?.to);
     return true;
   }

@@ -1,0 +1,179 @@
+/**
+ * 가상 날짜 · 주차 경계 계산 (순수 함수)
+ *
+ * 원본: /Users/hyunsoo/uwellnow/target/api/student.mjs
+ *   - toYMD                              : 144-150
+ *   - kstYMD                             : 152-159
+ *   - getRecordDateFromActualStart       : 732-740
+ *   - getDayIndexFromYMDServer           : 743-748
+ *   - addDaysYMD                         : 750-755
+ *   - getMondayYMD                       : 757-759
+ *   - getFirstSundayYMD                  : 761-764
+ *   - isMiniStartDay                     : 766-769
+ *   - getWeeklyReportRange               : 797-830
+ *   - getRegularWeekIndexFromSundayCount : 845-849
+ *
+ * 원본 동작을 그대로 재현한다. 원본이 내부에서 `new Date()` 로 "오늘"을 읽던 자리는
+ * 테스트 가능성을 위해 마지막 인자 `now` 로 노출했고, 기본값만 `new Date()` 로 둔다.
+ *
+ * 요일 인덱스 규약: **월요일 = 0 … 일요일 = 6** (JS `getUTCDay()` 의 일요일=0 과 다르다).
+ */
+
+/** YMD 문자열 정규화. 원본 student.mjs:144-150 */
+export function toYMD(v) {
+  if (!v) return '';
+  if (typeof v === 'string') return v.slice(0, 10);
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 주어진 시각의 KST(Asia/Seoul) 날짜를 'YYYY-MM-DD' 로. 원본 student.mjs:152-159 */
+export function kstYMD(date = new Date()) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+/**
+ * 실제 시작일 + recordIndex 일 = 해당 기록의 가상 날짜.
+ * 원본 student.mjs:732-740
+ *
+ * NOTE(target-parity): 원본은 KST 자정으로 만든 Date 에 `setDate(getDate() + n)` 을 쓴다.
+ * getDate/setDate 는 **실행 환경의 로컬 타임존** 기준이라, DST 가 있는 타임존(예:
+ * America/New_York, Europe/Berlin)에서 전환 구간을 넘기면 결과가 하루 어긋난다.
+ * 예) getRecordDateFromActualStart('2026-01-15', 100) → UTC/KST 는 '2026-04-25',
+ * America/New_York 는 '2026-04-24'. 버그로 보이지만 원본 그대로 둔다.
+ *
+ * NOTE(target-parity): recordIndex 가 숫자로 변환되지 않는 값('abc' 등)이면
+ * setDate(NaN) → Invalid Date → Intl.format 이 RangeError 를 던진다. 원본 그대로.
+ */
+export function getRecordDateFromActualStart(actualStartDate, recordIndex, now = new Date()) {
+  if (!actualStartDate) return kstYMD(now);
+
+  const d = new Date(`${String(actualStartDate).slice(0, 10)}T00:00:00+09:00`);
+  if (Number.isNaN(d.getTime())) return kstYMD(now);
+
+  d.setDate(d.getDate() + Number(recordIndex || 0));
+  return kstYMD(d);
+}
+
+/**
+ * YMD → 요일 인덱스(월=0 … 일=6). 원본 student.mjs:743-748
+ *
+ * UTC 기준으로 요일을 뽑고 `jsDay === 0 ? 6 : jsDay - 1` 로 월요일 기준으로 옮긴다.
+ *
+ * NOTE(target-parity): 파싱 불가한 문자열('garbage!!' 등)은 NaN 을 반환한다.
+ * (Invalid Date → getUTCDay() = NaN → NaN - 1 = NaN)
+ */
+export function getDayIndexFromYMDServer(ymd, now = new Date()) {
+  const s = toYMD(ymd) || kstYMD(now);
+  const [y, m, d] = s.split('-').map(Number);
+  const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+/**
+ * YMD 에 days 를 더한 YMD. 원본 student.mjs:750-755
+ *
+ * Date.UTC 로 계산하므로 월말·연말·윤년 롤오버가 자동 처리되고 타임존 영향이 없다.
+ *
+ * NOTE(target-parity): ymd 나 days 가 숫자로 파싱되지 않으면 Invalid Date 가 되어
+ * toISOString() 이 RangeError 를 던진다. 원본에 예외 처리가 없다.
+ */
+export function addDaysYMD(ymd, days, now = new Date()) {
+  const s = toYMD(ymd) || kstYMD(now);
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
+  return dt.toISOString().slice(0, 10);
+}
+
+/** 해당 날짜가 속한 주의 월요일. 원본 student.mjs:757-759 */
+export function getMondayYMD(ymd, now = new Date()) {
+  return addDaysYMD(ymd, -getDayIndexFromYMDServer(ymd, now), now);
+}
+
+/** 시작일 이후(당일 포함) 첫 일요일. 원본 student.mjs:761-764 */
+export function getFirstSundayYMD(startDate, now = new Date()) {
+  const idx = getDayIndexFromYMDServer(startDate, now);
+  return addDaysYMD(startDate, 6 - idx, now);
+}
+
+/**
+ * 미니 온보딩 시작일 여부 — 목(3)·금(4)·토(5) 에 시작하면 true.
+ * 원본 student.mjs:766-769
+ */
+export function isMiniStartDay(startDate, now = new Date()) {
+  const idx = getDayIndexFromYMDServer(startDate, now);
+  return idx >= 3 && idx <= 5;
+}
+
+/**
+ * 주차별 리포트 기간(시작·종료일·주차 유형). 원본 student.mjs:797-830
+ *
+ * - 미니 온보딩(목·금·토 시작) + weekIndex 0 → 시작일 ~ 첫 일요일 (mini-onboarding, 일할)
+ * - 비(非)미니 + weekIndex 1 + 시작 요일이 월요일이 아님 → 시작일 ~ 시작주 일요일 (first-week, 일할)
+ * - 그 밖 → 시작주 월요일에서 offsetWeeks 주 뒤의 월~일 (regular)
+ *   offsetWeeks = 미니면 idx, 아니면 idx - 1 (음수는 0 으로 clamp)
+ *
+ * NOTE(target-parity): 월요일 시작(비미니)일 때 weekIndex 0 과 1 이 완전히 같은 구간을
+ * 돌려준다. (idx=1 은 `getDayIndexFromYMDServer(startDate) > 0` 조건에서 걸러지고,
+ * idx=0 은 offsetWeeks=-1 이 0 으로 clamp 되기 때문)
+ *
+ * NOTE(target-parity): 일요일 시작(비미니)일 때 weekIndex 1 은 startDate === endDate 인
+ * 하루짜리 first-week 가 되고, weekIndex 0 은 시작일보다 앞선 월~일 한 주를 돌려준다.
+ *
+ * NOTE(target-parity): 미니 온보딩일 때 weekIndex 를 음수로 주면 첫 분기(idx === 0)에
+ * 걸리지 않아 mini-onboarding 이 아니라 regular 로 떨어진다.
+ */
+export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
+  const startDate = toYMD(student.actual_start_date) || kstYMD(now);
+  const startMonday = getMondayYMD(startDate, now);
+  const mini = isMiniStartDay(startDate, now);
+  const idx = Number(weekIndex || 0);
+
+  if (mini && idx === 0) {
+    return {
+      startDate,
+      endDate: getFirstSundayYMD(startDate, now),
+      weekType: 'mini-onboarding',
+      isProrated: true,
+    };
+  }
+
+  if (!mini && idx === 1 && getDayIndexFromYMDServer(startDate, now) > 0) {
+    return {
+      startDate,
+      endDate: addDaysYMD(startMonday, 6, now),
+      weekType: 'first-week',
+      isProrated: true,
+    };
+  }
+
+  const offsetWeeks = mini ? idx : idx - 1;
+  const periodMonday = addDaysYMD(startMonday, Math.max(0, offsetWeeks) * 7, now);
+
+  return {
+    startDate: periodMonday,
+    endDate: addDaysYMD(periodMonday, 6, now),
+    weekType: 'regular',
+    isProrated: false,
+  };
+}
+
+/**
+ * 누적 일요일 기록 수 → 정규 주차 인덱스. 원본 student.mjs:845-849
+ *
+ * 미니 온보딩으로 시작한 학생은 첫 일요일이 온보딩 주에 속하므로 1 을 뺀다.
+ *
+ * NOTE(target-parity): 비미니면 sundayCount 를 그대로 돌려준다 — 음수·undefined 도
+ * 그대로 새어 나간다(Math.max clamp 는 미니 분기에만 있다).
+ */
+export function getRegularWeekIndexFromSundayCount(student, sundayCount, now = new Date()) {
+  const startDate = toYMD(student.actual_start_date) || kstYMD(now);
+  const mini = isMiniStartDay(startDate, now);
+  return mini ? Math.max(0, sundayCount - 1) : sundayCount;
+}

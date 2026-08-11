@@ -49,7 +49,7 @@ const HERO_CARDS = [
     title: '학습진단',
     desc: ['나에게 필요한', '서비스 진단'],
     best: true,
-    route: '/learning-diagnosis'
+    route: '/services/learning-diagnosis'
   },
   {
     key: 'goal',

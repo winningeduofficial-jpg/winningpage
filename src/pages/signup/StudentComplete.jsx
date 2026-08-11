@@ -53,7 +53,7 @@ export default function StudentComplete() {
     // 세션은 건드리지 않으므로 이 CTA는 로그인된 채로 진단에 들어간다
     // (StudentForm이 가입 후 signOut 하지 않도록 2026-08-06에 바꿨다).
     resetSignup();
-    navigate('/learning-diagnosis');
+    navigate('/services/learning-diagnosis');
   }
 
   function handleGoHome() {

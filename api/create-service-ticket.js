@@ -1,61 +1,14 @@
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { createSupabaseAdmin, getEnv } from './_lib/supabaseAdmin.js';
+import {
+  SERVICE_CONFIGS,
+  clean,
+  getBearerToken,
+  hasPaidServiceAccess
+} from './_lib/serviceAccess.js';
 
 const PAID_MESSAGE = '유료결제이후 이용해주세요!';
 const TICKET_TTL_SECONDS = Number(process.env.SSO_TICKET_TTL_SECONDS || 180);
-
-const SERVICE_CONFIGS = {
-  suhaeng: {
-    service_key: 'suhaeng',
-    service_name: 'AI 수행평가 서비스',
-    target_url: process.env.SUHAENG_SERVICE_URL,
-    payment_keywords: ['수행', '수행평가', 'AI 수행평가', '세특팅'],
-    program_keys: ['suhaeng']
-  },
-  goal: {
-    service_key: 'goal',
-    service_name: '목표관리 서비스',
-    target_url: process.env.GOAL_SERVICE_URL || process.env.TARGET_SERVICE_URL,
-    payment_keywords: ['목표', '목표관리', '목표 관리', '학습관리', '학습 관리'],
-    program_keys: ['goal', 'target']
-  }
-};
-
-function clean(value) {
-  return String(value || '').trim();
-}
-
-function getEnv(...keys) {
-  for (const key of keys) {
-    const value = clean(process.env[key]);
-    if (value) return value;
-  }
-  return '';
-}
-
-function normalizeStatus(value) {
-  return clean(value).toLowerCase().replace(/\s/g, '');
-}
-
-function isPaidStatus(value) {
-  const status = normalizeStatus(value);
-  return [
-    'paid',
-    'active',
-    '완납',
-    '납부완료',
-    '결제완료',
-    '결제완료됨',
-    '결제완료/이용중',
-    '이용중'
-  ].some((item) => status.includes(item));
-}
-
-function isActiveStatus(value) {
-  const status = normalizeStatus(value);
-  if (!status) return true;
-  return ['active', '활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
-}
 
 function base64urlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -70,79 +23,6 @@ function signTicket(payload, secret) {
   const body = `${base64urlJson(header)}.${base64urlJson(payload)}`;
   const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
   return `${body}.${signature}`;
-}
-
-function getBearerToken(req) {
-  return clean(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-}
-
-function createSupabaseAdmin() {
-  const url = getEnv('WINNING_SUPABASE_URL', 'SUPABASE_URL', 'VITE_SUPABASE_URL');
-  const key = getEnv(
-    'WINNING_SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'WINNING_SUPABASE_KEY',
-    'SUPABASE_KEY'
-  );
-
-  if (!url || !key) {
-    throw new Error('WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.');
-  }
-
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
-
-async function checkProgramAccessTable(supabaseAdmin, userId, config) {
-  const selectors = ['id', 'user_id', 'profile_id'];
-
-  for (const column of selectors) {
-    for (const programKey of config.program_keys) {
-      const { data, error } = await supabaseAdmin
-        .from('program_access')
-        .select('id, payment_status, access_status')
-        .eq(column, userId)
-        .eq('program_key', programKey)
-        .maybeSingle();
-
-      if (error) continue;
-
-      if (data && isPaidStatus(data.payment_status) && isActiveStatus(data.access_status)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
-  const { data, error } = await supabaseAdmin
-    .from('admin_enrollments')
-    .select('id, profile_id, category_name, program_name, class_name, payment_status, application_status')
-    .eq('profile_id', userId)
-    .limit(100);
-
-  if (error) {
-    throw error;
-  }
-
-  return (data || []).some((row) => {
-    const nameText = [row.category_name, row.program_name, row.class_name]
-      .map((value) => clean(value))
-      .join(' ');
-
-    const serviceMatched = config.payment_keywords.some((keyword) => nameText.includes(keyword));
-    return serviceMatched && isPaidStatus(row.payment_status);
-  });
-}
-
-async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
-  const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
-  if (byProgramAccess) return true;
-
-  return checkEnrollmentPayment(supabaseAdmin, userId, config);
 }
 
 function getUserName(user) {
