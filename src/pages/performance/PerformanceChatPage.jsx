@@ -10,6 +10,9 @@ import ManualInfoForm from '../../components/performance/step2/ManualInfoForm';
 import TopicCardList from '../../components/performance/step3/TopicCardList';
 import TopicDetailModal from '../../components/performance/step3/TopicDetailModal';
 import DesignReportModal from '../../components/performance/step4/DesignReportModal';
+import EvaluationReportModal from '../../components/performance/step5/EvaluationReportModal';
+import EvaluationBranchActions from '../../components/performance/step5/EvaluationBranchActions';
+import SubmissionForm from '../../components/performance/step5/SubmissionForm';
 import QuotaExhaustedCard from '../../components/performance/quota/QuotaExhaustedCard';
 import {
   analyzeGuideUpload,
@@ -18,6 +21,8 @@ import {
 } from '../../lib/performance/guideUpload';
 import { recommendTopics } from '../../lib/performance/topics';
 import { requestDesignReport } from '../../lib/performance/designReport';
+import { finalizeSubmission, requestEvaluation } from '../../lib/performance/evaluation';
+import { fetchSubmissionForm, saveSubmission } from '../../lib/performance/submission';
 
 // STEP1~STEP3 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
@@ -106,6 +111,88 @@ const DESIGN_READY_COPY =
 
 // 시안 없음 — 제안. 실패해도 사용자가 갇히지 않아야 한다는 요구(§5.12 흐름)의 안내문.
 const DESIGN_FAILED_FALLBACK = '설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
+
+/**
+ * §5.14 제출폼 AI 안내 원문(`3754:3992`, 빈 줄 포함 4줄). 같은 문구가 `3754:4119`에는
+ * 빈 줄 없이 3줄로 있는데(§5.14 단정, §11-Q14) **폼이 처음 나타나는 시점이 빈 상태**이므로
+ * 그 노드(`3754:3992`)의 원문을 정본으로 쓴다.
+ */
+const SUBMISSION_FORM_INTRO = [
+  '설계 리포트를 참고해 아래 제출폼을 채워주세요. 안내문에서 읽어낸 문항 구조와 지시문이 그대로 들어가 있어, 안내문을 다시 꺼내 보지 않아도 됩니다.',
+  '',
+  '문장은 학생이 직접 씁니다. 서비스는 완성된 결과물을 제공하지 않아요.'
+].join('\n');
+
+// 시안 없음 — 제안. 제출폼 재료(`GET /api/performance/submission`)를 못 받은 경우.
+// 스키마 없이는 무엇을 쓸 칸인지 화면이 알 수 없으므로(§8.3 — 판정은 서버 소유) 임의
+// 기본 폼을 그려서는 안 된다. 다시 불러오는 경로만 남긴다.
+const SUBMISSION_LOAD_FAILED_FALLBACK = '제출폼을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+
+// ── STEP5(§5.15 평가 로딩 / §5.16 평가 리포트 모달 / §5.17 분기 3버튼) 문구 ──────────────
+
+/**
+ * 사용자 제출 말풍선. §5.17(`3754:4349`) 문구 원문이며, §5.15 「정본 타임라인」 3번이
+ * 평가 로딩 직전에 이 말풍선을 두라고 지정한 그 노드다(실측 235×61).
+ */
+const SUBMIT_BUBBLE = '수행평가 제출물을 제출합니다.';
+
+/**
+ * §5.17 평가 완료 안내 원문. **점수만 동적으로 채운다** — 시안 `86`은 더미이고, §12.4 5행이
+ * 「채팅에 종합 점수 노출(`종합 점수는 86점입니다`)」을 외부 앱에 없던 신규 기능으로
+ * 지정했다(외부 응답에는 `score` 필드가 아예 없다). 점수를 못 읽은 경우에는 그 문장만
+ * 통째로 빼고 나머지 원문을 그대로 쓴다 — 「종합 점수는 null점입니다」를 만들지 않는다.
+ */
+function buildEvaluationResultCopy(score) {
+  return [
+    '평가 리포트를 생성했어요.',
+    typeof score === 'number' ? ` 종합 점수는 ${score}점입니다.` : '',
+    ' 보완할 점을 반영해 다시 제출하거나, 다음 수행평가를 시작할 수 있어요.'
+  ].join('');
+}
+
+// 시안 없음 — 제안. 평가 실패 폴백(§5.15에 실패 화면이 없다).
+const EVALUATION_FAILED_FALLBACK = '평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
+const FINALIZE_FAILED_FALLBACK = '최종본을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
+
+/**
+ * 시안 없음 — 제안. `추가 평가 받기`(§12.2 「확정 없이 폼을 복원한다」) 뒤 안내.
+ * 폼만 조용히 되돌아오면 방금 본 평가 리포트가 왜 사라졌는지 알 수 없다.
+ */
+const REEVALUATE_RESTORED_COPY =
+  '제출폼이 다시 열렸어요. 내용을 보완해 다시 제출하면 새 평가 리포트를 받을 수 있습니다.';
+
+// 시안 없음 — 제안. `이대로 확정짓기` 완료 안내. Q67 결정(확정 뒤에도 재평가 허용, 최종본은
+// 1건 고정)을 그대로 문장으로 옮긴 것이라 사용자가 다음에 무엇을 할 수 있는지가 남는다.
+const FINALIZE_CONFIRMED_COPY =
+  '이 제출본을 최종본으로 저장했어요. 최종본은 수행평가 1건당 하나만 지정되고, 필요하면 ‘추가 평가 받기’로 다시 평가받을 수 있습니다.';
+
+// 시안 없음 — 제안. 최종본 포인터가 **이미 다른 제출본에 고정돼 있던** 경우(§8.6
+// `409 ALREADY_FINALIZED_OTHER`, `finalize.js` Q67 주석의 「최종본 포인터는 움직이지 않는다」).
+// 확정 자체는 성립했으므로 실패로 알리지 않되, 무엇이 최종본인지는 사실대로 말한다.
+const FINALIZE_KEPT_POINTER_COPY =
+  '앞서 확정한 제출본이 최종본으로 그대로 유지됩니다. 최종본을 다른 제출본으로 바꾸는 기능은 아직 없어요.';
+
+// 시안 없음 — 제안. `추가 수행평가 진행하기` 뒤 새 수행평가의 첫 안내.
+const NEW_ASSESSMENT_STARTED_COPY =
+  '이전 수행평가의 제출본을 최종본으로 저장했어요. 새 수행평가를 시작할게요.';
+const NEW_ASSESSMENT_KEPT_POINTER_COPY =
+  '앞서 확정한 제출본이 최종본으로 유지된 채로 새 수행평가를 시작할게요.';
+
+/**
+ * 평가 실패 중 **같은 제출본으로 다시 시도하면 풀릴 수 있는** 코드. 서버 재시도가 멱등
+ * (같은 `submissionId` 재요청은 모델을 부르지 않고 저장분을 돌려준다)이라 안전하다.
+ */
+const EVALUATION_RETRYABLE_CODES = new Set(['MODEL_FAILED', 'NETWORK', 'INTERNAL', 'UNKNOWN']);
+
+/**
+ * 제출물을 **고쳐야** 풀리는 코드(§8.6 evaluate 400 3종). 재시도 버튼은 같은 값을 그대로
+ * 다시 보내므로 무의미하다 — 폼을 되돌려 주는 것이 유일한 출구다.
+ */
+const EVALUATION_FIXABLE_CODES = new Set([
+  'EMPTY_SUBMISSION',
+  'REQUIRED_FIELD_EMPTY',
+  'SUBMISSION_TOO_SHORT'
+]);
 
 /**
  * STEP1 입력 요약 사용자 말풍선(§5.6 문구 원문).
@@ -226,6 +313,68 @@ export default function PerformanceChatPage() {
   // 되돌아온 뒤로는 이 항목이 포커스로 낭독되는 쪽이 일관된다.
   const [topicsFocusPending, setTopicsFocusPending] = useState(0);
 
+  // ── STEP5 평가(§5.15 로딩 → §5.16 모달 → §5.17 분기 3버튼)
+  //   'idle'    아직 제출하지 않았다 — **§5.14 제출폼이 화면에 있는 상태다.**
+  //   'loading' `evaluate` 진행 중 → 로딩 버블(§5.15).
+  //   'ready'   리포트 수신 → 모달 자동 오픈(§4 플로우 `EvalLoading --> EvalReport`) +
+  //             타임라인에 다시 열기 경로 + 분기 3버튼(§5.17).
+  //   'failed'  실패 → 코드에 따라 재시도 / 폼 복원 / 안내만.
+  //
+  // ⚠️ **제출폼 슬라이스와의 계약**: 폼은 `evaluationPhase === 'idle'`인 동안 렌더된다.
+  //   `추가 평가 받기`(§12.2 「확정 없이 폼을 복원한다」)가 이 값을 `'idle'`로 되돌리는 것이
+  //   곧 폼 복원이다 — 별도 복원 신호를 두면 두 축이 갈라진다.
+  //   폼이 제출에 성공하면 `handleSubmissionEvaluate(submissionId)`를 부른다(아래).
+  const [evaluationPhase, setEvaluationPhase] = useState('idle');
+  const [evaluationSubmissionId, setEvaluationSubmissionId] = useState(null);
+  const [evaluationReport, setEvaluationReport] = useState(null);
+  const [evaluationError, setEvaluationError] = useState(null);
+  // 모달 개폐는 `evaluationPhase`와 **별개 축**이다(§5.13 모달과 같은 처리) — 닫아도 리포트는
+  // 남아야 `평가 리포트 다시 보기`로 돌아올 수 있다.
+  const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
+  // 서버가 세는 성공 생성 횟수와 상한(§9.2, 기본 3 = 최초 1 + 재평가 2). 상한에 닿으면
+  // `추가 평가 받기`를 눌러도 서버가 `409 REEVALUATION_LIMIT`이라 미리 잠근다.
+  const [evaluationCount, setEvaluationCount] = useState(0);
+  const [maxEvaluations, setMaxEvaluations] = useState(3);
+  // `추가 평가 받기`로 폼이 복원됐음을 알리는 안내를 켜는 카운터(0이면 최초 작성 중이다).
+  const [reevaluateRound, setReevaluateRound] = useState(0);
+
+  // ── 확정(§5.17 두 버튼 → `POST /api/performance/finalize`)
+  const [finalizeAction, setFinalizeAction] = useState(null); // 진행 중인 action(잠금용)
+  const [finalizeResult, setFinalizeResult] = useState(null); // { action, keptPointer }
+  const [finalizeError, setFinalizeError] = useState(null); // { action, message }
+
+  // ── `추가 수행평가 진행하기` 이후. 새 세션은 서버가 이미 만들어 두므로(finalize 응답
+  //   `nextSessionId`) 이 화면은 **상태만 STEP1로 되돌린다**. 그 뒤 STEP1 제출은
+  //   `action:'create'`가 아니라 `'resume'`이어야 한다 — 미차감 세션이 이미 하나 있어
+  //   `create`는 `409 UNCHARGED_SESSION_EXISTS`로 막힌다(§9.3 동시 1개 제한).
+  const [sessionStartMode, setSessionStartMode] = useState('create');
+  const [restartNotice, setRestartNotice] = useState(null);
+  const [restartToken, setRestartToken] = useState(0);
+
+  // 포커스 목적지 — 전부 「직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
+  // 전이」다(`ChatTimeline`의 `focusRef` 주석과 같은 이유).
+  const evaluationLoadingRef = useRef(null); // 폼 → 로딩(폼 카드가 사라진다)
+  const evaluationFailedRef = useRef(null); // 로딩 → 실패(로딩 버블이 사라진다)
+  const evaluationReopenRef = useRef(null); // 모달 닫기(자동 오픈이라 트리거가 이미 없다)
+  const reevaluateNoticeRef = useRef(null); // 분기 버튼 → 폼 복원(누른 버튼이 사라진다)
+  const finalizeDoneRef = useRef(null); // 확정 완료 안내
+  const restartRef = useRef(null); // 새 수행평가 첫 안내(타임라인이 통째로 갈린다)
+
+  // ── STEP5 제출폼(§5.14) — 스키마·작성값·저장 상태
+  //   `submissionSchema`는 **서버가 내려준 값 그대로**다(§8.3 — 8종 판정은 서버 소유이고
+  //   화면은 재판정하지 않는다). 없으면 폼을 그리지 않는다: 스키마를 모르는 채 기본 4칸을
+  //   그리면 문항형 학생에게 없는 칸을 보여 주고 저장은 `400 UNKNOWN_FIELD`로 죽는다.
+  //   `submissionValue`가 **평가 슬라이스와 독립된 축**인 것이 중요하다 — `추가 평가 받기`가
+  //   `evaluationPhase`만 `'idle'`로 되돌려도 작성값이 그대로 남아 폼이 복원된다(§12.2 L2372).
+  const [submissionSchema, setSubmissionSchema] = useState(null);
+  const [submissionValue, setSubmissionValue] = useState({});
+  const [submissionLoadError, setSubmissionLoadError] = useState(null);
+  const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [submittingWork, setSubmittingWork] = useState(false);
+  const [submissionActionError, setSubmissionActionError] = useState(null);
+  const [submissionSavedAt, setSubmissionSavedAt] = useState(null);
+
   useEffect(() => {
     let alive = true;
     if (!accessToken) return undefined;
@@ -283,6 +432,68 @@ export default function PerformanceChatPage() {
     return () => cancelAnimationFrame(raf);
   }, [topicsFocusPending]);
 
+  // ── STEP5 포커스 전이 5종. 위 세 이펙트와 같은 rAF 패턴이라 헬퍼로 묶었다(전이가 늘어난
+  //   만큼 같은 6줄을 다섯 번 더 쓰지 않는다). 훅 호출 순서는 고정이다.
+  useRafFocus(evaluationPhase === 'loading', evaluationLoadingRef);
+  useRafFocus(evaluationPhase === 'failed', evaluationFailedRef);
+  useRafFocus(evaluationPhase === 'idle' && reevaluateRound > 0, reevaluateNoticeRef, [
+    reevaluateRound
+  ]);
+  useRafFocus(Boolean(finalizeResult), finalizeDoneRef, [finalizeResult]);
+  useRafFocus(Boolean(restartNotice), restartRef, [restartToken]);
+
+  /**
+   * STEP5 제출폼 재료 조회(§8.6 표 밖 추가분 — `GET /api/performance/submission`).
+   * 설계 리포트가 준비된 시점(§4 `DesignReport --> Step5Form`)에 딱 한 번 돌고,
+   * 실패 시 `submissionLoadToken`으로만 다시 돈다.
+   *
+   * 서버가 스키마와 **이어서 쓸 초안**을 함께 준다. 화면이 이미 값을 들고 있으면 덮어쓰지
+   * 않는다 — 재시도 조회가 작성 중인 원고를 서버 스냅샷으로 되돌리면 안 된다.
+   */
+  useEffect(() => {
+    if (designPhase !== 'ready' || !accessToken || !createdSession) return undefined;
+
+    let alive = true;
+    setSubmissionLoadError(null);
+
+    (async () => {
+      try {
+        const data = await fetchSubmissionForm({ accessToken, sessionId: createdSession.id });
+        if (!alive) return;
+        setSubmissionSchema(data.schema);
+        setSubmissionValue((prev) =>
+          Object.keys(prev).length ? prev : data.submission?.fields || {}
+        );
+      } catch (error) {
+        if (!alive) return;
+        // 서버는 원 예외를 응답에 싣지 않는다(§8.6 공통 규약) — 콘솔에만 코드를 남긴다.
+        console.error('[performance] 제출폼 조회 실패:', error?.code, error);
+        setSubmissionLoadError(error?.userMessage || SUBMISSION_LOAD_FAILED_FALLBACK);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // 결과 상태(`submissionSchema`)는 의존성에 넣지 않는다 — 넣으면 성공 직후 이펙트가 다시
+    // 돌아 같은 GET을 두 번 쏜다. 재조회 트리거는 `submissionLoadToken` 하나뿐이다.
+  }, [designPhase, accessToken, createdSession, submissionLoadToken]);
+
+  /** 세션 생성/이어받기 1회. `action`은 `sessionStartMode`가 정한다(아래 주석). */
+  async function postSession(values, action) {
+    const response = await fetch('/api/performance/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ action, basicInfo: values })
+    });
+
+    const data = await response.json().catch(() => null);
+    return { response, data };
+  }
+
   async function handleSubmit(values) {
     if (!accessToken || submitting) return;
 
@@ -290,16 +501,21 @@ export default function PerformanceChatPage() {
     setSubmitError(null);
 
     try {
-      const response = await fetch('/api/performance/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ action: 'create', basicInfo: values })
-      });
+      // 기본은 `'create'`다. `추가 수행평가 진행하기`로 되돌아온 직후에만 `'resume'`인데,
+      // 그때는 finalize가 이미 미차감 세션을 하나 준비해 뒀으므로(§9.3 동시 1개 제한 때문에
+      // `create`는 `409 UNCHARGED_SESSION_EXISTS`로 막힌다) 그것을 이어받아야 한다.
+      let { response, data } = await postSession(values, sessionStartMode);
 
-      const data = await response.json().catch(() => null);
+      // 그 미차감 세션이 그 사이에 사라진 경우(다른 탭에서 소비·폐기)에는 `resume`이
+      // `404 NO_UNCHARGED_SESSION`으로 떨어진다 — create로 **한 번만** 되돌린다. 그러지
+      // 않으면 새 수행평가를 시작할 길이 화면에서 사라진다.
+      if (
+        !response.ok &&
+        sessionStartMode === 'resume' &&
+        data?.error?.code === 'NO_UNCHARGED_SESSION'
+      ) {
+        ({ response, data } = await postSession(values, 'create'));
+      }
 
       if (!response.ok) {
         if (response.status === 409 && data?.error?.code === 'UNCHARGED_SESSION_EXISTS') {
@@ -312,6 +528,8 @@ export default function PerformanceChatPage() {
         return;
       }
 
+      // 이어받기는 1회성이다 — 세션을 손에 넣은 뒤로는 다시 기본값으로 돌린다.
+      setSessionStartMode('create');
       setCreatedSession(data.session);
     } catch (error) {
       console.error('[performance] 세션 생성 실패:', error);
@@ -557,6 +775,286 @@ export default function PerformanceChatPage() {
     setDesignModalOpen(true);
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // STEP5 — 평가(§5.15·§5.16) / 분기 3버튼(§5.17)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * 평가 리포트 1회. **회차는 깎이지 않는다**(§9.3 「제출 → 평가 리포트 생성 | 없음」,
+   * 「`추가 평가 받기` | 없음(상한 2회)」) — 차감 지점은 `recommend-topics` 최초 성공
+   * 1곳뿐이고 서버 응답도 `charged:false` 고정이라 이 화면은 차감을 예측하지도 표시하지도
+   * 않는다.
+   *
+   * **재시도는 같은 `submissionId`를 그대로 다시 보낸다.** 서버가 멱등 재생(모델 미호출)이라
+   * 응답만 유실된 경우에는 저장된 리포트를 그대로 복구하고, 아니면 새로 만든다.
+   */
+  async function runEvaluation(targetSubmissionId) {
+    if (!accessToken || !createdSession || !targetSubmissionId) return;
+
+    setEvaluationSubmissionId(targetSubmissionId);
+    setEvaluationPhase('loading');
+    setEvaluationError(null);
+    setFinalizeError(null);
+
+    try {
+      const data = await requestEvaluation({
+        accessToken,
+        sessionId: createdSession.id,
+        submissionId: targetSubmissionId
+      });
+
+      setEvaluationReport(data?.report || null);
+      if (Number(data?.evaluationCount) > 0) setEvaluationCount(Number(data.evaluationCount));
+      if (Number(data?.maxEvaluations) > 0) setMaxEvaluations(Number(data.maxEvaluations));
+      // 이전 평가로 확정해 둔 결과가 있으면 새 평가와 함께 지운다 — 어느 제출본을 확정했다는
+      // 안내가 새 리포트 옆에 남아 있으면 무엇이 최종본인지 화면이 거짓말을 하게 된다.
+      setFinalizeResult(null);
+      setEvaluationPhase('ready');
+      // §4 플로우 `EvalLoading --> EvalReport : 3754:4512`(명세 L332) — 완성 즉시 모달을 연다.
+      setEvaluationModalOpen(true);
+    } catch (error) {
+      // 서버는 원 예외·모델 원문을 응답에 싣지 않는다(§8.6 공통 규약) — `userMessage`는
+      // 그대로 화면에 띄워도 되는 문구다. 콘솔에만 코드를 남긴다.
+      console.error('[performance] 평가 리포트 생성 실패:', error?.code, error);
+      setEvaluationError({
+        code: error?.code || 'UNKNOWN',
+        message: error?.userMessage || EVALUATION_FAILED_FALLBACK
+      });
+      setEvaluationPhase('failed');
+    }
+  }
+
+  /**
+   * `중간 저장`(§5.14 secondary). §4 상태도가 STEP5를 `Empty --> Filled : 입력` /
+   * `Filled --> Filled : 중간 저장`(L328) 두 전이로만 그리고 명세 어디에도 자동 저장 규정이
+   * 없어 **디바운스 자동 저장을 만들지 않았다** — 명시적 저장 하나뿐이다.
+   *
+   * 실패해도 `submissionValue`를 건드리지 않는다(작성 내용 유실 금지). 다중 탭 경합은
+   * 서버가 `409 SESSION_FINALIZED`/`REEVALUATION_LIMIT`으로 갈라 주므로 문구만 띄운다.
+   */
+  async function handleSaveDraft(fields) {
+    if (!accessToken || !createdSession || savingDraft || submittingWork) return;
+
+    setSavingDraft(true);
+    setSubmissionActionError(null);
+
+    try {
+      const data = await saveSubmission({
+        accessToken,
+        sessionId: createdSession.id,
+        fields,
+        mode: 'draft'
+      });
+      setSubmissionSavedAt(data.savedAt || new Date().toISOString());
+    } catch (error) {
+      console.error('[performance] 중간 저장 실패:', error?.code, error);
+      setSubmissionActionError(error?.userMessage || '중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  /**
+   * `제출하고 평가 리포트 받기`(§5.14 primary → §5.15). **저장과 평가는 별개 호출이다** —
+   * §8.6 `evaluate`는 `{sessionId, submissionId}`만 받고 값은 DB에서 읽는다(클라이언트가
+   * 평문 결합 텍스트를 조립해 보내지 않는다). 그래서 여기서 먼저 `mode:'submit'`으로
+   * 저장하고, 받은 `submissionId`를 평가 슬라이스의 단일 진입점에 넘긴다.
+   *
+   * 회차는 이 경로에서 깎이지 않는다(§9.3 — 차감 지점은 `recommend-topics` 1곳뿐).
+   */
+  async function handleSubmitWork(fields) {
+    if (!accessToken || !createdSession || savingDraft || submittingWork) return;
+
+    setSubmittingWork(true);
+    setSubmissionActionError(null);
+
+    try {
+      const data = await saveSubmission({
+        accessToken,
+        sessionId: createdSession.id,
+        fields,
+        mode: 'submit'
+      });
+      setSubmissionSavedAt(data.savedAt || null);
+      handleSubmissionEvaluate(data.submissionId);
+    } catch (error) {
+      console.error('[performance] 제출 실패:', error?.code, error);
+      // 게이트 실패(`SUBMISSION_TOO_SHORT`/`REQUIRED_FIELD_EMPTY`)는 **초안이 저장된 채로**
+      // 돌아온다 — 서버가 게이트를 저장 이후에 보기 때문이다(`api/performance/submission.js`).
+      // 학생이 쓰던 글은 남아 있으므로 문구만 알리고 폼은 그대로 둔다.
+      if (error?.saved?.savedAt) setSubmissionSavedAt(error.saved.savedAt);
+      setSubmissionActionError(error?.userMessage || '제출하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSubmittingWork(false);
+    }
+  }
+
+  /** 제출폼 재료 조회 실패 후 재시도. 값·스키마를 비우지 않는다(있으면 그대로 유지). */
+  function handleRetrySubmissionLoad() {
+    setSubmissionLoadToken((n) => n + 1);
+  }
+
+  /**
+   * **제출폼 슬라이스가 부르는 유일한 진입점**(§5.14 폼 → §5.15 로딩). 폼이
+   * `PUT /api/performance/submission` `mode:'submit'`으로 받은 `submissionId`를 그대로 넘긴다.
+   */
+  function handleSubmissionEvaluate(submissionId) {
+    if (evaluationPhase === 'loading') return;
+    void runEvaluation(submissionId);
+  }
+
+  /** 실패 후 재시도 — 같은 제출본으로 다시 요청한다(멱등 재생 또는 신규 생성). */
+  function handleRetryEvaluation() {
+    if (evaluationPhase === 'loading') return;
+    void runEvaluation(evaluationSubmissionId);
+  }
+
+  function handleReopenEvaluationModal() {
+    setEvaluationModalOpen(true);
+  }
+
+  /**
+   * §5.16 `다음 단계 선택하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
+   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `평가 리포트 다시 보기` 버튼으로
+   * 직접 옮긴다 — 모달을 연 트리거(STEP5 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   */
+  function handleCloseEvaluationModal() {
+    setEvaluationModalOpen(false);
+    requestAnimationFrame(() => evaluationReopenRef.current?.focus());
+  }
+
+  /**
+   * `추가 평가 받기`(§5.17). **확정하지 않는다** — §12.2 L2372 「'추가 평가 받기'만 확정 없이
+   * 폼을 복원한다」. 서버 호출도 없다: 복원된 폼의 다음 저장이 자연스럽게 새 revision을 연다
+   * (`api/performance/submission.js` 「draft upsert」).
+   */
+  function handleReevaluate() {
+    if (finalizeAction) return;
+    setEvaluationPhase('idle');
+    setEvaluationModalOpen(false);
+    setEvaluationError(null);
+    setFinalizeError(null);
+    setReevaluateRound((n) => n + 1);
+  }
+
+  /**
+   * `이대로 확정짓기`(`confirm`) / `추가 수행평가 진행하기`(`new_assessment`) 공통.
+   * §12.2 L2372 정본: 「둘 다 마지막 제출본을 최종본으로 확정 저장한다」 — 그래서 두 버튼이
+   * 같은 엔드포인트를 `action`만 달리해 부른다. 이 호출도 무차감이다(§9.3 — 새 세션의 회차는
+   * 그 세션의 다음 주제 추천이 성공할 때 든다).
+   */
+  async function runFinalize(action) {
+    if (!accessToken || !createdSession || !evaluationSubmissionId || finalizeAction) return;
+
+    setFinalizeAction(action);
+    setFinalizeError(null);
+
+    let keptPointer = false;
+
+    try {
+      let data;
+      try {
+        data = await finalizeSubmission({
+          accessToken,
+          sessionId: createdSession.id,
+          submissionId: evaluationSubmissionId,
+          action
+        });
+      } catch (error) {
+        // `409 ALREADY_FINALIZED_OTHER` — 확정 뒤 재평가한 제출본으로 다시 확정하려는 경우다
+        // (Q67이 열어 둔 경로). 최종본 포인터를 옮기는 계약이 §8.6에 없으므로 서버가 알려준
+        // **이미 확정된 제출본**으로 한 번 더 부른다: 그 요청은 `already_final` 200이라
+        // 사용자는 막히지 않고(특히 `new_assessment`는 새 세션까지 받는다), 대신 무엇이
+        // 최종본인지는 아래 안내로 사실대로 말한다.
+        if (error?.code !== 'ALREADY_FINALIZED_OTHER' || !error.finalSubmissionId) throw error;
+        keptPointer = true;
+        data = await finalizeSubmission({
+          accessToken,
+          sessionId: createdSession.id,
+          submissionId: error.finalSubmissionId,
+          action
+        });
+      }
+
+      if (action === 'new_assessment') {
+        // 서버가 `nextSessionId`(기존 미차감 세션 재사용 또는 신규 draft)를 준비해 뒀다.
+        // 준비에 실패해 null이어도 확정은 이미 성립했으므로 그대로 STEP1로 되돌린다 —
+        // `handleSubmit`의 `resume → create` 폴백이 두 경우를 모두 흡수한다.
+        resetForNextAssessment({ keptPointer, hasNextSession: Boolean(data?.nextSessionId) });
+        return;
+      }
+
+      setFinalizeResult({ action, keptPointer });
+    } catch (error) {
+      console.error('[performance] 최종본 확정 실패:', error?.code, error);
+      setFinalizeError({ action, message: error?.userMessage || FINALIZE_FAILED_FALLBACK });
+    } finally {
+      setFinalizeAction(null);
+    }
+  }
+
+  function handleConfirmSubmission() {
+    void runFinalize('confirm');
+  }
+
+  function handleNewAssessment() {
+    void runFinalize('new_assessment');
+  }
+
+  /**
+   * `추가 수행평가 진행하기` 성공 후 화면을 STEP1로 되돌린다. 세션은 서버가 이미 만들어
+   * 뒀으므로 여기서 만들지 않고, STEP1 제출만 `'resume'`으로 보내게 표시해 둔다.
+   *
+   * ⚠️ **STEP5 제출폼 상태(§5.14)도 여기서 함께 비운다.** 빠뜨리면 새 수행평가의 STEP5에서
+   *   이전 수행평가의 원고가 그대로 프리필된다 — `추가 평가 받기`가 작성값을 **남기는**
+   *   것과 정반대의 요구다(그쪽은 같은 세션의 폼 복원, 여기는 다른 세션의 시작이다).
+   */
+  function resetForNextAssessment({ keptPointer, hasNextSession }) {
+    setSessionStartMode(hasNextSession ? 'resume' : 'create');
+    setCreatedSession(null);
+    setSubmitError(null);
+
+    setGuideMode('upload');
+    setGuideDone(false);
+    setUploadedCount(0);
+    setManualText('');
+
+    setTopicPhase('idle');
+    setTopicRegenerating(false);
+    setTopics([]);
+    setTopicRound(0);
+    setTopicRoundLimited(false);
+    setTopicError(null);
+    setQuotaPlanEndsAt(null);
+    setTopicDetail(null);
+    setTopicsFocusPending(0);
+
+    setDesignPhase('idle');
+    setConfirmedTopic(null);
+    setDesignReport(null);
+    setDesignError(null);
+    setDesignModalOpen(false);
+
+    setSubmissionSchema(null);
+    setSubmissionValue({});
+    setSubmissionLoadError(null);
+    setSubmissionActionError(null);
+    setSubmissionSavedAt(null);
+
+    setEvaluationPhase('idle');
+    setEvaluationSubmissionId(null);
+    setEvaluationReport(null);
+    setEvaluationError(null);
+    setEvaluationModalOpen(false);
+    setEvaluationCount(0);
+    setReevaluateRound(0);
+    setFinalizeResult(null);
+    setFinalizeError(null);
+
+    setRestartNotice(keptPointer ? NEW_ASSESSMENT_KEPT_POINTER_COPY : NEW_ASSESSMENT_STARTED_COPY);
+    setRestartToken((n) => n + 1);
+  }
+
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
   function handleRegenerate() {
     if (topicPhase === 'loading' || topicRegenerating) return;
@@ -596,20 +1094,33 @@ export default function PerformanceChatPage() {
     );
   }
 
-  const messages = [
-    {
-      id: 'step1-greeting',
+  const messages = [];
+
+  if (restartNotice) {
+    // `추가 수행평가 진행하기` 직후(§5.17). 새 수행평가의 **첫** 메시지 자리라 인사말보다
+    // 앞에 온다 — 직전 수행평가에서 무슨 일이 있었는지(최종본 저장)를 여기서 한 번만 말한다.
+    // 타임라인이 통째로 갈리는 전이라 포커스 목적지이기도 하다.
+    messages.push({
+      id: 'step5-new-assessment',
       role: 'ai',
       kind: 'text',
-      body: greetingBody,
-      // 세션이 만들어지면 폼 카드는 사라진다(§5.6 — `3754:3261`에 폼 카드가 없다).
-      children: createdSession ? null : (
-        <InlineCard>
-          <BasicInfoForm onSubmit={handleSubmit} submitting={submitting} submitError={submitError} />
-        </InlineCard>
-      )
-    }
-  ];
+      body: restartNotice,
+      focusRef: restartRef
+    });
+  }
+
+  messages.push({
+    id: 'step1-greeting',
+    role: 'ai',
+    kind: 'text',
+    body: greetingBody,
+    // 세션이 만들어지면 폼 카드는 사라진다(§5.6 — `3754:3261`에 폼 카드가 없다).
+    children: createdSession ? null : (
+      <InlineCard>
+        <BasicInfoForm onSubmit={handleSubmit} submitting={submitting} submitError={submitError} />
+      </InlineCard>
+    )
+  });
 
   if (createdSession) {
     messages.push({
@@ -816,6 +1327,190 @@ export default function PerformanceChatPage() {
     });
   }
 
+  // ── STEP5 (§5.15 로딩 → §5.16 모달 → §5.17 분기 3버튼) ─────────────────────────────
+  //
+  // §5.15 「정본 타임라인」 4·5항: **제출폼 카드는 제출과 동시에 타임라인에서 제거하되
+  // 사용자 제출 말풍선은 남긴다**(§5.9/§5.12에서 이미 확립된 규칙). 폼 제거는 폼 슬라이스가
+  // `evaluationPhase === 'idle'`을 렌더 조건으로 삼는 것으로 성립하고, 남기는 쪽이 여기다.
+  if (evaluationPhase !== 'idle') {
+    messages.push({ id: 'step5-submit', role: 'user', kind: 'text', body: SUBMIT_BUBBLE });
+  }
+
+  if (evaluationPhase === 'loading') {
+    // §5.15 로딩 카드 — `AiLoadingBubble` + `loadingCopy.js`의 평가 쌍 그대로(새 로딩 UI를
+    // 만들지 않는다). 폼 카드가 사라지는 전이라 포커스 목적지이기도 하다.
+    messages.push({
+      id: 'step5-eval-loading',
+      kind: 'loading',
+      payload: PERFORMANCE_LOADING_COPY.evaluationReport,
+      focusRef: evaluationLoadingRef
+    });
+  }
+
+  if (evaluationPhase === 'failed') {
+    // 실패해도 갇히지 않는다. 출구는 코드에 따라 갈린다 —
+    //   · 상류 장애·네트워크(`MODEL_FAILED` 등) → 같은 제출본으로 재시도(서버가 멱등이다).
+    //   · 제출물 게이트(400 3종)          → 재시도는 같은 값을 다시 보내는 것이라 무의미하다.
+    //                                        폼을 되돌리는 것이 유일한 출구다.
+    //   · 상한·소유권 계열                 → 다시 눌러도 같은 결과라 재시도를 권하지 않는다.
+    //                                        이전 리포트가 남아 있으면 그것만이라도 열어 준다.
+    const failedCode = evaluationError?.code;
+    const canRetry = EVALUATION_RETRYABLE_CODES.has(failedCode);
+    const canFixForm = EVALUATION_FIXABLE_CODES.has(failedCode);
+    const canReopenReport = !canRetry && !canFixForm && Boolean(evaluationReport);
+
+    messages.push({
+      id: 'step5-eval-failed',
+      role: 'ai',
+      kind: 'text',
+      body: evaluationError?.message || EVALUATION_FAILED_FALLBACK,
+      // 로딩 버블(직전 포커스 보유자)이 언마운트되는 전이라 목적지를 직접 지정한다. 버튼
+      // 하나만 잡으면 "무엇이 일어났는지"(문구)를 건너뛴 채 낭독된다 — 래퍼가 목적지다.
+      focusRef: evaluationFailedRef,
+      children:
+        canRetry || canFixForm || canReopenReport ? (
+          <div className="flex flex-wrap gap-3">
+            {canRetry ? (
+              <RetryButton onClick={handleRetryEvaluation}>평가 다시 시도</RetryButton>
+            ) : null}
+            {canFixForm ? (
+              <RetryButton onClick={handleReevaluate}>제출폼 다시 열기</RetryButton>
+            ) : null}
+            {canReopenReport ? (
+              <RetryButton onClick={handleReopenEvaluationModal}>평가 리포트 다시 보기</RetryButton>
+            ) : null}
+          </div>
+        ) : null
+    });
+  }
+
+  if (evaluationPhase === 'ready' && evaluationReport) {
+    // §5.17 평가 완료 안내 + 분기 3버튼. 모달은 완성 즉시 자동으로 열리므로(§4 플로우)
+    // 이 말풍선은 **모달을 닫은 뒤** 보이는 화면이다.
+    //
+    // **모달 진입점 결정** — §5.17 단정 「평가 리포트 상세 모달(`3754:4512`)을 여는 진입점이
+    // 이 화면에 없다」. 진입점을 두 개 둔다:
+    //   ① 평가 완료 즉시 자동 오픈(§4 플로우 `EvalLoading --> EvalReport`가 명시한 전이).
+    //   ② 이 `평가 리포트 다시 보기` 버튼 — §5.13 설계 리포트가 `설계 리포트 다시 보기`로
+    //      만든 관례 그대로이며, 모달 닫기의 포커스 목적지이기도 하다.
+    // ②는 §5.17 실측 스택(260×180 = 3버튼 정확히) **바깥**에 둔다. 스택 안에 넣으면 실측
+    // 치수가 깨지고, 무엇보다 "다시 보기"는 분기 선택이 아니라 열람이라 위계가 다르다.
+    // 그래서 크기도 분기 버튼(3.25rem)이 아니라 `RetryButton`(2.5rem)을 쓴다.
+    const evaluationScore =
+      typeof evaluationReport.score === 'number' && Number.isFinite(evaluationReport.score)
+        ? evaluationReport.score
+        : null;
+    const reevaluateExhausted = evaluationCount >= maxEvaluations;
+
+    messages.push({
+      id: 'step5-eval-ready',
+      role: 'ai',
+      kind: 'text',
+      body: buildEvaluationResultCopy(evaluationScore),
+      children: (
+        <div className="flex w-full flex-col gap-4 pt-1">
+          <RetryButton ref={evaluationReopenRef} onClick={handleReopenEvaluationModal}>
+            평가 리포트 다시 보기
+          </RetryButton>
+          <EvaluationBranchActions
+            onReevaluate={handleReevaluate}
+            onConfirm={handleConfirmSubmission}
+            onNewAssessment={handleNewAssessment}
+            busyAction={finalizeAction}
+            reevaluateDisabled={reevaluateExhausted}
+            // 상한은 서버가 `409 REEVALUATION_LIMIT`으로 막는다(§9.2 상한 = 최초 1 + 재평가 2).
+            // 눌러서 실패를 보게 하지 않고 미리 잠그되, 왜 잠겼는지는 말한다.
+            reevaluateNote={
+              reevaluateExhausted
+                ? `평가는 최대 ${Math.max(maxEvaluations - 1, 0)}번까지 다시 받을 수 있어요.`
+                : ''
+            }
+          />
+        </div>
+      )
+    });
+  }
+
+  if (finalizeResult) {
+    // `이대로 확정짓기` 완료. 분기 버튼은 **그대로 남긴다** — Q67 결정대로 확정 뒤에도
+    // 재평가가 열려 있고(같은 세션이라 무료다), 세션을 잠그면 오확정을 되돌릴 수 없다.
+    messages.push({
+      id: 'step5-finalize-done',
+      role: 'ai',
+      kind: 'text',
+      body: finalizeResult.keptPointer ? FINALIZE_KEPT_POINTER_COPY : FINALIZE_CONFIRMED_COPY,
+      focusRef: finalizeDoneRef
+    });
+  }
+
+  if (finalizeError) {
+    messages.push({
+      id: 'step5-finalize-failed',
+      role: 'ai',
+      kind: 'text',
+      body: finalizeError.message,
+      children: (
+        <RetryButton onClick={() => void runFinalize(finalizeError.action)}>다시 시도</RetryButton>
+      )
+    });
+  }
+
+  if (evaluationPhase === 'idle' && reevaluateRound > 0) {
+    // `추가 평가 받기` 뒤. 폼(폼 슬라이스가 `'idle'`에서 렌더한다)이 조용히 돌아오기만 하면
+    // 방금 본 리포트가 왜 사라졌는지 알 수 없다. 분기 버튼이 통째로 언마운트되는 전이라
+    // 포커스 목적지이기도 하다.
+    messages.push({
+      id: 'step5-reevaluate',
+      role: 'ai',
+      kind: 'text',
+      body: REEVALUATE_RESTORED_COPY,
+      focusRef: reevaluateNoticeRef
+    });
+  }
+
+  // ── STEP5 제출폼(§5.14 `3754:3992`/`3754:4119`) ──────────────────────────────────
+  //
+  // §4 플로우 `DesignReport --> Step5Form : 창 닫고 작성하기`(L323) — 설계 리포트가
+  // 준비되면 폼이 타임라인에 붙는다(모달은 그 위에 겹쳐 열려 있고, 닫으면 이 폼이 남는다).
+  // **제출과 동시에 사라진다**(§5.15 정본 타임라인 4항)는 것이 `evaluationPhase === 'idle'`
+  // 조건이고, `추가 평가 받기`가 그 값을 되돌리면 작성값(`submissionValue`)이 그대로 남아
+  // 있으므로 폼이 그대로 복원된다(§12.2 L2372 — 별도 복원 신호를 두지 않는 이유).
+  //
+  // **이 블록이 마지막인 이유**: `추가 평가 받기` 복원 안내(`step5-reevaluate`)가 폼보다
+  // 먼저 와야 "왜 폼이 다시 열렸는지"를 읽고 폼에 닿는다.
+  if (designPhase === 'ready' && evaluationPhase === 'idle') {
+    messages.push({
+      id: 'step5-form',
+      role: 'ai',
+      kind: 'text',
+      body: SUBMISSION_FORM_INTRO,
+      children: submissionSchema ? (
+        <SubmissionForm
+          schema={submissionSchema}
+          value={submissionValue}
+          onChange={setSubmissionValue}
+          onSaveDraft={handleSaveDraft}
+          onSubmit={handleSubmitWork}
+          // §5.14 `주제*` 칸은 확정 주제 prefill이다 — 제출 필드가 아니라 표시값이고,
+          // 서버는 `performance_sessions.selected_topic_id`로 직접 읽는다(§8.3).
+          topicTitle={confirmedTopic?.title || null}
+          saving={savingDraft}
+          submitting={submittingWork}
+          error={submissionActionError}
+          savedAt={submissionSavedAt}
+        />
+      ) : submissionLoadError ? (
+        // 스키마 없이 임의의 기본 폼을 그리지 않는다(위 `SUBMISSION_LOAD_FAILED_FALLBACK`).
+        <div className="flex flex-col items-start gap-3">
+          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-error">
+            {submissionLoadError}
+          </p>
+          <RetryButton onClick={handleRetrySubmissionLoad}>제출폼 다시 불러오기</RetryButton>
+        </div>
+      ) : null
+    });
+  }
+
   if (guideDone && topicPhase === 'quota') {
     // §5.20 (B): 모달이 아니라 타임라인 안, **AI 말풍선과 같은 정렬**로 넣는다. 말풍선 없이
     // 아바타·발신자 라벨만 두고 카드를 그 컬럼에 붙이면 정렬이 그대로 맞는다.
@@ -867,8 +1562,38 @@ export default function PerformanceChatPage() {
         topicTitle={confirmedTopic?.title}
         onClose={handleCloseDesignModal}
       />
+      <EvaluationReportModal
+        open={evaluationModalOpen}
+        report={evaluationReport}
+        topicTitle={confirmedTopic?.title}
+        onClose={handleCloseEvaluationModal}
+      />
     </div>
   );
+}
+
+/**
+ * "이 조건이 켜지는 순간 이 노드로 포커스를 옮긴다"를 한 줄로 쓰는 헬퍼. 새로 나타난 노드가
+ * DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 옮겨야 하므로 `requestAnimationFrame`을 쓴다 —
+ * `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와 같은 패턴이다.
+ *
+ * 쓰는 이유는 전부 같다: **직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
+ * 전이**라 브라우저 기본 동작(`<body>`로 떨어짐)에 맡기면 키보드 사용자가 위치를 잃는다.
+ *
+ * @param {boolean} active 포커스를 옮겨야 하는 상태인가.
+ * @param {import('react').RefObject<HTMLElement>} ref 목적지(`ChatTimeline`의 `focusRef`).
+ * @param {unknown[]} [retriggers] `active`가 켜진 채 유지되지만 **다시** 옮겨야 하는 경우의
+ *   추가 의존성(예: 재평가 라운드가 한 번 더 돌 때). 없으면 켜지는 순간에만 옮긴다.
+ */
+function useRafFocus(active, ref, retriggers = []) {
+  useEffect(() => {
+    if (!active) return undefined;
+    const raf = requestAnimationFrame(() => {
+      ref.current?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, ref, ...retriggers]);
 }
 
 /**
