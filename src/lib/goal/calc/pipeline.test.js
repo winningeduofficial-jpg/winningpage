@@ -16,6 +16,7 @@ import {
   isPreHighStudent,
 } from './pipeline.js';
 import { VIRTUAL_DAY_NAMES } from './schedule.js';
+import { calcNaesinProb, applyPreHighGradePenalty } from './primitives.js';
 
 // bonus.js:96-125 를 그대로 복제해 D-day 일수를 독립적으로 구한다(검증용 — 손계산이 아니라
 // 원본과 동일한 코드를 실행해서 기대값을 만든다). 고2 이하 학년의 오프셋만 옮겼다(이 파일에서
@@ -582,6 +583,117 @@ test('isMiddleStudent / isElementaryStudent / isPreHighStudent — 골든 픽스
   assert.equal(isPreHighStudent('중학교', '고1'), true);
   assert.equal(isPreHighStudent('초등학교', '고1'), true);
   assert.equal(isPreHighStudent('일반고', '고3'), false);
+});
+
+// ── remainNaesin 오버라이드 우선순위 (DIVERGENCE.md #1) ──────────────────
+//
+// pipeline.js:219-237 수정: isPreHighStudent 인 학생도 remainingNaesin 오버라이드를
+// 명시적으로 주면 그 값이 이제 0 강제를 이긴다. 오버라이드를 안 주는 기존 호출자는
+// 동작이 완전히 같아야 한다(회귀 없음) — 그 보존을 이 블록에서 잠근다.
+
+test('진짜 중학생(치환 아님) — remainingNaesin 오버라이드가 없으면 여전히 0이다(기존 동작 보존)', () => {
+  const state = buildInitialStudentState({
+    schoolType: '중학교',
+    grade: '중2',
+    currentScore: 5.0,
+    convertedGrade: 5.0,
+    cuts: { idealNaesin: 3.0, idealJungsi: 70, minNaesin: 5.0, minJungsi: 60 },
+    weeklySchedule: { monday: { ideal: 1, min: 1 } },
+  });
+  assert.equal(state.remainNaesin, 0);
+});
+
+test('진짜 중학생(치환 아님) — remainingNaesin 오버라이드를 주면 그 값이 살아남는다(신규 동작)', () => {
+  const state = buildInitialStudentState({
+    schoolType: '중학교',
+    grade: '중2',
+    currentScore: 5.0,
+    convertedGrade: 5.0,
+    cuts: { idealNaesin: 3.0, idealJungsi: 70, minNaesin: 5.0, minJungsi: 60 },
+    weeklySchedule: { monday: { ideal: 1, min: 1 } },
+    remainingNaesin: 4,
+  });
+  assert.equal(state.remainNaesin, 4);
+});
+
+test('고1 무내신 특례("중3" 치환) — remainingNaesin 오버라이드가 없으면 여전히 0이다(기존 동작 보존)', () => {
+  const state = buildInitialStudentState({
+    schoolType: '일반고',
+    grade: '중3', // intake.js 의 effectiveGrade 치환 리터럴
+    currentScore: 3.0,
+    convertedGrade: 3.0,
+    cuts: { idealNaesin: 2.0, idealJungsi: 70, minNaesin: 4.0, minJungsi: 60 },
+    weeklySchedule: { monday: { ideal: 1, min: 1 } },
+  });
+  assert.equal(state.remainNaesin, 0);
+});
+
+test('고1 무내신 특례("중3" 치환) — remainingNaesin 오버라이드를 주면 그 값이 살아남고 확률도 함께 낮아진다(핵심 수정)', () => {
+  // convertedGrade=3.0 에 '중3' 페널티(+0.10)가 붙어 3.10 — cuts.idealNaesin(2.0)보다
+  // 나쁜 등급이라 calcNaesinProb 의 "열세" 갈래를 탄다(primitives.js:126-129). 이 갈래는
+  // 남은 시험이 있을수록 factor(<1)가 확률을 깎는다 — 그래서 오버라이드가 적용되면
+  // (불확실성이 실제로 있으면) 확률이 "성적 확정" 취급(remainExams=0)보다 낮아져야
+  // 정상이다. 원본 결함은 정확히 반대였다(불확실한 쪽이 더 높았다).
+  const convertedGrade = applyPreHighGradePenalty('일반고', '중3', 3.0);
+  const cuts = { idealNaesin: 2.0, idealJungsi: 70, minNaesin: 4.0, minJungsi: 60 };
+  const weeklySchedule = { monday: { ideal: 1, min: 1 } };
+
+  const withoutOverride = buildInitialStudentState({
+    schoolType: '일반고',
+    grade: '중3',
+    currentScore: 3.0,
+    convertedGrade: 3.0,
+    cuts,
+    weeklySchedule,
+  });
+  const withOverride = buildInitialStudentState({
+    schoolType: '일반고',
+    grade: '중3',
+    currentScore: 3.0,
+    convertedGrade: 3.0,
+    cuts,
+    weeklySchedule,
+    remainingNaesin: 6,
+  });
+
+  assert.equal(withoutOverride.remainNaesin, 0);
+  assert.equal(withOverride.remainNaesin, 6);
+
+  // 기대값은 손계산이 아니라 primitives.js 의 실제 calcNaesinProb 을 독립적으로 실행해 구한다.
+  assert.equal(withoutOverride.idealSusi, calcNaesinProb(convertedGrade, cuts.idealNaesin, 0, 10));
+  assert.equal(withOverride.idealSusi, calcNaesinProb(convertedGrade, cuts.idealNaesin, 6, 10));
+
+  assert.ok(
+    withOverride.idealSusi < withoutOverride.idealSusi,
+    `오버라이드로 남은 시험이 반영되면(불확실성 있음) "성적 확정" 취급보다 확률이 낮아야 한다 ` +
+      `(오버라이드 없음=${withoutOverride.idealSusi}, 오버라이드 있음=${withOverride.idealSusi})`
+  );
+});
+
+test('고2 — remainingNaesin 오버라이드 경로는 이번 수정으로 변화가 없다(회귀 방지)', () => {
+  const state = buildInitialStudentState({
+    schoolType: '일반고',
+    grade: '고2',
+    currentScore: 3.0,
+    convertedGrade: 3.0,
+    cuts: { idealNaesin: 2.0, idealJungsi: 70, minNaesin: 4.0, minJungsi: 60 },
+    weeklySchedule: { monday: { ideal: 1, min: 1 } },
+    remainingNaesin: 6,
+  });
+  // 고2 는 isPreHighStudent 가 애초에 false 라 이번 가드 변경의 영향권 밖이다.
+  assert.equal(state.remainNaesin, 6);
+});
+
+test('고3 — remainingNaesin 오버라이드 경로는 이번 수정으로 변화가 없다(회귀 방지)', () => {
+  const state = buildInitialStudentState({
+    schoolType: '일반고',
+    grade: '고3',
+    currentScore: 3.0,
+    cuts: { idealNaesin: 2.0, idealJungsi: 70, minNaesin: 4.0, minJungsi: 60 },
+    weeklySchedule: { monday: { ideal: 1, min: 1 } },
+    remainingNaesin: 2,
+  });
+  assert.equal(state.remainNaesin, 2);
 });
 
 // ── 시나리오 6: 일요일 구멍 — 미이식 getSundayRemainingScheduleFromRecords 자리의 현재 동작 ──
