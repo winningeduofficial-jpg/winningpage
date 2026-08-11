@@ -1865,6 +1865,7 @@ const CONFIGS = {
     table: 'mentor_apply_faqs',
     searchPlaceholder: '질문을 검색하세요',
     order: 'sort_order',
+    homepage: true,
     guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다).`,
     columns: [
       { key: 'sort_order', label: '노출 순서' },
@@ -1891,6 +1892,7 @@ const CONFIGS = {
     table: 'mentor_apply_copy',
     order: 'sort_order',
     noCreate: true,
+    homepage: true,
     guideText: `여기 값은 멘토신청 페이지 FAQ 섹션의 제목 영역에 그대로 나갑니다. 'FAQ 제목(앞부분)' 값 끝의 공백 1칸은 의도된 것입니다 — 지우면 공개 화면에서 뒷 단어와 붙어 '지원 전궁금한 점'으로 보입니다. 행을 삭제하면 해당 항목은 코드 내장 기본값으로 되돌아갑니다.`,
     columns: [
       { key: 'label', label: '항목' },
