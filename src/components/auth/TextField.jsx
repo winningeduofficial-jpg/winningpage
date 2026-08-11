@@ -39,6 +39,10 @@ export default function TextField({
   onChange,
   placeholder,
   size = 'default', // 'default' | 'lg' | 'perf'(인앱 2.5rem/40px)
+  // 라벨 텍스트 색 오버라이드. 기본값이 기존 전 호출부의 하드코딩(text-ink)과 동일해
+  // 이 prop을 안 주는 기존 화면은 전혀 영향받지 않는다. 수행평가 STEP1 폼(§5.5 단정
+  // "필수 라벨은 라벨 전체가 #991e1e")처럼 필수/선택 라벨 색이 갈리는 화면 전용 확장.
+  labelClassName = 'text-ink',
   active = false, // true면 border-primary(예: E-3 코드 인식 상태)
   actionLabel, // 우측 액션 링크 텍스트(예: '인증번호 보내기' / '인증번호 다시 보내기')
   onAction,
@@ -73,7 +77,7 @@ export default function TextField({
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={fieldId} className="mb-2 block text-[0.875rem] font-medium text-ink">
+        <label htmlFor={fieldId} className={`mb-2 block text-[0.875rem] font-medium ${labelClassName}`}>
           {label}
         </label>
       )}

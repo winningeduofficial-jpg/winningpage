@@ -69,6 +69,7 @@ import RequireEntitlement from './components/RequireEntitlement';
 import { SessionProvider } from './context/SessionContext';
 import PerformanceAppLayout from './components/performance/PerformanceAppLayout';
 import PerformancePlaceholder from './pages/performance/PerformancePlaceholder';
+import PerformanceChatPage from './pages/performance/PerformanceChatPage';
 
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
 import MemberType from './pages/signup/MemberType';
@@ -350,10 +351,11 @@ export default function App() {
             }
           >
             {/* 셸(사이드바 + 페이지 타이틀)은 P4에서 구현됐다 — §3.1/§3.5.
-                TODO(P5~P6): 아래 4개 element(플레이스홀더)를 실제 페이지로 교체한다.
-                  · P5 채팅 워크스페이스(§5.3~§5.17) · P6 저장 리포트(§5.18~§5.19) */}
+                TODO(P7~): 나머지 플레이스홀더(저장 리포트·세션 복구)를 실제 페이지로 교체한다.
+                  · P6 STEP1 기본 정보 폼(§5.5) — 아래로 배선 완료
+                  · P7~ STEP2 이후(§5.6~§5.17) · P12 저장 리포트(§5.18~§5.19) */}
             <Route element={<PerformanceAppLayout />}>
-              <Route path="/app/performance" element={<PerformancePlaceholder screen="채팅 워크스페이스" />} />
+              <Route path="/app/performance" element={<PerformanceChatPage />} />
               {/* 저장 리포트는 모달이 아니라 라우트다(§11-Q65). 정적 세그먼트가
                   :sessionId보다 우선 매칭되므로 `reports`가 세션 id로 오인되지 않는다. */}
               <Route

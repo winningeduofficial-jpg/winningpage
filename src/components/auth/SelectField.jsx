@@ -41,6 +41,9 @@ export default function SelectField({
   options,
   placeholder,
   size = 'default', // 'default' | 'lg' | 'perf'(인앱 2.5rem/40px)
+  // 라벨 텍스트 색 오버라이드. 기본값이 기존 하드코딩(text-ink)과 동일해 기존 호출부는
+  // 영향받지 않는다 — TextField.jsx의 같은 확장과 동일한 이유(§5.5 필수/선택 라벨 분리).
+  labelClassName = 'text-ink',
   helperText,
   status = 'default', // 'default' | 'error' | 'success'
   disabled = false,
@@ -54,7 +57,7 @@ export default function SelectField({
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={fieldId} className="mb-2 block text-[0.875rem] font-medium text-ink">
+        <label htmlFor={fieldId} className={`mb-2 block text-[0.875rem] font-medium ${labelClassName}`}>
           {label}
         </label>
       )}
