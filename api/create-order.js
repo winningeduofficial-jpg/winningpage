@@ -126,20 +126,36 @@ export default async function handler(req, res) {
       // fn_redeem_coupons 는 결제 금액이 0원 이하가 되면 'invalid_amount' 로
       // raise exception 한다(트랜잭션 전체 롤백 — orders/order_items/
       // coupon_redemptions 어느 것도 남지 않는다). 그 외는 서버 오류.
-      if (redeemError.message === 'invalid_amount') {
+      // P3: sql/55_coupon_policy.sql 이 이 예외에 errcode='WC001' 을 붙였다
+      // (2026-08-11) — 메시지 문자열은 PostgREST 래핑이나 문구 변경으로
+      // 흔들릴 수 있어 code 비교를 정본으로 쓴다. 메시지 비교는 과거 배포
+      // 흔적(구버전 PostgREST 캐시 등)에 대한 폴백으로만 남겨 둔다.
+      if (redeemError.code === 'WC001' || redeemError.message === 'invalid_amount') {
         return res.status(400).json({ error: '결제 금액이 올바르지 않습니다.' });
       }
       console.error('fn_redeem_coupons 오류:', redeemError);
       return res.status(500).json({ error: '주문 생성에 실패했습니다.' });
     }
 
-    const amount = Number(redeemRows?.[0]?.amount ?? 0);
+    const redeemRow = redeemRows?.[0] ?? {};
+    const amount = Number(redeemRow.amount ?? 0);
     if (!amount) {
       console.error('fn_redeem_coupons 응답에 amount 없음:', redeemRows);
       return res.status(500).json({ error: '주문 생성에 실패했습니다.' });
     }
 
-    return res.status(200).json({ orderId, orderName, amount });
+    // P1-3: 서버가 실제로 적용한 쿠폰과 할인액을 응답에 싣는다. 화면은 클라이언트가
+    // '선택한' 쿠폰으로 payAmount 를 미리 계산해 두지만, 서버는 로그인 필요/전체
+    // 소진/비결합 배제/0원 방지 스킵 등으로 그중 일부를 조용히 뺄 수 있다 — 이걸
+    // 숨기면 사용자가 토스 결제창에서 처음 보는 금액으로 결제하게 된다(Checkout.jsx
+    // handlePay 의 표시가/청구가 대조가 이 값을 쓴다).
+    return res.status(200).json({
+      orderId,
+      orderName,
+      amount,
+      appliedCouponIds: redeemRow.applied_coupon_ids ?? [],
+      couponDiscount: Number(redeemRow.coupon_discount ?? 0)
+    });
   } catch (err) {
     console.error('create-order error:', err);
     return res.status(500).json({ error: String(err?.message ?? err) });

@@ -186,6 +186,60 @@ export default async function handler(req, res) {
         if (Number(order.amount) !== Number(amount)) {
           return res.status(400).json({ error: '주문 금액이 일치하지 않습니다.' });
         }
+
+        // P0-2: 승인 직전 쿠폰 재검증(sql/55_coupon_policy.sql fn_revalidate_order_coupons).
+        // 30분 소프트 홀드가 풀린 뒤 결제해도 여기 없이는 아무도 막지 않아, 같은 쿠폰이
+        // 서로 다른 두 paid 주문에 붙을 수 있었다(팀 보고 시나리오 참고). 이미 paid/
+        // waiting_deposit/canceled 인 주문은 위에서 먼저 return 하므로 여기 도달하는
+        // 주문은 pending(또는 이전 시도의 failed — failed 는 종결이 아니라 재시도
+        // 가능, 위 STATUS_FAILED 주석 참고) 뿐이다. 멱등 재응답 경로(이미 paid 인
+        // 주문)에는 이 재검증을 걸지 않는다 — 재검증이 제외하는 건 "이 주문 자신의"
+        // redemption 뿐이라 자기참조 오류는 없지만, 이미 승인된 결제를 재확인 요청
+        // 한 번으로 되돌릴 방법이 없어(카드 승인·즉시 입장 모두 기정사실) 걸어봐야
+        // 사용자를 막을 수만 있고 구제할 수는 없기 때문이다.
+        const { data: revalidateRows, error: revalidateError } = await supabaseAdmin.rpc(
+          'fn_revalidate_order_coupons',
+          { p_order_id: orderId }
+        );
+
+        if (revalidateError) {
+          // 돈이 걸린 판단: RPC 자체가 실패하면(네트워크·권한 오류) 쿠폰 이상 유무를 알
+          // 수 없다. 낙관적으로 통과시키면 이 재검증이 막으려던 이중 사용을 그대로
+          // 열어주고, 그 손실(쿠폰 부정 사용, 카드 승인·즉시 입장 확정)은 되돌릴 수
+          // 없다. 반대로 막아서 생기는 비용은 되돌릴 수 있다 — STATUS_FAILED 는 종결이
+          // 아니라 재시도 가능하도록 이미 설계돼 있어(위 STATUS_FAILED 주석), 사용자는
+          // 같은 결제창에서 다시 승인을 시도할 수 있다. 그래서 fail-closed 를 택한다.
+          console.error('fn_revalidate_order_coupons 호출 실패:', revalidateError);
+          await supabaseAdmin
+            .from('orders')
+            .update({ status: STATUS_FAILED })
+            .eq('id', orderId)
+            .eq('status', STATUS_PENDING);
+          // TODO(문구 승인 필요): "쿠폰 확인에 실패했습니다. 다시 시도해 주세요." 류
+          // 안내가 필요하다. 지어내지 않고 이 파일의 기존 대체 문구를 재사용해 둔다.
+          return res.status(500).json({ error: '결제 승인 실패' });
+        }
+
+        const invalidCoupon = (revalidateRows || []).find((row) => row.ok === false);
+        if (invalidCoupon) {
+          // 이미 다른 paid 주문에 같은 쿠폰이 귀속돼 있는 등, 이 주문에 붙은 쿠폰이
+          // 더 이상 유효하지 않다. 토스 승인 API를 아예 호출하지 않는다 — 승인 후
+          // 취소로는 이미 발생한 이득(카드 포인트 적립, 즉시 입장)을 완전히 되돌릴 수
+          // 없어 사전 차단이 유일한 방어선이다.
+          await supabaseAdmin
+            .from('orders')
+            .update({ status: STATUS_FAILED })
+            .eq('id', orderId)
+            .eq('status', STATUS_PENDING);
+          // TODO(문구 승인 필요): "적용된 쿠폰을 더 이상 사용할 수 없습니다. 쿠폰을
+          // 다시 선택해 주세요." 류 안내 + 재선택 유도가 필요하다. couponId/reason 은
+          // 구조화 필드로 실어 클라이언트가 사유를 판단하게 한다(지어낸 문구 없음).
+          return res.status(409).json({
+            error: '결제 승인 실패',
+            couponId: invalidCoupon.coupon_id,
+            reason: invalidCoupon.reason
+          });
+        }
       }
     }
 

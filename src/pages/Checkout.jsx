@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -146,6 +146,50 @@ const RequiredCheck = forwardRef(function RequiredCheck({ checked, onChange, chi
   );
 });
 
+// c.code 는 fn_usable_coupons/fn_coupon_by_code 둘 다 더 이상 반환하지 않는다
+// (DB 하드닝, P1-1 — 무인증 전체 코드 덤프 방지). 두 RPC의 반환 컬럼이 동일해
+// 쿠폰 객체 형태를 여기 한 곳에서만 정의하고 fetchCoupons(목록 조회)와
+// applyCouponCode(코드 조회) 양쪽이 공유한다.
+function mapCouponRow(c) {
+  return {
+    id: c.id,
+    title: c.title,
+    discount: c.discount_amount,
+    minAmount: c.min_amount || 0,
+    validUntil: c.valid_until,
+    isActive: c.is_active,
+    eligible: c.eligible,
+    // reason: below_min_amount | expired | already_used | inactive |
+    // login_required | sold_out | null. 한국어 문구는 COUPON_REASON_TEXT
+    // (아래, 코퍼스 승인 대상)가 채워지면 자동으로 노출된다.
+    reason: c.reason
+  };
+}
+
+// 신규 쿠폰 하드닝(P0-2/P1-3/P1-7/P1-8)으로 새로 생긴 사용자 안내 자리다.
+// 이 프로젝트는 화면 문구를 코퍼스 규범으로 통제해 신규 문구를 지어낼 수
+// 없다 — 승인 전까지 null 로 비워 둔다. 값이 없으면 아래 조건부 렌더가
+// 아무것도 그리지 않는다(팀 보고에 각 사유의 성격만 남겨 코퍼스 승인
+// 대상으로 넘긴다).
+const COUPON_REASON_TEXT = {
+  below_min_amount: null, // "최소 결제 금액 미달" 성격
+  expired: null, // "쿠폰 유효기간 만료" 성격
+  already_used: null, // "이미 사용한 쿠폰" 성격
+  inactive: null, // "판매 종료된 쿠폰" 성격 (코드로 정확히 맞힌 경우에만 도달)
+  login_required: null, // "로그인 후 사용 가능" 성격
+  sold_out: null // "발급 수량 소진" 성격
+};
+
+// handlePay 의 표시가/청구가 불일치 안내(아래 amountMismatch). "결제 금액이
+// 바뀌었으니 쿠폰 조건을 다시 확인해 달라" 성격의 문구가 필요하다.
+const AMOUNT_MISMATCH_TEXT = null;
+
+// applyCouponCode 에서 코드 자체를 못 찾았을 때. 이건 신규 문구가 아니라
+// 기존 코퍼스 문구를 그대로 재사용한다 — 예전엔 window.alert 로 띄우던 것을
+// 인라인 표시로 옮겼을 뿐이다(window.alert 는 이 프로젝트에서 이미 결함으로
+// 지적된 패턴).
+const CODE_NOT_FOUND_TEXT = '유효하지 않은 쿠폰 코드입니다.';
+
 export default function Checkout() {
   const [items, setItems] = useState(() => getCart());
   const [checkedIds, setCheckedIds] = useState(() => new Set(getCart().map((i) => i.id)));
@@ -157,6 +201,14 @@ export default function Checkout() {
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
   const [couponCode, setCouponCode] = useState('');
+  // 코드 입력 피드백 — '코드 자체가 없음'과 '코드는 맞지만 지금 조건 미충족'을
+  // 구분해서 보여준다(과거엔 후자도 "유효하지 않은 쿠폰 코드입니다"로 뭉뚱그려
+  // 거짓 안내였다 — applyCouponCode 참고). type: 'not_found' | 'ineligible'.
+  const [codeFeedback, setCodeFeedback] = useState(null);
+  // 표시가(payAmount)와 서버 청구가(order.amount)가 다를 때 세팅한다 — 서버가
+  // 쿠폰 일부를 조용히 스킵한 경우(로그인 필요/전체 소진/비결합 배제/0원 방지
+  // 등). handlePay 참고.
+  const [amountMismatch, setAmountMismatch] = useState(false);
 
   const [payMethod, setPayMethod] = useState('card');
   const [openNotice, setOpenNotice] = useState(false);
@@ -190,49 +242,45 @@ export default function Checkout() {
   const subtotal = checkedItems.reduce((s, i) => s + Number(i.price || 0), 0);
   const productDiscount = listTotal - subtotal;
 
-  // 쿠폰 목록 로드. 판정(활성/기간/최소금액/사용 횟수 제한)은 전부 DB 함수
-  // fn_usable_coupons 가 전담한다(sql/55_coupon_policy.sql) — 클라이언트는
-  // today 를 계산하지 않는다(예전엔 시계 조작으로 만료 쿠폰이 되살아났고,
-  // UTC 계산이라 KST 자정~09시 구멍도 있었다). 최소금액 조건이 subtotal 에
-  // 달려 있으므로 subtotal 이 바뀔 때마다(상품 체크 토글) 다시 불러 eligible
-  // 을 최신 상태로 유지한다. 쿠폰은 선택 요소라 조회 실패 시에도 결제 자체는
-  // 막지 않되, 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역 안내로 노출한다.
+  // 쿠폰 목록 로드. 판정(활성/기간/최소금액/사용 횟수 제한/로그인 필요/전체
+  // 소진)은 전부 DB 함수 fn_usable_coupons 가 전담한다(sql/55_coupon_policy.sql)
+  // — 클라이언트는 today 를 계산하지 않는다(예전엔 시계 조작으로 만료 쿠폰이
+  // 되살아났고, UTC 계산이라 KST 자정~09시 구멍도 있었다). 최소금액 조건이
+  // subtotal 에 달려 있으므로 subtotal 이 바뀔 때마다(상품 체크 토글) 다시
+  // 불러 eligible 을 최신 상태로 유지한다. 쿠폰은 선택 요소라 조회 실패 시에도
+  // 결제 자체는 막지 않되, 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역
+  // 안내로 노출한다. handlePay(표시가/청구가 불일치 시)도 이 함수를 다시 불러
+  // 화면을 최신 판정으로 갱신한다 — signalAlive 는 그 수동 호출 경로에서는
+  // 안 쓰인다(중복 호출로 서로를 취소할 stale-response 걱정이 없는 1회성
+  // 사용자 액션이라서다).
+  const fetchCoupons = useCallback(async ({ signalAlive } = {}) => {
+    const { data, error } = await supabase.rpc('fn_usable_coupons', { p_subtotal: subtotal });
+    if (signalAlive && !signalAlive()) return;
+    setCouponsLoaded(true);
+    if (error) {
+      console.warn('쿠폰 조회 실패:', error.message);
+      setCouponError(true);
+      return;
+    }
+    setCouponError(false);
+    setCoupons((data || []).map(mapCouponRow));
+  }, [subtotal]);
+
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const { data, error } = await supabase.rpc('fn_usable_coupons', { p_subtotal: subtotal });
-      if (!alive) return;
-      setCouponsLoaded(true);
-      if (error) {
-        console.warn('쿠폰 조회 실패:', error.message);
-        setCouponError(true);
-        return;
-      }
-      setCoupons(
-        (data || []).map((c) => ({
-          id: c.id,
-          code: c.code,
-          title: c.title,
-          discount: c.discount_amount,
-          minAmount: c.min_amount || 0,
-          validUntil: c.valid_until,
-          isActive: c.is_active,
-          eligible: c.eligible,
-          // reason: below_min_amount | expired | already_used | inactive | null.
-          // 한국어 문구는 아직 없다 — 지어내지 않고 아래 렌더 주석·팀 보고에
-          // "이런 성격의 문구가 필요하다"로만 남긴다(코퍼스 승인 대상).
-          reason: c.reason
-        }))
-      );
-    })();
+    fetchCoupons({ signalAlive: () => alive });
     return () => {
       alive = false;
     };
-  }, [subtotal]);
+  }, [fetchCoupons]);
 
-  // 판매 종료(비활성) 쿠폰은 고객에게 노출할 이유가 없어 목록에서 숨긴다 —
-  // fn_usable_coupons 는 걸러내지 않고 반환하지만(sql/55 주석 참고),
-  // applyCouponCode 는 정직성을 위해 이 필터 이전의 전체 목록(coupons)을 쓴다.
+  // 판매 종료(비활성) 쿠폰은 고객에게 노출할 이유가 없어 목록에서 숨긴다.
+  // fn_usable_coupons 는 이제 is_active=false 행 자체를 제외하고 반환하므로
+  // (sql/55_coupon_policy.sql 3-a 주석) 이 필터는 사실상 fetchCoupons 결과에는
+  // 항상 no-op 이다 — 실제로 걸리는 경우는 applyCouponCode 가 코드로 정확히
+  // 맞혀 coupons 에 병합한 비활성 쿠폰뿐이다(fn_coupon_by_code 는 is_active
+  // 와 무관하게 반환한다, sql/55 3-b 주석). applyCouponCode 는 정직성을 위해
+  // 이 필터 이전의 전체 목록(coupons)을 쓴다.
   const visibleCoupons = useMemo(() => coupons.filter((c) => c.isActive), [coupons]);
 
   // 선택된 쿠폰 중 DB가 eligible=true 로 판정한 것만 적용, 총 할인은 subtotal 초과 불가.
@@ -299,6 +347,7 @@ export default function Checkout() {
   }
 
   function toggleCoupon(id) {
+    setAmountMismatch(false);
     setSelectedCouponIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -309,25 +358,42 @@ export default function Checkout() {
 
   // 부적격이어도 거짓말하지 않는다 — 예전엔 "로드된(=활성+미만료) 목록"에서만
   // 찾아, over40k-3000 같은 실제 유효 코드에도 "유효하지 않은 쿠폰
-  // 코드입니다"라고 안내했다(밸리데이션 버그이지 코드 문제가 아니었다). 이제
-  // coupons state 는 fn_usable_coupons 가 반환한 전체 쿠폰(비활성 포함)이라,
-  // 여기서 못 찾는 경우만 "코드 자체가 없다"는 뜻이 된다.
-  function applyCouponCode() {
-    const code = couponCode.trim().toLowerCase();
+  // 코드입니다"라고 안내했다(밸리데이션 버그이지 코드 문제가 아니었다).
+  // fn_usable_coupons 가 code 를 반환하지 않게 되면서(P1-1) 목록에서 찾는
+  // 방식 자체가 성립하지 않는다 — 입력한 코드를 fn_coupon_by_code 로 직접
+  // 조회한다. 0행 = 코드 자체가 없다("코드 문제"). 1행인데 eligible=false =
+  // 코드는 맞지만 지금 조건 미충족("조건 문제") — 서로 다른 사실이라
+  // codeFeedback 으로 구분해서 알린다(렌더 쪽 COUPON_REASON_TEXT 주석 참고).
+  async function applyCouponCode() {
+    const code = couponCode.trim();
     if (!code) return;
-    const found = coupons.find((c) => (c.code || '').toLowerCase() === code);
-    if (!found) {
-      window.alert('유효하지 않은 쿠폰 코드입니다.');
+
+    const { data, error } = await supabase.rpc('fn_coupon_by_code', {
+      p_code: code,
+      p_subtotal: subtotal
+    });
+    if (error) {
+      console.warn('쿠폰 코드 조회 실패:', error.message);
+      setCouponError(true);
       return;
     }
+
+    const found = data?.[0];
+    if (!found) {
+      setCodeFeedback({ type: 'not_found' });
+      return;
+    }
+
     // 찾았지만 지금은 못 쓰는 쿠폰(최소금액 미달/기간 만료/이미 사용/판매
-    // 종료)이어도 선택 상태에는 넣는다 — 목록에 나타나 기존 비활성 스타일
-    // (opacity-45, disabled)로 "코드는 인식됐지만 지금은 조건 미충족"임을
-    // 보여준다. 사유별 안내 문구는 아직 없다(코퍼스 승인 대상 — 팀 보고 참고).
-    // 단 판매 종료(isActive=false) 쿠폰은 visibleCoupons 에서 아예 숨기므로
-    // 선택해도 화면에 드러나지 않는다 — 이 경우의 사용자 피드백도 문구
-    // 승인이 필요한 항목이다.
+    // 종료/로그인 필요/전체 소진)이어도 선택 상태·목록에는 넣는다 — 목록에
+    // 나타나면 기존 비활성 스타일(opacity-45, disabled)로 "코드는 인식됐지만
+    // 지금은 조건 미충족"임을 보여준다. 단 판매 종료(isActive=false) 쿠폰은
+    // visibleCoupons 에서 아예 숨기므로 선택해도 카드가 드러나지 않는다 —
+    // 그 경우의 사용자 피드백은 codeFeedback(아래)이 대신 맡는다.
+    setCoupons((prev) => [...prev.filter((c) => c.id !== found.id), mapCouponRow(found)]);
     setSelectedCouponIds((prev) => new Set(prev).add(found.id));
+    setAmountMismatch(false);
+    setCodeFeedback(found.eligible ? null : { type: 'ineligible', reason: found.reason });
     setCouponCode('');
   }
 
@@ -361,6 +427,25 @@ export default function Checkout() {
 
       if (!res.ok || !order?.orderId || !order?.amount) {
         window.alert(order?.error || '주문 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        setLoading(false);
+        return;
+      }
+
+      // 표시가/청구가 대조 — 서버가 재계산한 order.amount 가 화면이 보여준
+      // payAmount 와 다르면(로그인 필요/전체 소진/비결합 배제/0원 방지 등으로
+      // 서버가 쿠폰 일부를 조용히 스킵한 경우) 사용자가 토스 결제창에서 처음
+      // 보는 금액으로 결제하게 둘 수 없다. requestPayment 를 호출하지 않고
+      // 중단하고, 실제로 적용된 쿠폰만 선택에 남긴 뒤 목록을 다시 불러 화면을
+      // 최신 판정으로 갱신한다. 이미 생성된 pending 주문은 그대로 둔다 —
+      // 취소 API가 없어(이번 작업 범위 밖) 30분 소프트 홀드로 자연 만료된다
+      // (sql/55_coupon_policy.sql fn_coupon_is_redeemed 의 pending+30분 규칙).
+      if (Number(order.amount) !== payAmount) {
+        const appliedIds = new Set(order.appliedCouponIds || []);
+        const droppedIds = Array.from(selectedCouponIds).filter((id) => !appliedIds.has(id));
+        console.warn('결제 금액 불일치 — 서버가 스킵한 쿠폰:', droppedIds);
+        setSelectedCouponIds(appliedIds);
+        setAmountMismatch(true);
+        await fetchCoupons();
         setLoading(false);
         return;
       }
@@ -674,7 +759,10 @@ export default function Checkout() {
                 <div className="flex gap-2">
                   <input
                     value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCodeFeedback(null);
+                    }}
                     onKeyDown={(e) => e.key === 'Enter' && applyCouponCode()}
                     placeholder="쿠폰 코드 입력"
                     // placeholder 는 시안 실측 14px w500 #d9d9d9 → 토큰 line(#d7d7d7).
@@ -693,6 +781,20 @@ export default function Checkout() {
                 {couponError && (
                   <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
                     쿠폰을 불러오지 못했습니다.
+                  </p>
+                )}
+
+                {/* 코드 입력 피드백 — '코드 자체가 없음'(기존 코퍼스 문구 재사용)과
+                    '코드는 맞지만 조건 미충족'(COUPON_REASON_TEXT, 코퍼스 승인 전까지
+                    비어 있어 아무것도 그리지 않는다)을 구분한다. applyCouponCode 참고. */}
+                {codeFeedback?.type === 'not_found' && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {CODE_NOT_FOUND_TEXT}
+                  </p>
+                )}
+                {codeFeedback?.type === 'ineligible' && COUPON_REASON_TEXT[codeFeedback.reason] && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {COUPON_REASON_TEXT[codeFeedback.reason]}
                   </p>
                 )}
 
@@ -753,6 +855,16 @@ export default function Checkout() {
                                   {String(c.validUntil).replace(/-/g, '.')}까지
                                 </span>
                               )}
+                              {/* 부적격 사유 캡션 — login_required/sold_out 포함 6종 reason 전부
+                                  이 한 자리로 모인다(opacity-45+disabled 는 이미 eligible 하나로
+                                  전 사유를 동일하게 처리한다 — 새 사유가 늘어도 그 처리는
+                                  자동으로 적용된다). 문구는 COUPON_REASON_TEXT(코퍼스 승인
+                                  대상)가 채워지기 전까지 비어 있다. */}
+                              {!eligible && COUPON_REASON_TEXT[c.reason] && (
+                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                                  {COUPON_REASON_TEXT[c.reason]}
+                                </span>
+                              )}
                             </span>
                             {/* 시안(1882-10111·3437-2974 등)은 '-6,000원'처럼 단위까지 붙는다.
                                 이 파일의 다른 금액과 동일하게 formatKRW를 경유시킨다. */}
@@ -769,7 +881,10 @@ export default function Checkout() {
                     <div className="mt-2 text-right">
                       <button
                         type="button"
-                        onClick={() => setSelectedCouponIds(new Set())}
+                        onClick={() => {
+                          setAmountMismatch(false);
+                          setSelectedCouponIds(new Set());
+                        }}
                         // 시안 실측 14px w400 lh20 #525252 ('보유 쿠폰 N장' 과 같은 스타일).
                         // hover 는 ink-title(#181d24)을 쓰고 있었으나 그 토큰은 시안이 로그인 H1
                         // 에서만 쓰는 색이라 근거가 없다. 기본 상태(text-ink)는 시안과 일치하므로
@@ -876,6 +991,16 @@ export default function Checkout() {
                     <dd>{formatKRW(payAmount)}</dd>
                   </div>
                 </dl>
+
+                {/* 표시가/청구가 불일치 안내 — handlePay 가 서버 재계산 금액과 화면
+                    payAmount 가 다를 때 세팅한다(amountMismatch). 문구는
+                    AMOUNT_MISMATCH_TEXT(코퍼스 승인 대상)가 채워지기 전까지 비어
+                    있다. */}
+                {amountMismatch && AMOUNT_MISMATCH_TEXT && (
+                  <p aria-live="polite" className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {AMOUNT_MISMATCH_TEXT}
+                  </p>
+                )}
 
                 {/* CTA 미충족 사유(P0) — 예전엔 비활성 사유가 화면에 0글자였다. 어느 조건이
                     안 채워졌는지 구체적으로 나열하고, 클릭하면 해당 체크박스로 스크롤+포커스
