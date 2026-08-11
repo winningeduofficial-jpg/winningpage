@@ -26,6 +26,10 @@ import PerformanceSidebar from './PerformanceSidebar';
 export default function PerformanceAppLayout() {
   return (
     <div className="flex min-h-screen bg-white">
+      {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
+          TODO(P5/P13): `GET /api/performance/bootstrap`의 `profile`/`lastSession`을 셸에서 한 번
+          읽어 여기로 내려보낸다. 지금 값을 넘기지 않는 것은 배선이 없어서지 기본값이 정본이라서가
+          아니다 — 없는 값 자리에 가짜 이름·리터럴 학교유형을 채우지 않는 것이 §11 Q61-ⓔ 규칙이다. */}
       <PerformanceSidebar />
 
       {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
