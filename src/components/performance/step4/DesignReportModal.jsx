@@ -97,11 +97,20 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
             border-radius: 0 !important;
             box-shadow: none !important;
           }
+          /* 인셋은 @page 여백(15mm)이 대신한다. **헤더와 본문을 같이 걷는다** — 본문만
+             0으로 만들면 제목·부제만 20px 들여쓰인 채 남아 좌측 정렬이 어긋난다
+             (xl: 분기는 A4 페이지 박스 폭(약 794px)에서 걸리지 않아 px-[1.25rem]이 남는다). */
+          .performance-report-head,
+          .performance-report-scroll {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
           .performance-report-scroll {
             overflow: visible !important;
             max-height: none !important;
             flex: none !important;
-            padding: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
           }
           .performance-report-scroll > * { max-width: none !important; }
 
@@ -132,7 +141,7 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
             아래 구분선(y795)까지 1.1875rem. 좌 인셋은 본문과 같은 2.5rem(넓은 뷰포트 기준,
             좁은 화면은 1.25rem으로 줄인다). 구분선 폭이 모달보다 11px 넓은 것은 시안 오차라
             (§5.13 표) 따르지 않는다. */}
-        <div className="shrink-0 border-b border-performance-line px-[1.25rem] pb-[1.1875rem] pt-10 xl:px-10">
+        <div className="performance-report-head shrink-0 border-b border-performance-line px-[1.25rem] pb-[1.1875rem] pt-10 xl:px-10">
           <h2
             id={titleId}
             className="break-words text-[1.25rem] font-semibold leading-[1.625rem] text-ink"
@@ -150,9 +159,18 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
           ) : null}
         </div>
 
-        {/* 본문 — 폭 70.5rem이 정본(§5.13), 인셋 좌 2.5rem / 우 4.5rem 비대칭(§7.3, 우측은
-            스크롤바 거터를 포함한 산출값이라 좌우를 맞바꾸지 말 것). 2.5 + 70.5 + 4.5 =
-            77.5rem으로 모달 폭과 정확히 맞는다. 비대칭 인셋은 모달이 온전히 들어가는
+        {/* 본문 — 폭 70.5rem이 정본(§5.13), 인셋 좌 2.5rem / 우 4.5rem 비대칭(§7.3 —
+            콘텐츠 우변 1508 → 모달 우변 1580 실측이라 좌우를 맞바꾸지 말 것). 2.5 + 70.5 +
+            4.5 = 77.5rem으로 모달 폭과 정확히 맞는다.
+            ⚠ 시안의 72px은 스크롤바를 그린 상태의 실측이지만, 여기서는 **스크롤바를 이 padding
+            안에 접어 넣지 않고 그 바깥의 별도 거터로 본다** — 즉 72px은 콘텐츠 우변에서
+            스크롤바까지의 거리다. 그 결과 클래식 스크롤바 플랫폼(Windows/Linux Chrome, 약 15px)
+            에서는 실제 콘텐츠 폭이 70.5rem에서 스크롤바 폭만큼 줄고, 오버레이 스크롤바(macOS)
+            에서는 정확히 70.5rem이 된다. 반대로 두면(padding에서 스크롤바 폭을 빼면) 플랫폼에
+            따라 우측 인셋이 57px까지 좁아져 시안 실측과 눈에 띄게 어긋나고, CSS는 스크롤바
+            실폭을 읽을 수 없어 두 값을 동시에 만족시킬 방법이 없다. 폭 정본이 우선이라고
+            판정이 뒤집히면 `scrollbar-gutter: stable` + `calc()`로 거터를 고정하면 된다.
+            비대칭 인셋은 모달이 온전히 들어가는
             뷰포트(xl≥1280px, 1240+패딩)에서만 적용하고 그 아래에서는 좌우 1.25rem 대칭으로
             떨어뜨린다 — 좁은 화면에서 우측 4.5rem을 유지하면 본문이 과하게 눌린다.
             포커서블 요소가 없는 스크롤 컨테이너는 Tab으로 도달할 수 없으므로 `tabIndex`를
@@ -184,12 +202,18 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
             3.25rem(§5.13 실측). 상단 구분선은 시안 실측에 없으나 본문이 그 아래로 스크롤해
             들어가므로 경계 표시로 둔다(§5.11 푸터와 같은 처리 — 의도적 추가).
             좌우 인셋은 헤더·본문과 같은 2.5rem으로 근사한다(푸터는 스크롤바가 없어 정확한
-            우측 인셋 실측치가 명세에 없다). */}
+            우측 인셋 실측치가 명세에 없다).
+            버튼은 `shrink-0`을 두지 않는다 — 필요 폭 33.25rem(532px)이 가용 폭을 넘는 좁은
+            뷰포트(vw < 604px)에서 축소가 막히면 `justify-end` 때문에 넘치는 분량이 좌측으로
+            밀리고 패널의 `overflow-hidden`이 그것을 잘라낸다. 하필 잘리는 쪽이 유일한 명시적
+            닫기 버튼(secondary)이다. 축소를 허용하면 두 버튼이 같이 줄고 라벨은 3.25rem 높이
+            안에서 두 줄로 접힌다(1.25rem 줄높이 × 2 < 3.25rem). `min-w-0`은 플렉스 아이템의
+            기본 `min-width: auto`가 축소를 다시 막는 것을 푼다. */}
         <div className="performance-print-hide flex h-20 shrink-0 items-center justify-end gap-3 rounded-b-[1.25rem] border-t border-performance-line bg-white px-[1.25rem] xl:px-10">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-[3.25rem] w-[16.25rem] max-w-full shrink-0 items-center justify-center rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
+            className="flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
           >
             {CLOSE_LABEL}
           </button>
@@ -200,7 +224,7 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
             // `@media print`다). 본문이 비면 인쇄할 것이 없으므로 비활성.
             onClick={() => window.print()}
             disabled={!hasContent}
-            className="flex h-[3.25rem] w-[16.25rem] max-w-full shrink-0 items-center justify-center rounded-xl bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
+            className="flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
           >
             {PRINT_LABEL}
           </button>

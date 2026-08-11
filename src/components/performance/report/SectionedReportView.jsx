@@ -90,7 +90,17 @@ export default function SectionedReportView({ sections = [], className = '' }) {
               // §8.5 블록 배열. 마크업은 블록 뷰가, 룩은 `PerformanceReportSurface`가 갖는다
               // (상단 「역할 경계」 주석). 여기서 타이포 클래스를 얹으면 두 곳이 같은 속성을
               // 다투게 되므로 얹지 않는다.
-              <div>{section.blocks.map((block, blockIndex) => renderBlock(block, blockIndex))}</div>
+              //
+              // **최상위 블록 사이 간격은 이 래퍼가 소유한다**(§5.13 「섹션 내부 gap 0.5rem(8)」
+              // = `gap-2`, 섹션 껍데기가 라벨↔본문에 쓰는 값과 같다). 상단 「역할 경계」의
+              // "섹션 바깥 여백은 이 컴포넌트 책임"이 여기까지 이어진다 — 블록 뷰는 자기
+              // **안쪽** 간격만 갖는다(`admission-readable-body`의 grid gap 등). 그래서
+              // `PerformanceReportSurface`는 형제 블록 보정 규칙을 두지 않는다. 이 gap이
+              // 없으면 한 섹션에 최상위 블록이 2개 이상일 때(예: `수행평가 전체 방향` =
+              // keyValue + group + keyValue) 이음매가 0px이 되어 세 덩어리가 한 문단처럼 붙는다.
+              <div className="flex flex-col gap-2">
+                {section.blocks.map((block, blockIndex) => renderBlock(block, blockIndex))}
+              </div>
             ) : (
               /* `break-words`(overflow-wrap: break-word) — 없으면 긴 무공백 문자열(URL 등)이
                  왔을 때 `overflow-y-auto` 컨테이너가 `overflow-x: auto`로도 계산돼 본문 안에

@@ -97,9 +97,11 @@ export default function PerformanceReportSurface({ children, className = '' }) {
           padding: 0;
           background: transparent;
         }
-        .performance-report-surface .admission-special-block + .admission-special-block {
-          margin-top: 1rem;
-        }
+        /* 형제 블록 사이 간격은 여기서 만들지 않는다 — 섹션 내부 최상위 블록의 gap은
+           SectionedReportView의 블록 래퍼(flex flex-col gap-2)가 소유한다(§5.13
+           「섹션 내부 gap 0.5rem」). 초판은 group끼리만 margin-top 1rem으로 벌렸는데,
+           그러면 keyValue↔group 이음매가 0px로 남아 '수행평가 전체 방향' 섹션만 세 덩어리가
+           붙어 보였다. 한 곳에서 한 값으로 통일한다. */
         .performance-report-surface .admission-special-title {
           color: #525252;
           font-size: 1rem;
