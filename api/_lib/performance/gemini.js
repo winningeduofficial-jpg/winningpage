@@ -1,0 +1,196 @@
+// 수행평가 앱 전용 Gemini 생성 호출 모듈.
+//
+// 외부 앱(`/Users/hyunsoo/uwellnow/suhaengpyeong`)의 `api/_lib/gemini.js`를 이 저장소로
+// 네이티브 이식한 것이다. 외부 파일을 import하지 않는다 — 그 앱은 폐기 대상이고
+// 배포 단위도 다르다(`api/_lib/performance/embeddings.js` 상단 주석과 같은 사유).
+//
+// 이식한 것 (docs/수행평가-상세-명세.md §12.3 「Gemini 재시도 판정·백오프」/「비전 호출 파라미터」)
+//   · 재시도 판정식 — `503`/`429`/`'UNAVAILABLE'`/`'high demand'`/`'RESOURCE_EXHAUSTED'`
+//     (`suhaengpyeong/api/_lib/gemini.js:12-23`). 운영 관측 없이는 다시 못 만드는 목록이라
+//     문자열까지 그대로 옮긴다.
+//   · 백오프 — 700ms × 2^attempt, 기본 2회 재시도(`:38`, `:57`).
+//   · 모델 — `gemini-2.5-flash`(외부 `_lib/config.js:30`의 `MODEL` 상수와 동일 값).
+//   · 기본 파라미터 — 텍스트 temperature 0.35 / maxOutputTokens 1800,
+//     비전 temperature 0.25 / maxOutputTokens 2200(**1장 기준**), 양쪽 `thinkingBudget: 0`.
+//
+// 바꾼 것 3가지
+//   ① **클라이언트 생성을 지연시킨다.** 외부는 모듈 최상단에서 `GEMINI_API_KEY`가 없으면
+//      throw한다(`:4-6`). 서버리스에서는 이 모듈을 import하는 모든 라우트가 콜드 스타트
+//      단계에서 통째로 죽어 500이 되고 원인 로그도 남지 않는다. 여기서는 실제 호출 시점에
+//      만들고, 키가 없으면 그 호출만 실패시킨다(embeddings.js와 같은 관례).
+//   ② **`callVision`이 이미지 N장을 받는다.** 외부 시그니처는 `(system, imageBytes, mimeType,
+//      prompt)`로 1장 전용이라 프론트가 장당 1회씩 호출했다(`suhaengpyeong/index.html:1660-1681`).
+//      §8.8 「다중 분석」 결정이 이를 단일 호출로 통합하므로 `images[]`를 받는다.
+//      `contents` 배열 순서가 `[...inlineData, text]`인 것은 외부와 동일하게 유지한다(§12.3).
+//   ③ **구조화 출력 통로를 열어 둔다.** `responseMimeType`/`responseSchema`를 `options`로
+//      받아 `config`에 실어 보낸다(§8.4 ~~Q69~~ 결정 — 주제 추천 P8 / 설계 리포트 P10 /
+//      평가 P11이 구조화 출력을 쓴다). **안내문 추출(P7)은 쓰지 않는다** — 그 단계의 원본
+//      계약은 평문이다.
+//
+// 회차 차감은 이 계층 바깥이다 (§12.3 「재시도가 회차 차감과 얽히지 않도록」)
+//   여기서 조용히 2번 더 호출해도 차감은 일어나지 않는다. 차감 지점은 주제 추천 최초
+//   성공 1곳뿐이다(§9.2).
+
+import { GoogleGenAI } from '@google/genai';
+
+/** 외부 `_lib/config.js:30`의 `MODEL` 상수와 같은 값. */
+export const PERFORMANCE_MODEL = 'gemini-2.5-flash';
+
+/** 비전 호출 `maxOutputTokens` **1장 기준**값(§12.3). 장수 비례 상향은 호출부 몫이다. */
+export const VISION_MAX_OUTPUT_TOKENS_PER_IMAGE = 2200;
+
+let geminiClient = null;
+
+function getGeminiClient() {
+  const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY 환경변수가 설정되지 않았습니다.');
+  }
+
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({ apiKey });
+  }
+
+  return geminiClient;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 재시도할 가치가 있는 과부하성 오류인가.
+ * 판정식은 외부 `api/_lib/gemini.js:12-23` 원문 그대로다 — 실제 과부하 응답 본문에
+ * 섞여 나오는 문자열(`'high demand'` 등)까지 잡는 목록이라 운영 관측 없이는 재현이 안 된다.
+ */
+function isRetryableGeminiError(error) {
+  const status = error?.status || error?.code;
+  const message = String(error?.message || '');
+
+  return (
+    status === 503 ||
+    status === 429 ||
+    message.includes('UNAVAILABLE') ||
+    message.includes('high demand') ||
+    message.includes('RESOURCE_EXHAUSTED')
+  );
+}
+
+/**
+ * 재시도를 감싼 저수준 호출. **응답 객체를 그대로 돌려준다.**
+ *
+ * `callText`/`callVision`이 `.text`만 꺼내 쓰는 것과 달리 이쪽은 `candidates[].finishReason`
+ * 까지 볼 수 있다 — §8.4 완화책 ⓒ("`finishReason === 'MAX_TOKENS'`이면 파싱하지 않고
+ * 재시도")를 구현해야 하는 구조화 출력 호출부(P8/P10/P11)를 위해 열어 둔 문이다.
+ *
+ * @param {object} request `ai.models.generateContent` 요청 객체
+ * @param {number} [retryCount=2] 추가 시도 횟수(총 호출 = retryCount + 1)
+ */
+export async function generateWithRetry(request, retryCount = 2) {
+  const ai = getGeminiClient();
+  let lastError;
+
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    try {
+      return await ai.models.generateContent(request);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGeminiError(error) || attempt === retryCount) {
+        throw error;
+      }
+
+      const delayMs = 700 * Math.pow(2, attempt);
+      console.warn(`[Gemini retry] attempt ${attempt + 1}, waiting ${delayMs}ms`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * `options`에서 생성 설정을 조립한다. `responseMimeType`/`responseSchema`는 **주어졌을 때만**
+ * 실린다 — 평문 계약인 호출(P7 안내문 추출)에 빈 키가 섞이지 않게 하기 위함이다.
+ */
+function buildConfig(system, options, defaults) {
+  const config = {
+    systemInstruction: system,
+    temperature: options.temperature ?? defaults.temperature,
+    maxOutputTokens: options.maxOutputTokens ?? defaults.maxOutputTokens,
+    thinkingConfig: { thinkingBudget: options.thinkingBudget ?? 0 }
+  };
+
+  // §8.4 ~~Q69~~ 결정 대비 통로. P7은 전달하지 않는다.
+  if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
+  if (options.responseSchema) config.responseSchema = options.responseSchema;
+
+  return config;
+}
+
+/**
+ * 텍스트 전용 생성. 외부 `api/_lib/gemini.js:47-60` 이식.
+ *
+ * @param {string} system systemInstruction
+ * @param {string|object[]} userMsg contents
+ * @param {object} [options] `{ model, temperature, maxOutputTokens, thinkingBudget,
+ *   retryCount, responseMimeType, responseSchema }`
+ * @returns {Promise<string>} 응답 텍스트(없으면 빈 문자열)
+ */
+export async function callText(system, userMsg, options = {}) {
+  const response = await generateWithRetry(
+    {
+      model: options.model || PERFORMANCE_MODEL,
+      contents: userMsg,
+      config: buildConfig(system, options, { temperature: 0.35, maxOutputTokens: 1800 })
+    },
+    options.retryCount ?? 2
+  );
+
+  return response.text || '';
+}
+
+/**
+ * 비전 생성. 외부 `api/_lib/gemini.js:62-87` 이식 + **다중 이미지 단일 호출**(§8.8).
+ *
+ * `contents`는 `[inlineData × N, { text: prompt }]` 순서다 — 외부의 `[inlineData, text]`
+ * 순서를 장수만 늘려 그대로 유지한 것이다(§12.3 「`contents` 배열이 `[inlineData, text]`
+ * 순서인 점 유지」).
+ *
+ * **`maxOutputTokens` 기본값은 장수 비례다.** 외부 기본 2200은 1장 기준이라 그대로 두면
+ * 2장부터 출력이 잘린다(§12.3 명시). 호출부가 명시 전달하면 그 값이 우선한다.
+ *
+ * @param {string} system systemInstruction
+ * @param {{data: Buffer|Uint8Array|ArrayBuffer|string, mimeType: string}[]} images
+ *   `data`가 문자열이면 이미 base64로 본다.
+ * @param {string} prompt 사용자 프롬프트(이미지 뒤에 붙는 텍스트 파트)
+ * @param {object} [options] `callText`와 동일
+ * @returns {Promise<string>} 응답 텍스트(없으면 빈 문자열)
+ */
+export async function callVision(system, images, prompt, options = {}) {
+  const list = Array.isArray(images) ? images : [images];
+
+  if (!list.length) {
+    throw new Error('callVision: 이미지가 최소 1장 필요합니다.');
+  }
+
+  const parts = list.map((image) => ({
+    inlineData: {
+      mimeType: image.mimeType,
+      data: typeof image.data === 'string' ? image.data : Buffer.from(image.data).toString('base64')
+    }
+  }));
+
+  const response = await generateWithRetry(
+    {
+      model: options.model || PERFORMANCE_MODEL,
+      contents: [...parts, { text: prompt }],
+      config: buildConfig(system, options, {
+        temperature: 0.25,
+        maxOutputTokens: VISION_MAX_OUTPUT_TOKENS_PER_IMAGE * list.length
+      })
+    },
+    options.retryCount ?? 2
+  );
+
+  return response.text || '';
+}
