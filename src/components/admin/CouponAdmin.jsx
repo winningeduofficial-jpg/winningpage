@@ -103,11 +103,17 @@ const FIELD_LABEL = {
   email: '이메일' // "사용자 검색(이메일·이름)" 라벨. 목록 칼럼엔 없고 검색 폼에서만 쓴다
 };
 
-// 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨. 승인 대기라 폴백은 '∞' —
-// 한국어를 지어내지 않으면서 "상한 없음" 을 표현할 수 있는 기호다. 이건
-// FIELD_LABEL 의 DB 컬럼명 폴백(제거 완료)과 다른 종류라 남겨 둔다 — '무제한'
-// 은 아직 승인되지 않은 신규 문구라, 폴백 없이 지우면 화면이 빈칸이 된다.
-const UNLIMITED_LABEL = null; // "무제한 / 무기한" 성격
+// 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨(2026-08-12, 사용자 지시로
+// 채움). 지어낸 신규 문구가 아니다 — '무제한'은 이미 이 저장소가 쓰는
+// 어휘다(Header.jsx:54 "무제한 점검하세요", Admin.jsx:37 주석, 이 파일 자체의
+// 설계 주석 106행 "무제한/무기한"). 이 상수 하나를 max_uses_per_user/
+// max_redemptions(횟수, "무제한"이 정확)와 valid_until(기간, "무기한"이 더
+// 정확)이 함께 쓴다(nullableText:232, NullableField:407) — 두 의미를 엄밀히
+// 가르려면 라벨을 필드별로 나눠야 하는데, 그건 8건 문구 채우기 범위를 넘는
+// 구조 변경이라 하지 않는다. '무제한'은 두 맥락 모두에서 통용되는 표현이라
+// (예: "무제한 이용권") 단일 라벨로 문제가 없다. UNLIMITED_FALLBACK('∞')은
+// 값이 비었을 때만 쓰이는 방어용 폴백으로 남긴다.
+const UNLIMITED_LABEL = '무제한';
 const UNLIMITED_FALLBACK = '∞';
 
 // 아이콘 전용 액션의 접근성 라벨. 팀 리드가 승인한 코퍼스 규범 문자열이다
@@ -137,6 +143,24 @@ const VOID_ERROR_TEXT = {
 // 기존 조회 실패 처리와 같은 방식). 이 화면 밖에서도 같은 문제가 생기면
 // 이 상수를 그대로 재사용할 수 있도록 export 한다.
 export const ADMIN_UNKNOWN_ERROR_TEXT = '알 수 없는 오류가 발생했습니다.';
+
+// 조회(select) 실패 4곳(loadList/loadHistory/loadGrants/searchUsers) 전용
+// 문구(2026-08-12, 사용자 지시로 채움). ADMIN_UNKNOWN_ERROR_TEXT 를 그대로
+// 쓰지 않는다 — 이 문구는 이미 `${TITLE} 조회 실패:` 접두로 "무엇이 실패했는지"
+// 를 밝힌 뒤 붙는 것이라, 그 뒤에 다시 "알 수 없는 오류가 발생했습니다"를
+// 붙이면 이중으로 모호해진다. 대신 이 저장소의 재시도 유도 관용구(Login.jsx
+// /MyPage.jsx REFUND_UNKNOWN_ERROR_TEXT 의 "잠시 후 다시 시도해 주세요.")를
+// 재사용한다 — DB 원문(error.message)은 console.error 로만 남긴다.
+const ADMIN_LOAD_ERROR_TEXT = '잠시 후 다시 시도해 주세요.';
+
+// 쿠폰 등록·수정 실패 전용(2026-08-12). sql/58 이 coupons 에 건 금액 CHECK
+// (discount_amount>0, min_amount>=0)를 어기면 Postgres 원문이 그대로 뜨던
+// 자리다 — 23514(check_violation)를 명시적으로 잡아 무엇을 고쳐야 하는지
+// 알려준다. 그 밖의 예상 밖 에러는 ADMIN_UNKNOWN_ERROR_TEXT 로 떨어진다
+// (VOID_ERROR_TEXT/GRANT_ERROR_TEXT 와 같은 분기 규범).
+const COUPON_SAVE_ERROR_TEXT = {
+  23514: '할인 금액·최소 결제 금액을 확인해 주세요. 할인 금액은 0보다 커야 하고, 최소 결제 금액은 0 이상이어야 합니다.'
+};
 
 // slug 중복은 저장 전에 막는다(요구사항).
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
@@ -481,7 +505,7 @@ export default function CouponAdmin() {
 
     if (couponRes.error) {
       console.error(couponRes.error);
-      alert(`${TITLE} 조회 실패: ${couponRes.error.message}`);
+      alert(`${TITLE} 조회 실패: ${ADMIN_LOAD_ERROR_TEXT}`);
       setCoupons([]);
       return;
     }
@@ -575,7 +599,12 @@ export default function CouponAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`${view === 'create' ? '등록' : '수정'} 실패: ${error.message}`);
+      console.error(error);
+      alert(
+        `${view === 'create' ? '등록' : '수정'} 실패: ${
+          error.code in COUPON_SAVE_ERROR_TEXT ? COUPON_SAVE_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT
+        }`
+      );
       return;
     }
 
@@ -607,7 +636,7 @@ export default function CouponAdmin() {
     if (error) {
       setHistoryLoading(false);
       console.error(error);
-      alert(`${TITLE} 조회 실패: ${error.message}`);
+      alert(`${TITLE} 조회 실패: ${ADMIN_LOAD_ERROR_TEXT}`);
       setHistoryRows([]);
       return;
     }
@@ -693,7 +722,7 @@ export default function CouponAdmin() {
     if (error) {
       setGrantLoading(false);
       console.error(error);
-      alert(`${TITLE} 조회 실패: ${error.message}`);
+      alert(`${TITLE} 조회 실패: ${ADMIN_LOAD_ERROR_TEXT}`);
       setGrantRows([]);
       return;
     }
@@ -751,7 +780,7 @@ export default function CouponAdmin() {
 
     if (error) {
       console.error(error);
-      alert(`${TITLE} 조회 실패: ${error.message}`);
+      alert(`${TITLE} 조회 실패: ${ADMIN_LOAD_ERROR_TEXT}`);
       setUserResults([]);
       return;
     }

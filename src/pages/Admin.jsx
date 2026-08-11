@@ -193,13 +193,19 @@ const REFUND_REQUEST_STATUS_OPTIONS = [
 //     payment_status 옵션과 동일 어휘)
 //   refunded → '환불완료'  (MyPage.jsx REFUND_STATUS.completed, 184행
 //     REFUND_REQUEST_STATUS_OPTIONS 와 동일 어휘)
-// failed·cancelled 는 이 저장소에 대응하는 기존 라벨이 없어(있는 '취소요청'은
-// "취소 신청됨"이라는 별개 상태를 뜻해 여기 cancelled 완료 상태와 맞지
-// 않는다) 목록에 넣지 않았다 — 팀 리드 보고 대상.
+// failed·cancelled 는 이 저장소에 대응하는 기존 라벨이 없어 새로 채운다
+// (2026-08-12, 사용자 지시로 채움). '취소요청'을 cancelled 에 쓰지 않는다 —
+// 그건 "취소 신청됨"(진행 중)이라는 별개 상태라 여기 cancelled(완료 상태)와
+// 맞지 않는다. 대신 이미 쓰이는 '-완료' 접미(납부완료/환불완료)와 같은
+// 형태로 맞춰 취소완료로 쓴다. failed 도 같은 이유로 '납부' 접두를 살려
+// 납부실패로 쓴다 — refunds 탭(2188행)의 '취소요청'/'환불완료'/'반려' 축과는
+// 다른 테이블·다른 상태 축이라 혼동하지 않는다.
 const PAYMENT_STATUS_OPTIONS = [
   { value: 'pending', label: '납부대기' },
   { value: 'paid', label: '납부완료' },
-  { value: 'refunded', label: '환불완료' }
+  { value: 'failed', label: '납부실패' },
+  { value: 'refunded', label: '환불완료' },
+  { value: 'cancelled', label: '취소완료' }
 ];
 
 const CONFIGS = {

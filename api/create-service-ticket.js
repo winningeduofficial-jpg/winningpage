@@ -2,6 +2,10 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const PAID_MESSAGE = '유료결제이후 이용해주세요!';
+// 기간 만료 전용 안내(아래 checkProgramAccessTable 참고). ToS(StudentService.jsx
+// /ParentService.jsx §제3항)가 이미 쓰는 "재결제(재구매)" 어휘를 그대로 따른다 —
+// "결제해 주세요" 로만 쓰면 이미 낸 돈을 부정하는 말로 읽힌다.
+const EXPIRED_MESSAGE = '이용 기간이 만료되었습니다. 계속 이용하시려면 재결제(재구매)해 주세요.';
 const TICKET_TTL_SECONDS = Number(process.env.SSO_TICKET_TTL_SECONDS || 180);
 
 const SERVICE_CONFIGS = {
@@ -159,16 +163,15 @@ async function checkProgramAccessTable(supabaseAdmin, userId, config) {
     // 남기고 fail-closed 한다 — 판정할 수 없으면 열지 않는다(돈이 걸린 판단은
     // 되돌릴 수 있는 쪽으로).
     console.error('fn_program_access_state 호출 실패:', config.service_key, userId, error);
-    return false;
+    return { allowed: false, reason: null };
   }
 
   const rows = Array.isArray(data) ? data : [];
-  if (rows.some((row) => row.allowed === true)) return true;
+  if (rows.some((row) => row.allowed === true)) return { allowed: true, reason: null };
 
   // 거부 사유를 남긴다. 만료(period_expired)와 미결제(not_paid)는 사용자에게
-  // 다른 상태이고, 지금은 응답 문구가 하나뿐이라 로그가 유일한 구별 수단이다.
-  // TODO(문구 승인 필요): 기간 만료 전용 안내 문구가 필요하다(미결제 문구
-  // 재사용 금지 — "결제한 적 없음"과 "기간이 끝났음"은 다른 상태다).
+  // 다른 상태다 — 만료면 EXPIRED_MESSAGE, 그 외(미결제 등)는 PAID_MESSAGE 로
+  // 호출부(handler)가 갈라 응답한다.
   for (const row of rows) {
     console.warn(
       'program_access denied:',
@@ -178,7 +181,8 @@ async function checkProgramAccessTable(supabaseAdmin, userId, config) {
       row.expires_at ?? 'unlimited'
     );
   }
-  return false;
+  const expired = rows.some((row) => row.reason === 'period_expired');
+  return { allowed: false, reason: expired ? 'period_expired' : null };
 }
 
 async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
@@ -210,14 +214,19 @@ async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
 
 async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
-  if (byProgramAccess) return true;
+  if (byProgramAccess.allowed) return { allowed: true, reason: null };
 
   // ⚠ 이 경로는 기간 만료를 집행하지 않는다. enrollments(오프라인 수강)에는
   //    기간 컬럼이 0개라 만료 개념 자체가 없어서, 이 OR 분기로 들어온 사용자는
   //    영구 입장이 성립한다. dev 실측 0행이라 현재 미발현이지만 구조적 구멍이다.
   //    오프라인 수강의 기간 정책은 미결 항목이며 이번 범위 밖이다
   //    (sql/64 파일 말미 "남겨 둔 것" 참고).
-  return checkEnrollmentPayment(supabaseAdmin, userId, config);
+  const byEnrollment = await checkEnrollmentPayment(supabaseAdmin, userId, config);
+  if (byEnrollment) return { allowed: true, reason: null };
+
+  // program_access 쪽 판정이 만료였다면 enrollments 는 그 사유를 뒤집지 못한다
+  // (enrollments 는 애초에 만료 개념이 없다) — program_access 의 reason 을 그대로 쓴다.
+  return { allowed: false, reason: byProgramAccess.reason };
 }
 
 function getUserName(user) {
@@ -261,10 +270,11 @@ export default async function handler(req, res) {
 
     const user = userData.user;
     const userId = user.id;
-    const allowed = await hasPaidServiceAccess(supabaseAdmin, userId, config);
+    const access = await hasPaidServiceAccess(supabaseAdmin, userId, config);
 
-    if (!allowed) {
-      return res.status(403).json({ detail: PAID_MESSAGE });
+    if (!access.allowed) {
+      const detail = access.reason === 'period_expired' ? EXPIRED_MESSAGE : PAID_MESSAGE;
+      return res.status(403).json({ detail });
     }
 
     const now = Date.now();

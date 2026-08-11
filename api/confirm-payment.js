@@ -225,9 +225,14 @@ export default async function handler(req, res) {
             .update({ status: STATUS_FAILED })
             .eq('id', orderId)
             .eq('status', STATUS_PENDING);
-          // TODO(문구 승인 필요): "쿠폰 확인에 실패했습니다. 다시 시도해 주세요." 류
-          // 안내가 필요하다. 지어내지 않고 이 파일의 기존 대체 문구를 재사용해 둔다.
-          return res.status(500).json({ error: '결제 승인 실패' });
+          // :249 의 "쿠폰이 실제로 무효" 문구와 다르다 — 여기는 재검증 RPC 호출
+          // 자체가 실패한 경우(서버 장애)라 쿠폰 상태를 알 수 없다. 사용자가 할 수
+          // 있는 건 재시도뿐이라 Login.jsx:116 과 같은 골격("~중 문제가
+          // 발생했습니다. 다시 시도해 주세요.")을 쓴다. "취소되었습니다" 는 쓰지
+          // 않는다 — 토스 승인 호출 전에 막는 경로라 결제가 일어난 적이 없다.
+          return res.status(500).json({
+            error: '결제 승인 확인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+          });
         }
 
         const invalidCoupon = (revalidateRows || []).find((row) => row.ok === false);
