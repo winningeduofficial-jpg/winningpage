@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -7,11 +7,13 @@ import { formatKRW } from '../data/pricingCatalog';
 import { CHECKOUT_AGREEMENTS } from '../data/legalDocs';
 import { getCart, saveCart } from '../lib/cart';
 
-// 라벨은 시안 문자열 그대로. '신용 /체크 카드' 의 공백 위치(슬래시 앞에만 공백)는
-// 덤프 18개 프레임 전부에서 동일하다 — 코드의 '신용 / 체크카드' 와 달라 시안에 맞췄다.
+// 시안 18개 프레임 전부 '신용 /체크 카드'(슬래시 앞에만 공백)로 동일했으나,
+// 문구 코퍼스 251건 중 슬래시 앞 공백 사례는 0건이었다(대조군 StudentForm.jsx:775,
+// ParentForm.jsx:293 '영문/숫자/특수문자 포함 6자 이상' 도 공백 없음) — 시안 자체의
+// 오식으로 판정해 사용자 승인 하에 정정함(2026-08-11).
 const PAY_METHODS = [
   { key: 'tosspay', label: '토스페이', tossMethod: 'CARD' }, // 간편결제는 카드창 내에서 제공
-  { key: 'card', label: '신용 /체크 카드', tossMethod: 'CARD' },
+  { key: 'card', label: '신용/체크카드', tossMethod: 'CARD' },
   { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' }
 ];
 
@@ -93,9 +95,34 @@ function AgreementText({ text, docTitle }) {
 //  1882-11516·12381 은 2건(=분리형), 390 6장·1920 6장은 전부 2건(=분리형)이다. 즉 합침은 1280
 //  안에서도 4/6 이고, 특히 약관을 펼친 1280 프레임(1882-12381)은 분리형이다. 합치면 확인 문구가
 //  사라지므로 코드는 분리형을 유지한다.)
-function RequiredCheck({ checked, onChange, children }) {
+// AgreementRow(src/components/auth/AgreementRow.jsx) 를 쓰지 않은 이유(P0 접근성 보강 시
+// 검토) — 구조가 이 화면과 안 맞는다: AgreementRow 는 bg-surface-card 카드 한 장에
+// 체크박스+배지+라벨을 한 행으로 묶고 우측은 '상세 페이지로 이동'하는 Link 전용이다.
+// 이 화면은 그 자리에서 펼치는 아코디언(Accordion, 위)이 이미 전문을 보여주므로 Link 이동은
+// 안 맞고, 카드 배경·패딩도 이 화면 시안(아코디언 바로 아래 인라인 체크 행)과 다르다.
+// className prop 으로 bg/padding 을 덮어써 볼 수도 있으나 Tailwind 클래스는 later-in-string
+// 이 항상 이기는 게 아니라 생성 순서가 이기므로, 문자열 뒤에 이어붙이는 방식으로는 승패가
+// 안정적으로 보장되지 않는다 — 다른 화면 20여 곳이 쓰는 공유 컴포넌트라 그 리스크를
+// 감수하지 않고, 대신 이 컴포넌트에 접근성만 최소 보강한다(role/aria-checked, 네이티브
+// button 이라 Enter/Space 키보드 지원은 이미 있다). ref 는 미충족 사유 클릭 시
+// 포커스 이동(scrollToRef)에 쓴다.
+const RequiredCheck = forwardRef(function RequiredCheck({ checked, onChange, children }, ref) {
   return (
-    <button type="button" onClick={onChange} className="mt-2.5 flex items-center gap-2 text-left">
+    <button
+      ref={ref}
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onChange}
+      // rounded-lg + focus:ring — 미충족 사유 클릭 시 scrollToRef 가 이 버튼으로
+      // el.focus() 를 프로그램적으로 호출하는데, Chromium 은 포인터 클릭 경로의
+      // 프로그램적 focus() 를 :focus-visible 로 판정하지 않는다(UA 기본 포커스
+      // 링도 내부적으로 focus-visible 을 쓰므로 같이 안 보인다). 그래서 이동은
+      // 되는데 어디로 이동했는지 안 보이는 문제가 생긴다. :focus-visible 이 아니라
+      // :focus 에 직접 스타일을 걸어 클릭·키보드·스크립트 이동 어느 경로든 항상
+      // 보이게 한다. transform 이 없는 그림자 변화라 motion-reduce 가드는 불필요.
+      className="mt-2.5 flex items-center gap-2 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+    >
       <span
         className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
           checked ? 'border-primary bg-primary' : 'border-line bg-white'
@@ -117,7 +144,7 @@ function RequiredCheck({ checked, onChange, children }) {
       <span className="text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">{children}</span>
     </button>
   );
-}
+});
 
 export default function Checkout() {
   const [items, setItems] = useState(() => getCart());
@@ -137,6 +164,20 @@ export default function Checkout() {
   const [agreeNotice, setAgreeNotice] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // CTA 미충족 사유 클릭 시 스크롤+포커스 이동 대상. '전체 선택' 토글은 네이티브 button
+  // 이라 포커스가 되는 기존 요소를 그대로 재사용한다(상품 목록 자체엔 포커스 가능한
+  // 단일 지점이 없다).
+  const toggleAllRef = useRef(null);
+  const noticeCheckRef = useRef(null);
+  const termsCheckRef = useRef(null);
+
+  function scrollToRef(ref) {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus({ preventScroll: true });
+  }
 
   // 쿠폰 목록 로드. 쿠폰은 선택 요소라 조회 실패 시에도 결제 자체는 막지 않되,
   // 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역 안내로 노출한다.
@@ -198,6 +239,34 @@ export default function Checkout() {
   const payAmount = Math.max(0, listTotal - discountTotal);
 
   const canPay = checkedItems.length > 0 && agreeNotice && agreeTerms && !loading;
+
+  // CTA 비활성 사유. loading 은 결제 진행 중인 정상 상태(사유가 아니다)라 제외한다.
+  // 순서는 화면에서 위→아래로 만나는 순서(상품 선택 → 안내사항 → 약관)와 맞췄다.
+  const unmetReasons = useMemo(() => {
+    const reasons = [];
+    if (checkedItems.length === 0) {
+      reasons.push({
+        key: 'items',
+        text: '결제할 상품을 선택해 주세요.',
+        onClick: () => scrollToRef(toggleAllRef)
+      });
+    }
+    if (!agreeNotice) {
+      reasons.push({
+        key: 'notice',
+        text: '구매 전 안내사항 확인이 필요합니다.',
+        onClick: () => scrollToRef(noticeCheckRef)
+      });
+    }
+    if (!agreeTerms) {
+      reasons.push({
+        key: 'terms',
+        text: '결제 약관 동의가 필요합니다.',
+        onClick: () => scrollToRef(termsCheckRef)
+      });
+    }
+    return reasons;
+  }, [checkedItems.length, agreeNotice, agreeTerms]);
 
   function toggleAll() {
     setCheckedIds(allChecked ? new Set() : new Set(items.map((i) => i.id)));
@@ -269,7 +338,7 @@ export default function Checkout() {
       }
 
       if (!res.ok || !order?.orderId || !order?.amount) {
-        window.alert(order?.error || '주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        window.alert(order?.error || '주문 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         setLoading(false);
         return;
       }
@@ -323,7 +392,7 @@ export default function Checkout() {
             선택한 상품이 없습니다
           </h1>
           <p className="mt-3 text-[0.875rem] font-normal leading-[1.375rem] text-ink sm:text-[1rem]">
-            결제할 서비스를 먼저 선택해주세요.
+            결제할 서비스를 먼저 선택해 주세요.
           </p>
           <Link
             to="/pricing"
@@ -416,7 +485,14 @@ export default function Checkout() {
             <section>
               <h2 className={`mb-5 ${SECTION_HEADING}`}>주문 상품 {items.length}</h2>
 
-              <button type="button" onClick={toggleAll} className="mb-4 flex items-center gap-2">
+              <button
+                ref={toggleAllRef}
+                type="button"
+                onClick={toggleAll}
+                // focus: 링 사유는 RequiredCheck 주석 참고 — 이 버튼도 미충족 사유
+                // 클릭(scrollToRef)의 이동 대상이라 같은 문제를 겪는다.
+                className="mb-4 flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
                 <span
                   className={`flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border transition ${
                     allChecked ? 'border-primary bg-primary' : 'border-line bg-white'
@@ -534,19 +610,40 @@ export default function Checkout() {
                 폼 입력줄이 1100px 로 늘어나 가독성이 더 나빠진다. desktop에서는 그리드 2번째
                 컬럼이 25rem(=400px)이라 이 상한은 걸리지 않는다. */}
             <aside className="mx-auto w-full max-w-[35.625rem] space-y-10">
-              {/* 구매 전 확인사항 */}
+              {/* 섹션 순서(P0 접근성 수정) — 원래는 '구매 전 확인사항' → 쿠폰 선택 → '결제 수단
+                  선택'(그 안에 결제 약관 동의가 끼어 있었다) → 결제 금액 이었다. 두 필수 동의가
+                  쿠폰 블록을 사이에 두고 떨어져 있어, 모바일 1컬럼에서 안내사항 하나만 체크하고
+                  '다 했다'고 착각하기 쉬웠다(아래로 스크롤하다 결제수단 섹션 안에 있는 두 번째
+                  동의를 못 보고 지나침). 그래서 필수 동의가 아닌 '결제 수단 선택'·'쿠폰 선택'을
+                  앞으로 옮기고, 두 필수 동의(구매 전 확인사항 → 결제 약관 동의)를 서로 인접시켜
+                  결제 금액/CTA 바로 앞에 배치했다. 각 섹션의 내부 구조·문구·아코디언은 시안
+                  실측값을 그대로 유지했다 — 바뀐 건 블록 순서뿐이다. */}
+
+              {/* 결제 수단 선택 */}
               <div>
-                <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
-                <Accordion
-                  title="[구매 전 안내사항]"
-                  open={openNotice}
-                  onToggle={() => setOpenNotice((v) => !v)}
-                >
-                  <AgreementText text={CHECKOUT_AGREEMENTS.purchaseNotice} />
-                </Accordion>
-                <RequiredCheck checked={agreeNotice} onChange={() => setAgreeNotice((v) => !v)}>
-                  위 내용을 모두 확인하였습니다.
-                </RequiredCheck>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 수단 선택</h3>
+                {/* 390 시안(1882-11814 등 6장)은 결제수단 버튼을 세로 1열, 폭 160px(=10rem)
+                    가운데 정렬로 그린다. 1280 시안은 3열(실측 184.67px×3 + gap 8)이다.
+                    시안 BP가 390/1280/1920뿐이라 전환점 sm(640)은 보간 판단값이다. */}
+                <div className="mx-auto grid max-w-[10rem] grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
+                  {PAY_METHODS.map((m) => (
+                    <button
+                      type="button"
+                      key={m.key}
+                      onClick={() => setPayMethod(m.key)}
+                      // 시안 실측 — 선택 14px w500 #013262, 미선택 1920 #808080 / 390 #7a7a7a.
+                      // #7a7a7a 는 토큰이 없어 가장 근접한 ink.sub(#808080, 오차 6/255)로
+                      // 통일했다(1920 은 정확히 이 값). 두 폭 모두 14px 라 크기 분기는 없다.
+                      className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-[1.25rem] transition ${
+                        payMethod === m.key
+                          ? 'border-primary bg-surface-info text-primary'
+                          : 'border-line text-ink-sub hover:bg-surface-card'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* 쿠폰 선택 */}
@@ -662,53 +759,58 @@ export default function Checkout() {
                 )}
               </div>
 
-              {/* 결제 수단 선택 */}
+              {/* 구매 전 확인사항 — 필수 동의 1/2. 결제 약관 동의(아래)와 인접·CTA 직전에
+                  두기 위해 원래 위치(쿠폰 선택보다 앞)에서 이 자리로 옮겼다(위 순서 주석). */}
               <div>
-                <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 수단 선택</h3>
-                {/* 390 시안(1882-11814 등 6장)은 결제수단 버튼을 세로 1열, 폭 160px(=10rem)
-                    가운데 정렬로 그린다. 1280 시안은 3열(실측 184.67px×3 + gap 8)이다.
-                    시안 BP가 390/1280/1920뿐이라 전환점 sm(640)은 보간 판단값이다. */}
-                <div className="mx-auto grid max-w-[10rem] grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
-                  {PAY_METHODS.map((m) => (
-                    <button
-                      type="button"
-                      key={m.key}
-                      onClick={() => setPayMethod(m.key)}
-                      // 시안 실측 — 선택 14px w500 #013262, 미선택 1920 #808080 / 390 #7a7a7a.
-                      // #7a7a7a 는 토큰이 없어 가장 근접한 ink.sub(#808080, 오차 6/255)로
-                      // 통일했다(1920 은 정확히 이 값). 두 폭 모두 14px 라 크기 분기는 없다.
-                      className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-[1.25rem] transition ${
-                        payMethod === m.key
-                          ? 'border-primary bg-surface-info text-primary'
-                          : 'border-line text-ink-sub hover:bg-surface-card'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
+                <Accordion
+                  title="[구매 전 안내사항]"
+                  open={openNotice}
+                  onToggle={() => setOpenNotice((v) => !v)}
+                >
+                  <AgreementText text={CHECKOUT_AGREEMENTS.purchaseNotice} />
+                </Accordion>
+                {/* 두 필수 동의 문구가 '위 내용을 모두 확인하였습니다.'로 글자까지 동일해
+                    어느 걸 체크했는지 구분이 안 됐다. 지칭 대상(안내사항/약관)을 문구에
+                    직접 넣어 구별한다. */}
+                <RequiredCheck
+                  ref={noticeCheckRef}
+                  checked={agreeNotice}
+                  onChange={() => setAgreeNotice((v) => !v)}
+                >
+                  위 안내사항을 확인하였습니다.
+                </RequiredCheck>
+              </div>
 
-                <div className="mt-4">
-                  {/* 시안 C·D 전 프레임(1882-10111·3437-2974·1882-12689 등)은 아코디언 헤더를
-                      '결제 서비스 이용 약관, 개인정보 처리 동의'로 쓰고, 펼친 본문 첫 줄에
-                      '결제 서비스 이용 및 개인정보 처리 약관'(현재 코드 헤더 문구)을 타이틀로 둔다.
-                      두 문구가 모두 시안에 존재하므로 문구 손실 없이 위치만 시안에 맞췄다.
-                      기본 접힘은 유지 — 펼친 상태를 그린 프레임은 BP별 1장씩(3437-2625/
-                      1882-12381/1882-12689)뿐이고 base 및 나머지 15장은 모두 접혀 있다. */}
-                  <Accordion
-                    title="결제 서비스 이용 약관, 개인정보 처리 동의"
-                    open={openTerms}
-                    onToggle={() => setOpenTerms((v) => !v)}
-                  >
-                    <AgreementText
-                      text={CHECKOUT_AGREEMENTS.paymentAgreement}
-                      docTitle="결제 서비스 이용 및 개인정보 처리 약관"
-                    />
-                  </Accordion>
-                  <RequiredCheck checked={agreeTerms} onChange={() => setAgreeTerms((v) => !v)}>
-                    위 내용을 모두 확인하였습니다.
-                  </RequiredCheck>
-                </div>
+              {/* 결제 약관 동의 — 필수 동의 2/2. 원래 '결제 수단 선택' 섹션 안에 끼어 있어
+                  (그 섹션은 필수가 아니다) 구매 전 확인사항과 멀리 떨어져 있었다. 섹션을
+                  분리해 이름을 명시하고 위 확인사항 바로 아래로 옮겼다. 아코디언 문구·본문은
+                  기존 그대로다. */}
+              <div>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 약관 동의</h3>
+                {/* 시안 C·D 전 프레임(1882-10111·3437-2974·1882-12689 등)은 아코디언 헤더를
+                    '결제 서비스 이용 약관, 개인정보 처리 동의'로 쓰고, 펼친 본문 첫 줄에
+                    '결제 서비스 이용 및 개인정보 처리 약관'(현재 코드 헤더 문구)을 타이틀로 둔다.
+                    두 문구가 모두 시안에 존재하므로 문구 손실 없이 위치만 시안에 맞췄다.
+                    기본 접힘은 유지 — 펼친 상태를 그린 프레임은 BP별 1장씩(3437-2625/
+                    1882-12381/1882-12689)뿐이고 base 및 나머지 15장은 모두 접혀 있다. */}
+                <Accordion
+                  title="결제 서비스 이용 약관, 개인정보 처리 동의"
+                  open={openTerms}
+                  onToggle={() => setOpenTerms((v) => !v)}
+                >
+                  <AgreementText
+                    text={CHECKOUT_AGREEMENTS.paymentAgreement}
+                    docTitle="결제 서비스 이용 및 개인정보 처리 약관"
+                  />
+                </Accordion>
+                <RequiredCheck
+                  ref={termsCheckRef}
+                  checked={agreeTerms}
+                  onChange={() => setAgreeTerms((v) => !v)}
+                >
+                  위 약관에 동의합니다.
+                </RequiredCheck>
               </div>
 
               {/* 결제 금액 */}
@@ -725,21 +827,17 @@ export default function Checkout() {
                       나눈다. 합계 로직(discountTotal·payAmount)은 그대로라 총액은 불변이다.
                       쿠폰 미적용 base 프레임(1882-10111)에는 쿠폰 행이 없으므로 0원일 때 숨긴다. */}
                   <div className="flex justify-between">
-                    <dt>할인가</dt>
+                    <dt>할인 금액</dt>
                     <dd className="text-primary">
                       {productDiscount > 0 ? `-${formatKRW(productDiscount)}` : formatKRW(0)}
                     </dd>
                   </div>
                   {couponDiscount > 0 && (
                     <div className="flex justify-between">
-                      {/* 문구가 BP마다 다르다 — 390 프레임 4/4(1882-13552·17200·18057·18911)는
-                          붙여쓴 '쿠폰할인가', 1280·1920 프레임 8/8(1882-13258·16903·17763·18617,
-                          3437-2974·3580·3885·4187)은 공백이 있는 '쿠폰 할인가'.
-                          전환점은 이 파일의 다른 보간과 같은 sm(640)으로 통일. */}
-                      <dt>
-                        <span className="sm:hidden">쿠폰할인가</span>
-                        <span className="hidden sm:inline">쿠폰 할인가</span>
-                      </dt>
+                      {/* 라벨 정본 통일 — 이전엔 BP마다 '쿠폰할인가'(390)/'쿠폰 할인가'(1280·1920)로
+                          갈려 있었다. '할인가'(단가)와 혼동을 피하려 '쿠폰 할인 금액'(액수)으로
+                          통일하며 BP 분기도 함께 제거했다. */}
+                      <dt>쿠폰 할인 금액</dt>
                       <dd className="text-primary">-{formatKRW(couponDiscount)}</dd>
                     </div>
                   )}
@@ -754,6 +852,26 @@ export default function Checkout() {
                   </div>
                 </dl>
 
+                {/* CTA 미충족 사유(P0) — 예전엔 비활성 사유가 화면에 0글자였다. 어느 조건이
+                    안 채워졌는지 구체적으로 나열하고, 클릭하면 해당 체크박스로 스크롤+포커스
+                    이동한다(scrollToRef). aria-live="polite" 로 체크 상태가 바뀔 때마다
+                    스크린리더가 남은 사유를 다시 읽게 한다. 여러 줄이 쌓여도 벽처럼 보이지
+                    않도록 배경 없이 얇은 텍스트 목록으로만 둔다. */}
+                {unmetReasons.length > 0 && (
+                  <div aria-live="polite" className="mt-4 space-y-1.5">
+                    {unmetReasons.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        onClick={r.onClick}
+                        className="block text-[0.75rem] font-medium leading-[1.4] text-error underline-offset-4 hover:underline"
+                      >
+                        {r.text}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handlePay}
@@ -761,11 +879,17 @@ export default function Checkout() {
                   // CTA — 시안 실측 390 14px w600 lh20 #ffffff / 1920 20px w600 lh28 #ffffff.
                   // ls 는 두 폭 모두 없어 tracking 을 주지 않는다. 배경색은 시안 인벤토리에
                   // 텍스트 색만 있으나 브랜드 CTA 색은 primary(#013262) 이고 결제 실패 화면
-                  // CTA 도 이미 이 토큰이다. 비활성은 토큰 주석대로 line 배경 + 푸터 배경색 텍스트.
+                  // CTA 도 이미 이 토큰이다.
+                  // 비활성 — 원래 토큰 주석대로 bg-line(#d7d7d7) + text-surface-footer(#f9fafb)
+                  // 였는데 실측 명암비 1.38:1 로 라벨이 사실상 안 보였다(WCAG AA 최소 4.5:1에
+                  // 크게 못 미침). bg-surface-card(#f9fafc) + text-ink(#525252) + border-line
+                  // 조합으로 교체 — 명암비 7.48:1 로 계산 확인(브라우저 getComputedStyle 기반
+                  // relative luminance 공식, 4.5:1 요건을 여유 있게 만족). 규칙: 비활성 버튼도
+                  // 라벨이 판독 가능해야 한다 — 배경·텍스트 어느 조합이든 최소 4.5:1을 유지할 것.
                   className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:text-[1.25rem] sm:leading-[1.75rem] ${
                     canPay
                       ? 'bg-primary text-white hover:brightness-125'
-                      : 'cursor-not-allowed bg-line text-surface-footer'
+                      : 'cursor-not-allowed border border-line bg-surface-card text-ink'
                   }`}
                 >
                   {loading ? '결제창 여는 중…' : `${formatKRW(payAmount)} 결제하기`}
