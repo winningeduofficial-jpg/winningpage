@@ -37,6 +37,10 @@ import { useSessionOptional } from '../context/SessionContext';
 //    ② 프로바이더 밖이면(목표관리) 스스로 조회한다. 목표관리는 세션 컨텍스트를
 //       도입하지 않았고(§2.3이 범위를 /app/performance/* 로 한정), 회귀를 만들지
 //       않기 위해 그대로 둔다.
+//    ⚠️ **컨텍스트의 `serviceKey`가 이 가드의 `serviceKey`와 다르면 ②로 떨어진다.**
+//       프로바이더 존재만 보고 판정을 채택하면, 예컨대 suhaeng 프로바이더 안에
+//       goal 가드를 두는 순간 goal 이용권이 없는 사용자가 suhaeng 판정으로 조용히
+//       통과한다. 이용권 가드의 오탐 방향이 「열림」이 되는 건 허용할 수 없다.
 
 function currentPathWithQuery(location) {
   return `${location.pathname}${location.search}${location.hash}`;
@@ -102,18 +106,28 @@ export default function RequireEntitlement({
   const sessionCtx = useSessionOptional();
   const [retryToken, setRetryToken] = useState(0);
 
-  const standaloneState = useStandaloneEntitlement(serviceKey, Boolean(sessionCtx), retryToken);
-  const status = sessionCtx ? sessionCtx.guardState : standaloneState;
+  // 키가 일치하는 컨텍스트만 채택한다(위 「데이터 출처 2경로」 ⚠️ 참고).
+  const ctx = sessionCtx?.serviceKey === serviceKey ? sessionCtx : null;
+
+  const standaloneState = useStandaloneEntitlement(serviceKey, Boolean(ctx), retryToken);
+  const status = ctx ? ctx.guardState : standaloneState;
 
   function retry() {
-    if (sessionCtx) sessionCtx.refreshEntitlement();
+    if (ctx) ctx.refreshEntitlement();
     else setRetryToken((v) => v + 1);
   }
 
   if (status === 'loading') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white text-[#0D1B2A]">
-        <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+        {/* 가드가 조기 반환하면 이전 라우트 DOM이 통째로 언마운트되고 포커스도 옮겨지지
+            않는다 — live region이 없으면 조회가 끝날 때까지 스크린리더에 아무 소리도
+            나지 않는다. 로딩은 진행 안내이므로 polite(끼어들지 않음). */}
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]"
+        >
           {loadingLabel}
         </div>
       </main>
@@ -145,7 +159,13 @@ export default function RequireEntitlement({
   if (status === 'check-failed') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
-        <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+        {/* `check-failed`는 **이동하지 않고 그 자리에 머무는** 상태다(위 5상태 주석).
+            사용자가 알아채야 행동할 수 있으므로 assertive가 맞다 — role="alert"가
+            aria-live="assertive"를 함축하며, 로딩의 polite와 구분해서 쓴다. */}
+        <div
+          role="alert"
+          className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]"
+        >
           <p className="text-sm font-extrabold">이용 가능 여부를 확인하지 못했습니다.</p>
           <p className="text-xs text-[#0D1B2A]/60">
             네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧 다시 확인됩니다.

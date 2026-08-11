@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -44,6 +44,10 @@ const STEP_STATE_STYLES = {
   // 진행 중: 배지 #0b84fd(accent) + 흰 숫자, 라벨 #525252 w600, pill #eaecef.
   current: { badge: 'bg-accent text-white', label: 'font-semibold text-ink', pill: true },
   // 미도래: 배지 #f5f5f7(surface-04) + #808080 숫자, 라벨 #808080 w500, pill 없음.
+  // TODO(P19, §11.3 Q30) 배지 숫자 #808080 @14px on #f5f5f7 = 3.63:1, 라벨 #808080 @16px
+  //   on #f9f8f7 = 3.72:1 — 둘 다 WCAG AA(4.5:1) 미달이며 large-text 예외(≥18.66px bold /
+  //   ≥24px) 대상도 아니다. 시안 원본 값이라 임의 상향하지 않고 P19 「저대비 색 교정」에서
+  //   일괄 판정한다(#767676이면 4.53:1로 통과, 육안 차이 없음).
   todo: { badge: 'bg-surface-04 text-ink-sub', label: 'font-medium text-ink-sub', pill: false }
 };
 
@@ -92,12 +96,18 @@ export default function PerformanceSidebar({
   const subtitle = [gradeLabel, schoolType].filter(Boolean).join('・');
 
   return (
-    <aside className="flex min-h-screen w-perf-sidebar flex-shrink-0 flex-col bg-performance-sidebar">
+    <aside
+      aria-label="수행평가 사이드바"
+      className="flex min-h-screen w-perf-sidebar flex-shrink-0 flex-col bg-performance-sidebar"
+    >
       {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
           w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
-          min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다
-          (26 + 4 + 21 = 51px). */}
-      <div className="min-h-[3.1875rem] px-perf-inset pt-[6.25rem]">
+          min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다.
+          ⚠️ Tailwind preflight가 `box-sizing: border-box`를 깔기 때문에 min-height는 **padding을
+          포함한 총높이**여야 한다. 100(pt) + 26(이름) + 4(gap) + 21(부제) = 151px = 9.4375rem.
+          텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
+          현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
+      <div className="min-h-[9.4375rem] px-perf-inset pt-[6.25rem]">
         {/* 문구 정본 미확정(§11 Q79 — 「수행평가 화면인데 다른 제품(목표관리) 문구」가 미결로
             남아 있다). 명세가 대체 문구를 정하지 않았으므로 **시안 원문을 그대로** 쓴다.
             Q79가 `{이름}의 수행평가`로 확정되면 이 한 줄만 바꾼다. */}
@@ -106,6 +116,8 @@ export default function PerformanceSidebar({
             {profileName}의 목표관리
           </p>
         )}
+        {/* TODO(P19, §11.3 Q30) #808080 @16px on #f9f8f7 = 3.72:1 — WCAG AA 미달.
+            이름 줄(1.25rem/600)은 large-text 예외로 통과하지만 이 부제는 해당 없다. */}
         {subtitle && (
           <p className="mt-[0.25rem] text-[1rem] leading-[1.3125rem] text-ink-sub">{subtitle}</p>
         )}
@@ -114,8 +126,13 @@ export default function PerformanceSidebar({
       {/* 메뉴 — 섹션 라벨 @60,291(프로필 부제 하단 151에서 140px), 항목 pill 피치 42
           (pill 36 + gap 6). 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
           시안 정본이다(§3.2 단정). */}
-      <nav className="mt-[8.75rem]">
-        <p className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub">
+      <nav aria-labelledby="perf-nav-heading" className="mt-[8.75rem]">
+        {/* TODO(P19, §11.3 Q30) #808080 @16px/600 on #f9f8f7 = 3.72:1 — WCAG AA 미달.
+            16px semibold는 large-text(≥18.66px bold)가 아니라 예외 대상이 아니다. */}
+        <p
+          id="perf-nav-heading"
+          className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"
+        >
           메뉴
         </p>
         <ul className="mt-[0.6875rem] flex flex-col gap-[0.375rem]">
@@ -123,7 +140,17 @@ export default function PerformanceSidebar({
             const isActive = item.to === '/app/performance' ? !isReports : isReports;
             return (
               <li key={item.to}>
-                <NavLink
+                {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기 기본값
+                    (`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로 다시 계산해 내보낸다
+                    (react-router-dom/dist/index.js: `ariaCurrentProp = "page"` →
+                    `isActive ? ariaCurrentProp : undefined`). 그래서 `/app/performance/reports`
+                    에서 `위닝 AI 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
+                    두 항목이 동시에 `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는
+                    둘 다 현재 페이지라고 읽는다. 게다가 className이 문자열이면 활성 항목에
+                    `active` 리터럴 클래스까지 덧붙는다. 활성 판정이 아래처럼 커스텀이고 두
+                    항목이 상호 배타이므로, prop을 <a>로 그대로 흘리는 Link를 쓴다.
+                    (회귀 검증: scripts/verify-performance-sidebar-nav.mjs) */}
+                <Link
                   to={item.to}
                   aria-current={isActive ? 'page' : undefined}
                   className={[
@@ -134,7 +161,7 @@ export default function PerformanceSidebar({
                   ].join(' ')}
                 >
                   {item.label}
-                </NavLink>
+                </Link>
               </li>
             );
           })}
@@ -143,8 +170,15 @@ export default function PerformanceSidebar({
 
       {/* 진행단계 — 섹션 라벨 @60,456(메뉴 목록 하단 401에서 55px = §3.2의 섹션 gap 60을
           pill 높이 증분만큼 보정한 값), 스텝 pill 486/523/560/597/634 피치 37(pill 36 + gap 1). */}
-      <section className="mt-[3.4375rem]">
-        <p className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub">
+      {/* 이름 없는 <section>은 region 랜드마크가 아니라 generic으로 매핑돼, 5스텝이
+          「진행단계」와 아무 관계 없는 <ol>로만 노출된다. 이미 보이는 라벨을 id로 묶어
+          이름을 준다 — 픽셀 변화 0. id는 목표관리 셸과 동시 렌더될 경우를 대비해 perf- 접두. */}
+      <section aria-labelledby="perf-steps-heading" className="mt-[3.4375rem]">
+        {/* TODO(P19, §11.3 Q30) #808080 @16px/600 on #f9f8f7 = 3.72:1 — WCAG AA 미달. */}
+        <p
+          id="perf-steps-heading"
+          className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"
+        >
           진행단계
         </p>
         <ol className="mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
