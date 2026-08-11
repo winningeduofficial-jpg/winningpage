@@ -160,29 +160,28 @@ function mapCouponRow(c) {
     isActive: c.is_active,
     eligible: c.eligible,
     // reason: below_min_amount | expired | already_used | inactive |
-    // login_required | sold_out | null. 한국어 문구는 COUPON_REASON_TEXT
-    // (아래, 코퍼스 승인 대상)가 채워지면 자동으로 노출된다.
+    // login_required | sold_out | not_granted | null. 한국어 문구는 아래
+    // COUPON_REASON_TEXT 를 그대로 쓴다.
     reason: c.reason
   };
 }
 
 // 신규 쿠폰 하드닝(P0-2/P1-3/P1-7/P1-8)으로 새로 생긴 사용자 안내 자리다.
-// 이 프로젝트는 화면 문구를 코퍼스 규범으로 통제해 신규 문구를 지어낼 수
-// 없다 — 승인 전까지 null 로 비워 둔다. 값이 없으면 아래 조건부 렌더가
-// 아무것도 그리지 않는다(팀 보고에 각 사유의 성격만 남겨 코퍼스 승인
-// 대상으로 넘긴다).
+// 문구는 팀 리드가 승인한 코퍼스 규범 문자열이다(2026-08-11).
 const COUPON_REASON_TEXT = {
-  below_min_amount: null, // "최소 결제 금액 미달" 성격
-  expired: null, // "쿠폰 유효기간 만료" 성격
-  already_used: null, // "이미 사용한 쿠폰" 성격
-  inactive: null, // "판매 종료된 쿠폰" 성격 (코드로 정확히 맞힌 경우에만 도달)
-  login_required: null, // "로그인 후 사용 가능" 성격
-  sold_out: null // "발급 수량 소진" 성격
+  below_min_amount: '최소 결제 금액에 미치지 않습니다.',
+  expired: '사용 기한이 지났습니다.',
+  already_used: '이미 사용한 쿠폰입니다.',
+  inactive: '사용할 수 없는 쿠폰입니다.', // (코드로 정확히 맞힌 경우에만 도달)
+  login_required: '로그인 후 사용할 수 있습니다.',
+  sold_out: '발급 수량이 모두 소진되었습니다.',
+  // 2026-08-11 발급형 쿠폰(coupons.grant_type='granted') 도입으로 늘어난 사유.
+  // 로그인은 돼 있는데 이 쿠폰을 발급받지 않은 상태다(sql/55 2-c절).
+  not_granted: '발급받지 않은 쿠폰입니다.'
 };
 
-// handlePay 의 표시가/청구가 불일치 안내(아래 amountMismatch). "결제 금액이
-// 바뀌었으니 쿠폰 조건을 다시 확인해 달라" 성격의 문구가 필요하다.
-const AMOUNT_MISMATCH_TEXT = null;
+// handlePay 의 표시가/청구가 불일치 안내(아래 amountMismatch).
+const AMOUNT_MISMATCH_TEXT = '결제 금액이 변경되었습니다. 쿠폰 적용 내용을 다시 확인해 주세요.';
 
 // applyCouponCode 에서 코드 자체를 못 찾았을 때. 이건 신규 문구가 아니라
 // 기존 코퍼스 문구를 그대로 재사용한다 — 예전엔 window.alert 로 띄우던 것을
@@ -785,8 +784,10 @@ export default function Checkout() {
                 )}
 
                 {/* 코드 입력 피드백 — '코드 자체가 없음'(기존 코퍼스 문구 재사용)과
-                    '코드는 맞지만 조건 미충족'(COUPON_REASON_TEXT, 코퍼스 승인 전까지
-                    비어 있어 아무것도 그리지 않는다)을 구분한다. applyCouponCode 참고. */}
+                    '코드는 맞지만 조건 미충족'(COUPON_REASON_TEXT)을 구분한다.
+                    COUPON_REASON_TEXT[reason] 가드는 문구 대기용이 아니라, reason 이
+                    7종 키 밖의 예상 밖 값일 때(undefined) 아무것도 그리지 않기 위한
+                    것이다. applyCouponCode 참고. */}
                 {codeFeedback?.type === 'not_found' && (
                   <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
                     {CODE_NOT_FOUND_TEXT}
@@ -855,11 +856,11 @@ export default function Checkout() {
                                   {String(c.validUntil).replace(/-/g, '.')}까지
                                 </span>
                               )}
-                              {/* 부적격 사유 캡션 — login_required/sold_out 포함 6종 reason 전부
+                              {/* 부적격 사유 캡션 — login_required/sold_out 포함 7종 reason 전부
                                   이 한 자리로 모인다(opacity-45+disabled 는 이미 eligible 하나로
                                   전 사유를 동일하게 처리한다 — 새 사유가 늘어도 그 처리는
-                                  자동으로 적용된다). 문구는 COUPON_REASON_TEXT(코퍼스 승인
-                                  대상)가 채워지기 전까지 비어 있다. */}
+                                  자동으로 적용된다). COUPON_REASON_TEXT[reason] 가드는 reason 이
+                                  예상 밖 값일 때(undefined) 아무것도 그리지 않기 위한 것이다. */}
                               {!eligible && COUPON_REASON_TEXT[c.reason] && (
                                 <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
                                   {COUPON_REASON_TEXT[c.reason]}
@@ -993,10 +994,8 @@ export default function Checkout() {
                 </dl>
 
                 {/* 표시가/청구가 불일치 안내 — handlePay 가 서버 재계산 금액과 화면
-                    payAmount 가 다를 때 세팅한다(amountMismatch). 문구는
-                    AMOUNT_MISMATCH_TEXT(코퍼스 승인 대상)가 채워지기 전까지 비어
-                    있다. */}
-                {amountMismatch && AMOUNT_MISMATCH_TEXT && (
+                    payAmount 가 다를 때 세팅한다(amountMismatch). */}
+                {amountMismatch && (
                   <p aria-live="polite" className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error">
                     {AMOUNT_MISMATCH_TEXT}
                   </p>

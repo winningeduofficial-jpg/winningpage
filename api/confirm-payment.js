@@ -231,11 +231,12 @@ export default async function handler(req, res) {
             .update({ status: STATUS_FAILED })
             .eq('id', orderId)
             .eq('status', STATUS_PENDING);
-          // TODO(문구 승인 필요): "적용된 쿠폰을 더 이상 사용할 수 없습니다. 쿠폰을
-          // 다시 선택해 주세요." 류 안내 + 재선택 유도가 필요하다. couponId/reason 은
-          // 구조화 필드로 실어 클라이언트가 사유를 판단하게 한다(지어낸 문구 없음).
+          // 문구는 팀 리드가 승인한 코퍼스 규범 문자열이다(2026-08-11). "취소되었습니다"
+          // 라고 쓰지 않는다 — 이 경로는 토스 승인 API를 호출하기 전에 막는 것이라
+          // 결제가 일어난 적이 없다. couponId/reason 은 구조화 필드로 실어 클라이언트가
+          // 사유를 판단하게 한다.
           return res.status(409).json({
-            error: '결제 승인 실패',
+            error: '적용한 쿠폰을 사용할 수 없어 결제를 진행하지 못했습니다. 쿠폰을 다시 선택해 주세요.',
             couponId: invalidCoupon.coupon_id,
             reason: invalidCoupon.reason
           });

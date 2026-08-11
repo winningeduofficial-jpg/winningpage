@@ -67,47 +67,46 @@ import { supabase } from '../../lib/supabase';
 //   게 아니라 "다시 발급" 이고, 그러면 새 행이 생겨 회수 이력이 그대로 남는다.
 // =====================================================================
 
-// ── 화면 문구 (승인 대기) ──────────────────────────────────────────────
+// ── 화면 문구 ────────────────────────────────────────────────────────
 // 이 프로젝트는 신규 한국어 화면 문구를 창작하지 않는다(문구 조사로 규범이
-// 수치로 확정돼 있고 신규 문구는 사용자 승인 대상이다). 승인되지 않은 자리는
-// null 로 두고 성격만 주석으로 남긴다 — src/pages/Checkout.jsx:174
-// COUPON_REASON_TEXT / :185 AMOUNT_MISMATCH_TEXT 와 같은 선례다.
+// 수치로 확정돼 있고 신규 문구는 사용자 승인 대상이다). 아래 열 라벨 23개는
+// 팀 리드가 승인한 코퍼스 규범 문자열이다(2026-08-11).
 //
-// 라벨이 null 인 동안의 폴백은 **DB 컬럼명 그대로**다(FieldName 참고). 한국어를
-// 지어내는 대신 스키마 식별자를 노출한다 — 이 화면이 대체하려는 기존 운영
-// 경로가 Supabase Studio(컬럼명이 그대로 보이는 화면)라, 폴백 상태에서도
-// 운영자가 읽던 것과 같은 이름이 보인다. 승인되면 이 상수만 채우면 된다.
+// 라벨이 null 인 항목(email)은 아직 승인 대상이 아니다 — DB 컬럼명으로
+// 대체하던 폴백은 제거했다(FieldName 참고). 승인되면 이 상수만 채우면 된다.
 const FIELD_LABEL = {
-  slug: null, // "사람이 읽는 쿠폰 핸들(고유)" 성격. 값을 바꾸면 시드 멱등성에 영향
-  code: null, // "고객이 결제화면에 직접 입력하는 쿠폰 코드(비우면 코드 없음)" 성격
-  title: null, // "고객에게 보이는 쿠폰 이름" 성격
-  discount_amount: null, // "할인 금액" 성격
-  min_amount: null, // "이 금액 이상일 때만 사용 가능" 성격
-  valid_until: null, // "사용 기한(무기한 선택 가능)" 성격
-  is_active: null, // "판매/노출 여부" 성격 — 값 표기는 기존 '사용/미사용' 재사용
-  max_uses_per_user: null, // "1인당 사용 가능 횟수(무제한 선택 가능)" 성격
-  max_redemptions: null, // "전체 발행량 상한, 선착순 N명(무제한 선택 가능)" 성격
-  stackable: null, // "다른 쿠폰과 동시 적용 가능" 성격
-  grant_type: null, // "배포 방식 — 조건형(auto) / 발급형(granted)" 성격
-  grant_on_signup: null, // "가입 시 자동 발급 대상" 성격
-  used: null, // "사용 건수 — 유효 / 전체(무효화 포함)" 성격. 파생값(DB 컬럼 아님)
-  id: null, // "쿠폰 내부 키(uuid)" 성격
-  created_at: null, // "등록 시각" 성격
+  slug: '쿠폰 키', // 값을 바꾸면 시드 멱등성에 영향
+  code: '고객 입력 코드',
+  title: '쿠폰 이름',
+  discount_amount: '할인 금액',
+  min_amount: '최소 결제 금액',
+  valid_until: '사용 기한',
+  is_active: '판매 상태',
+  max_uses_per_user: '1인당 사용 횟수',
+  max_redemptions: '총 발행 수량',
+  stackable: '중복 사용',
+  grant_type: '배포 방식',
+  grant_on_signup: '가입 시 자동 발급',
+  used: '사용 건수', // 파생값(DB 컬럼 아님) — 유효 / 전체(무효화 포함)
+  id: '내부 키',
+  created_at: '등록 일시',
   // ── 사용이력(coupon_redemptions) ──
-  order_id: null, // "주문번호" 성격
-  user: null, // "사용자" 성격. 파생값(profiles 조인)
-  voided_at: null, // "무효화 시각(비어 있으면 유효)" 성격
-  void_reason: null, // "무효화 사유" 성격
+  order_id: '주문번호',
+  user: '사용자', // 파생값. profiles 조인
+  voided_at: '무효화 일시',
+  void_reason: '무효화 사유',
   // ── 발급 관리(coupon_grants) ──
-  granted_at: null, // "발급 시각" 성격
-  granted_by: null, // "발급 출처 — signup(가입) / admin(직접) / event" 성격
-  revoked_at: null, // "회수 시각(비어 있으면 유효)" 성격
-  revoke_reason: null, // "회수 사유" 성격
-  email: null // "사용자 검색(이메일·이름)" 성격
+  granted_at: '발급 일시',
+  granted_by: '발급 출처', // 값 자체는 signup(가입) / admin(직접) / event
+  revoked_at: '회수 일시',
+  revoke_reason: '회수 사유',
+  email: null // "사용자 검색(이메일·이름)" 성격 — 승인 대기, 목록에 없음
 };
 
-// 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨. 승인 전까지 폴백은 '∞' —
-// 한국어를 지어내지 않으면서 "상한 없음" 을 표현할 수 있는 기호다.
+// 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨. 승인 대기라 폴백은 '∞' —
+// 한국어를 지어내지 않으면서 "상한 없음" 을 표현할 수 있는 기호다. 이건
+// FIELD_LABEL 의 DB 컬럼명 폴백(제거 완료)과 다른 종류라 남겨 둔다 — '무제한'
+// 은 아직 승인되지 않은 신규 문구라, 폴백 없이 지우면 화면이 빈칸이 된다.
 const UNLIMITED_LABEL = null; // "무제한 / 무기한" 성격
 const UNLIMITED_FALLBACK = '∞';
 
@@ -120,12 +119,13 @@ const BACK_ACTION_LABEL = null; // "목록으로 돌아가기" 성격
 const VOID_REASON_PLACEHOLDER = null; // "무효화 사유 입력" 성격
 
 // fn_void_coupon_redemption 이 구분해 던지는 두 에러(sql/55 1-g절).
-// null 인 동안은 아래 alert 가 DB 원문(error.message: 'not_authorized' /
+// 42501 은 팀 리드가 승인한 문구다(2026-08-11). WC002 는 아직 승인 대상이
+// 아니다 — null 인 동안은 아래 alert 가 DB 원문(error.message:
 // 'redemption_not_found_or_already_voided')을 그대로 보여준다 — 뭉뚱그리지
 // 않는 것이 이 도메인의 관례다(Checkout.jsx:205 참고).
 const VOID_ERROR_TEXT = {
-  42501: null, // "관리자 권한이 없습니다" 성격 (errcode 42501)
-  WC002: null // "이미 무효화됐거나 없는 이력입니다" 성격 (errcode WC002)
+  42501: '관리자 권한이 없습니다.',
+  WC002: null // "이미 무효화됐거나 없는 이력입니다" 성격 (errcode WC002) — 승인 대기
 };
 
 // slug 중복은 저장 전에 막는다(요구사항). 문구가 없는 동안은
@@ -143,11 +143,13 @@ const USER_SEARCH_PLACEHOLDER = null; // "이메일 또는 이름으로 사용�
 const ALREADY_GRANTED_TEXT = null; // "이미 발급됨" 성격
 
 // fn_grant_coupon / fn_revoke_coupon_grant 가 구분해 던지는 에러(sql/55 1-i절).
-// null 인 동안은 DB 원문(error.message)이 그대로 보인다 — void 와 같은 규범이다.
+// 42501 / WC003 은 팀 리드가 승인한 문구다(2026-08-11). WC004 는 아직 승인
+// 대상이 아니다 — null 인 동안은 DB 원문(error.message)이 그대로 보인다 —
+// void 와 같은 규범이다.
 const GRANT_ERROR_TEXT = {
-  42501: null, // "관리자 권한이 없습니다" 성격
-  WC003: null, // "이미 회수됐거나 없는 발급입니다" 성격
-  WC004: null // "발급형 쿠폰이 아닙니다" 성격 (조건형이거나 없는 쿠폰)
+  42501: '관리자 권한이 없습니다.',
+  WC003: '이미 회수되었거나 존재하지 않는 발급입니다.',
+  WC004: null // "발급형 쿠폰이 아닙니다" 성격 (조건형이거나 없는 쿠폰) — 승인 대기
 };
 
 // ── 재사용한 기존 문구 (출처) ──────────────────────────────────────────
@@ -222,19 +224,11 @@ function nullableText(value, suffix = '') {
   return `${Number(value).toLocaleString()}${suffix}`;
 }
 
-// 라벨이 승인되기 전에는 DB 컬럼명을 보여주고, 임시임을 시각적으로 표시한다
-// (점선 밑줄 + mono). 승인되면 FIELD_LABEL 만 채우면 이 표시가 사라진다.
+// DB 컬럼명으로 대체하던 폴백은 제거했다 — FIELD_LABEL 을 직접 쓴다. 라벨이
+// 아직 승인되지 않은 키(email)는 값 그대로 null 을 반환해 아무것도 그리지
+// 않는다(지어낸 문구로 채우지 않는다).
 function FieldName({ k }) {
-  const label = FIELD_LABEL[k];
-  if (label) return label;
-  return (
-    <span
-      className="font-mono text-[0.8125rem] font-bold text-[#6b7280] underline decoration-dashed decoration-from-font underline-offset-4"
-      title={k}
-    >
-      {k}
-    </span>
-  );
+  return FIELD_LABEL[k];
 }
 
 const FORM_KEYS = [

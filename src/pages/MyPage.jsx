@@ -17,18 +17,18 @@ function refundStatus(s) {
 const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
 
 // fn_request_refund(sql/59_refund_request_hardening.sql) 하드닝으로 새로 생긴
-// 서버측 거부 사유 3종. 이 프로젝트는 화면 문구를 코퍼스 규범으로 통제해 신규
-// 문구를 지어낼 수 없다 — 값이 승인되기 전까지 null 로 비워 둔다(승인은 별도
-// 절차, Checkout.jsx:174-184 COUPON_REASON_TEXT 와 동일 패턴). null 인 동안은
-// REFUND_ERROR_FALLBACK_TEXT(기존에 이미 쓰이던 문구 재사용)로 대체해 사용자가
-// 실패 자체를 인지할 수 있게 한다 — 이 화면은 성공/실패를 알리는 채널이
-// refundMsg 하나뿐이라, 완전히 비우면 제출이 조용히 실패한 것처럼 보인다.
+// 서버측 거부 사유 3종. 문구는 팀 리드가 승인한 코퍼스 규범 문자열이다
+// (2026-08-11, Checkout.jsx:174-184 COUPON_REASON_TEXT 와 동일 패턴).
 const REFUND_ERROR_TEXT = {
-  WC005: null, // "본인 주문이 아닙니다" 성격
-  WC006: null, // "결제가 확인된 주문만 환불 신청할 수 있습니다" 성격
-  WC007: null // "이미 처리 중인 환불 신청이 있습니다" 성격
+  WC005: '본인 주문이 아닙니다.',
+  WC006: '결제가 확인된 주문만 환불 신청할 수 있습니다.',
+  WC007: '이미 처리 중인 환불 신청이 있습니다.'
 };
-const REFUND_ERROR_FALLBACK_TEXT = '환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+// 위 3종 밖의 "알 수 없는 오류"를 위한 별개 문구 — REFUND_ERROR_TEXT 에 값이
+// 없어서 대신 쓰는 폴백 체인이 아니다(그 체인은 제거했다, 아래 submitRefund
+// 참고). 이 화면은 성공/실패를 알리는 채널이 refundMsg 하나뿐이라, 알 수 없는
+// 코드일 때도 분기 없이 비우면 제출이 조용히 실패한 것처럼 보인다.
+const REFUND_UNKNOWN_ERROR_TEXT = '환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 // value는 DB 저장값 — sql/40_auth_signup.sql의 profiles_member_type_check
@@ -266,7 +266,12 @@ export default function MyPage() {
 
     if (error) {
       console.error('환불 신청 저장 실패:', error);
-      setRefundMsg(REFUND_ERROR_TEXT[error.code] || REFUND_ERROR_FALLBACK_TEXT);
+      // 명시적 분기 — 알려진 코드(WC005/WC006/WC007)는 REFUND_ERROR_TEXT 를,
+      // 그 밖의 알 수 없는 코드는 REFUND_UNKNOWN_ERROR_TEXT 를 쓴다("문구가
+      // 없어서 대체"가 아니라 "알 수 없는 오류"라는 별개 사례).
+      setRefundMsg(
+        error.code in REFUND_ERROR_TEXT ? REFUND_ERROR_TEXT[error.code] : REFUND_UNKNOWN_ERROR_TEXT
+      );
       return;
     }
 

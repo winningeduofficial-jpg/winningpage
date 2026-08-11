@@ -107,6 +107,9 @@ const MENU_GROUPS = [
       { key: 'settlements', label: '매출 정산' },
       { key: 'dailySettlements', label: '일일정산' },
       { key: 'refunds', label: '환불 요청 내역' },
+      // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
+      // 다른 테이블이다. CONFIGS.refundRequests 참고.
+      { key: 'refundRequests', label: '환불 신청 내역' },
       // 쿠폰은 결제 금액을 직접 깎는 손잡이라 수입·매출 그룹에 둔다
       // (products/orders 와 같은 도메인 — sql/10_pricing_orders.sql).
       { key: 'coupons', label: '쿠폰관리' }
@@ -170,6 +173,16 @@ const SPECIAL_HIGHSCHOOL_TYPE_OPTIONS = [
 const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
   { value: '합격자', label: '합격자' },
   { value: '합격생', label: '합격생' }
+];
+
+// refund_requests.status DB CHECK 값(requested|processing|completed|rejected)과
+// 화면 라벨을 분리한다 — 저장은 영문, 표시는 한글(MyPage.jsx REFUND_STATUS
+// 재사용). CONFIGS.refundRequests 참고.
+const REFUND_REQUEST_STATUS_OPTIONS = [
+  { value: 'requested', label: '접수' },
+  { value: 'processing', label: '처리중' },
+  { value: 'completed', label: '환불완료' },
+  { value: 'rejected', label: '반려' }
 ];
 
 const CONFIGS = {
@@ -2128,6 +2141,11 @@ const CONFIGS = {
     }
   },
 
+  // 관리자 수기 대장(admin_refunds/refunds, sql/00_base_schema.sql:882) — 고객이
+  // fn_request_refund 로 신청한 게 아니라 운영자가 직접 기록하는 별도 원장이다.
+  // dev 실측 0행이지만 운영 DB엔 있을 수 있어 없애지 않는다(팀 리드 지시,
+  // 2026-08-11). 아래 refundRequests(고객 신청 원장, refund_requests 테이블)와
+  // 메뉴에서 구분되어야 해서, 이 탭은 기존 라벨을 그대로 유지한다.
   refunds: {
     title: '환불 요청 내역',
     table: 'refunds',
@@ -2154,6 +2172,54 @@ const CONFIGS = {
       { key: 'memo', label: '비고', type: 'textarea' }
     ],
     defaults: { status: '취소요청', paid_amount: 0, refund_amount: 0 }
+  },
+
+  // fn_request_refund(sql/59_refund_request_hardening.sql)로 고객이 신청한 환불
+  // 원장. 이전에는 이 화면의 '환불 요청 내역' 탭이 위 refunds(관리자 수기
+  // 대장)를 읽어 아무도 고객 신청을 보지 못했다 — 이 config 가 그 간극을
+  // 메운다(팀 리드 지시, 2026-08-11). RLS 는 어드민 select/update 만 열려
+  // 있다(refund_requests_admin_select_all / _admin_update_all, sql/59) — insert
+  // 정책이 없어(RPC 전용) noCreate: true 로 등록 버튼을 감춘다. delete 정책도
+  // 없다(처리 상태는 status UPDATE 로 남기고 원장 행을 지우지 않는다는 원칙,
+  // sql/55 coupon_redemptions 와 같은 설계) — 다만 AdminTable 은 config 로
+  // 삭제 버튼만 따로 끄는 수단이 없어(readOnly 는 편집 자체를 막아버려 status
+  // 처리가 안 된다) 버튼 자체는 남는다. 눌러도 RLS 가 막아 실패 alert 만 뜬다.
+  //
+  // status 는 DB CHECK(requested|processing|completed|rejected)라 한국어
+  // 리터럴을 쓰면 안 된다(이 저장소가 이미 겪은 반복 결함 — 어드민 폼이 한글
+  // '납부'를 영문 CHECK 컬럼에 써 payments 등록이 늘 실패하는 것과 같은 유형).
+  // select 옵션을 {value, label} 로 나눠 저장은 영문, 표시는 한글로 분리한다.
+  // 라벨 4종은 MyPage.jsx REFUND_STATUS 를 그대로 재사용한다(팀 리드 승인
+  // 재사용 범위, 2026-08-11).
+  //
+  // 그 외 컬럼(order_id/amount/reason/refund_bank/refund_account/refund_holder/
+  // admin_memo 등) 라벨은 승인된 한국어가 없다 — 지어내지 않고 DB 컬럼명을
+  // 그대로 쓴다. 팀 리드 확인 후 이 자리만 채우면 된다.
+  refundRequests: {
+    title: '환불 신청 내역', // MyPage.jsx:642 재사용(같은 데이터의 고객 쪽 헤딩)
+    table: 'refund_requests',
+    searchPlaceholder: '환불 신청 검색',
+    excel: true,
+    noCreate: true,
+    columns: [
+      { key: 'order_id', label: 'order_id' },
+      { key: 'amount', label: 'amount', type: 'money' },
+      { key: 'reason', label: 'reason' },
+      { key: 'status', label: 'status', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'created_at', label: 'created_at', type: 'date' }
+    ],
+    fields: [
+      { key: 'user_id', label: 'user_id', type: 'text' },
+      { key: 'order_id', label: 'order_id', type: 'text' },
+      { key: 'order_name', label: 'order_name', type: 'text' },
+      { key: 'amount', label: 'amount', type: 'number' },
+      { key: 'reason', label: 'reason', type: 'textarea' },
+      { key: 'refund_bank', label: 'refund_bank', type: 'text' },
+      { key: 'refund_account', label: 'refund_account', type: 'text' },
+      { key: 'refund_holder', label: 'refund_holder', type: 'text' },
+      { key: 'status', label: 'status', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'admin_memo', label: 'admin_memo', type: 'textarea' }
+    ]
   },
 
   // custom: true 는 Admin() 최상단 렌더 분기가 제네릭 list/create/edit 경로를
