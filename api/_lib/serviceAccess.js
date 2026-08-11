@@ -208,7 +208,94 @@ export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 로컬 QA 전용 이용권 게이트 우회 (DEV_BYPASS_ENTITLEMENT)
+// ---------------------------------------------------------------------------
+// 클라이언트의 VITE_FAKE_ENTITLEMENT(src/lib/entitlement.js)는 진입 가드만
+// 통과시킬 뿐 서버는 전혀 모른다 — api/performance/* 8곳이 그대로
+// hasPaidServiceAccess()로 403을 낸다. 이 함수는 그 서버 쪽 우회다.
+//
+// ⚠️ 안전장치 3중, 전부 필수:
+//   ① process.env.VERCEL_ENV === 'production' → 무조건 거부.
+//      Vercel이 배포 시 주입하는 값이라 앱 코드가 위조할 수 없다.
+//   ② process.env.NODE_ENV === 'production' → 무조건 거부.
+//   ③ 위 둘을 통과해도 DEV_BYPASS_ENTITLEMENT가 정확히 'true' 문자열일
+//      때만 활성. VITE_ 접두어를 쓰지 않는다 — Vite가 그 접두어를 클라이언트
+//      번들에 심는데, 이 값은 서버 전용이라 번들에 들어가면 의미가 뒤집힌다.
+// 우회가 실제로 발동하면 매 호출마다 console.warn으로 남긴다 — 지금 우회
+// 중이라는 사실이 로그에서 즉시 보여야 한다.
+export function isDevEntitlementBypassEnabled() {
+  if (process.env.VERCEL_ENV === 'production') return false;
+  if (process.env.NODE_ENV === 'production') return false;
+  return process.env.DEV_BYPASS_ENTITLEMENT === 'true';
+}
+
+// 우회가 발동했을 때 consume_performance_credit RPC까지 통과시키기 위해
+// program_access 행을 만든다. 그 RPC는 행이 없으면 no_entitlement를
+// 돌려주지만, 행만 있고 meta.quota_total이 없으면 무제한으로 폴백한다
+// (sql/54_performance_app.sql (4) 단계 4, "P15 전 임시 동작" 경고 로그와 함께).
+// 그래서 meta는 절대 채우지 않는다 — quota_total을 설정하면 오히려
+// 소진 취급될 수 있다.
+//
+// ⚠️ 이미 행이 있으면 손대지 않는다(실결제 데이터를 덮어쓰면 안 된다).
+//    삽입 실패는 치명적이지 않다 — 실패해도 진입 우회(반환값 true) 자체는
+//    유지하고 로그만 남긴다. 이 함수는 isDevEntitlementBypassEnabled()가
+//    true인 경로에서만 호출된다 — 그 자체가 이미 3중 안전장치를 통과한
+//    뒤이므로 여기서 다시 검사하지 않는다.
+export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
+  try {
+    const programKey = config.program_keys[0];
+
+    const { data: existing, error: selectError } = await supabaseAdmin
+      .from('program_access')
+      .select('id')
+      .in('program_key', config.program_keys)
+      .or(`id.eq.${userId},profile_id.eq.${userId},user_id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (selectError) {
+      console.warn(
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 조회 실패(무시, 우회는 유지) — ${selectError.message}`
+      );
+      return;
+    }
+
+    if (existing) return; // 기존 행(실결제 포함) 보존 — 덮어쓰지 않는다.
+
+    const { error: insertError } = await supabaseAdmin.from('program_access').insert({
+      id: userId,
+      program_key: programKey,
+      payment_status: 'paid',
+      access_status: 'active',
+      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 행. meta.quota_total 미설정 → 차감 RPC가 무제한으로 폴백.'
+    });
+
+    if (insertError) {
+      console.warn(
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 실패(무시, 우회는 유지) — ${insertError.message}`
+      );
+      return;
+    }
+
+    console.warn(
+      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 행 자동 생성 (user=${userId}, program_key=${programKey})`
+    );
+  } catch (error) {
+    console.warn('[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 중 예외(무시, 우회는 유지)', error);
+  }
+}
+
 export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
+  if (isDevEntitlementBypassEnabled()) {
+    console.warn(
+      `[serviceAccess] ⚠️ DEV_BYPASS_ENTITLEMENT 활성 — '${config.service_key}' 이용권 판정을 우회합니다 (user=${userId}). ` +
+        'VERCEL_ENV/NODE_ENV가 production이면 이 경로는 절대 타지 않습니다.'
+    );
+    await ensureDevProgramAccessRow(supabaseAdmin, userId, config);
+    return true;
+  }
+
   const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
   if (byProgramAccess.allowed) return { allowed: true, reason: null };
 
