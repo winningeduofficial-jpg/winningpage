@@ -57,7 +57,7 @@ export default function SurveyStepShell() {
           <div className="mx-auto flex w-full max-w-content flex-col items-start gap-[3.75rem]">
             <div className="flex w-full max-w-[37.25rem] flex-col items-start gap-5 text-[#525252]">
               <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.75rem]">
-                무료 진단으로
+                학습진단으로
                 <br />
                 나에게 딱 맞는 서비스를 추천받아요
               </h1>

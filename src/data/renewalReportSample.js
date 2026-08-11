@@ -120,7 +120,7 @@ const renewalReportSample = {
 export default renewalReportSample;
 
 // 파생 규칙(컴포넌트 측):
-// - 리포트 제목 라벨: `위닝에듀 무료 진단 리포트 ${page}페이지 / 2페이지` (ReportSheetA4 정적 생성)
+// - 리포트 제목 라벨: `위닝에듀 학습진단 리포트 ${page}페이지 / 2페이지` (ReportSheetA4 정적 생성)
 // - 학생정보 헤딩: `${student.name} 학생` / 특성 섹션 타이틀: `${student.name} 학생의 주요 학습 특성`
 // - PriorityTable rows = [...learningAxes].sort((a, b) => a.score - b.score)
 // - 51.5 = (72+58+36+43+61+39)/6 검산 일치 ✓
