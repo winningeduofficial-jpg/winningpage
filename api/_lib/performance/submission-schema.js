@@ -480,3 +480,40 @@ export function checkSubmissionMinLength(schema, fields = {}) {
     missingRequired
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// 프롬프트에 들어갈 제출물 평문 — **서버가 조립한다**
+// ─────────────────────────────────────────────────────────────────────
+//
+// §8.6 `evaluate` 행: 「평문 결합 텍스트를 클라이언트가 조립해 보내지 않는다」.
+// 외부는 브라우저 `buildSubmissionText`(`index.html:2246-2252`)가 만든 문자열을
+// `submission_text`로 올려보냈고, 서버는 그것을 그대로 프롬프트 `[학생 제출물]`에
+// 넣고 **동시에 100자 게이트의 측정 대상으로도 썼다**(`api/evaluate-text.js:38`).
+// 즉 게이트가 재는 대상을 클라이언트가 만들었다. 여기서는
+//   · 조립은 서버(`api/performance/evaluate.js`가 이 함수를 부른다),
+//   · 게이트는 조립 결과가 아니라 **필드 값 순수 본문**(`countSubmissionChars`)
+// 으로 갈라 놓았다(Q35). 두 관심사가 한 문자열을 공유하던 것이 외부 결함의 원인이다.
+//
+// 형식은 원문 그대로다 — 줄 구성·라벨 대괄호·빈 줄 위치를 바꾸면 모델이 보는 입력이
+// 달라진다(프롬프트 자산에 준해 취급한다).
+//     주제: {topic}
+//     (빈 줄)
+//     [제출 형식] {schema.label}
+//     (빈 줄) [{field.label}] {value}  … 필드 수만큼
+//   ※ 원문은 `[{field.label}]`과 값이 **서로 다른 줄**이다(`lines.push('', '[라벨]', 값)`).
+//
+// 원문과 다른 점은 하나뿐이다: 스키마를 `normalizeSubmissionSchema`로 한 번 통과시켜
+// DB에서 읽어온 값이 깨져 있어도 필드 목록이 비지 않게 한다(외부는 DOM에서 막 만든
+// 객체라 그럴 일이 없었다). 필드 값은 원문과 같이 `fields[key] || ''`이며, 스키마에
+// 없는 키는 애초에 순회 대상이 아니다.
+export function buildSubmissionText(topic, schema, fields = {}) {
+  const safe = normalizeSubmissionSchema(schema);
+  const source = fields && typeof fields === 'object' ? fields : {};
+  const lines = [`주제: ${String(topic ?? '')}`, '', `[제출 형식] ${safe.label}`];
+
+  safe.fields.forEach((field) => {
+    lines.push('', `[${field.label}]`, source[field.key] || '');
+  });
+
+  return lines.join('\n').trim();
+}

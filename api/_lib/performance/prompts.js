@@ -1446,6 +1446,17 @@ export const SUBMISSION_TOO_SHORT_MESSAGE =
 /**
  * 제출 필드 값 순수 본문의 글자 수 합(Q35).
  *
+ * ⚠️ **엔드포인트가 쓰는 정본은 이 함수가 아니라 `submission-schema.js`의 동명 함수다**
+ *    (`countSubmissionChars(schema, fields)` — 시그니처가 다르다). 두 슬라이스가 같은
+ *    결정(Q35)을 각자 구현한 결과 이름이 겹쳤고, 계산 대상이 다르다:
+ *      · 여기(P11 프롬프트 슬라이스): `fields`의 **모든 키**를 세고 `.trim().length`
+ *        (UTF-16 단위, 내부 공백 접기 없음)
+ *      · submission-schema.js(정본): **스키마에 선언된 키만** 세고 `\s+`를 1칸으로 접은
+ *        뒤 코드 포인트 길이. 스키마 밖 키로 게이트를 채우는 우회를 막는다.
+ *    `api/performance/submission.js`·`evaluate.js`는 후자만 import한다. 이 함수는
+ *    `scripts/verify-performance-prompt-parity.mjs`가 원문 임계값 대조에 쓰는 참조 구현
+ *    으로만 남아 있다 — 새 호출부를 여기에 붙이지 말 것.
+ *
  * 라벨·필드명·주제 접두어를 **세지 않는다** — 그것이 이 함수의 존재 이유다.
  * `performance_submissions.char_counts`(§8.3)와 시안 카운터(`356자`, §5.14)가
  * 이 계산식을 공유하므로, 필드별 카운트도 함께 돌려준다.
