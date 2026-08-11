@@ -43,11 +43,10 @@ const STEP_STATE_STYLES = {
   done: { badge: 'bg-surface-badge text-ink', label: 'font-medium text-ink', pill: false },
   // 진행 중: 배지 #0b84fd(accent) + 흰 숫자, 라벨 #525252 w600, pill #eaecef.
   current: { badge: 'bg-accent text-white', label: 'font-semibold text-ink', pill: true },
-  // 미도래: 배지 #f5f5f7(surface-04) + #808080 숫자, 라벨 #808080 w500, pill 없음.
-  // TODO(P19, §11.3 Q30) 배지 숫자 #808080 @14px on #f5f5f7 = 3.63:1, 라벨 #808080 @16px
-  //   on #f9f8f7 = 3.72:1 — 둘 다 WCAG AA(4.5:1) 미달이며 large-text 예외(≥18.66px bold /
-  //   ≥24px) 대상도 아니다. 시안 원본 값이라 임의 상향하지 않고 P19 「저대비 색 교정」에서
-  //   일괄 판정한다(#767676이면 4.53:1로 통과, 육안 차이 없음).
+  // 미도래: 배지 #f5f5f7(surface-04) + ink-sub 숫자, 라벨 ink-sub w500, pill 없음.
+  // `ink-sub`가 #6b6b6b로 상향되며 배지(14px on surface-04 = 4.89:1)·라벨(16px on
+  // performance-sidebar #f9f8f7 = 5.02:1) 모두 WCAG AA(4.5:1)를 충족한다(tailwind.config.js
+  // `ink.sub` 주석 참고). 과거 `TODO(P19, §11.3 Q30)`는 해소되어 제거했다.
   todo: { badge: 'bg-surface-04 text-ink-sub', label: 'font-medium text-ink-sub', pill: false }
 };
 
@@ -116,8 +115,8 @@ export default function PerformanceSidebar({
             {profileName}의 목표관리
           </p>
         )}
-        {/* TODO(P19, §11.3 Q30) #808080 @16px on #f9f8f7 = 3.72:1 — WCAG AA 미달.
-            이름 줄(1.25rem/600)은 large-text 예외로 통과하지만 이 부제는 해당 없다. */}
+        {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
+            충족한다(과거 TODO(P19, §11.3 Q30) 해소). */}
         {subtitle && (
           <p className="mt-[0.25rem] text-[1rem] leading-[1.3125rem] text-ink-sub">{subtitle}</p>
         )}
@@ -127,8 +126,6 @@ export default function PerformanceSidebar({
           (pill 36 + gap 6). 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
           시안 정본이다(§3.2 단정). */}
       <nav aria-labelledby="perf-nav-heading" className="mt-[8.75rem]">
-        {/* TODO(P19, §11.3 Q30) #808080 @16px/600 on #f9f8f7 = 3.72:1 — WCAG AA 미달.
-            16px semibold는 large-text(≥18.66px bold)가 아니라 예외 대상이 아니다. */}
         <p
           id="perf-nav-heading"
           className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"
@@ -174,7 +171,6 @@ export default function PerformanceSidebar({
           「진행단계」와 아무 관계 없는 <ol>로만 노출된다. 이미 보이는 라벨을 id로 묶어
           이름을 준다 — 픽셀 변화 0. id는 목표관리 셸과 동시 렌더될 경우를 대비해 perf- 접두. */}
       <section aria-labelledby="perf-steps-heading" className="mt-[3.4375rem]">
-        {/* TODO(P19, §11.3 Q30) #808080 @16px/600 on #f9f8f7 = 3.72:1 — WCAG AA 미달. */}
         <p
           id="perf-steps-heading"
           className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"

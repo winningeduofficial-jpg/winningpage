@@ -39,14 +39,15 @@ import MetaTag from './MetaTag';
 //
 // ── 대비 (§5.10 「제안, 대비 이슈」)
 //   `자세히 보기 →`의 **시안 원본 색은 `#d9d9d9`**이며 흰 배경 대비 약 1.6:1로 WCAG AA
-//   (일반 텍스트 4.5:1) 미달이다. 명세 제안대로 `#808080`(=`ink-sub`, 흰 배경 대비 약 3.9:1)
-//   로 상향한다. 3.9:1도 AA 본문 기준에는 못 미치지만, 이 텍스트는 카드 전체가 이미
-//   클릭 가능하다는 사실을 보조 표기할 뿐 유일한 정보 전달 수단이 아니고, `ink-sub`는
-//   §7.1이 정한 보조 텍스트 토큰이라 여기서 새 색을 창작하지 않았다.
+//   (일반 텍스트 4.5:1) 미달이다. 명세 제안대로 `#808080`(=`ink-sub`)으로 상향했고, 이후
+//   토큰 자체가 `#6b6b6b`로 상향되며 흰 배경 대비 5.33:1로 AA를 충족한다. 이 텍스트는
+//   카드 전체가 이미 클릭 가능하다는 사실을 보조 표기할 뿐 유일한 정보 전달 수단이
+//   아니지만, `ink-sub`는 §7.1이 정한 보조 텍스트 토큰이라 여기서 새 색을 창작하지
+//   않았다.
 //
 // ── hover (시안 없음 — 제안)
 //   §5.10이 "stroke `#d9d9d9` → 진한 값으로 전환 + `cursor: pointer`"만 정하고 구체 색은
-//   제안으로 남겼다. 이미 있는 보조 텍스트 토큰 `ink-sub`(#808080)를 보더 색으로 재사용한다
+//   제안으로 남겼다. 이미 있는 보조 텍스트 토큰 `ink-sub`(#6b6b6b)를 보더 색으로 재사용한다
 //   — 새 값을 만들지 않으면서 한 단계 진해진다.
 /**
  * @param {number} index 1-based 순번. 배지 문구 `추천 주제 {index}`에 그대로 들어간다.
@@ -95,7 +96,7 @@ export default function TopicCard({ index, topic, onDetail, className = '' }) {
           <span className="inline-flex h-[1.875rem] shrink-0 items-center rounded-[0.625rem] bg-performance-bubble px-1.5 text-[0.875rem] font-medium leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
             추천 주제 {index}
           </span>
-          {/* 시안 원본 색 `#d9d9d9` → 대비 미달로 `ink-sub`(#808080) 상향(§5.10 제안). */}
+          {/* 시안 원본 색 `#d9d9d9` → 대비 미달로 `ink-sub`(#6b6b6b, 흰 배경 5.33:1) 상향(§5.10 제안). */}
           <span className="shrink-0 text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
             자세히 보기 →
           </span>

@@ -23,8 +23,10 @@ export default function PerformancePlaceholder({ screen }) {
       <p className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
         {screen} — 화면 준비 중
       </p>
-      {/* ink-sub(#808080) on performance-bubble(#f8f7f5)은 대비 약 3.7:1로 WCAG AA(4.5:1) 미달 —
-          ink(#525252, 같은 배경 대비 약 7.3:1)로 렌더한다. */}
+      {/* 당시 ink-sub(#808080) on performance-bubble(#f8f7f5)은 대비 약 3.69:1로 WCAG AA(4.5:1)
+          미달이라 ink(#525252, 같은 배경 대비 약 7.30:1)로 렌더했다. 이후 ink-sub가 #6b6b6b로
+          상향되며 같은 배경에서 4.98:1로 AA를 충족하지만, 이미 ink로 통일한 현재 코드는
+          그대로 둔다. */}
       <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink">
         셸(사이드바·페이지 타이틀)만 구현된 상태다.
         {params.sessionId ? ` sessionId=${params.sessionId}` : ''}
