@@ -35,6 +35,7 @@ import PremiumApply from './pages/PremiumApply';
 import CompanyNews from './pages/CompanyNews';
 import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
+import ProtectedRoute from './components/ProtectedRoute';
 import SiteLayout from './components/SiteLayout';
 import { SignupProvider } from './context/SignupContext';
 
@@ -100,7 +101,18 @@ export default function App() {
           <Route path="/" element={<Home />} />
 
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/checkout" element={<Checkout />} />
+          {/* 비회원 결제 차단(감사 M5, 2026-08-12) 라우트 층 — 진짜 방어선은
+              api/create-order.js 의 서버 거부다. Pricing.jsx의 goCheckout()도
+              선(先) 가드를 이미 하지만, 북마크·직접 URL 진입은 그걸 우회하므로
+              여기 후(後) 가드가 필요하다. */}
+          <Route
+            path="/checkout"
+            element={(
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            )}
+          />
 
           {/* 법적 문서 (카드사·PG 심사 필수) */}
           <Route path="/terms" element={<Legal docKey="terms" />} />

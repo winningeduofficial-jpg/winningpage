@@ -126,11 +126,17 @@ export async function grantProgramAccessForOrder(
 
   const accessId = clean(userId);
   if (!accessId) {
-    // 비회원 결제(api/create-order.js 는 로그인 없이도 주문을 만든다)는
-    // orders.user_id 가 null 이라 권한을 줄 대상이 없다. 운영자 수동 처리 대상.
-    // RPC 에도 같은 방어가 있지만(orders.user_id is null → skipped), 여기서
-    // 먼저 끊어야 PaymentSuccess 가 '영구 실패 + 회원가입 안내'를 띄운다
-    // (PERMANENT_ACCESS_ERRORS 에 order_has_no_user 가 있다).
+    // 비회원 결제는 orders.user_id 가 null 이라 권한을 줄 대상이 없다.
+    // 운영자 수동 처리 대상. RPC 에도 같은 방어가 있지만(orders.user_id is
+    // null → skipped), 여기서 먼저 끊어야 PaymentSuccess 가 '영구 실패 +
+    // 회원가입 안내'를 띄운다(PERMANENT_ACCESS_ERRORS 에 order_has_no_user 가
+    // 있다).
+    //
+    // 2026-08-12 갱신: 신규 주문에서는 이 분기가 도달 불가에 가깝다 — 비회원
+    // 결제는 api/create-order.js 가 서버에서 거부하고(감사 M5),
+    // sql/67_orders_user_id_not_null.sql 이 걸렸다면 orders.user_id 자체가
+    // NULL 을 못 받는다. 그래도 지우지 않는다: DB 제약을 걸지 못했을 가능성
+    // (그 파일의 판단 근거 참고)과 차단 이전 레거시 행에 대한 방어로 남긴다.
     result.error = 'order_has_no_user';
     return result;
   }
@@ -207,6 +213,8 @@ export async function revokeProgramAccessForOrder(
   if (!accessId) {
     // 비회원 결제는 부여된 적이 없으니 회수할 것도 없다(부여 측 order_has_no_user
     // 와 같은 이유). 에러가 아니라 no-op 이다.
+    // 2026-08-12: grantProgramAccessForOrder 쪽과 같은 이유로 신규 주문에서는
+    // 도달 불가에 가깝지만, 레거시/제약 미적용 대비로 남긴다.
     result.ok = true;
     result.skipped.push({ reason: 'order_has_no_user' });
     return result;

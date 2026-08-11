@@ -87,14 +87,24 @@ export default async function handler(req, res) {
     const listTotal = products.reduce((s, p) => s + Number(p.list_price || p.price || 0), 0);
     const subtotal = products.reduce((s, p) => s + Number(p.price || 0), 0);
 
-    // 로그인 사용자 매핑 (비회원 결제 허용)
-    let userId = null;
-    let customerEmail = null;
+    // 로그인 필수 — 비회원 결제 차단(감사 M5, 2026-08-12).
+    // 과거엔 토큰이 없으면 userId=null 로 두고 그대로 주문을 만들었다(비회원
+    // 결제 허용). 그 상태로 결제가 확정되면 누구에게 권한을 줄지, 환불 시
+    // 누구에게서 회수할지 알 방법이 없다 — orders.user_id/customer_email 모두
+    // NULL 허용이라 백필 근거조차 없었다. 이제 토큰이 없거나 무효하면 주문
+    // 생성 자체를 거부한다. 401 문구는 api/lookup-child.js(:70,:84)의 기존
+    // 로그인 유도 문구를 그대로 재사용 — 이 파일 신규 문구 아님.
+    // sql/67_orders_user_id_not_null.sql 이 DB 층에서 같은 것을 한 번 더
+    // 강제한다(제약 가능 여부는 그 파일 판단 근거 참고).
     const token = getBearerToken(req);
-    if (token) {
-      const { data: userData } = await supabaseAdmin.auth.getUser(token);
-      userId = userData?.user?.id ?? null;
-      customerEmail = userData?.user?.email ?? null;
+    if (!token) {
+      return res.status(401).json({ error: '로그인이 필요합니다.' });
+    }
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const userId = userData?.user?.id ?? null;
+    const customerEmail = userData?.user?.email ?? null;
+    if (userError || !userId) {
+      return res.status(401).json({ error: '로그인이 만료되었습니다. 다시 로그인해 주세요.' });
     }
 
     const orderId = `order_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
