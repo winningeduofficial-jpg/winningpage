@@ -62,6 +62,11 @@ function buildDefaultState() {
     upperUniversity: { university: '', department: '' },
     lowerUniversity: { university: '', department: '' },
     naesin: buildInitialNaesin(),
+    // 내신 4회차가 "전부 없음"일 때만 의미를 갖는 이전 학년까지의 내신 평균 등급(1~9, 문자열).
+    // 고1이면 중학교 평균, 고2면 고1까지, 고3이면 고2까지의 누적 평균이며 한 칸을 공유한다.
+    // 다른 성적 입력(naesin[key].value)과 같게 문자열로 두고 숫자 변환은 서버가 한 번만 한다.
+    // 반드시 여기(defaults)에 있어야 sessionStorage 복구 병합(buildInitialState)에서 살아남는다.
+    priorNaesinGrade: '',
     mockExam: buildInitialMockExam(),
     studyHours: buildInitialStudyHours(),
     dailySchedule: buildInitialDailySchedule()
@@ -154,7 +159,12 @@ export function GoalOnboardingProvider({ children }) {
   }
 
   function setGrade(grade) {
-    setState((prev) => ({ ...prev, grade }));
+    // 학년을 바꾸면 priorNaesinGrade 도 함께 비운다(setSchoolType 이 grade 를 비우는 것과 같은
+    // 연쇄 무효화). 같은 한 칸이 학년마다 다른 의미를 갖기 때문이다 — 고1에서 "중학교 평균"으로
+    // 넣은 값이 고2로 바꾸면 화면 라벨만 "고1까지 누적"으로 바뀐 채 그대로 제출되고, 서버 분기도
+    // '중3' 치환(페널티 +0.10)에서 remainingNaesin=6 오버라이드로 통째로 뒤집힌다.
+    // 실제로 바뀔 때만 비운다 — 같은 학년을 다시 눌렀다고 입력을 날리지 않는다.
+    setState((prev) => (prev.grade === grade ? prev : { ...prev, grade, priorNaesinGrade: '' }));
   }
 
   function setUpperUniversity(partial) {
@@ -170,6 +180,11 @@ export function GoalOnboardingProvider({ children }) {
       ...prev,
       naesin: { ...prev.naesin, [examKey]: { ...prev.naesin[examKey], ...partial } }
     }));
+  }
+
+  // 내신 전 회차 "없음" 특례 입력. 4회차 중 하나라도 "없음"이 해제되면 Step4가 ''로 비운다.
+  function setPriorNaesinGrade(value) {
+    setState((prev) => ({ ...prev, priorNaesinGrade: value }));
   }
 
   function updateMockExam(roundKey, partial) {
@@ -209,6 +224,7 @@ export function GoalOnboardingProvider({ children }) {
       setUpperUniversity,
       setLowerUniversity,
       updateNaesin,
+      setPriorNaesinGrade,
       updateMockExam,
       setStudyHour,
       setDailyScheduleField,

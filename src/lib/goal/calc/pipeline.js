@@ -216,9 +216,24 @@ export function buildInitialStudentState(input) {
   const convertedGrade = applyPreHighGradePenalty(schoolType, grade, convertedGradeRaw);
 
   // 5) 서버: 잔여 시험 회차. student.mjs:2448-2452
-  const remainNaesin = isPreHighStudent(schoolType, grade)
+  //
+  // 원본은 isPreHighStudent 이면 remainNaesin 을 무조건 0 으로 덮어써서, 호출자가
+  // remainingNaesin 오버라이드를 넘겨도 조용히 버려진다 — 이 파일 위쪽 getRemainingNaesin
+  // 의 계약("fallback 이 주어지면 최우선으로 쓴다", primitives.js:50)과 정면으로
+  // 모순된다. 그 결과 내신을 하나도 안 본 고1 학생이 remainNaesin=0 을 받는데,
+  // calcNaesinProb(primitives.js:130-132)은 remainExams<=0 이면 시간 할인 계수를 건너뛰고
+  // 원값을 낸다("성적 확정" 의미) — 불확실성이 가장 큰 학생이 확정 취급을 받아 실제로
+  // 내신을 본 학생보다 더 높은 확률을 받는 결함으로 이어진다. 원본 고2·고3 은 이 문제가
+  // 없다(IntakeForm.tsx:514-518 getNaesinNoneRemaining 이 직접 값을 계산해 넘기고, 학년
+  // 가드가 고1만 막는다) — 고1만 조건 분기에 걸려 있던 원본 내부의 비대칭이다.
+  // 여기서는 명시적 오버라이드가 있을 때만 그 값을 존중하도록 가드를 좁혀 이 비대칭을
+  // 없앤다(사용자 승인). 오버라이드를 안 주는 기존 호출자는 동작이 완전히 같다 —
+  // 원본과의 의도적 이탈이다. 근거·영향 범위는 calc/DIVERGENCE.md #1 참고.
+  const remainNaesin = isPreHighStudent(schoolType, grade) && remainingNaesin == null
     ? 0
     : getRemainingNaesin(grade, lastNaesin, remainingNaesin);
+  // remainMogo 에는 isPreHighStudent 가드가 없다 — getRemainingMogo 가 이미 오버라이드를
+  // 그대로 존중하므로(위 remainNaesin 같은 모순이 없다) 손대지 않는다.
   const remainMogo = getRemainingMogo(grade, lastMogo, remainingMogo);
 
   // 6) 서버: 확률 4종. student.mjs:2454-2463
