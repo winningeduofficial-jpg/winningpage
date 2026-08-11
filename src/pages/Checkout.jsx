@@ -179,18 +179,28 @@ export default function Checkout() {
     el.focus({ preventScroll: true });
   }
 
-  // 쿠폰 목록 로드. 쿠폰은 선택 요소라 조회 실패 시에도 결제 자체는 막지 않되,
-  // 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역 안내로 노출한다.
+  const checkedItems = useMemo(
+    () => items.filter((i) => checkedIds.has(i.id)),
+    [items, checkedIds]
+  );
+  const allChecked = items.length > 0 && checkedIds.size === items.length;
+
+  // 금액 계산
+  const listTotal = checkedItems.reduce((s, i) => s + Number(i.listPrice || i.price || 0), 0);
+  const subtotal = checkedItems.reduce((s, i) => s + Number(i.price || 0), 0);
+  const productDiscount = listTotal - subtotal;
+
+  // 쿠폰 목록 로드. 판정(활성/기간/최소금액/사용 횟수 제한)은 전부 DB 함수
+  // fn_usable_coupons 가 전담한다(sql/55_coupon_policy.sql) — 클라이언트는
+  // today 를 계산하지 않는다(예전엔 시계 조작으로 만료 쿠폰이 되살아났고,
+  // UTC 계산이라 KST 자정~09시 구멍도 있었다). 최소금액 조건이 subtotal 에
+  // 달려 있으므로 subtotal 이 바뀔 때마다(상품 체크 토글) 다시 불러 eligible
+  // 을 최신 상태로 유지한다. 쿠폰은 선택 요소라 조회 실패 시에도 결제 자체는
+  // 막지 않되, 실패를 조용히 삼키지 않고 콘솔 경고 + 쿠폰 영역 안내로 노출한다.
   useEffect(() => {
     let alive = true;
     (async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('id, code, title, discount_amount, min_amount, valid_until, is_active')
-        .eq('is_active', true)
-        .gte('valid_until', today)
-        .order('discount_amount', { ascending: false });
+      const { data, error } = await supabase.rpc('fn_usable_coupons', { p_subtotal: subtotal });
       if (!alive) return;
       setCouponsLoaded(true);
       if (error) {
@@ -205,32 +215,32 @@ export default function Checkout() {
           title: c.title,
           discount: c.discount_amount,
           minAmount: c.min_amount || 0,
-          validUntil: c.valid_until
+          validUntil: c.valid_until,
+          isActive: c.is_active,
+          eligible: c.eligible,
+          // reason: below_min_amount | expired | already_used | inactive | null.
+          // 한국어 문구는 아직 없다 — 지어내지 않고 아래 렌더 주석·팀 보고에
+          // "이런 성격의 문구가 필요하다"로만 남긴다(코퍼스 승인 대상).
+          reason: c.reason
         }))
       );
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [subtotal]);
 
-  const checkedItems = useMemo(
-    () => items.filter((i) => checkedIds.has(i.id)),
-    [items, checkedIds]
-  );
-  const allChecked = items.length > 0 && checkedIds.size === items.length;
+  // 판매 종료(비활성) 쿠폰은 고객에게 노출할 이유가 없어 목록에서 숨긴다 —
+  // fn_usable_coupons 는 걸러내지 않고 반환하지만(sql/55 주석 참고),
+  // applyCouponCode 는 정직성을 위해 이 필터 이전의 전체 목록(coupons)을 쓴다.
+  const visibleCoupons = useMemo(() => coupons.filter((c) => c.isActive), [coupons]);
 
-  // 금액 계산
-  const listTotal = checkedItems.reduce((s, i) => s + Number(i.listPrice || i.price || 0), 0);
-  const subtotal = checkedItems.reduce((s, i) => s + Number(i.price || 0), 0);
-  const productDiscount = listTotal - subtotal;
-
-  // 선택된 쿠폰 중 조건 충족분만 적용, 총 할인은 subtotal 초과 불가
+  // 선택된 쿠폰 중 DB가 eligible=true 로 판정한 것만 적용, 총 할인은 subtotal 초과 불가.
+  // (최소금액/기간/사용 횟수 판정을 여기서 다시 하지 않는다 — DB 판정을 그대로 신뢰한다.)
   const couponDiscount = useMemo(() => {
     let sum = 0;
     coupons.forEach((c) => {
-      if (selectedCouponIds.has(c.id) && subtotal >= (c.minAmount || 0))
-        sum += Number(c.discount || 0);
+      if (selectedCouponIds.has(c.id) && c.eligible) sum += Number(c.discount || 0);
     });
     return Math.min(sum, subtotal);
   }, [coupons, selectedCouponIds, subtotal]);
@@ -297,6 +307,11 @@ export default function Checkout() {
     });
   }
 
+  // 부적격이어도 거짓말하지 않는다 — 예전엔 "로드된(=활성+미만료) 목록"에서만
+  // 찾아, over40k-3000 같은 실제 유효 코드에도 "유효하지 않은 쿠폰
+  // 코드입니다"라고 안내했다(밸리데이션 버그이지 코드 문제가 아니었다). 이제
+  // coupons state 는 fn_usable_coupons 가 반환한 전체 쿠폰(비활성 포함)이라,
+  // 여기서 못 찾는 경우만 "코드 자체가 없다"는 뜻이 된다.
   function applyCouponCode() {
     const code = couponCode.trim().toLowerCase();
     if (!code) return;
@@ -305,6 +320,13 @@ export default function Checkout() {
       window.alert('유효하지 않은 쿠폰 코드입니다.');
       return;
     }
+    // 찾았지만 지금은 못 쓰는 쿠폰(최소금액 미달/기간 만료/이미 사용/판매
+    // 종료)이어도 선택 상태에는 넣는다 — 목록에 나타나 기존 비활성 스타일
+    // (opacity-45, disabled)로 "코드는 인식됐지만 지금은 조건 미충족"임을
+    // 보여준다. 사유별 안내 문구는 아직 없다(코퍼스 승인 대상 — 팀 보고 참고).
+    // 단 판매 종료(isActive=false) 쿠폰은 visibleCoupons 에서 아예 숨기므로
+    // 선택해도 화면에 드러나지 않는다 — 이 경우의 사용자 피드백도 문구
+    // 승인이 필요한 항목이다.
     setSelectedCouponIds((prev) => new Set(prev).add(found.id));
     setCouponCode('');
   }
@@ -679,22 +701,25 @@ export default function Checkout() {
                     고장난 것처럼 보인다 — 그 실제 결함을 막기 위해 남긴다.
                     용어는 시안 정본인 '보유 쿠폰 N장'(덤프 18/18 프레임)에 맞춰 '보유한'으로
                     통일했다. 조회 실패는 위 couponError 가 이미 안내하므로 겹쳐 쓰지 않는다. */}
-                {couponsLoaded && !couponError && coupons.length === 0 && (
+                {couponsLoaded && !couponError && visibleCoupons.length === 0 && (
                   <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
                     보유한 쿠폰이 없습니다.
                   </p>
                 )}
 
-                {coupons.length > 0 && (
+                {visibleCoupons.length > 0 && (
                   <>
                     {/* 시안 정본 문구 — 덤프 18개 프레임 전부 '보유 쿠폰 2장'. */}
                     {/* 시안 실측 14px w400 lh20 #525252 — '쿠폰 사용 안함' 과 같은 스타일. */}
                     <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink">
-                      보유 쿠폰 {coupons.length}장
+                      보유 쿠폰 {visibleCoupons.length}장
                     </p>
                     <div className="space-y-2">
-                      {coupons.map((c) => {
-                        const eligible = subtotal >= (c.minAmount || 0);
+                      {visibleCoupons.map((c) => {
+                        // eligible/reason 은 fn_usable_coupons(DB) 판정을 그대로 쓴다 —
+                        // 최소금액뿐 아니라 기간 만료·쿠폰별 사용 횟수 제한까지 여기 반영된다
+                        // (subtotal >= minAmount 로직을 클라이언트에서 재계산하지 않는다).
+                        const eligible = c.eligible;
                         const isSelected = selectedCouponIds.has(c.id);
                         return (
                           <button

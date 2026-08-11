@@ -1,14 +1,17 @@
 // Vercel 서버리스 함수: 주문 생성 (결제 금액 서버 재계산)
 //
 // 클라이언트가 보낸 상품 id / 쿠폰 id 만 신뢰하고,
-// 실제 가격·할인은 서버가 Supabase `products` / `coupons` 에서 다시 읽어 계산한다.
+// 실제 가격은 서버가 Supabase `products` 에서 다시 읽어 계산한다.
 // → 프런트에서 금액을 위변조해도 결제 금액이 조작되지 않는다.
 //
 // 흐름:
-//   1) items[].id 로 products 조회 → 정가/판매가 합계 계산
-//   2) couponIds 로 coupons 조회 → 유효/최소금액 확인 후 할인 합산 (판매가 초과 불가)
-//   3) orders(pending) + order_items insert
-//   4) { orderId, orderName, amount } 반환 → 클라이언트가 토스 결제창 호출
+//   1) items[].id 로 products 조회 → 정가/판매가 합계 계산 (과금 정본은 여전히 products.price)
+//   2) rpc fn_redeem_coupons 호출 → 쿠폰 판정 + orders(pending)/order_items 생성 +
+//      쿠폰 사용 이력(coupon_redemptions) 기록을 한 트랜잭션으로 원자 처리
+//      (sql/55_coupon_policy.sql). 인라인 쿠폰 조회·판정(과거 이 파일 :88-106)은
+//      DB 함수로 이관했다 — Checkout.jsx 의 fn_usable_coupons 호출과 판정 로직이
+//      한 곳(DB)에서만 정의되어 더 이상 두 곳이 따로 어긋날 수 없다.
+//   3) { orderId, orderName, amount } 반환 → 클라이언트가 토스 결제창 호출
 //
 // 필요 환경변수:
 //   WINNING_SUPABASE_URL / SUPABASE_URL / VITE_SUPABASE_URL
@@ -84,34 +87,6 @@ export default async function handler(req, res) {
     const listTotal = products.reduce((s, p) => s + Number(p.list_price || p.price || 0), 0);
     const subtotal = products.reduce((s, p) => s + Number(p.price || 0), 0);
 
-    // 2) 쿠폰 검증 및 할인 계산
-    let couponDiscount = 0;
-    let appliedCouponId = null;
-    if (couponIds.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: coupons } = await supabaseAdmin
-        .from('coupons')
-        .select('id, discount_amount, min_amount, valid_until, is_active')
-        .in('id', couponIds)
-        .eq('is_active', true)
-        .gte('valid_until', today);
-
-      (coupons || []).forEach((c) => {
-        if (subtotal >= Number(c.min_amount || 0)) {
-          couponDiscount += Number(c.discount_amount || 0);
-          appliedCouponId = c.id; // 대표 쿠폰 1개만 기록 (order_items 확장 여지)
-        }
-      });
-      couponDiscount = Math.min(couponDiscount, subtotal);
-    }
-
-    const discountTotal = listTotal - subtotal + couponDiscount;
-    const amount = Math.max(0, listTotal - discountTotal);
-
-    if (amount <= 0) {
-      return res.status(400).json({ error: '결제 금액이 올바르지 않습니다.' });
-    }
-
     // 로그인 사용자 매핑 (비회원 결제 허용)
     let userId = null;
     let customerEmail = null;
@@ -122,41 +97,46 @@ export default async function handler(req, res) {
       customerEmail = userData?.user?.email ?? null;
     }
 
-    // 3) 주문 생성 (pending)
     const orderId = `order_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     const orderName = buildOrderName(products);
 
-    const { error: orderError } = await supabaseAdmin.from('orders').insert({
-      id: orderId,
-      user_id: userId,
-      status: 'pending',
-      order_name: orderName,
-      list_amount: listTotal,
-      discount_amount: discountTotal,
-      amount,
-      coupon_id: appliedCouponId,
-      customer_email: customerEmail,
+    // 2) 쿠폰 판정 + 주문(pending)/주문아이템/쿠폰 사용 이력을 DB 함수 한 번으로
+    //    원자 처리한다(sql/55_coupon_policy.sql fn_redeem_coupons). subtotal/
+    //    list_amount 는 위에서 products 로 계산한 신뢰값을 그대로 넘긴다 —
+    //    이 함수는 금액을 재계산하지 않는다(과금 정본은 여전히 products.price).
+    const { data: redeemRows, error: redeemError } = await supabaseAdmin.rpc('fn_redeem_coupons', {
+      p_order_id: orderId,
+      p_user_id: userId,
+      p_customer_email: customerEmail,
+      p_order_name: orderName,
+      p_items: products.map((p) => ({
+        product_id: p.id,
+        service_key: p.service_key,
+        name: p.name,
+        list_price: Number(p.list_price || p.price || 0),
+        price: Number(p.price || 0),
+        quantity: 1,
+      })),
+      p_list_amount: listTotal,
+      p_subtotal: subtotal,
+      p_coupon_ids: couponIds,
     });
 
-    if (orderError) {
-      console.error('orders insert 오류:', orderError);
+    if (redeemError) {
+      // fn_redeem_coupons 는 결제 금액이 0원 이하가 되면 'invalid_amount' 로
+      // raise exception 한다(트랜잭션 전체 롤백 — orders/order_items/
+      // coupon_redemptions 어느 것도 남지 않는다). 그 외는 서버 오류.
+      if (redeemError.message === 'invalid_amount') {
+        return res.status(400).json({ error: '결제 금액이 올바르지 않습니다.' });
+      }
+      console.error('fn_redeem_coupons 오류:', redeemError);
       return res.status(500).json({ error: '주문 생성에 실패했습니다.' });
     }
 
-    const orderItems = products.map((p) => ({
-      order_id: orderId,
-      product_id: p.id,
-      service_key: p.service_key,
-      name: p.name,
-      list_price: Number(p.list_price || p.price || 0),
-      price: Number(p.price || 0),
-      quantity: 1,
-    }));
-
-    const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItems);
-    if (itemsError) {
-      console.error('order_items insert 오류:', itemsError);
-      // 주문 헤더는 생성됐으므로 결제는 진행 가능. 로깅만.
+    const amount = Number(redeemRows?.[0]?.amount ?? 0);
+    if (!amount) {
+      console.error('fn_redeem_coupons 응답에 amount 없음:', redeemRows);
+      return res.status(500).json({ error: '주문 생성에 실패했습니다.' });
     }
 
     return res.status(200).json({ orderId, orderName, amount });
