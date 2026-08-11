@@ -8,6 +8,7 @@ import {
   ChevronsRight,
   Download,
   Edit3,
+  ExternalLink,
   Eye,
   Plus,
   RefreshCw,
@@ -100,7 +101,8 @@ const MENU_GROUPS = [
     title: '회원 관리',
     items: [
       { key: 'members', label: '회원 목록' },
-      { key: 'enrollments', label: '수강 신청 내역' }
+      { key: 'enrollments', label: '수강 신청 내역' },
+      { key: 'mentorApplications', label: '멘토 신청 내역' }
     ]
   },
   {
@@ -197,6 +199,18 @@ const PREMIUM_CONSULT_STATUS_OPTIONS = [
   { value: 'contacted', label: '연락함' },
   { value: 'done', label: '완료' },
   { value: 'cancelled', label: '취소' }
+];
+
+// sql/52_mentor_applications.sql의 status 컬럼 주석에 적힌 값 그대로(CHECK 제약은 없지만
+// 이 6개가 실제 사용 값이다). CONFIGS.mentorApplications 목록 컬럼과 MentorApplicationsAdmin의
+// 상세 상태변경 Select가 이 배열 하나를 공유한다 — 값이 어긋나면 목록에 라벨이 안 붙는다.
+const MENTOR_APPLICATION_STATUS_OPTIONS = [
+  { value: 'submitted', label: '제출됨' },
+  { value: 'screening', label: '서류심사' },
+  { value: 'interview', label: '면접' },
+  { value: 'training', label: '교육' },
+  { value: 'active', label: '활동중' },
+  { value: 'rejected', label: '불합격' }
 ];
 
 const CONFIGS = {
@@ -1924,6 +1938,30 @@ const CONFIGS = {
     }
   },
 
+  // 멘토(콜멘토) 지원서 조회 — 30여 개 필드 + 동의 5종 + 비공개 버킷 증빙 파일이라
+  // columns/fields 기반 제네릭 AdminTable/AdminForm에 그대로 얹기 어렵다(특히 파일 열람은
+  // createSignedUrl이 필요해 제네릭 image/file 필드의 getPublicUrl 관용구를 쓸 수 없다).
+  // custom: true + CustomComponent로 premiumBookPages와 동일한 패턴을 따르되, 목록만은
+  // AdminTable을 재사용한다(파일 하단 MentorApplicationsAdmin 참고). columns는 그 목록에서만
+  // 쓰인다 — 상세/상태변경은 컴포넌트 내부 bespoke 렌더링.
+  mentorApplications: {
+    title: '멘토 신청 내역',
+    table: 'mentor_applications',
+    searchPlaceholder: '이름, 대학교, 휴대폰 검색',
+    order: 'created_at',
+    readOnly: true,
+    custom: true,
+    CustomComponent: MentorApplicationsAdmin,
+    columns: [
+      { key: 'created_at', label: '제출일', type: 'date' },
+      { key: 'name', label: '이름' },
+      { key: 'university', label: '대학교' },
+      { key: 'major', label: '학과·학부' },
+      { key: 'phone', label: '휴대폰', type: 'maskedPhone' },
+      { key: 'status', label: '상태', options: MENTOR_APPLICATION_STATUS_OPTIONS }
+    ]
+  },
+
   programCategories: {
     title: '핵심 서비스',
     table: 'program_categories',
@@ -3491,6 +3529,14 @@ function formatValue(value, type, options) {
   }
 
   if (type === 'boolean') return value ? '사용' : '미사용';
+
+  // 멘토 신청 내역 목록 전용 — 개인정보 최소 노출(팀장 지시). 상세 화면에서는 마스킹 없이
+  // 원본 휴대폰번호를 그대로 보여준다.
+  if (type === 'maskedPhone') {
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.length < 8) return String(value);
+    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+  }
 
   if (type === 'money') return `${Number(value || 0).toLocaleString()}원`;
 
@@ -6986,6 +7032,337 @@ function PremiumBookAdmin() {
           }}
           onSave={saveRow}
           onUpload={uploadImage}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 멘토 신청 내역(mentorApplications) — CONFIGS.mentorApplications 참고.
+// 목록만 AdminTable을 재사용하고, 상세/상태변경/증빙파일 열람은 이 파일 안에서 전부
+// bespoke로 그린다(제네릭 AdminForm은 필드를 전부 자유 편집 가능하게 만들어 이 화면의
+// "상태만 변경 가능, 나머지는 읽기전용" 요구와 맞지 않는다).
+// ---------------------------------------------------------------------------
+
+// 섹션 구분은 sql/52_mentor_applications.sql 컬럼 주석의 1~5절 순서를 그대로 따른다.
+//   array: true       → text[] 컬럼(normalizeArray로 콤마 나열)
+//   boolean: true     → boolean 컬럼('동의'/'미동의')
+//   type: 'datetime'  → timestamptz 컬럼(formatDateTime)
+//   proof: true        → proof_file_name(사용자 입력 원본 파일명) 전용 — 아래 렌더에서 이스케이프됨
+const MENTOR_APPLICATION_DETAIL_SECTIONS = [
+  {
+    title: '1. 지원자 정보',
+    fields: [
+      { key: 'name', label: '이름' },
+      { key: 'birth_date', label: '생년월일' },
+      { key: 'phone', label: '휴대폰' },
+      { key: 'email', label: '이메일' },
+      { key: 'residence_region', label: '거주지역' }
+    ]
+  },
+  {
+    title: '2. 대학 및 합격 전형',
+    fields: [
+      { key: 'university', label: '대학교' },
+      { key: 'major', label: '학과·학부' },
+      { key: 'admission_year', label: '입학년도' },
+      { key: 'enrollment_status', label: '재학상태' },
+      { key: 'admission_history', label: '입시이력' },
+      { key: 'final_admission_track', label: '최종전형' },
+      { key: 'exam_results', label: '입시 성적' }
+    ]
+  },
+  {
+    title: '3. 출신 고등학교',
+    fields: [
+      { key: 'highschool_region', label: '고교 지역' },
+      { key: 'highschool_name', label: '고교명' },
+      { key: 'highschool_type', label: '고교 유형' },
+      { key: 'gpa_average', label: '내신 평균' },
+      { key: 'csat_summary', label: '수능 요약' }
+    ]
+  },
+  {
+    title: '4. 멘토 역량',
+    fields: [
+      { key: 'consult_fields', label: '상담 가능 분야', array: true },
+      { key: 'strongest_field_reason', label: '가장 자신있는 분야 이유' },
+      { key: 'consult_grades', label: '상담 가능 학년', array: true },
+      { key: 'weekly_capacity', label: '주당 가능 횟수' },
+      { key: 'available_timeslot', label: '가능 시간대' },
+      { key: 'motivation', label: '지원 동기' },
+      { key: 'strengths', label: '강점' },
+      { key: 'ineffective_method', label: '비효율적 지도 경험' },
+      { key: 'situation_answer', label: '상황 대응' },
+      { key: 'tutoring_experience', label: '과외 경험' }
+    ]
+  },
+  {
+    title: '5. 증빙 및 동의',
+    fields: [
+      { key: 'proof_file_name', label: '증빙 파일명', proof: true },
+      { key: 'phone_verified_at', label: '휴대폰 인증 시각', type: 'datetime' },
+      { key: 'request_ip', label: '제출 IP' },
+      { key: 'agree_terms', label: '이용약관 동의', boolean: true },
+      { key: 'agree_privacy', label: '개인정보 수집 동의', boolean: true },
+      { key: 'agree_identity', label: '본인인증 동의', boolean: true },
+      { key: 'agree_marketing', label: '마케팅 수신 동의', boolean: true },
+      { key: 'agree_ad', label: '광고성 정보 수신 동의', boolean: true }
+    ]
+  }
+];
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('ko-KR');
+}
+
+function renderMentorApplicationDetailValue(app, field) {
+  const value = app[field.key];
+
+  if (field.array) {
+    const list = normalizeArray(value);
+    return list.length > 0 ? list.join(', ') : '-';
+  }
+
+  if (field.boolean) return value ? '동의' : '미동의';
+
+  if (field.type === 'datetime') return formatDateTime(value);
+
+  if (field.proof) {
+    // proof_file_name은 지원자가 올린 원본 파일명 — 사용자 입력이다. React의 기본 텍스트
+    // 렌더링(자동 이스케이프)만 쓴다. dangerouslySetInnerHTML은 절대 쓰지 않는다.
+    return value || (app.proof_file_path ? '(파일명 없음)' : '-');
+  }
+
+  if (value === null || value === undefined || value === '') return '-';
+  return String(value);
+}
+
+function MentorApplicationsAdmin() {
+  const config = CONFIGS.mentorApplications;
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null); // 상세로 연 행. null이면 목록.
+  const [statusDraft, setStatusDraft] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  async function loadRows() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('mentor_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      alert(`${config.title} 조회 실패: ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    setRows(data || []);
+  }
+
+  useEffect(() => {
+    loadRows();
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) => searchable(row).includes(q));
+  }, [rows, keyword]);
+
+  function openDetail(row) {
+    setSelected(row);
+    setStatusDraft(row.status || 'submitted');
+  }
+
+  function closeDetail() {
+    setSelected(null);
+    setStatusDraft('');
+  }
+
+  async function saveStatus() {
+    if (!selected || savingStatus) return;
+
+    if (statusDraft === selected.status) {
+      alert('변경된 상태가 없습니다.');
+      return;
+    }
+
+    setSavingStatus(true);
+
+    const { error } = await supabase
+      .from('mentor_applications')
+      .update({ status: statusDraft })
+      .eq('id', selected.id);
+
+    setSavingStatus(false);
+
+    if (error) {
+      alert(`상태 변경 실패: ${error.message}`);
+      return;
+    }
+
+    const nextSelected = { ...selected, status: statusDraft };
+    setSelected(nextSelected);
+    setRows((prev) => prev.map((row) => (row.id === selected.id ? nextSelected : row)));
+    alert('상태를 변경했습니다.');
+  }
+
+  // 비공개 버킷(mentor-applications)이라 getPublicUrl은 쓸 수 없다 — Admin.jsx의 기존
+  // getPublicUrl 관용구(IMAGE_BUCKET/banners 버킷 대상, 이 파일의 다른 곳)와는 다른 경로다.
+  // createSignedUrl로 단기 서명 URL을 받아 새 탭으로 연다. TTL 60초 — 어드민이 클릭 즉시
+  // 여는 일회성 열람이고, 증빙 파일에 개인정보(성적표 등)가 담겨 있어 길게 잡을 이유가 없다.
+  async function openProofFile() {
+    if (!selected?.proof_file_path) {
+      alert('첨부된 증빙 파일이 없습니다.');
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('mentor-applications')
+      .createSignedUrl(selected.proof_file_path, 60);
+
+    if (error || !data?.signedUrl) {
+      alert(`증빙 파일 열람 실패: ${error?.message || '서명 URL을 가져오지 못했습니다.'}`);
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  if (selected) {
+    return (
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-black text-[#111827]">{config.title} 상세</h1>
+          <ActionButton variant="light" onClick={closeDetail}>
+            목록으로
+          </ActionButton>
+        </div>
+
+        <div className="mb-6 flex flex-wrap items-end gap-3 bg-white p-6 shadow">
+          <Field label="상태">
+            <Select value={statusDraft} onChange={setStatusDraft}>
+              {MENTOR_APPLICATION_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <ActionButton onClick={saveStatus} disabled={savingStatus}>
+            {savingStatus ? '저장 중...' : '상태 저장'}
+          </ActionButton>
+
+          <ActionButton variant="light" onClick={openProofFile}>
+            <ExternalLink size={14} />
+            증빙 파일 열람
+          </ActionButton>
+        </div>
+
+        {MENTOR_APPLICATION_DETAIL_SECTIONS.map((section) => (
+          <div key={section.title} className="mb-6 bg-white shadow">
+            <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
+              {section.title}
+            </div>
+
+            {section.fields.map((field) => (
+              <div
+                key={field.key}
+                className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4] last:border-b-0"
+              >
+                <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">{field.label}</div>
+                <div className="whitespace-pre-line px-5 py-3 text-sm">
+                  {renderMentorApplicationDetailValue(selected, field)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div className="mb-6 bg-white shadow">
+          <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
+            제출 메타
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">제출일</div>
+            <div className="px-5 py-3 text-sm">{formatDateTime(selected.created_at)}</div>
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">수정일</div>
+            <div className="px-5 py-3 text-sm">{formatDateTime(selected.updated_at)}</div>
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">신청 ID</div>
+            <div className="px-5 py-3 font-mono text-xs">{selected.id}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6 bg-white px-6 py-5 shadow">
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={loadRows}
+            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            <RefreshCw size={14} />
+            초기화
+          </button>
+
+          <div className="flex items-center">
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder={config.searchPlaceholder}
+              className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+            />
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <Search size={14} />
+              검색
+            </button>
+          </div>
+        </div>
+
+        <h1 className="mt-4 text-xl font-black">{config.title}</h1>
+      </div>
+
+      {loading ? (
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          데이터를 불러오는 중입니다.
+        </div>
+      ) : (
+        <AdminTable
+          config={config}
+          rows={filteredRows}
+          page={page}
+          setPage={setPage}
+          onEdit={openDetail}
+          onDelete={() => {}}
         />
       )}
     </div>
