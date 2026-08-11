@@ -42,6 +42,23 @@ const CUSTOM_SUBJECT_SENTINEL = '직접 입력';
 const REQUIRED_LABEL_CLASS = 'text-performance-required';
 const OPTIONAL_LABEL_CLASS = 'text-ink-sub';
 
+// 필수/선택 구분을 색 하나에만 맡기지 않는다(WCAG 1.4.1) — 필수 라벨엔 시각적 `*`(aria-hidden,
+// 색만으로 구분 못 하는 사용자를 위한 비색상 단서) + 스크린리더용 "(필수)" sr-only 텍스트를
+// 덧붙이고, 선택 라벨엔 눈에 보이는 "(선택)" 접미사를 텍스트로 붙인다.
+function RequiredLabel({ children }) {
+  return (
+    <>
+      {children}
+      <span aria-hidden="true"> *</span>
+      <span className="sr-only"> (필수)</span>
+    </>
+  );
+}
+
+function optionalLabel(text) {
+  return `${text} (선택)`;
+}
+
 const EMPTY_VALUES = {
   gradeLabel: '',
   semester: '',
@@ -84,6 +101,8 @@ export default function BasicInfoForm({
   submitError = null
 }) {
   const [values, setValues] = useState({ ...EMPTY_VALUES, ...initialValues });
+  // 과목 옵션 갱신·값 초기화를 스크린리더에 알리는 sr-only aria-live 문구(WARN #3).
+  const [subjectAnnouncement, setSubjectAnnouncement] = useState('');
 
   const subjectOptions = useMemo(
     () => (values.subjectGroup ? getSubjectOptions(values.subjectGroup) : []),
@@ -113,6 +132,26 @@ export default function BasicInfoForm({
     });
   }
 
+  // 교과군 변경 전용 핸들러 — setField의 리셋 로직은 그대로 재사용하되, 옵션 개수·초기화
+  // 여부를 aria-live sr-only 문구로 함께 announce한다(WARN #3). `values`는 이 함수가
+  // 정의되는 렌더 시점의 최신 상태를 클로저로 캡처하므로 stale 걱정 없다.
+  function handleSubjectGroupChange(value) {
+    const nextOptions = value ? getSubjectOptions(value) : [];
+    const willReset = values.subject !== '' && !nextOptions.includes(values.subject);
+
+    setField('subjectGroup', value);
+
+    if (!value) {
+      setSubjectAnnouncement('교과군을 선택하면 과목을 고를 수 있습니다.');
+    } else if (willReset) {
+      setSubjectAnnouncement(
+        `과목 옵션이 ${nextOptions.length}개로 갱신되었습니다. 선택했던 과목은 새 옵션에 없어 초기화되었습니다.`
+      );
+    } else {
+      setSubjectAnnouncement(`과목 옵션이 ${nextOptions.length}개로 갱신되었습니다.`);
+    }
+  }
+
   const isValid =
     REQUIRED_KEYS.every((key) => values[key].trim() !== '') &&
     (!isSubjectCustom || values.customSubject.trim() !== '');
@@ -135,7 +174,8 @@ export default function BasicInfoForm({
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-4">
         <SelectField
-          label="학년"
+          label={<RequiredLabel>학년</RequiredLabel>}
+          name="gradeLabel"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
@@ -145,7 +185,8 @@ export default function BasicInfoForm({
           placeholder="학년 선택"
         />
         <SelectField
-          label="학기"
+          label={<RequiredLabel>학기</RequiredLabel>}
+          name="semester"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
@@ -158,17 +199,19 @@ export default function BasicInfoForm({
 
       <div className="grid grid-cols-2 gap-4">
         <SelectField
-          label="교과군"
+          label={<RequiredLabel>교과군</RequiredLabel>}
+          name="subjectGroup"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
           value={values.subjectGroup}
-          onChange={(value) => setField('subjectGroup', value)}
+          onChange={handleSubjectGroupChange}
           options={SUBJECT_GROUPS}
           placeholder="교과군 선택"
         />
         <SelectField
-          label="과목"
+          label={<RequiredLabel>과목</RequiredLabel>}
+          name="subject"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
@@ -180,9 +223,16 @@ export default function BasicInfoForm({
         />
       </div>
 
+      {/* 교과군 변경 시 과목 옵션 개수·값 초기화 여부를 announce(WARN #3). 시각적으로는
+          드러나지 않아야 하므로 sr-only. */}
+      <p aria-live="polite" className="sr-only">
+        {subjectAnnouncement}
+      </p>
+
       {isSubjectCustom && (
         <TextField
-          label="과목명 직접 입력"
+          label={<RequiredLabel>과목명 직접 입력</RequiredLabel>}
+          name="customSubject"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
@@ -193,7 +243,8 @@ export default function BasicInfoForm({
       )}
 
       <TextField
-        label="같은 과목에서 이전에 한 주제"
+        label={optionalLabel('같은 과목에서 이전에 한 주제')}
+        name="previousTopic"
         labelClassName={OPTIONAL_LABEL_CLASS}
         size="perf"
         value={values.previousTopic}
@@ -202,7 +253,8 @@ export default function BasicInfoForm({
       />
 
       <TextField
-        label="희망 진로"
+        label={<RequiredLabel>희망 진로</RequiredLabel>}
+        name="careerGoal"
         required
         labelClassName={REQUIRED_LABEL_CLASS}
         size="perf"
