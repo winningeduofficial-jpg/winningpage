@@ -152,3 +152,318 @@ export function buildGuideExtractionUserPrompt(pageCount) {
  * 기록 위치는 이 파일 상단 「버전 문자열을 어디에 기록하는가」 참조.
  */
 export const GUIDE_PROMPT_VERSION = 'guide-v1';
+
+
+// ─────────────────────────────────────────────────────────────────────
+// CROSS_SUBJECT_CONNECTION_GUIDE — 교과 연계 매트릭스 11조
+// ─────────────────────────────────────────────────────────────────────
+// 원문: `suhaengpyeong/api/_lib/config.js:60-81`(본문 61-80). **1바이트도 변경 금지**(§12.1).
+// `scripts/verify-performance-prompt-parity.mjs`가 원본 파일과 `Buffer.equals`로 대조한다.
+//
+// §12.1 「원문 유지. 10조는 스키마로 강제 불가한 의미 제약이므로 서버 후검증을 두지 않는다
+// (오탐 위험)」 — 즉 `추천 3개 중 최소 1개는 같은 과목 심화`(10조)를 코드로 재검사하지
+// 않는다. 모델에게만 맡기는 것이 결정 사항이다.
+//
+// 주입 지점은 주제 추천 system 프롬프트 한 곳뿐이다(외부도 동일 —
+// `grep CROSS_SUBJECT_CONNECTION_GUIDE` → `api/recommend-topics.js:126` 단 1건).
+export const CROSS_SUBJECT_CONNECTION_GUIDE = `
+[다른 과목 선배 데이터 연계 판단 기준]
+
+1. 같은 진로 분야라도 현재 과목의 성격과 맞지 않으면 사용하지 않는다.
+2. 다른 과목 데이터를 그대로 반복하지 말고, 현재 과목의 방식으로 재해석할 수 있을 때만 사용한다.
+3. 과학 → 영어 연계:
+- 과학 원리 설명을 반복하지 않는다.
+- 영문 기사, 국제기구 자료, 캠페인 문구, 과학 커뮤니케이션, 영어 발표·에세이 구조로 재해석한다.
+4. 과학 → 국어 연계:
+- 과학 개념 설명보다 비문학 글의 논증 구조, 표현 전략, 관점 분석으로 바꾼다.
+5. 과학 → 사회 연계:
+- 과학 지식을 사회 문제, 정책, 이해관계자, 윤리 쟁점으로 확장한다.
+6. 사회 → 국어 연계:
+- 사회 쟁점을 글의 설득 방식, 표현 전략, 담론 구조 분석으로 바꾼다.
+7. 국어 → 영어 연계:
+- 국어에서 다룬 주제를 영문 자료 분석, 영어 발표, 영어 에세이로 확장한다.
+8. 수학 → 과학 연계:
+- 수학적 모델, 그래프, 통계, 변화량, 확률을 과학 탐구의 분석 도구로 사용한다.
+9. 연계가 자연스럽지 않으면 "연계하지 않음"으로 판단하고 현재 과목 주제만 추천한다.
+10. 추천 3개 중 최소 1개는 같은 과목 이전 수행이 있으면 같은 과목 심화 주제로 구성한다.
+11. 다른 과목 선배 데이터는 선택 사항이며, 억지로 반드시 반영하지 않는다.
+`.trim();
+
+
+// ─────────────────────────────────────────────────────────────────────
+// 주제 추천 (P8)
+// ─────────────────────────────────────────────────────────────────────
+// 원문: `suhaengpyeong/api/recommend-topics.js:112-183`(system) / `:185-205`(user).
+//
+// 이 프롬프트만은 **1바이트 규정의 명시적 예외**다(§8.4 「결정(§11-~~Q69~~ — 프롬프트
+// 원문 이식 원칙의 예외 승인)」). 출력 계약이 평문 → 구조화 JSON(`responseSchema`)으로
+// 바뀌기 때문이다. 다만 예외의 **경계가 §8.4·§12.1에 못박혀 있고**, 그 경계를 넘으면
+// 다시 1바이트 규정 위반이다. 아래 세 목록이 그 경계의 전부다.
+//
+// ── ⓐ 원문 그대로 유지 (한 글자도 바꾸지 않았다) ────────────────────
+//   · `CORE_PRINCIPLES` 6조 주입                       (원문 `:113`)
+//   · 역할 3줄 `당신은 … 사용하지 않습니다.`           (원문 `:115-117`)
+//   · RAG 소스 주입 블록 3개 헤더                      (원문 `:119`, `:122`, `:125`)
+//   · `CROSS_SUBJECT_CONNECTION_GUIDE` 11조 주입       (원문 `:126`)
+//   · 다른 과목 활용 규칙 **1~3조**                    (원문 `:128-131`)
+//   · 2022 개정 교육과정 및 학교 유형 반영 규칙 8조    (원문 `:135-143`)
+//   · 출력 규칙 중 **의미 규칙 5개**                   (원문 `:146`,`:147`,`:148`,`:149`,`:151`)
+//   · user 메시지 블록 라벨·작업 지시 8조              (원문 `:186-205`)
+//
+// ── ⓑ JSON 계약 전환으로 **문구를 교체**한 2줄 ──────────────────────
+//   원문 `:132` `4. 사용한 경우 "다른 과목 연계 포인트" 항목에서 …`
+//     → `4. 사용한 경우 cross_subject 필드에 …`
+//   원문 `:133` `5. 사용하지 않는 경우 굳이 언급하지 않는다.`
+//     → `5. 연계하지 않는 경우 cross_subject 필드에 정확히 '연계하지 않음'만 적는다.`
+//   사유(§12.1 「주제 추천 — 다른 과목 선배 데이터 활용 규칙 5조」 행 명시): 평문 시절의
+//   `"다른 과목 연계 포인트" 항목`은 출력 뼈대의 4번 줄을 가리키는 말이라 뼈대가 사라지면
+//   지시 대상이 사라진다. 5조는 `cross_subject`가 스키마 required 필드라 **"언급하지 않기"가
+//   구조적으로 불가능**하므로 `config.js:78`(9조)의 표현 `연계하지 않음`과 일치시킨다.
+//
+// ── ⓒ `responseSchema`로 대체해 **삭제**한 것 ───────────────────────
+//   원문 `:150` `5. 추천 3개가 끝나면 추가 안내를 쓰지 않는다.`   (종료 마커)
+//   원문 `:152` `7. 반드시 추천 1, 추천 2, 추천 3 세 개 블록을 …`  (3블록 필수 마커)
+//   원문 `:153` `8. 각 추천 블록의 첫 줄은 정확히 '추천 1:' …`     (헤더 형식 강제)
+//   원문 `:155-182` `반드시 아래 형식으로 3개 추천:` + 번호 뼈대 3벌
+//   → 전부 `minItems:3/maxItems:3` + required 필드 집합이 구조적으로 보장한다. 남겨 두면
+//     모델이 JSON 문자열 값 안에 `추천 1:` 같은 접두어를 넣는 부작용이 난다.
+//   ⚠ 남은 출력 규칙의 **번호만 1~5로 재부여**했다(§12.1 「원문 유지, 번호만 1~5로 재부여」).
+//     문장 본문은 그대로다.
+//
+// ── ⚠ 마크다운 금지(원문 `:146`)는 삭제 대상이 아니다 ───────────────
+//   §8.4·§12.1이 두 번 못박은 예외다. `responseSchema`는 JSON **구조**만 강제할 뿐
+//   문자열 필드 값 안의 `**강조**`를 막지 못하고, 외부 클라이언트의 `stripMarkdown`
+//   폴백(`index.html:3094`)은 §12.4로 함께 폐기된다 — 이 한 줄이 유일한 방어선이다.
+//
+// ── 뼈대 7항목 → 스키마 6필드: `5. 추천 이유`가 사라진 이유 ─────────
+//   원문 뼈대는 `0.선정 근거 / 1.핵심 내용 / 2.이전 주제와의 연결 / 3.다른 과목 연계 포인트 /
+//   4.추후 심화 방향 / 5.추천 이유 / 6.점수 강점` 7항목인데, 시안 상세 모달
+//   `3754:4872`(§5.11 실측)의 섹션은 `선정 근거 / 핵심 내용 / 이전 주제와의 연결 /
+//   다른 과목 연계 포인트 / 점수 강점 / 추후 심화 방향` **6개**이고 `추천 이유`가 없다.
+//   §8.4의 스키마 정의도 6필드다. `추천 이유`는 `선정 근거`와 의미가 겹쳐 시안이 합친
+//   것으로 보고 **스키마에서 제외**한다 — 렌더 자리가 없는 필드를 모델에게 시키면
+//   토큰만 쓰고 버려진다. 순서도 시안 순서(점수 강점 → 추후 심화 방향)를 따른다.
+
+/** 위닝DB RAG 결과가 비었을 때 프롬프트에 렌더하는 문구. 원문 `dynamic-knowledge.js:388`. */
+export const NO_KNOWLEDGE_TEXT = '관련 위닝DB 항목 없음';
+
+/** 학생 과거 수행 RAG 결과가 비었을 때 렌더하는 문구. 원문 `reports.js:222`. */
+export const NO_STUDENT_HISTORY_TEXT = '관련 학생 과거 수행 기록 없음';
+
+/** 값이 없는 학생 컨텍스트 필드에 렌더하는 리터럴. 평가 프롬프트와 통일(§12.1). */
+export const UNKNOWN_FIELD_TEXT = '미입력';
+
+/**
+ * `previous_topic` 기본값. **원문 리터럴 `'없음'`을 유지한다**(§12.1) — user 지시 2조
+ * (`같은 과목 이전 주제가 있으면 …`)가 이 문자열을 보고 분기하고, `performance_sessions`
+ * 주석도 "'없음'은 「입력하지 않았다」가 아니라 「이전 주제가 없다고 답했다」"라고
+ * 두 상태의 구분을 규정한다(sql/54_performance_app.sql 1-1).
+ */
+export const NO_PREVIOUS_TOPIC_TEXT = '없음';
+
+/**
+ * 주제 추천 system 프롬프트.
+ *
+ * @param {object} params
+ * @param {string} [params.topicKnowledgeText] `loadDynamicAssessmentKnowledge()`의 `text`
+ * @param {string} [params.studentHistoryText] `formatRelevantStudentSessionsForPrompt()` 결과
+ */
+export function buildTopicRecommendationSystem({
+  topicKnowledgeText = '',
+  studentHistoryText = ''
+} = {}) {
+  return `
+${CORE_PRINCIPLES}
+
+당신은 고등학교 수행평가 주제 추천 전문가입니다.
+이 단계에서는 주제 추천용 데이터만 사용합니다.
+자료 추천용 데이터나 평가용 데이터는 사용하지 않습니다.
+
+[홈페이지 위닝 수행 주제 DB]
+${topicKnowledgeText || NO_KNOWLEDGE_TEXT}
+
+[학생 과거 수행 RAG]
+${studentHistoryText || NO_STUDENT_HISTORY_TEXT}
+
+[다른 과목 연계 판단 기준]
+${CROSS_SUBJECT_CONNECTION_GUIDE}
+
+다른 과목 선배 데이터 활용 규칙:
+1. 다른 과목 후보는 반드시 먼저 연계 가능성을 판단한다.
+2. 현재 과목의 수행평가 방식으로 재해석할 수 있을 때만 사용한다.
+3. 억지 연계이면 사용하지 않는다.
+4. 사용한 경우 cross_subject 필드에 어떤 과목의 어떤 흐름을 현재 과목 방식으로 바꾸었는지 설명한다.
+5. 연계하지 않는 경우 cross_subject 필드에 정확히 '연계하지 않음'만 적는다.
+
+2022 개정 교육과정 및 학교 유형 반영 규칙:
+1. 학교 유형은 과목명이 아니므로 주제 추천의 직접 기준으로 삼지 않는다. 주제 추천의 핵심 기준은 실제 선택 과목명과 수행평가 안내문이다.
+2. 학교 유형이 자율형 사립고 또는 특수목적고인 경우, 전문교과 과목이 선택될 수 있으므로 과목 수준을 더 구체적으로 확인한다.
+3. 과목명이 "과학 / 고급 생명과학"처럼 입력되면 앞의 "과학"은 교과군, 뒤의 "고급 생명과학"은 실제 과목명으로 본다.
+4. 공통국어, 공통수학, 공통영어, 한국사, 통합사회, 통합과학, 과학탐구실험은 기초 개념과 탐구 경험 중심으로 추천한다.
+5. 일반 선택 과목은 교과 개념 적용, 자료 분석, 개념 확장 중심으로 추천한다.
+6. 진로 선택 또는 융합 선택 과목은 진로 연계 심화 탐구와 융합적 문제 해결 중심으로 추천한다.
+7. 전문교과 과목은 고급 개념을 그대로 나열하지 말고, 학생이 수행평가에서 실제로 수행 가능한 수준으로 조정한다.
+8. 학교별 교육과정 편성 차이가 있으므로 학년만 보고 과목 수준을 단정하지 말고, 선택 과목명과 수행평가 안내문을 함께 기준으로 삼는다.
+
+출력 규칙:
+1. *, **, ##, ### 같은 마크다운 기호를 절대 사용하지 않는다.
+2. 영어 단어나 영어 표현을 괄호 안에 넣지 않는다.
+3. 주제명은 반드시 수행평가에서 실제로 탐구할 수 있는 구체적인 한국어 주제명으로 작성한다.
+4. 안내문에 없는 질문을 만들어내지 않는다.
+5. 학생이 그대로 제출할 수 있는 완성문을 작성하지 않는다.
+`.trim();
+}
+
+/**
+ * 주제 추천 user 메시지. 원문 `recommend-topics.js:185-205`.
+ *
+ * 필드 소스 매핑(§12.1 「주제 추천 — user 메시지 작업 지시 8조」 행의 결정 그대로):
+ *   · `학년/학기` ← `performance_sessions.grade_label` + `semester` (STEP1 폼 입력, Q10)
+ *     외부는 `고1 1학기` 결합 문자열 1컬럼이었고 여기서는 분리 저장 후 **표시 시점 결합**이다.
+ *   · `학교 유형` ← `performance_sessions.school_type` (`profiles` 세션 시점 스냅샷, Q61-ⓔ)
+ *     ⚠ 원문 `:188`의 `${school_type || '일반고'}` 폴백은 **이식 금지**다. 값이 없으면
+ *       `미입력`을 렌더한다 — 사실이 아닌 '일반고'가 에러 없이 프롬프트에 박히고 그
+ *       결과가 리포트에 그대로 남기 때문이다(sql/54_performance_app.sql 결정 ②).
+ *   · `선택 과목` ← `subject_group / subject` 결합. 교육과정 규칙 3조가
+ *     `"과학 / 고급 생명과학"` 형태를 전제하므로 결합 형태를 유지해야 그 조항이 산다.
+ *   · `이전에 한 주제` ← `previous_topic`, 없으면 `'없음'`(위 리터럴 규정).
+ *
+ * @param {object} params
+ * @param {string} [params.gradeLabel] `고1` 등
+ * @param {string} [params.semester] `1학기` 등
+ * @param {string} [params.schoolType]
+ * @param {string} [params.subjectGroup] 교과군
+ * @param {string} [params.subject] 과목명
+ * @param {string} [params.career] 희망 진로
+ * @param {string} [params.previousTopic]
+ * @param {string} [params.assessmentText] 수행평가 안내문 본문(구조화 `guide_json`을
+ *   평문으로 편 결과 또는 직접 입력 원문). 직렬화는 호출부 몫이다.
+ */
+export function buildTopicRecommendationUser({
+  gradeLabel = '',
+  semester = '',
+  schoolType = '',
+  subjectGroup = '',
+  subject = '',
+  career = '',
+  previousTopic = '',
+  assessmentText = ''
+} = {}) {
+  const gradeText = [gradeLabel, semester]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ') || UNKNOWN_FIELD_TEXT;
+
+  const subjectText = [subjectGroup, subject]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' / ') || UNKNOWN_FIELD_TEXT;
+
+  return `
+[학생 정보]
+- 학년/학기: ${gradeText}
+- 학교 유형: ${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 선택 과목: ${subjectText}
+- 희망 진로: ${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
+- 같은 과목에서 이전에 한 주제: ${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+
+[수행평가 안내문]
+${String(assessmentText || '').trim() || '수행평가 안내문 정보 없음'}
+
+작업:
+1. 수행평가 안내문 조건을 최우선으로 반영한다.
+2. 같은 과목 이전 주제가 있으면 추천 1은 반드시 심화·확장 주제로 제시한다.
+3. 홈페이지 위닝 수행 주제 DB의 현재 과목 데이터는 적극 참고한다.
+4. 다른 과목 선배 데이터는 연계 가능할 때만 선택적으로 활용한다.
+5. 학생 과거 수행 RAG를 참고하여 이미 했던 주제는 반복하지 말고, 가능하면 심화·확장 방향으로 제안한다.
+6. 다른 과목 과거 수행은 현재 과목 방식으로 재해석 가능할 때만 활용한다.
+7. 다른 과목 데이터를 활용하더라도 현재 과목의 과목성이 약해지면 안 된다.
+8. 안내문에 없는 질문이나 자료를 임의로 만들지 않는다.
+`.trim();
+}
+
+/**
+ * 주제 상세 6섹션 라벨. 시안 `3754:4872` 실측 순서·문자열(§5.11 표)이며 스키마
+ * `propertyOrdering`과 같은 순서다.
+ *
+ * **삭제한 출력 뼈대의 라벨이 여기로 옮겨 온 것이다.** 프롬프트에서 라벨을 빼는 대신
+ * 데이터로 보존해야 상세 모달이 무엇을 어떤 순서로 렌더할지 한 곳에서 정해진다.
+ */
+export const TOPIC_DETAIL_SECTIONS = [
+  { id: 'selection_basis', label: '선정 근거' },
+  { id: 'core_content', label: '핵심 내용' },
+  { id: 'previous_link', label: '이전 주제와의 연결' },
+  { id: 'cross_subject', label: '다른 과목 연계 포인트' },
+  { id: 'score_strength', label: '점수 강점' },
+  { id: 'deepening', label: '추후 심화 방향' }
+];
+
+/**
+ * 주제 추천 `responseSchema`(§8.4 표 「주제 추천」 행).
+ *
+ * `minItems:3, maxItems:3`이 원문 출력 규칙 7(3블록 필수)을 대체하고, required 필드
+ * 집합이 뼈대 7항목을 대체한다. `propertyOrdering`은 시안 순서 고정 —
+ * Gemini 구조화 출력은 이 배열 순서로 필드를 생성한다.
+ *
+ * **number 타입 필드를 두지 않는다**(§8.4 완화책 ⓐ). 이 스키마는 전부 string이라
+ * `gemini-2.5-flash`의 숫자 리터럴 반복 루프 결함과 무관하지만, 나중에 점수류 필드를
+ * 더할 때도 string으로 받아 서버에서 파싱해야 한다.
+ */
+export const TOPIC_RECOMMENDATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    topics: {
+      type: 'array',
+      minItems: 3,
+      maxItems: 3,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          selection_basis: { type: 'string' },
+          core_content: { type: 'string' },
+          previous_link: { type: 'string' },
+          cross_subject: { type: 'string' },
+          score_strength: { type: 'string' },
+          deepening: { type: 'string' }
+        },
+        required: [
+          'title',
+          'selection_basis',
+          'core_content',
+          'previous_link',
+          'cross_subject',
+          'score_strength',
+          'deepening'
+        ],
+        propertyOrdering: [
+          'title',
+          'selection_basis',
+          'core_content',
+          'previous_link',
+          'cross_subject',
+          'score_strength',
+          'deepening'
+        ]
+      }
+    }
+  },
+  required: ['topics'],
+  propertyOrdering: ['topics']
+};
+
+/**
+ * 주제 추천 생성 파라미터. 원문 `recommend-topics.js:207-210`(§12.3 「생성 호출 파라미터」).
+ * `maxOutputTokens 4200`은 평문 3블록 기준으로 잡힌 값이라 JSON 오버헤드가 붙는 만큼
+ * **실측 재조정 대상**이다(§12.3 명시). 낮추면 3번째 주제가 잘린다.
+ */
+export const TOPIC_GENERATION_DEFAULTS = {
+  temperature: 0.25,
+  maxOutputTokens: 4200
+};
+
+/**
+ * 주제 추천 프롬프트 버전. `performance_reports.prompt_version`에 기록한다(§8.3).
+ * 위 ⓐ/ⓑ/ⓒ 경계 중 **어느 한 줄이라도** 바뀌면 이 값을 올린다.
+ */
+export const TOPIC_PROMPT_VERSION = 'topic-v1';
