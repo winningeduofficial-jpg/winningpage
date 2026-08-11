@@ -98,6 +98,10 @@ function extractTemplate(file, name) {
 console.log('\n[1] 프롬프트 상수 바이트 대조');
 
 const ported = await import(path.join(REPO_ROOT, 'api/_lib/performance/prompts.js'));
+// 글자 수 계산의 **정본**. 한때 `prompts.js`에도 동명 함수가 있었지만 시그니처·계산식이
+// 달라 오호출 시 게이트가 조용히 무력화됐다 — 사본을 지우고 여기서 정본을 직접 쓴다
+// (검토 P11, `prompts.js`의 「글자 수 계산 함수는 이 파일에 두지 않는다」 주석).
+const chars = await import(path.join(REPO_ROOT, 'api/_lib/performance/submission-chars.js'));
 
 for (const name of ['CORE_PRINCIPLES', 'CROSS_SUBJECT_CONNECTION_GUIDE']) {
   const original = Buffer.from(extractTemplate(SOURCE_FILES.config, name), 'utf8');
@@ -413,20 +417,21 @@ let lastDesignLineIndex = -1;
 
 for (const no of RETAINED_DESIGN_LINES) {
   const line = sourceLine(FR, no);
-  const index = designV2Lines.indexOf(line);
+  // `fromIndex`가 필수다 — 없으면 원문에 같은 문자열이 두 번 나올 때 **항상 첫 등장만**
+  // 보게 되어 이동을 놓치거나 거짓 실패한다(검토 P11 — 평가 쪽은 처음부터 fromIndex를
+  // 썼는데 설계 쪽만 빠져 있었다. 현재 목록이 전부 유일 문자열이라 우연히 통과하던 것이다).
+  const index = designV2Lines.indexOf(line, lastDesignLineIndex + 1);
   check(
     `원문 유지 :${no}  ${line.slice(0, 34)}…`,
-    index !== -1,
+    designV2Lines.includes(line),
     `누락된 원문 줄: ${JSON.stringify(line)}`
   );
-  if (index !== -1) {
-    check(
-      `원문 순서 :${no}`,
-      index > lastDesignLineIndex,
-      `배치가 원문 순서와 어긋난다: :${no}이 산출물 ${index}행에 있는데 직전 원문 줄은 ${lastDesignLineIndex}행이다`
-    );
-    lastDesignLineIndex = index;
-  }
+  check(
+    `원문 순서 :${no}`,
+    index > lastDesignLineIndex,
+    `배치가 원문 순서와 어긋난다: :${no}이 산출물 ${index}행에 있는데 직전 원문 줄은 ${lastDesignLineIndex}행이다`
+  );
+  if (index > lastDesignLineIndex) lastDesignLineIndex = index;
 }
 
 // 보간 줄은 라벨 접두어까지가 원문 계약이다
@@ -994,6 +999,24 @@ for (const { name, from, to } of EVAL_CONTIGUOUS_RUNS) {
   check(`원문 연속 블록 무손상 — ${name}`, EVAL_SYSTEM.includes(run), `끊긴 블록: ${run}`);
 }
 
+// 위 목록은 **하위 키 묶음만** 본다(from이 전부 86/91/…). 즉 항목 제목(`평가 기준 충족도`)과
+// 첫 하위 키(`- 잘한 점:`) 사이에 줄을 끼워 넣어도 전부 통과한다 — 「원문 무손상」 주장의
+// 구멍이었다(검토 P11). 그래서 `평가 형식:`(:83)부터 `- 총평:`(:121)까지 **39줄을 통짜로**
+// 한 번 더 대조한다. 이 블록의 유일한 변형 2가지만 반영한다:
+//   · 항목 제목 8줄의 번호 접두어 제거(`1. 평가 기준 충족도` → `평가 기준 충족도`, §12.1 P8 관례)
+//   · :120 한 줄만 score 필드 지시로 교체(위 ⓓ가 그 내용을 따로 검증한다 — 여기서는 그 줄이
+//     **정확히 그 자리에** 있는지만 본다)
+const evalScoreLine = evalSystemLines.find((line) => line.startsWith('- 예상 점수: '));
+const EVAL_FORMAT_BLOCK = sourceLineRange(ET, 83, 121)
+  .map((line, offset) => (83 + offset === 120 ? evalScoreLine : stripEvalNumber(line)))
+  .join('\n');
+
+check(
+  '`평가 형식:` 블록 39줄이 원문 :83-:121과 통짜로 일치 (번호 접두어 제거 + :120 교체만)',
+  Boolean(evalScoreLine) && EVAL_SYSTEM.includes(EVAL_FORMAT_BLOCK),
+  '평가 형식 블록에 원문에 없는 줄이 끼었거나 항목 제목↔하위 키 인접성이 깨졌다'
+);
+
 check(
   '연결 블록이 출력 규칙 뒤 / `평가 형식:` 앞에 끼워졌다',
   EVAL_SYSTEM.indexOf(sourceLine(ET, 80)) <
@@ -1205,16 +1228,29 @@ check(
 );
 
 check(
-  'Q35 — 라벨·주제가 아니라 필드 값 순수 본문의 합을 센다',
+  'Q35 — 라벨·주제가 아니라 **스키마 선언 필드 값**의 순수 본문 합을 센다',
   (() => {
-    const { total, byField } = ported.countSubmissionChars({
+    // 스키마에 선언된 것은 intro·body 둘뿐. `topic`은 제출 필드가 아니라 표시값이므로
+    // 값이 실려 와도 세지 않는다(그러지 않으면 주제명만으로 게이트가 뚫린다).
+    const schemaFields = [
+      { key: 'intro', label: '서론', helper: '', required: true },
+      { key: 'body', label: '본론', helper: '', required: true }
+    ];
+    const { total, perField } = chars.countFieldsChars(schemaFields, {
       topic: '  가나다  ',
       intro: '라마바사',
       body: ''
     });
 
-    return total === 7 && byField.topic === 3 && byField.intro === 4 && byField.body === 0;
+    return total === 4 && perField.intro === 4 && perField.body === 0 && !('topic' in perField);
   })()
+);
+
+check(
+  '프롬프트 모듈에 글자 수 계산 사본이 없다 (같은 이름·다른 계산식 금지)',
+  ported.countSubmissionChars === undefined
+    && typeof chars.countFieldsChars === 'function'
+    && chars.SUBMISSION_MIN_CHARS === ported.SUBMISSION_MIN_CHARS
 );
 
 // 생성 파라미터 (§12.3 「생성 호출 파라미터」 — 평가 5200)

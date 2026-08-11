@@ -49,6 +49,12 @@ export function countFieldChars(value) {
  * 반환 `perField`는 그대로 `performance_submissions.char_counts`에 들어가는 모양이고
  * (선언된 키는 값이 비어도 `0`으로 존재한다 — 화면이 카운터를 그리려면 키가 있어야 한다),
  * `total`은 최소 길이 판정 입력이다.
+ *
+ * ⚠️ **같은 키가 두 번 나오면 한 번만 센다**(검토 P11). 정본 경로에서는
+ * `normalizeSubmissionSchema`가 이미 키를 유일하게 만들어 주지만, 이 함수는 브라우저가
+ * 서버에서 받은 배열을 그대로 넘겨 부르는 잎 모듈이라 **선언 배열을 신뢰하지 않는다** —
+ * 키가 겹치면 같은 값이 total에 두 번 더해져 100자 게이트가 실제로는 50자가 된다.
+ * `perField`는 어차피 객체라 키가 하나로 접히므로, total만 그 모양과 어긋나던 것을 맞춘다.
  */
 export function countFieldsChars(schemaFields, values = {}) {
   const fields = Array.isArray(schemaFields) ? schemaFields : [];
@@ -57,6 +63,7 @@ export function countFieldsChars(schemaFields, values = {}) {
   let total = 0;
 
   for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(perField, field.key)) continue;
     const count = countFieldChars(source[field.key]);
     perField[field.key] = count;
     total += count;

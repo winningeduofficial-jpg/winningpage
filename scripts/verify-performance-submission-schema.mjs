@@ -22,6 +22,11 @@
 //   ⑨ 중복 판정   — `isRubricLikeQuestion` 2벌(index.html / find-resources.js)이
 //                    실제로 같은지 + 우리는 사본을 만들지 않았는지
 //   ⑩ 글자 수     — Q35 결정(순수 본문 합)이 외부 결합 문자열 방식과 실제로 갈리는가
+//   ⑪ 세션 어댑터 — 우리 저장소 배선(`resolveSessionSubmissionSchema`)
+//   ⑫ 키 유일성   — **원본과 의도적으로 다른 유일한 지점**(검토 P11). 같은 문항 번호에
+//                    본문이 다른 두 줄이 있으면 원본은 키가 겹친 스키마를 내놓는데,
+//                    우리는 `normalizeSubmissionSchema`에서 접미어로 갈라 준다.
+//                    판정(유형·라벨·notice·필드 순서)은 그대로이므로 ①~⑤는 영향받지 않는다.
 //
 // 원본이 없으면 SKIP
 // ------------------
@@ -692,6 +697,77 @@ check(
   '입력 없음 → 기본 보고서형 (throw 없음)',
   ported.resolveSessionSubmissionSchema({}).schema.type === 'basic_report'
     && ported.resolveSessionSubmissionSchema().schema.type === 'basic_report'
+);
+
+// ── ⑫ 필드 키 유일성 (원본과 의도적으로 다른 유일한 지점 — 검토 P11) ─────
+//
+// 원본(`index.html:2152`)은 문항형 키를 문항 **번호**로 만들고
+// `extractAnswerQuestions`의 중복 제거 키는 `${no}:${text}`라, 같은 번호에 본문이 다른
+// 두 줄이 있으면 **키가 겹친 스키마**가 나온다. 그 상태가 이식본에서 만드는 결함
+// (게이트 이중 계상 / 중복 DOM id / 프롬프트 이중 적재)은
+// `api/_lib/performance/submission-schema.js` `normalizeSubmissionSchema` 주석 참고.
+//
+// 여기서 증명하는 것 3가지:
+//   ㄱ. 원본이 실제로 키를 겹치게 만든다(그래서 이 갈라짐이 우리 쪽 창작이 아니다).
+//   ㄴ. 판정 결과 중 키를 뺀 나머지(type/label/notice/필드 라벨·헬퍼·순서)는 원본과 같다.
+//   ㄷ. 정규화를 거치면 키가 유일해지고 100자 게이트가 이중 계상되지 않는다.
+console.log('\n[필드 키 유일성 — 원본과 의도적 차이]');
+
+const DUP_GUIDE = [
+  '질문 1: 이 주제를 왜 선택했는지 서술하시오',
+  '질문 1: 탐구 과정에서 무엇을 알게 되었는지 서술하시오'
+].join('\n');
+
+const dupOriginal = original.inferSubmissionSchema(DUP_GUIDE);
+const dupPorted = ported.inferSubmissionSchema(DUP_GUIDE);
+const dupNormalized = ported.normalizeSubmissionSchema(dupPorted);
+
+check(
+  'ㄱ. 원본은 같은 번호의 두 문항에 같은 키를 만든다',
+  JSON.stringify(dupOriginal.fields.map((f) => f.key)) === JSON.stringify(['question_1', 'question_1'])
+);
+check(
+  'ㄴ. 판정(유형·라벨·notice·필드 라벨/헬퍼/순서)은 원본과 같다',
+  dupPorted.type === dupOriginal.type
+    && dupPorted.label === dupOriginal.label
+    && dupPorted.notice === dupOriginal.notice
+    && JSON.stringify(dupPorted.fields.map((f) => [f.label, f.helper, f.required]))
+      === JSON.stringify(dupOriginal.fields.map((f) => [f.label, f.helper, f.required]))
+);
+check(
+  'ㄷ-1. 정규화가 뒤에 온 중복 키에만 접미어를 붙인다',
+  JSON.stringify(dupNormalized.fields.map((f) => f.key))
+    === JSON.stringify(['question_1', 'question_1_2'])
+);
+check(
+  'ㄷ-2. 60자 본문 1개가 100자 게이트를 통과하지 못한다 (이중 계상 없음)',
+  (() => {
+    const gate = ported.checkSubmissionMinLength(dupPorted, { question_1: '가'.repeat(60) });
+    return gate.total === 60 && gate.ok === false;
+  })()
+);
+check(
+  'ㄷ-3. 두 필드를 각각 채우면 그대로 합산된다',
+  (() => {
+    const counted = ported.countSubmissionChars(dupPorted, {
+      question_1: '가'.repeat(60),
+      question_1_2: '나'.repeat(60)
+    });
+    return counted.total === 120 && Object.keys(counted.perField).length === 2;
+  })()
+);
+check(
+  'ㄷ-4. 정규화 자체가 멱등이다 (접미어가 매번 다시 붙지 않는다)',
+  JSON.stringify(ported.normalizeSubmissionSchema(dupNormalized))
+    === JSON.stringify(dupNormalized)
+);
+check(
+  'ㄷ-5. 중복이 없는 스키마는 키가 그대로다 (8종 정상 경로 무영향)',
+  CASES.every(({ text }) => {
+    const inferred = ported.inferSubmissionSchema(text);
+    return JSON.stringify(ported.normalizeSubmissionSchema(inferred).fields.map((f) => f.key))
+      === JSON.stringify(inferred.fields.map((f) => f.key));
+  })
 );
 
 // ── 결과 ────────────────────────────────────────────────────────────

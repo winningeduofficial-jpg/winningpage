@@ -337,20 +337,61 @@ export function inferSubmissionSchema(assessmentInfo = '') {
  * 폴백 문구(`custom`/`맞춤 제출형`/`안내문 분석 결과에 맞춰 제출 항목을 제시합니다.`)와
  * 키/라벨 자동 생성 규칙(`field_${idx+1}`/`항목 ${idx+1}`)은 원문 그대로다.
  * `rows` 보정(`Number(f.rows || 10)`)만 ②에 따라 빠졌다.
+ *
+ * ⚠️ **원문과 다른 점 하나 — 키 유일성 보장(검토 P11).**
+ * `inferSubmissionSchema`의 문항형은 필드 키를 **문항 번호**로 만드는데
+ * (`question_${q.no}`), `extractAnswerQuestions`의 중복 제거 키는 `${no}:${text}`라
+ * **같은 번호에 다른 본문**이 두 줄 있으면 두 문항이 모두 살아남아 키가 겹친다
+ * (원본 `index.html:2152`도 같은 생성식이다 — 판정 자체는 원본과 동일하다).
+ * 외부는 게이트가 결합 문자열 길이였고 렌더도 문자열 HTML이라 겹친 키가 드러나지
+ * 않았지만, 이식본에서는 겹친 키가 곧 결함이다:
+ *   ⓐ `countFieldsChars`가 같은 키를 두 번 세어 total이 이중 계상 → 100자 게이트가
+ *      실제로는 50자로 뚫린다(서버·클라이언트가 같은 함수라 둘 다 통과시킨다),
+ *   ⓑ 제출폼이 중복 React key와 중복 DOM id(`…-question_1`)로 렌더해 라벨이 다른 두
+ *      textarea가 한 값을 공유한다,
+ *   ⓒ `buildSubmissionText`가 같은 답변을 두 번 프롬프트에 싣는다.
+ * 그래서 **여기서만** 뒤에 온 중복 키에 `_2`/`_3` 접미어를 붙인다. §12.2 3행의
+ * 「판정이 1건도 달라지지 않는다」는 `type`/`label`/`notice`/필드 순서·라벨·헬퍼에
+ * 대한 보장이고 그중 어느 것도 바뀌지 않는다. 판정 함수(`inferSubmissionSchema`)는
+ * 원문 그대로 두고 정규화 단계 하나에서만 처리하므로, 원문 대조 검증
+ * (`scripts/verify-performance-submission-schema.mjs` ①~⑤)도 그대로 성립한다.
+ * 영속화 전에 이 함수를 반드시 통과하므로(`resolveSessionSubmissionSchema`)
+ * `performance_sessions.submission_schema`에는 유일한 키만 저장된다.
  */
 export function normalizeSubmissionSchema(schema) {
   if (!schema || !Array.isArray(schema.fields) || !schema.fields.length) return defaultSubmissionSchema();
+
+  const seenKeys = new Set();
+
   return {
     type: schema.type || 'custom',
     label: schema.label || '맞춤 제출형',
     notice: schema.notice || '안내문 분석 결과에 맞춰 제출 항목을 제시합니다.',
     fields: schema.fields.map((f, idx) => makeSubmissionField(
-      f.key || `field_${idx + 1}`,
+      uniqueFieldKey(seenKeys, f.key || `field_${idx + 1}`),
       f.label || `항목 ${idx + 1}`,
       f.helper || '',
       f.required !== false
     ))
   };
+}
+
+/**
+ * 이미 쓰인 키면 `_2`, `_3`… 를 붙여 유일하게 만든다(위 ⚠️).
+ * 접미어를 붙인 결과가 또 겹칠 수 있으므로(`question_1`,`question_1`,`question_1_2`)
+ * 비어 있는 번호를 찾을 때까지 올린다.
+ */
+function uniqueFieldKey(seenKeys, key) {
+  let candidate = key;
+  let suffix = 2;
+
+  while (seenKeys.has(candidate)) {
+    candidate = `${key}_${suffix}`;
+    suffix += 1;
+  }
+
+  seenKeys.add(candidate);
+  return candidate;
 }
 
 // ─────────────────────────────────────────────────────────────────────
