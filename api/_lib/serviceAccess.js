@@ -224,6 +224,13 @@ export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
 //      번들에 심는데, 이 값은 서버 전용이라 번들에 들어가면 의미가 뒤집힌다.
 // 우회가 실제로 발동하면 매 호출마다 console.warn으로 남긴다 — 지금 우회
 // 중이라는 사실이 로그에서 즉시 보여야 한다.
+//
+// ⚠️ **범위: 수행평가 전용이 아니다.** 이 플래그는 hasPaidServiceAccess()의 최상단에
+//    걸려 있어 SERVICE_CONFIGS의 **모든 서비스**(suhaeng뿐 아니라 goal/target 등)와
+//    이 함수를 쓰는 모든 라우트(create-service-ticket·check-service-access 포함)의
+//    유료 판정을 함께 우회한다. 도입 맥락은 수행평가 로컬 QA였지만 효력은 전역이다 —
+//    로컬에서 켜 두면 목표관리 SSO 티켓도 미결제 계정에서 발급된다.
+//    범위를 좁혀야 하면 우회 발동을 config.service_key === 'suhaeng'으로 한정하면 된다.
 export function isDevEntitlementBypassEnabled() {
   if (process.env.VERCEL_ENV === 'production') return false;
   if (process.env.NODE_ENV === 'production') return false;
