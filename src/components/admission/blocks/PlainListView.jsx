@@ -16,6 +16,13 @@
 // `<ol>`에도 `admission-bullet-list`를 함께 붙여 기존 목록 스타일(gap·패딩)을 그대로 상속시키고,
 // 마커 종류만 `admission-ordered-list`로 구분한다(AdmissionSurface에는 이 클래스 규칙이 없어
 // 대입 쪽 룩에 영향이 없고, `PerformanceReportSurface`가 수행평가 쪽에서만 정의한다).
+//
+// ⚠ **HTML 미러와 짝을 맞춰 둘 것**: `admissionParsing.js renderPlainListBlockHtml`이 같은
+//    분기(`ol` + 같은 클래스 순서)를 갖고 있다. 이 두 렌더러가 같은 DOM을 내는 것이 Gate B
+//    (React 출력 ↔ `renderDocToHtml` 출력 바이트 대조)의 전제다 — 한쪽만 고치면 대입 경로가
+//    `ordered`를 만들기 시작하는 순간 게이트가 조용히 갈라진다.
+//    (`keyValue`는 아직 미러에 케이스가 없다 — 대입 쪽 생성 경로가 0건이라 남겨 둔 것이고,
+//     그 경로가 생기면 미러도 함께 만들어야 한다.)
 function groupItems(items) {
   const groups = [];
   let currentBullets = null;
