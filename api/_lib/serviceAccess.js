@@ -296,8 +296,11 @@ export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
 }
 
 // 우회가 발동했을 때 `consume_performance_credit` RPC(부여 원장 기반, sql/64~66)까지
-// 통과시키기 위해 `program_access_grants`에도 행을 만든다. 실제 RPC 본문
-// (dev DB에서 직접 확인, 2026-08-12)을 읽고 정한 규칙이다:
+// 통과시키기 위해 `program_access_grants`에도 행을 만든다. **이 행은 장식이 아니라
+// 필수 조건이다** — `performance_credit_ledger.grant_id`가 NOT NULL이라, 살아있는
+// grant가 하나도 없으면 RPC가 원장 INSERT 자체를 시도하지 못해(quota_exhausted/
+// no_entitlement로 먼저 반환) 차감이 항상 실패한다. 실제 RPC 본문(dev DB에서 직접
+// 확인, 2026-08-12)을 읽고 정한 규칙이다:
 //
 //   · `granted_sessions is null` → 소비 루프가 즉시 채택하고 절대 소진되지
 //     않는다("무제한 부여. 즉시 채택"). 회차 축의 무제한은 이 값으로만 표현된다.
@@ -352,7 +355,8 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
       console.warn(
         `[serviceAccess] DEV_BYPASS_ENTITLEMENT: programs 테이블에서 program_key 후보(${config.program_keys.join(
           ', '
-        )})를 하나도 찾지 못해 program_access_grants 행을 만들지 않습니다(무시, 우회는 유지).`
+        )})를 하나도 찾지 못해 program_access_grants 행을 만들지 않습니다(우회 진입 자체는 유지되지만, ` +
+          '살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — no_entitlement 또는 quota_exhausted로 막힙니다).'
       );
       return;
     }
@@ -371,7 +375,8 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
 
     if (selectError) {
       console.warn(
-        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 조회 실패(무시, 우회는 유지) — ${selectError.message}`
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 조회 실패 — ${selectError.message} ` +
+          '(우회 진입 자체는 유지되지만, 살아있는 부여를 확인하지 못해 새로 만들지 않습니다 — 기존 grant가 없다면 이후 회차 소비 RPC 호출이 실패합니다).'
       );
       return;
     }
@@ -396,7 +401,9 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
 
     if (insertError) {
       console.warn(
-        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 실패(무시, 우회는 유지) — ${insertError.message}`
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 실패 — ${insertError.message} ` +
+          '(우회 진입 자체는 유지되지만, 살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — ' +
+          'performance_credit_ledger.grant_id가 NOT NULL이라 no_entitlement/quota_exhausted로 막힙니다).'
       );
       return;
     }
