@@ -72,6 +72,15 @@ import { SUBMISSION_MIN_CHARS, checkFieldsMinLength, countFieldChars } from '../
 //   · 게이트 문구도 live region이 아니다(숫자가 매 글자 바뀐다). 대신 **임계값을 넘는
 //     순간에만** 바뀌는 sr-only `aria-live="polite"` 한 줄을 따로 둔다 — 문자열이 불리언
 //     하나에서 파생되므로 상태가 뒤집힐 때만 announce된다.
+//   · ⚠️ 위 두 줄이 성립하려면 **루트에 `aria-live="off"`가 있어야 한다**(검토 P11).
+//     이 폼은 `ChatTimeline`의 항목으로 렌더되는데 그 루트가 `aria-live="polite"`라
+//     (`ChatTimeline.jsx:102`), ARIA 규정상 live region은 자기 서브트리의 텍스트 변경을
+//     전부 announce한다 — 아무 조치도 하지 않으면 카운터(`{n}자`)와 게이트 문구
+//     (`현재 N자예요`)가 **타이핑 한 글자마다** 낭독된다. `ChatTimeline`은 `focusRef`가
+//     붙은 항목에만 `aria-live="off"`를 내려주는데 이 폼 항목에는 `focusRef`가 없다.
+//     그래서 무효화를 컴포넌트가 직접 건다 — 어느 호출부에 붙어도 계약이 성립하고,
+//     아래 sr-only `aria-live="polite"`·`role="status"`·`role="alert"`는 각자 명시적
+//     live 의미론을 가지므로 그대로 살아남는다(자식이 조상을 그 서브트리에 한해 덮는다).
 //   · 두 버튼은 `disabled` 대신 `aria-disabled`다(`TopicCardList`가 세운 관례).
 //     ⓐ `disabled` 버튼은 포커스를 못 받아 `aria-describedby`가 **영원히 읽히지 않는다** —
 //        "왜 못 누르는지"를 프로그램적으로 전달하라는 요구와 정면으로 충돌한다.
@@ -79,8 +88,17 @@ import { SUBMISSION_MIN_CHARS, checkFieldsMinLength, countFieldChars } from '../
 //     대신 핸들러에서 직접 막는다(`if (locked) return`).
 //   · 대비(직접 계산, 흰 카드 배경 기준): 라벨 `performance-required`(#991e1e) 8.21:1 /
 //     본문·입력값 `ink`(#525252) 7.82:1 / 카운터·보조문 `ink-sub`(#6b6b6b) 5.33:1 /
-//     primary 버튼 흰 글자 on #013262 12.86:1 / secondary 라벨 `ink-sub` on 흰색 5.33:1.
+//     primary 버튼 흰 글자 on #013262 12.86:1 / 처리중 흰 글자 on `bg-primary/80`
+//     (흰 카드 위 합성 #345b81) 7.15:1 / secondary 라벨 `ink-sub` on 흰색 5.33:1 /
+//     **비활성 primary `ink`(#525252) on `performance-line`(#d9d9d9) 5.54:1**.
 //     전부 AA(4.5:1) 충족. (예외는 위 placeholder 항.)
+//     ⚠️ 비활성 primary는 원래 흰 글자였고 #d9d9d9 대비 **1.41:1**이었다(검토 P11). 빈
+//     상태가 이 폼의 **기본 상태**라 학생이 폼을 처음 만나는 순간 라벨이 판독되지 않았고,
+//     `aria-disabled`라 실제로 포커스·클릭이 가능한 컨트롤이라 「비활성 컴포넌트」 예외
+//     (WCAG 1.4.3)에 기대기도 어렵다. **면 색(§5.8 실측 `#d9d9d9`)은 그대로 두고 글자색만**
+//     `ink`로 내렸다 — §5.14 버튼 표가 기록한 것은 활성 fill `#013262` 하나뿐이라
+//     비활성 글자색은 시안 실측이 아니라 관례에서 빌려 온 값이었다(고칠 근거가 있다).
+//     `ink-sub`(#6b6b6b)는 같은 배경에서 3.78:1로 여전히 미달이라 쓰지 않는다.
 //   · 모션은 저장소 관례 그대로 `active:scale-[0.97] motion-reduce:active:scale-100`.
 
 /** §5.14 카드 본문 원문. 제목·`안내문 분석 결과:` 접두는 시안 문자열 그대로다. */
@@ -251,7 +269,12 @@ export default function SubmissionForm({
     // 그쪽이 `max-w-perf-bubble`(596)과 `px-[1.875rem]`을 고정하고 있어서다 — className
     // 으로 덮으면 `max-w-*` 두 개가 겹쳐 어느 쪽이 이길지 예측 불가다(AiMessage 주석의
     // 그 함정). 카드 모양만 같은 토큰으로 다시 짓는다.
-    <div className="w-full max-w-[49.125rem] rounded-2xl border border-performance-line bg-white py-5 pl-5 pr-6">
+    // `aria-live="off"` — 파일 상단 4의 ⚠️ 항. `ChatTimeline` 루트의 `polite`를 이
+    // 서브트리에 한해 무효화해 카운터·게이트 문구가 타이핑마다 낭독되지 않게 한다.
+    <div
+      aria-live="off"
+      className="w-full max-w-[49.125rem] rounded-2xl border border-performance-line bg-white py-5 pl-5 pr-6"
+    >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <h3 className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">{CARD_TITLE}</h3>
@@ -355,15 +378,16 @@ export default function SubmissionForm({
             aria-busy={submitting || undefined}
             aria-describedby={describedBy}
             className={[
-              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-[1.25rem] text-white transition active:scale-[0.97] motion-reduce:active:scale-100',
-              // 비활성 톤은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
+              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100',
+              // 비활성 **면 색**은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
               // `PrimaryButton`의 disabled 톤을 그대로 따른다 — 처리중(`bg-primary/80`)과
               // 비활성을 시각적으로 구분하는 것도 그 컴포넌트의 관례다.
+              // **글자색만** 비활성에서 `ink`로 내린다(파일 상단 4 대비 항의 ⚠️).
               submitting
-                ? 'cursor-progress bg-primary/80'
+                ? 'cursor-progress bg-primary/80 text-white'
                 : submitLocked
-                  ? 'cursor-not-allowed bg-performance-line'
-                  : 'bg-primary hover:bg-primary/90'
+                  ? 'cursor-not-allowed bg-performance-line text-ink'
+                  : 'bg-primary text-white hover:bg-primary/90'
             ].join(' ')}
           >
             {submitting && (

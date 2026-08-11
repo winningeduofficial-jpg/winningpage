@@ -24,19 +24,26 @@ import { requestDesignReport } from '../../lib/performance/designReport';
 import { finalizeSubmission, requestEvaluation } from '../../lib/performance/evaluation';
 import { fetchSubmissionForm, saveSubmission } from '../../lib/performance/submission';
 
-// STEP1~STEP3 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
+// STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
-// §5.10(`3754:3629`·`3754:3746`) / §5.20(시안 없음) 문구 원문 조립.
+// §5.10(`3754:3629`·`3754:3746`) / §5.12·§5.13(설계) / §5.14(제출폼 `3754:3992`·`3754:4119`) /
+// §5.15(평가 로딩) / §5.16(평가 리포트 모달 `3754:4512`) / §5.17(분기 3버튼 `3754:4349`) /
+// §5.20(시안 없음) 문구 원문 조립.
 // `App.jsx`의 `/app/performance` 라우트가 `PerformancePlaceholder` 대신 이 컴포넌트를 쓴다.
 //
 // **이 페이지가 하는 일**: bootstrap으로 인사말에 쓸 이름을 얻고, 타임라인을 단계별로
-// 누적하면서 네 개의 서버 호출을 붙인다 —
+// 누적하면서 서버 호출을 붙인다 —
 //   STEP1 제출 → `POST /api/performance/session`
 //   STEP2 업로드 분기 → `upload-url` ×N → `uploadToSignedUrl` ×N → `analyze-guide`
 //                       (묶음 처리와 실패 롤백은 `src/lib/performance/guideUpload.js`)
 //   STEP2 직접 입력 분기 → `analyze-guide`의 `{ sessionId, freetext }` 분기
 //   STEP3 주제 추천 → `POST /api/performance/recommend-topics`
 //                     (호출·실패 분류는 `src/lib/performance/topics.js`)
+//   STEP4 주제 확정 → `POST /api/performance/design-report` (`src/lib/performance/designReport.js`)
+//   STEP5 폼 재료  → `GET /api/performance/submission`
+//        저장·제출 → `PUT /api/performance/submission` (`src/lib/performance/submission.js`)
+//        평가·확정 → `POST /api/performance/evaluate` / `finalize`
+//                     (`src/lib/performance/evaluation.js`)
 //
 // **타임라인 누적 규칙**(§5.6/§5.8/§5.9 실측)
 //   · STEP1 폼 카드는 세션이 만들어지면 사라지고, 그 자리에 입력 요약 **사용자 말풍선**이
@@ -58,11 +65,21 @@ import { fetchSubmissionForm, saveSubmission } from '../../lib/performance/submi
 //     `이 주제로 확정하기` → `handleConfirmTopic`.
 //   · §5.20 (A) 셸 상단 회차 배너 — 셸(`PerformanceAppLayout`) 소관이라 여기서 만들지 않는다.
 //     이 페이지가 담당하는 것은 (B) 인라인 소진 카드뿐이다.
+//   · §3.5/Q7 상단 리포트 버튼 — 미결이라 만들지 않는다(아래 `DESIGN_READY_COPY` 주석).
 //
 // **STEP4(§5.12·§5.13, P10에서 배선)**
 //   확정 → `POST /api/performance/design-report`(주제 확정 + 리포트 생성이 서버에서 한
 //   트랜잭션) → 성공 시 `DesignReportModal` 자동 오픈. 호출·실패 분류는
 //   `src/lib/performance/designReport.js`.
+//
+// **STEP5(§5.14~§5.17, P11에서 배선)**
+//   설계 리포트가 준비되면(`designPhase === 'ready'`) `GET /api/performance/submission`으로
+//   8종 동적 스키마와 이어 쓸 초안을 받아 `SubmissionForm`을 타임라인에 붙인다
+//   (§4 플로우 `DesignReport --> Step5Form`). 제출 → `PUT …/submission` `mode:'submit'` →
+//   `POST …/evaluate` → 리포트 수신 즉시 `EvaluationReportModal` 자동 오픈 →
+//   §5.17 분기 3버튼(`EvaluationBranchActions`) → `POST …/finalize`.
+//   폼은 `evaluationPhase === 'idle'`인 동안만 렌더되고, `추가 평가 받기`가 그 값을
+//   되돌리는 것이 곧 폼 복원이다(§12.2 L2372 — 별도 복원 신호를 두지 않는다).
 
 // §5.6 문구 원문. 두 줄로 쓰인 그대로 보존한다(`좋아요.` 뒤 줄바꿈).
 const GUIDE_INTRO =
@@ -76,11 +93,15 @@ const MANUAL_INTRO = '수행평가 유형, 제출 형식, 평가 기준, 필수 
 // §5.10 문구 원문 — 추천 결과 AI 말풍선. **두 경로가 서로 다른 문구다.**
 //
 // 업로드 경로(`3754:3629`) 원문에는 가운데에 `제출 형식은 문항형(문항 1~6)으로
-// 확인됩니다.` 한 문장이 더 있다. **그 문장은 옮기지 않았다** — 제출 형식 판정
-// (`submission_schema` 8종, §8.3·§12.2)은 아직 배선되지 않았고, 시안의 `문항형(문항 1~6)`은
-// 특정 더미 안내문에서 나온 값이다. 값을 모르는 상태에서 저 문장을 그대로 렌더하면 모든
-// 사용자에게 "문항형 1~6"이라고 **사실이 아닌 단정**을 하게 된다. 제출 형식이 세션에
-// 실리는 슬라이스에서 이 자리에 동적 문장으로 되살릴 것.
+// 확인됩니다.` 한 문장이 더 있다. **그 문장은 옮기지 않았다** — 시안의 `문항형(문항 1~6)`은
+// 특정 더미 안내문에서 나온 값이라, 값을 모르는 상태에서 그대로 렌더하면 모든 사용자에게
+// "문항형 1~6"이라고 **사실이 아닌 단정**을 하게 된다.
+// P11이 제출 형식 판정(`submission_schema` 8종, §8.3·§12.2)을 서버에 배선했지만 **이
+// 시점에는 아직 화면에 값이 없다** — 스키마는 설계 리포트가 준비된 뒤
+// `GET /api/performance/submission`으로 내려오고(§4 `DesignReport --> Step5Form`),
+// STEP3 추천 결과는 그보다 앞선다. 지금 이 자리에서 유형을 말하려면 STEP3 응답이
+// `submission_schema.label`을 함께 실어야 하고 그건 §8.6 계약 변경이다. 그래서 문장은
+// 계속 빼 두고, 유형 안내는 폼 카드의 `안내문 분석 결과: {label}`(§5.14)이 담당한다.
 const TOPIC_RESULT_UPLOAD =
   '안내문을 분석했어요. 조건과 진로를 반영해 주제 3개를 추천했어요.\n마음에 드는 주제를 선택하면 통합 설계 리포트를 바로 만들어드릴게요.';
 
@@ -103,9 +124,16 @@ function buildConfirmBubble(title) {
   return `“${title}”으로 확정할게요`;
 }
 
-// 시안 없음 — 제안. §5.13 모달을 닫으면(`창 닫고 작성하기`) 타임라인으로 돌아오는데,
-// STEP5 제출폼(§5.14)은 아직 없다. 그 자리에 아무것도 남기지 않으면 방금 만든 리포트로
-// 되돌아갈 길이 사라진다 — 리포트가 준비됐다는 사실과 다시 여는 경로를 남긴다.
+// 시안 없음 — 제안. §5.13 모달을 닫으면(`창 닫고 작성하기`) 타임라인으로 돌아온다. 그
+// 자리에 아무것도 남기지 않으면 방금 만든 리포트로 되돌아갈 길이 사라진다 — 리포트가
+// 준비됐다는 사실과 다시 여는 경로를 남긴다(모달 아래에는 §5.14 제출폼이 이어 붙는다).
+//
+// ⚠️ §5.15 「정본 타임라인」 2항은 이 자리에 **원문**을 지정한다: 「통합 수행평가 설계
+// 리포트를 준비했어요. 상단의 통합 설계 리포트 버튼으로 언제든 다시 볼 수 있습니다.」
+// **그 원문을 쓰지 않는 이유**는 문장이 가리키는 「상단의 통합 설계 리포트 버튼」이 이
+// 화면에 없기 때문이다 — 셸 상단 리포트 진입점은 §3.5 Q7이 미결이라 아직 만들지 않았다
+// (위 「안 하는 일」). 원문을 그대로 쓰면 존재하지 않는 버튼을 안내하게 된다. Q7이 닫혀
+// 상단 버튼이 생기면 이 상수를 §5.15 원문으로 교체하고 이 주석을 지운다.
 const DESIGN_READY_COPY =
   '설계 리포트를 만들었어요. 자료・글 구조・작성 방향을 한 번에 정리했으니 확인하고 작성을 시작해 보세요.';
 
@@ -181,18 +209,24 @@ const NEW_ASSESSMENT_KEPT_POINTER_COPY =
 /**
  * 평가 실패 중 **같은 제출본으로 다시 시도하면 풀릴 수 있는** 코드. 서버 재시도가 멱등
  * (같은 `submissionId` 재요청은 모델을 부르지 않고 저장분을 돌려준다)이라 안전하다.
+ *
+ * ⚠️ 이 집합은 **`평가 다시 시도` 버튼을 띄울지만** 결정한다. 「출구가 있는가」를 여기에
+ * 맡기지 않는다 — 닫힌 집합에 없는 코드가 오면 화면에 버튼이 하나도 남지 않기 때문이다
+ * (검토 P11, 아래 `evaluationPhase === 'failed'` 블록 주석). 제출물을 고쳐야 풀리는
+ * 코드(§8.6 evaluate 400 3종 `EMPTY_SUBMISSION`/`REQUIRED_FIELD_EMPTY`/
+ * `SUBMISSION_TOO_SHORT`)를 따로 열거하지 않는 이유도 같다 — 그 코드들은 애초에 이
+ * 집합에 없으므로 재시도 버튼이 안 뜨고, 폼 복원은 어차피 **모든** 실패에 열려 있다.
  */
 const EVALUATION_RETRYABLE_CODES = new Set(['MODEL_FAILED', 'NETWORK', 'INTERNAL', 'UNKNOWN']);
 
 /**
- * 제출물을 **고쳐야** 풀리는 코드(§8.6 evaluate 400 3종). 재시도 버튼은 같은 값을 그대로
- * 다시 보내므로 무의미하다 — 폼을 되돌려 주는 것이 유일한 출구다.
+ * 재평가 상한 안내(§9.2 — 상한 3 = 최초 1 + 재평가 2). 서버가 `409 REEVALUATION_LIMIT`로
+ * 막기 전에 버튼을 미리 잠그고, 왜 잠겼는지를 이 문구가 말한다.
+ * `'ready'`와 `'failed'` 두 블록이 같은 문구를 쓰므로 한 곳에서만 만든다.
  */
-const EVALUATION_FIXABLE_CODES = new Set([
-  'EMPTY_SUBMISSION',
-  'REQUIRED_FIELD_EMPTY',
-  'SUBMISSION_TOO_SHORT'
-]);
+function buildReevaluateLimitNote(maxCount) {
+  return `평가는 최대 ${Math.max(maxCount - 1, 0)}번까지 다시 받을 수 있어요.`;
+}
 
 /**
  * STEP1 입력 요약 사용자 말풍선(§5.6 문구 원문).
@@ -326,6 +360,15 @@ export default function PerformanceChatPage() {
   //   폼이 제출에 성공하면 `handleSubmissionEvaluate(submissionId)`를 부른다(아래).
   const [evaluationPhase, setEvaluationPhase] = useState('idle');
   const [evaluationSubmissionId, setEvaluationSubmissionId] = useState(null);
+  /**
+   * **평가에 실제로 성공한** 제출본. `evaluationSubmissionId`(마지막으로 *시도한* 제출본)와
+   * 갈라지는 축이다 — 재평가가 실패하면 시도 대상은 새 제출본으로 바뀌었는데 서버의
+   * evaluation 리포트는 여전히 이전 제출본을 가리킨다(sql/58 (4) upsert는 성공할 때만 돈다).
+   * 확정(`finalize`)은 「이 세션의 evaluation 리포트가 **이 제출본을 대상으로** 만들어졌는가」
+   * 를 보므로(sql/58 (5) 단계 5 → `400 NO_EVALUATION_YET`) **확정은 이 값을 써야 한다.**
+   * `'ready'`에서는 둘이 같아 기존 동작이 그대로다.
+   */
+  const [evaluatedSubmissionId, setEvaluatedSubmissionId] = useState(null);
   const [evaluationReport, setEvaluationReport] = useState(null);
   const [evaluationError, setEvaluationError] = useState(null);
   // 모달 개폐는 `evaluationPhase`와 **별개 축**이다(§5.13 모달과 같은 처리) — 닫아도 리포트는
@@ -804,6 +847,8 @@ export default function PerformanceChatPage() {
       });
 
       setEvaluationReport(data?.report || null);
+      // 확정이 겨냥할 제출본은 **평가에 성공한** 것이다(위 `evaluatedSubmissionId` 주석).
+      setEvaluatedSubmissionId(targetSubmissionId);
       if (Number(data?.evaluationCount) > 0) setEvaluationCount(Number(data.evaluationCount));
       if (Number(data?.maxEvaluations) > 0) setMaxEvaluations(Number(data.maxEvaluations));
       // 이전 평가로 확정해 둔 결과가 있으면 새 평가와 함께 지운다 — 어느 제출본을 확정했다는
@@ -944,7 +989,8 @@ export default function PerformanceChatPage() {
    * 그 세션의 다음 주제 추천이 성공할 때 든다).
    */
   async function runFinalize(action) {
-    if (!accessToken || !createdSession || !evaluationSubmissionId || finalizeAction) return;
+    // 확정 대상은 마지막으로 **평가에 성공한** 제출본이다(위 `evaluatedSubmissionId` 주석).
+    if (!accessToken || !createdSession || !evaluatedSubmissionId || finalizeAction) return;
 
     setFinalizeAction(action);
     setFinalizeError(null);
@@ -957,7 +1003,7 @@ export default function PerformanceChatPage() {
         data = await finalizeSubmission({
           accessToken,
           sessionId: createdSession.id,
-          submissionId: evaluationSubmissionId,
+          submissionId: evaluatedSubmissionId,
           action
         });
       } catch (error) {
@@ -1043,6 +1089,7 @@ export default function PerformanceChatPage() {
 
     setEvaluationPhase('idle');
     setEvaluationSubmissionId(null);
+    setEvaluatedSubmissionId(null);
     setEvaluationReport(null);
     setEvaluationError(null);
     setEvaluationModalOpen(false);
@@ -1273,8 +1320,9 @@ export default function PerformanceChatPage() {
 
   if (designPhase === 'ready') {
     // 모달이 자동으로 열리므로(§5.13 흐름도) 이 말풍선은 **모달을 닫은 뒤** 보이는 화면이다.
-    // STEP5 제출폼(§5.14)이 아직 없어 여기서 흐름이 끝나므로, 최소한 리포트로 되돌아갈 길은
-    // 남긴다. 다시 열기 버튼은 모달 닫기의 포커스 목적지이기도 하다(`handleCloseDesignModal`).
+    // 이 아래로 STEP5 제출폼(§5.14)이 이어 붙으므로 흐름은 계속되지만, 방금 만든 리포트로
+    // 되돌아갈 길은 여기서만 열린다(상단 진입점은 §3.5 Q7 미결 — `DESIGN_READY_COPY` 주석).
+    // 다시 열기 버튼은 모달 닫기의 포커스 목적지이기도 하다(`handleCloseDesignModal`).
     messages.push({
       id: 'step4-design-ready',
       role: 'ai',
@@ -1353,11 +1401,29 @@ export default function PerformanceChatPage() {
     //   · 제출물 게이트(400 3종)          → 재시도는 같은 값을 다시 보내는 것이라 무의미하다.
     //                                        폼을 되돌리는 것이 유일한 출구다.
     //   · 상한·소유권 계열                 → 다시 눌러도 같은 결과라 재시도를 권하지 않는다.
-    //                                        이전 리포트가 남아 있으면 그것만이라도 열어 준다.
+    //
+    // ⚠️ **닫힌 코드 집합을 출구 판정의 유일한 근거로 삼지 않는다**(검토 P11). 예전에는
+    //   `RETRYABLE`/`FIXABLE` 두 집합 + 「이전 리포트가 있으면 다시 보기」 셋뿐이라, 그
+    //   밖의 코드가 오고 이전 리포트가 없으면 **버튼이 하나도 없는 안내 문장만** 남았다.
+    //   제출폼은 `evaluationPhase === 'idle'` 조건이라 이미 언마운트된 상태여서, 방금 쓴
+    //   원고로 돌아갈 경로가 화면에서 통째로 사라진다. 실제로 그 구멍에 빠지는 코드가
+    //   서버에 넷 있다 — `401 UNAUTHENTICATED` / `403 NO_ENTITLEMENT` /
+    //   `429 EVALUATION_ATTEMPT_LIMIT` / `409 REEVALUATION_LIMIT`(evaluate.js).
+    //   그래서 **폼 복원 경로를 항상 남긴다** — 서버 호출 없이 `evaluationPhase`만
+    //   `'idle'`로 되돌리는 로컬 전이라(`handleReevaluate`) 어떤 실패 코드에서도 안전하다.
+    //   400 3종(제출물을 고쳐야 풀리는 코드)을 따로 열거하던 집합은 지웠다 — 그 코드들은
+    //   `RETRYABLE`에 없어 재시도 버튼이 안 뜨고, 폼 복원은 이제 무조건 열려 있다.
     const failedCode = evaluationError?.code;
     const canRetry = EVALUATION_RETRYABLE_CODES.has(failedCode);
-    const canFixForm = EVALUATION_FIXABLE_CODES.has(failedCode);
-    const canReopenReport = !canRetry && !canFixForm && Boolean(evaluationReport);
+    // 이전 평가가 살아 있으면 그 리포트를 열고 **확정까지** 할 수 있어야 한다. 확정 버튼이
+    // `'ready'`에만 있으면 재평가가 상한(`409 REEVALUATION_LIMIT`)에 걸린 순간 확정 경로가
+    // 통째로 사라진다 — 이미 평가받은 제출본을 최종본으로 만들 길이 없어진다(§5.17).
+    // 대상은 마지막으로 **평가에 성공한** 제출본이다(`evaluatedSubmissionId` 주석).
+    const hasFinalizableReport = Boolean(evaluationReport && evaluatedSubmissionId);
+    const reevaluateExhaustedOnFail = evaluationCount >= maxEvaluations;
+    // 분기 스택의 `추가 평가 받기`가 곧 폼 복원이라 중복을 만들지 않는다. 단 그 버튼이
+    // 상한으로 잠긴 경우에는 폴백이 유일한 복귀 경로이므로 반드시 남긴다.
+    const showFormFallback = !hasFinalizableReport || reevaluateExhaustedOnFail;
 
     messages.push({
       id: 'step5-eval-failed',
@@ -1367,20 +1433,34 @@ export default function PerformanceChatPage() {
       // 로딩 버블(직전 포커스 보유자)이 언마운트되는 전이라 목적지를 직접 지정한다. 버튼
       // 하나만 잡으면 "무엇이 일어났는지"(문구)를 건너뛴 채 낭독된다 — 래퍼가 목적지다.
       focusRef: evaluationFailedRef,
-      children:
-        canRetry || canFixForm || canReopenReport ? (
+      children: (
+        <div className="flex w-full flex-col gap-4 pt-1">
           <div className="flex flex-wrap gap-3">
             {canRetry ? (
               <RetryButton onClick={handleRetryEvaluation}>평가 다시 시도</RetryButton>
             ) : null}
-            {canFixForm ? (
+            {showFormFallback ? (
               <RetryButton onClick={handleReevaluate}>제출폼 다시 열기</RetryButton>
             ) : null}
-            {canReopenReport ? (
+            {hasFinalizableReport ? (
               <RetryButton onClick={handleReopenEvaluationModal}>평가 리포트 다시 보기</RetryButton>
             ) : null}
           </div>
-        ) : null
+
+          {hasFinalizableReport ? (
+            <EvaluationBranchActions
+              onReevaluate={handleReevaluate}
+              onConfirm={handleConfirmSubmission}
+              onNewAssessment={handleNewAssessment}
+              busyAction={finalizeAction}
+              reevaluateDisabled={reevaluateExhaustedOnFail}
+              reevaluateNote={
+                reevaluateExhaustedOnFail ? buildReevaluateLimitNote(maxEvaluations) : ''
+              }
+            />
+          ) : null}
+        </div>
+      )
     });
   }
 
@@ -1419,12 +1499,9 @@ export default function PerformanceChatPage() {
             busyAction={finalizeAction}
             reevaluateDisabled={reevaluateExhausted}
             // 상한은 서버가 `409 REEVALUATION_LIMIT`으로 막는다(§9.2 상한 = 최초 1 + 재평가 2).
-            // 눌러서 실패를 보게 하지 않고 미리 잠그되, 왜 잠겼는지는 말한다.
-            reevaluateNote={
-              reevaluateExhausted
-                ? `평가는 최대 ${Math.max(maxEvaluations - 1, 0)}번까지 다시 받을 수 있어요.`
-                : ''
-            }
+            // 눌러서 실패를 보게 하지 않고 미리 잠그되, 왜 잠겼는지는 말한다
+            // (`EvaluationBranchActions`가 이 문구를 버튼의 `aria-describedby`로 연결한다).
+            reevaluateNote={reevaluateExhausted ? buildReevaluateLimitNote(maxEvaluations) : ''}
           />
         </div>
       )

@@ -19,6 +19,11 @@
 //   `id`를 텍스트영역의 `aria-describedby`에 넣어(`SubmissionForm`이 배선한다) 필드에
 //   포커스가 닿을 때 한 번 읽히게 한다. 최대 길이 제한이 없는 필드라 "몇 자 남았는지"를
 //   실시간으로 알려야 할 이유도 없다.
+//   ⚠️ 여기서 `aria-live`를 **쓰지 않는 것만으로는 부족하다** — 조상에 live region이 있으면
+//   그 서브트리의 텍스트 변경이 전부 announce된다. 이 컴포넌트가 실제로 놓이는 자리는
+//   `ChatTimeline`(루트 `aria-live="polite"`) 안이라, `SubmissionForm` 루트가
+//   `aria-live="off"`로 그것을 무효화해 주어야 위 문장이 성립한다(검토 P11 —
+//   `SubmissionForm` 파일 상단 4의 ⚠️ 항이 그 배선이다).
 /**
  * @param {number} count 글자 수. 계산은 서버와 공유하는 `countFieldChars`가 하고
  *   (`api/_lib/performance/submission-chars.js`) 이 컴포넌트는 렌더만 한다.

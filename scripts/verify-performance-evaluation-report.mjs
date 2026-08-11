@@ -347,30 +347,45 @@ if (branchButtons.length === 3) {
   }
 }
 
-// ⚠ 잠금 판정에 `/disabled/`를 쓰면 Tailwind의 `disabled:` variant 클래스에 걸려 항상
-//   통과한다(무증상 무효 검사). 실제 boolean 속성 렌더 형태만 본다.
-const isDisabled = (attrs) => /\sdisabled=""/.test(attrs || '');
+// ⚠ 잠금은 `disabled`가 아니라 `aria-disabled`다(검토 P11 — `SubmissionForm`이 세운 관례).
+//   `disabled` 버튼은 ⓐ 방금 누른 버튼에서 포커스가 `<body>`로 떨어지고(확정 실패 경로에는
+//   복귀가 없다) ⓑ 포커스를 못 받아 `aria-describedby`/`aria-busy`가 낭독되지 않는다.
+//   판정에 `/disabled/`를 쓰면 Tailwind의 `aria-disabled:` variant 클래스에 걸려 항상
+//   통과하므로(무증상 무효 검사) 속성 렌더 형태만 본다.
+const isLocked = (attrs) => /\saria-disabled="true"/.test(attrs || '');
+const hasDisabledAttr = (attrs) => /\sdisabled=""/.test(attrs || '');
 
 // 확정 진행 중에는 세 버튼 모두 잠긴다(폼 복원이 끼어들어 서버와 어긋나는 것을 막는다).
 const busyHtml = renderBranch({ busyAction: 'confirm' });
 check(
-  collect(busyHtml, 'button').every((b) => isDisabled(b.attrs)),
+  collect(busyHtml, 'button').every((b) => isLocked(b.attrs)),
   'busyAction 중에 잠기지 않은 버튼이 있다'
 );
 check(/aria-busy="true"/.test(busyHtml), '진행 중인 액션에 aria-busy가 없다');
+check(
+  collect(busyHtml, 'button').every((b) => !hasDisabledAttr(b.attrs)),
+  '분기 버튼에 `disabled` 속성이 되살아났다 — 누른 버튼의 포커스가 `<body>`로 떨어지고 aria-describedby/aria-busy가 낭독되지 않는다'
+);
 
 // 재평가 상한(§9.2) — 눌러서 409를 보게 하지 않고 미리 잠근다.
 const limitedHtml = renderBranch({ reevaluateDisabled: true, reevaluateNote: '상한 안내' });
 const limitedButtons = collect(limitedHtml, 'button');
 check(
-  isDisabled(limitedButtons[0]?.attrs),
+  isLocked(limitedButtons[0]?.attrs),
   'reevaluateDisabled인데 `추가 평가 받기`가 잠기지 않았다'
 );
 check(
-  !isDisabled(limitedButtons[2]?.attrs),
+  !isLocked(limitedButtons[2]?.attrs),
   '재평가 상한이 확정 버튼까지 잠갔다 — 상한과 확정은 다른 축이다'
 );
 check(limitedHtml.includes('상한 안내'), 'reevaluateNote가 렌더되지 않았다');
+
+// 「왜 못 누르는지」의 프로그램적 전달 — 상한 사유가 재평가 버튼에 연결돼 있어야 한다.
+const limitedNoteId = limitedButtons[0]?.attrs.match(/aria-describedby="([^"]+)"/);
+check(
+  Boolean(limitedNoteId) && new RegExp(`id="${limitedNoteId?.[1]}"[^>]*>상한 안내`).test(limitedHtml),
+  '상한 사유 문구가 `추가 평가 받기` 버튼의 aria-describedby로 연결돼 있지 않다'
+);
 
 // ─────────────────────────────────────────────────────────────────────
 // [8] 소스 계약 — API 요청 형태(§8.6)와 제출폼 슬라이스 배선 seam.

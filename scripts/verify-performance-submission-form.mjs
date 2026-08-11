@@ -315,6 +315,14 @@ check(
   liveRegions.length === 1 && liveRegions[0][1].trim() === '',
   `${liveRegions.length}개 / 내용 "${liveRegions[0]?.[1]}"`
 );
+// 위 두 검사는 **이 폼만 따로 렌더했을 때**의 성질이다. 실제 배치는 `ChatTimeline`
+// 루트(`aria-live="polite"`) 안이고, ARIA 규정상 조상 live region이 서브트리의 텍스트
+// 변경을 전부 announce하므로 루트에 `off`가 없으면 위 보장이 화면에서 무너진다(검토 P11).
+check(
+  '폼 루트가 aria-live="off"다 (조상 polite 무효화 — ChatTimeline 안에서도 성립)',
+  /^<div[^>]*aria-live="off"/.test(typingHtml.trim()),
+  typingHtml.trim().slice(0, 120)
+);
 
 // ── 규칙 사본 금지 (§8.3 「동일 계산식 공유」의 구조적 보장) ──────────────────────
 console.log('\n[글자 수 규칙 단일화 — 사본 금지]');

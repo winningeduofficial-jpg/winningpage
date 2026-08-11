@@ -39,12 +39,25 @@ const NEW_ASSESSMENT_LABEL = '추가 수행평가 진행하기';
 /** 제안 — 위 「결과 고지 문구」 주석 참고. */
 const FINALIZE_NOTICE = `‘${CONFIRM_LABEL}’과 ‘${NEW_ASSESSMENT_LABEL}’는 지금 제출본을 최종본으로 저장합니다.`;
 
+// ── **`disabled` 대신 `aria-disabled` + 핸들러 가드** (검토 P11)
+// `SubmissionForm` 파일 상단 4가 세운 관례를 여기서도 그대로 쓴다. 원래 이 파일은 세 버튼에
+// `disabled`를 걸었는데 그 관례가 지목한 두 문제가 정확히 발생한다:
+//   ⓐ 방금 누른 버튼이 요청 중 `disabled`가 되면 포커스가 `<body>`로 떨어진다. 성공 경로는
+//      호출부의 `useRafFocus`가 새 목적지를 잡아 주지만 **실패 경로는 복구가 없다** —
+//      `step5-finalize-failed` 안내가 붙고 버튼이 다시 활성화돼도 포커스는 body에 남아
+//      `다시 시도`까지 Tab을 문서 처음부터 밟아야 한다.
+//   ⓑ `disabled` 버튼은 포커스를 못 받아 `aria-describedby`(확정 고지·재평가 상한 사유)와
+//      `aria-busy`가 보조기술에 전달되지 않는다. 「어느 버튼이 요청을 물고 있는지 알린다」는
+//      바로 아래 주석의 의도가 성립하려면 버튼이 포커스 가능해야 한다.
+// 그래서 실제 차단은 `onClick` 첫 줄의 가드가 한다(`guard()`).
 const BUTTON_BASE =
-  'flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:active:scale-100';
+  'flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100';
 const SECONDARY =
-  `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub hover:bg-performance-bubble disabled:opacity-60 disabled:hover:bg-white`;
+  `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
+// 비활성 primary는 흰 글자 on `#d9d9d9`가 1.41:1이라 라벨이 판독되지 않는다 —
+// 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
 const PRIMARY =
-  `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 disabled:bg-performance-line disabled:hover:bg-performance-line`;
+  `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
 /**
  * @param {() => void} onReevaluate `추가 평가 받기` — 확정 없이 폼 복원.
@@ -65,8 +78,11 @@ export default function EvaluationBranchActions({
   reevaluateDisabled = false,
   reevaluateNote = ''
 }) {
-  const noticeId = useId();
+  const baseId = useId();
+  const noticeId = `${baseId}-finalize-notice`;
+  const reevaluateNoteId = reevaluateNote ? `${baseId}-reevaluate-note` : null;
   const busy = busyAction !== null;
+  const reevaluateLocked = busy || reevaluateDisabled;
 
   return (
     <div className="flex w-full flex-col gap-3">
@@ -75,18 +91,27 @@ export default function EvaluationBranchActions({
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          onClick={onReevaluate}
-          disabled={busy || reevaluateDisabled}
+          onClick={() => {
+            if (reevaluateLocked) return;
+            onReevaluate?.();
+          }}
+          aria-disabled={reevaluateLocked}
+          // 「왜 못 누르는지」의 프로그램적 전달 — 상한 사유 문구를 버튼에 직접 건다.
+          // `disabled`였을 때는 포커스를 못 받아 이 설명이 영원히 읽히지 않았다(검토 P11).
+          aria-describedby={reevaluateNoteId || undefined}
           className={SECONDARY}
         >
           {REEVALUATE_LABEL}
         </button>
         <button
           type="button"
-          onClick={onConfirm}
-          disabled={busy}
+          onClick={() => {
+            if (busy) return;
+            onConfirm?.();
+          }}
+          aria-disabled={busy}
           aria-describedby={noticeId}
-          // 어느 버튼이 요청을 물고 있는지 보조기술에 알린다(둘 다 disabled라 시각적으로는
+          // 어느 버튼이 요청을 물고 있는지 보조기술에 알린다(셋 다 잠겨 시각적으로는
           // 구분되지 않는다). 진행 상태 문구 자체는 호출부(타임라인)가 낸다.
           aria-busy={busyAction === 'confirm' || undefined}
           className={SECONDARY}
@@ -95,8 +120,11 @@ export default function EvaluationBranchActions({
         </button>
         <button
           type="button"
-          onClick={onNewAssessment}
-          disabled={busy}
+          onClick={() => {
+            if (busy) return;
+            onNewAssessment?.();
+          }}
+          aria-disabled={busy}
           aria-describedby={noticeId}
           aria-busy={busyAction === 'new_assessment' || undefined}
           className={PRIMARY}
@@ -112,8 +140,11 @@ export default function EvaluationBranchActions({
         {FINALIZE_NOTICE}
       </p>
 
-      {reevaluateNote ? (
-        <p className="max-w-[26rem] break-words text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+      {reevaluateNoteId ? (
+        <p
+          id={reevaluateNoteId}
+          className="max-w-[26rem] break-words text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub"
+        >
           {reevaluateNote}
         </p>
       ) : null}
