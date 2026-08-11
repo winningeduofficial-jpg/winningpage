@@ -68,6 +68,7 @@ export const PROMOTED_SLUG_ROUTES = {
   'services-in-depth-research': '/services/research',
   'admission-special-highschool-results': '/admission/special-highschool',
   'premium-apply': '/premium-apply',
+  'mentor-apply': '/mentor-apply',
   gallery: '/info/column'
 };
 

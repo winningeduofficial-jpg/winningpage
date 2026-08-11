@@ -32,6 +32,7 @@ import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import DynamicPage from './pages/DynamicPage';
 import PremiumApply from './pages/PremiumApply';
+import MentorApply from './pages/MentorApply';
 import CompanyNews from './pages/CompanyNews';
 import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
@@ -235,6 +236,11 @@ export default function App() {
           {/* 이용신청 > 프리미엄 이용 — 구 슬러그(/page/premium-apply)는 전용 라우트로 리다이렉트 */}
           <Route path="/premium-apply" element={<PremiumApply />} />
           <Route path="/page/premium-apply" element={<Navigate to="/premium-apply" replace />} />
+
+          {/* 이용신청 > 멘토신청 — premium-apply 선례 그대로. 반드시 /page/:slug 와일드카드보다 위에
+              둔다(아래로 내려가면 DynamicPage가 먼저 매칭해 신규 페이지가 뜨지 않는다). */}
+          <Route path="/mentor-apply" element={<MentorApply />} />
+          <Route path="/page/mentor-apply" element={<Navigate to="/mentor-apply" replace />} />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
 
