@@ -122,12 +122,21 @@ const VOID_REASON_PLACEHOLDER = '무효화 사유를 입력하세요';
 // 42501 / WC002 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의 예상 밖
 // 코드(이 함수는 이 둘만 던지도록 설계돼 있어 이론상 도달하지 않는다)는
 // submitVoid 의 명시적 분기(MyPage.jsx REFUND_ERROR_TEXT 와 같은 패턴)에서
-// error.message 를 그대로 보여준다 — 이 도메인엔 "알 수 없는 오류" 전용
-// 한국어 문구가 아직 없어 새로 짓지 않는다.
+// ADMIN_UNKNOWN_ERROR_TEXT 를 보여준다 — DB 원문(error.message)을 화면에
+// 그대로 띄우던 경로를 닫았다(팀 리드 지시, 2026-08-11).
 const VOID_ERROR_TEXT = {
   42501: '관리자 권한이 없습니다.',
   WC002: '이미 무효화되었거나 존재하지 않는 사용 이력입니다.'
 };
+
+// 알려지지 않은 에러 코드에 대한 어드민 공통 문구(팀 리드 승인, 2026-08-11).
+// MyPage.jsx REFUND_UNKNOWN_ERROR_TEXT 와 같은 패턴 — "문구가 없어서 DB 원문
+// 으로 대체"가 아니라, DB 원문 노출 경로 자체를 막기 위한 고정 문구다.
+// submitVoid/submitGrant/submitRevoke 세 곳이 쓴다. 원인 추적은 화면이 아니라
+// console.error(원본 error)로 남긴다(loadGrants/searchUsers 등 이 파일의
+// 기존 조회 실패 처리와 같은 방식). 이 화면 밖에서도 같은 문제가 생기면
+// 이 상수를 그대로 재사용할 수 있도록 export 한다.
+export const ADMIN_UNKNOWN_ERROR_TEXT = '알 수 없는 오류가 발생했습니다.';
 
 // slug 중복은 저장 전에 막는다(요구사항).
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
@@ -145,8 +154,8 @@ const ALREADY_GRANTED_TEXT = '이미 발급된 사용자입니다.';
 
 // fn_grant_coupon / fn_revoke_coupon_grant 가 구분해 던지는 에러(sql/55 1-i절).
 // 42501 / WC003 / WC004 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의
-// 예상 밖 코드는 submitGrant/submitRevoke 의 명시적 분기에서 error.message 를
-// 그대로 보여준다 — VOID_ERROR_TEXT 와 같은 규범이다.
+// 예상 밖 코드는 submitGrant/submitRevoke 의 명시적 분기에서 ADMIN_UNKNOWN_ERROR_TEXT
+// 를 보여준다 — VOID_ERROR_TEXT 와 같은 규범이다.
 const GRANT_ERROR_TEXT = {
   42501: '관리자 권한이 없습니다.',
   WC003: '이미 회수되었거나 존재하지 않는 발급입니다.',
@@ -643,9 +652,9 @@ export default function CouponAdmin() {
       setActionBusy(false);
       // 명시적 분기(MyPage.jsx REFUND_ERROR_TEXT 와 같은 패턴) — 알려진
       // 코드(42501/WC002)는 VOID_ERROR_TEXT 를, 그 밖의 예상 밖 코드는
-      // error.message 를 쓴다("문구가 없어서 대체"가 아니라 이 함수가 던지지
-      // 않도록 설계된 코드에 대한 진단 표시다).
-      alert(`수정 실패: ${error.code in VOID_ERROR_TEXT ? VOID_ERROR_TEXT[error.code] : error.message}`);
+      // ADMIN_UNKNOWN_ERROR_TEXT 를 쓴다. 원본은 콘솔에 남겨 추적 가능하게 한다.
+      console.error(error);
+      alert(`수정 실패: ${error.code in VOID_ERROR_TEXT ? VOID_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
       return;
     }
 
@@ -763,7 +772,8 @@ export default function CouponAdmin() {
     if (error) {
       setActionBusy(false);
       // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
-      alert(`등록 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : error.message}`);
+      console.error(error);
+      alert(`등록 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
       return;
     }
 
@@ -784,7 +794,8 @@ export default function CouponAdmin() {
     if (error) {
       setActionBusy(false);
       // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
-      alert(`수정 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : error.message}`);
+      console.error(error);
+      alert(`수정 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
       return;
     }
 

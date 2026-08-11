@@ -185,6 +185,23 @@ const REFUND_REQUEST_STATUS_OPTIONS = [
   { value: 'rejected', label: '반려' }
 ];
 
+// payments.status DB CHECK 값(pending|paid|failed|refunded|cancelled)과 화면
+// 라벨을 분리한다 — 저장은 영문, 표시는 한글. 한국어를 값으로 넣어 CHECK
+// 위반으로 등록이 늘 실패하던 결함(CONFIGS.payments 참고)을 여기서 고친다.
+// 라벨은 새로 짓지 않고 이 저장소에 이미 있는 어휘에서 가져온다:
+//   pending → '납부대기', paid → '납부완료'  (1679행 admin_enrollments
+//     payment_status 옵션과 동일 어휘)
+//   refunded → '환불완료'  (MyPage.jsx REFUND_STATUS.completed, 184행
+//     REFUND_REQUEST_STATUS_OPTIONS 와 동일 어휘)
+// failed·cancelled 는 이 저장소에 대응하는 기존 라벨이 없어(있는 '취소요청'은
+// "취소 신청됨"이라는 별개 상태를 뜻해 여기 cancelled 완료 상태와 맞지
+// 않는다) 목록에 넣지 않았다 — 팀 리드 보고 대상.
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'pending', label: '납부대기' },
+  { value: 'paid', label: '납부완료' },
+  { value: 'refunded', label: '환불완료' }
+];
+
 const CONFIGS = {
   popups: {
     title: '팝업 관리',
@@ -2075,7 +2092,7 @@ const CONFIGS = {
       { key: 'sale_amount', label: '판매금액', type: 'money' },
       { key: 'discount_amount', label: '감면액', type: 'money' },
       { key: 'paid_amount', label: '납부금액', type: 'money' },
-      { key: 'status', label: '상태' },
+      { key: 'status', label: '상태', type: 'select', options: PAYMENT_STATUS_OPTIONS },
       { key: 'paid_at', label: '납부일시', type: 'date' }
     ],
     fields: [
@@ -2086,10 +2103,10 @@ const CONFIGS = {
       { key: 'sale_amount', label: '판매금액', type: 'number' },
       { key: 'discount_amount', label: '감면액', type: 'number' },
       { key: 'paid_amount', label: '납부금액', type: 'number' },
-      { key: 'status', label: '상태', type: 'select', options: ['납부', '취소요청', '환불완료'] },
+      { key: 'status', label: '상태', type: 'select', options: PAYMENT_STATUS_OPTIONS },
       { key: 'memo', label: '비고', type: 'textarea' }
     ],
-    defaults: { payer_name: '', sale_amount: 0, discount_amount: 0, paid_amount: 0, status: '납부' }
+    defaults: { payer_name: '', sale_amount: 0, discount_amount: 0, paid_amount: 0, status: 'paid' }
   },
 
   settlements: {
