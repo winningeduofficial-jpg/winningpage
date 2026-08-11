@@ -498,6 +498,8 @@ export default async function handler(req, res) {
     //    세션 동시 요청 2건은 둘 다 통과한 뒤 각각 +1 할 수 있다(fail-safe 방향: 덜
     //    세지 않고 더 센다). 리포트 행이 2개가 되지는 않는다 — 부분 UNIQUE + upsert가
     //    세션당 evaluation 1행을 강제한다(sql/58 (2)).
+    //    **모델 호출이 실제로 몇 번 나가느냐를 막는 것은 게이트 ⑦이다** — 아래 시도
+    //    카운터가 원자적 CAS라 동시 요청 중 한 건만 통과한다(검토 P11).
     const evaluationCount = Number(sessionRow.evaluation_count) || 0;
     if (evaluationCount >= MAX_EVALUATIONS) {
       return fail(res, 409, 'REEVALUATION_LIMIT', `평가는 최대 ${MAX_REEVALUATIONS}번까지 다시 받을 수 있어요.`, {
@@ -522,13 +524,38 @@ export default async function handler(req, res) {
     }
 
     // 모델을 실제로 부르기 **직전**에 올린다. 실패도 세야 상한이 의미를 갖는다.
-    const { error: attemptCounterError } = await supabaseAdmin
+    //
+    // ⚠️ **낙관적 잠금(CAS)이다**(검토 P11). `attemptCount + 1`을 조건 없이 덮어쓰면
+    //    동시 요청 N건이 전부 같은 스냅샷을 읽고 같은 값을 써서 카운터가 1만 오르고,
+    //    게이트 ⑥·⑦이 함께 무력화된다. 평가는 **무차감**이라(§9.3) 회차가 억제 수단이
+    //    아니고, evaluate 1회는 최대 6회(과부하 재시도 3 × 구조 재시도 2)의 생성 호출에
+    //    최대 `MAX_TOTAL_CHARS` 분량 프롬프트를 싣는다 — 이 두 상한이 유일한 방어선이다.
+    //    `.eq('evaluation_attempt_count', attemptCount)`를 붙여 **읽은 값 그대로일 때만**
+    //    쓰고, 0행이면 그 사이 다른 요청이 선점했다는 뜻이라 429로 떨어뜨린다(같은 코드다 —
+    //    사용자에게는 "지금은 다시 요청할 수 없다"로 동일하고, 클라이언트 분기도
+    //    §5.20 code 기준이라 갈리지 않는다).
+    const { data: attemptRow, error: attemptCounterError } = await supabaseAdmin
       .from('performance_sessions')
       .update({ evaluation_attempt_count: attemptCount + 1 })
-      .eq('id', sessionRow.id);
+      .eq('id', sessionRow.id)
+      .eq('evaluation_attempt_count', attemptCount)
+      .select('id')
+      .maybeSingle();
 
     if (attemptCounterError) {
       throw new Error(`평가 시도 횟수 갱신 실패: ${attemptCounterError.message}`);
+    }
+
+    if (!attemptRow) {
+      // 경합에서 졌다 — 모델을 부르지 않고 끝낸다. 여기서 그냥 진행하면 상한이
+      // 있으나 마나가 된다(위 ⚠️).
+      return fail(
+        res,
+        429,
+        'EVALUATION_ATTEMPT_LIMIT',
+        '평가 요청이 이미 진행 중이에요. 잠시 후 다시 시도해 주세요.',
+        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, concurrent: true, charged: false }
+      );
     }
 
     // ── 확정 주제. 설계 리포트가 있으면 반드시 확정돼 있다(sql/57 (4)가 한 트랜잭션으로

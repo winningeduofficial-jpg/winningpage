@@ -328,8 +328,11 @@ comment on function public.commit_performance_evaluation_report(uuid, uuid, uuid
 --        `finalize_reason`을 덮어쓰지 않는 것이 핵심이다 — 최초 확정 사실이 정본이다.
 --     ③ **다른** 제출본이 이미 확정돼 있으면 `already_finalized_other`
 --        (§8.6 `409 ALREADY_FINALIZED_OTHER`). Q67 결정(「확정 후에도 재평가를
---        허용하되 최종본은 1건만 고정한다」)의 뒷부분이 이것이다 — 세션은 잠그지
---        않으므로 재평가는 계속 되지만, 최종본 포인터는 움직이지 않는다.
+--        허용하되 최종본은 1건만 고정한다」)의 뒷부분이 이것이다 — 세션을 **제품
+--        의미론으로** 잠그지 않으므로 재평가는 계속 되지만, 최종본 포인터는 움직이지
+--        않는다. (단계 2-1의 `for update`는 이 트랜잭션 동안만 잡는 행 잠금이고
+--        세션을 종료·봉인하는 것과 무관하다.)
+--        ②③이 실제로 성립하려면 **세션 단위 직렬화**가 필요하다 — 단계 2-1 참고.
 --
 --   평가 선행 조건(§8.6 `400 NO_EVALUATION_YET`)
 --     이 세션의 evaluation 리포트가 **이 제출본을 대상으로** 만들어졌는지 본다.
@@ -409,6 +412,25 @@ begin
   if v_revision is null then
     return jsonb_build_object('status', 'submission_not_in_session');
   end if;
+
+  -- ── 2-1) 세션 행 잠금 — **세션 단위 직렬화 지점**.
+  --       (2)의 잠금은 대상 제출본 **한 행**뿐이라, 같은 세션의 **서로 다른** 제출본
+  --       2건에 대한 finalize 가 동시에 들어오면 잠금이 겹치지 않는다. 그러면 둘 다
+  --       (4)를 "확정된 행 없음"으로 읽고 (6)까지 진행해, 뒤늦은 쪽이
+  --       `performance_submissions_one_final_per_session_idx`(54번 1-6)에서 23505를
+  --       맞는다 → 호출부는 `commitError` 분기로 **500**을 본다(`finalize.js`).
+  --       즉 위 (2) 주석과 파일 상단 멱등 ③이 약속한 `already_finalized_other` 분기가
+  --       그 조합에서만 성립하지 않았다(검토 P11). 세션 행을 잠가 (4)~(7)을 세션 단위로
+  --       직렬화한다 — 뒤늦은 쪽은 앞선 트랜잭션이 커밋된 뒤에 (4)를 읽으므로 정상 분기한다.
+  --
+  --       ⚠ 잠금 순서는 **제출본 → 세션**이다. (4) `commit_performance_evaluation_report`
+  --       도 제출본 update → 세션 update 순이라 두 함수의 순서가 같다. 여기서 세션을
+  --       먼저 잠그면 순서가 뒤집혀 두 함수가 교착(deadlock)할 수 있다 — 이 블록을
+  --       (2) 위로 올리지 마라.
+  perform 1
+    from public.performance_sessions s
+   where s.id = p_session_id
+     for update;
 
   -- ── 3) 이미 이 제출본이 최종본이면 **아무것도 바꾸지 않고** 성공을 돌려준다(멱등 ②).
   --       finalize_reason을 덮어쓰지 않는다 — 최초 확정이 정본이다.

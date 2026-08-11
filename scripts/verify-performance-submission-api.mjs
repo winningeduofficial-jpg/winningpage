@@ -285,6 +285,29 @@ check(
   `tooShort=${idxTooShort} limit=${idxLimit} attempt=${idxAttempt}`
 );
 
+// ── 시도 카운터는 **낙관적 잠금(CAS)** 이어야 한다(검토 P11).
+//    조건 없이 `attemptCount + 1`을 덮어쓰면 동시 요청 N건이 전부 같은 스냅샷을 읽고
+//    같은 값을 써서 카운터가 1만 오른다 — 평가는 무차감이라(§9.3) 이 상한이 유일한
+//    방어선인데 병렬성으로 통째로 무력화된다.
+check(
+  'evaluate.js — 시도 카운터가 읽은 값 조건부 update다(CAS)',
+  /\.update\(\{ evaluation_attempt_count: attemptCount \+ 1 \}\)[\s\S]{0,200}\.eq\('evaluation_attempt_count', attemptCount\)/.test(
+    EVALUATE_API
+  )
+);
+check(
+  'evaluate.js — CAS가 0행이면 모델을 부르지 않고 429로 끝낸다',
+  /if \(!attemptRow\) \{[\s\S]{0,400}'EVALUATION_ATTEMPT_LIMIT'/.test(EVALUATE_API)
+);
+
+// ── draft 덮어쓰기는 **아직 초안인 행만** 대상으로 한다(검토 P11).
+//    `is_draft` 조건이 없으면 뒤늦은 draft 저장이 이미 제출·채점된 원고를 덮어써
+//    평가 리포트(점수)와 저장 원고가 서로 다른 글을 가리키게 된다.
+check(
+  'submission.js — updateRevision이 is_draft=true + is_final=false를 함께 본다',
+  /\.eq\('is_draft', true\)[\s\S]{0,120}\.eq\('is_final', false\)/.test(SUBMISSION_API)
+);
+
 // ── 멱등 재생이 모델 호출보다 앞에 있어야 한다(더블클릭이 모델을 다시 부르면 안 된다).
 const idxReplay = EVALUATE_API.indexOf('reused: true');
 const idxModel = EVALUATE_API.indexOf('generateWithRetry(');
@@ -368,6 +391,24 @@ check(
 check(
   'finalize RPC가 대상 행을 for update로 잠근다',
   /finalize_performance_submission[\s\S]*?for update/.test(SQL58)
+);
+// 대상 제출본만 잠그면 같은 세션의 **서로 다른** 제출본 2건이 동시에 확정을 시도할 때
+// 잠금이 겹치지 않아 둘 다 "확정된 행 없음"으로 통과하고, 뒤늦은 쪽이 부분 UNIQUE 23505 →
+// 호출부 500이 된다(`already_finalized_other` 분기가 성립하지 않는다, 검토 P11).
+// 세션 행을 함께 잠가 세션 단위로 직렬화한다 — 순서는 반드시 **제출본 → 세션**이어야
+// `commit_performance_evaluation_report`(제출본 update → 세션 update)와 교착하지 않는다.
+// 파일 상단 목차·주석에도 함수 이름이 나오므로 `create or replace`에 앵커한다
+// (앵커가 없으면 앞선 RPC의 본문을 잘라 보게 된다).
+const FINALIZE_FN =
+  /create or replace function public\.finalize_performance_submission[\s\S]*?\$function\$;/.exec(SQL58)?.[0] || '';
+check(
+  'finalize RPC가 세션 행도 for update로 잠근다(세션 단위 직렬화)',
+  /from public\.performance_sessions s\s+where s\.id = p_session_id\s+for update/.test(FINALIZE_FN)
+);
+check(
+  'finalize RPC의 잠금 순서가 제출본 → 세션이다(교착 방지)',
+  FINALIZE_FN.indexOf('from public.performance_submissions sub') <
+    FINALIZE_FN.indexOf('from public.performance_sessions s\n   where s.id = p_session_id\n     for update')
 );
 check(
   'finalize RPC 멱등 분기 3종',

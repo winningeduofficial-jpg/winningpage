@@ -51,11 +51,13 @@
 //
 // ── `409 SESSION_FINALIZED`는 세션 잠금이 아니다 (Q67)
 //    Q67 결정: 「확정 후에도 **재평가를 허용**하되 최종본은 1건만 고정한다」. 그래서
-//    확정된 세션이라도 새 revision 저장은 열려 있고, 이 코드는 **확정된 그 행 자체를
-//    덮어쓰려는 경우**에만 난다. 정상 경로에서는 위 revision 규칙이 그런 요청을 만들지
-//    않지만, 다중 탭에서 A가 draft를 쓰는 사이 B가 같은 행을 확정하면 A의 update가
-//    `is_final = false` 조건에 걸려 0행이 된다 — 그때 이 코드를 돌려준다. 즉 **확정된
-//    최종본은 불변**이라는 규칙의 실행부다.
+//    확정된 세션이라도 새 revision 저장은 열려 있고, 이 코드는 **이미 초안이 아닌 그 행
+//    자체를 덮어쓰려는 경우**에만 난다. 정상 경로에서는 위 revision 규칙이 그런 요청을
+//    만들지 않지만, 다중 탭에서 A가 draft를 쓰는 사이 B가 같은 행을 제출하거나 확정하면
+//    A의 update가 `is_draft = true` / `is_final = false` 조건에 걸려 0행이 된다 — 그때
+//    이 코드를 돌려준다. 즉 **제출·확정된 제출본은 불변**이라는 규칙의 실행부다.
+//    (`is_draft` 조건이 없으면 뒤늦은 draft 저장이 이미 채점된 원고를 덮어써 평가 리포트와
+//     저장 원고가 어긋난다 — `updateRevision` 주석 참고, 검토 P11.)
 //
 // ── 크기 상한
 //    필드당 `MAX_FIELD_CHARS`, 합계 `MAX_TOTAL_CHARS`. 문항형은 최대 20필드라
@@ -368,8 +370,23 @@ export default async function handler(req, res) {
     const payload = { fields, char_counts: perField, updated_at: new Date().toISOString() };
 
     /**
-     * 기존 revision 덮어쓰기. **`is_final = false` 조건이 붙는다** — 확정된 최종본은
-     * 불변이고, 0행이면 그 사이 다른 탭이 확정했다는 뜻이라 409로 갈린다(위 Q67 주석).
+     * 기존 revision 덮어쓰기. **`is_draft = true` + `is_final = false` 두 조건이 붙는다.**
+     *
+     * · `is_final = false` — 확정된 최종본은 불변이다(위 Q67 주석).
+     * · `is_draft = true`  — **아직 제출되지 않은 초안만** 덮어쓴다. 재사용 판정
+     *   (`reuseLatest`)은 `loadLatestSubmission()` 스냅샷으로 하는데, 그 select 와 이
+     *   update 사이에 다른 탭이 같은 revision을 `mode:'submit'`으로 제출하거나
+     *   (`is_draft=false`) 평가 커밋이 같은 값을 세우면(sql/58 (4) 단계 3), 이 조건이
+     *   없을 때 뒤늦은 draft 저장이 **이미 채점된 제출본의 본문을 조용히 덮어쓴다**
+     *   (검토 P11). 그러면 `performance_reports`의 평가 리포트(점수·피드백)와
+     *   `performance_submissions.fields`(최종 리포트가 그대로 옮기는 학생 원고,
+     *   `finalize.js buildFinalSections`)가 서로 다른 원고를 가리키게 된다 —
+     *   sql/58 (2) 주석이 못박은 「제출본 자체는 revision별로 전부 남는다」가 깨지는
+     *   유일한 창이었다.
+     *   0행이 되면 아래 `if (!row)`가 409로 갈라 주고, 학생이 다시 저장하면 그때는
+     *   `reuseLatest`가 false라 **새 revision**이 열려 작성 내용을 잃지 않는다.
+     *
+     * 23505 복구 경로도 방금 insert 된 draft 행을 대상으로 하므로 이 조건에 걸리지 않는다.
      */
     async function updateRevision(revision) {
       const { data, error } = await supabaseAdmin
@@ -377,6 +394,7 @@ export default async function handler(req, res) {
         .update(payload)
         .eq('session_id', sessionRow.id)
         .eq('revision', revision)
+        .eq('is_draft', true)
         .eq('is_final', false)
         .select(SUBMISSION_COLUMNS)
         .maybeSingle();
@@ -418,7 +436,12 @@ export default async function handler(req, res) {
     }
 
     if (!row) {
-      return fail(res, 409, 'SESSION_FINALIZED', '이미 확정한 제출본은 수정할 수 없어요.', {
+      // 0행이 되는 경우는 둘이다 — 그 사이 다른 탭이 이 revision을 **확정**했거나
+      // (`is_final=true`) **제출**했다(`is_draft=false`). 둘 다 「이 revision은 더 이상
+      // 초안이 아니다」이고 사용자 조치도 같다(다시 저장하면 새 revision이 열린다).
+      // 코드는 §8.6 계약에 있는 `SESSION_FINALIZED` 하나로 유지하고 문구만 두 경우를
+      // 함께 말한다 — 코드를 새로 파면 클라이언트 분기(§5.20 code 기준)가 갈린다.
+      return fail(res, 409, 'SESSION_FINALIZED', '이미 제출했거나 확정한 제출본은 수정할 수 없어요. 다시 저장하면 새 제출본으로 저장됩니다.', {
         revision: targetRevision
       });
     }

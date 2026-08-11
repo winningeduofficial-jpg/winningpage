@@ -26,8 +26,9 @@
 // ── revision 충돌(다중 탭)
 //   revision은 서버가 최신 행 상태로 유도한다(클라이언트 플래그 없음). 경합이 나면
 //   409 `REEVALUATION_LIMIT`(상한 초과) 또는 409 `SESSION_FINALIZED`(다른 탭이 그 행을
-//   확정)로 갈린다. 둘 다 **작성 내용을 건드리지 않는다** — 화면은 문구만 띄우고 폼 값을
-//   그대로 둔다(재시도하면 그때의 최신 상태 기준으로 다시 판정된다).
+//   제출·확정)로 갈린다. 둘 다 **작성 내용을 건드리지 않는다** — 화면은 문구만 띄우고 폼
+//   값을 그대로 둔다(재시도하면 그때의 최신 상태 기준으로 다시 판정된다 — `SESSION_FINALIZED`
+//   뒤 재시도는 새 revision을 연다).
 
 // 글자 수 규칙은 **서버와 같은 모듈**을 읽는다. 사본을 만들면 "카운터는 통과인데 서버가
 // 거절"이 생긴다(§8.3 「시안 카운터와 동일 계산식 공유」). `submission-chars.js`는 의존이
@@ -49,7 +50,7 @@ const FALLBACK_MESSAGE = {
   UNAUTHENTICATED: '로그인이 필요합니다.',
   EMPTY_SUBMISSION: '저장할 작성 내용이 없습니다.',
   UNKNOWN_FIELD: '제출폼이 최신 상태가 아니에요. 새로고침한 뒤 다시 시도해 주세요.',
-  SESSION_FINALIZED: '이미 확정한 제출본은 수정할 수 없어요.',
+  SESSION_FINALIZED: '이미 제출했거나 확정한 제출본은 수정할 수 없어요. 다시 저장하면 새 제출본으로 저장됩니다.',
   REEVALUATION_LIMIT: '제출물을 다시 낼 수 있는 횟수를 모두 사용했어요.',
   SUBMISSION_TOO_LARGE: '작성 내용이 너무 깁니다.',
   SUBMISSION_TOO_SHORT: '제출물이 너무 짧습니다.',
