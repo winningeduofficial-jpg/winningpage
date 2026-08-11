@@ -16,11 +16,17 @@ import { isOnboardingDone } from '../../lib/goalOnboarding';
 //   3) 온보딩 완료 판정   — 미완료   → /app/goal/onboarding/step-1
 //   4) 전부 통과          → 자식(대시보드 또는 온보딩 페이지) 렌더
 //
+// 2026-08-11: 3단계도 goal_students 서버 조회(isOnboardingDone(), src/lib/goalOnboarding.js)로
+// 바뀌었다. 과거엔 localStorage 동기 판정이라 렌더 중 즉시 계산했지만, 지금은 1·2단계와
+// 같은 이유(서버 왕복)로 await가 필요해 같은 effect·같은 status state machine에
+// 편입시켰다 — 더 이상 렌더 함수 본문에서 동기로 계산하지 않는다.
+//
 // ⚠️ 무한 리다이렉트 방지: 3단계는 "지금 온보딩 경로에 있는가"를 먼저 확인해 그 경우
 // 검사 자체를 건너뛴다. 온보딩 경로에서도 3단계를 그대로 적용하면
 // /app/goal/onboarding/step-1 진입 시 "온보딩 미완료 → /app/goal/onboarding/step-1로
 // 리다이렉트"가 자기 자신을 가리켜 무한 루프가 된다. 1・2단계(로그인·이용권)는 온보딩
-// 경로에서도 그대로 적용한다 — 온보딩도 로그인・결제 이후 화면이기 때문.
+// 경로에서도 그대로 적용한다 — 온보딩도 로그인・결제 이후 화면이기 때문. 이 조건·순서는
+// 그대로 유지했다(effect 안으로 들어갔을 뿐 판단 로직은 바뀌지 않았다).
 //
 // ⚠️ 결제 복귀 배선 한계(이번 범위 밖, 손대지 않음): 2단계에서 /pricing?redirect=...로
 // 보내지만, Pricing.jsx가 redirect 쿼리를 읽지 않고 로그인 필요 시 `/login?redirect=/checkout`을
@@ -37,10 +43,11 @@ function currentPathWithQuery(location) {
 export default function RequireGoalAccess() {
   const location = useLocation();
 
-  // 'loading' | 'no-session' | 'no-entitlement' | 'check-failed' | 'ok'
-  // 1・2단계는 비동기(세션 조회·/api/check-service-access 호출)라 로딩 상태가 필요하다.
-  // 깜빡임 방지를 위해 판정이 끝나기 전까지는 절대 자식을 렌더하지 않는다(아래 loading
-  // 분기가 유일한 렌더).
+  // 'loading' | 'no-session' | 'no-entitlement' | 'check-failed'
+  //   | 'no-onboarding' | 'onboarding-check-failed' | 'ok'
+  // 1・2・3단계 모두 비동기(세션 조회·/api/check-service-access 호출·/api/goal/student
+  // 호출)라 로딩 상태가 필요하다. 깜빡임 방지를 위해 판정이 끝나기 전까지는 절대 자식을
+  // 렌더하지 않는다(아래 loading 분기가 유일한 렌더).
   const [status, setStatus] = useState('loading');
   // evaluate()를 다시 돌리기 위한 트리거. "재시도" 버튼이 이 값을 바꿔 useEffect를 재실행한다.
   const [retryToken, setRetryToken] = useState(0);
@@ -73,17 +80,52 @@ export default function RequireGoalAccess() {
 
       if (!alive) return;
 
-      if (entitled === true) {
-        setStatus('ok');
-        return;
-      }
-
       if (entitled === false) {
         setStatus('no-entitlement');
         return;
       }
 
-      setStatus('check-failed');
+      if (entitled !== true) {
+        setStatus('check-failed');
+        return;
+      }
+
+      // 3) 온보딩 완료 판정 — 1・2단계 통과 후에만 도달한다.
+      //
+      // ⚠️ 무한 리다이렉트 방지(원래 로직 그대로 유지, 위치만 render → effect):
+      // 지금 온보딩 경로에 있으면 이 판정 자체를 건너뛰고 곧장 'ok'로 통과시킨다.
+      // 건너뛰지 않으면 /app/goal/onboarding/step-1 진입 시 "온보딩 미완료 →
+      // /app/goal/onboarding/step-1로 리다이렉트"가 자기 자신을 가리켜 무한 루프가
+      // 된다. isOnOnboardingRoute는 이 컴포넌트의 두 마운트 지점(온보딩 라우트 그룹 /
+      // 대시보드 라우트 그룹)이 서로 다른 서브트리라 마운트 생애주기 동안 값이
+      // 바뀌지 않는다(상단 주석 참고) — 그래서 useEffect 의존성에 location을 넣지
+      // 않아도 안전하다.
+      const isOnOnboardingRoute = location.pathname.startsWith(ONBOARDING_PATH_PREFIX);
+
+      if (isOnOnboardingRoute) {
+        setStatus('ok');
+        return;
+      }
+
+      // isOnboardingDone()도 hasEntitlement()와 같은 3값 계약(true/false/null) —
+      // false(명시적 미완료)와 null(판정 불가: 세션 경쟁 상태·네트워크 오류 등)을
+      // 반드시 구분한다. null을 false처럼 처리해 온보딩으로 리다이렉트하면, 실제로는
+      // 세션이 끊기거나 이용권을 잃은 사용자를 엉뚱한 화면으로 보내는 오탐이 된다.
+      const onboardingDone = await isOnboardingDone();
+
+      if (!alive) return;
+
+      if (onboardingDone === true) {
+        setStatus('ok');
+        return;
+      }
+
+      if (onboardingDone === false) {
+        setStatus('no-onboarding');
+        return;
+      }
+
+      setStatus('onboarding-check-failed');
     }
 
     evaluate();
@@ -141,13 +183,35 @@ export default function RequireGoalAccess() {
     );
   }
 
-  // status === 'ok' — 1・2단계 통과. 3) 온보딩 완료 판정(온보딩 경로 자체는 건너뜀).
-  const isOnOnboardingRoute = location.pathname.startsWith(ONBOARDING_PATH_PREFIX);
-
-  if (!isOnOnboardingRoute && !isOnboardingDone()) {
+  if (status === 'no-onboarding') {
     return <Navigate to="/app/goal/onboarding/step-1" replace />;
   }
 
+  if (status === 'onboarding-check-failed') {
+    // 온보딩 완료 여부 판정 불가(서버 호출 실패 등). 온보딩으로도, 대시보드로도 보내지
+    // 않고 이 화면에 머무른다 — 이미 온보딩을 마친 사용자가 일시적 오류로 온보딩
+    // 화면에 다시 튕기는 상황을 막기 위해서다(check-failed와 동일한 이유, 대상만 다름).
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
+        <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+          <p className="text-sm font-extrabold">온보딩 완료 여부를 확인하지 못했습니다.</p>
+          <p className="text-xs text-[#0D1B2A]/60">
+            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 온보딩을 마치셨다면 곧
+            다시 확인됩니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryToken((v) => v + 1)}
+            className="mt-2 rounded-full bg-[#0D1B2A] px-5 py-2 text-xs font-extrabold text-white"
+          >
+            다시 시도
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // status === 'ok' — 1・2・3단계 전부 통과(또는 온보딩 경로라 3단계를 건너뜀).
   // 4) 대시보드 랜딩(또는 온보딩 페이지) — 실제 자식 라우트 렌더.
   return <Outlet />;
 }
