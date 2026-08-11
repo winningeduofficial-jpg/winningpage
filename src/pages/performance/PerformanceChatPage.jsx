@@ -212,6 +212,19 @@ export default function PerformanceChatPage() {
   // 사라진 커밋에서 자동으로 열리므로 `useModalBehavior`가 기억한 트리거는 이미 detach된
   // 노드다 — 복귀 대상을 여기서 직접 준다.
   const designReopenRef = useRef(null);
+  // `designPhase` 전이 3종을 **대칭으로** 다루기 위한 나머지 두 목적지(검토 P10).
+  //   · `'loading' → 'failed'`: 로딩 버블이 언마운트되는데 그 버블이 바로 직전에 프로그램적
+  //     포커스를 받은 노드다(`designLoadingRef` 이펙트). 배선이 없으면 `<body>`로 떨어져
+  //     `설계 리포트 다시 시도`/`주제 다시 고르기`에 도달하려면 Tab을 처음부터 밟아야 한다.
+  //   · `'failed' → 'idle'`(`주제 다시 고르기`): 방금 누른 버튼 자신이 언마운트된다.
+  // 둘 다 `topicRegenerating` 주석이 이미 지목한 그 함정이라 같은 rAF 패턴으로 막는다.
+  const designFailedRef = useRef(null);
+  const topicsReturnRef = useRef(null);
+  // STEP3 복귀 포커스는 **`주제 다시 고르기`로 되돌아온 경우에만** 필요하다. 항상 배선하면
+  // `step3-topics` 항목이 늘 `aria-live="off"`가 되어(포커스 목적지 규약) 최초 추천 결과가
+  // 낭독되지 않는다. 그래서 복귀 요청이 있을 때만 켜고, 켜진 뒤에는 그대로 둔다 —
+  // 되돌아온 뒤로는 이 항목이 포커스로 낭독되는 쪽이 일관된다.
+  const [topicsFocusPending, setTopicsFocusPending] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -251,6 +264,24 @@ export default function PerformanceChatPage() {
     });
     return () => cancelAnimationFrame(raf);
   }, [designPhase]);
+
+  // STEP4 실패 진입 — 언마운트되는 로딩 버블에서 실패 안내(재시도 버튼을 품은 항목)로 옮긴다.
+  useEffect(() => {
+    if (designPhase !== 'failed') return undefined;
+    const raf = requestAnimationFrame(() => {
+      designFailedRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [designPhase]);
+
+  // `주제 다시 고르기` 복귀 — 다시 나타난 STEP3 카드 묶음으로 옮긴다.
+  useEffect(() => {
+    if (!topicsFocusPending) return undefined;
+    const raf = requestAnimationFrame(() => {
+      topicsReturnRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [topicsFocusPending]);
 
   async function handleSubmit(values) {
     if (!accessToken || submitting) return;
@@ -494,6 +525,9 @@ export default function PerformanceChatPage() {
     setDesignPhase('idle');
     setConfirmedTopic(null);
     setDesignError(null);
+    // 이 버튼 자신이 같은 커밋에서 언마운트된다 — 다시 나타난 STEP3 카드 묶음으로 포커스를
+    // 넘긴다(위 `topicsFocusPending` 주석).
+    setTopicsFocusPending((n) => n + 1);
   }
 
   /**
@@ -667,6 +701,8 @@ export default function PerformanceChatPage() {
       role: 'ai',
       kind: 'text',
       body: guideMode === 'manual' ? TOPIC_RESULT_MANUAL : TOPIC_RESULT_UPLOAD,
+      // `주제 다시 고르기`로 되돌아온 뒤에만 포커스 목적지가 된다(위 `topicsFocusPending`).
+      focusRef: topicsFocusPending ? topicsReturnRef : undefined,
       children: (
         // §5.10 실측은 말풍선 하단 → 첫 카드 상단이 1.25rem(20)인데 `AiMessage` 컬럼의
         // 기본 gap은 1rem(16)이다(라벨↔말풍선·말풍선↔폼 카드가 전부 16이라 그렇게 고정됐다).
@@ -759,6 +795,10 @@ export default function PerformanceChatPage() {
       role: 'ai',
       kind: 'text',
       body: designError?.message || DESIGN_FAILED_FALLBACK,
+      // 로딩 버블(직전 포커스 보유자)이 언마운트되는 전이라 목적지를 직접 지정한다.
+      // 안내 문구와 출구 버튼을 함께 품은 래퍼가 목적지다 — 버튼 하나만 잡으면 "무엇이
+      // 일어났는지"(문구)를 건너뛴 채 낭독된다.
+      focusRef: designFailedRef,
       children: (
         <div className="flex flex-wrap gap-3">
           {resumeTopic ? (
