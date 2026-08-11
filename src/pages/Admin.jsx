@@ -94,6 +94,8 @@ const MENU_GROUPS = [
       { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
+      { key: 'mentorApplyFaqs', label: '멘토신청 FAQ' },
+      { key: 'mentorApplyCopy', label: '멘토신청 문구' },
       { key: 'learningDiagnosis', label: '학습진단 관리' }
     ]
   },
@@ -1852,6 +1854,55 @@ const CONFIGS = {
         answer: blocksToPlainText(blocks)
       };
     }
+  },
+
+  // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는
+  // src/components/mentorApply/MentorFaq.jsx이며, DB가 비어 있으면
+  // src/data/mentorApply.js 상수로 폴백한다. 위 faqs(자주하는질문)와는
+  // 완전히 별개 테이블 — /mentor-apply 페이지 전용 FAQ다.
+  mentorApplyFaqs: {
+    title: '멘토신청 FAQ',
+    table: 'mentor_apply_faqs',
+    searchPlaceholder: '질문을 검색하세요',
+    order: 'sort_order',
+    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다).`,
+    columns: [
+      { key: 'sort_order', label: '노출 순서' },
+      { key: 'question', label: '질문' },
+      { key: 'answer', label: '답변', type: 'truncate' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'sort_order', label: '노출 순서', type: 'number', required: true },
+      { key: 'question', label: '질문', type: 'text', required: true },
+      { key: 'answer', label: '답변', type: 'textarea' }
+    ],
+    defaults: { is_active: true, sort_order: 1, question: '', answer: '' }
+  },
+
+  // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는
+  // src/components/mentorApply/MentorFaq.jsx의 FAQ 섹션 헤더이며, DB가
+  // 비어 있으면 src/data/mentorApply.js 상수로 폴백한다. 키(copy_key)가
+  // 정해져 있는 화면이라 행 추가는 막는다(noCreate) — 위 mentorApplyFaqs와
+  // 짝을 이루지만 대상 테이블이 다르다.
+  mentorApplyCopy: {
+    title: '멘토신청 문구',
+    table: 'mentor_apply_copy',
+    order: 'sort_order',
+    noCreate: true,
+    guideText: `여기 값은 멘토신청 페이지 FAQ 섹션의 제목 영역에 그대로 나갑니다. 'FAQ 제목(앞부분)' 값 끝의 공백 1칸은 의도된 것입니다 — 지우면 공개 화면에서 뒷 단어와 붙어 '지원 전궁금한 점'으로 보입니다. 행을 삭제하면 해당 항목은 코드 내장 기본값으로 되돌아갑니다.`,
+    columns: [
+      { key: 'label', label: '항목' },
+      { key: 'copy_value', label: '값' },
+      { key: 'copy_key', label: '키' }
+    ],
+    fields: [
+      { key: 'label', label: '항목', type: 'text', readOnly: true },
+      { key: 'copy_key', label: '키', type: 'text', readOnly: true },
+      { key: 'copy_value', label: '값', type: 'text', required: true }
+    ],
+    defaults: {}
   },
 
   members: {
