@@ -33,10 +33,13 @@ import { getChannel, isDryRun, sendVerificationCode } from './_lib/aligo.js';
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: 'nodejs' };
 
-const ALLOWED_PURPOSES = ['signup', 'parent_signup', 'phone_change'];
+const ALLOWED_PURPOSES = ['signup', 'parent_signup', 'phone_change', 'mentor_apply'];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가
 // 자기 자신과 중복으로 잡히는데, 이 엔드포인트는 인증이 없어서 본인을 구분할 수 없다.
+// 'mentor_apply'(멘토 지원서 본인인증)도 여기 넣으면 안 된다 — 지원은 비회원 기준이지만
+// 이미 위닝에듀 회원인 대학생이 지원하는 경우가 정상 시나리오이고, 넣는 순간 그 번호가
+// isPhoneTaken에 걸려 409 'phone_taken'으로 거절돼 지원 자체가 막힌다.
 const SIGNUP_PURPOSES = ['signup', 'parent_signup'];
 
 /**
