@@ -21,7 +21,7 @@ import AiAvatar from './AiAvatar';
 // 카드(폼·업로드 슬롯·리포트 요약)는 `children`으로 받아 같은 컬럼 안, 말풍선 바로 아래에
 // 놓는다. 카드 자체의 마크업·상태는 `ChatTimeline`과 그 하위 `InlineCard`가 책임진다.
 /**
- * @param {string} [label] 발신자 라벨. 전 노드 공통 `위닝 AI 수행평가 서포터`
+ * @param {string} [label] 발신자 라벨. 전 노드 공통 `위닝 수행평가 서포터`
  *   (`3754:3035` 한 노드만 `위닝 채팅`류 예외가 있으나 그건 사이드바 메뉴 라벨이지 이
  *   라벨이 아니다 — §3.4 참고. 발신자 라벨 자체는 모든 노드에서 동일).
  * @param {string} [body] 말풍선 본문. 시안 문구가 빈 줄 포함 여러 줄이라 `\n`을 그대로
@@ -34,7 +34,7 @@ import AiAvatar from './AiAvatar';
  * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
  */
 export default function AiMessage({
-  label = '위닝 AI 수행평가 서포터',
+  label = '위닝 수행평가 서포터',
   body,
   children,
   bubbleMaxWidthClassName = 'max-w-perf-bubble',

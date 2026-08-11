@@ -43,7 +43,7 @@ import AiAvatar from './AiAvatar';
  * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
  */
 const AiLoadingBubble = forwardRef(function AiLoadingBubble(
-  { title, subtitle, label = '위닝 AI 수행평가 서포터', className = '', ...rest },
+  { title, subtitle, label = '위닝 수행평가 서포터', className = '', ...rest },
   ref
 ) {
   return (

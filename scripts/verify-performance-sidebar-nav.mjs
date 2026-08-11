@@ -4,7 +4,7 @@
 // 무엇을 막는가
 // -------------
 // `PerformanceSidebar`의 메뉴 2항목은 **상호 배타**다 — 시안 `3754:3121`에서 pill이
-// `저장 리포트`로 **이동**하고 `위닝 AI 채팅` 쪽 pill은 사라진다. 그런데 활성 판정을
+// `저장 리포트`로 **이동**하고 `위닝 채팅` 쪽 pill은 사라진다. 그런데 활성 판정을
 // react-router의 `NavLink`에 맡기면 이 규칙이 조용히 깨진다:
 //
 //   NavLink는 `aria-current` prop을 자기 기본값(`ariaCurrentProp = 'page'`)으로 흡수하고
@@ -38,8 +38,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 
 // 검사 경로 4종. §3.4 메뉴 정본 + P13 세션 복구 라우트(`/app/performance/:sessionId`).
 const CASES = [
-  { pathname: '/app/performance', expected: '위닝 AI 채팅' },
-  { pathname: '/app/performance/8f1c2b3d-0000-4000-8000-000000000001', expected: '위닝 AI 채팅' },
+  { pathname: '/app/performance', expected: '위닝 채팅' },
+  { pathname: '/app/performance/8f1c2b3d-0000-4000-8000-000000000001', expected: '위닝 채팅' },
   { pathname: '/app/performance/reports', expected: '저장 리포트' },
   {
     pathname: '/app/performance/reports/8f1c2b3d-0000-4000-8000-000000000002',

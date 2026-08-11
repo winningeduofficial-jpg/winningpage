@@ -346,7 +346,7 @@ export default function App() {
               <RequireEntitlement
                 serviceKey="suhaeng"
                 forbiddenTo="/services/performance#pricing"
-                forbiddenNotice="AI 수행평가 서비스는 유료 이용권을 결제하신 뒤 이용할 수 있습니다."
+                forbiddenNotice="수행평가 서비스는 유료 이용권을 결제하신 뒤 이용할 수 있습니다."
               />
             }
           >

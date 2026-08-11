@@ -28,7 +28,7 @@ export function getMockPaidOrders() {
     },
     {
       id: 'dev-fake-suhaeng-6',
-      order_name: '[3개월 6회 이용권] 위닝 AI수행평가',
+      order_name: '[3개월 6회 이용권] 위닝 수행평가',
       amount: 24000,
       paid_at: now,
       is_fake_entitlement: true

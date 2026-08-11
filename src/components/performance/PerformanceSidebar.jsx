@@ -19,11 +19,12 @@ import { Link, useLocation } from 'react-router-dom';
 // 스텝 pill 486·523·560·597·634)를 flex column + gap으로 환산했다. 아래 여백 상수는 전부
 // 그 y좌표를 역산한 값이며, 주석에 원 좌표를 남겨 두었다(GoalSidebar와 같은 관례).
 
-// §3.4 메뉴 라벨 정본. `3754:3035` 한 노드만 `위닝 채팅`이고 나머지 전 인앱 노드가
-// `위닝 AI 채팅`이라 후자가 정본이다. 세 번째 항목 `설정`은 `3754:4872` 단독 출현이라
-// 이번 범위에서 제외한다(§3.4, §11 Q3).
+// §3.4 메뉴 라벨. 시안 원문은 `3754:3035` 한 노드만 `위닝 채팅`이고 나머지 전 인앱
+// 노드가 `위닝 AI 채팅`이라 후자가 정본이었으나, 사용자 지시로 화면 문구에서 "AI" 표기를
+// 전부 제거하며 `위닝 채팅`으로 확정한다(결과적으로 시안 예외 노드와 표기가 같아진다).
+// 세 번째 항목 `설정`은 `3754:4872` 단독 출현이라 이번 범위에서 제외한다(§3.4, §11 Q3).
 const MENU_ITEMS = [
-  { label: '위닝 AI 채팅', to: '/app/performance' },
+  { label: '위닝 채팅', to: '/app/performance' },
   { label: '저장 리포트', to: '/app/performance/reports' }
 ];
 
@@ -83,10 +84,10 @@ export default function PerformanceSidebar({
   stepStates = DEFAULT_STEP_STATES
 }) {
   const { pathname } = useLocation();
-  // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 AI 채팅`이 활성이어야
+  // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.
   // 두 항목은 상호 배타다 — `3754:3121`에서 pill이 `저장 리포트`(@10,365)로 **이동**하고
-  // `위닝 AI 채팅` 쪽 pill은 사라진다.
+  // `위닝 채팅` 쪽 pill은 사라진다.
   const isReports = pathname.startsWith('/app/performance/reports');
 
   // §11 Q61-ⓔ 결정: 부제는 `{학년}・{학교유형}` 조합이며 **학년 값이 없으면 학년 조각만
@@ -142,7 +143,7 @@ export default function PerformanceSidebar({
                     (`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로 다시 계산해 내보낸다
                     (react-router-dom/dist/index.js: `ariaCurrentProp = "page"` →
                     `isActive ? ariaCurrentProp : undefined`). 그래서 `/app/performance/reports`
-                    에서 `위닝 AI 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
+                    에서 `위닝 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
                     두 항목이 동시에 `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는
                     둘 다 현재 페이지라고 읽는다. 게다가 className이 문자열이면 활성 항목에
                     `active` 리터럴 클래스까지 덧붙는다. 활성 판정이 아래처럼 커스텀이고 두
