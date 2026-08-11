@@ -35,8 +35,9 @@
 // 원본 `:71`과 같은 자리에 같은 방식으로 끼워 넣는다.
 //
 // 설계 리포트(P10)는 외부에 없던 **4번째 주입 지점**이 된다(§11 ~~Q83~~ 결정) — 외부
-// `api/find-resources.js`는 import조차 하지 않는다. 그 주입은 P10이 자체 16원칙과의
-// 중복·충돌 병합 검토를 마친 뒤에 한다.
+// `api/find-resources.js`는 import조차 하지 않는다. 그 주입은 이 파일 아래쪽
+// 「CORE_PRINCIPLES ↔ 16원칙 병합」 절에서 병합 검토를 마친 뒤 이뤄졌다
+// (`buildDesignReportSystem`, `CORE_PRINCIPLES_DESIGN_BRIDGE`).
 export const CORE_PRINCIPLES = `
 [AI 수행평가 코치 핵심 원칙]
 
@@ -519,3 +520,752 @@ export const TOPIC_MAX_OUTPUT_TOKENS_RETRY = 8192;
  * 위 ⓐ/ⓑ/ⓒ 경계 중 **어느 한 줄이라도** 바뀌면 이 값을 올린다.
  */
 export const TOPIC_PROMPT_VERSION = 'topic-v1';
+
+
+// ─────────────────────────────────────────────────────────────────────
+// 설계 리포트 (P10)
+// ─────────────────────────────────────────────────────────────────────
+// 원문: `suhaengpyeong/api/find-resources.js:377-491`(system, 본문 378-490) /
+//       `:493-515`(user, 본문 494-514).
+//
+// 주제 추천(P8)과 같은 §8.4 ~~Q69~~ 예외 아래 있다 — **출력 계약만** 평문 → 구조화
+// JSON(`responseSchema`)으로 바뀌고, 도메인 규칙(16원칙·자료 사용 규칙·섹션별 서술
+// 지침)은 원문 그대로다. 아래 ⓐⓑⓒ가 그 경계의 전부이며 P8의 표기 관례를 따른다.
+//
+// ── ⓐ 원문 그대로 유지 (한 글자도 바꾸지 않았다) ────────────────────
+//   · 역할 1줄 `당신은 고등학생 … 전문가입니다.`        (원문 `:378`)
+//   · `목표:` 3줄                                       (원문 `:380-382`)
+//   · `중요 원칙:` + **16원칙 전문**                     (원문 `:384-400`)
+//   · `[안내문 구조 판정]` 블록 라벨 4줄                 (원문 `:402-406`)
+//   · `[홈페이지 위닝 수행 자료 DB]` + 빈 값 문구        (원문 `:408-409`)
+//   · `[사용 허용 자료명 목록]` **헤더 문자열**          (원문 `:411`)
+//   · `[학생 과거 수행 RAG]`                             (원문 `:416-417`)
+//   · `출력 방식:` 헤더 + 형식 분기 지시 1줄             (원문 `:419`, `:421`)
+//   · 섹션별 하위 키 목록 전문                           (원문 `:424-427`, `:430-431`,
+//     `:434-437`, `:440-443`, `:486-490`)
+//   · 형식별 작성 구조 3분기 본문                        (원문 `:448-461`, `:463-479`,
+//     `:481-483`) — **판정 결과에 해당하는 분기만 조건부 주입**(§12.1)
+//   · user 메시지 블록 라벨 + 작업 지시 4줄              (원문 `:494-514`)
+//
+// ── ⓑ JSON 계약 전환으로 **문구를 교체**한 것 ───────────────────────
+//   ⓑ-1 원문 `:412` — `[사용 허용 자료명 목록]`의 **값**이 자료명 문자열 나열
+//        (`title.join(' / ')`, 원문 `:357`)에서 **`id | 자료명` 목록**으로 바뀐다
+//        (§12.1 「`:411-412`은 … 자료 id 목록으로 바꿔 모델이 id를 고르게 한다」, Q63).
+//        **헤더 `:411`은 원문 그대로 둔다** — 16원칙 12조가 `사용 허용 자료명 목록`이라는
+//        문자열을 그대로 인용해 "학생에게 보이는 출력에 쓰지 마라"고 지시하기 때문이다.
+//        헤더를 `[사용 허용 자료 목록]`으로 고치면 12조의 지시 대상이 프롬프트에서
+//        사라진다(1바이트 규정을 지키면서 지시만 무력화되는 최악의 경우).
+//   ⓑ-2 원문 `:414` `주의: 2번 추천 자료 항목에는 위 […]에 있는 자료명만 쓸 수 있다.
+//        목록이 '없음'이면 자료명을 만들지 말고, …`
+//        → `주의: chosen_resources 필드에는 위 […]에 있는 자료 id만 쓸 수 있다.
+//           목록이 '없음'이면 id를 만들지 말고 chosen_resources를 빈 배열로 두며, …`
+//        사유: `2번 추천 자료 항목`은 삭제되는 번호 뼈대의 2번 줄을 가리키는 말이라
+//        뼈대가 사라지면 지시 대상이 사라진다(P8 ⓑ와 완전히 같은 사유). 뒷문장
+//        (`학생에게 보이는 출력에는 DB, 내부 자료, RAG, …`)은 원문 그대로다.
+//
+// ── ⓒ `responseSchema`로 대체해 **삭제**한 것 ───────────────────────
+//   원문 `:420` `아래 번호는 기본 뼈대이지만, 4번 이후의 작성 구조는 …`  (번호 뼈대 참조)
+//   원문 `:423`,`:429`,`:433`,`:439`,`:445`,`:485`의 **번호 접두어 `N. `만** 제거
+//     → 섹션 id·라벨·순서는 `DESIGN_REPORT_SECTIONS`가 정하고 스키마가 강제한다.
+//       **제목 문자열 자체는 원문 그대로 남는다**(`최종 주제`, `추천 자료 및 활용 포인트`
+//       …) — 이 문자열이 곧 §5.13 실측 섹션 라벨이라 지우면 모델이 어느 섹션을 쓰는지
+//       알 수 없게 된다.
+//   원문 `:446` `안내문 구조 판정에 따라 아래 중 하나로 구성한다.`
+//     → 분기를 **하나만** 주입하므로(§12.1) 고를 대상이 없다.
+//   ⚠ 그 외 `:419-490` 구간은 **삭제하지 않았다.** §12.1이 「스키마로 대체할 것은
+//     `:419-490`의 번호 뼈대뿐이다」라고 못박은 그대로다.
+//
+// ── ⚠ 마크다운 금지(16원칙 14, 원문 `:398`)는 삭제 대상이 아니다 ────
+//   §12.1이 「`:398`(원칙 14) 마크다운 금지는 이식한다 — 의미 규칙이며 스키마로
+//   대체되지 않는다」로 명시했다. `responseSchema`는 JSON **구조**만 강제할 뿐 문자열
+//   필드 값 안의 `**강조**`를 막지 못하고, 외부 클라이언트 `stripMarkdown`
+//   폴백(`index.html:3094`)은 §12.4로 폐기된다 — 이 한 줄이 유일한 방어선이다(P8 동일).
+//
+// ── 추천 자료 섹션을 모델 스키마에서 뺀 이유 ────────────────────────
+//   `DESIGN_REPORT_SECTIONS`의 `recommended_resources`만 `authoredBy: 'server'`다.
+//   모델은 `chosen_resources[{resource_id, use_point}]`만 고르고, 자료명·출처·링크·핵심
+//   개념은 서버가 위닝DB 행에서 채운다. **이것은 원문의 의도를 코드로 옮긴 것이다** —
+//   원문 `:430`이 이미 `이 항목은 시스템이 위닝 수행 자료 DB에서 확인된 자료만으로 최종
+//   보정한다`라고 선언하고 있고, 외부 앱도 모델 출력의 2번 섹션을 통째로 버린 뒤
+//   `buildDbOnlyResourceSection`(`:152-176`)으로 갈아 끼웠다. 모델이 자료명을 **문자열로
+//   낼 자리 자체를 없애면** 16원칙 8~13(DB 밖 자료 생성 금지)이 프롬프트 준수가 아니라
+//   구조적 불가능이 된다.
+
+
+// ─────────────────────────────────────────────────────────────────────
+// CORE_PRINCIPLES ↔ 16원칙 병합 (§11 ~~Q83~~ 결정 — 주입한다)
+// ─────────────────────────────────────────────────────────────────────
+// 외부 앱은 `CORE_PRINCIPLES`를 3곳(`recommend-topics.js:113` / `evaluate-text.js:63` /
+// `analyze-assessment-storage.js:71`)에만 주입했고 설계 리포트에는 주입하지 않았다.
+// Q83 결정으로 **4번째 주입 지점**이 신설된다.
+//
+// 조 단위 대조 결과 — 중복 3건 / 충돌 3건 / 독립 2건:
+//
+//   [중복]  CORE 1(이전 주제 심화·확장)      ↔ 16원칙 15·16(과거 수행 반복 금지·재구성)
+//           CORE 3(표절 방지)                ↔ 16원칙 7(완성문 금지)
+//           CORE 6(불확실 정보 단정 금지)    ↔ 16원칙 10·13(DB 밖 자료·검색 키워드 금지)
+//           → 셋 다 같은 방향이라 병기해도 서로를 약화시키지 않는다. 16원칙 쪽이 더
+//             구체적(자료·출력물 한정)이라 실제 판단은 자연히 좁은 쪽으로 수렴한다.
+//
+//   [충돌①] CORE 1 `이전 주제의 심화·확장 주제를 최우선으로 선정한다`
+//           ↔ 설계 리포트는 **주제가 이미 확정된 뒤**의 단계다(STEP4, §5.12).
+//           → 그대로 두면 모델이 확정 주제를 바꾸거나 대체 주제를 제안할 수 있다.
+//   [충돌②] CORE 2의 서사 예문(`"~에 흥미를 느껴 ~을 탐구했다. …"`)
+//           ↔ 16원칙 7 `학생이 그대로 제출할 수 있는 완성문을 쓰지 않는다`
+//           → 예문을 리포트 본문에 그대로 옮기면 완성문 금지 위반이다.
+//   [충돌③] CORE 5 학년별 탐구 방향(특히 고3 `심층 탐구 중심`)
+//           ↔ 16원칙 8~13(자료는 위닝DB에 있는 것만)
+//           → 심화 요구가 "DB에 없는 심층 자료를 지어내라"는 압력으로 작동할 수 있다.
+//             §12.1이 병합 검토 대상으로 직접 지목한 조합이다.
+//
+//   [독립]  CORE 4(평가 항목 전수 충족)      — 16원칙 4와 상보적이다. 4조는 "평가기준을
+//           답변 문항으로 착각하지 마라"이고 CORE 4는 "평가 항목을 기준으로 삼아라"라
+//           지시가 겹치지 않는다(기준으로 쓰되 문항으로 쓰지 않는다).
+//           16원칙 1~3·5·6·14 — CORE_PRINCIPLES에 대응 조항이 없다.
+//
+// **해소 방식 — 원문은 한 글자도 고치지 않는다.** 충돌 3건을 없애려고 CORE_PRINCIPLES나
+// 16원칙 본문을 손대면 §12.1 「1바이트도 변경 금지」 위반이다. 대신 **주입 순서 + 연결
+// 문장 블록**으로 해소한다:
+//     `CORE_PRINCIPLES` → `CORE_PRINCIPLES_DESIGN_BRIDGE`(신규) → 원문 본문
+// 연결 문장은 어느 원문에도 속하지 않는 **이 저장소의 신규 자산**이며, 충돌 3건에 각각
+// 한 줄씩 대응하고 마지막 줄로 일반 우선순위(**충돌 시 16원칙 우선**)를 못박는다.
+// 16원칙을 우선하는 근거: `CORE_PRINCIPLES`는 서비스 전역 코치 원칙이고 16원칙은 **이
+// 산출물(설계 리포트)의 계약**이다. 좁은 계약이 넓은 원칙을 이긴다.
+export const CORE_PRINCIPLES_DESIGN_BRIDGE = `
+[핵심 원칙 적용 범위]
+- 위 핵심 원칙은 이번 단계의 배경 기준이다. 주제는 학생이 이미 확정했으므로 다시 선정하거나 바꾸지 않는다.
+- 핵심 원칙 2의 예시 문장은 주제의 서사가 성립하는지 판단하는 기준일 뿐이며, 그 문장을 리포트 본문에 그대로 쓰지 않는다.
+- 학년별 탐구 방향은 탐구 내용의 깊이를 정할 때만 적용하고, 자료는 어떤 경우에도 아래 중요 원칙 8~13을 따른다.
+- 위 핵심 원칙과 아래 중요 원칙이 어긋나면 아래 중요 원칙을 따른다.
+`.trim();
+
+
+/** 위닝DB 자료 RAG 결과가 비었을 때 렌더하는 문구. 원문 `find-resources.js:409`. */
+export const NO_RESOURCE_KNOWLEDGE_TEXT = '사용 가능한 내부 자료 없음';
+
+/** 사용 허용 자료 목록이 비었을 때 렌더하는 문구. 원문 `find-resources.js:357`. */
+export const NO_ALLOWED_RESOURCE_TEXT = '없음';
+
+/** `selected_topic_detail`·`previous_topic`이 비었을 때. 원문 `:498`, `:505`. */
+export const NO_TOPIC_DETAIL_TEXT = '없음';
+
+/** 안내문 요약이 비었을 때. 원문 `:508`. */
+export const NO_ASSESSMENT_INFO_TEXT = '안내문 정보 없음';
+
+/**
+ * 설계 리포트 프롬프트 버전 2종.
+ *
+ * §12.1·명세 L1620: 「설계 리포트는 ~~Q83~~ 결정에 따라 `design-v2`(`CORE_PRINCIPLES`
+ * 주입) **고정**. 미주입 비교본(`design-v1`)은 A/B 검증용으로만 별도 기록」.
+ *
+ * 두 버전의 **유일한 차이**는 `CORE_PRINCIPLES` + 연결 문장 블록의 유무다. 그래야 A/B가
+ * 단일 변수 비교가 된다 — `buildDesignReportSystem`은 v2 = `CORE + BRIDGE + '\n\n' + v1`을
+ * 보장하고, `scripts/verify-performance-prompt-parity.mjs`가 `endsWith`로 그 관계를 검증한다.
+ */
+export const DESIGN_PROMPT_VERSIONS = Object.freeze({
+  /** `CORE_PRINCIPLES` 미주입 — 외부 앱 동작 재현본. **A/B 검증 전용.** */
+  WITHOUT_CORE: 'design-v1',
+  /** `CORE_PRINCIPLES` 주입 — ~~Q83~~ 결정 정본. */
+  WITH_CORE: 'design-v2'
+});
+
+/** 기본값 = 주입본 고정(~~Q83~~). */
+export const DESIGN_PROMPT_VERSION_DEFAULT = DESIGN_PROMPT_VERSIONS.WITH_CORE;
+
+/**
+ * 프롬프트 버전 전환 스위치의 이름. **서버 환경변수 한 곳뿐이다.**
+ *
+ * 저장소 관례상 런타임 설정은 전부 `process.env`에서 읽는다(`gemini.js:45`
+ * `GEMINI_API_KEY`, `embeddings.js:57` `GEMINI_EMBEDDING_MODEL`) — 요청 body로 모델
+ * 파라미터를 받는 선례가 없다. 프롬프트 선택도 같은 계층에 둔다.
+ */
+export const DESIGN_PROMPT_VERSION_ENV = 'PERFORMANCE_DESIGN_PROMPT_VERSION';
+
+/**
+ * 이번 요청에 쓸 설계 리포트 프롬프트 버전을 **서버가** 정한다.
+ *
+ * **클라이언트는 이 값을 바꿀 수 없다.** 엔드포인트는 요청 body를 보지 않고 이 함수를
+ * 호출해야 하며, 그래서 인자가 `env` 하나뿐이다(요청 객체를 받지 않는 시그니처 자체가
+ * 계약이다). `design-v1`은 정확히 그 문자열이 환경변수에 들어 있을 때만 선택되고,
+ * 오타·빈 값·알 수 없는 값은 전부 기본값(`design-v2`)으로 떨어진다 — 스위치가 잘못
+ * 설정돼도 **주입본이 기본**이라는 ~~Q83~~ 결정이 깨지지 않는다.
+ *
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {'design-v1'|'design-v2'}
+ */
+export function resolveDesignPromptVersion(env = process.env) {
+  const raw = String(env?.[DESIGN_PROMPT_VERSION_ENV] || '').trim();
+
+  return raw === DESIGN_PROMPT_VERSIONS.WITHOUT_CORE
+    ? DESIGN_PROMPT_VERSIONS.WITHOUT_CORE
+    : DESIGN_PROMPT_VERSION_DEFAULT;
+}
+
+/**
+ * 설계 리포트 6섹션 — **렌더 순서의 정본**(시안 `3754:4722` 배치 순서, §5.13 「섹션 목록
+ * (단정, 배치 순서 그대로)」). 모델 출력 순서와 무관하게 서버가 이 순서로 조립한다
+ * (P8 `TOPIC_DETAIL_SECTIONS` 관례).
+ *
+ * §5.13 실측 표는 7행이지만 7번은 라벨 없이 2번이 다시 나오는 **시안 오류**로 판정됐고
+ * (§5.13 「단정 (문제)」, §11-Q13), §8.4 스키마 정의도 「6섹션 고정」이다 → 6섹션.
+ *
+ * `authoredBy: 'server'`인 섹션은 모델 스키마에 없다(위 「추천 자료 섹션을 모델
+ * 스키마에서 뺀 이유」 참조).
+ */
+export const DESIGN_REPORT_SECTIONS = [
+  { id: 'final_topic', label: '최종 주제', authoredBy: 'model' },
+  { id: 'recommended_resources', label: '추천 자료 및 활용 포인트', authoredBy: 'server' },
+  { id: 'required_format', label: '안내문 요구 형식 분석', authoredBy: 'model' },
+  { id: 'overall_direction', label: '수행평가 전체 방향', authoredBy: 'model' },
+  { id: 'writing_structure', label: '작성 구조 설계', authoredBy: 'model' },
+  { id: 'checklist', label: '학생 작성 체크리스트', authoredBy: 'model' }
+];
+
+/**
+ * 키-값 섹션 3종의 행 라벨 — §5.13 「본문 내부 하위 구조 (단정 — 원문 키)」 그대로이며
+ * 원문 프롬프트의 하위 키 줄(`find-resources.js:424-427`, `:434-437`, `:440-443`)과도
+ * 같은 문자열이다.
+ *
+ * **라벨을 모델에게 시키지 않고 서버가 붙인다**(P8이 6섹션 라벨을 `TOPIC_DETAIL_SECTIONS`로
+ * 뺀 것과 같은 이유). 스키마 필드는 영문 키뿐이라 모델이 라벨을 흔들 자리가 없다.
+ */
+export const DESIGN_SECTION_ROW_LABELS = Object.freeze({
+  final_topic: [
+    { key: 'topic_name', label: '주제명' },
+    { key: 'core_meaning', label: '주제의 핵심 의미' },
+    { key: 'subject_link', label: '선택 과목과 연결되는 지점' },
+    { key: 'career_link', label: '희망 진로와 연결되는 지점' }
+  ],
+  required_format: [
+    { key: 'submission_format', label: '안내문상 제출 형식' },
+    { key: 'item_vs_criteria', label: '답변해야 할 항목과 평가기준의 구분' },
+    { key: 'report_structure', label: '이번 리포트에서 따라야 할 글 구조' },
+    { key: 'cautions', label: '주의할 점' }
+  ],
+  overall_direction: [
+    { key: 'core_goal', label: '중심 목표' },
+    { key: 'analysis_points', label: '분석 포인트' },
+    { key: 'concept_expression', label: '교과 개념을 드러내는 방식' },
+    { key: 'student_interpretation', label: '학생의 해석이 꼭 들어가야 하는 부분' }
+  ]
+});
+
+/**
+ * 자료 카드 필드 6종 — §5.13 자료 블록 하위 키, 원문 `find-resources.js:163-172`.
+ * `use_point`만 모델이 채우고 나머지는 위닝DB 행에서 온다.
+ * 문자열 조립(`:160-175`)은 폐기됐다(§12.1) — `resources[]` 배열이 대신한다.
+ */
+export const DESIGN_RESOURCE_CARD_FIELDS = Object.freeze([
+  { key: 'title', label: '자료명', source: 'db' },
+  { key: 'source', label: '출처 정보', source: 'db' },
+  { key: 'link', label: '출처 링크', source: 'db' },
+  { key: 'core_concepts', label: '핵심 개념', source: 'db' },
+  { key: 'use_point', label: '활용 포인트', source: 'model' },
+  { key: 'caution', label: '작성 시 주의', source: 'const' }
+]);
+
+/** 자료 카드 필드가 비었을 때 채우는 문구. 원문 `find-resources.js:167-171`. */
+export const DESIGN_RESOURCE_FIELD_FALLBACKS = Object.freeze({
+  source: '출처 정보 확인 필요',
+  link: '출처 링크 확인 필요',
+  core_concepts: '선택 주제와 직접 관련되는 핵심 개념을 중심으로 확인한다.',
+  use_point: '자료의 사례와 분석 관점을 본론 근거로 활용하되, 학생의 해석을 덧붙인다.',
+  caution: '자료 내용을 그대로 옮기지 말고, 선택 주제와 연결되는 부분만 근거로 사용한다.'
+});
+
+/**
+ * 위닝DB 자료가 0건일 때 `추천 자료 및 활용 포인트` 섹션에 들어가는 3행.
+ * 원문 `find-resources.js:154-157`(번호 뼈대 `2. ` 헤더 줄은 섹션 라벨로 흡수).
+ * `주의할 점` 행의 문구는 §12.1이 「서비스 신뢰 문구」로 지목한 원문 `:157`이다.
+ */
+export const DESIGN_EMPTY_RESOURCE_ROWS = Object.freeze([
+  { label: '자료 활용 기준', content: '수업 개념과 선택 주제를 직접 연결할 수 있는 도서·기사·기관 자료만 사용한다.' },
+  { label: '작성 방식', content: '자료명, 저자 또는 기관, 출처 링크를 실제 확인한 뒤 본론의 근거로 정리한다.' },
+  { label: '주의할 점', content: '확인하지 않은 자료명이나 링크를 임의로 넣지 않는다.' }
+]);
+
+/**
+ * 마무리(결론) 기본 문구 4줄. 원문 `find-resources.js:25-28`.
+ *
+ * §12.1 「**문구만** 살린다. 트리거 정규식(`:18`)과 append(`:22-28`)는 폐기. JSON 스키마
+ * 필수 필드 + 누락 시 기본값. 번호 접두어 `7.`은 6섹션 구조와 충돌하므로 제거」 그대로다 —
+ * 원문은 결론 문단이 없어 보이면 텍스트 뒤에 `7. 마무리 구성 방향`을 통째로 이어 붙였는데
+ * (정규식 트리거 → 문자열 append), 6섹션 구조에서는 7번 섹션 자리가 없다. 이 상수는
+ * `writing_structure`의 결론 단계가 비었을 때 채우는 **기본값**으로만 쓴다.
+ */
+export const DESIGN_CONCLUSION_DEFAULT_ROWS = Object.freeze([
+  { label: '정리 방식', content: '안내문 형식에 맞춰 앞에서 다룬 핵심 내용을 2~3가지로 압축한다.' },
+  { label: '새롭게 알게 된 점', content: '교과 개념과 선택 주제가 실제 문제 이해에 어떻게 도움이 되었는지 정리한다.' },
+  { label: '진로 또는 후속 탐구 연결', content: '희망 진로와 연결하되 과장하지 말고, 다음에 더 확인할 질문을 제시한다.' },
+  { label: '피해야 할 점', content: '본문에 없던 새로운 자료나 주장을 마지막에 갑자기 추가하지 않는다.' }
+]);
+
+/**
+ * `작성 구조 설계` 형식 분기 3종. 본문은 원문 `find-resources.js:448-461`(문항형) /
+ * `:463-479`(보고서형) / `:481-483`(그 외) 그대로다.
+ *
+ * §12.1 「`:445-483`의 형식별 3분기는 판정 결과에 해당하는 분기만 조건부 주입」 —
+ * 외부는 3분기를 전부 넣고 모델에게 고르게 했다. 하나만 넣으면 토큰이 줄고, 다른 분기의
+ * 항목명(`서론`/`본론`)이 카드뉴스형 리포트에 새는 사고도 막는다.
+ *
+ * 분기 선택 헤더 줄(`문항별 답변형이면:` 등)은 **원문 그대로 남긴다** — 주입된 분기에
+ * 대해서는 참인 조건문이고, 지우면 그 아래 항목이 무슨 형식의 것인지 모델이 알 수 없다.
+ */
+export const DESIGN_WRITING_BRANCHES = Object.freeze({
+  question: `
+문항별 답변형이면:
+문항 1. [문항 내용]
+- 답변 방향:
+- 넣을 교과 개념:
+- 활용 가능한 자료:
+- 학생 해석 포인트:
+- 피해야 할 점:
+
+문항 2. [문항 내용]
+- 답변 방향:
+- 넣을 교과 개념:
+- 활용 가능한 자료:
+- 학생 해석 포인트:
+- 피해야 할 점:
+`.trim(),
+
+  report: `
+보고서형이면:
+서론 구성 방향
+- 역할:
+- 반드시 포함할 내용:
+- 도입 문제의식:
+- 피해야 할 점:
+
+본론 구성 방향
+- 본론 항목 A:
+- 본론 항목 B:
+- 필요 시 본론 항목 C:
+
+결론 구성 방향
+- 탐구 결과 정리 방식:
+- 새롭게 알게 된 점:
+- 진로 또는 후속 탐구 연결:
+- 피해야 할 점:
+`.trim(),
+
+  other: `
+카드뉴스/발표/칼럼/독서감상문 등 다른 형식이면:
+- 해당 형식의 항목명에 맞춰 3~5개 작성 단계를 제시한다.
+- 서론/본론/결론이라는 명칭을 억지로 쓰지 않는다.
+`.trim()
+});
+
+/**
+ * `inferAssessmentStructure`(원문 `find-resources.js:241-299`)의 7유형 → 분기 키.
+ * 키 문자열은 원문 `:248`,`:256`,`:264`,`:272`,`:280`,`:288`,`:295`의 리터럴 그대로다
+ * (판정 함수 자체의 이식은 §12.2 소관이라 여기서 다시 만들지 않는다).
+ *
+ * 매핑에 없는 유형은 `report`로 떨어진다 — 원문 16원칙 2조(`안내문 형식이 불명확할
+ * 때만 기본 보고서 구조를 사용한다`)가 정한 기본값이 곧 판정 함수의 기본 반환
+ * `기본 보고서형`(`:295`)이기 때문이다.
+ */
+export const DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE = Object.freeze({
+  '문항별 답변형': 'question',
+  '카드뉴스·홍보물형': 'other',
+  '발표·PPT형': 'other',
+  '칼럼·논술형': 'other',
+  '안내문 맞춤 작성형': 'other',
+  '탐구보고서형': 'report',
+  '기본 보고서형': 'report'
+});
+
+/** @param {string} [structureType] `inferAssessmentStructure().type` */
+export function resolveDesignWritingBranch(structureType = '') {
+  return DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE[String(structureType || '').trim()] || 'report';
+}
+
+/**
+ * `[사용 허용 자료명 목록]`에 들어갈 값(ⓑ-1). 자료명 나열이 아니라 **id 목록**이다.
+ *
+ * 모델은 `chosen_resources[].resource_id`로 여기 있는 id만 고를 수 있고, 자료명·출처·
+ * 링크는 서버가 같은 id로 위닝DB 행을 찾아 채운다. 자료명을 곁들이는 이유는 id만으로는
+ * 무엇을 고를지 판단할 수 없기 때문이며, 그 자료명이 출력으로 흘러나가지 않는 것은
+ * 스키마에 자료명 필드가 아예 없다는 사실이 보장한다.
+ *
+ * ⚠ `id`는 **짧고 안정적인 핸들**(`R1`, `R2` …)을 넘겨라. uuid 36자를 그대로 넣으면
+ * 토큰을 먹고, 모델이 한 글자 틀리면 그 자료가 통째로 사라진다. 핸들 ↔ 실제 행 매핑은
+ * 호출부가 들고 있는다(프롬프트 모듈은 id 정책을 정하지 않는다).
+ *
+ * @param {Array<{id: string, title: string}>} [resources]
+ */
+export function buildAllowedResourceList(resources = []) {
+  const lines = (Array.isArray(resources) ? resources : [])
+    .map((resource) => ({
+      id: String(resource?.id || '').trim(),
+      title: String(resource?.title || '').trim()
+    }))
+    .filter((resource) => resource.id && resource.title)
+    .map((resource) => `- ${resource.id} | ${resource.title}`);
+
+  return lines.length ? lines.join('\n') : NO_ALLOWED_RESOURCE_TEXT;
+}
+
+/**
+ * 설계 리포트 system 프롬프트 — 원문 본문(v1)과 `CORE_PRINCIPLES` 주입본(v2)을 **둘 다**
+ * 빌드한다.
+ *
+ * @param {object} params
+ * @param {'design-v1'|'design-v2'} [params.promptVersion] `resolveDesignPromptVersion()`
+ *   결과를 넘겨라. 알 수 없는 값은 기본값(주입본)으로 떨어진다.
+ * @param {string} [params.structureType] `inferAssessmentStructure().type` (원문 `:403`)
+ * @param {string} [params.structureReason] 같은 함수의 `reason` (원문 `:404`)
+ * @param {string} [params.writingFrame] 같은 함수의 `writingFrame` (원문 `:406`)
+ * @param {string} [params.writingBranch] 분기 강제 지정(테스트용). 없으면 `structureType`에서 유도
+ * @param {string} [params.resourceKnowledgeText] 자료 RAG 결과(`purpose:'resource'`)
+ * @param {Array<{id: string, title: string}>} [params.allowedResources] 위닝DB 자료 후보
+ * @param {string} [params.studentHistoryText] 학생 과거 수행 RAG 결과
+ */
+export function buildDesignReportSystem({
+  promptVersion = DESIGN_PROMPT_VERSION_DEFAULT,
+  structureType = '',
+  structureReason = '',
+  writingFrame = '',
+  writingBranch = '',
+  resourceKnowledgeText = '',
+  allowedResources = [],
+  studentHistoryText = ''
+} = {}) {
+  const branchKey = writingBranch || resolveDesignWritingBranch(structureType);
+  const branchText = DESIGN_WRITING_BRANCHES[branchKey] || DESIGN_WRITING_BRANCHES.report;
+
+  // ⓐ 원문 본문. v1은 이것 그대로이고, v2는 이 앞에 두 블록이 더 붙을 뿐이다.
+  const body = `
+당신은 고등학생 수행평가 설계 리포트 작성 전문가입니다.
+
+목표:
+학생이 선택한 주제에 대해 "통합 수행평가 설계 리포트"를 작성한다.
+단, 안내문이 요구하는 제출 형식과 글 구조를 먼저 분석하고 그 구조에 맞춰 리포트를 구성한다.
+
+중요 원칙:
+1. 안내문이 문항별 답변, 카드뉴스, 발표, 칼럼, 독서감상문, 탐구보고서 등 특정 형식을 요구하면 그 형식을 우선한다.
+2. 안내문 형식이 불명확할 때만 기본 보고서 구조를 사용한다.
+3. 서론/본론/결론 구조를 모든 경우에 강제로 적용하지 않는다.
+4. 평가 기준의 "~하였는가" 문장은 학생이 답해야 할 질문으로 착각하지 않는다.
+5. "핵심 질문"은 탐구 설계를 돕기 위한 질문이지 제출폼의 문항으로 둔갑시키지 않는다.
+6. 전체 분량은 너무 길게 쓰지 말고, 핵심만 압축한다.
+7. 학생이 그대로 제출할 수 있는 완성문을 쓰지 않는다. 반드시 구성 방향, 포함 요소, 전개 순서로 쓴다.
+8. 추천 자료는 아래 위닝 수행 자료 DB에 실제로 제시된 자료만 사용한다.
+9. 위닝 수행 자료 DB에 있는 자료명, 출처, 출처 링크만 그대로 사용한다.
+10. DB에 없는 자료명, 링크, 저자, 기관명, 검색 키워드는 절대 만들지 않는다.
+11. 자료가 부족하면 자료 2, 자료 3을 억지로 채우지 않는다.
+12. 자료 부족 여부, DB, 내부 자료, RAG, 사용 허용 자료명 목록 같은 시스템 내부 표현은 학생에게 보이는 출력에 쓰지 않는다.
+13. '확인 필요 (전문 서적 또는 학술 자료 검색)'처럼 존재하지 않는 자료를 검색 키워드 형태로 만들지 않는다.
+14. 출력에 *, **, ## 같은 마크다운 기호를 쓰지 않는다.
+15. 학생 과거 수행 기록을 참고하여 이미 사용한 주제와 자료는 그대로 반복하지 않는다.
+16. 과거 수행과 유사한 흐름이 있으면 이번 선택 주제에 맞게 심화·확장 방향으로 재구성한다.
+
+[안내문 구조 판정]
+- 판정 유형: ${String(structureType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 판정 근거: ${String(structureReason || '').trim() || UNKNOWN_FIELD_TEXT}
+- 우선 작성 틀:
+${String(writingFrame || '').trim() || UNKNOWN_FIELD_TEXT}
+
+[홈페이지 위닝 수행 자료 DB]
+${String(resourceKnowledgeText || '').trim() || NO_RESOURCE_KNOWLEDGE_TEXT}
+
+[사용 허용 자료명 목록]
+${buildAllowedResourceList(allowedResources)}
+
+주의: chosen_resources 필드에는 위 [사용 허용 자료명 목록]에 있는 자료 id만 쓸 수 있다. 목록이 '없음'이면 id를 만들지 말고 chosen_resources를 빈 배열로 두며, 학생용 표현으로 자료 확인이 필요하다고만 정리하라. 학생에게 보이는 출력에는 DB, 내부 자료, RAG, 검증 자료 부족이라는 표현을 쓰지 마라.
+
+[학생 과거 수행 RAG]
+${String(studentHistoryText || '').trim() || NO_STUDENT_HISTORY_TEXT}
+
+출력 방식:
+안내문이 문항별 답변형이면 문항별 작성 방향을 제시하고, 보고서형이면 서론/본론/결론 흐름을 제시하라.
+
+최종 주제
+- 주제명:
+- 주제의 핵심 의미:
+- 선택 과목과 연결되는 지점:
+- 희망 진로와 연결되는 지점:
+
+추천 자료 및 활용 포인트
+- 이 항목은 시스템이 위닝 수행 자료 DB에서 확인된 자료만으로 최종 보정한다.
+- 자료가 부족해도 검색 키워드나 가상의 자료명을 만들지 않는다.
+
+안내문 요구 형식 분석
+- 안내문상 제출 형식:
+- 답변해야 할 항목과 평가기준의 구분:
+- 이번 리포트에서 따라야 할 글 구조:
+- 주의할 점:
+
+수행평가 전체 방향
+- 중심 목표:
+- 분석 포인트:
+- 교과 개념을 드러내는 방식:
+- 학생의 해석이 꼭 들어가야 하는 부분:
+
+작성 구조 설계
+${branchText}
+
+학생 작성 체크리스트
+- 체크 1:
+- 체크 2:
+- 체크 3:
+- 체크 4:
+- 체크 5:
+`.trim();
+
+  if (promptVersion === DESIGN_PROMPT_VERSIONS.WITHOUT_CORE) return body;
+
+  // 기본값(=주입본). 알 수 없는 버전 문자열도 여기로 떨어진다 — ~~Q83~~ 결정이 "주입"이므로
+  // 잘못 설정된 스위치가 미주입본을 켜는 방향으로 실패해서는 안 된다.
+  return `${CORE_PRINCIPLES}\n\n${CORE_PRINCIPLES_DESIGN_BRIDGE}\n\n${body}`;
+}
+
+/**
+ * 설계 리포트 user 메시지. 원문 `find-resources.js:493-515`.
+ *
+ * 필드 소스 매핑(§12.1 「설계 리포트 user 프롬프트 템플릿」 행 — `selectedSavedSession.*`
+ * 의존을 세션 객체로 치환):
+ *   · `학년/학기` ← `performance_sessions.grade_label` + `semester` (Q10)
+ *   · `학교 유형` ← `performance_sessions.school_type` (Q61-ⓔ)
+ *   · `선택 과목` ← `subject_group / subject` 결합
+ *   · `이전 주제` ← `previous_topic`, 없으면 원문 리터럴 `'없음'`
+ *
+ * ⚠ 원문 `:339-341`의 하드코딩 폴백 3종(`grade || '고등학생'`, `subject || '국어'`,
+ *   `school_type || '일반고'`)은 **하나도 이식하지 않는다.** §8.3·§12.1이 `'일반고'`에
+ *   대해 못박은 규정이고, 나머지 둘도 같은 성격의 거짓값이다 — `'국어'` 폴백은 과목이
+ *   비었을 때 국어 리포트를 만들어 내고 그 결과가 그대로 저장된다. 값이 없으면 전부
+ *   `미입력`을 렌더한다.
+ *
+ * @param {object} params
+ * @param {string} [params.selectedTopic] 확정 주제명
+ * @param {string} [params.selectedTopicDetail] 확정 주제의 6요소 상세를 평문으로 편 결과
+ *   (직렬화는 호출부 몫 — P8이 `assessmentText`를 다룬 방식과 같다)
+ * @param {string} [params.gradeLabel]
+ * @param {string} [params.semester]
+ * @param {string} [params.schoolType]
+ * @param {string} [params.subjectGroup]
+ * @param {string} [params.subject]
+ * @param {string} [params.career]
+ * @param {string} [params.previousTopic]
+ * @param {string} [params.assessmentText] 수행평가 안내문 요약
+ */
+export function buildDesignReportUser({
+  selectedTopic = '',
+  selectedTopicDetail = '',
+  gradeLabel = '',
+  semester = '',
+  schoolType = '',
+  subjectGroup = '',
+  subject = '',
+  career = '',
+  previousTopic = '',
+  assessmentText = ''
+} = {}) {
+  const gradeText = [gradeLabel, semester]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ') || UNKNOWN_FIELD_TEXT;
+
+  const subjectText = [subjectGroup, subject]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' / ') || UNKNOWN_FIELD_TEXT;
+
+  return `
+[선택 주제]
+${String(selectedTopic || '').trim() || UNKNOWN_FIELD_TEXT}
+
+[선택 주제 상세]
+${String(selectedTopicDetail || '').trim() || NO_TOPIC_DETAIL_TEXT}
+
+[학생 정보]
+- 학년/학기: ${gradeText}
+- 학교 유형: ${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 선택 과목: ${subjectText}
+- 희망 진로: ${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
+- 이전 주제: ${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+
+[수행평가 안내문 요약]
+${String(assessmentText || '').trim() || NO_ASSESSMENT_INFO_TEXT}
+
+작업:
+- 선택 주제를 기준으로 통합 수행평가 설계 리포트를 작성하라.
+- 추천 자료는 확인된 자료만 사용하고, 자료가 부족하면 임의로 만들지 마라.
+- 주제 관련 정보와 안내문 요구 형식에 맞춘 작성 구조를 하나의 리포트에 넣어라.
+- 안내문이 기본 보고서형일 때만 서론/본론/결론을 쓰고, 문항형·카드뉴스형·발표형이면 해당 형식에 맞춰 작성 단계를 제시하라.
+`.trim();
+}
+
+/**
+ * 설계 리포트 `responseSchema`(§8.4 표 「설계 리포트」 행 + §8.5 블록 스키마 + §5.13 실측).
+ *
+ * ── 왜 `sections: Block[]` 배열이 아니라 **섹션별 이름 필드**인가 ────
+ *   §8.5의 저장 계약은 `sections[{id,label,blocks[]}]`이 맞다. 하지만 그 형태를 **모델
+ *   출력 스키마로 그대로 쓰면** ① 섹션 id·label·순서를 모델이 매번 다시 만들어야 하고
+ *   ② `blocks[]`는 kind별로 필드가 달라 재귀/`anyOf`가 필요하며(Gemini structured output에
+ *   `$ref`가 없다) ③ 라벨이 모델 손에 있으니 §5.13 실측 문자열이 흔들린다.
+ *   P8이 같은 문제를 이미 이렇게 풀었다 — 모델은 **값만** 내고, 라벨·순서·구조는
+ *   `TOPIC_DETAIL_SECTIONS` 상수가 서버 쪽에서 붙였다. 여기서도 모델은 값만 내고,
+ *   `DESIGN_REPORT_SECTIONS` + `DESIGN_SECTION_ROW_LABELS`가 §8.5 블록으로 조립한다.
+ *
+ * ── `number` 타입 필드가 하나도 없다 (§8.4 완화책 ⓐ) ────────────────
+ *   순번은 전부 배열 인덱스다: `analysis_points`(§5.13 「번호 목록」)도, `checklist`
+ *   (`체크 1`~`체크 5`)도, `writing_structure.steps`(`문항 1.`/`문항 2.`)도 문자열
+ *   배열이고 번호는 서버가 붙인다. `gemini-2.5-flash`의 숫자 리터럴 반복 루프가
+ *   발동할 자리를 남기지 않는다.
+ *
+ * ── §5.13 대조 ────────────────────────────────────────────────────
+ *   1 최종 주제              → `final_topic` 4행 (실측 4키 그대로)
+ *   2 추천 자료 및 활용 포인트 → **스키마에 없음.** `chosen_resources`(id + 활용 포인트)만
+ *     받고 서버가 위닝DB 행으로 카드 6필드를 조립한다(위 「모델 스키마에서 뺀 이유」)
+ *   3 안내문 요구 형식 분석   → `required_format` 4행
+ *   4 수행평가 전체 방향      → `overall_direction` 4행(`분석 포인트`만 배열)
+ *   5 작성 구조 설계          → `writing_structure.steps[{title, rows[]}]` — 형식 분기마다
+ *     하위 키가 달라(서론: 역할/반드시 포함할 내용/…, 문항형: 답변 방향/넣을 교과 개념/…)
+ *     라벨을 enum으로 고정할 수 없다. 어떤 라벨을 쓸지는 주입된 분기 원문이 지시한다
+ *   6 학생 작성 체크리스트    → `checklist` 5건 고정
+ *   7 (라벨 없이 자료 재등장) → **시안 오류로 판정돼 스키마에 없다**(§5.13, §11-Q13)
+ */
+export const DESIGN_REPORT_SCHEMA = {
+  type: 'object',
+  properties: {
+    final_topic: {
+      type: 'object',
+      properties: {
+        topic_name: { type: 'string' },
+        core_meaning: { type: 'string' },
+        subject_link: { type: 'string' },
+        career_link: { type: 'string' }
+      },
+      required: ['topic_name', 'core_meaning', 'subject_link', 'career_link'],
+      propertyOrdering: ['topic_name', 'core_meaning', 'subject_link', 'career_link']
+    },
+    required_format: {
+      type: 'object',
+      properties: {
+        submission_format: { type: 'string' },
+        item_vs_criteria: { type: 'string' },
+        report_structure: { type: 'string' },
+        cautions: { type: 'string' }
+      },
+      required: ['submission_format', 'item_vs_criteria', 'report_structure', 'cautions'],
+      propertyOrdering: ['submission_format', 'item_vs_criteria', 'report_structure', 'cautions']
+    },
+    overall_direction: {
+      type: 'object',
+      properties: {
+        core_goal: { type: 'string' },
+        // §5.13 실측: `분석 포인트:`만 번호 목록이다. 번호는 서버가 붙인다.
+        analysis_points: {
+          type: 'array',
+          minItems: 2,
+          maxItems: 6,
+          items: { type: 'string' }
+        },
+        concept_expression: { type: 'string' },
+        student_interpretation: { type: 'string' }
+      },
+      required: ['core_goal', 'analysis_points', 'concept_expression', 'student_interpretation'],
+      propertyOrdering: [
+        'core_goal',
+        'analysis_points',
+        'concept_expression',
+        'student_interpretation'
+      ]
+    },
+    writing_structure: {
+      type: 'object',
+      properties: {
+        steps: {
+          type: 'array',
+          // 문항형 안내문은 문항 수만큼 단계가 늘고, `그 외` 형식은 원문이 `3~5개`로
+          // 못박는다(`find-resources.js:482`). 상한 12는 그 사이를 덮으면서
+          // `maxOutputTokens` 안에 들어오는 값이다.
+          minItems: 1,
+          maxItems: 12,
+          items: {
+            type: 'object',
+            properties: {
+              // `서론 구성 방향` / `문항 1. [문항 내용]` 같은 단계 제목.
+              title: { type: 'string' },
+              rows: {
+                type: 'array',
+                minItems: 1,
+                maxItems: 8,
+                items: {
+                  type: 'object',
+                  properties: {
+                    label: { type: 'string' },
+                    content: { type: 'string' }
+                  },
+                  required: ['label', 'content'],
+                  propertyOrdering: ['label', 'content']
+                }
+              }
+            },
+            required: ['title', 'rows'],
+            propertyOrdering: ['title', 'rows']
+          }
+        }
+      },
+      required: ['steps'],
+      propertyOrdering: ['steps']
+    },
+    // 원문 뼈대가 `체크 1:` ~ `체크 5:`로 5개를 고정한다(`find-resources.js:486-490`).
+    checklist: {
+      type: 'array',
+      minItems: 5,
+      maxItems: 5,
+      items: { type: 'string' }
+    },
+    // §8.4 「`chosen_resource_ids: string[]`(최대 3) + 자료별 `use_point`」.
+    // **두 배열을 나란히 두지 않고 객체 배열 하나로 합쳤다** — 병렬 배열은 길이가
+    // 어긋나는 순간 활용 포인트가 엉뚱한 자료에 붙고, 그 오류는 렌더까지 조용히 간다.
+    chosen_resources: {
+      type: 'array',
+      minItems: 0,
+      maxItems: 3,
+      items: {
+        type: 'object',
+        properties: {
+          resource_id: { type: 'string' },
+          use_point: { type: 'string' }
+        },
+        required: ['resource_id', 'use_point'],
+        propertyOrdering: ['resource_id', 'use_point']
+      }
+    }
+  },
+  required: [
+    'final_topic',
+    'required_format',
+    'overall_direction',
+    'writing_structure',
+    'checklist',
+    'chosen_resources'
+  ],
+  propertyOrdering: [
+    'final_topic',
+    'required_format',
+    'overall_direction',
+    'writing_structure',
+    'checklist',
+    'chosen_resources'
+  ]
+};
+
+/**
+ * 설계 리포트 생성 파라미터. 원문 `find-resources.js:517-520`(§12.3 「생성 호출 파라미터」).
+ *
+ * `temperature 0.25`는 원문 값 그대로다. `maxOutputTokens`는 원문 5200에서 상향했다 —
+ * 근거는 P8(`TOPIC_GENERATION_DEFAULTS`)과 같다: 원문 5200은 **평문** 6섹션 기준이고,
+ * 같은 내용을 JSON으로 내면 키·따옴표·중괄호와 한국어 `\uXXXX` 이스케이프가 얹힌다.
+ * §12.3이 이 값을 「실측 재조정」 대상으로 명시했으므로 운영 관측 후 다시 내린다.
+ */
+export const DESIGN_GENERATION_DEFAULTS = {
+  temperature: 0.25,
+  maxOutputTokens: 8192
+};
+
+/** 재시도용 상한(§8.4 완화책 ⓑ+ⓒ). 같은 값으로 다시 부르면 같은 자리에서 다시 잘린다. */
+export const DESIGN_MAX_OUTPUT_TOKENS_RETRY = 12288;
