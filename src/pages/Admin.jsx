@@ -2368,6 +2368,7 @@ const CONFIGS = {
         required: true
       },
       { key: 'source', label: '출처', type: 'text' },
+      { key: 'source_link', label: '출처 링크', type: 'text' },
       {
         key: 'memo',
         label: '메모',
@@ -2383,6 +2384,7 @@ const CONFIGS = {
       title: '',
       content: '',
       source: '선배 생기부 PDF / 내부 우수사례',
+      source_link: '',
       memo: ''
     }
   },
@@ -2437,6 +2439,7 @@ const CONFIGS = {
         label: '저자·기관·링크·출처 정보',
         type: 'text'
       },
+      { key: 'source_link', label: '출처 링크', type: 'text' },
       { key: 'memo', label: '메모', type: 'textarea' }
     ],
     defaults: {
@@ -2448,6 +2451,7 @@ const CONFIGS = {
       title: '',
       content: '',
       source: '',
+      source_link: '',
       memo: ''
     }
   },
@@ -2505,6 +2509,7 @@ const CONFIGS = {
         required: true
       },
       { key: 'source', label: '출처/원본 파일명', type: 'text' },
+      { key: 'source_link', label: '출처 링크', type: 'text' },
       { key: 'memo', label: '메모', type: 'textarea' }
     ],
     defaults: {
@@ -2516,6 +2521,7 @@ const CONFIGS = {
       title: '',
       content: '',
       source: '선배 생기부 PDF / 내부 우수사례',
+      source_link: '',
       memo: ''
     }
   },
@@ -2805,10 +2811,12 @@ function boolValue(value) {
 }
 
 const WINNING_RAG_KNOWLEDGE_TYPES = new Set(['topic_pattern', 'verified_resource']);
-const WINNING_EMBED_API_BASE = String(import.meta.env?.VITE_RAG_API_BASE_URL || '').replace(
-  /\/$/,
-  ''
-);
+
+// 임베딩 진입점은 자기 저장소의 상대 경로 하나뿐이다. 예전에는
+// VITE_RAG_API_BASE_URL이 있으면 브라우저가 외부 도메인의 /api/admin-embeddings를
+// 직접 쳤는데, 그 경로는 CORS·이중 인증(x-admin-secret)을 끌고 다니는 데다
+// 외부 앱 자체가 폐기 대상이라 없앴다.
+const WINNING_EMBED_ENDPOINT = '/api/performance/admin-embed';
 
 function shouldRequestWinningEmbedding(config, row) {
   if (!config || config.table !== 'winning_assessment_knowledge_items') return false;
@@ -2880,25 +2888,10 @@ async function getFreshSupabaseAccessToken() {
 async function requestWinningEmbedding(row) {
   if (!row?.id) return null;
 
-  // VITE_RAG_API_BASE_URL 미설정 시 존재하지 않는 이 앱의 상대경로
-  // '/api/admin-embeddings'로 fetch하지 않는다(이 저장소엔 그 라우트가 없다 —
-  // RAG API는 별도 배포다). 조용히 건너뛰고 콘솔에만 안내를 남긴다. 자동
-  // 임베딩은 저장 후 fire-and-forget으로 걸리는 부가 기능이라, 이 값이
-  // 없다고 저장 자체(등록/수정 버튼)를 막지는 않는다 — 대신 저장 완료 알림
-  // 문구에서 임베딩 미생성 사실을 알린다(saveRow 참고).
-  if (!WINNING_EMBED_API_BASE) {
-    console.warn(
-      '위닝 수행 DB 자동 임베딩 건너뜀: VITE_RAG_API_BASE_URL 미설정. 관리자에게 환경변수 설정을 요청하세요.'
-    );
-    return null;
-  }
-
-  const endpoint = `${WINNING_EMBED_API_BASE}/api/admin-embeddings`;
-
   try {
     const accessToken = await getFreshSupabaseAccessToken();
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(WINNING_EMBED_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2912,16 +2905,19 @@ async function requestWinningEmbedding(row) {
 
     const result = await response.json().catch(async () => {
       const text = await response.text().catch(() => '');
-      return { ok: false, error: text || `HTTP ${response.status}` };
+      return { detail: text || `HTTP ${response.status}` };
     });
 
-    if (!response.ok || result?.ok === false) {
+    // admin-embed는 실패 사유를 항상 `detail`로 돌려준다(200 응답에는 detail이 없다).
+    if (!response.ok) {
+      const detail = result?.detail;
+
       if (response.status === 401) {
         await supabase.auth.signOut().catch(() => {});
-        throw new Error(`${result?.error || '관리자 인증 실패'}: 로그아웃 후 다시 로그인하세요.`);
+        throw new Error(`${detail || '관리자 인증 실패'}: 로그아웃 후 다시 로그인하세요.`);
       }
 
-      throw new Error(result?.error || `HTTP ${response.status}`);
+      throw new Error(detail || `HTTP ${response.status}`);
     }
 
     console.log('위닝 수행 DB 자동 임베딩 요청 완료:', result);
