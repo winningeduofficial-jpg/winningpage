@@ -42,6 +42,11 @@ import {
   parseAdmissionResultRowsFromXlsx,
   BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS
 } from '../lib/admissionResultsBulkXlsx';
+import {
+  exportGoalUniversityCutRowsToXlsx,
+  parseGoalUniversityCutRowsFromXlsx,
+  GOAL_CUT_RANGE
+} from '../lib/goalUniversityCutsBulkXlsx';
 import * as XLSX from 'xlsx';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
@@ -126,6 +131,14 @@ const MENU_GROUPS = [
     items: [
       { key: 'dailyEntries', label: '일일 입장' },
       { key: 'usageStatus', label: '이용 현황' }
+    ]
+  },
+  // 목표관리(goal_*) — 학생 앱의 확률 산출에 쓰이는 컷 기준표와 학생 현황.
+  // 등록 지점은 이 배열과 CONFIGS 둘뿐이다(다른 배선 없음).
+  {
+    title: '목표관리',
+    items: [
+      { key: 'goalUniversityCuts', label: '대학 컷 관리' }
     ]
   },
   {
@@ -321,6 +334,33 @@ const MENTOR_APPLICATION_STATUS_OPTIONS = [
   { value: 'training', label: '교육' },
   { value: 'active', label: '활동중' },
   { value: 'rejected', label: '불합격' }
+];
+
+// ---------------------------------------------------------------------
+// 목표관리 도메인 상수 (docs/figma-goal/goal-admin-spec.md §4-1-2)
+// DB 저장값은 영문 키 그대로 두고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
+// ---------------------------------------------------------------------
+
+// sql/55_goal_management.sql 의 goal_university_cuts_cut_type_check 와 동일 집합.
+// 여기 없는 값을 넣으면 저장 시 23514로 죽는다.
+const GOAL_CUT_TYPE_OPTIONS = [
+  { value: 'normal', label: '수시 일반고 (내신 등급)' },
+  { value: 'special', label: '수시 특목·자사고 (내신 등급)' },
+  { value: 'jungsi', label: '정시 (백분위)' }
+];
+
+// GOAL_CUT_RANGE(sql/55 의 goal_university_cuts_avg_cut_check 미러)는 여기서
+// 선언하지 않고 src/lib/goalUniversityCutsBulkXlsx.js 에서 import 한다 —
+// 폼(config.validate)과 엑셀 파서가 **같은 상수**를 봐야 두 입력 경로의
+// 스케일 판정이 갈라지지 않기 때문이다. CHECK 는 "1~9 범위 안의 정시
+// 백분위"(예: 3.5) 같은 혼입을 잡지 못하므로 그 상수가 실질 방어선이다
+// (명세 §3-D4). 수시는 작을수록 우세(등급), 정시는 클수록 우세(백분위)다.
+
+// source: 백필(admission_results 유도)로 만들어진 행인지, 사람이 손으로 넣은
+// 행인지를 구분한다. 백필 재실행이 'manual' 행을 덮어쓰지 않는 근거 컬럼이다.
+const GOAL_CUT_SOURCE_OPTIONS = [
+  { value: 'admission_results', label: '입결정보 유도' },
+  { value: 'manual', label: '수기 입력' }
 ];
 
 const CONFIGS = {
@@ -2644,6 +2684,216 @@ const CONFIGS = {
     custom: true,
     CustomComponent: CouponAdmin,
     searchPlaceholder: ''
+  },
+
+  // -------------------------------------------------------------------
+  // 목표관리 (docs/figma-goal/goal-admin-spec.md §4-2 / §4-3)
+  // 탭 2개다 — 대학 컷 관리(§4-2, 표준 CRUD + ListSummary 3블록)와
+  // 학생 현황(§4-3, custom 컴포넌트). 두 config 는 서로 아무것도 공유하지
+  // 않으므로 각각 독립적으로 읽고 고칠 수 있다.
+  // -------------------------------------------------------------------
+
+  goalUniversityCuts: {
+    title: '목표관리 대학 컷',
+    table: 'goal_university_cuts',
+    searchPlaceholder: '대학명 또는 학과명을 검색하세요',
+    // 동점 처리축 id 필수. 없으면 .range() 페이지 경계에서 행이 중복·누락된다
+    // (같은 논리를 admissionResults가 이미 쓴다 — 이 파일의 orderBy 주석 참고).
+    orderBy: [
+      ['university_name', true],
+      ['department_name', true],
+      ['cut_type', true],
+      ['id', true]
+    ],
+    // 백필 후 13,000행 이상. PostgREST 기본 1,000행 상한을 크게 넘는다.
+    serverPaginate: true,
+    searchColumns: ['university_name', 'department_name'],
+    homepage: true,
+    // excel / rowCapWarning은 선언하지 않는다 — 엑셀 버튼 2개 공존 금지(2026-08-07
+    // 사용자 지시), serverPaginate를 켰으므로 행수 경고도 불필요.
+    guideText: `학생 온보딩의 목표 대학 확률 산출에 쓰이는 컷 기준표입니다. 이 표에 있는 조합만 학생이 고를 수 있습니다 — 여기서 지우거나 노출을 끄면 온보딩 대학 목록에서도 사라집니다.
+⚠ 컷 값의 단위가 종류에 따라 다릅니다. 수시(일반고/특목·자사고)는 내신 등급 1~9(작을수록 우세), 정시는 백분위 0~100(클수록 우세)입니다. 섞여 들어가면 합격 확률의 우열이 통째로 뒤집힙니다.
+🔴 학과명은 반드시 채워 주세요. 학과명이 빈 행은 어떤 학생에게도 매칭되지 않습니다 — 온보딩이 학과를 필수로 요구하고, 확률 조회가 학과명 완전일치로 이뤄지기 때문입니다.
+🔴 정시 컷은 같은 (대학, 학과)의 수시 컷과 글자 하나까지 같아야 정시 확률이 산출됩니다. 수시 컷 행의 대학명·학과명을 그대로 복사해 넣어 주세요.
+컷을 고쳐도 이미 온보딩을 마친 학생의 확률은 바뀌지 않습니다 — 학생의 확률은 온보딩 시점의 컷으로 확정됩니다.`,
+    ListSummary: GoalCutsListSummary,
+    columns: [
+      { key: 'cut_type', label: '컷 종류', options: GOAL_CUT_TYPE_OPTIONS },
+      { key: 'university_name', label: '대학' },
+      // department_name은 공용 formatValue 그대로 둔다 — 빈 값은 '-'로 나오고,
+      // 빈 학과명 행은 정상 운영에서 생기지 않는다(폼·엑셀·백필 모두 필수).
+      { key: 'department_name', label: '학과' },
+      {
+        key: 'avg_cut',
+        label: '컷 값',
+        // 🔴 목록에서 2.35(등급)와 87.5(백분위)가 단위 없이 섞여 보이면 스케일
+        // 혼입을 눈으로 잡을 수 없다. formatValue는 (value, type, options)만 받아
+        // 같은 행의 cut_type을 볼 수 없으므로 공용 훅 column.render(row)를 쓴다.
+        render: (row) => {
+          const value = row?.avg_cut;
+          if (value === null || value === undefined || value === '') return '-';
+          const unit = GOAL_CUT_RANGE[row?.cut_type]?.unit || '';
+          return `${value}${unit}`;
+        }
+      },
+      { key: 'source', label: '출처', options: GOAL_CUT_SOURCE_OPTIONS },
+      { key: 'source_year', label: '기준 연도' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'updated_at', label: '수정일', type: 'datetime' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      {
+        key: 'cut_type',
+        label: '컷 종류',
+        type: 'select',
+        required: true,
+        options: GOAL_CUT_TYPE_OPTIONS,
+        // 편집 모드(row 있음)에서는 읽기 전용 텍스트로 렌더한다 —
+        // AdminForm이 readOnly 필드에는 AdminInput을 아예 호출하지 않고
+        // formatValue로 정적 텍스트를 그린다(options 라벨 매핑 포함).
+        // ⚠ 이건 사용성 개선일 뿐 방어가 아니다. 실질 차단은 validate 규칙 0이다.
+        resolve: (form, row) =>
+          row
+            ? {
+                readOnly: true,
+                help: '기존 행의 컷 종류는 바꿀 수 없습니다. 종류를 바꾸려면 이 행을 삭제한 뒤 새로 등록해 주세요 — 등급 3.2짜리 행을 정시로 바꾸면 "백분위 3.2"로 읽혀 합격 확률의 우열이 통째로 뒤집힙니다.'
+              }
+            : {}
+      },
+      {
+        key: 'university_name',
+        label: '대학명',
+        type: 'text',
+        required: true,
+        help: '학생 온보딩에 그대로 노출되고, 확률 조회 키로도 쓰입니다(goalRepo.js fetchUniversityCut). 오타 1건이 그 조합의 온보딩을 전부 막습니다.'
+      },
+      {
+        key: 'department_name',
+        label: '학과명',
+        type: 'text',
+        required: true,
+        help: '온보딩이 학과를 필수로 요구하고 확률 조회가 학과명 완전일치라, 비워 두면 어떤 학생에게도 매칭되지 않습니다.'
+      },
+      // nullable: true 필수 — 비우면 0이 아니라 null로 저장돼야 한다. null은
+      // "컷 미확보"이고 API가 422로 응답한다. 0은 jungsi 스케일에서 합법 값이라
+      // 의미가 완전히 다르다.
+      {
+        key: 'avg_cut',
+        label: '컷 값',
+        type: 'number',
+        nullable: true,
+        // cut_type에 따라 라벨·단위·범위·placeholder가 통째로 달라진다(§3-D4 ①).
+        // cut_type 미선택 상태에서는 readOnly로 두어 입력 자체를 막는다 —
+        // AdminInput에 disabled 속성을 새로 뚫는 것보다(공용 경로 추가 변경)
+        // 이미 승인된 훅만으로 같은 효과를 낸다.
+        resolve: (form) => {
+          const range = GOAL_CUT_RANGE[form?.cut_type];
+          if (!range) {
+            return {
+              readOnly: true,
+              help: '컷 종류를 먼저 선택해 주세요 — 종류에 따라 값의 단위(등급/백분위)가 달라집니다.'
+            };
+          }
+          return {
+            label: `컷 값 (${range.unit})`,
+            min: range.min,
+            max: range.max,
+            // 🔴 step:'any' 없이 min만 주면 소수 컷이 통째로 저장 불가가 된다.
+            //   내신 컷은 2.35, 정시 백분위는 87.5 처럼 소수가 정상값이고
+            //   백필 13,282행 중 96%가 소수다. 근거는 AdminInput의 step 주석.
+            step: 'any',
+            placeholder: `${range.min} ~ ${range.max}`,
+            help: `${range.label}. 비워 두면 "컷 미확보"(null)로 저장되고 그 조합은 온보딩에서 422로 막힙니다 — 0은 정시 백분위에서 합법 값이라 의미가 완전히 다릅니다.`
+          };
+        }
+      },
+      { key: 'source', label: '출처', type: 'select', options: GOAL_CUT_SOURCE_OPTIONS },
+      { key: 'source_year', label: '기준 연도', type: 'number', nullable: true },
+      { key: 'note', label: '운영 메모', type: 'textarea' }
+    ],
+    // university_key / department_key는 폼에 노출하지 않는다 — 어드민은 항상
+    // 표시명과 동일하게 강제한다(명세 §3-D5). 강제는 formToPayload가 한다.
+    //
+    // rowToForm이 원본 avg_cut을 __origAvgCut에 실어 두는 이유: formToPayload는
+    // row를 받지 못해서, "관리자가 컷 값을 손으로 고쳤는가"를 알 방법이 이것뿐이다.
+    // 그 판정이 없으면 백필 보존 술어(source='manual')의 첫 항이 영원히 비어
+    // 있게 되어, 관리자의 수정이 백필 재실행마다 덮어써진다(명세 §4-2-H-2 7단계).
+    rowToForm: (row) => ({ ...row, __origAvgCut: row.avg_cut }),
+    formToPayload: (form) => {
+      const universityName = String(form.university_name ?? '').trim();
+      // department_name은 NOT NULL DEFAULT ''라 null을 보내면 저장이 거부된다.
+      // 폼에서는 필수라 빈 문자열이 오지 않지만, ?? ''는 엑셀·백필 경로와
+      // payload 형태를 맞추기 위한 방어다.
+      const departmentName = String(form.department_name ?? '').trim();
+      const payload = {
+        ...form,
+        university_key: universityName,
+        university_name: universityName,
+        department_key: departmentName,
+        department_name: departmentName,
+        // 유도 행을 관리자가 손으로 고치면 '수기 입력'으로 승격시킨다.
+        source:
+          form.__origAvgCut !== undefined && form.avg_cut !== form.__origAvgCut
+            ? 'manual'
+            : form.source
+      };
+      // saveRow는 created_at/updated_at/view_count만 자동으로 지운다 —
+      // __ 접두 키는 여기서 직접 지워야 42703으로 죽지 않는다.
+      delete payload.__origAvgCut;
+      delete payload.created_at;
+      delete payload.updated_at;
+      return payload;
+    },
+    // 🔴 스케일 이원성의 정본 방어선(§3-D4 층 ②). DB CHECK는 jungsi에 2.5(등급)를
+    // 넣어도 통과시킨다 — 1~9 구간은 두 스케일 모두 합법이라 DB가 구분할 수 없다.
+    validate: (form, row) => {
+      // 규칙 0 — 기존 행의 컷 종류 변경 차단. 이 탭이 막아야 할 1순위 사고다.
+      if (row && row.cut_type && form.cut_type !== row.cut_type) {
+        return '컷 종류는 변경할 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.';
+      }
+      const range = GOAL_CUT_RANGE[form.cut_type];
+      if (!range) return '컷 종류를 선택해 주세요.';
+      if (!String(form.university_name ?? '').trim()) return '대학명을 입력해 주세요.';
+      if (!String(form.department_name ?? '').trim()) {
+        return '학과명을 입력해 주세요. 학과명이 빈 행은 어떤 학생에게도 매칭되지 않습니다.';
+      }
+      // 컷 미확보(null/빈 값)는 통과시킨다.
+      if (form.avg_cut === null || form.avg_cut === undefined || form.avg_cut === '') return null;
+      const avgCut = Number(form.avg_cut);
+      if (!Number.isFinite(avgCut)) return '컷 값은 숫자로 입력해 주세요.';
+      if (avgCut < range.min || avgCut > range.max) {
+        return `선택한 컷 종류(${range.label})의 범위를 벗어났습니다 — ${range.min} ~ ${range.max} 사이로 입력해 주세요.`;
+      }
+      // 거부가 아니라 확인 — 백분위 9 이하가 불가능하진 않지만 실무상
+      // 스케일 혼입일 확률이 압도적이다. validate는 동기 함수이고 호출부가
+      // 반환값을 무조건 alert하므로, 취소를 누르면 경고창이 한 번 더 뜬다.
+      // 그래서 반환 문구를 alert로 읽어도 자연스러운 문장으로 확정했다.
+      if (form.cut_type === 'jungsi' && avgCut <= 9) {
+        const ok = window.confirm(
+          '정시 컷에 9 이하 값을 넣으셨습니다. 내신 등급을 잘못 입력하신 것은 아닌가요? 백분위 값이 맞다면 [확인]을 눌러 주세요.'
+        );
+        if (!ok) return '저장하지 않았습니다. 정시 컷 값을 다시 확인해 주세요.';
+      }
+      return null;
+    },
+    // ⚠ 명세 §4-2-F 는 cut_type 기본값을 'normal' 로 적었으나 ''(미선택)로 둔다.
+    //    'normal' 로 두면 §4-2-C 가 요구하는 "cut_type 미선택 시 avg_cut 입력
+    //    disabled" 상태에 신규 등록이 절대 도달하지 못해 그 방어가 죽는다.
+    //    관리자가 종류를 고르지 않고 컷 값부터 치는 것이 스케일 혼입의 시작이다.
+    //    AdminInput 의 select 는 <option value="">선택</option> 을 항상 먼저
+    //    렌더하므로 ''는 "선택" 으로 정상 표시되고, 저장은 required 검사와
+    //    validate 규칙 1이 함께 막는다.
+    defaults: {
+      is_active: true,
+      cut_type: '',
+      university_name: '',
+      department_name: '',
+      avg_cut: null,
+      source: 'manual',
+      source_year: null,
+      note: ''
+    }
   },
 
 };
@@ -6725,6 +6975,1271 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
   );
 }
 
+// =====================================================================
+// 목표관리 대학 컷(goal_university_cuts) — CONFIGS.goalUniversityCuts 의
+// ListSummary 진입점과 그 3블록.
+//
+//   H-1 현황 요약        GoalCutsOverviewBlock
+//   H-2 입결 유도 백필    GoalCutsBackfillPanel
+//   H-3 엑셀 일괄 왕복    GoalCutsBulkXlsxPanel
+//
+// serverPaginate 탭이므로 세 블록 모두 props 의 rows 를 쓰지 않는다 —
+// AdminTable 이 들고 있는 건 현재 페이지 10행뿐이라 그걸로 집계하면
+// 전부 틀린 수치가 나온다(AdmissionResultsBulkXlsxPanel 과 같은 이유).
+// 필요한 데이터는 각 블록이 직접 PostgREST 상한(1,000행)에 맞춰
+// .range() 청크 반복으로 읽는다.
+// =====================================================================
+
+const GOAL_CUTS_TABLE = 'goal_university_cuts';
+// sql/57_goal_admin_options_rls.sql 이 만든 (대학, 학과) 단위 집계 뷰.
+// has_normal/has_special/has_jungsi 플래그를 준다.
+const GOAL_CUTS_OPTIONS_VIEW = 'goal_university_options';
+const GOAL_BACKFILL_SOURCE_TABLE = 'admission_results';
+// PostgREST 기본 응답 상한과 맞춘 읽기 청크.
+const GOAL_CUTS_READ_CHUNK = 1000;
+// upsert/update 배치 크기. 백필 최대 산출이 13,000행대라 27회 요청이 된다.
+const GOAL_CUTS_APPLY_CHUNK = 500;
+
+// 🔴 백필 소스 필터의 핵심 축. 기회균형·농어촌·지역인재·특성화고·특수교육은
+// **지원 자격이 제한된 전형**이라 일반 학생 기준으로 쓰면 컷이 비현실적으로
+// 완화된다. 반면 추천형(학교장추천 등)은 자격제한 전형이 아니고, 일반·교과와
+// 둘 다 있는 쌍의 평균 차이가 +0.059등급으로 사실상 동일하다 — 배제하면
+// 762쌍이 종합 컷으로 폴백돼 normal 컷이 오히려 느슨해진다(명세 §3-D3).
+const GOAL_BACKFILL_SCREENING_CATEGORIES = ['일반', '추천형'];
+
+const GOAL_CUTS_WARNING_GROUPS = [
+  {
+    key: 'jungsiLooksLikeGrade',
+    label: '🔴 정시 컷에 9 이하 값 — 내신 등급 혼입 의심',
+    tone: 'danger',
+    types: ['jungsiLooksLikeGrade']
+  },
+  {
+    key: 'naesinCutTooHigh',
+    label: '수시 컷이 8등급 이상',
+    tone: 'warning',
+    types: ['naesinCutTooHigh']
+  },
+  { key: 'cutMissing', label: '컷 값이 비어 있음(온보딩 422)', tone: 'warning', types: ['cutMissing'] },
+  {
+    key: 'unknownSource',
+    label: "출처를 알 수 없어 '수기 입력'으로 강등 — 이후 백필에서 갱신 안 됨",
+    tone: 'warning',
+    types: ['unknownSource']
+  },
+  { key: 'inactiveRow', label: '노출 꺼짐(온보딩 목록에서 사라짐)', tone: 'neutral', types: ['inactiveRow'] }
+];
+
+const GOAL_CUTS_TONE_CLASS = {
+  danger: 'border-red-300 bg-red-50 text-red-700',
+  warning: 'border-amber-400 bg-amber-50 text-amber-700',
+  neutral: 'border-gray-300 bg-gray-50 text-gray-600'
+};
+
+// goal_university_cuts_key(cut_type, university_key, department_key)와 같은 축.
+// \u0000(NUL) 로 잇는 이유는 그 문자가 값에 섞일 수 없기 때문이다('::' 는 학과명에
+// 나타날 수 있다).
+function goalCutConflictKey(cutType, universityKey, departmentKey) {
+  return `${cutType}\u0000${universityKey}\u0000${departmentKey}`;
+}
+
+async function goalCutsCount(applyFilters) {
+  let query = supabase.from(GOAL_CUTS_TABLE).select('id', { count: 'exact', head: true });
+  if (applyFilters) query = applyFilters(query);
+  const { count, error } = await query;
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+// id 오름차순으로 청크 반복해 전량을 읽는다. order 없이 .range() 만 반복하면
+// PostgREST 가 매 요청마다 정렬을 보장하지 않아 페이지 경계에서 행이 중복·
+// 누락된다(admissionResults 쪽과 같은 논리).
+async function fetchAllGoalCutRows(columns, onProgress) {
+  const total = await goalCutsCount();
+  const all = [];
+  for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(GOAL_CUTS_TABLE)
+      .select(columns)
+      .order('id', { ascending: true })
+      .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+// 엑셀 업로드 검증용. id → 그 행의 현재 cut_type 을 통째로 읽어 Map 으로
+// 돌려준다 — idNotFound 와 cutTypeChanged 를 **같은 조회 결과**로 판정한다.
+// 캐시하지 않는다: 그 사이 다른 관리자가 지운 id 를 놓치지 않기 위해서다.
+async function fetchGoalCutIdCutTypeMap(onProgress) {
+  const rows = await fetchAllGoalCutRows('id, cut_type', onProgress);
+  return new Map(rows.map((r) => [r.id, r.cut_type]));
+}
+
+// goal_university_options 뷰 전량. (대학, 학과) 단위로 이미 접혀 있어
+// 조합 약 6,600건이면 한 번의 청크 반복으로 충분하다. 뷰에는 id 가 없어
+// 정렬 축을 university_key + department_key 로 잡는다(이 둘이 뷰의
+// group by 축이라 조합이 유일하다).
+async function fetchGoalUniversityOptionRows() {
+  const { count, error: countError } = await supabase
+    .from(GOAL_CUTS_OPTIONS_VIEW)
+    .select('university_key', { count: 'exact', head: true });
+  if (countError) throw new Error(countError.message);
+  const total = count ?? 0;
+  const all = [];
+  for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(GOAL_CUTS_OPTIONS_VIEW)
+      .select('university_key, university_name, department_key, department_name, has_normal, has_special, has_jungsi')
+      .order('university_key', { ascending: true })
+      .order('department_key', { ascending: true })
+      .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+  }
+  return all;
+}
+
+// ---------------------------------------------------------------------
+// H-2 백필 — 소스 조회 + 순수 집계
+// ---------------------------------------------------------------------
+
+const GOAL_BACKFILL_YEAR_MODES = [
+  { value: 'prefer2026', label: '2026 우선(없으면 2025)' },
+  { value: 'only2026', label: '2026만' },
+  { value: 'only2025', label: '2025만' }
+];
+
+function buildBackfillSourceQuery(yearMode, options = {}) {
+  const selectArgs = options.head
+    ? ['university_name', { count: 'exact', head: true }]
+    : ['university_name, department_name, main_track, grade_70, result_year'];
+  let query = supabase.from(GOAL_BACKFILL_SOURCE_TABLE).select(...selectArgs);
+  query = query
+    .eq('is_active', true)
+    // percentile 은 0행이라 쓸 수 없다. grade_70 이 유일한 소스이고,
+    // [1, 9] 밖 값은 goal_university_cuts 의 CHECK 를 위반한다.
+    .gte('grade_70', 1)
+    .lte('grade_70', 9)
+    .in('screening_category', GOAL_BACKFILL_SCREENING_CATEGORIES);
+  if (yearMode === 'only2026') query = query.eq('result_year', 2026);
+  else if (yearMode === 'only2025') query = query.eq('result_year', 2025);
+  else query = query.in('result_year', [2025, 2026]);
+  return query;
+}
+
+async function fetchBackfillSourceRows(yearMode, onProgress) {
+  const { count, error: countError } = await buildBackfillSourceQuery(yearMode, { head: true });
+  if (countError) throw new Error(countError.message);
+  const total = count ?? 0;
+  const all = [];
+  for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
+    const { data, error } = await buildBackfillSourceQuery(yearMode)
+      // 정렬 없이 .range() 만 반복하면 페이지 경계에서 행이 중복·누락된다.
+      .order('id', { ascending: true })
+      .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+function goalCutAverage(values) {
+  if (!values.length) return null;
+  const sum = values.reduce((acc, v) => acc + v, 0);
+  return Math.round((sum / values.length) * 100) / 100;
+}
+
+function goalCutQuantile(sorted, q) {
+  if (!sorted.length) return null;
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return sorted[lo];
+  return Math.round((sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)) * 100) / 100;
+}
+
+// 🔴 Admin.jsx 안에서는 블록 주석(JSDoc 포함)을 쓰지 말 것. 반드시 줄
+//    주석으로 쓴다. 취향이 아니라 회귀 가드 때문이다.
+//    scripts/verify-admission-admin-entry.mjs 는 소스 락을 걸기 전에 블록
+//    주석을 정규식으로 걷어내는데, 이 파일에는 짝이 없는 블록 주석 여는
+//    기호가 이미 여러 개 있다 — JSX 속성 accept="image" 와일드카드 두 곳
+//    (기능이라 고칠 수 없다), 주석 속 와일드카드 표기 몇 곳. 지금까지
+//    무해했던 유일한 이유는 그 뒤에 블록 주석 닫는 기호가 하나도 없어서
+//    정규식이 아무것도 매치하지 않았기 때문이다. 블록 주석을 하나라도
+//    추가하면 그 닫는 기호가 짝 없는 여는 기호에 붙어 **수만 자를 통째로
+//    삼키고**, 관리 열(✏️/🗑)·AdmissionParsingPreview 락이 무더기로
+//    FAIL 한다. 실측: 이 함수의 JSDoc 하나 때문에 14건 중 7건이 FAIL 했고,
+//    줄 주석으로 바꾸자 14/14 로 복구됐다.
+//
+// 입결 소스 행 → 백필 payload + 미리보기 통계. 순수 함수다(DB 접근 없음).
+//
+// 유도 규칙(명세 §3-D3 확정):
+//   - (btrim(대학명), btrim(학과명)) 별로 묶는다.
+//   - 연도 폴백: 2026 행이 하나라도 있으면 2026 만, 없으면 2025.
+//   - normal = 교과 avg(grade_70), 교과가 없으면 종합 avg.
+//   - special = 종합 avg(grade_70), 종합이 없으면 교과 avg.
+//     (일반고는 학생부교과, 특목·자사고는 학생부종합이 주 전형이다.
+//      둘 다 있는 2,531쌍에서 종합 컷이 평균 +0.679등급 완화된다.)
+//   - 소수 2자리 반올림. min/max 는 체계적 비관·낙관 편향을 준다.
+//
+// payload 에 싣는 키는 정확히 8개이고 **모든 행이 동일**하다 — PostgREST
+// 는 배열 안 객체들의 키 집합이 다르면 누락 키를 default/null 로 해석한다.
+// 🔴 is_active 와 note 는 싣지 않는다: 신규 행은 DB DEFAULT 를 받고, 기존
+// 행은 관리자가 설정한 노출·메모가 그대로 남는다. 백필이 관리자 조치를
+// 되돌리면 guideText 의 약속("노출을 끄면 온보딩에서도 사라집니다")을
+// 백필이 깨는 셈이 된다(명세 §4-2-H-2 2단계).
+function computeGoalCutBackfill(sourceRows, yearMode) {
+  const byPair = new Map();
+  (sourceRows || []).forEach((r) => {
+    const uni = String(r.university_name ?? '').trim();
+    const dept = String(r.department_name ?? '').trim();
+    if (!uni) return;
+    const grade = Number(r.grade_70);
+    if (!Number.isFinite(grade)) return;
+    const year = Number(r.result_year);
+    const pairKey = `${uni}\u0000${dept}`;
+    let entry = byPair.get(pairKey);
+    if (!entry) {
+      entry = { uni, dept, years: new Map() };
+      byPair.set(pairKey, entry);
+    }
+    let buckets = entry.years.get(year);
+    if (!buckets) {
+      buckets = { gyogwa: [], jonghap: [] };
+      entry.years.set(year, buckets);
+    }
+    const track = String(r.main_track ?? '').trim();
+    if (track === '교과') buckets.gyogwa.push(grade);
+    else if (track === '종합') buckets.jonghap.push(grade);
+  });
+
+  let excludedStarPairs = 0;
+  let excludedEmptyPairs = 0;
+  let excludedNoTrackPairs = 0;
+  let year2026Pairs = 0;
+  let year2025Pairs = 0;
+  const rawPayloads = [];
+
+  byPair.forEach((entry) => {
+    // 학과명 정제 — 아래에 해당하면 행을 만들지 않는다(명세 §4-2-H-2 3단계).
+    // 현재 데이터에서 둘 다 실효 0건이지만, 입결 재적재 대비 방어로 남긴다.
+    if (entry.dept.includes('(*)')) {
+      excludedStarPairs += 1;
+      return;
+    }
+    if (!entry.dept) {
+      excludedEmptyPairs += 1;
+      return;
+    }
+
+    // 연도 선택은 "그 연도에 행이 있는가"가 아니라 **"그 연도에 교과·종합
+    // 행이 있는가"**로 판정한다. 전자로 두면 2026 에 논술·실기 행만 있고
+    // 2025 에 교과가 있는 조합이 폴백을 잃고 통째로 버려진다(2026 을 고른
+    // 뒤 아래 normal/special 이 둘 다 null 이 되어 excludedNoTrackPairs 로
+    // 빠진다). dev 실측으로 지금은 해당 조합 0건이지만(전체 6,641쌍 중
+    // lost_fallback 0), 입결 재적재 때 실재하게 되는 잠복 결함이라 여기서
+    // 막는다. 현재 데이터에서는 산출 결과가 바뀌지 않는다.
+    const hasTrackRows = (year) => {
+      const b = entry.years.get(year);
+      return !!b && (b.gyogwa.length > 0 || b.jonghap.length > 0);
+    };
+
+    let usedYear = null;
+    if (yearMode === 'only2026') usedYear = hasTrackRows(2026) ? 2026 : null;
+    else if (yearMode === 'only2025') usedYear = hasTrackRows(2025) ? 2025 : null;
+    else if (hasTrackRows(2026)) usedYear = 2026;
+    else if (hasTrackRows(2025)) usedYear = 2025;
+    if (usedYear === null) {
+      // 어느 연도에도 교과·종합이 없는 쌍(논술·실기뿐). 연도 자체가 없어
+      // 대상 밖인 쌍(only2026 모드에서 2026 행이 없는 등)과 구분해 센다.
+      const inScope =
+        yearMode === 'only2026'
+          ? entry.years.has(2026)
+          : yearMode === 'only2025'
+            ? entry.years.has(2025)
+            : entry.years.size > 0;
+      if (inScope) excludedNoTrackPairs += 1;
+      return;
+    }
+
+    const buckets = entry.years.get(usedYear);
+    const gyogwa = goalCutAverage(buckets.gyogwa);
+    const jonghap = goalCutAverage(buckets.jonghap);
+    const normal = gyogwa ?? jonghap;
+    const special = jonghap ?? gyogwa;
+    if (normal === null || special === null) {
+      // main_track 이 논술·실기뿐인 쌍. 현재 데이터에서는 0건이다.
+      excludedNoTrackPairs += 1;
+      return;
+    }
+
+    if (usedYear === 2026) year2026Pairs += 1;
+    else year2025Pairs += 1;
+
+    // university_key := university_name, department_key := department_name.
+    // 두 유일성 인덱스를 동치로 유지해야 upsert 가 안전하다(명세 §3-D5).
+    [
+      ['normal', normal],
+      ['special', special]
+    ].forEach(([cutType, avgCut]) => {
+      rawPayloads.push({
+        cut_type: cutType,
+        university_key: entry.uni,
+        university_name: entry.uni,
+        department_key: entry.dept,
+        department_name: entry.dept,
+        avg_cut: avgCut,
+        source: 'admission_results',
+        source_year: usedYear
+      });
+    });
+  });
+
+  // payload dedupe — 청크를 만들기 직전에 최종 중복을 병합한다. 한 청크
+  // 안에 같은 (cut_type, university_key, department_key)가 두 번 들어가면
+  // Postgres 가 21000 "ON CONFLICT DO UPDATE command cannot affect row a
+  // second time" 로 **청크 전체를 실패시킨다**(dev 실측 확인). 현재
+  // 데이터로는 충돌 0이지만 입결 재적재로 표기 변형이 들어오는 즉시
+  // 재현되므로 방어를 둔다. 나중 항목이 앞 항목을 덮는다.
+  const merged = new Map();
+  let mergedCount = 0;
+  rawPayloads.forEach((p) => {
+    const key = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+    if (merged.has(key)) mergedCount += 1;
+    merged.set(key, p);
+  });
+  const payloads = Array.from(merged.values());
+
+  const cutValues = payloads.map((p) => p.avg_cut).sort((a, b) => a - b);
+  const universities = new Set(payloads.map((p) => p.university_key));
+  const pairs = new Set(payloads.map((p) => `${p.university_key}\u0000${p.department_key}`));
+  const samples = payloads
+    .slice()
+    .sort(
+      (a, b) =>
+        a.university_name.localeCompare(b.university_name) ||
+        a.department_name.localeCompare(b.department_name) ||
+        a.cut_type.localeCompare(b.cut_type)
+    )
+    .slice(0, 20);
+
+  return {
+    payloads,
+    stats: {
+      universityCount: universities.size,
+      pairCount: pairs.size,
+      totalRows: payloads.length,
+      normalCount: payloads.filter((p) => p.cut_type === 'normal').length,
+      specialCount: payloads.filter((p) => p.cut_type === 'special').length,
+      year2026Pairs,
+      year2025Pairs,
+      excludedStarPairs,
+      excludedEmptyPairs,
+      excludedNoTrackPairs,
+      mergedCount,
+      distribution: {
+        min: cutValues[0] ?? null,
+        p25: goalCutQuantile(cutValues, 0.25),
+        median: goalCutQuantile(cutValues, 0.5),
+        p75: goalCutQuantile(cutValues, 0.75),
+        max: cutValues[cutValues.length - 1] ?? null
+      },
+      samples
+    }
+  };
+}
+
+// 산출 payload 를 기존 행과 대조한다. 순수 함수다.
+// (블록 주석 금지 — 위 computeGoalCutBackfill 머리말의 회귀 가드 설명 참고.)
+//
+// 반환:
+//   overlapCount   기존 행과 자연키가 겹치는 산출 행 수
+//   manualCount / inactiveCount / notedCount  보존 술어별 건수(중복 가능)
+//   preservedKeys  보존 대상 conflictKey 집합(= 산출에서 제외할 대상)
+//   orphanIds      이번 산출에 없는 기존 유도 행(source=admission_results,
+//                  is_active=true)의 id. source='manual' 은 절대 대상이 아니다.
+//   nameAxisKeys   🔴 goal_university_cuts_name_key(partial UNIQUE, where
+//                  is_active)와 충돌해 청크 전체를 23505 로 죽일 산출 행.
+//                  key 축에서는 안 걸리는데 name 축에서만 걸리는 경우다 —
+//                  기존 행의 key 와 name 이 다를 때 생긴다(dev 실측으로
+//                  409/23505 재현 확인). 어드민은 key := name 을 강제하므로
+//                  정상 운영에서는 0이지만, 나면 청크 500행이 통째로
+//                  날아가므로 미리보기에서 걸러 낸다.
+function analyzeGoalCutBackfillAgainstExisting(payloads, existingRows) {
+  const existingByConflictKey = new Map();
+  const activeConflictKeyByNameKey = new Map();
+  (existingRows || []).forEach((row) => {
+    const conflictKey = goalCutConflictKey(row.cut_type, row.university_key, row.department_key);
+    existingByConflictKey.set(conflictKey, row);
+    if (row.is_active) {
+      const nameKey = goalCutConflictKey(row.cut_type, row.university_name, row.department_name);
+      if (!activeConflictKeyByNameKey.has(nameKey)) {
+        activeConflictKeyByNameKey.set(nameKey, conflictKey);
+      }
+    }
+  });
+
+  let overlapCount = 0;
+  let manualCount = 0;
+  let inactiveCount = 0;
+  let notedCount = 0;
+  const preservedKeys = new Set();
+  const nameAxisKeys = new Set();
+  const producedKeys = new Set();
+
+  payloads.forEach((p) => {
+    const conflictKey = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+    producedKeys.add(conflictKey);
+
+    const existing = existingByConflictKey.get(conflictKey);
+    if (existing) {
+      overlapCount += 1;
+      let preserved = false;
+      if (existing.source === 'manual') {
+        manualCount += 1;
+        preserved = true;
+      }
+      if (existing.is_active === false) {
+        inactiveCount += 1;
+        preserved = true;
+      }
+      if (String(existing.note ?? '').trim() !== '') {
+        notedCount += 1;
+        preserved = true;
+      }
+      if (preserved) preservedKeys.add(conflictKey);
+    }
+
+    // key := name 이므로 payload 의 nameKey 는 conflictKey 와 같은 문자열이다.
+    // 기존 활성 행이 같은 name 축을 다른 key 축으로 점유하고 있으면 23505 다.
+    const holder = activeConflictKeyByNameKey.get(conflictKey);
+    if (holder && holder !== conflictKey) nameAxisKeys.add(conflictKey);
+  });
+
+  const orphanIds = (existingRows || [])
+    .filter(
+      (row) =>
+        row.source === 'admission_results' &&
+        row.is_active === true &&
+        !producedKeys.has(goalCutConflictKey(row.cut_type, row.university_key, row.department_key))
+    )
+    .map((row) => row.id);
+
+  return {
+    overlapCount,
+    manualCount,
+    inactiveCount,
+    notedCount,
+    preservedKeys,
+    nameAxisKeys,
+    orphanIds
+  };
+}
+
+// ---------------------------------------------------------------------
+// H-1 현황 요약
+// ---------------------------------------------------------------------
+
+function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      // head:true 카운트(본문 0바이트) 6회 + 뷰 전량 1회.
+      const [total, active, normal, special, jungsi, missing] = await Promise.all([
+        goalCutsCount(),
+        goalCutsCount((q) => q.eq('is_active', true)),
+        goalCutsCount((q) => q.eq('cut_type', 'normal')),
+        goalCutsCount((q) => q.eq('cut_type', 'special')),
+        goalCutsCount((q) => q.eq('cut_type', 'jungsi')),
+        goalCutsCount((q) => q.is('avg_cut', null))
+      ]);
+      const options = await fetchGoalUniversityOptionRows();
+      const comboTotal = options.length;
+      const comboNoJungsi = options.filter((o) => !o.has_jungsi).length;
+      if (!cancelled) {
+        setSummary({ total, active, normal, special, jungsi, missing, comboTotal, comboNoJungsi });
+      }
+    })()
+      // 실패해도 화면을 막지 않는다 — 참고 지표일 뿐이다.
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshToken, mutationSeq]);
+
+  if (loading && !summary) {
+    return (
+      <div className="bg-white p-4 text-sm shadow">
+        <div className="font-black">현황 요약</div>
+        <p className="mt-2 text-xs text-gray-500">불러오는 중…</p>
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="bg-white p-4 text-sm shadow">
+        <div className="font-black">현황 요약</div>
+        <p className="mt-2 text-xs text-gray-500">현황을 불러오지 못했습니다(목록 사용에는 영향 없습니다).</p>
+      </div>
+    );
+  }
+
+  const n = (v) => v.toLocaleString();
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="font-black">현황 요약</div>
+      <p className="mt-2 text-xs font-bold text-gray-700">
+        전체 {n(summary.total)}건 · 노출 {n(summary.active)}건 · 수시 일반 {n(summary.normal)}건 · 수시 특목{' '}
+        {n(summary.special)}건 · 정시 {n(summary.jungsi)}건 · 컷 미확보 {n(summary.missing)}건
+      </p>
+      {/* 🟠(품질 지표)이지 🔴(블로커)가 아니다 — 정시 컷이 없어도 그 조합은
+          온보딩 목록에 뜨고 학생은 고를 수 있다. 다만 그 학생의 정시 확률
+          2종이 계속 미산출로 남고, 나중에 컷을 채워도 재계산되지 않는다
+          (base_* 는 온보딩 이후 불변). */}
+      <p className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-700">
+        🟠 정시 컷 없는 (대학, 학과) 조합: {n(summary.comboNoJungsi)}건 / 전체 {n(summary.comboTotal)}조합 — 이
+        조합을 고른 학생은 정시 확률 2종이 계속 미산출입니다.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// H-2 입결 유도 백필
+// ---------------------------------------------------------------------
+
+function GoalCutsBackfillPanel({ onReload }) {
+  const [yearMode, setYearMode] = useState('prefer2026');
+  const [preserveMode, setPreserveMode] = useState('preserve'); // preserve | overwrite
+  const [orphanMode, setOrphanMode] = useState('keep'); // keep | deactivate
+  const [sourceProgress, setSourceProgress] = useState(null);
+  const [computing, setComputing] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyProgress, setApplyProgress] = useState(null);
+
+  const busy = Boolean(sourceProgress || computing || applying);
+
+  // 옵션이 바뀌면 미리보기를 버린다 — 산출값(N)이 확인 게이트 문구와
+  // 적용 대상 양쪽의 근거라, 옵션과 어긋난 미리보기를 남겨 두면
+  // "확인한 N행"과 "실제 반영되는 N행"이 달라진다.
+  function resetPreview() {
+    setPreview(null);
+    setConfirmChecked(false);
+  }
+
+  async function handleCompute() {
+    if (busy) return;
+    setComputing(true);
+    setPreview(null);
+    setConfirmChecked(false);
+    try {
+      setSourceProgress({ done: 0, total: 0 });
+      const sourceRows = await fetchBackfillSourceRows(yearMode, (p) => setSourceProgress(p));
+      setSourceProgress(null);
+      const { payloads, stats } = computeGoalCutBackfill(sourceRows, yearMode);
+      const existingRows = await fetchAllGoalCutRows(
+        'id, cut_type, university_key, university_name, department_key, department_name, source, is_active, note'
+      );
+      const analysis = analyzeGoalCutBackfillAgainstExisting(payloads, existingRows);
+      const applyPayloads = payloads.filter((p) => {
+        const key = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+        if (analysis.nameAxisKeys.has(key)) return false;
+        if (preserveMode === 'preserve' && analysis.preservedKeys.has(key)) return false;
+        return true;
+      });
+      setPreview({ stats, analysis, applyPayloads, sourceRowCount: sourceRows.length });
+    } catch (err) {
+      setPreview(null);
+      alert(`미리보기 계산 실패: ${err.message}`);
+    } finally {
+      setSourceProgress(null);
+      setComputing(false);
+    }
+  }
+
+  async function handleApply() {
+    if (!preview || !confirmChecked || applying) return;
+    const rowsToApply = preview.applyPayloads;
+    const orphanIds = orphanMode === 'deactivate' ? preview.analysis.orphanIds : [];
+    const total = rowsToApply.length + orphanIds.length;
+    if (total === 0) {
+      alert('반영할 행이 없습니다.');
+      return;
+    }
+    setApplying(true);
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < rowsToApply.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = rowsToApply.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        // onConflict 는 goal_university_cuts_key(평범한 3컬럼 UNIQUE btree)를
+        // 가리킨다 — dev 실측으로 신규 201 / 재실행 200 · id 보존 · is_active
+        // 와 note 보존까지 확인했다.
+        const { error } = await supabase
+          .from(GOAL_CUTS_TABLE)
+          .upsert(chunk, { onConflict: 'cut_type,university_key,department_key' });
+        if (error) {
+          throw new Error(`컷 반영 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < orphanIds.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = orphanIds.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        // 삭제하지 않는다 — 되돌릴 수 있어야 한다.
+        const { error } = await supabase
+          .from(GOAL_CUTS_TABLE)
+          .update({ is_active: false })
+          .in('id', chunk);
+        if (error) {
+          throw new Error(`고아 유도 행 노출 끄기 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(
+        `백필 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`
+      );
+      onReload?.();
+      return;
+    }
+
+    setApplying(false);
+    setApplyProgress(null);
+    setPreview(null);
+    setConfirmChecked(false);
+    onReload?.();
+    alert(
+      `입결 유도 컷 ${rowsToApply.length.toLocaleString()}행을 반영했습니다.` +
+        (orphanIds.length ? ` 고아 유도 행 ${orphanIds.length.toLocaleString()}건의 노출을 껐습니다.` : '')
+    );
+  }
+
+  const stats = preview?.stats;
+  const analysis = preview?.analysis;
+  const affectedCount =
+    (preview?.applyPayloads.length ?? 0) +
+    (orphanMode === 'deactivate' ? (analysis?.orphanIds.length ?? 0) : 0);
+
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="font-black">입결정보에서 수시 컷 일괄 생성</div>
+      <p className="mt-2 text-xs leading-5 text-gray-600">
+        입결정보(admission_results)의 70% 컷 등급에서 수시 컷을 유도해 이 표에 채웁니다. 정시 컷은 원본
+        데이터가 없어 생성되지 않습니다 — 수기 또는 엑셀로 입력해 주세요.
+      </p>
+
+      <div className="mt-3 space-y-2 rounded border border-gray-200 bg-[#fafafa] p-3 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">기준 연도</span>
+          {GOAL_BACKFILL_YEAR_MODES.map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillYear"
+                checked={yearMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setYearMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">기존 행 처리</span>
+          {[
+            { value: 'preserve', label: '관리자가 손댄 행은 보존' },
+            { value: 'overwrite', label: '전부 덮어쓰기' }
+          ].map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillPreserve"
+                checked={preserveMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setPreserveMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">이번 산출에 없는 기존 유도 행</span>
+          {[
+            { value: 'keep', label: '그대로 둔다' },
+            { value: 'deactivate', label: '노출을 끈다(is_active=false)' }
+          ].map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillOrphan"
+                checked={orphanMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setOrphanMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={handleCompute}
+          disabled={busy}
+          className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {sourceProgress
+            ? `입결 읽는 중… ${sourceProgress.done.toLocaleString()} / ${sourceProgress.total.toLocaleString()}행`
+            : computing
+              ? '계산 중…'
+              : '미리보기 계산'}
+        </button>
+      </div>
+
+      {preview && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            생성 대상: 대학 {stats.universityCount.toLocaleString()}개 · 학과 조합{' '}
+            {stats.pairCount.toLocaleString()}개 · 총 {stats.totalRows.toLocaleString()}행 (수시 일반{' '}
+            {stats.normalCount.toLocaleString()} / 수시 특목 {stats.specialCount.toLocaleString()})
+          </p>
+          <p className="mt-1 text-gray-700">
+            소스 {preview.sourceRowCount.toLocaleString()}행 · 기준 연도 내역: 2026 기준{' '}
+            {stats.year2026Pairs.toLocaleString()}조합 · 2025 폴백 {stats.year2025Pairs.toLocaleString()}조합
+          </p>
+          <p className="mt-1 text-gray-700">
+            제외: (*) 접미 {stats.excludedStarPairs.toLocaleString()}조합 · 빈 학과명{' '}
+            {stats.excludedEmptyPairs.toLocaleString()}조합 · 교과·종합 없음{' '}
+            {stats.excludedNoTrackPairs.toLocaleString()}조합 (현재 데이터 기준 전부 0이 정상입니다)
+          </p>
+          <p className="mt-1 text-gray-700">중복 병합: {stats.mergedCount.toLocaleString()}건</p>
+
+          <p className="mt-2 font-bold text-gray-700">
+            컷 값 분포 — min {stats.distribution.min ?? '-'} · p25 {stats.distribution.p25 ?? '-'} · median{' '}
+            {stats.distribution.median ?? '-'} · p75 {stats.distribution.p75 ?? '-'} · max{' '}
+            {stats.distribution.max ?? '-'} (전부 내신 등급 1~9 스케일이어야 합니다)
+          </p>
+
+          <div className="mt-2 rounded border border-gray-300 bg-white p-2">
+            <p className="font-black">기존 행과 겹침: {analysis.overlapCount.toLocaleString()}행</p>
+            <ul className="mt-1 space-y-0.5 text-gray-700">
+              <li>├ 수기 입력(source=manual) {analysis.manualCount.toLocaleString()}행</li>
+              <li>├ 노출이 꺼져 있음(is_active=false) {analysis.inactiveCount.toLocaleString()}행</li>
+              <li>└ 운영 메모가 있음(note&lt;&gt;&apos;&apos;) {analysis.notedCount.toLocaleString()}행</li>
+            </ul>
+            <p className="mt-1 text-gray-700">
+              {preserveMode === 'preserve'
+                ? `→ 보존 대상 ${analysis.preservedKeys.size.toLocaleString()}행을 이번 반영에서 제외합니다.`
+                : '→ 전부 덮어쓰기 — 보존 술어를 적용하지 않습니다.'}
+            </p>
+            <p className="mt-1 text-gray-700">
+              이번 산출에 없는 기존 유도 행(source=admission_results):{' '}
+              {analysis.orphanIds.length.toLocaleString()}행
+              {orphanMode === 'deactivate' ? ' → 노출을 끕니다' : ' → 그대로 둡니다'}
+            </p>
+          </div>
+
+          {analysis.nameAxisKeys.size > 0 && (
+            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+              🔴 {analysis.nameAxisKeys.size.toLocaleString()}행이 기존 활성 행과 (컷 종류, 대학명, 학과명)은
+              같은데 key 컬럼이 달라 유일성 인덱스 goal_university_cuts_name_key 와 충돌합니다. 그대로 보내면
+              청크 500행이 통째로 실패하므로 이번 반영에서 제외했습니다 — 해당 기존 행을 목록에서 찾아 정리해
+              주세요.
+            </p>
+          )}
+
+          {preserveMode === 'overwrite' && (
+            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+              노출이 꺼진 {analysis.inactiveCount.toLocaleString()}행이 다시 켜지지는 않지만, 컷 값·출처·기준
+              연도는 전부 덮어써집니다.
+            </p>
+          )}
+
+          {stats.samples.length > 0 && (
+            <div className="mt-3 overflow-x-auto">
+              <p className="font-black">상위 {stats.samples.length}행 샘플</p>
+              <table className="mt-1 w-full min-w-[37.5rem] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-gray-300 font-black">
+                    <th className="py-1 pr-2">대학</th>
+                    <th className="py-1 pr-2">학과</th>
+                    <th className="py-1 pr-2">종류</th>
+                    <th className="py-1 pr-2">컷</th>
+                    <th className="py-1 pr-2">연도</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.samples.map((s) => (
+                    <tr
+                      key={`${s.cut_type}-${s.university_key}-${s.department_key}`}
+                      className="border-b border-gray-200"
+                    >
+                      <td className="py-1 pr-2">{s.university_name}</td>
+                      <td className="py-1 pr-2">{s.department_name}</td>
+                      <td className="py-1 pr-2">{s.cut_type === 'normal' ? '수시 일반' : '수시 특목'}</td>
+                      <td className="py-1 pr-2">{s.avg_cut}등급</td>
+                      <td className="py-1 pr-2">{s.source_year}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            ⚠ 되돌릴 수 없는 작업입니다 — {affectedCount.toLocaleString()}행이 생성·갱신됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={resetPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// H-3 엑셀 일괄 왕복
+// ---------------------------------------------------------------------
+
+function GoalCutsBulkXlsxPanel({ onReload }) {
+  // 다운로드 버튼은 하나뿐이다(2026-08-07 사용자 지시: "엑셀 다운로드
+  // 버튼이 여러 개다, 우리가 개발한 걸로 통일해라"). 범위는 라디오로 고른다.
+  const [downloadScope, setDownloadScope] = useState('all'); // all | jungsiTemplate
+  const [totalRowCount, setTotalRowCount] = useState(null);
+  const [fetchProgress, setFetchProgress] = useState(null);
+  const [idMapProgress, setIdMapProgress] = useState(null);
+  const [applyProgress, setApplyProgress] = useState(null);
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    goalCutsCount()
+      .then((count) => {
+        if (!cancelled) setTotalRowCount(count);
+      })
+      .catch(() => {
+        // 버튼 라벨용 참고 수치라 실패해도 화면을 막지 않는다.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const busy = Boolean(fetchProgress || idMapProgress || applying);
+
+  async function handleDownload() {
+    if (busy) return;
+    try {
+      setFetchProgress({ done: 0, total: totalRowCount ?? 0 });
+      let rows;
+      let fileNamePrefix;
+      if (downloadScope === 'jungsiTemplate') {
+        // 정시 컷 없는 (대학, 학과)를 id 빈 정시 템플릿 행으로 내려준다.
+        // 🔴 대학명·학과명은 수시 컷 행의 문자열을 **그대로 복사**한다 —
+        // 관리자가 손으로 타이핑하면 goalRepo.fetchUniversityCut 의 완전일치
+        // 조회가 깨져 그 학생의 정시 확률이 영원히 미산출로 남는다.
+        const options = await fetchGoalUniversityOptionRows();
+        rows = options
+          .filter((o) => !o.has_jungsi)
+          .map((o) => ({
+            id: '',
+            cut_type: 'jungsi',
+            university_name: o.university_name,
+            department_name: o.department_name,
+            avg_cut: '',
+            source: 'manual',
+            source_year: '',
+            is_active: true,
+            note: ''
+          }));
+        fileNamePrefix = '목표관리_정시컷_템플릿';
+      } else {
+        rows = await fetchAllGoalCutRows(
+          'id, cut_type, university_name, department_name, avg_cut, source, source_year, is_active, note',
+          (p) => setFetchProgress(p)
+        );
+        fileNamePrefix = '목표관리_대학컷_전체';
+      }
+      const { workbook, truncatedCells } = exportGoalUniversityCutRowsToXlsx(rows);
+      setExportTruncatedCells(truncatedCells);
+      const today = new Date();
+      const fileName = `${fileNamePrefix}_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+      if (typeof document !== 'undefined') {
+        triggerXlsxDownload(workbook, fileName);
+      }
+    } catch (err) {
+      alert(`엑셀 다운로드 실패: ${err.message}`);
+    } finally {
+      setFetchProgress(null);
+    }
+  }
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change 가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    try {
+      const buffer = await file.arrayBuffer();
+      setIdMapProgress({ done: 0, total: totalRowCount ?? 0 });
+      // idNotFound 와 cutTypeChanged 를 같은 조회 결과로 판정한다.
+      const idMap = await fetchGoalCutIdCutTypeMap((p) => setIdMapProgress(p));
+      setIdMapProgress(null);
+
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      setParseResult(parseGoalUniversityCutRowsFromXlsx(workbook, idMap));
+    } catch (err) {
+      setIdMapProgress(null);
+      setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+    }
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+
+    // id 유무로 이미 갈라진 payload 를 그대로 배치에 나눠 보낸다. 두 배치는
+    // 컬럼 구성이 달라(update 만 id 를 가짐) 같은 요청에 섞지 않는다 —
+    // PostgREST 가 배열 안 객체들의 키 집합이 다르면 누락 키를 일괄
+    // default/null 로 해석한다.
+    const insertRows = parseResult.rows.filter((row) => !('id' in row));
+    const updateRows = parseResult.rows.filter((row) => 'id' in row);
+    const total = insertRows.length + updateRows.length;
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < insertRows.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = insertRows.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        const { error } = await supabase.from(GOAL_CUTS_TABLE).insert(chunk);
+        if (error) {
+          throw new Error(`신규 등록 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < updateRows.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = updateRows.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        const { error } = await supabase.from(GOAL_CUTS_TABLE).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw new Error(`수정 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(
+        `엑셀 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`
+      );
+      onReload?.();
+      return;
+    }
+
+    const { summary } = parseResult;
+    setApplying(false);
+    setApplyProgress(null);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    goalCutsCount()
+      .then((count) => setTotalRowCount(count))
+      .catch(() => {});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult
+    ? parseResult.summary.willInsert + parseResult.summary.willUpdate
+    : 0;
+
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {fetchProgress
+              ? `읽는 중… ${fetchProgress.done.toLocaleString()} / ${fetchProgress.total.toLocaleString()}행`
+              : downloadScope === 'jungsiTemplate'
+                ? '엑셀 다운로드 (정시 컷 템플릿)'
+                : `엑셀 다운로드 (전체 ${totalRowCount === null ? '-' : totalRowCount.toLocaleString()}행)`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {idMapProgress
+              ? `업로드 검증 준비 중… ${idMapProgress.done.toLocaleString()} / ${idMapProgress.total.toLocaleString()}행`
+              : '엑셀 업로드'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="목표관리 대학 컷 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className="font-black">다운로드 범위</span>
+        {[
+          { value: 'all', label: '전체' },
+          { value: 'jungsiTemplate', label: '정시 컷 없는 조합(정시 템플릿)' }
+        ].map((scope) => (
+          <label key={scope.value} className="flex items-center gap-1 font-bold">
+            <input
+              type="radio"
+              name="goalCutsDownloadScope"
+              checked={downloadScope === scope.value}
+              disabled={busy}
+              onChange={() => setDownloadScope(scope.value)}
+            />
+            {scope.label}
+          </label>
+        ))}
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다. 이
+            파일을 그대로 재업로드하면 해당 행은 자동으로 거부됩니다(데이터 손상 아님).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((message, idx) => (
+            <p key={idx}>{message}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
+          </p>
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.universityName || '(대학명 없음)'} ·{' '}
+                    {err.departmentName || '(학과명 없음)'} — {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 건수는 lib 이 준 warningCounts 에서 합산한다 — UI 는 reason
+              문자열을 파싱하지 않고 type 으로만 분기·집계한다. */}
+          {GOAL_CUTS_WARNING_GROUPS.map((group) => {
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${GOAL_CUTS_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {groupCount}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.universityName || '(대학명 없음)'} ·{' '}
+                        {w.departmentName || '(학과명 없음)'}
+                        {w.column ? ` · ${w.column}` : ''} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// CONFIGS.goalUniversityCuts.ListSummary 의 진입점. CONFIGS 리터럴이 모듈
+// 초기화 시점에 이 참조를 평가하므로 **반드시 function 선언문이어야 한다**
+// (const 화살표 함수로 쓰면 TDZ ReferenceError 로 어드민 전체가 죽는다).
+//
+// props 는 { rows, onReload, mutationSeq } 지만 rows 는 쓰지 않는다 —
+// serverPaginate 탭이라 현재 페이지 10행뿐이다.
+function GoalCutsListSummary({ onReload, mutationSeq }) {
+  // 백필·엑셀 적용 후 H-1 현황 요약도 같이 갱신되게 하는 토큰.
+  const [refreshToken, setRefreshToken] = useState(0);
+  function handleReload() {
+    setRefreshToken((t) => t + 1);
+    onReload?.();
+  }
+  return (
+    <div className="mb-6 space-y-4">
+      {/* 갱신 신호가 둘이다 — 이 컴포넌트 안의 백필·엑셀 적용(refreshToken)과
+          목록의 등록·수정·삭제(mutationSeq, Admin()이 내려 준다). 둘 중 무엇이
+          바뀌어도 집계를 다시 읽어야 화면 숫자가 DB와 어긋나지 않는다. */}
+      <GoalCutsOverviewBlock refreshToken={refreshToken} mutationSeq={mutationSeq} />
+      <GoalCutsBackfillPanel onReload={handleReload} />
+      <GoalCutsBulkXlsxPanel onReload={handleReload} />
+    </div>
+  );
+}
 
 function AcceptanceRateSummary({ rows }) {
   const active = (rows || []).filter((row) => row.is_active);
