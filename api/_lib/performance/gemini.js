@@ -124,6 +124,16 @@ function buildConfig(system, options, defaults) {
   if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
   if (options.responseSchema) config.responseSchema = options.responseSchema;
 
+  // 호출부가 스스로 건 마감 시한(`GenerateContentConfig.abortSignal`, @google/genai
+  // 타입 정의에 존재). 서버리스 플랫폼이 함수를 죽이기 **전에** 호출부가 실패 처리를
+  // 마칠 수 있게 하는 통로다 — 예: analyze-guide.js가 45초 AbortController를 걸어
+  // 첨부를 `ocr_status='failed'`로 닫고 502를 돌려준다.
+  // 재시도 루프 전체가 이 한 신호를 공유하므로 시한은 "총 예산"이다(abort 오류는
+  // `isRetryableGeminiError`에 걸리지 않아 즉시 밖으로 던져진다).
+  // ⚠ 라이브러리 주석 그대로 — abort는 클라이언트 측 취소라 이미 시작된 요청의
+  //   과금은 취소되지 않는다.
+  if (options.abortSignal) config.abortSignal = options.abortSignal;
+
   return config;
 }
 
@@ -163,7 +173,7 @@ export async function callText(system, userMsg, options = {}) {
  * @param {{data: Buffer|Uint8Array|ArrayBuffer|string, mimeType: string}[]} images
  *   `data`가 문자열이면 이미 base64로 본다.
  * @param {string} prompt 사용자 프롬프트(이미지 뒤에 붙는 텍스트 파트)
- * @param {object} [options] `callText`와 동일
+ * @param {object} [options] `callText`와 동일(+ `abortSignal`)
  * @returns {Promise<string>} 응답 텍스트(없으면 빈 문자열)
  */
 export async function callVision(system, images, prompt, options = {}) {

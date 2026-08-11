@@ -21,6 +21,10 @@
 //    canvas 변환을 직접 적용한다.
 //    · 2·3·4(좌우 반전·180°)는 치수가 변하지 않아 이 방식으로 판별할 수 없다.
 //      해당 값은 디코더 보정에 맡긴다(현행 브라우저는 전부 적용한다).
+//    · **정사각(width === height) 원본도 마찬가지다.** 5~8로 돌려도 치수가 그대로라
+//      "치수가 안 바뀌었으니 디코더가 안 돌렸다"는 판정이 항상 참이 되어, 이미 올바로
+//      회전된 픽셀에 90°를 한 번 더 얹어 결과물을 눕혀 버린다. SNS 업로드용 크롭이나
+//      일부 스캐너 출력은 실제로 정사각이므로 예외로 빼고 디코더 보정에 맡긴다.
 //    · JPEG이 아닌 입력(PNG/WEBP)은 EXIF 방향 태그가 사실상 쓰이지 않아 검사하지 않는다.
 
 export const ALLOWED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -226,9 +230,16 @@ export async function prepareGuideImage(file) {
     if (!width || !height) throw new Error('이미지 크기를 읽을 수 없습니다.');
 
     // 디코더가 축 뒤바뀜(5~8)을 반영하지 않은 경우에만 우리가 직접 돌린다(파일 상단 주석).
+    // `meta.width !== meta.height`가 이 판정의 전제다 — 정사각 원본은 회전해도 치수가
+    // 그대로라 "치수가 안 바뀜 = 디코더가 안 돌림"이 성립하지 않는다(파일 상단 예외).
     const axisSwapped = meta.orientation >= 5 && meta.orientation <= 8;
     const decoderSkippedRotation =
-      axisSwapped && meta.width && meta.height && width === meta.width && height === meta.height;
+      axisSwapped &&
+      meta.width &&
+      meta.height &&
+      meta.width !== meta.height &&
+      width === meta.width &&
+      height === meta.height;
     const orientation = decoderSkippedRotation ? meta.orientation : 1;
 
     const longEdge = Math.max(width, height);

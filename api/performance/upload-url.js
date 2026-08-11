@@ -40,11 +40,16 @@
 //    ③ 파일당 10MB / 세션 합계 25MB — `byteSize`로 판정(외부는 수신조차 안 한다).
 //    클라이언트도 같은 상한을 미리 검사하지만(불필요한 왕복 절감) **정본은 여기다.**
 //
-//    ⚠️ `byteSize`는 클라이언트 **선언값**이다. 토큰을 받은 뒤 더 큰 파일을 올릴 수
-//    있으므로 이 검사만으로 실제 바이트가 보장되지는 않는다. 실제 상한은 버킷의
-//    `file_size_limit = 10485760`(sql/54 (6))이 Storage 계층에서 강제한다 — 즉
-//    파일당 10MB는 2중 방어이고, 세션 합계 25MB만 이 계층의 단독 판정이다
-//    (`api/mentor-apply-upload-url.js:192-196`과 같은 성격의 1차 필터).
+//    ⚠️ `byteSize`/`mimeType`은 클라이언트 **선언값**이다. 토큰을 받은 뒤 더 큰 파일을
+//    올릴 수 있으므로 이 계층만으로는 실제 바이트가 보장되지 않는다 — `byteSize=1`로
+//    5번 토큰을 받아 각 10MB를 올리면 합계 25MB 판정이 그대로 뚫린다(버킷
+//    `file_size_limit = 10485760`(sql/54 (6))이 막는 것은 장당 10MB뿐이다).
+//    그래서 **실측 재판정을 분석 직전에 한 번 더 한다**: `analyze-guide.js`가
+//    `storage.from(BUCKET).info(path)`로 Storage가 실제로 들고 있는 size/contentType을
+//    읽어 장당 10MB·세션 합계 25MB·MIME 화이트리스트를 다시 걸고, 실측값으로
+//    `byte_size`/`mime_type`을 갱신하며, 위반 객체는 remove + `ocr_status='failed'`로
+//    닫는다(`api/mentor-apply.js:536-575` `verifyUploadedProof`와 같은 절차).
+//    즉 이 계층은 **왕복 절감용 1차 필터**이고 정본 판정은 분석 직전 실측이다.
 //
 // ── 회차는 차감하지 않는다 (§9.2 결정)
 //    차감 지점은 주제 추천 최초 성공 1곳뿐이다. 외부 앱은 장당 1회씩 소모해
@@ -55,6 +60,16 @@
 //    5장 상한에 포함된다. 이것이 §8.8이 90일 보관 cron과 **별개로** 24시간 TTL
 //    스윕(`ocr_status='pending' and created_at < now()-interval '24 hours'`)을
 //    유지하는 이유다. 그 스윕은 이 파일이 아니라 정리 잡의 몫이다.
+//
+//    다만 24시간 스윕만으로는 **그 세션의 사용자가 최대 하루 동안 막힌다** —
+//    5장을 올리다 Storage PUT이 한 장이라도 실패해 다시 시도하면, 화면에는 사진이
+//    4장뿐인데 상한 판정은 이미 5행을 세서 409 TOO_MANY_ATTACHMENTS가 뜬다.
+//    그래서 즉시 자리를 비우는 회수 경로를 따로 뒀다:
+//      `POST /api/performance/discard-attachment` — 소유권 확인 후 Storage 원본
+//      remove + 행 삭제. **`ocr_status='pending'` 행만** 대상이라 분석이 끝난
+//      첨부를 지워 5장 상한을 우회하는 데는 쓸 수 없다.
+//    클라이언트는 업로드 실패 시 그 세션에서 이미 올린 첨부를 이 엔드포인트로
+//    되돌린다(`src/lib/performance/guideUpload.js`).
 
 import crypto from 'crypto';
 import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
@@ -70,15 +85,15 @@ export const BUCKET = 'performance-guides';
 
 // §8.8 「허용 형식」 — PNG / JPG·JPEG / WEBP. 버킷의 allowed_mime_types와 같은 집합이다
 // (sql/54_performance_app.sql (6)). HEIC/HEIF는 여기에 없으므로 415로 떨어진다.
-const ALLOWED_MIME_EXT = {
+export const ALLOWED_MIME_EXT = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp'
 };
 
-const MAX_ATTACHMENTS = 5; // §8.8 「최대 장수 5장 — 서버에서 강제」
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
-const MAX_TOTAL_BYTES = 25 * 1024 * 1024; // 25MB (세션 누적)
+export const MAX_ATTACHMENTS = 5; // §8.8 「최대 장수 5장 — 서버에서 강제」
+export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
+export const MAX_TOTAL_BYTES = 25 * 1024 * 1024; // 25MB (세션 누적)
 
 // ── 업로드 토큰 TTL (§8.8 「사용 중인 supabase-js 버전에서 실측해 별도 행으로 기록할 것」)
 //

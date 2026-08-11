@@ -1406,9 +1406,16 @@ where id = 'performance-guides';
 --     (31·52번이 같은 주의를 기록했다).
 --
 --   업로드는 서버가 발급한 signed upload URL로 이뤄지고(§8.6 upload-url.js)
---   그 토큰은 service_role이 만들므로 정책 없이도 통과한다. 그럼에도 소유자
---   insert/select 정책을 두는 이유는, 클라이언트가 supabase-js로 직접
---   버킷을 만졌을 때 **본인 경로 밖은 어떤 경우에도 막히게** 하기 위함이다.
+--   그 토큰은 service_role이 만들므로 정책 없이도 통과한다. **그래서 소유자
+--   insert/update 정책은 만들지 않는다** — 만들면 로그인만 한 계정(이용권
+--   유무와 무관)이 supabase-js로 자기 uid 하위에 직접 업로드할 수 있게 되고,
+--   그 경로에는 5장 상한·세션 합계 25MB·performance_attachments 행이 하나도
+--   적용되지 않는다. 게다가 cleanup 잡은 그 테이블의 행만 순회하므로 DB 행
+--   없는 객체는 90일 cron·24시간 스윕 어느 쪽에도 잡히지 않아 영구 잔존한다
+--   (= 업로드 카드의 `90일 후 자동 삭제` 고지가 그 경로에서만 거짓이 된다).
+--   `mentor-applications` 버킷도 같은 이유로 insert 정책이 없다(sql/52 (4)).
+--   ⚠ 이 두 정책은 초판에 존재했다 — 이미 54번을 실행한 DB는
+--     `sql/55_performance_guide_hardening.sql` (1)이 drop한다.
 --
 --   delete 정책은 만들지 않는다 — 원본 삭제는 90일 보관 cron과 분석 후
 --   정리(둘 다 service_role)만 한다. 학생이 임의로 지우면
@@ -1418,26 +1425,6 @@ drop policy if exists "performance guides owner read" on storage.objects;
 create policy "performance guides owner read" on storage.objects
     for select to authenticated
     using (
-      bucket_id = 'performance-guides'
-      and (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-drop policy if exists "performance guides owner insert" on storage.objects;
-create policy "performance guides owner insert" on storage.objects
-    for insert to authenticated
-    with check (
-      bucket_id = 'performance-guides'
-      and (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-drop policy if exists "performance guides owner update" on storage.objects;
-create policy "performance guides owner update" on storage.objects
-    for update to authenticated
-    using (
-      bucket_id = 'performance-guides'
-      and (storage.foldername(name))[1] = auth.uid()::text
-    )
-    with check (
       bucket_id = 'performance-guides'
       and (storage.foldername(name))[1] = auth.uid()::text
     );

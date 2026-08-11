@@ -7,7 +7,10 @@
 //   → 200 { guide, attachments[{attachmentId,deleted}], promptVersion, model, charged:false }
 //   → 403 { error:{code:'NOT_ATTACHMENT_OWNER'} }
 //   → 404 { error:{code:'ATTACHMENT_GONE'} }
+//   → 413 { error:{code:'FILE_TOO_LARGE'} }        (실측 재검증 위반)
+//   → 415 { error:{code:'UNSUPPORTED_MIME'} }      (실측 재검증 위반)
 //   → 422 { error:{code:'GUIDE_PARSE_FAILED'} }   (무차감)
+//   → 429 { error:{code:'ANALYSIS_LIMIT_REACHED'} }
 //   → 502 { error:{code:'VISION_UPSTREAM_FAILED'} } (무차감)
 //
 // ── 이 파일이 하는 일 (STEP2 안내문 입력의 종착점)
@@ -32,8 +35,32 @@
 //         `403 NOT_ATTACHMENT_OWNER`로 떨어진다(존재 여부를 알려주지 않으려고 "없음"과
 //         "남의 것"을 같은 코드로 합친다 — upload-url.js의 세션 403과 같은 관례).
 //      ④ Storage 접근에 쓰는 경로는 **DB 행의 `storage_path`뿐이다.**
-//    `mime_type`도 DB 값만 신뢰한다(§8.3 「업로드 시점 값만 신뢰. 클라이언트가 분석
-//    요청에 실어 보내는 값은 무시」).
+//
+// ── 업로드 실측 재검증 (`.info()`) — 선언값을 믿지 않는다
+//    `upload-url.js`가 보는 `byteSize`/`mimeType`은 **클라이언트 선언값**이다. 토큰을
+//    받은 뒤 더 큰 파일을 올릴 수 있어서, `byteSize=1`로 5번 토큰을 받아 각 10MB를
+//    올리면 세션 합계 25MB 판정이 그대로 뚫린다(버킷 `file_size_limit`이 막는 것은
+//    장당 10MB뿐이라 실질 상한이 50MB가 된다).
+//    그래서 다운로드 직전에 `storage.from(BUCKET).info(path)`로 **Storage가 실제로 들고
+//    있는 size/contentType**을 읽어
+//      ① 장당 10MB · 세션 합계 25MB · MIME 화이트리스트를 실측값으로 재판정하고,
+//      ② `performance_attachments.byte_size`/`mime_type`을 실측값으로 갱신하고,
+//      ③ 위반 객체는 remove + `ocr_status='failed'`로 닫는다.
+//    같은 저장소의 `api/mentor-apply.js:536-575`(`verifyUploadedProof`)와 같은 절차다.
+//    §8.3 「업로드 시점 값만 신뢰. 클라이언트가 분석 요청에 실어 보내는 값은 무시」는
+//    그대로다 — 여기서 신뢰하는 것도 요청 본문이 아니라 **Storage 실측값**이다.
+//
+// ── 재분석은 멱등으로 막는다 (비용 증폭 차단)
+//    이 엔드포인트는 §9.2에 따라 **무차감**이라(그건 명세대로다) 회차가 남용 억제
+//    수단이 되지 못한다. 그대로 두면 이용권 보유 계정 하나로 5장짜리 vision 호출
+//    (장당 2200 × 5 = 11k maxOutputTokens, 429/503 시 최대 3회 시도 + 매 호출마다
+//    최대 25MB 다운로드)을 무제한 반복시킬 수 있다.
+//      · 요청 첨부가 **전부 `ocr_status='done'`**이고 세션 `guide_json.mode === 'upload'`면
+//        모델을 부르지 않고 저장된 guide를 그대로 돌려준다(`reused:true`).
+//      · 정말 다시 돌려야 하면 `force:true`를 명시한다.
+//      · `force`든 아니든 **실제 모델 호출은 세션당 `MAX_ANALYSIS_PER_SESSION`회까지**다
+//        (`performance_sessions.guide_analysis_count`, sql/55). 넘으면 429다.
+//    차감을 늘려 막지 않는다 — 그건 §9.2 위반이다.
 //
 // ── 다중 이미지 = 호출 1회 (§8.8 「다중 분석」 결정)
 //    외부는 프론트가 장당 1회씩 호출해(`suhaengpyeong/index.html:1660-1681`) N장 = N회
@@ -44,12 +71,25 @@
 //    출력이 잘린다(§12.3 「비전 호출 파라미터」). 계산은 `api/_lib/performance/gemini.js`가
 //    `VISION_MAX_OUTPUT_TOKENS_PER_IMAGE × 장수`로 한다.
 //
+// ── 실행 시간 (형제 라우트와 동일 + 자체 마감 시한)
+//    최대 5장(합계 25MB)을 base64로 실어 단일 vision 호출을 하고, `generateWithRetry`가
+//    700ms·1400ms 백오프로 최대 3회까지 시도한다. Fluid compute가 꺼진 프로젝트의 기본
+//    실행시간(Hobby 10초 / Pro 15초)으로는 3~5장 분석이 **통상 경로에서** 끊긴다.
+//    끊기면 ① 플랫폼이 본문 없는 504를 돌려줘 클라이언트의 `response.json().catch(()=>null)`이
+//    null이 되어 원인이 사용자에게 전달되지 않고, ② `markAttachmentsFailed`가 실행되지
+//    않아 첨부가 `pending`으로 남아 24시간 스윕까지 5장 상한과 25MB 예산을 계속 먹는다.
+//    → 파일 끝에 `maxDuration: 60`을 선언하고(`admin-embed.js:319`/`cleanup-attachments.js:322`와
+//      동일), 그 안에서 vision 호출에 **45초 AbortController**를 걸어 플랫폼이 함수를
+//      죽이기 전에 반드시 실패 처리(첨부 failed + 502)를 마치게 한다.
+//
 // ── 원본 이미지를 지우지 않는다 (§8.8 ~~Q52~~ 부결)
 //    외부의 `deleteImage`(`:23-32`, 호출 `:120`)는 **이식하지 않는다.** 보관 정본은 90일이고
 //    삭제는 `api/performance/cleanup-attachments.js` + Vercel Cron 일 1회의 몫이다.
 //    그래서 응답의 `attachments[].deleted`는 이 엔드포인트에서 항상 false다 — 그 값은
 //    "이 API가 지웠는가"가 아니라 **행의 `deleted_at` 유무**를 그대로 비춘 것이고, 아직
 //    살아 있지 않은 첨부는 아래에서 404로 먼저 걸러진다.
+//    예외는 위 실측 재검증에서 **위반이 확인된 객체**뿐이다 — 상한을 넘긴 파일을 90일간
+//    보관할 이유가 없고, mentor-apply.js가 같은 상황에서 remove한다.
 //
 // ── 회차는 차감하지 않는다 (§9.2 결정)
 //    차감 지점은 주제 추천 최초 성공 1곳뿐이다. 외부는 장당 1회씩 소모해 3장 업로드 =
@@ -68,12 +108,28 @@ import {
   GUIDE_PROMPT_VERSION,
   buildGuideExtractionUserPrompt
 } from '../_lib/performance/prompts.js';
-import { BUCKET } from './upload-url.js';
+import {
+  ALLOWED_MIME_EXT,
+  BUCKET,
+  MAX_ATTACHMENTS,
+  MAX_FILE_BYTES,
+  MAX_TOTAL_BYTES
+} from './upload-url.js';
 
 const SERVICE_KEY = 'suhaeng';
 
-/** §8.8 「최대 장수 5장」 — upload-url.js의 상한과 같은 값이다. */
-const MAX_ATTACHMENTS = 5;
+/**
+ * 세션당 **실제 모델 호출** 상한. 멱등 단축(저장분 반환)은 여기에 포함되지 않는다.
+ * 사진을 다시 찍어 올리는 정상 재시도(보통 1~2회)를 넉넉히 덮으면서, 무차감
+ * 엔드포인트가 무제한 vision 호출 통로가 되는 것은 막는 수치다.
+ */
+const MAX_ANALYSIS_PER_SESSION = 10;
+
+/**
+ * vision 호출 자체 마감 시한. `maxDuration: 60`보다 짧게 잡아, 플랫폼이 함수를 죽이기
+ * 전에 `markAttachmentsFailed` + 502 응답을 반드시 돌려줄 여유(다운로드/마감 처리)를 남긴다.
+ */
+const VISION_TIMEOUT_MS = 45 * 1000;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -163,6 +219,7 @@ export default async function handler(req, res) {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
     const freetext = typeof body.freetext === 'string' ? body.freetext.trim() : '';
+    const force = body.force === true;
     const attachments = readAttachmentIds(body);
 
     if (!sessionId) {
@@ -195,7 +252,7 @@ export default async function handler(req, res) {
     //    세션이 없는 경우와 남의 세션인 경우를 같은 403으로 합친다(존재 오라클 방지).
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
       .from('performance_sessions')
-      .select('id,status,current_step,completed_steps')
+      .select('id,status,current_step,completed_steps,guide_json,guide_analysis_count')
       .eq('id', sessionId)
       .eq('profile_id', userId)
       .maybeSingle();
@@ -243,7 +300,9 @@ export default async function handler(req, res) {
     // 페이지 순서를 흔들 수 있고, 안내문은 장 순서가 곧 문서 순서다.
     const { data: attachmentRows, error: attachmentError } = await supabaseAdmin
       .from('performance_attachments')
-      .select('id,storage_path,mime_type,deleted_at')
+      // `mime_type`/`byte_size`는 뜨지 않는다 — 이 라우트의 판정 근거는 저장된 선언값이
+      // 아니라 아래 `verifyStoredObjects`가 읽는 Storage 실측값이다(파일 상단).
+      .select('id,storage_path,ocr_status,deleted_at')
       .eq('session_id', sessionRow.id)
       .in('id', attachments.ids)
       .order('created_at', { ascending: true });
@@ -263,18 +322,96 @@ export default async function handler(req, res) {
       return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본이 이미 삭제되었어요.');
     }
 
+    // ── 멱등 단축 (파일 상단 「재분석은 멱등으로 막는다」)
+    //    같은 첨부 집합이 이미 분석돼 있고 세션에 그 결과가 그대로 남아 있으면
+    //    모델을 부를 이유가 없다. `guide_analysis_count`도 올리지 않는다.
+    const storedGuide = sessionRow.guide_json;
+    const alreadyAnalyzed = rows.every((row) => row.ocr_status === 'done');
+
+    if (!force && alreadyAnalyzed && storedGuide?.mode === 'upload') {
+      return res.status(200).json({
+        guide: storedGuide,
+        attachments: rows.map((row) => ({ attachmentId: row.id, deleted: false })),
+        promptVersion: storedGuide.promptVersion || GUIDE_PROMPT_VERSION,
+        model: storedGuide.model || PERFORMANCE_MODEL,
+        charged: false,
+        // 저장분을 그대로 돌려줬다는 표시. 호출부가 "다시 분석됐다"고 오해하지 않게 한다.
+        reused: true
+      });
+    }
+
+    // ── 호출 상한 (무차감 엔드포인트의 비용 증폭 차단, sql/55 (3))
+    const analysisCount = Number(sessionRow.guide_analysis_count) || 0;
+    if (analysisCount >= MAX_ANALYSIS_PER_SESSION) {
+      return fail(
+        res,
+        429,
+        'ANALYSIS_LIMIT_REACHED',
+        '이 수행평가에서 안내문 분석을 너무 여러 번 요청했어요. 직접 입력으로 진행하거나 새 수행평가를 시작해 주세요.',
+        { maxAnalysis: MAX_ANALYSIS_PER_SESSION, charged: false }
+      );
+    }
+
     analyzedIds = rows.map((row) => row.id);
+
+    // ── 실측 재검증 (`.info()`) — 파일 상단 「업로드 실측 재검증」
+    const verified = await verifyStoredObjects(supabaseAdmin, rows);
+
+    if (verified.missing.length) {
+      // 행은 살아 있는데 객체가 없다 = 업로드 토큰만 받고 파일을 올리지 않았거나
+      // 버킷 쪽에서 사라진 경우다. 되살릴 수 없으니 failed로 닫고 404로 알린다.
+      await markAttachmentsFailed(supabaseAdmin, analyzedIds);
+      return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본을 찾을 수 없어요.');
+    }
+
+    // 실측값을 장부에 반영한다 — 이후의 상한 판정(다음 업로드의 upload-url 합계
+    // 계산 포함)이 선언값이 아니라 실제 바이트를 보게 만드는 지점이다.
+    await syncMeasuredMetadata(supabaseAdmin, verified.measured);
+
+    // ① MIME 화이트리스트 · ② 장당 10MB — 실측값으로 재판정.
+    const badMime = verified.measured.filter((item) => !ALLOWED_MIME_EXT[item.mimeType]);
+    const tooLarge = verified.measured.filter((item) => item.size > MAX_FILE_BYTES);
+
+    if (badMime.length || tooLarge.length) {
+      // 위반 객체는 남겨 둘 이유가 없다(mentor-apply.js:565와 같은 처리).
+      await removeObjects(supabaseAdmin, [...badMime, ...tooLarge]);
+      await markAttachmentsFailed(supabaseAdmin, analyzedIds);
+
+      return badMime.length
+        ? fail(res, 415, 'UNSUPPORTED_MIME', 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.', {
+            allowed: Object.keys(ALLOWED_MIME_EXT),
+            charged: false
+          })
+        : fail(res, 413, 'FILE_TOO_LARGE', '사진 한 장은 10MB까지 올릴 수 있어요.', {
+            maxBytes: MAX_FILE_BYTES,
+            charged: false
+          });
+    }
+
+    // ③ 세션 합계 25MB — 실측값 반영 후의 장부로 다시 센다. 여기서만 잡히는
+    //    우회가 `byteSize=1`로 토큰 5장을 받아 각 10MB를 올리는 경우다.
+    const totalBytes = await sumSessionBytes(supabaseAdmin, sessionRow.id);
+
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      // 선언값이 거짓이었다는 뜻이므로 이번 묶음을 통째로 거절한다(정직한 선언은
+      // upload-url.js에서 이미 걸러져 여기까지 오지 않는다).
+      await removeObjects(supabaseAdmin, verified.measured);
+      await markAttachmentsFailed(supabaseAdmin, analyzedIds);
+      return fail(res, 413, 'FILE_TOO_LARGE', '사진 전체 용량은 25MB까지 올릴 수 있어요.', {
+        maxTotalBytes: MAX_TOTAL_BYTES,
+        usedBytes: totalBytes,
+        charged: false
+      });
+    }
 
     // ── 다운로드. 경로는 오직 DB 행의 값이다(요청 본문에서 온 문자열이 아니다).
     const images = [];
-    for (const row of rows) {
+    for (const item of verified.measured) {
       const { data: blob, error: downloadError } = await supabaseAdmin.storage
         .from(BUCKET)
-        .download(row.storage_path);
+        .download(item.path);
 
       if (downloadError || !blob) {
-        // 행은 살아 있는데 객체가 없다 = 업로드 토큰만 받고 파일을 올리지 않았거나
-        // 버킷 쪽에서 사라진 경우다. 되살릴 수 없으니 failed로 닫고 404로 알린다.
         console.error('performance/analyze-guide 원본 다운로드 실패:', downloadError);
         await markAttachmentsFailed(supabaseAdmin, analyzedIds);
         return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본을 찾을 수 없어요.');
@@ -282,18 +419,34 @@ export default async function handler(req, res) {
 
       images.push({
         data: Buffer.from(await blob.arrayBuffer()),
-        // 업로드 시점에 서버가 검증해 저장한 값만 쓴다(§8.3). 요청 본문의 mime은 무시.
-        mimeType: row.mime_type || 'image/jpeg'
+        // 실측 contentType이다 — 요청 본문의 mime도, 이제는 선언값 사본도 아니다.
+        mimeType: item.mimeType
       });
     }
 
+    // 모델을 실제로 부르기 **직전**에 카운터를 올린다. 성공/실패 어느 쪽이든 비용은
+    // 이미 발생하므로 실패도 세어야 상한이 의미를 갖는다. (동시 요청 2건이 같은 값을
+    // 읽어 한 번을 덜 셀 수 있으나, 이 값은 정밀 회계가 아니라 남용 상한이라 허용한다 —
+    // 정밀 회계가 필요한 회차 차감은 `consume_performance_credit`이 `for update`로 한다.)
+    const { error: counterError } = await supabaseAdmin
+      .from('performance_sessions')
+      .update({ guide_analysis_count: analysisCount + 1 })
+      .eq('id', sessionRow.id);
+
+    if (counterError) throw new Error(`분석 횟수 갱신 실패: ${counterError.message}`);
+
     // ── 단일 vision 호출. maxOutputTokens는 gemini.js가 장수 비례로 잡는다.
+    //    45초 마감 시한을 걸어 플랫폼이 함수를 죽이기 전에 실패 처리를 마친다.
     let text;
+    const abortController = new AbortController();
+    const abortTimer = setTimeout(() => abortController.abort(), VISION_TIMEOUT_MS);
+
     try {
       text = await callVision(
         GUIDE_EXTRACTION_SYSTEM,
         images,
-        buildGuideExtractionUserPrompt(images.length)
+        buildGuideExtractionUserPrompt(images.length),
+        { abortSignal: abortController.signal }
       );
     } catch (modelError) {
       console.error('performance/analyze-guide vision 호출 실패:', modelError);
@@ -302,6 +455,8 @@ export default async function handler(req, res) {
       return fail(res, 502, 'VISION_UPSTREAM_FAILED', '안내문을 분석하지 못했어요. 잠시 후 다시 시도해 주세요.', {
         charged: false
       });
+    } finally {
+      clearTimeout(abortTimer);
     }
 
     const guideText = String(text || '').trim();
@@ -357,7 +512,8 @@ export default async function handler(req, res) {
       attachments: analyzedIds.map((attachmentId) => ({ attachmentId, deleted: false })),
       promptVersion: GUIDE_PROMPT_VERSION,
       model: PERFORMANCE_MODEL,
-      charged: false
+      charged: false,
+      reused: false
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
@@ -368,11 +524,115 @@ export default async function handler(req, res) {
 }
 
 /**
+ * 각 첨부의 **실제** Storage 메타데이터를 읽는다(`api/mentor-apply.js:536-575` 절차).
+ *
+ * 클라이언트가 upload-url에서 선언한 `byteSize`/`mimeType`이 아니라 Storage가 들고 있는
+ * `size`/`contentType`을 돌려준다 — 선언값은 거짓말할 수 있어 믿지 않는다.
+ *
+ * @returns {Promise<{measured: {id:string,path:string,size:number,mimeType:string}[], missing: string[]}>}
+ */
+async function verifyStoredObjects(supabaseAdmin, rows) {
+  const measured = [];
+  const missing = [];
+
+  for (const row of rows) {
+    const { data: info, error: infoError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .info(row.storage_path);
+
+    if (infoError || !info) {
+      console.error('performance/analyze-guide 원본 메타 조회 실패:', row.storage_path, infoError);
+      missing.push(row.id);
+      continue;
+    }
+
+    // storage-js 버전에 따라 카멜/메타데이터 어느 쪽에 실릴지 갈려서 둘 다 본다
+    // (mentor-apply.js와 같은 방어).
+    const size = Number(info.size ?? info.metadata?.size ?? 0);
+    const mimeType = String(info.contentType ?? info.metadata?.mimetype ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (!Number.isFinite(size) || size <= 0) {
+      // 크기를 못 읽으면 상한 판정을 할 수 없다 = 통과시킬 수 없다(fail-closed).
+      console.error('performance/analyze-guide 원본 크기 판독 실패:', row.storage_path, info);
+      missing.push(row.id);
+      continue;
+    }
+
+    measured.push({ id: row.id, path: row.storage_path, size, mimeType });
+  }
+
+  return { measured, missing };
+}
+
+/** 실측 size/mime을 장부에 반영한다. 값이 그대로면 쓰지 않는다(불필요한 write 절감). */
+async function syncMeasuredMetadata(supabaseAdmin, measured) {
+  for (const item of measured) {
+    const { error } = await supabaseAdmin
+      .from('performance_attachments')
+      .update({ byte_size: item.size, mime_type: item.mimeType })
+      .eq('id', item.id);
+
+    if (error) {
+      // 실측 반영에 실패해도 이번 요청의 판정(아래 상한 검사)은 measured 값으로 하므로
+      // 결론이 바뀌지 않는다. 다음 요청의 합계 계산이 옛 값을 볼 뿐이라 로그만 남긴다.
+      console.error('performance/analyze-guide 실측 메타 반영 실패:', item.id, error);
+    }
+  }
+}
+
+/** 세션 첨부의 `byte_size` 합. upload-url.js의 합계 판정과 같은 모집단(전 행)을 센다. */
+async function sumSessionBytes(supabaseAdmin, sessionId) {
+  const { data, error } = await supabaseAdmin
+    .from('performance_attachments')
+    .select('byte_size')
+    .eq('session_id', sessionId);
+
+  if (error) throw new Error(`첨부 용량 합계 조회 실패: ${error.message}`);
+
+  return (data || []).reduce((sum, row) => sum + (Number(row.byte_size) || 0), 0);
+}
+
+/**
+ * 상한·형식을 위반한 객체를 지우고 **장부도 함께 닫는다**(`deleted_at` + `storage_path=null`).
+ *
+ * 객체만 지우고 행을 그대로 두면 90일 cron이 없는 객체를 계속 다시 집고,
+ * `analyze-guide`도 그 행을 "원본이 살아 있다"고 읽어 다운로드에서 다시 실패한다 —
+ * sql/54가 경고한 "기록과 실제 상태가 어긋난" 상태다. remove가 실패하면 장부를 닫지
+ * 않는다(cleanup 잡이 다시 집게 둔다, `cleanup-attachments.js`와 같은 규율).
+ * 이 정리가 실패해도 응답은 바꾸지 않는다 — 이미 결정된 거절이다.
+ */
+async function removeObjects(supabaseAdmin, items) {
+  const targets = items.filter((item) => item.path);
+  if (!targets.length) return;
+
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .remove([...new Set(targets.map((item) => item.path))]);
+
+  if (error) {
+    console.error('performance/analyze-guide 위반 첨부 정리 실패:', error);
+    return;
+  }
+
+  const { error: closeError } = await supabaseAdmin
+    .from('performance_attachments')
+    .update({ deleted_at: new Date().toISOString(), storage_path: null })
+    .in('id', targets.map((item) => item.id));
+
+  if (closeError) {
+    console.error('performance/analyze-guide 위반 첨부 장부 마감 실패:', closeError);
+  }
+}
+
+/**
  * 분석에 실패한 첨부를 `ocr_status='failed'`로 닫는다.
  *
- * **원본 파일은 건드리지 않는다** — 실패는 재시도 여지가 있고, 보관 정책상 삭제 권한은
- * 90일 cron에만 있다(§8.8). 이 갱신이 또 실패해도 사용자에게 돌려줄 응답을 바꾸지
- * 않는다(이미 결정된 실패다). 로그만 남긴다.
+ * **정상 경로에서는 원본 파일을 건드리지 않는다** — 실패는 재시도 여지가 있고, 보관
+ * 정책상 삭제 권한은 90일 cron에만 있다(§8.8). 상한 위반 객체만 예외적으로 위
+ * `removeObjects`가 지운다(mentor-apply.js와 같은 처리). 이 갱신이 또 실패해도
+ * 사용자에게 돌려줄 응답을 바꾸지 않는다(이미 결정된 실패다). 로그만 남긴다.
  */
 async function markAttachmentsFailed(supabaseAdmin, ids) {
   if (!ids?.length) return;
@@ -388,3 +648,11 @@ async function markAttachmentsFailed(supabaseAdmin, ids) {
     console.error('performance/analyze-guide 첨부 failed 마킹 실패:', error);
   }
 }
+
+// 최대 5장(합계 25MB)을 base64로 실어 단일 vision 호출을 하고, gemini.js가 700ms·1400ms
+// 백오프로 최대 3회까지 시도한다. 기본 실행시간(Hobby 10초 / Pro 15초)으로는 3~5장이
+// 통상 경로에서 끊기고, 끊기면 본문 없는 504라 클라이언트가 원인을 못 받는 데다
+// `markAttachmentsFailed`가 실행되지 않아 첨부가 pending으로 남아 5장 상한과 25MB
+// 예산을 24시간 동안 계속 점유한다. 형제 라우트(`admin-embed.js` / `cleanup-attachments.js`)와
+// 같은 60초를 쓴다 — 그 안에서 vision 호출 자체는 VISION_TIMEOUT_MS(45초)로 먼저 끊긴다.
+export const config = { runtime: 'nodejs', maxDuration: 60 };

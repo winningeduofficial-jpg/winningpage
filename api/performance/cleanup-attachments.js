@@ -1,7 +1,7 @@
 // GET /api/performance/cleanup-attachments   (Vercel Cron 전용 — 일 1회)
 // Authorization: Bearer <CRON_SECRET>
 //
-//   → 200 { ok, ranAt, retention:{...}, orphan:{...} }
+//   → 200 { ok, ranAt, stuck, maxCleanupAttempts, retention:{...}, orphan:{...} }
 //   → 401 (시크릿 불일치 · 미설정)
 //   → 405 (GET/POST 외)
 //   → 500 { error:{code:'INTERNAL'} }
@@ -80,6 +80,19 @@
 //   장부에만 삭제로 적히면 `sql/54_performance_app.sql`이 경고한 "기록과 실제 상태가
 //   어긋난" 상태가 되고, 그 행은 영영 재시도 대상에서 빠진다. 실패는 그대로 로그
 //   (`console.error`)에 남기고 카운트에 실어 다음 실행이 다시 집는다.
+//
+// ── 실패분이 배치를 막지 않게 한다 (head-of-line blocking)
+//   위 규율만으로는 **영구적 이유로 계속 실패하는 묶음이 큐 앞자리를 영원히 점유**한다.
+//   조회가 `created_at` 오름차순 + `limit(batch+1)`이므로, 오래된 100건(REMOVE_CHUNK)이
+//   경로 손상·버킷 정책 변경 같은 이유로 매번 실패하면 그 뒤의 만기분은 배치 상한 안에
+//   절대 들어오지 못한다 — 90일 삭제 약속이 조용히 멈추는데 `hasMore`는 계속 true라
+//   정상 적체와 구분도 되지 않는다.
+//   → `performance_attachments.cleanup_attempts` / `cleanup_last_error_at`(sql/55 (2))로
+//     실패 횟수를 세고, 조회에서 `cleanup_attempts < MAX_CLEANUP_ATTEMPTS`인 행만 집는다.
+//     임계를 넘긴 행은 배치에서 빠지되 **사라지지 않는다** — 매 실행 응답의 `stuck`으로
+//     건수를 노출해 운영이 알아채고 손으로 조사하게 한다(로그에도 남긴다).
+//     backoff가 아니라 상한을 쓰는 이유: cron이 하루 1회라 실행 간격 자체가 이미 24시간
+//     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
 import crypto from 'crypto';
 import { createSupabaseAdmin, getEnv } from '../_lib/supabaseAdmin.js';
@@ -102,6 +115,11 @@ const REMOVE_CHUNK = 100;
 
 // DB `.in()` 한 번에 넘길 id 수. URL 길이 한계(PostgREST는 쿼리스트링으로 나간다)를 피한다.
 const UPDATE_CHUNK = 100;
+
+// 이 횟수만큼 실패한 행은 배치 대상에서 제외한다(파일 상단 「head-of-line blocking」).
+// 5회 = cron 일 1회 기준 닷새 연속 실패다. 일시적 장애(스토리지 순단 등)는 그 안에
+// 반드시 풀리므로, 5회를 넘겼다는 것은 사람이 봐야 하는 상태라는 뜻이다.
+const MAX_CLEANUP_ATTEMPTS = 5;
 
 function fail(res, status, code, message) {
   return res.status(status).json({ error: { code, message } });
@@ -165,10 +183,13 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
   const filtered = applyFilter(
     supabaseAdmin
       .from('performance_attachments')
-      .select('id,storage_path')
+      .select('id,storage_path,cleanup_attempts')
       // 이미 지운 행은 두 스윕 모두에서 제외한다. `deleted_at`이 A·B의 공통
       // 멱등 표식이라 재실행해도 같은 행을 다시 집지 않는다.
       .is('deleted_at', null)
+      // 계속 실패하는 행이 배치 앞자리를 영원히 점유하지 못하게 한다(파일 상단
+      // 「head-of-line blocking」). 제외된 행은 아래 `countStuck`이 세어 보고한다.
+      .lt('cleanup_attempts', MAX_CLEANUP_ATTEMPTS)
   );
 
   const { data, error } = await filtered
@@ -185,6 +206,11 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
   const result = { scanned: rows.length, deleted: 0, removeFailed: 0, hasMore };
   if (!rows.length) return result;
 
+  // 재시도 카운터를 올릴 때 쓸 현재값. supabase-js에는 원자적 증가가 없어 조회값 +1로
+  // 쓴다 — 이 잡은 cron 단독 실행이라 경합이 없고, 값이 한 번 어긋나도 상한 판정이
+  // 하루 늦어질 뿐이다(정확한 회계가 아니라 배치 보호가 목적이다).
+  const attemptsById = new Map(rows.map((row) => [row.id, Number(row.cleanup_attempts) || 0]));
+
   // ── ① Storage 원본 삭제
   //    `storage_path`가 이미 null인 행(업로드 토큰만 받고 서명 실패 등으로 경로를 잃은
   //    잔존 행)은 지울 객체가 없다 — 장부만 닫으면 된다.
@@ -199,8 +225,10 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
 
     if (removeError) {
       // 실패한 묶음은 `deleted_at`을 찍지 않는다 — 파일이 살아 있는데 장부만 닫으면
-      // 그 행은 다음 실행의 대상에서 빠져 영구 잔존물이 된다.
+      // 그 행은 다음 실행의 대상에서 빠져 영구 잔존물이 된다. 대신 재시도 카운터를
+      // 올려 이 묶음이 다음 배치의 앞자리를 계속 점유하지 못하게 한다.
       result.removeFailed += group.length;
+      await bumpCleanupAttempts(supabaseAdmin, name, group.map((row) => row.id), attemptsById);
       console.error(
         `performance/cleanup-attachments[${name}] Storage 원본 삭제 실패 (${group.length}건, 다음 실행에서 재시도):`,
         removeError
@@ -231,7 +259,9 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
     if (updateError) {
       // 파일은 지웠는데 장부를 못 닫은 경우다. 다음 실행이 같은 행을 다시 집지만
       // remove()가 없는 객체에 대해 성공하므로 결국 수렴한다. 조용히 넘기지 않는다.
+      // (수렴하지 못하는 종류의 실패라면 카운터가 임계에 닿아 배치에서 빠진다.)
       result.removeFailed += ids.length;
+      await bumpCleanupAttempts(supabaseAdmin, name, ids, attemptsById);
       console.error(
         `performance/cleanup-attachments[${name}] deleted_at 기록 실패 (${ids.length}건, 원본은 이미 삭제됨):`,
         updateError
@@ -243,6 +273,63 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
   }
 
   return result;
+}
+
+/**
+ * 정리에 실패한 행들의 `cleanup_attempts`를 +1 하고 `cleanup_last_error_at`을 찍는다.
+ *
+ * 같은 현재값끼리 묶어 `.in()` 한 번으로 쓴다 — 원자적 증가(`col = col + 1`)를
+ * supabase-js가 지원하지 않아 조회값 기반으로 올린다(호출부 주석 참고).
+ * **이 갱신이 실패해도 스윕 결과를 바꾸지 않는다** — 이미 실패로 집계된 건이고,
+ * 카운터가 안 올라가면 다음 실행이 같은 행을 다시 집을 뿐이다(현행 동작과 동일).
+ */
+async function bumpCleanupAttempts(supabaseAdmin, name, ids, attemptsById) {
+  if (!ids.length) return;
+
+  const byValue = new Map();
+  for (const id of ids) {
+    const next = (attemptsById.get(id) ?? 0) + 1;
+    if (!byValue.has(next)) byValue.set(next, []);
+    byValue.get(next).push(id);
+  }
+
+  const erroredAt = new Date().toISOString();
+
+  for (const [attempts, group] of byValue) {
+    for (const chunkIds of chunk(group, UPDATE_CHUNK)) {
+      const { error } = await supabaseAdmin
+        .from('performance_attachments')
+        .update({ cleanup_attempts: attempts, cleanup_last_error_at: erroredAt })
+        .in('id', chunkIds);
+
+      if (error) {
+        console.error(
+          `performance/cleanup-attachments[${name}] 재시도 카운터 갱신 실패 (${chunkIds.length}건):`,
+          error
+        );
+      }
+    }
+  }
+}
+
+/**
+ * 임계를 넘겨 배치에서 제외된 행 수. **`hasMore`(정상 적체)와 구분하려고** 따로 센다 —
+ * 이 값이 0이 아니면 90일 삭제가 그 건수만큼 멈춰 있다는 뜻이고, 자동으로는 풀리지
+ * 않으므로 사람이 원인(경로 손상·버킷 정책 등)을 봐야 한다.
+ */
+async function countStuck(supabaseAdmin) {
+  const { count, error } = await supabaseAdmin
+    .from('performance_attachments')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+    .gte('cleanup_attempts', MAX_CLEANUP_ATTEMPTS);
+
+  if (error) {
+    console.error('performance/cleanup-attachments stuck 집계 실패:', error);
+    return null;
+  }
+
+  return count ?? 0;
 }
 
 export default async function handler(req, res) {
@@ -289,6 +376,17 @@ export default async function handler(req, res) {
       extraPatch: { ocr_status: 'failed' }
     });
 
+    // 임계를 넘겨 배치에서 빠진 건수. 이번 실행의 실패 카운터 갱신까지 반영해야
+    // 하므로 두 스윕이 끝난 **뒤에** 센다.
+    const stuck = await countStuck(supabaseAdmin);
+
+    if (stuck) {
+      console.error(
+        `performance/cleanup-attachments: ${stuck}건이 ${MAX_CLEANUP_ATTEMPTS}회 이상 실패해 ` +
+          '배치 대상에서 제외됐습니다. 자동으로 풀리지 않습니다 — 원본 경로/버킷 정책을 확인할 것.'
+      );
+    }
+
     const failed = retention.removeFailed + orphan.removeFailed;
 
     if (failed > 0) {
@@ -303,9 +401,12 @@ export default async function handler(req, res) {
     // 부분 실패는 200이다 — 재시도가 이미 설계돼 있어 cron 자체를 실패로 표시할 이유가
     // 없다. 판단 재료는 응답 본문(`ok`/`hasMore`)과 위 로그다.
     return res.status(200).json({
-      ok: failed === 0,
+      // `stuck`이 있으면 ok가 아니다 — 실패 건이 0이어도 그만큼의 90일 삭제가 멈춰 있다.
+      ok: failed === 0 && !stuck,
       ranAt: new Date(now).toISOString(),
       batchLimit: batch,
+      stuck,
+      maxCleanupAttempts: MAX_CLEANUP_ATTEMPTS,
       retention: { ...retention, cutoff: retentionCutoff, retentionDays: RETENTION_DAYS },
       orphan: { ...orphan, cutoff: orphanCutoff, ttlHours: ORPHAN_TTL_HOURS }
     });

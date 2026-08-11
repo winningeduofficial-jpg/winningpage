@@ -60,6 +60,15 @@ const TOTAL_TOO_LARGE_MESSAGE = '사진 전체 용량은 25MB까지 올릴 수 �
 const UNSUPPORTED_MESSAGE = 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.';
 const PREPARE_FAILED_MESSAGE = '사진을 읽지 못했어요. 다른 파일로 다시 시도해 주세요.';
 
+// 진행 상태 안내(스크린리더 전용). 시안에 진행률 UI가 없어(§5.7 「미정」) 보이는 요소를
+// 임의로 만들지 않되, **상태 변화 자체가 전달되지 않는 것**은 별개 문제라 여기서 닫는다.
+// 5장 × 10MB JPEG의 EXIF 판독 + createImageBitmap + canvas 리사이즈 + toBlob은 모바일에서
+// 수 초가 걸린다 — 그동안 눈에 보이는 단서는 버튼 스피너(`loading={locked}`)가 담당하고,
+// 이 문구가 같은 사실을 소리로 전달한다.
+const PROCESSING_STATUS = '사진을 준비하는 중입니다.';
+const SUBMITTING_STATUS = '안내문을 분석하는 중입니다.';
+const attachedStatus = (count) => `사진 ${count}장이 첨부되었습니다.`;
+
 // §8.8 「고지 문구」 확정 문구 — **한 글자도 바꾸지 말 것.**
 //
 // ⚠️ 이 줄은 **시안에 없다.** Figma 텍스트 노드 전량에서 이 문구는 0건이고(§11-Q82),
@@ -184,6 +193,17 @@ export default function GuideUploadCard({
 
   const visibleError = submitError || error;
 
+  // `aria-live` 영역은 **항상 마운트돼 있어야** 변경이 읽힌다(나중에 삽입되는 노드는
+  // 브라우저·스크린리더 조합에 따라 초기 내용으로 취급돼 조용히 지나간다). 그래서
+  // 문구만 갈아 끼우고 요소 자체는 조건부로 렌더하지 않는다.
+  const statusMessage = processing
+    ? PROCESSING_STATUS
+    : submitting
+      ? SUBMITTING_STATUS
+      : photos.length
+        ? attachedStatus(photos.length)
+        : '';
+
   return (
     <InlineCard className="pb-6">
       <p className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">{TITLE}</p>
@@ -215,6 +235,10 @@ export default function GuideUploadCard({
         onChange={handleFilesSelected}
       />
 
+      <p role="status" aria-live="polite" className="sr-only">
+        {statusMessage}
+      </p>
+
       {visibleError && (
         <p role="alert" className="mt-3 text-[0.875rem] leading-[1.125rem] text-error">
           {visibleError}
@@ -222,22 +246,29 @@ export default function GuideUploadCard({
       )}
 
       <div className="mt-5 flex gap-5">
+        {/* `loading`은 `submitting`이 아니라 `locked`다 — 전처리(`processing`)도 사용자가
+            기다리는 시간이고, 그동안 아무 표시가 없으면 "파일을 골랐는데 버튼만 죽은"
+            화면이 된다. `PrimaryButton`이 `loading`에 스피너와 `aria-busy`를 함께 건다. */}
         <PrimaryButton
           onClick={() => onSubmit?.(photos.map((photo) => photo.file))}
           disabled={photos.length === 0 || locked}
-          loading={submitting}
+          loading={locked}
         >
           분석 시작하기
         </PrimaryButton>
 
         {/* 시안 secondary는 stroke `#d9d9d9` + 라벨 `#808080` w500이라 OutlineButton의
             muted 톤(border-line #d7d7d7 / text-ink)과 색만 다르다 — 컴포넌트를 새로
-            만들지 않고 클래스로 인앱 토큰을 덮어쓴다. */}
+            만들지 않고 색은 클래스로 덮는다(`ink.sub`가 `ink.DEFAULT` 뒤, `performance.line`이
+            top-level `line` 뒤에 정의돼 있어 유틸리티 순서상 이 두 개는 실제로 이긴다).
+            **굵기만은 클래스로 못 덮는다** — 베이스의 `.font-semibold`가 스타일시트
+            뒤쪽이라 항상 이긴다. 그래서 `weight` prop으로 고른다(OutlineButton 주석). */}
         <OutlineButton
           tone="muted"
+          weight="medium"
           disabled={locked}
           onClick={onSkip}
-          className="border-performance-line font-medium text-ink-sub"
+          className="border-performance-line text-ink-sub"
         >
           안내문 없이 시작하기
         </OutlineButton>
