@@ -52,8 +52,11 @@ export default function FreeDiagnosisReport() {
     const input = loadDiagnosisInput(location.state);
     if (input) {
       try {
-        // TODO: ctx.cuts(입결 마스터 조회 결과)는 연결 전이다 — 입결 섹션은 BAND_NODATA 로 조립된다(§4.6).
-        return buildReport(input);
+        // B-1(2026-08-11 확정) — 입결 컷은 스텝5 캐스케이드가 선택 시점에 이미 조회해 페이로드에
+        // 실어 뒀다(diagnosisInputStorage.submitDiagnosisAnswers). 이 페이지는 다시 조회하지 않는다
+        // — 그대로면 buildReport 는 여전히 동기다. 미연결(admissionCuts 없음)이면 ctx.cuts 가
+        // undefined 로 떨어져 §4.6 그대로 BAND_NODATA 로 조립된다.
+        return buildReport(input, { cuts: input.admissionCuts, admissionMeta: input.admissionMeta });
       } catch (error) {
         // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장)까지는 막지 못한다.
         // 조립이 실패해 리포트 전체가 흰 화면이 되는 것보다 픽스처를 보여주고 원인을 로그로 남기는 편이 낫다.

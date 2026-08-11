@@ -29,7 +29,7 @@ import {
  */
 export default function SurveyStepPage() {
   const { step: rawStep } = useParams(); // 훅은 early return 앞에 전부 호출
-  const { answers, setAnswer, submitDiagnosis } = useOutletContext();
+  const { answers, setAnswer, submitDiagnosis, cascadeLevels } = useOutletContext();
   const navigate = useNavigate();
 
   const step = parseStepParam(rawStep);
@@ -61,8 +61,9 @@ export default function SurveyStepPage() {
   // 마지막 스텝의 CTA 가 채점 파이프라인의 진입점이다(§7.4.2). 정규화·저장은 answers 를 소유한
   // 셸(submitDiagnosis)이 하고, 여기서는 그 결과를 라우터 state 로도 넘긴다 —
   // state 만이면 새로고침에서, sessionStorage 만이면 프라이빗 모드에서 각각 끊긴다.
-  const goToReport = () => {
-    const diagnosisInput = submitDiagnosis();
+  // submitDiagnosis 는 Q-01(로그인 이름 조회)때문에 비동기다 — 클릭→이동 사이에 조회 1회가 낀다.
+  const goToReport = async () => {
+    const diagnosisInput = await submitDiagnosis();
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 
@@ -79,6 +80,7 @@ export default function SurveyStepPage() {
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}
+        cascadeLevels={cascadeLevels}
       />
 
       <div className="flex w-full flex-col items-start gap-4">

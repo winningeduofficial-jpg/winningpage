@@ -13,7 +13,7 @@ import { SURVEY_REPORT_PATH, isQuestionAnswered, surveyMainQuestions } from '../
  * "모든 항목에 응답해주세요" + 첫 미응답으로 스크롤/하이라이트, 완료는 채점 후 리포트로 이동.
  */
 export default function SurveyPreview() {
-  const { answers, setAnswer, submitDiagnosis } = useOutletContext();
+  const { answers, setAnswer, submitDiagnosis, cascadeLevels } = useOutletContext();
   const navigate = useNavigate();
 
   // 선택입력(optional) 문항은 잔여 카운트에서 제외 — 스텝 페이지의 완료 판정과 같은 기준이다.
@@ -24,8 +24,9 @@ export default function SurveyPreview() {
   const complete = answeredCount === requiredQuestions.length;
 
   // 스텝 페이지 마지막 CTA 와 같은 제출 경로를 탄다(§7.4.2 — 채점 진입점은 이 두 곳뿐이다).
-  const goToReport = () => {
-    const diagnosisInput = submitDiagnosis();
+  // submitDiagnosis 는 Q-01(로그인 이름 조회)때문에 비동기다.
+  const goToReport = async () => {
+    const diagnosisInput = await submitDiagnosis();
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 
@@ -41,6 +42,7 @@ export default function SurveyPreview() {
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}
+        cascadeLevels={cascadeLevels}
       />
       <SurveyProgress
         complete={complete}

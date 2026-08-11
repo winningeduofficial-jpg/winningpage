@@ -23,13 +23,20 @@ export const DIAGNOSIS_INPUT_STORAGE_KEY = 'winning.freeDiagnosis.input';
  * sessionStorage 만으로는 프라이빗 모드에서 사라진다. 두 경로를 모두 채워야 실사용에서 안 끊긴다.
  *
  * @param {Record<string, any>} answers 설문 셸이 들고 있는 원시 응답
- * @returns {object} DiagnosisInput (저장 실패와 무관하게 항상 유효한 객체)
+ * @param {{ name?: string|null, admissionCuts?: object|null, admissionMeta?: object|null }} [options]
+ *   name 은 로그인 학생 이름(Q-01, 익명이면 undefined/null). admissionCuts/admissionMeta 는 B-1 —
+ *   스텝5 캐스케이드가 이미 조회해 둔 입결 컷이다(리포트 페이지가 다시 조회하지 않도록 여기 싣는다).
+ *   둘 다 DiagnosisInput 스펙(§3) 밖의 필드라 normalizeAnswers 결과에 얹지 않고 저장 payload에만
+ *   sibling 으로 붙인다 — buildReport(input, ctx) 호출부(FreeDiagnosisReport)가 ctx 를 여기서 꺼낸다.
+ * @returns {object} 저장된 payload (저장 실패와 무관하게 항상 유효한 객체)
  */
-export function submitDiagnosisAnswers(answers) {
+export function submitDiagnosisAnswers(answers, options = {}) {
+  const { name = null, admissionCuts = null, admissionMeta = null } = options;
   // 시각은 여기서 찍는다 — 엔진은 순수 함수라 시계를 읽지 않는다(같은 입력이 매번 같은 리포트를 내야 한다).
-  const input = normalizeAnswers(answers, { diagnosedAt: new Date().toISOString() });
-  saveDiagnosisInput(input);
-  return input;
+  const input = normalizeAnswers(answers, { diagnosedAt: new Date().toISOString(), name });
+  const payload = admissionCuts || admissionMeta ? { ...input, admissionCuts, admissionMeta } : input;
+  saveDiagnosisInput(payload);
+  return payload;
 }
 
 /** 저장. 실패해도 던지지 않는다 — 라우터 state 경로가 살아 있어 리포트는 그대로 렌더된다. */
