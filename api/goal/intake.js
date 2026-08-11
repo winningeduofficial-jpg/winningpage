@@ -18,6 +18,14 @@
 //  3. CORS 헤더를 붙이지 않는다. Authorization 은 CORS-safelisted 헤더가 아니라
 //     크로스오리진 요청은 preflight 를 유발하고 OPTIONS 는 405 로 떨어진다 —
 //     이것이 기본 방어선이다(§9-1).
+//  4. "성적 없음" 특례(원본 naesinNone/mogoNone, IntakeForm.tsx:1176-1181)는 세 군데가
+//     원본과 다르다. (a) 원본이 받는 0~100 원점수 대신 1~9 등급을 받는다 —
+//     grade_conversions 변환표가 없고 우리는 전 구간이 단일 등급 스케일이다.
+//     (b) 고2·고3 모의고사 "가상 3회차 입력"은 포팅하지 않았다 — 전 회차 없음이
+//     이미 정상 경로라 막히지 않는다(정시 확률만 0). (c) 고1 치환 경로의
+//     remainingMogo 를 보정한다(원본 결함 회피 — 아래 오버라이드 주석 참고).
+//     학습성향 설문 6문항도 포팅하지 않았다 — 원본 서버에서 참조 0건이라 확률에
+//     영향이 없다.
 //
 // 계산 모듈은 동결돼 있다(203개 테스트). 여기서 재구현하지 않고 import 만 한다.
 // 특히 요일별 목표는 calculateWeekSchedule 을 그대로 호출한다 — 자습시간
@@ -29,6 +37,7 @@ import {
   calcJeongsiCompositeFE,
   calculateWeekSchedule,
   calcAvailableHoursApprox,
+  getRemainingMogo,
   getSchoolCutType,
   kstYMD,
   round1
@@ -89,6 +98,26 @@ const MOCK_ROUNDS = [
 ];
 
 const MOCK_SUBJECTS = ['kor', 'math', 'eng', 'tam1', 'tam2'];
+
+// ---------------------------------------------------------------------------
+// "성적 없음" 특례의 잔여 회차 오버라이드 표
+//
+// 원본 getNaesinNoneRemaining / getMogoNoneRemaining(IntakeForm.tsx:514-523)을 옮긴 것.
+// 의미는 "작년 마지막 시험까지는 본 것으로 친다"이고, 값은 그 산술적 등가물이다 —
+//   내신(총 10회, getRemainingNaesin 표 primitives.js:59-72):
+//     고2 → 직전이 '고1_2학기 기말'(순번 4)  → 10 - 4 = 6
+//     고3 → 직전이 '고2_2학기 기말'(순번 8)  → 10 - 8 = 2
+//   모의(총 14회, getRemainingMogo 표 primitives.js:88-103):
+//     고2 → 직전이 '고1_10모'(순번 4)        → 14 - 4 = 10
+//     고3 → 직전이 '고2_10모'(순번 8)        → 14 - 8 = 6
+//
+// 고1 항목이 없는 것은 누락이 아니라 정의다 — 고1은 "작년 마지막 고교 시험"이
+// 존재하지 않는다. 내신은 '중3' 치환 경로에서 엔진이 0 을 강제하고
+// (isPreHighStudent, pipeline.js:219-221), 모의는 남은 회차가 실제로 14회 전부가
+// 아니라 표 미매칭으로 0 이 되는데 이는 원본과 동일한 동작이다.
+// (`?? null` 로 조회하므로 고1은 오버라이드 없음 = 엔진 기본 경로로 떨어진다.)
+const NAESIN_NONE_REMAINING = { 고2: 6, 고3: 2 };
+const MOGO_NONE_REMAINING = { 고2: 10, 고3: 6 };
 
 // goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
 // 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
@@ -240,15 +269,41 @@ function validateIntakeBody(body) {
     naesin[key] = { value: normalizeGrade(entry.value), none: false };
   }
 
-  // 전 회차가 '없음'이면 currentScore 가 0 이 되는데, applyPreHighGradePenalty 가
-  // 이를 [1, 9] 로 클램프해(primitives.js:169) **1등급(최상위)** 으로 접어버린다.
-  // 즉 성적 미입력이 조용히 최고 확률로 둔갑한다. 원본은 이 구멍을
-  // "고1 + 내신없음 → 중3 점수로 대체" 특례로 막았으나(IntakeForm.tsx:1176-1179)
-  // 우리 온보딩에는 중3 성적 입력란 자체가 없다. 그래서 여기서 거절한다.
-  // ⚠️ 결과적으로 내신이 아직 하나도 없는 고1 3월 학생은 온보딩을 진행할 수 없다.
-  if (NAESIN_ROUNDS.every(({ key }) => naesin[key].none)) {
-    return fail('내신 평균 등급을 최소 한 회차 이상 입력해 주세요.');
+  // ── 내신 "전 회차 없음" 특례 ─────────────────────────────────────────
+  //
+  // 전 회차가 '없음'이면 평균을 낼 회차가 없어 currentScore 가 0 이 되는데,
+  // applyPreHighGradePenalty 가 이를 [1, 9] 로 클램프해(primitives.js:169)
+  // **1등급(최상위)** 으로 접어버린다 — 성적 미입력이 조용히 최고 확률로 둔갑한다.
+  // 예전에는 이 구멍을 막으려고 여기서 400 으로 거절했고, 그 결과 내신이 아직
+  // 하나도 없는 고1 3월 학생은 온보딩 자체를 진행할 수 없었다.
+  //
+  // 이제는 원본과 같이 "이전 단계까지의 내신 평균 등급"을 받아 그 자리를 메운다
+  // (원본 effectiveCurrentScore, IntakeForm.tsx:1176-1179). 값이 있으니 0 클램프
+  // 경로는 애초에 성립하지 않는다.
+  //
+  // ⚠ 원본과 의도적으로 다른 점: 원본은 0~100 **원점수**(midScoreForNaesin,
+  //   IntakeForm.tsx:1425-1436)를 받아 서버가 grade_conversions('middleschool')
+  //   표로 등급 환산한다(student.mjs:646-677). 우리 dev DB 에는 그 표가 없고,
+  //   우리 온보딩은 전 구간이 1~9 등급 단일 스케일이다(sql/55 current_score
+  //   컬럼 코멘트가 이 원칙을 명문화한다). 0~100 을 그대로 넘기면 위의 clamp(1,9)가
+  //   87.5 점을 9등급(최하위)으로 접는다. 그래서 여기서는 **1~9 등급**으로 받고,
+  //   기존 isValidGrade / normalizeGrade 를 그대로 재사용한다
+  //   (boolean·객체 차단 사유는 isNumericInput 주석 참고).
+  //
+  // 섹션 단위 "없음"을 새 전역 플래그로 받지 않고 4회차 상태에서 파생하는 이유:
+  // 전역 플래그를 두면 "플래그 OFF인데 4회차 전부 none" 같은 모순 상태가 생기고
+  // 검증기가 그 모순까지 판정해야 한다. 파생이면 판정이 단 하나다.
+  const naesinAllNone = NAESIN_ROUNDS.every(({ key }) => naesin[key].none);
+  let priorNaesinGrade = '';
+
+  if (naesinAllNone) {
+    if (!isValidGrade(body.priorNaesinGrade)) {
+      return fail('내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.');
+    }
+    priorNaesinGrade = normalizeGrade(body.priorNaesinGrade);
   }
+  // 4회차 전부 none 이 아니면 body.priorNaesinGrade 는 통째로 무시한다(저장도 안 한다) —
+  // 화면에 보이지 않는 값이 조용히 계산이나 저장에 섞이지 않게 한다.
 
   // ── 모의고사 ─────────────────────────────────────────────────────────
   if (!isPlainObject(body.mockExam)) return fail('모의고사 성적이 올바르지 않습니다.');
@@ -273,6 +328,11 @@ function validateIntakeBody(body) {
     }
     mockExam[key] = round;
   }
+
+  // 모의고사 전 회차 '없음'. 내신과 달리 추가 입력을 받지 않는다 — 이미 정상 경로다
+  // (currentMogo = 0 → 정시 확률 2종 0, buildMogoScores 주석 참고).
+  // 잔여 회차 오버라이드에만 쓴다(아래 §remaining 오버라이드).
+  const mockAllNone = MOCK_ROUNDS.every(({ key }) => mockExam[key].none);
 
   // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
   if (!isPlainObject(body.studyHours)) return fail('요일별 자습 시간이 올바르지 않습니다.');
@@ -306,7 +366,10 @@ function validateIntakeBody(body) {
       ideal: idealTarget.value,
       min: minTarget.value,
       naesin,
+      naesinAllNone,
+      priorNaesinGrade,
       mockExam,
+      mockAllNone,
       studyHours,
       dailySchedule
     }
@@ -317,8 +380,24 @@ function validateIntakeBody(body) {
 // 파생값 — 전부 동결된 계산 모듈에 위임한다
 // ---------------------------------------------------------------------------
 
-/** 내신: none 이 아닌 회차의 등급 평균과 마지막 회차 라벨. */
-function deriveNaesin(naesin) {
+/**
+ * 내신: none 이 아닌 회차의 등급 평균과 마지막 회차 라벨.
+ *
+ * 전 회차 none 이면 taken 이 빈 배열이라 아래 본문이
+ * taken[taken.length - 1].label 에서 TypeError 를 던지고(최상위 catch → 500)
+ * 평균도 0/0 = NaN 이 된다. 그래서 그 경우를 **먼저** 갈라낸다:
+ * priorNaesinGrade(이전 단계까지의 평균 등급)로 점수를 대체하고 라벨은 '' 로 둔다.
+ *
+ * 라벨을 '' 로 두면 getRemainingNaesin 표가 미매칭이라 남은 회차가 0 이 되는데
+ * (primitives.js:76), 그 자리는 호출부가 remainingNaesin 오버라이드로 메운다.
+ * 가짜 라벨('2학기 기말' 등)을 지어내지 않는 이유는 그 값이 last_naesin_exam 으로
+ * 그대로 저장돼 "보지도 않은 시험을 본 것"으로 기록되기 때문이다.
+ */
+function deriveNaesin(naesin, { naesinAllNone, priorNaesinGrade }) {
+  if (naesinAllNone) {
+    return { currentScore: round1(Number(priorNaesinGrade)), lastNaesinExam: '' };
+  }
+
   const taken = NAESIN_ROUNDS.filter(({ key }) => !naesin[key].none);
   const sum = taken.reduce((acc, { key }) => acc + Number(naesin[key].value), 0);
 
@@ -486,11 +565,27 @@ export default async function handler(req, res) {
 
     const input = validated.input;
     const schoolType = SCHOOL_TYPE_MAP[input.schoolType];
-    const grade = GRADE_MAP[input.grade];
+    const inputGrade = GRADE_MAP[input.grade]; // 온보딩에서 학생이 실제로 고른 학년
+
+    // 원본 effectiveGrade(IntakeForm.tsx:1176-1179). 고1인데 내신이 하나도 없으면
+    // '중3' 으로 계산한다. 엔진 쪽에서 이 리터럴이 정확히 세 가지를 바꾼다:
+    //   - getConversionTypeForStudent 가 'middleschool' 을 돌려줘(pipeline.js:93-98)
+    //     convertedGrade 주입 경로가 그대로 성립한다(고1이면 '5grade' 라 주입 없이는 throw).
+    //   - applyPreHighGradePenalty 가 +0.10 을 얹는다(primitives.js:155).
+    //   - isPreHighStudent 가 remainNaesin 을 0 으로 강제한다(pipeline.js:219-221).
+    // 셋 다 원본과 같은 결과다.
+    //
+    // 와이어의 grade 는 계속 'g1' 이고 치환은 GRADE_MAP 통과 **뒤에** 일어난다 —
+    // GRADE_MAP 에 '중3' 을 넣으면 클라이언트가 직접 중3 을 주장할 수 있게 된다.
+    // schoolType 은 절대 바꾸지 않는다('일반고'/'특목고' 유지 → school_type CHECK 통과 +
+    // 컷 조회 대상도 그대로).
+    const isMiddleSubstituted = input.naesinAllNone && inputGrade === '고1';
+    const grade = isMiddleSubstituted ? '중3' : inputGrade;
+
     const schoolCutType = getSchoolCutType(schoolType);
 
     // 5) 성적 파생
-    const { currentScore, lastNaesinExam } = deriveNaesin(input.naesin);
+    const { currentScore, lastNaesinExam } = deriveNaesin(input.naesin, input);
     const { currentMogo, lastMogoExam } = deriveMogo(input.mockExam);
 
     // 6) 목표 대학 컷 4회 조회
@@ -521,6 +616,42 @@ export default async function handler(req, res) {
     //    converted_grade / remain_* / week_* 가 정확히 같은 코드 경로에서
     //    나오게 하기 위해서다(재구현 금지). 컷이 없을 때 나오는 확률 0 과
     //    rate 는 아래에서 통째로 버리고 null 을 저장한다.
+    // 남은 시험 회차 오버라이드.
+    // 엔진은 `${grade}_${lastExam}` 키로 표를 조회하는데(primitives.js:58-103)
+    // '없음' 경로는 라벨이 '' 이라 항상 미매칭 → 0 이 된다. 그 자리를 여기서 메운다.
+    //
+    //  - 내신: 고1(→'중3' 치환)은 오버라이드를 줘도 무의미하다 — isPreHighStudent 가
+    //    remainNaesin 을 0 으로 덮어쓴다(pipeline.js:219-221). 그래서 고2·고3 에만
+    //    6·2 를 준다. 원본도 grade !== '고1' 가드로 같은 구분을 한다
+    //    (IntakeForm.tsx:1268-1269).
+    //  - 모의: 전 회차 없음이면 고2=10 / 고3=6(원본 getMogoNoneRemaining). currentMogo 가
+    //    0 이라 정시 확률은 게이트에서 0 으로 걸리므로(pipeline.js:227-228) **우리 구현에서는**
+    //    확률에 영향이 없고, remain_mogo 저장값을 진실되게 만들기 위한 것이다.
+    //    (원본은 여기서 가상 3회차를 입력받아 currentMogo > 0 이라 같은 오버라이드가 정시
+    //     확률에도 실제로 영향을 준다. 그 UI 를 포팅하지 않은 것이 헤더 4-(b) 의 divergence 다.)
+    //    ⚠ 고1 은 표에 키가 없어 remain_mogo 가 0 으로 저장된다(실제 잔여 14). 미포팅이 아니라
+    //    원본 파리티이고(IntakeForm.tsx:1269 의 grade!=='고1' 가드), 모의 전 회차 없음 자체는
+    //    이번에 새로 여는 경로가 아니라 예전부터 통과하던 경로라 여기서 동작을 바꾸지 않는다.
+    //    remain_mogo 를 화면에 노출할 때 함께 판단할 것.
+    //  - 모의(치환 경로) — ⚠ 원본과 의도적으로 다른 유일한 지점:
+    //    고1 + 내신없음 + 모의는 있음이면 grade 만 '중3' 이 되고 lastMogo 는 실제
+    //    라벨('10모' 등)이 남는다. 그러면 키가 '중3_10모' 라 표에 없어 remainMogo 가
+    //    0 으로 떨어진다 — 모의를 10회나 남긴 학생의 남은 회차가 0 이 된다.
+    //    원본에도 있는 결함이고(오버라이드마저 grade !== '고1' 가드에 막혀 안 나간다),
+    //    이 경로는 지금까지 400 으로 막혀 있다가 이번에 처음 열리는 문이다.
+    //    새로 여는 문 뒤에 알려진 오작동을 두지 않는다 — 치환 **전** 학년으로
+    //    같은 엔진 함수를 호출해 값을 만든다(표를 베껴 쓰지 않는다).
+    const remainingNaesin =
+      input.naesinAllNone && !isMiddleSubstituted
+        ? (NAESIN_NONE_REMAINING[inputGrade] ?? null)
+        : null;
+
+    const remainingMogo = input.mockAllNone
+      ? (MOGO_NONE_REMAINING[inputGrade] ?? null)
+      : isMiddleSubstituted
+        ? getRemainingMogo(inputGrade, lastMogoExam)
+        : null;
+
     const now = new Date();
     const state = buildInitialStudentState({
       schoolType,
@@ -529,8 +660,8 @@ export default async function handler(req, res) {
       currentMogo,
       lastNaesin: lastNaesinExam,
       lastMogo: lastMogoExam,
-      remainingNaesin: null,
-      remainingMogo: null,
+      remainingNaesin,
+      remainingMogo,
       cuts,
       // §7-5: 우리 온보딩은 1~9 등급만 받으므로 변환 대상 원점수가 애초에 없다.
       // 고1·고2 는 conversionType 이 '5grade' 라 주입이 없으면 throw 한다.
@@ -578,7 +709,14 @@ export default async function handler(req, res) {
       last_naesin_exam: lastNaesinExam,
       last_mogo_exam: lastMogoExam,
 
-      naesin_scores: input.naesin,
+      // 전 회차 '없음' 특례일 때만 입력 원본을 한 칸 덧붙인다 — current_score 만
+      // 봐서는 그 3.0 이 고교 내신이었는지 이전 단계 평균이었는지 구분할 수 없다.
+      // 컬럼 코멘트가 "회차·과목 구성이 흔들려 정규화하지 않는다"고 못 박은 free-form
+      // jsonb 라 키 추가에 마이그레이션이 필요 없다. 정상 경로의 저장 shape 은
+      // 바이트 단위로 그대로다(회귀 없음).
+      naesin_scores: input.naesinAllNone
+        ? { ...input.naesin, priorNaesinGrade: input.priorNaesinGrade }
+        : input.naesin,
       mock_exam_scores: input.mockExam,
 
       // 컷이 없으면 확률을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).
