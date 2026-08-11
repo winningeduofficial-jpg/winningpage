@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SINGLE_SELECT_NOTICE, formatKRW } from '../data/pricingCatalog';
 import { useProducts } from '../lib/products';
@@ -42,6 +42,53 @@ export default function Pricing() {
       else next[serviceKey] = productId;
       return next;
     });
+  }
+
+  // radiogroup 키보드 규약(WAI-ARIA APG) — 화살표 이동은 포커스만 옮기는 게 아니라
+  // 그 자리에서 바로 선택도 함께 바꾼다(네이티브 <input type=radio> 그룹과 동일 동작).
+  // Home/End 는 넣지 않았다 — 그룹당 최대 5개(수시예측)뿐이라 화살표만으로 왕복 비용이
+  // 낮고, APG 도 Home/End 를 "권장 확장"이지 필수로 두지 않는다. 필요해지면 이 함수에
+  // 분기만 추가하면 된다.
+  // 선택 갱신은 products 배열 인덱스로 계산한다(DOM 조회로 productId 문자열을 얻으면
+  // product.id 가 숫자 PK 인 경우 dataset 은 항상 문자열이라 `selected[key] === product.id`
+  // 비교가 타입 불일치로 깨질 수 있다) — 포커스 이동만 DOM 조회를 쓴다(타입 무관, 초점
+  // 이동에는 실제 엘리먼트가 필요하므로).
+  function handleRadioKeyDown(e, serviceKey, products, currentIndex) {
+    // Escape = 그룹 선택 해제. 마우스는 재클릭으로 토글 해제가 되지만(아래 role="radio"
+    // 주석 참고) 화살표 키는 "이동=선택"이라 키보드만 쓰는 사용자는 그룹 안에서 선택을
+    // 완전히 뺄 방법이 없었다 — 그 격차를 메운다. preventDefault 도 실제로 해제를 수행했을
+    // 때만 부른다: 상위(Header 메가메뉴 등)에서 Escape 를 다른 용도로 쓸 수 있어 무조건
+    // 막으면 위험하기 때문이다(실측 결과 이 프로젝트엔 상위 Escape 리스너가 없어 — grep
+    // 상 MobileNavDrawer/ColumnPreviewModal/AdmissionGuidelines/ComboField 뿐이고 이 페이지
+    // 트리와 무관 — 지금은 충돌하지 않지만, 향후 상위에 리스너가 생겨도 이 조건부
+    // preventDefault 덕에 선택이 없는 그룹에서는 그 리스너를 계속 막지 않는다).
+    if (e.key === 'Escape') {
+      if (!(serviceKey in selected)) return; // 선택 없는 그룹 — 아무 것도 하지 않는다.
+      e.preventDefault();
+      setSelected((prev) => {
+        const next = { ...prev };
+        delete next[serviceKey];
+        return next;
+      });
+      // 포커스는 옮기지 않는다(현재 버튼에 그대로 유지). roving tabindex는 위
+      // hasSelectionInGroup/isRovingTabStop 이 selected 상태의 파생값이라 재렌더 때
+      // 자동으로 "그룹에 선택 없음 → 첫 항목만 tabIndex 0" 규칙으로 돌아간다.
+      return;
+    }
+
+    let delta = 0;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') delta = 1;
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') delta = -1;
+    else return;
+    e.preventDefault(); // 기본 동작(페이지 스크롤)을 막는다.
+
+    const nextIndex = (currentIndex + delta + products.length) % products.length;
+    const nextProduct = products[nextIndex];
+    setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
+
+    const group = e.currentTarget.closest('[role="radiogroup"]');
+    const nextEl = group?.querySelectorAll('[role="radio"]')[nextIndex];
+    nextEl?.focus();
   }
 
   // 선택된 상품 목록(장바구니 형태로 enrich)
@@ -97,7 +144,7 @@ export default function Pricing() {
               ls 는 두 밴드 모두 -0.02em 이다(-0.32/16 = -0.02, 1920 은 -0.4/20 = -0.02) →
               한 클래스로 통일. 기존 14px w900 은 시안에 없는 값이었다(시안 최대 무게 w700). */}
           <p className="text-[1rem] font-semibold leading-[1.375rem] tracking-[-0.02em] text-accent sm:text-[1.25rem] sm:leading-[1.75rem]">
-            나에게 맞는 서비스를 선택해주세요
+            나에게 맞는 서비스를 선택해 주세요
           </p>
           {/* H1 — 390 24px w600 lh34 #525252 ls-0.48 / 1920 50px w600 lh70 #525252 ls-1
               (텍스트 3408:4873 높이 70 으로 lh 교차확인). ls 는 양쪽 모두 -0.02em
@@ -107,7 +154,7 @@ export default function Pricing() {
               그 색을 쓰는 로그인 H1 전용이라 여기서는 쓰지 않는다.
               기존 40px w900 lh36(0.9배)은 "작고 무겁고 타이트"해서 시안 위계와 반대였다. */}
           <h1 className="mt-3 text-[1.5rem] font-semibold leading-[2.125rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
-            결제할 서비스를 선택해주세요
+            결제할 서비스를 선택해 주세요
           </h1>
         </section>
 
@@ -172,7 +219,13 @@ export default function Pricing() {
                     ls 양쪽 -0.02em(-0.36/18, -0.76/38).
                     rem: 18px = 1.125rem / lh20 = 1.25rem / 38px = 2.375rem / lh49 = 3.0625rem.
                     기존 24px w900 #181d24 → 시안엔 없는 무게·색이었다. */}
-                <h2 className="text-[1.125rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[2.375rem] sm:font-bold sm:leading-[3.0625rem]">
+                {/* id는 아래 플랜 목록 radiogroup의 aria-labelledby 대상이다 —
+                    서비스명을 그룹 라벨로 그대로 재사용해 별도 시각적 라벨을 추가하지
+                    않아도 스크린리더가 "N개 중 M번째, [서비스명] 라디오 버튼"으로 읽는다. */}
+                <h2
+                  id={`plan-group-label-${service.key}`}
+                  className="text-[1.125rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[2.375rem] sm:font-bold sm:leading-[3.0625rem]"
+                >
                   {service.name}
                 </h2>
                 {/* 390 시안(1882-16307, 프레임 1882:16340)의 이 줄은 자식이 정확히 둘이다 —
@@ -268,10 +321,32 @@ export default function Pricing() {
                   → 간격 8px)이라 space-y-2, sm 이상은 기존 space-y-3(12px)을 유지한다. */}
               {/* `relative` 는 설명문 <p> 와 같은 이유(자세히보기 오버레이 히트테스트 순서).
                   설명문이 없는 서비스(desc 빈 값)에서는 이 컨테이너가 링크 바로 아래 형제가
-                  되므로 여기에도 필요하다. */}
-              <div className="relative space-y-2 sm:space-y-3">
-                {service.products.map((product) => {
+                  되므로 여기에도 필요하다.
+                  role="radiogroup" — 플랜은 서비스당 하나만 고를 수 있는데(단일선택) 기존엔
+                  개별 <button> + 정사각 체크박스 시각이라 "여러 개 고를 수 있다"는 거짓
+                  어포던스가 있었다(그걸 사후 수습하려고 아래 안내문이 3회 반복돼 있었다).
+                  <input type=radio> 로 바꾸지 않고 <button role="radio"> 를 쓴 이유:
+                  이미 이 버튼에 커스텀 hover/selected 배경(border-accent bg-surface-info
+                  ring-1) 스타일이 붙어 있어 네이티브 radio 로 바꾸면 시각을 100% 숨기고
+                  커스텀 인디케이터만 보이게 하는 append-only 트릭이 필요해지는데,
+                  button+role 조합이 시각 변경 없이 동일한 AT 결과(role="radio",
+                  aria-checked, group 내 posinset/setsize 자동 계산)를 주면서 코드도 더
+                  적다. group 내 이동은 아래 handleRadioKeyDown 이 화살표 키로 처리한다
+                  (roving tabindex: 그룹당 tabIndex=0 은 선택된 항목, 없으면 첫 항목뿐이라
+                  Tab 으로 그룹에 들어오고 나가는 건 각 1번씩이다 — WAI-ARIA APG radiogroup
+                  패턴). */}
+              <div
+                role="radiogroup"
+                aria-labelledby={`plan-group-label-${service.key}`}
+                className="relative space-y-2 sm:space-y-3"
+              >
+                {service.products.map((product, index) => {
                   const isSelected = selected[service.key] === product.id;
+                  // roving tabindex — 그룹에 선택된 항목이 있으면 그 항목만 tabIndex 0,
+                  // 없으면(아직 아무것도 고르지 않은 초기 상태) 첫 항목만 0. 나머지는 -1 —
+                  // 그룹 전체가 Tab 정지점 하나가 되고, 그룹 안 이동은 화살표 키가 맡는다.
+                  const hasSelectionInGroup = Boolean(selected[service.key]);
+                  const isRovingTabStop = hasSelectionInGroup ? isSelected : index === 0;
                   const hasDiscount = product.listPrice > product.price;
                   // 390 시안(1882-16307)의 플랜 라벨은 '[1개월]' 처럼 대괄호 구간만이다.
                   // 서비스명이 바로 위 헤더에 이미 있어 상품명 전문은 중복이라서다.
@@ -325,7 +400,23 @@ export default function Pricing() {
                     <button
                       type="button"
                       key={product.id}
+                      // role="radio" + aria-checked — 위 radiogroup 주석 참고. posinset/setsize
+                      // 는 명시하지 않는다: DOM 상 radiogroup의 직계 자식이라 브라우저/AT가
+                      // 자동으로 "N개 중 M번째"를 계산한다(가상화·비직계 구조가 아니므로
+                      // 수동 지정이 불필요하다).
+                      // 클릭으로 선택 해제(toggle)가 되는 건 네이티브 radio 관행과 다르다 —
+                      // 여기 5개 서비스는 전부 "안 사도 되는" 선택형 상품이라 "이 서비스는
+                      // 건너뛴다"를 표현할 방법이 필요했고, 그게 기존부터 있던 재클릭
+                      // 해제였다(이번 라운드에서 새로 만든 동작이 아니다). 화살표 키 이동은
+                      // 아래 handleRadioKeyDown 에서 이동=선택이라 매번 그룹 안 어딘가는
+                      // 선택된 상태가 되지만, 클릭/스페이스는 여전히 토글이라 "전부 해제"도
+                      // 가능하다 — 의도적 절충이며 aria-checked 는 실제 상태를 그대로
+                      // 반영하므로 AT 에 거짓 정보를 주지 않는다.
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={isRovingTabStop ? 0 : -1}
                       onClick={() => toggle(service.key, product.id)}
+                      onKeyDown={(e) => handleRadioKeyDown(e, service.key, service.products, index)}
                       className={`flex min-h-[4rem] w-full items-center justify-between gap-5 rounded-2xl border p-[0.6875rem] text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
                         isSelected
                           ? 'border-accent bg-surface-info ring-1 ring-accent/30'
@@ -333,30 +424,36 @@ export default function Pricing() {
                       }`}
                     >
                       <span className="flex min-w-0 items-center gap-2 lg:gap-3">
-                        {/* 체크박스는 390 시안 16px(1rem), sm 이상은 기존 24px(1.5rem).
+                        {/* 인디케이터 — 이번 라운드에서 정사각 체크박스(rounded-md + 흰
+                            체크 글리프) → 원형 라디오(rounded-full + 내부 dot)로 바꿨다.
+                            시각도 role="radio" 의미론과 맞추려는 것이다 — 체크박스 모양은
+                            "여러 개 고를 수 있다"는 낡은 어포던스를 남기고, role/aria 만
+                            바꾸면 마우스 사용자는 여전히 체크박스로 본다.
+                            박스 크기(390 16px / lg 24px)와 그 근거는 그대로다 — 아래 크기
+                            산식은 outer 박스 치수에 대한 것이라 원형으로 바꿔도 무효화되지
+                            않는다(rounded-md → rounded-full 은 폭/높이에 영향이 없다):
                             390 좌측 그룹 예산 = 행 inner 폭 − 좌↔우 gap 20 − 금액블록 126.
                             전역 컨텐츠 규약(px-5)에서 390 컨테이너 inner = 350 이므로
                             행 inner = 350 − border 1×2(2) − 패딩 11×2(22) = 326
                             (border 를 빼는 이유: src/index.css:5 의 * { box-sizing: border-box }
                              때문에 행의 350px 안에 테두리 2px 이 포함된다.)
-                            → 좌측 그룹 326 − 20 − 126 = 180px, 라벨 몫은 180 − 체크 16 − gap 8
-                            = 156px 로 실측 최장 '[12개월 30회 이용권]' 112.8px 을 넉넉히 덮는다.
-                            (과거 px-10 시절 inner 310 에서는 라벨 몫이 116px 뿐이라 체크박스를
-                             16px 로 줄이는 것이 폭 제약이기도 했다. 규약 전환으로 그 제약은
-                             사라졌고, 16px 은 이제 순수하게 390 시안 실측 근거로만 남는다.)
-                            체크 아이콘도 박스에 맞춰 12px(h-3)로 줄인다 — 16px 박스에 15px
-                            아이콘은 테두리를 덮는다. size 속성 대신 클래스로 지정해야 BP 분기가
-                            먹는다(lucide 의 size 는 width/height 프리젠테이션 속성이고 CSS 가 이긴다). */}
+                            → 좌측 그룹 326 − 20 − 126 = 180px, 라벨 몫은 180 − 인디케이터 16
+                            − gap 8 = 156px 로 실측 최장 '[12개월 30회 이용권]' 112.8px 을
+                            넉넉히 덮는다(과거 px-10 시절 inner 310 에서는 라벨 몫이 116px
+                            뿐이라 인디케이터를 16px 로 줄이는 것이 폭 제약이기도 했다.
+                            규약 전환으로 그 제약은 사라졌고, 16px 은 이제 순수하게 390 시안
+                            실측 근거로만 남는다). 인디케이터를 키우면 이 예산이 준다.
+                            내부 dot 은 체크 글리프와 달리 "박스 테두리를 덮지 않게" 맞출
+                            이유가 없다(글리프처럼 모서리가 있는 형태가 아니라 원 안의 원이라
+                            여백이 나면 오히려 정상 라디오 모양이다) — outer 대비 50%
+                            비율(8/16, 12/24)로 두 밴드 동일 비율을 유지했다. */}
                         <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition lg:h-6 lg:w-6 ${
-                            isSelected ? 'border-accent bg-accent' : 'border-line bg-white'
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition lg:h-6 lg:w-6 ${
+                            isSelected ? 'border-accent bg-white' : 'border-line bg-white'
                           }`}
                         >
                           {isSelected && (
-                            <Check
-                              strokeWidth={3.5}
-                              className="h-3 w-3 text-white lg:h-[0.9375rem] lg:w-[0.9375rem]"
-                            />
+                            <span className="h-2 w-2 rounded-full bg-accent lg:h-3 lg:w-3" />
                           )}
                         </span>
                         {/* 1023 이하는 대괄호 구간만(shortLabel), lg 이상은 상품명 전문
@@ -480,7 +577,16 @@ export default function Pricing() {
                   (시안 텍스트 3408:4956 이 1209×25 로 lh25 교차확인).
                   rem: 12px = 0.75rem / lh17 = 1.0625rem / 18px = 1.125rem / lh25 = 1.5625rem.
                   ls 는 1920 만 준다 — 390 시안에는 없다.
-                  색은 ink(#525252). 기존 12px w400 ink-sub(#808080) 는 시안보다 흐렸다. */}
+                  색은 ink(#525252). 기존 12px w400 ink-sub(#808080) 는 시안보다 흐렸다.
+                  문구 자체는 radiogroup 전환 후에도 완전히 없애지 않았다 — 근거는
+                  src/data/pricingCatalog.js 의 SINGLE_SELECT_NOTICE 주석 참고(마우스만
+                  쓰는 사용자에겐 원형 인디케이터만으로 "단일선택"이 자명하지 않다).
+                  중복(같은 말 2번)만 제거했고 문장은 1개로 줄었다.
+                  조건 service.products.length > 1 은 이번에 손대지 않았다 — 학습진단처럼
+                  플랜이 1개뿐인 서비스는 애초에 고를 대상이 하나뿐이라 "선택 규칙"
+                  자체가 성립하지 않고, 그래서 이 조건 하나로 5개 서비스 블록 전부가
+                  일관되게 처리된다(학습진단만 안내문이 없는 건 예외 분기가 아니라 이
+                  조건의 자연스러운 결과다 — 별도 정리가 필요한 비일관성이 아니다). */}
               {service.products.length > 1 && (
                 <p className="mt-4 text-[0.75rem] font-medium leading-[1.0625rem] text-ink sm:text-[1.125rem] sm:leading-[1.5625rem] sm:tracking-[-0.02em]">
                   {SINGLE_SELECT_NOTICE}
@@ -511,7 +617,7 @@ export default function Pricing() {
                 <dd className="font-bold text-ink">{formatKRW(listTotal)}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <dt className="font-medium text-ink-sub">총 할인금액</dt>
+                <dt className="font-medium text-ink-sub">총 할인 금액</dt>
                 {/* 390 시안(1882-16017)만 할인금액에 마이너스 부호가 붙는다('-273,600원').
                     요약 바를 실제로 그린 sm 이상 시안은 1280 = 1882-15190 과
                     1920 = 3408-4832 이고 둘 다 '151,400원' 처럼 부호 없이 표기하므로
@@ -522,7 +628,7 @@ export default function Pricing() {
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <dt className="font-medium text-ink-sub">총 결제금액</dt>
+                <dt className="font-medium text-ink-sub">총 결제 금액</dt>
                 {/* w900 은 시안 무게 범위(w400~w700) 밖이라 w700 으로 내린다. */}
                 <dd className="text-[1rem] font-bold text-primary">{formatKRW(totalPrice)}</dd>
               </div>
@@ -583,7 +689,7 @@ export default function Pricing() {
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">총 할인금액</p>
+                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">총 할인 금액</p>
                 {/* 총 할인금액 값 색 — 1280 시안(1882:15190) 실측 #013262 = primary 다.
                     직전 라운드의 accent(#0B84FD, 옛 blue-600 승계값)는 실측 근거가 없던 잔존값이라
                     정정했다. 이제 390 밴드(:520, 390 시안 실측색이 네이비)와 sm+ 가 같은 토큰을
