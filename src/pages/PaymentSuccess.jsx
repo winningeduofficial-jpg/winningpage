@@ -24,8 +24,11 @@ import { COMPANY } from '../data/company';
 // 키는 service_key 가 아니라 **부여 결과(access.granted)의 program_key** 다
 // (api/_lib/programAccess.js 가 program_key 배열을 돌려준다). 목표관리는
 // service_key='goal' 이지만 program_key 는 'target' 이다(2026-08-11 사용자 확정 —
-// 운영 DB 실데이터 기준, api/_lib/programAccess.js:56-59 SERVICE_KEY_TO_PROGRAM_KEY
-// 참고). 수행평가는 service_key = program_key = 'suhaeng' 로 같은 문자열이다.
+// 운영 DB 실데이터 기준. 이 관계는 이제 DB 정본이다 —
+// sql/60_product_program_relation.sql 의 products.program_key 컬럼 참고,
+// api/_lib/programAccess.js 의 getServiceKeyToProgramKeyMap 이 그 컬럼을
+// 조회해 부여한다). 수행평가는 service_key = program_key = 'suhaeng' 로 같은
+// 문자열이다.
 // 기준을 granted 로 두면 "권한이 실제로 들어간 것만 입장 버튼이 생긴다"가 코드로
 // 보장된다 — 결제만 되고 부여가 없는 상품에 입장 버튼을 띄우는 사고를 구조적으로
 // 막는다.

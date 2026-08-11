@@ -48,30 +48,55 @@ function clean(value) {
 
 // products.service_key → program_access.program_key
 //
-// 코드가 근거를 갖는 매핑만 넣는다. api/create-service-ticket.js:7-22 의
-// SERVICE_CONFIGS 가 아는 서비스는 suhaeng·goal 2건뿐이고, 프런트
-// src/lib/paidServiceAccess.js:5 도 같은 2건만 입장시킨다.
-// susi·mentor·diagnose 는 program_key 도 입장할 앱(target_url)도 없어서 여기
-// 넣으면 존재하지 않는 programs 행을 참조해 FK 위반이 된다 → 매핑에서 제외하고
-// skipped 로 보고한다.
+// 2026-08-11 이전에는 이 매핑이 이 파일 안 하드코딩 객체
+// (SERVICE_KEY_TO_PROGRAM_KEY = { goal: 'target', suhaeng: 'suhaeng' })
+// 였다. products.service_key 에 FK·CHECK 가 전혀 없어 DB 가 이 매핑의
+// 정확성을 검증하지 못했고, 그래서 dev 가 'goal', 운영이 'target' 으로
+// 갈려 있던 사고(아무도 못 잡음)가 났다. sql/60_product_program_relation.sql
+// 이 products.program_key 컬럼 + FK(→ programs.program_key, ON DELETE
+// RESTRICT)를 추가해 이 관계를 DB 로 옮겼으므로, 이제 그 컬럼을 그대로
+// 읽는다 — 하드코딩 상수는 없앤다(susi·mentor·diagnose 도 이제 programs 에
+// 행이 있어 매핑이 존재한다. 다만 이 세 서비스는 SSO 입장 앱이 아직 없어
+// create-service-ticket.js 는 여전히 suhaeng·goal 만 다룬다 — 그건 "입장
+// 가능 여부"이고 이 매핑은 "권한 부여 대상"이라 별개다).
 //
-// service_key 'goal' → program_key 'target' (2026-08-11 사용자 확정)
-//   products.service_key = 'goal' 은 상품 식별자로 바뀌지 않는다 — 목표관리
-//   상품은 여전히 'goal' 로 조회된다(src/pages/services/GoalManagement.jsx:685).
-//   바뀌는 것은 결제 확정 시 program_access 에 적는 program_key 뿐이다. 운영
-//   DB(ucjlcvqvinspmrasvsug) 의 programs 는 target/suhaeng 2행이고
-//   program_key='target' 인 active 권한 부여가 2건 실재해 'target' 이 이미
-//   운영에서 쓰이는 정본 키였다 — dev 만 goal 로 시드되어 있던 게 어긋난
-//   쪽이었다(sql/54_program_access_grant.sql 의 "goal → target 전환" 절 참고).
-//   goal 판정(create-service-ticket.js:20)은 program_keys ['goal','target'] 를
-//   순회하므로 'target' 만 부여해도 그대로 통과한다.
-export const SERVICE_KEY_TO_PROGRAM_KEY = {
-  goal: 'target',
-  suhaeng: 'suhaeng'
-};
+// service_key 단위로 조회한다(order_items.product_id 조인이 아니라).
+// product_id 는 상품이 삭제되면 SET NULL 될 수 있지만(sql/56_surrogate_
+// uuid_keys.sql 3절) service_key 스냅샷은 절대 바뀌지 않는다 — 이 파일이
+// 이미 product_slug·service_key 스냅샷으로 "무엇을 샀는지"를 복원하고
+// 있으므로(파일 상단 주석) 매핑 조회도 같은 스냅샷을 키로 쓰는 게 일관
+// 되고, 과거 주문의 상품이 나중에 지워져도 매핑이 끊기지 않는다. 같은
+// service_key 를 가진 products 행은 항상 같은 program_key 를 가리키도록
+// 시드돼 있다(sql/60 1)절, dev 실측 — goal 4행 전부 program_key='target').
+//
+// 부여(grantProgramAccessForOrder)와 회수(revokeProgramAccessForOrder)가
+// 둘 다 이 함수를 거치는 readOrderPrograms 를 통해서만 매핑을 얻는다 —
+// 매핑 로직이 두 곳에 따로 있으면 한쪽만 고쳐지는 사고가 난다(파일 상단
+// "부여만 있으면 손실이 난다" 절과 같은 원칙).
+async function getServiceKeyToProgramKeyMap(supabaseAdmin, serviceKeys) {
+  const keys = [...new Set((serviceKeys || []).map(clean).filter(Boolean))];
+  if (keys.length === 0) return new Map();
 
-export function mapServiceKeyToProgramKey(serviceKey) {
-  return SERVICE_KEY_TO_PROGRAM_KEY[clean(serviceKey)] || '';
+  const { data, error } = await supabaseAdmin
+    .from('products')
+    .select('service_key, program_key')
+    .in('service_key', keys)
+    .not('program_key', 'is', null);
+
+  if (error) throw error;
+
+  const map = new Map();
+  for (const row of data || []) {
+    const serviceKey = clean(row.service_key);
+    const programKey = clean(row.program_key);
+    // 같은 service_key 를 가진 여러 products 행(예: goal-1m/3m/6m/12m)이
+    // 서로 다른 program_key 를 갖는 데이터 이상이 생기더라도, 먼저 찾은
+    // 값 하나로 고정한다(조용히 흔들리는 매핑보다 결정적인 편이 낫다).
+    if (serviceKey && programKey && !map.has(serviceKey)) {
+      map.set(serviceKey, programKey);
+    }
+  }
+  return map;
 }
 
 // 회수된 행의 payment_status. CHECK 값(unpaid|pending|paid|refunded|cancelled)
@@ -89,6 +114,17 @@ async function readOrderPrograms(supabaseAdmin, orderId) {
   if (error) throw error;
 
   const serviceKeys = [];
+  for (const item of items || []) {
+    const serviceKey = clean(item.service_key);
+    if (serviceKey && !serviceKeys.includes(serviceKey)) {
+      serviceKeys.push(serviceKey);
+    }
+  }
+
+  // DB(products.program_key)에서 이번 주문에 나온 service_key 들의 매핑을
+  // 한 번에 가져온다 — 라인아이템마다 조회하지 않는다(N+1 방지).
+  const programKeyByServiceKey = await getServiceKeyToProgramKeyMap(supabaseAdmin, serviceKeys);
+
   const skipped = [];
   // 같은 program_key 를 가리키는 라인이 여러 개면(예: 목표관리 1개월 + 3개월
   // 동시 구매) 결제 금액만 합산한다. 기간 합산은 근거가 없어 하지 않는다.
@@ -96,11 +132,7 @@ async function readOrderPrograms(supabaseAdmin, orderId) {
 
   for (const item of items || []) {
     const serviceKey = clean(item.service_key);
-    if (serviceKey && !serviceKeys.includes(serviceKey)) {
-      serviceKeys.push(serviceKey);
-    }
-
-    const programKey = mapServiceKeyToProgramKey(serviceKey);
+    const programKey = programKeyByServiceKey.get(serviceKey) || '';
     if (!programKey) {
       skipped.push({
         service_key: serviceKey || null,

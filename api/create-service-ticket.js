@@ -17,7 +17,18 @@ const SERVICE_CONFIGS = {
     service_name: '목표관리 서비스',
     target_url: process.env.GOAL_SERVICE_URL || process.env.TARGET_SERVICE_URL,
     payment_keywords: ['목표', '목표관리', '목표 관리', '학습관리', '학습 관리'],
-    program_keys: ['goal', 'target']
+    // program_keys 는 program_access 테이블에서 조회할 후보다. 예전엔
+    // ['goal', 'target'] 두 값을 다 받아줬다 — products.service_key='goal'
+    // 이 program_key로도 그대로 쓰이던 시절의 흔적인데, DB 에 관계가 없어
+    // dev 가 실제로 'goal' 로 어긋나 있었다(sql/54_program_access_grant.sql
+    // "goal → target 전환" 절). 지금은 sql/60_product_program_relation.sql
+    // 이 products.program_key 로 이 관계를 못박아 grantProgramAccessForOrder
+    // (api/_lib/programAccess.js)가 goal 상품 결제 시 항상 program_key=
+    // 'target' 으로만 쓴다 — 'goal' 로 쓰는 코드 경로가 이제 하나도 없다.
+    // 운영 DB(ucjlcvqvinspmrasvsug) 확인상 program_access.program_key=
+    // 'goal' 인 행도 이미 없었다(target 2건만 실재, sql/54 동일 절) — 이
+    // 관용을 좁혀도 기존 사용자의 앱 진입이 끊기지 않는다(2026-08-11).
+    program_keys: ['target']
   }
 };
 
