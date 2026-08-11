@@ -24,10 +24,11 @@
 //   터미널 꼬리에서 결론이 밀려난다). --verbose 로 PASS 줄까지 전부 본다.
 //
 // 종료 코드: 실패 1건 이상이면 1, 아니면 0.
-//   pending 은 실패로 세지 않는다 — §9 미확정 항목(Q-09·Q-10·Q-28·Q-29)에
-//   묶여 기대값 자체가 확정 전인 케이스라, 지금 붉게 만들면 확정될 때까지
-//   스크립트를 아무도 안 본다. 대신 요약에 건수를 남겨 미결이 사라지지 않게 한다.
+//   pending 은 실패로 세지 않는다 — §9 미확정 항목이 남으면 기대값 자체가 확정 전인 케이스라,
+//   지금 붉게 만들면 확정될 때까지 스크립트를 아무도 안 본다. 대신 요약에 건수를 남겨 미결이
+//   사라지지 않게 한다. 현재 pending 0건(전량 정식 단언).
 //   Q-12·Q-14·Q-32·Q-36 는 사용자 확정으로 해소됐다(2026-08-11) — 정식 단언으로 승격했다.
+//   Q-09·Q-10·Q-28·Q-29·Q-05·W2 도 같은 날 확정돼 마지막 pending 6건이 전부 승격됐다.
 //   Q-36 은 "감지는 하되 점수엔 반영하지 않는다"로 해소됐다 — 배점(+10)을 걷어내니 오탐 pending
 //   3건이 전부 "점수 불변" 정식 단언으로 바뀌었다(오탐 판정 자체를 확정한 게 아니다).
 //
@@ -88,7 +89,6 @@ import {
   URGENCY_SCOPE,
   URGENCY_AREA_THRESHOLD,
   BASE_PROBABILITY,
-  BAND_NODATA,
   PROB_MAX,
   EXAMPLE_CASES,
   EXAMPLE_CASES_MIN_ASSERTIONS
@@ -123,11 +123,12 @@ const VERBOSE = process.argv.includes('--verbose');
  * MIN_COMPARED_CELLS 와 같은 기법이다. 케이스를 지우면서 pending 을 늘리는 식의
  * 침묵 약화를 이 상수가 막는다.
  */
-// 실측 365건(2026-08-11, Q-36 해소로 pending 3건이 정식 단언으로 승격 + 신호 검증 단언 신설로
-// 356 → 365, pending 9 → 6). 하한을 현재값 근처에 두지 않으면 가드가 작동하지 않는다 —
+// 실측 404건(2026-08-11, Q-09·Q-10·Q-28·Q-29·Q-05·W2 확정으로 마지막 pending 6건이 정식
+// 단언으로 승격 + Q-05 픽스처·Q-28 4조합 경계·Q-29 report 통합 검증·Q-10 게이트 회귀 신설로
+// 365 → 404, pending 6 → 0). 하한을 현재값 근처에 두지 않으면 가드가 작동하지 않는다 —
 // 40 이던 시절에는 실경로 단언의 7/8 이 사라져도 조용히 통과했다.
 // 케이스를 의도적으로 늘리거나 줄일 때 이 값을 함께 갱신한다.
-const MIN_ASSERTIONS = 360;
+const MIN_ASSERTIONS = 400;
 
 /* ================================================================== *
  * 0. 단언 하니스
@@ -412,6 +413,25 @@ check(
 check('미지 라벨은 null', normalizeAnswers({ q1: '존재하지 않는 선택지' }).profile.gradeLevel, null);
 check('입력이 없어도 죽지 않는다', normalizeAnswers(undefined).gradeSystem, null);
 
+// Q-01 확정(2026-08-11) — 이름은 폼 문항이 아니라 SurveyStepShell 제출 시점에 meta.name 으로
+// 주입된다(로그인 세션의 profiles.name). 비로그인·조회 실패는 meta.name 이 없어 익명 폴백을 탄다.
+check('meta.name 이 있으면 profile.name 에 그대로 담긴다', normalizeAnswers({}, { name: '김주원' }).profile.name, '김주원');
+check('meta.name 이 없으면 profile.name = null(익명 폴백)', normalizeAnswers({}).profile.name, null);
+check(
+  'name 있으면 traitsHeading = "{name} 학생의 주요 학습 특성"',
+  buildReport(normalizeAnswers({}, { name: '김주원' })).traitsHeading,
+  '김주원 학생의 주요 학습 특성'
+);
+check(
+  'name 없으면 traitsHeading 이 축약형(TRAITS_HEADING_ANON, 토큰 노출 없음)',
+  buildReport(normalizeAnswers({})).traitsHeading,
+  '주요 학습 특성'
+);
+checkTrue(
+  'name 없어도 헤드라인은 완결 문장이다([head] 단독 — "{name}" 토큰이 그대로 남지 않는다)',
+  buildReport(normalizeAnswers({})).headlineLines.every((line) => !line.includes('{') && !line.includes('undefined'))
+);
+
 // §3.4 — 중학생 평균은 '등급' 개념이 없어 모의고사·최근시험 그룹이 화면에서 숨겨진다.
 // GradeInputGrid 는 되돌릴 때를 위해 숨긴 칸의 값을 보존하므로, 채점이 그 값을 읽으면
 // 체계를 바꾼 것만으로 교과 관리 aux 가 5 → 10 으로 오르는 조용한 오채점이 된다.
@@ -443,6 +463,20 @@ checkTrue(
   'isAnswered 단독으로는 이 구멍이 막히지 않는다',
   isAnswered('grade-grid', { mock_korean: '1' })
 );
+
+// Q-10 확정(2026-08-11) — 리커트 12문장 완주 게이트. 산식(scalePartOf)은 분모 1을 허용하지만
+// 진행 판정(isQuestionAnswered)은 12문장 전부를 요구한다 — 1클릭 만점 리포트를 UI 단에서 막는다.
+const q9 = questionById.get('q9');
+checkTrue('리커트는 isAnswered 하나만으로는 통과하지 않게 requiredFields 대신 문장 수를 본다', q9?.type === 'likert');
+checkTrue(
+  '리커트 11/12문장만 응답 → 미완료(1문장만 응답으로 만점 리포트가 나가는 경로 차단)',
+  !isQuestionAnswered(q9, Object.fromEntries(LIKERT1_KEYS.slice(0, 11).map((key) => [key, 0])))
+);
+checkTrue(
+  '리커트 12/12문장 전부 응답 → 완료',
+  isQuestionAnswered(q9, Object.fromEntries(LIKERT1_KEYS.map((key) => [key, 0])))
+);
+checkTrue('리커트 1문장만 응답 → 미완료(분모 1 산식과 UI 게이트는 별개)', !isQuestionAnswered(q9, { LK1_05: 0 }));
 
 /* ================================================================== *
  * S2. §8 CASE-09 — ROUND_HALF_UP (B-01 회귀)
@@ -619,15 +653,32 @@ check('둘 다 없음 → null (BAND_NODATA)', admissionBand(3.24, { cut50: null
 check('mine 미입력 → null', admissionBand(null, { cut50: 2.5, cut70: 3.0 }), null);
 check('행 배열은 값이 없으면 빈 배열(§7.4.3)', admissionRows(null, {}), []);
 
-// CASE-04b — rev.1 은 `3.24 <= null` 이 false 로 평가돼 안정권 학생을 무조건 RISK 로 찍었다.
+// CASE-04b — Q-28 확정(2026-08-11). rev.1 은 `3.24 <= null` 이 false 로 평가돼 안정권 학생을
+// 무조건 RISK 로 찍었다. 지금은 결측 대체 항등식(c50=cut70−0.30, c70=cut50+0.30)으로 정상 산출된다.
 const ex04b = { mine: 2.1, cuts: { cut50: 2.5, cut70: null } };
-check('cut50 단독 → BAND_NODATA 폴백 (A4)', admissionBand(ex04b.mine, ex04b.cuts), BAND_NODATA, {
-  pending: 'Q-28 미확정. 대칭 규칙으로 확정되면 STABLE 이 된다.'
-});
+check('cut50 단독 → STABLE (대칭 규칙, A4 폴백 대신 정상 산출)', admissionBand(ex04b.mine, ex04b.cuts), 'STABLE');
 checkTrue(
   'cut50 단독이 RISK 로 떨어지지 않는다(rev.1 버그 회귀)',
   admissionBand(ex04b.mine, ex04b.cuts) !== 'RISK'
 );
+
+// 4조합(둘 다 있음 / 50만 / 70만 / 둘 다 없음) 전부를 덮는다. cut50 단독(2.5)·cut70 단독(2.8)은
+// 결측 대체 항등식으로 동일한 4단 경계(c50=2.5 / c70=2.8 / c70+0.30=3.1)를 내므로, `<=` 귀속
+// 규칙(609행 주석)을 확인할 경계 위/아래 쌍(2.5/2.6, 2.8/2.9, 3.1/3.2)을 헬퍼 하나로 두 조합에
+// 재사용한다. cut70=2.8 은 2.8+0.3 이 JS 부동소수점으로 3.0999999999999996 이 되는 바로 그
+// 조합이다 — admissionBand 가 항등식 계산 직후 roundHalfUp(...,2) 로 정규화하므로(diagnosisScoring.js)
+// 경계값 3.1 이 정확히 성립한다. 이 정규화가 실제로 동작하는지가 이 블록의 검증 대상이다.
+function checkAdmissionBandBoundaries(label, cuts) {
+  check(`${label} mine=2.5(=c50) → STABLE`, admissionBand(2.5, cuts), 'STABLE');
+  check(`${label} mine=2.6(c50<mine<=c70) → FIT`, admissionBand(2.6, cuts), 'FIT');
+  check(`${label} mine=2.8(=c70) → FIT`, admissionBand(2.8, cuts), 'FIT');
+  check(`${label} mine=2.9(c70<mine<=c70+0.30) → REACH`, admissionBand(2.9, cuts), 'REACH');
+  check(`${label} mine=3.1(=c70+0.30) → REACH`, admissionBand(3.1, cuts), 'REACH');
+  check(`${label} mine=3.2(>c70+0.30) → RISK`, admissionBand(3.2, cuts), 'RISK');
+}
+checkAdmissionBandBoundaries('cut50 단독(cut50=2.5→c70=2.8)', { cut50: 2.5, cut70: null });
+checkAdmissionBandBoundaries('cut70 단독(cut70=2.8→c50=2.5)', { cut50: null, cut70: 2.8 });
+check('둘 다 있음(cut50=2.5,cut70=2.8) mine=3.2 → RISK', admissionBand(3.2, { cut50: 2.5, cut70: 2.8 }), 'RISK');
 
 // 확률은 Q-03 미확정이라 상시 null 이다 → probabilityValue 는 밴드 4글자 경로로 떨어진다.
 check('BASE_PROBABILITY 미확정(null)', BASE_PROBABILITY, null);
@@ -789,14 +840,15 @@ const subjectWithMock = (filledCount) =>
     makeInput({ scores: { naesinOverall: null, recentExamAvg: null, mock: {}, mockFilledCount: filledCount } })
   ).SUBJECT;
 
-check('모의고사 0칸 → aux 5', subjectWithMock(0) - 20, MOCK_FILL_POINTS[0]);
-check('모의고사 6칸 → aux 10', subjectWithMock(6) - 20, MOCK_FILL_POINTS[6]);
-check('모의고사 3칸 → aux 7 (하위 짝수 내림)', subjectWithMock(3) - 20, 7, {
-  pending: 'Q-09 미확정. 선형보간으로 확정되면 7.5 가 된다.'
-});
+// Q-09 확정(2026-08-11) — 6키 룩업 7칸 전량을 단언 1블록으로 덮는다. roundHalfUp 은
+// scoreAreas 의 정수화(§4.2.2)를 재현한다(20 이 정수라 반올림이 aux 쪽으로만 걸린다).
 [0, 1, 2, 3, 4, 5, 6].forEach((count) => {
+  check(`모의고사 ${count}칸 → aux ${MOCK_FILL_POINTS[count]}`, subjectWithMock(count) - 20, roundHalfUp(MOCK_FILL_POINTS[count]));
   checkTrue(`모의고사 ${count}칸에서 NaN 미발생`, Number.isFinite(subjectWithMock(count)));
 });
+// 3칸(aux 7.5→28)과 4칸(aux 8→28)은 정수 반올림 후 SUBJECT 화면 점수가 같다 — 앵커 간격이
+// 2칸→4칸 사이 +1점뿐인 구조적 결과이지 버그가 아니다(diagnosisScoringTable.js MOCK_FILL_POINTS 주석).
+check('모의고사 3칸과 4칸은 SUBJECT 화면 점수가 같다(정수 반올림 동점, 기대 동작)', subjectWithMock(3), subjectWithMock(4));
 
 // q3 '아직 구체적인 목표가 없어요' → 이유 문항 미노출 → goal.reason 상시 null.
 // GOAL_REASON_POINTS[null] 폴백이 없으면 aux = 0 + undefined = NaN 이 되어 리포트 전체가 무너진다.
@@ -814,27 +866,21 @@ check(
   90
 );
 
+// Q-10 확정(2026-08-11) — 분모 = 응답한 문장 수(산식 0줄 변경, 문구집 SKIP_NOTE 원문 그대로).
+// 완주 게이트는 UI 진행 판정(isQuestionAnswered)에만 걸리고 엔진 산식은 분모 1을 그대로 허용한다.
 // 리커트 2문장 모두 결측 → scalePart 0. EXEC base 20 + TREND(미응답 0) = 20.
-check('q9 문장5·6 둘 다 미응답 → EXEC scalePart = 0', scoreAreas(makeInput()).EXEC, 20, {
-  pending: 'Q-10 미확정. SKIP_NOTE 노출 규칙과 분모 정책이 확정되면 재작성한다.'
-});
-// 1문장만 응답하면 분모 1 이다(§4.2 결측 · Q-10 잠정).
-check(
-  '리커트 1문장만 응답 → 분모 1',
-  scoreAreas(makeInput({ likert1: { LK1_05: 100 } })).EXEC,
-  90,
-  { pending: 'Q-10 미확정. 분모 1 허용 여부가 확정 대상이다.' }
-);
+check('q9 문장5·6 둘 다 미응답 → EXEC scalePart = 0', scoreAreas(makeInput()).EXEC, 20);
+// 1문장만 응답하면 분모 1 이다(§4.2 결측 · Q-10 확정 — UI 게이트는 별도).
+check('리커트 1문장만 응답 → 분모 1', scoreAreas(makeInput({ likert1: { LK1_05: 100 } })).EXEC, 90);
 
-// gap <= 0 — '목표까지 0점 부족'이 렌더되면 안 되는 경로. 엔진은 reached 로 신호만 준다.
+// Q-29 확정(2026-08-11) — gap <= 0 이면 card_urgent 대신 card_goal_met 전용 키(제목+부제 동시
+// 교체)로 렌더된다. '목표까지 0점 부족'이 렌더되면 안 되는 경로다. 엔진은 reached 로 신호만 준다.
 const reachedGap = targetGap(makeAreaScores(80));
-checkTrue('PAGE1 최저 >= 75 → reached = true', reachedGap.reached === true, {
-  pending: 'Q-29 미확정. 임시 문구는 COPY_FALLBACK.URGENT_GOAL_REACHED 다.'
-});
-check('gap 은 clamp 하지 않는다(부호를 호출부에 그대로 넘긴다)', reachedGap.gap, TARGET_SCORE - 80, {
-  pending: 'Q-29 미확정.'
-});
-check('폴백 문구는 문구집이 아니라 COPY_FALLBACK 소유', COPY_FALLBACK.URGENT_GOAL_REACHED, '목표 수준 도달');
+checkTrue('PAGE1 최저 >= 75 → reached = true', reachedGap.reached === true);
+check('gap 은 clamp 하지 않는다(부호를 호출부에 그대로 넘긴다)', reachedGap.gap, TARGET_SCORE - 80);
+check('신규 키 card_goal_met.title', TEMPLATE_COPY['card_goal_met.title'], '가장 낮은 영역');
+check('신규 키 card_goal_met.sub', TEMPLATE_COPY['card_goal_met.sub'], '모든 영역이 목표 점수에 도달했습니다');
+check('COPY_FALLBACK 은 VALUE_MISSING 하나만 남는다(URGENT_GOAL_REACHED 삭제)', Object.keys(COPY_FALLBACK), ['VALUE_MISSING']);
 
 // 미응답 투성이 입력에서도 12영역이 전부 유한 정수여야 한다 — NaN 은 종합·뱃지·gap 까지 전파된다.
 const emptyAreas = scoreAreas(makeInput());
@@ -843,8 +889,54 @@ checkTrue('빈 입력에서 종합 점수도 유한수', Number.isFinite(overall
 check('입력이 아예 없어도(undefined) 죽지 않는다', Number.isFinite(scoreAreas(undefined).GOAL), true);
 check('미지 라벨 코드는 조용히 버린다', scoreAreas(makeInput({ obstacles: ['OBS_99'] })), baseAreas);
 
-// 유형 판정은 Q-05 확정 전까지 상시 null 이다. 값을 창작하면 40개 유형 문구가 잘못 바인딩된다.
-check('classifyStudentType = null (Q-05 미확정)', classifyStudentType(makeInput(), baseAreas), null);
+// Q-05 확정(2026-08-11) — 최저 영역 룩업 기반 4종 + ① 가드. 나머지 4종
+// (학습체계 안정형 · 균형 점검형 · 계획 과잉·실행 취약형 · 목표–실행 불균형형)은 판정 기준이
+// 배점표·문구집 어디에도 없어 창작하지 않는다 — ⑥ 그 외 경로로 현행 null 폴백을 유지한다.
+const allSameLikert24 = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key) => [key, 3])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 3]))
+};
+const variedLikert24 = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i % 5])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key, i) => [key, (i + 1) % 5]))
+};
+
+// ① 리커트 24문장이 전부 동일하면, 그 외에는 ③(GOAL 최저)이 성립하는 areaScores 라도 null 이다.
+check(
+  '① 리커트 24문장 응답값이 전부 동일 → null (③ 보다 우선)',
+  classifyStudentType(makeInput(allSameLikert24), makeAreaScores(60, { GOAL: 30, STABILITY: 60 })),
+  null
+);
+// 빈 입력(likert 미응답)은 '전부 동일'로 보지 않는다 — answered.length 0 은 가드 대상이 아니다.
+// 그 결과 이 픽스처는 STABILITY 30(<45) 이라 ②(부담 누적형)로 정상 판정된다.
+check('② STABILITY < 45 → 학습 부담 누적형 (빈 입력, 가드 미발동)', classifyStudentType(makeInput(), baseAreas), 'BURDEN_ACCUM');
+// ②는 ③보다 먼저 검사한다(판단) — GOAL 도 낮지만 STABILITY < 45 가 이긴다.
+check(
+  '② STABILITY < 45 → 학습 부담 누적형 (③과 동시 성립해도 ②가 우선)',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 40, GOAL: 35 })),
+  'BURDEN_ACCUM'
+);
+check(
+  '③ 최저 영역 = 목표 설정 → 방향 탐색형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, GOAL: 30 })),
+  'DIRECTION_SEEK'
+);
+check(
+  '④ 최저 영역 = 시간 관리 → 시간관리 취약형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, TIME: 30 })),
+  'TIME_WEAK'
+);
+check(
+  '⑤ 최저 영역 = 학습 피드백 → 학습방법 점검형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, FEEDBACK: 30 })),
+  'METHOD_REVIEW'
+);
+// ⑥ 최저 영역이 PLAN·EXEC·STABILITY 중 하나면 판정하지 않는다(창작 상수 0개, 현행 null 폴백).
+check(
+  '⑥ 최저 영역 = 계획 설계 → null (판정 기준 없음, 현행 폴백)',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, PLAN: 30 })),
+  null
+);
 
 /* ================================================================== *
  * S11. §8 CASE-10 — 문구 개수 검산
@@ -901,8 +993,9 @@ const sheet05Count =
   Object.keys(URGENCY_COPY).length +
   Object.keys(COMMON_COPY).length +
   Object.keys(TEMPLATE_COPY).length;
-check('05_구간_공통 = 4 + 10 + 4 + 19 + 18 = 55', sheet05Count, 55);
-check('01~05 합계 = 341', typeCount + areaCopyCount + narrativeCount + serviceCopyCount + sheet05Count, 341);
+// Q-29 확정(2026-08-11)으로 TEMPLATE_COPY 가 18 → 20 (card_goal_met.title/sub 신설).
+check('05_구간_공통 = 4 + 10 + 4 + 19 + 20 = 57', sheet05Count, 57);
+check('01~05 합계 = 343', typeCount + areaCopyCount + narrativeCount + serviceCopyCount + sheet05Count, 343);
 
 const bannedCount = BANNED_PHRASES.reduce((sum, group) => sum + group.phrases.length, 0);
 check('BANNED_PHRASES = 6유형', BANNED_PHRASES.length, 6);
@@ -990,6 +1083,20 @@ check('readiness.areas 정확히 6', report?.readiness?.areas?.length ?? null, 6
 check('summaryCards 정확히 3', report?.summaryCards?.length ?? null, 3);
 check('traits 정확히 3', report?.traits?.length ?? null, 3);
 checkTrue('summaryCards label 이 유일(React key)', new Set(report.summaryCards.map((c) => c.label)).size === 3);
+
+// Q-29 확정(2026-08-11) — PAGE1 6영역 전부 목표(75점) 이상이면 card_urgent 대신 card_goal_met
+// 전용 키로 3번째 요약 카드의 제목·부제가 함께 바뀐다(자기모순 문장 방지). raw input 으로
+// buildReport 를 통과시켜 diagnosisReport.js 조립 분기까지 실제로 맞는지 본다.
+const goalMetReport = buildReport(
+  makeInput({
+    goal: { level: 'BOTH', reason: null, targetUniversity: null, targetMajor: null },
+    likert1: Object.fromEntries(LIKERT1_KEYS.map((key) => [key, 100])),
+    likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 100]))
+  })
+);
+check('전 영역 목표 달성 → 3번째 요약 카드 제목 = card_goal_met.title', goalMetReport.summaryCards[2]?.label, TEMPLATE_COPY['card_goal_met.title']);
+check('전 영역 목표 달성 → 3번째 요약 카드 부제 = card_goal_met.sub', goalMetReport.summaryCards[2]?.sub, TEMPLATE_COPY['card_goal_met.sub']);
+checkTrue('goalMetReport summaryCards label 도 유일(React key)', new Set(goalMetReport.summaryCards.map((c) => c.label)).size === 3);
 checkTrue('traits title 이 유일(React key)', new Set(report.traits.map((t) => t.title)).size === 3);
 checkTrue('headlineLines 중복 없음(key={line})', new Set(report.headlineLines).size === report.headlineLines.length);
 checkTrue('strengths·improvements·recommendations 는 배열',
