@@ -67,6 +67,7 @@ import GoalProfile from './pages/goal/Profile';
 //    운영 DB의 program_access.program_key에 이미 박힌 값이라 개명 대상이 아니다(§1.4).
 import RequireEntitlement from './components/RequireEntitlement';
 import { SessionProvider } from './context/SessionContext';
+import PerformanceAppLayout from './components/performance/PerformanceAppLayout';
 import PerformancePlaceholder from './pages/performance/PerformancePlaceholder';
 
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
@@ -348,20 +349,29 @@ export default function App() {
               />
             }
           >
-            {/* TODO(P4): 아래 4개 element를 PerformanceAppLayout + 실제 페이지로 교체한다.
-                지금은 배선 검증용 플레이스홀더뿐이며 시안(§3·§5·§7)은 구현되지 않았다. */}
-            <Route path="/app/performance" element={<PerformancePlaceholder screen="채팅 워크스페이스" />} />
-            {/* 저장 리포트는 모달이 아니라 라우트다(§11-Q65). 정적 세그먼트가
-                :sessionId보다 우선 매칭되므로 `reports`가 세션 id로 오인되지 않는다. */}
-            <Route path="/app/performance/reports" element={<PerformancePlaceholder screen="저장 리포트 목록" />} />
-            <Route
-              path="/app/performance/reports/:sessionId"
-              element={<PerformancePlaceholder screen="저장 리포트 상세" />}
-            />
-            {/* 새로고침 복구 진입점(§2.1). 외부 앱은 sessionId가 인메모리라 새로고침
-                시 재로그인으로 떨어졌다. 세션 id는 인증 수단이 아니라 리소스 ID이므로
-                URL에 노출해도 안전하다 — 소유권은 서버가 auth.uid()로 판정한다. */}
-            <Route path="/app/performance/:sessionId" element={<PerformancePlaceholder screen="세션 복구" />} />
+            {/* 셸(사이드바 + 페이지 타이틀)은 P4에서 구현됐다 — §3.1/§3.5.
+                TODO(P5~P6): 아래 4개 element(플레이스홀더)를 실제 페이지로 교체한다.
+                  · P5 채팅 워크스페이스(§5.3~§5.17) · P6 저장 리포트(§5.18~§5.19) */}
+            <Route element={<PerformanceAppLayout />}>
+              <Route path="/app/performance" element={<PerformancePlaceholder screen="채팅 워크스페이스" />} />
+              {/* 저장 리포트는 모달이 아니라 라우트다(§11-Q65). 정적 세그먼트가
+                  :sessionId보다 우선 매칭되므로 `reports`가 세션 id로 오인되지 않는다. */}
+              <Route
+                path="/app/performance/reports"
+                element={<PerformancePlaceholder screen="저장 리포트 목록" />}
+              />
+              <Route
+                path="/app/performance/reports/:sessionId"
+                element={<PerformancePlaceholder screen="저장 리포트 상세" />}
+              />
+              {/* 새로고침 복구 진입점(§2.1). 외부 앱은 sessionId가 인메모리라 새로고침
+                  시 재로그인으로 떨어졌다. 세션 id는 인증 수단이 아니라 리소스 ID이므로
+                  URL에 노출해도 안전하다 — 소유권은 서버가 auth.uid()로 판정한다. */}
+              <Route
+                path="/app/performance/:sessionId"
+                element={<PerformancePlaceholder screen="세션 복구" />}
+              />
+            </Route>
           </Route>
         </Route>
         <Route path="/payment/fail" element={<PaymentFail />} />

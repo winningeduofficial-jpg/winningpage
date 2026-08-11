@@ -11,7 +11,27 @@ export default {
         // 목표관리 앱(goal-app-shell) 콘텐츠 폭 — docs/figma-goal/00-INDEX.md §6-3.
         // 서브페이지는 리포트 기준 1340px로 통일, 대시보드(메인+레일 합)만 1488px.
         'goal-content': '83.75rem',
-        'goal-dashboard': '93rem'
+        'goal-dashboard': '93rem',
+        // 수행평가 앱(/app/performance) 캔버스 콘텐츠 폭 — docs/수행평가-상세-명세.md §3.1 제안.
+        // 시안은 1920 고정 좌표(캔버스 좌기준선 384, 사용자 말풍선 우변 1756)지만 그대로 쓰면
+        // 좁은 데스크톱에서 깨지므로, 좌측 기준선은 고정하고 콘텐츠는 1320px 상한으로 환산한다.
+        'perf-content': '82.5rem',
+        // AI 말풍선 폭 596px. 고정폭이 아니라 max-width로 처리한다(§11.3 Q36 미확정 → 넓은 쪽 해석).
+        'perf-bubble': '37.25rem'
+      },
+      // 수행평가 앱 셸 반복 치수 — §7.3. 나머지 치수(폼 카드·모달·버튼)는 화면 단위로만 쓰여
+      // 토큰화 이득이 없으므로 각 컴포넌트에서 임의값으로 쓴다.
+      spacing: {
+        'perf-sidebar': '20.25rem', // 사이드바 폭 324px
+        'perf-inset': '3.75rem', // 사이드바·캔버스 좌 인셋 60px
+        'perf-canvas': '24rem', // 캔버스 좌기준선 384px (= 324 + 60)
+        'perf-pill': '19rem' // 활성 pill 폭 304px (좌우 10px 인셋 후 남는 폭)
+      },
+      borderRadius: {
+        // 모달 대(20px)·저장 리포트 카드. 나머지 반경은 기본 스케일과 일치하므로 토큰을 만들지 않는다
+        // — 16px=rounded-2xl(말풍선·카드), 12px=rounded-xl(버튼·큰 입력), 8px=rounded-lg(작은 입력·칩),
+        //   6px=rounded-md(사이드바 pill).
+        'perf-modal': '1.25rem'
       },
       colors: {
         // 0729 시안 공통 아이브로/포인트 색.
@@ -131,6 +151,41 @@ export default {
             sat: '#EDEDED', // (추정) 연한 그레이
             sun: '#EDEDED' // (추정) 연한 그레이(카드 없음)
           }
+        },
+        // 수행평가 학생 앱(/app/performance) 전용 색 — docs/수행평가-상세-명세.md §7.1.
+        //
+        // ⚠️ goal 네임스페이스와 값이 겹치는 항목이 있다(sidebar #F9F8F7 = goal.sidebar,
+        //    activePill #EAECEF = goal.activePill). **의도적으로 합치지 않았다** — 두 앱은 시안이
+        //    독립적으로 개정되며, 한쪽 톤 조정이 다른 앱 셸을 조용히 바꾸면 이미 배포된 목표관리
+        //    화면이 회귀한다.
+        //
+        // 반대로 **전역 토큰으로 이미 표현되는 값은 여기 다시 만들지 않았다.** §7.1 표에서 재사용한 것:
+        //   · 인앱 primary #013262        → `primary`   (§11.1 Q5 결정. 시안 원본 #37352f 대신 브랜드 네이비)
+        //   · 액센트 블루 #0b84fd         → `accent`    (추천 배지, 칩 텍스트, 진행단계 current 배지)
+        //   · 본문 텍스트 #525252         → `ink`
+        //   · 보조 텍스트 #808080         → `ink-sub`
+        //   · 인앱 페이지 타이틀 #191d23  → `ink-strong`
+        //   · 스텝 배지 #d1e8ff           → `surface-badge`(= `surface-02`)
+        //   · 카드/배지 배경 #f5f5f7      → `surface-04`(= `surface-muted`, 진행단계 todo 배지)
+        //   · 빈 상태 카드 #f9fafb        → `surface-footer`
+        performance: {
+          sidebar: '#f9f8f7', // 사이드바 전면(보더 없이 면 대비만)
+          activePill: '#eaecef', // 메뉴/진행단계 활성 pill
+          bubble: '#f8f7f5', // AI 말풍선·입력 필드 배경
+          // 사용자 말풍선 배경 + AI 아바타 배경(§3.1).
+          // ⚠️ primary(#013262)와 **별개 토큰이다. 절대 합치지 마라** — §11.1 Q5는 primary 버튼만
+          //    브랜드색으로 옮겼고, 채팅 표면의 #37352f는 시안 원본 그대로 유지하기로 확정했다.
+          userBubble: '#37352f',
+          reportHeading: '#1b5da0', // 리포트 모달 섹션 라벨 전용
+          required: '#991e1e', // 폼 필수 라벨
+          chip: '#e7f2fb', // 저장 리포트 산출물 칩(보유) 배경
+          tag: '#fff3d1', // 주제 카드 메타 태그 배경(§5.20 회차 소진 배너도 같은 값 — Q80 미확정)
+          // 인앱 카드·입력 보더. 전역 `line`(#d7d7d7)과 다른 값이며 섞으면 안 된다 —
+          // serviceTokens.js가 #d9d9d9를 폐기색으로 규정하지만 그 규칙은 서비스 랜딩(/services/*)
+          // 한정이고, 인앱 시안 21개 노드는 전부 #d9d9d9다(§7.1 단정-충돌 항).
+          // surface-01(#D9D9D9)과 값은 같지만 그쪽은 진행바 트랙 면색이라 역할이 다르다.
+          line: '#d9d9d9',
+          dim: '#00000066' // 모달 딤 오버레이(검정 40%)
         }
       },
       screens: {

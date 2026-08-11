@@ -1,0 +1,48 @@
+import { Outlet } from 'react-router-dom';
+import PerformanceSidebar from './PerformanceSidebar';
+
+// 수행평가 학생 앱 셸 — docs/수행평가-상세-명세.md §3.1(전체 골격) / §3.5(헤더).
+//
+// 시안 21개 인앱 노드가 전부 이 셸을 공유한다: 좌측 고정 사이드바 + 우측 채팅 캔버스.
+// §3.5 단정대로 **사이트 공통 헤더·푸터를 쓰지 않는다** — 캔버스 상단의
+// `위닝 수행평가 서비스` 텍스트가 유일한 헤더 요소이며 구분선·툴바가 없다.
+// 그래서 App.jsx에서 이 라우트 그룹을 SiteLayout 밖에 둔다(목표관리 GoalAppLayout 선례와 동일).
+//
+// 세션 컨텍스트는 여기서 감싸지 않는다. App.jsx가
+//   <SessionProvider> → <RequireEntitlement> → <PerformanceAppLayout>
+// 순으로 이미 배선했고(SessionContext.jsx 상단 배선 주석이 정본), 셸이 다시 감싸면
+// 이용권 조회가 2벌이 돼 같은 화면에서 잔여 회차가 갈라진다.
+//
+// GoalAppLayout과 코드 형태가 닮았지만 **공통 셸로 추출하지 않았다.** 두 앱은
+// 사이드바 구성(목표관리 4그룹 10항목 vs 수행평가 메뉴 2 + 진행단계 5스텝 상태머신),
+// 헤더 유무(수행평가만 캔버스 타이틀), 콘텐츠 폭 규칙이 서로 다르고 시안도 독립적으로
+// 개정된다. 지금 공통화하면 공통 컴포넌트가 곧 분기 플래그 덩어리가 되고, 그 리스크를
+// 이미 dev에 머지된 목표관리 화면이 진다.
+//
+// TODO(반응형): 명세서는 인앱 셸의 브레이크포인트를 정의하지 않았다(§11.3에도 항목 없음).
+//   그래서 §3.1 제안대로 **데스크톱 1920 기준 고정 레이아웃**으로 둔다 — 사이드바 고정
+//   20.25rem, 캔버스는 좌 인셋 3.75rem + 콘텐츠 max-width 82.5rem 좌측 정렬.
+//   좁은 화면·모바일 대응은 이번 범위 밖이며, 임의 모바일 레이아웃을 만들지 않는다.
+export default function PerformanceAppLayout() {
+  return (
+    <div className="flex min-h-screen bg-white">
+      <PerformanceSidebar />
+
+      {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
+          콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
+          pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
+      <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
+        <div className="max-w-perf-content">
+          {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
+              TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
+              §11 Q7 미결이라 아직 만들지 않는다. */}
+          <h1 className="text-[2rem] font-semibold leading-[2.625rem] tracking-[-0.04rem] text-ink-strong">
+            위닝 수행평가 서비스
+          </h1>
+
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}
