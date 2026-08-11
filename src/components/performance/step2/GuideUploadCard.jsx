@@ -60,6 +60,18 @@ const TOTAL_TOO_LARGE_MESSAGE = '사진 전체 용량은 25MB까지 올릴 수 �
 const UNSUPPORTED_MESSAGE = 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.';
 const PREPARE_FAILED_MESSAGE = '사진을 읽지 못했어요. 다른 파일로 다시 시도해 주세요.';
 
+// §8.8 「고지 문구」 확정 문구 — **한 글자도 바꾸지 말 것.**
+//
+// ⚠️ 이 줄은 **시안에 없다.** Figma 텍스트 노드 전량에서 이 문구는 0건이고(§11-Q82),
+//   업로드 카드(`3754:3261`/`3754:3315`)에도 보관 안내 자리가 그려져 있지 않다.
+//   그래도 넣는 이유: 원본을 90일 보관하는 것은 사용자에게 고지 없이 할 수 없는 처리이고,
+//   §8.8이 이 문구를 정책 표의 「고지 문구」 행으로 확정했다. 삭제를 실제로 집행하는 쪽은
+//   `api/performance/cleanup-attachments.js` + Vercel Cron 일 1회이므로, 이 문장은
+//   빈말이 아니라 그 cron이 뒷받침한다.
+//   시안 없이 추가되는 줄이라 위치·타이포는 임의 결정이다 — 버튼 줄 아래 각주로 두고
+//   본문(0.875rem)보다 한 단계 작은 0.75rem `#808080`을 준다.
+const RETENTION_NOTICE = '업로드한 안내문은 분석 목적으로만 사용되며 90일 후 자동 삭제됩니다.';
+
 /**
  * @param {(files: File[]) => void} onSubmit `분석 시작하기` — 전처리까지 끝난 파일 배열
  * @param {() => void} onSkip `안내문 없이 시작하기`(§5.8 직접 입력 분기로 전환)
@@ -230,6 +242,9 @@ export default function GuideUploadCard({
           안내문 없이 시작하기
         </OutlineButton>
       </div>
+
+      {/* §8.8 보관 정책 고지 — 시안 없음(§11-Q82). 위 RETENTION_NOTICE 주석 참고. */}
+      <p className="mt-4 text-[0.75rem] leading-[1rem] text-ink-sub">{RETENTION_NOTICE}</p>
     </InlineCard>
   );
 }
