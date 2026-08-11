@@ -176,12 +176,14 @@ const trimmed = (value) => String(value ?? '').trim();
  */
 async function readQuota(supabaseAdmin, userId) {
   try {
-    return readQuotaSnapshot(
+    return await readQuotaSnapshot(
+      supabaseAdmin,
+      userId,
       await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
     );
   } catch (error) {
     console.error('performance/evaluate quota lookup 실패(무시):', error);
-    return readQuotaSnapshot(null);
+    return await readQuotaSnapshot(supabaseAdmin, userId, null);
   }
 }
 

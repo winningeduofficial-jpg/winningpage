@@ -221,9 +221,13 @@ export default async function handler(req, res) {
     }
 
     // ── 회차 스냅샷. 세션 생성/재개는 차감하지 않으므로(§9.3) 안내용으로만 싣는다.
-    let quota = readQuotaSnapshot(null);
+    let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
     try {
-      quota = readQuotaSnapshot(await findProgramAccessRow(supabaseAdmin, userId, serviceConfig));
+      quota = await readQuotaSnapshot(
+        supabaseAdmin,
+        userId,
+        await findProgramAccessRow(supabaseAdmin, userId, serviceConfig)
+      );
     } catch (quotaError) {
       console.error('performance/session quota lookup 실패(무시):', quotaError);
     }

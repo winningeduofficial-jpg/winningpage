@@ -86,10 +86,10 @@ export default async function handler(req, res) {
     // 부가 정보를 못 읽었다고 결제 완료 사용자를 미보유로 떨어뜨리면 안 된다.
     // (allowed:true인데 회차가 null이면 클라이언트는 "무제한"으로 읽으므로,
     //  안내가 과하게 관대해질 뿐 차단은 서버 RPC가 그대로 한다.)
-    let quota = readQuotaSnapshot(null);
+    let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
     try {
       const accessRow = await findProgramAccessRow(supabaseAdmin, userId, config);
-      quota = readQuotaSnapshot(accessRow);
+      quota = await readQuotaSnapshot(supabaseAdmin, userId, accessRow);
     } catch (quotaError) {
       console.error('check-service-access quota lookup 실패(무시):', quotaError);
     }

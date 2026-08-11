@@ -207,9 +207,13 @@ export default async function handler(req, res) {
     // ── 회차 스냅샷. 판정과 독립이라 실패해도 진입을 막지 않는다
     //    (check-service-access.js와 같은 취급 — 부가 정보를 못 읽었다고
     //     결제 완료 사용자를 튕기면 안 된다).
-    let quota = readQuotaSnapshot(null);
+    let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
     try {
-      quota = readQuotaSnapshot(await findProgramAccessRow(supabaseAdmin, userId, serviceConfig));
+      quota = await readQuotaSnapshot(
+        supabaseAdmin,
+        userId,
+        await findProgramAccessRow(supabaseAdmin, userId, serviceConfig)
+      );
     } catch (quotaError) {
       console.error('performance/bootstrap quota lookup 실패(무시):', quotaError);
     }

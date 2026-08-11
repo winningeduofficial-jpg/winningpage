@@ -318,3 +318,219 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   // (enrollments 는 애초에 만료 개념이 없다) — program_access 의 reason 을 그대로 쓴다.
   return { allowed: false, reason: byProgramAccess.reason };
 }
+
+// ---------------------------------------------------------------------------
+// 회차(quota) 스냅샷 — 안내용 읽기 전용
+// ---------------------------------------------------------------------------
+// 이 아래 두 함수는 **판정(allowed)에 관여하지 않는다.** 이용권 보유 여부는
+// 위의 hasPaidServiceAccess()가 그대로 정본이고, 여기서 읽는 것은 화면에
+// "남은 횟수 N회"를 표시하기 위한 부가 정보다.
+//
+// ⚠️ 실제 차감·차단 권위는 여기가 아니라 `public.consume_performance_credit`
+//    RPC(부여 원장 `program_access_grants` 기반, checkout-renewal 브랜치가
+//    sql/64~66에서 재작성)다. 그 RPC는 프로필 단위 advisory lock 을 잡은 뒤
+//    살아있는 부여(`revoked_at is null and (expires_at is null or expires_at
+//    > now())`)를 `for update`로 잠그고, 원장 INSERT 성공 시에만 소비를 기록한다.
+//    이 함수는 잠그지 않고 `public.fn_program_access_grants_summary` RPC로
+//    다시 계산된 값을 읽기만 하므로, 반환한 잔여 회차는 읽은 순간의 값일
+//    뿐이며 다른 탭·기기가 동시에 차감하면 즉시 낡는다(TOCTOU).
+//    클라이언트는 이 값을 안내에만 쓰고, 차단 여부는 차감 RPC를 감싼
+//    api/performance/* 응답(409 QUOTA_EXHAUSTED)으로 판단해야 한다
+//    (명세서 §2.2 「클라이언트 판정은 항상 안내용」, §9.3).
+//
+// ⚠️ `program_access.meta`의 `quota_total`/`quota_used` 키는 물리적으로
+//    삭제됐다(checkout-renewal). 거기 남아 있던 값은 만료된 부여 회차까지
+//    합산한 틀린 값이라 더 이상 읽지 않는다. `access_expires_at`/`expires_at`
+//    컬럼도 표시·호환 전용 미러로 강등됐으므로(컬럼 코멘트 「정본 아님」)
+//    회차·만료 판정에는 쓰지 않는다 — 대신 `fn_program_access_grants_summary`가
+//    `program_access_grants` 원장에서 매번 다시 계산한 값을 쓴다.
+
+/**
+ * 이용권 행 1건을 찾는다. 컬럼 우선순위(id → profile_id → user_id)는
+ * checkProgramAccessTable() 및 consume_performance_credit RPC와 동일하게
+ * 맞춘다 — 서로 다른 행을 잡으면 표시값과 차감 대상이 어긋난다.
+ *
+ * 정렬 1순위는 **행의 유효성(statusRank)** 이다. 한 회원에게 stale한 행과
+ * 살아 있는 행이 함께 있을 수 있기 때문이다 — 예: 환불된 옛 행
+ * (`payment_status='refunded'`)이 남은 채 어드민 경로로 재결제한 사용자.
+ * 유효성을 보지 않으면 그 사용자는 셸에서 엉뚱한 program_key/만료 미러를
+ * 보게 된다.
+ *
+ * 이 함수가 반환하는 행 자체에는 더 이상 회차 정보(meta.quota_total 등)가
+ * 없다 — 여기서 얻는 것은 표시용 program_key·plan_label(meta)·상태값뿐이고,
+ * 실제 회차는 readQuotaSnapshot()이 이 행의 program_key로
+ * fn_program_access_grants_summary RPC를 불러 별도로 얻는다.
+ *
+ * 여러 program_key(goal은 ['goal','target'])를 가진 서비스는 앞선 키에
+ * 매칭된 행을 우선한다(SERVICE_CONFIGS의 배열 순서가 곧 우선순위다).
+ *
+ * @returns {Promise<object|null>} program_access 행 또는 null
+ */
+export async function findProgramAccessRow(supabaseAdmin, userId, config) {
+  const { data, error } = await supabaseAdmin
+    .from('program_access')
+    .select(
+      'id, program_key, profile_id, user_id, payment_status, access_status, meta, access_expires_at, expires_at, updated_at, created_at'
+    )
+    .in('program_key', config.program_keys)
+    .or(`id.eq.${userId},profile_id.eq.${userId},user_id.eq.${userId}`)
+    .limit(20);
+
+  if (error || !data?.length) return null;
+
+  // 유효한 행(0)을 만료·환불·정지된 행(1)보다 앞에 둔다. 판정 기준은 진입
+  // 게이트(checkProgramAccessTable)와 같은 isPaidStatus/isActiveStatus에
+  // 기간 만료를 더한 것이다 — 게이트가 통과시킨 행이 여기서 뒤로 밀리지
+  // 않도록 같은 술어를 쓴다.
+  const statusRank = (row) => {
+    const endsAt = row.access_expires_at || row.expires_at || null;
+    const expired = endsAt ? new Date(endsAt).getTime() <= Date.now() : false;
+    return isPaidStatus(row.payment_status) && isActiveStatus(row.access_status) && !expired ? 0 : 1;
+  };
+  const columnRank = (row) => {
+    if (row.id === userId) return 0;
+    if (row.profile_id === userId) return 1;
+    return 2;
+  };
+  const keyRank = (row) => {
+    const index = config.program_keys.indexOf(row.program_key);
+    return index === -1 ? config.program_keys.length : index;
+  };
+  const freshness = (row) => new Date(row.updated_at || row.created_at || 0).getTime();
+
+  const sorted = [...data].sort(
+    (a, b) =>
+      statusRank(a) - statusRank(b) ||
+      keyRank(a) - keyRank(b) ||
+      columnRank(a) - columnRank(b) ||
+      freshness(b) - freshness(a)
+  );
+
+  return sorted[0] || null;
+}
+
+/** meta 값이 정수 문자열/숫자일 때만 정수로 읽는다. 아니면 fallback. */
+function readIntOrNull(value, fallback = null) {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string' && /^-?[0-9]+$/.test(value.trim())) return parseInt(value, 10);
+  return fallback;
+}
+
+/**
+ * program_access 행 + `public.fn_program_access_grants_summary` RPC에서
+ * 회차·플랜 정보를 뽑는다.
+ *
+ * 정본은 더 이상 `program_access.meta`가 아니라 `program_access_grants`
+ * 원장이다(checkout-renewal). 그 원장을 매번 다시 집계해 주는 것이
+ * `fn_program_access_grants_summary(p_profile_id, p_program_key)`이고,
+ * 실제 확인한 반환 컬럼은 다음과 같다(2026-08-12, dev DB 직접 조회):
+ *
+ *   live_count        int   — revoked_at is null 이고 만료되지 않은(expires_at
+ *                             is null or > now()) 부여 개수
+ *   quota_total       int|null — 위 살아있는 부여들의 granted_sessions 합.
+ *                             그중 하나라도 granted_sessions가 null(=회차
+ *                             무제한)이면 전체가 null. **살아있는 부여가
+ *                             하나도 없어도(live_count=0) SQL 집계 특성상
+ *                             null로 나온다** — 이 null은 "무제한"이 아니라
+ *                             "정보 없음/소진"이므로 live_count로 갈라야 한다.
+ *   quota_used        int   — 살아있는 부여에 걸린 원장(performance_credit_
+ *                             ledger) 소비량 합. never null(coalesce(...,0)).
+ *   expires_at         ts|null — revoked_at is null인 **모든**(만료된 것 포함)
+ *                             부여 중 하나라도 expires_at이 null(=기간 무기한)
+ *                             이면 전체 null, 아니면 그 중 최댓값.
+ *   unlimited_period   bool  — 위와 같은 집합에서 expires_at is null이 하나라도
+ *                             있으면 true. **quota_total 계산과 모수(母數)가
+ *                             다르다** — 이쪽은 만료된 부여도 포함한다.
+ *   unlimited_sessions bool  — quota_total과 같은 모수(살아있는 부여만)에서
+ *                             granted_sessions is null이 하나라도 있으면 true.
+ *                             live_count=0이면 항상 false(coalesce 기본값).
+ *
+ * `quota_remaining`은 이 함수가 반환하지 않는다 — 여기서
+ * `max(quota_total - quota_used, 0)`으로 직접 계산한다.
+ *
+ * 표시용 quotaTotal 산출 규칙(unlimited_sessions와 quota_total=null의
+ * 모호성을 없애기 위해 live_count로 명시적으로 가른다):
+ *   unlimited_sessions === true  →  null(무제한 표시)
+ *   live_count === 0             →  0(살아있는 부여가 없다 = 소진/미보유 표시)
+ *   그 외                        →  quota_total 그대로(양수)
+ *
+ * planEndsAt은 `access_expires_at`/`expires_at` 미러(표시·호환 전용, 정본
+ * 아님) 대신 summary의 `expires_at`을 쓴다 — unlimited_period가 true인 경우
+ * 이미 함수 안에서 null로 떨어지므로 별도 분기가 필요 없다.
+ *
+ * ⚠️ RPC 실패(함수 부재 포함 — checkout-renewal이 아직 push 전 브랜치라
+ *    운영/다른 개발자 DB에는 없을 수 있다)는 **throw하지 않는다.** 이 값은
+ *    판정 권위가 아니라 안내 표시용이라, 실패는 "정보 없음"(전부 null)으로
+ *    흡수하고 경고 로그만 남긴다 — 여기서 던지면 표시용 정보 하나 때문에
+ *    라우트 전체가 죽는다.
+ *
+ * planLabel은 여전히 program_access.meta.plan_label 계열에서 읽는다(원장에는
+ * 상품명 개념이 없다) — 채워주는 파이프라인이 없으면 null이 정상값이다.
+ *
+ * @param {object} supabaseAdmin - service-role Supabase 클라이언트
+ * @param {string} userId - RPC의 p_profile_id로 그대로 넘기는 값. 호출부가
+ *   hasPaidServiceAccess/consume_performance_credit에 넘기는 것과 동일한
+ *   auth user id다(program_access_grants.profile_id가 이 값을 직접 참조).
+ * @param {object|null} row - findProgramAccessRow()가 찾은 program_access 행.
+ *   null이면 이용권 행 자체가 없다는 뜻이라 RPC를 부르지 않고 즉시
+ *   "정보 없음"을 반환한다(기존 계약과 동일).
+ */
+export async function readQuotaSnapshot(supabaseAdmin, userId, row) {
+  if (!row) {
+    // 이용권 행이 없다(= admin_enrollments 경로로만 통과했거나 미보유).
+    // 회차 개념이 붙을 자리가 없으므로 전부 null = "정보 없음"이다.
+    // null을 0으로 내리면 무제한 사용자가 소진으로 보인다.
+    return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel: null };
+  }
+
+  const meta = row.meta && typeof row.meta === 'object' ? row.meta : {};
+  const planLabelRaw = meta.plan_label ?? meta.planLabel ?? meta.plan_name ?? null;
+  const planLabel = clean(planLabelRaw) || null;
+
+  try {
+    const { data, error } = await supabaseAdmin.rpc('fn_program_access_grants_summary', {
+      p_profile_id: userId,
+      p_program_key: row.program_key
+    });
+
+    if (error) throw error;
+
+    const summary = Array.isArray(data) ? data[0] : data;
+    if (!summary) {
+      return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel };
+    }
+
+    const liveCount = readIntOrNull(summary.live_count, 0) ?? 0;
+    const unlimitedSessions = summary.unlimited_sessions === true;
+
+    let quotaTotal;
+    if (unlimitedSessions) {
+      quotaTotal = null;
+    } else if (liveCount === 0) {
+      quotaTotal = 0; // 살아있는 부여가 없다 — "정보 없음"이 아니라 "소진/미보유"다.
+    } else {
+      quotaTotal = readIntOrNull(summary.quota_total, 0);
+      if (quotaTotal < 0) quotaTotal = 0;
+    }
+
+    let quotaUsed = readIntOrNull(summary.quota_used, 0);
+    if (quotaUsed === null || quotaUsed < 0) quotaUsed = 0;
+
+    const quotaRemaining = quotaTotal === null ? null : Math.max(quotaTotal - quotaUsed, 0);
+
+    return {
+      quotaTotal,
+      quotaUsed,
+      quotaRemaining,
+      planEndsAt: summary.expires_at || null,
+      planLabel
+    };
+  } catch (error) {
+    console.warn(
+      `[serviceAccess] fn_program_access_grants_summary 호출 실패 — 회차 표시를 "정보 없음"으로 흡수합니다` +
+        `(판정에는 영향 없음. program_key=${row.program_key}, user=${userId})`,
+      error?.message || error
+    );
+    return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel };
+  }
+}

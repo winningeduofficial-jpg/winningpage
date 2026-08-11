@@ -385,9 +385,11 @@ export default async function handler(req, res) {
 
       // 차감 RPC를 부르지 않는 경로라 잔여 회차는 읽기 전용 스냅샷으로 채운다.
       // 여기서 null을 돌려주면 §5.20 배너가 "정보 없음"으로 떨어진다.
-      let quota = readQuotaSnapshot(null);
+      let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
       try {
-        quota = readQuotaSnapshot(
+        quota = await readQuotaSnapshot(
+          supabaseAdmin,
+          userId,
           await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
         );
       } catch (quotaError) {
@@ -455,7 +457,9 @@ export default async function handler(req, res) {
     //    비권위적 최적화가 정상 경로를 죽이면 안 된다.
     if (!alreadyCharged) {
       try {
-        const preQuota = readQuotaSnapshot(
+        const preQuota = await readQuotaSnapshot(
+          supabaseAdmin,
+          userId,
           await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
         );
 
