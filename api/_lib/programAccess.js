@@ -47,14 +47,24 @@ function clean(value) {
 // products.service_key → program_access.program_key
 //
 // 코드가 근거를 갖는 매핑만 넣는다. api/create-service-ticket.js:7-22 의
-// SERVICE_CONFIGS 가 아는 서비스는 suhaeng·goal 2건뿐이고(goal 은 program_keys
-// ['goal','target'] 를 순회하므로 'goal' 만 부여하면 판정에 걸린다), 프런트
+// SERVICE_CONFIGS 가 아는 서비스는 suhaeng·goal 2건뿐이고, 프런트
 // src/lib/paidServiceAccess.js:5 도 같은 2건만 입장시킨다.
 // susi·mentor·diagnose 는 program_key 도 입장할 앱(target_url)도 없어서 여기
 // 넣으면 존재하지 않는 programs 행을 참조해 FK 위반이 된다 → 매핑에서 제외하고
 // skipped 로 보고한다.
+//
+// service_key 'goal' → program_key 'target' (2026-08-11 사용자 확정)
+//   products.service_key = 'goal' 은 상품 식별자로 바뀌지 않는다 — 목표관리
+//   상품은 여전히 'goal' 로 조회된다(src/pages/services/GoalManagement.jsx:685).
+//   바뀌는 것은 결제 확정 시 program_access 에 적는 program_key 뿐이다. 운영
+//   DB(ucjlcvqvinspmrasvsug) 의 programs 는 target/suhaeng 2행이고
+//   program_key='target' 인 active 권한 부여가 2건 실재해 'target' 이 이미
+//   운영에서 쓰이는 정본 키였다 — dev 만 goal 로 시드되어 있던 게 어긋난
+//   쪽이었다(sql/54_program_access_grant.sql 의 "goal → target 전환" 절 참고).
+//   goal 판정(create-service-ticket.js:20)은 program_keys ['goal','target'] 를
+//   순회하므로 'target' 만 부여해도 그대로 통과한다.
 export const SERVICE_KEY_TO_PROGRAM_KEY = {
-  goal: 'goal',
+  goal: 'target',
   suhaeng: 'suhaeng'
 };
 

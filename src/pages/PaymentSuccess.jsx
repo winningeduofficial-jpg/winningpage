@@ -18,21 +18,27 @@ import { COMPANY } from '../data/company';
 // 부여된 program_key → '프로그램 시작하기' 목적지.
 //
 // 즉시 입장 모델이라 CTA 는 결제 직후 실제 서비스로 들어가야 한다. 입장(SSO)이
-// 성립하는 서비스는 goal·suhaeng 2건뿐이다(api/create-service-ticket.js:7-22 의
+// 성립하는 서비스는 목표관리·수행평가 2건뿐이다(api/create-service-ticket.js:7-22 의
 // SERVICE_CONFIGS, src/lib/paidServiceAccess.js:5 의 PAID_SERVICE_CONFIGS).
 //
 // 키는 service_key 가 아니라 **부여 결과(access.granted)의 program_key** 다
-// (api/_lib/programAccess.js 가 program_key 배열을 돌려준다). 두 서비스는
-// service_key = program_key 로 같은 문자열이지만, 기준을 granted 로 두면 "권한이
-// 실제로 들어간 것만 입장 버튼이 생긴다"가 코드로 보장된다 — 결제만 되고 부여가
-// 없는 상품에 입장 버튼을 띄우는 사고를 구조적으로 막는다.
+// (api/_lib/programAccess.js 가 program_key 배열을 돌려준다). 목표관리는
+// service_key='goal' 이지만 program_key 는 'target' 이다(2026-08-11 사용자 확정 —
+// 운영 DB 실데이터 기준, api/_lib/programAccess.js:56-59 SERVICE_KEY_TO_PROGRAM_KEY
+// 참고). 수행평가는 service_key = program_key = 'suhaeng' 로 같은 문자열이다.
+// 기준을 granted 로 두면 "권한이 실제로 들어간 것만 입장 버튼이 생긴다"가 코드로
+// 보장된다 — 결제만 되고 부여가 없는 상품에 입장 버튼을 띄우는 사고를 구조적으로
+// 막는다.
 //
 // openPaidServiceOrAlert 는 service_key 를 직접 받지 않고 서비스 설명 텍스트를
 // 키워드로 매칭한다(src/lib/paidServiceAccess.js:9-60). 그 파일은 이번 작업
 // 범위가 아니라 API 를 못 바꾸므로, 매칭에 걸리는 대표 토큰을 slug 로 넘긴다.
 // 매칭이 실패하면 같은 함수가 link 로 이동하므로 상세 페이지가 폴백이 된다.
+// (아래 엔트리의 serviceKey 필드는 매칭용 slug 를 보조하는 표시값일 뿐, 실제
+// create-service-ticket 요청의 service_key 는 paidServiceAccess.js 의
+// PAID_SERVICE_CONFIGS 매칭 결과에서 나온다 — 'goal' 그대로 유지.)
 const SERVICE_ENTRY = {
-  goal: { serviceKey: 'goal', slug: 'goal', link: '/services/goal', label: '목표관리' },
+  target: { serviceKey: 'goal', slug: 'goal', link: '/services/goal', label: '목표관리' },
   suhaeng: {
     serviceKey: 'suhaeng',
     slug: '수행평가',
