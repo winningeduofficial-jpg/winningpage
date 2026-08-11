@@ -8,6 +8,7 @@ import BasicInfoForm from '../../components/performance/step1/BasicInfoForm';
 import GuideUploadCard from '../../components/performance/step2/GuideUploadCard';
 import ManualInfoForm from '../../components/performance/step2/ManualInfoForm';
 import TopicCardList from '../../components/performance/step3/TopicCardList';
+import TopicDetailModal from '../../components/performance/step3/TopicDetailModal';
 import QuotaExhaustedCard from '../../components/performance/quota/QuotaExhaustedCard';
 import {
   analyzeGuideUpload,
@@ -46,7 +47,10 @@ import { recommendTopics } from '../../lib/performance/topics';
 //   · §5.3/§5.4 재방문 분기(이어서 하기/새로 시작하기) — P13. 여기서는 `lastSession`/
 //     `latestDraft` 유무와 무관하게 항상 STEP1 인사말+폼을 그대로 보여준다.
 //   · 이전 값 프리필 — P13. `initialValues`를 비워 둔 채로 `BasicInfoForm`에 넘긴다.
-//   · §5.11 주제 상세 모달 — P9. 카드는 `onDetail` 콜백만 부르고 여는 쪽은 아직 없다.
+//   · §5.11 주제 상세 모달은 이 슬라이스(P9)에서 배선한다 — 카드 `onDetail` → `TopicDetailModal`
+//     오픈, `이 주제로 확정하기` → `handleConfirmTopic`(design-report API 호출은 P10 몫).
+//   · §5.12(STEP4 설계 리포트 생성) 본편 — 확정 직후엔 설계 리포트 로딩 상태로 넘어가는
+//     자리만 만들어 둔다(`designPhase`). 실제 `design-report` 호출·리포트 렌더는 P10.
 //   · §5.20 (A) 셸 상단 회차 배너 — 셸(`PerformanceAppLayout`) 소관이라 여기서 만들지 않는다.
 //     이 페이지가 담당하는 것은 (B) 인라인 소진 카드뿐이다.
 
@@ -145,6 +149,18 @@ export default function PerformanceChatPage() {
   const [topicRoundLimited, setTopicRoundLimited] = useState(false);
   const [topicError, setTopicError] = useState(null);
   const [quotaPlanEndsAt, setQuotaPlanEndsAt] = useState(null);
+
+  // ── 주제 상세 모달(§5.11, P9). 열려 있는 주제 1건만 들고 있으면 된다 — 모달은
+  //   `topicDetail`이 있을 때만 렌더한다. 카드 목록(`topics`)은 그대로 두므로 모달을 닫으면
+  //   포커스가 원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로
+  //   교체되지 않는다 — `topics` 상태가 이 사이에 바뀌지 않기 때문).
+  const [topicDetail, setTopicDetail] = useState(null);
+
+  // ── STEP4 설계 리포트 진입 자리(§5.12). **'loading'뿐이다** — 실제 `design-report` 호출과
+  //   결과 렌더는 P10 몫이라 그 이후 상태(완료/실패)를 아직 만들지 않는다. 확정된 주제가
+  //   있으면 카드 3장·재추천 버튼을 타임라인에서 걷고(§5.12 단정) 로딩 버블만 보여준다.
+  const [designPhase, setDesignPhase] = useState('idle');
+  const [confirmedTopic, setConfirmedTopic] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -334,11 +350,31 @@ export default function PerformanceChatPage() {
   /**
    * 카드 클릭 → 주제 상세 모달(§5.11 `3754:4872`). **이것이 카드의 유일한 진입점이다** —
    * 확정(`이 주제로 확정하기`)은 모달 하단에만 있고 카드에서 바로 확정하는 경로는 없다
-   * (§11.1 Q48). 모달 자체는 P9 슬라이스에서 붙는다.
+   * (§11.1 Q48).
    */
   function handleTopicDetail(topic) {
-    // TODO(P9): `TopicDetailModal`을 열고 확정 시 `design-report`로 넘긴다.
-    console.info('[performance] TODO(P9) 주제 상세 모달:', topic?.id);
+    setTopicDetail(topic);
+  }
+
+  /** ESC·딤 클릭·`다른 주제 보기` 공통 핸들러 — 모달만 닫는다(카드 목록은 그대로). */
+  function handleCloseTopicDetail() {
+    setTopicDetail(null);
+  }
+
+  /**
+   * `이 주제로 확정하기`(§5.11 하단, 모달의 유일한 확정 진입점). **여기서 확정 API를
+   * 부르지 않는다** — §10.2 P10이 "주제 확정 + 리포트 생성"을 `design-report` 한 트랜잭션
+   * 으로 묶는 설계이고(§8.6 근거, 외부 앱의 2회 왕복 결함 회피), 이 핸들러가 별도로 확정을
+   * 커밋하면 그 트랜잭션 경계가 깨진다. 지금 하는 일은 모달을 닫고 STEP4 설계 리포트
+   * 로딩 상태로 넘어가는 자리를 만드는 것뿐이다.
+   *
+   * TODO(P10): `design-report` API 호출 + 결과 렌더. 실패 처리(무차감·재시도 등)도 그때
+   * 함께 설계한다 — 지금은 로딩 버블에서 더 나아가지 않는다.
+   */
+  function handleConfirmTopic(topic) {
+    setConfirmedTopic(topic);
+    setDesignPhase('loading');
+    setTopicDetail(null);
   }
 
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
@@ -478,27 +514,33 @@ export default function PerformanceChatPage() {
       role: 'ai',
       kind: 'text',
       body: guideMode === 'manual' ? TOPIC_RESULT_MANUAL : TOPIC_RESULT_UPLOAD,
-      children: (
-        // §5.10 실측은 말풍선 하단 → 첫 카드 상단이 1.25rem(20)인데 `AiMessage` 컬럼의
-        // 기본 gap은 1rem(16)이다(라벨↔말풍선·말풍선↔폼 카드가 전부 16이라 그렇게 고정됐다).
-        // 카드 묶음에만 0.25rem을 더해 실측 20을 맞춘다.
-        <div className="w-full pt-1">
-          <TopicCardList
-            topics={topics}
-            round={topicRound}
-            maxRounds={topicMaxRounds}
-            onDetail={handleTopicDetail}
-            onRegenerate={handleRegenerate}
-            regenerating={topicRegenerating}
-            roundLimited={topicRoundLimited}
-            error={topicError}
-          />
-        </div>
-      )
+      // 주제를 확정한 뒤(`designPhase !== 'idle'`)에는 카드·재추천 버튼을 걷는다(§5.12
+      // 단정 「추천 주제 카드 3장 + 재추천 버튼이 타임라인에서 완전히 제거되고」의 일부만
+      // 이식한다 — AI 안내 말풍선 자체를 지우는 것까지는 P10(§5.12 본편) 몫이라 남겨
+      // 둔다). 걷지 않으면 로딩 중에도 카드를 눌러 모달을 다시 열거나 재추천을 누를 수
+      // 있어 "이미 확정한 주제로 리포트를 만드는 중"이라는 상태와 화면이 어긋난다.
+      children:
+        designPhase === 'idle' ? (
+          // §5.10 실측은 말풍선 하단 → 첫 카드 상단이 1.25rem(20)인데 `AiMessage` 컬럼의
+          // 기본 gap은 1rem(16)이다(라벨↔말풍선·말풍선↔폼 카드가 전부 16이라 그렇게 고정됐다).
+          // 카드 묶음에만 0.25rem을 더해 실측 20을 맞춘다.
+          <div className="w-full pt-1">
+            <TopicCardList
+              topics={topics}
+              round={topicRound}
+              maxRounds={topicMaxRounds}
+              onDetail={handleTopicDetail}
+              onRegenerate={handleRegenerate}
+              regenerating={topicRegenerating}
+              roundLimited={topicRoundLimited}
+              error={topicError}
+            />
+          </div>
+        ) : null
     });
   }
 
-  if (guideDone && topicPhase === 'ready' && topicRegenerating) {
+  if (guideDone && topicPhase === 'ready' && topicRegenerating && designPhase === 'idle') {
     // 재추천 진행 표시. 최초 추천과 달리 카드 묶음을 **대체하지 않고** 그 아래에 붙는다 —
     // 카드·버튼이 남아 있어야 방금 버튼을 누른 사용자의 포커스가 유지된다.
     // 문구는 최초 추천과 같은 쌍을 쓴다(같은 작업이다).
@@ -506,6 +548,17 @@ export default function PerformanceChatPage() {
       id: 'step3-regenerating',
       kind: 'loading',
       payload: PERFORMANCE_LOADING_COPY.topicRecommendation
+    });
+  }
+
+  if (designPhase === 'loading' && confirmedTopic) {
+    // STEP4 진입 자리(§5.12) — 로딩 버블만 재사용한다(`AiLoadingBubble` + `loadingCopy.js`
+    // `designReport` 쌍, 새 로딩 UI를 만들지 않는다). 실제 `design-report` 호출과 결과
+    // 렌더는 P10 몫이라 이 상태에서 더 나아가지 않는다(TODO(P10) 참고).
+    messages.push({
+      id: 'step4-design-loading',
+      kind: 'loading',
+      payload: PERFORMANCE_LOADING_COPY.designReport
     });
   }
 
@@ -548,6 +601,12 @@ export default function PerformanceChatPage() {
   return (
     <div className="mt-10">
       <ChatTimeline messages={messages} />
+      <TopicDetailModal
+        open={Boolean(topicDetail)}
+        topic={topicDetail}
+        onClose={handleCloseTopicDetail}
+        onConfirm={handleConfirmTopic}
+      />
     </div>
   );
 }
