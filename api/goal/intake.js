@@ -105,19 +105,21 @@ const MOCK_SUBJECTS = ['kor', 'math', 'eng', 'tam1', 'tam2'];
 // 원본 getNaesinNoneRemaining / getMogoNoneRemaining(IntakeForm.tsx:514-523)을 옮긴 것.
 // 의미는 "작년 마지막 시험까지는 본 것으로 친다"이고, 값은 그 산술적 등가물이다 —
 //   내신(총 10회, getRemainingNaesin 표 primitives.js:59-72):
+//     고1 → 직전 고교 시험이 아예 없음                → 10 - 0 = 10 (전량)
 //     고2 → 직전이 '고1_2학기 기말'(순번 4)  → 10 - 4 = 6
 //     고3 → 직전이 '고2_2학기 기말'(순번 8)  → 10 - 8 = 2
 //   모의(총 14회, getRemainingMogo 표 primitives.js:88-103):
+//     고1 → 직전 고교 모의고사가 아예 없음              → 14 - 0 = 14 (전량)
 //     고2 → 직전이 '고1_10모'(순번 4)        → 14 - 4 = 10
 //     고3 → 직전이 '고2_10모'(순번 8)        → 14 - 8 = 6
 //
-// 고1 항목이 없는 것은 누락이 아니라 정의다 — 고1은 "작년 마지막 고교 시험"이
-// 존재하지 않는다. 내신은 '중3' 치환 경로에서 엔진이 0 을 강제하고
-// (isPreHighStudent, pipeline.js:219-221), 모의는 남은 회차가 실제로 14회 전부가
-// 아니라 표 미매칭으로 0 이 되는데 이는 원본과 동일한 동작이다.
-// (`?? null` 로 조회하므로 고1은 오버라이드 없음 = 엔진 기본 경로로 떨어진다.)
-const NAESIN_NONE_REMAINING = { 고2: 6, 고3: 2 };
-const MOGO_NONE_REMAINING = { 고2: 10, 고3: 6 };
+// 고1 항목은 원본에 없었다(IntakeForm.tsx:1268-1269 grade!=='고1' 가드) — 원본 서버가
+// isPreHighStudent 이면 remainNaesin 을 조건 분기로 무조건 0 덮어써서 고1 오버라이드가
+// 애초에 무의미했기 때문이다(원본 내부 비대칭, calc/DIVERGENCE.md #1). 우리는 그 가드를
+// pipeline.js:219-222 에서 "오버라이드가 없을 때만" 으로 좁혀 세 학년 모두 오버라이드가
+// 실제로 적용되게 했다(사용자 승인) — 그래서 여기 표도 고1 을 채운다.
+const NAESIN_NONE_REMAINING = { 고1: 10, 고2: 6, 고3: 2 };
+const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 
 // goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
 // 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
@@ -572,8 +574,11 @@ export default async function handler(req, res) {
     //   - getConversionTypeForStudent 가 'middleschool' 을 돌려줘(pipeline.js:93-98)
     //     convertedGrade 주입 경로가 그대로 성립한다(고1이면 '5grade' 라 주입 없이는 throw).
     //   - applyPreHighGradePenalty 가 +0.10 을 얹는다(primitives.js:155).
-    //   - isPreHighStudent 가 remainNaesin 을 0 으로 강제한다(pipeline.js:219-221).
-    // 셋 다 원본과 같은 결과다.
+    //   - isPreHighStudent 는 remainingNaesin 오버라이드가 없을 때만 remainNaesin 을
+    //     0 으로 강제한다(pipeline.js:219-222). 아래에서 NAESIN_NONE_REMAINING[고1]=10 을
+    //     항상 넘기므로 이 경로는 실제로는 0 이 아니라 10 을 받는다(calc/DIVERGENCE.md #1).
+    // 이 '중3' 리터럴은 DB 에는 저장하지 않는다 — 아래 upsert 는 inputGrade 를 쓴다
+    // (§9 아래 "저장" 주석 참고). 엔진 호출에만 쓰인다.
     //
     // 와이어의 grade 는 계속 'g1' 이고 치환은 GRADE_MAP 통과 **뒤에** 일어난다 —
     // GRADE_MAP 에 '중3' 을 넣으면 클라이언트가 직접 중3 을 주장할 수 있게 된다.
@@ -620,31 +625,33 @@ export default async function handler(req, res) {
     // 엔진은 `${grade}_${lastExam}` 키로 표를 조회하는데(primitives.js:58-103)
     // '없음' 경로는 라벨이 '' 이라 항상 미매칭 → 0 이 된다. 그 자리를 여기서 메운다.
     //
-    //  - 내신: 고1(→'중3' 치환)은 오버라이드를 줘도 무의미하다 — isPreHighStudent 가
-    //    remainNaesin 을 0 으로 덮어쓴다(pipeline.js:219-221). 그래서 고2·고3 에만
-    //    6·2 를 준다. 원본도 grade !== '고1' 가드로 같은 구분을 한다
-    //    (IntakeForm.tsx:1268-1269).
-    //  - 모의: 전 회차 없음이면 고2=10 / 고3=6(원본 getMogoNoneRemaining). currentMogo 가
-    //    0 이라 정시 확률은 게이트에서 0 으로 걸리므로(pipeline.js:227-228) **우리 구현에서는**
-    //    확률에 영향이 없고, remain_mogo 저장값을 진실되게 만들기 위한 것이다.
+    //  - 내신: 전 회차 없음이면 고1=10 / 고2=6 / 고3=2(원본 getNaesinNoneRemaining 의
+    //    산술 등가물 — 고1 은 "작년 마지막 고교 시험"이 아예 없으므로 총량 10 그대로,
+    //    고2·고3 은 직전 학년 마지막 시험 순번을 총량에서 뺀 값). 원본은 고1 에서 이
+    //    오버라이드가 조건 분기(isPreHighStudent)에 막혀 무의미했다 — remainNaesin 이
+    //    무조건 0 으로 덮였다(고2·고3 만 살아있었다, IntakeForm.tsx:1268-1269 grade!=='고1'
+    //    가드). pipeline.js:219-222 에서 그 가드를 "오버라이드가 없을 때만" 으로 좁혀
+    //    세 학년 모두 오버라이드가 실제로 적용되게 했다(사용자 승인, calc/DIVERGENCE.md #1).
+    //    isMiddleSubstituted 여부와 무관하게 넘긴다 — grade 가 '중3' 으로 치환됐어도
+    //    엔진은 이제 remainingNaesin != null 이면 그 값을 그대로 쓴다.
+    //  - 모의: 전 회차 없음이면 고1=14 / 고2=10 / 고3=6(원본 getMogoNoneRemaining 과 같은
+    //    산술 — 고1 은 총량 14 그대로, calc/DIVERGENCE.md #2). currentMogo 가 0 이면
+    //    정시 확률은 게이트에서 0 으로 걸리므로(pipeline.js:227-228) 확률에는 영향이
+    //    없고, remain_mogo 저장값을 진실되게 만들기 위한 것이다.
     //    (원본은 여기서 가상 3회차를 입력받아 currentMogo > 0 이라 같은 오버라이드가 정시
     //     확률에도 실제로 영향을 준다. 그 UI 를 포팅하지 않은 것이 헤더 4-(b) 의 divergence 다.)
-    //    ⚠ 고1 은 표에 키가 없어 remain_mogo 가 0 으로 저장된다(실제 잔여 14). 미포팅이 아니라
-    //    원본 파리티이고(IntakeForm.tsx:1269 의 grade!=='고1' 가드), 모의 전 회차 없음 자체는
-    //    이번에 새로 여는 경로가 아니라 예전부터 통과하던 경로라 여기서 동작을 바꾸지 않는다.
-    //    remain_mogo 를 화면에 노출할 때 함께 판단할 것.
-    //  - 모의(치환 경로) — ⚠ 원본과 의도적으로 다른 유일한 지점:
+    //  - 모의(치환 경로, 아래 두 분기는 배타적) — mockAllNone 이 먼저 걸린다. 모의를
+    //    실제로 본 경우(mockAllNone=false)에만 isMiddleSubstituted 분기로 넘어간다.
     //    고1 + 내신없음 + 모의는 있음이면 grade 만 '중3' 이 되고 lastMogo 는 실제
     //    라벨('10모' 등)이 남는다. 그러면 키가 '중3_10모' 라 표에 없어 remainMogo 가
     //    0 으로 떨어진다 — 모의를 10회나 남긴 학생의 남은 회차가 0 이 된다.
     //    원본에도 있는 결함이고(오버라이드마저 grade !== '고1' 가드에 막혀 안 나간다),
     //    이 경로는 지금까지 400 으로 막혀 있다가 이번에 처음 열리는 문이다.
     //    새로 여는 문 뒤에 알려진 오작동을 두지 않는다 — 치환 **전** 학년으로
-    //    같은 엔진 함수를 호출해 값을 만든다(표를 베껴 쓰지 않는다).
-    const remainingNaesin =
-      input.naesinAllNone && !isMiddleSubstituted
-        ? (NAESIN_NONE_REMAINING[inputGrade] ?? null)
-        : null;
+    //    같은 엔진 함수를 호출해 값을 만든다(표를 베껴 쓰지 않는다, calc/DIVERGENCE.md #3).
+    const remainingNaesin = input.naesinAllNone
+      ? (NAESIN_NONE_REMAINING[inputGrade] ?? null)
+      : null;
 
     const remainingMogo = input.mockAllNone
       ? (MOGO_NONE_REMAINING[inputGrade] ?? null)
@@ -688,7 +695,12 @@ export default async function handler(req, res) {
       profile_id: profileId,
 
       school_type: schoolType,
-      grade,
+      // '중3' 치환은 엔진 호출 전용이다(위 effectiveGrade 주석 참고) — DB·화면에는
+      // 학생이 실제로 고른 학년을 남긴다. goal_students.grade 의 유일한 소비처는
+      // goalRepo.js:315 buildStudentPayload 의 profile.grade(표시용)뿐이라 계산에는
+      // 영향이 없다(직접 grep 확인). 특례 식별자는 naesin_scores.priorNaesinGrade 로
+      // 이미 행에 남아 있다.
+      grade: inputGrade,
 
       ideal_university: input.ideal.university,
       ideal_department: input.ideal.department,
