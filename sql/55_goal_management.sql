@@ -703,11 +703,17 @@ create policy "goal_students_select_own" on public.goal_students
     as permissive for select to authenticated
     using (profile_id = auth.uid());
 
-drop policy if exists "goal_students_admin_all" on public.goal_students;
-create policy "goal_students_admin_all" on public.goal_students
-    as permissive for all to authenticated
-    using (public.is_winning_admin())
-    with check (public.is_winning_admin());
+-- 어드민은 읽기만 한다 — 확률·성적 컬럼을 어드민 세션에서 UPDATE 할 수
+-- 있으면 안 된다(RLS 는 행 단위라 컬럼을 가리지 못한다). 쓰기는 service_role
+-- 하나뿐이다. 근거: docs/figma-goal/goal-admin-spec.md §3-D7 / §5-4.
+-- ⚠ 이 파일은 수동 재실행이 전제라, 여기를 for all 로 되돌리면 sql/57 의
+--   조임이 재실행 한 번에 통째로 무효화된다. 두 파일 모두 양쪽 이름
+--   (_admin_all / _admin_select)을 drop 한 뒤 create 해야 순서 무관이 된다.
+drop policy if exists "goal_students_admin_all"    on public.goal_students;
+drop policy if exists "goal_students_admin_select" on public.goal_students;
+create policy "goal_students_admin_select" on public.goal_students
+    as permissive for select to authenticated
+    using (public.is_winning_admin());
 
 -- (6-2) goal_daily_records
 alter table public.goal_daily_records enable row level security;
@@ -717,11 +723,12 @@ create policy "goal_daily_records_select_own" on public.goal_daily_records
     as permissive for select to authenticated
     using (profile_id = auth.uid());
 
-drop policy if exists "goal_daily_records_admin_all" on public.goal_daily_records;
-create policy "goal_daily_records_admin_all" on public.goal_daily_records
-    as permissive for all to authenticated
-    using (public.is_winning_admin())
-    with check (public.is_winning_admin());
+-- 어드민 읽기 전용. 위 goal_students 블록의 주석과 같은 이유다.
+drop policy if exists "goal_daily_records_admin_all"    on public.goal_daily_records;
+drop policy if exists "goal_daily_records_admin_select" on public.goal_daily_records;
+create policy "goal_daily_records_admin_select" on public.goal_daily_records
+    as permissive for select to authenticated
+    using (public.is_winning_admin());
 
 -- (6-3) goal_probability_logs
 alter table public.goal_probability_logs enable row level security;
@@ -731,11 +738,12 @@ create policy "goal_probability_logs_select_own" on public.goal_probability_logs
     as permissive for select to authenticated
     using (profile_id = auth.uid());
 
-drop policy if exists "goal_probability_logs_admin_all" on public.goal_probability_logs;
-create policy "goal_probability_logs_admin_all" on public.goal_probability_logs
-    as permissive for all to authenticated
-    using (public.is_winning_admin())
-    with check (public.is_winning_admin());
+-- 어드민 읽기 전용. 위 goal_students 블록의 주석과 같은 이유다.
+drop policy if exists "goal_probability_logs_admin_all"    on public.goal_probability_logs;
+drop policy if exists "goal_probability_logs_admin_select" on public.goal_probability_logs;
+create policy "goal_probability_logs_admin_select" on public.goal_probability_logs
+    as permissive for select to authenticated
+    using (public.is_winning_admin());
 
 -- (6-4) goal_university_cuts — 전원 읽기 전용 + 어드민 전권
 --   anon 을 포함하는 이유: 이 컷의 원천 데이터(admission_results)가 이미
@@ -843,16 +851,18 @@ create trigger trg_goal_university_cuts_updated_at
 -- -- (00_base_schema.sql:1432, admin_* / banners / galleries 등 다수가 쓴다).
 --
 -- -- (6) 정책 — 테이블을 drop 하면 함께 사라지므로 테이블을 남길 때만 필요하다
--- drop policy if exists "goal_university_cuts_admin_all"    on public.goal_university_cuts;
--- drop policy if exists "goal_university_cuts_public_read"  on public.goal_university_cuts;
--- drop policy if exists "goal_probability_logs_admin_all"   on public.goal_probability_logs;
--- drop policy if exists "goal_probability_logs_select_own"  on public.goal_probability_logs;
--- drop policy if exists "goal_daily_records_admin_all"      on public.goal_daily_records;
--- drop policy if exists "goal_daily_records_select_own"     on public.goal_daily_records;
--- drop policy if exists "goal_students_admin_all"           on public.goal_students;
--- drop policy if exists "goal_students_select_own"          on public.goal_students;
+-- drop policy if exists "goal_university_cuts_admin_all"     on public.goal_university_cuts;
+-- drop policy if exists "goal_university_cuts_public_read"   on public.goal_university_cuts;
+-- drop policy if exists "goal_probability_logs_admin_select" on public.goal_probability_logs;
+-- drop policy if exists "goal_probability_logs_select_own"   on public.goal_probability_logs;
+-- drop policy if exists "goal_daily_records_admin_select"    on public.goal_daily_records;
+-- drop policy if exists "goal_daily_records_select_own"      on public.goal_daily_records;
+-- drop policy if exists "goal_students_admin_select"         on public.goal_students;
+-- drop policy if exists "goal_students_select_own"           on public.goal_students;
 --
--- -- (5) 뷰
+-- -- (5) 뷰 — sql/57 의 goal_university_options 는 goal_university_cuts 에
+-- --          의존하므로 그 표를 drop 하기 전에 먼저 없애야 한다.
+-- drop view if exists public.goal_university_options;
 -- drop view if exists public.goal_student_state;
 --
 -- -- (1)~(4) 테이블 — FK 역순으로. 인덱스·제약·시퀀스는 함께 삭제된다.
