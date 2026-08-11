@@ -1,3 +1,6 @@
+import { useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
 import { useInView } from '../../hooks/useInView';
 
@@ -75,6 +78,15 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 // 정본은 DB이며 프론트에는 가격을 하드코딩하지 않는다.
 
 const HERO_SERVICE = { name: '수행평가 서비스', to: '/pricing' };
+
+// 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
+// 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
+// 명세서 §2.2 forbidden 행). 그 계약을 이 페이지가 받는 지점이 아래 둘이다.
+//   ① 앵커 — `#pricing`이 가리킬 실제 id. 없으면 최상단에 그대로 머문다.
+//   ② 인라인 안내 — RequireEntitlement가 `location.state.entitlementNotice`로
+//      실어 보내는 문구. 소비하는 쪽이 없으면 사용자는 왜 튕겼는지 알 수 없다
+//      (§2.2 「현행 alert 대신 화면 안내로 승격」).
+const PRICING_ANCHOR_ID = 'pricing';
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
 // 배열의 각 원소가 한 줄이며 ServiceProcessCards 가 <br />로 잇는다.
@@ -388,8 +400,55 @@ function HeroSection() {
 }
 
 export default function PerformanceAssessment() {
+  const location = useLocation();
+  const entitlementNotice = location.state?.entitlementNotice || null;
+
+  // 해시(`#pricing`)로 도착해도 가격 섹션이 늘 로딩 분기일 수 있으므로 id는
+  // ServicePricingSection의 3분기 모두에 붙어 있다. 도착 오차는 scroll-mt-24가 흡수한다.
+  const scrollToPricing = useCallback(() => {
+    document.getElementById(PRICING_ANCHOR_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, []);
+
+  // SPA 내부 이동은 해시를 브라우저가 처리해 주지 않는다 — App.jsx의 ScrollToTop은
+  // 해시가 있을 때 "최상단으로 이동"만 건너뛸 뿐, 앵커로 스크롤하는 코드는 저장소
+  // 어디에도 없다(<a href="#...">를 쓰는 콜멘토는 같은 문서 내 이동이라 해당 없음).
+  // 그래서 가드가 보낸 `#pricing`을 여기서 직접 처리한다.
+  useEffect(() => {
+    if (location.hash !== `#${PRICING_ANCHOR_ID}`) return undefined;
+    // 단, 안내 배너가 떠 있으면 자동 이동하지 않는다 — 배너는 "왜 되돌아왔는지"를
+    // 설명하는 유일한 표면인데 곧바로 가격 섹션으로 내려버리면 그 문장을 아무도
+    // 읽지 못한다. 배너의 CTA가 같은 앵커로 데려간다.
+    if (entitlementNotice) return undefined;
+
+    // 레이아웃이 한 번 확정된 뒤에 이동한다(첫 프레임 좌표는 지연 로드 이미지 탓에
+    // 실제 위치와 다르다).
+    const frame = requestAnimationFrame(scrollToPricing);
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash, entitlementNotice, scrollToPricing]);
+
   return (
     <main className="min-h-screen bg-white pt-16">
+      {/* 이용권 미보유로 되돌려진 경우에만 뜬다. 평상시 방문에는 아무것도 렌더하지 않는다. */}
+      {entitlementNotice ? (
+        <div className="mx-auto w-full max-w-content px-5 pt-6 sm:px-8">
+          <div
+            role="status"
+            className="flex flex-col gap-3 rounded-2xl border border-[#D7D7D7] bg-[#F9FAFB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-[1rem] font-semibold leading-[1.5] text-[#013262]">{entitlementNotice}</p>
+            {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
+                이동이 되어 브라우저가 아무것도 하지 않는다. 그래서 직접 스크롤한다. */}
+            <button
+              type="button"
+              onClick={scrollToPricing}
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
+            >
+              이용권 보러가기
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <HeroSection />
 
       {/* 히어로 목업이 lg:mb-[-7.89375rem]로 이 섹션 위에 겹치므로 pt 가 페이지 내 최소값이다. */}
@@ -441,14 +500,17 @@ export default function PerformanceAssessment() {
       </ServiceSection>
 
       {/* 문구・금액・상품 데이터는 Supabase 원본 그대로다 — 이 전환에서 한 글자도 바꾸지 않았다. */}
+      {/* scroll-mt-24: fixed 헤더(h-16)에 앵커 상단이 가리지 않게 한다
+          (MentorApplyForm·BoardListPage와 같은 선례값). */}
       <ServicePricingSection
+        id={PRICING_ANCHOR_ID}
         serviceKey="suhaeng"
         heading="위닝 수행평가 이용권 구매하기"
         cta={{
           label: '이용권 구매하기',
           onClick: (event) => openPaidServiceOrAlert(event, HERO_SERVICE)
         }}
-        className="pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
+        className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
       />
     </main>
   );
