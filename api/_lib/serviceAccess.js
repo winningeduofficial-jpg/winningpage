@@ -237,12 +237,14 @@ export function isDevEntitlementBypassEnabled() {
   return process.env.DEV_BYPASS_ENTITLEMENT === 'true';
 }
 
-// 우회가 발동했을 때 consume_performance_credit RPC까지 통과시키기 위해
-// program_access 행을 만든다. 그 RPC는 행이 없으면 no_entitlement를
-// 돌려주지만, 행만 있고 meta.quota_total이 없으면 무제한으로 폴백한다
-// (sql/54_performance_app.sql (4) 단계 4, "P15 전 임시 동작" 경고 로그와 함께).
-// 그래서 meta는 절대 채우지 않는다 — quota_total을 설정하면 오히려
-// 소진 취급될 수 있다.
+// 우회가 발동했을 때 진입 게이트(hasPaidServiceAccess → checkProgramAccessTable)를
+// 통과시키기 위해 program_access 행을 만든다. 이 게이트는 지금도(checkout-renewal
+// 이후) payment_status/access_status만 보고 meta는 보지 않으므로 이 부분은
+// 그대로 유효하다.
+//
+// ⚠️ 이 행만으로는 더 이상 충분하지 않다 — `consume_performance_credit` RPC는
+//    `program_access_grants` 원장을 보므로, 아래 ensureDevProgramAccessGrant()가
+//    grant 행까지 만들어야 STEP3(recommend-topics)의 회차 소비가 통과한다.
 //
 // ⚠️ 이미 행이 있으면 손대지 않는다(실결제 데이터를 덮어쓰면 안 된다).
 //    삽입 실패는 치명적이지 않다 — 실패해도 진입 우회(반환값 true) 자체는
@@ -275,7 +277,7 @@ export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
       program_key: programKey,
       payment_status: 'paid',
       access_status: 'active',
-      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 행. meta.quota_total 미설정 → 차감 RPC가 무제한으로 폴백.'
+      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 행. 실제 회차·기간은 program_access_grants 원장을 본다(ensureDevProgramAccessGrant).'
     });
 
     if (insertError) {
@@ -293,6 +295,123 @@ export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
   }
 }
 
+// 우회가 발동했을 때 `consume_performance_credit` RPC(부여 원장 기반, sql/64~66)까지
+// 통과시키기 위해 `program_access_grants`에도 행을 만든다. 실제 RPC 본문
+// (dev DB에서 직접 확인, 2026-08-12)을 읽고 정한 규칙이다:
+//
+//   · `granted_sessions is null` → 소비 루프가 즉시 채택하고 절대 소진되지
+//     않는다("무제한 부여. 즉시 채택"). 회차 축의 무제한은 이 값으로만 표현된다.
+//   · `expires_at is null` → 살아있는 부여 조회(`revoked_at is null and
+//     (expires_at is null or expires_at > now())`)에서 영원히 걸러지지 않는다.
+//     기간 축의 무기한은 이 값으로만 표현된다.
+//
+// ⚠️ 두 축을 동시에 null로 둘 수 없다 — 테이블 CHECK 제약이 막는다:
+//     · pag_expiry_derivation_check: (granted_months is null) = (expires_at is null)
+//     · pag_entitlement_shape_check: NOT (granted_months is null AND granted_sessions is null)
+//   expires_at을 null로 두려면 granted_months도 null이어야 하는데(첫째 제약),
+//   그러면 granted_sessions까지 null인 경우 둘째 제약을 어긴다. 즉
+//   "회차 무제한 + 기간 무기한"을 동시에 만족하는 행은 DB 스키마상 존재할 수 없다.
+//   실제로 깨졌던 지점(STEP3 recommend-topics의 quota_exhausted/no_entitlement)이
+//   회차 축이므로 **회차 무제한(granted_sessions=null)을 우선**하고, 기간은
+//   `granted_months`를 크게(100년) 잡아 사실상 무기한으로 근사한다.
+//
+// granted_by는 4개 허용값(payment/admin/promotion/qa) 중 'qa'를 쓴다 —
+// 'admin'은 granted_by_actor NOT NULL을 추가로 요구하고(pag_admin_actor_check),
+// 'payment'는 order_id/order_item_id NOT NULL을 요구한다
+// (pag_payment_*_pairing_check). 'qa'는 그런 추가 요구가 없는 유일한 값이라
+// 이 로컬 QA 우회 용도에 정확히 들어맞는다.
+//
+// ⚠️ program_key는 config.program_keys[0]을 그대로 쓰지 않는다.
+//    program_access_grants.program_key는 `programs.program_key`를 FK로 참조하는데,
+//    SERVICE_CONFIGS.goal.program_keys=['goal','target']처럼 레거시 호환용
+//    별칭('goal')이 정본 테이블에는 없을 수 있다(운영 정본은 'target' —
+//    products.service_key='goal'과는 다른 축이다). FK를 만족하는 후보를
+//    programs 테이블에서 직접 찾아 쓴다.
+//
+// ⚠️ 이미 살아있는 grant가 있으면(revoked_at is null이고 만료 전) 만들지
+//    않는다 — 중복 부여 금지. 삽입 실패는 치명적이지 않다: 로그만 남기고
+//    우회(반환값 true) 자체는 유지한다.
+export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config) {
+  try {
+    let programKey = null;
+
+    for (const candidate of config.program_keys) {
+      const { data: programRow, error: programError } = await supabaseAdmin
+        .from('programs')
+        .select('program_key')
+        .eq('program_key', candidate)
+        .maybeSingle();
+
+      if (!programError && programRow) {
+        programKey = candidate;
+        break;
+      }
+    }
+
+    if (!programKey) {
+      console.warn(
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: programs 테이블에서 program_key 후보(${config.program_keys.join(
+          ', '
+        )})를 하나도 찾지 못해 program_access_grants 행을 만들지 않습니다(무시, 우회는 유지).`
+      );
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    const { data: existing, error: selectError } = await supabaseAdmin
+      .from('program_access_grants')
+      .select('id')
+      .eq('profile_id', userId)
+      .eq('program_key', programKey)
+      .is('revoked_at', null)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (selectError) {
+      console.warn(
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 조회 실패(무시, 우회는 유지) — ${selectError.message}`
+      );
+      return;
+    }
+
+    if (existing) return; // 이미 살아있는 부여가 있다 — 중복 부여 금지.
+
+    const startsAt = new Date();
+    const expiresAt = new Date(startsAt);
+    expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 100); // 사실상 무기한(회차 무제한과 동시에 null로 둘 수 없다 — 위 주석 참고)
+
+    const { error: insertError } = await supabaseAdmin.from('program_access_grants').insert({
+      profile_id: userId,
+      program_key: programKey,
+      granted_by: 'qa',
+      granted_months: 1200, // 100년 — expires_at과 nullness를 맞추기 위한 근사 무기한
+      granted_sessions: null, // 회차 무제한 — consume_performance_credit이 즉시 채택하고 절대 소진되지 않는다
+      paid_amount: 0,
+      starts_at: startsAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 부여. granted_sessions=null(회차 무제한), granted_months=1200(~100년, DB 제약상 expires_at을 null로 둘 수 없어 근사).'
+    });
+
+    if (insertError) {
+      console.warn(
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 실패(무시, 우회는 유지) — ${insertError.message}`
+      );
+      return;
+    }
+
+    console.warn(
+      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 행 자동 생성 (user=${userId}, program_key=${programKey})`
+    );
+  } catch (error) {
+    console.warn(
+      '[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 중 예외(무시, 우회는 유지)',
+      error
+    );
+  }
+}
+
 export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   if (isDevEntitlementBypassEnabled()) {
     console.warn(
@@ -300,6 +419,7 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
         'VERCEL_ENV/NODE_ENV가 production이면 이 경로는 절대 타지 않습니다.'
     );
     await ensureDevProgramAccessRow(supabaseAdmin, userId, config);
+    await ensureDevProgramAccessGrant(supabaseAdmin, userId, config);
     return true;
   }
 
