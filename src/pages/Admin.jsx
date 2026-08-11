@@ -64,7 +64,6 @@ import BookViewer from '../components/premiumBook/BookViewer';
 // Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
 import CouponAdmin from '../components/admin/CouponAdmin';
-
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
 // 포함하지만, 과거 다른 경로로 저장된 값은 admission-existing-html을 이미
@@ -2645,7 +2644,8 @@ const CONFIGS = {
     custom: true,
     CustomComponent: CouponAdmin,
     searchPlaceholder: ''
-  }
+  },
+
 };
 
 const QUESTION_EMPTY = {
@@ -4062,6 +4062,27 @@ function AdminInput({ field, value, onChange, disabled }) {
       }}
       disabled={disabled}
       readOnly={readOnly}
+      // placeholder/min/max/step: 선언한 필드에만 붙는다. 값이 undefined면
+      // React가 속성 자체를 DOM에 렌더하지 않으므로, 이 네 키를 선언하지 않은
+      // 기존 필드는 마크업이 바이트 단위로 동일하다.
+      //
+      // 🔴 min/max는 "브라우저 힌트"가 아니라 실제로 submit을 막는다
+      //   (rangeUnderflow/rangeOverflow → form.checkValidity() false → onSubmit
+      //    자체가 발화하지 않아 config.validate가 호출조차 되지 않는다).
+      //   그래서 min을 선언하는 필드는 step도 함께 선언해야 한다 — HTML 사양상
+      //   number 입력의 step base는 min 속성이 있으면 min, 없으면 value
+      //   콘텐트 속성이다. 기본 step은 1이므로 min만 붙이는 순간 소수값이
+      //   전부 stepMismatch로 막힌다(실측: <input type=number min=1 value="2.35">
+      //   → stepMismatch true, "가장 근접한 유효 값 2개는 2 및 3입니다").
+      //   min/max/step을 선언하지 않은 기존 필드는 step base가 value라
+      //   소수 입력이 지금까지 통과해 왔다 — 그래서 이 결함은 min을 처음
+      //   선언한 필드(목표관리 대학 컷 avg_cut)에서만 터졌다.
+      //   step='any'를 함께 주면 stepMismatch는 사라지고 min/max 범위 방어는
+      //   그대로 남는다(실측: step=any + max=9 에 12 → rangeOverflow true).
+      placeholder={field.placeholder}
+      min={field.min}
+      max={field.max}
+      step={field.step}
       className={`${base} ${readOnly ? 'bg-gray-50 text-gray-500' : ''}`}
     />
   );
@@ -4864,11 +4885,15 @@ function AdminForm({
   onSave,
   onUpload,
   origin = 'form',
-  initialSection = null
+  initialSection = null,
+  // createDefaults: 다른 탭에서 "이 값으로 새 행을 만들어라"며 넘겨 온 1회성
+  // 프리필. Admin()의 pendingCreateDefaults가 유일한 공급자다. 넘기지 않으면
+  // undefined라 아래 spread가 {}가 되어 기존 동작과 완전히 동일하다.
+  createDefaults = null
 }) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
-    return { ...(config.defaults || {}) };
+    return { ...(config.defaults || {}), ...(createDefaults || {}) };
   });
   const [dirty, setDirty] = useState(false);
   // 열려 있는 카테고리 편집 다이얼로그의 섹션 키(field.group 있는 config,
@@ -5094,7 +5119,23 @@ function AdminForm({
                 />
               );
             }
-            const field = item.field;
+            // field.resolve(form, row): 같은 폼의 다른 필드 값에 따라 이 필드의
+            // 표시 속성(label/help/placeholder/min/max/readOnly)만 부분 덮어쓴다.
+            // 목표관리 대학 컷의 avg_cut이 cut_type에 따라 단위·범위가 통째로
+            // 달라지는 요구 때문에 들어왔다(명세 §3-D4 ①). key/type은 덮지 않는
+            // 것이 계약이다 — 덮으면 form 상태의 키가 어긋난다.
+            // resolve를 선언하지 않은 config는 item.field를 그대로 쓰므로 기존
+            // 탭들의 렌더 경로가 바뀌지 않는다(저장소 전체 field.resolve 선언 0건).
+            //
+            // ⚠ 적용 범위 계약: **이 폼 본문 루프뿐이다.** 카테고리 편집 모달의
+            //   groupFields(config.fields.filter(f => f.group === modalSection))는
+            //   resolve를 거치지 않고 원본 field를 그대로 렌더한다. 지금은
+            //   resolve를 쓰는 config(goalUniversityCuts)에 group 필드가 없어
+            //   실효가 없지만, group과 resolve를 함께 쓰려면 그쪽에도 같은
+            //   변환을 태워야 한다.
+            const field = item.field.resolve
+              ? { ...item.field, ...item.field.resolve(form, row) }
+              : item.field;
 
             return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
@@ -5542,7 +5583,28 @@ function AdminTable({
                           미주입으로 스크립트가 ReferenceError 로 죽는다.
                           (앵커 문자열을 이 주석에 그대로 복제하지도 말 것 —
                           "정확히 1개" 조건이 깨져 슬라이스가 실패한다.) */}
-                      {column.type === 'universityNameMeta' && onOpenMetaEdit ? (
+                      {/* column.render(row): 같은 행의 다른 컬럼을 봐야 하는 셀
+                          전용 훅. formatValue 시그니처가 (value, type, options)라
+                          값 하나만 받아 이웃 컬럼을 볼 수 없다 — 목표관리 대학 컷의
+                          avg_cut을 cut_type에 따라 "2.35등급" / "87.5백분위"로
+                          렌더하는 요구가 이 훅을 강제한다(명세 §4-1-3 (c)).
+
+                          ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
+                          있어야 한다 — 아래 universityNameMeta 분기의 주석과 같은
+                          이유다(scripts/verify-admission-admin-entry.mjs 슬라이스).
+
+                          render를 선언하지 않은 컬럼은 아래 기존 분기를 그대로
+                          탄다(저장소 전체 column.render 선언 0건).
+
+                          ⚠ 적용 범위 계약: **표 셀뿐이다.** CSV 내보내기(csvBody)는
+                          render를 보지 않고 formatValue만 쓴다 — 목록에 "2.35등급"
+                          으로 보이는 값이 CSV에는 "2.35"로 나간다. render를 쓰는
+                          config(goalUniversityCuts)는 excel/CSV 경로를 아예
+                          선언하지 않아 지금은 실효가 없지만, 그 탭에 내보내기를
+                          켜려면 csvBody에도 같은 훅을 태워야 한다. */}
+                      {column.render ? (
+                        column.render(row)
+                      ) : column.type === 'universityNameMeta' && onOpenMetaEdit ? (
                         <button
                           type="button"
                           onClick={() => onOpenMetaEdit(row)}
@@ -6663,6 +6725,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
   );
 }
 
+
 function AcceptanceRateSummary({ rows }) {
   const active = (rows || []).filter((row) => row.is_active);
   if (active.length === 0) return null;
@@ -6800,6 +6863,20 @@ export default function Admin() {
   // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
   // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
   const [pendingSection, setPendingSection] = useState(null);
+  // 다른 탭에서 넘겨 온 신규 등록 프리필. pendingSection과 같은 성격이지만
+  // 결정적으로 다른 점이 하나 있다 — changeTab이 이 값을 지우지 않는다.
+  // 공급자(학생 상세의 "이 조합의 컷 만들기")가 changeTab으로 탭을 옮긴 뒤
+  // 폼을 여는 구조라, 여기서 리셋하면 프리필이 통째로 사라진다.
+  // 대신 소비 직후(취소·저장) 와 수동 [등록] 클릭 시 비운다 — 1회성 값이다.
+  // 기본값 null이라 이 state를 쓰지 않는 기존 44개 탭은 동작이 바뀌지 않는다.
+  const [pendingCreateDefaults, setPendingCreateDefaults] = useState(null);
+  // 목록 CRUD(등록·수정·삭제) 성공 횟수. ListSummary가 "자기 집계를 다시 읽어야
+  // 하는 시점"을 아는 유일한 신호다 — loadRows()는 목록 rows만 새로 받고
+  // ListSummary가 스스로 던지는 집계 쿼리(예: GoalCutsOverviewBlock의 head
+  // 카운트 6종)는 건드리지 않아서, 행을 지워도 상단 요약이 옛 숫자를 그대로
+  // 보여 준다. page/keyword 변경으로는 올라가지 않으므로 페이지 이동마다
+  // 집계를 다시 던지는 낭비도 없다.
+  const [mutationSeq, setMutationSeq] = useState(0);
   // 관리 열 ⚙️(메타 전용 모달)이 열려 있는 행. null이면 닫힘 — mode는
   // 'list'로 그대로 두고 오버레이만 뜬다(목록 셀 [수정]과 같은 1뎁스 UX).
   const [metaEditRow, setMetaEditRow] = useState(null);
@@ -6936,6 +7013,13 @@ export default function Admin() {
     setKeyword('');
     setSearchTerm('');
     setPage(1);
+    // 1회성 프리필은 탭을 옮기면 무조건 버린다. 남겨 두면 "학생 상세 →
+    // 컷 만들기 → (취소하지 않고) 다른 탭으로 이동" 뒤 그 탭의 등록 폼에
+    // 엉뚱한 컬럼(university_name 등)이 섞여 들어간다.
+    // 프리필 경로는 깨지지 않는다 — 공급자(GoalStudentDetail.createCutFromSlot)가
+    // onNavigate → onPrefillCreate 순서로 부르므로 같은 배치 안에서 null이
+    // 먼저, 값이 나중에 적용된다.
+    setPendingCreateDefaults(null);
   }
 
   // 검색어 디바운스. 확정되는 순간 1페이지로 되돌린다 — 5페이지를 보다 검색하면
@@ -6978,6 +7062,9 @@ export default function Admin() {
   function createRow() {
     setEditingRow(null);
     setPendingSection(null);
+    // 목록의 [등록] 버튼으로 들어온 신규 등록은 항상 백지에서 시작한다 —
+    // 남아 있던 프리필이 묻어 들어가면 안 된다.
+    setPendingCreateDefaults(null);
     setMode('create');
   }
 
@@ -7084,6 +7171,8 @@ export default function Admin() {
     setMode('list');
     setEditingRow(null);
     setPendingSection(null);
+    setPendingCreateDefaults(null);
+    setMutationSeq((seq) => seq + 1);
     await loadRows();
   }
 
@@ -7097,6 +7186,7 @@ export default function Admin() {
       return;
     }
 
+    setMutationSeq((seq) => seq + 1);
     await loadRows();
   }
 
@@ -7216,7 +7306,24 @@ export default function Admin() {
             // 기존 하드코딩 동작이 그대로 보존된다 — 회귀 위험 0. 신규 섹션(premiumBookPages)은
             // config.CustomComponent로 자기 컴포넌트를 지정한다.
             config.CustomComponent ? (
-              <config.CustomComponent />
+              // 🔴 공용 변경 (e) — 명세 §4-1-3 의 (a)~(d) 에 없던 5번째 항목이다.
+              //   왜 필요한가: 토대 단계가 pendingCreateDefaults state 를 만들었지만
+              //   **공급자가 생길 통로가 없었다.** 그 유일한 공급자는 학생 상세의
+              //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 CustomComponent 로
+              //   렌더되고 이 줄이 props 를 하나도 넘기지 않았다. 그래서 버튼을 눌러도
+              //   탭을 옮기거나 폼을 열 수단이 없다.
+              //   기존 소비처 무영향 근거: CustomComponent 를 선언한 config 는 2개뿐이고
+              //   (premiumBookPages / mentorApplications) 두 컴포넌트 모두 인자를 받지
+              //   않는다(이 파일의 `function PremiumBookAdmin()` / `function
+              //   MentorApplicationsAdmin()` 선언 — 파라미터 목록이 비어 있다).
+              //   CustomComponent 미지정 경로(learningDiagnosis)는 이 분기에 오지 않는다.
+              <config.CustomComponent
+                onNavigate={changeTab}
+                onPrefillCreate={(values) => {
+                  setPendingCreateDefaults(values);
+                  setMode('create');
+                }}
+              />
             ) : (
               <LearningDiagnosisAdmin />
             )
@@ -7356,7 +7463,15 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
-                {config.ListSummary && <config.ListSummary rows={rows} onReload={loadRows} />}
+                {/* mutationSeq: 목록 CRUD 성공 시에만 올라가는 카운터. 자기 집계를
+                    따로 던지는 ListSummary(현재 GoalCutsListSummary 하나)가 이 값을
+                    보고 다시 읽는다. 이 prop을 받지 않는 기존 3개
+                    (AcceptanceRateSummary / AdmissionListSummary /
+                    AdmissionResultsListSummary)는 전부 props를 구조분해로 받으므로
+                    추가 prop을 그냥 무시한다 — 회귀 없음. */}
+                {config.ListSummary && (
+                  <config.ListSummary rows={rows} onReload={loadRows} mutationSeq={mutationSeq} />
+                )}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
@@ -7394,10 +7509,12 @@ export default function Admin() {
               row={editingRow}
               origin={pendingSection ? 'list' : 'form'}
               initialSection={pendingSection}
+              createDefaults={pendingCreateDefaults}
               onCancel={() => {
                 setMode('list');
                 setEditingRow(null);
                 setPendingSection(null);
+                setPendingCreateDefaults(null);
               }}
               onSave={saveRow}
               onUpload={uploadImage}
@@ -8238,3 +8355,4 @@ function MentorApplicationsAdmin() {
     </div>
   );
 }
+
