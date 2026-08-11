@@ -400,13 +400,29 @@ const RETAINED_DESIGN_LINES = [
   486, 487, 488, 489, 490                  // 체크리스트 하위 키
 ];
 
+// 존재만이 아니라 **배치**도 계약이다 — §12.1의 「1바이트도 변경 금지」는 내용과 순서를 함께
+// 뜻하고, 프롬프트 조항의 순서 자체가 의미를 갖는다(이 이식이 CORE→BRIDGE→본문 순서로 충돌을
+// 해소한 것이 그 증거다). 집합 포함 검사만 하면 16원칙을 뒤섞거나 `[안내문 구조 판정]` 블록을
+// `[학생 과거 수행 RAG]` 뒤로 옮겨도 전부 통과한다. 그래서 원문 행번호가 커질수록 산출물에서의
+// 위치도 커지는지(단조 증가) 함께 본다.
+let lastDesignLineIndex = -1;
+
 for (const no of RETAINED_DESIGN_LINES) {
   const line = sourceLine(FR, no);
+  const index = designV2Lines.indexOf(line);
   check(
     `원문 유지 :${no}  ${line.slice(0, 34)}…`,
-    designV2Lines.includes(line),
+    index !== -1,
     `누락된 원문 줄: ${JSON.stringify(line)}`
   );
+  if (index !== -1) {
+    check(
+      `원문 순서 :${no}`,
+      index > lastDesignLineIndex,
+      `배치가 원문 순서와 어긋난다: :${no}이 산출물 ${index}행에 있는데 직전 원문 줄은 ${lastDesignLineIndex}행이다`
+    );
+    lastDesignLineIndex = index;
+  }
 }
 
 // 보간 줄은 라벨 접두어까지가 원문 계약이다
