@@ -155,8 +155,14 @@ async function checkProgramAccessTable(supabaseAdmin, userId, config) {
 }
 
 async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
+  // sql/61_offline_enrollment_consolidation.sql — 예전엔 admin_enrollments 를
+  // 조회했는데, 어드민이 실제로 수강생을 등록하는 테이블(src/pages/Admin.jsx
+  // 'enrollments' config)과 달라 정상 등록한 오프라인 수강생이 앱에 절대
+  // 못 들어가는 구조였다. 판정에 쓰는 7개 컬럼(id/profile_id/category_name/
+  // program_name/class_name/payment_status/application_status)은 두 테이블에
+  // 이름이 전부 동일해 컬럼명 치환 없이 테이블만 바꿨다(판정 로직은 그대로).
   const { data, error } = await supabaseAdmin
-    .from('admin_enrollments')
+    .from('enrollments')
     .select('id, profile_id, category_name, program_name, class_name, payment_status, application_status')
     .eq('profile_id', userId)
     .limit(100);
