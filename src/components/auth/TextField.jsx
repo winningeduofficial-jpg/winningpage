@@ -15,8 +15,13 @@
 import { useEffect, useRef, useState } from 'react';
 
 const SIZE_CLASSES = {
-  default: 'h-[3.25rem]', // 52px
-  lg: 'h-[3.75rem]' // 60px
+  default: 'h-[3.25rem] rounded-xl border-line px-5 text-base', // 52px, radius 12px, 텍스트 16px
+  lg: 'h-[3.75rem] rounded-xl border-line px-5 text-base', // 60px, radius 12px, 텍스트 16px
+  // 인앱(수행평가) 폼 전용 — docs/수행평가-상세-명세.md §5.5/§7.3 실측(3754:3206).
+  // 높이 2.5rem(40)·radius 0.5rem(8)·텍스트 0.875rem(14)·보더 performance-line(#d9d9d9,
+  // 전역 line #d7d7d7과 다른 값)·배경 performance-bubble(#f8f7f5). default/lg와 별개 계열이므로
+  // 여기 값만 바꿔도 기존 회원가입/로그인 폼(52·60px 계열)에는 영향 없다.
+  perf: 'h-[2.5rem] rounded-lg border-performance-line bg-performance-bubble px-4 text-sm'
 };
 
 const STATUS_TEXT_CLASSES = {
@@ -33,7 +38,7 @@ export default function TextField({
   value,
   onChange,
   placeholder,
-  size = 'default', // 'default' | 'lg'
+  size = 'default', // 'default' | 'lg' | 'perf'(인앱 2.5rem/40px)
   active = false, // true면 border-primary(예: E-3 코드 인식 상태)
   actionLabel, // 우측 액션 링크 텍스트(예: '인증번호 보내기' / '인증번호 다시 보내기')
   onAction,
@@ -88,7 +93,7 @@ export default function TextField({
         required={required}
         aria-describedby={helperText ? `${fieldId}-helper` : undefined}
         aria-invalid={status === 'error'}
-        className={`w-full rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''} ${shake ? 'auth-field-shake' : ''}`}
+        className={`w-full border text-ink outline-none transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? 'border-primary' : ''} ${shake ? 'auth-field-shake' : ''}`}
       />
 
       {actionLabel && (
