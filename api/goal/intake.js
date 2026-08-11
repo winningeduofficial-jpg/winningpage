@@ -502,7 +502,16 @@ export default async function handler(req, res) {
       ideal: input.ideal,
       min: input.min
     });
-    const hasAllCuts = missing.length === 0;
+
+    // 정시 컷을 외부 수집하지 않기로 확정했다(§9-Q1(b)) — 수시 컷만 필수로
+    // 남기고, 정시 컷이 없으면 정시 확률 2종만 null 로 온보딩을 완료시킨다.
+    // 계산 엔진은 컷 누락을 이미 확률 0 으로 접어 흡수하므로(pipeline.js:173,
+    // 225-228) 이 파일은 "무엇을 null 로 되돌려 쓸지"만 결정하면 된다.
+    const hasSusiCuts = cuts.idealNaesin !== null && cuts.minNaesin !== null;
+    // 정시는 쌍 단위로만 유효하다 — 상한/하한 중 하나만 있으면 둘 다 버린다.
+    // goalRepo.js:364 buildStudentPayload 의 jungsiAvailable 이 이미 이 쌍
+    // 단위 정의를 쓰고 있어(대학별 독립 채택 안 함) 그대로 맞춘다.
+    const hasJungsiCuts = cuts.idealJungsi !== null && cuts.minJungsi !== null;
 
     // 7) 요일별 목표 학습시간
     const weeklySchedule = buildWeeklySchedule(input);
@@ -529,6 +538,19 @@ export default async function handler(req, res) {
       weeklySchedule,
       now
     });
+
+    // 컷 쌍(수시/정시) 별 null 오버라이드를 여기서 한 번만 계산해 goal_students
+    // 행과 goal_probability_logs 양쪽에 재사용한다. state.baseProbs.idealJungsi
+    // 등은 컷이 없을 때 파이프라인이 0 으로 접은 값이지 null 이 아니라서
+    // (pipeline.js:225-228), 이 판정 없이 두 곳에 각각 조건을 쓰면 어느 한쪽이
+    // 어긋나기 쉽다 — "미산출"과 "0%"가 두 표에서 다른 이야기를 하면 안 된다
+    // (goalRepo.js:46-48 num() 의 "0 과 null 을 절대 섞지 않는다" 규칙).
+    const baseProbsForStorage = {
+      idealSusi: hasSusiCuts ? state.baseProbs.idealSusi : null,
+      idealJungsi: hasJungsiCuts ? state.baseProbs.idealJungsi : null,
+      minSusi: hasSusiCuts ? state.baseProbs.minSusi : null,
+      minJungsi: hasJungsiCuts ? state.baseProbs.minJungsi : null
+    };
 
     // 9) 저장
     const row = {
@@ -559,51 +581,51 @@ export default async function handler(req, res) {
       naesin_scores: input.naesin,
       mock_exam_scores: input.mockExam,
 
-      // 컷이 없으면 확률 4종을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).
-      base_ideal_susi: hasAllCuts ? state.baseProbs.idealSusi : null,
-      base_ideal_jungsi: hasAllCuts ? state.baseProbs.idealJungsi : null,
-      base_min_susi: hasAllCuts ? state.baseProbs.minSusi : null,
-      base_min_jungsi: hasAllCuts ? state.baseProbs.minJungsi : null,
+      // 컷이 없으면 확률을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).
+      // 수시/정시는 서로 독립으로 판정한다(§7-1-A) — 정시 컷만 없어도 수시
+      // 확률은 그대로 저장한다.
+      base_ideal_susi: baseProbsForStorage.idealSusi,
+      base_ideal_jungsi: baseProbsForStorage.idealJungsi,
+      base_min_susi: baseProbsForStorage.minSusi,
+      base_min_jungsi: baseProbsForStorage.minJungsi,
 
-      rate_ideal_susi: hasAllCuts ? state.rates.idealSusiBonus : null,
-      rate_ideal_jungsi: hasAllCuts ? state.rates.idealJungsiBonus : null,
-      rate_min_susi: hasAllCuts ? state.rates.minSusiBonus : null,
-      rate_min_jungsi: hasAllCuts ? state.rates.minJungsiBonus : null,
+      rate_ideal_susi: hasSusiCuts ? state.rates.idealSusiBonus : null,
+      rate_ideal_jungsi: hasJungsiCuts ? state.rates.idealJungsiBonus : null,
+      rate_min_susi: hasSusiCuts ? state.rates.minSusiBonus : null,
+      rate_min_jungsi: hasJungsiCuts ? state.rates.minJungsiBonus : null,
 
       study_schedule: state.weeklySchedule,
       week_ideal: state.weekIdeal,
       week_min: state.weekMin,
 
-      // 가상 날짜의 원점은 rate 와 같은 시점이어야 한다(§8 #14). rate 가 없는
-      // awaiting_cuts 행은 원점도 두지 않는다 — 첫 기록 제출은 어차피 막힌다.
-      actual_start_date: hasAllCuts ? kstYMD(now) : null,
-      onboarded_at: hasAllCuts ? now.toISOString() : null,
-      status: hasAllCuts ? 'active' : 'awaiting_cuts'
+      // 가상 날짜의 원점은 rate 와 같은 시점이어야 한다(§8 #14). 온보딩 자체가
+      // 성립하는 기준은 수시 컷이다 — 정시 컷 누락은 더 이상 온보딩을 막지
+      // 않는다(§9-Q1(b)). 수시 컷도 없는 awaiting_cuts 행만 원점을 두지 않는다.
+      actual_start_date: hasSusiCuts ? kstYMD(now) : null,
+      onboarded_at: hasSusiCuts ? now.toISOString() : null,
+      status: hasSusiCuts ? 'active' : 'awaiting_cuts'
     };
 
     const savedRow = await upsertStudentRow(supabaseAdmin, row);
 
     // 10) 컷 누락 — 입력은 버리지 않고 422 로 알린다(§9-3).
-    if (!hasAllCuts) {
+    //     정시 컷 누락은 더 이상 422 사유가 아니다 — 수시 컷이 없을 때만 낸다.
+    //     fetchTargetCuts/CUT_KEYS(goalRepo.js)는 listMissingCuts(관리자의
+    //     "컷 만들기" 버튼) 등 범용 소비처가 있어 고치지 않고, 여기 호출부에서
+    //     수시 2종만 걸러 응답한다(§7-1-A 1번).
+    if (!hasSusiCuts) {
+      const susiMissing = missing.filter((key) => key === 'idealNaesin' || key === 'minNaesin');
       return res.status(422).json({
         detail: '목표 대학의 합격 기준 데이터가 아직 준비되지 않았습니다.',
         reason: 'cut_not_found',
-        missing
+        missing: susiMissing
       });
     }
 
-    // 11) 확률 스냅샷
-    await appendProbabilityLog(
-      supabaseAdmin,
-      profileId,
-      {
-        idealSusi: state.baseProbs.idealSusi,
-        idealJungsi: state.baseProbs.idealJungsi,
-        minSusi: state.baseProbs.minSusi,
-        minJungsi: state.baseProbs.minJungsi
-      },
-      'intake'
-    );
+    // 11) 확률 스냅샷 — row 에 저장한 것과 같은 null 판정(baseProbsForStorage)을
+    //     그대로 넘긴다. state.baseProbs 원값을 직접 넘기면 정시 컷이 없을 때
+    //     0 이 들어가 goal_students(null)와 어긋난다.
+    await appendProbabilityLog(supabaseAdmin, profileId, baseProbsForStorage, 'intake');
 
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다
