@@ -36,6 +36,47 @@
 --   소진"으로 바꿨다 — 헬퍼 하나에 판정을 모으는 기존 설계는 그대로
 --   유지(세 함수가 각자 판정하면 방금 없앤 중복이 되살아난다).
 --
+-- 발급형 쿠폰(쿠폰함) — 조건형과 공존 (2026-08-11 사용자 확정, 추가)
+--   지금까지 coupons 에 "소유자" 개념이 없었다. 그래서 slug 'signup-2000'
+--   (회원가입 축하 쿠폰)이 가입 여부와 무관하게 전역에 떠 있었고, code 도
+--   없어 모든 체크아웃 화면에 자동 노출됐다 — 실제 동작은 "전 회원 상시 1회
+--   할인"이라 이름과 동작이 어긋나 있었다.
+--
+--   축을 하나 추가한다: coupons.grant_type (0-e절).
+--     'auto'    조건형. 조건(금액·기간)만 맞으면 누구나 — over40k-3000,
+--               over80k-5000. 지금까지의 전 쿠폰이 여기 해당하므로 DEFAULT 다
+--               (기존 3행 중 2행은 무변경, 회귀 없음).
+--     'granted' 발급형. coupon_grants 에 살아있는 발급 행이 있어야 쓸 수 있다
+--               — signup-2000 이 여기로 옮겨온다.
+--
+--   Stripe 는 coupon(할인 규칙)과 promotion_code(사용 권리)를 테이블 두 개로
+--   쪼개 제한 축을 전부 권리 쪽에 붙인다(API 2026-07-29 확인:
+--   promotion_code.customer/expires_at/max_redemptions/times_redeemed/
+--   restrictions.*). 그 구조를 이식하지 않는다 — 우리 쿠폰은 3장이고 규칙과
+--   권리가 1:1이라 테이블을 쪼개면 조인과 어드민 화면 단계만 늘고 얻는 게
+--   없다. 대신 "누가 쓸 수 있는가"만 별도 테이블(coupon_grants)로 떼고,
+--   나머지 제한(금액·기간·횟수·발행량·결합)은 지금처럼 coupons 에 남긴다.
+--
+--   판정은 헬퍼 하나(2-c절 fn_coupon_is_granted)에 모은다 —
+--   fn_coupon_is_redeemed 가 시간창·상태 블랙리스트를 혼자 들고 있는 것과
+--   같은 패턴이다. fn_usable_coupons / fn_coupon_by_code /
+--   fn_redeem_coupons / fn_revalidate_order_coupons 넷이 전부 이 헬퍼만
+--   부른다(각자 판정하면 방금 없앤 중복이 되살아난다). 목록에서 빼지 않고
+--   eligible=false + reason='not_granted' 로 돌려준다 — 조용히 사라지면 왜
+--   못 쓰는지 설명할 수 없다는 이 파일의 기존 원칙 그대로다.
+--
+--   발급 지점은 가입 트리거다(1-j절) — Supabase Auth Hooks 도 cron 도 필요
+--   없다(pg_cron 부재는 제약이 아니었다). AFTER INSERT ... FOR EACH ROW 는
+--   사용자당 정확히 한 번 실행되고, 부분 유니크 인덱스가 어떤 경로의 중복
+--   호출도 막아 멱등성이 공짜로 따라온다.
+--
+--   ⚠️ 발급 실패가 회원가입을 막아서는 안 된다. 1-j)절 참고 — 트리거 함수
+--   본문 전체를 EXCEPTION 블록으로 감싸 어떤 실패도 warning 으로 삼킨다.
+--   (트리거를 따로 두는 것만으로는 격리되지 않는다 — 같은 트랜잭션이라
+--   예외가 그대로 INSERT 를 되돌린다. 격리는 오직 EXCEPTION 블록이 한다.)
+--
+--   발급 만료일(per-grant expires_at)은 만들지 않았다 — 판단 근거는 1-h)절.
+--
 -- 소진 판정 — cron 없는 지연 평가 (핵심 설계)
 --   주문 생성 시점에 "소진"을 확정 기록하면 결제 중도 이탈자의 쿠폰이 영구
 --   잠긴다(운영에 pending 주문이 다수 존재). 반대로 결제 승인(webhook) 시점
@@ -95,6 +136,10 @@
 --   한해서만 뒤집었다. 아래 3)절에서 이유를 설명한다. reason 목록도
 --   login_required/sold_out 이 늘어 6종이 됐다(below_min_amount / expired /
 --   already_used / inactive / login_required / sold_out).
+--   2026-08-11 발급형 추가 — not_granted 가 늘어 7종이다(below_min_amount /
+--   expired / already_used / inactive / login_required / sold_out /
+--   not_granted). 발급형 쿠폰을 발급받지 않은 사람에게도 행은 그대로 보이고
+--   이유만 not_granted 로 붙는다.
 --
 -- RLS·어드민 복구 경로
 --   program_access 에 admin 정책이 없어 어드민이 복구를 못 하는 문제가 이미
@@ -314,6 +359,71 @@ alter table public.orders
   check (status in ('pending', 'paid', 'waiting_deposit', 'failed', 'canceled'));
 
 -- ---------------------------------------------------------------------
+-- 0-e) coupons.grant_type / coupons.grant_on_signup : 발급형 쿠폰 축
+--    (2026-08-11 사용자 확정). 설계 배경은 파일 상단 "발급형 쿠폰(쿠폰함)" 절.
+--
+--    grant_type
+--      'auto'    조건형(DEFAULT). 지금까지의 모든 쿠폰이 여기 해당한다 —
+--                기존 3행이 전부 이 기본값을 받으므로 아래 시드 UPDATE 가
+--                건드리는 signup 계열 외에는 동작이 완전히 그대로다.
+--      'granted' 발급형. coupon_grants 에 살아있는 발급 행이 있는 사용자만
+--                쓸 수 있다(2-c절 fn_coupon_is_granted).
+--      CHECK 로 두 값만 허용한다 — 이 컬럼은 판정 분기의 근거라, 오타 한 번이
+--      "아무 조건 없이 열린 쿠폰"으로 조용히 떨어진다(이 파일이 반복해서
+--      막아 온 fail-open 유형). '.includes()' 류의 부분 문자열 매칭은
+--      쓰지 않는다 — 과거 'inactive'.includes('active') 로 무료 입장이 열린
+--      전례가 있다.
+--
+--    grant_on_signup
+--      "가입 시 자동 발급 대상인가". 1-j)절 트리거가 발급할 쿠폰을 이 플래그로
+--      **찾는다** — 트리거 본문에 slug 를 하드코딩하지 않는다(하드코딩하면
+--      쿠폰을 하나 바꿀 때마다 DB 함수를 고쳐야 하고, 어드민 화면에서 손댈
+--      수 없는 정책이 생긴다).
+--      grant_type='granted' 가 아닌 쿠폰에는 켤 수 없게 CHECK 로 묶는다 —
+--      조건형 쿠폰을 발급 대상으로 표시하는 건 무의미한 상태이고, 그런 행이
+--      생기면 트리거가 아무 효과 없는 행을 사용자마다 하나씩 쌓는다.
+--
+--    발급형이면서 grant_on_signup=false 인 쿠폰(=어드민이 손으로만 발급)도
+--    정상 상태다 — 이벤트·보상 쿠폰이 그 자리다.
+-- ---------------------------------------------------------------------
+alter table public.coupons
+  add column if not exists grant_type text not null default 'auto';
+
+alter table public.coupons
+  drop constraint if exists coupons_grant_type_check;
+alter table public.coupons
+  add constraint coupons_grant_type_check
+  check (grant_type in ('auto', 'granted'));
+
+alter table public.coupons
+  add column if not exists grant_on_signup boolean not null default false;
+
+alter table public.coupons
+  drop constraint if exists coupons_grant_on_signup_check;
+alter table public.coupons
+  add constraint coupons_grant_on_signup_check
+  check (not grant_on_signup or grant_type = 'granted');
+
+comment on column public.coupons.grant_type is
+  '쿠폰 배포 방식. auto(기본) = 조건형, 금액·기간 조건만 맞으면 누구나. granted = 발급형, coupon_grants 에 살아있는 발급 행이 있는 사용자만 사용 가능(fn_coupon_is_granted).';
+comment on column public.coupons.grant_on_signup is
+  '가입 시 자동 발급 대상 여부. 1-j)절 on_auth_user_created_coupon_grant 트리거가 이 플래그로 발급 대상을 찾는다(slug 하드코딩 금지). grant_type=granted 인 쿠폰에만 켤 수 있다.';
+
+-- 시드값 (사용자 확정, 2026-08-11): signup 계열만 발급형으로 전환한다.
+-- over40k-3000/over80k-5000 은 "금액 조건 상시 할인" 이라 조건형을 유지한다
+-- (DEFAULT 'auto' 를 그대로 받으므로 UPDATE 자체가 없다).
+--
+-- ⚠️ 이 UPDATE 만으로는 아무에게도 발급되지 않는다. 전환 직후 signup-2000 은
+--    "기존 회원 전원에게 not_granted" 가 되어 사실상 비활성 쿠폰이 된다 —
+--    신규 가입자만 1-j)절 트리거로 발급받는다. 기존 사용자 소급 발급은
+--    의도적으로 이 파일에 넣지 않았다(누구에게 줄지·이미 쓴 사람을 어떻게
+--    볼지가 정책 결정이라 팀 리드 판정 사안이다. 선택지와 결과는 팀 보고 참고).
+update public.coupons
+   set grant_type = 'granted', grant_on_signup = true
+ where slug = 'signup-2000'
+   and (grant_type is distinct from 'granted' or grant_on_signup is distinct from true);
+
+-- ---------------------------------------------------------------------
 -- 1) coupon_redemptions : 쿠폰 사용 이력 (어떤 쿠폰이 어떤 사용자의 어떤
 --    주문에 쓰였는지). orders 와 조인해 소진을 판정하므로 order_id 필수.
 -- ---------------------------------------------------------------------
@@ -455,6 +565,60 @@ create policy "coupon_redemptions admin select" on public.coupon_redemptions
 create policy "coupon_redemptions admin update" on public.coupon_redemptions
   for update using (public.is_admin()) with check (public.is_admin());
 
+-- ---------------------------------------------------------------------
+-- 1-d-2) coupons 어드민 RLS — 어드민 "쿠폰관리" 화면의 전제 (2026-08-11).
+--    coupons 의 정책은 지금까지 "coupons public read"(qual: is_active = true)
+--    단 하나였다(dev pg_policies 실측). 그래서 anon/authenticated 경로로는
+--      ① is_active=false 쿠폰이 아예 보이지 않고(어드민 목록에 판매 종료
+--         쿠폰이 뜰 수 없다)
+--      ② INSERT/UPDATE 가 전부 거부된다(쓰기 정책이 0개 = RLS 기본 거부)
+--    였다. 이 파일이 지금까지 남긴 결함 절들 — 0)절 max_uses_per_user
+--    DEFAULT 를 1로 뒤집은 것, 1-b)절 voided_at, 1-g)절 void RPC — 이 전부
+--    "어드민 UI 가 없어 운영자가 Supabase Studio(postgres 롤, BYPASSRLS)로
+--    직접 조작한다" 는 전제 위에 서 있었다. 그 전제를 없애는 화면
+--    (src/components/admin/CouponAdmin.jsx)은 브라우저에서 anon 키 + 관리자
+--    JWT 로 접속하므로 DB 레벨 롤이 authenticated 다 — is_admin() 경로가
+--    열려 있지 않으면 목록도 저장도 성립하지 않는다.
+--
+--    커맨드별로 쪼갠다. 1-d)절과 같은 원칙이다 — for all 하나로 열면 DELETE
+--    까지 함께 열린다.
+--      select : is_active=false 까지 어드민에게 보인다. 기존 "coupons public
+--               read" 는 PERMISSIVE 라 같은 커맨드의 정책이 OR 로 결합되므로
+--               공개 조회 동작(활성 쿠폰만)은 무변경이다.
+--      insert/update : 생성·수정.
+--      delete : 정책을 만들지 않는다(= RLS 기본 거부). 근거 2개.
+--               ① coupons 는 orders.coupon_id 와 coupon_redemptions.coupon_id
+--                  두 FK 의 ON DELETE RESTRICT 대상이다(1-c절) — 한 번이라도
+--                  주문에 물린 쿠폰은 어차피 지울 수 없다. 화면에 삭제 버튼을
+--                  두면 "쓰인 쿠폰만 실패하는" 버튼이 된다.
+--               ② 한 번도 안 쓰인 쿠폰이라도 이 도메인의 정본 손잡이는
+--                  is_active=false 다(3)절 fn_usable_coupons 가 비활성 행을
+--                  목록에서 뺀다). 1-d)절이 coupon_redemptions 에 for delete
+--                  를 만들지 않은 것과 같은 판단이다.
+--
+--    ⚠️ 별건으로 제안된 `revoke select (code) on public.coupons from anon,
+--    authenticated`(anon 이 테이블 조회로 code 를 통째로 읽는 문제)는 이
+--    파일에서 적용하지 않는다 — 컬럼 레벨 권한은 RLS 보다 먼저, 롤 단위로
+--    평가되므로 관리자(DB 레벨에선 같은 authenticated 롤)까지 함께 막혀
+--    쿠폰관리 화면의 code 편집이 즉시 죽는다. sql/46_profiles_role_hardening
+--    .sql 이 `revoke update (role)` 을 기각한 것과 정확히 같은 이유다. anon
+--    노출을 막으려면 컬럼 권한이 아니라 "coupons public read" 정책을 컬럼이
+--    아닌 행 단위로 다시 설계하거나(예: code is null 인 행만 공개) 공개
+--    조회를 fn_usable_coupons 전용으로 좁히는 쪽이어야 한다 — 별도 판단 사안.
+-- ---------------------------------------------------------------------
+drop policy if exists "coupons admin select" on public.coupons;
+drop policy if exists "coupons admin insert" on public.coupons;
+drop policy if exists "coupons admin update" on public.coupons;
+
+create policy "coupons admin select" on public.coupons
+  for select using (public.is_admin());
+
+create policy "coupons admin insert" on public.coupons
+  for insert with check (public.is_admin());
+
+create policy "coupons admin update" on public.coupons
+  for update using (public.is_admin()) with check (public.is_admin());
+
 -- 1-e) signup-6000 개명(P1-2)은 sql/56_surrogate_uuid_keys.sql 이 해소했다 —
 -- 파일 상단 "P1-2 해소" 절 참고. 쿠폰 지목은 이제 slug('signup-2000') 다.
 
@@ -535,6 +699,294 @@ comment on function public.fn_void_coupon_redemption(bigint, text) is
 
 revoke all on function public.fn_void_coupon_redemption(bigint, text) from public, anon;
 grant execute on function public.fn_void_coupon_redemption(bigint, text) to authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 1-h) coupon_grants : 발급형 쿠폰의 "사용 권리" 원장 (2026-08-11).
+--    coupons 가 규칙(얼마·언제·몇 번)이라면 이 테이블은 권리(누가)다.
+--    grant_type='granted' 인 쿠폰은 여기 살아있는 행이 있어야만 쓸 수 있다.
+--
+--    삭제하지 않는다 — revoked_at 으로 회수한다.
+--      이 파일 1-b/1-d/1-g 절이 coupon_redemptions 에 대해 내린 것과 같은
+--      판단이다. "누구에게 언제 발급했고 언제 회수했는가" 는 금액이 걸린
+--      사실이라 원장에서 지우면 안 된다. 그래서 아래 RLS 에 delete 정책이
+--      없고(정책이 없는 커맨드는 RLS 기본 거부), 회수 RPC 도 UPDATE 만 한다.
+--
+--    유니크는 "살아있는 발급" 에만 건다 (부분 유니크 인덱스).
+--      전체 유니크(coupon_id, user_id)로 잡으면 재발급이 기존 행의 UPDATE 가
+--      되어 직전 회수 사유(revoke_reason)가 덮어써진다 — 회수→재발급 이력이
+--      통째로 사라진다. `where revoked_at is null` 부분 유니크로 잡으면
+--      "동시에 살아있는 발급은 최대 1건" 은 그대로 보장되면서 회수된 과거
+--      행은 그대로 남는다.
+--      ⚠️ 부분 유니크 인덱스는 ON CONFLICT 의 arbiter 로 자동 추론되지
+--      않는다(42P10) — 아래 INSERT 들은 반드시 인덱스와 **똑같은** 술어를
+--      `on conflict (coupon_id, user_id) where revoked_at is null` 로 적어야
+--      한다. 이 술어를 빼먹으면 발급이 조용히 실패하는 게 아니라 에러가
+--      나므로(42P10) 배포 전에 드러난다.
+--
+--    per-grant 만료일(expires_at)을 두지 않았다 — "복사 vs 참조" 판정.
+--      제안 형태에는 `expires_at timestamptz  -- null = coupons.valid_until 을
+--      따른다` 가 있었다. 넣지 않는 쪽으로 판정했고 근거는 셋이다.
+--        ① NULL 규약이 이 프로젝트에서 이미 "무제한/무기한" 인데, 여기서만
+--           "상위 정의를 따른다(= 유한할 수도 있다)" 로 의미가 바뀐다.
+--           같은 기호가 두 뜻을 가지면 어드민 화면이 NULL 을 ∞ 로 그리는
+--           순간 화면이 거짓말을 한다.
+--        ② 그리고 참조든 복사든 **쿠폰 자신의 valid_until 은 어차피 모든
+--           쿠폰에 그대로 걸린다**(3)/3-b)/4)절이 발급 여부와 무관하게
+--           평가한다). 즉 발급 만료일은 조건을 좁히기만 할 수 있고 늘릴 수는
+--           없다 — 두 만료일은 독립적인 AND 조건이라 "어느 쪽이 이기나" 를
+--           정할 일 자체가 없었다. 컬럼을 두지 않으면 그 AND 항이 사라질
+--           뿐이고, "정의를 따른다" 는 참조 동작이 그대로 남는다.
+--        ③ 실제로 필요해지는 규칙은 "가입 후 N일" 인데, 그건 발급 행마다
+--           날짜를 복사(freeze)하는 게 아니라 granted_at + coupons 의 기간
+--           설정을 **참조해 계산**하는 쪽이 맞다. granted_at 을 남겨 뒀으므로
+--           그때 coupons 에 컬럼 하나(예: grant_valid_days)를 더하는 순전한
+--           추가 변경으로 가능하다. 지금 컬럼을 만들면 화면·RPC·판정에
+--           타임존까지(coupons.valid_until 은 date, 이건 timestamptz) 얽힌
+--           두 번째 만료 축이 요구 없이 먼저 생긴다.
+--
+--    user_id 는 NOT NULL + ON DELETE CASCADE.
+--      1-c)절이 coupon_redemptions.user_id 를 SET NULL 로 정한 것과 다르다.
+--      거기는 "누가 썼는지" 가 비어도 할인액·주문 연결이라는 사실이 남지만,
+--      여기는 소유자가 곧 이 행의 존재 이유라 소유자 없는 발급은 의미가
+--      없다(NOT NULL 이라 SET NULL 자체가 불가능하기도 하다). 계정 삭제를
+--      RESTRICT 로 막으면 탈퇴·개인정보 삭제가 쿠폰 때문에 불가능해지므로
+--      CASCADE 가 유일하게 성립하는 선택이다.
+--    coupon_id 는 RESTRICT — 1-c)절과 동일(쿠폰 삭제 대신 is_active=false).
+-- ---------------------------------------------------------------------
+create table if not exists public.coupon_grants (
+  id            bigint generated always as identity primary key,
+  coupon_id     uuid not null references public.coupons (id) on delete restrict,
+  user_id       uuid not null references auth.users (id) on delete cascade,
+  granted_at    timestamptz not null default now(),
+  -- 발급 출처. 'signup' = 1-j)절 가입 트리거, 'admin' = 어드민 화면(1-i절
+  -- fn_grant_coupon). 'event' 는 아직 생산자가 없지만(대량 발급 배치 등)
+  -- 열거에 미리 넣어 둔다 — 새 출처가 생길 때 CHECK 를 고치는 것보다
+  -- 값 하나를 미리 허용해 두는 편이 마이그레이션 한 번을 줄인다.
+  granted_by    text not null,
+  revoked_at    timestamptz,
+  revoke_reason text
+);
+
+alter table public.coupon_grants
+  drop constraint if exists coupon_grants_granted_by_check;
+alter table public.coupon_grants
+  add constraint coupon_grants_granted_by_check
+  check (granted_by in ('signup', 'admin', 'event'));
+
+-- 살아있는 발급은 (쿠폰, 사용자)당 최대 1건. 회수된 과거 행은 제한 없이 남는다.
+create unique index if not exists coupon_grants_live_uidx
+  on public.coupon_grants (coupon_id, user_id) where revoked_at is null;
+-- 어드민 발급 관리(쿠폰별 드릴다운) 조회 경로. 회수된 행까지 전부 본다.
+create index if not exists coupon_grants_coupon_idx
+  on public.coupon_grants (coupon_id);
+
+comment on table public.coupon_grants is
+  '발급형 쿠폰(coupons.grant_type=granted)의 사용 권리 원장. 절대 DELETE 하지 않는다 — 회수는 revoked_at UPDATE 로만 한다(fn_revoke_coupon_grant). 살아있는 발급은 (coupon_id, user_id)당 1건(부분 유니크 인덱스).';
+comment on column public.coupon_grants.granted_by is
+  '발급 출처. signup = 가입 트리거, admin = 어드민 화면, event = 예약(생산자 미정).';
+comment on column public.coupon_grants.revoked_at is
+  '관리자가 이 발급을 회수한 시각. NULL = 유효. 판정(fn_coupon_is_granted)은 NULL 인 행만 본다.';
+comment on column public.coupon_grants.revoke_reason is
+  '회수 사유(자유 텍스트, 관리자 기입). revoked_at 이 NULL 이면 의미 없음.';
+
+alter table public.coupon_grants enable row level security;
+
+-- 쓰기 정책을 하나도 만들지 않는다 — insert/update/delete 전부 RLS 기본 거부다.
+-- 발급·회수는 오직 아래 1-i)절 SECURITY DEFINER RPC 두 개로만 가능하다.
+-- 이 판단은 의도적이다: coupon_redemptions 는 어드민 update 정책이 열려 있어
+-- fn_void_coupon_redemption 의 "일방향 감사 기록" 보장이 PostgREST PATCH 한
+-- 번으로 우회된다는 지적을 이미 받았다(voided_at 을 다시 null 로 되돌릴 수
+-- 있다). 같은 실수를 새 테이블에서 반복하지 않는다 — 회수 되돌리기가 필요하면
+-- 그건 "재발급"(새 행)이지 "회수 기록 지우기" 가 아니다.
+drop policy if exists "coupon_grants select own" on public.coupon_grants;
+create policy "coupon_grants select own" on public.coupon_grants
+  for select to authenticated using (auth.uid() = user_id);
+
+drop policy if exists "coupon_grants admin select" on public.coupon_grants;
+create policy "coupon_grants admin select" on public.coupon_grants
+  for select to authenticated using (public.is_admin());
+
+-- ---------------------------------------------------------------------
+-- 1-i) 발급/회수 RPC (관리자 전용). 1-g) fn_void_coupon_redemption 과 같은
+--    형태다 — SECURITY DEFINER 로 RLS 를 우회하므로 is_admin() 을 함수
+--    안에서 직접 검사하고, 갱신된 행 전체를 돌려준다.
+--
+--    errcode (기존 WC001=invalid_amount, WC002=redemption 없음/이미 무효 에 이어)
+--      WC003 : 발급이 없거나 이미 회수됨 (fn_revoke_coupon_grant)
+--      WC004 : 발급할 수 없는 쿠폰 (조건형이거나 존재하지 않음, fn_grant_coupon)
+-- ---------------------------------------------------------------------
+create or replace function public.fn_grant_coupon(
+  p_coupon_id uuid,
+  p_user_id   uuid
+)
+returns public.coupon_grants
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_grant_type text;
+  v_row        public.coupon_grants;
+begin
+  if not public.is_admin() then
+    raise exception 'not_authorized' using errcode = '42501';
+  end if;
+
+  select c.grant_type into v_grant_type
+    from public.coupons c
+   where c.id = p_coupon_id;
+
+  -- 없는 쿠폰도 "발급할 수 없는 쿠폰" 이다(coalesce 로 NULL 까지 함께 잡는다).
+  -- 조건형 쿠폰에 발급 행을 만들면 판정에서 아무 효과가 없는 유령 행이 된다.
+  if coalesce(v_grant_type, '') <> 'granted' then
+    raise exception 'coupon_not_grantable' using errcode = 'WC004';
+  end if;
+
+  -- 멱등: 이미 살아있는 발급이 있으면 아무것도 하지 않고 그 행을 돌려준다
+  -- (에러가 아니다 — 두 번 눌러도 같은 결과여야 한다).
+  -- 부분 유니크 인덱스를 arbiter 로 쓰려면 술어를 그대로 다시 적어야 한다(42P10).
+  insert into public.coupon_grants (coupon_id, user_id, granted_by)
+  values (p_coupon_id, p_user_id, 'admin')
+  on conflict (coupon_id, user_id) where revoked_at is null do nothing
+  returning * into v_row;
+
+  if v_row.id is null then
+    select g.* into v_row
+      from public.coupon_grants g
+     where g.coupon_id = p_coupon_id
+       and g.user_id = p_user_id
+       and g.revoked_at is null;
+  end if;
+
+  return v_row;
+end;
+$$;
+
+comment on function public.fn_grant_coupon(uuid, uuid) is
+  '관리자 전용. 발급형 쿠폰을 한 사용자에게 발급한다(멱등 — 이미 살아있는 발급이 있으면 그 행을 그대로 반환). 조건형이거나 없는 쿠폰이면 errcode=WC004. 관리자가 아니면 42501.';
+
+revoke all on function public.fn_grant_coupon(uuid, uuid) from public, anon;
+grant execute on function public.fn_grant_coupon(uuid, uuid) to authenticated, service_role;
+
+create or replace function public.fn_revoke_coupon_grant(
+  p_grant_id bigint,
+  p_reason   text default null
+)
+returns public.coupon_grants
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_row public.coupon_grants;
+begin
+  if not public.is_admin() then
+    raise exception 'not_authorized' using errcode = '42501';
+  end if;
+
+  update public.coupon_grants
+     set revoked_at    = now(),
+         revoke_reason = p_reason
+   where id = p_grant_id
+     and revoked_at is null
+  returning * into v_row;
+
+  if v_row.id is null then
+    raise exception 'grant_not_found_or_already_revoked' using errcode = 'WC003';
+  end if;
+
+  return v_row;
+end;
+$$;
+
+comment on function public.fn_revoke_coupon_grant(bigint, text) is
+  '관리자 전용. 발급 1건을 회수한다(revoked_at UPDATE) — 절대 DELETE 하지 않는다. 없거나 이미 회수됐으면 errcode=WC003. 관리자가 아니면 42501. 되돌리려면 되살리는 게 아니라 다시 발급한다(새 행).';
+
+revoke all on function public.fn_revoke_coupon_grant(bigint, text) from public, anon;
+grant execute on function public.fn_revoke_coupon_grant(bigint, text) to authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 1-j) 가입 시 자동 발급 트리거 (2026-08-11).
+--
+--    왜 handle_new_user() 를 고치지 않고 트리거를 따로 두는가
+--      · handle_new_user() 는 회원 도메인 소유이고 프로덕션에서 이미 돌고
+--        있다(sql/00_base_schema.sql:1243). 쿠폰 사정으로 그 함수를 고치면
+--        가입 경로 전체가 이 파일의 변경 대상이 된다.
+--      · 실측(2026-08-11): dev 의 auth.users 에는 non-internal 트리거가
+--        **0개**다 — 선언된 on_auth_user_created 가 dev 에 존재하지 않는다
+--        (회원 도메인 담당이 봐야 할 별건. 이 파일은 복원하지 않는다).
+--        handle_new_user 확장 방식이었다면 dev 에서 발급 자체가 성립하지
+--        않았을 것이다. 트리거를 따로 두면 그 함수의 존재 여부와 무관하게
+--        동작한다.
+--      · 문제가 생기면 이 트리거 하나만 DROP 하면 된다(가입 경로 무손상).
+--      트리거 실행 순서는 이름 오름차순이라 on_auth_user_created(있는 DB
+--      에서는) → on_auth_user_created_coupon_grant 순서다. 어차피 이 함수는
+--      profiles 를 보지 않고 auth.users 행만 쓰므로 순서 의존이 없다.
+--
+--    ⚠️ 발급 실패가 가입을 막지 않는다는 보장은 오직 EXCEPTION 블록이 한다.
+--      트리거를 따로 두는 것만으로는 격리되지 않는다 — AFTER INSERT 트리거는
+--      INSERT 와 같은 트랜잭션에서 실행돼, 여기서 예외가 새어 나가면 가입
+--      INSERT 자체가 롤백된다. 그래서 본문 전체를 서브트랜잭션(BEGIN ...
+--      EXCEPTION)으로 감싸고 `when others` 로 전부 삼킨다. 삼킨다고 흔적이
+--      없으면 안 되므로 raise warning 으로 sqlstate 와 함께 남긴다
+--      (Supabase 프로젝트 로그에서 조회 가능).
+--      이 방어는 실제 시나리오를 겨냥한다: coupon_grants 가 아직 없는 DB에
+--      이 트리거만 먼저 배포되거나(관계 없음 = 42P01), 인덱스·CHECK 가
+--      바뀌거나, coupons 조회가 락에 걸리는 경우 — 전부 가입이 아니라 쿠폰만
+--      실패해야 한다.
+--
+--    어떤 쿠폰을 발급할지는 데이터로 찾는다 — slug 하드코딩 금지(0-e절).
+--      is_active/valid_until 도 함께 본다. 이미 판매 종료했거나 기간이 지난
+--      쿠폰을 신규 가입자에게 계속 발급하면 아무도 못 쓰는 행만 사용자마다
+--      하나씩 쌓인다. 운영자가 쿠폰을 내리는 손잡이(is_active=false)가 곧
+--      "신규 발급 중단" 이 되는 편이 화면 하나로 이해된다.
+--
+--    멱등성: AFTER INSERT ... FOR EACH ROW 는 사용자당 한 번이고, 그 위에
+--      부분 유니크 인덱스 + ON CONFLICT DO NOTHING 이 어떤 경로의 중복
+--      호출(수동 재실행, 향후 백필 배치)도 조용히 흡수한다.
+--
+--    권한: SECURITY DEFINER 이고 grant 를 따로 조정하지 않는다 —
+--      auth.users 에 INSERT 하는 롤(supabase_auth_admin)이 트리거 함수에
+--      EXECUTE 를 갖고 있어야 하는데, 기존 handle_new_user 가 PUBLIC EXECUTE
+--      (proacl '=X/postgres' 실측)로 프로덕션에서 동작 중인 선례를 그대로
+--      따른다. 직접 호출은 불가능하다(트리거 함수는 트리거 컨텍스트 밖에서
+--      호출하면 즉시 에러) — PUBLIC EXECUTE 를 남겨도 공격 표면이 없다.
+-- ---------------------------------------------------------------------
+create or replace function public.fn_grant_signup_coupons()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  begin
+    insert into public.coupon_grants (coupon_id, user_id, granted_by)
+    select c.id, new.id, 'signup'
+      from public.coupons c
+     where c.grant_type = 'granted'
+       and c.grant_on_signup = true
+       and c.is_active = true
+       and (c.valid_until is null
+            or c.valid_until >= (now() at time zone 'Asia/Seoul')::date)
+    on conflict (coupon_id, user_id) where revoked_at is null do nothing;
+  exception
+    when others then
+      -- 쿠폰 발급 실패가 회원가입을 실패시켜서는 안 된다(파일 상단 절).
+      raise warning 'fn_grant_signup_coupons failed for user %: % (%)',
+        new.id, sqlerrm, sqlstate;
+  end;
+
+  return new;
+end;
+$$;
+
+comment on function public.fn_grant_signup_coupons() is
+  'auth.users AFTER INSERT 트리거. coupons.grant_on_signup 인 발급형 쿠폰을 신규 가입자에게 발급한다. 본문 전체가 EXCEPTION 블록이라 어떤 실패도 가입을 막지 않는다(warning 만 남는다).';
+
+drop trigger if exists on_auth_user_created_coupon_grant on auth.users;
+create trigger on_auth_user_created_coupon_grant
+  after insert on auth.users
+  for each row execute function public.fn_grant_signup_coupons();
 
 -- ---------------------------------------------------------------------
 -- 2) fn_coupon_is_redeemed : 소진 판정 내부 헬퍼 (fn_usable_coupons /
@@ -669,6 +1121,72 @@ revoke all on function public.fn_coupon_global_redeemed(uuid, timestamptz, text)
 grant execute on function public.fn_coupon_global_redeemed(uuid, timestamptz, text) to service_role;
 
 -- ---------------------------------------------------------------------
+-- 2-c) fn_coupon_is_granted : 발급 여부 판정 내부 헬퍼 (2026-08-11).
+--    fn_usable_coupons / fn_coupon_by_code / fn_redeem_coupons /
+--    fn_revalidate_order_coupons 네 곳이 전부 이 함수만 부른다 — 발급 규칙을
+--    한 곳에 모으는 것이 이 파일의 기존 패턴이다(fn_coupon_is_redeemed 가
+--    상태 블랙리스트·시간창을 혼자 들고 있는 것과 같다).
+--
+--    조건형(grant_type='auto')은 항상 true 를 돌려준다. 즉 호출측은 쿠폰
+--    종류를 신경 쓰지 않고 무조건 이 함수를 부르면 된다 — "발급형일 때만
+--    확인" 같은 분기가 호출측에 복제되면 그게 곧 드리프트다.
+--
+--    게스트(p_user_id IS NULL)는 발급형 쿠폰에서 항상 false 다. 권리는
+--    사람에게 붙으므로 소유자를 특정할 수 없으면 성립하지 않는다 —
+--    max_uses_per_user 가 걸린 쿠폰에 login_required 를 붙이는 것과 같은
+--    방향이고, 실제로 3)/3-b)절 CASE 는 login_required 를 먼저 평가해
+--    "로그인하면 될 수도 있다" 를 우선 안내한다.
+--
+--    fail-closed: 없는 쿠폰 id 로 부르면 c CTE 가 0행이라 전체가 NULL 이
+--    되므로 coalesce(..., false) 로 "발급 안 됨" 을 돌려준다 —
+--    fn_coupon_is_redeemed 가 모르는 쿠폰을 "소진" 으로 막는 것과 같은
+--    방향이다(불리언의 방향이 반대라 기본값도 반대다).
+--
+--    만료 판정이 없는 이유는 1-h)절 참고(발급 만료일 컬럼을 두지 않았다 —
+--    쿠폰 자신의 valid_until 은 3)/3-b)/4)절이 발급 여부와 독립적으로 이미
+--    평가한다).
+-- ---------------------------------------------------------------------
+create or replace function public.fn_coupon_is_granted(
+  p_coupon_id uuid,
+  p_user_id   uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(
+    (
+      with c as (
+        select grant_type
+        from public.coupons
+        where id = p_coupon_id
+      )
+      select
+        c.grant_type <> 'granted'
+        or exists (
+          select 1
+          from public.coupon_grants g
+          where g.coupon_id = p_coupon_id
+            and p_user_id is not null
+            and g.user_id = p_user_id
+            and g.revoked_at is null
+        )
+      from c
+    ),
+    false
+  );
+$$;
+
+comment on function public.fn_coupon_is_granted(uuid, uuid) is
+  '발급 판정 정본. 조건형(grant_type=auto)은 항상 true. 발급형은 coupon_grants 에 회수되지 않은 발급 행이 있어야 true. 게스트(user_id NULL)는 발급형에서 항상 false. 없는 쿠폰은 false(fail-closed).';
+
+revoke all on function public.fn_coupon_is_granted(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.fn_coupon_is_granted(uuid, uuid) to service_role;
+
+-- ---------------------------------------------------------------------
 -- 3) fn_usable_coupons : 사용 가능 쿠폰 목록 (클라이언트 + 서버 공용 조회).
 --
 --    2026-08-11 P1-1 하드닝 — 이 함수는 SECURITY DEFINER + anon/
@@ -734,6 +1252,9 @@ begin
       and (c.valid_until is null or c.valid_until >= v_today)
       and coalesce(p_subtotal, 0) >= c.min_amount
       and (c.max_uses_per_user is null or v_user_id is not null)
+      -- 발급형(grant_type='granted')은 발급받은 사람만. 조건형은 항상 true 라
+      -- 이 항이 회귀를 만들지 않는다(2-c절).
+      and chk.is_granted
       and not chk.is_redeemed
       and not chk.is_sold_out
     ) as eligible,
@@ -741,7 +1262,10 @@ begin
       when not c.is_active then 'inactive'
       when c.valid_until is not null and c.valid_until < v_today then 'expired'
       when coalesce(p_subtotal, 0) < c.min_amount then 'below_min_amount'
+      -- login_required 를 not_granted 보다 먼저 본다 — 비로그인 상태에서
+      -- "당신에게 발급되지 않았다" 는 사실이 아니라 확인할 수 없다는 뜻이다.
       when c.max_uses_per_user is not null and v_user_id is null then 'login_required'
+      when not chk.is_granted then 'not_granted'
       when chk.is_sold_out then 'sold_out'
       when chk.is_redeemed then 'already_used'
       else null
@@ -753,7 +1277,8 @@ begin
   cross join lateral (
     select
       public.fn_coupon_is_redeemed(c.id, v_user_id, now()) as is_redeemed,
-      public.fn_coupon_global_redeemed(c.id, now()) as is_sold_out
+      public.fn_coupon_global_redeemed(c.id, now()) as is_sold_out,
+      public.fn_coupon_is_granted(c.id, v_user_id) as is_granted
   ) as chk
   where c.is_active = true
   -- P3: 할인액이 같은 쿠폰이 여럿이면 정렬이 안정적이지 않았다 — tie-break 를
@@ -765,7 +1290,7 @@ end;
 $$;
 
 comment on function public.fn_usable_coupons(integer) is
-  '쿠폰 판정 정본(활성 쿠폰만). eligible/reason(below_min_amount|expired|already_used|inactive|login_required|sold_out)을 붙여 반환 — inactive 는 구조상 이 함수에서는 나오지 않는다(is_active=false 행 자체를 제외). 코드는 반환하지 않는다 — fn_coupon_by_code 참고.';
+  '쿠폰 판정 정본(활성 쿠폰만). eligible/reason(below_min_amount|expired|already_used|inactive|login_required|sold_out|not_granted)을 붙여 반환 — inactive 는 구조상 이 함수에서는 나오지 않는다(is_active=false 행 자체를 제외). 코드는 반환하지 않는다 — fn_coupon_by_code 참고.';
 
 revoke all on function public.fn_usable_coupons(integer) from public;
 -- authenticated 뿐 아니라 anon 도 포함한다. api/create-order.js:115-123 이
@@ -829,6 +1354,9 @@ begin
       and (c.valid_until is null or c.valid_until >= v_today)
       and coalesce(p_subtotal, 0) >= c.min_amount
       and (c.max_uses_per_user is null or v_user_id is not null)
+      -- 발급형(grant_type='granted')은 발급받은 사람만. 조건형은 항상 true 라
+      -- 이 항이 회귀를 만들지 않는다(2-c절).
+      and chk.is_granted
       and not chk.is_redeemed
       and not chk.is_sold_out
     ) as eligible,
@@ -836,7 +1364,10 @@ begin
       when not c.is_active then 'inactive'
       when c.valid_until is not null and c.valid_until < v_today then 'expired'
       when coalesce(p_subtotal, 0) < c.min_amount then 'below_min_amount'
+      -- login_required 를 not_granted 보다 먼저 본다 — 비로그인 상태에서
+      -- "당신에게 발급되지 않았다" 는 사실이 아니라 확인할 수 없다는 뜻이다.
       when c.max_uses_per_user is not null and v_user_id is null then 'login_required'
+      when not chk.is_granted then 'not_granted'
       when chk.is_sold_out then 'sold_out'
       when chk.is_redeemed then 'already_used'
       else null
@@ -845,7 +1376,8 @@ begin
   cross join lateral (
     select
       public.fn_coupon_is_redeemed(c.id, v_user_id, now()) as is_redeemed,
-      public.fn_coupon_global_redeemed(c.id, now()) as is_sold_out
+      public.fn_coupon_global_redeemed(c.id, now()) as is_sold_out,
+      public.fn_coupon_is_granted(c.id, v_user_id) as is_granted
   ) as chk
   where c.code is not null
     and lower(c.code) = v_code
@@ -900,28 +1432,35 @@ begin
     from public.orders o
    where o.id = p_order_id;
 
+  -- 2026-08-11 발급형 추가 — 발급이 회수된 뒤 승인이 오면 막아야 한다
+  -- (주문 생성 시점엔 발급이 있었지만 승인 직전에 관리자가 회수한 경우).
+  -- 판정 3종을 LATERAL 로 행당 한 번씩만 계산해 ok/reason 양쪽에서 쓴다 —
+  -- 3)절이 같은 이유로 이미 쓰는 패턴이고, 이전 판은 함수를 행당 4번
+  -- (ok 2 + reason 2) 불렀다. 발급 판정을 그대로 덧붙이면 6번이 된다.
   return query
   select
     cr.coupon_id,
-    not (
-      public.fn_coupon_is_redeemed(cr.coupon_id, v_user_id, v_now, p_order_id)
-      or public.fn_coupon_global_redeemed(cr.coupon_id, v_now, p_order_id)
-    ) as ok,
+    (chk.is_granted and not chk.is_redeemed and not chk.is_sold_out) as ok,
     case
-      when public.fn_coupon_is_redeemed(cr.coupon_id, v_user_id, v_now, p_order_id)
-        then 'already_used'
-      when public.fn_coupon_global_redeemed(cr.coupon_id, v_now, p_order_id)
-        then 'sold_out'
+      when not chk.is_granted then 'not_granted'
+      when chk.is_redeemed then 'already_used'
+      when chk.is_sold_out then 'sold_out'
       else null
     end as reason
   from public.coupon_redemptions cr
+  cross join lateral (
+    select
+      public.fn_coupon_is_redeemed(cr.coupon_id, v_user_id, v_now, p_order_id) as is_redeemed,
+      public.fn_coupon_global_redeemed(cr.coupon_id, v_now, p_order_id) as is_sold_out,
+      public.fn_coupon_is_granted(cr.coupon_id, v_user_id) as is_granted
+  ) as chk
   where cr.order_id = p_order_id
     and cr.voided_at is null;
 end;
 $$;
 
 comment on function public.fn_revalidate_order_coupons(text) is
-  'service_role 전용. 결제 승인 직전 호출 — p_order_id 에 귀속된 쿠폰들이 지금도 유효한지, 그 주문 자신의 redemption 은 제외하고 재판정한다(P0-2). 행이 없으면 이 주문에 쿠폰이 없다는 뜻(통과). ok=false 행이 있으면 승인을 진행하지 않아야 한다.';
+  'service_role 전용. 결제 승인 직전 호출 — p_order_id 에 귀속된 쿠폰들이 지금도 유효한지, 그 주문 자신의 redemption 은 제외하고 재판정한다(P0-2). 판정 축은 3개다: 발급(not_granted) / 1인 사용 횟수(already_used) / 전체 발행량(sold_out). 행이 없으면 이 주문에 쿠폰이 없다는 뜻(통과). ok=false 행이 있으면 승인을 진행하지 않아야 한다.';
 
 revoke all on function public.fn_revalidate_order_coupons(text)
   from public, anon, authenticated;
@@ -961,6 +1500,10 @@ grant execute on function public.fn_revalidate_order_coupons(text) to service_ro
 --        최후 방어선으로 남는다. 토스 최소 결제금액은 1차 출처로 확인하지
 --        못했다(미검증) — 임의 최소 금액 상수를 만들지 않고 "정확히
 --        0원이 되지 않는다"만 보장한다.
+--      · 2026-08-11 발급형: fn_coupon_is_granted 판정을 추가했다 — 발급형
+--        쿠폰(grant_type='granted')은 발급받지 않은 사용자·게스트에게서
+--        조용히 빠진다(다른 판정 실패와 동일하게 continue — 예외를 던지지
+--        않는다. 클라이언트는 applied_coupon_ids 대조로 안내한다).
 --      · P3: errcode 부여 — api/create-order.js:129 가
 --        redeemError.message === 'invalid_amount' 로 메시지 문자열을
 --        비교하고 있었다(취약 — 메시지 문구가 바뀌면 조용히 깨진다).
@@ -1075,6 +1618,12 @@ begin
     -- P1-7: 사용 횟수 제한이 걸린 쿠폰은 로그인 필수. 상시 할인
     -- (max_uses_per_user is null)은 게스트에게 계속 열려 있다.
     if v_coupon.max_uses_per_user is not null and p_user_id is null then
+      continue;
+    end if;
+    -- 발급형 쿠폰은 발급받은 사람만(2-c절). 조건형은 항상 통과라 회귀 없음.
+    -- 판정을 여기서 다시 쓰지 않고 헬퍼를 부르는 이유는 이 파일의 기존
+    -- 원칙 그대로다 — 네 함수가 각자 판정하면 드리프트가 생긴다.
+    if not public.fn_coupon_is_granted(v_coupon.id, p_user_id) then
       continue;
     end if;
     if public.fn_coupon_is_redeemed(v_coupon.id, p_user_id, v_now) then
@@ -1203,9 +1752,21 @@ grant execute on function public.fn_redeem_coupons(text, uuid, text, text, jsonb
 -- 권한을 초기화하므로 재적용 후 반드시 본다. 목표:
 --   fn_usable_coupons / fn_coupon_by_code        → anon, authenticated, service_role
 --   fn_void_coupon_redemption                    → authenticated, service_role
---   나머지 4개                                    → service_role 만
+--   fn_grant_coupon / fn_revoke_coupon_grant     → authenticated, service_role
+--   fn_coupon_is_granted 포함 나머지 4개           → service_role 만
+--   fn_grant_signup_coupons                      → 트리거 함수(PUBLIC EXECUTE, 1-j절)
 -- select proname, pg_get_function_identity_arguments(oid) as args, proacl from pg_proc where proname in (
 --   'fn_coupon_is_redeemed','fn_coupon_global_redeemed','fn_usable_coupons',
 --   'fn_coupon_by_code','fn_revalidate_order_coupons','fn_redeem_coupons',
---   'fn_void_coupon_redemption'
+--   'fn_void_coupon_redemption','fn_coupon_is_granted','fn_grant_coupon',
+--   'fn_revoke_coupon_grant','fn_grant_signup_coupons'
 -- );
+--
+-- 발급형 전환 확인 (2026-08-11):
+-- select slug, grant_type, grant_on_signup, is_active from public.coupons order by slug;
+--   → signup-2000 만 granted/true. over40k-3000·over80k-5000 은 auto/false.
+-- select count(*) from public.coupon_grants;
+--   → 전환 직후 0. 신규 가입자부터 트리거가 채운다(기존 회원 소급 발급은
+--     별도 판정 사안 — 0-e)절 ⚠️ 주석 참고).
+-- select tgname from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal;
+--   → on_auth_user_created_coupon_grant 가 보여야 한다.

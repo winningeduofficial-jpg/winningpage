@@ -34,6 +34,12 @@ import { FAQ_CATEGORIES } from '../data/faqCategories';
 // pdfjs-dist뿐이다(PremiumBookAdmin 참고). BookViewer까지 동적 import하면 얻는 것 없이 미리보기 전환에
 // 스피너만 하나 더 생긴다.
 import BookViewer from '../components/premiumBook/BookViewer';
+// 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
+// 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
+// CustomComponent 로 붙인다 — premiumBookPages 선례와 같은 방식이다.
+// Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
+// import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
+import CouponAdmin from '../components/admin/CouponAdmin';
 
 const PAGE_SIZE = 10;
 const IMAGE_BUCKET = 'banners';
@@ -100,7 +106,10 @@ const MENU_GROUPS = [
       { key: 'payments', label: '매출 조정' },
       { key: 'settlements', label: '매출 정산' },
       { key: 'dailySettlements', label: '일일정산' },
-      { key: 'refunds', label: '환불 요청 내역' }
+      { key: 'refunds', label: '환불 요청 내역' },
+      // 쿠폰은 결제 금액을 직접 깎는 손잡이라 수입·매출 그룹에 둔다
+      // (products/orders 와 같은 도메인 — sql/10_pricing_orders.sql).
+      { key: 'coupons', label: '쿠폰관리' }
     ]
   }
 ];
@@ -2145,6 +2154,16 @@ const CONFIGS = {
       { key: 'memo', label: '비고', type: 'textarea' }
     ],
     defaults: { status: '취소요청', paid_amount: 0, refund_amount: 0 }
+  },
+
+  // custom: true 는 Admin() 최상단 렌더 분기가 제네릭 list/create/edit 경로를
+  // 통째로 건너뛰게 한다(loadRows 도 early return). CustomComponent 지정은
+  // premiumBookPages 와 같은 일반화 지점이다.
+  coupons: {
+    title: '쿠폰관리',
+    custom: true,
+    CustomComponent: CouponAdmin,
+    searchPlaceholder: ''
   }
 };
 
