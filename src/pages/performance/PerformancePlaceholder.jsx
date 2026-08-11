@@ -23,15 +23,14 @@ export default function PerformancePlaceholder({ screen }) {
       <p className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
         {screen} — 화면 준비 중
       </p>
-      {/* 당시 ink-sub(#808080) on performance-bubble(#f8f7f5)은 대비 약 3.69:1로 WCAG AA(4.5:1)
-          미달이라 ink(#525252, 같은 배경 대비 약 7.30:1)로 렌더했다. 이후 ink-sub가 #6b6b6b로
-          상향되며 같은 배경에서 4.98:1로 AA를 충족하지만, 이미 ink로 통일한 현재 코드는
-          그대로 둔다. */}
-      <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink">
+      {/* 과거 ink-sub(#808080) on performance-bubble(#f8f7f5)은 대비 약 3.69:1로 WCAG AA(4.5:1)
+          미달이라 아래 두 보조 문단을 ink(#525252)로 우회했다. ink-sub가 #6b6b6b로 상향되며
+          같은 배경에서 4.98:1로 AA를 충족해 우회를 걷어내고 ink-sub로 되돌린다. */}
+      <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink-sub">
         셸(사이드바·페이지 타이틀)만 구현된 상태다.
         {params.sessionId ? ` sessionId=${params.sessionId}` : ''}
       </p>
-      <p className="mt-1 text-[0.875rem] leading-[1.125rem] text-ink">
+      <p className="mt-1 text-[0.875rem] leading-[1.125rem] text-ink-sub">
         TODO(P5~P6): 채팅 워크스페이스·저장 리포트 화면으로 교체
       </p>
     </div>

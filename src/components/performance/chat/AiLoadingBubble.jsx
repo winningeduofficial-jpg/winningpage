@@ -9,12 +9,10 @@ import AiAvatar from './AiAvatar';
 //   아이콘 프레임 24×24, 말풍선 좌변에서 **18px(1.125rem)** 인셋 — 다른 카드의 표준
 //   패딩(20px/1.25rem)과 다른 값이라 그대로 실측대로 둔다. 아이콘↔텍스트 gap도 18px로
 //   동일(아이콘 우변 498 → 텍스트 x 516).
-//   제목 16px/21 w600 `#525252`(=`ink`), 보조문 실측은 14px/18 w500 `#808080`(=`ink-sub`)이지만
-//   당시 `ink-sub`(#808080) on `performance-bubble`(#f8f7f5)은 계산 대비율 약 3.69:1로 WCAG AA
-//   (일반 텍스트 4.5:1) 미달이라 보조문도 `ink`(#525252, 같은 배경 대비 약 7.30:1)로 렌더했다.
-//   이후 `ink-sub` 토큰이 #6b6b6b로 상향되며 같은 배경에서 4.98:1로 AA를 충족하지만, 이미
-//   `ink`로 통일한 현재 코드를 되돌릴 이유가 없어 그대로 둔다. 제목/보조문 구분은 폰트 크기
-//   (16px/14px)와 굵기(w600/w500)만으로 유지한다.
+//   제목 16px/21 w600 `#525252`(=`ink`), 보조문 14px/18 w500 `#808080`(=`ink-sub`) — 실측대로
+//   렌더한다. 과거 `ink-sub`(#808080) on `performance-bubble`(#f8f7f5)은 계산 대비율 약 3.69:1로
+//   WCAG AA(일반 텍스트 4.5:1) 미달이라 보조문을 `ink`로 우회했으나, `ink-sub` 토큰이 #6b6b6b로
+//   상향되며 같은 배경에서 4.98:1로 AA를 충족해 우회를 걷어냈다.
 //   제목↔보조문 gap 4px(0.25rem). 아이콘·텍스트블록 모두 말풍선 세로 중앙(83px 높이 기준
 //   상하 20px씩 — 상하 패딩만은 표준 1.25rem과 일치).
 //   벡터 아이콘 자체는 Figma에서 19×19 `fill #1f1f1f` 단색 도형으로만 추출되고 패스 데이터가
@@ -59,7 +57,7 @@ export default function AiLoadingBubble({
           </span>
           <span className="flex min-w-0 flex-col gap-1">
             <span className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">{title}</span>
-            <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink">
+            <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
               {subtitle}
             </span>
           </span>
