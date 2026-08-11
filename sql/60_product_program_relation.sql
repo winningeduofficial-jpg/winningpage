@@ -156,16 +156,28 @@ comment on column public.products.program_key is
   '이 상품이 부여하는 이용 권한(programs.program_key). service_key(그룹핑·라우팅용, 불변 스냅샷 원본)와 별개 컬럼이다 — goal→target 처럼 표시용 키와 권한 키가 다를 수 있어서다(M3, 2026-08-11). NULL 허용 = "이 상품은 앱 이용 권한을 주지 않는다"는 명시적 상태.';
 
 -- 백필. service_key → program_key 는 goal 만 이름이 바뀌고(→target,
--- 2026-08-11 사용자 확정, api/_lib/programAccess.js 참고) 나머지 4개는
--- 문자열이 그대로 같다. dev 실측 14행 전부 이 5개 case 중 하나에 해당
+-- 2026-08-11 사용자 확정, api/_lib/programAccess.js 참고) 나머지는
+-- 문자열이 그대로 같다. dev 실측 14행 전부 이 case 중 하나에 해당
 -- (0-f절) — 대응 없는 service_key 가 있으면 program_key 가 null 로 남고,
 -- 바로 아래 FK 추가 단계에서는 걸리지 않지만(FK 는 non-null 값만 검증)
 -- 이 파일 끝 확인용 쿼리 2)에서 드러난다.
+--
+-- ⚠ 2026-08-12 수정(sql/65 결함 E) — susi 분기를 제거했다. susi 는
+--   duration_months·session_quota 가 없고(sql/64 §2 시드 목록에 susi가
+--   없다) programs.susi 도 is_active=false(SSO 입장 앱이 아직 없다,
+--   위 1)절 주석) — program_key='susi' 로 매핑해도 실제로 쓰는 곳이
+--   없는데, sql/64 §3 products_entitlement_shape_check(program_key not
+--   null 이면 duration_months·session_quota 중 최소 하나 필요)를 이
+--   백필이 위반해 그 제약이 이미 걸린 DB 에서 53→60 을 재실행하면 이
+--   UPDATE 자체가 23514 로 실패한다(sql/65 헤더 "결함 E" 참고). susi를
+--   program_key=NULL 로 남기면 위 컬럼 주석의 "이 상품은 앱 이용 권한을
+--   주지 않는다"는 원래 의도와도 더 맞다. 2026-08-12 현재 dev 의 susi
+--   상품은 0행이라 이 수정은 현재 데이터를 바꾸지 않는다(sql/65 0-f절
+--   실측) — 향후 재실행 안전성만을 위한 수정이다.
 update public.products
    set program_key = case service_key
          when 'goal'     then 'target'
          when 'suhaeng'  then 'suhaeng'
-         when 'susi'     then 'susi'
          when 'mentor'   then 'mentor'
          when 'diagnose' then 'diagnose'
          else program_key

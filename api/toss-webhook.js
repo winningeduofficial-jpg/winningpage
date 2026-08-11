@@ -211,14 +211,29 @@ export default async function handler(req, res) {
     }
 
     // 즉시 입장의 대칭: 결제가 종결(취소·환불·만료)되면 권한도 즉시 닫는다.
-    // 주문만 canceled 로 바꿔도 판정부(api/create-service-ticket.js:111)는
-    // payment_status·access_status 만 보므로 입장이 계속 성립한다.
+    // 주문만 canceled 로 바꿔도 판정부(api/create-service-ticket.js 의
+    // checkProgramAccessTable → fn_program_access_state)는 program_access 만
+    // 보고 orders.status 를 보지 않으므로 입장이 계속 성립한다.
+    //
+    // ⚠ 이것이 저장소 유일한 회수 호출부다. 계좌이체 환불처럼 운영자가
+    //   refund_requests.status 를 'completed' 로 바꾸는 경로에는 회수 트리거가
+    //   없어 권한이 paid/active 로 남는다. sql/64 의 원장은 그 구멍을 고치는
+    //   것이 아니라 **고칠 자리를 만든다**(주문 단위로 어느 부여를 닫아야 하는지
+    //   특정할 수 있게 됐다). 트리거 신설은 별 작업이며, 그동안은 sql/64 말미
+    //   감시 쿼리 (c) 로 그 상태를 관측한다.
     let revoke = null;
     if (nextStatus === 'canceled') {
       // 부분취소(PARTIAL_CANCELED)는 잔액이 남아 있으면 결제가 유효하게 살아 있는
       // 상태다. 토스 응답의 balanceAmount 가 "취소 후 남은 금액"이므로 0보다 크면
       // 회수하지 않는다 — 1회차분만 환불한 구매자의 권한을 통째로 닫으면 안 된다.
-      // (부분취소 후 남은 회차·기간을 어떻게 볼지는 만료 정책과 함께 미확정.)
+      //
+      // 원장(sql/64 의 program_access_grants)이 도입된 뒤에도 이 분기는
+      // 그대로다. 토스 취소 응답은 balanceAmount·cancels
+      // 로 **금액만** 주고 어느 주문 라인이 취소됐는지 주지 않으므로,
+      // order_item_id 단위 자동 회수를 유도할 근거가 없다. 원장의 라인 앵커
+      // (order_item_id)는 "운영자가 손으로 처리할 때의 좌표"로만 쓴다 —
+      // 어느 부여를 닫아야 하는지 사람이 지정할 수 있게 된 것이 원장의 기여다.
+      // (부분취소 후 남은 회차·기간의 정산 규칙은 여전히 미확정 항목이다.)
       const balanceAmount = Number(payment.balanceAmount ?? 0);
       if (clean(payment.status) === 'PARTIAL_CANCELED' && balanceAmount > 0) {
         console.warn('partial cancel with balance left — access kept:', orderId, balanceAmount);

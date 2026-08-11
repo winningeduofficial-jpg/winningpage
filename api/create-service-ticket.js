@@ -48,13 +48,16 @@ function normalizeStatus(value) {
   return clean(value).toLowerCase().replace(/\s/g, '');
 }
 
-// 부정 상태를 먼저 끊는다 — 아래 판정이 includes(부분일치)라서 그냥 두면
-// 'unpaid'.includes('paid') 와 'inactive'.includes('active') 가 모두 true 가 되고,
-// 환불로 회수한 행(api/_lib/programAccess.js 의 revokeProgramAccessForOrder 가
-// payment_status='refunded' + access_status='inactive' 로 내린다)이 access_status
-// 검사를 그대로 통과한다. 즉 회수가 입장을 막지 못한다.
-// 값은 스키마 CHECK(sql/00_base_schema.sql:836-837)와 admin_enrollments 의
-// 한글 자유입력 두 쪽을 함께 커버한다.
+// enrollments(오프라인 수강) 경로 전용 상태 판정.
+//
+// program_access 경로는 2026-08-12 부터 이 문자열 판정을 쓰지 않는다 —
+// sql/64 10)절 public.fn_program_access_state 가 payment_status·access_status·
+// 기간 만료를 한 곳에서 판정한다(아래 checkProgramAccessTable 참고). 여기 남은
+// 판정은 enrollments.payment_status 하나뿐인데, 그 컬럼은 어드민이 한국어로
+// 자유 입력하는 값이라 CHECK 어휘로 좁힐 수 없어 부분일치 판정이 계속 필요하다.
+//
+// 부정 상태를 먼저 끊는다 — 판정이 includes(부분일치)라서 그냥 두면
+// 'unpaid'.includes('paid') 가 true 가 되어 미납이 결제완료로 통과한다.
 const DENIED_PAYMENT_STATUSES = [
   'unpaid',
   'refunded',
@@ -66,8 +69,6 @@ const DENIED_PAYMENT_STATUSES = [
   '환불',
   '취소'
 ];
-
-const DENIED_ACCESS_STATUSES = ['inactive', 'expired', 'suspended', '비활성', '정지', '만료', '중지'];
 
 function isPaidStatus(value) {
   const status = normalizeStatus(value);
@@ -82,16 +83,6 @@ function isPaidStatus(value) {
     '결제완료/이용중',
     '이용중'
   ].some((item) => status.includes(item));
-}
-
-function isActiveStatus(value) {
-  const status = normalizeStatus(value);
-  // 값이 비어 있으면 통과시키는 기존 관용은 유지한다(admin_enrollments 경로에는
-  // access_status 개념이 없어 빈 값이 정상이다). 다만 명시적으로 닫힌 상태는
-  // 부분일치 함정을 피해 먼저 끊는다.
-  if (!status) return true;
-  if (DENIED_ACCESS_STATUSES.some((item) => status.includes(item))) return false;
-  return ['active', '활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
 }
 
 function base64urlJson(value) {
@@ -131,26 +122,62 @@ function createSupabaseAdmin() {
   });
 }
 
+// 입장 판정. 정본은 DB 함수 하나다 — sql/64 10)절
+// public.fn_program_access_state(profile_id, program_keys[]).
+//
+// 왜 SQL 함수로 옮겼는가 (감사 결과 M1)
+//   예전 이 함수는 payment_status·access_status 두 컬럼만 읽었다. 즉 **기간
+//   만료를 집행하는 코드가 이 저장소에 하나도 없었다** — 1개월권을 산 사람이
+//   3년 뒤에도 들어갔다. 만료 판정은 "저장된 만료값 < now()" 라는 시각 비교라
+//   DB 에서 하는 것이 맞고(자동 만료 cron 이 없어 판정 시점 계산이 유일한
+//   집행 수단이다), 같은 계산을 배포된 소비 함수
+//   (public.consume_performance_credit)도 하고 있어 식이 갈리면 게이트와 차감이
+//   서로 다른 진실을 갖는다.
+//
+// 왜 3컬럼(id/user_id/profile_id) 순회를 없앴는가 (M15)
+//   sql/64 4)절 program_access_identity_equality_check 가 세 컬럼의 등호를
+//   강제하므로 id 단일 조회가 3컬럼 OR 와 **동치임이 제약으로 증명된다.**
+//   그리고 PK 가 (id, program_key) 라 program_key 당 최대 1행이다 — 예전
+//   구현의 .maybeSingle() 이 다행에서 PGRST116 을 내고 그 에러를
+//   `if (error) continue` 가 삼켜 정상 결제자가 로그 0줄로 403 을 맞던 경로가
+//   구조적으로 사라진다.
+//
+// 회차는 여기서 보지 않는다
+//   게이트는 기간만 본다. 회차 차감·소진 판정은 소비 지점(배포된
+//   consume_performance_credit)이 한다 — "회차 0 + 기간 유효" 상태의 입장
+//   허용 여부는 확정 정책에 없는 미결 항목이라, 게이트를 기간 전용으로 두어
+//   현행 동작을 바꾸지 않는다.
 async function checkProgramAccessTable(supabaseAdmin, userId, config) {
-  const selectors = ['id', 'user_id', 'profile_id'];
+  const { data, error } = await supabaseAdmin.rpc('fn_program_access_state', {
+    p_profile_id: userId,
+    p_program_keys: config.program_keys
+  });
 
-  for (const column of selectors) {
-    for (const programKey of config.program_keys) {
-      const { data, error } = await supabaseAdmin
-        .from('program_access')
-        .select('id, payment_status, access_status')
-        .eq(column, userId)
-        .eq('program_key', programKey)
-        .maybeSingle();
-
-      if (error) continue;
-
-      if (data && isPaidStatus(data.payment_status) && isActiveStatus(data.access_status)) {
-        return true;
-      }
-    }
+  if (error) {
+    // 에러를 삼키지 않는다. 예전 `if (error) continue` 는 판정 실패를 "권한
+    // 없음"과 구별하지 않아, 결제자가 로그 한 줄 없이 403 을 맞았다. 로그를
+    // 남기고 fail-closed 한다 — 판정할 수 없으면 열지 않는다(돈이 걸린 판단은
+    // 되돌릴 수 있는 쪽으로).
+    console.error('fn_program_access_state 호출 실패:', config.service_key, userId, error);
+    return false;
   }
 
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.some((row) => row.allowed === true)) return true;
+
+  // 거부 사유를 남긴다. 만료(period_expired)와 미결제(not_paid)는 사용자에게
+  // 다른 상태이고, 지금은 응답 문구가 하나뿐이라 로그가 유일한 구별 수단이다.
+  // TODO(문구 승인 필요): 기간 만료 전용 안내 문구가 필요하다(미결제 문구
+  // 재사용 금지 — "결제한 적 없음"과 "기간이 끝났음"은 다른 상태다).
+  for (const row of rows) {
+    console.warn(
+      'program_access denied:',
+      config.service_key,
+      row.program_key,
+      row.reason,
+      row.expires_at ?? 'unlimited'
+    );
+  }
   return false;
 }
 
@@ -185,6 +212,11 @@ async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
   if (byProgramAccess) return true;
 
+  // ⚠ 이 경로는 기간 만료를 집행하지 않는다. enrollments(오프라인 수강)에는
+  //    기간 컬럼이 0개라 만료 개념 자체가 없어서, 이 OR 분기로 들어온 사용자는
+  //    영구 입장이 성립한다. dev 실측 0행이라 현재 미발현이지만 구조적 구멍이다.
+  //    오프라인 수강의 기간 정책은 미결 항목이며 이번 범위 밖이다
+  //    (sql/64 파일 말미 "남겨 둔 것" 참고).
   return checkEnrollmentPayment(supabaseAdmin, userId, config);
 }
 

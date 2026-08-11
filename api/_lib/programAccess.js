@@ -9,154 +9,84 @@
 //
 // 부여만 있으면 손실이 난다 — 회수도 여기 둔다
 //   즉시 입장은 "돈이 들어오면 즉시 열린다"는 뜻이고, 그 대칭인 "돈을 돌려주면
-//   즉시 닫힌다"가 없으면 전액 환불받은 사용자가 무기한 이용한다. 판정부
-//   (api/create-service-ticket.js)는 payment_status·access_status 만 보고
-//   orders.status 를 보지 않으므로, 주문을 canceled 로 바꾸는 것만으로는 입장이
-//   막히지 않는다. 그래서 revokeProgramAccessForOrder 를 같은 모듈에 둔다.
+//   즉시 닫힌다"가 없으면 전액 환불받은 사용자가 무기한 이용한다.
 //
-// 누가 무엇을 샀는지는 order_items 에서 읽는다
-//   api/create-order.js:146-156 이 결제 시점에 product_slug·service_key·name 을
-//   모두 기록하므로, order_id 하나로 구매 상품군(service_key)을 복원할 수 있다.
-//   orders 에는 상품 정보가 없다(order_name 문자열뿐). product_id 는 이제
-//   products.id(uuid) 를 가리키는 관계 컬럼이라 사람이 읽는 로그에는 쓸모가
-//   없다 — 진단 로그는 product_slug 를 쓴다(sql/56_surrogate_uuid_keys.sql 3)절).
+// ---------------------------------------------------------------------
+// 2026-08-12: 규칙이 JS 에서 DB(SQL 함수)로 내려갔다 — sql/64
+// ---------------------------------------------------------------------
+// 이 파일은 이제 **얇은 래퍼**다. 부여·회수의 실제 규칙은
+// sql/64_entitlement_period_sessions.sql 의 두 SECURITY DEFINER 함수에 있다:
+//   public.fn_grant_program_access_for_order(order_id, user_id, paid_at, restore_revoked)
+//   public.fn_revoke_program_access_for_order(order_id, user_id, payment_status, reason)
 //
-// 정본 컬럼 = program_access.id
-//   PK 는 (id, program_key) 이고 id 만 NOT NULL 이다(sql/00_base_schema.sql:
-//   818-838). FK 도 id → profiles(id) 뿐이고(:1042), 유일한 RLS 정책
-//   program_access_select_own 이 auth.uid() = id (:2056)다. 즉 "사용자"의 정본은
-//   id 다. profile_id·user_id 는 FK 없는 비정규화 컬럼이지만 부분 unique
-//   인덱스(:1092)가 걸려 있고 기존 리더(api/create-service-ticket.js:98 이
-//   id/user_id/profile_id 3개를 순회한다)가 어느 컬럼이든 찾으므로, 정합을 위해
-//   같은 uuid 를 세 컬럼에 함께 넣는다.
-//   profiles.id = auth.users.id (:1040) 이고 orders.user_id 도 auth.users.id
-//   (sql/10_pricing_orders.sql:47)라 조인 없이 orders.user_id 를 그대로 쓴다.
+// 왜 옮겼는가 (감사 결과 M1 / M6 / M15)
+//   · M1 — 이용 기간·회차가 어디에도 없었다. products 에 기간·회차 컬럼이
+//     없어서 이 파일은 "시작 시각"만 쓰고 만료를 일부러 비웠고(이 자리에 그
+//     사실을 자백하는 주석이 있었다), 그래서 1개월권 구매자가 3년 뒤에도
+//     들어갔다. 이제 products.duration_months / products.session_quota 가
+//     정본이고, 기간 계산은 KST 달력 헬퍼(fn_add_months_kst)를 거친다 —
+//     JS 의 Date 산술로는 1/31 + 1개월을 2/28 로 클램프할 수 없다.
+//   · M6 — 어느 주문이 이 권한을 만들었는지 기록할 자리가 없었다. 그래서 B주문
+//     환불이 A주문 권한까지 닫았다. 이제 program_access_grants(부여 원장)가
+//     주문 라인 단위로 부여를 기록하고, program_access 는 그 원장에서 파생된
+//     캐시다. 회수는 해당 주문의 원장 행만 닫고 캐시를 재계산한다.
+//   · M15 — id/profile_id/user_id 등호 제약이 없어 판정(3컬럼 OR)과
+//     회수(id 1컬럼)가 비대칭이었다. sql/64 4)절 CHECK 이 그 등호를 강제한다.
 //
-// 만료(기간)는 채우지 않는다 — 근거가 없다
-//   products 에 개월·회차 컬럼이 없고(sql/10_pricing_orders.sql:9-24),
-//   program_access 의 기간 컬럼은 두 쌍(access_started_at/access_expires_at,
-//   starts_at/expires_at)이 중복 존재하는데 어느 쪽도 읽는 코드가 없어 정본을
-//   코드로 판정할 수 없다. 상품명 문자열로 개월을 추측하면(예: '[3개월 6회
-//   이용권]') 어드민이 문구를 고치는 순간 만료일이 틀어진다
-//   (sql/52_pricing_susi_restore.sql 이 susi-30 라벨을 '12개월 30회'→'3회'로
-//   정정한 선례). 그래서 "시작 시각"만 두 쌍에 함께 기록하고 만료는 비워 둔다.
-//   → 만료 정책·회차 차감은 미확정 항목이다.
+//   기간·회차 계산과 캐시 재계산을 JS 에 두면 부여 경로(여기)와 소비 경로
+//   (dev 에 배포된 public.consume_performance_credit — program_access.meta 의
+//   quota_total/quota_used 를 읽는다)가 서로 다른 진실을 갖게 된다. 트랜잭션
+//   경계·행 잠금·달력 산술이 모두 DB 쪽에 있어야 성립하는 계산이라 SQL 로
+//   내렸다.
+//
+// 무엇이 그대로인가 (호출부 계약)
+//   · **절대 throw 하지 않는다.** 결제 승인은 이미 났으므로 부여 실패가 승인
+//     흐름을 되돌리면 안 되고, 대신 결과 객체로 실패 사실을 돌려준다.
+//   · 반환 형태 { ok, granted, serviceKeys, skipped, error } 를 유지한다.
+//     src/pages/PaymentSuccess.jsx 가 access.ok / access.error /
+//     access.granted 세 필드에 의존한다(granted 는 입장 CTA 개수를 만든다).
+//   · error 문자열 어휘도 유지한다 — PaymentSuccess 의
+//     PERMANENT_ACCESS_ERRORS(order_has_no_user / order_not_found /
+//     no_order_items / missing_order_id / supabase_admin_unavailable)가
+//     "새로고침하면 자동 재시도" 안내를 붙일지 말지를 이 문자열로 가른다.
+//   · skipped 의 이유 문자열(no_program_key_mapping / suspended_by_admin /
+//     revoked_not_restored)도 RPC 가 같은 값으로 돌려준다.
 
 function clean(value) {
   return String(value ?? '').trim();
 }
 
-// products.service_key → program_access.program_key
-//
-// 2026-08-11 이전에는 이 매핑이 이 파일 안 하드코딩 객체
-// (SERVICE_KEY_TO_PROGRAM_KEY = { goal: 'target', suhaeng: 'suhaeng' })
-// 였다. products.service_key 에 FK·CHECK 가 전혀 없어 DB 가 이 매핑의
-// 정확성을 검증하지 못했고, 그래서 dev 가 'goal', 운영이 'target' 으로
-// 갈려 있던 사고(아무도 못 잡음)가 났다. sql/60_product_program_relation.sql
-// 이 products.program_key 컬럼 + FK(→ programs.program_key, ON DELETE
-// RESTRICT)를 추가해 이 관계를 DB 로 옮겼으므로, 이제 그 컬럼을 그대로
-// 읽는다 — 하드코딩 상수는 없앤다(susi·mentor·diagnose 도 이제 programs 에
-// 행이 있어 매핑이 존재한다. 다만 이 세 서비스는 SSO 입장 앱이 아직 없어
-// create-service-ticket.js 는 여전히 suhaeng·goal 만 다룬다 — 그건 "입장
-// 가능 여부"이고 이 매핑은 "권한 부여 대상"이라 별개다).
-//
-// service_key 단위로 조회한다(order_items.product_id 조인이 아니라).
-// product_id 는 상품이 삭제되면 SET NULL 될 수 있지만(sql/56_surrogate_
-// uuid_keys.sql 3절) service_key 스냅샷은 절대 바뀌지 않는다 — 이 파일이
-// 이미 product_slug·service_key 스냅샷으로 "무엇을 샀는지"를 복원하고
-// 있으므로(파일 상단 주석) 매핑 조회도 같은 스냅샷을 키로 쓰는 게 일관
-// 되고, 과거 주문의 상품이 나중에 지워져도 매핑이 끊기지 않는다. 같은
-// service_key 를 가진 products 행은 항상 같은 program_key 를 가리키도록
-// 시드돼 있다(sql/60 1)절, dev 실측 — goal 4행 전부 program_key='target').
-//
-// 부여(grantProgramAccessForOrder)와 회수(revokeProgramAccessForOrder)가
-// 둘 다 이 함수를 거치는 readOrderPrograms 를 통해서만 매핑을 얻는다 —
-// 매핑 로직이 두 곳에 따로 있으면 한쪽만 고쳐지는 사고가 난다(파일 상단
-// "부여만 있으면 손실이 난다" 절과 같은 원칙).
-async function getServiceKeyToProgramKeyMap(supabaseAdmin, serviceKeys) {
-  const keys = [...new Set((serviceKeys || []).map(clean).filter(Boolean))];
-  if (keys.length === 0) return new Map();
-
-  const { data, error } = await supabaseAdmin
-    .from('products')
-    .select('service_key, program_key')
-    .in('service_key', keys)
-    .not('program_key', 'is', null);
-
-  if (error) throw error;
-
-  const map = new Map();
-  for (const row of data || []) {
-    const serviceKey = clean(row.service_key);
-    const programKey = clean(row.program_key);
-    // 같은 service_key 를 가진 여러 products 행(예: goal-1m/3m/6m/12m)이
-    // 서로 다른 program_key 를 갖는 데이터 이상이 생기더라도, 먼저 찾은
-    // 값 하나로 고정한다(조용히 흔들리는 매핑보다 결정적인 편이 낫다).
-    if (serviceKey && programKey && !map.has(serviceKey)) {
-      map.set(serviceKey, programKey);
-    }
-  }
-  return map;
-}
-
 // 회수된 행의 payment_status. CHECK 값(unpaid|pending|paid|refunded|cancelled)
 // 중 "돈을 돌려줬다" = refunded, "돈이 들어온 적 없이 종결" = cancelled 다.
+//
+// 이 상수는 sql/64 9)절 fn_revoke_program_access_for_order 안의 어휘와 **같은
+// 값이어야 한다.** 그 함수가 허용값을 다시 정규화하지만, 값이 갈리면 회수된 행이
+// 재부여 보호(revoked_not_restored)를 못 받는다.
 const REVOKED_PAYMENT_STATUSES = ['refunded', 'cancelled'];
 
-// 주문 하나에서 "무엇을 샀는지"를 복원한다. 부여·회수가 같은 대상 집합을 봐야
-// 하므로(회수가 부여보다 좁으면 권한이 남는다) 매핑 로직을 여기 한 곳에 둔다.
-async function readOrderPrograms(supabaseAdmin, orderId) {
-  const { data: items, error } = await supabaseAdmin
-    .from('order_items')
-    .select('product_slug, service_key, name, price, quantity')
-    .eq('order_id', orderId);
+// SQLSTATE → error 문자열. sql/64 가 배정한 코드는 WC010~WC012 다.
+// order_not_found 만 PaymentSuccess 의 PERMANENT_ACCESS_ERRORS 에 이미 있다 —
+// 나머지 둘은 구조적으로 도달 불가에 가깝다(소유자 확인은 confirm-payment 가
+// 이미 하고, 상품 스펙 누락은 products_entitlement_shape_check 가 막는다).
+const RPC_ERROR_BY_SQLSTATE = {
+  WC010: 'order_not_found',
+  WC011: 'order_user_mismatch',
+  WC012: 'product_entitlement_spec_missing'
+};
 
-  if (error) throw error;
+function rpcErrorText(error) {
+  const mapped = RPC_ERROR_BY_SQLSTATE[clean(error?.code)];
+  if (mapped) return mapped;
+  return clean(error?.message) || 'rpc_failed';
+}
 
-  const serviceKeys = [];
-  for (const item of items || []) {
-    const serviceKey = clean(item.service_key);
-    if (serviceKey && !serviceKeys.includes(serviceKey)) {
-      serviceKeys.push(serviceKey);
-    }
-  }
-
-  // DB(products.program_key)에서 이번 주문에 나온 service_key 들의 매핑을
-  // 한 번에 가져온다 — 라인아이템마다 조회하지 않는다(N+1 방지).
-  const programKeyByServiceKey = await getServiceKeyToProgramKeyMap(supabaseAdmin, serviceKeys);
-
-  const skipped = [];
-  // 같은 program_key 를 가리키는 라인이 여러 개면(예: 목표관리 1개월 + 3개월
-  // 동시 구매) 결제 금액만 합산한다. 기간 합산은 근거가 없어 하지 않는다.
-  const paidAmountByProgram = new Map();
-
-  for (const item of items || []) {
-    const serviceKey = clean(item.service_key);
-    const programKey = programKeyByServiceKey.get(serviceKey) || '';
-    if (!programKey) {
-      skipped.push({
-        service_key: serviceKey || null,
-        product_slug: clean(item.product_slug) || null,
-        reason: 'no_program_key_mapping'
-      });
-      continue;
-    }
-
-    const lineAmount = Number(item.price || 0) * Number(item.quantity || 1);
-    const prev = paidAmountByProgram.get(programKey) || 0;
-    paidAmountByProgram.set(programKey, prev + (Number.isFinite(lineAmount) ? lineAmount : 0));
-  }
-
-  return { count: (items || []).length, serviceKeys, skipped, paidAmountByProgram };
+function toArray(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 /**
  * 주문 하나에 대해 이용 권한을 부여한다. **호출자가 "돈이 들어왔다"를 확인한
  * 뒤에만** 부를 것(가상계좌 waiting_deposit 에서는 부르면 안 된다).
- *
- * 절대 throw 하지 않는다. 결제 승인은 이미 났으므로 부여 실패가 승인 흐름을
- * 되돌리면 안 되고, 대신 결과 객체로 실패 사실을 돌려준다(호출자가 로그 +
- * 응답에 노출).
  *
  * @param {object} options
  * @param {boolean} [options.restoreRevoked=false]
@@ -167,12 +97,15 @@ async function readOrderPrograms(supabaseAdmin, orderId) {
  *        아니다.
  *        access_status='suspended'(운영자 제재)는 어느 경로에서도 덮지 않는다 —
  *        해제는 운영자의 판단이고, 결제로 자동 해제되면 제재가 무력화된다.
+ *        (두 보호 모두 이제 sql/64 8)절 (d)/(e) 단계에 있다.)
  *
  * @returns {{ok:boolean, granted:string[], serviceKeys:string[],
- *            skipped:{service_key:?string,product_slug:?string,reason:string}[],
+ *            skipped:{program_key:?string,product_slug:?string,reason:string}[],
  *            error:?string}}
  *          ok=true 는 "부여 시도가 에러 없이 끝났다"는 뜻이다. 매핑되는 상품이
  *          없으면 ok=true + granted=[] + skipped 에 이유가 담긴다.
+ *          granted 는 "이 주문으로 지금 권한이 살아 있는 program_key" 전체이므로
+ *          멱등 재호출(성공 페이지 새로고침)에도 같은 값이 돌아온다.
  */
 export async function grantProgramAccessForOrder(
   supabaseAdmin,
@@ -193,116 +126,37 @@ export async function grantProgramAccessForOrder(
 
   const accessId = clean(userId);
   if (!accessId) {
-    // 비회원 결제(api/create-order.js:115-122)는 orders.user_id 가 null 이라
-    // 권한을 줄 대상이 없다. 운영자 수동 처리 대상.
+    // 비회원 결제(api/create-order.js 는 로그인 없이도 주문을 만든다)는
+    // orders.user_id 가 null 이라 권한을 줄 대상이 없다. 운영자 수동 처리 대상.
+    // RPC 에도 같은 방어가 있지만(orders.user_id is null → skipped), 여기서
+    // 먼저 끊어야 PaymentSuccess 가 '영구 실패 + 회원가입 안내'를 띄운다
+    // (PERMANENT_ACCESS_ERRORS 에 order_has_no_user 가 있다).
     result.error = 'order_has_no_user';
     return result;
   }
 
   try {
-    const { count, serviceKeys, skipped, paidAmountByProgram } = await readOrderPrograms(
-      supabaseAdmin,
-      orderId
-    );
-    result.serviceKeys = serviceKeys;
-    result.skipped = skipped;
+    const { data, error } = await supabaseAdmin.rpc('fn_grant_program_access_for_order', {
+      p_order_id: clean(orderId),
+      p_user_id: accessId,
+      p_paid_at: clean(paidAt) || null,
+      p_restore_revoked: Boolean(restoreRevoked)
+    });
 
-    if (count === 0) {
-      result.error = 'no_order_items';
+    if (error) {
+      result.error = rpcErrorText(error);
       return result;
     }
 
-    if (paidAmountByProgram.size === 0) {
-      // 부여할 게 없다(입장 가능한 앱이 없는 상품만 산 경우). 에러는 아니다.
-      result.ok = true;
-      return result;
-    }
-
-    // 제재·회수된 행을 자동 부여가 되살리지 못하게 먼저 현재 상태를 읽는다.
-    // upsert 는 지정한 컬럼을 무조건 덮으므로(아래 onConflict) 이 select 없이는
-    // 인증 없는 재시도 한 번으로 suspended·refunded 가 paid/active 로 복원된다.
-    const { data: existingRows, error: existingError } = await supabaseAdmin
-      .from('program_access')
-      .select('program_key, payment_status, access_status')
-      .eq('id', accessId)
-      .in('program_key', [...paidAmountByProgram.keys()]);
-
-    if (existingError) throw existingError;
-
-    const existingByKey = new Map((existingRows || []).map((row) => [row.program_key, row]));
-
-    for (const programKey of [...paidAmountByProgram.keys()]) {
-      const existing = existingByKey.get(programKey);
-      if (!existing) continue;
-
-      if (clean(existing.access_status) === 'suspended') {
-        result.skipped.push({
-          service_key: null,
-          product_slug: null,
-          program_key: programKey,
-          reason: 'suspended_by_admin'
-        });
-        paidAmountByProgram.delete(programKey);
-        continue;
-      }
-
-      if (!restoreRevoked && REVOKED_PAYMENT_STATUSES.includes(clean(existing.payment_status))) {
-        result.skipped.push({
-          service_key: null,
-          product_slug: null,
-          program_key: programKey,
-          reason: 'revoked_not_restored'
-        });
-        paidAmountByProgram.delete(programKey);
-      }
-      // inactive·expired 는 보호하지 않는다 — 운영자가 결제 전에 미리 만들어 둔
-      // unpaid/inactive 행일 수 있고, 회수는 payment_status 를 함께 바꾸므로
-      // (revokeProgramAccessForOrder) 위 검사만으로 회수 행이 걸러진다.
-    }
-
-    if (paidAmountByProgram.size === 0) {
-      // 살아 있는 대상이 전부 보호 상태였다. 부여 시도는 정상 종료다(운영자 판단
-      // 대상이므로 결제 흐름을 실패로 만들지 않고 skipped 로만 알린다).
-      result.ok = true;
-      return result;
-    }
-
-    // 즉시 입장이므로 이용 시작 = 입금 확인 시각(orders.paid_at)이다.
-    const startedAt = clean(paidAt) || new Date().toISOString();
-    const now = new Date().toISOString();
-
-    const rows = [...paidAmountByProgram.entries()].map(([programKey, paidAmount]) => ({
-      id: accessId,
-      program_key: programKey,
-      payment_status: 'paid', // CHECK: unpaid|pending|paid|refunded|cancelled
-      access_status: 'active', // CHECK: inactive|active|expired|suspended
-      paid_amount: paidAmount,
-      paid_at: startedAt,
-      // 기간 컬럼 두 쌍 중 어느 쪽이 정본인지 판정 불가 → 시작 시각은 양쪽에
-      // 같이 쓴다. 만료(access_expires_at / expires_at)는 건드리지 않는다.
-      access_started_at: startedAt,
-      starts_at: startedAt,
-      profile_id: accessId,
-      user_id: accessId,
-      // program_access 에 updated_at 트리거가 없어(sql/00_base_schema.sql 에
-      // 해당 트리거 없음) 직접 찍는다.
-      updated_at: now
-    }));
-
-    // onConflict 는 PK 그대로 (id, program_key). 같은 서비스를 재구매하면 이
-    // 행을 덮어쓴다 — "연장"이 아니다(만료 정책 미확정과 함께 남은 항목).
-    // 멱등하므로 성공 페이지 새로고침·웹훅 재시도로 여러 번 불려도 안전하다.
-    // 단 "무조건 덮어쓴다"가 위험한 두 상태(suspended / 회수됨)는 위에서 이미
-    // 대상에서 빠졌다 — 여기 도달한 행은 덮어써도 되는 행이다.
-    const { data: upserted, error: upsertError } = await supabaseAdmin
-      .from('program_access')
-      .upsert(rows, { onConflict: 'id,program_key' })
-      .select('program_key');
-
-    if (upsertError) throw upsertError;
-
-    result.granted = (upserted || []).map((row) => row.program_key);
-    result.ok = true;
+    const payload = data || {};
+    result.granted = toArray(payload.granted).map(clean).filter(Boolean);
+    result.serviceKeys = toArray(payload.service_keys).map(clean).filter(Boolean);
+    result.skipped = toArray(payload.skipped);
+    // 주문 라인이 0건인 경우 RPC 가 ok=false + error='no_order_items' 를 준다.
+    result.ok = payload.ok === true;
+    result.error = result.ok ? null : clean(payload.error) || 'grant_failed';
+    // 진단용. api/confirm-payment.js·api/toss-webhook.js 가 로그에 싣는다.
+    result.ledgerInserted = Number(payload.ledger_inserted ?? 0);
     return result;
   } catch (err) {
     result.error = String(err?.message ?? err);
@@ -312,25 +166,24 @@ export async function grantProgramAccessForOrder(
 
 /**
  * 주문 하나에 대해 이용 권한을 회수한다. 결제가 취소·환불·만료로 종결된 뒤에만
- * 부를 것. 부여와 대칭이며(같은 order_items → program_key 매핑) 절대 throw 하지
- * 않는다.
+ * 부를 것. 부여와 대칭이며 절대 throw 하지 않는다.
  *
- * insert 하지 않는다 — 회수는 "이미 있는 권한을 닫는" 동작이다. 부여된 적이
- * 없으면(가상계좌 미입금 EXPIRED, 매핑 없는 상품만 산 주문) update 0행으로
- * 멱등하게 끝난다. 여기서 insert 하면 존재하지 않던 권한 행을 취소 이력으로
- * 만들어 내고, program_key FK(sql/53_program_access_grant.sql) 위반 위험만 늘린다.
+ * 없던 권한 행을 만들지 않는다 — 회수는 "이미 있는 권한을 닫는" 동작이다.
+ * 부여된 적이 없으면(가상계좌 미입금 EXPIRED, 매핑 없는 상품만 산 주문) 원장
+ * 0행 + 캐시 update 0행으로 멱등하게 끝난다(sql/64 7)절 참고).
  *
- * 판정부가 왜 이 두 컬럼이면 막히는가
- *   api/create-service-ticket.js:111 이 payment_status·access_status 만 본다.
- *   orders.status='canceled' 는 보지 않으므로 주문만 취소해서는 입장이 막히지
- *   않는다. 그래서 두 컬럼을 함께 내린다.
+ * 이 주문의 원장 행만 닫는다
+ *   예전에는 (user, program_key) 전체를 닫아서, 같은 프로그램을 두 주문으로 산
+ *   사용자가 한 주문만 환불하면 나머지 권한까지 죽었다(M6). 이제 회수는
+ *   program_access_grants 에서 **그 주문의 행만** revoked_at 으로 닫고, 남아
+ *   있는 다른 주문의 부여로 기간·회차를 재계산한다.
  *
  * @param {object} options
  * @param {string} options.orderId
  * @param {?string} options.userId  주문자(orders.user_id). 없으면 회수 대상 없음.
  * @param {'refunded'|'cancelled'} [options.paymentStatus='refunded']
  *        돈을 돌려준 취소는 refunded, 입금된 적 없이 종결된 건(미입금 만료·승인 전
- *        취소)은 cancelled. CHECK 허용값이다(sql/00_base_schema.sql:836).
+ *        취소)은 cancelled. program_access_payment_status_check 허용값이다.
  *
  * @returns {{ok:boolean, revoked:string[], serviceKeys:string[],
  *            skipped:{...}[], error:?string}}
@@ -364,39 +217,24 @@ export async function revokeProgramAccessForOrder(
     : 'refunded';
 
   try {
-    const { serviceKeys, skipped, paidAmountByProgram } = await readOrderPrograms(
-      supabaseAdmin,
-      orderId
-    );
-    result.serviceKeys = serviceKeys;
-    result.skipped = skipped;
+    const { data, error } = await supabaseAdmin.rpc('fn_revoke_program_access_for_order', {
+      p_order_id: clean(orderId),
+      p_user_id: accessId,
+      p_payment_status: nextPaymentStatus,
+      p_reason: 'order_revoked'
+    });
 
-    const programKeys = [...paidAmountByProgram.keys()];
-    if (programKeys.length === 0) {
-      // 입장 앱이 없는 상품만 산 주문 → 부여된 권한이 없다.
-      result.ok = true;
+    if (error) {
+      result.error = rpcErrorText(error);
       return result;
     }
 
-    // 정본 컬럼은 id 다(모듈 상단 주석). 부여 시 profile_id·user_id 에 같은 uuid
-    // 를 함께 넣으므로 id 조건 하나로 부여된 행 전체가 잡힌다.
-    // access_status 는 suspended 였더라도 inactive 로 내린다 — 둘 다 판정부에서
-    // 거부되므로 권한상 손실이 없고, 회수 사실(payment_status)이 더 중요한 이력이다.
-    const { data: updated, error: updateError } = await supabaseAdmin
-      .from('program_access')
-      .update({
-        payment_status: nextPaymentStatus,
-        access_status: 'inactive', // CHECK: inactive|active|expired|suspended
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', accessId)
-      .in('program_key', programKeys)
-      .select('program_key');
-
-    if (updateError) throw updateError;
-
-    result.revoked = (updated || []).map((row) => row.program_key);
-    result.ok = true;
+    const payload = data || {};
+    result.revoked = toArray(payload.revoked).map(clean).filter(Boolean);
+    result.skipped = toArray(payload.skipped);
+    result.ok = payload.ok === true;
+    if (!result.ok) result.error = clean(payload.error) || 'revoke_failed';
+    result.ledgerClosed = Number(payload.ledger_closed ?? 0);
     return result;
   } catch (err) {
     result.error = String(err?.message ?? err);

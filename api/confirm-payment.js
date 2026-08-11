@@ -82,6 +82,16 @@ async function grantAndLog(supabaseAdmin, { orderId, userId, paidAt, restoreRevo
   });
   if (!access.ok) {
     console.error('program_access grant failed:', orderId, access.error);
+  } else {
+    // 원장(program_access_grants)에 실제로 새로 들어간 행 수. 0 이면 멱등
+    // 재호출(이미 부여됨)이라는 뜻이고, granted 는 그래도 살아있는 program_key
+    // 를 돌려준다 — 새로고침으로 CTA 가 사라지지 않는다(sql/64 8)절 6단계).
+    console.log(
+      'program_access granted:',
+      orderId,
+      access.granted,
+      'ledger_inserted=' + (access.ledgerInserted ?? 0)
+    );
   }
   return access;
 }
