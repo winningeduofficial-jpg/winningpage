@@ -5,7 +5,9 @@
  * 셸 / 스텝 페이지 / preview 가 각자 useMemo 를 갖는 중복을 원천 차단하기 위해
  * 모듈 최상위 상수로 승격한다.
  */
-import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions';
+// 확장자 .js 명시 — verify 스크립트가 이 모듈(진행 판정 술어)을 plain node ESM 으로 직접 import 한다.
+// node 는 Vite 와 달리 확장자 생략을 해석하지 못해 ERR_MODULE_NOT_FOUND 로 죽는다.
+import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
 
 export const SURVEY_TOTAL_STEPS = 5;
 export const SURVEY_FIRST_STEP_PATH = '/free-diagnosis/survey/1';
@@ -32,7 +34,8 @@ export function getStepQuestions(step) {
   return surveyMainQuestions.filter((question) => question.page === step);
 }
 
-// 다음 스텝 이후에 남아 있는 문항 수(응답 무관). 1→16, 2→11, 3→9, 4→5, 5→0
+// 다음 스텝 이후에 남아 있는 문항 수(응답 무관). 1→14, 2→11, 3→9, 4→5, 5→0
+// (q5·q7 삭제로 17문항 · 분포 3/3/2/4/5 가 되면서 스텝1 값만 16 → 14 로 바뀌었다.)
 export function getRemainingAfterStep(step) {
   return surveyMainQuestions.filter((question) => question.page > step).length;
 }
@@ -48,7 +51,7 @@ export function getStepRequiredQuestions(step) {
 
 export function getStepUnansweredCount(step, answers) {
   return getStepRequiredQuestions(step).filter(
-    (question) => !isAnswered(question.type, answers?.[question.id])
+    (question) => !isQuestionAnswered(question, answers?.[question.id])
   ).length;
 }
 
@@ -59,6 +62,24 @@ export function isStepComplete(step, answers) {
 // '1'~'5' 만 통과. '01' · '1.0' · '1abc' · ' 1' 전부 거부.
 export function parseStepParam(raw) {
   return /^[1-5]$/.test(raw ?? '') ? Number(raw) : null;
+}
+
+/**
+ * 문항 단위 응답 판정 (§3.4 B-08).
+ *
+ * `isAnswered(type, value)` 는 grade-grid 를 그룹 단위로만 본다 — 모의고사 '국어' 한 칸만 채워도
+ * true 라, 내신 전체 평균을 비운 채 스텝 2를 통과해 리포트까지 도달하는 경로가 열려 있었다
+ * (naesinOverall = null → gpa '미입력' + 입결 표 0행). 문항이 `requiredFields` 를 선언하면
+ * 그 칸들이 **전부** 채워졌을 때만 응답으로 친다.
+ *
+ * 진행 판정에는 반드시 이 함수를 쓴다. isAnswered 는 문항 메타를 못 보는 하위 술어라
+ * 직접 부르면 requiredFields 선언이 조용히 무시된다.
+ */
+export function isQuestionAnswered(question, value) {
+  if (!isAnswered(question?.type, value)) return false;
+  const required = question?.requiredFields;
+  if (!Array.isArray(required) || required.length === 0) return true;
+  return required.every((key) => value?.[key] !== '' && value?.[key] != null);
 }
 
 export function isAnswered(type, value) {

@@ -2,14 +2,31 @@ import QuestionCard from './QuestionCard';
 import AnswerField from './AnswerField';
 import EmbeddedField from './EmbeddedField';
 import { surveyEmbeddedByParent } from '../../../lib/renewalSurvey';
+import { GRADE_SYSTEM_INPUT_RULES, getOptionCode } from '../../../data/renewalSurveyQuestions';
 
 /**
  * 카드 스택 gap 40. 스텝 페이지는 getStepQuestions(step) 결과를,
- * preview 는 19문항 전부를 넘긴다 — 렌더 코드는 한 벌뿐이다.
+ * preview 는 17문항 전부를 넘긴다 — 렌더 코드는 한 벌뿐이다.
  *
  * `highlightedId`는 하단 CTA의 "미완료" 클릭으로 스크롤된 첫 미응답 문항 id
  * (useUnansweredNavigation) — 해당 카드에만 일시 하이라이트를 켠다.
  */
+
+/**
+ * 형제 문항 응답에 종속된 입력 규격을 해석한다(명세 §3.4 · §6.3 B-12).
+ *
+ * q6(성적 입력)의 마스크·범위·표시 칸은 q4(등급 체계)가 정하는데, AnswerField 는 `{question,value,onChange}`
+ * 만 받아 형제 응답을 볼 수 없다. answers 전체를 가진 곳은 이 컴포넌트뿐이므로 여기서 규격 1개로 접어
+ * `constraint` prop 하나만 내린다 — answers 전체를 하위로 뿌리면 무관한 응답 변경마다 입력칸이 리렌더된다.
+ * q4 미응답·미지 라벨은 UNKNOWN(= 9등급제와 동일 규격, 채점은 값 무시)으로 떨어진다.
+ */
+function resolveConstraint(question, answers) {
+  const dependsOn = question.extra?.validationDependsOn;
+  if (!dependsOn) return undefined;
+  const code = getOptionCode(dependsOn, answers?.[dependsOn]);
+  return GRADE_SYSTEM_INPUT_RULES[code] ?? GRADE_SYSTEM_INPUT_RULES.UNKNOWN;
+}
+
 export default function QuestionCardList({ questions, answers, onAnswer, highlightedId }) {
   return (
     <div className="flex w-full flex-col items-start gap-10">
@@ -17,6 +34,7 @@ export default function QuestionCardList({ questions, answers, onAnswer, highlig
         const value = answers[question.id];
         const children = surveyEmbeddedByParent[question.id] || [];
         const selectedCount = Array.isArray(value) ? value.length : 0;
+        const constraint = resolveConstraint(question, answers);
 
         return (
           <QuestionCard
@@ -33,6 +51,7 @@ export default function QuestionCardList({ questions, answers, onAnswer, highlig
             <AnswerField
               question={question}
               value={value}
+              constraint={constraint}
               onChange={(nextValue) => onAnswer(question.id, nextValue)}
             />
 

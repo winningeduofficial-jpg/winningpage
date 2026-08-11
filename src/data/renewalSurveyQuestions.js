@@ -1,45 +1,113 @@
 /**
- * 무료진단 설문 문항 데이터 (19문항 / 5스텝)
+ * 무료진단 설문 문항 데이터 (17문항 / 5스텝)
  * Figma: hsokTD6OilcNEXyCR24sn4 / 1889:13222 ("설문조사 선택한 상태"), 1889:8753 ("설문조사 ver2")
  *        + 1889:9045, 1889:9491, 1889:9866, 1889:10355, 1889:10656
  *
- * docs/handoff/fd-ver3/survey-*.md (화면별 실측 핸드오프) 대조 결과.
- * - number 1~19 전부 존재. 12번은 1889:9866 의 두 번째 "10" 뱃지 카드(14지 복수선택)이며
- *   시안 뱃지 숫자 "10" 은 오기로 확정됨. 1889:9491 의 13지 복수선택이 진짜 10번이다.
+ * docs/학습진단-계산엔진-적용명세.md §2(설문 변경사항)·§3(응답 스키마) 반영본.
+ * - 구 q5(평균 내신 기준 7지) · 구 q7(학기별 평균 5칸)은 배점표·시안 어디에도 없어 삭제했다(§2.2).
+ *   결과 분포 3 / 3 / 2 / 4 / 5 = 17. `getRemainingAfterStep()` 은 문항 수를 세므로
+ *   스텝1 하단 라벨이 16 → 14 로 자동 변경된다(§2.3).
  * - page: 1~5 = 시안 프레임 5개(8753 / 9045 / 9491 / 9866 / 10656)와 1:1 대응하는 스텝 번호.
- *   문항 분포 3 / 5 / 2 / 4 / 5 = 19.
+ * - number: 카드 뱃지 숫자. 삭제된 5·7 자리를 메우지 않고 시안 뱃지(4·6·8…)를 그대로 둔다.
+ *   1~17 재번호 여부는 미확정 — TODO(Q-02).
  * - q3 / q8 안에 중첩된 조건부 문항은 number:null + extra.embeddedIn 으로 표시하며
  *   부모와 동일한 page 를 갖는다.
  *   (extra.dependsOn.questionId 답변이 채워지면 부모 QuestionCard 안에서 노출)
  * - maxSelect: 복수선택 최대 개수. 없으면 무제한.
- * - exclusiveValues: 선택 시 같은 문항의 다른 선택을 모두 해제해야 하는 배타 선택지.
+ * - exclusiveValues: 선택 시 같은 문항의 다른 선택을 모두 해제해야 하는 배타 선택지(라벨 기준 — OptionGroup 용).
+ *
+ * 채점 부착 데이터 (§3.5 — 채점 엔진은 라벨 문자열이 아니라 아래 코드로 채점한다)
+ * - scoringId    : 배점표(01_문항별배점) 문항 번호. 화면 뱃지(number)와 다르다(§2.1 대조표).
+ * - optionCodes  : options 와 **같은 서수**로 정렬된 코드 배열. 라벨 1자 수정이 침묵 오채점으로
+ *                  이어지지 않도록 코드는 인덱스로만 부여한다. 라벨→코드 변환은 getOptionCode() 사용.
+ * - exclusiveCodes : exclusiveValues 의 코드 표현(§3.5 적재 검증식이 마지막 원소를 요구한다).
+ * - statements   : 리커트 문장을 { key, text } 로 승격했다(§3.3). 저장 키가 서수('0'..'11')가 아니라
+ *                  안정 키(LK1_01..)가 되어 문장 순서를 바꿔도 과거 응답의 의미가 보존된다.
+ *                  LikertMatrix.normalizeStatement 가 string | {key,text} 를 모두 받으므로 컴포넌트 무수정.
+ *
+ * 입력 규격 (§3.4)
+ * - requiredFields : grade-grid 처럼 여러 칸을 한 문항으로 묶는 타입에서 **칸 단위 필수**를 지정한다.
+ *                    isAnswered('grade-grid') 는 그룹 내 아무 칸이나 채워지면 true 라, 모의고사 1칸만
+ *                    채우고도 naesinOverall = null 로 리포트에 도달하는 경로가 열려 있었다(B-08).
+ * - extra.validationDependsOn : 입력 도메인이 형제 문항 응답에 종속됨을 선언한다. answers 전체를 가진
+ *                    QuestionCardList 가 이 키를 읽어 GRADE_SYSTEM_INPUT_RULES 를 골라 constraint
+ *                    prop 하나만 내린다(§6.3 B-12 — answers 전체를 하위로 뿌리지 않는다).
+ * - field.scale    : 'NAESIN' = 등급 체계에 종속되는 칸 / 'MOCK' = 체계와 무관하게 정수 1~9 고정.
+ * - group.hiddenWhenGradeSystem : 해당 체계에서 그룹 전체를 숨긴다(중학생 평균은 '등급' 개념이 없다).
  */
+
+/**
+ * 응답 저장 스키마 버전.
+ *
+ * 이 값이 바뀌면 이전 버전으로 저장된 answers 는 **복원하지 않고 버린다**. 마이그레이션을 쓰지 않는 이유:
+ * 리커트 저장 키가 서수('0'..'11') → 안정 키('LK1_01'..)로 바뀌었는데, 구 응답의 '0' 이 어느 문장이었는지는
+ * 문장 순서가 그 사이 바뀌지 않았다는 보장이 있어야만 복원 가능하다(그 보장이 없어서 키를 승격한 것이다).
+ * 게다가 q5·q7 삭제와 q4 선택지 도메인 전환(등급 → 100점 만점)까지 겹쳐, 잘못 복원된 값은 조용히 오채점된다.
+ * 영속화 계층(SurveyStepShell)은 저장 시 이 값을 함께 기록하고, 복원 시 불일치하면 폐기해야 한다.
+ */
+export const SURVEY_SCHEMA_VERSION = '2026-08-fd2';
+
+/**
+ * 등급 체계별 내신 입력 규격 (§3.4).
+ *
+ * 값 범위(min/max)와 마스크(pattern)는 역할이 다르다 — 마스크는 "타이핑을 허용할 문자열 형태",
+ * min/max 는 "확정된 값의 도메인"이다. 마스크를 도메인까지 좁히면 `1` 을 치는 도중(`1` → `10`)에
+ * 입력이 막혀 100 을 아예 칠 수 없다(현행 단일 상수 /^\d{0,2}(\.\d{0,2})?$/ 의 실제 증상).
+ * UNKNOWN 은 NINE 과 동일 규격을 쓰되 채점에서는 값을 무시한다(§3.4).
+ *
+ * 이 표가 저장소 전체의 유일한 정의처다. 한때 diagnosisScoringTable.js 가 같은 표를 채점 쪽에서
+ * 한 벌 더 들고 있었는데, 소비자가 0건인 채로 갈라질 자리만 만들고 있었다 — 사본을 되살리지 마라.
+ * 채점이 도메인 검사를 하게 되면 이 상수를 import 한다.
+ */
+export const GRADE_SYSTEM_INPUT_RULES = {
+  NINE: { code: 'NINE', min: 1, max: 9, decimals: 2, pattern: /^\d(\.\d{0,2})?$/ },
+  FIVE: { code: 'FIVE', min: 1, max: 5, decimals: 2, pattern: /^[1-5](\.\d{0,2})?$/ },
+  MIDDLE_AVG: { code: 'MIDDLE_AVG', min: 0, max: 100, decimals: 1, pattern: /^\d{0,3}(\.\d)?$/ },
+  UNKNOWN: { code: 'UNKNOWN', min: 1, max: 9, decimals: 2, pattern: /^\d(\.\d{0,2})?$/ }
+};
+
+// 모의고사 6칸은 등급 체계와 무관하게 정수 1~9 고정이다 — 배점표 5번이 "과목별 모의고사 등급"의
+// 입력 개수만 쓰기 때문에 체계별로 분기할 근거가 없다(§3.4).
+export const MOCK_GRADE_INPUT_RULE = {
+  code: 'MOCK',
+  min: 1,
+  max: 9,
+  decimals: 0,
+  pattern: /^[1-9]$/
+};
+
 export const renewalSurveyQuestions = [
   {
     id: 'q1',
     number: 1,
+    scoringId: 1,
     page: 1,
     category: '기본정보',
     title: '현재 학년을 선택해 주세요',
     helper: '하나만 선택해 주세요.',
     type: 'radio-chip',
     options: ['중학교 3학년', '고등학교 1학년', '고등학교 2학년', '고등학교 3학년', 'N수생'],
+    optionCodes: ['M3', 'H1', 'H2', 'H3', 'RETAKE'],
     extra: {}
   },
   {
     id: 'q2',
     number: 2,
+    // 배점 계산에는 쓰이지 않는다(수집·표시 전용). 단 4.6 입결 마스터 조회 기준으로는 쓰인다 — TODO(Q-35).
+    scoringId: 2,
     page: 1,
     category: '기본정보',
     title: '현재 재학 중인 학교 유형을 선택해 주세요.',
     helper: '하나만 선택해 주세요.',
     type: 'radio-chip',
     options: ['일반고', '자율형・사립고', '특목고', '특성화고', '기타', '해당 없음'],
+    optionCodes: ['GENERAL', 'AUTONOMOUS', 'SPECIAL', 'VOCATIONAL', 'ETC', 'NONE'],
     extra: {}
   },
   {
     id: 'q3',
     number: 3,
+    scoringId: 3,
     page: 1,
     category: '목표설정',
     title: '현재 진학 목표는 어느 정도 정해져 있나요?',
@@ -53,11 +121,14 @@ export const renewalSurveyQuestions = [
       '여러 목표 사이에서 고민하고 있어요',
       '아직 구체적인 목표가 없어요'
     ],
+    optionCodes: ['BOTH', 'UNIV_ONLY', 'MAJOR_ONLY', 'TIER_ONLY', 'UNDECIDED_MULTI', 'NONE'],
     extra: {}
   },
   {
     id: 'q3-target-university',
     number: null,
+    // 점수 무관(수집 전용) — goal.targetUniversity 로만 흐른다.
+    scoringId: null,
     page: 1,
     category: null,
     // `(선택입력)` 표기는 선택 상태 시안(1889:13222)에만 있던 것이며 정본(8753)에는 없음.
@@ -74,6 +145,7 @@ export const renewalSurveyQuestions = [
   {
     id: 'q3-target-major',
     number: null,
+    scoringId: null,
     page: 1,
     category: null,
     // `(선택입력)` 표기는 선택 상태 시안(1889:13222)에만 있던 것이며 정본(8753)에는 없음.
@@ -91,6 +163,8 @@ export const renewalSurveyQuestions = [
     id: 'q3-target-reason',
     // Figma 원문 라벨이 q3-target-major 와 중복 표기된 오탈자 — 사용자 확정 문구로 교체
     number: null,
+    // 배점표 3번의 '목표 선정 이유' 가산(GOAL_REASON_POINTS)이 이 문항을 쓴다.
+    scoringId: 3,
     page: 1,
     category: null,
     title: '목표 선정 이유',
@@ -105,6 +179,7 @@ export const renewalSurveyQuestions = [
       '지역이나 통학 조건이 적합해서',
       '아직 충분히 알아보지 못했어요'
     ],
+    optionCodes: ['APTITUDE', 'JOB', 'REPUTATION', 'SCORE_FIT', 'PARENT', 'LOCATION', 'UNKNOWN'],
     extra: {
       embeddedIn: 'q3',
       dependsOn: { questionId: 'q3' }
@@ -113,92 +188,75 @@ export const renewalSurveyQuestions = [
   {
     id: 'q4',
     number: 4,
+    scoringId: 4,
     page: 2,
     category: '기본정보',
     title: '현재 적용되는 내신 등급 체계를 선택해 주세요.',
     helper: '하나만 선택해 주세요.',
     type: 'radio-row',
-    options: ['9등급제', '5등급제', '성취평가제 중심', '잘 모르겠어요'],
-    extra: {}
-  },
-  {
-    id: 'q5',
-    number: 5,
-    page: 2,
-    category: '기본정보',
-    title: '입력하려는 전체 평균 내신은 어떤 기준인가요?',
-    helper: '하나만 선택해 주세요.',
-    type: 'radio-row',
-    options: [
-      '전 과목 평균 내신',
-      '국영수사과 평균',
-      '국영수사 평균',
-      '국영수과 평균',
-      '대학별 환산 내신',
-      '학교에서 제공한 평균 내신',
-      '정확히 모르겠어요'
-    ],
+    // 3번째 선택지는 라벨 교체가 아니라 **입력 도메인 전환**이다(§2.2): '성취평가제 중심' → '중학생 평균'.
+    // naesinOverall 의 정의역이 등급 1~9 에서 100점 만점 평균점수로 바뀌므로 q6 의 마스크·범위·
+    // placeholder 가 함께 움직인다(GRADE_SYSTEM_INPUT_RULES.MIDDLE_AVG).
+    // 교체로 인해 고교 성취평가제(A~E) 학생이 고를 선택지가 사라졌다 — TODO(Q-31): 현재는 '잘 모르겠어요'로 흡수된다.
+    options: ['9등급제', '5등급제', '중학생 평균', '잘 모르겠어요'],
+    optionCodes: ['NINE', 'FIVE', 'MIDDLE_AVG', 'UNKNOWN'],
     extra: {}
   },
   {
     id: 'q6',
     number: 6,
+    scoringId: 5,
     page: 2,
     category: '성적입력',
     title: '현재 성적을 입력해 주세요',
-    helper: '',
+    // 구 q5(평균 내신 산출 기준 7지)가 삭제되면서 "어떤 기준의 평균인지"를 특정하던 유일한 문항이
+    // 사라졌다. 기준이 없으면 4.6 에서 서로 다른 산출 기준의 값이 같은 교과 컷과 직접 비교된다 →
+    // 헬퍼로 기준을 고정한다(§2.3).
+    helper: '내신 전체 평균은 전 과목 평균 기준으로 입력해 주세요.',
     type: 'grade-grid',
     options: [],
+    // 그룹 단위 isAnswered 는 모의고사 1칸만 채워도 통과시킨다 → 전체 평균을 칸 단위로 필수화한다(B-08).
+    requiredFields: ['overall_avg'],
     extra: {
+      // 등급 체계(q4)에 따라 마스크·범위·표시 칸이 달라진다 — QuestionCardList 가 이 키를 읽는다.
+      validationDependsOn: 'q4',
       groups: [
         {
           key: 'overall',
-          label: '전체 평균 및 과목별 평균',
+          label: '내신 전체 평균 (필수)',
           fields: [
-            { key: 'overall_avg', label: '전체 평균', placeholder: '3.24' },
-            { key: 'korean', label: '국어', placeholder: '3.0' },
-            { key: 'math', label: '수학', placeholder: '2.1' },
-            { key: 'english', label: '영어', placeholder: '3.5' },
-            { key: 'social', label: '사회', placeholder: '3.4' },
-            { key: 'science', label: '과학', placeholder: '2.8' },
-            { key: 'korean_history', label: '한국사', placeholder: '2.0' }
+            {
+              key: 'overall_avg',
+              label: '전체 평균',
+              scale: 'NAESIN',
+              required: true,
+              placeholder: '3.24',
+              // 중학생 평균은 100점 만점이라 등급 예시(3.24)가 오히려 오입력을 유도한다.
+              placeholderBySystem: { MIDDLE_AVG: '88.5' }
+            }
+          ]
+        },
+        {
+          // 시안 3795:24003 신규 그룹. 배점표에 없어 점수에는 쓰이지 않는다 — TODO(Q-23) 표시 용도 확정 대기.
+          key: 'recent_exam',
+          label: '최근에 본 시험 평균 등급 (선택)',
+          // 중학생에게는 '등급' 개념이 성립하지 않는다(§3.4).
+          hiddenWhenGradeSystem: ['MIDDLE_AVG'],
+          fields: [
+            { key: 'recent_exam_avg', label: '전체 평균 등급', scale: 'NAESIN', placeholder: '3.00' }
           ]
         },
         {
           key: 'mock_exam',
           label: '최근 모의고사 등급',
+          hiddenWhenGradeSystem: ['MIDDLE_AVG'],
           fields: [
-            { key: 'mock_korean', label: '국어 등급', placeholder: '1~9' },
-            { key: 'mock_math', label: '수학', placeholder: '1~9' },
-            { key: 'mock_english', label: '영어', placeholder: '1~9' },
-            { key: 'mock_social', label: '사회', placeholder: '1~9' },
-            { key: 'mock_science', label: '과학', placeholder: '1~9' },
-            { key: 'mock_korean_history', label: '한국사', placeholder: '1~9' }
-          ]
-        }
-      ]
-    }
-  },
-  {
-    id: 'q7',
-    number: 7,
-    page: 2,
-    category: '성적입력',
-    title: '학기별 전체 평균 내신을 입력해 주세요',
-    helper: '',
-    type: 'grade-grid',
-    options: [],
-    extra: {
-      groups: [
-        {
-          key: 'semester_avg',
-          label: '',
-          fields: [
-            { key: 'sem1_1', label: '1학년 1학기', placeholder: '4.10' },
-            { key: 'sem1_2', label: '1학년 2학기', placeholder: '3.68' },
-            { key: 'sem2_1', label: '2학년 1학기', placeholder: '3.21' },
-            { key: 'sem2_2', label: '2학년 2학기', placeholder: '2.95' },
-            { key: 'sem3_1', label: '3학년 1학기', placeholder: '2.72' }
+            { key: 'mock_korean', label: '국어 등급', scale: 'MOCK', placeholder: '1~9' },
+            { key: 'mock_math', label: '수학', scale: 'MOCK', placeholder: '1~9' },
+            { key: 'mock_english', label: '영어', scale: 'MOCK', placeholder: '1~9' },
+            { key: 'mock_social', label: '사회', scale: 'MOCK', placeholder: '1~9' },
+            { key: 'mock_science', label: '과학', scale: 'MOCK', placeholder: '1~9' },
+            { key: 'mock_korean_history', label: '한국사', scale: 'MOCK', placeholder: '1~9' }
           ]
         }
       ]
@@ -207,6 +265,7 @@ export const renewalSurveyQuestions = [
   {
     id: 'q8',
     number: 8,
+    scoringId: 6,
     page: 2,
     category: '기본정보',
     title: '최근 성적은 어떤 흐름을 보이고 있나요?',
@@ -220,18 +279,31 @@ export const renewalSurveyQuestions = [
       '과목마다 성적 변동이 큰 편이에요',
       '아직 비교할 시험 결과가 부족해요'
     ],
+    optionCodes: ['UP_MOST', 'UP_PART', 'FLAT', 'DOWN_PART', 'VOLATILE', 'NO_DATA'],
     extra: {}
   },
   {
     id: 'q8-followup',
     // 결정 B9=(b): 선택지에 '여러 과목'이 있으므로 단일선택이 설계 의도. chip-multi → radio-chip.
     number: null,
+    // 점수 무관(trendSubject 는 표시 전용).
+    scoringId: null,
     page: 2,
     category: null,
     title: '성적 변화가 가장 큰 과목',
     helper: null,
     type: 'radio-chip',
     options: ['국어', '수학', '영어', '사회', '과학', '탐구', '여러 과목', '잘 모르겠어요'],
+    optionCodes: [
+      'KOREAN',
+      'MATH',
+      'ENGLISH',
+      'SOCIAL',
+      'SCIENCE',
+      'INQUIRY',
+      'MULTIPLE',
+      'UNKNOWN'
+    ],
     extra: {
       embeddedIn: 'q8',
       dependsOn: { questionId: 'q8' }
@@ -240,6 +312,7 @@ export const renewalSurveyQuestions = [
   {
     id: 'q9',
     number: 9,
+    scoringId: 7,
     page: 3,
     category: '기본정보',
     title: '다음 문장이 현재 자신의 모습과 얼마나 가까운지 선택해 주세요.',
@@ -248,19 +321,23 @@ export const renewalSurveyQuestions = [
     options: [],
     extra: {
       scale: ['매우 그렇다', '대체로 그렇다', '보통이다', '별로 그렇지 않다', '전혀 그렇지 않다'],
+      // LK1_nn = 배점표 7번 nn번 문장. 저장 키가 곧 이 key 다(§3.3).
       statements: [
-        '다음 시험에서 달성하고 싶은 성적이나 등급이 구체적으로 정해져 있다',
-        '목표를 위해 어떤 과목과 단원을 먼저 공부해야 하는지 알고 있다',
-        '해야 할 공부를 주간 또는 일간 단위의 구체적인 분량으로 나누고 있다',
-        '시험, 수행평가, 학교 일정까지 고려해 계획을 조정하고 있다',
-        '세운 계획의 70% 이상을 실제로 완료하는 편이다',
-        '해야 할 공부를 미루지 않고 정해진 시간에 시작하는 편이다',
-        '평일과 주말에 일정한 공부 시간을 확보하고 있다',
-        '취약 과목과 중요한 과목에 시간을 우선 배분하고 있다',
-        '틀린 문제의 원인을 구분해 다시 확인하고 있다',
-        '시험 결과를 보고 공부 방법이나 계획을 수정한다',
-        '성적이 기대보다 낮아도 학습 리듬을 비교적 빠르게 회복한다',
-        '해야 할 일이 많거나 불안할 때도 공부를 시작할 수 있다'
+        {
+          key: 'LK1_01',
+          text: '다음 시험에서 달성하고 싶은 성적이나 등급이 구체적으로 정해져 있다'
+        },
+        { key: 'LK1_02', text: '목표를 위해 어떤 과목과 단원을 먼저 공부해야 하는지 알고 있다' },
+        { key: 'LK1_03', text: '해야 할 공부를 주간 또는 일간 단위의 구체적인 분량으로 나누고 있다' },
+        { key: 'LK1_04', text: '시험, 수행평가, 학교 일정까지 고려해 계획을 조정하고 있다' },
+        { key: 'LK1_05', text: '세운 계획의 70% 이상을 실제로 완료하는 편이다' },
+        { key: 'LK1_06', text: '해야 할 공부를 미루지 않고 정해진 시간에 시작하는 편이다' },
+        { key: 'LK1_07', text: '평일과 주말에 일정한 공부 시간을 확보하고 있다' },
+        { key: 'LK1_08', text: '취약 과목과 중요한 과목에 시간을 우선 배분하고 있다' },
+        { key: 'LK1_09', text: '틀린 문제의 원인을 구분해 다시 확인하고 있다' },
+        { key: 'LK1_10', text: '시험 결과를 보고 공부 방법이나 계획을 수정한다' },
+        { key: 'LK1_11', text: '성적이 기대보다 낮아도 학습 리듬을 비교적 빠르게 회복한다' },
+        { key: 'LK1_12', text: '해야 할 일이 많거나 불안할 때도 공부를 시작할 수 있다' }
       ]
     }
   },
@@ -269,6 +346,7 @@ export const renewalSurveyQuestions = [
     // 별개 문항이며 12번이 확정이다(q12 참조).
     id: 'q10',
     number: 10,
+    scoringId: 8,
     page: 3,
     category: '기본정보',
     title: '최근 학습을 가장 자주 방해하는 요인은 무엇인가요?',
@@ -276,6 +354,7 @@ export const renewalSurveyQuestions = [
     type: 'checkbox-row',
     maxSelect: 3,
     exclusiveValues: ['특별히 큰 어려움은 없어요'],
+    exclusiveCodes: ['OBS_13'],
     options: [
       '무엇부터 공부해야 할지 모르겠어요',
       '계획을 너무 크게 세워 자주 밀려요',
@@ -291,11 +370,27 @@ export const renewalSurveyQuestions = [
       '공부에 대한 의욕이 많이 줄었어요',
       '특별히 큰 어려움은 없어요'
     ],
+    optionCodes: [
+      'OBS_01',
+      'OBS_02',
+      'OBS_03',
+      'OBS_04',
+      'OBS_05',
+      'OBS_06',
+      'OBS_07',
+      'OBS_08',
+      'OBS_09',
+      'OBS_10',
+      'OBS_11',
+      'OBS_12',
+      'OBS_13'
+    ],
     extra: {}
   },
   {
     id: 'q11',
     number: 11,
+    scoringId: 9,
     page: 4,
     category: '기본정보',
     title: '다음 문장이 현재 자신의 모습과 얼마나 가까운지 선택해 주세요.',
@@ -304,19 +399,29 @@ export const renewalSurveyQuestions = [
     options: [],
     extra: {
       scale: ['매우 그렇다', '대체로 그렇다', '보통이다', '별로 그렇지 않다', '전혀 그렇지 않다'],
+      // LK2_nn = 배점표 9번 nn번 문장.
       statements: [
-        '과목별 성적과 학습 상태를 비교해 강점과 약점을 알고 있다',
-        '취약 과목을 보완하기 위한 구체적인 학습 방법이 있다',
-        '수행평가 안내문에서 평가 기준과 제출 조건을 파악할 수 있다',
-        '수행평가를 시험 준비와 겹치지 않게 미리 준비하는 편이다',
-        '교과에서 배운 개념을 탐구 주제로 발전시킬 수 있다',
-        '신뢰할 수 있는 자료를 활용해 단순 조사 이상의 분석을 만들 수 있다',
-        '이전에 한 활동을 새로운 탐구로 심화하거나 확장할 수 있다',
-        '교과 활동과 진로 관심을 자연스럽게 연결할 수 있다',
-        '활동에서 맡은 역할과 실제 수행 과정을 구체적으로 설명할 수 있다',
-        '활동을 통해 배운 점과 성장한 점을 자기평가서로 정리할 수 있다',
-        '희망 대학과 학과에서 중요하게 보는 요소를 알고 있다',
-        '현재 성적과 학생부를 기준으로 앞으로 보완할 부분을 알고 있다'
+        { key: 'LK2_01', text: '과목별 성적과 학습 상태를 비교해 강점과 약점을 알고 있다' },
+        { key: 'LK2_02', text: '취약 과목을 보완하기 위한 구체적인 학습 방법이 있다' },
+        { key: 'LK2_03', text: '수행평가 안내문에서 평가 기준과 제출 조건을 파악할 수 있다' },
+        { key: 'LK2_04', text: '수행평가를 시험 준비와 겹치지 않게 미리 준비하는 편이다' },
+        { key: 'LK2_05', text: '교과에서 배운 개념을 탐구 주제로 발전시킬 수 있다' },
+        {
+          key: 'LK2_06',
+          text: '신뢰할 수 있는 자료를 활용해 단순 조사 이상의 분석을 만들 수 있다'
+        },
+        { key: 'LK2_07', text: '이전에 한 활동을 새로운 탐구로 심화하거나 확장할 수 있다' },
+        { key: 'LK2_08', text: '교과 활동과 진로 관심을 자연스럽게 연결할 수 있다' },
+        {
+          key: 'LK2_09',
+          text: '활동에서 맡은 역할과 실제 수행 과정을 구체적으로 설명할 수 있다'
+        },
+        {
+          key: 'LK2_10',
+          text: '활동을 통해 배운 점과 성장한 점을 자기평가서로 정리할 수 있다'
+        },
+        { key: 'LK2_11', text: '희망 대학과 학과에서 중요하게 보는 요소를 알고 있다' },
+        { key: 'LK2_12', text: '현재 성적과 학생부를 기준으로 앞으로 보완할 부분을 알고 있다' }
       ]
     }
   },
@@ -325,6 +430,7 @@ export const renewalSurveyQuestions = [
     // 실제 문항 번호는 12번으로 확정됨.
     id: 'q12',
     number: 12,
+    scoringId: 10,
     page: 4,
     category: '기본정보',
     title: '학교 활동이나 입시 준비에서 현재 가장 어려운 부분은 무엇인가요?',
@@ -332,6 +438,7 @@ export const renewalSurveyQuestions = [
     type: 'checkbox-row',
     maxSelect: 3,
     exclusiveValues: ['현재는 관련 도움이 크게 필요하지 않아요'],
+    exclusiveCodes: ['DIF_14'],
     options: [
       '과목별 성적을 어떻게 관리해야 할지 모르겠어요',
       '수행평가 안내문을 해석하기 어려워요',
@@ -348,11 +455,28 @@ export const renewalSurveyQuestions = [
       '지원 대학의 도전·적정·안정 범위를 모르겠어요',
       '현재는 관련 도움이 크게 필요하지 않아요'
     ],
+    optionCodes: [
+      'DIF_01',
+      'DIF_02',
+      'DIF_03',
+      'DIF_04',
+      'DIF_05',
+      'DIF_06',
+      'DIF_07',
+      'DIF_08',
+      'DIF_09',
+      'DIF_10',
+      'DIF_11',
+      'DIF_12',
+      'DIF_13',
+      'DIF_14'
+    ],
     extra: {}
   },
   {
     id: 'q13',
     number: 13,
+    scoringId: 11,
     page: 4,
     category: '기본정보',
     title: '현재 준비 중인 일정 중 가장 가까운 것은 무엇인가요?',
@@ -366,11 +490,13 @@ export const renewalSurveyQuestions = [
       '당장 급한 일정 없음',
       '잘 모르겠어요'
     ],
+    optionCodes: ['PA_7D', 'EXAM_2W', 'MONTH_1', 'SUSI', 'NONE', 'UNKNOWN'],
     extra: {}
   },
   {
     id: 'q14',
     number: 14,
+    scoringId: 12,
     page: 4,
     category: '기본정보',
     title: '어떤 방식의 도움을 받을 때 가장 잘 실천할 수 있을 것 같아요?',
@@ -389,11 +515,24 @@ export const renewalSurveyQuestions = [
       '수시전략 상담',
       '멘토와 고민 상담'
     ],
+    optionCodes: [
+      'WISH_01',
+      'WISH_02',
+      'WISH_03',
+      'WISH_04',
+      'WISH_05',
+      'WISH_06',
+      'WISH_07',
+      'WISH_08',
+      'WISH_09',
+      'WISH_10'
+    ],
     extra: {}
   },
   {
     id: 'q15',
     number: 15,
+    scoringId: 13,
     page: 5,
     category: '기본정보',
     title: '목표 대학 입결 조회',
@@ -416,6 +555,7 @@ export const renewalSurveyQuestions = [
   {
     id: 'q16',
     number: 16,
+    scoringId: 14,
     page: 5,
     category: '기본정보',
     title: '수능 최저 예상은 어떠신가요?',
@@ -428,11 +568,13 @@ export const renewalSurveyQuestions = [
       '수능최저가 없어요',
       '잘 모르겠어요'
     ],
+    optionCodes: ['HIGH', 'BORDER', 'HARD', 'NONE', 'UNKNOWN'],
     extra: {}
   },
   {
     id: 'q17',
     number: 17,
+    scoringId: 15,
     page: 5,
     category: '기본정보',
     title: '학생부종합 준비 상태는 어떠신가요?',
@@ -446,11 +588,13 @@ export const renewalSurveyQuestions = [
       '모두 평균적인 수준이에요',
       '강점과 부족한 점을 모르겠어요'
     ],
+    optionCodes: ['CONNECTED', 'UNLINKED', 'GRADE_OK', 'INQUIRY_OK', 'AVERAGE', 'UNKNOWN'],
     extra: {}
   },
   {
     id: 'q18',
     number: 18,
+    scoringId: 16,
     page: 5,
     category: '기본정보',
     title: '면접 준비 상태는 어떠신가요?',
@@ -464,11 +608,21 @@ export const renewalSurveyQuestions = [
       '면접이 없는 전형이에요',
       '잘 모르겠어요'
     ],
+    optionCodes: [
+      'CONFIDENT',
+      'BASIC',
+      'RECORD_WEAK',
+      'NOT_STARTED',
+      'NO_INTERVIEW',
+      'UNKNOWN'
+    ],
     extra: {}
   },
   {
     id: 'q19',
     number: 19,
+    // 배점표 17번 — 감지 단어 18개로 콜멘토 '어려움' 가산에 실제로 쓰인다(§2.2).
+    scoringId: 17,
     page: 5,
     category: '기본정보',
     title: '최근 공부나 입시와 관련하여 가장 답답했던 상황을 한 문장으로 적어 주세요.',
@@ -484,5 +638,18 @@ export const renewalSurveyQuestions = [
     }
   }
 ];
+
+/**
+ * 라벨 → 선택지 코드 (§3.5).
+ *
+ * 저장된 answers 는 OptionGroup 이 넣은 **라벨 문자열**이라 코드로 가려면 서수를 한 번 경유해야 한다.
+ * 이 함수를 거치면 라벨 오탈자 교정이 UI 와 채점에 동시에 반영된다. 미지 라벨·코드 미부착 문항은 null.
+ */
+export function getOptionCode(questionId, label) {
+  const question = renewalSurveyQuestions.find((item) => item.id === questionId);
+  if (!question?.optionCodes) return null;
+  const index = question.options.indexOf(label);
+  return index === -1 ? null : (question.optionCodes[index] ?? null);
+}
 
 export default renewalSurveyQuestions;

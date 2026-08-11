@@ -15,9 +15,13 @@ const RecommendServices = ({ cards }) => {
             key={card.rank}
             className="h-[12.5625rem] w-[30.625rem] rounded-[0.75rem] border border-[#d1e8ff] pl-[0.8125rem] pt-4"
           >
-            <h3 className="text-[1.1875rem] font-medium text-[#525252]">
-              {card.rank} {card.name}
-            </h3>
+            {/* 적합도 50 미만이라 추천 서비스가 하나도 없을 때(SVC_NONE 안내 카드)는 rank·name 이 비어
+                제목 줄이 공백 한 칸만 렌더된다 — 빈 줄을 그리지 않고 안내 본문만 남긴다. */}
+            {(card.rank || card.name) && (
+              <h3 className="text-[1.1875rem] font-medium text-[#525252]">
+                {[card.rank, card.name].filter(Boolean).join(' ')}
+              </h3>
+            )}
             <p className="mt-2 w-[28.8125rem] text-base font-normal leading-[1.3] text-[#808080]">
               {card.desc}
             </p>

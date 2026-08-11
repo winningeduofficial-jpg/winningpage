@@ -9,11 +9,13 @@ import TraitNarratives from './TraitNarratives';
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
 export default function ReportPageOne({ data }) {
-  const { student, headlineLines, learningAxes, summaryCards, traits } = data;
+  const { student, headlineLines, learningAxes, summaryCards, traits, traitsHeading } = data;
 
   // 우선순위 표 = 학습 6축을 점수 오름차순 정렬(정렬 결과가 곧 시안 행 순서와 일치).
   const priorityRows = [...learningAxes].sort((a, b) => a.score - b.score);
-  const traitsHeading = `${student.name} 학생의 주요 학습 특성`;
+  // 섹션 제목은 buildReport 가 문구집 템플릿(section_traits)으로 완성해 내린다 — 이름 미수집(Q-01)
+  // 시 '{name} 학생의' 접두를 제거한 축약형까지 거기서 결정한다(§5.2). 여기서 조립하면 폴백이
+  // 두 곳이 되어 한쪽만 고쳐진다.
 
   return (
     <ReportSheetA4 page={1}>

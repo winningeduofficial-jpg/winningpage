@@ -16,7 +16,7 @@
  *              filled 텍스트 #181D24 / error border #D92D20
  *
  * 고아 행(orphan row) 보정 (impeccable polish ①):
- *   문항마다 필드 수가 다르고(q6 7/6필드, q7 5필드 등) 브레이크포인트마다 열 수도 다르므로
+ *   문항마다 필드 수가 다르고(q6 1/1/6필드) 브레이크포인트마다 열 수도 다르므로
  *   (열 수) % (필드 수) 가 0이 아닌 조합에서는 마지막 줄이 다 차지 않는다. 열 수·필드 배치는
  *   그대로 두고, 부족분만큼 회색 disabled 플레이스홀더(순수 장식 <div>, aria-hidden)를 채워
  *   격자를 시각적으로 완성한다. 필드 수는 렌더 시점에만 정해지므로 Tailwind 클래스를
@@ -24,10 +24,10 @@
  *   data-v-{bp} 속성 스위치로 뷰포트별 표시 여부를 토글한다.
  */
 import '../../../styles/grade-input-grid-filler.css';
-
-const GRADE_MIN = 1;
-const GRADE_MAX = 9;
-const GRADE_INPUT_PATTERN = /^\d{0,2}(\.\d{0,2})?$/;
+import {
+  GRADE_SYSTEM_INPUT_RULES,
+  MOCK_GRADE_INPUT_RULE
+} from '../../../data/renewalSurveyQuestions';
 
 // grade-input-grid-filler.css 의 data-v-{bp} 속성명과 반드시 같은 순서로 대응한다.
 // wide(74rem/1184px) 이상은 auto-fill(6.25rem) 트랙이지만, 그리드 자체가 max-w-[62rem](992px)로
@@ -37,30 +37,53 @@ const GRID_BREAKPOINTS = ['base', 'sm', 'md', 'lg', 'wide'];
 const BREAKPOINT_COLS = [3, 4, 6, 7, 8];
 
 function neededFillerCount(fieldCount, cols) {
+  // 한 줄 안에 다 들어가는 그룹은 애초에 '고아 행'이 없다. 채우면 격자가 완성되는 게 아니라
+  // 입력칸 하나 뒤에 회색 박스가 줄줄이 붙어 비활성 입력칸처럼 보인다 — q6 재구성으로
+  // 1칸짜리 그룹(내신 전체 평균 / 최근 시험 평균)이 생기면서 실제로 드러난 경로다.
+  if (fieldCount <= cols) return 0;
   const remainder = fieldCount % cols;
   return remainder === 0 ? 0 : cols - remainder;
 }
 
-function isOutOfRange(raw) {
+/**
+ * 칸별 입력 규격 (명세 §3.4).
+ *
+ * `scale: 'MOCK'` 은 등급 체계와 무관하게 정수 1~9 고정이고, 나머지(내신·최근시험)는 q4 선택에 따라
+ * 정의역이 통째로 바뀐다 — 중학생 평균은 100점 만점이라 기존 단일 마스크로는 `100` 을 타이핑조차 못 했다.
+ * constraint 가 없는 호출부(등급 체계에 종속되지 않는 문항)는 9등급제 규격으로 떨어진다.
+ */
+function ruleForField(field, constraint) {
+  if (field.scale === 'MOCK') return MOCK_GRADE_INPUT_RULE;
+  return constraint ?? GRADE_SYSTEM_INPUT_RULES.NINE;
+}
+
+function isOutOfRange(raw, rule) {
   if (raw === '' || raw == null) return false;
   const num = Number(raw);
   if (Number.isNaN(num)) return true;
-  return num < GRADE_MIN || num > GRADE_MAX;
+  return num < rule.min || num > rule.max;
 }
 
-export default function GradeInputGrid({ groups, value, onChange }) {
+export default function GradeInputGrid({ groups, constraint, value, onChange }) {
   const values = value || {};
 
-  function handleFieldChange(fieldKey, raw) {
-    if (raw !== '' && !GRADE_INPUT_PATTERN.test(raw)) return;
-    onChange?.({ ...values, [fieldKey]: raw });
+  function handleFieldChange(field, raw) {
+    if (raw !== '' && !ruleForField(field, constraint).pattern.test(raw)) return;
+    onChange?.({ ...values, [field.key]: raw });
   }
 
   if (!groups || groups.length === 0) return null;
 
+  // 숨겨진 그룹의 기존 입력값은 지우지 않는다 — 사용자가 q4 를 잘못 눌렀다가 되돌릴 때 값이 날아가면
+  // 복구할 방법이 없다. 대신 채점 계층이 등급 체계에 맞지 않는 칸을 무시한다(§3.4: MIDDLE_AVG →
+  // recentExamAvg 미사용 · mockFilledCount = 0).
+  const visibleGroups = groups.filter(
+    (group) => !group.hiddenWhenGradeSystem?.includes(constraint?.code)
+  );
+
   return (
     <div className="flex w-full max-w-[62rem] flex-col gap-5">
-      {groups.map((group) => {
+      {visibleGroups.map((group) => {
         const fieldCount = group.fields.length;
         // 브레이크포인트별로 부족한 칸 수. 그 중 최댓값만큼만 플레이스홀더 DOM을 만들고,
         // 각 뷰포트에서는 앞에서부터 필요한 개수만 data-v-{bp}="1"로 표시한다(나머지는 CSS로 숨김).
@@ -83,8 +106,11 @@ export default function GradeInputGrid({ groups, value, onChange }) {
             <div className="grid w-full grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 wide:grid-cols-[repeat(auto-fill,6.25rem)]">
               {group.fields.map((field) => {
                 const raw = values[field.key] ?? '';
-                const outOfRange = isOutOfRange(raw);
+                const rule = ruleForField(field, constraint);
+                const outOfRange = isOutOfRange(raw, rule);
                 const inputId = `grade-input-${field.key}`;
+                // 체계별 예시값이 따로 있으면 그것을 쓴다(중학생 평균에서 `3.24` 는 오입력을 유도한다).
+                const placeholder = field.placeholderBySystem?.[rule.code] ?? field.placeholder;
 
                 return (
                   <div key={field.key} className="flex min-w-0 flex-col gap-1">
@@ -100,10 +126,11 @@ export default function GradeInputGrid({ groups, value, onChange }) {
                       type="text"
                       inputMode="decimal"
                       autoComplete="off"
-                      placeholder={field.placeholder}
+                      placeholder={placeholder}
                       value={raw}
-                      onChange={(event) => handleFieldChange(field.key, event.target.value)}
+                      onChange={(event) => handleFieldChange(field, event.target.value)}
                       aria-invalid={outOfRange || undefined}
+                      aria-required={field.required || undefined}
                       className={`h-[4.25rem] w-full min-w-0 rounded-lg border bg-white text-center text-xl font-normal leading-5 text-[#181D24] transition-[border-color,box-shadow] duration-150 placeholder:text-[#D7D7D7] focus:outline focus:outline-2 focus:outline-accent/30 ${
                         outOfRange
                           ? 'border-[#D92D20]'
