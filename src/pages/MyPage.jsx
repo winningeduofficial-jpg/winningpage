@@ -16,6 +16,20 @@ function refundStatus(s) {
 }
 const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
 
+// fn_request_refund(sql/59_refund_request_hardening.sql) 하드닝으로 새로 생긴
+// 서버측 거부 사유 3종. 이 프로젝트는 화면 문구를 코퍼스 규범으로 통제해 신규
+// 문구를 지어낼 수 없다 — 값이 승인되기 전까지 null 로 비워 둔다(승인은 별도
+// 절차, Checkout.jsx:174-184 COUPON_REASON_TEXT 와 동일 패턴). null 인 동안은
+// REFUND_ERROR_FALLBACK_TEXT(기존에 이미 쓰이던 문구 재사용)로 대체해 사용자가
+// 실패 자체를 인지할 수 있게 한다 — 이 화면은 성공/실패를 알리는 채널이
+// refundMsg 하나뿐이라, 완전히 비우면 제출이 조용히 실패한 것처럼 보인다.
+const REFUND_ERROR_TEXT = {
+  WC005: null, // "본인 주문이 아닙니다" 성격
+  WC006: null, // "결제가 확인된 주문만 환불 신청할 수 있습니다" 성격
+  WC007: null // "이미 처리 중인 환불 신청이 있습니다" 성격
+};
+const REFUND_ERROR_FALLBACK_TEXT = '환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 // value는 DB 저장값 — sql/40_auth_signup.sql의 profiles_member_type_check
 // (student/parent/mentor)와 일치해야 한다. 구 'teacher'는 마이그레이션에서
@@ -236,23 +250,23 @@ export default function MyPage() {
     setRefundSaving(true);
     setRefundMsg('');
 
-    const { error } = await supabase.from('refund_requests').insert({
-      user_id: user.id,
-      order_id: order.id,
-      order_name: order.order_name,
-      amount: order.amount,
-      reason: cleanText(refundForm.reason),
-      refund_bank: cleanText(refundForm.bank),
-      refund_account: cleanText(refundForm.account),
-      refund_holder: cleanText(refundForm.holder),
-      status: 'requested'
+    // 주문 소유권·결제 상태(paid)·중복 신청은 서버(fn_request_refund)가 강제한다.
+    // 금액도 클라이언트가 보내지 않는다 — 서버가 orders.amount 를 그대로 쓴다
+    // (sql/59_refund_request_hardening.sql). status 도 함수가 'requested' 로
+    // 고정하므로 여기서 지정하지 않는다.
+    const { error } = await supabase.rpc('fn_request_refund', {
+      p_order_id: order.id,
+      p_reason: cleanText(refundForm.reason),
+      p_refund_bank: cleanText(refundForm.bank) || null,
+      p_refund_account: cleanText(refundForm.account) || null,
+      p_refund_holder: cleanText(refundForm.holder) || null
     });
 
     setRefundSaving(false);
 
     if (error) {
       console.error('환불 신청 저장 실패:', error);
-      setRefundMsg('환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setRefundMsg(REFUND_ERROR_TEXT[error.code] || REFUND_ERROR_FALLBACK_TEXT);
       return;
     }
 
