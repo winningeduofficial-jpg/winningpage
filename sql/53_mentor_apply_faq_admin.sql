@@ -6,7 +6,13 @@
 --   1) public.mentor_apply_faqs 테이블 — FAQ 질문·답변 5문항
 --   2) public.mentor_apply_copy 테이블 — 반복되지 않는 단문 카피 키-값
 --      (이번엔 FAQ 섹션 헤더 3키만 시드하지만, 이후 다른 섹션 카피가
---      들어올 자리로 설계한다)
+--      들어올 자리로 설계한다). PK는 id uuid 대리키, copy_key는 UNIQUE —
+--      어드민(src/pages/Admin.jsx)의 제네릭 CRUD가 모든 테이블에 id 컬럼이
+--      있다고 전제하기 때문(2026-08-11 E2E 실측: copy_key만 PK였던 구 스키마에서
+--      "column mentor_apply_copy.id does not exist"로 수정·삭제가 전부 실패했다).
+--      2-1) 이 파일은 구 스키마(copy_key PK, id 없음, 시드 3행 존재)가 이미 dev에
+--      적용된 상태에서 재실행해도 데이터 손실 없이 목표 스키마로 수렴하도록
+--      보강 ALTER 블록을 포함한다(아래 (2) 참고). 여러 번 실행해도 안전(idempotent).
 --   3) 조회용 인덱스 1종 (mentor_apply_faqs: is_active, sort_order, created_at)
 --   4) RLS — 공개 read(anon, authenticated) + 어드민 전권
 --      (52_mentor_applications.sql의 admin write 정책 관례를 따라
@@ -84,17 +90,47 @@ create policy "mentor_apply_faqs admin all" on public.mentor_apply_faqs
 --     이번엔 FAQ 섹션 헤더 3키만 시드하지만, 이후 다른 섹션(히어로·카드·폼)의
 --     단문 카피가 필요해지면 같은 테이블에 행만 추가하면 된다.
 --     컬럼명은 key/value가 아니라 copy_key/copy_value로 모호성을 피한다.
+--     PK는 id uuid 대리키 — copy_key를 PK로 두지 않는 이유는 어드민 제네릭
+--     CRUD(src/pages/Admin.jsx)가 모든 테이블에 id 컬럼이 있다고 전제하기
+--     때문이다(2026-08-11 E2E 실측). copy_key는 대신 UNIQUE로 유일성을 보장한다.
 -- ---------------------------------------------------------------------
 create table if not exists public.mentor_apply_copy (
-    copy_key   text primary key,             -- 예: 'faq.eyebrow'
+    id         uuid primary key default gen_random_uuid(),
+    copy_key   text not null unique,         -- 예: 'faq.eyebrow'
     copy_value text not null default '',
     label      text not null default '',     -- 어드민 목록/폼에 보여줄 사람이 읽는 이름
     sort_order integer not null default 0,
     updated_at timestamptz not null default now()
 );
 
+-- 구 스키마 보강 블록(하위 호환) — copy_key가 PK이고 id 컬럼이 없던
+-- 이전 배포본(dev에 이미 적용된 상태)을 데이터 손실 없이 위 목표 스키마로
+-- 수렴시킨다. 신규 설치(위 create table이 방금 목표 스키마로 만든 경우)에서는
+-- 아래 구문이 전부 no-op이거나 동일 정의를 재선언할 뿐이라 안전하다.
+-- drop constraint if exists → add constraint 순서를 지켜야 재실행해도 안전하다.
+alter table public.mentor_apply_copy
+    add column if not exists id uuid default gen_random_uuid();
+
+update public.mentor_apply_copy set id = gen_random_uuid() where id is null;
+
+alter table public.mentor_apply_copy
+    alter column id set not null;
+
+alter table public.mentor_apply_copy
+    drop constraint if exists mentor_apply_copy_pkey;
+alter table public.mentor_apply_copy
+    add constraint mentor_apply_copy_pkey primary key (id);
+
+alter table public.mentor_apply_copy
+    alter column copy_key set not null;
+
+alter table public.mentor_apply_copy
+    drop constraint if exists mentor_apply_copy_copy_key_key;
+alter table public.mentor_apply_copy
+    add constraint mentor_apply_copy_copy_key_key unique (copy_key);
+
 comment on table public.mentor_apply_copy is
-    '멘토신청(/mentor-apply)의 반복되지 않는 단문 카피 키-값 저장소. 현재는 §7 FAQ 헤더 3키만 시드. 공개 읽기 전체 허용, 쓰기는 어드민만. sql/53_mentor_apply_faq_admin.sql 참고. 테이블이 없거나 특정 키가 없으면 프론트는 src/data/mentorApply.js의 FAQ_SECTION 해당 키로 폴백한다.';
+    '멘토신청(/mentor-apply)의 반복되지 않는 단문 카피 키-값 저장소. 현재는 §7 FAQ 헤더 3키만 시드. PK는 id uuid(어드민 제네릭 CRUD 전제), copy_key는 UNIQUE. 공개 읽기 전체 허용, 쓰기는 어드민만. sql/53_mentor_apply_faq_admin.sql 참고. 테이블이 없거나 특정 키가 없으면 프론트는 src/data/mentorApply.js의 FAQ_SECTION 해당 키로 폴백한다.';
 
 drop trigger if exists trg_mentor_apply_copy_updated_at on public.mentor_apply_copy;
 create trigger trg_mentor_apply_copy_updated_at
@@ -173,3 +209,4 @@ where not exists (
 -- select copy_key, length(copy_value) from public.mentor_apply_copy order by sort_order;  -- faq.title_lead 길이에 끝 공백 1칸 포함 확인
 -- select policyname, cmd, roles from pg_policies where tablename = 'mentor_apply_faqs';    -- public read 1개 + admin all 1개
 -- select policyname, cmd, roles from pg_policies where tablename = 'mentor_apply_copy';    -- public read 1개 + admin all 1개
+-- select conname, contype from pg_constraint where conrelid = 'public.mentor_apply_copy'::regclass;  -- p(id) 1개 + u(copy_key) 1개
