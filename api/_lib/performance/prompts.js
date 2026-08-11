@@ -1297,3 +1297,609 @@ export const DESIGN_GENERATION_DEFAULTS = {
  * 가능성이 높으므로 더 올리지 않고 422로 끝낸다.
  */
 export const DESIGN_MAX_OUTPUT_TOKENS_RETRY = 12288;
+
+
+// ─────────────────────────────────────────────────────────────────────
+// 평가 리포트 (P11)
+// ─────────────────────────────────────────────────────────────────────
+// 원문: `suhaengpyeong/api/evaluate-text.js:62-122`(system, 본문 63-121) /
+//       `:124-152`(user, 본문 125-151) / `:37-41`(최소 길이 거절) /
+//       `:154-158`(생성 파라미터).
+//
+// 외부 앱의 **2번째 `CORE_PRINCIPLES` 주입 지점**이다(`:63`) — 신설이 아니라 원문 그대로의
+// 계승이라 설계 리포트(Q83)와 달리 병합 검토가 필요 없다. 다만 `CORE_PRINCIPLES` 뒤에
+// 무엇이 오는지는 달라진다(아래 Q68 연결 블록).
+//
+// ── 원문 유지 ↔ 스키마 대체 경계 (§8.4 ~~Q69~~ 예외, §12.1 「평가 system 프롬프트」 행)
+//
+//   ⓐ 원문 그대로 유지 — 도메인 규칙
+//        `:65-67`  역할 3줄(주제/자료 추천 데이터를 쓰지 않는다는 선언 포함)
+//        `:69`     `출력 규칙:` 헤더
+//        `:70`     **마크다운 금지.** §12.1이 이 줄을 명시적으로 지목한다 —
+//                  `responseSchema`는 JSON **구조**만 강제할 뿐 문자열 **값 안**의
+//                  `**강조**`를 막지 못하고, 클라이언트 `stripMarkdown` 폴백
+//                  (`index.html:3094`)은 §12.4로 폐기됐다. 유일한 방어선이다.
+//        `:73-80`  3분할 분량 지시 / 근거 제시 / 표절 지적 / 평가 기준 연결 /
+//                  **제출물 부족 판정**(`:77`) / 학교 유형 참고 정보 한정 /
+//                  과목 수준 판단 + 안내문 우선 / **전문교과 처리 예외**(`:80`)
+//        `:83`     `평가 형식:` 헤더
+//        `:86-88`, `:91-93`, `:96-98`, `:101-103`, `:106-108` 3분할 하위 키 15줄
+//        `:111`    표절 항목 하위 키
+//        `:114-117` 누적 기록용 요약 4키
+//        `:121`    `- 총평:`
+//
+//   ⓑ 번호만 재부여 — 문자열 본문은 1바이트도 안 바뀐다
+//        출력 규칙 `:70`,`:73`~`:80` → **1~9로 연속 재부여**(P8이 주제 추천 의미 규칙
+//        5개에 쓴 것과 같은 처리, §12.1 「번호만 1~5로 재부여」).
+//        평가 형식 항목 제목 8개(`:85`,`:90`,`:95`,`:100`,`:105`,`:110`,`:113`,`:119`)
+//        → **번호 접두어만 제거**하고 축 이름은 그대로(P10이 설계 리포트 섹션 제목
+//        6줄에 쓴 것과 같은 처리). 축 이름은 곧 렌더 라벨이라
+//        `EVALUATION_REPORT_SECTIONS`가 그대로 물려받는다.
+//
+//   ⓒ 스키마로 대체해 **삭제** — 출력 포맷 강제 지시뿐
+//        `:71`  「항목은 숫자 번호로 구분한다」 — 번호 자체가 사라졌다
+//        `:72`  「반드시 1번부터 8번까지 …」  — `required` 전 필드가 대신한다
+//        `:81`  「마지막 줄은 반드시 "평가 리포트 종료"」 — §12.1이 종료 마커를
+//               명시적으로 폐기 대상으로 지정
+//
+//   ⓓ 문구 교체 1줄
+//        `:120` `- 예상 점수: X점 / 100점` → `score` 필드 지시.
+//        §12.1: 「8번의 `예상 점수: X점 / 100점`은 **`score` 별도 필드로 뽑는 지시
+//        추가**(시안 `86/100` 카드)」.
+//
+//   ⓔ 신규 연결 블록 — Q68 제출 형식 주입 (아래 `EVALUATION_FORMAT_BRIDGE_RULES`)
+//
+// ⚠️ **텍스트 파서 폴백을 두지 않는다**(§12.4 — 프론트 텍스트 파서 전량
+//    `index.html:1769-1851` 폐기). 구조화 출력이 실패하면 재시도하고, 그래도 실패하면
+//    에러를 반환한다.
+
+/**
+ * 평가 리포트 7섹션 — §8.5 「평가 리포트 = 카드 1 + sections 7」.
+ *
+ * ⚠️ **프롬프트 항목은 8개인데 렌더 계약은 7섹션이다.** §5.16의 섹션 목록 8행은
+ * *프롬프트 항목 번호* 기준 표기이며, 1번 `종합 평가 점수`는 `score`/`summary`
+ * 스칼라 2개로 **승격**돼 `sections`에서 빠진다(명세 L1787 단정).
+ *
+ *   프롬프트 항목                    계약상 위치            kind
+ *   1 종합 평가 점수                 score + summary        (sections 아님)
+ *   2 평가 기준 충족도               sections[0]            triad
+ *   3 주제 적합성                    sections[1]            triad
+ *   4 내용 구성                      sections[2]            triad
+ *   5 자료 활용                      sections[3]            triad
+ *   6 진로 및 심화 탐구 연결성       sections[4]            triad
+ *   7 표절 위험 문장                 sections[5]            note
+ *   8 누적 기록용 요약               sections[6]            keyValue
+ *
+ * **7·8번에 `good/bad/improve`를 강제하면 빈 필드가 나오거나 모델이 억지로 채운다**
+ * (§8.4·§5.16 실측) — 그래서 kind가 셋으로 갈린다.
+ *
+ * `label`은 원문 평가 형식 제목(`evaluate-text.js:85`,`:90`,`:95`,`:100`,`:105`,`:110`,
+ * `:113`)에서 번호 접두어만 뗀 문자열이고, §5.16 시안 섹션 라벨과도 일치한다.
+ */
+export const EVALUATION_REPORT_SECTIONS = [
+  { id: 'rubric_fit', label: '평가 기준 충족도', kind: 'triad' },
+  { id: 'topic_fit', label: '주제 적합성', kind: 'triad' },
+  { id: 'content_structure', label: '내용 구성', kind: 'triad' },
+  { id: 'resource_use', label: '자료 활용', kind: 'triad' },
+  { id: 'career_link', label: '진로 및 심화 탐구 연결성', kind: 'triad' },
+  { id: 'plagiarism', label: '표절 위험 문장', kind: 'note' },
+  { id: 'record_summary', label: '누적 기록용 요약', kind: 'keyValue' }
+];
+
+/**
+ * 3분할 행 라벨. 원문 `evaluate-text.js:86-88`의 `- 잘한 점:` / `- 아쉬운 점:` /
+ * `- 보완할 점:`에서 `- `와 `:`만 뗀 것이며 §5.16 실측 문자열과 같다.
+ * 스키마 필드명 → 렌더 라벨 사상을 여기 한 곳에서만 정한다.
+ */
+export const EVALUATION_TRIAD_ROW_LABELS = Object.freeze([
+  { key: 'good', label: '잘한 점' },
+  { key: 'bad', label: '아쉬운 점' },
+  { key: 'improve', label: '보완할 점' }
+]);
+
+/**
+ * `누적 기록용 요약` 4키. 원문 `evaluate-text.js:114-117` 순서 그대로.
+ * §8.4가 `minItems/maxItems:4`로 못박은 그 4행이다.
+ */
+export const EVALUATION_RECORD_SUMMARY_ROW_LABELS = Object.freeze([
+  { key: 'core_summary', label: '수행 핵심 요약' },
+  { key: 'keywords', label: '핵심 키워드' },
+  { key: 'same_subject_next', label: '같은 과목에서 다음에 심화할 방향' },
+  { key: 'cross_subject_next', label: '다른 과목으로 확장 가능한 방향' }
+]);
+
+/**
+ * 승격된 점수 카드의 라벨 2종. 원문 `:119`(항목 제목, 번호 제거) / `:121`(하위 키).
+ * §5.16 실측 헤더는 `종합 평가 점수`이고 본문에 `86/100` + `총평:`이 온다.
+ */
+export const EVALUATION_SCORE_CARD_LABELS = Object.freeze({
+  score: '종합 평가 점수',
+  summary: '총평'
+});
+
+/**
+ * 제출물 최소 길이 임계값. 원문 `evaluate-text.js:37`의 **100을 그대로 유지**한다.
+ *
+ * ⚠️ **측정 대상만 바뀐다**(§12.2 L2373 결정 = Q35). 외부는 클라이언트가
+ * `라벨 + 주제 + 본문`을 결합해 만든 문자열의 `.trim().length`를 재기 때문에
+ * 라벨·주제만으로 이미 100자를 넘겨 **사실상 항상 통과**했다. 여기서는
+ * `countSubmissionChars()`가 **필드 값 순수 본문의 합**만 센다.
+ */
+export const SUBMISSION_MIN_CHARS = 100;
+
+/**
+ * `[평가 기준]` 블록이 비었을 때 렌더하는 리터럴. 원문 `evaluate-text.js:59`.
+ *
+ * ⚠️ 설계 리포트의 `NO_ASSESSMENT_INFO_TEXT`(`'안내문 정보 없음'`, `find-resources.js:508`)와
+ * **다른 문자열이다.** 두 원문이 서로 다른 문구를 쓰므로 통일하지 않는다 — 통일하는 순간
+ * 어느 한쪽이 원문 이식이 아니게 된다.
+ */
+export const NO_ASSESSMENT_CRITERIA_TEXT = '평가 기준 정보 없음';
+
+/** 원문 `evaluate-text.js:34` — 제출물이 비었을 때. `400 EMPTY_SUBMISSION`의 message. */
+export const EMPTY_SUBMISSION_MESSAGE = '평가할 제출물이 필요합니다.';
+
+/** 원문 `evaluate-text.js:39` — 최소 길이 미달. `400 SUBMISSION_TOO_SHORT`의 message. */
+export const SUBMISSION_TOO_SHORT_MESSAGE =
+  '제출물이 너무 짧습니다. 실제 수행평가 제출물을 입력한 뒤 평가해주세요.';
+
+/**
+ * 제출 필드 값 순수 본문의 글자 수 합(Q35).
+ *
+ * 라벨·필드명·주제 접두어를 **세지 않는다** — 그것이 이 함수의 존재 이유다.
+ * `performance_submissions.char_counts`(§8.3)와 시안 카운터(`356자`, §5.14)가
+ * 이 계산식을 공유하므로, 필드별 카운트도 함께 돌려준다.
+ *
+ * 필드 하나하나는 `.trim()` 후 세고 그 합을 총계로 삼는다(필드 사이 공백·개행은
+ * 학생이 쓴 본문이 아니다). §5.14 카운터가 필드별 표기(`{n}자`)라 필드 단위
+ * `trim`이 표기와 총계를 같은 정의로 묶는다.
+ *
+ * @param {Record<string, unknown>} [fields] 제출 폼 필드 값 맵
+ * @returns {{ total: number, byField: Record<string, number> }}
+ */
+export function countSubmissionChars(fields = {}) {
+  const byField = {};
+  let total = 0;
+
+  for (const [key, value] of Object.entries(fields || {})) {
+    const count = String(value ?? '').trim().length;
+
+    byField[key] = count;
+    total += count;
+  }
+
+  return { total, byField };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Q68 — 제출 형식 주입 (연결 블록)
+// ─────────────────────────────────────────────────────────────────────
+// **문제.** 외부 평가 프롬프트는 제출 형식을 모른다. `평가 형식:` 8항목이 보고서를
+// 전제하므로 문항형·카드뉴스형 제출물도 보고서 기준으로 채점된다. 설계 리포트(P10)는
+// `inferAssessmentStructure` 판정을 프롬프트에 주입해 이 문제를 이미 풀었는데
+// (`find-resources.js:402-406` 원문 `[안내문 구조 판정]` 블록), 평가 단계에는 그
+// 대응물이 없다.
+//
+// **결정 — 주입한다.** 단 §12.1 「1바이트도 변경 금지」를 지킨다. P10이
+// `CORE_PRINCIPLES_DESIGN_BRIDGE`에서 쓴 방식을 그대로 적용한다:
+// **원문은 한 글자도 고치지 않고, 신규 연결 블록을 원문 사이에 끼워** 컨텍스트와
+// 우선순위를 명시한다.
+//
+// **배치 — 출력 규칙 뒤 / `평가 형식:` 앞.** 두 원문 덩어리 사이의 이음매다. 형식
+// 컨텍스트가 필요한 곳이 정확히 `평가 형식:` 8항목을 적용하는 순간이라, 바로 앞이
+// 가장 가까운 자리다. 원문 두 덩어리는 각각 통짜로 남으므로 어느 쪽도 훼손되지 않는다.
+//
+// **8섹션 채점 축 자체는 형식별로 바꾸지 않는다.** 축을 갈아치우면 그건 이식이 아니라
+// 재작성이다. 연결 블록은 "이 제출물은 X 형식이니 채점할 때 그 특성을 고려하라"는
+// 컨텍스트를 줄 뿐이고, 두 번째 규칙 줄이 축 변경 금지를 명시적으로 못박는다.
+//
+// **판정 값의 출처**는 P10이 만든 `guide-structure.js:inferGuideStructure()`의
+// `{ type, reason, writingFrame }`이다(7유형 — 문항별 답변형 / 카드뉴스·홍보물형 /
+// 발표·PPT형 / 칼럼·논술형 / 안내문 맞춤 작성형 / 탐구보고서형 / 기본 보고서형).
+// §12.2 3행이 「판정 결과를 구조체로 리포트 JSON에 저장해 STEP5가 재판정하지 않게
+// 한다」고 규정했으므로, 평가 단계는 **설계 리포트가 저장해 둔 판정을 그대로 읽는다**
+// (같은 세션에서 두 번 판정하면 안내문이 그대로여도 결과가 갈릴 여지가 생긴다).
+
+/**
+ * Q68 연결 블록의 **고정 규칙 4줄** — 어느 원문에도 속하지 않는 이 저장소의 신규 자산이다.
+ *
+ * 1줄: 축 불변(원문 훼손 방지). 2줄: 형식 특성 반영 방향. 3줄: 보고서 구조 강요 금지
+ * (이 주입의 실제 목적). 4줄: 안내문 평가 기준 우선 — user 메시지 작업 지시
+ * (`evaluate-text.js:150`)와 같은 방향이라 두 지시가 서로를 약화시키지 않는다.
+ */
+export const EVALUATION_FORMAT_BRIDGE_RULES = `
+- 아래 평가 형식의 항목은 제출 형식과 무관하게 전부 그대로 적용한다. 항목을 빼거나 다른 항목으로 바꾸지 않는다.
+- 각 항목을 판단할 때 위 제출 형식의 특성을 기준으로 본다.
+- 보고서형이 아닌 제출물에 서론·본론·결론 같은 보고서 구조를 갖추라고 요구하지 않는다.
+- 이 형식 판정과 수행평가 안내문의 평가 기준이 어긋나면 안내문의 평가 기준을 따른다.
+`.trim();
+
+/**
+ * Q68 연결 블록 전문을 조립한다. 판정 3요소를 헤더로 얹고 고정 규칙 4줄을 붙인다.
+ *
+ * 값이 비면 `미입력`을 렌더한다(P10 `[안내문 구조 판정]` 블록과 같은 규칙).
+ *
+ * @param {object} params
+ * @param {string} [params.structureType] `inferGuideStructure().type`
+ * @param {string} [params.structureReason] 같은 함수의 `reason`
+ * @param {string} [params.writingFrame] 같은 함수의 `writingFrame`
+ */
+export function buildEvaluationFormatBridge({
+  structureType = '',
+  structureReason = '',
+  writingFrame = ''
+} = {}) {
+  return `
+[제출 형식 컨텍스트]
+- 판정 유형: ${String(structureType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 판정 근거: ${String(structureReason || '').trim() || UNKNOWN_FIELD_TEXT}
+- 안내문이 요구한 작성 틀:
+${String(writingFrame || '').trim() || UNKNOWN_FIELD_TEXT}
+${EVALUATION_FORMAT_BRIDGE_RULES}
+`.trim();
+}
+
+/**
+ * 평가 system 프롬프트. 원문 `evaluate-text.js:62-122`(본문 63-121).
+ *
+ * 조립 순서:
+ *   `CORE_PRINCIPLES`(원문 `:63` 그대로) → 원문 앞덩어리(역할 + 출력 규칙)
+ *   → **Q68 연결 블록** → 원문 뒷덩어리(평가 형식)
+ *
+ * 위 경계표 ⓐ~ⓔ가 이 함수의 계약이고, `scripts/verify-performance-prompt-parity.mjs`
+ * [9]가 원본 파일과 직접 대조해 지킨다.
+ *
+ * @param {object} params
+ * @param {string} [params.structureType] `inferGuideStructure().type` (Q68)
+ * @param {string} [params.structureReason] 같은 함수의 `reason`
+ * @param {string} [params.writingFrame] 같은 함수의 `writingFrame`
+ */
+export function buildEvaluationSystem({
+  structureType = '',
+  structureReason = '',
+  writingFrame = ''
+} = {}) {
+  // ⓐ+ⓑ 원문 앞덩어리 — 역할 3줄(`:65-67`) + 출력 규칙(`:69`,`:70`,`:73-80`).
+  //    삭제한 것은 `:71`·`:72`(포맷 강제)뿐이고 나머지는 번호만 1~9로 당겨졌다.
+  const head = `
+당신은 고등학교 수행평가 채점 전문가입니다.
+이 단계에서는 주제 추천용 데이터와 자료 추천용 데이터를 사용하지 않습니다.
+오직 수행평가 안내문의 평가 기준, 선택 주제, 학생 제출물을 기준으로 평가합니다.
+
+출력 규칙:
+1. 마크다운 기호를 쓰지 않는다.
+2. 각 항목은 너무 길게 늘이지 말고, 잘한 점/아쉬운 점/보완할 점을 각각 2~4문장으로 작성한다.
+3. 구체적 근거와 보완 방향을 제시한다.
+4. 표절 위험이 있으면 반드시 지적한다.
+5. 평가 기준과 연결해서 판단한다.
+6. 실제 제출물이 아닌 주제명, 자료 추천 결과, 빈 문장, 단순 메모처럼 보이는 경우 평가하지 말고 제출물 부족으로 안내한다.
+7. 학교 유형은 평가 기준이 아니라 참고 정보로만 활용한다.
+8. 과목명이 구체적으로 입력되어 있으면 해당 과목의 수준과 성격을 기준으로 판단한다. 단, 수행평가 안내문의 평가 기준이 더 구체적이면 안내문을 우선한다.
+9. 전문교과 과목이라도 학생이 실제 수행평가에서 다룰 수 있는 범위를 기준으로 평가한다.
+`.trim();
+
+  // ⓐ+ⓑ+ⓓ 원문 뒷덩어리 — `평가 형식:`(`:83`) + 8항목.
+  //    항목 제목 8개는 번호 접두어만 제거했고 하위 키 줄은 전부 원문 그대로다.
+  //    유일한 문구 교체가 `:120`(예상 점수 → score 필드 지시)이다.
+  const format = `
+평가 형식:
+
+평가 기준 충족도
+- 잘한 점:
+- 아쉬운 점:
+- 보완할 점:
+
+주제 적합성
+- 잘한 점:
+- 아쉬운 점:
+- 보완할 점:
+
+내용 구성
+- 잘한 점:
+- 아쉬운 점:
+- 보완할 점:
+
+자료 활용
+- 잘한 점:
+- 아쉬운 점:
+- 보완할 점:
+
+진로 및 심화 탐구 연결성
+- 잘한 점:
+- 아쉬운 점:
+- 보완할 점:
+
+표절 위험 문장
+- 특이사항 없음 또는 의심되는 부분:
+
+누적 기록용 요약
+- 수행 핵심 요약:
+- 핵심 키워드:
+- 같은 과목에서 다음에 심화할 방향:
+- 다른 과목으로 확장 가능한 방향:
+
+종합 평가
+- 예상 점수: score 필드에 0부터 100 사이의 정수만 숫자로 쓴다. 단위, 기호, 설명을 함께 쓰지 않는다.
+- 총평:
+`.trim();
+
+  const bridge = buildEvaluationFormatBridge({ structureType, structureReason, writingFrame });
+
+  return `${CORE_PRINCIPLES}\n\n${head}\n\n${bridge}\n\n${format}`;
+}
+
+/**
+ * 평가 user 메시지. 원문 `evaluate-text.js:124-152`(본문 125-151).
+ *
+ * **8블록 순서·라벨은 원문 그대로다** — `[평가 기준][선택 주제][희망 진로][학년/학기]
+ * [학교 유형][선택 과목][이전에 했던 주제][학생 제출물]`. 마지막 작업 지시 2줄도
+ * 원문 그대로이며, 특히 **「내부 위닝DB 자료는 사용하지 말고」(`:151`)를 반드시
+ * 유지한다** — 평가 단계는 설계 단계와 정반대 계약이라 여기서 자료를 끌어오면 채점이
+ * 오염된다. 그래서 이 함수는 RAG 텍스트 인자를 **아예 받지 않는다**(시그니처가 계약이다).
+ *
+ * 필드 소스 매핑(§12.1 「평가 user 메시지 템플릿」 행 — 「필드 소스를
+ * `performance_sessions` 컬럼으로 매핑만 교체」):
+ *   · `[학년/학기]`   ← `grade_label` + `semester` (Q10, 외부는 결합 컬럼 `grade`)
+ *   · `[학교 유형]`   ← `school_type` (Q61-ⓔ)
+ *   · `[선택 과목]`   ← `subject_group / subject` 결합 (외부는 결합 컬럼 `subject`)
+ *   · 나머지는 동명 컬럼
+ *
+ * ⚠ 원문 `:49`의 `school_type || '일반고'` 폴백은 **이식하지 않는다**(§8.3·§12.1).
+ *   값이 없으면 다른 필드와 같이 `미입력`을 렌더한다. `[이전에 했던 주제]`의
+ *   원문 리터럴 `'없음'`(`:144`)은 그대로 유지한다 — 「입력하지 않았다」와
+ *   「이전 주제가 없다고 답했다」는 다른 상태다.
+ *
+ * @param {object} params
+ * @param {string} [params.assessmentText] 안내문 요약. 원문 기본값 `'평가 기준 정보 없음'`(`:59`)
+ * @param {string} [params.selectedTopic]
+ * @param {string} [params.career]
+ * @param {string} [params.gradeLabel]
+ * @param {string} [params.semester]
+ * @param {string} [params.schoolType]
+ * @param {string} [params.subjectGroup]
+ * @param {string} [params.subject]
+ * @param {string} [params.previousTopic]
+ * @param {string} [params.submissionText] 제출 필드 값을 서버가 조립한 본문
+ *   (§8.6 — 「평문 결합 텍스트를 클라이언트가 조립해 보내지 않는다」)
+ */
+export function buildEvaluationUser({
+  assessmentText = '',
+  selectedTopic = '',
+  career = '',
+  gradeLabel = '',
+  semester = '',
+  schoolType = '',
+  subjectGroup = '',
+  subject = '',
+  previousTopic = '',
+  submissionText = ''
+} = {}) {
+  const gradeText = [gradeLabel, semester]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ') || UNKNOWN_FIELD_TEXT;
+
+  const subjectText = [subjectGroup, subject]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' / ') || UNKNOWN_FIELD_TEXT;
+
+  return `
+[평가 기준]
+${String(assessmentText || '').trim() || NO_ASSESSMENT_CRITERIA_TEXT}
+
+[선택 주제]
+${String(selectedTopic || '').trim() || UNKNOWN_FIELD_TEXT}
+
+[희망 진로]
+${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
+
+[학년/학기]
+${gradeText}
+
+[학교 유형]
+${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+
+[선택 과목]
+${subjectText}
+
+[이전에 했던 주제]
+${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+
+[학생 제출물]
+${String(submissionText || '')}
+
+작업:
+수행평가 안내문의 평가 기준을 최우선으로 하여 제출물을 평가하세요.
+내부 위닝DB 자료는 사용하지 말고, 제출물 자체와 평가 기준만 판단하세요.
+`.trim();
+}
+
+/**
+ * 평가 리포트 `responseSchema`(§8.4 표 「평가 리포트」 행 + §8.5 「카드 1 + sections 7」).
+ *
+ * ── 왜 `sections: Section[]` + `oneOf`가 아닌가 ─────────────────────
+ *   §8.4는 렌더/저장 계약을 `sections[]`의 **kind 분기 3종**(`triad`/`note`/`keyValue`)
+ *   으로 규정한다. 그 계약은 그대로 지키되, **모델 출력 스키마만** 섹션별 이름 필드로
+ *   편다. 이유 3가지:
+ *     ① Gemini structured output에 `oneOf`가 없다. `anyOf`로 흉내 내면 모델이 어느
+ *        분기를 골랐는지가 매 섹션마다 자유도가 되고, 7섹션이 5+1+1로 정확히 갈리는
+ *        고정 배치를 지킬 강제력이 사라진다.
+ *     ② `kind`·`key`·`label`을 모델이 매번 다시 만들어야 한다 — §5.16 실측 라벨이
+ *        모델 손에 들어가면 흔들린다.
+ *     ③ P10이 설계 리포트에서 이미 같은 판단을 내렸다(`DESIGN_REPORT_SCHEMA` 주석
+ *        「모델은 값만 내고, 라벨·순서·구조는 상수가 붙인다」). 두 리포트가 다른
+ *        방식을 쓸 이유가 없다.
+ *   서버는 이 출력을 `EVALUATION_REPORT_SECTIONS` + `EVALUATION_TRIAD_ROW_LABELS` +
+ *   `EVALUATION_RECORD_SUMMARY_ROW_LABELS`로 §8.4가 규정한 kind 3종 형태로 조립한다.
+ *   즉 **다운스트림 계약은 §8.4 그대로이고, 달라지는 것은 모델에게 요구하는 형태뿐**이다.
+ *
+ * ── `number` 타입 필드가 하나도 없다 (§8.4 완화책 ⓐ) ────────────────
+ *   `score`가 유일한 수치 필드인데 `string` + `pattern:'^\\d{1,3}$'`로 받고 서버가
+ *   `parseEvaluationScore()`로 파싱·범위 검증한다. `gemini-2.5-flash`의 숫자 리터럴
+ *   반복 루프 결함(§8.4 결함 ①)이 발동할 자리를 남기지 않는다.
+ *
+ * ── 7·8번에 3분할을 강제하지 않는다 ─────────────────────────────────
+ *   `plagiarism`은 단일 문자열, `record_summary`는 4키 고정 객체다. §8.4:
+ *   「7·8번에 `good/bad/improve`를 강제하면 빈 필드가 나오거나 모델이 억지로 채운다」.
+ */
+/**
+ * 3분할 섹션 1개의 모델 출력 형태. 5섹션이 완전히 같은 모양이라 팩토리로 만든다 —
+ * 객체 리터럴 하나를 5곳에서 **공유하면** 나중에 누가 한 곳을 손대는 순간 다섯 곳이
+ * 같이 바뀐다(그리고 그 사실이 코드에 안 보인다). 호출마다 새 객체를 낸다.
+ *
+ * 필드명 → 렌더 라벨 사상은 `EVALUATION_TRIAD_ROW_LABELS`가 쥔다.
+ */
+function evaluationTriadField() {
+  return {
+    type: 'object',
+    properties: {
+      good: { type: 'string' },
+      bad: { type: 'string' },
+      improve: { type: 'string' }
+    },
+    required: ['good', 'bad', 'improve'],
+    propertyOrdering: ['good', 'bad', 'improve']
+  };
+}
+
+export const EVALUATION_REPORT_SCHEMA = {
+  type: 'object',
+  properties: {
+    // §8.4 완화책 ⓐ — number 금지. 0~100 범위 검증은 서버(`parseEvaluationScore`).
+    // 스키마의 `pattern`은 1차 방어일 뿐이며 서버 검증을 대신하지 않는다.
+    score: { type: 'string', pattern: '^\\d{1,3}$' },
+    summary: { type: 'string' },
+    rubric_fit: evaluationTriadField(),
+    topic_fit: evaluationTriadField(),
+    content_structure: evaluationTriadField(),
+    resource_use: evaluationTriadField(),
+    career_link: evaluationTriadField(),
+    plagiarism: { type: 'string' },
+    record_summary: {
+      type: 'object',
+      properties: {
+        core_summary: { type: 'string' },
+        keywords: { type: 'string' },
+        same_subject_next: { type: 'string' },
+        cross_subject_next: { type: 'string' }
+      },
+      required: ['core_summary', 'keywords', 'same_subject_next', 'cross_subject_next'],
+      propertyOrdering: ['core_summary', 'keywords', 'same_subject_next', 'cross_subject_next']
+    }
+  },
+  required: [
+    'score',
+    'summary',
+    'rubric_fit',
+    'topic_fit',
+    'content_structure',
+    'resource_use',
+    'career_link',
+    'plagiarism',
+    'record_summary'
+  ],
+  // 원문 평가 형식 항목 순서(1 종합 평가 → 2~8)를 그대로 따른다. Gemini는 이 배열
+  // 순서로 필드를 생성하므로, 점수를 먼저 내게 해서 8항목 끝까지 못 가고 잘려도
+  // 점수 카드가 살아남는 쪽에 건다.
+  propertyOrdering: [
+    'score',
+    'summary',
+    'rubric_fit',
+    'topic_fit',
+    'content_structure',
+    'resource_use',
+    'career_link',
+    'plagiarism',
+    'record_summary'
+  ]
+};
+
+/**
+ * 모델이 낸 `score` 문자열을 정수로 승격한다(§10.2 P11 「score 승격」).
+ *
+ * ── 왜 서버 파싱인가 ────────────────────────────────────────────────
+ *   외부는 종합 점수가 평문 안에 문자열로 섞여 있어(`종합 점수는 86점입니다`, §5.17)
+ *   시안의 `86/100` 카드를 만들 수 없다. 그래서 구조화 필드로 승격해야 하는데, 그것을
+ *   `number`로 받으면 §8.4 완화책 ⓐ와 정면 충돌한다(숫자 리터럴 반복 루프).
+ *   **해결: 스키마는 `string`, 승격은 서버.** 명세 L1619가 같은 결론을 이미 못박았다 —
+ *   「모델 응답 스키마는 `string`으로 받고 서버가 `parseInt` 후 이 컬럼에 저장」.
+ *
+ * ── 파싱 실패 시 동작 ───────────────────────────────────────────────
+ *   `null`을 돌려준다. 호출부는 이를 **모델 계약 위반**으로 다뤄 §8.4 완화책 ⓒ·ⓓ대로
+ *   재시도하고, 재시도도 실패하면 §8.6이 `evaluate`에 정의한 `502 MODEL_FAILED`로
+ *   끝낸다. **점수 없는 평가 리포트를 저장하지 않는다** — `종합 평가 점수`는 §5.16
+ *   모달의 1번 카드라 비면 화면이 무너진다.
+ *   (`performance_reports.score`가 `null` 허용인 것은 점수가 없는 나머지 리포트 2종
+ *    — `design`/`final_submission` — 때문이지, 평가 리포트의 결측 허용이 아니다.
+ *    `sql/54_performance_app.sql:322`, `:335-336`)
+ *   §12.4대로 **텍스트에서 숫자를 긁어내는 폴백은 두지 않는다.** `86점`·`86/100`
+ *   같은 문자열을 정규식으로 건지기 시작하면 폐기한 텍스트 파서가 되살아난다.
+ *
+ * @param {unknown} raw 모델의 `score` 값
+ * @returns {number|null} 0~100 정수, 아니면 `null`
+ */
+export function parseEvaluationScore(raw) {
+  if (typeof raw !== 'string') return null;
+
+  const text = raw.trim();
+
+  // 스키마 `pattern`과 같은 형태만 받는다. `86점`·`86/100`·`팔십육`은 전부 실패다.
+  if (!/^\d{1,3}$/.test(text)) return null;
+
+  const score = Number.parseInt(text, 10);
+
+  return Number.isInteger(score) && score >= 0 && score <= 100 ? score : null;
+}
+
+/**
+ * 평가 리포트 생성 파라미터. 원문 `evaluate-text.js:154-158`(§12.3 「생성 호출 파라미터」).
+ *
+ * `temperature 0.25`는 원문 값 그대로다.
+ *
+ * ── `maxOutputTokens` 산정 (원문 5200 → 6144) ──────────────────────
+ *    §12.3은 원문 5200을 「8섹션×3분할을 끝까지 내게 하려고 올린 값이라 낮추면 잘린다」고
+ *    기록하고 동시에 「실측 재조정」 대상으로 지정했다. 우리 출력은 규모가 달라졌으므로
+ *    다시 센다 — **출력 뼈대 라벨이 JSON 키로 바뀌었을 뿐 본문 분량은 그대로**다.
+ *
+ *      산출물                          근거                              ≈한국어 자수
+ *      3분할 5섹션 × 3필드             출력 규칙 2조 「각각 2~4문장」,
+ *                                      4문장 상한 × 45자 = 180자/필드         2,700
+ *      표절 위험 문장(단문)            §5.16 실측 단문                          200
+ *      누적 기록용 요약 4키            키당 80자                                320
+ *      총평                            §5.16 본문 1블록                         300
+ *      score                           3자                                        3
+ *      ────────────────────────────────────────────────────────────────────────────
+ *      최악(전 필드 4문장 상한)                                              ≈3,520자
+ *
+ *    여기에 JSON 키·따옴표·중괄호·쉼표 ≈250 ASCII자가 얹힌다. 한국어를 **1자 = 1토큰**
+ *    으로 보수적으로 잡으면 **≈3,800토큰**이 최악값이다.
+ *      · 6144 → 최악 대비 여유 ≈62%. 원문 5200으로도 들어가지만(여유 ≈37%),
+ *        §8.4 완화책 ⓑ가 여유를 요구한다 — 정상 응답이 `MAX_TOKENS`로 오판돼 재시도로
+ *        버려지면 지연·비용을 그대로 문다(차감은 이 단계에 없어 회차 손실은 없다).
+ *      · P8(주제 추천)과 같은 6144다. 최악값이 P10(설계 8192)의 절반쯤이라 그보다 낮다.
+ *    §12.3이 「실측 재조정」 대상으로 명시했으므로 운영 관측 후 다시 내린다.
+ */
+export const EVALUATION_GENERATION_DEFAULTS = {
+  temperature: 0.25,
+  maxOutputTokens: 6144
+};
+
+/**
+ * 재시도용 상한(§8.4 완화책 ⓑ+ⓒ). 같은 값으로 다시 부르면 같은 자리에서 다시 잘린다.
+ * 최악값(≈3,800토큰)의 2배가 넘으므로, 여기서도 `MAX_TOKENS`면 절단이 아니라 결함 ①
+ * (숫자 리터럴 반복 루프)일 가능성이 높다 — 더 올리지 않고 실패로 끝낸다.
+ */
+export const EVALUATION_MAX_OUTPUT_TOKENS_RETRY = 8192;
+
+/**
+ * 평가 프롬프트 버전. `performance_reports.prompt_version`에 기록한다(§8.3).
+ *
+ * Q68 연결 블록은 외부에 없는 신규 주입이지만 **A/B 버전을 두지 않는다** — 설계
+ * 리포트의 `design-v1`/`v2`는 §12.1이 「주입 전후 비교」를 명시적으로 요구했기 때문이고
+ * (~~Q83~~), Q68에는 그런 요구가 없다. 미주입본은 문항형 제출물을 보고서 기준으로
+ * 채점하는 알려진 오작동이라 비교 대상이 아니다.
+ *
+ * 위 ⓐ~ⓔ 경계 중 **어느 한 줄이라도** 바뀌면 이 값을 올린다.
+ */
+export const EVALUATION_PROMPT_VERSION = 'eval-v1';

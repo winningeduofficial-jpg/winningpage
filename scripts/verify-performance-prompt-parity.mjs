@@ -20,6 +20,9 @@
 //      없어야 하며, 문구를 교체한 2줄은 옛 문장이 사라지고 새 문장이 있어야 한다.
 //   ③ 주제 추천 user 메시지 — 작업 지시 8조 원문 + 금지 리터럴 `'일반고'` 부재
 //   ④ RAG 직렬화 문자열 — `rowToText`/질의문/과거 수행 포맷의 템플릿 원문
+//   ⑤ 설계 리포트 system/user — 16원칙·형식 분기 원문 + `CORE_PRINCIPLES` 주입 A/B
+//   ⑥ 평가 system/user — 출력 규칙·8항목 채점 축 원문 + Q68 연결 블록의 **무손상 증명**
+//      (연결 블록을 끼워 넣고도 원문 두 덩어리가 각각 통짜로 남았는지)
 //
 // 원본이 없으면 SKIP
 // ------------------
@@ -39,7 +42,8 @@ const SOURCE_FILES = {
   recommendTopics: path.join(SOURCE_DIR, 'api/recommend-topics.js'),
   dynamicKnowledge: path.join(SOURCE_DIR, 'api/_lib/dynamic-knowledge.js'),
   reports: path.join(SOURCE_DIR, 'api/_lib/reports.js'),
-  findResources: path.join(SOURCE_DIR, 'api/find-resources.js')
+  findResources: path.join(SOURCE_DIR, 'api/find-resources.js'),
+  evaluateText: path.join(SOURCE_DIR, 'api/evaluate-text.js')
 };
 
 const missing = Object.values(SOURCE_FILES).filter((file) => !fs.existsSync(file));
@@ -781,6 +785,456 @@ check(
   sourceLine(FR, 518).includes('maxOutputTokens: 5200') &&
     ported.DESIGN_GENERATION_DEFAULTS.maxOutputTokens > 5200 &&
     ported.DESIGN_MAX_OUTPUT_TOKENS_RETRY > ported.DESIGN_GENERATION_DEFAULTS.maxOutputTokens
+);
+
+// ---------------------------------------------------------------------
+// ⑨ 평가 system 프롬프트 (§12.1 「평가 system 프롬프트」 행 + Q68)
+// ---------------------------------------------------------------------
+console.log('\n[9] 평가 system 프롬프트 (§8.4 Q69 예외 경계 + Q68 연결 블록)');
+
+const ET = SOURCE_FILES.evaluateText;
+
+// 구조 판정 7유형 — 외부 원문(`find-resources.js:241-299`)의 `type` 리터럴 그대로.
+// Q68 연결 블록에 흘러들어가는 값의 출처가 여기임을 원본에서 직접 확인한다.
+const guideStructureTypes = [248, 256, 264, 272, 280, 288, 295].map(
+  (no) => sourceLine(FR, no).match(/type: '(.+)'/)?.[1]
+);
+
+check(
+  '구조 판정 7유형을 원본에서 전부 읽어냈다 (Q68 판정 값의 출처)',
+  guideStructureTypes.length === 7 && guideStructureTypes.every(Boolean),
+  guideStructureTypes.join(' / ')
+);
+
+const EVAL_SYSTEM = ported.buildEvaluationSystem({
+  structureType: '문항별 답변형',
+  structureReason: '<<REASON>>',
+  writingFrame: '<<FRAME>>'
+});
+const evalSystemLines = EVAL_SYSTEM.split('\n');
+
+// ⓐ 원문 그대로 유지해야 하는 행 (evaluate-text.js 1-based 행번호)
+const RETAINED_EVAL_LINES = [
+  65, 66, 67,                          // 역할 3줄
+  69,                                  // `출력 규칙:` 헤더
+  83,                                  // `평가 형식:` 헤더
+  86, 87, 88,                          // 1번 3분할 하위 키
+  91, 92, 93,                          // 2번
+  96, 97, 98,                          // 3번
+  101, 102, 103,                       // 4번
+  106, 107, 108,                       // 5번
+  111,                                 // 6번 표절 하위 키
+  114, 115, 116, 117,                  // 7번 누적 기록용 요약 4키
+  121                                  // 8번 `- 총평:`
+];
+
+// 존재만이 아니라 **배치**도 계약이다(P10 [5]와 같은 단조 증가 검사). 집합 포함 검사만
+// 하면 출력 규칙과 평가 형식을 뒤바꾸거나 3분할 하위 키를 섞어도 전부 통과한다.
+let lastEvalLineIndex = -1;
+
+for (const no of RETAINED_EVAL_LINES) {
+  const line = sourceLine(ET, no);
+  const index = evalSystemLines.indexOf(line, lastEvalLineIndex + 1);
+
+  check(
+    `원문 유지 :${no}  ${line.slice(0, 34)}…`,
+    evalSystemLines.includes(line),
+    `누락된 원문 줄: ${JSON.stringify(line)}`
+  );
+  check(
+    `원문 순서 :${no}`,
+    index > lastEvalLineIndex,
+    `배치가 원문 순서와 어긋난다: :${no}이 산출물에서 ${index}행이고 직전 원문 줄은 ${lastEvalLineIndex}행이다`
+  );
+
+  if (index > lastEvalLineIndex) lastEvalLineIndex = index;
+}
+
+// ⓑ-1 출력 규칙 — **번호만 1~9로 재부여**(§12.1, P8 관례). 번호를 뗀 본문으로 대조한다.
+const EVAL_OUTPUT_RULES = [70, 73, 74, 75, 76, 77, 78, 79, 80];
+const stripEvalNumber = (line) => line.replace(/^\d+\.\s*/, '');
+const evalLinesNoNumber = evalSystemLines.map(stripEvalNumber);
+
+EVAL_OUTPUT_RULES.forEach((no, index) => {
+  const body = stripEvalNumber(sourceLine(ET, no));
+
+  check(
+    `출력 규칙 :${no} → ${index + 1}번  ${body.slice(0, 26)}…`,
+    evalLinesNoNumber.includes(body),
+    `누락: ${JSON.stringify(body)}`
+  );
+});
+
+check(
+  '출력 규칙 번호가 1~9로 연속 재부여됐다',
+  /출력 규칙:\n1\. .+\n2\. .+\n3\. .+\n4\. .+\n5\. .+\n6\. .+\n7\. .+\n8\. .+\n9\. .+\n/.test(
+    `${EVAL_SYSTEM}\n`
+  ),
+  EVAL_SYSTEM.slice(EVAL_SYSTEM.indexOf('출력 규칙:'))
+);
+
+check(
+  '마크다운 금지 조항(출력규칙 1)이 살아 있다 (§12.1 명시 — 폐기 금지)',
+  evalSystemLines.includes(sourceLine(ET, 70)) &&
+    EVAL_SYSTEM.includes('마크다운 기호를 쓰지 않는다.')
+);
+
+check(
+  '제출물 부족 판정(출력규칙 8, :77)과 전문교과 예외(출력규칙 11, :80)가 살아 있다',
+  evalLinesNoNumber.includes(stripEvalNumber(sourceLine(ET, 77))) &&
+    evalLinesNoNumber.includes(stripEvalNumber(sourceLine(ET, 80)))
+);
+
+// ⓑ-2 평가 형식 항목 제목 8개 — 번호 접두어만 제거, 축 이름은 그대로
+const EVAL_AXIS_LINES = [85, 90, 95, 100, 105, 110, 113, 119];
+
+EVAL_AXIS_LINES.forEach((no) => {
+  const original = sourceLine(ET, no);
+  const title = original.replace(/^\d+\.\s*/, '');
+
+  check(
+    `채점 축 :${no} — 번호 제거 + 문자열 유지  ${title}`,
+    evalSystemLines.includes(title) && !EVAL_SYSTEM.includes(original),
+    `원본 ${JSON.stringify(original)} / 기대 ${JSON.stringify(title)}`
+  );
+});
+
+// 8항목 → 카드1 + sections 7 매핑 (§8.5, 명세 L1787)
+check(
+  '항목 1 `종합 평가 점수`는 sections가 아니라 score/summary 카드로 승격됐다',
+  sourceLine(ET, 119).replace(/^\d+\.\s*/, '') === '종합 평가' &&
+    ported.EVALUATION_SCORE_CARD_LABELS.score === '종합 평가 점수' &&
+    ported.EVALUATION_SCORE_CARD_LABELS.summary === '총평' &&
+    !ported.EVALUATION_REPORT_SECTIONS.some((s) => s.label === '종합 평가 점수')
+);
+
+check(
+  'sections는 7개이고 라벨·순서가 원문 항목 2~8 = §5.16 실측과 일치한다',
+  JSON.stringify(ported.EVALUATION_REPORT_SECTIONS.map((s) => s.label)) ===
+    JSON.stringify(
+      [85, 90, 95, 100, 105, 110, 113].map((no) => sourceLine(ET, no).replace(/^\d+\.\s*/, ''))
+    )
+);
+
+check(
+  'kind 분기 = 3분할 5 + 노트 1 + 키값 1 (§8.4 — 7·8번에 3분할을 강제하지 않는다)',
+  JSON.stringify(ported.EVALUATION_REPORT_SECTIONS.map((s) => s.kind)) ===
+    JSON.stringify(['triad', 'triad', 'triad', 'triad', 'triad', 'note', 'keyValue'])
+);
+
+check(
+  '3분할 행 라벨 3종 = 원문 :86-88',
+  JSON.stringify(ported.EVALUATION_TRIAD_ROW_LABELS.map((row) => `- ${row.label}:`)) ===
+    JSON.stringify(sourceLineRange(ET, 86, 88))
+);
+
+check(
+  '누적 기록용 요약 4키 = 원문 :114-117 (순서 포함)',
+  JSON.stringify(ported.EVALUATION_RECORD_SUMMARY_ROW_LABELS.map((row) => `- ${row.label}:`)) ===
+    JSON.stringify(sourceLineRange(ET, 114, 117))
+);
+
+// ⓒ 스키마로 대체해 삭제한 것 — 출력 포맷 강제 지시뿐
+const REMOVED_EVAL_LINES = [
+  71, // 「항목은 숫자 번호로 구분한다」
+  72, // 「반드시 1번부터 8번까지 …」
+  81  // 종료 마커 「평가 리포트 종료」
+];
+
+for (const no of REMOVED_EVAL_LINES) {
+  const body = stripEvalNumber(sourceLine(ET, no));
+
+  check(
+    `스키마 대체 :${no} — 프롬프트에서 제거됨  ${body.slice(0, 30)}…`,
+    !EVAL_SYSTEM.includes(body),
+    `남아 있는 포맷 강제 줄: ${JSON.stringify(body)}`
+  );
+}
+
+check(
+  "종료 마커 문자열 '평가 리포트 종료'가 어디에도 없다 (§12.1 명시 폐기)",
+  !EVAL_SYSTEM.includes('평가 리포트 종료')
+);
+
+// ⓓ 문구 교체 1줄 — `:120` 예상 점수 → score 필드 지시
+check('문구 교체 :120 — 옛 문장 부재', !EVAL_SYSTEM.includes(sourceLine(ET, 120)));
+check(
+  '문구 교체 :120 — score 필드 지시로 대체됐다 (§12.1)',
+  evalSystemLines.some((line) => line.startsWith('- 예상 점수: score 필드에')) &&
+    EVAL_SYSTEM.includes('0부터 100 사이의 정수')
+);
+
+// CORE_PRINCIPLES 주입은 외부 :63 그대로 계승 — 맨 앞
+check(
+  'CORE_PRINCIPLES가 원문 :63과 같은 자리(맨 앞)에 주입된다',
+  EVAL_SYSTEM.startsWith(ported.CORE_PRINCIPLES) &&
+    sourceLine(ET, 63) === '${CORE_PRINCIPLES}'
+);
+
+// ---------------------------------------------------------------------
+// ⑩ Q68 연결 블록 — 원문 무손상 증명
+// ---------------------------------------------------------------------
+console.log('\n[10] Q68 제출 형식 연결 블록 (원문 무손상)');
+
+// **핵심 증명**: 연결 블록을 원문 사이에 끼웠는데도 원문 두 덩어리가 각각 **연속된
+// 통짜**로 남아 있는가. 원문에서 인접했던 줄이 산출물에서도 인접해야 한다.
+const EVAL_CONTIGUOUS_RUNS = [
+  { name: '역할 3줄 (:65-67)', from: 65, to: 67 },
+  { name: '3분할 하위 키 1번 (:86-88)', from: 86, to: 88 },
+  { name: '3분할 하위 키 2번 (:91-93)', from: 91, to: 93 },
+  { name: '3분할 하위 키 3번 (:96-98)', from: 96, to: 98 },
+  { name: '3분할 하위 키 4번 (:101-103)', from: 101, to: 103 },
+  { name: '3분할 하위 키 5번 (:106-108)', from: 106, to: 108 },
+  { name: '누적 기록용 요약 4키 (:114-117)', from: 114, to: 117 }
+];
+
+for (const { name, from, to } of EVAL_CONTIGUOUS_RUNS) {
+  const run = sourceLineRange(ET, from, to).join('\n');
+
+  check(`원문 연속 블록 무손상 — ${name}`, EVAL_SYSTEM.includes(run), `끊긴 블록: ${run}`);
+}
+
+check(
+  '연결 블록이 출력 규칙 뒤 / `평가 형식:` 앞에 끼워졌다',
+  EVAL_SYSTEM.indexOf(sourceLine(ET, 80)) <
+    EVAL_SYSTEM.indexOf('[제출 형식 컨텍스트]') &&
+    EVAL_SYSTEM.indexOf('[제출 형식 컨텍스트]') < EVAL_SYSTEM.indexOf(sourceLine(ET, 83))
+);
+
+check(
+  '연결 블록은 어느 원문에도 없는 신규 자산이다 (외부 원문에 문자열 부재)',
+  !read(ET).includes('[제출 형식 컨텍스트]') &&
+    !read(FR).includes('[제출 형식 컨텍스트]') &&
+    ported.EVALUATION_FORMAT_BRIDGE_RULES.split('\n').every((line) => !read(ET).includes(line))
+);
+
+check(
+  '연결 블록이 축 불변 + 형식 특성 반영 + 보고서 구조 강요 금지 + 우선순위를 모두 다룬다',
+  [
+    '전부 그대로 적용한다',
+    '위 제출 형식의 특성을 기준으로 본다',
+    '보고서 구조를 갖추라고 요구하지 않는다',
+    '안내문의 평가 기준을 따른다'
+  ].every((fragment) => ported.EVALUATION_FORMAT_BRIDGE_RULES.includes(fragment))
+);
+
+check(
+  '판정 값이 guide-structure.js의 7유형 그대로 흘러들어간다',
+  guideStructureTypes.every((type) =>
+    ported
+      .buildEvaluationSystem({ structureType: type, structureReason: 'r', writingFrame: 'f' })
+      .includes(`- 판정 유형: ${type}`)
+  ),
+  guideStructureTypes.join(' / ')
+);
+
+check(
+  "판정 값이 비면 '미입력'을 렌더한다 (P10 [안내문 구조 판정] 블록과 동일 규칙)",
+  ported.buildEvaluationFormatBridge({}) ===
+    `[제출 형식 컨텍스트]\n- 판정 유형: 미입력\n- 판정 근거: 미입력\n- 안내문이 요구한 작성 틀:\n미입력\n${ported.EVALUATION_FORMAT_BRIDGE_RULES}`
+);
+
+check(
+  '채점 축 8개는 형식이 바뀌어도 하나도 달라지지 않는다 (원문 훼손 방지)',
+  (() => {
+    const strip = (text) => text.slice(text.indexOf('평가 형식:'));
+    const base = strip(ported.buildEvaluationSystem({ structureType: '기본 보고서형' }));
+
+    return guideStructureTypes.every(
+      (type) => strip(ported.buildEvaluationSystem({ structureType: type })) === base
+    );
+  })()
+);
+
+// ---------------------------------------------------------------------
+// ⑪ 평가 user 메시지
+// ---------------------------------------------------------------------
+console.log('\n[11] 평가 user 메시지 (컨텍스트 8블록)');
+
+const EVAL_USER = ported.buildEvaluationUser({
+  assessmentText: '<<GUIDE>>',
+  selectedTopic: '<<TOPIC>>',
+  career: '의학',
+  gradeLabel: '고1',
+  semester: '1학기',
+  schoolType: '자율형 사립고',
+  subjectGroup: '국어',
+  subject: '공통국어1',
+  previousTopic: '<<PREV>>',
+  submissionText: '<<SUBMISSION>>'
+});
+const EVAL_USER_EMPTY = ported.buildEvaluationUser({});
+
+// 블록 라벨 8개 + 작업 지시 3줄 — 원문 그대로, **순서까지**
+const EVAL_USER_LINES = [125, 128, 131, 134, 137, 140, 143, 146, 149, 150, 151];
+let lastEvalUserIndex = -1;
+
+for (const no of EVAL_USER_LINES) {
+  const line = sourceLine(ET, no);
+  const index = EVAL_USER.split('\n').indexOf(line, lastEvalUserIndex + 1);
+
+  check(
+    `원문 유지 :${no}  ${line.slice(0, 34)}…`,
+    EVAL_USER.split('\n').includes(line),
+    `누락: ${JSON.stringify(line)}`
+  );
+  check(`원문 순서 :${no}`, index > lastEvalUserIndex, `배치 어긋남: :${no}`);
+
+  if (index > lastEvalUserIndex) lastEvalUserIndex = index;
+}
+
+check(
+  '⚠ 내부 위닝DB 사용 금지 지시(:151)가 살아 있다 — 평가는 설계와 정반대 계약',
+  EVAL_USER.includes(sourceLine(ET, 151)) &&
+    EVAL_USER.includes('내부 위닝DB 자료는 사용하지 말고')
+);
+
+check(
+  'buildEvaluationUser는 RAG 텍스트 인자를 받지 않는다 (시그니처가 계약)',
+  !/knowledgeText|historyText|resourceKnowledge/i.test(
+    ported.buildEvaluationUser.toString().slice(0, 400)
+  )
+);
+
+check(
+  "하드코딩 폴백 '일반고'가 이식되지 않았다 (:49 — §8.3·§12.1)",
+  sourceLine(ET, 49).includes("'일반고'") && !EVAL_USER_EMPTY.includes('일반고')
+);
+
+check(
+  "값이 없으면 '미입력'을 렌더한다 (§12.1 — 리터럴 통일)",
+  EVAL_USER_EMPTY.includes('[선택 주제]\n미입력') &&
+    EVAL_USER_EMPTY.includes('[희망 진로]\n미입력') &&
+    EVAL_USER_EMPTY.includes('[학년/학기]\n미입력') &&
+    EVAL_USER_EMPTY.includes('[학교 유형]\n미입력') &&
+    EVAL_USER_EMPTY.includes('[선택 과목]\n미입력')
+);
+
+check(
+  "원문 리터럴 '없음'(:144) / '평가 기준 정보 없음'(:59)이 유지된다",
+  EVAL_USER_EMPTY.includes('[이전에 했던 주제]\n없음') &&
+    ported.NO_ASSESSMENT_CRITERIA_TEXT === '평가 기준 정보 없음' &&
+    sourceLine(ET, 59).includes("'평가 기준 정보 없음'") &&
+    EVAL_USER_EMPTY.includes('[평가 기준]\n평가 기준 정보 없음')
+);
+
+check(
+  '학년/학기·선택 과목은 분리 컬럼을 결합해 렌더한다 (Q10 / §8.3)',
+  EVAL_USER.includes('[학년/학기]\n고1 1학기') && EVAL_USER.includes('[선택 과목]\n국어 / 공통국어1')
+);
+
+// ---------------------------------------------------------------------
+// ⑫ 평가 responseSchema · 최소 길이 · 생성 파라미터
+// ---------------------------------------------------------------------
+console.log('\n[12] 평가 responseSchema · score 승격 · 생성 파라미터');
+
+check(
+  'number/integer 타입 필드가 하나도 없다 (§8.4 완화책 ⓐ)',
+  !JSON.stringify(ported.EVALUATION_REPORT_SCHEMA).includes('"number"') &&
+    !JSON.stringify(ported.EVALUATION_REPORT_SCHEMA).includes('"integer"')
+);
+
+check(
+  "score는 string + pattern '^\\\\d{1,3}$' (§8.4 표 · 명세 L1619)",
+  ported.EVALUATION_REPORT_SCHEMA.properties.score.type === 'string' &&
+    ported.EVALUATION_REPORT_SCHEMA.properties.score.pattern === '^\\d{1,3}$'
+);
+
+check(
+  '스키마 required = score + summary + 7섹션 필드 (1항목 승격 + sections 7)',
+  JSON.stringify(ported.EVALUATION_REPORT_SCHEMA.required) ===
+    JSON.stringify(['score', 'summary', ...ported.EVALUATION_REPORT_SECTIONS.map((s) => s.id)])
+);
+
+check(
+  'propertyOrdering = required 순서 (원문 항목 1 → 2~8)',
+  JSON.stringify(ported.EVALUATION_REPORT_SCHEMA.propertyOrdering) ===
+    JSON.stringify(ported.EVALUATION_REPORT_SCHEMA.required)
+);
+
+check(
+  '3분할 5종만 good/bad/improve를 갖고, 7·8번은 갖지 않는다 (§8.4)',
+  ported.EVALUATION_REPORT_SECTIONS.filter((s) => s.kind === 'triad').every((s) =>
+    JSON.stringify(ported.EVALUATION_REPORT_SCHEMA.properties[s.id].required) ===
+      JSON.stringify(['good', 'bad', 'improve'])
+  ) &&
+    ported.EVALUATION_REPORT_SCHEMA.properties.plagiarism.type === 'string' &&
+    ported.EVALUATION_REPORT_SCHEMA.properties.record_summary.required.length === 4
+);
+
+check(
+  '3분할 5종이 서로 다른 객체다 (한 곳을 고치면 다섯 곳이 같이 바뀌지 않는다)',
+  new Set(
+    ported.EVALUATION_REPORT_SECTIONS.filter((s) => s.kind === 'triad').map(
+      (s) => ported.EVALUATION_REPORT_SCHEMA.properties[s.id]
+    )
+  ).size === 5
+);
+
+check(
+  'record_summary 필드명이 라벨 상수의 key와 1:1이다',
+  JSON.stringify(ported.EVALUATION_REPORT_SCHEMA.properties.record_summary.propertyOrdering) ===
+    JSON.stringify(ported.EVALUATION_RECORD_SUMMARY_ROW_LABELS.map((row) => row.key))
+);
+
+// score 승격 — 파싱 성공/실패 계약
+check(
+  'parseEvaluationScore: 0~100 정수만 통과, 그 외는 null (텍스트 폴백 없음 §12.4)',
+  ported.parseEvaluationScore('86') === 86 &&
+    ported.parseEvaluationScore('0') === 0 &&
+    ported.parseEvaluationScore('100') === 100 &&
+    ported.parseEvaluationScore(' 86 ') === 86 &&
+    ported.parseEvaluationScore('101') === null &&
+    ported.parseEvaluationScore('86점') === null &&
+    ported.parseEvaluationScore('86/100') === null &&
+    ported.parseEvaluationScore('') === null &&
+    ported.parseEvaluationScore(86) === null &&
+    ported.parseEvaluationScore(null) === null
+);
+
+// 최소 길이 — 임계값 유지 / 측정 대상 변경 (Q35, §12.2 L2373)
+check(
+  '최소 길이 임계값 100이 원문 :37 그대로다',
+  ported.SUBMISSION_MIN_CHARS === 100 && sourceLine(ET, 37).includes('length < 100')
+);
+
+check(
+  '거절 문구가 원문 :39 / :34 그대로다',
+  sourceLine(ET, 39).includes(ported.SUBMISSION_TOO_SHORT_MESSAGE) &&
+    sourceLine(ET, 34).includes(ported.EMPTY_SUBMISSION_MESSAGE)
+);
+
+check(
+  'Q35 — 라벨·주제가 아니라 필드 값 순수 본문의 합을 센다',
+  (() => {
+    const { total, byField } = ported.countSubmissionChars({
+      topic: '  가나다  ',
+      intro: '라마바사',
+      body: ''
+    });
+
+    return total === 7 && byField.topic === 3 && byField.intro === 4 && byField.body === 0;
+  })()
+);
+
+// 생성 파라미터 (§12.3 「생성 호출 파라미터」 — 평가 5200)
+check(
+  '생성 파라미터 temperature는 원문 0.25 그대로 (:155)',
+  ported.EVALUATION_GENERATION_DEFAULTS.temperature === 0.25 &&
+    sourceLine(ET, 155).includes('temperature: 0.25')
+);
+
+check(
+  'maxOutputTokens는 원문 5200에서 상향됐다 (§12.3 실측 재조정 + JSON 오버헤드)',
+  sourceLine(ET, 156).includes('maxOutputTokens: 5200') &&
+    ported.EVALUATION_GENERATION_DEFAULTS.maxOutputTokens > 5200 &&
+    ported.EVALUATION_MAX_OUTPUT_TOKENS_RETRY >
+      ported.EVALUATION_GENERATION_DEFAULTS.maxOutputTokens
+);
+
+check(
+  '평가 프롬프트 버전 문자열이 있다 (§8.3 performance_reports.prompt_version)',
+  ported.EVALUATION_PROMPT_VERSION === 'eval-v1'
 );
 
 // ---------------------------------------------------------------------
