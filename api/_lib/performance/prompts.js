@@ -383,6 +383,38 @@ ${String(assessmentText || '').trim() || '수행평가 안내문 정보 없음'}
 }
 
 /**
+ * 재추천(round ≥ 2) 전용 **증분 블록**. 이전 라운드에서 이미 제시한 주제명을 프롬프트에
+ * 넣어 같은 주제가 다시 나오는 것을 막는다(§8.3 `performance_topics.round` 정의 —
+ * "재추천 시 이전 라운드 title 배제에 사용", §10.2 P8 「재추천(round 배제 + 상한 3)」).
+ *
+ * **원문 작업 지시 8조를 건드리지 않는다.** 8조는 §12.1이 원문 유지로 못박은 자산이고,
+ * 배제 규칙은 외부 앱에 아예 없던 신규 요구(외부 재추천은 같은 프롬프트를 그대로 다시
+ * 호출할 뿐이라 같은 주제가 반복됐다)라 **별도 블록으로 덧붙이기만** 한다. round 1에서는
+ * 이 블록이 붙지 않으므로 최초 추천 프롬프트는 원문과 바이트 동일하다 —
+ * `TOPIC_PROMPT_VERSION`을 올리지 않는 근거다.
+ *
+ * @param {string[]} titles 이전 라운드에서 제시한 주제명(중복 제거·순서 유지는 호출부 몫)
+ * @returns {string} 붙일 블록. 배제할 주제가 없으면 빈 문자열.
+ */
+export function buildTopicExclusionBlock(titles = []) {
+  const list = (Array.isArray(titles) ? titles : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  if (!list.length) return '';
+
+  return `
+[이미 추천한 주제 — 재추천 대상에서 제외]
+${list.map((title) => `- ${title}`).join('\n')}
+
+재추천 규칙:
+1. 위 목록에 있는 주제, 그리고 사실상 같은 주제(표현만 바꾼 주제)는 다시 제안하지 않는다.
+2. 관점, 다루는 자료, 탐구 범위 중 최소 하나가 분명히 달라야 한다.
+3. 배제 때문에 안내문 조건이나 과목성을 벗어나서는 안 된다. 안내문 조건이 여전히 최우선이다.
+`.trim();
+}
+
+/**
  * 주제 상세 6섹션 라벨. 시안 `3754:4872` 실측 순서·문자열(§5.11 표)이며 스키마
  * `propertyOrdering`과 같은 순서다.
  *
@@ -454,13 +486,33 @@ export const TOPIC_RECOMMENDATION_SCHEMA = {
 
 /**
  * 주제 추천 생성 파라미터. 원문 `recommend-topics.js:207-210`(§12.3 「생성 호출 파라미터」).
- * `maxOutputTokens 4200`은 평문 3블록 기준으로 잡힌 값이라 JSON 오버헤드가 붙는 만큼
- * **실측 재조정 대상**이다(§12.3 명시). 낮추면 3번째 주제가 잘린다.
+ *
+ * **`temperature 0.25`는 원문 값 그대로다.**
+ *
+ * **`maxOutputTokens`는 원문 4200에서 상향했다(§8.4 완화책 ⓑ).** 근거 2가지:
+ *   ① 원문 4200은 **평문 3블록** 기준으로 잡힌 값이다. 같은 내용을 JSON으로 내면
+ *      키 이름·따옴표·중괄호·이스케이프가 얹히고, 한국어 본문의 `\uXXXX` 이스케이프가
+ *      섞이면 오버헤드가 더 커진다. 그대로 두면 3번째 주제가 잘린다(§12.3이 「실측
+ *      재조정 대상」으로 명시한 이유).
+ *   ② `gemini-2.5-flash` structured output 결함 ①②(숫자 리터럴 반복 루프 / 무작위
+ *      중간 절단)의 공통 징후가 `MAX_TOKENS`다(§8.4). 여유를 두면 정상 응답이
+ *      절단으로 오판돼 재시도로 버려지는 경우가 줄어든다 — 재시도는 회차를 태우지는
+ *      않지만(차감은 성공 이후 1곳) 지연과 비용을 그대로 문다.
+ *
+ * `thinkingBudget 0`은 `gemini.js:buildConfig`의 기본값이라 여기서 다시 적지 않는다.
  */
 export const TOPIC_GENERATION_DEFAULTS = {
   temperature: 0.25,
-  maxOutputTokens: 4200
+  maxOutputTokens: 6144
 };
+
+/**
+ * `finishReason === 'MAX_TOKENS'` 또는 파싱 실패로 **재시도**할 때 쓰는 출력 상한
+ * (§8.4 완화책 ⓑ+ⓒ). 같은 값으로 다시 부르면 같은 자리에서 다시 잘리므로 올린다.
+ * 온도는 낮춰 부르는데(원문 재시도가 `0.25 → 0.2`로 낮춘 것과 같은 취지) 그 값은
+ * 호출부가 정한다.
+ */
+export const TOPIC_MAX_OUTPUT_TOKENS_RETRY = 8192;
 
 /**
  * 주제 추천 프롬프트 버전. `performance_reports.prompt_version`에 기록한다(§8.3).
