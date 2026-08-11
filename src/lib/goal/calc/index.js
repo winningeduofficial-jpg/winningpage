@@ -87,3 +87,20 @@ export {
   getWeeklyReportRange,
   getRegularWeekIndexFromSundayCount,
 } from './virtualDate.js';
+
+// ── pipeline ────────────────────────────────────────────────────────────
+// 위 5개 모듈의 순수 함수를 원본 호출 순서대로 엮은 통합 조립 층. 새 계산 로직은 없다 —
+// 원본(target/components/IntakeForm.tsx, target/api/student.mjs, target/App.tsx)의 배선만
+// 재현한다. 이름 충돌 없음(위 43개 export 와 겹치는 이름이 없다).
+//
+// getConversionTypeForStudent/isMiddleStudent/isElementaryStudent/isPreHighStudent 는
+// 성격상 primitives.js 소관이지만(학교급/학년 판정), 그 모듈이 골든 픽스처로 동결돼 있어
+// pipeline.js 에 임시로 둔다 — 승격 검토 대상(pipeline.js 상단 주석 참고).
+export {
+  buildInitialStudentState,
+  applyDailyRecord,
+  getConversionTypeForStudent,
+  isMiddleStudent,
+  isElementaryStudent,
+  isPreHighStudent,
+} from './pipeline.js';
