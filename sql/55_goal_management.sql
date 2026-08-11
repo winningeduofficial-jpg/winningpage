@@ -419,10 +419,18 @@ create table if not exists public.goal_probability_logs (
     --        §8 #15(원본 대비 개선점, 위 헤더 398-402)가 통째로 무효가 된다.
     --   numeric(8,4) 는 base(1자리) + Σdelta(4자리)를 손실 없이 담는 최소 정밀도다
     --   (값역은 0~100 이라 정수부 4자리로 충분하다).
+    -- ideal_jungsi/min_jungsi 는 not null 이 아니다 — 정시 컷 없이도
+    -- 온보딩을 허용하기로 확정(Q1=(b), sql/56_goal_jungsi_optional.sql
+    -- 참고)하면서 이 두 컬럼에 null 을 저장하는 경로가 생겼다. 이미
+    -- 만들어진 테이블은 create table if not exists 가 건드리지 않으므로
+    -- sql/56 이 alter table 로 별도 해제한다 — 이 본문은 향후 최초
+    -- 생성(신규 환경) 시에도 sql/56 과 어긋나지 않도록 맞춰 둔 것이다.
+    -- ideal_susi/min_susi 는 그대로 not null 이다 — 수시 컷은 여전히
+    -- 온보딩 필수 조건이다.
     ideal_susi   numeric(8,4) not null,
-    ideal_jungsi numeric(8,4) not null,
+    ideal_jungsi numeric(8,4),
     min_susi     numeric(8,4) not null,
-    min_jungsi   numeric(8,4) not null,
+    min_jungsi   numeric(8,4),
 
     reason text not null,   -- intake|daily_record|score_update
     source_record_id bigint references public.goal_daily_records(id) on delete set null,

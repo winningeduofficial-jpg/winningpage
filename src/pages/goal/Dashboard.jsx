@@ -38,23 +38,28 @@ function pctRound(value) {
 }
 
 function mapTargetUniversities(student) {
+  // jungsiAvailable(goalRepo.js buildStudentPayload, §7-1-A)은 정시 컷 쌍(상한·하한)이
+  // 둘 다 있을 때만 true다 — 이상/최소 목표대학에 공통으로 적용되는 단일 플래그다.
+  // false면 calcJeongsiProb 쪽 파이프라인이 이미 0을 낸다(pipeline.js:227-228)지만,
+  // 그 0은 "가망 없음"이 아니라 "정시 컷 미확보"다. TargetUniversityRail의 RateRow가
+  // 이 플래그로 값 자리를 "미산출"로 바꿔 실제 0%와 구분한다(이번 UoW가 메운 지점).
+  const { jungsiAvailable } = student;
   return {
     upper: {
       label: '이상목표대학',
       university: student.targets.ideal.university,
       department: student.targets.ideal.department,
       susiRate: pctRound(student.probs.idealSusi),
-      // jungsiAvailable:false면 calcJeongsiProb 쪽 파이프라인이 이미 0을 낸다(pipeline.js:227-228,
-      // goalRepo.js:361-364 주석) — "데이터 준비 중"과 실제 0%를 구분하는 UI 상태는
-      // TargetUniversityRail에 없어(수정 범위 밖) 여기서는 그대로 0%로 보여준다.
-      jeongsiRate: pctRound(student.probs.idealJungsi)
+      jeongsiRate: pctRound(student.probs.idealJungsi),
+      jungsiAvailable
     },
     lower: {
       label: '최소목표대학',
       university: student.targets.min.university,
       department: student.targets.min.department,
       susiRate: pctRound(student.probs.minSusi),
-      jeongsiRate: pctRound(student.probs.minJungsi)
+      jeongsiRate: pctRound(student.probs.minJungsi),
+      jungsiAvailable
     }
   };
 }
