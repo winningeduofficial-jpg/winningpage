@@ -90,7 +90,11 @@ export async function openGoalSession(req) {
   }
 
   const profileId = userData.user.id;
-  const allowed = await hasPaidServiceAccess(supabaseAdmin, profileId, SERVICE_CONFIGS.goal);
+  // hasPaidServiceAccess는 { allowed, reason } 을 돌려준다(api/_lib/serviceAccess.js
+  // 참고) — 이 함수의 반환 계약(allowed:boolean, 위 JSDoc)을 지키기 위해 여기서
+  // 뽑아 쓴다. 객체를 그대로 내려보내면 호출부의 `if (!allowed)` 가 항상
+  // false가 되어(객체는 always-truthy) 결제 게이트가 통째로 뚫린다.
+  const { allowed } = await hasPaidServiceAccess(supabaseAdmin, profileId, SERVICE_CONFIGS.goal);
 
   return { supabaseAdmin, profileId, allowed };
 }
