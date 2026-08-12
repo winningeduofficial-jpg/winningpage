@@ -3,7 +3,7 @@
 //
 // 클라이언트가 "이 사용자가 이 서비스의 유료 이용권을 가졌는가"를 물어보는
 // 읽기 전용 엔드포인트다. 판정 로직 자체는 api/_lib/serviceAccess.js
-// (program_access / admin_enrollments 판정)에 있고, 여기서는 그걸 그대로
+// (program_access / enrollments 판정)에 있고, 여기서는 그걸 그대로
 // 불러 쓴다 — api/create-service-ticket.js와 정확히 같은 규칙을 쓴다는
 // 뜻이다. orders 테이블은 보지 않는다(그 이유는 serviceAccess.js 상단 주석
 // 참고).
@@ -50,7 +50,10 @@ export default async function handler(req, res) {
     }
 
     const userId = userData.user.id;
-    const allowed = await hasPaidServiceAccess(supabaseAdmin, userId, config);
+    // hasPaidServiceAccess는 이제 { allowed, reason } 을 돌려준다(기간만료
+    // 사유를 create-service-ticket.js가 구분해 응답하기 위함) — 여기서는
+    // 조회 응답 규격이 boolean 이므로 allowed만 뽑아 쓴다.
+    const { allowed } = await hasPaidServiceAccess(supabaseAdmin, userId, config);
 
     return res.status(200).json({ allowed });
   } catch (error) {
