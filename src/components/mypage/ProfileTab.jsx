@@ -13,13 +13,22 @@ import WithdrawModal from './WithdrawModal';
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 
-// 이용안내(chevron 링크) 3종 — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
+// 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
 // 별도 링크가 아니라 토글 행이라 여기 목록에는 넣지 않는다(아래 ToggleRow 2개로 별도 렌더).
-const GUIDE_LINKS = [
+//
+// 학부모는 본인인증 약관 라우트가 없다 — /terms/parent/* 에 등록된 것은 service·
+// privacy·marketing 3개뿐이고 identity 는 학생 전용이다(App.jsx:287-294). 없는
+// 라우트를 링크하면 404 로 떨어지므로 2개만 노출한다.
+const STUDENT_GUIDE_LINKS = [
   { label: '서비스 이용약관', to: '/terms/student/service' },
   { label: '개인정보처리방침', to: '/terms/student/privacy' },
   { label: '본인 인증을 위한 정보 수집 약관', to: '/terms/student/identity' }
+];
+
+const PARENT_GUIDE_LINKS = [
+  { label: '서비스 이용약관', to: '/terms/parent/service' },
+  { label: '개인정보처리방침', to: '/terms/parent/privacy' }
 ];
 
 const ROW_BOX_CLASS = 'flex h-[3.25rem] items-center rounded-xl border border-line px-5 text-base text-ink';
@@ -36,7 +45,12 @@ function formatLinkDate(iso) {
 }
 
 export default function ProfileTab({ user, profile, memberType }) {
-  void memberType; // 이번 범위는 학생 화면만 — 분기 없이 항상 학생 레이아웃을 렌더한다.
+  // 학부모 변형(Figma 3379:12569 외) — 이름/휴대폰/이메일/비밀번호/이용안내만 있고
+  // 학교·학년, 학부모 연결, 내 연결코드가 없다. 그 셋은 전부 학생 계정의 개념이다
+  // (학부모에겐 연결할 "학부모"도, 발급받을 연결코드도 없다 — 코드는 학생이 발급하고
+  // 학부모가 입력한다, sql/40 issue_student_link_code).
+  const isParent = memberType === 'parent';
+  const guideLinks = isParent ? PARENT_GUIDE_LINKS : STUDENT_GUIDE_LINKS;
 
   const profileId = profile?.id || user?.id;
 
@@ -114,7 +128,7 @@ export default function ProfileTab({ user, profile, memberType }) {
   // 읽을 수 없다 — 이름을 보여주려면 서버 RPC가 하나 더 필요하다(이 작업 범위 밖, 지어내지
   // 않음). 그래서 이름 대신 일반 라벨("학부모님")로 표시한다.
   useEffect(() => {
-    if (!profileId) return;
+    if (!profileId || isParent) return;
     let alive = true;
 
     (async () => {
@@ -140,11 +154,11 @@ export default function ProfileTab({ user, profile, memberType }) {
     return () => {
       alive = false;
     };
-  }, [profileId]);
+  }, [profileId, isParent]);
 
   // 내 연결코드 — student_link_codes 활성 코드 1건(RLS: 본인 조회만 허용).
   useEffect(() => {
-    if (!profileId) return;
+    if (!profileId || isParent) return;
     let alive = true;
 
     (async () => {
@@ -162,7 +176,7 @@ export default function ProfileTab({ user, profile, memberType }) {
     return () => {
       alive = false;
     };
-  }, [profileId]);
+  }, [profileId, isParent]);
 
   function updateForm(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -277,7 +291,8 @@ export default function ProfileTab({ user, profile, memberType }) {
 
   return (
     <div className="mx-auto w-full max-w-sm">
-      {/* 학부모 연결 */}
+      {/* 학부모 연결 — 학생 전용(학부모에겐 연결할 상대가 이 축에 없다). */}
+      {!isParent && (
       <div className="mb-5">
         <p className="mb-2 text-sm text-ink">학부모 연결</p>
 
@@ -317,6 +332,7 @@ export default function ProfileTab({ user, profile, memberType }) {
           </div>
         )}
       </div>
+      )}
 
       {/* 이름 */}
       <ProfileField
@@ -329,7 +345,8 @@ export default function ProfileTab({ user, profile, memberType }) {
         className="mb-5"
       />
 
-      {/* 학교 · 학년 */}
+      {/* 학교 · 학년 — 학생 전용(학부모 시안 3379:12569 에는 이 행이 없다). */}
+      {!isParent && (
       <ProfileField label="학교 · 학년" className="mb-5">
         {/* 학년(숫자) 컬럼이 profiles에 없어 재학 구분(학교급)만 반영한다 — PNG의 "고1" 같은
             구체 학년은 스키마 확장이 필요하다(이 작업 범위 밖, DB 마이그레이션 금지 지시). */}
@@ -387,6 +404,7 @@ export default function ProfileTab({ user, profile, memberType }) {
           </div>
         )}
       </ProfileField>
+      )}
 
       {/* 휴대폰 번호 */}
       <ProfileField label="휴대폰 번호" className="mb-5">
@@ -461,7 +479,7 @@ export default function ProfileTab({ user, profile, memberType }) {
       <div className="mb-5">
         <p className="mb-2 text-sm text-ink">이용안내</p>
         <div className="flex flex-col gap-2">
-          {GUIDE_LINKS.map((link) => (
+          {guideLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
@@ -485,7 +503,9 @@ export default function ProfileTab({ user, profile, memberType }) {
         </div>
       </div>
 
-      {/* 내 연결코드 */}
+      {/* 내 연결코드 — 학생 전용. 코드는 학생이 발급하고 학부모가 입력하는 방향이라
+          (sql/40 issue_student_link_code) 학부모 화면에는 존재하지 않는다. */}
+      {!isParent && (
       <div className="mb-6">
         <p className="mb-2 text-sm text-ink">내 연결코드</p>
         <div className="flex items-center gap-2">
@@ -502,6 +522,7 @@ export default function ProfileTab({ user, profile, memberType }) {
           </button>
         </div>
       </div>
+      )}
 
       <button
         type="button"

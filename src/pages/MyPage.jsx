@@ -6,6 +6,8 @@ import MyPageTabs from '../components/mypage/MyPageTabs';
 import MyServicesTab from '../components/mypage/MyServicesTab';
 import PaymentsTab from '../components/mypage/PaymentsTab';
 import ProfileTab from '../components/mypage/ProfileTab';
+import ChildrenTab from '../components/mypage/parent/ChildrenTab';
+import EnrollmentInbox from '../components/mypage/parent/EnrollmentInbox';
 
 function cleanText(value) {
   return String(value || '').trim();
@@ -52,10 +54,23 @@ async function queryProfile(user) {
   return byId?.data || {};
 }
 
-// 탭 구성(Figma 3762:18713 학생 마이페이지) — 이번 범위는 학생 마이페이지만 다룬다.
-// 학부모 변형(3762:20390, 자녀 등록·정보수정 2탭)은 범위 밖이라 분기하지 않는다.
-const TABS = [
+// 탭 구성 — 회원유형으로 갈린다.
+//
+// 학생(Figma 3656:374 외): 나의 서비스 / 수강/결제 내역 / 내 정보 수정
+// 학부모(Figma 3636:104): 자녀 등록 및 수정 / 수강/결제 내역 / 내 정보 수정
+//
+// ⚠ 학부모 시안은 리비전마다 탭 수가 다르다 — 2탭(3360:10499), 3탭에 '결제
+// 내역'(3610:2365), 3탭에 '수강/결제 내역'(3636:104), 4탭에 '상담 및 문의'
+// 추가(3616:2892). 2026-08-13 사용자 확정으로 3636:104(3탭)을 정본으로 삼는다.
+// '상담 및 문의'는 내용 디자인도 백엔드도 없어 넣지 않았다.
+const STUDENT_TABS = [
   { key: 'services', label: '나의 서비스' },
+  { key: 'payments', label: '수강/결제 내역' },
+  { key: 'profile', label: '내 정보 수정' }
+];
+
+const PARENT_TABS = [
+  { key: 'children', label: '자녀 등록 및 수정' },
   { key: 'payments', label: '수강/결제 내역' },
   { key: 'profile', label: '내 정보 수정' }
 ];
@@ -176,12 +191,12 @@ export default function MyPage() {
     };
   }, [user]);
 
-  // memberType은 ProfileTab에 계속 넘긴다(추후 학부모 등 확장 대비) — 셸의 탭 구성 자체는
-  // 분기하지 않는다(이번 범위는 학생 마이페이지만, TABS 상수 참고).
   const memberType = cleanText(profile?.member_type).toLowerCase();
+  const isParent = memberType === 'parent';
+  const tabs = isParent ? PARENT_TABS : STUDENT_TABS;
 
   const requestedTab = searchParams.get('tab');
-  const activeTab = TABS.some((tab) => tab.key === requestedTab) ? requestedTab : TABS[0].key;
+  const activeTab = tabs.some((tab) => tab.key === requestedTab) ? requestedTab : tabs[0].key;
 
   // 구 /mypage#refund 진입 호환 — 결제/환불 내역이 있는 payments 탭으로 매핑한다.
   useEffect(() => {
@@ -209,14 +224,21 @@ export default function MyPage() {
         </h1>
 
         <div className="-mt-[1.0625rem]">
-          <MyPageTabs tabs={TABS} activeTab={activeTab} />
+          <MyPageTabs tabs={tabs} activeTab={activeTab} />
         </div>
 
         <div className="mt-[6.25rem]">
           {activeTab === 'services' && <MyServicesTab orders={orders} />}
 
+          {activeTab === 'children' && <ChildrenTab />}
+
           {activeTab === 'payments' && (
-            <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+            <>
+              {/* 학부모만 — 학생이 만든 결제요청을 발견하는 경로(handoff 작업 1·2).
+                  학생 화면에는 인박스 개념 자체가 없다(요청을 만드는 쪽이라서). */}
+              {isParent && <EnrollmentInbox />}
+              <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+            </>
           )}
 
           {activeTab === 'profile' && (
