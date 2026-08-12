@@ -238,7 +238,54 @@ values
   -- 테이블/카피만 rename했을 뿐 이 상품 행을 만든 적이 없다.
 on conflict (slug) do nothing;
 
-insert into public.coupons (slug, code, title, discount_amount, min_amount, valid_until, max_uses_per_user)
+-- ---------------------------------------------------------------------
+-- 구 형상(sql/00_base_schema.sql, 2026-07-27 스냅샷) 커버 — 그 스냅샷의
+-- coupons 는 id 가 아직 text 이고 slug/max_uses_per_user/grant_type 컬럼이
+-- 없다(sql/56_surrogate_uuid_keys.sql/sql/55_coupon_policy.sql 이전 상태).
+-- sql/00 → sql/10 순서로 신규 DB를 만들면(README 접두어 순서) 아래 시드
+-- INSERT 가 slug 컬럼을 참조해 42703(undefined_column)으로 죽는다
+-- (2026-08-12 팀 리드 실측). sql/56 이 결국 id 를 uuid 로 전환하며 이
+-- 컬럼들을 온전히 갖추지만 그 파일은 이 파일(10)보다 뒤에 실행되므로,
+-- 이 시드가 도는 시점엔 이미 아래 세 컬럼이 있어야 한다. 정의는
+-- sql/55_coupon_policy.sql:287(max_uses_per_user)·:390(grant_type),
+-- sql/56_surrogate_uuid_keys.sql:203(slug)과 글자까지 맞춘다(add column
+-- if not exists 라 그 두 파일이 이미 적용된 DB에서는 전부 no-op).
+alter table public.coupons add column if not exists slug text;
+alter table public.coupons add column if not exists max_uses_per_user integer;
+alter table public.coupons add column if not exists grant_type text not null default 'auto';
+
+-- 아래 시드의 `on conflict (slug)`가 arbiter 로 쓸 유니크 제약이 이
+-- 시점에 이미 있어야 한다(없으면 42P10). sql/56 과 이름·정의를 맞춘다
+-- (coupons_slug_key) — 단순히 `create unique index if not exists` 로
+-- 먼저 인덱스만 만들면, 뒤이어 실행되는 sql/56 의 같은 이름 존재 확인이
+-- pg_constraint 만 보고(순수 인덱스는 잡히지 않음) 다시
+-- `add constraint coupons_slug_key unique (slug)` 를 시도해 42P07(관계
+-- 이미 존재)로 죽는다(2026-08-12 팀 리드가 dev 스크래치 테이블로 직접
+-- 재현). sql/56 과 완전히 같은 "pg_constraint 존재 확인 DO 블록 + ADD
+-- CONSTRAINT" 패턴을 그대로 써서 이 충돌 자체를 없앤다. slug 는 sql/00
+-- 구 형상 경로에서 이 시점에 비어 있을 수 있어(신규 컬럼, 아직 값 없음)
+-- NOT NULL 은 걸지 않는다 — sql/56 이 백필 뒤에 건다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'coupons_slug_key' and conrelid = 'public.coupons'::regclass
+  ) then
+    alter table public.coupons add constraint coupons_slug_key unique (slug);
+  end if;
+end $$;
+
+-- ⚠️ 2026-08-12: 컬럼 목록에 grant_type을 추가했다 — 없으면 재실행이
+--    23514로 죽는 사고가 있었다(speculative insertion 사고 경위). `on
+--    conflict (slug) do nothing`은 후보 행이 유니크 제약을 어길 때만
+--    INSERT를 건너뛰는데(speculative insertion), 그 판정보다 CHECK
+--    제약 평가가 먼저다 — grant_type을 명시하지 않으면 DEFAULT('auto')를
+--    받는데, signup-2000 행처럼 max_uses_per_user=1을 같이 주면
+--    grant_type='auto'인 채로 coupons_per_user_cap_requires_grant_check
+--    (grant_type='granted' or max_uses_per_user is null)를 위반해 충돌
+--    여부와 무관하게 매 재실행마다 23514로 죽는다(dev 실측, 2026-08-12
+--    팀 리드 확인). 아래처럼 grant_type을 명시하면 이 문제 자체가 없다.
+insert into public.coupons (slug, code, title, discount_amount, min_amount, valid_until, max_uses_per_user, grant_type)
 values
   -- 2026-08-11: discount_amount/title/valid_until을 dev 실측값으로 갱신(위 안내
   -- 참고). 과거 시드는 6000원/'회원가입 특별할인'/2026-08-15였다 — 53번 파일이
@@ -251,7 +298,11 @@ values
   -- (signup-2000 1인당 1회 제한을 만들기 위함), 나머지 두 쿠폰까지 DEFAULT에
   -- 맡기면 상시 할인(4만원/8만원 이상 할인)이 의도치 않게 1회용이 되어버린다.
   -- 그래서 세 행 모두 dev 실물 값을 DEFAULT에 기대지 않고 명시한다.
-  ('signup-2000', null, '회원가입 축하 쿠폰', 2000, 0, '2026-12-31', 1),
+  -- grant_type은 signup-2000만 'granted'(발급형, sql/55 0-e절) — 나머지 두
+  -- 쿠폰은 조건형(상시 할인)이라 DEFAULT와 같은 값이지만 sql/70_coupon_
+  -- cap_derivation.sql이 max_uses_per_user의 DEFAULT를 걷어낸 뒤로는 이
+  -- 컬럼도 값을 생략할 근거가 없어 세 행 모두 명시한다.
+  ('signup-2000', null, '회원가입 축하 쿠폰', 2000, 0, '2026-12-31', 1, 'granted'),
   -- over200k-5000(20만원 이상 5,000원 할인)은 운영자가 2026-07-31에 삭제하고
   -- 아래 두 쿠폰으로 교체했다 — dev에 더 이상 존재하지 않아 시드에서도 뺀다.
   -- valid_until이 둘 다 null이다 — 이 저장소에서 valid_until IS NULL은
@@ -264,8 +315,8 @@ values
   -- 확인했다. (과거 이 자리에는 클라이언트가 `.gte('valid_until', today)`로
   -- 걸러 null이 통과하지 못한다는 주석이 있었는데, 그 필터는 쿠폰 판정을
   -- DB(fn_usable_coupons)로 통합하면서 제거됐다 — 지금은 해당하지 않는다.)
-  ('over40k-3000', null, '4만원 이상 구매 시 3,000원 할인', 3000, 40000, null, null),
-  ('over80k-5000', null, '8만원 이상 구매 시 5,000원 할인', 5000, 80000, null, null)
+  ('over40k-3000', null, '4만원 이상 구매 시 3,000원 할인', 3000, 40000, null, null, 'auto'),
+  ('over80k-5000', null, '8만원 이상 구매 시 5,000원 할인', 5000, 80000, null, null, 'auto')
 on conflict (slug) do nothing;
 
 -- ---------------------------------------------------------------------

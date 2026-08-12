@@ -35,7 +35,7 @@ Supabase SQL Editor에서 **파일명 접두어 순서대로** 실행합니다. 
 
 ## 재실행 시 데이터 보존 원칙
 
-- `10_pricing_orders.sql`의 products/coupons 시드는 `on conflict (id) do nothing` — 이미 존재하는 id는 재실행으로 절대 덮어쓰지 않는다. `api/create-order.js`가 products를 결제 신뢰값으로 읽으므로, 단종 상품·종료 쿠폰의 가격/노출 상태가 파일 재실행으로 롤백되면 실제 청구 금액이 바뀐다.
+- `10_pricing_orders.sql`의 products/coupons 시드는 `on conflict (slug) do nothing` — 이미 존재하는 slug는 재실행으로 절대 덮어쓰지 않는다(`sql/56_surrogate_uuid_keys.sql`의 id/slug 분리 이후 충돌 대상이 대체키 `id`에서 사람이 읽는 자연키 `slug`로 바뀌었다). `api/create-order.js`가 products를 결제 신뢰값으로 읽으므로, 단종 상품·종료 쿠폰의 가격/노출 상태가 파일 재실행으로 롤백되면 실제 청구 금액이 바뀐다.
 - `20_landing_renewal.sql`의 `program_categories` 카피 갱신 UPDATE는 `public.schema_migrations` 마커 테이블로 **최초 1회만** 적용된다. 이후 재실행에서는 관리자가 어드민 화면에서 수정한 값을 그대로 보존한다.
 - 신규 설치(빈 DB)에서는 위 가드와 무관하게 최초 시드가 정상적으로 들어간다 (모든 `insert ... where not exists` 블록은 계속 무조건 동작).
 - `30_landing_admin_media.sql`의 멘토 22건 백필·히어로 배너 시드·배너 행 정리·레거시 멘토 비활성화도 각각 마커(`30_mentor_card_fields_backfill_v1` / `30_banners_hero_seed_v1` / `30_banners_hero_rows_cleanup_v1` / `30_legacy_mentor_rows_deactivate_v1`)로 **최초 1회만** 적용된다. 시드는 로컬경로(`/images/landing/…`)만 사용하며, Storage publicUrl은 환경별로 다르므로 업로드 스크립트가 환경별로 UPDATE한다.
