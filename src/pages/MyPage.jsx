@@ -138,7 +138,12 @@ export default function MyPage() {
           // (api/confirm-payment.js — 계좌 발급만 끝난 상태). paid 만 조회하면 입금 전
           // 주문이 마이페이지에서 통째로 사라지므로 두 상태를 함께 읽고, 배지·환불 대상
           // 판정을 위해 status 도 가져온다.
-          .select('id, order_name, amount, paid_at, status')
+          //
+          // method / vat 은 결제 상세 내역 모달(PaymentDetailModal, Figma 3665:6278)이
+          // 쓴다. 부가세는 우리가 금액에서 역산하지 않고 토스 승인 응답 원본
+          // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
+          // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
+          .select('id, order_name, amount, paid_at, status, method, vat:raw->>vat')
           .eq('user_id', user.id)
           .in('status', ['paid', 'waiting_deposit'])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
@@ -211,12 +216,7 @@ export default function MyPage() {
           {activeTab === 'services' && <MyServicesTab orders={orders} />}
 
           {activeTab === 'payments' && (
-            <PaymentsTab
-              user={user}
-              orders={orders}
-              refunds={refunds}
-              onRefundSubmitted={reloadRefunds}
-            />
+            <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
           )}
 
           {activeTab === 'profile' && (
