@@ -134,8 +134,12 @@ export default function MyPage() {
     if (!user) return;
     const { data } = await supabase
       .from('refund_requests')
-      .select('id, order_id, order_name, amount, reason, status, created_at')
-      .eq('user_id', user.id)
+      .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, created_at')
+      // orders 와 같은 이유로 쌍 두 축을 함께 본다 — refund_requests.user_id 는
+      // "신청한 사람"이라, 학부모가 신청한 환불을 학생이 못 보거나 그 반대가 된다.
+      // RLS(sql/68 "refund_requests select own")가 이미 두 축(student_profile_id,
+      // parent_profile_id)으로 열려 있어 이 조회와 정확히 맞물린다.
+      .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
     setRefunds(data || []);
   }, [user]);
@@ -159,15 +163,22 @@ export default function MyPage() {
           // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
           // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
           .select('id, order_name, amount, paid_at, status, method, vat:raw->>vat')
-          .eq('user_id', user.id)
+          // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
+          // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생
+          // 계정은 자기가 신청해서 이용 중인 주문을 하나도 못 본다(빈 목록).
+          // 두 축을 OR 로 함께 본다 — RLS(orders select)가 이미 쌍 당사자만
+          // 통과시키므로 남의 주문이 섞일 여지는 없다.
+          .or(`user_id.eq.${user.id},student_profile_id.eq.${user.id}`)
           .in('status', ['paid', 'waiting_deposit'])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
           // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
           .order('created_at', { ascending: false }),
         supabase
           .from('refund_requests')
-          .select('id, order_id, order_name, amount, reason, status, created_at')
-          .eq('user_id', user.id)
+          .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, created_at')
+          // 위 reloadRefunds 와 같은 쌍 두 축 조회(그쪽 주석 참고) — 두 경로가
+          // 다른 결과를 주면 환불 신청 직후 표의 상태 배지가 흔들린다.
+          .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
       ]);
       if (!alive) return;
