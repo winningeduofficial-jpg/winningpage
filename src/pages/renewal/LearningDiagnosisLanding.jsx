@@ -227,7 +227,7 @@ function HeroSection() {
         <p className={`mt-6 ${HERO_SUBTEXT_CLASS}`}>설문조사로 나의 강점과 약점을 찾아드려요</p>
 
         <Link
-          to="/learning-diagnosis/survey"
+          to="/app/learning-diagnosis/survey"
           className={`${CTA_LINK_CLASS} mt-6 bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-[#013262]`}
         >
           지금 시작하기
@@ -511,7 +511,7 @@ function BottomCta() {
         </h2>
 
         <Link
-          to="/learning-diagnosis/survey"
+          to="/app/learning-diagnosis/survey"
           className={`${CTA_LINK_CLASS} bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-white`}
         >
           학습진단 시작하기 →

@@ -15,7 +15,11 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // navigation.js의 SERVICE_NAME_OVERRIDES를 제거했다. App.jsx에 영구 리다이렉트가 추가돼 구
 // 링크('/free-diagnosis')가 죽지는 않지만, 캐싱된 구 라벨('무료진단')이 화면에 그대로 노출되는
 // 것을 막고 리다이렉트 한 홉을 절약하기 위해 키를 bump한다.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v6';
+// v7: 학습진단 URL 통일 규칙 이관(2026-08-10) — 소개 페이지가 '/learning-diagnosis'에서
+// '/services/learning-diagnosis'로 옮겨졌다. 캐시에 구 경로('/learning-diagnosis')가 남아있는
+// 사용자에게도 즉시 신 경로가 보이도록(그리고 ensureLearningDiagnosisInService가 구 경로를
+// 걸러내지 못해 중복 노출되는 것을 막기 위해) 키를 다시 bump한다.
+const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v6-v7';
 
 export function cleanText(value) {
   return String(value || '').trim();
@@ -64,6 +68,7 @@ export const PROMOTED_SLUG_ROUTES = {
   'services-in-depth-research': '/services/research',
   'admission-special-highschool-results': '/admission/special-highschool',
   'premium-apply': '/premium-apply',
+  'mentor-apply': '/mentor-apply',
   gallery: '/info/column'
 };
 
@@ -107,38 +112,49 @@ function ensureLearningDiagnosisInService(groups) {
 
     const items = Array.isArray(group.items) ? group.items : [];
     const withoutLearningDiagnosis = items.filter((item) => {
-      // 신 리터럴('학습진단' / '/learning-diagnosis')과 구 리터럴('무료진단' / '/free-diagnosis')을
-      // 모두 걸러낸 뒤, 아래에서 '학습진단' 항목을 항상 맨 앞에 한 번만 주입한다.
+      // 신 리터럴('학습진단' / '/services/learning-diagnosis')과 구 리터럴 2종
+      // ('무료진단' / '/free-diagnosis', '학습진단' / '/learning-diagnosis')을 모두 걸러낸 뒤,
+      // 아래에서 '학습진단' 항목을 항상 맨 앞에 한 번만 주입한다.
       //
-      // 신 리터럴은 필수다 —
+      // 리터럴이 3종(신 경로 1 + 구 경로 2)인 이유 — 학습진단 URL 통일 규칙 이관(2026-08-10)으로
+      // 소개 페이지가 '/learning-diagnosis' → '/services/learning-diagnosis'로 한 번 더
+      // 이동했다. 그 결과 '/learning-diagnosis'가 (구 무료진단 리터럴 '/free-diagnosis'와
+      // 마찬가지로) "구 경로"가 됐지만, 아래 이유로 여전히 지우면 안 된다.
+      //
+      // 신 경로 리터럴은 필수다 —
       // (a) 멱등성: 이 함수가 주입한 항목이 캐시(localStorage)에 저장됐다가 다음 렌더에서
       //     readCachedNavGroups를 통해 다시 들어올 때 재주입되는 것을 막는다. 안 걸러내면
       //     캐시를 거친 두 번째 렌더부터 메뉴에 항목이 두 번 나온다.
-      // (b) DB(page_contents)를 신 이름으로 마이그레이션한 뒤 DB 항목과 코드 주입 항목이
+      // (b) DB(page_contents)를 신 경로로 마이그레이션한 뒤 DB 항목과 코드 주입 항목이
       //     중복되지 않도록.
       //
-      // 구 리터럴도 남긴다(제거 안 함) — dev DB는 이번에 마이그레이션되지만 운영 DB는 나중에
-      // dump 재이관으로 처리되는 별도 일정이고, 그 사이 운영 page_contents에는 '무료진단' /
-      // '/free-diagnosis' 항목이 그대로 남아 있다. 캐시 키를 v6으로 bump했어도 DB가 계속
-      // 구 값을 내려주면 소용이 없다. 구 리터럴을 지우면 그 항목이 필터를 통과해 코드가
-      // 주입하는 '학습진단'과 나란히 메뉴에 중복 노출된다(링크 자체는 App.jsx의
-      // '/free-diagnosis' 리다이렉트로 살아 있지만, 같은 메뉴가 두 번 보이는 건 그대로 버그).
-      // 두 줄 비용으로 그 창을 막을 수 있어 유지가 이득이다. 운영 DB까지 이관이 끝나면
-      // 구 리터럴 두 줄은 제거해도 된다.
+      // 구 리터럴 2종도 남긴다(제거 안 함) — dev DB는 이번에 마이그레이션되지만 운영 DB는
+      // 나중에 dump 재이관으로 처리되는 별도 일정이고, 그 사이 운영 page_contents에는
+      // '무료진단'/'/free-diagnosis' 또는 '학습진단'/'/learning-diagnosis'(43번 마이그레이션 이후
+      // 값) 항목이 그대로 남아 있을 수 있다. 캐시 키를 v7로 bump했어도 DB가 계속 구 값을
+      // 내려주면 소용이 없다. 구 리터럴을 지우면 그 항목이 필터를 통과해 코드가 주입하는
+      // '학습진단'과 나란히 메뉴에 중복 노출된다(링크 자체는 App.jsx의 '/free-diagnosis'·
+      // '/learning-diagnosis' 리다이렉트로 살아 있지만, 같은 메뉴가 두 번 보이는 건 그대로
+      // 버그). 몇 줄 비용으로 그 창을 막을 수 있어 유지가 이득이다. 운영 DB까지 신 경로로
+      // 이관이 끝나면 구 리터럴들은 제거해도 된다.
       const label = cleanText(item?.label).replace(/\s+/g, '');
       const to = cleanText(item?.to);
       return (
         label !== '무료진단' &&
         label !== '학습진단' &&
         to !== '/free-diagnosis' &&
-        to !== '/learning-diagnosis'
+        to !== '/learning-diagnosis' &&
+        to !== '/services/learning-diagnosis'
       );
     });
 
     return {
       ...group,
-      to: group.to || '/learning-diagnosis',
-      items: [{ label: '학습진단', to: '/learning-diagnosis', sortOrder: 0 }, ...withoutLearningDiagnosis]
+      to: group.to || '/services/learning-diagnosis',
+      items: [
+        { label: '학습진단', to: '/services/learning-diagnosis', sortOrder: 0 },
+        ...withoutLearningDiagnosis
+      ]
     };
   });
 }

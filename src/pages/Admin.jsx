@@ -8,10 +8,12 @@ import {
   ChevronsRight,
   Download,
   Edit3,
+  ExternalLink,
   Eye,
   Plus,
   RefreshCw,
   Search,
+  Settings,
   Trash2,
   UploadCloud
 } from 'lucide-react';
@@ -23,8 +25,30 @@ import {
   HWP_SECTION_HTML_KEYS,
   splitHwpTextIntoSections,
   buildHwpCategoryHtml,
+  buildHwpCategoryDoc,
+  renderDocToHtml,
   clean as cleanAdmissionText
 } from '../lib/admissionParsing';
+import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
+import { isDocRenderEnabled } from '../lib/admissionFlags';
+import { getAdmissionActiveYear, setAdmissionActiveYear } from '../lib/admissionSettings';
+import {
+  exportAdmissionRowsToXlsx,
+  parseAdmissionRowsFromXlsx,
+  BULK_XLSX_COLUMNS
+} from '../lib/admissionBulkXlsx';
+import {
+  exportAdmissionResultRowsToXlsx,
+  parseAdmissionResultRowsFromXlsx,
+  BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS
+} from '../lib/admissionResultsBulkXlsx';
+import * as XLSX from 'xlsx';
+import AdmissionSectionView from '../components/admission/AdmissionSectionView';
+import SafeHtml from '../components/admission/SafeHtml';
+import AdmissionSurface from '../components/admission/AdmissionSurface';
+import DocBlocksEditor from '../components/admission/editor/DocBlocksEditor';
+import AdmissionSectionEditModal from '../components/admission/editor/AdmissionSectionEditModal';
+import AdmissionMetaEditModal from '../components/admission/editor/AdmissionMetaEditModal';
 import BlockEditor from '../components/editor/BlockEditor';
 import ColumnPreviewModal from '../components/editor/ColumnPreviewModal';
 import { blocksToPlainText } from '../lib/blockToPlainText';
@@ -41,7 +65,19 @@ import BookViewer from '../components/premiumBook/BookViewer';
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
 import CouponAdmin from '../components/admin/CouponAdmin';
 
+// resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
+// buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
+// 포함하지만, 과거 다른 경로로 저장된 값은 admission-existing-html을 이미
+// 포함할 수도 있다. 이미 자기 래퍼가 있으면 SafeHtml에 className을 더
+// 주지 않는다 — 안 그러면 admission-existing-html이 이중으로 붙어
+// overflow-x:auto 스크롤 컨테이너가 중첩된다(공개 모달에서 실제로 발생했던
+// 버그와 동일 패턴).
+const ADMISSION_EXISTING_WRAP_RE = /admission-existing-html|admission-raw-section-wrap/;
+
 const PAGE_SIZE = 10;
+// CSV 청크 내보내기 1회 요청 크기. PostgREST 기본 응답 상한이 1,000행이라 이보다
+// 크게 잡아도 잘려 나온다 — 43k행이면 44회 왕복이다.
+const EXPORT_CHUNK = 1000;
 const IMAGE_BUCKET = 'banners';
 
 const MENU_GROUPS = [
@@ -55,7 +91,8 @@ const MENU_GROUPS = [
       { key: 'programCategories', label: '핵심 서비스' },
       { key: 'mentorStrategies', label: '멘토 성공전략' },
       { key: 'pageContents', label: '세부 페이지 관리' },
-      { key: 'premiumBookPages', label: '프리미엄 책자 관리' }
+      { key: 'premiumBookPages', label: '프리미엄 책자 관리' },
+      { key: 'premiumConsults', label: '프리미엄 상담 신청' }
     ]
   },
   {
@@ -71,6 +108,8 @@ const MENU_GROUPS = [
       { key: 'trendingDepartments', label: '지금 뜨고 있는 학과' },
       { key: 'galleries', label: '교육칼럼' },
       { key: 'faqs', label: '자주하는질문' },
+      { key: 'mentorApplyFaqs', label: '멘토신청 FAQ' },
+      { key: 'mentorApplyCopy', label: '멘토신청 문구' },
       { key: 'learningDiagnosis', label: '학습진단 관리' }
     ]
   },
@@ -78,7 +117,8 @@ const MENU_GROUPS = [
     title: '회원 관리',
     items: [
       { key: 'members', label: '회원 목록' },
-      { key: 'enrollments', label: '수강 신청 내역' }
+      { key: 'enrollments', label: '수강 신청 내역' },
+      { key: 'mentorApplications', label: '멘토 신청 내역' }
     ]
   },
   {
@@ -206,6 +246,26 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: 'failed', label: '납부실패' },
   { value: 'refunded', label: '환불완료' },
   { value: 'cancelled', label: '취소완료' }
+];
+
+// DB 저장값은 영문 키 그대로 유지하고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
+const PREMIUM_CONSULT_STATUS_OPTIONS = [
+  { value: 'new', label: '신규' },
+  { value: 'contacted', label: '연락함' },
+  { value: 'done', label: '완료' },
+  { value: 'cancelled', label: '취소' }
+];
+
+// sql/52_mentor_applications.sql의 status 컬럼 주석에 적힌 값 그대로(CHECK 제약은 없지만
+// 이 6개가 실제 사용 값이다). CONFIGS.mentorApplications 목록 컬럼과 MentorApplicationsAdmin의
+// 상세 상태변경 Select가 이 배열 하나를 공유한다 — 값이 어긋나면 목록에 라벨이 안 붙는다.
+const MENTOR_APPLICATION_STATUS_OPTIONS = [
+  { value: 'submitted', label: '제출됨' },
+  { value: 'screening', label: '서류심사' },
+  { value: 'interview', label: '면접' },
+  { value: 'training', label: '교육' },
+  { value: 'active', label: '활동중' },
+  { value: 'rejected', label: '불합격' }
 ];
 
 const CONFIGS = {
@@ -847,8 +907,8 @@ const CONFIGS = {
     title: '프리미엄 책자 관리',
     table: 'premium_book_pages',
     searchPlaceholder: '',
-    // 정정(spec B-1): CONFIGS가 실제로 읽는 키는 order다 — orderColumn은 loadRows 지역변수 이름일
-    // 뿐이다(Admin.jsx:loadRows, `const orderColumn = config.order || 'created_at'`).
+    // 정정(spec B-1): CONFIGS가 실제로 읽는 키는 order다 — orderColumn은 쿼리 조립부의
+    // 지역변수 이름일 뿐이다(Admin.jsx:buildListQuery, `const orderColumn = config.order || 'created_at'`).
     order: 'sort_order',
     homepage: true,
     custom: true,
@@ -871,6 +931,52 @@ const CONFIGS = {
     // create 모드는 config.defaults만으로 폼을 초기화한다(Admin.jsx AdminForm,
     // `return { ...(config.defaults || {}) }`) — 없으면 sort_order NOT NULL이 23502 raw alert를 띄운다.
     defaults: { sort_order: 1, image_url: '' }
+  },
+
+  // 프리미엄 상담 신청 내역 — sql/48_premium_consult.sql(premium_consult_requests)이 정본.
+  // 신청자 원본(이름/연락처/이메일/서비스/문의내용)은 운영자가 고칠 이유가 없어 읽기 전용으로 두고
+  // status·admin_note만 편집 가능하게 한다. 신규 상담 생성 경로는 공개 신청폼(PremiumApply.jsx)
+  // 하나뿐이라 noCreate로 어드민의 수기 생성 자체를 막는다.
+  premiumConsults: {
+    title: '프리미엄 상담 신청 내역',
+    table: 'premium_consult_requests',
+    searchPlaceholder: '이름, 연락처, 이메일 검색',
+    // loadRows: orderColumn이 'sort_order'가 아니면 내림차순 정렬이라(Admin.jsx:loadRows 참고)
+    // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
+    order: 'created_at',
+    noCreate: true,
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
+    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
+    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
+    retentionNotice:
+      '상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.',
+    columns: [
+      { key: 'created_at', label: '신청일시', type: 'datetime' },
+      { key: 'name', label: '이름' },
+      { key: 'phone', label: '연락처' },
+      { key: 'email', label: '이메일' },
+      { key: 'service', label: '상담 서비스' },
+      { key: 'message', label: '문의 내용', type: 'truncate' },
+      { key: 'status', label: '상태', options: PREMIUM_CONSULT_STATUS_OPTIONS }
+    ],
+    fields: [
+      { key: 'created_at', label: '신청일시', type: 'datetime', readOnly: true },
+      { key: 'name', label: '이름', type: 'text', readOnly: true },
+      { key: 'phone', label: '연락처', type: 'text', readOnly: true },
+      { key: 'email', label: '이메일', type: 'text', readOnly: true },
+      { key: 'service', label: '상담 서비스', type: 'text', readOnly: true },
+      { key: 'message', label: '문의 내용', type: 'textarea', readOnly: true },
+      {
+        key: 'status',
+        label: '상태',
+        type: 'select',
+        options: PREMIUM_CONSULT_STATUS_OPTIONS,
+        required: true
+      },
+      { key: 'admin_note', label: '운영 메모', type: 'textarea' }
+    ],
+    defaults: { status: 'new', admin_note: '' }
   },
 
   notices: {
@@ -994,16 +1100,67 @@ const CONFIGS = {
     searchPlaceholder: '대학명, 지역, 전형 내용을 검색하세요',
     order: 'university_name',
     homepage: true,
-    excel: true,
+    // config.excel(공용 CSV 다운로드 스위치) 없음(의도) — 6컬럼(admission_year/
+    // region/university_name/matched_hwp_name/detail_status/is_active,
+    // 전부 BULK_XLSX_COLUMNS에 포함돼 있어 기능 후퇴 없음) 대신
+    // AdmissionBulkXlsxPanel의 23컬럼 xlsx로 통일한다(2026-08-07 사용자
+    // 지시 — "엑셀 다운로드 버튼이 여러 개다, 우리가 개발한 걸로
+    // 통일해라"). 이 플래그는 14개 메뉴가 공유하는 공용 렌더 코드
+    // (:5900 부근)를 켜는 스위치라 여기서만 뺐다 — 다른 config·공용
+    // 코드는 손대지 않았다.
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
+    ListSummary: AdmissionListSummary,
 
+    // 목록 '관리' 열의 행 수정(✏️) 버튼을 이 메뉴에서만 숨긴다.
+    // 사용자 지시(2026-08-07): "이제 '디테일한 수정'은 필요없어. 여기서
+    // 수정버튼을 삭제해줘." — 카테고리 6칸이 각각 [수정] 1클릭으로 편집
+    // 다이얼로그를 여는 구조가 되면서 행 전체 폼은 중복 진입점이 됐다.
+    //
+    // ⚠ 이 플래그를 다른 config 로 복사하지 마라. AdminTable 의 ✏️ 한 줄을
+    // 35개 메뉴가 공유하고, settlements 는 같은 버튼을 👁 상세보기로 쓴다.
+    // (scripts/verify-admission-admin-entry.mjs 의 entry:2 가 소스 전체에서
+    //  hideRowEdit 이 정확히 1회만 등장하는지 락을 건다.)
+    //
+    // 🔴 이 플래그로 잃는 것(사용자 고지 완료): 기존 행의 메타 9필드
+    // (노출 여부·입학연도·지역·대학명·대학 키값·원문 대학명·정시 URL·메모·
+    // 상태)와 HWP 원문 붙여넣기 파싱 패널이 폼에만 있어, 이미 등록된 행에
+    // 대해서는 AdmissionBulkXlsxPanel 엑셀 왕복이 유일한 수정 경로가 된다.
+    // [등록] 신규 폼은 별도 진입점(:6157 부근)이라 그대로 살아 있다.
+    hideRowEdit: true,
+
+    // ✏️(행 전체 폼)를 대신할 메타 전용 경량 진입점(⚙️). 사용자 지시
+    // (2026-08-08): "아직도 '수정'이 너무 복잡해보여서. 메타만 수정하는거로
+    // 하자. HWP 원문 붙여넣기 파싱은 필요없어." AdminTable의 관리 열
+    // 렌더 조건 1개를 이 config에만 추가한다 — hideRowEdit과 같은
+    // "공용 렌더 + config 스위치" 패턴, 다른 35개 메뉴는 이 플래그를 안 쓴다.
+    showMetaEdit: true,
+
+    // 목록 표를 공개 서비스 표와 같은 모양으로 만든다(2026-08-07 사용자 지시
+    // "서비스 모달 구조를 그대로 따라가라", 직전 피드백 "아직도 2뎁스잖아").
+    // 공개는 목록 셀 [보기] 1클릭이면 표가 든 다이얼로그가 열린다. 어드민도
+    // 셀 [수정] 1클릭으로 같은 껍데기의 편집 다이얼로그가 열리게 한다.
+    // 라벨은 공개 INFO_SECTIONS(AdmissionGuidelines.jsx)와 문자 그대로 동일.
+    //
+    // type:'admissionSection'은 AdminTable 셀 스위치에 **가산된 분기 1개**다.
+    // AdminTable은 36개 config가 공유하므로, 기존 분기를 고치지 않고 새 type을
+    // 더하는 방식만 안전하다(다른 35개 config는 이 type을 쓰지 않는다).
     columns: [
       { key: 'admission_year', label: '연도' },
       { key: 'region', label: '지역' },
-      { key: 'university_name', label: '대학명' },
+      // type:'universityNameMeta' — 대학명 셀을 메타 수정 다이얼로그 진입점으로
+      // 만든다. admissionSection과 같은 방식의 **가산된 분기 1개**이고, 이
+      // type을 선언하는 config는 여기 하나뿐이라 나머지 35개 메뉴는 기존
+      // 폴백(formatValue) 그대로다.
+      { key: 'university_name', label: '대학명', type: 'universityNameMeta' },
       { key: 'matched_hwp_name', label: '원문 대학명' },
       { key: 'detail_status', label: '상태' },
-      { key: 'is_active', label: '노출', type: 'boolean' }
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      ...HWP_SECTION_ORDER.map((key) => ({
+        key: `__section_${key}`,
+        label: HWP_SECTION_LABELS[key],
+        type: 'admissionSection',
+        sectionKey: key
+      }))
     ],
 
     fields: [
@@ -1016,86 +1173,160 @@ const CONFIGS = {
       { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
 
       {
+        key: 'previous_year_changes_json',
+        label: '전년도와 차이점(수시) 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'previous_year_changes',
+        group: 'previous_year_changes'
+      },
+      {
         key: 'previous_year_changes',
         label: '전년도와 차이점(수시) 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 HTML도 함께 갱신하세요.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다. 원문만 고치면 화면이 바뀌지 않으니, 고친 뒤 우측 "HWP 원문 파싱 · 미리보기"에서 파싱을 다시 실행해 문서와 HTML 미러를 함께 갱신하세요.',
         type: 'textarea',
-        rows: 8
+        rows: 8,
+        group: 'previous_year_changes'
       },
       {
         key: 'previous_year_changes_html',
-        label: '전년도와 차이점(수시) HTML(공개 페이지 렌더값)',
+        label: '전년도와 차이점(수시) HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 8
+        rows: 8,
+        readOnly: true,
+        group: 'previous_year_changes'
+      },
+      {
+        key: 'selection_method_json',
+        label: '전형방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'selection_method',
+        group: 'selection_method'
       },
       {
         key: 'selection_method',
         label: '전형방법 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'selection_method'
       },
       {
         key: 'selection_method_html',
-        label: '전형방법 HTML(공개 페이지 렌더값)',
+        label: '전형방법 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        readOnly: true,
+        group: 'selection_method'
+      },
+      {
+        key: 'minimum_requirements_json',
+        label: '최저학력기준 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'minimum_requirements',
+        group: 'minimum_requirements'
       },
       {
         key: 'minimum_requirements',
         label: '최저학력기준 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'minimum_requirements'
       },
       {
         key: 'minimum_requirements_html',
-        label: '최저학력기준 HTML(공개 페이지 렌더값)',
+        label: '최저학력기준 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        readOnly: true,
+        group: 'minimum_requirements'
+      },
+      {
+        key: 'exam_schedule_json',
+        label: '대학별고사일 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'exam_schedule',
+        group: 'exam_schedule'
       },
       {
         key: 'exam_schedule',
         label: '대학별고사일 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 10
+        rows: 10,
+        group: 'exam_schedule'
       },
       {
         key: 'exam_schedule_html',
-        label: '대학별고사일 HTML(공개 페이지 렌더값)',
+        label: '대학별고사일 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 10
+        rows: 10,
+        readOnly: true,
+        group: 'exam_schedule'
+      },
+      {
+        key: 'school_record_method_json',
+        label: '학생부반영방법 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'school_record_method',
+        group: 'school_record_method'
       },
       {
         key: 'school_record_method',
         label: '학생부반영방법 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 14
+        rows: 14,
+        group: 'school_record_method'
       },
       {
         key: 'school_record_method_html',
-        label: '학생부반영방법 HTML(공개 페이지 렌더값)',
+        label: '학생부반영방법 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 14
+        rows: 14,
+        readOnly: true,
+        group: 'school_record_method'
+      },
+      {
+        key: 'recruitment_quota_json',
+        label: '모집인원 및 입결 문서(정본 — 공개 페이지가 이 문서를 읽습니다)',
+        type: 'admissionDoc',
+        sectionKey: 'recruitment_quota',
+        group: 'recruitment_quota'
       },
       {
         key: 'recruitment_quota',
         label: '모집인원 및 입결 원문(raw)',
-        help: '공개 페이지에는 이 원문이 아니라 아래 HTML 필드가 렌더됩니다.',
+        help: '공개 페이지는 위 "문서"(정본)를 읽습니다.',
         type: 'textarea',
-        rows: 12
+        rows: 12,
+        group: 'recruitment_quota'
       },
       {
         key: 'recruitment_result_html',
-        label: '모집인원 및 입결 HTML(공개 페이지 렌더값)',
+        label: '모집인원 및 입결 HTML(미러, 편집 불가)',
+        help: '문서(위)를 편집하면 자동으로 다시 생성됩니다. 이 필드를 직접 고칠 수 없습니다.',
         type: 'textarea',
-        rows: 18
+        rows: 18,
+        readOnly: true,
+        group: 'recruitment_quota'
       },
       {
         key: 'jungsi_guideline_url',
         label: '정시모집요강 URL',
+        type: 'text'
+      },
+      {
+        // 공개 목록에서 대학명을 눌렀을 때 가는 곳. 위 정시모집요강 URL과는
+        // 다른 컬럼이다. hideRowEdit라 이 폼은 신규 등록에서만 열리지만,
+        // 여기 없으면 새로 만든 행이 링크 없이 태어난다.
+        key: 'official_source_url',
+        label: '대학명 링크 URL',
         type: 'text'
       },
       {
@@ -1121,19 +1352,67 @@ const CONFIGS = {
       matched_hwp_name: '',
       previous_year_changes: '',
       previous_year_changes_html: '',
+      // *_json 6종은 jsonb 컬럼이다 — 빈 문자열('')은 타입 에러를 낸다.
+      // sql/43 적용 전에는 컬럼 자체가 없어 select에 안 잡히지만, 적용 후
+      // 신규 행을 만들 때(AdminForm이 row 없이 defaults만 스프레드하는
+      // 경로) 여기 없으면 undefined가 payload에 실려 upsert가 컬럼을
+      // 아예 건드리지 않게 되므로, 명시적으로 null을 채워둔다.
+      previous_year_changes_json: null,
       selection_method: '',
       selection_method_html: '',
+      selection_method_json: null,
       minimum_requirements: '',
       minimum_requirements_html: '',
+      minimum_requirements_json: null,
       exam_schedule: '',
       exam_schedule_html: '',
+      exam_schedule_json: null,
       school_record_method: '',
       school_record_method_html: '',
+      school_record_method_json: null,
       recruitment_quota: '',
       recruitment_result_html: '',
+      recruitment_quota_json: null,
       jungsi_guideline_url: '',
+      official_source_url: '',
       memo: '',
       detail_status: '상세입력완료'
+    },
+
+    // jsonb(*_json) 컬럼 방어. AdminForm 초기값이 {...row}, 저장 payload가
+    // {...form}인 일반 경로를 그대로 쓰면, jsonb 컬럼 값(객체)이 form에
+    // 그대로 실렸다가 textarea 등 문자열 전제 필드로 렌더될 경우
+    // [object Object]로 깨진 채 저장돼 원본 jsonb를 파괴할 수 있다.
+    // *_json 필드는 이제 type:'admissionDoc'(AdmissionDocFieldEditor)
+    // 전용 렌더러를 쓰므로 그 사고 경로 자체는 없지만, rowToForm/
+    // formToPayload는 여전히 객체 형태 유지·저장 시 재검증의 유일한
+    // 관문이라 그대로 둔다.
+    rowToForm: (row) => {
+      const form = { ...row };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonKey) => {
+        // jsonb는 객체 그대로 보관한다(문자열화 금지). 컬럼이 아직 없으면
+        // (sql/43 적용 전) row[jsonKey]가 undefined이므로 null로 채운다.
+        form[jsonKey] = row?.[jsonKey] ?? null;
+      });
+      return form;
+    },
+    formToPayload: (form) => {
+      const payload = { ...form };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonKey) => {
+        const doc = form[jsonKey];
+        // doc이 없거나(null/undefined — sql/43 적용 전에는 rowToForm/defaults가
+        // 항상 null을 채우므로 이 분기가 사실상 전부다) validate 실패 시
+        // payload에서 아예 제외한다. 이 컬럼을 건드리지 않겠다는 뜻이지,
+        // null로 명시 저장하겠다는 뜻이 아니다 — 컬럼이 없는 동안(sql/43
+        // 적용 전) 여기서 항상 delete로 빠지므로 payload가 기존과 완전히
+        // 동일해진다(무해함의 근거). 존재하는 DB 값을 지우지도 않는다.
+        if (doc === null || doc === undefined || !validateAdmissionDoc(doc).ok) {
+          delete payload[jsonKey];
+          return;
+        }
+        payload[jsonKey] = doc;
+      });
+      return payload;
     },
 
     validate: admissionGuidelinesValidate,
@@ -1189,14 +1468,38 @@ const CONFIGS = {
     table: 'admission_results',
     searchPlaceholder: '대학명, 모집단위, 전형명을 검색하세요',
     order: 'result_year',
+    // 서버 정렬 축을 sql/53의 admission_results_admin_order_idx(result_year desc, id desc)와
+    // 맞춘다. id 동점 처리축이 없으면 .range()로 끊어 읽을 때 페이지 경계에서 행이
+    // 중복·누락된다(같은 result_year 43k행 안에서 정렬 순서가 매 요청 달라질 수 있다).
+    orderBy: [
+      ['result_year', false],
+      ['id', false]
+    ],
+    // 43,170행 테이블 — 전량 클라이언트 로드가 불가능해 서버 페이지네이션으로 돌린다.
+    // rowCapWarning(1,000행 상한 경고)은 일부러 켜지 않는다: .range()로 PAGE_SIZE행만
+    // 받으므로 PostgREST 기본 상한에 닿을 일이 없고, 총 건수는 count로 따로 받는다.
+    serverPaginate: true,
+    // 서버 ilike 검색 대상. sql/53의 admission_results_search_trgm_idx가 덮는
+    // 3컬럼과 같아야 인덱스를 탄다.
+    searchColumns: ['university_name', 'department_name', 'admission_track'],
     homepage: true,
-    excel: true,
-    guideText: `입결은 데이터가 많으므로 대량 등록은 Supabase CSV Import를 권장합니다. 이 화면은 개별 추가·수정·삭제용으로 사용하세요. 대량 등록 시 (학년도, 모집시기, 대학, 모집단위, 전형명, 반영교과) 조합이 중복되면 저장이 거부되니, Import 전에 중복 행이 없는지 먼저 확인하세요.`,
+    // config.excel(공용 CSV 다운로드 스위치) 없음(의도) — admissionGuidelines
+    // (:1051 부근)와 같은 사유. 기존 downloadExcel은 표시 포맷 CSV라 재적재가
+    // 안 되고(다운로드 → 수정 → 재업로드 왕복이 안 닫힌다), 버튼이 2개
+    // 공존하면 "엑셀 다운로드 버튼이 여러 개다, 우리가 개발한 걸로
+    // 통일해라"는 2026-08-07 사용자 지시를 다시 어기게 된다. 대신 아래
+    // ListSummary(AdmissionResultsBulkXlsxPanel)의 xlsx 왕복으로 통일한다.
+    // guideText(Supabase CSV Import 권장 안내)도 같은 이유로 지웠다 —
+    // 그 안내가 가리키던 수동 CSV Import 경로 자체가 이제 이 화면
+    // 엑셀 왕복으로 대체됐다.
+    ListSummary: AdmissionResultsListSummary,
     columns: [
       { key: 'result_year', label: '연도' },
-      { key: 'recruitment_period', label: '모집시기' },
       { key: 'university_name', label: '대학명' },
       { key: 'department_name', label: '모집단위' },
+      // 중심전형은 유일키 축이라 목록에서 안 보이면 같은 전형명의 교과/종합 2행을
+      // 구분할 수 없다. 비운 모집시기 자리를 그대로 이어받는다.
+      { key: 'main_track', label: '중심전형' },
       { key: 'screening_category', label: '전형유형' },
       { key: 'admission_track', label: '전형명' },
       { key: 'grade_70', label: '70%컷' },
@@ -1205,59 +1508,107 @@ const CONFIGS = {
     fields: [
       { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
       { key: 'result_year', label: '학년도', type: 'number', required: true },
-      { key: 'recruitment_period', label: '모집시기', type: 'select', options: ['수시', '정시'], required: true },
       { key: 'university_key', label: '대학 키값', type: 'text', required: true },
       { key: 'university_name', label: '대학명', type: 'text', required: true },
       { key: 'department_key', label: '모집단위 키값', type: 'text', required: true },
       { key: 'department_name', label: '모집단위', type: 'text', required: true },
       {
+        // 원문 표기 그대로 저장한다 — sql/53의 CHECK가 교과|종합|논술|실기|기타만
+        // 허용하므로 '학생부교과' 같은 확장 표기를 넣으면 저장이 즉시 거부된다.
         key: 'main_track',
         label: '중심전형',
         type: 'select',
-        options: ['학생부교과', '학생부종합', '논술', '실기', '기타']
+        options: ['교과', '종합', '논술', '실기', '기타']
       },
       {
+        // 실데이터 11종 + 기타. sql/53 CHECK와 같은 도메인이라 여기 없는 값은 저장되지 않는다.
         key: 'screening_category',
         label: '전형유형',
         type: 'select',
-        options: ['일반', '추천형', '농어촌', '기회균형', '논술', '기타']
+        options: [
+          '일반',
+          '추천형',
+          '지역인재',
+          '농어촌',
+          '기회균형',
+          '특성화고',
+          '특수교육',
+          '논술',
+          '실기',
+          '성인학습자',
+          '재외국민',
+          '기타'
+        ]
       },
       { key: 'admission_track', label: '전형명', type: 'text', required: true, help: '전형명 원문 그대로 입력합니다.' },
-      { key: 'grade_50', label: '50%컷', type: 'number' },
-      { key: 'grade_70', label: '70%컷', type: 'number' },
-      { key: 'grade_85', label: '85%컷', type: 'number' },
-      { key: 'grade_90', label: '90%컷', type: 'number' },
-      { key: 'converted_score', label: '환산점수', type: 'number' },
-      { key: 'percentile', label: '백분위', type: 'number' },
-      { key: 'quota', label: '모집인원', type: 'number' },
-      { key: 'competition_rate', label: '경쟁률', type: 'number' },
+      // 지표 숫자 필드는 전부 nullable — 입력을 비우면 0이 아니라 null로 저장한다
+      // ("등급 0"·"경쟁률 0" 같은 값은 존재하지 않고, 전부 미공개를 뜻한다).
+      { key: 'grade_50', label: '50%컷', type: 'number', nullable: true },
+      { key: 'grade_70', label: '70%컷', type: 'number', nullable: true },
+      { key: 'grade_85', label: '85%컷', type: 'number', nullable: true },
+      { key: 'grade_90', label: '90%컷', type: 'number', nullable: true },
+      // 아래 5종은 sql/53에서 추가된 지표다. 공개 화면(v1)에는 노출하지 않지만
+      // 어드민에 필드가 없으면 적재된 값을 조회·수정할 방법이 사라진다.
+      { key: 'grade_avg', label: '합격자 평균등급', type: 'number', nullable: true },
+      { key: 'grade_min', label: '합격자 최저등급', type: 'number', nullable: true },
+      { key: 'grade_avg10', label: '10과목 평균등급', type: 'number', nullable: true },
+      { key: 'grade_min10', label: '10과목 최저등급', type: 'number', nullable: true },
+      { key: 'grade_first_avg', label: '최초합 평균등급', type: 'number', nullable: true },
+      { key: 'converted_score', label: '환산점수', type: 'number', nullable: true },
+      { key: 'percentile', label: '백분위', type: 'number', nullable: true },
+      { key: 'quota', label: '모집인원', type: 'number', nullable: true },
+      {
+        // 값 0은 "경쟁률 0"이 아니라 미공개다(적재 시 결측 승격). 어드민에서도 0을
+        // 넣지 말고 비워 두어야 공개 화면이 `0.00 : 1`을 정상값처럼 렌더하지 않는다.
+        key: 'competition_rate',
+        label: '경쟁률',
+        type: 'number',
+        nullable: true,
+        help: '미공개면 비워 두세요. 0을 넣으면 공개 화면에 경쟁률 0.00 : 1로 표시됩니다.'
+      },
       { key: 'waitlist_rank', label: '충원순위', type: 'text' },
       { key: 'subject_reflection', label: '반영교과/영역', type: 'text' },
+      {
+        // 유일키의 마지막 축. 같은 8축 조합이 실제로 2행 이상인 분할모집에서만
+        // 1, 2, … 로 올린다. 기본은 0.
+        key: 'variant_seq',
+        label: '분할모집 순번',
+        type: 'number',
+        help: '동일 전형이 분할모집으로 여러 행일 때만 0, 1, 2 … 로 구분합니다.'
+      },
       { key: 'source_sheet', label: '출처 시트', type: 'text' },
-      { key: 'source_row', label: '출처 행번호', type: 'number' },
+      { key: 'source_row', label: '출처 행번호', type: 'number', nullable: true },
       { key: 'note', label: '메모', type: 'textarea' }
     ],
     defaults: {
       is_active: true,
-      result_year: 2025,
-      recruitment_period: '수시',
+      result_year: 2026,
       university_key: '',
       university_name: '',
       department_key: '',
       department_name: '',
-      main_track: '학생부교과',
+      main_track: '교과',
       screening_category: '일반',
       admission_track: '',
       grade_50: null,
       grade_70: null,
       grade_85: null,
       grade_90: null,
+      grade_avg: null,
+      grade_min: null,
+      grade_avg10: null,
+      grade_min10: null,
+      grade_first_avg: null,
       converted_score: null,
       percentile: null,
-      quota: 0,
-      competition_rate: 0,
+      // 모집인원·경쟁률 기본값은 0이 아니라 null이다. 0으로 두면 신규 행이 전부
+      // "모집인원 0명 / 경쟁률 0.00 : 1"로 공개면에 나가, 적재 파이프라인이
+      // 경쟁률 0을 결측으로 승격시킨 취지가 어드민 경로로 되살아난다.
+      quota: null,
+      competition_rate: null,
       waitlist_rank: '',
       subject_reflection: '',
+      variant_seq: 0,
       source_sheet: '',
       source_row: null,
       note: ''
@@ -1630,6 +1981,57 @@ const CONFIGS = {
     }
   },
 
+  // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는
+  // src/components/mentorApply/MentorFaq.jsx이며, DB가 비어 있으면
+  // src/data/mentorApply.js 상수로 폴백한다. 위 faqs(자주하는질문)와는
+  // 완전히 별개 테이블 — /mentor-apply 페이지 전용 FAQ다.
+  mentorApplyFaqs: {
+    title: '멘토신청 FAQ',
+    table: 'mentor_apply_faqs',
+    searchPlaceholder: '질문을 검색하세요',
+    order: 'sort_order',
+    homepage: true,
+    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다).`,
+    columns: [
+      { key: 'sort_order', label: '노출 순서' },
+      { key: 'question', label: '질문' },
+      { key: 'answer', label: '답변', type: 'truncate' },
+      { key: 'is_active', label: '노출', type: 'boolean' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      { key: 'sort_order', label: '노출 순서', type: 'number', required: true },
+      { key: 'question', label: '질문', type: 'text', required: true },
+      { key: 'answer', label: '답변', type: 'textarea' }
+    ],
+    defaults: { is_active: true, sort_order: 1, question: '', answer: '' }
+  },
+
+  // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는
+  // src/components/mentorApply/MentorFaq.jsx의 FAQ 섹션 헤더이며, DB가
+  // 비어 있으면 src/data/mentorApply.js 상수로 폴백한다. 키(copy_key)가
+  // 정해져 있는 화면이라 행 추가는 막는다(noCreate) — 위 mentorApplyFaqs와
+  // 짝을 이루지만 대상 테이블이 다르다.
+  mentorApplyCopy: {
+    title: '멘토신청 문구',
+    table: 'mentor_apply_copy',
+    order: 'sort_order',
+    noCreate: true,
+    homepage: true,
+    guideText: `여기 값은 멘토신청 페이지 FAQ 섹션의 제목 영역에 그대로 나갑니다. 'FAQ 제목(앞부분)' 값 끝의 공백 1칸은 의도된 것입니다 — 지우면 공개 화면에서 뒷 단어와 붙어 '지원 전궁금한 점'으로 보입니다. 행을 삭제하면 해당 항목은 코드 내장 기본값으로 되돌아갑니다.`,
+    columns: [
+      { key: 'label', label: '항목' },
+      { key: 'copy_value', label: '값' },
+      { key: 'copy_key', label: '키' }
+    ],
+    fields: [
+      { key: 'label', label: '항목', type: 'text', readOnly: true },
+      { key: 'copy_key', label: '키', type: 'text', readOnly: true },
+      { key: 'copy_value', label: '값', type: 'text', required: true }
+    ],
+    defaults: {}
+  },
+
   members: {
     title: '회원 목록',
     table: 'profiles',
@@ -1712,6 +2114,30 @@ const CONFIGS = {
       discount_amount: 0,
       paid_amount: 0
     }
+  },
+
+  // 멘토(콜멘토) 지원서 조회 — 30여 개 필드 + 동의 5종 + 비공개 버킷 증빙 파일이라
+  // columns/fields 기반 제네릭 AdminTable/AdminForm에 그대로 얹기 어렵다(특히 파일 열람은
+  // createSignedUrl이 필요해 제네릭 image/file 필드의 getPublicUrl 관용구를 쓸 수 없다).
+  // custom: true + CustomComponent로 premiumBookPages와 동일한 패턴을 따르되, 목록만은
+  // AdminTable을 재사용한다(파일 하단 MentorApplicationsAdmin 참고). columns는 그 목록에서만
+  // 쓰인다 — 상세/상태변경은 컴포넌트 내부 bespoke 렌더링.
+  mentorApplications: {
+    title: '멘토 신청 내역',
+    table: 'mentor_applications',
+    searchPlaceholder: '이름, 대학교, 휴대폰 검색',
+    order: 'created_at',
+    readOnly: true,
+    custom: true,
+    CustomComponent: MentorApplicationsAdmin,
+    columns: [
+      { key: 'created_at', label: '제출일', type: 'date' },
+      { key: 'name', label: '이름' },
+      { key: 'university', label: '대학교' },
+      { key: 'major', label: '학과·학부' },
+      { key: 'phone', label: '휴대폰', type: 'maskedPhone' },
+      { key: 'status', label: '상태', options: MENTOR_APPLICATION_STATUS_OPTIONS }
+    ]
   },
 
   programCategories: {
@@ -3345,12 +3771,35 @@ function formatValue(value, type, options) {
 
   if (type === 'boolean') return value ? '사용' : '미사용';
 
+  // 멘토 신청 내역 목록 전용 — 개인정보 최소 노출(팀장 지시). 상세 화면에서는 마스킹 없이
+  // 원본 휴대폰번호를 그대로 보여준다.
+  if (type === 'maskedPhone') {
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.length < 8) return String(value);
+    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+  }
+
   if (type === 'money') return `${Number(value || 0).toLocaleString()}원`;
 
   if (type === 'date') {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toISOString().slice(0, 10);
+  }
+
+  if (type === 'datetime') {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    // toISOString()은 UTC라 KST 00~09시 신청 건이 하루 전날로 잘린다 — Asia/Seoul 고정 표시.
+    return date.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
   }
 
   return String(value);
@@ -3371,16 +3820,26 @@ function csvEscape(value) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
-function downloadCsv(filename, rows, columns) {
-  const header = columns.map((column) => csvEscape(column.label)).join(',');
+function csvHeader(columns) {
+  return columns.map((column) => csvEscape(column.label)).join(',');
+}
+
+// 행 배열 → CSV 본문 줄들. 전량 로드 경로(downloadCsv)와 청크 내보내기(입결 43k행)가
+// 같은 이스케이프 규칙을 쓰도록 뽑아둔 것 — 청크 쪽은 받은 행 객체를 계속 붙들지 않고
+// 줄 문자열로 접어 모은다(43k행 × 30컬럼을 통째로 메모리에 쌓지 않기 위해).
+function csvBody(rows, columns) {
   // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
   // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
-  const body = rows
+  return rows
     .map((row) =>
       columns.map((column) => csvEscape(formatValue(row[column.key], column.type))).join(',')
     )
     .join('\n');
+}
 
+// 헤더/본문 문자열을 그대로 받아 파일로 떨군다. 청크 내보내기는 본문을 여러 번에
+// 나눠 만든 뒤 이어 붙여 넘기므로 rows 배열을 요구하지 않는 이 형태가 필요하다.
+function downloadCsvText(filename, header, body) {
   const blob = new Blob([`\ufeff${header}\n${body}`], {
     type: 'text/csv;charset=utf-8;'
   });
@@ -3393,6 +3852,10 @@ function downloadCsv(filename, rows, columns) {
   a.click();
 
   URL.revokeObjectURL(url);
+}
+
+function downloadCsv(filename, rows, columns) {
+  downloadCsvText(filename, csvHeader(columns), csvBody(rows, columns));
 }
 
 function normalizeArray(value) {
@@ -3532,6 +3995,11 @@ function AdminTopbar({ onLogout }) {
 function AdminInput({ field, value, onChange, disabled }) {
   const base =
     'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100';
+  // field.readOnly: 폼 전체 disabled와 별개로 "이 필드 하나만" 편집 불가로
+  // 만든다(예: *_html 미러 — doc이 정본이고 이 필드는 자동 생성값이라
+  // 직접 고치면 안 됨). HTML readOnly 속성은 disabled와 달리 값 선택·복사는
+  // 허용한다 — 미러 값을 참고용으로 보되 못 고치게 하는 목적에 더 맞는다.
+  const readOnly = Boolean(field.readOnly);
 
   if (field.type === 'textarea') {
     return (
@@ -3539,8 +4007,9 @@ function AdminInput({ field, value, onChange, disabled }) {
         value={value || ''}
         onChange={(e) => onChange(field.key, e.target.value)}
         disabled={disabled}
+        readOnly={readOnly}
         rows={field.rows || 5}
-        className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100"
+        className={`w-full resize-y border border-[#9ca3af] px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100 ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
       />
     );
   }
@@ -3612,11 +4081,87 @@ function AdminInput({ field, value, onChange, disabled }) {
       type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
       value={value ?? ''}
       onChange={(e) => {
-        const next = field.type === 'number' ? Number(e.target.value || 0) : e.target.value;
+        // field.nullable: 숫자 입력을 비우면 0이 아니라 null을 보낸다. 기본값을
+        // 0으로 두면 "미공개"와 "값이 0"이 구분되지 않아 공개면이 경쟁률
+        // 0.00 : 1, 모집인원 0명을 정상값처럼 렌더한다. 선언한 필드에만 적용되므로
+        // sort_order 같은 NOT NULL 숫자 컬럼은 기존 동작(빈 값 → 0) 그대로다.
+        const next =
+          field.type === 'number'
+            ? e.target.value === '' && field.nullable
+              ? null
+              : Number(e.target.value || 0)
+            : e.target.value;
         onChange(field.key, next);
       }}
       disabled={disabled}
-      className={base}
+      readOnly={readOnly}
+      className={`${base} ${readOnly ? 'bg-gray-50 text-gray-500' : ''}`}
+    />
+  );
+}
+
+// admissionGuidelines 전용 필드 렌더러(type:'admissionDoc'). field.key는
+// jsonKey(예: selection_method_json), field.sectionKey는 SectionKey(예:
+// 'selection_method')다. DocBlocksEditor(문서 블록 배열 편집기)를 감싸고,
+// 편집 즉시 병행 저장 계약(doc·html 동시 갱신)을 지킨다 — doc이 바뀔 때마다
+// renderDocToHtml로 htmlKey 미러도 같은 자리에서 다시 만든다. 이렇게
+// 해야 doc만 고치고 html이 낡는 사고(2026-08-06에 실제로 있었던 결함,
+// 27b397e에서 "파싱 실행" 경로는 고쳤지만 편집기 경로는 이번에 처음
+// 배선된다)가 편집기에서도 재발하지 않는다.
+function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
+  const sectionKey = field.sectionKey;
+  const htmlKey = HWP_SECTION_HTML_KEYS[sectionKey];
+  const existing = form[field.key];
+  const doc =
+    existing && typeof existing === 'object' && Array.isArray(existing.blocks)
+      ? existing
+      : {
+          v: 1,
+          section: sectionKey,
+          source: 'manual',
+          generator: 'admin-editor',
+          generatedAt: new Date().toISOString(),
+          blocks: []
+        };
+
+  function handleBlocksChange(nextBlocks) {
+    const nextDoc = { ...doc, blocks: nextBlocks, source: 'manual', generatedAt: new Date().toISOString() };
+    const nextPatch = { [field.key]: nextDoc };
+    // doc(정본)은 형태와 무관하게 항상 patch에 실린다 — 편집 중 일시적으로
+    // 불변식을 어기는 상태(예: 열 개수 변경 중간 단계)도 그대로 저장 시도
+    // 대상이 된다(저장 게이트는 formToPayload가 validateAdmissionDoc으로
+    // 별도로 막는다). html 미러는 doc이 유효할 때만, 그리고 renderDocToHtml
+    // 예외에 대비해 try/catch로 감싸 만든다 — 이 렌더러가 일부 variant에서
+    // 방어적이지 않고(예: renderSelectionTable이 row 길이를 검증 없이
+    // row[3]로 접근) 예상 밖 형태에 예외를 던지는 걸 직접 재현 확인했다.
+    // 실패해도 doc은 정상 저장되고 html 미러 갱신만 건너뛴다(직전 값 유지) —
+    // 페이지 전체가 죽는 것보다 훨씬 안전하다.
+    // ⚠ renderDocToHtml이 total 함수(어떤 유효 doc에도 안 던지도록,
+    // phase0 담당)가 된 뒤에도 이 try/catch는 지우지 마라 — 심층 방어다.
+    // DocBlocksEditor의 섹션별 블록 추가 제한(같은 커밋)이 "흔치 않은
+    // 조합"을 1차로 막아주지만, 그 제한을 우회하는 경로(예: xlsx
+    // 가져오기로 다른 섹션 doc을 억지로 붙여넣는 경우)까지 커버하는 건
+    // 이 try/catch뿐이다.
+    if (htmlKey) {
+      if (validateAdmissionDoc(nextDoc).ok) {
+        try {
+          nextPatch[htmlKey] = renderDocToHtml(nextDoc, sectionKey);
+        } catch (err) {
+          console.error('renderDocToHtml 실패 — html 미러 갱신을 건너뜁니다(doc은 정상 저장됩니다):', err);
+        }
+      }
+    }
+    onDirty();
+    onPatch(nextPatch);
+  }
+
+  return (
+    <DocBlocksEditor
+      section={sectionKey}
+      blocks={doc.blocks}
+      onChange={handleBlocksChange}
+      universityName={form.university_name}
+      sectionLabel={HWP_SECTION_LABELS[sectionKey]}
     />
   );
 }
@@ -3953,20 +4498,28 @@ function MentorCardFormPreview({ form, onPatch }) {
 }
 
 // admissionGuidelines 저장 직전 가드: 이미 존재하던 행을 수정하면서(신규 등록은 대상 아님)
-// 공개 페이지가 실제로 렌더하는 *_html 필드 중 하나라도 원래 값과 달라지면, 어떤 카테고리가
-// 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+// 공개 페이지가 실제로 렌더하는 *_html/*_json 필드 중 하나라도 원래 값과 달라지면, 어떤
+// 카테고리가 바뀌는지 목록으로 보여주고 확인을 받는다. 취소하면 저장을 막는다.
+//
+// doc(jsonb) 변경은 문자열 비교로 못 잡는다 — form[jsonKey]/row[jsonKey]는 객체라 단순
+// 비교식으로 두면 서로 다른 객체끼리도 항상 '[object Object]' === '[object Object]'로
+// "같음" 판정된다(실질적으로 이 가드가 무력화된다). stableStringifyDoc로 deep 비교해야
+// 실제 doc 변경을 잡는다(generatedAt은 stableStringifyDoc이 비교에서 알아서 뺀다).
 function admissionGuidelinesValidate(form, row) {
   if (!row) return null;
 
   const changedLabels = HWP_SECTION_ORDER.filter((key) => {
     const htmlKey = HWP_SECTION_HTML_KEYS[key];
-    return cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+    const jsonKey = HWP_SECTION_JSON_KEYS[key];
+    const htmlChanged = cleanAdmissionText(form[htmlKey]) !== cleanAdmissionText(row[htmlKey] ?? '');
+    const docChanged = stableStringifyDoc(form[jsonKey] ?? null) !== stableStringifyDoc(row[jsonKey] ?? null);
+    return htmlChanged || docChanged;
   }).map((key) => HWP_SECTION_LABELS[key]);
 
   if (changedLabels.length === 0) return null;
 
   const proceed = window.confirm(
-    `다음 항목의 공개 페이지 HTML이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
+    `다음 항목의 공개 페이지 내용이 변경됩니다:\n- ${changedLabels.join('\n- ')}\n\n계속 저장하시겠습니까?`
   );
 
   return proceed ? null : '저장이 취소되었습니다.';
@@ -3977,7 +4530,11 @@ function admissionGuidelinesValidate(form, row) {
 // 렌더한다. 번호("1.~6.") 마커가 없어 자동 분할이 안 되는 원문이면, 좌측 필드 목록에 이미 있는
 // 카테고리별 raw textarea에 직접 나눠 붙여넣는 fallback을 안내하고 "미리보기 새로고침"으로 그 값을
 // 기준으로 HTML을 재생성한다.
-function AdmissionParsingPreview({ form, onPatch }) {
+// locked: 카테고리 편집 다이얼로그가 열려 있는 동안 true. 파싱 실행은
+// buildPreviewPatch로 **6섹션을 한 번에** patch하므로, 모달에서 편집 중인
+// 섹션 doc이 발밑에서 통째로 갈릴 수 있다. 오버레이가 이미 클릭을 막지만
+// 상태를 정합시키기 위해 버튼 자체를 disabled로 둔다(모달을 닫으면 풀린다).
+function AdmissionParsingPreview({ form, onPatch, locked = false }) {
   const [hwpSource, setHwpSource] = useState('');
   const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
   // 카테고리별 "파싱 결과로 기존 HTML 덮어쓰기" 동의 체크박스 상태. 기본은 비동의(false) —
@@ -3988,42 +4545,71 @@ function AdmissionParsingPreview({ form, onPatch }) {
     setOverwriteConsent((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // 카테고리 원문 → HTML 파싱 결과를 patch로 만든다. 저장된 큐레이션 HTML을 파괴하지
-  // 않기 위해 두 가지를 지킨다:
-  // (a) 파싱 결과가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존 HTML을
-  //     지우지 않는다(빈 문자열로 덮어써서 공개 페이지에서 항목이 사라지는 것을 방지).
-  // (b) 이미 HTML 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠 경우에만
-  //     patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해 호출부가 안내한다.
+  // 카테고리 원문 → HTML+문서(doc) 파싱 결과를 patch로 만든다. 저장된 큐레이션 값을
+  // 파괴하지 않기 위해 세 가지를 지킨다:
+  // (a) 파싱 결과(html)가 빈 문자열이면 patch에서 제외한다 — 원문이 비어 있다고 기존
+  //     값을 지우지 않는다(빈 문자열/빈 doc으로 덮어써서 공개 페이지에서 항목이
+  //     사라지는 것을 방지).
+  // (b) 이미 html 또는 doc 값이 채워져 있는 카테고리는 "덮어쓰기 동의" 체크박스를 켠
+  //     경우에만 patch에 포함한다. 동의하지 않은 카테고리는 skipped로 반환해
+  //     호출부가 안내한다.
+  // (c) html과 doc은 반드시 같은 원문(sourceForm[key])에서 buildHwpCategoryHtml/
+  //     buildHwpCategoryDoc로 동시에 만든다 — 서로 다른 시점/다른 소스에서 만들면
+  //     공개 페이지(doc 기준)와 어드민 미리보기(예전엔 html만 봄)가 어긋난다. 이게
+  //     바로 이번에 고치는 결함이다: 이전에는 patch[htmlKey]만 채우고 patch[jsonKey]가
+  //     아예 없어서, 스위치(ADMISSION_JSON_ENABLED)가 켜진 뒤로는 관리자가 원문을
+  //     고쳐 파싱을 실행해도 공개 페이지(doc을 읽음)에 반영되지 않았다.
+  //     doc이 validateAdmissionDoc을 통과하지 못하면 jsonKey는 쓰지 않는다(기존 값
+  //     보존) — 대신 docFailures로 반환해 호출부가 관리자에게 실패 사유를 보여준다.
+  //     html은 그 경우에도 계속 갱신한다(원래도 무손실 폴백 경로라, doc이 실패해도
+  //     html까지 막을 이유는 없다 — 적어도 html은 최신으로 유지된다).
   function buildPreviewPatch(sourceForm) {
     const patch = {};
     const skipped = [];
+    const docFailures = [];
 
     HWP_SECTION_ORDER.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      const generated = buildHwpCategoryHtml(
-        key,
-        sourceForm[key],
-        sourceForm,
-        sourceForm.university_name
-      );
-      if (!generated) return;
+      const jsonKey = HWP_SECTION_JSON_KEYS[key];
+      const rawText = sourceForm[key];
 
-      const hasExisting = Boolean(cleanAdmissionText(sourceForm[htmlKey]));
+      const generatedHtml = buildHwpCategoryHtml(key, rawText, sourceForm, sourceForm.university_name);
+      if (!generatedHtml) return;
+
+      const existingDoc = sourceForm[jsonKey];
+      const hasExisting = (existingDoc && !isEmptyDoc(existingDoc)) || Boolean(cleanAdmissionText(sourceForm[htmlKey]));
       if (hasExisting && !overwriteConsent[key]) {
         skipped.push(HWP_SECTION_LABELS[key]);
         return;
       }
 
-      patch[htmlKey] = generated;
+      patch[htmlKey] = generatedHtml;
+
+      const generatedDoc = buildHwpCategoryDoc(key, rawText, sourceForm, sourceForm.university_name);
+      const docValidation = validateAdmissionDoc(generatedDoc);
+      if (!docValidation.ok) {
+        docFailures.push({ label: HWP_SECTION_LABELS[key], errors: docValidation.errors });
+        return;
+      }
+
+      patch[jsonKey] = generatedDoc;
     });
 
-    return { patch, skipped };
+    return { patch, skipped, docFailures };
   }
 
   function warnSkipped(skipped) {
     if (!skipped.length) return;
     alert(
-      `다음 카테고리는 이미 HTML이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+      `다음 카테고리는 이미 내용이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join('\n- ')}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`
+    );
+  }
+
+  function warnDocFailures(docFailures) {
+    if (!docFailures.length) return;
+    const detail = docFailures.map((f) => `- ${f.label}: ${f.errors.join(' / ')}`).join('\n');
+    alert(
+      `다음 카테고리는 구조화 문서 생성에 실패해 기존 값을 보존했습니다(HTML만 갱신됨):\n${detail}\n\n공개 페이지에 반영하려면 원문을 다시 확인하거나 개발팀에 문의하세요.`
     );
   }
 
@@ -4051,16 +4637,18 @@ function AdmissionParsingPreview({ form, onPatch }) {
     const mergedRaw = { ...form, ...rawPatch };
 
     setSplitStatus('auto');
-    const { patch, skipped } = buildPreviewPatch(mergedRaw);
+    const { patch, skipped, docFailures } = buildPreviewPatch(mergedRaw);
     onPatch({ ...rawPatch, ...patch });
     warnSkipped(skipped);
+    warnDocFailures(docFailures);
   }
 
   function refreshPreview() {
     setSplitStatus((prev) => prev || 'manual');
-    const { patch, skipped } = buildPreviewPatch(form);
+    const { patch, skipped, docFailures } = buildPreviewPatch(form);
     onPatch(patch);
     warnSkipped(skipped);
+    warnDocFailures(docFailures);
   }
 
   return (
@@ -4084,18 +4672,27 @@ function AdmissionParsingPreview({ form, onPatch }) {
         <button
           type="button"
           onClick={runAutoParse}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+          disabled={locked}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           파싱 실행(자동 분할)
         </button>
         <button
           type="button"
           onClick={refreshPreview}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff]"
+          disabled={locked}
+          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           미리보기 새로고침(좌측 원문 기준)
         </button>
       </div>
+
+      {locked && (
+        <p className="mt-2 rounded border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-xs font-black leading-5 text-[#2348ff]">
+          카테고리 편집 창이 열려 있는 동안에는 파싱을 실행할 수 없습니다. 파싱은 6개 카테고리를 한
+          번에 덮어쓰므로 편집 중인 내용이 사라질 수 있습니다.
+        </p>
+      )}
 
       {splitStatus === 'fallback' && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
@@ -4104,12 +4701,21 @@ function AdmissionParsingPreview({ form, onPatch }) {
         </p>
       )}
 
-      <div className="admission-modal-body mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
+      {/* admission-modal-body는 여기 쓰지 않는다 — AdmissionGuidelines.jsx의 모달 스코프
+          규칙에 기대는 죽은 참조였다(이 페이지엔 그 CSS가 로드되지 않는다, 2026-08-06
+          전수조사로 확인). data-section은 카테고리별로 다르므로 아래 map 안 개별 항목에
+          붙인다(minimum_requirements/exam_schedule 폭 규칙이 카테고리 단위이기 때문). */}
+      <div className="mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
         {HWP_SECTION_ORDER.map((key) => {
           const html = form[HWP_SECTION_HTML_KEYS[key]];
-          const hasExisting = Boolean(cleanAdmissionText(html));
+          const doc = isDocRenderEnabled() ? form[HWP_SECTION_JSON_KEYS[key]] : null;
+          const docOk = Boolean(doc && validateAdmissionDoc(doc).ok && !isEmptyDoc(doc));
+          // buildPreviewPatch는 아직 htmlKey만 채운다(jsonKey 동시 생성은 별도
+          // 커밋 범위) — 그래도 doc이 이미 저장돼 있을 수 있으니(백필 등) 동의
+          // 체크박스 노출 조건은 html뿐 아니라 doc 존재 여부도 함께 본다.
+          const hasExisting = docOk || Boolean(cleanAdmissionText(html));
           return (
-            <div key={key}>
+            <div key={key} className="admission-surface" data-section={key}>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-black text-[#013262]">{HWP_SECTION_LABELS[key]}</h3>
                 {hasExisting && (
@@ -4123,8 +4729,15 @@ function AdmissionParsingPreview({ form, onPatch }) {
                   </label>
                 )}
               </div>
-              {html ? (
-                <div className="admission-existing-html" dangerouslySetInnerHTML={{ __html: html }} />
+              {docOk ? (
+                <AdmissionSectionView doc={doc} sectionKey={key} surface="admin" />
+              ) : html ? (
+                // html은 buildHwpCategoryHtml → buildRawSectionHtml 경로로 만들어지며
+                // 보통 admission-raw-section-wrap을 자체 포함한다. 다만 이 필드는
+                // 과거에 다른 경로로 저장된 값(admission-existing-html 자체 포함
+                // 여부가 다를 수 있음)도 들어올 수 있어, 공개 모달과 동일하게
+                // "이미 자기 래퍼를 가졌는지" 검사해 이중 래핑을 피한다.
+                <SafeHtml html={html} className={ADMISSION_EXISTING_WRAP_RE.test(html) ? undefined : 'admission-existing-html'} />
               ) : (
                 <p className="text-xs font-bold text-gray-400">
                   미리보기 없음 — 원문을 입력하고 파싱을 실행하세요.
@@ -4135,123 +4748,174 @@ function AdmissionParsingPreview({ form, onPatch }) {
         })}
       </div>
 
-      {/* 아래 클래스들은 AdmissionGuidelines.jsx 모달 스타일과 동일하게 유지한다(공개 페이지와 동일한 표 시각). */}
+      {/* 표/블록 표면 스타일은 이제 AdmissionSurface.jsx가 소유한다(2단계, 2026-08-06
+          사용자 지시 "컴포넌트화") — 여기 있던 자체 사본(그리드 테두리·13px·#013262 헤더 등,
+          공개 모달의 수십 차례 Figma 재조정을 못 따라가 드리프트됐었다)은 삭제했다.
+          이 페이지에 남기는 건 이 표 시스템과 무관한 범용 유틸리티 .muted뿐이다.
+          ⚠ 2026-08-06 결함 수정: .admission-parsing-preview 스코프의 가로 스크롤바
+          숨김 규칙(scrollbar-width:none 등)을 여기서 지웠다 — 이 패널의 6개 카테고리에
+          admission-surface를 붙이면서(위 map 안) 이 패널의 .admission-scroll-table도
+          그 숨김 규칙 대상이 됐는데, 공개 모달과 달리 이 페이지엔 대체 스크롤 수단
+          (.admission-modal-x-scroll 프록시)이 없다 — 관리자가 870px 컨테이너 안에서
+          1567px 표(모집인원및입결 등)를 스크롤할 방법 자체를 잃었다(실측: scrollLeft
+          강제 설정하면 스크롤은 되는데 스크롤바가 안 보여 존재를 알 방법이 없었다).
+          이 규칙을 처음 넣은 688ee97에는 스크롤 관련 근거 주석이 없다 — "모달과 동일하게
+          유지"라는 범용 문구뿐이라, 프록시 스크롤바 전제(공개 모달 전용 장치, BLOCK3
+          쉘 padding 계산에 의존)를 검증 없이 그대로 복사해온 것으로 보인다. 프록시를
+          어드민에 옮기지 않고(공개 전용 장치를 옮기면 그 계산을 다시 맞춰야 함) 대신
+          네이티브 스크롤바가 보이도록 숨김 규칙 자체를 없앴다. */}
       <style>{`
-        .admission-parsing-preview .admission-scroll-table,
-        .admission-parsing-preview .admission-table-wrap,
-        .admission-parsing-preview .admission-existing-html { scrollbar-width: none; }
-        .admission-parsing-preview .admission-scroll-table::-webkit-scrollbar,
-        .admission-parsing-preview .admission-table-wrap::-webkit-scrollbar,
-        .admission-parsing-preview .admission-existing-html::-webkit-scrollbar { width: 0; height: 0; }
-        .admission-table-wrap,
-        .admission-existing-html,
-        .admission-raw-section-wrap { width: 100%; max-width: 100%; }
-        .admission-table-wrap { overflow-x: auto; }
-        .admission-existing-html { overflow-x: auto; }
-        .admission-existing-html table,
-        .admission-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-existing-html th,
-        .admission-table-wrap th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
-        .admission-existing-html td,
-        .admission-table-wrap td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
-        .admission-existing-html td.left,
-        .admission-table-wrap td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
-        .admission-clean-block { width: 100%; }
-        .admission-clean-line { margin: 0 0 10px; color: #525252; font-size: 14px; line-height: 1.75; font-weight: 700; word-break: keep-all; }
-        .admission-clean-note { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-subhead { margin: 18px 0 8px; color: #013262; font-size: 14px; font-weight: 900; }
-        .admission-mini-table, .admission-result-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-mini-table th, .admission-result-table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; color: #013262; font-weight: 900; border: 1px solid #d7d7d7; padding: 10px 10px; text-align: center; white-space: nowrap; }
-        .admission-mini-table td, .admission-result-table td { border: 1px solid #d7d7d7; padding: 9px 10px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; }
-        .admission-mini-table td.left, .admission-result-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 160px; }
-        .admission-result-note { margin-bottom: 14px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 12px 14px; color: #667085; font-size: 12.5px; line-height: 1.7; font-weight: 800; word-break: keep-all; }
-        .admission-readable-body { display: grid; gap: 8px; }
-        .admission-subhead-card { margin-top: 8px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
-        .admission-normal-line,
-        .admission-long-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 13px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 750; word-break: keep-all; }
-        .admission-numbered-line { background: #f9fafb; }
-        .admission-long-line { white-space: normal; }
-        .admission-token-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 10px 12px; }
-        .admission-token-label { color: #013262; font-size: 13px; line-height: 1.5; font-weight: 950; white-space: nowrap; }
-        .admission-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
-        .admission-token-list span { min-width: 34px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 5px 8px; color: #525252; font-size: 13px; line-height: 1.35; font-weight: 900; text-align: center; white-space: nowrap; }
-        .admission-wide-sheet { min-width: 760px; width: max-content; display: grid; gap: 4px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 16px; padding: 10px; }
-        .admission-wide-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 10px; padding: 9px 10px; color: #525252; font-size: 13px; line-height: 1.55; font-weight: 800; white-space: nowrap; }
-        .admission-raw-pre { min-width: 760px; margin: 0; border: 1px solid #d7d7d7; border-radius: 16px; background: #ffffff; padding: 16px; color: #525252; font-size: 13px; line-height: 1.7; font-weight: 700; white-space: pre-wrap; word-break: keep-all; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-        .admission-safe-text-block { border-radius: 0; border-top: 1px solid #d7d7d7; border-bottom: 1px solid #d7d7d7; border-left: 0; border-right: 0; }
-
-        .admission-scroll-table { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid #d7d7d7; background: #fff; }
-        .admission-data-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; background: #fff; }
-        .admission-data-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: #013262; font-weight: 950; border: 1px solid #d7d7d7; padding: 10px 12px; text-align: center; white-space: nowrap; }
-        .admission-data-table td { border: 1px solid #d7d7d7; padding: 9px 12px; color: #525252; vertical-align: middle; text-align: center; white-space: nowrap; font-weight: 750; }
-        .admission-data-table td.left { text-align: left; white-space: normal; word-break: keep-all; min-width: 150px; }
-        .admission-table-compact td:first-child { background: #f9fafb; color: #013262; font-weight: 950; }
-        .admission-info-list { display: grid; gap: 8px; margin-bottom: 14px; }
-        .admission-info-list > div { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-empty-box { border: 1px solid #d7d7d7; background: #fff; border-radius: 14px; padding: 18px; color: #525252; font-size: 15px; font-weight: 900; text-align: center; }
-        .admission-bullet-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
-        .admission-bullet-list li { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-subtitle-line { margin-bottom: 10px; border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-weight: 950; }
-        .admission-text-line { border: 1px solid #d7d7d7; background: #fff; border-radius: 12px; padding: 10px 12px; color: #525252; font-size: 13.5px; line-height: 1.65; font-weight: 800; word-break: keep-all; }
-        .admission-recruit-legend { margin-bottom: 10px; border: 1px solid #bcdcff; background: #e9f4ff; color: #013262; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-        .admission-header-summary { margin-bottom: 10px; border: 1px solid #d7d7d7; background: #f9fafb; color: #667085; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-
-        .admission-recruit-table { min-width: 760px; }
-        .admission-recruit-table .group-cell { min-width: 120px; max-width: 190px; }
-        .admission-recruit-table .unit-cell { min-width: 160px; max-width: 260px; }
-        .admission-recruit-table .recruit-values-cell { min-width: 140px; text-align: left; white-space: normal; vertical-align: top; }
-        .admission-recruit-cell-values { display: grid; grid-template-columns: 1fr; gap: 5px; }
-        .admission-recruit-cell-values span { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 9px; padding: 5px 7px; color: #525252; font-size: 12.5px; line-height: 1.35; font-weight: 900; white-space: nowrap; }
-        .admission-recruit-cell-values b { color: #667085; font-size: 11px; font-weight: 950; }
-
-        .admission-selection-table { min-width: 720px; }
-        .admission-selection-table th:nth-child(4),
-        .admission-selection-table td:nth-child(4) { min-width: 280px; text-align: left; white-space: normal; word-break: keep-all; line-height: 1.62; }
-        .admission-selection-table .selection-type-cell { background: #f9fafb; color: #013262; font-weight: 950; }
-        .admission-selection-table .selection-name-cell { font-weight: 900; }
-        .admission-selection-table .selection-seat-cell { color: #013262; font-weight: 950; }
-        .admission-minimum-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; max-width: 140px; border: 1px solid #d7d7d7; border-radius: 999px; padding: 3px 7px; background: #f9fafb; color: #667085; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
-        .admission-minimum-badge.has { border-color: #bcdcff; background: #e9f4ff; color: #0b84fd; }
-        .admission-minimum-badge.none { color: #667085; }
-
-        .admission-change-scroll-table { overflow-x: auto; }
-        .admission-change-table .change-no-cell { font-weight: 950; color: #0b84fd; }
-        .admission-change-table .change-title-cell { text-align: left; white-space: normal; line-height: 1.65; font-weight: 950; color: #013262; word-break: keep-all; }
-        .admission-change-table .change-content-cell { text-align: left; white-space: normal; line-height: 1.62; word-break: normal; overflow-wrap: anywhere; }
-        .admission-change-lines { display: flex; flex-direction: column; gap: 6px; }
-        .admission-change-line { border: 1px solid #d7d7d7; background: #f9fafb; border-radius: 10px; padding: 8px 10px; color: #525252; font-weight: 850; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
-        .admission-change-pair-list { display: flex; flex-direction: column; gap: 8px; }
-        .admission-change-arrow-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 10px; align-items: stretch; }
-        .admission-change-arrow-before, .admission-change-arrow-after { min-width: 0; border: 1px solid #d7d7d7; border-radius: 12px; padding: 10px; background: #f9fafb; }
-        .admission-change-arrow-after { background: #e9f4ff; border-color: #bcdcff; }
-        .admission-change-arrow-icon { display: flex; align-items: center; justify-content: center; color: #0b84fd; font-weight: 950; font-size: 18px; }
-        .admission-change-simple { color: #525252; font-weight: 850; line-height: 1.65; white-space: normal; word-break: keep-all; }
-
-        .admission-record-info-table td:first-child { min-width: 120px; color: #013262; background: #f9fafb; font-weight: 950; }
-        .admission-footnote { margin-top: 10px; color: #667085; font-size: 12.5px; line-height: 1.65; font-weight: 850; word-break: keep-all; }
-
-        .admission-special-wrap { display: grid; gap: 16px; }
-        .admission-special-block { display: grid; gap: 8px; }
-        .admission-special-title { border-left: 4px solid #0b84fd; background: #e9f4ff; border-radius: 12px; padding: 10px 12px; color: #013262; font-size: 14px; line-height: 1.55; font-weight: 950; word-break: keep-all; }
-        .admission-special-table td { white-space: normal; word-break: keep-all; line-height: 1.55; }
-        .admission-special-table td:first-child { min-width: 120px; background: #f9fafb; color: #013262; font-weight: 950; }
-
-        .admission-modal-body .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }
-        .admission-modal-body .admission-result-note,
-        .admission-modal-body .admission-header-summary,
-        .admission-modal-body .admission-recruit-legend { display: none !important; }
         .muted { color: #667085; }
       `}</style>
     </section>
   );
 }
 
-function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
+// 2026-08-06 사용자 지적("어드민이 너무 무겁다", 폼 높이 9,873px = 화면
+// 11.4개, input 502개) — 근본 원인은 위계가 아니라 구조였다: 6개 카테고리
+// (raw+문서+html 미러 3필드씩 18필드)를 한 폼에 전부 펼쳐 동시 렌더했다.
+// 카테고리를 묶어 한 번에 하나만 마운트한다 — CSS로 숨기는 게 아니라
+// (display:none) 열지 않은 카테고리의 field row 자체를 렌더 트리에서 뺀다 —
+// React가 그 서브트리를 만들지 않으므로 DOM 노드·리렌더 비용이 실제로 준다.
+// field.group이 없는 필드(admissionGuidelines 외 모든 config)는 항상 그대로
+// 렌더돼 다른 화면은 영향 없다.
+// 2026-08-07 이후 "여는 장치"는 아코디언이 아니라 편집 다이얼로그다:
+// buildFieldRenderItems는 group 필드를 아예 items에 안 넣고(헤더만 남긴다),
+// 실제 field는 modalSection === field.group일 때 모달 본문이 마운트한다.
+// 동시 마운트 최대 1개라는 불변식은 그대로다.
+
+// 카테고리 헤더에 보여줄 한 줄 요약. doc이 있으면 표/블록 개수, 없으면
+// 원문 유무만 판정한다 — 관리자가 어느 카테고리를 열지 판단하는 용도라
+// 정확한 렌더 결과 예측까지는 필요 없다(그건 펼쳐서 문서 편집기로 본다).
+function summarizeHwpSection(sectionKey, form) {
+  const jsonKey = HWP_SECTION_JSON_KEYS[sectionKey];
+  const doc = jsonKey ? form[jsonKey] : null;
+  const blocks = doc && Array.isArray(doc.blocks) ? doc.blocks : [];
+  if (!blocks.length) {
+    return cleanAdmissionText(form[sectionKey]) ? '원문 있음(문서 미생성)' : '내용 없음';
+  }
+  const tableBlocks = blocks.filter((block) => block.kind === 'table');
+  const parts = [];
+  if (tableBlocks.length) {
+    const first = tableBlocks[0];
+    const cols = Array.isArray(first.columns) ? first.columns.length : 0;
+    const rowCount = Array.isArray(first.rows) ? first.rows.length : 0;
+    parts.push(`표 ${tableBlocks.length}개 · ${cols}열 ${rowCount}행`);
+  }
+  const otherCount = blocks.length - tableBlocks.length;
+  if (otherCount > 0) parts.push(`블록 ${otherCount}개`);
+  return parts.join(' · ') || `블록 ${blocks.length}개`;
+}
+
+// fields를 순서 그대로 훑으며 field.group이 있는 항목은 그룹당 헤더 1개로
+// 묶는다. group이 없는 필드는 항상 그대로 통과.
+//
+// 2026-08-07: 카테고리 필드를 폼 안에서 인라인으로 펼치지 않는다. 펼침 대상이
+// 아코디언에서 편집 다이얼로그로 바뀌었기 때문이다(사용자 지시 "서비스 모달
+// 구조를 그대로"). 위 주석의 원래 목적 — 접힌 카테고리의 서브트리를 아예
+// 만들지 않아 폼 높이 9,873px / input 502개를 3,744px / 14개로 줄인 것 — 은
+// 그대로 유지된다: 카테고리 필드는 이제 폼이 아니라 모달이 마운트하고,
+// 모달은 한 번에 최대 1개만 열린다(modalSection이 단일 값).
+function buildFieldRenderItems(fields, form) {
+  const items = [];
+  const seenGroups = new Set();
+  fields.forEach((field) => {
+    if (!field.group) {
+      items.push({ type: 'field', field });
+      return;
+    }
+    if (!seenGroups.has(field.group)) {
+      seenGroups.add(field.group);
+      items.push({
+        type: 'header',
+        groupKey: field.group,
+        label: HWP_SECTION_LABELS[field.group] || field.group,
+        summary: summarizeHwpSection(field.group, form)
+      });
+    }
+  });
+  return items;
+}
+
+// 구 CategoryAccordionHeader. 같은 자리·같은 모양이지만 여는 대상이 인라인
+// 펼침이 아니라 편집 다이얼로그다 — ▸ 회전 표시 대신 "수정" 어포던스를 둔다
+// (목록 셀의 [수정]과 같은 동작, 같은 모달).
+function CategorySectionButton({ item, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-left transition hover:bg-[#f3f4f6]"
+    >
+      <span className="text-sm font-black">{item.label}</span>
+      <span className="flex items-center gap-3">
+        <span className="text-xs font-bold text-gray-500">{item.summary}</span>
+        <span className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff]">
+          수정
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// 카테고리(field.group) 필드 1개의 편집 UI. 아코디언이 폼 안에서 렌더하던
+// 것을 **재타이핑 없이** 그대로 떼어 온 것 — 편집 다이얼로그 본문이 이걸
+// 쓴다. 문서 편집기(admissionDoc)만 그린다: 원문(raw)·HTML 미러(둘 다
+// field.type === 'textarea', group만 admissionDoc과 공유)는 사용자 지시
+// (2026-08-10) "원문(raw) 보기/편집, HTML 미러 보기 이 두가지도 dialog에서
+// 없애줘. 불필요해" 에 따라 렌더를 뺐다.
+//
+// ⚠ 필드 자체(config.fields의 raw/html 항목)는 지우지 않았다 — rowToForm이
+// row 전체를 스프레드해 form 상태에 그대로 실리고, formToPayload도 form을
+// 스프레드해 그대로 되돌려 보낸다(AdminForm.rowToForm/formToPayload,
+// :1198/:1207 부근). 여기서 렌더만 껐을 뿐 form[field.key]는 사용자가
+// 다이얼로그에서 손대지 않은 값 그대로 저장 왕복한다 — raw는 엑셀 대량
+// 업로드의 "업로드 raw == DB raw면 무변경" 판정 기준이고, html은 롤백
+// 수단·레거시 임포터 입력원이라 컬럼 자체를 없애면 안 된다.
+// 220px 라벨 열을 쓰지 않는 것도 원본 그대로다: 카테고리명은 이미 모달
+// 제목에 있어 필드 라벨을 반복할 이유가 없다.
+function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {
+  if (field.type !== 'admissionDoc') return null;
+  return (
+    <div
+      // admission-surface: 표 표면 스타일을 공개 모달과 공유(AdmissionSurface.jsx
+      // 참고) — minimum_requirements/exam_schedule 폭 규칙이 걸리게 한다.
+      // 좌우 px-5는 모달 본문이 이미 px-6/md:px-12를 갖고 있어 뺐다.
+      className="admission-surface border-b border-[#edf0f4] py-4"
+      data-section={field.group}
+    >
+      <AdmissionDocFieldEditor field={field} form={form} onPatch={onPatch} onDirty={onDirty} />
+    </div>
+  );
+}
+
+function AdminForm({
+  config,
+  mode,
+  row,
+  onCancel,
+  onSave,
+  onUpload,
+  origin = 'form',
+  initialSection = null
+}) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
     return { ...(config.defaults || {}) };
   });
   const [dirty, setDirty] = useState(false);
+  // 열려 있는 카테고리 편집 다이얼로그의 섹션 키(field.group 있는 config,
+  // 현재는 admissionGuidelines 뿐). null이면 닫힘 — 한 번에 최대 1개.
+  //
+  // 모드 A(origin === 'list'): 목록 셀 [수정]으로 들어오면 initialSection이
+  //   실려 와 마운트 즉시 모달이 열린다. 폼은 오버레이 뒤에서 저장 엔진으로만
+  //   산다 — 사용자에게는 "목록 → 다이얼로그" 1뎁스로 보인다(공개와 동일).
+  // 모드 B(origin === 'form'): 기존 ✏️ 경로. 폼 화면의 카테고리 버튼으로 연다.
+  const [modalSection, setModalSection] = useState(initialSection);
+  // 모달 푸터 [저장]이 실제 <form>의 submit을 발화시키기 위한 ref.
+  // requestSubmit()은 click() 우회와 달리 onSubmit 핸들러와 HTML 검증을
+  // 정상적으로 태운다 — 저장 경로가 폼 하단 [저장]과 완전히 동일해진다.
+  const formRef = useRef(null);
   // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
   const editorRefs = useRef(new Map());
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
@@ -4296,6 +4960,23 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
   function handleCancel() {
     if (dirty && !window.confirm('저장하지 않은 변경사항이 있습니다. 나가시겠습니까?')) return;
     onCancel();
+  }
+
+  // 모달 닫기(푸터 버튼 / X / ESC / 오버레이 공통). 두 모드의 유일한 차이가
+  // 여기다.
+  //   모드 A: 모달 닫기 = 폼 이탈이므로 기존 handleCancel을 그대로 호출한다
+  //          (dirty면 기존 confirm이 뜨고, 확인하면 목록으로 복귀).
+  //          새 confirm을 만들지 않는다 — 경고는 한 벌이어야 한다.
+  //   모드 B: 폼 화면으로 복귀할 뿐이라 아무것도 유실되지 않는다. 편집 상태는
+  //          모달이 아니라 이 AdminForm의 form state가 들고 있고 모달은 그
+  //          창일 뿐이다. 여기에 "변경 유실 경고"를 붙이면 거짓말이므로 붙이지
+  //          않는다(대신 모달 헤드의 '● 저장 안 됨' 뱃지와 푸터 안내문).
+  function closeSectionModal() {
+    if (origin === 'list') {
+      handleCancel();
+      return;
+    }
+    setModalSection(null);
   }
 
   function change(key, value) {
@@ -4392,8 +5073,20 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
     onSave(merged);
   }
 
+  // 모달 본문에 넣을 카테고리 필드 3개(문서 json / 원문 raw / html 미러).
+  const groupFields = (config.fields || []).filter((field) => field.group === modalSection);
+
   return (
-    <form onSubmit={submit}>
+    // 모달을 <form>의 **형제**로 둔다. 편집 input이 <form> 안에 있으면 셀에서
+    // Enter를 치는 순간 폼이 암묵 제출되는데(기존 결함), 모달에서는 그게
+    // "의도치 않은 저장 → setMode('list') → 모달 소멸"로 악화된다. 모달 입력은
+    // 전부 controlled React state라 <form> 밖에 있어도 form/patch에 아무 영향이
+    // 없다 — 부작용으로 기존 Enter-제출 결함이 모달 경로에서 사라진다.
+    //
+    // 아래 <form> 본문은 들여쓰기를 그대로 뒀다. 한 단계 더 들여쓰면 380줄이
+    // 통째로 diff에 잡혀 실제 변경(래핑 + 모달 추가)이 묻힌다.
+    <>
+    <form ref={formRef} onSubmit={submit}>
       <h1 className="mb-5 text-2xl font-black text-[#111827]">
         {config.title} {mode === 'create' ? '등록' : readonly ? '상세' : '수정'}
       </h1>
@@ -4410,11 +5103,33 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         </p>
       )}
 
+      {/* 2단계(2026-08-06): 표 표면 스타일을 공개 모달과 공유 — field.group이
+          있는 config(현재 admissionGuidelines뿐)에서만 렌더한다. showSectionTitle/
+          showChangeNoColumn 둘 다 어드민 전용 값 — 절 제목 노출, 전년도와 차이점
+          번호 컬럼 노출(구 죽은 Admin.jsx 스타일을 AdmissionSurface.jsx가 되살림).
+          공개 모달은 자기 자신의 <AdmissionSurface />(기본값 false/false)를 따로
+          렌더하므로(별개 라우트, 동시 마운트 안 됨) 여기서 true로 켜도 공개로 새지
+          않는다. */}
+      {(config.fields || []).some((field) => field.group) && <AdmissionSurface showSectionTitle showChangeNoColumn />}
+
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="min-w-0 flex-1 bg-white shadow">
-          {(config.fields || config.columns)
-            .filter((field) => !field.showIf || field.showIf(form))
-            .map((field) => (
+          {buildFieldRenderItems(
+            (config.fields || config.columns).filter((field) => !field.showIf || field.showIf(form)),
+            form
+          ).map((item) => {
+            if (item.type === 'header') {
+              return (
+                <CategorySectionButton
+                  key={`group-header-${item.groupKey}`}
+                  item={item}
+                  onOpen={() => setModalSection(item.groupKey)}
+                />
+              );
+            }
+            const field = item.field;
+
+            return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
                 <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
                   {field.label}
@@ -4424,8 +5139,8 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                   )}
                 </div>
 
-                <div className="px-5 py-3">
-                  {readonly ? (
+                <div className="min-w-0 px-5 py-3">
+                  {readonly || field.readOnly ? (
                     field.type === 'image' && form[field.key] ? (
                       <img src={form[field.key]} alt="" className="h-24 w-40 object-cover" />
                     ) : (
@@ -4433,15 +5148,37 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                     )
                   ) : (
                     <>
-                      {!['file', 'multiImage', 'multiFile', 'blockEditor'].includes(field.type) &&
-                        !(field.type === 'image' && field.hideUrlInput) && (
+                      {!['file', 'multiImage', 'multiFile', 'blockEditor', 'admissionDoc'].includes(field.type) &&
+                        !(field.type === 'image' && field.hideUrlInput) &&
+                        // readOnly textarea(예: *_html 미러)는 3차 정보 — 데이터 셀보다
+                        // 큰 자리를 차지하지 않도록 기본 접힘(details/summary)으로 감싼다.
+                        // 기능(값 확인·복사)은 그대로, 펼쳐야 보이게만 바꾼 것.
+                        (field.type === 'textarea' && field.readOnly ? (
+                          <details className="group">
+                            <summary className="cursor-pointer text-xs font-bold text-gray-400 hover:text-gray-600">
+                              HTML 미러 보기(자동 생성, 편집 불가)
+                            </summary>
+                            <div className="mt-2">
+                              <AdminInput field={field} value={form[field.key]} onChange={change} disabled={readonly} />
+                            </div>
+                          </details>
+                        ) : (
                           <AdminInput
                             field={field}
                             value={form[field.key]}
                             onChange={change}
                             disabled={readonly}
                           />
-                        )}
+                        ))}
+
+                      {field.type === 'admissionDoc' && (
+                        <AdmissionDocFieldEditor
+                          field={field}
+                          form={form}
+                          onPatch={patch}
+                          onDirty={() => setDirty(true)}
+                        />
+                      )}
 
                       {field.type === 'blockEditor' && (
                         // onInput/onKeyDown은 BlockNote가 내부에 렌더하는 contenteditable DOM에서
@@ -4643,12 +5380,13 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
         </div>
 
         {config.FormPreview && (
           <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
-            <config.FormPreview form={form} onPatch={patch} />
+            <config.FormPreview form={form} onPatch={patch} locked={Boolean(modalSection)} />
           </div>
         )}
       </div>
@@ -4686,18 +5424,97 @@ function AdminForm({ config, mode, row, onCancel, onSave, onUpload }) {
         label={config.previewLabel}
       />
     </form>
+
+      {/* 공개 모달과 **같은 껍데기**(AdmissionModalShell)를 쓰는 편집
+          다이얼로그. 본문만 뷰어 대신 편집 필드를 넣는다. */}
+      <AdmissionSectionEditModal
+        open={Boolean(modalSection)}
+        sectionKey={modalSection}
+        sectionLabel={HWP_SECTION_LABELS[modalSection] || modalSection}
+        universityName={form.university_name}
+        dirty={dirty}
+        origin={origin}
+        onClose={closeSectionModal}
+        // 저장은 폼 하단 [저장]과 **완전히 같은 단일 경로**다: requestSubmit →
+        // submit(required 검사 → config.validate confirm) → onSave(merged) →
+        // saveRow → formToPayload → update().eq('id') → setMode('list').
+        // AdminForm이 언마운트되면서 모달도 함께 사라지고 목록으로 돌아간다 —
+        // 공개 모달(닫으면 목록)과 같은 루프다. 부분 저장 경로는 만들지 않는다.
+        onSave={() => formRef.current?.requestSubmit()}
+      >
+        {groupFields.map((field) => (
+          <AdmissionGroupField
+            key={field.key}
+            field={field}
+            form={form}
+            readonly={readonly}
+            onChange={change}
+            onPatch={patch}
+            onDirty={() => setDirty(true)}
+          />
+        ))}
+      </AdmissionSectionEditModal>
+    </>
   );
 }
 
-function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+function AdminTable({
+  config,
+  rows,
+  page,
+  setPage,
+  totalCount,
+  onEdit,
+  onDelete,
+  onOpenSection,
+  onOpenMetaEdit
+}) {
+  // 두 가지 조달 방식이 한 표를 공유한다.
+  //  - 기본(35개 config): loadRows가 전량을 가져오고 여기서 PAGE_SIZE로 잘라 쓴다.
+  //  - config.serverPaginate(입결 43k행): rows가 이미 "현재 페이지 PAGE_SIZE행"이라
+  //    자르면 안 되고, 전체 건수는 서버 count(totalCount)로 따로 받는다.
+  const serverPaginated = Boolean(config.serverPaginate);
+  const total = serverPaginated ? totalCount : rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
-  const pageRows = rows.slice(start, start + PAGE_SIZE);
+  const pageRows = useMemo(
+    () => (serverPaginated ? rows : rows.slice(start, start + PAGE_SIZE)),
+    [rows, start, serverPaginated]
+  );
+
+  // 페이지 번호 창. 기존에는 1~10을 고정 렌더했는데, 4,300페이지짜리 입결 목록에서는
+  // 그 방식으로 11페이지 이후에 도달할 방법이 없다(≫ 버튼으로 끝으로 점프한 뒤에도
+  // 번호줄은 1~10을 가리킨다). 현재 페이지를 가운데 두고 창을 굴린다 —
+  // totalPages ≤ 10이면 예전과 완전히 같은 1..N이 나온다.
+  const windowSize = Math.min(totalPages, 10);
+  const windowStart = Math.min(
+    Math.max(1, page - Math.floor(windowSize / 2)),
+    Math.max(1, totalPages - windowSize + 1)
+  );
+  const pageNumbers = Array.from({ length: windowSize }, (_, index) => windowStart + index);
+
+  // 섹션 요약(summarizeHwpSection)은 페이지당 최대 60회(10행 × 6컬럼) 호출되고
+  // jsonb doc의 blocks 배열을 훑는다. 셀에서 직접 부르면 keyword 검색 타이핑
+  // 한 글자마다 전부 재계산된다 — 페이지 행이 실제로 바뀔 때만 1회 계산한다.
+  // admissionSection 컬럼이 없는 35개 config에서는 null이라 비용이 0이다.
+  const sectionColumns = config.columns.filter((column) => column.type === 'admissionSection');
+  const sectionSummaries = useMemo(() => {
+    if (sectionColumns.length === 0) return null;
+    return pageRows.map((row) => {
+      const summaries = {};
+      sectionColumns.forEach((column) => {
+        summaries[column.sectionKey] = summarizeHwpSection(column.sectionKey, row);
+      });
+      return summaries;
+    });
+    // config.columns는 모듈 레벨 CONFIGS 리터럴이라 참조가 안정적이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageRows, config.columns]);
 
   return (
     <div className="bg-white p-6 shadow">
       <div className="mb-4 text-sm font-bold text-gray-500">
-        전체 <span className="text-blue-600">{rows.length}</span>건
+        전체 <span className="text-blue-600">{total.toLocaleString()}</span>건
       </div>
 
       <div className="overflow-x-auto">
@@ -4724,11 +5541,38 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
             ) : (
               pageRows.map((row, index) => (
                 <tr key={row.id} className="border-b border-gray-100">
-                  <td className="px-3 py-3">{rows.length - (start + index)}</td>
+                  <td className="px-3 py-3">{total - (start + index)}</td>
 
                   {config.columns.map((column) => (
                     <td key={column.key} className="px-3 py-3">
-                      {column.type === 'image' ? (
+                      {/* 대학명 = 메타 수정 다이얼로그 진입점.
+                          공개 목록에서 대학명을 누르면 그 대학 입시 홈페이지로
+                          가듯, 어드민에서 누르면 그 URL을 고칠 수 있는 창이
+                          열린다(사용자 지시 2026-08-10).
+
+                          관리 열 ⚙️ 는 그대로 둔다 — 같은 모달을 여는 진입점이
+                          2개가 되는 것뿐이고, ⚙️ 를 지우면 대학명 컬럼이 없는
+                          다른 config에서 메타 수정 경로가 사라진다.
+
+                          ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
+                          있어야 한다. scripts/verify-admission-admin-entry.mjs 는
+                          admissionSection 분기의 시작과 fileList 분기의 시작을
+                          앵커로 그 사이를 잘라내 하네스에
+                          sectionSummaries/index/column/row/onOpenSection 만
+                          주입한다. 이 분기가 그 사이에 끼면 onOpenMetaEdit
+                          미주입으로 스크립트가 ReferenceError 로 죽는다.
+                          (앵커 문자열을 이 주석에 그대로 복제하지도 말 것 —
+                          "정확히 1개" 조건이 깨져 슬라이스가 실패한다.) */}
+                      {column.type === 'universityNameMeta' && onOpenMetaEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMetaEdit(row)}
+                          title="대학 정보 수정 창 열기"
+                          className="text-left font-bold text-[#013262] underline underline-offset-2 transition hover:text-[#0b84fd]"
+                        >
+                          {formatValue(row[column.key], column.type, column.options)}
+                        </button>
+                      ) : column.type === 'image' ? (
                         row[column.key] ? (
                           column.showFileName ? (
                             <div className="flex items-center gap-2">
@@ -4771,6 +5615,57 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
                         ) : (
                           '-'
                         )
+                      ) : column.type === 'admissionSection' ? (
+                        // 공개 목록 표의 [보기] 셀과 같은 자리·같은 어포던스.
+                        // 셀 1클릭으로 같은 껍데기의 편집 다이얼로그가 열린다.
+                        // title에 요약("표 2개 · 5열 12행")을 실어 어느 칸이
+                        // 무거운지 열기 전에 알 수 있게 한다.
+                        // 요약은 위 useMemo가 페이지 단위로 미리 계산한 값이다
+                        // (summarizeHwpSection은 row[jsonKey]/row[sectionKey]만
+                        // 읽는 순수 함수라 목록 row를 그대로 넘길 수 있고,
+                        // loadRows가 select('*')이므로 추가 fetch도 0이다).
+                        //
+                        // ⚠ 빈 칸도 반드시 열려야 한다 (2026-08-07)
+                        // ----------------------------------------
+                        // 사용자 요청: "모든 다이얼로그에서 '비었을 때 추가'
+                        // 기능이 있어야 해." 조사 결과 다이얼로그 **안**은 이미
+                        // 완비였다 — 6섹션 × (블록0 / emptyBox 1개 / group만)
+                        // 18케이스를 SSR 해보면 전부 블록 추가 셀렉트가 나온다
+                        // (DocBlocksEditor의 추가 UI는 blocks.map 바깥에 있고
+                        // blocks.length 조건이 없다). 진짜 구멍은 "다이얼로그를
+                        // 못 연다"였다: 여기 있던 `'내용 없음' → <span>-</span>`
+                        // 게이트가 dev DB 55칸(특수대학 11개교 × 5카테고리)을
+                        // 통째로 죽여놨다. 그 11개교는 전형방법 1칸만 내용이
+                        // 있고 나머지 5칸이 전부 비어 있어, 목록에서는 영영
+                        // 내용을 채워 넣을 수 없었다.
+                        // 지금은 폼(✏️)의 CategorySectionButton이 요약과 무관하게
+                        // 6개를 항상 렌더해 우회로가 되고 있지만, 그 ✏️는 다음
+                        // 커밋에서 사라진다 — 게이트를 먼저 연다.
+                        // 모달 쪽 배선은 이미 되어 있다: AdmissionDocFieldEditor가
+                        // 값이 없으면 blocks:[] 인 source:'manual' doc을 합성한다.
+                        //
+                        // 어포던스만 구분한다 — 빈 칸은 회색 점선 [추가],
+                        // 내용 있는 칸은 기존 파랑 [수정]. 라벨을 통일하지 않는
+                        // 이유는 목록을 훑을 때 "어디가 비었나"가 한눈에 보여야
+                        // 하기 때문이다(기존 `-`가 주던 정보를 잃지 않는다).
+                        (() => {
+                          const summary = sectionSummaries?.[index]?.[column.sectionKey];
+                          const empty = summary === '내용 없음';
+                          return (
+                            <button
+                              type="button"
+                              title={summary}
+                              onClick={() => onOpenSection?.(row, column.sectionKey)}
+                              className={
+                                empty
+                                  ? 'rounded border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-black text-gray-400 transition hover:border-[#2348ff] hover:text-[#2348ff]'
+                                  : 'rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white'
+                              }
+                            >
+                              {empty ? '추가' : '수정'}
+                            </button>
+                          );
+                        })()
                       ) : column.type === 'fileList' ? (
                         formatListValue(row[column.key], column.type)
                       ) : column.type === 'truncate' ? (
@@ -4783,14 +5678,41 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
 
                   <td className="px-3 py-3">
                     <div className="flex justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => onEdit(row)}
-                        className="text-gray-500 hover:text-black"
-                      >
-                        {config.readOnly ? <Eye size={17} /> : <Edit3 size={17} />}
-                      </button>
+                      {/* config.hideRowEdit: 행 전체 폼(✏️/👁)으로 들어가는
+                          진입점을 끈다. AdminTable 은 36개 config 가 공유하는
+                          단일 컴포넌트라 이 한 줄이 전 메뉴의 수정 진입점이고,
+                          settlements 의 👁 상세보기까지 같은 버튼이다 —
+                          무조건 지우면 35개 메뉴가 함께 죽는다. 그래서
+                          config.excel / config.noCreate / config.readOnly 와
+                          같은 "공용 렌더 + config 스위치" 패턴으로 켠다. */}
+                      {!config.hideRowEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(row)}
+                          className="text-gray-500 hover:text-black"
+                        >
+                          {config.readOnly ? <Eye size={17} /> : <Edit3 size={17} />}
+                        </button>
+                      )}
 
+                      {/* config.showMetaEdit: ✏️(행 전체 폼) 대신 메타 9필드만
+                          고치는 경량 모달(AdmissionMetaEditModal) 진입점.
+                          admissionGuidelines 1개 메뉴에만 켠다 — hideRowEdit과
+                          같은 "공용 렌더 + config 스위치" 패턴. */}
+                      {config.showMetaEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMetaEdit?.(row)}
+                          aria-label="메타 정보 수정"
+                          className="text-gray-500 hover:text-black"
+                        >
+                          <Settings size={17} />
+                        </button>
+                      )}
+
+                      {/* 🗑 은 손대지 않는다 — 사용자 미언급이고, 지우면 행
+                          삭제 경로가 완전히 사라진다(엑셀 일괄은 insert/update
+                          만 한다). 기존 !config.readOnly 게이팅 그대로. */}
                       {!config.readOnly && (
                         <button
                           type="button"
@@ -4809,7 +5731,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
         </table>
       </div>
 
-      <div className="mt-5 flex justify-center">
+      <div className="mt-5 flex flex-col items-center gap-2">
         <div className="inline-flex border border-gray-300">
           <button type="button" onClick={() => setPage(1)} className="h-9 w-10 border-r">
             <ChevronsLeft size={15} className="mx-auto" />
@@ -4822,7 +5744,7 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
             <ChevronLeft size={15} className="mx-auto" />
           </button>
 
-          {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((num) => (
+          {pageNumbers.map((num) => (
             <button
               key={num}
               type="button"
@@ -4846,7 +5768,902 @@ function AdminTable({ config, rows, page, setPage, onEdit, onDelete }) {
             <ChevronsRight size={15} className="mx-auto" />
           </button>
         </div>
+
+        {/* 번호줄이 창(최대 10칸)만 보여주므로 지금 몇 번째인지 따로 알려준다.
+            페이지가 1장뿐인 대부분의 메뉴에서는 노이즈라 2장 이상일 때만 렌더한다. */}
+        {totalPages > 1 && (
+          <p className="text-xs font-bold text-gray-500">
+            {page.toLocaleString()} / {totalPages.toLocaleString()} 페이지
+          </p>
+        )}
       </div>
+    </div>
+  );
+}
+
+// 대입모집요강 공개 노출 연도 표시·변경(admissionGuidelines의 ListSummary —
+// AcceptanceRateSummary와 같은 확장점, 목록 페이지 헤더에서만 렌더된다.
+// 상세 편집 폼(아코디언)과 완전히 다른 렌더 트리라 폼 무게(input 14개,
+// 3,744px)에 영향이 없다 — 2026-08-06 사용자의 "어드민이 너무 무겁다"
+// 지적 이후 이 제약을 지키기 위해 일부러 폼 밖에 둔 것.
+//
+// 드롭다운을 안 쓰고 숫자 입력 + 버튼을 쓴다 — 지금 admission_year가
+// 2027 하나뿐이라(dev DB 실측) 선택지 1개짜리 select는 phase0가 공개
+// 쪽에서 거부한 것과 같은 문제("없는 기능을 있는 것처럼 보이게 함")를
+// admin에도 만든다. 숫자 입력은 연도 개수와 무관하게 항상 동작한다.
+//
+// ⚠ 자유 입력의 대가 — 데이터 없는 연도를 공개로 지정하면 공개
+// 페이지가 통째로 빈 화면이 된다(team-lead 지적, 2026-08-06). 저장
+// 직전에 그 연도의 행 수를 이 컴포넌트가 이미 들고 있는 rows(목록
+// 조회가 이미 전체 행을 가져온다 — PAGE_SIZE는 화면 표시에만 쓰이는
+// 클라이언트 슬라이스, loadRows의 select('*')엔 .range()가 없다.
+// config.serverPaginate를 켠 탭만 예외로 서버에서 페이지 단위로 끊어
+// 받는데, admissionGuidelines는 그 탭이 아니라 전제가 그대로 유효하다)에서
+// 세어 0이면 확인을 받는다. 검증을 admissionSettings.js에 넣지
+// 않은 이유는 그 함수가 설정 저장만 하는 게 책임이고, 리소스 테이블
+// 행 수를 아는 건 호출부(이 파일)의 책임이라고 team-lead가 판단했기
+// 때문이다.
+//
+// admissionGuidelines.ListSummary의 실제 진입점. 연도 표시·변경(기존
+// AdmissionActiveYearSummary, 안 건드림)과 엑셀 일괄 왕복 패널(신규
+// AdmissionBulkXlsxPanel)을 세로로 쌓아 렌더한다 — 한 줄에 몰아넣으면
+// "연도 표시+입력+버튼+다운로드+업로드"가 뒤섞여 복잡해진다는 판단
+// (설계 문서 §2). onReload는 AdminForm의 loadRows를 그대로 받아
+// 엑셀 적용 후 목록을 재조회하는 데 쓴다.
+function AdmissionListSummary({ rows, onReload }) {
+  return (
+    <>
+      <AdmissionActiveYearSummary rows={rows} />
+      <AdmissionBulkXlsxPanel rows={rows} onReload={onReload} />
+    </>
+  );
+}
+
+function AdmissionActiveYearSummary({ rows }) {
+  const [activeYear, setActiveYear] = useState(null);
+  const [loadingActiveYear, setLoadingActiveYear] = useState(true);
+  const [draftYear, setDraftYear] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAdmissionActiveYear(supabase).then((year) => {
+      if (cancelled) return;
+      setActiveYear(year);
+      setDraftYear(String(year));
+      setLoadingActiveYear(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeYearCount = activeYear
+    ? (rows || []).filter((row) => Number(row.admission_year) === activeYear).length
+    : 0;
+
+  async function handleChangeYear() {
+    const year = Number(draftYear);
+    // 4자리 상식선 제한 — 999999 같은 값이 통과하면 안 된다(team-lead 지적).
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      alert('연도는 2000~2100 사이 정수로 입력해 주세요.');
+      return;
+    }
+
+    const matchCount = (rows || []).filter((row) => Number(row.admission_year) === year).length;
+    if (matchCount === 0) {
+      const proceed = window.confirm(
+        `${year}학년도 데이터가 0개교입니다. 이대로 공개 연도를 지정하면 공개 페이지의 대학별 모집요강이 통째로 빈 화면이 됩니다.\n\n그래도 지정하시겠습니까?`
+      );
+      if (!proceed) return;
+    }
+
+    setSaving(true);
+    const result = await setAdmissionActiveYear(supabase, year);
+    if (!result.ok) {
+      setSaving(false);
+      alert(`공개 연도 저장 실패: ${result.error}`);
+      return;
+    }
+
+    // 낙관적 표시 대신 실제 값을 재조회한다 — 이 값이 고객 노출을 좌우하므로
+    // 저장이 실제로 반영됐는지(RLS 등으로 조용히 무시되지 않았는지) 확인한다.
+    const confirmedYear = await getAdmissionActiveYear(supabase);
+    setActiveYear(confirmedYear);
+    setDraftYear(String(confirmedYear));
+    setSaving(false);
+    alert(`공개 연도를 ${confirmedYear}학년도로 변경했습니다.`);
+  }
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 text-sm shadow">
+      <div className="font-black">
+        {loadingActiveYear ? (
+          '공개 연도 확인 중…'
+        ) : (
+          <>
+            현재 공개 연도: <span className="text-blue-600">{activeYear}학년도</span>
+            {' · '}
+            {activeYearCount}개교
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          value={draftYear}
+          onChange={(e) => setDraftYear(e.target.value)}
+          min={2000}
+          max={2100}
+          disabled={loadingActiveYear || saving}
+          className="h-9 w-24 border border-[#9ca3af] px-2 text-sm outline-none disabled:bg-gray-100"
+          aria-label="새 공개 연도"
+        />
+        <button
+          type="button"
+          onClick={handleChangeYear}
+          disabled={loadingActiveYear || saving}
+          className="h-9 bg-[#2348ff] px-4 text-sm font-black text-white disabled:opacity-50"
+        >
+          {saving ? '저장 중…' : '변경'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 대입모집요강 218행 전체를 26컬럼 xlsx(src/lib/admissionBulkXlsx.js,
+// 사용자가 준 모집요강.xlsx와 동일 포맷)로 일괄 왕복한다. 설계 문서
+// (docs/admission-bulk-xlsx-ui-design.md, 커밋 대상 아님) §3의 흐름을
+// 그대로 구현했다:
+//   다운로드(항상 전체, 필터 무시) → 업로드(파일 선택만으로는 반영 안
+//   됨) → 미리보기(신규/수정/거부/잘림보존/raw변경재생성 건수 +
+//   errors 항상 펼침 + warnings 4그룹, 건수는 항상 보이고 목록만 접힘)
+//   → "영향받는 N행을 확인했습니다" 체크박스로 게이트된 적용 → 재조회.
+//
+// warnings.type 계약(team-lead가 phase0와 확정, 최종 b0d05c0)을 그대로
+// 쓴다 — reason 문자열은 파싱하지 않고 표시 전용으로만 쓴다. 4그룹
+// 분류가 이 UI에서 제일 중요한 판단이다: rawChangedRegenerated는
+// 이름이 다른 "보존형"과 비슷해 보이지만 실제로는 값이 바뀐다(표
+// 구조가 단순해질 수 있음) — 나머지 보존형(truncated/regressionSkipped,
+// "반영 안 됨")과 같은 그룹에 넣으면 관리자가 오해하므로 별도 그룹
+// ("반영됐지만 품질 주의")으로 시각적으로 분리한다.
+//
+// 엑셀 포맷에서 html 3종이 빠지면서(26→23컬럼) "html 파싱 실패"라는
+// 상태 자체가 없어졌다 — 이제 트리거는 raw 비교뿐이다: 업로드 raw가
+// DB raw와 같으면 경고 자체가 안 생기고(raw가 안 바뀐 카테고리의
+// "보존" type이 열거형에서 아예 빠졌다 — emit된 적 없는 죽은 값이라
+// 정리됐다), 다르면 raw에서 재생성하고 rawChangedRegenerated 경고가
+// 남는다.
+const BULK_XLSX_WARNING_GROUPS = [
+  {
+    key: 'notApplied',
+    label: '반영 안 됨 — 기존 값 유지',
+    tone: 'neutral',
+    types: ['truncated', 'regressionSkipped']
+  },
+  {
+    key: 'regeneratedCaution',
+    label: '반영됨 — 품질 주의(표 구조가 단순해질 수 있음)',
+    tone: 'warning',
+    types: ['rawChangedRegenerated']
+  },
+  {
+    key: 'emptied',
+    label: '이 카테고리가 비워짐(저장 안 됨)',
+    tone: 'neutral',
+    types: ['importFailed']
+  },
+  {
+    key: 'newUniversity',
+    label: '신규 대학 추가(오타 확인 필요)',
+    tone: 'info',
+    types: ['newUniversity']
+  }
+];
+
+const BULK_XLSX_TONE_CLASS = {
+  neutral: 'border-gray-300 bg-gray-50 text-gray-700',
+  warning: 'border-amber-400 bg-amber-50 text-amber-700',
+  info: 'border-blue-300 bg-blue-50 text-blue-700'
+};
+
+// existingRows 맵 값에 담을 6개 raw 카테고리 컬럼 — CATEGORY_KEYS와
+// 이름이 같다(admissionBulkXlsx.js는 이 파일에 export 안 돼 있어 여기서
+// HWP_SECTION_JSON_KEYS의 키로 다시 뽑는다). html 파싱 실패 시 "raw가
+// 안 바뀌었나" 비교에 쓰인다 — 빠뜨리면 항상 "다름"으로 판정돼
+// 불필요한 재생성이 일어난다(team-lead가 명시적으로 강조한 지점).
+const BULK_XLSX_RAW_CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// 표 단위 xlsx(tableBlockXlsx.js)와 같은 이유로 XLSX.writeFile 대신
+// XLSX.write(버퍼만 생성) + 수동 다운로드를 쓴다 — writeFile의 Node
+// ESM/CJS 환경 감지 불안정 이슈를 겪은 적이 있어(그건 노드 검증
+// 스크립트 얘기지만) 프로덕션 경로도 동일 패턴으로 통일해둔다.
+function triggerXlsxDownload(workbook, fileName) {
+  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function AdmissionBulkXlsxPanel({ rows, onReload }) {
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  const totalRows = (rows || []).length;
+
+  function handleDownload() {
+    const { workbook, truncatedCells } = exportAdmissionRowsToXlsx(rows || []);
+    setExportTruncatedCells(truncatedCells);
+    const today = new Date();
+    const fileName = `모집요강_전체_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+    if (typeof document !== 'undefined') {
+      triggerXlsxDownload(workbook, fileName);
+    }
+  }
+
+  function buildExistingRowsMap() {
+    const map = new Map();
+    (rows || []).forEach((row) => {
+      const key = `${row.admission_year}::${row.university_key}`;
+      const value = { id: row.id };
+      Object.values(HWP_SECTION_JSON_KEYS).forEach((jsonColumn) => {
+        value[jsonColumn] = row[jsonColumn];
+      });
+      BULK_XLSX_RAW_CATEGORY_KEYS.forEach((rawKey) => {
+        value[rawKey] = row[rawKey];
+      });
+      map.set(key, value);
+    });
+    return map;
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const workbook = XLSX.read(reader.result, { type: 'array' });
+        const existingRows = buildExistingRowsMap();
+        const result = parseAdmissionRowsFromXlsx(workbook, existingRows);
+        setParseResult(result);
+      } catch (err) {
+        setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+      }
+    };
+    reader.onerror = () => {
+      setParseErrors(['파일을 읽지 못했습니다.']);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+    const { error } = await supabase
+      .from('admission_university_resources')
+      .upsert(parseResult.rows, { onConflict: 'admission_year,university_key' });
+    if (error) {
+      setApplying(false);
+      alert(`엑셀 적용 실패: ${error.message}`);
+      return;
+    }
+    const { summary } = parseResult;
+    setApplying(false);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult ? parseResult.summary.willInsert + parseResult.summary.willUpdate : 0;
+
+  return (
+    <div className="mb-6 bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            {`엑셀 다운로드 (전체 ${totalRows}행)`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            엑셀 업로드
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="모집요강 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다.
+            이 파일을 그대로 재업로드하면 해당 컬럼은 자동으로 보존됩니다(데이터 손상 아님, 스킵 처리).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((msg, idx) => (
+            <p key={idx}>{msg}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          {/* truncatedCellSkipCount 같은 개별 집계 필드는 여기서 안 쓰고
+              warningCounts만 쓴다(team-lead 지시) — type별 건수를 lib이
+              그대로 주므로 문자열 매칭·직접 재계산을 안 한다. 경고
+              총건수도 warningCounts 값을 그대로 더한 것이다. 엑셀
+              포맷에서 html 3종이 빠지면서(26→23컬럼) "html 파싱" 개념
+              자체가 없어져 그쪽 집계 필드도 lib에서 정리됐다 — 애초에
+              이 컴포넌트가 그 필드를 쓴 적이 없어 갱신할 코드는 없었다. */}
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
+          </p>
+
+          {parseResult.summary.newYears.length > 0 && (
+            <p className="mt-2 rounded border border-blue-300 bg-blue-50 px-2 py-1.5 font-bold text-blue-700">
+              신규 연도: {parseResult.summary.newYears.join(', ')}학년도 — 이 파일에 새 연도 데이터가
+              포함돼 있습니다.
+            </p>
+          )}
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.admissionYear ?? '-'}학년도 · {err.universityKey || '(키 없음)'} —{' '}
+                    {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {BULK_XLSX_WARNING_GROUPS.map((group) => {
+            // 건수는 lib이 준 warningCounts에서 합산한다(직접 세지 말라는
+            // team-lead 지시) — 상세 목록은 어차피 개별 항목이 필요해
+            // warnings 배열을 그대로 필터링한다(같은 type 기준이라 두
+            // 값은 항상 같다).
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {groupCount}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.admissionYear ?? '-'}학년도 · {w.universityKey || '(키 없음)'}
+                        {w.column ? ` · ${w.column}` : ''} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying ? '적용 중…' : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// admissionResults.ListSummary의 진입점. AdmissionListSummary(모집요강)를
+// 재사용하지 않는다 — 그쪽은 AdmissionActiveYearSummary(공개 연도 지정)를
+// 함께 쌓는데, 입결은 공개 연도 개념이 없다(연도 자체가 result_year 행
+// 값이고 그 축이 이미 데이터로 존재한다). 두 도메인을 한 컴포넌트에
+// 억지로 묶으면 나중에 한쪽만 바뀌어도 다른 쪽 회귀를 걱정해야 한다.
+function AdmissionResultsListSummary({ onReload }) {
+  return <AdmissionResultsBulkXlsxPanel onReload={onReload} />;
+}
+
+// 입결정보(admission_results) 43,170행 전체를 29컬럼 xlsx
+// (src/lib/admissionResultsBulkXlsx.js)로 일괄 왕복한다. UX 흐름은
+// AdmissionBulkXlsxPanel(모집요강)과 동일하게 맞췄다 — 다운로드 →
+// 업로드 → 미리보기(신규/수정/거부/경고 건수 + 거부 행 목록 + 경고
+// 그룹 접기/펼치기) → 확인 체크박스로 게이트된 적용 → 재조회.
+//
+// 모집요강 패널과 다른 점은 전부 43,170행 규모 + coalesce() 표현식
+// 유일성 인덱스에서 온다(design brief (A)(B)):
+//   (A) props로 rows를 받지 않는다 — AdminTable이 config.serverPaginate
+//       탓에 현재 페이지 PAGE_SIZE행만 들고 있어(Admin.jsx:6305 부근),
+//       그걸 그대로 내보내면 10행짜리 파일이 나온다. 다운로드·업로드
+//       (existingIdSet 준비) 둘 다 이 컴포넌트가 자체적으로 PostgREST
+//       기본 상한(1,000행)에 맞춰 .range()로 청크 반복해 전량을 읽는다.
+//   (B) onConflict 기반 upsert를 쓰지 않는다 — sql/53의 유일성 인덱스가
+//       coalesce() 표현식이라 PostgREST onConflict가 컬럼 목록으로 못
+//       받는다. 대신 admissionResultsBulkXlsx.js가 이미 행마다 id 유무로
+//       insert/update를 갈라 payload를 만들어 주므로(id 없으면 insert,
+//       있으면 update — 있는데 DB에 없으면 파싱 단계에서 거부), 이
+//       컴포넌트는 그 분류를 그대로 받아 insert 배치는 .insert()로,
+//       update 배치는 .upsert(chunk, { onConflict: 'id' })로 나눠 보낸다.
+//       id는 이 테이블의 실제 기본키(평범한 컬럼 유일성)라 onConflict:'id'
+//       자체는 admission_university_resources 때와 달리 문제가 없다 —
+//       여기서 피한 건 "자연키 축(연도·대학·모집단위…)으로 onConflict를
+//       거는 것"이지 id 자체가 아니다.
+const RESULTS_TABLE = 'admission_results';
+// PostgREST 기본 응답 상한과 맞춘 읽기 청크 — 다운로드(전체 조회)와
+// existingIdSet 준비(id만 조회) 둘 다 이 크기로 .range() 반복한다.
+const RESULTS_READ_CHUNK = 1000;
+// insert/upsert 배치 크기. 43k행 전량이 한 번에 바뀌는 시나리오(연도
+// 전체 재적재 등)에서도 요청 하나가 과도하게 커지지 않게 나눈다.
+const RESULTS_APPLY_CHUNK = 500;
+
+const RESULTS_WARNING_GROUPS = [
+  {
+    key: 'allGradesEmpty',
+    label: '등급 9종이 전부 비어 있음',
+    tone: 'neutral',
+    types: ['allGradesEmpty']
+  },
+  {
+    key: 'competitionRateZero',
+    label: '경쟁률 0 — §Q2 정책상 미공개는 빈 값이어야 함',
+    tone: 'warning',
+    types: ['competitionRateZero']
+  },
+  {
+    key: 'gradeCutInversion',
+    label: '50%컷 > 70%컷 역전(원문 확인 필요)',
+    tone: 'warning',
+    types: ['gradeCutInversion']
+  }
+];
+
+// count는 head:true로 행 본문 없이 받는다 — 다운로드 버튼 라벨·진행률
+// 분모로만 쓰이므로 매번 새로 물어 최신 값을 반영한다(캐시하면 다른
+// 화면에서 추가/삭제된 행수가 안 맞을 수 있다).
+async function fetchResultsCount() {
+  const { count, error } = await supabase
+    .from(RESULTS_TABLE)
+    .select('id', { count: 'exact', head: true });
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+// 29컬럼 전량을 id 오름차순으로 청크 반복해 읽는다. order 없이 .range()만
+// 반복하면 PostgREST가 매 요청마다 정렬을 보장하지 않아(암묵적 순서)
+// 페이지 경계에서 행이 중복·누락될 수 있다 — id는 위닝 identity라 항상
+// 유일하고 단조증가라 경계 문제가 없다.
+async function fetchAllResultRows(onProgress) {
+  const total = await fetchResultsCount();
+  const all = [];
+  for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(RESULTS_TABLE)
+      .select(ADMISSION_RESULTS_BULK_XLSX_COLUMNS.join(', '))
+      .order('id', { ascending: true })
+      .range(from, from + RESULTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+// id 컬럼만 전량 읽어 Set으로 돌려준다 — parseAdmissionResultRowsFromXlsx의
+// existingIdSet 계약(파일의 id가 실제로 DB에 있는지 판정)에 쓴다. 29컬럼을
+// 전부 읽는 fetchAllResultRows보다 훨씬 가볍다(업로드 시 매번 새로 조회해도
+// 부담이 적다 — 그 사이 다른 관리자가 지운 id를 놓치지 않기 위해 캐시하지
+// 않는다).
+async function fetchAllResultIds(onProgress) {
+  const total = await fetchResultsCount();
+  const idSet = new Set();
+  for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(RESULTS_TABLE)
+      .select('id')
+      .order('id', { ascending: true })
+      .range(from, from + RESULTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    data.forEach((r) => idSet.add(r.id));
+    onProgress?.({ done: idSet.size, total });
+  }
+  return idSet;
+}
+
+function AdmissionResultsBulkXlsxPanel({ onReload }) {
+  const [totalRowCount, setTotalRowCount] = useState(null);
+  const [fetchProgress, setFetchProgress] = useState(null); // 다운로드 전량 읽기 진행률
+  const [idSetProgress, setIdSetProgress] = useState(null); // 업로드 검증용 id 전량 읽기 진행률
+  const [applyProgress, setApplyProgress] = useState(null); // 적용(insert/update) 진행률
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchResultsCount()
+      .then((count) => {
+        if (!cancelled) setTotalRowCount(count);
+      })
+      .catch(() => {
+        // 버튼 라벨용 참고 수치일 뿐이라 실패해도 화면을 막지 않는다 —
+        // 라벨은 그냥 "전체 -행"으로 남는다.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const busy = Boolean(fetchProgress || idSetProgress || applying);
+
+  async function handleDownload() {
+    if (busy) return;
+    try {
+      setFetchProgress({ done: 0, total: totalRowCount ?? 0 });
+      const allRows = await fetchAllResultRows((p) => setFetchProgress(p));
+      const { workbook, truncatedCells } = exportAdmissionResultRowsToXlsx(allRows);
+      setExportTruncatedCells(truncatedCells);
+      const today = new Date();
+      const fileName = `입결정보_전체_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+      if (typeof document !== 'undefined') {
+        triggerXlsxDownload(workbook, fileName);
+      }
+    } catch (err) {
+      alert(`엑셀 다운로드 실패: ${err.message}`);
+    } finally {
+      setFetchProgress(null);
+    }
+  }
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    try {
+      const buffer = await file.arrayBuffer();
+      setIdSetProgress({ done: 0, total: totalRowCount ?? 0 });
+      const existingIdSet = await fetchAllResultIds((p) => setIdSetProgress(p));
+      setIdSetProgress(null);
+
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const result = parseAdmissionResultRowsFromXlsx(workbook, existingIdSet);
+      setParseResult(result);
+    } catch (err) {
+      setIdSetProgress(null);
+      setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+    }
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+
+    // id 유무로 이미 갈라진 payload를 그대로 배치에 나눠 보낸다 — insert
+    // 배치는 .insert()(id 없음, identity 자동 채번), update 배치는
+    // .upsert(chunk, { onConflict: 'id' })(실제 기본키라 안전, 설계 브리핑
+    // (B) 참고). 두 배치는 컬럼 구성이 달라(update만 id를 가짐) 같은
+    // 요청에 섞지 않는다 — PostgREST가 배열 안 각 객체의 키 집합이
+    // 다르면 누락된 키를 일괄 default/null로 해석해 의도와 다르게 동작할
+    // 수 있다.
+    const insertRows = parseResult.rows.filter((row) => !('id' in row));
+    const updateRows = parseResult.rows.filter((row) => 'id' in row);
+    const total = insertRows.length + updateRows.length;
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < insertRows.length; i += RESULTS_APPLY_CHUNK) {
+        const chunk = insertRows.slice(i, i + RESULTS_APPLY_CHUNK);
+        const { error } = await supabase.from(RESULTS_TABLE).insert(chunk);
+        if (error) {
+          throw new Error(`신규 등록 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < updateRows.length; i += RESULTS_APPLY_CHUNK) {
+        const chunk = updateRows.slice(i, i + RESULTS_APPLY_CHUNK);
+        const { error } = await supabase.from(RESULTS_TABLE).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw new Error(`수정 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(`엑셀 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`);
+      onReload?.();
+      return;
+    }
+
+    const { summary } = parseResult;
+    setApplying(false);
+    setApplyProgress(null);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    fetchResultsCount()
+      .then((count) => setTotalRowCount(count))
+      .catch(() => {});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult ? parseResult.summary.willInsert + parseResult.summary.willUpdate : 0;
+
+  return (
+    <div className="mb-6 bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {fetchProgress
+              ? `읽는 중… ${fetchProgress.done.toLocaleString()} / ${fetchProgress.total.toLocaleString()}행`
+              : `엑셀 다운로드 (전체 ${totalRowCount === null ? '-' : totalRowCount.toLocaleString()}행)`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {idSetProgress
+              ? `업로드 검증 준비 중… ${idSetProgress.done.toLocaleString()} / ${idSetProgress.total.toLocaleString()}행`
+              : '엑셀 업로드'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="입결정보 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다.
+            이 파일을 그대로 재업로드하면 해당 행은 자동으로 거부됩니다(데이터 손상 아님).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((msg, idx) => (
+            <p key={idx}>{msg}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
+          </p>
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.resultYear ?? '-'}학년도 · {err.universityKey || '(대학 키 없음)'}/
+                    {err.departmentKey || '(모집단위 키 없음)'} · {err.admissionTrack || '(전형명 없음)'} —{' '}
+                    {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {RESULTS_WARNING_GROUPS.map((group) => {
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {groupCount}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.resultYear ?? '-'}학년도 · {w.universityKey || '(대학 키 없음)'}/
+                        {w.departmentKey || '(모집단위 키 없음)'} · {w.admissionTrack || '(전형명 없음)'} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount.toLocaleString()}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4985,29 +6802,41 @@ export default function Admin() {
   const [activeKey, setActiveKey] = useState('popups');
   const [mode, setMode] = useState('list');
   const [editingRow, setEditingRow] = useState(null);
+  // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
+  // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
+  const [pendingSection, setPendingSection] = useState(null);
+  // 관리 열 ⚙️(메타 전용 모달)이 열려 있는 행. null이면 닫힘 — mode는
+  // 'list'로 그대로 두고 오버레이만 뜬다(목록 셀 [수정]과 같은 1뎁스 UX).
+  const [metaEditRow, setMetaEditRow] = useState(null);
   const [rows, setRows] = useState([]);
   const [keyword, setKeyword] = useState('');
+  // 서버 페이지네이션 탭에서 실제로 서버로 나가는 검색어. keyword는 타이핑마다
+  // 바뀌므로 그대로 쓰면 글자당 한 번씩 조회가 나간다 — 디바운스한 값만 넘긴다.
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  // 서버 페이지네이션 탭의 전체 건수(select count). 전량 로드 탭은 rows.length가
+  // 곧 전체라 이 값을 쓰지 않는다.
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  // CSV 청크 내보내기 진행 상태. null이면 진행 중 아님.
+  const [exporting, setExporting] = useState(null);
 
   const config = CONFIGS[activeKey];
 
   const filteredRows = useMemo(() => {
+    // 서버 페이지네이션 탭의 rows는 이미 "검색어가 적용된 현재 페이지 10행"이다.
+    // 여기서 클라이언트 필터를 또 걸면 그 10행 안에서 한 번 더 걸러진다.
+    if (config.serverPaginate) return rows;
     const q = keyword.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) => searchable(row).includes(q));
-  }, [rows, keyword]);
+  }, [rows, keyword, config.serverPaginate]);
 
-  async function loadRows() {
-    setLoading(true);
-
-    if (config.custom || config.comingSoon) {
-      setRows([]);
-      setLoading(false);
-      return;
-    }
-
-    let query = supabase.from(config.table).select('*');
+  // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
+  // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
+  // 범위(.range)와 count는 호출부가 붙인다.
+  function buildListQuery({ count } = {}) {
+    let query = supabase.from(config.table).select('*', count ? { count } : undefined);
 
     if (config.fixedCategory) {
       query = query.eq('category', config.fixedCategory);
@@ -5018,6 +6847,17 @@ export default function Admin() {
     if (config.fixedValues) {
       for (const [key, value] of Object.entries(config.fixedValues)) {
         query = query.eq(key, value);
+      }
+    }
+
+    // 서버 검색은 서버 페이지네이션 탭에만 있다. 그 외 탭은 전량을 들고 있으므로
+    // 예전처럼 filteredRows가 클라이언트에서 거른다.
+    if (config.serverPaginate && searchTerm && config.searchColumns?.length) {
+      // PostgREST or()는 콤마로 조건을, 괄호로 그룹을 끊는다. 검색어에 그 문자가
+      // 들어오면 구문 자체가 깨지고, %·_ 는 ilike 와일드카드로 새는 값이다.
+      const safe = searchTerm.replace(/[,()%_\\*]/g, ' ').trim();
+      if (safe) {
+        query = query.or(config.searchColumns.map((column) => `${column}.ilike.%${safe}%`).join(','));
       }
     }
 
@@ -5037,7 +6877,32 @@ export default function Admin() {
       query = query.order(orderColumn, { ascending: orderColumn === 'sort_order' });
     }
 
-    const { data, error } = await query;
+    return query;
+  }
+
+  async function loadRows() {
+    setLoading(true);
+
+    if (config.custom || config.comingSoon) {
+      setRows([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
+    // 서버 페이지네이션 탭(입결 43,170행)은 현재 페이지 PAGE_SIZE행만 받는다.
+    // 예전에는 모든 탭이 select('*')로 전량을 끌어와 PostgREST 기본 1,000행
+    // 상한에 걸렸고(그래서 43k행 중 1,000행만 보였다), PAGE_SIZE는 그렇게 받아온
+    // 배열을 화면에서 자르는 클라이언트 슬라이스일 뿐이었다.
+    const paginate = Boolean(config.serverPaginate);
+    let query = buildListQuery({ count: paginate ? 'exact' : undefined });
+
+    if (paginate) {
+      const from = (page - 1) * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
+    }
+
+    const { data, error, count } = await query;
 
     setLoading(false);
 
@@ -5045,6 +6910,7 @@ export default function Admin() {
       console.error(error);
       alert(`${config.title} 조회 실패: ${error.message}`);
       setRows([]);
+      setTotalCount(0);
       return;
     }
 
@@ -5061,15 +6927,50 @@ export default function Admin() {
         : data || [];
 
     setRows(nextRows);
+    setTotalCount(paginate ? count ?? 0 : nextRows.length);
   }
 
-  useEffect(() => {
+  // 탭 전환. 목록 상태 초기화를 useEffect([activeKey])가 아니라 클릭 시점에 한
+  // 번에 묶는다 — 효과로 늦게 되돌리면 서버 페이지네이션 탭에서 "activeKey 변경 →
+  // (옛 page로) 조회 → page/keyword 리셋 → 재조회"로 요청이 두 번 나간다.
+  function changeTab(key) {
+    setActiveKey(key);
     setMode('list');
     setEditingRow(null);
+    setPendingSection(null);
+    setMetaEditRow(null);
     setKeyword('');
+    setSearchTerm('');
     setPage(1);
+  }
+
+  // 검색어 디바운스. 확정되는 순간 1페이지로 되돌린다 — 5페이지를 보다 검색하면
+  // 결과가 5페이지에 못 미쳐 빈 목록이 뜬다. 두 setState를 같은 타이머 안에서
+  // 부르므로 렌더는 1회, 따라서 조회도 1회다.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(keyword.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  // 조회 트리거. 서버 페이지네이션 탭만 page/searchTerm 변화에 반응한다 —
+  // 그 외 탭은 아래 두 값이 상수라 예전처럼 탭 전환 시 1회만 조회한다.
+  const serverPage = config.serverPaginate ? page : 0;
+  const serverTerm = config.serverPaginate ? searchTerm : '';
+
+  useEffect(() => {
     loadRows();
-  }, [activeKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, serverPage, serverTerm]);
+
+  // 삭제 등으로 총 건수가 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 당긴다.
+  useEffect(() => {
+    if (!config.serverPaginate || totalCount === 0) return;
+    const lastPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    if (page > lastPage) setPage(lastPage);
+  }, [config.serverPaginate, totalCount, page]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -5082,11 +6983,22 @@ export default function Admin() {
 
   function createRow() {
     setEditingRow(null);
+    setPendingSection(null);
     setMode('create');
   }
 
   function editRow(row) {
     setEditingRow(row);
+    setPendingSection(null);
+    setMode('edit');
+  }
+
+  // 목록 셀 [수정] → 폼을 마운트하되 곧바로 그 섹션의 편집 다이얼로그를 연다.
+  // 진입 경로는 editRow와 같고(같은 AdminForm, 같은 저장 경로), 다른 것은
+  // "어느 섹션 모달을 들고 시작하느냐"와 "닫으면 목록으로 돌아가느냐"뿐이다.
+  function openRowSection(row, sectionKey) {
+    setEditingRow(row);
+    setPendingSection(sectionKey);
     setMode('edit');
   }
 
@@ -5177,6 +7089,7 @@ export default function Admin() {
     );
     setMode('list');
     setEditingRow(null);
+    setPendingSection(null);
     await loadRows();
   }
 
@@ -5193,17 +7106,94 @@ export default function Admin() {
     await loadRows();
   }
 
-  function downloadExcel() {
-    downloadCsv(
-      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
-      filteredRows,
-      config.columns
+  // AdmissionMetaEditModal 저장 경로. saveRow와 같은 변환(config.rowToForm/
+  // formToPayload)·같은 table·같은 supabase update를 그대로 타되, saveRow가
+  // 의존하는 editingRow/mode 상태는 건드리지 않는다(목록은 계속 'list'
+  // 모드다) — 그래서 saveRow를 직접 호출하지 않고 같은 변환만 재사용한다.
+  //
+  // *_json/*_html을 건드리지 않는 이유: rowToForm(row)이 이미 그 컬럼들을
+  // row 원본 값 그대로 채우고, metaForm(9필드)은 그 키들을 포함하지 않으므로
+  // merged[jsonKey] === row[jsonKey]다. formToPayload는 그 값이 그대로면
+  // 동일한 값을 다시 실어 보내거나(변경 없음), null/무효면 payload에서
+  // 아예 delete한다(컬럼을 건드리지 않음) — 어느 경우에도 카테고리 콘텐츠는
+  // 달라지지 않는다.
+  async function saveAdmissionMeta(row, metaForm) {
+    const merged = { ...(config.rowToForm ? config.rowToForm(row) : row), ...metaForm };
+    const payload = config.formToPayload ? config.formToPayload(merged) : merged;
+    delete payload.created_at;
+    delete payload.updated_at;
+
+    const { error } = await supabase.from(config.table).update(payload).eq('id', row.id).select('*').single();
+
+    if (error) {
+      alert(`수정 실패: ${error.message}`);
+      return false;
+    }
+
+    alert('저장 완료');
+    setMetaEditRow(null);
+    await loadRows();
+    return true;
+  }
+
+  async function downloadExcel() {
+    const filename = `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    // 전량 로드 탭은 화면 rows가 곧 전체다 — 기존 경로 그대로.
+    if (!config.serverPaginate) {
+      downloadCsv(filename, filteredRows, config.columns);
+      return;
+    }
+
+    // 서버 페이지네이션 탭은 rows가 현재 페이지 10행뿐이라 그대로 쓰면 10행짜리
+    // 파일이 나온다. 목록과 같은 조건(buildListQuery)으로 서버에서 EXPORT_CHUNK행씩
+    // 끊어 받아, 청크마다 CSV 줄로 접어 모은다 — 43k행 행 객체를 한꺼번에 메모리에
+    // 쌓지 않고, await 사이마다 진행률이 화면에 갱신된다.
+    if (exporting) return;
+
+    if (totalCount === 0) {
+      alert('내보낼 데이터가 없습니다.');
+      return;
+    }
+
+    const proceed = window.confirm(
+      `${totalCount.toLocaleString()}건을 CSV로 내려받습니다.\n` +
+        `${EXPORT_CHUNK.toLocaleString()}건씩 나눠 받으므로 건수가 많으면 수십 초가 걸리고, ` +
+        `그동안 이 화면을 닫거나 다른 메뉴로 이동하면 안 됩니다.\n\n계속할까요?`
     );
+
+    if (!proceed) return;
+
+    setExporting({ done: 0, total: totalCount });
+
+    const parts = [];
+    let done = 0;
+
+    for (let from = 0; from < totalCount; from += EXPORT_CHUNK) {
+      const { data, error } = await buildListQuery().range(from, from + EXPORT_CHUNK - 1);
+
+      if (error) {
+        console.error(error);
+        setExporting(null);
+        alert(`CSV 내보내기 실패: ${error.message}`);
+        return;
+      }
+
+      // 빈 청크는 그 사이에 행이 지워졌다는 뜻 — 더 받아봐야 소용없다.
+      if (!data || data.length === 0) break;
+
+      parts.push(csvBody(data, config.columns));
+      done += data.length;
+      setExporting({ done, total: totalCount });
+    }
+
+    setExporting(null);
+    downloadCsvText(filename, csvHeader(config.columns), parts.join('\n'));
   }
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#111827]">
-      <AdminSidebar activeKey={activeKey} setActiveKey={setActiveKey} />
+      <AdminSidebar activeKey={activeKey} setActiveKey={changeTab} />
       <AdminTopbar onLogout={logout} />
 
       <main className="ml-[224px] pt-[56px]">
@@ -5234,7 +7224,7 @@ export default function Admin() {
                       <button
                         key={tab.key}
                         type="button"
-                        onClick={() => setActiveKey(tab.key)}
+                        onClick={() => changeTab(tab.key)}
                         className={`h-9 border px-5 text-sm font-black transition ${
                           activeKey === tab.key
                             ? 'border-[#2348ff] bg-[#2348ff] text-white'
@@ -5270,10 +7260,13 @@ export default function Admin() {
                         <button
                           type="button"
                           onClick={downloadExcel}
-                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                          disabled={Boolean(exporting)}
+                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Download size={14} />
-                          엑셀 다운로드
+                          {exporting
+                            ? `내보내는 중 ${Math.floor((exporting.done / Math.max(1, exporting.total)) * 100)}%`
+                            : '엑셀 다운로드'}
                         </button>
                       )}
                     </div>
@@ -5311,6 +7304,11 @@ export default function Admin() {
                           )}
                         </div>
                       )}
+                      {config.retentionNotice && (
+                        <p className="mt-1 text-xs font-bold text-gray-500">
+                          {config.retentionNotice}
+                        </p>
+                      )}
                     </div>
 
                     {!config.noCreate && !config.readOnly && (
@@ -5324,10 +7322,28 @@ export default function Admin() {
                       </button>
                     )}
                   </div>
+
+                  {/* rowCapWarning은 "전량 로드가 1,000행 상한에 잘렸다"는 경고라
+                      config.serverPaginate 탭에는 선언하지 않는다 — 그쪽은 .range()로
+                      PAGE_SIZE행만 받고 전체 건수를 count로 따로 받으므로 상한 자체에
+                      닿지 않는다. */}
+                  {config.rowCapWarning && rows.length >= 1000 && (
+                    <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+                      조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회 상한으로 오래된 신청
+                      건이 목록에서 빠졌을 수 있습니다. 전체 건수가 아닙니다.
+                    </p>
+                  )}
+
+                  {exporting && (
+                    <p className="mt-4 rounded border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
+                      CSV 내보내는 중 — {exporting.done.toLocaleString()} /{' '}
+                      {exporting.total.toLocaleString()}건. 완료될 때까지 이 화면을 닫지 마세요.
+                    </p>
+                  )}
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
-                {config.ListSummary && <config.ListSummary rows={rows} />}
+                {config.ListSummary && <config.ListSummary rows={rows} onReload={loadRows} />}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
@@ -5339,8 +7355,19 @@ export default function Admin() {
                     rows={filteredRows}
                     page={page}
                     setPage={setPage}
+                    totalCount={totalCount}
                     onEdit={editRow}
                     onDelete={deleteRow}
+                    onOpenSection={openRowSection}
+                    onOpenMetaEdit={setMetaEditRow}
+                  />
+                )}
+
+                {metaEditRow && (
+                  <AdmissionMetaEditModal
+                    row={metaEditRow}
+                    onClose={() => setMetaEditRow(null)}
+                    onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
                   />
                 )}
               </>
@@ -5350,9 +7377,12 @@ export default function Admin() {
               config={config}
               mode={mode}
               row={editingRow}
+              origin={pendingSection ? 'list' : 'form'}
+              initialSection={pendingSection}
               onCancel={() => {
                 setMode('list');
                 setEditingRow(null);
+                setPendingSection(null);
               }}
               onSave={saveRow}
               onUpload={uploadImage}
@@ -5858,6 +7888,337 @@ function PremiumBookAdmin() {
           }}
           onSave={saveRow}
           onUpload={uploadImage}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 멘토 신청 내역(mentorApplications) — CONFIGS.mentorApplications 참고.
+// 목록만 AdminTable을 재사용하고, 상세/상태변경/증빙파일 열람은 이 파일 안에서 전부
+// bespoke로 그린다(제네릭 AdminForm은 필드를 전부 자유 편집 가능하게 만들어 이 화면의
+// "상태만 변경 가능, 나머지는 읽기전용" 요구와 맞지 않는다).
+// ---------------------------------------------------------------------------
+
+// 섹션 구분은 sql/52_mentor_applications.sql 컬럼 주석의 1~5절 순서를 그대로 따른다.
+//   array: true       → text[] 컬럼(normalizeArray로 콤마 나열)
+//   boolean: true     → boolean 컬럼('동의'/'미동의')
+//   type: 'datetime'  → timestamptz 컬럼(formatDateTime)
+//   proof: true        → proof_file_name(사용자 입력 원본 파일명) 전용 — 아래 렌더에서 이스케이프됨
+const MENTOR_APPLICATION_DETAIL_SECTIONS = [
+  {
+    title: '1. 지원자 정보',
+    fields: [
+      { key: 'name', label: '이름' },
+      { key: 'birth_date', label: '생년월일' },
+      { key: 'phone', label: '휴대폰' },
+      { key: 'email', label: '이메일' },
+      { key: 'residence_region', label: '거주지역' }
+    ]
+  },
+  {
+    title: '2. 대학 및 합격 전형',
+    fields: [
+      { key: 'university', label: '대학교' },
+      { key: 'major', label: '학과·학부' },
+      { key: 'admission_year', label: '입학년도' },
+      { key: 'enrollment_status', label: '재학상태' },
+      { key: 'admission_history', label: '입시이력' },
+      { key: 'final_admission_track', label: '최종전형' },
+      { key: 'exam_results', label: '입시 성적' }
+    ]
+  },
+  {
+    title: '3. 출신 고등학교',
+    fields: [
+      { key: 'highschool_region', label: '고교 지역' },
+      { key: 'highschool_name', label: '고교명' },
+      { key: 'highschool_type', label: '고교 유형' },
+      { key: 'gpa_average', label: '내신 평균' },
+      { key: 'csat_summary', label: '수능 요약' }
+    ]
+  },
+  {
+    title: '4. 멘토 역량',
+    fields: [
+      { key: 'consult_fields', label: '상담 가능 분야', array: true },
+      { key: 'strongest_field_reason', label: '가장 자신있는 분야 이유' },
+      { key: 'consult_grades', label: '상담 가능 학년', array: true },
+      { key: 'weekly_capacity', label: '주당 가능 횟수' },
+      { key: 'available_timeslot', label: '가능 시간대' },
+      { key: 'motivation', label: '지원 동기' },
+      { key: 'strengths', label: '강점' },
+      { key: 'ineffective_method', label: '비효율적 지도 경험' },
+      { key: 'situation_answer', label: '상황 대응' },
+      { key: 'tutoring_experience', label: '과외 경험' }
+    ]
+  },
+  {
+    title: '5. 증빙 및 동의',
+    fields: [
+      { key: 'proof_file_name', label: '증빙 파일명', proof: true },
+      { key: 'phone_verified_at', label: '휴대폰 인증 시각', type: 'datetime' },
+      { key: 'request_ip', label: '제출 IP' },
+      { key: 'agree_terms', label: '이용약관 동의', boolean: true },
+      { key: 'agree_privacy', label: '개인정보 수집 동의', boolean: true },
+      { key: 'agree_identity', label: '본인인증 동의', boolean: true },
+      { key: 'agree_marketing', label: '마케팅 수신 동의', boolean: true },
+      { key: 'agree_ad', label: '광고성 정보 수신 동의', boolean: true }
+    ]
+  }
+];
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('ko-KR');
+}
+
+function renderMentorApplicationDetailValue(app, field) {
+  const value = app[field.key];
+
+  if (field.array) {
+    const list = normalizeArray(value);
+    return list.length > 0 ? list.join(', ') : '-';
+  }
+
+  if (field.boolean) return value ? '동의' : '미동의';
+
+  if (field.type === 'datetime') return formatDateTime(value);
+
+  if (field.proof) {
+    // proof_file_name은 지원자가 올린 원본 파일명 — 사용자 입력이다. React의 기본 텍스트
+    // 렌더링(자동 이스케이프)만 쓴다. dangerouslySetInnerHTML은 절대 쓰지 않는다.
+    return value || (app.proof_file_path ? '(파일명 없음)' : '-');
+  }
+
+  if (value === null || value === undefined || value === '') return '-';
+  return String(value);
+}
+
+function MentorApplicationsAdmin() {
+  const config = CONFIGS.mentorApplications;
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null); // 상세로 연 행. null이면 목록.
+  const [statusDraft, setStatusDraft] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  async function loadRows() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('mentor_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      alert(`${config.title} 조회 실패: ${error.message}`);
+      setRows([]);
+      return;
+    }
+
+    setRows(data || []);
+  }
+
+  useEffect(() => {
+    loadRows();
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) => searchable(row).includes(q));
+  }, [rows, keyword]);
+
+  function openDetail(row) {
+    setSelected(row);
+    setStatusDraft(row.status || 'submitted');
+  }
+
+  function closeDetail() {
+    setSelected(null);
+    setStatusDraft('');
+  }
+
+  async function saveStatus() {
+    if (!selected || savingStatus) return;
+
+    if (statusDraft === selected.status) {
+      alert('변경된 상태가 없습니다.');
+      return;
+    }
+
+    setSavingStatus(true);
+
+    const { error } = await supabase
+      .from('mentor_applications')
+      .update({ status: statusDraft })
+      .eq('id', selected.id);
+
+    setSavingStatus(false);
+
+    if (error) {
+      alert(`상태 변경 실패: ${error.message}`);
+      return;
+    }
+
+    const nextSelected = { ...selected, status: statusDraft };
+    setSelected(nextSelected);
+    setRows((prev) => prev.map((row) => (row.id === selected.id ? nextSelected : row)));
+    alert('상태를 변경했습니다.');
+  }
+
+  // 비공개 버킷(mentor-applications)이라 getPublicUrl은 쓸 수 없다 — Admin.jsx의 기존
+  // getPublicUrl 관용구(IMAGE_BUCKET/banners 버킷 대상, 이 파일의 다른 곳)와는 다른 경로다.
+  // createSignedUrl로 단기 서명 URL을 받아 새 탭으로 연다. TTL 60초 — 어드민이 클릭 즉시
+  // 여는 일회성 열람이고, 증빙 파일에 개인정보(성적표 등)가 담겨 있어 길게 잡을 이유가 없다.
+  async function openProofFile() {
+    if (!selected?.proof_file_path) {
+      alert('첨부된 증빙 파일이 없습니다.');
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('mentor-applications')
+      .createSignedUrl(selected.proof_file_path, 60);
+
+    if (error || !data?.signedUrl) {
+      alert(`증빙 파일 열람 실패: ${error?.message || '서명 URL을 가져오지 못했습니다.'}`);
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  if (selected) {
+    return (
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-black text-[#111827]">{config.title} 상세</h1>
+          <ActionButton variant="light" onClick={closeDetail}>
+            목록으로
+          </ActionButton>
+        </div>
+
+        <div className="mb-6 flex flex-wrap items-end gap-3 bg-white p-6 shadow">
+          <Field label="상태">
+            <Select value={statusDraft} onChange={setStatusDraft}>
+              {MENTOR_APPLICATION_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <ActionButton onClick={saveStatus} disabled={savingStatus}>
+            {savingStatus ? '저장 중...' : '상태 저장'}
+          </ActionButton>
+
+          <ActionButton variant="light" onClick={openProofFile}>
+            <ExternalLink size={14} />
+            증빙 파일 열람
+          </ActionButton>
+        </div>
+
+        {MENTOR_APPLICATION_DETAIL_SECTIONS.map((section) => (
+          <div key={section.title} className="mb-6 bg-white shadow">
+            <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
+              {section.title}
+            </div>
+
+            {section.fields.map((field) => (
+              <div
+                key={field.key}
+                className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4] last:border-b-0"
+              >
+                <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">{field.label}</div>
+                <div className="whitespace-pre-line px-5 py-3 text-sm">
+                  {renderMentorApplicationDetailValue(selected, field)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div className="mb-6 bg-white shadow">
+          <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
+            제출 메타
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">제출일</div>
+            <div className="px-5 py-3 text-sm">{formatDateTime(selected.created_at)}</div>
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">수정일</div>
+            <div className="px-5 py-3 text-sm">{formatDateTime(selected.updated_at)}</div>
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr]">
+            <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">신청 ID</div>
+            <div className="px-5 py-3 font-mono text-xs">{selected.id}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6 bg-white px-6 py-5 shadow">
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={loadRows}
+            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            <RefreshCw size={14} />
+            초기화
+          </button>
+
+          <div className="flex items-center">
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder={config.searchPlaceholder}
+              className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+            />
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <Search size={14} />
+              검색
+            </button>
+          </div>
+        </div>
+
+        <h1 className="mt-4 text-xl font-black">{config.title}</h1>
+      </div>
+
+      {loading ? (
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          데이터를 불러오는 중입니다.
+        </div>
+      ) : (
+        <AdminTable
+          config={config}
+          rows={filteredRows}
+          page={page}
+          setPage={setPage}
+          onEdit={openDetail}
+          onDelete={() => {}}
         />
       )}
     </div>

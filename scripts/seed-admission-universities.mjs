@@ -24,7 +24,7 @@ import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -33,12 +33,11 @@ const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
 const DEFAULT_KEYS_FILE =
   '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
 
-const { values: args } = parseArgs({
-  options: {
-    'dry-run': { type: 'boolean', default: false },
-    'keys-file': { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다(2026-08-06 build-admission-html-
+// golden.mjs 사고와 동일 유형 결함 정리 — 이 파일은 원래 isMainModule
+// 가드조차 없이 파일 하단에서 main()을 무조건 실행했다. import만 해도
+// 실제 Supabase 호출을 시도할 뻔한 상태였다).
+let args = {};
 
 // ---------------------------------------------------------------------
 // 1) 소스 파싱: UNIVERSITY_DIRECTORY + SPECIAL_UNIVERSITY_GROUPS
@@ -112,6 +111,13 @@ async function resolveCredentials() {
 // 3) 실행
 // ---------------------------------------------------------------------
 async function main() {
+  args = parseArgs({
+    options: {
+      'dry-run': { type: 'boolean', default: false },
+      'keys-file': { type: 'string' }
+    }
+  }).values;
+
   const rows = await parseUniversitySource();
 
   const byRegion = rows.reduce((acc, r) => {
@@ -153,7 +159,13 @@ async function main() {
   console.log(`upsert 완료: ${count ?? rows.length}행 처리`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// isMainModule 가드 — 원래 없이 main()을 무조건 실행했다. import만 해도
+// 실제 Supabase 호출을 시도할 뻔했다(이 파일이 export하는 함수는 없지만,
+// 나머지 4개 파일과 통일하는 김에 이 파일도 같은 구조로 맞춘다).
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -14,6 +14,13 @@ import { CONTAINER, formatDeptCount, formatTrackTags } from './admissionResults/
 // 검색 진입 비용을 늘리지 않기 위해 코드 스플릿한다.
 const DetailView = lazy(() => import('./admissionResults/DetailView'));
 
+// 쿼리스트링에서 읽은 키 1개를 DB 키 표기(NFC · 앞뒤 공백 없음)로 맞춘다.
+function normalizeParamKey(raw) {
+  return String(raw ?? '')
+    .normalize('NFC')
+    .trim();
+}
+
 /**
  * 입결정보 — /admission/results
  *
@@ -33,8 +40,14 @@ const DetailView = lazy(() => import('./admissionResults/DetailView'));
  */
 export default function AdmissionResults() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const detailUniversityKey = searchParams.get('u') ?? '';
-  const detailDepartmentKey = searchParams.get('d') ?? '';
+  // 키는 한글이다(Q3 확정). URLSearchParams가 직렬화/역직렬화를 대칭으로 처리하므로
+  // `?u=건국대(글로컬)&d=기계·로봇·자동차공학부`는 percent-encoding 왕복이 깨지지 않는다.
+  // 다만 macOS에서 복사한 주소는 한글이 NFD로 분해돼 오는 경우가 있어(키는 NFC 정본)
+  // 읽는 지점에서 한 번 NFC로 접는다 — 이걸 빼면 눈에 같아 보이는 링크가 빈 상세로 떨어진다.
+  // 그 밖의 잘못된 키는 Q3가 0행을 돌려주고 DetailView의 DetailEmptyBlock
+  // ("다른 모집단위 선택하기")이 받는다.
+  const detailUniversityKey = normalizeParamKey(searchParams.get('u'));
+  const detailDepartmentKey = normalizeParamKey(searchParams.get('d'));
   const isDetail = Boolean(detailUniversityKey && detailDepartmentKey);
 
   // 선택 상태는 키만 들고 있고, 표시 라벨은 목록에서 파생한다.
@@ -141,17 +154,33 @@ export default function AdmissionResults() {
     [departments]
   );
 
-  const trendingItems = useMemo(
-    () =>
-      trending.map((row, index) => ({
-        key: `${row.university_key ?? 'x'}:${row.department_key ?? 'x'}:${index}`,
-        label: `${row.university_name ?? ''} ${row.department_name ?? ''}`.trim(),
-        universityKey: row.university_key ?? '',
-        departmentKey: row.department_key ?? '',
-        logoUrl: row.logo_url ?? ''
-      })),
-    [trending]
+  const universityKeySet = useMemo(
+    () => new Set(universities.map((row) => row.university_key)),
+    [universities]
   );
+
+  // 큐레이션 칩(trending_departments)은 키 체계가 슬러그 → 한글(Q3 확정)로 바뀌기 전에
+  // 입력된 행이 남아 있을 수 있다. 키가 살아 있는지 보지 않고 존재만 확인하면
+  // 눌러도 빈 상세로 떨어지는 칩이 정상 칩처럼 보이므로, 대학 인덱스에 없는 키는 칩째 내린다.
+  // 모집단위 키까지는 여기서 못 본다(대학별 추가 조회가 필요) — 그쪽은 상세 화면의
+  // DetailEmptyBlock("다른 모집단위 선택하기")이 받는다.
+  // 목록 로딩 중에는 아예 렌더하지 않는다. 먼저 그렸다가 걷어내면 깜빡임이 되고,
+  // 트렌딩은 부가 정보라 조금 늦게 나타나는 편이 낫다.
+  const trendingItems = useMemo(() => {
+    if (universitiesLoading || universitiesError || universityKeySet.size === 0) return [];
+    return trending
+      .filter(
+        (row) =>
+          row.university_key && row.department_key && universityKeySet.has(row.university_key)
+      )
+      .map((row, index) => ({
+        key: `${row.university_key}:${row.department_key}:${index}`,
+        label: `${row.university_name ?? ''} ${row.department_name ?? ''}`.trim(),
+        universityKey: row.university_key,
+        departmentKey: row.department_key,
+        logoUrl: row.logo_url ?? ''
+      }));
+  }, [trending, universityKeySet, universitiesLoading, universitiesError]);
 
   // 목록이 아직 없어도(딥링크 직후) 필드에 키라도 보여 준다.
   const university = useMemo(() => {
@@ -174,6 +203,23 @@ export default function AdmissionResults() {
     );
   }, [departmentKey, departmentOptions]);
 
+  // 목록에 없는 키(수명이 끝난 공유 링크, 손댄 쿼리스트링, 큐레이션에 남은 옛 슬러그)를
+  // 그대로 들고 있으면 필드에 정규화 키가 그대로 찍히고 모집단위는 영영 빈 목록이 된다.
+  // 목록이 도착한 뒤에만 판정한다 — 로딩 중에는 "없는 키"와 "아직 안 온 키"를 구분할 수 없다.
+  useEffect(() => {
+    if (universitiesLoading || universitiesError || universityKeySet.size === 0) return;
+    if (!universityKey || universityKeySet.has(universityKey)) return;
+    setUniversityKey('');
+    setDepartmentKey('');
+  }, [universitiesLoading, universitiesError, universityKeySet, universityKey]);
+
+  useEffect(() => {
+    if (departmentsLoading || departmentsError || departments.length === 0) return;
+    if (!departmentKey) return;
+    if (departments.some((row) => row.department_key === departmentKey)) return;
+    setDepartmentKey('');
+  }, [departmentsLoading, departmentsError, departments, departmentKey]);
+
   // 대학을 바꾸면 모집단위 선택을 반드시 비운다
   // (AdmissionGuidelines.jsx:1257-1280 필터 초기화 규율과 동일).
   const handleSelectUniversity = useCallback((option) => {
@@ -183,6 +229,18 @@ export default function AdmissionResults() {
 
   const handleSelectDepartment = useCallback((option) => {
     setDepartmentKey(option.key);
+  }, []);
+
+  // 입력형 combobox라 "고른 값을 지우는" 경로가 생겼다. 검색어 자체는 ComboField가
+  // 들고 있고(셸이 알 필요가 없다), 셸은 선택 해제만 받는다.
+  // 대학을 지우면 모집단위도 함께 비운다 — 대학 종속이라 남겨 두면 유령 선택이 된다.
+  const handleClearUniversity = useCallback(() => {
+    setUniversityKey('');
+    setDepartmentKey('');
+  }, []);
+
+  const handleClearDepartment = useCallback(() => {
+    setDepartmentKey('');
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -228,6 +286,8 @@ export default function AdmissionResults() {
     onOpenFieldChange: setOpenField,
     onSelectUniversity: handleSelectUniversity,
     onSelectDepartment: handleSelectDepartment,
+    onClearUniversity: handleClearUniversity,
+    onClearDepartment: handleClearDepartment,
     onSubmit: handleSubmit
   };
 

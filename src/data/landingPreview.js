@@ -17,7 +17,7 @@ export const banners = [
     highlight: null,
     image_url: '/images/landing/hero/main-banner-full.png',
     button_text: null,
-    button_link: '/learning-diagnosis', // App.jsx 라우트 확인 (src/App.jsx:59)
+    button_link: '/services/learning-diagnosis', // App.jsx 라우트 확인
     sort_order: 1,
     is_active: true
   }
@@ -322,7 +322,7 @@ export const services = [
     id: 'preview-svc-01',
     name: '학습진단',
     description: '무료로 경험하는\n위닝 AE시스템',
-    link: '/learning-diagnosis',
+    link: '/services/learning-diagnosis',
     icon: 'default',
     // 이미지 파일명은 Supabase Storage 오브젝트 키·DB icon_image_url과 묶여 있어 개명 대상이 아니다
     icon_image_url: '/images/landing/services/free-diagnosis.png',

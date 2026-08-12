@@ -9,7 +9,11 @@ import {
 } from './constants';
 
 /**
- * [대학교 ▾][모집단위 ▾][조회] 3분할 바 (Figma 2029:854).
+ * [대학교][모집단위][조회] 3분할 바 (Figma 2029:854).
+ *
+ * 두 필드는 입력형 combobox다(ComboField) — 대학 202개 / 모집단위 최대 153개라
+ * 목록 스크롤만으로는 못 찾는다. 빈 상태 카피를 "데이터 없음"과 "검색 결과 없음"
+ * 2종으로 나눠 넘기는 것도 여기다(명세 §8.1) — 원인이 달라 안내 문구가 같으면 안 된다.
  *
  * 반응형 (tailwind.config.js의 wide=74rem 사용 — lg(1024px)에서 컨테이너 내부가 960px로
  * 줄어드는 함정을 피한다):
@@ -33,6 +37,8 @@ export default function SelectorBar({
   onOpenFieldChange,
   onSelectUniversity,
   onSelectDepartment,
+  onClearUniversity,
+  onClearDepartment,
   onSubmit
 }) {
   const universityUnavailable =
@@ -49,6 +55,7 @@ export default function SelectorBar({
         value={university}
         options={universityOptions}
         onSelect={onSelectUniversity}
+        onClear={onClearUniversity}
         open={openField === 'university'}
         onOpenChange={(next) => onOpenFieldChange(next ? 'university' : null)}
         disabled={universityUnavailable}
@@ -58,6 +65,8 @@ export default function SelectorBar({
         onRetry={onRetryUniversities}
         emptyTitle="아직 공개된 입결 데이터가 없습니다."
         emptyDescription="대학별 최종등록자 교과등급을 준비하고 있습니다."
+        noResultTitle="일치하는 대학이 없습니다."
+        noResultDescription="띄어쓰기는 무시하고 찾습니다. 학교 이름 일부만 입력해 보세요."
       />
 
       <ComboField
@@ -67,6 +76,7 @@ export default function SelectorBar({
         value={department}
         options={departmentOptions}
         onSelect={onSelectDepartment}
+        onClear={onClearDepartment}
         open={openField === 'department'}
         onOpenChange={(next) => onOpenFieldChange(next ? 'department' : null)}
         disabled={departmentLocked || universityUnavailable}
@@ -76,6 +86,8 @@ export default function SelectorBar({
         onRetry={onRetryDepartments}
         emptyTitle="이 대학의 모집단위 정보가 아직 없습니다."
         emptyDescription="다른 대학을 선택해 주세요."
+        noResultTitle="일치하는 모집단위가 없습니다."
+        noResultDescription="띄어쓰기와 중점(·)은 무시하고 찾습니다. 학과 이름 일부만 입력해 보세요."
       />
 
       <button

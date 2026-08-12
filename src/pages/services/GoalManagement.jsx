@@ -1,4 +1,4 @@
-import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
+import { useNavigate } from 'react-router-dom';
 import { useInView } from '../../hooks/useInView';
 
 // 서비스 랜딩 4종 공통 컴포넌트 — 정본은 InDepthResearch.jsx(심화탐구)다.
@@ -53,10 +53,16 @@ import stageExecWizard from '../../assets/services/goal/stage-exec-wizard.png';
 // 심화탐구(InDepthResearch.jsx)다. 섹션 껍데기·카드·탭·FAQ·가격은 전부
 // components/services/ 공통 컴포넌트로 수렴했고, 이 파일에는 데이터 배열과 이 페이지
 // 고유 섹션(HeroSection / PhoneReportSection)만 남는다.
-// 가격/CTA 연동(Supabase products 테이블 'goal' 서비스 조회, openPaidServiceOrAlert)은
-// 공용 로직 그대로 재사용한다. 가격의 유일한 신뢰 소스는 Supabase이며 프론트 폴백은 없다.
+// 가격 섹션(ServicePricingSection)의 Supabase products 조회는 공용 로직 그대로 재사용한다.
+// 가격의 유일한 신뢰 소스는 Supabase이며 프론트 폴백은 없다.
+//
+// 목표관리 진입 동선(로그인 → 이용권 → 온보딩 → 대시보드)은 RequireGoalAccess가 소유한다
+// (src/components/goal/RequireGoalAccess.jsx). 히어로 CTA는 /app/goal로 단순 이동만 하고,
+// 실제 판정(로그인 여부・결제 여부・온보딩 완료 여부)은 전부 그 가드가 처리한다 — 여기서
+// openPaidServiceOrAlert 같은 판정 로직을 다시 호출하면 이중 판정이 된다.
+// (단, 가격 섹션의 "이용권 구매하기" 등 다른 CTA는 성격이 다른 구매 동선이라 그대로 둔다.)
 
-const HERO_SERVICE = { name: '목표관리 서비스', to: '/pricing' };
+const HERO_SERVICE = { name: '목표관리 서비스', to: '/app/goal' };
 
 // 컨테이너 폭 — 시안은 섹션마다 1100/1436/1443/1600px로 제각각이지만(스펙 §4),
 // dev 정본 토큰 max-w-content(72.75rem≈1164px, 내부 실콘텐츠 1100px)로 전 섹션을 통일했다
@@ -341,6 +347,7 @@ function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
   // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + LearningDiagnosisLanding 공통 useInView).
   const [auraRef, auraInView] = useInView();
+  const navigate = useNavigate();
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
@@ -409,7 +416,7 @@ function HeroSection() {
 
         <button
           type="button"
-          onClick={(event) => openPaidServiceOrAlert(event, HERO_SERVICE)}
+          onClick={() => navigate(HERO_SERVICE.to)}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기

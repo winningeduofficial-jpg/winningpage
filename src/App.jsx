@@ -32,12 +32,32 @@ import Reviews from './pages/Reviews';
 import Faq from './pages/Faq';
 import DynamicPage from './pages/DynamicPage';
 import PremiumApply from './pages/PremiumApply';
+import MentorApply from './pages/MentorApply';
 import CompanyNews from './pages/CompanyNews';
 import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import ProtectedRoute from './components/ProtectedRoute';
 import SiteLayout from './components/SiteLayout';
 import { SignupProvider } from './context/SignupContext';
+
+// 목표관리 학생 앱(goal-app-shell) — 사이드바 셸 + 서브페이지 10종. docs/figma-goal/00-INDEX.md
+// §5-1 기준 마케팅 헤더/푸터를 쓰지 않는 별개 앱 셸이라 `/mypage`·`/admin`과 같은 방식으로
+// SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
+// 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
+import GoalAppLayout from './components/goal/GoalAppLayout';
+import RequireGoalAccess from './components/goal/RequireGoalAccess';
+import GoalOnboarding from './pages/goal/Onboarding';
+import GoalDashboard from './pages/goal/Dashboard';
+import GoalTargetUniversity from './pages/goal/TargetUniversity';
+import GoalTimer from './pages/goal/Timer';
+import GoalDailyRecord from './pages/goal/DailyRecord';
+import GoalWeeklyPlan from './pages/goal/WeeklyPlan';
+import GoalEfforts from './pages/goal/Efforts';
+import GoalGrowthReport from './pages/goal/GrowthReport';
+import GoalGrades from './pages/goal/Grades';
+import GoalDirectionReport from './pages/goal/DirectionReport';
+import GoalSchedules from './pages/goal/Schedules';
+import GoalProfile from './pages/goal/Profile';
 
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
 import MemberType from './pages/signup/MemberType';
@@ -125,15 +145,47 @@ export default function App() {
           {/* 결제 실패도 완료와 같은 셸(헤더/푸터 포함)을 쓴다 — 실패 화면에서
               GNB·문의 연락처가 사라지면 이탈 경로가 없어진다. */}
           <Route path="/payment/fail" element={<PaymentFail />} />
-          <Route path="/learning-diagnosis" element={<LearningDiagnosisLanding />} />
-          <Route path="/learning-diagnosis/survey" element={<LearningDiagnosis />} />
 
-          {/* 구 경로(무료진단) 호환. 외부 링크·북마크 보호용이라 영구 유지한다 */}
-          <Route path="/free-diagnosis" element={<Navigate to="/learning-diagnosis" replace />} />
+          {/* 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
+              /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...
+              목표관리(/app/goal/*)에 이어 학습진단도 이 규칙으로 이관했다. */}
+          <Route path="/services/learning-diagnosis" element={<LearningDiagnosisLanding />} />
+          {/* ⚠️ 설계 리스크 — 이 화면은 무료·체험 성격이라 로그인 없이 접근 가능해야 할 수 있다.
+              추후 /app/* 전체에 일괄 로그인 가드를 걸 때 이 라우트를 예외 처리해야 한다(이번
+              단계에서는 가드 자체를 구현하지 않는다). */}
+          <Route path="/app/learning-diagnosis/survey" element={<LearningDiagnosis />} />
+
+          {/* 구 경로 4종 호환. 외부 링크·북마크 보호용이라 영구 유지한다.
+              /free-diagnosis 계열은 원래 /learning-diagnosis로 2홉 리다이렉트였으나, 목적지가
+              신 경로로 바뀌면서 함께 갱신 — 항상 신 경로로 1홉만 거치도록 유지한다. */}
+          <Route
+            path="/learning-diagnosis"
+            element={<Navigate to="/services/learning-diagnosis" replace />}
+          />
+          <Route
+            path="/learning-diagnosis/survey"
+            element={<Navigate to="/app/learning-diagnosis/survey" replace />}
+          />
+          <Route
+            path="/free-diagnosis"
+            element={<Navigate to="/services/learning-diagnosis" replace />}
+          />
           <Route
             path="/free-diagnosis/survey"
-            element={<Navigate to="/learning-diagnosis/survey" replace />}
+            element={<Navigate to="/app/learning-diagnosis/survey" replace />}
           />
+
+          {/* 목표관리 온보딩(설문 7단계) — 시안상 공통 헤더/푸터가 있고 사이드바가 없어
+              SiteLayout 안에 둔다(GoalAppLayout 사이드바 셸에는 넣지 않는다). RequireGoalAccess가
+              로그인・이용권 판정을 적용하되, 온보딩 경로 자체는 3단계(온보딩 완료 판정)를
+              건너뛴다 — 자세한 이유는 RequireGoalAccess.jsx 상단 주석 참고. */}
+          <Route element={<RequireGoalAccess />}>
+            <Route
+              path="/app/goal/onboarding"
+              element={<Navigate to="/app/goal/onboarding/step-1" replace />}
+            />
+            <Route path="/app/goal/onboarding/:step" element={<GoalOnboarding />} />
+          </Route>
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
@@ -200,6 +252,11 @@ export default function App() {
           <Route path="/premium-apply" element={<PremiumApply />} />
           <Route path="/page/premium-apply" element={<Navigate to="/premium-apply" replace />} />
 
+          {/* 이용신청 > 멘토신청 — premium-apply 선례 그대로. 반드시 /page/:slug 와일드카드보다 위에
+              둔다(아래로 내려가면 DynamicPage가 먼저 매칭해 신규 페이지가 뜨지 않는다). */}
+          <Route path="/mentor-apply" element={<MentorApply />} />
+          <Route path="/page/mentor-apply" element={<Navigate to="/mentor-apply" replace />} />
+
           <Route path="/page/:slug" element={<DynamicPage />} />
 
           {/* 로그인·회원가입 리뉴얼(§5.2) — 헤더/푸터 포함 풀 페이지가 시안 확정이므로
@@ -238,6 +295,25 @@ export default function App() {
         </Route>
 
         <Route path="/mypage" element={<MyPage />} />
+
+        {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 진입 가드(로그인 → 이용권 →
+            온보딩 완료 → 대시보드)는 RequireGoalAccess가 소유한다(2026-08-10 확정,
+            GoalAppLayout.jsx 상단 TODO는 해소됨). */}
+        <Route element={<RequireGoalAccess />}>
+          <Route element={<GoalAppLayout />}>
+            <Route path="/app/goal" element={<GoalDashboard />} />
+            <Route path="/app/goal/target-university" element={<GoalTargetUniversity />} />
+            <Route path="/app/goal/timer" element={<GoalTimer />} />
+            <Route path="/app/goal/daily-record" element={<GoalDailyRecord />} />
+            <Route path="/app/goal/weekly-plan" element={<GoalWeeklyPlan />} />
+            <Route path="/app/goal/efforts" element={<GoalEfforts />} />
+            <Route path="/app/goal/reports/growth" element={<GoalGrowthReport />} />
+            <Route path="/app/goal/grades" element={<GoalGrades />} />
+            <Route path="/app/goal/reports/direction" element={<GoalDirectionReport />} />
+            <Route path="/app/goal/schedules" element={<GoalSchedules />} />
+            <Route path="/app/goal/profile" element={<GoalProfile />} />
+          </Route>
+        </Route>
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
