@@ -48,9 +48,9 @@ export const MEGA_COL_GAP = '0.5rem';
 export const FALLBACK_NAV_GROUPS = [
   {
     title: '서비스',
-    to: '/learning-diagnosis',
+    to: '/services/learning-diagnosis',
     items: [
-      { label: '학습진단', to: '/learning-diagnosis', sortOrder: 1 },
+      { label: '학습진단', to: '/services/learning-diagnosis', sortOrder: 1 },
       { label: '목표관리', to: '/services/goal', sortOrder: 2 },
       { label: '콜멘토', to: '/services/callmentor', sortOrder: 3 },
       { label: '수행평가', to: '/services/performance', sortOrder: 4 },
@@ -110,7 +110,7 @@ export const FALLBACK_NAV_GROUPS = [
 // DB link 컬럼에 죽은 값(레거시 '/services' 스텁 등)을 담고 있을 때의 이름 기반 안전망.
 // FALLBACK_NAV_GROUPS의 '서비스' 그룹 라벨・경로와 동일한 소스오브트루스로 유지할 것.
 export const SERVICE_NAME_ROUTES = {
-  학습진단: '/learning-diagnosis',
+  학습진단: '/services/learning-diagnosis',
   목표관리: '/services/goal',
   콜멘토: '/services/callmentor',
   수행평가: '/services/performance',

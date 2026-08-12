@@ -1,0 +1,66 @@
+import { useId, useRef } from 'react';
+
+// 모달 내 단일 선택 라디오 그룹(세그먼트 칩) — docs/figma-goal/00-INDEX.md §5-4 `SegmentedChipGroup`.
+// 시안 실측 폭은 80×39 ×5 / 99×39 ×4 / 81×39 ×4로 모달마다 다르지만, 폭을 고정하지 말고
+// hug(콘텐츠 폭) + 균등 분배로 구현하라는 지시에 따라 폭은 지정하지 않는다(flex-1 + min-w).
+// gap만 6px(0.375rem)로 3개 시안 공통.
+//
+// 선택 상태 스타일이 시안에 없다(00-INDEX.md §8-3 #1). 앱의 라디오 칩 패턴(파랑 보더 + 연파랑
+// 배경 `surface.03`)을 준용한다 — (추정).
+// 모달 내부 칩은 pill이 아니라 소프트 라운드(6~8px)라는 지시에 따라 rounded-lg(8px)를 쓴다.
+//
+// 접근성(코드 검수 §4): role="radiogroup"/"radio"인데 roving tabindex·방향키 이동이 없었다.
+// GoalTabs.jsx의 패턴을 그대로 이식한다.
+export default function SegmentedChipGroup({ options, value, onChange, ariaLabel }) {
+  const groupId = useId();
+  const optionRefs = useRef([]);
+
+  const focusOption = (index) => {
+    const el = optionRefs.current[index];
+    if (el) el.focus();
+  };
+
+  const handleKeyDown = (event, index) => {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      const next = (index + 1) % options.length;
+      onChange(options[next].value);
+      focusOption(next);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const prev = (index - 1 + options.length) % options.length;
+      onChange(options[prev].value);
+      focusOption(prev);
+    }
+  };
+
+  return (
+    <div role="radiogroup" aria-label={ariaLabel} className="flex flex-wrap gap-[0.375rem]">
+      {options.map((option, index) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            ref={(el) => {
+              optionRefs.current[index] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            id={`${groupId}-${option.value}`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(option.value)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            className={`h-[2.4375rem] min-w-[4rem] flex-1 rounded-lg border px-3 text-[0.8125rem] font-medium leading-[1.4] transition-colors ${
+              selected
+                ? 'border-accent bg-surface-03 font-bold text-accent' // (추정) 선택 상태
+                : 'border-[#E3E3E3] bg-white text-ink-sub'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

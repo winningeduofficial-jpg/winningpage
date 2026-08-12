@@ -1,6 +1,16 @@
 // HWP 기반 대입모집요강 데이터의 순수 파싱·정규화·HTML 생성 로직 모음.
 // React/DOM 의존 없이 동작해야 하며, 브라우저와 node(스크립트) 양쪽에서 import 가능해야 한다.
 
+// 경찰대학·사관학교·과기원 하드코딩 상수. Phase 4에서 src/data/로 이관했다
+// (아래 buildScienceSpecialHtml 등에서 그대로 소비).
+import {
+  SCIENCE_SPECIAL_DATA,
+  POLICE_SPECIAL_DATA,
+  ACADEMY_SPECIAL_DATA
+} from '../data/admissionSpecialUniversityData.js';
+
+export { SCIENCE_SPECIAL_DATA, POLICE_SPECIAL_DATA, ACADEMY_SPECIAL_DATA };
+
 export function clean(value) {
   return String(value || '').trim();
 }
@@ -44,20 +54,14 @@ export function sanitizeAdmissionRenderedHtml(html) {
       .replace(/([>\s])[◯○●☆★♥♡❤]+\s*/g, '$1')
       .replace(/\s+[◯○●☆★♥♡❤]+(?=\s*<\/t[dh]>)/g, '')
       // 렌더링 중 일부 셀에서 undefined/NaN/object가 그대로 노출되는 것을 차단한다.
-      .replace(/undefined|NaN|\[object Object\]|null\s*null/gi, '-')
+      // 대소문자 무시(i) 플래그를 쓰지 않는다 — 실측(커밋 7d3973f) 결과 진짜
+      // 결함은 0건이고, i 플래그 탓에 "Finance"의 "nan"이 /NaN/i에 매칭돼
+      // "Fi-ce"로 치환되는 데이터 손상 오탐이 2건 있었다(한국외대 용인·서울
+      // exam_schedule). 정확 표기(undefined/NaN/[object Object]/null null)만
+      // 잡는 게 원래 의도다.
+      .replace(/undefined|NaN|\[object Object\]|null\s*null/g, '-')
       .replace(/\s{2,}/g, ' ')
   );
-}
-
-export function hasRawAdmissionMark(value) {
-  return RAW_ADMISSION_MARK_RE.test(clean(value));
-}
-
-export function looksLikeRawAdmissionMarkFragment(value) {
-  const text = clean(value);
-  if (!text) return false;
-  if (/[◯○●☆★♥♡❤]/.test(text)) return true;
-  return false;
 }
 
 export function looksLikeHtml(value) {
@@ -675,58 +679,6 @@ export function normalizeRecruitmentExactHtml(html, fallbackText) {
   `);
 }
 
-export function summarizeChangeNote(title, before, after) {
-  const text = `${title} ${before} ${after}`;
-  if (/지원\s*자격|졸업|검정고시/.test(text)) return '지원 자격 변경';
-  if (/모집\s*인원|선발\s*인원|정원|명\s*→|\d+\s*명/.test(text)) return '모집인원 변경';
-  if (/최저|수능/.test(text)) return '수능최저 변경';
-  if (/전형\s*방법|반영\s*비율|서류|면접|논술|교과|성취도|평가요소/.test(text))
-    return '전형방법 변경';
-  if (/명칭|학과명|전공명/.test(text)) return '모집단위 명칭 변경';
-  if (/신설/.test(text)) return '신설';
-  if (/폐지|미모집/.test(text)) return '폐지/미모집';
-  if (/학사구조|구조개편|통폐합|통합|분리|개편/.test(text)) return '모집단위 개편';
-  return '주요 변경사항';
-}
-
-export function splitReadableChangeChunks(text) {
-  const source = clean(text);
-  if (!source) return [];
-
-  const prepared = source
-    .replace(/\s*\/\s*/g, ' / ')
-    .replace(/\s*;\s*/g, ' / ')
-    .replace(/\s*,\s*/g, ', ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  if (prepared.length <= 90 && !/[\/;]/.test(prepared)) return [prepared];
-
-  const bySlash = prepared
-    .split(/\s+\/\s+/)
-    .map(clean)
-    .filter(Boolean);
-  if (bySlash.length >= 2) return bySlash;
-
-  const byComma = prepared.split(/,\s*/).map(clean).filter(Boolean);
-  if (byComma.length >= 3 && prepared.length > 70) return byComma;
-
-  const words = prepared.split(/\s+/).filter(Boolean);
-  const out = [];
-  let buf = '';
-  words.forEach((word) => {
-    const next = buf ? `${buf} ${word}` : word;
-    if (next.length > 56 && buf) {
-      out.push(buf);
-      buf = word;
-    } else {
-      buf = next;
-    }
-  });
-  if (buf) out.push(buf);
-  return out.length ? out : [prepared];
-}
-
 export function normalizeChangeTokenSpacing(text) {
   return clean(text)
     .replace(/(\d+)\s*합\s*(\d+)/g, '$1합$2')
@@ -734,32 +686,6 @@ export function normalizeChangeTokenSpacing(text) {
     .replace(/\s*→\s*/g, ' → ')
     .replace(/\s{2,}/g, ' ')
     .trim();
-}
-
-export function countCharInText(text, char) {
-  return (String(text || '').match(new RegExp('\\' + char, 'g')) || []).length;
-}
-
-export function trimComparisonFragment(text) {
-  let value = normalizeChangeTokenSpacing(text)
-    .replace(/^[-–—•·\s]*→\s*/, '')
-    .trim();
-
-  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼
-  // 변경 설명의 괄호가 비교값으로 밀려 들어간 경우만 제거한다.
-  value = value.replace(/^.*?(?:변경|신설|폐지|개편|증가|감소|확대|축소)\s*\((?=[^)]*$)/, '');
-
-  let open = countCharInText(value, '(');
-  let close = countCharInText(value, ')');
-  while (close > open && /\)\s*$/.test(value)) {
-    value = value.replace(/\)\s*$/, '').trim();
-    close -= 1;
-  }
-  while (open > close && /\(\s*$/.test(value)) {
-    value = value.replace(/\(\s*$/, '').trim();
-    open -= 1;
-  }
-  return normalizeChangeTokenSpacing(value);
 }
 
 export function splitSubnumberedChangeItem(text) {
@@ -833,100 +759,6 @@ export function parseChangeRowTitleAndContent(text) {
   return { title, content };
 }
 
-export function splitChangePairs(content) {
-  let raw = normalizeChangeTokenSpacing(content);
-  if (!raw) return [];
-
-  // 표 변환 중 앞에 붙은 화살표/불릿이 연도 비교 분리를 방해하지 않도록 선제 제거한다.
-  raw = raw
-    .replace(/^[-–—•·\s]*→\s*/, '')
-    .replace(/^[-–—•·]+\s*/, '')
-    .trim();
-
-  // “전형방법 변경(논술 80 + 교과 20 → 논술 100)”처럼 괄호 안에 비교값이 들어 있는 경우,
-  // 비교값만 사용한다. 제목은 parseChangeRowTitleAndContent에서 이미 분리한다.
-  const bracketedOnlyPair = raw.match(
-    /^.{2,90}?(?:변경|신설|폐지|통폐합|개편|분리|통합|확대|축소|증가|감소)\s*\((.+→.+)\)$/
-  );
-  if (bracketedOnlyPair) raw = normalizeChangeTokenSpacing(bracketedOnlyPair[1]);
-
-  const labelled = raw.match(
-    /^(?:변경\s*전|개편\s*전|구조개편\s*전)\s*(.*?)(?:변경\s*후|개편\s*후|구조개편\s*후)\s*(.+)$/
-  );
-  if (labelled) {
-    const before = trimComparisonFragment(labelled[1]);
-    const after = trimComparisonFragment(labelled[2]);
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  // 2026학년도와 2027학년도가 같은 변경 항목에 함께 있으면 무조건 2026 → 2027 비교로 분리한다.
-  const y2026 = raw.indexOf('2026학년도');
-  const y2027 = raw.indexOf('2027학년도');
-  if (y2026 >= 0 && y2027 > y2026) {
-    const before = trimComparisonFragment(raw.slice(y2026, y2027));
-    const after = trimComparisonFragment(raw.slice(y2027));
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  // 여러 개의 A → B가 / 로 이어진 경우 각각 비교쌍으로 분리한다.
-  const slashParts = raw
-    .split(/\s+\/\s+/)
-    .map(normalizeChangeTokenSpacing)
-    .filter(Boolean);
-  if (slashParts.length >= 2 && slashParts.every((part) => part.includes('→'))) {
-    return slashParts
-      .map((part) => {
-        const [beforeRaw, ...afterPartsRaw] = part.split('→').map(normalizeChangeTokenSpacing);
-        const before = trimComparisonFragment(beforeRaw);
-        const after = trimComparisonFragment(afterPartsRaw.join(' → '));
-        return { before: before || '-', after: after || '-' };
-      })
-      .filter((pair) => pair.before || pair.after);
-  }
-
-  if (raw.includes('→')) {
-    const [beforeRaw, ...afterPartsRaw] = raw.split('→').map(normalizeChangeTokenSpacing);
-    const before = trimComparisonFragment(beforeRaw);
-    const after = trimComparisonFragment(afterPartsRaw.join(' → '));
-    if (before || after) return [{ before: before || '-', after: after || '-' }];
-  }
-
-  return [];
-}
-
-export function buildChangePlainListHtml(text) {
-  const value = normalizeChangeTokenSpacing(text);
-  if (!value) return '<span class="muted">-</span>';
-  const chunks = splitReadableChangeChunks(value);
-  if (chunks.length <= 1) {
-    return `<div class="admission-change-simple">${escapeHtml(value)}</div>`;
-  }
-  return `
-    <div class="admission-change-lines">
-      ${chunks.map((chunk) => `<div class="admission-change-line">${escapeHtml(chunk)}</div>`).join('')}
-    </div>
-  `;
-}
-
-export function buildChangePairsHtml(pairs) {
-  if (!pairs || !pairs.length) return '<span class="muted">-</span>';
-  return `
-    <div class="admission-change-pair-list">
-      ${pairs
-        .map(
-          (pair) => `
-        <div class="admission-change-arrow-row">
-          <div class="admission-change-arrow-before">${buildChangePlainListHtml(pair.before)}</div>
-          <div class="admission-change-arrow-icon">→</div>
-          <div class="admission-change-arrow-after">${buildChangePlainListHtml(pair.after)}</div>
-        </div>
-      `
-        )
-        .join('')}
-    </div>
-  `;
-}
-
 export function buildChangeValueHtml(content) {
   const value = normalizeChangeTokenSpacing(content);
   if (!value) return '<span class="muted">-</span>';
@@ -964,16 +796,19 @@ export function buildChangeTableHtml(rows) {
   `;
 }
 
-export function buildPreviousYearChangesHtml(lines, sectionKey) {
+// Phase 1 절단면: previous_year_changes의 행 추출부만 순수 함수로 분리.
+// buildPreviousYearChangesHtml은 이 결과를 buildChangeValueHtml로 html화한
+// 뒤 buildChangeTableHtml에 넘기는 얇은 래퍼로 남는다. "없음" 특수 케이스도
+// 여기서 {no,title,content} 1건으로 통일해 반환한다(원래도 title/no가 이미
+// html이 아닌 값이라 표현에 문제 없다).
+export function parseChangeItems(lines) {
   const cleaned = lines
     .map(clean)
     .filter(Boolean)
     .filter((line) => !['주요변경사항', '전년도와 차이점', '1. 전년도와 차이점'].includes(line));
 
   if (!cleaned.length || cleaned.some((line) => /^없음$|변경\s*사항\s*없음/.test(line))) {
-    return buildChangeTableHtml([
-      { no: '1', title: '변경 사항', html: buildChangeValueHtml('전년도와 동일') }
-    ]);
+    return [{ no: '1', title: '변경 사항', content: '전년도와 동일' }];
   }
 
   const items = [];
@@ -1010,14 +845,23 @@ export function buildPreviousYearChangesHtml(lines, sectionKey) {
     }
   });
 
-  const rows = expandedItems.map((item, idx) => {
+  return expandedItems.map((item, idx) => {
     const parsed = parseChangeRowTitleAndContent(item.text);
     return {
       no: `${idx + 1}`,
       title: parsed.title,
-      html: buildChangeValueHtml(parsed.content)
+      content: parsed.content
     };
   });
+}
+
+export function buildPreviousYearChangesHtml(lines, sectionKey) {
+  const items = parseChangeItems(lines);
+  const rows = items.map((item) => ({
+    no: item.no,
+    title: item.title,
+    html: buildChangeValueHtml(item.content)
+  }));
 
   return buildChangeTableHtml(rows);
 }
@@ -1214,7 +1058,9 @@ export function buildSelectionMethodTable(rows) {
   `;
 }
 
-export function buildSelectionMethodHtml(lines, sectionKey) {
+// Phase 1 절단면: validRows 확정까지가 순수 파싱, 그 이후(폴백 판정 +
+// 렌더)만 buildSelectionMethodHtml에 남긴다.
+export function parseSelectionMethodRows(lines) {
   const idx = lines.findIndex((line) => clean(line) === '전형방법');
   const start = idx >= 0 ? idx + 1 : 0;
   const ignored = new Set(['전형', '유형', '전형명', '인원', '최저', '전형방법']);
@@ -1349,6 +1195,11 @@ export function buildSelectionMethodHtml(lines, sectionKey) {
   const validRows = rows.filter(
     (row) => row.name && row.name !== '-' && !isNumericNoiseCell(row.name)
   );
+  return validRows;
+}
+
+export function buildSelectionMethodHtml(lines, sectionKey) {
+  const validRows = parseSelectionMethodRows(lines);
   if (!validRows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
@@ -1358,16 +1209,10 @@ export function buildSelectionMethodHtml(lines, sectionKey) {
   `;
 }
 
-export function buildExamScheduleHtml(lines, sectionKey) {
-  if (lines.some((line) => clean(line) === '없음')) {
-    return `
-      <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        <div class="admission-empty-box">대학별고사일 없음</div>
-      </div>
-    `;
-  }
-
+// Phase 1 절단면: 폴백 판정("없음" 특수 케이스)은 rows로 표현할 수 없는
+// 별도 렌더(빈 박스)라 buildExamScheduleHtml에 남기고, 그 다음 행 추출부만
+// 분리한다.
+export function parseExamScheduleRows(lines) {
   const headerEnd = Math.max(
     lines.findIndex((line) => clean(line) === '날짜'),
     lines.findIndex((line) => clean(line) === '일정')
@@ -1383,6 +1228,10 @@ export function buildExamScheduleHtml(lines, sectionKey) {
 
   data.forEach((line) => {
     if (isDateLike(line)) {
+      // 정제 시점 통일: 분류(isDateLike)는 원문 line으로 이미 끝났으므로,
+      // 여기서부터는 행 확정 값이다 — htmlTable(:307) 렌더 시점 대신
+      // 여기서 sanitizeAdmissionDisplayText를 적용한다. 멱등(실측 108835줄
+      // 0건 위반)이라 htmlTable이 다시 적용해도 결과는 동일하다.
       if (pending.length) {
         let type = pending[0] || lastType;
         let target = pending.slice(1).join(' / ');
@@ -1390,10 +1239,18 @@ export function buildExamScheduleHtml(lines, sectionKey) {
           type = lastType;
           target = pending[0];
         }
-        rows.push([type || '-', target || '-', line]);
+        rows.push([
+          sanitizeAdmissionDisplayText(type || '-'),
+          sanitizeAdmissionDisplayText(target || '-'),
+          sanitizeAdmissionDisplayText(line)
+        ]);
         lastType = type || lastType;
       } else {
-        rows.push([lastType || '-', '-', line]);
+        rows.push([
+          sanitizeAdmissionDisplayText(lastType || '-'),
+          sanitizeAdmissionDisplayText('-'),
+          sanitizeAdmissionDisplayText(line)
+        ]);
       }
       pending = [];
     } else {
@@ -1402,7 +1259,26 @@ export function buildExamScheduleHtml(lines, sectionKey) {
   });
 
   if (pending.length)
-    rows.push([pending[0] || lastType || '-', pending.slice(1).join(' / ') || '-', '-']);
+    rows.push([
+      sanitizeAdmissionDisplayText(pending[0] || lastType || '-'),
+      sanitizeAdmissionDisplayText(pending.slice(1).join(' / ') || '-'),
+      sanitizeAdmissionDisplayText('-')
+    ]);
+
+  return rows;
+}
+
+export function buildExamScheduleHtml(lines, sectionKey) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return `
+      <div class="admission-raw-section-wrap">
+        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
+        <div class="admission-empty-box">대학별고사일 없음</div>
+      </div>
+    `;
+  }
+
+  const rows = parseExamScheduleRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   return `
@@ -1522,16 +1398,10 @@ export function splitMinimumLabel(labelParts, lastType) {
   };
 }
 
-export function buildMinimumRequirementsHtml(lines, sectionKey) {
-  if (lines.some((line) => clean(line) === '없음')) {
-    return `
-      <div class="admission-raw-section-wrap">
-        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
-        <div class="admission-empty-box">수능 최저학력기준 없음</div>
-      </div>
-    `;
-  }
-
+// Phase 1 절단면: "없음" 특수 케이스(rows로 표현 불가한 빈 박스 렌더)는
+// buildMinimumRequirementsHtml에 남기고, flush() 완료까지의 행 추출부만
+// 분리한다.
+export function parseMinimumRequirementRows(lines) {
   const headerStart = lines.findIndex((line) => clean(line) === '국');
   const headerEnd = lines.findIndex((line) => clean(line) === '비고');
   const subjectHeaders =
@@ -1582,12 +1452,15 @@ export function buildMinimumRequirementsHtml(lines, sectionKey) {
           .filter((note) => !shouldSkipMinimumNote(note))
       )
     ].join(' ');
+    // 정제 시점 통일: marks 분류(isRequirementMark 등)는 이미 끝난 뒤이므로,
+    // htmlTable(:307) 렌더 시점 대신 행 확정 시점에 sanitizeAdmissionDisplayText를
+    // 적용한다(멱등이라 htmlTable이 다시 적용해도 결과 동일).
     rows.push([
-      split.type || '-',
-      split.target || '-',
-      formatRequirementMarks(marks, subjectHeaders) || '-',
-      minimum || '-',
-      noteText || '-'
+      sanitizeAdmissionDisplayText(split.type || '-'),
+      sanitizeAdmissionDisplayText(split.target || '-'),
+      sanitizeAdmissionDisplayText(formatRequirementMarks(marks, subjectHeaders) || '-'),
+      sanitizeAdmissionDisplayText(minimum || '-'),
+      sanitizeAdmissionDisplayText(noteText || '-')
     ]);
     label = [];
     marks = [];
@@ -1629,6 +1502,20 @@ export function buildMinimumRequirementsHtml(lines, sectionKey) {
   });
   flush();
 
+  return rows;
+}
+
+export function buildMinimumRequirementsHtml(lines, sectionKey) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return `
+      <div class="admission-raw-section-wrap">
+        <div class="admission-result-note">${escapeHtml(SECTION_NOTES[sectionKey] || '')}</div>
+        <div class="admission-empty-box">수능 최저학력기준 없음</div>
+      </div>
+    `;
+  }
+
+  const rows = parseMinimumRequirementRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   return sanitizeAdmissionRenderedHtml(`
@@ -1804,7 +1691,13 @@ export function buildRecordInfoRows(lines) {
   return normalizeStudentRecordInfoRows(rows);
 }
 
-export function buildGradeScoreTables(lines) {
+// Phase 1 절단면: buildGradeScoreTables는 루프 안에서 metric/headers/rows를
+// 만든 뒤 즉시 escapeHtml + htmlTable로 HTML화해 절단면이 없던 유일한
+// 지점이다. buildGradeScoreBlocks가 구조({metric,headers,rows}[])만 반환하고,
+// buildGradeScoreTables는 그 결과를 renderGradeScoreTable로 렌더하는 얇은
+// 래퍼로 남는다. 템플릿 리터럴의 공백·개행은 골든 바이트 비교 대상이라
+// 원본 그대로 유지한다.
+export function buildGradeScoreBlocks(lines) {
   const blocks = [];
   let i = 0;
 
@@ -1874,14 +1767,22 @@ export function buildGradeScoreTables(lines) {
     }
 
     if (headers.length && rows.length) {
-      blocks.push(`
-        <div class="admission-subhead">${escapeHtml(metric)} 환산표</div>
-        ${htmlTable(['구분', ...headers], rows, { compact: true, className: 'admission-data-table admission-score-table' })}
-      `);
+      blocks.push({ metric, headers, rows });
     }
   }
 
   return blocks;
+}
+
+function renderGradeScoreTable({ metric, headers, rows }) {
+  return `
+        <div class="admission-subhead">${escapeHtml(metric)} 환산표</div>
+        ${htmlTable(['구분', ...headers], rows, { compact: true, className: 'admission-data-table admission-score-table' })}
+      `;
+}
+
+export function buildGradeScoreTables(lines) {
+  return buildGradeScoreBlocks(lines).map(renderGradeScoreTable);
 }
 
 export function buildStudentRecordHtml(lines, sectionKey) {
@@ -2100,7 +2001,9 @@ export function buildRecruitCell(values) {
   </div>`;
 }
 
-export function buildRecruitmentHtml(lines, sectionKey) {
+// Phase 1 절단면: 렌더 직전(rows/groupLabels/footnotes 확정)까지가 순수
+// 파싱이다. buildRecruitmentHtml은 이 결과로 폴백 판정 + 렌더만 한다.
+export function parseRecruitmentRows(lines) {
   const pattern = ['27', '26', '26', '25', '26'];
   let dataStart = -1;
   let yearStart = -1;
@@ -2184,6 +2087,11 @@ export function buildRecruitmentHtml(lines, sectionKey) {
     i = Math.max(j, i + 1);
   }
 
+  return { rows, groupLabels, footnotes };
+}
+
+export function buildRecruitmentHtml(lines, sectionKey) {
+  const { rows, groupLabels, footnotes } = parseRecruitmentRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
   const headerCells = ['계열/대학', '모집단위', ...groupLabels];
@@ -2213,339 +2121,6 @@ export function buildRecruitmentHtml(lines, sectionKey) {
     </div>
   `);
 }
-
-export const SCIENCE_SPECIAL_DATA = {
-  포항공과대학교: {
-    displayName: 'POSTECH',
-    summaryRows: [
-      [
-        '일반전형Ⅰ',
-        '220',
-        '11.28.(토)',
-        '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '정시 선발 없음'
-      ],
-      [
-        '일반전형Ⅱ',
-        '70',
-        '11.29.(일)',
-        '1단계: 서류 100(3배수) / 2단계: 서류 67 + 면접 33',
-        '수학(미적분/기하) + 국어·영어·과탐(2) 중 택1, 2개 합 4 이내',
-        '정시 선발 없음'
-      ],
-      [
-        '반도체공학인재',
-        '40',
-        '-',
-        '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '정시 선발 없음'
-      ]
-    ],
-    competitionRows: [
-      ['일반전형Ⅰ', '220명 / 8.27', '220명 / 8.96', '220명 / 7.80'],
-      ['일반전형Ⅱ', '70명 / 13.04', '70명 / 11.63', '80명 / 9.76'],
-      ['반도체공학인재', '40명 / 12.38', '15명 / 10.67', '20명 / 7.90']
-    ],
-    changeRows: [['해당 없음', '변경 사항 없음']],
-    evaluationRows: [
-      [
-        '서류평가',
-        '학업능력은 학교생활기록부의 국어·영어·수학·과학 교과를 중심으로 대학 수학 가능성을 종합 평가하며, 잠재력은 이공계 소양·재능, 학업 열정·태도, 대인관계·품성, 인재상 적합도를 종합 평가'
-      ],
-      [
-        '면접평가',
-        '과학·공학계 글로벌 리더로서의 사고력, 이공계 분야 수학을 위한 기본 역량과 태도 등을 평가. 일반전형Ⅰ은 개인면접·개인과제·그룹활동, 일반전형Ⅱ는 개인면접, 반도체공학인재는 개인면접·제시문 면접'
-      ]
-    ]
-  },
-  한국과학기술원: {
-    displayName: 'KAIST',
-    summaryRows: [
-      ['학교장추천', '85', '-', '일괄: 서류 100', '없음', '15명(수능 100)'],
-      ['창의도전', '270', '-', '서류평가 중심', '없음', '15명(수능 100)'],
-      [
-        '일반',
-        '380',
-        '11.26.(목)',
-        '1단계: 서류 100(2.5배수) / 2단계: 서류 40 + 면접 60',
-        '없음',
-        '15명(수능 100)'
-      ],
-      [
-        '반도체시스템인재',
-        '40',
-        '-',
-        '1단계: 서류 100(2.5배수) / 2단계: 서류 40 + 면접 60',
-        '없음',
-        '-'
-      ],
-      ['특기자', '30', '-', '1단계: 서류 100(2배수) / 2단계: 서류 40 + 면접 60', '없음', '-']
-    ],
-    competitionRows: [
-      ['일반', '350명 / 7.64', '410명 / 7.02', '410명 / 6.62'],
-      ['창의도전전형', '200명 / 9.45', '220명 / 8.90', '220명 / 8.29'],
-      ['학교장추천', '85명 / 15.45', '95명 / 11.00', '95명 / 9.62']
-    ],
-    changeRows: [
-      [
-        '입학 지원 방법 변경',
-        '반도체시스템인재전형Ⅱ 폐지, 반도체시스템인재전형 신설. 중복지원 가능 조합은 창의도전전형 + 일반전형'
-      ],
-      [
-        '교사추천서 운영방안 변경',
-        '창의도전·학교장추천은 최대 2부 제출 가능, 일반·고른기회·특기자·반도체시스템인재는 최대 2부 제출 가능. 제출 시 담임교사 추천서 1부 필수 포함'
-      ],
-      ['모집인원 변경', '창의도전 200명 → 270명, 일반 350명 → 380명, 반도체시스템인재 70명 → 40명']
-    ],
-    evaluationRows: [
-      [
-        '서류평가',
-        '학업성취도, 학교생활 충실도 및 인성, 도전·창의·배려, 발전가능성 등을 종합 평가'
-      ],
-      [
-        '면접평가',
-        '수학·과학·영어 관련 개인별 구술면접과 지원서 기반 질문을 활용. 반도체시스템인재는 전공적합성 관련 질문 포함'
-      ]
-    ]
-  },
-  한국에너지공과대학교: {
-    displayName: 'KENTECH',
-    summaryRows: [
-      [
-        '일반',
-        '90',
-        '11.30.(월)',
-        '1단계: 서류 100(5배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '10명(수능 100)'
-      ]
-    ],
-    competitionRows: [['일반', '90명 / 24.18', '90명 / 19.58', '90명 / 15.06']],
-    changeRows: [['해당 없음', '변경 사항 없음']],
-    evaluationRows: []
-  },
-  울산과학기술원: {
-    displayName: 'UNIST',
-    summaryRows: [
-      ['일반-무학과', '320', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
-      ['일반-반도체', '35', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
-      ['일반-경영', '25', '-', '일괄: 서류 100', '없음', '10명(수능 100)'],
-      [
-        '탐구우수',
-        '70',
-        '11.7.(토)',
-        '1단계: 서류 100(3배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '-'
-      ],
-      [
-        '그릿인재',
-        '10',
-        '11.8.(일)',
-        '1단계: 서류 100(3배수) / 2단계: 서류 30 + 면접 70',
-        '없음',
-        '-'
-      ]
-    ],
-    competitionRows: [
-      ['일반-이공계', '285명 / 20.01', '305명 / 15.92', '320명 / 13.41'],
-      ['일반-경영계', '25명 / 19.32', '25명 / 15.08', '25명 / 12.28'],
-      ['탐구우수전형', '50명 / 8.62', '30명 / 7.80', '2025학년도 신설']
-    ],
-    changeRows: [
-      ['전형 신설', '그릿인재전형 신설'],
-      ['모집인원 변경', '일반전형 이공 무학과 250명 → 320명, 탐구우수전형 50명 → 70명'],
-      [
-        '탐구우수전형 변경',
-        '면접 배수 2배수 → 3배수, 기타 입증자료 제출건수 제한 없음 및 총 15매 이내'
-      ]
-    ],
-    evaluationRows: []
-  },
-  광주과학기술원: {
-    displayName: 'GIST',
-    summaryRows: [
-      [
-        '학교장추천',
-        '60',
-        '10.22.(목)~10.23.(금)',
-        '1단계: 서류 100(추천 5배수, 일반 6배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '15명(수능 100)'
-      ],
-      [
-        '일반-도전탐색과정',
-        '195',
-        '10.22.(목)~10.23.(금)',
-        '1단계: 서류 100(일반 6배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '15명(수능 100)'
-      ],
-      [
-        '일반-반도체공학과',
-        '25',
-        '10.22.(목)~10.23.(금)',
-        '1단계: 서류 100(일반 6배수) / 2단계: 서류 50 + 면접 50',
-        '없음',
-        '15명(수능 100)'
-      ],
-      ['특기자', '10', '-', '1단계: 서류 100(4배수) / 2단계: 종합평가 100', '없음', '-']
-    ],
-    competitionRows: [
-      ['일반', '150명 / 14.05', '150명 / 12.64', '150명 / 11.51'],
-      ['학교장추천', '40명 / 17.33', '40명 / 14.55', '40명 / 11.80']
-    ],
-    changeRows: [
-      [
-        '모집인원 증원',
-        '일반전형 125명 → 195명, 학교장추천전형 40명 → 60명, 고른기회전형 15명 → 25명'
-      ],
-      ['면접 확대', '일반·학교장추천·고른기회전형: 서류 60 + 면접 40 → 서류 50 + 면접 50'],
-      ['자기소개서 변경', '일반·학교장추천·고른기회전형 1문항 1,800자, 특기자전형 1문항 2,000자']
-    ],
-    evaluationRows: []
-  },
-  대구경북과학기술원: {
-    displayName: 'DGIST',
-    summaryRows: [
-      [
-        '학교장추천-기초학부',
-        '60',
-        '-',
-        '일괄: 서류 100',
-        '없음',
-        '기초 5명, 반도체 3명(수능 100, 출결 감점)'
-      ],
-      [
-        '학교장추천-반도체',
-        '12',
-        '-',
-        '일괄: 서류 100',
-        '없음',
-        '기초 5명, 반도체 3명(수능 100, 출결 감점)'
-      ],
-      ['일반-기초학부', '100', '-', '서류평가 중심', '없음', '-'],
-      ['일반-반도체', '15', '-', '서류평가 중심', '없음', '-'],
-      ['일반-AI대학', '100', '-', '서류평가 중심', '없음', '-']
-    ],
-    competitionRows: [
-      ['일반-기초학부', '100명 / 33.80', '110명 / 25.60', '130명 / 20.37'],
-      ['일반-반도체', '15명 / 12.93', '25명 / 9.12', '25명 / 9.32'],
-      ['학교장추천-기초학부', '65명 / 21.23', '50명 / 22.06', '35명 / 23.60'],
-      ['학교장추천-반도체', '12명 / 6.08', '-', '-']
-    ],
-    changeRows: [
-      ['모집단위 신설', 'AI대학 신설'],
-      [
-        '모집인원 변경',
-        '일반전형 AI대학 100명 신설, 학교장추천 기초학부 65명 → 60명, 과학인재전형 기초학부 10명 → 15명'
-      ]
-    ],
-    evaluationRows: []
-  }
-};
-
-export const POLICE_SPECIAL_DATA = {
-  scheduleRows: [
-    ['원서접수', '특별전형: 5.4.(월)~5.14.(목) / 일반전형: 5.18.(월)~5.28.(목)'],
-    ['1차시험', '8.1.(토)'],
-    ['1차 합격자 발표', '8.6.(목), 추가합격 8.11.(화)'],
-    [
-      '2차 시험',
-      '서류제출: 신체·체력·적성검사 당일 / 신체·체력·적성검사: 9.3.(목)~9.30.(수) / 면접시험: 12.2.(수)~12.9.(수)'
-    ],
-    ['최종 발표', '2027.1.4.(월) 17:00']
-  ],
-  summaryRows: [
-    ['선발인원', '44명 + 특별전형 6명'],
-    ['학과', '법학 / 행정 각 25명, 2학년 진급 시 결정'],
-    ['반영비율', '1차시험 20% + 체력검정 5% + 면접 10% + 학생부 15% + 수능 50%'],
-    ['총점', '1차 시험 200점 + 2차 시험 150점 + 학생부 150점 + 수능 500점 = 1,000점']
-  ],
-  firstTestRows: [
-    ['국어', '독서·문학', '45문항 / 60분', '100점(2점, 3점)'],
-    ['영어', '영어Ⅰ·영어Ⅱ', '45문항 / 60분', '100점(2점, 3점), 듣기평가 없음'],
-    ['수학', '수학Ⅰ·수학Ⅱ', '25문항 / 80분', '100점(3점, 4점, 5점), 단답형 주관식 5문항 포함']
-  ],
-  studentRows: [
-    ['학생부 교과', '석차등급 기재 전과목 반영, 3학년 1학기까지 반영, 135점'],
-    ['출석 점수', '미인정 결석일수에 따라 11~15점. 지각·조퇴·결과는 3회를 1회로 계산'],
-    ['수능 반영', '국어 140 + 수학 140 + 영어 140 + 탐구 80 + 한국사 감점 = 500점'],
-    ['수능 최저', '국어·수학·영어·탐구 중 2개 영역 이상 2등급 이내, 한국사 3등급 이내']
-  ],
-  competitionRows: [
-    ['2026학년도', '44명', '93.6'],
-    ['2025학년도', '44명', '193.9'],
-    ['2024학년도', '44명', '80.3']
-  ],
-  firstPassRows: [
-    ['2026학년도', '95.44', '85.55', '91.27', '90.75'],
-    ['2025학년도', '87.84', '90.15', '78.81', '85.60'],
-    ['2024학년도', '83.32', '74.42', '74.01', '78.92']
-  ]
-};
-
-export const ACADEMY_SPECIAL_DATA = {
-  scheduleRows: [
-    [
-      '원서접수',
-      '6.19.(금) 09:00 ~ 6.29.(월) 17:00',
-      '6.19.(금) 09:00 ~ 6.29.(월) 17:00',
-      '6.19.(금) 09:00 ~ 6.29.(월) 17:00',
-      '6.19.(금) 09:00 ~ 6.29.(월) 17:00'
-    ],
-    ['1차 시험', '8.1.(토)', '8.1.(토)', '8.1.(토)', '8.1.(토)'],
-    [
-      '1차 합격자 발표',
-      '8.14.(금), 추합 8.20·24·26',
-      '8.13.(목), 추합 8.24',
-      '8.13.(목), 추합 8.20·27',
-      '8.14.(금), 추합 8.20'
-    ],
-    [
-      '2차 시험 접수',
-      '8.14.~8.18., 추합 8.21·25·27',
-      '8.13.~8.19., 추합 8.24~8.26',
-      '8.13.~8.18., 추합 8.25·9.1',
-      '8.14.~8.19., 추합 8.25'
-    ],
-    [
-      '2차 시험',
-      '9.1.~10.30., 응시조별 2일',
-      '9.1.~10.30., 각 조별 2일',
-      '8.31.~10.16., 개인별 1박 2일',
-      '8.27.~9.30.'
-    ],
-    ['우선선발/특별전형 발표', '11.6.(금)', '11.5.(목)', '11.13.(금)', '11.6.(금)'],
-    ['종합선발 발표', '12.18.(금)', '12.15.(화)', '12.18.(금)', '12.21.(월)']
-  ],
-  quotaRows: [
-    ['위치', '서울특별시', '경상남도 창원시', '충청북도 청주시', '대전광역시'],
-    ['남자 인문/자연', '127명 / 155명', '65명 / 79명', '60명 / 139명', '6명 / 8명'],
-    ['여자 인문/자연', '28명 / 20명', '13명 / 13명', '16명 / 20명', '31명 / 45명'],
-    ['일반 우선선발', '85명 이내', '남자 46명, 여자 14명', '81명 내외', '21명, 남자 15% 내외'],
-    ['학교장추천', '99명', '51명', '82명 내외', '42명'],
-    ['종합선발(수능 반영)', '48명 내외', '34명 내외', '47명 내외', '27명']
-  ],
-  firstTestRows: [
-    [
-      '시험과목',
-      '인문: 국어·수학·영어 / 자연: 국어·수학·영어. 수학 선택과목은 계열에 따라 확통·미적·기하 반영, 표준점수 활용'
-    ],
-    ['문항수/시간', '국어 30문항 50분, 수학 30문항 100분, 영어 30문항 50분(듣기 제외)'],
-    ['가산점', '한국사능력검정시험: 육군·국군간호 최대 3점, 해군·공군 최대 5점 / 체력우수자 1점']
-  ],
-  futureRows: [
-    ['대상', '육군사관학교 국방미래인재전형'],
-    ['1차 합격자 발표', '9.28.(월)'],
-    ['1차 선발인원', '계열별 남자 5배수, 여자 8배수'],
-    ['2차 시험 접수', '9.28.(월)~10.2.(금)'],
-    ['서류평가', '학업성취도 800점 + 학업태도 100점 + 진로역량 100점 = 1,000점'],
-    ['수능최저학력기준', '국어·수학·영어·탐구 평균 중 3개 합 8 이내']
-  ]
-};
 
 export function specialBlock(title, bodyHtml) {
   return `<section class="admission-special-block"><div class="admission-special-title">${escapeHtml(title)}</div>${bodyHtml}</section>`;
@@ -2622,29 +2197,6 @@ export function buildSmartRawHtml(value, sectionKey, row = null, universityName 
   return buildPlainListHtml(lines, sectionKey);
 }
 
-export function sanitizeExistingHtml(value) {
-  return clean(value);
-}
-
-export function wrapExistingHtml(value, sectionKey) {
-  const html = sanitizeExistingHtml(value);
-  if (!html) return '';
-
-  const hasOwnNote = /admission-result-note|admission-section-note/.test(html);
-  const note = hasOwnNote
-    ? ''
-    : `<div class="admission-result-note">${SECTION_NOTES[sectionKey] || ''}</div>`;
-
-  return `
-    <div class="admission-raw-section-wrap">
-      ${note}
-      <div class="admission-existing-html">
-        ${html}
-      </div>
-    </div>
-  `;
-}
-
 export function buildSafeTextSectionHtml(value, sectionKey) {
   const text = splitAdmissionLines(value)
     .map((line) => sanitizeAdmissionDisplayText(line))
@@ -2714,6 +2266,1499 @@ export function buildHwpCategoryHtml(sectionKey, rawText, row = null, university
   }
   return buildRawSectionHtml(value, sectionKey, row, universityName);
 }
+
+// =====================================================================
+// 구조화 문서(AdmissionDoc) 생성기 — 기존 HTML 빌더의 무변경 병렬 미러.
+// 위 buildXxxHtml 함수는 한 글자도 고치지 않는다. 아래 함수들은 같은
+// parse*Rows / buildRecordInfoRows / buildGradeScoreBlocks 순수 함수를
+// 그대로 소비해 HTML 대신 구조화 blocks를 만든다 — 파싱 로직 이중 구현
+// 금지 원칙을 지킨다. 스키마는 src/lib/admissionDoc.js.
+//
+// 이 파일은 admissionDoc.js를 import하지 않는다(순환 의존 없음 — 반대
+// 방향 의존만 존재). 아래 함수가 만드는 객체는 AdmissionDoc 인터페이스를
+// 따르지만 타입 검증은 호출부(어드민/백필 스크립트)가
+// validateAdmissionDoc으로 별도 수행한다.
+// =====================================================================
+
+// TODO(Phase 3): 빌드 시점 git short sha 주입 배선(Vite define)이 아직
+// 없어 고정 태그를 쓴다. DB에 실제로 쓰기 시작하는 커밋에서 배선한다.
+const DOC_GENERATOR_TAG = 'admissionParsing@phase2-lib';
+
+// 정제 시점 통일(§2.5) 공용 헬퍼 — htmlTable(:294) 계열(exam/minimum/
+// recordInfo/score/special)이 렌더 시점에 셀마다 적용해온
+// sanitizeAdmissionDisplayText를, doc 생성 시점(행 확정 직후)으로 옮길 때
+// 쓴다. 문자열만 담는 rows(각 variant 전부 plain string[][])에만 쓴다 —
+// selection/recruit처럼 객체 셀(badge/chips)이 섞인 variant에는 쓰지 않는다.
+function sanitizeTableCellRows(rows) {
+  return rows.map((row) => row.map((cell) => sanitizeAdmissionDisplayText(cell)));
+}
+
+// change/plainList 전용 — sanitizeAdmissionDisplayText는 문맥과 무관하게
+// 마크(◯○●☆★)를 지우지만, renderDocToHtml 최종 단계의
+// sanitizeAdmissionRenderedHtml(HTML 문자열 대상)은 '>' 또는 공백 "뒤"에
+// 오는 마크만 지운다(실측: "수능최저○ → ..."처럼 앞 글자에 붙은 마크는
+// 보존, "○ 학과명"처럼 공백 뒤 마크는 제거). doc 생성 시점에 미리
+// 정제하면서 sanitizeAdmissionDisplayText를 그대로 썼다가 숙명여자대학교
+// previous_year_changes 1건에서 이 위치 조건 차이로 Gate A2가 깨졌다
+// (골든은 "○" 보존, sanitizeAdmissionDisplayText는 위치 무관하게 제거).
+// 이 함수는 문자열 시작 또는 공백 뒤에 오는 마크만 지워 실제 렌더 시점
+// 동작을 정확히 재현한다.
+function stripLeadingAdmissionMarks(text) {
+  return String(text || '')
+    .replace(/(^|\s)[◯○●]\s*\d+\s*/g, '$1')
+    .replace(/(^|\s)[◯○●☆★♥♡❤]+\s*/g, '$1');
+}
+
+function makeDoc(sectionKey, blocks, { source = 'parser', warnings, wrapModifier } = {}) {
+  const doc = {
+    v: 1,
+    section: sectionKey,
+    source,
+    generator: DOC_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
+  };
+  if (wrapModifier) doc.wrapModifier = wrapModifier;
+  if (warnings && warnings.length) doc.warnings = warnings;
+  return doc;
+}
+
+// previous_year_changes: buildPreviousYearChangesHtml 미러. 이 카테고리는
+// 원래도 plainList 폴백이 없다(parseChangeItems가 "없음" 특수 케이스까지
+// 항상 최소 1행을 반환하므로).
+function buildChangeDocBlocks(lines) {
+  const items = parseChangeItems(lines);
+  return [
+    {
+      kind: 'table',
+      variant: 'change',
+      columns: [
+        { role: 'no', label: '번호' },
+        { role: 'title', label: '변경 항목' },
+        { role: 'content', label: '변경 내용' }
+      ],
+      // 정제 시점 통일: 원래는 renderDocToHtml의 최종 sanitizeAdmissionRenderedHtml
+      // 래핑에서만 ◯○●☆★ 등이 걷혔다(예: "○ 학과명 → 새 학과명"). doc은
+      // React 렌더러도 그대로 소비하므로(그쪽은 그 래핑을 거치지 않는다),
+      // 행 확정 시점에 미리 정제해 저장한다. content는 위치 조건이 있는
+      // stripLeadingAdmissionMarks를 쓴다(sanitizeAdmissionDisplayText는
+      // 위치 무관하게 지워 렌더 시점 실제 동작과 어긋난다 — 위 주석 참고).
+      rows: items.map((item) => [
+        sanitizeAdmissionDisplayText(item.no),
+        sanitizeAdmissionDisplayText(item.title),
+        stripLeadingAdmissionMarks(item.content)
+      ])
+    }
+  ];
+}
+
+// selection_method: buildSelectionMethodHtml 미러.
+function buildSelectionDocBlocks(lines, sectionKey, warnings) {
+  const validRows = parseSelectionMethodRows(lines);
+  if (!validRows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'selection',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'name', label: '전형명' },
+        { role: 'seats', label: '인원' },
+        { role: 'minimum', label: '최저' },
+        { role: 'method', label: '전형방법' }
+      ],
+      // method는 정제 없이 저장돼왔고 renderDocToHtml 최종 wrap의
+      // sanitizeAdmissionRenderedHtml에서만 마크가 걷혔다(예: "100 / ● / 100").
+      // stripLeadingAdmissionMarks로 그 위치 조건을 재현해 미리 정제한다.
+      rows: validRows.map((r) => {
+        const minimum = normalizeSelectionMinimum(r.minimum);
+        return [
+          r.type || '-',
+          r.name || '-',
+          r.seats || '-',
+          { text: minimum, badge: minimum === '-' ? 'minimumNone' : 'minimumHas' },
+          stripLeadingAdmissionMarks(r.method) || '-'
+        ];
+      })
+    }
+  ];
+}
+
+// exam_schedule: buildExamScheduleHtml 미러. "없음" 특수 케이스는 rows로
+// 표현 불가한 별도 렌더(emptyBox)라 그대로 분기 유지.
+function buildExamDocBlocks(lines, sectionKey, warnings) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return [{ kind: 'emptyBox', message: '대학별고사일 없음' }];
+  }
+  const rows = parseExamScheduleRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'exam',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'target', label: '대상' },
+        { role: 'schedule', label: '일정' }
+      ],
+      rows
+    }
+  ];
+}
+
+// minimum_requirements: buildMinimumRequirementsHtml 미러.
+function buildMinimumDocBlocks(lines, sectionKey, warnings) {
+  if (lines.some((line) => clean(line) === '없음')) {
+    return [{ kind: 'emptyBox', message: '수능 최저학력기준 없음' }];
+  }
+  const rows = parseMinimumRequirementRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+  if (rows.some((r) => r[2] && r[2] !== '-')) {
+    warnings.push({ code: 'subject-marks-flattened' });
+  }
+  return [
+    {
+      kind: 'table',
+      variant: 'minimum',
+      columns: [
+        { role: 'type', label: '전형' },
+        { role: 'target', label: '대상' },
+        { role: 'areas', label: '반영 영역' },
+        { role: 'minimum', label: '최저' },
+        { role: 'note', label: '비고' }
+      ],
+      rows
+    }
+  ];
+}
+
+// school_record_method: buildStudentRecordHtml 미러. 이 카테고리는 원래도
+// plainList 폴백이 없다 — infoRows/scoreBlocks가 전부 비어도 그대로
+// 빈 blocks를 반환한다(원본은 빈 wrap을 그대로 반환).
+function buildRecordDocBlocks(lines) {
+  const firstGradeIdx = lines.findIndex((line) =>
+    /^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(clean(line))
+  );
+  const infoLines = firstGradeIdx >= 0 ? lines.slice(0, firstGradeIdx) : lines;
+  const tableLines = firstGradeIdx >= 0 ? lines.slice(firstGradeIdx) : [];
+
+  const blocks = [];
+  const infoRows = buildRecordInfoRows(infoLines);
+  if (infoRows.length) {
+    blocks.push({
+      kind: 'table',
+      variant: 'recordInfo',
+      columns: [
+        { role: 'type', label: '구분' },
+        { role: 'content', label: '내용' }
+      ],
+      // 정제 시점 통일(§2.5) — htmlTable(:294)이 렌더 시점에 셀마다
+      // sanitizeAdmissionDisplayText를 적용해왔다(예: 리터럴 '-' → 빈 값 →
+      // muted span). React 렌더러는 이 래핑을 거치지 않고 doc 값을 그대로
+      // 쓰므로, 행 확정 시점(여기)에 미리 정제해 저장한다.
+      rows: sanitizeTableCellRows(infoRows)
+    });
+  }
+
+  buildGradeScoreBlocks(tableLines).forEach(({ metric, headers, rows }) => {
+    blocks.push({ kind: 'heading', text: `${metric} 환산표` });
+    blocks.push({
+      kind: 'table',
+      variant: 'score',
+      columns: [{ role: 'type', label: '구분' }, ...headers.map((h) => ({ role: 'data', label: h }))],
+      rows: sanitizeTableCellRows(rows)
+    });
+  });
+
+  return blocks;
+}
+
+// recruitment_quota: buildRecruitmentHtml 미러.
+function buildRecruitDocBlocks(lines, sectionKey, warnings) {
+  const { rows, groupLabels, footnotes } = parseRecruitmentRows(lines);
+  if (!rows.length) {
+    warnings.push({ code: 'fallback-plain-list', detail: sectionKey });
+    return buildPlainListDocBlocks(lines, sectionKey);
+  }
+
+  if (groupLabels.length) warnings.push({ code: 'chunk-split-heuristic' });
+  let usedInferredLabel = false;
+
+  const dataRows = rows.map((row) => {
+    const seriesCells = groupLabels.map((_, idx) => {
+      const chunk = row.chunks[idx] || [];
+      if (!chunk.length) return { chips: [] };
+      const labels = recruitChunkLabelMap(chunk);
+      if (chunk.length !== 5) usedInferredLabel = true;
+      return {
+        chips: chunk.map((value, chunkIdx) => ({
+          label: labels[chunkIdx] || `값 ${chunkIdx + 1}`,
+          value
+        }))
+      };
+    });
+    return [row.group || '-', row.unit || '-', ...seriesCells];
+  });
+
+  if (usedInferredLabel) warnings.push({ code: 'label-inferred' });
+
+  const blocks = [
+    {
+      kind: 'table',
+      variant: 'recruit',
+      columns: [
+        { role: 'group', label: '계열/대학' },
+        { role: 'unit', label: '모집단위' },
+        ...groupLabels.map((label) => ({ role: 'series', label }))
+      ],
+      rows: dataRows
+    }
+  ];
+  const cleanedFootnotes = footnotes.filter(Boolean);
+  if (cleanedFootnotes.length) blocks.push({ kind: 'footnote', items: cleanedFootnotes });
+  return blocks;
+}
+
+// buildPlainListHtml 미러. exam/minimum/selection/recruit이 rows 0행일 때
+// 공유하는 폴백이자, buildSpecialCategoryDoc의 비특수대학 분기이기도 하다.
+function buildPlainListDocBlocks(lines) {
+  const items = [];
+  let bullets = [];
+
+  // 정제 시점 통일(§2.5) — buildPlainListHtml은 자체 정제 없이 escapeHtml만
+  // 하고, 마크 제거는 renderDocToHtml 최종 wrap의 sanitizeAdmissionRenderedHtml
+  // 에서 일어났다. React 렌더러는 그 wrap을 거치지 않으므로 행 확정 시점에
+  // 미리 정제한다.
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    bullets.forEach((line) => {
+      items.push({ type: 'bullet', text: sanitizeAdmissionDisplayText(line.replace(/^\d+\.\s*/, '')) });
+    });
+    bullets = [];
+  };
+
+  lines.forEach((line) => {
+    if (/^\d+\.\s*/.test(line)) {
+      bullets.push(line);
+      return;
+    }
+    flushBullets();
+    if (/^(주요변경사항|※|\*)/.test(line)) {
+      items.push({ type: 'subtitle', text: sanitizeAdmissionDisplayText(line) });
+    } else {
+      items.push({ type: 'text', text: sanitizeAdmissionDisplayText(line) });
+    }
+  });
+  flushBullets();
+
+  return [{ kind: 'plainList', items }];
+}
+
+// 특수대학 표 헤더 라벨 → Column.role 추정. role은 렌더에 관여하지 않는
+// 문서화용 메타데이터라 매핑이 없으면 'data'로 떨어져도 무해하다.
+const SPECIAL_COLUMN_ROLE_MAP = {
+  구분: 'type',
+  전형명: 'name',
+  전형: 'type',
+  인원: 'seats',
+  모집인원: 'seats',
+  전형방법: 'method',
+  수능최저: 'minimum',
+  정시: 'note',
+  학년도: 'series',
+  내용: 'content',
+  과목: 'name',
+  출제범위: 'content',
+  '문항수/시간': 'content',
+  배점: 'seats',
+  '변경 사항': 'content',
+  육군사관학교: 'series',
+  해군사관학교: 'series',
+  공군사관학교: 'series',
+  국군간호사관학교: 'series'
+};
+function inferSpecialColumnRole(label) {
+  return SPECIAL_COLUMN_ROLE_MAP[label] || 'data';
+}
+
+function buildSpecialGroupBlock(title, headers, rows) {
+  return {
+    kind: 'group',
+    title,
+    children: [
+      {
+        kind: 'table',
+        variant: 'special',
+        columns: headers.map((label) => ({ role: inferSpecialColumnRole(label), label })),
+        // SCIENCE_SPECIAL_DATA/POLICE_SPECIAL_DATA/ACADEMY_SPECIAL_DATA는
+        // 손으로 정리한 하드코딩 상수라 리터럴 '-' 등이 그대로 들어있다.
+        // htmlTable 렌더 시점 정제와 동일하게 여기서 미리 정제한다.
+        rows: sanitizeTableCellRows(rows)
+      }
+    ]
+  };
+}
+
+// buildScienceSpecialHtml 미러.
+function buildScienceSpecialDoc(universityName) {
+  const data =
+    SCIENCE_SPECIAL_DATA[universityName] || SCIENCE_SPECIAL_DATA[removeCampus(universityName)] || null;
+  if (!data) return makeDoc('selection_method', [], { source: 'bundled-special' });
+
+  const blocks = [
+    {
+      kind: 'note',
+      text: `${data.displayName} 입학자료를 전형별로 다시 정리한 내용입니다. 모집인원, 면접일, 전형방법, 수능최저, 정시 선발 여부를 한 표에서 확인할 수 있습니다.`
+    },
+    buildSpecialGroupBlock(
+      '2027 수시·정시 전형 요약',
+      ['전형명', '인원', '면접일', '전형방법', '수능최저', '정시'],
+      data.summaryRows
+    )
+  ];
+  if (data.competitionRows?.length) {
+    blocks.push(
+      buildSpecialGroupBlock('수시 3개년 경쟁률', ['전형', '2026학년도', '2025학년도', '2024학년도'], data.competitionRows)
+    );
+  }
+  if (data.changeRows?.length) {
+    blocks.push(buildSpecialGroupBlock('전년도와의 차이점', ['구분', '변경 사항'], data.changeRows));
+  }
+  if (data.evaluationRows?.length) {
+    blocks.push(buildSpecialGroupBlock('서류·면접 평가 방법', ['구분', '내용'], data.evaluationRows));
+  }
+
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildPoliceSpecialHtml 미러.
+function buildPoliceSpecialDoc() {
+  const blocks = [
+    { kind: 'note', text: '경찰대학 입학자료를 일정, 선발 구조, 평가 요소, 최근 경쟁률로 나누어 정리한 내용입니다.' },
+    buildSpecialGroupBlock('전형 일정', ['구분', '내용'], POLICE_SPECIAL_DATA.scheduleRows),
+    buildSpecialGroupBlock('선발 구조', ['구분', '내용'], POLICE_SPECIAL_DATA.summaryRows),
+    buildSpecialGroupBlock('1차 시험', ['과목', '출제범위', '문항수/시간', '배점'], POLICE_SPECIAL_DATA.firstTestRows),
+    buildSpecialGroupBlock('학생부·수능 반영', ['구분', '내용'], POLICE_SPECIAL_DATA.studentRows),
+    buildSpecialGroupBlock('최근 3개년 경쟁률', ['학년도', '모집인원', '경쟁률'], POLICE_SPECIAL_DATA.competitionRows),
+    buildSpecialGroupBlock(
+      '최근 3개년 1차 시험 최초 합격자 평균',
+      ['학년도', '국어', '영어', '수학', '평균'],
+      POLICE_SPECIAL_DATA.firstPassRows
+    )
+  ];
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildAcademySpecialHtml 미러.
+function buildAcademySpecialDoc() {
+  const blocks = [
+    {
+      kind: 'note',
+      text: '사관학교와 국군간호사관학교 입학자료를 일정, 모집인원, 1차 시험, 가산점으로 나누어 정리한 내용입니다.'
+    },
+    buildSpecialGroupBlock(
+      '전형 일정 비교',
+      ['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'],
+      ACADEMY_SPECIAL_DATA.scheduleRows
+    ),
+    buildSpecialGroupBlock(
+      '모집인원 및 선발 구조',
+      ['구분', '육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'],
+      ACADEMY_SPECIAL_DATA.quotaRows
+    ),
+    buildSpecialGroupBlock('1차 시험 및 가산점', ['구분', '내용'], ACADEMY_SPECIAL_DATA.firstTestRows),
+    buildSpecialGroupBlock('국방미래인재전형 참고', ['구분', '내용'], ACADEMY_SPECIAL_DATA.futureRows)
+  ];
+  return makeDoc('selection_method', blocks, { source: 'bundled-special', wrapModifier: 'special' });
+}
+
+// buildSpecialCategoryHtml 미러.
+export function buildSpecialCategoryDoc(rawValue, row, universityName) {
+  const name = clean(universityName || row?.university_name || row?.university_key);
+  if (name === '경찰대학') return buildPoliceSpecialDoc();
+  if (['육군사관학교', '해군사관학교', '공군사관학교', '국군간호사관학교'].includes(name))
+    return buildAcademySpecialDoc();
+  if (SCIENCE_SPECIAL_DATA[name] || SCIENCE_SPECIAL_DATA[removeCampus(name)]) return buildScienceSpecialDoc(name);
+  return makeDoc('selection_method', buildPlainListDocBlocks(splitAdmissionLines(rawValue), 'selection_method'));
+}
+
+// buildSmartRawHtml 미러.
+export function buildSmartRawDoc(value, sectionKey, row = null, universityName = '') {
+  if (row?.detail_status === 'category' && sectionKey === 'selection_method') {
+    return buildSpecialCategoryDoc(value, row, universityName);
+  }
+
+  const lines = splitAdmissionLines(value).filter((line) => clean(line) !== '표 값');
+  if (!lines.length) return makeDoc(sectionKey, []);
+
+  const warnings = [];
+  let blocks;
+  if (sectionKey === 'previous_year_changes') blocks = buildChangeDocBlocks(lines);
+  else if (sectionKey === 'selection_method') blocks = buildSelectionDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'exam_schedule') blocks = buildExamDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'minimum_requirements') blocks = buildMinimumDocBlocks(lines, sectionKey, warnings);
+  else if (sectionKey === 'school_record_method') blocks = buildRecordDocBlocks(lines);
+  else if (sectionKey === 'recruitment_quota') blocks = buildRecruitDocBlocks(lines, sectionKey, warnings);
+  else blocks = buildPlainListDocBlocks(lines, sectionKey);
+
+  return makeDoc(sectionKey, blocks, { warnings });
+}
+
+// buildRawSectionHtml의 3분기를 정확히 미러링한다: looksLikeHtml →
+// RawHtmlBlock{input-was-html} / recruitment_quota → PreTextBlock /
+// 그 외 → buildSmartRawDoc.
+export function buildRawSectionDoc(value, sectionKey, row = null, universityName = '') {
+  if (looksLikeHtml(value)) {
+    return makeDoc(sectionKey, [{ kind: 'rawHtml', html: String(value || ''), reason: 'input-was-html' }], {
+      source: 'html-import'
+    });
+  }
+  if (sectionKey === 'recruitment_quota') {
+    const text = splitAdmissionLines(value)
+      .map((line) => sanitizeAdmissionDisplayText(line))
+      .filter(Boolean)
+      .join('\n');
+    return makeDoc(sectionKey, text ? [{ kind: 'preText', text }] : []);
+  }
+  return buildSmartRawDoc(value, sectionKey, row, universityName);
+}
+
+// buildHwpCategoryHtml 미러. recruitment_quota에서 표 파서를 강제한다
+// (buildRecruitmentResultHtml과 동일) — 어드민이 html과 json을 서로 다른
+// 빌더로 만들면 병행 저장 계약이 이 카테고리에서만 깨진다.
+export function buildHwpCategoryDoc(sectionKey, rawText, row = null, universityName = '') {
+  const value = clean(rawText);
+  if (!value) return makeDoc(sectionKey, []);
+  if (sectionKey === 'recruitment_quota') {
+    return buildSmartRawDoc(value, 'recruitment_quota', row, universityName);
+  }
+  return buildRawSectionDoc(value, sectionKey, row, universityName);
+}
+
+// =====================================================================
+// 문서 → HTML 미러 렌더러(골든 게이트 + *_html 미러 컬럼 생성 전용,
+// React 비의존 — 노드 스크립트에서도 동작해야 한다).
+//
+// 목표는 renderDocToHtml(buildRawSectionDoc(raw, key, row, name))가 골든과
+// 바이트 단위로 일치하는 것뿐이다. 가능한 곳은 기존 렌더 함수
+// (buildSelectionMethodTable/buildChangeTableHtml/buildRecruitCell/
+// htmlTable/specialBlock)를 그대로 재사용해 같은 템플릿을 두 번 베끼는
+// 실수를 원천 차단한다 — 손으로 다시 쓴 부분(plainList/emptyBox/preText/
+// recruit 외곽 틀/special 외곽 틀)만 골든 대조로 바이트를 검증했다.
+// =====================================================================
+
+function renderPlainListBlockHtml(block) {
+  const body = [];
+  let bulletGroup = [];
+  const flushBulletGroup = () => {
+    if (!bulletGroup.length) return;
+    body.push(
+      `<ul class="admission-bullet-list">${bulletGroup.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`
+    );
+    bulletGroup = [];
+  };
+  block.items.forEach((item) => {
+    if (item.type === 'bullet') {
+      bulletGroup.push(item.text);
+      return;
+    }
+    flushBulletGroup();
+    if (item.type === 'subtitle') {
+      body.push(`<div class="admission-subtitle-line">${escapeHtml(item.text)}</div>`);
+    } else {
+      body.push(`<div class="admission-text-line">${escapeHtml(item.text)}</div>`);
+    }
+  });
+  flushBulletGroup();
+
+  return `
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note"></div>
+      <div class="admission-readable-body">${body.join('')}</div>
+    </div>
+  `;
+}
+
+function renderEmptyBoxBlockHtml(block) {
+  return `
+      <div class="admission-raw-section-wrap">
+        <div class="admission-result-note"></div>
+        <div class="admission-empty-box">${escapeHtml(block.message)}</div>
+      </div>
+    `;
+}
+
+function renderPreTextBlockHtml(block) {
+  return `
+    <div class="admission-raw-section-wrap">
+      <pre class="admission-raw-pre admission-safe-text-block">${escapeHtml(block.text)}</pre>
+    </div>
+  `;
+}
+
+function renderChangeBlockHtml(block) {
+  const rows = block.rows.map((row) => ({
+    no: row[0],
+    title: row[1],
+    html: buildChangeValueHtml(row[2])
+  }));
+  return buildChangeTableHtml(rows);
+}
+
+// buildSelectionMethodTable을 그대로 재사용하지 않는다 — 그 함수는 내부에서
+// normalizeSelectionMinimum(row.minimum)을 다시 호출하는데, 이 함수는
+// "◯(미술대학, 체육대학 제외)" 같은 마킹 값에 한해 멱등이 아니다(1차: 마킹
+// 매치 → 쉼표 보존, 2차: 마킹 없음 → 쉼표를 슬래시로 치환). doc은 이미
+// 정규화된 최종 텍스트를 저장하므로, 여기서는 재정규화 없이 그대로 쓴다.
+function renderSelectionTable(rows) {
+  return `
+    <div class="admission-scroll-table">
+      <table class="admission-data-table admission-selection-table">
+        <thead>
+          <tr>
+            <th>전형</th>
+            <th>전형명</th>
+            <th>인원</th>
+            <th>최저</th>
+            <th>전형방법</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map((row) => {
+              const minimumCell = row[3];
+              const minimum = minimumCell.text;
+              const minimumCls = minimumCell.badge === 'minimumNone' ? ' none' : ' has';
+              return `
+              <tr>
+                <td class="selection-type-cell">${escapeHtml(row[0] || '-')}</td>
+                <td class="left selection-name-cell">${escapeHtml(row[1] || '-')}</td>
+                <td class="selection-seat-cell">${escapeHtml(row[2] || '-')}</td>
+                <td class="selection-minimum-cell"><span class="admission-minimum-badge${minimumCls}">${escapeHtml(minimum)}</span></td>
+                <td class="left selection-method-cell">${escapeHtml(row[4] || '-')}</td>
+              </tr>
+            `;
+            })
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSelectionBlockHtml(block) {
+  return `
+    <div class="admission-raw-section-wrap">
+      ${renderSelectionTable(block.rows)}
+    </div>
+  `;
+}
+
+function renderExamBlockHtml(block) {
+  return `
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note"></div>
+      ${htmlTable(
+        block.columns.map((c) => c.label),
+        block.rows,
+        { className: 'admission-data-table admission-exam-table' }
+      )}
+    </div>
+  `;
+}
+
+function renderMinimumBlockHtml(block) {
+  return sanitizeAdmissionRenderedHtml(`
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note"></div>
+      ${htmlTable(
+        block.columns.map((c) => c.label),
+        block.rows,
+        { className: 'admission-data-table admission-minimum-table' }
+      )}
+    </div>
+  `);
+}
+
+function renderRecordBlocksHtml(blocks) {
+  const recordInfoBlock = blocks.find((b) => b.kind === 'table' && b.variant === 'recordInfo');
+  const infoTable = recordInfoBlock
+    ? htmlTable(
+        recordInfoBlock.columns.map((c) => c.label),
+        recordInfoBlock.rows,
+        { compact: true, className: 'admission-data-table admission-record-info-table' }
+      )
+    : '';
+
+  const scoreTables = [];
+  blocks.forEach((block, idx) => {
+    if (block.kind !== 'heading') return;
+    const tableBlock = blocks[idx + 1];
+    if (!tableBlock || tableBlock.kind !== 'table' || tableBlock.variant !== 'score') return;
+    scoreTables.push(`
+        <div class="admission-subhead">${escapeHtml(block.text)}</div>
+        ${htmlTable(
+          tableBlock.columns.map((c) => c.label),
+          tableBlock.rows,
+          { compact: true, className: 'admission-data-table admission-score-table' }
+        )}
+      `);
+  });
+
+  return `
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note"></div>
+      ${infoTable}
+      ${scoreTables.join('')}
+    </div>
+  `;
+}
+
+// total 함수 — table(variant==='recruit')이 없으면 예외 대신 빈 문자열을
+// 반환한다(호출부인 renderInnerHtmlForDoc이 이미 존재를 확인하고 부르지만,
+// 이 함수가 다른 경로에서 직접 불려도 안전하도록 방어한다).
+function renderRecruitBlocksHtml(blocks) {
+  const table = blocks.find((b) => b.kind === 'table' && b.variant === 'recruit');
+  if (!table) return '';
+  const footnoteBlock = blocks.find((b) => b.kind === 'footnote');
+  const groupLabels = table.columns.slice(2).map((c) => c.label);
+  const headerCells = table.columns.map((c) => c.label);
+
+  const rowHtml = table.rows
+    .map(
+      (row) => `
+    <tr>
+      <td class="left group-cell">${escapeHtml(row[0] || '-')}</td>
+      <td class="left unit-cell">${escapeHtml(row[1] || '-')}</td>
+      ${groupLabels
+        .map((_, idx) => {
+          const cell = row[2 + idx];
+          const values = cell && cell.chips ? cell.chips.map((chip) => chip.value) : [];
+          return `<td class="recruit-values-cell">${buildRecruitCell(values)}</td>`;
+        })
+        .join('')}
+    </tr>
+  `
+    )
+    .join('');
+
+  const footnotes = footnoteBlock ? footnoteBlock.items : [];
+
+  return sanitizeAdmissionRenderedHtml(`
+    <div class="admission-raw-section-wrap">
+      <div class="admission-result-note"></div>
+      <div class="admission-recruit-legend"></div>
+      <div class="admission-scroll-table">
+        <table class="admission-data-table admission-recruit-table">
+          <thead><tr>${headerCells.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+          <tbody>${rowHtml}</tbody>
+        </table>
+      </div>
+      ${footnotes.filter(Boolean).length ? `<div class="admission-footnote">${escapeHtml(footnotes.filter(Boolean).join(' '))}</div>` : ''}
+    </div>
+  `);
+}
+
+// recruitExact variant 렌더러 — Phase 5 legacy 임포터(recruitment_quota
+// 저장 HTML 207건 중 200건이 admission-normalized-recruit-table, 2단
+// 헤더) 검증 전용이다. 현행 파서(buildRecruitmentHtml)는 이 variant를
+// 절대 생성하지 않는다(recruitExact 스키마는 정의만 되어 있었다 — 설계
+// §4.2). RecruitExactTable.jsx(React)의 fixedColumns/groups 처리를
+// 그대로 미러링한다. 실측: 저장 HTML에 admission-result-note/legend div가
+// 없어 여기도 넣지 않는다(다른 recruit variant와 다른 점).
+function renderRecruitExactBlockHtml(table) {
+  const fixedCount = table.fixedColumnCount || 0;
+  const fixedColumns = table.columns.slice(0, fixedCount);
+  const groups = table.groups || [];
+  const dataColumns = table.columns.slice(fixedCount);
+
+  const fixedHeaderHtml = fixedColumns
+    .map((c) => `<th rowspan="2" class="fixed-head">${escapeHtml(c.label)}</th>`)
+    .join('');
+  const groupHeaderHtml = groups
+    .map((g) => `<th colspan="${g.count}" class="recruit-group-head">${escapeHtml(g.name)}</th>`)
+    .join('');
+  const metricHeaderHtml = dataColumns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
+
+  const bodyHtml = table.rows
+    .map(
+      (row) => `
+    <tr>
+      ${row
+        .slice(0, fixedCount)
+        .map(
+          (cell, idx) =>
+            `<td class="left ${idx === 0 ? 'series-cell' : ''}">${cell ? escapeHtml(cell) : '<span class="muted">-</span>'}</td>`
+        )
+        .join('')}
+      ${row
+        .slice(fixedCount)
+        .map((cell) => `<td>${cell ? escapeHtml(cell) : '<span class="muted">-</span>'}</td>`)
+        .join('')}
+    </tr>
+  `
+    )
+    .join('');
+
+  return `
+    <div class="admission-scroll-table">
+      <table class="admission-data-table admission-normalized-recruit-table">
+        <thead>
+          <tr>${fixedHeaderHtml}${groupHeaderHtml}</tr>
+          <tr>${metricHeaderHtml}</tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// 특수대학(경찰대학/사관학교4종/과기원6종) 3개 소스 함수 미러.
+//
+// 2026-08-08 이전: 첫 GroupBlock의 title로 소스를 판별해 그 소스가 쓰는
+// group 제목들을 하드코딩 순서로 하나씩 조회(renderGroup(title))해
+// 그렸다. 그 결과 blocks 배열에 없는 title은 항상 빈 문자열이었고 —
+// 거꾸로 하드코딩 목록에 없는 title(관리자가 편집기로 새로 추가한 최상위
+// 블록)은 blocks 배열에 실제로 들어 있어도 절대 렌더되지 않았다(추가가
+// "조용히 무시"됨, team-lead 실측: 4053B → 4053B 무변화).
+//
+// 지금은 blocks 배열을 순서대로 순회한다. kind별 렌더 방식은 이전과
+// 동일(note는 무조건 div, group은 specialBlock+중첩 표)하되 title로
+// 조회하지 않고 배열에 실제로 있는 블록만, 있는 순서대로 그린다. 3개
+// 소스 빌더(buildPoliceSpecialDoc/buildAcademySpecialDoc/
+// buildScienceSpecialDoc)가 만드는 blocks는 항상 [note, group, group...]
+// 순서라 기존 데이터의 출력은 바이트 단위로 그대로다(Gate A/A2 재검증
+// 완료). group도 아니고 note도 아닌 블록(관리자가 새로 추가한 top-level
+// table/plainList/heading 등, docBlockOperations.js의
+// PRIMARY_ADDABLE_KINDS_BY_SECTION.selection_method 참고)은
+// renderFallbackBlockBodyHtml(그 종류를 "이 블록만 있다면" 수준으로
+// 렌더하는 범용 함수, :3115)로 그려 최소한 무시되지 않고 나타나게 한다.
+function renderSpecialBlocksHtml(blocks) {
+  const bodyHtml = blocks
+    .map((block) => {
+      if (block.kind === 'note') {
+        return `<div class="admission-result-note">${escapeHtml(block.text || '')}</div>`;
+      }
+      if (block.kind === 'group') {
+        const tableHtml = (block.children || [])
+          .map((child) =>
+            child.kind === 'table'
+              ? htmlTable(
+                  child.columns.map((c) => c.label),
+                  child.rows,
+                  { className: 'admission-data-table admission-special-table' }
+                )
+              : renderFallbackBlockBodyHtml(child)
+          )
+          .join('');
+        return specialBlock(block.title, tableHtml);
+      }
+      return renderFallbackBlockBodyHtml(block);
+    })
+    .join('\n      ');
+
+  return `
+    <div class="admission-raw-section-wrap admission-special-wrap">
+      ${bodyHtml}
+    </div>
+  `;
+}
+
+// -----------------------------------------------------------------------
+// renderDocToHtml을 total 함수로 만들기 위한 범용 폴백(2026-08-06,
+// safehtml이 어드민 배선 중 실제로 재현한 크래시 대응 — 계약: 유효한
+// AdmissionDoc이면 어떤 블록 조합이 와도 renderDocToHtml은 절대 던지지
+// 않는다).
+//
+// 배경: validateAdmissionDoc은 "이 섹션엔 반드시 table이 있어야 한다"를
+// 강제하지 않는다. 그런데 섹션별 렌더러(renderRecruitBlocksHtml 등)는
+// 그 table의 존재를 전제로 무가드 접근했다 — recruitment_quota doc에
+// note 블록만 있으면 validate는 통과하는데 렌더는 예외를 던졌다. 지금까지
+// 실데이터(HWP 파싱/legacy 임포트)는 항상 "표가 있는" 정상 doc만 만들어서
+// 이 경로를 한 번도 안 탔지만, 어드민 표 편집기(DocBlocksEditor.jsx)가
+// 임의 블록 조합(표 없이 note만 등)을 만들 수 있게 되면서 처음 실측됐다.
+//
+// 각 섹션 분기도 함께 고쳤다: 예전엔 kind==='table'만 보고 찾았는데,
+// 그러면 다른 섹션용 table(예: 편집기가 새로 추가한 "generic 2컬럼"
+// table)이 우연히 껴 있어도 그걸 붙잡아 그 섹션 전용 렌더러(예:
+// renderSelectionTable의 row[3].text 접근)에 넘겨 크래시할 수 있었다.
+// variant까지 맞는 table만 찾도록 좁혔다 — 못 찾으면 이 폴백으로 온다.
+// -----------------------------------------------------------------------
+
+// 블록 하나를 "이 블록만 있다면 이렇게 보여준다" 수준으로 렌더한다(각
+// View 컴포넌트가 쓰는 클래스와 동일 — NoteView/FootnoteView/HeadingView
+// 재현). 모르는 kind나 필수 값이 빈 블록은 빈 문자열(스킵)만 반환하고
+// 절대 던지지 않는다.
+function renderFallbackBlockBodyHtml(block) {
+  switch (block.kind) {
+    case 'note':
+      return block.text ? `<div class="admission-result-note">${escapeHtml(block.text)}</div>` : '';
+    case 'footnote': {
+      const text = (block.items || []).filter(Boolean).join(' ');
+      return text ? `<div class="admission-footnote">${escapeHtml(text)}</div>` : '';
+    }
+    case 'heading':
+      return block.text ? `<div class="admission-subhead">${escapeHtml(block.text)}</div>` : '';
+    case 'emptyBox':
+      return block.message ? `<div class="admission-empty-box">${escapeHtml(block.message)}</div>` : '';
+    case 'preText':
+      return block.text ? `<pre class="admission-raw-pre admission-safe-text-block">${escapeHtml(block.text)}</pre>` : '';
+    case 'plainList': {
+      const body = [];
+      let bulletGroup = [];
+      const flush = () => {
+        if (!bulletGroup.length) return;
+        body.push(
+          `<ul class="admission-bullet-list">${bulletGroup.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`
+        );
+        bulletGroup = [];
+      };
+      (block.items || []).forEach((item) => {
+        if (item.type === 'bullet') {
+          bulletGroup.push(item.text);
+          return;
+        }
+        flush();
+        const cls = item.type === 'subtitle' ? 'admission-subtitle-line' : 'admission-text-line';
+        body.push(`<div class="${cls}">${escapeHtml(item.text)}</div>`);
+      });
+      flush();
+      return body.length ? `<div class="admission-readable-body">${body.join('')}</div>` : '';
+    }
+    case 'table':
+      if (!Array.isArray(block.columns) || !Array.isArray(block.rows) || !block.columns.length) return '';
+      return htmlTable(block.columns.map((c) => c.label), block.rows, { className: 'admission-data-table' });
+    case 'rawHtml':
+      return block.html ? sanitizeAdmissionRenderedHtml(block.html) : '';
+    // group은 편집기(DocBlocksEditor.jsx)의 추가 가능 목록에 없어(특수대학
+    // 전용, wrapModifier==='special' 경로로만 생성) 여기서 만날 일이
+    // 없어야 정상이다. 그래도 나타나면 던지지 말고 조용히 스킵한다.
+    default:
+      return '';
+  }
+}
+
+// 섹션이 기대하는 핵심 블록(대개 table)을 못 찾았을 때 쓰는 범용 폴백.
+// 있는 블록만 최대한 렌더하고, 무엇을 못 찾아서 폴백으로 왔는지 HTML
+// 주석으로 남긴다(sanitizeAdmissionRenderedHtml은 정규식 치환이라 주석을
+// 지우지 않는다 — 진단용, 실데이터 경로는 안 타므로 골든 무영향).
+function renderFallbackBlocksHtml(blocks, sectionKey, reason) {
+  const bodies = blocks.map(renderFallbackBlockBodyHtml).filter(Boolean);
+  return sanitizeAdmissionRenderedHtml(`
+    <div class="admission-raw-section-wrap">
+      <!-- renderDocToHtml fallback: section=${sectionKey}, reason=${reason} -->
+      ${bodies.join('')}
+    </div>
+  `);
+}
+
+// buildSmartRawHtml 미러(렌더 쪽) — sectionKey별로 buildXxxHtml이 만들던
+// "안쪽" HTML(자체 admission-raw-section-wrap 포함, heading/최종 sanitize
+// 제외)을 doc.blocks에서 재현한다.
+function renderInnerHtmlForDoc(doc, sectionKey) {
+  const { blocks, wrapModifier } = doc;
+  if (!blocks.length) return '';
+
+  if (wrapModifier === 'special') return renderSpecialBlocksHtml(blocks);
+  if (blocks.length === 1 && blocks[0].kind === 'emptyBox') return renderEmptyBoxBlockHtml(blocks[0]);
+  if (blocks.length === 1 && blocks[0].kind === 'plainList') return renderPlainListBlockHtml(blocks[0]);
+  if (blocks.length === 1 && blocks[0].kind === 'preText') return renderPreTextBlockHtml(blocks[0]);
+
+  if (sectionKey === 'previous_year_changes') {
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'change');
+    if (table) return renderChangeBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'change 표 블록 없음');
+  }
+  if (sectionKey === 'selection_method') {
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'selection');
+    if (table) return renderSelectionBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'selection 표 블록 없음');
+  }
+  if (sectionKey === 'exam_schedule') {
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'exam');
+    if (table) return renderExamBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'exam 표 블록 없음');
+  }
+  if (sectionKey === 'minimum_requirements') {
+    const table = blocks.find((b) => b.kind === 'table' && b.variant === 'minimum');
+    if (table) return renderMinimumBlockHtml(table);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'minimum 표 블록 없음');
+  }
+  if (sectionKey === 'school_record_method') {
+    const hasRecognizedShape = blocks.some(
+      (b, idx) =>
+        (b.kind === 'table' && b.variant === 'recordInfo') ||
+        (b.kind === 'heading' && blocks[idx + 1]?.kind === 'table' && blocks[idx + 1]?.variant === 'score')
+    );
+    if (hasRecognizedShape) return renderRecordBlocksHtml(blocks);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'recordInfo/score 표 블록 없음');
+  }
+  if (sectionKey === 'recruitment_quota') {
+    const table = blocks.find((b) => b.kind === 'table' && (b.variant === 'recruit' || b.variant === 'recruitExact'));
+    if (table && table.variant === 'recruitExact') {
+      return `<div class="admission-raw-section-wrap">${renderRecruitExactBlockHtml(table)}</div>`;
+    }
+    if (table) return renderRecruitBlocksHtml(blocks);
+    return renderFallbackBlocksHtml(blocks, sectionKey, 'recruit/recruitExact 표 블록 없음');
+  }
+
+  return renderFallbackBlocksHtml(blocks, sectionKey, '알 수 없는 sectionKey');
+}
+
+/**
+ * 문서 → HTML 미러 렌더러. buildRawSectionHtml/buildHwpCategoryHtml과
+ * 바이트 단위로 동일한 출력을 목표로 한다(Gate A2). React 비의존.
+ * @param {import('./admissionDoc.js').AdmissionDoc} doc
+ * @param {import('./admissionDoc.js').SectionKey} sectionKey
+ * @returns {string}
+ */
+export function renderDocToHtml(doc, sectionKey) {
+  if (!doc || !Array.isArray(doc.blocks)) return '';
+
+  // buildRawSectionHtml의 looksLikeHtml 분기는 heading wrap도 거치지 않고
+  // 값 자체를 그대로 sanitizeAdmissionRenderedHtml만 적용해 반환한다 —
+  // 이 분기만 예외적으로 상단에서 처리한다.
+  if (doc.blocks.length === 1 && doc.blocks[0].kind === 'rawHtml' && doc.blocks[0].reason === 'input-was-html') {
+    return sanitizeAdmissionRenderedHtml(doc.blocks[0].html);
+  }
+
+  const inner = renderInnerHtmlForDoc(doc, sectionKey);
+  return sanitizeAdmissionRenderedHtml(withHwpSectionHeading(inner, sectionKey));
+}
+
+// =====================================================================
+// Phase 5 — legacy HTML(curated-html RawHtmlBlock) → 구조화 doc 임포터.
+//
+// 현행 parseHtmlTableRows(:346)는 colspan/rowspan을 그리드로 펼쳐서
+// 병합 "사실"을 폐기한다(recruitExact 2단 헤더처럼 병합 자체가 의미인
+// 경우 복원 불가). parseHtmlTableGrid는 헤더의 colSpan/rowSpan을
+// 보존하고, 바디는 실측(DB 717셀 전수 확인 — 바디 병합 0건, 헤더만
+// 976건)에 근거해 직사각형으로 가정하되 방어적으로 병합을 감지해
+// hasBodyMerge 플래그로 알린다(감지 시 호출부가 구조화를 포기하고
+// rawHtml을 유지해야 한다는 신호).
+// =====================================================================
+
+function extractSpanAttrs(openTag) {
+  const colSpan = Math.max(1, parseInt((openTag.match(/colspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1);
+  const rowSpan = Math.max(1, parseInt((openTag.match(/rowspan\s*=\s*["']?(\d+)/i) || [])[1] || '1', 10) || 1);
+  return { colSpan, rowSpan };
+}
+
+function extractClassAttr(openTag) {
+  const m = openTag.match(/class\s*=\s*["']([^"']*)["']/i);
+  return m ? m[1] : '';
+}
+
+function extractCellInnerHtml(cellHtml) {
+  return cellHtml.replace(/^<t[hd][^>]*>/i, '').replace(/<\/t[hd]>\s*$/i, '');
+}
+
+// <thead> 안의 <th> 셀을 행별로 {text, className, innerHtml, colSpan, rowSpan}
+// 배열로 추출한다. 그리드로 펼치지 않는다 — groups/fixedColumnCount 도출에
+// span 원본값이 그대로 필요하기 때문이다.
+function extractHeaderRows(theadHtml) {
+  const rowMatches = String(theadHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  return rowMatches.map((rowHtml) => {
+    const cellMatches = rowHtml.match(/<th[\s\S]*?<\/th>/gi) || [];
+    return cellMatches.map((cellHtml) => {
+      const openTag = (cellHtml.match(/^<th[^>]*>/i) || [''])[0];
+      const { colSpan, rowSpan } = extractSpanAttrs(openTag);
+      return {
+        text: clean(stripHtmlToText(cellHtml)),
+        className: extractClassAttr(openTag),
+        innerHtml: extractCellInnerHtml(cellHtml),
+        colSpan,
+        rowSpan
+      };
+    });
+  });
+}
+
+// 헤더가 정확히 2행이면 recruitExact류 2단 헤더로 간주한다. 1행 rowSpan=2
+// 셀은 fixedColumnCount(양쪽 헤더에 걸친 고정 컬럼), colSpan>1 셀은
+// groups(그 아래 하위 헤더 colSpan개를 묶는 그룹)로 환원한다.
+// ⚠ 현재 실제 2단 헤더 HTML 샘플로 검증되지 않았다(이번 커밋 대상인
+// previous_year_changes/selection_method는 둘 다 1행 헤더) — recruitment_
+// quota 임포트 착수 시 재검증 필요.
+function deriveHeaderGroups(headerRows) {
+  if (headerRows.length !== 2) return { groups: undefined, fixedColumnCount: undefined };
+  const firstRow = headerRows[0];
+  const groups = [];
+  let fixedColumnCount = 0;
+  firstRow.forEach((cell) => {
+    if (cell.rowSpan >= 2) {
+      fixedColumnCount += 1;
+    } else {
+      groups.push({ name: cell.text, count: cell.colSpan });
+    }
+  });
+  return { groups, fixedColumnCount };
+}
+
+// <tbody> 안의 <tr>/<td>를 행별로 {text, className, innerHtml} 배열로
+// 추출한다(직사각형 가정 — 펼치지 않는다). colspan/rowspan>1인 셀을
+// 하나라도 발견하면 hasMerge=true로 표시한다(방어적 감지 — 실측상 0건).
+function extractBodyRows(tbodyHtml) {
+  const rowMatches = String(tbodyHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  let hasMerge = false;
+  const rows = rowMatches
+    .map((rowHtml) => {
+      const cellMatches = rowHtml.match(/<td[\s\S]*?<\/td>/gi) || [];
+      return cellMatches.map((cellHtml) => {
+        const openTag = (cellHtml.match(/^<td[^>]*>/i) || [''])[0];
+        const { colSpan, rowSpan } = extractSpanAttrs(openTag);
+        if (colSpan > 1 || rowSpan > 1) hasMerge = true;
+        return {
+          text: clean(stripHtmlToText(cellHtml)),
+          className: extractClassAttr(openTag),
+          innerHtml: extractCellInnerHtml(cellHtml)
+        };
+      });
+    })
+    .filter((row) => row.length > 0);
+  return { rows, hasMerge };
+}
+
+/**
+ * legacy 저장 HTML의 <table>을 구조화된 그리드로 파싱한다(값 하나 =
+ * 셀 하나, 병합은 폐기하지 않고 헤더는 span 그대로, 바디는 병합 감지만).
+ * @param {string} html
+ * @returns {{headerRows: object[][], bodyRows: object[][], hasBodyMerge: boolean, groups?: {name:string,count:number}[], fixedColumnCount?: number}}
+ */
+export function parseHtmlTableGrid(html) {
+  const source = String(html || '');
+  const theadMatch = source.match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
+  const tbodyMatch = source.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+
+  const headerRows = theadMatch ? extractHeaderRows(theadMatch[1]) : [];
+  const { rows: bodyRows, hasMerge: hasBodyMerge } = tbodyMatch
+    ? extractBodyRows(tbodyMatch[1])
+    : { rows: [], hasMerge: false };
+  const { groups, fixedColumnCount } = deriveHeaderGroups(headerRows);
+
+  return { headerRows, bodyRows, hasBodyMerge, groups, fixedColumnCount };
+}
+
+// previous_year_changes legacy HTML → TableBlock{variant:'change'} doc.
+// 실패(컬럼 수 불일치·바디 병합 감지 등) 시 null — 호출부가 rawHtml
+// 폴백을 결정한다. buildChangeTableHtml(:941)의 클래스 계약을 그대로
+// 소비한다: change-no-cell/change-title-cell/change-content-cell(내부
+// div.admission-change-plain-cell 또는 빈 값이면 span.muted).
+export function importChangeDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 3) return null;
+    const [noCell, titleCell, contentCell] = row;
+    rows.push([noCell.text, titleCell.text, contentCell.text]);
+  }
+
+  return {
+    v: 1,
+    section: 'previous_year_changes',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'change',
+        columns: [
+          { role: 'no', label: '번호' },
+          { role: 'title', label: '변경 항목' },
+          { role: 'content', label: '변경 내용' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// selection_method legacy HTML → TableBlock{variant:'selection'} doc.
+// buildSelectionMethodTable(:1194)의 클래스 계약을 그대로 소비한다:
+// selection-type-cell/selection-name-cell/selection-seat-cell/
+// selection-minimum-cell(내부 span.admission-minimum-badge.has|none)/
+// selection-method-cell.
+export function importSelectionDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 5) return null;
+    const [typeCell, nameCell, seatsCell, minimumCell, methodCell] = row;
+    const badgeMatch = minimumCell.innerHtml.match(/admission-minimum-badge\s+(has|none)/i);
+    const badge = badgeMatch
+      ? badgeMatch[1].toLowerCase() === 'has'
+        ? 'minimumHas'
+        : 'minimumNone'
+      : minimumCell.text === '-'
+        ? 'minimumNone'
+        : 'minimumHas';
+    rows.push([
+      typeCell.text || '-',
+      nameCell.text || '-',
+      seatsCell.text || '-',
+      { text: minimumCell.text, badge },
+      methodCell.text || '-'
+    ]);
+  }
+
+  return {
+    v: 1,
+    section: 'selection_method',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'selection',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'name', label: '전형명' },
+          { role: 'seats', label: '인원' },
+          { role: 'minimum', label: '최저' },
+          { role: 'method', label: '전형방법' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// htmlTable(:294)/buildRecruitCell(:2164) 계열은 빈 값을
+// <span class="muted">-</span>로 렌더한다. 그 셀의 stripHtmlToText 결과는
+// "-"(muted span의 텍스트 콘텐츠)라 리터럴 "-"와 구분이 안 된다 — doc에는
+// ''(빈 문자열)으로 저장해야 렌더러가 다시 muted span을 재현한다.
+function cellValueOrMuted(cell) {
+  return /class="muted"/.test(cell.innerHtml) ? '' : cell.text;
+}
+
+// exam_schedule legacy HTML → TableBlock{variant:'exam'} doc.
+export function importExamDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 3) return null;
+    rows.push(row.map((cell) => cellValueOrMuted(cell)));
+  }
+  return {
+    v: 1,
+    section: 'exam_schedule',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'exam',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'target', label: '대상' },
+          { role: 'schedule', label: '일정' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// minimum_requirements legacy HTML → TableBlock{variant:'minimum'} doc.
+export function importMinimumDocFromHtml(html) {
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== 5) return null;
+    rows.push(row.map((cell) => cellValueOrMuted(cell)));
+  }
+  return {
+    v: 1,
+    section: 'minimum_requirements',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'minimum',
+        columns: [
+          { role: 'type', label: '전형' },
+          { role: 'target', label: '대상' },
+          { role: 'areas', label: '반영 영역' },
+          { role: 'minimum', label: '최저' },
+          { role: 'note', label: '비고' }
+        ],
+        rows
+      }
+    ]
+  };
+}
+
+// admission-empty-box(수능 최저학력기준 없음 / 대학별고사일 없음) 단독
+// wrap → EmptyBoxBlock doc. table 임포터가 실패했을 때 시도한다.
+export function importEmptyBoxDocFromHtml(sectionKey, html) {
+  const source = String(html || '');
+  const m = source.match(/<div class="admission-empty-box">([\s\S]*?)<\/div>/i);
+  if (!m) return null;
+  const message = clean(stripHtmlToText(m[1]));
+  if (!message) return null;
+  return {
+    v: 1,
+    section: sectionKey,
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [{ kind: 'emptyBox', message }]
+  };
+}
+
+// admission-readable-body(admission-bullet-list/admission-subtitle-line/
+// admission-text-line) → PlainListBlock doc. table/emptyBox 임포터가
+// 모두 실패했을 때 마지막으로 시도한다.
+export function importPlainListDocFromHtml(sectionKey, html) {
+  const source = String(html || '');
+  const bodyMatch = source.match(/<div class="admission-readable-body">([\s\S]*?)<\/div>\s*<\/div>\s*$/i);
+  if (!bodyMatch) return null;
+  const bodyHtml = bodyMatch[1];
+
+  const items = [];
+  const nodeRe = /<ul class="admission-bullet-list">([\s\S]*?)<\/ul>|<div class="admission-subtitle-line">([\s\S]*?)<\/div>|<div class="admission-text-line">([\s\S]*?)<\/div>/gi;
+  let m;
+  while ((m = nodeRe.exec(bodyHtml)) !== null) {
+    if (m[1] !== undefined) {
+      const liRe = /<li>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      while ((liMatch = liRe.exec(m[1])) !== null) {
+        items.push({ type: 'bullet', text: clean(stripHtmlToText(liMatch[1])) });
+      }
+    } else if (m[2] !== undefined) {
+      items.push({ type: 'subtitle', text: clean(stripHtmlToText(m[2])) });
+    } else if (m[3] !== undefined) {
+      items.push({ type: 'text', text: clean(stripHtmlToText(m[3])) });
+    }
+  }
+  if (!items.length) return null;
+
+  return {
+    v: 1,
+    section: sectionKey,
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [{ kind: 'plainList', items }]
+  };
+}
+
+// school_record_method 전용 — <table>과 <div class="admission-subhead">를
+// 문서 등장 순서대로 추출한다(recordInfo 0~1개 + (heading,score) 쌍 0개
+// 이상이 형제로 나열된 구조 — 실측 확인, GroupBlock으로 묶여있지 않다).
+function extractOrderedTableFragments(html) {
+  const fragments = [];
+  const tableRe = /<table([^>]*)>([\s\S]*?)<\/table>/gi;
+  let m;
+  while ((m = tableRe.exec(html)) !== null) {
+    fragments.push({ type: 'table', index: m.index, className: extractClassAttr(m[1]), raw: m[0] });
+  }
+  const headingRe = /<div class="admission-subhead">([\s\S]*?)<\/div>/gi;
+  while ((m = headingRe.exec(html)) !== null) {
+    fragments.push({ type: 'heading', index: m.index, text: clean(stripHtmlToText(m[1])) });
+  }
+  fragments.sort((a, b) => a.index - b.index);
+  return fragments;
+}
+
+// school_record_method legacy HTML → [TableBlock{recordInfo}?, (HeadingBlock,
+// TableBlock{score})...] doc. buildRecordDocBlocks(생성기)와 동일한 blocks
+// 모양을 만들어 기존 renderRecordBlocksHtml을 그대로 재사용해 렌더한다.
+export function importRecordDocFromHtml(html) {
+  const fragments = extractOrderedTableFragments(html);
+  if (!fragments.length) return null;
+
+  const blocks = [];
+  let pendingHeading = null;
+
+  for (const frag of fragments) {
+    if (frag.type === 'heading') {
+      pendingHeading = frag.text;
+      continue;
+    }
+    const grid = parseHtmlTableGrid(frag.raw);
+    if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+
+    if (frag.className.includes('admission-record-info-table')) {
+      const rows = [];
+      for (const row of grid.bodyRows) {
+        if (row.length !== 2) return null;
+        rows.push(row.map((cell) => cellValueOrMuted(cell)));
+      }
+      blocks.push({
+        kind: 'table',
+        variant: 'recordInfo',
+        columns: [
+          { role: 'type', label: '구분' },
+          { role: 'content', label: '내용' }
+        ],
+        rows
+      });
+      pendingHeading = null;
+    } else if (frag.className.includes('admission-score-table')) {
+      if (!pendingHeading) return null; // 헤딩 없는 score 표 — 예상 못한 모양, 강행하지 않는다
+      const headerCells = grid.headerRows[0] || [];
+      if (!headerCells.length) return null;
+      const rows = [];
+      for (const row of grid.bodyRows) {
+        if (row.length !== headerCells.length) return null;
+        rows.push(row.map((cell) => cellValueOrMuted(cell)));
+      }
+      blocks.push({ kind: 'heading', text: pendingHeading });
+      blocks.push({
+        kind: 'table',
+        variant: 'score',
+        columns: headerCells.map((c, idx) => ({ role: idx === 0 ? 'type' : 'data', label: c.text })),
+        rows
+      });
+      pendingHeading = null;
+    } else {
+      return null; // 알 수 없는 표 — 강행하지 않는다
+    }
+  }
+
+  if (!blocks.length) return null;
+  return {
+    v: 1,
+    section: 'school_record_method',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
+  };
+}
+
+// recruitment_quota — admission-normalized-recruit-table(2단 헤더, 저장
+// HTML 207건 중 200건) → TableBlock{variant:'recruitExact'} doc. 이 커밋
+// 이전에는 groups/fixedColumnCount 경로가 실검증된 적이 없다.
+export function importRecruitExactDocFromHtml(html) {
+  if (!/admission-normalized-recruit-table/.test(String(html || ''))) return null;
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
+  if (grid.headerRows.length !== 2 || grid.groups === undefined || grid.fixedColumnCount === undefined) return null;
+
+  const fixedCount = grid.fixedColumnCount;
+  const totalColumns = fixedCount + grid.groups.reduce((sum, g) => sum + g.count, 0);
+  // validateAdmissionDoc 불변식(§2.4-4)을 임포트 시점에 먼저 확인한다 —
+  // 어긋나면 needsReview로 보내고 절대 강행하지 않는다.
+  if (grid.bodyRows.some((row) => row.length !== totalColumns)) return null;
+
+  const fixedHeaderCells = grid.headerRows[0].filter((c) => c.rowSpan >= 2);
+  const metricHeaderCells = grid.headerRows[1] || [];
+  if (fixedHeaderCells.length !== fixedCount || metricHeaderCells.length !== totalColumns - fixedCount) return null;
+
+  const columns = [
+    ...fixedHeaderCells.map((c, idx) => ({ role: idx === 0 ? 'series' : 'unit', label: c.text })),
+    ...metricHeaderCells.map((c) => ({ role: 'data', label: c.text }))
+  ];
+  const rows = grid.bodyRows.map((row) => row.map((cell) => cellValueOrMuted(cell)));
+
+  return {
+    v: 1,
+    section: 'recruitment_quota',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks: [
+      {
+        kind: 'table',
+        variant: 'recruitExact',
+        columns,
+        rows,
+        groups: grid.groups,
+        fixedColumnCount: fixedCount
+      }
+    ]
+  };
+}
+
+// recruitment_quota — admission-recruit-table(chips 기반, 저장 HTML
+// 207건 중 7건 — admission-normalized-recruit-table 도입 전 구버전).
+// buildRecruitCell(:2164)이 만드는 <div class="admission-recruit-cell-values">
+// <span><b>라벨</b>값</span>...</div> 구조를 역파싱한다.
+export function importRecruitLegacyDocFromHtml(html) {
+  const source = String(html || '');
+  if (!/admission-recruit-table\b/.test(source) || /admission-normalized-recruit-table/.test(source)) return null;
+  const grid = parseHtmlTableGrid(html);
+  if (grid.hasBodyMerge || !grid.bodyRows.length || !grid.headerRows.length) return null;
+
+  const headerCells = grid.headerRows[0];
+  if (headerCells.length < 3) return null;
+  const groupLabels = headerCells.slice(2).map((c) => c.text);
+
+  const chipRe = /<span><b>([^<]*)<\/b>([^<]*)<\/span>/g;
+  const rows = [];
+  for (const row of grid.bodyRows) {
+    if (row.length !== headerCells.length) return null;
+    const [groupCell, unitCell, ...valueCells] = row;
+    const seriesCells = valueCells.map((cell) => {
+      if (/class="muted"/.test(cell.innerHtml)) return { chips: [] };
+      const chips = [];
+      let m;
+      chipRe.lastIndex = 0;
+      while ((m = chipRe.exec(cell.innerHtml)) !== null) {
+        chips.push({ label: clean(decodeBasicHtmlEntities(m[1])), value: clean(decodeBasicHtmlEntities(m[2])) });
+      }
+      if (!chips.length) return null; // 예상 못한 셀 모양 — 강행하지 않는다
+      return { chips };
+    });
+    if (seriesCells.some((c) => c === null)) return null;
+    rows.push([groupCell.text || '-', unitCell.text || '-', ...seriesCells]);
+  }
+
+  const blocks = [
+    {
+      kind: 'table',
+      variant: 'recruit',
+      columns: [
+        { role: 'group', label: headerCells[0].text },
+        { role: 'unit', label: headerCells[1].text },
+        ...groupLabels.map((label) => ({ role: 'series', label }))
+      ],
+      rows
+    }
+  ];
+  // buildRecruitmentHtml(:2288)의 footnotes.filter(Boolean).join(' ')를
+  // 역으로 통짜 텍스트 1건으로 담는다 — 원래 몇 개 문자열이 join됐는지는
+  // 저장 HTML만으로 복원 불가하지만, FootnoteBlock 렌더는 join(' ')이라
+  // 1건짜리 items로도 바이트 동일하게 재현된다.
+  const footnoteMatch = String(html || '').match(/<div class="admission-footnote">([\s\S]*?)<\/div>/i);
+  if (footnoteMatch) {
+    const footnoteText = clean(stripHtmlToText(footnoteMatch[1]));
+    if (footnoteText) blocks.push({ kind: 'footnote', items: [footnoteText] });
+  }
+
+  return {
+    v: 1,
+    section: 'recruitment_quota',
+    source: 'legacy-html',
+    generator: LEGACY_IMPORT_GENERATOR_TAG,
+    generatedAt: new Date().toISOString(),
+    blocks
+  };
+}
+
+const LEGACY_IMPORT_GENERATOR_TAG = 'import-legacy-admission-html@phase5';
 
 export function normalizeName(value) {
   return clean(value)

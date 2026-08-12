@@ -4,6 +4,7 @@ import { PackageCheck, RotateCcw, Save, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatKRW } from '../data/pricingCatalog';
 import { COMPANY } from '../data/company';
+import { FAKE_ENTITLEMENT_ENABLED, getMockPaidOrders } from '../lib/entitlement';
 
 const REFUND_STATUS = {
   requested: { label: '접수', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -205,7 +206,18 @@ export default function MyPage() {
           .order('created_at', { ascending: false })
       ]);
       if (!alive) return;
-      setOrders(ord || []);
+
+      // 로컬 QA 전용: 이용권을 보유한 것으로 가정하는 가짜 결제 내역을 실제 조회 결과
+      // 앞에 합친다. "이용 중인 서비스" 목록에는 보이지만(아래 orders 사용), 환불 신청
+      // 선택 목록에서는 반드시 제외한다(refundableOrders, 아래 참고) — 가짜 주문에
+      // 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
+      if (FAKE_ENTITLEMENT_ENABLED) {
+        console.info('[entitlement] 로컬 가짜 이용권 주문을 마이페이지에 표시합니다.');
+        setOrders([...getMockPaidOrders(), ...(ord || [])]);
+      } else {
+        setOrders(ord || []);
+      }
+
       setRefunds(reqs || []);
     })();
 
@@ -231,12 +243,16 @@ export default function MyPage() {
 
   // 환불 신청 대상은 실제 입금이 확인된 주문(paid)뿐이다. 가상계좌 미입금
   // (waiting_deposit) 건은 아직 들어온 돈이 없어 환불할 대상이 아니므로 목록에서 뺀다.
-  const refundableOrders = orders.filter((o) => o.status === 'paid');
+  // 로컬 QA 전용 가짜 이용권 주문(is_fake_entitlement)도 함께 제외한다 — "이용 중인
+  // 서비스" 표시에는 orders를 그대로 쓰고, 환불 선택/가드에는 이 목록을 쓴다.
+  const refundableOrders = orders.filter((o) => o.status === 'paid' && !o.is_fake_entitlement);
 
   async function submitRefund(e) {
     e.preventDefault();
     if (!user) return;
 
+    // refundableOrders만 사용 — 만약 가짜 이용권 주문의 id가 폼에 들어와도(정상 UI로는
+    // 불가능하지만 방어적으로) 실제 orders에서 찾지 않아 DB에 잘못된 order_id가 저장되지 않는다.
     const order = refundableOrders.find((o) => o.id === refundForm.orderId);
     if (!order) {
       setRefundMsg('환불할 결제 내역을 선택해 주세요.');
@@ -499,18 +515,25 @@ export default function MyPage() {
                     {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)} 결제` : ''}
                   </p>
                 </div>
-                {/* 배지는 orders.status 파생값이다. waiting_deposit(가상계좌 발급 후 미입금)을
-                    '결제완료'로 찍으면 입금 전 주문을 오표기한다. 색은 환불 상태 배지와 같은
-                    규약을 따른다 — 완료 계열은 emerald, 대기 계열은 amber. */}
-                {o.status === 'waiting_deposit' ? (
-                  <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                    입금대기
-                  </span>
-                ) : (
-                  <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                    결제완료
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {o.is_fake_entitlement && (
+                    <span className="rounded-full border border-[#0D1B2A]/15 bg-[#0D1B2A]/5 px-2.5 py-1 text-xs font-black text-[#0D1B2A]/60">
+                      개발용
+                    </span>
+                  )}
+                  {/* 배지는 orders.status 파생값이다. waiting_deposit(가상계좌 발급 후 미입금)을
+                      '결제완료'로 찍으면 입금 전 주문을 오표기한다. 색은 환불 상태 배지와 같은
+                      규약을 따른다 — 완료 계열은 emerald, 대기 계열은 amber. */}
+                  {o.status === 'waiting_deposit' ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                      입금대기
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                      결제완료
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
