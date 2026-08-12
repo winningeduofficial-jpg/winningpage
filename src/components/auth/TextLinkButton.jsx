@@ -22,7 +22,10 @@ const SIZE_CLASSES = {
 
 const WEIGHT_CLASSES = {
   medium: 'font-medium',
-  semibold: 'font-semibold'
+  semibold: 'font-semibold',
+  // 결제 플로우 로그인 시안(1882:9058 / 1882:9300)의 '회원가입' 링크는 w700 이다 —
+  // 본문과 색이 같고 굵기만으로 구분되는 용례라 700 이 필요하다(추가값, 기존 호출부 무영향).
+  bold: 'font-bold'
 };
 
 export default function TextLinkButton({

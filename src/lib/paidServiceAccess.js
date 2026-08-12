@@ -12,7 +12,7 @@ const PAID_MESSAGE = '유료결제이후 이용해주세요!';
 const PAID_SERVICE_CONFIGS = [
   {
     serviceKey: 'suhaeng',
-    serviceName: 'AI 수행평가 서비스',
+    serviceName: '수행평가 서비스',
     match(service = {}) {
       const text = [
         service.name,

@@ -21,6 +21,15 @@ const RADIUS_CLASSES = {
   lg: 'rounded-[0.875rem]' // 14px
 };
 
+// 라벨 무게. 회원가입 플로우 공용 기본값은 w600 이고, 결제 플로우 로그인 시안
+// (1882:9058 / 1882:9300)만 버튼 라벨이 w700 이다. className 으로 font-bold 를 덧붙이면
+// 같은 CSS 우선순위에서 tailwind 출력 순서에 결과가 좌우되므로(실측: font-semibold 가
+// 이겨 600 으로 렌더됐다) 프롭으로 배타 선택하게 한다.
+const WEIGHT_CLASSES = {
+  semibold: 'font-semibold',
+  bold: 'font-bold'
+};
+
 export default function PrimaryButton({
   children,
   type = 'button',
@@ -29,6 +38,7 @@ export default function PrimaryButton({
   loading = false, // true면 좌측에 스피너를 더하고 처리중 톤(bg-primary/80)으로 표시
   size = 'default', // 'default' | 'lg'
   radius = 'default', // 'default' | 'lg'
+  weight = 'semibold', // 'semibold' | 'bold'
   fullWidth = true,
   className = ''
 }) {
@@ -40,7 +50,7 @@ export default function PrimaryButton({
       onClick={onClick}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      className={`flex items-center justify-center gap-2 font-semibold transition active:scale-[0.97] motion-reduce:active:scale-100 ${
+      className={`flex items-center justify-center gap-2 ${WEIGHT_CLASSES[weight] || WEIGHT_CLASSES.semibold} transition active:scale-[0.97] motion-reduce:active:scale-100 ${
         fullWidth ? 'w-full' : ''
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${RADIUS_CLASSES[radius] || RADIUS_CLASSES.default} ${
         isDisabled

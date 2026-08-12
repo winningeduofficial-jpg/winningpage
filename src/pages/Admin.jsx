@@ -58,6 +58,12 @@ import { FAQ_CATEGORIES } from '../data/faqCategories';
 // pdfjs-dist뿐이다(PremiumBookAdmin 참고). BookViewer까지 동적 import하면 얻는 것 없이 미리보기 전환에
 // 스피너만 하나 더 생긴다.
 import BookViewer from '../components/premiumBook/BookViewer';
+// 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
+// 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
+// CustomComponent 로 붙인다 — premiumBookPages 선례와 같은 방식이다.
+// Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
+// import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
+import CouponAdmin from '../components/admin/CouponAdmin';
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -140,7 +146,13 @@ const MENU_GROUPS = [
       { key: 'payments', label: '매출 조정' },
       { key: 'settlements', label: '매출 정산' },
       { key: 'dailySettlements', label: '일일정산' },
-      { key: 'refunds', label: '환불 요청 내역' }
+      { key: 'refunds', label: '환불 요청 내역' },
+      // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
+      // 다른 테이블이다. CONFIGS.refundRequests 참고.
+      { key: 'refundRequests', label: '환불 신청 내역' },
+      // 쿠폰은 결제 금액을 직접 깎는 손잡이라 수입·매출 그룹에 둔다
+      // (products/orders 와 같은 도메인 — sql/10_pricing_orders.sql).
+      { key: 'coupons', label: '쿠폰관리' }
     ]
   }
 ];
@@ -201,6 +213,39 @@ const SPECIAL_HIGHSCHOOL_TYPE_OPTIONS = [
 const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
   { value: '합격자', label: '합격자' },
   { value: '합격생', label: '합격생' }
+];
+
+// refund_requests.status DB CHECK 값(requested|processing|completed|rejected)과
+// 화면 라벨을 분리한다 — 저장은 영문, 표시는 한글(MyPage.jsx REFUND_STATUS
+// 재사용). CONFIGS.refundRequests 참고.
+const REFUND_REQUEST_STATUS_OPTIONS = [
+  { value: 'requested', label: '접수' },
+  { value: 'processing', label: '처리중' },
+  { value: 'completed', label: '환불완료' },
+  { value: 'rejected', label: '반려' }
+];
+
+// payments.status DB CHECK 값(pending|paid|failed|refunded|cancelled)과 화면
+// 라벨을 분리한다 — 저장은 영문, 표시는 한글. 한국어를 값으로 넣어 CHECK
+// 위반으로 등록이 늘 실패하던 결함(CONFIGS.payments 참고)을 여기서 고친다.
+// 라벨은 새로 짓지 않고 이 저장소에 이미 있는 어휘에서 가져온다:
+//   pending → '납부대기', paid → '납부완료'  (1679행 admin_enrollments
+//     payment_status 옵션과 동일 어휘)
+//   refunded → '환불완료'  (MyPage.jsx REFUND_STATUS.completed, 184행
+//     REFUND_REQUEST_STATUS_OPTIONS 와 동일 어휘)
+// failed·cancelled 는 이 저장소에 대응하는 기존 라벨이 없어 새로 채운다
+// (2026-08-12, 사용자 지시로 채움). '취소요청'을 cancelled 에 쓰지 않는다 —
+// 그건 "취소 신청됨"(진행 중)이라는 별개 상태라 여기 cancelled(완료 상태)와
+// 맞지 않는다. 대신 이미 쓰이는 '-완료' 접미(납부완료/환불완료)와 같은
+// 형태로 맞춰 취소완료로 쓴다. failed 도 같은 이유로 '납부' 접두를 살려
+// 납부실패로 쓴다 — refunds 탭(2188행)의 '취소요청'/'환불완료'/'반려' 축과는
+// 다른 테이블·다른 상태 축이라 혼동하지 않는다.
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'pending', label: '납부대기' },
+  { value: 'paid', label: '납부완료' },
+  { value: 'failed', label: '납부실패' },
+  { value: 'refunded', label: '환불완료' },
+  { value: 'cancelled', label: '취소완료' }
 ];
 
 // DB 저장값은 영문 키 그대로 유지하고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
@@ -2479,7 +2524,7 @@ const CONFIGS = {
       { key: 'sale_amount', label: '판매금액', type: 'money' },
       { key: 'discount_amount', label: '감면액', type: 'money' },
       { key: 'paid_amount', label: '납부금액', type: 'money' },
-      { key: 'status', label: '상태' },
+      { key: 'status', label: '상태', type: 'select', options: PAYMENT_STATUS_OPTIONS },
       { key: 'paid_at', label: '납부일시', type: 'date' }
     ],
     fields: [
@@ -2490,10 +2535,10 @@ const CONFIGS = {
       { key: 'sale_amount', label: '판매금액', type: 'number' },
       { key: 'discount_amount', label: '감면액', type: 'number' },
       { key: 'paid_amount', label: '납부금액', type: 'number' },
-      { key: 'status', label: '상태', type: 'select', options: ['납부', '취소요청', '환불완료'] },
+      { key: 'status', label: '상태', type: 'select', options: PAYMENT_STATUS_OPTIONS },
       { key: 'memo', label: '비고', type: 'textarea' }
     ],
-    defaults: { payer_name: '', sale_amount: 0, discount_amount: 0, paid_amount: 0, status: '납부' }
+    defaults: { payer_name: '', sale_amount: 0, discount_amount: 0, paid_amount: 0, status: 'paid' }
   },
 
   settlements: {
@@ -2545,6 +2590,11 @@ const CONFIGS = {
     }
   },
 
+  // 관리자 수기 대장(admin_refunds/refunds, sql/00_base_schema.sql:882) — 고객이
+  // fn_request_refund 로 신청한 게 아니라 운영자가 직접 기록하는 별도 원장이다.
+  // dev 실측 0행이지만 운영 DB엔 있을 수 있어 없애지 않는다(팀 리드 지시,
+  // 2026-08-11). 아래 refundRequests(고객 신청 원장, refund_requests 테이블)와
+  // 메뉴에서 구분되어야 해서, 이 탭은 기존 라벨을 그대로 유지한다.
   refunds: {
     title: '환불 요청 내역',
     table: 'refunds',
@@ -2571,6 +2621,64 @@ const CONFIGS = {
       { key: 'memo', label: '비고', type: 'textarea' }
     ],
     defaults: { status: '취소요청', paid_amount: 0, refund_amount: 0 }
+  },
+
+  // fn_request_refund(sql/59_refund_request_hardening.sql)로 고객이 신청한 환불
+  // 원장. 이전에는 이 화면의 '환불 요청 내역' 탭이 위 refunds(관리자 수기
+  // 대장)를 읽어 아무도 고객 신청을 보지 못했다 — 이 config 가 그 간극을
+  // 메운다(팀 리드 지시, 2026-08-11). RLS 는 어드민 select/update 만 열려
+  // 있다(refund_requests_admin_select_all / _admin_update_all, sql/59) — insert
+  // 정책이 없어(RPC 전용) noCreate: true 로 등록 버튼을 감춘다. delete 정책도
+  // 없다(처리 상태는 status UPDATE 로 남기고 원장 행을 지우지 않는다는 원칙,
+  // sql/55 coupon_redemptions 와 같은 설계) — 다만 AdminTable 은 config 로
+  // 삭제 버튼만 따로 끄는 수단이 없어(readOnly 는 편집 자체를 막아버려 status
+  // 처리가 안 된다) 버튼 자체는 남는다. 눌러도 RLS 가 막아 실패 alert 만 뜬다.
+  //
+  // status 는 DB CHECK(requested|processing|completed|rejected)라 한국어
+  // 리터럴을 쓰면 안 된다(이 저장소가 이미 겪은 반복 결함 — 어드민 폼이 한글
+  // '납부'를 영문 CHECK 컬럼에 써 payments 등록이 늘 실패하는 것과 같은 유형).
+  // select 옵션을 {value, label} 로 나눠 저장은 영문, 표시는 한글로 분리한다.
+  // 라벨 4종은 MyPage.jsx REFUND_STATUS 를 그대로 재사용한다(팀 리드 승인
+  // 재사용 범위, 2026-08-11).
+  //
+  // 그 외 컬럼(order_id/order_name/amount/reason/user_id/refund_bank/
+  // refund_account/refund_holder/admin_memo/created_at) 라벨은 팀 리드가
+  // 승인한 코퍼스 규범 문자열이다(2026-08-11).
+  refundRequests: {
+    title: '환불 신청 내역', // MyPage.jsx:642 재사용(같은 데이터의 고객 쪽 헤딩)
+    table: 'refund_requests',
+    searchPlaceholder: '환불 신청 검색',
+    excel: true,
+    noCreate: true,
+    columns: [
+      { key: 'order_id', label: '주문번호' },
+      { key: 'amount', label: '환불 신청 금액', type: 'money' },
+      { key: 'reason', label: '신청 사유' },
+      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'created_at', label: '신청 일시', type: 'date' }
+    ],
+    fields: [
+      { key: 'user_id', label: '신청자', type: 'text' },
+      { key: 'order_id', label: '주문번호', type: 'text' },
+      { key: 'order_name', label: '주문명', type: 'text' },
+      { key: 'amount', label: '환불 신청 금액', type: 'number' },
+      { key: 'reason', label: '신청 사유', type: 'textarea' },
+      { key: 'refund_bank', label: '은행', type: 'text' },
+      { key: 'refund_account', label: '계좌번호', type: 'text' },
+      { key: 'refund_holder', label: '예금주', type: 'text' },
+      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      { key: 'admin_memo', label: '관리자 메모', type: 'textarea' }
+    ]
+  },
+
+  // custom: true 는 Admin() 최상단 렌더 분기가 제네릭 list/create/edit 경로를
+  // 통째로 건너뛰게 한다(loadRows 도 early return). CustomComponent 지정은
+  // premiumBookPages 와 같은 일반화 지점이다.
+  coupons: {
+    title: '쿠폰관리',
+    custom: true,
+    CustomComponent: CouponAdmin,
+    searchPlaceholder: ''
   }
 };
 
@@ -3241,7 +3349,7 @@ function LearningDiagnosisAdmin() {
                   <TextInput
                     value={newProgram.title}
                     onChange={(value) => setNewProgram((prev) => ({ ...prev, title: value }))}
-                    placeholder="예: 위닝 AI 수행평가 서비스"
+                    placeholder="예: 위닝 수행평가 서비스"
                   />
                 </Field>
                 <Field label="상단 배지">

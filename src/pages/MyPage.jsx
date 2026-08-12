@@ -17,6 +17,20 @@ function refundStatus(s) {
 }
 const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
 
+// fn_request_refund(sql/59_refund_request_hardening.sql) 하드닝으로 새로 생긴
+// 서버측 거부 사유 3종. 문구는 팀 리드가 승인한 코퍼스 규범 문자열이다
+// (2026-08-11, Checkout.jsx:174-184 COUPON_REASON_TEXT 와 동일 패턴).
+const REFUND_ERROR_TEXT = {
+  WC005: '본인 주문이 아닙니다.',
+  WC006: '결제가 확인된 주문만 환불 신청할 수 있습니다.',
+  WC007: '이미 처리 중인 환불 신청이 있습니다.'
+};
+// 위 3종 밖의 "알 수 없는 오류"를 위한 별개 문구 — REFUND_ERROR_TEXT 에 값이
+// 없어서 대신 쓰는 폴백 체인이 아니다(그 체인은 제거했다, 아래 submitRefund
+// 참고). 이 화면은 성공/실패를 알리는 채널이 refundMsg 하나뿐이라, 알 수 없는
+// 코드일 때도 분기 없이 비우면 제출이 조용히 실패한 것처럼 보인다.
+const REFUND_UNKNOWN_ERROR_TEXT = '환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 // value는 DB 저장값 — sql/40_auth_signup.sql의 profiles_member_type_check
 // (student/parent/mentor)와 일치해야 한다. 구 'teacher'는 마이그레이션에서
@@ -175,10 +189,16 @@ export default function MyPage() {
       const [{ data: ord }, { data: reqs }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, order_name, amount, paid_at')
+          // 가상계좌는 승인 직후 paid 가 아니라 waiting_deposit 으로 기록된다
+          // (api/confirm-payment.js — 계좌 발급만 끝난 상태). paid 만 조회하면 입금 전
+          // 주문이 마이페이지에서 통째로 사라지므로 두 상태를 함께 읽고, 배지·환불 대상
+          // 판정을 위해 status 도 가져온다.
+          .select('id, order_name, amount, paid_at, status')
           .eq('user_id', user.id)
-          .eq('status', 'paid')
-          .order('paid_at', { ascending: false }),
+          .in('status', ['paid', 'waiting_deposit'])
+          // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
+          // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
+          .order('created_at', { ascending: false }),
         supabase
           .from('refund_requests')
           .select('id, order_id, order_name, amount, reason, status, created_at')
@@ -221,6 +241,12 @@ export default function MyPage() {
     setRefundForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // 환불 신청 대상은 실제 입금이 확인된 주문(paid)뿐이다. 가상계좌 미입금
+  // (waiting_deposit) 건은 아직 들어온 돈이 없어 환불할 대상이 아니므로 목록에서 뺀다.
+  // 로컬 QA 전용 가짜 이용권 주문(is_fake_entitlement)도 함께 제외한다 — "이용 중인
+  // 서비스" 표시에는 orders를 그대로 쓰고, 환불 선택/가드에는 이 목록을 쓴다.
+  const refundableOrders = orders.filter((o) => o.status === 'paid' && !o.is_fake_entitlement);
+
   async function submitRefund(e) {
     e.preventDefault();
     if (!user) return;
@@ -240,23 +266,28 @@ export default function MyPage() {
     setRefundSaving(true);
     setRefundMsg('');
 
-    const { error } = await supabase.from('refund_requests').insert({
-      user_id: user.id,
-      order_id: order.id,
-      order_name: order.order_name,
-      amount: order.amount,
-      reason: cleanText(refundForm.reason),
-      refund_bank: cleanText(refundForm.bank),
-      refund_account: cleanText(refundForm.account),
-      refund_holder: cleanText(refundForm.holder),
-      status: 'requested'
+    // 주문 소유권·결제 상태(paid)·중복 신청은 서버(fn_request_refund)가 강제한다.
+    // 금액도 클라이언트가 보내지 않는다 — 서버가 orders.amount 를 그대로 쓴다
+    // (sql/59_refund_request_hardening.sql). status 도 함수가 'requested' 로
+    // 고정하므로 여기서 지정하지 않는다.
+    const { error } = await supabase.rpc('fn_request_refund', {
+      p_order_id: order.id,
+      p_reason: cleanText(refundForm.reason),
+      p_refund_bank: cleanText(refundForm.bank) || null,
+      p_refund_account: cleanText(refundForm.account) || null,
+      p_refund_holder: cleanText(refundForm.holder) || null
     });
 
     setRefundSaving(false);
 
     if (error) {
       console.error('환불 신청 저장 실패:', error);
-      setRefundMsg('환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      // 명시적 분기 — 알려진 코드(WC005/WC006/WC007)는 REFUND_ERROR_TEXT 를,
+      // 그 밖의 알 수 없는 코드는 REFUND_UNKNOWN_ERROR_TEXT 를 쓴다("문구가
+      // 없어서 대체"가 아니라 "알 수 없는 오류"라는 별개 사례).
+      setRefundMsg(
+        error.code in REFUND_ERROR_TEXT ? REFUND_ERROR_TEXT[error.code] : REFUND_UNKNOWN_ERROR_TEXT
+      );
       return;
     }
 
@@ -336,10 +367,6 @@ export default function MyPage() {
       </main>
     );
   }
-
-  // 환불 신청 대상에서는 로컬 가짜 이용권 주문(is_fake_entitlement)을 제외한다.
-  // "이용 중인 서비스" 표시에는 orders를 그대로 쓰고, 환불 선택/가드에는 이 목록을 쓴다.
-  const refundableOrders = orders.filter((o) => !o.is_fake_entitlement);
 
   return (
     <main className="min-h-screen bg-[#F7F4EF] px-6 pt-28 pb-20 text-[#0D1B2A]">
@@ -494,9 +521,18 @@ export default function MyPage() {
                       개발용
                     </span>
                   )}
-                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                    결제완료
-                  </span>
+                  {/* 배지는 orders.status 파생값이다. waiting_deposit(가상계좌 발급 후 미입금)을
+                      '결제완료'로 찍으면 입금 전 주문을 오표기한다. 색은 환불 상태 배지와 같은
+                      규약을 따른다 — 완료 계열은 emerald, 대기 계열은 amber. */}
+                  {o.status === 'waiting_deposit' ? (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                      입금대기
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                      결제완료
+                    </span>
+                  )}
                 </div>
               </li>
             ))}
@@ -538,6 +574,8 @@ export default function MyPage() {
           을 따릅니다. 신청 접수 후 검토 결과를 안내드립니다.
         </p>
 
+        {/* 미입금(waiting_deposit) 주문은 환불 대상이 아니므로 refundableOrders 기준으로
+            폼 노출 여부를 판단한다. 입금대기 건만 있는 사용자는 이 빈 상태를 본다. */}
         {refundableOrders.length === 0 ? (
           <div className="mt-6 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-6 text-center text-sm font-bold text-[#5B6573]">
             환불 신청 가능한 결제 내역이 없습니다.

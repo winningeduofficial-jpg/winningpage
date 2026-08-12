@@ -36,6 +36,7 @@ import MentorApply from './pages/MentorApply';
 import CompanyNews from './pages/CompanyNews';
 import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
+import ProtectedRoute from './components/ProtectedRoute';
 import SiteLayout from './components/SiteLayout';
 import { SignupProvider } from './context/SignupContext';
 
@@ -120,7 +121,18 @@ export default function App() {
           <Route path="/" element={<Home />} />
 
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/checkout" element={<Checkout />} />
+          {/* 비회원 결제 차단(감사 M5, 2026-08-12) 라우트 층 — 진짜 방어선은
+              api/create-order.js 의 서버 거부다. Pricing.jsx의 goCheckout()도
+              선(先) 가드를 이미 하지만, 북마크·직접 URL 진입은 그걸 우회하므로
+              여기 후(後) 가드가 필요하다. */}
+          <Route
+            path="/checkout"
+            element={(
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            )}
+          />
 
           {/* 법적 문서 (카드사·PG 심사 필수) */}
           <Route path="/terms" element={<Legal docKey="terms" />} />
@@ -130,6 +142,9 @@ export default function App() {
           <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
+          {/* 결제 실패도 완료와 같은 셸(헤더/푸터 포함)을 쓴다 — 실패 화면에서
+              GNB·문의 연락처가 사라지면 이탈 경로가 없어진다. */}
+          <Route path="/payment/fail" element={<PaymentFail />} />
 
           {/* 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
               /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...
@@ -299,7 +314,6 @@ export default function App() {
             <Route path="/app/goal/profile" element={<GoalProfile />} />
           </Route>
         </Route>
-        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />

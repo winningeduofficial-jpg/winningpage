@@ -122,18 +122,40 @@ export default function Login() {
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
+  // width="login": 로그인만 콘텐츠 컬럼 460px(28.75rem) — 시안 실측.
+  // 회원가입·약관 화면은 AuthLayout 기본값(400px)을 그대로 쓴다.
   return (
-    <AuthLayout>
-      <AuthTitle line1="진학의 첫단추," line2="위닝에듀에서 시작해요" />
+    <AuthLayout width="login">
+      {/* variant="login": 시안 실측 타입 스케일(390 24px w700 lh34 / 1920 36px w700 lh50,
+          ls -0.02em)을 로그인에만 적용한다 — AuthTitle 기본값은 회원가입·약관 20여 화면이
+          공유하므로 건드리지 않는다.
+          line1Color="title": 시안 1882:9058 픽셀 실측이 1줄 #181d24(ink.title) +
+          2줄 #013262(primary)다. 2줄은 컴포넌트 기본값 primary 그대로라 생략한다.
+          문구는 코드값 유지(시안 1882 계열의 '로그인 후 …' 는 구버전 목업 — 사용자 확정). */}
+      <AuthTitle
+        variant="login"
+        line1Color="title"
+        line1="진학의 첫단추,"
+        line2="위닝에듀에서 시작해요"
+      />
 
-      <form onSubmit={handleLogin} className="flex w-full flex-col gap-3">
+      {/* placeholder 색: 시안 실측 #d7d7d7 = line 토큰. TextField 기본값은 ink-sub(#808080)
+          인데, 이 컴포넌트는 회원가입·약관 폼 전체가 공유하므로 전역 기본값을 바꾸지 않고
+          로그인 폼 안에서만 자식 input 에 얹는다(tailwind.config.js 의 line 토큰 주석도
+          placeholder 를 이 색으로 규정하고 있어, 전역 정리는 별도 판단 사안).
+          입력 글자 크기는 390 시안이 14px 이지만 16px 를 유지한다 — iOS Safari 는 16px
+          미만 입력에 포커스하면 페이지를 확대해 결제 직전 화면이 튄다. */}
+      <form
+        onSubmit={handleLogin}
+        className="flex w-full flex-col gap-3 [&_input]:placeholder:font-medium [&_input]:placeholder:text-line"
+      >
         <TextField
           id="login-email"
           name="email"
           type="email"
           value={email}
           onChange={setEmail}
-          placeholder="이메일을 입력해 주세요"
+          placeholder="이메일을 입력해 주세요."
           autoComplete="email"
           required
         />
@@ -144,26 +166,43 @@ export default function Login() {
           type="password"
           value={password}
           onChange={setPassword}
-          placeholder="비밀번호를 입력해 주세요"
+          placeholder="비밀번호를 입력해 주세요."
           autoComplete="current-password"
           required
           helperText={message || undefined}
           status={message ? 'error' : 'default'}
         />
 
+        {/* 버튼 라벨 시안 실측: 390 16px w700 lh20 / 1920 20px w700 lh20.
+            PrimaryButton 기본값은 16px w600(회원가입 플로우 공용)이라 로그인에서만
+            무게·sm 크기를 덮어쓴다. 높이(3.25rem)는 그대로 두므로 lh 20px 는 1줄
+            수직 중앙 정렬에 영향이 없다. 비활성 라벨색은 시안 #fbfbfb 이지만
+            토큰이 없고 백색과 육안 구분이 안 되는 값이라 text-white 를 유지한다. */}
         <PrimaryButton
           type="submit"
           disabled={!canSubmit || loading}
           loading={loading}
-          className="md:mt-8"
+          weight="bold"
+          className="leading-5 sm:text-xl sm:leading-5 md:mt-8"
         >
           {loading ? '로그인 처리 중...' : '로그인'}
         </PrimaryButton>
       </form>
 
-      <p className="whitespace-nowrap text-center text-base text-ink">
+      {/* 하단 안내 시안 실측: 390 12px w500 / 1920 16px w500, 링크는 같은 크기의 w700.
+          색은 두 요소 모두 #36393e 로 토큰이 없다 — sRGB 거리상 ink(#525252)가
+          ink.title(#181d24)보다 가까워(약 42.5 vs 48.6) ink 로 맞춘다. 시안이 링크를
+          네이비가 아닌 본문색 + 굵기로만 구분하므로 tone 도 primary → ink 로 되돌린다. */}
+      <p className="whitespace-nowrap text-center text-xs font-medium text-ink sm:text-base">
         아직 위닝에듀 회원이 아니신가요?{' '}
-        <TextLinkButton as="link" to="/signup" tone="primary" size="md" weight="semibold">
+        <TextLinkButton
+          as="link"
+          to="/signup"
+          tone="ink"
+          size="xs"
+          weight="bold"
+          className="sm:text-base"
+        >
           회원가입
         </TextLinkButton>
       </p>

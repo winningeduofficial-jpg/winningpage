@@ -105,8 +105,8 @@ const BUSINESS_CARDS = [
   {
     key: 'ai-platform',
     image: bizAiPlatform,
-    title: 'AI 학습 플랫폼',
-    desc: '목표관리・수시예측\n콜멘토・AI 수행평가・학습진단'
+    title: '학습 플랫폼',
+    desc: '목표관리・수시예측\n콜멘토・수행평가・학습진단'
   },
   {
     key: 'consulting',
