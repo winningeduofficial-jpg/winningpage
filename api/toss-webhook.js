@@ -24,6 +24,16 @@
 //
 // 배포 후 토스 개발자센터 > 웹훅에 이 URL(/api/toss-webhook)을 등록하는 것은
 // 콘솔 작업이라 코드로 처리하지 않는다.
+//
+// 하드닝 변경 요약(임무 d):
+//   - status='refunded' 인 주문은 조회 직후 조기 200 으로 닫는다(부활 금지 —
+//     sql/71 이 추가하는 orders BEFORE UPDATE 트리거 WC039 가 DB 층 이중 방어선).
+//   - orders select/update 오류를 SQLSTATE 23xxx·WCxxx(영구/제약 위반)와 그 외
+//     (일시 장애)로 나눠서, 영구 오류는 원문 로그 + 200 으로 닫아 토스의 재시도
+//     폭주를 막고, 일시 오류만 500 으로 재시도를 유도한다.
+//   - paid 확정·권한 부여 직전에 approval_status='approved' 를 다시 확인한다 —
+//     미승인 주문이 웹훅 경로로 결제완료 처리되는 것을 막는다(sql/68
+//     orders_approval_before_payment_check 의 API 층 선반영).
 
 import { createSupabaseAdmin, getEnv } from './_lib/supabaseAdmin.js';
 import {
@@ -60,6 +70,22 @@ function mapStatus(tossStatus) {
 // 이미 같더라도 조기 종료하지 않는다 — 부수효과가 1회차에 실패했을 때 재전송이
 // 유일한 복구 수단이고, 부여(upsert)·회수(update)는 모두 멱등이다.
 const SIDE_EFFECT_STATUSES = new Set(['paid', 'canceled']);
+
+// refunded 는 fn_complete_refund 로만 도달하는 종결 상태다. 토스가 이 주문에
+// 대한 이벤트를 다시 보내도(취소/조회 재전송 등) orders.status 를 건드리면 안
+// 된다 — sql/71 의 orders BEFORE UPDATE 트리거(WC039)가 DB 층에서도 막지만,
+// 여기서 조기 차단해 불필요한 토스 조회·업데이트 시도 자체를 줄인다.
+const STATUS_REFUNDED = 'refunded';
+
+const APPROVAL_APPROVED = 'approved';
+
+// SQLSTATE 23xxx(제약 위반) 또는 이 저장소가 쓰는 WCxxx(도메인 예외, sql/68·69·71)
+// 는 재시도해도 결과가 같은 영구 오류다 — 200 으로 닫아 토스의 재시도 폭주를
+// 막는다. 그 외(네트워크·일시적 DB 장애)는 500 으로 재시도를 유도한다.
+function isPermanentDbError(error) {
+  const code = String(error?.code || '').trim();
+  return /^23\d{3}$/.test(code) || /^WC\d{3}$/.test(code);
+}
 
 // 부여 실패를 운영자가 볼 수 있는 곳에 남긴다.
 //
@@ -114,13 +140,29 @@ export default async function handler(req, res) {
       // user_id 는 입금 확인 시 이용 권한을 줄 대상이다(즉시 입장).
       // paid_at 은 이미 paid 인 주문에 부여를 재시도할 때 이용 시작 시각으로 쓴다
       // (재시도가 시작일을 오늘로 밀어버리지 않게 한다).
-      .select('id, user_id, status, paid_at, raw')
+      // approval_status 는 paid 확정 전 학부모 승인 여부 재확인용이다(아래).
+      .select('id, user_id, status, approval_status, paid_at, raw')
       .eq('id', orderId)
       .maybeSingle();
 
-    if (selectError) throw selectError;
+    if (selectError) {
+      if (isPermanentDbError(selectError)) {
+        // 제약 위반·도메인 예외는 재시도해도 같은 결과다 — 200 으로 닫아 토스의
+        // 재시도 폭주를 막는다. 원문은 로그로만 남긴다.
+        console.error('toss-webhook 영구 오류(주문 조회):', orderId, selectError);
+        return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: selectError.code });
+      }
+      throw selectError;
+    }
     if (!order) {
       return res.status(200).json({ ignored: true, reason: '주문 없음' });
+    }
+
+    if (order.status === STATUS_REFUNDED) {
+      // 환불 종결된 주문 부활 금지. sql/71 의 orders BEFORE UPDATE 트리거(WC039)가
+      // DB 층에서도 같은 UPDATE 를 막지만, 여기서 조기에 닫아 불필요한 토스 조회·
+      // 업데이트 시도를 하지 않는다.
+      return res.status(200).json({ ignored: true, reason: 'refunded_order_immutable' });
     }
 
     // 레거시 가상계좌 웹훅의 secret 대조. 승인 응답에 secret 이 있었던 주문만 검사한다.
@@ -147,6 +189,17 @@ export default async function handler(req, res) {
     if (!nextStatus) {
       return res.status(200).json({ ignored: true, reason: `미지원 status(${payment.status})` });
     }
+
+    // paid 확정·권한 부여는 학부모 승인(approval_status='approved')이 전제다
+    // (sql/68 orders_approval_before_payment_check). 미승인 주문에 대한 paid
+    // 전이 시도는 DB 제약이 최종적으로 막지만(23514 → 위 isPermanentDbError 로
+    // 200 처리), 여기서 먼저 걸러 토스 조회 이후의 불필요한 업데이트 시도와
+    // 오해의 소지가 있는 로그를 줄인다.
+    if (nextStatus === 'paid' && order.approval_status !== APPROVAL_APPROVED) {
+      console.error('toss-webhook: 미승인 주문의 paid 전이 시도 — 무시:', orderId, order.approval_status);
+      return res.status(200).json({ ignored: true, reason: 'approval_not_approved' });
+    }
+
     // 상태가 그대로인 웹훅(토스 재전송·수동 재전송)이라도 paid 는 그냥 닫지
     // 않는다. 1회차에서 orders 는 paid 로 올라갔는데 권한 부여만 실패한 경우
     // (programs 시드 미적용 FK 위반, 일시적 DB 오류) 조기 종료하면 복구 수단이
@@ -179,7 +232,15 @@ export default async function handler(req, res) {
         .update(patch)
         .eq('id', orderId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (isPermanentDbError(updateError)) {
+          // 제약 위반·도메인 예외(예: WC039 refunded_order_immutable 트리거)는
+          // 재시도해도 같은 결과다 — 200 으로 닫아 토스의 재시도 폭주를 막는다.
+          console.error('toss-webhook 영구 오류(주문 갱신):', orderId, updateError);
+          return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: updateError.code });
+        }
+        throw updateError;
+      }
     }
 
     // 즉시 입장(사용자 확정): 가상계좌 입금이 확인된 이 순간이 권한 부여 지점이다.

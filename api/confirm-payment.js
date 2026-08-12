@@ -9,11 +9,27 @@
 //   (선택) 결제-사용자 매핑/저장용 Supabase:
 //   WINNING_SUPABASE_URL / SUPABASE_URL / VITE_SUPABASE_URL
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
+//
+// 하드닝 변경 요약(임무 d):
+//   - 주문 조회에 approval_status/payment_key 를 포함시켜 승인 호출 전 게이트를
+//     추가했다: 미승인(approval_status<>'approved') 409, refunded 409,
+//     paid+동일 payment_key 는 재승인 호출 없이 200 멱등 응답, paid+다른 키는 409.
+//     (sql/68 orders_approval_before_payment_check 의 "학부모 수락 전 결제 불가"
+//     불변식을 API 층에서도 선반영한다 — DB 는 최후 방어선일 뿐이다.)
+//   - 토스 승인 응답이 ALREADY_PROCESSED_PAYMENT 계열이면 실패로 확정하지 않고
+//     토스 결제 조회 API로 실제 상태를 다시 얻어 성공 경로에 합류시킨다(멱등
+//     재시도 복구 — api/toss-webhook.js 의 상태-정본-재조회 패턴과 동일).
+//   - 승인 후 최종 orders UPDATE 는 status 가 pending/failed 일 때만 적용되도록
+//     가드하고(동시 웹훅 등 레이스로 이미 종결된 주문을 덮어쓰지 않는다), 갱신
+//     실패나 영향 0행은 조용히 200 으로 삼키지 않고 500 + payment_key 로그로
+//     드러낸다 — 승인은 났는데 기록이 안 된 상태를 사용자가 "성공"으로 오인하지
+//     않게 한다.
 
 import { createClient } from '@supabase/supabase-js';
 import { grantProgramAccessForOrder } from './_lib/programAccess.js';
 
 const TOSS_CONFIRM_URL = 'https://api.tosspayments.com/v1/payments/confirm';
+const TOSS_ORDER_QUERY_URL = 'https://api.tosspayments.com/v1/payments/orders';
 
 // orders.status 허용값: pending | paid | waiting_deposit | failed | canceled
 //
@@ -33,6 +49,19 @@ const STATUS_WAITING_DEPOSIT = 'waiting_deposit';
 // 복구될 수 있어야 한다(실패 기록이 pending 만 덮으므로 재시도 자체는 안전하다).
 const STATUS_CANCELED = 'canceled';
 const STATUS_FAILED = 'failed';
+// refunded 는 fn_complete_refund 로만 도달하는 종결 상태다(웹훅/토스 응답으로는
+// 오지 않는다). 재승인 호출을 걸어 부활을 막는다 — DB 트리거(sql/71 WC039)가
+// orders.status 를 refunded 에서 되돌리는 UPDATE 자체를 막는 이중 방어선이다.
+const STATUS_REFUNDED = 'refunded';
+const APPROVAL_APPROVED = 'approved';
+
+// 토스 "이미 처리된 결제" 계열 오류 코드. 정확한 코드명이 SDK 버전에 따라
+// 갈릴 수 있어 접두어로도 잡는다 — 이 경우는 우리 쪽 실패가 아니라 이전 시도가
+// 이미 토스 승인을 받았다는 뜻이므로 실패 확정 대신 조회로 되돌아가야 한다.
+function isAlreadyProcessedTossError(code) {
+  const value = clean(code);
+  return value === 'ALREADY_PROCESSED_PAYMENT' || value.startsWith('ALREADY_PROCESSED');
+}
 
 function clean(value) {
   return String(value || '').trim();
@@ -141,13 +170,39 @@ export default async function handler(req, res) {
       const { data } = await supabaseAdmin
         .from('orders')
         // user_id / paid_at 은 권한 부여용이다(부여 대상 사용자 + 이용 시작 시각).
-        .select('id, user_id, amount, status, paid_at, raw')
+        // approval_status/payment_key 는 승인 호출 전 게이트용이다(아래).
+        .select('id, user_id, amount, status, approval_status, payment_key, paid_at, raw')
         .eq('id', orderId)
         .maybeSingle();
       order = data ?? null;
 
       if (order) {
+        // 학부모 수락 전에는 결제가 진행될 수 없다(sql/68
+        // orders_approval_before_payment_check). paid/waiting_deposit 인 주문은
+        // DB 불변식상 이미 approved 여야 하므로 이 게이트에 걸리지 않는다 — 실제로
+        // 걸리는 대상은 미승인 상태에서 승인 호출을 시도하는 pending 주문이다.
+        if (order.approval_status !== APPROVAL_APPROVED) {
+          return res.status(409).json({
+            error: '학부모 승인이 완료되지 않은 주문입니다.',
+            status: order.status,
+            approvalStatus: order.approval_status,
+          });
+        }
+
+        if (order.status === STATUS_REFUNDED) {
+          // 이미 환불 종결된 주문의 재승인 호출 — 부활 금지.
+          return res.status(409).json({ error: '이미 환불된 주문입니다.', status: order.status });
+        }
+
         if (order.status === STATUS_PAID || order.status === STATUS_WAITING_DEPOSIT) {
+          if (order.status === STATUS_PAID) {
+            // paid 인데 저장된 payment_key 와 요청 paymentKey 가 다르면 같은 주문에
+            // 대한 별개의 결제 시도다 — 멱등 응답 대상이 아니라 막아야 한다.
+            const storedKey = clean(order.payment_key);
+            if (!storedKey || storedKey !== clean(paymentKey)) {
+              return res.status(409).json({ error: '이미 처리된 결제입니다.', status: order.status });
+            }
+          }
           // 이미 승인된 주문 (성공 페이지 재요청/새로고침 등) → 저장해둔 승인 원본으로 멱등 응답.
           // waiting_deposit 도 여기서 걸러야 한다. 안 그러면 미입금 상태에서 새로고침할 때마다
           // 토스 승인 API를 재호출한다.
@@ -271,24 +326,67 @@ export default async function handler(req, res) {
       body: JSON.stringify({ paymentKey, orderId, amount: confirmAmount }),
     });
 
-    const data = await tossRes.json();
+    let data = await tossRes.json();
 
     if (!tossRes.ok) {
-      // 토스가 실패를 반환한 경우 (금액 위변조, 이미 처리된 결제 등) → 주문 실패 기록.
-      // 단 아직 승인 전인 주문(pending)만 덮어쓴다. 웹훅이 먼저 canceled/paid 로
-      // 올려놓은 주문을 이 경로가 failed 로 지우면 취소 이력과 승인실패가 구분되지
-      // 않고, paid_at 이 남은 채 status 만 failed 인 모순 레코드가 생긴다.
-      if (supabaseAdmin && order) {
-        await supabaseAdmin
-          .from('orders')
-          .update({ status: STATUS_FAILED })
-          .eq('id', orderId)
-          .eq('status', STATUS_PENDING);
+      if (isAlreadyProcessedTossError(data?.code)) {
+        // 우리 쪽 승인 요청이 실패로 보여도, 토스가 "이미 처리된 결제"라고
+        // 답했다면 이전 시도(네트워크 유실로 응답만 못 받은 재시도 등)가 실제로는
+        // 성공했다는 뜻이다. 실패로 확정하지 않고 토스 조회 API로 정본 상태를 다시
+        // 얻어 아래 성공 경로에 그대로 합류시킨다(멱등 재시도 복구).
+        const queryRes = await fetch(`${TOSS_ORDER_QUERY_URL}/${encodeURIComponent(orderId)}`, {
+          headers: { Authorization: `Basic ${auth}` },
+        });
+        const queried = await queryRes.json();
+
+        // 재조회 status 게이트: ALREADY_PROCESSED 가 곧 "성공"을 뜻하지 않는다 —
+        // 이전 시도가 승인까지는 갔지만 이후 취소/만료됐을 수 있다(1차 승인 성공 →
+        // DB 확정 UPDATE 실패로 pending 잔존 → 토스 콘솔 취소/VA 만료 → 사용자가
+        // 성공 URL 재시도 → confirm 이 ALREADY_PROCESSED → 재조회 status=CANCELED).
+        // 여기서 무조건 성공 경로에 합류시키면 취소·환불된 결제가 paid 주문 +
+        // 프로그램 권한(회수분 복원 포함)으로 부활한다. DONE/WAITING_FOR_DEPOSIT
+        // 만 성공 경로 진입을 허용하고, 나머지(CANCELED/PARTIAL_CANCELED/EXPIRED/
+        // ABORTED 등)는 orders 를 건드리지 않고 종결 상태 정리는 웹훅(mapStatus
+        // 경로)에 맡긴다.
+        const RECOVERABLE_TOSS_STATUSES = new Set(['DONE', 'WAITING_FOR_DEPOSIT']);
+
+        if (queryRes.ok && RECOVERABLE_TOSS_STATUSES.has(queried?.status)) {
+          data = queried;
+        } else if (queryRes.ok) {
+          console.error('이미 처리된 결제 재조회 성공했으나 상태가 회수 불가:', orderId, queried?.status);
+          return res.status(409).json({ error: '이미 처리된 결제입니다.', status: queried?.status });
+        } else {
+          console.error('이미 처리된 결제 재조회 실패:', orderId, queried);
+          if (supabaseAdmin && order) {
+            await supabaseAdmin
+              .from('orders')
+              .update({ status: STATUS_FAILED })
+              .eq('id', orderId)
+              .eq('status', STATUS_PENDING);
+          }
+          return res.status(tossRes.status).json({
+            error: data.message ?? '결제 승인 실패',
+            code: data.code,
+          });
+        }
+      } else {
+        // 토스가 실패를 반환한 경우 (금액 위변조, 토스 승인 자체가 거절된 경우 등)
+        // → 주문 실패 기록. 단 아직 승인 전인 주문(pending)만 덮어쓴다. 웹훅이
+        // 먼저 canceled/paid 로 올려놓은 주문을 이 경로가 failed 로 지우면 취소
+        // 이력과 승인실패가 구분되지 않고, paid_at 이 남은 채 status 만 failed 인
+        // 모순 레코드가 생긴다.
+        if (supabaseAdmin && order) {
+          await supabaseAdmin
+            .from('orders')
+            .update({ status: STATUS_FAILED })
+            .eq('id', orderId)
+            .eq('status', STATUS_PENDING);
+        }
+        return res.status(tossRes.status).json({
+          error: data.message ?? '결제 승인 실패',
+          code: data.code,
+        });
       }
-      return res.status(tossRes.status).json({
-        error: data.message ?? '결제 승인 실패',
-        code: data.code,
-      });
     }
 
     // 승인 성공 → 주문을 확정한다. 단 가상계좌는 아직 입금 전이므로 paid 로 올리지
@@ -301,7 +399,19 @@ export default async function handler(req, res) {
     let access = accessNotAttempted(supabaseAdmin ? 'order_not_found' : 'supabase_admin_unavailable');
 
     if (supabaseAdmin && order) {
-      const { error: updateError } = await supabaseAdmin
+      // status 필터: pending(정상 최초 승인) 또는 failed(토스 일시 장애 후 재시도 —
+      // 위 STATUS_FAILED 주석대로 failed 는 종결이 아니다)일 때만 확정한다. 그 외
+      // (동시 웹훅 등 레이스로 이미 paid/canceled/refunded 로 바뀐 경우) 이 UPDATE
+      // 는 아무 행도 건드리면 안 된다 — 아래에서 영향 0행으로 잡아낸다.
+      // amount 조건: :251 에서 이 시점 이전에 order.amount 를 확인했더라도, 그 확인과
+      // 이 UPDATE 사이(토스 승인 왕복 포함)에 다른 학부모의 fn_respond_enrollment 가
+      // 이 주문의 30분 경과 redemption 을 void+원복(discount_amount/amount 상향, sql/71)
+      // 시키면, 토스는 이미 지난 confirmAmount 로 승인됐는데 이 UPDATE 는 status 만
+      // 보고 통과해 "amount 는 원복됐지만 실제 청구는 옛 금액" 인 paid 주문이 남는다
+      // (과소청구 기록 + 쿠폰 이중 사용 가능). confirmAmount 와 현재 orders.amount 가
+      // 다르면 이 UPDATE 자체를 0 행으로 실패시켜 아래 500(:405-419, "승인 성공·기록
+      // 실패" — payment_key 로그 + 수동 대조) 경로로 자연 합류시킨다. 신규 문구 없음.
+      const { data: updatedRows, error: updateError } = await supabaseAdmin
         .from('orders')
         .update({
           status: waitingForDeposit ? STATUS_WAITING_DEPOSIT : STATUS_PAID,
@@ -310,11 +420,25 @@ export default async function handler(req, res) {
           paid_at: paidAt,
           raw: data,
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('amount', confirmAmount)
+        .in('status', [STATUS_PENDING, STATUS_FAILED])
+        .select('id');
 
-      if (updateError) {
-        // 승인 자체는 성공이므로 로깅만 하고 진행한다.
-        console.error('orders update error:', updateError);
+      if (updateError || !updatedRows || updatedRows.length === 0) {
+        // 토스 승인은 이미 성공했다 — 여기서 200 을 돌려주면 돈은 들어왔는데 우리
+        // 기록·권한 부여는 빠진 채로 사용자가 성공으로 오인한다(:304-318, :335 의
+        // 기존 삼킴 제거). 권한 부여는 스킵하고 paymentKey 를 로그에 남겨 운영자가
+        // 토스 콘솔과 수동 대조할 수 있게 한 뒤 500 으로 재시도를 유도한다.
+        console.error('orders 확정 UPDATE 실패 또는 영향 0행(승인은 성공):', {
+          orderId,
+          paymentKey,
+          updateError,
+          affectedRows: updatedRows?.length ?? 0,
+        });
+        return res.status(500).json({
+          error: '결제 승인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+        });
       }
 
       // 가상계좌(waiting_deposit)에는 권한을 주지 않는다 — 계좌만 발급됐고 돈은

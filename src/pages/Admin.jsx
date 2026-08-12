@@ -146,7 +146,9 @@ const MENU_GROUPS = [
       { key: 'payments', label: '매출 조정' },
       { key: 'settlements', label: '매출 정산' },
       { key: 'dailySettlements', label: '일일정산' },
-      { key: 'refunds', label: '환불 요청 내역' },
+      // CONFIGS.refunds 라벨과 동일하게 유지할 것 — '환불 신청 내역'(아래)과
+      // 혼동돼 있던 라벨을 2026-08-12 정정했다.
+      { key: 'refunds', label: '환불 수기 대장' },
       // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
       // 다른 테이블이다. CONFIGS.refundRequests 참고.
       { key: 'refundRequests', label: '환불 신청 내역' },
@@ -156,6 +158,41 @@ const MENU_GROUPS = [
     ]
   }
 ];
+
+// error.message 원문 alert 위생(팀 리드 지시, 2026-08-12) — Baseline 실측 WC 코드·
+// SQLSTATE 를 짧은 한국어 안내로 치환한다. 매핑에 없는 오류는 일반 실패 문구를
+// 보여주고 원문은 console.error 로만 남긴다(alert 로 DB 에러 원문을 그대로
+// 노출하지 않기 위함). 19개소(제네릭 저장 경로 두 벌 + 조회 2곳 포함) 전부
+// 아래 reportAdminError 경유로 통일한다.
+const ADMIN_ERROR_MESSAGE_MAP = [
+  { pattern: /refund_not_approved_for_completion|WC035/, message: '아직 승인되지 않은 환불 신청입니다.' },
+  {
+    pattern: /refund_completion_not_processable|WC036/,
+    message: '지금 상태에서는 환불 완료 처리를 할 수 없습니다.'
+  },
+  {
+    pattern: /order_already_consumed|WC032/,
+    message: '이미 사용된 주문이라 환불 완료 처리를 할 수 없습니다.'
+  },
+  { pattern: /refund_amount_exceeds_paid|WC037/, message: '환불 금액이 결제 금액을 초과합니다.' },
+  { pattern: /order_not_pending|WC040/, message: '이미 처리된 주문입니다.' },
+  { pattern: /order_not_paid_for_refund|WC041/, message: '결제 완료된 주문만 환불할 수 있습니다.' },
+  { pattern: /refunded_order_immutable|WC039/, message: '환불 완료된 주문은 더 이상 수정할 수 없습니다.' },
+  { pattern: /23514/, message: '입력값이 저장 조건을 벗어났습니다. 값을 다시 확인해 주세요.' },
+  { pattern: /23502/, message: '필수 값이 비어 있습니다. 항목을 모두 입력해 주세요.' },
+  { pattern: /23505/, message: '이미 등록된 값입니다(중복).' }
+];
+
+function mapAdminErrorMessage(error) {
+  const raw = `${error?.message || ''} ${error?.code || ''}`;
+  const hit = ADMIN_ERROR_MESSAGE_MAP.find(({ pattern }) => pattern.test(raw));
+  return hit ? hit.message : '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+}
+
+function reportAdminError(label, error) {
+  console.error(label, error);
+  alert(`${label}: ${mapAdminErrorMessage(error)}`);
+}
 
 // AdmissionGuidelines.jsx의 REGION_ORDER와 동일하게 유지한다.
 // 여기 없는 지역 문자열을 입력하면 공개 페이지의 지역별 목록/지도에 노출되지 않는다.
@@ -223,6 +260,24 @@ const REFUND_REQUEST_STATUS_OPTIONS = [
   { value: 'processing', label: '처리중' },
   { value: 'completed', label: '환불완료' },
   { value: 'rejected', label: '반려' }
+];
+
+// 완료 처리는 fn_complete_refund RPC 전용이다(WC038 트리거가 제네릭 PATCH 로의
+// completed 전환을 막는다) — 편집 폼 select 에는 completed 를 노출하지 않는다.
+// 목록 표시(컬럼)는 이미 완료된 행의 라벨도 보여줘야 하므로 위
+// REFUND_REQUEST_STATUS_OPTIONS(완료 포함)를 그대로 쓴다.
+const REFUND_REQUEST_STATUS_EDIT_OPTIONS = REFUND_REQUEST_STATUS_OPTIONS.filter(
+  (option) => option.value !== 'completed'
+);
+
+// refund_requests.approval_status DB CHECK 값(requested|approved|rejected) — 학부모가
+// 아닌 신청자가 낸 환불 신청의 승인 여부 축이다(payments.status·refund_requests.status
+// 와는 다른 별개 축, Baseline §8 CHECK 목록 참고). fn_complete_refund 가 approved
+// 아니면 WC035 로 막으므로 목록에서 바로 판별할 수 있어야 한다.
+const REFUND_APPROVAL_STATUS_OPTIONS = [
+  { value: 'requested', label: '승인대기' },
+  { value: 'approved', label: '승인완료' },
+  { value: 'rejected', label: '승인반려' }
 ];
 
 // payments.status DB CHECK 값(pending|paid|failed|refunded|cancelled)과 화면
@@ -2594,12 +2649,17 @@ const CONFIGS = {
   // fn_request_refund 로 신청한 게 아니라 운영자가 직접 기록하는 별도 원장이다.
   // dev 실측 0행이지만 운영 DB엔 있을 수 있어 없애지 않는다(팀 리드 지시,
   // 2026-08-11). 아래 refundRequests(고객 신청 원장, refund_requests 테이블)와
-  // 메뉴에서 구분되어야 해서, 이 탭은 기존 라벨을 그대로 유지한다.
+  // 라벨이 '환불 요청 내역' vs '환불 신청 내역'으로 거의 같아 혼동을 일으켰다
+  // (2026-08-12 재정정) — 이 탭 라벨을 '환불 수기 대장'으로 바꿔 관리자 직접
+  // 기록용임을 드러낸다. 같은 이유로 이 탭의 상태 변경은 읽기 전용으로
+  // 막는다(readOnly) — fn_complete_refund 를 거치지 않는 제네릭 PATCH 로
+  // '환불완료'를 찍을 수 있던 경로를 여기서도 차단한다(①과 동일 원칙).
   refunds: {
-    title: '환불 요청 내역',
+    title: '환불 수기 대장',
     table: 'refunds',
     searchPlaceholder: '환불 요청 검색',
     order: 'requested_at',
+    readOnly: true,
     excel: true,
     columns: [
       { key: 'payer_name', label: '수강자명' },
@@ -2654,6 +2714,12 @@ const CONFIGS = {
       { key: 'order_id', label: '주문번호' },
       { key: 'amount', label: '환불 신청 금액', type: 'money' },
       { key: 'reason', label: '신청 사유' },
+      {
+        key: 'approval_status',
+        label: '승인 여부',
+        type: 'select',
+        options: REFUND_APPROVAL_STATUS_OPTIONS
+      },
       { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
       { key: 'created_at', label: '신청 일시', type: 'date' }
     ],
@@ -2666,7 +2732,9 @@ const CONFIGS = {
       { key: 'refund_bank', label: '은행', type: 'text' },
       { key: 'refund_account', label: '계좌번호', type: 'text' },
       { key: 'refund_holder', label: '예금주', type: 'text' },
-      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_OPTIONS },
+      // completed 는 select 에서 뺐다 — fn_complete_refund RPC 전용(위
+      // REFUND_REQUEST_STATUS_EDIT_OPTIONS 주석 참고, WC038 트리거).
+      { key: 'status', label: '상태', type: 'select', options: REFUND_REQUEST_STATUS_EDIT_OPTIONS },
       { key: 'admin_memo', label: '관리자 메모', type: 'textarea' }
     ]
   },
@@ -2812,9 +2880,20 @@ async function getFreshSupabaseAccessToken() {
 async function requestWinningEmbedding(row) {
   if (!row?.id) return null;
 
-  const endpoint = WINNING_EMBED_API_BASE
-    ? `${WINNING_EMBED_API_BASE}/api/admin-embeddings`
-    : '/api/admin-embeddings';
+  // VITE_RAG_API_BASE_URL 미설정 시 존재하지 않는 이 앱의 상대경로
+  // '/api/admin-embeddings'로 fetch하지 않는다(이 저장소엔 그 라우트가 없다 —
+  // RAG API는 별도 배포다). 조용히 건너뛰고 콘솔에만 안내를 남긴다. 자동
+  // 임베딩은 저장 후 fire-and-forget으로 걸리는 부가 기능이라, 이 값이
+  // 없다고 저장 자체(등록/수정 버튼)를 막지는 않는다 — 대신 저장 완료 알림
+  // 문구에서 임베딩 미생성 사실을 알린다(saveRow 참고).
+  if (!WINNING_EMBED_API_BASE) {
+    console.warn(
+      '위닝 수행 DB 자동 임베딩 건너뜀: VITE_RAG_API_BASE_URL 미설정. 관리자에게 환경변수 설정을 요청하세요.'
+    );
+    return null;
+  }
+
+  const endpoint = `${WINNING_EMBED_API_BASE}/api/admin-embeddings`;
 
   try {
     const accessToken = await getFreshSupabaseAccessToken();
@@ -3028,7 +3107,7 @@ function LearningDiagnosisAdmin() {
 
     const error = questionRes.error || optionRes.error || programRes.error;
     if (error) {
-      alert(`학습진단 데이터 조회 실패: ${error.message}`);
+      reportAdminError('학습진단 데이터 조회 실패', error);
       return;
     }
 
@@ -3119,7 +3198,7 @@ function LearningDiagnosisAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`질문 등록 실패: ${error.message}`);
+      reportAdminError('질문 등록 실패', error);
       return;
     }
 
@@ -3152,7 +3231,7 @@ function LearningDiagnosisAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`질문 저장 실패: ${error.message}`);
+      reportAdminError('질문 저장 실패', error);
       return;
     }
 
@@ -3169,7 +3248,7 @@ function LearningDiagnosisAdmin() {
       .delete()
       .eq('id', question.id);
     if (error) {
-      alert(`질문 삭제 실패: ${error.message}`);
+      reportAdminError('질문 삭제 실패', error);
       return;
     }
 
@@ -3187,7 +3266,7 @@ function LearningDiagnosisAdmin() {
     });
 
     if (error) {
-      alert(`답변 추가 실패: ${error.message}`);
+      reportAdminError('답변 추가 실패', error);
       return;
     }
 
@@ -3213,7 +3292,7 @@ function LearningDiagnosisAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`답변 저장 실패: ${error.message}`);
+      reportAdminError('답변 저장 실패', error);
       return;
     }
 
@@ -3226,7 +3305,7 @@ function LearningDiagnosisAdmin() {
 
     const { error } = await supabase.from('learning_diagnosis_options').delete().eq('id', option.id);
     if (error) {
-      alert(`답변 삭제 실패: ${error.message}`);
+      reportAdminError('답변 삭제 실패', error);
       return;
     }
 
@@ -3250,7 +3329,7 @@ function LearningDiagnosisAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`추천 프로그램 등록 실패: ${error.message}`);
+      reportAdminError('추천 프로그램 등록 실패', error);
       return;
     }
 
@@ -3283,7 +3362,7 @@ function LearningDiagnosisAdmin() {
     setSaving(false);
 
     if (error) {
-      alert(`추천 프로그램 저장 실패: ${error.message}`);
+      reportAdminError('추천 프로그램 저장 실패', error);
       return;
     }
 
@@ -3301,7 +3380,7 @@ function LearningDiagnosisAdmin() {
 
     const { error } = await supabase.from('learning_diagnosis_programs').delete().eq('id', program.id);
     if (error) {
-      alert(`추천 프로그램 삭제 실패: ${error.message}`);
+      reportAdminError('추천 프로그램 삭제 실패', error);
       return;
     }
 
@@ -5458,6 +5537,16 @@ function AdminForm({
   );
 }
 
+// fn_complete_refund 가 그대로 거부할 상태를 버튼 단계에서 먼저 막는다(Baseline
+// §2 fn_complete_refund 본문 WC035/WC036 조건과 동일) — refundRequests 탭
+// 전용 판정이라 activeKey==='refundRequests' 일 때만 쓰인다.
+function isRefundCompletionBlocked(row) {
+  if (!row) return true;
+  if (row.approval_status !== 'approved') return true;
+  if (!['requested', 'processing'].includes(row.status)) return true;
+  return false;
+}
+
 function AdminTable({
   config,
   rows,
@@ -5466,6 +5555,8 @@ function AdminTable({
   totalCount,
   onEdit,
   onDelete,
+  activeKey,
+  onCompleteRefund,
   onOpenSection,
   onOpenMetaEdit
 }) {
@@ -5720,6 +5811,22 @@ function AdminTable({
                           className="text-gray-500 hover:text-red-600"
                         >
                           <Trash2 size={17} />
+                        </button>
+                      )}
+
+                      {activeKey === 'refundRequests' && (
+                        <button
+                          type="button"
+                          onClick={() => onCompleteRefund(row)}
+                          disabled={isRefundCompletionBlocked(row)}
+                          title={
+                            isRefundCompletionBlocked(row)
+                              ? '승인완료 + 접수·처리중 상태의 신청만 환불 완료 처리할 수 있어요.'
+                              : '환불완료 처리'
+                          }
+                          className="whitespace-nowrap text-xs font-bold text-gray-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:text-gray-300"
+                        >
+                          환불완료
                         </button>
                       )}
                     </div>
@@ -6781,7 +6888,7 @@ async function uploadImage(files, field = {}) {
     });
 
     if (error) {
-      alert(`업로드 실패: ${error.message}`);
+      reportAdminError('업로드 실패', error);
       continue;
     }
 
@@ -6907,8 +7014,7 @@ export default function Admin() {
     setLoading(false);
 
     if (error) {
-      console.error(error);
-      alert(`${config.title} 조회 실패: ${error.message}`);
+      reportAdminError(`${config.title} 조회 실패`, error);
       setRows([]);
       setTotalCount(0);
       return;
@@ -7057,7 +7163,7 @@ export default function Admin() {
         .single();
 
       if (error) {
-        alert(`등록 실패: ${error.message}`);
+        reportAdminError('등록 실패', error);
         return;
       }
 
@@ -7071,7 +7177,7 @@ export default function Admin() {
         .single();
 
       if (error) {
-        alert(`수정 실패: ${error.message}`);
+        reportAdminError('수정 실패', error);
         return;
       }
 
@@ -7083,9 +7189,11 @@ export default function Admin() {
     }
 
     alert(
-      shouldRequestWinningEmbedding(config, savedRow)
-        ? '저장 완료. 임베딩은 자동 생성 중입니다.'
-        : '저장 완료'
+      !shouldRequestWinningEmbedding(config, savedRow)
+        ? '저장 완료'
+        : WINNING_EMBED_API_BASE
+          ? '저장 완료. 임베딩은 자동 생성 중입니다.'
+          : '저장 완료. 임베딩 자동 생성 설정(VITE_RAG_API_BASE_URL)이 되어 있지 않아 임베딩은 생성되지 않았습니다. 관리자에게 문의하세요.'
     );
     setMode('list');
     setEditingRow(null);
@@ -7099,10 +7207,30 @@ export default function Admin() {
     const { error } = await supabase.from(config.table).delete().eq('id', row.id);
 
     if (error) {
-      alert(`삭제 실패: ${error.message}`);
+      reportAdminError('삭제 실패', error);
       return;
     }
 
+    await loadRows();
+  }
+
+  // refundRequests 탭 전용 — fn_complete_refund RPC 로만 '환불완료'를 찍는다
+  // (제네릭 PATCH 로는 completed 로 못 가게 status select 에서 이미 뺐다, ①).
+  // RPC 인자명은 Baseline §2 fn_complete_refund 시그니처 그대로.
+  async function completeRefund(row) {
+    if (!window.confirm('환불을 완료 처리하시겠습니까?')) return;
+
+    const { error } = await supabase.rpc('fn_complete_refund', {
+      p_refund_request_id: row.id,
+      p_admin_memo: null
+    });
+
+    if (error) {
+      reportAdminError('환불 완료 처리 실패', error);
+      return;
+    }
+
+    alert('환불 완료 처리되었습니다.');
     await loadRows();
   }
 
@@ -7126,7 +7254,7 @@ export default function Admin() {
     const { error } = await supabase.from(config.table).update(payload).eq('id', row.id).select('*').single();
 
     if (error) {
-      alert(`수정 실패: ${error.message}`);
+      reportAdminError('수정 실패', error);
       return false;
     }
 
@@ -7173,9 +7301,8 @@ export default function Admin() {
       const { data, error } = await buildListQuery().range(from, from + EXPORT_CHUNK - 1);
 
       if (error) {
-        console.error(error);
         setExporting(null);
-        alert(`CSV 내보내기 실패: ${error.message}`);
+        reportAdminError('CSV 내보내기 실패', error);
         return;
       }
 
@@ -7358,6 +7485,8 @@ export default function Admin() {
                     totalCount={totalCount}
                     onEdit={editRow}
                     onDelete={deleteRow}
+                    activeKey={activeKey}
+                    onCompleteRefund={completeRefund}
                     onOpenSection={openRowSection}
                     onOpenMetaEdit={setMetaEditRow}
                   />
@@ -7459,8 +7588,7 @@ function PremiumBookAdmin() {
     setRowsLoading(false);
 
     if (error) {
-      console.error(error);
-      alert(`${config.title} 조회 실패: ${error.message}`);
+      reportAdminError(`${config.title} 조회 실패`, error);
       setRows([]);
       return;
     }
@@ -7502,7 +7630,7 @@ function PremiumBookAdmin() {
     const { error } = await supabase.from('premium_book_pages').delete().eq('id', row.id);
 
     if (error) {
-      alert(`삭제 실패: ${error.message}`);
+      reportAdminError('삭제 실패', error);
       return;
     }
 
@@ -7518,7 +7646,7 @@ function PremiumBookAdmin() {
     if (mode === 'create') {
       const { error } = await supabase.from('premium_book_pages').insert(payload);
       if (error) {
-        alert(`등록 실패: ${error.message}`);
+        reportAdminError('등록 실패', error);
         return;
       }
     } else {
@@ -7527,7 +7655,7 @@ function PremiumBookAdmin() {
         .update(payload)
         .eq('id', editingRow.id);
       if (error) {
-        alert(`수정 실패: ${error.message}`);
+        reportAdminError('수정 실패', error);
         return;
       }
     }

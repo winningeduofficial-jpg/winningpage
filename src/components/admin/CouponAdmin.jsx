@@ -162,6 +162,13 @@ const COUPON_SAVE_ERROR_TEXT = {
   23514: '할인 금액·최소 결제 금액을 확인해 주세요. 할인 금액은 0보다 커야 하고, 최소 결제 금액은 0 이상이어야 합니다.'
 };
 
+// sql/70 이 추가한 파생 CHECK(coupons_cap_derived_from_grant_type_check —
+// 발급형은 1인당 사용 횟수 1, 조건형은 무제한이어야 한다) 전용 문구(2026-08-12).
+// validateForm 이 화면에서 먼저 막지만, 폼을 거치지 않은 경합(다른 창에서
+// grant_type 을 바꾼 뒤 저장)까지 막을 수는 없어 DB 제약명으로도 분기한다.
+const COUPON_SAVE_CAP_MISMATCH_TEXT =
+  '배포 방식과 1인당 사용 횟수가 맞지 않습니다. 발급형은 1인당 사용 횟수가 1이어야 하고, 조건형은 무제한이어야 합니다.';
+
 // slug 중복은 저장 전에 막는다(요구사항).
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
 //   ② 차단 alert 는 아래 승인된 문구를 쓴다.
@@ -304,6 +311,12 @@ const GRANT_TYPE_LABEL = {
 // 다른 규칙을 두면 운영자가 어느 것이 강제인지 외워야 한다.
 const NULLABLE_KEYS = ['valid_until', 'max_uses_per_user', 'max_redemptions'];
 
+// max_uses_per_user 는 sql/70 이후 grant_type 의 파생값이라(발급형=1,
+// 조건형=무제한) 손으로 고칠 수 없다(disabled) — grant_on_signup 체크박스와
+// 같은 이유다. NullableField 가 비활성일 때만 이 안내를 붙인다(2026-08-12,
+// 사용자 지시로 신규 작성).
+const MAX_USES_PER_USER_DERIVED_HINT_TEXT = '배포 방식에 따라 자동으로 정해집니다.';
+
 function emptyForm() {
   return {
     is_active: true,
@@ -320,7 +333,13 @@ function emptyForm() {
     valid_until: '',
     valid_until_mode: '',
     max_uses_per_user: '',
-    max_uses_per_user_mode: '',
+    // grant_type 기본값 'auto' 의 파생값과 일치시킨다(sql/70
+    // coupons_cap_derived_from_grant_type_check — 조건형은 1인당 사용 횟수
+    // 무제한이어야 한다). NullableField 가 이 필드를 항상 disabled 로 잠가
+    // 화면에서 라디오를 눌러 고칠 수 없으므로, 여기를 ''(미선택)으로 두면
+    // validateForm 이 매번 막아 신규 등록 기본 경로가 원천 봉쇄된다
+    // (2026-08-12, 리뷰 BLOCK 수정).
+    max_uses_per_user_mode: 'unlimited',
     max_redemptions: '',
     max_redemptions_mode: ''
   };
@@ -413,12 +432,30 @@ function validateForm(form) {
     if (!Number.isInteger(num) || num <= 0) return key;
   }
 
+  // sql/70 coupons_cap_derived_from_grant_type_check — 발급형은 1인당 사용
+  // 횟수가 반드시 1, 조건형은 반드시 무제한이어야 한다. NullableField 가
+  // max_uses_per_user 를 disabled 로 잠가 화면 조작으로는 어긋날 수 없지만,
+  // rowToForm 이 들고 온 기존 값(전환 전 데이터)까지 방어해 저장 시 23514
+  // 원문이 뜨지 않게 한다.
+  if (form.grant_type === 'granted') {
+    if (form.max_uses_per_user_mode !== 'value' || Number(form.max_uses_per_user) !== 1) {
+      return 'max_uses_per_user';
+    }
+  } else if (form.grant_type === 'auto') {
+    if (form.max_uses_per_user_mode !== 'unlimited') {
+      return 'max_uses_per_user';
+    }
+  }
+
   return null;
 }
 
 // 3상태 컨트롤: [∞] / [값] 라디오 + 값 입력. 값 모드가 아니면 입력을 비활성화해
-// "무제한인데 숫자가 남아 있는" 화면을 만들지 않는다.
-function NullableField({ fieldKey, type, mode, value, onChange }) {
+// "무제한인데 숫자가 남아 있는" 화면을 만들지 않는다. disabled=true 면(현재는
+// max_uses_per_user 뿐 — grant_type 파생값) 라디오 두 개와 입력까지 전부 잠그고
+// 안내 문구를 붙인다 — grant_on_signup 체크박스(:1528)와 같은 "파생값은 손편집
+// 금지" 규범이다.
+function NullableField({ fieldKey, type, mode, value, onChange, disabled = false }) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       <label className="inline-flex items-center gap-2 text-sm font-bold">
@@ -426,6 +463,7 @@ function NullableField({ fieldKey, type, mode, value, onChange }) {
           type="radio"
           name={`${fieldKey}_mode`}
           checked={mode === 'unlimited'}
+          disabled={disabled}
           onChange={() => onChange({ [`${fieldKey}_mode`]: 'unlimited', [fieldKey]: '' })}
         />
         <span className="text-base leading-none">{UNLIMITED_LABEL ?? UNLIMITED_FALLBACK}</span>
@@ -436,6 +474,7 @@ function NullableField({ fieldKey, type, mode, value, onChange }) {
           type="radio"
           name={`${fieldKey}_mode`}
           checked={mode === 'value'}
+          disabled={disabled}
           onChange={() => onChange({ [`${fieldKey}_mode`]: 'value' })}
         />
         <span className="w-[10rem]">
@@ -443,7 +482,7 @@ function NullableField({ fieldKey, type, mode, value, onChange }) {
             type={type}
             min={type === 'number' ? 1 : undefined}
             value={value ?? ''}
-            disabled={mode !== 'value'}
+            disabled={disabled || mode !== 'value'}
             onChange={(e) =>
               onChange({
                 [fieldKey]: type === 'number' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value
@@ -453,6 +492,12 @@ function NullableField({ fieldKey, type, mode, value, onChange }) {
           />
         </span>
       </label>
+
+      {disabled && (
+        <span className="text-xs font-bold text-gray-500">
+          {MAX_USES_PER_USER_DERIVED_HINT_TEXT}
+        </span>
+      )}
     </div>
   );
 }
@@ -461,6 +506,10 @@ export default function CouponAdmin() {
   const [view, setView] = useState('list'); // list | create | edit | history | grants
   const [coupons, setCoupons] = useState([]);
   const [redemptionStats, setRedemptionStats] = useState({ byCoupon: {}, truncated: false });
+  // grant_type 이 'granted' 가 아니게 전환된 쿠폰도, 과거에 살아있는(회수 안 된)
+  // 발급이 있었다면 발급 이력 버튼을 계속 보여줘야 한다(요구사항 ⑥) — 행
+  // 데이터 자체엔 이 정보가 없어 목록 로드 시 한 번 더 조회해 집합으로 든다.
+  const [grantedCouponIds, setGrantedCouponIds] = useState(() => new Set());
   const [loading, setLoading] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
@@ -493,12 +542,17 @@ export default function CouponAdmin() {
 
     // 정렬은 slug 오름차순 — sql/55 3)절 fn_usable_coupons 의 `order by c.slug`
     // 와 같은 기준이라 "어드민에서 보이는 순서 = 판정 순회 순서" 가 된다.
-    const [couponRes, redemptionRes] = await Promise.all([
+    const [couponRes, redemptionRes, grantExistsRes] = await Promise.all([
       supabase.from('coupons').select('*').order('slug', { ascending: true }),
       supabase
         .from('coupon_redemptions')
         .select('coupon_id, voided_at')
-        .limit(REDEMPTION_SCAN_LIMIT)
+        .limit(REDEMPTION_SCAN_LIMIT),
+      // 요구사항 ⑥ — 발급 이력 버튼 게이트용. revoked_at is null(살아있는 발급)
+      // 인 행만 봐서 grantedCouponIds 를 만든다. 실패해도 목록 자체는 살리고
+      // 게이트는 grant_type 단독 조건으로 열화시킨다(redemptionStats 와 같은
+      // 열화 방식).
+      supabase.from('coupon_grants').select('coupon_id').is('revoked_at', null).limit(REDEMPTION_SCAN_LIMIT)
     ]);
 
     setLoading(false);
@@ -511,6 +565,15 @@ export default function CouponAdmin() {
     }
 
     setCoupons(couponRes.data || []);
+
+    if (grantExistsRes.error) {
+      // 이력 버튼 게이트만 열화시킨다 — grant_type==='granted' 단독 조건으로
+      // 되돌아간다(전환된 쿠폰의 이력 버튼만 못 보일 뿐, 목록 자체는 살아있다).
+      console.warn('발급 이력 존재 여부 조회 실패:', grantExistsRes.error.message);
+      setGrantedCouponIds(new Set());
+    } else {
+      setGrantedCouponIds(new Set((grantExistsRes.data || []).map((row) => row.coupon_id)));
+    }
 
     if (redemptionRes.error) {
       // 쿠폰 목록 자체는 살린다 — 사용 건수만 못 보는 상태로 열화시킨다.
@@ -578,7 +641,10 @@ export default function CouponAdmin() {
   async function save() {
     const invalidKey = validateForm(form);
     if (invalidKey) {
-      alert(`${invalidKey} 항목을 입력해주세요.`);
+      // AdminForm 의 기존 템플릿(Admin.jsx:4258 "<X> 항목을 입력해주세요.")에
+      // 키를 그대로 끼우면 운영자가 DB 컬럼명을 읽어야 했다 — FIELD_LABEL 을
+      // 우선 적용해 화면 라벨로 보여준다(2026-08-12, 사용자 지시).
+      alert(`${FIELD_LABEL[invalidKey] ?? invalidKey} 항목을 입력해주세요.`);
       return;
     }
 
@@ -600,11 +666,18 @@ export default function CouponAdmin() {
 
     if (error) {
       console.error(error);
-      alert(
-        `${view === 'create' ? '등록' : '수정'} 실패: ${
-          error.code in COUPON_SAVE_ERROR_TEXT ? COUPON_SAVE_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT
-        }`
-      );
+      // 23514 는 제약이 둘이라(금액 CHECK / sql/70 파생 CHECK) error.code 만으로
+      // 못 가른다 — Postgres 가 error.message 에 싣는 제약명으로 분기한다
+      // (2026-08-12, 사용자 지시). 그 밖의 코드는 기존 COUPON_SAVE_ERROR_TEXT.
+      let saveErrorText;
+      if (error.code === '23514' && String(error.message ?? '').includes('coupons_cap_derived_from_grant_type_check')) {
+        saveErrorText = COUPON_SAVE_CAP_MISMATCH_TEXT;
+      } else if (error.code in COUPON_SAVE_ERROR_TEXT) {
+        saveErrorText = COUPON_SAVE_ERROR_TEXT[error.code];
+      } else {
+        saveErrorText = ADMIN_UNKNOWN_ERROR_TEXT;
+      }
+      alert(`${view === 'create' ? '등록' : '수정'} 실패: ${saveErrorText}`);
       return;
     }
 
@@ -993,11 +1066,14 @@ export default function CouponAdmin() {
                                 <History size={17} />
                               </button>
 
-                              {/* 발급 관리는 발급형에만 의미가 있다. 조건형에
-                                  버튼을 두면 "눌렀는데 아무도 없는" 빈 화면이
-                                  열리거나, 발급 시 WC004 로만 실패하는 버튼이
-                                  된다 — 아예 그리지 않는다. */}
-                              {row.grant_type === 'granted' && (
+                              {/* 발급 관리는 발급형이거나(신규 발급 가능), 과거에
+                                  조건형으로 전환된 뒤에도 살아있는(회수 안 된)
+                                  발급 이력이 남아 있으면 보여준다 — 전환된 쿠폰의
+                                  이력 접근을 끊지 않는다(요구사항 ⑥). 둘 다
+                                  아니면 "눌렀는데 아무도 없는" 빈 화면이거나,
+                                  발급 시 WC004 로만 실패하는 버튼이 된다 — 아예
+                                  그리지 않는다. */}
+                              {(row.grant_type === 'granted' || grantedCouponIds.has(row.id)) && (
                                 <button
                                   type="button"
                                   onClick={() => openGrants(row)}
@@ -1504,11 +1580,19 @@ export default function CouponAdmin() {
                         checked={form.grant_type === value}
                         onChange={() =>
                           patch(
-                            // 조건형으로 되돌리면 grant_on_signup 도 함께 끈다 —
+                            // sql/70 coupons_cap_derived_from_grant_type_check —
+                            // 1인당 사용 횟수는 grant_type 의 파생값이라 여기서
+                            // 같이 확정한다(2026-08-12, 사용자 지시). 조건형으로
+                            // 되돌리면 grant_on_signup 도 함께 끈다 —
                             // coupons_grant_on_signup_check 가 그 조합을 금지한다.
                             value === 'granted'
-                              ? { grant_type: value }
-                              : { grant_type: value, grant_on_signup: false }
+                              ? { grant_type: value, max_uses_per_user_mode: 'value', max_uses_per_user: 1 }
+                              : {
+                                  grant_type: value,
+                                  grant_on_signup: false,
+                                  max_uses_per_user_mode: 'unlimited',
+                                  max_uses_per_user: ''
+                                }
                           )
                         }
                       />
@@ -1592,6 +1676,9 @@ export default function CouponAdmin() {
                   mode={form[`${key}_mode`]}
                   value={form[key]}
                   onChange={patch}
+                  // sql/70 이후 max_uses_per_user 는 grant_type 의 파생값이라
+                  // (라디오 onChange 가 이미 확정) 손편집을 막는다 — 항상 잠금.
+                  disabled={key === 'max_uses_per_user'}
                 />
               )}
             </div>
