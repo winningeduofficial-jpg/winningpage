@@ -62,8 +62,27 @@ function mapCouponRow(c) {
     isActive: c.is_active,
     eligible: c.eligible,
     reason: c.reason,
-    ownerIsStudent: c.owner_is_student
+    ownerIsStudent: c.owner_is_student,
+    // fn_usable_coupons / fn_coupon_by_code 는 stackable 을 돌려주지 않는다 —
+    // coupons 테이블에서 따로 읽어 아래 mergeStackable 로 채운다. 값을 모르는
+    // 동안은 false(비중복)로 둔다. 보수적인 쪽이 맞다 — 중복 가능하다고
+    // 잘못 보이면 화면 할인액이 서버보다 커져 사용자가 틀린 금액을 본다.
+    stackable: false
   };
+}
+
+// 서버(fn_respond_enrollment, sql/71)의 쿠폰 적용 규칙
+//   · stackable = false 끼리는 최고액 **1장만** 적용(v_best_nonstack_idx)
+//   · stackable = true 는 전부 합산
+// 화면이 이 규칙을 모르면 여러 장 체크한 합계를 보여주고, 서버는 1장만
+// 적용해 결제 직전에 금액이 바뀐다(skipped_coupon_ids → amountMismatch 는
+// 이미 결제 버튼을 누른 뒤의 사후 경고다). 그래서 선택 단계에서부터 같은
+// 규칙을 적용한다.
+//
+// stackable 은 coupons 테이블에서 직접 읽는다 — `coupons public read`
+// (is_active = true, sql/10)로 열려 있어 마이그레이션이 필요 없다.
+function mergeStackable(rows, stackableById) {
+  return rows.map((row) => ({ ...row, stackable: stackableById[row.id] === true }));
 }
 
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
@@ -128,6 +147,7 @@ function EnrollmentCheckout({ orderId }) {
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
   const [couponCode, setCouponCode] = useState('');
+  const [stackableById, setStackableById] = useState({});
   const [codeFeedback, setCodeFeedback] = useState(null);
   const [amountMismatch, setAmountMismatch] = useState(false);
 
@@ -223,8 +243,21 @@ function EnrollmentCheckout({ orderId }) {
         setCouponError(true);
         return;
       }
+
+      // stackable 은 RPC 반환에 없어 카탈로그에서 함께 읽는다(위 mergeStackable).
+      const { data: flags, error: flagError } = await supabase
+        .from('coupons')
+        .select('id, stackable')
+        .eq('is_active', true);
+      if (signalAlive && !signalAlive()) return;
+      if (flagError) console.warn('쿠폰 중복 사용 여부 조회 실패:', flagError.message);
+
+      const map = {};
+      for (const row of flags || []) map[row.id] = row.stackable;
+      setStackableById(map);
+
       setCouponError(false);
-      setCoupons((data || []).map(mapCouponRow));
+      setCoupons(mergeStackable((data || []).map(mapCouponRow), map));
     },
     [order]
   );
@@ -263,8 +296,22 @@ function EnrollmentCheckout({ orderId }) {
     setAmountMismatch(false);
     setSelectedCouponIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+
+      // 비중복 쿠폰을 새로 고르면 기존에 골라둔 비중복 쿠폰을 해제한다 —
+      // 서버가 어차피 최고액 1장만 적용하므로(위 mergeStackable 주석) 화면도
+      // 1장만 잡혀 있어야 금액이 일치한다. 중복 가능(stackable) 쿠폰은 건드리지
+      // 않는다.
+      if (stackableById[id] !== true) {
+        for (const selectedId of prev) {
+          if (stackableById[selectedId] !== true) next.delete(selectedId);
+        }
+      }
+
+      next.add(id);
       return next;
     });
   }
@@ -291,8 +338,23 @@ function EnrollmentCheckout({ orderId }) {
       return;
     }
 
-    setCoupons((prev) => [...prev.filter((c) => c.id !== found.id), mapCouponRow(found)]);
-    setSelectedCouponIds((prev) => new Set(prev).add(found.id));
+    // 코드로 받은 쿠폰도 카탈로그의 stackable 을 그대로 적용한다. 카탈로그에
+    // 없는 코드 전용 쿠폰이면 map 에 없어 false(비중복)로 떨어진다 — 보수적인
+    // 쪽이 맞다(mapCouponRow 주석).
+    setCoupons((prev) => [
+      ...prev.filter((c) => c.id !== found.id),
+      ...mergeStackable([mapCouponRow(found)], stackableById)
+    ]);
+    setSelectedCouponIds((prev) => {
+      const next = new Set(prev);
+      if (stackableById[found.id] !== true) {
+        for (const selectedId of prev) {
+          if (stackableById[selectedId] !== true) next.delete(selectedId);
+        }
+      }
+      next.add(found.id);
+      return next;
+    });
     setAmountMismatch(false);
     setCodeFeedback(found.eligible ? null : { type: 'ineligible', reason: found.reason });
     setCouponCode('');
