@@ -18,12 +18,10 @@ import { formatKRW } from '../../../data/pricingCatalog';
 //   approved  + pending  = 학부모가 수락(fn_respond_enrollment 성공)까지 했는데
 //                          토스 결제창만 닫은 상태. 쿠폰 귀속까지 끝나 있다.
 //
-//   후자는 현재 재개할 방법이 없다 — ParentCheckout.jsx:162 의 진입 게이트가
-//   `approval_status === 'requested' && status === 'pending'` 만 통과시키므로
-//   같은 URL 로 다시 들어가면 not_actionable 로 막힌다. 그래서 여기서도
-//   결제하기 버튼을 걸지 않고 상태만 보여준다. 재개 경로(기존 amount 로 토스
-//   재호출)는 ParentCheckout 수정이 필요하고, handoff 가 "결제 플로우 담당과
-//   조율할 것"으로 남긴 항목이다.
+//   둘 다 /checkout?order=<id> 로 보낸다. 후자는 ParentCheckout 이 재개 모드로
+//   받아 쿠폰 단계를 건너뛰고 확정된 금액으로 토스만 다시 부른다(2026-08-13,
+//   handoff 작업 2 해소 — 그 전에는 진입 게이트가 requested 만 통과시켜서
+//   수락 후 결제창을 닫으면 되살릴 방법이 없었다).
 const STATUS_META = {
   requested: { label: '수락 대기', cls: 'bg-[#fff3d1] text-gold' },
   approved: { label: '결제 대기', cls: 'bg-[#e7f2fb] text-accent' }
@@ -84,7 +82,6 @@ export default function EnrollmentInbox() {
       <div className="mt-[1.5rem] flex flex-col gap-3">
         {rows.map((row) => {
           const meta = STATUS_META[row.approval_status] || STATUS_META.requested;
-          const actionable = row.approval_status === 'requested';
           const childName = nameById[row.student_profile_id];
 
           return (
@@ -112,23 +109,12 @@ export default function EnrollmentInbox() {
                 <span className="text-[1rem] font-semibold text-ink-strong">
                   {formatKRW(row.amount)}
                 </span>
-                {actionable ? (
-                  <Link
-                    to={`/checkout?order=${encodeURIComponent(row.id)}`}
-                    className="inline-flex h-[2.5rem] items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
-                  >
-                    결제하기
-                  </Link>
-                ) : (
-                  // 위 주석의 재개 갭 — 링크를 걸면 not_actionable 화면으로 보낸다.
-                  <span
-                    aria-disabled="true"
-                    title="수락은 끝났고 결제만 남은 요청입니다. 결제 재개 화면은 준비 중입니다."
-                    className="inline-flex h-[2.5rem] cursor-not-allowed items-center justify-center rounded-lg bg-line px-5 text-[0.875rem] font-semibold text-white"
-                  >
-                    결제하기
-                  </span>
-                )}
+                <Link
+                  to={`/checkout?order=${encodeURIComponent(row.id)}`}
+                  className="inline-flex h-[2.5rem] items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
+                >
+                  결제하기
+                </Link>
               </div>
             </div>
           );

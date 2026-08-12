@@ -159,7 +159,15 @@ function EnrollmentCheckout({ orderId }) {
         return;
       }
 
-      if (data.approval_status !== 'requested' || data.status !== 'pending') {
+      // 진입 게이트 — 결제 전(status='pending') 주문만 받는다. 승인축은 두 값을
+      // 모두 통과시킨다.
+      //   requested = 아직 수락 전. 수락 + 쿠폰 선택 + 결제를 여기서 다 한다.
+      //   approved  = 수락(fn_respond_enrollment)까지 끝났는데 토스 결제창만 닫힌
+      //               상태 → **재개 모드**. 2026-08-13 이전에는 이 값이 게이트에
+      //               걸려 not_actionable 로 막혔고, 그래서 학부모가 수락 후
+      //               결제창을 닫으면 그 주문을 되살릴 방법이 아예 없었다
+      //               (docs/mypage-payment-handoff.md 작업 2).
+      if (data.status !== 'pending' || !['requested', 'approved'].includes(data.approval_status)) {
         setOrder(data);
         setOrderError('not_actionable');
         setOrderLoading(false);
@@ -177,6 +185,15 @@ function EnrollmentCheckout({ orderId }) {
         setOrderError('not_found');
         setOrderLoading(false);
         return;
+      }
+
+      // 재개 모드 — 수락이 이미 끝났으므로 fn_respond_enrollment 를 다시 부르면
+      // 안 된다(재호출은 enrollment_not_pending 으로 죽는다, 위 approvedOrder 주석).
+      // handlePay 가 그 RPC 를 건너뛰고 곧장 토스를 부르도록, 승인 결과와 같은
+      // 모양을 DB 행에서 만들어 미리 채운다. 금액은 쿠폰 귀속까지 반영된 확정값
+      // (orders.amount)이라 여기서 다시 계산하지 않는다.
+      if (data.approval_status === 'approved') {
+        setApprovedOrder({ order_id: data.id, amount: data.amount });
       }
 
       setOrder(data);
@@ -212,14 +229,19 @@ function EnrollmentCheckout({ orderId }) {
     [order]
   );
 
+  // 재개 모드(수락 완료 + 결제만 남음). 쿠폰은 수락 시점에 이미 귀속됐고
+  // orders.amount 가 그 결과라, 다시 고르게 하면 화면 금액과 실제 청구액이
+  // 갈라진다 — 조회도 하지 않고 UI 도 감춘다.
+  const isResume = order?.approval_status === 'approved';
+
   useEffect(() => {
-    if (!order) return undefined;
+    if (!order || isResume) return undefined;
     let alive = true;
     fetchCoupons({ signalAlive: () => alive });
     return () => {
       alive = false;
     };
-  }, [order, fetchCoupons]);
+  }, [order, isResume, fetchCoupons]);
 
   const visibleCoupons = useMemo(() => coupons.filter((c) => c.isActive), [coupons]);
 
@@ -431,6 +453,8 @@ function EnrollmentCheckout({ orderId }) {
               </div>
             </div>
 
+            {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). */}
+            {!isResume && (
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
               <div className="flex gap-2">
@@ -554,6 +578,15 @@ function EnrollmentCheckout({ orderId }) {
                 </>
               )}
             </div>
+            )}
+
+            {isResume && (
+              // ⚠ 신규 카피 — 승인 필요. 쿠폰 섹션이 사라진 이유를 설명하지 않으면
+              // 학부모는 "쿠폰을 못 쓰게 됐다"로 읽는다.
+              <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
+                이미 수락한 요청이에요. 적용한 쿠폰과 결제 금액은 그대로이고, 결제만 진행하면 됩니다.
+              </p>
+            )}
 
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>
