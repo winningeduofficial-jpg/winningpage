@@ -132,3 +132,42 @@ export async function requestParentLink(code) {
     studentName: data?.student_name || ''
   };
 }
+
+/**
+ * 학생이 결제 요청(수강신청)을 보낼 수 있는지 판정한다 — "승인된" 학부모
+ * 연결이 있어야 한다(status='pending'인 요청 중 상태는 자격이 아니다).
+ * StudentEnrollmentRequest.jsx(결제요청 실패 모달)의 판정 근거.
+ *
+ * 학생:학부모 = 1:1(제품 규칙 확정)이라 여러 건이 있어도 첫 건만 본다.
+ * parent_id 를 함께 반환하는 이유 — 결제 요청 제출(fn_request_enrollment)이
+ * p_parent_profile_id 인자를 요구하는데, 학생 화면은 그 값을 달리 알 방법이
+ * 없다(로그인 세션엔 자기 자신의 id 뿐이다).
+ *
+ * RLS(parent_child_links party read, sql/40)가 이미 "본인이 당사자인 행"만
+ * 열어 주므로 student_id 를 서버가 아니라 클라이언트가 넘겨도 위조 이득이
+ * 없다 — 남의 student_id 를 넣어도 RLS 가 0행을 돌려준다.
+ *
+ * 조회 실패 시 null(= "연결 없음"으로 안전 처리) — 위조된 연결로 요청을
+ * 통과시키는 것보다, 진짜 연결이 있는 사용자가 한 번 더 시도하게 만드는
+ * 쪽이 안전하다(lookupChild/requestParentLink의 fail() 패턴과 달리 여기는
+ * 화면이 즉시 재시도 가능한 실패 모달을 이미 갖고 있어 별도 사유 코드가
+ * 필요 없다).
+ */
+export async function getApprovedParentLink(studentId) {
+  if (!studentId) return null;
+
+  const { data, error } = await supabase
+    .from('parent_child_links')
+    .select('id, parent_id')
+    .eq('student_id', studentId)
+    .eq('status', 'approved')
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('학부모 연결 조회 실패:', error.message);
+    return null;
+  }
+
+  return data || null;
+}
