@@ -23,6 +23,17 @@ function safeRedirect(value) {
   }
 }
 
+// getSession()이 응답 없이 무한 대기하는 경우를 대비한 타임아웃 폴백.
+// MyPage.jsx / Header.jsx의 withTimeout 선례와 동일한 패턴이다.
+function withTimeout(promise, ms, fallbackValue = null) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      window.setTimeout(() => resolve(fallbackValue), ms);
+    })
+  ]);
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -32,21 +43,34 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  // 이미 로그인된 사용자에게 로그인 폼이 잠깐 노출되는 것을 막는 게이트.
+  // getSession() 확인이 끝날 때까지는 로딩 화면만 보여준다.
+  const [sessionChecking, setSessionChecking] = useState(true);
 
   useEffect(() => {
     let alive = true;
 
     async function checkSession() {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await withTimeout(supabase.auth.getSession(), 3500, {
+          data: { session: null }
+        });
 
         if (!alive) return;
 
         if (data?.session?.user) {
+          // 이미 로그인된 사용자는 목적지로 이동시키되, 이동 중 폼이
+          // 번쩍이지 않도록 sessionChecking은 계속 true로 둔다.
           navigate(redirectTo, { replace: true });
+          return;
         }
+
+        setSessionChecking(false);
       } catch (error) {
         console.error('기존 세션 확인 오류:', error);
+        // 세션 확인 자체가 실패해도 로그인 폼은 반드시 열어야 하므로
+        // fail-open으로 게이트를 해제한다.
+        if (alive) setSessionChecking(false);
       }
     }
 
@@ -106,7 +130,10 @@ export default function Login() {
       }
 
       setLoading(false);
-      window.location.href = redirectTo;
+      // href가 아닌 replace: 로그인 성공 후 뒤로가기로 /login에 다시 진입하면
+      // 방금 추가된 세션 확인 게이트가 세션을 발견해 즉시 재이동시키는 헷갈리는
+      // 바운스가 생긴다. replace로 히스토리에서 /login 자체를 지워 이를 막는다.
+      window.location.replace(redirectTo);
     } catch (error) {
       console.error('로그인 처리 오류:', error);
 
@@ -121,6 +148,16 @@ export default function Login() {
   }
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
+
+  if (sessionChecking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
+        <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_1.125rem_2.8125rem_rgba(13,27,42,0.10)]">
+          로그인 상태 확인 중...
+        </div>
+      </main>
+    );
+  }
 
   // width="login": 로그인만 콘텐츠 컬럼 460px(28.75rem) — 시안 실측.
   // 회원가입·약관 화면은 AuthLayout 기본값(400px)을 그대로 쓴다.
