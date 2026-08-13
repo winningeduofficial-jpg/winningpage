@@ -114,6 +114,7 @@ export default function SelectionTimeline() {
             ))}
           </div>
 
+          {/* biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다. */}
           <ol role="list" className="grid grid-cols-4 list-none">
             {SELECTION_STEPS.map((step) => (
               <li key={step.key} className="text-center">
@@ -135,6 +136,7 @@ export default function SelectionTimeline() {
             className="absolute bottom-2 left-2 top-[0.875rem] w-px -translate-x-1/2 bg-gradient-to-b from-[#D2D2D2] to-[#AFAFAF]"
           />
 
+          {/* biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다. */}
           <ol role="list" className="list-none space-y-8">
             {SELECTION_STEPS.map((step, index) => (
               <li key={step.key} className="relative pl-8">

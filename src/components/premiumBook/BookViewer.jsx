@@ -379,6 +379,7 @@ export default function BookViewer({
         }}
         role="group"
         aria-label="프리미엄 안내 책자"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: onKeyDown으로 페이지 넘김을 키보드로 조작하기 위해 포커스 가능해야 한다.
         tabIndex={0}
         onKeyDown={handleKeyDown}
         // 스와이프는 stage가 아니라 이 층에서 받는다. 1페이지 모드의 화살표는 stage 위에

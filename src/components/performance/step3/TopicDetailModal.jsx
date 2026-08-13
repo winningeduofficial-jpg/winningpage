@@ -129,6 +129,7 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
             뒤 여백"이라는 별도 실측 자체가 시안에 없음). 별도 근거가 없는 한 상하를 같은
             값으로 둔다(검토 B-2). */}
         <div
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — useModalBehavior가 이 div를 초기 포커스로 잡는다.
           tabIndex={0}
           role="region"
           aria-label="주제 상세 내용"

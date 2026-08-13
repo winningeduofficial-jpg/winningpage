@@ -173,6 +173,7 @@ export default function ReportModalShell({
             준다(ARIA APG "Scrollable Regions"). 이름 없는 generic div가 포커스 스톱이 되면
             낭독이 무음이라 `role="region"` + `aria-label`을 함께 준다. */}
         <div
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: 위 주석 참고 — APG Scrollable Regions 패턴.
           tabIndex={0}
           role="region"
           aria-label={scrollLabel}

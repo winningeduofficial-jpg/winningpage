@@ -76,6 +76,7 @@ export default function TopicCardList({
           감싼다. 바깥 `gap-5`가 그대로 마지막 카드↔버튼 1.25rem을 유지하므로 세로 리듬은
           변하지 않는다. Tailwind preflight가 `list-style: none`을 걸면 Safari/VoiceOver가
           리스트 롤을 떼어 버리므로 `role="list"`를 명시한다. */}
+      {/* biome-ignore lint/a11y/noRedundantRoles: 위 주석 참고 — Safari/VoiceOver list role 복구 목적의 의도적 명시. */}
       <ul role="list" className="flex flex-col gap-5">
         {topics.map((topic, index) => (
           <li key={topic.id ?? index} className="w-full">

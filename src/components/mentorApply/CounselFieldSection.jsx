@@ -94,6 +94,7 @@ export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
           ref={scrollRef}
           role="region"
           aria-label={COUNSEL_FIELD_SECTION.title}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — 가로 스크롤 영역을 키보드로도 스크롤할 수 있게 한다.
           tabIndex={0}
           className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >

@@ -410,6 +410,7 @@ export default function ComboField({
               <ul
                 ref={listRef}
                 id={listboxId}
+                // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: APG Combobox 패턴 — 커스텀 콤보박스의 옵션 목록.
                 role="listbox"
                 aria-labelledby={labelId}
                 tabIndex={-1}
@@ -421,6 +422,7 @@ export default function ComboField({
                     <li
                       key={option.key}
                       id={optionId(index)}
+                      // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: APG Combobox 패턴 — 옵션 항목.
                       role="option"
                       aria-selected={isSelected}
                       onMouseEnter={() => setActiveIndex(index)}

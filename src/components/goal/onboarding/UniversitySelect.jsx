@@ -86,6 +86,7 @@ export default function UniversitySelect({
         {isOpen && (
           // 드롭다운은 입력 필드 아래 오버레이로, 레이아웃을 밀어내지 않는다(part-02 #4 구현 노트).
           <ul
+            // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: APG Combobox 패턴 — 커스텀 콤보박스의 옵션 목록.
             role="listbox"
             className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 max-h-[17rem] overflow-y-auto rounded-[0.75rem] border border-line bg-white shadow-[0_0.75rem_2rem_rgba(15,23,42,0.12)]"
           >

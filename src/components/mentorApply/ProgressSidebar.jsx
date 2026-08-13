@@ -168,6 +168,7 @@ export default function ProgressSidebar({ sections = [], values = {} }) {
       {/* 라벨 ↔ 리스트 gap 32(2rem) / 행 간 gap 20(1.25rem). wide 미만에서는 칩이 가로로 흐르며
           줄바꿈(flex-wrap)한다 — 가로 스크롤을 만들지 않아 스크롤 어포던스 학습이 필요 없다. */}
       <ol
+        // biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다.
         role="list"
         className="mt-4 flex list-none flex-row flex-wrap gap-x-2 gap-y-2 wide:mt-8 wide:flex-col wide:flex-nowrap wide:gap-y-5"
       >
