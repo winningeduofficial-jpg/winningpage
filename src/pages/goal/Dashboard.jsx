@@ -15,12 +15,12 @@ import {
   mockAdvice,
   mockTodayPlan,
   mockRanking,
-  mockAchievementChart,
+  mockDailyGoal,
   mockDailyGoalEmpty
 } from '../../data/goalMock';
-import { fetchGoalSchedules, fetchGoalStudent } from '../../lib/goalApi';
+import { fetchGoalSchedules, fetchGoalStudent, fetchTodayGoalRecord } from '../../lib/goalApi';
 import { formatScheduleDday, formatScheduleMeta } from '../../lib/goal/scheduleDday';
-import { kstYMD } from '../../lib/goal/calc/index.js';
+import { kstYMD, getDayIndexFromYMDServer, VIRTUAL_DAY_NAMES } from '../../lib/goal/calc/index.js';
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/
@@ -62,6 +62,35 @@ function mapTargetUniversities(student) {
       jeongsiRate: pctRound(student.probs.minJungsi),
       jungsiAvailable
     }
+  };
+}
+
+/**
+ * "오늘의 목표" 카드 데이터. GET /api/goal/daily-record 결과(dailyRecordResult)와
+ * student.weeklySchedule(요일별 목표 시간, 기존 실데이터)을 합쳐 만든다.
+ *
+ * dailyRecordResult가 아직 없거나(로딩 중) 방어적 분기(kind !== 'success')면 studyHours=0
+ * 인 빈 상태로 그린다 — TodayGoalCard의 hasRecord 파생(studyHours>0)과 자연히 맞는다.
+ */
+function mapTodayGoal(student, dailyRecordResult) {
+  const record = dailyRecordResult?.kind === 'success' ? dailyRecordResult.record : null;
+  const studyHours = record?.studyHours || 0;
+
+  const now = new Date();
+  const dayIndex = getDayIndexFromYMDServer(kstYMD(now), now);
+  const dayName = VIRTUAL_DAY_NAMES[dayIndex];
+  const daySchedule = student.weeklySchedule?.[dayName] || { ideal: 0, min: 0 };
+
+  const rateOf = (targetHours) =>
+    targetHours > 0 ? Math.min(100, Math.round((studyHours / targetHours) * 100)) : 0;
+
+  return {
+    studyHours,
+    // 퀵칩 증분 목록 자체는 실데이터가 아니라 UI 상수다 — goalMock.js mockDailyGoal이
+    // 이미 이 값을 들고 있어 그대로 재사용한다(사본을 새로 만들지 않는다).
+    quickAddOptions: mockDailyGoal.quickAddOptions,
+    upperGoalRate: rateOf(daySchedule.ideal),
+    lowerGoalRate: rateOf(daySchedule.min)
   };
 }
 
@@ -127,10 +156,10 @@ function mapNaesin(student) {
 //
 // 조언 유형("일일 분석 조언" ↔ "AI 입시 분석 조언") 상태 축은 `DashboardPageHeader`의
 // `adviceType` prop으로 옮겼다(part-06 #17/#18 뱃지 변형). 기본 렌더는 "오늘 기록 있음"(#20) ·
-// adviceType="ai" · "차트 데이터 있음"(#15) 상태다. 다른 두 축(#12 미기록, #13 빈 차트)을
-// 확인하려면 goalMock.js의 `mockDailyGoalEmpty`, `mockAchievementChartEmpty`로 아래 props만
-// 바꿔 끼우면 된다 — 각 위젯이 데이터 유무로 상태를 스스로 분기하므로 컴포넌트 코드는 수정할
-// 필요가 없다.
+// adviceType="ai" 상태다. 미기록 축을 확인하려면 goalMock.js의 `mockDailyGoalEmpty`로
+// TodayGoalCard/TomorrowPlanCard props만 바꿔 끼우면 된다 — 위젯이 데이터 유무로 상태를
+// 스스로 분기하므로 컴포넌트 코드는 수정할 필요가 없다. AchievementChart는 실데이터
+// (student.probabilityHistory) 기준이라 빈 상태는 이력 0~1건일 때 컴포넌트가 자체 분기한다.
 export default function Dashboard() {
   const advice = mockAdvice.ai;
 
@@ -146,10 +175,21 @@ export default function Dashboard() {
   // 필수 데이터가 아니라 조회 실패를 mock으로 되돌리지 않고 그냥 빈 상태로 보여준다.
   const [schedules, setSchedules] = useState(null);
 
+  // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours). null = 로딩 중.
+  // fetchGoalStudent()와 별도 상태로 둔다 — 하나가 실패해도 다른 하나는 정상 렌더돼야
+  // 한다(예: daily-record 네트워크 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
+  const [dailyRecordResult, setDailyRecordResult] = useState(null);
+
+  const reloadDailyRecord = () => {
+    fetchTodayGoalRecord().then((r) => setDailyRecordResult(r));
+  };
   useEffect(() => {
     let alive = true;
     fetchGoalStudent().then((r) => {
       if (alive) setResult(r);
+    });
+    fetchTodayGoalRecord().then((r) => {
+      if (alive) setDailyRecordResult(r);
     });
     return () => {
       alive = false;
@@ -208,6 +248,7 @@ export default function Dashboard() {
 
   const { student } = result;
   const targetUniversities = mapTargetUniversities(student);
+  const todayGoalData = mapTodayGoal(student, dailyRecordResult);
   const mockExamData = mapMockExam(student);
   const naesinData = mapNaesin(student);
 
@@ -223,13 +264,10 @@ export default function Dashboard() {
           />
 
           <div className="col-start-1 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">
-            {/* 오늘의 목표: daily-record 엔드포인트가 없어 "오늘 실제 기록"엔 근거가 없다
-                (임무 지시 배경 절). weekIdeal/weekMin(주간 목표 시간)은 student에 실데이터로
-                있지만 이 카드는 일 단위 달성률(%)만 그리고 주간 목표 시간을 표시할 슬롯이
-                없어 매핑할 자리가 없다 — 컴포넌트를 넓히는 건 이번 범위 밖이라 손대지 않았다.
-                mockDailyGoalEmpty(기존 "미기록" 빈 상태, goalMock.js)를 그대로 재사용해
-                studyHours/upperGoalRate/lowerGoalRate=0으로 "기록 저장" 빈 상태를 보여준다. */}
-            <TodayGoalCard data={mockDailyGoalEmpty} />
+            {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
+                목표 시간)을 합쳐 mapTodayGoal()이 만든 실데이터. 저장 성공 시
+                reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다. */}
+            <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
 
             <div className="flex gap-[1rem]">
               <div className="w-[33.125rem]">
@@ -251,8 +289,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* AchievementChart: 회차별 백분위/등급 추이 계산이 미이식 상태라 mock 유지. */}
-            <AchievementChart data={mockAchievementChart} />
+            {/* AchievementChart: goal_probability_logs 실이력(probabilityHistory, §goalRepo.js
+                buildStudentPayload) — 4계열(이상/최소 × 수시/정시) 라인 차트. */}
+            <AchievementChart data={student.probabilityHistory} />
           </div>
 
           <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">

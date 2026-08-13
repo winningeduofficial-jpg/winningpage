@@ -2759,10 +2759,19 @@ export function buildHwpCategoryDoc(sectionKey, rawText, row = null, universityN
 function renderPlainListBlockHtml(block) {
   const body = [];
   let bulletGroup = [];
+  // `ordered` 확장(§8.5, 수행평가 설계 리포트의 `분석 포인트`)을 **React 렌더러와 같은 태그·
+  // 같은 클래스 순서로** 낸다. 이 미러는 Gate B(React 출력 ↔ renderDocToHtml 출력 바이트 대조)
+  // 의 한쪽 입력이라 두 렌더러가 같은 DOM을 내야 한다 — PlainListView.jsx의 `listClassName`과
+  // 짝이다. 대입 모집요강 빌더는 `ordered`를 만들지 않으므로(전수 확인) 기존 골든은 그대로
+  // `<ul>`을 탄다.
+  const listTag = block.ordered ? 'ol' : 'ul';
+  const listClass = block.ordered
+    ? 'admission-bullet-list admission-ordered-list'
+    : 'admission-bullet-list';
   const flushBulletGroup = () => {
     if (!bulletGroup.length) return;
     body.push(
-      `<ul class="admission-bullet-list">${bulletGroup.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`
+      `<${listTag} class="${listClass}">${bulletGroup.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</${listTag}>`
     );
     bulletGroup = [];
   };
