@@ -46,7 +46,24 @@ export default function PriorityTable({ rows }) {
                 <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
                   {area}
                 </span>
-                <ScoreBar score={row.score} tone={row.tone} />
+                {/*
+                  F-20(2026-08-11) — 막대만으로는 값이 없다. 숫자를 3열 **안에서** 만든다:
+                  10.625rem(막대) + 0.5rem(gap) + 2.875rem(숫자) = 14rem ≤ 14.8125rem(열 폭)
+                  → 열 폭·행 높이(h-7)·시트 높이가 한 픽셀도 변하지 않는다.
+                  숫자 칸 2.875rem(46px)은 최장 '100점'(실측 43.3px) 기준이고, 열 끝에 0.8125rem
+                  (13px)을 남겨 다음 열('현재 상태')과 붙지 않게 했다 — 그리드에 column-gap 이
+                  없어 이 여백을 남기지 않으면 '34점취약'으로 붙어 읽힌다(실측 확인).
+                  **인쇄에도 나간다** — PDF 는 학생이 보관·출력해 보여 주는 산출물인데 막대만
+                  남으면 값이 소실되고, tone 3색이 흑백 출력에서 무너지면 길이 정보밖에 안 남는다.
+                  새 lg: 값을 만들지 않았으므로(전부 base 클래스) 인쇄 훅 추가가 필요 없다.
+                  숫자가 텍스트로 있으므로 막대는 decorative(중복 낭독 방지).
+                */}
+                <div className="flex items-center gap-2">
+                  <ScoreBar score={row.score} tone={row.tone} trackClass="w-[10.625rem]" decorative />
+                  <span className="w-[2.875rem] shrink-0 text-right text-base font-normal leading-[1.25rem] text-[#525252] tabular-nums">
+                    {row.score}점
+                  </span>
+                </div>
                 <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
                   {row.status}
                 </span>
@@ -71,8 +88,12 @@ export default function PriorityTable({ rows }) {
                 <span className="text-base font-medium leading-[1.25rem] text-[#525252]">
                   {area}
                 </span>
+                {/* F-20 — 모바일 카드는 폭이 유동이라 막대 옆이 아니라 영역명 줄 오른쪽 끝에 붙인다. */}
+                <span className="ml-auto shrink-0 text-base leading-[1.25rem] text-[#525252] tabular-nums">
+                  {row.score}점
+                </span>
               </div>
-              <ScoreBar score={row.score} tone={row.tone} responsive />
+              <ScoreBar score={row.score} tone={row.tone} responsive decorative />
               {/* text-base(16px) — 본문 최소 크기. 데스크톱 그리드와 동일 폰트 크기를 유지한다. */}
               <dl className="flex flex-col gap-1 text-base leading-[1.4] text-[#525252]">
                 <div className="flex gap-1.5">

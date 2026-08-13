@@ -34,6 +34,16 @@ export default function ReportPageOne({ data }) {
           ))}
         </p>
 
+        {/*
+          자리 예약(F-03) — TYPE_COPY.detail(유형별 상세 설명 1문단)이 확정되면 헤드라인 바로
+          아래, 즉 여기에 화면 전용(fd-screen-only)으로 들어간다. head 의 부연이라 다른 자리가
+          없고, 데스크톱에서 헤드라인 오른쪽은 절대배치 레이더가 차지하고 있어 이 아래로 약
+          20rem 의 화면 전용 여백이 실제로 비어 있다(레이더는 flow 에 기여하지 않는다).
+          폭은 헤드라인과 같은 lg:w-[35.875rem] 을 재사용하면 되고, fd-screen-only 라 인쇄 훅은
+          필요 없다. 조회 키는 data.studentType — 자리를 새로 파지 마라.
+          이번 범위에서 렌더하지 않는 이유: 8종 중 문구가 갖춰진 일부에만 뜨면 비대칭이 노출된다.
+        */}
+
         {/* fd-radar-overlay — 인쇄 훅(BLOCK 수정). 데스크톱은 헤드라인 옆에 레이더를
             절대배치로 겹쳐 올리는 2단 구성이다; 인쇄에서 lg: 가 꺼지면 모바일처럼 세로로
             쌓여 헤드라인 블록 높이만큼 페이지가 더 길어진다. report-print.css 가 기존
@@ -43,6 +53,27 @@ export default function ReportPageOne({ data }) {
           className="fd-radar-overlay relative mx-auto mt-6 lg:absolute lg:left-[35.875rem] lg:top-[2.5625rem] lg:mx-0 lg:mt-0"
         />
       </div>
+
+      {/*
+        notices.hexCaption(F-05) — 레이더 범례.
+
+        결정문은 "레이더가 절대배치라 flow 를 소비하지 않으니 캡션을 그 박스 안에 넣고 인쇄에도
+        싣는다"였다. flow 계산은 맞지만 **겹침**을 빠뜨렸다 — 실측(1440 화면·794 인쇄 양쪽)에서
+        절대배치 박스 안의 캡션이 아래 요약 카드 3장 위로 올라타 카드 테두리와 글자가 겹쳤다.
+        레이더 하단(컨테이너 기준 27.5rem)과 요약 카드 상단 사이 여유가 1줄분도 없다.
+
+        그래서 캡션만 flow 로 내리고 **화면 전용**으로 강등했다(결정문 가드레일이 지정한 폴백:
+        "1px라도 줄면 fd-screen-only 로 강등한다"). 자리는 헤드라인 블록 바로 아래다 —
+        모바일에서는 레이더가 flow 라 캡션이 정확히 차트 밑에 오고, 데스크톱에서는 차트와 같은
+        가로 밴드 왼쪽에 놓인다. 폭은 헤드라인과 같은 값 재사용(새 매직넘버 아님).
+        인쇄에서 display:none 이라 A4 2장은 그대로이고 별도 인쇄 훅도 필요 없다.
+      */}
+      {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
+      {notices?.hexCaption && (
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.4] text-[#6b6b6b] lg:mt-4 lg:w-[35.875rem] lg:text-sm">
+          {notices.hexCaption}
+        </p>
+      )}
 
       <div className="fd-mt-student mt-8 lg:mt-[4.1875rem]">
         <StudentInfoBlock student={student} />
@@ -73,6 +104,19 @@ export default function ReportPageOne({ data }) {
       <div className="fd-mt-priority mt-8 lg:mt-[3.9375rem]">
         <PriorityTable rows={priorityRows} />
       </div>
+
+      {/*
+        notices.goalCompare(F-05) — 이 문장이 설명하는 대상은 바로 위 표의 '현재 수준/목표 수준'
+        열과 요약 카드의 '목표 75점'이다. 확장 영역으로 보내면 두 화면만큼 떨어져 연결이 끊긴다.
+        인쇄에 넣지 않는 이유: 1페이지 flow 여유가 71.0px 뿐인데 이건 hexCaption 과 달리
+        flow 요소라 그 여유를 직접 갉아먹는다(절대배치 공짜 공간이 없다).
+      */}
+      {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
+      {notices?.goalCompare && (
+        <p className="fd-screen-only mt-3 break-keep text-base leading-[1.4] text-[#6b6b6b] lg:text-sm">
+          {notices.goalCompare}
+        </p>
+      )}
 
       <div className="fd-mt-traits mt-10 lg:mt-[5.875rem]">
         {/* notices.traitIntro — TraitNarratives 3블록을 소개하는 리드 문장(§5.1 고정 안내).

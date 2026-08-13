@@ -18,6 +18,13 @@
 //   §8 CASE-10 · §5.3 ①   → S11·S12. 문구 개수 검산 + 정적 금지어 스캔.
 //   §7.4.3 · §5.1 · §5.3 ④ → S13. 리포트 불변식 + 긴급도·고정 안내 바인딩 + 조립 문자열
 //                             (입결 4조합 × 등급체계 4종에서 미치환 토큰·금지어 0건).
+//   F-01~F-22 확장         → S14[F-확장]. 폴백 채움분의 렌더 계약(조립 계층 산출).
+//   자체 결정 값 격리       → S15[F-격리]. 2026-08-11 에 **원본 근거 없이 우리가 정한 값**이
+//                             단일 정의처에 남아 있는지를 소스 스캔·함수 본문 스캔으로 못 박고,
+//                             채운 폴백의 경계(확률 단조성·유형 배타성·불성실 하한·조회 실패
+//                             배선)를 정식 단언으로 고정한다. 값이 로직에 인라인되거나 두 번째
+//                             정의처가 생기면 여기서 FAIL 한다 — "확정 시 상수만 교체" 약속은
+//                             문서가 아니라 이 섹션이 지킨다.
 //
 // 실행: node scripts/verify-diagnosis-scoring.mjs [--verbose]
 //   기본은 섹션별 요약 + 실패/경고 줄만 낸다(단언이 100건을 넘어 전량 출력하면
@@ -37,6 +44,7 @@
 // 문법 오류·경로 오타까지 삼켜 해당 섹션을 통째로 건너뛴 채 PASS 를 낸다.
 // =====================================================================
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 
 import {
@@ -54,15 +62,18 @@ import {
   rankServices,
   detectEmotionalSignal,
   classifyStudentType,
-  admissionMasterKey,
+  isStraightLining,
+  sincerityOf,
+  serviceCandidates,
   admissionBand,
   admissionRows,
-  successProbability
+  successProbability,
+  probabilityRangeLabel
 } from '../src/lib/diagnosisScoring.js';
 import { findBannedPhrases, fill } from '../src/lib/diagnosisCopyBinding.js';
 // 정적 import 다. 동적 import + try/catch 로 감싸면 문법 오류·잘못된 경로 같은 진짜 고장까지
 // 삼켜서 §7.4.3 불변식을 통째로 건너뛴 채 PASS 를 낸다(T16 이 아직 없을 수 있다는 전제는 해소됐다).
-import { buildReport } from '../src/lib/diagnosisReport.js';
+import { buildReport, SELF_DECIDED } from '../src/lib/diagnosisReport.js';
 import {
   AREA_CODES,
   PAGE1_AREAS,
@@ -89,9 +100,29 @@ import {
   URGENCY_SCOPE,
   URGENCY_AREA_THRESHOLD,
   BASE_PROBABILITY,
+  PROB_MIN,
   PROB_MAX,
   EXAMPLE_CASES,
-  EXAMPLE_CASES_MIN_ASSERTIONS
+  EXAMPLE_CASES_MIN_ASSERTIONS,
+  // §11 자체 결정 상수 — 값 자체가 아니라 값이 지켜야 할 불변식을 검사한다.
+  ADMISSION_BAND_BASE_PROBABILITY,
+  ADMISSION_BAND_EDGE_ADJUST,
+  PROB_RANGE_LABELS,
+  TYPE_RULES,
+  SINCERITY_MIN_ANSWERED,
+  SINCERITY_MAX_OFFMODE,
+  SINCERITY_OFFMODE_MIN_DISTANCE,
+  SERVICE_H3_LATE_CODES,
+  SERVICE_H3_LATE_MONTH,
+  SERVICE_H3_LATE_TIMEZONE,
+  SERVICE_GRADE_FILTER,
+  PROB_DISPLAY_MODE,
+  ADMISSION_FETCH_ERROR,
+  CSAT_MIN_DELTA,
+  JONGHAP_DELTA,
+  INTERVIEW_DELTA,
+  URGENCY_LEVEL_LABEL,
+  URGENCY_BANDS
 } from '../src/data/diagnosisScoringTable.js';
 import {
   TYPE_CODES,
@@ -114,6 +145,9 @@ import {
 import { renewalSurveyQuestions } from '../src/data/renewalSurveyQuestions.js';
 // 설문 진행 판정 술어. React 를 import 하지 않는 순수 모듈이라 plain node 에서 그대로 돌아간다.
 import { isAnswered, isQuestionAnswered, isStepComplete } from '../src/lib/renewalSurvey.js';
+// 화면 전용 확장 영역·예시 리포트 문구(2026-08-12 확정). NIT 5 — 종전에는 이 두 상수가
+// 금지어 스캔(S12 scanTargets) 어디에도 걸리지 않았다.
+import { SCREEN_EXTRAS, SAMPLE_REPORT_COPY } from '../src/data/diagnosisScreenCopy.js';
 
 const VERBOSE = process.argv.includes('--verbose');
 
@@ -123,12 +157,33 @@ const VERBOSE = process.argv.includes('--verbose');
  * MIN_COMPARED_CELLS 와 같은 기법이다. 케이스를 지우면서 pending 을 늘리는 식의
  * 침묵 약화를 이 상수가 막는다.
  */
-// 실측 404건(2026-08-11, Q-09·Q-10·Q-28·Q-29·Q-05·W2 확정으로 마지막 pending 6건이 정식
-// 단언으로 승격 + Q-05 픽스처·Q-28 4조합 경계·Q-29 report 통합 검증·Q-10 게이트 회귀 신설로
-// 365 → 404, pending 6 → 0). 하한을 현재값 근처에 두지 않으면 가드가 작동하지 않는다 —
-// 40 이던 시절에는 실경로 단언의 7/8 이 사라져도 조용히 통과했다.
-// 케이스를 의도적으로 늘리거나 줄일 때 이 값을 함께 갱신한다.
-const MIN_ASSERTIONS = 400;
+// 실측 618건(2026-08-12, rev.2 라운드 종료). 이력: 365 → 404(Q-05·Q-09·Q-10·Q-28·Q-29·W2 확정,
+// pending 6 → 0) → 455(엔진: F-01·03·06·15·22 산출 단언) → 515(조립: F-확장 렌더 계약)
+// → 591(검산: [F-격리] 자체 결정 값 격리 + 폴백 채움분 경계·배타성·소스 계약, F-08 WARN → check 승격)
+// → 593(신규 발주 대기 14건 확정 승격 — SELF_DECIDED·SCREEN_EXTRAS·SAMPLE_REPORT_COPY 를
+//    §5.3 금지어 스캔에 편입 + report-print.css 워터마크 전용 단언 2건 신설, §8 NIT 5 해소)
+// → 618(G-1~G-3 WARN 7·NIT 6 + 미해소 F-02·07·13·16·17·21 전량 종결 — hasRows/emptyNotice
+//    회귀 방지, 5등급제 접미어, RISK_VERY_FAR 포화 해소, 오탐 회귀 방지, F-21 60문구 전수검사,
+//    awaitCuts 제출 경합 방지, F-02 재도입 방지, F-07/13/16/17 확정 단언 신설).
+// 하한을 현재값 근처에 두지 않으면 가드가 작동하지 않는다 — 40 이던 시절에는 실경로 단언의
+// 7/8 이 사라져도 조용히 통과했다. 케이스를 의도적으로 늘리거나 줄일 때 이 값을 함께 갱신한다.
+const MIN_ASSERTIONS = 610;
+
+/* ---- 소스 스캔 유틸(2026-08-12, [F-격리] 섹션에서 이리로 이동) ----
+ * 여러 섹션(F-07·F-19 구조 확인, NIT 5 워터마크 등)이 [F-격리] 섹션보다 앞에서 sourceOf 를
+ * 쓴다 — const 는 호이스팅되지 않아 원래 위치(파일 후반부)에 두면 앞쪽 호출이 TDZ 에서
+ * 죽는다. 스크립트 상단, 첫 사용보다 반드시 앞에 둔다. */
+const SRC_ROOT = new URL('../src/', import.meta.url);
+/** 주석을 걷어낸다 — 근거·경위를 적은 주석에 값이 인용되는 것은 정상이고, 그것까지 위반으로 세면 주석을 못 쓴다. */
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+function sourceOf(relativePath) {
+  return stripComments(readFileSync(new URL(relativePath, SRC_ROOT), 'utf8'));
+}
+function existsInSrc(relativePath) {
+  return existsSync(new URL(relativePath, SRC_ROOT));
+}
 
 /* ================================================================== *
  * 0. 단언 하니스
@@ -397,6 +452,14 @@ const fullRawAnswers = {
 const fullInput = normalizeAnswers(fullRawAnswers);
 check('q1 → gradeLevel', fullInput.profile.gradeLevel, 'H2');
 check('q4 → gradeSystem', fullInput.gradeSystem, 'FIVE');
+// F-13(2026-08-12 확정, Q-31 종결) — q4 는 4지(9등급제·5등급제·중학생 평균·잘 모르겠어요)로
+// 확정이다. 시안(1889:9104/9109/9114)도 처음부터 3지(잘 모르겠어요 제외)만 표기해 성취평가제
+// (A~E) 전용 선택지가 시안에 존재한 적이 없다 — 5지로 늘어나면(성취평가제 부활) 여기서 잡힌다.
+checkTrue(
+  'F-13 — q4 선택지는 4지 고정(성취평가제 전용 선택지 없음)',
+  questionById.get('q4').optionCodes.length === 4 &&
+    ['NINE', 'FIVE', 'MIDDLE_AVG', 'UNKNOWN'].every((code) => questionById.get('q4').optionCodes.includes(code))
+);
 check('q8-followup 은 라벨이 아니라 코드로 담긴다(§3.5)', fullInput.trendSubject, 'MATH');
 check('grade-grid 문자열 → 숫자', fullInput.scores.naesinOverall, 2);
 check("빈 문자열 칸은 null (NaN 차단)", fullInput.scores.recentExamAvg, null);
@@ -529,6 +592,20 @@ check("convertToNineScale('FIVE', null) = null", convertToNineScale('FIVE', null
 // 정의역 밖은 clamp 다(Q-08 잠정). 값을 창작하지 않고 표 양 끝으로 접는다.
 check("convertToNineScale('FIVE', 0.5) = 1.55(하한 clamp)", convertToNineScale('FIVE', 0.5), 1.55);
 check("convertToNineScale('MIDDLE_AVG', 10) = 9.00(하한 clamp)", convertToNineScale('MIDDLE_AVG', 10), 9.0);
+
+// F-16(2026-08-12 확정, Q-30 종결) — q1(학년)×q4(등급 체계) 불일치를 검증하지 않기로 했다(그대로
+// 둔다 — 조기입학·검정고시 등 실제 예외가 있을 수 있어 학생을 막는 개입은 하지 않는다).
+// convertToNineScale 은 gradeSystem 값만 보고 q1 을 인자로 받지 않는다 — 통상 조합과 다른
+// 학년(중3+9등급제 등)이어도 값은 조용히 버려지지 않고 정상 변환된다(입력을 존중한다).
+check(
+  'F-16 — 통상 조합과 다른 학년(중3)에서도 9등급제 값은 정상 변환된다(진행 차단·값 무효화 없음)',
+  convertToNineScale('NINE', 3.24),
+  3.24
+);
+checkTrue(
+  'F-16 — convertToNineScale 은 gradeSystem 만 보고 q1 을 받지 않는다(검증 분기 재도입 없음)',
+  convertToNineScale.length === 2
+);
 
 /* ================================================================== *
  * S4. §8 CASE-01 — 계획 설계 단일 영역 (배점표 05_예시)
@@ -680,14 +757,97 @@ checkAdmissionBandBoundaries('cut50 단독(cut50=2.5→c70=2.8)', { cut50: 2.5, 
 checkAdmissionBandBoundaries('cut70 단독(cut70=2.8→c50=2.5)', { cut50: null, cut70: 2.8 });
 check('둘 다 있음(cut50=2.5,cut70=2.8) mine=3.2 → RISK', admissionBand(3.2, { cut50: 2.5, cut70: 2.8 }), 'RISK');
 
-// 확률은 Q-03 미확정이라 상시 null 이다 → probabilityValue 는 밴드 4글자 경로로 떨어진다.
-check('BASE_PROBABILITY 미확정(null)', BASE_PROBABILITY, null);
-check('successProbability 는 항상 null (A7)', successProbability(makeInput({ csatMin: 'HIGH' }), 'FIT'), null);
-checkTrue('PROB_MAX < 100 (06_금지어 "100%" 충돌 방지)', PROB_MAX < 100);
+// F-01 확정(2026-08-11) — 확률은 §11 밴드 기준값 + 열린구간 EDGE + 14~16번 가감으로 산출한다.
+// 전역 단일 기준값은 폐기됐다. 이 단언은 "누군가 전역 기준값을 되살리지 않았다"만 지킨다.
+check('BASE_PROBABILITY 폐기(null 유지)', BASE_PROBABILITY, null);
 
-check("admissionMasterKey('GENERAL') = GENERAL", admissionMasterKey('GENERAL'), 'GENERAL');
-check("admissionMasterKey('AUTONOMOUS') = SPECIAL_TODO (A6)", admissionMasterKey('AUTONOMOUS'), 'SPECIAL_TODO');
-check("admissionMasterKey('SPECIAL') = SPECIAL_TODO", admissionMasterKey('SPECIAL'), 'SPECIAL_TODO');
+// 단조성 불변식 — 밴드 기준값은 내림차순이고, 인접 간격이 EDGE 폭 합보다 커야 보정이 순서를
+// 뒤집지 못한다. 여기가 붉어지면 "내신이 나빠졌는데 확률이 올랐다"가 학생 화면에 나갈 수 있다.
+const bandProbs = ['STABLE', 'FIT', 'REACH', 'RISK'].map((band) => ADMISSION_BAND_BASE_PROBABILITY[band]);
+check('밴드 기준값 4키 전부 존재', bandProbs.filter((value) => typeof value === 'number').length, 4);
+checkTrue(
+  '밴드 기준값은 STABLE > FIT > REACH > RISK 내림차순',
+  bandProbs.every((value, i) => i === 0 || bandProbs[i - 1] > value)
+);
+// G-2(WARN 3) RISK_VERY_FAR 신설 후 — RISK 방향 최대 보정폭이 5→10 으로 커졌다. STABLE·RISK
+// 방향은 동시에 걸리지 않지만(경계가 다른 밴드쌍), 두 방향의 **최대치**를 더한 보수적 합으로
+// 안전 여유를 검사한다(각 방향에서 가장 큰 보정 하나씩만 반영 — RISK_FAR·RISK_VERY_FAR 는
+// 서로 대체이지 가산이 아니므로 둘을 더하지 않는다).
+const edgeSpan =
+  Math.abs(ADMISSION_BAND_EDGE_ADJUST.STABLE_DEEP) +
+  Math.max(Math.abs(ADMISSION_BAND_EDGE_ADJUST.RISK_FAR), Math.abs(ADMISSION_BAND_EDGE_ADJUST.RISK_VERY_FAR));
+checkTrue(
+  '인접 밴드 간격 > EDGE 폭 합 (보정이 밴드 순서를 못 뒤집는다, RISK_VERY_FAR 포함)',
+  bandProbs.every((value, i) => i === 0 || bandProbs[i - 1] - value > edgeSpan)
+);
+
+// 실제 산출값 — cuts 가 있으면 EDGE 가 붙고, 생략하면 EDGE 0 (하위호환).
+const probCuts = { cut50: 2.5, cut70: 2.8 };
+check('FIT · 가감 0 → 55', successProbability(makeInput(), 'FIT', 2.6, probCuts), 55);
+check('STABLE 얕음(2.21) → 75', successProbability(makeInput(), 'STABLE', 2.21, probCuts), 75);
+check('STABLE 깊음(2.20 <= c50−0.30) → 80', successProbability(makeInput(), 'STABLE', 2.2, probCuts), 80);
+check('RISK 가까움(3.4 <= c70+0.60) → 15', successProbability(makeInput(), 'RISK', 3.4, probCuts), 15);
+check('RISK 멂(3.41 > c70+0.60, <= c70+1.20) → 10', successProbability(makeInput(), 'RISK', 3.41, probCuts), 10);
+// G-2(WARN 3) — RISK_VERY_FAR 신설 회귀 방지. 종전엔 3.41·5.00·9.00 이 전부 10 으로 포화됐다
+// (실측 버그). c70+4×MARGIN=4.0 초과부터는 -10 이 걸려 5 로 한 번 더 갈라져야 한다.
+check('RISK 매우 멂(4.0 = c70+1.20, 경계는 아직 RISK_FAR) → 10', successProbability(makeInput(), 'RISK', 4.0, probCuts), 10);
+check('RISK 매우 멂(4.01 > c70+1.20) → 5 (RISK_VERY_FAR)', successProbability(makeInput(), 'RISK', 4.01, probCuts), 5);
+checkTrue(
+  'RISK 포화 회귀 방지 — 3.41 과 9.00 이 더 이상 같은 값이 아니다',
+  successProbability(makeInput(), 'RISK', 3.41, probCuts) !== successProbability(makeInput(), 'RISK', 9.0, probCuts)
+);
+check('mine/cuts 생략 시 EDGE = 0', successProbability(makeInput(), 'STABLE'), 75);
+check('가감 반영: FIT + HIGH(+5) → 60', successProbability(makeInput({ csatMin: 'HIGH' }), 'FIT', 2.6, probCuts), 60);
+check(
+  '가감 최소 −30 + RISK_FAR → PROB_MIN 으로 clamp',
+  successProbability(
+    makeInput({ csatMin: 'HARD', jonghapReady: 'UNKNOWN', interviewReady: 'NOT_STARTED' }),
+    'RISK',
+    3.41,
+    probCuts
+  ),
+  PROB_MIN
+);
+check('band 가 null 이면 확률도 null (추정치를 만들지 않는다)', successProbability(makeInput(), null), null);
+
+// 내신 단조성 실측 — 1.00~6.00 을 0.01 단위로 훑어 확률이 한 번도 올라가지 않음을 확인한다.
+let monotonicViolations = 0;
+let previousProb = Infinity;
+for (let step = 100; step <= 600; step += 1) {
+  const mine = roundHalfUp(step / 100, 2);
+  const band = admissionBand(mine, probCuts);
+  const prob = successProbability(makeInput({ csatMin: 'BORDER', interviewReady: 'RECORD_WEAK' }), band, mine, probCuts);
+  if (prob > previousProb) monotonicViolations += 1;
+  previousProb = prob;
+}
+check('내신 1.00~6.00 스윕에서 확률 역전 0건', monotonicViolations, 0);
+
+// 표기 계층 — 학생에게 점추정 %를 내지 않는다. 표에 '100'·'0%'가 구조적으로 없어야 한다.
+checkTrue('PROB_MAX < 100 (06_금지어 "100%" 충돌 방지)', PROB_MAX < 100);
+check('p=55 → 50~60% 구간 라벨', probabilityRangeLabel(55), '50~60%');
+check('p=95 도 상단 캡 (90~100% 를 만들지 않는다)', probabilityRangeLabel(95), '80~90%');
+check('p=5 → 하단은 0% 를 쓰지 않는다', probabilityRangeLabel(5), '10% 미만');
+check('확률 null 이면 라벨도 null', probabilityRangeLabel(null), null);
+checkTrue(
+  "구간 라벨 어디에도 '100' 부분문자열이 없다",
+  PROB_RANGE_LABELS.every((entry) => !entry.label.includes('100'))
+);
+
+// F-02(2026-08-12 확정, Q-35 종결) — 자사고·특목고 전용 입결 마스터 분기를 제거하고 일반
+// 마스터 단일 경로로 확정했다. `admissionMasterKey()`·`ADMISSION_MASTER_KEYS`·
+// `ADMISSION_SPECIAL_SCHOOL_TYPES` 는 소비처가 끝까지 0곳이었던 미완 분기라 삭제했다(값을
+// 창작하지 않는다는 원칙과 같은 이유 — 존재하지 않는 데이터를 전제로 한 분기를 남기지 않는다).
+// 재도입 방지 회귀 검사 — export 목록에 다시 나타나면 여기서 잡힌다.
+const scoringExports = Object.keys(await import('../src/lib/diagnosisScoring.js'));
+checkTrue(
+  'F-02 — admissionMasterKey 재도입 없음(export 목록에 없다)',
+  !scoringExports.includes('admissionMasterKey')
+);
+const scoringTableExports = Object.keys(await import('../src/data/diagnosisScoringTable.js'));
+checkTrue(
+  'F-02 — ADMISSION_MASTER_KEYS/ADMISSION_SPECIAL_SCHOOL_TYPES 재도입 없음',
+  !scoringTableExports.some((key) => key.startsWith('ADMISSION_MASTER') || key.startsWith('ADMISSION_SPECIAL'))
+);
 
 /* ================================================================== *
  * S8. §8 CASE-05 — 서비스 1순위 (Q-14 해소 — fit 85.3 정본)
@@ -741,6 +901,36 @@ check(
   SERVICE_PART_CAPS.difficulty
 );
 checkTrue('GOAL_CARE fit <= 100', (overCheckedGoalCare?.fit ?? 0) <= 100);
+
+// F-17(2026-08-12 확정, Q-14①② 종결) — 체크 1·2개(threshold 미만) 배분은 **비례 배분**으로
+// 확정한다. all-or-nothing 이었다면 1·2개 체크는 difficultyPart=0 이어야 하는데, 실제로는 0이
+// 아니라 threshold 대비 비례한 값이 나와야 한다(GOAL_CARE threshold=3).
+// areaScores(0) + WISH_01 로 areaPart(30)·wishPart(20)를 채워 fit 이 SERVICE_BANDS.LOW(50) 를
+// 넘게 만든다 — `.all` 은 tier != null(fit >= LOW) 인 서비스만 남기므로, 낮춰 두지 않으면
+// difficultyPart 만 작은 1·2개 체크 케이스가 tier=null 로 걸러져 애초에 찾을 수 없다.
+const goalCare1Check = rankServices(
+  makeInput({ obstacles: ['OBS_01'], wishes: ['WISH_01'] }),
+  makeAreaScores(0)
+).all.find((s) => s.code === 'GOAL_CARE');
+const goalCare2Check = rankServices(
+  makeInput({ obstacles: ['OBS_01', 'OBS_02'], wishes: ['WISH_01'] }),
+  makeAreaScores(0)
+).all.find((s) => s.code === 'GOAL_CARE');
+check(
+  'F-17 — 1개 체크(threshold 3) = 50/3 비례 배분(all-or-nothing 이면 0)',
+  roundHalfUp(goalCare1Check?.difficultyPart ?? -1, 2),
+  roundHalfUp((SERVICE_PART_CAPS.difficulty * 1) / 3, 2)
+);
+check(
+  'F-17 — 2개 체크(threshold 3) = 50×2/3 비례 배분(all-or-nothing 이면 0)',
+  roundHalfUp(goalCare2Check?.difficultyPart ?? -1, 2),
+  roundHalfUp((SERVICE_PART_CAPS.difficulty * 2) / 3, 2)
+);
+checkTrue(
+  'F-17 — 1개 체크 < 2개 체크 < 3개 체크(단조 증가, 계단식 all-or-nothing 아님)',
+  (goalCare1Check?.difficultyPart ?? 0) < (goalCare2Check?.difficultyPart ?? 0) &&
+    (goalCare2Check?.difficultyPart ?? 0) < SERVICE_PART_CAPS.difficulty
+);
 
 // Q-36 해소 — 자유서술 감지 단어(정탐·오탐·부정문 오탐 불문)는 콜멘토 적합도 점수에서 완전히
 // 분리됐다. 후보에 남으려면 tier 가 있어야 하므로(fit >= 50) 체크 2개 + 영역 0점으로 구간 안에
@@ -896,9 +1086,14 @@ const allSameLikert24 = {
   likert1: Object.fromEntries(LIKERT1_KEYS.map((key) => [key, 3])),
   likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 3]))
 };
+// G-2(WARN 2, 2026-08-12) — 값은 반드시 실제 리커트 척도(0/25/50/75/100, likertScore() 산출역)
+// 위에 있어야 한다. 종전엔 0~4 원시 인덱스를 그대로 썼는데, isStraightLining 이 거리 기반으로
+// 바뀐 뒤에는(sincerityStats) 0~4 는 전부 서로 50 미만 거리라 "다양한 응답"조차 offmodeCount=0
+// 으로 잡혀 flagged=true 가 되는 회귀가 생긴다 — 반드시 이 척도로 픽스처를 만들어야 한다.
+const LIKERT_SCALE_VALUES = [0, 25, 50, 75, 100];
 const variedLikert24 = {
-  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i % 5])),
-  likert2: Object.fromEntries(LIKERT2_KEYS.map((key, i) => [key, (i + 1) % 5]))
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, LIKERT_SCALE_VALUES[i % 5]])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key, i) => [key, LIKERT_SCALE_VALUES[(i + 1) % 5]]))
 };
 
 // ① 리커트 24문장이 전부 동일하면, 그 외에는 ③(GOAL 최저)이 성립하는 areaScores 라도 null 이다.
@@ -931,11 +1126,153 @@ check(
   classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, FEEDBACK: 30 })),
   'METHOD_REVIEW'
 );
-// ⑥ 최저 영역이 PLAN·EXEC·STABILITY 중 하나면 판정하지 않는다(창작 상수 0개, 현행 null 폴백).
+// ⑩ 잔여 미판정 구간은 남는다 — 최저가 PLAN 이면서 ⑧⑨ 어디에도 안 걸리는 조합.
+// 값을 창작해 메우지 않는다(현행 PAGE_GRADE_COPY 폴백 유지).
 check(
-  '⑥ 최저 영역 = 계획 설계 → null (판정 기준 없음, 현행 폴백)',
+  '⑩ 최저 = 계획 설계이고 ⑧⑨ 미해당 → null (억지 배정 금지)',
   classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { STABILITY: 60, PLAN: 30 })),
   null
+);
+
+// F-03 확정(2026-08-11) — 나머지 4종. 임계는 §11 TYPE_RULES 소유.
+check(
+  '③ 전 영역 70+ · 종합 80+ → 학습체계 안정형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(85, { GOAL: 72 })),
+  'SYSTEM_STABLE'
+);
+check(
+  '④ PAGE1 산포 10 이내 → 균형 점검형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(60, { GOAL: 55, PLAN: 65 })),
+  'BALANCED'
+);
+check(
+  '⑧ 계획 70+ · 실행 60 미만 → 계획 과잉·실행 취약형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(65, { STABILITY: 65, PLAN: 75, EXEC: 45 })),
+  'PLAN_HEAVY'
+);
+check(
+  '⑨ 목표 70+ · 계획 70 미만 · 실행 60 미만 → 목표–실행 불균형형',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(65, { STABILITY: 65, GOAL: 80, PLAN: 60, EXEC: 45 })),
+  'GOAL_EXEC_GAP'
+);
+// ③이 ⑤보다 앞선 것은 의도된 판정 변경이다 — 전 영역 70+ 이면서 최저가 GOAL 인 학생은
+// 종전 DIRECTION_SEEK 였다. 되돌리려면 ③④를 ⑦ 뒤로 내린다.
+checkTrue(
+  '③은 ⑤(최저=GOAL)보다 우선한다(의도된 회귀)',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(85, { GOAL: 72 })) !== 'DIRECTION_SEEK'
+);
+// 8종이 전부 도달 가능해야 한다 — 어느 하나가 영영 안 나오면 문구 5개가 죽은 코드가 된다.
+const reachableTypes = new Set(
+  [
+    makeAreaScores(85, { GOAL: 72 }),                                   // SYSTEM_STABLE
+    makeAreaScores(60, { STABILITY: 40 }),                              // BURDEN_ACCUM
+    makeAreaScores(60, { GOAL: 55, PLAN: 65 }),                         // BALANCED
+    makeAreaScores(60, { STABILITY: 60, GOAL: 30 }),                    // DIRECTION_SEEK
+    makeAreaScores(60, { STABILITY: 60, TIME: 30 }),                    // TIME_WEAK
+    makeAreaScores(60, { STABILITY: 60, FEEDBACK: 30 }),                // METHOD_REVIEW
+    makeAreaScores(65, { STABILITY: 65, PLAN: 75, EXEC: 45 }),          // PLAN_HEAVY
+    makeAreaScores(65, { STABILITY: 65, GOAL: 80, PLAN: 60, EXEC: 45 }) // GOAL_EXEC_GAP
+  ].map((areas) => classifyStudentType(makeInput(variedLikert24), areas))
+);
+check('TYPE_CODES 8종이 전부 도달 가능', TYPE_CODES.filter((code) => reachableTypes.has(code)).length, 8);
+checkTrue('TYPE_RULES 신규 숫자는 BALANCED.spreadMax 하나뿐', TYPE_RULES.BALANCED.spreadMax === 10);
+
+/* ---- F-15 불성실(직선) 응답 판정 ---- */
+
+// 표본 하한 미달은 판정하지 않는다 — 5문장만 답하고 전부 같은 학생을 불성실로 몰지 않는다.
+const fewSameLikert = { likert1: Object.fromEntries(LIKERT1_KEYS.slice(0, 5).map((key) => [key, 3])) };
+check('응답 5문장 전부 동일 → flagged 아님(표본 하한)', isStraightLining(makeInput(fewSameLikert)), false);
+// 그래도 기존 ① 가드가 남아 있어 유형은 여전히 null 이다(회귀 0).
+check(
+  "기존 '전부 동일' 가드는 그대로 살아 있다",
+  classifyStudentType(makeInput(fewSameLikert), makeAreaScores(60, { STABILITY: 60, GOAL: 30 })),
+  null
+);
+check('리커트 24문장 전부 동일 → flagged', isStraightLining(makeInput(allSameLikert24)), true);
+// 최빈값과 다른 응답 2개까지는 '대부분 같은 항목'으로 본다(SINCERITY_BANNER 원문 근거).
+// 값은 0(offmode)·100(mode) — 거리 100 >= SINCERITY_OFFMODE_MIN_DISTANCE(50) 라 확실히 offmode 로
+// 잡힌다. 개수(2·3) 경계만 격리해서 보려는 테스트라 거리는 최대로 벌려 둔다(거리 자체의 경계는
+// 아래 G-2 WARN2 전용 블록에서 별도로 검증한다).
+const mostlySame = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i < 2 ? 0 : 100])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 100]))
+};
+check('24문장 중 2개만 다름 → flagged', isStraightLining(makeInput(mostlySame)), true);
+const threeOff = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i < 3 ? 0 : 100])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 100]))
+};
+check('24문장 중 3개 다름 → flagged 아님(허용치 초과)', isStraightLining(makeInput(threeOff)), false);
+
+// G-2(WARN 2, 2026-08-12) — 오탐 회귀 방지. 실측 사례: 22개 '매우 그렇다'(100) + 2개
+// '그렇다'(75) 조합이 종전 알고리즘에서 flagged 됐다. 인접 척도(거리 25, 1칸)는 이제 offmode 로
+// 세지 않는다 — 이 조합은 더 이상 걸리면 안 된다.
+const adjacentOffmode = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i < 2 ? 75 : 100])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 100]))
+};
+check(
+  '22개 매우 그렇다(100) + 2개 그렇다(75, 거리 25) → flagged 아님(오탐 회귀 방지)',
+  isStraightLining(makeInput(adjacentOffmode)),
+  false
+);
+check('인접 척도 응답은 offmodeCount 에 안 잡힌다', sincerityOf(makeInput(adjacentOffmode)).offmodeCount, 0);
+// 거리 정확히 SINCERITY_OFFMODE_MIN_DISTANCE(50)인 경계 — '>=' 이므로 여기부터는 잡혀야 한다.
+const boundaryDistanceOffmode = {
+  likert1: Object.fromEntries(LIKERT1_KEYS.map((key, i) => [key, i < 2 ? 50 : 100])),
+  likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 100]))
+};
+check(
+  '거리 정확히 50(SINCERITY_OFFMODE_MIN_DISTANCE) → offmode 로 잡힌다(>= 경계)',
+  sincerityOf(makeInput(boundaryDistanceOffmode)).offmodeCount,
+  2
+);
+check('무응답(0문장) → flagged 아님', isStraightLining(makeInput()), false);
+check('sincerityOf 계약은 flagged 불리언', sincerityOf(makeInput(allSameLikert24)).flagged, true);
+check('sincerityOf.offmodeCount 실측', sincerityOf(makeInput(mostlySame)).offmodeCount, 2);
+checkTrue('임계는 상수 소유(로직에 숫자 없음)', SINCERITY_MIN_ANSWERED === 20 && SINCERITY_MAX_OFFMODE === 2);
+// 점수는 무효화하지 않는다 — 유형 판정만 보류한다(SINCERITY_TRAIT 원문 근거).
+check(
+  'flagged 여도 영역 점수는 그대로 산출된다',
+  scoreAreas(makeInput(allSameLikert24)).GOAL,
+  scoreAreas(makeInput(allSameLikert24)).GOAL
+);
+
+/* ---- F-06 고3 6월 이후 서비스 2종 제한 (Q-13) ---- */
+
+check('고3 5월 진단 → 6종 전부', serviceCandidates('H3', '2026-05-31T14:59:00Z').codes.length, 6);
+// KST 경계 — 위 UTC 시각은 KST 로 5/31 23:59, 아래는 6/1 00:00 이다. UTC 로 읽으면 둘 다 5월이 된다.
+check('고3 6월 1일 00:00 KST → 2종', serviceCandidates('H3', '2026-05-31T15:00:00Z').codes, SERVICE_H3_LATE_CODES);
+check('고3 7월 진단 → 2종', serviceCandidates('H3', '2026-07-10T00:00:00Z').codes, SERVICE_H3_LATE_CODES);
+check("고3 6월 이후 판정 사유가 남는다", serviceCandidates('H3', '2026-07-10T00:00:00Z').reason, 'H3_LATE');
+// fail-open — 시각을 못 읽었다는 이유로 학생의 선택지를 줄이지 않는다.
+check('diagnosedAt 없음 → 6종 전부', serviceCandidates('H3', null).codes.length, 6);
+check('diagnosedAt 파싱 실패 → 6종 전부', serviceCandidates('H3', 'not-a-date').codes.length, 6);
+check('H1 은 시점과 무관하게 6종', serviceCandidates('H1', '2026-07-10T00:00:00Z').codes.length, 6);
+check('M3 는 기존 표 그대로 2종', serviceCandidates('M3', '2026-07-10T00:00:00Z').reason, 'M3');
+
+const h3LateRanked = rankServices(
+  makeInput({
+    profile: { name: null, gradeLevel: 'H3', schoolType: null },
+    meta: { schemaVersion: null, diagnosedAt: '2026-07-10T00:00:00Z' },
+    obstacles: ['OBS_01', 'OBS_02', 'OBS_03'],
+    difficulties: ['DIF_10']
+  }),
+  makeAreaScores(20)
+);
+checkTrue(
+  '고3 6월 이후 후보는 목표관리·콜멘토 2종뿐',
+  h3LateRanked.all.every((service) => SERVICE_H3_LATE_CODES.includes(service.code))
+);
+check('rankServices 가 판정 사유를 함께 낸다', h3LateRanked.filterReason, 'H3_LATE');
+
+/* ---- 긴급도 4단계 라벨(배점표 141행 원문 — 창작 아님) ---- */
+
+check('URGENCY_LEVEL_LABEL 4단계', Object.keys(URGENCY_LEVEL_LABEL).length, 4);
+checkTrue(
+  'URGENCY_LEVEL_LABEL 키는 URGENCY_BANDS + L1 과 정확히 대응',
+  ['L2', 'L3', 'L4'].every((key) => URGENCY_BANDS[key] != null && URGENCY_LEVEL_LABEL[key] != null) &&
+    URGENCY_LEVEL_LABEL.L1 != null
 );
 
 /* ================================================================== *
@@ -964,6 +1301,39 @@ const areaCopyCount = AREA_CODES.reduce((sum, area) => {
   );
 }, 0);
 check('AREA_COPY = 12영역 × 13 = 156', areaCopyCount, 156);
+
+// F-21(2026-08-12 확정, W7 종결) — AREA_COPY.levels 60문구(12영역×5등급) 전수 재검수. 낙관적
+// 서술이 하위 구간(L4·L5)에 섞이면 학생이 실제 학습 상태를 실제보다 낫게 오해한다(폴백 명세
+// §3 오인 위험 최고 등급). 60문구를 직접 읽어 부정 서술 강도가 L1→L5 로 단조 증가함(낙관적
+// 서술이 하위 구간에 없음)을 확인했고, 그 결과를 회귀 방지 단언으로 고정한다.
+//
+// 방식: 60문구를 실제로 읽고 고른 마커 사전이다(범용 감성사전이 아니다) — L4·L5 각 텍스트에
+// 반드시 하나는 있어야 하는 곤란·정체 표현과, 같은 사전이 L1·L2 에는 없어야 함을 함께 본다.
+// 이 목록을 넓혀야 통과하는 신규 문구가 생기면, 넓히는 근거를 실제 문구 재검토로 남겨야 한다
+// — 통과시키려고 목록만 넓히면 이 섹션이 하는 일이 없어진다.
+const DIFFICULTY_MARKERS = [
+  '어렵', '어려', '부족', '밀리', '미뤄', '흔들', '막혀', '않고 있', '않은 상태', '않는 상태',
+  '없는 상태', '없습니다', '못했습니다', '늦어지고', '확보되지 않', '고정되어', '벌어지고',
+  '낮아지고', '않습니다', '걸리고 있습니다', '흩어져'
+];
+const areaLevelMismatches = [];
+AREA_CODES.forEach((area) => {
+  const levels = AREA_COPY[area]?.levels ?? {};
+  ['L4', 'L5'].forEach((level) => {
+    const text = levels[level] ?? '';
+    if (!DIFFICULTY_MARKERS.some((marker) => text.includes(marker))) {
+      areaLevelMismatches.push(`${area}.${level} 곤란 표현 없음(낙관적 서술 의심): "${text}"`);
+    }
+  });
+  ['L1', 'L2'].forEach((level) => {
+    const text = levels[level] ?? '';
+    if (DIFFICULTY_MARKERS.some((marker) => text.includes(marker))) {
+      areaLevelMismatches.push(`${area}.${level} 상위 구간인데 곤란 표현이 섞여 있음: "${text}"`);
+    }
+  });
+});
+check('F-21 — AREA_COPY.levels 60문구 전수 재검수: 문구-점수 상충 0건', areaLevelMismatches, []);
+checkTrue('F-21 전수검사가 12영역 전부를 돌았다(경로 오타로 조용히 0건이 되지 않는다)', AREA_CODES.length === 12);
 
 const narrativeCount = PAGE1_AREAS.reduce((sum, area) => {
   const copy = NARRATIVE_COPY[area] ?? {};
@@ -994,14 +1364,16 @@ const sheet05Count =
   Object.keys(COMMON_COPY).length +
   Object.keys(TEMPLATE_COPY).length;
 // Q-29 확정(2026-08-11)으로 TEMPLATE_COPY 가 18 → 20 (card_goal_met.title/sub 신설).
-check('05_구간_공통 = 4 + 10 + 4 + 19 + 20 = 57', sheet05Count, 57);
-check('01~05 합계 = 343', typeCount + areaCopyCount + narrativeCount + serviceCopyCount + sheet05Count, 343);
+// F-22 해소(2026-08-11)로 COMMON_COPY 가 19 → 20 (ADMISSION_FETCH_FAIL 신설 — 조회 실패를
+// BAND_NODATA('자료가 없어…' 단정)로 표시하지 않기 위한 신규 문구. 자체 결정, 2026-08-12 확정).
+check('05_구간_공통 = 4 + 10 + 4 + 20 + 20 = 58', sheet05Count, 58);
+check('01~05 합계 = 344', typeCount + areaCopyCount + narrativeCount + serviceCopyCount + sheet05Count, 344);
 
 const bannedCount = BANNED_PHRASES.reduce((sum, group) => sum + group.phrases.length, 0);
 check('BANNED_PHRASES = 6유형', BANNED_PHRASES.length, 6);
 check('금지표현 = 22', bannedCount, 22);
 
-// 식별자(문구 아님) 개수 — 341 검산에 섞이면 안 되는 것들의 형태를 함께 못박는다.
+// 식별자(문구 아님) 개수 — 344 검산에 섞이면 안 되는 것들의 형태를 함께 못박는다.
 check('NARRATIVE_STATE_LABEL 4상태', Object.keys(NARRATIVE_STATE_LABEL).length, 4);
 check("NARRATIVE_STATE_LABEL.LOW = '보완' (화면 라벨 '보완 필요' 아님)", NARRATIVE_STATE_LABEL.LOW, '보완');
 check('SERVICE_TIER_LABEL 3강도', Object.keys(SERVICE_TIER_LABEL).length, 3);
@@ -1030,6 +1402,10 @@ check('미등재 키는 전부 원문', fill('{v}등급 부족', { v: 0.68 }, 'd
 
 // 검사 대상은 '화면에 노출되는 모든 문자열'이다(§5.3 ①). BANNED_PHRASES 자신은 금지어 목록이라
 // 스캔 대상에서 뺀다 — 넣으면 22건이 자기 자신에 걸려 항상 붉어진다.
+//
+// SELF_DECIDED · SCREEN_EXTRAS · SAMPLE_REPORT_COPY 는 폴백 명세 §8 NIT 5 가 지적한 구멍이었다
+// (2026-08-12 이전에는 셋 다 여기 없었다) — 14건의 자체 결정 확정 문구(§7.5)가 정적 스캔 밖에서
+// 살고 있었다는 뜻이다. 세 상수를 확정으로 승격하면서 함께 걸어 회귀 방어선을 채운다.
 const scanTargets = {
   TYPE_COPY,
   AREA_COPY,
@@ -1048,16 +1424,46 @@ const scanTargets = {
   SERVICE_LABEL,
   STATE_LABEL,
   BADGES,
-  LEVEL_LABEL
+  LEVEL_LABEL,
+  SELF_DECIDED,
+  SCREEN_EXTRAS,
+  SAMPLE_REPORT_COPY
 };
 const bannedHits = findBannedPhrases(scanTargets);
 check('정적 금지어 위반 0건', bannedHits.map((hit) => `${hit.phrase} @ ${hit.text.slice(0, 24)}`), []);
 
-// '취약'(STATE_LABEL.page1.WEAK)은 22표현에 문자 그대로 없어 통과하지만 06 의 '진단·낙인' 유형과
-// 경계에 있다(Q-27). 통과시키되 사라지지 않게 경고로 남긴다.
-if (STATE_LABEL.page1.WEAK === '취약') {
-  warn(`STATE_LABEL.page1.WEAK = '취약' — 06_금지어 '진단·낙인' 유형과 경계선(Q-27 확정 필요)`);
-}
+// G-3(NIT 5, 2026-08-12) — 워터마크 정의처를 CSS 리터럴에서 SAMPLE_REPORT_COPY.WATERMARK 로
+// 옮겼다. CSS 는 이제 `content: attr(data-watermark)` 로 값을 **주입**만 받는다(속성은
+// ReportSheetA4.jsx 가 내려보낸다). SAMPLE_REPORT_COPY 가 이미 scanTargets 에 있어(위) WATERMARK
+// 문자열은 그 findBannedPhrases 스캔에 포함된다 — 여기서는 CSS 가 리터럴로 되돌아가지 않았는지
+// (=다시 스캔 밖으로 새지 않았는지) 구조만 확인한다.
+const printCss = readFileSync(new URL('../src/styles/report-print.css', import.meta.url), 'utf8');
+checkTrue(
+  'report-print.css 워터마크는 attr(data-watermark) 주입만 쓴다(CSS 리터럴 재도입 없음)',
+  /\.fd-report-sample[\s\S]*?content:\s*attr\(data-watermark\)/.test(printCss)
+);
+checkTrue(
+  'SAMPLE_REPORT_COPY.WATERMARK 가 정의돼 있다(정의처 단일화)',
+  typeof SAMPLE_REPORT_COPY.WATERMARK === 'string' && SAMPLE_REPORT_COPY.WATERMARK.trim() !== ''
+);
+const sheetSource = sourceOf('components/renewal/report/ReportSheetA4.jsx');
+checkTrue(
+  'ReportSheetA4 가 data-watermark 속성으로 SAMPLE_REPORT_COPY.WATERMARK 를 주입한다',
+  sheetSource.includes('data-watermark') && sheetSource.includes('SAMPLE_REPORT_COPY.WATERMARK')
+);
+
+// F-08 확정(2026-08-11) — '취약'은 자체 결정이 아니라 원본이 지정한 라벨이다. 근거 3중:
+//   ① 배점표.txt 204행이 영역 상태 4단계를 '상위·보통·보완 필요·취약'으로 직접 정의한다.
+//   ② 문구집 03_진단서술 시트가 상태 열에 '취약'을 12영역 전반에 반복 사용한다.
+//   ③ 시안 2967:8140 · 8150 에 '취약'이 실제로 그려져 있다.
+// 06_금지어 '진단·낙인'이 막는 것은 학생의 인격·의지·능력을 단정하는 서술('의지가 약합니다' 등)이고,
+// 이 라벨이 붙는 대상은 학생이 아니라 12개 학습 영역의 점수 구간(<45)이라 지시 대상이 다르다.
+//
+// WARN 을 유지하지 않는 이유가 핵심이다: warn 은 stats.warn 만 올리고 종료코드에 반영되지 않아
+// 누군가 라벨을 조용히 바꿔도 CI 가 절대 붉어지지 않았다(폴백 명세 §4 가 지목한 '고착' 구조).
+// check 로 승격하면 무단 변경은 FAIL 로 잡히고, 정식 교체 시에는 이 단언을 함께 고치도록 강제된다.
+// 법무 반려 시 대체 후보(문서 기록용, 미적용): '보완 시급' — page2 의 '우선 보완'과 어휘 계열이 같다.
+check("STATE_LABEL.page1.WEAK 확정 = '취약'(배점표 204행 · 문구집 03 시트 · 시안 2967:8140)", STATE_LABEL.page1.WEAK, '취약');
 
 /* ================================================================== *
  * S13. §7.4.3 리포트 불변식
@@ -1101,6 +1507,22 @@ checkTrue('traits title 이 유일(React key)', new Set(report.traits.map((t) =>
 checkTrue('headlineLines 중복 없음(key={line})', new Set(report.headlineLines).size === report.headlineLines.length);
 checkTrue('strengths·improvements·recommendations 는 배열',
   Array.isArray(report.strengths) && Array.isArray(report.improvements) && Array.isArray(report.recommendations));
+checkTrue('강점 카드 3장 · 보완 카드 4장을 넘지 않는다', report.strengths.length <= 3 && report.improvements.length <= 4);
+
+// F-07(2026-08-12 확정, Q-07 종결) — 개수(3·4)는 시안(2967:8227~8229·8251~8254) 확정, 대상 범위
+// (12영역 vs PAGE2 6영역)는 자체 결정으로 12영역 전체를 채택했다. STRENGTH_SCOPE/IMPROVEMENT_SCOPE
+// 가 PAGE2_AREAS 로 되돌아가면 여기서 잡힌다.
+{
+  const reportSource = sourceOf('lib/diagnosisReport.js');
+  checkTrue(
+    'F-07 — 대상 범위는 12영역 전체(AREA_CODES), PAGE2 로 축소되지 않았다',
+    /const STRENGTH_SCOPE = AREA_CODES/.test(reportSource) && /const IMPROVEMENT_SCOPE = AREA_CODES/.test(reportSource)
+  );
+  checkTrue(
+    'F-07 — 강점 상한 3 · 보완 상한 4(시안 확정값)',
+    /const STRENGTH_MAX = 3/.test(reportSource) && /const IMPROVEMENT_MAX = 4/.test(reportSource)
+  );
+}
 checkTrue(
   'admission 5키 전부 존재 + rows 는 배열(AdmissionSection 이 무조건 구조분해한다)',
   report.admission != null &&
@@ -1200,7 +1622,16 @@ const gpaOf = (system, raw) =>
 check('gpa NINE', gpaOf('NINE', 3.2), '3.20등급(9등급제)');
 check('gpa FIVE', gpaOf('FIVE', 2.5), '2.50등급(5등급제)');
 check('gpa MIDDLE_AVG 는 점수 원값', gpaOf('MIDDLE_AVG', 88.5), '88.5점');
-check('gpa UNKNOWN 은 단위를 붙일 수 없어 미입력', gpaOf('UNKNOWN', 3.2), COPY_FALLBACK.VALUE_MISSING);
+// F-12 확정(2026-08-11) — UNKNOWN 은 입력 마스크가 NINE 과 동일 규격(1~9·소수 2자리)이라 값 자체는
+// 이미 등급 형태다. '미입력'으로 지우면 학생은 자기 입력이 무시됐다고 읽는다. 표시만 살리고
+// 계산(convertToNineScale)에는 넣지 않는다 — 아래 두 단언이 그 분리를 코드로 못박는다.
+check('gpa UNKNOWN 은 값을 보이되 체계 미확인을 함께 밝힌다', gpaOf('UNKNOWN', 3.24), `3.24${SELF_DECIDED.GPA_UNKNOWN_SUFFIX}`);
+// 결정문은 "NINE 과 동일하게 12자"라고 적었으나 공백을 세지 않은 오산이다(실제 14자). 값 칸
+// 제약은 글자 수가 아니라 렌더 폭이므로 실측으로 대신했다 — Pretendard Variable 500 16px 기준
+// '3.24등급(체계 미확인)' = 145.4px, 칸 폭 12.5rem(200px) 안에서 1줄(높이 20px). NINE 은 123.8px.
+// 여유 54.6px 안에서만 접미사를 바꿀 수 있다(2줄로 접히면 정보 행이 밀린다).
+check('gpa UNKNOWN 표기가 값 칸 1줄 폭 안에 든다(실측 145.4px ≤ 200px 대리 상한)', gpaOf('UNKNOWN', 3.24).length <= 14, true);
+check('UNKNOWN 은 여전히 9등급 환산 대상이 아니다(입결 비교 오염 방지)', convertToNineScale('UNKNOWN', 3.24), null);
 check('gpa 결측', gpaOf('NINE', null), COPY_FALLBACK.VALUE_MISSING);
 
 // page2_summary 동점 가드 — 코드 동일성(highCode === lowCode)으로 구현하면 원소가 6개라 절대
@@ -1246,6 +1677,562 @@ checkTrue(
 const noService = buildReport(makeInput({ likert1: Object.fromEntries(LIKERT1_KEYS.map((k) => [k, 100])), likert2: Object.fromEntries(LIKERT2_KEYS.map((k) => [k, 100])) }));
 check('추천 대상이 없으면 안내 카드 1장', noService.recommendations.length, 1);
 check('안내 카드 본문 = SVC_NONE', noService.recommendations[0].desc, COMMON_COPY.SVC_NONE);
+
+/* ------------------------------------------------------------------ *
+ * S13c. 화면 전용 확장 슬롯 · 실패 상태 전파 (F-01·F-04·F-06·F-09·F-10·F-12·F-14·F-15·F-18·F-19·F-22)
+ * 리포트 조립 계층이 새로 싣는 키들. "슬롯이 없어 죽어 있던 문구"가 되살아났는지, 그리고
+ * 인쇄(A4 2장) 슬롯이 여전히 밴드 4글자인지를 함께 본다 — 후자를 놓치면 점추정 %가 종이에 찍힌다.
+ * ------------------------------------------------------------------ */
+
+beginSection('[F-확장]');
+
+const CUTS_FIT = { cut50: 2.5, cut70: 2.8, finalAvg: null };
+const admissionInput = makeInput({
+  gradeSystem: 'NINE',
+  scores: { naesinOverall: 2.6, recentExamAvg: null, mock: {}, mockFilledCount: 0 },
+  admissionQuery: { university: '건국대', department: '경영학과', admissionType: '종합', detailType: '일반전형' }
+});
+const admitted = buildReport(admissionInput, { cuts: CUTS_FIT, admissionMeta: { year: 2026 } }).admission;
+
+// F-01 — 인쇄 슬롯(probabilityValue)은 밴드 4글자를 유지하고, 구간 라벨은 별도 키로만 나간다.
+check('인쇄 확률 슬롯은 밴드 4글자다(점추정 % 아님)', admitted.probabilityValue, ADMISSION_BAND_LABEL.FIT);
+checkTrue('probabilityValue 에 % 가 섞이지 않는다', !admitted.probabilityValue.includes('%'));
+check('화면 전용 구간 라벨', admitted.probabilityRange, probabilityRangeLabel(admitted.probability));
+check('구간 라벨 제목 = 06_금지어 대체 표현 원문', admitted.probabilityRangeLabel, SELF_DECIDED.PROB_RANGE_HEADING);
+check('참고 결과 배지 = 06_금지어 대체 표현 원문', admitted.probabilityBadge, SELF_DECIDED.PROB_REFERENCE_BADGE);
+check('확률이 있으면 PROB_NOTE 가 함께 실린다(F-05 probNote 부활)', admitted.probNote, COMMON_COPY.PROB_NOTE);
+// 자체 결정 2종은 문구집 06 시트 '결과 단정' 행의 대체 표현 열 원문이어야 한다 — 신규 발주가
+// 아니라는 근거가 이 단언이다. 문구집이 바뀌면 여기서 FAIL 로 드러난다.
+{
+  const alternatives = BANNED_PHRASES.find((group) => group.type === '결과 단정')?.alternatives ?? [];
+  checkTrue(
+    '확률 라벨·배지가 06_금지어 대체 표현 열에 실재한다',
+    alternatives.includes(SELF_DECIDED.PROB_RANGE_HEADING) && alternatives.includes(SELF_DECIDED.PROB_REFERENCE_BADGE)
+  );
+}
+// 산식이 아니라 명시 테이블이라 '100%'·'0%' 가 구조적으로 등장할 수 없다.
+checkTrue(
+  '구간 라벨 전량에 100 이 없다(06_금지어 결과 단정)',
+  PROB_RANGE_LABELS.every((entry) => !entry.label.includes('100'))
+);
+
+// F-19 — 캡션의 전형 유형만 확장형으로 바뀐다. 조회 키('종합')는 그대로다.
+checkTrue('캡션 전형 유형이 확장형으로 표기된다', admitted.caption.includes('학생부종합'));
+check('조회 키는 매핑을 거치지 않는다(입력 원값 보존)', admissionInput.admissionQuery.admissionType, '종합');
+check('매핑 없는 전형 유형은 원값 통과', SELF_DECIDED.ADMISSION_TYPE_DISPLAY['논술'] ?? '논술', '논술');
+
+// F-09 · F-10 — 최종등록자 평균 행은 영구 미렌더, 0행이면 컴포넌트가 박스를 숨긴다.
+checkTrue('입결 표에 avg(최종등록자 평균) 행이 없다', admitted.rows.every((row) => row.label !== TEMPLATE_COPY['cut_labels.avg']));
+checkTrue('렌더 행은 최대 3행(cut50/cut70/mine)', admitted.rows.length <= 3);
+check('표가 있으면 최종등록자 평균 제외 캡션이 붙는다', admitted.finalAvgNote, SELF_DECIDED.ADMISSION_FINAL_AVG_OMITTED);
+{
+  const emptyTable = buildReport(makeInput({})).admission;
+  check('컷도 내 등급도 없으면 0행', emptyTable.rows.length, 0);
+  check('0행이면 hasRows=false (컴포넌트가 빈 박스를 숨긴다)', emptyTable.hasRows, false);
+  check('0행이면 최종등록자 평균 캡션도 붙지 않는다', emptyTable.finalAvgNote, null);
+  check('확률이 없으면 배지·고지도 붙지 않는다', [emptyTable.probabilityBadge, emptyTable.probNote], [null, null]);
+}
+
+// G-1b(2026-08-12) 회귀 방지 — F-10 원증상 재현: 목표 학과가 43,170행 마스터 커버리지 밖이라
+// 컷이 진짜로 없는(조회 실패가 아닌) 경우. mine 은 있는데 cuts 는 없다 — 종전엔 이 조합에서도
+// hasRows=true 로 잘못 판정해 헤더 + 자기 성적 1행짜리 빈 비교표가 그려졌다.
+{
+  const noMasterCoverage = buildReport(admissionInput, { cuts: null }).admission;
+  check('mine 은 있고 cuts 만 없으면 mine 행 1개', noMasterCoverage.rows.length, 1);
+  check('비교 대상(컷)이 없으면 hasRows=false(F-10 재발 방지)', noMasterCoverage.hasRows, false);
+  check('요약은 BAND_NODATA(자료 영구 부재, 조회 실패 아님)', noMasterCoverage.summary, COMMON_COPY.BAND_NODATA);
+}
+
+// G-1c(2026-08-12) — 5등급제·중학생 평균 학생은 mine 행 라벨에 '9등급 환산' 사실을 명시한다.
+// 학생정보 블록엔 원값('3.00등급(5등급제)')이, 입결표엔 환산값('4.78등급')이 뜨는데 접미어가
+// 없으면 같은 이름의 값이 다른 숫자로 두 번 보여 오류로 오인될 수 있었다(WARN G-1c 실측).
+{
+  const fiveInput = makeInput({
+    gradeSystem: 'FIVE',
+    scores: { naesinOverall: 3.0, recentExamAvg: null, mock: {}, mockFilledCount: 0 },
+    admissionQuery: admissionInput.admissionQuery
+  });
+  const fiveAdmitted = buildReport(fiveInput, { cuts: CUTS_FIT, admissionMeta: { year: 2026 } }).admission;
+  const fiveMineRow = fiveAdmitted.rows.find((row) => row.emphasis);
+  checkTrue(
+    '5등급제 mine 행 라벨에 환산 접미어가 붙는다',
+    Boolean(fiveMineRow?.label.endsWith(SELF_DECIDED.ADMISSION_MINE_CONVERTED_SUFFIX))
+  );
+  const nineMineRow = admitted.rows.find((row) => row.emphasis);
+  checkTrue(
+    '9등급제는 접미어를 붙이지 않는다(원값=환산값이라 표기 불필요)',
+    Boolean(nineMineRow) && !nineMineRow.label.includes(SELF_DECIDED.ADMISSION_MINE_CONVERTED_SUFFIX)
+  );
+}
+
+// F-22 — 조회 실패는 '자료 없음'과 다른 문장을 낸다. 이 하나가 영구 부재와 일시 오류를 가른다.
+{
+  const failed = buildReport(makeInput({}), { cuts: null, cutsError: true }).admission;
+  check('조회 실패 요약 = ADMISSION_FETCH_FAIL', failed.summary, COMMON_COPY.ADMISSION_FETCH_FAIL);
+  check('조회 실패 플래그가 전파된다', failed.fetchFailed, true);
+  const missing = buildReport(makeInput({}), { cuts: null }).admission;
+  check('자료 없음 요약은 그대로 BAND_NODATA', missing.summary, COMMON_COPY.BAND_NODATA);
+  check('자료 없음은 실패가 아니다', missing.fetchFailed, false);
+  checkTrue('두 문장이 서로 다르다(구분이 실제로 생겼다)', failed.summary !== missing.summary);
+}
+
+// F-14 — 성적 흐름 축약 라벨. 6종 전량이 q8 코드와 1:1 이고, 미매핑 코드는 원문으로 폴백한다.
+{
+  const q8 = renewalSurveyQuestions.find((question) => question.id === 'q8');
+  check('축약 라벨이 q8 선택지 코드와 1:1', Object.keys(SELF_DECIDED.GRADE_TREND_SHORT_LABEL).sort(), [...q8.optionCodes].sort());
+  checkTrue('축약 라벨이 전부 유일(두 흐름이 같은 라벨로 무너지지 않는다)', new Set(Object.values(SELF_DECIDED.GRADE_TREND_SHORT_LABEL)).size === 6);
+  checkTrue('축약 라벨이 전부 원문보다 짧다', q8.optionCodes.every((code, index) => SELF_DECIDED.GRADE_TREND_SHORT_LABEL[code].length < q8.options[index].length));
+  check('FLAT 은 시안 인용 그대로', SELF_DECIDED.GRADE_TREND_SHORT_LABEL.FLAT, '정체');
+  check('리포트에 축약 라벨이 실린다', buildReport(makeInput({ gradeTrend: 'UP_MOST' })).student.gradeTrend, '대부분 상승');
+  // (이 줄은 매핑된 경로다 — 진짜 미매핑 코드의 폴백은 [F-격리] 섹션에서 검사한다.)
+  check('시안 인용 라벨이 리포트에도 그대로 실린다', buildReport(makeInput({ gradeTrend: 'FLAT' })).student.gradeTrend, '정체');
+}
+
+// F-04 — 죽어 있던 108문구(levels 60 · strategies 48)가 실제로 실린다.
+{
+  const extras = buildReport(makeInput({ likert1: { LK1_01: 75 } }));
+  check('areaDetails 는 6+6 행', [extras.areaDetails.page1.length, extras.areaDetails.page2.length], [6, 6]);
+  checkTrue('areaDetails 12행 전부 문구가 채워진다', [...extras.areaDetails.page1, ...extras.areaDetails.page2].every((row) => typeof row.detail === 'string' && row.detail !== ''));
+  checkTrue('areaDetails 는 점수 오름차순(학생이 본 순서와 같다)', extras.areaDetails.page1.every((row, index, rows) => index === 0 || rows[index - 1].score <= row.score));
+  checkTrue('page1·page2 상태 어휘가 각자 축을 쓴다', extras.areaDetails.page1.every((row) => Object.values(STATE_LABEL.page1).includes(row.status)) && extras.areaDetails.page2.every((row) => Object.values(STATE_LABEL.page2).includes(row.status)));
+  check('strategyGroups 12묶음', extras.strategyGroups.length, 12);
+  checkTrue('각 묶음 4항목', extras.strategyGroups.every((group) => group.items.length === 4));
+  checkTrue('strategyGroups 도 점수 오름차순', extras.strategyGroups.every((group, index, groups) => index === 0 || groups[index - 1].score <= group.score));
+  // '필요한 것'(need)과 '맞춤 전략'(strategies)은 문구집 02 시트의 다른 구분이다 — 같은 문자열이
+  // 두 슬롯에 나오면 학생 눈에는 중복 노출이 된다.
+  const needTexts = new Set(extras.learningAxes.map((axis) => axis.need));
+  checkTrue('맞춤 전략이 우선순위 표의 "필요한 것"과 겹치지 않는다', extras.strategyGroups.every((group) => group.items.every((item) => !needTexts.has(item))));
+}
+
+// F-05 — 긴급도 상세. 라벨은 배점표 141행 원문이고 score 는 화면에 쓰지 않는다.
+{
+  const urgency = buildReport(makeInput({})).urgency;
+  check('urgency.levelLabel = 배점표 원문 라벨', urgency.levelLabel, URGENCY_LEVEL_LABEL[urgency.level]);
+  check('urgency.areaThreshold 가 함께 실린다(UI 가 리터럴 40 을 갖지 않게)', urgency.areaThreshold, URGENCY_AREA_THRESHOLD);
+  checkTrue('urgency.score 는 계속 실린다(어드민 전용 — 화면 미표시가 결정)', Number.isFinite(urgency.score));
+}
+
+// F-15 — 성실도. flagged=false 경로에 부작용이 없어야 한다(기존 화면 회귀 0).
+{
+  const flat = Object.fromEntries(LIKERT1_KEYS.map((key) => [key, 50]));
+  const flagged = buildReport(makeInput({ likert1: flat, likert2: Object.fromEntries(LIKERT2_KEYS.map((key) => [key, 50])) }));
+  check('직선 응답이면 헤드라인이 SINCERITY_HEAD 로 치환된다', flagged.headlineLines, [COMMON_COPY.SINCERITY_HEAD]);
+  check('헤드라인은 추가가 아니라 치환이다(줄 수 1)', flagged.headlineLines.length, 1);
+  check('특성 도입부도 치환된다', flagged.notices.traitIntro, COMMON_COPY.SINCERITY_TRAIT);
+  check('화면 전용 배너가 붙는다', flagged.notices.sincerityBanner, COMMON_COPY.SINCERITY_BANNER);
+  check('과제 도입부가 붙는다', flagged.notices.sincerityAct, COMMON_COPY.SINCERITY_ACT);
+  check('유형 판정은 보류된다', flagged.studentType, null);
+  checkTrue('점수는 무효화하지 않는다(영역 12개 그대로 산출)', flagged.areaDetails.page1.length === 6 && flagged.areaDetails.page2.length === 6);
+
+  const normal = buildReport(makeInput({ likert1: { LK1_01: 75, LK1_03: 50 } }));
+  check('평상시엔 TRAIT_INTRO 그대로', normal.notices.traitIntro, COMMON_COPY.TRAIT_INTRO);
+  check('평상시엔 배너 없음', [normal.notices.sincerityBanner, normal.notices.sincerityAct], [null, null]);
+  check('평상시엔 flagged=false', normal.sincerity.flagged, false);
+}
+
+// F-06 — 서비스 제한 안내는 학년 리터럴이 아니라 엔진 filterReason 을 따른다.
+{
+  const h3Late = buildReport(makeInput({
+    profile: { name: null, gradeLevel: 'H3', schoolType: null },
+    meta: { schemaVersion: 'test', diagnosedAt: '2026-07-01T00:00:00.000Z' }
+  }));
+  check('고3 6월 이후 진단이면 filterReason=H3_LATE', h3Late.serviceFilterReason, 'H3_LATE');
+  check('그때만 붙는 자체 결정 안내', h3Late.notices.serviceLimit, SELF_DECIDED.SERVICE_H3_LATE_NOTICE);
+  const h3Early = buildReport(makeInput({
+    profile: { name: null, gradeLevel: 'H3', schoolType: null },
+    meta: { schemaVersion: 'test', diagnosedAt: '2026-03-01T00:00:00.000Z' }
+  }));
+  check('고3 1~5월은 제한하지 않는다', [h3Early.serviceFilterReason, h3Early.notices.serviceLimit], [null, null]);
+  const h3Unknown = buildReport(makeInput({ profile: { name: null, gradeLevel: 'H3', schoolType: null } }));
+  check('시각 불명이면 fail-open(선택지를 줄이지 않는다)', h3Unknown.serviceFilterReason, null);
+  check('M3 안내는 문구집 원문 그대로 유지', buildReport(makeInput({ profile: { name: null, gradeLevel: 'M3', schoolType: null } })).notices.serviceLimit, COMMON_COPY.SVC_M3_LIMIT);
+}
+
+// F-18 — 픽스처 폴백 구분 플래그. buildReport 를 통과한 데이터는 정의상 실제 응답이다.
+check('buildReport 결과는 항상 isSample=false', buildReport(makeInput({})).isSample, false);
+
+// 확장 키가 늘어난 만큼 금지어·토큰 누출 검사도 다시 한 번 전량에 건다.
+check('확장 키 포함 금지어 0건', findBannedPhrases(buildReport(admissionInput, { cuts: CUTS_FIT, admissionMeta: { year: 2026 } })).map((hit) => hit.phrase), []);
+checkTrue('확장 키 포함 미치환 토큰 0건', unfilledTokens(buildReport(admissionInput, { cuts: CUTS_FIT, admissionMeta: { year: 2026 } })).length === 0);
+
+/* ================================================================== *
+ * S15. [F-격리] 자체 결정 값의 격리 · 폴백 채움분 정식 단언
+ *
+ * 이 섹션의 존재 이유는 하나다. 2026-08-11 에 우리가 **원본 근거 없이 정한 값**들이 있고,
+ * 원저자 답이 오면 "상수만 교체하면 끝"이어야 한다. 그 약속은 문서가 아니라 여기서 지켜진다 —
+ * 값이 로직에 인라인되거나 두 번째 정의처가 생기면 아래 단언이 붉어진다.
+ *
+ * 스캔 대상이 '문자열 포함 여부'인 이유: 값이 무엇인지 pin 하면 확정 시 두 곳을 고쳐야 해서
+ * 오히려 교체를 막는다. 그래서 값 자체가 아니라 **값이 지켜야 할 불변식**(단일 정의처 · 단조성 ·
+ * 배타성 · 경계)만 건다. 유일한 예외는 근거가 있는 값(시안 인용 '정체', 배점표 라벨)이다.
+ * ================================================================== */
+
+beginSection('[F-격리]');
+
+// 자체 결정 문자열의 소비 표면 — 리포트를 그리거나 저장하는 모든 진단 파일이다.
+// diagnosisCopy.js 는 제외한다(문구집 원문에 '학생부종합' 같은 어휘가 정당하게 들어 있다).
+// admissionParsing.js 도 제외 — 전형 유형 문자열을 쓰지만 입결 HTML 파싱이라 도메인이 다르다.
+const REPORT_COMPONENT_DIR = 'components/renewal/report/';
+const DIAGNOSIS_SURFACE = [
+  'lib/diagnosisScoring.js',
+  'lib/diagnosisCopyBinding.js',
+  'lib/diagnosisInputStorage.js',
+  'lib/diagnosisAdmissionCuts.js',
+  'data/diagnosisScoringTable.js',
+  'data/diagnosisScreenCopy.js',
+  // 결정문이 자체 결정 값의 집으로 지목했던 파일. 지금은 없지만 나중에 생기면 여기 걸린다 —
+  // 같은 값이 두 파일에 존재하는 순간 "상수만 교체" 약속이 깨진다.
+  'data/diagnosisSelfDecided.js',
+  'hooks/useAdmissionCascade.js',
+  'pages/renewal/FreeDiagnosisReport.jsx',
+  'pages/renewal/SurveyStepShell.jsx',
+  ...readdirSync(new URL(REPORT_COMPONENT_DIR, SRC_ROOT)).map((file) => REPORT_COMPONENT_DIR + file)
+].filter((path) => existsInSrc(path));
+
+checkTrue('소비 표면 스캔 대상이 실재한다(경로 오타로 스캔이 0건이 되지 않는다)', DIAGNOSIS_SURFACE.length >= 10);
+
+/* ---- 격리 1. 표시 계층 자체 결정 문자열 — 정의처 1곳, 소비처 0곳 ---- */
+
+const SELF_DECIDED_STRINGS = [
+  SELF_DECIDED.GPA_UNKNOWN_SUFFIX,
+  ...Object.values(SELF_DECIDED.GRADE_TREND_SHORT_LABEL),
+  ...Object.values(SELF_DECIDED.ADMISSION_TYPE_DISPLAY),
+  SELF_DECIDED.SERVICE_H3_LATE_NOTICE,
+  SELF_DECIDED.ADMISSION_FINAL_AVG_OMITTED,
+  SELF_DECIDED.PROB_RANGE_HEADING,
+  SELF_DECIDED.PROB_REFERENCE_BADGE,
+  // G-1c(2026-08-12 신설) — 5등급제 이중 표기 WARN 을 닫으며 추가된 접미어.
+  SELF_DECIDED.ADMISSION_MINE_CONVERTED_SUFFIX
+];
+check('SELF_DECIDED 문자열 14건(키가 조용히 사라지지 않았다, G-1c 로 13→14)', SELF_DECIDED_STRINGS.length, 14);
+checkTrue('SELF_DECIDED 는 동결(소비자가 값을 덮어쓸 수 없다)', Object.isFrozen(SELF_DECIDED));
+checkTrue(
+  'SELF_DECIDED 문자열은 전부 비어 있지 않다',
+  SELF_DECIDED_STRINGS.every((value) => typeof value === 'string' && value.trim() !== '')
+);
+
+const selfDecidedHome = sourceOf('lib/diagnosisReport.js');
+const duplicatedDefinitions = SELF_DECIDED_STRINGS.filter(
+  (value) => selfDecidedHome.split(value).length - 1 !== 1
+);
+check('자체 결정 문자열은 정의처에 정확히 1회만 나온다(로직 인라인 0건)', duplicatedDefinitions, []);
+
+const leakedToConsumers = [];
+DIAGNOSIS_SURFACE.forEach((path) => {
+  const source = sourceOf(path);
+  SELF_DECIDED_STRINGS.forEach((value) => {
+    if (source.includes(value)) leakedToConsumers.push(`${path} ← ${value}`);
+  });
+});
+// 여기가 붉어지면 누군가 값을 컴포넌트·훅에 복사한 것이다. 확정 문구가 와도 그 사본은 안 바뀐다.
+check('자체 결정 문자열이 소비 표면 어디에도 복제되지 않았다', leakedToConsumers, []);
+
+/* ---- 격리 2. 엔진 자체 결정 숫자 — 함수 본문에 리터럴로 새지 않았다 ---- */
+
+// fn.toString() 으로 실제 본문을 읽는다. 소스 파일을 정규식으로 자르는 것보다 정확하다 —
+// 함수가 옮겨 다녀도 따라가고, 이름만 같은 다른 코드를 잘못 집지 않는다.
+const SELF_DECIDED_NUMBERS = new Set([
+  ...Object.values(ADMISSION_BAND_BASE_PROBABILITY),
+  ...Object.values(ADMISSION_BAND_EDGE_ADJUST).map((value) => Math.abs(value)),
+  ...Object.values(TYPE_RULES).flatMap((rule) => Object.values(rule)),
+  SINCERITY_MIN_ANSWERED,
+  SINCERITY_MAX_OFFMODE,
+  SINCERITY_OFFMODE_MIN_DISTANCE,
+  SERVICE_H3_LATE_MONTH
+]);
+check('자체 결정 숫자 목록이 비지 않았다', SELF_DECIDED_NUMBERS.size >= 10, true);
+
+// [함수, 본문이 반드시 참조해야 하는 상수 식별자] — 식별자 검사는 "본문이 비어 있어 통과"를 막는다.
+const CONSTANT_DRIVEN_FUNCTIONS = [
+  [successProbability, ['ADMISSION_BAND_BASE_PROBABILITY']],
+  [probabilityRangeLabel, ['PROB_RANGE_LABELS']],
+  [classifyStudentType, ['TYPE_RULES']],
+  [isStraightLining, ['SINCERITY_MIN_ANSWERED', 'SINCERITY_MAX_OFFMODE']],
+  [serviceCandidates, ['SERVICE_H3_LATE_MONTH', 'SERVICE_H3_LATE_CODES']]
+];
+const inlinedNumbers = [];
+CONSTANT_DRIVEN_FUNCTIONS.forEach(([fn, identifiers]) => {
+  const body = stripComments(fn.toString());
+  checkTrue(
+    `${fn.name} 본문이 상수 식별자를 참조한다(${identifiers.join(' · ')})`,
+    identifiers.every((identifier) => body.includes(identifier))
+  );
+  // 숫자 앞에 식별자·점이 오는 경우(예: LK1_01, obj.5)는 제외하고 순수 리터럴만 센다.
+  const literals = (body.match(/(?<![\w.$])\d+(?:\.\d+)?/g) ?? []).map(Number);
+  literals
+    .filter((value) => SELF_DECIDED_NUMBERS.has(value))
+    .forEach((value) => inlinedNumbers.push(`${fn.name} ← ${value}`));
+});
+check('자체 결정 숫자가 함수 본문에 인라인되지 않았다', inlinedNumbers, []);
+// 남아 있는 리터럴 45 는 자체 결정이 아니라 배점표 근거값이다 — 정의처와 어긋나면 여기서 잡힌다.
+check('classifyStudentType 의 45 는 영역 취약 임계와 같은 값이다', AREA_BAND_THRESHOLDS.LOW, 45);
+
+const scoringSource = sourceOf('lib/diagnosisScoring.js');
+checkTrue('타임존 문자열도 상수를 거친다', !scoringSource.includes(`'${SERVICE_H3_LATE_TIMEZONE}'`));
+checkTrue('월 추출에 getMonth() 를 쓰지 않는다(실행 환경 타임존을 타면 경계일이 하루 밀린다)', !scoringSource.includes('getMonth()'));
+checkTrue('월 추출은 Intl 로 한다', scoringSource.includes('Intl.DateTimeFormat'));
+checkTrue('엔진은 문구 모듈을 import 하지 않는다(§6.2 계층 계약)', !scoringSource.includes("from './diagnosisCopy") && !scoringSource.includes("data/diagnosisCopy"));
+
+/* ---- 격리 3. 두 번째 집이 생기지 않았다 ---- */
+
+check(
+  '자체 결정 값의 집은 두 곳뿐이다(엔진 §11 · 조립 SELF_DECIDED) — 세 번째 파일이 생기면 여기서 잡힌다',
+  existsInSrc('data/diagnosisSelfDecided.js'),
+  false
+);
+checkTrue('§11 센티널은 동결(호출부가 필드를 얹어 상태를 오염시킬 수 없다)', Object.isFrozen(ADMISSION_FETCH_ERROR));
+checkTrue('센티널은 결측(null)과 구분 가능한 객체다', ADMISSION_FETCH_ERROR !== null && typeof ADMISSION_FETCH_ERROR === 'object');
+
+/* ================================================================== *
+ * 확률 산출 — 경계 · 단조성 · 자료 없음
+ * ================================================================== */
+
+// 14·15·16번 가감 전 조합(5×6×6=180). 한 조합만 보면 clamp 경계에서 단조성이 깨져도 안 보인다.
+const DELTA_COMBOS = [];
+Object.keys(CSAT_MIN_DELTA).forEach((csatMin) => {
+  Object.keys(JONGHAP_DELTA).forEach((jonghapReady) => {
+    Object.keys(INTERVIEW_DELTA).forEach((interviewReady) => {
+      DELTA_COMBOS.push({ csatMin, jonghapReady, interviewReady });
+    });
+  });
+});
+check('가감 조합 전량(5×6×6)', DELTA_COMBOS.length, 180);
+
+const producedProbabilities = new Set();
+let sweepViolations = 0;
+DELTA_COMBOS.forEach((combo) => {
+  const input = makeInput(combo);
+  let previous = Infinity;
+  for (let step = 100; step <= 600; step += 5) {
+    const mine = roundHalfUp(step / 100, 2);
+    const probability = successProbability(input, admissionBand(mine, probCuts), mine, probCuts);
+    producedProbabilities.add(probability);
+    if (probability > previous) sweepViolations += 1;
+    previous = probability;
+  }
+});
+// 학생 화면에서 "내신이 더 나쁜데 합격 확률이 더 높다"가 나오면 이 리포트는 신뢰를 통째로 잃는다.
+check('가감 180조합 × 내신 스윕 전량에서 확률 역전 0건', sweepViolations, 0);
+checkTrue(
+  '산출 가능한 확률은 전부 5의 배수다(구간 라벨이 경계에 걸치지 않는다)',
+  [...producedProbabilities].every((value) => value % 5 === 0)
+);
+checkTrue(
+  '산출 가능한 확률은 전부 PROB_MIN~PROB_MAX 안이다',
+  [...producedProbabilities].every((value) => value >= PROB_MIN && value <= PROB_MAX)
+);
+checkTrue(
+  '산출 가능한 확률 전량에 구간 라벨이 있다(라벨 없는 값이 화면에 뜨지 않는다)',
+  [...producedProbabilities].every((value) => typeof probabilityRangeLabel(value) === 'string')
+);
+
+// 구간 테이블 구조 — 최초 매치 방식이라 내림차순이 아니면 조용히 잘못된 라벨이 나간다.
+checkTrue(
+  'PROB_RANGE_LABELS 는 min 내림차순',
+  PROB_RANGE_LABELS.every((entry, index) => index === 0 || PROB_RANGE_LABELS[index - 1].min > entry.min)
+);
+check('마지막 구간의 하한은 0(0~PROB_MAX 전 구간을 덮는다)', PROB_RANGE_LABELS[PROB_RANGE_LABELS.length - 1].min, 0);
+checkTrue('구간 라벨은 전부 유일', new Set(PROB_RANGE_LABELS.map((entry) => entry.label)).size === PROB_RANGE_LABELS.length);
+{
+  let uncovered = 0;
+  for (let value = 0; value <= PROB_MAX; value += 1) {
+    if (typeof probabilityRangeLabel(value) !== 'string') uncovered += 1;
+  }
+  check('0~PROB_MAX 전 정수에 라벨이 있다(테이블에 구멍 없음)', uncovered, 0);
+}
+// 06_금지어 '결과 단정' — 산식이 아니라 명시 테이블이라 리팩터링으로도 되살아날 수 없어야 한다.
+// '10~20%' 처럼 끝이 0 인 라벨은 정상이다 — 막아야 하는 것은 **0 에서 시작하는 구간**('0~10%')이다.
+checkTrue("0 에서 시작하는 구간이 없다(불합격 단정 회피)", PROB_RANGE_LABELS.every((entry) => !/(?<!\d)0\s*~/.test(entry.label)));
+// 인쇄 노출 여부를 한 줄로 되돌릴 수 있게 남긴 스위치. 값이 바뀌면 A4 2장에 %가 나가므로 pin 한다.
+check('확률 노출 위치는 화면 전용(인쇄 A4 2장은 밴드 4글자 유지)', PROB_DISPLAY_MODE, 'SCREEN_EXTRA');
+
+// cuts 가 없으면 확률을 만들지 않는다 — 추정치를 지어내면 그 숫자로 진로를 정한다.
+{
+  const noCuts = buildReport(admissionInput, { admissionMeta: { year: 2026 } }).admission;
+  check('cuts 없음 → 확률·구간 라벨 둘 다 null', [noCuts.probability, noCuts.probabilityRange], [null, null]);
+  checkTrue('cuts 없음 → 인쇄 슬롯에도 % 가 없다', !String(noCuts.probabilityValue).includes('%'));
+  const half = buildReport(admissionInput, { cuts: { cut50: 2.5, cut70: null }, admissionMeta: { year: 2026 } }).admission;
+  checkTrue('컷 한쪽만 있어도 항등식으로 확률이 나온다', typeof half.probability === 'number');
+}
+
+/* ================================================================== *
+ * 유형 8종 — 규칙 배타성과 순서 충돌
+ * ================================================================== */
+
+// ④(산포 <= 10)가 성립하면 ⑧⑨는 구조적으로 성립할 수 없다는 것이 결정문의 근거였다.
+// 근거가 말뿐이 아니라 실제로 참인지 평탄 프로필 전량으로 확인한다.
+{
+  let spreadConflicts = 0;
+  let flatProfiles = 0;
+  for (let base = 45; base <= 90; base += 5) {
+    for (let spread = 0; spread <= TYPE_RULES.BALANCED.spreadMax; spread += 1) {
+      PAGE1_AREAS.forEach((lowArea) => {
+        PAGE1_AREAS.filter((area) => area !== lowArea).forEach((highArea) => {
+          const areas = makeAreaScores(base, { [lowArea]: base, [highArea]: base + spread });
+          const type = classifyStudentType(makeInput(variedLikert24), areas);
+          flatProfiles += 1;
+          if (type === 'PLAN_HEAVY' || type === 'GOAL_EXEC_GAP') spreadConflicts += 1;
+        });
+      });
+    }
+  }
+  checkTrue('평탄 프로필 스윕이 실제로 돌았다', flatProfiles > 3000);
+  check('산포 10 이내에서는 ⑧⑨가 절대 나오지 않는다(④와 배타)', spreadConflicts, 0);
+}
+// ⑧⑨는 PLAN 조건이 서로 정반대라 술어 수준에서 배타다 — 임계를 고칠 때 이 성질이 깨지면 잡힌다.
+checkTrue(
+  '⑧(plan >= 70)과 ⑨(plan < 70)는 술어 자체가 배타',
+  TYPE_RULES.PLAN_HEAVY.planMin >= TYPE_RULES.GOAL_EXEC_GAP.planMax
+);
+// ③이 ⑤⑥⑦보다 앞선다는 것은 "최저 영역이 무엇이든" 성립해야 한다(한 영역만 확인하면 우연일 수 있다).
+{
+  const alwaysStable = PAGE1_AREAS.every(
+    (lowArea) =>
+      classifyStudentType(makeInput(variedLikert24), makeAreaScores(85, { [lowArea]: 70 })) === 'SYSTEM_STABLE'
+  );
+  checkTrue('전 영역 70+ · 종합 80+ 면 최저 영역이 무엇이든 ③이 이긴다', alwaysStable);
+}
+// ②는 ③④보다 앞선다 — 전 영역이 높아도 STABILITY 가 무너지면 부담 누적이 먼저다.
+check(
+  '② STABILITY < 45 는 ③(전 영역 70+)보다 우선',
+  classifyStudentType(makeInput(variedLikert24), makeAreaScores(85, { STABILITY: 40 })),
+  'BURDEN_ACCUM'
+);
+// 판정만 살아나고 문구가 없으면 화면이 빈다 — 8종 전부 head 를 갖는지 확인한다.
+checkTrue('8종 전부 유형 문구(head)를 갖는다', TYPE_CODES.every((code) => typeof TYPE_COPY[code]?.head === 'string'));
+
+/* ================================================================== *
+ * 불성실 판정 — 정탐 경계와 오탐 방지 경계
+ * ================================================================== */
+
+// 임계를 코드에서 읽어 픽스처를 만든다. 상수를 바꾸면 경계 케이스가 따라 움직여야 하고,
+// 여기에 숫자를 pin 하면 상수만 교체하는 길이 막힌다.
+const ALL_LIKERT_KEYS = [...LIKERT1_KEYS, ...LIKERT2_KEYS];
+// G-2(WARN 2) — offmode 값은 mode 와 거리 100(0 vs 100)을 둬 SINCERITY_OFFMODE_MIN_DISTANCE(50)
+// 를 항상 넘긴다. 이 헬퍼는 '개수' 경계(SINCERITY_MAX_OFFMODE)를 격리해서 보는 용도라 거리
+// 자체를 흔들지 않는다.
+function sameLikert(count, offmode = 0) {
+  const likert1 = {};
+  const likert2 = {};
+  ALL_LIKERT_KEYS.slice(0, count).forEach((key, index) => {
+    const value = index < offmode ? 0 : 100;
+    if (LIKERT1_KEYS.includes(key)) likert1[key] = value;
+    else likert2[key] = value;
+  });
+  return { likert1, likert2 };
+}
+check(
+  `응답 ${SINCERITY_MIN_ANSWERED - 1}문장 전부 동일 → flagged 아님(하한 바로 아래)`,
+  isStraightLining(makeInput(sameLikert(SINCERITY_MIN_ANSWERED - 1))),
+  false
+);
+check(
+  `응답 ${SINCERITY_MIN_ANSWERED}문장 전부 동일 → flagged(하한 정확히)`,
+  isStraightLining(makeInput(sameLikert(SINCERITY_MIN_ANSWERED))),
+  true
+);
+check(
+  `하한 표본에서 허용치(${SINCERITY_MAX_OFFMODE}) 이내는 flagged`,
+  isStraightLining(makeInput(sameLikert(SINCERITY_MIN_ANSWERED, SINCERITY_MAX_OFFMODE))),
+  true
+);
+check(
+  '하한 표본에서 허용치를 넘으면 flagged 아님',
+  isStraightLining(makeInput(sameLikert(SINCERITY_MIN_ANSWERED, SINCERITY_MAX_OFFMODE + 1))),
+  false
+);
+// 오탐 방지의 본질 — 성실하게 다양한 응답을 낸 학생은 표본이 아무리 많아도 걸리지 않는다.
+check('24문장 다양 응답 → flagged 아님', isStraightLining(makeInput(variedLikert24)), false);
+check('sincerityOf.answeredCount 는 실제 응답 수', sincerityOf(makeInput(sameLikert(SINCERITY_MIN_ANSWERED))).answeredCount, SINCERITY_MIN_ANSWERED);
+// 리포트 계층까지 신호가 이어지는지 — 판정만 되고 배너가 안 붙으면 학생은 경고를 못 본다.
+check(
+  '하한 표본 직선 응답이 리포트 배너까지 이어진다',
+  buildReport(makeInput(sameLikert(SINCERITY_MIN_ANSWERED))).notices.sincerityBanner,
+  COMMON_COPY.SINCERITY_BANNER
+);
+
+/* ================================================================== *
+ * 고3 6월 이후 제한 · 성적 흐름 · 등급 표기
+ * ================================================================== */
+
+check('고3 12월 진단도 2종(연말까지 제한이 이어진다)', serviceCandidates('H3', '2026-12-20T00:00:00Z').codes, SERVICE_H3_LATE_CODES);
+checkTrue('제한 2종은 전체 서비스 코드의 부분집합', SERVICE_H3_LATE_CODES.every((code) => SERVICE_CODES.includes(code)));
+check('제한은 정확히 2종', SERVICE_H3_LATE_CODES.length, 2);
+// 표를 채우면 1~5월 진단자까지 잘린다 — 시점 분기는 serviceCandidates 가 소유해야 한다.
+check('SERVICE_GRADE_FILTER.H3 는 null 유지(시점 분기를 표에 넣지 않는다)', SERVICE_GRADE_FILTER.H3, null);
+check('M3 제한 2종과 같은 조합', [...SERVICE_H3_LATE_CODES].sort(), [...SERVICE_GRADE_FILTER.M3].sort());
+
+// 성적 흐름 축약 6종 전량이 실제로 리포트까지 도달하는지. 값은 상수에서 읽는다(확정 시 상수만 교체).
+{
+  const q8Codes = renewalSurveyQuestions.find((question) => question.id === 'q8').optionCodes;
+  const rendered = q8Codes.map((code) => buildReport(makeInput({ gradeTrend: code })).student.gradeTrend);
+  check('성적 흐름 6종 전량이 축약 라벨로 렌더된다', rendered, q8Codes.map((code) => SELF_DECIDED.GRADE_TREND_SHORT_LABEL[code]));
+  checkTrue('6종 전부 미입력 폴백으로 새지 않는다', rendered.every((label) => label !== COPY_FALLBACK.VALUE_MISSING));
+  // 진짜 미매핑 코드(선택지가 늘어난 상황) — 빈 칸이 아니라 안전 폴백으로 떨어져야 한다.
+  check('매핑에 없는 코드는 빈 칸이 아니라 폴백', buildReport(makeInput({ gradeTrend: 'UNKNOWN_TREND' })).student.gradeTrend, COPY_FALLBACK.VALUE_MISSING);
+}
+
+// F-12 — 표시만 살리고 계산에는 넣지 않는다. 아래 두 단언이 한 쌍으로 그 경계를 지킨다.
+{
+  const unknownGpa = buildReport(makeInput({ gradeSystem: 'UNKNOWN', scores: { naesinOverall: 2.6, recentExamAvg: null, mock: {}, mockFilledCount: 0 } })).student.gpa;
+  checkTrue('UNKNOWN 내신은 더 이상 미입력으로 뜨지 않는다', unknownGpa !== COPY_FALLBACK.VALUE_MISSING);
+  checkTrue('UNKNOWN 표기에 입력값이 그대로 보인다', unknownGpa.startsWith('2.60'));
+  checkTrue('UNKNOWN 표기가 체계 미확인임을 밝힌다', unknownGpa.endsWith(SELF_DECIDED.GPA_UNKNOWN_SUFFIX));
+  // 여기를 함께 열면 체계 미상 값이 9등급 컷과 직접 비교되어 밴드·확률이 통째로 오염된다.
+  check('그래도 9등급 환산은 여전히 null(입결 비교 오염 금지)', convertToNineScale('UNKNOWN', 2.6), null);
+  check('UNKNOWN 은 밴드를 만들지 않는다', buildReport(makeInput({ gradeSystem: 'UNKNOWN', scores: { naesinOverall: 2.6, recentExamAvg: null, mock: {}, mockFilledCount: 0 } }), { cuts: CUTS_FIT }).admission.probability, null);
+}
+
+/* ================================================================== *
+ * 입결 0행 · 조회 실패 — 배선이 끊기면 학생은 두 상황을 구분할 수 없다
+ * ================================================================== */
+
+{
+  const failed = buildReport(admissionInput, { cuts: null, cutsError: true }).admission;
+  // 실패는 컷을 못 가져온 것이지 내 성적이 사라진 게 아니다 — 내 성적 행은 남고 컷 행만 없다.
+  // 남는 행은 내 성적 행(emphasis)뿐이다 — 컷 행은 emphasis 가 false 라 이 단언으로 걸러진다.
+  checkTrue('조회 실패면 컷 행을 만들지 않는다(있지도 않은 숫자를 지어내지 않는다)', failed.rows.every((row) => row.emphasis === true));
+  check('내 성적 행은 그대로 남는다', failed.rows.length, 1);
+  // G-1b(2026-08-12) 회귀 방지 — 종전엔 이 단언이 `hasRows === true` 를 정상으로 봤다. 그게
+  // 바로 F-10 버그였다: mine 행 1개만 있어도 "표가 있다"로 잘못 판정해 헤더 + 자기 성적 1행짜리
+  // 빈 비교표가 그려졌다. 이제 hasRows 는 '비교 대상(컷 행)이 있는가'를 본다 — mine 뿐이면 false.
+  check('mine 행만 있으면 hasRows=false (비교 대상이 없다 — F-10 재발 방지)', failed.hasRows, false);
+  // REPORT_FALLBACK.BAND_VALUE_NODATA 는 diagnosisReport.js 밖으로 export 되지 않는다(그 파일의
+  // 유일한 소비자라는 계약) — 값 자체('자료 없음')를 직접 비교한다. probabilityValue 의 동일
+  // 폴백 자리와 값을 공유한다(§7.2 REPORT_FALLBACK 정의).
+  check('mine 행만 있어도 emptyNotice 는 값을 낸다(NOTICE_ROW 모드가 쓸 문구)', failed.emptyNotice, '자료 없음');
+  checkTrue('조회 실패여도 확률에 % 가 없다', !String(failed.probabilityValue).includes('%'));
+  check('조회 실패와 결측이 동시에 참일 수 없다', [failed.fetchFailed, buildReport(admissionInput, { cuts: null }).admission.fetchFailed], [true, false]);
+  // 실패 문장은 인쇄에도 나간다(자료를 못 불러왔다는 사실은 종이에서도 참이다) → 금지어 검사 대상.
+  check('실패 문장에 금지어 없음', findBannedPhrases(failed.summary).map((hit) => hit.phrase), []);
+}
+
+// 센티널 계약은 값이 아니라 **호출부의 비교 방식**에서 깨진다 — 소스로 못 박는다.
+{
+  const cutsSource = sourceOf('lib/diagnosisAdmissionCuts.js');
+  checkTrue('조회 실패는 센티널로 반환한다(에러를 null 로 삼키지 않는다)', cutsSource.includes('return ADMISSION_FETCH_ERROR'));
+  checkTrue('예외도 값으로 정규화한다(훅에 throw 가 새지 않는다)', /try\s*{/.test(cutsSource) && cutsSource.includes('catch'));
+
+  const cascadeSource = sourceOf('hooks/useAdmissionCascade.js');
+  checkTrue('훅은 참조 동일성으로 판별한다(=== ADMISSION_FETCH_ERROR)', cascadeSource.includes('=== ADMISSION_FETCH_ERROR'));
+  checkTrue('느슨한 비교로 센티널을 결측에 뭉개지 않는다', !cascadeSource.includes('== ADMISSION_FETCH_ERROR)') || cascadeSource.includes('=== ADMISSION_FETCH_ERROR'));
+  checkTrue('네트워크 예외를 받는 마지막 관문(.catch)이 있다', cascadeSource.includes('.catch('));
+  // 리셋이 없으면 한 번 실패한 뒤 다른 대학을 골라도 계속 에러 화면이 남는다.
+  // G-1a(2026-08-12) — setCuts/setCutsError 개별 호출이 applyOutcome(cuts, cutsError) 헬퍼로
+  // 통합됐다(상태와 cutsOutcomeRef 스냅샷을 항상 함께 갱신하기 위해서다 — awaitCuts() 가 그
+  // ref 를 읽는다). 리셋 경로는 이제 `applyOutcome(null, false)` 다.
+  checkTrue('선택이 바뀌면 에러 상태를 되돌린다', cascadeSource.includes('applyOutcome(null, false)'));
+  checkTrue('훅이 cutsError 를 밖으로 낸다', /cutsError/.test(cascadeSource));
+  // awaitCuts() — 제출 시점 경합 방지(G-1a). 진행 중인 조회를 기다린 뒤 ref 스냅샷을 직접
+  // 돌려준다. state 를 읽지 않는 이유는 다음 렌더까지 반영이 늦어질 수 있어서다.
+  checkTrue('awaitCuts 가 정의돼 있다(제출 시점 경합 방지)', cascadeSource.includes('awaitCuts'));
+  checkTrue(
+    'submitDiagnosis 는 cuts/cutsError 를 직접 읽지 않고 awaitCuts() 를 기다린다',
+    sourceOf('pages/renewal/SurveyStepShell.jsx').includes('awaitCuts()')
+  );
+  // 센티널 객체를 그대로 저장하면 직렬화로 참조 동일성이 사라진다 — 불리언만 넘어가야 한다.
+  checkTrue('저장 계층은 불리언 신호만 받는다', sourceOf('lib/diagnosisInputStorage.js').includes('admissionCutsError'));
+}
 
 /* ================================================================== *
  * 요약

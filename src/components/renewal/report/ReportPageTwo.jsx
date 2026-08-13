@@ -17,13 +17,17 @@ const ReportPageTwo = ({ data }) => {
       <DimensionBarChart areas={readiness.areas} />
       <InsightColumns strengths={strengths} improvements={improvements} />
       <AdmissionSection admission={admission} />
-      <RecommendServices cards={recommendations} />
+      <RecommendServices cards={recommendations} leadNote={notices?.serviceLimit} />
 
       {/*
         R3(2026-08-11) — notices.reportBasis(§5.1 고정 안내 "조건 없음, 항상")도 urgency 와 같은
         사정으로 렌더 슬롯이 없었다. 리포트 전체에 걸리는 신뢰성 고지라 특정 섹션이 아니라
-        2페이지(마지막 페이지) 맨 아래 각주로 한 번만 둔다. reportLimit·probNote·admissionNote·
-        serviceLimit·skipNote 는 이번에는 배치하지 않는다(넣지 않은 이유는 보고 참고).
+        2페이지(마지막 페이지) 맨 아래 각주로 한 번만 둔다.
+
+        (2026-08-11 갱신) 나머지 고지도 전부 자리를 찾았다 — probNote·admissionNote 는
+        AdmissionSection 안(값·표 바로 옆), serviceLimit 은 RecommendServices 리드,
+        skipNote·reportLimit 은 화면 전용 확장 영역(ReportScreenExtras)이다. 이 각주(reportBasis)
+        만 인쇄에 남는다. 새 고지가 생기면 여기 쌓지 말고 의미상 소속 섹션을 먼저 찾아라.
       */}
       {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. 이미 있는
           border-t 구분선과 함께 각주 위계를 색·경계선 이중으로 드러낸다. */}

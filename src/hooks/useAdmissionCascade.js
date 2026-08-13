@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // admissionResultsQueries.js(다른 세션 소유, recruitment_period 필터가 새 스키마에서 깨져 있다)를
 // 재사용하지 않는다 — diagnosisAdmissionMasterQueries.js 헤더 주석 참고.
 import {
@@ -6,7 +6,7 @@ import {
   fetchAdmissionDepartments,
   fetchAdmissionTrackRows
 } from '../lib/diagnosisAdmissionMasterQueries';
-import { fetchAdmissionCuts } from '../lib/diagnosisAdmissionCuts';
+import { ADMISSION_FETCH_ERROR, fetchAdmissionCuts } from '../lib/diagnosisAdmissionCuts';
 import {
   NO_SUBJECT_REFLECTION_LABEL,
   deriveAdmissionTracks,
@@ -28,7 +28,17 @@ const EMPTY_RESOURCE = { data: [], loading: false, error: null };
  *
  * @param {{ university?: string, department?: string, admissionType?: string, detailType?: string,
  *           subjectReflection?: string }} cascadeValue answers.q15 (없으면 빈 캐스케이드)
- * @returns {{ levels: Array, cuts: object|null, admissionMeta: {year: number}|null }}
+ * @returns {{ levels: Array, cuts: object|null, cutsError: boolean,
+ *             admissionMeta: {year: number}|null,
+ *             awaitCuts: () => Promise<{cuts: object|null, cutsError: boolean}> }}
+ *
+ * cutsError(F-22)는 '지금 못 불러왔다'(일시 오류)를 '이 조합은 원래 자료가 없다'(영구 부재)와
+ * 가르는 유일한 신호다. 종전에는 둘이 전부 cuts=null 로 뭉개져 학생 화면이 같았고, 리포트는
+ * 일시 오류에도 "공개된 입결 자료가 없어…"라고 **단정**하는 문장을 냈다.
+ *
+ * awaitCuts(G-1a)는 제출 직전 전용이다. cascadeComplete 직후 아직 fetch 가 안 끝난 채로 제출하면
+ * cuts/cutsError state 가 둘 다 이전 값(대개 null/false)이라 '조회 미확정'이 '자료 영구 부재'로
+ * 낙관 처리된다 — 호출부는 cuts/cutsError 를 직접 읽는 대신 반드시 이 함수로 확정값을 기다린다.
  */
 export function useAdmissionCascade(cascadeValue) {
   const value = cascadeValue ?? {};
@@ -36,6 +46,14 @@ export function useAdmissionCascade(cascadeValue) {
   const [departments, setDepartments] = useState(EMPTY_RESOURCE);
   const [trackRows, setTrackRows] = useState(EMPTY_RESOURCE);
   const [cuts, setCuts] = useState(null);
+  const [cutsError, setCutsError] = useState(false);
+  // G-1a(2026-08-12) — 제출 경합 방지. 캐스케이드가 막 완주돼 fetch 가 아직 안 끝난 채로 제출
+  // 버튼을 누르면 cuts=null·cutsError=false(둘 다 초기값)로 읽혀 '조회 미확정'이 '자료 영구
+  // 부재'로 낙관 처리된다(3회 중 2회 재현 — 실측). cutsOutcomeRef 는 상태와 항상 동기인 최신
+  // 결과를, cutsSettleRef 는 진행 중인 조회가 끝나는 시점을 들고 있다 — awaitCuts() 가 제출
+  // 직전 그 시점을 기다려 상태 대신 **확정된 값**을 직접 돌려준다(리렌더 타이밍에 기대지 않는다).
+  const cutsOutcomeRef = useRef({ cuts: null, cutsError: false });
+  const cutsSettleRef = useRef(Promise.resolve());
 
   // 대학 목록. 셸 마운트 1회.
   useEffect(() => {
@@ -119,21 +137,49 @@ export function useAdmissionCascade(cascadeValue) {
       value.detailType &&
       (!showSubjectReflectionLevel || value.subjectReflection);
 
+    // 상태(setCuts/setCutsError)와 ref(cutsOutcomeRef)를 항상 같은 값으로 갱신한다 — 리렌더는
+    // 화면용, ref 는 awaitCuts() 가 즉시 읽는 동기 스냅샷용이다.
+    const applyOutcome = (nextCuts, nextCutsError) => {
+      cutsOutcomeRef.current = { cuts: nextCuts, cutsError: nextCutsError };
+      setCuts(nextCuts);
+      setCutsError(nextCutsError);
+    };
+
     if (!cascadeComplete) {
-      setCuts(null);
+      // 선택이 바뀌면 반드시 함께 리셋한다 — 안 하면 한 번 실패한 뒤 다른 대학을 골라도
+      // 계속 에러 화면이 남는다.
+      applyOutcome(null, false);
+      cutsSettleRef.current = Promise.resolve();
       return undefined;
     }
 
     let alive = true;
-    fetchAdmissionCuts({
+    const settle = fetchAdmissionCuts({
       universityKey,
       departmentKey,
       mainTrack: value.admissionType,
       admissionTrack: value.detailType,
       subjectReflection: resolvedSubjectReflection
-    }).then((result) => {
-      if (alive) setCuts(result);
-    });
+    })
+      .then((result) => {
+        if (!alive) return;
+        // **반드시 참조 비교다.** `result == null` 같은 느슨한 비교를 쓰면 센티널이 다시 결측으로
+        // 뭉개져 F-22 가 통째로 무의미해진다. 또 센티널을 cuts 에 그대로 넣어서도 안 된다 —
+        // 이 값은 sessionStorage 로 직렬화돼 리포트 페이지까지 가는데, JSON 왕복에서 참조
+        // 동일성이 사라져 저쪽에서는 판별이 불가능해진다. 여기서 불리언으로 바꿔 올린다.
+        if (result === ADMISSION_FETCH_ERROR) {
+          applyOutcome(null, true);
+          return;
+        }
+        applyOutcome(result, false);
+      })
+      // fetchAdmissionCuts 는 예외를 값으로 정규화하지만, 그 계약이 깨져도 unhandled rejection 으로
+      // 흘러 cuts 가 조용히 null 로 남는 일이 없게 마지막 관문을 둔다.
+      .catch(() => {
+        if (!alive) return;
+        applyOutcome(null, true);
+      });
+    cutsSettleRef.current = settle;
     return () => {
       alive = false;
     };
@@ -147,6 +193,14 @@ export function useAdmissionCascade(cascadeValue) {
     showSubjectReflectionLevel,
     resolvedSubjectReflection
   ]);
+
+  // G-1a — 제출 직전 호출 전용. 진행 중인 컷 조회가 있으면 끝날 때까지 기다린 뒤(=settle) 그
+  // 순간의 확정 결과를 돌려준다. cuts/cutsError state 를 읽지 않는 이유는 상태 갱신이 다음
+  // 렌더까지 반영되지 않아 awaitCuts 호출 직후에도 낡은 값을 볼 수 있기 때문이다.
+  const awaitCuts = useCallback(async () => {
+    await cutsSettleRef.current;
+    return cutsOutcomeRef.current;
+  }, []);
 
   const levels = useMemo(() => {
     const base = [
@@ -211,5 +265,5 @@ export function useAdmissionCascade(cascadeValue) {
     trackRows.error
   ]);
 
-  return { levels, cuts, admissionMeta: cuts ? { year: cuts.year } : null };
+  return { levels, cuts, cutsError, admissionMeta: cuts ? { year: cuts.year } : null, awaitCuts };
 }

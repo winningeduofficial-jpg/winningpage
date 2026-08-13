@@ -26,6 +26,7 @@ export default function SurveyStepShell() {
   // B-1 — q15(목표 대학 입결 조회) 캐스케이드 옵션·컷 fetch 상태. answers.q15 가 바뀔 때마다
   // 훅 내부에서 대학→학과→전형유형/세부전형명/반영교과 순으로 필요한 조회만 다시 tap 한다.
   const admissionCascade = useAdmissionCascade(answers.q15);
+  const { awaitCuts } = admissionCascade;
 
   /**
    * 제출 — answers 를 DiagnosisInput 으로 정규화해 저장하고 그 값을 돌려준다(§7.4.2).
@@ -36,17 +37,29 @@ export default function SurveyStepShell() {
    * 한쪽만 고치면 그 경로로 들어온 진단만 조용히 저장되지 않는다.
    *
    * async 인 이유는 Q-01 이다 — 이름은 폼에 없고 제출 시점에 세션에서 조회한다. 입결 컷(B-1)은
-   * 스텝5 캐스케이드가 선택 시점에 이미 조회해 둔 값(admissionCascade.cuts)을 그대로 싣는다 —
-   * 제출 시점에 다시 조회하지 않는다.
+   * 스텝5 캐스케이드가 선택 시점에 이미 조회해 둔 값을 그대로 싣는다 — 제출 시점에 다시
+   * 조회하지 않는다. 단, **선택은 됐지만 조회가 아직 안 끝난 경합 구간(G-1a)**이 있을 수 있어
+   * cuts/cutsError 를 직접 읽지 않고 awaitCuts() 로 그 경합이 끝나길 기다린 뒤 확정값을 쓴다.
    */
   const submitDiagnosis = useCallback(async () => {
-    const name = await fetchLoggedInStudentName();
+    const [name, admissionResolved] = await Promise.all([
+      fetchLoggedInStudentName(),
+      // G-1a — cascadeComplete 직후 fetch 가 아직 안 끝난 채로 제출하면 cuts=null·cutsError=false
+      // (둘 다 초기값)로 읽혀 '조회 미확정'이 '자료 영구 부재'로 낙관 처리된다(3회 중 2회 재현
+      // 실측). awaitCuts() 가 진행 중인 조회를 기다린 뒤 그 순간의 확정 결과를 직접 돌려준다.
+      awaitCuts()
+    ]);
     return submitDiagnosisAnswers(answers, {
       name,
-      admissionCuts: admissionCascade.cuts,
-      admissionMeta: admissionCascade.admissionMeta
+      admissionCuts: admissionResolved.cuts,
+      admissionMeta: admissionResolved.cuts ? { year: admissionResolved.cuts.year } : null,
+      // F-22 — 참조 비교(ADMISSION_FETCH_ERROR)로 판정해 올린 불리언. 이 한 줄이 없으면
+      // '조회 실패'가 payload 에서 통째로 사라져 리포트가 일시 오류를 '자료 영구 부재'로 단정한다.
+      admissionCutsError: admissionResolved.cutsError
     });
-  }, [answers, admissionCascade.cuts, admissionCascade.admissionMeta]);
+    // awaitCuts 는 훅 안에서 useCallback(빈 deps)로 안정된 참조라 이 콜백도 answers 가 바뀔 때만
+    // 재생성된다 — admissionCascade 객체 전체를 deps 에 넣으면 매 렌더 재생성되어 의미가 없다.
+  }, [answers, awaitCuts]);
 
   return (
     <main className="min-h-screen w-full bg-[#FBFAFA] pt-16">

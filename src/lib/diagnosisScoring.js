@@ -52,14 +52,22 @@ import {
   URGENCY_SCOPE,
   ADMISSION_MARGIN,
   ADMISSION_ROW_KEYS,
-  ADMISSION_MASTER_KEYS,
-  ADMISSION_SPECIAL_SCHOOL_TYPES,
-  BASE_PROBABILITY,
   PROB_MIN,
   PROB_MAX,
   CSAT_MIN_DELTA,
   JONGHAP_DELTA,
-  INTERVIEW_DELTA
+  INTERVIEW_DELTA,
+  // §11 자체 결정 상수 — 값은 전부 표에 있고 이 모듈은 읽기만 한다.
+  ADMISSION_BAND_BASE_PROBABILITY,
+  ADMISSION_BAND_EDGE_ADJUST,
+  PROB_RANGE_LABELS,
+  TYPE_RULES,
+  SINCERITY_MIN_ANSWERED,
+  SINCERITY_MAX_OFFMODE,
+  SINCERITY_OFFMODE_MIN_DISTANCE,
+  SERVICE_H3_LATE_MONTH,
+  SERVICE_H3_LATE_CODES,
+  SERVICE_H3_LATE_TIMEZONE
 } from '../data/diagnosisScoringTable.js';
 import {
   clamp,
@@ -285,10 +293,27 @@ export function convertToNineScale(gradeSystem, raw) {
     case 'MIDDLE_AVG':
       return middleAvgToNine(raw);
     default:
-      // UNKNOWN · 미응답(null) · q1×q4 불일치(Q-30)로 체계를 신뢰할 수 없는 경우.
+      // UNKNOWN · 미응답(null)인 경우.
       return null;
   }
 }
+
+/**
+ * F-16(2026-08-12 확정, Q-30 종결) — q1(학년)×q4(등급 체계) 응답 불일치는 검증하지 않는다.
+ *
+ * 예: 중3(M3)인데 9등급제(NINE)를 고르는 등 학년과 등급 체계가 통상 조합과 어긋나는 응답이
+ * 있을 수 있다. 세 가지 처리안을 검토했다 — ① 설문에서 막기(다음 단계 진행 차단) ② 채점에서
+ * 조용히 보정(예: 불일치 시 UNKNOWN 취급해 값 무효화) ③ 그대로 둔다. **③을 택했다.**
+ *
+ * 이유: (a) "통상 조합과 다르다"가 "틀렸다"의 증거가 아니다 — 조기입학·월반·검정고시 준비 등
+ * 실제로 학년과 등급 체계가 어긋나는 학생이 존재할 수 있다(원문에 이런 예외를 배제하는 규칙이
+ * 없다). (b) ①(진행 차단)은 정상 응답을 오류로 오인해 진단 자체를 막을 위험이 있다 — 학생을
+ * 막는 결정은 이 진단에서 가장 신중해야 할 종류의 개입이다. (c) ②(조용한 보정)는 학생이 입력한
+ * 실제 등급 값을 버려 F-12(gpa 미입력 표시)가 겪었던 것과 같은 "내 입력이 사라졌다"는 오인을
+ * 재현한다. 따라서 q1×q4 조합을 검사하는 코드를 새로 만들지 않는다 — 이 함수의 분기도
+ * gradeSystem 값 하나만 본다(q1 을 인자로 받지 않는다). 재검토 조건: 실제 불일치 응답 비율이
+ * 유의미하게 확인되면 그때 경고(비차단) UI 를 검토한다 — 그때도 진행을 막지는 않는다.
+ */
 
 /* ================================================================== *
  * 3. 문항 → 영역 점수 (§4.2)
@@ -507,7 +532,52 @@ export function detectEmotionalSignal(freeText) {
 }
 
 /**
- * 서비스 적합도 순위 (§4.5 · CASE-05 · Q-13 · Q-14 · Q-36 해소).
+ * diagnosedAt 의 KST 월(1~12). 읽을 수 없으면 null.
+ *
+ * 엔진은 시계를 읽지 않는다는 계약(모듈 서두)은 그대로다 — Date.now() 를 부르지 않고 호출부가
+ * 넣어 준 문자열만 해석한다. 같은 입력이 항상 같은 월을 내므로 순수성도 유지된다.
+ *
+ * `new Date(x).getMonth()` 나 ISO 문자열 정규식을 쓰지 않는 이유: 전자는 실행 환경 타임존을 타고
+ * 후자는 UTC 를 KST 로 안 바꾼다. 둘 다 경계일(5/31 밤 · 6/1 새벽) 학생을 하루 밀어 버린다.
+ */
+function kstMonth(diagnosedAt) {
+  if (diagnosedAt == null) return null;
+  const date = new Date(diagnosedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = Number(
+    new Intl.DateTimeFormat('en-US', { timeZone: SERVICE_H3_LATE_TIMEZONE, month: 'numeric' }).format(date)
+  );
+  return Number.isFinite(month) ? month : null;
+}
+
+/**
+ * 서비스 후보 목록 (배점표 1번 · Q-13).
+ *
+ * 배점표 28행 원문 "고등학교 3학년 추천 서비스 후보 6종 전부 (6월 이후 가입은 2종)"을 구현한다.
+ * 원문은 '가입'이라고 하지만 가입일은 진단 엔진 입력에 존재하지 않는다(비로그인 진단이 가능하고
+ * meta 에 가입일 필드가 없다) — 실재하는 유일한 시각 소스인 제출 시각(meta.diagnosedAt)을
+ * 대리 판정 소스로 쓴다.
+ *
+ * **fail-open**: 시각을 읽지 못하면(null · 파싱 실패) 제한하지 않고 6종 전부를 낸다. 시각을 못
+ * 읽었다는 이유로 학생의 선택지를 줄이지 않는다.
+ *
+ * @returns {{ codes: string[], reason: 'H3_LATE'|'M3'|'RETAKE'|null }}
+ *          reason 은 리포트 데이터에 실린다 — 가입일 ≠ 진단일 오차로 잘못 걸린 학생(3월 가입·7월
+ *          진단)을 어드민·상담 단계에서 재판정하려면 판정 근거가 남아야 한다.
+ */
+export function serviceCandidates(gradeLevel, diagnosedAt) {
+  if (gradeLevel === 'H3') {
+    const month = kstMonth(diagnosedAt);
+    return month != null && month >= SERVICE_H3_LATE_MONTH
+      ? { codes: SERVICE_H3_LATE_CODES, reason: 'H3_LATE' }
+      : { codes: SERVICE_CODES, reason: null };
+  }
+  const fixed = SERVICE_GRADE_FILTER[gradeLevel];
+  return fixed ? { codes: fixed, reason: gradeLevel } : { codes: SERVICE_CODES, reason: null };
+}
+
+/**
+ * 서비스 적합도 순위 (§4.5 · CASE-05 · Q-13 해소 · Q-14 · Q-36 해소).
  *
  *   fit = min(50, 50×체크수/threshold) + (희망 교집합 ? 20 : 0) + 30 × (1 − mean(linkedAreas)/100)
  *
@@ -525,7 +595,10 @@ export function rankServices(input, areaScores) {
   const safeInput = input ?? {};
   const checked = new Set([...(safeInput.obstacles ?? []), ...(safeInput.difficulties ?? [])]);
   const wishes = new Set(safeInput.wishes ?? []);
-  const candidates = SERVICE_GRADE_FILTER[safeInput.profile?.gradeLevel] ?? SERVICE_CODES;
+  const { codes: candidates, reason: filterReason } = serviceCandidates(
+    safeInput.profile?.gradeLevel,
+    safeInput.meta?.diagnosedAt
+  );
 
   const all = candidates
     .map((code) => {
@@ -568,61 +641,188 @@ export function rankServices(input, areaScores) {
       ? second
       : null;
 
-  return { rank1, rank2, all };
+  // filterReason 은 화면 분기용이 아니라 사후 재판정용이다(Q-13 가드레일) — 2종으로 줄어든 뒤
+  // tier 필터까지 걸려 all 이 0건이 되면 기존 SVC_NONE 폴백이 그대로 동작하고, 그때도 '왜 2종
+  // 이었는지'는 이 값에만 남는다.
+  return { rank1, rank2, all, filterReason };
 }
 
 /* ================================================================== *
  * 6. 학생 유형 (§6.2 B-14)
  * ================================================================== */
 
+/** 리커트 24문장 중 실제 응답값이 있는 것만. likertScore 도메인은 {0,25,50,75,100} 5개뿐이다. */
+function likertValuesOf(input) {
+  return [...Object.values(input?.likert1 ?? {}), ...Object.values(input?.likert2 ?? {})].filter((value) =>
+    isUsableNumber(value)
+  );
+}
+
 /**
- * 8종 학생 유형 판정 (Q-05 확정, 2026-08-11).
+ * 최빈값 + 거리 기반 offmode 통계 (G-2 · WARN 2).
  *
- * 8단 결정트리는 폐기됐다 — 배점표·문구집 어디에도 판정 기준이 없어 나머지 4종
- * (학습체계 안정형 · 균형 점검형 · 계획 과잉·실행 취약형 · 목표–실행 불균형형)을 창작할 근거가 없다.
- * 최저 영역 룩업 기반 4종만 최초 매치로 구현하고, 그 외 조합은 값을 창작하지 않고 null 을 낸다
- * (null 폴백 조립은 buildReport 가 소유 — 헤드라인 = PAGE_GRADE_COPY, 먼저 할 일 3 = 최저 3영역
- * need.improve). 8종 판정 기준은 문구집 작성자에게 조회 대기 중이며(D2), 나오면 나머지 4종을 채운다.
+ * 종전엔 "최빈값과 정확히 다른 값"을 전부 offmode 로 셌다 — 22개 '매우 그렇다'(100) + 2개
+ * '그렇다'(75) 처럼 **인접 척도**(1칸 = 25점 차이) 응답까지 오탐으로 걸렸다(실측).
+ *
+ * 단순히 "거리가 먼 것만 개수에 센다"로는 이 오탐이 고쳐지지 않는다 — 22+2 예시는 애초에
+ * 다른 값이 2개뿐이라, 그 2개를 거리로 걸러 세든 안 세든 결과는 항상 0 또는 2 이고, 어느 쪽도
+ * SINCERITY_MAX_OFFMODE(2) 초과로 못 간다("<= 2" 판정이 항상 참으로 고정된다). 그래서 exported
+ * `offmodeCount`(먼 응답 개수, 관리자 진단용)와 flagged 판정 로직을 분리한다 — flagged 는
+ * `rawOffmodeCount`(최빈값과 다른 응답 전체 개수, 종전과 동일)와 `offmodeCount`(그중 먼 것만)를
+ * **함께** 본다: 다른 응답이 있는데 전부 인접 척도뿐이면(= rawOffmodeCount > 0 && offmodeCount
+ * === 0) 진짜 다양한 응답으로 보고 flagged 를 걷는다. 하나라도 먼 응답이 섞이면 종전 개수
+ * 기준(rawOffmodeCount <= MAX_OFFMODE)으로 그대로 판정한다.
+ */
+function sincerityStats(input) {
+  const values = likertValuesOf(input);
+  const answered = values.length;
+  if (answered === 0) return { answered, modeValue: null, offmodeCount: 0, rawOffmodeCount: 0 };
+  const counts = new Map();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  // 동률이면 먼저 등장한(=응답 순서상 앞선) 값을 최빈값으로 고정한다 — Map 이 삽입 순서를
+  // 보존하므로 매 호출 결정론적이다.
+  let modeValue = null;
+  let modeCount = -1;
+  counts.forEach((count, value) => {
+    if (count > modeCount) {
+      modeCount = count;
+      modeValue = value;
+    }
+  });
+  const rawOffmodeCount = answered - modeCount;
+  const offmodeCount = values.filter(
+    (value) => Math.abs(value - modeValue) >= SINCERITY_OFFMODE_MIN_DISTANCE
+  ).length;
+  return { answered, modeValue, offmodeCount, rawOffmodeCount };
+}
+
+/**
+ * 불성실(직선) 응답 판정 (F-15 · Q-16).
+ *
+ * 쓸 수 있는 신호가 리커트 24문장의 분포 하나뿐이다 — 응답 소요시간·IP·재응시 이력은 수집하지
+ * 않고, 역채점 문항도 q9·q11 문장이 전부 같은 방향 서술이라 없다(§11 SINCERITY_MAX_OFFMODE 주석).
+ *
+ * "전부 동일"이 아니라 "대부분 동일"로 잡는 근거는 문구 원문 자체다 — SINCERITY_BANNER 가
+ * "응답이 **대부분** 같은 항목으로 선택되어"라고 적혀 있다. 대신 표본 하한(20)을 둬서 몇 문장만
+ * 답한 학생을 불성실로 몰지 않는다.
+ *
+ * G-2(2026-08-12) — 판정에 3단 분기가 생겼다(오탐 회귀 방지, sincerityStats 주석 참조).
+ *   ① 변주가 아예 없다(rawOffmodeCount === 0) → 가장 의심스러운 경우, 항상 flagged.
+ *   ② 변주는 있는데 전부 인접 척도(거리 < 50)뿐이다(offmodeCount === 0 인데 rawOffmodeCount > 0)
+ *     → 진짜 다른 값을 준 적이 없다는 뜻이 아니라, 인접 칸을 오간 정상 편차다. flagged 아님.
+ *   ③ 거리가 먼 응답이 하나라도 섞여 있다 → 종전과 같은 개수 기준(rawOffmodeCount <= MAX_OFFMODE).
+ *
+ * 이 판정은 **유형 배정만 보류시키고 점수는 무효화하지 않는다** — SINCERITY_TRAIT/ACT 원문이
+ * "아래 내용은 영역별 점수만을 기준으로 정리한 것입니다"라고 명시하는 그대로다.
+ *
+ * @param {object} input DiagnosisInput
+ * @returns {boolean}
+ */
+export function isStraightLining(input) {
+  const { answered, offmodeCount, rawOffmodeCount } = sincerityStats(input);
+  if (answered < SINCERITY_MIN_ANSWERED) return false;
+  if (rawOffmodeCount === 0) return true;
+  if (offmodeCount === 0) return false;
+  return rawOffmodeCount <= SINCERITY_MAX_OFFMODE;
+}
+
+/**
+ * 성실도 판정 결과 (F-15). diagnosisReport.buildNotices 가 SINCERITY_* 4문구를 조립할 때 읽는다.
+ *
+ * 소비자에게 불리언 하나(`flagged`)만 계약으로 준다 — 오탐이 보고되면 배너 하나를 끄는 것으로
+ * 끝나야지, UI 가 임계값을 알고 있으면 되돌릴 곳이 두 군데가 된다. 나머지 두 필드는 어드민·검산
+ * 진단용이며 화면에 쓰지 않는다.
+ *
+ * @returns {{ flagged: boolean, answeredCount: number, offmodeCount: number }}
+ */
+export function sincerityOf(input) {
+  const { answered, offmodeCount } = sincerityStats(input);
+  return {
+    flagged: isStraightLining(input),
+    answeredCount: answered,
+    offmodeCount
+  };
+}
+
+/**
+ * 8종 학생 유형 판정 (Q-05 · F-03, 나머지 4종 확정 2026-08-11).
+ *
+ * 문구집 01_유형문구 서술을 점수 조합으로 옮겨 8종 전량을 판정한다. 임계는 §11 TYPE_RULES 가
+ * 소유하며 이 함수는 숫자를 갖지 않는다 — 원저자 답이 오면 표만 교체한다.
  *
  * 최초 매치 순서:
- *   ① 리커트 24문장(7·9번) 응답값이 전부 동일 → null. Q-16(불성실 응답)의 최소 안전판이다.
- *   ② STABILITY < 45 → 학습 부담 누적형. 임계 45 는 배점표 영역 상태 취약 기준(§4.2.1) 그대로다.
- *      ②가 ③~⑤(축 취약)보다 앞서는 것은 판단이다 — 부담 신호를 축 취약보다 우선한다.
- *   ③ 최저 영역 = GOAL(목표 설정) → 방향 탐색형
- *   ④ 최저 영역 = TIME(시간 관리) → 시간관리 취약형
- *   ⑤ 최저 영역 = FEEDBACK(학습 피드백) → 학습방법 점검형
- *   ⑥ 그 외(최저 영역이 PLAN·EXEC·STABILITY) → null (현행 폴백 유지)
- * 동점 타이브레이커는 신규 규칙을 만들지 않고 sortByScoreAsc 의 기존 area 고정 순서를 그대로 쓴다.
- * 창작 상수 0개.
+ *   ①  isStraightLining → null (F-15. SINCERITY 4문구가 대신 발화한다)
+ *   ①' 리커트 응답이 전부 동일 → null (기존 가드 원형 보존 — 아래 주석 참조)
+ *   ②  STABILITY < 45 → 학습 부담 누적형. 임계 45 는 배점표 영역 상태 취약 기준(§4.2.1) 그대로다.
+ *   ③  PAGE1 최저 >= 70 && PAGE1 종합 >= 80 → 학습체계 안정형
+ *   ④  PAGE1 산포(max−min) <= 10 → 균형 점검형
+ *   ⑤  최저 영역 = GOAL     → 방향 탐색형
+ *   ⑥  최저 영역 = TIME     → 시간관리 취약형
+ *   ⑦  최저 영역 = FEEDBACK → 학습방법 점검형
+ *   ⑧  PLAN >= 70 && EXEC < 60 → 계획 과잉·실행 취약형
+ *   ⑨  GOAL >= 70 && PLAN < 70 && EXEC < 60 → 목표–실행 불균형형
+ *   ⑩  그 외 → null (현행 폴백 유지 — 억지 배정을 하지 않는다)
+ *
+ * ①' 를 지운 것처럼 보이면 안 된다: 새 규칙은 표본 하한(20)이 있어 기존 규칙의 진부분집합이
+ * **아니다**. 리커트 5문장만 답하고 전부 동일한 학생은 ①에 걸리지 않는다 — 기존 가드를 그대로
+ * 남겨야 회귀가 0이 되고, 배너는 고신뢰 케이스에만 붙는다.
+ *
+ * ③④가 ⑤~⑦보다 앞서는 것은 **의도된 판정 변경**이다(버그로 되돌리지 마라).
+ *   - 전 영역 70+ 인데 최저가 GOAL 이면 종전 DIRECTION_SEEK → 이제 SYSTEM_STABLE. GOAL 72('상위')
+ *     학생에게 "무엇을 기준으로 공부할지 정해지지 않은 상태"라고 말하던 오판정의 교정이다.
+ *   - 산포 10 이내 평탄 프로필은 종전 최저영역 유형 → 이제 BALANCED. 최저 영역 룩업은 "최저가
+ *     유의미하게 낮다"를 전제하는데 평탄 프로필에서 그 전제가 깨진다.
+ *   되돌리려면 ③④를 ⑦ 뒤로 내리면 된다(그때 ③은 거의 발화하지 않는다).
+ *
+ * 산포 <= 10 이면 PLAN−EXEC>10 · GOAL−EXEC>10 이 불가능하므로 ④·⑧·⑨는 서로 배타다 — 셋 사이의
+ * 순서는 결과에 영향을 주지 않는다. 동점 타이브레이커도 신규 규칙 없이 sortByScoreAsc 의 기존
+ * area 고정 순서 그대로다.
  */
 export function classifyStudentType(input, areaScores) {
-  const likert = { ...(input?.likert1 ?? {}), ...(input?.likert2 ?? {}) };
-  const answered = Object.values(likert).filter((value) => isUsableNumber(value));
+  if (isStraightLining(input)) return null;
+  const answered = likertValuesOf(input);
   if (answered.length > 0 && answered.every((value) => value === answered[0])) return null;
 
   if (scoreOf(areaScores, 'STABILITY') < 45) return 'BURDEN_ACCUM';
 
-  const [lowest] = sortByScoreAsc(PAGE1_AREAS, areaScores);
+  // min/max/산포는 새 헬퍼를 만들지 않고 기존 정렬 결과의 양 끝에서 뽑는다 — 정렬 규칙이 두 벌이
+  // 되면 동점 구간에서 뱃지와 유형이 어긋난다.
+  const ascending = sortByScoreAsc(PAGE1_AREAS, areaScores);
+  const lowest = ascending[0];
+  const lowestScore = scoreOf(areaScores, lowest);
+  const highestScore = scoreOf(areaScores, ascending[ascending.length - 1]);
+
+  if (
+    lowestScore >= TYPE_RULES.SYSTEM_STABLE.page1MinArea &&
+    overallScore(areaScores, 1) >= TYPE_RULES.SYSTEM_STABLE.page1Overall
+  ) {
+    return 'SYSTEM_STABLE';
+  }
+  if (highestScore - lowestScore <= TYPE_RULES.BALANCED.spreadMax) return 'BALANCED';
+
   if (lowest === 'GOAL') return 'DIRECTION_SEEK';
   if (lowest === 'TIME') return 'TIME_WEAK';
   if (lowest === 'FEEDBACK') return 'METHOD_REVIEW';
+
+  const goal = scoreOf(areaScores, 'GOAL');
+  const plan = scoreOf(areaScores, 'PLAN');
+  const exec = scoreOf(areaScores, 'EXEC');
+  if (plan >= TYPE_RULES.PLAN_HEAVY.planMin && exec < TYPE_RULES.PLAN_HEAVY.execMax) return 'PLAN_HEAVY';
+  if (
+    goal >= TYPE_RULES.GOAL_EXEC_GAP.goalMin &&
+    plan < TYPE_RULES.GOAL_EXEC_GAP.planMax &&
+    exec < TYPE_RULES.GOAL_EXEC_GAP.execMax
+  ) {
+    return 'GOAL_EXEC_GAP';
+  }
+  // ⑩ 최저가 PLAN·EXEC·STABILITY 이면서 ⑧⑨ 어디에도 안 걸리는 잔여 구간이 남는다.
+  // 값을 창작해 메우지 않는다 — 현행 PAGE_GRADE_COPY 폴백이 그대로 뜬다.
   return null;
 }
 
 /* ================================================================== *
  * 7. 합격 가능성 (§4.6)
  * ================================================================== */
-
-/**
- * 입결 마스터 키 (§4.6 · Q-35).
- * TODO(Q-35): 별도 마스터의 데이터 출처·조회 규칙이 원문에 없다. 키만 산출하고 실제 조회는
- * 일반 마스터 단일 경로로 간다(A6).
- */
-export function admissionMasterKey(schoolType) {
-  return ADMISSION_SPECIAL_SCHOOL_TYPES.includes(schoolType)
-    ? ADMISSION_MASTER_KEYS.SPECIAL
-    : ADMISSION_MASTER_KEYS.GENERAL;
-}
 
 /**
  * 합격 구간 (§4.6 · CASE-04 · CASE-04b · Q-28).
@@ -635,22 +835,64 @@ export function admissionMasterKey(schoolType) {
  *
  * @returns {'STABLE'|'FIT'|'REACH'|'RISK'|null} null 은 BAND_NODATA 노출 신호다
  */
-export function admissionBand(mine, cuts) {
+/**
+ * 결측 대체 항등식으로 정규화한 컷 2개. 판정 불가면 null.
+ *
+ * admissionBand 와 successProbability 가 **같은 경계**를 봐야 해서 함수로 뽑았다 — 항등식 대입을
+ * 두 곳에 적으면 확률이 밴드와 어긋나는 학생이 생긴다.
+ *
+ * 컷은 DB numeric(4,2) 라 .8 류 끝자리가 흔하고, JS 부동소수점 덧뺄셈은 정확하지 않다
+ * (2.8 + 0.3 === 3.0999999999999996). 항등식 대입 직후 소수 2자리로 정규화해 경계에
+ * 정확히 걸친 학생이 부동소수점 오차로 잘못된 밴드를 받지 않게 한다. roundHalfUp 재사용
+ * — 새 반올림 헬퍼를 두지 않는다(모듈 서두 계약 2).
+ */
+function normalizedCuts(mine, cuts) {
   if (!isUsableNumber(mine)) return null;
   const cut50 = isUsableNumber(cuts?.cut50) ? cuts.cut50 : null;
   const cut70 = isUsableNumber(cuts?.cut70) ? cuts.cut70 : null;
   if (cut50 == null && cut70 == null) return null;
+  return {
+    c50: roundHalfUp(cut50 ?? cut70 - ADMISSION_MARGIN, 2),
+    c70: roundHalfUp(cut70 ?? cut50 + ADMISSION_MARGIN, 2)
+  };
+}
 
-  // 컷은 DB numeric(4,2) 라 .8 류 끝자리가 흔하고, JS 부동소수점 덧뺄셈은 정확하지 않다
-  // (2.8 + 0.3 === 3.0999999999999996). 항등식 대입 직후 소수 2자리로 정규화해 경계에
-  // 정확히 걸친 학생이 부동소수점 오차로 잘못된 밴드를 받지 않게 한다. roundHalfUp 재사용
-  // — 새 반올림 헬퍼를 두지 않는다(모듈 서두 계약 2).
-  const c50 = roundHalfUp(cut50 ?? cut70 - ADMISSION_MARGIN, 2);
-  const c70 = roundHalfUp(cut70 ?? cut50 + ADMISSION_MARGIN, 2);
+export function admissionBand(mine, cuts) {
+  const normalized = normalizedCuts(mine, cuts);
+  if (normalized == null) return null;
+  const { c50, c70 } = normalized;
   const reach = roundHalfUp(c70 + ADMISSION_MARGIN, 2);
   if (mine <= c50) return 'STABLE';
   if (mine <= c70) return 'FIT';
   return mine <= reach ? 'REACH' : 'RISK';
+}
+
+/**
+ * 열린 구간 보정(%p) (F-01 · §11 ADMISSION_BAND_EDGE_ADJUST).
+ *
+ * STABLE(아래로 열림)과 RISK(위로 열림)는 밴드만으로는 "컷보다 1등급 여유"와 "컷 언저리"가 같은
+ * 확률을 받는다. 그 둘만 가른다 — FIT·REACH 는 양끝이 닫힌 구간이라 보정하지 않는다.
+ * 경계 폭은 새 숫자 없이 기존 ADMISSION_MARGIN 을 재사용한다.
+ *
+ * G-2(WARN 3, 2026-08-12) — RISK 방향은 문턱이 하나 더 있다. RISK_FAR 만 있던 종전엔 문턱을
+ * 넘는 순간부터 거리와 무관하게 −5 에서 포화됐다(내신 3.41·5.00·9.00이 전부 같은 p). RISK_FAR
+ * 조건보다 먼저 RISK_VERY_FAR 를 검사해 "많이 위험"과 "극단적으로 위험"을 가른다 — 두 조건 다
+ * 참일 수 있는 구간(문턱 밖)이라 순서가 중요하다(넓은 조건을 나중에 검사해야 좁은 조건이 가려지지 않는다).
+ */
+function admissionBandEdge(band, mine, cuts) {
+  const normalized = normalizedCuts(mine, cuts);
+  if (normalized == null) return 0;
+  const { c50, c70 } = normalized;
+  if (band === 'STABLE' && mine <= roundHalfUp(c50 - ADMISSION_MARGIN, 2)) {
+    return ADMISSION_BAND_EDGE_ADJUST.STABLE_DEEP;
+  }
+  if (band === 'RISK' && mine > roundHalfUp(c70 + 4 * ADMISSION_MARGIN, 2)) {
+    return ADMISSION_BAND_EDGE_ADJUST.RISK_VERY_FAR;
+  }
+  if (band === 'RISK' && mine > roundHalfUp(c70 + 2 * ADMISSION_MARGIN, 2)) {
+    return ADMISSION_BAND_EDGE_ADJUST.RISK_FAR;
+  }
+  return 0;
 }
 
 /**
@@ -683,18 +925,52 @@ export function admissionRows(mine, cuts) {
 }
 
 /**
- * 합격 확률 (§4.6 · §5.3 · Q-03 · Q-04).
+ * 합격 확률 (§4.6 · §5.3 · F-01 · Q-03 · Q-04).
  *
- * TODO(Q-03): BASE_PROBABILITY 가 미확정(null)이라 현재는 항상 null 을 반환한다. 확정되면 상수
- * 한 줄 교체로 활성화된다. 상한 PROB_MAX 는 반드시 100 미만이어야 한다 — 100 이 되는 순간 렌더
- * 문자열이 '합격 가능성 예측 100%'가 되어 06_금지어 '결과 단정'의 "100%"와 문자 그대로 일치한다.
+ *   p = clamp(BASE[band] + EDGE + (14번 + 15번 + 16번 가감), PROB_MIN, PROB_MAX)
+ *
+ * 기준값·보정값은 §11 이 소유한다(이 함수에는 숫자가 없다). 전역 단일 BASE_PROBABILITY 는
+ * 폐기했다 — 하나의 값으로는 밴드 4개를 구분할 수 없어 안정권과 위험권이 같은 확률을 받았다.
+ *
+ * 결정적(deterministic)이며 단조롭다: 같은 학생(14~16번 응답 고정)에서 내신이 나빠질수록 p 는
+ * 절대 올라가지 않는다. 밴드 기준값 간격(20)이 EDGE 최대 폭(10, G-2 RISK_VERY_FAR 확장 후)보다
+ * 커서 보정이 순서를 못 뒤집고, clamp 는 단조 함수라 가감을 더해도 순서가 보존된다. 내신
+ * 1.00~6.00 을 0.01 단위로 스윕하고 가감 조합 전량(−30~+15)을 곱해 실측한 결과 역전 0건이었다.
+ *
+ * 가능한 p 는 5의 배수 19개(5,10,…,95)뿐이다 — 기준값·EDGE·가감이 전부 5의 배수라 스냅이 불필요하다.
+ *
+ * 상한 PROB_MAX 는 반드시 100 미만이어야 한다 — 100 이 되는 순간 렌더 문자열이
+ * '합격 가능성 예측 100%'가 되어 06_금지어 '결과 단정'의 "100%"와 문자 그대로 일치한다.
+ * 학생 화면에는 이 정수를 그대로 쓰지 말고 probabilityRangeLabel 로 구간화해 내보낸다.
+ *
+ * @param {object} input DiagnosisInput
+ * @param {'STABLE'|'FIT'|'REACH'|'RISK'|null} band admissionBand 결과
+ * @param {number|null} [mine] 9등급 정규화 내신. cuts 와 함께 생략하면 EDGE = 0 (하위호환)
+ * @param {{cut50: number|null, cut70: number|null}|null} [cuts]
+ * @returns {number|null} null 은 '자료 없음' 신호다(추정치를 만들지 않는다)
  */
-export function successProbability(input, band) {
+export function successProbability(input, band, mine, cuts) {
   // 구간을 못 낸 상태(입결 미조회·자료 없음)에서는 확률의 기준 자체가 없다 → '자료 없음'으로 떨어뜨린다.
-  if (BASE_PROBABILITY == null || band == null) return null;
+  if (band == null) return null;
+  const base = ADMISSION_BAND_BASE_PROBABILITY[band];
+  if (!isUsableNumber(base)) return null;
   const delta =
     (CSAT_MIN_DELTA[input?.csatMin] ?? 0) +
     (JONGHAP_DELTA[input?.jonghapReady] ?? 0) +
     (INTERVIEW_DELTA[input?.interviewReady] ?? 0);
-  return clamp(BASE_PROBABILITY + delta, PROB_MIN, PROB_MAX);
+  return clamp(base + admissionBandEdge(band, mine, cuts) + delta, PROB_MIN, PROB_MAX);
+}
+
+/**
+ * 확률 → 학생 노출용 구간 라벨 (F-01 · §11 PROB_RANGE_LABELS).
+ *
+ * 점추정 %를 그대로 내보내지 않기 위한 유일한 출구다. 산술을 하지 않고 명시 테이블을 최초 매치로
+ * 훑는다 — 계산식으로 만들면 PROB_MAX 가 100 이 되는 순간 '90~100%'가 되살아나 06_금지어
+ * '결과 단정'의 "100%"와 문자 그대로 일치한다. 표에는 '100'도 '0%'도 구조적으로 존재하지 않는다.
+ *
+ * @returns {string|null} p 가 없으면 null — 호출부는 밴드 4글자/'자료 없음' 폴백을 유지한다
+ */
+export function probabilityRangeLabel(probability) {
+  if (!isUsableNumber(probability)) return null;
+  return PROB_RANGE_LABELS.find((entry) => probability >= entry.min)?.label ?? null;
 }

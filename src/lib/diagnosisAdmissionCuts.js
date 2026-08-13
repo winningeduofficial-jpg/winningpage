@@ -5,7 +5,7 @@
  * 곳은 이 함수 하나뿐이다. 스텝5 캐스케이드(useAdmissionCascade)·리포트 조립
  * (diagnosisReport.buildReport)·채점 엔진(diagnosisScoring.admissionBand) 어디에도
  * 테이블명·컬럼명을 두지 않는다 — 전부 이 함수가 돌려주는
- * `{ cut50, cut70, finalAvg, year } | null` 만 안다.
+ * `{ cut50, cut70, finalAvg, year } | null | ADMISSION_FETCH_ERROR` 만 안다.
  *
  * 원본: dev `admission_results`. **2026-08-11 05:23 UTC, 이 작업 세션 도중** 더미 434행에서
  * 정본 `입결_마스터_2개년.xlsx` 43,170행(별도 세션의 입결정보 리뉴얼 작업 산출물)으로 교체됐다.
@@ -25,6 +25,9 @@
  */
 import { supabase } from './supabase';
 import { isUsableNumber } from '../data/diagnosisGradeScale.js';
+import { ADMISSION_FETCH_ERROR } from '../data/diagnosisScoringTable.js';
+
+export { ADMISSION_FETCH_ERROR };
 
 /**
  * 같은 (연도, 전형 조합) 에 복수 행이 남는 극소수 사례(dev 43,170행 중 29행, `variant_seq`
@@ -49,41 +52,61 @@ function pickLatestCutRow(rows) {
  *           그대로 받는다 — 호출부가 UI 표시용 대체 라벨(NO_SUBJECT_REFLECTION_LABEL)을 쓰고 있다면
  *           여기 넘기기 전에 null 로 되돌려야 한다. 정본 43k 행은 subject_reflection 이 전량 null 이다
  *           (실측 확인) — 그래도 컬럼 자체는 남아 있으므로 필터는 유지한다.
- * @returns {Promise<{ cut50: number|null, cut70: number|null, finalAvg: number|null, year: number } | null>}
- *          결측·조회 실패는 전부 null — 호출부는 이 null 을 diagnosisScoring 의 BAND_NODATA 폴백으로
- *          그대로 흘려보낸다(예외를 던지지 않는다).
+ * @returns {Promise<{ cut50: number|null, cut70: number|null, finalAvg: number|null, year: number }
+ *                    | null | typeof ADMISSION_FETCH_ERROR>}
+ *
+ * **세 값을 구분해 돌려준다(F-22).** 예외는 절대 던지지 않고 실패를 값으로 표현한다.
+ *   객체                   조회 성공, 컷 보유
+ *   null                   정상 조회했으나 자료가 없다 — 인자 부족(4단 미완주) 포함. **영구 부재**
+ *   ADMISSION_FETCH_ERROR  조회 자체가 실패했다(DB error · 네트워크 예외). **일시 오류**
+ *
+ * 종전에는 셋이 전부 null 로 뭉개져 학생 화면에서 "이 조합은 원래 자료가 없다"(BAND_NODATA)와
+ * "지금 못 불러왔다"가 구분되지 않았다. BAND_NODATA 원문이 "공개된 입결 자료가 없어…"라고
+ * **단정**하므로, 일시 오류에 그 문장을 쓰는 것은 학생에게 거짓을 말하는 것이다.
+ *
+ * 호출부는 반드시 참조 비교(`result === ADMISSION_FETCH_ERROR`)로 가른다 — `result == null` 같은
+ * 느슨한 비교를 쓰면 센티널이 다시 결측으로 뭉개진다. 자동 재시도·백오프는 넣지 않는다(캐스케이드
+ * useEffect 가 의존성 다수로 재발화하는 구조라 중복 쿼리 위험이 크다).
  */
 export async function fetchAdmissionCuts(query) {
+  // 인자 부족은 실패가 아니다 — 학생이 아직 4단을 다 고르지 않은 정상 경로다.
   if (!query?.universityKey || !query?.departmentKey || !query?.mainTrack || !query?.admissionTrack) {
     return null;
   }
 
-  let builder = supabase
-    .from('admission_results')
-    .select('result_year,grade_50,grade_70,variant_seq')
-    .eq('is_active', true)
-    .eq('university_key', query.universityKey)
-    .eq('department_key', query.departmentKey)
-    .eq('main_track', query.mainTrack)
-    .eq('admission_track', query.admissionTrack);
+  try {
+    let builder = supabase
+      .from('admission_results')
+      .select('result_year,grade_50,grade_70,variant_seq')
+      .eq('is_active', true)
+      .eq('university_key', query.universityKey)
+      .eq('department_key', query.departmentKey)
+      .eq('main_track', query.mainTrack)
+      .eq('admission_track', query.admissionTrack);
 
-  builder = query.subjectReflection != null
-    ? builder.eq('subject_reflection', query.subjectReflection)
-    : builder.is('subject_reflection', null);
+    builder = query.subjectReflection != null
+      ? builder.eq('subject_reflection', query.subjectReflection)
+      : builder.is('subject_reflection', null);
 
-  const { data, error } = await builder;
-  if (error) {
-    console.error('입결 컷 조회 실패:', error);
-    return null;
+    const { data, error } = await builder;
+    if (error) {
+      console.error('입결 컷 조회 실패:', error);
+      return ADMISSION_FETCH_ERROR;
+    }
+
+    // 컷 보유 행이 없는 것은 진짜 결측이다 — 여기는 계속 null 이어야 한다.
+    const target = pickLatestCutRow(data);
+    if (!target) return null;
+
+    return {
+      cut50: isUsableNumber(target.grade_50) ? target.grade_50 : null,
+      cut70: isUsableNumber(target.grade_70) ? target.grade_70 : null,
+      finalAvg: null,
+      year: target.result_year
+    };
+  } catch (caught) {
+    // 네트워크 예외 등. 훅의 .catch 에만 맡기면 이 함수의 반환 계약이 두 갈래(값 또는 reject)가 된다.
+    console.error('입결 컷 조회 실패:', caught);
+    return ADMISSION_FETCH_ERROR;
   }
-
-  const target = pickLatestCutRow(data);
-  if (!target) return null;
-
-  return {
-    cut50: isUsableNumber(target.grade_50) ? target.grade_50 : null,
-    cut70: isUsableNumber(target.grade_70) ? target.grade_70 : null,
-    finalAvg: null,
-    year: target.result_year
-  };
 }

@@ -23,18 +23,30 @@ export const DIAGNOSIS_INPUT_STORAGE_KEY = 'winning.freeDiagnosis.input';
  * sessionStorage 만으로는 프라이빗 모드에서 사라진다. 두 경로를 모두 채워야 실사용에서 안 끊긴다.
  *
  * @param {Record<string, any>} answers 설문 셸이 들고 있는 원시 응답
- * @param {{ name?: string|null, admissionCuts?: object|null, admissionMeta?: object|null }} [options]
+ * @param {{ name?: string|null, admissionCuts?: object|null, admissionMeta?: object|null,
+ *           admissionCutsError?: boolean }} [options]
  *   name 은 로그인 학생 이름(Q-01, 익명이면 undefined/null). admissionCuts/admissionMeta 는 B-1 —
  *   스텝5 캐스케이드가 이미 조회해 둔 입결 컷이다(리포트 페이지가 다시 조회하지 않도록 여기 싣는다).
- *   둘 다 DiagnosisInput 스펙(§3) 밖의 필드라 normalizeAnswers 결과에 얹지 않고 저장 payload에만
+ *   셋 다 DiagnosisInput 스펙(§3) 밖의 필드라 normalizeAnswers 결과에 얹지 않고 저장 payload에만
  *   sibling 으로 붙인다 — buildReport(input, ctx) 호출부(FreeDiagnosisReport)가 ctx 를 여기서 꺼낸다.
+ *
+ *   admissionCutsError(F-22)는 **불리언이어야 한다.** 훅의 ADMISSION_FETCH_ERROR 센티널을 그대로
+ *   싣지 마라 — 이 payload 는 JSON 으로 직렬화돼 sessionStorage 를 왕복하는데, 그 과정에서 참조
+ *   동일성이 사라져 리포트 쪽에서는 결측과 구분할 수 없게 된다. 훅(useAdmissionCascade)이 이미
+ *   참조 비교를 끝내고 불리언으로 올려 주므로 그 값을 그대로 넘기면 된다.
  * @returns {object} 저장된 payload (저장 실패와 무관하게 항상 유효한 객체)
  */
 export function submitDiagnosisAnswers(answers, options = {}) {
-  const { name = null, admissionCuts = null, admissionMeta = null } = options;
+  const { name = null, admissionCuts = null, admissionMeta = null, admissionCutsError = false } = options;
   // 시각은 여기서 찍는다 — 엔진은 순수 함수라 시계를 읽지 않는다(같은 입력이 매번 같은 리포트를 내야 한다).
   const input = normalizeAnswers(answers, { diagnosedAt: new Date().toISOString(), name });
-  const payload = admissionCuts || admissionMeta ? { ...input, admissionCuts, admissionMeta } : input;
+  // 실패 사실은 컷이 없을 때만 의미가 있다. 조건에 admissionCutsError 를 포함하지 않으면
+  // "조회에 실패했다"는 유일한 신호가 payload 에서 통째로 사라진다(그 경우 cuts 도 null 이라
+  // 앞의 두 조건이 전부 falsy 다) — F-22 배선이 여기서 조용히 끊기는 자리다.
+  const payload =
+    admissionCuts || admissionMeta || admissionCutsError
+      ? { ...input, admissionCuts, admissionMeta, admissionCutsError }
+      : input;
   saveDiagnosisInput(payload);
   return payload;
 }

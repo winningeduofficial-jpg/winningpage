@@ -34,6 +34,21 @@
     display: none !important; /* PDF 다운로드 버튼 */
   }
 
+  /*
+   * fd-screen-only (F-04 · F-05, 2026-08-11) — 화면 전용 확장 영역·각주 일괄 제외.
+   *
+   * 인쇄 페이지 하단 여유는 실측 1p 71.0px · 2p 52.6px 뿐이라 AREA_COPY 108문구와 고지
+   * 7종을 시트 안에 넣을 자리가 물리적으로 없다. 화면은 세로 제약이 없으므로 그쪽으로
+   * 옮기고 여기서 통째로 뺀다 — 그래서 인쇄는 승인된 A4 정확히 2장을 유지한다.
+   *
+   * §7.5 예외 명시: `fd-screen-only` 하위의 `lg:` 값들은 인쇄에서 이 한 줄로 전부 사라지므로
+   * 개별 `fd-*` 인쇄 훅을 만들지 않는다. 다음 감사자가 훅 20개를 덧붙이지 않도록 여기 적어 둔다.
+   * (반대로 fd-screen-only **밖**에 새 `lg:` 를 만들면 §7.5 대로 훅을 함께 추가해야 한다.)
+   */
+  .fd-screen-only {
+    display: none !important;
+  }
+
   .fd-print-area {
     padding: 0 !important;
     margin: 0 !important;
@@ -65,6 +80,37 @@
   .fd-report-sheet + .fd-report-sheet {
     break-before: page;
     page-break-before: page;
+  }
+
+  /*
+   * F-18 (2026-08-11) — 예시(픽스처) 리포트 워터마크.
+   * 화면 배너만으로는 부족하다: 인쇄물은 표시 없이 그대로 남의 리포트로 유통된다.
+   * 흐름 안 배너를 인쇄에 넣으면 하단 여유(1p 71.0px)에 잘리므로 **문서 흐름 밖**
+   * (position:absolute ::after)으로 분리한다 — 시트 높이에 1px 도 기여하지 않는다.
+   * 조상 클래스(.fd-report-sample)는 FreeDiagnosisReport 가 data.isSample 로만 붙인다.
+   *
+   * G-3(NIT 5, 2026-08-12) — 워터마크 문구의 정의처는 이제 CSS 가 아니라
+   * `src/data/diagnosisScreenCopy.js` 의 `SAMPLE_REPORT_COPY.WATERMARK` 하나다. 종전엔 CSS
+   * 리터럴이라 JS 문구 검사·격리 스캔 밖에 있었다 — `content: attr(data-watermark)` 로 값을
+   * **주입**만 받는다(속성은 ReportSheetA4.jsx 가 내려보낸다). 문구가 바뀌면 그 상수만 고친다.
+   */
+  .fd-report-sample .fd-report-sheet {
+    position: relative !important;
+  }
+
+  .fd-report-sample .fd-report-sheet::after {
+    content: attr(data-watermark);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 18rem; /* html font-size 3mm 기준 = 54mm */
+    font-weight: 700;
+    letter-spacing: 1.5rem;
+    color: #525252;
+    opacity: 0.1; /* 본문 판독을 방해하지 않으면서 복사본에서 사라지지 않는 하한 */
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   .fd-print-area * {

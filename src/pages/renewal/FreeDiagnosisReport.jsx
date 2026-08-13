@@ -10,6 +10,9 @@ import { DIAGNOSIS_INPUT_STORAGE_KEY, loadDiagnosisInput } from '../../lib/diagn
 import { fill, templateCopy } from '../../lib/diagnosisCopyBinding';
 import ReportPageOne from '../../components/renewal/report/ReportPageOne';
 import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
+import ReportSampleBanner from '../../components/renewal/report/ReportSampleBanner';
+import ReportSincerityBanner from '../../components/renewal/report/ReportSincerityBanner';
+import ReportScreenExtras from '../../components/renewal/report/ReportScreenExtras';
 
 /**
  * 픽스처(1차 디자인 샘플)를 현재 ReportData 계약에 맞춘다.
@@ -20,6 +23,9 @@ import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
 function adaptSample(sample) {
   return {
     ...sample,
+    // F-18 — 예시 표시(화면 배너 + 인쇄 워터마크)를 켜는 유일한 스위치. buildReport 를 통과한
+    // 데이터는 정의상 isSample:false 라, 실제 응답 리포트에 예시 표시가 붙을 경로가 구조적으로 없다.
+    isSample: true,
     traitsHeading: fill(
       templateCopy('section_traits'),
       { name: sample.student.name },
@@ -57,7 +63,15 @@ export default function FreeDiagnosisReport() {
         // 실어 뒀다(diagnosisInputStorage.submitDiagnosisAnswers). 이 페이지는 다시 조회하지 않는다
         // — 그대로면 buildReport 는 여전히 동기다. 미연결(admissionCuts 없음)이면 ctx.cuts 가
         // undefined 로 떨어져 §4.6 그대로 BAND_NODATA 로 조립된다.
-        return buildReport(input, { cuts: input.admissionCuts, admissionMeta: input.admissionMeta });
+        // F-22 — cutsError 는 '지금 못 불러왔다'(일시 오류)를 '이 조합은 원래 자료가 없다'
+        // (영구 부재)와 가르는 유일한 신호다. 이걸 빼면 조회 실패 학생에게 BAND_NODATA
+        // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
+        // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
+        return buildReport(input, {
+          cuts: input.admissionCuts,
+          cutsError: input.admissionCutsError,
+          admissionMeta: input.admissionMeta
+        });
       } catch (error) {
         // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장)까지는 막지 못한다.
         // 조립이 실패해 리포트 전체가 흰 화면이 되는 것보다 픽스처를 보여주고 원인을 로그로 남기는 편이 낫다.
@@ -75,9 +89,26 @@ export default function FreeDiagnosisReport() {
 
   return (
     <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
-      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem]">
+      {/* fd-report-sample — 인쇄 워터마크 훅. report-print.css 가 이 조상 클래스로
+          .fd-report-sheet::after('예시')를 켠다. 문서 흐름 밖(absolute)이라 A4 2장 높이 영향 0. */}
+      <div
+        className={`fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem] ${
+          data.isSample ? 'fd-report-sample' : ''
+        }`}
+      >
+        {/* 두 배너 모두 시트 **위**에 둔다 — '이건 예시다' / '결과가 다를 수 있다'는 경고가
+            리포트 2장을 다 읽은 뒤에 나오면 아무 기능도 하지 못한다. 시트 안이 아니라 밖인
+            이유는 승인된 A4 레이아웃의 첫 요소(페이지 라벨)를 밀어내지 않기 위해서다. */}
+        {data.isSample && <ReportSampleBanner />}
+        <ReportSincerityBanner message={data.notices?.sincerityBanner} />
+
         <ReportPageOne data={data} />
         <ReportPageTwo data={data} />
+
+        {/* 화면 전용 확장 영역(F-04 · F-05) — AREA_COPY 108문구·고지·긴급도가 사는 자리.
+            PDF 버튼 **앞**이어야 한다: 버튼이 시트 직후에 있으면 '리포트는 여기서 끝'이라는
+            종결 신호가 되어 이 섹션의 발견율이 급감한다. */}
+        <ReportScreenExtras data={data} />
 
         {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현.
             모바일에서도 살아 있어야 한다(A4 출력은 이 경로로만 얻는다) — 터치 타깃 h-[3.75rem]

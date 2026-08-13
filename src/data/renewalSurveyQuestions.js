@@ -197,7 +197,13 @@ export const renewalSurveyQuestions = [
     // 3번째 선택지는 라벨 교체가 아니라 **입력 도메인 전환**이다(§2.2): '성취평가제 중심' → '중학생 평균'.
     // naesinOverall 의 정의역이 등급 1~9 에서 100점 만점 평균점수로 바뀌므로 q6 의 마스크·범위·
     // placeholder 가 함께 움직인다(GRADE_SYSTEM_INPUT_RULES.MIDDLE_AVG).
-    // 교체로 인해 고교 성취평가제(A~E) 학생이 고를 선택지가 사라졌다 — TODO(Q-31): 현재는 '잘 모르겠어요'로 흡수된다.
+    // F-13(2026-08-12 확정, Q-31 종결) — 고교 성취평가제(A~E) 전용 선택지는 추가하지 않는다.
+    // 시안(1889:9104/9109/9114)도 처음부터 3지(9등급제/5등급제/중학생 평균)만 표기했다 — '잘
+    // 모르겠어요'는 그 3지에 없던 이탈구(escape hatch)로 시안에 없는 4번째 항목이지 성취평가제의
+    // 대체재로 설계된 게 아니다. 즉 구현(4지 선택지)이 이미 시안과 일치하며, 성취평가제 학생이
+    // '잘 모르겠어요'로 흡수되는 것은 폴백이 아니라 원래부터 지원 범위 밖인 입력 도메인이다.
+    // 9등급 환산표를 새로 만드는 대신 F-12(UNKNOWN 표시 개선)로 원값이라도 보여주는 쪽을
+    // 택했다 — 성취평가제 학생도 q6 원값 입력은 보존되고 gpa 표시에 '(체계 미확인)' 접미어만 붙는다.
     options: ['9등급제', '5등급제', '중학생 평균', '잘 모르겠어요'],
     optionCodes: ['NINE', 'FIVE', 'MIDDLE_AVG', 'UNKNOWN'],
     extra: {}
@@ -544,11 +550,15 @@ export const renewalSurveyQuestions = [
     optional: true,
     options: [],
     extra: {
+      // G-1d(2026-08-12) — 정적 플레이스홀더를 useAdmissionCascade.js 의 실측 옵션 표기와 동기화했다
+      // ('건국대학교'→'건국대', '학생부종합'→'종합', 'KU자기추천'→'일반전형'). 정본 마스터가
+      // 축약형이라 첫 렌더(플레이스홀더)와 실제 선택값이 다른 표기 체계로 보이던 문제(F-19)를 닫는다.
+      // 예시 텍스트일 뿐 조회 키가 아니므로 값이 바뀌어도 조회는 깨지지 않는다.
       levels: [
-        { key: 'university', label: '대학 선택', placeholder: '건국대학교' },
+        { key: 'university', label: '대학 선택', placeholder: '건국대' },
         { key: 'department', label: '학과 또는 모집단위', placeholder: '경영학과' },
-        { key: 'admissionType', label: '전형 유형', placeholder: '학생부종합' },
-        { key: 'detailType', label: '세부 전형명', placeholder: 'KU자기추천' }
+        { key: 'admissionType', label: '전형 유형', placeholder: '종합' },
+        { key: 'detailType', label: '세부 전형명', placeholder: '일반전형' }
       ]
     }
   },
