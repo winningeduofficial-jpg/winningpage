@@ -600,6 +600,7 @@ export default function Header() {
                 {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
               </div>
 
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
               <div
                 className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
@@ -660,6 +661,7 @@ export default function Header() {
             </>
           ) : isLoggedIn ? (
             <>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
               <div
                 className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
@@ -743,6 +745,7 @@ export default function Header() {
           동일 값이 아니다). */}
       <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
           <div
             className="pointer-events-auto flex items-center"
             style={{ gap: NAV_CELL_GAP, marginLeft: NAV_GUARD }}
@@ -755,6 +758,7 @@ export default function Header() {
               const isPathActive = activePathTitle === group.title;
 
               return (
+                // biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴를 여는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다.
                 <div
                   key={group.title}
                   className="pointer-events-none relative flex shrink-0 items-center justify-start"

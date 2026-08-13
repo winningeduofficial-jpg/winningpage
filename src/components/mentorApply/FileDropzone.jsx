@@ -165,6 +165,7 @@ export default function FileDropzone({
         aria-describedby={describedBy}
       />
 
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: 드래그앤드롭 전용 핸들러라 키보드 등가가 원천적으로 없다 — 진짜 키보드 경로는 위 sr-only input(label htmlFor 연결)이 맡는다. */}
       <div
         onDragOver={(event) => {
           event.preventDefault();
