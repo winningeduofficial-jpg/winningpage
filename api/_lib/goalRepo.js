@@ -224,6 +224,27 @@ export async function fetchTargetCuts(supabaseAdmin, { schoolCutType, ideal, min
   return { cuts, missing };
 }
 
+export const TABLE_DAILY_RECORDS = 'goal_daily_records';
+
+/**
+ * 오늘(record_date 기준) 일별 기록 1행. 없으면 null.
+ *
+ * record_date 는 실제 달력 모델(팀장 작업 지시 "실제 달력 모델")의 정본 조회 키다 —
+ * goal_daily_records_date_key(profile_id, record_date) UNIQUE 인덱스가 하루 1행을
+ * 보장한다(sql/55_goal_management.sql (2) 인덱스 절).
+ */
+export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .eq('record_date', recordDate)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 // ---------------------------------------------------------------------------
 // 쓰기
 // ---------------------------------------------------------------------------
@@ -233,6 +254,23 @@ export async function upsertStudentRow(supabaseAdmin, row) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
     .upsert(row, { onConflict: 'profile_id' })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 일별 기록 upsert. 정본 충돌키는 (profile_id, record_date) — 실제 달력 모델에서는
+ * 하루 1건이 곧 record_index 도 1대1로 정하므로(record_index 는 diffDaysYMD 로
+ * record_date 의 순함수) 두 UNIQUE 인덱스(index_key / date_key)가 동시에 지켜진다.
+ * 저장된 행을 그대로 돌려준다(id 포함 — goal_probability_logs.source_record_id 용).
+ */
+export async function upsertDailyRecord(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .upsert(row, { onConflict: 'profile_id,record_date' })
     .select('*')
     .single();
 

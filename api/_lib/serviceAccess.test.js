@@ -6,13 +6,17 @@
 // 있었다. program_access 컬럼의 DEFAULT 값이 정확히 이 두 문자열이라
 // 잠재적으로 모든 신규 행이 무료로 통과했다.
 //
-// 2026-08-12 부터 program_access 경로는 payment_status/access_status
-// 문자열 판정을 여기서 하지 않는다 — public.fn_program_access_state
-// (sql/64 10)절, checkProgramAccessTable 참고)가 DB 에서 한 번에 판정하고
-// 기간 만료까지 집행한다. 그래서 isActiveStatus는 더 이상 존재하지 않는다
-// (program_access.access_status를 더 이상 JS가 직접 읽지 않는다). isPaidStatus는
-// enrollments(오프라인 수강, CHECK 제약 없는 자유 입력) 판정 전용으로만
-// 남아 있다.
+// 2026-08-12 부터 진입 게이트(checkProgramAccessTable)는 payment_status/
+// access_status 문자열 판정을 하지 않는다 — public.fn_program_access_state
+// (sql/64 10)절)가 DB에서 한 번에 판정하고 기간 만료까지 집행한다.
+//
+// 2026-08-13 정정: 이 파일이 한때 "isActiveStatus는 더 이상 존재하지
+// 않는다"고 적었던 건 틀렸다 — findProgramAccessRow()(표시용 program_access
+// 행 선정)가 여전히 isPaidStatus/isActiveStatus로 statusRank를 매기는데,
+// isActiveStatus가 실제로 삭제돼 있어 program_access 행이 2건 이상인
+// 사용자에서 ReferenceError로 죽는 크래시가 있었다. isActiveStatus를
+// 복원했다(2026-08-13, 감사 발견) — program_access.access_status는 여전히
+// JS가 직접 읽는다.
 //
 // Node 내장 러너만 쓴다. 반드시 glob으로 파일을 지정해 실행할 것
 // (디렉터리 인자를 주면 Node 24가 index.js로 오인해 0건 통과하는 가짜
@@ -21,7 +25,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPaidStatus } from './serviceAccess.js';
+import { isPaidStatus, isActiveStatus } from './serviceAccess.js';
 
 test('isPaidStatus - 버그 재현: unpaid는 결제완료가 아니다', () => {
   assert.equal(isPaidStatus('unpaid'), false);
@@ -76,4 +80,24 @@ test('isPaidStatus - null/undefined/빈 문자열은 false', () => {
 test('isPaidStatus - 관련 없는 임의 문자열은 false', () => {
   assert.equal(isPaidStatus('foo'), false);
   assert.equal(isPaidStatus('결제'), false);
+});
+
+test('isActiveStatus - program_access.access_status 4값(CHECK 제약)', () => {
+  assert.equal(isActiveStatus('active'), true);
+  assert.equal(isActiveStatus('inactive'), false); // 'inactive'.includes('active') 부분일치 함정 차단
+  assert.equal(isActiveStatus('expired'), false);
+  assert.equal(isActiveStatus('suspended'), false);
+});
+
+test('isActiveStatus - 한글 긍정/부정', () => {
+  assert.equal(isActiveStatus('활성'), true);
+  assert.equal(isActiveStatus('이용중'), true);
+  assert.equal(isActiveStatus('비활성'), false); // '비활성'이 '활성'을 포함하는 함정 차단
+  assert.equal(isActiveStatus('정지'), false);
+});
+
+test('isActiveStatus - null/undefined/빈 문자열은 false', () => {
+  assert.equal(isActiveStatus(null), false);
+  assert.equal(isActiveStatus(undefined), false);
+  assert.equal(isActiveStatus(''), false);
 });
