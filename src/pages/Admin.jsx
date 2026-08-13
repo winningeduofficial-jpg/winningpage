@@ -11571,6 +11571,7 @@ function GoalProbabilityChart({ logs }) {
         viewBox={`0 0 ${width} ${height}`}
         className="h-auto w-full"
         role="img"
+        aria-label="상한·하한 수시·정시 확률 추이 차트"
       >
         {[0, 25, 50, 75, 100].map((tick) => (
           <g key={tick}>

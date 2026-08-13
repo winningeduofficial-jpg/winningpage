@@ -83,6 +83,7 @@ export default AiLoadingBubble;
 function LoadingSparkle() {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       className="h-[1.1875rem] w-[1.1875rem] text-[#1f1f1f]"
     >
