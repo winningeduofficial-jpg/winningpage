@@ -106,6 +106,7 @@ export default function ChipGroup({
   };
 
   return (
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role이 동적이라 정적 분석이 놓친다 — group/radiogroup 둘 다 aria-label을 지원한다.
     <div
       role={multiple ? "group" : "radiogroup"}
       aria-label={ariaLabel}
@@ -124,6 +125,7 @@ export default function ChipGroup({
         const selected = isSelected(option.value);
 
         return (
+          // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role이 동적이라 정적 분석이 놓친다 — checkbox/radio 둘 다 aria-checked를 지원한다.
           <button
             key={option.value}
             ref={(node) => {

@@ -1497,6 +1497,7 @@ export default function CouponAdmin() {
                         <span
                           className="text-green-600"
                           title={ALREADY_GRANTED_TEXT ?? undefined}
+                          role="img"
                           aria-label={ALREADY_GRANTED_TEXT ?? undefined}
                         >
                           <Check size={17} />

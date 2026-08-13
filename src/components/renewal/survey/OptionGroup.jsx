@@ -112,6 +112,7 @@ export default function OptionGroup({
           const isDisabled = disabled || blockedByLimit;
 
           return (
+            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role이 동적이라 정적 분석이 놓친다 — checkbox/radio 둘 다 aria-checked를 지원한다.
             <button
               key={optionValue}
               type="button"

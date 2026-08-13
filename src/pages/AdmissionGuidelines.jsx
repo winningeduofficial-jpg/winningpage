@@ -1921,6 +1921,7 @@ export default function AdmissionGuidelines() {
               <div className="admission-modal-x-scroll-shell">
                 <div
                   ref={modalXScrollRef}
+                  role="group"
                   className="admission-modal-x-scroll"
                   aria-label="표 좌우 이동"
                 >

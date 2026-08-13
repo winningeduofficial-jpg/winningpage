@@ -2,7 +2,11 @@
 // (SummaryCards·PriorityTable·TraitNarratives 공용 섹션) heading 은 접근성 라벨로만 소비한다.
 export default function TraitNarratives({ items, heading }) {
   return (
-    <div className="flex w-full flex-col gap-10" aria-label={heading}>
+    <div
+      role="group"
+      className="flex w-full flex-col gap-10"
+      aria-label={heading}
+    >
       {items.map((item) => (
         <div key={item.title} className="flex flex-col gap-3">
           <p className="text-base font-semibold leading-[1.4] text-[#525252]">
