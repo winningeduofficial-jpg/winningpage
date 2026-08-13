@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!dist-ssr", "!build"]
+    "includes": ["**", "!dist", "!dist-ssr", "!build", "!src/demo/html"]
   },
   "formatter": {
     "enabled": true,
@@ -36,6 +36,9 @@
         "rules": {
           "suspicious": {
             "noUnknownAtRules": "off"
+          },
+          "complexity": {
+            "noImportantStyles": "off"
           }
         }
       }
