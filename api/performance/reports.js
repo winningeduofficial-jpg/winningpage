@@ -244,7 +244,7 @@ async function handleList(req, res, supabaseAdmin, userId) {
   return res.status(200).json({ items, nextCursor });
 }
 
-async function handleDetail(req, res, supabaseAdmin, userId, sessionId) {
+async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
   if (!UUID_RE.test(sessionId)) {
     return fail(
       res,

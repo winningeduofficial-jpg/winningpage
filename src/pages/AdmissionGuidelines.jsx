@@ -513,7 +513,7 @@ function extractHtmlCells(html) {
     .filter((cell) => cell.text);
 }
 
-function extractHtmlCellTexts(html) {
+function _extractHtmlCellTexts(html) {
   return extractHtmlCells(html).map((cell) => cell.text);
 }
 
@@ -545,7 +545,7 @@ function looksLikeBrokenAdmissionHtml(html) {
   );
 }
 
-function addGlobalSectionQa(add, row, section, rawText, html) {
+function addGlobalSectionQa(add, row, section, _rawText, html) {
   const plain = stripHtmlToText(html);
   if (looksLikeBrokenAdmissionHtml(html)) {
     add(

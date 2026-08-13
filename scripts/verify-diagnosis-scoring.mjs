@@ -272,14 +272,14 @@ function checkTrue(name, actual, opts = {}) {
   return check(name, actual === true, true, opts);
 }
 
-function warn(message) {
+function _warn(message) {
   stats.warn += 1;
   show(`WARN - ${message}`);
 }
 
 // 현재 SKIP 을 내는 섹션은 없다(buildReport 동적 import 를 걷어내면서 사라졌다). 하니스는 남겨
 // 둔다 — 실행 환경에 따라 건너뛸 검사가 생기면 '조용히 없음'이 아니라 SKIP 으로 보여야 한다.
-function skip(message) {
+function _skip(message) {
   stats.skip += 1;
   show(`SKIP - ${message}`);
 }

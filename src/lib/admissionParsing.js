@@ -640,7 +640,7 @@ export function isValidDescriptorCell(key, value) {
   return true;
 }
 
-export function normalizeRecruitmentExactHtml(html, fallbackText) {
+export function normalizeRecruitmentExactHtml(html, _fallbackText) {
   if (!/<table/i.test(String(html || ""))) return "";
 
   const rows = padRows(parseHtmlTableRows(html));
@@ -980,7 +980,7 @@ export function parseChangeItems(lines) {
   });
 }
 
-export function buildPreviousYearChangesHtml(lines, sectionKey) {
+export function buildPreviousYearChangesHtml(lines, _sectionKey) {
   const items = parseChangeItems(lines);
   const rows = items.map((item) => ({
     no: item.no,

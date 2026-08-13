@@ -299,7 +299,7 @@ export default function ProfileTab({ user, profile, memberType }) {
   }
 
   // 연결코드 재발급 — sql/40_auth_signup.sql의 reissue_link_code RPC를 그대로 호출한다.
-  async function handleReissueCode() {
+  async function _handleReissueCode() {
     if (reissuing) return;
     setReissuing(true);
     const { data, error } = await supabase.rpc("reissue_link_code");

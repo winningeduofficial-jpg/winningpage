@@ -159,7 +159,7 @@ function cellClassNameOf(block, variant, role, colIdx, kind) {
  *
  * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
  */
-function cellViewOf(block, variant, role, colIdx, raw, text, kind) {
+function cellViewOf(_block, variant, role, _colIdx, raw, text, kind) {
   const base = {
     leaf: "literal",
     text,

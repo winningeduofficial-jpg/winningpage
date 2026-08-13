@@ -133,7 +133,7 @@ const BADGE_SPAN_RE =
 export function normalizeBadgeSeparators(html) {
   return String(html || "").replace(
     BADGE_SPAN_RE,
-    (match, open, inner, close) => {
+    (_match, open, inner, close) => {
       const normalizedInner = inner.replace(
         new RegExp(`\\s*${MIDDLE_DOT}\\s*`, "g"),
         "/",
@@ -310,7 +310,7 @@ export function normalizeHtmlValue(html, htmlColumn) {
   return value;
 }
 
-function assertIdempotent(original, once, htmlColumn, context) {
+function assertIdempotent(_original, once, htmlColumn, context) {
   const twice = normalizeHtmlValue(once, htmlColumn);
   if (twice !== once) {
     throw new Error(

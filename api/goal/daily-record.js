@@ -178,7 +178,7 @@ function buildProbsPayload(stateRow) {
 // GET — 오늘(KST) 기록 조회(프리필용)
 // ---------------------------------------------------------------------------
 
-async function handleGet(req, res, session) {
+async function handleGet(_req, res, session) {
   const { supabaseAdmin, profileId, allowed } = session;
 
   // 조회형 규약 — student.js:50-53 과 동일하게 미결제는 에러가 아니다.

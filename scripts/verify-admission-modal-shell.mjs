@@ -442,7 +442,7 @@ async function capture(rev) {
   }
 }
 
-async function verifySsr(results, record) {
+async function verifySsr(_results, record) {
   if (!fs.existsSync(SSR_FIXTURE)) {
     record(
       "ssr:fixture-exists",

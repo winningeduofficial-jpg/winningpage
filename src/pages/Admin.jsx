@@ -3233,7 +3233,7 @@ const CONFIGS = {
         // AdminForm이 readOnly 필드에는 AdminInput을 아예 호출하지 않고
         // formatValue로 정적 텍스트를 그린다(options 라벨 매핑 포함).
         // ⚠ 이건 사용성 개선일 뿐 방어가 아니다. 실질 차단은 validate 규칙 0이다.
-        resolve: (form, row) =>
+        resolve: (_form, row) =>
           row
             ? {
                 readOnly: true,
@@ -3427,7 +3427,7 @@ const QUESTION_EMPTY = {
   sort_order: 1,
 };
 
-const OPTION_EMPTY = {
+const _OPTION_EMPTY = {
   label: "",
   program_ids: [],
   is_active: true,
@@ -5867,8 +5867,8 @@ function CategorySectionButton({ item, onOpen }) {
 function AdmissionGroupField({
   field,
   form,
-  readonly,
-  onChange,
+  readonly: _readonly,
+  onChange: _onChange,
   onPatch,
   onDirty,
 }) {
@@ -11660,7 +11660,7 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
   // mutationSeq 같은 재조회 트리거를 두지 않는다).
   const [resetting, setResetting] = useState(false);
 
-  const todayYMD = useMemo(() => kstYMD(), []);
+  const _todayYMD = useMemo(() => kstYMD(), []);
 
   async function handleResetOnboarding() {
     if (!student?.profile_id) return;

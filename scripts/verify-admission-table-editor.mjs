@@ -1409,7 +1409,6 @@ async function main() {
     summarizeBlockChange,
     MAX_XLSX_CELL_LENGTH,
   } = xlsxModule;
-  const { blocksEqual } = validation;
 
   // 14a) Cell 3형태 직렬화 규칙
   {

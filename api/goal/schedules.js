@@ -150,7 +150,7 @@ async function requireOnboardedStudent(supabaseAdmin, profileId) {
 // 핸들러
 // ---------------------------------------------------------------------------
 
-async function handleGet(req, res, session) {
+async function handleGet(_req, res, session) {
   const { supabaseAdmin, profileId, allowed } = session;
 
   if (!allowed) {

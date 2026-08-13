@@ -329,7 +329,7 @@ function formatDiagnosedAt(value) {
  */
 function buildHeadlineLines(
   input,
-  areaScores,
+  _areaScores,
   page1Level,
   type,
   sincerityFlagged,

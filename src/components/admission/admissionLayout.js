@@ -74,7 +74,7 @@ export const SELECTION_CELL_CLASS_BY_ROLE = {
 };
 
 // selection 비-minimum 컬럼의 빈값은 muted span이 아니라 리터럴 '-'다.
-export function selectionEmptyFallback(role) {
+export function selectionEmptyFallback(_role) {
   return "-";
 }
 

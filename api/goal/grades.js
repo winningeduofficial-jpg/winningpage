@@ -175,7 +175,7 @@ function readBody(req) {
   }
 }
 
-async function handleGet(req, res, session) {
+async function handleGet(_req, res, session) {
   const { supabaseAdmin, profileId, allowed } = session;
 
   if (!allowed) {
