@@ -2373,7 +2373,9 @@ function unfilledTokens(value, out = []) {
     return out;
   }
   if (value && typeof value === "object")
-    Object.values(value).forEach((item) => unfilledTokens(item, out));
+    Object.values(value).forEach((item) => {
+      unfilledTokens(item, out);
+    });
   return out;
 }
 
@@ -3125,7 +3127,9 @@ CONSTANT_DRIVEN_FUNCTIONS.forEach(([fn, identifiers]) => {
   const literals = (body.match(/(?<![\w.$])\d+(?:\.\d+)?/g) ?? []).map(Number);
   literals
     .filter((value) => SELF_DECIDED_NUMBERS.has(value))
-    .forEach((value) => inlinedNumbers.push(`${fn.name} ← ${value}`));
+    .forEach((value) => {
+      inlinedNumbers.push(`${fn.name} ← ${value}`);
+    });
 });
 check("자체 결정 숫자가 함수 본문에 인라인되지 않았다", inlinedNumbers, []);
 // 남아 있는 리터럴 45 는 자체 결정이 아니라 배점표 근거값이다 — 정의처와 어긋나면 여기서 잡힌다.

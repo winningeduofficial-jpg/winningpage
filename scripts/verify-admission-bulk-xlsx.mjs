@@ -255,13 +255,11 @@ async function main() {
   );
   if (truncatedCells.length) {
     console.log("  잘린 셀 샘플(최대 5건):");
-    truncatedCells
-      .slice(0, 5)
-      .forEach((c) =>
-        console.log(
-          `    - id=${c.id} row=${c.rowIndex} col=${c.column} 원래길이=${c.originalLength}`,
-        ),
+    truncatedCells.slice(0, 5).forEach((c) => {
+      console.log(
+        `    - id=${c.id} row=${c.rowIndex} col=${c.column} 원래길이=${c.originalLength}`,
       );
+    });
   }
 
   const roundTripped = roundTripWorkbook(workbook);
@@ -415,13 +413,11 @@ async function main() {
     console.log(
       `\n왕복 경고 ${parseWarnings.length}건(최대 10건, 위 불변식 실패 시에만 나타나야 함):`,
     );
-    parseWarnings
-      .slice(0, 10)
-      .forEach((w) =>
-        console.log(
-          `  - [${w.universityKey}/${w.admissionYear}] ${w.column || ""}: ${w.reason}`,
-        ),
+    parseWarnings.slice(0, 10).forEach((w) => {
+      console.log(
+        `  - [${w.universityKey}/${w.admissionYear}] ${w.column || ""}: ${w.reason}`,
       );
+    });
   }
 
   // === 3) 잘림 마커 → 카테고리 단위 스킵(합성, team-lead 지정 케이스 (a)) ===

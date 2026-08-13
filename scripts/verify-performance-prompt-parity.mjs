@@ -1482,7 +1482,9 @@ console.log("");
 
 if (failures.length) {
   console.error(`✗ ${failures.length}건 불일치\n`);
-  failures.forEach((f) => console.error(`  - ${f}`));
+  failures.forEach((f) => {
+    console.error(`  - ${f}`);
+  });
   process.exit(1);
 }
 

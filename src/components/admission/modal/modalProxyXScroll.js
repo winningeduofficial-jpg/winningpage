@@ -155,9 +155,9 @@ export default function useModalProxyXScroll({
       bar?.removeEventListener("scroll", syncTargetsFromBar);
       body.removeEventListener("scroll", scheduleRefresh);
       window.removeEventListener("resize", scheduleRefresh);
-      getHorizontalTargets().forEach((element) =>
-        element.removeEventListener("scroll", onTargetScroll),
-      );
+      getHorizontalTargets().forEach((element) => {
+        element.removeEventListener("scroll", onTargetScroll);
+      });
       observer.disconnect();
     };
     // 원본(AdmissionGuidelines.jsx)의 [selectedInfo, modalXScroll.visible] 을

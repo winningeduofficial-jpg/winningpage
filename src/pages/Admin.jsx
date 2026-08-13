@@ -7580,7 +7580,9 @@ async function fetchAllResultIds(onProgress) {
       .range(from, from + RESULTS_READ_CHUNK - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    data.forEach((r) => idSet.add(r.id));
+    data.forEach((r) => {
+      idSet.add(r.id);
+    });
     onProgress?.({ done: idSet.size, total });
   }
   return idSet;
@@ -10116,7 +10118,9 @@ function PremiumBookAdmin() {
       for (let n = 1; n <= pageCount; n++) {
         if (convertTokenRef.current !== token) {
           // 변환 도중 새 PDF가 선택됐다 — 이번 결과는 버린다.
-          urls.forEach((url) => URL.revokeObjectURL(url));
+          urls.forEach((url) => {
+            URL.revokeObjectURL(url);
+          });
           return;
         }
 
@@ -10163,7 +10167,9 @@ function PremiumBookAdmin() {
       }
 
       if (convertTokenRef.current !== token) {
-        urls.forEach((url) => URL.revokeObjectURL(url));
+        urls.forEach((url) => {
+          URL.revokeObjectURL(url);
+        });
         return;
       }
 

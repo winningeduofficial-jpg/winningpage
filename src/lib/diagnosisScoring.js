@@ -744,7 +744,9 @@ function sincerityStats(input) {
   if (answered === 0)
     return { answered, modeValue: null, offmodeCount: 0, rawOffmodeCount: 0 };
   const counts = new Map();
-  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  values.forEach((value) => {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
   // 동률이면 먼저 등장한(=응답 순서상 앞선) 값을 최빈값으로 고정한다 — Map 이 삽입 순서를
   // 보존하므로 매 호출 결정론적이다.
   let modeValue = null;

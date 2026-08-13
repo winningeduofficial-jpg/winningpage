@@ -459,19 +459,19 @@ async function main() {
   console.log(
     `PUA 문자: 판별되어 치환 대상(①/②)에 포함된 문자 ${puaResolvedCount}개, 판별 불가(미치환) ${puaUnresolvedFindings.length}건`,
   );
-  puaUnresolvedFindings.forEach((f) =>
-    console.log(`  - ${f.label} / ${f.column}: ${f.count}개`),
-  );
+  puaUnresolvedFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}: ${f.count}개`);
+  });
   console.log(`빈 껍데기 표 발견: ${emptyShellFindings.length}건`);
-  emptyShellFindings.forEach((f) =>
-    console.log(`  - ${f.label} / ${f.column}: ${f.reasons.join(", ")}`),
-  );
+  emptyShellFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}: ${f.reasons.join(", ")}`);
+  });
   console.log(
     `(c) 재파싱 필요 legacy recruit-table 구조: ${legacyRecruitFindings.length}건`,
   );
-  legacyRecruitFindings.forEach((f) =>
-    console.log(`  - ${f.label} / ${f.column}`),
-  );
+  legacyRecruitFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}`);
+  });
 
   if (!args.apply) {
     console.log(
@@ -521,9 +521,9 @@ async function main() {
   );
   if (failedUpdates.length) {
     console.error("실패 목록(동일 --category로 재실행해 재시도하세요):");
-    failedUpdates.forEach((f) =>
-      console.error(`  - ${f.label} / ${f.column} (id=${f.id}): ${f.message}`),
-    );
+    failedUpdates.forEach((f) => {
+      console.error(`  - ${f.label} / ${f.column} (id=${f.id}): ${f.message}`);
+    });
   }
 
   console.log("\n=== 7) 재감사(잔여 0 확인) ===");

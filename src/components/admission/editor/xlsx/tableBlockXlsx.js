@@ -75,23 +75,23 @@ export function findOversizedCells(block) {
       oversized.push({ ...location, length: text.length });
     }
   };
-  block.columns.forEach((col, c) =>
+  block.columns.forEach((col, c) => {
     check(col.label, {
       area: "header",
       row: 0,
       col: c,
       columnLabel: col.label,
-    }),
-  );
+    });
+  });
   block.rows.forEach((row, r) => {
-    row.forEach((cell, c) =>
+    row.forEach((cell, c) => {
       check(cell, {
         area: "body",
         row: r,
         col: c,
         columnLabel: block.columns[c]?.label,
-      }),
-    );
+      });
+    });
   });
   return oversized;
 }
@@ -170,9 +170,9 @@ function buildFormatSheet(block) {
   if (block.groups) {
     rows.push([""], ["2단 헤더(그룹) 구성"]);
     rows.push(["fixedColumnCount", block.fixedColumnCount ?? 0]);
-    block.groups.forEach((g) =>
-      rows.push([`그룹: ${g.name}`, `count=${g.count}`]),
-    );
+    block.groups.forEach((g) => {
+      rows.push([`그룹: ${g.name}`, `count=${g.count}`]);
+    });
   }
   return XLSX.utils.aoa_to_sheet(rows);
 }

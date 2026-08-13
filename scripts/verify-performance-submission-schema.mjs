@@ -951,7 +951,9 @@ if (failures.length) {
   console.error(
     `FAIL verify-performance-submission-schema — ${failures.length}건\n`,
   );
-  failures.forEach((failure) => console.error(`  - ${failure}`));
+  failures.forEach((failure) => {
+    console.error(`  - ${failure}`);
+  });
   process.exit(1);
 }
 

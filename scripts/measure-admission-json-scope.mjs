@@ -118,7 +118,9 @@ function collectClassesInDoc(html) {
       .split(/\s+/)
       .map((c) => c.trim())
       .filter(Boolean)
-      .forEach((c) => classes.add(c));
+      .forEach((c) => {
+        classes.add(c);
+      });
   }
   return classes;
 }

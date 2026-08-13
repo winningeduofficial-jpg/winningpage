@@ -281,9 +281,9 @@ async function main() {
     const samples = needsReviewSamples[key];
     if (!samples.length) return;
     console.log(`  [${key}]`);
-    samples.forEach((s) =>
-      console.log(`    - ${s.university} (${s.kind}): ${s.reason}`),
-    );
+    samples.forEach((s) => {
+      console.log(`    - ${s.university} (${s.kind}): ${s.reason}`);
+    });
   });
 
   if (!args.apply) {
@@ -411,9 +411,9 @@ async function runRestore(supabase, backupPath) {
   }
   console.log(`복원 완료: ${restored}행, 실패 ${failed.length}건.`);
   if (failed.length) {
-    failed.forEach((f) =>
-      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`),
-    );
+    failed.forEach((f) => {
+      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`);
+    });
     process.exitCode = 1;
   }
 }

@@ -455,15 +455,15 @@ async function main() {
     console.error(
       "동시편집 스킵 목록(백업 시점 이후 다른 곳에서 수정됨 — 재실행 필요):",
     );
-    skippedByConcurrentEdit.forEach((s) =>
-      console.error(`  - ${s.universityName} (id=${s.id})`),
-    );
+    skippedByConcurrentEdit.forEach((s) => {
+      console.error(`  - ${s.universityName} (id=${s.id})`);
+    });
   }
   if (failedUpdates.length) {
     console.error("실패 목록(재실행하면 재시도):");
-    failedUpdates.forEach((f) =>
-      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`),
-    );
+    failedUpdates.forEach((f) => {
+      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`);
+    });
   }
 
   console.log("\n=== 7) 재감사 ===");
@@ -538,9 +538,9 @@ async function runRestore(supabase, backupPath) {
   }
   console.log(`복원 완료: ${restored}행, 실패 ${failed.length}건.`);
   if (failed.length) {
-    failed.forEach((f) =>
-      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`),
-    );
+    failed.forEach((f) => {
+      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`);
+    });
     process.exitCode = 1;
   }
 }

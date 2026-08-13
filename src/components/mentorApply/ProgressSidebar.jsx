@@ -79,9 +79,9 @@ export function computeProgress(sections, values) {
 
   const requiredNames = new Set();
   list.forEach((section) => {
-    (Array.isArray(section.fields) ? section.fields : []).forEach((name) =>
-      requiredNames.add(name),
-    );
+    (Array.isArray(section.fields) ? section.fields : []).forEach((name) => {
+      requiredNames.add(name);
+    });
   });
 
   const totalRequired = requiredNames.size;

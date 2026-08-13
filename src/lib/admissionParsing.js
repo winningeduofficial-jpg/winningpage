@@ -678,9 +678,9 @@ export function normalizeRecruitmentExactHtml(html, _fallbackText) {
   }));
 
   const groupCounts = new Map();
-  baseMetas.forEach((meta) =>
-    groupCounts.set(meta.group, (groupCounts.get(meta.group) || 0) + 1),
-  );
+  baseMetas.forEach((meta) => {
+    groupCounts.set(meta.group, (groupCounts.get(meta.group) || 0) + 1);
+  });
   const groupSeen = new Map();
   baseMetas.forEach((meta) => {
     const seen = groupSeen.get(meta.group) || 0;
@@ -967,7 +967,9 @@ export function parseChangeItems(lines) {
   baseItems.forEach((item) => {
     const parts = splitSubnumberedChangeItem(item.text);
     if (parts.length > 1) {
-      parts.forEach((part) => expandedItems.push({ no: "", text: part }));
+      parts.forEach((part) => {
+        expandedItems.push({ no: "", text: part });
+      });
     } else {
       expandedItems.push({ no: item.no, text: item.text });
     }

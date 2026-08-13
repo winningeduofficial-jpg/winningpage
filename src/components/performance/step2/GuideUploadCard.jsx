@@ -107,7 +107,9 @@ export default function GuideUploadCard({
   photosRef.current = photos;
   useEffect(
     () => () => {
-      photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.url));
+      photosRef.current.forEach((photo) => {
+        URL.revokeObjectURL(photo.url);
+      });
     },
     [],
   );

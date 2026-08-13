@@ -446,7 +446,9 @@ if (failures.length) {
   console.error(
     `FAIL verify-performance-guide-structure — ${failures.length}건\n`,
   );
-  failures.forEach((failure) => console.error(`  - ${failure}`));
+  failures.forEach((failure) => {
+    console.error(`  - ${failure}`);
+  });
   process.exit(1);
 }
 
