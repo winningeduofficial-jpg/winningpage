@@ -7187,9 +7187,7 @@ export default function Admin() {
     alert(
       !shouldRequestWinningEmbedding(config, savedRow)
         ? '저장 완료'
-        : WINNING_EMBED_API_BASE
-          ? '저장 완료. 임베딩은 자동 생성 중입니다.'
-          : '저장 완료. 임베딩 자동 생성 설정(VITE_RAG_API_BASE_URL)이 되어 있지 않아 임베딩은 생성되지 않았습니다. 관리자에게 문의하세요.'
+        : '저장 완료. 임베딩은 자동 생성 중입니다.'
     );
     setMode('list');
     setEditingRow(null);
