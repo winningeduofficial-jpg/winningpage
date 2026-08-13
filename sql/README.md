@@ -112,3 +112,6 @@ Supabase SQL Editor에서 **파일명 접두어 순서대로** 실행합니다. 
 알리고(알림톡·SMS)와 NICE(본인확인)는 발신 IP를 화이트리스트로 검사한다. `api/` 함수의 외부 호출은 `api/_lib/outbound.js`를 거쳐 고정 IP 프록시(Fixie)로 나가야 하며, **프록시를 경유하지 않으면 벤더가 IP로 거절한다.** Supabase Edge Function에서 호출하면 이 프록시를 타지 않으므로 반드시 이 레포의 `api/`에서 나가야 한다.
 
 Fixie의 아웃바운드 IP가 바뀌면 알림톡과 본인확인이 **동시에** 죽는다. 에러가 "IP 차단"으로만 나와 원인이 잘 안 보이므로, IP를 바꿀 일이 생기면 두 벤더 모두에 재등록할 것.
+| 73 | `73_goal_daily_record_v2.sql` | 목표관리 일별 기록 수식 v2: `goal_daily_records.body_condition` CHECK를 원본 3지(`good`/`normal`/`bad`, v1) → 신시안 4지선다(`great`/`normal`/`tired`/`exhausted`, `src/data/goalStudyMock.js` mockConditionOptions)로 교체. 컬럼이 실측 0행이라 값 이관 UPDATE 불요, CHECK drop/add만. `body_condition`/`achievement`/`focus` 3개 컬럼 코멘트를 v2 기준(컨디션배수는 실제 사용, 성취도·집중도는 v2 UI 자체가 없어 `''` 고정)으로 갱신 | `55_goal_management.sql`의 `goal_daily_records` 필요 |
+
+> 56~72 미문서화: 이 표는 55번 이후(다른 브랜치 병렬 작업 산물) 갱신되지 않았다 — 해당 파일들은 `sql/` 디렉터리에 실재하나 이 표엔 없다. 팀장 작업 지시서는 이번 파일을 72번으로 지정했으나 `goal-daily-record` 브랜치를 딴 시점(dev@9ef6686)에 이미 `72_learning_diagnosis_v2_survey_copy.sql`이 그 번호를 선점하고 있어 73으로 옮겼다(53번 회피 선례와 동일 사유 — 접두어 중복은 실행 사고로 이어진다).
