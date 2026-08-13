@@ -149,6 +149,32 @@ export async function fetchStudentStateRow(supabaseAdmin, profileId) {
 }
 
 /**
+ * 확률 스냅샷 이력 — 오래된 순으로 전부 반환한다(대시보드 "학업 성취도 변화 추이" 차트 전용).
+ * appendProbabilityLog()가 직전 행과 4값이 전부 같으면 건너뛰므로, 여기 담기는 행은
+ * 이미 "변화가 있었던" 시점만 남는다 — 클라이언트에서 다시 중복 제거할 필요가 없다.
+ *
+ * @returns {{recordedAt:string, idealSusi:number|null, idealJungsi:number|null,
+ *            minSusi:number|null, minJungsi:number|null}[]}
+ */
+export async function fetchProbabilityHistory(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PROBABILITY_LOGS)
+    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((row) => ({
+    recordedAt: row.created_at,
+    idealSusi: num(row.ideal_susi),
+    idealJungsi: num(row.ideal_jungsi),
+    minSusi: num(row.min_susi),
+    minJungsi: num(row.min_jungsi)
+  }));
+}
+
+/**
  * 대학·학과 컷 1건.
  *
  * department 는 널이 아니라 빈 문자열로 매칭한다 — 대학 단위 컷은
@@ -215,6 +241,27 @@ export async function fetchTargetCuts(supabaseAdmin, { schoolCutType, ideal, min
   return { cuts, missing };
 }
 
+export const TABLE_DAILY_RECORDS = 'goal_daily_records';
+
+/**
+ * 오늘(record_date 기준) 일별 기록 1행. 없으면 null.
+ *
+ * record_date 는 실제 달력 모델(팀장 작업 지시 "실제 달력 모델")의 정본 조회 키다 —
+ * goal_daily_records_date_key(profile_id, record_date) UNIQUE 인덱스가 하루 1행을
+ * 보장한다(sql/55_goal_management.sql (2) 인덱스 절).
+ */
+export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .eq('record_date', recordDate)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 // ---------------------------------------------------------------------------
 // 쓰기
 // ---------------------------------------------------------------------------
@@ -224,6 +271,23 @@ export async function upsertStudentRow(supabaseAdmin, row) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
     .upsert(row, { onConflict: 'profile_id' })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 일별 기록 upsert. 정본 충돌키는 (profile_id, record_date) — 실제 달력 모델에서는
+ * 하루 1건이 곧 record_index 도 1대1로 정하므로(record_index 는 diffDaysYMD 로
+ * record_date 의 순함수) 두 UNIQUE 인덱스(index_key / date_key)가 동시에 지켜진다.
+ * 저장된 행을 그대로 돌려준다(id 포함 — goal_probability_logs.source_record_id 용).
+ */
+export async function upsertDailyRecord(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .upsert(row, { onConflict: 'profile_id,record_date' })
     .select('*')
     .single();
 
@@ -402,8 +466,9 @@ export function buildTargets(row) {
  * @param {object} stateRow  goal_student_state 뷰 행
  * @param {string} schoolCutType getSchoolCutType(row.school_type) 결과.
  *   DB 에 저장하지 않고 매번 파생한다(§7-2).
+ * @param {Array}  historyRows fetchProbabilityHistory() 결과(오래된 순). 생략 시 빈 배열.
  */
-export function buildStudentPayload(row, stateRow, schoolCutType) {
+export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = []) {
   const state = stateRow || {};
 
   return {
@@ -457,6 +522,9 @@ export function buildStudentPayload(row, stateRow, schoolCutType) {
     actualStartDate: ymd(row.actual_start_date),
     recordCount: num(state.record_count) ?? 0,
     lastRecordDate: ymd(state.last_record_date),
+    // "학업 성취도 변화 추이" 차트(4계열 라인) 전용. 오래된 순 그대로 넘긴다 — 정렬은
+    // fetchProbabilityHistory()가 이미 했다(§9-4 확장).
+    probabilityHistory: historyRows,
     // false 면 UI 는 정시 게이지를 "0%"가 아니라 "데이터 준비 중"으로 그린다.
     // calcJeongsiProb 은 currentMogo <= 0 일 때도 0 을 내므로(pipeline.js:227-228)
     // 이 플래그 없이는 두 상태를 구분할 수 없다(§9-4).
@@ -475,5 +543,176 @@ export function buildAwaitingCutsPayload(row) {
     status: row.status,
     targets: buildTargets(row),
     missingCuts: listMissingCuts(row)
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 문제집(goal_workbooks) — "나의 노력" 화면(Efforts.jsx). api/goal/workbooks.js 전용.
+// 스키마 정본: sql/76_goal_workbooks.sql.
+// ---------------------------------------------------------------------------
+
+export const TABLE_WORKBOOKS = 'goal_workbooks';
+
+/**
+ * current_page/total_pages 비교로 완독 여부를 재계산한다. sql/76 (1) 주석과 같은 규약 —
+ * status는 클라이언트가 직접 보낼 수 없고 이 함수의 결과만 저장한다.
+ */
+export function computeWorkbookStatus(currentPage, totalPages) {
+  return currentPage >= totalPages ? 'done' : 'reading';
+}
+
+/** 본인 문제집 전체 목록. 등록 순서(오래된 순)를 그대로 보존한다. */
+export async function fetchWorkbooks(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 문제집 1건(본인 소유 한정). 없거나 타인 소유면 null — goalRepo 규약 #1(profileId 스코프가 유일한 소유자 판정). */
+export async function fetchWorkbookOwned(supabaseAdmin, id, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .select('*')
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 문제집 insert. 저장된 행을 그대로 돌려준다. */
+export async function insertWorkbook(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .insert(row)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** 문제집 update(본인 소유 한정). 없거나 타인 소유면 null — 두 조건 모두 eq에 실어 한 번에 판정한다. */
+export async function updateWorkbookOwned(supabaseAdmin, id, profileId, patch) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .update(patch)
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 문제집 delete(본인 소유 한정). 실제로 지운 행이 있었으면 true. */
+export async function deleteWorkbookOwned(supabaseAdmin, id, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+/** DB 스네이크 → API 카멜. subject는 id 그대로 실어 보낸다(한글 라벨 변환은 프론트 subjectTokens.js 담당). */
+export function buildWorkbookPayload(row) {
+  return {
+    id: row.id,
+    subject: row.subject,
+    title: row.title,
+    totalPages: num(row.total_pages),
+    currentPage: num(row.current_page),
+    status: row.status
+  };
+}
+
+export const TABLE_SCHEDULES = 'goal_schedules';
+// ---------------------------------------------------------------------------
+// 중요일정 (sql/74_goal_schedules.sql) — 학생당 다건, 소유자 스코프는 profile_id.
+// service_role 이 RLS 를 우회하므로 update/delete 는 반드시 .eq('profile_id', ...)를
+// 같이 걸어 소유자 판정을 서버가 직접 강제한다(위 openGoalSession JSDoc 규약 1과 동일).
+// ---------------------------------------------------------------------------
+
+const SCHEDULE_SELECT_COLUMNS = 'id, title, category, due_date, memo';
+
+/** 본인 일정 전체, 마감일 오름차순. */
+export async function fetchSchedules(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .eq('profile_id', profileId)
+    .order('due_date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 일정 1건 insert. 저장된 행을 그대로 돌려준다. */
+export async function insertSchedule(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .insert(row)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 본인 소유 일정 1건 update.
+ * @returns {object|null} 갱신된 행. id가 없거나 본인 소유가 아니면 null(0행 매치).
+ */
+export async function updateSchedule(supabaseAdmin, profileId, id, patch) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .update(patch)
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * 본인 소유 일정 1건 delete.
+ * @returns {boolean} 실제로 삭제됐으면 true(0행 매치면 false).
+ */
+export async function deleteSchedule(supabaseAdmin, profileId, id) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+/** DB 행(snake) → API 응답(camel). */
+export function buildSchedulePayload(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    dueDate: ymd(row.due_date),
+    memo: row.memo || ''
   };
 }

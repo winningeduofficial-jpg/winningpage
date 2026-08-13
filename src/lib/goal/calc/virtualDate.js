@@ -19,6 +19,10 @@
  * 요일 인덱스 규약: **월요일 = 0 … 일요일 = 6** (JS `getUTCDay()` 의 일요일=0 과 다르다).
  */
 
+// diffDaysYMD 전용. addDaysYMD/getDayIndexFromYMDServer 는 Date.UTC 만 쓰고
+// 밀리초 나눗셈이 필요 없어 이 상수를 쓰지 않는다.
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 /** YMD 문자열 정규화. 원본 student.mjs:144-150 */
 export function toYMD(v) {
   if (!v) return '';
@@ -50,6 +54,11 @@ export function kstYMD(date = new Date()) {
  *
  * NOTE(target-parity): recordIndex 가 숫자로 변환되지 않는 값('abc' 등)이면
  * setDate(NaN) → Invalid Date → Intl.format 이 RangeError 를 던진다. 원본 그대로.
+ *
+ * @deprecated "제출 N번 = N일차" 가상 달력 모델(record_index 가 제출 순번) 전용이다.
+ * goal_daily_records 는 실제 달력 모델로 전환했다(record_index = actual_start_date부터
+ * 실제 KST 경과 일수, diffDaysYMD 로 구한다) — 이 함수는 더 이상 record_date 산출에
+ * 쓰이지 않는다. 기존 테스트(virtualDate.test.js) 동결 유지를 위해 본문은 그대로 둔다.
  */
 export function getRecordDateFromActualStart(actualStartDate, recordIndex, now = new Date()) {
   if (!actualStartDate) return kstYMD(now);
@@ -171,9 +180,41 @@ export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
  *
  * NOTE(target-parity): 비미니면 sundayCount 를 그대로 돌려준다 — 음수·undefined 도
  * 그대로 새어 나간다(Math.max clamp 는 미니 분기에만 있다).
+ *
+ * @deprecated getRecordDateFromActualStart 와 같은 사유로 실제 달력 모델 전환 이후
+ * 더 이상 주차 산정에 쓰이지 않는다. 기존 테스트 동결 유지를 위해 본문은 그대로 둔다.
  */
 export function getRegularWeekIndexFromSundayCount(student, sundayCount, now = new Date()) {
   const startDate = toYMD(student.actual_start_date) || kstYMD(now);
   const mini = isMiniStartDay(startDate, now);
   return mini ? Math.max(0, sundayCount - 1) : sundayCount;
+}
+
+/**
+ * to - from 의 날짜 차이(일수). addDaysYMD 와 같은 UTC 앵커 기법 — 로컬 타임존·DST
+ * 영향을 받지 않는다.
+ *
+ * 실제 달력 모델(record_index = actual_start_date부터 실제 KST 경과 일수)의 핵심
+ * 계산이다: recordIndex = diffDaysYMD(actual_start_date, kstYMD(now)).
+ *
+ * NOTE: addDaysYMD(87-92행)와 동일하게, 파싱 불가한 값이면 Invalid Date →
+ * Date.UTC 가 NaN 을 삼켜 결과가 NaN 이 된다(예외를 던지지 않는다). 호출자가
+ * 파싱 가능한 YMD 를 보장해야 한다.
+ *
+ * @param {string} fromYMD 기준 날짜(YMD 또는 파싱 가능한 값).
+ * @param {string} toYMDValue 대상 날짜.
+ * @param {Date} [now] fromYMD/toYMDValue 가 비어 있을 때의 폴백 기준 시각.
+ * @returns {number} toYMDValue - fromYMD (일수). 양수면 toYMDValue 가 미래.
+ */
+export function diffDaysYMD(fromYMD, toYMDValue, now = new Date()) {
+  const fromStr = toYMD(fromYMD) || kstYMD(now);
+  const toStr = toYMD(toYMDValue) || kstYMD(now);
+
+  const [fy, fm, fd] = fromStr.split('-').map(Number);
+  const [ty, tm, td] = toStr.split('-').map(Number);
+
+  const fromMs = Date.UTC(fy, fm - 1, fd);
+  const toMs = Date.UTC(ty, tm - 1, td);
+
+  return Math.round((toMs - fromMs) / MS_PER_DAY);
 }

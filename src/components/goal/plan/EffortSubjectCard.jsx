@@ -10,8 +10,12 @@ import { resolveSubjectId } from '../subjectTokens';
 // 캡션)은 칩 개수와 무관하게 항상 카드 최하단에 고정된다(시안 그대로, part-11 §155).
 //
 // 한글 과목명 → 과목 id 매핑은 subjectTokens.js 정본 헬퍼를 쓴다(코드 검수 §1).
+//
+// books는 문자열 배열이 아니라 {id, title} 객체 배열이다(실데이터 배선, goalApi.js
+// fetchGoalWorkbooks 응답). 진도 갱신 동선이 시안에 없어, 칩을 클릭하면 onEditBook이
+// 호출되어 AddWorkbookModal을 수정 모드로 재사용해 연다(Efforts.jsx 판단 지점).
 
-export default function EffortSubjectCard({ subject, completed, books, onAddBook }) {
+export default function EffortSubjectCard({ subject, completed, books, onAddBook, onEditBook }) {
   const color = resolveSubjectId(subject);
   const hasBooks = Array.isArray(books) && books.length > 0;
 
@@ -38,9 +42,15 @@ export default function EffortSubjectCard({ subject, completed, books, onAddBook
       <div className="mt-[0.75rem] min-h-0 flex-1 overflow-y-auto">
         {hasBooks && (
           <ul className="flex flex-col gap-2">
-            {books.map((title, index) => (
-              <li key={`${title}-${index}`}>
-                <SubjectChip label={title} size="sm" color={color} className="!w-full !justify-start" />
+            {books.map((book) => (
+              <li key={book.id}>
+                <button
+                  type="button"
+                  onClick={() => onEditBook?.(book)}
+                  className="block w-full text-left"
+                >
+                  <SubjectChip label={book.title} size="sm" color={color} className="!w-full !justify-start" />
+                </button>
               </li>
             ))}
           </ul>
