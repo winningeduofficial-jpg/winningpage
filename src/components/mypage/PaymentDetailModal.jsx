@@ -65,6 +65,12 @@ export default function PaymentDetailModal({ open, order, status, onClose, onReq
   // 학부모 반려 건은 예외로 다시 열어준다. 반려는 종결이 아니라 "이번엔 안
   // 된다"이고, 같은 주문으로 재신청하는 것이 설계 확정 사항이다(sql/68 —
   // 미종결 판정에서 approval_status='rejected' 를 빼둔 이유가 이것이다).
+  //
+  // 학생·학부모 둘 다 신청할 수 있다. 학생이 신청하면 학부모 확인 단계를
+  // 거친다(확정 디자인 3967:3561 "환불을 요청할게요" — "결제는 OOO
+  // 학부모님이 하셨어요. 환불 요청을 보내면 학부모님이 확인 후 환불을
+  // 진행합니다"). 2026-08-13 잠시 결제자 전용으로 좁혔다가 그 디자인을
+  // 확인하고 되돌렸다(sql/75).
   const canRequestRefund = status === 'paid' || status === 'refund_parent_rejected';
 
   return (

@@ -7,8 +7,7 @@ import MyServicesTab from '../components/mypage/MyServicesTab';
 import PaymentsTab from '../components/mypage/PaymentsTab';
 import ProfileTab from '../components/mypage/ProfileTab';
 import ChildrenTab from '../components/mypage/parent/ChildrenTab';
-import EnrollmentInbox from '../components/mypage/parent/EnrollmentInbox';
-import RefundApprovalInbox from '../components/mypage/parent/RefundApprovalInbox';
+import ParentPaymentsTab from '../components/mypage/parent/ParentPaymentsTab';
 
 function cleanText(value) {
   return String(value || '').trim();
@@ -72,7 +71,7 @@ const STUDENT_TABS = [
 
 const PARENT_TABS = [
   { key: 'children', label: '자녀 등록 및 수정' },
-  { key: 'payments', label: '수강/결제 내역' },
+  { key: 'payments', label: '결제 내역' },
   { key: 'profile', label: '내 정보 수정' }
 ];
 
@@ -86,6 +85,8 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [refunds, setRefunds] = useState([]);
+  // 학부모 탭 배지용 대기 건수(확정 디자인 3967:3944 "결제 요청 1"·"환불 요청 1").
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -135,7 +136,7 @@ export default function MyPage() {
     if (!user) return;
     const { data } = await supabase
       .from('refund_requests')
-      .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, created_at')
+      .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
       // orders 와 같은 이유로 쌍 두 축을 함께 본다 — refund_requests.user_id 는
       // "신청한 사람"이라, 학부모가 신청한 환불을 학생이 못 보거나 그 반대가 된다.
       // RLS(sql/68 "refund_requests select own")가 이미 두 축(student_profile_id,
@@ -176,7 +177,7 @@ export default function MyPage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('refund_requests')
-          .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, created_at')
+          .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
           // 위 reloadRefunds 와 같은 쌍 두 축 조회(그쪽 주석 참고) — 두 경로가
           // 다른 결과를 주면 환불 신청 직후 표의 상태 배지가 흔들린다.
           .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
@@ -205,7 +206,41 @@ export default function MyPage() {
 
   const memberType = cleanText(profile?.member_type).toLowerCase();
   const isParent = memberType === 'parent';
-  const tabs = isParent ? PARENT_TABS : STUDENT_TABS;
+
+  // 결제 대기 주문 건수 — 위 orders 조회는 paid/waiting_deposit 만 읽으므로
+  // pending 은 여기서 따로 센다(탭 배지 전용, 목록은 ParentPaymentsTab 이 읽는다).
+  useEffect(() => {
+    if (!user || !isParent) return undefined;
+    let alive = true;
+
+    (async () => {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_profile_id', user.id)
+        .eq('status', 'pending')
+        .in('approval_status', ['requested', 'approved']);
+      if (alive) setPendingOrderCount(count || 0);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [user, isParent]);
+
+  const refundRequestCount = refunds.filter((r) => r.approval_status === 'requested').length;
+
+  const tabs = (isParent ? PARENT_TABS : STUDENT_TABS).map((tab) =>
+    isParent && tab.key === 'payments'
+      ? {
+          ...tab,
+          badges: [
+            { label: '결제 요청', count: pendingOrderCount },
+            { label: '환불 요청', count: refundRequestCount }
+          ]
+        }
+      : tab
+  );
 
   const requestedTab = searchParams.get('tab');
   const activeTab = tabs.some((tab) => tab.key === requestedTab) ? requestedTab : tabs[0].key;
@@ -248,8 +283,15 @@ export default function MyPage() {
             <>
               {/* 학부모만 — 학생이 만든 결제요청을 발견하는 경로(handoff 작업 1·2).
                   학생 화면에는 인박스 개념 자체가 없다(요청을 만드는 쪽이라서). */}
-              {isParent && <EnrollmentInbox />}
-              <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+              {isParent ? (
+                <ParentPaymentsTab
+                  orders={orders}
+                  refunds={refunds}
+                  onRefundSubmitted={reloadRefunds}
+                />
+              ) : (
+                <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+              )}
             </>
           )}
 

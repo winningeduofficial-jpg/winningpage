@@ -25,7 +25,22 @@ export default function MyPageTabs({ tabs, activeTab }) {
                 : 'border-transparent font-medium text-line hover:text-ink'
             }`}
           >
-            {tab.label}
+            <span className="flex items-center gap-2">
+              {tab.label}
+              {/* 대기 건수 배지 — 확정 디자인 3967:3944 의 "결제 요청 1"·"환불 요청 1".
+                  실측: 높이 32, radius 8, 배경 #fff3d1, 글자 #af9364(gold).
+                  0건이면 렌더하지 않는다(빈 배지가 붙으면 탭 폭만 흔들린다). */}
+              {(tab.badges || [])
+                .filter((badge) => badge.count > 0)
+                .map((badge) => (
+                  <span
+                    key={badge.label}
+                    className="inline-flex h-8 shrink-0 items-center rounded-lg bg-[#fff3d1] px-3 text-[0.875rem] font-semibold text-gold"
+                  >
+                    {badge.label} {badge.count}
+                  </span>
+                ))}
+            </span>
           </Link>
         );
       })}
