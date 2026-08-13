@@ -62,6 +62,16 @@ const SERVICE_KEY = 'suhaeng';
 // 사용자는 매번 "이어서 하기 / 새로 시작하기"를 다시 골라야 한다.
 const RESUMABLE_STATUSES = ['draft', 'in_progress'];
 
+// ⚠️ 이 status 기반 판정은 명세서 §12.2 재개 분기 판정표의 5+1 OR
+//    (selected_topic/topics/resources/evaluation/assessment_info/draft)을
+//    축약한 것이다. 두 판정이 동치인 근거는 **status가 'completed'로 바뀌는
+//    유일한 지점이 finalize RPC(sql/58_performance_submission.sql의
+//    finalize_performance_submission)** 라는 불변식이다 — 세션에 산출물이
+//    하나라도 있으면 status는 반드시 draft/in_progress에 머무른다. 이
+//    불변식이 깨지는 변경(예: archive/abandon 상태 신설, status를 갱신하는
+//    새 경로)을 넣을 때는 이 판정을 명세의 명시적 산출물 OR 검사로
+//    되돌려야 한다.
+
 // 최근 세션 조회 상한. 정확히 필요한 것은 ① 가장 최근 미완료 세션 1건과
 // ② 가장 최근 미차감 세션 1건뿐이지만, 후자는 원장 조인 없이 SQL 한 방으로
 // 못 고른다(PostgREST에 anti-join이 없다). 최근 N건을 받아 애플리케이션에서
@@ -97,7 +107,8 @@ function fail(res, status, code, message) {
  * (sql/54_performance_app.sql (1-1)). 배열의 최댓값이 곧 마지막 완료 단계다.
  *
  * `current_step`을 그대로 쓰지 않는 이유: 외부 앱의 활성 스텝 표시에 off-by-one
- * 결함이 있었고(§10.2 P13 `deriveStep`), `current_step`은 사용자가 뒤로 돌아가
+ * 결함이 있었고(§10.2, 프론트 사이드바 파생은 `src/components/performance/deriveStepStates.js`가
+ * 그 결함을 피하는 규율을 명시한다), `current_step`은 사용자가 뒤로 돌아가
  * 다시 본 화면일 수도 있어 "어디까지 했는가"의 답이 아니다. 완료 집합이 답이다.
  *
  * 둘이 어긋나면 **더 앞선 쪽**을 택한다 — 완료 표시가 누락된 세션을 이미 지난

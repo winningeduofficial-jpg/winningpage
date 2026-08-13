@@ -795,7 +795,9 @@ export default async function handler(req, res) {
       .eq('id', sessionRow.id);
 
     // 진행 표시 갱신 실패로 이미 차감된 요청을 실패로 뒤집지 않는다. 주제는 저장됐고
-    // 재방문 시 `deriveStep`(P13)이 실제 데이터로 단계를 다시 계산한다.
+    // 재방문 시 `deriveResumeStep`(bootstrap.js)이 실제 데이터로 재개 지점을 다시
+    // 계산하고, 프론트 사이드바는 라이브 세션 상태에서 `deriveStepStates`(P13)가
+    // 다시 파생한다.
     if (sessionUpdateError) {
       console.error('performance/recommend-topics 세션 단계 갱신 실패(무시):', sessionUpdateError);
     }

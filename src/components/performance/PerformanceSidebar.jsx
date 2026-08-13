@@ -4,10 +4,11 @@ import { Link, useLocation } from 'react-router-dom';
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
 //
 // ⚠️ **표시 전용 컴포넌트다.** 진행단계 상태는 계산하지 않고 `stepStates` prop으로 받는다 —
-//    세션의 `completed_steps`/`current_step`에서 5스텝 상태를 파생하는 `deriveStep`은 P13
-//    작업이고(외부 앱에 off-by-one 결함이 있던 지점이라 별도 슬라이스로 떼어 뒀다,
-//    api/performance/bootstrap.js `deriveResumeStep` 주석 참고), 여기서 임시 파생을 만들면
-//    P13이 두 벌의 규칙을 통합해야 한다.
+//    라이브 세션 상태에서 5스텝 상태를 파생하는 `deriveStepStates`는
+//    `deriveStepStates.js`(P13, 순수 함수)이고, 호출부는 `PerformanceChatPage`다. 파생값은
+//    `PerformanceShellContext`를 통해 `PerformanceAppLayout`이 이 컴포넌트로 내려보낸다
+//    (외부 앱에 off-by-one 결함이 있던 지점이라 파생 규율을 별도 파일 주석에 못박아 뒀다 —
+//    `deriveStepStates.js`, api/performance/bootstrap.js `deriveResumeStep` 주석 참고).
 //
 // ⚠️ 프로필·진행단계 값의 실제 소스는 `GET /api/performance/bootstrap`이다
 //    (`profile.name` / `profile.schoolType`, 학년은 `lastSession.gradeLabel`).
@@ -75,7 +76,8 @@ function CheckIcon() {
  * @param {string|null} [schoolType] 학교유형 — `profiles.school_type`(§11 Q61-ⓔ 결정).
  * @param {string|null} [gradeLabel] 학년 — STEP1 세션 입력값(`performance_sessions.grade_label`).
  * @param {Array<'done'|'current'|'todo'>} [stepStates] 5스텝 상태. 길이 5를 기대하며 모자란
- *   자리·모르는 값은 `todo`로 떨어진다. 파생은 호출부(P13 `deriveStep`) 책임이다.
+ *   자리·모르는 값은 `todo`로 떨어진다. 파생은 호출부(`deriveStepStates.js` + `PerformanceChatPage`)
+ *   책임이다.
  */
 export default function PerformanceSidebar({
   profileName = null,

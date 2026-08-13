@@ -2,6 +2,8 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { useToast } from '../../context/ToastContext';
+import { usePerformanceShell } from '../../context/PerformanceShellContext';
+import { deriveStepStates } from '../../components/performance/deriveStepStates';
 import ChatTimeline from '../../components/performance/chat/ChatTimeline';
 import AiLoadingBubble from '../../components/performance/chat/AiLoadingBubble';
 import InlineCard from '../../components/performance/chat/InlineCard';
@@ -308,6 +310,7 @@ const RESUME_CONTINUE_COPY = '이전 진행 기록을 불러왔어요. 이어서
 export default function PerformanceChatPage() {
   const { session } = useSession();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { setStepStates } = usePerformanceShell();
   const accessToken = session?.access_token || null;
   const routeParams = useParams();
   const routeSessionId = typeof routeParams?.sessionId === 'string' ? routeParams.sessionId : null;
@@ -492,6 +495,62 @@ export default function PerformanceChatPage() {
   const [submittingWork, setSubmittingWork] = useState(false);
   const [submissionActionError, setSubmissionActionError] = useState(null);
   const [submissionSavedAt, setSubmissionSavedAt] = useState(null);
+
+  // ── 사이드바 진행단계 배선(P13) ────────────────────────────────────────────────
+  //
+  // §3.3 노드별 활성 스텝 표를 이 페이지가 이미 들고 있는 라이브 상태로 옮긴다.
+  // `deriveStepStates`(순수 함수)는 completedSteps/activeStep만 받으므로, 그 두 값을
+  // 아래에서 계산한다 — 이 계산이 활성 스텝 산출 규율(off-by-one 교정, 완료 후에만
+  // 다음 스텝으로)을 실제로 지키는 자리다.
+  //
+  //   activeStep=1  createdSession 없음(entryMode pending/choice 포함 — §3.3 표의
+  //                 3754:3035/3754:5028/3754:3206이 전부 STEP1 활성).
+  //   activeStep=2  createdSession 있고 guideDone=false(STEP2 업로드/직접입력 진행 중).
+  //   activeStep=3  guideDone=true, designPhase가 'idle'(주제 미확정 — topicPhase의
+  //                 loading/ready/quota/failed/dismissed 전부 이 안에 포함된다. §3.3
+  //                 표의 3754:3562~3754:4872가 전부 STEP3 활성인 것과 대응한다).
+  //   activeStep=4  designPhase가 'loading'|'failed', 또는 'ready'이면서 모달이 열려
+  //                 있음(designModalOpen). 설계 리포트 생성 로딩(3754:3868)과 리포트
+  //                 모달(3754:4722)이 표에서 이미 STEP4로 명시돼 있다 — "요청을 보낸
+  //                 시점에 다음 스텝을 미리 켠 것"이 아니라 그 로딩 자체가 STEP4 자신의
+  //                 작업이라 그렇다(주제 확정은 STEP3의 완료 조건이다).
+  //   activeStep=5  designPhase가 'ready'이면서 모달이 닫혀 있음(§5.13 「창 닫고
+  //                 작성하기」 이후 — Step5Form) — evaluationPhase(idle/loading/ready/
+  //                 failed)와 다음 단계 선택 화면(finalizeAction/finalizeResult)까지
+  //                 전부 이 안에 포함된다(§3.3 표의 3754:3992~3754:4349가 전부 STEP5).
+  //   activeStep=null 위 어느 것도 아님(초기 렌더 등 이론상 도달하지 않아야 하는 자리) —
+  //                 `deriveStepStates`는 null을 「활성 없음」으로 정상 처리한다.
+  //
+  // completedSteps는 activeStep보다 앞선 스텝 전부다 — 이 페이지의 진행은 단방향
+  // 선형이라(다른 주제 재추천·재평가는 같은 스텝 안에서의 왕복이지 스텝 역행이
+  // 아니다) 그보다 복잡한 규칙이 필요 없다.
+  useEffect(() => {
+    let activeStep = null;
+
+    if (!createdSession) {
+      activeStep = 1;
+    } else if (!guideDone) {
+      activeStep = 2;
+    } else if (designPhase === 'idle') {
+      activeStep = 3;
+    } else if (designPhase === 'loading' || designPhase === 'failed') {
+      activeStep = 4;
+    } else if (designPhase === 'ready') {
+      activeStep = designModalOpen ? 4 : 5;
+    }
+
+    const completedSteps =
+      activeStep == null ? [] : Array.from({ length: activeStep - 1 }, (_, i) => i + 1);
+
+    setStepStates(deriveStepStates({ completedSteps, activeStep }));
+
+    // 저장 리포트 등 이 페이지 밖으로 나가면 셸의 기본값(all-todo)으로 되돌린다 —
+    // §3.3 「저장 리포트 = 활성 스텝 0개」와 일치한다. 컨텍스트 자체는 리셋 시점을
+    // 모르므로(값을 들고 있을 뿐) 이 페이지가 언마운트 시 직접 리셋해야 한다.
+    return () => {
+      setStepStates(['todo', 'todo', 'todo', 'todo', 'todo']);
+    };
+  }, [createdSession, guideDone, designPhase, designModalOpen, setStepStates]);
 
   useEffect(() => {
     let alive = true;
