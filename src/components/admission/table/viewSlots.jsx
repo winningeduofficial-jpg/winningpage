@@ -34,6 +34,7 @@ function renderLeaf(view) {
       return (
         <div className="admission-recruit-cell-values">
           {view.chips.map((chip, chipIdx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 셀 렌더러 — chips는 doc JSON에 id가 없고 사용자가 재정렬하지 않는다.
             <span key={chipIdx}>
               <b>{chip.label}</b>
               {chip.value}

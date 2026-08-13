@@ -31,6 +31,7 @@ export default function KeyValueView({ rows }) {
   return (
     <div className="admission-readable-body">
       {rows.map((row, idx) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 문서 렌더러 — rows는 doc JSON에 id가 없고, 사용자가 재정렬하지 않는 뷰 전용 목록이다.
         <div key={idx} className="admission-text-line">
           {row.label ? <b>{row.label}</b> : null}
           {row.label && row.content ? " " : ""}

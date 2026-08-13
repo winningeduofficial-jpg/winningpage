@@ -73,6 +73,7 @@ export default function TableGroupHeaderEditor({
 
       <div className="flex flex-col gap-1">
         {groups.map((group, idx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: groups는 삭제가 가능하지만 doc 스키마에 group id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
           <div key={idx} className="flex items-center gap-1">
             <ImeSafeInput
               type="text"

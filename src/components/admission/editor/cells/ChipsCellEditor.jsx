@@ -29,6 +29,7 @@ export default function ChipsCellEditor({ value, onChange }) {
   return (
     <div className="flex flex-col gap-1">
       {chips.map((chip, idx) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: chips는 삭제가 가능하지만 doc 스키마에 chip id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
         <div key={idx} className="flex items-center gap-1">
           <ImeSafeInput
             type="text"

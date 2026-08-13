@@ -80,6 +80,7 @@ export default function AdmissionTable({
       <table className={desc.layout.tableClassName}>
         <thead>
           {header.rows.map((headerRow, headerRowIdx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 표 렌더러 — header.rows는 doc JSON에 id가 없고 사용자가 재정렬하지 않는다.
             <tr key={headerRowIdx}>
               {headerRow.cells.map((headerCell) => (
                 <th
@@ -101,6 +102,7 @@ export default function AdmissionTable({
         </thead>
         <tbody>
           {block.rows.map((row, rowIdx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 표 렌더러 — block.rows는 doc JSON에 id가 없고 사용자가 재정렬하지 않는다.
             <tr key={rowIdx}>
               {/* columns가 아니라 row를 순회한다 — 행 길이가 컬럼 수와 다른
                   실데이터가 있고, 현행 5개 렌더러도 전부 row.map이다. 여기를
@@ -109,6 +111,7 @@ export default function AdmissionTable({
                 const cellDesc = describeCell(block, rowIdx, colIdx);
                 return (
                   <td
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 표 렌더러 — 셀에 id가 없고 사용자가 재정렬하지 않는다.
                     key={colIdx}
                     className={
                       activeParity.cellClassNames

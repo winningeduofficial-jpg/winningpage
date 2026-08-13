@@ -43,6 +43,7 @@ export default function GroupBlockEditor({
       </p>
       {children.map((child, idx) => (
         <AdmissionBlockEditor
+          // biome-ignore lint/suspicious/noArrayIndexKey: 위 안내문대로 이 에디터는 그룹 구성 변경을 지원하지 않는다 — children 순서가 고정이다.
           key={idx}
           section={section}
           block={child}

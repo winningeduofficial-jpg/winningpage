@@ -270,6 +270,7 @@ export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
             }
           >
             {logoRows.map((row, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: logoRows는 로고 배열을 고정 개수로 청크한 정적 목록 — 재정렬·추가·삭제 없이 렌더할 때마다 같은 순서로 재생성된다.
               <LogoRow key={index} logos={row} />
             ))}
           </div>

@@ -1603,6 +1603,7 @@ export default function AdmissionGuidelines() {
                       prev.visible ? { ...prev, visible: false } : prev,
                     )
                   }
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: KOREA_MAP_SVG는 이 파일 상단에 하드코딩된 정적 SVG 문자열이다 — 외부/사용자 입력이 아니다.
                   dangerouslySetInnerHTML={{ __html: KOREA_MAP_SVG }}
                 />
                 {selectedLabelPosition ? (

@@ -78,6 +78,7 @@ export default function DocBlocksEditor({
           <p>문서 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
             {validation.errors.map((error, idx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
               <li key={idx}>{error}</li>
             ))}
           </ul>
@@ -125,6 +126,7 @@ export default function DocBlocksEditor({
 
         if (isTable) {
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: blocks는 이 편집기에서 순서 이동·삭제가 가능하지만 doc 스키마에 block id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
             <div key={idx} className="group relative mb-4">
               <div className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded border border-[#e5e7eb] bg-white/95 px-1.5 py-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                 {blockControls}
@@ -151,6 +153,7 @@ export default function DocBlocksEditor({
         const isGroup = block.kind === "group";
 
         return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — blocks에 id가 없는 기존 스키마 제약.
           <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
             <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
               <span className="text-[11px] font-bold text-gray-500">

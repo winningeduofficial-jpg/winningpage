@@ -215,6 +215,7 @@ export default function TableBlockEditor({
           <p>표 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
             {validation.errors.map((error, idx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
               <li key={idx}>{error}</li>
             ))}
           </ul>
@@ -272,6 +273,7 @@ export default function TableBlockEditor({
           </p>
           <ul className="mt-1 list-disc pl-4">
             {xlsxImportErrors.map((error, idx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 임포트 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
               <li key={idx}>{error}</li>
             ))}
           </ul>
@@ -329,6 +331,7 @@ export default function TableBlockEditor({
           </p>
           <ul className="mt-1 list-disc pl-4">
             {xlsxOversized.map((cell, idx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 내보내기 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
               <li key={idx}>
                 {cell.area === "header" ? "헤더" : `본문 행 ${cell.row + 1}`} ·{" "}
                 {cell.columnLabel || `컬럼 ${cell.col + 1}`} ·{" "}
@@ -389,6 +392,7 @@ export default function TableBlockEditor({
           <p className="mb-1 text-xs font-bold text-gray-500">행 순서·삭제</p>
           <ul className="flex flex-col gap-1">
             {block.rows.map((_row, rowIdx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 이 <li>는 상태 없이 rowIdx로부터 매 렌더 완전히 파생된다("행 N" 라벨 자체가 곧 인덱스) — 재정렬 시에도 항상 올바르다.
               <li key={rowIdx} className="flex items-center gap-2">
                 <span className="w-10 shrink-0 text-xs font-bold text-gray-500">
                   행 {rowIdx + 1}

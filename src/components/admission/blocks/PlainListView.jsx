@@ -60,8 +60,10 @@ export default function PlainListView({ items, ordered = false }) {
       {groups.map((group, idx) => {
         if (group.kind === "bulletGroup") {
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 문서 렌더러 — groups/items는 doc JSON에 id가 없고, 사용자가 재정렬하지 않는 뷰 전용 목록이다.
             <ListTag key={idx} className={listClassName}>
               {group.items.map((text, itemIdx) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 텍스트 항목엔 id가 없다.
                 <li key={itemIdx}>{text}</li>
               ))}
             </ListTag>
@@ -72,6 +74,7 @@ export default function PlainListView({ items, ordered = false }) {
             ? "admission-subtitle-line"
             : "admission-text-line";
         return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 읽기 전용 문서 렌더러, id 없음.
           <div key={idx} className={className}>
             {group.text}
           </div>

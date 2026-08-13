@@ -22,6 +22,7 @@ export default function RankingRail({ ranking }) {
             <li
               // rank만 키로 쓰면 "상위 5명 + 내 순위" 블록에서 내가 상위 5명에도
               // 포함돼 같은 rank가 두 번 나올 수 있다(RankingRail 호출부 주석 참고).
+              // biome-ignore lint/suspicious/noArrayIndexKey: rank 동률 엣지케이스를 index로 구분한다(위 주석) — 학생 고유 id가 이 목록에 없다.
               key={`${row.rank}-${index}`}
               className={`flex h-[2.375rem] items-center justify-between rounded-lg bg-white px-4 text-[0.875rem] leading-[1.4] ${
                 row.isSelf ? "font-bold text-[#E27A2F]" : "text-ink"

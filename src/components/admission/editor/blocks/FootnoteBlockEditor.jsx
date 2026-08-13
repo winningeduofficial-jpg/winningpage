@@ -33,6 +33,7 @@ export default function FootnoteBlockEditor({ block, onChange }) {
       </label>
       <div className="flex flex-col gap-1">
         {items.map((item, idx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: items는 삭제가 가능하지만 doc 스키마에 항목 id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
           <div key={idx} className="flex items-center gap-1">
             <ImeSafeInput
               type="text"
