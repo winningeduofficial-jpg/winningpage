@@ -39,6 +39,8 @@ const TONE = {
 
 let toastSeq = 0;
 
+const MAX_TOASTS = 3;
+
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const timersRef = useRef(new Map());
@@ -55,7 +57,21 @@ export function ToastProvider({ children }) {
   const pushToast = useCallback(
     (type, message, { duration = DEFAULT_DURATION } = {}) => {
       const id = `toast-${(toastSeq += 1)}`;
-      setToasts((prev) => [...prev, { id, type, message }]);
+      setToasts((prev) => {
+        const next = [...prev, { id, type, message }];
+        if (next.length <= MAX_TOASTS) return next;
+
+        // 스택 상한 초과분은 가장 오래된 것부터 제거 — 뷰포트 밖으로 넘치지 않게.
+        const overflowCount = next.length - MAX_TOASTS;
+        next.slice(0, overflowCount).forEach((overflowToast) => {
+          const overflowTimerId = timersRef.current.get(overflowToast.id);
+          if (overflowTimerId) {
+            clearTimeout(overflowTimerId);
+            timersRef.current.delete(overflowToast.id);
+          }
+        });
+        return next.slice(overflowCount);
+      });
 
       // 이 토스트 전용 타이머 — 다른 토스트의 타이머와 절대 공유하지 않는다.
       const timerId = setTimeout(() => removeToast(id), duration);
@@ -100,10 +116,14 @@ export function useToast() {
 }
 
 function ToastStack({ toasts, onDismiss }) {
-  if (toasts.length === 0) return null;
-
+  // 토스트가 없어도 aria-live 리전 자체는 항상 DOM에 유지한다 — 첫 토스트와
+  // 동시에 리전이 삽입되면 스크린리더가 공지를 놓치는 경우가 있어서다.
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-[200] flex w-full max-w-[22.5rem] flex-col gap-3">
+    <div
+      aria-live="polite"
+      aria-atomic="false"
+      className="pointer-events-none fixed bottom-6 right-6 z-[200] flex w-full max-w-[22.5rem] flex-col gap-3"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
