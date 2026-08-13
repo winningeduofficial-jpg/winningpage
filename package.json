@@ -42,6 +42,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "pdfjs-dist": "^6.2.108",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.49",
     "prettier": "^3.9.6",
     "sharp": "^0.35.3",
