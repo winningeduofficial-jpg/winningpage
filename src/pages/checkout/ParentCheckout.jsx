@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getTossPayments, ANONYMOUS } from '../../lib/toss';
 import { formatKRW } from '../../data/pricingCatalog';
+import { CHECKOUT_AGREEMENTS } from '../../data/legalDocs';
 import ConfirmModal from '../../components/checkout/ConfirmModal';
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
@@ -62,8 +63,27 @@ function mapCouponRow(c) {
     isActive: c.is_active,
     eligible: c.eligible,
     reason: c.reason,
-    ownerIsStudent: c.owner_is_student
+    ownerIsStudent: c.owner_is_student,
+    // fn_usable_coupons / fn_coupon_by_code 는 stackable 을 돌려주지 않는다 —
+    // coupons 테이블에서 따로 읽어 아래 mergeStackable 로 채운다. 값을 모르는
+    // 동안은 false(비중복)로 둔다. 보수적인 쪽이 맞다 — 중복 가능하다고
+    // 잘못 보이면 화면 할인액이 서버보다 커져 사용자가 틀린 금액을 본다.
+    stackable: false
   };
+}
+
+// 서버(fn_respond_enrollment, sql/71)의 쿠폰 적용 규칙
+//   · stackable = false 끼리는 최고액 **1장만** 적용(v_best_nonstack_idx)
+//   · stackable = true 는 전부 합산
+// 화면이 이 규칙을 모르면 여러 장 체크한 합계를 보여주고, 서버는 1장만
+// 적용해 결제 직전에 금액이 바뀐다(skipped_coupon_ids → amountMismatch 는
+// 이미 결제 버튼을 누른 뒤의 사후 경고다). 그래서 선택 단계에서부터 같은
+// 규칙을 적용한다.
+//
+// stackable 은 coupons 테이블에서 직접 읽는다 — `coupons public read`
+// (is_active = true, sql/10)로 열려 있어 마이그레이션이 필요 없다.
+function mergeStackable(rows, stackableById) {
+  return rows.map((row) => ({ ...row, stackable: stackableById[row.id] === true }));
 }
 
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
@@ -76,6 +96,53 @@ function mapRespondError(err) {
   }
   if (msg.includes('order_not_found')) return LOAD_FAILED_TEXT;
   return GENERIC_FAIL_TEXT;
+}
+
+// 결제 약관 동의 체크박스 1행 — Figma 1882:10111 실측("[구매 전 안내사항]" /
+// "결제 서비스 이용 약관, 개인정보 처리 동의", 둘 다 필수 + 펼침 화살표 +
+// "위 내용을 모두 확인하였습니다."). 본문은 펼쳐야 보이는 아코디언 — 페이지
+// 이동(AgreementRow, 가입 화면용)이 아니라 CHECKOUT_AGREEMENTS 상수를 그
+// 자리에서 보여주는 방식으로 시안 화살표를 그대로 재현한다.
+function AgreementCheckRow({ label, body, checked, expanded, onToggleCheck, onToggleExpand }) {
+  return (
+    <div className="rounded-xl border border-line">
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={checked}
+          onClick={onToggleCheck}
+          className="flex flex-1 items-center gap-3 text-left"
+        >
+          <span
+            aria-hidden="true"
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
+              checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'
+            }`}
+          >
+            <Check size={14} strokeWidth={3} />
+          </span>
+          <span className="text-[0.8125rem] text-ink">
+            <span className="mr-1.5 font-semibold text-primary">필수</span>
+            {label}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-label={`${label} 본문 ${expanded ? '접기' : '펼치기'}`}
+          onClick={onToggleExpand}
+          className="shrink-0 rounded p-1 text-ink-sub transition hover:bg-surface-04"
+        >
+          <ChevronDown size={18} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      {expanded && (
+        <div className="max-h-[15rem] overflow-y-auto whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
+          {body}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ?order= 없는 진입 — 카트 결제 경로 자체가 없으므로 안내 후 마이페이지로 보낸다.
@@ -128,8 +195,19 @@ function EnrollmentCheckout({ orderId }) {
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
   const [couponCode, setCouponCode] = useState('');
+  const [stackableById, setStackableById] = useState({});
   const [codeFeedback, setCodeFeedback] = useState(null);
   const [amountMismatch, setAmountMismatch] = useState(false);
+
+  // 결제 약관 동의(sql/78) — user_term_agreements 원장. null=조회 중.
+  // 재구매·다른 자녀 결제처럼 이미 동의 이력이 있으면 화면에서 이 섹션을
+  // 아예 건너뛴다(매 결제마다 다시 체크하게 하지 않는다 — 원장은 "이 회원이
+  // 이 문서에 동의했는가"를 표현하지 결제 건별 동의가 아니다).
+  const [paymentAgreed, setPaymentAgreed] = useState(null);
+  const [checkedRefund, setCheckedRefund] = useState(false);
+  const [checkedPayment, setCheckedPayment] = useState(false);
+  const [expandedRefund, setExpandedRefund] = useState(false);
+  const [expandedPayment, setExpandedPayment] = useState(false);
 
   const [payMethod, setPayMethod] = useState('card');
   const [loading, setLoading] = useState(false);
@@ -159,7 +237,15 @@ function EnrollmentCheckout({ orderId }) {
         return;
       }
 
-      if (data.approval_status !== 'requested' || data.status !== 'pending') {
+      // 진입 게이트 — 결제 전(status='pending') 주문만 받는다. 승인축은 두 값을
+      // 모두 통과시킨다.
+      //   requested = 아직 수락 전. 수락 + 쿠폰 선택 + 결제를 여기서 다 한다.
+      //   approved  = 수락(fn_respond_enrollment)까지 끝났는데 토스 결제창만 닫힌
+      //               상태 → **재개 모드**. 2026-08-13 이전에는 이 값이 게이트에
+      //               걸려 not_actionable 로 막혔고, 그래서 학부모가 수락 후
+      //               결제창을 닫으면 그 주문을 되살릴 방법이 아예 없었다
+      //               (docs/mypage-payment-handoff.md 작업 2).
+      if (data.status !== 'pending' || !['requested', 'approved'].includes(data.approval_status)) {
         setOrder(data);
         setOrderError('not_actionable');
         setOrderLoading(false);
@@ -179,6 +265,15 @@ function EnrollmentCheckout({ orderId }) {
         return;
       }
 
+      // 재개 모드 — 수락이 이미 끝났으므로 fn_respond_enrollment 를 다시 부르면
+      // 안 된다(재호출은 enrollment_not_pending 으로 죽는다, 위 approvedOrder 주석).
+      // handlePay 가 그 RPC 를 건너뛰고 곧장 토스를 부르도록, 승인 결과와 같은
+      // 모양을 DB 행에서 만들어 미리 채운다. 금액은 쿠폰 귀속까지 반영된 확정값
+      // (orders.amount)이라 여기서 다시 계산하지 않는다.
+      if (data.approval_status === 'approved') {
+        setApprovedOrder({ order_id: data.id, amount: data.amount });
+      }
+
       setOrder(data);
       setOrderItems(items || []);
       setOrderError(null);
@@ -188,6 +283,33 @@ function EnrollmentCheckout({ orderId }) {
       alive = false;
     };
   }, [orderId]);
+
+  // 결제 약관 동의 이력 조회(sql/78) — 3문서(refund_notice/payment_terms/
+  // payment_consent) 전부 agreed=true 일 때만 건너뛴다. RLS(user_term_agreements
+  // own read)가 본인 행만 돌려주므로 embed 결과는 항상 본인 것이다.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('terms')
+        .select('code, user_term_agreements(agreed)')
+        .in('code', ['refund_notice', 'payment_terms', 'payment_consent'])
+        .eq('is_active', true);
+      if (!alive) return;
+      if (error) {
+        console.warn('결제 약관 동의 상태 조회 실패:', error.message);
+        setPaymentAgreed(false);
+        return;
+      }
+      const allAgreed =
+        (data || []).length === 3 &&
+        data.every((t) => (t.user_term_agreements || []).some((a) => a.agreed === true));
+      setPaymentAgreed(allAgreed);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // 쿠폰 목록 — subtotal 은 요청 시점 amount(쿠폰 미적용, Baseline fn_respond_enrollment
   // 주석 "v_subtotal := v_order.amount"). p_student_profile_id 를 반드시 넘겨야
@@ -206,20 +328,38 @@ function EnrollmentCheckout({ orderId }) {
         setCouponError(true);
         return;
       }
+
+      // stackable 은 RPC 반환에 없어 카탈로그에서 함께 읽는다(위 mergeStackable).
+      const { data: flags, error: flagError } = await supabase
+        .from('coupons')
+        .select('id, stackable')
+        .eq('is_active', true);
+      if (signalAlive && !signalAlive()) return;
+      if (flagError) console.warn('쿠폰 중복 사용 여부 조회 실패:', flagError.message);
+
+      const map = {};
+      for (const row of flags || []) map[row.id] = row.stackable;
+      setStackableById(map);
+
       setCouponError(false);
-      setCoupons((data || []).map(mapCouponRow));
+      setCoupons(mergeStackable((data || []).map(mapCouponRow), map));
     },
     [order]
   );
 
+  // 재개 모드(수락 완료 + 결제만 남음). 쿠폰은 수락 시점에 이미 귀속됐고
+  // orders.amount 가 그 결과라, 다시 고르게 하면 화면 금액과 실제 청구액이
+  // 갈라진다 — 조회도 하지 않고 UI 도 감춘다.
+  const isResume = order?.approval_status === 'approved';
+
   useEffect(() => {
-    if (!order) return undefined;
+    if (!order || isResume) return undefined;
     let alive = true;
     fetchCoupons({ signalAlive: () => alive });
     return () => {
       alive = false;
     };
-  }, [order, fetchCoupons]);
+  }, [order, isResume, fetchCoupons]);
 
   const visibleCoupons = useMemo(() => coupons.filter((c) => c.isActive), [coupons]);
 
@@ -241,8 +381,22 @@ function EnrollmentCheckout({ orderId }) {
     setAmountMismatch(false);
     setSelectedCouponIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+
+      // 비중복 쿠폰을 새로 고르면 기존에 골라둔 비중복 쿠폰을 해제한다 —
+      // 서버가 어차피 최고액 1장만 적용하므로(위 mergeStackable 주석) 화면도
+      // 1장만 잡혀 있어야 금액이 일치한다. 중복 가능(stackable) 쿠폰은 건드리지
+      // 않는다.
+      if (stackableById[id] !== true) {
+        for (const selectedId of prev) {
+          if (stackableById[selectedId] !== true) next.delete(selectedId);
+        }
+      }
+
+      next.add(id);
       return next;
     });
   }
@@ -269,20 +423,52 @@ function EnrollmentCheckout({ orderId }) {
       return;
     }
 
-    setCoupons((prev) => [...prev.filter((c) => c.id !== found.id), mapCouponRow(found)]);
-    setSelectedCouponIds((prev) => new Set(prev).add(found.id));
+    // 코드로 받은 쿠폰도 카탈로그의 stackable 을 그대로 적용한다. 카탈로그에
+    // 없는 코드 전용 쿠폰이면 map 에 없어 false(비중복)로 떨어진다 — 보수적인
+    // 쪽이 맞다(mapCouponRow 주석).
+    setCoupons((prev) => [
+      ...prev.filter((c) => c.id !== found.id),
+      ...mergeStackable([mapCouponRow(found)], stackableById)
+    ]);
+    setSelectedCouponIds((prev) => {
+      const next = new Set(prev);
+      if (stackableById[found.id] !== true) {
+        for (const selectedId of prev) {
+          if (stackableById[selectedId] !== true) next.delete(selectedId);
+        }
+      }
+      next.add(found.id);
+      return next;
+    });
     setAmountMismatch(false);
     setCodeFeedback(found.eligible ? null : { type: 'ineligible', reason: found.reason });
     setCouponCode('');
   }
 
-  const canPay = Boolean(order) && !orderError && orderItems.length > 0 && !loading;
+  // 이미 동의 이력이 있으면(paymentAgreed===true) 체크박스 상태와 무관하게
+  // 통과시킨다 — 재구매 화면에서는 체크박스 자체를 렌더하지 않는다(아래 JSX).
+  const paymentTermsReady = paymentAgreed === true || (checkedRefund && checkedPayment);
+  const canPay =
+    Boolean(order) && !orderError && orderItems.length > 0 && !loading && paymentTermsReady;
 
   async function handlePay() {
     if (!canPay) return;
     setLoading(true);
     setPayError(null);
     try {
+      // 결제 약관 동의 기록(sql/78) — 실제 청구(fn_respond_enrollment·토스 호출)
+      // 전에 먼저 확정한다. 여기서 실패하면 결제 자체를 진행하지 않는다.
+      if (paymentAgreed !== true) {
+        const { error: agreeError } = await supabase.rpc('fn_agree_payment_terms');
+        if (agreeError) {
+          console.error('결제 약관 동의 기록 실패:', agreeError.message);
+          setPayError(GENERIC_FAIL_TEXT);
+          setLoading(false);
+          return;
+        }
+        setPaymentAgreed(true);
+      }
+
       let result = approvedOrder;
 
       if (!result) {
@@ -411,6 +597,22 @@ function EnrollmentCheckout({ orderId }) {
 
           {/* 우측: 결제수단/쿠폰/금액 — Checkout.jsx 아래쪽 aside 와 같은 골격. */}
           <aside className="mx-auto w-full max-w-[35.625rem] space-y-10">
+            {/* 구매 전 확인사항(환불 규정) — sql/78 refund_notice. 이미 동의
+                이력이 있으면(재구매 등) 섹션 자체를 감춘다. */}
+            {paymentAgreed === false && (
+              <div>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
+                <AgreementCheckRow
+                  label="위 내용을 모두 확인하였습니다."
+                  body={CHECKOUT_AGREEMENTS.purchaseNotice}
+                  checked={checkedRefund}
+                  expanded={expandedRefund}
+                  onToggleCheck={() => setCheckedRefund((prev) => !prev)}
+                  onToggleExpand={() => setExpandedRefund((prev) => !prev)}
+                />
+              </div>
+            )}
+
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 수단 선택</h3>
               <div className="mx-auto grid max-w-[10rem] grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
@@ -429,8 +631,27 @@ function EnrollmentCheckout({ orderId }) {
                   </button>
                 ))}
               </div>
+
+              {/* 결제 서비스 이용약관 + 결제 관련 개인정보 수집·이용 동의 —
+                  sql/78 payment_terms·payment_consent, 한 체크박스로 묶어
+                  동의 처리한다(CHECKOUT_AGREEMENTS.paymentAgreement 가 이미
+                  두 문서를 이 순서로 이어붙인 텍스트다). */}
+              {paymentAgreed === false && (
+                <div className="mt-4">
+                  <AgreementCheckRow
+                    label="결제 서비스 이용 약관, 개인정보 처리 동의"
+                    body={CHECKOUT_AGREEMENTS.paymentAgreement}
+                    checked={checkedPayment}
+                    expanded={expandedPayment}
+                    onToggleCheck={() => setCheckedPayment((prev) => !prev)}
+                    onToggleExpand={() => setExpandedPayment((prev) => !prev)}
+                  />
+                </div>
+              )}
             </div>
 
+            {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). */}
+            {!isResume && (
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
               <div className="flex gap-2">
@@ -554,6 +775,15 @@ function EnrollmentCheckout({ orderId }) {
                 </>
               )}
             </div>
+            )}
+
+            {isResume && (
+              // ⚠ 신규 카피 — 승인 필요. 쿠폰 섹션이 사라진 이유를 설명하지 않으면
+              // 학부모는 "쿠폰을 못 쓰게 됐다"로 읽는다.
+              <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
+                이미 수락한 요청이에요. 적용한 쿠폰과 결제 금액은 그대로이고, 결제만 진행하면 됩니다.
+              </p>
+            )}
 
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>

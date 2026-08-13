@@ -1,65 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { PackageCheck, RotateCcw, Save, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { formatKRW } from '../data/pricingCatalog';
-import { COMPANY } from '../data/company';
 import { FAKE_ENTITLEMENT_ENABLED, getMockPaidOrders } from '../lib/entitlement';
-
-const REFUND_STATUS = {
-  requested: { label: '접수', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  processing: { label: '처리중', cls: 'border-blue-200 bg-blue-50 text-blue-700' },
-  completed: { label: '환불완료', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-  rejected: { label: '반려', cls: 'border-rose-200 bg-rose-50 text-rose-700' }
-};
-function refundStatus(s) {
-  return REFUND_STATUS[s] || REFUND_STATUS.requested;
-}
-const REFUND_EMPTY = { orderId: '', reason: '', bank: '', account: '', holder: '' };
-
-// fn_request_refund(sql/59_refund_request_hardening.sql) 하드닝으로 새로 생긴
-// 서버측 거부 사유 3종. 문구는 팀 리드가 승인한 코퍼스 규범 문자열이다
-// (2026-08-11, Checkout.jsx:174-184 COUPON_REASON_TEXT 와 동일 패턴).
-const REFUND_ERROR_TEXT = {
-  WC005: '본인 주문이 아닙니다.',
-  WC006: '결제가 확인된 주문만 환불 신청할 수 있습니다.',
-  WC007: '이미 처리 중인 환불 신청이 있습니다.'
-};
-// 위 3종 밖의 "알 수 없는 오류"를 위한 별개 문구 — REFUND_ERROR_TEXT 에 값이
-// 없어서 대신 쓰는 폴백 체인이 아니다(그 체인은 제거했다, 아래 submitRefund
-// 참고). 이 화면은 성공/실패를 알리는 채널이 refundMsg 하나뿐이라, 알 수 없는
-// 코드일 때도 분기 없이 비우면 제출이 조용히 실패한 것처럼 보인다.
-const REFUND_UNKNOWN_ERROR_TEXT = '환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-
-const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
-// value는 DB 저장값 — sql/40_auth_signup.sql의 profiles_member_type_check
-// (student/parent/mentor)와 일치해야 한다. 구 'teacher'는 마이그레이션에서
-// 'mentor'로 정규화됐다.
-const MEMBER_TYPES = [
-  { value: 'student', label: '학생' },
-  { value: 'parent',  label: '학부모' },
-  { value: 'mentor',  label: '멘토·교사' }
-];
-const REGION_OPTIONS = [
-  '서울',
-  '부산',
-  '대구',
-  '인천',
-  '광주',
-  '대전',
-  '울산',
-  '세종',
-  '경기',
-  '강원',
-  '충북',
-  '충남',
-  '전북',
-  '전남',
-  '경북',
-  '경남',
-  '제주',
-  '기타'
-];
+import MyPageTabs from '../components/mypage/MyPageTabs';
+import MyServicesTab from '../components/mypage/MyServicesTab';
+import PaymentsTab from '../components/mypage/PaymentsTab';
+import ProfileTab from '../components/mypage/ProfileTab';
+import KakaoConsultButton from '../components/mypage/KakaoConsultButton';
+import ChildrenTab from '../components/mypage/parent/ChildrenTab';
+import ParentPaymentsTab from '../components/mypage/parent/ParentPaymentsTab';
 
 function cleanText(value) {
   return String(value || '').trim();
@@ -106,29 +55,39 @@ async function queryProfile(user) {
   return byId?.data || {};
 }
 
+// 탭 구성 — 회원유형으로 갈린다.
+//
+// 학생(Figma 3656:374 외): 나의 서비스 / 수강/결제 내역 / 내 정보 수정
+// 학부모(Figma 3636:104): 자녀 등록 및 수정 / 수강/결제 내역 / 내 정보 수정
+//
+// ⚠ 학부모 시안은 리비전마다 탭 수가 다르다 — 2탭(3360:10499), 3탭에 '결제
+// 내역'(3610:2365), 3탭에 '수강/결제 내역'(3636:104), 4탭에 '상담 및 문의'
+// 추가(3616:2892). 2026-08-13 사용자 확정으로 3636:104(3탭)을 정본으로 삼는다.
+// '상담 및 문의'는 내용 디자인도 백엔드도 없어 넣지 않았다.
+const STUDENT_TABS = [
+  { key: 'services', label: '나의 서비스' },
+  { key: 'payments', label: '신청 내역' },
+  { key: 'profile', label: '내 정보 수정' }
+];
+
+const PARENT_TABS = [
+  { key: 'children', label: '자녀 등록 및 수정' },
+  { key: 'payments', label: '결제 내역' },
+  { key: 'profile', label: '내 정보 수정' }
+];
+
 export default function MyPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [user, setUser] = useState(null);
-  const [profileId, setProfileId] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [refunds, setRefunds] = useState([]);
-  const [refundForm, setRefundForm] = useState(REFUND_EMPTY);
-  const [refundSaving, setRefundSaving] = useState(false);
-  const [refundMsg, setRefundMsg] = useState('');
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    region: '',
-    school_type: '',
-    school_name: '',
-    member_type: ''
-  });
+  // 학부모 탭 배지용 대기 건수(확정 디자인 3967:3944 "결제 요청 1"·"환불 요청 1").
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -149,25 +108,18 @@ export default function MyPage() {
           return;
         }
 
-        const profile = await queryProfile(currentUser);
+        const loadedProfile = await queryProfile(currentUser);
 
         if (!alive) return;
 
         setUser(currentUser);
-        setProfileId(profile?.id || currentUser.id);
-
-        setForm({
-          name: profile?.name || '',
-          email: profile?.email || currentUser.email || '',
-          phone: profile?.phone || '',
-          region: profile?.region || '',
-          school_type: profile?.school_type || '',
-          school_name: profile?.school_name || '',
-          member_type: profile?.member_type || ''
+        setProfile({
+          ...loadedProfile,
+          id: loadedProfile?.id || currentUser.id,
+          email: loadedProfile?.email || currentUser.email || ''
         });
       } catch (error) {
         console.error('마이페이지 로딩 오류:', error);
-        setMessage('개인정보를 불러오지 못했습니다.');
       } finally {
         if (alive) setLoading(false);
       }
@@ -179,6 +131,21 @@ export default function MyPage() {
       alive = false;
     };
   }, [navigate]);
+
+  // 환불 신청 내역 재조회 — PaymentsTab이 환불 신청 접수 후 호출한다.
+  const reloadRefunds = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('refund_requests')
+      .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
+      // orders 와 같은 이유로 쌍 두 축을 함께 본다 — refund_requests.user_id 는
+      // "신청한 사람"이라, 학부모가 신청한 환불을 학생이 못 보거나 그 반대가 된다.
+      // RLS(sql/68 "refund_requests select own")가 이미 두 축(student_profile_id,
+      // parent_profile_id)으로 열려 있어 이 조회와 정확히 맞물린다.
+      .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+    setRefunds(data || []);
+  }, [user]);
 
   // 결제 내역 + 환불 신청 내역 로드
   useEffect(() => {
@@ -193,24 +160,36 @@ export default function MyPage() {
           // (api/confirm-payment.js — 계좌 발급만 끝난 상태). paid 만 조회하면 입금 전
           // 주문이 마이페이지에서 통째로 사라지므로 두 상태를 함께 읽고, 배지·환불 대상
           // 판정을 위해 status 도 가져온다.
-          .select('id, order_name, amount, paid_at, status')
-          .eq('user_id', user.id)
-          .in('status', ['paid', 'waiting_deposit'])
+          //
+          // method / vat 은 결제 상세 내역 모달(PaymentDetailModal, Figma 3665:6278)이
+          // 쓴다. 부가세는 우리가 금액에서 역산하지 않고 토스 승인 응답 원본
+          // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
+          // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
+          .select('id, order_name, amount, paid_at, status, method, vat:raw->>vat')
+          // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
+          // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생
+          // 계정은 자기가 신청해서 이용 중인 주문을 하나도 못 본다(빈 목록).
+          // 두 축을 OR 로 함께 본다 — RLS(orders select)가 이미 쌍 당사자만
+          // 통과시키므로 남의 주문이 섞일 여지는 없다.
+          .or(`user_id.eq.${user.id},student_profile_id.eq.${user.id}`)
+          .in('status', ['pending', 'paid', 'waiting_deposit', 'canceled', 'refunded'])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
           // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
           .order('created_at', { ascending: false }),
         supabase
           .from('refund_requests')
-          .select('id, order_id, order_name, amount, reason, status, created_at')
-          .eq('user_id', user.id)
+          .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
+          // 위 reloadRefunds 와 같은 쌍 두 축 조회(그쪽 주석 참고) — 두 경로가
+          // 다른 결과를 주면 환불 신청 직후 표의 상태 배지가 흔들린다.
+          .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
       ]);
       if (!alive) return;
 
       // 로컬 QA 전용: 이용권을 보유한 것으로 가정하는 가짜 결제 내역을 실제 조회 결과
-      // 앞에 합친다. "이용 중인 서비스" 목록에는 보이지만(아래 orders 사용), 환불 신청
-      // 선택 목록에서는 반드시 제외한다(refundableOrders, 아래 참고) — 가짜 주문에
-      // 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
+      // 앞에 합친다. "이용 중인 서비스" 목록에는 보이지만(MyServicesTab), 환불 신청
+      // 선택 목록에서는 반드시 제외해야 한다(PaymentsTab의 refundableOrders 필터 참고) —
+      // 가짜 주문에 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
       if (FAKE_ENTITLEMENT_ENABLED) {
         console.info('[entitlement] 로컬 가짜 이용권 주문을 마이페이지에 표시합니다.');
         setOrders([...getMockPaidOrders(), ...(ord || [])]);
@@ -226,142 +205,59 @@ export default function MyPage() {
     };
   }, [user]);
 
-  // /mypage#refund 로 진입 시 환불 섹션으로 스크롤
+  const memberType = cleanText(profile?.member_type).toLowerCase();
+  const isParent = memberType === 'parent';
+
+  // 결제 대기 주문 건수 — 위 orders 조회는 paid/waiting_deposit 만 읽으므로
+  // pending 은 여기서 따로 센다(탭 배지 전용, 목록은 ParentPaymentsTab 이 읽는다).
   useEffect(() => {
-    if (loading || location.hash !== '#refund') return;
-    const el = document.getElementById('refund');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [loading, location.hash]);
+    if (!user || !isParent) return undefined;
+    let alive = true;
 
-  function updateForm(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+    (async () => {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_profile_id', user.id)
+        .eq('status', 'pending')
+        .in('approval_status', ['requested', 'approved']);
+      if (alive) setPendingOrderCount(count || 0);
+    })();
 
-  function updateRefund(key, value) {
-    setRefundForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  // 환불 신청 대상은 실제 입금이 확인된 주문(paid)뿐이다. 가상계좌 미입금
-  // (waiting_deposit) 건은 아직 들어온 돈이 없어 환불할 대상이 아니므로 목록에서 뺀다.
-  // 로컬 QA 전용 가짜 이용권 주문(is_fake_entitlement)도 함께 제외한다 — "이용 중인
-  // 서비스" 표시에는 orders를 그대로 쓰고, 환불 선택/가드에는 이 목록을 쓴다.
-  const refundableOrders = orders.filter((o) => o.status === 'paid' && !o.is_fake_entitlement);
-
-  async function submitRefund(e) {
-    e.preventDefault();
-    if (!user) return;
-
-    // refundableOrders만 사용 — 만약 가짜 이용권 주문의 id가 폼에 들어와도(정상 UI로는
-    // 불가능하지만 방어적으로) 실제 orders에서 찾지 않아 DB에 잘못된 order_id가 저장되지 않는다.
-    const order = refundableOrders.find((o) => o.id === refundForm.orderId);
-    if (!order) {
-      setRefundMsg('환불할 결제 내역을 선택해 주세요.');
-      return;
-    }
-    if (!cleanText(refundForm.reason)) {
-      setRefundMsg('환불 사유를 입력해 주세요.');
-      return;
-    }
-
-    setRefundSaving(true);
-    setRefundMsg('');
-
-    // 주문 소유권·결제 상태(paid)·중복 신청은 서버(fn_request_refund)가 강제한다.
-    // 금액도 클라이언트가 보내지 않는다 — 서버가 orders.amount 를 그대로 쓴다
-    // (sql/59_refund_request_hardening.sql). status 도 함수가 'requested' 로
-    // 고정하므로 여기서 지정하지 않는다.
-    const { error } = await supabase.rpc('fn_request_refund', {
-      p_order_id: order.id,
-      p_reason: cleanText(refundForm.reason),
-      p_refund_bank: cleanText(refundForm.bank) || null,
-      p_refund_account: cleanText(refundForm.account) || null,
-      p_refund_holder: cleanText(refundForm.holder) || null
-    });
-
-    setRefundSaving(false);
-
-    if (error) {
-      console.error('환불 신청 저장 실패:', error);
-      // 명시적 분기 — 알려진 코드(WC005/WC006/WC007)는 REFUND_ERROR_TEXT 를,
-      // 그 밖의 알 수 없는 코드는 REFUND_UNKNOWN_ERROR_TEXT 를 쓴다("문구가
-      // 없어서 대체"가 아니라 "알 수 없는 오류"라는 별개 사례).
-      setRefundMsg(
-        error.code in REFUND_ERROR_TEXT ? REFUND_ERROR_TEXT[error.code] : REFUND_UNKNOWN_ERROR_TEXT
-      );
-      return;
-    }
-
-    setRefundMsg('환불 신청이 접수되었습니다. 환불규정에 따라 검토 후 안내드리겠습니다.');
-    setRefundForm(REFUND_EMPTY);
-
-    const { data: reqs } = await supabase
-      .from('refund_requests')
-      .select('id, order_id, order_name, amount, reason, status, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    setRefunds(reqs || []);
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!user) return;
-
-    const name = cleanText(form.name);
-    const email = cleanText(form.email || user.email).toLowerCase();
-    const username = email;
-
-    if (!name) {
-      setMessage('이름을 입력해 주세요.');
-      return;
-    }
-
-    setSaving(true);
-    setMessage('');
-
-    const payload = {
-      id: profileId || user.id,
-      name,
-      username,
-      email,
-      phone: cleanText(form.phone),
-      region: form.region,
-      school_type: form.school_type,
-      school_name: cleanText(form.school_name),
-      member_type: form.member_type,
-      updated_at: new Date().toISOString()
+    return () => {
+      alive = false;
     };
+  }, [user, isParent]);
 
-    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+  const refundRequestCount = refunds.filter((r) => r.approval_status === 'requested').length;
 
-    setSaving(false);
-
-    if (error) {
-      console.error('프로필 저장 실패:', error);
-      setMessage('저장에 실패했습니다. 다시 확인해 주세요.');
-      return;
-    }
-
-    try {
-      await supabase.auth.updateUser({
-        data: {
-          name,
-          full_name: name,
-          member_type: form.member_type
+  const tabs = (isParent ? PARENT_TABS : STUDENT_TABS).map((tab) =>
+    isParent && tab.key === 'payments'
+      ? {
+          ...tab,
+          badges: [
+            { label: '결제 요청', count: pendingOrderCount },
+            { label: '환불 요청', count: refundRequestCount }
+          ]
         }
-      });
-    } catch (metadataError) {
-      console.error('인증 메타데이터 저장 오류:', metadataError);
-    }
+      : tab
+  );
 
-    window.dispatchEvent(new Event('winning-profile-updated'));
-    setMessage('개인정보가 저장되었습니다.');
-  }
+  const requestedTab = searchParams.get('tab');
+  const activeTab = tabs.some((tab) => tab.key === requestedTab) ? requestedTab : tabs[0].key;
+
+  // 구 /mypage#refund 진입 호환 — 결제/환불 내역이 있는 payments 탭으로 매핑한다.
+  useEffect(() => {
+    if (loading || location.hash !== '#refund' || searchParams.get('tab')) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'payments');
+    setSearchParams(next, { replace: true });
+  }, [loading, location.hash, searchParams, setSearchParams]);
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
-        <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+      <main className="flex min-h-screen items-center justify-center bg-white pt-16 text-ink">
+        <div className="rounded-2xl border border-line bg-white px-6 py-4 text-sm font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
           개인정보 불러오는 중...
         </div>
       </main>
@@ -369,334 +265,46 @@ export default function MyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] px-6 pt-28 pb-20 text-[#0D1B2A]">
-      <section className="mx-auto max-w-3xl rounded-[34px] border border-[#0D1B2A]/10 bg-white p-8 shadow-[0_24px_70px_rgba(13,27,42,0.12)]">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
-            <UserRound size={26} />
-          </div>
+    <main className="min-h-screen bg-white pt-16">
+      <div className="mx-auto w-full max-w-content px-5 py-[7.5rem] sm:px-8">
+        <h1 className="text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
+          MY 페이지
+        </h1>
 
-          <div>
-            <p className="text-sm font-black text-[#B88737]">MY PAGE</p>
-            <h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">개인정보 수정</h1>
-          </div>
+        <div className="-mt-[1.0625rem]">
+          <MyPageTabs tabs={tabs} activeTab={activeTab} />
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 grid gap-5 md:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-black">이름</span>
-            <input
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.name}
-              onChange={(e) => updateForm('name', e.target.value)}
-              placeholder="이름 입력"
-            />
-          </label>
+        <div className="mt-[6.25rem]">
+          {activeTab === 'services' && <MyServicesTab orders={orders} />}
 
-          <label className="block">
-            <span className="text-sm font-black">이메일</span>
-            <input
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-slate-100 px-4 py-3 font-bold text-slate-500 outline-none"
-              value={form.email}
-              readOnly
-            />
-          </label>
+          {activeTab === 'children' && <ChildrenTab />}
 
-          <label className="block">
-            <span className="text-sm font-black">휴대전화번호</span>
-            <input
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.phone}
-              onChange={(e) => updateForm('phone', e.target.value)}
-              placeholder="010-0000-0000"
-            />
-          </label>
+          {activeTab === 'payments' && (
+            <>
+              {/* 학부모만 — 학생이 만든 결제요청을 발견하는 경로(handoff 작업 1·2).
+                  학생 화면에는 인박스 개념 자체가 없다(요청을 만드는 쪽이라서). */}
+              {isParent ? (
+                <ParentPaymentsTab
+                  orders={orders}
+                  refunds={refunds}
+                  onRefundSubmitted={reloadRefunds}
+                />
+              ) : (
+                <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+              )}
+            </>
+          )}
 
-          <label className="block">
-            <span className="text-sm font-black">지역</span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.region}
-              onChange={(e) => updateForm('region', e.target.value)}
-            >
-              <option value="">선택</option>
-              {REGION_OPTIONS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-black">재학 구분</span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.school_type}
-              onChange={(e) => updateForm('school_type', e.target.value)}
-            >
-              <option value="">선택</option>
-              {SCHOOL_TYPES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-black">학교명</span>
-            <input
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.school_name}
-              onChange={(e) => updateForm('school_name', e.target.value)}
-              placeholder="학교명 입력"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-black">회원 유형</span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-              value={form.member_type}
-              onChange={(e) => updateForm('member_type', e.target.value)}
-            >
-              <option value="">선택</option>
-              {MEMBER_TYPES.map((item) => (
-  <option key={item.value} value={item.value}>
-    {item.label}
-  </option>
-))}
-            </select>
-          </label>
-
-          <div className="md:col-span-2">
-            {message && (
-              <div className="mb-4 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-3 text-sm font-bold text-[#0D1B2A]">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save size={18} />
-              {saving ? '저장 중...' : '저장하기'}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* 이용 중인 서비스 (결제 완료 건) */}
-      {orders.length > 0 && (
-        <section className="mx-auto mt-8 max-w-3xl rounded-[34px] border border-[#0D1B2A]/10 bg-white p-8 shadow-[0_24px_70px_rgba(13,27,42,0.12)]">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
-              <PackageCheck size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-black text-[#B88737]">MY SERVICE</p>
-              <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">이용 중인 서비스</h2>
-            </div>
-          </div>
-
-          <ul className="mt-6 space-y-3">
-            {orders.map((o) => (
-              <li
-                key={o.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-[#0D1B2A]">{o.order_name}</p>
-                  <p className="mt-0.5 text-xs font-bold text-[#8B95A1]">
-                    {formatKRW(o.amount)}
-                    {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)} 결제` : ''}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {o.is_fake_entitlement && (
-                    <span className="rounded-full border border-[#0D1B2A]/15 bg-[#0D1B2A]/5 px-2.5 py-1 text-xs font-black text-[#0D1B2A]/60">
-                      개발용
-                    </span>
-                  )}
-                  {/* 배지는 orders.status 파생값이다. waiting_deposit(가상계좌 발급 후 미입금)을
-                      '결제완료'로 찍으면 입금 전 주문을 오표기한다. 색은 환불 상태 배지와 같은
-                      규약을 따른다 — 완료 계열은 emerald, 대기 계열은 amber. */}
-                  {o.status === 'waiting_deposit' ? (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                      입금대기
-                    </span>
-                  ) : (
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                      결제완료
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 px-5 py-4">
-            <p className="text-sm font-black text-[#0D1B2A]">이용 안내</p>
-            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#5B6573]">
-              담당 매니저가 등록하신 연락처(카카오톡·이메일·전화)로 서비스 이용 방법을 안내드립니다.
-              서비스별 진행 방식은 이용약관 및 담당자 안내를 따릅니다.
-            </p>
-            <p className="mt-2 text-xs font-bold text-[#8B95A1]">
-              문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의 {COMPANY.centerTel}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* 환불 신청 */}
-      <section
-        id="refund"
-        className="mx-auto mt-8 max-w-3xl scroll-mt-28 rounded-[34px] border border-[#0D1B2A]/10 bg-white p-8 shadow-[0_24px_70px_rgba(13,27,42,0.12)]"
-      >
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D1B2A] text-white">
-            <RotateCcw size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-[#B88737]">REFUND</p>
-            <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">환불 신청</h2>
-          </div>
+          {activeTab === 'profile' && (
+            <ProfileTab user={user} profile={profile} memberType={memberType} />
+          )}
         </div>
+      </div>
 
-        <p className="mt-4 text-sm font-bold leading-6 text-[#5B6573]">
-          환불 기준은 서비스별로 상이하며, 자세한 내용은{' '}
-          <Link to="/refund" className="text-[#B88737] underline underline-offset-2">
-            환불규정
-          </Link>
-          을 따릅니다. 신청 접수 후 검토 결과를 안내드립니다.
-        </p>
-
-        {/* 미입금(waiting_deposit) 주문은 환불 대상이 아니므로 refundableOrders 기준으로
-            폼 노출 여부를 판단한다. 입금대기 건만 있는 사용자는 이 빈 상태를 본다. */}
-        {refundableOrders.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-6 text-center text-sm font-bold text-[#5B6573]">
-            환불 신청 가능한 결제 내역이 없습니다.
-          </div>
-        ) : (
-          <form onSubmit={submitRefund} className="mt-6 grid gap-5">
-            <label className="block">
-              <span className="text-sm font-black">환불할 결제 내역</span>
-              <select
-                className="mt-2 w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-                value={refundForm.orderId}
-                onChange={(e) => updateRefund('orderId', e.target.value)}
-              >
-                <option value="">결제 내역 선택</option>
-                {refundableOrders.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.order_name} · {formatKRW(o.amount)}
-                    {o.paid_at ? ` · ${String(o.paid_at).slice(0, 10)}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-black">환불 사유</span>
-              <textarea
-                rows={3}
-                className="mt-2 w-full resize-none rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-                value={refundForm.reason}
-                onChange={(e) => updateRefund('reason', e.target.value)}
-                placeholder="환불 사유를 입력해 주세요."
-              />
-            </label>
-
-            <div>
-              <p className="text-sm font-black">
-                환불 계좌{' '}
-                <span className="font-bold text-[#8B95A1]">(현금성 결제·계좌 환불 시)</span>
-              </p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-3">
-                <input
-                  className="w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-                  value={refundForm.bank}
-                  onChange={(e) => updateRefund('bank', e.target.value)}
-                  placeholder="은행명"
-                />
-                <input
-                  className="w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-                  value={refundForm.account}
-                  onChange={(e) => updateRefund('account', e.target.value)}
-                  placeholder="계좌번호"
-                />
-                <input
-                  className="w-full rounded-2xl border border-[#0D1B2A]/12 bg-[#F8F7F3] px-4 py-3 font-bold outline-none focus:border-[#B88737] focus:bg-white"
-                  value={refundForm.holder}
-                  onChange={(e) => updateRefund('holder', e.target.value)}
-                  placeholder="예금주"
-                />
-              </div>
-              <p className="mt-2 text-xs font-bold text-[#8B95A1]">
-                ※ 카드 결제 건은 원칙적으로 원결제 취소(카드 취소)로 환불되며, 계좌 정보는 부분·현금
-                환불 시 사용됩니다.
-              </p>
-            </div>
-
-            {refundMsg && (
-              <div className="rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-4 py-3 text-sm font-bold text-[#0D1B2A]">
-                {refundMsg}
-              </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={refundSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0D1B2A] px-7 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(13,27,42,0.22)] transition hover:bg-[#162A40] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <RotateCcw size={18} />
-                {refundSaving ? '접수 중...' : '환불 신청'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {refunds.length > 0 && (
-          <div className="mt-8 border-t border-[#0D1B2A]/10 pt-6">
-            <h3 className="text-lg font-black">환불 신청 내역</h3>
-            <ul className="mt-4 space-y-3">
-              {refunds.map((r) => {
-                const st = refundStatus(r.status);
-                return (
-                  <li
-                    key={r.id}
-                    className="rounded-2xl border border-[#0D1B2A]/10 bg-[#F8F7F3] px-5 py-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#0D1B2A]">{r.order_name}</p>
-                        <p className="mt-0.5 text-xs font-bold text-[#8B95A1]">
-                          {formatKRW(r.amount)}
-                          {r.created_at ? ` · ${String(r.created_at).slice(0, 10)}` : ''}
-                        </p>
-                        {r.reason && (
-                          <p className="mt-1.5 break-keep text-xs font-bold text-[#5B6573]">
-                            사유: {r.reason}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${st.cls}`}
-                      >
-                        {st.label}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-      </section>
+      {/* 시안 지시 — "카카오톡 상담하기 버튼은 마이페이지에서 오른쪽 하단에
+          항상 뜨게 해주세요!"(3656:362) */}
+      <KakaoConsultButton />
     </main>
   );
 }

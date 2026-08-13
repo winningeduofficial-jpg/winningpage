@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { clearCart } from '../lib/cart';
 import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
 import { COMPANY } from '../data/company';
+import { useMemberType } from '../hooks/useMemberType';
 
 // 색은 전부 tailwind 토큰으로 쓴다(하드코딩 hex 없음). 이전 ACCENT = '#2563EB' 는
 // 시안 어느 캔버스에도 없는 값이었다 — 완료 화면 시안을 픽셀 실측하면
@@ -417,6 +418,8 @@ export default function PaymentSuccess() {
   // 이때 '프로그램 시작하기'를 눌러도 입장 판정에서 막히므로 CTA 를 바꾸지 않고
   // 대신 복구 안내를 보여준다.
   // 로그인 안 된 재방문(재부여를 시도하지 않은 상태). 실패로 취급하지 않는다.
+  const { memberType } = useMemberType();
+
   const needsLogin = !isWaitingDeposit && access?.error === NOT_OWNER_ERROR;
   const grantFailed = !isWaitingDeposit && !needsLogin && access?.ok === false;
   // 새로고침 안내를 붙일 수 있는 실패인지. 영구 실패에 '새로고침하면 자동 재시도'
@@ -429,7 +432,18 @@ export default function PaymentSuccess() {
   // 처럼 부여 대상이 없는 상품은 access.ok=true + granted=[] 로 돌아오므로
   // (api/_lib/programAccess.js 의 skipped) 여기서 0개가 되어 CTA 가 내려간다.
   const entries = (access?.granted ?? []).map((key) => SERVICE_ENTRY[key]).filter(Boolean);
-  const canStart = !isWaitingDeposit && !grantFailed && entries.length > 0;
+  // 결제자가 학부모면 프로그램 입장 버튼을 띄우지 않는다.
+  //
+  // 쌍 구조(sql/68)에서 이용 권한(program_access_grants)은 **자녀**에게 부여된다
+  // — 결제한 사람과 쓰는 사람이 다르다. 그런데 이 화면은 결제 직후의 결제자가
+  // 보는 화면이라, 그대로 두면 학부모에게 '프로그램 시작하기'가 뜨고 눌러도
+  // 입장 판정(RequireGoalAccess 등)에서 막힌다 — 이 파일이 지키려던 원칙
+  // ("눌러도 막히는 버튼은 만들지 않는다", 아래 CTA 주석)에 정면으로 어긋난다.
+  //
+  // memberType 로딩 중에는 버튼을 내리지 않는다(깜빡임 방지) — 로딩이 끝난 뒤
+  // parent 로 판명되면 그때 대체 CTA 로 바뀐다.
+  const isParentPayer = memberType === 'parent';
+  const canStart = !isWaitingDeposit && !grantFailed && entries.length > 0 && !isParentPayer;
   // 부여는 정상 종료됐는데 들어갈 프로그램이 없는 상품(수시예측·콜멘토 등).
   // '지금 바로 이용' + '프로그램 시작하기' 를 띄우면 사실과 다르다.
   const noEntryProduct = !isWaitingDeposit && access?.ok === true && entries.length === 0;
@@ -803,10 +817,10 @@ export default function PaymentSuccess() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => navigate(FALLBACK_PATH)}
+                  onClick={() => navigate(isParentPayer ? `${FALLBACK_PATH}?tab=payments` : FALLBACK_PATH)}
                   className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                 >
-                  마이페이지에서 확인하기
+                  {isParentPayer ? '결제 내역 보러가기' : '마이페이지에서 확인하기'}
                 </button>
               )}
             </div>

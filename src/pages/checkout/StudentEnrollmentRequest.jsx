@@ -220,6 +220,15 @@ export default function StudentEnrollmentRequest() {
     }
   }
 
+  // 완료 화면으로 넘어갈 때 맨 위로 올린다. 요청 폼은 상품 목록이 길어 대부분
+  // 아래쪽까지 스크롤한 상태에서 제출하는데, 라우트 이동이 아니라 같은 페이지의
+  // 상태 전환이라 브라우저가 스크롤 위치를 그대로 유지한다 — 그러면 완료 화면의
+  // 제목이 화면 밖에 있어 "아무 일도 안 일어난" 것처럼 보인다.
+  useEffect(() => {
+    if (!completedOrder) return;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [completedOrder]);
+
   // 화면 3 — 완료(시안 3921:7792). 헤더/푸터는 렌더하지 않는다 — SiteLayout
   // (App.jsx 의 /checkout·/pricing 공통 레이아웃 라우트)이 이미 전역으로 감싼다.
   if (completedOrder) {

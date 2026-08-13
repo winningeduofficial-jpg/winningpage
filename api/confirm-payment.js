@@ -399,42 +399,53 @@ export default async function handler(req, res) {
     let access = accessNotAttempted(supabaseAdmin ? 'order_not_found' : 'supabase_admin_unavailable');
 
     if (supabaseAdmin && order) {
-      // status 필터: pending(정상 최초 승인) 또는 failed(토스 일시 장애 후 재시도 —
-      // 위 STATUS_FAILED 주석대로 failed 는 종결이 아니다)일 때만 확정한다. 그 외
-      // (동시 웹훅 등 레이스로 이미 paid/canceled/refunded 로 바뀐 경우) 이 UPDATE
-      // 는 아무 행도 건드리면 안 된다 — 아래에서 영향 0행으로 잡아낸다.
-      // amount 조건: :251 에서 이 시점 이전에 order.amount 를 확인했더라도, 그 확인과
-      // 이 UPDATE 사이(토스 승인 왕복 포함)에 다른 학부모의 fn_respond_enrollment 가
-      // 이 주문의 30분 경과 redemption 을 void+원복(discount_amount/amount 상향, sql/71)
-      // 시키면, 토스는 이미 지난 confirmAmount 로 승인됐는데 이 UPDATE 는 status 만
-      // 보고 통과해 "amount 는 원복됐지만 실제 청구는 옛 금액" 인 paid 주문이 남는다
-      // (과소청구 기록 + 쿠폰 이중 사용 가능). confirmAmount 와 현재 orders.amount 가
-      // 다르면 이 UPDATE 자체를 0 행으로 실패시켜 아래 500(:405-419, "승인 성공·기록
-      // 실패" — payment_key 로그 + 수동 대조) 경로로 자연 합류시킨다. 신규 문구 없음.
-      const { data: updatedRows, error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update({
-          status: waitingForDeposit ? STATUS_WAITING_DEPOSIT : STATUS_PAID,
-          payment_key: paymentKey,
-          method: data.method ?? null,
-          paid_at: paidAt,
-          raw: data,
-        })
-        .eq('id', orderId)
-        .eq('amount', confirmAmount)
-        .in('status', [STATUS_PENDING, STATUS_FAILED])
-        .select('id');
+      // orders 확정 UPDATE + 권한 부여를 한 트랜잭션으로 묶는다(sql/79
+      // fn_finalize_paid_order) — 예전에는 이 둘이 별도 왕복이라 그 사이 크래시
+      // 하면 "paid 인데 권한만 없는" 주문이 남았다.
+      //
+      // status 필터(p_require_pending_or_failed=true): pending(정상 최초 승인)
+      // 또는 failed(토스 일시 장애 후 재시도 — 위 STATUS_FAILED 주석대로 failed 는
+      // 종결이 아니다)일 때만 확정한다. 그 외(동시 웹훅 등 레이스로 이미
+      // paid/canceled/refunded 로 바뀐 경우)는 RPC 내부 UPDATE 가 0 행으로 끝나
+      // ok:false 를 돌려준다.
+      //
+      // amount 조건(p_confirm_amount): :251 에서 이 시점 이전에 order.amount 를
+      // 확인했더라도, 그 확인과 이 호출 사이(토스 승인 왕복 포함)에 다른 학부모의
+      // fn_respond_enrollment 가 이 주문의 30분 경과 redemption 을 void+원복
+      // (discount_amount/amount 상향, sql/71) 시키면, 토스는 이미 지난
+      // confirmAmount 로 승인됐는데 status 만 보고 통과해 "amount 는 원복됐지만
+      // 실제 청구는 옛 금액" 인 paid 주문이 남는다(과소청구 기록 + 쿠폰 이중 사용
+      // 가능). confirmAmount 와 현재 orders.amount 가 다르면 RPC 내부 UPDATE 를
+      // 0 행으로 실패시켜 아래 500(승인 성공·기록 실패 — payment_key 로그 + 수동
+      // 대조) 경로로 자연 합류시킨다. 신규 문구 없음.
+      const { data: finalizeResult, error: finalizeError } = await supabaseAdmin.rpc(
+        'fn_finalize_paid_order',
+        {
+          p_order_id: orderId,
+          p_status: waitingForDeposit ? STATUS_WAITING_DEPOSIT : STATUS_PAID,
+          p_payment_key: paymentKey,
+          p_method: data.method ?? null,
+          p_paid_at: paidAt,
+          p_raw: data,
+          p_confirm_amount: confirmAmount,
+          p_require_pending_or_failed: true,
+          // 방금 토스 승인이 성공한 "새 결제"다. 이전에 환불로 회수된 권한이
+          // 있어도 되살려야 한다(재구매) → true. 운영자 제재
+          // (access_status='suspended')는 이 경로에서도 유지된다(RPC 내부 위임).
+          p_restore_revoked: true
+        }
+      );
 
-      if (updateError || !updatedRows || updatedRows.length === 0) {
+      if (finalizeError || !finalizeResult?.ok) {
         // 토스 승인은 이미 성공했다 — 여기서 200 을 돌려주면 돈은 들어왔는데 우리
-        // 기록·권한 부여는 빠진 채로 사용자가 성공으로 오인한다(:304-318, :335 의
-        // 기존 삼킴 제거). 권한 부여는 스킵하고 paymentKey 를 로그에 남겨 운영자가
-        // 토스 콘솔과 수동 대조할 수 있게 한 뒤 500 으로 재시도를 유도한다.
-        console.error('orders 확정 UPDATE 실패 또는 영향 0행(승인은 성공):', {
+        // 기록·권한 부여는 빠진 채로 사용자가 성공으로 오인한다. 권한 부여는
+        // 스킵하고 paymentKey 를 로그에 남겨 운영자가 토스 콘솔과 수동 대조할 수
+        // 있게 한 뒤 500 으로 재시도를 유도한다.
+        console.error('orders 확정 실패(승인은 성공):', {
           orderId,
           paymentKey,
-          updateError,
-          affectedRows: updatedRows?.length ?? 0,
+          finalizeError,
+          finalizeResult,
         });
         return res.status(500).json({
           error: '결제 승인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
@@ -442,18 +453,23 @@ export default async function handler(req, res) {
       }
 
       // 가상계좌(waiting_deposit)에는 권한을 주지 않는다 — 계좌만 발급됐고 돈은
-      // 안 들어왔다. 입금 확인 시 api/toss-webhook.js 가 같은 모듈로 부여한다.
-      // 이 경로는 방금 토스 승인이 성공한 "새 결제"다. 이전에 환불로 회수된 권한이
-      // 있어도 되살려야 한다(재구매) → restoreRevoked: true. 운영자 제재
-      // (access_status='suspended')는 이 경로에서도 유지된다.
-      access = waitingForDeposit
-        ? accessNotAttempted('waiting_deposit')
-        : await grantAndLog(supabaseAdmin, {
-            orderId,
-            userId: order.user_id,
-            paidAt,
-            restoreRevoked: true
-          });
+      // 안 들어왔다. 입금 확인 시 api/toss-webhook.js 가 같은 RPC 로 부여한다.
+      // access 는 fn_grant_program_access_for_order 원본 payload(ok/granted/
+      // service_keys/skipped/error/ledger_inserted, 전부 snake_case) 그대로다
+      // — src/pages/PaymentSuccess.jsx 는 ok/error/granted 세 필드만 읽는다.
+      access = finalizeResult.access;
+      if (waitingForDeposit) {
+        console.log('program_access grant skipped (waiting_deposit):', orderId);
+      } else if (!access.ok) {
+        console.error('program_access grant failed:', orderId, access.error);
+      } else {
+        console.log(
+          'program_access granted:',
+          orderId,
+          access.granted,
+          'ledger_inserted=' + (access.ledger_inserted ?? 0)
+        );
+      }
     }
 
     return res.status(200).json({ ...data, access });
