@@ -14,6 +14,9 @@ import {
   isStepComplete,
   parseStepParam
 } from '../../lib/renewalSurvey';
+// sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. 셸이 fetch 해 outlet context 로 내려준 값을
+// 화면에 실제 보여줄 questions 배열에만 입힌다(요건 판정용 requiredQuestions 는 구조만 보므로 무관).
+import { applySurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides';
 
 /**
  * 설문 한 스텝. 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고,
@@ -29,12 +32,16 @@ import {
  */
 export default function SurveyStepPage() {
   const { step: rawStep } = useParams(); // 훅은 early return 앞에 전부 호출
-  const { answers, setAnswer, submitDiagnosis, cascadeLevels } = useOutletContext();
+  const { answers, setAnswer, submitDiagnosis, cascadeLevels, surveyCopyOverrides } = useOutletContext();
   const navigate = useNavigate();
 
   const step = parseStepParam(rawStep);
   const safeStep = step ?? 1;
   const requiredQuestions = useMemo(() => getStepRequiredQuestions(safeStep), [safeStep]);
+  const stepQuestions = useMemo(
+    () => applySurveyCopyOverrides(getStepQuestions(safeStep), surveyCopyOverrides),
+    [safeStep, surveyCopyOverrides]
+  );
   const { highlightedId, announcement, scrollToFirstUnanswered } = useUnansweredNavigation(
     requiredQuestions,
     answers
@@ -76,7 +83,7 @@ export default function SurveyStepPage() {
   return (
     <>
       <QuestionCardList
-        questions={getStepQuestions(step)}
+        questions={stepQuestions}
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}

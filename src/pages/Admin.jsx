@@ -110,7 +110,8 @@ const MENU_GROUPS = [
       { key: 'faqs', label: '자주하는질문' },
       { key: 'mentorApplyFaqs', label: '멘토신청 FAQ' },
       { key: 'mentorApplyCopy', label: '멘토신청 문구' },
-      { key: 'learningDiagnosis', label: '학습진단 관리' }
+      { key: 'learningDiagnosis', label: '학습진단 관리' },
+      { key: 'learningDiagnosisV2SurveyCopy', label: '학습진단(ver2) 문항 문구' }
     ]
   },
   {
@@ -2320,6 +2321,29 @@ const CONFIGS = {
     title: '학습진단 관리',
     custom: true,
     searchPlaceholder: ''
+  },
+
+  // sql/72_learning_diagnosis_v2_survey_copy.sql — ver2 설문(renewalSurveyQuestions.js) 문항의
+  // 표시 문구만 어드민화한 것. scoringId/optionCodes 등 채점 구조는 이 화면에 없다 — 있으면 안 된다
+  // (라벨 문자열 1자 수정이 채점을 조용히 깨는 걸 막으려고 코드/문구를 애초에 분리했다).
+  learningDiagnosisV2SurveyCopy: {
+    title: '학습진단(ver2) 문항 문구',
+    table: 'learning_diagnosis_v2_survey_copy',
+    order: 'sort_order',
+    noCreate: true,
+    homepage: true,
+    guideText: `여기 값은 서비스 > 학습진단 설문(문항 제목·안내문구·선택지·리커트 문장)에 그대로 나갑니다. 행을 삭제하면 해당 항목은 코드 내장 기본값으로 되돌아갑니다. 채점 방식(어떤 답이 몇 점인지, 어떤 서비스로 이어지는지)은 이 화면에서 바꿀 수 없습니다 — 문구만 바뀌고 채점은 그대로입니다.`,
+    columns: [
+      { key: 'label', label: '항목' },
+      { key: 'copy_value', label: '값' },
+      { key: 'copy_key', label: '키' }
+    ],
+    fields: [
+      { key: 'label', label: '항목', type: 'text', readOnly: true },
+      { key: 'copy_key', label: '키', type: 'text', readOnly: true },
+      { key: 'copy_value', label: '값', type: 'text', required: true }
+    ],
+    defaults: {}
   },
 
   winningSuhaengTopicDb: {

@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import QuestionCardList from '../../components/renewal/survey/QuestionCardList';
 import SurveyProgress from '../../components/renewal/survey/SurveyProgress';
 import { useUnansweredNavigation } from '../../hooks/useUnansweredNavigation';
 import { SURVEY_REPORT_PATH, isQuestionAnswered, surveyMainQuestions } from '../../lib/renewalSurvey';
+// sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. SurveyStepPage 와 같은 계약.
+import { applySurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides';
 
 /**
  * 17문항 롱스크롤 QA 화면. /learning-diagnosis/survey/preview 로 강등 보존한다(SPEC B12).
@@ -13,8 +16,12 @@ import { SURVEY_REPORT_PATH, isQuestionAnswered, surveyMainQuestions } from '../
  * "모든 항목에 응답해주세요" + 첫 미응답으로 스크롤/하이라이트, 완료는 채점 후 리포트로 이동.
  */
 export default function SurveyPreview() {
-  const { answers, setAnswer, submitDiagnosis, cascadeLevels } = useOutletContext();
+  const { answers, setAnswer, submitDiagnosis, cascadeLevels, surveyCopyOverrides } = useOutletContext();
   const navigate = useNavigate();
+  const previewQuestions = useMemo(
+    () => applySurveyCopyOverrides(surveyMainQuestions, surveyCopyOverrides),
+    [surveyCopyOverrides]
+  );
 
   // 선택입력(optional) 문항은 잔여 카운트에서 제외 — 스텝 페이지의 완료 판정과 같은 기준이다.
   const requiredQuestions = surveyMainQuestions.filter((question) => question.optional !== true);
@@ -38,7 +45,7 @@ export default function SurveyPreview() {
   return (
     <>
       <QuestionCardList
-        questions={surveyMainQuestions}
+        questions={previewQuestions}
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}
