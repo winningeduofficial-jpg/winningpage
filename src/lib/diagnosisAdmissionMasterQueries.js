@@ -22,29 +22,43 @@ function ok(data) {
   return { data: data ?? [], error: null };
 }
 
+/**
+ * supabase-js 는 **쿼리** 오류를 { error } 로 돌려주지만 **네트워크** 실패(오프라인·중단·CORS)는
+ * 예외로 던진다. 던지면 async 함수가 reject 되고, 호출부(useAdmissionCascade)의 `.then` 이
+ * 실행되지 않아 loading 이 영구히 true 로 고착된다(에러 화면·재시도 진입 자체가 막힘). 두 실패
+ * 경로를 여기서 하나로 정규화해 어떤 실패든 항상 { data:[], error } 로 돌려준다.
+ */
+async function run(label, build) {
+  try {
+    const { data, error } = await build();
+    if (error) return fail(label, error);
+    return ok(data);
+  } catch (error) {
+    return fail(label, error);
+  }
+}
+
 /** 대학 목록 — 문항 진입 시 1회(admission_result_university_index). */
 export async function fetchAdmissionUniversities() {
-  const { data, error } = await supabase
-    .from('admission_result_university_index')
-    .select('university_key,university_name')
-    .order('university_name', { ascending: true });
-
-  if (error) return fail('대학 목록', error);
-  return ok(data);
+  return run('대학 목록', () =>
+    supabase
+      .from('admission_result_university_index')
+      .select('university_key,university_name')
+      .order('university_name', { ascending: true })
+  );
 }
 
 /** 학과 목록 — 대학 선택 시(admission_result_department_index). */
 export async function fetchAdmissionDepartments(universityKey) {
   if (!universityKey) return ok([]);
 
-  const { data, error } = await supabase
-    .from('admission_result_department_index')
-    .select('department_key,department_name')
-    .eq('university_key', universityKey)
-    .order('department_name', { ascending: true });
-
-  if (error) return fail('학과 목록', error);
-  return ok(data);
+  return run('학과 목록', () =>
+    supabase
+      .from('admission_result_department_index')
+      .select('department_key,department_name')
+      .eq('university_key', universityKey)
+      .order('department_name', { ascending: true })
+  );
 }
 
 /**
@@ -55,15 +69,14 @@ export async function fetchAdmissionDepartments(universityKey) {
 export async function fetchAdmissionTrackRows(universityKey, departmentKey) {
   if (!universityKey || !departmentKey) return ok([]);
 
-  const { data, error } = await supabase
-    .from('admission_results')
-    .select('result_year,main_track,admission_track,subject_reflection,grade_50,grade_70')
-    .eq('is_active', true)
-    .eq('university_key', universityKey)
-    .eq('department_key', departmentKey)
-    .order('admission_track', { ascending: true })
-    .order('result_year', { ascending: true });
-
-  if (error) return fail('입결 상세', error);
-  return ok(data);
+  return run('입결 상세', () =>
+    supabase
+      .from('admission_results')
+      .select('result_year,main_track,admission_track,subject_reflection,grade_50,grade_70')
+      .eq('is_active', true)
+      .eq('university_key', universityKey)
+      .eq('department_key', departmentKey)
+      .order('admission_track', { ascending: true })
+      .order('result_year', { ascending: true })
+  );
 }

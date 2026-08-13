@@ -55,7 +55,13 @@ export function useAdmissionCascade(cascadeValue) {
   const cutsOutcomeRef = useRef({ cuts: null, cutsError: false });
   const cutsSettleRef = useRef(Promise.resolve());
 
-  // 대학 목록. 셸 마운트 1회.
+  // 대학 목록 재조회 트리거. 대학 조회는 마운트 1회(deps=[])라, 최초 조회가 실패하면
+  // 다른 단계(학과·전형)처럼 선택 변경으로 자연히 다시 호출될 경로가 없다 — 새로고침만이
+  // 유일한 복구였다. nonce 를 올려 effect 를 재실행시키는 명시적 재시도 경로를 둔다.
+  const [universitiesNonce, setUniversitiesNonce] = useState(0);
+  const retryUniversities = useCallback(() => setUniversitiesNonce((n) => n + 1), []);
+
+  // 대학 목록. 셸 마운트 1회 + 재시도 시.
   useEffect(() => {
     let alive = true;
     setUniversities((prev) => ({ ...prev, loading: true, error: null }));
@@ -65,7 +71,7 @@ export function useAdmissionCascade(cascadeValue) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [universitiesNonce]);
 
   const universityKey = useMemo(
     () => universities.data.find((u) => u.university_name === value.university)?.university_key ?? null,
@@ -212,7 +218,9 @@ export function useAdmissionCascade(cascadeValue) {
         placeholder: '건국대',
         options: universities.data.map((u) => u.university_name),
         loading: universities.loading,
-        error: universities.error
+        error: universities.error,
+        // 대학 단계에만 재시도를 준다 — 하위 단계는 상위 선택을 바꾸면 자연히 재조회된다.
+        onRetry: retryUniversities
       },
       {
         key: 'department',
@@ -262,7 +270,8 @@ export function useAdmissionCascade(cascadeValue) {
     subjectReflectionCandidates,
     showSubjectReflectionLevel,
     trackRows.loading,
-    trackRows.error
+    trackRows.error,
+    retryUniversities
   ]);
 
   return { levels, cuts, cutsError, admissionMeta: cuts ? { year: cuts.year } : null, awaitCuts };

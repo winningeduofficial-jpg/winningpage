@@ -22,7 +22,8 @@ function resolveMeta(levels) {
     placeholder: level.placeholder ?? '',
     options: level.options ?? [],
     loading: Boolean(level.loading),
-    error: level.error ?? null
+    error: level.error ?? null,
+    onRetry: typeof level.onRetry === 'function' ? level.onRetry : null
   }));
 }
 
@@ -131,7 +132,20 @@ export default function CascadingSelect({ levels, value, onChange }) {
                 {level.loading ? (
                   <p className="px-4 py-3 text-base text-[#808080]">불러오는 중입니다…</p>
                 ) : level.error ? (
-                  <p className="px-4 py-3 text-base text-[#C23B3B]">목록을 불러오지 못했습니다.</p>
+                  // 재시도 콜백이 있으면(대학 단계) 다시 조회할 수 있게 버튼을 함께 준다 —
+                  // 없으면(하위 단계) 상위 선택을 바꾸면 자연히 재조회되므로 안내만 남긴다.
+                  <div className="flex flex-col gap-2 px-4 py-3">
+                    <p className="text-base text-[#C23B3B]">목록을 불러오지 못했습니다.</p>
+                    {level.onRetry && (
+                      <button
+                        type="button"
+                        onClick={() => level.onRetry()}
+                        className="inline-flex min-h-[2.75rem] w-fit items-center rounded-xl border border-[#013262] px-4 py-2 text-base font-medium text-[#013262] transition hover:bg-[#F1F8FF] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30"
+                      >
+                        다시 시도
+                      </button>
+                    )}
+                  </div>
                 ) : options.length === 0 ? (
                   <p className="px-4 py-3 text-base text-[#808080]">선택 가능한 옵션이 없습니다.</p>
                 ) : (
