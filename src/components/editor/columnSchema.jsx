@@ -88,8 +88,14 @@ function ImageRowSlot({ side, block, editor }) {
         <div
           className="image-row__empty"
           onClick={pick}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              pick();
+            }
+          }}
           role="button"
-          tabIndex={-1}
+          tabIndex={0}
         >
           {busy ? "업로드 중…" : "이미지 선택"}
         </div>

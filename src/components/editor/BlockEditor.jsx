@@ -152,6 +152,8 @@ const BlockEditor = forwardRef(function BlockEditor(
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: 여백 클릭 시 실제 contentEditable로 포커스를 넘기는 편의 동작이다(위 주석) — 키보드 사용자는 탭으로 에디터에 바로 도달해 별도 동작이 필요 없다.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일.
     <div
       className="block-editor-frame"
       ref={containerRef}
@@ -161,6 +163,8 @@ const BlockEditor = forwardRef(function BlockEditor(
           전환되지 않도록 강제한다 — 미지정 시 os.colorSchemePreference(matchMedia)를 따라가
           관리자 화면 전체가 라이트인데 에디터만 다크로 렌더되는 문제가 있었다(실측 확인). */}
       {/* .block-editor = 크롬(폭·패딩·그림자), .bn-doc = 공개 렌더러와 공유하는 본문 타이포그래피 */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: 위 여백 클릭 포커스 전달과 동일한 이유 — 키보드는 탭으로 에디터에 바로 도달한다. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일. */}
       <div
         className="block-editor bn-doc"
         translate="no"
