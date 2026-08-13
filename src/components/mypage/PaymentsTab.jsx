@@ -18,11 +18,10 @@ import { formatOrderId, formatApprovedAt, resolveOrderStatus } from './paymentRo
 // 금액을 학생에게 노출하지 않는 것은 2026-08-13 확정 사항이다 — 환불 금액도
 // 학부모 확인 화면에서만 보여준다.
 //
-// ⚠ '이용 완료'(만료) 판정은 이 표의 데이터만으로는 할 수 없다. orders 에는
-// 이용 기간이 없고, 만료는 program_access_grants.expires_at 이 정본이다
-// (MyServicesTab 은 order_name 문자열을 파싱해 근사치를 낸다 — 그 휴리스틱을
-// 여기로 복제하지 않았다). 결제가 끝난 건은 일단 '이용 중'으로 두고, 만료
-// 표시가 필요해지면 부여 원장을 함께 읽어야 한다.
+// '이용 완료'(만료·소진) 판정은 orders 만으로는 못 한다 — 이용 기간·잔여 회차의
+// 정본은 부여 원장(program_access_grants)과 소비 원장(performance_credit_ledger)
+// 이다. 둘 다 학생 본인 행이 RLS 로 열려 있어(*_select_own) 직접 읽는다.
+// MyServicesTab 이 쓰는 order_name 문자열 파싱 휴리스틱은 복제하지 않았다.
 
 const STUDENT_HEADERS = {
   id: '신청번호',
@@ -34,13 +33,15 @@ const STUDENT_HEADERS = {
 
 // 학생 관점의 상태 판정. 환불이 걸린 건은 학부모와 같은 어휘를 쓴다 —
 // 환불 진행 상황은 학생도 그대로 알아야 하고, 달리 부를 이름도 없다.
-function resolveStudentStatus(order, refunds) {
+function resolveStudentStatus(order, refunds, finishedByOrder = {}) {
   if (order.status === 'pending') return 'student_waiting_parent';
   if (order.status === 'canceled' || order.status === 'failed') return 'student_canceled';
 
   const shared = resolveOrderStatus(order, refunds);
-  if (shared === 'paid') return 'student_active';
-  return shared;
+  if (shared !== 'paid') return shared;
+
+  // 환불이 걸리지 않은 결제 건만 이용 상태로 갈린다.
+  return finishedByOrder[order.id] === true ? 'student_done' : 'student_active';
 }
 
 export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitted }) {
@@ -48,6 +49,8 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
   const [refundOrder, setRefundOrder] = useState(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [names, setNames] = useState({ student: '', parent: '' });
+  // orderId → true(이용 완료). 부여 원장이 없는 주문은 키가 없다(판정 보류).
+  const [finishedByOrder, setFinishedByOrder] = useState({});
 
   // 신청 상세 모달이 "신청자 / 결제담당"을 보여주려면 두 이름이 필요하다.
   // 본인 이름은 profiles 에서 바로 읽지만, 학부모 이름은 못 읽는다 —
@@ -80,7 +83,63 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
     };
   }, []);
 
-  const detailStatus = detailOrder ? resolveStudentStatus(detailOrder, refunds) : null;
+  // 이용 완료 판정 — 그 주문의 살아있는 부여가 하나도 남지 않았으면 완료다.
+  //   기간권: expires_at 이 지났으면 만료(배타 상한 — sql/64).
+  //   회차권: 사용 회차가 부여 회차를 채웠으면 소진.
+  //   revoked_at: 환불 등으로 회수된 부여는 애초에 세지 않는다.
+  // 부여가 한 줄도 없는 주문(무료 성격·부여 실패)은 판정하지 않고 비워 둔다 —
+  // 근거 없이 '이용 완료'라고 하면 멀쩡한 이용권을 끝난 것처럼 보이게 한다.
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session?.session?.user?.id;
+      if (!uid) return;
+
+      const [grants, ledger] = await Promise.all([
+        supabase
+          .from('program_access_grants')
+          .select('id, order_id, expires_at, granted_sessions, revoked_at')
+          .eq('profile_id', uid),
+        supabase.from('performance_credit_ledger').select('grant_id, delta').eq('profile_id', uid)
+      ]);
+
+      if (!alive || grants.error) {
+        if (grants.error) console.warn('부여 원장 조회 실패:', grants.error.message);
+        return;
+      }
+
+      const usedByGrant = {};
+      for (const row of ledger.data || []) {
+        usedByGrant[row.grant_id] = (usedByGrant[row.grant_id] || 0) + -Number(row.delta || 0);
+      }
+
+      const now = Date.now();
+      const byOrder = {};
+      for (const g of grants.data || []) {
+        if (!g.order_id) continue;
+        if (g.revoked_at) continue;
+
+        const expired = g.expires_at ? new Date(g.expires_at).getTime() <= now : false;
+        const exhausted =
+          g.granted_sessions !== null && (usedByGrant[g.id] || 0) >= g.granted_sessions;
+
+        const live = !expired && !exhausted;
+        // 하나라도 살아 있으면 그 주문은 아직 이용 중이다.
+        byOrder[g.order_id] = byOrder[g.order_id] === false ? false : !live;
+        if (live) byOrder[g.order_id] = false;
+      }
+
+      setFinishedByOrder(byOrder);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [orders]);
+
+  const detailStatus = detailOrder ? resolveStudentStatus(detailOrder, refunds, finishedByOrder) : null;
 
   return (
     <section>
@@ -101,7 +160,9 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
           raw: o
         }))}
         onSelect={(row) => setDetailOrder(row.raw)}
-        renderStatus={(row) => <PaymentStatusBadge status={resolveStudentStatus(row.raw, refunds)} />}
+        renderStatus={(row) => (
+          <PaymentStatusBadge status={resolveStudentStatus(row.raw, refunds, finishedByOrder)} />
+        )}
       />
 
       <StudentRequestDetailModal

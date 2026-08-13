@@ -34,6 +34,8 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
   const [step, setStep] = useState('form'); // form | verify | confirm | done
   const [nextEmail, setNextEmail] = useState('');
   const [code, setCode] = useState('');
+  // 현재 비밀번호 — Secure email change 를 끈 대가를 메운다(아래 주석).
+  const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [sent, setSent] = useState(false);
@@ -51,6 +53,7 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
     setStep('form');
     setNextEmail('');
     setCode('');
+    setPassword('');
     setSaving(false);
     setErrorMsg('');
     setSent(false);
@@ -74,7 +77,7 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
 
   // 인증번호 발송 — updateUser({ email }) 이 곧 발송 트리거다.
   const sendCode = useCallback(async () => {
-    if (saving || !emailValid) return;
+    if (saving || !emailValid || !password) return;
     setSaving(true);
     setErrorMsg('');
 
@@ -85,6 +88,34 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
       setAuthEmail(liveEmail);
       setSaving(false);
       setErrorMsg('지금 쓰고 있는 이메일이에요. 다른 주소를 입력해 주세요.');
+      return;
+    }
+
+    // 본인 확인 — Supabase 의 "Secure email change"를 껐기 때문에(2026-08-13)
+    // 기존 주소 확인 단계가 사라졌다. 그대로 두면 **로그인 세션만 탈취해도**
+    // 계정 이메일을 바꿔 계정을 통째로 가져갈 수 있다(비밀번호 재설정 메일이
+    // 새 주소로 가므로 원 주인은 복구 수단을 잃는다). 비밀번호를 한 번 물어
+    // 그 공백을 메운다 — ChangePasswordModal 과 같은 방식이다.
+    if (!liveEmail) {
+      setSaving(false);
+      setErrorMsg('로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.');
+      return;
+    }
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: liveEmail,
+      password
+    });
+    if (authError) {
+      console.error('본인 확인 실패:', authError);
+      setSaving(false);
+      if (authError.status === 429) {
+        setErrorMsg('시도가 너무 많았어요. 잠시 후 다시 시도해 주세요.');
+      } else if (authError.status === 400 || /invalid|credential/i.test(authError.message || '')) {
+        setErrorMsg('비밀번호가 일치하지 않아요.');
+      } else {
+        setErrorMsg('본인 확인에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      }
       return;
     }
 
@@ -103,7 +134,11 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
 
     setSent(true);
     setStep('verify');
-  }, [saving, emailValid, nextEmail]);
+    // password·baseEmail 을 빠뜨리면 초기값(빈 문자열)을 붙든 오래된 클로저가
+    // 남아, 첫 줄 가드(!password)에 걸려 **아무 반응 없이** 끝난다. 버튼은
+    // 현재 렌더의 password 로 활성/비활성을 정하므로 눌리기는 하는데 실행만
+    // 되지 않아 "에러도 안 뜨고 아무 일도 없는" 상태가 된다(2026-08-13 신고).
+  }, [saving, emailValid, nextEmail, password, baseEmail]);
 
   // 코드 검증 → 변경 확정.
   const verify = useCallback(async () => {
@@ -250,9 +285,9 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
             <button
               type="button"
               onClick={sendCode}
-              disabled={!emailValid || saving}
+              disabled={!emailValid || !password || saving}
               className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
-                emailValid && !saving
+                emailValid && password && !saving
                   ? 'bg-primary text-white hover:opacity-90'
                   : 'cursor-not-allowed bg-line text-white'
               }`}
@@ -261,6 +296,24 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
             </button>
           </div>
         </label>
+
+        {/* ⚠ 시안에 없는 필드 — 승인 필요. 추가한 이유는 sendCode 의 본인 확인 주석 참고. */}
+        {!isVerifyStep && (
+          <label className="mt-5 block">
+            <span className="text-[0.8125rem] font-semibold text-ink">현재 비밀번호</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrorMsg('');
+              }}
+              placeholder="본인 확인을 위해 비밀번호를 입력해주세요"
+              className={`mt-2 ${FIELD_CLASS}`}
+            />
+          </label>
+        )}
 
         {isVerifyStep && (
           <label className="mt-5 block">
