@@ -716,3 +716,28 @@ export function buildSchedulePayload(row) {
     memo: row.memo || ''
   };
 }
+
+/**
+ * naesin_scores / mock_exam_scores 두 컬럼만 부분 갱신한다(goal/grades.js 전용).
+ *
+ * upsertStudentRow(전체 행 upsert)를 쓰지 않는 이유: 이 경로는 온보딩 이후(행이 이미
+ * 존재) 성적 기록만 추가하는 쓰기라 다른 컬럼(확률·컷·주간계획 등)을 아예 모르는 채로
+ * 호출된다 — upsert에 부분 row를 넘기면 명시하지 않은 컬럼이 DB 기본값/NULL로 덮일
+ * 위험이 있다(onConflict upsert는 누락 컬럼을 그대로 두지 않는다). update는 명시한
+ * 키만 건드리므로 이 위험이 없다.
+ */
+export async function updateStudentGrades(supabaseAdmin, profileId, { naesin_scores, mock_exam_scores }) {
+  const patch = {};
+  if (naesin_scores !== undefined) patch.naesin_scores = naesin_scores;
+  if (mock_exam_scores !== undefined) patch.mock_exam_scores = mock_exam_scores;
+
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_STUDENTS)
+    .update(patch)
+    .eq('profile_id', profileId)
+    .select('naesin_scores, mock_exam_scores')
+    .single();
+
+  if (error) throw error;
+  return data;
+}

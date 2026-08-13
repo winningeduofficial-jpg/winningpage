@@ -45,18 +45,25 @@ function PercentileField({ label, value, onChange, placeholder }) {
   );
 }
 
-export default function AddMockExamGradeModal({ open, onClose }) {
+// onSubmit: async (entry) => {ok:boolean, detail?:string} — entry = {term, examDate, subjects}.
+// 실제 API 호출(addGoalGrade)은 호출부(Grades.jsx / MockExamCard.jsx)가 맡는다.
+export default function AddMockExamGradeModal({ open, onClose, onSubmit }) {
   const [round, setRound] = useState(ROUND_OPTIONS[0].value);
   const [examDate, setExamDate] = useState('');
   const [scores, setScores] = useState({ korean: '', math: '', english: '', science: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const canSubmit =
-    examDate.trim().length > 0 && SUBJECTS.every(({ key }) => scores[key].toString().trim().length > 0);
+    !submitting &&
+    examDate.trim().length > 0 &&
+    SUBJECTS.every(({ key }) => scores[key].toString().trim().length > 0);
 
   function resetForm() {
     setRound(ROUND_OPTIONS[0].value);
     setExamDate('');
     setScores({ korean: '', math: '', english: '', science: '' });
+    setError('');
   }
 
   function handleClose() {
@@ -64,10 +71,17 @@ export default function AddMockExamGradeModal({ open, onClose }) {
     onClose();
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    // 목업 스텁 — 실제 저장/API 연동 금지(확정 사항 §1). 콘솔 로그 + 모달 닫기만 수행.
-    console.log('[AddMockExamGradeModal] submit', { round, examDate, scores });
+    setSubmitting(true);
+    setError('');
+    const result = await onSubmit({ term: round, examDate, subjects: scores });
+    setSubmitting(false);
+
+    if (!result?.ok) {
+      setError(result?.detail || '저장에 실패했습니다. 다시 시도해 주세요.');
+      return;
+    }
     handleClose();
   }
 
@@ -79,10 +93,14 @@ export default function AddMockExamGradeModal({ open, onClose }) {
       subtitle="회차별 백분위를 입력하면 목표와의 격차가 다시 계산돼요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel="성적 저장하기"
+      submitLabel={submitting ? '저장 중…' : '성적 저장하기'}
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
+      {error && (
+        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-[1.5] text-[#D14343]">{error}</p>
+      )}
+
       <div className="grid grid-cols-2 gap-[0.5rem]">
         <ModalField
           label="회차"
@@ -118,7 +136,10 @@ export default function AddMockExamGradeModal({ open, onClose }) {
       </div>
 
       <p className="rounded-lg bg-goal-insight-info px-3 py-2 text-[0.8125rem] leading-[1.5] text-ink">
-        💡 입력한 백분위는 학업 성취도 변화 추이와 합격률 예측에 반영됩니다.
+        {/* 원문 카피(4022:5216)는 "학업 성취도 변화 추이와 합격률 예측에 반영"이지만, 이번 범위는
+            기록·표시만 한다(팀장 지시 — 합격률 재계산·그래프 반영 없음). 구현되지 않은 기능을
+            약속하는 문구를 그대로 두면 사용자를 오도하므로 실제 동작에 맞게 정정한다. */}
+        💡 입력한 백분위는 회차별 성적 표에 기록되어 목표와의 격차를 계산하는 데 쓰입니다.
       </p>
     </AppModal>
   );

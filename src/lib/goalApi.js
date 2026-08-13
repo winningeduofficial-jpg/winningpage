@@ -601,3 +601,87 @@ export async function fetchGoalRanking() {
   console.error('[goalApi] GET /api/goal/ranking 예상 밖 응답 모양:', body);
   return { kind: 'error' };
 }
+
+// ---------------------------------------------------------------------------
+// fetchGoalGrades — GET /api/goal/grades
+// addGoalGrade    — POST /api/goal/grades
+// ---------------------------------------------------------------------------
+//
+// api/goal/grades.js 참고 — 성적 기록·표시 전용이다. 확률/그래프를 다시 계산하지
+// 않으므로 이 두 함수의 반환값에도 확률·rate 필드가 없다.
+//
+// fetchGoalGrades 반환 계약(fetchGoalStudent 와 같은 kind 분기 관례):
+//   { kind: 'no-session' | 'not-allowed' | 'not-onboarded' | 'error' }
+//   { kind: 'ok', naesinRecords: [...], mockRecords: [...] }
+//     — 각 레코드 shape: { term, enteredAt|examDate, subjects:{korean,math,english,science},
+//       value, none:false, recordedAt } (api/goal/grades.js validateEntry 참고).
+export async function fetchGoalGrades() {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/grades', { method: 'GET', headers: authHeader });
+  } catch (error) {
+    console.error('[goalApi] GET /api/goal/grades 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (!response.ok) {
+    console.error('[goalApi] GET /api/goal/grades 실패:', response.status);
+    return { kind: 'error' };
+  }
+
+  const body = await parseJsonSafe(response);
+
+  if (body?.allowed === false) return { kind: 'not-allowed' };
+  if (body?.onboarded === false) return { kind: 'not-onboarded' };
+  if (body?.onboarded === true) {
+    return { kind: 'ok', naesinRecords: body.naesinRecords || [], mockRecords: body.mockRecords || [] };
+  }
+
+  console.error('[goalApi] GET /api/goal/grades 예상 밖 응답 모양:', body);
+  return { kind: 'error' };
+}
+
+/**
+ * @param {'naesin'|'mock'} type
+ * @param {{term:string, enteredAt?:string, examDate?:string,
+ *          subjects:{korean:number|string, math:number|string, english:number|string, science:number|string}}} entry
+ *
+ * 반환 계약:
+ *   { kind: 'no-session' | 'not-allowed' | 'not-onboarded' | 'error' }
+ *   { kind: 'validation-error', detail }  — 400.
+ *   { kind: 'success', record, records }  — 200. records = 갱신된 전체 회차 배열
+ *     (해당 type 전체를 그대로 교체해 쓸 수 있게, 서버가 upsertRecord 이후 값을 돌려준다).
+ */
+export async function addGoalGrade(type, entry) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/grades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader },
+      body: JSON.stringify({ type, entry })
+    });
+  } catch (error) {
+    console.error('[goalApi] POST /api/goal/grades 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    return { kind: 'success', record: result?.record, records: result?.records || [] };
+  }
+  if (response.status === 400) return { kind: 'validation-error', detail: result?.detail };
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 404) return { kind: 'not-onboarded' };
+
+  console.error('[goalApi] POST /api/goal/grades 실패:', response.status, result?.detail);
+  return { kind: 'error' };
+}

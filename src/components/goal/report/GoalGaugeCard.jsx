@@ -13,17 +13,23 @@ import DeltaBadge from '../DeltaBadge';
 // target 자체는 데이터에 별도 필드가 없어 remaining으로 역산한다(mockGrades.kpi 스키마 그대로):
 //   lowerIsBetter → target = value - remaining, 아니면 target = value + remaining.
 //   (예: 내신 3.24 - 0.53 = 2.71 ✅ / 모의고사 78.4 + 13.6 = 92.0 ✅ — mockGrades 값으로 검증됨)
+// remaining 이 없으면(목표 컷 데이터 미확보 — 성적 관리 실데이터 배선에서 처음 나온 경우다,
+// targets.*.naesinCut/jungsiCut 이 null 일 수 있다) 목표 마커를 계산할 수 없다. targetPct를
+// null 로 두어 호출부가 마커·목표 텍스트를 아예 생략하게 한다(가짜 목표를 그리지 않는다).
 function computeGauge({ value, remaining, lowerIsBetter }) {
-  const target = lowerIsBetter ? value - remaining : value + remaining;
   const clamp = (n) => Math.min(100, Math.max(0, n));
 
   if (lowerIsBetter) {
     const SCALE_MIN = 1;
     const SCALE_MAX = 9;
     const toFillPct = (v) => clamp(((SCALE_MAX - v) / (SCALE_MAX - SCALE_MIN)) * 100);
+    if (remaining == null) return { fillPct: toFillPct(value), targetPct: null };
+    const target = value - remaining;
     return { fillPct: toFillPct(value), targetPct: toFillPct(target) };
   }
 
+  if (remaining == null) return { fillPct: clamp(value), targetPct: null };
+  const target = value + remaining;
   return { fillPct: clamp(value), targetPct: clamp(target) };
 }
 
@@ -49,18 +55,24 @@ export default function GoalGaugeCard({ label, round, value, unit, delta, target
 
       <div className="relative w-full pt-2">
         <GoalProgressBar value={fillPct} max={100} thickness="0.75rem" />
-        {/* 목표 마커 — 진행바 위에 세로선으로 겹쳐 그린다(part-12 §195 "목표 마커 세로선"). */}
-        <span
-          aria-hidden="true"
-          className="absolute top-0 h-[1.25rem] w-px -translate-x-1/2 bg-ink-strong"
-          style={{ left: `${targetPct}%` }}
-        />
+        {/* 목표 마커 — 진행바 위에 세로선으로 겹쳐 그린다(part-12 §195 "목표 마커 세로선").
+            targetPct가 없으면(목표 컷 미확보) 그리지 않는다 — 위치 없는 마커를 0%에 붙여
+            그리면 거짓 정보가 된다. */}
+        {targetPct != null && (
+          <span
+            aria-hidden="true"
+            className="absolute top-0 h-[1.25rem] w-px -translate-x-1/2 bg-ink-strong"
+            style={{ left: `${targetPct}%` }}
+          />
+        )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 text-[0.75rem] leading-[1.4] text-ink-sub">
-        <span>{targetLabel}</span>
-        <span>목표까지 {remaining}</span>
-      </div>
+      {targetPct != null && (
+        <div className="flex items-center justify-between gap-3 text-[0.75rem] leading-[1.4] text-ink-sub">
+          <span>{targetLabel}</span>
+          <span>목표까지 {remaining}</span>
+        </div>
+      )}
     </GoalCard>
   );
 }
