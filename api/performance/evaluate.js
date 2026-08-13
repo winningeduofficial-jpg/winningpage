@@ -114,6 +114,7 @@ import {
   checkSubmissionMinLength,
   resolveSessionSubmissionSchema
 } from '../_lib/performance/submission-schema.js';
+import { upsertSessionVectorMetadata, flattenReportSectionsToText } from '../_lib/performance/session-vectors.js';
 
 const SERVICE_KEY = 'suhaeng';
 
@@ -715,6 +716,31 @@ export default async function handler(req, res) {
 
     const sections = buildEvaluationSections(payload);
     const summary = trimmed(payload.summary);
+
+    // ── 학생 과거 수행 RAG용 벡터 메타데이터 upsert. **커밋 RPC보다 반드시 먼저** 한다 —
+    //    RPC(sql/58_performance_submission.sql 약 289-293행)가
+    //    `performance_session_vectors.rag_use`를 `where v.session_id = p_session_id`로
+    //    승격하는데, 그 시점에 이 세션의 벡터 행이 이미 있어야 **첫 평가 커밋에서도**
+    //    승격이 즉시 일어난다. 순서를 뒤집으면 첫 커밋에서는 행이 없어 그 UPDATE가
+    //    0행에 적중하고 승격이 다음 평가나 finalize까지 늦어진다.
+    //    실패해도 평가 리포트 저장 자체는 막지 않는다(부가 기능).
+    try {
+      await upsertSessionVectorMetadata({
+        supabase: supabaseAdmin,
+        sessionId: sessionRow.id,
+        profileId: userId,
+        gradeLabel: sessionRow.grade_label,
+        subjectGroup: sessionRow.subject_group,
+        subject: sessionRow.subject,
+        careerGoal: sessionRow.career_goal,
+        topicTitle: selectedTopic,
+        summaryText: `평가 총평: ${summary}\n설계 리포트: ${flattenReportSectionsToText(designEnvelope.sections)}`
+      });
+    } catch (vectorError) {
+      // 학생 과거 수행 RAG는 부가 기능이다 — 실패해도 평가 리포트 저장 자체를 막지 않는다.
+      console.error('performance/evaluate 학생 과거 수행 벡터 갱신 실패:', vectorError);
+    }
+
     const structureForClient = {
       type: structure.type,
       reason: structure.reason,
