@@ -59,13 +59,14 @@ const BODY_CLASS =
   "admission-meta-edit-modal-body flex-1 overflow-auto bg-white px-6 py-5 md:px-10";
 const FOOTER_CLASS = "border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-10";
 
-function MetaFieldInput({ field, value, onChange }) {
+function MetaFieldInput({ field, value, onChange, labelId }) {
   const base =
     "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none";
 
   if (field.type === "textarea") {
     return (
       <textarea
+        aria-labelledby={labelId}
         value={value ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         rows={4}
@@ -77,6 +78,7 @@ function MetaFieldInput({ field, value, onChange }) {
   if (field.type === "select") {
     return (
       <select
+        aria-labelledby={labelId}
         value={value ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         className={base}
@@ -93,7 +95,12 @@ function MetaFieldInput({ field, value, onChange }) {
 
   if (field.type === "radioBoolean") {
     return (
-      <div className="flex items-center gap-6">
+      // biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-labelledby로 이미 접근성 요건은 충족한다.
+      <div
+        role="group"
+        aria-labelledby={labelId}
+        className="flex items-center gap-6"
+      >
         <label className="inline-flex items-center gap-2 text-sm font-bold">
           <input
             type="radio"
@@ -116,6 +123,7 @@ function MetaFieldInput({ field, value, onChange }) {
 
   return (
     <input
+      aria-labelledby={labelId}
       type={field.type === "number" ? "number" : "text"}
       value={value ?? ""}
       onChange={(e) => {
@@ -219,14 +227,20 @@ export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
         <div className="flex flex-col gap-4">
           {ADMISSION_META_FIELDS.map((field) => (
             <div key={field.key}>
-              <label className="mb-1 block text-sm font-black text-[#111827]">
+              {/* radioBoolean은 라디오 2개짜리 그룹이라 label htmlFor를 단일 컨트롤에
+                  못 매단다 — aria-labelledby로 필드 타입 상관없이 통일한다. */}
+              <span
+                id={`admission-meta-field-label-${field.key}`}
+                className="mb-1 block text-sm font-black text-[#111827]"
+              >
                 {field.label}
                 {field.required && <span className="ml-1 text-red-500">*</span>}
-              </label>
+              </span>
               <MetaFieldInput
                 field={field}
                 value={form[field.key]}
                 onChange={change}
+                labelId={`admission-meta-field-label-${field.key}`}
               />
             </div>
           ))}

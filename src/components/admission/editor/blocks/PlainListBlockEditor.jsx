@@ -35,9 +35,11 @@ export default function PlainListBlockEditor({ block, onChange }) {
 
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">
+      {/* 목록 전체를 설명하는 그룹 제목이라 특정 입력 하나에 매지 않는다 — 각 항목의
+          select/input은 이미 자체 aria-label(`항목 N 종류/텍스트`)을 갖고 있다. */}
+      <span className="mb-1 block text-[11px] font-bold text-gray-500">
         목록
-      </label>
+      </span>
       {items.length === 0 && (
         <p className="text-[11px] text-gray-400">항목 없음</p>
       )}

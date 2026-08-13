@@ -204,10 +204,14 @@ export default function AddScheduleFullModal({
       {/* 메모는 textarea(461×101) — ModalField가 text/number/select/date 4변형만 지원해
           여기서는 직접 구현한다(ModalField와 시각 스펙 동일하게 맞춤). */}
       <div>
-        <label className="mb-[1.6875rem] block text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <label
+          htmlFor="add-schedule-memo"
+          className="mb-[1.6875rem] block text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
+        >
           메모 (선택)
         </label>
         <textarea
+          id="add-schedule-memo"
           value={memo}
           onChange={(event) => setMemo(event.target.value)}
           placeholder="예) 발표 자료 포함, 조사 범위 등 메모를 남겨두세요"

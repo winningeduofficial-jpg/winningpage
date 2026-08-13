@@ -28,9 +28,11 @@ export default function FootnoteBlockEditor({ block, onChange }) {
 
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">
+      {/* 목록 전체를 설명하는 그룹 제목이라 특정 입력 하나에 매지 않는다 — 각 항목은
+          이미 자체 aria-label(`각주 항목 N`)을 갖고 있다. */}
+      <span className="mb-1 block text-[11px] font-bold text-gray-500">
         각주
-      </label>
+      </span>
       <div className="flex flex-col gap-1">
         {items.map((item, idx) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: items는 삭제가 가능하지만 doc 스키마에 항목 id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.

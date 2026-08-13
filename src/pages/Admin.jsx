@@ -3663,6 +3663,7 @@ function Toggle({ checked, onChange, label }) {
 
 function Field({ label, children }) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: children이 폼 컨트롤을 감싸는(중첩) 연결 방식이다 — 정적 분석이 children 내부를 못 봐서 오탐이다.
     <label className="block">
       <span className="mb-1 block text-xs font-black text-gray-500">
         {label}

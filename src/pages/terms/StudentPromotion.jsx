@@ -79,19 +79,21 @@ export default function StudentPromotion() {
           회원은 아래 중 원하는 표기 방식을 선택할 수 있으며, 별도 요청이 없는
           경우 이니셜(익명) 처리를 원칙으로 합니다.
         </p>
+        {/* 실제 인터랙션이 없는 약관 문서용 장식 체크박스 문자(☐)라 label이 아니다 —
+            체크할 대상 input이 없다. */}
         <div className="flex flex-col gap-2 text-xs leading-[1.85] text-ink">
-          <label className="flex items-center gap-2">
+          <p className="flex items-center gap-2">
             <span aria-hidden="true">☐</span>
             실명 및 출신 학교명 공개에 동의합니다.
-          </label>
-          <label className="flex items-center gap-2">
+          </p>
+          <p className="flex items-center gap-2">
             <span aria-hidden="true">☐</span>
             이니셜(익명) 처리를 희망합니다.
-          </label>
-          <label className="flex items-center gap-2">
+          </p>
+          <p className="flex items-center gap-2">
             <span aria-hidden="true">☐</span>
             사진·영상 자료 활용에 동의합니다. (해당 시)
-          </label>
+          </p>
         </div>
       </TermsSection>
 

@@ -5,6 +5,8 @@
 // children이 오면 기본 <input> 대신 그대로 렌더한다(학교·학년처럼 select+input을 한 행에
 // 묶어야 하는 복합 필드, 인라인 편집 모드의 저장/취소 버튼 조합 등).
 // actions가 오면 우측 슬롯에 actionLabel 단일 버튼 대신 그대로 렌더한다(저장/취소 2버튼 조합).
+import { useId } from "react";
+
 export default function ProfileField({
   label,
   value,
@@ -21,13 +23,29 @@ export default function ProfileField({
   actions,
   className = "",
 }) {
+  const labelId = useId();
+  const inputId = useId();
   return (
     <div className={className}>
-      {label && <label className="mb-2 block text-sm text-ink">{label}</label>}
+      {label && (
+        <label
+          // children이 오면 복합 필드(select+input 등)라 htmlFor로 단일 컨트롤에 못
+          // 매고, 대신 id로 남겨 아래 그룹에 aria-labelledby로 연결한다.
+          id={labelId}
+          htmlFor={children ? undefined : inputId}
+          className="mb-2 block text-sm text-ink"
+        >
+          {label}
+        </label>
+      )}
 
-      <div className="flex items-center gap-2">
+      <div
+        className="flex items-center gap-2"
+        {...(children ? { role: "group", "aria-labelledby": labelId } : {})}
+      >
         {children || (
           <input
+            id={inputId}
             type={type}
             value={value ?? ""}
             onChange={(e) => onChange?.(e.target.value)}

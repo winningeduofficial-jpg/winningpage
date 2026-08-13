@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useRef, useState } from "react";
+import { cloneElement, isValidElement, useId, useRef, useState } from "react";
 import BookViewer from "../components/premiumBook/BookViewer";
 import { usePremiumBookPages } from "../components/premiumBook/usePremiumBookPages";
 
@@ -85,11 +85,25 @@ function validateForm(form) {
   return errors;
 }
 
-function FormField({ label, error, children }) {
+// controlId를 주면(서비스 선택처럼 <select>가 아이콘과 함께 <div>로 한 겹
+// 감싸여 있어 children을 직접 복제할 수 없는 경우) 그 id를 label htmlFor로
+// 쓰고, 호출부가 실제 컨트롤에 같은 id를 직접 단다. 안 주면 children이 바로
+// 그 컨트롤이라는 뜻이라 cloneElement로 id를 꽂는다. label이 children까지
+// 감싸면(중첩 연결) flex-col gap-2가 한 아이템으로 합쳐져 라벨·입력 사이
+// 간격이 사라지므로 형제 구조를 유지한다.
+function FormField({ label, error, children, controlId }) {
+  const generatedId = useId();
+  const isSingleControl = controlId === undefined && isValidElement(children);
+  const inputId = controlId ?? (isSingleControl ? generatedId : undefined);
+  const control = isSingleControl
+    ? cloneElement(children, { id: children.props.id ?? inputId })
+    : children;
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-normal text-black">{label}</label>
-      {children}
+      <label htmlFor={inputId} className="text-sm font-normal text-black">
+        {label}
+      </label>
+      {control}
       {error ? (
         <p className="text-xs font-normal text-red-600">{error}</p>
       ) : null}
@@ -272,9 +286,11 @@ export default function PremiumApply() {
                     <FormField
                       label="이용하고 싶으신 서비스 *"
                       error={errors.service}
+                      controlId="premium-apply-service"
                     >
                       <div className="relative">
                         <select
+                          id="premium-apply-service"
                           ref={fieldRefs.service}
                           value={form.service}
                           onChange={(e) =>
