@@ -338,3 +338,6 @@ export default async function handler(req, res) {
     return fail(res, 500, 'INTERNAL', '초기 정보를 불러오지 못했습니다.');
   }
 }
+
+// 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
+export const config = { runtime: 'nodejs' };

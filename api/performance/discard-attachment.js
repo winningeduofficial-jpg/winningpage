@@ -167,3 +167,6 @@ export default async function handler(req, res) {
     return fail(res, 500, 'INTERNAL', '사진 취소에 실패했습니다.');
   }
 }
+
+// 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
+export const config = { runtime: 'nodejs' };
