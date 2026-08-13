@@ -37,12 +37,12 @@
 // 코퍼스 적재는 별도 작업이다. 검색이 빈 결과를 돌려주는 것은 버그가 아니라
 // `source:'none'`이며, 이때 프롬프트에는 원문 그대로 `관련 위닝DB 항목 없음`이 들어간다.
 
-import { createSupabaseAdmin } from '../supabaseAdmin.js';
-import { embedText } from './embeddings.js';
-import { NO_KNOWLEDGE_TEXT, NO_STUDENT_HISTORY_TEXT } from './prompts.js';
+import { createSupabaseAdmin } from "../supabaseAdmin.js";
+import { embedText } from "./embeddings.js";
+import { NO_KNOWLEDGE_TEXT, NO_STUDENT_HISTORY_TEXT } from "./prompts.js";
 
 /** 지식베이스 테이블. `api/performance/admin-embed.js`의 상수와 같은 값이다. */
-const KNOWLEDGE_TABLE = 'winning_assessment_knowledge_items';
+const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 
 // ─────────────────────────────────────────────────────────────────────
 // threshold — RPC 기본값(0.52)과 다르므로 **항상 명시 전달한다**
@@ -52,7 +52,7 @@ const KNOWLEDGE_TABLE = 'winning_assessment_knowledge_items';
 // 두 값 모두 §12.3의 현장 튜닝값이다.
 
 /** `topic_pattern` 검색 임계값(§12.3). 원문 `dynamic-knowledge.js:245`. */
-export const TOPIC_MATCH_THRESHOLD = 0.50;
+export const TOPIC_MATCH_THRESHOLD = 0.5;
 
 /** `verified_resource` 검색 임계값(§12.3). 원문 `dynamic-knowledge.js:245`. */
 export const RESOURCE_MATCH_THRESHOLD = 0.48;
@@ -90,78 +90,92 @@ export const RESOURCE_MAX_CHARS = 8000;
 // 경우는 입력이 빈 문자열일 때뿐이다. 즉 §12.2가 지목한 오분류는 "미매칭 → 국어"가
 // 아니라 "빈 입력 → 국어"이며, 빈 과목으로 검색하는 상황 자체가 상위에서 막힌다
 // (STEP1 폼이 과목을 필수로 받는다). 결정 없이 바꾸면 기존 검색 분포만 흔들린다.
-export function normalizeSubject(subject = '') {
-  const s = String(subject || '').replace(/\s/g, '');
+export function normalizeSubject(subject = "") {
+  const s = String(subject || "").replace(/\s/g, "");
 
   if (
-    s.includes('국어') ||
-    s.includes('문학') ||
-    s.includes('독서') ||
-    s.includes('작문') ||
-    s.includes('화법') ||
-    s.includes('언어') ||
-    s.includes('매체')
-  ) return '국어';
+    s.includes("국어") ||
+    s.includes("문학") ||
+    s.includes("독서") ||
+    s.includes("작문") ||
+    s.includes("화법") ||
+    s.includes("언어") ||
+    s.includes("매체")
+  )
+    return "국어";
 
   if (
-    s.includes('수학') ||
-    s.includes('대수') ||
-    s.includes('미적분') ||
-    s.includes('기하') ||
-    s.includes('확률') ||
-    s.includes('통계') ||
-    s.includes('이산')
-  ) return '수학';
+    s.includes("수학") ||
+    s.includes("대수") ||
+    s.includes("미적분") ||
+    s.includes("기하") ||
+    s.includes("확률") ||
+    s.includes("통계") ||
+    s.includes("이산")
+  )
+    return "수학";
 
-  if (s.includes('영어') || s.includes('영미')) return '영어';
+  if (s.includes("영어") || s.includes("영미")) return "영어";
 
-  if (s.includes('한국사')) return '한국사';
-
-  if (
-    s.includes('사회') ||
-    s.includes('역사') ||
-    s.includes('윤리') ||
-    s.includes('지리') ||
-    s.includes('경제') ||
-    s.includes('정치') ||
-    s.includes('법') ||
-    s.includes('세계시민') ||
-    s.includes('국제관계') ||
-    s.includes('기후변화')
-  ) return '사회';
+  if (s.includes("한국사")) return "한국사";
 
   if (
-    s.includes('과학') ||
-    s.includes('생명') ||
-    s.includes('화학') ||
-    s.includes('물리') ||
-    s.includes('지구') ||
-    s.includes('세포') ||
-    s.includes('유전') ||
-    s.includes('물질과에너지') ||
-    s.includes('화학반응') ||
-    s.includes('전자기') ||
-    s.includes('양자') ||
-    s.includes('역학') ||
-    s.includes('행성') ||
-    s.includes('우주')
-  ) return '과학';
+    s.includes("사회") ||
+    s.includes("역사") ||
+    s.includes("윤리") ||
+    s.includes("지리") ||
+    s.includes("경제") ||
+    s.includes("정치") ||
+    s.includes("법") ||
+    s.includes("세계시민") ||
+    s.includes("국제관계") ||
+    s.includes("기후변화")
+  )
+    return "사회";
 
-  if (s.includes('정보') || s.includes('데이터') || s.includes('소프트웨어') || s.includes('인공지능')) return '정보';
+  if (
+    s.includes("과학") ||
+    s.includes("생명") ||
+    s.includes("화학") ||
+    s.includes("물리") ||
+    s.includes("지구") ||
+    s.includes("세포") ||
+    s.includes("유전") ||
+    s.includes("물질과에너지") ||
+    s.includes("화학반응") ||
+    s.includes("전자기") ||
+    s.includes("양자") ||
+    s.includes("역학") ||
+    s.includes("행성") ||
+    s.includes("우주")
+  )
+    return "과학";
 
-  return subject || '국어';
+  if (
+    s.includes("정보") ||
+    s.includes("데이터") ||
+    s.includes("소프트웨어") ||
+    s.includes("인공지능")
+  )
+    return "정보";
+
+  return subject || "국어";
 }
 
 function unique(values) {
-  return [...new Set(values.map((v) => String(v || '').trim()).filter(Boolean))];
+  return [
+    ...new Set(values.map((v) => String(v || "").trim()).filter(Boolean)),
+  ];
 }
 
 function scoreText(text, keywords) {
-  const base = String(text || '').toLowerCase();
+  const base = String(text || "").toLowerCase();
   let score = 0;
 
   for (const keyword of keywords) {
-    const k = String(keyword || '').trim().toLowerCase();
+    const k = String(keyword || "")
+      .trim()
+      .toLowerCase();
     if (!k) continue;
     if (base.includes(k)) score += 3;
   }
@@ -181,29 +195,30 @@ function scoreText(text, keywords) {
  * 이미 단일 참조로 정리돼 있어(embeddings.js) 검색측도 같은 규칙으로 맞춘다.
  */
 function getRowSourceLink(row = {}) {
-  return String(row?.source_link || '').trim();
+  return String(row?.source_link || "").trim();
 }
 
 /**
  * 행 1건 → 프롬프트 조각. **문자 단위 원문 이식**(§12.3 「RAG 질의문 조립 + 결과 직렬화」).
  * 라벨과 필드 순서를 바꾸면 하위 파싱이 깨진다.
  */
-function rowToText(row, label = '위닝DB 항목') {
+function rowToText(row, label = "위닝DB 항목") {
   const sourceLink = getRowSourceLink(row);
-  const similarity = typeof row.similarity === 'number'
-    ? `\n- 유사도: ${row.similarity.toFixed(4)}`
-    : '';
+  const similarity =
+    typeof row.similarity === "number"
+      ? `\n- 유사도: ${row.similarity.toFixed(4)}`
+      : "";
 
   return `
 [${label}]
-- 학년: ${row.grade || ''}
-- 과목: ${row.subject || ''}
-- 진로분야: ${row.career_field || ''}
-- 자료명: ${row.title || ''}
-- 출처: ${row.source || ''}
-- 출처 링크: ${sourceLink || '없음'}${similarity}
+- 학년: ${row.grade || ""}
+- 과목: ${row.subject || ""}
+- 진로분야: ${row.career_field || ""}
+- 자료명: ${row.title || ""}
+- 출처: ${row.source || ""}
+- 출처 링크: ${sourceLink || "없음"}${similarity}
 - 내용:
-${row.content || ''}
+${row.content || ""}
 `.trim();
 }
 
@@ -245,26 +260,33 @@ function packRows(rows, maxChars, label) {
  * 위해서다(벡터 경로에서는 RPC 본문의 인라인 목록이 같은 일을 한다).
  */
 export function getGradeCandidates(grade) {
-  const gradeText = String(grade || '').trim();
+  const gradeText = String(grade || "").trim();
 
-  const baseGrade = gradeText.includes('고1') ? '고1'
-    : gradeText.includes('고2') ? '고2'
-    : gradeText.includes('고3') ? '고3'
-    : gradeText;
+  const baseGrade = gradeText.includes("고1")
+    ? "고1"
+    : gradeText.includes("고2")
+      ? "고2"
+      : gradeText.includes("고3")
+        ? "고3"
+        : gradeText;
 
-  const gradeAlias = baseGrade === '고1' ? '1학년'
-    : baseGrade === '고2' ? '2학년'
-    : baseGrade === '고3' ? '3학년'
-    : '';
+  const gradeAlias =
+    baseGrade === "고1"
+      ? "1학년"
+      : baseGrade === "고2"
+        ? "2학년"
+        : baseGrade === "고3"
+          ? "3학년"
+          : "";
 
   return unique([
     gradeText,
     baseGrade,
     gradeAlias,
-    '공통',
-    '전체',
-    '고등학생',
-    '확인 필요'
+    "공통",
+    "전체",
+    "고등학생",
+    "확인 필요",
   ]);
 }
 
@@ -277,11 +299,11 @@ export function getGradeCandidates(grade) {
  * (`sql/53_performance.sql` — `or w.grade in ('공통','전체','확인 필요')`)이 책임진다.
  */
 export function getBaseGradeForRpc(grade) {
-  const text = String(grade || '').trim();
+  const text = String(grade || "").trim();
 
-  if (text.includes('고1') || text.includes('1학년')) return '고1';
-  if (text.includes('고2') || text.includes('2학년')) return '고2';
-  if (text.includes('고3') || text.includes('3학년')) return '고3';
+  if (text.includes("고1") || text.includes("1학년")) return "고1";
+  if (text.includes("고2") || text.includes("2학년")) return "고2";
+  if (text.includes("고3") || text.includes("3학년")) return "고3";
 
   return null;
 }
@@ -330,59 +352,61 @@ function resolveFilterSubject({ includeOtherSubjects, subject }) {
  * 질의문 6줄과 안내문 **2500자** 절단은 문자 단위 원문이다(§12.3 — 학생 과거 수행
  * 경로의 2000자와 다르다. 혼동 금지).
  */
-async function loadByVectorSearch(db, {
-  grade,
-  subject,
-  career,
-  selectedTopic,
-  assessmentInfo,
-  knowledgeType,
-  maxItems,
-  maxChars,
-  includeOtherSubjects
-}) {
+async function loadByVectorSearch(
+  db,
+  {
+    grade,
+    subject,
+    career,
+    selectedTopic,
+    assessmentInfo,
+    knowledgeType,
+    maxItems,
+    maxChars,
+    includeOtherSubjects,
+  },
+) {
   const queryText = [
-    `학년: ${grade || ''}`,
-    `현재 과목: ${subject || ''}`,
+    `학년: ${grade || ""}`,
+    `현재 과목: ${subject || ""}`,
     `정규화 과목군: ${normalizeSubject(subject)}`,
-    `희망 진로: ${career || ''}`,
-    `선택 또는 이전 주제: ${selectedTopic || ''}`,
-    `수행평가 안내문: ${String(assessmentInfo || '').slice(0, 2500)}`
-  ].join('\n');
+    `희망 진로: ${career || ""}`,
+    `선택 또는 이전 주제: ${selectedTopic || ""}`,
+    `수행평가 안내문: ${String(assessmentInfo || "").slice(0, 2500)}`,
+  ].join("\n");
 
   const queryEmbedding = await embedText(queryText);
 
-  const { data, error } = await db.rpc(
-    'match_winning_suhaeng_all_subjects',
-    {
-      query_embedding: queryEmbedding,
-      filter_knowledge_type: knowledgeType,
-      filter_grade: getBaseGradeForRpc(grade),
-      match_count: Math.max(maxItems * 2, 10),
-      match_threshold: knowledgeType === 'verified_resource'
+  const { data, error } = await db.rpc("match_winning_suhaeng_all_subjects", {
+    query_embedding: queryEmbedding,
+    filter_knowledge_type: knowledgeType,
+    filter_grade: getBaseGradeForRpc(grade),
+    match_count: Math.max(maxItems * 2, 10),
+    match_threshold:
+      knowledgeType === "verified_resource"
         ? RESOURCE_MATCH_THRESHOLD
         : TOPIC_MATCH_THRESHOLD,
-      filter_subject: resolveFilterSubject({ includeOtherSubjects, subject })
-    }
-  );
+    filter_subject: resolveFilterSubject({ includeOtherSubjects, subject }),
+  });
 
   if (error) throw error;
 
   const rows = (data || []).slice(0, maxItems);
 
-  if (!rows.length) return { text: '', hitCount: 0, rows: [] };
+  if (!rows.length) return { text: "", hitCount: 0, rows: [] };
 
-  const label = knowledgeType === 'verified_resource'
-    ? '전과목 유사도 기반 위닝 수행 자료 DB'
-    : '전과목 유사도 기반 위닝 수행 주제 DB';
+  const label =
+    knowledgeType === "verified_resource"
+      ? "전과목 유사도 기반 위닝 수행 자료 DB"
+      : "전과목 유사도 기반 위닝 수행 주제 DB";
 
   const packed = packRows(rows, maxChars, label);
 
   return {
-    text: packed.map((entry) => entry.piece).join('\n\n'),
+    text: packed.map((entry) => entry.piece).join("\n\n"),
     hitCount: packed.length,
     // 프롬프트에 **실제로 들어간** 행만 돌려준다(packRows 주석 참조).
-    rows: packed.map((entry) => entry.row)
+    rows: packed.map((entry) => entry.row),
   };
 }
 
@@ -400,35 +424,38 @@ async function loadByVectorSearch(db, {
  * 통째로 키워드로 쓰므로 사실상 점수가 붙지 않는다"고 지적하지만 대체 랭킹이 결정되지
  * 않았고, 이 경로는 **벡터 검색이 throw했을 때만** 도는 비상구다.
  */
-async function loadByLegacyKeywordSearch(db, {
-  grade,
-  subject,
-  career,
-  selectedTopic,
-  assessmentInfo,
-  knowledgeType,
-  maxItems,
-  maxChars,
-  includeOtherSubjects
-}) {
+async function loadByLegacyKeywordSearch(
+  db,
+  {
+    grade,
+    subject,
+    career,
+    selectedTopic,
+    assessmentInfo,
+    knowledgeType,
+    maxItems,
+    maxChars,
+    includeOtherSubjects,
+  },
+) {
   const normalizedSubject = normalizeSubject(subject);
   const gradeCandidates = getGradeCandidates(grade);
-  const subjectParts = String(subject || '')
-    .split('/')
+  const subjectParts = String(subject || "")
+    .split("/")
     .map((v) => v.trim())
     .filter(Boolean);
 
   // 어드민 옵션은 '사회역사', `normalizeSubject`의 반환은 '사회'라 값이 어긋난다.
   // 원문 `:280`이 폴백 경로에만 두었던 임시 보정이며 그대로 옮긴다(§12.2).
-  const legacySubject = normalizedSubject === '사회' ? '사회역사' : '';
+  const legacySubject = normalizedSubject === "사회" ? "사회역사" : "";
 
   const subjectCandidates = unique([
     normalizedSubject,
     legacySubject,
     subject,
     ...subjectParts,
-    '공통',
-    '전체'
+    "공통",
+    "전체",
   ]);
 
   const keywords = unique([
@@ -436,21 +463,23 @@ async function loadByLegacyKeywordSearch(db, {
     selectedTopic,
     normalizedSubject,
     subject,
-    String(assessmentInfo || '').slice(0, 300)
+    String(assessmentInfo || "").slice(0, 300),
   ]);
 
   const baseSelect = db
     .from(KNOWLEDGE_TABLE)
-    .select('id, knowledge_type, grade, subject, career_field, title, content, source, source_link, memo, created_at')
-    .eq('is_active', true)
-    .or('rag_use.is.null,rag_use.eq.true')
-    .eq('knowledge_type', knowledgeType)
-    .in('grade', gradeCandidates)
-    .order('created_at', { ascending: false });
+    .select(
+      "id, knowledge_type, grade, subject, career_field, title, content, source, source_link, memo, created_at",
+    )
+    .eq("is_active", true)
+    .or("rag_use.is.null,rag_use.eq.true")
+    .eq("knowledge_type", knowledgeType)
+    .in("grade", gradeCandidates)
+    .order("created_at", { ascending: false });
 
   const { data: rows = [], error } = includeOtherSubjects
     ? await baseSelect.limit(160)
-    : await baseSelect.in('subject', subjectCandidates).limit(80);
+    : await baseSelect.in("subject", subjectCandidates).limit(80);
 
   if (error) throw error;
 
@@ -463,26 +492,26 @@ async function loadByLegacyKeywordSearch(db, {
         row.content,
         row.source,
         row.memo,
-        getRowSourceLink(row)
-      ].join(' ');
+        getRowSourceLink(row),
+      ].join(" ");
 
       return {
         row,
-        score: scoreText(blob, keywords)
+        score: scoreText(blob, keywords),
       };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, maxItems)
     .map((item) => item.row);
 
-  if (!scored.length) return { text: '', hitCount: 0, rows: [] };
+  if (!scored.length) return { text: "", hitCount: 0, rows: [] };
 
-  const packed = packRows(scored, maxChars, '위닝DB 후보');
+  const packed = packRows(scored, maxChars, "위닝DB 후보");
 
   return {
-    text: packed.map((entry) => entry.piece).join('\n\n'),
+    text: packed.map((entry) => entry.piece).join("\n\n"),
     hitCount: packed.length,
-    rows: packed.map((entry) => entry.row)
+    rows: packed.map((entry) => entry.row),
   };
 }
 
@@ -510,18 +539,19 @@ async function loadByLegacyKeywordSearch(db, {
  */
 export async function loadDynamicAssessmentKnowledge({
   supabase,
-  grade = '고등학생',
-  subject = '국어',
-  career = '',
-  selectedTopic = '',
-  assessmentInfo = '',
-  purpose = 'topic',
+  grade = "고등학생",
+  subject = "국어",
+  career = "",
+  selectedTopic = "",
+  assessmentInfo = "",
+  purpose = "topic",
   maxItems = 6,
   maxChars = TOPIC_MAX_CHARS,
-  includeOtherSubjects = true
+  includeOtherSubjects = true,
 } = {}) {
   const db = supabase || createSupabaseAdmin();
-  const knowledgeType = purpose === 'resource' ? 'verified_resource' : 'topic_pattern';
+  const knowledgeType =
+    purpose === "resource" ? "verified_resource" : "topic_pattern";
 
   const args = {
     grade,
@@ -532,7 +562,7 @@ export async function loadDynamicAssessmentKnowledge({
     knowledgeType,
     maxItems,
     maxChars,
-    includeOtherSubjects
+    includeOtherSubjects,
   };
 
   try {
@@ -541,24 +571,27 @@ export async function loadDynamicAssessmentKnowledge({
     if (vector.hitCount) {
       return {
         text: vector.text,
-        source: 'vector',
+        source: "vector",
         hitCount: vector.hitCount,
         injectedChars: vector.text.length,
         degraded: false,
-        rows: vector.rows
+        rows: vector.rows,
       };
     }
 
     return {
       text: NO_KNOWLEDGE_TEXT,
-      source: 'none',
+      source: "none",
       hitCount: 0,
       injectedChars: 0,
       degraded: false,
-      rows: []
+      rows: [],
     };
   } catch (error) {
-    console.error('전과목 RAG 위닝DB 검색 실패, 기존 키워드 검색으로 대체:', error);
+    console.error(
+      "전과목 RAG 위닝DB 검색 실패, 기존 키워드 검색으로 대체:",
+      error,
+    );
   }
 
   try {
@@ -567,34 +600,34 @@ export async function loadDynamicAssessmentKnowledge({
     if (keyword.hitCount) {
       return {
         text: keyword.text,
-        source: 'keyword',
+        source: "keyword",
         hitCount: keyword.hitCount,
         injectedChars: keyword.text.length,
         // 벡터가 죽어서 여기까지 온 것 자체가 성능 저하다. 결과가 나와도 표시한다.
         degraded: true,
-        rows: keyword.rows
+        rows: keyword.rows,
       };
     }
 
     return {
       text: NO_KNOWLEDGE_TEXT,
-      source: 'none',
+      source: "none",
       hitCount: 0,
       injectedChars: 0,
       degraded: true,
-      rows: []
+      rows: [],
     };
   } catch (error) {
-    console.error('위닝DB 지식 조회 오류:', error);
+    console.error("위닝DB 지식 조회 오류:", error);
 
     // 실패 문구를 프롬프트에 흘리지 않는다(§8.7 「제안(관측성)」).
     return {
-      text: '',
-      source: 'none',
+      text: "",
+      source: "none",
       hitCount: 0,
       injectedChars: 0,
       degraded: true,
-      rows: []
+      rows: [],
     };
   }
 }
@@ -612,7 +645,9 @@ export async function loadDynamicAssessmentKnowledge({
 
 /** 요약 압축. 원문 `reports.js:4-7`. */
 function compactText(text, max = 1200) {
-  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  const value = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
@@ -631,46 +666,45 @@ function compactText(text, max = 1200) {
 export async function loadRelevantStudentSessions({
   supabase,
   profileId,
-  grade = '',
-  subject = '',
-  career = '',
-  selectedTopic = '',
-  assessmentInfo = '',
+  grade = "",
+  subject = "",
+  career = "",
+  selectedTopic = "",
+  assessmentInfo = "",
   matchCount = 8,
-  matchThreshold = STUDENT_HISTORY_MATCH_THRESHOLD
+  matchThreshold = STUDENT_HISTORY_MATCH_THRESHOLD,
 } = {}) {
   if (!profileId) {
-    throw new Error('loadRelevantStudentSessions: profileId가 필요합니다(소유자 격리 필수).');
+    throw new Error(
+      "loadRelevantStudentSessions: profileId가 필요합니다(소유자 격리 필수).",
+    );
   }
 
   const db = supabase || createSupabaseAdmin();
 
   try {
     const queryText = [
-      `학년: ${grade || ''}`,
-      `현재 과목: ${subject || ''}`,
-      `희망 진로: ${career || ''}`,
-      `현재 또는 선택 주제: ${selectedTopic || ''}`,
-      `수행평가 안내문: ${String(assessmentInfo || '').slice(0, 2000)}`
-    ].join('\n');
+      `학년: ${grade || ""}`,
+      `현재 과목: ${subject || ""}`,
+      `희망 진로: ${career || ""}`,
+      `현재 또는 선택 주제: ${selectedTopic || ""}`,
+      `수행평가 안내문: ${String(assessmentInfo || "").slice(0, 2000)}`,
+    ].join("\n");
 
     const queryEmbedding = await embedText(queryText);
 
-    const { data, error } = await db.rpc(
-      'match_student_performance_sessions',
-      {
-        query_embedding: queryEmbedding,
-        filter_profile_id: profileId,
-        match_count: matchCount,
-        match_threshold: matchThreshold
-      }
-    );
+    const { data, error } = await db.rpc("match_student_performance_sessions", {
+      query_embedding: queryEmbedding,
+      filter_profile_id: profileId,
+      match_count: matchCount,
+      match_threshold: matchThreshold,
+    });
 
     if (error) throw error;
 
     return data || [];
   } catch (error) {
-    console.error('학생 과거 수행 RAG 검색 오류:', error);
+    console.error("학생 과거 수행 RAG 검색 오류:", error);
     return [];
   }
 }
@@ -688,23 +722,27 @@ export async function loadRelevantStudentSessions({
  * **주입은 상위 4건까지**가 규칙이다(§12.3 — 검색은 8건, 주입은 4건). 자르기는
  * 호출부에서 `reports.slice(0, 4)`로 한다. 원문과 같은 책임 분배다.
  */
-export function formatRelevantStudentSessionsForPrompt(sessions = [], currentSubject = '') {
+export function formatRelevantStudentSessionsForPrompt(
+  sessions = [],
+  currentSubject = "",
+) {
   if (!sessions.length) return NO_STUDENT_HISTORY_TEXT;
 
   const render = (r, i) => {
-    const sameSubject = r.subject && currentSubject && r.subject === currentSubject;
+    const sameSubject =
+      r.subject && currentSubject && r.subject === currentSubject;
 
     return `
 [학생 과거 수행 ${i + 1}]
-- 과목: ${r.subject || '미입력'}
-- 현재 과목과의 관계: ${sameSubject ? '같은 과목' : '다른 과목 또는 전과목 유사도 기반 참고'}
-- 주제: ${r.topic_title || '미입력'}
-- 진로: ${r.career_goal || '미입력'}
+- 과목: ${r.subject || "미입력"}
+- 현재 과목과의 관계: ${sameSubject ? "같은 과목" : "다른 과목 또는 전과목 유사도 기반 참고"}
+- 주제: ${r.topic_title || "미입력"}
+- 진로: ${r.career_goal || "미입력"}
 - 내용 요약: ${compactText(r.summary_text, 900)}
 `.trim();
   };
 
-  return sessions.map(render).join('\n\n');
+  return sessions.map(render).join("\n\n");
 }
 
 /** 프롬프트에 주입하는 과거 수행 상한(§12.3 「프롬프트 주입 상위 4건」). */

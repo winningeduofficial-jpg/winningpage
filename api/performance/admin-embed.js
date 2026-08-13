@@ -26,22 +26,22 @@
 //   405 { detail }        POST 아님.
 //   500 { detail }        임베딩 실패, 서버 설정 누락 등.
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { resolveAdmin } from '../_lib/adminAuth.js';
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { resolveAdmin } from "../_lib/adminAuth.js";
 import {
   buildKnowledgeSearchText,
   embedText,
   getEmbeddingDimension,
-  getEmbeddingModel
-} from '../_lib/performance/embeddings.js';
+  getEmbeddingModel,
+} from "../_lib/performance/embeddings.js";
 
-const KNOWLEDGE_TABLE = 'winning_assessment_knowledge_items';
+const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 
 // 임베딩 대상 화이트리스트. `student_record_pattern`이 빠진 것은 누락이 아니라
 // "저장은 하되 수행평가 RAG에는 안 쓴다"는 구분이다 — RPC
 // `match_winning_suhaeng_all_subjects`도 같은 2종으로 하드 제한한다
 // (sql/53_performance.sql (3-b), 명세서 §8.7 말미).
-const RAG_KNOWLEDGE_TYPES = new Set(['topic_pattern', 'verified_resource']);
+const RAG_KNOWLEDGE_TYPES = new Set(["topic_pattern", "verified_resource"]);
 
 const DEFAULT_BACKFILL_LIMIT = 30;
 const MAX_BACKFILL_LIMIT = 50;
@@ -52,27 +52,27 @@ const MAX_BACKFILL_LIMIT = 50;
 // 방법이 없어 embed-one 1건에서는 어쩔 수 없이 함께 받지만(아래 SELECT_COLUMNS),
 // 백필 목록 조회에서는 id만 받아 배치 전송량을 줄인다.
 const SELECT_COLUMNS = [
-  'id',
-  'knowledge_type',
-  'grade',
-  'subject',
-  'career_field',
-  'title',
-  'content',
-  'source',
-  'source_link',
+  "id",
+  "knowledge_type",
+  "grade",
+  "subject",
+  "career_field",
+  "title",
+  "content",
+  "source",
+  "source_link",
   // `keywords`는 어드민 폼에 입력 필드가 없어 쓰기 경로가 없지만, 빌더의
   // `키워드:` 줄이 참조하므로 반드시 받아야 한다. 빠뜨리면 값이 있는 행에서도
   // 빈 문자열로 조립돼 저장된 `search_text`와 공식이 어긋나고, 정확 일치 캐시가
   // 영구 미스가 된다(외부 라이브 엔드포인트는 `select('*')`라 늘 포함됐다).
-  'keywords',
-  'memo',
-  'search_text',
-  'embedding',
-  'embedding_model',
-  'embedding_status',
-  'embedded_at'
-].join(',');
+  "keywords",
+  "memo",
+  "search_text",
+  "embedding",
+  "embedding_model",
+  "embedding_status",
+  "embedded_at",
+].join(",");
 
 function clampLimit(value) {
   const parsed = Number(value);
@@ -81,7 +81,7 @@ function clampLimit(value) {
 }
 
 function errorMessage(error) {
-  return String(error?.message || error || '알 수 없는 임베딩 오류');
+  return String(error?.message || error || "알 수 없는 임베딩 오류");
 }
 
 /**
@@ -98,13 +98,13 @@ async function markEmbeddingError(supabaseAdmin, id, message) {
   const { error } = await supabaseAdmin
     .from(KNOWLEDGE_TABLE)
     .update({
-      embedding_status: 'error',
-      embedding_error: message.slice(0, 2000)
+      embedding_status: "error",
+      embedding_error: message.slice(0, 2000),
     })
-    .eq('id', id);
+    .eq("id", id);
 
   if (error) {
-    console.error('admin-embed: embedding_error 기록 실패', id, error.message);
+    console.error("admin-embed: embedding_error 기록 실패", id, error.message);
   }
 }
 
@@ -118,7 +118,7 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
   const { data: item, error: fetchError } = await supabaseAdmin
     .from(KNOWLEDGE_TABLE)
     .select(SELECT_COLUMNS)
-    .eq('id', id)
+    .eq("id", id)
     .maybeSingle();
 
   if (fetchError) {
@@ -126,15 +126,15 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
   }
 
   if (!item) {
-    return { id, status: 'not_found', reason: '지식 항목을 찾을 수 없습니다.' };
+    return { id, status: "not_found", reason: "지식 항목을 찾을 수 없습니다." };
   }
 
-  if (!RAG_KNOWLEDGE_TYPES.has(String(item.knowledge_type || ''))) {
+  if (!RAG_KNOWLEDGE_TYPES.has(String(item.knowledge_type || ""))) {
     return {
       id,
-      status: 'skipped',
+      status: "skipped",
       knowledge_type: item.knowledge_type,
-      reason: `수행평가 RAG 대상 knowledge_type이 아닙니다: ${item.knowledge_type}`
+      reason: `수행평가 RAG 대상 knowledge_type이 아닙니다: ${item.knowledge_type}`,
     };
   }
 
@@ -146,17 +146,17 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
   if (
     !force &&
     item.embedding &&
-    item.embedding_status === 'done' &&
-    String(item.search_text || '') === searchText
+    item.embedding_status === "done" &&
+    String(item.search_text || "") === searchText
   ) {
     return {
       id,
-      status: 'skipped',
-      reason: '이미 같은 내용으로 임베딩되어 있습니다.',
+      status: "skipped",
+      reason: "이미 같은 내용으로 임베딩되어 있습니다.",
       knowledge_type: item.knowledge_type,
-      title: item.title || '',
-      embedding_model: item.embedding_model || '',
-      embedded_at: item.embedded_at || null
+      title: item.title || "",
+      embedding_model: item.embedding_model || "",
+      embedded_at: item.embedded_at || null,
     };
   }
 
@@ -171,11 +171,11 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
         search_text: searchText,
         embedding,
         embedding_model: model,
-        embedding_status: 'done',
+        embedding_status: "done",
         embedding_error: null,
-        embedded_at: new Date().toISOString()
+        embedded_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq("id", id);
 
     if (updateError) {
       throw new Error(`임베딩 저장 실패: ${updateError.message}`);
@@ -183,11 +183,11 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
 
     return {
       id,
-      status: 'embedded',
+      status: "embedded",
       knowledge_type: item.knowledge_type,
-      title: item.title || '',
+      title: item.title || "",
       embedding_model: model,
-      embedding_dimension: embedding.length
+      embedding_dimension: embedding.length,
     };
   } catch (error) {
     await markEmbeddingError(supabaseAdmin, id, errorMessage(error));
@@ -219,15 +219,17 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
 async function backfill(supabaseAdmin, { limit, force }) {
   let query = supabaseAdmin
     .from(KNOWLEDGE_TABLE)
-    .select('id')
-    .in('knowledge_type', [...RAG_KNOWLEDGE_TYPES]);
+    .select("id")
+    .in("knowledge_type", [...RAG_KNOWLEDGE_TYPES]);
 
   if (!force) {
-    query = query.or('embedding.is.null,embedding_status.eq.pending,embedding_status.eq.error');
+    query = query.or(
+      "embedding.is.null,embedding_status.eq.pending,embedding_status.eq.error",
+    );
   }
 
   const { data: rows, error } = await query
-    .order('embedded_at', { ascending: true, nullsFirst: true })
+    .order("embedded_at", { ascending: true, nullsFirst: true })
     .limit(limit);
 
   if (error) {
@@ -243,13 +245,17 @@ async function backfill(supabaseAdmin, { limit, force }) {
     try {
       const result = await embedOne(supabaseAdmin, row.id, { force });
 
-      if (result.status === 'embedded') embedded += 1;
+      if (result.status === "embedded") embedded += 1;
       else skipped += 1;
 
       results.push(result);
     } catch (itemError) {
       failed += 1;
-      results.push({ id: row.id, status: 'error', reason: errorMessage(itemError) });
+      results.push({
+        id: row.id,
+        status: "error",
+        reason: errorMessage(itemError),
+      });
     }
   }
 
@@ -260,13 +266,13 @@ async function backfill(supabaseAdmin, { limit, force }) {
     embedded,
     skipped,
     failed,
-    results
+    results,
   };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   let supabaseAdmin;
@@ -274,8 +280,8 @@ export default async function handler(req, res) {
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('admin-embed 설정 오류:', error);
-    return res.status(500).json({ detail: '서버 설정이 올바르지 않습니다.' });
+    console.error("admin-embed 설정 오류:", error);
+    return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
   }
 
   const auth = await resolveAdmin(supabaseAdmin, req);
@@ -284,31 +290,41 @@ export default async function handler(req, res) {
     return res.status(auth.status).json({ detail: auth.detail });
   }
 
-  const { action = 'embed-one', id, limit, force = false } = req.body || {};
-  const forceFlag = force === true || force === 'true';
+  const { action = "embed-one", id, limit, force = false } = req.body || {};
+  const forceFlag = force === true || force === "true";
 
   try {
-    if (action === 'embed-one') {
+    if (action === "embed-one") {
       if (!id) {
-        return res.status(400).json({ detail: 'id가 필요합니다.' });
+        return res.status(400).json({ detail: "id가 필요합니다." });
       }
 
       const result = await embedOne(supabaseAdmin, id, { force: forceFlag });
       return res.status(200).json({ action, ...result });
     }
 
-    if (action === 'backfill') {
+    if (action === "backfill") {
       const result = await backfill(supabaseAdmin, {
         limit: clampLimit(limit ?? DEFAULT_BACKFILL_LIMIT),
-        force: forceFlag
+        force: forceFlag,
       });
 
-      return res.status(200).json({ action, embedding_dimension: getEmbeddingDimension(), ...result });
+      return res
+        .status(200)
+        .json({
+          action,
+          embedding_dimension: getEmbeddingDimension(),
+          ...result,
+        });
     }
 
-    return res.status(400).json({ detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'." });
+    return res
+      .status(400)
+      .json({
+        detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'.",
+      });
   } catch (error) {
-    console.error('admin-embed error:', error);
+    console.error("admin-embed error:", error);
     return res.status(500).json({ detail: errorMessage(error) });
   }
 }
@@ -316,4 +332,4 @@ export default async function handler(req, res) {
 // Gemini 호출이 붙어 있어 기본 10초로는 백필이 잘린다(1건당 수백ms~수초 ×
 // 최대 50건). maxDuration은 Vercel Hobby 상한이 60초다 — 그 이상이 필요하면
 // limit을 줄여 여러 번 호출한다(위 backfill 정렬 계약이 반복 호출을 전제한다).
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 // FAQ 아코디언(단일 open).
 //
@@ -33,7 +33,7 @@ function FaqItem({ item, index, isOpen, onToggle }) {
         {/* chevron 24 × 0.766 = 18.4px. 색 #808080 → #767676 상향. */}
         <ChevronDown
           className={`h-[1.125rem] w-[1.125rem] shrink-0 text-[#767676] transition-transform ${
-            isOpen ? 'rotate-180' : ''
+            isOpen ? "rotate-180" : ""
           }`}
         />
       </button>

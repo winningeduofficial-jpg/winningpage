@@ -6,7 +6,7 @@
 // — goal_daily_records의 "가상 날짜"(actual_start_date + record_index)와 무관한
 // 별개 개념이라 그 모듈은 쓰지 않는다.
 
-import { addDaysYMD, getMondayYMD, kstYMD } from './goal/calc/index.js';
+import { addDaysYMD, getMondayYMD, kstYMD } from "./goal/calc/index.js";
 
 // 호출부(StudyPlanRail.jsx 등)가 "오늘" YMD가 필요할 때 calc 배럴을 따로 또 import하지
 // 않도록 그대로 재노출한다 — 이 파일이 이미 같은 심볼을 쓰고 있어 재노출 비용이 없다.
@@ -14,9 +14,25 @@ export { kstYMD };
 
 // WeekdayPlanBoard.jsx DAY_KEY와 같은 순서(월~일). mockWeeklyPlan(goalMock.js)의
 // day 라벨과 글자 단위로 같아야 WeekdayPlanBoard가 그대로 소비할 수 있다.
-export const WEEKDAY_LABELS = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+export const WEEKDAY_LABELS = [
+  "월요일",
+  "화요일",
+  "수요일",
+  "목요일",
+  "금요일",
+  "토요일",
+  "일요일",
+];
 // WeekdayPlanBoard.jsx의 내부 DAY_KEY 값과 같은 순서·표기(mon~sun).
-export const WEEKDAY_SHORT_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+export const WEEKDAY_SHORT_KEYS = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];
 
 /**
  * 표시할 주(월~일)의 실제 날짜 7개(YYYY-MM-DD)를 돌려준다.
@@ -24,7 +40,8 @@ export const WEEKDAY_SHORT_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'su
  */
 export function getWeekDates(weekOffset = 0, now = new Date()) {
   const thisMonday = getMondayYMD(kstYMD(now), now);
-  const monday = weekOffset === 0 ? thisMonday : addDaysYMD(thisMonday, weekOffset * 7, now);
+  const monday =
+    weekOffset === 0 ? thisMonday : addDaysYMD(thisMonday, weekOffset * 7, now);
   return Array.from({ length: 7 }, (_, i) => addDaysYMD(monday, i, now));
 }
 
@@ -42,14 +59,17 @@ export function getTodayShortKeyInWeek(weekDates, now = new Date()) {
  * 가리키게 하기 위해 Intl로 KST를 명시한다.
  */
 export function getTodayWeekdayLabel(now = new Date()) {
-  return new Intl.DateTimeFormat('ko-KR', { weekday: 'long', timeZone: 'Asia/Seoul' }).format(now);
+  return new Intl.DateTimeFormat("ko-KR", {
+    weekday: "long",
+    timeZone: "Asia/Seoul",
+  }).format(now);
 }
 
 /** GoalPageHeader meta 라벨. 예: "2026.07.27 – 08.02" (WeeklyPlan.jsx 기존 정적 문구와 동일 포맷). */
 export function formatWeekRangeLabel(weekDates) {
   const [start, end] = [weekDates[0], weekDates[weekDates.length - 1]];
-  const [sy, sm, sd] = start.split('-');
-  const [, em, ed] = end.split('-');
+  const [sy, sm, sd] = start.split("-");
+  const [, em, ed] = end.split("-");
   return `${sy}.${sm}.${sd} – ${em}.${ed}`;
 }
 

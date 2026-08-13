@@ -8,16 +8,16 @@
 // 반응 — staggered=false). batchAnimating 윈도우가 끝나면 자동으로 꺼져 이후 리렌더에는
 // 영향을 주지 않는다. 총 stagger 시간은 항목 수에 비례해 상한(§ 10개 500ms 규칙)을 넘지 않도록
 // 40ms/행으로 짧게 유지한다(AgreementRow.jsx의 auth-check-pop 참고).
-import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
-import AgreementRow from './AgreementRow';
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
+import AgreementRow from "./AgreementRow";
 
 export default function AgreementList({
   items, // [{ key, label, required, checked, to }]
   allChecked = false,
   onToggleAll,
   onToggleItem, // (key) => void
-  className = ''
+  className = "",
 }) {
   const [batchAnimating, setBatchAnimating] = useState(false);
   const itemCount = items?.length || 0;
@@ -25,7 +25,10 @@ export default function AgreementList({
   useEffect(() => {
     if (!batchAnimating) return undefined;
 
-    const timer = window.setTimeout(() => setBatchAnimating(false), itemCount * 40 + 260);
+    const timer = window.setTimeout(
+      () => setBatchAnimating(false),
+      itemCount * 40 + 260,
+    );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, itemCount]);
 
@@ -47,8 +50,8 @@ export default function AgreementList({
           aria-hidden="true"
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
             allChecked
-              ? 'border-primary bg-primary text-white'
-              : 'border-line bg-white text-transparent'
+              ? "border-primary bg-primary text-white"
+              : "border-line bg-white text-transparent"
           }`}
         >
           <Check size={14} strokeWidth={3} />

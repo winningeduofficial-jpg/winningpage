@@ -19,10 +19,11 @@
 //     PUBLIC_SITE_URL=http://localhost:3000
 //   NICE는 return_url을 사전 등록 없이 받으므로 localhost도 그대로 통과한다(확인 완료).
 
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
-const POPUP_NAME = 'niceIdentity';
-const POPUP_FEATURES = 'width=480,height=812,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes';
+const POPUP_NAME = "niceIdentity";
+const POPUP_FEATURES =
+  "width=480,height=812,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes";
 
 // 표준창 transaction_id의 수명(10분)과 맞춘다.
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -30,21 +31,25 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const CLOSE_POLL_MS = 500;
 
 const MESSAGES = {
-  popup_blocked: '팝업이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도해 주세요.',
-  canceled: '본인확인을 취소했습니다.',
-  closed: '본인확인 창이 닫혔습니다. 다시 시도해 주세요.',
-  timeout: '시간이 초과되었습니다. 다시 시도해 주세요.',
-  invalid_signature: '본인확인 결과를 신뢰할 수 없습니다. 다시 시도해 주세요.',
-  invalid_result: '본인확인에 실패했습니다. 다시 시도해 주세요.',
-  guardian_age: '법정대리인 본인확인은 만 14세 이상만 가능합니다.',
-  unknown_request: '만료된 요청입니다. 다시 시도해 주세요.',
-  already_processed: '이미 처리된 요청입니다. 다시 시도해 주세요.',
-  rate_limited: '본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.',
-  vendor_unavailable: '본인확인 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-  vendor_rejected: '본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.',
-  server_misconfigured: '본인확인 설정에 문제가 있습니다. 관리자에게 문의해 주세요.',
-  network: '연결 상태를 확인한 뒤 다시 시도해 주세요.',
-  unknown: '잠시 후 다시 시도해 주세요.'
+  popup_blocked:
+    "팝업이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도해 주세요.",
+  canceled: "본인확인을 취소했습니다.",
+  closed: "본인확인 창이 닫혔습니다. 다시 시도해 주세요.",
+  timeout: "시간이 초과되었습니다. 다시 시도해 주세요.",
+  invalid_signature: "본인확인 결과를 신뢰할 수 없습니다. 다시 시도해 주세요.",
+  invalid_result: "본인확인에 실패했습니다. 다시 시도해 주세요.",
+  guardian_age: "법정대리인 본인확인은 만 14세 이상만 가능합니다.",
+  unknown_request: "만료된 요청입니다. 다시 시도해 주세요.",
+  already_processed: "이미 처리된 요청입니다. 다시 시도해 주세요.",
+  rate_limited: "본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+  vendor_unavailable:
+    "본인확인 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+  vendor_rejected:
+    "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
+  server_misconfigured:
+    "본인확인 설정에 문제가 있습니다. 관리자에게 문의해 주세요.",
+  network: "연결 상태를 확인한 뒤 다시 시도해 주세요.",
+  unknown: "잠시 후 다시 시도해 주세요.",
 };
 
 function fail(reason) {
@@ -59,22 +64,22 @@ async function requestAuthUrl(purpose) {
   let payload;
 
   try {
-    response = await fetch('/api/nice-identity-start', {
-      method: 'POST',
+    response = await fetch("/api/nice-identity-start", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         // 가입 전 호출이 정상이라 토큰이 없어도 보낸다. 있으면 서버가 user_id를 붙인다.
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ purpose })
+      body: JSON.stringify({ purpose }),
     });
     payload = await response.json();
   } catch {
-    return fail('network');
+    return fail("network");
   }
 
   if (!response.ok || !payload?.ok) {
-    return fail(payload?.reason || 'unknown');
+    return fail(payload?.reason || "unknown");
   }
 
   return { ok: true, authUrl: payload.auth_url, requestId: payload.request_id };
@@ -92,7 +97,7 @@ function waitForResult(popup, timeoutMs) {
     function finish(result) {
       if (done) return;
       done = true;
-      window.removeEventListener('message', onMessage);
+      window.removeEventListener("message", onMessage);
       clearInterval(closeTimer);
       clearTimeout(timeoutTimer);
       resolve(result);
@@ -101,30 +106,30 @@ function waitForResult(popup, timeoutMs) {
     function onMessage(event) {
       // 우리 오리진에서 온 우리 메시지만 받는다.
       if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== 'nice-identity') return;
+      if (event.data?.type !== "nice-identity") return;
 
       const data = event.data;
 
-      if (data.ok === true || data.verify === 'success') {
+      if (data.ok === true || data.verify === "success") {
         finish({
           ok: true,
-          requestId: data.rid || '',
+          requestId: data.rid || "",
           // 콜백은 문자열로 실어 보낸다("true"/"false"/""). 판정 불가는 null로 둔다.
-          isUnder14: data.is_under14 === '' ? null : data.is_under14 === 'true',
-          age: data.age === '' || data.age == null ? null : Number(data.age)
+          isUnder14: data.is_under14 === "" ? null : data.is_under14 === "true",
+          age: data.age === "" || data.age == null ? null : Number(data.age),
         });
         return;
       }
 
-      finish(fail(data.reason || 'unknown'));
+      finish(fail(data.reason || "unknown"));
     }
 
-    window.addEventListener('message', onMessage);
+    window.addEventListener("message", onMessage);
 
     // 닫힘은 이벤트가 없어 폴링해야 한다. 콜백이 window.close()를 부른 직후에도
     // 여기서 먼저 감지될 수 있으므로, 메시지가 오면 finish가 이미 잠근다.
     const closeTimer = setInterval(() => {
-      if (popup.closed) finish(fail('closed'));
+      if (popup.closed) finish(fail("closed"));
     }, CLOSE_POLL_MS);
 
     const timeoutTimer = setTimeout(() => {
@@ -133,7 +138,7 @@ function waitForResult(popup, timeoutMs) {
       } catch {
         // 이미 닫혔거나 접근할 수 없으면 무시한다.
       }
-      finish(fail('timeout'));
+      finish(fail("timeout"));
     }, timeoutMs);
   });
 }
@@ -149,13 +154,13 @@ function waitForResult(popup, timeoutMs) {
  *   | {ok: false, reason: string, message: string}>}
  */
 export async function runIdentityVerification({
-  purpose = 'under14_guardian',
-  timeoutMs = DEFAULT_TIMEOUT_MS
+  purpose = "under14_guardian",
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   // 1) 빈 창을 먼저 연다(팝업 차단 회피).
-  const popup = window.open('', POPUP_NAME, POPUP_FEATURES);
+  const popup = window.open("", POPUP_NAME, POPUP_FEATURES);
 
-  if (!popup) return fail('popup_blocked');
+  if (!popup) return fail("popup_blocked");
 
   // 2) 표준창 URL을 받아온다.
   const started = await requestAuthUrl(purpose);

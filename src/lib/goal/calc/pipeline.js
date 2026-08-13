@@ -67,17 +67,17 @@ import {
   getRemainingMogo,
   calcNaesinProb,
   applyPreHighGradePenalty,
-} from './primitives.js';
+} from "./primitives.js";
 
-import { calcJeongsiProb, calcJeongsiCompositeFE } from './jeongsi.js';
+import { calcJeongsiProb, calcJeongsiCompositeFE } from "./jeongsi.js";
 
-import { calcStudentBonusRates, calculateDailyBonus } from './bonus.js';
+import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.js";
 
 import {
   VIRTUAL_DAY_NAMES,
   sumWeeklySchedule,
   calculateWeekSchedule,
-} from './schedule.js';
+} from "./schedule.js";
 
 // ── 이식 누락 보충: student.mjs 의 네 판정 헬퍼 ─────────────────────────────
 // 5개 calc 모듈에는 없었다(원본에서도 순수 함수이지만 지금까지 아무도 이식하지 않았다).
@@ -91,38 +91,40 @@ import {
 
 // student.mjs:646-651 — 학년/학교급별 변환등급표 종류. 빈 문자열이면 변환 자체가 없다(고3 등).
 export function getConversionTypeForStudent(schoolType, grade) {
-  if (schoolType === '초등학교') return 'elementary';
-  if (schoolType === '중학교' || grade === '중3') return 'middleschool';
-  if (grade === '고1' || grade === '고2') return '5grade';
-  return '';
+  if (schoolType === "초등학교") return "elementary";
+  if (schoolType === "중학교" || grade === "중3") return "middleschool";
+  if (grade === "고1" || grade === "고2") return "5grade";
+  return "";
 }
 
 // student.mjs:679-686
 export function isMiddleStudent(schoolType, grade) {
   return (
-    schoolType === '중학교' ||
-    grade === '중1' ||
-    grade === '중2' ||
-    grade === '중3'
+    schoolType === "중학교" ||
+    grade === "중1" ||
+    grade === "중2" ||
+    grade === "중3"
   );
 }
 
 // student.mjs:688-698
 export function isElementaryStudent(schoolType, grade) {
   return (
-    schoolType === '초등학교' ||
-    grade === '초1' ||
-    grade === '초2' ||
-    grade === '초3' ||
-    grade === '초4' ||
-    grade === '초5' ||
-    grade === '초6'
+    schoolType === "초등학교" ||
+    grade === "초1" ||
+    grade === "초2" ||
+    grade === "초3" ||
+    grade === "초4" ||
+    grade === "초5" ||
+    grade === "초6"
   );
 }
 
 // student.mjs:700-702
 export function isPreHighStudent(schoolType, grade) {
-  return isMiddleStudent(schoolType, grade) || isElementaryStudent(schoolType, grade);
+  return (
+    isMiddleStudent(schoolType, grade) || isElementaryStudent(schoolType, grade)
+  );
 }
 
 /**
@@ -159,8 +161,8 @@ export function buildInitialStudentState(input) {
     currentScore,
     mogoScores = null,
     currentMogo: currentMogoOverride = null,
-    lastNaesin = '',
-    lastMogo = '',
+    lastNaesin = "",
+    lastMogo = "",
     remainingNaesin = null,
     remainingMogo = null,
     cuts,
@@ -172,8 +174,8 @@ export function buildInitialStudentState(input) {
 
   if (!cuts) {
     throw new Error(
-      '[pipeline] input.cuts 가 필요합니다 — universities 테이블(목표 대학 컷)이 확보되지 않았다. ' +
-        'input.cuts = { idealNaesin, idealJungsi, minNaesin, minJungsi } 형태로 주입하라.'
+      "[pipeline] input.cuts 가 필요합니다 — universities 테이블(목표 대학 컷)이 확보되지 않았다. " +
+        "input.cuts = { idealNaesin, idealJungsi, minNaesin, minJungsi } 형태로 주입하라.",
     );
   }
 
@@ -187,9 +189,12 @@ export function buildInitialStudentState(input) {
 
   // 2) 클라이언트: 주간 목표 학습시간. IntakeForm.tsx:1184 → student.mjs:2416
   const weeklySchedule =
-    weeklyScheduleInput ?? (scheduleForm ? calculateWeekSchedule(scheduleForm) : null);
+    weeklyScheduleInput ??
+    (scheduleForm ? calculateWeekSchedule(scheduleForm) : null);
   if (!weeklySchedule) {
-    throw new Error('[pipeline] input.weeklySchedule 또는 input.scheduleForm 중 하나가 필요합니다.');
+    throw new Error(
+      "[pipeline] input.weeklySchedule 또는 input.scheduleForm 중 하나가 필요합니다.",
+    );
   }
   const { weekIdeal, weekMin } = sumWeeklySchedule(weeklySchedule);
 
@@ -210,10 +215,14 @@ export function buildInitialStudentState(input) {
   } else {
     throw new Error(
       `[pipeline] 미지원: grade=${grade}(schoolType=${schoolType})는 grade_conversions ` +
-        `변환등급표(conversionType='${conversionType}')가 필요하다. input.convertedGrade 로 직접 주입하라.`
+        `변환등급표(conversionType='${conversionType}')가 필요하다. input.convertedGrade 로 직접 주입하라.`,
     );
   }
-  const convertedGrade = applyPreHighGradePenalty(schoolType, grade, convertedGradeRaw);
+  const convertedGrade = applyPreHighGradePenalty(
+    schoolType,
+    grade,
+    convertedGradeRaw,
+  );
 
   // 5) 서버: 잔여 시험 회차. student.mjs:2448-2452
   //
@@ -229,21 +238,45 @@ export function buildInitialStudentState(input) {
   // 여기서는 명시적 오버라이드가 있을 때만 그 값을 존중하도록 가드를 좁혀 이 비대칭을
   // 없앤다(사용자 승인). 오버라이드를 안 주는 기존 호출자는 동작이 완전히 같다 —
   // 원본과의 의도적 이탈이다. 근거·영향 범위는 calc/DIVERGENCE.md #1 참고.
-  const remainNaesin = isPreHighStudent(schoolType, grade) && remainingNaesin == null
-    ? 0
-    : getRemainingNaesin(grade, lastNaesin, remainingNaesin);
+  const remainNaesin =
+    isPreHighStudent(schoolType, grade) && remainingNaesin == null
+      ? 0
+      : getRemainingNaesin(grade, lastNaesin, remainingNaesin);
   // remainMogo 에는 isPreHighStudent 가드가 없다 — getRemainingMogo 가 이미 오버라이드를
   // 그대로 존중하므로(위 remainNaesin 같은 모순이 없다) 손대지 않는다.
   const remainMogo = getRemainingMogo(grade, lastMogo, remainingMogo);
 
   // 6) 서버: 확률 4종. student.mjs:2454-2463
-  const idealSusi = calcNaesinProb(convertedGrade, cuts.idealNaesin, remainNaesin, 10);
-  const minSusi = calcNaesinProb(convertedGrade, cuts.minNaesin, remainNaesin, 10);
-  const idealJungsi = currentMogo > 0 ? calcJeongsiProb(currentMogo, cuts.idealJungsi, remainMogo, 14) : 0;
-  const minJungsi = currentMogo > 0 ? calcJeongsiProb(currentMogo, cuts.minJungsi, remainMogo, 14) : 0;
+  const idealSusi = calcNaesinProb(
+    convertedGrade,
+    cuts.idealNaesin,
+    remainNaesin,
+    10,
+  );
+  const minSusi = calcNaesinProb(
+    convertedGrade,
+    cuts.minNaesin,
+    remainNaesin,
+    10,
+  );
+  const idealJungsi =
+    currentMogo > 0
+      ? calcJeongsiProb(currentMogo, cuts.idealJungsi, remainMogo, 14)
+      : 0;
+  const minJungsi =
+    currentMogo > 0
+      ? calcJeongsiProb(currentMogo, cuts.minJungsi, remainMogo, 14)
+      : 0;
 
   // 7) 서버: 일별 증분율(rate) 4종 — 여기서 딱 한 번 계산되고 이후 고정된다. student.mjs:2465-2471
-  const rates = calcStudentBonusRates(grade, idealSusi, idealJungsi, minSusi, minJungsi, now);
+  const rates = calcStudentBonusRates(
+    grade,
+    idealSusi,
+    idealJungsi,
+    minSusi,
+    minJungsi,
+    now,
+  );
 
   return {
     schoolType,
@@ -323,7 +356,7 @@ export function applyDailyRecord(state, record) {
   if (idealHours == null || minHours == null) {
     if (virtualDayIndex == null) {
       throw new Error(
-        '[pipeline] record.virtualDayIndex 또는 record.idealHours/minHours 직접 주입 중 하나가 필요합니다.'
+        "[pipeline] record.virtualDayIndex 또는 record.idealHours/minHours 직접 주입 중 하나가 필요합니다.",
       );
     }
     const dayName = VIRTUAL_DAY_NAMES[virtualDayIndex];
@@ -343,7 +376,7 @@ export function applyDailyRecord(state, record) {
     tasks,
     studyHours,
     idealHours,
-    minHours
+    minHours,
   );
 
   const cumulativeBonus = {
@@ -360,7 +393,10 @@ export function applyDailyRecord(state, record) {
     ...state,
     cumulativeBonus,
     idealSusi: clamp(state.baseProbs.idealSusi, cumulativeBonus.idealSusi),
-    idealJungsi: clamp(state.baseProbs.idealJungsi, cumulativeBonus.idealJungsi),
+    idealJungsi: clamp(
+      state.baseProbs.idealJungsi,
+      cumulativeBonus.idealJungsi,
+    ),
     minSusi: clamp(state.baseProbs.minSusi, cumulativeBonus.minSusi),
     minJungsi: clamp(state.baseProbs.minJungsi, cumulativeBonus.minJungsi),
     lastBonuses: bonuses,

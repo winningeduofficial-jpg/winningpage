@@ -31,10 +31,10 @@
 //   여기서 조용히 2번 더 호출해도 차감은 일어나지 않는다. 차감 지점은 주제 추천 최초
 //   성공 1곳뿐이다(§9.2).
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
 
 /** 외부 `_lib/config.js:30`의 `MODEL` 상수와 같은 값. */
-export const PERFORMANCE_MODEL = 'gemini-2.5-flash';
+export const PERFORMANCE_MODEL = "gemini-2.5-flash";
 
 /** 비전 호출 `maxOutputTokens` **1장 기준**값(§12.3). 장수 비례 상향은 호출부 몫이다. */
 export const VISION_MAX_OUTPUT_TOKENS_PER_IMAGE = 2200;
@@ -42,10 +42,10 @@ export const VISION_MAX_OUTPUT_TOKENS_PER_IMAGE = 2200;
 let geminiClient = null;
 
 function getGeminiClient() {
-  const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+  const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
 
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY 환경변수가 설정되지 않았습니다.');
+    throw new Error("GEMINI_API_KEY 환경변수가 설정되지 않았습니다.");
   }
 
   if (!geminiClient) {
@@ -64,14 +64,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 function isRetryableGeminiError(error) {
   const status = error?.status || error?.code;
-  const message = String(error?.message || '');
+  const message = String(error?.message || "");
 
   return (
     status === 503 ||
     status === 429 ||
-    message.includes('UNAVAILABLE') ||
-    message.includes('high demand') ||
-    message.includes('RESOURCE_EXHAUSTED')
+    message.includes("UNAVAILABLE") ||
+    message.includes("high demand") ||
+    message.includes("RESOURCE_EXHAUSTED")
   );
 }
 
@@ -100,7 +100,9 @@ export async function generateWithRetry(request, retryCount = 2) {
       }
 
       const delayMs = 700 * Math.pow(2, attempt);
-      console.warn(`[Gemini retry] attempt ${attempt + 1}, waiting ${delayMs}ms`);
+      console.warn(
+        `[Gemini retry] attempt ${attempt + 1}, waiting ${delayMs}ms`,
+      );
       await sleep(delayMs);
     }
   }
@@ -117,11 +119,12 @@ function buildConfig(system, options, defaults) {
     systemInstruction: system,
     temperature: options.temperature ?? defaults.temperature,
     maxOutputTokens: options.maxOutputTokens ?? defaults.maxOutputTokens,
-    thinkingConfig: { thinkingBudget: options.thinkingBudget ?? 0 }
+    thinkingConfig: { thinkingBudget: options.thinkingBudget ?? 0 },
   };
 
   // §8.4 ~~Q69~~ 결정 대비 통로. P7은 전달하지 않는다.
-  if (options.responseMimeType) config.responseMimeType = options.responseMimeType;
+  if (options.responseMimeType)
+    config.responseMimeType = options.responseMimeType;
   if (options.responseSchema) config.responseSchema = options.responseSchema;
 
   // 호출부가 스스로 건 마감 시한(`GenerateContentConfig.abortSignal`, @google/genai
@@ -151,12 +154,15 @@ export async function callText(system, userMsg, options = {}) {
     {
       model: options.model || PERFORMANCE_MODEL,
       contents: userMsg,
-      config: buildConfig(system, options, { temperature: 0.35, maxOutputTokens: 1800 })
+      config: buildConfig(system, options, {
+        temperature: 0.35,
+        maxOutputTokens: 1800,
+      }),
     },
-    options.retryCount ?? 2
+    options.retryCount ?? 2,
   );
 
-  return response.text || '';
+  return response.text || "";
 }
 
 /**
@@ -180,14 +186,17 @@ export async function callVision(system, images, prompt, options = {}) {
   const list = Array.isArray(images) ? images : [images];
 
   if (!list.length) {
-    throw new Error('callVision: 이미지가 최소 1장 필요합니다.');
+    throw new Error("callVision: 이미지가 최소 1장 필요합니다.");
   }
 
   const parts = list.map((image) => ({
     inlineData: {
       mimeType: image.mimeType,
-      data: typeof image.data === 'string' ? image.data : Buffer.from(image.data).toString('base64')
-    }
+      data:
+        typeof image.data === "string"
+          ? image.data
+          : Buffer.from(image.data).toString("base64"),
+    },
   }));
 
   const response = await generateWithRetry(
@@ -196,11 +205,11 @@ export async function callVision(system, images, prompt, options = {}) {
       contents: [...parts, { text: prompt }],
       config: buildConfig(system, options, {
         temperature: 0.25,
-        maxOutputTokens: VISION_MAX_OUTPUT_TOKENS_PER_IMAGE * list.length
-      })
+        maxOutputTokens: VISION_MAX_OUTPUT_TOKENS_PER_IMAGE * list.length,
+      }),
     },
-    options.retryCount ?? 2
+    options.retryCount ?? 2,
   );
 
-  return response.text || '';
+  return response.text || "";
 }

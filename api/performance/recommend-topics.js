@@ -55,15 +55,18 @@
 //    회차를 태우는 프롬프트를 클라이언트가 조작할 수 있었다. 여기서 바디로 받는 것은
 //    `sessionId`와 `round`뿐이고 나머지는 전부 세션 행에서 읽는다.
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   SERVICE_CONFIGS,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
-  readQuotaSnapshot
-} from '../_lib/serviceAccess.js';
-import { generateWithRetry, PERFORMANCE_MODEL } from '../_lib/performance/gemini.js';
+  readQuotaSnapshot,
+} from "../_lib/serviceAccess.js";
+import {
+  generateWithRetry,
+  PERFORMANCE_MODEL,
+} from "../_lib/performance/gemini.js";
 import {
   buildTopicExclusionBlock,
   buildTopicRecommendationSystem,
@@ -73,17 +76,17 @@ import {
   TOPIC_GENERATION_DEFAULTS,
   TOPIC_MAX_OUTPUT_TOKENS_RETRY,
   TOPIC_PROMPT_VERSION,
-  TOPIC_RECOMMENDATION_SCHEMA
-} from '../_lib/performance/prompts.js';
+  TOPIC_RECOMMENDATION_SCHEMA,
+} from "../_lib/performance/prompts.js";
 import {
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
   loadRelevantStudentSessions,
   STUDENT_HISTORY_PROMPT_LIMIT,
-  TOPIC_MAX_CHARS
-} from '../_lib/performance/knowledge.js';
+  TOPIC_MAX_CHARS,
+} from "../_lib/performance/knowledge.js";
 
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
 /**
  * 라운드 상한(§10.2 P8 「재추천(round 배제 + 상한 3)」).
@@ -123,33 +126,34 @@ const STRUCTURE_RETRY = 1;
 const MAX_MODEL_ATTEMPTS_PER_SESSION = 10;
 
 /** 카드 부제 — 모델 산출물이 아니라 서버 고정 문자열이다(§8.3 `subtitle`, §13). */
-const TOPIC_SUBTITLE = '통합 수행평가 설계 리포트';
+const TOPIC_SUBTITLE = "통합 수행평가 설계 리포트";
 
 /** 태그 4번째 칸 고정 문자열(§5.10 `고1 / 국어/공통국어1 / 의학 / 설계 리포트`). */
-const TOPIC_TAG_SUFFIX = '설계 리포트';
+const TOPIC_TAG_SUFFIX = "설계 리포트";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SESSION_COLUMNS = [
-  'id',
-  'profile_id',
-  'status',
-  'current_step',
-  'completed_steps',
-  'grade_label',
-  'semester',
-  'school_type',
-  'subject_group',
-  'subject',
-  'career_goal',
-  'previous_topic',
-  'guide_input_mode',
-  'guide_freetext',
-  'guide_json',
+  "id",
+  "profile_id",
+  "status",
+  "current_step",
+  "completed_steps",
+  "grade_label",
+  "semester",
+  "school_type",
+  "subject_group",
+  "subject",
+  "career_goal",
+  "previous_topic",
+  "guide_input_mode",
+  "guide_freetext",
+  "guide_json",
   // sql/56. 이 컬럼 없이 배포하면 PostgREST 42703으로 라우트 전체가 죽는다 —
   // `analyze-guide.js`의 `guide_analysis_count`(sql/55)와 같은 선행 조건이다.
-  'topic_attempt_count'
-].join(',');
+  "topic_attempt_count",
+].join(",");
 
 function fail(res, status, code, message, extra) {
   return res.status(status).json({ error: { code, message }, ...extra });
@@ -164,14 +168,15 @@ function fail(res, status, code, message, extra) {
  * §8.4의 안내문 스키마로 승격되면 이 함수가 그 구조를 평문으로 펴는 자리가 된다.
  */
 function readAssessmentText(sessionRow) {
-  const guideJson = sessionRow.guide_json && typeof sessionRow.guide_json === 'object'
-    ? sessionRow.guide_json
-    : null;
+  const guideJson =
+    sessionRow.guide_json && typeof sessionRow.guide_json === "object"
+      ? sessionRow.guide_json
+      : null;
 
-  const fromUpload = String(guideJson?.text || '').trim();
-  const fromManual = String(sessionRow.guide_freetext || '').trim();
+  const fromUpload = String(guideJson?.text || "").trim();
+  const fromManual = String(sessionRow.guide_freetext || "").trim();
 
-  return sessionRow.guide_input_mode === 'manual'
+  return sessionRow.guide_input_mode === "manual"
     ? fromManual || fromUpload
     : fromUpload || fromManual;
 }
@@ -185,23 +190,23 @@ function readAssessmentText(sessionRow) {
  */
 function stepPatch(sessionRow) {
   return {
-    status: sessionRow.status === 'draft' ? 'in_progress' : sessionRow.status,
-    current_step: Math.max(Number(sessionRow.current_step) || 1, 3)
+    status: sessionRow.status === "draft" ? "in_progress" : sessionRow.status,
+    current_step: Math.max(Number(sessionRow.current_step) || 1, 3),
   };
 }
 
 /** 카드 태그 4종. 전부 세션 파생값이며 모델 산출물이 아니다(§8.3 `tags`, §13). */
 function buildTags(sessionRow) {
   const subjectText = [sessionRow.subject_group, sessionRow.subject]
-    .map((value) => String(value || '').trim())
+    .map((value) => String(value || "").trim())
     .filter(Boolean)
-    .join('/');
+    .join("/");
 
   return [
-    String(sessionRow.grade_label || '').trim(),
+    String(sessionRow.grade_label || "").trim(),
     subjectText,
-    String(sessionRow.career_goal || '').trim(),
-    TOPIC_TAG_SUFFIX
+    String(sessionRow.career_goal || "").trim(),
+    TOPIC_TAG_SUFFIX,
   ].filter(Boolean);
 }
 
@@ -216,7 +221,7 @@ function buildDetail(topic) {
   return TOPIC_DETAIL_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
-    text: String(topic[section.id] || '').trim()
+    text: String(topic[section.id] || "").trim(),
   }));
 }
 
@@ -231,25 +236,28 @@ function buildDetail(topic) {
  * @returns {{ok: true, topics: object[]} | {ok: false, reason: string}}
  */
 function validateTopicsPayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { ok: false, reason: 'not-an-object' };
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, reason: "not-an-object" };
   }
 
   const topics = payload.topics;
   if (!Array.isArray(topics) || topics.length !== 3) {
-    return { ok: false, reason: `topics-length:${Array.isArray(topics) ? topics.length : 'none'}` };
+    return {
+      ok: false,
+      reason: `topics-length:${Array.isArray(topics) ? topics.length : "none"}`,
+    };
   }
 
-  const keys = ['title', ...TOPIC_DETAIL_SECTIONS.map((section) => section.id)];
+  const keys = ["title", ...TOPIC_DETAIL_SECTIONS.map((section) => section.id)];
 
   for (let i = 0; i < topics.length; i++) {
     const topic = topics[i];
-    if (!topic || typeof topic !== 'object') {
+    if (!topic || typeof topic !== "object") {
       return { ok: false, reason: `topic-${i + 1}:not-an-object` };
     }
 
     for (const key of keys) {
-      if (!String(topic[key] || '').trim()) {
+      if (!String(topic[key] || "").trim()) {
         return { ok: false, reason: `topic-${i + 1}:empty-${key}` };
       }
     }
@@ -268,34 +276,35 @@ function toClientTopic(row) {
     subtitle: row.subtitle,
     tags: Array.isArray(row.tags) ? row.tags : [],
     detail: Array.isArray(row.detail) ? row.detail : [],
-    selected: row.selected === true
+    selected: row.selected === true,
   };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/recommend-topics 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/recommend-topics 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
@@ -303,51 +312,84 @@ export default async function handler(req, res) {
     // ── 이용권 재판정(§8.6 공통 규약). 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     //    회차 **잔여**는 여기서 보지 않는다 — 잔여 판정과 차감은 RPC가 한 트랜잭션에서
     //    같이 해야 두 탭 경쟁에서 갈리지 않는다(§9.3 「멱등 차감」).
-    const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      SERVICE_CONFIGS[SERVICE_KEY],
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
 
     if (!UUID_RE.test(sessionId)) {
-      return fail(res, 400, 'INVALID_SESSION_ID', 'sessionId가 올바르지 않습니다.');
+      return fail(
+        res,
+        400,
+        "INVALID_SESSION_ID",
+        "sessionId가 올바르지 않습니다.",
+      );
     }
 
     // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶어 id 존재 여부가 새지
     //    않게 한다(RPC 단계 1과 같은 취지).
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .select(SESSION_COLUMNS)
-      .eq('id', sessionId)
-      .eq('profile_id', userId)
+      .eq("id", sessionId)
+      .eq("profile_id", userId)
       .maybeSingle();
 
-    if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+    if (sessionError)
+      throw new Error(`세션 조회 실패: ${sessionError.message}`);
     if (!sessionRow) {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '세션을 찾을 수 없습니다.');
+      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.");
     }
 
     // ── STEP1/STEP2 선행 조건. 여기서 막지 않으면 `미입력`투성이 프롬프트가 회차를
     //    태우고 쓸모없는 주제 3건을 돌려준다. 둘 다 **무차감**이다.
-    const missingBasic = ['grade_label', 'semester', 'subject_group', 'subject', 'career_goal']
-      .find((column) => !String(sessionRow[column] || '').trim());
+    const missingBasic = [
+      "grade_label",
+      "semester",
+      "subject_group",
+      "subject",
+      "career_goal",
+    ].find((column) => !String(sessionRow[column] || "").trim());
 
     if (missingBasic) {
-      return fail(res, 400, 'SESSION_INCOMPLETE', '기본 정보를 먼저 입력해 주세요.', {
-        step: 1,
-        field: missingBasic,
-        charged: false
-      });
+      return fail(
+        res,
+        400,
+        "SESSION_INCOMPLETE",
+        "기본 정보를 먼저 입력해 주세요.",
+        {
+          step: 1,
+          field: missingBasic,
+          charged: false,
+        },
+      );
     }
 
     const assessmentText = readAssessmentText(sessionRow);
     if (!assessmentText) {
-      return fail(res, 400, 'GUIDE_REQUIRED', '수행평가 안내문을 먼저 입력해 주세요.', {
-        step: 2,
-        charged: false
-      });
+      return fail(
+        res,
+        400,
+        "GUIDE_REQUIRED",
+        "수행평가 안내문을 먼저 입력해 주세요.",
+        {
+          step: 2,
+          charged: false,
+        },
+      );
     }
 
     // ── 라운드 결정. 기존 라운드를 세어 다음 값을 정한다. 클라이언트가 `round`를 보내면
@@ -356,24 +398,38 @@ export default async function handler(req, res) {
     //        더블클릭·새로고침이 모델을 다시 부르지 않게 하는 것이 목적이다.
     //      · 그 밖의 값 → 400. 서버가 정한 다음 라운드와 어긋나는 요청은 거부한다.
     const { data: existingTopics, error: existingError } = await supabaseAdmin
-      .from('performance_topics')
-      .select('id,round,idx,title,subtitle,tags,detail,selected')
-      .eq('session_id', sessionRow.id)
-      .order('round', { ascending: true })
-      .order('idx', { ascending: true });
+      .from("performance_topics")
+      .select("id,round,idx,title,subtitle,tags,detail,selected")
+      .eq("session_id", sessionRow.id)
+      .order("round", { ascending: true })
+      .order("idx", { ascending: true });
 
-    if (existingError) throw new Error(`기존 주제 조회 실패: ${existingError.message}`);
+    if (existingError)
+      throw new Error(`기존 주제 조회 실패: ${existingError.message}`);
 
     const priorTopics = existingTopics || [];
-    const lastRound = priorTopics.reduce((max, row) => Math.max(max, Number(row.round) || 0), 0);
+    const lastRound = priorTopics.reduce(
+      (max, row) => Math.max(max, Number(row.round) || 0),
+      0,
+    );
     const nextRound = lastRound + 1;
 
     const requestedRoundRaw = body.round;
     let requestedRound = null;
-    if (requestedRoundRaw !== undefined && requestedRoundRaw !== null && requestedRoundRaw !== '') {
+    if (
+      requestedRoundRaw !== undefined &&
+      requestedRoundRaw !== null &&
+      requestedRoundRaw !== ""
+    ) {
       requestedRound = Number(requestedRoundRaw);
       if (!Number.isInteger(requestedRound) || requestedRound < 1) {
-        return fail(res, 400, 'INVALID_ROUND', 'round 값이 올바르지 않습니다.', { charged: false });
+        return fail(
+          res,
+          400,
+          "INVALID_ROUND",
+          "round 값이 올바르지 않습니다.",
+          { charged: false },
+        );
       }
     }
 
@@ -390,10 +446,17 @@ export default async function handler(req, res) {
         quota = await readQuotaSnapshot(
           supabaseAdmin,
           userId,
-          await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
+          await findProgramAccessRow(
+            supabaseAdmin,
+            userId,
+            SERVICE_CONFIGS[SERVICE_KEY],
+          ),
         );
       } catch (quotaError) {
-        console.error('performance/recommend-topics quota lookup 실패(무시):', quotaError);
+        console.error(
+          "performance/recommend-topics quota lookup 실패(무시):",
+          quotaError,
+        );
       }
 
       return res.status(200).json({
@@ -402,25 +465,37 @@ export default async function handler(req, res) {
         quotaRemaining: quota.quotaRemaining,
         charged: false,
         reused: true,
-        maxRounds: MAX_ROUNDS
+        maxRounds: MAX_ROUNDS,
       });
     }
 
     if (requestedRound !== null && requestedRound !== nextRound) {
-      return fail(res, 400, 'INVALID_ROUND', '요청한 회차가 진행 상태와 맞지 않습니다.', {
-        expectedRound: nextRound,
-        charged: false
-      });
+      return fail(
+        res,
+        400,
+        "INVALID_ROUND",
+        "요청한 회차가 진행 상태와 맞지 않습니다.",
+        {
+          expectedRound: nextRound,
+          charged: false,
+        },
+      );
     }
 
     // ── 상한(§9.2 상한 표 · §10.2 P8). **무차감**이다 — 남용 방지는 회차를 더 깎는 대신
     //    거부로 처리한다(§9.2 「과금과 남용 방지를 분리한다」).
     if (nextRound > MAX_ROUNDS) {
-      return fail(res, 409, 'ROUND_LIMIT', `주제 추천은 최대 ${MAX_ROUNDS}회까지 받을 수 있어요.`, {
-        round: lastRound,
-        maxRounds: MAX_ROUNDS,
-        charged: false
-      });
+      return fail(
+        res,
+        409,
+        "ROUND_LIMIT",
+        `주제 추천은 최대 ${MAX_ROUNDS}회까지 받을 수 있어요.`,
+        {
+          round: lastRound,
+          maxRounds: MAX_ROUNDS,
+          charged: false,
+        },
+      );
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -430,12 +505,13 @@ export default async function handler(req, res) {
     // 이 세션이 이미 차감된 세션인가. `performance_credit_ledger.session_id`가 UNIQUE라
     // 행 존재 = 차감 완료다(sql/54 1-7). 아래 두 게이트가 모두 이 값을 본다.
     const { data: ledgerRow, error: ledgerLookupError } = await supabaseAdmin
-      .from('performance_credit_ledger')
-      .select('id')
-      .eq('session_id', sessionRow.id)
+      .from("performance_credit_ledger")
+      .select("id")
+      .eq("session_id", sessionRow.id)
       .maybeSingle();
 
-    if (ledgerLookupError) throw new Error(`차감 원장 조회 실패: ${ledgerLookupError.message}`);
+    if (ledgerLookupError)
+      throw new Error(`차감 원장 조회 실패: ${ledgerLookupError.message}`);
 
     const alreadyCharged = Boolean(ledgerRow);
 
@@ -460,18 +536,31 @@ export default async function handler(req, res) {
         const preQuota = await readQuotaSnapshot(
           supabaseAdmin,
           userId,
-          await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
+          await findProgramAccessRow(
+            supabaseAdmin,
+            userId,
+            SERVICE_CONFIGS[SERVICE_KEY],
+          ),
         );
 
         if (preQuota.quotaRemaining === 0) {
-          return fail(res, 409, 'QUOTA_EXHAUSTED', '이용 가능한 횟수를 모두 사용했어요.', {
-            quotaRemaining: 0,
-            planEndsAt: preQuota.planEndsAt ?? null,
-            charged: false
-          });
+          return fail(
+            res,
+            409,
+            "QUOTA_EXHAUSTED",
+            "이용 가능한 횟수를 모두 사용했어요.",
+            {
+              quotaRemaining: 0,
+              planEndsAt: preQuota.planEndsAt ?? null,
+              charged: false,
+            },
+          );
         }
       } catch (quotaError) {
-        console.error('performance/recommend-topics 소진 선차단 조회 실패(무시):', quotaError);
+        console.error(
+          "performance/recommend-topics 소진 선차단 조회 실패(무시):",
+          quotaError,
+        );
       }
     }
 
@@ -482,9 +571,9 @@ export default async function handler(req, res) {
       return fail(
         res,
         429,
-        'TOPIC_ATTEMPT_LIMIT',
-        '이 수행평가에서 주제 추천을 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.',
-        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false }
+        "TOPIC_ATTEMPT_LIMIT",
+        "이 수행평가에서 주제 추천을 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.",
+        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false },
       );
     }
 
@@ -494,16 +583,20 @@ export default async function handler(req, res) {
     // 있으나 이 값은 정밀 회계가 아니라 남용 상한이다. 정밀 회계가 필요한 회차 차감은
     // `consume_performance_credit`이 `for update`로 한다 — analyze-guide.js와 같은 판단.)
     const { error: attemptCounterError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .update({ topic_attempt_count: attemptCount + 1 })
-      .eq('id', sessionRow.id);
+      .eq("id", sessionRow.id);
 
-    if (attemptCounterError) throw new Error(`주제 추천 시도 횟수 갱신 실패: ${attemptCounterError.message}`);
+    if (attemptCounterError)
+      throw new Error(
+        `주제 추천 시도 횟수 갱신 실패: ${attemptCounterError.message}`,
+      );
 
-    const previousTopic = String(sessionRow.previous_topic || '').trim() || NO_PREVIOUS_TOPIC_TEXT;
-    const gradeLabel = String(sessionRow.grade_label || '').trim();
-    const subject = String(sessionRow.subject || '').trim();
-    const career = String(sessionRow.career_goal || '').trim();
+    const previousTopic =
+      String(sessionRow.previous_topic || "").trim() || NO_PREVIOUS_TOPIC_TEXT;
+    const gradeLabel = String(sessionRow.grade_label || "").trim();
+    const subject = String(sessionRow.subject || "").trim();
+    const career = String(sessionRow.career_goal || "").trim();
 
     // ── RAG 질의문에 넣는 값은 **프롬프트와 같은 결합 규칙**을 쓴다 (§12.3 문자 단위 이식)
     //    외부 앱은 결합 문자열 하나만 들고 다녔다 — 프론트가
@@ -527,13 +620,13 @@ export default async function handler(req, res) {
     //    `:93`, 공백 제거 후 substring 매칭이라 결합형도 같은 교과군을 돌려준다).
     //    바뀌는 것은 임베딩 입력 문자열뿐이다.
     const ragSubject = [sessionRow.subject_group, subject]
-      .map((value) => String(value || '').trim())
+      .map((value) => String(value || "").trim())
       .filter(Boolean)
-      .join(' / ');
+      .join(" / ");
 
-    const ragGrade = [gradeLabel, String(sessionRow.semester || '').trim()]
+    const ragGrade = [gradeLabel, String(sessionRow.semester || "").trim()]
       .filter(Boolean)
-      .join(' ');
+      .join(" ");
 
     // ── RAG 2소스. 둘 다 **프롬프트 보조 입력**이라 비어도 진행한다(dev 지식베이스가
     //    0행이면 `관련 위닝DB 항목 없음`이 렌더되는 것이 정상이다).
@@ -546,12 +639,12 @@ export default async function handler(req, res) {
       career,
       selectedTopic: previousTopic,
       assessmentInfo: assessmentText,
-      purpose: 'topic',
+      purpose: "topic",
       maxItems: 6,
       maxChars: TOPIC_MAX_CHARS,
       // 다른 과목 후보가 검색 결과에 들어와야 CROSS_SUBJECT_CONNECTION_GUIDE 11조와
       // 「다른 과목 선배 데이터 활용 규칙」 5조가 사문이 되지 않는다(knowledge.js 주석).
-      includeOtherSubjects: true
+      includeOtherSubjects: true,
     });
 
     let studentSessions = [];
@@ -563,10 +656,13 @@ export default async function handler(req, res) {
         subject: ragSubject,
         career,
         selectedTopic: previousTopic,
-        assessmentInfo: assessmentText
+        assessmentInfo: assessmentText,
       });
     } catch (historyError) {
-      console.error('performance/recommend-topics 과거 수행 RAG 실패(무시):', historyError);
+      console.error(
+        "performance/recommend-topics 과거 수행 RAG 실패(무시):",
+        historyError,
+      );
     }
 
     const system = buildTopicRecommendationSystem({
@@ -578,8 +674,8 @@ export default async function handler(req, res) {
         // (knowledge.js `sameSubject = r.subject === currentSubject`), 그 컬럼은
         // `subject_group`과 별도로 맨 과목명을 담는다(sql/54 1-8). 결합값을 넘기면
         // `현재 과목과의 관계: 같은 과목` 판정이 영구히 false가 된다.
-        subject
-      )
+        subject,
+      ),
     });
 
     // ── 재추천이면 이전 라운드 주제명을 배제 블록으로 덧붙인다(§8.3 `round` 정의).
@@ -588,9 +684,9 @@ export default async function handler(req, res) {
     const excludedTitles = Array.from(
       new Set(
         priorTopics
-          .map((row) => String(row.title || '').trim())
-          .filter(Boolean)
-      )
+          .map((row) => String(row.title || "").trim())
+          .filter(Boolean),
+      ),
     );
 
     const baseUser = buildTopicRecommendationUser({
@@ -601,21 +697,26 @@ export default async function handler(req, res) {
       subject,
       career,
       previousTopic,
-      assessmentText
+      assessmentText,
     });
 
     const exclusionBlock = buildTopicExclusionBlock(excludedTitles);
-    const userMsg = exclusionBlock ? `${baseUser}\n\n${exclusionBlock}` : baseUser;
+    const userMsg = exclusionBlock
+      ? `${baseUser}\n\n${exclusionBlock}`
+      : baseUser;
 
     // ── 모델 호출. 실패 형태가 3가지라 각각 다르게 다룬다(§8.4 완화책 ⓑ·ⓒ·ⓓ):
     //      ⓑ maxOutputTokens를 원문 4200에서 상향(prompts.js 근거 주석)
     //      ⓒ finishReason === 'MAX_TOKENS' → **파싱을 시도하지 않고** 재시도
     //      ⓓ 파싱 실패 시 모델 원문을 응답에 싣지 않는다(서버 로그에만 남긴다)
     const abortController = new AbortController();
-    const abortTimer = setTimeout(() => abortController.abort(), MODEL_TIMEOUT_MS);
+    const abortTimer = setTimeout(
+      () => abortController.abort(),
+      MODEL_TIMEOUT_MS,
+    );
 
     let validated = null;
-    let lastFailure = 'unknown';
+    let lastFailure = "unknown";
 
     try {
       for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
@@ -630,24 +731,35 @@ export default async function handler(req, res) {
               systemInstruction: system,
               // 재시도는 원문 재시도와 같은 취지로 온도를 낮춘다
               // (`suhaengpyeong/api/recommend-topics.js:221` — 0.25 → 0.2).
-              temperature: isRetry ? 0.2 : TOPIC_GENERATION_DEFAULTS.temperature,
+              temperature: isRetry
+                ? 0.2
+                : TOPIC_GENERATION_DEFAULTS.temperature,
               // 같은 상한으로 다시 부르면 같은 자리에서 다시 잘린다 → 올려서 재시도.
               maxOutputTokens: isRetry
                 ? TOPIC_MAX_OUTPUT_TOKENS_RETRY
                 : TOPIC_GENERATION_DEFAULTS.maxOutputTokens,
               thinkingConfig: { thinkingBudget: 0 },
-              responseMimeType: 'application/json',
+              responseMimeType: "application/json",
               responseSchema: TOPIC_RECOMMENDATION_SCHEMA,
-              abortSignal: abortController.signal
-            }
+              abortSignal: abortController.signal,
+            },
           });
         } catch (modelError) {
           // 과부하 재시도(700ms×2^n, 2회)는 generateWithRetry가 이미 소진했다.
           // 여기까지 오면 상류가 실제로 죽었거나 우리 시한이 끝난 것이다. **무차감**.
-          console.error('performance/recommend-topics 모델 호출 실패:', modelError);
-          return fail(res, 503, 'MODEL_UNAVAILABLE', '주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.', {
-            charged: false
-          });
+          console.error(
+            "performance/recommend-topics 모델 호출 실패:",
+            modelError,
+          );
+          return fail(
+            res,
+            503,
+            "MODEL_UNAVAILABLE",
+            "주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.",
+            {
+              charged: false,
+            },
+          );
         }
 
         const finishReason = response?.candidates?.[0]?.finishReason;
@@ -655,21 +767,25 @@ export default async function handler(req, res) {
         // ⓒ — 절단된 응답은 파싱하지 않는다. 결함 ①(숫자 리터럴 반복 루프)과
         //      ②(무작위 중간 절단)의 공통 징후이며, 반쯤 온 JSON을 어떻게든 살리려는
         //      시도가 곧 §8.4가 금지한 텍스트 수술이다.
-        if (finishReason === 'MAX_TOKENS') {
-          lastFailure = 'finish-reason:MAX_TOKENS';
-          console.warn(`performance/recommend-topics MAX_TOKENS 절단 (attempt ${attempt + 1})`);
+        if (finishReason === "MAX_TOKENS") {
+          lastFailure = "finish-reason:MAX_TOKENS";
+          console.warn(
+            `performance/recommend-topics MAX_TOKENS 절단 (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
-        if (finishReason && finishReason !== 'STOP') {
+        if (finishReason && finishReason !== "STOP") {
           lastFailure = `finish-reason:${finishReason}`;
-          console.warn(`performance/recommend-topics 비정상 종료 ${finishReason} (attempt ${attempt + 1})`);
+          console.warn(
+            `performance/recommend-topics 비정상 종료 ${finishReason} (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
-        const rawText = String(response?.text || '').trim();
+        const rawText = String(response?.text || "").trim();
         if (!rawText) {
-          lastFailure = 'empty-response';
+          lastFailure = "empty-response";
           continue;
         }
 
@@ -679,16 +795,22 @@ export default async function handler(req, res) {
           // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
           parsed = JSON.parse(rawText);
         } catch (parseError) {
-          lastFailure = 'json-parse-failed';
+          lastFailure = "json-parse-failed";
           // ⓓ — 원문은 서버 로그에만 남긴다. 응답 본문에는 싣지 않는다.
-          console.error('performance/recommend-topics JSON 파싱 실패:', parseError?.message, rawText.slice(0, 400));
+          console.error(
+            "performance/recommend-topics JSON 파싱 실패:",
+            parseError?.message,
+            rawText.slice(0, 400),
+          );
           continue;
         }
 
         const check = validateTopicsPayload(parsed);
         if (!check.ok) {
           lastFailure = `contract:${check.reason}`;
-          console.warn(`performance/recommend-topics 계약 위반 ${check.reason} (attempt ${attempt + 1})`);
+          console.warn(
+            `performance/recommend-topics 계약 위반 ${check.reason} (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
@@ -702,68 +824,99 @@ export default async function handler(req, res) {
     if (!validated) {
       // 재시도까지 실패. **무차감**이다(§8.4 「검증 실패 시 1회 재요청 후 실패 처리,
       // 회차는 차감하지 않는다」). 사용자에게는 모델 원문 대신 안내만 준다(ⓓ).
-      console.error(`performance/recommend-topics 계약 위반 확정: ${lastFailure}`);
-      return fail(res, 422, 'MODEL_CONTRACT_VIOLATION', '주제를 정리하지 못했어요. 다시 시도해 주세요.', {
-        charged: false
-      });
+      console.error(
+        `performance/recommend-topics 계약 위반 확정: ${lastFailure}`,
+      );
+      return fail(
+        res,
+        422,
+        "MODEL_CONTRACT_VIOLATION",
+        "주제를 정리하지 못했어요. 다시 시도해 주세요.",
+        {
+          charged: false,
+        },
+      );
     }
 
     // ─────────────────────────────────────────────────────────────────
     // 여기부터가 차감 구간이다. 위에서 3건을 확보한 **뒤에만** 도달한다.
     // ─────────────────────────────────────────────────────────────────
     const { data: creditRaw, error: creditError } = await supabaseAdmin.rpc(
-      'consume_performance_credit',
+      "consume_performance_credit",
       {
         p_session_id: sessionRow.id,
         p_profile_id: userId,
-        p_reason: 'recommend-topics:first-success'
-      }
+        p_reason: "recommend-topics:first-success",
+      },
     );
 
     if (creditError) {
       // fail-closed(§9.3 5항) — 차감을 커밋하지 못했으면 산출물을 내보내지 않는다.
-      console.error('performance/recommend-topics 차감 RPC 실패:', creditError);
-      return fail(res, 500, 'INTERNAL', '주제 추천 처리에 실패했습니다.');
+      console.error("performance/recommend-topics 차감 RPC 실패:", creditError);
+      return fail(res, 500, "INTERNAL", "주제 추천 처리에 실패했습니다.");
     }
 
-    const credit = creditRaw && typeof creditRaw === 'object' ? creditRaw : {};
-    const creditStatus = String(credit.status || '');
+    const credit = creditRaw && typeof creditRaw === "object" ? creditRaw : {};
+    const creditStatus = String(credit.status || "");
 
-    if (creditStatus === 'quota_exhausted') {
+    if (creditStatus === "quota_exhausted") {
       // §5.20 (B) 인라인 소진 카드가 이 응답을 받아 AiLoadingBubble을 대체한다.
       // 표현은 사용량이 아니라 **잔여량** 기준이다(§9.3 「소진 응답 계약」).
-      return fail(res, 409, 'QUOTA_EXHAUSTED', '이용 가능한 횟수를 모두 사용했어요.', {
-        quotaRemaining: 0,
-        planEndsAt: credit.plan_ends_at ?? null,
-        charged: false
-      });
+      return fail(
+        res,
+        409,
+        "QUOTA_EXHAUSTED",
+        "이용 가능한 횟수를 모두 사용했어요.",
+        {
+          quotaRemaining: 0,
+          planEndsAt: credit.plan_ends_at ?? null,
+          charged: false,
+        },
+      );
     }
 
-    if (creditStatus === 'no_entitlement') {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.', {
-        charged: false
-      });
+    if (creditStatus === "no_entitlement") {
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+        {
+          charged: false,
+        },
+      );
     }
 
-    if (creditStatus === 'entitlement_expired') {
+    if (creditStatus === "entitlement_expired") {
       // RPC가 돌려주는 5번째 상태다(sql/54 (4) 단계 6). 이용권 기간 만료·환불·정지는
       // "권한 없음"과 원인이 다르므로 코드를 갈라 §5.20이 다른 문구를 쓸 수 있게 한다.
-      return fail(res, 403, 'ENTITLEMENT_EXPIRED', '이용권 사용 기간이 끝났어요.', {
-        planEndsAt: credit.plan_ends_at ?? null,
-        charged: false
-      });
+      return fail(
+        res,
+        403,
+        "ENTITLEMENT_EXPIRED",
+        "이용권 사용 기간이 끝났어요.",
+        {
+          planEndsAt: credit.plan_ends_at ?? null,
+          charged: false,
+        },
+      );
     }
 
-    if (creditStatus === 'session_not_found') {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '세션을 찾을 수 없습니다.', { charged: false });
+    if (creditStatus === "session_not_found") {
+      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+        charged: false,
+      });
     }
 
     // `charged` = 이번 요청이 실제로 회차를 깎았는가.
     // `already_charged`는 **재추천의 정상 경로**다(§9.3) — 같은 세션의 원장 행이 이미
     // 있다는 뜻이고, 그 멱등성은 `performance_credit_ledger.session_id` UNIQUE가 보장한다.
-    if (creditStatus !== 'charged' && creditStatus !== 'already_charged') {
-      console.error('performance/recommend-topics 알 수 없는 차감 상태:', creditStatus);
-      return fail(res, 500, 'INTERNAL', '주제 추천 처리에 실패했습니다.');
+    if (creditStatus !== "charged" && creditStatus !== "already_charged") {
+      console.error(
+        "performance/recommend-topics 알 수 없는 차감 상태:",
+        creditStatus,
+      );
+      return fail(res, 500, "INTERNAL", "주제 추천 처리에 실패했습니다.");
     }
 
     const charged = credit.charged === true;
@@ -775,31 +928,34 @@ export default async function handler(req, res) {
       session_id: sessionRow.id,
       round: nextRound,
       idx: index + 1,
-      title: String(topic.title || '').trim(),
+      title: String(topic.title || "").trim(),
       subtitle: TOPIC_SUBTITLE,
       tags: buildTags(sessionRow),
       detail: buildDetail(topic),
-      selected: false
+      selected: false,
     }));
 
     const { data: insertedRows, error: insertError } = await supabaseAdmin
-      .from('performance_topics')
+      .from("performance_topics")
       .insert(rows)
-      .select('id,round,idx,title,subtitle,tags,detail,selected');
+      .select("id,round,idx,title,subtitle,tags,detail,selected");
 
     if (insertError) throw new Error(`주제 저장 실패: ${insertError.message}`);
 
     const { error: sessionUpdateError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .update(stepPatch(sessionRow))
-      .eq('id', sessionRow.id);
+      .eq("id", sessionRow.id);
 
     // 진행 표시 갱신 실패로 이미 차감된 요청을 실패로 뒤집지 않는다. 주제는 저장됐고
     // 재방문 시 `deriveResumeStep`(bootstrap.js)이 실제 데이터로 재개 지점을 다시
     // 계산하고, 프론트 사이드바는 라이브 세션 상태에서 `deriveStepStates`(P13)가
     // 다시 파생한다.
     if (sessionUpdateError) {
-      console.error('performance/recommend-topics 세션 단계 갱신 실패(무시):', sessionUpdateError);
+      console.error(
+        "performance/recommend-topics 세션 단계 갱신 실패(무시):",
+        sessionUpdateError,
+      );
     }
 
     return res.status(200).json({
@@ -816,13 +972,16 @@ export default async function handler(req, res) {
         source: knowledge.source,
         hitCount: knowledge.hitCount,
         degraded: knowledge.degraded,
-        studentHistoryCount: Math.min(studentSessions.length, STUDENT_HISTORY_PROMPT_LIMIT)
-      }
+        studentHistoryCount: Math.min(
+          studentSessions.length,
+          STUDENT_HISTORY_PROMPT_LIMIT,
+        ),
+      },
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/recommend-topics error:', error);
-    return fail(res, 500, 'INTERNAL', '주제 추천에 실패했습니다.');
+    console.error("performance/recommend-topics error:", error);
+    return fail(res, 500, "INTERNAL", "주제 추천에 실패했습니다.");
   }
 }
 
@@ -839,4 +998,4 @@ export default async function handler(req, res) {
 //         `already_charged`로 복구되지만, 상단 주석이 계약이라 선언한 "플랫폼이 함수를
 //         죽이기 전에 우리가 응답을 만들어 돌려준다"가 성립하지 않는다).
 //    `analyze-guide.js` / `admin-embed.js` / `cleanup-attachments.js`와 같은 60초를 쓴다.
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

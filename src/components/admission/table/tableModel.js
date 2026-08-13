@@ -36,9 +36,9 @@ import {
   recruitFixedEmptyFallback,
   recruitExactFixedCellClassName,
   isGenericLeftColumn,
-  getCellKind
-} from '../admissionLayout';
-import { resolveCellKind } from '../editor/tableEditorValidation';
+  getCellKind,
+} from "../admissionLayout";
+import { resolveCellKind } from "../editor/tableEditorValidation";
 
 /**
  * @typedef {string
@@ -88,13 +88,15 @@ import { resolveCellKind } from '../editor/tableEditorValidation';
 
 /** 셀 3형태(문자열 / {text,badge} / {chips}) 공통 텍스트 추출. 현행 7곳 중복의 정본. */
 function cellTextOf(cell) {
-  const text = typeof cell === 'string' ? cell : cell?.text;
-  return text == null ? '' : text;
+  const text = typeof cell === "string" ? cell : cell?.text;
+  return text == null ? "" : text;
 }
 
 /** RecruitTable.jsx:36의 chips 판정을 그대로 옮긴 것. */
 function cellChipsOf(cell) {
-  return cell && typeof cell === 'object' && Array.isArray(cell.chips) ? cell.chips : null;
+  return cell && typeof cell === "object" && Array.isArray(cell.chips)
+    ? cell.chips
+    : null;
 }
 
 /**
@@ -104,9 +106,10 @@ function cellChipsOf(cell) {
  * @param {string} resolvedText 폴백까지 적용된 최종 표시 텍스트
  */
 function selectionBadgeOf(cell, resolvedText) {
-  const explicitBadge = cell && typeof cell === 'object' ? cell.badge : undefined;
-  if (explicitBadge) return explicitBadge === 'minimumHas' ? 'has' : 'none';
-  return resolvedText === '-' ? 'none' : 'has';
+  const explicitBadge =
+    cell && typeof cell === "object" ? cell.badge : undefined;
+  if (explicitBadge) return explicitBadge === "minimumHas" ? "has" : "none";
+  return resolvedText === "-" ? "none" : "has";
 }
 
 /**
@@ -119,20 +122,20 @@ function selectionBadgeOf(cell, resolvedText) {
  */
 function cellClassNameOf(block, variant, role, colIdx, kind) {
   switch (variant) {
-    case 'selection':
+    case "selection":
       // 구 SelectionTable.jsx:26
-      return SELECTION_CELL_CLASS_BY_ROLE[role] || '';
-    case 'change':
+      return SELECTION_CELL_CLASS_BY_ROLE[role] || "";
+    case "change":
       // 구 ChangeTable.jsx:23
-      return CHANGE_CELL_CLASS_BY_ROLE[role] || '';
-    case 'recruit':
+      return CHANGE_CELL_CLASS_BY_ROLE[role] || "";
+    case "recruit":
       // 구 RecruitTable.jsx:27(고정열) / :38(값 셀). 고정열 판정은
       // getCellKind가 정본 — recruit에서 kind==='text'가 곧 role∈{group,unit}
       // (chips를 쓰지 않는 컬럼)이며, 구 코드의 인라인 조건과 같은 분기다.
-      return kind !== 'chips'
+      return kind !== "chips"
         ? RECRUIT_FIXED_CELL_CLASS_BY_ROLE[role]
-        : 'recruit-values-cell';
-    case 'recruitExact':
+        : "recruit-values-cell";
+    case "recruitExact":
       // RecruitExactTable.jsx:40-47 — role이 아니라 위치(fixedColumnCount) 기반.
       return colIdx < (block?.fixedColumnCount || 0)
         ? recruitExactFixedCellClassName(colIdx)
@@ -140,7 +143,7 @@ function cellClassNameOf(block, variant, role, colIdx, kind) {
     default:
       // GenericTable.jsx:23 — exam/minimum/recordInfo/score/special/generic 및
       // TableBlockView.jsx:34 default가 흘려보내는 미지 variant 전부.
-      return isGenericLeftColumn(colIdx) ? 'left' : undefined;
+      return isGenericLeftColumn(colIdx) ? "left" : undefined;
   }
 }
 
@@ -157,40 +160,65 @@ function cellClassNameOf(block, variant, role, colIdx, kind) {
  * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
  */
 function cellViewOf(block, variant, role, colIdx, raw, text, kind) {
-  const base = { leaf: 'literal', text, badge: null, chips: null, fallback: '' };
+  const base = {
+    leaf: "literal",
+    text,
+    badge: null,
+    chips: null,
+    fallback: "",
+  };
 
   switch (variant) {
-    case 'selection': {
-      if (kind === 'badge') {
+    case "selection": {
+      if (kind === "badge") {
         // 구 SelectionTable.jsx:29-44
-        const fallback = '-';
-        return { ...base, leaf: 'badge', fallback, badge: selectionBadgeOf(raw, text || fallback) };
+        const fallback = "-";
+        return {
+          ...base,
+          leaf: "badge",
+          fallback,
+          badge: selectionBadgeOf(raw, text || fallback),
+        };
       }
       // 구 SelectionTable.jsx:46-50 — 빈값은 muted span이 아니라 리터럴 '-'.
-      return { ...base, leaf: 'literal', fallback: selectionEmptyFallback(role) };
+      return {
+        ...base,
+        leaf: "literal",
+        fallback: selectionEmptyFallback(role),
+      };
     }
-    case 'change': {
-      if (role === 'content') {
+    case "change": {
+      if (role === "content") {
         // 구 ChangeTable.jsx:26-36 — 값이 있으면 plain-cell div, 없으면 muted span.
-        return text ? { ...base, leaf: 'changePlain' } : { ...base, leaf: 'muted' };
+        return text
+          ? { ...base, leaf: "changePlain" }
+          : { ...base, leaf: "muted" };
       }
       // 구 ChangeTable.jsx:38-42 — no='-' / title='주요 변경' 리터럴 폴백.
-      return { ...base, leaf: 'literal', fallback: CHANGE_EMPTY_FALLBACK_BY_ROLE[role] || '-' };
+      return {
+        ...base,
+        leaf: "literal",
+        fallback: CHANGE_EMPTY_FALLBACK_BY_ROLE[role] || "-",
+      };
     }
-    case 'recruit': {
-      if (kind !== 'chips') {
+    case "recruit": {
+      if (kind !== "chips") {
         // 구 RecruitTable.jsx:26-34 (고정열 group/unit)
-        return { ...base, leaf: 'literal', fallback: recruitFixedEmptyFallback() };
+        return {
+          ...base,
+          leaf: "literal",
+          fallback: recruitFixedEmptyFallback(),
+        };
       }
       // 구 RecruitTable.jsx:36-51
       const chips = cellChipsOf(raw);
       return chips && chips.length
-        ? { ...base, leaf: 'chips', chips }
-        : { ...base, leaf: 'muted', chips };
+        ? { ...base, leaf: "chips", chips }
+        : { ...base, leaf: "muted", chips };
     }
     default:
       // 구 RecruitExactTable.jsx:38-39 / GenericTable.jsx:22-27 — 동일 규칙.
-      return text ? { ...base, leaf: 'literal' } : { ...base, leaf: 'muted' };
+      return text ? { ...base, leaf: "literal" } : { ...base, leaf: "muted" };
   }
 }
 
@@ -200,10 +228,11 @@ function cellViewOf(block, variant, role, colIdx, raw, text, kind) {
  * @returns {{ layout: {scrollWrapClassName:string, tableClassName:string}, columnCount:number } | null}
  */
 export function describeTable(block) {
-  if (!block || !Array.isArray(block.columns) || !Array.isArray(block.rows)) return null;
+  if (!block || !Array.isArray(block.columns) || !Array.isArray(block.rows))
+    return null;
   return {
     layout: getTableVariantLayout(block.variant),
-    columnCount: block.columns.length
+    columnCount: block.columns.length,
   };
 }
 
@@ -226,45 +255,45 @@ export function describeTable(block) {
  */
 export function describeHeader(block, options) {
   const columns = Array.isArray(block?.columns) ? block.columns : [];
-  const flatten = options?.groupHeader === 'flatten';
+  const flatten = options?.groupHeader === "flatten";
 
-  if (!flatten && block?.variant === 'recruitExact') {
+  if (!flatten && block?.variant === "recruitExact") {
     const fixedCount = block.fixedColumnCount || 0;
     const topCells = [];
 
     columns.slice(0, fixedCount).forEach((col, idx) => {
       topCells.push({
         key: `fixed-${idx}`,
-        kind: 'column',
+        kind: "column",
         colIdx: idx,
         label: col.label,
-        className: 'fixed-head',
+        className: "fixed-head",
         rowSpan: 2,
-        colSpan: undefined
+        colSpan: undefined,
       });
     });
 
     (block.groups || []).forEach((group, idx) => {
       topCells.push({
         key: `group-${idx}`,
-        kind: 'group',
+        kind: "group",
         colIdx: null,
         groupIdx: idx,
         label: group.name,
-        className: 'recruit-group-head',
+        className: "recruit-group-head",
         rowSpan: undefined,
-        colSpan: group.count
+        colSpan: group.count,
       });
     });
 
     const bottomCells = columns.slice(fixedCount).map((col, idx) => ({
       key: String(idx),
-      kind: 'column',
+      kind: "column",
       colIdx: fixedCount + idx,
       label: col.label,
       className: undefined,
       rowSpan: undefined,
-      colSpan: undefined
+      colSpan: undefined,
     }));
 
     return { rows: [{ cells: topCells }, { cells: bottomCells }] };
@@ -275,15 +304,15 @@ export function describeHeader(block, options) {
       {
         cells: columns.map((col, idx) => ({
           key: String(idx),
-          kind: 'column',
+          kind: "column",
           colIdx: idx,
           label: col.label,
           className: undefined,
           rowSpan: undefined,
-          colSpan: undefined
-        }))
-      }
-    ]
+          colSpan: undefined,
+        })),
+      },
+    ],
   };
 }
 
@@ -313,6 +342,6 @@ export function describeCell(block, rowIdx, colIdx) {
     // 편집 UI 종류: role 기반 판정(kind)을 셀 실제 형태로 보정한다
     // (tableEditorValidation.js resolveCellKind). 표시 쪽은 role 판정만 쓰고
     // 편집 쪽만 값 형태 보정을 덧씌우는 것이 현행 동작이다.
-    edit: { kind: resolveCellKind(kind, raw) }
+    edit: { kind: resolveCellKind(kind, raw) },
   };
 }

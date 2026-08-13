@@ -27,14 +27,14 @@
 // goal-admin 앱의 리셋 버튼 UI는 이번 범위 밖이다(PR #63, 이 브랜치엔 미포함) —
 // 이 엔드포인트는 백엔드만 완성한다.
 
-import { createSupabaseAdmin } from '../../_lib/supabaseAdmin.js';
-import { resolveWinningAdmin } from '../../_lib/adminAuth.js';
+import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
+import { resolveWinningAdmin } from "../../_lib/adminAuth.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   let supabaseAdmin;
@@ -42,8 +42,8 @@ export default async function handler(req, res) {
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('goal/admin/reset-student 설정 오류:', error);
-    return res.status(500).json({ detail: '서버 설정이 올바르지 않습니다.' });
+    console.error("goal/admin/reset-student 설정 오류:", error);
+    return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
   }
 
   const auth = await resolveWinningAdmin(supabaseAdmin, req);
@@ -52,26 +52,28 @@ export default async function handler(req, res) {
   }
 
   const { profileId } = req.body || {};
-  if (!profileId || typeof profileId !== 'string') {
-    return res.status(400).json({ detail: 'profileId가 필요합니다.' });
+  if (!profileId || typeof profileId !== "string") {
+    return res.status(400).json({ detail: "profileId가 필요합니다." });
   }
 
   try {
-    const { error } = await supabaseAdmin.rpc('fn_goal_reset_student', {
-      p_profile_id: profileId
+    const { error } = await supabaseAdmin.rpc("fn_goal_reset_student", {
+      p_profile_id: profileId,
     });
 
     if (error) {
-      if (String(error.message || '').includes('goal_student_not_found')) {
-        return res.status(404).json({ detail: '해당 학생을 찾을 수 없습니다.' });
+      if (String(error.message || "").includes("goal_student_not_found")) {
+        return res
+          .status(404)
+          .json({ detail: "해당 학생을 찾을 수 없습니다." });
       }
-      console.error('goal/admin/reset-student RPC 오류:', error);
-      return res.status(500).json({ detail: '리셋 처리에 실패했습니다.' });
+      console.error("goal/admin/reset-student RPC 오류:", error);
+      return res.status(500).json({ detail: "리셋 처리에 실패했습니다." });
     }
 
     return res.status(200).json({ ok: true });
   } catch (error) {
-    console.error('goal/admin/reset-student error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/admin/reset-student error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

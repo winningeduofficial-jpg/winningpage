@@ -28,10 +28,10 @@ function groupItems(items) {
   let currentBullets = null;
 
   items.forEach((item) => {
-    if (item.type === 'bullet') {
+    if (item.type === "bullet") {
       if (!currentBullets) {
         currentBullets = [];
-        groups.push({ kind: 'bulletGroup', items: currentBullets });
+        groups.push({ kind: "bulletGroup", items: currentBullets });
       }
       currentBullets.push(item.text);
       return;
@@ -50,15 +50,15 @@ function groupItems(items) {
 export default function PlainListView({ items, ordered = false }) {
   if (!items || !items.length) return null;
   const groups = groupItems(items);
-  const ListTag = ordered ? 'ol' : 'ul';
+  const ListTag = ordered ? "ol" : "ul";
   const listClassName = ordered
-    ? 'admission-bullet-list admission-ordered-list'
-    : 'admission-bullet-list';
+    ? "admission-bullet-list admission-ordered-list"
+    : "admission-bullet-list";
 
   return (
     <div className="admission-readable-body">
       {groups.map((group, idx) => {
-        if (group.kind === 'bulletGroup') {
+        if (group.kind === "bulletGroup") {
           return (
             <ListTag key={idx} className={listClassName}>
               {group.items.map((text, itemIdx) => (
@@ -67,7 +67,10 @@ export default function PlainListView({ items, ordered = false }) {
             </ListTag>
           );
         }
-        const className = group.kind === 'subtitle' ? 'admission-subtitle-line' : 'admission-text-line';
+        const className =
+          group.kind === "subtitle"
+            ? "admission-subtitle-line"
+            : "admission-text-line";
         return (
           <div key={idx} className={className}>
             {group.text}

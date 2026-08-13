@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import ConfirmModal from '../../components/checkout/ConfirmModal';
+import { useNavigate } from "react-router-dom";
+import ConfirmModal from "../../components/checkout/ConfirmModal";
 
 // 학부모가 "이용신청 > 서비스요금"(/pricing)으로 들어왔을 때 뜨는 차단 모달
 // (2026-08-12b 팀 리드 지시). 학부모는 이 화면에서 새 상품을 직접 결제할 수
@@ -28,14 +28,14 @@ import ConfirmModal from '../../components/checkout/ConfirmModal';
 // 성립하므로, 이 배경을 채우거나 실제 콘텐츠로 바꾸지 말 것.
 //
 // 문구 — 2026-08-12c 사용자 승인(짧게 축약, "페이지 접근 전" 노출 확정).
-const TITLE = '학생이 요청한 결제만 진행할 수 있어요';
-const BODY = '학생이 결제를 요청하면 마이페이지에서 진행할 수 있어요.';
+const TITLE = "학생이 요청한 결제만 진행할 수 있어요";
+const BODY = "학생이 결제를 요청하면 마이페이지에서 진행할 수 있어요.";
 
 export default function ParentPricingBlockedModal() {
   const navigate = useNavigate();
 
   function goMyPage() {
-    navigate('/mypage', { replace: true });
+    navigate("/mypage", { replace: true });
   }
 
   return (

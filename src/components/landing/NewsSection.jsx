@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 
-import Chip from '../Chip';
+import Chip from "../Chip";
 
 /**
  * 뉴스 섹션 (0729 시안 Figma node 2207:13148, 1101×293 재구현) — 독립 풀폭 섹션
@@ -45,35 +45,39 @@ const MAX_ROWS = 3;
 // ★ 렌더 조건: category 값 자체가 없으면 배지 대신 스페이서를 그린다.
 //   값은 있는데 이 표에 없는 카테고리는 gray 폴백으로 **렌더된다**(기존 동작 그대로).
 const CATEGORY_BADGE_TONES = {
-  보도자료: 'blue',
-  파트너십: 'green',
-  공지: 'coral',
-  중요: 'coral'
+  보도자료: "blue",
+  파트너십: "green",
+  공지: "coral",
+  중요: "coral",
 };
 
 /** 매핑에 없는 카테고리의 폴백 tone(기존 #F1F5F9/#525252 리터럴과 동일). */
-const CATEGORY_BADGE_FALLBACK_TONE = 'gray';
+const CATEGORY_BADGE_FALLBACK_TONE = "gray";
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
 // toISOString() 단독 사용 시 KST 00:00~08:59 생성 글이 전날로 표시되는 문제 방지.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function formatDate(value) {
-  if (!value) return '';
+  if (!value) return "";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return String(value).slice(0, 10).replace(/-/g, '.');
+    return String(value).slice(0, 10).replace(/-/g, ".");
   }
 
-  return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10).replace(/-/g, '.');
+  return new Date(date.getTime() + KST_OFFSET_MS)
+    .toISOString()
+    .slice(0, 10)
+    .replace(/-/g, ".");
 }
 
 // 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
 // '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
 function CategoryBadge({ category }) {
-  if (!category) return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
+  if (!category)
+    return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 
   return (
     <Chip
@@ -191,7 +195,11 @@ export default function NewsSection({ companyNews = [], notices = [] }) {
 
           {/* 우: 공지사항 */}
           <div>
-            <ColumnHeader title="공지사항" moreLink="/events" moreLabel="공지사항 더보기" />
+            <ColumnHeader
+              title="공지사항"
+              moreLink="/events"
+              moreLabel="공지사항 더보기"
+            />
             {noticeRows.length > 0 ? (
               <ul className="mt-10 space-y-[1.5rem] md:mt-[1.5rem]">
                 {noticeRows.map((item) => (

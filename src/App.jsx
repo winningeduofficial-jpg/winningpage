@@ -1,67 +1,73 @@
-
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useEffect, lazy, Suspense } from 'react';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import MyPage from './pages/MyPage';
-import ChildReport from './pages/mypage/ChildReport';
-import Pricing from './pages/Pricing';
-import Checkout from './pages/Checkout';
-import Legal from './pages/Legal';
-import PaymentSuccess from './pages/PaymentSuccess';
-import PaymentFail from './pages/PaymentFail';
-import LearningDiagnosisLanding from './pages/renewal/LearningDiagnosisLanding';
-import Callmentor from './pages/services/Callmentor';
-import GoalManagement from './pages/services/GoalManagement';
-import PerformanceAssessment from './pages/services/PerformanceAssessment';
-import SelfAssessment from './pages/services/SelfAssessment';
-import InDepthResearch from './pages/services/InDepthResearch';
-import Services from './pages/Services';
-import LearningAnalysis from './pages/LearningAnalysis';
-import AdmissionBoard from './pages/AdmissionBoard';
-import AdmissionCases from './pages/admission/AdmissionCases';
-import AdmissionCaseDetail from './pages/admission/AdmissionCaseDetail';
-import SpecialHighschoolCases from './pages/special/SpecialHighschoolCases';
-import AdmissionGuidelines from './pages/AdmissionGuidelines';
-import AdmissionResults from './pages/AdmissionResults';
-import ColumnHome from './pages/column/ColumnHome';
-import ColumnList from './pages/column/ColumnList';
-import ColumnDetail from './pages/column/ColumnDetail';
-import Events from './pages/Events';
-import Reviews from './pages/Reviews';
-import Faq from './pages/Faq';
-import DynamicPage from './pages/DynamicPage';
-import PremiumApply from './pages/PremiumApply';
-import MentorApply from './pages/MentorApply';
-import CompanyNews from './pages/CompanyNews';
-import CompanyNewsList from './pages/CompanyNewsList';
-import ProtectedAdmin from './components/ProtectedAdmin';
-import ProtectedRoute from './components/ProtectedRoute';
-import SiteLayout from './components/SiteLayout';
-import SurveyStepShell from './pages/renewal/SurveyStepShell';
-import SurveyStepPage from './pages/renewal/SurveyStepPage';
-import SurveyPreview from './pages/renewal/SurveyPreview';
-import FreeDiagnosisReport from './pages/renewal/FreeDiagnosisReport';
-import { SignupProvider } from './context/SignupContext';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
+import { useEffect, lazy, Suspense } from "react";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import MyPage from "./pages/MyPage";
+import ChildReport from "./pages/mypage/ChildReport";
+import Pricing from "./pages/Pricing";
+import Checkout from "./pages/Checkout";
+import Legal from "./pages/Legal";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFail from "./pages/PaymentFail";
+import LearningDiagnosisLanding from "./pages/renewal/LearningDiagnosisLanding";
+import Callmentor from "./pages/services/Callmentor";
+import GoalManagement from "./pages/services/GoalManagement";
+import PerformanceAssessment from "./pages/services/PerformanceAssessment";
+import SelfAssessment from "./pages/services/SelfAssessment";
+import InDepthResearch from "./pages/services/InDepthResearch";
+import Services from "./pages/Services";
+import LearningAnalysis from "./pages/LearningAnalysis";
+import AdmissionBoard from "./pages/AdmissionBoard";
+import AdmissionCases from "./pages/admission/AdmissionCases";
+import AdmissionCaseDetail from "./pages/admission/AdmissionCaseDetail";
+import SpecialHighschoolCases from "./pages/special/SpecialHighschoolCases";
+import AdmissionGuidelines from "./pages/AdmissionGuidelines";
+import AdmissionResults from "./pages/AdmissionResults";
+import ColumnHome from "./pages/column/ColumnHome";
+import ColumnList from "./pages/column/ColumnList";
+import ColumnDetail from "./pages/column/ColumnDetail";
+import Events from "./pages/Events";
+import Reviews from "./pages/Reviews";
+import Faq from "./pages/Faq";
+import DynamicPage from "./pages/DynamicPage";
+import PremiumApply from "./pages/PremiumApply";
+import MentorApply from "./pages/MentorApply";
+import CompanyNews from "./pages/CompanyNews";
+import CompanyNewsList from "./pages/CompanyNewsList";
+import ProtectedAdmin from "./components/ProtectedAdmin";
+import ProtectedRoute from "./components/ProtectedRoute";
+import SiteLayout from "./components/SiteLayout";
+import SurveyStepShell from "./pages/renewal/SurveyStepShell";
+import SurveyStepPage from "./pages/renewal/SurveyStepPage";
+import SurveyPreview from "./pages/renewal/SurveyPreview";
+import FreeDiagnosisReport from "./pages/renewal/FreeDiagnosisReport";
+import { SignupProvider } from "./context/SignupContext";
 
 // 목표관리 학생 앱(goal-app-shell) — 사이드바 셸 + 서브페이지 10종. docs/figma-goal/00-INDEX.md
 // §5-1 기준 마케팅 헤더/푸터를 쓰지 않는 별개 앱 셸이라 `/mypage`·`/admin`과 같은 방식으로
 // SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
 // 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
-import GoalAppLayout from './components/goal/GoalAppLayout';
-import RequireGoalAccess from './components/goal/RequireGoalAccess';
-import GoalOnboarding from './pages/goal/Onboarding';
-import GoalDashboard from './pages/goal/Dashboard';
-import GoalTargetUniversity from './pages/goal/TargetUniversity';
-import GoalTimer from './pages/goal/Timer';
-import GoalDailyRecord from './pages/goal/DailyRecord';
-import GoalWeeklyPlan from './pages/goal/WeeklyPlan';
-import GoalEfforts from './pages/goal/Efforts';
-import GoalGrowthReport from './pages/goal/GrowthReport';
-import GoalGrades from './pages/goal/Grades';
-import GoalDirectionReport from './pages/goal/DirectionReport';
-import GoalSchedules from './pages/goal/Schedules';
-import GoalProfile from './pages/goal/Profile';
+import GoalAppLayout from "./components/goal/GoalAppLayout";
+import RequireGoalAccess from "./components/goal/RequireGoalAccess";
+import GoalOnboarding from "./pages/goal/Onboarding";
+import GoalDashboard from "./pages/goal/Dashboard";
+import GoalTargetUniversity from "./pages/goal/TargetUniversity";
+import GoalTimer from "./pages/goal/Timer";
+import GoalDailyRecord from "./pages/goal/DailyRecord";
+import GoalWeeklyPlan from "./pages/goal/WeeklyPlan";
+import GoalEfforts from "./pages/goal/Efforts";
+import GoalGrowthReport from "./pages/goal/GrowthReport";
+import GoalGrades from "./pages/goal/Grades";
+import GoalDirectionReport from "./pages/goal/DirectionReport";
+import GoalSchedules from "./pages/goal/Schedules";
+import GoalProfile from "./pages/goal/Profile";
 
 // 수행평가 학생 앱(performance) — 목표관리와 같은 규칙으로 SiteLayout 밖에 둔다.
 // 시안 24노드 어디에도 사이트 헤더/푸터가 없고 셸이 자체 사이드바를 갖는다
@@ -69,39 +75,40 @@ import GoalProfile from './pages/goal/Profile';
 // `/services/performance`(마케팅 랜딩)와는 별개 라우트다.
 // ⚠️ 신규 자산 네이밍은 performance지만 **이용권 조회 키는 'suhaeng'** 이다 —
 //    운영 DB의 program_access.program_key에 이미 박힌 값이라 개명 대상이 아니다(§1.4).
-import RequireEntitlement from './components/RequireEntitlement';
-import { SessionProvider } from './context/SessionContext';
+import RequireEntitlement from "./components/RequireEntitlement";
+import { SessionProvider } from "./context/SessionContext";
 
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
-import MemberType from './pages/signup/MemberType';
-import StudentBirth from './pages/signup/StudentBirth';
-import StudentForm from './pages/signup/StudentForm';
-import Under14Verify from './pages/signup/Under14Verify';
-import Under14Form from './pages/signup/Under14Form';
-import UnifiedSignupForm from './pages/signup/UnifiedSignupForm';
-import StudentComplete from './pages/signup/StudentComplete';
-import ParentForm from './pages/signup/parent/ParentForm';
-import LinkChoice from './pages/signup/parent/LinkChoice';
-import LinkCode from './pages/signup/parent/LinkCode';
-import LinkDone from './pages/signup/parent/LinkDone';
-import InviteChild from './pages/signup/parent/InviteChild';
-import InviteDone from './pages/signup/parent/InviteDone';
-import ParentHome from './pages/signup/parent/ParentHome';
+import MemberType from "./pages/signup/MemberType";
+import StudentBirth from "./pages/signup/StudentBirth";
+import StudentForm from "./pages/signup/StudentForm";
+import Under14Verify from "./pages/signup/Under14Verify";
+import Under14Form from "./pages/signup/Under14Form";
+import UnifiedSignupForm from "./pages/signup/UnifiedSignupForm";
+import StudentComplete from "./pages/signup/StudentComplete";
+import ParentForm from "./pages/signup/parent/ParentForm";
+import LinkChoice from "./pages/signup/parent/LinkChoice";
+import LinkCode from "./pages/signup/parent/LinkCode";
+import LinkDone from "./pages/signup/parent/LinkDone";
+import InviteChild from "./pages/signup/parent/InviteChild";
+import InviteDone from "./pages/signup/parent/InviteDone";
+import ParentHome from "./pages/signup/parent/ParentHome";
 
 // 약관 8종(§5.2) — 학생 5종 + 학부모 3종, 전부 정적 문서 페이지
-import StudentService from './pages/terms/StudentService';
-import StudentPrivacy from './pages/terms/StudentPrivacy';
-import StudentIdentity from './pages/terms/StudentIdentity';
-import StudentMarketing from './pages/terms/StudentMarketing';
-import StudentPromotion from './pages/terms/StudentPromotion';
-import ParentService from './pages/terms/ParentService';
-import ParentPrivacy from './pages/terms/ParentPrivacy';
-import ParentMarketing from './pages/terms/ParentMarketing';
+import StudentService from "./pages/terms/StudentService";
+import StudentPrivacy from "./pages/terms/StudentPrivacy";
+import StudentIdentity from "./pages/terms/StudentIdentity";
+import StudentMarketing from "./pages/terms/StudentMarketing";
+import StudentPromotion from "./pages/terms/StudentPromotion";
+import ParentService from "./pages/terms/ParentService";
+import ParentPrivacy from "./pages/terms/ParentPrivacy";
+import ParentMarketing from "./pages/terms/ParentMarketing";
 
 // 신규 노드 2516-1974('통합 가입 폼', docs/impl-status-recheck.md §4) — 시안 미확정(손그림
 // 낙서) 임시 라우트라 플래그가 켜져 있을 때만 등록한다. 꺼져 있으면 라우트 자체가 없으므로
 // 직접 URL 진입도 자연히 막힌다(UnifiedSignupForm.jsx 내부의 이중 방어 useEffect와 함께).
-const UNIFIED_SIGNUP_ENABLED = import.meta.env.VITE_UNIFIED_SIGNUP_ENABLED === 'true';
+const UNIFIED_SIGNUP_ENABLED =
+  import.meta.env.VITE_UNIFIED_SIGNUP_ENABLED === "true";
 
 // /signup 하위 라우트 전용 컨텍스트 경계 — 유형 선택부터 완료/온보딩까지 단계 간 데이터
 // (memberType/birthDate/폼데이터/인증 상태)를 SignupProvider(§5.3)로 공유한다.
@@ -113,11 +120,11 @@ function SignupFlowLayout() {
   );
 }
 
-const Admin = lazy(() => import('./pages/Admin'));
+const Admin = lazy(() => import("./pages/Admin"));
 // 고객사 HTML 목업 5종 데모 라우트 — lazy가 핵심이다. 가드(ProtectedAdmin)를 통과하기 전엔
 // HTML 문자열이 든 청크를 네트워크에서 받지도 않는다.
-const DemoIndex = lazy(() => import('./pages/demo/DemoIndex'));
-const DemoFrame = lazy(() => import('./pages/demo/DemoFrame'));
+const DemoIndex = lazy(() => import("./pages/demo/DemoIndex"));
+const DemoFrame = lazy(() => import("./pages/demo/DemoFrame"));
 
 // 데모 라우트 공용 Suspense fallback — /admin 것과 같은 스타일로 맞춘다.
 function DemoFallback() {
@@ -131,9 +138,15 @@ function DemoFallback() {
 }
 
 // 수행평가 학생 앱 셸/페이지 — 이용권 없는 사용자가 대다수라 초기 번들에서 뺀다(Admin과 동일 패턴).
-const PerformanceAppLayout = lazy(() => import('./components/performance/PerformanceAppLayout'));
-const PerformanceChatPage = lazy(() => import('./pages/performance/PerformanceChatPage'));
-const PerformanceReportsPage = lazy(() => import('./pages/performance/PerformanceReportsPage'));
+const PerformanceAppLayout = lazy(
+  () => import("./components/performance/PerformanceAppLayout"),
+);
+const PerformanceChatPage = lazy(
+  () => import("./pages/performance/PerformanceChatPage"),
+);
+const PerformanceReportsPage = lazy(
+  () => import("./pages/performance/PerformanceReportsPage"),
+);
 
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
@@ -160,41 +173,66 @@ export default function App() {
               여기 후(後) 가드가 필요하다. */}
           <Route
             path="/checkout"
-            element={(
+            element={
               <ProtectedRoute>
                 <Checkout />
               </ProtectedRoute>
-            )}
+            }
           />
 
           {/* 법적 문서 (카드사·PG 심사 필수) */}
           <Route path="/terms" element={<Legal docKey="terms" />} />
           <Route path="/privacy" element={<Legal docKey="privacy" />} />
           <Route path="/refund" element={<Legal docKey="refund" />} />
-          <Route path="/payment-terms" element={<Legal docKey="payment-terms" />} />
-          <Route path="/payment-consent" element={<Legal docKey="payment-consent" />} />
+          <Route
+            path="/payment-terms"
+            element={<Legal docKey="payment-terms" />}
+          />
+          <Route
+            path="/payment-consent"
+            element={<Legal docKey="payment-consent" />}
+          />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
           {/* 결제 실패도 완료와 같은 셸(헤더/푸터 포함)을 쓴다 — 실패 화면에서
               GNB·문의 연락처가 사라지면 이탈 경로가 없어진다. */}
           <Route path="/payment/fail" element={<PaymentFail />} />
-          <Route path="/learning-diagnosis/report" element={<FreeDiagnosisReport />} />
+          <Route
+            path="/learning-diagnosis/report"
+            element={<FreeDiagnosisReport />}
+          />
 
           {/* 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
               /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...
               목표관리(/app/goal/*)에 이어 학습진단도 이 규칙으로 이관했다. */}
-          <Route path="/services/learning-diagnosis" element={<LearningDiagnosisLanding />} />
+          <Route
+            path="/services/learning-diagnosis"
+            element={<LearningDiagnosisLanding />}
+          />
           {/* ⚠️ 설계 리스크 — 이 화면은 무료·체험 성격이라 로그인 없이 접근 가능해야 할 수 있다.
               추후 /app/* 전체에 일괄 로그인 가드를 걸 때 이 라우트를 예외 처리해야 한다(이번
               단계에서는 가드 자체를 구현하지 않는다). */}
-          <Route path="/app/learning-diagnosis/survey" element={<SurveyStepShell />}>
+          <Route
+            path="/app/learning-diagnosis/survey"
+            element={<SurveyStepShell />}
+          >
             {/* /survey 진입은 스텝1로 명시 리다이렉트. 없으면 최하단 catch-all 이 홈으로 삼킨다. */}
-            <Route index element={<Navigate to="/app/learning-diagnosis/survey/1" replace />} />
+            <Route
+              index
+              element={
+                <Navigate to="/app/learning-diagnosis/survey/1" replace />
+              }
+            />
             {/* 정적 세그먼트를 :step 보다 먼저 선언 — v6 랭킹상 정적이 우선이지만 의도를 코드로 고정한다. */}
             <Route path="preview" element={<SurveyPreview />} />
             <Route path=":step" element={<SurveyStepPage />} />
             {/* /survey/1/2 같은 초과 세그먼트 방어. 반드시 마지막. */}
-            <Route path="*" element={<Navigate to="/app/learning-diagnosis/survey/1" replace />} />
+            <Route
+              path="*"
+              element={
+                <Navigate to="/app/learning-diagnosis/survey/1" replace />
+              }
+            />
           </Route>
 
           {/* 구 경로 4종 호환. 외부 링크·북마크 보호용이라 영구 유지한다.
@@ -230,21 +268,36 @@ export default function App() {
               path="/app/goal/onboarding"
               element={<Navigate to="/app/goal/onboarding/step-1" replace />}
             />
-            <Route path="/app/goal/onboarding/:step" element={<GoalOnboarding />} />
+            <Route
+              path="/app/goal/onboarding/:step"
+              element={<GoalOnboarding />}
+            />
           </Route>
 
           <Route path="/services/callmentor" element={<Callmentor />} />
           {/* 구 경로 — GNB/DB services-content 슬러그가 가리키던 곳. 신규 랜딩으로 리다이렉트 */}
-          <Route path="/page/services-content" element={<Navigate to="/services/callmentor" replace />} />
+          <Route
+            path="/page/services-content"
+            element={<Navigate to="/services/callmentor" replace />}
+          />
 
           {/* 서비스 랜딩 4종 (Figma 예시 1889:6944/1889:6486/1907:20783/1907:21352) */}
           <Route path="/services/goal" element={<GoalManagement />} />
-          <Route path="/services/performance" element={<PerformanceAssessment />} />
-          <Route path="/services/self-assessment" element={<SelfAssessment />} />
+          <Route
+            path="/services/performance"
+            element={<PerformanceAssessment />}
+          />
+          <Route
+            path="/services/self-assessment"
+            element={<SelfAssessment />}
+          />
           <Route path="/services/research" element={<InDepthResearch />} />
 
           {/* 구 경로(DB page_contents 미갱신 시 잔존) → 신규 라우트로 리다이렉트 */}
-          <Route path="/page/services-goal" element={<Navigate to="/services/goal" replace />} />
+          <Route
+            path="/page/services-goal"
+            element={<Navigate to="/services/goal" replace />}
+          />
           <Route
             path="/page/services-ai-performance"
             element={<Navigate to="/services/performance" replace />}
@@ -262,24 +315,36 @@ export default function App() {
             element={<Navigate to="/admission/special-highschool" replace />}
           />
 
-          <Route path="/admission/guidelines" element={<AdmissionGuidelines />} />
+          <Route
+            path="/admission/guidelines"
+            element={<AdmissionGuidelines />}
+          />
           <Route path="/admission/results" element={<AdmissionResults />} />
 
           {/* 수시와 정시는 각각 자신의 category만 조회합니다. */}
           <Route path="/admission/susi" element={<AdmissionCases />} />
           <Route path="/admission/jungsi" element={<AdmissionCases />} />
           <Route path="/admission/susi/:id" element={<AdmissionCaseDetail />} />
-          <Route path="/admission/jungsi/:id" element={<AdmissionCaseDetail />} />
+          <Route
+            path="/admission/jungsi/:id"
+            element={<AdmissionCaseDetail />}
+          />
 
           {/* 메인 합격생 카드에서 사용하는 통합 상세 주소는 유지합니다. */}
-          <Route path="/admission/susi-jungsi/:id" element={<AdmissionCaseDetail />} />
+          <Route
+            path="/admission/susi-jungsi/:id"
+            element={<AdmissionCaseDetail />}
+          />
           <Route
             path="/admission/susi-jungsi"
             element={<Navigate to="/admission/susi" replace />}
           />
 
           {/* 특목고합격 — 카드가 링크가 아니라 상세 라우트는 두지 않는다(시안 2239:1559에 상세 없음). */}
-          <Route path="/admission/special-highschool" element={<SpecialHighschoolCases />} />
+          <Route
+            path="/admission/special-highschool"
+            element={<SpecialHighschoolCases />}
+          />
 
           <Route path="/admission/essay" element={<AdmissionBoard />} />
           <Route path="/admission/essay/:id" element={<AdmissionBoard />} />
@@ -296,12 +361,18 @@ export default function App() {
 
           {/* 이용신청 > 프리미엄 이용 — 구 슬러그(/page/premium-apply)는 전용 라우트로 리다이렉트 */}
           <Route path="/premium-apply" element={<PremiumApply />} />
-          <Route path="/page/premium-apply" element={<Navigate to="/premium-apply" replace />} />
+          <Route
+            path="/page/premium-apply"
+            element={<Navigate to="/premium-apply" replace />}
+          />
 
           {/* 이용신청 > 멘토신청 — premium-apply 선례 그대로. 반드시 /page/:slug 와일드카드보다 위에
               둔다(아래로 내려가면 DynamicPage가 먼저 매칭해 신규 페이지가 뜨지 않는다). */}
           <Route path="/mentor-apply" element={<MentorApply />} />
-          <Route path="/page/mentor-apply" element={<Navigate to="/mentor-apply" replace />} />
+          <Route
+            path="/page/mentor-apply"
+            element={<Navigate to="/mentor-apply" replace />}
+          />
 
           <Route path="/page/:slug" element={<DynamicPage />} />
 
@@ -313,15 +384,24 @@ export default function App() {
             <Route path="/signup" element={<MemberType />} />
             <Route path="/signup/student/birth" element={<StudentBirth />} />
             <Route path="/signup/student" element={<StudentForm />} />
-            <Route path="/signup/student/under14/verify" element={<Under14Verify />} />
+            <Route
+              path="/signup/student/under14/verify"
+              element={<Under14Verify />}
+            />
             <Route path="/signup/student/under14" element={<Under14Form />} />
             {UNIFIED_SIGNUP_ENABLED && (
               <Route path="/signup/unified" element={<UnifiedSignupForm />} />
             )}
-            <Route path="/signup/student/complete" element={<StudentComplete />} />
+            <Route
+              path="/signup/student/complete"
+              element={<StudentComplete />}
+            />
             <Route path="/signup/parent" element={<ParentForm />} />
             <Route path="/signup/parent/link" element={<LinkChoice />} />
-            <Route path="/signup/parent/link/add" element={<LinkChoice mode="add" />} />
+            <Route
+              path="/signup/parent/link/add"
+              element={<LinkChoice mode="add" />}
+            />
             <Route path="/signup/parent/link/code" element={<LinkCode />} />
             <Route path="/signup/parent/link/done" element={<LinkDone />} />
             <Route path="/signup/parent/invite" element={<InviteChild />} />
@@ -333,8 +413,14 @@ export default function App() {
           <Route path="/terms/student/service" element={<StudentService />} />
           <Route path="/terms/student/privacy" element={<StudentPrivacy />} />
           <Route path="/terms/student/identity" element={<StudentIdentity />} />
-          <Route path="/terms/student/marketing" element={<StudentMarketing />} />
-          <Route path="/terms/student/promotion" element={<StudentPromotion />} />
+          <Route
+            path="/terms/student/marketing"
+            element={<StudentMarketing />}
+          />
+          <Route
+            path="/terms/student/promotion"
+            element={<StudentPromotion />}
+          />
           <Route path="/terms/parent/service" element={<ParentService />} />
           <Route path="/terms/parent/privacy" element={<ParentPrivacy />} />
           <Route path="/terms/parent/marketing" element={<ParentMarketing />} />
@@ -349,7 +435,10 @@ export default function App() {
               아니라 마이페이지와 같은 SiteLayout 안에 둔다. 학부모는 목표관리 앱의
               이용자가 아니라 열람자라서 사이드바 메뉴(타이머·일일기록 등)가 의미가
               없기 때문이다. 권한 판정은 ChildReport 안에서 fn_parent_children 으로 한다. */}
-          <Route path="/mypage/children/:studentId/report" element={<ChildReport />} />
+          <Route
+            path="/mypage/children/:studentId/report"
+            element={<ChildReport />}
+          />
         </Route>
 
         {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 진입 가드(로그인 → 이용권 →
@@ -358,14 +447,26 @@ export default function App() {
         <Route element={<RequireGoalAccess />}>
           <Route element={<GoalAppLayout />}>
             <Route path="/app/goal" element={<GoalDashboard />} />
-            <Route path="/app/goal/target-university" element={<GoalTargetUniversity />} />
+            <Route
+              path="/app/goal/target-university"
+              element={<GoalTargetUniversity />}
+            />
             <Route path="/app/goal/timer" element={<GoalTimer />} />
-            <Route path="/app/goal/daily-record" element={<GoalDailyRecord />} />
+            <Route
+              path="/app/goal/daily-record"
+              element={<GoalDailyRecord />}
+            />
             <Route path="/app/goal/weekly-plan" element={<GoalWeeklyPlan />} />
             <Route path="/app/goal/efforts" element={<GoalEfforts />} />
-            <Route path="/app/goal/reports/growth" element={<GoalGrowthReport />} />
+            <Route
+              path="/app/goal/reports/growth"
+              element={<GoalGrowthReport />}
+            />
             <Route path="/app/goal/grades" element={<GoalGrades />} />
-            <Route path="/app/goal/reports/direction" element={<GoalDirectionReport />} />
+            <Route
+              path="/app/goal/reports/direction"
+              element={<GoalDirectionReport />}
+            />
             <Route path="/app/goal/schedules" element={<GoalSchedules />} />
             <Route path="/app/goal/profile" element={<GoalProfile />} />
           </Route>
@@ -414,7 +515,10 @@ export default function App() {
               }
             >
               <Route element={<PerformanceAppLayout />}>
-                <Route path="/app/performance" element={<PerformanceChatPage />} />
+                <Route
+                  path="/app/performance"
+                  element={<PerformanceChatPage />}
+                />
                 {/* 저장 리포트는 모달이 아니라 라우트다(§11-Q65). 정적 세그먼트가
                     :sessionId보다 우선 매칭되므로 `reports`가 세션 id로 오인되지 않는다. */}
                 <Route

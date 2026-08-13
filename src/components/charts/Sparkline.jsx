@@ -39,15 +39,23 @@
 //      X_PADDING은 첫/마지막 연도에서 박스 좌우가 카드 경계에서 잘리지 않을 여백이라
 //      margin.top과 성격이 다르다 — 따로 줄이지 않는다.
 
-import { useEffect, useRef } from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useEffect, useRef } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-import { CHART_COLORS, CHART_FONT_SIZE } from './chartTheme';
+import { CHART_COLORS, CHART_FONT_SIZE } from "./chartTheme";
 
 // viewBox 시절과 같은 종횡비(400:112)를 유지해 시각 크기가 크게 달라지지 않게 한다.
 // 이 면적은 3개년 이상 꺾은선 기준이다 — 2점짜리 그림에 쓰면 데이터-잉크 비율이 최악이라
 // 2개년 축에서는 아예 이 컴포넌트를 부르지 않는다(파일 상단 주석 참고).
-const ASPECT_CLASS = 'aspect-[400/112]';
+const ASPECT_CLASS = "aspect-[400/112]";
 
 // 축 최소 길이 가드. 2개년(=2점)은 GradeDelta 몫이라 여기서는 그리지 않는다.
 const MIN_SERIES_YEARS = 3;
@@ -65,7 +73,7 @@ const DOT_RADIUS = 6;
 // 말풍선 텍스트는 시안 실측값(테마 결정이 아니다)이라 chartTheme.js 공용 토큰에 넣지 않고
 // 이 컴포넌트 안에 리터럴로만 둔다. em 단위라 폰트 크기가 바뀌어도 letter-spacing이 따라간다.
 const BALLOON_FONT_SIZE = 12;
-const BALLOON_LETTER_SPACING = '-0.04em';
+const BALLOON_LETTER_SPACING = "-0.04em";
 
 // 시안(Figma node 1882:2958)은 3글자("2.7") 기준으로 폭 32를 그렸지만, 실데이터
 // displayValue는 formatGradeValue()가 항상 toFixed(2)로 만들어 4글자("2.24")로 고정이다
@@ -82,7 +90,7 @@ const BALLOON = {
   // 원본 시안 path(32폭)의 x좌표만 40폭 기준으로 재계산한 것 — rx/꼬리 밑변 폭(±4.2)은 그대로.
   // 코너 베지어 제어점 오프셋(kappa·r=2.2091)은 원본과 동일 — 박스가 커진 만큼 직선 구간
   // (좌우 변, 하단 변, 꼬리)의 y좌표만 +2 했다.
-  path: 'M36 0C38.2091 0 40 1.7909 40 4V16C40 18.2091 38.2091 20 36 20H24.2L20 25L15.8 20H4C1.7909 20 0 18.2091 0 16V4C0 1.7909 1.7909 0 4 0H36Z',
+  path: "M36 0C38.2091 0 40 1.7909 40 4V16C40 18.2091 38.2091 20 36 20H24.2L20 25L15.8 20H4C1.7909 20 0 18.2091 0 16V4C0 1.7909 1.7909 0 4 0H36Z",
 };
 
 // 등급 축 도메인. 등급은 1이 최상이므로 y를 반전한다(작은 값이 위).
@@ -191,9 +199,13 @@ export default function Sparkline({ series, label }) {
     if (!container) return undefined;
 
     const dismissActive = () => {
-      const chartRoot = container.querySelector('.recharts-wrapper');
+      const chartRoot = container.querySelector(".recharts-wrapper");
       chartRoot?.dispatchEvent(
-        new MouseEvent('mouseout', { bubbles: true, cancelable: true, relatedTarget: document.body })
+        new MouseEvent("mouseout", {
+          bubbles: true,
+          cancelable: true,
+          relatedTarget: document.body,
+        }),
       );
     };
 
@@ -202,12 +214,17 @@ export default function Sparkline({ series, label }) {
       dismissActive();
     };
 
-    document.addEventListener('touchstart', handleOutsideTouch, { passive: true });
-    window.addEventListener('scroll', dismissActive, { capture: true, passive: true });
+    document.addEventListener("touchstart", handleOutsideTouch, {
+      passive: true,
+    });
+    window.addEventListener("scroll", dismissActive, {
+      capture: true,
+      passive: true,
+    });
 
     return () => {
-      document.removeEventListener('touchstart', handleOutsideTouch);
-      window.removeEventListener('scroll', dismissActive, { capture: true });
+      document.removeEventListener("touchstart", handleOutsideTouch);
+      window.removeEventListener("scroll", dismissActive, { capture: true });
     };
   }, []);
 
@@ -224,7 +241,9 @@ export default function Sparkline({ series, label }) {
   if (points.length <= 1) return null;
 
   const { lo, hi } = gradeDomain(points.map((point) => point.value));
-  const summary = points.map((point) => `${point.year}년 ${point.displayValue}등급`).join(', ');
+  const summary = points
+    .map((point) => `${point.year}년 ${point.displayValue}등급`)
+    .join(", ");
   const valueByYear = new Map(list.map((point) => [point.year, point.value]));
   const YearTick = makeYearTick(valueByYear);
 
@@ -232,14 +251,19 @@ export default function Sparkline({ series, label }) {
     <div
       ref={wrapperRef}
       role="img"
-      aria-label={`${label ?? ''} 연도별 등급 추이: ${summary}`}
+      aria-label={`${label ?? ""} 연도별 등급 추이: ${summary}`}
       className={`${ASPECT_CLASS} w-full`}
     >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={list} margin={CHART_MARGIN} accessibilityLayer={false}>
           {/* 상/하단 가로선 — YAxis의 두 tick(lo, hi)이 곧 도메인 경계이므로 그리드가
               원래의 상단 구분선/축선 역할을 그대로 겸한다. */}
-          <CartesianGrid horizontal vertical={false} stroke={CHART_COLORS.grid} strokeWidth={1} />
+          <CartesianGrid
+            horizontal
+            vertical={false}
+            stroke={CHART_COLORS.grid}
+            strokeWidth={1}
+          />
 
           <XAxis
             dataKey="year"
@@ -265,7 +289,11 @@ export default function Sparkline({ series, label }) {
           {/* HTML 말풍선은 쓰지 않는다(content가 항상 null) — 이 Tooltip은 오직 hover 상태
               (activeTooltipIndex)를 만들어 activeDot을 켜는 용도로만 남긴다. 실제 말풍선은
               SparkActiveDot이 cx/cy를 기준으로 SVG에 직접 그린다(위 주석 참고). */}
-          <Tooltip content={() => null} cursor={false} isAnimationActive={false} />
+          <Tooltip
+            content={() => null}
+            cursor={false}
+            isAnimationActive={false}
+          />
 
           <Line
             dataKey="value"

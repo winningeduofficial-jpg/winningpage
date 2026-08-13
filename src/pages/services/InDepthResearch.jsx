@@ -1,25 +1,25 @@
-import { useNavigate } from 'react-router-dom';
-import { useInView } from '../../hooks/useInView';
+import { useNavigate } from "react-router-dom";
+import { useInView } from "../../hooks/useInView";
 
-import { alertServiceNotReady } from '../../lib/paidServiceAccess';
-import { getDemoAccessState } from '../../lib/demoAccess';
-import ServiceSection from '../../components/services/ServiceSection';
-import ServiceProcessCards from '../../components/services/ServiceProcessCards';
-import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
-import ServiceStepCards from '../../components/services/ServiceStepCards';
-import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel';
-import ServiceTestimonials from '../../components/services/ServiceTestimonials';
-import ServiceFaq from '../../components/services/ServiceFaq';
-import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
-import heroAura from '../../assets/services/in-depth-research/hero-aura.svg';
-import heroGrain from '../../assets/renewal/landing/hero-grain.png';
-import audienceTopic from '../../assets/services/research/audience-topic.png';
-import audienceDesign from '../../assets/services/research/audience-design.png';
-import audienceData from '../../assets/services/research/audience-data.png';
-import outcomeSkill from '../../assets/services/research/outcome-skill.png';
-import outcomeWallet from '../../assets/services/research/outcome-wallet.png';
-import outcomeFolder from '../../assets/services/research/outcome-folder.png';
-import outcomeCalendar from '../../assets/services/research/outcome-calendar.png';
+import { alertServiceNotReady } from "../../lib/paidServiceAccess";
+import { getDemoAccessState } from "../../lib/demoAccess";
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceStepCards from "../../components/services/ServiceStepCards";
+import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import ServiceFaq from "../../components/services/ServiceFaq";
+import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
+import heroAura from "../../assets/services/in-depth-research/hero-aura.svg";
+import heroGrain from "../../assets/renewal/landing/hero-grain.png";
+import audienceTopic from "../../assets/services/research/audience-topic.png";
+import audienceDesign from "../../assets/services/research/audience-design.png";
+import audienceData from "../../assets/services/research/audience-data.png";
+import outcomeSkill from "../../assets/services/research/outcome-skill.png";
+import outcomeWallet from "../../assets/services/research/outcome-wallet.png";
+import outcomeFolder from "../../assets/services/research/outcome-folder.png";
+import outcomeCalendar from "../../assets/services/research/outcome-calendar.png";
 
 // 심화탐구 서비스 랜딩 — /services/research (구 경로 /page/services-in-depth-research)
 // Figma 시안(1907:21352, "심화탐구" 프레임, 1920×5871) + 히어로 합성 프레임(2181:9089) +
@@ -69,55 +69,64 @@ import outcomeCalendar from '../../assets/services/research/outcome-calendar.png
 // STEP 라벨은 데이터에 두지 않는다 — ServiceProcessCards 가 index 로 생성한다.
 const PROCESS_STEPS = [
   {
-    title: '주제 선택',
-    desc: '관심 분야에서 탐구 주제를 함께 정합니다.'
+    title: "주제 선택",
+    desc: "관심 분야에서 탐구 주제를 함께 정합니다.",
   },
   {
-    title: '탐구 설계',
-    desc: '주제・가설・방법・계획을 설계합니다.'
+    title: "탐구 설계",
+    desc: "주제・가설・방법・계획을 설계합니다.",
   },
   {
-    title: '자료・수행',
-    desc: '학생이 자료를 수집하고 탐구를 수행합니다.'
+    title: "자료・수행",
+    desc: "학생이 자료를 수집하고 탐구를 수행합니다.",
   },
   {
-    title: '완성・피드백',
-    desc: '학생이 완성한 결과물을 평가하고 피드백합니다.'
-  }
+    title: "완성・피드백",
+    desc: "학생이 완성한 결과물을 평가하고 피드백합니다.",
+  },
 ];
 
 const AUDIENCE_CARDS = [
   {
     image: audienceTopic,
-    title: '주제가 막막한 학생',
-    desc: '관심사에서 탐구 주제를 잡기 어려운 학생.'
+    title: "주제가 막막한 학생",
+    desc: "관심사에서 탐구 주제를 잡기 어려운 학생.",
   },
   {
     image: audienceDesign,
-    title: '설계가 어려운 학생',
-    desc: '가설・방법・계획을 세우기 어려운 학생.'
+    title: "설계가 어려운 학생",
+    desc: "가설・방법・계획을 세우기 어려운 학생.",
   },
   {
     image: audienceData,
-    title: '자료 정리가 필요한 학생',
-    desc: '자료를 모으고 해석하는 데 어려움을 겪는 학생.'
+    title: "자료 정리가 필요한 학생",
+    desc: "자료를 모으고 해석하는 데 어려움을 겪는 학생.",
   },
   {
     // 시안(1907:21486)은 카드1(1907:21476)과 imageRef·scaleMode·imageTransform까지 완전히 동일한
     // 일러스트를 재사용한다(재실측 확인 — 고유 일러스트는 3종). 선례 3종과 동일하게 시안 구조를
     // 그대로 옮기고 임의로 새 이미지를 지어내지 않았다.
     image: audienceTopic,
-    title: '완성도를 높이고 싶은 학생',
-    desc: '초안은 있으나 더 다듬고 싶은 학생.'
-  }
+    title: "완성도를 높이고 싶은 학생",
+    desc: "초안은 있으나 더 다듬고 싶은 학생.",
+  },
 ];
 
 const FIVE_STEPS = [
-  { title: '주제 추천', desc: '관심 분야・진로 기반으로 탐구 주제를 제안합니다.' },
-  { title: '탐구 질문', desc: '탐구 가치가 있는 핵심 질문을 함께 다듬습니다.' },
-  { title: '자료 정리', desc: '자료 수집・정리・출처 관리 방향을 안내합니다.' },
-  { title: '설계서 작성', desc: '가설→검증→해석→한계의 설계서를 함께 구성합니다.' },
-  { title: '완성본 평가', desc: '학생이 완성한 보고서・발표 자료를 평가・피드백합니다.' }
+  {
+    title: "주제 추천",
+    desc: "관심 분야・진로 기반으로 탐구 주제를 제안합니다.",
+  },
+  { title: "탐구 질문", desc: "탐구 가치가 있는 핵심 질문을 함께 다듬습니다." },
+  { title: "자료 정리", desc: "자료 수집・정리・출처 관리 방향을 안내합니다." },
+  {
+    title: "설계서 작성",
+    desc: "가설→검증→해석→한계의 설계서를 함께 구성합니다.",
+  },
+  {
+    title: "완성본 평가",
+    desc: "학생이 완성한 보고서・발표 자료를 평가・피드백합니다.",
+  },
 ];
 
 // 아이콘 매핑 — 시안(1907:21536) 4열의 x좌표 순서(Settings 슬라이더 → Wallet → Folder →
@@ -125,10 +134,10 @@ const FIVE_STEPS = [
 // 200×200 PNG가 투명 배경으로 이미 잘 뽑혀 있고, 시안 프레임에 fill #FFBFBF(분홍) 아트보드
 // 배경 잔재가 붙어 있어 재추출하면 분홍 배경이 딸려온다 → 기존 에셋 재사용.
 const OUTCOME_ITEMS = [
-  { icon: outcomeSkill, label: '탐구 역량 향상' },
-  { icon: outcomeWallet, label: '자료 해석력 강화' },
-  { icon: outcomeFolder, label: '완성도 높은 결과물' },
-  { icon: outcomeCalendar, label: '자기주도 탐구 경험' }
+  { icon: outcomeSkill, label: "탐구 역량 향상" },
+  { icon: outcomeWallet, label: "자료 해석력 강화" },
+  { icon: outcomeFolder, label: "완성도 높은 결과물" },
+  { icon: outcomeCalendar, label: "자기주도 탐구 경험" },
 ];
 
 // 후기 작성자명 — 시안 원본은 "고1 김민△ / 고2 이△은 / 고2 박○석"처럼 마스킹 기호와 마스킹
@@ -137,20 +146,23 @@ const OUTCOME_ITEMS = [
 // 아니라 실제 x좌표 기준 좌→우 순서다. 인용문 3건은 시안 원문과 문자열 완전 일치.
 const TESTIMONIALS = [
   {
-    emoji: '😉',
-    quote: '주제 선정부터 설계, 피드백까지 단계별로 도와주셔서 탐구를 끝까지 마칠 수 있었어요.',
-    name: '고1 김OO'
+    emoji: "😉",
+    quote:
+      "주제 선정부터 설계, 피드백까지 단계별로 도와주셔서 탐구를 끝까지 마칠 수 있었어요.",
+    name: "고1 김OO",
   },
   {
-    emoji: '☺️',
-    quote: '자료 정리와 분석 방법을 안내해줘서 보고서의 논리성이 크게 좋아졌어요.',
-    name: '고2 이OO'
+    emoji: "☺️",
+    quote:
+      "자료 정리와 분석 방법을 안내해줘서 보고서의 논리성이 크게 좋아졌어요.",
+    name: "고2 이OO",
   },
   {
-    emoji: '😊',
-    quote: '평가 리포트가 정말 구체적이라 스스로 부족한 부분을 보완할 수 있었어요.',
-    name: '고2 박OO'
-  }
+    emoji: "😊",
+    quote:
+      "평가 리포트가 정말 구체적이라 스스로 부족한 부분을 보완할 수 있었어요.",
+    name: "고2 박OO",
+  },
 ];
 
 // FAQ — 이전 구현은 "시안(2181:9284)에 답변 레이어가 없다"고 판단해 구 serviceLandingContent.js의
@@ -160,21 +172,21 @@ const TESTIMONIALS = [
 // 답변보다 안전하다. 질문 4개는 두 노드가 문자열·순서 모두 동일 = 기존 코드와 일치(변경 없음).
 const FAQ_ITEMS = [
   {
-    q: '심화탐구 프로그램은 어떤 학생에게 적합한가요?',
-    a: '탐구 주제 선정・설계・완성 중 어느 단계에서든 도움이 필요한 학생에게 적합합니다.'
+    q: "심화탐구 프로그램은 어떤 학생에게 적합한가요?",
+    a: "탐구 주제 선정・설계・완성 중 어느 단계에서든 도움이 필요한 학생에게 적합합니다.",
   },
   {
-    q: '탐구 설계는 얼마나 자세하게 도와주나요?',
-    a: '주제・가설・연구 방법・일정까지 설계서를 함께 구성하며, 실제 탐구 수행과 작성은 학생 본인이 진행합니다.'
+    q: "탐구 설계는 얼마나 자세하게 도와주나요?",
+    a: "주제・가설・연구 방법・일정까지 설계서를 함께 구성하며, 실제 탐구 수행과 작성은 학생 본인이 진행합니다.",
   },
   {
-    q: '자료 수집은 어디까지 지원되나요?',
-    a: '신뢰할 수 있는 자료의 방향과 정리・출처 관리 방법을 안내하며, 수집・해석은 학생이 수행합니다.'
+    q: "자료 수집은 어디까지 지원되나요?",
+    a: "신뢰할 수 있는 자료의 방향과 정리・출처 관리 방법을 안내하며, 수집・해석은 학생이 수행합니다.",
   },
   {
-    q: '완성본 평가는 어떤 내용을 확인하나요?',
-    a: '탐구 논리, 자료 활용, 구성・표현의 완성도를 기준으로 점검하고 피드백합니다. 제출용 결과물은 학생이 직접 완성합니다.'
-  }
+    q: "완성본 평가는 어떤 내용을 확인하나요?",
+    a: "탐구 논리, 자료 활용, 구성・표현의 완성도를 기준으로 점검하고 피드백합니다. 제출용 결과물은 학생이 직접 완성합니다.",
+  },
 ];
 
 function HeroSection() {
@@ -191,15 +203,17 @@ function HeroSection() {
   async function handleHeroCta(event) {
     const access = await getDemoAccessState();
 
-    if (access === 'admin') {
+    if (access === "admin") {
       event?.preventDefault?.();
-      navigate('/demo/research');
+      navigate("/demo/research");
       return;
     }
 
-    if (access === 'guest') {
+    if (access === "guest") {
       event?.preventDefault?.();
-      navigate(`/login?redirect=${encodeURIComponent('/services/research')}`, { replace: true });
+      navigate(`/login?redirect=${encodeURIComponent("/services/research")}`, {
+        replace: true,
+      });
       return;
     }
 
@@ -249,9 +263,15 @@ function HeroSection() {
         `}</style>
         <div
           className="idr-aura-spin absolute left-[-2.5%] top-[-20%] aspect-square w-[105%]"
-          data-float={auraInView ? 'on' : 'off'}
+          data-float={auraInView ? "on" : "off"}
         >
-          <img src={heroAura} alt="" aria-hidden="true" draggable="false" className="block w-full" />
+          <img
+            src={heroAura}
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            className="block w-full"
+          />
         </div>
       </div>
       {/* 그레인 — 회전 래퍼의 형제(밖)에 둔다. transform이 걸린 요소는 새 stacking context를
@@ -281,8 +301,8 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
-          탐구의 방향이 막막한 순간, 위닝 심화탐구가 구체적인 길을 제시해 학생이 스스로 완성하도록
-          돕습니다
+          탐구의 방향이 막막한 순간, 위닝 심화탐구가 구체적인 길을 제시해 학생이
+          스스로 완성하도록 돕습니다
         </p>
 
         {/* CTA — 시안(3163:4727)은 280×68 / cornerRadius 50(높이 68이라 실효 pill) / 그림자
@@ -325,7 +345,10 @@ export default function InDepthResearch() {
       {/* 프로세스 — 시안 원문은 쉼표 뒤 스페이스 2개(U+0020 ×2)지만 HTML은 연속 공백을
           접으므로 렌더 결과가 같다 → 1스페이스 유지(디자인 파일 오타로 판단).
           4열 폭 검산: (1100 − 30×3) / 4 = 252.5px, 시안 331×0.766 = 253.5px ✓ */}
-      <ServiceSection className="lg:pt-[5rem]" heading="심화탐구, 이렇게 완성돼요">
+      <ServiceSection
+        className="lg:pt-[5rem]"
+        heading="심화탐구, 이렇게 완성돼요"
+      >
         <ServiceProcessCards items={PROCESS_STEPS} />
       </ServiceSection>
 
@@ -337,7 +360,8 @@ export default function InDepthResearch() {
         className="lg:pt-[10rem]"
         heading={
           <>
-            이런 학생에게 <span className="text-[#013262]">심화 탐구 서비스를 추천해요</span>
+            이런 학생에게{" "}
+            <span className="text-[#013262]">심화 탐구 서비스를 추천해요</span>
           </>
         }
       >
@@ -348,20 +372,29 @@ export default function InDepthResearch() {
           3열 폭 검산: (1100 − 30×2) / 3 = 346.7px, 시안 453×0.7644 = 346.3px ✓
           (섹션 C의 실 콘텐츠 박스는 프레임 1520이 아니라 카드 행 1439 = 453×3 + 40×2 이다.
            1520은 1920 안에서 좌240/우160 비대칭이라 오토레이아웃 잔재로 판정) */}
-      <ServiceSection className="lg:pt-[12.625rem]" heading="다섯 단계로 차근차근">
+      <ServiceSection
+        className="lg:pt-[12.625rem]"
+        heading="다섯 단계로 차근차근"
+      >
         <ServiceStepCards items={FIVE_STEPS} splitLastRow />
       </ServiceSection>
 
       {/* 성과 — 시안은 헤더 좌단(x=82823)이 카드 좌단(x=82972.5)보다 149.5px 왼쪽에 매달려
           있으나, 바로 앞 섹션은 헤더/카드 좌단이 정확히 일치하므로 시안 결함으로 판단하고
           헤더 = 카드 = max-w-content 좌단 일치 + 패널 full-width 로 정규화했다. */}
-      <ServiceSection className="lg:pt-[10.75rem]" heading="심화탐구로 달라지는 것들">
+      <ServiceSection
+        className="lg:pt-[10.75rem]"
+        heading="심화탐구로 달라지는 것들"
+      >
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 
       {/* 후기 — 시안 헤딩 색은 #525252지만 페이지 전 섹션이 공유하는 헤딩 정본(#0F172A)을
           유지한다. 3열 폭 검산: (1100 − 46×2) / 3 = 336px, 시안 440×0.766 = 337px ✓ */}
-      <ServiceSection className="lg:pt-[10rem]" heading="심화탐구 서비스를 받아본 학생들의 후기">
+      <ServiceSection
+        className="lg:pt-[10rem]"
+        heading="심화탐구 서비스를 받아본 학생들의 후기"
+      >
         <ServiceTestimonials items={TESTIMONIALS} />
       </ServiceSection>
 

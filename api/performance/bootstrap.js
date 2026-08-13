@@ -43,24 +43,24 @@
 //    언제나 `consume_performance_credit` RPC를 감싼 응답(409 QUOTA_EXHAUSTED)이다
 //    (sql/54_performance_app.sql (4), 명세서 §9.3).
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   SERVICE_CONFIGS,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
-  readQuotaSnapshot
-} from '../_lib/serviceAccess.js';
+  readQuotaSnapshot,
+} from "../_lib/serviceAccess.js";
 
 // 이용권 조회 키. 신규 자산은 performance 네이밍이지만 이 값은 운영 DB의
 // `program_access.program_key`와 `SERVICE_CONFIGS`에 이미 박혀 있어 개명
 // 대상이 아니다(명세서 §1.4, sql/54_performance_app.sql (4-b)).
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
 // 재방문 분기(§5.4) 판정 대상이 되는 세션 상태. `completed`/`archived`는
 // 이어갈 것이 없으므로 제외한다 — 끝난 세션까지 이어하기 후보로 올리면
 // 사용자는 매번 "이어서 하기 / 새로 시작하기"를 다시 골라야 한다.
-const RESUMABLE_STATUSES = ['draft', 'in_progress'];
+const RESUMABLE_STATUSES = ["draft", "in_progress"];
 
 // ⚠️ 이 status 기반 판정은 명세서 §12.2 재개 분기 판정표의 5+1 OR
 //    (selected_topic/topics/resources/evaluation/assessment_info/draft)을
@@ -80,22 +80,22 @@ const RESUMABLE_STATUSES = ['draft', 'in_progress'];
 const RECENT_SESSION_LIMIT = 20;
 
 const SESSION_COLUMNS = [
-  'id',
-  'status',
-  'current_step',
-  'completed_steps',
-  'grade_label',
-  'semester',
-  'school_type',
-  'subject_group',
-  'subject',
-  'career_goal',
-  'previous_topic',
-  'guide_input_mode',
-  'selected_topic_id',
-  'created_at',
-  'updated_at'
-].join(',');
+  "id",
+  "status",
+  "current_step",
+  "completed_steps",
+  "grade_label",
+  "semester",
+  "school_type",
+  "subject_group",
+  "subject",
+  "career_goal",
+  "previous_topic",
+  "guide_input_mode",
+  "selected_topic_id",
+  "created_at",
+  "updated_at",
+].join(",");
 
 function fail(res, status, code, message) {
   return res.status(status).json({ error: { code, message } });
@@ -115,15 +115,21 @@ function fail(res, status, code, message) {
  * 단계로 되돌려 보내면 사용자가 입력을 다시 하게 되기 때문이다.
  */
 function deriveResumeStep(session) {
-  const completed = Array.isArray(session.completed_steps) ? session.completed_steps : [];
-  const numeric = completed.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v >= 1 && v <= 5);
+  const completed = Array.isArray(session.completed_steps)
+    ? session.completed_steps
+    : [];
+  const numeric = completed
+    .map((v) => Number(v))
+    .filter((v) => Number.isInteger(v) && v >= 1 && v <= 5);
   const lastCompleted = numeric.length ? Math.max(...numeric) : 0;
-  const currentStep = Number.isInteger(session.current_step) ? session.current_step : 1;
+  const currentStep = Number.isInteger(session.current_step)
+    ? session.current_step
+    : 1;
 
   return {
     lastCompletedStep: lastCompleted,
     // 5단계가 끝이라 6으로 넘기지 않는다.
-    resumeStep: Math.min(Math.max(lastCompleted + 1, currentStep, 1), 5)
+    resumeStep: Math.min(Math.max(lastCompleted + 1, currentStep, 1), 5),
   };
 }
 
@@ -140,7 +146,9 @@ function toSessionSummary(session, ctx) {
     sessionId: session.id,
     status: session.status,
     currentStep: session.current_step,
-    completedSteps: Array.isArray(session.completed_steps) ? session.completed_steps : [],
+    completedSteps: Array.isArray(session.completed_steps)
+      ? session.completed_steps
+      : [],
     lastCompletedStep,
     // `이어서 하기`가 데려갈 단계(§5.4 제안). 클라이언트가 다시 계산하지 않는다.
     resumeStep,
@@ -169,50 +177,60 @@ function toSessionSummary(session, ctx) {
 
     // 어느 산출물까지 만들어졌는가. §5.4 문구 "평가 리포트까지 만들지 않았어도,
     // 선택한 주제부터 이어서 진행할 수 있습니다"의 조건 판정에 쓴다.
-    hasDesignReport: ctx.reportTypes.has('design'),
-    hasEvaluationReport: ctx.reportTypes.has('evaluation'),
-    hasFinalReport: ctx.reportTypes.has('final_submission'),
+    hasDesignReport: ctx.reportTypes.has("design"),
+    hasEvaluationReport: ctx.reportTypes.has("evaluation"),
+    hasFinalReport: ctx.reportTypes.has("final_submission"),
 
     createdAt: session.created_at,
-    updatedAt: session.updated_at
+    updatedAt: session.updated_at,
   };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'GET만 허용됩니다.');
+  if (req.method !== "GET") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
   }
 
   // 이용권·진행 상태가 담긴 개인화 응답이다. 중간 캐시에 남으면 다른 사용자에게
   // 새어 나갈 수 있으므로 저장 자체를 금지한다.
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/bootstrap 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/bootstrap 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
     const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY];
 
     // ── 이용권 재판정. 클라이언트 가드 통과 여부는 신뢰하지 않는다(§8.6).
-    const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, serviceConfig);
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      serviceConfig,
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
     // ── 회차 스냅샷. 판정과 독립이라 실패해도 진입을 막지 않는다
@@ -223,10 +241,13 @@ export default async function handler(req, res) {
       quota = await readQuotaSnapshot(
         supabaseAdmin,
         userId,
-        await findProgramAccessRow(supabaseAdmin, userId, serviceConfig)
+        await findProgramAccessRow(supabaseAdmin, userId, serviceConfig),
       );
     } catch (quotaError) {
-      console.error('performance/bootstrap quota lookup 실패(무시):', quotaError);
+      console.error(
+        "performance/bootstrap quota lookup 실패(무시):",
+        quotaError,
+      );
     }
 
     // ── 프로필 표시 정보. 인사말(`반갑습니다, 김형준님!` §5.4)과 사이드바
@@ -234,9 +255,9 @@ export default async function handler(req, res) {
     //    (sql/54_performance_app.sql (1-1)), 비어 있으면 null 그대로 내린다 —
     //    외부 앱처럼 '일반고'를 채워 넣지 않는다(이식 금지 항목).
     const { data: profileRow, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, name, school_type, school_name')
-      .eq('id', userId)
+      .from("profiles")
+      .select("id, name, school_type, school_name")
+      .eq("id", userId)
       .maybeSingle();
 
     if (profileError) {
@@ -245,11 +266,11 @@ export default async function handler(req, res) {
 
     // ── 최근 세션. archived는 사용자가 스스로 치운 것이므로 후보에서 뺀다.
     const { data: sessionRows, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .select(SESSION_COLUMNS)
-      .eq('profile_id', userId)
-      .neq('status', 'archived')
-      .order('updated_at', { ascending: false })
+      .eq("profile_id", userId)
+      .neq("status", "archived")
+      .order("updated_at", { ascending: false })
       .limit(RECENT_SESSION_LIMIT);
 
     if (sessionError) {
@@ -266,42 +287,55 @@ export default async function handler(req, res) {
     const topicTitleById = new Map();
 
     if (sessionIds.length) {
-      const topicIds = sessions.map((row) => row.selected_topic_id).filter(Boolean);
+      const topicIds = sessions
+        .map((row) => row.selected_topic_id)
+        .filter(Boolean);
 
       const [ledgerResult, reportResult, topicResult] = await Promise.all([
         supabaseAdmin
-          .from('performance_credit_ledger')
-          .select('session_id')
-          .eq('profile_id', userId)
-          .in('session_id', sessionIds),
+          .from("performance_credit_ledger")
+          .select("session_id")
+          .eq("profile_id", userId)
+          .in("session_id", sessionIds),
         supabaseAdmin
-          .from('performance_reports')
-          .select('session_id, report_type')
-          .in('session_id', sessionIds),
+          .from("performance_reports")
+          .select("session_id, report_type")
+          .in("session_id", sessionIds),
         topicIds.length
-          ? supabaseAdmin.from('performance_topics').select('id, title').in('id', topicIds)
-          : Promise.resolve({ data: [], error: null })
+          ? supabaseAdmin
+              .from("performance_topics")
+              .select("id, title")
+              .in("id", topicIds)
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
-      if (ledgerResult.error) throw new Error(`회차 원장 조회 실패: ${ledgerResult.error.message}`);
-      if (reportResult.error) throw new Error(`리포트 조회 실패: ${reportResult.error.message}`);
-      if (topicResult.error) throw new Error(`주제 조회 실패: ${topicResult.error.message}`);
+      if (ledgerResult.error)
+        throw new Error(`회차 원장 조회 실패: ${ledgerResult.error.message}`);
+      if (reportResult.error)
+        throw new Error(`리포트 조회 실패: ${reportResult.error.message}`);
+      if (topicResult.error)
+        throw new Error(`주제 조회 실패: ${topicResult.error.message}`);
 
-      for (const row of ledgerResult.data || []) chargedSessionIds.add(row.session_id);
+      for (const row of ledgerResult.data || [])
+        chargedSessionIds.add(row.session_id);
 
       for (const row of reportResult.data || []) {
-        if (!reportTypesBySession.has(row.session_id)) reportTypesBySession.set(row.session_id, new Set());
+        if (!reportTypesBySession.has(row.session_id))
+          reportTypesBySession.set(row.session_id, new Set());
         reportTypesBySession.get(row.session_id).add(row.report_type);
       }
 
-      for (const row of topicResult.data || []) topicTitleById.set(row.id, row.title);
+      for (const row of topicResult.data || [])
+        topicTitleById.set(row.id, row.title);
     }
 
     const summaryOf = (session) =>
       toSessionSummary(session, {
         charged: chargedSessionIds.has(session.id),
-        topicTitle: session.selected_topic_id ? topicTitleById.get(session.selected_topic_id) : null,
-        reportTypes: reportTypesBySession.get(session.id) || new Set()
+        topicTitle: session.selected_topic_id
+          ? topicTitleById.get(session.selected_topic_id)
+          : null,
+        reportTypes: reportTypesBySession.get(session.id) || new Set(),
       });
 
     // ── lastSession — §5.4 재방문 분기의 판정 근거.
@@ -309,7 +343,8 @@ export default async function handler(req, res) {
     //    (`3754:3035` 인사 → STEP1 폼). 즉 **이 필드의 null 여부가 분기 자체다.**
     //    `updated_at desc` 정렬의 첫 미완료 세션이며, 이어갈 지점은
     //    `resumeStep`, 요약 카드에 뿌릴 값은 같은 객체 안에 있다.
-    const lastSessionRow = sessions.find((row) => RESUMABLE_STATUSES.includes(row.status)) || null;
+    const lastSessionRow =
+      sessions.find((row) => RESUMABLE_STATUSES.includes(row.status)) || null;
 
     // ── latestDraft — 아직 회차를 소비하지 않은 세션.
     //    §9.3의 "미차감 세션 동시 1개 제한" 때문에 `POST session.js
@@ -320,14 +355,15 @@ export default async function handler(req, res) {
     //    같다) 그건 정상이다 — 두 필드는 서로 다른 질문에 답한다:
     //      lastSession  = "이어서 할 게 있는가"
     //      latestDraft  = "새로 시작하기를 눌러도 되는가"
-    const latestDraftRow = sessions.find((row) => !chargedSessionIds.has(row.id)) || null;
+    const latestDraftRow =
+      sessions.find((row) => !chargedSessionIds.has(row.id)) || null;
 
     return res.status(200).json({
       profile: {
         id: userId,
         name: profileRow?.name || null,
         schoolType: profileRow?.school_type || null,
-        schoolName: profileRow?.school_name || null
+        schoolName: profileRow?.school_name || null,
       },
       entitlement: {
         serviceKey: SERVICE_KEY,
@@ -337,18 +373,18 @@ export default async function handler(req, res) {
         quotaTotal: quota.quotaTotal,
         quotaRemaining: quota.quotaRemaining,
         planEndsAt: quota.planEndsAt,
-        planLabel: quota.planLabel
+        planLabel: quota.planLabel,
       },
       lastSession: lastSessionRow ? summaryOf(lastSessionRow) : null,
-      latestDraft: latestDraftRow ? summaryOf(latestDraftRow) : null
+      latestDraft: latestDraftRow ? summaryOf(latestDraftRow) : null,
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다 — 외부 앱은 `{detail, error_message}`로
     // 내부 오류를 그대로 노출했다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/bootstrap error:', error);
-    return fail(res, 500, 'INTERNAL', '초기 정보를 불러오지 못했습니다.');
+    console.error("performance/bootstrap error:", error);
+    return fail(res, 500, "INTERNAL", "초기 정보를 불러오지 못했습니다.");
   }
 }
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };

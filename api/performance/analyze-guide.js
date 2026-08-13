@@ -96,27 +96,27 @@
 //    3회가 사라졌다. 응답의 `charged:false`는 그 사실을 계약으로 못박은 것이다.
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   SERVICE_CONFIGS,
   getBearerToken,
-  hasPaidServiceAccess
-} from '../_lib/serviceAccess.js';
-import { callVision, PERFORMANCE_MODEL } from '../_lib/performance/gemini.js';
+  hasPaidServiceAccess,
+} from "../_lib/serviceAccess.js";
+import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
 import {
   GUIDE_EXTRACTION_SYSTEM,
   GUIDE_PROMPT_VERSION,
-  buildGuideExtractionUserPrompt
-} from '../_lib/performance/prompts.js';
+  buildGuideExtractionUserPrompt,
+} from "../_lib/performance/prompts.js";
 import {
   ALLOWED_MIME_EXT,
   BUCKET,
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
-  MAX_TOTAL_BYTES
-} from './upload-url.js';
+  MAX_TOTAL_BYTES,
+} from "./upload-url.js";
 
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
 /**
  * 세션당 **실제 모델 호출** 상한. 멱등 단축(저장분 반환)은 여기에 포함되지 않는다.
@@ -131,7 +131,8 @@ const MAX_ANALYSIS_PER_SESSION = 10;
  */
 const VISION_TIMEOUT_MS = 45 * 1000;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fail(res, status, code, message, extra) {
   return res.status(status).json({ error: { code, message }, ...extra });
@@ -140,15 +141,15 @@ function fail(res, status, code, message, extra) {
 /** STEP2 완료 반영 패치. 이미 더 앞서 있는 세션을 되돌리지 않는다(session.js와 같은 규칙). */
 function stepPatch(sessionRow) {
   const completed = new Set(
-    Array.isArray(sessionRow.completed_steps) ? sessionRow.completed_steps : []
+    Array.isArray(sessionRow.completed_steps) ? sessionRow.completed_steps : [],
   );
   completed.add(1);
   completed.add(2);
 
   return {
-    status: sessionRow.status === 'draft' ? 'in_progress' : sessionRow.status,
+    status: sessionRow.status === "draft" ? "in_progress" : sessionRow.status,
     current_step: Math.max(sessionRow.current_step || 1, 3),
-    completed_steps: Array.from(completed).sort((a, b) => a - b)
+    completed_steps: Array.from(completed).sort((a, b) => a - b),
   };
 }
 
@@ -157,21 +158,29 @@ function readAttachmentIds(body) {
   const raw = body.attachmentIds;
   if (raw === undefined || raw === null) return { present: false };
   if (!Array.isArray(raw) || raw.length === 0) {
-    return { present: true, ok: false, message: 'attachmentIds는 1개 이상의 배열이어야 합니다.' };
+    return {
+      present: true,
+      ok: false,
+      message: "attachmentIds는 1개 이상의 배열이어야 합니다.",
+    };
   }
   if (raw.length > MAX_ATTACHMENTS) {
     return {
       present: true,
       ok: false,
-      message: `안내문 사진은 최대 ${MAX_ATTACHMENTS}장까지 분석할 수 있어요.`
+      message: `안내문 사진은 최대 ${MAX_ATTACHMENTS}장까지 분석할 수 있어요.`,
     };
   }
 
   const ids = [];
   for (const value of raw) {
-    const id = typeof value === 'string' ? value.trim() : '';
+    const id = typeof value === "string" ? value.trim() : "";
     if (!UUID_RE.test(id)) {
-      return { present: true, ok: false, message: 'attachmentIds 형식이 올바르지 않습니다.' };
+      return {
+        present: true,
+        ok: false,
+        message: "attachmentIds 형식이 올바르지 않습니다.",
+      };
     }
     if (!ids.includes(id)) ids.push(id);
   }
@@ -180,18 +189,18 @@ function readAttachmentIds(body) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/analyze-guide 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/analyze-guide 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   // 모델 호출이 터졌을 때 첨부를 failed로 되돌리기 위해 catch 바깥에서 들고 있는다.
@@ -200,35 +209,49 @@ export default async function handler(req, res) {
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
 
     // 이용권 재판정 — §8.6 공통 규약. 클라이언트 가드 통과 여부를 신뢰하지 않는다.
-    const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      SERVICE_CONFIGS[SERVICE_KEY],
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-    const freetext = typeof body.freetext === 'string' ? body.freetext.trim() : '';
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    const freetext =
+      typeof body.freetext === "string" ? body.freetext.trim() : "";
     const force = body.force === true;
     const attachments = readAttachmentIds(body);
 
     if (!sessionId) {
-      return fail(res, 400, 'MISSING_FIELD', 'sessionId는 필수입니다.', { field: 'sessionId' });
+      return fail(res, 400, "MISSING_FIELD", "sessionId는 필수입니다.", {
+        field: "sessionId",
+      });
     }
 
     if (attachments.present && !attachments.ok) {
-      return fail(res, 400, 'INVALID_ATTACHMENT_IDS', attachments.message, {
-        field: 'attachmentIds'
+      return fail(res, 400, "INVALID_ATTACHMENT_IDS", attachments.message, {
+        field: "attachmentIds",
       });
     }
 
@@ -238,29 +261,42 @@ export default async function handler(req, res) {
       return fail(
         res,
         400,
-        'AMBIGUOUS_INPUT',
-        'attachmentIds와 freetext는 함께 보낼 수 없습니다.'
+        "AMBIGUOUS_INPUT",
+        "attachmentIds와 freetext는 함께 보낼 수 없습니다.",
       );
     }
 
     if (!attachments.present && !freetext) {
-      return fail(res, 400, 'MISSING_FIELD', 'attachmentIds 또는 freetext가 필요합니다.');
+      return fail(
+        res,
+        400,
+        "MISSING_FIELD",
+        "attachmentIds 또는 freetext가 필요합니다.",
+      );
     }
 
     // ── 세션 소유권. service_role 클라이언트라 RLS가 통째로 우회되므로 이
     //    `.eq('profile_id', userId)` 조건이 유일한 방어선이다(upload-url.js와 같은 관례).
     //    세션이 없는 경우와 남의 세션인 경우를 같은 403으로 합친다(존재 오라클 방지).
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
-      .select('id,status,current_step,completed_steps,guide_json,guide_analysis_count')
-      .eq('id', sessionId)
-      .eq('profile_id', userId)
+      .from("performance_sessions")
+      .select(
+        "id,status,current_step,completed_steps,guide_json,guide_analysis_count",
+      )
+      .eq("id", sessionId)
+      .eq("profile_id", userId)
       .maybeSingle();
 
-    if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+    if (sessionError)
+      throw new Error(`세션 조회 실패: ${sessionError.message}`);
 
     if (!sessionRow) {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '이 수행평가 세션에 접근할 수 없습니다.');
+      return fail(
+        res,
+        403,
+        "NOT_SESSION_OWNER",
+        "이 수행평가 세션에 접근할 수 없습니다.",
+      );
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -271,23 +307,24 @@ export default async function handler(req, res) {
     // 하류(P8 주제 추천)는 `guide_input_mode`를 보고 어느 컬럼을 읽을지 정한다.
     if (!attachments.present) {
       const { error: manualError } = await supabaseAdmin
-        .from('performance_sessions')
+        .from("performance_sessions")
         .update({
-          guide_input_mode: 'manual',
+          guide_input_mode: "manual",
           guide_freetext: freetext,
           guide_json: null,
-          ...stepPatch(sessionRow)
+          ...stepPatch(sessionRow),
         })
-        .eq('id', sessionRow.id);
+        .eq("id", sessionRow.id);
 
-      if (manualError) throw new Error(`세션 갱신 실패: ${manualError.message}`);
+      if (manualError)
+        throw new Error(`세션 갱신 실패: ${manualError.message}`);
 
       return res.status(200).json({
-        guide: { mode: 'manual', text: freetext },
+        guide: { mode: "manual", text: freetext },
         attachments: [],
         promptVersion: null, // 모델을 부르지 않았으므로 프롬프트 버전도 없다
         model: null,
-        charged: false
+        charged: false,
       });
     }
 
@@ -299,44 +336,58 @@ export default async function handler(req, res) {
     // 정렬은 업로드 순서(`created_at`)로 고정한다 — 요청 배열 순서를 따르면 클라이언트가
     // 페이지 순서를 흔들 수 있고, 안내문은 장 순서가 곧 문서 순서다.
     const { data: attachmentRows, error: attachmentError } = await supabaseAdmin
-      .from('performance_attachments')
+      .from("performance_attachments")
       // `mime_type`/`byte_size`는 뜨지 않는다 — 이 라우트의 판정 근거는 저장된 선언값이
       // 아니라 아래 `verifyStoredObjects`가 읽는 Storage 실측값이다(파일 상단).
-      .select('id,storage_path,ocr_status,deleted_at')
-      .eq('session_id', sessionRow.id)
-      .in('id', attachments.ids)
-      .order('created_at', { ascending: true });
+      .select("id,storage_path,ocr_status,deleted_at")
+      .eq("session_id", sessionRow.id)
+      .in("id", attachments.ids)
+      .order("created_at", { ascending: true });
 
-    if (attachmentError) throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
+    if (attachmentError)
+      throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
 
     const rows = attachmentRows || [];
 
     if (rows.length !== attachments.ids.length) {
       // "없는 id"와 "남의 세션 id"를 구분해 알려주지 않는다(존재 오라클 방지).
-      return fail(res, 403, 'NOT_ATTACHMENT_OWNER', '이 안내문 사진에 접근할 수 없습니다.');
+      return fail(
+        res,
+        403,
+        "NOT_ATTACHMENT_OWNER",
+        "이 안내문 사진에 접근할 수 없습니다.",
+      );
     }
 
     // 90일 cron이나 24시간 TTL 스윕이 이미 원본을 지운 행. 경로가 무효 포인터이므로
     // 분석할 대상이 없다(§8.3 `storage_path` nullable 사유).
     if (rows.some((row) => row.deleted_at || !row.storage_path)) {
-      return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본이 이미 삭제되었어요.');
+      return fail(
+        res,
+        404,
+        "ATTACHMENT_GONE",
+        "안내문 사진 원본이 이미 삭제되었어요.",
+      );
     }
 
     // ── 멱등 단축 (파일 상단 「재분석은 멱등으로 막는다」)
     //    같은 첨부 집합이 이미 분석돼 있고 세션에 그 결과가 그대로 남아 있으면
     //    모델을 부를 이유가 없다. `guide_analysis_count`도 올리지 않는다.
     const storedGuide = sessionRow.guide_json;
-    const alreadyAnalyzed = rows.every((row) => row.ocr_status === 'done');
+    const alreadyAnalyzed = rows.every((row) => row.ocr_status === "done");
 
-    if (!force && alreadyAnalyzed && storedGuide?.mode === 'upload') {
+    if (!force && alreadyAnalyzed && storedGuide?.mode === "upload") {
       return res.status(200).json({
         guide: storedGuide,
-        attachments: rows.map((row) => ({ attachmentId: row.id, deleted: false })),
+        attachments: rows.map((row) => ({
+          attachmentId: row.id,
+          deleted: false,
+        })),
         promptVersion: storedGuide.promptVersion || GUIDE_PROMPT_VERSION,
         model: storedGuide.model || PERFORMANCE_MODEL,
         charged: false,
         // 저장분을 그대로 돌려줬다는 표시. 호출부가 "다시 분석됐다"고 오해하지 않게 한다.
-        reused: true
+        reused: true,
       });
     }
 
@@ -346,9 +397,9 @@ export default async function handler(req, res) {
       return fail(
         res,
         429,
-        'ANALYSIS_LIMIT_REACHED',
-        '이 수행평가에서 안내문 분석을 너무 여러 번 요청했어요. 직접 입력으로 진행하거나 새 수행평가를 시작해 주세요.',
-        { maxAnalysis: MAX_ANALYSIS_PER_SESSION, charged: false }
+        "ANALYSIS_LIMIT_REACHED",
+        "이 수행평가에서 안내문 분석을 너무 여러 번 요청했어요. 직접 입력으로 진행하거나 새 수행평가를 시작해 주세요.",
+        { maxAnalysis: MAX_ANALYSIS_PER_SESSION, charged: false },
       );
     }
 
@@ -361,7 +412,12 @@ export default async function handler(req, res) {
       // 행은 살아 있는데 객체가 없다 = 업로드 토큰만 받고 파일을 올리지 않았거나
       // 버킷 쪽에서 사라진 경우다. 되살릴 수 없으니 failed로 닫고 404로 알린다.
       await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-      return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본을 찾을 수 없어요.');
+      return fail(
+        res,
+        404,
+        "ATTACHMENT_GONE",
+        "안내문 사진 원본을 찾을 수 없어요.",
+      );
     }
 
     // 실측값을 장부에 반영한다 — 이후의 상한 판정(다음 업로드의 upload-url 합계
@@ -369,8 +425,12 @@ export default async function handler(req, res) {
     await syncMeasuredMetadata(supabaseAdmin, verified.measured);
 
     // ① MIME 화이트리스트 · ② 장당 10MB — 실측값으로 재판정.
-    const badMime = verified.measured.filter((item) => !ALLOWED_MIME_EXT[item.mimeType]);
-    const tooLarge = verified.measured.filter((item) => item.size > MAX_FILE_BYTES);
+    const badMime = verified.measured.filter(
+      (item) => !ALLOWED_MIME_EXT[item.mimeType],
+    );
+    const tooLarge = verified.measured.filter(
+      (item) => item.size > MAX_FILE_BYTES,
+    );
 
     if (badMime.length || tooLarge.length) {
       // 위반 객체는 남겨 둘 이유가 없다(mentor-apply.js:565와 같은 처리).
@@ -378,14 +438,26 @@ export default async function handler(req, res) {
       await markAttachmentsFailed(supabaseAdmin, analyzedIds);
 
       return badMime.length
-        ? fail(res, 415, 'UNSUPPORTED_MIME', 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.', {
-            allowed: Object.keys(ALLOWED_MIME_EXT),
-            charged: false
-          })
-        : fail(res, 413, 'FILE_TOO_LARGE', '사진 한 장은 10MB까지 올릴 수 있어요.', {
-            maxBytes: MAX_FILE_BYTES,
-            charged: false
-          });
+        ? fail(
+            res,
+            415,
+            "UNSUPPORTED_MIME",
+            "PNG, JPG, WEBP 이미지만 올릴 수 있어요.",
+            {
+              allowed: Object.keys(ALLOWED_MIME_EXT),
+              charged: false,
+            },
+          )
+        : fail(
+            res,
+            413,
+            "FILE_TOO_LARGE",
+            "사진 한 장은 10MB까지 올릴 수 있어요.",
+            {
+              maxBytes: MAX_FILE_BYTES,
+              charged: false,
+            },
+          );
     }
 
     // ③ 세션 합계 25MB — 실측값 반영 후의 장부로 다시 센다. 여기서만 잡히는
@@ -397,11 +469,17 @@ export default async function handler(req, res) {
       // upload-url.js에서 이미 걸러져 여기까지 오지 않는다).
       await removeObjects(supabaseAdmin, verified.measured);
       await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-      return fail(res, 413, 'FILE_TOO_LARGE', '사진 전체 용량은 25MB까지 올릴 수 있어요.', {
-        maxTotalBytes: MAX_TOTAL_BYTES,
-        usedBytes: totalBytes,
-        charged: false
-      });
+      return fail(
+        res,
+        413,
+        "FILE_TOO_LARGE",
+        "사진 전체 용량은 25MB까지 올릴 수 있어요.",
+        {
+          maxTotalBytes: MAX_TOTAL_BYTES,
+          usedBytes: totalBytes,
+          charged: false,
+        },
+      );
     }
 
     // ── 다운로드. 경로는 오직 DB 행의 값이다(요청 본문에서 온 문자열이 아니다).
@@ -412,15 +490,23 @@ export default async function handler(req, res) {
         .download(item.path);
 
       if (downloadError || !blob) {
-        console.error('performance/analyze-guide 원본 다운로드 실패:', downloadError);
+        console.error(
+          "performance/analyze-guide 원본 다운로드 실패:",
+          downloadError,
+        );
         await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-        return fail(res, 404, 'ATTACHMENT_GONE', '안내문 사진 원본을 찾을 수 없어요.');
+        return fail(
+          res,
+          404,
+          "ATTACHMENT_GONE",
+          "안내문 사진 원본을 찾을 수 없어요.",
+        );
       }
 
       images.push({
         data: Buffer.from(await blob.arrayBuffer()),
         // 실측 contentType이다 — 요청 본문의 mime도, 이제는 선언값 사본도 아니다.
-        mimeType: item.mimeType
+        mimeType: item.mimeType,
       });
     }
 
@@ -429,44 +515,60 @@ export default async function handler(req, res) {
     // 읽어 한 번을 덜 셀 수 있으나, 이 값은 정밀 회계가 아니라 남용 상한이라 허용한다 —
     // 정밀 회계가 필요한 회차 차감은 `consume_performance_credit`이 `for update`로 한다.)
     const { error: counterError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .update({ guide_analysis_count: analysisCount + 1 })
-      .eq('id', sessionRow.id);
+      .eq("id", sessionRow.id);
 
-    if (counterError) throw new Error(`분석 횟수 갱신 실패: ${counterError.message}`);
+    if (counterError)
+      throw new Error(`분석 횟수 갱신 실패: ${counterError.message}`);
 
     // ── 단일 vision 호출. maxOutputTokens는 gemini.js가 장수 비례로 잡는다.
     //    45초 마감 시한을 걸어 플랫폼이 함수를 죽이기 전에 실패 처리를 마친다.
     let text;
     const abortController = new AbortController();
-    const abortTimer = setTimeout(() => abortController.abort(), VISION_TIMEOUT_MS);
+    const abortTimer = setTimeout(
+      () => abortController.abort(),
+      VISION_TIMEOUT_MS,
+    );
 
     try {
       text = await callVision(
         GUIDE_EXTRACTION_SYSTEM,
         images,
         buildGuideExtractionUserPrompt(images.length),
-        { abortSignal: abortController.signal }
+        { abortSignal: abortController.signal },
       );
     } catch (modelError) {
-      console.error('performance/analyze-guide vision 호출 실패:', modelError);
+      console.error("performance/analyze-guide vision 호출 실패:", modelError);
       await markAttachmentsFailed(supabaseAdmin, analyzedIds);
       // 무차감이다(§9.2) — 애초에 이 엔드포인트는 차감하지 않는다.
-      return fail(res, 502, 'VISION_UPSTREAM_FAILED', '안내문을 분석하지 못했어요. 잠시 후 다시 시도해 주세요.', {
-        charged: false
-      });
+      return fail(
+        res,
+        502,
+        "VISION_UPSTREAM_FAILED",
+        "안내문을 분석하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        {
+          charged: false,
+        },
+      );
     } finally {
       clearTimeout(abortTimer);
     }
 
-    const guideText = String(text || '').trim();
+    const guideText = String(text || "").trim();
 
     if (!guideText) {
       // 호출은 성공했는데 내용이 비었다 — 재시도로 풀릴 문제가 아니므로 422다.
       await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-      return fail(res, 422, 'GUIDE_PARSE_FAILED', '안내문에서 정보를 읽지 못했어요. 사진을 다시 확인해 주세요.', {
-        charged: false
-      });
+      return fail(
+        res,
+        422,
+        "GUIDE_PARSE_FAILED",
+        "안내문에서 정보를 읽지 못했어요. 사진을 다시 확인해 주세요.",
+        {
+          charged: false,
+        },
+      );
     }
 
     // ── 저장. `guide_json`은 지금 단계에서 **평문을 담는 봉투**다.
@@ -475,33 +577,34 @@ export default async function handler(req, res) {
     //    그때 `promptVersion`이 `guide-v1`에서 올라가므로 어느 봉투가 어느 계약으로
     //    만들어졌는지 이 필드 하나로 구분된다.
     const guide = {
-      mode: 'upload',
+      mode: "upload",
       text: guideText,
       pageCount: images.length,
       promptVersion: GUIDE_PROMPT_VERSION,
       model: PERFORMANCE_MODEL,
-      analyzedAt: new Date().toISOString()
+      analyzedAt: new Date().toISOString(),
     };
 
     const { error: sessionUpdateError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .update({
-        guide_input_mode: 'upload',
+        guide_input_mode: "upload",
         guide_json: guide,
-        ...stepPatch(sessionRow)
+        ...stepPatch(sessionRow),
       })
-      .eq('id', sessionRow.id);
+      .eq("id", sessionRow.id);
 
-    if (sessionUpdateError) throw new Error(`세션 갱신 실패: ${sessionUpdateError.message}`);
+    if (sessionUpdateError)
+      throw new Error(`세션 갱신 실패: ${sessionUpdateError.message}`);
 
     // `ocr_text`는 §8.3이 "장별 원문"으로 정의했지만, 단일 호출 통합(§8.8)에서는 장별로
     // 쪼갠 원문이 존재하지 않는다 — 모델이 N장을 종합해 한 벌을 낸다. 분석에 참여한
     // 모든 행에 같은 통합 텍스트를 남겨(포렌식용) 행 단위 상태와 내용이 어긋나지 않게 한다.
     // 읽기 정본은 어차피 `performance_sessions.guide_json`이다.
     const { error: markError } = await supabaseAdmin
-      .from('performance_attachments')
-      .update({ ocr_status: 'done', ocr_text: guideText })
-      .in('id', analyzedIds);
+      .from("performance_attachments")
+      .update({ ocr_status: "done", ocr_text: guideText })
+      .in("id", analyzedIds);
 
     if (markError) throw new Error(`첨부 상태 갱신 실패: ${markError.message}`);
 
@@ -509,17 +612,20 @@ export default async function handler(req, res) {
       guide,
       // `deleted`는 행의 `deleted_at`을 비춘 값이다. 위에서 원본 생존을 이미 확인했으므로
       // 여기서는 전부 false다 — **이 API는 원본을 지우지 않는다**(§8.8, 파일 상단 주석).
-      attachments: analyzedIds.map((attachmentId) => ({ attachmentId, deleted: false })),
+      attachments: analyzedIds.map((attachmentId) => ({
+        attachmentId,
+        deleted: false,
+      })),
       promptVersion: GUIDE_PROMPT_VERSION,
       model: PERFORMANCE_MODEL,
       charged: false,
-      reused: false
+      reused: false,
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/analyze-guide error:', error);
+    console.error("performance/analyze-guide error:", error);
     if (analyzedIds) await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-    return fail(res, 500, 'INTERNAL', '안내문 분석에 실패했습니다.');
+    return fail(res, 500, "INTERNAL", "안내문 분석에 실패했습니다.");
   }
 }
 
@@ -541,7 +647,11 @@ async function verifyStoredObjects(supabaseAdmin, rows) {
       .info(row.storage_path);
 
     if (infoError || !info) {
-      console.error('performance/analyze-guide 원본 메타 조회 실패:', row.storage_path, infoError);
+      console.error(
+        "performance/analyze-guide 원본 메타 조회 실패:",
+        row.storage_path,
+        infoError,
+      );
       missing.push(row.id);
       continue;
     }
@@ -549,13 +659,17 @@ async function verifyStoredObjects(supabaseAdmin, rows) {
     // storage-js 버전에 따라 카멜/메타데이터 어느 쪽에 실릴지 갈려서 둘 다 본다
     // (mentor-apply.js와 같은 방어).
     const size = Number(info.size ?? info.metadata?.size ?? 0);
-    const mimeType = String(info.contentType ?? info.metadata?.mimetype ?? '')
+    const mimeType = String(info.contentType ?? info.metadata?.mimetype ?? "")
       .trim()
       .toLowerCase();
 
     if (!Number.isFinite(size) || size <= 0) {
       // 크기를 못 읽으면 상한 판정을 할 수 없다 = 통과시킬 수 없다(fail-closed).
-      console.error('performance/analyze-guide 원본 크기 판독 실패:', row.storage_path, info);
+      console.error(
+        "performance/analyze-guide 원본 크기 판독 실패:",
+        row.storage_path,
+        info,
+      );
       missing.push(row.id);
       continue;
     }
@@ -570,14 +684,18 @@ async function verifyStoredObjects(supabaseAdmin, rows) {
 async function syncMeasuredMetadata(supabaseAdmin, measured) {
   for (const item of measured) {
     const { error } = await supabaseAdmin
-      .from('performance_attachments')
+      .from("performance_attachments")
       .update({ byte_size: item.size, mime_type: item.mimeType })
-      .eq('id', item.id);
+      .eq("id", item.id);
 
     if (error) {
       // 실측 반영에 실패해도 이번 요청의 판정(아래 상한 검사)은 measured 값으로 하므로
       // 결론이 바뀌지 않는다. 다음 요청의 합계 계산이 옛 값을 볼 뿐이라 로그만 남긴다.
-      console.error('performance/analyze-guide 실측 메타 반영 실패:', item.id, error);
+      console.error(
+        "performance/analyze-guide 실측 메타 반영 실패:",
+        item.id,
+        error,
+      );
     }
   }
 }
@@ -585,13 +703,16 @@ async function syncMeasuredMetadata(supabaseAdmin, measured) {
 /** 세션 첨부의 `byte_size` 합. upload-url.js의 합계 판정과 같은 모집단(전 행)을 센다. */
 async function sumSessionBytes(supabaseAdmin, sessionId) {
   const { data, error } = await supabaseAdmin
-    .from('performance_attachments')
-    .select('byte_size')
-    .eq('session_id', sessionId);
+    .from("performance_attachments")
+    .select("byte_size")
+    .eq("session_id", sessionId);
 
   if (error) throw new Error(`첨부 용량 합계 조회 실패: ${error.message}`);
 
-  return (data || []).reduce((sum, row) => sum + (Number(row.byte_size) || 0), 0);
+  return (data || []).reduce(
+    (sum, row) => sum + (Number(row.byte_size) || 0),
+    0,
+  );
 }
 
 /**
@@ -612,17 +733,23 @@ async function removeObjects(supabaseAdmin, items) {
     .remove([...new Set(targets.map((item) => item.path))]);
 
   if (error) {
-    console.error('performance/analyze-guide 위반 첨부 정리 실패:', error);
+    console.error("performance/analyze-guide 위반 첨부 정리 실패:", error);
     return;
   }
 
   const { error: closeError } = await supabaseAdmin
-    .from('performance_attachments')
+    .from("performance_attachments")
     .update({ deleted_at: new Date().toISOString(), storage_path: null })
-    .in('id', targets.map((item) => item.id));
+    .in(
+      "id",
+      targets.map((item) => item.id),
+    );
 
   if (closeError) {
-    console.error('performance/analyze-guide 위반 첨부 장부 마감 실패:', closeError);
+    console.error(
+      "performance/analyze-guide 위반 첨부 장부 마감 실패:",
+      closeError,
+    );
   }
 }
 
@@ -639,13 +766,13 @@ async function markAttachmentsFailed(supabaseAdmin, ids) {
 
   try {
     const { error } = await supabaseAdmin
-      .from('performance_attachments')
-      .update({ ocr_status: 'failed' })
-      .in('id', ids);
+      .from("performance_attachments")
+      .update({ ocr_status: "failed" })
+      .in("id", ids);
 
     if (error) throw error;
   } catch (error) {
-    console.error('performance/analyze-guide 첨부 failed 마킹 실패:', error);
+    console.error("performance/analyze-guide 첨부 failed 마킹 실패:", error);
   }
 }
 
@@ -655,4 +782,4 @@ async function markAttachmentsFailed(supabaseAdmin, ids) {
 // `markAttachmentsFailed`가 실행되지 않아 첨부가 pending으로 남아 5장 상한과 25MB
 // 예산을 24시간 동안 계속 점유한다. 형제 라우트(`admin-embed.js` / `cleanup-attachments.js`)와
 // 같은 60초를 쓴다 — 그 안에서 vision 호출 자체는 VISION_TIMEOUT_MS(45초)로 먼저 끊긴다.
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

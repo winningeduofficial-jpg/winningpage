@@ -4,27 +4,27 @@
 // 동기화한다. 새로고침 시 자동 복구되며, hasFlow로 "진행 중이던 가입 흐름이 있었는지"를
 // 노출해 각 페이지가 단계 강제 이동(예: memberType 없이 폼 단계 직접 진입 시 /signup으로
 // redirect) 정책을 스스로 구현할 수 있게 한다. resetSignup()은 가입 완료·이탈 시 호출한다.
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = 'signup-flow';
+const STORAGE_KEY = "signup-flow";
 
 // 학생(9필드: 이름/전화/전화인증코드/이메일/이메일인증코드/비밀번호/지역/재학구분/학교명)과
 // 학부모(6필드: 이름/전화/전화인증코드/이메일/이메일인증코드/비밀번호) + 14세 미만 부가 필드
 // (noOwnPhone/guardianPhone/guardianConsent)를 하나의 평평한 폼데이터로 통합 관리한다.
 // 화면별로 필요한 키만 골라 쓰면 되고, 안 쓰는 키는 초기값 그대로 남는다.
 const INITIAL_FORM_DATA = {
-  name: '',
-  phone: '',
-  phoneCode: '',
+  name: "",
+  phone: "",
+  phoneCode: "",
   noOwnPhone: false, // D-2: '학생 명의의 핸드폰이 없어요'
-  email: '',
-  emailCode: '',
-  password: '',
-  region: '',
-  schoolType: '',
-  schoolName: '',
-  guardianPhone: '', // D-2 학부모 정보 섹션
-  guardianConsent: false // D-2: '법정대리인 정보를 학부모 정보로 수집합니다'
+  email: "",
+  emailCode: "",
+  password: "",
+  region: "",
+  schoolType: "",
+  schoolName: "",
+  guardianPhone: "", // D-2 학부모 정보 섹션
+  guardianConsent: false, // D-2: '법정대리인 정보를 학부모 정보로 수집합니다'
 };
 
 // 학생 폼(C-1) 6항목 기준 — 학부모 폼(E-1)은 4항목(identityRequired/ads 미사용)만 쓰면 된다.
@@ -34,7 +34,7 @@ const INITIAL_AGREEMENTS = {
   identityRequired: false, // 필수(학생만): 본인 인증을 위한 정보 수집
   privacyOptional: false, // 선택(레거시 호환용 — 시안엔 없으나 기존 스키마 대응)
   marketing: false, // 선택: 마케팅 목적의 개인정보 수집 및 이용
-  ads: false // 선택(학생만): 광고성 정보 수신 동의
+  ads: false, // 선택(학생만): 광고성 정보 수신 동의
 };
 
 const INITIAL_VERIFICATION = {
@@ -48,21 +48,21 @@ const INITIAL_VERIFICATION = {
     checked: false,
     available: false,
     mode: null,
-    resumed: false
+    resumed: false,
   },
-  pass: { verified: false } // 법정대리인 PASS 본인인증(D-1)
+  pass: { verified: false }, // 법정대리인 PASS 본인인증(D-1)
 };
 
 const INITIAL_STATE = {
   memberType: null, // 'student' | 'parent' | null
-  birthDate: '', // 8자리 문자열, 예: '20120101'
+  birthDate: "", // 8자리 문자열, 예: '20120101'
   isUnder14: null, // birthDate로부터 계산(null=미입력)
   formData: INITIAL_FORM_DATA,
   agreements: INITIAL_AGREEMENTS,
   verification: INITIAL_VERIFICATION,
   linkCode: null, // 학생 가입 완료 후 발급되는 학부모 연동 코드(C-2)
   signupCompleted: false, // 가입 성공(complete_signup_profile RPC 성공) 직후 true — C-2 진입 가드용
-  parentSignupCompleted: false // 학부모 가입 성공 직후 true — signupCompleted와 동일 패턴의 학부모 온보딩 진입 가드용
+  parentSignupCompleted: false, // 학부모 가입 성공 직후 true — signupCompleted와 동일 패턴의 학부모 온보딩 진입 가드용
 };
 
 // 만 나이 계산: 생일이 이미 지났으면 연도 차, 아직 안 지났으면 연도 차 - 1.
@@ -87,7 +87,11 @@ export function computeIsUnder14(birthDate8) {
   // Date는 month=13, day=32처럼 범위를 벗어난 값을 다음 달/해로 조용히 롤오버시켜
   // 전혀 다른 날짜를 만들어낸다(예: 2024-02-30 → 2024-03-01). 역검증으로 이런
   // 입력을 걸러낸다.
-  if (birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
+  if (
+    birth.getFullYear() !== year ||
+    birth.getMonth() !== month - 1 ||
+    birth.getDate() !== day
+  ) {
     return null;
   }
 
@@ -98,7 +102,8 @@ export function computeIsUnder14(birthDate8) {
 
   const hasHadBirthdayThisYear =
     today.getMonth() > birth.getMonth() ||
-    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+    (today.getMonth() === birth.getMonth() &&
+      today.getDate() >= birth.getDate());
 
   if (!hasHadBirthdayThisYear) age -= 1;
 
@@ -111,16 +116,16 @@ function readStoredFlow() {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    return parsed && typeof parsed === "object" ? parsed : null;
   } catch (error) {
-    console.error('signup-flow 세션 저장소 읽기 오류:', error);
+    console.error("signup-flow 세션 저장소 읽기 오류:", error);
     return null;
   }
 }
 
 // 민감 필드(비밀번호/인증코드)는 sessionStorage에 평문으로 남기지 않는다 — 새로고침 복구
 // 시에는 사용자가 다시 입력해야 하며, 이 필드들은 저장 대상에서 제외한다.
-const SENSITIVE_FORM_KEYS = ['password', 'phoneCode', 'emailCode'];
+const SENSITIVE_FORM_KEYS = ["password", "phoneCode", "emailCode"];
 
 function writeStoredFlow(state) {
   try {
@@ -131,10 +136,10 @@ function writeStoredFlow(state) {
 
     window.sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ ...state, formData: sanitizedFormData })
+      JSON.stringify({ ...state, formData: sanitizedFormData }),
     );
   } catch (error) {
-    console.error('signup-flow 세션 저장소 쓰기 오류:', error);
+    console.error("signup-flow 세션 저장소 쓰기 오류:", error);
   }
 }
 
@@ -142,7 +147,7 @@ function clearStoredFlow() {
   try {
     window.sessionStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('signup-flow 세션 저장소 초기화 오류:', error);
+    console.error("signup-flow 세션 저장소 초기화 오류:", error);
   }
 }
 
@@ -152,9 +157,18 @@ function buildInitialState(stored) {
   const formData = { ...INITIAL_FORM_DATA, ...(stored.formData || {}) };
   const verification = {
     ...INITIAL_VERIFICATION,
-    phone: { ...INITIAL_VERIFICATION.phone, ...(stored.verification?.phone || {}) },
-    email: { ...INITIAL_VERIFICATION.email, ...(stored.verification?.email || {}) },
-    pass: { ...INITIAL_VERIFICATION.pass, ...(stored.verification?.pass || {}) }
+    phone: {
+      ...INITIAL_VERIFICATION.phone,
+      ...(stored.verification?.phone || {}),
+    },
+    email: {
+      ...INITIAL_VERIFICATION.email,
+      ...(stored.verification?.email || {}),
+    },
+    pass: {
+      ...INITIAL_VERIFICATION.pass,
+      ...(stored.verification?.pass || {}),
+    },
   };
 
   // SENSITIVE_FORM_KEYS(password 포함)는 세션 저장소에 절대 남지 않으므로, 복구 직후
@@ -173,7 +187,7 @@ function buildInitialState(stored) {
     ...stored,
     formData,
     agreements: { ...INITIAL_AGREEMENTS, ...(stored.agreements || {}) },
-    verification
+    verification,
   };
 }
 
@@ -194,15 +208,25 @@ export function SignupProvider({ children }) {
   }
 
   function setBirthDate(birthDate) {
-    setState((prev) => ({ ...prev, birthDate, isUnder14: computeIsUnder14(birthDate) }));
+    setState((prev) => ({
+      ...prev,
+      birthDate,
+      isUnder14: computeIsUnder14(birthDate),
+    }));
   }
 
   function updateFormData(partial) {
-    setState((prev) => ({ ...prev, formData: { ...prev.formData, ...partial } }));
+    setState((prev) => ({
+      ...prev,
+      formData: { ...prev.formData, ...partial },
+    }));
   }
 
   function updateAgreements(partial) {
-    setState((prev) => ({ ...prev, agreements: { ...prev.agreements, ...partial } }));
+    setState((prev) => ({
+      ...prev,
+      agreements: { ...prev.agreements, ...partial },
+    }));
   }
 
   // keys를 지정하면 그 키만 일괄 토글(예: 학생 6항목 vs 학부모 4항목 '모두 동의' 분리).
@@ -223,8 +247,8 @@ export function SignupProvider({ children }) {
       ...prev,
       verification: {
         ...prev.verification,
-        [section]: { ...prev.verification[section], ...partial }
-      }
+        [section]: { ...prev.verification[section], ...partial },
+      },
     }));
   }
 
@@ -254,7 +278,7 @@ export function SignupProvider({ children }) {
       agreements: INITIAL_AGREEMENTS,
       verification: INITIAL_VERIFICATION,
       signupCompleted: false,
-      parentSignupCompleted: false
+      parentSignupCompleted: false,
     }));
   }
 
@@ -277,20 +301,24 @@ export function SignupProvider({ children }) {
       setSignupCompleted,
       setParentSignupCompleted,
       resetForMemberType,
-      resetSignup
+      resetSignup,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, hasFlow]
+    [state, hasFlow],
   );
 
-  return <SignupContext.Provider value={value}>{children}</SignupContext.Provider>;
+  return (
+    <SignupContext.Provider value={value}>{children}</SignupContext.Provider>
+  );
 }
 
 export function useSignup() {
   const ctx = useContext(SignupContext);
 
   if (!ctx) {
-    throw new Error('useSignup은 SignupProvider 내부에서만 사용할 수 있습니다.');
+    throw new Error(
+      "useSignup은 SignupProvider 내부에서만 사용할 수 있습니다.",
+    );
   }
 
   return ctx;

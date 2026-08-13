@@ -1,56 +1,59 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 const FALLBACK_BANNERS = [
   {
-    id: 'fallback-1',
-    title: '데이터가 발견하고,',
-    highlight: '위닝 서포터가 성장을 완성합니다',
-    subtitle: '학생 개인별 학습 분석부터 대입 전략까지, 위닝에듀가 최적의 길을 제시합니다.',
-    button_text: '지금 시작하기',
-    button_link: '/signup',
-    image_url: '/images/banner-1.png'
+    id: "fallback-1",
+    title: "데이터가 발견하고,",
+    highlight: "위닝 서포터가 성장을 완성합니다",
+    subtitle:
+      "학생 개인별 학습 분석부터 대입 전략까지, 위닝에듀가 최적의 길을 제시합니다.",
+    button_text: "지금 시작하기",
+    button_link: "/signup",
+    image_url: "/images/banner-1.png",
   },
   {
-    id: 'fallback-2',
-    title: '학습 기록이 쌓이면,',
-    highlight: '입시 전략이 더 정교해집니다',
-    subtitle: '매일의 공부 데이터를 분석해 주간 리포트와 맞춤 전략으로 연결합니다.',
-    button_text: '지금 시작하기',
-    button_link: '/signup',
-    image_url: '/images/banner-2.png'
+    id: "fallback-2",
+    title: "학습 기록이 쌓이면,",
+    highlight: "입시 전략이 더 정교해집니다",
+    subtitle:
+      "매일의 공부 데이터를 분석해 주간 리포트와 맞춤 전략으로 연결합니다.",
+    button_text: "지금 시작하기",
+    button_link: "/signup",
+    image_url: "/images/banner-2.png",
   },
   {
-    id: 'fallback-3',
-    title: '수행평가와 세특까지,',
-    highlight: '학생부의 방향을 설계합니다',
-    subtitle: '진로와 과목을 연결해 학생부에 남는 탐구 흐름을 만듭니다.',
-    button_text: '지금 시작하기',
-    button_link: '/signup',
-    image_url: '/images/banner-3.png'
+    id: "fallback-3",
+    title: "수행평가와 세특까지,",
+    highlight: "학생부의 방향을 설계합니다",
+    subtitle: "진로와 과목을 연결해 학생부에 남는 탐구 흐름을 만듭니다.",
+    button_text: "지금 시작하기",
+    button_link: "/signup",
+    image_url: "/images/banner-3.png",
   },
   {
-    id: 'fallback-4',
-    title: '부모님이 확인하는',
-    highlight: '성장 리포트 시스템',
-    subtitle: '학습 시간, 집중도, 과목 비중, 합격 가능성 변화를 한눈에 확인합니다.',
-    button_text: '지금 시작하기',
-    button_link: '/signup',
-    image_url: '/images/banner-4.png'
-  }
+    id: "fallback-4",
+    title: "부모님이 확인하는",
+    highlight: "성장 리포트 시스템",
+    subtitle:
+      "학습 시간, 집중도, 과목 비중, 합격 가능성 변화를 한눈에 확인합니다.",
+    button_text: "지금 시작하기",
+    button_link: "/signup",
+    image_url: "/images/banner-4.png",
+  },
 ];
 
 function normalizeBanner(row) {
   return {
     id: row.id,
-    title: row.title || '',
-    highlight: row.highlight || '',
-    subtitle: row.subtitle || '',
-    button_text: row.button_text || '지금 시작하기',
-    button_link: row.button_link || '/signup',
-    image_url: row.image_url || '/images/banner-1.png'
+    title: row.title || "",
+    highlight: row.highlight || "",
+    subtitle: row.subtitle || "",
+    button_text: row.button_text || "지금 시작하기",
+    button_link: row.button_link || "/signup",
+    image_url: row.image_url || "/images/banner-1.png",
   };
 }
 
@@ -63,13 +66,13 @@ export default function HeroSlider() {
 
     async function loadBanners() {
       const { data, error } = await supabase
-        .from('banners')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .from("banners")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
 
       if (error) {
-        console.error('배너 조회 실패:', error);
+        console.error("배너 조회 실패:", error);
         return;
       }
 
@@ -84,9 +87,11 @@ export default function HeroSlider() {
     loadBanners();
 
     const channel = supabase
-      .channel('public-banners-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () =>
-        loadBanners()
+      .channel("public-banners-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "banners" },
+        () => loadBanners(),
       )
       .subscribe();
 
@@ -106,7 +111,10 @@ export default function HeroSlider() {
     return () => window.clearInterval(timer);
   }, [banners.length]);
 
-  const current = useMemo(() => banners[active] || banners[0], [banners, active]);
+  const current = useMemo(
+    () => banners[active] || banners[0],
+    [banners, active],
+  );
 
   function prev() {
     setActive((index) => (index - 1 + banners.length) % banners.length);
@@ -136,10 +144,10 @@ export default function HeroSlider() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
-              to={current.button_link || '/signup'}
+              to={current.button_link || "/signup"}
               className="inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 py-4 text-base font-black text-white shadow-[0_14px_34px_rgba(13,27,42,0.25)] transition hover:bg-[#172B42]"
             >
-              {current.button_text || '지금 시작하기'}
+              {current.button_text || "지금 시작하기"}
             </Link>
 
             <Link
@@ -193,7 +201,7 @@ export default function HeroSlider() {
               type="button"
               onClick={() => setActive(index)}
               className={`h-2 rounded-full transition ${
-                active === index ? 'w-9 bg-[#B88737]' : 'w-2 bg-[#0D1B2A]/25'
+                active === index ? "w-9 bg-[#B88737]" : "w-2 bg-[#0D1B2A]/25"
               }`}
             />
           ))}

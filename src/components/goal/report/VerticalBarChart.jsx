@@ -8,17 +8,23 @@
 //
 // 막대 높이는 항상 "이 차트 내 최댓값 대비 비율"로 계산한다(값 하드코딩 금지 원칙). 0값만
 // 예외적으로 고정 4px(0.25rem) 회색 스텁으로 그려 "데이터가 없다"가 아니라 "값이 0"임을 구분한다.
-export default function VerticalBarChart({ bars, unit = 'h', heightRem = 5 }) {
+export default function VerticalBarChart({ bars, unit = "h", heightRem = 5 }) {
   const max = Math.max(...bars.map((bar) => bar.value), 0.0001);
 
   return (
-    <div className="flex items-stretch justify-between gap-2" style={{ height: `${heightRem}rem` }}>
+    <div
+      className="flex items-stretch justify-between gap-2"
+      style={{ height: `${heightRem}rem` }}
+    >
       {bars.map((bar) => {
         const isZero = bar.value === 0;
         const pct = isZero ? 0 : (bar.value / max) * 100;
 
         return (
-          <div key={bar.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
+          <div
+            key={bar.label}
+            className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"
+          >
             <span className="text-[0.6875rem] leading-[1.2] text-ink-sub">
               {bar.value}
               {unit}
@@ -26,11 +32,13 @@ export default function VerticalBarChart({ bars, unit = 'h', heightRem = 5 }) {
             <div className="flex w-full flex-1 items-end justify-center">
               <div
                 aria-hidden="true"
-                className={`w-[1.4375rem] rounded-t-md ${isZero ? 'bg-surface-01' : 'bg-accent/35'}`}
-                style={{ height: isZero ? '0.25rem' : `${Math.max(pct, 6)}%` }}
+                className={`w-[1.4375rem] rounded-t-md ${isZero ? "bg-surface-01" : "bg-accent/35"}`}
+                style={{ height: isZero ? "0.25rem" : `${Math.max(pct, 6)}%` }}
               />
             </div>
-            <span className="text-[0.75rem] font-medium leading-[1.3] text-ink-strong">{bar.label}</span>
+            <span className="text-[0.75rem] font-medium leading-[1.3] text-ink-strong">
+              {bar.label}
+            </span>
           </div>
         );
       })}

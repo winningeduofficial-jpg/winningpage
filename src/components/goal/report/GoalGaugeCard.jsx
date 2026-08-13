@@ -1,6 +1,6 @@
-import GoalCard from '../GoalCard';
-import GoalProgressBar from '../GoalProgressBar';
-import DeltaBadge from '../DeltaBadge';
+import GoalCard from "../GoalCard";
+import GoalProgressBar from "../GoalProgressBar";
+import DeltaBadge from "../DeltaBadge";
 
 // 성적 관리 KPI 게이지 카드(680×207, #35) — 목표까지 격차를 진행바 + 목표 마커(세로선)로 표시.
 //
@@ -22,8 +22,10 @@ function computeGauge({ value, remaining, lowerIsBetter }) {
   if (lowerIsBetter) {
     const SCALE_MIN = 1;
     const SCALE_MAX = 9;
-    const toFillPct = (v) => clamp(((SCALE_MAX - v) / (SCALE_MAX - SCALE_MIN)) * 100);
-    if (remaining == null) return { fillPct: toFillPct(value), targetPct: null };
+    const toFillPct = (v) =>
+      clamp(((SCALE_MAX - v) / (SCALE_MAX - SCALE_MIN)) * 100);
+    if (remaining == null)
+      return { fillPct: toFillPct(value), targetPct: null };
     const target = value - remaining;
     return { fillPct: toFillPct(value), targetPct: toFillPct(target) };
   }
@@ -33,24 +35,48 @@ function computeGauge({ value, remaining, lowerIsBetter }) {
   return { fillPct: clamp(value), targetPct: clamp(target) };
 }
 
-export default function GoalGaugeCard({ label, round, value, unit, delta, targetLabel, remaining, lowerIsBetter = false }) {
-  const { fillPct, targetPct } = computeGauge({ value, remaining, lowerIsBetter });
+export default function GoalGaugeCard({
+  label,
+  round,
+  value,
+  unit,
+  delta,
+  targetLabel,
+  remaining,
+  lowerIsBetter = false,
+}) {
+  const { fillPct, targetPct } = computeGauge({
+    value,
+    remaining,
+    lowerIsBetter,
+  });
 
   return (
-    <GoalCard tone="neutral" className="flex min-h-[12.9375rem] w-full flex-col gap-5 px-8 py-7">
+    <GoalCard
+      tone="neutral"
+      className="flex min-h-[12.9375rem] w-full flex-col gap-5 px-8 py-7"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">{label}</span>
+          <span className="text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+            {label}
+          </span>
           <span className="rounded-full bg-white px-3 py-1 text-[0.75rem] font-medium leading-[1.4] text-ink-sub">
             {round}
           </span>
         </div>
-        {delta != null && <DeltaBadge value={delta} direction="up" tone="positive" />}
+        {delta != null && (
+          <DeltaBadge value={delta} direction="up" tone="positive" />
+        )}
       </div>
 
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[1.75rem] font-bold leading-[1.2] text-ink-strong">{value}</span>
-        <span className="text-[0.9375rem] leading-[1.4] text-ink-sub">{unit}</span>
+        <span className="text-[1.75rem] font-bold leading-[1.2] text-ink-strong">
+          {value}
+        </span>
+        <span className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+          {unit}
+        </span>
       </div>
 
       <div className="relative w-full pt-2">

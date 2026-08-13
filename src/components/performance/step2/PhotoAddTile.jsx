@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus } from "lucide-react";
 
 // 사진 추가 타일(빈 슬롯) — docs/수행평가-상세-명세.md §5.6(`3754:3261`) 실측.
 //
@@ -27,8 +27,8 @@ export default function PhotoAddTile({ onClick, disabled = false }) {
       disabled={disabled}
       className={`flex h-[6.25rem] w-[5.625rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-performance-line bg-white transition ${
         disabled
-          ? 'cursor-not-allowed opacity-50'
-          : 'hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100'
+          ? "cursor-not-allowed opacity-50"
+          : "hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
       }`}
     >
       <Plus

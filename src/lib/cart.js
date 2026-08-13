@@ -13,7 +13,7 @@
 // v1 을 읽어 변환하는 폴백 로직은 두지 않는다 — 구 id 로는 새 상품 행을 찾을
 // 근거가 없고(slug 와 우연히 같은 값이라도 그건 서버가 신뢰하는 키가 아니다)
 // 값을 지어내는 것보다 비우는 쪽이 안전하다.
-const CART_KEY = 'winning-cart-v2';
+const CART_KEY = "winning-cart-v2";
 
 // 저장 형태: [{ id, serviceKey, serviceName, serviceDesc, name, listPrice, price, badge, recommended }]
 export function getCart() {
@@ -29,7 +29,10 @@ export function getCart() {
 
 export function saveCart(items) {
   try {
-    window.sessionStorage.setItem(CART_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    window.sessionStorage.setItem(
+      CART_KEY,
+      JSON.stringify(Array.isArray(items) ? items : []),
+    );
   } catch {
     // 저장 실패는 무시 (프라이빗 모드 등)
   }

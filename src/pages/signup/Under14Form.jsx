@@ -7,9 +7,9 @@
 //  - "학부모 정보 (필수)" 섹션 추가(전화번호 + 수집 안내 + 법정대리인 동의 체크).
 // 약관 동의 항목은 D-2 전용 차이가 스펙에 기록돼 있지 않아 C-1(학생 6항목 중 필수3/선택2 —
 // 7825 정본 채택분)과 동일 구성으로 채택한다.
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Check } from "lucide-react";
 import {
   AuthLayout,
   AuthTitle,
@@ -17,28 +17,29 @@ import {
   SelectField,
   PrimaryButton,
   InfoCard,
-  AgreementList
-} from '../../components/auth';
-import { useSignup } from '../../context/SignupContext';
-import { supabase } from '../../lib/supabase';
+  AgreementList,
+} from "../../components/auth";
+import { useSignup } from "../../context/SignupContext";
+import { supabase } from "../../lib/supabase";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
-  verifySignupEmailCode
-} from '../../lib/signupEmailAuth';
-import { useCooldown } from '../../hooks/useCooldown';
+  verifySignupEmailCode,
+} from "../../lib/signupEmailAuth";
+import { useCooldown } from "../../hooks/useCooldown";
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
-import { REGION_OPTIONS } from './StudentForm';
+import { REGION_OPTIONS } from "./StudentForm";
 
 // AS-IS 재학구분 enum(§2.2: "초·중·고·N수생·기타") 그대로 채택.
-const SCHOOL_TYPE_OPTIONS = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
+const SCHOOL_TYPE_OPTIONS = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
 // 14세 미만 가입 플로우는 아직 백엔드 연동이 없는 데드엔드라 기본 off — StudentBirth.jsx/
 // Under14Verify.jsx와 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
-const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
+const UNDER14_SIGNUP_ENABLED =
+  import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -51,18 +52,18 @@ function isValidPassword(value) {
 // StudentForm.jsx의 동명 헬퍼와 동일 — 공유 훅/유틸 추출은 StudentForm 소유권 밖이라
 // 최소한의 인라인 복제로 둔다.
 function getFriendlyEmailError(errorMessage) {
-  if (!errorMessage) return '회원가입 중 문제가 발생했습니다.';
+  if (!errorMessage) return "회원가입 중 문제가 발생했습니다.";
 
-  if (errorMessage.includes('User already registered')) {
-    return '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.';
+  if (errorMessage.includes("User already registered")) {
+    return "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.";
   }
 
-  if (errorMessage.includes('Password should be at least')) {
-    return '비밀번호는 최소 6자 이상으로 입력해 주세요.';
+  if (errorMessage.includes("Password should be at least")) {
+    return "비밀번호는 최소 6자 이상으로 입력해 주세요.";
   }
 
-  if (errorMessage.includes('Invalid email')) {
-    return '이메일 형식이 올바르지 않습니다.';
+  if (errorMessage.includes("Invalid email")) {
+    return "이메일 형식이 올바르지 않습니다.";
   }
 
   return errorMessage;
@@ -71,11 +72,36 @@ function getFriendlyEmailError(errorMessage) {
 // §3.3 C-1 약관 6행 중 7825 정본 기준(본인 인증을 위한 정보 수집) — §5.2 약관 라우트 표
 // (/terms/student/{service|privacy|identity|marketing|promotion}) 그대로 매핑.
 const STUDENT_AGREEMENT_ITEMS = [
-  { key: 'service', label: '위닝에듀 이용약관', required: true, to: '/terms/student/service' },
-  { key: 'privacyRequired', label: '개인정보 수집 및 이용', required: true, to: '/terms/student/privacy' },
-  { key: 'identityRequired', label: '본인 인증을 위한 정보 수집', required: true, to: '/terms/student/identity' },
-  { key: 'marketing', label: '마케팅 목적의 개인정보 수집 및 이용', required: false, to: '/terms/student/marketing' },
-  { key: 'ads', label: '광고성 정보 수신 동의', required: false, to: '/terms/student/promotion' }
+  {
+    key: "service",
+    label: "위닝에듀 이용약관",
+    required: true,
+    to: "/terms/student/service",
+  },
+  {
+    key: "privacyRequired",
+    label: "개인정보 수집 및 이용",
+    required: true,
+    to: "/terms/student/privacy",
+  },
+  {
+    key: "identityRequired",
+    label: "본인 인증을 위한 정보 수집",
+    required: true,
+    to: "/terms/student/identity",
+  },
+  {
+    key: "marketing",
+    label: "마케팅 목적의 개인정보 수집 및 이용",
+    required: false,
+    to: "/terms/student/marketing",
+  },
+  {
+    key: "ads",
+    label: "광고성 정보 수신 동의",
+    required: false,
+    to: "/terms/student/promotion",
+  },
 ];
 
 // "학생 명의의 핸드폰이 없어요"(16px 아이콘/12px 텍스트) / "법정대리인 정보를 학부모 정보로
@@ -90,7 +116,9 @@ function InlineCheckbox({ checked, onToggle, children }) {
     >
       <span
         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-          checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'
+          checked
+            ? "border-primary bg-primary text-white"
+            : "border-line bg-white text-transparent"
         }`}
       >
         <Check size={11} strokeWidth={3} />
@@ -111,39 +139,44 @@ export default function Under14Form() {
     updateFormData,
     updateAgreements,
     updateVerification,
-    setAllAgreements
+    setAllAgreements,
   } = useSignup();
-  const [emailMessage, setEmailMessage] = useState({ text: '', status: 'default' });
+  const [emailMessage, setEmailMessage] = useState({
+    text: "",
+    status: "default",
+  });
   const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
   // 이메일 OTP는 1회용이라 같은 코드로 두 번 검증하면 403이 난다. 자동 검증이
   // 같은 값으로 재시도하지 않도록 마지막 시도값을 기억한다(StudentForm과 동일).
-  const lastEmailAttempt = useRef('');
-  const passwordValid = formData.password ? isValidPassword(formData.password) : null;
+  const lastEmailAttempt = useRef("");
+  const passwordValid = formData.password
+    ? isValidPassword(formData.password)
+    : null;
 
   // §3.2 흐름: S1(생년월일) -> U0(PASS 안내) -> U1(이 화면). 학생 유형이 아니거나, 플래그가
   // off이거나, 법정대리인 PASS 인증을 아직 마치지 않은 상태로 직접 URL 진입 시 순서대로 되돌린다.
   useEffect(() => {
-    if (memberType !== 'student') {
-      navigate('/signup', { replace: true });
+    if (memberType !== "student") {
+      navigate("/signup", { replace: true });
       return;
     }
     if (!UNDER14_SIGNUP_ENABLED) {
-      navigate('/signup', { replace: true });
+      navigate("/signup", { replace: true });
       return;
     }
     if (!verification.pass.verified) {
-      navigate('/signup/student/under14/verify', { replace: true });
+      navigate("/signup/student/under14/verify", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberType, verification.pass.verified]);
 
   const requiredKeys = useMemo(
     () => STUDENT_AGREEMENT_ITEMS.map((item) => item.key),
-    []
+    [],
   );
   const allChecked = useMemo(
     () => STUDENT_AGREEMENT_ITEMS.every((item) => agreements[item.key]),
-    [agreements]
+    [agreements],
   );
 
   // --- 이메일 인증: src/lib/signupEmailAuth.js의 공용 시퀀스를 쓴다.
@@ -153,23 +186,35 @@ export default function Under14Form() {
     // Supabase Auth가 서버에서 같은 간격으로 막고 있다. 여기서 먼저 잡아주지
     // 않으면 연타가 전부 실패 응답으로 돌아오면서 시간당 발송 할당량만 태운다.
     if (emailCooldown.active) {
-      setEmailMessage({ text: MESSAGES.cooldown(emailCooldown.remaining), status: 'error' });
+      setEmailMessage({
+        text: MESSAGES.cooldown(emailCooldown.remaining),
+        status: "error",
+      });
       return;
     }
 
     const normalizedEmail = formData.email.trim().toLowerCase();
 
     if (!normalizedEmail) {
-      setEmailMessage({ text: '이메일을 먼저 입력해 주세요.', status: 'error' });
+      setEmailMessage({
+        text: "이메일을 먼저 입력해 주세요.",
+        status: "error",
+      });
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setEmailMessage({ text: '이메일 형식이 올바르지 않습니다.', status: 'error' });
+      setEmailMessage({
+        text: "이메일 형식이 올바르지 않습니다.",
+        status: "error",
+      });
       return;
     }
 
-    setEmailMessage({ text: '이메일 중복 여부를 확인하는 중입니다.', status: 'default' });
+    setEmailMessage({
+      text: "이메일 중복 여부를 확인하는 중입니다.",
+      status: "default",
+    });
 
     // 비밀번호는 여기서 요구하지 않는다. 비어 있으면 임시 비밀번호로 계정이
     // 만들어지고, 실제 값은 가입을 끝내는 시점에 applySignupPassword가 채운다
@@ -179,39 +224,41 @@ export default function Under14Form() {
       email: normalizedEmail,
       password: formData.password,
       name: formData.name.trim(),
-      memberType: 'student'
+      memberType: "student",
     });
 
     if (error) {
-      console.error('이메일 인증코드 발송 오류:', error);
-      updateVerification('email', { checked: false, available: false });
+      console.error("이메일 인증코드 발송 오류:", error);
+      updateVerification("email", { checked: false, available: false });
       setEmailMessage({
-        text: state ? getFriendlyEmailError(error.message) : MESSAGES.checkFailed,
-        status: 'error'
+        text: state
+          ? getFriendlyEmailError(error.message)
+          : MESSAGES.checkFailed,
+        status: "error",
       });
       return;
     }
 
     if (state === EMAIL_STATE.TAKEN) {
-      updateVerification('email', { checked: true, available: false });
-      setEmailMessage({ text: MESSAGES.taken, status: 'error' });
+      updateVerification("email", { checked: true, available: false });
+      setEmailMessage({ text: MESSAGES.taken, status: "error" });
       return;
     }
 
-    lastEmailAttempt.current = '';
-    updateVerification('email', {
+    lastEmailAttempt.current = "";
+    updateVerification("email", {
       checked: true,
       available: true,
       requested: true,
       verified: false,
       mode,
-      resumed
+      resumed,
     });
-    updateFormData({ emailCode: '' });
+    updateFormData({ emailCode: "" });
     emailCooldown.start();
     setEmailMessage({
       text: resumed ? MESSAGES.resumed : MESSAGES.sent,
-      status: 'default'
+      status: "default",
     });
   }
 
@@ -236,11 +283,11 @@ export default function Under14Form() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode
+      mode: verification.email.mode,
     }).then(async ({ error }) => {
       if (error) {
-        updateVerification('email', { verified: false });
-        setEmailMessage({ text: MESSAGES.codeMismatch, status: 'error' });
+        updateVerification("email", { verified: false });
+        setEmailMessage({ text: MESSAGES.codeMismatch, status: "error" });
         return;
       }
 
@@ -249,23 +296,26 @@ export default function Under14Form() {
 
       if (currentUser?.id) {
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('email, member_type')
-          .eq('id', currentUser.id)
+          .from("profiles")
+          .select("email, member_type")
+          .eq("id", currentUser.id)
           .maybeSingle();
 
         if (profile?.email && profile?.member_type) {
-          updateVerification('email', { verified: false });
+          updateVerification("email", { verified: false });
           setEmailMessage({
-            text: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.',
-            status: 'error'
+            text: "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.",
+            status: "error",
           });
           return;
         }
       }
 
-      updateVerification('email', { verified: true });
-      setEmailMessage({ text: '이메일 인증이 완료되었습니다.', status: 'success' });
+      updateVerification("email", { verified: true });
+      setEmailMessage({
+        text: "이메일 인증이 완료되었습니다.",
+        status: "success",
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.emailCode]);
@@ -275,17 +325,19 @@ export default function Under14Form() {
   // 디자이너/기획 확인 후 교체할 것. noOwnPhone 체크 시 전화번호 필수 여부도 시안에 없어
   // 보수적으로 "체크 시 면제"로만 처리했다.
   const isNextEnabled =
-    formData.name.trim() !== '' &&
-    (formData.noOwnPhone || formData.phone.trim() !== '') &&
-    formData.email.trim() !== '' &&
-    formData.emailCode.trim() !== '' &&
-    formData.password.trim() !== '' &&
-    formData.region !== '' &&
-    formData.schoolType !== '' &&
-    formData.schoolName.trim() !== '' &&
-    formData.guardianPhone.trim() !== '' &&
+    formData.name.trim() !== "" &&
+    (formData.noOwnPhone || formData.phone.trim() !== "") &&
+    formData.email.trim() !== "" &&
+    formData.emailCode.trim() !== "" &&
+    formData.password.trim() !== "" &&
+    formData.region !== "" &&
+    formData.schoolType !== "" &&
+    formData.schoolName.trim() !== "" &&
+    formData.guardianPhone.trim() !== "" &&
     formData.guardianConsent &&
-    STUDENT_AGREEMENT_ITEMS.filter((item) => item.required).every((item) => agreements[item.key]);
+    STUDENT_AGREEMENT_ITEMS.filter((item) => item.required).every(
+      (item) => agreements[item.key],
+    );
 
   const [showNextComingSoon, setShowNextComingSoon] = useState(false);
 
@@ -301,7 +353,13 @@ export default function Under14Form() {
       {/* TODO: C-1/D-2 두 화면 모두 스펙에 타이틀 원문이 명시돼 있지 않음(§3.3 C-1/D-2에
           타이틀 문구 인용 없음) — 동일 역할의 E-1(학부모 폼) 타이틀 "회원가입 정보를
           입력해 주세요"를 임시로 재사용. 디자이너 확인 후 교체할 것. */}
-      <AuthTitle line1={<span className="sm:whitespace-nowrap">회원가입 정보를 입력해 주세요</span>} />
+      <AuthTitle
+        line1={
+          <span className="sm:whitespace-nowrap">
+            회원가입 정보를 입력해 주세요
+          </span>
+        }
+      />
 
       <section className="flex w-full flex-col gap-3">
         <h2 className="text-xl font-medium text-ink">
@@ -334,7 +392,9 @@ export default function Under14Form() {
               정의돼 있지 않아(§3.3 D-2 "확인 필요") 필드 비활성화만 임시로 연결했다. */}
           <InlineCheckbox
             checked={formData.noOwnPhone}
-            onToggle={() => updateFormData({ noOwnPhone: !formData.noOwnPhone })}
+            onToggle={() =>
+              updateFormData({ noOwnPhone: !formData.noOwnPhone })
+            }
           >
             학생 명의의 핸드폰이 없어요
           </InlineCheckbox>
@@ -353,15 +413,19 @@ export default function Under14Form() {
             emailCooldown.active
               ? `${emailCooldown.remaining}초 후 재발송`
               : verification.email.requested
-                ? '인증번호 다시 보내기'
-                : '인증번호 보내기'
+                ? "인증번호 다시 보내기"
+                : "인증번호 보내기"
           }
           onAction={requestEmailCode}
           actionDisabled={emailCooldown.active || verification.email.verified}
           // 발송 이후의 안내·에러는 인증코드 필드에서 보여준다(문구 중복 방지).
           // status도 같이 내린다 — 문구 없이 error만 남으면 이 입력만 흔들린다.
-          helperText={verification.email.requested ? undefined : emailMessage.text}
-          status={verification.email.requested ? 'default' : emailMessage.status}
+          helperText={
+            verification.email.requested ? undefined : emailMessage.text
+          }
+          status={
+            verification.email.requested ? "default" : emailMessage.status
+          }
         />
 
         {/* 6자리가 채워지면 자동 검증된다 — "확인" 버튼 없음. */}
@@ -371,11 +435,15 @@ export default function Under14Form() {
           name="emailCode"
           size="lg"
           value={formData.emailCode}
-          onChange={(v) => updateFormData({ emailCode: v.replace(/\D/g, '').slice(0, 6) })}
+          onChange={(v) =>
+            updateFormData({ emailCode: v.replace(/\D/g, "").slice(0, 6) })
+          }
           placeholder="이메일 인증코드 6자리를 입력해주세요"
           helperText={emailMessage.text}
-          status={verification.email.verified ? 'success' : emailMessage.status}
-          disabled={!verification.email.requested || verification.email.verified}
+          status={verification.email.verified ? "success" : emailMessage.status}
+          disabled={
+            !verification.email.requested || verification.email.verified
+          }
         />
 
         <TextField
@@ -390,7 +458,13 @@ export default function Under14Form() {
           helperText="영문/숫자/특수문자 포함 6자 이상"
           // 이메일 인증 액션을 막던 선행 조건이 사라졌으므로(2026-08-07) 비밀번호
           // 규칙 충족 여부는 이 필드가 직접 알려준다(StudentForm과 동일).
-          status={passwordValid === null ? 'default' : passwordValid ? 'success' : 'error'}
+          status={
+            passwordValid === null
+              ? "default"
+              : passwordValid
+                ? "success"
+                : "error"
+          }
           autoComplete="new-password"
         />
 
@@ -443,14 +517,18 @@ export default function Under14Form() {
         />
 
         <InfoCard variant="card">
-          <span className="block font-medium">[학부모 휴대폰번호 수집 안내]</span>
-          위닝에듀 서비스 이용에 필요한 안내와 공지사항을 제공하기 위해 학부모(법정대리인)의
-          휴대폰번호를 수집합니다.
+          <span className="block font-medium">
+            [학부모 휴대폰번호 수집 안내]
+          </span>
+          위닝에듀 서비스 이용에 필요한 안내와 공지사항을 제공하기 위해
+          학부모(법정대리인)의 휴대폰번호를 수집합니다.
         </InfoCard>
 
         <InlineCheckbox
           checked={formData.guardianConsent}
-          onToggle={() => updateFormData({ guardianConsent: !formData.guardianConsent })}
+          onToggle={() =>
+            updateFormData({ guardianConsent: !formData.guardianConsent })
+          }
         >
           법정대리인 정보를 학부모 정보로 수집합니다.
         </InlineCheckbox>
@@ -460,7 +538,10 @@ export default function Under14Form() {
         <h2 className="text-xl font-medium text-ink">약관 동의</h2>
 
         <AgreementList
-          items={STUDENT_AGREEMENT_ITEMS.map((item) => ({ ...item, checked: agreements[item.key] }))}
+          items={STUDENT_AGREEMENT_ITEMS.map((item) => ({
+            ...item,
+            checked: agreements[item.key],
+          }))}
           allChecked={allChecked}
           onToggleAll={() => setAllAgreements(!allChecked, requiredKeys)}
           onToggleItem={(key) => updateAgreements({ [key]: !agreements[key] })}
@@ -468,12 +549,19 @@ export default function Under14Form() {
       </section>
 
       {showNextComingSoon && (
-        <InfoCard variant="info">다음 단계 준비 중입니다. 잠시 후 다시 시도해 주세요.</InfoCard>
+        <InfoCard variant="info">
+          다음 단계 준비 중입니다. 잠시 후 다시 시도해 주세요.
+        </InfoCard>
       )}
 
       {/* §3.3 D-2: "다음" 버튼 400×52px(C-1/D-1과 달리 이 버튼은 사이즈 매트릭스 불일치가
           기록돼 있지 않아 스펙에 명시된 52px/default 그대로 사용 — D-1 PASS 버튼과는 별개 판단). */}
-      <PrimaryButton size="default" radius="default" disabled={!isNextEnabled} onClick={handleNext}>
+      <PrimaryButton
+        size="default"
+        radius="default"
+        disabled={!isNextEnabled}
+        onClick={handleNext}
+      >
         다음
       </PrimaryButton>
     </AuthLayout>

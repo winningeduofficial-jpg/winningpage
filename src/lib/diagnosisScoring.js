@@ -67,16 +67,19 @@ import {
   SINCERITY_OFFMODE_MIN_DISTANCE,
   SERVICE_H3_LATE_MONTH,
   SERVICE_H3_LATE_CODES,
-  SERVICE_H3_LATE_TIMEZONE
-} from '../data/diagnosisScoringTable.js';
+  SERVICE_H3_LATE_TIMEZONE,
+} from "../data/diagnosisScoringTable.js";
 import {
   clamp,
   fiveScaleToNine,
   isUsableNumber,
   middleAvgToNine,
-  roundHalfUp
-} from '../data/diagnosisGradeScale.js';
-import { getOptionCode, renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
+  roundHalfUp,
+} from "../data/diagnosisGradeScale.js";
+import {
+  getOptionCode,
+  renewalSurveyQuestions,
+} from "../data/renewalSurveyQuestions.js";
 
 /* ================================================================== *
  * 0. 공통 유틸
@@ -132,7 +135,8 @@ function codesOf(group, values) {
  * normalizeAnswers 내부 전용이다 — export 하면 엔진 입력이 점수인지 인덱스인지 계약이 모순된다(§6.2).
  */
 function likertScore(columnIndex) {
-  if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex > 4) return null;
+  if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex > 4)
+    return null;
   return 100 - 25 * columnIndex;
 }
 
@@ -142,7 +146,7 @@ function likertScore(columnIndex) {
  * {key,text} 로 승격돼 있으므로(적재 검증식이 못박는다) 저장 키 = 안정 키다.
  */
 function normalizeLikert(raw, stableKeys) {
-  const source = raw && typeof raw === 'object' ? raw : {};
+  const source = raw && typeof raw === "object" ? raw : {};
   const result = {};
   stableKeys.forEach((stableKey) => {
     result[stableKey] = likertScore(source[stableKey]);
@@ -160,8 +164,11 @@ const GRADE_FIELD_HIDDEN_SYSTEMS = new Map(
   renewalSurveyQuestions
     .flatMap((question) => question.extra?.groups ?? [])
     .flatMap((group) =>
-      (group.fields ?? []).map((field) => [field.key, group.hiddenWhenGradeSystem ?? []])
-    )
+      (group.fields ?? []).map((field) => [
+        field.key,
+        group.hiddenWhenGradeSystem ?? [],
+      ]),
+    ),
 );
 
 /**
@@ -174,14 +181,15 @@ const GRADE_FIELD_HIDDEN_SYSTEMS = new Map(
  * 5 → 10 으로 오르는 조용한 오채점이 된다.
  */
 function gridNumber(raw, fieldKey, gradeSystem) {
-  if (raw == null || raw === '') return null;
-  if (GRADE_FIELD_HIDDEN_SYSTEMS.get(fieldKey)?.includes(gradeSystem)) return null;
+  if (raw == null || raw === "") return null;
+  if (GRADE_FIELD_HIDDEN_SYSTEMS.get(fieldKey)?.includes(gradeSystem))
+    return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function textOrNull(raw) {
-  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+  return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
 }
 
 /**
@@ -196,20 +204,25 @@ function textOrNull(raw) {
  * @returns {object} DiagnosisInput
  */
 export function normalizeAnswers(answers, meta = {}) {
-  const source = answers && typeof answers === 'object' ? answers : {};
-  const grid = source.q6 && typeof source.q6 === 'object' ? source.q6 : {};
-  const gradeSystem = codeOf('Q4_SYSTEM', source.q4);
+  const source = answers && typeof answers === "object" ? answers : {};
+  const grid = source.q6 && typeof source.q6 === "object" ? source.q6 : {};
+  const gradeSystem = codeOf("Q4_SYSTEM", source.q4);
 
   const mock = {
-    korean: gridNumber(grid.mock_korean, 'mock_korean', gradeSystem),
-    math: gridNumber(grid.mock_math, 'mock_math', gradeSystem),
-    english: gridNumber(grid.mock_english, 'mock_english', gradeSystem),
-    social: gridNumber(grid.mock_social, 'mock_social', gradeSystem),
-    science: gridNumber(grid.mock_science, 'mock_science', gradeSystem),
-    history: gridNumber(grid.mock_korean_history, 'mock_korean_history', gradeSystem)
+    korean: gridNumber(grid.mock_korean, "mock_korean", gradeSystem),
+    math: gridNumber(grid.mock_math, "mock_math", gradeSystem),
+    english: gridNumber(grid.mock_english, "mock_english", gradeSystem),
+    social: gridNumber(grid.mock_social, "mock_social", gradeSystem),
+    science: gridNumber(grid.mock_science, "mock_science", gradeSystem),
+    history: gridNumber(
+      grid.mock_korean_history,
+      "mock_korean_history",
+      gradeSystem,
+    ),
   };
 
-  const cascade = source.q15 && typeof source.q15 === 'object' ? source.q15 : null;
+  const cascade =
+    source.q15 && typeof source.q15 === "object" ? source.q15 : null;
   const admissionQuery =
     cascade &&
     cascade.university &&
@@ -220,7 +233,7 @@ export function normalizeAnswers(answers, meta = {}) {
           university: cascade.university,
           department: cascade.department,
           admissionType: cascade.admissionType,
-          detailType: cascade.detailType
+          detailType: cascade.detailType,
         }
       : null; // 4단이 전부 채워졌을 때만 객체다(§3.2)
 
@@ -229,43 +242,48 @@ export function normalizeAnswers(answers, meta = {}) {
       schemaVersion: SCHEMA_VERSION,
       // 시계를 읽지 않는다 — 제출 핸들러가 넣는다. 엔진이 Date.now() 를 부르면 순수성이 깨지고
       // 같은 입력이 매번 다른 리포트를 낸다(스냅샷 회귀 불가).
-      diagnosedAt: meta.diagnosedAt ?? null
+      diagnosedAt: meta.diagnosedAt ?? null,
     },
     profile: {
       // TODO(Q-01): 이름을 수집하는 문항이 없다. 상시 null 이며 폴백은 §5.2 소관이다.
       name: meta.name ?? null,
-      gradeLevel: codeOf('Q1_GRADE_LEVEL', source.q1),
-      schoolType: codeOf('Q2_SCHOOL_TYPE', source.q2)
+      gradeLevel: codeOf("Q1_GRADE_LEVEL", source.q1),
+      schoolType: codeOf("Q2_SCHOOL_TYPE", source.q2),
     },
     goal: {
-      level: codeOf('Q3_LEVEL', source.q3),
+      level: codeOf("Q3_LEVEL", source.q3),
       // q3 에서 '아직 구체적인 목표가 없어요'를 고르면 이유 문항이 노출되지 않아 상시 null 이다(§4.2.2).
-      reason: codeOf('Q3_REASON', source['q3-target-reason']),
-      targetUniversity: textOrNull(source['q3-target-university']),
-      targetMajor: textOrNull(source['q3-target-major'])
+      reason: codeOf("Q3_REASON", source["q3-target-reason"]),
+      targetUniversity: textOrNull(source["q3-target-university"]),
+      targetMajor: textOrNull(source["q3-target-major"]),
     },
     gradeSystem,
     scores: {
-      naesinOverall: gridNumber(grid.overall_avg, 'overall_avg', gradeSystem),
-      recentExamAvg: gridNumber(grid.recent_exam_avg, 'recent_exam_avg', gradeSystem),
+      naesinOverall: gridNumber(grid.overall_avg, "overall_avg", gradeSystem),
+      recentExamAvg: gridNumber(
+        grid.recent_exam_avg,
+        "recent_exam_avg",
+        gradeSystem,
+      ),
       mock,
-      mockFilledCount: Object.values(mock).filter((value) => value != null).length
+      mockFilledCount: Object.values(mock).filter((value) => value != null)
+        .length,
     },
-    gradeTrend: codeOf('Q8_TREND', source.q8),
+    gradeTrend: codeOf("Q8_TREND", source.q8),
     // 점수에는 쓰이지 않지만 코드로 담는다 — 이 값은 sessionStorage 로 영속화되므로 라벨 원문을
     // 넣으면 문항 1자 수정에 과거 응답이 미지 값이 된다(§3.5). TODO(Q-17): 축약 라벨 매핑은 미확정.
-    trendSubject: codeOf('Q8_FOLLOWUP', source['q8-followup']),
+    trendSubject: codeOf("Q8_FOLLOWUP", source["q8-followup"]),
     likert1: normalizeLikert(source.q9, LIKERT1_KEYS),
     likert2: normalizeLikert(source.q11, LIKERT2_KEYS),
-    obstacles: codesOf('OBSTACLE', source.q10),
-    difficulties: codesOf('DIFFICULTY', source.q12),
-    schedule: codeOf('SCHEDULE', source.q13),
-    wishes: codesOf('WISH', source.q14),
+    obstacles: codesOf("OBSTACLE", source.q10),
+    difficulties: codesOf("DIFFICULTY", source.q12),
+    schedule: codeOf("SCHEDULE", source.q13),
+    wishes: codesOf("WISH", source.q14),
     admissionQuery,
-    csatMin: codeOf('Q16', source.q16),
-    jonghapReady: codeOf('Q17', source.q17),
-    interviewReady: codeOf('Q18', source.q18),
-    freeText: typeof source.q19 === 'string' ? source.q19 : ''
+    csatMin: codeOf("Q16", source.q16),
+    jonghapReady: codeOf("Q17", source.q17),
+    interviewReady: codeOf("Q18", source.q18),
+    freeText: typeof source.q19 === "string" ? source.q19 : "",
   };
 }
 
@@ -286,11 +304,11 @@ export function normalizeAnswers(answers, meta = {}) {
 export function convertToNineScale(gradeSystem, raw) {
   if (!isUsableNumber(raw)) return null;
   switch (gradeSystem) {
-    case 'NINE':
+    case "NINE":
       return roundHalfUp(raw, 2); // 환산 없이 그대로
-    case 'FIVE':
+    case "FIVE":
       return fiveScaleToNine(raw);
-    case 'MIDDLE_AVG':
+    case "MIDDLE_AVG":
       return middleAvgToNine(raw);
     default:
       // UNKNOWN · 미응답(null)인 경우.
@@ -331,13 +349,16 @@ function mockFillPoints(filledCount) {
  */
 function auxOf(area, input) {
   switch (AREA_AUX_SOURCE[area]) {
-    case 'GOAL_POINTS':
+    case "GOAL_POINTS":
       // goal.reason == null 은 상시 경로다. ?? 0 이 없으면 aux = 20 + undefined = NaN 이 된다.
-      return (GOAL_LEVEL_POINTS[input.goal?.level] ?? 0) + (GOAL_REASON_POINTS[input.goal?.reason] ?? 0);
-    case 'TREND':
+      return (
+        (GOAL_LEVEL_POINTS[input.goal?.level] ?? 0) +
+        (GOAL_REASON_POINTS[input.goal?.reason] ?? 0)
+      );
+    case "TREND":
       // 실치역 {2,3,5,8,10} — 6지 전부 2점 이상이라 '미응답 0' 경로가 없다(§4.2.1).
       return TREND_POINTS[input.gradeTrend] ?? 0;
-    case 'MOCK_FILL':
+    case "MOCK_FILL":
       return mockFillPoints(input.scores?.mockFilledCount);
     default:
       return 0;
@@ -384,7 +405,10 @@ export function scoreAreas(input) {
   const result = {};
   AREA_CODES.forEach((area) => {
     const scalePart = scalePartOf(area, likert);
-    const basePart = Math.max(0, (AREA_BASE[area] ?? 0) + deductionOf(area, safeInput));
+    const basePart = Math.max(
+      0,
+      (AREA_BASE[area] ?? 0) + deductionOf(area, safeInput),
+    );
     const raw = scalePart + basePart + auxOf(area, safeInput);
     // 이 단계가 §4 서두가 허용한 두 반올림 지점 중 첫 번째다. §4.3·§4.4·§4.5 는 전부 이 정수를 받는다.
     result[area] = roundHalfUp(clamp(raw, 0, 100), 0);
@@ -423,20 +447,20 @@ export function overallScore(areaScores, page) {
 /** 5단계 등급 (§4.4 A · CASE-07). 경계는 상단 포함(>=)으로 통일 — 원문은 '80+'만 명시(Q-11). */
 export function levelOf(score) {
   const value = isUsableNumber(score) ? score : 0;
-  if (value >= SCORE_BANDS.L1) return 'L1';
-  if (value >= SCORE_BANDS.L2) return 'L2';
-  if (value >= SCORE_BANDS.L3) return 'L3';
-  if (value >= SCORE_BANDS.L4) return 'L4';
-  return 'L5';
+  if (value >= SCORE_BANDS.L1) return "L1";
+  if (value >= SCORE_BANDS.L2) return "L2";
+  if (value >= SCORE_BANDS.L3) return "L3";
+  if (value >= SCORE_BANDS.L4) return "L4";
+  return "L5";
 }
 
 /** 영역 4상태 (§4.4 B · Q-32). 화면 라벨은 STATE_LABEL[page][state] 로 분리돼 있다. */
 export function stateOf(score) {
   const value = isUsableNumber(score) ? score : 0;
-  if (value >= AREA_BAND_THRESHOLDS.TOP) return 'TOP';
-  if (value >= AREA_BAND_THRESHOLDS.MID) return 'MID';
-  if (value >= AREA_BAND_THRESHOLDS.LOW) return 'LOW';
-  return 'WEAK';
+  if (value >= AREA_BAND_THRESHOLDS.TOP) return "TOP";
+  if (value >= AREA_BAND_THRESHOLDS.MID) return "MID";
+  if (value >= AREA_BAND_THRESHOLDS.LOW) return "LOW";
+  return "WEAK";
 }
 
 /**
@@ -444,7 +468,7 @@ export function stateOf(score) {
  * stateOf 에서 파생시킨다 — 별도 임계를 두면 Q-32 확정 시 라벨과 색이 어긋난다.
  */
 export function toneOf(score) {
-  return STATE_TONE[stateOf(score)] ?? 'blue';
+  return STATE_TONE[stateOf(score)] ?? "blue";
 }
 
 /**
@@ -470,7 +494,7 @@ export function priorityBadges(areaScores) {
     code: area,
     name: AREA_LABEL[area],
     score: scoreOf(areaScores, area),
-    badge: BADGES[index]
+    badge: BADGES[index],
   }));
 }
 
@@ -487,7 +511,7 @@ export function targetGap(areaScores) {
     lowestName: AREA_LABEL[lowest],
     lowestScore,
     gap,
-    reached: gap <= 0
+    reached: gap <= 0,
   };
 }
 
@@ -498,13 +522,19 @@ export function targetGap(areaScores) {
  * AREA_BAND_THRESHOLDS(A1)를 뒤집어도 40 은 따라가면 안 된다.
  */
 export function urgencyOf(input, areaScores) {
-  const scopeAreas = URGENCY_SCOPE === 'PAGE1' ? PAGE1_AREAS : AREA_CODES;
+  const scopeAreas = URGENCY_SCOPE === "PAGE1" ? PAGE1_AREAS : AREA_CODES;
   const lowAreaCount = scopeAreas.filter(
-    (area) => scoreOf(areaScores, area) < URGENCY_AREA_THRESHOLD
+    (area) => scoreOf(areaScores, area) < URGENCY_AREA_THRESHOLD,
   ).length;
   const score = (SCHEDULE_POINTS[input?.schedule] ?? 0) + 10 * lowAreaCount;
   const level =
-    score >= URGENCY_BANDS.L4 ? 'L4' : score >= URGENCY_BANDS.L3 ? 'L3' : score >= URGENCY_BANDS.L2 ? 'L2' : 'L1';
+    score >= URGENCY_BANDS.L4
+      ? "L4"
+      : score >= URGENCY_BANDS.L3
+        ? "L3"
+        : score >= URGENCY_BANDS.L2
+          ? "L2"
+          : "L1";
   return { score, level, lowAreaCount };
 }
 
@@ -526,8 +556,11 @@ export function urgencyOf(input, areaScores) {
  * @returns {{ hit: boolean, matchedKeywords: string[] }}
  */
 export function detectEmotionalSignal(freeText) {
-  if (typeof freeText !== 'string' || freeText.length === 0) return { hit: false, matchedKeywords: [] };
-  const matchedKeywords = CALL_MENTOR_KEYWORDS.filter((keyword) => freeText.includes(keyword));
+  if (typeof freeText !== "string" || freeText.length === 0)
+    return { hit: false, matchedKeywords: [] };
+  const matchedKeywords = CALL_MENTOR_KEYWORDS.filter((keyword) =>
+    freeText.includes(keyword),
+  );
   return { hit: matchedKeywords.length > 0, matchedKeywords };
 }
 
@@ -545,7 +578,10 @@ function kstMonth(diagnosedAt) {
   const date = new Date(diagnosedAt);
   if (Number.isNaN(date.getTime())) return null;
   const month = Number(
-    new Intl.DateTimeFormat('en-US', { timeZone: SERVICE_H3_LATE_TIMEZONE, month: 'numeric' }).format(date)
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: SERVICE_H3_LATE_TIMEZONE,
+      month: "numeric",
+    }).format(date),
   );
   return Number.isFinite(month) ? month : null;
 }
@@ -566,14 +602,16 @@ function kstMonth(diagnosedAt) {
  *          진단)을 어드민·상담 단계에서 재판정하려면 판정 근거가 남아야 한다.
  */
 export function serviceCandidates(gradeLevel, diagnosedAt) {
-  if (gradeLevel === 'H3') {
+  if (gradeLevel === "H3") {
     const month = kstMonth(diagnosedAt);
     return month != null && month >= SERVICE_H3_LATE_MONTH
-      ? { codes: SERVICE_H3_LATE_CODES, reason: 'H3_LATE' }
+      ? { codes: SERVICE_H3_LATE_CODES, reason: "H3_LATE" }
       : { codes: SERVICE_CODES, reason: null };
   }
   const fixed = SERVICE_GRADE_FILTER[gradeLevel];
-  return fixed ? { codes: fixed, reason: gradeLevel } : { codes: SERVICE_CODES, reason: null };
+  return fixed
+    ? { codes: fixed, reason: gradeLevel }
+    : { codes: SERVICE_CODES, reason: null };
 }
 
 /**
@@ -593,11 +631,14 @@ export function serviceCandidates(gradeLevel, diagnosedAt) {
  */
 export function rankServices(input, areaScores) {
   const safeInput = input ?? {};
-  const checked = new Set([...(safeInput.obstacles ?? []), ...(safeInput.difficulties ?? [])]);
+  const checked = new Set([
+    ...(safeInput.obstacles ?? []),
+    ...(safeInput.difficulties ?? []),
+  ]);
   const wishes = new Set(safeInput.wishes ?? []);
   const { codes: candidates, reason: filterReason } = serviceCandidates(
     safeInput.profile?.gradeLevel,
-    safeInput.meta?.diagnosedAt
+    safeInput.meta?.diagnosedAt,
   );
 
   const all = candidates
@@ -605,18 +646,34 @@ export function rankServices(input, areaScores) {
       const rule = SERVICE_RULES[code];
       if (!rule) return null;
 
-      const checkedCount = rule.items.filter((item) => checked.has(item)).length;
+      const checkedCount = rule.items.filter((item) =>
+        checked.has(item),
+      ).length;
       const difficultyPart = Math.min(
         SERVICE_PART_CAPS.difficulty,
-        (SERVICE_PART_CAPS.difficulty * checkedCount) / rule.threshold
+        (SERVICE_PART_CAPS.difficulty * checkedCount) / rule.threshold,
       );
-      const wishPart = rule.wishOptions.some((wish) => wishes.has(wish)) ? SERVICE_PART_CAPS.wish : 0;
-      const linkedMean = meanOf(rule.linkedAreas.map((area) => scoreOf(areaScores, area))) ?? 0;
+      const wishPart = rule.wishOptions.some((wish) => wishes.has(wish))
+        ? SERVICE_PART_CAPS.wish
+        : 0;
+      const linkedMean =
+        meanOf(rule.linkedAreas.map((area) => scoreOf(areaScores, area))) ?? 0;
       // 영역 점수가 0~100 정수라 areaPart 는 자연히 0~30 이지만, 상한을 명시해 불변식을 코드로 남긴다.
-      const areaPart = clamp(SERVICE_PART_CAPS.area * (1 - linkedMean / 100), 0, SERVICE_PART_CAPS.area);
+      const areaPart = clamp(
+        SERVICE_PART_CAPS.area * (1 - linkedMean / 100),
+        0,
+        SERVICE_PART_CAPS.area,
+      );
       // 반올림하지 않는다 — tier 판정은 원값으로 한다(§4.5 경계값). 표시용 반올림은 리포트 계층 몫.
       const fit = difficultyPart + wishPart + areaPart;
-      const tier = fit >= SERVICE_BANDS.HIGH ? 'HIGH' : fit >= SERVICE_BANDS.MID ? 'MID' : fit >= SERVICE_BANDS.LOW ? 'LOW' : null;
+      const tier =
+        fit >= SERVICE_BANDS.HIGH
+          ? "HIGH"
+          : fit >= SERVICE_BANDS.MID
+            ? "MID"
+            : fit >= SERVICE_BANDS.LOW
+              ? "LOW"
+              : null;
       const lowestLinkedArea = sortByScoreAsc(rule.linkedAreas, areaScores)[0];
 
       return {
@@ -627,17 +684,24 @@ export function rankServices(input, areaScores) {
         difficultyPart,
         wishPart,
         areaPart,
-        lowestLinkedAreaName: AREA_LABEL[lowestLinkedArea] ?? null
+        lowestLinkedAreaName: AREA_LABEL[lowestLinkedArea] ?? null,
       };
     })
     .filter((service) => service != null && service.tier != null)
     // 동점 타이브레이커는 SERVICE_CODES 표 순서 고정(§4.5 결측).
-    .sort((a, b) => (b.fit - a.fit) || (SERVICE_CODES.indexOf(a.code) - SERVICE_CODES.indexOf(b.code)));
+    .sort(
+      (a, b) =>
+        b.fit - a.fit ||
+        SERVICE_CODES.indexOf(a.code) - SERVICE_CODES.indexOf(b.code),
+    );
 
   const rank1 = all[0] ?? null;
   const second = all[1] ?? null;
   const rank2 =
-    rank1 && second && second.fit >= SERVICE_RANK2_MIN_FIT && rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF
+    rank1 &&
+    second &&
+    second.fit >= SERVICE_RANK2_MIN_FIT &&
+    rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF
       ? second
       : null;
 
@@ -653,9 +717,10 @@ export function rankServices(input, areaScores) {
 
 /** 리커트 24문장 중 실제 응답값이 있는 것만. likertScore 도메인은 {0,25,50,75,100} 5개뿐이다. */
 function likertValuesOf(input) {
-  return [...Object.values(input?.likert1 ?? {}), ...Object.values(input?.likert2 ?? {})].filter((value) =>
-    isUsableNumber(value)
-  );
+  return [
+    ...Object.values(input?.likert1 ?? {}),
+    ...Object.values(input?.likert2 ?? {}),
+  ].filter((value) => isUsableNumber(value));
 }
 
 /**
@@ -676,7 +741,8 @@ function likertValuesOf(input) {
 function sincerityStats(input) {
   const values = likertValuesOf(input);
   const answered = values.length;
-  if (answered === 0) return { answered, modeValue: null, offmodeCount: 0, rawOffmodeCount: 0 };
+  if (answered === 0)
+    return { answered, modeValue: null, offmodeCount: 0, rawOffmodeCount: 0 };
   const counts = new Map();
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
   // 동률이면 먼저 등장한(=응답 순서상 앞선) 값을 최빈값으로 고정한다 — Map 이 삽입 순서를
@@ -691,7 +757,7 @@ function sincerityStats(input) {
   });
   const rawOffmodeCount = answered - modeCount;
   const offmodeCount = values.filter(
-    (value) => Math.abs(value - modeValue) >= SINCERITY_OFFMODE_MIN_DISTANCE
+    (value) => Math.abs(value - modeValue) >= SINCERITY_OFFMODE_MIN_DISTANCE,
   ).length;
   return { answered, modeValue, offmodeCount, rawOffmodeCount };
 }
@@ -740,7 +806,7 @@ export function sincerityOf(input) {
   return {
     flagged: isStraightLining(input),
     answeredCount: answered,
-    offmodeCount
+    offmodeCount,
   };
 }
 
@@ -781,9 +847,10 @@ export function sincerityOf(input) {
 export function classifyStudentType(input, areaScores) {
   if (isStraightLining(input)) return null;
   const answered = likertValuesOf(input);
-  if (answered.length > 0 && answered.every((value) => value === answered[0])) return null;
+  if (answered.length > 0 && answered.every((value) => value === answered[0]))
+    return null;
 
-  if (scoreOf(areaScores, 'STABILITY') < 45) return 'BURDEN_ACCUM';
+  if (scoreOf(areaScores, "STABILITY") < 45) return "BURDEN_ACCUM";
 
   // min/max/산포는 새 헬퍼를 만들지 않고 기존 정렬 결과의 양 끝에서 뽑는다 — 정렬 규칙이 두 벌이
   // 되면 동점 구간에서 뱃지와 유형이 어긋난다.
@@ -796,24 +863,29 @@ export function classifyStudentType(input, areaScores) {
     lowestScore >= TYPE_RULES.SYSTEM_STABLE.page1MinArea &&
     overallScore(areaScores, 1) >= TYPE_RULES.SYSTEM_STABLE.page1Overall
   ) {
-    return 'SYSTEM_STABLE';
+    return "SYSTEM_STABLE";
   }
-  if (highestScore - lowestScore <= TYPE_RULES.BALANCED.spreadMax) return 'BALANCED';
+  if (highestScore - lowestScore <= TYPE_RULES.BALANCED.spreadMax)
+    return "BALANCED";
 
-  if (lowest === 'GOAL') return 'DIRECTION_SEEK';
-  if (lowest === 'TIME') return 'TIME_WEAK';
-  if (lowest === 'FEEDBACK') return 'METHOD_REVIEW';
+  if (lowest === "GOAL") return "DIRECTION_SEEK";
+  if (lowest === "TIME") return "TIME_WEAK";
+  if (lowest === "FEEDBACK") return "METHOD_REVIEW";
 
-  const goal = scoreOf(areaScores, 'GOAL');
-  const plan = scoreOf(areaScores, 'PLAN');
-  const exec = scoreOf(areaScores, 'EXEC');
-  if (plan >= TYPE_RULES.PLAN_HEAVY.planMin && exec < TYPE_RULES.PLAN_HEAVY.execMax) return 'PLAN_HEAVY';
+  const goal = scoreOf(areaScores, "GOAL");
+  const plan = scoreOf(areaScores, "PLAN");
+  const exec = scoreOf(areaScores, "EXEC");
+  if (
+    plan >= TYPE_RULES.PLAN_HEAVY.planMin &&
+    exec < TYPE_RULES.PLAN_HEAVY.execMax
+  )
+    return "PLAN_HEAVY";
   if (
     goal >= TYPE_RULES.GOAL_EXEC_GAP.goalMin &&
     plan < TYPE_RULES.GOAL_EXEC_GAP.planMax &&
     exec < TYPE_RULES.GOAL_EXEC_GAP.execMax
   ) {
-    return 'GOAL_EXEC_GAP';
+    return "GOAL_EXEC_GAP";
   }
   // ⑩ 최저가 PLAN·EXEC·STABILITY 이면서 ⑧⑨ 어디에도 안 걸리는 잔여 구간이 남는다.
   // 값을 창작해 메우지 않는다 — 현행 PAGE_GRADE_COPY 폴백이 그대로 뜬다.
@@ -853,7 +925,7 @@ function normalizedCuts(mine, cuts) {
   if (cut50 == null && cut70 == null) return null;
   return {
     c50: roundHalfUp(cut50 ?? cut70 - ADMISSION_MARGIN, 2),
-    c70: roundHalfUp(cut70 ?? cut50 + ADMISSION_MARGIN, 2)
+    c70: roundHalfUp(cut70 ?? cut50 + ADMISSION_MARGIN, 2),
   };
 }
 
@@ -862,9 +934,9 @@ export function admissionBand(mine, cuts) {
   if (normalized == null) return null;
   const { c50, c70 } = normalized;
   const reach = roundHalfUp(c70 + ADMISSION_MARGIN, 2);
-  if (mine <= c50) return 'STABLE';
-  if (mine <= c70) return 'FIT';
-  return mine <= reach ? 'REACH' : 'RISK';
+  if (mine <= c50) return "STABLE";
+  if (mine <= c70) return "FIT";
+  return mine <= reach ? "REACH" : "RISK";
 }
 
 /**
@@ -883,13 +955,13 @@ function admissionBandEdge(band, mine, cuts) {
   const normalized = normalizedCuts(mine, cuts);
   if (normalized == null) return 0;
   const { c50, c70 } = normalized;
-  if (band === 'STABLE' && mine <= roundHalfUp(c50 - ADMISSION_MARGIN, 2)) {
+  if (band === "STABLE" && mine <= roundHalfUp(c50 - ADMISSION_MARGIN, 2)) {
     return ADMISSION_BAND_EDGE_ADJUST.STABLE_DEEP;
   }
-  if (band === 'RISK' && mine > roundHalfUp(c70 + 4 * ADMISSION_MARGIN, 2)) {
+  if (band === "RISK" && mine > roundHalfUp(c70 + 4 * ADMISSION_MARGIN, 2)) {
     return ADMISSION_BAND_EDGE_ADJUST.RISK_VERY_FAR;
   }
-  if (band === 'RISK' && mine > roundHalfUp(c70 + 2 * ADMISSION_MARGIN, 2)) {
+  if (band === "RISK" && mine > roundHalfUp(c70 + 2 * ADMISSION_MARGIN, 2)) {
     return ADMISSION_BAND_EDGE_ADJUST.RISK_FAR;
   }
   return 0;
@@ -908,20 +980,25 @@ export function admissionRows(mine, cuts) {
     cut50: cuts?.cut50,
     cut70: cuts?.cut70,
     avg: cuts?.finalAvg,
-    mine
+    mine,
   };
   const mineValue = isUsableNumber(mine) ? roundHalfUp(mine, 2) : null;
 
-  return ADMISSION_ROW_KEYS.filter((key) => isUsableNumber(values[key])).map((key) => {
-    const value = roundHalfUp(values[key], 2);
-    return {
-      key,
-      value,
-      // 내 성적 행은 기준점이라 차이가 없다. mine 이 없으면 비교 자체가 성립하지 않는다.
-      diff: key === 'mine' || mineValue == null ? null : roundHalfUp(mineValue - value, 2),
-      emphasis: key === 'mine'
-    };
-  });
+  return ADMISSION_ROW_KEYS.filter((key) => isUsableNumber(values[key])).map(
+    (key) => {
+      const value = roundHalfUp(values[key], 2);
+      return {
+        key,
+        value,
+        // 내 성적 행은 기준점이라 차이가 없다. mine 이 없으면 비교 자체가 성립하지 않는다.
+        diff:
+          key === "mine" || mineValue == null
+            ? null
+            : roundHalfUp(mineValue - value, 2),
+        emphasis: key === "mine",
+      };
+    },
+  );
 }
 
 /**
@@ -958,7 +1035,11 @@ export function successProbability(input, band, mine, cuts) {
     (CSAT_MIN_DELTA[input?.csatMin] ?? 0) +
     (JONGHAP_DELTA[input?.jonghapReady] ?? 0) +
     (INTERVIEW_DELTA[input?.interviewReady] ?? 0);
-  return clamp(base + admissionBandEdge(band, mine, cuts) + delta, PROB_MIN, PROB_MAX);
+  return clamp(
+    base + admissionBandEdge(band, mine, cuts) + delta,
+    PROB_MIN,
+    PROB_MAX,
+  );
 }
 
 /**
@@ -972,5 +1053,7 @@ export function successProbability(input, band, mine, cuts) {
  */
 export function probabilityRangeLabel(probability) {
   if (!isUsableNumber(probability)) return null;
-  return PROB_RANGE_LABELS.find((entry) => probability >= entry.min)?.label ?? null;
+  return (
+    PROB_RANGE_LABELS.find((entry) => probability >= entry.min)?.label ?? null
+  );
 }

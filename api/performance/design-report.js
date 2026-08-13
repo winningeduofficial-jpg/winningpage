@@ -163,15 +163,18 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4). 이 파일의 유일한 파싱은
 //   `JSON.parse` 한 줄이고, 형식 강제는 `responseSchema`가 한다.
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   SERVICE_CONFIGS,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
-  readQuotaSnapshot
-} from '../_lib/serviceAccess.js';
-import { generateWithRetry, PERFORMANCE_MODEL } from '../_lib/performance/gemini.js';
+  readQuotaSnapshot,
+} from "../_lib/serviceAccess.js";
+import {
+  generateWithRetry,
+  PERFORMANCE_MODEL,
+} from "../_lib/performance/gemini.js";
 import {
   DESIGN_CONCLUSION_DEFAULT_ROWS,
   DESIGN_EMPTY_RESOURCE_ROWS,
@@ -186,19 +189,22 @@ import {
   buildDesignReportSystem,
   buildDesignReportUser,
   resolveDesignPromptVersion,
-  resolveDesignWritingBranch
-} from '../_lib/performance/prompts.js';
-import { guideTextFromSession, inferGuideStructure } from '../_lib/performance/guide-structure.js';
+  resolveDesignWritingBranch,
+} from "../_lib/performance/prompts.js";
+import {
+  guideTextFromSession,
+  inferGuideStructure,
+} from "../_lib/performance/guide-structure.js";
 import {
   RESOURCE_MAX_CHARS,
   STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
   STUDENT_HISTORY_PROMPT_LIMIT,
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
-  loadRelevantStudentSessions
-} from '../_lib/performance/knowledge.js';
+  loadRelevantStudentSessions,
+} from "../_lib/performance/knowledge.js";
 
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
 /**
  * 설계 리포트 **성공 생성** 상한. §9.3 「설계 리포트 생성·재생성 | 없음 (재생성 상한
@@ -239,7 +245,8 @@ const STRUCTURE_RETRY = 1;
  */
 const CONCLUSION_STEP_RE = /결론|마무리|후속\s*탐구/;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * `출처 링크`를 클릭 가능한 `<a href>`로 승격해도 되는가(§8.5 「출처 링크 → `{label, href}`」).
@@ -260,35 +267,36 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const HTTP_URL_RE = /^https?:\/\//i;
 
 const SESSION_COLUMNS = [
-  'id',
-  'profile_id',
-  'status',
-  'current_step',
-  'completed_steps',
-  'grade_label',
-  'semester',
-  'school_type',
-  'subject_group',
-  'subject',
-  'career_goal',
-  'previous_topic',
-  'guide_input_mode',
-  'guide_freetext',
-  'guide_json',
-  'selected_topic_id',
+  "id",
+  "profile_id",
+  "status",
+  "current_step",
+  "completed_steps",
+  "grade_label",
+  "semester",
+  "school_type",
+  "subject_group",
+  "subject",
+  "career_goal",
+  "previous_topic",
+  "guide_input_mode",
+  "guide_freetext",
+  "guide_json",
+  "selected_topic_id",
   // sql/57 (3). 두 컬럼 없이 배포하면 PostgREST 42703으로 라우트 전체가 죽는다 —
   // 55번 `guide_analysis_count` / 56번 `topic_attempt_count`와 같은 선행 조건이다.
-  'design_generation_count',
-  'design_attempt_count'
-].join(',');
+  "design_generation_count",
+  "design_attempt_count",
+].join(",");
 
-const REPORT_COLUMNS = 'id,topic_id,sections,model,prompt_version,created_at,updated_at';
+const REPORT_COLUMNS =
+  "id,topic_id,sections,model,prompt_version,created_at,updated_at";
 
 function fail(res, status, code, message, extra) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-const trimmed = (value) => String(value ?? '').trim();
+const trimmed = (value) => String(value ?? "").trim();
 
 /**
  * 잔여 회차 **읽기 전용** 스냅샷. 이 엔드포인트는 차감 RPC를 부르지 않으므로
@@ -301,10 +309,14 @@ async function readQuota(supabaseAdmin, userId) {
     return await readQuotaSnapshot(
       supabaseAdmin,
       userId,
-      await findProgramAccessRow(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY])
+      await findProgramAccessRow(
+        supabaseAdmin,
+        userId,
+        SERVICE_CONFIGS[SERVICE_KEY],
+      ),
     );
   } catch (error) {
-    console.error('performance/design-report quota lookup 실패(무시):', error);
+    console.error("performance/design-report quota lookup 실패(무시):", error);
     return await readQuotaSnapshot(supabaseAdmin, userId, null);
   }
 }
@@ -322,11 +334,11 @@ function flattenTopicDetail(detail) {
     .map((section) => {
       const label = trimmed(section?.label);
       const text = trimmed(section?.text);
-      if (!label || !text) return '';
+      if (!label || !text) return "";
       return `- ${label}: ${text}`;
     })
     .filter(Boolean)
-    .join('\n');
+    .join("\n");
 }
 
 /**
@@ -383,7 +395,7 @@ function resolveChosenResources(chosen, candidates) {
     const row = candidates.byHandle.get(handle);
 
     if (!row) {
-      rejected.push(trimmed(item?.resource_id) || '(빈 값)');
+      rejected.push(trimmed(item?.resource_id) || "(빈 값)");
       continue;
     }
     if (usedHandles.has(handle)) continue;
@@ -392,11 +404,11 @@ function resolveChosenResources(chosen, candidates) {
     // DB 행이라도 **스킴은 검증한다** — 자유 텍스트 컬럼이라 URL이 아닌 값이 섞일 수 있고,
     // 그 값을 `href`로 승격하는 것은 우리가 새로 만든 표면이다(`HTTP_URL_RE` 주석).
     const rawLink = trimmed(row.source_link);
-    const link = HTTP_URL_RE.test(rawLink) ? rawLink : '';
+    const link = HTTP_URL_RE.test(rawLink) ? rawLink : "";
 
     if (rawLink && !link) {
       console.warn(
-        `[design-report] 자료 출처 링크가 http(s)가 아니라 링크를 붙이지 않았습니다 (knowledge_item=${row.id})`
+        `[design-report] 자료 출처 링크가 http(s)가 아니라 링크를 붙이지 않았습니다 (knowledge_item=${row.id})`,
       );
     }
 
@@ -414,9 +426,10 @@ function resolveChosenResources(chosen, candidates) {
       //   신설 + 어드민 폼 분리)이 §11-Q73 미결이다. 결정 전까지 원문 기본 문구를 쓴다.
       coreConcepts: DESIGN_RESOURCE_FIELD_FALLBACKS.core_concepts,
       // ── 유일한 모델 산출물.
-      usePoint: trimmed(item?.use_point) || DESIGN_RESOURCE_FIELD_FALLBACKS.use_point,
+      usePoint:
+        trimmed(item?.use_point) || DESIGN_RESOURCE_FIELD_FALLBACKS.use_point,
       // ── 서버 상수(원문 `find-resources.js:172`).
-      caution: DESIGN_RESOURCE_FIELD_FALLBACKS.caution
+      caution: DESIGN_RESOURCE_FIELD_FALLBACKS.caution,
     });
   }
 
@@ -441,11 +454,14 @@ function kvRow(label, content, href) {
 }
 
 function keyValueBlock(rows) {
-  return { kind: 'keyValue', rows: rows.filter((row) => row.content) };
+  return { kind: "keyValue", rows: rows.filter((row) => row.content) };
 }
 
 function bulletList(items) {
-  return { kind: 'plainList', items: items.map((text) => ({ type: 'bullet', text })) };
+  return {
+    kind: "plainList",
+    items: items.map((text) => ({ type: "bullet", text })),
+  };
 }
 
 /**
@@ -453,12 +469,18 @@ function bulletList(items) {
  * `<ol>`로 렌더된다 — 번호는 브라우저가 붙인다.
  */
 function orderedList(items) {
-  return { kind: 'plainList', ordered: true, items: items.map((text) => ({ type: 'bullet', text })) };
+  return {
+    kind: "plainList",
+    ordered: true,
+    items: items.map((text) => ({ type: "bullet", text })),
+  };
 }
 
 /** 라벨 정의(`[{key,label}]`) + 모델 객체 → keyValue 블록. */
 function rowsFromLabels(labels, source) {
-  return keyValueBlock(labels.map((row) => kvRow(row.label, source?.[row.key])));
+  return keyValueBlock(
+    labels.map((row) => kvRow(row.label, source?.[row.key])),
+  );
 }
 
 /**
@@ -473,14 +495,14 @@ function rowsFromLabels(labels, source) {
  */
 function numberedItems(items) {
   return (Array.isArray(items) ? items : [])
-    .map((item) => trimmed(item).replace(/^\d+\s*[.)]\s*/, ''))
+    .map((item) => trimmed(item).replace(/^\d+\s*[.)]\s*/, ""))
     .filter(Boolean);
 }
 
 /** `체크 1:` ~ `체크 5:` — 원문 뼈대(`find-resources.js:486-490`)의 라벨을 서버가 붙인다. */
 function checklistItems(items) {
   return (Array.isArray(items) ? items : [])
-    .map((item) => trimmed(item).replace(/^체크\s*\d+\s*[:：]\s*/, ''))
+    .map((item) => trimmed(item).replace(/^체크\s*\d+\s*[:：]\s*/, ""))
     .filter(Boolean)
     .map((text, index) => `체크 ${index + 1}: ${text}`);
 }
@@ -490,29 +512,35 @@ function buildResourceBlocks(resources) {
   if (!resources.length) {
     // 원문 `find-resources.js:154-157`. `주의할 점` 행은 §12.1이 「서비스 신뢰 문구」로
     // 지목한 문장이라 그대로 쓴다.
-    return [keyValueBlock(DESIGN_EMPTY_RESOURCE_ROWS.map((row) => kvRow(row.label, row.content)))];
+    return [
+      keyValueBlock(
+        DESIGN_EMPTY_RESOURCE_ROWS.map((row) => kvRow(row.label, row.content)),
+      ),
+    ];
   }
 
-  const labelOf = (key) => DESIGN_RESOURCE_CARD_FIELDS.find((field) => field.key === key)?.label || key;
+  const labelOf = (key) =>
+    DESIGN_RESOURCE_CARD_FIELDS.find((field) => field.key === key)?.label ||
+    key;
 
   return resources.map((resource, index) => ({
-    kind: 'group',
+    kind: "group",
     title: `자료 ${index + 1}`,
     children: [
       keyValueBlock([
-        kvRow(labelOf('title'), resource.title),
-        kvRow(labelOf('source'), resource.source),
+        kvRow(labelOf("title"), resource.title),
+        kvRow(labelOf("source"), resource.source),
         // 링크가 비면 폴백 **문구**만 넣고 href는 붙이지 않는다(위 kvRow 주석).
         kvRow(
-          labelOf('link'),
+          labelOf("link"),
           resource.link || DESIGN_RESOURCE_FIELD_FALLBACKS.link,
-          resource.link || undefined
+          resource.link || undefined,
         ),
-        kvRow(labelOf('core_concepts'), resource.coreConcepts),
-        kvRow(labelOf('use_point'), resource.usePoint),
-        kvRow(labelOf('caution'), resource.caution)
-      ])
-    ]
+        kvRow(labelOf("core_concepts"), resource.coreConcepts),
+        kvRow(labelOf("use_point"), resource.usePoint),
+        kvRow(labelOf("caution"), resource.caution),
+      ]),
+    ],
   }));
 }
 
@@ -539,19 +567,25 @@ function buildWritingStructureBlocks(steps, branchKey) {
         .filter((row) => row.label && row.content);
 
       if (!title || !rows.length) return null;
-      return { kind: 'group', title, children: [{ kind: 'keyValue', rows }] };
+      return { kind: "group", title, children: [{ kind: "keyValue", rows }] };
     })
     .filter(Boolean);
 
-  const hasConclusion = blocks.some((block) => CONCLUSION_STEP_RE.test(block.title));
+  const hasConclusion = blocks.some((block) =>
+    CONCLUSION_STEP_RE.test(block.title),
+  );
 
-  if (branchKey === 'report' && !hasConclusion) {
+  if (branchKey === "report" && !hasConclusion) {
     blocks.push({
-      kind: 'group',
-      title: '결론 구성 방향',
+      kind: "group",
+      title: "결론 구성 방향",
       children: [
-        keyValueBlock(DESIGN_CONCLUSION_DEFAULT_ROWS.map((row) => kvRow(row.label, row.content)))
-      ]
+        keyValueBlock(
+          DESIGN_CONCLUSION_DEFAULT_ROWS.map((row) =>
+            kvRow(row.label, row.content),
+          ),
+        ),
+      ],
     });
   }
 
@@ -565,13 +599,24 @@ function buildWritingStructureBlocks(steps, branchKey) {
  */
 function buildSections({ payload, resources, branchKey }) {
   const blocksBySection = {
-    final_topic: [rowsFromLabels(DESIGN_SECTION_ROW_LABELS.final_topic, payload.final_topic)],
+    final_topic: [
+      rowsFromLabels(
+        DESIGN_SECTION_ROW_LABELS.final_topic,
+        payload.final_topic,
+      ),
+    ],
     recommended_resources: buildResourceBlocks(resources),
-    required_format: [rowsFromLabels(DESIGN_SECTION_ROW_LABELS.required_format, payload.required_format)],
+    required_format: [
+      rowsFromLabels(
+        DESIGN_SECTION_ROW_LABELS.required_format,
+        payload.required_format,
+      ),
+    ],
     overall_direction: (() => {
       const direction = payload.overall_direction || {};
       const labels = DESIGN_SECTION_ROW_LABELS.overall_direction;
-      const labelOf = (key) => labels.find((row) => row.key === key)?.label || key;
+      const labelOf = (key) =>
+        labels.find((row) => row.key === key)?.label || key;
       const points = numberedItems(direction.analysis_points);
 
       // §5.13 실측 순서(중심 목표 → 분석 포인트 → 교과 개념… → 학생의 해석…)를 지키려고
@@ -590,29 +635,41 @@ function buildSections({ payload, resources, branchKey }) {
       //   §5.13에 이 자리의 색 실측이 없고, 색까지 맞추려면 `:has()` 같은 구조 의존 선택자나
       //   블록 계약 확장이 필요해 여기서는 콜론만 맞췄다.
       return [
-        keyValueBlock([kvRow(labelOf('core_goal'), direction.core_goal)]),
+        keyValueBlock([kvRow(labelOf("core_goal"), direction.core_goal)]),
         ...(points.length
-          ? [{ kind: 'group', title: `${labelOf('analysis_points')}:`, children: [orderedList(points)] }]
+          ? [
+              {
+                kind: "group",
+                title: `${labelOf("analysis_points")}:`,
+                children: [orderedList(points)],
+              },
+            ]
           : []),
         keyValueBlock([
-          kvRow(labelOf('concept_expression'), direction.concept_expression),
-          kvRow(labelOf('student_interpretation'), direction.student_interpretation)
-        ])
+          kvRow(labelOf("concept_expression"), direction.concept_expression),
+          kvRow(
+            labelOf("student_interpretation"),
+            direction.student_interpretation,
+          ),
+        ]),
       ];
     })(),
-    writing_structure: buildWritingStructureBlocks(payload.writing_structure?.steps, branchKey),
+    writing_structure: buildWritingStructureBlocks(
+      payload.writing_structure?.steps,
+      branchKey,
+    ),
     checklist: (() => {
       const items = checklistItems(payload.checklist);
       return items.length ? [bulletList(items)] : [];
-    })()
+    })(),
   };
 
   return DESIGN_REPORT_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
     blocks: (blocksBySection[section.id] || []).filter(
-      (block) => !(block.kind === 'keyValue' && !block.rows.length)
-    )
+      (block) => !(block.kind === "keyValue" && !block.rows.length),
+    ),
   })).filter((section) => section.blocks.length);
 }
 
@@ -631,13 +688,13 @@ function buildSections({ payload, resources, branchKey }) {
  * @returns {{ok: true} | {ok: false, reason: string}}
  */
 function validateDesignPayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { ok: false, reason: 'not-an-object' };
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, reason: "not-an-object" };
   }
 
   for (const [sectionId, labels] of Object.entries(DESIGN_SECTION_ROW_LABELS)) {
     const source = payload[sectionId];
-    if (!source || typeof source !== 'object') {
+    if (!source || typeof source !== "object") {
       return { ok: false, reason: `${sectionId}:missing` };
     }
 
@@ -650,25 +707,33 @@ function validateDesignPayload(payload) {
         }
         continue;
       }
-      if (!trimmed(value)) return { ok: false, reason: `${sectionId}.${row.key}:empty` };
+      if (!trimmed(value))
+        return { ok: false, reason: `${sectionId}.${row.key}:empty` };
     }
   }
 
   const steps = payload.writing_structure?.steps;
   if (!Array.isArray(steps) || !steps.length) {
-    return { ok: false, reason: 'writing_structure.steps:empty' };
+    return { ok: false, reason: "writing_structure.steps:empty" };
   }
   for (let i = 0; i < steps.length; i++) {
-    if (!trimmed(steps[i]?.title)) return { ok: false, reason: `writing_structure.steps[${i}].title:empty` };
+    if (!trimmed(steps[i]?.title))
+      return { ok: false, reason: `writing_structure.steps[${i}].title:empty` };
     const rows = steps[i]?.rows;
-    if (!Array.isArray(rows) || !rows.some((row) => trimmed(row?.label) && trimmed(row?.content))) {
+    if (
+      !Array.isArray(rows) ||
+      !rows.some((row) => trimmed(row?.label) && trimmed(row?.content))
+    ) {
       return { ok: false, reason: `writing_structure.steps[${i}].rows:empty` };
     }
   }
 
   const checklist = payload.checklist;
-  if (!Array.isArray(checklist) || checklist.filter((item) => trimmed(item)).length < 5) {
-    return { ok: false, reason: 'checklist:under-5' };
+  if (
+    !Array.isArray(checklist) ||
+    checklist.filter((item) => trimmed(item)).length < 5
+  ) {
+    return { ok: false, reason: "checklist:under-5" };
   }
 
   return { ok: true };
@@ -687,14 +752,15 @@ function validateDesignPayload(payload) {
  *     학생이 본 리포트는 그대로여야 한다(리포트는 스냅샷이다).
  */
 function buildReportEnvelope({ structure, sections, resources }) {
-  return { v: 1, type: 'design', structure, sections, resources };
+  return { v: 1, type: "design", structure, sections, resources };
 }
 
 /** 저장 봉투 → 응답 본문 공통부. 재생 경로와 신규 생성 경로가 같은 모양을 쓴다. */
 function toClientReport(reportRow) {
-  const envelope = reportRow?.sections && typeof reportRow.sections === 'object'
-    ? reportRow.sections
-    : {};
+  const envelope =
+    reportRow?.sections && typeof reportRow.sections === "object"
+      ? reportRow.sections
+      : {};
 
   return {
     reportId: reportRow?.id ?? null,
@@ -705,34 +771,35 @@ function toClientReport(reportRow) {
     promptVersion: reportRow?.prompt_version ?? null,
     model: reportRow?.model ?? null,
     createdAt: reportRow?.created_at ?? null,
-    updatedAt: reportRow?.updated_at ?? null
+    updatedAt: reportRow?.updated_at ?? null,
   };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/design-report 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/design-report 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
@@ -741,70 +808,108 @@ export default async function handler(req, res) {
     //    잔여 회차는 보지 않는다 — 설계 리포트는 무차감이고(§9.3), 이미 차감된 세션은
     //    소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정 「막는 것은 새 세션
     //    시작뿐」). 여기서 잔여로 막으면 학생이 값을 지불한 세션이 중간에 끊긴다.
-    const hasAccess = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+    const hasAccess = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      SERVICE_CONFIGS[SERVICE_KEY],
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-    const topicId = typeof body.topicId === 'string' ? body.topicId.trim() : '';
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    const topicId = typeof body.topicId === "string" ? body.topicId.trim() : "";
     const regenerate = body.regenerate === true;
 
     if (!UUID_RE.test(sessionId)) {
-      return fail(res, 400, 'INVALID_SESSION_ID', 'sessionId가 올바르지 않습니다.', { charged: false });
+      return fail(
+        res,
+        400,
+        "INVALID_SESSION_ID",
+        "sessionId가 올바르지 않습니다.",
+        { charged: false },
+      );
     }
     if (!UUID_RE.test(topicId)) {
-      return fail(res, 400, 'INVALID_TOPIC_ID', 'topicId가 올바르지 않습니다.', { charged: false });
+      return fail(
+        res,
+        400,
+        "INVALID_TOPIC_ID",
+        "topicId가 올바르지 않습니다.",
+        { charged: false },
+      );
     }
 
     // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶어 id 존재 여부가 새지
     //    않게 한다(P8·RPC 단계 1과 같은 취지).
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .select(SESSION_COLUMNS)
-      .eq('id', sessionId)
-      .eq('profile_id', userId)
+      .eq("id", sessionId)
+      .eq("profile_id", userId)
       .maybeSingle();
 
-    if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+    if (sessionError)
+      throw new Error(`세션 조회 실패: ${sessionError.message}`);
     if (!sessionRow) {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '세션을 찾을 수 없습니다.', { charged: false });
+      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+        charged: false,
+      });
     }
 
     // ── 주제 소유권(§8.6 `404 TOPIC_NOT_IN_SESSION`). **세션 id로 묶어서** 조회하므로
     //    남의 세션 주제 id를 넣으면 애초에 행이 나오지 않는다.
     const { data: topicRow, error: topicError } = await supabaseAdmin
-      .from('performance_topics')
-      .select('id,round,idx,title,detail')
-      .eq('id', topicId)
-      .eq('session_id', sessionRow.id)
+      .from("performance_topics")
+      .select("id,round,idx,title,detail")
+      .eq("id", topicId)
+      .eq("session_id", sessionRow.id)
       .maybeSingle();
 
     if (topicError) throw new Error(`주제 조회 실패: ${topicError.message}`);
     if (!topicRow) {
-      return fail(res, 404, 'TOPIC_NOT_IN_SESSION', '이 수행평가의 주제가 아니에요.', { charged: false });
+      return fail(
+        res,
+        404,
+        "TOPIC_NOT_IN_SESSION",
+        "이 수행평가의 주제가 아니에요.",
+        { charged: false },
+      );
     }
 
     // ── 기존 설계 리포트(세션당 최대 1행, sql/57 (2)).
     const { data: existingReport, error: existingError } = await supabaseAdmin
-      .from('performance_reports')
+      .from("performance_reports")
       .select(REPORT_COLUMNS)
-      .eq('session_id', sessionRow.id)
-      .eq('report_type', 'design')
+      .eq("session_id", sessionRow.id)
+      .eq("report_type", "design")
       .maybeSingle();
 
-    if (existingError) throw new Error(`설계 리포트 조회 실패: ${existingError.message}`);
+    if (existingError)
+      throw new Error(`설계 리포트 조회 실패: ${existingError.message}`);
 
     if (existingReport) {
       // 확정된 주제를 바꾸려는 요청 → 409(§8.6). 주제 확정과 리포트가 한 트랜잭션으로
       // 커밋되므로 "리포트가 있다 = 주제가 확정됐다"이고, 그 확정은 되돌리지 않는다.
       if (existingReport.topic_id && existingReport.topic_id !== topicRow.id) {
-        return fail(res, 409, 'TOPIC_ALREADY_CONFIRMED', '이미 다른 주제로 확정한 수행평가예요.', {
-          reportId: existingReport.id,
-          confirmedTopicId: existingReport.topic_id,
-          charged: false
-        });
+        return fail(
+          res,
+          409,
+          "TOPIC_ALREADY_CONFIRMED",
+          "이미 다른 주제로 확정한 수행평가예요.",
+          {
+            reportId: existingReport.id,
+            confirmedTopicId: existingReport.topic_id,
+            charged: false,
+          },
+        );
       }
 
       // 같은 주제 재요청 = 더블클릭·새로고침·응답 유실. **모델을 부르지 않는다.**
@@ -817,30 +922,47 @@ export default async function handler(req, res) {
           charged: false,
           reused: true,
           generationCount: Number(sessionRow.design_generation_count) || 0,
-          maxGenerations: MAX_DESIGN_GENERATIONS
+          maxGenerations: MAX_DESIGN_GENERATIONS,
         });
       }
     }
 
     // ── STEP1/STEP2 선행 조건. 없으면 `미입력`투성이 프롬프트가 쓸모없는 리포트를
     //    만들고 그것이 그대로 저장된다. 둘 다 무차감이다.
-    const missingBasic = ['grade_label', 'semester', 'subject_group', 'subject', 'career_goal']
-      .find((column) => !trimmed(sessionRow[column]));
+    const missingBasic = [
+      "grade_label",
+      "semester",
+      "subject_group",
+      "subject",
+      "career_goal",
+    ].find((column) => !trimmed(sessionRow[column]));
 
     if (missingBasic) {
-      return fail(res, 400, 'SESSION_INCOMPLETE', '기본 정보를 먼저 입력해 주세요.', {
-        step: 1,
-        field: missingBasic,
-        charged: false
-      });
+      return fail(
+        res,
+        400,
+        "SESSION_INCOMPLETE",
+        "기본 정보를 먼저 입력해 주세요.",
+        {
+          step: 1,
+          field: missingBasic,
+          charged: false,
+        },
+      );
     }
 
     const assessmentText = guideTextFromSession(sessionRow);
     if (!assessmentText) {
-      return fail(res, 400, 'GUIDE_REQUIRED', '수행평가 안내문을 먼저 입력해 주세요.', {
-        step: 2,
-        charged: false
-      });
+      return fail(
+        res,
+        400,
+        "GUIDE_REQUIRED",
+        "수행평가 안내문을 먼저 입력해 주세요.",
+        {
+          step: 2,
+          charged: false,
+        },
+      );
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -853,18 +975,25 @@ export default async function handler(req, res) {
     //    정상 흐름에서 주제가 있는 세션은 반드시 차감을 거쳤다(주제는 recommend-topics
     //    성공 경로에서만 저장된다) — 그래서 이건 통상 경로가 아니라 방어선이다.
     const { data: ledgerRow, error: ledgerError } = await supabaseAdmin
-      .from('performance_credit_ledger')
-      .select('id')
-      .eq('session_id', sessionRow.id)
+      .from("performance_credit_ledger")
+      .select("id")
+      .eq("session_id", sessionRow.id)
       .maybeSingle();
 
-    if (ledgerError) throw new Error(`차감 원장 조회 실패: ${ledgerError.message}`);
+    if (ledgerError)
+      throw new Error(`차감 원장 조회 실패: ${ledgerError.message}`);
 
     if (!ledgerRow) {
-      return fail(res, 409, 'SESSION_NOT_CHARGED', '주제 추천을 먼저 받아 주세요.', {
-        step: 3,
-        charged: false
-      });
+      return fail(
+        res,
+        409,
+        "SESSION_NOT_CHARGED",
+        "주제 추천을 먼저 받아 주세요.",
+        {
+          step: 3,
+          charged: false,
+        },
+      );
     }
 
     // ── 게이트 ② 생성 상한(§9.3 재생성 2회, §8.6 `429 RATE_LIMITED{limit:2}`).
@@ -883,15 +1012,15 @@ export default async function handler(req, res) {
       return fail(
         res,
         429,
-        'RATE_LIMITED',
+        "RATE_LIMITED",
         `설계 리포트는 최대 ${MAX_DESIGN_REGENERATIONS}번까지 다시 만들 수 있어요.`,
         {
           limit: MAX_DESIGN_REGENERATIONS,
           maxGenerations: MAX_DESIGN_GENERATIONS,
           generationCount,
           reportId: existingReport?.id ?? null,
-          charged: false
-        }
+          charged: false,
+        },
       );
     }
 
@@ -903,9 +1032,9 @@ export default async function handler(req, res) {
       return fail(
         res,
         429,
-        'DESIGN_ATTEMPT_LIMIT',
-        '이 수행평가에서 설계 리포트를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.',
-        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false }
+        "DESIGN_ATTEMPT_LIMIT",
+        "이 수행평가에서 설계 리포트를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.",
+        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false },
       );
     }
 
@@ -914,12 +1043,14 @@ export default async function handler(req, res) {
     // "실패만 반복하는" 경로다. (동시 요청 2건이 같은 값을 읽어 한 번 덜 셀 수 있으나
     //  이 값은 정밀 회계가 아니라 남용 상한이다. recommend-topics·analyze-guide와 동일 판단.)
     const { error: attemptCounterError } = await supabaseAdmin
-      .from('performance_sessions')
+      .from("performance_sessions")
       .update({ design_attempt_count: attemptCount + 1 })
-      .eq('id', sessionRow.id);
+      .eq("id", sessionRow.id);
 
     if (attemptCounterError) {
-      throw new Error(`설계 리포트 시도 횟수 갱신 실패: ${attemptCounterError.message}`);
+      throw new Error(
+        `설계 리포트 시도 횟수 갱신 실패: ${attemptCounterError.message}`,
+      );
     }
 
     // ── 안내문 구조 판정. **모델을 부르지 않는 결정론적 판정**이라 여기서 미리 한다
@@ -931,7 +1062,8 @@ export default async function handler(req, res) {
     const gradeLabel = trimmed(sessionRow.grade_label);
     const subject = trimmed(sessionRow.subject);
     const career = trimmed(sessionRow.career_goal);
-    const previousTopic = trimmed(sessionRow.previous_topic) || NO_PREVIOUS_TOPIC_TEXT;
+    const previousTopic =
+      trimmed(sessionRow.previous_topic) || NO_PREVIOUS_TOPIC_TEXT;
     const selectedTopic = trimmed(topicRow.title);
 
     // ── RAG 질의문 결합 규칙은 P8과 **같다**(§12.3 문자 단위 이식). 외부는 프론트가
@@ -939,8 +1071,13 @@ export default async function handler(req, res) {
     //    RAG에 똑같이 넘겼고, 우리는 컬럼을 분리 저장하므로 사용 시점에 결합한다.
     //    맨 과목명만 임베딩하면 threshold 튜닝의 전제가 무너진다
     //    (recommend-topics.js의 같은 자리 주석 참조).
-    const ragSubject = [sessionRow.subject_group, subject].map(trimmed).filter(Boolean).join(' / ');
-    const ragGrade = [gradeLabel, trimmed(sessionRow.semester)].filter(Boolean).join(' ');
+    const ragSubject = [sessionRow.subject_group, subject]
+      .map(trimmed)
+      .filter(Boolean)
+      .join(" / ");
+    const ragGrade = [gradeLabel, trimmed(sessionRow.semester)]
+      .filter(Boolean)
+      .join(" ");
 
     // ── 자료 RAG. **`includeOtherSubjects:false`가 이 호출의 핵심**이다(§8.7 표) —
     //    이 플래그가 벡터 경로의 `filter_subject`로 연결돼 있어(knowledge.js
@@ -954,10 +1091,10 @@ export default async function handler(req, res) {
       career,
       selectedTopic,
       assessmentInfo: assessmentText,
-      purpose: 'resource',
+      purpose: "resource",
       maxItems: 8,
       maxChars: RESOURCE_MAX_CHARS,
-      includeOtherSubjects: false
+      includeOtherSubjects: false,
     });
 
     const candidates = buildResourceCandidates(knowledge.rows);
@@ -975,10 +1112,13 @@ export default async function handler(req, res) {
         career,
         selectedTopic,
         assessmentInfo: assessmentText,
-        matchThreshold: STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD
+        matchThreshold: STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
       });
     } catch (historyError) {
-      console.error('performance/design-report 과거 수행 RAG 실패(무시):', historyError);
+      console.error(
+        "performance/design-report 과거 수행 RAG 실패(무시):",
+        historyError,
+      );
     }
 
     // 프롬프트 버전은 **서버가** 정한다. 요청 body를 보지 않는다(prompts.js
@@ -998,8 +1138,8 @@ export default async function handler(req, res) {
         // **여기만 맨 `subject`다(결합값 금지).** 이 인자는 검색 질의문이 아니라
         // `performance_session_vectors.subject`와의 등가 비교 대상이다
         // (knowledge.js `sameSubject`). 결합값을 넘기면 `같은 과목` 판정이 영구히 false다.
-        subject
-      )
+        subject,
+      ),
     });
 
     const userMsg = buildDesignReportUser({
@@ -1012,15 +1152,18 @@ export default async function handler(req, res) {
       subject,
       career,
       previousTopic,
-      assessmentText
+      assessmentText,
     });
 
     // ── 모델 호출. 실패 형태 3가지를 각각 다르게 다룬다(§8.4 ⓑ·ⓒ·ⓓ).
     const abortController = new AbortController();
-    const abortTimer = setTimeout(() => abortController.abort(), MODEL_TIMEOUT_MS);
+    const abortTimer = setTimeout(
+      () => abortController.abort(),
+      MODEL_TIMEOUT_MS,
+    );
 
     let payload = null;
-    let lastFailure = 'unknown';
+    let lastFailure = "unknown";
 
     try {
       for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
@@ -1035,44 +1178,59 @@ export default async function handler(req, res) {
               systemInstruction: system,
               // 재시도는 원문 재시도와 같은 취지로 온도를 낮춘다
               // (`suhaengpyeong/api/recommend-topics.js:221` — 0.25 → 0.2).
-              temperature: isRetry ? 0.2 : DESIGN_GENERATION_DEFAULTS.temperature,
+              temperature: isRetry
+                ? 0.2
+                : DESIGN_GENERATION_DEFAULTS.temperature,
               // 같은 상한으로 다시 부르면 같은 자리에서 다시 잘린다 → 올려서 재시도.
               maxOutputTokens: isRetry
                 ? DESIGN_MAX_OUTPUT_TOKENS_RETRY
                 : DESIGN_GENERATION_DEFAULTS.maxOutputTokens,
               thinkingConfig: { thinkingBudget: 0 },
-              responseMimeType: 'application/json',
+              responseMimeType: "application/json",
               responseSchema: DESIGN_REPORT_SCHEMA,
-              abortSignal: abortController.signal
-            }
+              abortSignal: abortController.signal,
+            },
           });
         } catch (modelError) {
           // 과부하 재시도(700ms×2^n, 2회)는 generateWithRetry가 이미 소진했다.
           // 여기까지 오면 상류가 실제로 죽었거나 우리 시한이 끝난 것이다. **무차감**.
-          console.error('performance/design-report 모델 호출 실패:', modelError);
-          return fail(res, 503, 'MODEL_UNAVAILABLE', '설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.', {
-            charged: false
-          });
+          console.error(
+            "performance/design-report 모델 호출 실패:",
+            modelError,
+          );
+          return fail(
+            res,
+            503,
+            "MODEL_UNAVAILABLE",
+            "설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+            {
+              charged: false,
+            },
+          );
         }
 
         const finishReason = response?.candidates?.[0]?.finishReason;
 
         // ⓒ — 절단된 응답은 **파싱하지 않는다.**
-        if (finishReason === 'MAX_TOKENS') {
-          lastFailure = 'finish-reason:MAX_TOKENS';
-          console.warn(`performance/design-report MAX_TOKENS 절단 (attempt ${attempt + 1})`);
+        if (finishReason === "MAX_TOKENS") {
+          lastFailure = "finish-reason:MAX_TOKENS";
+          console.warn(
+            `performance/design-report MAX_TOKENS 절단 (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
-        if (finishReason && finishReason !== 'STOP') {
+        if (finishReason && finishReason !== "STOP") {
           lastFailure = `finish-reason:${finishReason}`;
-          console.warn(`performance/design-report 비정상 종료 ${finishReason} (attempt ${attempt + 1})`);
+          console.warn(
+            `performance/design-report 비정상 종료 ${finishReason} (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
         const rawText = trimmed(response?.text);
         if (!rawText) {
-          lastFailure = 'empty-response';
+          lastFailure = "empty-response";
           continue;
         }
 
@@ -1082,16 +1240,22 @@ export default async function handler(req, res) {
           // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
           parsed = JSON.parse(rawText);
         } catch (parseError) {
-          lastFailure = 'json-parse-failed';
+          lastFailure = "json-parse-failed";
           // ⓓ — 원문은 서버 로그에만 남긴다.
-          console.error('performance/design-report JSON 파싱 실패:', parseError?.message, rawText.slice(0, 400));
+          console.error(
+            "performance/design-report JSON 파싱 실패:",
+            parseError?.message,
+            rawText.slice(0, 400),
+          );
           continue;
         }
 
         const check = validateDesignPayload(parsed);
         if (!check.ok) {
           lastFailure = `contract:${check.reason}`;
-          console.warn(`performance/design-report 계약 위반 ${check.reason} (attempt ${attempt + 1})`);
+          console.warn(
+            `performance/design-report 계약 위반 ${check.reason} (attempt ${attempt + 1})`,
+          );
           continue;
         }
 
@@ -1105,19 +1269,28 @@ export default async function handler(req, res) {
     if (!payload) {
       // 재시도까지 실패. **무차감**이고 주제도 확정되지 않는다(RPC를 부르지 않았다).
       console.error(`performance/design-report 계약 위반 확정: ${lastFailure}`);
-      return fail(res, 422, 'MODEL_CONTRACT_VIOLATION', '설계 리포트를 정리하지 못했어요. 다시 시도해 주세요.', {
-        charged: false
-      });
+      return fail(
+        res,
+        422,
+        "MODEL_CONTRACT_VIOLATION",
+        "설계 리포트를 정리하지 못했어요. 다시 시도해 주세요.",
+        {
+          charged: false,
+        },
+      );
     }
 
     // ── 자료 소유권 재설계 실행부. 여기서부터 응답에 실리는 자료 문자열은 전부 DB 행이다.
-    const { resources, rejected } = resolveChosenResources(payload.chosen_resources, candidates);
+    const { resources, rejected } = resolveChosenResources(
+      payload.chosen_resources,
+      candidates,
+    );
 
     if (rejected.length) {
       // 조용히 버리지 않는다 — 후보 밖 id가 실제로 나온다면 `[사용 허용 자료명 목록]`
       // 지시가 먹지 않았다는 신호다(관측 가치가 있다). 사용자 응답에는 싣지 않는다(ⓓ).
       console.warn(
-        `performance/design-report 후보 밖 자료 id 폐기 session=${sessionRow.id} rejected=${JSON.stringify(rejected)} allowed=${candidates.allowed.length}건`
+        `performance/design-report 후보 밖 자료 id 폐기 session=${sessionRow.id} rejected=${JSON.stringify(rejected)} allowed=${candidates.allowed.length}건`,
       );
     }
 
@@ -1125,7 +1298,7 @@ export default async function handler(req, res) {
     const structureForClient = {
       type: structure.type,
       reason: structure.reason,
-      writingFrame: structure.writingFrame
+      writingFrame: structure.writingFrame,
     };
 
     // ─────────────────────────────────────────────────────────────────
@@ -1133,7 +1306,7 @@ export default async function handler(req, res) {
     // 이 지점까지 오지 못하면 주제도 확정되지 않고 리포트도 남지 않는다.
     // ─────────────────────────────────────────────────────────────────
     const { data: commitRaw, error: commitError } = await supabaseAdmin.rpc(
-      'commit_performance_design_report',
+      "commit_performance_design_report",
       {
         p_session_id: sessionRow.id,
         p_profile_id: userId,
@@ -1141,32 +1314,47 @@ export default async function handler(req, res) {
         p_sections: buildReportEnvelope({
           structure: { ...structureForClient, mode: structure.mode ?? null },
           sections,
-          resources
+          resources,
         }),
         p_model: PERFORMANCE_MODEL,
-        p_prompt_version: promptVersion
-      }
+        p_prompt_version: promptVersion,
+      },
     );
 
     if (commitError) {
-      console.error('performance/design-report 커밋 RPC 실패:', commitError);
-      return fail(res, 500, 'INTERNAL', '설계 리포트 저장에 실패했습니다.', { charged: false });
+      console.error("performance/design-report 커밋 RPC 실패:", commitError);
+      return fail(res, 500, "INTERNAL", "설계 리포트 저장에 실패했습니다.", {
+        charged: false,
+      });
     }
 
-    const commit = commitRaw && typeof commitRaw === 'object' ? commitRaw : {};
-    const commitStatus = String(commit.status || '');
+    const commit = commitRaw && typeof commitRaw === "object" ? commitRaw : {};
+    const commitStatus = String(commit.status || "");
 
     // 소유권은 위에서 이미 확인했으므로 아래 두 상태는 경합(세션·주제가 그 사이에
     // 지워짐)에서만 나온다. RPC가 판정 권위를 갖는 지점이라 그대로 전달한다.
-    if (commitStatus === 'session_not_found') {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '세션을 찾을 수 없습니다.', { charged: false });
+    if (commitStatus === "session_not_found") {
+      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+        charged: false,
+      });
     }
-    if (commitStatus === 'topic_not_in_session') {
-      return fail(res, 404, 'TOPIC_NOT_IN_SESSION', '이 수행평가의 주제가 아니에요.', { charged: false });
+    if (commitStatus === "topic_not_in_session") {
+      return fail(
+        res,
+        404,
+        "TOPIC_NOT_IN_SESSION",
+        "이 수행평가의 주제가 아니에요.",
+        { charged: false },
+      );
     }
-    if (commitStatus !== 'committed' || !commit.report_id) {
-      console.error('performance/design-report 알 수 없는 커밋 상태:', commitStatus);
-      return fail(res, 500, 'INTERNAL', '설계 리포트 저장에 실패했습니다.', { charged: false });
+    if (commitStatus !== "committed" || !commit.report_id) {
+      console.error(
+        "performance/design-report 알 수 없는 커밋 상태:",
+        commitStatus,
+      );
+      return fail(res, 500, "INTERNAL", "설계 리포트 저장에 실패했습니다.", {
+        charged: false,
+      });
     }
 
     const quota = await readQuota(supabaseAdmin, userId);
@@ -1191,13 +1379,18 @@ export default async function handler(req, res) {
         candidateCount: candidates.allowed.length,
         chosenCount: resources.length,
         rejectedCount: rejected.length,
-        studentHistoryCount: Math.min(studentSessions.length, STUDENT_HISTORY_PROMPT_LIMIT)
-      }
+        studentHistoryCount: Math.min(
+          studentSessions.length,
+          STUDENT_HISTORY_PROMPT_LIMIT,
+        ),
+      },
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/design-report error:', error);
-    return fail(res, 500, 'INTERNAL', '설계 리포트 생성에 실패했습니다.', { charged: false });
+    console.error("performance/design-report error:", error);
+    return fail(res, 500, "INTERNAL", "설계 리포트 생성에 실패했습니다.", {
+      charged: false,
+    });
   }
 }
 
@@ -1214,4 +1407,4 @@ export default async function handler(req, res) {
 //         돌려준다"가 성립하지 않는다.
 //    `analyze-guide.js` / `recommend-topics.js` / `admin-embed.js` / `cleanup-attachments.js`와
 //    같은 60초를 쓴다(P8에서 이 선언 누락이 BLOCK으로 지적된 항목이다).
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

@@ -1,4 +1,4 @@
-import { renderBlock } from './renderBlock';
+import { renderBlock } from "./renderBlock";
 
 // specialBlock(admissionParsing.js:2626, `<section class="admission-special-block">
 // <div class="admission-special-title">...</div>...</section>`) 재현.

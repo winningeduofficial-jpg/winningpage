@@ -5,7 +5,9 @@
 // 도입부 문장은 이 페이지에만 유지한다.
 // 외부 링크 3개(kopico.go.kr, privacy.kisa.or.kr, ecrm.cyber.go.kr, target _blank)는
 // TermsArticleBody의 linkify()가 13항 텍스트에서 자동 인식해 새 탭 링크로 렌더링한다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsArticleBody,
+} from "../../components/auth/TermsPageLayout";
 
 const BODY = `학부모회원은 만 19세 이상 성인을 전제로 하며, 자녀(학생회원)와는 별도의 독립 계정으로 가입합니다. 연동 없이도 학부모회원 계정 자체는 이용할 수 있습니다.
 

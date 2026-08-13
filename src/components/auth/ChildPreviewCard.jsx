@@ -5,8 +5,8 @@
 // 렌더하지 않는다. TODO: 코드 인식→선택 전환 시 아바타가 사라지는 상태 전환 규칙은 디자이너
 // 확인 대기(§3.3 미해결 이슈로 별도 등록 필요).
 const AVATAR_SIZE_CLASSES = {
-  default: 'h-9 w-9', // 36px
-  lg: 'h-10 w-10' // 40px
+  default: "h-9 w-9", // 36px
+  lg: "h-10 w-10", // 40px
 };
 
 export default function ChildPreviewCard({
@@ -15,12 +15,12 @@ export default function ChildPreviewCard({
   school,
   avatarUrl,
   selected = false,
-  avatarSize = 'default', // 'default' | 'lg'
+  avatarSize = "default", // 'default' | 'lg'
   onClick,
-  type = 'button',
-  className = ''
+  type = "button",
+  className = "",
 }) {
-  const initial = (name || '').trim().slice(0, 1);
+  const initial = (name || "").trim().slice(0, 1);
 
   return (
     <button
@@ -28,7 +28,7 @@ export default function ChildPreviewCard({
       onClick={onClick}
       aria-pressed={selected}
       className={`flex h-[3.75rem] w-full items-center gap-3 rounded-xl border bg-surface-info px-4 text-left transition active:scale-[0.98] motion-reduce:active:scale-100 ${
-        selected ? 'border-primary' : 'border-transparent'
+        selected ? "border-primary" : "border-transparent"
       } ${className}`}
     >
       {!selected && (
@@ -38,7 +38,11 @@ export default function ChildPreviewCard({
           }`}
         >
           {avatarUrl ? (
-            <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+            <img
+              src={avatarUrl}
+              alt={name}
+              className="h-full w-full object-cover"
+            />
           ) : (
             initial
           )}
@@ -48,7 +52,10 @@ export default function ChildPreviewCard({
       <span className="text-sm text-ink">
         <span className="font-medium">{name}</span>
         {(grade || school) && (
-          <span className="text-ink-sub"> {[grade, school].filter(Boolean).join(' ')}</span>
+          <span className="text-ink-sub">
+            {" "}
+            {[grade, school].filter(Boolean).join(" ")}
+          </span>
         )}
       </span>
     </button>

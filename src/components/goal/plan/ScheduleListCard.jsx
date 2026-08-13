@@ -1,5 +1,5 @@
-import GoalDdayBadge from '../GoalDdayBadge';
-import { scheduleCategoryLabel } from '../../../lib/goal/scheduleCategory';
+import GoalDdayBadge from "../GoalDdayBadge";
+import { scheduleCategoryLabel } from "../../../lib/goal/scheduleCategory";
 
 // 중요일정 목록 카드 — docs/figma-goal/part-14.md #41(목록 정본), 1116×120.
 // 삭제 UI는 시안에 없다(part-13 §323 "삭제는 수정 모달 내부에 있을 가능성" 추정) — 삭제는
@@ -15,9 +15,13 @@ export default function ScheduleListCard({ schedule, onEdit }) {
             <span className="inline-flex h-[1.375rem] shrink-0 items-center rounded-full bg-surface-04 px-2 text-[0.75rem] font-medium leading-[1.2] text-ink-sub">
               {scheduleCategoryLabel(schedule.category)}
             </span>
-            <p className="truncate text-[1.125rem] font-bold leading-[1.4] text-ink-strong">{schedule.title}</p>
+            <p className="truncate text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+              {schedule.title}
+            </p>
           </div>
-          <p className="mt-2 truncate text-[0.875rem] leading-[1.4] text-ink-sub">{schedule.meta}</p>
+          <p className="mt-2 truncate text-[0.875rem] leading-[1.4] text-ink-sub">
+            {schedule.meta}
+          </p>
         </div>
       </div>
       <button

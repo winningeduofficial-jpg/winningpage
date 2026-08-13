@@ -19,19 +19,25 @@
 //    정할 수 없기 때문이다. 조립 단계에서 두 컨트롤이 같은 values.phone 을 바라보게 두면
 //    1번에서 입력한 번호로 5번에서 그대로 인증할 수 있다. 시안이 같은 값을 두 번 묻는
 //    구조인지(중복 결함)는 명세 미해결 항목이다.
-import MentorTextField, { MentorFieldShell } from './MentorTextField';
-import ChipGroup from './ChipGroup';
-import FormSectionCard from './FormSectionCard';
-import FormFieldRow from './FormFieldRow';
-import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from '../../data/mentorApply';
-import { isValidEmail, isValidBirthDate } from '../../lib/validators';
-import { isValidMobile } from '../../lib/phoneVerification';
+import MentorTextField, { MentorFieldShell } from "./MentorTextField";
+import ChipGroup from "./ChipGroup";
+import FormSectionCard from "./FormSectionCard";
+import FormFieldRow from "./FormFieldRow";
+import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from "../../data/mentorApply";
+import { isValidEmail, isValidBirthDate } from "../../lib/validators";
+import { isValidMobile } from "../../lib/phoneVerification";
 
 // 사이드바(§6-3)가 앵커로 점프할 타깃. 5개 섹션이 같은 규칙으로 id 를 만든다.
-export const APPLICANT_SECTION_ID = 'mentor-form-section-1';
+export const APPLICANT_SECTION_ID = "mentor-form-section-1";
 
 // 이 섹션이 소유하는 필드 name 목록(진행률 사이드바용). 화면에 그려진 순서 그대로다.
-export const APPLICANT_FIELDS = ['name', 'birth_date', 'phone', 'email', 'residence_region'];
+export const APPLICANT_FIELDS = [
+  "name",
+  "birth_date",
+  "phone",
+  "email",
+  "residence_region",
+];
 
 // 필수 필드 — 섹션 1 은 5개 전부 필수다(명세 §폼 명세 필수 항목 카운트: 필수 5 / 선택 0).
 export const APPLICANT_REQUIRED_FIELDS = APPLICANT_FIELDS;
@@ -41,14 +47,14 @@ export const APPLICANT_REQUIRED_FIELDS = APPLICANT_FIELDS;
 //    (src/lib/phoneVerification.js MESSAGES)를 따라 지은 잠정값이다. 확정 문구가 내려오면
 //    이 상수 한 곳만 고치면 된다.
 const ERROR_MESSAGES = {
-  name: '이름을 입력해 주세요.',
-  birth_date_required: '생년월일을 입력해 주세요.',
-  birth_date_format: '생년월일을 숫자 8자리로 정확히 입력해 주세요.',
-  phone_required: '휴대폰 번호를 입력해 주세요.',
-  phone_format: '휴대폰 번호 형식이 올바르지 않습니다.',
-  email_required: '이메일을 입력해 주세요.',
-  email_format: '이메일 형식이 올바르지 않습니다.',
-  residence_region: '거주 지역을 선택해 주세요.'
+  name: "이름을 입력해 주세요.",
+  birth_date_required: "생년월일을 입력해 주세요.",
+  birth_date_format: "생년월일을 숫자 8자리로 정확히 입력해 주세요.",
+  phone_required: "휴대폰 번호를 입력해 주세요.",
+  phone_format: "휴대폰 번호 형식이 올바르지 않습니다.",
+  email_required: "이메일을 입력해 주세요.",
+  email_format: "이메일 형식이 올바르지 않습니다.",
+  residence_region: "거주 지역을 선택해 주세요.",
 };
 
 // 섹션 단위 검증. 조립부(MentorApply.jsx)가 제출 시점에 5개 섹션의 검증 결과를 합쳐
@@ -56,28 +62,36 @@ const ERROR_MESSAGES = {
 // 반환값은 `{ [name]: message }` — 통과한 필드는 키 자체가 없다.
 export function validateApplicantSection(values = {}) {
   const errors = {};
-  const trimmed = (key) => String(values[key] ?? '').trim();
+  const trimmed = (key) => String(values[key] ?? "").trim();
 
-  if (!trimmed('name')) errors.name = ERROR_MESSAGES.name;
+  if (!trimmed("name")) errors.name = ERROR_MESSAGES.name;
 
-  if (!trimmed('birth_date')) errors.birth_date = ERROR_MESSAGES.birth_date_required;
+  if (!trimmed("birth_date"))
+    errors.birth_date = ERROR_MESSAGES.birth_date_required;
   else if (!isValidBirthDate(values.birth_date))
     errors.birth_date = ERROR_MESSAGES.birth_date_format;
 
-  if (!trimmed('phone')) errors.phone = ERROR_MESSAGES.phone_required;
-  else if (!isValidMobile(values.phone)) errors.phone = ERROR_MESSAGES.phone_format;
+  if (!trimmed("phone")) errors.phone = ERROR_MESSAGES.phone_required;
+  else if (!isValidMobile(values.phone))
+    errors.phone = ERROR_MESSAGES.phone_format;
 
-  if (!trimmed('email')) errors.email = ERROR_MESSAGES.email_required;
-  else if (!isValidEmail(values.email)) errors.email = ERROR_MESSAGES.email_format;
+  if (!trimmed("email")) errors.email = ERROR_MESSAGES.email_required;
+  else if (!isValidEmail(values.email))
+    errors.email = ERROR_MESSAGES.email_format;
 
-  if (!trimmed('residence_region')) errors.residence_region = ERROR_MESSAGES.residence_region;
+  if (!trimmed("residence_region"))
+    errors.residence_region = ERROR_MESSAGES.residence_region;
 
   return errors;
 }
 
 const SECTION = FORM_SECTIONS[0];
 
-export default function FormSectionApplicant({ values = {}, errors = {}, onChange }) {
+export default function FormSectionApplicant({
+  values = {},
+  errors = {},
+  onChange,
+}) {
   // onChange(name, value) — 저장소 관례의 updateField 시그니처 그대로다.
   const handle = (name) => (value) => onChange?.(name, value);
 
@@ -94,8 +108,8 @@ export default function FormSectionApplicant({ values = {}, errors = {}, onChang
           name="name"
           label="이름"
           required
-          value={values.name ?? ''}
-          onChange={handle('name')}
+          value={values.name ?? ""}
+          onChange={handle("name")}
           placeholder="이름을 입력 해주세요"
           autoComplete="name"
           // 서버 상한(api/mentor-apply.js FIELD_SPECS)과 동일하게 맞춰 둔다. 클라에서 넘길 수
@@ -107,8 +121,8 @@ export default function FormSectionApplicant({ values = {}, errors = {}, onChang
           name="birth_date"
           label="생년월일"
           required
-          value={values.birth_date ?? ''}
-          onChange={handle('birth_date')}
+          value={values.birth_date ?? ""}
+          onChange={handle("birth_date")}
           // 시안 원문 그대로 — 예시 날짜와 자릿수 안내가 한 문자열이다.
           placeholder="20040214 (숫자 8자리)"
           // 달력 위젯이 아니라 8자리 숫자 입력이다(DB 도 text, sql/52 L65). type="number" 는
@@ -127,8 +141,8 @@ export default function FormSectionApplicant({ values = {}, errors = {}, onChang
           label="휴대폰 번호"
           required
           type="tel"
-          value={values.phone ?? ''}
-          onChange={handle('phone')}
+          value={values.phone ?? ""}
+          onChange={handle("phone")}
           placeholder="010-1234-5678"
           inputMode="tel"
           autoComplete="tel"
@@ -142,8 +156,8 @@ export default function FormSectionApplicant({ values = {}, errors = {}, onChang
           label="이메일"
           required
           type="email"
-          value={values.email ?? ''}
-          onChange={handle('email')}
+          value={values.email ?? ""}
+          onChange={handle("email")}
           placeholder="mentor@example.com"
           inputMode="email"
           autoComplete="email"
@@ -170,8 +184,8 @@ export default function FormSectionApplicant({ values = {}, errors = {}, onChang
             name="residence_region"
             ariaLabel="거주 지역"
             options={MENTOR_REGION_OPTIONS}
-            value={values.residence_region ?? ''}
-            onChange={handle('residence_region')}
+            value={values.residence_region ?? ""}
+            onChange={handle("residence_region")}
           />
         </MentorFieldShell>
       </FormFieldRow>

@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { Check } from "lucide-react";
 
-import { formatKRW } from '../../data/pricingCatalog';
-import { useProducts } from '../../lib/products';
-import ServiceSection from './ServiceSection';
+import { formatKRW } from "../../data/pricingCatalog";
+import { useProducts } from "../../lib/products";
+import ServiceSection from "./ServiceSection";
 
 // 이용권 구매 섹션(Supabase useProducts 의존, loading / error / 정상 3분기).
 //
@@ -35,13 +35,24 @@ import ServiceSection from './ServiceSection';
 // (text-[1.0625rem] sm:text-[1.375rem] md:text-[1.125rem] 형태 = 폰트에 배율을 적용한 흔적,
 // 3원칙 1번 위반)는 전부 단일값 text-[1.125rem] 로 정리했다.
 // CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
-export default function ServicePricingSection({ serviceKey, heading, cta, id, className = '' }) {
+export default function ServicePricingSection({
+  serviceKey,
+  heading,
+  cta,
+  id,
+  className = "",
+}) {
   const { services, loading, error, refetch } = useProducts(serviceKey);
   const products = services[0]?.products || [];
 
   if (loading) {
     return (
-      <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
+      <ServiceSection
+        id={id}
+        className={className}
+        containerClassName="text-center"
+        heading={heading}
+      >
         <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 lg:mt-[5.625rem]">
           이용권 정보를 불러오는 중입니다.
         </p>
@@ -51,7 +62,12 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
 
   if (error || products.length === 0) {
     return (
-      <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
+      <ServiceSection
+        id={id}
+        className={className}
+        containerClassName="text-center"
+        heading={heading}
+      >
         <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 lg:mt-[5.625rem]">
           요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
@@ -68,10 +84,15 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
 
   // 안내문→CTA gap 64 × 0.766 ≈ 49px(lg:mt-[3.0625rem]). 300×68 × 0.766 → 230×52.
   const ctaClass =
-    'mt-8 inline-flex h-14 w-full max-w-[14.375rem] items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-[3.0625rem] lg:h-[3.25rem] lg:w-[14.375rem] lg:px-0';
+    "mt-8 inline-flex h-14 w-full max-w-[14.375rem] items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-[3.0625rem] lg:h-[3.25rem] lg:w-[14.375rem] lg:px-0";
 
   return (
-    <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
+    <ServiceSection
+      id={id}
+      className={className}
+      containerClassName="text-center"
+      heading={heading}
+    >
       {/* 헤딩→리스트 gap 117 × 0.766 ≈ 90px(lg:mt-[5.625rem]). */}
       <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-[5.625rem] lg:gap-[0.5625rem]">
         {products.map((product) => {
@@ -89,7 +110,10 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
                   aria-hidden="true"
                   className="flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] bg-[#D7D7D7]"
                 >
-                  <Check className="h-[0.6875rem] w-[0.6875rem] text-white" strokeWidth={3} />
+                  <Check
+                    className="h-[0.6875rem] w-[0.6875rem] text-white"
+                    strokeWidth={3}
+                  />
                 </span>
                 <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
                   {product.name}
@@ -131,7 +155,7 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
         })}
       </div>
 
-      {serviceKey === 'suhaeng' && (
+      {serviceKey === "suhaeng" && (
         <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
           1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
         </p>
@@ -140,7 +164,8 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
       {/* 리스트 하단→안내문 gap 12 × 0.766 ≈ 9px. 부모 컨테이너 text-center 상속을
           text-left 로 해제한다. */}
       <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
-        한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.
+        한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택
+        가능합니다.
       </p>
 
       {cta.to ? (

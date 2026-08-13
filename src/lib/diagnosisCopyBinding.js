@@ -33,8 +33,8 @@ import {
   PAGE_GRADE_COPY,
   SERVICE_COPY,
   TEMPLATE_COPY,
-  TOKEN_SCOPE
-} from '../data/diagnosisCopy.js';
+  TOKEN_SCOPE,
+} from "../data/diagnosisCopy.js";
 
 /* ------------------------------------------------------------------ *
  * 0. 개발 모드 경고
@@ -80,7 +80,7 @@ const TOKEN_PATTERN = /\{(\w+|영역)\}/g;
  * 그 단언과 함께 봐야 한다(명세 §5.2/§5.3 ② 문구도 같이 고쳐야 한다 — 개정 대기).
  */
 export function fill(tpl, vars = {}, tokenKey) {
-  if (typeof tpl !== 'string' || tpl === '') return '';
+  if (typeof tpl !== "string" || tpl === "") return "";
 
   // 토큰이 없는 문구는 스코프 미등재가 정상이다(TOKEN_SCOPE 는 토큰 있는 키만 담는다).
   TOKEN_PATTERN.lastIndex = 0;
@@ -88,7 +88,10 @@ export function fill(tpl, vars = {}, tokenKey) {
 
   const scope = TOKEN_SCOPE[tokenKey];
   if (!Array.isArray(scope)) {
-    devWarn(`fill: TOKEN_SCOPE 에 없는 문구 키 '${tokenKey}' — 토큰이 있는데 화이트리스트가 없어 전부 원문으로 남긴다`, tpl);
+    devWarn(
+      `fill: TOKEN_SCOPE 에 없는 문구 키 '${tokenKey}' — 토큰이 있는데 화이트리스트가 없어 전부 원문으로 남긴다`,
+      tpl,
+    );
   }
   const allowed = Array.isArray(scope) ? scope : [];
 
@@ -100,7 +103,7 @@ export function fill(tpl, vars = {}, tokenKey) {
     }
     const value = vars[token];
     // 빈 문자열도 결측으로 본다 — '{name} 학생, ' 이 ' 학생, ' 으로 렌더되는 것을 막는다(§5.2 name 결측 분기).
-    if (value === null || value === undefined || value === '') {
+    if (value === null || value === undefined || value === "") {
       devWarn(`fill: '${tokenKey}' 의 ${match} 값이 없다 — 원문을 남긴다`);
       return match;
     }
@@ -111,7 +114,8 @@ export function fill(tpl, vars = {}, tokenKey) {
   // 실제 위험은 admission_headline 의 '{prob}%' 로, prob 이 100 이면 06 금지표현 '100%' 와 문자 그대로 일치한다.
   if (IS_DEV) {
     const hits = findBannedPhrases([filled]);
-    if (hits.length > 0) devWarn(`fill: '${tokenKey}' 치환 결과에 금지 표현이 있다`, hits);
+    if (hits.length > 0)
+      devWarn(`fill: '${tokenKey}' 치환 결과에 금지 표현이 있다`, hits);
   }
 
   return filled;
@@ -130,9 +134,14 @@ export function fill(tpl, vars = {}, tokenKey) {
  * @returns {string|null}
  */
 export function levelCopy(page, level) {
-  const pageKey = page === 1 || page === 'page1' ? 'page1' : page === 2 || page === 'page2' ? 'page2' : null;
+  const pageKey =
+    page === 1 || page === "page1"
+      ? "page1"
+      : page === 2 || page === "page2"
+        ? "page2"
+        : null;
   const copy = pageKey ? PAGE_GRADE_COPY[pageKey]?.[level] : undefined;
-  if (typeof copy !== 'string') {
+  if (typeof copy !== "string") {
     devWarn(`levelCopy: 미커버 조합 (page=${page}, level=${level})`);
     return null;
   }
@@ -171,7 +180,9 @@ export function areaCopy(areaCode) {
 export function narrativeCopy(areaCode, state) {
   const sheetKey = NARRATIVE_STATE_LABEL[state];
   if (!sheetKey) {
-    devWarn(`narrativeCopy: 미지의 상태 코드 '${state}' — stateOf() 반환값(TOP/MID/LOW/WEAK)만 받는다`);
+    devWarn(
+      `narrativeCopy: 미지의 상태 코드 '${state}' — stateOf() 반환값(TOP/MID/LOW/WEAK)만 받는다`,
+    );
     return null;
   }
   const copy = NARRATIVE_COPY[areaCode]?.[sheetKey];
@@ -193,7 +204,7 @@ export function narrativeCopy(areaCode, state) {
 export function serviceCopy(serviceCode, tier) {
   const entry = SERVICE_COPY[serviceCode];
   const text = entry?.tiers?.[tier];
-  if (typeof text !== 'string') {
+  if (typeof text !== "string") {
     devWarn(`serviceCopy: 미커버 조합 (service=${serviceCode}, tier=${tier})`);
     return null;
   }
@@ -210,7 +221,7 @@ export function serviceCopy(serviceCode, tier) {
  */
 export function commonCopy(key) {
   const copy = COMMON_COPY[key];
-  if (typeof copy !== 'string') {
+  if (typeof copy !== "string") {
     devWarn(`commonCopy: 미커버 키 '${key}'`);
     return null;
   }
@@ -226,7 +237,7 @@ export function commonCopy(key) {
  */
 export function templateCopy(key) {
   const copy = TEMPLATE_COPY[key];
-  if (typeof copy !== 'string') {
+  if (typeof copy !== "string") {
     devWarn(`templateCopy: 미커버 키 '${key}'`);
     return null;
   }
@@ -244,16 +255,17 @@ const MAX_COLLECT_DEPTH = 8;
 
 function collectStrings(value, depth, out) {
   if (depth > MAX_COLLECT_DEPTH) return out;
-  if (typeof value === 'string') {
-    if (value !== '') out.push(value);
+  if (typeof value === "string") {
+    if (value !== "") out.push(value);
     return out;
   }
   if (Array.isArray(value)) {
     for (const item of value) collectStrings(item, depth + 1, out);
     return out;
   }
-  if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) collectStrings(item, depth + 1, out);
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value))
+      collectStrings(item, depth + 1, out);
   }
   return out;
 }
@@ -274,7 +286,8 @@ export function findBannedPhrases(values) {
   for (const text of texts) {
     for (const group of BANNED_PHRASES) {
       for (const phrase of group.phrases) {
-        if (text.includes(phrase)) hits.push({ text, type: group.type, phrase });
+        if (text.includes(phrase))
+          hits.push({ text, type: group.type, phrase });
       }
     }
   }

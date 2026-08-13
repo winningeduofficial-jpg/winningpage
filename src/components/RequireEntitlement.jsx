@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { fetchEntitlement } from '../lib/entitlement';
-import { useSessionOptional } from '../context/SessionContext';
-import PerformanceSkeleton from './performance/PerformanceSkeleton';
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import { fetchEntitlement } from "../lib/entitlement";
+import { useSessionOptional } from "../context/SessionContext";
+import PerformanceSkeleton from "./performance/PerformanceSkeleton";
 
 // 유료 서비스 진입 가드 — 명세서 §2.2의 4상태(`loading`/`guest`/`forbidden`/`ok`)
 // + 판정 불가 1상태(`check-failed`).
@@ -52,29 +52,29 @@ function currentPathWithQuery(location) {
  * 않는다(훅은 조건부로 호출할 수 없으므로 effect 안에서 끈다).
  */
 function useStandaloneEntitlement(serviceKey, disabled, retryToken) {
-  const [state, setState] = useState('loading');
+  const [state, setState] = useState("loading");
 
   useEffect(() => {
     if (disabled) return undefined;
 
     let alive = true;
-    setState('loading');
+    setState("loading");
 
     (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!alive) return;
 
       if (!sessionData?.session?.user) {
-        setState('guest');
+        setState("guest");
         return;
       }
 
       const { allowed } = await fetchEntitlement(serviceKey);
       if (!alive) return;
 
-      if (allowed === true) setState('ok');
-      else if (allowed === false) setState('forbidden');
-      else setState('check-failed');
+      if (allowed === true) setState("ok");
+      else if (allowed === false) setState("forbidden");
+      else setState("check-failed");
     })();
 
     return () => {
@@ -100,8 +100,8 @@ export default function RequireEntitlement({
   serviceKey,
   forbiddenTo,
   forbiddenNotice,
-  loadingLabel = '이용 가능 여부 확인 중...',
-  children
+  loadingLabel = "이용 가능 여부 확인 중...",
+  children,
 }) {
   const location = useLocation();
   const sessionCtx = useSessionOptional();
@@ -110,7 +110,11 @@ export default function RequireEntitlement({
   // 키가 일치하는 컨텍스트만 채택한다(위 「데이터 출처 2경로」 ⚠️ 참고).
   const ctx = sessionCtx?.serviceKey === serviceKey ? sessionCtx : null;
 
-  const standaloneState = useStandaloneEntitlement(serviceKey, Boolean(ctx), retryToken);
+  const standaloneState = useStandaloneEntitlement(
+    serviceKey,
+    Boolean(ctx),
+    retryToken,
+  );
   const status = ctx ? ctx.guardState : standaloneState;
 
   function retry() {
@@ -118,13 +122,13 @@ export default function RequireEntitlement({
     else setRetryToken((v) => v + 1);
   }
 
-  if (status === 'loading') {
+  if (status === "loading") {
     // 수행평가(§2.2)만 전체 화면 스켈레톤을 쓴다 — 골격이 수행평가 사이드바 실측
     // (프로필 1자리 + 메뉴 2자리 + 진행단계 5자리, 폭 20.25rem 고정)에 맞춰져 있어
     // 목표관리(4그룹 10항목) 등 다른 셸에 그대로 쓰면 모양이 어긋난다. 다른
     // 서비스는 기존 중앙 텍스트 카드를 유지한다 — 이 가드가 아직 모르는 셸에
     // 수행평가 전용 골격을 강제하지 않기 위해서다.
-    if (serviceKey === 'suhaeng') {
+    if (serviceKey === "suhaeng") {
       return <PerformanceSkeleton />;
     }
 
@@ -144,29 +148,37 @@ export default function RequireEntitlement({
     );
   }
 
-  if (status === 'guest') {
+  if (status === "guest") {
     const redirectPath = currentPathWithQuery(location);
-    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />;
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirectPath)}`}
+        replace
+      />
+    );
   }
 
-  if (status === 'forbidden') {
+  if (status === "forbidden") {
     const target =
-      typeof forbiddenTo === 'function' ? forbiddenTo(location) : forbiddenTo || '/pricing';
+      typeof forbiddenTo === "function"
+        ? forbiddenTo(location)
+        : forbiddenTo || "/pricing";
 
     return (
       <Navigate
         to={target}
         replace
         state={{
-          entitlementNotice: forbiddenNotice || '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
+          entitlementNotice:
+            forbiddenNotice || "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
           entitlementServiceKey: serviceKey,
-          entitlementRedirect: currentPathWithQuery(location)
+          entitlementRedirect: currentPathWithQuery(location),
         }}
       />
     );
   }
 
-  if (status === 'check-failed') {
+  if (status === "check-failed") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
         {/* `check-failed`는 **이동하지 않고 그 자리에 머무는** 상태다(위 5상태 주석).
@@ -176,9 +188,12 @@ export default function RequireEntitlement({
           role="alert"
           className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]"
         >
-          <p className="text-sm font-extrabold">이용 가능 여부를 확인하지 못했습니다.</p>
+          <p className="text-sm font-extrabold">
+            이용 가능 여부를 확인하지 못했습니다.
+          </p>
           <p className="text-xs text-[#0D1B2A]/60">
-            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧 다시 확인됩니다.
+            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧
+            다시 확인됩니다.
           </p>
           <button
             type="button"

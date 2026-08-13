@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 // 학생/학부모가 아닌 로그인 사용자를 위한 안내. /checkout 과 /pricing 양쪽에서
 // 재사용한다(2026-08-12b 팀 리드 지시 — "학생/학부모가 아니면 /checkout
@@ -17,21 +17,21 @@ import { Link } from 'react-router-dom';
 // 상황을 포괄해서 틀릴 위험이 적다(팀 리드 지시).
 const COPY = {
   mentor: {
-    title: '멘토 회원은 결제를 이용할 수 없어요',
-    body: '결제는 학생과 학부모 회원만 이용할 수 있어요.'
+    title: "멘토 회원은 결제를 이용할 수 없어요",
+    body: "결제는 학생과 학부모 회원만 이용할 수 있어요.",
   },
   // null(가입 미완료) 전용이지만, 위 주석대로 예상 밖 값도 전부 여기로 모인다.
   incomplete: {
-    title: '회원 정보를 먼저 완성해 주세요',
-    body: '학생 또는 학부모 회원만 결제를 이용할 수 있어요. 가입을 마치면 이용할 수 있어요.'
-  }
+    title: "회원 정보를 먼저 완성해 주세요",
+    body: "학생 또는 학부모 회원만 결제를 이용할 수 있어요. 가입을 마치면 이용할 수 있어요.",
+  },
 };
 
 // memberType 은 optional prop 이다 — 호출부(Checkout.jsx·Pricing.jsx)가
 // useMemberType() 으로 이미 들고 있는 값을 그대로 넘긴다(2026-08-12c 팀 리드
 // 지시, 새 조회를 만들지 않는다).
 export default function BlockedMemberNotice({ memberType }) {
-  const copy = memberType === 'mentor' ? COPY.mentor : COPY.incomplete;
+  const copy = memberType === "mentor" ? COPY.mentor : COPY.incomplete;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef } from "react";
 
 // 학습방향 리포트 기간 칩(텍스트형) — part-13 §92·§96("텍스트 탭"과 별개, 박스 없는 텍스트형
 // 단일 선택). 선택 상태는 굵기+색 대비로만 표현한다(시안에 보더/배경 박스 없음).
@@ -14,12 +14,12 @@ export default function PeriodChipRow({ options, value, onChange, ariaLabel }) {
   };
 
   const handleKeyDown = (event, index) => {
-    if (event.key === 'ArrowRight') {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;
       onChange(options[next].value);
       focusOption(next);
-    } else if (event.key === 'ArrowLeft') {
+    } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       const prev = (index - 1 + options.length) % options.length;
       onChange(options[prev].value);
@@ -28,7 +28,11 @@ export default function PeriodChipRow({ options, value, onChange, ariaLabel }) {
   };
 
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className="flex flex-wrap items-center gap-5">
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="flex flex-wrap items-center gap-5"
+    >
       {options.map((option, index) => {
         const selected = option.value === value;
         return (
@@ -44,7 +48,9 @@ export default function PeriodChipRow({ options, value, onChange, ariaLabel }) {
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={`text-[0.875rem] leading-[1.4] transition-colors ${
-              selected ? 'font-bold text-ink-strong' : 'font-normal text-ink-sub hover:text-ink'
+              selected
+                ? "font-bold text-ink-strong"
+                : "font-normal text-ink-sub hover:text-ink"
             }`}
           >
             {option.label}

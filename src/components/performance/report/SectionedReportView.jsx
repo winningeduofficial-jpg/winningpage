@@ -1,5 +1,5 @@
-import { useId } from 'react';
-import { renderBlock } from '../../admission/blocks/renderBlock';
+import { useId } from "react";
+import { renderBlock } from "../../admission/blocks/renderBlock";
 
 // 리포트류 화면(§5.11 주제 상세 모달 / §5.13 설계 리포트 / §5.16 평가 리포트)이 공유하는
 // "섹션 라벨 + 본문" 렌더러 — docs/수행평가-상세-명세.md §10.2 P9가 `SectionedReportView`
@@ -46,7 +46,7 @@ import { renderBlock } from '../../admission/blocks/renderBlock';
 /** 본문이 실재하는가 — `blocks`(우선) 또는 `text`. */
 function hasBody(section) {
   if (Array.isArray(section?.blocks)) return section.blocks.length > 0;
-  return typeof section?.text === 'string' && section.text.trim() !== '';
+  return typeof section?.text === "string" && section.text.trim() !== "";
 }
 
 /**
@@ -60,7 +60,9 @@ function hasBody(section) {
 export function getVisibleSections(sections) {
   return (Array.isArray(sections) ? sections : []).filter(
     (section) =>
-      typeof section?.label === 'string' && section.label.trim() !== '' && hasBody(section)
+      typeof section?.label === "string" &&
+      section.label.trim() !== "" &&
+      hasBody(section),
   );
 }
 
@@ -68,18 +70,22 @@ export function getVisibleSections(sections) {
  * @param {Array<{id?: string, label: string, text?: string, blocks?: object[]}>} [sections]
  * @param {string} [className] 섹션 목록 루트에 추가할 클래스.
  */
-export default function SectionedReportView({ sections = [], className = '' }) {
+export default function SectionedReportView({ sections = [], className = "" }) {
   const baseId = useId();
   const visibleSections = getVisibleSections(sections);
 
   if (!visibleSections.length) return null;
 
   return (
-    <div className={['flex flex-col gap-10', className].join(' ')}>
+    <div className={["flex flex-col gap-10", className].join(" ")}>
       {visibleSections.map((section, index) => {
         const headingId = `${baseId}-${section.id ?? index}`;
         return (
-          <section key={section.id ?? index} aria-labelledby={headingId} className="flex flex-col gap-2">
+          <section
+            key={section.id ?? index}
+            aria-labelledby={headingId}
+            className="flex flex-col gap-2"
+          >
             <h3
               id={headingId}
               className="text-[1rem] font-semibold leading-[1.3125rem] text-performance-reportHeading"
@@ -99,7 +105,9 @@ export default function SectionedReportView({ sections = [], className = '' }) {
               // 없으면 한 섹션에 최상위 블록이 2개 이상일 때(예: `수행평가 전체 방향` =
               // keyValue + group + keyValue) 이음매가 0px이 되어 세 덩어리가 한 문단처럼 붙는다.
               <div className="flex flex-col gap-2">
-                {section.blocks.map((block, blockIndex) => renderBlock(block, blockIndex))}
+                {section.blocks.map((block, blockIndex) =>
+                  renderBlock(block, blockIndex),
+                )}
               </div>
             ) : (
               /* `break-words`(overflow-wrap: break-word) — 없으면 긴 무공백 문자열(URL 등)이

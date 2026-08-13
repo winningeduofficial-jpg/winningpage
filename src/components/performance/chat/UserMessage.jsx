@@ -24,9 +24,9 @@
  *   `whitespace-pre-line`이 줄바꿈을 보존한다.
  * @param {string} [className] 루트(우측 정렬 컨테이너)에 추가할 클래스.
  */
-export default function UserMessage({ children, className = '' }) {
+export default function UserMessage({ children, className = "" }) {
   return (
-    <div className={['flex justify-end', className].join(' ')}>
+    <div className={["flex justify-end", className].join(" ")}>
       <div className="w-fit max-w-perf-bubble rounded-2xl bg-performance-userBubble p-5">
         {/* 실측: 16px/21 w500 #ffffff. */}
         <p className="whitespace-pre-line text-left text-[1rem] font-medium leading-[1.3125rem] text-white">

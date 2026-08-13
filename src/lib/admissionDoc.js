@@ -12,24 +12,24 @@
 /** @typedef {'previous_year_changes'|'selection_method'|'minimum_requirements'|'exam_schedule'|'school_record_method'|'recruitment_quota'} SectionKey */
 
 export const SECTION_KEYS = [
-  'previous_year_changes',
-  'selection_method',
-  'minimum_requirements',
-  'exam_schedule',
-  'school_record_method',
-  'recruitment_quota'
+  "previous_year_changes",
+  "selection_method",
+  "minimum_requirements",
+  "exam_schedule",
+  "school_record_method",
+  "recruitment_quota",
 ];
 
 // jsonb 컬럼 매핑. recruitment_quota만 html 쪽이 recruitment_result_html로
 // 어긋나 있는데(admissionParsing.js:HWP_SECTION_HTML_KEYS), json은 6개 전부
 // `<rawKey>_json` 접미어로 통일한다(설계 문서 §3.1 네이밍 결정).
 export const HWP_SECTION_JSON_KEYS = {
-  previous_year_changes: 'previous_year_changes_json',
-  selection_method: 'selection_method_json',
-  minimum_requirements: 'minimum_requirements_json',
-  exam_schedule: 'exam_schedule_json',
-  school_record_method: 'school_record_method_json',
-  recruitment_quota: 'recruitment_quota_json'
+  previous_year_changes: "previous_year_changes_json",
+  selection_method: "selection_method_json",
+  minimum_requirements: "minimum_requirements_json",
+  exam_schedule: "exam_schedule_json",
+  school_record_method: "school_record_method_json",
+  recruitment_quota: "recruitment_quota_json",
 };
 
 /**
@@ -125,20 +125,26 @@ export const HWP_SECTION_JSON_KEYS = {
  */
 
 export const WARNING_CODES = [
-  'fallback-plain-list',
-  'label-inferred',
-  'chunk-split-heuristic',
-  'group-header-reinferred',
-  'subject-marks-flattened',
-  'merge-info-lost',
-  'masked-token',
-  'curated-html-preserved'
+  "fallback-plain-list",
+  "label-inferred",
+  "chunk-split-heuristic",
+  "group-header-reinferred",
+  "subject-marks-flattened",
+  "merge-info-lost",
+  "masked-token",
+  "curated-html-preserved",
 ];
 
 // nth-child 폭 규칙(AdmissionGuidelines.jsx의 인라인 style) 붕괴 방어선.
 // 이 5개 variant만 컬럼 수가 고정이다 — score/special/recruit/recruitExact/
 // generic은 카테고리·대학마다 컬럼 수가 달라 고정할 수 없다.
-const FIXED_COLUMN_COUNTS = { selection: 5, minimum: 5, exam: 3, change: 3, recordInfo: 2 };
+const FIXED_COLUMN_COUNTS = {
+  selection: 5,
+  minimum: 5,
+  exam: 3,
+  change: 3,
+  recordInfo: 2,
+};
 
 /**
  * blocks:[] = 콘텐츠 없음. 이 판정이 isEmptyDoc의 유일 기준이다(어드민
@@ -166,9 +172,9 @@ function validateTableBlock(block, label, errors) {
   }
   block.rows.forEach((row, rowIdx) => {
     if (!Array.isArray(row) || row.length !== block.columns.length) {
-      const rowLength = Array.isArray(row) ? row.length : 'N/A';
+      const rowLength = Array.isArray(row) ? row.length : "N/A";
       errors.push(
-        `blocks[${label}](table).rows[${rowIdx}]의 길이(${rowLength})가 columns.length(${block.columns.length})와 다릅니다.`
+        `blocks[${label}](table).rows[${rowIdx}]의 길이(${rowLength})가 columns.length(${block.columns.length})와 다릅니다.`,
       );
     }
   });
@@ -176,16 +182,19 @@ function validateTableBlock(block, label, errors) {
   const fixedCount = FIXED_COLUMN_COUNTS[block.variant];
   if (fixedCount !== undefined && block.columns.length !== fixedCount) {
     errors.push(
-      `blocks[${label}](table).variant='${block.variant}'는 컬럼 수가 ${fixedCount}이어야 하는데 ${block.columns.length}입니다(nth-child 폭 규칙 붕괴 위험).`
+      `blocks[${label}](table).variant='${block.variant}'는 컬럼 수가 ${fixedCount}이어야 하는데 ${block.columns.length}입니다(nth-child 폭 규칙 붕괴 위험).`,
     );
   }
 
   if (block.groups) {
-    const groupSum = block.groups.reduce((sum, g) => sum + (Number(g?.count) || 0), 0);
+    const groupSum = block.groups.reduce(
+      (sum, g) => sum + (Number(g?.count) || 0),
+      0,
+    );
     const fixedColumnCount = Number(block.fixedColumnCount) || 0;
     if (groupSum + fixedColumnCount !== block.columns.length) {
       errors.push(
-        `blocks[${label}](table)의 groups 합(${groupSum}) + fixedColumnCount(${fixedColumnCount})가 columns.length(${block.columns.length})와 다릅니다.`
+        `blocks[${label}](table)의 groups 합(${groupSum}) + fixedColumnCount(${fixedColumnCount})가 columns.length(${block.columns.length})와 다릅니다.`,
       );
     }
   }
@@ -199,13 +208,13 @@ function validateTableBlock(block, label, errors) {
 function validateBlocks(blocks, labelPrefix, errors) {
   blocks.forEach((block, idx) => {
     const label = `${labelPrefix}${idx}`;
-    if (!block || typeof block !== 'object' || typeof block.kind !== 'string') {
+    if (!block || typeof block !== "object" || typeof block.kind !== "string") {
       errors.push(`blocks[${label}]가 유효한 Block이 아닙니다.`);
       return;
     }
-    if (block.kind === 'table') {
+    if (block.kind === "table") {
       validateTableBlock(block, label, errors);
-    } else if (block.kind === 'group') {
+    } else if (block.kind === "group") {
       if (!Array.isArray(block.children)) {
         errors.push(`blocks[${label}](group)의 children이 배열이 아닙니다.`);
       } else {
@@ -232,17 +241,19 @@ function validateBlocks(blocks, labelPrefix, errors) {
 export function validateAdmissionDoc(doc) {
   const errors = [];
 
-  if (!doc || typeof doc !== 'object') {
-    return { ok: false, errors: ['doc가 객체가 아닙니다.'] };
+  if (!doc || typeof doc !== "object") {
+    return { ok: false, errors: ["doc가 객체가 아닙니다."] };
   }
-  if (doc.v !== 1) errors.push(`v는 반드시 1이어야 합니다(현재: ${JSON.stringify(doc.v)}).`);
-  if (!SECTION_KEYS.includes(doc.section)) errors.push(`알 수 없는 section: ${JSON.stringify(doc.section)}`);
+  if (doc.v !== 1)
+    errors.push(`v는 반드시 1이어야 합니다(현재: ${JSON.stringify(doc.v)}).`);
+  if (!SECTION_KEYS.includes(doc.section))
+    errors.push(`알 수 없는 section: ${JSON.stringify(doc.section)}`);
   if (!Array.isArray(doc.blocks)) {
-    errors.push('blocks가 배열이 아닙니다.');
+    errors.push("blocks가 배열이 아닙니다.");
     return { ok: false, errors };
   }
 
-  validateBlocks(doc.blocks, '', errors);
+  validateBlocks(doc.blocks, "", errors);
 
   return { ok: errors.length === 0, errors };
 }
@@ -260,16 +271,21 @@ export function validateAdmissionDoc(doc) {
 // 들어갔다. 순수 함수라 admissionDoc.js(스키마/검증 모듈)에 자연스럽게
 // 속한다.
 export function sumStringLength(value) {
-  if (typeof value === 'string') return value.length;
-  if (Array.isArray(value)) return value.reduce((acc, v) => acc + sumStringLength(v), 0);
-  if (value && typeof value === 'object') {
+  if (typeof value === "string") return value.length;
+  if (Array.isArray(value))
+    return value.reduce((acc, v) => acc + sumStringLength(v), 0);
+  if (value && typeof value === "object") {
     return Object.values(value).reduce((acc, v) => acc + sumStringLength(v), 0);
   }
   return 0;
 }
 export function docRichness(doc) {
-  if (!doc || !Array.isArray(doc.blocks)) return { blockCount: 0, textLength: 0 };
-  return { blockCount: doc.blocks.length, textLength: sumStringLength(doc.blocks) };
+  if (!doc || !Array.isArray(doc.blocks))
+    return { blockCount: 0, textLength: 0 };
+  return {
+    blockCount: doc.blocks.length,
+    textLength: sumStringLength(doc.blocks),
+  };
 }
 
 // existingDoc이 없으면 비교할 대상이 없으니 항상 통과(skip:false)한다.
@@ -280,10 +296,13 @@ export function shouldSkipForRegression(existingDoc, candidateDoc) {
   if (!existingDoc) return { skip: false };
   const before = docRichness(existingDoc);
   const after = docRichness(candidateDoc);
-  if (after.blockCount < before.blockCount || after.textLength < before.textLength) {
+  if (
+    after.blockCount < before.blockCount ||
+    after.textLength < before.textLength
+  ) {
     return {
       skip: true,
-      detail: `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`
+      detail: `blockCount ${before.blockCount}→${after.blockCount}, textLength ${before.textLength}→${after.textLength}`,
     };
   }
   return { skip: false };
@@ -295,7 +314,7 @@ export function shouldSkipForRegression(existingDoc, candidateDoc) {
  */
 function sortKeysDeep(value) {
   if (Array.isArray(value)) return value.map(sortKeysDeep);
-  if (value && typeof value === 'object') {
+  if (value && typeof value === "object") {
     return Object.keys(value)
       .sort()
       .reduce((acc, key) => {
@@ -314,7 +333,7 @@ function sortKeysDeep(value) {
  * @returns {string}
  */
 export function stableStringifyDoc(doc) {
-  if (!doc || typeof doc !== 'object') return JSON.stringify(doc ?? null);
+  if (!doc || typeof doc !== "object") return JSON.stringify(doc ?? null);
   const { generatedAt, ...rest } = doc;
   return JSON.stringify(sortKeysDeep(rest));
 }
@@ -330,22 +349,31 @@ export function stableStringifyDoc(doc) {
 // 채워져 있으면 파싱 단계에서 컬럼이 밀렸을 가능성을 의심할 신호다
 // (예: 전형명 칸에 인원 숫자가 들어감). score/exam처럼 헤더 자체가
 // 숫자인 role('data')은 대상이 아니다 — 오탐이 된다.
-const LABEL_LIKE_ROLES = new Set(['type', 'name', 'title', 'group', 'series', 'unit']);
+const LABEL_LIKE_ROLES = new Set([
+  "type",
+  "name",
+  "title",
+  "group",
+  "series",
+  "unit",
+]);
 
 function cellText(cell) {
-  if (cell == null) return '';
-  if (typeof cell === 'string') return cell;
-  if (typeof cell === 'object') {
-    if (typeof cell.text === 'string') return cell.text;
-    if (Array.isArray(cell.chips)) return cell.chips.map((c) => c.value).join(' ');
+  if (cell == null) return "";
+  if (typeof cell === "string") return cell;
+  if (typeof cell === "object") {
+    if (typeof cell.text === "string") return cell.text;
+    if (Array.isArray(cell.chips))
+      return cell.chips.map((c) => c.value).join(" ");
   }
-  return '';
+  return "";
 }
 
 function isCellEmpty(cell) {
   const text = cellText(cell).trim();
   if (text) return false;
-  if (cell && typeof cell === 'object' && Array.isArray(cell.chips)) return cell.chips.length === 0;
+  if (cell && typeof cell === "object" && Array.isArray(cell.chips))
+    return cell.chips.length === 0;
   return true;
 }
 
@@ -362,13 +390,15 @@ function lintTableBlock(block, findings) {
 
   block.columns.forEach((column, colIdx) => {
     if (!LABEL_LIKE_ROLES.has(column.role)) return;
-    const values = block.rows.map((row) => cellText(row[colIdx]).trim()).filter(Boolean);
+    const values = block.rows
+      .map((row) => cellText(row[colIdx]).trim())
+      .filter(Boolean);
     if (values.length && values.every((v) => /^\d+(\.\d+)?$/.test(v))) {
       findings.numericOnlyLabelColumns.push({
         variant: block.variant,
         role: column.role,
         label: column.label,
-        columnIndex: colIdx
+        columnIndex: colIdx,
       });
     }
   });
@@ -376,10 +406,10 @@ function lintTableBlock(block, findings) {
 
 function lintBlocks(blocks, findings) {
   (blocks || []).forEach((block) => {
-    if (!block || typeof block !== 'object') return;
-    if (block.kind === 'table') lintTableBlock(block, findings);
-    else if (block.kind === 'rawHtml') findings.rawHtmlBlockCount += 1;
-    else if (block.kind === 'group') lintBlocks(block.children, findings);
+    if (!block || typeof block !== "object") return;
+    if (block.kind === "table") lintTableBlock(block, findings);
+    else if (block.kind === "rawHtml") findings.rawHtmlBlockCount += 1;
+    else if (block.kind === "group") lintBlocks(block.children, findings);
   });
 }
 
@@ -399,14 +429,16 @@ export function lintAdmissionDoc(doc) {
     totalCells: 0,
     emptyCells: 0,
     numericOnlyLabelColumns: [],
-    rawHtmlBlockCount: 0
+    rawHtmlBlockCount: 0,
   };
 
   if (!isEmptyDoc(doc)) lintBlocks(doc.blocks, findings);
 
   return {
     ...findings,
-    emptyCellRatio: findings.totalCells ? findings.emptyCells / findings.totalCells : 0,
-    warnings: Array.isArray(doc?.warnings) ? doc.warnings : []
+    emptyCellRatio: findings.totalCells
+      ? findings.emptyCells / findings.totalCells
+      : 0,
+    warnings: Array.isArray(doc?.warnings) ? doc.warnings : [],
   };
 }

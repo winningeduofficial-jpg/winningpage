@@ -1,40 +1,40 @@
-import { useCallback, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { useInView } from '../../hooks/useInView';
+import { useInView } from "../../hooks/useInView";
 
-import ServiceSection from '../../components/services/ServiceSection';
-import ServiceProcessCards from '../../components/services/ServiceProcessCards';
-import ServiceTabsPanel from '../../components/services/ServiceTabsPanel';
-import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
-import ServiceStepCards from '../../components/services/ServiceStepCards';
-import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel';
-import ServiceTestimonials from '../../components/services/ServiceTestimonials';
-import ServiceFaq from '../../components/services/ServiceFaq';
-import ServicePricingSection from '../../components/services/ServicePricingSection';
-import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import ServiceTabsPanel from "../../components/services/ServiceTabsPanel";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceStepCards from "../../components/services/ServiceStepCards";
+import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import ServiceFaq from "../../components/services/ServiceFaq";
+import ServicePricingSection from "../../components/services/ServicePricingSection";
+import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
 
-import heroAura from '../../assets/services/performance/hero-aura.svg';
-import heroGrain from '../../assets/renewal/landing/hero-grain.png';
-import coachBinoculars from '../../assets/services/performance/coach-binoculars.png';
-import coachSisyphus from '../../assets/services/performance/coach-sisyphus.png';
-import coachLightbulb from '../../assets/services/performance/coach-lightbulb.png';
-import coachLaptopChair from '../../assets/services/performance/coach-laptop-chair.png';
-import coachSummitHiking from '../../assets/services/performance/coach-summit-hiking.png';
-import coachTablet from '../../assets/services/performance/coach-tablet.png';
-import coachWriting from '../../assets/services/performance/coach-writing.png';
-import coachTreadmill from '../../assets/services/performance/coach-treadmill.png';
-import coachEmail from '../../assets/services/performance/coach-email.png';
-import coachRockingChair from '../../assets/services/performance/coach-rocking-chair.png';
-import coachLaptopWork from '../../assets/services/performance/coach-laptop-work.png';
-import audienceTopic from '../../assets/services/performance/audience-topic.jpg';
-import audienceResearch from '../../assets/services/performance/audience-research.jpg';
-import audienceStructure from '../../assets/services/performance/audience-structure.jpg';
-import audienceQuality from '../../assets/services/performance/audience-quality-v2.jpg';
-import iconLock from '../../assets/renewal/landing/icon-lock-v2.png';
-import iconCalendar from '../../assets/services/performance/icon-calendar-v2.png';
-import iconFolder from '../../assets/renewal/landing/icon-folder-v2.png';
-import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
+import heroAura from "../../assets/services/performance/hero-aura.svg";
+import heroGrain from "../../assets/renewal/landing/hero-grain.png";
+import coachBinoculars from "../../assets/services/performance/coach-binoculars.png";
+import coachSisyphus from "../../assets/services/performance/coach-sisyphus.png";
+import coachLightbulb from "../../assets/services/performance/coach-lightbulb.png";
+import coachLaptopChair from "../../assets/services/performance/coach-laptop-chair.png";
+import coachSummitHiking from "../../assets/services/performance/coach-summit-hiking.png";
+import coachTablet from "../../assets/services/performance/coach-tablet.png";
+import coachWriting from "../../assets/services/performance/coach-writing.png";
+import coachTreadmill from "../../assets/services/performance/coach-treadmill.png";
+import coachEmail from "../../assets/services/performance/coach-email.png";
+import coachRockingChair from "../../assets/services/performance/coach-rocking-chair.png";
+import coachLaptopWork from "../../assets/services/performance/coach-laptop-work.png";
+import audienceTopic from "../../assets/services/performance/audience-topic.jpg";
+import audienceResearch from "../../assets/services/performance/audience-research.jpg";
+import audienceStructure from "../../assets/services/performance/audience-structure.jpg";
+import audienceQuality from "../../assets/services/performance/audience-quality-v2.jpg";
+import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
+import iconCalendar from "../../assets/services/performance/icon-calendar-v2.png";
+import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
+import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
 
 // 수행평가 서비스 랜딩 — /services/performance (구 경로 /page/services-ai-performance)
 //
@@ -85,7 +85,7 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 // 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 `forbiddenTo="/services/performance#pricing"`
 // 로 되돌리는 것도 §2.2 설계상 정상 경로다 — 가드가 최종 권위이므로 랜딩에서 이용권을
 // 이중 판정할 이유가 없다.
-const HERO_SERVICE = { name: '수행평가 서비스', to: '/app/performance' };
+const HERO_SERVICE = { name: "수행평가 서비스", to: "/app/performance" };
 
 // 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
 // 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
@@ -94,196 +94,201 @@ const HERO_SERVICE = { name: '수행평가 서비스', to: '/app/performance' };
 //   ② 인라인 안내 — RequireEntitlement가 `location.state.entitlementNotice`로
 //      실어 보내는 문구. 소비하는 쪽이 없으면 사용자는 왜 튕겼는지 알 수 없다
 //      (§2.2 「현행 alert 대신 화면 안내로 승격」).
-const PRICING_ANCHOR_ID = 'pricing';
+const PRICING_ANCHOR_ID = "pricing";
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
 // 배열의 각 원소가 한 줄이며 ServiceProcessCards 가 <br />로 잇는다.
 // STEP 라벨은 데이터가 아니라 index 로 생성되므로 step 키를 두지 않는다.
 const PROCESS_STEPS = [
   {
-    title: '요청 내용 입력',
-    desc: ['과목・유형, 주제 범위, 요구사항을', '학생이 직접 입력합니다.']
+    title: "요청 내용 입력",
+    desc: ["과목・유형, 주제 범위, 요구사항을", "학생이 직접 입력합니다."],
   },
   {
     // '・' 뒤 공백은 시안(2393:12092) 원문 그대로다.
-    title: '주제・ 자료 방향 제안',
-    desc: ['학생별 탐구 주제와', '자료 수집 방향을 제안합니다.']
+    title: "주제・ 자료 방향 제안",
+    desc: ["학생별 탐구 주제와", "자료 수집 방향을 제안합니다."],
   },
   {
-    title: '구성 설계 리포트',
-    desc: ['탐구 흐름・목차구성 설계를', '리포트로 제공합니다.']
+    title: "구성 설계 리포트",
+    desc: ["탐구 흐름・목차구성 설계를", "리포트로 제공합니다."],
   },
   {
-    title: '결과 점검・피드백',
-    desc: ['학생이 작성한 결과물의', '점검 포인트를 확인합니다.']
-  }
+    title: "결과 점검・피드백",
+    desc: ["학생이 작성한 결과물의", "점검 포인트를 확인합니다."],
+  },
 ];
 
 // 탭 4개(주제 추천/자료 방향/구성 설계 리포트/결과 리포트) — 탭·카드 콘텐츠는 시안 별도 노드
 // (2159:915 자료방향・2159:998 구성설계・2159:1034 결과리포트)의 텍스트/일러스트를 인용했다.
-const COACHING_TABS = ['주제 추천', '자료 방향', '구성 설계 리포트', '결과 리포트'];
+const COACHING_TABS = [
+  "주제 추천",
+  "자료 방향",
+  "구성 설계 리포트",
+  "결과 리포트",
+];
 
 const COACHING_CONTENT = {
-  '주제 추천': [
+  "주제 추천": [
     {
       icon: coachBinoculars,
-      title: '관심 분야・유형별 주제 제안',
-      desc: '과목과 관심사에 맞는 탐구 주제 후보를 제안합니다.'
+      title: "관심 분야・유형별 주제 제안",
+      desc: "과목과 관심사에 맞는 탐구 주제 후보를 제안합니다.",
     },
     {
       icon: coachSisyphus,
-      title: '탐구 가치 있는 방향 제시',
-      desc: '단순 조사에 그치지 않는 탐구형 주제 방향을 안내합니다.'
+      title: "탐구 가치 있는 방향 제시",
+      desc: "단순 조사에 그치지 않는 탐구형 주제 방향을 안내합니다.",
     },
     {
       // 360×360 고해상도판(coach-lightbulb-alt)을 coach-lightbulb.png 이름으로 배치해
       // 탭1・탭3 양쪽에서 재사용한다 — 같은 일러스트의 260×260 저해상도판은 배치하지 않았다.
       icon: coachLightbulb,
-      title: '차별화 포인트 안내',
-      desc: '흔한 주제를 나만의 관점으로 좁히는 포인트를 짚어줍니다.'
-    }
+      title: "차별화 포인트 안내",
+      desc: "흔한 주제를 나만의 관점으로 좁히는 포인트를 짚어줍니다.",
+    },
   ],
-  '자료 방향': [
+  "자료 방향": [
     {
       icon: coachLaptopChair,
-      title: '신뢰할 수 있는 자료 추천',
-      desc: '검증된 출처 중심으로 참고 자료 방향을 안내합니다.'
+      title: "신뢰할 수 있는 자료 추천",
+      desc: "검증된 출처 중심으로 참고 자료 방향을 안내합니다.",
     },
     {
       icon: coachSummitHiking,
-      title: '자료 수집 방향 안내',
-      desc: '어디서 무엇을 찾을지 수집 전략을 제시합니다.'
+      title: "자료 수집 방향 안내",
+      desc: "어디서 무엇을 찾을지 수집 전략을 제시합니다.",
     },
     {
       icon: coachTablet,
-      title: '자료 분석 방향 제시',
-      desc: '수집한 자료를 어떻게 해석할지 분석 관점을 제안합니다.'
-    }
+      title: "자료 분석 방향 제시",
+      desc: "수집한 자료를 어떻게 해석할지 분석 관점을 제안합니다.",
+    },
   ],
-  '구성 설계 리포트': [
+  "구성 설계 리포트": [
     {
       icon: coachWriting,
-      title: '논리적 탐구 흐름 설계',
-      desc: '가설 → 검증 → 해석 → 한계의 탐구 흐름을 설계합니다.'
+      title: "논리적 탐구 흐름 설계",
+      desc: "가설 → 검증 → 해석 → 한계의 탐구 흐름을 설계합니다.",
     },
     {
       icon: coachTreadmill,
-      title: '목차・세부 구성 제안',
-      desc: '보고서 목차와 문단 구성을 제안합니다.'
+      title: "목차・세부 구성 제안",
+      desc: "보고서 목차와 문단 구성을 제안합니다.",
     },
     {
       icon: coachLightbulb,
-      title: '핵심 포인트 정리',
-      desc: '담아야 할 핵심 요소를 정리해 방향을 잡아줍니다.'
-    }
+      title: "핵심 포인트 정리",
+      desc: "담아야 할 핵심 요소를 정리해 방향을 잡아줍니다.",
+    },
   ],
-  '결과 리포트': [
+  "결과 리포트": [
     {
       icon: coachEmail,
-      title: '결과 점검・피드백',
-      desc: '학생이 작성한 결과물을 점검하고 피드백합니다.'
+      title: "결과 점검・피드백",
+      desc: "학생이 작성한 결과물을 점검하고 피드백합니다.",
     },
     {
       icon: coachRockingChair,
-      title: '보완 포인트 안내',
-      desc: '부족한 부분과 보완 방향을 구체적으로 안내합니다.'
+      title: "보완 포인트 안내",
+      desc: "부족한 부분과 보완 방향을 구체적으로 안내합니다.",
     },
     {
       icon: coachLaptopWork,
-      title: '제출 전 완성도 점검',
-      desc: '제출 전 마지막 완성도 체크리스트를 제공합니다.'
-    }
-  ]
+      title: "제출 전 완성도 점검",
+      desc: "제출 전 마지막 완성도 체크리스트를 제공합니다.",
+    },
+  ],
 };
 
 const AUDIENCE_CARDS = [
   {
     image: audienceTopic,
-    title: '주제 선정이 막막한 학생',
-    desc: '관심 주제나 방향 설정부터 어려운 학생'
+    title: "주제 선정이 막막한 학생",
+    desc: "관심 주제나 방향 설정부터 어려운 학생",
   },
   {
     image: audienceResearch,
-    title: '자료 분석이 어려운 학생',
-    desc: '믿을 자료와 분석 방법이 필요한 학생'
+    title: "자료 분석이 어려운 학생",
+    desc: "믿을 자료와 분석 방법이 필요한 학생",
   },
   {
     // 시안 원본 텍스트에 제어문자(U+001D)가 혼입돼 있어(스펙 §3) 정정했다.
     image: audienceStructure,
-    title: '구성・전개가 어려운 학생',
-    desc: '논리적 흐름과 구성을 고민하는 학생'
+    title: "구성・전개가 어려운 학생",
+    desc: "논리적 흐름과 구성을 고민하는 학생",
   },
   {
     image: audienceQuality,
-    title: '완성도를 높이고 싶은 학생',
-    desc: '마지막 점검과 보완이 더 필요한 학생'
-  }
+    title: "완성도를 높이고 싶은 학생",
+    desc: "마지막 점검과 보완이 더 필요한 학생",
+  },
 ];
 
 // S3 탭 라벨과 정확히 일치하는 4단계 요약 — 스펙 §S5 참고(탭-카드 매핑 공백을 이 섹션이 보완).
 const STAGE_SUMMARY_CARDS = [
   {
-    title: '주제 추천',
-    desc: '관심 분야・유형별 주제 제안, 탐구 가치 있는 방향과 차별화 포인트를 안내합니다.'
+    title: "주제 추천",
+    desc: "관심 분야・유형별 주제 제안, 탐구 가치 있는 방향과 차별화 포인트를 안내합니다.",
   },
   {
-    title: '자료 방향',
-    desc: '신뢰할 수 있는 자료 추천, 수집・분석 방향을 제시합니다.'
+    title: "자료 방향",
+    desc: "신뢰할 수 있는 자료 추천, 수집・분석 방향을 제시합니다.",
   },
   {
-    title: '구성 설계 리포트',
-    desc: '논리적 탐구 흐름 설계, 목차・세부 구성과 핵심 포인트를 정리합니다.'
+    title: "구성 설계 리포트",
+    desc: "논리적 탐구 흐름 설계, 목차・세부 구성과 핵심 포인트를 정리합니다.",
   },
   {
-    title: '결과 리포트',
-    desc: '최종 내용 점검・피드백, 보완 포인트와 제출 전 완성도를 점검합니다.'
-  }
+    title: "결과 리포트",
+    desc: "최종 내용 점검・피드백, 보완 포인트와 제출 전 완성도를 점검합니다.",
+  },
 ];
 
 // 아이콘-라벨 의미 매칭이 다소 어색하지만(자물쇠=시간절약 등) 시안 그대로 구현했다(스펙 §S6).
 const OUTCOME_ITEMS = [
-  { icon: iconLock, label: '시간 절약' },
-  { icon: iconCalendar, label: '전문적인 방향성' },
-  { icon: iconFolder, label: '체계적인 구성' },
-  { icon: iconShield, label: '자신감 향상' }
+  { icon: iconLock, label: "시간 절약" },
+  { icon: iconCalendar, label: "전문적인 방향성" },
+  { icon: iconFolder, label: "체계적인 구성" },
+  { icon: iconShield, label: "자신감 향상" },
 ];
 
 const TESTIMONIALS = [
   {
-    emoji: '😉',
+    emoji: "😉",
     quote:
-      '주제 선정부터 자료, 구성까지 단계별로 도와주셔서 막막했던 수행평가가 훨씬 수월했어요. 결과물도 더 체계적이고 완성도가 높아졌습니다!',
-    name: '고2 김OO',
-    tag: '인문계열'
+      "주제 선정부터 자료, 구성까지 단계별로 도와주셔서 막막했던 수행평가가 훨씬 수월했어요. 결과물도 더 체계적이고 완성도가 높아졌습니다!",
+    name: "고2 김OO",
+    tag: "인문계열",
   },
   {
-    emoji: '☺️',
+    emoji: "☺️",
     quote:
-      '구성 설계 리포트가 정말 큰 도움이 됐어요. 흐름이 정리되니 자료 분석과 정리도 수월했고, 발표까지 자신 있게 했습니다!',
-    name: '고3 박OO',
-    tag: '자연계열'
-  }
+      "구성 설계 리포트가 정말 큰 도움이 됐어요. 흐름이 정리되니 자료 분석과 정리도 수월했고, 발표까지 자신 있게 했습니다!",
+    name: "고3 박OO",
+    tag: "자연계열",
+  },
 ];
 
 // 답변 콘텐츠 — 시안 상세(2161:9743, 1920×1002, 전부 펼친 상태) 원문 인용.
 // 1번 답변: 시안 원문에 "탐구・보고서형 대해"처럼 조사가 누락돼 있어 "과제에 대해"로 보정했다.
 const FAQ_ITEMS = [
   {
-    q: '어떤 과목의 수행평가도 도움을 받을 수 있나요?',
-    a: '인문・사회・과학・예체능 등 대부분 과목의 탐구・보고서형 과제에 대해 주제・자료・구성 방향을 안내합니다.'
+    q: "어떤 과목의 수행평가도 도움을 받을 수 있나요?",
+    a: "인문・사회・과학・예체능 등 대부분 과목의 탐구・보고서형 과제에 대해 주제・자료・구성 방향을 안내합니다.",
   },
   {
-    q: '이용 절차와 소요 시간은 어떻게 되나요?',
-    a: '요청 내용 입력 → 방향 제안 → 구성 설계 리포트 → 결과 점검 순으로 진행되며, 과제 범위에 따라 소요 시간이 달라집니다.'
+    q: "이용 절차와 소요 시간은 어떻게 되나요?",
+    a: "요청 내용 입력 → 방향 제안 → 구성 설계 리포트 → 결과 점검 순으로 진행되며, 과제 범위에 따라 소요 시간이 달라집니다.",
   },
   {
-    q: '제시된 내용을 그대로 제출해도 되나요?',
-    a: '아니요. 위닝 수행평가는 주제・자료・구성 방향을 제안하는 코칭 서비스이며, 실제 탐구와 작성은 학생 본인이 수행하는 것을 원칙으로 합니다. 제안 내용을 그대로 옮겨 제출하는 것은 학교 규정 및 학문적 정직성에 어긋날 수 있어 권장하지 않습니다.'
+    q: "제시된 내용을 그대로 제출해도 되나요?",
+    a: "아니요. 위닝 수행평가는 주제・자료・구성 방향을 제안하는 코칭 서비스이며, 실제 탐구와 작성은 학생 본인이 수행하는 것을 원칙으로 합니다. 제안 내용을 그대로 옮겨 제출하는 것은 학교 규정 및 학문적 정직성에 어긋날 수 있어 권장하지 않습니다.",
   },
   {
-    q: '개인 정보와 결과물은 안전하게 관리되나요?',
-    a: '수집 정보는 개인정보처리방침에 따라 목적 범위 내에서만 이용・보관하며, 학생・학부모 동의 절차를 따릅니다.'
-  }
+    q: "개인 정보와 결과물은 안전하게 관리되나요?",
+    a: "수집 정보는 개인정보처리방침에 따라 목적 범위 내에서만 이용・보관하며, 학생・학부모 동의 절차를 따릅니다.",
+  },
 ];
 
 // 히어로는 페이지 고유 섹션이라 공통화 대상이 아니다(오라 회전 애니메이션・브라우저 목업의
@@ -349,7 +354,7 @@ function HeroSection() {
         `}</style>
         <div
           className="perf-aura-spin absolute left-0 top-[-16.6667%] aspect-square w-full"
-          data-float={auraInView ? 'on' : 'off'}
+          data-float={auraInView ? "on" : "off"}
         >
           <img
             src={heroAura}
@@ -382,7 +387,8 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
-          주제-자료-구성-점검까지, 학생이 스스로 완성하도록 돕는 든든한 파트너입니다.
+          주제-자료-구성-점검까지, 학생이 스스로 완성하도록 돕는 든든한
+          파트너입니다.
         </p>
 
         <button
@@ -416,7 +422,9 @@ export default function PerformanceAssessment() {
   // 해시(`#pricing`)로 도착해도 가격 섹션이 늘 로딩 분기일 수 있으므로 id는
   // ServicePricingSection의 3분기 모두에 붙어 있다. 도착 오차는 scroll-mt-24가 흡수한다.
   const scrollToPricing = useCallback(() => {
-    document.getElementById(PRICING_ANCHOR_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    document
+      .getElementById(PRICING_ANCHOR_ID)
+      ?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, []);
 
   // SPA 내부 이동은 해시를 브라우저가 처리해 주지 않는다 — App.jsx의 ScrollToTop은
@@ -445,7 +453,9 @@ export default function PerformanceAssessment() {
             role="status"
             className="flex flex-col gap-3 rounded-2xl border border-[#D7D7D7] bg-[#F9FAFB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            <p className="text-[1rem] font-semibold leading-[1.5] text-[#013262]">{entitlementNotice}</p>
+            <p className="text-[1rem] font-semibold leading-[1.5] text-[#013262]">
+              {entitlementNotice}
+            </p>
             {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
                 이동이 되어 브라우저가 아무것도 하지 않는다. 그래서 직접 스크롤한다. */}
             <button
@@ -469,7 +479,10 @@ export default function PerformanceAssessment() {
         <ServiceProcessCards items={PROCESS_STEPS} />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[9.3125rem]" heading="네 가지 영역으로 코칭합니다">
+      <ServiceSection
+        className="lg:pt-[9.3125rem]"
+        heading="네 가지 영역으로 코칭합니다"
+      >
         {/* 탭 전환 시 섹션 높이가 튀는 걸 막는 lg 고정 패널 높이는 콘텐츠 줄 수 실측값이라
             페이지가 넘긴다(자기평가 탭패널과 동일한 방식). */}
         <ServiceTabsPanel
@@ -486,22 +499,32 @@ export default function PerformanceAssessment() {
         className="lg:pt-[12.625rem]"
         heading={
           <>
-            이런 학생에게 <span className="text-[#013262]">수행평가를 추천해요</span>
+            이런 학생에게{" "}
+            <span className="text-[#013262]">수행평가를 추천해요</span>
           </>
         }
       >
         <ServiceAudienceCards items={AUDIENCE_CARDS} imageFit="cover" />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[10.1875rem]" heading="네 단계로 차근차근">
+      <ServiceSection
+        className="lg:pt-[10.1875rem]"
+        heading="네 단계로 차근차근"
+      >
         <ServiceStepCards items={STAGE_SUMMARY_CARDS} columns={4} />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[10.0625rem]" heading="수행평가 서비스로 달라지는 것들">
+      <ServiceSection
+        className="lg:pt-[10.0625rem]"
+        heading="수행평가 서비스로 달라지는 것들"
+      >
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[10rem]" heading="수행평가 서비스를 받아본 학생들의 후기">
+      <ServiceSection
+        className="lg:pt-[10rem]"
+        heading="수행평가 서비스를 받아본 학생들의 후기"
+      >
         <ServiceTestimonials items={TESTIMONIALS} columns={2} />
       </ServiceSection>
 
@@ -517,8 +540,8 @@ export default function PerformanceAssessment() {
         serviceKey="suhaeng"
         heading="위닝 수행평가 이용권 구매하기"
         cta={{
-          label: '이용권 구매하기',
-          to: '/pricing'
+          label: "이용권 구매하기",
+          to: "/pricing",
         }}
         className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
       />

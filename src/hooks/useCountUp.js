@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 // easeOutExpo — 초반 급가속 후 길게 감속. t === 1 특수 처리를 빼면
 // 1 - 2^-10 = 0.999…로 끝나 최종값이 미세하게 어긋난다.
@@ -9,10 +9,10 @@ const easeOutExpo = (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t));
 // 흔들리지 않게 한다.
 const formatPadded = (value, decimals, intDigits) => {
   const fixed = value.toFixed(decimals);
-  const negative = fixed.startsWith('-');
+  const negative = fixed.startsWith("-");
   const raw = negative ? fixed.slice(1) : fixed;
-  const [intPart, decPart] = raw.split('.');
-  const paddedInt = intPart.padStart(intDigits, '0');
+  const [intPart, decPart] = raw.split(".");
+  const paddedInt = intPart.padStart(intDigits, "0");
   const result = decPart !== undefined ? `${paddedInt}.${decPart}` : paddedInt;
   return negative ? `-${result}` : result;
 };
@@ -41,7 +41,10 @@ export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
     if (!Number.isFinite(target)) return undefined;
 
     // target 자체의 정수 자릿수를 패딩 폭으로 쓴다 — 95.4 → 2자리, 100.0 → 3자리.
-    const intDigits = Math.max(1, Math.trunc(Math.abs(target)).toString().length);
+    const intDigits = Math.max(
+      1,
+      Math.trunc(Math.abs(target)).toString().length,
+    );
 
     const paint = (value) => {
       lastValueRef.current = value;
@@ -50,7 +53,7 @@ export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
 
     // JS 애니메이션은 CSS @media가 잡아주지 않는다 — matchMedia로 직접 분기.
     // 모듈 로드 시점에 캐싱하지 않고 effect 실행 시점에 읽는다.
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       paint(target);
       return undefined;
     }
@@ -60,7 +63,7 @@ export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
     // 최초 실행은 0에서, target 변경으로 인한 재실행은 마지막 페인트 값에서
     // 시작한다. startedRef는 IO 콜백 안에서만 true로 바뀌므로 이 시점에는
     // 아직 이전 렌더의 값을 정확히 반영한다.
-    const from = startedRef.current ? lastValueRef.current ?? 0 : 0;
+    const from = startedRef.current ? (lastValueRef.current ?? 0) : 0;
 
     const step = (ts) => {
       // 첫 rAF 콜백의 timestamp를 t0로 채택.
@@ -85,7 +88,7 @@ export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
           startedRef.current = true;
           raf = requestAnimationFrame(step);
         },
-        { threshold: 0.4 }
+        { threshold: 0.4 },
       );
 
       io.observe(el);

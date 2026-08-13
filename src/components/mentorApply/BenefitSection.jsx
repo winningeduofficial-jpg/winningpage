@@ -1,7 +1,7 @@
-import { BENEFIT_SECTION, BENEFITS } from '../../data/mentorApply';
-import { MENTOR_ASSETS } from '../../data/mentorApplyAssets';
-import ServiceSection from '../services/ServiceSection';
-import { MENTOR_HEADING_LG } from '../services/serviceTokens';
+import { BENEFIT_SECTION, BENEFITS } from "../../data/mentorApply";
+import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
+import ServiceSection from "../services/ServiceSection";
+import { MENTOR_HEADING_LG } from "../services/serviceTokens";
 
 // 멘토신청 §3 활동 혜택 — 아이콘 + 제목 + 설명 3카드 (docs/mentor-apply-spec.md §3, Figma 3408:4289).
 //
@@ -29,17 +29,17 @@ import { MENTOR_HEADING_LG } from '../services/serviceTokens';
 // 원본 PNG 는 카드마다 실제 비율이 다르므로(132×102 / 124×91 / 134×102) object-contain 으로
 // 슬롯 안에 레터박스 처리한다. w/h 를 모두 명시해 원본 크기로 튀는 것을 막는다.
 const BENEFIT_ICON_CLASS =
-  'h-[7.5rem] w-[7.5rem] shrink-0 object-contain lg:h-[9.375rem] lg:w-[9.375rem]';
+  "h-[7.5rem] w-[7.5rem] shrink-0 object-contain lg:h-[9.375rem] lg:w-[9.375rem]";
 
 // 카드 제목 24 SemiBold / lh 1.4 / ls -0.02em / #181D24(ink.title).
 // 본문 16 Regular / lh 1.4 / #525252(ink). 두 값 모두 서비스 랜딩 공통 카드 타이포
 // (serviceTokens CARD_TITLE_CLASS/CARD_DESC_CLASS)와 크기·색·굵기가 달라 재사용하지 않는다.
 const BENEFIT_TITLE_CLASS =
-  'break-keep text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink-title lg:text-[1.5rem]';
+  "break-keep text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink-title lg:text-[1.5rem]";
 const BENEFIT_DESC_CLASS =
-  'whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.4] text-ink';
+  "whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.4] text-ink";
 
-export default function BenefitSection({ className = '' }) {
+export default function BenefitSection({ className = "" }) {
   return (
     <ServiceSection
       heading={BENEFIT_SECTION.title}
@@ -57,7 +57,12 @@ export default function BenefitSection({ className = '' }) {
           <li key={item.key} className="flex">
             <article className="flex w-full flex-col items-center justify-center gap-[0.6875rem] rounded-[1.25rem] bg-surface-footer px-[1.4375rem] py-[1.75rem] text-center">
               {/* 일러스트는 바로 옆 제목이 뜻을 그대로 전달하는 장식 요소라 접근성 트리에서 뺀다. */}
-              <img src={MENTOR_ASSETS.benefits[item.key]} alt="" aria-hidden="true" className={BENEFIT_ICON_CLASS} />
+              <img
+                src={MENTOR_ASSETS.benefits[item.key]}
+                alt=""
+                aria-hidden="true"
+                className={BENEFIT_ICON_CLASS}
+              />
               <div className="flex flex-col gap-[1.25rem]">
                 <h3 className={BENEFIT_TITLE_CLASS}>{item.title}</h3>
                 {/* desc 의 `\n` 은 시안 강제 개행이라 whitespace-pre-line 으로 보존한다. */}

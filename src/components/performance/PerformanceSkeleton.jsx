@@ -10,8 +10,8 @@
 // `w-perf-sidebar`, 인셋 `perf-inset`, pill 폭 `w-perf-pill`) — 실제 셸이 마운트되는 순간
 // 골격이 그 자리에서 자연스럽게 채워지도록 레이아웃 시프트를 만들지 않기 위해서다. 값
 // 자체(이름·메뉴 라벨 등)는 아직 없으므로 회색 블록으로만 자리를 잡는다.
-function Block({ className = '' }) {
-  return <div className={['rounded-md bg-[#e6e5e2]', className].join(' ')} />;
+function Block({ className = "" }) {
+  return <div className={["rounded-md bg-[#e6e5e2]", className].join(" ")} />;
 }
 
 export default function PerformanceSkeleton() {
@@ -41,7 +41,10 @@ export default function PerformanceSkeleton() {
           <Block className="mx-perf-inset h-[1.3125rem] w-16" />
           <div className="mx-[0.625rem] mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex h-9 w-perf-pill items-center gap-4 pl-[3.125rem]">
+              <div
+                key={index}
+                className="flex h-9 w-perf-pill items-center gap-4 pl-[3.125rem]"
+              >
                 <Block className="h-5 w-5 flex-shrink-0 rounded-full" />
                 <Block className="h-[1.3125rem] w-20" />
               </div>

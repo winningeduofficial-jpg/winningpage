@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId } from "react";
 
 // 모달 폼 필드 프리미티브 — docs/figma-goal/00-INDEX.md §5-4 `ModalField`.
 // 라벨(h21) + 컨트롤(h39), 라벨→컨트롤 간격 27px(1.6875rem). text/number/select 3변형을 지원한다.
@@ -10,19 +10,19 @@ import { useId } from 'react';
 // 모달 내부 칩·버튼은 pill이 아니라 소프트 라운드(6~8px)라는 지시에 따라 컨트롤은 rounded-lg(8px)를 쓴다.
 export default function ModalField({
   label,
-  variant = 'text',
+  variant = "text",
   value,
   onChange,
   placeholder,
   suffix,
   options,
   required = false,
-  className = '',
+  className = "",
   ...rest
 }) {
   const fieldId = useId();
   const controlClass =
-    'h-[2.4375rem] w-full rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+    "h-[2.4375rem] w-full rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
   return (
     <div className={className}>
@@ -37,8 +37,14 @@ export default function ModalField({
         )}
       </label>
 
-      {variant === 'select' ? (
-        <select id={fieldId} value={value} onChange={onChange} className={controlClass} {...rest}>
+      {variant === "select" ? (
+        <select
+          id={fieldId}
+          value={value}
+          onChange={onChange}
+          className={controlClass}
+          {...rest}
+        >
           {options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -49,11 +55,17 @@ export default function ModalField({
         <div className="relative">
           <input
             id={fieldId}
-            type={variant === 'number' ? 'number' : variant === 'date' ? 'date' : 'text'}
+            type={
+              variant === "number"
+                ? "number"
+                : variant === "date"
+                  ? "date"
+                  : "text"
+            }
             value={value}
             onChange={onChange}
             placeholder={placeholder}
-            className={`${controlClass} ${suffix ? 'pr-14' : ''}`}
+            className={`${controlClass} ${suffix ? "pr-14" : ""}`}
             {...rest}
           />
           {suffix && (

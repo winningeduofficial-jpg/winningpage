@@ -16,39 +16,45 @@
 //   본인확인을 받을 파라미터가 없어서 identity_verifications.consumed_at을 찍는 주체가
 //   없다. 그래서 지금은 "인증했다"는 사실이 컨텍스트에만 남고 서버가 가입 시점에
 //   재확인하지는 못한다. 휴대폰 인증과 같은 구멍이며 둘을 함께 막아야 한다.
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
-import { AuthLayout, AuthTitle, InfoCard, PrimaryButton } from '../../components/auth';
-import { useSignup } from '../../context/SignupContext';
-import { runIdentityVerification } from '../../lib/identityVerification';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Check } from "lucide-react";
+import {
+  AuthLayout,
+  AuthTitle,
+  InfoCard,
+  PrimaryButton,
+} from "../../components/auth";
+import { useSignup } from "../../context/SignupContext";
+import { runIdentityVerification } from "../../lib/identityVerification";
 
 // 만 14세 미만 가입 플로우 전체를 가리는 플래그 — StudentBirth.jsx와 동일.
 // off인 배포에서는 URL 직접 진입도 막는다.
-const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
+const UNDER14_SIGNUP_ENABLED =
+  import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
 
 export default function Under14Verify() {
   const navigate = useNavigate();
   const { memberType, isUnder14, updateVerification } = useSignup();
 
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // §3.2 흐름: S0(유형선택, 학생) -> S1(생년월일) -> 만 14세 미만 -> U0(이 화면).
   // memberType 없이 직접 진입하면 처음부터, 플래그가 off면 아예 이 플로우를 열지 않으므로
   // /signup으로 되돌린다. isUnder14가 true로 확정되지 않은 모든 경우(false=14세 이상 확정,
   // null=생년월일 미입력/판정 불가 포함)는 B-2(생년월일 입력)로 되돌려 대칭적으로 가드한다.
   useEffect(() => {
-    if (memberType !== 'student') {
-      navigate('/signup', { replace: true });
+    if (memberType !== "student") {
+      navigate("/signup", { replace: true });
       return;
     }
     if (!UNDER14_SIGNUP_ENABLED) {
-      navigate('/signup', { replace: true });
+      navigate("/signup", { replace: true });
       return;
     }
     if (isUnder14 !== true) {
-      navigate('/signup/student/birth', { replace: true });
+      navigate("/signup/student/birth", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberType, isUnder14]);
@@ -59,10 +65,12 @@ export default function Under14Verify() {
     if (verifying) return;
 
     setVerifying(true);
-    setError('');
+    setError("");
 
     try {
-      const result = await runIdentityVerification({ purpose: 'under14_guardian' });
+      const result = await runIdentityVerification({
+        purpose: "under14_guardian",
+      });
 
       if (!result.ok) {
         setError(result.message);
@@ -70,13 +78,13 @@ export default function Under14Verify() {
       }
 
       // requestId를 남겨둔다 — 가입 RPC가 이 인증을 소비하게 되면 필요하다.
-      updateVerification('pass', {
+      updateVerification("pass", {
         verified: true,
         requestId: result.requestId,
-        verifiedAt: Date.now()
+        verifiedAt: Date.now(),
       });
 
-      navigate('/signup/student/under14');
+      navigate("/signup/student/under14");
     } finally {
       setVerifying(false);
     }
@@ -98,13 +106,20 @@ export default function Under14Verify() {
           <div className="flex items-center gap-3">
             <Check size={20} strokeWidth={2} className="shrink-0 text-line" />
             <span className="font-medium text-primary">필수</span>
-            <span className="text-ink">학부모로서 자녀의 위닝에듀 회원가입에 동의</span>
+            <span className="text-ink">
+              학부모로서 자녀의 위닝에듀 회원가입에 동의
+            </span>
           </div>
         </InfoCard>
       </div>
 
       <div className="flex w-full max-w-[25rem] flex-col gap-3">
-        <PrimaryButton size="lg" onClick={handlePassAuth} disabled={verifying} loading={verifying}>
+        <PrimaryButton
+          size="lg"
+          onClick={handlePassAuth}
+          disabled={verifying}
+          loading={verifying}
+        >
           PASS 간편 인증
         </PrimaryButton>
 

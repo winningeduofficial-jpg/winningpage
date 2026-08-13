@@ -7,14 +7,14 @@
  */
 // 확장자 .js 명시 — verify 스크립트가 이 모듈(진행 판정 술어)을 plain node ESM 으로 직접 import 한다.
 // node 는 Vite 와 달리 확장자 생략을 해석하지 못해 ERR_MODULE_NOT_FOUND 로 죽는다.
-import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
+import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
 
 export const SURVEY_TOTAL_STEPS = 5;
 // 설문 앱 라우트는 /app/{slug}/... 통일 규칙(App.jsx 154-156)에 마운트된다. 접두어를 빠뜨리면
 // 어떤 라우트와도 매치되지 않아 catch-all(홈)로 튕기며 답변이 소실된다. 리포트(/learning-diagnosis/report)는
 // 앱이 아니라 결과 문서라 /app 밖에 그대로 둔다.
-export const SURVEY_FIRST_STEP_PATH = '/app/learning-diagnosis/survey/1';
-export const SURVEY_REPORT_PATH = '/learning-diagnosis/report';
+export const SURVEY_FIRST_STEP_PATH = "/app/learning-diagnosis/survey/1";
+export const SURVEY_REPORT_PATH = "/learning-diagnosis/report";
 
 export function getStepPath(step) {
   return `/app/learning-diagnosis/survey/${step}`;
@@ -49,12 +49,14 @@ export function getRemainingAfterStep(step) {
  * - `optional: true` 로 표시된 선택입력 문항(q19 주관식)은 화면에는 나오지만 요건에서 뺀다.
  */
 export function getStepRequiredQuestions(step) {
-  return getStepQuestions(step).filter((question) => question.optional !== true);
+  return getStepQuestions(step).filter(
+    (question) => question.optional !== true,
+  );
 }
 
 export function getStepUnansweredCount(step, answers) {
   return getStepRequiredQuestions(step).filter(
-    (question) => !isQuestionAnswered(question, answers?.[question.id])
+    (question) => !isQuestionAnswered(question, answers?.[question.id]),
   ).length;
 }
 
@@ -64,7 +66,7 @@ export function isStepComplete(step, answers) {
 
 // '1'~'5' 만 통과. '01' · '1.0' · '1abc' · ' 1' 전부 거부.
 export function parseStepParam(raw) {
-  return /^[1-5]$/.test(raw ?? '') ? Number(raw) : null;
+  return /^[1-5]$/.test(raw ?? "") ? Number(raw) : null;
 }
 
 /**
@@ -82,25 +84,29 @@ export function isQuestionAnswered(question, value) {
   if (!isAnswered(question?.type, value)) return false;
   // Q-10 확정(2026-08-11) — 리커트는 12문장 전부 응답해야 통과한다(진행 게이트, 분모 산식은 무변경).
   // extra.statements 가 문장 키의 정본이라 개수를 여기서 재선언하지 않고 그대로 참조한다.
-  if (question?.type === 'likert')
-    return Object.keys(value ?? {}).length >= (question.extra?.statements?.length ?? 0);
+  if (question?.type === "likert")
+    return (
+      Object.keys(value ?? {}).length >=
+      (question.extra?.statements?.length ?? 0)
+    );
   const required = question?.requiredFields;
   if (!Array.isArray(required) || required.length === 0) return true;
-  return required.every((key) => value?.[key] !== '' && value?.[key] != null);
+  return required.every((key) => value?.[key] !== "" && value?.[key] != null);
 }
 
 export function isAnswered(type, value) {
   if (value == null) return false;
-  if (type === 'checkbox-row') return Array.isArray(value) && value.length > 0;
-  if (type === 'likert') return typeof value === 'object' && Object.keys(value).length > 0;
-  if (type === 'grade-grid') {
+  if (type === "checkbox-row") return Array.isArray(value) && value.length > 0;
+  if (type === "likert")
+    return typeof value === "object" && Object.keys(value).length > 0;
+  if (type === "grade-grid") {
     return (
-      typeof value === 'object' &&
-      Object.values(value).some((field) => field !== '' && field != null)
+      typeof value === "object" &&
+      Object.values(value).some((field) => field !== "" && field != null)
     );
   }
-  if (type === 'cascade') {
-    return typeof value === 'object' && Boolean(value.university);
+  if (type === "cascade") {
+    return typeof value === "object" && Boolean(value.university);
   }
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === "string" && value.trim().length > 0;
 }

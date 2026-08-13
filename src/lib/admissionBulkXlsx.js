@@ -115,35 +115,44 @@
 // 안에서 같이 고쳤다 — `|| null` 제거, `''` 유지).
 // =====================================================================
 
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
-import { buildHwpCategoryDoc, renderDocToHtml, HWP_SECTION_HTML_KEYS, clean } from './admissionParsing.js';
-import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, shouldSkipForRegression } from './admissionDoc.js';
+import {
+  buildHwpCategoryDoc,
+  renderDocToHtml,
+  HWP_SECTION_HTML_KEYS,
+  clean,
+} from "./admissionParsing.js";
+import {
+  HWP_SECTION_JSON_KEYS,
+  validateAdmissionDoc,
+  shouldSkipForRegression,
+} from "./admissionDoc.js";
 
 export const BULK_XLSX_COLUMNS = [
-  'id',
-  'admission_year',
-  'source_name',
-  'source_version',
-  'region',
-  'university_name',
-  'university_key',
-  'campus',
-  'previous_year_changes',
-  'selection_method',
-  'minimum_requirements',
-  'exam_schedule',
-  'school_record_method',
-  'recruitment_quota',
-  'jungsi_guideline_url',
-  'official_source_url',
-  'memo',
-  'detail_status',
-  'matched_hwp_name',
-  'is_active',
-  'created_at',
-  'updated_at',
-  'matched_text_name'
+  "id",
+  "admission_year",
+  "source_name",
+  "source_version",
+  "region",
+  "university_name",
+  "university_key",
+  "campus",
+  "previous_year_changes",
+  "selection_method",
+  "minimum_requirements",
+  "exam_schedule",
+  "school_record_method",
+  "recruitment_quota",
+  "jungsi_guideline_url",
+  "official_source_url",
+  "memo",
+  "detail_status",
+  "matched_hwp_name",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "matched_text_name",
 ];
 
 // 6개 카테고리 → raw 컬럼명(1:1, BULK_XLSX_COLUMNS의 컬럼명과 동일하다).
@@ -155,17 +164,17 @@ const CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 // 애초에 매칭 키(연도/university_key)가 잘리면 행 자체가 무의미해져
 // 아래 필수값 검사에서 걸러진다.
 const METADATA_COLUMNS_FOR_TRUNCATION_CHECK = [
-  'source_name',
-  'source_version',
-  'region',
-  'university_name',
-  'campus',
-  'jungsi_guideline_url',
-  'official_source_url',
-  'memo',
-  'detail_status',
-  'matched_hwp_name',
-  'matched_text_name'
+  "source_name",
+  "source_version",
+  "region",
+  "university_name",
+  "campus",
+  "jungsi_guideline_url",
+  "official_source_url",
+  "memo",
+  "detail_status",
+  "matched_hwp_name",
+  "matched_text_name",
 ];
 
 // 엑셀 셀 문자 수 한도(SheetJS가 쓰기 시점에 이 값으로 throw한다 —
@@ -174,16 +183,18 @@ const METADATA_COLUMNS_FOR_TRUNCATION_CHECK = [
 // src/lib/이 src/components/에 의존하면 계층이 거꾸로 된다).
 export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
-  '…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]';
+  "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
 function serializeExportCell(rawValue) {
-  if (rawValue === null || rawValue === undefined) return '';
-  if (typeof rawValue === 'boolean' || typeof rawValue === 'number') return rawValue;
+  if (rawValue === null || rawValue === undefined) return "";
+  if (typeof rawValue === "boolean" || typeof rawValue === "number")
+    return rawValue;
   return String(rawValue);
 }
 
 function truncateIfNeeded(value, location, truncatedCells) {
-  if (typeof value !== 'string' || value.length <= MAX_XLSX_CELL_LENGTH) return value;
+  if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
+    return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
   truncatedCells.push({ ...location, originalLength: value.length });
   return value.slice(0, keep) + TRUNCATION_MARKER;
@@ -214,10 +225,10 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // 매 셀의 t/f를 직접 검사해 회귀를 잡는다).
 function forceStringCellTypes(worksheet) {
   Object.keys(worksheet).forEach((address) => {
-    if (address.startsWith('!')) return;
+    if (address.startsWith("!")) return;
     const cell = worksheet[address];
-    if (cell && typeof cell.v === 'string') {
-      cell.t = 's';
+    if (cell && typeof cell.v === "string") {
+      cell.t = "s";
       delete cell.f; // 혹시라도 수식으로 잡혔으면(현재는 안 그렇다) 제거
     }
   });
@@ -238,13 +249,19 @@ export function exportAdmissionRowsToXlsx(rows) {
   const dataRows = rows.map((row, rowIndex) =>
     BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
-      return truncateIfNeeded(serialized, { id: row?.id, rowIndex, column }, truncatedCells);
-    })
+      return truncateIfNeeded(
+        serialized,
+        { id: row?.id, rowIndex, column },
+        truncatedCells,
+      );
+    }),
   );
 
-  const worksheet = forceStringCellTypes(XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]));
+  const worksheet = forceStringCellTypes(
+    XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]),
+  );
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, '모집요강');
+  XLSX.utils.book_append_sheet(workbook, worksheet, "모집요강");
 
   return { workbook, truncatedCells };
 }
@@ -256,18 +273,18 @@ export function exportAdmissionRowsToXlsx(rows) {
 // 늘려간 적이 있다). 배열 자체가 진실의 원천이므로 여기서 한 번만 접는다.
 function buildTypeCounts(items) {
   return items.reduce((acc, item) => {
-    const key = item.type || 'unknown';
+    const key = item.type || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 }
 
 function parseBooleanCell(value, fallback = true) {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
-  if (s === 'TRUE' || s === '1') return true;
-  if (s === 'FALSE' || s === '0') return false;
+  if (s === "TRUE" || s === "1") return true;
+  if (s === "FALSE" || s === "0") return false;
   return fallback;
 }
 
@@ -289,11 +306,21 @@ function parseBooleanCell(value, fallback = true) {
 //   - 기존 doc이 없으면(신규 대학/연도, 또는 그 카테고리가 비어 있던
 //     기존 행) 비교 대상이 없다 — raw에서 그냥 생성한다("generated-
 //     from-raw", 경고 불필요).
-function buildCategoryFromXlsxRow(sectionKey, rawText, existingDoc, existingRawText, referenceRow) {
+function buildCategoryFromXlsxRow(
+  sectionKey,
+  rawText,
+  existingDoc,
+  existingRawText,
+  referenceRow,
+) {
   if (existingDoc) {
-    const rawUnchanged = clean(rawText) === clean(existingRawText || '');
+    const rawUnchanged = clean(rawText) === clean(existingRawText || "");
     if (rawUnchanged) {
-      return { doc: undefined, html: undefined, jsonSource: 'rawUnchangedPreserved' };
+      return {
+        doc: undefined,
+        html: undefined,
+        jsonSource: "rawUnchangedPreserved",
+      };
     }
   }
 
@@ -303,13 +330,18 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, existingDoc, existingRawT
 
   if (rawText) {
     try {
-      const generated = buildHwpCategoryDoc(sectionKey, rawText, referenceRow, referenceRow.university_name);
+      const generated = buildHwpCategoryDoc(
+        sectionKey,
+        rawText,
+        referenceRow,
+        referenceRow.university_name,
+      );
       const { ok, errors } = validateAdmissionDoc(generated);
       if (ok) {
         candidate = generated;
         html = renderDocToHtml(generated, sectionKey);
       } else {
-        detail = `raw→doc 생성 실패: ${errors.join('; ')}`;
+        detail = `raw→doc 생성 실패: ${errors.join("; ")}`;
       }
     } catch (err) {
       detail = `raw→doc 예외: ${err.message}`;
@@ -317,15 +349,29 @@ function buildCategoryFromXlsxRow(sectionKey, rawText, existingDoc, existingRawT
   }
 
   if (candidate === undefined) {
-    return { doc: undefined, html: undefined, jsonSource: rawText ? 'failed' : 'empty', jsonDetail: detail };
+    return {
+      doc: undefined,
+      html: undefined,
+      jsonSource: rawText ? "failed" : "empty",
+      jsonDetail: detail,
+    };
   }
 
   const guard = shouldSkipForRegression(existingDoc, candidate);
   if (guard.skip) {
-    return { doc: undefined, html: undefined, jsonSource: 'regressionSkipped', jsonDetail: guard.detail };
+    return {
+      doc: undefined,
+      html: undefined,
+      jsonSource: "regressionSkipped",
+      jsonDetail: guard.detail,
+    };
   }
 
-  return { doc: candidate, html, jsonSource: existingDoc ? 'rawChangedRegenerated' : 'generated-from-raw' };
+  return {
+    doc: candidate,
+    html,
+    jsonSource: existingDoc ? "rawChangedRegenerated" : "generated-from-raw",
+  };
 }
 
 /**
@@ -389,7 +435,13 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   const newYearsSet = new Set();
 
   if (!worksheet) {
-    errors.push({ row: -1, admissionYear: null, universityKey: null, type: 'sheetNotFound', reason: '시트를 찾을 수 없습니다.' });
+    errors.push({
+      row: -1,
+      admissionYear: null,
+      universityKey: null,
+      type: "sheetNotFound",
+      reason: "시트를 찾을 수 없습니다.",
+    });
     return {
       rows,
       errors,
@@ -402,8 +454,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
         newUniversityCount,
         truncatedCellSkipCount,
         warningCounts: buildTypeCounts(warnings),
-        errorCounts: buildTypeCounts(errors)
-      }
+        errorCounts: buildTypeCounts(errors),
+      },
     };
   }
 
@@ -413,7 +465,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   // "같은 연도의 신규 대학"으로 보고 경고를 남긴다(오타 방어).
   const knownYears = new Set();
   existingRows.forEach((_value, key) => {
-    const year = key.split('::')[0];
+    const year = key.split("::")[0];
     knownYears.add(year);
   });
 
@@ -425,8 +477,13 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
   const columnIndexByName = new Map();
   headerRow.forEach((name, idx) => {
-    const key = typeof name === 'string' ? name.trim() : name;
-    if (key !== undefined && key !== null && key !== '' && !columnIndexByName.has(key)) {
+    const key = typeof name === "string" ? name.trim() : name;
+    if (
+      key !== undefined &&
+      key !== null &&
+      key !== "" &&
+      !columnIndexByName.has(key)
+    ) {
       columnIndexByName.set(key, idx);
     }
   });
@@ -435,7 +492,13 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   bodyRows.forEach((rawRow, rowIndex) => {
     // 완전히 빈 행(엑셀 트레일링 공백 등)은 조용히 건너뛴다 — 집계에도
     // 안 잡는다(관리자가 의도적으로 남긴 빈 행이 아니라 파일 잡음이다).
-    if (!rawRow.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')) return;
+    if (
+      !rawRow.some(
+        (cell) =>
+          cell !== undefined && cell !== null && String(cell).trim() !== "",
+      )
+    )
+      return;
 
     const rowObj = {};
     BULK_XLSX_COLUMNS.forEach((col) => {
@@ -451,16 +514,19 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     // 잘림 마커 검사(메타데이터 컬럼만, 행 전체 거부) — 콘텐츠 카테고리
     // 6종의 잘림은 아래 CATEGORY_KEYS.forEach 안에서 컬럼 단위로 따로
     // 처리한다(행을 거부하지 않는다).
-    const truncatedMetadataColumns = METADATA_COLUMNS_FOR_TRUNCATION_CHECK.filter(
-      (col) => typeof rowObj[col] === 'string' && rowObj[col].includes(TRUNCATION_MARKER)
-    );
+    const truncatedMetadataColumns =
+      METADATA_COLUMNS_FOR_TRUNCATION_CHECK.filter(
+        (col) =>
+          typeof rowObj[col] === "string" &&
+          rowObj[col].includes(TRUNCATION_MARKER),
+      );
     if (truncatedMetadataColumns.length) {
       errors.push({
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
-        type: 'truncatedMetadata',
-        reason: `잘림 마커가 있는 메타데이터 컬럼(${truncatedMetadataColumns.join(', ')})이 있어 행을 거부합니다(잘린 채로 반영하면 데이터가 손상됩니다).`
+        type: "truncatedMetadata",
+        reason: `잘림 마커가 있는 메타데이터 컬럼(${truncatedMetadataColumns.join(", ")})이 있어 행을 거부합니다(잘린 채로 반영하면 데이터가 손상됩니다).`,
       });
       willSkip += 1;
       return;
@@ -471,21 +537,27 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     // 실측상 비어 있던 적이 없어 거부해도 정상 업로드를 막지 않는다.
     if (!admissionYear || !universityKey || !region) {
       const missing = [];
-      if (!admissionYear) missing.push('admission_year');
-      if (!universityKey) missing.push('university_key');
-      if (!region) missing.push('region');
+      if (!admissionYear) missing.push("admission_year");
+      if (!universityKey) missing.push("university_key");
+      if (!region) missing.push("region");
       errors.push({
         row: rowIndex,
         admissionYear: rowObj.admission_year,
         universityKey,
-        type: 'missingRequiredFields',
-        reason: `${missing.join(', ')}가 비어 있습니다.`
+        type: "missingRequiredFields",
+        reason: `${missing.join(", ")}가 비어 있습니다.`,
       });
       willSkip += 1;
       return;
     }
     if (!universityName) {
-      errors.push({ row: rowIndex, admissionYear, universityKey, type: 'missingUniversityName', reason: 'university_name이 비어 있습니다.' });
+      errors.push({
+        row: rowIndex,
+        admissionYear,
+        universityKey,
+        type: "missingUniversityName",
+        reason: "university_name이 비어 있습니다.",
+      });
       willSkip += 1;
       return;
     }
@@ -504,8 +576,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           row: rowIndex,
           admissionYear,
           universityKey,
-          type: 'newUniversity',
-          reason: `신규 대학 추가(이미 있는 연도 ${admissionYear}에 새 university_key) — 오타가 아닌지 확인하세요.`
+          type: "newUniversity",
+          reason: `신규 대학 추가(이미 있는 연도 ${admissionYear}에 새 university_key) — 오타가 아닌지 확인하세요.`,
         });
       }
     } else {
@@ -533,17 +605,22 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       detail_status: clean(rowObj.detail_status) || null,
       matched_hwp_name: clean(rowObj.matched_hwp_name) || null,
       matched_text_name: clean(rowObj.matched_text_name) || null,
-      is_active: parseBooleanCell(rowObj.is_active, true)
+      is_active: parseBooleanCell(rowObj.is_active, true),
       // id: insert면 생략(uuid 자동생성), update면 아래서 채운다.
       // created_at/updated_at: 읽지도 쓰지도 않는다(DB가 관리).
     };
     if (!isInsert) payload.id = existing.id;
 
-    const referenceRow = { university_name: universityName, detail_status: payload.detail_status };
+    const referenceRow = {
+      university_name: universityName,
+      detail_status: payload.detail_status,
+    };
 
     CATEGORY_KEYS.forEach((sectionKey) => {
       const rawCellValue = rowObj[sectionKey];
-      const rawTruncated = typeof rawCellValue === 'string' && rawCellValue.includes(TRUNCATION_MARKER);
+      const rawTruncated =
+        typeof rawCellValue === "string" &&
+        rawCellValue.includes(TRUNCATION_MARKER);
 
       // 잘림 마커가 있으면 이 카테고리는 raw/json/html 전부 payload에서
       // 뺀다(기존 DB 값 보존) — html이 포맷에서 빠져 지금은 실측상 0건
@@ -555,8 +632,8 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
           admissionYear,
           universityKey,
           column: sectionKey,
-          type: 'truncated',
-          reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${sectionKey})`
+          type: "truncated",
+          reason: `잘림 마커가 있어 기존 값 보존(컬럼: ${sectionKey})`,
         });
         return;
       }
@@ -582,28 +659,36 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
         rawText,
         existingDoc,
         existingRawText,
-        referenceRow
+        referenceRow,
       );
 
-      if (jsonSource === 'failed') {
-        warnings.push({ row: rowIndex, admissionYear, universityKey, column: sectionKey, type: 'importFailed', reason: jsonDetail });
-      } else if (jsonSource === 'regressionSkipped') {
+      if (jsonSource === "failed") {
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
-          type: 'regressionSkipped',
-          reason: `정보량 감소로 기존 값 보존: ${jsonDetail}`
+          type: "importFailed",
+          reason: jsonDetail,
         });
-      } else if (jsonSource === 'rawChangedRegenerated') {
+      } else if (jsonSource === "regressionSkipped") {
         warnings.push({
           row: rowIndex,
           admissionYear,
           universityKey,
           column: sectionKey,
-          type: 'rawChangedRegenerated',
-          reason: '원문(raw)이 기존과 달라 문서를 다시 생성했습니다 — 표 구조가 단순해질 수 있습니다.'
+          type: "regressionSkipped",
+          reason: `정보량 감소로 기존 값 보존: ${jsonDetail}`,
+        });
+      } else if (jsonSource === "rawChangedRegenerated") {
+        warnings.push({
+          row: rowIndex,
+          admissionYear,
+          universityKey,
+          column: sectionKey,
+          type: "rawChangedRegenerated",
+          reason:
+            "원문(raw)이 기존과 달라 문서를 다시 생성했습니다 — 표 구조가 단순해질 수 있습니다.",
         });
       }
       // 'rawUnchangedPreserved'는 경고를 만들지 않는다 — 안 고쳤으니
@@ -632,7 +717,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       newUniversityCount,
       truncatedCellSkipCount,
       warningCounts: buildTypeCounts(warnings),
-      errorCounts: buildTypeCounts(errors)
-    }
+      errorCounts: buildTypeCounts(errors),
+    },
   };
 }

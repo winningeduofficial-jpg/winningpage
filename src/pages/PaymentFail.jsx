@@ -1,9 +1,9 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from "react-router-dom";
 
 export default function PaymentFail() {
   const [params] = useSearchParams();
-  const code = params.get('code');
-  const message = params.get('message');
+  const code = params.get("code");
+  const message = params.get("message");
 
   // 시안에 결제 실패 프레임이 없어 문구·구성은 코드 정본을 유지하고 팔레트·타입만 정리했다.
   // 배경은 결제 플로우 3화면(상품선택/주문서/주문완료)과 동일한 흰색으로 통일하고,
@@ -32,7 +32,7 @@ export default function PaymentFail() {
             결제 실패
           </h1>
           <p className="mt-3 break-keep text-[0.875rem] font-normal leading-[1.375rem] text-ink sm:text-[1rem]">
-            {message ?? '결제가 취소되었거나 실패했습니다.'}
+            {message ?? "결제가 취소되었거나 실패했습니다."}
           </p>
           {code && (
             <p className="mt-1 text-[0.75rem] font-normal leading-[1.4] text-ink-sub">

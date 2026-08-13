@@ -2,11 +2,11 @@
 // 프론트 코드에는 가격 데이터를 하드코딩/폴백하지 않는다(사용자 요구: "가격표가
 // 프론트에 있으면 안 된다"). 조회 실패 시에도 임의의 가격을 지어내지 말고
 // 호출부가 loading/error 상태를 그대로 사용자에게 안내해야 한다.
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "./supabase";
 
 const PRODUCT_COLUMNS =
-  'id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active';
+  "id, service_key, service_name, service_desc, service_sort_order, sort_order, name, list_price, price, badge, is_recommended, is_active";
 
 // Supabase products 행 → 서비스별 그룹 구조로 변환
 function groupProducts(rows) {
@@ -16,9 +16,11 @@ function groupProducts(rows) {
       map.set(r.service_key, {
         key: r.service_key,
         name: r.service_name,
-        desc: r.service_desc || '',
-        order: Number.isFinite(r.service_sort_order) ? r.service_sort_order : 99,
-        products: []
+        desc: r.service_desc || "",
+        order: Number.isFinite(r.service_sort_order)
+          ? r.service_sort_order
+          : 99,
+        products: [],
       });
     }
     map.get(r.service_key).products.push({
@@ -27,7 +29,7 @@ function groupProducts(rows) {
       listPrice: r.list_price,
       price: r.price,
       badge: r.badge,
-      recommended: !!r.is_recommended
+      recommended: !!r.is_recommended,
     });
   });
   return Array.from(map.values()).sort((a, b) => a.order - b.order);
@@ -38,13 +40,13 @@ function groupProducts(rows) {
 // (호출부인 useProducts가 error 상태로 변환한다) — 조용히 빈 배열을 반환하지 않는다.
 export async function fetchProducts(serviceKey) {
   let query = supabase
-    .from('products')
+    .from("products")
     .select(PRODUCT_COLUMNS)
-    .eq('is_active', true)
-    .order('service_sort_order', { ascending: true })
-    .order('sort_order', { ascending: true });
+    .eq("is_active", true)
+    .order("service_sort_order", { ascending: true })
+    .order("sort_order", { ascending: true });
 
-  if (serviceKey) query = query.eq('service_key', serviceKey);
+  if (serviceKey) query = query.eq("service_key", serviceKey);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -73,7 +75,7 @@ export function useProducts(serviceKey) {
         setServices(grouped);
       } catch (err) {
         if (!alive) return;
-        console.warn('products 조회 실패:', err?.message || err);
+        console.warn("products 조회 실패:", err?.message || err);
         setError(err);
       } finally {
         if (alive) setLoading(false);

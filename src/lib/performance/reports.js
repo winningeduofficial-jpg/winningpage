@@ -14,30 +14,37 @@
 //         / 400 INVALID_SESSION_ID|INVALID_CURSOR / 405 METHOD_NOT_ALLOWED / 500 INTERNAL
 //         — `design-report.js`/`submission.js`와 같은 `userMessage` 규약으로 감싼다.
 
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 const FALLBACK_MESSAGE = {
-  UNAUTHENTICATED: '로그인이 필요합니다.',
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요.',
-  INVALID_SESSION_ID: '잘못된 세션이에요.',
-  INVALID_CURSOR: '목록을 불러오지 못했어요. 새로고침한 뒤 다시 시도해 주세요.'
+  UNAUTHENTICATED: "로그인이 필요합니다.",
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요.",
+  INVALID_SESSION_ID: "잘못된 세션이에요.",
+  INVALID_CURSOR: "목록을 불러오지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
 };
 
-const GENERIC_MESSAGE = '저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+const GENERIC_MESSAGE =
+  "저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 export class ReportsError extends Error {
   constructor(code, message) {
     super(message);
-    this.name = 'ReportsError';
+    this.name = "ReportsError";
     this.code = code;
     this.userMessage = message;
   }
 }
 
 function toError(data, response) {
-  const code = data?.error?.code || (response?.status === 401 ? 'UNAUTHENTICATED' : 'UNKNOWN');
-  return new ReportsError(code, data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE);
+  const code =
+    data?.error?.code ||
+    (response?.status === 401 ? "UNAUTHENTICATED" : "UNKNOWN");
+  return new ReportsError(
+    code,
+    data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE,
+  );
 }
 
 async function callReportsApi(accessToken, params) {
@@ -45,10 +52,10 @@ async function callReportsApi(accessToken, params) {
 
   try {
     response = await fetch(`/api/performance/reports?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch (error) {
-    const wrapped = new ReportsError('NETWORK', NETWORK_ERROR);
+    const wrapped = new ReportsError("NETWORK", NETWORK_ERROR);
     wrapped.cause = error;
     throw wrapped;
   }
@@ -64,10 +71,14 @@ async function callReportsApi(accessToken, params) {
  * @returns {Promise<{items: object[], nextCursor: string|null}>}
  * @throws {ReportsError}
  */
-export async function fetchSavedReportsList({ accessToken, cursor = null, limit } = {}) {
+export async function fetchSavedReportsList({
+  accessToken,
+  cursor = null,
+  limit,
+} = {}) {
   const params = new URLSearchParams();
-  if (cursor) params.set('cursor', cursor);
-  if (limit) params.set('limit', String(limit));
+  if (cursor) params.set("cursor", cursor);
+  if (limit) params.set("limit", String(limit));
   return callReportsApi(accessToken, params);
 }
 

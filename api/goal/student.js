@@ -22,7 +22,7 @@
 // clamp(0, 100, base + Σdelta) 로 다시 더한다(§4). 이 파일은 그 값을 읽어
 // 카멜 케이스로 옮기기만 한다.
 
-import { getSchoolCutType } from '../../src/lib/goal/calc/index.js';
+import { getSchoolCutType } from "../../src/lib/goal/calc/index.js";
 
 import {
   buildAwaitingCutsPayload,
@@ -30,14 +30,14 @@ import {
   fetchProbabilityHistory,
   fetchStudentRow,
   fetchStudentStateRow,
-  openGoalSession
-} from '../_lib/goalRepo.js';
+  openGoalSession,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "GET") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -64,21 +64,28 @@ export default async function handler(req, res) {
     // 확률 필드를 전부 생략해서, UI 가 "0%"가 아니라 "목표 대학 재선택"을
     // 그리도록 한다(calcNaesinProb 은 컷 누락을 확률 0 으로 접어버린다 —
     // primitives.js:119 — 그래서 0 과 미산출을 API 레벨에서 갈라 준다).
-    if (row.status === 'awaiting_cuts' || !row.onboarded_at) {
+    if (row.status === "awaiting_cuts" || !row.onboarded_at) {
       return res.status(200).json(buildAwaitingCutsPayload(row));
     }
 
     const [stateRow, historyRows] = await Promise.all([
       fetchStudentStateRow(supabaseAdmin, profileId),
-      fetchProbabilityHistory(supabaseAdmin, profileId)
+      fetchProbabilityHistory(supabaseAdmin, profileId),
     ]);
 
     // schoolCutType 은 DB 에 저장하지 않고 school_type 에서 매번 파생한다(§7-2).
     return res
       .status(200)
-      .json(buildStudentPayload(row, stateRow, getSchoolCutType(row.school_type), historyRows));
+      .json(
+        buildStudentPayload(
+          row,
+          stateRow,
+          getSchoolCutType(row.school_type),
+          historyRows,
+        ),
+      );
   } catch (error) {
-    console.error('goal/student error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/student error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

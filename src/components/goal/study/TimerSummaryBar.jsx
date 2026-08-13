@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import GoalCard from '../GoalCard';
-import { formatClock } from './SubjectTimerCard';
-import { stopGoalTimer } from '../../../lib/goalApi';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import GoalCard from "../GoalCard";
+import { formatClock } from "./SubjectTimerCard";
+import { stopGoalTimer } from "../../../lib/goalApi";
 
 // 전체 합계 바(#25, 860×100) — 4과목 elapsedSeconds 합계. part-09 §135 "합계 반영: 클라이언트 계산".
 // CTA `전체 종료 후 기록` → 진행 중인 세션이 있으면 서버에 stop을 보내 마감한 뒤(#26 오늘의 공부
@@ -17,14 +17,19 @@ export default function TimerSummaryBar({ totalSeconds }) {
     try {
       await stopGoalTimer();
     } finally {
-      navigate('/app/goal/daily-record');
+      navigate("/app/goal/daily-record");
     }
   };
 
   return (
-    <GoalCard tone="neutral" className="flex flex-wrap items-center justify-between gap-4 px-[2rem] py-[1.5rem]">
+    <GoalCard
+      tone="neutral"
+      className="flex flex-wrap items-center justify-between gap-4 px-[2rem] py-[1.5rem]"
+    >
       <div className="flex items-baseline gap-3">
-        <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">전체 합계</span>
+        <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
+          전체 합계
+        </span>
         <span className="text-[1.5rem] font-bold leading-[1.2] tabular-nums text-ink-strong">
           {formatClock(totalSeconds)}
         </span>

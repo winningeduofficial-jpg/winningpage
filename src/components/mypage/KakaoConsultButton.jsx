@@ -1,4 +1,4 @@
-import { COMPANY } from '../../data/company';
+import { COMPANY } from "../../data/company";
 
 // 카카오톡 상담 플로팅 버튼 (Figma 3679:1230 버튼 / 3679:1233 말풍선).
 //
@@ -35,7 +35,13 @@ export default function KakaoConsultButton() {
         rel="noopener noreferrer"
         className="flex h-[3.125rem] items-center gap-2 rounded-[1.5rem] bg-[#fbe300] pl-5 pr-6 text-base font-semibold text-ink-title shadow-[0_8px_24px_rgba(13,27,42,0.16)] transition hover:brightness-95"
       >
-        <svg width="28" height="26" viewBox="0 0 28 26" aria-hidden="true" fill="currentColor">
+        <svg
+          width="28"
+          height="26"
+          viewBox="0 0 28 26"
+          aria-hidden="true"
+          fill="currentColor"
+        >
           {/* 카카오톡 말풍선 형태의 일반 아이콘 — 공식 로고 자산으로 교체 예정(상단 주석). */}
           <path d="M14 1C6.82 1 1 5.63 1 11.34c0 3.62 2.4 6.8 6.02 8.63-.2.72-1.28 4.4-1.32 4.7 0 0-.03.22.11.3.14.09.3.02.3.02.4-.06 4.66-3.05 5.4-3.57.82.12 1.65.18 2.49.18 7.18 0 13-4.63 13-10.34C27 5.63 21.18 1 14 1z" />
         </svg>

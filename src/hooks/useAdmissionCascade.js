@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // admissionResultsQueries.js(다른 세션 소유, recruitment_period 필터가 새 스키마에서 깨져 있다)를
 // 재사용하지 않는다 — diagnosisAdmissionMasterQueries.js 헤더 주석 참고.
 import {
   fetchAdmissionUniversities,
   fetchAdmissionDepartments,
-  fetchAdmissionTrackRows
-} from '../lib/diagnosisAdmissionMasterQueries';
-import { ADMISSION_FETCH_ERROR, fetchAdmissionCuts } from '../lib/diagnosisAdmissionCuts';
+  fetchAdmissionTrackRows,
+} from "../lib/diagnosisAdmissionMasterQueries";
+import {
+  ADMISSION_FETCH_ERROR,
+  fetchAdmissionCuts,
+} from "../lib/diagnosisAdmissionCuts";
 import {
   NO_SUBJECT_REFLECTION_LABEL,
   deriveAdmissionTracks,
   deriveMainTracks,
-  deriveSubjectReflections
-} from '../lib/diagnosisAdmissionCascade';
+  deriveSubjectReflections,
+} from "../lib/diagnosisAdmissionCascade";
 
 const EMPTY_RESOURCE = { data: [], loading: false, error: null };
 
@@ -59,7 +62,10 @@ export function useAdmissionCascade(cascadeValue) {
   // 다른 단계(학과·전형)처럼 선택 변경으로 자연히 다시 호출될 경로가 없다 — 새로고침만이
   // 유일한 복구였다. nonce 를 올려 effect 를 재실행시키는 명시적 재시도 경로를 둔다.
   const [universitiesNonce, setUniversitiesNonce] = useState(0);
-  const retryUniversities = useCallback(() => setUniversitiesNonce((n) => n + 1), []);
+  const retryUniversities = useCallback(
+    () => setUniversitiesNonce((n) => n + 1),
+    [],
+  );
 
   // 대학 목록. 셸 마운트 1회 + 재시도 시.
   useEffect(() => {
@@ -74,8 +80,10 @@ export function useAdmissionCascade(cascadeValue) {
   }, [universitiesNonce]);
 
   const universityKey = useMemo(
-    () => universities.data.find((u) => u.university_name === value.university)?.university_key ?? null,
-    [universities.data, value.university]
+    () =>
+      universities.data.find((u) => u.university_name === value.university)
+        ?.university_key ?? null,
+    [universities.data, value.university],
   );
 
   // 학과 목록. 대학 선택 시.
@@ -95,8 +103,10 @@ export function useAdmissionCascade(cascadeValue) {
   }, [universityKey]);
 
   const departmentKey = useMemo(
-    () => departments.data.find((d) => d.department_name === value.department)?.department_key ?? null,
-    [departments.data, value.department]
+    () =>
+      departments.data.find((d) => d.department_name === value.department)
+        ?.department_key ?? null,
+    [departments.data, value.department],
   );
 
   // 전형 유형·세부 전형명·반영교과 파생용 원본 행. 학과 선택 시 1회 — 이후 3단계 옵션을 전부
@@ -108,31 +118,44 @@ export function useAdmissionCascade(cascadeValue) {
     }
     let alive = true;
     setTrackRows((prev) => ({ ...prev, loading: true, error: null }));
-    fetchAdmissionTrackRows(universityKey, departmentKey).then(({ data, error }) => {
-      if (alive) setTrackRows({ data, loading: false, error });
-    });
+    fetchAdmissionTrackRows(universityKey, departmentKey).then(
+      ({ data, error }) => {
+        if (alive) setTrackRows({ data, loading: false, error });
+      },
+    );
     return () => {
       alive = false;
     };
   }, [universityKey, departmentKey]);
 
-  const mainTrackOptions = useMemo(() => deriveMainTracks(trackRows.data), [trackRows.data]);
+  const mainTrackOptions = useMemo(
+    () => deriveMainTracks(trackRows.data),
+    [trackRows.data],
+  );
   const admissionTrackOptions = useMemo(
     () => deriveAdmissionTracks(trackRows.data, value.admissionType),
-    [trackRows.data, value.admissionType]
+    [trackRows.data, value.admissionType],
   );
   const subjectReflectionCandidates = useMemo(
-    () => deriveSubjectReflections(trackRows.data, value.admissionType, value.detailType),
-    [trackRows.data, value.admissionType, value.detailType]
+    () =>
+      deriveSubjectReflections(
+        trackRows.data,
+        value.admissionType,
+        value.detailType,
+      ),
+    [trackRows.data, value.admissionType, value.detailType],
   );
 
   // 5단째는 후보 2개 이상일 때만 화면에 묻는다(B-1 확정). 1개뿐이면 그 값을 그대로, 0개면 null 을 쓴다.
   const showSubjectReflectionLevel = subjectReflectionCandidates.length >= 2;
   const rawSubjectReflection = showSubjectReflectionLevel
     ? value.subjectReflection || null
-    : subjectReflectionCandidates[0] ?? null;
+    : (subjectReflectionCandidates[0] ?? null);
   // seam(fetchAdmissionCuts)은 DB 원본 의미(값 없음=null)를 받는다 — UI 표시용 대체 라벨을 되돌린다.
-  const resolvedSubjectReflection = rawSubjectReflection === NO_SUBJECT_REFLECTION_LABEL ? null : rawSubjectReflection;
+  const resolvedSubjectReflection =
+    rawSubjectReflection === NO_SUBJECT_REFLECTION_LABEL
+      ? null
+      : rawSubjectReflection;
 
   // 최종 컷 조회 — 전형 유형+세부 전형명(+반영교과, 후보 2개 이상이면 그것까지)이 전부 정해지면 1회.
   useEffect(() => {
@@ -165,7 +188,7 @@ export function useAdmissionCascade(cascadeValue) {
       departmentKey,
       mainTrack: value.admissionType,
       admissionTrack: value.detailType,
-      subjectReflection: resolvedSubjectReflection
+      subjectReflection: resolvedSubjectReflection,
     })
       .then((result) => {
         if (!alive) return;
@@ -197,7 +220,7 @@ export function useAdmissionCascade(cascadeValue) {
     value.detailType,
     value.subjectReflection,
     showSubjectReflectionLevel,
-    resolvedSubjectReflection
+    resolvedSubjectReflection,
   ]);
 
   // G-1a — 제출 직전 호출 전용. 진행 중인 컷 조회가 있으면 끝날 때까지 기다린 뒤(=settle) 그
@@ -211,53 +234,53 @@ export function useAdmissionCascade(cascadeValue) {
   const levels = useMemo(() => {
     const base = [
       {
-        key: 'university',
-        label: '대학 선택',
+        key: "university",
+        label: "대학 선택",
         // 정본 마스터(2026-08-11 교체) university_key 표기가 '건국대학교'가 아니라 '건국대'다
         // (전 대학 접미사 '대학교' 없이 '대'로 통일) — 실측값으로 플레이스홀더를 갱신했다.
-        placeholder: '건국대',
+        placeholder: "건국대",
         options: universities.data.map((u) => u.university_name),
         loading: universities.loading,
         error: universities.error,
         // 대학 단계에만 재시도를 준다 — 하위 단계는 상위 선택을 바꾸면 자연히 재조회된다.
-        onRetry: retryUniversities
+        onRetry: retryUniversities,
       },
       {
-        key: 'department',
-        label: '학과 또는 모집단위',
-        placeholder: '경영학과',
+        key: "department",
+        label: "학과 또는 모집단위",
+        placeholder: "경영학과",
         options: departments.data.map((d) => d.department_name),
         loading: departments.loading,
-        error: departments.error
+        error: departments.error,
       },
       {
-        key: 'admissionType',
-        label: '전형 유형',
+        key: "admissionType",
+        label: "전형 유형",
         // main_track 값도 '학생부종합'이 아니라 '종합'(축약형) — 하드코딩하지 않고 조회 결과를
         // 그대로 쓰지만, 플레이스홀더는 예시 텍스트라 실측값으로 맞춘다.
-        placeholder: '종합',
+        placeholder: "종합",
         options: mainTrackOptions,
         loading: trackRows.loading,
-        error: trackRows.error
+        error: trackRows.error,
       },
       {
-        key: 'detailType',
-        label: '세부 전형명',
-        placeholder: '일반전형',
+        key: "detailType",
+        label: "세부 전형명",
+        placeholder: "일반전형",
         options: admissionTrackOptions,
         loading: trackRows.loading,
-        error: trackRows.error
-      }
+        error: trackRows.error,
+      },
     ];
 
     if (showSubjectReflectionLevel) {
       base.push({
-        key: 'subjectReflection',
-        label: '반영교과/영역',
-        placeholder: '국어·영어·수학',
+        key: "subjectReflection",
+        label: "반영교과/영역",
+        placeholder: "국어·영어·수학",
         options: subjectReflectionCandidates,
         loading: trackRows.loading,
-        error: trackRows.error
+        error: trackRows.error,
       });
     }
 
@@ -271,8 +294,14 @@ export function useAdmissionCascade(cascadeValue) {
     showSubjectReflectionLevel,
     trackRows.loading,
     trackRows.error,
-    retryUniversities
+    retryUniversities,
   ]);
 
-  return { levels, cuts, cutsError, admissionMeta: cuts ? { year: cuts.year } : null, awaitCuts };
+  return {
+    levels,
+    cuts,
+    cutsError,
+    admissionMeta: cuts ? { year: cuts.year } : null,
+    awaitCuts,
+  };
 }

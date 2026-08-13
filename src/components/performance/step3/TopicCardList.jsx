@@ -1,4 +1,4 @@
-import TopicCard from './TopicCard';
+import TopicCard from "./TopicCard";
 
 // STEP3 추천 주제 3카드 묶음 + `다른 주제 다시 추천` — docs/수행평가-상세-명세.md §5.10
 // (`3754:3629`/`3754:3746` 실측).
@@ -53,7 +53,7 @@ export default function TopicCardList({
   onRegenerate,
   regenerating = false,
   roundLimited = false,
-  error = null
+  error = null,
 }) {
   const limitReached = roundLimited || round >= maxRounds;
 
@@ -91,9 +91,9 @@ export default function TopicCardList({
           aria-disabled={locked}
           aria-busy={regenerating}
           className={[
-            'flex h-10 w-[8.125rem] items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors',
-            locked ? 'cursor-not-allowed opacity-50' : 'hover:border-ink-sub'
-          ].join(' ')}
+            "flex h-10 w-[8.125rem] items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors",
+            locked ? "cursor-not-allowed opacity-50" : "hover:border-ink-sub",
+          ].join(" ")}
         >
           다른 주제 다시 추천
         </button>
@@ -102,13 +102,16 @@ export default function TopicCardList({
             다른 STEP과 같은 관례로 카드 아래 한 줄 텍스트로만 만든다. */}
         {limitReached && (
           <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
-            주제 추천은 최대 {maxRounds}회까지 받을 수 있어요. 위 주제 중 하나를 눌러 자세한 내용을
-            확인해 주세요.
+            주제 추천은 최대 {maxRounds}회까지 받을 수 있어요. 위 주제 중 하나를
+            눌러 자세한 내용을 확인해 주세요.
           </p>
         )}
 
         {error && (
-          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
+          <p
+            role="alert"
+            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+          >
             {error}
           </p>
         )}

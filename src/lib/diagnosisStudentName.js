@@ -9,7 +9,7 @@
  * 리드 캡처가 범위 밖(Q-01 문서 결정)이므로 이메일·유저네임 대체 조회 체인은 두지 않는다 —
  * id 매칭 1회로 충분하고, 실패하면 조용히 익명 폴백으로 떨어진다.
  */
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 export async function fetchLoggedInStudentName() {
   try {
@@ -17,16 +17,20 @@ export async function fetchLoggedInStudentName() {
     const userId = sessionData?.session?.user?.id;
     if (!userId) return null;
 
-    const { data, error } = await supabase.from('profiles').select('name').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .maybeSingle();
     if (error) {
-      console.error('profiles 이름 조회 실패:', error);
+      console.error("profiles 이름 조회 실패:", error);
       return null;
     }
 
-    const name = typeof data?.name === 'string' ? data.name.trim() : '';
+    const name = typeof data?.name === "string" ? data.name.trim() : "";
     return name.length > 0 ? name : null;
   } catch (error) {
-    console.error('학습진단 이름 조회 중 예외:', error);
+    console.error("학습진단 이름 조회 중 예외:", error);
     return null;
   }
 }

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronDown, LogOut, Settings, X } from 'lucide-react';
-import { buildMyMenu } from './myMenuItems';
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { ChevronDown, LogOut, Settings, X } from "lucide-react";
+import { buildMyMenu } from "./myMenuItems";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -20,7 +20,7 @@ export default function MobileNavDrawer({
   csatDDay,
   isAdmin,
   onLogout,
-  triggerRef
+  triggerRef,
 }) {
   const panelRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -31,7 +31,7 @@ export default function MobileNavDrawer({
 
     const { style } = document.body;
     const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
+    style.overflow = "hidden";
 
     return () => {
       style.overflow = previousOverflow;
@@ -44,20 +44,20 @@ export default function MobileNavDrawer({
     closeButtonRef.current?.focus();
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose();
         return;
       }
 
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const panel = panelRef.current;
       if (!panel) return;
 
-      const focusable = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
-        (el) => !el.hasAttribute('disabled')
-      );
+      const focusable = Array.from(
+        panel.querySelectorAll(FOCUSABLE_SELECTOR),
+      ).filter((el) => !el.hasAttribute("disabled"));
 
       if (focusable.length === 0) return;
 
@@ -73,10 +73,10 @@ export default function MobileNavDrawer({
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       triggerRef?.current?.focus();
     };
   }, [open, onClose, triggerRef]);
@@ -93,12 +93,12 @@ export default function MobileNavDrawer({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] desktop:hidden ${open ? '' : 'pointer-events-none'}`}
+      className={`fixed inset-0 z-[60] desktop:hidden ${open ? "" : "pointer-events-none"}`}
       aria-hidden={!open}
     >
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
-          open ? 'opacity-100' : 'opacity-0'
+          open ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       />
@@ -110,7 +110,7 @@ export default function MobileNavDrawer({
         aria-modal="true"
         aria-label="전체 메뉴"
         className={`absolute right-0 top-0 flex h-full w-[85vw] max-w-[22rem] flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] transition-transform duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
-          open ? 'translate-x-0' : 'translate-x-full'
+          open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
@@ -120,7 +120,7 @@ export default function MobileNavDrawer({
                 {csatDDay}
               </span>
               <span className="text-sm font-medium text-[#1e293b]">
-                {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
+                {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
               </span>
             </div>
           ) : (
@@ -140,7 +140,8 @@ export default function MobileNavDrawer({
 
         <nav className="flex-1 px-2 py-2">
           {navGroups.map((group) => {
-            const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
+            const hasDropdown =
+              Array.isArray(group.items) && group.items.length > 0;
             const isOpen = openGroup === group.title;
 
             return (
@@ -160,13 +161,13 @@ export default function MobileNavDrawer({
                       onClick={() => toggleGroup(group.title)}
                       aria-expanded={isOpen}
                       aria-controls={`mobile-nav-group-${group.title}`}
-                      aria-label={`${group.title} 하위 메뉴 ${isOpen ? '닫기' : '열기'}`}
+                      aria-label={`${group.title} 하위 메뉴 ${isOpen ? "닫기" : "열기"}`}
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[#4d4d4d]"
                     >
                       <ChevronDown
                         size={18}
                         strokeWidth={2.2}
-                        className={`transition ${isOpen ? 'rotate-180' : ''}`}
+                        className={`transition ${isOpen ? "rotate-180" : ""}`}
                       />
                     </button>
                   )}
@@ -176,7 +177,7 @@ export default function MobileNavDrawer({
                   <div
                     id={`mobile-nav-group-${group.title}`}
                     className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 grid ${
-                      isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                     }`}
                   >
                     <div className="min-h-0">

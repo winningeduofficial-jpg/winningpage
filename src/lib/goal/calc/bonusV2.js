@@ -31,7 +31,12 @@
 // 설계했다 — 클라이언트가 delta 를 계산해 보내는 경로를 만들지 않는다(v1 이 겪은
 // "브라우저가 확률을 조작할 수 있다" 문제를 v2 에서 재현하지 않기 위함).
 
-import { getAchievementRateMultiplier, TASK_NAESIN, TASK_MOCK_EXAM, TASK_BONUS_MULTIPLIER } from './bonus.js';
+import {
+  getAchievementRateMultiplier,
+  TASK_NAESIN,
+  TASK_MOCK_EXAM,
+  TASK_BONUS_MULTIPLIER,
+} from "./bonus.js";
 
 // 컨디션 배수 — 신시안 "오늘의 컨디션" 4지선다(part-09 §180,
 // src/data/goalStudyMock.js mockConditionOptions)와 값 도메인이 정확히 같다.
@@ -85,8 +90,10 @@ export function calculateDailyBonusV2({
   // bonus.js 224-226행과 동일 관례 — 목표 시간이 0 이하면 달성률을 100%로 간주한다
   // (분모 0 회피). v2 도 이 규칙을 그대로 따른다(팀장 지시 "목표시간 0 이하면 달성률
   // 100 간주(기존 관례)").
-  const idealRate = normalizedIdealHours > 0 ? (studyHours / normalizedIdealHours) * 100 : 100;
-  const minRate = normalizedMinHours > 0 ? (studyHours / normalizedMinHours) * 100 : 100;
+  const idealRate =
+    normalizedIdealHours > 0 ? (studyHours / normalizedIdealHours) * 100 : 100;
+  const minRate =
+    normalizedMinHours > 0 ? (studyHours / normalizedMinHours) * 100 : 100;
 
   const iRateMult = getAchievementRateMultiplier(idealRate);
   const mRateMult = getAchievementRateMultiplier(minRate);

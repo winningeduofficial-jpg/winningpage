@@ -1,16 +1,16 @@
-import { SECTION_HEADING_CLASS } from './serviceTokens';
+import { SECTION_HEADING_CLASS } from "./serviceTokens";
 
 // surface: 리터럴 lookup — Tailwind JIT 는 `bg-[${surface}]` 식 템플릿 조립을 스캔하지
 // 못해 클래스가 조용히 사라진다. 미등록 값은 폴백 없이 undefined 로 두어 즉시 눈에 띄게
 // 깨뜨린다(ServiceStepCards STEP_COLS / ServiceTestimonials TESTIMONIAL_COLS 와 동일 규약).
 const SECTION_SURFACE = {
-  white: 'bg-white',
-  gray: 'bg-[#F4F4F6]',
+  white: "bg-white",
+  gray: "bg-[#F4F4F6]",
   // 멘토신청 시안(Surface/05 #F9FAFB, docs/mentor-apply-spec.md §2·§6-1) 전용 톤.
   // 기존 'gray'(#F4F4F6)를 시안값으로 덮어쓰지 않는다 — 콜멘토 §4 회색 밴드가 그 값을 쓰고 있어
   // 바꾸면 다른 페이지가 조용히 회귀한다. #F9FAFB 는 tailwind surface.footer 토큰과 같은 값이라
   // 신규 hex 하드코딩 없이 토큰 클래스로 쓴다.
-  softGray: 'bg-surface-footer'
+  softGray: "bg-surface-footer",
 };
 
 // 섹션 껍데기 — <section> + 정본 컨테이너 + h2 헤딩.
@@ -52,18 +52,25 @@ export default function ServiceSection({
   heading,
   eyebrow,
   id,
-  surface = 'white',
-  className = '',
-  containerClassName = '',
+  surface = "white",
+  className = "",
+  containerClassName = "",
   headingClassName = SECTION_HEADING_CLASS,
-  children
+  children,
 }) {
   return (
-    <section id={id} className={`${SECTION_SURFACE[surface]} pt-16 sm:pt-20 ${className}`}>
-      <div className={`mx-auto w-full max-w-content px-5 sm:px-8 ${containerClassName}`}>
+    <section
+      id={id}
+      className={`${SECTION_SURFACE[surface]} pt-16 sm:pt-20 ${className}`}
+    >
+      <div
+        className={`mx-auto w-full max-w-content px-5 sm:px-8 ${containerClassName}`}
+      >
         {/* 아이브로 ↔ 타이틀 간격 8px(0.5rem) — 멘토신청 시안 §2 실측. */}
         {eyebrow ? (
-          <p className="mb-2 text-[1rem] font-medium leading-[1.4] text-primary">{eyebrow}</p>
+          <p className="mb-2 text-[1rem] font-medium leading-[1.4] text-primary">
+            {eyebrow}
+          </p>
         ) : null}
         {heading ? <h2 className={headingClassName}>{heading}</h2> : null}
         {children}

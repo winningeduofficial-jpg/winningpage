@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 // Header.jsx(:151 근방)가 profiles 를 조회하는 것과 같은 컬럼 세트.
-const PROFILE_COLUMNS = 'id, name, email, username, member_type, role';
+const PROFILE_COLUMNS = "id, name, email, username, member_type, role";
 
 /**
  * 로그인 세션 + profiles.member_type 을 함께 조회하는 공용 훅.
@@ -58,15 +58,15 @@ export function useMemberType() {
       }
 
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from("profiles")
         .select(PROFILE_COLUMNS)
-        .eq('id', uid)
+        .eq("id", uid)
         .maybeSingle();
 
       if (!alive) return;
 
       if (profileError) {
-        console.error('profiles 조회 실패:', profileError);
+        console.error("profiles 조회 실패:", profileError);
         setUserId(uid);
         setMemberType(null);
         setError(profileError);
@@ -75,7 +75,7 @@ export function useMemberType() {
       }
 
       setUserId(uid);
-      setMemberType(String(profile?.member_type || '').toLowerCase());
+      setMemberType(String(profile?.member_type || "").toLowerCase());
       setLoading(false);
     })();
 

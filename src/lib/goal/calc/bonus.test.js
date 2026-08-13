@@ -14,10 +14,10 @@
 // 뽑았으므로 실행 타임존을 고정한다. DST 가 있는 타임존(America/New_York 등)에서는 ceil 때문에
 // 결과가 하루 달라지는 것을 실측 확인했다. import 는 호이스팅되지만 대상 모듈이 로드 시점에
 // Date 를 만들지 않으므로 이 위치에서 지정해도 안전하다.
-process.env.TZ = 'Asia/Seoul';
+process.env.TZ = "Asia/Seoul";
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { test } from "node:test";
+import assert from "node:assert/strict";
 
 import {
   ACHIEVEMENT_MULTIPLIER,
@@ -28,7 +28,7 @@ import {
   calcStudentBonusRates,
   getAchievementRateMultiplier,
   calculateDailyBonus,
-} from './bonus.js';
+} from "./bonus.js";
 
 // 부동소수 비교. NaN 은 NaN 끼리 같은 것으로 본다(원본이 NaN 을 그대로 흘리는 경로가 있다).
 function assertClose(actual, expected, label) {
@@ -57,7 +57,7 @@ function assertBonusEqual(actual, expected, label) {
 // 배수 상수
 // ─────────────────────────────────────────────────────────────
 
-test('배수 상수는 원본 값 그대로다', () => {
+test("배수 상수는 원본 값 그대로다", () => {
   assert.deepEqual(ACHIEVEMENT_MULTIPLIER, {
     full: 1.0,
     high: 0.9,
@@ -73,8 +73,8 @@ test('배수 상수는 원본 값 그대로다', () => {
     veryLow: 0.5,
   });
   assert.equal(TASK_BONUS_MULTIPLIER, 1.1);
-  assert.equal(TASK_NAESIN, '내신 과목');
-  assert.equal(TASK_MOCK_EXAM, '기출/모의고사');
+  assert.equal(TASK_NAESIN, "내신 과목");
+  assert.equal(TASK_MOCK_EXAM, "기출/모의고사");
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -82,22 +82,35 @@ test('배수 상수는 원본 값 그대로다', () => {
 // ─────────────────────────────────────────────────────────────
 
 // 학년 12단. 고3=0 오프셋부터 초1=4015 까지.
-const GRADES = ['고3', '고2', '고1', '중3', '중2', '중1', '초6', '초5', '초4', '초3', '초2', '초1'];
+const GRADES = [
+  "고3",
+  "고2",
+  "고1",
+  "중3",
+  "중2",
+  "중1",
+  "초6",
+  "초5",
+  "초4",
+  "초3",
+  "초2",
+  "초1",
+];
 
 // [연, 월(0-base), 일, 시, 분, 초, ms] — 기준일 전후/당일 경계를 포함한다.
 const NOWS = [
   [2026, 0, 1, 0, 0, 0, 0],
-  [2026, 7, 11, 13, 47, 22, 123],   // 평범한 오후
-  [2026, 8, 11, 0, 0, 0, 0],        // 수시 기준일 하루 전 → D-1
-  [2026, 8, 12, 0, 0, 0, 0],        // 수시 기준일 당일 (susiBase <= now → 내년으로 밀림)
-  [2026, 8, 12, 23, 59, 59, 999],   // 수시 기준일 당일 늦은 시각
-  [2026, 8, 13, 0, 0, 0, 0],        // 수시 기준일 다음날
-  [2026, 10, 18, 9, 0, 0, 0],       // 정시 기준일 하루 전 → D-1
-  [2026, 10, 19, 9, 0, 0, 0],       // 정시 기준일 당일
-  [2026, 10, 20, 9, 0, 0, 0],       // 정시 기준일 다음날
-  [2026, 11, 31, 23, 0, 0, 0],      // 연말
-  [2027, 1, 28, 12, 0, 0, 0],       // 평년 2/28
-  [2028, 1, 29, 12, 0, 0, 0],       // 윤년 2/29
+  [2026, 7, 11, 13, 47, 22, 123], // 평범한 오후
+  [2026, 8, 11, 0, 0, 0, 0], // 수시 기준일 하루 전 → D-1
+  [2026, 8, 12, 0, 0, 0, 0], // 수시 기준일 당일 (susiBase <= now → 내년으로 밀림)
+  [2026, 8, 12, 23, 59, 59, 999], // 수시 기준일 당일 늦은 시각
+  [2026, 8, 13, 0, 0, 0, 0], // 수시 기준일 다음날
+  [2026, 10, 18, 9, 0, 0, 0], // 정시 기준일 하루 전 → D-1
+  [2026, 10, 19, 9, 0, 0, 0], // 정시 기준일 당일
+  [2026, 10, 20, 9, 0, 0, 0], // 정시 기준일 다음날
+  [2026, 11, 31, 23, 0, 0, 0], // 연말
+  [2027, 1, 28, 12, 0, 0, 0], // 평년 2/28
+  [2028, 1, 29, 12, 0, 0, 0], // 윤년 2/29
 ];
 
 const BASE_PROBS = [72.5, 41.3, 88.1, 60];
@@ -105,66 +118,296 @@ const BASE_PROBS = [72.5, 41.3, 88.1, 60];
 // 기준확률 경계·비정상 입력 (now 는 2026-08-11 고정, 학년 고3)
 const PROB_SETS = [
   [0, 0, 0, 0],
-  [100, 100, 100, 100],          // 분자 0
-  [120, 150, 101, 100.5],        // 100 초과 → rate 음수
-  [-10, -0.5, -100, -1],         // 음수 확률
-  [null, undefined, NaN, 'abc'], // 비정상 입력
+  [100, 100, 100, 100], // 분자 0
+  [120, 150, 101, 100.5], // 100 초과 → rate 음수
+  [-10, -0.5, -100, -1], // 음수 확률
+  [null, undefined, NaN, "abc"], // 비정상 입력
   [50, 0, 100, -20],
 ];
 
 // 미지 학년 → 오프셋 0 fallback
-const UNKNOWN_GRADES = [null, undefined, '', '유치원', '고3 ', 'N수'];
+const UNKNOWN_GRADES = [null, undefined, "", "유치원", "고3 ", "N수"];
 
 const EXPECTED_CSBR = [
-  /* 0 */ { idealSusiBonus: 0.1083, idealJungsiBonus: 0.1823, minSusiBonus: 0.0469, minJungsiBonus: 0.1242 },
-  /* 1 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 2 */ { idealSusiBonus: 0.0693, idealJungsiBonus: 0.1262, minSusiBonus: 0.03, minJungsiBonus: 0.086 },
-  /* 3 */ { idealSusiBonus: 0.0361, idealJungsiBonus: 0.0707, minSusiBonus: 0.0156, minJungsiBonus: 0.0482 },
-  /* 4 */ { idealSusiBonus: 0.0244, idealJungsiBonus: 0.0491, minSusiBonus: 0.0106, minJungsiBonus: 0.0335 },
-  /* 5 */ { idealSusiBonus: 0.0184, idealJungsiBonus: 0.0376, minSusiBonus: 0.008, minJungsiBonus: 0.0256 },
-  /* 6 */ { idealSusiBonus: 0.0148, idealJungsiBonus: 0.0305, minSusiBonus: 0.0064, minJungsiBonus: 0.0208 },
-  /* 7 */ { idealSusiBonus: 0.0124, idealJungsiBonus: 0.0256, minSusiBonus: 0.0054, minJungsiBonus: 0.0175 },
-  /* 8 */ { idealSusiBonus: 0.0106, idealJungsiBonus: 0.0221, minSusiBonus: 0.0046, minJungsiBonus: 0.0151 },
-  /* 9 */ { idealSusiBonus: 0.0093, idealJungsiBonus: 0.0194, minSusiBonus: 0.004, minJungsiBonus: 0.0132 },
-  /* 10 */ { idealSusiBonus: 0.0083, idealJungsiBonus: 0.0173, minSusiBonus: 0.0036, minJungsiBonus: 0.0118 },
-  /* 11 */ { idealSusiBonus: 0.0075, idealJungsiBonus: 0.0157, minSusiBonus: 0.0032, minJungsiBonus: 0.0107 },
-  /* 12 */ { idealSusiBonus: 0.0068, idealJungsiBonus: 0.0143, minSusiBonus: 0.0029, minJungsiBonus: 0.0097 },
-  /* 13 */ { idealSusiBonus: 27.5, idealJungsiBonus: 0.8507, minSusiBonus: 11.9, minJungsiBonus: 0.5797 },
-  /* 14 */ { idealSusiBonus: 0.0753, idealJungsiBonus: 0.8632, minSusiBonus: 0.0326, minJungsiBonus: 0.5882 },
-  /* 15 */ { idealSusiBonus: 0.0377, idealJungsiBonus: 0.1356, minSusiBonus: 0.0163, minJungsiBonus: 0.0924 },
-  /* 16 */ { idealSusiBonus: 0.0251, idealJungsiBonus: 0.0736, minSusiBonus: 0.0109, minJungsiBonus: 0.0501 },
-  /* 17 */ { idealSusiBonus: 0.0188, idealJungsiBonus: 0.0505, minSusiBonus: 0.0082, minJungsiBonus: 0.0344 },
-  /* 18 */ { idealSusiBonus: 0.0151, idealJungsiBonus: 0.0384, minSusiBonus: 0.0065, minJungsiBonus: 0.0262 },
-  /* 19 */ { idealSusiBonus: 0.0126, idealJungsiBonus: 0.031, minSusiBonus: 0.0054, minJungsiBonus: 0.0211 },
-  /* 20 */ { idealSusiBonus: 0.0108, idealJungsiBonus: 0.026, minSusiBonus: 0.0047, minJungsiBonus: 0.0177 },
-  /* 21 */ { idealSusiBonus: 0.0094, idealJungsiBonus: 0.0224, minSusiBonus: 0.0041, minJungsiBonus: 0.0152 },
-  /* 22 */ { idealSusiBonus: 0.0084, idealJungsiBonus: 0.0196, minSusiBonus: 0.0036, minJungsiBonus: 0.0134 },
-  /* 23 */ { idealSusiBonus: 0.0075, idealJungsiBonus: 0.0175, minSusiBonus: 0.0033, minJungsiBonus: 0.0119 },
-  /* 24 */ { idealSusiBonus: 0.0068, idealJungsiBonus: 0.0158, minSusiBonus: 0.003, minJungsiBonus: 0.0108 },
-  /* 25 */ { idealSusiBonus: 0.0063, idealJungsiBonus: 0.0144, minSusiBonus: 0.0027, minJungsiBonus: 0.0098 },
-  /* 26 */ { idealSusiBonus: 0.0753, idealJungsiBonus: 0.8632, minSusiBonus: 0.0326, minJungsiBonus: 0.5882 },
-  /* 27 */ { idealSusiBonus: 0.0755, idealJungsiBonus: 0.8761, minSusiBonus: 0.0327, minJungsiBonus: 0.597 },
-  /* 28 */ { idealSusiBonus: 0.0923, idealJungsiBonus: 58.7, minSusiBonus: 0.0399, minJungsiBonus: 40 },
-  /* 29 */ { idealSusiBonus: 0.0926, idealJungsiBonus: 0.1608, minSusiBonus: 0.0401, minJungsiBonus: 0.1096 },
-  /* 30 */ { idealSusiBonus: 0.0929, idealJungsiBonus: 0.1613, minSusiBonus: 0.0402, minJungsiBonus: 0.1099 },
-  /* 31 */ { idealSusiBonus: 0.1078, idealJungsiBonus: 0.1817, minSusiBonus: 0.0467, minJungsiBonus: 0.1238 },
-  /* 32 */ { idealSusiBonus: 0.1403, idealJungsiBonus: 0.2223, minSusiBonus: 0.0607, minJungsiBonus: 0.1515 },
-  /* 33 */ { idealSusiBonus: 0.1403, idealJungsiBonus: 0.2223, minSusiBonus: 0.0607, minJungsiBonus: 0.1515 },
-  /* 34 */ { idealSusiBonus: 3.125, idealJungsiBonus: 1, minSusiBonus: 3.125, minJungsiBonus: 1 },
-  /* 35 */ { idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0 },
-  /* 36 */ { idealSusiBonus: -0.625, idealJungsiBonus: -0.5, minSusiBonus: -0.0312, minJungsiBonus: -0.005 },
-  /* 37 */ { idealSusiBonus: 3.4375, idealJungsiBonus: 1.005, minSusiBonus: 6.25, minJungsiBonus: 1.01 },
-  /* 38 */ { idealSusiBonus: 3.125, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0 },
-  /* 39 */ { idealSusiBonus: 1.5625, idealJungsiBonus: 1, minSusiBonus: 0, minJungsiBonus: 1.2 },
-  /* 40 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 41 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 42 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 43 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 44 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
-  /* 45 */ { idealSusiBonus: 0.8594, idealJungsiBonus: 0.587, minSusiBonus: 0.3719, minJungsiBonus: 0.4 },
+  /* 0 */ {
+    idealSusiBonus: 0.1083,
+    idealJungsiBonus: 0.1823,
+    minSusiBonus: 0.0469,
+    minJungsiBonus: 0.1242,
+  },
+  /* 1 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 2 */ {
+    idealSusiBonus: 0.0693,
+    idealJungsiBonus: 0.1262,
+    minSusiBonus: 0.03,
+    minJungsiBonus: 0.086,
+  },
+  /* 3 */ {
+    idealSusiBonus: 0.0361,
+    idealJungsiBonus: 0.0707,
+    minSusiBonus: 0.0156,
+    minJungsiBonus: 0.0482,
+  },
+  /* 4 */ {
+    idealSusiBonus: 0.0244,
+    idealJungsiBonus: 0.0491,
+    minSusiBonus: 0.0106,
+    minJungsiBonus: 0.0335,
+  },
+  /* 5 */ {
+    idealSusiBonus: 0.0184,
+    idealJungsiBonus: 0.0376,
+    minSusiBonus: 0.008,
+    minJungsiBonus: 0.0256,
+  },
+  /* 6 */ {
+    idealSusiBonus: 0.0148,
+    idealJungsiBonus: 0.0305,
+    minSusiBonus: 0.0064,
+    minJungsiBonus: 0.0208,
+  },
+  /* 7 */ {
+    idealSusiBonus: 0.0124,
+    idealJungsiBonus: 0.0256,
+    minSusiBonus: 0.0054,
+    minJungsiBonus: 0.0175,
+  },
+  /* 8 */ {
+    idealSusiBonus: 0.0106,
+    idealJungsiBonus: 0.0221,
+    minSusiBonus: 0.0046,
+    minJungsiBonus: 0.0151,
+  },
+  /* 9 */ {
+    idealSusiBonus: 0.0093,
+    idealJungsiBonus: 0.0194,
+    minSusiBonus: 0.004,
+    minJungsiBonus: 0.0132,
+  },
+  /* 10 */ {
+    idealSusiBonus: 0.0083,
+    idealJungsiBonus: 0.0173,
+    minSusiBonus: 0.0036,
+    minJungsiBonus: 0.0118,
+  },
+  /* 11 */ {
+    idealSusiBonus: 0.0075,
+    idealJungsiBonus: 0.0157,
+    minSusiBonus: 0.0032,
+    minJungsiBonus: 0.0107,
+  },
+  /* 12 */ {
+    idealSusiBonus: 0.0068,
+    idealJungsiBonus: 0.0143,
+    minSusiBonus: 0.0029,
+    minJungsiBonus: 0.0097,
+  },
+  /* 13 */ {
+    idealSusiBonus: 27.5,
+    idealJungsiBonus: 0.8507,
+    minSusiBonus: 11.9,
+    minJungsiBonus: 0.5797,
+  },
+  /* 14 */ {
+    idealSusiBonus: 0.0753,
+    idealJungsiBonus: 0.8632,
+    minSusiBonus: 0.0326,
+    minJungsiBonus: 0.5882,
+  },
+  /* 15 */ {
+    idealSusiBonus: 0.0377,
+    idealJungsiBonus: 0.1356,
+    minSusiBonus: 0.0163,
+    minJungsiBonus: 0.0924,
+  },
+  /* 16 */ {
+    idealSusiBonus: 0.0251,
+    idealJungsiBonus: 0.0736,
+    minSusiBonus: 0.0109,
+    minJungsiBonus: 0.0501,
+  },
+  /* 17 */ {
+    idealSusiBonus: 0.0188,
+    idealJungsiBonus: 0.0505,
+    minSusiBonus: 0.0082,
+    minJungsiBonus: 0.0344,
+  },
+  /* 18 */ {
+    idealSusiBonus: 0.0151,
+    idealJungsiBonus: 0.0384,
+    minSusiBonus: 0.0065,
+    minJungsiBonus: 0.0262,
+  },
+  /* 19 */ {
+    idealSusiBonus: 0.0126,
+    idealJungsiBonus: 0.031,
+    minSusiBonus: 0.0054,
+    minJungsiBonus: 0.0211,
+  },
+  /* 20 */ {
+    idealSusiBonus: 0.0108,
+    idealJungsiBonus: 0.026,
+    minSusiBonus: 0.0047,
+    minJungsiBonus: 0.0177,
+  },
+  /* 21 */ {
+    idealSusiBonus: 0.0094,
+    idealJungsiBonus: 0.0224,
+    minSusiBonus: 0.0041,
+    minJungsiBonus: 0.0152,
+  },
+  /* 22 */ {
+    idealSusiBonus: 0.0084,
+    idealJungsiBonus: 0.0196,
+    minSusiBonus: 0.0036,
+    minJungsiBonus: 0.0134,
+  },
+  /* 23 */ {
+    idealSusiBonus: 0.0075,
+    idealJungsiBonus: 0.0175,
+    minSusiBonus: 0.0033,
+    minJungsiBonus: 0.0119,
+  },
+  /* 24 */ {
+    idealSusiBonus: 0.0068,
+    idealJungsiBonus: 0.0158,
+    minSusiBonus: 0.003,
+    minJungsiBonus: 0.0108,
+  },
+  /* 25 */ {
+    idealSusiBonus: 0.0063,
+    idealJungsiBonus: 0.0144,
+    minSusiBonus: 0.0027,
+    minJungsiBonus: 0.0098,
+  },
+  /* 26 */ {
+    idealSusiBonus: 0.0753,
+    idealJungsiBonus: 0.8632,
+    minSusiBonus: 0.0326,
+    minJungsiBonus: 0.5882,
+  },
+  /* 27 */ {
+    idealSusiBonus: 0.0755,
+    idealJungsiBonus: 0.8761,
+    minSusiBonus: 0.0327,
+    minJungsiBonus: 0.597,
+  },
+  /* 28 */ {
+    idealSusiBonus: 0.0923,
+    idealJungsiBonus: 58.7,
+    minSusiBonus: 0.0399,
+    minJungsiBonus: 40,
+  },
+  /* 29 */ {
+    idealSusiBonus: 0.0926,
+    idealJungsiBonus: 0.1608,
+    minSusiBonus: 0.0401,
+    minJungsiBonus: 0.1096,
+  },
+  /* 30 */ {
+    idealSusiBonus: 0.0929,
+    idealJungsiBonus: 0.1613,
+    minSusiBonus: 0.0402,
+    minJungsiBonus: 0.1099,
+  },
+  /* 31 */ {
+    idealSusiBonus: 0.1078,
+    idealJungsiBonus: 0.1817,
+    minSusiBonus: 0.0467,
+    minJungsiBonus: 0.1238,
+  },
+  /* 32 */ {
+    idealSusiBonus: 0.1403,
+    idealJungsiBonus: 0.2223,
+    minSusiBonus: 0.0607,
+    minJungsiBonus: 0.1515,
+  },
+  /* 33 */ {
+    idealSusiBonus: 0.1403,
+    idealJungsiBonus: 0.2223,
+    minSusiBonus: 0.0607,
+    minJungsiBonus: 0.1515,
+  },
+  /* 34 */ {
+    idealSusiBonus: 3.125,
+    idealJungsiBonus: 1,
+    minSusiBonus: 3.125,
+    minJungsiBonus: 1,
+  },
+  /* 35 */ {
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+  },
+  /* 36 */ {
+    idealSusiBonus: -0.625,
+    idealJungsiBonus: -0.5,
+    minSusiBonus: -0.0312,
+    minJungsiBonus: -0.005,
+  },
+  /* 37 */ {
+    idealSusiBonus: 3.4375,
+    idealJungsiBonus: 1.005,
+    minSusiBonus: 6.25,
+    minJungsiBonus: 1.01,
+  },
+  /* 38 */ {
+    idealSusiBonus: 3.125,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+  },
+  /* 39 */ {
+    idealSusiBonus: 1.5625,
+    idealJungsiBonus: 1,
+    minSusiBonus: 0,
+    minJungsiBonus: 1.2,
+  },
+  /* 40 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 41 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 42 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 43 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 44 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
+  /* 45 */ {
+    idealSusiBonus: 0.8594,
+    idealJungsiBonus: 0.587,
+    minSusiBonus: 0.3719,
+    minJungsiBonus: 0.4,
+  },
 ];
 
-test('calcStudentBonusRates: 골든 픽스처', () => {
+test("calcStudentBonusRates: 골든 픽스처", () => {
   let i = 0;
   const check = (label, result) => {
     assertBonusEqual(result, EXPECTED_CSBR[i], `[${i}] ${label}`);
@@ -173,11 +416,11 @@ test('calcStudentBonusRates: 골든 픽스처', () => {
 
   for (const [n, nowParts] of NOWS.entries()) {
     // 학년 12단 전수는 대표 시점 2개에서만 돌린다(나머지 시점은 고3).
-    const grades = n === 1 || n === 3 ? GRADES : ['고3'];
+    const grades = n === 1 || n === 3 ? GRADES : ["고3"];
     for (const grade of grades) {
       const now = new Date(...nowParts);
       check(
-        `now=${nowParts.join('-')} grade=${grade}`,
+        `now=${nowParts.join("-")} grade=${grade}`,
         calcStudentBonusRates(grade, ...BASE_PROBS, now),
       );
     }
@@ -186,42 +429,60 @@ test('calcStudentBonusRates: 골든 픽스처', () => {
   for (const probs of PROB_SETS) {
     check(
       `probs=${String(probs)}`,
-      calcStudentBonusRates('고3', ...probs, new Date(2026, 7, 11, 0, 0, 0, 0)),
+      calcStudentBonusRates("고3", ...probs, new Date(2026, 7, 11, 0, 0, 0, 0)),
     );
   }
 
   for (const grade of UNKNOWN_GRADES) {
     check(
       `unknown grade=${String(grade)}`,
-      calcStudentBonusRates(grade, ...BASE_PROBS, new Date(2026, 7, 11, 0, 0, 0, 0)),
+      calcStudentBonusRates(
+        grade,
+        ...BASE_PROBS,
+        new Date(2026, 7, 11, 0, 0, 0, 0),
+      ),
     );
   }
 
-  assert.equal(i, EXPECTED_CSBR.length, '픽스처 개수와 실행 횟수가 다르다');
+  assert.equal(i, EXPECTED_CSBR.length, "픽스처 개수와 실행 횟수가 다르다");
 });
 
-test('calcStudentBonusRates: 주입한 Date 를 변형하지 않는다 (원본 대비 의도적 개선)', () => {
+test("calcStudentBonusRates: 주입한 Date 를 변형하지 않는다 (원본 대비 의도적 개선)", () => {
   const now = new Date(2026, 7, 11, 13, 47, 22, 123);
   const before = now.getTime();
-  calcStudentBonusRates('고3', ...BASE_PROBS, now);
-  assert.equal(now.getTime(), before, '인자로 받은 Date 가 자정으로 변형됐다');
+  calcStudentBonusRates("고3", ...BASE_PROBS, now);
+  assert.equal(now.getTime(), before, "인자로 받은 Date 가 자정으로 변형됐다");
 });
 
-test('calcStudentBonusRates: now 기본값은 현재 시각이다', () => {
-  const injected = calcStudentBonusRates('고3', ...BASE_PROBS, new Date());
-  const defaulted = calcStudentBonusRates('고3', ...BASE_PROBS);
+test("calcStudentBonusRates: now 기본값은 현재 시각이다", () => {
+  const injected = calcStudentBonusRates("고3", ...BASE_PROBS, new Date());
+  const defaulted = calcStudentBonusRates("고3", ...BASE_PROBS);
   assert.deepEqual(defaulted, injected);
 });
 
-test('calcStudentBonusRates: 기준일 당일은 이미 지난 것으로 보고 내년으로 넘긴다', () => {
-  const dayBefore = calcStudentBonusRates('고3', 0, 0, 0, 0, new Date(2026, 8, 11));
-  const sameDay = calcStudentBonusRates('고3', 0, 0, 0, 0, new Date(2026, 8, 12));
+test("calcStudentBonusRates: 기준일 당일은 이미 지난 것으로 보고 내년으로 넘긴다", () => {
+  const dayBefore = calcStudentBonusRates(
+    "고3",
+    0,
+    0,
+    0,
+    0,
+    new Date(2026, 8, 11),
+  );
+  const sameDay = calcStudentBonusRates(
+    "고3",
+    0,
+    0,
+    0,
+    0,
+    new Date(2026, 8, 12),
+  );
   // D-1 이면 100/1 = 100, 당일이면 100/365 로 급락한다.
-  assertClose(dayBefore.idealSusiBonus, 100, 'D-1 수시');
-  assertClose(sameDay.idealSusiBonus, 0.274, '당일 수시');
+  assertClose(dayBefore.idealSusiBonus, 100, "D-1 수시");
+  assertClose(sameDay.idealSusiBonus, 0.274, "당일 수시");
 });
 
-test('calcStudentBonusRates: 학년 오프셋은 365일 등차 12단이다', () => {
+test("calcStudentBonusRates: 학년 오프셋은 365일 등차 12단이다", () => {
   // 2026-08-11 → 2026-09-12 까지 32일. 고3은 오프셋 0이므로 총 일수 = 32 + 365*단계.
   const now = new Date(2026, 7, 11);
   const baseDays = 32;
@@ -233,7 +494,7 @@ test('calcStudentBonusRates: 학년 오프셋은 365일 등차 12단이다', () 
       `${g} 오프셋(${365 * idx})`,
     );
   });
-  assert.equal(365 * 11, 4015, '초1 오프셋은 4015');
+  assert.equal(365 * 11, 4015, "초1 오프셋은 4015");
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -269,13 +530,13 @@ const EXPECTED_GARM = [
   [-Infinity, 0],
 ];
 
-test('getAchievementRateMultiplier: 골든 픽스처', () => {
+test("getAchievementRateMultiplier: 골든 픽스처", () => {
   for (const [rate, expected] of EXPECTED_GARM) {
     assertClose(getAchievementRateMultiplier(rate), expected, `rate=${rate}`);
   }
 });
 
-test('getAchievementRateMultiplier: 부등호 방향(130·170 은 초과, 100 은 이상)', () => {
+test("getAchievementRateMultiplier: 부등호 방향(130·170 은 초과, 100 은 이상)", () => {
   // 경계값 자체는 아래 구간에 속한다 — 원본 그대로.
   assert.equal(getAchievementRateMultiplier(130), 1.0);
   assert.equal(getAchievementRateMultiplier(170), 1.1);
@@ -291,104 +552,438 @@ const R = [0.0123, 0.0456, 0.0198, 0.0321];
 
 // [성취도, 집중도, rate 4종, tasks, 학습시간, 이상목표시간, 최소목표시간]
 const CDB_CASES = [
-  ['full', 'excellent', R, [], 8, 8, 5],
-  ['full', 'excellent', R, ['내신 과목'], 8, 8, 5],
-  ['full', 'excellent', R, ['기출/모의고사'], 8, 8, 5],
-  ['full', 'excellent', R, ['내신 과목', '기출/모의고사'], 8, 8, 5],
-  ['full', 'excellent', R, ['개념 학습', '기타'], 8, 8, 5],
-  ['high', 'good', R, [], 8, 8, 5],
-  ['mid', 'normal', R, [], 8, 8, 5],
-  ['low', 'low', R, [], 8, 8, 5],
-  ['none', 'veryLow', R, [], 8, 8, 5],
-  ['미지값', 'good', R, [], 8, 8, 5],          // 성취도 미지값 → 0배
-  ['full', '미지값', R, [], 8, 8, 5],          // 집중도 미지값 → 1배
+  ["full", "excellent", R, [], 8, 8, 5],
+  ["full", "excellent", R, ["내신 과목"], 8, 8, 5],
+  ["full", "excellent", R, ["기출/모의고사"], 8, 8, 5],
+  ["full", "excellent", R, ["내신 과목", "기출/모의고사"], 8, 8, 5],
+  ["full", "excellent", R, ["개념 학습", "기타"], 8, 8, 5],
+  ["high", "good", R, [], 8, 8, 5],
+  ["mid", "normal", R, [], 8, 8, 5],
+  ["low", "low", R, [], 8, 8, 5],
+  ["none", "veryLow", R, [], 8, 8, 5],
+  ["미지값", "good", R, [], 8, 8, 5], // 성취도 미지값 → 0배
+  ["full", "미지값", R, [], 8, 8, 5], // 집중도 미지값 → 1배
   [undefined, undefined, R, [], 8, 8, 5],
   // 0시간 제출
-  ['full', 'excellent', R, [], 0, 8, 5],       // 감점
-  ['full', 'excellent', R, ['내신 과목'], 0, 8, 5],
-  ['full', 'excellent', R, [], 0, 0, 0],       // 목표도 0 → zeroBonus
-  ['full', 'excellent', R, [], 0, 0, 5],       // 최소 목표만 있음 → 감점
-  ['full', 'excellent', R, [], 0, 8, 0],
-  ['full', 'excellent', R, [], 0, null, null],
-  ['full', 'excellent', R, [], 0, undefined, undefined],
-  ['full', 'excellent', R, [], 0, -1, -1],     // 음수 목표 <= 0 → zeroBonus
+  ["full", "excellent", R, [], 0, 8, 5], // 감점
+  ["full", "excellent", R, ["내신 과목"], 0, 8, 5],
+  ["full", "excellent", R, [], 0, 0, 0], // 목표도 0 → zeroBonus
+  ["full", "excellent", R, [], 0, 0, 5], // 최소 목표만 있음 → 감점
+  ["full", "excellent", R, [], 0, 8, 0],
+  ["full", "excellent", R, [], 0, null, null],
+  ["full", "excellent", R, [], 0, undefined, undefined],
+  ["full", "excellent", R, [], 0, -1, -1], // 음수 목표 <= 0 → zeroBonus
   // 목표 시간 0 (분모 0 회피 경로)
-  ['full', 'good', R, [], 5, 0, 0],
-  ['full', 'good', R, [], 5, 0, 5],
+  ["full", "good", R, [], 5, 0, 0],
+  ["full", "good", R, [], 5, 0, 5],
   // 달성률 경계
-  ['full', 'good', R, [], 10, 10, 10],         // 100%
-  ['full', 'good', R, [], 13, 10, 10],         // 130% 정확
-  ['full', 'good', R, [], 13.1, 10, 10],       // 131%
-  ['full', 'good', R, [], 17, 10, 10],         // 170% 정확
-  ['full', 'good', R, [], 17.1, 10, 10],       // 171%
-  ['full', 'good', R, [], 9.99, 10, 10],       // 99.9%
-  ['full', 'good', R, [], 1, 10, 10],          // 10%
-  ['full', 'good', R, [], 0.001, 10, 10],
-  ['full', 'good', R, [], 20, 10, 4],          // 이상 200% / 최소 500%
+  ["full", "good", R, [], 10, 10, 10], // 100%
+  ["full", "good", R, [], 13, 10, 10], // 130% 정확
+  ["full", "good", R, [], 13.1, 10, 10], // 131%
+  ["full", "good", R, [], 17, 10, 10], // 170% 정확
+  ["full", "good", R, [], 17.1, 10, 10], // 171%
+  ["full", "good", R, [], 9.99, 10, 10], // 99.9%
+  ["full", "good", R, [], 1, 10, 10], // 10%
+  ["full", "good", R, [], 0.001, 10, 10],
+  ["full", "good", R, [], 20, 10, 4], // 이상 200% / 최소 500%
   // 음수 시간 (studyHours === 0 이 아니므로 정상 분기)
-  ['full', 'good', R, [], -3, 10, 5],
+  ["full", "good", R, [], -3, 10, 5],
   // 음수 rate (기준확률 100 초과인 학생)
-  ['full', 'good', [-0.01, -0.02, -0.03, -0.04], [], 8, 8, 5],
-  ['full', 'good', [-0.01, -0.02, -0.03, -0.04], [], 0, 8, 5],
+  ["full", "good", [-0.01, -0.02, -0.03, -0.04], [], 8, 8, 5],
+  ["full", "good", [-0.01, -0.02, -0.03, -0.04], [], 0, 8, 5],
   // rate 0
-  ['full', 'good', [0, 0, 0, 0], [], 8, 8, 5],
-  ['full', 'good', [0, 0, 0, 0], [], 0, 8, 5],
+  ["full", "good", [0, 0, 0, 0], [], 8, 8, 5],
+  ["full", "good", [0, 0, 0, 0], [], 0, 8, 5],
   // 문자열 시간 (Number 변환 경로)
-  ['full', 'good', R, [], 8, '8', '5'],
-  ['full', 'good', R, [], 8, 'abc', 'abc'],    // Number('abc') → NaN → 목표 0 취급
+  ["full", "good", R, [], 8, "8", "5"],
+  ["full", "good", R, [], 8, "abc", "abc"], // Number('abc') → NaN → 목표 0 취급
 ];
 
 const EXPECTED_CDB = [
-  /* 0 */ { calculatedBonus: 0.0135, idealSusiBonus: 0.0135, idealJungsiBonus: 0.0502, minSusiBonus: 0.024, minJungsiBonus: 0.0388, susiBonus: 0.0135, jungsiBonus: 0.0502 },
-  /* 1 */ { calculatedBonus: 0.0149, idealSusiBonus: 0.0149, idealJungsiBonus: 0.0502, minSusiBonus: 0.0264, minJungsiBonus: 0.0388, susiBonus: 0.0149, jungsiBonus: 0.0502 },
-  /* 2 */ { calculatedBonus: 0.0135, idealSusiBonus: 0.0135, idealJungsiBonus: 0.0552, minSusiBonus: 0.024, minJungsiBonus: 0.0427, susiBonus: 0.0135, jungsiBonus: 0.0552 },
-  /* 3 */ { calculatedBonus: 0.0149, idealSusiBonus: 0.0149, idealJungsiBonus: 0.0552, minSusiBonus: 0.0264, minJungsiBonus: 0.0427, susiBonus: 0.0149, jungsiBonus: 0.0552 },
-  /* 4 */ { calculatedBonus: 0.0135, idealSusiBonus: 0.0135, idealJungsiBonus: 0.0502, minSusiBonus: 0.024, minJungsiBonus: 0.0388, susiBonus: 0.0135, jungsiBonus: 0.0502 },
-  /* 5 */ { calculatedBonus: 0.0111, idealSusiBonus: 0.0111, idealJungsiBonus: 0.041, minSusiBonus: 0.0196, minJungsiBonus: 0.0318, susiBonus: 0.0111, jungsiBonus: 0.041 },
-  /* 6 */ { calculatedBonus: 0.0077, idealSusiBonus: 0.0077, idealJungsiBonus: 0.0287, minSusiBonus: 0.0137, minJungsiBonus: 0.0222, susiBonus: 0.0077, jungsiBonus: 0.0287 },
-  /* 7 */ { calculatedBonus: 0.0034, idealSusiBonus: 0.0034, idealJungsiBonus: 0.0128, minSusiBonus: 0.0061, minJungsiBonus: 0.0099, susiBonus: 0.0034, jungsiBonus: 0.0128 },
-  /* 8 */ { calculatedBonus: 0.0006, idealSusiBonus: 0.0006, idealJungsiBonus: 0.0023, minSusiBonus: 0.0011, minJungsiBonus: 0.0018, susiBonus: 0.0006, jungsiBonus: 0.0023 },
-  /* 9 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 10 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0218, minJungsiBonus: 0.0353, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 11 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 12 */ { calculatedBonus: -0.0123, idealSusiBonus: -0.0123, idealJungsiBonus: -0.0456, minSusiBonus: -0.0198, minJungsiBonus: -0.0321, susiBonus: -0.0123, jungsiBonus: -0.0456 },
-  /* 13 */ { calculatedBonus: -0.0123, idealSusiBonus: -0.0123, idealJungsiBonus: -0.0456, minSusiBonus: -0.0198, minJungsiBonus: -0.0321, susiBonus: -0.0123, jungsiBonus: -0.0456 },
-  /* 14 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 15 */ { calculatedBonus: -0.0123, idealSusiBonus: -0.0123, idealJungsiBonus: -0.0456, minSusiBonus: -0.0198, minJungsiBonus: -0.0321, susiBonus: -0.0123, jungsiBonus: -0.0456 },
-  /* 16 */ { calculatedBonus: -0.0123, idealSusiBonus: -0.0123, idealJungsiBonus: -0.0456, minSusiBonus: -0.0198, minJungsiBonus: -0.0321, susiBonus: -0.0123, jungsiBonus: -0.0456 },
-  /* 17 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 18 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 19 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 20 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 21 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 22 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 23 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 24 */ { calculatedBonus: 0.0135, idealSusiBonus: 0.0135, idealJungsiBonus: 0.0502, minSusiBonus: 0.0218, minJungsiBonus: 0.0353, susiBonus: 0.0135, jungsiBonus: 0.0502 },
-  /* 25 */ { calculatedBonus: 0.0135, idealSusiBonus: 0.0135, idealJungsiBonus: 0.0502, minSusiBonus: 0.0218, minJungsiBonus: 0.0353, susiBonus: 0.0135, jungsiBonus: 0.0502 },
-  /* 26 */ { calculatedBonus: 0.0148, idealSusiBonus: 0.0148, idealJungsiBonus: 0.0547, minSusiBonus: 0.0238, minJungsiBonus: 0.0385, susiBonus: 0.0148, jungsiBonus: 0.0547 },
-  /* 27 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 28 */ { calculatedBonus: 0.0012, idealSusiBonus: 0.0012, idealJungsiBonus: 0.0046, minSusiBonus: 0.002, minJungsiBonus: 0.0032, susiBonus: 0.0012, jungsiBonus: 0.0046 },
-  /* 29 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 30 */ { calculatedBonus: 0.0148, idealSusiBonus: 0.0148, idealJungsiBonus: 0.0547, minSusiBonus: 0.0238, minJungsiBonus: 0.0385, susiBonus: 0.0148, jungsiBonus: 0.0547 },
-  /* 31 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 32 */ { calculatedBonus: -0.01, idealSusiBonus: -0.01, idealJungsiBonus: -0.02, minSusiBonus: -0.033, minJungsiBonus: -0.044, susiBonus: -0.01, jungsiBonus: -0.02 },
-  /* 33 */ { calculatedBonus: 0.01, idealSusiBonus: 0.01, idealJungsiBonus: 0.02, minSusiBonus: 0.03, minJungsiBonus: 0.04, susiBonus: 0.01, jungsiBonus: 0.02 },
-  /* 34 */ { calculatedBonus: 0, idealSusiBonus: 0, idealJungsiBonus: 0, minSusiBonus: 0, minJungsiBonus: 0, susiBonus: 0, jungsiBonus: 0 },
-  /* 35 */ { calculatedBonus: -0, idealSusiBonus: -0, idealJungsiBonus: -0, minSusiBonus: -0, minJungsiBonus: -0, susiBonus: -0, jungsiBonus: -0 },
-  /* 36 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0218, minJungsiBonus: 0.0353, susiBonus: 0.0123, jungsiBonus: 0.0456 },
-  /* 37 */ { calculatedBonus: 0.0123, idealSusiBonus: 0.0123, idealJungsiBonus: 0.0456, minSusiBonus: 0.0198, minJungsiBonus: 0.0321, susiBonus: 0.0123, jungsiBonus: 0.0456 },
+  /* 0 */ {
+    calculatedBonus: 0.0135,
+    idealSusiBonus: 0.0135,
+    idealJungsiBonus: 0.0502,
+    minSusiBonus: 0.024,
+    minJungsiBonus: 0.0388,
+    susiBonus: 0.0135,
+    jungsiBonus: 0.0502,
+  },
+  /* 1 */ {
+    calculatedBonus: 0.0149,
+    idealSusiBonus: 0.0149,
+    idealJungsiBonus: 0.0502,
+    minSusiBonus: 0.0264,
+    minJungsiBonus: 0.0388,
+    susiBonus: 0.0149,
+    jungsiBonus: 0.0502,
+  },
+  /* 2 */ {
+    calculatedBonus: 0.0135,
+    idealSusiBonus: 0.0135,
+    idealJungsiBonus: 0.0552,
+    minSusiBonus: 0.024,
+    minJungsiBonus: 0.0427,
+    susiBonus: 0.0135,
+    jungsiBonus: 0.0552,
+  },
+  /* 3 */ {
+    calculatedBonus: 0.0149,
+    idealSusiBonus: 0.0149,
+    idealJungsiBonus: 0.0552,
+    minSusiBonus: 0.0264,
+    minJungsiBonus: 0.0427,
+    susiBonus: 0.0149,
+    jungsiBonus: 0.0552,
+  },
+  /* 4 */ {
+    calculatedBonus: 0.0135,
+    idealSusiBonus: 0.0135,
+    idealJungsiBonus: 0.0502,
+    minSusiBonus: 0.024,
+    minJungsiBonus: 0.0388,
+    susiBonus: 0.0135,
+    jungsiBonus: 0.0502,
+  },
+  /* 5 */ {
+    calculatedBonus: 0.0111,
+    idealSusiBonus: 0.0111,
+    idealJungsiBonus: 0.041,
+    minSusiBonus: 0.0196,
+    minJungsiBonus: 0.0318,
+    susiBonus: 0.0111,
+    jungsiBonus: 0.041,
+  },
+  /* 6 */ {
+    calculatedBonus: 0.0077,
+    idealSusiBonus: 0.0077,
+    idealJungsiBonus: 0.0287,
+    minSusiBonus: 0.0137,
+    minJungsiBonus: 0.0222,
+    susiBonus: 0.0077,
+    jungsiBonus: 0.0287,
+  },
+  /* 7 */ {
+    calculatedBonus: 0.0034,
+    idealSusiBonus: 0.0034,
+    idealJungsiBonus: 0.0128,
+    minSusiBonus: 0.0061,
+    minJungsiBonus: 0.0099,
+    susiBonus: 0.0034,
+    jungsiBonus: 0.0128,
+  },
+  /* 8 */ {
+    calculatedBonus: 0.0006,
+    idealSusiBonus: 0.0006,
+    idealJungsiBonus: 0.0023,
+    minSusiBonus: 0.0011,
+    minJungsiBonus: 0.0018,
+    susiBonus: 0.0006,
+    jungsiBonus: 0.0023,
+  },
+  /* 9 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 10 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0218,
+    minJungsiBonus: 0.0353,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 11 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 12 */ {
+    calculatedBonus: -0.0123,
+    idealSusiBonus: -0.0123,
+    idealJungsiBonus: -0.0456,
+    minSusiBonus: -0.0198,
+    minJungsiBonus: -0.0321,
+    susiBonus: -0.0123,
+    jungsiBonus: -0.0456,
+  },
+  /* 13 */ {
+    calculatedBonus: -0.0123,
+    idealSusiBonus: -0.0123,
+    idealJungsiBonus: -0.0456,
+    minSusiBonus: -0.0198,
+    minJungsiBonus: -0.0321,
+    susiBonus: -0.0123,
+    jungsiBonus: -0.0456,
+  },
+  /* 14 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 15 */ {
+    calculatedBonus: -0.0123,
+    idealSusiBonus: -0.0123,
+    idealJungsiBonus: -0.0456,
+    minSusiBonus: -0.0198,
+    minJungsiBonus: -0.0321,
+    susiBonus: -0.0123,
+    jungsiBonus: -0.0456,
+  },
+  /* 16 */ {
+    calculatedBonus: -0.0123,
+    idealSusiBonus: -0.0123,
+    idealJungsiBonus: -0.0456,
+    minSusiBonus: -0.0198,
+    minJungsiBonus: -0.0321,
+    susiBonus: -0.0123,
+    jungsiBonus: -0.0456,
+  },
+  /* 17 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 18 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 19 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 20 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 21 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 22 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 23 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 24 */ {
+    calculatedBonus: 0.0135,
+    idealSusiBonus: 0.0135,
+    idealJungsiBonus: 0.0502,
+    minSusiBonus: 0.0218,
+    minJungsiBonus: 0.0353,
+    susiBonus: 0.0135,
+    jungsiBonus: 0.0502,
+  },
+  /* 25 */ {
+    calculatedBonus: 0.0135,
+    idealSusiBonus: 0.0135,
+    idealJungsiBonus: 0.0502,
+    minSusiBonus: 0.0218,
+    minJungsiBonus: 0.0353,
+    susiBonus: 0.0135,
+    jungsiBonus: 0.0502,
+  },
+  /* 26 */ {
+    calculatedBonus: 0.0148,
+    idealSusiBonus: 0.0148,
+    idealJungsiBonus: 0.0547,
+    minSusiBonus: 0.0238,
+    minJungsiBonus: 0.0385,
+    susiBonus: 0.0148,
+    jungsiBonus: 0.0547,
+  },
+  /* 27 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 28 */ {
+    calculatedBonus: 0.0012,
+    idealSusiBonus: 0.0012,
+    idealJungsiBonus: 0.0046,
+    minSusiBonus: 0.002,
+    minJungsiBonus: 0.0032,
+    susiBonus: 0.0012,
+    jungsiBonus: 0.0046,
+  },
+  /* 29 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 30 */ {
+    calculatedBonus: 0.0148,
+    idealSusiBonus: 0.0148,
+    idealJungsiBonus: 0.0547,
+    minSusiBonus: 0.0238,
+    minJungsiBonus: 0.0385,
+    susiBonus: 0.0148,
+    jungsiBonus: 0.0547,
+  },
+  /* 31 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 32 */ {
+    calculatedBonus: -0.01,
+    idealSusiBonus: -0.01,
+    idealJungsiBonus: -0.02,
+    minSusiBonus: -0.033,
+    minJungsiBonus: -0.044,
+    susiBonus: -0.01,
+    jungsiBonus: -0.02,
+  },
+  /* 33 */ {
+    calculatedBonus: 0.01,
+    idealSusiBonus: 0.01,
+    idealJungsiBonus: 0.02,
+    minSusiBonus: 0.03,
+    minJungsiBonus: 0.04,
+    susiBonus: 0.01,
+    jungsiBonus: 0.02,
+  },
+  /* 34 */ {
+    calculatedBonus: 0,
+    idealSusiBonus: 0,
+    idealJungsiBonus: 0,
+    minSusiBonus: 0,
+    minJungsiBonus: 0,
+    susiBonus: 0,
+    jungsiBonus: 0,
+  },
+  /* 35 */ {
+    calculatedBonus: -0,
+    idealSusiBonus: -0,
+    idealJungsiBonus: -0,
+    minSusiBonus: -0,
+    minJungsiBonus: -0,
+    susiBonus: -0,
+    jungsiBonus: -0,
+  },
+  /* 36 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0218,
+    minJungsiBonus: 0.0353,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
+  /* 37 */ {
+    calculatedBonus: 0.0123,
+    idealSusiBonus: 0.0123,
+    idealJungsiBonus: 0.0456,
+    minSusiBonus: 0.0198,
+    minJungsiBonus: 0.0321,
+    susiBonus: 0.0123,
+    jungsiBonus: 0.0456,
+  },
 ];
 
-test('calculateDailyBonus: 골든 픽스처', () => {
-  assert.equal(CDB_CASES.length, EXPECTED_CDB.length, '케이스 수와 픽스처 수가 다르다');
+test("calculateDailyBonus: 골든 픽스처", () => {
+  assert.equal(
+    CDB_CASES.length,
+    EXPECTED_CDB.length,
+    "케이스 수와 픽스처 수가 다르다",
+  );
   CDB_CASES.forEach(([ach, foc, rates, tasks, sh, ih, mh], idx) => {
-    const result = calculateDailyBonus(ach, foc, rates[0], rates[1], rates[2], rates[3], tasks, sh, ih, mh);
-    assertBonusEqual(result, EXPECTED_CDB[idx], `[${idx}] ach=${ach} foc=${foc} h=${sh}/${ih}/${mh}`);
+    const result = calculateDailyBonus(
+      ach,
+      foc,
+      rates[0],
+      rates[1],
+      rates[2],
+      rates[3],
+      tasks,
+      sh,
+      ih,
+      mh,
+    );
+    assertBonusEqual(
+      result,
+      EXPECTED_CDB[idx],
+      `[${idx}] ach=${ach} foc=${foc} h=${sh}/${ih}/${mh}`,
+    );
   });
 });
 
-test('calculateDailyBonus: 0시간 + 목표 0시간이면 감점 없이 전부 0', () => {
-  const r = calculateDailyBonus('full', 'good', 0.1, 0.2, 0.3, 0.4, [], 0, 0, 0);
+test("calculateDailyBonus: 0시간 + 목표 0시간이면 감점 없이 전부 0", () => {
+  const r = calculateDailyBonus(
+    "full",
+    "good",
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    [],
+    0,
+    0,
+    0,
+  );
   assert.deepEqual(r, {
     calculatedBonus: 0,
     idealSusiBonus: 0,
@@ -400,58 +995,164 @@ test('calculateDailyBonus: 0시간 + 목표 0시간이면 감점 없이 전부 0
   });
 });
 
-test('calculateDailyBonus: 0시간 감점은 rate 전액이며 clamp 가 없다', () => {
-  const r = calculateDailyBonus('full', 'excellent', 0.5, 0.6, 0.7, 0.8, [], 0, 8, 5);
-  assertClose(r.idealSusiBonus, -0.5, 'idealSusiBonus');
-  assertClose(r.idealJungsiBonus, -0.6, 'idealJungsiBonus');
-  assertClose(r.minSusiBonus, -0.7, 'minSusiBonus');
-  assertClose(r.minJungsiBonus, -0.8, 'minJungsiBonus');
+test("calculateDailyBonus: 0시간 감점은 rate 전액이며 clamp 가 없다", () => {
+  const r = calculateDailyBonus(
+    "full",
+    "excellent",
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    [],
+    0,
+    8,
+    5,
+  );
+  assertClose(r.idealSusiBonus, -0.5, "idealSusiBonus");
+  assertClose(r.idealJungsiBonus, -0.6, "idealJungsiBonus");
+  assertClose(r.minSusiBonus, -0.7, "minSusiBonus");
+  assertClose(r.minJungsiBonus, -0.8, "minJungsiBonus");
   // 성취도·집중도·태그는 0시간 분기에서 전혀 반영되지 않는다.
-  const withTasks = calculateDailyBonus('none', 'veryLow', 0.5, 0.6, 0.7, 0.8, ['내신 과목'], 0, 8, 5);
+  const withTasks = calculateDailyBonus(
+    "none",
+    "veryLow",
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    ["내신 과목"],
+    0,
+    8,
+    5,
+  );
   assert.deepEqual(withTasks, r);
 });
 
-test('calculateDailyBonus: rate 가 0 인 채 0시간이면 -0 이 나온다 (원본 그대로)', () => {
-  const r = calculateDailyBonus('full', 'good', 0, 0, 0, 0, [], 0, 8, 5);
-  assert.ok(Object.is(r.idealSusiBonus, -0), 'idealSusiBonus 는 -0 이어야 한다');
-  assert.ok(Object.is(r.minJungsiBonus, -0), 'minJungsiBonus 는 -0 이어야 한다');
+test("calculateDailyBonus: rate 가 0 인 채 0시간이면 -0 이 나온다 (원본 그대로)", () => {
+  const r = calculateDailyBonus("full", "good", 0, 0, 0, 0, [], 0, 8, 5);
+  assert.ok(
+    Object.is(r.idealSusiBonus, -0),
+    "idealSusiBonus 는 -0 이어야 한다",
+  );
+  assert.ok(
+    Object.is(r.minJungsiBonus, -0),
+    "minJungsiBonus 는 -0 이어야 한다",
+  );
 });
 
-test('calculateDailyBonus: 태그 가산은 수시/정시로 갈린다', () => {
-  const plain = calculateDailyBonus('full', 'good', 1, 1, 1, 1, [], 10, 10, 10);
-  const naesin = calculateDailyBonus('full', 'good', 1, 1, 1, 1, ['내신 과목'], 10, 10, 10);
-  const mock = calculateDailyBonus('full', 'good', 1, 1, 1, 1, ['기출/모의고사'], 10, 10, 10);
+test("calculateDailyBonus: 태그 가산은 수시/정시로 갈린다", () => {
+  const plain = calculateDailyBonus("full", "good", 1, 1, 1, 1, [], 10, 10, 10);
+  const naesin = calculateDailyBonus(
+    "full",
+    "good",
+    1,
+    1,
+    1,
+    1,
+    ["내신 과목"],
+    10,
+    10,
+    10,
+  );
+  const mock = calculateDailyBonus(
+    "full",
+    "good",
+    1,
+    1,
+    1,
+    1,
+    ["기출/모의고사"],
+    10,
+    10,
+    10,
+  );
 
-  assertClose(naesin.idealSusiBonus, plain.idealSusiBonus * 1.1, '내신 → 수시 1.1배');
-  assertClose(naesin.minSusiBonus, plain.minSusiBonus * 1.1, '내신 → 최소수시 1.1배');
-  assertClose(naesin.idealJungsiBonus, plain.idealJungsiBonus, '내신은 정시 미영향');
+  assertClose(
+    naesin.idealSusiBonus,
+    plain.idealSusiBonus * 1.1,
+    "내신 → 수시 1.1배",
+  );
+  assertClose(
+    naesin.minSusiBonus,
+    plain.minSusiBonus * 1.1,
+    "내신 → 최소수시 1.1배",
+  );
+  assertClose(
+    naesin.idealJungsiBonus,
+    plain.idealJungsiBonus,
+    "내신은 정시 미영향",
+  );
 
-  assertClose(mock.idealJungsiBonus, plain.idealJungsiBonus * 1.1, '기출 → 정시 1.1배');
-  assertClose(mock.minJungsiBonus, plain.minJungsiBonus * 1.1, '기출 → 최소정시 1.1배');
-  assertClose(mock.idealSusiBonus, plain.idealSusiBonus, '기출은 수시 미영향');
+  assertClose(
+    mock.idealJungsiBonus,
+    plain.idealJungsiBonus * 1.1,
+    "기출 → 정시 1.1배",
+  );
+  assertClose(
+    mock.minJungsiBonus,
+    plain.minJungsiBonus * 1.1,
+    "기출 → 최소정시 1.1배",
+  );
+  assertClose(mock.idealSusiBonus, plain.idealSusiBonus, "기출은 수시 미영향");
 });
 
-test('calculateDailyBonus: 별칭 필드는 항상 이상 목표 값을 가리킨다', () => {
-  const r = calculateDailyBonus('full', 'good', 0.1, 0.2, 0.9, 0.8, [], 10, 10, 10);
+test("calculateDailyBonus: 별칭 필드는 항상 이상 목표 값을 가리킨다", () => {
+  const r = calculateDailyBonus(
+    "full",
+    "good",
+    0.1,
+    0.2,
+    0.9,
+    0.8,
+    [],
+    10,
+    10,
+    10,
+  );
   assert.equal(r.calculatedBonus, r.idealSusiBonus);
   assert.equal(r.susiBonus, r.idealSusiBonus);
   assert.equal(r.jungsiBonus, r.idealJungsiBonus);
 });
 
-test('calculateDailyBonus: tasks 가 배열이 아니면 TypeError (원본 그대로, 가드 없음)', () => {
+test("calculateDailyBonus: tasks 가 배열이 아니면 TypeError (원본 그대로, 가드 없음)", () => {
   assert.throws(
-    () => calculateDailyBonus('full', 'good', 0.1, 0.2, 0.3, 0.4, null, 8, 8, 5),
+    () =>
+      calculateDailyBonus("full", "good", 0.1, 0.2, 0.3, 0.4, null, 8, 8, 5),
     TypeError,
   );
   // 단, 0시간 분기는 tasks 를 만지기 전에 반환하므로 예외가 나지 않는다.
-  assert.doesNotThrow(() => calculateDailyBonus('full', 'good', 0.1, 0.2, 0.3, 0.4, null, 0, 8, 5));
+  assert.doesNotThrow(() =>
+    calculateDailyBonus("full", "good", 0.1, 0.2, 0.3, 0.4, null, 0, 8, 5),
+  );
 });
 
-test('calculateDailyBonus: 순수 함수 — 같은 입력이면 항상 같은 출력이고 인자를 변형하지 않는다', () => {
-  const tasks = ['내신 과목', '기출/모의고사'];
+test("calculateDailyBonus: 순수 함수 — 같은 입력이면 항상 같은 출력이고 인자를 변형하지 않는다", () => {
+  const tasks = ["내신 과목", "기출/모의고사"];
   const snapshot = [...tasks];
-  const a = calculateDailyBonus('mid', 'normal', 0.11, 0.22, 0.33, 0.44, tasks, 7, 8, 5);
-  const b = calculateDailyBonus('mid', 'normal', 0.11, 0.22, 0.33, 0.44, tasks, 7, 8, 5);
+  const a = calculateDailyBonus(
+    "mid",
+    "normal",
+    0.11,
+    0.22,
+    0.33,
+    0.44,
+    tasks,
+    7,
+    8,
+    5,
+  );
+  const b = calculateDailyBonus(
+    "mid",
+    "normal",
+    0.11,
+    0.22,
+    0.33,
+    0.44,
+    tasks,
+    7,
+    8,
+    5,
+  );
   assert.deepEqual(a, b);
   assert.deepEqual(tasks, snapshot);
 });
@@ -460,22 +1161,32 @@ test('calculateDailyBonus: 순수 함수 — 같은 입력이면 항상 같은 �
 // 게이지 통합 시나리오
 // ─────────────────────────────────────────────────────────────
 
-test('게이지 통합: 매일 목표를 정확히 채우면 D-day 에 100% 에 도달한다', () => {
+test("게이지 통합: 매일 목표를 정확히 채우면 D-day 에 100% 에 도달한다", () => {
   // 고3, 수시 기준확률 40 → D-day 까지 남은 일수로 나눈 rate 를 매일 더한다.
   const now = new Date(2026, 7, 11);
-  const rates = calcStudentBonusRates('고3', 40, 40, 40, 40, now);
+  const rates = calcStudentBonusRates("고3", 40, 40, 40, 40, now);
   const days = Math.round((100 - 40) / rates.idealSusiBonus);
 
   let gauge = 40;
   for (let d = 0; d < days; d += 1) {
     // 성취도 full · 집중도 good · 목표 정확 달성 · 태그 없음 → 배수 전부 1.0
     const bonus = calculateDailyBonus(
-      'full', 'good',
-      rates.idealSusiBonus, rates.idealJungsiBonus, rates.minSusiBonus, rates.minJungsiBonus,
-      [], 8, 8, 8,
+      "full",
+      "good",
+      rates.idealSusiBonus,
+      rates.idealJungsiBonus,
+      rates.minSusiBonus,
+      rates.minJungsiBonus,
+      [],
+      8,
+      8,
+      8,
     );
     gauge += bonus.idealSusiBonus;
   }
   // round4 누적 오차 때문에 정확히 100 은 아니다 — 원본도 같은 오차를 갖는다.
-  assert.ok(Math.abs(gauge - 100) < 0.5, `게이지 ${gauge} 가 100 근처가 아니다`);
+  assert.ok(
+    Math.abs(gauge - 100) < 0.5,
+    `게이지 ${gauge} 가 100 근처가 아니다`,
+  );
 });

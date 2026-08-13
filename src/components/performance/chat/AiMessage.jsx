@@ -1,4 +1,4 @@
-import AiAvatar from './AiAvatar';
+import AiAvatar from "./AiAvatar";
 
 // AI 말풍선 프리미티브 — docs/수행평가-상세-명세.md §3.1(셸 관례) / §5.3(예외) / §5.5·§5.6·§5.8
 // (말풍선 뒤에 폼·업로드 카드가 붙는 실제 배치) / §7.1(색) / §7.2(타이포).
@@ -34,24 +34,26 @@ import AiAvatar from './AiAvatar';
  * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
  */
 export default function AiMessage({
-  label = '위닝 수행평가 서포터',
+  label = "위닝 수행평가 서포터",
   body,
   children,
-  bubbleMaxWidthClassName = 'max-w-perf-bubble',
-  className = ''
+  bubbleMaxWidthClassName = "max-w-perf-bubble",
+  className = "",
 }) {
   return (
-    <div className={['flex items-start gap-5', className].join(' ')}>
+    <div className={["flex items-start gap-5", className].join(" ")}>
       <AiAvatar />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
         {/* 실측: 14px/18 w600 #525252(=`ink`). */}
-        <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">{label}</span>
+        <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
+          {label}
+        </span>
         {body != null && (
           <div
             className={[
-              'w-full rounded-2xl bg-performance-bubble p-5',
-              bubbleMaxWidthClassName
-            ].join(' ')}
+              "w-full rounded-2xl bg-performance-bubble p-5",
+              bubbleMaxWidthClassName,
+            ].join(" ")}
           >
             {/* 실측: 16px/21 w500 #525252(=`ink`). */}
             <p className="whitespace-pre-line text-[1rem] font-medium leading-[1.3125rem] text-ink">

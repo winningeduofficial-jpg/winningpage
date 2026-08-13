@@ -1,7 +1,7 @@
-import AdmissionModalShell from '../modal/AdmissionModalShell';
-import AdmissionModalStyles from '../modal/AdmissionModalStyles';
-import AdmissionSurface from '../AdmissionSurface';
-import AdmissionEditorSurface from './AdmissionEditorSurface';
+import AdmissionModalShell from "../modal/AdmissionModalShell";
+import AdmissionModalStyles from "../modal/AdmissionModalStyles";
+import AdmissionSurface from "../AdmissionSurface";
+import AdmissionEditorSurface from "./AdmissionEditorSurface";
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.
 //
@@ -38,13 +38,14 @@ import AdmissionEditorSurface from './AdmissionEditorSurface';
 //   3. 셀 input Tab 이동의 브라우저 자동 스크롤과 ratio 역대입이 경합한다.
 
 const EDITOR_SHEET_CLASS =
-  'admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]';
+  "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
 // 공개(PUBLIC_BODY_CLASS)에서 가져오지 않은 것: admission-modal-body(위 주석)와
 // 공개 타이포(text-sm/font-semibold/leading-7/text-[#525252]). 편집기는 입력
 // 요소 위주라 본문 타이포를 물려받으면 라벨·도움말까지 굵어진다.
 const EDITOR_BODY_CLASS =
-  'admission-editor-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 md:px-12';
-const EDITOR_FOOTER_CLASS = 'border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-12';
+  "admission-editor-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 md:px-12";
+const EDITOR_FOOTER_CLASS =
+  "border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-12";
 
 export default function AdmissionSectionEditModal({
   open,
@@ -53,14 +54,14 @@ export default function AdmissionSectionEditModal({
   universityName,
   dirty = false,
   // 'list' = 목록에서 직행(닫기 = 목록 복귀), 'form' = 폼에서 진입(닫기 = 폼 복귀)
-  origin = 'form',
+  origin = "form",
   onClose,
   onSave,
-  children
+  children,
 }) {
   if (!open) return null;
 
-  const closeLabel = origin === 'list' ? '닫기' : '폼으로';
+  const closeLabel = origin === "list" ? "닫기" : "폼으로";
 
   return (
     <>
@@ -79,11 +80,11 @@ export default function AdmissionSectionEditModal({
         idPrefix="admission-editor-modal"
         sheetClassName={EDITOR_SHEET_CLASS}
         bodyClassName={EDITOR_BODY_CLASS}
-        bodyProps={{ 'data-section': sectionKey }}
+        bodyProps={{ "data-section": sectionKey }}
         footerClassName={EDITOR_FOOTER_CLASS}
         eyebrow={
           <span className="inline-flex items-center gap-2">
-            {universityName || '(대학명 없음)'}
+            {universityName || "(대학명 없음)"}
             {dirty && (
               // 거짓 유실 경고가 아니다: 편집 상태는 모달이 아니라 AdminForm 이
               // 들고 있으므로 이 모달을 닫아도 값은 살아 있다. 다만 DB 에는

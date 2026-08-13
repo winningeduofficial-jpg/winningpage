@@ -1,4 +1,4 @@
-import ImeSafeInput from '../ImeSafeInput';
+import ImeSafeInput from "../ImeSafeInput";
 
 // FootnoteBlock 편집기 — items: string[] 추가·삭제·수정. legacy
 // (buildRecruitmentHtml, admissionParsing.js:2288)는 items를 공백으로
@@ -21,20 +21,22 @@ export default function FootnoteBlockEditor({ block, onChange }) {
   }
 
   function addItem() {
-    commitItems([...items, '']);
+    commitItems([...items, ""]);
   }
 
-  const preview = items.filter(Boolean).join(' ');
+  const preview = items.filter(Boolean).join(" ");
 
   return (
     <div className="p-2">
-      <label className="mb-1 block text-[11px] font-bold text-gray-500">각주</label>
+      <label className="mb-1 block text-[11px] font-bold text-gray-500">
+        각주
+      </label>
       <div className="flex flex-col gap-1">
         {items.map((item, idx) => (
           <div key={idx} className="flex items-center gap-1">
             <ImeSafeInput
               type="text"
-              value={item ?? ''}
+              value={item ?? ""}
               onCommit={(text) => updateItem(idx, text)}
               aria-label={`각주 항목 ${idx + 1}`}
               className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
@@ -50,7 +52,11 @@ export default function FootnoteBlockEditor({ block, onChange }) {
           </div>
         ))}
       </div>
-      <button type="button" onClick={addItem} className="mt-1 text-xs font-bold text-[#2348ff]">
+      <button
+        type="button"
+        onClick={addItem}
+        className="mt-1 text-xs font-bold text-[#2348ff]"
+      >
         + 각주 항목 추가
       </button>
       {preview && (

@@ -17,17 +17,19 @@
 //   import { outboundFetch } from './_lib/outbound.js';
 //   const res = await outboundFetch('https://apis.aligo.in/...', { method: 'POST', body });
 
-import { ProxyAgent, fetch as undiciFetch } from 'undici';
+import { ProxyAgent, fetch as undiciFetch } from "undici";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 let cachedAgent = null;
-let cachedProxyUrl = '';
+let cachedProxyUrl = "";
 
 function readProxyUrl() {
   // FIXIE_URL은 Fixie 통합이 자동으로 주입한다. OUTBOUND_PROXY_URL은 다른
   // 프록시로 갈아탈 때를 위한 수동 우선 지정용이다.
-  return String(process.env.OUTBOUND_PROXY_URL || process.env.FIXIE_URL || '').trim();
+  return String(
+    process.env.OUTBOUND_PROXY_URL || process.env.FIXIE_URL || "",
+  ).trim();
 }
 
 // 배포 환경에서 프록시가 없으면 조용히 직접 나가면 안 된다. 벤더가 IP로
@@ -37,19 +39,19 @@ function isDeployed() {
 }
 
 export function isProxyConfigured() {
-  return readProxyUrl() !== '';
+  return readProxyUrl() !== "";
 }
 
 // 로그에 프록시 자격증명이 찍히면 안 된다. host:port만 남긴다.
 export function describeEgress() {
   const raw = readProxyUrl();
-  if (!raw) return 'direct (no proxy)';
+  if (!raw) return "direct (no proxy)";
 
   try {
     const url = new URL(raw);
     return `proxy ${url.host}`;
   } catch {
-    return 'proxy (unparsable url)';
+    return "proxy (unparsable url)";
   }
 }
 
@@ -90,8 +92,8 @@ export async function outboundFetch(url, options = {}) {
   if (!agent) {
     if (requireProxy) {
       throw new Error(
-        'FIXIE_URL(또는 OUTBOUND_PROXY_URL)이 설정되지 않았습니다. ' +
-          '고정 IP를 경유하지 않으면 알리고·NICE의 IP 화이트리스트에서 차단됩니다.'
+        "FIXIE_URL(또는 OUTBOUND_PROXY_URL)이 설정되지 않았습니다. " +
+          "고정 IP를 경유하지 않으면 알리고·NICE의 IP 화이트리스트에서 차단됩니다.",
       );
     }
 
@@ -99,14 +101,14 @@ export async function outboundFetch(url, options = {}) {
     // 않으면 여기서 나간 요청은 차단되는 게 정상이다.
     console.warn(
       `[outbound] 프록시 없이 직접 호출합니다 (${url}). ` +
-        '벤더 IP 화이트리스트에 걸릴 수 있습니다.'
+        "벤더 IP 화이트리스트에 걸릴 수 있습니다.",
     );
   }
 
   const response = await undiciFetch(url, {
     ...fetchOptions,
     ...(agent ? { dispatcher: agent } : {}),
-    signal: fetchOptions.signal ?? AbortSignal.timeout(timeoutMs)
+    signal: fetchOptions.signal ?? AbortSignal.timeout(timeoutMs),
   });
 
   return response;

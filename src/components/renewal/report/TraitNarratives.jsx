@@ -5,8 +5,12 @@ export default function TraitNarratives({ items, heading }) {
     <div className="flex w-full flex-col gap-10" aria-label={heading}>
       {items.map((item) => (
         <div key={item.title} className="flex flex-col gap-3">
-          <p className="text-base font-semibold leading-[1.4] text-[#525252]">{item.title}</p>
-          <p className="text-base font-normal leading-[1.4] text-[#808080]">{item.body}</p>
+          <p className="text-base font-semibold leading-[1.4] text-[#525252]">
+            {item.title}
+          </p>
+          <p className="text-base font-normal leading-[1.4] text-[#808080]">
+            {item.body}
+          </p>
         </div>
       ))}
     </div>

@@ -12,4 +12,4 @@ export function getFaqTabId(tab) {
   return `faq-tab-${encodeURIComponent(tab)}`;
 }
 
-export const FAQ_TABPANEL_ID = 'faq-tabpanel';
+export const FAQ_TABPANEL_ID = "faq-tabpanel";

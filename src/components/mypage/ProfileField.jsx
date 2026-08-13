@@ -11,7 +11,7 @@ export default function ProfileField({
   onChange,
   onBlur,
   placeholder,
-  type = 'text',
+  type = "text",
   readOnly = false,
   actionLabel, // 예: '변경'
   onAction,
@@ -19,7 +19,7 @@ export default function ProfileField({
   helperText,
   children,
   actions,
-  className = ''
+  className = "",
 }) {
   return (
     <div className={className}>
@@ -29,13 +29,13 @@ export default function ProfileField({
         {children || (
           <input
             type={type}
-            value={value ?? ''}
+            value={value ?? ""}
             onChange={(e) => onChange?.(e.target.value)}
             onBlur={onBlur}
             placeholder={placeholder}
             readOnly={readOnly}
             className={`h-[3.25rem] w-full rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary ${
-              readOnly ? 'bg-surface-footer text-ink-sub' : ''
+              readOnly ? "bg-surface-footer text-ink-sub" : ""
             }`}
           />
         )}

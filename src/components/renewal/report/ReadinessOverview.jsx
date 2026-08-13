@@ -8,8 +8,12 @@ const ReadinessOverview = ({ scoreLabel, summaryLines }) => {
       </h2>
 
       <div className="mt-6 flex items-center gap-3">
-        <span className="text-[1.1875rem] font-medium text-[#525252]">종합점수</span>
-        <span className="text-[1.25rem] font-medium text-[#013262]">{scoreLabel}</span>
+        <span className="text-[1.1875rem] font-medium text-[#525252]">
+          종합점수
+        </span>
+        <span className="text-[1.25rem] font-medium text-[#013262]">
+          {scoreLabel}
+        </span>
       </div>
 
       {/* fd-readiness-summary — 인쇄 훅(BLOCK 수정). report-print.css 가 기존

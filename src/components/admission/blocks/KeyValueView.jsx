@@ -23,7 +23,7 @@
 // 필수 동반 속성이다(opener 탈취·referrer 유출 방지).
 
 /** 링크 라벨 접미. 시각적 표시가 없는 링크라 접근성 이름으로만 새 창을 알린다. */
-const NEW_WINDOW_SUFFIX = ' (새 창)';
+const NEW_WINDOW_SUFFIX = " (새 창)";
 
 export default function KeyValueView({ rows }) {
   if (!rows || !rows.length) return null;
@@ -33,7 +33,7 @@ export default function KeyValueView({ rows }) {
       {rows.map((row, idx) => (
         <div key={idx} className="admission-text-line">
           {row.label ? <b>{row.label}</b> : null}
-          {row.label && row.content ? ' ' : ''}
+          {row.label && row.content ? " " : ""}
           {row.href ? (
             <a
               className="admission-inline-link"

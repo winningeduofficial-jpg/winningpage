@@ -1,4 +1,4 @@
-import ScoreBar from './ScoreBar';
+import ScoreBar from "./ScoreBar";
 
 // 6영역 수평 바 그래프 — StatusBadge 미사용(상태는 일반 텍스트), ScoreBar 소비.
 // fill 폭은 ScoreBar 내부에서 점수→폭 선형 환산(결정6)으로 렌더된다.

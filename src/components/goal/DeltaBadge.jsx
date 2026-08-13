@@ -12,18 +12,22 @@
 // direction에서 자동 유도하면 등급처럼 "낮을수록 좋음"인 지표에서 오작동하므로, 호출부가
 // 지표 성격을 알고 tone을 명시적으로 넘기도록 강제한다.
 const DIRECTION_GLYPH = {
-  up: '▲',
-  down: '▼', // (추정) 시안에 없음
-  flat: '■' // (추정) 시안에 없음
+  up: "▲",
+  down: "▼", // (추정) 시안에 없음
+  flat: "■", // (추정) 시안에 없음
 };
 
 const TONE_CLASS = {
-  positive: 'bg-[#E3F3E6] text-[#2E9E4C]', // (추정) 연초록 — insight.success와 동일 계열
-  negative: 'bg-[#FCE4E4] text-[#D14343]', // (추정) 연빨강 — GoalDdayBadge red 톤 재사용
-  neutral: 'bg-[#F0F0F0] text-ink-sub' // (추정) 회색
+  positive: "bg-[#E3F3E6] text-[#2E9E4C]", // (추정) 연초록 — insight.success와 동일 계열
+  negative: "bg-[#FCE4E4] text-[#D14343]", // (추정) 연빨강 — GoalDdayBadge red 톤 재사용
+  neutral: "bg-[#F0F0F0] text-ink-sub", // (추정) 회색
 };
 
-export default function DeltaBadge({ value, direction = 'up', tone = 'positive' }) {
+export default function DeltaBadge({
+  value,
+  direction = "up",
+  tone = "positive",
+}) {
   const glyph = DIRECTION_GLYPH[direction] ?? DIRECTION_GLYPH.up;
   const toneClass = TONE_CLASS[tone] ?? TONE_CLASS.positive;
 

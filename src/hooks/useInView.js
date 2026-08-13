@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 /**
  * 엘리먼트가 뷰포트에 걸쳐 있는 동안만 true인 상태를 반환하는 훅.
@@ -18,7 +18,7 @@ export function useInView() {
 
   useEffect(() => {
     const node = ref.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    if (!node || typeof IntersectionObserver === "undefined") return undefined;
 
     const observer = new IntersectionObserver((entries) => {
       setInView(entries.some((entry) => entry.isIntersecting));

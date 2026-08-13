@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Pencil } from 'lucide-react';
-import GoalProgressBar from '../GoalProgressBar';
-import { getSubjectStrongClass } from '../subjectTokens';
+import { useState } from "react";
+import { Pencil } from "lucide-react";
+import GoalProgressBar from "../GoalProgressBar";
+import { getSubjectStrongClass } from "../subjectTokens";
 
 function pad(n) {
-  return String(n).padStart(2, '0');
+  return String(n).padStart(2, "0");
 }
 
 // HH:MM:SS 표기 — part-09 §120~123 (`00:50:12` 등). 초 단위 경과값을 그대로 조판한다.
@@ -42,7 +42,7 @@ export default function SubjectTimerCard({
   elapsedSeconds,
   running,
   onToggle,
-  onTargetChange
+  onTargetChange,
 }) {
   const [editing, setEditing] = useState(false);
   const [draftHours, setDraftHours] = useState(String(targetHours ?? 0));
@@ -69,8 +69,13 @@ export default function SubjectTimerCard({
     <div className="flex flex-col gap-5 rounded-xl border border-line/60 bg-white px-[1.75rem] py-[1.5rem]">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className={`h-4 w-4 shrink-0 rounded-full ${dotClass}`} />
-          <span className="text-[1rem] font-bold leading-[1.4] text-ink-strong">{label}</span>
+          <span
+            aria-hidden="true"
+            className={`h-4 w-4 shrink-0 rounded-full ${dotClass}`}
+          />
+          <span className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+            {label}
+          </span>
         </div>
 
         {editing ? (
@@ -107,7 +112,8 @@ export default function SubjectTimerCard({
             onClick={openEditor}
             className="flex shrink-0 items-center gap-1 text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
           >
-            목표 {targetHours}h{isDefaultTarget && <span className="text-ink-sub">(기본값)</span>}
+            목표 {targetHours}h
+            {isDefaultTarget && <span className="text-ink-sub">(기본값)</span>}
             <Pencil size={12} aria-hidden="true" />
           </button>
         )}
@@ -115,7 +121,7 @@ export default function SubjectTimerCard({
 
       <p
         className={`text-[1.75rem] font-bold leading-[1.2] tabular-nums ${
-          running ? 'text-ink-strong' : 'text-ink-sub'
+          running ? "text-ink-strong" : "text-ink-sub"
         }`}
       >
         {formatClock(elapsedSeconds)}
@@ -132,10 +138,12 @@ export default function SubjectTimerCard({
         type="button"
         onClick={onToggle}
         className={`h-[2.4375rem] w-full rounded-lg text-[0.9375rem] font-semibold leading-[1.2] transition-colors ${
-          running ? 'border border-line bg-white text-ink-strong' : 'bg-primary text-white'
+          running
+            ? "border border-line bg-white text-ink-strong"
+            : "bg-primary text-white"
         }`}
       >
-        {running ? '일시정지' : '시작'}
+        {running ? "일시정지" : "시작"}
       </button>
     </div>
   );

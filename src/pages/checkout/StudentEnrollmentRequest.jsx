@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { formatKRW } from '../../data/pricingCatalog';
-import { useProducts } from '../../lib/products';
-import { getApprovedParentLink } from '../../lib/parentLink';
-import ConfirmModal from '../../components/checkout/ConfirmModal';
-import checkboxUnselected from '../../assets/checkout/checkbox-24.svg';
-import checkboxSelected from '../../assets/checkout/checkbox-24-selected.svg';
-import sectionArrow from '../../assets/checkout/section-arrow-38.svg';
-import successCheck from '../../assets/checkout/success-check-60.svg';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { formatKRW } from "../../data/pricingCatalog";
+import { useProducts } from "../../lib/products";
+import { getApprovedParentLink } from "../../lib/parentLink";
+import ConfirmModal from "../../components/checkout/ConfirmModal";
+import checkboxUnselected from "../../assets/checkout/checkbox-24.svg";
+import checkboxSelected from "../../assets/checkout/checkbox-24-selected.svg";
+import sectionArrow from "../../assets/checkout/section-arrow-38.svg";
+import successCheck from "../../assets/checkout/success-check-60.svg";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
 // get_design_context 로 직접 뽑은 전문 기준 — 이전 라운드는 Figma 접근 없이
@@ -25,7 +25,7 @@ import successCheck from '../../assets/checkout/success-check-60.svg';
 // 그룹핑한다(Pricing.jsx 가 이미 이 훅을 그렇게 쓴다). dev DB 실측 결과 이 3개
 // 서비스는 service_key ↔ program_key 가 1:1 대응이라(goal↔target, mentor↔mentor,
 // suhaeng↔suhaeng) 그룹 구성 결과가 동일하므로 기존 훅을 그대로 재사용한다.
-const ALLOWED_SERVICE_KEYS = ['goal', 'mentor', 'suhaeng'];
+const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng"];
 
 // 그룹당 1개 선택 안내 — 시안 실측 문구(3921:7066, 목표관리·수행평가 섹션
 // 하단에만 있고 콜멘토엔 없다 — 아래 렌더 조건 `products.length > 1`이 이를
@@ -35,7 +35,7 @@ const ALLOWED_SERVICE_KEYS = ['goal', 'mentor', 'suhaeng'];
 // (주의: 팀 리드가 저해상도 스크린샷으로 "여러 옵션"이라 오독해 앞서 다르게
 // 지시했었다 — 정본은 "여러 플랜"이다, 이번 실측으로 정정.)
 const SINGLE_PLAN_NOTICE =
-  '한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.';
+  "한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택 가능합니다.";
 
 // 학부모 미연결 실패 모달(시안 3921:7480) 본문 — 시안 원문 그대로(3줄 줄바꿈
 // 유지). 제목의 시안 오타 "실패했습니다.," → "실패했습니다."로 정정(사용자 확정).
@@ -52,16 +52,16 @@ const FAIL_MODAL_BODY = (
 // 서버 제출 실패(학부모 미연결 이외의 사유) — 제목은 기존 승인 문구
 // ("결제요청에 실패했습니다.") 재사용. 본문은 신규 문구(사용자 승인 대기).
 const GENERIC_SUBMIT_FAIL = {
-  title: '결제요청에 실패했습니다.',
-  body: '잠시 후 다시 시도해 주세요.'
+  title: "결제요청에 실패했습니다.",
+  body: "잠시 후 다시 시도해 주세요.",
 };
 
 // WC043(fn_request_enrollment 의 중복 open 요청 게이트, sql/71) 응답 —
 // 같은 학생·학부모 쌍에 이미 응답 대기 중인 요청이 있다는 뜻이다. 신규
 // 문구(사용자 승인 대기).
 const DUPLICATE_REQUEST_FAIL = {
-  title: '이미 진행 중인 결제 요청이 있어요.',
-  body: '학부모님의 확인을 기다리고 있어요. 마이페이지에서 요청 현황을 확인해 주세요.'
+  title: "이미 진행 중인 결제 요청이 있어요.",
+  body: "학부모님의 확인을 기다리고 있어요. 마이페이지에서 요청 현황을 확인해 주세요.",
 };
 
 export default function StudentEnrollmentRequest() {
@@ -93,7 +93,7 @@ export default function StudentEnrollmentRequest() {
 
   const filteredServices = useMemo(
     () => services.filter((s) => ALLOWED_SERVICE_KEYS.includes(s.key)),
-    [services]
+    [services],
   );
 
   function toggle(serviceKey, productId) {
@@ -109,7 +109,7 @@ export default function StudentEnrollmentRequest() {
   // 규약이다(전체 근거는 그쪽 handleRadioKeyDown 주석 참고 — 두 화면이 같은
   // 상호작용을 쓰므로 여기서 반복 설명하지 않는다).
   function handleRadioKeyDown(e, serviceKey, products, currentIndex) {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       if (!(serviceKey in selected)) return;
       e.preventDefault();
       setSelected((prev) => {
@@ -121,12 +121,13 @@ export default function StudentEnrollmentRequest() {
     }
 
     let delta = 0;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') delta = 1;
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') delta = -1;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") delta = 1;
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") delta = -1;
     else return;
     e.preventDefault();
 
-    const nextIndex = (currentIndex + delta + products.length) % products.length;
+    const nextIndex =
+      (currentIndex + delta + products.length) % products.length;
     const nextProduct = products[nextIndex];
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
@@ -148,13 +149,16 @@ export default function StudentEnrollmentRequest() {
         serviceName: service.name,
         name: product.name,
         listPrice: product.listPrice,
-        price: product.price
+        price: product.price,
       });
     });
     return items;
   }, [filteredServices, selected]);
 
-  const listTotal = selectedItems.reduce((s, i) => s + Number(i.listPrice || i.price || 0), 0);
+  const listTotal = selectedItems.reduce(
+    (s, i) => s + Number(i.listPrice || i.price || 0),
+    0,
+  );
   const subtotal = selectedItems.reduce((s, i) => s + Number(i.price || 0), 0);
   const discountTotal = listTotal - subtotal;
 
@@ -184,15 +188,17 @@ export default function StudentEnrollmentRequest() {
       let response;
       let payload;
       try {
-        response = await fetch('/api/request-enrollment', {
-          method: 'POST',
+        response = await fetch("/api/request-enrollment", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           // id 만 보낸다 — parentProfileId·금액류는 서버가 신뢰하지 않고 무시한다
           // (api/request-enrollment.js 신뢰 경계 주석 참고).
-          body: JSON.stringify({ items: selectedItems.map((i) => ({ id: i.id })) })
+          body: JSON.stringify({
+            items: selectedItems.map((i) => ({ id: i.id })),
+          }),
         });
         payload = await response.json();
       } catch {
@@ -201,11 +207,11 @@ export default function StudentEnrollmentRequest() {
       }
 
       if (!response.ok) {
-        if (payload?.error === 'no_linked_parent') {
+        if (payload?.error === "no_linked_parent") {
           setShowFailModal(true);
           return;
         }
-        if (payload?.error === 'duplicate_open_request') {
+        if (payload?.error === "duplicate_open_request") {
           setSubmitError(DUPLICATE_REQUEST_FAIL);
           return;
         }
@@ -226,7 +232,7 @@ export default function StudentEnrollmentRequest() {
   // 제목이 화면 밖에 있어 "아무 일도 안 일어난" 것처럼 보인다.
   useEffect(() => {
     if (!completedOrder) return;
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, [completedOrder]);
 
   // 화면 3 — 완료(시안 3921:7792). 헤더/푸터는 렌더하지 않는다 — SiteLayout
@@ -249,7 +255,9 @@ export default function StudentEnrollmentRequest() {
 
           <dl className="w-full max-w-[39.125rem] space-y-1 rounded-[1.25rem] border border-line px-3 py-5">
             <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
-              <dt className="shrink-0 text-[0.875rem] font-medium text-ink">주문번호</dt>
+              <dt className="shrink-0 text-[0.875rem] font-medium text-ink">
+                주문번호
+              </dt>
               {/* orders.id 형식(order_<timestamp>_<hex>)을 그대로 쓴다 — 시안의
                   '1234567-1234567'은 더미다. 길어서 줄바꿈되도 값을 자르지 않는다. */}
               <dd className="min-w-0 break-all text-right text-[0.875rem] font-medium text-ink">
@@ -259,7 +267,9 @@ export default function StudentEnrollmentRequest() {
             {/* 부가가치세 행 없음(사용자 확정) — orders 스키마엔 부가세 컬럼이
                 없고, 시안의 부가세 값도 총액과 동일한 더미였다. */}
             <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
-              <dt className="text-[0.875rem] font-medium text-ink">총 결제 금액</dt>
+              <dt className="text-[0.875rem] font-medium text-ink">
+                총 결제 금액
+              </dt>
               <dd className="text-[0.875rem] font-medium text-ink">
                 {formatKRW(completedOrder.amount)}
               </dd>
@@ -269,7 +279,7 @@ export default function StudentEnrollmentRequest() {
           <div className="flex w-full max-w-[25rem] flex-col items-center">
             <button
               type="button"
-              onClick={() => navigate('/mypage')}
+              onClick={() => navigate("/mypage")}
               className="flex h-[3.25rem] w-full items-center justify-center rounded-xl bg-ink-title text-[1rem] font-semibold text-white transition hover:brightness-125"
             >
               마이페이지에서 확인하기
@@ -353,12 +363,19 @@ export default function StudentEnrollmentRequest() {
                 >
                   {service.products.map((product, index) => {
                     const isSelected = selected[service.key] === product.id;
-                    const hasDiscount = Number(product.listPrice) > Number(product.price);
+                    const hasDiscount =
+                      Number(product.listPrice) > Number(product.price);
                     const hasSelectionInGroup = Boolean(selected[service.key]);
-                    const isRovingTabStop = hasSelectionInGroup ? isSelected : index === 0;
+                    const isRovingTabStop = hasSelectionInGroup
+                      ? isSelected
+                      : index === 0;
                     // 할인율은 하드코딩하지 않고 정가/판매가로 계산한다(팀 리드 지시).
                     const discountPct = hasDiscount
-                      ? Math.round((1 - Number(product.price) / Number(product.listPrice)) * 100)
+                      ? Math.round(
+                          (1 -
+                            Number(product.price) / Number(product.listPrice)) *
+                            100,
+                        )
                       : 0;
 
                     return (
@@ -370,7 +387,12 @@ export default function StudentEnrollmentRequest() {
                         tabIndex={isRovingTabStop ? 0 : -1}
                         onClick={() => toggle(service.key, product.id)}
                         onKeyDown={(e) =>
-                          handleRadioKeyDown(e, service.key, service.products, index)
+                          handleRadioKeyDown(
+                            e,
+                            service.key,
+                            service.products,
+                            index,
+                          )
                         }
                         className="flex w-full items-center justify-between gap-4 rounded-2xl border border-line bg-white px-4 py-4 text-left transition hover:border-ink-sub lg:px-8 lg:py-7"
                       >
@@ -381,7 +403,9 @@ export default function StudentEnrollmentRequest() {
                               primary(#013262)로 바꾼 변형(checkbox-24-selected.svg)
                               은 팀 리드 판단이며 시안 근거가 아니다. */}
                           <img
-                            src={isSelected ? checkboxSelected : checkboxUnselected}
+                            src={
+                              isSelected ? checkboxSelected : checkboxUnselected
+                            }
                             alt=""
                             aria-hidden="true"
                             className="size-6 shrink-0"
@@ -450,7 +474,9 @@ export default function StudentEnrollmentRequest() {
               )}
               <div>
                 <dt className="text-ink-sub">총 결제 금액</dt>
-                <dd className="text-[1.125rem] font-semibold">{formatKRW(subtotal)}</dd>
+                <dd className="text-[1.125rem] font-semibold">
+                  {formatKRW(subtotal)}
+                </dd>
               </div>
             </dl>
             <button
@@ -459,11 +485,11 @@ export default function StudentEnrollmentRequest() {
               disabled={!canSubmit}
               className={`w-full shrink-0 rounded-xl py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:w-auto sm:px-8 ${
                 canSubmit
-                  ? 'bg-primary text-white hover:brightness-125'
-                  : 'cursor-not-allowed border border-line bg-surface-card text-ink'
+                  ? "bg-primary text-white hover:brightness-125"
+                  : "cursor-not-allowed border border-line bg-surface-card text-ink"
               }`}
             >
-              {submitting ? '요청하는 중…' : '결제 요청'}
+              {submitting ? "요청하는 중…" : "결제 요청"}
             </button>
           </div>
         </div>
@@ -471,14 +497,20 @@ export default function StudentEnrollmentRequest() {
 
       {/* 화면 2 — 실패 모달(시안 3921:7480) */}
       {showFailModal && (
-        <ConfirmModal title="결제요청에 실패했습니다." onClose={() => setShowFailModal(false)}>
+        <ConfirmModal
+          title="결제요청에 실패했습니다."
+          onClose={() => setShowFailModal(false)}
+        >
           {FAIL_MODAL_BODY}
         </ConfirmModal>
       )}
 
       {/* 서버 제출 실패(학부모 미연결 이외) — 일반 오류/중복 요청(WC043) 공용 모달. */}
       {submitError && (
-        <ConfirmModal title={submitError.title} onClose={() => setSubmitError(null)}>
+        <ConfirmModal
+          title={submitError.title}
+          onClose={() => setSubmitError(null)}
+        >
           {submitError.body}
         </ConfirmModal>
       )}

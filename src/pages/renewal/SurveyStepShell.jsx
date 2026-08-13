@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useCallback, useEffect, useState } from "react";
+import { Outlet } from "react-router-dom";
 // 리포트 '페이지'가 아니라 storage 모듈만 import 한다 — 페이지를 가져오면 인쇄 CSS 가 설문 번들로 끌려온다.
 // 저장 키·직렬화·스키마 검증의 정의처도 그 모듈 하나다(여기에 리터럴을 두면 읽기 쪽과 갈라진다).
-import { submitDiagnosisAnswers } from '../../lib/diagnosisInputStorage';
+import { submitDiagnosisAnswers } from "../../lib/diagnosisInputStorage";
 // Q-01(2026-08-11 확정) — 제출 시점에 로그인 학생 이름을 조회한다. 비로그인·조회 실패는 null.
-import { fetchLoggedInStudentName } from '../../lib/diagnosisStudentName';
+import { fetchLoggedInStudentName } from "../../lib/diagnosisStudentName";
 // B-1(2026-08-11 확정) — q15 캐스케이드 fetch 상태(옵션 5벌 + loading + error)를 이 셸이 소유한다.
-import { useAdmissionCascade } from '../../hooks/useAdmissionCascade';
+import { useAdmissionCascade } from "../../hooks/useAdmissionCascade";
 // sql/72(2026-08-13 확정) — 문항 제목/안내문구/선택지 라벨/리커트 문장 어드민 오버라이드.
 // mount 1회 fetch, 실패·0행이면 빈 Map(= 정적 문구 그대로) — MentorFaq.jsx 의 키 단위 폴백과 같은 계약이다.
-import { fetchSurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides';
+import { fetchSurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides";
 
 /**
  * 설문 5스텝 공통 셸. `/free-diagnosis/survey` 부모 라우트의 element 이므로
@@ -21,7 +21,9 @@ import { fetchSurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides
  */
 export default function SurveyStepShell() {
   const [answers, setAnswers] = useState({});
-  const [surveyCopyOverrides, setSurveyCopyOverrides] = useState(() => new Map());
+  const [surveyCopyOverrides, setSurveyCopyOverrides] = useState(
+    () => new Map(),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -61,15 +63,17 @@ export default function SurveyStepShell() {
       // G-1a — cascadeComplete 직후 fetch 가 아직 안 끝난 채로 제출하면 cuts=null·cutsError=false
       // (둘 다 초기값)로 읽혀 '조회 미확정'이 '자료 영구 부재'로 낙관 처리된다(3회 중 2회 재현
       // 실측). awaitCuts() 가 진행 중인 조회를 기다린 뒤 그 순간의 확정 결과를 직접 돌려준다.
-      awaitCuts()
+      awaitCuts(),
     ]);
     return submitDiagnosisAnswers(answers, {
       name,
       admissionCuts: admissionResolved.cuts,
-      admissionMeta: admissionResolved.cuts ? { year: admissionResolved.cuts.year } : null,
+      admissionMeta: admissionResolved.cuts
+        ? { year: admissionResolved.cuts.year }
+        : null,
       // F-22 — 참조 비교(ADMISSION_FETCH_ERROR)로 판정해 올린 불리언. 이 한 줄이 없으면
       // '조회 실패'가 payload 에서 통째로 사라져 리포트가 일시 오류를 '자료 영구 부재'로 단정한다.
-      admissionCutsError: admissionResolved.cutsError
+      admissionCutsError: admissionResolved.cutsError,
     });
     // awaitCuts 는 훅 안에서 useCallback(빈 deps)로 안정된 참조라 이 콜백도 answers 가 바뀔 때만
     // 재생성된다 — admissionCascade 객체 전체를 deps 에 넣으면 매 렌더 재생성되어 의미가 없다.
@@ -99,7 +103,7 @@ export default function SurveyStepShell() {
                 setAnswer,
                 submitDiagnosis,
                 cascadeLevels: admissionCascade.levels,
-                surveyCopyOverrides
+                surveyCopyOverrides,
               }}
             />
           </div>

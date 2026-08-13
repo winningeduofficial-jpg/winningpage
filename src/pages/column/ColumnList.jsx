@@ -1,24 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
-import ColumnCard from '../../components/column/ColumnCard';
-import CategoryChips from '../../components/column/CategoryChips';
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
+import ColumnCard from "../../components/column/ColumnCard";
+import CategoryChips from "../../components/column/CategoryChips";
 import {
   ALL_CATEGORY,
   fetchActiveColumns,
   getCategoryLabel,
   getDisplayDate,
-  getViewCount
-} from './columnData';
+  getViewCount,
+} from "./columnData";
 
-const SORT_LATEST = '최신순';
-const SORT_VIEWS = '조회순';
+const SORT_LATEST = "최신순";
+const SORT_VIEWS = "조회순";
 
 export default function ColumnList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(ALL_CATEGORY);
   const [sortKey, setSortKey] = useState(SORT_LATEST);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +36,10 @@ export default function ColumnList() {
     };
   }, []);
 
-  const hasViewCounts = useMemo(() => rows.some((row) => getViewCount(row) !== null), [rows]);
+  const hasViewCounts = useMemo(
+    () => rows.some((row) => getViewCount(row) !== null),
+    [rows],
+  );
 
   const visibleRows = useMemo(() => {
     let result = rows;
@@ -47,14 +50,21 @@ export default function ColumnList() {
 
     const q = keyword.trim().toLowerCase();
     if (q) {
-      result = result.filter((row) => String(row.title || '').toLowerCase().includes(q));
+      result = result.filter((row) =>
+        String(row.title || "")
+          .toLowerCase()
+          .includes(q),
+      );
     }
 
     const sorted = [...result];
     if (sortKey === SORT_VIEWS && hasViewCounts) {
       sorted.sort((a, b) => (getViewCount(b) ?? 0) - (getViewCount(a) ?? 0));
     } else {
-      sorted.sort((a, b) => new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0));
+      sorted.sort(
+        (a, b) =>
+          new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0),
+      );
     }
 
     return sorted;
@@ -69,7 +79,11 @@ export default function ColumnList() {
           </h1>
 
           <div className="mt-8">
-            <CategoryChips active={category} onChange={setCategory} align="center" />
+            <CategoryChips
+              active={category}
+              onChange={setCategory}
+              align="center"
+            />
           </div>
 
           <div className="mt-16 flex flex-col gap-6 sm:mt-[4.5rem] sm:flex-row sm:items-center sm:justify-between">
@@ -83,10 +97,15 @@ export default function ColumnList() {
                   <option value={SORT_LATEST}>최신순</option>
                   <option value={SORT_VIEWS}>조회순</option>
                 </select>
-                <ChevronDown size={22} className="pointer-events-none absolute right-0 text-[#525252]" />
+                <ChevronDown
+                  size={22}
+                  className="pointer-events-none absolute right-0 text-[#525252]"
+                />
               </div>
             ) : (
-              <div className="text-2xl font-semibold leading-[1.3] text-[#525252]">최신순</div>
+              <div className="text-2xl font-semibold leading-[1.3] text-[#525252]">
+                최신순
+              </div>
             )}
 
             <div className="relative h-14 w-full rounded-2xl border border-[#D7D7D7] bg-white sm:w-[21rem]">
@@ -96,7 +115,10 @@ export default function ColumnList() {
                 placeholder="키워드를 입력해 검색해보세요"
                 className="h-full w-full bg-transparent px-5 pr-12 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
               />
-              <Search size={22} className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#D7D7D7]" />
+              <Search
+                size={22}
+                className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#D7D7D7]"
+              />
             </div>
           </div>
 

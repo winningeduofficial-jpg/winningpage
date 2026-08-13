@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import ServiceCard from './ServiceCard';
+import { Link } from "react-router-dom";
+import ServiceCard from "./ServiceCard";
 
 /**
  * 마이페이지 "나의 서비스" 탭 — Figma hsokTD6OilcNEXyCR24sn4
@@ -36,12 +36,18 @@ const COUNT_RE = /(\d+)\s*회/;
 
 // 서비스명 키워드 → 소개 페이지 라우트(src/App.jsx 등록 기준).
 const SERVICE_INTRO_ROUTES = [
-  { test: (name) => name.includes('목표관리'), href: '/services/goal' },
-  { test: (name) => name.includes('콜멘토'), href: '/services/callmentor' },
-  { test: (name) => name.includes('수행평가'), href: '/services/performance' },
-  { test: (name) => name.includes('자기평가'), href: '/services/self-assessment' },
-  { test: (name) => name.includes('심화탐구'), href: '/services/research' },
-  { test: (name) => name.includes('진단'), href: '/services/learning-diagnosis' }
+  { test: (name) => name.includes("목표관리"), href: "/services/goal" },
+  { test: (name) => name.includes("콜멘토"), href: "/services/callmentor" },
+  { test: (name) => name.includes("수행평가"), href: "/services/performance" },
+  {
+    test: (name) => name.includes("자기평가"),
+    href: "/services/self-assessment",
+  },
+  { test: (name) => name.includes("심화탐구"), href: "/services/research" },
+  {
+    test: (name) => name.includes("진단"),
+    href: "/services/learning-diagnosis",
+  },
 ];
 
 function addMonths(date, months) {
@@ -52,42 +58,45 @@ function addMonths(date, months) {
 
 // "YYYY.MM.DD" — 기간형 서비스의 이용기간 범위 표기.
 function formatDate(date) {
-  if (!date) return '-';
+  if (!date) return "-";
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}.${m}.${d}`;
 }
 
 // "YYYY. MM. DD" — 완료일 단독 표기(시안의 무료진단/콜멘토 완료 카드 날짜 형식).
 function formatDateSpaced(date) {
-  if (!date) return '-';
+  if (!date) return "-";
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}. ${m}. ${d}`;
 }
 
 // 'session'(콜멘토·멘토 상담) | 'diagnosis'(무료진단, 1회성 리포트) | 'duration'(그 외, 기간제).
 function classifyService(serviceName) {
-  if (serviceName.includes('콜멘토') || serviceName.includes('멘토')) return 'session';
-  if (serviceName.includes('진단')) return 'diagnosis';
-  return 'duration';
+  if (serviceName.includes("콜멘토") || serviceName.includes("멘토"))
+    return "session";
+  if (serviceName.includes("진단")) return "diagnosis";
+  return "duration";
 }
 
 // 목표관리만 실제 앱(/app/goal) 진입이 가능하고, 나머지는 아직 개인화된 대시보드 라우트가
 // 없어 서비스 소개 페이지로 보낸다. 무료진단 "다시 검사하기"는 설문 진입 라우트로 별도 처리.
 function programLink(serviceName) {
-  if (serviceName.includes('목표관리')) return '/app/goal';
+  if (serviceName.includes("목표관리")) return "/app/goal";
   const matched = SERVICE_INTRO_ROUTES.find((route) => route.test(serviceName));
-  return matched ? matched.href : '/services';
+  return matched ? matched.href : "/services";
 }
 
 function parseOrder(order) {
-  const rawName = String(order?.order_name || '').trim();
+  const rawName = String(order?.order_name || "").trim();
   const bracketMatch = rawName.match(DURATION_BRACKET_RE);
-  const durationSpec = bracketMatch ? bracketMatch[1] : '';
-  const serviceName = bracketMatch ? bracketMatch[2].trim() : rawName || '이용권';
+  const durationSpec = bracketMatch ? bracketMatch[1] : "";
+  const serviceName = bracketMatch
+    ? bracketMatch[2].trim()
+    : rawName || "이용권";
   const category = classifyService(serviceName);
 
   const monthsMatch = durationSpec.match(MONTHS_RE);
@@ -96,17 +105,23 @@ function parseOrder(order) {
   const totalCount = countMatch ? Number(countMatch[1]) : null;
 
   const paidAtRaw = order?.paid_at ? new Date(order.paid_at) : null;
-  const paidAt = paidAtRaw && !Number.isNaN(paidAtRaw.getTime()) ? paidAtRaw : null;
+  const paidAt =
+    paidAtRaw && !Number.isNaN(paidAtRaw.getTime()) ? paidAtRaw : null;
   const endDate = paidAt && months ? addMonths(paidAt, months) : null;
 
   const now = new Date();
-  const remainingDays = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000) : null;
-  const validityDays = endDate && paidAt ? Math.round((endDate.getTime() - paidAt.getTime()) / 86400000) : null;
+  const remainingDays = endDate
+    ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000)
+    : null;
+  const validityDays =
+    endDate && paidAt
+      ? Math.round((endDate.getTime() - paidAt.getTime()) / 86400000)
+      : null;
 
   // 기간을 알 수 없는 주문은 기본적으로 "이용 중"으로 두지만, 무료진단은 원래 결제 즉시
   // 리포트가 나오는 1회성 서비스라 기간 개념 자체가 없다 — 이 경우는 항상 완료로 취급한다.
   let isOngoing = remainingDays === null ? true : remainingDays > 0;
-  if (category === 'diagnosis' && months === null) isOngoing = false;
+  if (category === "diagnosis" && months === null) isOngoing = false;
 
   let progressPercent = 0;
   if (!isOngoing) {
@@ -114,7 +129,8 @@ function parseOrder(order) {
   } else if (paidAt && endDate) {
     const totalMs = endDate.getTime() - paidAt.getTime();
     const elapsedMs = now.getTime() - paidAt.getTime();
-    progressPercent = totalMs > 0 ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)) : 0;
+    progressPercent =
+      totalMs > 0 ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)) : 0;
   }
 
   return {
@@ -128,55 +144,80 @@ function parseOrder(order) {
     remainingDays,
     validityDays,
     isOngoing,
-    progressPercent
+    progressPercent,
   };
 }
 
 function toViewModel(parsed) {
-  const { category, serviceName, totalCount, paidAt, endDate, remainingDays, validityDays, isOngoing } = parsed;
+  const {
+    category,
+    serviceName,
+    totalCount,
+    paidAt,
+    endDate,
+    remainingDays,
+    validityDays,
+    isOngoing,
+  } = parsed;
 
-  const statusLabel = isOngoing ? (totalCount ? `잔여 ${totalCount}회` : '이용중') : '이용완료';
+  const statusLabel = isOngoing
+    ? totalCount
+      ? `잔여 ${totalCount}회`
+      : "이용중"
+    : "이용완료";
 
   // 카테고리별 메타 한 줄(좌/우) — 시안이 서비스 성격마다 다른 정보를 보여주므로 분기한다.
-  let metaLeft = '-';
-  let metaRight = '-';
-  if (category === 'session') {
-    metaLeft = totalCount ? `${totalCount}회권` : '-';
+  let metaLeft = "-";
+  let metaRight = "-";
+  if (category === "session") {
+    metaLeft = totalCount ? `${totalCount}회권` : "-";
     metaRight = isOngoing
       ? validityDays
         ? `유효기간 ${validityDays}일`
-        : '-'
+        : "-"
       : formatDateSpaced(paidAt);
-    if (!isOngoing) metaLeft = totalCount ? `총 ${totalCount}회 이용` : '이용 완료';
-  } else if (category === 'diagnosis') {
-    metaLeft = '진단 완료';
+    if (!isOngoing)
+      metaLeft = totalCount ? `총 ${totalCount}회 이용` : "이용 완료";
+  } else if (category === "diagnosis") {
+    metaLeft = "진단 완료";
     metaRight = formatDateSpaced(paidAt);
   } else {
-    metaLeft = paidAt || endDate ? `${formatDate(paidAt)} ~ ${formatDate(endDate)}` : '-';
-    metaRight = isOngoing ? (remainingDays !== null ? `${remainingDays}일 남음` : '-') : '만료';
+    metaLeft =
+      paidAt || endDate
+        ? `${formatDate(paidAt)} ~ ${formatDate(endDate)}`
+        : "-";
+    metaRight = isOngoing
+      ? remainingDays !== null
+        ? `${remainingDays}일 남음`
+        : "-"
+      : "만료";
   }
 
   const href = programLink(serviceName);
 
   let actions;
   if (isOngoing) {
-    const label = category === 'session' ? '상담 기록 보기' : '프로그램 가기';
-    actions = [{ kind: 'link', label, href }];
-  } else if (category === 'diagnosis') {
+    const label = category === "session" ? "상담 기록 보기" : "프로그램 가기";
+    actions = [{ kind: "link", label, href }];
+  } else if (category === "diagnosis") {
     actions = [
-      { kind: 'outline', label: '결과 리포트 보기', href },
-      { kind: 'solid', label: '다시 검사하기', href: '/app/learning-diagnosis/survey' }
+      { kind: "outline", label: "결과 리포트 보기", href },
+      {
+        kind: "solid",
+        label: "다시 검사하기",
+        href: "/app/learning-diagnosis/survey",
+      },
     ];
-  } else if (category === 'session') {
+  } else if (category === "session") {
     actions = [
-      { kind: 'outline', label: '상담 기록 보기', href },
-      { kind: 'solid', label: '다시 이용하기', href: '/pricing' }
+      { kind: "outline", label: "상담 기록 보기", href },
+      { kind: "solid", label: "다시 이용하기", href: "/pricing" },
     ];
   } else {
     // 기간형 서비스의 완료 카드는 시안 예시가 없어 무료진단/콜멘토 패턴을 참고한 추정 문구다.
     actions = [
-      { kind: 'outline', label: '이용 내역 보기', href },
-      { kind: 'solid', label: '다시 신청하기', href: '/pricing' }
+      { kind: "outline", label: "이용 내역 보기", href },
+      { kind: "solid", label: "다시 신청하기", href: "/pricing" },
     ];
   }
 
@@ -188,7 +229,7 @@ function toViewModel(parsed) {
     progressPercent: parsed.progressPercent,
     metaLeft,
     metaRight,
-    actions
+    actions,
   };
 }
 
@@ -196,7 +237,9 @@ function toViewModel(parsed) {
 function EmptyState() {
   return (
     <div className="flex min-h-[20rem] flex-col items-center justify-center gap-[1.5rem] rounded-[1.25rem] bg-surface-04 px-[2rem] py-[4rem] text-center">
-      <p className="text-[1rem] leading-[1.5] text-ink-sub">아직 결제한 서비스가 없어요</p>
+      <p className="text-[1rem] leading-[1.5] text-ink-sub">
+        아직 결제한 서비스가 없어요
+      </p>
       <Link
         to="/pricing"
         className="inline-flex h-[3rem] items-center justify-center rounded-[0.75rem] bg-primary px-[2rem] text-[0.9375rem] font-semibold text-white transition hover:bg-primary/90"
@@ -214,7 +257,9 @@ function Section({ title, count, children }) {
       <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
         {title} <span className="text-accent">{count}</span>
       </h2>
-      <div className="grid grid-cols-1 gap-[1.25rem] sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+      <div className="grid grid-cols-1 gap-[1.25rem] sm:grid-cols-2 lg:grid-cols-3">
+        {children}
+      </div>
     </section>
   );
 }
@@ -230,7 +275,7 @@ export default function MyServicesTab({ orders = [] }) {
   // 예전에는 waiting_deposit 만 빼면 됐지만 이제 그 필터로는 부족하다.
   // 로컬 QA 가짜 주문(status 없음)은 그대로 통과시킨다.
   const usableOrders = orders.filter(
-    (order) => order.status === 'paid' || order.is_fake_entitlement
+    (order) => order.status === "paid" || order.is_fake_entitlement,
   );
 
   if (!usableOrders.length) {

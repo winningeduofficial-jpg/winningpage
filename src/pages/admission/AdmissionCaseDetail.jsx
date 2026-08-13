@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import ColumnBody, { hasBlockContent } from '../../components/column/ColumnBody';
-import { CATEGORY_LABELS, fetchAdmissionCaseById, normalizeImageUrls } from './admissionCaseData';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import ColumnBody, {
+  hasBlockContent,
+} from "../../components/column/ColumnBody";
+import {
+  CATEGORY_LABELS,
+  fetchAdmissionCaseById,
+  normalizeImageUrls,
+} from "./admissionCaseData";
 
 export default function AdmissionCaseDetail() {
   const { id } = useParams();
@@ -25,7 +31,10 @@ export default function AdmissionCaseDetail() {
   }, [id]);
 
   // row.category('susi'|'jungsi')로 목록 경로 판정. 미확정/부재 시 기본 '/admission/susi'.
-  const listPath = post && CATEGORY_LABELS[post.category] ? `/admission/${post.category}` : '/admission/susi';
+  const listPath =
+    post && CATEGORY_LABELS[post.category]
+      ? `/admission/${post.category}`
+      : "/admission/susi";
   const hasBlocks = hasBlockContent(post);
   const fallbackImages = post ? normalizeImageUrls(post) : [];
 
@@ -43,7 +52,9 @@ export default function AdmissionCaseDetail() {
     return (
       <main className="bg-white pt-16">
         <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
-          <h1 className="text-xl font-bold text-[#525252]">게시글을 찾을 수 없습니다.</h1>
+          <h1 className="text-xl font-bold text-[#525252]">
+            게시글을 찾을 수 없습니다.
+          </h1>
           <Link
             to={listPath}
             className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#013262] px-6 text-sm font-semibold text-white"
@@ -82,7 +93,7 @@ export default function AdmissionCaseDetail() {
                 <img
                   key={`${url}-${index}`}
                   src={url}
-                  alt={`${post.title || ''} 이미지 ${index + 1}`}
+                  alt={`${post.title || ""} 이미지 ${index + 1}`}
                   className="w-full rounded-xl object-cover"
                 />
               ))}

@@ -1,7 +1,10 @@
-import ServiceSection from '../services/ServiceSection';
-import { MENTOR_HEADING_LG } from '../services/serviceTokens';
-import { MAJOR_CATEGORY_SECTION, MAJOR_CATEGORIES } from '../../data/mentorApply';
-import { MENTOR_ASSETS } from '../../data/mentorApplyAssets';
+import ServiceSection from "../services/ServiceSection";
+import { MENTOR_HEADING_LG } from "../services/serviceTokens";
+import {
+  MAJOR_CATEGORY_SECTION,
+  MAJOR_CATEGORIES,
+} from "../../data/mentorApply";
+import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
 
 // 멘토신청 §2 모집 대상 계열 — 8개 학문 계열 카드 그리드(docs/mentor-apply-spec.md §2, Figma 3362:2906).
 //

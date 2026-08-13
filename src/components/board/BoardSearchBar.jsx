@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search } from "lucide-react";
 
 /**
  * 게시판(회사소식·공지사항) 목록 공통 검색 입력.
@@ -24,8 +24,8 @@ export default function BoardSearchBar({
   value,
   onChange,
   ariaLabel,
-  placeholder = '검색',
-  className = '',
+  placeholder = "검색",
+  className = "",
 }) {
   return (
     // 폭: 시안 검색바는 505×68이지만 Faq 정본의 sm:w-[23.625rem](378px) / h-11(44px)을 따른다.

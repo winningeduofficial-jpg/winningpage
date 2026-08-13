@@ -30,14 +30,14 @@ import {
   startTimerSession,
   stopTimerSession,
   touchTimerHeartbeat,
-  upsertSubjectTarget
-} from '../_lib/goalRepo.js';
+  upsertSubjectTarget,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -70,7 +70,7 @@ async function handleGet(req, res) {
   const now = new Date();
   const [summary, targets] = await Promise.all([
     fetchTimerDaySummary(supabaseAdmin, profileId, now),
-    fetchSubjectTargets(supabaseAdmin, profileId)
+    fetchSubjectTargets(supabaseAdmin, profileId),
   ]);
 
   return res.status(200).json({
@@ -79,7 +79,7 @@ async function handleGet(req, res) {
     running: summary.running,
     subjects: summary.subjects,
     totalSeconds: summary.totalSeconds,
-    targets
+    targets,
   });
 }
 
@@ -100,58 +100,65 @@ async function handlePost(req, res) {
   const action = body?.action;
   const now = new Date();
 
-  if (action === 'start') {
+  if (action === "start") {
     const subject = body?.subject;
     if (!TIMER_SUBJECTS.includes(subject)) {
-      return res.status(400).json({ detail: '유효하지 않은 과목입니다.' });
+      return res.status(400).json({ detail: "유효하지 않은 과목입니다." });
     }
     const row = await startTimerSession(supabaseAdmin, profileId, subject, now);
     return res.status(200).json({ ok: true, running: runningPayload(row) });
   }
 
-  if (action === 'stop') {
+  if (action === "stop") {
     const row = await stopTimerSession(supabaseAdmin, profileId, now);
     // 멱등 — 열린 세션이 없었어도(row === null) 200 {ok:true, running:null}.
     void row;
     return res.status(200).json({ ok: true, running: null });
   }
 
-  if (action === 'heartbeat') {
+  if (action === "heartbeat") {
     const row = await touchTimerHeartbeat(supabaseAdmin, profileId, now);
     return res.status(200).json({ ok: true, running: runningPayload(row) });
   }
 
-  if (action === 'setTarget') {
+  if (action === "setTarget") {
     const subject = body?.subject;
     const targetHours = body?.targetHours;
     if (!TIMER_SUBJECTS.includes(subject)) {
-      return res.status(400).json({ detail: '유효하지 않은 과목입니다.' });
+      return res.status(400).json({ detail: "유효하지 않은 과목입니다." });
     }
     if (!isValidTargetHours(targetHours)) {
-      return res.status(400).json({ detail: '목표 시간은 0~24 사이여야 합니다.' });
+      return res
+        .status(400)
+        .json({ detail: "목표 시간은 0~24 사이여야 합니다." });
     }
     // 다른 액션과 동일하게 선행 reconcile을 거친다 — 목표 설정 자체는 세션에
     // 영향이 없지만, 진입점 전체를 같은 정리 상태로 맞춰 두면 그 직후 GET이
     // 부정확한 running/subjects를 보여줄 여지가 사라진다.
     await reconcileTimerState(supabaseAdmin, profileId, now);
-    const target = await upsertSubjectTarget(supabaseAdmin, profileId, subject, Number(targetHours));
+    const target = await upsertSubjectTarget(
+      supabaseAdmin,
+      profileId,
+      subject,
+      Number(targetHours),
+    );
     return res.status(200).json({ ok: true, target });
   }
 
-  return res.status(400).json({ detail: '알 수 없는 action 입니다.' });
+  return res.status(400).json({ detail: "알 수 없는 action 입니다." });
 }
 
 export default async function handler(req, res) {
   try {
-    if (req.method === 'GET') {
+    if (req.method === "GET") {
       return await handleGet(req, res);
     }
-    if (req.method === 'POST') {
+    if (req.method === "POST") {
       return await handlePost(req, res);
     }
-    return res.status(405).json({ detail: 'Method not allowed' });
+    return res.status(405).json({ detail: "Method not allowed" });
   } catch (error) {
-    console.error('goal/timer error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/timer error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

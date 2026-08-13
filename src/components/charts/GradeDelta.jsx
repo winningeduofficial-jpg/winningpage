@@ -35,18 +35,18 @@ import {
   computeDeltaFromSeries,
   CUT_MISMATCH_NOTE,
   DELTA_STATE,
-  formatGradeValue
-} from '../../lib/admissionResults';
-import { CHART_COLORS, CHART_FONT_SIZE } from './chartTheme';
+  formatGradeValue,
+} from "../../lib/admissionResults";
+import { CHART_COLORS, CHART_FONT_SIZE } from "./chartTheme";
 
 // 톤별 색. `up`(성적 상승)은 차트 정본 색을 그대로 쓰고, `down`은 이 화면이 이미 쓰는
 // 경고 적색(TrendingChips.jsx:8)을 따른다. chartTheme.js에 넣지 않는 이유는 아직 이 컴포넌트
 // 하나만 쓰는 색이라서다 — 두 번째 사용처가 생기면 그때 공용 토큰으로 올린다.
 const TONE = {
-  up: { fg: '#013262', bg: '#eef2f8' },
-  down: { fg: '#e5484d', bg: '#fdeded' },
-  flat: { fg: '#8f8f8f', bg: '#f4f4f4' },
-  muted: { fg: '#8f8f8f', bg: '#f4f4f4' }
+  up: { fg: "#013262", bg: "#eef2f8" },
+  down: { fg: "#e5484d", bg: "#fdeded" },
+  flat: { fg: "#8f8f8f", bg: "#f4f4f4" },
+  muted: { fg: "#8f8f8f", bg: "#f4f4f4" },
 };
 
 // 슬로프 선 좌표계. preserveAspectRatio="none"으로 가로만 늘어나므로 폭 값 자체는
@@ -60,15 +60,18 @@ const SLOPE_RISE = 4;
 // 셀 한 칸 — 연도 라벨 + 등급값(+ 컷 괄호). 결측/미공개는 lib이 만든 display 문자열을 쓴다.
 function YearValue({ cell, emphasis }) {
   const hasValue = cell?.state === CELL_STATE.VALUE;
-  const color = hasValue && emphasis ? CHART_COLORS.line : '#8f8f8f';
+  const color = hasValue && emphasis ? CHART_COLORS.line : "#8f8f8f";
 
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span
         className="whitespace-nowrap font-medium tracking-[-0.02em]"
-        style={{ fontSize: `${CHART_FONT_SIZE / 16}rem`, color: CHART_COLORS.label }}
+        style={{
+          fontSize: `${CHART_FONT_SIZE / 16}rem`,
+          color: CHART_COLORS.label,
+        }}
       >
-        {cell?.year ?? ''}
+        {cell?.year ?? ""}
       </span>
       <span
         className="whitespace-nowrap text-base font-semibold leading-none tracking-[-0.02em] tabular-nums"
@@ -120,7 +123,7 @@ function Slope({ state, tone, direction }) {
         strokeWidth={1.5}
         strokeLinecap="round"
         // 컷 기준이 다르면 "이어져 있지만 그대로 믿을 선은 아니다"를 점선으로 알린다.
-        strokeDasharray={state === DELTA_STATE.CUT_MISMATCH ? '3 3' : undefined}
+        strokeDasharray={state === DELTA_STATE.CUT_MISMATCH ? "3 3" : undefined}
         vectorEffect="non-scaling-stroke"
       />
     </svg>
@@ -131,11 +134,11 @@ function Slope({ state, tone, direction }) {
 function ariaSummary(label, previous, current, delta) {
   const cellText = (cell) =>
     cell?.state === CELL_STATE.VALUE
-      ? `${cell.year}학년도 ${formatGradeValue(cell.value)}등급${cell.cut != null ? ` (${cell.cut}%컷)` : ''}`
-      : `${cell?.year ?? ''}학년도 ${cell?.display ?? '자료 없음'}`;
+      ? `${cell.year}학년도 ${formatGradeValue(cell.value)}등급${cell.cut != null ? ` (${cell.cut}%컷)` : ""}`
+      : `${cell?.year ?? ""}학년도 ${cell?.display ?? "자료 없음"}`;
 
-  const head = `${label ? `${label} ` : ''}전년대비 등급 변화`;
-  const values = [cellText(previous), cellText(current)].join(', ');
+  const head = `${label ? `${label} ` : ""}전년대비 등급 변화`;
+  const values = [cellText(previous), cellText(current)].join(", ");
 
   if (delta.state === DELTA_STATE.INCOMPARABLE) {
     return `${head}: ${values}. 한쪽 연도에만 자료가 있어 비교할 수 없습니다.`;
@@ -143,8 +146,8 @@ function ariaSummary(label, previous, current, delta) {
 
   const tail =
     delta.state === DELTA_STATE.CUT_MISMATCH
-      ? ' 다만 두 연도의 컷 기준이 서로 달라 참고용입니다.'
-      : '';
+      ? " 다만 두 연도의 컷 기준이 서로 달라 참고용입니다."
+      : "";
 
   return `${head}: ${values}. ${delta.label}. 등급은 수치가 낮을수록 상위입니다.${tail}`;
 }
@@ -153,7 +156,8 @@ export default function GradeDelta({ series, delta, label }) {
   const cells = [...(series ?? [])].sort((a, b) => a.year - b.year);
 
   // 값이 한 칸도 없으면 그리지 않는다 — 연도 라벨과 `-` 두 개만 남은 껍데기가 된다.
-  if (cells.length === 0 || cells.every((cell) => cell.value == null)) return null;
+  if (cells.length === 0 || cells.every((cell) => cell.value == null))
+    return null;
 
   const previous = cells[0];
   const current = cells[cells.length - 1];
@@ -161,15 +165,26 @@ export default function GradeDelta({ series, delta, label }) {
   const tone = TONE[result.tone] ?? TONE.muted;
 
   return (
-    <div role="img" aria-label={ariaSummary(label, previous, current, result)} className="w-full">
+    <div
+      role="img"
+      aria-label={ariaSummary(label, previous, current, result)}
+      className="w-full"
+    >
       <div className="flex items-end gap-3">
         <YearValue cell={previous} emphasis={false} />
-        <Slope state={result.state} tone={result.tone} direction={result.direction} />
+        <Slope
+          state={result.state}
+          tone={result.tone}
+          direction={result.direction}
+        />
         <YearValue cell={current} emphasis />
       </div>
 
       {/* 배지 / 캡션 — 비교 불가는 배지 없이 캡션만 둔다(§8.3 표). */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1" aria-hidden="true">
+      <div
+        className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1"
+        aria-hidden="true"
+      >
         {result.state === DELTA_STATE.INCOMPARABLE ? (
           <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-[#8f8f8f]">
             {result.label}

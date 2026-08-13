@@ -7,15 +7,15 @@
 //
 // `AiMessage`·`AiLoadingBubble` 둘 다 이 컴포넌트를 재사용한다. 장식 요소라 스크린리더에는
 // 옆의 발신자 라벨("위닝 수행평가 서포터")이 이름을 대신하므로 `aria-hidden`을 건다.
-export default function AiAvatar({ className = '' }) {
+export default function AiAvatar({ className = "" }) {
   return (
     <div
       aria-hidden="true"
       className={[
-        'flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl',
-        'bg-performance-userBubble',
-        className
-      ].join(' ')}
+        "flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl",
+        "bg-performance-userBubble",
+        className,
+      ].join(" ")}
     >
       {/* 실측(원 시안): "AI" 16px/20 w600 #ffffff, @402,286 — 52×52 박스 안 텍스트(16×20)
           중앙 정렬과 정확히 일치(가로 (52-16)/2=18, 세로 (52-20)/2=16).
@@ -27,7 +27,9 @@ export default function AiAvatar({ className = '' }) {
           색·배경 자체는 안 바꿨으므로 원래도 동일). 폭은 "위닝" 두 글자가 16px
           font-semibold 기준 약 32~34px로 52px 박스에 여유 있게 들어가 줄바꿈·잘림이
           없다 — 별도 크기 조정 불필요. */}
-      <span className="text-[1rem] font-semibold leading-[1.25rem] text-white">위닝</span>
+      <span className="text-[1rem] font-semibold leading-[1.25rem] text-white">
+        위닝
+      </span>
     </div>
   );
 }

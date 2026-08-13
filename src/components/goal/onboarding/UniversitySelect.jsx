@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { UNIVERSITY_OPTIONS } from '../../../data/goalOnboardingMock';
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { UNIVERSITY_OPTIONS } from "../../../data/goalOnboardingMock";
 
 // 대학 검색 콤보박스 + 학과 셀렉트 — docs/figma-goal/00-INDEX.md §5-3 `UniversitySelect`.
 // 상한(2단계)・하한(3단계) 두 스텝이 이 컴포넌트 하나를 `target` prop만 바꿔 공유한다
@@ -12,38 +12,42 @@ export default function UniversitySelect({
   value,
   onChange,
   target, // 'upper' | 'lower' — 접근성 라벨 분기용, 시각 차이는 없음(part-02 §5)
-  universityPlaceholder = '대학교를 선택해주세요',
-  departmentPlaceholder = '과를 선택해주세요.'
+  universityPlaceholder = "대학교를 선택해주세요",
+  departmentPlaceholder = "과를 선택해주세요.",
 }) {
-  const [searchTerm, setSearchTerm] = useState(value.university || '');
+  const [searchTerm, setSearchTerm] = useState(value.university || "");
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
-    setSearchTerm(value.university || '');
+    setSearchTerm(value.university || "");
   }, [value.university]);
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false);
-        setSearchTerm(value.university || '');
+        setSearchTerm(value.university || "");
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [value.university]);
 
   const filteredUniversities = searchTerm
-    ? UNIVERSITY_OPTIONS.filter((university) => university.name.includes(searchTerm))
+    ? UNIVERSITY_OPTIONS.filter((university) =>
+        university.name.includes(searchTerm),
+      )
     : UNIVERSITY_OPTIONS;
 
-  const selectedUniversity = UNIVERSITY_OPTIONS.find((university) => university.name === value.university);
+  const selectedUniversity = UNIVERSITY_OPTIONS.find(
+    (university) => university.name === value.university,
+  );
   const departmentOptions = selectedUniversity?.departments || [];
 
   function selectUniversity(name) {
-    onChange({ university: name, department: '' });
+    onChange({ university: name, department: "" });
     setSearchTerm(name);
     setIsOpen(false);
   }
@@ -55,7 +59,7 @@ export default function UniversitySelect({
     <div className="flex flex-col gap-[0.75rem]">
       <div className="relative" ref={wrapperRef}>
         <label className="sr-only" htmlFor={universityFieldId}>
-          {target === 'lower' ? '하한 목표 대학교' : '상한 목표 대학교'}
+          {target === "lower" ? "하한 목표 대학교" : "상한 목표 대학교"}
         </label>
         <input
           id={universityFieldId}
@@ -71,7 +75,7 @@ export default function UniversitySelect({
             setIsOpen(true);
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Escape') setIsOpen(false);
+            if (event.key === "Escape") setIsOpen(false);
           }}
           className="h-[4.25rem] w-full rounded-[0.75rem] border border-line bg-white px-[1.25rem] pr-12 text-[1rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none"
         />
@@ -86,7 +90,9 @@ export default function UniversitySelect({
             className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 max-h-[17rem] overflow-y-auto rounded-[0.75rem] border border-line bg-white shadow-[0_0.75rem_2rem_rgba(15,23,42,0.12)]"
           >
             {filteredUniversities.length === 0 ? (
-              <li className="px-[1.25rem] py-[1.0625rem] text-[0.875rem] text-ink-sub">검색 결과가 없습니다.</li>
+              <li className="px-[1.25rem] py-[1.0625rem] text-[0.875rem] text-ink-sub">
+                검색 결과가 없습니다.
+              </li>
             ) : (
               filteredUniversities.map((university) => (
                 <li key={university.name}>
@@ -96,7 +102,9 @@ export default function UniversitySelect({
                     aria-selected={value.university === university.name}
                     onClick={() => selectUniversity(university.name)}
                     className={`flex h-[4.25rem] w-full items-center px-[1.25rem] text-left text-[1rem] transition-colors hover:bg-surface-03 ${
-                      value.university === university.name ? 'bg-surface-03 text-accent' : 'text-ink'
+                      value.university === university.name
+                        ? "bg-surface-03 text-accent"
+                        : "text-ink"
                     }`}
                   >
                     {university.name}

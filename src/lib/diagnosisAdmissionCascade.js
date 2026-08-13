@@ -9,10 +9,10 @@
  */
 
 /** subject_reflection 이 없는(=null·공백) 행을 화면에 표시할 때 쓰는 문구(선택 UI 에 null 을 그릴 수 없다). */
-export const NO_SUBJECT_REFLECTION_LABEL = '전체';
+export const NO_SUBJECT_REFLECTION_LABEL = "전체";
 
 function trimmed(value) {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function distinctInOrder(values) {
@@ -29,7 +29,9 @@ function distinctInOrder(values) {
 
 /** 전형 유형(main_track) 후보. 학과 선택 시 받은 원본 행 전체에서 파생한다. */
 export function deriveMainTracks(rows) {
-  return distinctInOrder((rows ?? []).map((row) => trimmed(row.main_track)).filter(Boolean));
+  return distinctInOrder(
+    (rows ?? []).map((row) => trimmed(row.main_track)).filter(Boolean),
+  );
 }
 
 /** 세부 전형명(admission_track) 후보 — 선택된 전형 유형으로 좁힌다. */
@@ -39,7 +41,7 @@ export function deriveAdmissionTracks(rows, mainTrack) {
     (rows ?? [])
       .filter((row) => trimmed(row.main_track) === mainTrack)
       .map((row) => trimmed(row.admission_track))
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 
@@ -52,7 +54,13 @@ export function deriveAdmissionTracks(rows, mainTrack) {
 export function deriveSubjectReflections(rows, mainTrack, admissionTrack) {
   if (!mainTrack || !admissionTrack) return [];
   const matched = (rows ?? []).filter(
-    (row) => trimmed(row.main_track) === mainTrack && trimmed(row.admission_track) === admissionTrack
+    (row) =>
+      trimmed(row.main_track) === mainTrack &&
+      trimmed(row.admission_track) === admissionTrack,
   );
-  return distinctInOrder(matched.map((row) => trimmed(row.subject_reflection) || NO_SUBJECT_REFLECTION_LABEL));
+  return distinctInOrder(
+    matched.map(
+      (row) => trimmed(row.subject_reflection) || NO_SUBJECT_REFLECTION_LABEL,
+    ),
+  );
 }

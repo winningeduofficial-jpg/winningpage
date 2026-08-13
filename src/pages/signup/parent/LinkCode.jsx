@@ -11,23 +11,23 @@
 // 조회 한도가 있어서 디바운스가 필수다
 //   서버가 시간당 조회 30회 / 실패 10회로 끊는다(api/lookup-child.js). 6자가 채워질
 //   때마다 즉시 쏘면 오타 몇 번에 한도가 차버려서, 입력이 멎은 뒤에 한 번만 보낸다.
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AuthLayout,
   AuthTitle,
   TextField,
   PrimaryButton,
-  ChildPreviewCard
-} from '../../../components/auth';
-import { useSignup } from '../../../context/SignupContext';
+  ChildPreviewCard,
+} from "../../../components/auth";
+import { useSignup } from "../../../context/SignupContext";
 import {
   CODE_LENGTH,
   findImpossibleChars,
   lookupChild,
   normalizeLinkCode,
-  requestParentLink
-} from '../../../lib/parentLink';
+  requestParentLink,
+} from "../../../lib/parentLink";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 
@@ -38,22 +38,22 @@ export default function LinkCode() {
   // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
   // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
   useEffect(() => {
-    if (memberType !== 'parent' || !parentSignupCompleted) {
-      navigate('/signup', { replace: true });
+    if (memberType !== "parent" || !parentSignupCompleted) {
+      navigate("/signup", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberType, parentSignupCompleted]);
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [child, setChild] = useState(null);
   const [alreadyLinked, setAlreadyLinked] = useState(false);
   const [selected, setSelected] = useState(false);
   const [looking, setLooking] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // 같은 코드로 반복 조회하지 않기 위해 마지막으로 보낸 코드를 기억한다.
-  const lastLookedUp = useRef('');
+  const lastLookedUp = useRef("");
 
   function resetResult() {
     setChild(null);
@@ -64,8 +64,8 @@ export default function LinkCode() {
   useEffect(() => {
     if (code.length !== CODE_LENGTH) {
       resetResult();
-      setError('');
-      lastLookedUp.current = '';
+      setError("");
+      lastLookedUp.current = "";
       return;
     }
 
@@ -74,7 +74,9 @@ export default function LinkCode() {
     const impossible = findImpossibleChars(code);
     if (impossible.length > 0) {
       resetResult();
-      setError(`연결코드에 ${impossible.join('·')}는 쓰이지 않아요. 다시 확인해 주세요.`);
+      setError(
+        `연결코드에 ${impossible.join("·")}는 쓰이지 않아요. 다시 확인해 주세요.`,
+      );
       return;
     }
 
@@ -84,7 +86,7 @@ export default function LinkCode() {
     const timer = setTimeout(async () => {
       lastLookedUp.current = code;
       setLooking(true);
-      setError('');
+      setError("");
 
       const result = await lookupChild(code);
       if (cancelled) return;
@@ -96,8 +98,8 @@ export default function LinkCode() {
         setError(result.message);
 
         // 세션이 끊긴 상태로는 이 화면에서 할 수 있는 게 없다.
-        if (result.reason === 'not_authenticated') {
-          navigate('/signup', { replace: true });
+        if (result.reason === "not_authenticated") {
+          navigate("/signup", { replace: true });
         }
         return;
       }
@@ -109,7 +111,7 @@ export default function LinkCode() {
       // 이미 다른 보호자와 연결된 학생이면 여기서 끊는다. 연결하기까지 눌렀다가
       // student_already_linked로 거절당하는 것보다 먼저 알려주는 편이 낫다.
       if (result.alreadyLinked) {
-        setError('이미 다른 보호자와 연결된 학생이에요.');
+        setError("이미 다른 보호자와 연결된 학생이에요.");
       }
     }, LOOKUP_DEBOUNCE_MS);
 
@@ -128,7 +130,7 @@ export default function LinkCode() {
     if (!selected || connecting || alreadyLinked) return;
 
     setConnecting(true);
-    setError('');
+    setError("");
 
     const result = await requestParentLink(code);
 
@@ -136,25 +138,35 @@ export default function LinkCode() {
 
     if (!result.ok) {
       setError(result.message);
-      if (result.reason === 'not_authenticated') navigate('/signup', { replace: true });
+      if (result.reason === "not_authenticated")
+        navigate("/signup", { replace: true });
       return;
     }
 
     // 여기서 끝난 건 "요청"이다. 승인은 자녀가 한다.
-    navigate('/signup/parent/link/done', {
+    navigate("/signup/parent/link/done", {
       state: {
         child: { ...child, name: result.studentName || child?.name },
-        status: result.status
-      }
+        status: result.status,
+      },
     });
   }
 
-  const buttonLabel = child || code.length === CODE_LENGTH ? '연결하기' : ' 코드 6자리를 입력하세요';
+  const buttonLabel =
+    child || code.length === CODE_LENGTH
+      ? "연결하기"
+      : " 코드 6자리를 입력하세요";
 
   return (
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1={<span className="sm:whitespace-nowrap">자녀의 연결코드를 입력해 주세요</span>} />
+        <AuthTitle
+          line1={
+            <span className="sm:whitespace-nowrap">
+              자녀의 연결코드를 입력해 주세요
+            </span>
+          }
+        />
         <p className="break-keep text-base font-medium text-ink sm:text-xl">
           {/* 시안 갱신: '마의페이지'는 오타로 확인되어 '마이페이지'로 수정(원문 오타 재현 대상 아님). */}
           자녀 마이페이지 &gt; 연결코드에서
@@ -173,7 +185,7 @@ export default function LinkCode() {
           placeholder="6자리 연결코드를 입력해 주세요"
           active={!!child && !alreadyLinked}
           helperText={error || undefined}
-          status={error ? 'error' : 'default'}
+          status={error ? "error" : "default"}
           autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
@@ -185,7 +197,7 @@ export default function LinkCode() {
             grade={child.grade}
             school={child.school}
             selected={selected}
-            avatarSize={selected ? 'lg' : 'default'}
+            avatarSize={selected ? "lg" : "default"}
             onClick={() => {
               if (alreadyLinked) return;
               setSelected((prev) => !prev);

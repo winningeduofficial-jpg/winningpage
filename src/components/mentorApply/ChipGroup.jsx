@@ -11,25 +11,25 @@
 // 따라서 아래 SELECTED_CLASS 는 시안 실측이 아니라 **폼의 다른 강조 토큰에서 파생한 추정값**이다
 // (보더 accent #0B84FD = 필수 `*`·도움말 강조와 동일, 배경 surface.badge #D1E8FF = 사이드바
 // 번호 배지 배경과 동일). 사용자 승인 전까지 잠정이며, 확정 시 이 상수 한 곳만 고치면 된다.
-import { useId, useRef } from 'react';
+import { useId, useRef } from "react";
 
 // options: string[] 또는 { value, label }[] 둘 다 허용 — src/data/mentorApply.js 의 옵션 배열
 // (전부 string[])을 그대로 넘길 수 있어야 한다. auth/SelectField.jsx:16 과 같은 규약.
 function normalizeOptions(options) {
   return (options || []).map((option) =>
-    typeof option === 'string' ? { value: option, label: option } : option
+    typeof option === "string" ? { value: option, label: option } : option,
   );
 }
 
 // 칩 공통 — h 40 / padding 8·16 / radius 9999 / border 1px / bg #FFFFFF / 텍스트 16 Regular #191D23.
 // 높이가 h-10 으로 고정이라 세로 패딩은 시각적으로 무의미해 px-4 만 남겼다.
 const CHIP_BASE_CLASS =
-  'inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-base leading-[1.4] text-ink-strong transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50';
+  "inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-base leading-[1.4] text-ink-strong transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50";
 
-const UNSELECTED_CLASS = 'border-line bg-white';
+const UNSELECTED_CLASS = "border-line bg-white";
 
 // ⚠ 파생 추정값 — 시안 근거 없음(파일 상단 주석 참고).
-const SELECTED_CLASS = 'border-accent bg-surface-badge';
+const SELECTED_CLASS = "border-accent bg-surface-badge";
 
 export default function ChipGroup({
   name,
@@ -44,7 +44,7 @@ export default function ChipGroup({
   disabled = false,
   labelledBy,
   ariaLabel,
-  className = ''
+  className = "",
 }) {
   const reactId = useId();
   const groupName = name || reactId;
@@ -71,7 +71,9 @@ export default function ChipGroup({
 
   // 라디오 그룹은 그룹 전체가 탭 스톱 1개여야 하고(roving tabindex) 방향키로 항목을 옮긴다.
   // 선택된 항목이 없으면 첫 칩이 탭 진입점이 된다.
-  const focusIndex = normalizedOptions.findIndex((option) => isSelected(option.value));
+  const focusIndex = normalizedOptions.findIndex((option) =>
+    isSelected(option.value),
+  );
   const tabStopIndex = focusIndex >= 0 ? focusIndex : 0;
 
   const moveFocus = (fromIndex, delta) => {
@@ -88,16 +90,16 @@ export default function ChipGroup({
     // 체크박스 그룹(복수선택)은 각 칩이 독립 탭 스톱이라 방향키를 가로채지 않는다.
     if (multiple) return;
 
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
       moveFocus(index, 1);
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
       moveFocus(index, -1);
-    } else if (event.key === 'Home') {
+    } else if (event.key === "Home") {
       event.preventDefault();
       moveFocus(-1, 1);
-    } else if (event.key === 'End') {
+    } else if (event.key === "End") {
       event.preventDefault();
       moveFocus(0, -1);
     }
@@ -105,14 +107,18 @@ export default function ChipGroup({
 
   return (
     <div
-      role={multiple ? 'group' : 'radiogroup'}
+      role={multiple ? "group" : "radiogroup"}
       aria-label={ariaLabel}
       aria-labelledby={labelledBy}
       // 칩 간 gap 은 시안이 12(거주 지역·고등학교 유형)와 8(입시 이력·합격 전형·상담 가능
       // 분야·학년)로 혼재한다(명세 §6-10 결함 2). 다수 화면과 줄바꿈 세로 간격을 동시에
       // 만족시키기 위해 **12(0.75rem)로 통일**했다 — 확인 항목 ㉖.
-      className={`gap-3 ${columns ? 'grid' : 'flex flex-wrap'} ${className}`}
-      style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+      className={`gap-3 ${columns ? "grid" : "flex flex-wrap"} ${className}`}
+      style={
+        columns
+          ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+          : undefined
+      }
     >
       {normalizedOptions.map((option, index) => {
         const selected = isSelected(option.value);
@@ -125,7 +131,7 @@ export default function ChipGroup({
             }}
             type="button"
             name={groupName}
-            role={multiple ? 'checkbox' : 'radio'}
+            role={multiple ? "checkbox" : "radio"}
             aria-checked={selected}
             tabIndex={multiple || index === tabStopIndex ? 0 : -1}
             disabled={disabled}

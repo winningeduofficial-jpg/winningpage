@@ -19,19 +19,19 @@
 //   - --dry-run 이면 파싱 결과 개수·샘플만 출력하고 DB에 쓰지 않음.
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readFile } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createClient } from "@supabase/supabase-js";
+import { readFile } from "node:fs/promises";
+import { parseArgs } from "node:util";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
-const SOURCE_FILE = path.join(REPO_ROOT, 'src/pages/AdmissionGuidelines.jsx');
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
+const REPO_ROOT = path.resolve(__dirname, "..");
+const SOURCE_FILE = path.join(REPO_ROOT, "src/pages/AdmissionGuidelines.jsx");
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =
-  '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
+  "/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json";
 
 // CLI 인자는 main() 안에서만 파싱한다(2026-08-06 build-admission-html-
 // golden.mjs 사고와 동일 유형 결함 정리 — 이 파일은 원래 isMainModule
@@ -43,13 +43,13 @@ let args = {};
 // 1) 소스 파싱: UNIVERSITY_DIRECTORY + SPECIAL_UNIVERSITY_GROUPS
 // ---------------------------------------------------------------------
 async function parseUniversitySource() {
-  const text = await readFile(SOURCE_FILE, 'utf-8');
+  const text = await readFile(SOURCE_FILE, "utf-8");
 
   const directoryMatch = text.match(
-    /const UNIVERSITY_DIRECTORY = \[([\s\S]*?)\n\];/
+    /const UNIVERSITY_DIRECTORY = \[([\s\S]*?)\n\];/,
   );
   if (!directoryMatch) {
-    throw new Error('UNIVERSITY_DIRECTORY 블록을 찾을 수 없습니다.');
+    throw new Error("UNIVERSITY_DIRECTORY 블록을 찾을 수 없습니다.");
   }
   const entryRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
   const generalRows = [];
@@ -59,12 +59,13 @@ async function parseUniversitySource() {
   }
 
   const groupsMatch = text.match(
-    /const SPECIAL_UNIVERSITY_GROUPS = \[([\s\S]*?)\n\];/
+    /const SPECIAL_UNIVERSITY_GROUPS = \[([\s\S]*?)\n\];/,
   );
   if (!groupsMatch) {
-    throw new Error('SPECIAL_UNIVERSITY_GROUPS 블록을 찾을 수 없습니다.');
+    throw new Error("SPECIAL_UNIVERSITY_GROUPS 블록을 찾을 수 없습니다.");
   }
-  const groupBlockRe = /\{\s*key:\s*'([^']+)'[\s\S]*?items:\s*\[([\s\S]*?)\]\s*\}/g;
+  const groupBlockRe =
+    /\{\s*key:\s*'([^']+)'[\s\S]*?items:\s*\[([\s\S]*?)\]\s*\}/g;
   const specialRows = [];
   let g;
   while ((g = groupBlockRe.exec(groupsMatch[1])) !== null) {
@@ -79,7 +80,7 @@ async function parseUniversitySource() {
 
   const rows = [...generalRows, ...specialRows].map((row, index) => ({
     ...row,
-    sort_order: index
+    sort_order: index,
   }));
 
   return rows;
@@ -95,15 +96,16 @@ async function resolveCredentials() {
     return { url: envUrl, serviceKey: envKey };
   }
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
-  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
-  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
+  const keysFile =
+    args["keys-file"] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
+  const raw = JSON.parse(await readFile(keysFile, "utf-8"));
+  const serviceEntry = raw.find((entry) => entry.name === "service_role");
   if (!serviceEntry) {
     throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
   }
   return {
     url: `https://${DEV_PROJECT_REF}.supabase.co`,
-    serviceKey: serviceEntry.api_key
+    serviceKey: serviceEntry.api_key,
   };
 }
 
@@ -113,9 +115,9 @@ async function resolveCredentials() {
 async function main() {
   args = parseArgs({
     options: {
-      'dry-run': { type: 'boolean', default: false },
-      'keys-file': { type: 'string' }
-    }
+      "dry-run": { type: "boolean", default: false },
+      "keys-file": { type: "string" },
+    },
   }).values;
 
   const rows = await parseUniversitySource();
@@ -125,33 +127,35 @@ async function main() {
     return acc;
   }, {});
   const byGroup = rows.reduce((acc, r) => {
-    const key = r.special_group || 'none';
+    const key = r.special_group || "none";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
   console.log(`파싱 결과: 총 ${rows.length}행`);
-  console.log('region별 분포:', byRegion);
-  console.log('special_group별 분포:', byGroup);
-  console.log('샘플(처음 3 / 마지막 3):', [
+  console.log("region별 분포:", byRegion);
+  console.log("special_group별 분포:", byGroup);
+  console.log("샘플(처음 3 / 마지막 3):", [
     ...rows.slice(0, 3),
-    ...rows.slice(-3)
+    ...rows.slice(-3),
   ]);
 
-  if (args['dry-run']) {
-    console.log('--dry-run: DB에 쓰지 않고 종료합니다.');
+  if (args["dry-run"]) {
+    console.log("--dry-run: DB에 쓰지 않고 종료합니다.");
     return;
   }
 
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
-    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+    throw new Error(
+      "dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.",
+    );
   }
   const supabase = createClient(url, serviceKey);
 
   const { error, count } = await supabase
-    .from('admission_universities')
-    .upsert(rows, { onConflict: 'name', count: 'exact' });
+    .from("admission_universities")
+    .upsert(rows, { onConflict: "name", count: "exact" });
 
   if (error) {
     throw new Error(`upsert 실패: ${error.message}`);
@@ -162,7 +166,8 @@ async function main() {
 // isMainModule 가드 — 원래 없이 main()을 무조건 실행했다. import만 해도
 // 실제 Supabase 호출을 시도할 뻔했다(이 파일이 export하는 함수는 없지만,
 // 나머지 4개 파일과 통일하는 김에 이 파일도 같은 구조로 맞춘다).
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

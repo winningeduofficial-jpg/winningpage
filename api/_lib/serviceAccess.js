@@ -19,21 +19,27 @@
 
 export const SERVICE_CONFIGS = {
   suhaeng: {
-    service_key: 'suhaeng',
-    service_name: 'AI 수행평가 서비스',
+    service_key: "suhaeng",
+    service_name: "AI 수행평가 서비스",
     // target_url(SUHAENG_SERVICE_URL) 폐기(인앱 전환, 2026-08-13) — 수행평가는
     // 더 이상 외부 앱으로 SSO 티켓 발급・리다이렉트하지 않는다
     // (api/create-service-ticket.js의 suhaeng 조기 분기 참고). 이 config 자체는
     // 계속 쓴다 — payment_keywords/program_keys는 hasPaidServiceAccess 판정
     // (check-service-access.js, RequireEntitlement 가드 경로)이 그대로 참조한다.
-    payment_keywords: ['수행', '수행평가', 'AI 수행평가', '세특팅'],
-    program_keys: ['suhaeng']
+    payment_keywords: ["수행", "수행평가", "AI 수행평가", "세특팅"],
+    program_keys: ["suhaeng"],
   },
   goal: {
-    service_key: 'goal',
-    service_name: '목표관리 서비스',
+    service_key: "goal",
+    service_name: "목표관리 서비스",
     target_url: process.env.GOAL_SERVICE_URL || process.env.TARGET_SERVICE_URL,
-    payment_keywords: ['목표', '목표관리', '목표 관리', '학습관리', '학습 관리'],
+    payment_keywords: [
+      "목표",
+      "목표관리",
+      "목표 관리",
+      "학습관리",
+      "학습 관리",
+    ],
     // program_keys 는 fn_program_access_state 에 넘길 후보다. 예전엔
     // ['goal', 'target'] 두 값을 다 받아줬다 — products.service_key='goal'
     // 이 program_key로도 그대로 쓰이던 시절의 흔적인데, DB 에 관계가 없어
@@ -45,16 +51,16 @@ export const SERVICE_CONFIGS = {
     // 운영 DB(ucjlcvqvinspmrasvsug) 확인상 program_access.program_key=
     // 'goal' 인 행도 이미 없었다(target 2건만 실재, sql/54 동일 절) — 이
     // 관용을 좁혀도 기존 사용자의 앱 진입이 끊기지 않는다(2026-08-11).
-    program_keys: ['target']
-  }
+    program_keys: ["target"],
+  },
 };
 
 export function clean(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function normalizeStatus(value) {
-  return clean(value).toLowerCase().replace(/\s/g, '');
+  return clean(value).toLowerCase().replace(/\s/g, "");
 }
 
 // enrollments(오프라인 수강) 경로 전용 상태 판정.
@@ -83,41 +89,42 @@ function normalizeStatus(value) {
 // 있는데, 대기 상태는 결제완료가 아니므로 거부가 맞는 판정이다(기본값이
 // 결제완료로 읽히면 안 된다는 게 원래 의도이기도 하다).
 export const DENIED_PAYMENT_STATUSES = [
-  'unpaid',
-  'refunded',
-  'refund',
-  'cancelled',
-  'canceled',
-  '미납',
-  '미결제',
-  '환불',
-  '취소',
-  '만료',
-  '중지',
-  '정지',
-  '대기',
-  '보류',
-  '해지',
-  '실패',
-  '거절',
-  '반려',
-  '예정',
-  '비활성',
-  '비정상'
+  "unpaid",
+  "refunded",
+  "refund",
+  "cancelled",
+  "canceled",
+  "미납",
+  "미결제",
+  "환불",
+  "취소",
+  "만료",
+  "중지",
+  "정지",
+  "대기",
+  "보류",
+  "해지",
+  "실패",
+  "거절",
+  "반려",
+  "예정",
+  "비활성",
+  "비정상",
 ];
 
 export function isPaidStatus(value) {
   const status = normalizeStatus(value);
-  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item))) return false;
+  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item)))
+    return false;
   return [
-    'paid',
-    'active',
-    '완납',
-    '납부완료',
-    '결제완료',
-    '결제완료됨',
-    '결제완료/이용중',
-    '이용중'
+    "paid",
+    "active",
+    "완납",
+    "납부완료",
+    "결제완료",
+    "결제완료됨",
+    "결제완료/이용중",
+    "이용중",
   ].some((item) => status.includes(item));
 }
 
@@ -134,15 +141,18 @@ export function isPaidStatus(value) {
 // 'inactive'.includes('active') === true 로 비활성이 활성으로 오판된다.
 export function isActiveStatus(value) {
   const status = normalizeStatus(value);
-  if (status === 'active') return true;
-  if (['inactive', 'expired', 'suspended'].includes(status)) return false;
-  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item))) return false;
-  return ['활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
+  if (status === "active") return true;
+  if (["inactive", "expired", "suspended"].includes(status)) return false;
+  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item)))
+    return false;
+  return ["활성", "사용중", "이용중", "정상"].some((item) =>
+    status.includes(item),
+  );
 }
 
 /** Authorization: Bearer <token> 헤더에서 토큰만 뽑는다. */
 export function getBearerToken(req) {
-  return clean(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
 }
 
 // 입장 판정. 정본은 DB 함수 하나다 — sql/64 10)절
@@ -171,9 +181,9 @@ export function getBearerToken(req) {
 //   허용 여부는 확정 정책에 없는 미결 항목이라, 게이트를 기간 전용으로 두어
 //   현행 동작을 바꾸지 않는다.
 export async function checkProgramAccessTable(supabaseAdmin, userId, config) {
-  const { data, error } = await supabaseAdmin.rpc('fn_program_access_state', {
+  const { data, error } = await supabaseAdmin.rpc("fn_program_access_state", {
     p_profile_id: userId,
-    p_program_keys: config.program_keys
+    p_program_keys: config.program_keys,
   });
 
   if (error) {
@@ -181,27 +191,33 @@ export async function checkProgramAccessTable(supabaseAdmin, userId, config) {
     // 없음"과 구별하지 않아, 결제자가 로그 한 줄 없이 403 을 맞았다. 로그를
     // 남기고 fail-closed 한다 — 판정할 수 없으면 열지 않는다(돈이 걸린 판단은
     // 되돌릴 수 있는 쪽으로).
-    console.error('fn_program_access_state 호출 실패:', config.service_key, userId, error);
+    console.error(
+      "fn_program_access_state 호출 실패:",
+      config.service_key,
+      userId,
+      error,
+    );
     return { allowed: false, reason: null };
   }
 
   const rows = Array.isArray(data) ? data : [];
-  if (rows.some((row) => row.allowed === true)) return { allowed: true, reason: null };
+  if (rows.some((row) => row.allowed === true))
+    return { allowed: true, reason: null };
 
   // 거부 사유를 남긴다. 만료(period_expired)와 미결제(not_paid)는 사용자에게
   // 다른 상태다 — 만료면 EXPIRED_MESSAGE, 그 외(미결제 등)는 PAID_MESSAGE 로
   // 호출부(handler)가 갈라 응답한다.
   for (const row of rows) {
     console.warn(
-      'program_access denied:',
+      "program_access denied:",
       config.service_key,
       row.program_key,
       row.reason,
-      row.expires_at ?? 'unlimited'
+      row.expires_at ?? "unlimited",
     );
   }
-  const expired = rows.some((row) => row.reason === 'period_expired');
-  return { allowed: false, reason: expired ? 'period_expired' : null };
+  const expired = rows.some((row) => row.reason === "period_expired");
+  return { allowed: false, reason: expired ? "period_expired" : null };
 }
 
 export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
@@ -212,9 +228,11 @@ export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
   // program_name/class_name/payment_status/application_status)은 두 테이블에
   // 이름이 전부 동일해 컬럼명 치환 없이 테이블만 바꿨다(판정 로직은 그대로).
   const { data, error } = await supabaseAdmin
-    .from('enrollments')
-    .select('id, profile_id, category_name, program_name, class_name, payment_status, application_status')
-    .eq('profile_id', userId)
+    .from("enrollments")
+    .select(
+      "id, profile_id, category_name, program_name, class_name, payment_status, application_status",
+    )
+    .eq("profile_id", userId)
     .limit(100);
 
   if (error) {
@@ -224,9 +242,11 @@ export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
   return (data || []).some((row) => {
     const nameText = [row.category_name, row.program_name, row.class_name]
       .map((value) => clean(value))
-      .join(' ');
+      .join(" ");
 
-    const serviceMatched = config.payment_keywords.some((keyword) => nameText.includes(keyword));
+    const serviceMatched = config.payment_keywords.some((keyword) =>
+      nameText.includes(keyword),
+    );
     return serviceMatched && isPaidStatus(row.payment_status);
   });
 }
@@ -255,9 +275,9 @@ export async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
 //    로컬에서 켜 두면 목표관리 SSO 티켓도 미결제 계정에서 발급된다.
 //    범위를 좁혀야 하면 우회 발동을 config.service_key === 'suhaeng'으로 한정하면 된다.
 export function isDevEntitlementBypassEnabled() {
-  if (process.env.VERCEL_ENV === 'production') return false;
-  if (process.env.NODE_ENV === 'production') return false;
-  return process.env.DEV_BYPASS_ENTITLEMENT === 'true';
+  if (process.env.VERCEL_ENV === "production") return false;
+  if (process.env.NODE_ENV === "production") return false;
+  return process.env.DEV_BYPASS_ENTITLEMENT === "true";
 }
 
 // 우회가 발동했을 때 진입 게이트(hasPaidServiceAccess → checkProgramAccessTable)를
@@ -279,42 +299,47 @@ export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
     const programKey = config.program_keys[0];
 
     const { data: existing, error: selectError } = await supabaseAdmin
-      .from('program_access')
-      .select('id')
-      .in('program_key', config.program_keys)
+      .from("program_access")
+      .select("id")
+      .in("program_key", config.program_keys)
       .or(`id.eq.${userId},profile_id.eq.${userId},user_id.eq.${userId}`)
       .limit(1)
       .maybeSingle();
 
     if (selectError) {
       console.warn(
-        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 조회 실패(무시, 우회는 유지) — ${selectError.message}`
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 조회 실패(무시, 우회는 유지) — ${selectError.message}`,
       );
       return;
     }
 
     if (existing) return; // 기존 행(실결제 포함) 보존 — 덮어쓰지 않는다.
 
-    const { error: insertError } = await supabaseAdmin.from('program_access').insert({
-      id: userId,
-      program_key: programKey,
-      payment_status: 'paid',
-      access_status: 'active',
-      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 행. 실제 회차·기간은 program_access_grants 원장을 본다(ensureDevProgramAccessGrant).'
-    });
+    const { error: insertError } = await supabaseAdmin
+      .from("program_access")
+      .insert({
+        id: userId,
+        program_key: programKey,
+        payment_status: "paid",
+        access_status: "active",
+        memo: "[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 행. 실제 회차·기간은 program_access_grants 원장을 본다(ensureDevProgramAccessGrant).",
+      });
 
     if (insertError) {
       console.warn(
-        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 실패(무시, 우회는 유지) — ${insertError.message}`
+        `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 실패(무시, 우회는 유지) — ${insertError.message}`,
       );
       return;
     }
 
     console.warn(
-      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 행 자동 생성 (user=${userId}, program_key=${programKey})`
+      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 행 자동 생성 (user=${userId}, program_key=${programKey})`,
     );
   } catch (error) {
-    console.warn('[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 중 예외(무시, 우회는 유지)', error);
+    console.warn(
+      "[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access 자동 생성 중 예외(무시, 우회는 유지)",
+      error,
+    );
   }
 }
 
@@ -357,15 +382,19 @@ export async function ensureDevProgramAccessRow(supabaseAdmin, userId, config) {
 // ⚠️ 이미 살아있는 grant가 있으면(revoked_at is null이고 만료 전) 만들지
 //    않는다 — 중복 부여 금지. 삽입 실패는 치명적이지 않다: 로그만 남기고
 //    우회(반환값 true) 자체는 유지한다.
-export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config) {
+export async function ensureDevProgramAccessGrant(
+  supabaseAdmin,
+  userId,
+  config,
+) {
   try {
     let programKey = null;
 
     for (const candidate of config.program_keys) {
       const { data: programRow, error: programError } = await supabaseAdmin
-        .from('programs')
-        .select('program_key')
-        .eq('program_key', candidate)
+        .from("programs")
+        .select("program_key")
+        .eq("program_key", candidate)
         .maybeSingle();
 
       if (!programError && programRow) {
@@ -377,9 +406,9 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
     if (!programKey) {
       console.warn(
         `[serviceAccess] DEV_BYPASS_ENTITLEMENT: programs 테이블에서 program_key 후보(${config.program_keys.join(
-          ', '
+          ", ",
         )})를 하나도 찾지 못해 program_access_grants 행을 만들지 않습니다(우회 진입 자체는 유지되지만, ` +
-          '살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — no_entitlement 또는 quota_exhausted로 막힙니다).'
+          "살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — no_entitlement 또는 quota_exhausted로 막힙니다).",
       );
       return;
     }
@@ -387,11 +416,11 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
     const nowIso = new Date().toISOString();
 
     const { data: existing, error: selectError } = await supabaseAdmin
-      .from('program_access_grants')
-      .select('id')
-      .eq('profile_id', userId)
-      .eq('program_key', programKey)
-      .is('revoked_at', null)
+      .from("program_access_grants")
+      .select("id")
+      .eq("profile_id", userId)
+      .eq("program_key", programKey)
+      .is("revoked_at", null)
       .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
       .limit(1)
       .maybeSingle();
@@ -399,7 +428,7 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
     if (selectError) {
       console.warn(
         `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 조회 실패 — ${selectError.message} ` +
-          '(우회 진입 자체는 유지되지만, 살아있는 부여를 확인하지 못해 새로 만들지 않습니다 — 기존 grant가 없다면 이후 회차 소비 RPC 호출이 실패합니다).'
+          "(우회 진입 자체는 유지되지만, 살아있는 부여를 확인하지 못해 새로 만들지 않습니다 — 기존 grant가 없다면 이후 회차 소비 RPC 호출이 실패합니다).",
       );
       return;
     }
@@ -410,34 +439,36 @@ export async function ensureDevProgramAccessGrant(supabaseAdmin, userId, config)
     const expiresAt = new Date(startsAt);
     expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 100); // 사실상 무기한(회차 무제한과 동시에 null로 둘 수 없다 — 위 주석 참고)
 
-    const { error: insertError } = await supabaseAdmin.from('program_access_grants').insert({
-      profile_id: userId,
-      program_key: programKey,
-      granted_by: 'qa',
-      granted_months: 1200, // 100년 — expires_at과 nullness를 맞추기 위한 근사 무기한
-      granted_sessions: null, // 회차 무제한 — consume_performance_credit이 즉시 채택하고 절대 소진되지 않는다
-      paid_amount: 0,
-      starts_at: startsAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      memo: '[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 부여. granted_sessions=null(회차 무제한), granted_months=1200(~100년, DB 제약상 expires_at을 null로 둘 수 없어 근사).'
-    });
+    const { error: insertError } = await supabaseAdmin
+      .from("program_access_grants")
+      .insert({
+        profile_id: userId,
+        program_key: programKey,
+        granted_by: "qa",
+        granted_months: 1200, // 100년 — expires_at과 nullness를 맞추기 위한 근사 무기한
+        granted_sessions: null, // 회차 무제한 — consume_performance_credit이 즉시 채택하고 절대 소진되지 않는다
+        paid_amount: 0,
+        starts_at: startsAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        memo: "[DEV_BYPASS_ENTITLEMENT] 로컬 QA 우회로 자동 생성된 부여. granted_sessions=null(회차 무제한), granted_months=1200(~100년, DB 제약상 expires_at을 null로 둘 수 없어 근사).",
+      });
 
     if (insertError) {
       console.warn(
         `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 실패 — ${insertError.message} ` +
-          '(우회 진입 자체는 유지되지만, 살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — ' +
-          'performance_credit_ledger.grant_id가 NOT NULL이라 no_entitlement/quota_exhausted로 막힙니다).'
+          "(우회 진입 자체는 유지되지만, 살아있는 부여가 없으므로 이후 회차 소비 RPC 호출은 실패합니다 — " +
+          "performance_credit_ledger.grant_id가 NOT NULL이라 no_entitlement/quota_exhausted로 막힙니다).",
       );
       return;
     }
 
     console.warn(
-      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 행 자동 생성 (user=${userId}, program_key=${programKey})`
+      `[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 행 자동 생성 (user=${userId}, program_key=${programKey})`,
     );
   } catch (error) {
     console.warn(
-      '[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 중 예외(무시, 우회는 유지)',
-      error
+      "[serviceAccess] DEV_BYPASS_ENTITLEMENT: program_access_grants 자동 생성 중 예외(무시, 우회는 유지)",
+      error,
     );
   }
 }
@@ -446,14 +477,18 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   if (isDevEntitlementBypassEnabled()) {
     console.warn(
       `[serviceAccess] ⚠️ DEV_BYPASS_ENTITLEMENT 활성 — '${config.service_key}' 이용권 판정을 우회합니다 (user=${userId}). ` +
-        'VERCEL_ENV/NODE_ENV가 production이면 이 경로는 절대 타지 않습니다.'
+        "VERCEL_ENV/NODE_ENV가 production이면 이 경로는 절대 타지 않습니다.",
     );
     await ensureDevProgramAccessRow(supabaseAdmin, userId, config);
     await ensureDevProgramAccessGrant(supabaseAdmin, userId, config);
     return { allowed: true, reason: null };
   }
 
-  const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
+  const byProgramAccess = await checkProgramAccessTable(
+    supabaseAdmin,
+    userId,
+    config,
+  );
   if (byProgramAccess.allowed) return { allowed: true, reason: null };
 
   // ⚠ 이 경로는 기간 만료를 집행하지 않는다. enrollments(오프라인 수강)에는
@@ -461,7 +496,11 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
   //    영구 입장이 성립한다. dev 실측 0행이라 현재 미발현이지만 구조적 구멍이다.
   //    오프라인 수강의 기간 정책은 미결 항목이며 이번 범위 밖이다
   //    (sql/64 파일 말미 "남겨 둔 것" 참고).
-  const byEnrollment = await checkEnrollmentPayment(supabaseAdmin, userId, config);
+  const byEnrollment = await checkEnrollmentPayment(
+    supabaseAdmin,
+    userId,
+    config,
+  );
   if (byEnrollment) return { allowed: true, reason: null };
 
   // program_access 쪽 판정이 만료였다면 enrollments 는 그 사유를 뒤집지 못한다
@@ -518,11 +557,11 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
  */
 export async function findProgramAccessRow(supabaseAdmin, userId, config) {
   const { data, error } = await supabaseAdmin
-    .from('program_access')
+    .from("program_access")
     .select(
-      'id, program_key, profile_id, user_id, payment_status, access_status, meta, access_expires_at, expires_at, updated_at, created_at'
+      "id, program_key, profile_id, user_id, payment_status, access_status, meta, access_expires_at, expires_at, updated_at, created_at",
     )
-    .in('program_key', config.program_keys)
+    .in("program_key", config.program_keys)
     .or(`id.eq.${userId},profile_id.eq.${userId},user_id.eq.${userId}`)
     .limit(20);
 
@@ -534,7 +573,11 @@ export async function findProgramAccessRow(supabaseAdmin, userId, config) {
   const statusRank = (row) => {
     const endsAt = row.access_expires_at || row.expires_at || null;
     const expired = endsAt ? new Date(endsAt).getTime() <= Date.now() : false;
-    return isPaidStatus(row.payment_status) && isActiveStatus(row.access_status) && !expired ? 0 : 1;
+    return isPaidStatus(row.payment_status) &&
+      isActiveStatus(row.access_status) &&
+      !expired
+      ? 0
+      : 1;
   };
   const columnRank = (row) => {
     if (row.id === userId) return 0;
@@ -545,14 +588,15 @@ export async function findProgramAccessRow(supabaseAdmin, userId, config) {
     const index = config.program_keys.indexOf(row.program_key);
     return index === -1 ? config.program_keys.length : index;
   };
-  const freshness = (row) => new Date(row.updated_at || row.created_at || 0).getTime();
+  const freshness = (row) =>
+    new Date(row.updated_at || row.created_at || 0).getTime();
 
   const sorted = [...data].sort(
     (a, b) =>
       statusRank(a) - statusRank(b) ||
       keyRank(a) - keyRank(b) ||
       columnRank(a) - columnRank(b) ||
-      freshness(b) - freshness(a)
+      freshness(b) - freshness(a),
   );
 
   return sorted[0] || null;
@@ -560,8 +604,9 @@ export async function findProgramAccessRow(supabaseAdmin, userId, config) {
 
 /** meta 값이 정수 문자열/숫자일 때만 정수로 읽는다. 아니면 fallback. */
 function readIntOrNull(value, fallback = null) {
-  if (typeof value === 'number' && Number.isInteger(value)) return value;
-  if (typeof value === 'string' && /^-?[0-9]+$/.test(value.trim())) return parseInt(value, 10);
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && /^-?[0-9]+$/.test(value.trim()))
+    return parseInt(value, 10);
   return fallback;
 }
 
@@ -629,24 +674,40 @@ export async function readQuotaSnapshot(supabaseAdmin, userId, row) {
     // 이용권 행이 없다(= admin_enrollments 경로로만 통과했거나 미보유).
     // 회차 개념이 붙을 자리가 없으므로 전부 null = "정보 없음"이다.
     // null을 0으로 내리면 무제한 사용자가 소진으로 보인다.
-    return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel: null };
+    return {
+      quotaTotal: null,
+      quotaUsed: null,
+      quotaRemaining: null,
+      planEndsAt: null,
+      planLabel: null,
+    };
   }
 
-  const meta = row.meta && typeof row.meta === 'object' ? row.meta : {};
-  const planLabelRaw = meta.plan_label ?? meta.planLabel ?? meta.plan_name ?? null;
+  const meta = row.meta && typeof row.meta === "object" ? row.meta : {};
+  const planLabelRaw =
+    meta.plan_label ?? meta.planLabel ?? meta.plan_name ?? null;
   const planLabel = clean(planLabelRaw) || null;
 
   try {
-    const { data, error } = await supabaseAdmin.rpc('fn_program_access_grants_summary', {
-      p_profile_id: userId,
-      p_program_key: row.program_key
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "fn_program_access_grants_summary",
+      {
+        p_profile_id: userId,
+        p_program_key: row.program_key,
+      },
+    );
 
     if (error) throw error;
 
     const summary = Array.isArray(data) ? data[0] : data;
     if (!summary) {
-      return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel };
+      return {
+        quotaTotal: null,
+        quotaUsed: null,
+        quotaRemaining: null,
+        planEndsAt: null,
+        planLabel,
+      };
     }
 
     const liveCount = readIntOrNull(summary.live_count, 0) ?? 0;
@@ -665,21 +726,28 @@ export async function readQuotaSnapshot(supabaseAdmin, userId, row) {
     let quotaUsed = readIntOrNull(summary.quota_used, 0);
     if (quotaUsed === null || quotaUsed < 0) quotaUsed = 0;
 
-    const quotaRemaining = quotaTotal === null ? null : Math.max(quotaTotal - quotaUsed, 0);
+    const quotaRemaining =
+      quotaTotal === null ? null : Math.max(quotaTotal - quotaUsed, 0);
 
     return {
       quotaTotal,
       quotaUsed,
       quotaRemaining,
       planEndsAt: summary.expires_at || null,
-      planLabel
+      planLabel,
     };
   } catch (error) {
     console.warn(
       `[serviceAccess] fn_program_access_grants_summary 호출 실패 — 회차 표시를 "정보 없음"으로 흡수합니다` +
         `(판정에는 영향 없음. program_key=${row.program_key}, user=${userId})`,
-      error?.message || error
+      error?.message || error,
     );
-    return { quotaTotal: null, quotaUsed: null, quotaRemaining: null, planEndsAt: null, planLabel };
+    return {
+      quotaTotal: null,
+      quotaUsed: null,
+      quotaRemaining: null,
+      planEndsAt: null,
+      planLabel,
+    };
   }
 }

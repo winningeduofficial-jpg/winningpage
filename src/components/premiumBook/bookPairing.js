@@ -19,9 +19,9 @@ export const COVER_ALONE = false;
 //   gap  — 결번. 어드민이 중간 행을 지워 슬롯만 남은 자리. 흰 면 + 중앙 로고 워터마크
 //   void — 구조적 부재. 표지 반대편·종단처럼 애초에 짝이 없는 설계상 빈칸. 워터마크를 그리지 않는다
 //          (결번과 같은 시각을 쓰면 "지워진 페이지"로 오인시킨다)
-export const FACE_PAGE = 'page';
-export const FACE_GAP = 'gap';
-export const FACE_VOID = 'void';
+export const FACE_PAGE = "page";
+export const FACE_GAP = "gap";
+export const FACE_VOID = "void";
 
 const VOID_FACE = Object.freeze({ kind: FACE_VOID, order: null, page: null });
 
@@ -59,7 +59,9 @@ export function buildViews(pages, options = {}) {
     const order = Number(page?.sort_order);
     if (!Number.isInteger(order) || order < 1) continue;
     if (byOrder.has(order)) {
-      console.warn(`프리미엄 책자: sort_order ${order}가 중복입니다. 첫 행만 사용합니다.`);
+      console.warn(
+        `프리미엄 책자: sort_order ${order}가 중복입니다. 첫 행만 사용합니다.`,
+      );
       continue;
     }
     byOrder.set(order, page);
@@ -70,7 +72,8 @@ export function buildViews(pages, options = {}) {
     if (order > lastOrder) lastOrder = order;
   }
 
-  const slot = (order) => (byOrder.has(order) ? pageFace(order, byOrder.get(order)) : gapFace(order));
+  const slot = (order) =>
+    byOrder.has(order) ? pageFace(order, byOrder.get(order)) : gapFace(order);
 
   const views = [];
   const push = (left, right) => {
@@ -79,7 +82,7 @@ export function buildViews(pages, options = {}) {
       left,
       right,
       // 뷰의 대표 페이지 — 모드 전환·이동 시 유지할 앵커다. 좌측이 구조적 부재면 우측을 쓴다.
-      primaryOrder: left.order ?? right.order ?? 0
+      primaryOrder: left.order ?? right.order ?? 0,
     });
   };
 

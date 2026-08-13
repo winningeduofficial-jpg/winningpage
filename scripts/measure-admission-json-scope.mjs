@@ -37,23 +37,25 @@
 //   않고 명확한 에러 메시지와 함께 즉시 종료한다.
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readFile, writeFile } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import { pathToFileURL } from 'node:url';
-import process from 'node:process';
+import { createClient } from "@supabase/supabase-js";
+import { readFile, writeFile } from "node:fs/promises";
+import { parseArgs } from "node:util";
+import { pathToFileURL } from "node:url";
+import process from "node:process";
 
-import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
+import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
+  type: "json",
+};
 import {
   buildRawSectionHtml,
   buildSmartRawHtml,
   looksLikeHtml,
   HWP_SECTION_HTML_KEYS,
-  clean
-} from '../src/lib/admissionParsing.js';
+  clean,
+} from "../src/lib/admissionParsing.js";
 
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
-const TABLE = 'admission_university_resources';
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
+const TABLE = "admission_university_resources";
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
 const HTML_COLUMNS = Object.values(HWP_SECTION_HTML_KEYS);
 
@@ -82,20 +84,21 @@ async function resolveCredentials() {
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (envUrl && envKey) return { url: envUrl, serviceKey: envKey };
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE;
+  const keysFile = args["keys-file"] || process.env.SEED_KEYS_FILE;
   if (!keysFile) {
     throw new Error(
-      'DB 자격증명을 찾을 수 없습니다. SEED_SUPABASE_URL/SEED_SERVICE_ROLE_KEY 환경변수를 ' +
-        '설정하거나 --keys-file <path>를 지정하세요. DB 없이 번들만 측정하려면 ' +
-        '--bundle-only 플래그를 사용하세요.'
+      "DB 자격증명을 찾을 수 없습니다. SEED_SUPABASE_URL/SEED_SERVICE_ROLE_KEY 환경변수를 " +
+        "설정하거나 --keys-file <path>를 지정하세요. DB 없이 번들만 측정하려면 " +
+        "--bundle-only 플래그를 사용하세요.",
     );
   }
-  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
-  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
-  if (!serviceEntry) throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
+  const raw = JSON.parse(await readFile(keysFile, "utf-8"));
+  const serviceEntry = raw.find((entry) => entry.name === "service_role");
+  if (!serviceEntry)
+    throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
   return {
     url: `https://${DEV_PROJECT_REF}.supabase.co`,
-    serviceKey: serviceEntry.api_key
+    serviceKey: serviceEntry.api_key,
   };
 }
 
@@ -107,7 +110,7 @@ async function resolveCredentials() {
 // (같은 문서에 같은 클래스가 여러 번 나와도 문서 수는 1로 카운트).
 function collectClassesInDoc(html) {
   const classes = new Set();
-  const text = String(html || '');
+  const text = String(html || "");
   let m;
   CLASS_ATTR_RE.lastIndex = 0;
   while ((m = CLASS_ATTR_RE.exec(text)) !== null) {
@@ -123,14 +126,14 @@ function collectClassesInDoc(html) {
 // 항목 6: 저장 html 자체가 admission-table-wrap을 2회 이상 포함하면(모달이
 // 씌우는 바깥 wrap과 별개로 문서 내부에서 이미 중첩) 이중 중첩으로 판정한다.
 export function countTableWrapOccurrences(html) {
-  const text = String(html || '');
+  const text = String(html || "");
   const matches = text.match(TABLE_WRAP_CLASS_RE);
   return matches ? matches.length : 0;
 }
 
 // 항목 5: 마스킹 패턴 원본 매칭 건수(치환 전 값 기준).
 export function countMaskedTokenMatches(html) {
-  const text = String(html || '');
+  const text = String(html || "");
   const matches = text.match(MASKED_TOKEN_RE);
   return matches ? matches.length : 0;
 }
@@ -138,7 +141,9 @@ export function countMaskedTokenMatches(html) {
 // 항목 7: 매칭된 문자열이 대소문자까지 정확히 진짜 결함 패턴인지 판별.
 // 그 외(대소문자 변형 등)는 정규식이 gi 플래그를 쓰는 탓에 걸린 오탐이다.
 export function classifyMaskedTokenMatch(matchedText) {
-  return REAL_DEFECT_RE.test(String(matchedText || '')) ? 'defect' : 'false-positive';
+  return REAL_DEFECT_RE.test(String(matchedText || ""))
+    ? "defect"
+    : "false-positive";
 }
 
 // 항목 5·7(핵심): sanitizeAdmissionRenderedHtml은 buildRawSectionHtml/
@@ -153,7 +158,7 @@ export function collectMaskedTokenFindings(raw, key, row, universityName) {
   } catch {
     return [];
   }
-  const text = String(html || '');
+  const text = String(html || "");
   const findings = [];
   // MASKED_TOKEN_RE는 다른 함수에서도 exec 없이(match만) 재사용되므로,
   // lastIndex 상태를 공유하지 않도록 exec용 인스턴스를 매번 새로 만든다.
@@ -162,13 +167,16 @@ export function collectMaskedTokenFindings(raw, key, row, universityName) {
   while ((m = re.exec(text)) !== null) {
     const matchedText = m[0];
     const start = Math.max(0, m.index - MASKED_TOKEN_CONTEXT);
-    const end = Math.min(text.length, m.index + matchedText.length + MASKED_TOKEN_CONTEXT);
+    const end = Math.min(
+      text.length,
+      m.index + matchedText.length + MASKED_TOKEN_CONTEXT,
+    );
     findings.push({
       universityName,
       category: key,
       matchedText,
       classification: classifyMaskedTokenMatch(matchedText),
-      context: text.slice(start, end)
+      context: text.slice(start, end),
     });
     // 폭 0 매칭 방지(이 패턴은 전부 폭>0이라 실질적으로 불필요하지만 안전장치로 둔다).
     if (m[0].length === 0) re.lastIndex += 1;
@@ -177,7 +185,13 @@ export function collectMaskedTokenFindings(raw, key, row, universityName) {
 }
 
 // 항목 3: 현행 파서가 저장 html을 재생성하는지 여부.
-export function regeneratesToStoredHtml(raw, key, row, universityName, storedHtml) {
+export function regeneratesToStoredHtml(
+  raw,
+  key,
+  row,
+  universityName,
+  storedHtml,
+) {
   let regenerated;
   try {
     regenerated = buildRawSectionHtml(raw, key, row, universityName);
@@ -202,7 +216,7 @@ function measureCategory(key, docs) {
     maskedTokenMatches: 0,
     maskedTokenDefectCount: 0,
     maskedTokenFalsePositiveCount: 0,
-    doubleNestedDocs: 0
+    doubleNestedDocs: 0,
   };
   const classDocCount = new Map();
   const maskedTokenFindings = [];
@@ -221,20 +235,29 @@ function measureCategory(key, docs) {
         classDocCount.set(className, (classDocCount.get(className) || 0) + 1);
       });
 
-      if (countTableWrapOccurrences(cleanHtml) >= 2) stats.doubleNestedDocs += 1;
+      if (countTableWrapOccurrences(cleanHtml) >= 2)
+        stats.doubleNestedDocs += 1;
     }
     if (cleanRaw) {
-      const findings = collectMaskedTokenFindings(cleanRaw, key, row, universityName);
+      const findings = collectMaskedTokenFindings(
+        cleanRaw,
+        key,
+        row,
+        universityName,
+      );
       findings.forEach((finding) => {
         stats.maskedTokenMatches += 1;
-        if (finding.classification === 'defect') stats.maskedTokenDefectCount += 1;
+        if (finding.classification === "defect")
+          stats.maskedTokenDefectCount += 1;
         else stats.maskedTokenFalsePositiveCount += 1;
       });
       maskedTokenFindings.push(...findings);
     }
     if (cleanRaw && cleanHtml) {
       stats.regenComparedCount += 1;
-      if (regeneratesToStoredHtml(cleanRaw, key, row, universityName, cleanHtml)) {
+      if (
+        regeneratesToStoredHtml(cleanRaw, key, row, universityName, cleanHtml)
+      ) {
         stats.regenMatchCount += 1;
       }
     }
@@ -253,7 +276,9 @@ function measureCategory(key, docs) {
 // -----------------------------------------------------------------------
 function buildBundleCorpus() {
   const universityNames = Object.keys(admissionHwpSections);
-  const corpusByCategory = Object.fromEntries(CATEGORY_KEYS.map((key) => [key, []]));
+  const corpusByCategory = Object.fromEntries(
+    CATEGORY_KEYS.map((key) => [key, []]),
+  );
 
   universityNames.forEach((universityName) => {
     const row = admissionHwpSections[universityName];
@@ -263,7 +288,7 @@ function buildBundleCorpus() {
         raw: row[key],
         html: row[htmlKey],
         row,
-        universityName
+        universityName,
       });
     });
   });
@@ -277,27 +302,31 @@ function buildBundleCorpus() {
 async function buildDbCorpus(admissionYear) {
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
-    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+    throw new Error(
+      "dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.",
+    );
   }
   const supabase = createClient(url, serviceKey);
 
   const selectColumns = [
-    'id',
-    'university_name',
-    'university_key',
-    'detail_status',
+    "id",
+    "university_name",
+    "university_key",
+    "detail_status",
     ...CATEGORY_KEYS,
-    ...HTML_COLUMNS
-  ].join(', ');
+    ...HTML_COLUMNS,
+  ].join(", ");
 
   const { data: rows, error } = await supabase
     .from(TABLE)
     .select(selectColumns)
-    .eq('admission_year', admissionYear)
-    .order('id');
+    .eq("admission_year", admissionYear)
+    .order("id");
   if (error) throw new Error(`행 조회 실패: ${error.message}`);
 
-  const corpusByCategory = Object.fromEntries(CATEGORY_KEYS.map((key) => [key, []]));
+  const corpusByCategory = Object.fromEntries(
+    CATEGORY_KEYS.map((key) => [key, []]),
+  );
   (rows || []).forEach((row) => {
     CATEGORY_KEYS.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
@@ -305,7 +334,7 @@ async function buildDbCorpus(admissionYear) {
         raw: row[key],
         html: row[htmlKey],
         row,
-        universityName: row.university_name
+        universityName: row.university_name,
       });
     });
   });
@@ -319,21 +348,23 @@ async function buildDbCorpus(admissionYear) {
 function printReport(source, results) {
   console.log(`=== 대입모집요강 구조화 전환 범위 실측 (${source}) ===\n`);
 
-  console.log('--- 1~3, 5~6) 카테고리별 요약 ---');
+  console.log("--- 1~3, 5~6) 카테고리별 요약 ---");
   console.table(
     results.map((r) => ({
       카테고리: r.key,
-      'raw 보유': r.rawCount,
-      '저장html 보유': r.htmlCount,
-      'raw가 HTML': r.looksLikeHtmlCount,
-      '재생성 비교대상': r.regenComparedCount,
-      '재생성 일치': r.regenMatchCount,
-      '마스킹토큰(치환전)': r.maskedTokenMatches,
-      '이중중첩 문서수': r.doubleNestedDocs
-    }))
+      "raw 보유": r.rawCount,
+      "저장html 보유": r.htmlCount,
+      "raw가 HTML": r.looksLikeHtmlCount,
+      "재생성 비교대상": r.regenComparedCount,
+      "재생성 일치": r.regenMatchCount,
+      "마스킹토큰(치환전)": r.maskedTokenMatches,
+      "이중중첩 문서수": r.doubleNestedDocs,
+    })),
   );
 
-  console.log('\n--- 4) 클래스 인벤토리(상위 20, 카테고리 합산 아님 — 카테고리별) ---');
+  console.log(
+    "\n--- 4) 클래스 인벤토리(상위 20, 카테고리 합산 아님 — 카테고리별) ---",
+  );
   results.forEach((r) => {
     if (!r.classInventory.length) return;
     console.log(`\n[${r.key}]`);
@@ -342,26 +373,40 @@ function printReport(source, results) {
     });
   });
 
-  console.log('\n--- 7) 마스킹 정규식(/undefined|NaN|[object Object]|null null/gi) 오탐 실측 ---');
-  const allFindings = results.flatMap((r) => r.maskedTokenFindings);
-  const defectFindings = allFindings.filter((f) => f.classification === 'defect');
-  const falsePositiveFindings = allFindings.filter((f) => f.classification === 'false-positive');
   console.log(
-    `전체 매칭 ${allFindings.length}건 = 진짜 결함 ${defectFindings.length}건 + 오탐 ${falsePositiveFindings.length}건`
+    "\n--- 7) 마스킹 정규식(/undefined|NaN|[object Object]|null null/gi) 오탐 실측 ---",
+  );
+  const allFindings = results.flatMap((r) => r.maskedTokenFindings);
+  const defectFindings = allFindings.filter(
+    (f) => f.classification === "defect",
+  );
+  const falsePositiveFindings = allFindings.filter(
+    (f) => f.classification === "false-positive",
+  );
+  console.log(
+    `전체 매칭 ${allFindings.length}건 = 진짜 결함 ${defectFindings.length}건 + 오탐 ${falsePositiveFindings.length}건`,
   );
   if (falsePositiveFindings.length) {
-    console.log(`오탐 샘플(최대 ${MASKED_TOKEN_SAMPLE_LIMIT}건, 영향받은 대학/카테고리/원본 문자열):`);
+    console.log(
+      `오탐 샘플(최대 ${MASKED_TOKEN_SAMPLE_LIMIT}건, 영향받은 대학/카테고리/원본 문자열):`,
+    );
     falsePositiveFindings.slice(0, MASKED_TOKEN_SAMPLE_LIMIT).forEach((f) => {
-      console.log(`  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`);
+      console.log(
+        `  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`,
+      );
     });
     if (falsePositiveFindings.length > MASKED_TOKEN_SAMPLE_LIMIT) {
-      console.log(`  ... 외 ${falsePositiveFindings.length - MASKED_TOKEN_SAMPLE_LIMIT}건 생략`);
+      console.log(
+        `  ... 외 ${falsePositiveFindings.length - MASKED_TOKEN_SAMPLE_LIMIT}건 생략`,
+      );
     }
   }
   if (defectFindings.length) {
     console.log(`진짜 결함 샘플(최대 ${MASKED_TOKEN_SAMPLE_LIMIT}건):`);
     defectFindings.slice(0, MASKED_TOKEN_SAMPLE_LIMIT).forEach((f) => {
-      console.log(`  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`);
+      console.log(
+        `  - ${f.universityName} / ${f.category} / "${f.matchedText}" — ...${f.context}...`,
+      );
     });
   }
 }
@@ -369,36 +414,45 @@ function printReport(source, results) {
 async function main() {
   args = parseArgs({
     options: {
-      'bundle-only': { type: 'boolean', default: false },
-      'keys-file': { type: 'string' },
-      'admission-year': { type: 'string', default: '2027' },
-      json: { type: 'string' }
-    }
+      "bundle-only": { type: "boolean", default: false },
+      "keys-file": { type: "string" },
+      "admission-year": { type: "string", default: "2027" },
+      json: { type: "string" },
+    },
   }).values;
 
-  const admissionYear = Number(args['admission-year']);
+  const admissionYear = Number(args["admission-year"]);
   let source;
   let results;
 
-  if (args['bundle-only']) {
-    source = '번들 src/data/admissionHwpSections.json';
+  if (args["bundle-only"]) {
+    source = "번들 src/data/admissionHwpSections.json";
     const corpusByCategory = buildBundleCorpus();
-    results = CATEGORY_KEYS.map((key) => measureCategory(key, corpusByCategory[key]));
+    results = CATEGORY_KEYS.map((key) =>
+      measureCategory(key, corpusByCategory[key]),
+    );
   } else {
     const { corpusByCategory, rowCount } = await buildDbCorpus(admissionYear);
     source = `DB admission_university_resources (admission_year=${admissionYear}, ${rowCount}행)`;
-    results = CATEGORY_KEYS.map((key) => measureCategory(key, corpusByCategory[key]));
+    results = CATEGORY_KEYS.map((key) =>
+      measureCategory(key, corpusByCategory[key]),
+    );
   }
 
   printReport(source, results);
 
   if (args.json) {
-    await writeFile(args.json, JSON.stringify({ source, results }, null, 2), 'utf-8');
+    await writeFile(
+      args.json,
+      JSON.stringify({ source, results }, null, 2),
+      "utf-8",
+    );
     console.log(`\nJSON 저장 완료: ${args.json}`);
   }
 }
 
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

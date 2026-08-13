@@ -1,6 +1,6 @@
-import { useId } from 'react';
-import { formatKRW } from '../../data/pricingCatalog';
-import MyPageModalShell from './MyPageModalShell';
+import { useId } from "react";
+import { formatKRW } from "../../data/pricingCatalog";
+import MyPageModalShell from "./MyPageModalShell";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).
 //
@@ -14,29 +14,36 @@ import MyPageModalShell from './MyPageModalShell';
 
 // 결제 상태 행 — 표의 배지와 같은 판정(PaymentsTab resolveStatus)을 문자열로만 쓴다.
 const STATUS_TEXT = {
-  paid: '결제 완료',
-  pending: '입금 대기',
-  refund_approval_pending: '환불 요청 대기',
-  refund_parent_rejected: '학부모 반려',
-  refund_requested: '환불 진행 중',
-  refund_processing: '환불 진행 중',
-  refund_completed: '환불 완료',
-  refund_rejected: '환불 반려'
+  paid: "결제 완료",
+  pending: "입금 대기",
+  refund_approval_pending: "환불 요청 대기",
+  refund_parent_rejected: "학부모 반려",
+  refund_requested: "환불 진행 중",
+  refund_processing: "환불 진행 중",
+  refund_completed: "환불 완료",
+  refund_rejected: "환불 반려",
 };
 
 function formatApprovedAtDetail(value) {
-  if (!value) return '-';
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
+  if (Number.isNaN(d.getTime())) return "-";
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
   return `${y}. ${m}. ${day}. ${hh}:${mm}`;
 }
 
-export default function PaymentDetailModal({ open, order, status, onClose, onRequestRefund, onViewReceipt }) {
+export default function PaymentDetailModal({
+  open,
+  order,
+  status,
+  onClose,
+  onRequestRefund,
+  onViewReceipt,
+}) {
   const titleId = useId();
 
   if (!open || !order) return null;
@@ -44,18 +51,19 @@ export default function PaymentDetailModal({ open, order, status, onClose, onReq
   // 부가세는 토스 승인 응답 원본(orders.raw.vat)이 정본이다 — 우리가 금액에서
   // 역산하지 않는다(면세/과세 판정과 반올림 규칙을 우리가 알 수 없다).
   // MyPage.jsx 가 `vat:raw->>vat` 로 뽑아 내려준다. 값이 없으면 대시로 둔다.
-  const vat = order.vat === null || order.vat === undefined || order.vat === ''
-    ? null
-    : Number(order.vat);
+  const vat =
+    order.vat === null || order.vat === undefined || order.vat === ""
+      ? null
+      : Number(order.vat);
 
   const rows = [
-    { label: '주문번호', value: order.id },
-    { label: '결제 수단', value: order.method || '-' },
-    { label: '결제 상품', value: order.order_name || '-' },
-    { label: '승인 일시', value: formatApprovedAtDetail(order.paid_at) },
-    { label: '부가 가치', value: Number.isFinite(vat) ? formatKRW(vat) : '-' },
-    { label: '결제 금액', value: formatKRW(order.amount) },
-    { label: '결제 상태', value: STATUS_TEXT[status] || '-' }
+    { label: "주문번호", value: order.id },
+    { label: "결제 수단", value: order.method || "-" },
+    { label: "결제 상품", value: order.order_name || "-" },
+    { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
+    { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
+    { label: "결제 금액", value: formatKRW(order.amount) },
+    { label: "결제 상태", value: STATUS_TEXT[status] || "-" },
   ];
 
   // 환불 신청 버튼은 결제가 확정된 건에만 노출한다. 입금 대기(가상계좌 미입금)는
@@ -71,12 +79,21 @@ export default function PaymentDetailModal({ open, order, status, onClose, onReq
   // 학부모님이 하셨어요. 환불 요청을 보내면 학부모님이 확인 후 환불을
   // 진행합니다"). 2026-08-13 잠시 결제자 전용으로 좁혔다가 그 디자인을
   // 확인하고 되돌렸다(sql/75).
-  const canRequestRefund = status === 'paid' || status === 'refund_parent_rejected';
+  const canRequestRefund =
+    status === "paid" || status === "refund_parent_rejected";
 
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[33.75rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[33.75rem]"
+    >
       <div className="flex-1 overflow-y-auto px-[2.1875rem] pt-[2.5rem]">
-        <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
+        <h2
+          id={titleId}
+          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
+        >
           결제 상세 내역
         </h2>
 
@@ -86,8 +103,13 @@ export default function PaymentDetailModal({ open, order, status, onClose, onReq
               key={row.label}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-[0.9375rem]"
             >
-              <dt className="shrink-0 text-[0.875rem] text-ink-sub">{row.label}</dt>
-              <dd className="truncate text-right text-[0.875rem] text-ink-strong" title={row.value}>
+              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+                {row.label}
+              </dt>
+              <dd
+                className="truncate text-right text-[0.875rem] text-ink-strong"
+                title={row.value}
+              >
                 {row.value}
               </dd>
             </div>

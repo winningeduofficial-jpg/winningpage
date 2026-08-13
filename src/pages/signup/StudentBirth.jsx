@@ -6,47 +6,54 @@
 // 제출 시점에 즉시 분기 판단이 필요하다. 중복 구현을 피하기 위해 SignupContext.jsx가
 // export하는 computeIsUnder14(강화된 검증: 1900년 미만/미래 날짜/Date 롤오버 거부)를
 // 그대로 재사용한다(§3.3 B-2: "생일이 지나지 않은 경우 만 14세 미만으로 처리").
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AuthLayout, AuthTitle, TextField, PrimaryButton, InfoCard } from '../../components/auth';
-import { useSignup, computeIsUnder14 } from '../../context/SignupContext';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  AuthLayout,
+  AuthTitle,
+  TextField,
+  PrimaryButton,
+  InfoCard,
+} from "../../components/auth";
+import { useSignup, computeIsUnder14 } from "../../context/SignupContext";
 
 // 14세 미만 가입 플로우(D-1 PASS 본인인증 스텁 등)는 아직 백엔드 연동이 없는 데드엔드라
 // 기본 off. off인 배포에서는 14세 미만으로 판정돼도 under14 라우트로 보내지 않고 준비 중
 // 안내만 표시한다(Under14Verify/Under14Form의 URL 직접 진입 가드와 짝을 이룬다).
-const UNDER14_SIGNUP_ENABLED = import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === 'true';
+const UNDER14_SIGNUP_ENABLED =
+  import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
 
 export default function StudentBirth() {
   const navigate = useNavigate();
   const { memberType, birthDate, setBirthDate } = useSignup();
-  const [value, setValue] = useState(birthDate || '');
-  const [error, setError] = useState('');
+  const [value, setValue] = useState(birthDate || "");
+  const [error, setError] = useState("");
   const [showUnder14ComingSoon, setShowUnder14ComingSoon] = useState(false);
 
   // memberType 없이(예: 새로고침 전 이탈, 직접 URL 진입) 이 화면에 들어온 경우 첫 단계로 되돌림.
   useEffect(() => {
-    if (memberType !== 'student') {
-      navigate('/signup', { replace: true });
+    if (memberType !== "student") {
+      navigate("/signup", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberType]);
 
   function handleChange(next) {
-    setValue(next.replace(/\D/g, '').slice(0, 8));
-    if (error) setError('');
+    setValue(next.replace(/\D/g, "").slice(0, 8));
+    if (error) setError("");
     if (showUnder14ComingSoon) setShowUnder14ComingSoon(false);
   }
 
   function handleContinue() {
     if (value.length !== 8) {
-      setError('생년월일 8자리를 정확히 입력해 주세요.');
+      setError("생년월일 8자리를 정확히 입력해 주세요.");
       return;
     }
 
     const isUnder14 = computeIsUnder14(value);
 
     if (isUnder14 === null) {
-      setError('올바른 생년월일을 입력해 주세요.');
+      setError("올바른 생년월일을 입력해 주세요.");
       return;
     }
 
@@ -56,13 +63,19 @@ export default function StudentBirth() {
     }
 
     setBirthDate(value);
-    navigate(isUnder14 ? '/signup/student/under14/verify' : '/signup/student');
+    navigate(isUnder14 ? "/signup/student/under14/verify" : "/signup/student");
   }
 
   return (
     <AuthLayout>
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1={<span className="sm:whitespace-nowrap">학생의 생년월일을 입력해 주세요</span>} />
+        <AuthTitle
+          line1={
+            <span className="sm:whitespace-nowrap">
+              학생의 생년월일을 입력해 주세요
+            </span>
+          }
+        />
         <p className="break-keep text-base font-medium text-ink sm:text-xl sm:whitespace-nowrap">
           만 14세 미만은 보호자(법정대리인) 동의가 필요해요
         </p>
@@ -77,7 +90,7 @@ export default function StudentBirth() {
           onChange={handleChange}
           placeholder="생년월일 8자리 입력"
           helperText={error || undefined}
-          status={error ? 'error' : 'default'}
+          status={error ? "error" : "default"}
           autoComplete="off"
           required
         />

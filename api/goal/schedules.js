@@ -27,15 +27,15 @@ import {
   fetchStudentRow,
   insertSchedule,
   openGoalSession,
-  updateSchedule
-} from '../_lib/goalRepo.js';
+  updateSchedule,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 // sql/74_goal_schedules.sql goal_schedules_category_check 와 정확히 같은 값 4종
 // (src/lib/goal/scheduleCategory.js의 코드 목록과도 동일 — 프론트/DB CHECK/여기 셋이
 // 어긋나면 안 되므로 값을 바꿀 땐 세 곳을 함께 고친다).
-const CATEGORY_VALUES = new Set(['performance', 'exam', 'deadline', 'etc']);
+const CATEGORY_VALUES = new Set(["performance", "exam", "deadline", "etc"]);
 
 const TITLE_MAX_LENGTH = 100;
 const MEMO_MAX_LENGTH = 1000;
@@ -46,7 +46,7 @@ const DUE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // ---------------------------------------------------------------------------
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function fail(status, body) {
@@ -55,7 +55,7 @@ function fail(status, body) {
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -64,50 +64,53 @@ function readBody(req) {
 }
 
 function validateTitle(raw) {
-  if (typeof raw !== 'string') return fail(400, { detail: '일정 이름이 올바르지 않습니다.' });
+  if (typeof raw !== "string")
+    return fail(400, { detail: "일정 이름이 올바르지 않습니다." });
   const title = raw.trim();
-  if (!title) return fail(400, { detail: '일정 이름을 입력해 주세요.' });
+  if (!title) return fail(400, { detail: "일정 이름을 입력해 주세요." });
   if (title.length > TITLE_MAX_LENGTH) {
-    return fail(400, { detail: '일정 이름은 100자 이내여야 합니다.' });
+    return fail(400, { detail: "일정 이름은 100자 이내여야 합니다." });
   }
   return { value: title };
 }
 
 function validateCategory(raw) {
-  if (typeof raw !== 'string' || !CATEGORY_VALUES.has(raw)) {
-    return fail(400, { detail: '일정 종류를 선택해 주세요.' });
+  if (typeof raw !== "string" || !CATEGORY_VALUES.has(raw)) {
+    return fail(400, { detail: "일정 종류를 선택해 주세요." });
   }
   return { value: raw };
 }
 
 // 과거 날짜도 허용한다(지난 일정을 기록·수정할 수 있어야 한다 — 팀장 지시).
 function validateDueDate(raw) {
-  if (typeof raw !== 'string' || !DUE_DATE_RE.test(raw)) {
-    return fail(400, { detail: '마감일 형식이 올바르지 않습니다.' });
+  if (typeof raw !== "string" || !DUE_DATE_RE.test(raw)) {
+    return fail(400, { detail: "마감일 형식이 올바르지 않습니다." });
   }
   if (Number.isNaN(new Date(`${raw}T00:00:00Z`).getTime())) {
-    return fail(400, { detail: '마감일이 올바르지 않습니다.' });
+    return fail(400, { detail: "마감일이 올바르지 않습니다." });
   }
   return { value: raw };
 }
 
 function validateMemo(raw) {
-  if (raw === undefined || raw === null) return { value: '' };
-  if (typeof raw !== 'string') return fail(400, { detail: '메모 형식이 올바르지 않습니다.' });
+  if (raw === undefined || raw === null) return { value: "" };
+  if (typeof raw !== "string")
+    return fail(400, { detail: "메모 형식이 올바르지 않습니다." });
   return { value: raw.trim().slice(0, MEMO_MAX_LENGTH) };
 }
 
 function validateId(raw) {
   const id = Number(raw);
   if (!Number.isInteger(id) || id <= 0) {
-    return fail(400, { detail: '일정 id가 올바르지 않습니다.' });
+    return fail(400, { detail: "일정 id가 올바르지 않습니다." });
   }
   return { value: id };
 }
 
 /** POST/PUT 공용 — {title, category, dueDate, memo} → DB insert/update 컬럼 shape. */
 function validateScheduleFields(body) {
-  if (!isPlainObject(body)) return fail(400, { detail: '요청 본문이 올바르지 않습니다.' });
+  if (!isPlainObject(body))
+    return fail(400, { detail: "요청 본문이 올바르지 않습니다." });
 
   const titleResult = validateTitle(body.title);
   if (titleResult.error) return titleResult;
@@ -126,8 +129,8 @@ function validateScheduleFields(body) {
       title: titleResult.value,
       category: categoryResult.value,
       due_date: dueDateResult.value,
-      memo: memoResult.value
-    }
+      memo: memoResult.value,
+    },
   };
 }
 
@@ -138,7 +141,7 @@ function validateScheduleFields(body) {
 async function requireOnboardedStudent(supabaseAdmin, profileId) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row || !row.onboarded_at) {
-    return { error: fail(409, { reason: 'not_onboarded' }).error };
+    return { error: fail(409, { reason: "not_onboarded" }).error };
   }
   return { row };
 }
@@ -160,7 +163,9 @@ async function handleGet(req, res, session) {
   }
 
   const rows = await fetchSchedules(supabaseAdmin, profileId);
-  return res.status(200).json({ ok: true, schedules: rows.map(buildSchedulePayload) });
+  return res
+    .status(200)
+    .json({ ok: true, schedules: rows.map(buildSchedulePayload) });
 }
 
 async function handlePost(req, res, session) {
@@ -180,8 +185,13 @@ async function handlePost(req, res, session) {
     return res.status(validated.error.status).json(validated.error.body);
   }
 
-  const row = await insertSchedule(supabaseAdmin, { profile_id: profileId, ...validated.value });
-  return res.status(200).json({ ok: true, schedule: buildSchedulePayload(row) });
+  const row = await insertSchedule(supabaseAdmin, {
+    profile_id: profileId,
+    ...validated.value,
+  });
+  return res
+    .status(200)
+    .json({ ok: true, schedule: buildSchedulePayload(row) });
 }
 
 async function handlePut(req, res, session) {
@@ -198,7 +208,7 @@ async function handlePut(req, res, session) {
 
   const body = readBody(req);
   if (!isPlainObject(body)) {
-    return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
   }
 
   const idResult = validateId(body.id);
@@ -211,12 +221,19 @@ async function handlePut(req, res, session) {
     return res.status(validated.error.status).json(validated.error.body);
   }
 
-  const row = await updateSchedule(supabaseAdmin, profileId, idResult.value, validated.value);
+  const row = await updateSchedule(
+    supabaseAdmin,
+    profileId,
+    idResult.value,
+    validated.value,
+  );
   if (!row) {
-    return res.status(404).json({ detail: '일정을 찾을 수 없습니다.' });
+    return res.status(404).json({ detail: "일정을 찾을 수 없습니다." });
   }
 
-  return res.status(200).json({ ok: true, schedule: buildSchedulePayload(row) });
+  return res
+    .status(200)
+    .json({ ok: true, schedule: buildSchedulePayload(row) });
 }
 
 async function handleDelete(req, res, session) {
@@ -237,17 +254,21 @@ async function handleDelete(req, res, session) {
     return res.status(idResult.error.status).json(idResult.error.body);
   }
 
-  const deleted = await deleteSchedule(supabaseAdmin, profileId, idResult.value);
+  const deleted = await deleteSchedule(
+    supabaseAdmin,
+    profileId,
+    idResult.value,
+  );
   if (!deleted) {
-    return res.status(404).json({ detail: '일정을 찾을 수 없습니다.' });
+    return res.status(404).json({ detail: "일정을 찾을 수 없습니다." });
   }
 
   return res.status(200).json({ ok: true });
 }
 
 export default async function handler(req, res) {
-  if (!['GET', 'POST', 'PUT', 'DELETE'].includes(req.method)) {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (!["GET", "POST", "PUT", "DELETE"].includes(req.method)) {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -256,12 +277,12 @@ export default async function handler(req, res) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    if (req.method === 'GET') return await handleGet(req, res, session);
-    if (req.method === 'POST') return await handlePost(req, res, session);
-    if (req.method === 'PUT') return await handlePut(req, res, session);
+    if (req.method === "GET") return await handleGet(req, res, session);
+    if (req.method === "POST") return await handlePost(req, res, session);
+    if (req.method === "PUT") return await handlePut(req, res, session);
     return await handleDelete(req, res, session);
   } catch (error) {
-    console.error('goal/schedules error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/schedules error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

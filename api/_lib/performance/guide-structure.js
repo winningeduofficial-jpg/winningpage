@@ -82,16 +82,16 @@
 //   · `'manual'` → `performance_sessions.guide_freetext`
 //        (`guide_json`은 이 분기에서 null이다. 외부 `submitManualInfo`와 같은 값.)
 export function guideTextFromSession(session = {}) {
-  if (!session || typeof session !== 'object') return '';
+  if (!session || typeof session !== "object") return "";
 
-  const mode = session.guide_input_mode || session.guide_json?.mode || '';
+  const mode = session.guide_input_mode || session.guide_json?.mode || "";
 
-  if (mode === 'manual') return String(session.guide_freetext || '').trim();
+  if (mode === "manual") return String(session.guide_freetext || "").trim();
 
   // upload — 또는 mode가 아직 안 정해진 세션. 있는 쪽을 쓰되 upload 결과를 우선한다.
   const uploaded = session.guide_json?.text;
 
-  return String(uploaded || session.guide_freetext || '').trim();
+  return String(uploaded || session.guide_freetext || "").trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -113,17 +113,26 @@ export function guideTextFromSession(session = {}) {
  *
  * `''` → `true`인 성질은 파일 상단 (가) 참조. 호출부에서 `true`는 "제외"를 뜻한다.
  */
-export function isRubricLikeQuestion(text = '') {
-  const t = String(text || '').replace(/\s+/g, ' ').trim();
+export function isRubricLikeQuestion(text = "") {
+  const t = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!t) return true;
 
-  if (/하였는가|했는가|작성했는가|제시했는가|설명했는가|포함했는가|연결했는가|충족했는가|평가\s*기준|배점|점수|채점|체크\s*리스트|체크\s*\d+/i.test(t)) {
+  if (
+    /하였는가|했는가|작성했는가|제시했는가|설명했는가|포함했는가|연결했는가|충족했는가|평가\s*기준|배점|점수|채점|체크\s*리스트|체크\s*\d+/i.test(
+      t,
+    )
+  ) {
     return true;
   }
 
-  const looksLikeCriterion = /(구체적|명확|충실|적절|논리적|체계적|정확)/.test(t)
-    && /(제시|작성|설명|포함|연결|활용|반영)/.test(t)
-    && !/(무엇|어떻게|왜|느낀|생각|서술하시오|작성하시오|설명하시오|제시하시오|\?)/.test(t);
+  const looksLikeCriterion =
+    /(구체적|명확|충실|적절|논리적|체계적|정확)/.test(t) &&
+    /(제시|작성|설명|포함|연결|활용|반영)/.test(t) &&
+    !/(무엇|어떻게|왜|느낀|생각|서술하시오|작성하시오|설명하시오|제시하시오|\?)/.test(
+      t,
+    );
 
   return looksLikeCriterion;
 }
@@ -135,9 +144,13 @@ export function isRubricLikeQuestion(text = '') {
  * `목록 없음|없음`은 `GUIDE_EXTRACTION_SYSTEM`이 "문항 없음"을 표기하는 리터럴이라
  * 문항이 아니라 부재 신호로 읽고 버린다.
  */
-export function extractAnswerQuestions(text = '') {
+export function extractAnswerQuestions(text = "") {
   const seen = new Set();
-  return [...String(text || '').matchAll(/^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm)]
+  return [
+    ...String(text || "").matchAll(
+      /^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm,
+    ),
+  ]
     .map((m) => ({ no: Number(m[1]), text: m[2].trim() }))
     .filter((q) => q.text && !/목록\s*없음|없음/.test(q.text))
     .filter((q) => !isRubricLikeQuestion(q.text))
@@ -170,63 +183,75 @@ export function extractAnswerQuestions(text = '') {
  * 판정은 공백을 1칸으로 접은 `compact`에 대해 하지만, 문항 추출은 **줄바꿈이 살아 있는
  * `raw`**에 대해 한다(2·6행 정규식이 `compact`, 문항만 `raw`인 것이 원문 그대로다).
  */
-export function inferAssessmentStructure(assessmentInfo = '') {
-  const raw = String(assessmentInfo || '');
-  const compact = raw.replace(/\s+/g, ' ').trim();
+export function inferAssessmentStructure(assessmentInfo = "") {
+  const raw = String(assessmentInfo || "");
+  const compact = raw.replace(/\s+/g, " ").trim();
   const questions = extractAnswerQuestions(raw);
 
   if (questions.length) {
     return {
-      type: '문항별 답변형',
-      reason: '안내문에 학생이 실제로 답해야 하는 번호형 문항이 확인됨. 단, 평가기준형 질문은 제외함.',
-      writingFrame: questions.slice(0, 12).map((q) => `문항 ${q.no}: ${q.text}`).join('\n')
+      type: "문항별 답변형",
+      reason:
+        "안내문에 학생이 실제로 답해야 하는 번호형 문항이 확인됨. 단, 평가기준형 질문은 제외함.",
+      writingFrame: questions
+        .slice(0, 12)
+        .map((q) => `문항 ${q.no}: ${q.text}`)
+        .join("\n"),
     };
   }
 
   if (/카드뉴스|홍보물|포스터|뉴스레터/.test(compact)) {
     return {
-      type: '카드뉴스·홍보물형',
-      reason: '안내문이 글 보고서보다 시각 자료 제작을 요구함.',
-      writingFrame: '제작 의도 → 카드별 핵심 문구/자료 → 교과 개념 연결 → 마무리 메시지'
+      type: "카드뉴스·홍보물형",
+      reason: "안내문이 글 보고서보다 시각 자료 제작을 요구함.",
+      writingFrame:
+        "제작 의도 → 카드별 핵심 문구/자료 → 교과 개념 연결 → 마무리 메시지",
     };
   }
 
   if (/발표|ppt|피피티|대본|프레젠테이션/.test(compact)) {
     return {
-      type: '발표·PPT형',
-      reason: '안내문이 발표 자료 또는 발표 대본 구성을 요구함.',
-      writingFrame: '도입 → 슬라이드별 핵심 내용 → 말로 설명할 연결 문장 → 결론'
+      type: "발표·PPT형",
+      reason: "안내문이 발표 자료 또는 발표 대본 구성을 요구함.",
+      writingFrame:
+        "도입 → 슬라이드별 핵심 내용 → 말로 설명할 연결 문장 → 결론",
     };
   }
 
   if (/칼럼|논설|비평|에세이|주장하는 글|논술/.test(compact)) {
     return {
-      type: '칼럼·논술형',
-      reason: '안내문이 탐구 사실 나열보다 주장과 근거 중심의 글을 요구함.',
-      writingFrame: '문제 제기 → 핵심 주장 → 근거 분석 → 반론/한계 → 결론 및 제언'
+      type: "칼럼·논술형",
+      reason: "안내문이 탐구 사실 나열보다 주장과 근거 중심의 글을 요구함.",
+      writingFrame:
+        "문제 제기 → 핵심 주장 → 근거 분석 → 반론/한계 → 결론 및 제언",
     };
   }
 
-  if (/탐구\s*내용|배우고\s*느낀\s*점|느낀점|\d+\s*자\s*이상|분량/.test(compact)) {
+  if (
+    /탐구\s*내용|배우고\s*느낀\s*점|느낀점|\d+\s*자\s*이상|분량/.test(compact)
+  ) {
     return {
-      type: '안내문 맞춤 작성형',
-      reason: '안내문에 특정 작성 항목이나 분량 조건이 제시되어 있음.',
-      writingFrame: '안내문에 제시된 항목명과 분량 조건을 우선하고, 필요한 경우 주제 선정 이유 → 탐구 내용 → 배우고 느낀 점 → 출처 순서로 구성'
+      type: "안내문 맞춤 작성형",
+      reason: "안내문에 특정 작성 항목이나 분량 조건이 제시되어 있음.",
+      writingFrame:
+        "안내문에 제시된 항목명과 분량 조건을 우선하고, 필요한 경우 주제 선정 이유 → 탐구 내용 → 배우고 느낀 점 → 출처 순서로 구성",
     };
   }
 
-  if (/실험|탐구보고서|탐구 보고서|실험보고서|조사 보고서|보고서/.test(compact)) {
+  if (
+    /실험|탐구보고서|탐구 보고서|실험보고서|조사 보고서|보고서/.test(compact)
+  ) {
     return {
-      type: '탐구보고서형',
-      reason: '안내문에서 별도 문항형 답변보다 보고서 성격이 강함.',
-      writingFrame: '서론 → 교과 개념 정리 → 자료·사례 분석 → 결론'
+      type: "탐구보고서형",
+      reason: "안내문에서 별도 문항형 답변보다 보고서 성격이 강함.",
+      writingFrame: "서론 → 교과 개념 정리 → 자료·사례 분석 → 결론",
     };
   }
 
   return {
-    type: '기본 보고서형',
-    reason: '안내문에서 특정 제출 형식이 뚜렷하게 확인되지 않음.',
-    writingFrame: '서론 → 본론 → 결론'
+    type: "기본 보고서형",
+    reason: "안내문에서 특정 제출 형식이 뚜렷하게 확인되지 않음.",
+    writingFrame: "서론 → 본론 → 결론",
   };
 }
 
@@ -241,6 +266,6 @@ export function inferGuideStructure(session = {}) {
 
   return {
     ...inferAssessmentStructure(text),
-    mode: session?.guide_input_mode || session?.guide_json?.mode || null
+    mode: session?.guide_input_mode || session?.guide_json?.mode || null,
   };
 }

@@ -1,8 +1,8 @@
-import { useMemberType } from '../hooks/useMemberType';
-import StudentEnrollmentRequest from './checkout/StudentEnrollmentRequest';
-import ParentCheckout from './checkout/ParentCheckout';
-import BlockedMemberNotice from './checkout/BlockedMemberNotice';
-import MemberTypeRetryNotice from './checkout/MemberTypeRetryNotice';
+import { useMemberType } from "../hooks/useMemberType";
+import StudentEnrollmentRequest from "./checkout/StudentEnrollmentRequest";
+import ParentCheckout from "./checkout/ParentCheckout";
+import BlockedMemberNotice from "./checkout/BlockedMemberNotice";
+import MemberTypeRetryNotice from "./checkout/MemberTypeRetryNotice";
 
 // 리뷰 BLOCK 수정(2026-08-12) — /checkout(App.jsx:109, ProtectedRoute 안쪽)이
 // 이 파일을 그대로 렌더한다. 예전엔 이 파일 자체가 "장바구니 담아 바로 결제"
@@ -59,8 +59,8 @@ export default function Checkout() {
 
   if (error) return <MemberTypeRetryNotice onRetry={refetch} />;
 
-  if (memberType === 'student') return <StudentEnrollmentRequest />;
-  if (memberType === 'parent') return <ParentCheckout />;
+  if (memberType === "student") return <StudentEnrollmentRequest />;
+  if (memberType === "parent") return <ParentCheckout />;
 
   return <BlockedMemberNotice memberType={memberType} />;
 }

@@ -43,8 +43,8 @@ export const FOCUS_MULTIPLIER = {
 
 // 과목 태그 가산 배수와 태그 문자열. 원본 App.tsx:87-88 의 하드코딩을 상수로만 뽑았다(값 동일).
 export const TASK_BONUS_MULTIPLIER = 1.1;
-export const TASK_NAESIN = '내신 과목';
-export const TASK_MOCK_EXAM = '기출/모의고사';
+export const TASK_NAESIN = "내신 과목";
+export const TASK_MOCK_EXAM = "기출/모의고사";
 
 // 수시 기준일 = 매년 9월 12일, 정시 기준일 = 매년 11월 19일. 원본 student.mjs:408-409.
 // (Date 월 인자는 0-base라 8 = 9월, 10 = 11월)
@@ -98,28 +98,36 @@ export function calcStudentBonusRates(
   let jungsiBase = new Date(y, JUNGSI_BASE_MONTH, JUNGSI_BASE_DATE);
 
   // 기준일 당일이면 이미 지난 것으로 보고 내년으로 넘긴다(<= 이므로 당일 포함).
-  if (susiBase <= now) susiBase = new Date(y + 1, SUSI_BASE_MONTH, SUSI_BASE_DATE);
-  if (jungsiBase <= now) jungsiBase = new Date(y + 1, JUNGSI_BASE_MONTH, JUNGSI_BASE_DATE);
+  if (susiBase <= now)
+    susiBase = new Date(y + 1, SUSI_BASE_MONTH, SUSI_BASE_DATE);
+  if (jungsiBase <= now)
+    jungsiBase = new Date(y + 1, JUNGSI_BASE_MONTH, JUNGSI_BASE_DATE);
 
-  const daysToSusi = Math.max(1, Math.ceil((susiBase.getTime() - now.getTime()) / MS_PER_DAY));
-  const daysToJungsi = Math.max(1, Math.ceil((jungsiBase.getTime() - now.getTime()) / MS_PER_DAY));
+  const daysToSusi = Math.max(
+    1,
+    Math.ceil((susiBase.getTime() - now.getTime()) / MS_PER_DAY),
+  );
+  const daysToJungsi = Math.max(
+    1,
+    Math.ceil((jungsiBase.getTime() - now.getTime()) / MS_PER_DAY),
+  );
 
   // 학년 오프셋 12단. 고3=0 기준으로 한 학년 아래마다 365일씩 더한다.
   // NOTE(target-parity): 원본이 if-else 사슬이다. 객체 맵 + ?? 0 으로 바꾸면 grade 가
   // 'constructor' 같은 Object.prototype 키일 때 결과가 달라지므로 사슬 그대로 옮긴다.
   let offset = 0;
 
-  if (grade === '고2') offset = 365;
-  else if (grade === '고1') offset = 730;
-  else if (grade === '중3') offset = 1095;
-  else if (grade === '중2') offset = 1460;
-  else if (grade === '중1') offset = 1825;
-  else if (grade === '초6') offset = 2190;
-  else if (grade === '초5') offset = 2555;
-  else if (grade === '초4') offset = 2920;
-  else if (grade === '초3') offset = 3285;
-  else if (grade === '초2') offset = 3650;
-  else if (grade === '초1') offset = 4015;
+  if (grade === "고2") offset = 365;
+  else if (grade === "고1") offset = 730;
+  else if (grade === "중3") offset = 1095;
+  else if (grade === "중2") offset = 1460;
+  else if (grade === "중1") offset = 1825;
+  else if (grade === "초6") offset = 2190;
+  else if (grade === "초5") offset = 2555;
+  else if (grade === "초4") offset = 2920;
+  else if (grade === "초3") offset = 3285;
+  else if (grade === "초2") offset = 3650;
+  else if (grade === "초1") offset = 4015;
 
   const totalSusiDays = daysToSusi + offset;
   const totalJungsiDays = daysToJungsi + offset;
@@ -197,7 +205,11 @@ export function calculateDailyBonus(
   };
 
   // 일요일 보충 목표가 0시간인 경우 0시간 제출을 감점 처리하지 않음
-  if (studyHours === 0 && normalizedIdealHours <= 0 && normalizedMinHours <= 0) {
+  if (
+    studyHours === 0 &&
+    normalizedIdealHours <= 0 &&
+    normalizedMinHours <= 0
+  ) {
     return zeroBonus;
   }
 
@@ -222,8 +234,10 @@ export function calculateDailyBonus(
   const focMult = FOCUS_MULTIPLIER[focus] ?? 1;
 
   // NOTE(target-parity): 목표 시간이 0 이하면 달성률을 100%로 간주한다(분모 0 회피).
-  const idealRate = normalizedIdealHours > 0 ? (studyHours / normalizedIdealHours) * 100 : 100;
-  const minRate = normalizedMinHours > 0 ? (studyHours / normalizedMinHours) * 100 : 100;
+  const idealRate =
+    normalizedIdealHours > 0 ? (studyHours / normalizedIdealHours) * 100 : 100;
+  const minRate =
+    normalizedMinHours > 0 ? (studyHours / normalizedMinHours) * 100 : 100;
   const iRateMult = getAchievementRateMultiplier(idealRate);
   const mRateMult = getAchievementRateMultiplier(minRate);
 

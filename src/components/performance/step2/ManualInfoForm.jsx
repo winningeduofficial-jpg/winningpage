@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import InlineCard from '../chat/InlineCard';
-import PrimaryButton from '../../auth/PrimaryButton';
+import { useState } from "react";
+import InlineCard from "../chat/InlineCard";
+import PrimaryButton from "../../auth/PrimaryButton";
 
 // STEP2 안내문 없이 직접 입력 폼 — docs/수행평가-상세-명세.md §5.8(`3754:3370` 빈 상태 /
 // `3754:3431` 입력 완료 상태).
@@ -35,21 +35,26 @@ import PrimaryButton from '../../auth/PrimaryButton';
 //   그 호출에서 서버가 `guide_input_mode='manual'` + `guide_freetext`를 채운다. 이
 //   컴포넌트는 검증을 통과한 원문 문자열만 `onSubmit`으로 넘긴다.
 
-const LABEL = '대략적인 수행평가 정보';
-const PLACEHOLDER = '수행평가 유형, 제출 형식, 평가 기준, 필수 포함 내용 등을 적어주세요.';
-const SUBMIT_LABEL = '주제 추천받기';
+const LABEL = "대략적인 수행평가 정보";
+const PLACEHOLDER =
+  "수행평가 유형, 제출 형식, 평가 기준, 필수 포함 내용 등을 적어주세요.";
+const SUBMIT_LABEL = "주제 추천받기";
 
-const FIELD_ID = 'performance-guide-freetext';
+const FIELD_ID = "performance-guide-freetext";
 
 /**
  * @param {(freetext: string) => void} onSubmit 검증 통과 후 호출. 앞뒤 공백은 제거된 값이다.
  * @param {boolean} [submitting] true면 버튼이 로딩 상태로 잠기고 입력이 막힌다.
  * @param {string|null} [submitError] 제출 실패 메시지(서버 응답 등).
  */
-export default function ManualInfoForm({ onSubmit, submitting = false, submitError = null }) {
-  const [value, setValue] = useState('');
+export default function ManualInfoForm({
+  onSubmit,
+  submitting = false,
+  submitError = null,
+}) {
+  const [value, setValue] = useState("");
 
-  const isValid = value.trim() !== '';
+  const isValid = value.trim() !== "";
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -59,7 +64,11 @@ export default function ManualInfoForm({ onSubmit, submitting = false, submitErr
 
   return (
     <InlineCard>
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col gap-3.5"
+      >
         {/* 필수 표시를 색 하나에만 맡기지 않는다(WCAG 1.4.1) — 시각적 `*`는 aria-hidden으로
             두고 스크린리더용 "(필수)"를 sr-only로 덧붙인다(BasicInfoForm과 같은 관례).
             시안 원문이 `정보*`로 붙여 쓰므로 사이에 공백을 넣지 않는다. */}
@@ -87,7 +96,10 @@ export default function ManualInfoForm({ onSubmit, submitting = false, submitErr
         {/* 에러 표시 UI는 시안에 없다(§11.3 Q39 — 시안에 토스트 컴포넌트 자체가 없다).
             GuideUploadCard·BasicInfoForm과 같은 한 줄 `role="alert"` 관례로 최소한만 만든다. */}
         {submitError && (
-          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
+          <p
+            role="alert"
+            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+          >
             {submitError}
           </p>
         )}

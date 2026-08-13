@@ -6,19 +6,19 @@
 // 재구성한다. 정사각 고정 높이도 풀폭에서 과도하므로 모바일은 min-h로 완화.
 // radius 40px도 풀폭 카드에서 과대해 모바일은 rounded-3xl(24px)로 축소, md부터 원래 값.
 const SIZE_CLASSES = {
-  lg: 'min-h-[11rem] w-full md:min-h-0 md:h-[18.5rem] md:w-[18.5rem]',
-  md: 'min-h-[10rem] w-full md:min-h-0 md:h-[17.5rem] md:w-[17.5rem]'
+  lg: "min-h-[11rem] w-full md:min-h-0 md:h-[18.5rem] md:w-[18.5rem]",
+  md: "min-h-[10rem] w-full md:min-h-0 md:h-[17.5rem] md:w-[17.5rem]",
 };
 
 export default function ChoiceCard({
-  size = 'lg', // 'lg' | 'md'
+  size = "lg", // 'lg' | 'md'
   icon, // 일러스트/아이콘 ReactNode
   title,
   description,
   selected = false,
   onClick,
-  type = 'button',
-  className = ''
+  type = "button",
+  className = "",
 }) {
   return (
     <button
@@ -26,7 +26,7 @@ export default function ChoiceCard({
       onClick={onClick}
       aria-pressed={selected}
       className={`flex flex-col items-center justify-center gap-4 rounded-3xl border bg-white px-6 py-6 text-center transition active:scale-[0.98] motion-reduce:active:scale-100 md:rounded-[2.5rem] ${
-        selected ? 'border-primary ring-2 ring-primary/10' : 'border-line'
+        selected ? "border-primary ring-2 ring-primary/10" : "border-line"
       } ${SIZE_CLASSES[size] || SIZE_CLASSES.lg} ${className}`}
     >
       {icon && <div className="flex items-center justify-center">{icon}</div>}
@@ -34,7 +34,9 @@ export default function ChoiceCard({
       <div>
         <p className="text-xl font-medium text-ink-title">{title}</p>
 
-        {description && <p className="mt-2 break-keep text-base text-ink">{description}</p>}
+        {description && (
+          <p className="mt-2 break-keep text-base text-ink">{description}</p>
+        )}
       </div>
     </button>
   );

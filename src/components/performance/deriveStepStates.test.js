@@ -6,38 +6,44 @@
 // (디렉터리 인자를 주면 Node 24가 index.js로 오인해 0건 통과하는 가짜 green이 난다):
 //   node --test "src/components/performance/*.test.js"
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { deriveStepStates } from './deriveStepStates.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { deriveStepStates } from "./deriveStepStates.js";
 
-test('deriveStepStates - 기본값(인자 없음)은 5스텝 전부 todo', () => {
-  assert.deepEqual(deriveStepStates(), ['todo', 'todo', 'todo', 'todo', 'todo']);
+test("deriveStepStates - 기본값(인자 없음)은 5스텝 전부 todo", () => {
+  assert.deepEqual(deriveStepStates(), [
+    "todo",
+    "todo",
+    "todo",
+    "todo",
+    "todo",
+  ]);
 });
 
-test('deriveStepStates - activeStep=null + completedSteps 일부는 완료분만 done, 나머지 todo', () => {
+test("deriveStepStates - activeStep=null + completedSteps 일부는 완료분만 done, 나머지 todo", () => {
   assert.deepEqual(
     deriveStepStates({ completedSteps: [1, 2], activeStep: null }),
-    ['done', 'done', 'todo', 'todo', 'todo']
+    ["done", "done", "todo", "todo", "todo"],
   );
 });
 
-test('deriveStepStates - current가 done보다 우선한다(재방문 재작업)', () => {
+test("deriveStepStates - current가 done보다 우선한다(재방문 재작업)", () => {
   assert.deepEqual(
     deriveStepStates({ completedSteps: [1, 2, 3], activeStep: 2 }),
-    ['done', 'current', 'done', 'todo', 'todo']
+    ["done", "current", "done", "todo", "todo"],
   );
 });
 
-test('deriveStepStates - 정상 진행(완료 후 다음 스텝이 current)', () => {
+test("deriveStepStates - 정상 진행(완료 후 다음 스텝이 current)", () => {
   assert.deepEqual(
     deriveStepStates({ completedSteps: [1, 2], activeStep: 3 }),
-    ['done', 'done', 'current', 'todo', 'todo']
+    ["done", "done", "current", "todo", "todo"],
   );
 });
 
-test('deriveStepStates - 범위 밖 completedSteps 값은 무시된다', () => {
+test("deriveStepStates - 범위 밖 completedSteps 값은 무시된다", () => {
   assert.deepEqual(
     deriveStepStates({ completedSteps: [0, 6, -1, 3], activeStep: null }),
-    ['todo', 'todo', 'done', 'todo', 'todo']
+    ["todo", "todo", "done", "todo", "todo"],
   );
 });

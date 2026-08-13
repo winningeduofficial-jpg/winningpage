@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import GrowthReportBody from '../../components/goal/report/GrowthReportBody';
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
 
 // 학부모 뷰어 셸 — 자녀의 성장 리포트를 학부모가 열람한다.
 // 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드.
@@ -27,11 +27,11 @@ import GrowthReportBody from '../../components/goal/report/GrowthReportBody';
 // 위해서다(자녀 목록과 열람 권한이 갈라지면 목록에 보이는데 못 여는 상태가 난다).
 // 이 판정은 UI 게이트이며, 실데이터가 붙는 시점의 진짜 방어선은 위 RPC 쪽이다.
 
-const VALID_PERIODS = ['weekly', 'monthly'];
+const VALID_PERIODS = ["weekly", "monthly"];
 
 // ⚠ 신규 카피 — 승인 필요.
 const SAMPLE_NOTICE =
-  '지금 보이는 수치는 화면 구성을 확인하기 위한 샘플입니다. 실제 학습 데이터 연동 후 자녀의 기록으로 바뀝니다.';
+  "지금 보이는 수치는 화면 구성을 확인하기 위한 샘플입니다. 실제 학습 데이터 연동 후 자녀의 기록으로 바뀝니다.";
 
 export default function ChildReport() {
   const { studentId } = useParams();
@@ -43,17 +43,19 @@ export default function ChildReport() {
     let alive = true;
 
     (async () => {
-      const { data, error } = await supabase.rpc('fn_parent_children');
+      const { data, error } = await supabase.rpc("fn_parent_children");
       if (!alive) return;
 
       if (error) {
-        console.error('자녀 조회 실패:', error);
+        console.error("자녀 조회 실패:", error);
         setChild(null);
         return;
       }
 
       const found = (data || []).find(
-        (row) => row.student_profile_id === studentId && row.link_status === 'approved'
+        (row) =>
+          row.student_profile_id === studentId &&
+          row.link_status === "approved",
       );
       setChild(found || null);
     })();
@@ -63,13 +65,13 @@ export default function ChildReport() {
     };
   }, [studentId]);
 
-  const periodParam = searchParams.get('period');
-  const period = VALID_PERIODS.includes(periodParam) ? periodParam : 'weekly';
+  const periodParam = searchParams.get("period");
+  const period = VALID_PERIODS.includes(periodParam) ? periodParam : "weekly";
 
   function handlePeriodChange(nextPeriod) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
-      params.set('period', nextPeriod);
+      params.set("period", nextPeriod);
       return params;
     });
   }
@@ -77,7 +79,9 @@ export default function ChildReport() {
   if (child === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white pt-16">
-        <p className="text-[0.875rem] font-medium text-ink-sub">리포트를 불러오는 중입니다.</p>
+        <p className="text-[0.875rem] font-medium text-ink-sub">
+          리포트를 불러오는 중입니다.
+        </p>
       </main>
     );
   }

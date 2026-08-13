@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 // 마이페이지 모달 공용 셸 — 스크림 + 패널 + a11y(ESC 닫기 / Tab focus trap /
 // 배경 스크롤 잠금 / 닫힐 때 트리거로 포커스 복귀).
@@ -11,7 +11,13 @@ import { useEffect, useRef } from 'react';
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function MyPageModalShell({ open, onClose, labelledBy, className = '', children }) {
+export default function MyPageModalShell({
+  open,
+  onClose,
+  labelledBy,
+  className = "",
+  children,
+}) {
   const panelRef = useRef(null);
   const triggerElRef = useRef(null);
 
@@ -22,7 +28,7 @@ export default function MyPageModalShell({ open, onClose, labelledBy, className 
     triggerElRef.current = document.activeElement;
     const { style } = document.body;
     const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
+    style.overflow = "hidden";
 
     return () => {
       style.overflow = previousOverflow;
@@ -46,12 +52,12 @@ export default function MyPageModalShell({ open, onClose, labelledBy, className 
     if (!open) return undefined;
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();
         return;
       }
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const panel = panelRef.current;
       if (!panel) return;
@@ -70,15 +76,19 @@ export default function MyPageModalShell({ open, onClose, labelledBy, className 
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       <div
         ref={panelRef}

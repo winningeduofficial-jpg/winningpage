@@ -1,7 +1,7 @@
-import { useCallback, useId, useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { formatKRW } from '../../../data/pricingCatalog';
-import MyPageModalShell from '../MyPageModalShell';
+import { useCallback, useId, useState } from "react";
+import { supabase } from "../../../lib/supabase";
+import { formatKRW } from "../../../data/pricingCatalog";
+import MyPageModalShell from "../MyPageModalShell";
 
 // 학부모 환불 확인 모달 — 자녀가 보낸 환불 요청을 승인/반려한다.
 //
@@ -19,19 +19,26 @@ import MyPageModalShell from '../MyPageModalShell';
 // 좋다"는 잠금 해제일 뿐이다.
 
 const RESPOND_ERROR_TEXT = {
-  WC026: '이미 처리된 환불 요청입니다.',
-  WC027: '이 환불 요청에 응답할 권한이 없습니다.',
-  WC028: '이미 응답한 환불 요청입니다.',
-  WC029: '반려 사유를 입력해 주세요.'
+  WC026: "이미 처리된 환불 요청입니다.",
+  WC027: "이 환불 요청에 응답할 권한이 없습니다.",
+  WC028: "이미 응답한 환불 요청입니다.",
+  WC029: "반려 사유를 입력해 주세요.",
 };
-const RESPOND_UNKNOWN_ERROR_TEXT = '처리에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+const RESPOND_UNKNOWN_ERROR_TEXT =
+  "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
-export default function RefundApprovalModal({ open, request, childName, onClose, onResponded }) {
+export default function RefundApprovalModal({
+  open,
+  request,
+  childName,
+  onClose,
+  onResponded,
+}) {
   const titleId = useId();
   const [rejecting, setRejecting] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
   const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
 
   const respond = useCallback(
     async (approve) => {
@@ -43,27 +50,29 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
       }
 
       setSaving(true);
-      setErrorMsg('');
+      setErrorMsg("");
 
-      const { error } = await supabase.rpc('fn_respond_refund', {
+      const { error } = await supabase.rpc("fn_respond_refund", {
         p_refund_request_id: request.id,
         p_approve: approve,
-        p_reject_reason: reason
+        p_reject_reason: reason,
       });
 
       setSaving(false);
 
       if (error) {
-        console.error('환불 요청 응답 실패:', error);
-        setErrorMsg(RESPOND_ERROR_TEXT[error.code] || RESPOND_UNKNOWN_ERROR_TEXT);
+        console.error("환불 요청 응답 실패:", error);
+        setErrorMsg(
+          RESPOND_ERROR_TEXT[error.code] || RESPOND_UNKNOWN_ERROR_TEXT,
+        );
         return;
       }
 
       setRejecting(false);
-      setRejectReason('');
+      setRejectReason("");
       onResponded?.();
     },
-    [request, saving, rejectReason, onResponded]
+    [request, saving, rejectReason, onResponded],
   );
 
   if (!open || !request) return null;
@@ -75,20 +84,33 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
   const fee = gross === null ? null : gross - refund;
 
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[26rem]"
+    >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+        <h2
+          id={titleId}
+          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+        >
           환불 요청을 확인해주세요
         </h2>
 
         <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
-          {childName ? `${childName} 학생이 환불을 요청했어요.` : '자녀가 환불을 요청했어요.'}
+          {childName
+            ? `${childName} 학생이 환불을 요청했어요.`
+            : "자녀가 환불을 요청했어요."}
           <br />
           승인하면 검토 후 결제하신 수단으로 환급됩니다.
         </p>
 
         <div className="mt-6">
-          <p className="truncate text-[0.9375rem] font-semibold text-ink" title={request.order_name}>
+          <p
+            className="truncate text-[0.9375rem] font-semibold text-ink"
+            title={request.order_name}
+          >
             {request.order_name}
           </p>
 
@@ -101,7 +123,9 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
                 </div>
                 <div className="flex items-center justify-between text-[0.875rem]">
                   <span className="text-ink-sub">취소 수수료</span>
-                  <span className="text-error">{fee > 0 ? `-${formatKRW(fee)}` : formatKRW(0)}</span>
+                  <span className="text-error">
+                    {fee > 0 ? `-${formatKRW(fee)}` : formatKRW(0)}
+                  </span>
                 </div>
               </>
             )}
@@ -128,7 +152,9 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
           />
         )}
 
-        {errorMsg && <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 px-6 py-5">
@@ -138,8 +164,8 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
               type="button"
               onClick={() => {
                 setRejecting(false);
-                setRejectReason('');
-                setErrorMsg('');
+                setRejectReason("");
+                setErrorMsg("");
               }}
               className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
             >
@@ -151,7 +177,7 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
               disabled={saving}
               className="h-12 rounded-xl bg-error text-[0.875rem] font-semibold text-white transition hover:bg-error/90 disabled:opacity-60"
             >
-              {saving ? '처리 중...' : '반려하기'}
+              {saving ? "처리 중..." : "반려하기"}
             </button>
           </>
         ) : (
@@ -170,7 +196,7 @@ export default function RefundApprovalModal({ open, request, childName, onClose,
               disabled={saving}
               className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {saving ? '처리 중...' : '환불 승인'}
+              {saving ? "처리 중..." : "환불 승인"}
             </button>
           </>
         )}

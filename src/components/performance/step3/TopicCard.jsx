@@ -1,4 +1,4 @@
-import MetaTag from './MetaTag';
+import MetaTag from "./MetaTag";
 
 // STEP3 추천 주제 카드 1장 — docs/수행평가-상세-명세.md §5.10(`3754:3629`/`3754:3746` 실측).
 //
@@ -60,7 +60,7 @@ import MetaTag from './MetaTag';
  *   여는 **유일한** 진입점이다(모달 자체는 P9).
  * @param {string} [className]
  */
-export default function TopicCard({ index, topic, onDetail, className = '' }) {
+export default function TopicCard({ index, topic, onDetail, className = "" }) {
   if (!topic) return null;
 
   const tags = Array.isArray(topic.tags) ? topic.tags.filter(Boolean) : [];
@@ -70,7 +70,11 @@ export default function TopicCard({ index, topic, onDetail, className = '' }) {
   }
 
   function handleKeyDown(event) {
-    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    if (
+      event.key === "Enter" ||
+      event.key === " " ||
+      event.key === "Spacebar"
+    ) {
       // Space의 기본 동작(페이지 스크롤)을 막지 않으면 카드를 열면서 화면이 함께 튄다.
       event.preventDefault();
       open();
@@ -84,11 +88,11 @@ export default function TopicCard({ index, topic, onDetail, className = '' }) {
       onClick={open}
       onKeyDown={handleKeyDown}
       className={[
-        'w-full max-w-perf-bubble cursor-pointer rounded-2xl border border-performance-line bg-transparent p-5',
-        'min-h-[12.125rem] transition-colors hover:border-ink-sub',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-        className
-      ].join(' ')}
+        "w-full max-w-perf-bubble cursor-pointer rounded-2xl border border-performance-line bg-transparent p-5",
+        "min-h-[12.125rem] transition-colors hover:border-ink-sub",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        className,
+      ].join(" ")}
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
@@ -102,9 +106,13 @@ export default function TopicCard({ index, topic, onDetail, className = '' }) {
           </span>
         </div>
 
-        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink">{topic.title}</p>
+        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink">
+          {topic.title}
+        </p>
 
-        <p className="text-[1rem] font-normal leading-[1.3125rem] text-ink-sub">{topic.subtitle}</p>
+        <p className="text-[1rem] font-normal leading-[1.3125rem] text-ink-sub">
+          {topic.subtitle}
+        </p>
 
         {/* 태그는 4개 고정이지만 세션 값이 비면 서버가 그 칸을 빼고 내려보낸다(buildTags의
             `.filter(Boolean)`) — 개수를 가정하지 않고 받은 만큼 렌더한다. 좁은 폭에서

@@ -1,6 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment } from "react";
 
-import { CARD_TITLE_CLASS, CARD_DESC_CLASS } from './serviceTokens';
+import { CARD_TITLE_CLASS, CARD_DESC_CLASS } from "./serviceTokens";
 
 // '완성까지의 흐름' 4단계 카드 그리드.
 //

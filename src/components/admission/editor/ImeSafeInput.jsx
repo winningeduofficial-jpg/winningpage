@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 // 한글 등 조합 입력(IME) 안전 controlled input.
 //
@@ -8,14 +8,14 @@ import { useEffect, useRef, useState } from 'react';
 // 함정). 조합 중(onCompositionStart~onCompositionEnd)에는 로컬 draft만
 // 갱신하고, 상위로의 커밋(onCommit)은 조합이 끝난 뒤에만 흘려보낸다.
 export default function ImeSafeInput({ value, onCommit, ...rest }) {
-  const [draft, setDraft] = useState(value ?? '');
+  const [draft, setDraft] = useState(value ?? "");
   const composingRef = useRef(false);
 
   // 조합 중이 아닐 때만 상위 값 변경을 반영한다(예: undo/외부 갱신).
   // 조합 중에 덮어쓰면 그게 바로 "캐럿 튐/조합 끊김" 버그다.
   useEffect(() => {
     if (!composingRef.current && value !== draft) {
-      setDraft(value ?? '');
+      setDraft(value ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import AppModal from '../AppModal';
-import ModalField from '../ModalField';
-import SegmentedChipGroup from '../SegmentedChipGroup';
-import { goalModalOptions } from '../../../data/goalMock';
+import { useState } from "react";
+import AppModal from "../AppModal";
+import ModalField from "../ModalField";
+import SegmentedChipGroup from "../SegmentedChipGroup";
+import { goalModalOptions } from "../../../data/goalMock";
 
 // 중요일정 등록 모달 — docs/figma-goal/part-07.md #19 (530×574 = 33.125rem × 35.875rem, 대시보드
 // 진입 버전). 624px 버전(#40/#42, 중요일정 목록 페이지 전용, AddScheduleFullModal.jsx)이 정본이다.
@@ -12,29 +12,38 @@ import { goalModalOptions } from '../../../data/goalMock';
 // 필드가 goal_schedules 테이블(sql/74_goal_schedules.sql)에 대응 컬럼이 없어, 그대로 실 API에
 // 연결하면 사용자가 고른 값을 서버가 조용히 버려야 한다 — 스키마가 그 필드를 받을 방법이 생기기
 // 전까지는 컴포넌트를 지우지 않고 미사용 상태로만 남겨 둔다(트리거가 없어 현재 어디서도 렌더되지 않는다).
-const SCHEDULE_TYPE_OPTIONS = goalModalOptions.scheduleTypes.map((label) => ({ value: label, label }));
-const RANGE_OPTIONS = goalModalOptions.scheduleRanges.map((label) => ({ value: label, label }));
+const SCHEDULE_TYPE_OPTIONS = goalModalOptions.scheduleTypes.map((label) => ({
+  value: label,
+  label,
+}));
+const RANGE_OPTIONS = goalModalOptions.scheduleRanges.map((label) => ({
+  value: label,
+  label,
+}));
 
 // 시안(#19)은 "마감일" 셀렉트에 더미값 "1시간 30분"이 들어 있는데, part-07 구현 노트가 이를
 // "날짜 필드 값으로 맞지 않는 시안 더미 오류"로 지목하고 마감일은 날짜 피커여야 한다고 명시한다.
 // 그 지시에 따라 마감일은 ModalField의 date 변형으로 구현한다.
-const DEFAULT_RANGE = '이번 주만'; // 시안(#19) 실측 표시값
+const DEFAULT_RANGE = "이번 주만"; // 시안(#19) 실측 표시값
 
 export default function AddScheduleModal({ open, onClose }) {
   const [scheduleType, setScheduleType] = useState(null);
-  const [title, setTitle] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [range, setRange] = useState(DEFAULT_RANGE);
-  const [memo, setMemo] = useState('');
+  const [memo, setMemo] = useState("");
 
-  const canSubmit = Boolean(scheduleType) && title.trim().length > 0 && dueDate.trim().length > 0;
+  const canSubmit =
+    Boolean(scheduleType) &&
+    title.trim().length > 0 &&
+    dueDate.trim().length > 0;
 
   function resetForm() {
     setScheduleType(null);
-    setTitle('');
-    setDueDate('');
+    setTitle("");
+    setDueDate("");
     setRange(DEFAULT_RANGE);
-    setMemo('');
+    setMemo("");
   }
 
   function handleClose() {
@@ -45,7 +54,13 @@ export default function AddScheduleModal({ open, onClose }) {
   function handleSubmit() {
     if (!canSubmit) return;
     // 목업 스텁 — 실제 저장/API 연동 금지(확정 사항 §1). 콘솔 로그 + 모달 닫기만 수행.
-    console.log('[AddScheduleModal] submit', { scheduleType, title, dueDate, range, memo });
+    console.log("[AddScheduleModal] submit", {
+      scheduleType,
+      title,
+      dueDate,
+      range,
+      memo,
+    });
     handleClose();
   }
 

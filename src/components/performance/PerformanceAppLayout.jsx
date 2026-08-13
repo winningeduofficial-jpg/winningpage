@@ -1,8 +1,11 @@
-import { Outlet } from 'react-router-dom';
-import PerformanceSidebar from './PerformanceSidebar';
-import QuotaExhaustedBanner from './quota/QuotaExhaustedBanner';
-import { ToastProvider } from '../../context/ToastContext';
-import { PerformanceShellProvider, usePerformanceShell } from '../../context/PerformanceShellContext';
+import { Outlet } from "react-router-dom";
+import PerformanceSidebar from "./PerformanceSidebar";
+import QuotaExhaustedBanner from "./quota/QuotaExhaustedBanner";
+import { ToastProvider } from "../../context/ToastContext";
+import {
+  PerformanceShellProvider,
+  usePerformanceShell,
+} from "../../context/PerformanceShellContext";
 
 // 수행평가 학생 앱 셸 — docs/수행평가-상세-명세.md §3.1(전체 골격) / §3.5(헤더).
 //

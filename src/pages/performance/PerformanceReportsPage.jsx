@@ -1,15 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useSession } from '../../context/SessionContext';
-import SavedReportCard, { formatSavedAt } from '../../components/performance/reports/SavedReportCard';
-import ArtifactChip from '../../components/performance/reports/ArtifactChip';
-import SelectField from '../../components/auth/SelectField';
-import SectionedReportView, { getVisibleSections } from '../../components/performance/report/SectionedReportView';
-import PerformanceReportSurface from '../../components/performance/report/PerformanceReportSurface';
-import ReportModalShell, { REPORT_MODAL_FOOTER_BUTTON } from '../../components/performance/report/ReportModalShell';
-import DesignReportModal from '../../components/performance/step4/DesignReportModal';
-import EvaluationReportModal from '../../components/performance/step5/EvaluationReportModal';
-import { fetchSavedReportDetail, fetchSavedReportsList } from '../../lib/performance/reports';
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useSession } from "../../context/SessionContext";
+import SavedReportCard, {
+  formatSavedAt,
+} from "../../components/performance/reports/SavedReportCard";
+import ArtifactChip from "../../components/performance/reports/ArtifactChip";
+import SelectField from "../../components/auth/SelectField";
+import SectionedReportView, {
+  getVisibleSections,
+} from "../../components/performance/report/SectionedReportView";
+import PerformanceReportSurface from "../../components/performance/report/PerformanceReportSurface";
+import ReportModalShell, {
+  REPORT_MODAL_FOOTER_BUTTON,
+} from "../../components/performance/report/ReportModalShell";
+import DesignReportModal from "../../components/performance/step4/DesignReportModal";
+import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
+import {
+  fetchSavedReportDetail,
+  fetchSavedReportsList,
+} from "../../lib/performance/reports";
 
 // 저장 리포트(P12) 목록/상세 화면 — docs/수행평가-상세-명세.md §5.18(`3754:3121` 목록)/
 // §5.19(`3754:3077` 빈 상태)/§10.2 P12/§11.1 Q65(라우트 채택).
@@ -46,18 +55,24 @@ import { fetchSavedReportDetail, fetchSavedReportsList } from '../../lib/perform
 //   서버 확장 없이 **클라이언트 사이드**로 처리한다 — 현재 로드된 페이지 안에서만 걸러진다.
 //   옵션은 로드된 항목의 `subjectGroup`에서 유도한다(별도 마스터 목록 API가 없다).
 
-const SUBJECT_GROUP_ALL = '';
+const SUBJECT_GROUP_ALL = "";
 
 function buildMeta({ gradeLabel, subjectGroup, subject, careerGoal }) {
-  const subjectLine = [subjectGroup, subject].filter(Boolean).join(' / ');
-  return [gradeLabel, subjectLine, careerGoal].filter(Boolean).join(' · ');
+  const subjectLine = [subjectGroup, subject].filter(Boolean).join(" / ");
+  return [gradeLabel, subjectLine, careerGoal].filter(Boolean).join(" · ");
 }
 
 function toArtifacts(item) {
   return {
-    design: { available: Boolean(item.hasDesign), reportId: item.designReportId },
-    evaluation: { available: Boolean(item.hasEvaluation), reportId: item.evaluationReportId },
-    final: { available: Boolean(item.hasFinal), reportId: item.finalReportId }
+    design: {
+      available: Boolean(item.hasDesign),
+      reportId: item.designReportId,
+    },
+    evaluation: {
+      available: Boolean(item.hasEvaluation),
+      reportId: item.evaluationReportId,
+    },
+    final: { available: Boolean(item.hasFinal), reportId: item.finalReportId },
   };
 }
 
@@ -87,7 +102,11 @@ function FinalReportModal({ open, report, topicTitle, onClose }) {
           >
             PDF로 저장 / 인쇄
           </button>
-          <button type="button" onClick={onClose} className={REPORT_MODAL_FOOTER_BUTTON.primary}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={REPORT_MODAL_FOOTER_BUTTON.primary}
+          >
             닫기
           </button>
         </>
@@ -114,14 +133,14 @@ function ViewerStatusOverlay({ loading, error, onDismiss }) {
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-performance-dim"
       onClick={error ? onDismiss : undefined}
-      role={error ? 'alert' : 'status'}
+      role={error ? "alert" : "status"}
       aria-live="polite"
     >
       <div
         className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-[1rem] font-medium leading-[1.3125rem] text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(event) => event.stopPropagation()}
       >
-        {loading ? '리포트를 불러오는 중…' : error}
+        {loading ? "리포트를 불러오는 중…" : error}
         {error && (
           <button
             type="button"
@@ -155,7 +174,8 @@ export default function PerformanceReportsPage() {
   const [listLoading, setListLoading] = useState(!isDetailMode);
   const [listLoadingMore, setListLoadingMore] = useState(false);
   const [listError, setListError] = useState(null);
-  const [subjectGroupFilter, setSubjectGroupFilter] = useState(SUBJECT_GROUP_ALL);
+  const [subjectGroupFilter, setSubjectGroupFilter] =
+    useState(SUBJECT_GROUP_ALL);
 
   // ── 상세 라우트 상태(`/app/performance/reports/:sessionId`)
   const [detail, setDetail] = useState(null);
@@ -182,8 +202,15 @@ export default function PerformanceReportsPage() {
         setNextCursor(data?.nextCursor || null);
       } catch (error) {
         if (!alive) return;
-        console.error('[performance] 저장 리포트 목록 조회 실패:', error?.code, error);
-        setListError(error?.userMessage || '저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+        console.error(
+          "[performance] 저장 리포트 목록 조회 실패:",
+          error?.code,
+          error,
+        );
+        setListError(
+          error?.userMessage ||
+            "저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
       } finally {
         if (alive) setListLoading(false);
       }
@@ -204,14 +231,26 @@ export default function PerformanceReportsPage() {
     (async () => {
       try {
         const cached = detailCacheRef.current.get(routeSessionId);
-        const data = cached || (await fetchSavedReportDetail({ accessToken, sessionId: routeSessionId }));
+        const data =
+          cached ||
+          (await fetchSavedReportDetail({
+            accessToken,
+            sessionId: routeSessionId,
+          }));
         if (!alive) return;
         detailCacheRef.current.set(routeSessionId, data);
         setDetail(data);
       } catch (error) {
         if (!alive) return;
-        console.error('[performance] 저장 리포트 상세 조회 실패:', error?.code, error);
-        setDetailError(error?.userMessage || '저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+        console.error(
+          "[performance] 저장 리포트 상세 조회 실패:",
+          error?.code,
+          error,
+        );
+        setDetailError(
+          error?.userMessage ||
+            "저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
       } finally {
         if (alive) setDetailLoading(false);
       }
@@ -227,12 +266,25 @@ export default function PerformanceReportsPage() {
 
     setListLoadingMore(true);
     try {
-      const data = await fetchSavedReportsList({ accessToken, cursor: nextCursor });
-      setItems((prev) => [...prev, ...(Array.isArray(data?.items) ? data.items : [])]);
+      const data = await fetchSavedReportsList({
+        accessToken,
+        cursor: nextCursor,
+      });
+      setItems((prev) => [
+        ...prev,
+        ...(Array.isArray(data?.items) ? data.items : []),
+      ]);
       setNextCursor(data?.nextCursor || null);
     } catch (error) {
-      console.error('[performance] 저장 리포트 추가 조회 실패:', error?.code, error);
-      setListError(error?.userMessage || '목록을 더 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      console.error(
+        "[performance] 저장 리포트 추가 조회 실패:",
+        error?.code,
+        error,
+      );
+      setListError(
+        error?.userMessage ||
+          "목록을 더 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setListLoadingMore(false);
     }
@@ -245,7 +297,14 @@ export default function PerformanceReportsPage() {
   async function openArtifact({ sessionId, type, reportId, topicTitle }) {
     if (!accessToken || !sessionId || !reportId) return;
 
-    setViewer({ type, sessionId, topicTitle, report: null, loading: true, error: null });
+    setViewer({
+      type,
+      sessionId,
+      topicTitle,
+      report: null,
+      loading: true,
+      error: null,
+    });
 
     try {
       let data = detailCacheRef.current.get(sessionId);
@@ -253,16 +312,25 @@ export default function PerformanceReportsPage() {
         data = await fetchSavedReportDetail({ accessToken, sessionId });
         detailCacheRef.current.set(sessionId, data);
       }
-      setViewer({ type, sessionId, topicTitle, report: data?.[type] || null, loading: false, error: null });
+      setViewer({
+        type,
+        sessionId,
+        topicTitle,
+        report: data?.[type] || null,
+        loading: false,
+        error: null,
+      });
     } catch (error) {
-      console.error('[performance] 리포트 뷰어 조회 실패:', error?.code, error);
+      console.error("[performance] 리포트 뷰어 조회 실패:", error?.code, error);
       setViewer({
         type,
         sessionId,
         topicTitle,
         report: null,
         loading: false,
-        error: error?.userMessage || '리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'
+        error:
+          error?.userMessage ||
+          "리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
       });
     }
   }
@@ -282,11 +350,16 @@ export default function PerformanceReportsPage() {
         </Link>
 
         {detailLoading && (
-          <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">불러오는 중…</p>
+          <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+            불러오는 중…
+          </p>
         )}
 
         {!detailLoading && detailError && (
-          <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]">
+          <p
+            role="alert"
+            className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]"
+          >
             {detailError}
           </p>
         )}
@@ -294,46 +367,51 @@ export default function PerformanceReportsPage() {
         {!detailLoading && !detailError && detail?.session && (
           <div className="mt-6 max-w-[50rem] rounded-[1.25rem] border border-performance-line bg-white p-8">
             <h2 className="text-[1.25rem] font-semibold leading-[1.625rem] tracking-[-0.025rem] text-ink">
-              {detail.session.topicTitle || '제목 없는 수행평가'}
+              {detail.session.topicTitle || "제목 없는 수행평가"}
             </h2>
             <p className="mt-2 text-[0.875rem] font-normal leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
-              {[buildMeta(detail.session), formatSavedAt(detail.session.updatedAt)].filter(Boolean).join(' · ')}
+              {[
+                buildMeta(detail.session),
+                formatSavedAt(detail.session.updatedAt),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
 
             <div className="mt-6 flex gap-3">
               <ArtifactChip
-                label={detail.design ? '설계 리포트' : '설계 리포트 없음'}
+                label={detail.design ? "설계 리포트" : "설계 리포트 없음"}
                 available={Boolean(detail.design)}
                 onClick={() =>
                   openArtifact({
                     sessionId: routeSessionId,
-                    type: 'design',
+                    type: "design",
                     reportId: detail.design?.reportId,
-                    topicTitle: detail.session.topicTitle
+                    topicTitle: detail.session.topicTitle,
                   })
                 }
               />
               <ArtifactChip
-                label={detail.evaluation ? '평가 리포트' : '평가 리포트 없음'}
+                label={detail.evaluation ? "평가 리포트" : "평가 리포트 없음"}
                 available={Boolean(detail.evaluation)}
                 onClick={() =>
                   openArtifact({
                     sessionId: routeSessionId,
-                    type: 'evaluation',
+                    type: "evaluation",
                     reportId: detail.evaluation?.reportId,
-                    topicTitle: detail.session.topicTitle
+                    topicTitle: detail.session.topicTitle,
                   })
                 }
               />
               <ArtifactChip
-                label={detail.final ? '최종 제출본' : '최종 제출본 없음'}
+                label={detail.final ? "최종 제출본" : "최종 제출본 없음"}
                 available={Boolean(detail.final)}
                 onClick={() =>
                   openArtifact({
                     sessionId: routeSessionId,
-                    type: 'final',
+                    type: "final",
                     reportId: detail.final?.reportId,
-                    topicTitle: detail.session.topicTitle
+                    topicTitle: detail.session.topicTitle,
                   })
                 }
               />
@@ -342,30 +420,36 @@ export default function PerformanceReportsPage() {
         )}
 
         <DesignReportModal
-          open={viewer?.type === 'design'}
-          report={viewer?.type === 'design' ? viewer.report : null}
+          open={viewer?.type === "design"}
+          report={viewer?.type === "design" ? viewer.report : null}
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
         <EvaluationReportModal
-          open={viewer?.type === 'evaluation'}
-          report={viewer?.type === 'evaluation' ? viewer.report : null}
+          open={viewer?.type === "evaluation"}
+          report={viewer?.type === "evaluation" ? viewer.report : null}
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
         <FinalReportModal
-          open={viewer?.type === 'final'}
-          report={viewer?.type === 'final' ? viewer.report : null}
+          open={viewer?.type === "final"}
+          report={viewer?.type === "final" ? viewer.report : null}
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
-        <ViewerStatusOverlay loading={Boolean(viewer?.loading)} error={viewer?.error} onDismiss={closeViewer} />
+        <ViewerStatusOverlay
+          loading={Boolean(viewer?.loading)}
+          error={viewer?.error}
+          onDismiss={closeViewer}
+        />
       </div>
     );
   }
 
   // ── 목록 화면(§5.18/§5.19) ──────────────────────────────────────────────
-  const subjectGroups = Array.from(new Set(items.map((item) => item.subjectGroup).filter(Boolean)));
+  const subjectGroups = Array.from(
+    new Set(items.map((item) => item.subjectGroup).filter(Boolean)),
+  );
   const filteredItems =
     subjectGroupFilter === SUBJECT_GROUP_ALL
       ? items
@@ -392,8 +476,11 @@ export default function PerformanceReportsPage() {
               onChange={setSubjectGroupFilter}
               placeholder="교과군 전체"
               options={[
-                { value: SUBJECT_GROUP_ALL, label: '교과군 전체' },
-                ...subjectGroups.map((group) => ({ value: group, label: group }))
+                { value: SUBJECT_GROUP_ALL, label: "교과군 전체" },
+                ...subjectGroups.map((group) => ({
+                  value: group,
+                  label: group,
+                })),
               ]}
             />
           )}
@@ -401,11 +488,16 @@ export default function PerformanceReportsPage() {
       )}
 
       {listLoading && (
-        <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">불러오는 중…</p>
+        <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+          불러오는 중…
+        </p>
       )}
 
       {!listLoading && listError && (
-        <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]">
+        <p
+          role="alert"
+          className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]"
+        >
           {listError}
         </p>
       )}
@@ -442,7 +534,12 @@ export default function PerformanceReportsPage() {
                   sessionId={item.sessionId}
                   artifacts={toArtifacts(item)}
                   onArtifactClick={(type, reportId) =>
-                    openArtifact({ sessionId: item.sessionId, type, reportId, topicTitle: item.topicTitle })
+                    openArtifact({
+                      sessionId: item.sessionId,
+                      type,
+                      reportId,
+                      topicTitle: item.topicTitle,
+                    })
                   }
                 />
               ))}
@@ -456,31 +553,35 @@ export default function PerformanceReportsPage() {
               disabled={listLoadingMore}
               className="mt-6 flex h-11 items-center justify-center rounded-lg border border-performance-line px-6 text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub transition hover:bg-performance-bubble disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {listLoadingMore ? '불러오는 중…' : '더 보기'}
+              {listLoadingMore ? "불러오는 중…" : "더 보기"}
             </button>
           )}
         </>
       )}
 
       <DesignReportModal
-        open={viewer?.type === 'design'}
-        report={viewer?.type === 'design' ? viewer.report : null}
+        open={viewer?.type === "design"}
+        report={viewer?.type === "design" ? viewer.report : null}
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
       <EvaluationReportModal
-        open={viewer?.type === 'evaluation'}
-        report={viewer?.type === 'evaluation' ? viewer.report : null}
+        open={viewer?.type === "evaluation"}
+        report={viewer?.type === "evaluation" ? viewer.report : null}
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
       <FinalReportModal
-        open={viewer?.type === 'final'}
-        report={viewer?.type === 'final' ? viewer.report : null}
+        open={viewer?.type === "final"}
+        report={viewer?.type === "final" ? viewer.report : null}
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
-      <ViewerStatusOverlay loading={Boolean(viewer?.loading)} error={viewer?.error} onDismiss={closeViewer} />
+      <ViewerStatusOverlay
+        loading={Boolean(viewer?.loading)}
+        error={viewer?.error}
+        onDismiss={closeViewer}
+      />
     </div>
   );
 }

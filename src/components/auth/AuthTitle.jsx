@@ -13,40 +13,45 @@
 // default 를 바꾸면 이 컴포넌트를 공유하는 회원가입·약관 20여 화면 타이틀이 함께
 // 커지므로, AuthLayout 의 WIDTH_CLASSES.login 선례와 같이 로그인 전용 키로 분리했다.
 const VARIANT_CLASSES = {
-  default: 'text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[2rem]',
+  default:
+    "text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[2rem]",
   login:
-    'text-2xl font-bold leading-[2.125rem] tracking-[-0.02em] sm:text-[2.25rem] sm:leading-[3.125rem]'
+    "text-2xl font-bold leading-[2.125rem] tracking-[-0.02em] sm:text-[2.25rem] sm:leading-[3.125rem]",
 };
 
 // 로그인 시안(1882:9058)은 1줄 #181d24(= ink.title) + 2줄 #013262(= primary)로
 // 픽셀 실측된다. 줄 단위 색에 'title' 을 추가해 그 배분을 프롭으로 표현할 수 있게 한다.
 const COLOR_CLASSES = {
-  ink: 'text-ink',
-  title: 'text-ink-title',
-  primary: 'text-primary'
+  ink: "text-ink",
+  title: "text-ink-title",
+  primary: "text-primary",
 };
 
 export default function AuthTitle({
   line1,
   line2,
-  line1Color = 'ink', // 'ink' | 'title' | 'primary'
-  line2Color = 'primary', // 'ink' | 'title' | 'primary'
-  variant = 'default', // 'default' | 'login'
-  align = 'center', // 'center' | 'left'
-  className = ''
+  line1Color = "ink", // 'ink' | 'title' | 'primary'
+  line2Color = "primary", // 'ink' | 'title' | 'primary'
+  variant = "default", // 'default' | 'login'
+  align = "center", // 'center' | 'left'
+  className = "",
 }) {
   return (
     <h1
       className={`break-keep ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.default} ${
-        align === 'center' ? 'text-center' : 'text-left'
+        align === "center" ? "text-center" : "text-left"
       } ${className}`}
     >
-      <span className={COLOR_CLASSES[line1Color] || COLOR_CLASSES.ink}>{line1}</span>
+      <span className={COLOR_CLASSES[line1Color] || COLOR_CLASSES.ink}>
+        {line1}
+      </span>
 
       {line2 && (
         <>
           <br />
-          <span className={COLOR_CLASSES[line2Color] || COLOR_CLASSES.primary}>{line2}</span>
+          <span className={COLOR_CLASSES[line2Color] || COLOR_CLASSES.primary}>
+            {line2}
+          </span>
         </>
       )}
     </h1>

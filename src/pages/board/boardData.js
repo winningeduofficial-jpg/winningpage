@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from "../../lib/supabase";
 
 /**
  * 게시판(회사소식/공지사항) 공통 데이터 레이어.
@@ -20,8 +20,8 @@ import { supabase } from '../../lib/supabase';
  * 값은 실제 Supabase 테이블명이며 RPC 화이트리스트와도 동일한 문자열이어야 한다.
  */
 export const BOARD_SOURCES = Object.freeze({
-  companyNews: 'company_news',
-  notices: 'notices'
+  companyNews: "company_news",
+  notices: "notices",
 });
 
 const BOARD_TABLE_NAMES = Object.freeze(Object.values(BOARD_SOURCES));
@@ -39,7 +39,8 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
  */
 function resolveBoardTable(source) {
   if (BOARD_TABLE_NAMES.includes(source)) return source;
-  if (Object.prototype.hasOwnProperty.call(BOARD_SOURCES, source)) return BOARD_SOURCES[source];
+  if (Object.prototype.hasOwnProperty.call(BOARD_SOURCES, source))
+    return BOARD_SOURCES[source];
   return null;
 }
 
@@ -57,20 +58,20 @@ export async function fetchBoardRows(source) {
   const table = resolveBoardTable(source);
 
   if (!table) {
-    console.error('게시판 조회 실패: 허용되지 않은 source', source);
+    console.error("게시판 조회 실패: 허용되지 않은 source", source);
     return { rows: [], total: 0 };
   }
 
   const { data, error } = await supabase
     .from(table)
-    .select('*')
-    .eq('is_active', true)
-    .order('is_pinned', { ascending: false })
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false });
+    .select("*")
+    .eq("is_active", true)
+    .order("is_pinned", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('게시판 조회 실패:', error);
+    console.error("게시판 조회 실패:", error);
     return { rows: [], total: 0 };
   }
 
@@ -93,7 +94,7 @@ export function getViewCount(row) {
  * 파싱 불가 값은 원문 앞 10자 반환(기존 formatDate 7벌의 공통 폴백 관행 유지).
  */
 export function formatBoardDate(value) {
-  if (!value) return '';
+  if (!value) return "";
 
   const date = new Date(value);
 
@@ -109,16 +110,16 @@ export function formatBoardDate(value) {
  */
 export function filterBoardRows(rows, keyword) {
   const list = Array.isArray(rows) ? rows : [];
-  const query = String(keyword ?? '')
+  const query = String(keyword ?? "")
     .trim()
     .toLowerCase();
 
   if (!query) return list;
 
   return list.filter((row) =>
-    String(row?.title ?? '')
+    String(row?.title ?? "")
       .toLowerCase()
-      .includes(query)
+      .includes(query),
   );
 }
 
@@ -130,7 +131,10 @@ export function filterBoardRows(rows, keyword) {
  */
 export function paginate(rows, page, pageSize = BOARD_PAGE_SIZE) {
   const list = Array.isArray(rows) ? rows : [];
-  const size = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : BOARD_PAGE_SIZE;
+  const size =
+    Number.isFinite(pageSize) && pageSize > 0
+      ? Math.floor(pageSize)
+      : BOARD_PAGE_SIZE;
 
   const totalPages = Math.max(1, Math.ceil(list.length / size));
   const requested = Number.isFinite(page) ? Math.floor(page) : 1;
@@ -182,20 +186,20 @@ export async function incrementBoardView(source, id) {
   const table = resolveBoardTable(source);
 
   if (!table || !id) {
-    console.warn('조회수 증가 건너뜀: 잘못된 인자', { source, id });
+    console.warn("조회수 증가 건너뜀: 잘못된 인자", { source, id });
     return;
   }
 
   try {
-    const { error } = await supabase.rpc('increment_board_view', {
+    const { error } = await supabase.rpc("increment_board_view", {
       p_source: table,
-      p_id: id
+      p_id: id,
     });
 
     if (error) {
-      console.warn('조회수 증가 실패(무시):', error);
+      console.warn("조회수 증가 실패(무시):", error);
     }
   } catch (err) {
-    console.warn('조회수 증가 실패(무시):', err);
+    console.warn("조회수 증가 실패(무시):", err);
   }
 }

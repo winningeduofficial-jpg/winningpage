@@ -39,9 +39,10 @@
 //   `guideUpload.js`/`topics.js`/`designReport.js`가 이미 쓰는 규약이라 읽는 쪽이 출처를
 //   따지지 않아도 된다.
 
-import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from "./apiClient";
 
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /**
  * 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백.
@@ -50,37 +51,40 @@ const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인�
  * 내부 정보가 새지 않는다.
  */
 const EVALUATE_FALLBACK = {
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',
-  SUBMISSION_NOT_IN_SESSION: '이 수행평가의 제출물이 아니에요.',
-  SESSION_NOT_CHARGED: '주제 추천을 먼저 받아 주세요.',
-  SESSION_INCOMPLETE: '설계 리포트를 먼저 받아 주세요.',
-  EMPTY_SUBMISSION: '제출물을 작성해 주세요.',
-  REQUIRED_FIELD_EMPTY: '필수 항목을 모두 작성해 주세요.',
-  SUBMISSION_TOO_SHORT: '제출물이 너무 짧아요. 조금 더 작성한 뒤 다시 시도해 주세요.',
-  REEVALUATION_LIMIT: '평가는 정해진 횟수까지만 다시 받을 수 있어요.',
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.",
+  SUBMISSION_NOT_IN_SESSION: "이 수행평가의 제출물이 아니에요.",
+  SESSION_NOT_CHARGED: "주제 추천을 먼저 받아 주세요.",
+  SESSION_INCOMPLETE: "설계 리포트를 먼저 받아 주세요.",
+  EMPTY_SUBMISSION: "제출물을 작성해 주세요.",
+  REQUIRED_FIELD_EMPTY: "필수 항목을 모두 작성해 주세요.",
+  SUBMISSION_TOO_SHORT:
+    "제출물이 너무 짧아요. 조금 더 작성한 뒤 다시 시도해 주세요.",
+  REEVALUATION_LIMIT: "평가는 정해진 횟수까지만 다시 받을 수 있어요.",
   EVALUATION_ATTEMPT_LIMIT:
-    '이 수행평가에서 평가를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.',
-  MODEL_FAILED: '평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
+    "이 수행평가에서 평가를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.",
+  MODEL_FAILED: "평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
 };
 
-const EVALUATE_GENERIC = '평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
+const EVALUATE_GENERIC =
+  "평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 const FINALIZE_FALLBACK = {
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',
-  SUBMISSION_NOT_IN_SESSION: '이 수행평가의 제출물이 아니에요.',
-  NO_EVALUATION_YET: '평가 리포트를 먼저 받아 주세요.',
-  ALREADY_FINALIZED_OTHER: '이미 다른 제출본을 최종본으로 확정했어요.'
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.",
+  SUBMISSION_NOT_IN_SESSION: "이 수행평가의 제출물이 아니에요.",
+  NO_EVALUATION_YET: "평가 리포트를 먼저 받아 주세요.",
+  ALREADY_FINALIZED_OTHER: "이미 다른 제출본을 최종본으로 확정했어요.",
 };
 
-const FINALIZE_GENERIC = '최종본을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
+const FINALIZE_GENERIC =
+  "최종본을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /** 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다. */
 export class EvaluationRequestError extends Error {
   constructor(code, message, extra = {}) {
     super(message);
-    this.name = 'EvaluationRequestError';
+    this.name = "EvaluationRequestError";
     this.code = code;
     this.userMessage = message;
     /** `REQUIRED_FIELD_EMPTY`에서만 실린다 — 어느 필드가 비었는지. */
@@ -95,24 +99,31 @@ export class EvaluationRequestError extends Error {
 }
 
 /** 두 호출이 공유하는 fetch + 실패 변환. 성공 응답 본문을 그대로 돌려준다. */
-async function postJson(path, body, accessToken, fallbackMap, genericMessage, timeoutMs) {
+async function postJson(
+  path,
+  body,
+  accessToken,
+  fallbackMap,
+  genericMessage,
+  timeoutMs,
+) {
   let response;
 
   try {
     response = await fetchWithTimeout(
       path,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       },
-      timeoutMs
+      timeoutMs,
     );
   } catch (error) {
-    const wrapped = new EvaluationRequestError('NETWORK', NETWORK_ERROR);
+    const wrapped = new EvaluationRequestError("NETWORK", NETWORK_ERROR);
     wrapped.cause = error;
     throw wrapped;
   }
@@ -122,7 +133,7 @@ async function postJson(path, body, accessToken, fallbackMap, genericMessage, ti
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const code = data?.error?.code || 'UNKNOWN';
+    const code = data?.error?.code || "UNKNOWN";
     throw new EvaluationRequestError(
       code,
       data?.error?.message || fallbackMap[code] || genericMessage,
@@ -131,8 +142,8 @@ async function postJson(path, body, accessToken, fallbackMap, genericMessage, ti
         limit: data?.limit,
         evaluationCount: data?.evaluationCount,
         maxEvaluations: data?.maxEvaluations,
-        finalSubmissionId: data?.finalSubmissionId
-      }
+        finalSubmissionId: data?.finalSubmissionId,
+      },
     );
   }
 
@@ -146,14 +157,18 @@ async function postJson(path, body, accessToken, fallbackMap, genericMessage, ti
  * @returns {Promise<object>} §8.6 성공 응답 전체.
  * @throws {EvaluationRequestError}
  */
-export async function requestEvaluation({ accessToken, sessionId, submissionId }) {
+export async function requestEvaluation({
+  accessToken,
+  sessionId,
+  submissionId,
+}) {
   return postJson(
-    '/api/performance/evaluate',
+    "/api/performance/evaluate",
     { sessionId, submissionId },
     accessToken,
     EVALUATE_FALLBACK,
     EVALUATE_GENERIC,
-    AI_CALL_TIMEOUT_MS
+    AI_CALL_TIMEOUT_MS,
   );
 }
 
@@ -168,12 +183,17 @@ export async function requestEvaluation({ accessToken, sessionId, submissionId }
  * @returns {Promise<object>} §8.6 성공 응답 전체.
  * @throws {EvaluationRequestError}
  */
-export async function finalizeSubmission({ accessToken, sessionId, submissionId, action }) {
+export async function finalizeSubmission({
+  accessToken,
+  sessionId,
+  submissionId,
+  action,
+}) {
   return postJson(
-    '/api/performance/finalize',
+    "/api/performance/finalize",
     { sessionId, submissionId, action },
     accessToken,
     FINALIZE_FALLBACK,
-    FINALIZE_GENERIC
+    FINALIZE_GENERIC,
   );
 }

@@ -2,7 +2,7 @@
 // 가상 날짜 모델과 무관하다. calc/ 는 확률 파이프라인 전용으로 동결돼 있어 이 파일은
 // calc/ 밖에 둔다). kstYMD만 재사용해 "오늘"의 시간대 처리를 calc/virtualDate.js와
 // 일치시킨다.
-import { kstYMD } from './calc/index.js';
+import { kstYMD } from "./calc/index.js";
 
 /**
  * 'YYYY-MM-DD' 마감일 → GoalDdayBadge용 D-day 문자열.
@@ -11,17 +11,18 @@ import { kstYMD } from './calc/index.js';
 export function formatScheduleDday(dueDate, now = new Date()) {
   const today = kstYMD(now);
   const diffDays = Math.round(
-    (new Date(`${dueDate}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400000
+    (new Date(`${dueDate}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) /
+      86400000,
   );
 
-  if (diffDays === 0) return 'D-day';
+  if (diffDays === 0) return "D-day";
   if (diffDays > 0) return `D-${diffDays}`;
   return `D+${Math.abs(diffDays)}`;
 }
 
 /** 'YYYY-MM-DD' → '8월 2일'(시안 카피 포맷). */
 export function formatScheduleDateLabel(dueDate) {
-  const [, month, day] = String(dueDate).split('-').map(Number);
+  const [, month, day] = String(dueDate).split("-").map(Number);
   return `${month}월 ${day}일`;
 }
 

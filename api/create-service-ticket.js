@@ -1,12 +1,18 @@
-import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
-import { SERVICE_CONFIGS, clean, getBearerToken, hasPaidServiceAccess } from './_lib/serviceAccess.js';
+import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+import {
+  SERVICE_CONFIGS,
+  clean,
+  getBearerToken,
+  hasPaidServiceAccess,
+} from "./_lib/serviceAccess.js";
 
-const PAID_MESSAGE = '유료결제이후 이용해주세요!';
+const PAID_MESSAGE = "유료결제이후 이용해주세요!";
 // 기간 만료 전용 안내(api/_lib/serviceAccess.js의 checkProgramAccessTable 참고).
 // ToS(StudentService.jsx/ParentService.jsx §제3항)가 이미 쓰는 "재결제(재구매)"
 // 어휘를 그대로 따른다 — "결제해 주세요" 로만 쓰면 이미 낸 돈을 부정하는 말로 읽힌다.
-const EXPIRED_MESSAGE = '이용 기간이 만료되었습니다. 계속 이용하시려면 재결제(재구매)해 주세요.';
+const EXPIRED_MESSAGE =
+  "이용 기간이 만료되었습니다. 계속 이용하시려면 재결제(재구매)해 주세요.";
 const TICKET_TTL_SECONDS = Number(process.env.SSO_TICKET_TTL_SECONDS || 180);
 
 function getEnv(...keys) {
@@ -14,50 +20,61 @@ function getEnv(...keys) {
     const value = clean(process.env[key]);
     if (value) return value;
   }
-  return '';
+  return "";
 }
 
 function base64urlJson(value) {
-  return Buffer.from(JSON.stringify(value)).toString('base64url');
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
 function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function signTicket(payload, secret) {
-  const header = { alg: 'HS256', typ: 'JWT' };
+  const header = { alg: "HS256", typ: "JWT" };
   const body = `${base64urlJson(header)}.${base64urlJson(payload)}`;
-  const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(body)
+    .digest("base64url");
   return `${body}.${signature}`;
 }
 
 function createSupabaseAdmin() {
-  const url = getEnv('WINNING_SUPABASE_URL', 'SUPABASE_URL', 'VITE_SUPABASE_URL');
+  const url = getEnv(
+    "WINNING_SUPABASE_URL",
+    "SUPABASE_URL",
+    "VITE_SUPABASE_URL",
+  );
   const key = getEnv(
-    'WINNING_SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'WINNING_SUPABASE_KEY',
-    'SUPABASE_KEY'
+    "WINNING_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WINNING_SUPABASE_KEY",
+    "SUPABASE_KEY",
   );
 
   if (!url || !key) {
-    throw new Error('WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.');
+    throw new Error(
+      "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.",
+    );
   }
 
   return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
 function getUserName(user) {
   const meta = user?.user_metadata || {};
-  return clean(meta.name || meta.full_name || meta.student_name || user?.email || '');
+  return clean(
+    meta.name || meta.full_name || meta.student_name || user?.email || "",
+  );
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -75,27 +92,36 @@ export default async function handler(req, res) {
     // 응답 필드는 기존 SSO 티켓 응답과 동일한 `redirect_url`을 쓴다 — 프론트
     // 소비 코드(src/lib/paidServiceAccess.js의 `window.location.href =
     // result.redirect_url`)가 절대/상대 경로를 가리지 않아 그대로 호환된다.
-    if (clean(service_key) === 'suhaeng') {
+    if (clean(service_key) === "suhaeng") {
       return res.status(200).json({
         ok: true,
-        service_key: 'suhaeng',
-        redirect_url: '/app/performance'
+        service_key: "suhaeng",
+        redirect_url: "/app/performance",
       });
     }
 
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {
-      return res.status(400).json({ detail: '알 수 없는 서비스입니다.' });
+      return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
     }
 
     if (!config.target_url) {
-      return res.status(500).json({ detail: `${config.service_name} target_url 환경변수가 필요합니다.` });
+      return res
+        .status(500)
+        .json({
+          detail: `${config.service_name} target_url 환경변수가 필요합니다.`,
+        });
     }
 
-    const secret = getEnv('SSO_SECRET');
+    const secret = getEnv("SSO_SECRET");
     if (!secret || secret.length < 32) {
-      return res.status(500).json({ detail: 'SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.' });
+      return res
+        .status(500)
+        .json({
+          detail:
+            "SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.",
+        });
     }
 
     const token = getBearerToken(req);
@@ -104,7 +130,8 @@ export default async function handler(req, res) {
     }
 
     const supabaseAdmin = createSupabaseAdmin();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
 
     if (userError || !userData?.user?.id) {
       return res.status(401).json({ detail: PAID_MESSAGE });
@@ -115,7 +142,8 @@ export default async function handler(req, res) {
     const access = await hasPaidServiceAccess(supabaseAdmin, userId, config);
 
     if (!access.allowed) {
-      const detail = access.reason === 'period_expired' ? EXPIRED_MESSAGE : PAID_MESSAGE;
+      const detail =
+        access.reason === "period_expired" ? EXPIRED_MESSAGE : PAID_MESSAGE;
       return res.status(403).json({ detail });
     }
 
@@ -134,14 +162,14 @@ export default async function handler(req, res) {
       user_name: userName,
       student_name: userName,
       issued_at: issuedAt,
-      expires_at: expiresAt
+      expires_at: expiresAt,
     };
 
     const ticket = signTicket(payload, secret);
     const ticketHash = sha256(ticket);
 
     const { error: insertError } = await supabaseAdmin
-      .from('sso_tickets')
+      .from("sso_tickets")
       .insert({
         ticket_id: ticketId,
         ticket_hash: ticketHash,
@@ -149,27 +177,30 @@ export default async function handler(req, res) {
         winning_user_id: userId,
         user_name: userName,
         issued_at: issuedAt,
-        expires_at: expiresAt
+        expires_at: expiresAt,
       });
 
     if (insertError) {
-      console.error('sso_tickets insert error:', insertError);
+      console.error("sso_tickets insert error:", insertError);
       return res.status(500).json({
-        detail: 'sso_tickets 테이블이 없거나 저장 권한이 없습니다. 추가 SQL 적용이 필요합니다.'
+        detail:
+          "sso_tickets 테이블이 없거나 저장 권한이 없습니다. 추가 SQL 적용이 필요합니다.",
       });
     }
 
     const redirectUrl = new URL(config.target_url);
-    redirectUrl.searchParams.set('sso_ticket', ticket);
+    redirectUrl.searchParams.set("sso_ticket", ticket);
 
     return res.status(200).json({
       ok: true,
       service_key: config.service_key,
       redirect_url: redirectUrl.toString(),
-      expires_at: expiresAt
+      expires_at: expiresAt,
     });
   } catch (error) {
-    console.error('create-service-ticket error:', error);
-    return res.status(500).json({ detail: '서비스 입장권 생성 중 오류가 발생했습니다.' });
+    console.error("create-service-ticket error:", error);
+    return res
+      .status(500)
+      .json({ detail: "서비스 입장권 생성 중 오류가 발생했습니다." });
   }
 }

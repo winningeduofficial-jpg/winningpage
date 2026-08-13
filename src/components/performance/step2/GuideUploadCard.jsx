@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import InlineCard from '../chat/InlineCard';
-import PhotoAddTile from './PhotoAddTile';
-import PhotoThumb from './PhotoThumb';
-import PrimaryButton from '../../auth/PrimaryButton';
-import OutlineButton from '../../auth/OutlineButton';
+import { useEffect, useRef, useState } from "react";
+import InlineCard from "../chat/InlineCard";
+import PhotoAddTile from "./PhotoAddTile";
+import PhotoThumb from "./PhotoThumb";
+import PrimaryButton from "../../auth/PrimaryButton";
+import OutlineButton from "../../auth/OutlineButton";
 import {
   HEIC_REJECT_MESSAGE,
   IMAGE_ACCEPT_ATTR,
@@ -12,8 +12,8 @@ import {
   MAX_TOTAL_BYTES,
   isAllowedImageFile,
   isHeicFile,
-  prepareGuideImage
-} from '../../../lib/performance/guideImage';
+  prepareGuideImage,
+} from "../../../lib/performance/guideImage";
 
 // STEP2 안내문 업로드 카드 — docs/수행평가-상세-명세.md §5.6(`3754:3261`) / §5.7(`3754:3315`).
 //
@@ -50,23 +50,24 @@ import {
 //   호출부(다음 슬라이스)의 몫이다. 이 컴포넌트는 **전처리까지 끝난 File 배열**을
 //   `onSubmit`으로 넘긴다 — 업로드 진행률 표시도 시안이 없어 만들지 않았다(§5.7 미정).
 
-const TITLE = '수행평가 안내문 업로드';
+const TITLE = "수행평가 안내문 업로드";
 const DESCRIPTION =
-  'PNG, JPG 파일을 여러 장 올릴 수 있어요. 안내문이 없으면 아래 버튼으로 직접 입력하세요.';
+  "PNG, JPG 파일을 여러 장 올릴 수 있어요. 안내문이 없으면 아래 버튼으로 직접 입력하세요.";
 
 const TOO_MANY_MESSAGE = `안내문 사진은 최대 ${MAX_PHOTOS}장까지 올릴 수 있어요.`;
-const FILE_TOO_LARGE_MESSAGE = '사진 한 장은 10MB까지 올릴 수 있어요.';
-const TOTAL_TOO_LARGE_MESSAGE = '사진 전체 용량은 25MB까지 올릴 수 있어요.';
-const UNSUPPORTED_MESSAGE = 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.';
-const PREPARE_FAILED_MESSAGE = '사진을 읽지 못했어요. 다른 파일로 다시 시도해 주세요.';
+const FILE_TOO_LARGE_MESSAGE = "사진 한 장은 10MB까지 올릴 수 있어요.";
+const TOTAL_TOO_LARGE_MESSAGE = "사진 전체 용량은 25MB까지 올릴 수 있어요.";
+const UNSUPPORTED_MESSAGE = "PNG, JPG, WEBP 이미지만 올릴 수 있어요.";
+const PREPARE_FAILED_MESSAGE =
+  "사진을 읽지 못했어요. 다른 파일로 다시 시도해 주세요.";
 
 // 진행 상태 안내(스크린리더 전용). 시안에 진행률 UI가 없어(§5.7 「미정」) 보이는 요소를
 // 임의로 만들지 않되, **상태 변화 자체가 전달되지 않는 것**은 별개 문제라 여기서 닫는다.
 // 5장 × 10MB JPEG의 EXIF 판독 + createImageBitmap + canvas 리사이즈 + toBlob은 모바일에서
 // 수 초가 걸린다 — 그동안 눈에 보이는 단서는 버튼 스피너(`loading={locked}`)가 담당하고,
 // 이 문구가 같은 사실을 소리로 전달한다.
-const PROCESSING_STATUS = '사진을 준비하는 중입니다.';
-const SUBMITTING_STATUS = '안내문을 분석하는 중입니다.';
+const PROCESSING_STATUS = "사진을 준비하는 중입니다.";
+const SUBMITTING_STATUS = "안내문을 분석하는 중입니다.";
 const attachedStatus = (count) => `사진 ${count}장이 첨부되었습니다.`;
 
 // §8.8 「고지 문구」 확정 문구 — **한 글자도 바꾸지 말 것.**
@@ -79,7 +80,8 @@ const attachedStatus = (count) => `사진 ${count}장이 첨부되었습니다.`
 //   빈말이 아니라 그 cron이 뒷받침한다.
 //   시안 없이 추가되는 줄이라 위치·타이포는 임의 결정이다 — 버튼 줄 아래 각주로 두고
 //   본문(0.875rem)보다 한 단계 작은 0.75rem `#808080`을 준다.
-const RETENTION_NOTICE = '업로드한 안내문은 분석 목적으로만 사용되며 90일 후 자동 삭제됩니다.';
+const RETENTION_NOTICE =
+  "업로드한 안내문은 분석 목적으로만 사용되며 90일 후 자동 삭제됩니다.";
 
 /**
  * @param {(files: File[]) => void} onSubmit `분석 시작하기` — 전처리까지 끝난 파일 배열
@@ -91,7 +93,7 @@ export default function GuideUploadCard({
   onSubmit,
   onSkip,
   submitting = false,
-  submitError = null
+  submitError = null,
 }) {
   // { id, file, url } — `url`은 미리보기용 objectURL이라 반드시 해제해야 한다.
   const [photos, setPhotos] = useState([]);
@@ -107,7 +109,7 @@ export default function GuideUploadCard({
     () => () => {
       photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.url));
     },
-    []
+    [],
   );
 
   const locked = submitting || processing;
@@ -115,7 +117,7 @@ export default function GuideUploadCard({
   async function handleFilesSelected(event) {
     const picked = Array.from(event.target.files || []);
     // 같은 파일을 연속으로 고를 수 있게 즉시 비운다(외부 앱 `addImages`와 같은 이유).
-    event.target.value = '';
+    event.target.value = "";
     if (!picked.length) return;
 
     setError(null);
@@ -151,7 +153,7 @@ export default function GuideUploadCard({
           // 한다 — 실제로 업로드되는 바이트가 그쪽이기 때문이다.
           prepared = await prepareGuideImage(file);
         } catch (prepareError) {
-          console.error('[performance] 안내문 사진 전처리 실패:', prepareError);
+          console.error("[performance] 안내문 사진 전처리 실패:", prepareError);
           message = message || PREPARE_FAILED_MESSAGE;
           continue;
         }
@@ -171,7 +173,7 @@ export default function GuideUploadCard({
         accepted.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file: prepared,
-          url: URL.createObjectURL(prepared)
+          url: URL.createObjectURL(prepared),
         });
       }
 
@@ -202,12 +204,16 @@ export default function GuideUploadCard({
       ? SUBMITTING_STATUS
       : photos.length
         ? attachedStatus(photos.length)
-        : '';
+        : "";
 
   return (
     <InlineCard className="pb-6">
-      <p className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">{TITLE}</p>
-      <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink-sub">{DESCRIPTION}</p>
+      <p className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
+        {TITLE}
+      </p>
+      <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink-sub">
+        {DESCRIPTION}
+      </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
         {photos.map((photo, index) => (
@@ -220,7 +226,10 @@ export default function GuideUploadCard({
         ))}
 
         {photos.length < MAX_PHOTOS && (
-          <PhotoAddTile onClick={() => inputRef.current?.click()} disabled={locked} />
+          <PhotoAddTile
+            onClick={() => inputRef.current?.click()}
+            disabled={locked}
+          />
         )}
       </div>
 
@@ -240,7 +249,10 @@ export default function GuideUploadCard({
       </p>
 
       {visibleError && (
-        <p role="alert" className="mt-3 text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
+        <p
+          role="alert"
+          className="mt-3 text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+        >
           {visibleError}
         </p>
       )}
@@ -275,7 +287,9 @@ export default function GuideUploadCard({
       </div>
 
       {/* §8.8 보관 정책 고지 — 시안 없음(§11-Q82). 위 RETENTION_NOTICE 주석 참고. */}
-      <p className="mt-4 text-[0.75rem] leading-[1rem] text-ink-sub">{RETENTION_NOTICE}</p>
+      <p className="mt-4 text-[0.75rem] leading-[1rem] text-ink-sub">
+        {RETENTION_NOTICE}
+      </p>
     </InlineCard>
   );
 }

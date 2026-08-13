@@ -53,28 +53,40 @@
 //   node scripts/build-admission-html-golden.mjs --full-out <full-json-path>
 // =====================================================================
 
-import { writeFile, stat, mkdir } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
+import { writeFile, stat, mkdir } from "node:fs/promises";
+import { parseArgs } from "node:util";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 
-import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
+import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
+  type: "json",
+};
 import {
   buildRawSectionHtml,
   buildHwpCategoryHtml,
   buildRecruitmentResultHtml,
   HWP_SECTION_HTML_KEYS,
-  clean
-} from '../src/lib/admissionParsing.js';
+  clean,
+} from "../src/lib/admissionParsing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
-const DEFAULT_HASH_OUT_PATH = path.join(REPO_ROOT, 'tests/fixtures/admission-html-golden.json');
-const DEFAULT_FULL_OUT_PATH = path.join(REPO_ROOT, '.golden-cache/admission-html-golden.full.json');
+const REPO_ROOT = path.resolve(__dirname, "..");
+const DEFAULT_HASH_OUT_PATH = path.join(
+  REPO_ROOT,
+  "tests/fixtures/admission-html-golden.json",
+);
+const DEFAULT_FULL_OUT_PATH = path.join(
+  REPO_ROOT,
+  ".golden-cache/admission-html-golden.full.json",
+);
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
-export const GOLDEN_PATHS = ['rawSectionHtml', 'hwpCategoryHtml', 'recruitmentResultHtml'];
+export const GOLDEN_PATHS = [
+  "rawSectionHtml",
+  "hwpCategoryHtml",
+  "recruitmentResultHtml",
+];
 
 // 대학명 → 카테고리 → 경로 3단 중첩 객체 생성(전문, 로컬 캐시 전용).
 export function buildGolden() {
@@ -89,9 +101,9 @@ export function buildGolden() {
       const raw = clean(row[key]);
       const entry = {
         rawSectionHtml: buildRawSectionHtml(raw, key, row, universityName),
-        hwpCategoryHtml: buildHwpCategoryHtml(key, raw, row, universityName)
+        hwpCategoryHtml: buildHwpCategoryHtml(key, raw, row, universityName),
       };
-      if (key === 'recruitment_quota') {
+      if (key === "recruitment_quota") {
         entry.recruitmentResultHtml = buildRecruitmentResultHtml(raw);
       }
       perUniversity[key] = entry;
@@ -110,7 +122,9 @@ export function buildCellKey(universityName, category, pathName) {
 }
 
 export function hashString(value) {
-  return createHash('sha256').update(String(value ?? ''), 'utf-8').digest('hex');
+  return createHash("sha256")
+    .update(String(value ?? ""), "utf-8")
+    .digest("hex");
 }
 
 // 전문(buildGolden 결과) → 커밋 대상 해시 골든. 빈 문자열 출력은 제외한다.
@@ -123,7 +137,10 @@ export function buildHashGolden(fullGolden) {
       Object.entries(paths).forEach(([pathName, html]) => {
         if (!html) return; // raw 없음 등으로 빈 출력 — 해시 비교 대상에서 제외
         const key = buildCellKey(universityName, category, pathName);
-        cells[key] = { sha256: hashString(html), bytes: Buffer.byteLength(html, 'utf-8') };
+        cells[key] = {
+          sha256: hashString(html),
+          bytes: Buffer.byteLength(html, "utf-8"),
+        };
         cellCount += 1;
       });
     });
@@ -131,12 +148,12 @@ export function buildHashGolden(fullGolden) {
 
   return {
     meta: {
-      generatedFrom: 'src/data/admissionHwpSections.json',
+      generatedFrom: "src/data/admissionHwpSections.json",
       universityCount: Object.keys(fullGolden).length,
       cellCount,
-      paths: GOLDEN_PATHS
+      paths: GOLDEN_PATHS,
     },
-    cells
+    cells,
   };
 }
 
@@ -145,20 +162,22 @@ function assertIdempotent() {
   const twiceFull = JSON.stringify(buildGolden());
   if (onceFull !== twiceFull) {
     throw new Error(
-      '멱등성 위반(전문): 골든 생성 스크립트를 같은 프로세스 안에서 2회 실행한 결과가 다릅니다. ' +
-        '파서에 비결정적 요소(Date.now, Math.random, 객체 키 순서 불안정 등)가 없는지 확인하세요.'
+      "멱등성 위반(전문): 골든 생성 스크립트를 같은 프로세스 안에서 2회 실행한 결과가 다릅니다. " +
+        "파서에 비결정적 요소(Date.now, Math.random, 객체 키 순서 불안정 등)가 없는지 확인하세요.",
     );
   }
   const onceHash = JSON.stringify(buildHashGolden(JSON.parse(onceFull)));
   const twiceHash = JSON.stringify(buildHashGolden(JSON.parse(twiceFull)));
   if (onceHash !== twiceHash) {
-    throw new Error('멱등성 위반(해시): 동일 전문에서 해시 골든이 2회 다르게 계산됩니다.');
+    throw new Error(
+      "멱등성 위반(해시): 동일 전문에서 해시 골든이 2회 다르게 계산됩니다.",
+    );
   }
 }
 
 async function writeJson(filePath, data) {
   await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
+  await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
   const { size } = await stat(filePath);
   return size;
 }
@@ -174,37 +193,42 @@ async function writeJson(filePath, data) {
 async function main() {
   const { values: args } = parseArgs({
     options: {
-      out: { type: 'string' },
-      'full-out': { type: 'string' }
-    }
+      out: { type: "string" },
+      "full-out": { type: "string" },
+    },
   });
 
-  console.log('=== 1) 멱등성 검증(같은 프로세스 내 2회 생성 비교) ===');
+  console.log("=== 1) 멱등성 검증(같은 프로세스 내 2회 생성 비교) ===");
   assertIdempotent();
-  console.log('통과: 전문·해시 골든 모두 2회 생성 결과가 동일합니다.');
+  console.log("통과: 전문·해시 골든 모두 2회 생성 결과가 동일합니다.");
 
-  console.log('\n=== 2) 골든 생성 ===');
+  console.log("\n=== 2) 골든 생성 ===");
   const fullGolden = buildGolden();
   const hashGolden = buildHashGolden(fullGolden);
   console.log(
     `대상: ${hashGolden.meta.universityCount}개교 × ${CATEGORY_KEYS.length}카테고리, ` +
-      `해시 골든 셀 수(빈 출력 제외): ${hashGolden.meta.cellCount}`
+      `해시 골든 셀 수(빈 출력 제외): ${hashGolden.meta.cellCount}`,
   );
 
   const hashOutPath = args.out ? path.resolve(args.out) : DEFAULT_HASH_OUT_PATH;
-  const fullOutPath = args['full-out'] ? path.resolve(args['full-out']) : DEFAULT_FULL_OUT_PATH;
+  const fullOutPath = args["full-out"]
+    ? path.resolve(args["full-out"])
+    : DEFAULT_FULL_OUT_PATH;
 
   const hashSize = await writeJson(hashOutPath, hashGolden);
   const fullSize = await writeJson(fullOutPath, fullGolden);
 
-  console.log('\n=== 3) 저장 완료 ===');
-  console.log(`커밋 대상(해시): ${hashOutPath} — ${hashSize}bytes (${(hashSize / 1024).toFixed(1)}KB)`);
+  console.log("\n=== 3) 저장 완료 ===");
   console.log(
-    `로컬 전용(전문, gitignore): ${fullOutPath} — ${fullSize}bytes (${(fullSize / (1024 * 1024)).toFixed(2)}MB)`
+    `커밋 대상(해시): ${hashOutPath} — ${hashSize}bytes (${(hashSize / 1024).toFixed(1)}KB)`,
+  );
+  console.log(
+    `로컬 전용(전문, gitignore): ${fullOutPath} — ${fullSize}bytes (${(fullSize / (1024 * 1024)).toFixed(2)}MB)`,
   );
 }
 
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

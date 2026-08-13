@@ -27,23 +27,25 @@
 // 실행: node scripts/verify-admission-editor-surface.mjs
 // =====================================================================
 
-import fs from 'node:fs';
-import path from 'node:path';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import * as esbuild from 'esbuild';
+import fs from "node:fs";
+import path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import * as esbuild from "esbuild";
 
-const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
-const EDITOR_SURFACE_REL = 'src/components/admission/editor/AdmissionEditorSurface.jsx';
-const PUBLIC_SURFACE_REL = 'src/components/admission/AdmissionSurface.jsx';
-const TABLE_EDITOR_REL = 'src/components/admission/editor/TableBlockEditor.jsx';
-const TABLE_EDITOR_VERIFY_REL = 'scripts/verify-admission-table-editor.mjs';
-const SECTION_VIEW_REL = 'src/components/admission/AdmissionSectionView.jsx';
-const EDIT_MODAL_REL = 'src/components/admission/editor/AdmissionSectionEditModal.jsx';
+const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const EDITOR_SURFACE_REL =
+  "src/components/admission/editor/AdmissionEditorSurface.jsx";
+const PUBLIC_SURFACE_REL = "src/components/admission/AdmissionSurface.jsx";
+const TABLE_EDITOR_REL = "src/components/admission/editor/TableBlockEditor.jsx";
+const TABLE_EDITOR_VERIFY_REL = "scripts/verify-admission-table-editor.mjs";
+const SECTION_VIEW_REL = "src/components/admission/AdmissionSectionView.jsx";
+const EDIT_MODAL_REL =
+  "src/components/admission/editor/AdmissionSectionEditModal.jsx";
 
-const EDIT_HOOK = 'admission-table-editor';
+const EDIT_HOOK = "admission-table-editor";
 
-const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
 
 // ── CSS 본문 추출 ──────────────────────────────────────────────────────
 //
@@ -52,16 +54,18 @@ const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 // 주석에 걸려 오탐하므로, <style>{`…`}</style> 안쪽만 잘라내고 CSS 주석까지
 // 제거한 뒤에 검사한다.
 function styleBodyOf(source) {
-  const start = source.indexOf('<style>{`');
-  const end = source.lastIndexOf('`}</style>');
+  const start = source.indexOf("<style>{`");
+  const end = source.lastIndexOf("`}</style>");
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`<style>{\`…\`}</style> 블록을 찾지 못했다 — 셀렉터 스캔이 불가능하다.`);
+    throw new Error(
+      `<style>{\`…\`}</style> 블록을 찾지 못했다 — 셀렉터 스캔이 불가능하다.`,
+    );
   }
-  return source.slice(start + '<style>{`'.length, end);
+  return source.slice(start + "<style>{`".length, end);
 }
 
 function stripCssComments(css) {
-  return css.replace(/\/\*[\s\S]*?\*\//g, '');
+  return css.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
 // 셀렉터 목록 추출: `{` 직전 텍스트를 셀렉터로 보고, at-rule(@media 등)과
@@ -69,20 +73,20 @@ function stripCssComments(css) {
 // 필요 없다(중첩은 @media 1단뿐).
 function selectorsOf(css) {
   const selectors = [];
-  let buf = '';
+  let buf = "";
   let depth = 0;
   for (let i = 0; i < css.length; i += 1) {
     const ch = css[i];
-    if (ch === '{') {
+    if (ch === "{") {
       const head = buf.trim();
-      buf = '';
-      if (head.startsWith('@')) {
+      buf = "";
+      if (head.startsWith("@")) {
         // at-rule — 프렐류드는 셀렉터가 아니다. 안쪽을 계속 훑는다.
         depth += 1;
         continue;
       }
       depth += 1;
-      for (const part of head.split(',')) {
+      for (const part of head.split(",")) {
         const s = part.trim();
         if (s) selectors.push(s);
       }
@@ -90,17 +94,17 @@ function selectorsOf(css) {
       let inner = 1;
       i += 1;
       while (i < css.length && inner > 0) {
-        if (css[i] === '{') inner += 1;
-        else if (css[i] === '}') inner -= 1;
+        if (css[i] === "{") inner += 1;
+        else if (css[i] === "}") inner -= 1;
         i += 1;
       }
       i -= 1;
       depth -= 1;
       continue;
     }
-    if (ch === '}') {
+    if (ch === "}") {
       depth = Math.max(0, depth - 1);
-      buf = '';
+      buf = "";
       continue;
     }
     buf += ch;
@@ -113,17 +117,17 @@ async function loadAdmissionSectionView() {
   const result = await esbuild.build({
     entryPoints: [path.join(REPO_ROOT, SECTION_VIEW_REL)],
     bundle: true,
-    format: 'esm',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    platform: 'node',
-    mainFields: ['module', 'main'],
-    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server'],
-    write: false
+    format: "esm",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    platform: "node",
+    mainFields: ["module", "main"],
+    external: ["react", "react-dom", "react/jsx-runtime", "react-dom/server"],
+    write: false,
   });
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-editor-surface-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-editor-surface-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, result.outputFiles[0].text);
   try {
@@ -136,29 +140,38 @@ async function loadAdmissionSectionView() {
 
 const SELECTION_DOC = {
   v: 1,
-  section: 'selection_method',
-  source: 'parser',
-  generator: 'editor-surface-verify',
-  generatedAt: '2026-01-01T00:00:00.000Z',
+  section: "selection_method",
+  source: "parser",
+  generator: "editor-surface-verify",
+  generatedAt: "2026-01-01T00:00:00.000Z",
   blocks: [
     {
-      kind: 'table',
-      variant: 'selection',
+      kind: "table",
+      variant: "selection",
       columns: [
-        { role: 'type', label: '전형' },
-        { role: 'name', label: '전형명' },
-        { role: 'seats', label: '인원' },
-        { role: 'minimum', label: '최저' },
-        { role: 'method', label: '전형방법' }
+        { role: "type", label: "전형" },
+        { role: "name", label: "전형명" },
+        { role: "seats", label: "인원" },
+        { role: "minimum", label: "최저" },
+        { role: "method", label: "전형방법" },
       ],
-      rows: [['학생부교과', '일반전형', '10', { text: '있음: 일부', badge: 'minimumHas' }, '내신 100%']]
-    }
-  ]
+      rows: [
+        [
+          "학생부교과",
+          "일반전형",
+          "10",
+          { text: "있음: 일부", badge: "minimumHas" },
+          "내신 100%",
+        ],
+      ],
+    },
+  ],
 };
 
 async function main() {
   const results = [];
-  const record = (id, name, pass, detail) => results.push({ id, name, pass, detail });
+  const record = (id, name, pass, detail) =>
+    results.push({ id, name, pass, detail });
 
   const editorSurfaceSrc = read(EDITOR_SURFACE_REL);
   const publicSurfaceSrc = read(PUBLIC_SURFACE_REL);
@@ -169,10 +182,12 @@ async function main() {
   {
     const pass = !publicCss.includes(EDIT_HOOK);
     record(
-      'surf:1',
+      "surf:1",
       `${PUBLIC_SURFACE_REL} CSS 본문에 '${EDIT_HOOK}' 토큰이 없다(편집 전용 규칙의 공개 이주 금지)`,
       pass,
-      pass ? '' : '공개 표면 CSS에 편집 전용 훅이 들어왔다 — modal-shell 골든 sha 재생성까지 유발한다.'
+      pass
+        ? ""
+        : "공개 표면 CSS에 편집 전용 훅이 들어왔다 — modal-shell 골든 sha 재생성까지 유발한다.",
     );
   }
 
@@ -182,10 +197,10 @@ async function main() {
     const unscoped = selectors.filter((s) => !s.includes(`.${EDIT_HOOK}`));
     const pass = selectors.length > 0 && unscoped.length === 0;
     record(
-      'surf:2',
+      "surf:2",
       `${EDITOR_SURFACE_REL} 의 모든 셀렉터가 '.${EDIT_HOOK}' 를 포함한다(스코프 누락 = 공개 오염)`,
       pass,
-      `selectors=${selectors.length} unscoped=${JSON.stringify(unscoped)}`
+      `selectors=${selectors.length} unscoped=${JSON.stringify(unscoped)}`,
     );
   }
 
@@ -196,10 +211,10 @@ async function main() {
     const pxHits = declarations.filter((d) => /\d\s*px\b/.test(d));
     const pass = pxHits.length === 0;
     record(
-      'surf:3',
+      "surf:3",
       `${EDITOR_SURFACE_REL} CSS 값에 px 길이가 없다(rem/% 만)`,
       pass,
-      `pxHits=${JSON.stringify(pxHits)}`
+      `pxHits=${JSON.stringify(pxHits)}`,
     );
   }
 
@@ -209,16 +224,19 @@ async function main() {
     const out = renderToStaticMarkup(
       React.createElement(AdmissionSectionView, {
         doc: SELECTION_DOC,
-        sectionKey: 'selection_method',
-        surface: 'public'
-      })
+        sectionKey: "selection_method",
+        surface: "public",
+      }),
     );
-    const pass = out.length > 0 && !out.includes(EDIT_HOOK) && out.includes('admission-selection-table');
+    const pass =
+      out.length > 0 &&
+      !out.includes(EDIT_HOOK) &&
+      out.includes("admission-selection-table");
     record(
-      'surf:4',
+      "surf:4",
       `공개 렌더(AdmissionSectionView → selection 표) 출력에 '${EDIT_HOOK}' 클래스가 없다`,
       pass,
-      pass ? '' : out.slice(0, 400)
+      pass ? "" : out.slice(0, 400),
     );
   }
 
@@ -233,28 +251,32 @@ async function main() {
         else if (/\.(jsx?|tsx?|css)$/.test(entry.name)) files.push(full);
       }
     };
-    walk(path.join(REPO_ROOT, 'src'));
+    walk(path.join(REPO_ROOT, "src"));
     // 파일 단위가 아니라 **부착 횟수** 단위로 센다 — 같은 파일 안에 두 번째
     // 부착이 생겨도(중첩 래퍼 등) 스코프는 똑같이 흐려진다.
     const attachments = [];
     for (const f of files) {
-      const src = fs.readFileSync(f, 'utf8');
-      const withoutLineComments = src.replace(/^[ \t]*\/\/.*$/gm, '');
-      const withoutBlockComments = withoutLineComments.replace(/\/\*[\s\S]*?\*\//g, '');
+      const src = fs.readFileSync(f, "utf8");
+      const withoutLineComments = src.replace(/^[ \t]*\/\/.*$/gm, "");
+      const withoutBlockComments = withoutLineComments.replace(
+        /\/\*[\s\S]*?\*\//g,
+        "",
+      );
       const hits = withoutBlockComments.match(
-        new RegExp(`className=["'\`][^"'\`]*${EDIT_HOOK}`, 'g')
+        new RegExp(`className=["'\`][^"'\`]*${EDIT_HOOK}`, "g"),
       );
       for (let i = 0; i < (hits ? hits.length : 0); i += 1) {
         attachments.push(path.relative(REPO_ROOT, f));
       }
     }
     attachments.sort();
-    const pass = attachments.length === 1 && attachments[0] === TABLE_EDITOR_REL;
+    const pass =
+      attachments.length === 1 && attachments[0] === TABLE_EDITOR_REL;
     record(
-      'surf:5',
+      "surf:5",
       `'${EDIT_HOOK}' 클래스 부착이 ${TABLE_EDITOR_REL} 단 1회뿐이다(훅 중복 = 스코프 희석)`,
       pass,
-      JSON.stringify(attachments)
+      JSON.stringify(attachments),
     );
   }
 
@@ -264,20 +286,20 @@ async function main() {
     const m = src.match(/const EDIT_ONLY_WRAP_TOKENS = \[([^\]]*)\]/);
     const tokens = m
       ? m[1]
-          .split(',')
-          .map((t) => t.trim().replace(/^['"]|['"]$/g, ''))
+          .split(",")
+          .map((t) => t.trim().replace(/^['"]|['"]$/g, ""))
           .filter(Boolean)
       : null;
     const pass =
       Array.isArray(tokens) &&
       tokens.length === 2 &&
-      tokens.includes('max-w-full') &&
-      tokens.includes('overflow-x-auto');
+      tokens.includes("max-w-full") &&
+      tokens.includes("overflow-x-auto");
     record(
-      'surf:6',
+      "surf:6",
       "EDIT_ONLY_WRAP_TOKENS 가 여전히 2개(max-w-full, overflow-x-auto) — 편집/뷰 파리티 축 불변",
       pass,
-      JSON.stringify(tokens)
+      JSON.stringify(tokens),
     );
   }
 
@@ -289,20 +311,24 @@ async function main() {
   {
     const rules = [...editorCss.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map((m) => ({
       head: m[1].trim(),
-      body: m[2].trim()
+      body: m[2].trim(),
     }));
     const col4Rules = rules.filter(
-      (r) => r.head.includes('.admission-selection-table') && r.head.includes('nth-child(4)')
+      (r) =>
+        r.head.includes(".admission-selection-table") &&
+        r.head.includes("nth-child(4)"),
     );
-    const widths = col4Rules.map((r) => (r.body.match(/width:\s*([^;]+)/) || [])[1]?.trim());
-    const desktop = widths.includes('11rem');
-    const mobile = widths.some((w) => /%$/.test(w || ''));
+    const widths = col4Rules.map((r) =>
+      (r.body.match(/width:\s*([^;]+)/) || [])[1]?.trim(),
+    );
+    const desktop = widths.includes("11rem");
+    const mobile = widths.some((w) => /%$/.test(w || ""));
     const pass = col4Rules.length === 2 && desktop && mobile;
     record(
-      'surf:7',
+      "surf:7",
       "편집 전용 '최저'(4번째) 컬럼 확대 규칙이 존재한다 — 데스크톱 11rem + 모바일 % 2벌",
       pass,
-      JSON.stringify({ count: col4Rules.length, widths })
+      JSON.stringify({ count: col4Rules.length, widths }),
     );
   }
 
@@ -312,18 +338,20 @@ async function main() {
   // 범위에서 실행하지 않는다. 나중에 누가 AdmissionSurface 의 7.5rem 을
   // 건드리면 여기서 먼저 걸린다(drift 는 HTML 바이트 계약이라 CSS 를 못 본다).
   {
-    const hasDesktop = /\.admission-surface \.admission-selection-table td:nth-child\(4\)\s*\{[^}]*width:\s*7\.5rem/.test(
-      publicCss
-    );
-    const hasMobile = /\.admission-surface \.admission-selection-table td:nth-child\(4\)\s*\{[^}]*width:\s*9%/.test(
-      publicCss
-    );
+    const hasDesktop =
+      /\.admission-surface \.admission-selection-table td:nth-child\(4\)\s*\{[^}]*width:\s*7\.5rem/.test(
+        publicCss,
+      );
+    const hasMobile =
+      /\.admission-surface \.admission-selection-table td:nth-child\(4\)\s*\{[^}]*width:\s*9%/.test(
+        publicCss,
+      );
     const pass = hasDesktop && hasMobile;
     record(
-      'surf:8',
-      '🚩 공개 selection 표 최저 컬럼 폭이 불변(데스크톱 7.5rem · 모바일 9%) — 공개 확대는 사용자 승인 사항',
+      "surf:8",
+      "🚩 공개 selection 표 최저 컬럼 폭이 불변(데스크톱 7.5rem · 모바일 9%) — 공개 확대는 사용자 승인 사항",
       pass,
-      JSON.stringify({ hasDesktop, hasMobile })
+      JSON.stringify({ hasDesktop, hasMobile }),
     );
   }
 
@@ -335,15 +363,19 @@ async function main() {
   // 도달하지 않으면 사용자 요청은 무음으로 사라진다. 배선 자체를 고정한다.
   {
     const modalSrc = read(EDIT_MODAL_REL);
-    const importCount = (modalSrc.match(/import AdmissionEditorSurface from ['"]\.\/AdmissionEditorSurface['"]/g) || [])
+    const importCount = (
+      modalSrc.match(
+        /import AdmissionEditorSurface from ['"]\.\/AdmissionEditorSurface['"]/g,
+      ) || []
+    ).length;
+    const renderCount = (modalSrc.match(/<AdmissionEditorSurface\s*\/>/g) || [])
       .length;
-    const renderCount = (modalSrc.match(/<AdmissionEditorSurface\s*\/>/g) || []).length;
     const pass = importCount === 1 && renderCount === 1;
     record(
-      'surf:9',
+      "surf:9",
       `${EDIT_MODAL_REL} 이 AdmissionEditorSurface 를 정확히 1회 import·렌더한다(배선 소실 = 규칙 무음 사망)`,
       pass,
-      JSON.stringify({ importCount, renderCount })
+      JSON.stringify({ importCount, renderCount }),
     );
   }
 
@@ -357,34 +389,40 @@ async function main() {
   {
     const rules = [...editorCss.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map((m) => ({
       head: m[1].trim(),
-      body: m[2].trim()
+      body: m[2].trim(),
     }));
     const col4Rules = rules.filter(
-      (r) => r.head.includes('.admission-selection-table') && r.head.includes('nth-child(4)')
+      (r) =>
+        r.head.includes(".admission-selection-table") &&
+        r.head.includes("nth-child(4)"),
     );
     const mobileWidth = col4Rules
       .map((r) => (r.body.match(/width:\s*([^;]+)/) || [])[1]?.trim())
-      .find((w) => /%$/.test(w || ''));
-    const mobilePercent = mobileWidth ? Number(mobileWidth.replace('%', '')) : NaN;
+      .find((w) => /%$/.test(w || ""));
+    const mobilePercent = mobileWidth
+      ? Number(mobileWidth.replace("%", ""))
+      : NaN;
     const pass = Number.isFinite(mobilePercent) && mobilePercent >= 30;
     record(
-      'surf:10',
+      "surf:10",
       "모바일·태블릿(max-width:65rem) 최저 컬럼 폭이 30% 이상이다(2026-08-08 재보정 — 16% 회귀 차단)",
       pass,
-      JSON.stringify({ mobileWidth, mobilePercent })
+      JSON.stringify({ mobileWidth, mobilePercent }),
     );
   }
 
-  console.log('=== 어드민 편집 전용 표면 CSS 격리 검증 결과 ===\n');
+  console.log("=== 어드민 편집 전용 표면 CSS 격리 검증 결과 ===\n");
   let failCount = 0;
   for (const r of results) {
-    console.log(`[${r.pass ? 'PASS' : 'FAIL'}] ${r.id}. ${r.name}`);
+    console.log(`[${r.pass ? "PASS" : "FAIL"}] ${r.id}. ${r.name}`);
     if (!r.pass) {
       failCount += 1;
-      console.log('  detail:', r.detail);
+      console.log("  detail:", r.detail);
     }
   }
-  console.log(`\n총 ${results.length}건 중 ${results.length - failCount}건 통과, ${failCount}건 실패.`);
+  console.log(
+    `\n총 ${results.length}건 중 ${results.length - failCount}건 통과, ${failCount}건 실패.`,
+  );
   if (failCount > 0) process.exitCode = 1;
 }
 

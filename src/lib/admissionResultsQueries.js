@@ -18,8 +18,11 @@
 // 목록 쿼리는 집계 뷰만 읽고, 상세 쿼리도 31컬럼 중 필요한 13개만 받는다.
 // 본선 데이터가 434행 → 43,170행으로 100배가 됐으므로 이 규율은 더 엄격해졌다.
 
-import { supabase } from './supabase';
-import { collectFallbackAdmissionTracks, RESULT_YEARS } from './admissionResults';
+import { supabase } from "./supabase";
+import {
+  collectFallbackAdmissionTracks,
+  RESULT_YEARS,
+} from "./admissionResults";
 
 // 통합 테이블(admission_results)은 sql/53에서 recruitment_period 축이 제거돼
 // **수시 전용**이 됐다(원본 자료 3종 어디에도 모집시기 개념이 없음 — 명세 §6.1 Q1 확정).
@@ -34,12 +37,12 @@ import { collectFallbackAdmissionTracks, RESULT_YEARS } from './admissionResults
 // is_active=true 필터는 뷰 정의(sql/53_admission_results_2yr.sql (5a)) 안에 이미 있어
 // 여기서 다시 걸지 않는다 — 뷰가 그 컬럼을 노출하지 않는다.
 // sql/53에서 선두 컬럼이던 recruitment_period가 사라져 3컬럼 뷰가 됐다.
-const UNIVERSITY_INDEX_COLUMNS = 'university_key,university_name,dept_count';
+const UNIVERSITY_INDEX_COLUMNS = "university_key,university_name,dept_count";
 
 // Q2: 모집단위 인덱스 뷰(admission_result_department_index). tracks는 main_track distinct text[].
 // 이쪽도 sql/53에서 recruitment_period가 빠져 (university_key, department_key,
 // department_name, tracks) 4컬럼이 됐다. university_key는 필터 축으로만 쓰고 받지 않는다.
-const DEPARTMENT_INDEX_COLUMNS = 'department_key,department_name,tracks';
+const DEPARTMENT_INDEX_COLUMNS = "department_key,department_name,tracks";
 
 // Q3: 상세 원본 행. admission_results 통합 테이블 31컬럼 중 화면이 실제로 읽는 13개만.
 //
@@ -61,23 +64,24 @@ const DEPARTMENT_INDEX_COLUMNS = 'department_key,department_name,tracks';
 // percentile / waitlist_rank / source_sheet / source_row / note / id /
 // created_at / updated_at도 마찬가지다.
 const ADMISSION_RESULT_COLUMNS = [
-  'result_year',
-  'university_name',
-  'department_name',
-  'main_track',
-  'screening_category',
-  'admission_track',
-  'quota',
-  'competition_rate',
-  'grade_50',
-  'grade_70',
-  'grade_85',
-  'grade_90',
-  'subject_reflection'
-].join(',');
+  "result_year",
+  "university_name",
+  "department_name",
+  "main_track",
+  "screening_category",
+  "admission_track",
+  "quota",
+  "competition_rate",
+  "grade_50",
+  "grade_70",
+  "grade_85",
+  "grade_90",
+  "subject_reflection",
+].join(",");
 
 // Q4: 뜨고 있는 학과 큐레이션.
-const TRENDING_COLUMNS = 'university_name,department_name,university_key,department_key,logo_url';
+const TRENDING_COLUMNS =
+  "university_name,department_name,university_key,department_key,logo_url";
 
 export const TRENDING_LIMIT = 12;
 
@@ -102,7 +106,7 @@ function ok(data) {
 // 대상 규모가 대학 202행 / 모집단위는 대학당 수십 행이라 클라이언트 재정렬 비용은 무시할 수준.
 function sortByKoreanName(rows, field) {
   return [...(rows ?? [])].sort((a, b) =>
-    String(a?.[field] ?? '').localeCompare(String(b?.[field] ?? ''), 'ko')
+    String(a?.[field] ?? "").localeCompare(String(b?.[field] ?? ""), "ko"),
   );
 }
 
@@ -118,12 +122,12 @@ function sortByKoreanName(rows, field) {
 // (컬럼을 더 받거나 여기서 필터를 거는 것으로는 스캔이 줄지 않는다).
 export async function fetchSusiUniversities() {
   const { data, error } = await supabase
-    .from('admission_result_university_index')
+    .from("admission_result_university_index")
     .select(UNIVERSITY_INDEX_COLUMNS)
-    .order('university_name', { ascending: true });
+    .order("university_name", { ascending: true });
 
-  if (error) return fail('대학 목록', error);
-  return ok(sortByKoreanName(data, 'university_name'));
+  if (error) return fail("대학 목록", error);
+  return ok(sortByKoreanName(data, "university_name"));
 }
 
 // ---------------------------------------------------------------------------
@@ -141,14 +145,14 @@ export async function fetchSusiDepartments(universityKey) {
   if (!universityKey) return ok([]);
 
   const { data, error } = await supabase
-    .from('admission_result_department_index')
+    .from("admission_result_department_index")
     .select(DEPARTMENT_INDEX_COLUMNS)
-    .eq('university_key', universityKey)
-    .order('department_name', { ascending: true });
+    .eq("university_key", universityKey)
+    .order("department_name", { ascending: true });
 
-  if (error) return fail('모집단위 목록', error);
+  if (error) return fail("모집단위 목록", error);
 
-  const rows = sortByKoreanName(data, 'department_name');
+  const rows = sortByKoreanName(data, "department_name");
   return ok(rows.map((row) => ({ ...row, tracks: row.tracks ?? [] })));
 }
 
@@ -177,17 +181,17 @@ export async function fetchSusiResultRows(universityKey, departmentKey) {
   if (!universityKey || !departmentKey) return ok([]);
 
   const { data, error } = await supabase
-    .from('admission_results')
+    .from("admission_results")
     .select(ADMISSION_RESULT_COLUMNS)
-    .eq('is_active', true)
-    .eq('university_key', universityKey)
-    .eq('department_key', departmentKey)
-    .in('result_year', RESULT_YEARS)
-    .order('main_track', { ascending: true })
-    .order('admission_track', { ascending: true })
-    .order('result_year', { ascending: true });
+    .eq("is_active", true)
+    .eq("university_key", universityKey)
+    .eq("department_key", departmentKey)
+    .in("result_year", RESULT_YEARS)
+    .order("main_track", { ascending: true })
+    .order("admission_track", { ascending: true })
+    .order("result_year", { ascending: true });
 
-  if (error) return fail('입결 상세', error);
+  if (error) return fail("입결 상세", error);
 
   const rows = data ?? [];
   warnUnclassifiedAdmissionTypes(rows);
@@ -203,7 +207,10 @@ export function warnUnclassifiedAdmissionTypes(rows) {
   if (!import.meta.env?.DEV) return;
   const fallback = collectFallbackAdmissionTracks(rows);
   if (fallback.length === 0) return;
-  console.warn('[admission-results] screening_category 누락 — 전형명 추론으로 분류함:', fallback);
+  console.warn(
+    "[admission-results] screening_category 누락 — 전형명 추론으로 분류함:",
+    fallback,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -211,14 +218,16 @@ export function warnUnclassifiedAdmissionTypes(rows) {
 // ---------------------------------------------------------------------------
 
 // 결과가 빈 배열이면 호출부는 섹션 전체를 렌더하지 않는다(빈 pill 그리드는 고장으로 보인다).
-export async function fetchTrendingDepartments({ limit = TRENDING_LIMIT } = {}) {
+export async function fetchTrendingDepartments({
+  limit = TRENDING_LIMIT,
+} = {}) {
   const { data, error } = await supabase
-    .from('trending_departments')
+    .from("trending_departments")
     .select(TRENDING_COLUMNS)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .limit(limit);
 
-  if (error) return fail('뜨고 있는 학과', error);
+  if (error) return fail("뜨고 있는 학과", error);
   return ok(data);
 }

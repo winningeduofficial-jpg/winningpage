@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react';
-import GoalPageHeader from '../../components/goal/GoalPageHeader';
-import GoalGaugeCard from '../../components/goal/report/GoalGaugeCard';
-import GoalTable from '../../components/goal/report/GoalTable';
-import AddNaesinGradeModal from '../../components/goal/modals/AddNaesinGradeModal';
-import AddMockExamGradeModal from '../../components/goal/modals/AddMockExamGradeModal';
-import { fetchGoalGrades, fetchGoalStudent, addGoalGrade } from '../../lib/goalApi';
-import { improvementDelta, latestKpi, round1, toTableRows } from '../../lib/goalGrades';
+import { useEffect, useState } from "react";
+import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import GoalGaugeCard from "../../components/goal/report/GoalGaugeCard";
+import GoalTable from "../../components/goal/report/GoalTable";
+import AddNaesinGradeModal from "../../components/goal/modals/AddNaesinGradeModal";
+import AddMockExamGradeModal from "../../components/goal/modals/AddMockExamGradeModal";
+import {
+  fetchGoalGrades,
+  fetchGoalStudent,
+  addGoalGrade,
+} from "../../lib/goalApi";
+import {
+  improvementDelta,
+  latestKpi,
+  round1,
+  toTableRows,
+} from "../../lib/goalGrades";
 
 // 성적 관리(#35) + 내신/모의고사 성적 추가 모달(#36, 4022:5216) — 실데이터 배선.
 //
@@ -34,27 +43,29 @@ export default function Grades() {
   // 바로 쓰는 모양으로 한 번만 합친다 — 소비 지점이 이 컴포넌트 하나뿐이라 goalApi.js의
   // kind 계약을 그대로 노출할 이유가 없다(Dashboard.jsx의 result 보관 방식과는 다른 이유:
   // 거긴 여러 매퍼가 같은 result를 나눠 쓴다).
-  const [state, setState] = useState({ status: 'loading' });
+  const [state, setState] = useState({ status: "loading" });
 
   useEffect(() => {
     let alive = true;
 
-    Promise.all([fetchGoalStudent(), fetchGoalGrades()]).then(([studentResult, gradesResult]) => {
-      if (!alive) return;
+    Promise.all([fetchGoalStudent(), fetchGoalGrades()]).then(
+      ([studentResult, gradesResult]) => {
+        if (!alive) return;
 
-      if (studentResult.kind !== 'onboarded' || gradesResult.kind !== 'ok') {
-        setState({ status: 'error' });
-        return;
-      }
+        if (studentResult.kind !== "onboarded" || gradesResult.kind !== "ok") {
+          setState({ status: "error" });
+          return;
+        }
 
-      setState({
-        status: 'ready',
-        targets: studentResult.student.targets,
-        scores: studentResult.student.scores,
-        naesinRecords: gradesResult.naesinRecords,
-        mockRecords: gradesResult.mockRecords
-      });
-    });
+        setState({
+          status: "ready",
+          targets: studentResult.student.targets,
+          scores: studentResult.student.scores,
+          naesinRecords: gradesResult.naesinRecords,
+          mockRecords: gradesResult.mockRecords,
+        });
+      },
+    );
 
     return () => {
       alive = false;
@@ -63,26 +74,30 @@ export default function Grades() {
 
   async function handleSaveGrade(type, entry) {
     const result = await addGoalGrade(type, entry);
-    if (result.kind !== 'success') {
+    if (result.kind !== "success") {
       const detail =
-        result.kind === 'validation-error'
+        result.kind === "validation-error"
           ? result.detail
-          : result.kind === 'not-allowed'
-            ? '이용권이 필요합니다.'
-            : '저장에 실패했습니다. 다시 시도해 주세요.';
+          : result.kind === "not-allowed"
+            ? "이용권이 필요합니다."
+            : "저장에 실패했습니다. 다시 시도해 주세요.";
       return { ok: false, detail };
     }
 
     // 서버가 돌려준 갱신된 전체 회차 배열로 교체한다 — 재조회 왕복 없이 즉시 반영.
     setState((prev) =>
-      prev.status === 'ready'
-        ? { ...prev, [type === 'naesin' ? 'naesinRecords' : 'mockRecords']: result.records }
-        : prev
+      prev.status === "ready"
+        ? {
+            ...prev,
+            [type === "naesin" ? "naesinRecords" : "mockRecords"]:
+              result.records,
+          }
+        : prev,
     );
     return { ok: true };
   }
 
-  if (state.status !== 'ready') {
+  if (state.status !== "ready") {
     return (
       <>
         <GoalPageHeader
@@ -91,7 +106,9 @@ export default function Grades() {
         />
         <div className="max-w-goal-content px-[3rem] pb-24">
           <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
-            {state.status === 'loading' ? '불러오는 중입니다…' : '성적 데이터를 불러오지 못했습니다. 새로고침해 주세요.'}
+            {state.status === "loading"
+              ? "불러오는 중입니다…"
+              : "성적 데이터를 불러오지 못했습니다. 새로고침해 주세요."}
           </p>
         </div>
       </>
@@ -102,18 +119,24 @@ export default function Grades() {
 
   const naesinKpi = latestKpi(naesinRecords, {
     fallbackValue: scores.convertedGrade,
-    fallbackRound: scores.lastNaesinExam
+    fallbackRound: scores.lastNaesinExam,
   });
   const mockKpi = latestKpi(mockRecords, {
     fallbackValue: scores.currentMogo,
-    fallbackRound: scores.lastMogoExam
+    fallbackRound: scores.lastMogoExam,
   });
 
   // 컷(naesinCut/mockCut)과 현재값(naesinKpi.value/mockKpi.value)이 둘 다 있을 때만 격차를
   // 계산한다 — 값이 없는데 뺄셈을 하면 NaN이 그대로 화면에 노출된다(온보딩 직후 정시 컷이
   // 없는 awaiting_cuts류 학생 등 실제로 값이 비는 경로가 있다, api/goal/intake.js §9-Q1(b)).
-  const naesinCut = targets.min.naesinCut != null && naesinKpi.value != null ? targets.min.naesinCut : null;
-  const mockCut = targets.ideal.jungsiCut != null && mockKpi.value != null ? targets.ideal.jungsiCut : null;
+  const naesinCut =
+    targets.min.naesinCut != null && naesinKpi.value != null
+      ? targets.min.naesinCut
+      : null;
+  const mockCut =
+    targets.ideal.jungsiCut != null && mockKpi.value != null
+      ? targets.ideal.jungsiCut
+      : null;
 
   return (
     <>
@@ -129,8 +152,14 @@ export default function Grades() {
             value={naesinKpi.value}
             unit="등급"
             delta={improvementDelta(naesinKpi.delta, true)}
-            targetLabel={naesinCut != null ? `최소 목표 ${naesinCut} 등급` : undefined}
-            remaining={naesinCut != null ? Math.max(0, round1(naesinKpi.value - naesinCut)) : undefined}
+            targetLabel={
+              naesinCut != null ? `최소 목표 ${naesinCut} 등급` : undefined
+            }
+            remaining={
+              naesinCut != null
+                ? Math.max(0, round1(naesinKpi.value - naesinCut))
+                : undefined
+            }
             lowerIsBetter
           />
           <GoalGaugeCard
@@ -140,7 +169,11 @@ export default function Grades() {
             unit="백분위"
             delta={improvementDelta(mockKpi.delta, false)}
             targetLabel={mockCut != null ? `이상 목표 ${mockCut}` : undefined}
-            remaining={mockCut != null ? Math.max(0, round1(mockCut - mockKpi.value)) : undefined}
+            remaining={
+              mockCut != null
+                ? Math.max(0, round1(mockCut - mockKpi.value))
+                : undefined
+            }
           />
         </div>
 
@@ -163,12 +196,12 @@ export default function Grades() {
       <AddNaesinGradeModal
         open={naesinModalOpen}
         onClose={() => setNaesinModalOpen(false)}
-        onSubmit={(entry) => handleSaveGrade('naesin', entry)}
+        onSubmit={(entry) => handleSaveGrade("naesin", entry)}
       />
       <AddMockExamGradeModal
         open={mockModalOpen}
         onClose={() => setMockModalOpen(false)}
-        onSubmit={(entry) => handleSaveGrade('mock', entry)}
+        onSubmit={(entry) => handleSaveGrade("mock", entry)}
       />
     </>
   );

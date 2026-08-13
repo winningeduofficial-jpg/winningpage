@@ -47,11 +47,16 @@
 // ── 게이트 규약(house style) ─────────────────────────────────────────────
 // 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
 
-import { PAID_MESSAGE, fetchStudentRow, openGoalSession, updateStudentGrades } from '../_lib/goalRepo.js';
+import {
+  PAID_MESSAGE,
+  fetchStudentRow,
+  openGoalSession,
+  updateStudentGrades,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
-const SUBJECT_KEYS = ['korean', 'math', 'english', 'science'];
+const SUBJECT_KEYS = ["korean", "math", "english", "science"];
 
 const GRADE_DOMAIN = { min: 1, max: 9 };
 const PERCENTILE_DOMAIN = { min: 0, max: 100 };
@@ -63,8 +68,15 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // 온보딩 원본 자리를 사람이 착각한 것이므로 거부한다(방어적 검증, 실제로는 select
 // option/자유입력 문자열이 이 값과 우연히 같을 일이 거의 없다).
 const RESERVED_KEYS = {
-  naesin: ['s1mid', 's1final', 's2mid', 's2final', 'priorNaesinGrade', 'records'],
-  mock: ['mar', 'jun', 'sep', 'oct', 'records']
+  naesin: [
+    "s1mid",
+    "s1final",
+    "s2mid",
+    "s2final",
+    "priorNaesinGrade",
+    "records",
+  ],
+  mock: ["mar", "jun", "sep", "oct", "records"],
 };
 
 function round1(value) {
@@ -72,11 +84,11 @@ function round1(value) {
 }
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isNumericInput(raw) {
-  return typeof raw === 'number' || typeof raw === 'string';
+  return typeof raw === "number" || typeof raw === "string";
 }
 
 function isInDomain(raw, domain) {
@@ -94,24 +106,27 @@ function fail(status, detail) {
  * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
  */
 function validateEntry(entry, type) {
-  if (!isPlainObject(entry)) return fail(400, '성적 입력이 올바르지 않습니다.');
+  if (!isPlainObject(entry)) return fail(400, "성적 입력이 올바르지 않습니다.");
 
-  const term = String(entry.term ?? '').trim();
-  if (!term) return fail(400, '회차를 입력해 주세요.');
-  if (term.length > TERM_MAX_LENGTH) return fail(400, '회차 이름이 너무 깁니다.');
+  const term = String(entry.term ?? "").trim();
+  if (!term) return fail(400, "회차를 입력해 주세요.");
+  if (term.length > TERM_MAX_LENGTH)
+    return fail(400, "회차 이름이 너무 깁니다.");
   if (RESERVED_KEYS[type].includes(term)) {
-    return fail(400, '사용할 수 없는 회차 이름입니다.');
+    return fail(400, "사용할 수 없는 회차 이름입니다.");
   }
 
-  const dateField = type === 'naesin' ? entry.enteredAt : entry.examDate;
-  const dateLabel = type === 'naesin' ? '입력일' : '응시일';
-  const dateValue = String(dateField ?? '').trim();
-  if (!DATE_RE.test(dateValue)) return fail(400, `${dateLabel}을 올바르게 입력해 주세요.`);
+  const dateField = type === "naesin" ? entry.enteredAt : entry.examDate;
+  const dateLabel = type === "naesin" ? "입력일" : "응시일";
+  const dateValue = String(dateField ?? "").trim();
+  if (!DATE_RE.test(dateValue))
+    return fail(400, `${dateLabel}을 올바르게 입력해 주세요.`);
 
-  if (!isPlainObject(entry.subjects)) return fail(400, '과목별 점수가 올바르지 않습니다.');
+  if (!isPlainObject(entry.subjects))
+    return fail(400, "과목별 점수가 올바르지 않습니다.");
 
-  const domain = type === 'naesin' ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
-  const domainLabel = type === 'naesin' ? '1~9 등급' : '0~100 백분위';
+  const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
+  const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
 
   const subjects = {};
   for (const key of SUBJECT_KEYS) {
@@ -122,17 +137,20 @@ function validateEntry(entry, type) {
     subjects[key] = Number(raw);
   }
 
-  const value = round1(SUBJECT_KEYS.reduce((sum, key) => sum + subjects[key], 0) / SUBJECT_KEYS.length);
+  const value = round1(
+    SUBJECT_KEYS.reduce((sum, key) => sum + subjects[key], 0) /
+      SUBJECT_KEYS.length,
+  );
 
   return {
     record: {
       term,
-      [type === 'naesin' ? 'enteredAt' : 'examDate']: dateValue,
+      [type === "naesin" ? "enteredAt" : "examDate"]: dateValue,
       subjects,
       value,
       none: false,
-      recordedAt: new Date().toISOString()
-    }
+      recordedAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -149,7 +167,7 @@ function upsertRecord(records, record) {
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -174,8 +192,10 @@ async function handleGet(req, res, session) {
 
   return res.status(200).json({
     onboarded: true,
-    naesinRecords: Array.isArray(naesinScores.records) ? naesinScores.records : [],
-    mockRecords: Array.isArray(mockScores.records) ? mockScores.records : []
+    naesinRecords: Array.isArray(naesinScores.records)
+      ? naesinScores.records
+      : [],
+    mockRecords: Array.isArray(mockScores.records) ? mockScores.records : [],
   });
 }
 
@@ -187,11 +207,12 @@ async function handlePost(req, res, session) {
   }
 
   const body = readBody(req);
-  if (!isPlainObject(body)) return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
 
   const type = body.type;
-  if (type !== 'naesin' && type !== 'mock') {
-    return res.status(400).json({ detail: '성적 유형이 올바르지 않습니다.' });
+  if (type !== "naesin" && type !== "mock") {
+    return res.status(400).json({ detail: "성적 유형이 올바르지 않습니다." });
   }
 
   const validated = validateEntry(body.entry, type);
@@ -201,14 +222,19 @@ async function handlePost(req, res, session) {
 
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row) {
-    return res.status(404).json({ detail: '온보딩을 먼저 완료해 주세요.', reason: 'not_onboarded' });
+    return res
+      .status(404)
+      .json({
+        detail: "온보딩을 먼저 완료해 주세요.",
+        reason: "not_onboarded",
+      });
   }
 
   const record = validated.record;
 
   const patch = {};
   let records;
-  if (type === 'naesin') {
+  if (type === "naesin") {
     const naesinScores = row.naesin_scores || {};
     records = upsertRecord(naesinScores.records, record);
     patch.naesin_scores = { ...naesinScores, records };
@@ -224,8 +250,8 @@ async function handlePost(req, res, session) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -234,10 +260,10 @@ export default async function handler(req, res) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    if (req.method === 'GET') return await handleGet(req, res, session);
+    if (req.method === "GET") return await handleGet(req, res, session);
     return await handlePost(req, res, session);
   } catch (error) {
-    console.error('goal/grades error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/grades error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

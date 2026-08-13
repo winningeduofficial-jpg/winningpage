@@ -16,17 +16,17 @@
 // `내용보기` 는 모달이 아니라 풀페이지 라우트 이동이다(명세 확인 항목 30에서 라우트로 확정 —
 // 근거: Figma 주석 노드 2393:6156 + AgreementRow 의 기존 `<Link to>` 관례). `to` 는
 // MENTOR_AGREEMENTS 가 /terms/student/* 로 이미 매핑해 둔 기존 라우트를 가리킨다.
-import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { AGREEMENT_COPY } from '../../data/mentorApply';
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AGREEMENT_COPY } from "../../data/mentorApply";
 
 // 시안 색은 필수 #0B84FD(accent) / 선택 #D9D9D9 다. 선택 배지에 #D9D9D9(=line 토큰) 을 그대로
 // 쓰면 흰 배경 대비 1.38:1 로 판독이 불가능해, AgreementRow.jsx 의 선례("text-line은 대비
 // 1.38:1로 판독 불가라 상향")를 따라 ink.sub(#808080)로 올렸다.
 const BADGE_CLASSES = {
-  required: 'text-accent',
-  optional: 'text-ink-sub'
+  required: "text-accent",
+  optional: "text-ink-sub",
 };
 
 export default function MentorAgreementBlock({
@@ -34,10 +34,11 @@ export default function MentorAgreementBlock({
   values, // { [key]: boolean }
   onToggle, // (key) => void
   onToggleAll, // () => void
-  error // 필수 항목 미동의 시 표시할 메시지(시안에 에러 상태 없음 — 확인 항목 25)
+  error, // 필수 항목 미동의 시 표시할 메시지(시안에 에러 상태 없음 — 확인 항목 25)
 }) {
   const list = items || [];
-  const allChecked = list.length > 0 && list.every((item) => Boolean(values?.[item.key]));
+  const allChecked =
+    list.length > 0 && list.every((item) => Boolean(values?.[item.key]));
 
   // AgreementList.jsx 와 동일한 batch stagger — "모두 동의합니다"로 한꺼번에 체크될 때만
   // 행마다 40ms 씩 밀어 체크마크를 순차 팝인시킨다(개별 클릭은 그 행만 즉시 반응).
@@ -46,7 +47,10 @@ export default function MentorAgreementBlock({
   useEffect(() => {
     if (!batchAnimating) return undefined;
 
-    const timer = window.setTimeout(() => setBatchAnimating(false), list.length * 40 + 260);
+    const timer = window.setTimeout(
+      () => setBatchAnimating(false),
+      list.length * 40 + 260,
+    );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, list.length]);
 
@@ -91,16 +95,24 @@ export default function MentorAgreementBlock({
                 onClick={() => onToggle?.(item.key)}
                 className="-my-2 flex min-w-0 flex-1 items-center gap-3 py-2 text-left"
               >
-                <CheckBox checked={checked} index={index} popping={batchAnimating && checked} />
+                <CheckBox
+                  checked={checked}
+                  index={index}
+                  popping={batchAnimating && checked}
+                />
 
                 {/* 체크 → gap 12 → 배지 → gap 40 → 항목명 (시안 auto-layout gap 그대로). */}
                 <span className="flex min-w-0 items-center gap-5 md:gap-10">
                   <span
                     className={`shrink-0 text-sm font-medium leading-[1.4] ${
-                      item.required ? BADGE_CLASSES.required : BADGE_CLASSES.optional
+                      item.required
+                        ? BADGE_CLASSES.required
+                        : BADGE_CLASSES.optional
                     }`}
                   >
-                    {item.required ? AGREEMENT_COPY.requiredBadge : AGREEMENT_COPY.optionalBadge}
+                    {item.required
+                      ? AGREEMENT_COPY.requiredBadge
+                      : AGREEMENT_COPY.optionalBadge}
                   </span>
                   <span className="min-w-0 text-sm font-medium leading-[1.4] text-ink">
                     {item.label}
@@ -123,7 +135,10 @@ export default function MentorAgreementBlock({
       </div>
 
       {error && (
-        <p role="alert" className="auth-message-enter text-sm font-medium leading-[1.4] text-error">
+        <p
+          role="alert"
+          className="auth-message-enter text-sm font-medium leading-[1.4] text-error"
+        >
           {error}
         </p>
       )}
@@ -137,10 +152,16 @@ function CheckBox({ checked, index = 0, popping = false }) {
   return (
     <span
       aria-hidden="true"
-      style={popping ? { animationDelay: 'calc(var(--i) * 40ms)', '--i': index } : undefined}
+      style={
+        popping
+          ? { animationDelay: "calc(var(--i) * 40ms)", "--i": index }
+          : undefined
+      }
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
-        checked ? 'border-accent bg-accent text-white' : 'border-line bg-white text-transparent'
-      } ${popping ? 'auth-check-pop' : ''}`}
+        checked
+          ? "border-accent bg-accent text-white"
+          : "border-line bg-white text-transparent"
+      } ${popping ? "auth-check-pop" : ""}`}
     >
       <Check size={14} strokeWidth={3} />
     </span>

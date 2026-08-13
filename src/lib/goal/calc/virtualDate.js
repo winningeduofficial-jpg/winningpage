@@ -25,8 +25,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** YMD 문자열 정규화. 원본 student.mjs:144-150 */
 export function toYMD(v) {
-  if (!v) return '';
-  if (typeof v === 'string') return v.slice(0, 10);
+  if (!v) return "";
+  if (typeof v === "string") return v.slice(0, 10);
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
   return d.toISOString().slice(0, 10);
@@ -34,11 +34,11 @@ export function toYMD(v) {
 
 /** 주어진 시각의 KST(Asia/Seoul) 날짜를 'YYYY-MM-DD' 로. 원본 student.mjs:152-159 */
 export function kstYMD(date = new Date()) {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
@@ -60,7 +60,11 @@ export function kstYMD(date = new Date()) {
  * 실제 KST 경과 일수, diffDaysYMD 로 구한다) — 이 함수는 더 이상 record_date 산출에
  * 쓰이지 않는다. 기존 테스트(virtualDate.test.js) 동결 유지를 위해 본문은 그대로 둔다.
  */
-export function getRecordDateFromActualStart(actualStartDate, recordIndex, now = new Date()) {
+export function getRecordDateFromActualStart(
+  actualStartDate,
+  recordIndex,
+  now = new Date(),
+) {
   if (!actualStartDate) return kstYMD(now);
 
   const d = new Date(`${String(actualStartDate).slice(0, 10)}T00:00:00+09:00`);
@@ -80,7 +84,7 @@ export function getRecordDateFromActualStart(actualStartDate, recordIndex, now =
  */
 export function getDayIndexFromYMDServer(ymd, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
@@ -95,7 +99,7 @@ export function getDayIndexFromYMDServer(ymd, now = new Date()) {
  */
 export function addDaysYMD(ymd, days, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
   return dt.toISOString().slice(0, 10);
 }
@@ -148,7 +152,7 @@ export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
     return {
       startDate,
       endDate: getFirstSundayYMD(startDate, now),
-      weekType: 'mini-onboarding',
+      weekType: "mini-onboarding",
       isProrated: true,
     };
   }
@@ -157,18 +161,22 @@ export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
     return {
       startDate,
       endDate: addDaysYMD(startMonday, 6, now),
-      weekType: 'first-week',
+      weekType: "first-week",
       isProrated: true,
     };
   }
 
   const offsetWeeks = mini ? idx : idx - 1;
-  const periodMonday = addDaysYMD(startMonday, Math.max(0, offsetWeeks) * 7, now);
+  const periodMonday = addDaysYMD(
+    startMonday,
+    Math.max(0, offsetWeeks) * 7,
+    now,
+  );
 
   return {
     startDate: periodMonday,
     endDate: addDaysYMD(periodMonday, 6, now),
-    weekType: 'regular',
+    weekType: "regular",
     isProrated: false,
   };
 }
@@ -184,7 +192,11 @@ export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
  * @deprecated getRecordDateFromActualStart 와 같은 사유로 실제 달력 모델 전환 이후
  * 더 이상 주차 산정에 쓰이지 않는다. 기존 테스트 동결 유지를 위해 본문은 그대로 둔다.
  */
-export function getRegularWeekIndexFromSundayCount(student, sundayCount, now = new Date()) {
+export function getRegularWeekIndexFromSundayCount(
+  student,
+  sundayCount,
+  now = new Date(),
+) {
   const startDate = toYMD(student.actual_start_date) || kstYMD(now);
   const mini = isMiniStartDay(startDate, now);
   return mini ? Math.max(0, sundayCount - 1) : sundayCount;
@@ -210,8 +222,8 @@ export function diffDaysYMD(fromYMD, toYMDValue, now = new Date()) {
   const fromStr = toYMD(fromYMD) || kstYMD(now);
   const toStr = toYMD(toYMDValue) || kstYMD(now);
 
-  const [fy, fm, fd] = fromStr.split('-').map(Number);
-  const [ty, tm, td] = toStr.split('-').map(Number);
+  const [fy, fm, fd] = fromStr.split("-").map(Number);
+  const [ty, tm, td] = toStr.split("-").map(Number);
 
   const fromMs = Date.UTC(fy, fm - 1, fd);
   const toMs = Date.UTC(ty, tm - 1, td);

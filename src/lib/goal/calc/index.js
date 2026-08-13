@@ -33,7 +33,7 @@ export {
   getRemainingMogo,
   calcNaesinProb,
   applyPreHighGradePenalty,
-} from './primitives.js';
+} from "./primitives.js";
 
 // ── jeongsi ─────────────────────────────────────────────────────────────
 export {
@@ -46,7 +46,7 @@ export {
   getPercentileChips,
   getEnglishPenaltyFE,
   calcJeongsiCompositeFE,
-} from './jeongsi.js';
+} from "./jeongsi.js";
 
 // ── bonus ───────────────────────────────────────────────────────────────
 export {
@@ -58,7 +58,7 @@ export {
   calcStudentBonusRates,
   getAchievementRateMultiplier,
   calculateDailyBonus,
-} from './bonus.js';
+} from "./bonus.js";
 
 // ── bonusV2 ─────────────────────────────────────────────────────────────
 // 일별 기록 수식 v2(신시안 "오늘의 공부 기록" #26 전용, 원본 파리티 밖 — 자세한
@@ -66,7 +66,7 @@ export {
 // 공존한다. getAchievementRateMultiplier/TASK_NAESIN/TASK_MOCK_EXAM/
 // TASK_BONUS_MULTIPLIER 는 bonus.js 판이 정본이며 bonusV2.js 가 그대로 재사용한다
 // (위 bonus export 절 참고 — 사본을 만들지 않는다).
-export { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from './bonusV2.js';
+export { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from "./bonusV2.js";
 
 // ── schedule ────────────────────────────────────────────────────────────
 // calcAvailableHoursApprox 만 원본에 없는 우리 앱 전용 근사 어댑터다.
@@ -78,7 +78,7 @@ export {
   calcAvailableHours,
   calculateWeekSchedule,
   calcAvailableHoursApprox,
-} from './schedule.js';
+} from "./schedule.js";
 
 // ── virtualDate ─────────────────────────────────────────────────────────
 // schedule.js 안에도 toYMD/kstYMD/getDayIndexFromYMDServer/addDaysYMD 사본이
@@ -97,7 +97,7 @@ export {
   isMiniStartDay,
   getWeeklyReportRange,
   getRegularWeekIndexFromSundayCount,
-} from './virtualDate.js';
+} from "./virtualDate.js";
 
 // ── pipeline ────────────────────────────────────────────────────────────
 // 위 5개 모듈의 순수 함수를 원본 호출 순서대로 엮은 통합 조립 층. 새 계산 로직은 없다 —
@@ -114,4 +114,4 @@ export {
   isMiddleStudent,
   isElementaryStudent,
   isPreHighStudent,
-} from './pipeline.js';
+} from "./pipeline.js";

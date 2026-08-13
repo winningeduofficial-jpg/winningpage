@@ -1,6 +1,11 @@
-import SelectorBar from './SelectorBar';
-import TrendingChips from './TrendingChips';
-import { CONTAINER, HERO_DESCRIPTION, HERO_EYEBROW, HERO_TITLE } from './constants';
+import SelectorBar from "./SelectorBar";
+import TrendingChips from "./TrendingChips";
+import {
+  CONTAINER,
+  HERO_DESCRIPTION,
+  HERO_EYEBROW,
+  HERO_TITLE,
+} from "./constants";
 
 /**
  * 검색 뷰 (Figma 2029:661) — 히어로 → 셀렉터 바 → 지금 뜨고 있는 학과.
@@ -36,13 +41,16 @@ export default function SearchView({ selector, trending, onSelectTrending }) {
 
         {universityUnavailable ? (
           <p className="mt-3 break-keep text-sm font-medium text-[#8f8f8f]">
-            아직 공개된 입결 데이터가 없습니다. 대학별 최종등록자 교과등급을 준비하고 있습니다.
+            아직 공개된 입결 데이터가 없습니다. 대학별 최종등록자 교과등급을
+            준비하고 있습니다.
           </p>
         ) : null}
       </section>
 
       {trending.length ? (
-        <section className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}>
+        <section
+          className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}
+        >
           <TrendingChips items={trending} onSelect={onSelectTrending} />
         </section>
       ) : (

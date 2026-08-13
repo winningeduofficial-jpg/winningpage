@@ -1,23 +1,34 @@
-import { useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import OnboardingStepShell from '../../components/goal/onboarding/OnboardingStepShell';
-import OnboardingCalculatingOverlay from '../../components/goal/onboarding/OnboardingCalculatingOverlay';
-import Step1School from '../../components/goal/onboarding/steps/Step1School';
-import Step2UpperUniversity from '../../components/goal/onboarding/steps/Step2UpperUniversity';
-import Step3LowerUniversity from '../../components/goal/onboarding/steps/Step3LowerUniversity';
-import Step4Naesin from '../../components/goal/onboarding/steps/Step4Naesin';
-import Step5MockExam from '../../components/goal/onboarding/steps/Step5MockExam';
-import Step6StudyHours from '../../components/goal/onboarding/steps/Step6StudyHours';
-import Step7DailySchedule from '../../components/goal/onboarding/steps/Step7DailySchedule';
-import { GoalOnboardingProvider, useGoalOnboarding } from '../../context/GoalOnboardingContext';
-import { submitGoalIntake } from '../../lib/goalApi';
+import { useState } from "react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
+import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
+import OnboardingCalculatingOverlay from "../../components/goal/onboarding/OnboardingCalculatingOverlay";
+import Step1School from "../../components/goal/onboarding/steps/Step1School";
+import Step2UpperUniversity from "../../components/goal/onboarding/steps/Step2UpperUniversity";
+import Step3LowerUniversity from "../../components/goal/onboarding/steps/Step3LowerUniversity";
+import Step4Naesin from "../../components/goal/onboarding/steps/Step4Naesin";
+import Step5MockExam from "../../components/goal/onboarding/steps/Step5MockExam";
+import Step6StudyHours from "../../components/goal/onboarding/steps/Step6StudyHours";
+import Step7DailySchedule from "../../components/goal/onboarding/steps/Step7DailySchedule";
+import {
+  GoalOnboardingProvider,
+  useGoalOnboarding,
+} from "../../context/GoalOnboardingContext";
+import { submitGoalIntake } from "../../lib/goalApi";
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.
 // step 파라미터는 'step-1' ~ 'step-7'만 유효하고, 범위 밖 값은 1단계로 리다이렉트한다.
 // 마케팅 셸(SiteLayout) 안에서 렌더되므로 헤더/푸터는 이 파일이 그리지 않는다 — Header가
 // position:fixed(4rem)라 pt-16으로 겹침만 보정한다.
-const STEP_ORDER = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6', 'step-7'];
+const STEP_ORDER = [
+  "step-1",
+  "step-2",
+  "step-3",
+  "step-4",
+  "step-5",
+  "step-6",
+  "step-7",
+];
 
 // 계산 로딩 연출 지속 시간(ms) — 시안 #11엔 로딩 시간이 명시돼 있지 않아 임의값(추정).
 const CALCULATING_DURATION_MS = 1400;
@@ -47,7 +58,7 @@ function OnboardingWizard() {
     mockExam,
     studyHours,
     dailySchedule,
-    resetOnboardingFlow
+    resetOnboardingFlow,
   } = useGoalOnboarding();
 
   const stepIndex = STEP_ORDER.indexOf(step);
@@ -110,51 +121,54 @@ function OnboardingWizard() {
       priorNaesinGrade,
       mockExam,
       studyHours,
-      dailySchedule
+      dailySchedule,
     });
 
-    if (result.kind === 'success' || result.kind === 'already-onboarded') {
-      const remaining = Math.max(0, CALCULATING_DURATION_MS - (Date.now() - startedAt));
+    if (result.kind === "success" || result.kind === "already-onboarded") {
+      const remaining = Math.max(
+        0,
+        CALCULATING_DURATION_MS - (Date.now() - startedAt),
+      );
       window.setTimeout(() => {
         resetOnboardingFlow();
-        navigate('/app/goal');
+        navigate("/app/goal");
       }, remaining);
       return;
     }
 
     setIsCalculating(false);
 
-    if (result.kind === 'cuts-missing') {
+    if (result.kind === "cuts-missing") {
       setSubmitError({
-        tone: 'info',
+        tone: "info",
         message:
-          '입력하신 목표 대학의 합격 기준 데이터를 아직 준비 중이에요. 데이터가 준비되는 대로 학습량을 계산해 드릴게요.'
+          "입력하신 목표 대학의 합격 기준 데이터를 아직 준비 중이에요. 데이터가 준비되는 대로 학습량을 계산해 드릴게요.",
       });
       return;
     }
 
-    if (result.kind === 'validation-error') {
+    if (result.kind === "validation-error") {
       setSubmitError({
-        tone: 'error',
-        message: result.detail || '입력 내용을 다시 확인해 주세요.'
+        tone: "error",
+        message: result.detail || "입력 내용을 다시 확인해 주세요.",
       });
       return;
     }
 
-    if (result.kind === 'no-session') {
-      navigate('/login');
+    if (result.kind === "no-session") {
+      navigate("/login");
       return;
     }
 
-    if (result.kind === 'not-allowed') {
-      navigate('/pricing?service=goal');
+    if (result.kind === "not-allowed") {
+      navigate("/pricing?service=goal");
       return;
     }
 
     // result.kind === 'error' — 500 / 네트워크 오류 / 예상 밖 상태코드.
     setSubmitError({
-      tone: 'error',
-      message: '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+      tone: "error",
+      message: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     });
   }
 
@@ -178,9 +192,9 @@ function OnboardingWizard() {
         <div
           role="alert"
           className={`fixed inset-x-0 bottom-[2rem] z-[55] mx-auto w-[calc(100%-2.5rem)] max-w-[28rem] rounded-[0.75rem] border px-[1.25rem] py-[1rem] text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
-            submitError.tone === 'error'
-              ? 'border-red-200 bg-red-50 text-red-600'
-              : 'border-blue-200 bg-blue-50 text-blue-700'
+            submitError.tone === "error"
+              ? "border-red-200 bg-red-50 text-red-600"
+              : "border-blue-200 bg-blue-50 text-blue-700"
           }`}
         >
           {submitError.message}
@@ -192,19 +206,19 @@ function OnboardingWizard() {
 
 function renderStep(step, { goPrev, goNext, onFinish }) {
   switch (step) {
-    case 'step-1':
+    case "step-1":
       return <Step1School goNext={goNext} />;
-    case 'step-2':
+    case "step-2":
       return <Step2UpperUniversity goPrev={goPrev} goNext={goNext} />;
-    case 'step-3':
+    case "step-3":
       return <Step3LowerUniversity goPrev={goPrev} goNext={goNext} />;
-    case 'step-4':
+    case "step-4":
       return <Step4Naesin goPrev={goPrev} goNext={goNext} />;
-    case 'step-5':
+    case "step-5":
       return <Step5MockExam goPrev={goPrev} goNext={goNext} />;
-    case 'step-6':
+    case "step-6":
       return <Step6StudyHours goPrev={goPrev} goNext={goNext} />;
-    case 'step-7':
+    case "step-7":
       return <Step7DailySchedule goPrev={goPrev} onFinish={onFinish} />;
     default:
       return null;

@@ -13,15 +13,21 @@
 export default function GoalProgressBar({
   value = 0,
   max = 100,
-  thickness = '0.75rem',
-  trackClassName = 'bg-surface-01',
-  fillClassName = 'bg-surface-02',
-  className = ''
+  thickness = "0.75rem",
+  trackClassName = "bg-surface-01",
+  fillClassName = "bg-surface-02",
+  className = "",
 }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
-    <div className={`w-full min-w-0 rounded-full ${trackClassName} ${className}`} style={{ height: thickness }}>
-      <div className={`h-full rounded-full ${fillClassName}`} style={{ width: `${pct}%` }} />
+    <div
+      className={`w-full min-w-0 rounded-full ${trackClassName} ${className}`}
+      style={{ height: thickness }}
+    >
+      <div
+        className={`h-full rounded-full ${fillClassName}`}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }

@@ -12,7 +12,10 @@ const InsightColumns = ({ strengths, improvements }) => {
         </h3>
         <ul className="mt-[1.375rem] flex flex-col gap-3 list-disc ps-[1.78125rem]">
           {strengths.map((item, index) => (
-            <li key={index} className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]">
+            <li
+              key={index}
+              className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]"
+            >
               {item}
             </li>
           ))}
@@ -25,7 +28,10 @@ const InsightColumns = ({ strengths, improvements }) => {
         </h3>
         <ul className="mt-[1.375rem] flex flex-col gap-3 list-disc ps-[1.78125rem]">
           {improvements.map((item, index) => (
-            <li key={index} className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]">
+            <li
+              key={index}
+              className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]"
+            >
               {item}
             </li>
           ))}

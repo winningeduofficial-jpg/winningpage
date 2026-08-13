@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_SPEED = 0.035; // px per ms ≈ 35px/s
 const TOUCH_RESUME_DELAY = 700; // 터치 스크롤 종료 후 자동 롤링 재개 유예(ms) — 관성 스크롤과 충돌 방지 가드
@@ -54,7 +54,10 @@ const MIN_REPEAT_COUNT = 3; // 최소 반복 카피 수 (기존 Home.jsx 3배 �
  *   - containerHandlers: pause/드래그 이벤트 핸들러 묶음 — 캐러셀 래퍼(또는 스크롤 컨테이너)에 spread
  *   - recenter: 가운데 사이클 시작점으로 재배치 (탭 전환 등 콘텐츠 교체 시 호출)
  */
-export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}) {
+export function useInfiniteMarquee({
+  itemCount = 0,
+  speed = DEFAULT_SPEED,
+} = {}) {
   const scrollRef = useRef(null);
   const animationFrameRef = useRef(null);
   const touchResumeTimerRef = useRef(null);
@@ -89,21 +92,28 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
     if (!container || !enabled) return undefined;
 
     const updateRepeatCount = () => {
-      const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
+      const cycleWidth = measureCycleWidth(
+        container,
+        itemCountRef.current,
+        repeatCountRef.current,
+      );
       const { clientWidth } = container;
       if (!cycleWidth || !clientWidth) return;
-      const needed = Math.max(MIN_REPEAT_COUNT, Math.ceil(clientWidth / cycleWidth) + 2);
+      const needed = Math.max(
+        MIN_REPEAT_COUNT,
+        Math.ceil(clientWidth / cycleWidth) + 2,
+      );
       if (needed > repeatCountRef.current) {
         setRepeatCount(needed);
       }
     };
 
     const frame = window.requestAnimationFrame(updateRepeatCount);
-    window.addEventListener('resize', updateRepeatCount);
+    window.addEventListener("resize", updateRepeatCount);
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', updateRepeatCount);
+      window.removeEventListener("resize", updateRepeatCount);
     };
   }, [enabled, itemCount, repeatCount]);
 
@@ -113,18 +123,22 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
     if (!container || !enabled) return undefined;
 
     const positionAtMiddle = () => {
-      const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
+      const cycleWidth = measureCycleWidth(
+        container,
+        itemCountRef.current,
+        repeatCountRef.current,
+      );
       if (cycleWidth) {
-        container.scrollTo({ left: cycleWidth, behavior: 'auto' });
+        container.scrollTo({ left: cycleWidth, behavior: "auto" });
       }
     };
 
     const frame = window.requestAnimationFrame(positionAtMiddle);
-    window.addEventListener('resize', positionAtMiddle);
+    window.addEventListener("resize", positionAtMiddle);
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', positionAtMiddle);
+      window.removeEventListener("resize", positionAtMiddle);
     };
   }, [enabled, itemCount, repeatCount]);
 
@@ -132,12 +146,12 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
   useEffect(() => {
     if (!enabled) return undefined;
 
-    const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const mediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     let reducedMotion = Boolean(mediaQuery?.matches);
     const handleMotionChange = (event) => {
       reducedMotion = event.matches;
     };
-    mediaQuery?.addEventListener?.('change', handleMotionChange);
+    mediaQuery?.addEventListener?.("change", handleMotionChange);
 
     let previousTime = performance.now();
 
@@ -147,7 +161,10 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       previousTime = currentTime;
 
       const isPaused =
-        reducedMotion || hoveringRef.current || draggingRef.current || touchActiveRef.current;
+        reducedMotion ||
+        hoveringRef.current ||
+        draggingRef.current ||
+        touchActiveRef.current;
 
       if (container) {
         if (!isPaused) {
@@ -164,7 +181,11 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
         // pause 중 수동 스크롤(휠/트랙패드/드래그)도 같은 scrollLeft 좌표계이므로
         // 항상 normalize — 사용자가 카피 스트립 물리적 끝에 도달하는 것을 방지.
         // 래핑은 실측 주기(cycleWidth)의 정확한 배수라 시각적으로 seamless.
-        normalizeScrollPosition(container, itemCountRef.current, repeatCountRef.current);
+        normalizeScrollPosition(
+          container,
+          itemCountRef.current,
+          repeatCountRef.current,
+        );
       }
 
       animationFrameRef.current = window.requestAnimationFrame(animate);
@@ -174,7 +195,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
 
     return () => {
       window.cancelAnimationFrame(animationFrameRef.current);
-      mediaQuery?.removeEventListener?.('change', handleMotionChange);
+      mediaQuery?.removeEventListener?.("change", handleMotionChange);
     };
   }, [enabled]);
 
@@ -186,16 +207,20 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       detachWindowReleaseRef.current?.();
       detachWindowReleaseRef.current = null;
     },
-    []
+    [],
   );
 
   // 가운데 사이클 시작점으로 재배치 (탭 전환 등 콘텐츠 교체 시 소비 측에서 호출)
   const recenter = useCallback(() => {
     const container = scrollRef.current;
     if (!container || itemCountRef.current <= 1) return;
-    const cycleWidth = measureCycleWidth(container, itemCountRef.current, repeatCountRef.current);
+    const cycleWidth = measureCycleWidth(
+      container,
+      itemCountRef.current,
+      repeatCountRef.current,
+    );
     if (cycleWidth) {
-      container.scrollTo({ left: cycleWidth, behavior: 'auto' });
+      container.scrollTo({ left: cycleWidth, behavior: "auto" });
     }
   }, []);
 
@@ -206,7 +231,11 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       window.clearTimeout(touchResumeTimerRef.current);
       touchResumeTimerRef.current = window.setTimeout(() => {
         touchActiveRef.current = false;
-        normalizeScrollPosition(scrollRef.current, itemCountRef.current, repeatCountRef.current);
+        normalizeScrollPosition(
+          scrollRef.current,
+          itemCountRef.current,
+          repeatCountRef.current,
+        );
       }, TOUCH_RESUME_DELAY);
     };
 
@@ -218,7 +247,11 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       const deltaX = event.clientX - dragLastXRef.current;
       dragLastXRef.current = event.clientX;
       container.scrollLeft -= deltaX;
-      normalizeScrollPosition(container, itemCountRef.current, repeatCountRef.current);
+      normalizeScrollPosition(
+        container,
+        itemCountRef.current,
+        repeatCountRef.current,
+      );
     };
 
     const detachWindowRelease = () => {
@@ -245,7 +278,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
         hoveringRef.current = false;
       },
       onPointerDown: (event) => {
-        const isTouch = event.pointerType === 'touch';
+        const isTouch = event.pointerType === "touch";
         const isDragPointer = !isTouch && event.button === 0;
 
         // 우클릭 등 button !== 0 pointerdown은 pause 상태에 전혀 관여하지 않는다.
@@ -269,14 +302,14 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
         // 마우스 드래그가 컨테이너 밖에서 끝나도 release 되도록 window 폴백 등록
         detachWindowRelease();
         if (isDragPointer) {
-          window.addEventListener('pointermove', handleDragMove);
+          window.addEventListener("pointermove", handleDragMove);
         }
-        window.addEventListener('pointerup', handleRelease);
-        window.addEventListener('pointercancel', handleRelease);
+        window.addEventListener("pointerup", handleRelease);
+        window.addEventListener("pointercancel", handleRelease);
         detachWindowReleaseRef.current = () => {
-          window.removeEventListener('pointermove', handleDragMove);
-          window.removeEventListener('pointerup', handleRelease);
-          window.removeEventListener('pointercancel', handleRelease);
+          window.removeEventListener("pointermove", handleDragMove);
+          window.removeEventListener("pointerup", handleRelease);
+          window.removeEventListener("pointercancel", handleRelease);
         };
       },
       onPointerUp: handleRelease,
@@ -284,7 +317,7 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
       // 이미지 네이티브 드래그가 드래그-투-스크롤을 가로채지 않도록 차단
       onDragStart: (event) => {
         event.preventDefault();
-      }
+      },
     };
   }, []);
 
@@ -302,7 +335,11 @@ export function useInfiniteMarquee({ itemCount = 0, speed = DEFAULT_SPEED } = {}
  * 트랙 탐색: scrollRef가 래퍼(div > ul)에 붙는 경우가 있어 단일 자식 래퍼를
  * 통과해 반복 아이템을 직접 담는 요소를 찾는다.
  */
-function measureCycleWidth(container, itemCount, repeatCount = MIN_REPEAT_COUNT) {
+function measureCycleWidth(
+  container,
+  itemCount,
+  repeatCount = MIN_REPEAT_COUNT,
+) {
   if (!container) return 0;
 
   let track = container;
@@ -320,7 +357,11 @@ function measureCycleWidth(container, itemCount, repeatCount = MIN_REPEAT_COUNT)
   return container.scrollWidth / repeatCount;
 }
 
-function normalizeScrollPosition(container, itemCount, repeatCount = MIN_REPEAT_COUNT) {
+function normalizeScrollPosition(
+  container,
+  itemCount,
+  repeatCount = MIN_REPEAT_COUNT,
+) {
   if (!container) return;
 
   const cycleWidth = measureCycleWidth(container, itemCount, repeatCount);

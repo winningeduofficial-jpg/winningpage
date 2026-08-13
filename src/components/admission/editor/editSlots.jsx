@@ -1,6 +1,6 @@
-import CellEditor from './cells/CellEditor';
-import ImeSafeInput from './ImeSafeInput';
-import ColumnRoleEditor from './ColumnRoleEditor';
+import CellEditor from "./cells/CellEditor";
+import ImeSafeInput from "./ImeSafeInput";
+import ColumnRoleEditor from "./ColumnRoleEditor";
 
 // 표 골격(table/AdmissionTable.jsx)의 **편집 모드 리프**. viewSlots.jsx가
 // 표시 쪽 <th>/<td> 안쪽을 소유하는 것과 정확히 대칭이며, 여기서도
@@ -58,9 +58,9 @@ import ColumnRoleEditor from './ColumnRoleEditor';
  */
 export const EDIT_PARITY_FROZEN = {
   cellClassNames: true,
-  groupHeader: 'flatten',
+  groupHeader: "flatten",
   emptyFallback: false,
-  scrollWrapExtra: 'max-w-full overflow-x-auto'
+  scrollWrapExtra: "max-w-full overflow-x-auto",
 };
 
 /**
@@ -86,7 +86,7 @@ export default function createEditSlots({
   columnMutationAllowed,
   onUpdateColumnField,
   onRemoveColumn,
-  onUpdateCell
+  onUpdateCell,
 }) {
   return {
     // <th> 안쪽 — 구 TableBlockEditor.jsx:275-315
@@ -100,8 +100,8 @@ export default function createEditSlots({
               투명, hover/focus에서만 드러낸다(셀 입력과 동일 원칙). */}
           <ImeSafeInput
             type="text"
-            value={column?.label ?? ''}
-            onCommit={(next) => onUpdateColumnField(colIdx, 'label', next)}
+            value={column?.label ?? ""}
+            onCommit={(next) => onUpdateColumnField(colIdx, "label", next)}
             aria-label={`컬럼 ${colIdx + 1} 라벨`}
             className="admission-cell-editor-input w-full border border-transparent bg-transparent px-1.5 py-1 text-xs font-bold outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
           />
@@ -110,11 +110,17 @@ export default function createEditSlots({
               <ColumnRoleEditor
                 variant={block.variant}
                 role={column?.role}
-                onChange={(next) => onUpdateColumnField(colIdx, 'role', next)}
+                onChange={(next) => onUpdateColumnField(colIdx, "role", next)}
               />
               <select
-                value={column?.align ?? ''}
-                onChange={(e) => onUpdateColumnField(colIdx, 'align', e.target.value || undefined)}
+                value={column?.align ?? ""}
+                onChange={(e) =>
+                  onUpdateColumnField(
+                    colIdx,
+                    "align",
+                    e.target.value || undefined,
+                  )
+                }
                 aria-label={`컬럼 ${colIdx + 1} 정렬`}
                 className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
               >
@@ -150,9 +156,11 @@ export default function createEditSlots({
       <CellEditor
         roleKind={cellDesc.edit.kind}
         value={cellDesc.raw}
-        onChange={(next) => onUpdateCell(cellDesc.rowIdx, cellDesc.colIdx, next)}
+        onChange={(next) =>
+          onUpdateCell(cellDesc.rowIdx, cellDesc.colIdx, next)
+        }
       />
-    )
+    ),
 
     // rowTrailing / headTrailing 슬롯은 Step 7d에서 제거됐다. 행 조작(↑/↓/
     // 삭제)과 "+ 열 추가"는 TableBlockEditor가 표 바깥에서 렌더한다 —

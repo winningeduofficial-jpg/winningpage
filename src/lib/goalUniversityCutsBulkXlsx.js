@@ -31,58 +31,75 @@
 // 축이 동치가 된다. 파일 내부 중복 선검출은 name 축으로 한다.
 // =====================================================================
 
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
-import { clean } from './admissionParsing.js';
+import { clean } from "./admissionParsing.js";
 
 // sql/55_goal_management.sql 의 goal_university_cuts_avg_cut_check 를
 // 클라이언트에 미러한 것이다. Admin.jsx 의 config.validate 와 이 lib 의
 // 엑셀 파서가 같은 상수를 봐야 두 입력 경로의 판정이 갈라지지 않는다 —
 // 그래서 Admin.jsx 에 따로 선언하지 않고 여기서 export 해 쓴다.
 export const GOAL_CUT_RANGE = {
-  normal: { min: 1, max: 9, unit: '등급', label: '내신 등급 1~9 (작을수록 우세)' },
-  special: { min: 1, max: 9, unit: '등급', label: '내신 등급 1~9 (작을수록 우세)' },
-  jungsi: { min: 0, max: 100, unit: '백분위', label: '정시 백분위 0~100 (클수록 우세)' }
+  normal: {
+    min: 1,
+    max: 9,
+    unit: "등급",
+    label: "내신 등급 1~9 (작을수록 우세)",
+  },
+  special: {
+    min: 1,
+    max: 9,
+    unit: "등급",
+    label: "내신 등급 1~9 (작을수록 우세)",
+  },
+  jungsi: {
+    min: 0,
+    max: 100,
+    unit: "백분위",
+    label: "정시 백분위 0~100 (클수록 우세)",
+  },
 };
 
 // DB 컬럼 ↔ 엑셀 헤더. university_key / department_key 는 컬럼으로 두지
 // 않는다 — 어드민은 항상 표시명과 동일하게 강제하고(명세 §3-D5) 파서가
 // name 에서 복사한다. created_at / updated_at 은 DB 가 관리한다.
 export const GOAL_CUTS_XLSX_COLUMNS = [
-  { key: 'id', header: 'id' },
-  { key: 'cut_type', header: '컷 종류' },
-  { key: 'university_name', header: '대학명' },
-  { key: 'department_name', header: '학과명' },
-  { key: 'avg_cut', header: '컷 값' },
-  { key: 'source', header: '출처' },
-  { key: 'source_year', header: '기준 연도' },
-  { key: 'is_active', header: '노출' },
-  { key: 'note', header: '운영 메모' }
+  { key: "id", header: "id" },
+  { key: "cut_type", header: "컷 종류" },
+  { key: "university_name", header: "대학명" },
+  { key: "department_name", header: "학과명" },
+  { key: "avg_cut", header: "컷 값" },
+  { key: "source", header: "출처" },
+  { key: "source_year", header: "기준 연도" },
+  { key: "is_active", header: "노출" },
+  { key: "note", header: "운영 메모" },
 ];
 
-export const GOAL_CUTS_XLSX_HEADERS = GOAL_CUTS_XLSX_COLUMNS.map((c) => c.header);
-export const GOAL_CUTS_XLSX_SHEET_NAME = '목표관리 대학 컷';
+export const GOAL_CUTS_XLSX_HEADERS = GOAL_CUTS_XLSX_COLUMNS.map(
+  (c) => c.header,
+);
+export const GOAL_CUTS_XLSX_SHEET_NAME = "목표관리 대학 컷";
 
 // 엑셀 셀의 한글 라벨 ↔ DB 값. 폼(GOAL_CUT_TYPE_OPTIONS)의 라벨과 일부러
 // 다르게 짧게 뒀다 — 엑셀에서는 셀 폭이 좁고 관리자가 직접 타이핑한다.
 export const CUT_TYPE_LABEL_BY_VALUE = {
-  normal: '수시 일반',
-  special: '수시 특목',
-  jungsi: '정시'
+  normal: "수시 일반",
+  special: "수시 특목",
+  jungsi: "정시",
 };
 export const CUT_TYPE_VALUE_BY_LABEL = {
-  '수시 일반': 'normal',
-  '수시 특목': 'special',
-  정시: 'jungsi'
+  "수시 일반": "normal",
+  "수시 특목": "special",
+  정시: "jungsi",
 };
 
 export const SOURCE_LABEL_BY_VALUE = {
-  admission_results: '입결정보 유도',
-  manual: '수기 입력'
+  admission_results: "입결정보 유도",
+  manual: "수기 입력",
 };
 export const SOURCE_VALUE_BY_LABEL = {
-  '입결정보 유도': 'admission_results',
-  '수기 입력': 'manual'
+  "입결정보 유도": "admission_results",
+  "수기 입력": "manual",
 };
 
 // source_year 는 smallint 다. DB 에 CHECK 는 없지만 오타(20260 등)를
@@ -95,16 +112,18 @@ export const SOURCE_YEAR_MAX = 2100;
 // 못박은 도메인 lib 이라, 상수만 끌어와 결합을 만들지 않고 여기 둔다.
 export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
-  '…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]';
+  "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
 function serializeExportCell(rawValue) {
-  if (rawValue === null || rawValue === undefined) return '';
-  if (typeof rawValue === 'boolean' || typeof rawValue === 'number') return rawValue;
+  if (rawValue === null || rawValue === undefined) return "";
+  if (typeof rawValue === "boolean" || typeof rawValue === "number")
+    return rawValue;
   return String(rawValue);
 }
 
 function truncateIfNeeded(value, location, truncatedCells) {
-  if (typeof value !== 'string' || value.length <= MAX_XLSX_CELL_LENGTH) return value;
+  if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
+    return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
   truncatedCells.push({ ...location, originalLength: value.length });
   return value.slice(0, keep) + TRUNCATION_MARKER;
@@ -116,10 +135,10 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // 넘기므로 이 함수가 손대지 않는다(컷 값이 문자열로 오인되지 않는다).
 function forceStringCellTypes(worksheet) {
   Object.keys(worksheet).forEach((address) => {
-    if (address.startsWith('!')) return;
+    if (address.startsWith("!")) return;
     const cell = worksheet[address];
-    if (cell && typeof cell.v === 'string') {
-      cell.t = 's';
+    if (cell && typeof cell.v === "string") {
+      cell.t = "s";
       delete cell.f;
     }
   });
@@ -131,22 +150,22 @@ function forceStringCellTypes(worksheet) {
 // 오판된다. avg_cut 은 jungsi 스케일에서 0 이 합법(백분위 0)이므로 숫자
 // 컬럼은 반드시 이 헬퍼를 쓴다.
 function numericCellText(value) {
-  if (value === null || value === undefined) return '';
+  if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
 function parseBooleanCell(value, fallback = true) {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
-  if (s === 'Y' || s === 'TRUE' || s === '1' || s === 'O') return true;
-  if (s === 'N' || s === 'FALSE' || s === '0' || s === 'X') return false;
+  if (s === "Y" || s === "TRUE" || s === "1" || s === "O") return true;
+  if (s === "N" || s === "FALSE" || s === "0" || s === "X") return false;
   return fallback;
 }
 
 function buildTypeCounts(items) {
   return items.reduce((acc, item) => {
-    const key = item.type || 'unknown';
+    const key = item.type || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
@@ -165,20 +184,20 @@ export function exportGoalUniversityCutRowsToXlsx(rows) {
   const dataRows = (rows || []).map((row, rowIndex) =>
     GOAL_CUTS_XLSX_COLUMNS.map((column) => {
       let raw = row?.[column.key];
-      if (column.key === 'cut_type') raw = CUT_TYPE_LABEL_BY_VALUE[raw] ?? raw;
-      else if (column.key === 'source') raw = SOURCE_LABEL_BY_VALUE[raw] ?? raw;
-      else if (column.key === 'is_active') raw = raw === false ? 'N' : 'Y';
+      if (column.key === "cut_type") raw = CUT_TYPE_LABEL_BY_VALUE[raw] ?? raw;
+      else if (column.key === "source") raw = SOURCE_LABEL_BY_VALUE[raw] ?? raw;
+      else if (column.key === "is_active") raw = raw === false ? "N" : "Y";
       const serialized = serializeExportCell(raw);
       return truncateIfNeeded(
         serialized,
         { id: row?.id, rowIndex, column: column.header },
-        truncatedCells
+        truncatedCells,
       );
-    })
+    }),
   );
 
   const worksheet = forceStringCellTypes(
-    XLSX.utils.aoa_to_sheet([GOAL_CUTS_XLSX_HEADERS, ...dataRows])
+    XLSX.utils.aoa_to_sheet([GOAL_CUTS_XLSX_HEADERS, ...dataRows]),
   );
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, GOAL_CUTS_XLSX_SHEET_NAME);
@@ -187,7 +206,7 @@ export function exportGoalUniversityCutRowsToXlsx(rows) {
 }
 
 function naturalKeyOf(cutType, universityName, departmentName) {
-  return [cutType, universityName, departmentName].join('::');
+  return [cutType, universityName, departmentName].join("::");
 }
 
 /**
@@ -223,8 +242,12 @@ function naturalKeyOf(cutType, universityName, departmentName) {
  *   }
  * }}
  */
-export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById) {
-  const idMap = existingCutTypeById instanceof Map ? existingCutTypeById : new Map();
+export function parseGoalUniversityCutRowsFromXlsx(
+  workbook,
+  existingCutTypeById,
+) {
+  const idMap =
+    existingCutTypeById instanceof Map ? existingCutTypeById : new Map();
   const sheetName = workbook?.SheetNames?.[0];
   const worksheet = sheetName ? workbook.Sheets[sheetName] : null;
   const errors = [];
@@ -245,8 +268,8 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
         willUpdate,
         willSkip,
         warningCounts: buildTypeCounts(warnings),
-        errorCounts: buildTypeCounts(errors)
-      }
+        errorCounts: buildTypeCounts(errors),
+      },
     };
   }
 
@@ -258,7 +281,7 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       departmentName: ctx.departmentName,
       column: ctx.column,
       type,
-      reason
+      reason,
     });
     willSkip += 1;
   }
@@ -271,7 +294,7 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       departmentName: ctx.departmentName,
       column: ctx.column,
       type,
-      reason
+      reason,
     });
   }
 
@@ -281,8 +304,8 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       cutType: null,
       universityName: null,
       departmentName: null,
-      type: 'sheetNotFound',
-      reason: '시트를 찾을 수 없습니다.'
+      type: "sheetNotFound",
+      reason: "시트를 찾을 수 없습니다.",
     });
     return summarize();
   }
@@ -293,8 +316,13 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
   const columnIndexByHeader = new Map();
   headerRow.forEach((name, idx) => {
-    const key = typeof name === 'string' ? name.trim() : name;
-    if (key !== undefined && key !== null && key !== '' && !columnIndexByHeader.has(key)) {
+    const key = typeof name === "string" ? name.trim() : name;
+    if (
+      key !== undefined &&
+      key !== null &&
+      key !== "" &&
+      !columnIndexByHeader.has(key)
+    ) {
       columnIndexByHeader.set(key, idx);
     }
   });
@@ -303,7 +331,12 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
   bodyRows.forEach((rawRow, rowIndex) => {
     const cells = Array.isArray(rawRow) ? rawRow : [];
     // 완전히 빈 행(엑셀 트레일링 공백 등)은 조용히 건너뛴다.
-    if (!cells.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')) {
+    if (
+      !cells.some(
+        (cell) =>
+          cell !== undefined && cell !== null && String(cell).trim() !== "",
+      )
+    ) {
       return;
     }
 
@@ -317,19 +350,20 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       rowIndex,
       cutType: clean(rowObj.cut_type),
       universityName: clean(rowObj.university_name),
-      departmentName: clean(rowObj.department_name)
+      departmentName: clean(rowObj.department_name),
     };
 
     // (1) 잘림 마커 — 어느 컬럼에서 발견되든 행 전체를 거부한다.
     const truncatedHeaders = GOAL_CUTS_XLSX_COLUMNS.filter(
       (column) =>
-        typeof rowObj[column.key] === 'string' && rowObj[column.key].includes(TRUNCATION_MARKER)
+        typeof rowObj[column.key] === "string" &&
+        rowObj[column.key].includes(TRUNCATION_MARKER),
     ).map((column) => column.header);
     if (truncatedHeaders.length) {
       fail(
-        'truncatedColumn',
-        `잘림 마커가 있는 컬럼(${truncatedHeaders.join(', ')})이 있어 행을 거부합니다.`,
-        ctx
+        "truncatedColumn",
+        `잘림 마커가 있는 컬럼(${truncatedHeaders.join(", ")})이 있어 행을 거부합니다.`,
+        ctx,
       );
       return;
     }
@@ -340,14 +374,17 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     if (idText) {
       const parsed = Number(idText);
       if (!Number.isInteger(parsed) || parsed <= 0) {
-        fail('invalidId', `id "${rowObj.id}" 가 정수가 아닙니다.`, { ...ctx, column: 'id' });
+        fail("invalidId", `id "${rowObj.id}" 가 정수가 아닙니다.`, {
+          ...ctx,
+          column: "id",
+        });
         return;
       }
       if (!idMap.has(parsed)) {
         fail(
-          'idNotFound',
+          "idNotFound",
           `id ${parsed} 인 행이 DB 에 없습니다(다른 관리자가 삭제했을 수 있습니다). 신규 등록하려면 id 를 비워 주세요.`,
-          { ...ctx, column: 'id' }
+          { ...ctx, column: "id" },
         );
         return;
       }
@@ -358,14 +395,18 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     // (3) 필수값. is_active 는 parseBooleanCell 이 항상 true/false 를
     // 돌려주므로(fallback true) 필수값 검사 대상이 아니다.
     const missing = [];
-    if (!ctx.cutType) missing.push('컷 종류');
-    if (!ctx.universityName) missing.push('대학명');
+    if (!ctx.cutType) missing.push("컷 종류");
+    if (!ctx.universityName) missing.push("대학명");
     // 학과명은 필수다 — 빈 학과명 행은 어떤 학생에게도 매칭되지 않는다.
     // 온보딩이 학과를 필수로 요구하고(Step2/3UpperUniversity), 확률 조회가
     // 학과명 완전일치라(goalRepo.fetchUniversityCut) 도달 경로가 없다.
-    if (!ctx.departmentName) missing.push('학과명');
+    if (!ctx.departmentName) missing.push("학과명");
     if (missing.length) {
-      fail('missingRequiredFields', `${missing.join(', ')}가 비어 있습니다.`, ctx);
+      fail(
+        "missingRequiredFields",
+        `${missing.join(", ")}가 비어 있습니다.`,
+        ctx,
+      );
       return;
     }
 
@@ -373,9 +414,9 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     const cutType = CUT_TYPE_VALUE_BY_LABEL[ctx.cutType];
     if (!cutType) {
       fail(
-        'invalidCutType',
-        `컷 종류 "${ctx.cutType}" 은(는) 허용 값(${Object.keys(CUT_TYPE_VALUE_BY_LABEL).join('|')})이 아닙니다.`,
-        { ...ctx, column: '컷 종류' }
+        "invalidCutType",
+        `컷 종류 "${ctx.cutType}" 은(는) 허용 값(${Object.keys(CUT_TYPE_VALUE_BY_LABEL).join("|")})이 아닙니다.`,
+        { ...ctx, column: "컷 종류" },
       );
       return;
     }
@@ -387,9 +428,9 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       const dbCutType = idMap.get(existingId);
       if (dbCutType && dbCutType !== cutType) {
         fail(
-          'cutTypeChanged',
+          "cutTypeChanged",
           `id ${existingId} 행의 컷 종류를 ${CUT_TYPE_LABEL_BY_VALUE[dbCutType] || dbCutType} → ${ctx.cutType} 로 바꿀 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.`,
-          { ...ctx, column: '컷 종류' }
+          { ...ctx, column: "컷 종류" },
         );
         return;
       }
@@ -403,17 +444,21 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     if (avgCutText) {
       const num = Number(avgCutText);
       if (!Number.isFinite(num)) {
-        fail('invalidNumber', `컷 값 "${rowObj.avg_cut}" 이(가) 숫자가 아닙니다.`, {
-          ...ctx,
-          column: '컷 값'
-        });
+        fail(
+          "invalidNumber",
+          `컷 값 "${rowObj.avg_cut}" 이(가) 숫자가 아닙니다.`,
+          {
+            ...ctx,
+            column: "컷 값",
+          },
+        );
         return;
       }
       if (num < range.min || num > range.max) {
         fail(
-          'cutScaleOutOfRange',
+          "cutScaleOutOfRange",
           `컷 값 ${num} 이(가) 선택한 컷 종류(${range.label})의 범위를 벗어났습니다 — ${range.min} ~ ${range.max} 사이여야 합니다.`,
-          { ...ctx, column: '컷 값' }
+          { ...ctx, column: "컷 값" },
         );
         return;
       }
@@ -425,11 +470,15 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     let sourceYear = null;
     if (sourceYearText) {
       const num = Number(sourceYearText);
-      if (!Number.isInteger(num) || num < SOURCE_YEAR_MIN || num > SOURCE_YEAR_MAX) {
+      if (
+        !Number.isInteger(num) ||
+        num < SOURCE_YEAR_MIN ||
+        num > SOURCE_YEAR_MAX
+      ) {
         fail(
-          'invalidSourceYear',
+          "invalidSourceYear",
           `기준 연도 "${rowObj.source_year}" 는 ${SOURCE_YEAR_MIN}~${SOURCE_YEAR_MAX} 사이 정수여야 합니다.`,
-          { ...ctx, column: '기준 연도' }
+          { ...ctx, column: "기준 연도" },
         );
         return;
       }
@@ -440,13 +489,17 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     // 축이다. 어드민은 key := name 을 강제하므로 key 축과도 동치다.
     // DB 유일성 위반으로 청크 전체가 롤백되는 것보다 미리보기에서
     // 거부하는 게 낫다.
-    const naturalKey = naturalKeyOf(cutType, ctx.universityName, ctx.departmentName);
+    const naturalKey = naturalKeyOf(
+      cutType,
+      ctx.universityName,
+      ctx.departmentName,
+    );
     if (seenNaturalKeys.has(naturalKey)) {
       const firstRow = seenNaturalKeys.get(naturalKey);
       fail(
-        'duplicateNaturalKey',
+        "duplicateNaturalKey",
         `행 ${firstRow + 1} 과(와) 컷 종류·대학명·학과명이 동일합니다.`,
-        ctx
+        ctx,
       );
       return;
     }
@@ -455,29 +508,41 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     const isActive = parseBooleanCell(rowObj.is_active, true);
 
     // (9) 경고 4종 — 거부는 아니지만 관리자가 확인해야 하는 값.
-    if (cutType === 'jungsi' && avgCut !== null && avgCut <= 9) {
+    if (cutType === "jungsi" && avgCut !== null && avgCut <= 9) {
       warn(
-        'jungsiLooksLikeGrade',
-        '정시 컷에 9 이하 값이 들어 있습니다. 내신 등급을 잘못 넣은 것은 아닌지 확인해 주세요.',
-        { ...ctx, column: '컷 값' }
+        "jungsiLooksLikeGrade",
+        "정시 컷에 9 이하 값이 들어 있습니다. 내신 등급을 잘못 넣은 것은 아닌지 확인해 주세요.",
+        { ...ctx, column: "컷 값" },
       );
     }
-    if ((cutType === 'normal' || cutType === 'special') && avgCut !== null && avgCut >= 8) {
-      warn('naesinCutTooHigh', '수시 컷이 8등급 이상입니다 — 값이 맞는지 확인해 주세요.', {
-        ...ctx,
-        column: '컷 값'
-      });
+    if (
+      (cutType === "normal" || cutType === "special") &&
+      avgCut !== null &&
+      avgCut >= 8
+    ) {
+      warn(
+        "naesinCutTooHigh",
+        "수시 컷이 8등급 이상입니다 — 값이 맞는지 확인해 주세요.",
+        {
+          ...ctx,
+          column: "컷 값",
+        },
+      );
     }
     if (avgCut === null) {
-      warn('cutMissing', '컷 값이 비어 있어 이 조합은 온보딩에서 422로 막힙니다.', {
-        ...ctx,
-        column: '컷 값'
-      });
+      warn(
+        "cutMissing",
+        "컷 값이 비어 있어 이 조합은 온보딩에서 422로 막힙니다.",
+        {
+          ...ctx,
+          column: "컷 값",
+        },
+      );
     }
     if (!isActive) {
-      warn('inactiveRow', '노출을 끄면 학생 온보딩 목록에서 사라집니다.', {
+      warn("inactiveRow", "노출을 끄면 학생 온보딩 목록에서 사라집니다.", {
         ...ctx,
-        column: '노출'
+        column: "노출",
       });
     }
     // 출처 셀은 알려진 라벨 2종이 아니면 아래 payload 에서 조용히 'manual'
@@ -488,9 +553,9 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
     const rawSource = clean(rowObj.source);
     if (rawSource && !SOURCE_VALUE_BY_LABEL[rawSource]) {
       warn(
-        'unknownSource',
+        "unknownSource",
         `출처 "${rawSource}" 를 알 수 없어 '수기 입력'으로 저장됩니다 — 이 행은 이후 백필 재실행에서 갱신되지 않습니다.`,
-        { ...ctx, column: '출처' }
+        { ...ctx, column: "출처" },
       );
     }
 
@@ -510,10 +575,10 @@ export function parseGoalUniversityCutRowsFromXlsx(workbook, existingCutTypeById
       department_key: ctx.departmentName,
       department_name: ctx.departmentName,
       avg_cut: avgCut,
-      source: SOURCE_VALUE_BY_LABEL[rawSource] || 'manual',
+      source: SOURCE_VALUE_BY_LABEL[rawSource] || "manual",
       source_year: sourceYear,
       is_active: isActive,
-      note: clean(rowObj.note) || null
+      note: clean(rowObj.note) || null,
     };
     if (!isInsert) payload.id = existingId;
     rows.push(payload);

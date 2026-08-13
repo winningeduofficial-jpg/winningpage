@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import RequireEntitlement from '../RequireEntitlement';
-import { isOnboardingDone } from '../../lib/goalOnboarding';
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import RequireEntitlement from "../RequireEntitlement";
+import { isOnboardingDone } from "../../lib/goalOnboarding";
 
 // 목표관리 진입 가드 체인(사용자 확정 플로우) — /app/goal/* 전체(대시보드 셸 +
 // 온보딩 7단계)를 감싼다. App.jsx에서 두 곳에 각각 <Route element={<RequireGoalAccess />}>로
@@ -42,7 +42,7 @@ import { isOnboardingDone } from '../../lib/goalOnboarding';
 // 않는다(성공 후 PaymentSuccess.jsx는 항상 /mypage로 이동 — PaymentSuccess.jsx:172).
 // 즉 결제를 마친 사용자가 원래 있던 /app/goal/* 경로로 자동 복귀하지 못하고, 지금은
 // 수동으로 다시 그 경로에 들어와야 이 가드를 통과한다. 이 복귀 배선은 별도 작업이다.
-const ONBOARDING_PATH_PREFIX = '/app/goal/onboarding';
+const ONBOARDING_PATH_PREFIX = "/app/goal/onboarding";
 
 function currentPathWithQuery(location) {
   return `${location.pathname}${location.search}${location.hash}`;
@@ -53,10 +53,12 @@ function currentPathWithQuery(location) {
 // 자체 status state machine을 갖는다(위 2026-08-11 주석 참고).
 function GoalOnboardingGate() {
   const location = useLocation();
-  const isOnOnboardingRoute = location.pathname.startsWith(ONBOARDING_PATH_PREFIX);
+  const isOnOnboardingRoute = location.pathname.startsWith(
+    ONBOARDING_PATH_PREFIX,
+  );
 
   // 'loading' | 'no-onboarding' | 'onboarding-check-failed' | 'ok'
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState("loading");
   // evaluate()를 다시 돌리기 위한 트리거. "재시도" 버튼이 이 값을 바꿔 useEffect를 재실행한다.
   const [retryToken, setRetryToken] = useState(0);
 
@@ -64,7 +66,7 @@ function GoalOnboardingGate() {
     let alive = true;
 
     async function evaluate() {
-      setStatus('loading');
+      setStatus("loading");
 
       // ⚠️ 무한 리다이렉트 방지(원래 로직 그대로 유지, 위치만 render → effect):
       // 지금 온보딩 경로에 있으면 이 판정 자체를 건너뛰고 곧장 'ok'로 통과시킨다.
@@ -75,7 +77,7 @@ function GoalOnboardingGate() {
       // 바뀌지 않는다(상단 주석 참고) — 그래서 useEffect 의존성에 location을 넣지
       // 않아도 안전하다.
       if (isOnOnboardingRoute) {
-        if (alive) setStatus('ok');
+        if (alive) setStatus("ok");
         return;
       }
 
@@ -88,16 +90,16 @@ function GoalOnboardingGate() {
       if (!alive) return;
 
       if (onboardingDone === true) {
-        setStatus('ok');
+        setStatus("ok");
         return;
       }
 
       if (onboardingDone === false) {
-        setStatus('no-onboarding');
+        setStatus("no-onboarding");
         return;
       }
 
-      setStatus('onboarding-check-failed');
+      setStatus("onboarding-check-failed");
     }
 
     evaluate();
@@ -107,7 +109,7 @@ function GoalOnboardingGate() {
     };
   }, [retryToken]);
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white text-[#0D1B2A]">
         <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
@@ -117,11 +119,11 @@ function GoalOnboardingGate() {
     );
   }
 
-  if (status === 'no-onboarding') {
+  if (status === "no-onboarding") {
     return <Navigate to="/app/goal/onboarding/step-1" replace />;
   }
 
-  if (status === 'onboarding-check-failed') {
+  if (status === "onboarding-check-failed") {
     // 온보딩 완료 여부 판정 불가(서버 호출 실패 등). 온보딩으로도, 대시보드로도 보내지
     // 않고 이 화면에 머무른다 — 이미 온보딩을 마친 사용자가 일시적 오류로 온보딩
     // 화면에 다시 튕기는 상황을 막기 위해서다(RequireEntitlement의 check-failed와
@@ -129,10 +131,12 @@ function GoalOnboardingGate() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
         <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
-          <p className="text-sm font-extrabold">온보딩 완료 여부를 확인하지 못했습니다.</p>
+          <p className="text-sm font-extrabold">
+            온보딩 완료 여부를 확인하지 못했습니다.
+          </p>
           <p className="text-xs text-[#0D1B2A]/60">
-            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 온보딩을 마치셨다면 곧
-            다시 확인됩니다.
+            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 온보딩을
+            마치셨다면 곧 다시 확인됩니다.
           </p>
           <button
             type="button"

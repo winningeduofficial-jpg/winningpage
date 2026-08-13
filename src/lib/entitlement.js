@@ -8,7 +8,8 @@
 // 여기는 프런트 표시 전용이며, 실제 결제 게이트 우회는 src/lib/paidServiceAccess.js의
 // VITE_DISABLE_PAID_GATE가 담당한다. 두 플래그는 역할이 다르다(.env.example 참고).
 export const FAKE_ENTITLEMENT_ENABLED =
-  import.meta.env.DEV === true && import.meta.env.VITE_FAKE_ENTITLEMENT === 'true';
+  import.meta.env.DEV === true &&
+  import.meta.env.VITE_FAKE_ENTITLEMENT === "true";
 
 // MyPage.jsx가 orders 테이블에서 읽는 컬럼(id, order_name, amount, paid_at)과
 // 형태를 맞춘 가짜 결제 내역. id는 실제 UUID와 절대 혼동되지 않도록 'dev-fake-' 접두어를 쓴다
@@ -20,23 +21,23 @@ export function getMockPaidOrders() {
 
   return [
     {
-      id: 'dev-fake-goal-12m',
-      order_name: '[12개월] 위닝 목표관리',
+      id: "dev-fake-goal-12m",
+      order_name: "[12개월] 위닝 목표관리",
       amount: 252000,
       paid_at: now,
-      is_fake_entitlement: true
+      is_fake_entitlement: true,
     },
     {
-      id: 'dev-fake-suhaeng-6',
-      order_name: '[3개월 6회 이용권] 위닝 수행평가',
+      id: "dev-fake-suhaeng-6",
+      order_name: "[3개월 6회 이용권] 위닝 수행평가",
       amount: 24000,
       paid_at: now,
-      is_fake_entitlement: true
-    }
+      is_fake_entitlement: true,
+    },
   ];
 }
 
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 // 이용권 판정은 서버 한 곳(api/_lib/serviceAccess.js hasPaidServiceAccess, program_access +
 // admin_enrollments 조회)이 정본이다. 이 모듈은 그 판정을 다시 구현하지 않고
@@ -90,7 +91,12 @@ export async function hasEntitlement(serviceKey) {
 //    409 QUOTA_EXHAUSTED를 돌려준다. 클라이언트는 그 409를 정상 분기로
 //    처리해야 하고, 이 값으로 선제 차단을 구현하면 안 된다(명세서 §2.2, §9.3).
 export async function fetchEntitlement(serviceKey) {
-  const empty = { quotaRemaining: null, quotaTotal: null, planEndsAt: null, planLabel: null };
+  const empty = {
+    quotaRemaining: null,
+    quotaTotal: null,
+    planEndsAt: null,
+    planLabel: null,
+  };
 
   // 로컬 QA 플래그. 서버를 부르지 않으므로 회차는 알 수 없다 → 무제한(null)로
   // 둔다. 소진 UI를 로컬에서 보려면 플래그를 끄고 vercel dev로 실제 응답을 받아야 한다.
@@ -98,16 +104,17 @@ export async function fetchEntitlement(serviceKey) {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData?.session;
-  if (!session?.user || !session?.access_token) return { allowed: null, ...empty };
+  if (!session?.user || !session?.access_token)
+    return { allowed: null, ...empty };
 
   try {
-    const response = await fetch('/api/check-service-access', {
-      method: 'POST',
+    const response = await fetch("/api/check-service-access", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ service_key: serviceKey })
+      body: JSON.stringify({ service_key: serviceKey }),
     });
 
     let result = {};
@@ -118,7 +125,11 @@ export async function fetchEntitlement(serviceKey) {
     }
 
     if (!response.ok) {
-      console.error('[entitlement] check-service-access 실패:', response.status, result?.detail);
+      console.error(
+        "[entitlement] check-service-access 실패:",
+        response.status,
+        result?.detail,
+      );
       return { allowed: null, ...empty };
     }
 
@@ -129,10 +140,10 @@ export async function fetchEntitlement(serviceKey) {
       quotaRemaining: normalizeQuota(result?.quotaRemaining),
       quotaTotal: normalizeQuota(result?.quotaTotal),
       planEndsAt: result?.planEndsAt ?? null,
-      planLabel: result?.planLabel ?? null
+      planLabel: result?.planLabel ?? null,
     };
   } catch (error) {
-    console.error('[entitlement] check-service-access 호출 오류:', error);
+    console.error("[entitlement] check-service-access 호출 오류:", error);
     return { allowed: null, ...empty };
   }
 }

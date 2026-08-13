@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
-import GoalPageHeader from '../../components/goal/GoalPageHeader';
-import EffortSubjectCard from '../../components/goal/plan/EffortSubjectCard';
-import AddWorkbookModal from '../../components/goal/modals/AddWorkbookModal';
-import { createGoalWorkbook, fetchGoalWorkbooks, updateGoalWorkbook } from '../../lib/goalApi';
+import { useEffect, useState } from "react";
+import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
+import AddWorkbookModal from "../../components/goal/modals/AddWorkbookModal";
+import {
+  createGoalWorkbook,
+  fetchGoalWorkbooks,
+  updateGoalWorkbook,
+} from "../../lib/goalApi";
 
 // 나의 노력(#30 빈 / #32 채움) — docs/figma-goal/part-10.md·part-11.md.
 // 실데이터 배선(mockEfforts 제거) — src/data/goalPlanMock.js의 mockEfforts/mockEffortsEmpty는
@@ -19,10 +23,10 @@ import { createGoalWorkbook, fetchGoalWorkbooks, updateGoalWorkbook } from '../.
 // 모달이 따로 없어 기존부터 스텁 처리돼 있었고(part-10 §253), 이번 범위는 그 스텁을 그대로
 // 둔 채 기존 4카드 배선만 실데이터로 바꾼다(범위 확대 아님).
 const SUBJECT_CARDS = [
-  { id: 'korean', label: '국어' },
-  { id: 'math', label: '수학' },
-  { id: 'english', label: '영어' },
-  { id: 'science', label: '탐구' }
+  { id: "korean", label: "국어" },
+  { id: "math", label: "수학" },
+  { id: "english", label: "영어" },
+  { id: "science", label: "탐구" },
 ];
 
 export default function Efforts() {
@@ -34,7 +38,7 @@ export default function Efforts() {
 
   async function loadWorkbooks() {
     const outcome = await fetchGoalWorkbooks();
-    if (outcome.kind === 'success') {
+    if (outcome.kind === "success") {
       setWorkbooks(outcome.workbooks);
       setLoadError(false);
       return;
@@ -42,7 +46,7 @@ export default function Efforts() {
     // no-session/not-allowed는 RequireGoalAccess가 라우트 진입 전에 이미 걸러낸다
     // (App.jsx:198/318 — 이 페이지는 그 게이트 안쪽에서만 렌더된다). 여기 도달했다면
     // 세션 만료 등 방어적 상황이라 재시도 안내만 하고 화면을 비우지 않는다.
-    console.error('[Efforts] 문제집 목록 조회 실패:', outcome);
+    console.error("[Efforts] 문제집 목록 조회 실패:", outcome);
     setLoadError(true);
   }
 
@@ -70,13 +74,29 @@ export default function Efforts() {
 
   // AddWorkbookModal의 onSubmit 계약: id가 있으면 진도 수정(PUT), 없으면 신규 등록(POST).
   // false를 돌려주면 모달이 닫히지 않는다(제출 실패 시 입력을 잃지 않도록).
-  async function handleModalSubmit({ id, subject, title, currentPage, totalPage }) {
+  async function handleModalSubmit({
+    id,
+    subject,
+    title,
+    currentPage,
+    totalPage,
+  }) {
     const outcome = id
-      ? await updateGoalWorkbook({ id, title, currentPage, totalPages: totalPage })
-      : await createGoalWorkbook({ subject, title, totalPages: totalPage, currentPage });
+      ? await updateGoalWorkbook({
+          id,
+          title,
+          currentPage,
+          totalPages: totalPage,
+        })
+      : await createGoalWorkbook({
+          subject,
+          title,
+          totalPages: totalPage,
+          currentPage,
+        });
 
-    if (outcome.kind !== 'success') {
-      console.error('[Efforts] 문제집 저장 실패:', outcome);
+    if (outcome.kind !== "success") {
+      console.error("[Efforts] 문제집 저장 실패:", outcome);
       return false;
     }
 
@@ -84,7 +104,9 @@ export default function Efforts() {
     return true;
   }
 
-  const totalCompleted = workbooks.filter((book) => book.status === 'done').length;
+  const totalCompleted = workbooks.filter(
+    (book) => book.status === "done",
+  ).length;
 
   return (
     <>
@@ -115,12 +137,18 @@ export default function Efforts() {
 
         <div className="grid grid-cols-4 gap-[2.5rem]">
           {SUBJECT_CARDS.map(({ id, label }) => {
-            const subjectBooks = workbooks.filter((book) => book.subject === id);
-            const completed = subjectBooks.filter((book) => book.status === 'done').length;
+            const subjectBooks = workbooks.filter(
+              (book) => book.subject === id,
+            );
+            const completed = subjectBooks.filter(
+              (book) => book.status === "done",
+            ).length;
             // 칩 리스트는 "등록(공부 중인 책)"만 담는다 — 완독한 책은 completed 카운터로만
             // 세고 칩 목록에서는 빠진다(goalPlanMock.js 옛 목업 주석의 등록/완독 분리 규약을
             // 그대로 실데이터에 적용, part-11 §183).
-            const registeredBooks = subjectBooks.filter((book) => book.status !== 'done');
+            const registeredBooks = subjectBooks.filter(
+              (book) => book.status !== "done",
+            );
 
             return (
               <EffortSubjectCard

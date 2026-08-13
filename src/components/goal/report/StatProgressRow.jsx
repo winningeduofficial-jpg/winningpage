@@ -1,4 +1,4 @@
-import GoalProgressBar from '../GoalProgressBar';
+import GoalProgressBar from "../GoalProgressBar";
 
 // 리포트 카드 내 반복되는 "라벨 / 값 / 진행바" 한 행 — docs/figma-goal/00-INDEX.md §5-4
 // `ProgressRow`. 시간대별 학습 효율·학습 방해요인·완료한 핵심 학습 항목·과목별 학습 비중 등
@@ -8,7 +8,13 @@ import GoalProgressBar from '../GoalProgressBar';
 // (시간대별 학습 효율, 방해요인 등)는 카드 내 값들 중 최댓값을 넘겨 "가장 큰 값이 꽉 찬 막대"가
 // 되도록 상대 비교로 렌더한다 — 시안 px 채움 폭이 표시 값과 불일치하는 문제(결함2)를 피하기 위해
 // 반드시 값 기준으로만 계산한다(GoalProgressBar 자체가 value/max 비례 계산을 강제).
-export default function StatProgressRow({ label, value, unit = '', max, fillClassName }) {
+export default function StatProgressRow({
+  label,
+  value,
+  unit = "",
+  max,
+  fillClassName,
+}) {
   const denom = max && max > 0 ? max : value || 1;
 
   return (
@@ -20,7 +26,12 @@ export default function StatProgressRow({ label, value, unit = '', max, fillClas
           {unit}
         </span>
       </div>
-      <GoalProgressBar value={value} max={denom} thickness="0.375rem" fillClassName={fillClassName} />
+      <GoalProgressBar
+        value={value}
+        max={denom}
+        thickness="0.375rem"
+        fillClassName={fillClassName}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
-import { useCallback, useId, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../../lib/supabase';
-import { formatKRW } from '../../../data/pricingCatalog';
-import MyPageModalShell from '../MyPageModalShell';
+import { useCallback, useId, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../../../lib/supabase";
+import { formatKRW } from "../../../data/pricingCatalog";
+import MyPageModalShell from "../MyPageModalShell";
 
 // 학부모 결제요청 확인 모달 — 자녀가 올린 결제 요청을 결제하거나 거절한다.
 //
@@ -16,22 +16,29 @@ import MyPageModalShell from '../MyPageModalShell';
 // 다시 신청할 수 있기 때문이다.
 
 const RESPOND_ERROR_TEXT = {
-  WC021: '요청을 찾을 수 없습니다.',
-  WC022: '이 요청에 응답할 권한이 없습니다.',
-  WC023: '이미 처리된 요청입니다.',
-  WC040: '이미 처리된 요청입니다.',
-  WC025: '거절 사유를 입력해 주세요.'
+  WC021: "요청을 찾을 수 없습니다.",
+  WC022: "이 요청에 응답할 권한이 없습니다.",
+  WC023: "이미 처리된 요청입니다.",
+  WC040: "이미 처리된 요청입니다.",
+  WC025: "거절 사유를 입력해 주세요.",
 };
-const RESPOND_UNKNOWN_ERROR_TEXT = '처리에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+const RESPOND_UNKNOWN_ERROR_TEXT =
+  "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
-export default function EnrollmentRequestModal({ open, order, childName, onClose, onRejected }) {
+export default function EnrollmentRequestModal({
+  open,
+  order,
+  childName,
+  onClose,
+  onRejected,
+}) {
   const titleId = useId();
   const navigate = useNavigate();
 
   const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
 
   const reject = useCallback(async () => {
     if (!order?.id || saving) return;
@@ -42,25 +49,25 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
     }
 
     setSaving(true);
-    setErrorMsg('');
+    setErrorMsg("");
 
-    const { error } = await supabase.rpc('fn_respond_enrollment', {
+    const { error } = await supabase.rpc("fn_respond_enrollment", {
       p_order_id: order.id,
       p_approve: false,
       p_reject_reason: trimmed,
-      p_coupon_ids: null
+      p_coupon_ids: null,
     });
 
     setSaving(false);
 
     if (error) {
-      console.error('결제 요청 거절 실패:', error);
+      console.error("결제 요청 거절 실패:", error);
       setErrorMsg(RESPOND_ERROR_TEXT[error.code] || RESPOND_UNKNOWN_ERROR_TEXT);
       return;
     }
 
     setRejecting(false);
-    setReason('');
+    setReason("");
     onRejected?.();
   }, [order, saving, reason, onRejected]);
 
@@ -69,21 +76,34 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
   // 수락까지 끝나고 결제창만 닫힌 건(approved)은 거절할 수 없다 —
   // fn_respond_enrollment 가 pending+requested 만 받는다(WC023/WC040).
   // 그 건은 결제를 마치거나 그대로 두는 수밖에 없다.
-  const canReject = order.approval_status === 'requested';
+  const canReject = order.approval_status === "requested";
 
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[26rem]"
+    >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+        <h2
+          id={titleId}
+          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+        >
           결제 요청을 확인해주세요
         </h2>
 
         <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
-          {childName ? `${childName} 학생이 신청한 서비스예요.` : '자녀가 신청한 서비스예요.'}
+          {childName
+            ? `${childName} 학생이 신청한 서비스예요.`
+            : "자녀가 신청한 서비스예요."}
         </p>
 
         <div className="mt-6">
-          <p className="truncate text-[0.9375rem] font-semibold text-ink" title={order.order_name}>
+          <p
+            className="truncate text-[0.9375rem] font-semibold text-ink"
+            title={order.order_name}
+          >
             {order.order_name}
           </p>
           <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[0.9375rem] font-semibold">
@@ -102,7 +122,9 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
           />
         )}
 
-        {errorMsg && <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 px-6 py-5">
@@ -112,8 +134,8 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
               type="button"
               onClick={() => {
                 setRejecting(false);
-                setReason('');
-                setErrorMsg('');
+                setReason("");
+                setErrorMsg("");
               }}
               className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
             >
@@ -125,7 +147,7 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
               disabled={saving}
               className="h-12 rounded-xl bg-error text-[0.875rem] font-semibold text-white transition hover:bg-error/90 disabled:opacity-60"
             >
-              {saving ? '처리 중...' : '거절하기'}
+              {saving ? "처리 중..." : "거절하기"}
             </button>
           </>
         ) : (
@@ -135,11 +157,13 @@ export default function EnrollmentRequestModal({ open, order, childName, onClose
               onClick={() => (canReject ? setRejecting(true) : onClose?.())}
               className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
             >
-              {canReject ? '거절' : '닫기'}
+              {canReject ? "거절" : "닫기"}
             </button>
             <button
               type="button"
-              onClick={() => navigate(`/checkout?order=${encodeURIComponent(order.id)}`)}
+              onClick={() =>
+                navigate(`/checkout?order=${encodeURIComponent(order.id)}`)
+              }
               className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
             >
               결제 진행하기

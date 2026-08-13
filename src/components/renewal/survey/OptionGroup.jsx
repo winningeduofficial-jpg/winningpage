@@ -1,5 +1,5 @@
-import radioChecked from '../../../assets/renewal/radio-checked.svg';
-import radioUnchecked from '../../../assets/renewal/radio-unchecked.svg';
+import radioChecked from "../../../assets/renewal/radio-checked.svg";
+import radioUnchecked from "../../../assets/renewal/radio-unchecked.svg";
 
 /**
  * OptionGroup
@@ -33,7 +33,7 @@ import radioUnchecked from '../../../assets/renewal/radio-unchecked.svg';
  *                     역방향도 성립 — 배타값이 선택된 상태에서 일반 항목을 고르면 배타값이 해제된다.
  */
 function normalizeOption(option) {
-  if (typeof option === 'string') return { value: option, label: option };
+  if (typeof option === "string") return { value: option, label: option };
   return { value: option.value ?? option.label, label: option.label };
 }
 
@@ -44,10 +44,10 @@ export default function OptionGroup({
   exclusiveValues = [],
   value,
   onChange,
-  variant = 'row',
+  variant = "row",
   disabled = false,
   error = false,
-  errorMessage
+  errorMessage,
 }) {
   const selectedList = multiple ? (Array.isArray(value) ? value : []) : [];
   const limit = maxSelect ?? Infinity;
@@ -74,7 +74,9 @@ export default function OptionGroup({
     }
 
     // 일반 항목 → 선택 중인 배타값을 먼저 걷어낸다.
-    const withoutExclusive = selectedList.filter((item) => !exclusiveValues.includes(item));
+    const withoutExclusive = selectedList.filter(
+      (item) => !exclusiveValues.includes(item),
+    );
     if (withoutExclusive.length >= limit) return;
     onChange([...withoutExclusive, optionValue]);
   }
@@ -92,16 +94,18 @@ export default function OptionGroup({
   // 전폭 스팬이 더 자연스럽다고 실측 확인되어(q1 @640/700/767, 5지 문항) col-span-2 로 전폭 처리한다.
   // ≥768 은 flex-wrap hug 로 복귀 — align-items 기본값(normal→stretch)이 이미 같은 효과를 낸다.
   const containerClass =
-    variant === 'chip'
-      ? 'flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:[&>*:nth-child(odd):last-child]:col-span-2 md:flex md:flex-row md:flex-wrap'
-      : 'flex w-full flex-col items-start gap-3';
+    variant === "chip"
+      ? "flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:[&>*:nth-child(odd):last-child]:col-span-2 md:flex md:flex-row md:flex-wrap"
+      : "flex w-full flex-col items-start gap-3";
 
   return (
     <div className="flex w-full flex-col items-start">
-      <div className={containerClass} role={multiple ? 'group' : 'radiogroup'}>
+      <div className={containerClass} role={multiple ? "group" : "radiogroup"}>
         {options.map((rawOption) => {
           const { value: optionValue, label } = normalizeOption(rawOption);
-          const active = multiple ? selectedList.includes(optionValue) : value === optionValue;
+          const active = multiple
+            ? selectedList.includes(optionValue)
+            : value === optionValue;
           // 배타 선택지는 maxSelect 카운트와 무관하게 항상 클릭 가능해야 한다.
           const blockedByLimit =
             limitReached && !active && !exclusiveValues.includes(optionValue);
@@ -111,19 +115,19 @@ export default function OptionGroup({
             <button
               key={optionValue}
               type="button"
-              role={multiple ? 'checkbox' : 'radio'}
+              role={multiple ? "checkbox" : "radio"}
               aria-checked={active}
               disabled={isDisabled}
               onClick={() => handleSelect(optionValue)}
               className={`flex min-h-[4.25rem] items-center gap-6 rounded-[1.25rem] border px-5 py-3.5 text-left transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                variant === 'row' ? 'w-full' : 'w-full md:w-auto'
+                variant === "row" ? "w-full" : "w-full md:w-auto"
               } ${
                 active
-                  ? 'border-[#013262] bg-[#E9F4FF]'
+                  ? "border-[#013262] bg-[#E9F4FF]"
                   : error
-                    ? 'border-[#D92D20] bg-white'
-                    : 'border-[#D9D9D9] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]'
-              } ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                    ? "border-[#D92D20] bg-white"
+                    : "border-[#D9D9D9] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]"
+              } ${isDisabled ? "cursor-not-allowed opacity-50" : ""}`}
             >
               <img
                 src={active ? radioChecked : radioUnchecked}
@@ -133,7 +137,7 @@ export default function OptionGroup({
               />
               <span
                 className={`break-keep text-xl font-normal leading-[1.4] ${
-                  active ? 'text-[#013262]' : 'text-[#525252]'
+                  active ? "text-[#013262]" : "text-[#525252]"
                 }`}
               >
                 {label}

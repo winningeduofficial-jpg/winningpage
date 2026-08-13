@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import ArtifactChip from './ArtifactChip';
+import { Link } from "react-router-dom";
+import ArtifactChip from "./ArtifactChip";
 
 // 저장 리포트 목록 카드 — docs/수행평가-상세-명세.md §5.18(`3754:3121`)/§7.3 실측.
 //
@@ -13,19 +13,19 @@ import ArtifactChip from './ArtifactChip';
 
 /** `2026. 07. 24` 포맷(§5.18 문구 원문). */
 export function formatSavedAt(iso) {
-  if (!iso) return '';
+  if (!iso) return "";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return "";
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}. ${m}. ${d}`;
 }
 
 const ARTIFACT_LABELS = {
-  design: { available: '설계 리포트', unavailable: '설계 리포트 없음' },
-  evaluation: { available: '평가 리포트', unavailable: '평가 리포트 없음' },
-  final: { available: '최종 제출본', unavailable: '최종 제출본 없음' }
+  design: { available: "설계 리포트", unavailable: "설계 리포트 없음" },
+  evaluation: { available: "평가 리포트", unavailable: "평가 리포트 없음" },
+  final: { available: "최종 제출본", unavailable: "최종 제출본 없음" },
 };
 
 /**
@@ -36,7 +36,14 @@ const ARTIFACT_LABELS = {
  * @param {{design: {available: boolean, reportId: string|null}, evaluation: {...}, final: {...}}} artifacts
  * @param {(type: 'design'|'evaluation'|'final', reportId: string) => void} onArtifactClick
  */
-export default function SavedReportCard({ title, meta, savedAt, sessionId, artifacts, onArtifactClick }) {
+export default function SavedReportCard({
+  title,
+  meta,
+  savedAt,
+  sessionId,
+  artifacts,
+  onArtifactClick,
+}) {
   return (
     <div className="flex h-[11.25rem] w-[50rem] flex-col justify-between rounded-[1.25rem] border border-performance-line bg-white p-8">
       <div className="min-w-0">
@@ -44,16 +51,19 @@ export default function SavedReportCard({ title, meta, savedAt, sessionId, artif
           to={`/app/performance/reports/${sessionId}`}
           className="block truncate text-[1.25rem] font-semibold leading-[1.625rem] tracking-[-0.025rem] text-ink hover:underline"
         >
-          {title || '제목 없는 수행평가'}
+          {title || "제목 없는 수행평가"}
         </Link>
         <p className="mt-2 truncate text-[0.875rem] font-normal leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
-          {[meta, formatSavedAt(savedAt)].filter(Boolean).join(' · ')}
+          {[meta, formatSavedAt(savedAt)].filter(Boolean).join(" · ")}
         </p>
       </div>
 
       <div className="flex gap-3">
-        {['design', 'evaluation', 'final'].map((type) => {
-          const artifact = artifacts?.[type] || { available: false, reportId: null };
+        {["design", "evaluation", "final"].map((type) => {
+          const artifact = artifacts?.[type] || {
+            available: false,
+            reportId: null,
+          };
           const labels = ARTIFACT_LABELS[type];
           return (
             <ArtifactChip

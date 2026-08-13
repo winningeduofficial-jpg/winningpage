@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, ChevronDown } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { getTossPayments, ANONYMOUS } from '../../lib/toss';
-import { formatKRW } from '../../data/pricingCatalog';
-import { CHECKOUT_AGREEMENTS } from '../../data/legalDocs';
-import ConfirmModal from '../../components/checkout/ConfirmModal';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Check, ChevronDown } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { getTossPayments, ANONYMOUS } from "../../lib/toss";
+import { formatKRW } from "../../data/pricingCatalog";
+import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
+import ConfirmModal from "../../components/checkout/ConfirmModal";
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
 // (?order=<id> 유무). 학생이 fn_request_enrollment 로 만든 요청(StudentEnrollmentRequest.jsx
@@ -18,38 +18,39 @@ import ConfirmModal from '../../components/checkout/ConfirmModal';
 //   ?order= 없이 들어오면 그 사실 자체를 안내하는 모달만 보여주고 마이페이지로 보낸다.
 
 const PAY_METHODS = [
-  { key: 'tosspay', label: '토스페이', tossMethod: 'CARD' },
-  { key: 'card', label: '신용/체크카드', tossMethod: 'CARD' },
-  { key: 'virtual', label: '가상계좌', tossMethod: 'VIRTUAL_ACCOUNT' }
+  { key: "tosspay", label: "토스페이", tossMethod: "CARD" },
+  { key: "card", label: "신용/체크카드", tossMethod: "CARD" },
+  { key: "virtual", label: "가상계좌", tossMethod: "VIRTUAL_ACCOUNT" },
 ];
 
 const SECTION_HEADING =
-  'text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2rem] sm:leading-[1.4]';
+  "text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2rem] sm:leading-[1.4]";
 
 // Checkout.jsx(src/pages/Checkout.jsx) 의 쿠폰 사유 문구·코드 미발견 문구를 그대로
 // 재사용한다 — 같은 fn_usable_coupons/fn_coupon_by_code 반환 형태를 쓰는 화면이라
 // 사유 코드 7종·안내 문구가 동일하다(코퍼스 재사용, 신규 문구 아님).
 const COUPON_REASON_TEXT = {
-  below_min_amount: '최소 결제 금액에 미치지 않습니다.',
-  expired: '사용 기한이 지났습니다.',
-  already_used: '이미 사용한 쿠폰입니다.',
-  inactive: '사용할 수 없는 쿠폰입니다.',
-  login_required: '로그인 후 사용할 수 있습니다.',
-  sold_out: '발급 수량이 모두 소진되었습니다.',
-  not_granted: '발급받지 않은 쿠폰입니다.'
+  below_min_amount: "최소 결제 금액에 미치지 않습니다.",
+  expired: "사용 기한이 지났습니다.",
+  already_used: "이미 사용한 쿠폰입니다.",
+  inactive: "사용할 수 없는 쿠폰입니다.",
+  login_required: "로그인 후 사용할 수 있습니다.",
+  sold_out: "발급 수량이 모두 소진되었습니다.",
+  not_granted: "발급받지 않은 쿠폰입니다.",
 };
-const CODE_NOT_FOUND_TEXT = '유효하지 않은 쿠폰 코드입니다.';
+const CODE_NOT_FOUND_TEXT = "유효하지 않은 쿠폰 코드입니다.";
 // Checkout.jsx:184 와 동일 문구(표시가/서버 청구가 불일치 안내) — fn_respond_enrollment 가
 // skipped_coupon_ids 를 돌려줄 때도 같은 상황(서버가 쿠폰 일부를 조용히 스킵)이라
 // 그대로 재사용한다.
-const AMOUNT_MISMATCH_TEXT = '결제 금액이 변경되었습니다. 쿠폰 적용 내용을 다시 확인해 주세요.';
+const AMOUNT_MISMATCH_TEXT =
+  "결제 금액이 변경되었습니다. 쿠폰 적용 내용을 다시 확인해 주세요.";
 
 // 신규 문구(이 화면 전용, 사용자 승인 대기) — new_copy 배열 참고.
-const LOAD_FAILED_TEXT = '결제 요청 정보를 불러오지 못했습니다.';
-const ALREADY_PROCESSED_TEXT = '이미 처리된 결제 요청입니다.';
-const NOT_PARENT_TEXT = '학부모 본인만 진행할 수 있는 결제 요청이에요.';
+const LOAD_FAILED_TEXT = "결제 요청 정보를 불러오지 못했습니다.";
+const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
+const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
-const GENERIC_FAIL_TEXT = '결제요청에 실패했습니다.';
+const GENERIC_FAIL_TEXT = "결제요청에 실패했습니다.";
 
 // fn_usable_coupons/fn_coupon_by_code 공통 반환 형태(owner_profile_id/owner_is_student
 // 포함 — dev pg_proc 실측). code 는 P1-1 하드닝 이후 반환되지 않는다(Checkout.jsx:149 주석과 동일).
@@ -68,7 +69,7 @@ function mapCouponRow(c) {
     // coupons 테이블에서 따로 읽어 아래 mergeStackable 로 채운다. 값을 모르는
     // 동안은 false(비중복)로 둔다. 보수적인 쪽이 맞다 — 중복 가능하다고
     // 잘못 보이면 화면 할인액이 서버보다 커져 사용자가 틀린 금액을 본다.
-    stackable: false
+    stackable: false,
   };
 }
 
@@ -83,18 +84,24 @@ function mapCouponRow(c) {
 // stackable 은 coupons 테이블에서 직접 읽는다 — `coupons public read`
 // (is_active = true, sql/10)로 열려 있어 마이그레이션이 필요 없다.
 function mergeStackable(rows, stackableById) {
-  return rows.map((row) => ({ ...row, stackable: stackableById[row.id] === true }));
+  return rows.map((row) => ({
+    ...row,
+    stackable: stackableById[row.id] === true,
+  }));
 }
 
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
 // 보조로만 쓰고 원문(err.message)을 화면에 그대로 노출하지 않는다.
 function mapRespondError(err) {
-  const msg = err?.message || '';
-  if (msg.includes('not_order_parent')) return NOT_PARENT_TEXT;
-  if (msg.includes('order_not_pending') || msg.includes('enrollment_not_pending')) {
+  const msg = err?.message || "";
+  if (msg.includes("not_order_parent")) return NOT_PARENT_TEXT;
+  if (
+    msg.includes("order_not_pending") ||
+    msg.includes("enrollment_not_pending")
+  ) {
     return ALREADY_PROCESSED_TEXT;
   }
-  if (msg.includes('order_not_found')) return LOAD_FAILED_TEXT;
+  if (msg.includes("order_not_found")) return LOAD_FAILED_TEXT;
   return GENERIC_FAIL_TEXT;
 }
 
@@ -103,7 +110,14 @@ function mapRespondError(err) {
 // "위 내용을 모두 확인하였습니다."). 본문은 펼쳐야 보이는 아코디언 — 페이지
 // 이동(AgreementRow, 가입 화면용)이 아니라 CHECKOUT_AGREEMENTS 상수를 그
 // 자리에서 보여주는 방식으로 시안 화살표를 그대로 재현한다.
-function AgreementCheckRow({ label, body, checked, expanded, onToggleCheck, onToggleExpand }) {
+function AgreementCheckRow({
+  label,
+  body,
+  checked,
+  expanded,
+  onToggleCheck,
+  onToggleExpand,
+}) {
   return (
     <div className="rounded-xl border border-line">
       <div className="flex items-center gap-3 px-4 py-3.5">
@@ -117,7 +131,9 @@ function AgreementCheckRow({ label, body, checked, expanded, onToggleCheck, onTo
           <span
             aria-hidden="true"
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
-              checked ? 'border-primary bg-primary text-white' : 'border-line bg-white text-transparent'
+              checked
+                ? "border-primary bg-primary text-white"
+                : "border-line bg-white text-transparent"
             }`}
           >
             <Check size={14} strokeWidth={3} />
@@ -129,11 +145,14 @@ function AgreementCheckRow({ label, body, checked, expanded, onToggleCheck, onTo
         </button>
         <button
           type="button"
-          aria-label={`${label} 본문 ${expanded ? '접기' : '펼치기'}`}
+          aria-label={`${label} 본문 ${expanded ? "접기" : "펼치기"}`}
           onClick={onToggleExpand}
           className="shrink-0 rounded p-1 text-ink-sub transition hover:bg-surface-04"
         >
-          <ChevronDown size={18} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            size={18}
+            className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
         </button>
       </div>
       {expanded && (
@@ -149,7 +168,7 @@ function AgreementCheckRow({ label, body, checked, expanded, onToggleCheck, onTo
 // 문구는 고정 계약이 지정한 기존 승인 문구를 그대로 쓴다(신규 아님).
 function ApprovalOnlyGate() {
   const navigate = useNavigate();
-  const goToMyPage = () => navigate('/mypage', { replace: true });
+  const goToMyPage = () => navigate("/mypage", { replace: true });
 
   return (
     <main className="min-h-screen bg-white pt-16">
@@ -170,10 +189,12 @@ function OrderNotActionable({ text }) {
   const navigate = useNavigate();
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
-      <p className="text-[1rem] font-semibold leading-[1.4] text-ink sm:text-[1.25rem]">{text}</p>
+      <p className="text-[1rem] font-semibold leading-[1.4] text-ink sm:text-[1.25rem]">
+        {text}
+      </p>
       <button
         type="button"
-        onClick={() => navigate('/mypage')}
+        onClick={() => navigate("/mypage")}
         className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] text-white transition hover:brightness-125"
       >
         마이페이지로 이동
@@ -194,7 +215,7 @@ function EnrollmentCheckout({ orderId }) {
   const [couponError, setCouponError] = useState(false);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
-  const [couponCode, setCouponCode] = useState('');
+  const [couponCode, setCouponCode] = useState("");
   const [stackableById, setStackableById] = useState({});
   const [codeFeedback, setCodeFeedback] = useState(null);
   const [amountMismatch, setAmountMismatch] = useState(false);
@@ -209,7 +230,7 @@ function EnrollmentCheckout({ orderId }) {
   const [expandedRefund, setExpandedRefund] = useState(false);
   const [expandedPayment, setExpandedPayment] = useState(false);
 
-  const [payMethod, setPayMethod] = useState('card');
+  const [payMethod, setPayMethod] = useState("card");
   const [loading, setLoading] = useState(false);
   const [payError, setPayError] = useState(null);
   // fn_respond_enrollment 성공 응답을 캐시한다 — 승인은 즉시 서버에서 확정되므로
@@ -222,17 +243,17 @@ function EnrollmentCheckout({ orderId }) {
     (async () => {
       setOrderLoading(true);
       const { data, error } = await supabase
-        .from('orders')
+        .from("orders")
         .select(
-          'id, status, approval_status, order_name, list_amount, discount_amount, amount, student_profile_id'
+          "id, status, approval_status, order_name, list_amount, discount_amount, amount, student_profile_id",
         )
-        .eq('id', orderId)
+        .eq("id", orderId)
         .maybeSingle();
       if (!alive) return;
 
       if (error || !data) {
-        if (error) console.warn('결제 요청 조회 실패:', error.message);
-        setOrderError('not_found');
+        if (error) console.warn("결제 요청 조회 실패:", error.message);
+        setOrderError("not_found");
         setOrderLoading(false);
         return;
       }
@@ -245,22 +266,25 @@ function EnrollmentCheckout({ orderId }) {
       //               걸려 not_actionable 로 막혔고, 그래서 학부모가 수락 후
       //               결제창을 닫으면 그 주문을 되살릴 방법이 아예 없었다
       //               (docs/mypage-payment-handoff.md 작업 2).
-      if (data.status !== 'pending' || !['requested', 'approved'].includes(data.approval_status)) {
+      if (
+        data.status !== "pending" ||
+        !["requested", "approved"].includes(data.approval_status)
+      ) {
         setOrder(data);
-        setOrderError('not_actionable');
+        setOrderError("not_actionable");
         setOrderLoading(false);
         return;
       }
 
       const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select('id, name, list_price, price, quantity')
-        .eq('order_id', orderId);
+        .from("order_items")
+        .select("id, name, list_price, price, quantity")
+        .eq("order_id", orderId);
       if (!alive) return;
 
       if (itemsError) {
-        console.warn('주문 상품 조회 실패:', itemsError.message);
-        setOrderError('not_found');
+        console.warn("주문 상품 조회 실패:", itemsError.message);
+        setOrderError("not_found");
         setOrderLoading(false);
         return;
       }
@@ -270,7 +294,7 @@ function EnrollmentCheckout({ orderId }) {
       // handlePay 가 그 RPC 를 건너뛰고 곧장 토스를 부르도록, 승인 결과와 같은
       // 모양을 DB 행에서 만들어 미리 채운다. 금액은 쿠폰 귀속까지 반영된 확정값
       // (orders.amount)이라 여기서 다시 계산하지 않는다.
-      if (data.approval_status === 'approved') {
+      if (data.approval_status === "approved") {
         setApprovedOrder({ order_id: data.id, amount: data.amount });
       }
 
@@ -291,19 +315,21 @@ function EnrollmentCheckout({ orderId }) {
     let alive = true;
     (async () => {
       const { data, error } = await supabase
-        .from('terms')
-        .select('code, user_term_agreements(agreed)')
-        .in('code', ['refund_notice', 'payment_terms', 'payment_consent'])
-        .eq('is_active', true);
+        .from("terms")
+        .select("code, user_term_agreements(agreed)")
+        .in("code", ["refund_notice", "payment_terms", "payment_consent"])
+        .eq("is_active", true);
       if (!alive) return;
       if (error) {
-        console.warn('결제 약관 동의 상태 조회 실패:', error.message);
+        console.warn("결제 약관 동의 상태 조회 실패:", error.message);
         setPaymentAgreed(false);
         return;
       }
       const allAgreed =
         (data || []).length === 3 &&
-        data.every((t) => (t.user_term_agreements || []).some((a) => a.agreed === true));
+        data.every((t) =>
+          (t.user_term_agreements || []).some((a) => a.agreed === true),
+        );
       setPaymentAgreed(allAgreed);
     })();
     return () => {
@@ -317,25 +343,26 @@ function EnrollmentCheckout({ orderId }) {
   const fetchCoupons = useCallback(
     async ({ signalAlive } = {}) => {
       if (!order) return;
-      const { data, error } = await supabase.rpc('fn_usable_coupons', {
+      const { data, error } = await supabase.rpc("fn_usable_coupons", {
         p_subtotal: order.amount,
-        p_student_profile_id: order.student_profile_id
+        p_student_profile_id: order.student_profile_id,
       });
       if (signalAlive && !signalAlive()) return;
       setCouponsLoaded(true);
       if (error) {
-        console.warn('쿠폰 조회 실패:', error.message);
+        console.warn("쿠폰 조회 실패:", error.message);
         setCouponError(true);
         return;
       }
 
       // stackable 은 RPC 반환에 없어 카탈로그에서 함께 읽는다(위 mergeStackable).
       const { data: flags, error: flagError } = await supabase
-        .from('coupons')
-        .select('id, stackable')
-        .eq('is_active', true);
+        .from("coupons")
+        .select("id, stackable")
+        .eq("is_active", true);
       if (signalAlive && !signalAlive()) return;
-      if (flagError) console.warn('쿠폰 중복 사용 여부 조회 실패:', flagError.message);
+      if (flagError)
+        console.warn("쿠폰 중복 사용 여부 조회 실패:", flagError.message);
 
       const map = {};
       for (const row of flags || []) map[row.id] = row.stackable;
@@ -344,13 +371,13 @@ function EnrollmentCheckout({ orderId }) {
       setCouponError(false);
       setCoupons(mergeStackable((data || []).map(mapCouponRow), map));
     },
-    [order]
+    [order],
   );
 
   // 재개 모드(수락 완료 + 결제만 남음). 쿠폰은 수락 시점에 이미 귀속됐고
   // orders.amount 가 그 결과라, 다시 고르게 하면 화면 금액과 실제 청구액이
   // 갈라진다 — 조회도 하지 않고 UI 도 감춘다.
-  const isResume = order?.approval_status === 'approved';
+  const isResume = order?.approval_status === "approved";
 
   useEffect(() => {
     if (!order || isResume) return undefined;
@@ -361,13 +388,17 @@ function EnrollmentCheckout({ orderId }) {
     };
   }, [order, isResume, fetchCoupons]);
 
-  const visibleCoupons = useMemo(() => coupons.filter((c) => c.isActive), [coupons]);
+  const visibleCoupons = useMemo(
+    () => coupons.filter((c) => c.isActive),
+    [coupons],
+  );
 
   const couponDiscount = useMemo(() => {
     if (!order) return 0;
     let sum = 0;
     coupons.forEach((c) => {
-      if (selectedCouponIds.has(c.id) && c.eligible) sum += Number(c.discount || 0);
+      if (selectedCouponIds.has(c.id) && c.eligible)
+        sum += Number(c.discount || 0);
     });
     return Math.min(sum, order.amount);
   }, [coupons, selectedCouponIds, order]);
@@ -406,20 +437,20 @@ function EnrollmentCheckout({ orderId }) {
     const code = couponCode.trim();
     if (!code) return;
 
-    const { data, error } = await supabase.rpc('fn_coupon_by_code', {
+    const { data, error } = await supabase.rpc("fn_coupon_by_code", {
       p_code: code,
       p_subtotal: order.amount,
-      p_student_profile_id: order.student_profile_id
+      p_student_profile_id: order.student_profile_id,
     });
     if (error) {
-      console.warn('쿠폰 코드 조회 실패:', error.message);
+      console.warn("쿠폰 코드 조회 실패:", error.message);
       setCouponError(true);
       return;
     }
 
     const found = data?.[0];
     if (!found) {
-      setCodeFeedback({ type: 'not_found' });
+      setCodeFeedback({ type: "not_found" });
       return;
     }
 
@@ -428,7 +459,7 @@ function EnrollmentCheckout({ orderId }) {
     // 쪽이 맞다(mapCouponRow 주석).
     setCoupons((prev) => [
       ...prev.filter((c) => c.id !== found.id),
-      ...mergeStackable([mapCouponRow(found)], stackableById)
+      ...mergeStackable([mapCouponRow(found)], stackableById),
     ]);
     setSelectedCouponIds((prev) => {
       const next = new Set(prev);
@@ -441,15 +472,22 @@ function EnrollmentCheckout({ orderId }) {
       return next;
     });
     setAmountMismatch(false);
-    setCodeFeedback(found.eligible ? null : { type: 'ineligible', reason: found.reason });
-    setCouponCode('');
+    setCodeFeedback(
+      found.eligible ? null : { type: "ineligible", reason: found.reason },
+    );
+    setCouponCode("");
   }
 
   // 이미 동의 이력이 있으면(paymentAgreed===true) 체크박스 상태와 무관하게
   // 통과시킨다 — 재구매 화면에서는 체크박스 자체를 렌더하지 않는다(아래 JSX).
-  const paymentTermsReady = paymentAgreed === true || (checkedRefund && checkedPayment);
+  const paymentTermsReady =
+    paymentAgreed === true || (checkedRefund && checkedPayment);
   const canPay =
-    Boolean(order) && !orderError && orderItems.length > 0 && !loading && paymentTermsReady;
+    Boolean(order) &&
+    !orderError &&
+    orderItems.length > 0 &&
+    !loading &&
+    paymentTermsReady;
 
   async function handlePay() {
     if (!canPay) return;
@@ -459,9 +497,11 @@ function EnrollmentCheckout({ orderId }) {
       // 결제 약관 동의 기록(sql/78) — 실제 청구(fn_respond_enrollment·토스 호출)
       // 전에 먼저 확정한다. 여기서 실패하면 결제 자체를 진행하지 않는다.
       if (paymentAgreed !== true) {
-        const { error: agreeError } = await supabase.rpc('fn_agree_payment_terms');
+        const { error: agreeError } = await supabase.rpc(
+          "fn_agree_payment_terms",
+        );
         if (agreeError) {
-          console.error('결제 약관 동의 기록 실패:', agreeError.message);
+          console.error("결제 약관 동의 기록 실패:", agreeError.message);
           setPayError(GENERIC_FAIL_TEXT);
           setLoading(false);
           return;
@@ -474,14 +514,14 @@ function EnrollmentCheckout({ orderId }) {
       if (!result) {
         // 클라이언트 rpc(학부모 JWT) — service_role 경유 금지(Baseline fn_respond_enrollment
         // 는 auth.uid() = parent_profile_id 를 직접 검사한다).
-        const { data, error } = await supabase.rpc('fn_respond_enrollment', {
+        const { data, error } = await supabase.rpc("fn_respond_enrollment", {
           p_order_id: orderId,
           p_approve: true,
           p_reject_reason: null,
-          p_coupon_ids: Array.from(selectedCouponIds)
+          p_coupon_ids: Array.from(selectedCouponIds),
         });
         if (error) {
-          console.error('결제 요청 수락 실패:', error.message);
+          console.error("결제 요청 수락 실패:", error.message);
           setPayError(mapRespondError(error));
           setLoading(false);
           return;
@@ -504,35 +544,43 @@ function EnrollmentCheckout({ orderId }) {
       const session = sessionData?.session ?? null;
       const user = session?.user ?? null;
 
-      const method = PAY_METHODS.find((m) => m.key === payMethod)?.tossMethod || 'CARD';
+      const method =
+        PAY_METHODS.find((m) => m.key === payMethod)?.tossMethod || "CARD";
       const tossPayments = await getTossPayments();
-      const payment = tossPayments.payment({ customerKey: user?.id ?? ANONYMOUS });
+      const payment = tossPayments.payment({
+        customerKey: user?.id ?? ANONYMOUS,
+      });
 
       await payment.requestPayment({
         method,
-        amount: { currency: 'KRW', value: Number(result.amount) },
+        amount: { currency: "KRW", value: Number(result.amount) },
         orderId: result.order_id || orderId,
-        orderName: order.order_name || '위닝에듀 서비스',
+        orderName: order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: user?.email ?? undefined,
-        ...(method === 'CARD'
+        ...(method === "CARD"
           ? {
               card: {
                 useEscrow: false,
-                flowMode: 'DEFAULT',
+                flowMode: "DEFAULT",
                 useCardPoint: false,
-                useAppCardOnly: false
-              }
+                useAppCardOnly: false,
+              },
             }
           : {}),
-        ...(method === 'VIRTUAL_ACCOUNT'
-          ? { virtualAccount: { cashReceipt: { type: '소득공제' }, validHours: 24 } }
-          : {})
+        ...(method === "VIRTUAL_ACCOUNT"
+          ? {
+              virtualAccount: {
+                cashReceipt: { type: "소득공제" },
+                validHours: 24,
+              },
+            }
+          : {}),
       });
     } catch (err) {
-      if (err?.code !== 'USER_CANCEL') {
-        console.error('결제 요청 실패:', err);
+      if (err?.code !== "USER_CANCEL") {
+        console.error("결제 요청 실패:", err);
         setPayError(GENERIC_FAIL_TEXT);
       }
       setLoading(false);
@@ -549,10 +597,10 @@ function EnrollmentCheckout({ orderId }) {
     );
   }
 
-  if (orderError === 'not_found') {
+  if (orderError === "not_found") {
     return <OrderNotActionable text={LOAD_FAILED_TEXT} />;
   }
-  if (orderError === 'not_actionable') {
+  if (orderError === "not_actionable") {
     return <OrderNotActionable text={ALREADY_PROCESSED_TEXT} />;
   }
 
@@ -568,12 +616,18 @@ function EnrollmentCheckout({ orderId }) {
         <div className="grid grid-cols-1 gap-12 desktop:grid-cols-[minmax(0,1fr)_25rem]">
           {/* 좌측: 주문 상품 — 읽기 전용(학생이 이미 확정한 요청이라 항목 선택/삭제가 없다). */}
           <section>
-            <h2 className={`mb-5 ${SECTION_HEADING}`}>주문 상품 {orderItems.length}</h2>
+            <h2 className={`mb-5 ${SECTION_HEADING}`}>
+              주문 상품 {orderItems.length}
+            </h2>
             <div className="space-y-3">
               {orderItems.map((item) => {
-                const hasDiscount = Number(item.list_price) > Number(item.price);
+                const hasDiscount =
+                  Number(item.list_price) > Number(item.price);
                 return (
-                  <div key={item.id} className="rounded-2xl border border-line p-5">
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-line p-5"
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink sm:text-[1.5rem]">
                         {item.name}
@@ -623,8 +677,8 @@ function EnrollmentCheckout({ orderId }) {
                     onClick={() => setPayMethod(m.key)}
                     className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-[1.25rem] transition ${
                       payMethod === m.key
-                        ? 'border-primary bg-surface-info text-primary'
-                        : 'border-line text-ink-sub hover:bg-surface-card'
+                        ? "border-primary bg-surface-info text-primary"
+                        : "border-line text-ink-sub hover:bg-surface-card"
                     }`}
                   >
                     {m.label}
@@ -652,136 +706,150 @@ function EnrollmentCheckout({ orderId }) {
 
             {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). */}
             {!isResume && (
-            <div>
-              <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
-              <div className="flex gap-2">
-                <input
-                  value={couponCode}
-                  onChange={(e) => {
-                    setCouponCode(e.target.value);
-                    setCodeFeedback(null);
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && applyCouponCode()}
-                  placeholder="쿠폰 코드 입력"
-                  className="h-11 flex-1 rounded-lg border border-line px-3.5 text-[0.875rem] font-medium leading-[1.25rem] text-ink placeholder:font-medium placeholder:text-line focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={applyCouponCode}
-                  className="h-11 shrink-0 rounded-lg border border-line px-5 text-[0.875rem] font-medium leading-[1.25rem] text-ink transition hover:bg-surface-card"
-                >
-                  적용
-                </button>
-              </div>
+              <div>
+                <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
+                <div className="flex gap-2">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCodeFeedback(null);
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && applyCouponCode()}
+                    placeholder="쿠폰 코드 입력"
+                    className="h-11 flex-1 rounded-lg border border-line px-3.5 text-[0.875rem] font-medium leading-[1.25rem] text-ink placeholder:font-medium placeholder:text-line focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCouponCode}
+                    className="h-11 shrink-0 rounded-lg border border-line px-5 text-[0.875rem] font-medium leading-[1.25rem] text-ink transition hover:bg-surface-card"
+                  >
+                    적용
+                  </button>
+                </div>
 
-              {couponError && (
-                <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
-                  쿠폰을 불러오지 못했습니다.
-                </p>
-              )}
-
-              {codeFeedback?.type === 'not_found' && (
-                <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
-                  {CODE_NOT_FOUND_TEXT}
-                </p>
-              )}
-              {codeFeedback?.type === 'ineligible' && COUPON_REASON_TEXT[codeFeedback.reason] && (
-                <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
-                  {COUPON_REASON_TEXT[codeFeedback.reason]}
-                </p>
-              )}
-
-              {couponsLoaded && !couponError && visibleCoupons.length === 0 && (
-                <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
-                  보유한 쿠폰이 없습니다.
-                </p>
-              )}
-
-              {visibleCoupons.length > 0 && (
-                <>
-                  <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink">
-                    보유 쿠폰 {visibleCoupons.length}장
+                {couponError && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    쿠폰을 불러오지 못했습니다.
                   </p>
-                  <div className="space-y-2">
-                    {visibleCoupons.map((c) => {
-                      const eligible = c.eligible;
-                      const isSelected = selectedCouponIds.has(c.id);
-                      // 소유자 구분(신규) — fn_usable_coupons/fn_coupon_by_code 가 돌려주는
-                      // owner_is_student 를 그대로 라벨링한다. auto 발급(둘 다 아님)은 null.
-                      const ownerLabel =
-                        c.ownerIsStudent === true
-                          ? '학생 쿠폰'
-                          : c.ownerIsStudent === false
-                            ? '학부모 쿠폰'
-                            : null;
-                      return (
-                        <button
-                          type="button"
-                          key={c.id}
-                          disabled={!eligible}
-                          onClick={() => toggleCoupon(c.id)}
-                          className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                            isSelected ? 'border-primary bg-surface-info' : 'border-line'
-                          } ${eligible ? '' : 'opacity-45'}`}
-                        >
-                          <span
-                            className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
-                              isSelected ? 'border-primary bg-primary' : 'border-line bg-white'
-                            }`}
+                )}
+
+                {codeFeedback?.type === "not_found" && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {CODE_NOT_FOUND_TEXT}
+                  </p>
+                )}
+                {codeFeedback?.type === "ineligible" &&
+                  COUPON_REASON_TEXT[codeFeedback.reason] && (
+                    <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                      {COUPON_REASON_TEXT[codeFeedback.reason]}
+                    </p>
+                  )}
+
+                {couponsLoaded &&
+                  !couponError &&
+                  visibleCoupons.length === 0 && (
+                    <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
+                      보유한 쿠폰이 없습니다.
+                    </p>
+                  )}
+
+                {visibleCoupons.length > 0 && (
+                  <>
+                    <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink">
+                      보유 쿠폰 {visibleCoupons.length}장
+                    </p>
+                    <div className="space-y-2">
+                      {visibleCoupons.map((c) => {
+                        const eligible = c.eligible;
+                        const isSelected = selectedCouponIds.has(c.id);
+                        // 소유자 구분(신규) — fn_usable_coupons/fn_coupon_by_code 가 돌려주는
+                        // owner_is_student 를 그대로 라벨링한다. auto 발급(둘 다 아님)은 null.
+                        const ownerLabel =
+                          c.ownerIsStudent === true
+                            ? "학생 쿠폰"
+                            : c.ownerIsStudent === false
+                              ? "학부모 쿠폰"
+                              : null;
+                        return (
+                          <button
+                            type="button"
+                            key={c.id}
+                            disabled={!eligible}
+                            onClick={() => toggleCoupon(c.id)}
+                            className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                              isSelected
+                                ? "border-primary bg-surface-info"
+                                : "border-line"
+                            } ${eligible ? "" : "opacity-45"}`}
                           >
-                            {isSelected && <Check size={12} strokeWidth={3.5} className="text-white" />}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5">
-                              <span className="block truncate text-[0.75rem] font-medium leading-[1.25rem] text-ink sm:text-[0.875rem]">
-                                {c.title}
+                            <span
+                              className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-line bg-white"
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check
+                                  size={12}
+                                  strokeWidth={3.5}
+                                  className="text-white"
+                                />
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-1.5">
+                                <span className="block truncate text-[0.75rem] font-medium leading-[1.25rem] text-ink sm:text-[0.875rem]">
+                                  {c.title}
+                                </span>
+                                {ownerLabel && (
+                                  <span className="shrink-0 rounded-full bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-medium leading-[1] text-ink-sub">
+                                    {ownerLabel}
+                                  </span>
+                                )}
                               </span>
-                              {ownerLabel && (
-                                <span className="shrink-0 rounded-full bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-medium leading-[1] text-ink-sub">
-                                  {ownerLabel}
+                              {c.validUntil && (
+                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                                  {String(c.validUntil).replace(/-/g, ".")}까지
+                                </span>
+                              )}
+                              {!eligible && COUPON_REASON_TEXT[c.reason] && (
+                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                                  {COUPON_REASON_TEXT[c.reason]}
                                 </span>
                               )}
                             </span>
-                            {c.validUntil && (
-                              <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
-                                {String(c.validUntil).replace(/-/g, '.')}까지
-                              </span>
-                            )}
-                            {!eligible && COUPON_REASON_TEXT[c.reason] && (
-                              <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
-                                {COUPON_REASON_TEXT[c.reason]}
-                              </span>
-                            )}
-                          </span>
-                          <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
-                            -{formatKRW(c.discount)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAmountMismatch(false);
-                        setSelectedCouponIds(new Set());
-                      }}
-                      className="text-[0.875rem] font-normal leading-[1.25rem] text-ink underline underline-offset-4 transition hover:brightness-90"
-                    >
-                      쿠폰 사용 안함
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                            <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
+                              -{formatKRW(c.discount)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAmountMismatch(false);
+                          setSelectedCouponIds(new Set());
+                        }}
+                        className="text-[0.875rem] font-normal leading-[1.25rem] text-ink underline underline-offset-4 transition hover:brightness-90"
+                      >
+                        쿠폰 사용 안함
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {isResume && (
               // ⚠ 신규 카피 — 승인 필요. 쿠폰 섹션이 사라진 이유를 설명하지 않으면
               // 학부모는 "쿠폰을 못 쓰게 됐다"로 읽는다.
               <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
-                이미 수락한 요청이에요. 적용한 쿠폰과 결제 금액은 그대로이고, 결제만 진행하면 됩니다.
+                이미 수락한 요청이에요. 적용한 쿠폰과 결제 금액은 그대로이고,
+                결제만 진행하면 됩니다.
               </p>
             )}
 
@@ -803,7 +871,9 @@ function EnrollmentCheckout({ orderId }) {
                 {couponDiscount > 0 && (
                   <div className="flex justify-between">
                     <dt>쿠폰 할인 금액</dt>
-                    <dd className="text-primary">-{formatKRW(couponDiscount)}</dd>
+                    <dd className="text-primary">
+                      -{formatKRW(couponDiscount)}
+                    </dd>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-line pt-3 text-[1rem] font-semibold leading-[1.4] sm:text-[1.25rem] sm:leading-[1.75rem]">
@@ -813,13 +883,19 @@ function EnrollmentCheckout({ orderId }) {
               </dl>
 
               {amountMismatch && (
-                <p aria-live="polite" className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error">
+                <p
+                  aria-live="polite"
+                  className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error"
+                >
                   {AMOUNT_MISMATCH_TEXT}
                 </p>
               )}
 
               {payError && (
-                <p aria-live="polite" className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error">
+                <p
+                  aria-live="polite"
+                  className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error"
+                >
                   {payError}
                 </p>
               )}
@@ -830,11 +906,13 @@ function EnrollmentCheckout({ orderId }) {
                 disabled={!canPay}
                 className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:text-[1.25rem] sm:leading-[1.75rem] ${
                   canPay
-                    ? 'bg-primary text-white hover:brightness-125'
-                    : 'cursor-not-allowed border border-line bg-surface-card text-ink'
+                    ? "bg-primary text-white hover:brightness-125"
+                    : "cursor-not-allowed border border-line bg-surface-card text-ink"
                 }`}
               >
-                {loading ? '결제창 여는 중…' : `${formatKRW(displayAmount)} 결제하기`}
+                {loading
+                  ? "결제창 여는 중…"
+                  : `${formatKRW(displayAmount)} 결제하기`}
               </button>
               <p className="mt-3 text-center text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
                 결제는 토스페이먼츠를 통해 안전하게 처리됩니다.
@@ -849,7 +927,7 @@ function EnrollmentCheckout({ orderId }) {
 
 export default function ParentCheckout() {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get('order');
+  const orderId = searchParams.get("order");
 
   if (!orderId) return <ApprovalOnlyGate />;
   return <EnrollmentCheckout orderId={orderId} />;

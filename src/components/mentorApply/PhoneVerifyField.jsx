@@ -24,57 +24,57 @@
 // `인증번호 확인` 버튼이 명시돼 있어 **버튼 클릭으로만** 검증한다. 서버가 시도를 5회로
 // 세기 때문에(phoneVerification.js 파일 주석) 자동 검증은 지웠다 다시 입력하는 것만으로
 // 시도를 깎는데, 버튼 방식은 그 문제도 같이 없앤다.
-import { useState } from 'react';
-import { useCooldown } from '../../hooks/useCooldown';
+import { useState } from "react";
+import { useCooldown } from "../../hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
   sendPhoneCode,
-  verifyPhoneCode
-} from '../../lib/phoneVerification';
+  verifyPhoneCode,
+} from "../../lib/phoneVerification";
 
-const PHONE_PURPOSE = 'mentor_apply';
+const PHONE_PURPOSE = "mentor_apply";
 // ParentForm.jsx:109 와 동일한 60초. 서버(api/send-phone-code.js)가 강제하는 값을
 // 화면에 보이게 만드는 용도일 뿐 보안 장치가 아니다(useCooldown.js 파일 주석).
 const RESEND_COOLDOWN_SECONDS = 60;
 
 // 시안 §폼 명세 5-2 placeholder 원문.
-const PHONE_PLACEHOLDER = '휴대폰 번호 입력';
-const CODE_PLACEHOLDER = '인증번호 입력';
+const PHONE_PLACEHOLDER = "휴대폰 번호 입력";
+const CODE_PLACEHOLDER = "인증번호 입력";
 
 // 인풋 h52(3.25rem) / radius 12(0.75rem) / padding 20(1.25rem) / border 1px — §6-5.
 // 시안 보더·placeholder 색은 #D9D9D9 지만 토큰에 없어 가장 가까운 line(#d7d7d7)을 쓴다.
 const FIELD_BOX_CLASS =
-  'flex h-[3.25rem] w-full items-center gap-2 rounded-[0.75rem] border bg-white px-[1.25rem] transition-colors focus-within:border-accent';
+  "flex h-[3.25rem] w-full items-center gap-2 rounded-[0.75rem] border bg-white px-[1.25rem] transition-colors focus-within:border-accent";
 const INPUT_CLASS =
-  'min-w-0 flex-1 bg-transparent text-[1rem] leading-[1.4] text-ink outline-none placeholder:text-line disabled:cursor-not-allowed disabled:text-ink-sub';
+  "min-w-0 flex-1 bg-transparent text-[1rem] leading-[1.4] text-ink outline-none placeholder:text-line disabled:cursor-not-allowed disabled:text-ink-sub";
 // 액션 버튼 94×34(5.875rem × 2.125rem), radius 8(0.5rem), padding 8/6, SemiBold 14 accent.
 // 폭은 `w-` 가 아니라 `min-w-` 로 뒀다 — `인증번호 확인`(6자 × 14px ≈ 84px) + 좌우 패딩
 // 16px 이 94px 를 넘겨 고정폭이면 글자가 버튼 밖으로 삐져나온다. 쿨다운 라벨(`60초`)처럼
 // 짧은 문구에서는 시안 94px 를 그대로 유지한다.
 const ACTION_BUTTON_CLASS =
-  'flex h-[2.125rem] min-w-[5.875rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] border border-accent bg-transparent px-[0.5rem] py-[0.375rem] text-[0.875rem] font-semibold leading-[1.4] text-accent transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-line disabled:text-ink-sub disabled:hover:opacity-100';
+  "flex h-[2.125rem] min-w-[5.875rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] border border-accent bg-transparent px-[0.5rem] py-[0.375rem] text-[0.875rem] font-semibold leading-[1.4] text-accent transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-line disabled:text-ink-sub disabled:hover:opacity-100";
 
 const MESSAGE_TEXT_CLASS = {
-  default: 'text-ink-sub',
-  error: 'text-error',
-  success: 'text-accent'
+  default: "text-ink-sub",
+  error: "text-error",
+  success: "text-accent",
 };
 
 export default function PhoneVerifyField({
-  value = '', // 휴대폰 번호(원문 입력값). 정규화는 전송 직전에 한다.
+  value = "", // 휴대폰 번호(원문 입력값). 정규화는 전송 직전에 한다.
   onChange,
   verified = false,
   onVerified,
   error,
-  id = 'mentor-apply-phone'
+  id = "mentor-apply-phone",
 }) {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [requested, setRequested] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [message, setMessage] = useState({ text: '', status: 'default' });
+  const [message, setMessage] = useState({ text: "", status: "default" });
 
   const cooldown = useCooldown(RESEND_COOLDOWN_SECONDS);
   const normalizedPhone = normalizePhone(value);
@@ -82,9 +82,9 @@ export default function PhoneVerifyField({
   const errorId = `${id}-message`;
   // 부모가 내려주는 error(제출 시 검증)가 우선이다 — 실패 원인을 덮지 않는다.
   const shownMessage = error
-    ? { text: error, status: 'error' }
+    ? { text: error, status: "error" }
     : verified
-      ? { text: '인증되었습니다', status: 'success' }
+      ? { text: "인증되었습니다", status: "success" }
       : message;
 
   // 시안에 있는 라벨은 최초 상태 `인증번호 발송` 하나뿐이다. 쿨다운·재발송 라벨은
@@ -93,17 +93,17 @@ export default function PhoneVerifyField({
   const sendLabel = cooldown.active
     ? `${cooldown.remaining}초 후`
     : requested
-      ? '다시 발송'
-      : '인증번호 발송';
+      ? "다시 발송"
+      : "인증번호 발송";
 
   async function handleSend() {
     if (!isValidMobile(value)) {
-      setMessage({ text: '올바른 전화번호를 입력해 주세요', status: 'error' });
+      setMessage({ text: "올바른 전화번호를 입력해 주세요", status: "error" });
       return;
     }
 
     setSending(true);
-    setMessage({ text: '', status: 'default' });
+    setMessage({ text: "", status: "default" });
 
     try {
       const result = await sendPhoneCode(normalizedPhone, PHONE_PURPOSE);
@@ -112,27 +112,27 @@ export default function PhoneVerifyField({
         // 서버가 남은 시간을 알려준 경우에만 쿨다운을 돌린다(ParentForm.jsx:164 동일).
         if (result.retryAfter) cooldown.start();
 
-        if (result.reason === 'phone_taken') {
+        if (result.reason === "phone_taken") {
           // purpose 를 'mentor_apply' 로 보내는 한 서버가 중복 검사를 하지 않으므로
           // 여기로 오면 안 된다. 방어적으로 남겨 둔다.
           setRequested(false);
-          setMessage({ text: DUPLICATE_PHONE_MESSAGE, status: 'error' });
+          setMessage({ text: DUPLICATE_PHONE_MESSAGE, status: "error" });
           return;
         }
 
-        setMessage({ text: result.message, status: 'error' });
+        setMessage({ text: result.message, status: "error" });
         return;
       }
 
       setRequested(true);
-      setCode('');
+      setCode("");
       cooldown.start();
       setMessage({
         // 운영에서 dryRun 이 true 면 문자가 실제로 나가지 않은 것이다.
         text: result.dryRun
-          ? '테스트 모드입니다 — 실제 문자는 발송되지 않았습니다.'
-          : '인증번호를 보냈습니다.',
-        status: 'default'
+          ? "테스트 모드입니다 — 실제 문자는 발송되지 않았습니다."
+          : "인증번호를 보냈습니다.",
+        status: "default",
       });
     } finally {
       setSending(false);
@@ -141,7 +141,7 @@ export default function PhoneVerifyField({
 
   async function handleVerify() {
     if (code.length !== 6) {
-      setMessage({ text: '인증번호 6자리를 입력해 주세요.', status: 'error' });
+      setMessage({ text: "인증번호 6자리를 입력해 주세요.", status: "error" });
       return;
     }
 
@@ -151,11 +151,11 @@ export default function PhoneVerifyField({
       const result = await verifyPhoneCode(normalizedPhone, code);
 
       if (!result.ok) {
-        setMessage({ text: result.message, status: 'error' });
+        setMessage({ text: result.message, status: "error" });
         return;
       }
 
-      setMessage({ text: '인증되었습니다', status: 'success' });
+      setMessage({ text: "인증되었습니다", status: "success" });
       // 부모에는 정규화된 번호를 넘긴다 — 제출 페이로드와 서버 조회 키를 맞춘다.
       onVerified?.(normalizedPhone);
     } finally {
@@ -167,7 +167,9 @@ export default function PhoneVerifyField({
     <div className="flex w-full flex-col gap-2">
       {/* 시안: 370.5 + gap 12 + 370.5 = 753 의 2컬럼. 좁은 화면에서는 세로로 쌓는다. */}
       <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-2">
-        <div className={`${FIELD_BOX_CLASS} ${shownMessage.status === 'error' ? 'border-error' : 'border-line'}`}>
+        <div
+          className={`${FIELD_BOX_CLASS} ${shownMessage.status === "error" ? "border-error" : "border-line"}`}
+        >
           {/* 인증이 끝난 뒤 번호를 바꾸면 서버 인증 기록과 어긋나므로 입력·발송을 잠근다. */}
           <input
             id={id}
@@ -180,7 +182,7 @@ export default function PhoneVerifyField({
             placeholder={PHONE_PLACEHOLDER}
             disabled={verified}
             aria-label="휴대폰 번호"
-            aria-invalid={shownMessage.status === 'error'}
+            aria-invalid={shownMessage.status === "error"}
             aria-describedby={shownMessage.text ? errorId : undefined}
             className={INPUT_CLASS}
           />
@@ -194,7 +196,9 @@ export default function PhoneVerifyField({
           </button>
         </div>
 
-        <div className={`${FIELD_BOX_CLASS} ${shownMessage.status === 'error' ? 'border-error' : 'border-line'}`}>
+        <div
+          className={`${FIELD_BOX_CLASS} ${shownMessage.status === "error" ? "border-error" : "border-line"}`}
+        >
           <input
             id={`${id}-code`}
             name="phoneCode"
@@ -202,7 +206,9 @@ export default function PhoneVerifyField({
             inputMode="numeric"
             autoComplete="one-time-code"
             value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(event) =>
+              setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
             placeholder={CODE_PLACEHOLDER}
             disabled={!requested || verified}
             aria-label="인증번호"
@@ -224,7 +230,7 @@ export default function PhoneVerifyField({
       {shownMessage.text && (
         <p
           id={errorId}
-          role={shownMessage.status === 'error' ? 'alert' : 'status'}
+          role={shownMessage.status === "error" ? "alert" : "status"}
           className={`text-[0.875rem] leading-[1.4] ${MESSAGE_TEXT_CLASS[shownMessage.status]}`}
         >
           {shownMessage.text}

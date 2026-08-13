@@ -1,6 +1,6 @@
-import { useEffect, useId, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
+import { useEffect, useId, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "../data/navigation";
 
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
 // v3: 콜멘토 링크가 /page/services-content → /services/callmentor 로 바뀌어(callmentor-spec.md)
@@ -19,10 +19,10 @@ import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from '../data/navigation';
 // '/services/learning-diagnosis'로 옮겨졌다. 캐시에 구 경로('/learning-diagnosis')가 남아있는
 // 사용자에게도 즉시 신 경로가 보이도록(그리고 ensureLearningDiagnosisInService가 구 경로를
 // 걸러내지 못해 중복 노출되는 것을 막기 위해) 키를 다시 bump한다.
-const HEADER_NAV_CACHE_KEY = 'winning-header-nav-groups-dynamic-v4-v4-v6-v7';
+const HEADER_NAV_CACHE_KEY = "winning-header-nav-groups-dynamic-v4-v4-v6-v7";
 
 export function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 // DB page_contents.menu_label에 '컬럼'(오타, 올바른 표기는 '칼럼')이 섞여 들어와도 메뉴 라벨에
@@ -30,14 +30,14 @@ export function cleanText(value) {
 // 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
 // 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
 export function normalizeMenuLabel(label) {
-  return cleanText(label).replaceAll('컬럼', '칼럼');
+  return cleanText(label).replaceAll("컬럼", "칼럼");
 }
 
 function safeJsonStringify(value) {
   try {
     return JSON.stringify(value);
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -48,9 +48,9 @@ export function isSameObject(a, b) {
 function resolveMenuLink(slug) {
   const value = cleanText(slug);
 
-  if (!value) return '/';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (value.startsWith('/')) return value;
+  if (!value) return "/";
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (value.startsWith("/")) return value;
 
   return `/page/${value}`;
 }
@@ -62,20 +62,20 @@ function resolveMenuLink(slug) {
 // /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
 // 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
 export const PROMOTED_SLUG_ROUTES = {
-  'services-goal': '/services/goal',
-  'services-ai-performance': '/services/performance',
-  'services-self-assessment': '/services/self-assessment',
-  'services-in-depth-research': '/services/research',
-  'admission-special-highschool-results': '/admission/special-highschool',
-  'premium-apply': '/premium-apply',
-  'mentor-apply': '/mentor-apply',
-  gallery: '/info/column'
+  "services-goal": "/services/goal",
+  "services-ai-performance": "/services/performance",
+  "services-self-assessment": "/services/self-assessment",
+  "services-in-depth-research": "/services/research",
+  "admission-special-highschool-results": "/admission/special-highschool",
+  "premium-apply": "/premium-apply",
+  "mentor-apply": "/mentor-apply",
+  gallery: "/info/column",
 };
 
 // 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
 // DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
 const PROMOTED_PATH_ROUTES = {
-  '/gallery': '/info/column'
+  "/gallery": "/info/column",
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
@@ -97,8 +97,8 @@ function applyPromotedSlugRoutes(groups) {
     to: resolvePromotedSlugLink(group.to),
     items: (Array.isArray(group.items) ? group.items : []).map((item) => ({
       ...item,
-      to: resolvePromotedSlugLink(item.to)
-    }))
+      to: resolvePromotedSlugLink(item.to),
+    })),
   }));
 }
 
@@ -106,7 +106,7 @@ function ensureLearningDiagnosisInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => {
-    if (cleanText(group?.title) !== '서비스') {
+    if (cleanText(group?.title) !== "서비스") {
       return group;
     }
 
@@ -137,24 +137,24 @@ function ensureLearningDiagnosisInService(groups) {
       // '/learning-diagnosis' 리다이렉트로 살아 있지만, 같은 메뉴가 두 번 보이는 건 그대로
       // 버그). 몇 줄 비용으로 그 창을 막을 수 있어 유지가 이득이다. 운영 DB까지 신 경로로
       // 이관이 끝나면 구 리터럴들은 제거해도 된다.
-      const label = cleanText(item?.label).replace(/\s+/g, '');
+      const label = cleanText(item?.label).replace(/\s+/g, "");
       const to = cleanText(item?.to);
       return (
-        label !== '무료진단' &&
-        label !== '학습진단' &&
-        to !== '/free-diagnosis' &&
-        to !== '/learning-diagnosis' &&
-        to !== '/services/learning-diagnosis'
+        label !== "무료진단" &&
+        label !== "학습진단" &&
+        to !== "/free-diagnosis" &&
+        to !== "/learning-diagnosis" &&
+        to !== "/services/learning-diagnosis"
       );
     });
 
     return {
       ...group,
-      to: group.to || '/services/learning-diagnosis',
+      to: group.to || "/services/learning-diagnosis",
       items: [
-        { label: '학습진단', to: '/services/learning-diagnosis', sortOrder: 0 },
-        ...withoutLearningDiagnosis
-      ]
+        { label: "학습진단", to: "/services/learning-diagnosis", sortOrder: 0 },
+        ...withoutLearningDiagnosis,
+      ],
     };
   });
 }
@@ -169,24 +169,29 @@ function ensureLearningDiagnosisInService(groups) {
 // 끝에 append해 항목 자체가 사라지지 않게 한다.
 function insertGrowthPlanningInService(groups) {
   const source = Array.isArray(groups) ? groups : [];
-  const growthLink = '/services/growth';
+  const growthLink = "/services/growth";
 
   return source.map((group) => {
-    if (cleanText(group?.title) !== '서비스') {
+    if (cleanText(group?.title) !== "서비스") {
       return group;
     }
 
     const items = Array.isArray(group.items) ? group.items : [];
     // 재계산(realtime 갱신 등)으로 이 함수가 다시 호출돼도 중복 삽입되지 않도록 기존 항목을
     // 먼저 제거하고 다시 계산한다.
-    const withoutGrowth = items.filter((item) => cleanText(item?.to) !== growthLink);
+    const withoutGrowth = items.filter(
+      (item) => cleanText(item?.to) !== growthLink,
+    );
 
     const selfAssessmentIndex = withoutGrowth.findIndex((item) => {
-      const label = cleanText(item?.label).replace(/\s+/g, '');
-      return label === '자기평가' || cleanText(item?.to) === '/services/self-assessment';
+      const label = cleanText(item?.label).replace(/\s+/g, "");
+      return (
+        label === "자기평가" ||
+        cleanText(item?.to) === "/services/self-assessment"
+      );
     });
 
-    const growthItem = { label: '성장설계', to: growthLink, sortOrder: 0 };
+    const growthItem = { label: "성장설계", to: growthLink, sortOrder: 0 };
     const nextItems = [...withoutGrowth];
 
     if (selfAssessmentIndex === -1) {
@@ -197,7 +202,7 @@ function insertGrowthPlanningInService(groups) {
 
     return {
       ...group,
-      items: nextItems
+      items: nextItems,
     };
   });
 }
@@ -244,17 +249,17 @@ function buildNavGroups(rows) {
 
     if (!slug) return;
 
-    const isCompanyIntro = slug === 'company-intro';
+    const isCompanyIntro = slug === "company-intro";
     // 콜멘토 랜딩 신설(docs/callmentor-spec.md) — DB page_contents의 구 슬러그
     // 'services-content'가 아직 남아 있어도 신규 라우트로 보낸다(DB 레코드 정리는 별도, 이번
     // 범위 제외). App.jsx의 `/page/services-content` → `/services/callmentor` 리다이렉트와 세트.
-    const isCallMentor = slug === 'services-content';
+    const isCallMentor = slug === "services-content";
     // 라벨은 DB menu_label을 그대로 쓰되(강제 치환 제거), CompanyNews/콜멘토 페이지가 소비하는
     // slug → 전용 라우트 매핑만 유지한다.
     const itemLink = isCompanyIntro
-      ? '/company-news'
+      ? "/company-news"
       : isCallMentor
-        ? '/services/callmentor'
+        ? "/services/callmentor"
         : resolveMenuLink(slug);
     const savedGroupOrder = Number(item.menu_group_order);
     const groupOrder =
@@ -263,14 +268,17 @@ function buildNavGroups(rows) {
         : MENU_GROUP_ORDER[groupName] || 99;
 
     const savedSortOrder = Number(item.sort_order);
-    const sortOrder = Number.isFinite(savedSortOrder) && savedSortOrder > 0 ? savedSortOrder : 99;
+    const sortOrder =
+      Number.isFinite(savedSortOrder) && savedSortOrder > 0
+        ? savedSortOrder
+        : 99;
 
     if (!grouped.has(groupName)) {
       grouped.set(groupName, {
         title: groupName,
         groupOrder,
         to: itemLink,
-        items: []
+        items: [],
       });
     }
 
@@ -282,9 +290,11 @@ function buildNavGroups(rows) {
     }
 
     group.items.push({
-      label: normalizeMenuLabel(cleanText(item.menu_label) || cleanText(item.title) || groupName),
+      label: normalizeMenuLabel(
+        cleanText(item.menu_label) || cleanText(item.title) || groupName,
+      ),
       to: itemLink,
-      sortOrder
+      sortOrder,
     });
   });
 
@@ -296,7 +306,7 @@ function buildNavGroups(rows) {
       return {
         title: group.title,
         to: sortedItems[0]?.to || group.to,
-        items: sortedItems
+        items: sortedItems,
       };
     });
 
@@ -307,10 +317,12 @@ function buildNavGroups(rows) {
 // page_contents(DB) → 캐시(HEADER_NAV_CACHE_KEY) → FALLBACK_NAV_GROUPS 순으로 소스를 결정하고,
 // postgres_changes realtime 구독으로 변경을 즉시 반영한다.
 export function useNavGroups() {
-  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
   const [navGroups, setNavGroups] = useState(() => {
     return applyPromotedSlugRoutes(
-      ensureLearningDiagnosisInService(readCachedNavGroups() || FALLBACK_NAV_GROUPS)
+      ensureLearningDiagnosisInService(
+        readCachedNavGroups() || FALLBACK_NAV_GROUPS,
+      ),
     );
   });
 
@@ -319,16 +331,18 @@ export function useNavGroups() {
 
     async function loadNavGroups() {
       const { data, error } = await supabase
-        .from('page_contents')
-        .select('menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active')
-        .eq('is_active', true)
-        .order('menu_group_order', { ascending: true })
-        .order('sort_order', { ascending: true });
+        .from("page_contents")
+        .select(
+          "menu_group, menu_group_order, menu_label, title, slug, sort_order, is_active",
+        )
+        .eq("is_active", true)
+        .order("menu_group_order", { ascending: true })
+        .order("sort_order", { ascending: true });
 
       if (!alive) return;
 
       if (error) {
-        console.error('내비게이션 메뉴 조회 실패:', error);
+        console.error("내비게이션 메뉴 조회 실패:", error);
         return;
       }
 
@@ -353,8 +367,10 @@ export function useNavGroups() {
     // 헤더+푸터 두 인스턴스가 동시에 구독해도 채널명이 충돌하지 않도록 useId 기반으로 유니크화.
     const channel = supabase
       .channel(`nav-groups-page-contents-${instanceId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_contents' }, () =>
-        loadNavGroups()
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "page_contents" },
+        () => loadNavGroups(),
       )
       .subscribe();
 

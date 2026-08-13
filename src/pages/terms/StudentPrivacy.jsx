@@ -8,7 +8,9 @@
 // 오재사용하던 것을 학생 전용 원문(목적/항목/보유기간)으로 교체했다.
 // 외부 링크 3개(kopico.go.kr, privacy.kisa.or.kr, ecrm.cyber.go.kr, target _blank)는
 // TermsArticleBody의 linkify()가 13항 텍스트에서 자동 인식해 새 탭 링크로 렌더링한다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsArticleBody,
+} from "../../components/auth/TermsPageLayout";
 
 const BODY = `본 약관은 위닝에듀 학생회원가입 시 회원의 연령(만 14세 이상 / 만 14세 미만)에 따라 회원 본인 또는 법정대리인이 확인·동의하는 사항을 정합니다. 본 약관은 위닝에듀 서비스 이용약관, 개인정보처리방침과 함께 적용됩니다.
 연령 확인은 회원가입 시 입력하는 생년월일을 기준으로 하며, 생일이 지나지 않은 경우 만 14세 미만으로 처리합니다.

@@ -17,10 +17,10 @@
 //   학생 가입(StudentForm)은 가입 직후 signOut 하는 AS-IS 정책을 따르지만,
 //   학부모는 가입 → 자녀 연결로 흐름이 이어지므로 세션을 유지해야 한다.
 
-import { createSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { getClientIp } from './_lib/phoneCode.js';
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { getClientIp } from "./_lib/phoneCode.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 const CODE_PATTERN = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
 
@@ -35,12 +35,12 @@ function isoAgo(seconds) {
 
 async function countLookups(supabase, actorId, { onlyFailed = false } = {}) {
   let query = supabase
-    .from('link_code_lookups')
-    .select('id', { count: 'exact', head: true })
-    .eq('actor_id', actorId)
-    .gte('created_at', isoAgo(3600));
+    .from("link_code_lookups")
+    .select("id", { count: "exact", head: true })
+    .eq("actor_id", actorId)
+    .gte("created_at", isoAgo(3600));
 
-  if (onlyFailed) query = query.eq('found', false);
+  if (onlyFailed) query = query.eq("found", false);
 
   const { count, error } = await query;
   if (error) throw error;
@@ -49,18 +49,18 @@ async function countLookups(supabase, actorId, { onlyFailed = false } = {}) {
 }
 
 function getBearerToken(req) {
-  return String(req.headers.authorization || '')
-    .replace(/^Bearer\s+/i, '')
+  return String(req.headers.authorization || "")
+    .replace(/^Bearer\s+/i, "")
     .trim();
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
 
   // 입력 코드는 대문자로만 저장되므로 소문자 입력도 받아준다.
-  const code = String(req.body?.code || '')
+  const code = String(req.body?.code || "")
     .trim()
     .toUpperCase();
 
@@ -69,39 +69,40 @@ export default async function handler(req, res) {
   if (!token) {
     return res.status(401).json({
       ok: false,
-      reason: 'not_authenticated',
-      detail: '로그인이 필요합니다.'
+      reason: "not_authenticated",
+      detail: "로그인이 필요합니다.",
     });
   }
 
   try {
     const supabase = createSupabaseAdmin();
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabase.auth.getUser(token);
     const actorId = userData?.user?.id;
 
     if (userError || !actorId) {
       return res.status(401).json({
         ok: false,
-        reason: 'not_authenticated',
-        detail: '로그인이 만료되었습니다. 다시 로그인해 주세요.'
+        reason: "not_authenticated",
+        detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
       });
     }
 
     // 회원유형 확인 — 학생이 남의 코드를 조회할 이유가 없다.
     const { data: actor, error: actorError } = await supabase
-      .from('profiles')
-      .select('member_type')
-      .eq('id', actorId)
+      .from("profiles")
+      .select("member_type")
+      .eq("id", actorId)
       .maybeSingle();
 
     if (actorError) throw actorError;
 
-    if (actor?.member_type !== 'parent') {
+    if (actor?.member_type !== "parent") {
       return res.status(403).json({
         ok: false,
-        reason: 'not_a_parent',
-        detail: '학부모 회원만 이용할 수 있습니다.'
+        reason: "not_a_parent",
+        detail: "학부모 회원만 이용할 수 있습니다.",
       });
     }
 
@@ -110,32 +111,35 @@ export default async function handler(req, res) {
     if (!CODE_PATTERN.test(code)) {
       return res.status(400).json({
         ok: false,
-        reason: 'invalid_code_format',
-        detail: '연결코드 6자리를 정확히 입력해 주세요.'
+        reason: "invalid_code_format",
+        detail: "연결코드 6자리를 정확히 입력해 주세요.",
       });
     }
 
-    if ((await countLookups(supabase, actorId, { onlyFailed: true })) >= MAX_FAILED_PER_HOUR) {
+    if (
+      (await countLookups(supabase, actorId, { onlyFailed: true })) >=
+      MAX_FAILED_PER_HOUR
+    ) {
       return res.status(429).json({
         ok: false,
-        reason: 'too_many_failed_lookups',
-        detail: '조회 실패가 많습니다. 잠시 후 다시 시도해 주세요.'
+        reason: "too_many_failed_lookups",
+        detail: "조회 실패가 많습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
 
     if ((await countLookups(supabase, actorId)) >= MAX_LOOKUPS_PER_HOUR) {
       return res.status(429).json({
         ok: false,
-        reason: 'too_many_lookups',
-        detail: '조회 횟수가 많습니다. 잠시 후 다시 시도해 주세요.'
+        reason: "too_many_lookups",
+        detail: "조회 횟수가 많습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
 
     const { data: codeRow, error: codeError } = await supabase
-      .from('student_link_codes')
-      .select('student_id')
-      .eq('code', code)
-      .eq('is_active', true)
+      .from("student_link_codes")
+      .select("student_id")
+      .eq("code", code)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (codeError) throw codeError;
@@ -144,25 +148,25 @@ export default async function handler(req, res) {
 
     // 성공·실패 모두 남긴다. 실패만 남기면 정상 사용량을 알 수 없고,
     // 성공만 남기면 추측 시도를 놓친다.
-    await supabase.from('link_code_lookups').insert({
+    await supabase.from("link_code_lookups").insert({
       actor_id: actorId,
       code,
       found: Boolean(codeRow),
-      request_ip: ip
+      request_ip: ip,
     });
 
     if (!codeRow) {
       return res.status(404).json({
         ok: false,
-        reason: 'link_code_not_found',
-        detail: '일치하는 연결코드가 없습니다.'
+        reason: "link_code_not_found",
+        detail: "일치하는 연결코드가 없습니다.",
       });
     }
 
     const { data: student, error: studentError } = await supabase
-      .from('profiles')
-      .select('name, school_name, school_type')
-      .eq('id', codeRow.student_id)
+      .from("profiles")
+      .select("name, school_name, school_type")
+      .eq("id", codeRow.student_id)
       .maybeSingle();
 
     if (studentError) throw studentError;
@@ -170,32 +174,32 @@ export default async function handler(req, res) {
     // 이미 다른 보호자와 연결된 학생이면 여기서 알려준다. 그냥 통과시키면
     // 학부모가 연결 요청까지 눌렀다가 student_already_linked로 거절당한다.
     const { count: linkedCount, error: linkedError } = await supabase
-      .from('parent_child_links')
-      .select('id', { count: 'exact', head: true })
-      .eq('student_id', codeRow.student_id)
-      .eq('status', 'approved');
+      .from("parent_child_links")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", codeRow.student_id)
+      .eq("status", "approved");
 
     if (linkedError) throw linkedError;
 
     return res.status(200).json({
       ok: true,
       child: {
-        name: student?.name || '',
-        school: student?.school_name || '',
-        school_type: student?.school_type || '',
+        name: student?.name || "",
+        school: student?.school_name || "",
+        school_type: student?.school_type || "",
         // 학년은 profiles에 컬럼이 없다(기존 미해결 GAP). UI(ChildPreviewCard)는
         // '고3' 형태를 기대하므로, 학년 컬럼이 생기기 전까지는 null이다.
-        grade: null
+        grade: null,
       },
-      already_linked: (linkedCount || 0) > 0
+      already_linked: (linkedCount || 0) > 0,
     });
   } catch (error) {
-    console.error('[lookup-child] 오류:', error);
+    console.error("[lookup-child] 오류:", error);
 
     return res.status(500).json({
       ok: false,
-      reason: 'unknown',
-      detail: '연결코드 조회 중 오류가 발생했습니다.'
+      reason: "unknown",
+      detail: "연결코드 조회 중 오류가 발생했습니다.",
     });
   }
 }

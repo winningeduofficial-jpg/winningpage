@@ -28,7 +28,7 @@
 //   (혹은 그 반대)가 되므로, 조건을 임의로 더하지 않는다. 비활성 관리자까지
 //   막으려면 SQL 함수와 이 파일을 **같이** 고쳐야 한다.
 
-import { getBearerToken } from './serviceAccess.js';
+import { getBearerToken } from "./serviceAccess.js";
 
 export { getBearerToken };
 
@@ -44,31 +44,36 @@ export async function resolveAdmin(supabaseAdmin, req) {
   const token = getBearerToken(req);
 
   if (!token) {
-    return { ok: false, status: 401, detail: '로그인이 필요합니다.' };
+    return { ok: false, status: 401, detail: "로그인이 필요합니다." };
   }
 
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  const { data: userData, error: userError } =
+    await supabaseAdmin.auth.getUser(token);
 
   if (userError || !userData?.user?.id) {
-    return { ok: false, status: 401, detail: '로그인이 필요합니다.' };
+    return { ok: false, status: 401, detail: "로그인이 필요합니다." };
   }
 
   const userId = userData.user.id;
 
   const { data: profile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
     .maybeSingle();
 
   // 조회 자체가 실패한 것을 "권한 없음"으로 뭉개면 원인이 안 보인다.
   // 권한 거부(403)와 서버 오류(500)를 구분해서 돌려준다.
   if (profileError) {
-    return { ok: false, status: 500, detail: '관리자 권한 확인에 실패했습니다.' };
+    return {
+      ok: false,
+      status: 500,
+      detail: "관리자 권한 확인에 실패했습니다.",
+    };
   }
 
-  if (!profile || String(profile.role || '') !== 'admin') {
-    return { ok: false, status: 403, detail: '관리자 권한이 필요합니다.' };
+  if (!profile || String(profile.role || "") !== "admin") {
+    return { ok: false, status: 403, detail: "관리자 권한이 필요합니다." };
   }
 
   return { ok: true, userId };
@@ -105,40 +110,56 @@ export async function resolveWinningAdmin(supabaseAdmin, req) {
   const token = getBearerToken(req);
 
   if (!token) {
-    return { ok: false, status: 401, detail: '로그인이 필요합니다.' };
+    return { ok: false, status: 401, detail: "로그인이 필요합니다." };
   }
 
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  const { data: userData, error: userError } =
+    await supabaseAdmin.auth.getUser(token);
 
   if (userError || !userData?.user?.id) {
-    return { ok: false, status: 401, detail: '로그인이 필요합니다.' };
+    return { ok: false, status: 401, detail: "로그인이 필요합니다." };
   }
 
   const userId = userData.user.id;
-  const jwtEmail = String(userData.user.email || '').toLowerCase();
+  const jwtEmail = String(userData.user.email || "").toLowerCase();
 
   // is_winning_admin()과 같은 술어: id = uid OR lower(email) = lower(jwt email).
   // profiles.email에는 UNIQUE가 없어 매칭 행이 둘 이상일 수 있으므로, 그중
   // 하나라도 4개 role 집합에 속하면 통과시킨다(SQL exists()와 동일 의미).
-  const orFilter = jwtEmail ? `id.eq.${userId},email.ilike.${jwtEmail}` : `id.eq.${userId}`;
+  const orFilter = jwtEmail
+    ? `id.eq.${userId},email.ilike.${jwtEmail}`
+    : `id.eq.${userId}`;
   const { data: profiles, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('id, role, email')
+    .from("profiles")
+    .select("id, role, email")
     .or(orFilter);
 
   if (profileError) {
-    return { ok: false, status: 500, detail: '관리자 권한 확인에 실패했습니다.' };
+    return {
+      ok: false,
+      status: 500,
+      detail: "관리자 권한 확인에 실패했습니다.",
+    };
   }
 
-  const ALLOWED_ROLES = new Set(['admin', 'admin_basic', 'admin_manager', 'admin_master']);
+  const ALLOWED_ROLES = new Set([
+    "admin",
+    "admin_basic",
+    "admin_manager",
+    "admin_master",
+  ]);
   const isAdmin = (profiles || []).some((profile) => {
     const matchesId = profile.id === userId;
-    const matchesEmail = jwtEmail && String(profile.email || '').toLowerCase() === jwtEmail;
-    return (matchesId || matchesEmail) && ALLOWED_ROLES.has(String(profile.role || ''));
+    const matchesEmail =
+      jwtEmail && String(profile.email || "").toLowerCase() === jwtEmail;
+    return (
+      (matchesId || matchesEmail) &&
+      ALLOWED_ROLES.has(String(profile.role || ""))
+    );
   });
 
   if (!isAdmin) {
-    return { ok: false, status: 403, detail: '관리자 권한이 필요합니다.' };
+    return { ok: false, status: 403, detail: "관리자 권한이 필요합니다." };
   }
 
   return { ok: true, userId };

@@ -22,26 +22,28 @@
 // 섞여 있어도 이 항목 때문에 전체가 실패로 보이면 안 된다.
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const LEGACY_URL = process.env.LEGACY_SUPABASE_URL;
 const LEGACY_SERVICE_ROLE_KEY = process.env.LEGACY_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!LEGACY_URL || !LEGACY_SERVICE_ROLE_KEY) {
   console.log(
-    '레거시 DB 크리덴셜 없음 — 실행 불가. .env.local에 LEGACY_SUPABASE_URL / LEGACY_SUPABASE_SERVICE_ROLE_KEY 를 설정한 뒤 다시 실행하세요.'
+    "레거시 DB 크리덴셜 없음 — 실행 불가. .env.local에 LEGACY_SUPABASE_URL / LEGACY_SUPABASE_SERVICE_ROLE_KEY 를 설정한 뒤 다시 실행하세요.",
   );
   process.exit(0);
 }
 
 const supabase = createClient(LEGACY_URL, LEGACY_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false }
+  auth: { persistSession: false },
 });
 
-const TABLES = ['students', 'conversations', 'assessment_reports'];
+const TABLES = ["students", "conversations", "assessment_reports"];
 
 async function countTable(table) {
-  const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+  const { count, error } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true });
   if (error) {
     return { table, count: null, error: error.message };
   }
@@ -49,7 +51,8 @@ async function countTable(table) {
 }
 
 async function countStorageObjects() {
-  const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+  const { data: buckets, error: bucketsError } =
+    await supabase.storage.listBuckets();
   if (bucketsError) {
     return { buckets: [], total: null, error: bucketsError.message };
   }
@@ -69,14 +72,22 @@ async function countStorageObjects() {
         .list(undefined, { limit, offset });
 
       if (listError) {
-        buckets_result.push({ name: bucket.name, count: null, error: listError.message });
+        buckets_result.push({
+          name: bucket.name,
+          count: null,
+          error: listError.message,
+        });
         break;
       }
 
       bucketTotal += objects.length;
 
       if (objects.length < limit) {
-        buckets_result.push({ name: bucket.name, count: bucketTotal, error: null });
+        buckets_result.push({
+          name: bucket.name,
+          count: bucketTotal,
+          error: null,
+        });
         total += bucketTotal;
         break;
       }
@@ -93,33 +104,39 @@ console.log(`레거시 DB 실측 — ${LEGACY_URL}\n`);
 const tableResults = await Promise.all(TABLES.map(countTable));
 const storageResult = await countStorageObjects();
 
-console.log('테이블                    | 행 수');
-console.log('--------------------------|-------');
+console.log("테이블                    | 행 수");
+console.log("--------------------------|-------");
 for (const { table, count, error } of tableResults) {
   console.log(`${table.padEnd(26)}| ${error ? `ERROR: ${error}` : count}`);
 }
 
-console.log('');
+console.log("");
 if (storageResult.error) {
   console.log(`Storage — ERROR: ${storageResult.error}`);
 } else {
-  console.log('Storage 버킷              | 객체 수');
-  console.log('--------------------------|-------');
+  console.log("Storage 버킷              | 객체 수");
+  console.log("--------------------------|-------");
   for (const { name, count, error } of storageResult.buckets) {
     console.log(`${name.padEnd(26)}| ${error ? `ERROR: ${error}` : count}`);
   }
-  console.log(`${'합계'.padEnd(26)}| ${storageResult.total}`);
+  console.log(`${"합계".padEnd(26)}| ${storageResult.total}`);
 }
 
-const hasError = tableResults.some((r) => r.error !== null) || storageResult.error !== null;
+const hasError =
+  tableResults.some((r) => r.error !== null) || storageResult.error !== null;
 const totalRows =
-  tableResults.reduce((sum, r) => sum + (r.count ?? 0), 0) + (storageResult.total ?? 0);
+  tableResults.reduce((sum, r) => sum + (r.count ?? 0), 0) +
+  (storageResult.total ?? 0);
 
-console.log('');
+console.log("");
 if (hasError) {
-  console.log('일부 조회가 실패했습니다 — 위 ERROR 항목을 확인하세요. 결정은 전 항목 성공 후 내리세요.');
+  console.log(
+    "일부 조회가 실패했습니다 — 위 ERROR 항목을 확인하세요. 결정은 전 항목 성공 후 내리세요.",
+  );
 } else if (totalRows === 0) {
-  console.log('전부 0건 — 결정 B 확정 가능. P17은 2h로 종결.');
+  console.log("전부 0건 — 결정 B 확정 가능. P17은 2h로 종결.");
 } else {
-  console.log(`총 ${totalRows}건 존재 — P17이 12h 원안(이관 계획)으로 복귀해야 함.`);
+  console.log(
+    `총 ${totalRows}건 존재 — P17이 12h 원안(이관 계획)으로 복귀해야 함.`,
+  );
 }

@@ -8,7 +8,10 @@
 // 그 이유로 거부하는지"를 실제로 확인하는 프로브 방식을 쓴다 — 맵이 나중에
 // 바뀌어도 이 판정이 자동으로 따라간다(값 복제 방식의 동기화 누락 위험을
 // 원천 차단).
-import { validateAdmissionDoc, stableStringifyDoc } from '../../../lib/admissionDoc';
+import {
+  validateAdmissionDoc,
+  stableStringifyDoc,
+} from "../../../lib/admissionDoc";
 
 // 편집 중인 Block 배열(문서 전체 또는 그 일부)을 최소 AdmissionDoc으로
 // 감싸 validateAdmissionDoc에 넘긴다. section은 validateAdmissionDoc이
@@ -18,10 +21,10 @@ export function validateBlocks(section, blocks) {
   const doc = {
     v: 1,
     section,
-    source: 'manual',
-    generator: 'table-editor',
+    source: "manual",
+    generator: "table-editor",
     generatedAt: new Date().toISOString(),
-    blocks
+    blocks,
   };
   return validateAdmissionDoc(doc);
 }
@@ -41,10 +44,10 @@ export function blocksEqual(section, blockA, blockB) {
     stableStringifyDoc({
       v: 1,
       section,
-      source: 'manual',
-      generator: 'compare',
-      generatedAt: 'x',
-      blocks: [block]
+      source: "manual",
+      generator: "compare",
+      generatedAt: "x",
+      blocks: [block],
     });
   return wrap(blockA) === wrap(blockB);
 }
@@ -52,8 +55,8 @@ export function blocksEqual(section, blockA, blockB) {
 function buildColumnAddProbe(block) {
   return {
     ...block,
-    columns: [...block.columns, { role: '__probe__', label: '' }],
-    rows: block.rows.map((row) => [...row, ''])
+    columns: [...block.columns, { role: "__probe__", label: "" }],
+    rows: block.rows.map((row) => [...row, ""]),
   };
 }
 
@@ -71,12 +74,12 @@ export function getColumnMutationBlockReason(section, block) {
   if (result.ok) return null;
 
   if (result.errors.some((e) => /컬럼 수가 \d+이어야 하는데/.test(e))) {
-    return '이 표 형식(variant)은 컬럼 수가 고정돼 있습니다(레이아웃 폭 규칙과 연결). 열을 추가·삭제할 수 없습니다.';
+    return "이 표 형식(variant)은 컬럼 수가 고정돼 있습니다(레이아웃 폭 규칙과 연결). 열을 추가·삭제할 수 없습니다.";
   }
   if (result.errors.some((e) => /groups 합\(/.test(e))) {
-    return '그룹 헤더(2단 헤더) 구성과 열 개수가 맞물려 있습니다. 그룹 헤더 편집 기능(다음 작업)에서 함께 조정해야 합니다.';
+    return "그룹 헤더(2단 헤더) 구성과 열 개수가 맞물려 있습니다. 그룹 헤더 편집 기능(다음 작업)에서 함께 조정해야 합니다.";
   }
-  return '열 추가·삭제 시 표 구조 검증에 실패합니다.';
+  return "열 추가·삭제 시 표 구조 검증에 실패합니다.";
 }
 
 /**
@@ -89,16 +92,16 @@ export function getColumnMutationBlockReason(section, block) {
  * @returns {'text'|'badge'|'chips'}
  */
 export function resolveCellKind(roleKind, cellValue) {
-  if (cellValue && typeof cellValue === 'object') {
-    if (Array.isArray(cellValue.chips)) return 'chips';
-    if ('badge' in cellValue || 'text' in cellValue) return 'badge';
+  if (cellValue && typeof cellValue === "object") {
+    if (Array.isArray(cellValue.chips)) return "chips";
+    if ("badge" in cellValue || "text" in cellValue) return "badge";
   }
   return roleKind;
 }
 
 /** 빈 셀 기본값(kind별). 열 추가 시 새 셀, badge/chips 컬럼에 처음 값을 채울 때 사용. */
 export function emptyCellForKind(kind) {
-  if (kind === 'badge') return { text: '', badge: 'minimumNone' };
-  if (kind === 'chips') return { chips: [] };
-  return '';
+  if (kind === "badge") return { text: "", badge: "minimumNone" };
+  if (kind === "chips") return { chips: [] };
+  return "";
 }

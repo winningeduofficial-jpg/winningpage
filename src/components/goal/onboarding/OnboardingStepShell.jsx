@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
-import OnboardingProgress from './OnboardingProgress';
-import { supabase } from '../../../lib/supabase';
+import { useEffect, useState } from "react";
+import OnboardingProgress from "./OnboardingProgress";
+import { supabase } from "../../../lib/supabase";
 
 // 로그인 사용자 이름 추출 — api/create-service-ticket.js의 getUserName()과 동일한 우선순위
 // (user_metadata.name → full_name → student_name → email)를 프런트에서 재사용할 별도 헬퍼가
 // 없어 그대로 이식했다.
 function getUserDisplayName(user) {
   const meta = user?.user_metadata || {};
-  return String(meta.name || meta.full_name || meta.student_name || user?.email || '').trim();
+  return String(
+    meta.name || meta.full_name || meta.student_name || user?.email || "",
+  ).trim();
 }
 
 // 온보딩 7스텝 공통 셸 — docs/figma-goal/00-INDEX.md §3 G1 / §5-3 `OnboardingStepShell`.
@@ -20,7 +22,7 @@ export default function OnboardingStepShell({ current, total, children }) {
   // 이 라우트는 RequireGoalAccess가 로그인 세션을 이미 검증한 뒤에만 마운트되므로 세션 부재
   // 자체는 여기서 다시 방어하지 않는다 — 그래도 이름을 못 읽는 경우(메타데이터 미기재 등)를
   // 대비해 userName은 빈 문자열로 시작하고, 비어 있으면 기존 "학생님" 문구로 폴백한다.
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -40,13 +42,19 @@ export default function OnboardingStepShell({ current, total, children }) {
   return (
     <div className="mx-auto w-full max-w-[68.75rem] px-4 pb-[7.5rem]">
       <div className="mt-[7.5rem]">
-        <p className="text-[1rem] font-semibold text-accent">목표 관리 프로그램</p>
+        <p className="text-[1rem] font-semibold text-accent">
+          목표 관리 프로그램
+        </p>
         <h1 className="mt-[1.25rem] text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
-          {userName ? `${userName} 학생, 안녕하세요!` : '안녕하세요, 학생님!'}
+          {userName ? `${userName} 학생, 안녕하세요!` : "안녕하세요, 학생님!"}
           <br />
           입력하신 정보로 학습량을 계산해 드려요
         </h1>
-        <OnboardingProgress current={current} total={total} className="mt-[1.5rem]" />
+        <OnboardingProgress
+          current={current}
+          total={total}
+          className="mt-[1.5rem]"
+        />
       </div>
 
       <div className="mt-[2.5rem] flex flex-col gap-[3.75rem]">{children}</div>

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { createDevDummyPages } from './devDummyPages';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { createDevDummyPages } from "./devDummyPages";
 
 // 프리미엄 안내 책자 페이지 조회 훅 — 공개 페이지(/premium-apply) 전용 데이터 소스다.
 //
@@ -30,14 +30,14 @@ export function usePremiumBookPages() {
       setError(null);
 
       const { data, error: queryError } = await supabase
-        .from('premium_book_pages')
-        .select('id, sort_order, image_url')
-        .order('sort_order', { ascending: true });
+        .from("premium_book_pages")
+        .select("id, sort_order, image_url")
+        .order("sort_order", { ascending: true });
 
       if (!alive) return;
 
       if (queryError) {
-        console.error('프리미엄 책자 페이지 조회 실패:', queryError);
+        console.error("프리미엄 책자 페이지 조회 실패:", queryError);
         setError(queryError);
         setPages([]);
       } else {

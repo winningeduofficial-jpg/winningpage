@@ -18,13 +18,16 @@
 
 // 2026-08-06 src/lib/admissionDoc.js로 이동했다(위치만 이동, 동작 동일) —
 // 원래 load-admission-content.mjs에 있었다.
-import { shouldSkipForRegression } from '../src/lib/admissionDoc.js';
+import { shouldSkipForRegression } from "../src/lib/admissionDoc.js";
 
 function makeDoc(blockTexts) {
   return {
     v: 1,
-    section: 'previous_year_changes',
-    blocks: blockTexts.map((text, idx) => ({ kind: 'note', text: `${text}-${idx}` }))
+    section: "previous_year_changes",
+    blocks: blockTexts.map((text, idx) => ({
+      kind: "note",
+      text: `${text}-${idx}`,
+    })),
   };
 }
 
@@ -34,11 +37,11 @@ function makeDocWithTextLength(blockCount, totalTextLength) {
   const remainder = totalTextLength - perBlock * blockCount;
   return {
     v: 1,
-    section: 'previous_year_changes',
+    section: "previous_year_changes",
     blocks: Array.from({ length: blockCount }, (_, idx) => ({
-      kind: 'note',
-      text: 'x'.repeat(idx === 0 ? perBlock + remainder : perBlock)
-    }))
+      kind: "note",
+      text: "x".repeat(idx === 0 ? perBlock + remainder : perBlock),
+    })),
   };
 }
 
@@ -46,51 +49,51 @@ const cases = [];
 
 // 1) 기존(blocks 5, 텍스트 1000) vs 후보(blocks 3, 텍스트 400) → 막혀야 한다.
 cases.push({
-  name: '블록 수·텍스트 둘 다 감소 → 가드가 막는다',
+  name: "블록 수·텍스트 둘 다 감소 → 가드가 막는다",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(3, 400),
-  expectSkip: true
+  expectSkip: true,
 });
 
 // 2) 후보가 더 풍부(blocks 7) → 통과해야 한다.
 cases.push({
-  name: '후보가 더 풍부(블록 수 증가) → 통과',
+  name: "후보가 더 풍부(블록 수 증가) → 통과",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(7, 1500),
-  expectSkip: false
+  expectSkip: false,
 });
 
 // 3) 블록 수는 같은데 텍스트만 감소 → 막혀야 한다.
 cases.push({
-  name: '블록 수는 동일, 텍스트만 감소 → 가드가 막는다',
+  name: "블록 수는 동일, 텍스트만 감소 → 가드가 막는다",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(5, 400),
-  expectSkip: true
+  expectSkip: true,
 });
 
 // 4) 블록 수는 증가, 텍스트는 감소(엇갈림) → "둘 중 하나라도 줄면 회귀"
 //    정책이므로 막혀야 한다.
 cases.push({
-  name: '블록 수 증가 + 텍스트 감소(엇갈림) → 가드가 막는다(보수적 정책)',
+  name: "블록 수 증가 + 텍스트 감소(엇갈림) → 가드가 막는다(보수적 정책)",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(8, 400),
-  expectSkip: true
+  expectSkip: true,
 });
 
 // 5) 완전히 동일 → 통과해야 한다(막히면 안 된다 — 경계 케이스).
 cases.push({
-  name: '완전히 동일 → 통과(경계)',
+  name: "완전히 동일 → 통과(경계)",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(5, 1000),
-  expectSkip: false
+  expectSkip: false,
 });
 
 // 6) 기존 doc이 없음(null) → 비교 대상이 없으니 항상 통과.
 cases.push({
-  name: '기존 doc 없음(null) → 비교 대상 없어 항상 통과',
+  name: "기존 doc 없음(null) → 비교 대상 없어 항상 통과",
   existing: null,
-  candidate: makeDoc(['a']),
-  expectSkip: false
+  candidate: makeDoc(["a"]),
+  expectSkip: false,
 });
 
 // "--ignore-regression 상당 옵션을 주면 통과" 시나리오는 shouldSkipForRegression
@@ -99,22 +102,26 @@ cases.push({
 // 문서화 검증한다: 호출을 건너뛰면(=ignoreRegression=true 시뮬레이션)
 // 결과가 항상 "쓴다"와 동등하다는 것만 확인한다.
 cases.push({
-  name: 'ignoreRegression 시뮬레이션(가드 호출 자체를 생략) → 회귀여도 통과 취급',
+  name: "ignoreRegression 시뮬레이션(가드 호출 자체를 생략) → 회귀여도 통과 취급",
   existing: makeDocWithTextLength(5, 1000),
   candidate: makeDocWithTextLength(3, 400),
   expectSkip: false,
-  skipGuardCall: true // 가드를 안 부르고 바로 "통과"로 취급(ignoreRegression 재현)
+  skipGuardCall: true, // 가드를 안 부르고 바로 "통과"로 취급(ignoreRegression 재현)
 });
 
 let failCount = 0;
 cases.forEach(({ name, existing, candidate, expectSkip, skipGuardCall }) => {
-  const result = skipGuardCall ? { skip: false } : shouldSkipForRegression(existing, candidate);
+  const result = skipGuardCall
+    ? { skip: false }
+    : shouldSkipForRegression(existing, candidate);
   const ok = result.skip === expectSkip;
   if (!ok) failCount += 1;
   console.log(
-    `${ok ? 'PASS' : 'FAIL'} - ${name} (skip=${result.skip}, 기대=${expectSkip}${result.detail ? `, detail="${result.detail}"` : ''})`
+    `${ok ? "PASS" : "FAIL"} - ${name} (skip=${result.skip}, 기대=${expectSkip}${result.detail ? `, detail="${result.detail}"` : ""})`,
   );
 });
 
-console.log(`\n총 ${cases.length}건 중 ${cases.length - failCount}건 통과, ${failCount}건 실패.`);
+console.log(
+  `\n총 ${cases.length}건 중 ${cases.length - failCount}건 통과, ${failCount}건 실패.`,
+);
 process.exitCode = failCount ? 1 : 0;

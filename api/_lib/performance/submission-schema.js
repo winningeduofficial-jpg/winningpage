@@ -101,12 +101,19 @@
 //        `100자`처럼 **분량 조건이 아닌 맥락의 "N자"**도 잡는다(`index.html:2113`).
 //        오탐 방향이 "분량형으로 잡힌다"라 피해가 작고, 고치면 판정이 갈리므로 둔다.
 
-import { extractAnswerQuestions, guideTextFromSession } from './guide-structure.js';
-import { checkFieldsMinLength, countFieldsChars } from './submission-chars.js';
+import {
+  extractAnswerQuestions,
+  guideTextFromSession,
+} from "./guide-structure.js";
+import { checkFieldsMinLength, countFieldsChars } from "./submission-chars.js";
 
 // 재수출 — 제출폼 쪽 호출부가 판정 함수를 쓰려고 `guide-structure.js`를 따로 import 하면
 // 사본을 만들고 싶은 유혹이 생긴다. 진입점을 하나로 모아 그 유혹을 없앤다(파일 상단 ③).
-export { isRubricLikeQuestion, extractAnswerQuestions, guideTextFromSession } from './guide-structure.js';
+export {
+  isRubricLikeQuestion,
+  extractAnswerQuestions,
+  guideTextFromSession,
+} from "./guide-structure.js";
 
 // 문항형 필드 상한 — `index.html:2152` `questions.slice(0, 20)`.
 // §12.2 3행이 「문항형 20개 상한 유지」로 명시적으로 지정한 값이다.
@@ -120,14 +127,14 @@ export const MAX_QUESTION_FIELDS = 20;
 // 제출 스키마 8종의 `type` 값. DB(`performance_sessions.submission_schema.type`)와
 // 클라이언트 분기가 함께 읽는 열거라 상수로 고정한다.
 export const SUBMISSION_SCHEMA_TYPES = Object.freeze([
-  'question_based',
-  'length_based_report',
-  'cardnews',
-  'presentation',
-  'column',
-  'book_review',
-  'research_report',
-  'basic_report'
+  "question_based",
+  "length_based_report",
+  "cardnews",
+  "presentation",
+  "column",
+  "book_review",
+  "research_report",
+  "basic_report",
 ]);
 
 // ─────────────────────────────────────────────────────────────────────
@@ -152,14 +159,30 @@ export function makeSubmissionField(key, label, helper, required = true) {
  */
 export function defaultSubmissionSchema() {
   return {
-    type: 'basic_report',
-    label: '기본 보고서형',
-    notice: '안내문에서 별도 제출 형식이 뚜렷하지 않아 기본 서론·본론·결론 구조로 제시합니다.',
+    type: "basic_report",
+    label: "기본 보고서형",
+    notice:
+      "안내문에서 별도 제출 형식이 뚜렷하지 않아 기본 서론·본론·결론 구조로 제시합니다.",
     fields: [
-      makeSubmissionField('intro', '서론', '문제의식, 주제 선정 이유, 탐구 목적을 중심으로 작성하세요.', true),
-      makeSubmissionField('body', '본론', '교과 개념, 자료 분석, 사례 적용, 자신의 해석을 충분히 담아 작성하세요.', true),
-      makeSubmissionField('conclusion', '결론', '탐구 결과 정리, 느낀 점, 진로 연계, 후속 탐구 방향을 정리하세요.', true)
-    ]
+      makeSubmissionField(
+        "intro",
+        "서론",
+        "문제의식, 주제 선정 이유, 탐구 목적을 중심으로 작성하세요.",
+        true,
+      ),
+      makeSubmissionField(
+        "body",
+        "본론",
+        "교과 개념, 자료 분석, 사례 적용, 자신의 해석을 충분히 담아 작성하세요.",
+        true,
+      ),
+      makeSubmissionField(
+        "conclusion",
+        "결론",
+        "탐구 결과 정리, 느낀 점, 진로 연계, 후속 탐구 방향을 정리하세요.",
+        true,
+      ),
+    ],
   };
 }
 
@@ -174,8 +197,10 @@ export function defaultSubmissionSchema() {
  *
  * 조건 불충족 시 `null`을 돌려주고 호출부가 다음 유형으로 넘어간다.
  */
-export function inferLengthBasedSchema(raw = '') {
-  const text = String(raw || '').replace(/\s+/g, ' ').trim();
+export function inferLengthBasedSchema(raw = "") {
+  const text = String(raw || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const hasExploration = /탐구\s*내용|조사\s*내용|활동\s*내용/.test(text);
   const hasReflection = /배우고\s*느낀\s*점|느낀점|소감/.test(text);
   const hasLengthRule = /\d+\s*자\s*이상|\d+\s*자|분량|띄어쓰기/.test(text);
@@ -184,25 +209,54 @@ export function inferLengthBasedSchema(raw = '') {
 
   const fields = [];
   if (/선정\s*이유|탐구\s*동기|주제\s*선정/.test(text)) {
-    fields.push(makeSubmissionField('motive', '주제 선정 이유', '안내문에서 요구한 주제 선정 이유와 교과·진로 연결성을 먼저 정리하세요.', true));
+    fields.push(
+      makeSubmissionField(
+        "motive",
+        "주제 선정 이유",
+        "안내문에서 요구한 주제 선정 이유와 교과·진로 연결성을 먼저 정리하세요.",
+        true,
+      ),
+    );
   }
   if (hasExploration) {
-    fields.push(makeSubmissionField('exploration', '탐구 내용', '안내문이 요구한 분량 조건을 확인하고, 교과 개념·자료 근거·분석 과정을 중심으로 작성하세요.', true));
+    fields.push(
+      makeSubmissionField(
+        "exploration",
+        "탐구 내용",
+        "안내문이 요구한 분량 조건을 확인하고, 교과 개념·자료 근거·분석 과정을 중심으로 작성하세요.",
+        true,
+      ),
+    );
   }
   if (hasReflection) {
-    fields.push(makeSubmissionField('reflection', '배우고 느낀 점', '새롭게 알게 된 점, 기존 생각과 달라진 점, 진로 또는 후속 탐구 방향을 정리하세요.', true));
+    fields.push(
+      makeSubmissionField(
+        "reflection",
+        "배우고 느낀 점",
+        "새롭게 알게 된 점, 기존 생각과 달라진 점, 진로 또는 후속 탐구 방향을 정리하세요.",
+        true,
+      ),
+    );
   }
   if (/출처|참고\s*문헌|참고자료/.test(text)) {
-    fields.push(makeSubmissionField('references', '참고자료 및 출처', '실제로 활용한 자료명과 출처 링크를 정확히 적으세요. 확인되지 않은 자료는 쓰지 마세요.', true));
+    fields.push(
+      makeSubmissionField(
+        "references",
+        "참고자료 및 출처",
+        "실제로 활용한 자료명과 출처 링크를 정확히 적으세요. 확인되지 않은 자료는 쓰지 마세요.",
+        true,
+      ),
+    );
   }
 
   if (!fields.length) return null;
 
   return {
-    type: 'length_based_report',
-    label: '안내문 맞춤 작성형',
-    notice: '안내문에 제시된 제출 항목과 분량 조건을 우선 반영해 작성 폼을 구성했습니다.',
-    fields
+    type: "length_based_report",
+    label: "안내문 맞춤 작성형",
+    notice:
+      "안내문에 제시된 제출 항목과 분량 조건을 우선 반영해 작성 폼을 구성했습니다.",
+    fields,
   };
 }
 
@@ -220,25 +274,28 @@ export function inferLengthBasedSchema(raw = '') {
  * `sourceText`**에 대해 한다(`extractAnswerQuestions`의 정규식이 `m` 플래그 행 앵커라
  * 개행을 뭉개면 문항형 판정이 통째로 죽는다). 이 비대칭이 원문 그대로다.
  */
-export function inferSubmissionSchema(assessmentInfo = '') {
-  const sourceText = String(assessmentInfo || '');
-  const raw = sourceText.replace(/\s+/g, ' ').trim();
+export function inferSubmissionSchema(assessmentInfo = "") {
+  const sourceText = String(assessmentInfo || "");
+  const raw = sourceText.replace(/\s+/g, " ").trim();
   const questions = extractAnswerQuestions(sourceText);
   const lengthBasedSchema = inferLengthBasedSchema(sourceText);
 
   // 1. 문항별 답변형 — 번호형 문항이 1건이라도 있으면 (파일 상단 (나))
   if (questions.length >= 1) {
     return {
-      type: 'question_based',
-      label: '문항별 답변형',
-      notice: '안내문에 실제 답변해야 할 번호형 문항이 있어 문항별 답변 폼으로 제시합니다.',
+      type: "question_based",
+      label: "문항별 답변형",
+      notice:
+        "안내문에 실제 답변해야 할 번호형 문항이 있어 문항별 답변 폼으로 제시합니다.",
       // 상한 20 — `index.html:2152`. 정렬(오름차순)·중복 제거는 extractAnswerQuestions
       // 가 이미 끝냈으므로 여기 slice는 **번호가 작은 20개**를 남긴다.
       // 키는 배열 인덱스가 아니라 **문항 번호**를 쓴다(`question_3`). 안내문에 1·3·7번만
       // 있으면 키도 그 번호를 따라가므로, 필드 키만 봐도 원래 문항 번호를 알 수 있다.
       fields: questions
         .slice(0, MAX_QUESTION_FIELDS)
-        .map((q) => makeSubmissionField(`question_${q.no}`, `문항 ${q.no}`, q.text, true))
+        .map((q) =>
+          makeSubmissionField(`question_${q.no}`, `문항 ${q.no}`, q.text, true),
+        ),
     };
   }
 
@@ -248,45 +305,108 @@ export function inferSubmissionSchema(assessmentInfo = '') {
   // 3. 카드뉴스·홍보물형
   if (/카드뉴스|홍보물|포스터|뉴스레터/.test(raw)) {
     return {
-      type: 'cardnews',
-      label: '카드뉴스·홍보물형',
-      notice: '안내문에 카드뉴스/홍보물 제작 흐름이 있어 제작 의도와 카드별 구성을 중심으로 제시합니다.',
+      type: "cardnews",
+      label: "카드뉴스·홍보물형",
+      notice:
+        "안내문에 카드뉴스/홍보물 제작 흐름이 있어 제작 의도와 카드별 구성을 중심으로 제시합니다.",
       fields: [
-        makeSubmissionField('purpose', '제작 의도', '왜 이 주제를 카드뉴스/홍보물로 전달하려는지 작성하세요.', true),
-        makeSubmissionField('card_plan', '카드별 구성', '카드 1, 카드 2처럼 화면별 핵심 문구와 들어갈 자료를 정리하세요.', true),
-        makeSubmissionField('evidence', '근거 자료 및 교과 연결', '안내문 조건, 교과 개념, 활용 자료의 근거를 연결하세요.', true),
-        makeSubmissionField('message', '마무리 메시지', '독자가 얻어야 할 핵심 의미와 후속 행동을 정리하세요.', true)
-      ]
+        makeSubmissionField(
+          "purpose",
+          "제작 의도",
+          "왜 이 주제를 카드뉴스/홍보물로 전달하려는지 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "card_plan",
+          "카드별 구성",
+          "카드 1, 카드 2처럼 화면별 핵심 문구와 들어갈 자료를 정리하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "evidence",
+          "근거 자료 및 교과 연결",
+          "안내문 조건, 교과 개념, 활용 자료의 근거를 연결하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "message",
+          "마무리 메시지",
+          "독자가 얻어야 할 핵심 의미와 후속 행동을 정리하세요.",
+          true,
+        ),
+      ],
     };
   }
 
   // 4. 발표·PPT형
   if (/발표|ppt|피피티|대본|프레젠테이션/.test(raw)) {
     return {
-      type: 'presentation',
-      label: '발표·PPT형',
-      notice: '안내문에 발표/PPT 성격이 있어 발표 흐름과 대본을 함께 잡는 폼으로 제시합니다.',
+      type: "presentation",
+      label: "발표·PPT형",
+      notice:
+        "안내문에 발표/PPT 성격이 있어 발표 흐름과 대본을 함께 잡는 폼으로 제시합니다.",
       fields: [
-        makeSubmissionField('opening', '발표 도입', '인사, 주제 소개, 문제의식, 발표 순서를 간단히 작성하세요.', true),
-        makeSubmissionField('main_flow', '발표 핵심 내용', '슬라이드 순서에 맞춰 핵심 개념, 자료, 분석 내용을 정리하세요.', true),
-        makeSubmissionField('script_point', '대본 포인트', '말로 설명해야 할 연결 문장과 강조할 표현을 작성하세요.', true),
-        makeSubmissionField('closing', '발표 마무리', '결론, 느낀 점, 진로 또는 후속 탐구 방향을 정리하세요.', true)
-      ]
+        makeSubmissionField(
+          "opening",
+          "발표 도입",
+          "인사, 주제 소개, 문제의식, 발표 순서를 간단히 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "main_flow",
+          "발표 핵심 내용",
+          "슬라이드 순서에 맞춰 핵심 개념, 자료, 분석 내용을 정리하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "script_point",
+          "대본 포인트",
+          "말로 설명해야 할 연결 문장과 강조할 표현을 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "closing",
+          "발표 마무리",
+          "결론, 느낀 점, 진로 또는 후속 탐구 방향을 정리하세요.",
+          true,
+        ),
+      ],
     };
   }
 
   // 5. 칼럼·논술형
   if (/칼럼|논설|비평|에세이|주장하는 글|논술/.test(raw)) {
     return {
-      type: 'column',
-      label: '칼럼·논술형',
-      notice: '안내문에 칼럼/논술 성격이 있어 주장과 근거 중심의 글 구조로 제시합니다.',
+      type: "column",
+      label: "칼럼·논술형",
+      notice:
+        "안내문에 칼럼/논술 성격이 있어 주장과 근거 중심의 글 구조로 제시합니다.",
       fields: [
-        makeSubmissionField('issue', '문제 제기', '사회적·학문적 쟁점, 주제의 필요성, 관점을 제시하세요.', true),
-        makeSubmissionField('argument', '핵심 주장', '자신의 중심 주장을 한 방향으로 분명히 정리하세요.', true),
-        makeSubmissionField('grounds', '근거 및 분석', '자료, 교과 개념, 사례를 바탕으로 주장을 뒷받침하세요.', true),
-        makeSubmissionField('proposal', '결론 및 제언', '주장의 의미, 한계, 후속 탐구 또는 실천 방향을 제시하세요.', true)
-      ]
+        makeSubmissionField(
+          "issue",
+          "문제 제기",
+          "사회적·학문적 쟁점, 주제의 필요성, 관점을 제시하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "argument",
+          "핵심 주장",
+          "자신의 중심 주장을 한 방향으로 분명히 정리하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "grounds",
+          "근거 및 분석",
+          "자료, 교과 개념, 사례를 바탕으로 주장을 뒷받침하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "proposal",
+          "결론 및 제언",
+          "주장의 의미, 한계, 후속 탐구 또는 실천 방향을 제시하세요.",
+          true,
+        ),
+      ],
     };
   }
 
@@ -294,30 +414,72 @@ export function inferSubmissionSchema(assessmentInfo = '') {
   //    §12.2 3행 「합집합 8종(Q64)」의 '합집합'이 가리키는 바로 그 차이.
   if (/독서|도서|책|서평|감상문/.test(raw)) {
     return {
-      type: 'book_review',
-      label: '독서·서평형',
-      notice: '안내문에 독서/서평 성격이 있어 자료 이해와 자신의 해석을 분리한 폼으로 제시합니다.',
+      type: "book_review",
+      label: "독서·서평형",
+      notice:
+        "안내문에 독서/서평 성격이 있어 자료 이해와 자신의 해석을 분리한 폼으로 제시합니다.",
       fields: [
-        makeSubmissionField('book_info', '자료 선택 이유', '도서/자료를 선택한 이유와 주제와의 관련성을 작성하세요.', true),
-        makeSubmissionField('summary', '핵심 내용 요약', '자료의 핵심 내용을 과도하게 베끼지 말고 자신의 말로 정리하세요.', true),
-        makeSubmissionField('analysis', '교과 개념 및 진로 연결 분석', '수업 개념, 진로 관심, 새롭게 알게 된 점을 연결하세요.', true),
-        makeSubmissionField('reflection', '느낀 점 및 확장 질문', '탐구 후 달라진 생각과 다음에 확인하고 싶은 질문을 정리하세요.', true)
-      ]
+        makeSubmissionField(
+          "book_info",
+          "자료 선택 이유",
+          "도서/자료를 선택한 이유와 주제와의 관련성을 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "summary",
+          "핵심 내용 요약",
+          "자료의 핵심 내용을 과도하게 베끼지 말고 자신의 말로 정리하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "analysis",
+          "교과 개념 및 진로 연결 분석",
+          "수업 개념, 진로 관심, 새롭게 알게 된 점을 연결하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "reflection",
+          "느낀 점 및 확장 질문",
+          "탐구 후 달라진 생각과 다음에 확인하고 싶은 질문을 정리하세요.",
+          true,
+        ),
+      ],
     };
   }
 
   // 7. 탐구보고서형 — `보고서`가 흔한 단어라 거의 마지막이다
   if (/실험|탐구보고서|탐구 보고서|실험보고서|조사 보고서|보고서/.test(raw)) {
     return {
-      type: 'research_report',
-      label: '탐구보고서형',
-      notice: '안내문에 보고서 성격이 있어 기본 구조를 유지하되 자료 분석을 더 강조한 폼으로 제시합니다.',
+      type: "research_report",
+      label: "탐구보고서형",
+      notice:
+        "안내문에 보고서 성격이 있어 기본 구조를 유지하되 자료 분석을 더 강조한 폼으로 제시합니다.",
       fields: [
-        makeSubmissionField('intro', '서론', '탐구 동기, 문제의식, 주제 선정 이유를 작성하세요.', true),
-        makeSubmissionField('concept', '교과 개념 정리', '수행평가와 연결되는 교과 개념을 먼저 정리하세요.', true),
-        makeSubmissionField('analysis', '자료·사례 분석', '자료 근거, 실험/조사 과정, 분석 결과, 자신의 해석을 작성하세요.', true),
-        makeSubmissionField('conclusion', '결론', '탐구 결과, 느낀 점, 진로 또는 후속 탐구 방향을 작성하세요.', true)
-      ]
+        makeSubmissionField(
+          "intro",
+          "서론",
+          "탐구 동기, 문제의식, 주제 선정 이유를 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "concept",
+          "교과 개념 정리",
+          "수행평가와 연결되는 교과 개념을 먼저 정리하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "analysis",
+          "자료·사례 분석",
+          "자료 근거, 실험/조사 과정, 분석 결과, 자신의 해석을 작성하세요.",
+          true,
+        ),
+        makeSubmissionField(
+          "conclusion",
+          "결론",
+          "탐구 결과, 느낀 점, 진로 또는 후속 탐구 방향을 작성하세요.",
+          true,
+        ),
+      ],
     };
   }
 
@@ -359,20 +521,23 @@ export function inferSubmissionSchema(assessmentInfo = '') {
  * `performance_sessions.submission_schema`에는 유일한 키만 저장된다.
  */
 export function normalizeSubmissionSchema(schema) {
-  if (!schema || !Array.isArray(schema.fields) || !schema.fields.length) return defaultSubmissionSchema();
+  if (!schema || !Array.isArray(schema.fields) || !schema.fields.length)
+    return defaultSubmissionSchema();
 
   const seenKeys = new Set();
 
   return {
-    type: schema.type || 'custom',
-    label: schema.label || '맞춤 제출형',
-    notice: schema.notice || '안내문 분석 결과에 맞춰 제출 항목을 제시합니다.',
-    fields: schema.fields.map((f, idx) => makeSubmissionField(
-      uniqueFieldKey(seenKeys, f.key || `field_${idx + 1}`),
-      f.label || `항목 ${idx + 1}`,
-      f.helper || '',
-      f.required !== false
-    ))
+    type: schema.type || "custom",
+    label: schema.label || "맞춤 제출형",
+    notice: schema.notice || "안내문 분석 결과에 맞춰 제출 항목을 제시합니다.",
+    fields: schema.fields.map((f, idx) =>
+      makeSubmissionField(
+        uniqueFieldKey(seenKeys, f.key || `field_${idx + 1}`),
+        f.label || `항목 ${idx + 1}`,
+        f.helper || "",
+        f.required !== false,
+      ),
+    ),
   };
 }
 
@@ -417,8 +582,10 @@ export function resolveSessionSubmissionSchema(session = {}) {
   }
 
   return {
-    schema: normalizeSubmissionSchema(inferSubmissionSchema(guideTextFromSession(session))),
-    inferred: true
+    schema: normalizeSubmissionSchema(
+      inferSubmissionSchema(guideTextFromSession(session)),
+    ),
+    inferred: true,
   };
 }
 
@@ -476,7 +643,7 @@ export function resolveSessionSubmissionSchema(session = {}) {
 //    사본을 만들지 마라 — 두 벌이 되는 순간 "카운터는 통과인데 서버가 거절"이 생긴다.
 
 // 잎 모듈 재수출 — 기존 import 경로(`submission-schema.js`)를 그대로 유지하기 위함이다.
-export { SUBMISSION_MIN_CHARS, countFieldChars } from './submission-chars.js';
+export { SUBMISSION_MIN_CHARS, countFieldChars } from "./submission-chars.js";
 
 /**
  * 스키마 선언 필드만 골라 필드별·합계 글자 수를 낸다.
@@ -530,12 +697,16 @@ export function checkSubmissionMinLength(schema, fields = {}) {
 // 없는 키는 애초에 순회 대상이 아니다.
 export function buildSubmissionText(topic, schema, fields = {}) {
   const safe = normalizeSubmissionSchema(schema);
-  const source = fields && typeof fields === 'object' ? fields : {};
-  const lines = [`주제: ${String(topic ?? '')}`, '', `[제출 형식] ${safe.label}`];
+  const source = fields && typeof fields === "object" ? fields : {};
+  const lines = [
+    `주제: ${String(topic ?? "")}`,
+    "",
+    `[제출 형식] ${safe.label}`,
+  ];
 
   safe.fields.forEach((field) => {
-    lines.push('', `[${field.label}]`, source[field.key] || '');
+    lines.push("", `[${field.label}]`, source[field.key] || "");
   });
 
-  return lines.join('\n').trim();
+  return lines.join("\n").trim();
 }

@@ -1,7 +1,7 @@
-import ImeSafeInput from './ImeSafeInput';
-import { getKnownRolesForVariant } from '../admissionLayout';
+import ImeSafeInput from "./ImeSafeInput";
+import { getKnownRolesForVariant } from "../admissionLayout";
 
-const CUSTOM_ROLE_OPTION = '__custom__';
+const CUSTOM_ROLE_OPTION = "__custom__";
 
 // 컬럼 role 편집기 — 자유 입력을 막는다. role은 getCellKind(variant, role)
 // 판정에 직접 쓰여(예: selection의 'minimum' → badge 편집기) 잘못 바꾸면
@@ -17,7 +17,7 @@ export default function ColumnRoleEditor({ variant, role, onChange }) {
 
   function handleSelectChange(event) {
     const next = event.target.value;
-    onChange(next === CUSTOM_ROLE_OPTION ? '' : next);
+    onChange(next === CUSTOM_ROLE_OPTION ? "" : next);
   }
 
   return (
@@ -39,7 +39,7 @@ export default function ColumnRoleEditor({ variant, role, onChange }) {
         <>
           <ImeSafeInput
             type="text"
-            value={role ?? ''}
+            value={role ?? ""}
             onCommit={onChange}
             placeholder="role 직접 입력"
             aria-label="컬럼 role 직접 입력"
@@ -47,7 +47,10 @@ export default function ColumnRoleEditor({ variant, role, onChange }) {
           />
           <p className="text-[10px] font-bold text-amber-600">
             이 role은 badge/chips 편집기와 연결되지 않습니다
-            {options.length ? `(${variant} variant에서 알려진 role: ${options.join(', ')})` : ''}.
+            {options.length
+              ? `(${variant} variant에서 알려진 role: ${options.join(", ")})`
+              : ""}
+            .
           </p>
         </>
       )}

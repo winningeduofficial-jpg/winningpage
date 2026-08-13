@@ -1,6 +1,6 @@
-import { useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useModalBehavior } from '../../../hooks/useModalBehavior';
+import { useId, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useModalBehavior } from "../../../hooks/useModalBehavior";
 
 // 대형 리포트 모달의 **껍데기** — docs/수행평가-상세-명세.md §5.13(`3754:4722` 설계 리포트) /
 // §5.16(`3754:4512` 평가 리포트) 공통.
@@ -58,7 +58,7 @@ export default function ReportModalShell({
   scrollLabel,
   children,
   footer,
-  onClose
+  onClose,
 }) {
   const panelRef = useRef(null);
   const titleId = useId();
@@ -193,7 +193,7 @@ export default function ReportModalShell({
         ) : null}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -210,7 +210,7 @@ export default function ReportModalShell({
  */
 export const REPORT_MODAL_FOOTER_BUTTON = {
   secondary:
-    'flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
+    "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
   primary:
-    'flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100'
+    "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100",
 };

@@ -7,8 +7,8 @@
 //
 // 실행: cd <repo> && node --test src/lib/goal/calc/primitives.test.js
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { test } from "node:test";
+import assert from "node:assert/strict";
 
 import {
   round1,
@@ -20,7 +20,7 @@ import {
   calcNaesinProb,
   applyPreHighGradePenalty,
   toNum,
-} from './primitives.js';
+} from "./primitives.js";
 
 // 부동소수 비교. NaN·±Infinity·-0 처럼 오차 비교가 무의미한 값은 엄격 비교로 넘긴다.
 function assertNum(actual, expected, label) {
@@ -32,7 +32,10 @@ function assertNum(actual, expected, label) {
     assert.strictEqual(actual, expected, label);
     return;
   }
-  assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} !== ${expected}`);
+  assert.ok(
+    Math.abs(actual - expected) < 1e-9,
+    `${label}: ${actual} !== ${expected}`,
+  );
 }
 
 // [입력, round1 결과]
@@ -422,32 +425,35 @@ const NAESIN_PROB_CASES = [
   [2, 3, 5, "abc", 0],
 ];
 
-
-test('round1 — 원본 출력과 일치', () => {
+test("round1 — 원본 출력과 일치", () => {
   for (const [input, expected] of ROUND1_CASES) {
     assertNum(round1(input), expected, `round1(${String(input)})`);
   }
 });
 
-test('round4 — 원본 출력과 일치', () => {
+test("round4 — 원본 출력과 일치", () => {
   for (const [input, expected] of ROUND4_CASES) {
     assertNum(round4(input), expected, `round4(${String(input)})`);
   }
 });
 
-test('clampProb — 원본 출력과 일치', () => {
+test("clampProb — 원본 출력과 일치", () => {
   for (const [input, expected] of CLAMP_PROB_CASES) {
     assertNum(clampProb(input), expected, `clampProb(${String(input)})`);
   }
 });
 
-test('getSchoolCutType — 특목/특목,자사,영재고만 special', () => {
+test("getSchoolCutType — 특목/특목,자사,영재고만 special", () => {
   for (const [input, expected] of SCHOOL_CUT_TYPE_CASES) {
-    assert.strictEqual(getSchoolCutType(input), expected, `getSchoolCutType(${String(input)})`);
+    assert.strictEqual(
+      getSchoolCutType(input),
+      expected,
+      `getSchoolCutType(${String(input)})`,
+    );
   }
 });
 
-test('getRemainingNaesin — order 맵 12개 + fallback 분기', () => {
+test("getRemainingNaesin — order 맵 12개 + fallback 분기", () => {
   for (const [grade, lastExam, fallback, expected] of REMAINING_NAESIN_CASES) {
     assertNum(
       getRemainingNaesin(grade, lastExam, fallback),
@@ -457,7 +463,7 @@ test('getRemainingNaesin — order 맵 12개 + fallback 분기', () => {
   }
 });
 
-test('getRemainingMogo — order 맵 14개 + fallback 분기', () => {
+test("getRemainingMogo — order 맵 14개 + fallback 분기", () => {
   for (const [grade, lastExam, fallback, expected] of REMAINING_MOGO_CASES) {
     assertNum(
       getRemainingMogo(grade, lastExam, fallback),
@@ -467,8 +473,13 @@ test('getRemainingMogo — order 맵 14개 + fallback 분기', () => {
   }
 });
 
-test('applyPreHighGradePenalty — 학년별 11단 페널티 + [1,9] 클램프', () => {
-  for (const [schoolType, grade, convertedGrade, expected] of PRE_HIGH_PENALTY_CASES) {
+test("applyPreHighGradePenalty — 학년별 11단 페널티 + [1,9] 클램프", () => {
+  for (const [
+    schoolType,
+    grade,
+    convertedGrade,
+    expected,
+  ] of PRE_HIGH_PENALTY_CASES) {
     assertNum(
       applyPreHighGradePenalty(schoolType, grade, convertedGrade),
       expected,
@@ -477,36 +488,43 @@ test('applyPreHighGradePenalty — 학년별 11단 페널티 + [1,9] 클램프',
   }
 });
 
-test('calcNaesinProb — 지수감쇠 두 갈래 + 시간계수', () => {
-  for (const [currentGrade, targetCut, remainExams, totalExams, expected] of NAESIN_PROB_CASES) {
+test("calcNaesinProb — 지수감쇠 두 갈래 + 시간계수", () => {
+  for (const [
+    currentGrade,
+    targetCut,
+    remainExams,
+    totalExams,
+    expected,
+  ] of NAESIN_PROB_CASES) {
     const label = `calcNaesinProb(${String(currentGrade)}, ${String(targetCut)}, ${String(remainExams)}, ${String(totalExams)})`;
-    const actual = totalExams === undefined
-      ? calcNaesinProb(currentGrade, targetCut, remainExams)
-      : calcNaesinProb(currentGrade, targetCut, remainExams, totalExams);
+    const actual =
+      totalExams === undefined
+        ? calcNaesinProb(currentGrade, targetCut, remainExams)
+        : calcNaesinProb(currentGrade, targetCut, remainExams, totalExams);
     assertNum(actual, expected, label);
   }
 });
 
 // 기본 totalExams 가 10 인지 명시 확인 (원본 시그니처 기본값).
-test('calcNaesinProb — totalExams 기본값은 10', () => {
+test("calcNaesinProb — totalExams 기본값은 10", () => {
   assertNum(
     calcNaesinProb(2, 3, 5),
     calcNaesinProb(2, 3, 5, 10),
-    'totalExams 생략 === 10',
+    "totalExams 생략 === 10",
   );
 });
 
-test('toNum — 유한수가 아니면 fallback', () => {
+test("toNum — 유한수가 아니면 fallback", () => {
   assert.strictEqual(toNum(3), 3);
-  assert.strictEqual(toNum('3.5'), 3.5);
-  assert.strictEqual(toNum(''), 0);
+  assert.strictEqual(toNum("3.5"), 3.5);
+  assert.strictEqual(toNum(""), 0);
   assert.strictEqual(toNum(null), 0);
   assert.strictEqual(toNum(undefined), 0);
-  assert.strictEqual(toNum('abc'), 0);
+  assert.strictEqual(toNum("abc"), 0);
   assert.strictEqual(toNum(NaN), 0);
   assert.strictEqual(toNum(Infinity), 0);
   assert.strictEqual(toNum(-Infinity), 0);
-  assert.strictEqual(toNum('abc', 7), 7);
+  assert.strictEqual(toNum("abc", 7), 7);
   assert.strictEqual(toNum(undefined, -1), -1);
   assert.strictEqual(toNum(0, 5), 0);
 });

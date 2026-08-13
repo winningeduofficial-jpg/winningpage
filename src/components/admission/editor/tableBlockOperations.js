@@ -3,18 +3,22 @@
 // 도 React/DOM 없이 이 함수들만 직접 import해서 로직을 단언한다(컴포넌트를
 // 렌더하지 않고도 "열 추가 시 전 행 길이가 함께 맞춰지는지" 같은 구조적
 // 불변식을 검증할 수 있다).
-import { getCellKind, defaultNewColumnRole } from '../admissionLayout';
-import { emptyCellForKind } from './tableEditorValidation';
+import { getCellKind, defaultNewColumnRole } from "../admissionLayout";
+import { emptyCellForKind } from "./tableEditorValidation";
 
 export function updateCell(block, rowIdx, colIdx, nextCellValue) {
   const nextRows = block.rows.map((row, r) =>
-    r === rowIdx ? row.map((cell, c) => (c === colIdx ? nextCellValue : cell)) : row
+    r === rowIdx
+      ? row.map((cell, c) => (c === colIdx ? nextCellValue : cell))
+      : row,
   );
   return { ...block, rows: nextRows };
 }
 
 export function updateColumnField(block, colIdx, field, fieldValue) {
-  const nextColumns = block.columns.map((col, c) => (c === colIdx ? { ...col, [field]: fieldValue } : col));
+  const nextColumns = block.columns.map((col, c) =>
+    c === colIdx ? { ...col, [field]: fieldValue } : col,
+  );
   return { ...block, columns: nextColumns };
 }
 
@@ -25,7 +29,7 @@ export function updateColumnField(block, colIdx, field, fieldValue) {
 export function addColumn(block) {
   const role = defaultNewColumnRole(block.variant);
   const kind = getCellKind(block.variant, role);
-  const nextColumns = [...block.columns, { role, label: '새 컬럼' }];
+  const nextColumns = [...block.columns, { role, label: "새 컬럼" }];
   const nextRows = block.rows.map((row) => [...row, emptyCellForKind(kind)]);
   return { ...block, columns: nextColumns, rows: nextRows };
 }
@@ -41,7 +45,9 @@ export function removeColumn(block, colIdx) {
 }
 
 export function addRow(block) {
-  const nextRow = block.columns.map((col) => emptyCellForKind(getCellKind(block.variant, col.role)));
+  const nextRow = block.columns.map((col) =>
+    emptyCellForKind(getCellKind(block.variant, col.role)),
+  );
   return { ...block, rows: [...block.rows, nextRow] };
 }
 
@@ -68,7 +74,9 @@ export function moveRow(block, rowIdx, delta) {
 // columns.length(...)와 다릅니다")이 이미 담고 있어 여기서 따로
 // 계산하지 않는다.
 export function updateGroupField(block, groupIdx, field, fieldValue) {
-  const nextGroups = (block.groups || []).map((g, i) => (i === groupIdx ? { ...g, [field]: fieldValue } : g));
+  const nextGroups = (block.groups || []).map((g, i) =>
+    i === groupIdx ? { ...g, [field]: fieldValue } : g,
+  );
   return { ...block, groups: nextGroups };
 }
 
@@ -76,7 +84,7 @@ export function addGroup(block) {
   // count:0으로 시작 — 추가 자체는 불변식을 절대 깨지 않는다(합계 불변).
   // 실제 컬럼을 그 그룹에 배정하는 건 이번 범위 밖(열 자체는 여전히
   // 고정) — 관리자가 count를 조정하면서 검증 배너로 맞춰야 한다.
-  const nextGroups = [...(block.groups || []), { name: '새 그룹', count: 0 }];
+  const nextGroups = [...(block.groups || []), { name: "새 그룹", count: 0 }];
   return { ...block, groups: nextGroups };
 }
 

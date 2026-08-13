@@ -67,9 +67,5 @@
       "html": null
     }
   },
-  "expectedCaptureKeys": [
-    "selection",
-    "recruit",
-    "recruitBig"
-  ]
+  "expectedCaptureKeys": ["selection", "recruit", "recruitBig"]
 }

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import AppModal from '../AppModal';
-import ModalField from '../ModalField';
-import SegmentedChipGroup from '../SegmentedChipGroup';
-import { goalModalOptions } from '../../../data/goalMock';
-import { resolveSubjectId } from '../subjectTokens';
+import { useEffect, useState } from "react";
+import AppModal from "../AppModal";
+import ModalField from "../ModalField";
+import SegmentedChipGroup from "../SegmentedChipGroup";
+import { goalModalOptions } from "../../../data/goalMock";
+import { resolveSubjectId } from "../subjectTokens";
 
 // 문제집 추가/수정 모달 — docs/figma-goal/part-11.md #31 (530×468 = 33.125rem × 29.25rem).
 // 트리거: 「나의 노력」 과목 카드 `+ 문제집 추가`(과목 프리셀렉트, 신규) / 헤더 `+ 과목 추가하기`
@@ -11,26 +11,35 @@ import { resolveSubjectId } from '../subjectTokens';
 // 모달을 재사용한다, api/goal/workbooks.js PUT 배선 시 재량 판단).
 // 과목 칩 5종(국어/수학/영어/탐구/기타)은 AddTaskModal의 과목 옵션과 동일 집합이라
 // goalModalOptions.taskSubjects를 그대로 재사용한다(part-11 §243 "#28 모달의 과목 칩 5종과 동일").
-const SUBJECT_OPTIONS = goalModalOptions.taskSubjects.map((label) => ({ value: label, label }));
+const SUBJECT_OPTIONS = goalModalOptions.taskSubjects.map((label) => ({
+  value: label,
+  label,
+}));
 
 // 과목 id(korean 등) → 이 모달이 쓰는 한글 라벨. subjectTokens.js는 라벨→id 방향만 제공해
 // 역방향은 여기서 SUBJECT_OPTIONS로부터 만든다.
 const SUBJECT_LABEL_BY_ID = Object.fromEntries(
-  SUBJECT_OPTIONS.map(({ value }) => [resolveSubjectId(value), value])
+  SUBJECT_OPTIONS.map(({ value }) => [resolveSubjectId(value), value]),
 );
 
 // 시안(#31) 실측 표시값 — 현재/전체 페이지 기본값(part-11 §117).
-const DEFAULT_CURRENT_PAGE = '0';
-const DEFAULT_TOTAL_PAGE = '240';
+const DEFAULT_CURRENT_PAGE = "0";
+const DEFAULT_TOTAL_PAGE = "240";
 
 // editingWorkbook: { id, subject(id), title, totalPages, currentPage } | null.
 // null이면 신규 등록, 값이 있으면 그 문제집의 진도 수정(과목은 바꿀 수 없다 —
 // api/goal/workbooks.js validateUpdateBody 주석 참고).
-export default function AddWorkbookModal({ open, onClose, initialSubject = null, editingWorkbook = null, onSubmit }) {
+export default function AddWorkbookModal({
+  open,
+  onClose,
+  initialSubject = null,
+  editingWorkbook = null,
+  onSubmit,
+}) {
   const isEditing = Boolean(editingWorkbook);
 
   const [subject, setSubject] = useState(initialSubject);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   const [currentPage, setCurrentPage] = useState(DEFAULT_CURRENT_PAGE);
   const [totalPage, setTotalPage] = useState(DEFAULT_TOTAL_PAGE);
   const [submitting, setSubmitting] = useState(false);
@@ -40,13 +49,15 @@ export default function AddWorkbookModal({ open, onClose, initialSubject = null,
   useEffect(() => {
     if (!open) return;
     if (editingWorkbook) {
-      setSubject(SUBJECT_LABEL_BY_ID[editingWorkbook.subject] ?? initialSubject);
-      setTitle(editingWorkbook.title ?? '');
+      setSubject(
+        SUBJECT_LABEL_BY_ID[editingWorkbook.subject] ?? initialSubject,
+      );
+      setTitle(editingWorkbook.title ?? "");
       setCurrentPage(String(editingWorkbook.currentPage ?? 0));
       setTotalPage(String(editingWorkbook.totalPages ?? DEFAULT_TOTAL_PAGE));
     } else {
       setSubject(initialSubject);
-      setTitle('');
+      setTitle("");
       setCurrentPage(DEFAULT_CURRENT_PAGE);
       setTotalPage(DEFAULT_TOTAL_PAGE);
     }
@@ -56,7 +67,7 @@ export default function AddWorkbookModal({ open, onClose, initialSubject = null,
 
   function resetForm() {
     setSubject(initialSubject);
-    setTitle('');
+    setTitle("");
     setCurrentPage(DEFAULT_CURRENT_PAGE);
     setTotalPage(DEFAULT_TOTAL_PAGE);
   }
@@ -76,7 +87,7 @@ export default function AddWorkbookModal({ open, onClose, initialSubject = null,
         subject: resolveSubjectId(subject),
         title: title.trim(),
         currentPage: Number(currentPage) || 0,
-        totalPage: Number(totalPage) || 0
+        totalPage: Number(totalPage) || 0,
       });
       if (ok !== false) {
         resetForm();
@@ -91,11 +102,11 @@ export default function AddWorkbookModal({ open, onClose, initialSubject = null,
     <AppModal
       open={open}
       onClose={handleClose}
-      title={isEditing ? '문제집 수정' : '문제집 추가'}
+      title={isEditing ? "문제집 수정" : "문제집 추가"}
       subtitle="공부 중인 책을 등록하면 진도율이 쌓여요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel={isEditing ? '수정하기' : '문제집 추가하기'}
+      submitLabel={isEditing ? "수정하기" : "문제집 추가하기"}
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >

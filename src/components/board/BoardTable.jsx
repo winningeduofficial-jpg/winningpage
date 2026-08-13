@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import Chip from '../Chip';
+import Chip from "../Chip";
 
 /**
  * 게시판(회사소식·공지사항) 공통 표 — 번호 / 제목 / 조회수 / 작성일 4컬럼.
@@ -99,13 +99,13 @@ import Chip from '../Chip';
  *   이 칩과는 무관하다. 두 tone 은 별개 물건이니 한쪽 값을 다른 쪽에 복사하지 말 것.
  *   (경고 원문과 실제 hex 는 src/components/Chip.jsx 에 있다.)
  */
-const PINNED_CHIP_TONE = 'red';
+const PINNED_CHIP_TONE = "red";
 
-const PINNED_CHIP_LABEL = '중요';
+const PINNED_CHIP_LABEL = "중요";
 
 /** 조회수 없음 표시. 값이 0 인 것과 값 자체가 없는 것을 구분한다.
  *  sql/50_board_renewal.sql 미적용 구간(view_count 컬럼 부재)에서만 보인다. */
-const EMPTY_VIEW_COUNT = '-';
+const EMPTY_VIEW_COUNT = "-";
 
 /**
  * formatDate 미주입 시의 최소 폴백. boardData.formatBoardDate 의 파싱 불가 분기와 같은 모양이다.
@@ -113,7 +113,7 @@ const EMPTY_VIEW_COUNT = '-';
  *  묶여 "순수 프레젠테이션" 계약이 문서상으로만 남는다.)
  */
 function defaultFormatDate(value) {
-  return value ? String(value).slice(0, 10) : '';
+  return value ? String(value).slice(0, 10) : "";
 }
 
 /** getViewCount 미주입 시의 최소 폴백. boardData.getViewCount 와 동일 판정. */
@@ -121,7 +121,7 @@ function defaultGetViewCount(row) {
   return Number.isFinite(row?.view_count) ? row.view_count : null;
 }
 
-function PinnedChip({ className = '' }) {
+function PinnedChip({ className = "" }) {
   return (
     <Chip tone={PINNED_CHIP_TONE} size="md-fixed" className={className}>
       {PINNED_CHIP_LABEL}
@@ -153,7 +153,7 @@ export default function BoardTable({
   formatDate = defaultFormatDate,
   getViewCount = defaultGetViewCount,
   caption,
-  className = ''
+  className = "",
 }) {
   const list = Array.isArray(rows) ? rows : [];
 
@@ -197,9 +197,11 @@ export default function BoardTable({
           <tbody>
             {list.map((row, index) => {
               const isPinned = row?.is_pinned === true;
-              const displayNumber = getDisplayNumber ? getDisplayNumber(row, index) : null;
+              const displayNumber = getDisplayNumber
+                ? getDisplayNumber(row, index)
+                : null;
               const href = getDetailHref ? getDetailHref(row) : null;
-              const title = String(row?.title ?? '');
+              const title = String(row?.title ?? "");
               const viewCount = getViewCount(row);
 
               return (
@@ -214,9 +216,15 @@ export default function BoardTable({
                       읽을 때 어느 글의 값인지 함께 announce 한다. */}
                   <th scope="row" className="board-col-title">
                     <span className="board-title-line">
-                      {isPinned ? <PinnedChip className="board-chip--inline" /> : null}
+                      {isPinned ? (
+                        <PinnedChip className="board-chip--inline" />
+                      ) : null}
                       {href ? (
-                        <Link to={href} title={title} className="board-title-link">
+                        <Link
+                          to={href}
+                          title={title}
+                          className="board-title-link"
+                        >
                           {title}
                         </Link>
                       ) : (
@@ -228,10 +236,14 @@ export default function BoardTable({
                   </th>
 
                   <td className="board-col-views">
-                    {viewCount === null ? EMPTY_VIEW_COUNT : viewCount.toLocaleString('ko-KR')}
+                    {viewCount === null
+                      ? EMPTY_VIEW_COUNT
+                      : viewCount.toLocaleString("ko-KR")}
                   </td>
 
-                  <td className="board-col-date">{formatDate(row?.created_at)}</td>
+                  <td className="board-col-date">
+                    {formatDate(row?.created_at)}
+                  </td>
                 </tr>
               );
             })}

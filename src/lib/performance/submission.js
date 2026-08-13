@@ -38,26 +38,30 @@ export {
   SUBMISSION_MIN_CHARS,
   countFieldChars,
   countFieldsChars,
-  checkFieldsMinLength
-} from '../../../api/_lib/performance/submission-chars.js';
+  checkFieldsMinLength,
+} from "../../../api/_lib/performance/submission-chars.js";
 
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /** 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백. */
 const FALLBACK_MESSAGE = {
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',
-  UNAUTHENTICATED: '로그인이 필요합니다.',
-  EMPTY_SUBMISSION: '저장할 작성 내용이 없습니다.',
-  UNKNOWN_FIELD: '제출폼이 최신 상태가 아니에요. 새로고침한 뒤 다시 시도해 주세요.',
-  SESSION_FINALIZED: '이미 제출했거나 확정한 제출본은 수정할 수 없어요. 다시 저장하면 새 제출본으로 저장됩니다.',
-  REEVALUATION_LIMIT: '제출물을 다시 낼 수 있는 횟수를 모두 사용했어요.',
-  SUBMISSION_TOO_LARGE: '작성 내용이 너무 깁니다.',
-  SUBMISSION_TOO_SHORT: '제출물이 너무 짧습니다.',
-  REQUIRED_FIELD_EMPTY: '필수 항목을 모두 작성해 주세요.'
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.",
+  UNAUTHENTICATED: "로그인이 필요합니다.",
+  EMPTY_SUBMISSION: "저장할 작성 내용이 없습니다.",
+  UNKNOWN_FIELD:
+    "제출폼이 최신 상태가 아니에요. 새로고침한 뒤 다시 시도해 주세요.",
+  SESSION_FINALIZED:
+    "이미 제출했거나 확정한 제출본은 수정할 수 없어요. 다시 저장하면 새 제출본으로 저장됩니다.",
+  REEVALUATION_LIMIT: "제출물을 다시 낼 수 있는 횟수를 모두 사용했어요.",
+  SUBMISSION_TOO_LARGE: "작성 내용이 너무 깁니다.",
+  SUBMISSION_TOO_SHORT: "제출물이 너무 짧습니다.",
+  REQUIRED_FIELD_EMPTY: "필수 항목을 모두 작성해 주세요.",
 };
 
-const GENERIC_MESSAGE = '제출물을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
+const GENERIC_MESSAGE =
+  "제출물을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /**
  * 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다.
@@ -68,7 +72,7 @@ const GENERIC_MESSAGE = '제출물을 저장하지 못했어요. 잠시 후 다�
 export class SubmissionError extends Error {
   constructor(code, message, extra = {}) {
     super(message);
-    this.name = 'SubmissionError';
+    this.name = "SubmissionError";
     this.code = code;
     this.userMessage = message;
     /** `mode:'submit'` 게이트 실패에서만 실린다 — 초안은 저장된 상태다(위 주석). */
@@ -86,23 +90,34 @@ function pickSaved(data) {
   return {
     submissionId: data.submissionId,
     revision: data.revision ?? null,
-    charCounts: data.charCounts && typeof data.charCounts === 'object' ? data.charCounts : {},
+    charCounts:
+      data.charCounts && typeof data.charCounts === "object"
+        ? data.charCounts
+        : {},
     savedAt: data.savedAt ?? null,
     isDraft: data.isDraft === true,
     isFinal: data.isFinal === true,
-    submittedAt: data.submittedAt ?? null
+    submittedAt: data.submittedAt ?? null,
   };
 }
 
 function toError(data, response) {
-  const code = data?.error?.code || (response?.status === 401 ? 'UNAUTHENTICATED' : 'UNKNOWN');
-  return new SubmissionError(code, data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE, {
-    saved: pickSaved(data),
-    missingRequired: Array.isArray(data?.missingRequired) ? data.missingRequired : null,
-    field: data?.field,
-    total: data?.total,
-    threshold: data?.threshold
-  });
+  const code =
+    data?.error?.code ||
+    (response?.status === 401 ? "UNAUTHENTICATED" : "UNKNOWN");
+  return new SubmissionError(
+    code,
+    data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE,
+    {
+      saved: pickSaved(data),
+      missingRequired: Array.isArray(data?.missingRequired)
+        ? data.missingRequired
+        : null,
+      field: data?.field,
+      total: data?.total,
+      threshold: data?.threshold,
+    },
+  );
 }
 
 /**
@@ -117,10 +132,10 @@ export async function fetchSubmissionForm({ accessToken, sessionId }) {
   try {
     response = await fetch(
       `/api/performance/submission?sessionId=${encodeURIComponent(sessionId)}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     );
   } catch (error) {
-    const wrapped = new SubmissionError('NETWORK', NETWORK_ERROR);
+    const wrapped = new SubmissionError("NETWORK", NETWORK_ERROR);
     wrapped.cause = error;
     throw wrapped;
   }
@@ -145,16 +160,16 @@ export async function saveSubmission({ accessToken, sessionId, fields, mode }) {
   let response;
 
   try {
-    response = await fetch('/api/performance/submission', {
-      method: 'PUT',
+    response = await fetch("/api/performance/submission", {
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ sessionId, fields, mode })
+      body: JSON.stringify({ sessionId, fields, mode }),
     });
   } catch (error) {
-    const wrapped = new SubmissionError('NETWORK', NETWORK_ERROR);
+    const wrapped = new SubmissionError("NETWORK", NETWORK_ERROR);
     wrapped.cause = error;
     throw wrapped;
   }

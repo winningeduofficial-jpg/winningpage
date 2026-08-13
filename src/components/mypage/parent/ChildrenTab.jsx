@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import ChildCard from './ChildCard';
-import LinkChildModal from './LinkChildModal';
-import RemoveChildModal from './RemoveChildModal';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "../../../lib/supabase";
+import ChildCard from "./ChildCard";
+import LinkChildModal from "./LinkChildModal";
+import RemoveChildModal from "./RemoveChildModal";
 
 // 학부모 마이페이지 "자녀 등록 및 수정" 탭
 // (Figma 3610:2365 빈 상태 / 3636:104 목록).
@@ -14,7 +14,9 @@ import RemoveChildModal from './RemoveChildModal';
 function EmptyState({ onOpenLink }) {
   return (
     <div className="flex min-h-[13rem] flex-col items-center justify-center rounded-2xl bg-surface-04 px-8 py-16 text-center">
-      <p className="text-[1.0625rem] font-semibold text-ink">아직 연결된 자녀가 없어요</p>
+      <p className="text-[1.0625rem] font-semibold text-ink">
+        아직 연결된 자녀가 없어요
+      </p>
       <p className="mt-3 break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
         자녀를 연결하면 학습 리포트와 진단 결과를 함께 볼 수 있고,
         <br />
@@ -33,19 +35,21 @@ function EmptyState({ onOpenLink }) {
 
 export default function ChildrenTab() {
   const [children, setChildren] = useState(null); // null = 로딩 중
-  const [loadError, setLoadError] = useState('');
+  const [loadError, setLoadError] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState(null);
 
   const reload = useCallback(async () => {
-    const { data, error } = await supabase.rpc('fn_parent_children');
+    const { data, error } = await supabase.rpc("fn_parent_children");
     if (error) {
-      console.error('자녀 목록 조회 실패:', error);
-      setLoadError('자녀 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      console.error("자녀 목록 조회 실패:", error);
+      setLoadError(
+        "자녀 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
       setChildren([]);
       return;
     }
-    setLoadError('');
+    setLoadError("");
     setChildren(data || []);
   }, []);
 
@@ -54,7 +58,9 @@ export default function ChildrenTab() {
   }, [reload]);
 
   if (children === null) {
-    return <p className="text-[0.875rem] text-ink-sub">자녀 목록 불러오는 중...</p>;
+    return (
+      <p className="text-[0.875rem] text-ink-sub">자녀 목록 불러오는 중...</p>
+    );
   }
 
   return (
@@ -84,7 +90,11 @@ export default function ChildrenTab() {
 
           <div className="mt-[2.5rem] grid grid-cols-1 gap-[1.25rem] sm:grid-cols-2 lg:grid-cols-3">
             {children.map((child) => (
-              <ChildCard key={child.link_id} child={child} onRemove={setRemoveTarget} />
+              <ChildCard
+                key={child.link_id}
+                child={child}
+                onRemove={setRemoveTarget}
+              />
             ))}
           </div>
         </>

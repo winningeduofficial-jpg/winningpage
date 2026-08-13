@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X } from "lucide-react";
 
 // 첨부된 사진 썸네일 — docs/수행평가-상세-명세.md §5.7(`3754:3315`) 실측.
 //
@@ -21,7 +21,11 @@ import { X } from 'lucide-react';
  * @param {string} [alt] 대체 텍스트. 안내문 내용은 알 수 없으므로 순번으로 구분한다.
  * @param {() => void} [onRemove] 생략하면 삭제 버튼을 그리지 않는다(업로드 중 등).
  */
-export default function PhotoThumb({ src, alt = '첨부한 안내문 사진', onRemove }) {
+export default function PhotoThumb({
+  src,
+  alt = "첨부한 안내문 사진",
+  onRemove,
+}) {
   return (
     <div className="relative h-[6.25rem] w-[5.625rem] shrink-0 overflow-hidden rounded-lg border border-performance-line bg-performance-bubble">
       <img src={src} alt={alt} className="h-full w-full object-cover" />

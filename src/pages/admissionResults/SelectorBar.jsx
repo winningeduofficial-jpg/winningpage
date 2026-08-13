@@ -1,12 +1,12 @@
-import ComboField from './ComboField';
+import ComboField from "./ComboField";
 import {
   DEPARTMENT_LABEL,
   DEPARTMENT_LOCKED_MESSAGE,
   DEPARTMENT_PLACEHOLDER,
   SUBMIT_LABEL,
   UNIVERSITY_LABEL,
-  UNIVERSITY_PLACEHOLDER
-} from './constants';
+  UNIVERSITY_PLACEHOLDER,
+} from "./constants";
 
 /**
  * [대학교][모집단위][조회] 3분할 바 (Figma 2029:854).
@@ -39,7 +39,7 @@ export default function SelectorBar({
   onSelectDepartment,
   onClearUniversity,
   onClearDepartment,
-  onSubmit
+  onSubmit,
 }) {
   const universityUnavailable =
     !universityLoading && !universityError && universityOptions.length === 0;
@@ -56,10 +56,12 @@ export default function SelectorBar({
         options={universityOptions}
         onSelect={onSelectUniversity}
         onClear={onClearUniversity}
-        open={openField === 'university'}
-        onOpenChange={(next) => onOpenFieldChange(next ? 'university' : null)}
+        open={openField === "university"}
+        onOpenChange={(next) => onOpenFieldChange(next ? "university" : null)}
         disabled={universityUnavailable}
-        disabledMessage={universityUnavailable ? '아직 공개된 데이터가 없습니다' : ''}
+        disabledMessage={
+          universityUnavailable ? "아직 공개된 데이터가 없습니다" : ""
+        }
         loading={universityLoading}
         error={universityError}
         onRetry={onRetryUniversities}
@@ -77,10 +79,14 @@ export default function SelectorBar({
         options={departmentOptions}
         onSelect={onSelectDepartment}
         onClear={onClearDepartment}
-        open={openField === 'department'}
-        onOpenChange={(next) => onOpenFieldChange(next ? 'department' : null)}
+        open={openField === "department"}
+        onOpenChange={(next) => onOpenFieldChange(next ? "department" : null)}
         disabled={departmentLocked || universityUnavailable}
-        disabledMessage={departmentLocked || universityUnavailable ? DEPARTMENT_LOCKED_MESSAGE : ''}
+        disabledMessage={
+          departmentLocked || universityUnavailable
+            ? DEPARTMENT_LOCKED_MESSAGE
+            : ""
+        }
         loading={departmentLoading}
         error={departmentError}
         onRetry={onRetryDepartments}
@@ -96,10 +102,10 @@ export default function SelectorBar({
         disabled={!canSubmit}
         className={`flex h-14 items-center justify-center rounded-b-[1.25rem] text-base font-semibold tracking-[-0.02em] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:col-span-2 wide:col-span-1 wide:h-auto wide:rounded-b-none wide:rounded-r-[1.25rem] ${
           canSubmit
-            ? 'cursor-pointer bg-[#013262] text-white hover:bg-[#012649]'
+            ? "cursor-pointer bg-[#013262] text-white hover:bg-[#012649]"
             : // 비활성은 시안의 네이비 대신 회색. 흰 글자를 #d7d7d7 위에 얹으면 대비 1.6:1로
               // 글자가 사실상 사라지므로 배경을 더 밝게, 글자를 더 어둡게 잡는다.
-              'cursor-not-allowed bg-[#f0f1f3] text-[#a3a8ae]'
+              "cursor-not-allowed bg-[#f0f1f3] text-[#a3a8ae]"
         }`}
       >
         {SUBMIT_LABEL}

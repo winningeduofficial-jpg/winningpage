@@ -11,32 +11,32 @@
 // (수학→국어→영어→탐구)는 part-09 §60 그리드 좌표(수학 x=384/국어 x=824/영어
 // x=384,y=561/탐구 x=824,y=561) 순서를 그대로 따른다. 'etc'(기타)는 저장은 되지만
 // 이 두 화면 다 4과목 고정 그리드라 카드로는 그리지 않는다(시안 범위 밖).
-export const TIMER_SUBJECT_ORDER = ['math', 'korean', 'english', 'science'];
+export const TIMER_SUBJECT_ORDER = ["math", "korean", "english", "science"];
 
 // 섹션2 "오늘의 컨디션" — 단일 선택. part-09 §180 카피 전문.
 export const mockConditionOptions = [
-  { value: 'great', emoji: '😆', label: '아주 좋음' },
-  { value: 'normal', emoji: '🙂', label: '보통' },
-  { value: 'tired', emoji: '😣', label: '피곤함' },
-  { value: 'exhausted', emoji: '😫', label: '힘듦' }
+  { value: "great", emoji: "😆", label: "아주 좋음" },
+  { value: "normal", emoji: "🙂", label: "보통" },
+  { value: "tired", emoji: "😣", label: "피곤함" },
+  { value: "exhausted", emoji: "😫", label: "힘듦" },
 ];
 
 // 섹션3 "방해 요인" — 다중 선택. `없었음`은 다른 항목과 상호배타(part-09 §247 추정).
 // part-09 §230 카피 전문.
 export const mockDisturbanceOptions = [
-  { value: 'academySchedule', label: '수업 · 학원 일정' },
-  { value: 'smartphone', label: '스마트폰' },
-  { value: 'fatigue', label: '피로 · 수면 부족' },
-  { value: 'distraction', label: '집중 안 됨' },
-  { value: 'none', label: '없었음' }
+  { value: "academySchedule", label: "수업 · 학원 일정" },
+  { value: "smartphone", label: "스마트폰" },
+  { value: "fatigue", label: "피로 · 수면 부족" },
+  { value: "distraction", label: "집중 안 됨" },
+  { value: "none", label: "없었음" },
 ];
 
 // 섹션4 "오늘 완료한 핵심 학습 항목" — 다중 선택. part-09 §232 카피 전문.
 export const mockStudyItemOptions = [
-  { value: 'concept', label: '개념 학습' },
-  { value: 'academyHomework', label: '학원 숙제' },
-  { value: 'wrongAnswerReview', label: '오답 정리' },
-  { value: 'schoolSubject', label: '내신 과목' },
-  { value: 'mockExam', label: '기출/모의고사' },
-  { value: 'etc', label: '기타' }
+  { value: "concept", label: "개념 학습" },
+  { value: "academyHomework", label: "학원 숙제" },
+  { value: "wrongAnswerReview", label: "오답 정리" },
+  { value: "schoolSubject", label: "내신 과목" },
+  { value: "mockExam", label: "기출/모의고사" },
+  { value: "etc", label: "기타" },
 ];

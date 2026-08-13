@@ -1,27 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { Download, Search } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { Download, Search } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 const DEFAULT_META = {
-  title: '게시판',
-  label: '게시판',
-  description: ''
+  title: "게시판",
+  label: "게시판",
+  description: "",
 };
 
 const CATEGORY_META = {
   essay: {
-    title: '논술정보',
-    label: '논술',
-    description: '논술 전형 정보와 대학별 논술 가이드를 확인하세요.'
-  }
+    title: "논술정보",
+    label: "논술",
+    description: "논술 전형 정보와 대학별 논술 가이드를 확인하세요.",
+  },
 };
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
@@ -34,42 +34,42 @@ function normalizeArray(value) {
 }
 
 function formatDate(value) {
-  if (!value) return '';
+  if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
   return date.toISOString().slice(0, 10);
 }
 
 function getContentPreview(value) {
-  const text = String(value || '')
-    .replace(/\s+/g, ' ')
+  const text = String(value || "")
+    .replace(/\s+/g, " ")
     .trim();
-  if (!text) return '';
+  if (!text) return "";
   return text.length > 120 ? `${text.slice(0, 120)}...` : text;
 }
 
 function getAttachmentName(file) {
-  if (!file) return '첨부파일 다운로드';
-  if (typeof file === 'string') return '첨부파일 다운로드';
-  return file.name || '첨부파일 다운로드';
+  if (!file) return "첨부파일 다운로드";
+  if (typeof file === "string") return "첨부파일 다운로드";
+  return file.name || "첨부파일 다운로드";
 }
 
 function getAttachmentUrl(file) {
-  if (!file) return '';
-  return typeof file === 'string' ? file : file.url;
+  if (!file) return "";
+  return typeof file === "string" ? file : file.url;
 }
 
 export default function AdmissionBoard() {
   const params = useParams();
   const location = useLocation();
-  const pathCategory = location.pathname.split('/').filter(Boolean)[1];
+  const pathCategory = location.pathname.split("/").filter(Boolean)[1];
   const category = params.category || pathCategory;
   const id = params.id;
   const routeMeta = CATEGORY_META[category] || DEFAULT_META;
 
   const [rows, setRows] = useState([]);
   const [post, setPost] = useState(null);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
 
   const filteredRows = useMemo(() => {
@@ -79,11 +79,11 @@ export default function AdmissionBoard() {
 
     return rows.filter((row) => {
       const attachmentsText = normalizeArray(row.attachments)
-        .map((file) => (typeof file === 'string' ? file : file?.name || ''))
-        .join(' ');
+        .map((file) => (typeof file === "string" ? file : file?.name || ""))
+        .join(" ");
 
       const target =
-        `${row.title || ''} ${row.content || ''} ${row.file_name || ''} ${attachmentsText}`.toLowerCase();
+        `${row.title || ""} ${row.content || ""} ${row.file_name || ""} ${attachmentsText}`.toLowerCase();
       return target.includes(q);
     });
   }, [rows, keyword]);
@@ -94,19 +94,22 @@ export default function AdmissionBoard() {
     async function loadList() {
       setLoading(true);
 
-      let query = supabase.from('admission_posts').select('*').eq('is_active', true);
+      let query = supabase
+        .from("admission_posts")
+        .select("*")
+        .eq("is_active", true);
 
-      query = query.eq('category', category);
+      query = query.eq("category", category);
 
       const { data, error } = await query
-        .order('is_pinned', { ascending: false })
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+        .order("is_pinned", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
 
       if (!alive) return;
 
       if (error) {
-        console.error('입시정보 조회 실패:', error);
+        console.error("입시정보 조회 실패:", error);
         setRows([]);
       } else {
         setRows(data || []);
@@ -119,16 +122,16 @@ export default function AdmissionBoard() {
       setLoading(true);
 
       const { data, error } = await supabase
-        .from('admission_posts')
-        .select('*')
-        .eq('id', id)
-        .eq('is_active', true)
+        .from("admission_posts")
+        .select("*")
+        .eq("id", id)
+        .eq("is_active", true)
         .maybeSingle();
 
       if (!alive) return;
 
       if (error) {
-        console.error('입시정보 상세 조회 실패:', error);
+        console.error("입시정보 상세 조회 실패:", error);
         setPost(null);
       } else {
         setPost(data || null);
@@ -158,7 +161,9 @@ export default function AdmissionBoard() {
           <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
             <div className="mx-auto max-w-content px-6 py-14">
               <p className="text-sm font-black text-[#B88737]">입시정보</p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{detailMeta.title}</h1>
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">
+                {detailMeta.title}
+              </h1>
             </div>
           </section>
 
@@ -191,7 +196,9 @@ export default function AdmissionBoard() {
                     </span>
                   </div>
 
-                  <h2 className="text-3xl font-black tracking-[-0.04em]">{post.title}</h2>
+                  <h2 className="text-3xl font-black tracking-[-0.04em]">
+                    {post.title}
+                  </h2>
                 </div>
 
                 {images.length > 0 ? (
@@ -214,7 +221,7 @@ export default function AdmissionBoard() {
                 ) : null}
 
                 <div className="prose prose-lg mt-10 max-w-none whitespace-pre-wrap leading-8 text-[#1F2937]">
-                  {post.content || ''}
+                  {post.content || ""}
                 </div>
 
                 {attachments.length > 0 ? (
@@ -245,7 +252,7 @@ export default function AdmissionBoard() {
                     className="mt-10 inline-flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
                   >
                     <Download size={17} />
-                    {post.file_name || '첨부파일 다운로드'}
+                    {post.file_name || "첨부파일 다운로드"}
                   </a>
                 ) : null}
 
@@ -271,8 +278,12 @@ export default function AdmissionBoard() {
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{routeMeta.title}</h1>
-            <p className="mt-4 text-base font-medium text-gray-500">{routeMeta.description}</p>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">
+              {routeMeta.title}
+            </h1>
+            <p className="mt-4 text-base font-medium text-gray-500">
+              {routeMeta.description}
+            </p>
           </div>
         </section>
 
@@ -305,7 +316,8 @@ export default function AdmissionBoard() {
             ) : (
               filteredRows.map((row) => {
                 const attachmentCount =
-                  normalizeArray(row.attachments).length || (row.file_url ? 1 : 0);
+                  normalizeArray(row.attachments).length ||
+                  (row.file_url ? 1 : 0);
 
                 return (
                   <Link

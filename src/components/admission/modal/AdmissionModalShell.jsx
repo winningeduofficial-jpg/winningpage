@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
 // 대학모집요강 모달의 공용 "껍데기".
 //
@@ -39,18 +39,18 @@ import { X } from 'lucide-react';
 
 // AdmissionGuidelines.jsx 원문 그대로.
 export const PUBLIC_SHEET_CLASS =
-  'admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]';
+  "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
 export const PUBLIC_BODY_CLASS =
-  'admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12';
+  "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12";
 export const PUBLIC_FOOTER_CLASS =
-  'border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4';
+  "border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4";
 
 export default function AdmissionModalShell({
   open = true,
   onClose,
   eyebrow,
   title,
-  idPrefix = 'admission-modal',
+  idPrefix = "admission-modal",
   sheetClassName = PUBLIC_SHEET_CLASS,
   bodyRef,
   bodyProps,
@@ -59,7 +59,7 @@ export default function AdmissionModalShell({
   footerClassName = PUBLIC_FOOTER_CLASS,
   footer,
   triggerRef,
-  children
+  children,
 }) {
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -87,7 +87,9 @@ export default function AdmissionModalShell({
 
     if (!triggerRef) {
       fallbackTriggerRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
     }
 
     const sheet = sheetRef.current;
@@ -97,7 +99,9 @@ export default function AdmissionModalShell({
 
     const getFocusable = () =>
       sheet
-        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter((el) => el.offsetParent !== null)
+        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter(
+            (el) => el.offsetParent !== null,
+          )
         : [];
 
     const rafId = window.requestAnimationFrame(() => {
@@ -112,13 +116,13 @@ export default function AdmissionModalShell({
       // 격리했다). keyCode 229 는 isComposing 을 안 주는 구형 IME 폴백이다.
       if (event.isComposing || event.keyCode === 229) return;
 
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current?.();
         return;
       }
 
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const focusable = getFocusable();
       if (!focusable.length) return;
@@ -135,20 +139,21 @@ export default function AdmissionModalShell({
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     // 배경 스크롤 잠금. 스크롤바가 사라지며 레이아웃이 흔들리지 않도록 그만큼 padding으로 보정한다.
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
       document.body.style.paddingRight = originalPaddingRight;
       if (previouslyFocused && document.contains(previouslyFocused)) {
@@ -192,7 +197,10 @@ export default function AdmissionModalShell({
           >
             {eyebrow}
           </p>
-          <h3 id={`${idPrefix}-title`} className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
+          <h3
+            id={`${idPrefix}-title`}
+            className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]"
+          >
             {title}
           </h3>
         </div>

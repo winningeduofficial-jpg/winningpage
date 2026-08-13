@@ -36,7 +36,7 @@ const RecommendServices = ({ cards, leadNote = null }) => {
                 제목 줄이 공백 한 칸만 렌더된다 — 빈 줄을 그리지 않고 안내 본문만 남긴다. */}
             {(card.rank || card.name) && (
               <h3 className="text-[1.1875rem] font-medium text-[#525252]">
-                {[card.rank, card.name].filter(Boolean).join(' ')}
+                {[card.rank, card.name].filter(Boolean).join(" ")}
               </h3>
             )}
             <p className="fd-recommend-desc mt-2 w-full text-base font-normal leading-[1.3] text-[#808080] lg:w-[28.8125rem]">

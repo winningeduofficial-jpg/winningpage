@@ -24,35 +24,37 @@ import {
   CANCELLATION_NOTICE,
   FORM_SECTIONS,
   MENTOR_AGREEMENTS,
-  SUBMIT_BUTTON_LABEL
-} from '../../data/mentorApply';
-import PrimaryButton from '../auth/PrimaryButton';
-import FileDropzone from './FileDropzone';
-import FormSectionCard from './FormSectionCard';
-import MentorAgreementBlock from './MentorAgreementBlock';
-import { getMentorFieldLabelId, MentorFieldShell } from './MentorTextField';
-import PhoneVerifyField from './PhoneVerifyField';
+  SUBMIT_BUTTON_LABEL,
+} from "../../data/mentorApply";
+import PrimaryButton from "../auth/PrimaryButton";
+import FileDropzone from "./FileDropzone";
+import FormSectionCard from "./FormSectionCard";
+import MentorAgreementBlock from "./MentorAgreementBlock";
+import { getMentorFieldLabelId, MentorFieldShell } from "./MentorTextField";
+import PhoneVerifyField from "./PhoneVerifyField";
 
 const SECTION = FORM_SECTIONS.find((section) => section.no === 5);
 
 // 사이드바 앵커 기본값(§6-3).
-export const DOCUMENTS_SECTION_ID = 'mentor-apply-section-5';
+export const DOCUMENTS_SECTION_ID = "mentor-apply-section-5";
 
 // 이 섹션이 소유하는 필드. 파일과 번호는 `values` 가 아니라 전용 prop 으로 오르내리지만,
 // 필수 카운트·진행률 계산의 기준이 되어야 하므로 이름을 함께 노출한다.
-export const DOCUMENTS_FIELD_NAMES = ['proof_file', 'phone'];
+export const DOCUMENTS_FIELD_NAMES = ["proof_file", "phone"];
 
 // 약관 동의 키(= DB agree_* 컬럼과 1:1). 부모가 초기 상태 맵을 만들 때 쓴다.
-export const DOCUMENTS_AGREEMENT_KEYS = MENTOR_AGREEMENTS.map((item) => item.key);
+export const DOCUMENTS_AGREEMENT_KEYS = MENTOR_AGREEMENTS.map(
+  (item) => item.key,
+);
 export const DOCUMENTS_REQUIRED_AGREEMENT_KEYS = MENTOR_AGREEMENTS.filter(
-  (item) => item.required
+  (item) => item.required,
 ).map((item) => item.key);
 
 // 컨트롤 id — 파일 상단 ⚠ 참고. `*-field` 접미가 붙은 쪽이 라벨/에러 슬롯(shell) 소유다.
-const FILE_INPUT_ID = 'mentor-apply-proof-file';
-const FILE_FIELD_ID = 'mentor-apply-proof';
-const PHONE_INPUT_ID = 'mentor-apply-phone';
-const AGREEMENT_FIELD_ID = 'mentor-apply-agreements';
+const FILE_INPUT_ID = "mentor-apply-proof-file";
+const FILE_FIELD_ID = "mentor-apply-proof";
+const PHONE_INPUT_ID = "mentor-apply-phone";
+const AGREEMENT_FIELD_ID = "mentor-apply-agreements";
 
 // 도움말 내 강조는 시안에서 `#0B84FD`(accent) 동일 크기 인라인 스팬이다(§6-6).
 function Accent({ children }) {
@@ -65,7 +67,7 @@ export default function FormSectionDocuments({
   onChange, // (name, value) => void — 여기서는 'phone' 만 사용한다
   file = null, // File | null — 5-1 재학 증빙 서류
   onFileChange, // (File | null) => void
-  uploadStatus = 'idle', // 'idle' | 'uploading' | 'done' — FileDropzone 선택완료 뷰 배지용.
+  uploadStatus = "idle", // 'idle' | 'uploading' | 'done' — FileDropzone 선택완료 뷰 배지용.
   // MentorApplyForm 의 submitStage/uploadedProof 를 그대로가 아니라 이 값으로 변환해 받는다
   // (MentorApplyForm.jsx 매핑 주석 참고).
   phoneVerified = false, // 5-2 본인인증 완료 여부(서버가 제출 시 재확인한다)
@@ -79,11 +81,16 @@ export default function FormSectionDocuments({
   onSubmit,
   submitting = false, // 전송 중(스피너 + 처리중 톤)
   submitDisabled = false, // 필수 항목 미충족 등으로 제출 불가
-  id = DOCUMENTS_SECTION_ID
+  id = DOCUMENTS_SECTION_ID,
 }) {
   return (
     <div className="flex flex-col gap-8">
-      <FormSectionCard no={SECTION.no} title={SECTION.title} subtitle={SECTION.subtitle} id={id}>
+      <FormSectionCard
+        no={SECTION.no}
+        title={SECTION.title}
+        subtitle={SECTION.subtitle}
+        id={id}
+      >
         {/* 5-1 재학 증빙 서류 — groupLabel: FileDropzone 은 담당 파일이 아니라 aria-label
             을 줄 수 없다(파일 상단 ⚠ 참고). 선택 완료 뷰에서는 내부 <label htmlFor> 조차
             사라져 숨은 파일 인풋이 이름을 잃으므로, 최소한 그룹 단위 이름은 role="group" +
@@ -95,14 +102,18 @@ export default function FormSectionDocuments({
           groupLabel
           helperText={
             <>
-              <Accent>학생증 · 재학증명서 · 대학 합격확인서 중 1개</Accent>를 올려 주세요. 이름과
-              대학·학과가 보이도록 촬영해 주시면 확인이 빠릅니다.
+              <Accent>학생증 · 재학증명서 · 대학 합격확인서 중 1개</Accent>를
+              올려 주세요. 이름과 대학·학과가 보이도록 촬영해 주시면 확인이
+              빠릅니다.
             </>
           }
         >
           {/* 에러는 드롭존이 직접 표시한다 — 형식·용량 위반은 드롭존이 자체 검출하므로
               부모 에러와 한 자리에서 합쳐 보여주는 편이 원인 파악이 쉽다. */}
-          <div role="group" aria-labelledby={getMentorFieldLabelId(FILE_FIELD_ID)}>
+          <div
+            role="group"
+            aria-labelledby={getMentorFieldLabelId(FILE_FIELD_ID)}
+          >
             <FileDropzone
               id={FILE_INPUT_ID}
               value={file}
@@ -123,8 +134,8 @@ export default function FormSectionDocuments({
         >
           <PhoneVerifyField
             id={PHONE_INPUT_ID}
-            value={values.phone ?? ''}
-            onChange={(next) => onChange?.('phone', next)}
+            value={values.phone ?? ""}
+            onChange={(next) => onChange?.("phone", next)}
             verified={phoneVerified}
             onVerified={onPhoneVerified}
             // 값 형식·필수 에러(errors.phone)와 인증 미완료 에러(errors.phone_verified)는
@@ -139,8 +150,16 @@ export default function FormSectionDocuments({
             펼쳐진 boolean 컬럼 5개라 폼 상태에서도 한 덩어리로 두는 편이 매핑이 단순하다).
             groupLabel: MentorAgreementBlock 은 담당 파일이 아니라 그룹 컨테이너에 이름을
             달아줄 prop 이 없다(파일 상단 ⚠ 참고) — role="group" + aria-labelledby 로 보강한다. */}
-        <MentorFieldShell fieldId={AGREEMENT_FIELD_ID} label="약관 동의" required groupLabel>
-          <div role="group" aria-labelledby={getMentorFieldLabelId(AGREEMENT_FIELD_ID)}>
+        <MentorFieldShell
+          fieldId={AGREEMENT_FIELD_ID}
+          label="약관 동의"
+          required
+          groupLabel
+        >
+          <div
+            role="group"
+            aria-labelledby={getMentorFieldLabelId(AGREEMENT_FIELD_ID)}
+          >
             <MentorAgreementBlock
               items={MENTOR_AGREEMENTS}
               values={agreements}
@@ -155,7 +174,9 @@ export default function FormSectionDocuments({
       {/* ※ 선발 취소 사유 안내(§6-7, 3413:5637) — 배경 없음, 제목↔본문 gap 8.
           제목만 error(#EB2626), 본문은 ink.sub(#808080). 둘 다 Medium 14 / lh 1.4. */}
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium leading-[1.4] text-error">{CANCELLATION_NOTICE.title}</p>
+        <p className="text-sm font-medium leading-[1.4] text-error">
+          {CANCELLATION_NOTICE.title}
+        </p>
         <p className="break-keep text-sm font-medium leading-[1.4] text-ink-sub">
           {CANCELLATION_NOTICE.body}
         </p>
@@ -182,7 +203,7 @@ export default function FormSectionDocuments({
         disabled={submitDisabled}
         loading={submitting}
         className={`min-h-[5.0625rem] !rounded-[1.25rem] ${
-          submitting ? '' : 'disabled:bg-surface-muted disabled:text-ink-sub'
+          submitting ? "" : "disabled:bg-surface-muted disabled:text-ink-sub"
         }`}
       >
         {SUBMIT_BUTTON_LABEL}

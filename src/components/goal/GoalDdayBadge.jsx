@@ -5,17 +5,17 @@
 // (중요일정 D 백엔드 배선 UoW, 팀장 확정 사항) — D-7 이내 빨강 · D-14 이내 주황은 그대로다.
 // 정확한 HEX는 변수 미연결이라 근사값(추정).
 function tierOf(dday) {
-  const n = Number(String(dday).replace(/^D-?/i, ''));
-  if (Number.isNaN(n)) return 'gray';
-  if (n <= 7) return 'red';
-  if (n <= 14) return 'amber';
-  return 'gray';
+  const n = Number(String(dday).replace(/^D-?/i, ""));
+  if (Number.isNaN(n)) return "gray";
+  if (n <= 7) return "red";
+  if (n <= 14) return "amber";
+  return "gray";
 }
 
 const TONE_CLASS = {
-  red: 'bg-[#FCE4E4] text-[#D14343]',
-  amber: 'bg-[#FDECD2] text-[#B9740D]',
-  gray: 'bg-[#EDEDED] text-[#6B6B6B]'
+  red: "bg-[#FCE4E4] text-[#D14343]",
+  amber: "bg-[#FDECD2] text-[#B9740D]",
+  gray: "bg-[#EDEDED] text-[#6B6B6B]",
 };
 
 export default function GoalDdayBadge({ dday }) {

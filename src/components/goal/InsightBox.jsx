@@ -8,13 +8,17 @@
 // OS/브라우저별 이모지 폰트 렌더링 차이가 있어(특히 Windows vs macOS vs 안드로이드) 추후
 // SVG 아이콘 컴포넌트로 교체 검토가 필요하다. 지금은 시안 그대로 이모지 텍스트를 쓴다.
 const VARIANT = {
-  info: { icon: '💡', bgClass: 'bg-goal-insight-info' }, // 시안 386×69
-  warn: { icon: '🚨', bgClass: 'bg-goal-insight-warn' }, // 시안 386×81
-  success: { icon: '✅', bgClass: 'bg-goal-insight-success' }, // 시안 386×100
-  time: { icon: '⌚️', bgClass: 'bg-goal-insight-time' } // 시안 386×80
+  info: { icon: "💡", bgClass: "bg-goal-insight-info" }, // 시안 386×69
+  warn: { icon: "🚨", bgClass: "bg-goal-insight-warn" }, // 시안 386×81
+  success: { icon: "✅", bgClass: "bg-goal-insight-success" }, // 시안 386×100
+  time: { icon: "⌚️", bgClass: "bg-goal-insight-time" }, // 시안 386×80
 };
 
-export default function InsightBox({ variant = 'info', children, className = '' }) {
+export default function InsightBox({
+  variant = "info",
+  children,
+  className = "",
+}) {
   const { icon, bgClass } = VARIANT[variant] ?? VARIANT.info;
 
   return (
@@ -24,7 +28,9 @@ export default function InsightBox({ variant = 'info', children, className = '' 
       <span aria-hidden="true" className="shrink-0 text-[1rem] leading-[1.4]">
         {icon}
       </span>
-      <p className="min-w-0 flex-1 text-[0.8125rem] leading-[1.5] text-ink-strong">{children}</p>
+      <p className="min-w-0 flex-1 text-[0.8125rem] leading-[1.5] text-ink-strong">
+        {children}
+      </p>
     </div>
   );
 }

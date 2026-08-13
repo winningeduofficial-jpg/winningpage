@@ -31,7 +31,7 @@ export function isValidEmail(value) {
 // Date 는 month=13, day=32 같은 범위 밖 값을 다음 달/해로 조용히 롤오버시켜 전혀 다른 날짜를
 // 만든다(2024-02-30 → 2024-03-01). 그래서 만들어진 Date 를 다시 분해해 입력과 대조한다.
 export function isValidBirthDate(value) {
-  const digits = String(value ?? '');
+  const digits = String(value ?? "");
 
   if (!/^\d{8}$/.test(digits)) return false;
 
@@ -44,7 +44,11 @@ export function isValidBirthDate(value) {
   const birth = new Date(year, month - 1, day);
 
   if (Number.isNaN(birth.getTime())) return false;
-  if (birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
+  if (
+    birth.getFullYear() !== year ||
+    birth.getMonth() !== month - 1 ||
+    birth.getDate() !== day
+  ) {
     return false;
   }
 
@@ -58,7 +62,7 @@ export function isValidBirthDate(value) {
 const MIN_ADMISSION_YEAR = 1990;
 
 export function isValidAdmissionYear(value) {
-  const digits = String(value ?? '');
+  const digits = String(value ?? "");
 
   if (!/^\d{4}$/.test(digits)) return false;
 
@@ -72,5 +76,5 @@ export function isValidAdmissionYear(value) {
 // 같은 기준을 써야 클라이언트에서 통과한 값이 서버에서 거절되는 일이 없다.
 // 값이 비어 있으면 true 다(필수 여부는 이 함수의 책임이 아니다).
 export function isWithinMaxLength(value, max) {
-  return String(value ?? '').length <= max;
+  return String(value ?? "").length <= max;
 }

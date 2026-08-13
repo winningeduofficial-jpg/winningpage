@@ -1,6 +1,6 @@
-import GoalCard from '../GoalCard';
-import GoalCardHeader from '../GoalCardHeader';
-import { getSubjectStrongClass } from '../subjectTokens';
+import GoalCard from "../GoalCard";
+import GoalCardHeader from "../GoalCardHeader";
+import { getSubjectStrongClass } from "../subjectTokens";
 
 // 섹션1 "과목별 순공 시간"(#26, 1190×571). part-09 §169~175.
 //
@@ -14,14 +14,22 @@ import { getSubjectStrongClass } from '../subjectTokens';
 // 필요") — 이번 구현은 읽기 전용으로만 두고 이중화 충돌 해소는 범위 밖으로 남긴다.
 export default function StudyTimeSection({ rows, totalHours }) {
   return (
-    <GoalCard tone="neutral" className="flex flex-col gap-5 px-[2rem] py-[1.875rem]">
+    <GoalCard
+      tone="neutral"
+      className="flex flex-col gap-5 px-[2rem] py-[1.875rem]"
+    >
       <div>
         <GoalCardHeader title="과목별 순공 시간" />
-        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">합계가 오늘의 목표 달성률로 계산돼요</p>
+        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
+          합계가 오늘의 목표 달성률로 계산돼요
+        </p>
       </div>
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
-          <li key={row.id} className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-5">
+          <li
+            key={row.id}
+            className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-5"
+          >
             <span
               aria-hidden="true"
               className={`h-4 w-4 shrink-0 rounded-full ${getSubjectStrongClass(row.id)}`}
@@ -30,7 +38,9 @@ export default function StudyTimeSection({ rows, totalHours }) {
               {row.label}
             </span>
             <span className="min-w-0 flex-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
-              {row.hours > 0 ? `${row.hours.toFixed(1)}시간 기록됨` : '아직 기록 없음'}
+              {row.hours > 0
+                ? `${row.hours.toFixed(1)}시간 기록됨`
+                : "아직 기록 없음"}
             </span>
             <span className="shrink-0 text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
               {row.hours.toFixed(1)}h
@@ -38,7 +48,9 @@ export default function StudyTimeSection({ rows, totalHours }) {
           </li>
         ))}
         <li className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-5">
-          <span className="w-[4rem] shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-sub">합계</span>
+          <span className="w-[4rem] shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-sub">
+            합계
+          </span>
           <span className="min-w-0 flex-1" />
           <span className="shrink-0 text-[0.9375rem] font-bold leading-[1.4] text-ink-sub">
             {totalHours.toFixed(1)}h

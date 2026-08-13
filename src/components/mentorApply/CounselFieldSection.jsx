@@ -1,7 +1,7 @@
-import useInfiniteMarquee from '../../hooks/useInfiniteMarquee';
-import { COUNSEL_FIELD_SECTION, COUNSEL_FIELDS } from '../../data/mentorApply';
-import { MENTOR_ASSETS } from '../../data/mentorApplyAssets';
-import { MENTOR_HEADING_MD } from '../services/serviceTokens';
+import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
+import { COUNSEL_FIELD_SECTION, COUNSEL_FIELDS } from "../../data/mentorApply";
+import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
+import { MENTOR_HEADING_MD } from "../services/serviceTokens";
 
 // 멘토신청 §4 상담 분야 — 7카드 풀블리드 무한 마퀴 (docs/mentor-apply-spec.md §4 F-1, Figma 3408:4545).
 //
@@ -42,28 +42,28 @@ import { MENTOR_HEADING_MD } from '../services/serviceTokens';
 // 카드 폭은 시안 292(18.25rem)를 전 구간 고정한다. 375 뷰포트에서도 우측에 다음 카드가 43px
 // 걸쳐 보여 "옆으로 더 있다"는 스크롤 어포던스가 자연히 생긴다.
 const COUNSEL_CARD_CLASS =
-  'flex h-full w-[18.25rem] shrink-0 flex-col items-center rounded-[1.25rem] bg-white px-[1.4375rem] py-[1.75rem] text-center shadow-[0_0.25rem_0.5rem_rgba(0,0,0,0.1)]';
+  "flex h-full w-[18.25rem] shrink-0 flex-col items-center rounded-[1.25rem] bg-white px-[1.4375rem] py-[1.75rem] text-center shadow-[0_0.25rem_0.5rem_rgba(0,0,0,0.1)]";
 
 // 아이콘 슬롯 150×150. 원본 PNG 는 카드마다 실제 비율이 달라(110×124 ~ 126×126) object-contain
 // 으로 슬롯 안에 레터박스 처리하고, w/h 를 모두 명시해 원본 크기로 튀는 것을 막는다.
-const COUNSEL_ICON_CLASS = 'h-[9.375rem] w-[9.375rem] shrink-0 object-contain';
+const COUNSEL_ICON_CLASS = "h-[9.375rem] w-[9.375rem] shrink-0 object-contain";
 
 // 카드 제목 24 SemiBold / lh 1.3 / #191D23(ink.strong) — §3 혜택 카드(#181D24, lh 1.4)와 다르다.
 // 설명 16 Regular / lh 1.3 / #525252(ink).
 const COUNSEL_TITLE_CLASS =
-  'break-keep text-[1.25rem] font-semibold leading-[1.3] text-ink-strong lg:text-[1.5rem]';
+  "break-keep text-[1.25rem] font-semibold leading-[1.3] text-ink-strong lg:text-[1.5rem]";
 
 // 설명 min-height 2줄 고정 — 카드 1~3 은 설명이 2줄, 4~7 은 1줄이라 그대로 두면 카드 높이가
 // 달라지고(그리드 stretch 로 높이를 맞춰도) 아이콘 세로 위치가 카드마다 어긋난다(확인 항목 ⑬).
 // 16px × lh 1.3 × 2줄 = 41.6px = 2.6rem.
 const COUNSEL_DESC_CLASS =
-  'min-h-[2.6rem] whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.3] text-ink';
+  "min-h-[2.6rem] whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.3] text-ink";
 
-export default function CounselFieldSection({ className = 'lg:pt-[8.75rem]' }) {
+export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
   // 탭 전환이 없는 정적 7건 섹션이라 recenter 는 구조분해에서 뺀다
   // (AcceptanceSection 과 달리 콘텐츠가 바뀌어 재중앙 배치할 일이 없다).
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
-    itemCount: COUNSEL_FIELDS.length
+    itemCount: COUNSEL_FIELDS.length,
   });
 
   return (
@@ -72,7 +72,9 @@ export default function CounselFieldSection({ className = 'lg:pt-[8.75rem]' }) {
     <section className={`bg-white pt-16 sm:pt-20 ${className}`}>
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         {/* 시안상 이 타이틀만 뷰포트 정중앙 정렬이다(타이틀 프레임 중심 x=960.5 = 1920/2). */}
-        <h2 className={`${MENTOR_HEADING_MD} text-center`}>{COUNSEL_FIELD_SECTION.title}</h2>
+        <h2 className={`${MENTOR_HEADING_MD} text-center`}>
+          {COUNSEL_FIELD_SECTION.title}
+        </h2>
       </div>
 
       {/*
@@ -105,10 +107,19 @@ export default function CounselFieldSection({ className = 'lg:pt-[8.75rem]' }) {
               const isClone = cycle !== 1;
 
               return (
-                <li key={`${item.key}-${position}`} aria-hidden={isClone || undefined} className="flex">
+                <li
+                  key={`${item.key}-${position}`}
+                  aria-hidden={isClone || undefined}
+                  className="flex"
+                >
                   <article className={COUNSEL_CARD_CLASS}>
                     {/* 일러스트는 바로 옆 제목이 뜻을 그대로 전달하는 장식 요소라 접근성 트리에서 뺀다. */}
-                    <img src={MENTOR_ASSETS.fields[item.key]} alt="" aria-hidden="true" className={COUNSEL_ICON_CLASS} />
+                    <img
+                      src={MENTOR_ASSETS.fields[item.key]}
+                      alt=""
+                      aria-hidden="true"
+                      className={COUNSEL_ICON_CLASS}
+                    />
                     <div className="mt-[0.6875rem] flex flex-col gap-[1.25rem]">
                       <h3 className={COUNSEL_TITLE_CLASS}>{item.title}</h3>
                       {/* desc 의 `\n` 은 시안 강제 개행이라 whitespace-pre-line 으로 보존한다. */}

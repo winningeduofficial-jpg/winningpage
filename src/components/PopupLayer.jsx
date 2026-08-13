@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 function todayYmd() {
   const now = new Date();
-  const kst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const kst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const yyyy = kst.getFullYear();
-  const mm = String(kst.getMonth() + 1).padStart(2, '0');
-  const dd = String(kst.getDate()).padStart(2, '0');
+  const mm = String(kst.getMonth() + 1).padStart(2, "0");
+  const dd = String(kst.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -19,13 +19,13 @@ export default function PopupLayer() {
 
     async function loadPopups() {
       const { data, error } = await supabase
-        .from('popups')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .from("popups")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
 
       if (error) {
-        console.error('팝업 조회 실패:', error);
+        console.error("팝업 조회 실패:", error);
         return;
       }
 
@@ -33,7 +33,7 @@ export default function PopupLayer() {
 
       const filtered = (data || []).filter((popup) => {
         const hiddenKey = `winning-popup-hidden-${popup.id}-${today}`;
-        const hiddenToday = window.localStorage.getItem(hiddenKey) === '1';
+        const hiddenToday = window.localStorage.getItem(hiddenKey) === "1";
 
         if (hiddenToday) return false;
         if (popup.start_date && popup.start_date > today) return false;
@@ -58,7 +58,7 @@ export default function PopupLayer() {
 
   function hideToday(id) {
     const today = todayYmd();
-    window.localStorage.setItem(`winning-popup-hidden-${id}-${today}`, '1');
+    window.localStorage.setItem(`winning-popup-hidden-${id}-${today}`, "1");
     closePopup(id);
   }
 
@@ -73,7 +73,9 @@ export default function PopupLayer() {
             className="w-[360px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
           >
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h3 className="text-base font-black text-[#0D1B2A]">{popup.title}</h3>
+              <h3 className="text-base font-black text-[#0D1B2A]">
+                {popup.title}
+              </h3>
 
               <button
                 type="button"
@@ -90,7 +92,7 @@ export default function PopupLayer() {
                 onClick={() => {
                   if (!popup.url) return;
                   if (popup.open_new_window)
-                    window.open(popup.url, '_blank', 'noopener,noreferrer');
+                    window.open(popup.url, "_blank", "noopener,noreferrer");
                   else window.location.href = popup.url;
                 }}
                 className="block w-full"

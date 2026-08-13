@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, Link as LinkIcon, Share2 } from 'lucide-react';
-import ColumnBody, { hasBlockContent } from '../../components/column/ColumnBody';
-import ColumnCard from '../../components/column/ColumnCard';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { ChevronRight, Link as LinkIcon, Share2 } from "lucide-react";
+import ColumnBody, {
+  hasBlockContent,
+} from "../../components/column/ColumnBody";
+import ColumnCard from "../../components/column/ColumnCard";
 import {
   ALL_CATEGORY,
   fetchActiveColumns,
   fetchColumnById,
   getCategoryLabel,
   getCoverUrl,
-  normalizeImageUrls
-} from './columnData';
+  normalizeImageUrls,
+} from "./columnData";
 
 const RELATED_PAGE_SIZE = 4;
 
@@ -32,7 +34,10 @@ export default function ColumnDetail() {
       setCopied(false);
       setRelatedStart(0);
 
-      const [detail, allRows] = await Promise.all([fetchColumnById(id), fetchActiveColumns()]);
+      const [detail, allRows] = await Promise.all([
+        fetchColumnById(id),
+        fetchActiveColumns(),
+      ]);
 
       if (!alive) return;
 
@@ -46,7 +51,7 @@ export default function ColumnDetail() {
     };
   }, [id]);
 
-  const coverUrl = post ? getCoverUrl(post) : '';
+  const coverUrl = post ? getCoverUrl(post) : "";
   const remainingImages = post ? normalizeImageUrls(post).slice(1) : [];
   const hasBlocks = hasBlockContent(post);
 
@@ -56,12 +61,17 @@ export default function ColumnDetail() {
     const categoryLabel = getCategoryLabel(post);
     const pool = relatedPool.filter((row) => row.id !== post.id);
     const sameCategory =
-      categoryLabel !== ALL_CATEGORY ? pool.filter((row) => getCategoryLabel(row) === categoryLabel) : pool;
+      categoryLabel !== ALL_CATEGORY
+        ? pool.filter((row) => getCategoryLabel(row) === categoryLabel)
+        : pool;
 
     return sameCategory.length > 0 ? sameCategory : pool;
   }, [post, relatedPool]);
 
-  const visibleRelated = relatedRows.slice(relatedStart, relatedStart + RELATED_PAGE_SIZE);
+  const visibleRelated = relatedRows.slice(
+    relatedStart,
+    relatedStart + RELATED_PAGE_SIZE,
+  );
   const hasMoreRelated = relatedStart + RELATED_PAGE_SIZE < relatedRows.length;
 
   function handleShareClick() {
@@ -92,7 +102,9 @@ export default function ColumnDetail() {
     return (
       <main className="bg-white pt-16">
         <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
-          <h1 className="text-xl font-bold text-[#525252]">게시글을 찾을 수 없습니다.</h1>
+          <h1 className="text-xl font-bold text-[#525252]">
+            게시글을 찾을 수 없습니다.
+          </h1>
           <Link
             to="/info/column"
             className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#013262] px-6 text-sm font-semibold text-white"
@@ -139,7 +151,7 @@ export default function ColumnDetail() {
                 <LinkIcon size={35} />
               </button>
               <span className="text-xs font-medium text-[#7A7A7A]">
-                {copied ? '복사되었습니다' : '링크 복사'}
+                {copied ? "복사되었습니다" : "링크 복사"}
               </span>
             </div>
           )}
@@ -154,22 +166,29 @@ export default function ColumnDetail() {
         <>
           <img
             src={coverUrl}
-            alt={post.title || ''}
+            alt={post.title || ""}
             className="h-[26rem] w-full object-cover md:h-[34rem]"
           />
           <section className="mt-16 md:mt-[6.25rem]">
-            <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
+            <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+              {titleBlock}
+            </div>
           </section>
         </>
       ) : (
         <div className="flex h-[26rem] w-full flex-col justify-end bg-[#F4F4F4] pb-10 md:h-[34rem] md:pb-[6.25rem]">
-          <div className="mx-auto w-full max-w-content px-5 sm:px-8">{titleBlock}</div>
+          <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+            {titleBlock}
+          </div>
         </div>
       )}
 
       <section>
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <ColumnBody post={post} className={`mt-16 ${coverUrl ? 'md:mt-[6rem]' : 'md:mt-[5.9375rem]'}`} />
+          <ColumnBody
+            post={post}
+            className={`mt-16 ${coverUrl ? "md:mt-[6rem]" : "md:mt-[5.9375rem]"}`}
+          />
 
           {remainingImages.length > 0 && !hasBlocks && (
             <div className="mt-10 space-y-5">
@@ -177,7 +196,7 @@ export default function ColumnDetail() {
                 <img
                   key={`${url}-${index}`}
                   src={url}
-                  alt={`${post.title || ''} 이미지 ${index + 2}`}
+                  alt={`${post.title || ""} 이미지 ${index + 2}`}
                   className="w-full rounded-xl object-cover"
                 />
               ))}
@@ -203,7 +222,9 @@ export default function ColumnDetail() {
               {hasMoreRelated && (
                 <button
                   type="button"
-                  onClick={() => setRelatedStart((prev) => prev + RELATED_PAGE_SIZE)}
+                  onClick={() =>
+                    setRelatedStart((prev) => prev + RELATED_PAGE_SIZE)
+                  }
                   aria-label="다음 관련 글"
                   className="absolute -right-4 top-1/2 flex h-12 w-[3.125rem] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#525252] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)] sm:right-0 sm:translate-x-1/2 wide:top-[5.6875rem]"
                 >

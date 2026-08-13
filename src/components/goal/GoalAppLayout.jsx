@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
-import GoalSidebar from './GoalSidebar';
+import { Outlet } from "react-router-dom";
+import GoalSidebar from "./GoalSidebar";
 
 // 접근 가드(로그인 → 이용권 → 온보딩 완료) 확정(2026-08-10) — App.jsx에서 이 레이아웃의
 // 라우트 그룹을 <RequireGoalAccess />로 감싼다(src/components/goal/RequireGoalAccess.jsx).

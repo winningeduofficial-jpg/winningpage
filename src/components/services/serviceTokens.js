@@ -15,7 +15,7 @@
 
 // 섹션 h2 공통 클래스. 정렬(text-left/center)은 포함하지 않는다 — 기준은 전 헤딩 좌측 정렬이다.
 export const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]';
+  "break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#0F172A] sm:text-[1.75rem] lg:text-[2rem]";
 
 // 멘토신청(/mentor-apply, docs/mentor-apply-spec.md) 전용 섹션 헤딩 2위계.
 //
@@ -30,14 +30,15 @@ export const SECTION_HEADING_CLASS =
 // ls 는 명세 확인 항목 ㊽ 확정 목록(Heading/38-B 등 20px 이상)에 따라 LG 에만 적용한다.
 // 모바일 램프(1.75rem→2.375rem / 1.5rem→2rem)는 768/375 시안이 없어 구현 재량이다(확인 항목 ㊺).
 export const MENTOR_HEADING_LG =
-  'break-keep text-[1.75rem] font-bold leading-[1.3] tracking-[-0.02em] text-ink-title sm:text-[2rem] lg:text-[2.375rem]';
+  "break-keep text-[1.75rem] font-bold leading-[1.3] tracking-[-0.02em] text-ink-title sm:text-[2rem] lg:text-[2.375rem]";
 export const MENTOR_HEADING_MD =
-  'break-keep text-[1.5rem] font-semibold leading-[1.3] text-ink-strong sm:text-[1.75rem] lg:text-[2rem]';
+  "break-keep text-[1.5rem] font-semibold leading-[1.3] text-ink-strong sm:text-[1.75rem] lg:text-[2rem]";
 
 // 표준 카드 타이포의 단일 정의처. 각 컴포넌트 마크업에는 가독성을 위해 리터럴로 적혀 있으므로
 // 이 상수들은 신규 섹션 작성 시 참조 기준으로 쓴다.
 export const CARD_TITLE_CLASS =
-  'text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]';
-export const CARD_DESC_CLASS = 'break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]';
+  "text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]";
+export const CARD_DESC_CLASS =
+  "break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]";
 export const CARD_DESC_MUTED_CLASS =
-  'break-keep text-[1rem] font-medium leading-[1.4] text-[#767676]';
+  "break-keep text-[1rem] font-medium leading-[1.4] text-[#767676]";

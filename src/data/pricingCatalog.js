@@ -14,8 +14,9 @@
 // 전달하므로 반복은 걷어냈지만, 문구 자체는 완전히 지우지 않았다 — 마우스만 쓰는
 // 사용자는 aria 속성을 듣지 못하고, 원형 인디케이터만으로 "단일선택"이 자명하다고
 // 단정하기엔 이 페이지 이전 상태(정사각 체크박스)가 바로 그 자명함이 깨졌던 사례다.
-export const SINGLE_SELECT_NOTICE = '한 서비스 내에서는 하나의 플랜만 선택할 수 있어요';
+export const SINGLE_SELECT_NOTICE =
+  "한 서비스 내에서는 하나의 플랜만 선택할 수 있어요";
 
 export function formatKRW(value) {
-  return `${Number(value || 0).toLocaleString('ko-KR')}원`;
+  return `${Number(value || 0).toLocaleString("ko-KR")}원`;
 }

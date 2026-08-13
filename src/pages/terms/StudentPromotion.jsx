@@ -15,7 +15,9 @@
 // 추정 — 본문 텍스트에는 '합격 학교·학과'로 표기"). 표와 본문 표기를 일치시키기 위해 본문과
 // 동일한 "합격 학교·학과"로 표기한다(임의 재구성이 아니라 동일 문서 내 이미 확정된 정본 표기를
 // 따른 것).
-import TermsPageLayout, { TermsSection } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsSection,
+} from "../../components/auth/TermsPageLayout";
 
 export default function StudentPromotion() {
   return (
@@ -25,14 +27,18 @@ export default function StudentPromotion() {
       effectiveDate="2026-08-01"
     >
       <p className="text-xs leading-[1.85] text-ink">
-        위닝에듀(이하 "회사")는 회원의 합격 사례, 성적 향상 사례 및 서비스 이용후기를 다른 회원 및
-        예비 회원에게 소개하기 위한 홍보 자료로 활용하고자 합니다. 본 동의는 전적으로 선택
-        사항이며, 동의하지 않으시더라도 서비스 이용에 어떠한 불이익도 없습니다.
+        위닝에듀(이하 "회사")는 회원의 합격 사례, 성적 향상 사례 및 서비스
+        이용후기를 다른 회원 및 예비 회원에게 소개하기 위한 홍보 자료로
+        활용하고자 합니다. 본 동의는 전적으로 선택 사항이며, 동의하지
+        않으시더라도 서비스 이용에 어떠한 불이익도 없습니다.
       </p>
 
       <TermsSection title="1. 활용 목적">
         <ul className="list-inside list-disc text-xs leading-[1.85] text-ink">
-          <li>합격사례·성적 향상 사례 및 학습후기의 홈페이지·앱·SNS·광고·설명회 자료 등 게재</li>
+          <li>
+            합격사례·성적 향상 사례 및 학습후기의 홈페이지·앱·SNS·광고·설명회
+            자료 등 게재
+          </li>
           <li>신규 서비스 소개 및 예비 회원 대상 서비스 신뢰도 안내</li>
         </ul>
       </TermsSection>
@@ -48,15 +54,21 @@ export default function StudentPromotion() {
           <tbody>
             <tr className="border-b border-line align-top">
               <td className="py-2 pr-4">기본 표기 정보</td>
-              <td className="py-2">성명(또는 이니셜·닉네임 중 선택), 출신 학교명(선택 표기)</td>
+              <td className="py-2">
+                성명(또는 이니셜·닉네임 중 선택), 출신 학교명(선택 표기)
+              </td>
             </tr>
             <tr className="border-b border-line align-top">
               <td className="py-2 pr-4">입시 결과 정보</td>
-              <td className="py-2">합격 학교·학과, 전형 유형(수시/정시/특목고), 이용 서비스명</td>
+              <td className="py-2">
+                합격 학교·학과, 전형 유형(수시/정시/특목고), 이용 서비스명
+              </td>
             </tr>
             <tr className="align-top">
               <td className="py-2 pr-4">후기 콘텐츠</td>
-              <td className="py-2">이용후기 텍스트, 사진·영상(별도 동의 시에 한하여 수집)</td>
+              <td className="py-2">
+                이용후기 텍스트, 사진·영상(별도 동의 시에 한하여 수집)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -64,8 +76,8 @@ export default function StudentPromotion() {
 
       <TermsSection title="3. 표기 방식 선택">
         <p className="text-xs leading-[1.85] text-ink">
-          회원은 아래 중 원하는 표기 방식을 선택할 수 있으며, 별도 요청이 없는 경우 이니셜(익명)
-          처리를 원칙으로 합니다.
+          회원은 아래 중 원하는 표기 방식을 선택할 수 있으며, 별도 요청이 없는
+          경우 이니셜(익명) 처리를 원칙으로 합니다.
         </p>
         <div className="flex flex-col gap-2 text-xs leading-[1.85] text-ink">
           <label className="flex items-center gap-2">
@@ -85,37 +97,39 @@ export default function StudentPromotion() {
 
       <TermsSection title="4. 보유 및 이용 기간">
         <p className="text-xs leading-[1.85] text-ink">
-          동의 철회 시 또는 회원 탈퇴 시까지 활용하며, 철회 이후 신규 제작되는 홍보물에는 사용하지
-          않습니다. 다만 철회 이전에 이미 배포·게재된 인쇄물, 방송, 온라인 게시물 등은 즉시 회수가
-          어려울 수 있음을 미리 안내드립니다.
+          동의 철회 시 또는 회원 탈퇴 시까지 활용하며, 철회 이후 신규 제작되는
+          홍보물에는 사용하지 않습니다. 다만 철회 이전에 이미 배포·게재된
+          인쇄물, 방송, 온라인 게시물 등은 즉시 회수가 어려울 수 있음을 미리
+          안내드립니다.
         </p>
       </TermsSection>
 
       <TermsSection title="5. 제3자 제공(위탁)">
         <p className="text-xs leading-[1.85] text-ink">
-          홍보물 제작·집행을 위하여 광고 대행사, 인쇄·영상 제작업체 등에 필요한 범위 내에서 제공될
-          수 있으며, 목적 외 용도로는 사용되지 않습니다.
+          홍보물 제작·집행을 위하여 광고 대행사, 인쇄·영상 제작업체 등에 필요한
+          범위 내에서 제공될 수 있으며, 목적 외 용도로는 사용되지 않습니다.
         </p>
       </TermsSection>
 
       <TermsSection title="6. 미성년 회원의 경우">
         <p className="text-xs leading-[1.85] text-ink">
-          회원이 만 14세 미만이거나 만 19세 미만으로 법정대리인 동의가 필요한 경우, 본 동의는
-          법정대리인의 동의를 함께 받은 경우에 한하여 유효합니다.
+          회원이 만 14세 미만이거나 만 19세 미만으로 법정대리인 동의가 필요한
+          경우, 본 동의는 법정대리인의 동의를 함께 받은 경우에 한하여
+          유효합니다.
         </p>
       </TermsSection>
 
       <TermsSection title="7. 동의 거부 권리 및 불이익">
         <p className="text-xs leading-[1.85] text-ink">
-          본 동의에 응하지 않을 권리가 있으며, 동의하지 않거나 이후 철회하더라도 서비스 이용 자격,
-          요금, 혜택 등에 어떠한 불이익도 발생하지 않습니다.
+          본 동의에 응하지 않을 권리가 있으며, 동의하지 않거나 이후 철회하더라도
+          서비스 이용 자격, 요금, 혜택 등에 어떠한 불이익도 발생하지 않습니다.
         </p>
       </TermsSection>
 
       <TermsSection title="8. 동의 철회">
         <p className="text-xs leading-[1.85] text-ink">
-          마이페이지 [내 정보 관리] 또는 개인정보 보호책임자를 통해 언제든지 동의를 철회할 수
-          있습니다.
+          마이페이지 [내 정보 관리] 또는 개인정보 보호책임자를 통해 언제든지
+          동의를 철회할 수 있습니다.
         </p>
       </TermsSection>
 

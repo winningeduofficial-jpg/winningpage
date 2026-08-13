@@ -23,6 +23,8 @@ function delay(ms = MOCK_DELAY) {
 export async function sendChildInvite({ name: _name, phone: _phone }) {
   await delay();
   const inviteUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/signup` : 'winningedu.kr/signup';
+    typeof window !== "undefined"
+      ? `${window.location.origin}/signup`
+      : "winningedu.kr/signup";
   return { success: true, inviteUrl };
 }

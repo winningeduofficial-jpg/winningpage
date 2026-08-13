@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import AdmissionModalShell from '../modal/AdmissionModalShell';
-import AdmissionModalStyles from '../modal/AdmissionModalStyles';
+import { useState } from "react";
+import AdmissionModalShell from "../modal/AdmissionModalShell";
+import AdmissionModalStyles from "../modal/AdmissionModalStyles";
 
 // 대학모집요강 목록 '관리' 열의 메타 전용 경량 편집 모달.
 //
@@ -26,11 +26,11 @@ import AdmissionModalStyles from '../modal/AdmissionModalStyles';
 // 이 모달은 폼 값(9필드)만 만들어 올릴 뿐 저장 자체는 모른다 — *_json/*_html
 // 컬럼을 건드리지 않는 보장은 호출부(Admin.jsx) 쪽 책임이다.
 export const ADMISSION_META_FIELDS = [
-  { key: 'university_name', label: '대학명', type: 'text', required: true },
-  { key: 'matched_hwp_name', label: '원문 대학명', type: 'text' },
-  { key: 'university_key', label: '대학 키값', type: 'text', required: true },
-  { key: 'region', label: '지역', type: 'text', required: true },
-  { key: 'admission_year', label: '입학연도', type: 'number', required: true },
+  { key: "university_name", label: "대학명", type: "text", required: true },
+  { key: "matched_hwp_name", label: "원문 대학명", type: "text" },
+  { key: "university_key", label: "대학 키값", type: "text", required: true },
+  { key: "region", label: "지역", type: "text", required: true },
+  { key: "admission_year", label: "입학연도", type: "number", required: true },
   // URL 2종은 반드시 붙여 놓는다 — 역할이 다른데 dev 218행 중 209행이 값까지
   // 같아서, 떨어뜨려 두면 관리자가 어느 쪽을 고치는지 착각한다.
   //   official_source_url  = 공개 목록에서 **대학명**을 눌렀을 때 가는 곳
@@ -38,28 +38,35 @@ export const ADMISSION_META_FIELDS = [
   // required 를 주지 않는다: 미등록·자리표시자('-') 행이 실제로 존재하고,
   // 필수화하면 그 행들의 저장이 통째로 막힌다. 공개 측은 http(s) 절대 URL이
   // 아니면 링크를 걸지 않고 평문으로 떨어뜨리므로 빈 값이 화면을 깨지 않는다.
-  { key: 'official_source_url', label: '대학명 링크 URL', type: 'text' },
-  { key: 'jungsi_guideline_url', label: '정시모집요강 URL', type: 'text' },
-  { key: 'memo', label: '메모', type: 'textarea' },
-  { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+  { key: "official_source_url", label: "대학명 링크 URL", type: "text" },
+  { key: "jungsi_guideline_url", label: "정시모집요강 URL", type: "text" },
+  { key: "memo", label: "메모", type: "textarea" },
   {
-    key: 'detail_status',
-    label: '상태',
-    type: 'select',
-    options: ['상세입력완료', '재가공필요', 'HWP상세페이지미확인']
-  }
+    key: "is_active",
+    label: "노출 여부",
+    type: "radioBoolean",
+    required: true,
+  },
+  {
+    key: "detail_status",
+    label: "상태",
+    type: "select",
+    options: ["상세입력완료", "재가공필요", "HWP상세페이지미확인"],
+  },
 ];
 
-const BODY_CLASS = 'admission-meta-edit-modal-body flex-1 overflow-auto bg-white px-6 py-5 md:px-10';
-const FOOTER_CLASS = 'border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-10';
+const BODY_CLASS =
+  "admission-meta-edit-modal-body flex-1 overflow-auto bg-white px-6 py-5 md:px-10";
+const FOOTER_CLASS = "border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-10";
 
 function MetaFieldInput({ field, value, onChange }) {
-  const base = 'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none';
+  const base =
+    "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none";
 
-  if (field.type === 'textarea') {
+  if (field.type === "textarea") {
     return (
       <textarea
-        value={value ?? ''}
+        value={value ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         rows={4}
         className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 text-sm outline-none"
@@ -67,9 +74,13 @@ function MetaFieldInput({ field, value, onChange }) {
     );
   }
 
-  if (field.type === 'select') {
+  if (field.type === "select") {
     return (
-      <select value={value ?? ''} onChange={(e) => onChange(field.key, e.target.value)} className={base}>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(field.key, e.target.value)}
+        className={base}
+      >
         <option value="">선택</option>
         {field.options.map((option) => (
           <option key={option} value={option}>
@@ -80,15 +91,23 @@ function MetaFieldInput({ field, value, onChange }) {
     );
   }
 
-  if (field.type === 'radioBoolean') {
+  if (field.type === "radioBoolean") {
     return (
       <div className="flex items-center gap-6">
         <label className="inline-flex items-center gap-2 text-sm font-bold">
-          <input type="radio" checked={value === true} onChange={() => onChange(field.key, true)} />
+          <input
+            type="radio"
+            checked={value === true}
+            onChange={() => onChange(field.key, true)}
+          />
           노출
         </label>
         <label className="inline-flex items-center gap-2 text-sm font-bold">
-          <input type="radio" checked={value === false} onChange={() => onChange(field.key, false)} />
+          <input
+            type="radio"
+            checked={value === false}
+            onChange={() => onChange(field.key, false)}
+          />
           비노출
         </label>
       </div>
@@ -97,10 +116,13 @@ function MetaFieldInput({ field, value, onChange }) {
 
   return (
     <input
-      type={field.type === 'number' ? 'number' : 'text'}
-      value={value ?? ''}
+      type={field.type === "number" ? "number" : "text"}
+      value={value ?? ""}
       onChange={(e) => {
-        const next = field.type === 'number' ? Number(e.target.value || 0) : e.target.value;
+        const next =
+          field.type === "number"
+            ? Number(e.target.value || 0)
+            : e.target.value;
         onChange(field.key, next);
       }}
       className={base}
@@ -111,11 +133,11 @@ function MetaFieldInput({ field, value, onChange }) {
 function buildInitialForm(row) {
   const form = {};
   ADMISSION_META_FIELDS.forEach((field) => {
-    if (field.type === 'radioBoolean') {
+    if (field.type === "radioBoolean") {
       form[field.key] = row?.[field.key] ?? true;
       return;
     }
-    form[field.key] = row?.[field.key] ?? '';
+    form[field.key] = row?.[field.key] ?? "";
   });
   return form;
 }
@@ -136,14 +158,18 @@ export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
   // 기존 편집 모달(AdmissionSectionEditModal의 origin==='list' 경로 →
   // AdminForm.handleCancel)과 같은 규칙: dirty면 confirm, 아니면 바로 닫는다.
   function handleClose() {
-    if (dirty && !window.confirm('저장하지 않은 변경사항이 있습니다. 나가시겠습니까?')) return;
+    if (
+      dirty &&
+      !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")
+    )
+      return;
     onClose();
   }
 
   async function handleSave() {
     for (const field of ADMISSION_META_FIELDS) {
       if (!field.required) continue;
-      if (String(form[field.key] ?? '').trim() === '') {
+      if (String(form[field.key] ?? "").trim() === "") {
         alert(`${field.label} 항목을 입력해주세요.`);
         return;
       }
@@ -168,7 +194,7 @@ export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
         idPrefix="admission-meta-edit-modal"
         bodyClassName={BODY_CLASS}
         footerClassName={FOOTER_CLASS}
-        eyebrow={row?.university_name || '(대학명 없음)'}
+        eyebrow={row?.university_name || "(대학명 없음)"}
         title="메타 정보 수정"
         footer={
           <div className="flex justify-end gap-2">
@@ -185,7 +211,7 @@ export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
               disabled={saving}
               className="h-10 rounded-xl bg-[#2348ff] px-6 text-sm font-black text-white transition hover:bg-[#1b39cc] disabled:opacity-50"
             >
-              {saving ? '저장 중…' : '저장'}
+              {saving ? "저장 중…" : "저장"}
             </button>
           </div>
         }
@@ -197,7 +223,11 @@ export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
                 {field.label}
                 {field.required && <span className="ml-1 text-red-500">*</span>}
               </label>
-              <MetaFieldInput field={field} value={form[field.key]} onChange={change} />
+              <MetaFieldInput
+                field={field}
+                value={form[field.key]}
+                onChange={change}
+              />
             </div>
           ))}
         </div>

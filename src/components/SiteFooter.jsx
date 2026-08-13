@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
-import { COMPANY } from '../data/company';
-import { useNavGroups } from '../hooks/useNavGroups';
+import { Link } from "react-router-dom";
+import { COMPANY } from "../data/company";
+import { useNavGroups } from "../hooks/useNavGroups";
 
 // 결제/랜딩 공용 푸터. 사업자 정보 + 이용약관/개인정보처리방침 링크 포함.
 // 메뉴 컬럼은 헤더 메가메뉴와 동일한 useNavGroups()(DB → 캐시 → fallback)를 공유한다.
@@ -13,13 +13,13 @@ import { useNavGroups } from '../hooks/useNavGroups';
 // 검산: 89+50+132+50+120+50+120+50+120 = 781px.
 
 const FOOTER_COLUMN_WIDTH_CLASS = {
-  서비스: 'w-[5.5625rem]',
-  프리미엄: 'w-[8.25rem]',
-  입시정보: 'w-[7.5rem]',
-  이용신청: 'w-[7.5rem]',
-  고객안내: 'w-[7.5rem]',
+  서비스: "w-[5.5625rem]",
+  프리미엄: "w-[8.25rem]",
+  입시정보: "w-[7.5rem]",
+  이용신청: "w-[7.5rem]",
+  고객안내: "w-[7.5rem]",
 };
-const FOOTER_COLUMN_WIDTH_DEFAULT = 'w-[7.5rem]';
+const FOOTER_COLUMN_WIDTH_DEFAULT = "w-[7.5rem]";
 
 export default function SiteFooter() {
   const navGroups = useNavGroups();
@@ -40,7 +40,9 @@ export default function SiteFooter() {
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
             {navGroups.map((group) => (
               <nav key={group.title} className="min-w-0">
-                <p className="mb-5 text-sm font-medium text-[#808080]">{group.title}</p>
+                <p className="mb-5 text-sm font-medium text-[#808080]">
+                  {group.title}
+                </p>
                 <ul className="space-y-3">
                   {group.items.map((item) => (
                     <li key={`${group.title}-${item.label}`}>
@@ -79,7 +81,9 @@ export default function SiteFooter() {
                 {/* 시안 2207:13215은 "고객안내" 컬럼만 타이틀↔리스트 gap이 10px(나머지는
                     20px)인데, 5컬럼 중 1개만 다른 것은 시안 결함으로 판단해 전 컬럼
                     20px(1.25rem)로 통일한다. */}
-                <p className="mb-[1.25rem] text-sm font-medium text-[#808080]">{group.title}</p>
+                <p className="mb-[1.25rem] text-sm font-medium text-[#808080]">
+                  {group.title}
+                </p>
                 <ul className="space-y-3">
                   {group.items.map((item) => (
                     <li key={`${group.title}-${item.label}`}>
@@ -109,13 +113,14 @@ export default function SiteFooter() {
               정상이므로 시안 텍스트를 따르지 않고 현행 그대로 유지한다. */}
           <div className="space-y-1 break-keep py-3 text-sm leading-[1.4] text-[#525252]">
             <p>
-              상호명: {COMPANY.name} | 대표: {COMPANY.ceo} | 법인등록번호: {COMPANY.corpRegNo} |
-              특허출원: {COMPANY.patentNo} | 사업자 등록번호: {COMPANY.bizRegNo} | 통신판매업
-              신고번호: {COMPANY.mailOrderNo}
+              상호명: {COMPANY.name} | 대표: {COMPANY.ceo} | 법인등록번호:{" "}
+              {COMPANY.corpRegNo} | 특허출원: {COMPANY.patentNo} | 사업자
+              등록번호: {COMPANY.bizRegNo} | 통신판매업 신고번호:{" "}
+              {COMPANY.mailOrderNo}
             </p>
             <p>
-              주소: {COMPANY.address} | 대표전화: {COMPANY.tel} | 센터문의: {COMPANY.centerTel} |
-              카카오톡: {COMPANY.kakao}
+              주소: {COMPANY.address} | 대표전화: {COMPANY.tel} | 센터문의:{" "}
+              {COMPANY.centerTel} | 카카오톡: {COMPANY.kakao}
             </p>
           </div>
 

@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { openPaidServiceOrAlert } from '../lib/paidServiceAccess';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
 
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
@@ -21,7 +21,7 @@ function normalizeArray(value) {
 }
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 export default function DynamicPage() {
@@ -37,16 +37,16 @@ export default function DynamicPage() {
       setLoading(true);
 
       const { data, error } = await supabase
-        .from('page_contents')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
+        .from("page_contents")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_active", true)
         .maybeSingle();
 
       if (!alive) return;
 
       if (error) {
-        console.error('세부 페이지 조회 실패:', error);
+        console.error("세부 페이지 조회 실패:", error);
         setPage(null);
       } else {
         setPage(data || null);
@@ -79,7 +79,9 @@ export default function DynamicPage() {
       <>
         <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
           <div className="mx-auto max-w-content px-6 py-24 text-center">
-            <h1 className="text-3xl font-black tracking-[-0.04em]">페이지를 찾을 수 없습니다.</h1>
+            <h1 className="text-3xl font-black tracking-[-0.04em]">
+              페이지를 찾을 수 없습니다.
+            </h1>
             <p className="mt-4 text-base font-medium text-gray-500">
               요청하신 페이지가 없거나 비활성화되어 있습니다.
             </p>
@@ -108,7 +110,7 @@ export default function DynamicPage() {
     description: subtitle || body,
     link: page.button_link,
     to: page.button_link,
-    slug
+    slug,
   };
 
   return (
@@ -117,7 +119,9 @@ export default function DynamicPage() {
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-20 text-center">
             {menuGroup && (
-              <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">{menuGroup}</p>
+              <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">
+                {menuGroup}
+              </p>
             )}
 
             <h1 className="mx-auto mt-5 max-w-[900px] text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
@@ -133,7 +137,9 @@ export default function DynamicPage() {
             {page.button_text && page.button_link && (
               <button
                 type="button"
-                onClick={(event) => openPaidServiceOrAlert(event, paidServiceContext)}
+                onClick={(event) =>
+                  openPaidServiceOrAlert(event, paidServiceContext)
+                }
                 className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
               >
                 {page.button_text}

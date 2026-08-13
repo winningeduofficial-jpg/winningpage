@@ -19,7 +19,7 @@
  * 리포트가 정상 응답을 조용히 폐기하고 픽스처로 떨어진다(에러가 없어 진단이 어렵다).
  * 설문 UI 는 이 배점표를 import 하지 않으므로 의존 방향을 설문 쪽으로 잡았다(번들 분리 유지).
  */
-export { SURVEY_SCHEMA_VERSION as SCHEMA_VERSION } from './renewalSurveyQuestions.js';
+export { SURVEY_SCHEMA_VERSION as SCHEMA_VERSION } from "./renewalSurveyQuestions.js";
 
 /* ------------------------------------------------------------------ *
  * 1. 12영역 — 배점표 02_영역_구성
@@ -29,39 +29,53 @@ export { SURVEY_SCHEMA_VERSION as SCHEMA_VERSION } from './renewalSurveyQuestion
  * 영역 안정 코드 12종. 배열 순서 = §4.2.1 표 순서 = 레이더 축 순서 = 동점 타이브레이커 순서.
  * 한글 라벨은 오탈자 교정 대상이므로 코드가 정본이다(AREA_LABEL 은 표시 전용).
  */
-export const PAGE1_AREAS = ['GOAL', 'PLAN', 'EXEC', 'TIME', 'FEEDBACK', 'STABILITY'];
-export const PAGE2_AREAS = ['SUBJECT', 'PERFORM', 'INQUIRY', 'ACTIVITY', 'RECORD', 'STRATEGY'];
+export const PAGE1_AREAS = [
+  "GOAL",
+  "PLAN",
+  "EXEC",
+  "TIME",
+  "FEEDBACK",
+  "STABILITY",
+];
+export const PAGE2_AREAS = [
+  "SUBJECT",
+  "PERFORM",
+  "INQUIRY",
+  "ACTIVITY",
+  "RECORD",
+  "STRATEGY",
+];
 export const AREA_CODES = [...PAGE1_AREAS, ...PAGE2_AREAS];
 
 export const AREA_LABEL = {
-  GOAL: '목표 설정',
-  PLAN: '계획 설계',
-  EXEC: '실행 지속',
-  TIME: '시간 관리',
-  FEEDBACK: '학습 피드백',
-  STABILITY: '학습 안정',
-  SUBJECT: '교과 관리',
-  PERFORM: '수행 대응',
-  INQUIRY: '탐구 심화',
-  ACTIVITY: '활동 연계',
-  RECORD: '기록 정리',
-  STRATEGY: '입시 전략'
+  GOAL: "목표 설정",
+  PLAN: "계획 설계",
+  EXEC: "실행 지속",
+  TIME: "시간 관리",
+  FEEDBACK: "학습 피드백",
+  STABILITY: "학습 안정",
+  SUBJECT: "교과 관리",
+  PERFORM: "수행 대응",
+  INQUIRY: "탐구 심화",
+  ACTIVITY: "활동 연계",
+  RECORD: "기록 정리",
+  STRATEGY: "입시 전략",
 };
 
 /** 영역별 척도 2문장(§4.2.1 '척도 70점' 열). 평균 × 0.7 = 최대 70점. */
 export const AREA_SCALE_MAP = {
-  GOAL: ['LK1_01', 'LK1_02'],
-  PLAN: ['LK1_03', 'LK1_04'],
-  EXEC: ['LK1_05', 'LK1_06'],
-  TIME: ['LK1_07', 'LK1_08'],
-  FEEDBACK: ['LK1_09', 'LK1_10'],
-  STABILITY: ['LK1_11', 'LK1_12'],
-  SUBJECT: ['LK2_01', 'LK2_02'],
-  PERFORM: ['LK2_03', 'LK2_04'],
-  INQUIRY: ['LK2_05', 'LK2_06'],
-  ACTIVITY: ['LK2_07', 'LK2_08'],
-  RECORD: ['LK2_09', 'LK2_10'],
-  STRATEGY: ['LK2_11', 'LK2_12']
+  GOAL: ["LK1_01", "LK1_02"],
+  PLAN: ["LK1_03", "LK1_04"],
+  EXEC: ["LK1_05", "LK1_06"],
+  TIME: ["LK1_07", "LK1_08"],
+  FEEDBACK: ["LK1_09", "LK1_10"],
+  STABILITY: ["LK1_11", "LK1_12"],
+  SUBJECT: ["LK2_01", "LK2_02"],
+  PERFORM: ["LK2_03", "LK2_04"],
+  INQUIRY: ["LK2_05", "LK2_06"],
+  ACTIVITY: ["LK2_07", "LK2_08"],
+  RECORD: ["LK2_09", "LK2_10"],
+  STRATEGY: ["LK2_11", "LK2_12"],
 };
 
 /**
@@ -82,7 +96,7 @@ export const AREA_BASE = {
   INQUIRY: 30,
   ACTIVITY: 30,
   RECORD: 30,
-  STRATEGY: 30
+  STRATEGY: 30,
 };
 
 /**
@@ -92,18 +106,18 @@ export const AREA_BASE = {
  * 'MOCK_FILL' = q6 모의고사 입력 칸수.
  */
 export const AREA_AUX_SOURCE = {
-  GOAL: 'GOAL_POINTS',
+  GOAL: "GOAL_POINTS",
   PLAN: null,
-  EXEC: 'TREND',
+  EXEC: "TREND",
   TIME: null,
-  FEEDBACK: 'TREND',
+  FEEDBACK: "TREND",
   STABILITY: null,
-  SUBJECT: 'MOCK_FILL',
+  SUBJECT: "MOCK_FILL",
   PERFORM: null,
   INQUIRY: null,
   ACTIVITY: null,
   RECORD: null,
-  STRATEGY: null
+  STRATEGY: null,
 };
 
 /* ------------------------------------------------------------------ *
@@ -115,19 +129,19 @@ export const AREA_AUX_SOURCE = {
  * points 는 전부 음수다 — 부호를 호출부에서 뒤집지 않는다.
  */
 export const OBSTACLE_DEDUCTIONS = {
-  OBS_01: { area: 'PLAN', points: -15 },
-  OBS_02: { area: 'PLAN', points: -15 },
-  OBS_03: { area: 'EXEC', points: -12 },
-  OBS_04: { area: 'EXEC', points: -8 },
-  OBS_05: { area: 'TIME', points: -18 },
-  OBS_06: { area: 'FEEDBACK', points: -6 },
-  OBS_07: { area: 'FEEDBACK', points: -9 },
-  OBS_08: { area: 'FEEDBACK', points: -6 },
-  OBS_09: { area: 'TIME', points: -12 },
-  OBS_10: { area: 'STABILITY', points: -11 },
-  OBS_11: { area: 'STABILITY', points: -8 },
-  OBS_12: { area: 'STABILITY', points: -11 },
-  OBS_13: { area: null, points: 0 } // 배타 — '특별히 큰 어려움은 없어요'
+  OBS_01: { area: "PLAN", points: -15 },
+  OBS_02: { area: "PLAN", points: -15 },
+  OBS_03: { area: "EXEC", points: -12 },
+  OBS_04: { area: "EXEC", points: -8 },
+  OBS_05: { area: "TIME", points: -18 },
+  OBS_06: { area: "FEEDBACK", points: -6 },
+  OBS_07: { area: "FEEDBACK", points: -9 },
+  OBS_08: { area: "FEEDBACK", points: -6 },
+  OBS_09: { area: "TIME", points: -12 },
+  OBS_10: { area: "STABILITY", points: -11 },
+  OBS_11: { area: "STABILITY", points: -8 },
+  OBS_12: { area: "STABILITY", points: -11 },
+  OBS_13: { area: null, points: 0 }, // 배타 — '특별히 큰 어려움은 없어요'
 };
 
 /**
@@ -135,20 +149,20 @@ export const OBSTACLE_DEDUCTIONS = {
  * 주의: DIF_09(논문·학술자료)는 선택지 순서상 활동 연계 사이에 끼어 있지만 영역은 탐구 심화다.
  */
 export const DIFFICULTY_DEDUCTIONS = {
-  DIF_01: { area: 'SUBJECT', points: -20 },
-  DIF_02: { area: 'PERFORM', points: -13 },
-  DIF_03: { area: 'PERFORM', points: -9 },
-  DIF_04: { area: 'PERFORM', points: -9 },
-  DIF_05: { area: 'INQUIRY', points: -9 },
-  DIF_06: { area: 'INQUIRY', points: -13 },
-  DIF_07: { area: 'ACTIVITY', points: -18 },
-  DIF_08: { area: 'ACTIVITY', points: -12 },
-  DIF_09: { area: 'INQUIRY', points: -9 },
-  DIF_10: { area: 'RECORD', points: -30 },
-  DIF_11: { area: 'STRATEGY', points: -9 },
-  DIF_12: { area: 'STRATEGY', points: -13 },
-  DIF_13: { area: 'STRATEGY', points: -9 },
-  DIF_14: { area: null, points: 0 } // 배타 — '현재는 관련 도움이 크게 필요하지 않아요'
+  DIF_01: { area: "SUBJECT", points: -20 },
+  DIF_02: { area: "PERFORM", points: -13 },
+  DIF_03: { area: "PERFORM", points: -9 },
+  DIF_04: { area: "PERFORM", points: -9 },
+  DIF_05: { area: "INQUIRY", points: -9 },
+  DIF_06: { area: "INQUIRY", points: -13 },
+  DIF_07: { area: "ACTIVITY", points: -18 },
+  DIF_08: { area: "ACTIVITY", points: -12 },
+  DIF_09: { area: "INQUIRY", points: -9 },
+  DIF_10: { area: "RECORD", points: -30 },
+  DIF_11: { area: "STRATEGY", points: -9 },
+  DIF_12: { area: "STRATEGY", points: -13 },
+  DIF_13: { area: "STRATEGY", points: -9 },
+  DIF_14: { area: null, points: 0 }, // 배타 — '현재는 관련 도움이 크게 필요하지 않아요'
 };
 
 /* ------------------------------------------------------------------ *
@@ -164,7 +178,7 @@ export const GOAL_LEVEL_POINTS = {
   MAJOR_ONLY: 14,
   TIER_ONLY: 8,
   UNDECIDED_MULTI: 4,
-  NONE: 0
+  NONE: 0,
 };
 
 /**
@@ -178,7 +192,7 @@ export const GOAL_REASON_POINTS = {
   SCORE_FIT: 4,
   PARENT: 3,
   LOCATION: 4,
-  UNKNOWN: 0
+  UNKNOWN: 0,
 };
 
 /**
@@ -191,7 +205,7 @@ export const TREND_POINTS = {
   FLAT: 5,
   DOWN_PART: 3,
   VOLATILE: 2,
-  NO_DATA: 5
+  NO_DATA: 5,
 };
 
 /**
@@ -211,7 +225,7 @@ export const SCHEDULE_POINTS = {
   MONTH_1: 10,
   SUSI: 30,
   NONE: 0,
-  UNKNOWN: 5
+  UNKNOWN: 5,
 };
 
 /* ------------------------------------------------------------------ *
@@ -221,58 +235,140 @@ export const SCHEDULE_POINTS = {
  * ------------------------------------------------------------------ */
 
 export const OPTION_CODES = {
-  Q1_GRADE_LEVEL: ['M3', 'H1', 'H2', 'H3', 'RETAKE'],
-  Q2_SCHOOL_TYPE: ['GENERAL', 'AUTONOMOUS', 'SPECIAL', 'VOCATIONAL', 'ETC', 'NONE'],
-  Q3_LEVEL: ['BOTH', 'UNIV_ONLY', 'MAJOR_ONLY', 'TIER_ONLY', 'UNDECIDED_MULTI', 'NONE'],
-  Q3_REASON: ['APTITUDE', 'JOB', 'REPUTATION', 'SCORE_FIT', 'PARENT', 'LOCATION', 'UNKNOWN'],
+  Q1_GRADE_LEVEL: ["M3", "H1", "H2", "H3", "RETAKE"],
+  Q2_SCHOOL_TYPE: [
+    "GENERAL",
+    "AUTONOMOUS",
+    "SPECIAL",
+    "VOCATIONAL",
+    "ETC",
+    "NONE",
+  ],
+  Q3_LEVEL: [
+    "BOTH",
+    "UNIV_ONLY",
+    "MAJOR_ONLY",
+    "TIER_ONLY",
+    "UNDECIDED_MULTI",
+    "NONE",
+  ],
+  Q3_REASON: [
+    "APTITUDE",
+    "JOB",
+    "REPUTATION",
+    "SCORE_FIT",
+    "PARENT",
+    "LOCATION",
+    "UNKNOWN",
+  ],
   // 3번째 선택지는 T2 에서 '성취평가제 중심' → '중학생 평균'으로 교체된다(§2.2). 서수는 불변.
-  Q4_SYSTEM: ['NINE', 'FIVE', 'MIDDLE_AVG', 'UNKNOWN'],
-  Q8_TREND: ['UP_MOST', 'UP_PART', 'FLAT', 'DOWN_PART', 'VOLATILE', 'NO_DATA'],
+  Q4_SYSTEM: ["NINE", "FIVE", "MIDDLE_AVG", "UNKNOWN"],
+  Q8_TREND: ["UP_MOST", "UP_PART", "FLAT", "DOWN_PART", "VOLATILE", "NO_DATA"],
   // 점수에는 쓰이지 않지만(trendSubject 는 표시 전용) 코드로 정규화한다 — 이 값은 sessionStorage 에
   // 영속화되므로 라벨을 그대로 담으면 문항 1자 수정이 과거 응답을 미지 값으로 만든다(§3.5).
-  Q8_FOLLOWUP: ['KOREAN', 'MATH', 'ENGLISH', 'SOCIAL', 'SCIENCE', 'INQUIRY', 'MULTIPLE', 'UNKNOWN'],
+  Q8_FOLLOWUP: [
+    "KOREAN",
+    "MATH",
+    "ENGLISH",
+    "SOCIAL",
+    "SCIENCE",
+    "INQUIRY",
+    "MULTIPLE",
+    "UNKNOWN",
+  ],
   OBSTACLE: [
-    'OBS_01', 'OBS_02', 'OBS_03', 'OBS_04', 'OBS_05', 'OBS_06', 'OBS_07',
-    'OBS_08', 'OBS_09', 'OBS_10', 'OBS_11', 'OBS_12', 'OBS_13'
+    "OBS_01",
+    "OBS_02",
+    "OBS_03",
+    "OBS_04",
+    "OBS_05",
+    "OBS_06",
+    "OBS_07",
+    "OBS_08",
+    "OBS_09",
+    "OBS_10",
+    "OBS_11",
+    "OBS_12",
+    "OBS_13",
   ],
   DIFFICULTY: [
-    'DIF_01', 'DIF_02', 'DIF_03', 'DIF_04', 'DIF_05', 'DIF_06', 'DIF_07',
-    'DIF_08', 'DIF_09', 'DIF_10', 'DIF_11', 'DIF_12', 'DIF_13', 'DIF_14'
+    "DIF_01",
+    "DIF_02",
+    "DIF_03",
+    "DIF_04",
+    "DIF_05",
+    "DIF_06",
+    "DIF_07",
+    "DIF_08",
+    "DIF_09",
+    "DIF_10",
+    "DIF_11",
+    "DIF_12",
+    "DIF_13",
+    "DIF_14",
   ],
-  SCHEDULE: ['PA_7D', 'EXAM_2W', 'MONTH_1', 'SUSI', 'NONE', 'UNKNOWN'],
+  SCHEDULE: ["PA_7D", "EXAM_2W", "MONTH_1", "SUSI", "NONE", "UNKNOWN"],
   WISH: [
-    'WISH_01', 'WISH_02', 'WISH_03', 'WISH_04', 'WISH_05',
-    'WISH_06', 'WISH_07', 'WISH_08', 'WISH_09', 'WISH_10'
+    "WISH_01",
+    "WISH_02",
+    "WISH_03",
+    "WISH_04",
+    "WISH_05",
+    "WISH_06",
+    "WISH_07",
+    "WISH_08",
+    "WISH_09",
+    "WISH_10",
   ],
-  Q16: ['HIGH', 'BORDER', 'HARD', 'NONE', 'UNKNOWN'],
-  Q17: ['CONNECTED', 'UNLINKED', 'GRADE_OK', 'INQUIRY_OK', 'AVERAGE', 'UNKNOWN'],
-  Q18: ['CONFIDENT', 'BASIC', 'RECORD_WEAK', 'NOT_STARTED', 'NO_INTERVIEW', 'UNKNOWN']
+  Q16: ["HIGH", "BORDER", "HARD", "NONE", "UNKNOWN"],
+  Q17: [
+    "CONNECTED",
+    "UNLINKED",
+    "GRADE_OK",
+    "INQUIRY_OK",
+    "AVERAGE",
+    "UNKNOWN",
+  ],
+  Q18: [
+    "CONFIDENT",
+    "BASIC",
+    "RECORD_WEAK",
+    "NOT_STARTED",
+    "NO_INTERVIEW",
+    "UNKNOWN",
+  ],
 };
 
 /** OPTION_CODES 각 키가 어느 문항의 options 를 참조하는지 — 적재 검증식(§3.5)이 쓴다. */
 export const OPTION_SOURCE_QUESTION = {
-  Q1_GRADE_LEVEL: 'q1',
-  Q2_SCHOOL_TYPE: 'q2',
-  Q3_LEVEL: 'q3',
-  Q3_REASON: 'q3-target-reason',
-  Q4_SYSTEM: 'q4',
-  Q8_TREND: 'q8',
-  Q8_FOLLOWUP: 'q8-followup',
-  OBSTACLE: 'q10',
-  DIFFICULTY: 'q12',
-  SCHEDULE: 'q13',
-  WISH: 'q14',
-  Q16: 'q16',
-  Q17: 'q17',
-  Q18: 'q18'
+  Q1_GRADE_LEVEL: "q1",
+  Q2_SCHOOL_TYPE: "q2",
+  Q3_LEVEL: "q3",
+  Q3_REASON: "q3-target-reason",
+  Q4_SYSTEM: "q4",
+  Q8_TREND: "q8",
+  Q8_FOLLOWUP: "q8-followup",
+  OBSTACLE: "q10",
+  DIFFICULTY: "q12",
+  SCHEDULE: "q13",
+  WISH: "q14",
+  Q16: "q16",
+  Q17: "q17",
+  Q18: "q18",
 };
 
 /** 리커트 안정 키(§3.3). LK1_nn = q9.statements[nn-1], LK2_nn = q11.statements[nn-1]. */
-export const LIKERT1_KEYS = Array.from({ length: 12 }, (_, i) => `LK1_${String(i + 1).padStart(2, '0')}`);
-export const LIKERT2_KEYS = Array.from({ length: 12 }, (_, i) => `LK2_${String(i + 1).padStart(2, '0')}`);
+export const LIKERT1_KEYS = Array.from(
+  { length: 12 },
+  (_, i) => `LK1_${String(i + 1).padStart(2, "0")}`,
+);
+export const LIKERT2_KEYS = Array.from(
+  { length: 12 },
+  (_, i) => `LK2_${String(i + 1).padStart(2, "0")}`,
+);
 
 /** 배타 선택지 — 고르면 같은 문항의 다른 선택이 해제되고 감점이 0이 된다. */
-export const EXCLUSIVE_CODES = { OBSTACLE: 'OBS_13', DIFFICULTY: 'DIF_14' };
+export const EXCLUSIVE_CODES = { OBSTACLE: "OBS_13", DIFFICULTY: "DIF_14" };
 
 /* ------------------------------------------------------------------ *
  * 5. 입력 도메인 — §3.4
@@ -289,21 +385,21 @@ export const EXCLUSIVE_CODES = { OBSTACLE: 'OBS_13', DIFFICULTY: 'DIF_14' };
  * ------------------------------------------------------------------ */
 
 export const SERVICE_CODES = [
-  'GOAL_CARE',
-  'PERFORM_SUPPORT',
-  'DEEP_INQUIRY',
-  'SELF_REVIEW',
-  'GROWTH_DESIGN',
-  'CALL_MENTOR'
+  "GOAL_CARE",
+  "PERFORM_SUPPORT",
+  "DEEP_INQUIRY",
+  "SELF_REVIEW",
+  "GROWTH_DESIGN",
+  "CALL_MENTOR",
 ];
 
 export const SERVICE_LABEL = {
-  GOAL_CARE: '위닝 목표관리',
-  PERFORM_SUPPORT: '위닝 수행평가',
-  DEEP_INQUIRY: '위닝 심화탐구',
-  SELF_REVIEW: '위닝 자기평가서',
-  GROWTH_DESIGN: '위닝 성장설계',
-  CALL_MENTOR: '위닝 콜멘토'
+  GOAL_CARE: "위닝 목표관리",
+  PERFORM_SUPPORT: "위닝 수행평가",
+  DEEP_INQUIRY: "위닝 심화탐구",
+  SELF_REVIEW: "위닝 자기평가서",
+  GROWTH_DESIGN: "위닝 성장설계",
+  CALL_MENTOR: "위닝 콜멘토",
 };
 
 /**
@@ -323,41 +419,51 @@ export const SERVICE_LABEL = {
  */
 export const SERVICE_RULES = {
   GOAL_CARE: {
-    items: ['OBS_01', 'OBS_02', 'OBS_03', 'OBS_04', 'OBS_05', 'OBS_06', 'OBS_07', 'OBS_08', 'OBS_09'],
+    items: [
+      "OBS_01",
+      "OBS_02",
+      "OBS_03",
+      "OBS_04",
+      "OBS_05",
+      "OBS_06",
+      "OBS_07",
+      "OBS_08",
+      "OBS_09",
+    ],
     threshold: 3,
-    wishOptions: ['WISH_01', 'WISH_02', 'WISH_03', 'WISH_04'],
-    linkedAreas: ['PLAN', 'EXEC', 'TIME', 'FEEDBACK']
+    wishOptions: ["WISH_01", "WISH_02", "WISH_03", "WISH_04"],
+    linkedAreas: ["PLAN", "EXEC", "TIME", "FEEDBACK"],
   },
   PERFORM_SUPPORT: {
-    items: ['DIF_02', 'DIF_03', 'DIF_04'],
+    items: ["DIF_02", "DIF_03", "DIF_04"],
     threshold: 3,
-    wishOptions: ['WISH_05'],
-    linkedAreas: ['PERFORM']
+    wishOptions: ["WISH_05"],
+    linkedAreas: ["PERFORM"],
   },
   DEEP_INQUIRY: {
-    items: ['DIF_05', 'DIF_06', 'DIF_09'],
+    items: ["DIF_05", "DIF_06", "DIF_09"],
     threshold: 3,
-    wishOptions: ['WISH_06'],
-    linkedAreas: ['INQUIRY']
+    wishOptions: ["WISH_06"],
+    linkedAreas: ["INQUIRY"],
   },
   SELF_REVIEW: {
-    items: ['DIF_10'],
+    items: ["DIF_10"],
     threshold: 1,
-    wishOptions: ['WISH_07'],
-    linkedAreas: ['RECORD']
+    wishOptions: ["WISH_07"],
+    linkedAreas: ["RECORD"],
   },
   GROWTH_DESIGN: {
-    items: ['DIF_07', 'DIF_08', 'DIF_11', 'DIF_12', 'DIF_13'],
+    items: ["DIF_07", "DIF_08", "DIF_11", "DIF_12", "DIF_13"],
     threshold: 3,
-    wishOptions: ['WISH_01', 'WISH_08', 'WISH_09'],
-    linkedAreas: ['ACTIVITY', 'STRATEGY']
+    wishOptions: ["WISH_01", "WISH_08", "WISH_09"],
+    linkedAreas: ["ACTIVITY", "STRATEGY"],
   },
   CALL_MENTOR: {
-    items: ['OBS_10', 'OBS_11', 'OBS_12'],
+    items: ["OBS_10", "OBS_11", "OBS_12"],
     threshold: 3,
-    wishOptions: ['WISH_08', 'WISH_09', 'WISH_10'],
-    linkedAreas: ['STABILITY']
-  }
+    wishOptions: ["WISH_08", "WISH_09", "WISH_10"],
+    linkedAreas: ["STABILITY"],
+  },
 };
 
 /**
@@ -376,8 +482,24 @@ export const SERVICE_RULES = {
  * 원래 가산치는 10 이었다(§4.5 원문) — 후속 배점 작업에서 값을 되살릴 때 참조한다.
  */
 export const CALL_MENTOR_KEYWORDS = [
-  '불안', '걱정', '무섭', '막막', '답답', '우울', '힘들', '지치', '포기',
-  '의욕', '자신감', '비교', '눈치', '부담', '스트레스', '혼자', '외로', '울'
+  "불안",
+  "걱정",
+  "무섭",
+  "막막",
+  "답답",
+  "우울",
+  "힘들",
+  "지치",
+  "포기",
+  "의욕",
+  "자신감",
+  "비교",
+  "눈치",
+  "부담",
+  "스트레스",
+  "혼자",
+  "외로",
+  "울",
 ];
 
 /** 적합도 버킷 상한(§4.5). 합이 100이라 fit <= 100 불변식의 근거가 된다. */
@@ -391,11 +513,11 @@ export const SERVICE_PART_CAPS = { difficulty: 50, wish: 20, area: 30 };
  * SERVICE_H3_LATE_* 를 읽어 처리한다(Q-13). 이 표에 H3 를 채우면 1~5월 진단자까지 함께 잘린다.
  */
 export const SERVICE_GRADE_FILTER = {
-  M3: ['GOAL_CARE', 'CALL_MENTOR'],
+  M3: ["GOAL_CARE", "CALL_MENTOR"],
   H1: null,
   H2: null,
   H3: null,
-  RETAKE: ['GOAL_CARE', 'CALL_MENTOR']
+  RETAKE: ["GOAL_CARE", "CALL_MENTOR"],
 };
 
 /* ------------------------------------------------------------------ *
@@ -411,11 +533,11 @@ export const SCORE_BANDS = { L1: 80, L2: 70, L3: 60, L4: 45 };
  * STATE_LABEL.page2.WEAK 는 '우선 보완'이라 셋의 문자열이 서로 다르다 — 미확정 Q-34.
  */
 export const LEVEL_LABEL = {
-  L1: '안정',
-  L2: '양호',
-  L3: '점검 필요',
-  L4: '보완 필요',
-  L5: '우선 보완 필요'
+  L1: "안정",
+  L2: "양호",
+  L3: "점검 필요",
+  L4: "보완 필요",
+  L5: "우선 보완 필요",
 };
 
 /**
@@ -428,15 +550,20 @@ export const AREA_BAND_THRESHOLDS = { TOP: 70, MID: 60, LOW: 45 };
 
 /** 영역 상태 화면 라벨(§4.4 B). 03_진단서술 조회 키는 이게 아니다 — diagnosisCopy 의 NARRATIVE_STATE_LABEL. */
 export const STATE_LABEL = {
-  page1: { TOP: '상위', MID: '보통', LOW: '보완 필요', WEAK: '취약' },
-  page2: { TOP: '양호', MID: '점검 필요', LOW: '보완 필요', WEAK: '우선 보완' }
+  page1: { TOP: "상위", MID: "보통", LOW: "보완 필요", WEAK: "취약" },
+  page2: { TOP: "양호", MID: "점검 필요", LOW: "보완 필요", WEAK: "우선 보완" },
 };
 
 /** 상태 → tone(§7.3). 별도 임계를 두지 않는다 — Q-32 를 뒤집으면 라벨과 색이 함께 움직여야 한다. */
-export const STATE_TONE = { TOP: 'blue', MID: 'blue', LOW: 'amber', WEAK: 'red' };
+export const STATE_TONE = {
+  TOP: "blue",
+  MID: "blue",
+  LOW: "amber",
+  WEAK: "red",
+};
 
 /** 우선순위 뱃지(§4.4 C). PAGE1 6영역 점수 오름차순. 정확히 6개 — 불변식으로 검사한다. */
-export const BADGES = ['1순위', '2순위', '3순위', '4순위', '점검', '유지'];
+export const BADGES = ["1순위", "2순위", "3순위", "4순위", "점검", "유지"];
 
 /** 목표 점수(§4.4 D). gap = TARGET_SCORE − PAGE1 최저 영역 점수. */
 export const TARGET_SCORE = 75;
@@ -457,7 +584,12 @@ export const URGENCY_BANDS = { L4: 50, L3: 35, L2: 20 };
  * (배점표 251행 '50점 · 매우 높음'도 같은 라벨을 쓴다).
  * LEVEL_LABEL(5단계)·STATE_LABEL(4상태)과 절대 혼용하지 않는다 — 셋은 서로 다른 축이다.
  */
-export const URGENCY_LEVEL_LABEL = { L1: '낮음', L2: '보통', L3: '높음', L4: '매우 높음' };
+export const URGENCY_LEVEL_LABEL = {
+  L1: "낮음",
+  L2: "보통",
+  L3: "높음",
+  L4: "매우 높음",
+};
 
 /**
  * 긴급도 카운트 임계 40. 다른 모든 경계(45/60/70/80)와 어긋나는 유일한 값이지만 원문 그대로다.
@@ -471,7 +603,7 @@ export const URGENCY_AREA_THRESHOLD = 40;
  * 12개뿐이므로 ALL_12 가 곧 "문서가 정의하는 전체 영역"이다. 05_예시("40점 미만 영역 3개")는
  * PAGE1 6영역만으로는 1개뿐이라 이 해석에서만 재현된다.
  */
-export const URGENCY_SCOPE = 'ALL_12'; // 'ALL_12' | 'PAGE1'
+export const URGENCY_SCOPE = "ALL_12"; // 'ALL_12' | 'PAGE1'
 
 /** 2페이지 강점 임계(§5.1). STR_NONE 문구에서 역산한 값이라 임계·개수·대상 모두 미확정 Q-07. */
 export const STRENGTH_THRESHOLD = 60;
@@ -481,10 +613,10 @@ export const STRENGTH_THRESHOLD = 60;
  * ------------------------------------------------------------------ */
 
 /** 소신/안정 판정의 등급 여유폭. 9등급 스케일 등급 차 0.30. */
-export const ADMISSION_MARGIN = 0.30;
+export const ADMISSION_MARGIN = 0.3;
 
 /** 입결 비교표 행 키. 값이 null 인 행은 표에서 자동 제외한다(배점표 04 주석). */
-export const ADMISSION_ROW_KEYS = ['cut50', 'cut70', 'avg', 'mine'];
+export const ADMISSION_ROW_KEYS = ["cut50", "cut70", "avg", "mine"];
 
 /**
  * 미확정 Q-28 — 사용자 확정 시 이 값만 바꾸면 된다.
@@ -516,9 +648,29 @@ export const BAND_NODATA = null;
  * 나빠질수록 확률이 내려가는 단조성은 §11 밴드 기준값·EDGE 만으로 성립하고, 가감 폭이 −30 까지
  * 벌어져도 clamp 가 단조 함수라 깨지지 않는다.
  */
-export const CSAT_MIN_DELTA = { HIGH: 5, BORDER: -5, HARD: -15, NONE: 0, UNKNOWN: -5 };
-export const JONGHAP_DELTA = { CONNECTED: 5, UNLINKED: 0, GRADE_OK: 0, INQUIRY_OK: 0, AVERAGE: 0, UNKNOWN: -5 };
-export const INTERVIEW_DELTA = { CONFIDENT: 5, BASIC: 0, RECORD_WEAK: -5, NOT_STARTED: -10, NO_INTERVIEW: 0, UNKNOWN: -5 };
+export const CSAT_MIN_DELTA = {
+  HIGH: 5,
+  BORDER: -5,
+  HARD: -15,
+  NONE: 0,
+  UNKNOWN: -5,
+};
+export const JONGHAP_DELTA = {
+  CONNECTED: 5,
+  UNLINKED: 0,
+  GRADE_OK: 0,
+  INQUIRY_OK: 0,
+  AVERAGE: 0,
+  UNKNOWN: -5,
+};
+export const INTERVIEW_DELTA = {
+  CONFIDENT: 5,
+  BASIC: 0,
+  RECORD_WEAK: -5,
+  NOT_STARTED: -10,
+  NO_INTERVIEW: 0,
+  UNKNOWN: -5,
+};
 
 /**
  * deprecated(2026-08-11) — 단일 전역 기준값으로는 밴드별 확률을 담을 수 없어 폐기했다.
@@ -551,74 +703,88 @@ export const PROB_MAX = 95;
 
 export const EXAMPLE_CASES = [
   {
-    id: 'EX-01',
-    spec: 'CASE-01',
-    title: '계획 설계 단일 영역 (05_예시 ①~④)',
+    id: "EX-01",
+    spec: "CASE-01",
+    title: "계획 설계 단일 영역 (05_예시 ①~④)",
     pending: false,
     input: {
       likert1: { LK1_03: 50, LK1_04: 25 }, // '보통이다' / '별로 그렇지 않다'
-      obstacles: ['OBS_02']
+      obstacles: ["OBS_02"],
     },
     expected: {
       scaleMean: 37.5,
       scalePart: 26.25, // 배점표 표기는 26.3이지만 중간값이라 반올림하지 않는다
       nonScalePart: 15,
-      areaScore: { PLAN: 41 }
-    }
+      areaScore: { PLAN: 41 },
+    },
   },
   {
-    id: 'EX-02',
-    spec: 'CASE-02',
-    title: '종합·등급·시급 영역·목표 부족분·뱃지 (05_예시)',
+    id: "EX-02",
+    spec: "CASE-02",
+    title: "종합·등급·시급 영역·목표 부족분·뱃지 (05_예시)",
     pending: false,
     input: {
-      areaScores: { GOAL: 77, PLAN: 41, EXEC: 39, TIME: 56, FEEDBACK: 60, STABILITY: 65 }
+      areaScores: {
+        GOAL: 77,
+        PLAN: 41,
+        EXEC: 39,
+        TIME: 56,
+        FEEDBACK: 60,
+        STABILITY: 65,
+      },
     },
     expected: {
       page1Overall: 56.3, // 338 / 6 = 56.333
-      level: 'L4',
-      lowestArea: 'EXEC',
+      level: "L4",
+      lowestArea: "EXEC",
       lowestScore: 39,
       gap: 36, // 75 − 39
-      badges: { EXEC: '1순위', PLAN: '2순위', TIME: '3순위', FEEDBACK: '4순위', STABILITY: '점검', GOAL: '유지' }
-    }
+      badges: {
+        EXEC: "1순위",
+        PLAN: "2순위",
+        TIME: "3순위",
+        FEEDBACK: "4순위",
+        STABILITY: "점검",
+        GOAL: "유지",
+      },
+    },
   },
   {
-    id: 'EX-03',
-    spec: 'CASE-03',
-    title: '긴급도 (05_예시)',
+    id: "EX-03",
+    spec: "CASE-03",
+    title: "긴급도 (05_예시)",
     // Q-12 해소(사용자 확정) — URGENCY_SCOPE = ALL_12 가 정본이다. PAGE2 값은 05_예시 원문에
     // 없어 합성했지만, 집계 범위 자체는 03_서비스추천 산식이 12영역 전체를 전제하므로 가정이 아니다.
     pending: false,
-    input: { schedule: 'EXAM_2W', lowAreaCount: 3 },
-    expected: { urgencyScore: 50, urgencyLevel: 'L4' }
+    input: { schedule: "EXAM_2W", lowAreaCount: 3 },
+    expected: { urgencyScore: 50, urgencyLevel: "L4" },
   },
   {
-    id: 'EX-04',
-    spec: 'CASE-05',
-    title: '서비스 1순위 (05_예시)',
+    id: "EX-04",
+    spec: "CASE-05",
+    title: "서비스 1순위 (05_예시)",
     // Q-14 해소(사용자 확정) — 05_예시의 "목표관리 73점"은 문서 오기다. 산식(어려움 50 + 희망 20 +
     // 영역 30)대로 계산하면 85.3 이 정답이다: 어려움 50(OBS_01~03 3/3 체크) + 희망 20(WISH_02) +
     // 영역 15.3(30 × (100 − mean(41,39,56,60)=49)/100). fit=85.3 은 SERVICE_BANDS.HIGH(80) 이상이라
     // tier 도 MID 가 아니라 HIGH 다.
     pending: false,
     input: { areaScores: { PLAN: 41, EXEC: 39, TIME: 56, FEEDBACK: 60 } },
-    expected: { service: 'GOAL_CARE', fit: 85.3, tier: 'HIGH' }
+    expected: { service: "GOAL_CARE", fit: 85.3, tier: "HIGH" },
   },
   {
-    id: 'EX-05',
-    spec: 'CASE-04',
-    title: '합격 가능성 (05_예시)',
+    id: "EX-05",
+    spec: "CASE-04",
+    title: "합격 가능성 (05_예시)",
     pending: false,
     input: { mine: 3.24, cuts: { cut50: null, cut70: 2.56, finalAvg: null } },
     expected: {
-      band: 'RISK', // 3.24 > 2.56 + 0.30
+      band: "RISK", // 3.24 > 2.56 + 0.30
       rows: [
-        { key: 'cut70', value: 2.56, diff: 0.68 },
-        { key: 'mine', value: 3.24, diff: null }
-      ]
-    }
-  }
+        { key: "cut70", value: 2.56, diff: 0.68 },
+        { key: "mine", value: 3.24, diff: null },
+      ],
+    },
+  },
 ];
 
 /** 비-pending 단언이 이 수 아래로 떨어지면 verify 스크립트가 공허하게 통과한 것이다. */
@@ -649,7 +815,12 @@ export const EXAMPLE_CASES_MIN_ASSERTIONS = 5;
  * 불변식: 값은 STABLE > FIT > REACH > RISK 내림차순이고, 인접 간격(20)이
  * |EDGE| 합(5+5=10)보다 커야 한다 — 그래야 EDGE 보정이 밴드 순서를 뒤집지 못한다.
  */
-export const ADMISSION_BAND_BASE_PROBABILITY = { STABLE: 75, FIT: 55, REACH: 35, RISK: 15 };
+export const ADMISSION_BAND_BASE_PROBABILITY = {
+  STABLE: 75,
+  FIT: 55,
+  REACH: 35,
+  RISK: 15,
+};
 
 /**
  * 열린 구간 보정(%p).
@@ -670,7 +841,11 @@ export const ADMISSION_BAND_BASE_PROBABILITY = { STABLE: 75, FIT: 55, REACH: 35,
  * (새 배수 감각을 만들지 않는다). STABLE 방향은 대칭 확장하지 않는다 — "매우 안정"이 더 안정해
  * 보이는 것은 학생에게 위험하지 않아 이번 범위에 포함하지 않았다(WARN 3 은 RISK 만 지적했다).
  */
-export const ADMISSION_BAND_EDGE_ADJUST = { STABLE_DEEP: 5, RISK_FAR: -5, RISK_VERY_FAR: -10 };
+export const ADMISSION_BAND_EDGE_ADJUST = {
+  STABLE_DEEP: 5,
+  RISK_FAR: -5,
+  RISK_VERY_FAR: -10,
+};
 
 /**
  * 확률 표기 구간 라벨. 상한 내림차순 최초 매치(p >= min)이며 **산술이 없다**.
@@ -686,15 +861,15 @@ export const ADMISSION_BAND_EDGE_ADJUST = { STABLE_DEEP: 5, RISK_FAR: -5, RISK_V
  * 되살아날 경로가 아예 없다(계산식으로 만들면 PROB_MAX 가 100 이 되는 순간 되살아난다).
  */
 export const PROB_RANGE_LABELS = [
-  { min: 80, label: '80~90%' },
-  { min: 70, label: '70~80%' },
-  { min: 60, label: '60~70%' },
-  { min: 50, label: '50~60%' },
-  { min: 40, label: '40~50%' },
-  { min: 30, label: '30~40%' },
-  { min: 20, label: '20~30%' },
-  { min: 10, label: '10~20%' },
-  { min: 0, label: '10% 미만' }
+  { min: 80, label: "80~90%" },
+  { min: 70, label: "70~80%" },
+  { min: 60, label: "60~70%" },
+  { min: 50, label: "50~60%" },
+  { min: 40, label: "40~50%" },
+  { min: 30, label: "30~40%" },
+  { min: 20, label: "20~30%" },
+  { min: 10, label: "10~20%" },
+  { min: 0, label: "10% 미만" },
 ];
 
 /**
@@ -706,7 +881,7 @@ export const PROB_RANGE_LABELS = [
  * 확장 영역에만 싣는다. 'HEADLINE_SLOT' 으로 바꾸면 admission_headline 의 {prob} 자리에 범위를
  * 채워 인쇄에도 나간다. 시안대로 되돌리는 비용을 이 한 줄로 묶어 둔다.
  */
-export const PROB_DISPLAY_MODE = 'SCREEN_EXTRA'; // 'SCREEN_EXTRA' | 'HEADLINE_SLOT'
+export const PROB_DISPLAY_MODE = "SCREEN_EXTRA"; // 'SCREEN_EXTRA' | 'HEADLINE_SLOT'
 
 /* ---- F-03 학생 유형 나머지 4종 (Q-05) ---- */
 
@@ -730,7 +905,7 @@ export const TYPE_RULES = {
   BALANCED: { spreadMax: 10 },
   // planMin = TOP(70), execMax = MID(60)
   PLAN_HEAVY: { planMin: 70, execMax: 60 },
-  GOAL_EXEC_GAP: { goalMin: 70, planMax: 70, execMax: 60 }
+  GOAL_EXEC_GAP: { goalMin: 70, planMax: 70, execMax: 60 },
 };
 
 /* ---- F-15 불성실 응답 판정 (Q-16) ---- */
@@ -803,7 +978,7 @@ export const SERVICE_H3_LATE_MONTH = 6;
  * `목표관리 · 콜멘토`로 명시돼 있다. 같은 표 안에서 같은 축약어가 다른 것을 가리킬 근거가 없어
  * 동일 2종을 채택했다(SERVICE_GRADE_FILTER.M3/RETAKE 와도 일치).
  */
-export const SERVICE_H3_LATE_CODES = ['GOAL_CARE', 'CALL_MENTOR'];
+export const SERVICE_H3_LATE_CODES = ["GOAL_CARE", "CALL_MENTOR"];
 
 /**
  * 월 판정 타임존.
@@ -814,7 +989,7 @@ export const SERVICE_H3_LATE_CODES = ['GOAL_CARE', 'CALL_MENTOR'];
  * 6월 1일 새벽 제출이 5월로 밀린다 — 경계일 학생의 추천 목록이 하루 어긋난다.
  * 반드시 Intl + Asia/Seoul 로 뽑는다(`new Date(x).getMonth()` 금지 — 실행 환경 타임존을 탄다).
  */
-export const SERVICE_H3_LATE_TIMEZONE = 'Asia/Seoul';
+export const SERVICE_H3_LATE_TIMEZONE = "Asia/Seoul";
 
 /* ---- F-22 입결 컷 조회 실패 전파 ---- */
 
@@ -826,4 +1001,6 @@ export const SERVICE_H3_LATE_TIMEZONE = 'Asia/Seoul';
  * 같은 느슨한 비교를 쓰면 센티널이 다시 결측으로 뭉개져 F-22 가 그대로 되살아난다.
  * freeze 해 두는 이유는 호출부가 이 객체에 필드를 얹어 상태를 오염시키는 것을 막기 위해서다.
  */
-export const ADMISSION_FETCH_ERROR = Object.freeze({ error: 'ADMISSION_FETCH_FAILED' });
+export const ADMISSION_FETCH_ERROR = Object.freeze({
+  error: "ADMISSION_FETCH_FAILED",
+});

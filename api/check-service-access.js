@@ -41,19 +41,19 @@
 // `allowed` 하나만 읽는다. 위 4필드는 **추가**일 뿐이며 allowed의 의미·타입은
 // 바뀌지 않았다. 회차 개념이 없는 서비스(goal)는 4필드가 전부 null로 나간다.
 
-import { createSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
   SERVICE_CONFIGS,
   clean,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
-  readQuotaSnapshot
-} from './_lib/serviceAccess.js';
+  readQuotaSnapshot,
+} from "./_lib/serviceAccess.js";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -61,26 +61,31 @@ export default async function handler(req, res) {
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {
-      return res.status(400).json({ detail: '알 수 없는 서비스입니다.' });
+      return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
     }
 
     const token = getBearerToken(req);
     if (!token) {
-      return res.status(401).json({ detail: '로그인이 필요합니다.' });
+      return res.status(401).json({ detail: "로그인이 필요합니다." });
     }
 
     const supabaseAdmin = createSupabaseAdmin();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
 
     if (userError || !userData?.user?.id) {
-      return res.status(401).json({ detail: '로그인이 필요합니다.' });
+      return res.status(401).json({ detail: "로그인이 필요합니다." });
     }
 
     const userId = userData.user.id;
     // hasPaidServiceAccess는 이제 { allowed, reason } 을 돌려준다(기간만료
     // 사유를 create-service-ticket.js가 구분해 응답하기 위함) — 여기서는
     // 조회 응답 규격이 boolean 이므로 allowed만 뽑아 쓴다.
-    const { allowed } = await hasPaidServiceAccess(supabaseAdmin, userId, config);
+    const { allowed } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      config,
+    );
 
     // 회차 조회는 판정과 독립이다. 실패해도 allowed를 흔들지 않는다 —
     // 부가 정보를 못 읽었다고 결제 완료 사용자를 미보유로 떨어뜨리면 안 된다.
@@ -88,10 +93,17 @@ export default async function handler(req, res) {
     //  안내가 과하게 관대해질 뿐 차단은 서버 RPC가 그대로 한다.)
     let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
     try {
-      const accessRow = await findProgramAccessRow(supabaseAdmin, userId, config);
+      const accessRow = await findProgramAccessRow(
+        supabaseAdmin,
+        userId,
+        config,
+      );
       quota = await readQuotaSnapshot(supabaseAdmin, userId, accessRow);
     } catch (quotaError) {
-      console.error('check-service-access quota lookup 실패(무시):', quotaError);
+      console.error(
+        "check-service-access quota lookup 실패(무시):",
+        quotaError,
+      );
     }
 
     return res.status(200).json({
@@ -99,10 +111,12 @@ export default async function handler(req, res) {
       quotaRemaining: quota.quotaRemaining,
       quotaTotal: quota.quotaTotal,
       planEndsAt: quota.planEndsAt,
-      planLabel: quota.planLabel
+      planLabel: quota.planLabel,
     });
   } catch (error) {
-    console.error('check-service-access error:', error);
-    return res.status(500).json({ detail: '이용권 확인 중 오류가 발생했습니다.' });
+    console.error("check-service-access error:", error);
+    return res
+      .status(500)
+      .json({ detail: "이용권 확인 중 오류가 발생했습니다." });
   }
 }

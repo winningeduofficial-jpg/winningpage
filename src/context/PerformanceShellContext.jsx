@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from "react";
 
 // 수행평가 셸(사이드바) ↔ 채팅 페이지(Outlet 자식) 간 진행단계 상태 통로.
 // docs/수행평가-상세-명세.md §3.3(진행단계 5스텝 상태 머신) — P13.
@@ -25,7 +25,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 // 이 통로로 옮기는 확장 여지는 있지만 이번 범위 밖이라 만들지 않는다 — PerformanceSidebar
 // 상단 주석·PerformanceAppLayout TODO(P5) 참고.
 
-const DEFAULT_STEP_STATES = ['todo', 'todo', 'todo', 'todo', 'todo'];
+const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
 
 const PerformanceShellContext = createContext(null);
 
@@ -34,12 +34,19 @@ export function PerformanceShellProvider({ children }) {
   const [quotaBannerVisible, setQuotaBannerVisible] = useState(false);
 
   const value = useMemo(
-    () => ({ stepStates, setStepStates, quotaBannerVisible, setQuotaBannerVisible }),
-    [stepStates, quotaBannerVisible]
+    () => ({
+      stepStates,
+      setStepStates,
+      quotaBannerVisible,
+      setQuotaBannerVisible,
+    }),
+    [stepStates, quotaBannerVisible],
   );
 
   return (
-    <PerformanceShellContext.Provider value={value}>{children}</PerformanceShellContext.Provider>
+    <PerformanceShellContext.Provider value={value}>
+      {children}
+    </PerformanceShellContext.Provider>
   );
 }
 
@@ -47,7 +54,9 @@ export function PerformanceShellProvider({ children }) {
 export function usePerformanceShell() {
   const ctx = useContext(PerformanceShellContext);
   if (!ctx) {
-    throw new Error('usePerformanceShell은 PerformanceShellProvider 내부에서만 호출할 수 있다.');
+    throw new Error(
+      "usePerformanceShell은 PerformanceShellProvider 내부에서만 호출할 수 있다.",
+    );
   }
   return ctx;
 }

@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '../../../lib/supabase';
-import { formatKRW } from '../../../data/pricingCatalog';
-import PaymentTable from '../PaymentTable';
-import PaymentStatusBadge from '../PaymentStatusBadge';
-import PaymentDetailModal from '../PaymentDetailModal';
-import ReceiptModal from '../ReceiptModal';
-import RefundRequestModal from '../RefundRequestModal';
-import RefundNoticeModal from '../RefundNoticeModal';
-import RefundApprovalModal from './RefundApprovalModal';
-import EnrollmentRequestModal from './EnrollmentRequestModal';
-import { formatOrderId, formatApprovedAt, resolveOrderStatus } from '../paymentRows';
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../../lib/supabase";
+import { formatKRW } from "../../../data/pricingCatalog";
+import PaymentTable from "../PaymentTable";
+import PaymentStatusBadge from "../PaymentStatusBadge";
+import PaymentDetailModal from "../PaymentDetailModal";
+import ReceiptModal from "../ReceiptModal";
+import RefundRequestModal from "../RefundRequestModal";
+import RefundNoticeModal from "../RefundNoticeModal";
+import RefundApprovalModal from "./RefundApprovalModal";
+import EnrollmentRequestModal from "./EnrollmentRequestModal";
+import {
+  formatOrderId,
+  formatApprovedAt,
+  resolveOrderStatus,
+} from "../paymentRows";
 
 // 학부모 "결제 내역" 탭 — 확정 디자인 3967:3944(내용 있음) / 3967:4412(빈 상태).
 //
@@ -31,16 +35,20 @@ import { formatOrderId, formatApprovedAt, resolveOrderStatus } from '../paymentR
 // 때문에 학부모가 자녀 프로필을 직접 못 읽는다.
 
 const TABLE_HEADERS = {
-  id: '주문번호',
-  date: '승인 일시',
-  product: '상품',
-  amount: '결제 금액',
-  status: '상태'
+  id: "주문번호",
+  date: "승인 일시",
+  product: "상품",
+  amount: "결제 금액",
+  status: "상태",
 };
 
-const EMPTY_TEXT = '요청 사항이 없습니다.';
+const EMPTY_TEXT = "요청 사항이 없습니다.";
 
-export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundSubmitted }) {
+export default function ParentPaymentsTab({
+  orders = [],
+  refunds = [],
+  onRefundSubmitted,
+}) {
   const [pendingOrders, setPendingOrders] = useState([]);
   const [nameById, setNameById] = useState({});
 
@@ -60,19 +68,22 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
 
     const [pend, children] = await Promise.all([
       supabase
-        .from('orders')
-        .select('id, order_name, amount, status, approval_status, student_profile_id, created_at')
-        .eq('parent_profile_id', uid)
-        .eq('status', 'pending')
-        .in('approval_status', ['requested', 'approved'])
-        .order('created_at', { ascending: false }),
-      supabase.rpc('fn_parent_children')
+        .from("orders")
+        .select(
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at",
+        )
+        .eq("parent_profile_id", uid)
+        .eq("status", "pending")
+        .in("approval_status", ["requested", "approved"])
+        .order("created_at", { ascending: false }),
+      supabase.rpc("fn_parent_children"),
     ]);
 
     if (!pend.error) setPendingOrders(pend.data || []);
     if (!children.error && Array.isArray(children.data)) {
       const map = {};
-      for (const child of children.data) map[child.student_profile_id] = child.student_name;
+      for (const child of children.data)
+        map[child.student_profile_id] = child.student_name;
       setNameById(map);
     }
   }, []);
@@ -83,7 +94,9 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
 
   // 자녀가 보낸 환불 요청 — 학부모 본인 신청은 제약상 즉시 approved 라
   // 이 목록에 남지 않는다(refund_requests_parent_auto_approve_check).
-  const refundRequests = refunds.filter((r) => r.approval_status === 'requested');
+  const refundRequests = refunds.filter(
+    (r) => r.approval_status === "requested",
+  );
 
   const historyOrders = orders;
 
@@ -104,7 +117,9 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
     <div className="flex flex-col gap-[4.5rem]">
       {/* 1) 환불요청 */}
       <section>
-        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">자녀의 환불요청</h2>
+        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
+          자녀의 환불요청
+        </h2>
         <PaymentTable
           headers={TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
@@ -115,7 +130,7 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
             dateText: formatApprovedAt(r.created_at),
             productText: r.order_name,
             amountText: formatKRW(r.gross_amount || r.amount),
-            raw: r
+            raw: r,
           }))}
           onSelect={(row) => setApprovalRequest(row.raw)}
           renderStatus={(row) => (
@@ -147,7 +162,7 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
               ? `${nameById[o.student_profile_id]} · ${o.order_name}`
               : o.order_name,
             amountText: formatKRW(o.amount),
-            raw: o
+            raw: o,
           }))}
           // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
           // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
@@ -178,11 +193,13 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
             dateText: formatApprovedAt(o.paid_at),
             productText: o.order_name,
             amountText: formatKRW(o.amount),
-            note: o.is_fake_entitlement ? '(개발용)' : null,
-            raw: o
+            note: o.is_fake_entitlement ? "(개발용)" : null,
+            raw: o,
           }))}
           onSelect={(row) => setDetailOrder(row.raw)}
-          renderStatus={(row) => <PaymentStatusBadge status={resolveOrderStatus(row.raw, refunds)} />}
+          renderStatus={(row) => (
+            <PaymentStatusBadge status={resolveOrderStatus(row.raw, refunds)} />
+          )}
         />
       </section>
 
@@ -195,7 +212,11 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
         onViewReceipt={handleViewReceipt}
       />
 
-      <ReceiptModal open={!!receiptOrder} order={receiptOrder} onClose={() => setReceiptOrder(null)} />
+      <ReceiptModal
+        open={!!receiptOrder}
+        order={receiptOrder}
+        onClose={() => setReceiptOrder(null)}
+      />
 
       <RefundRequestModal
         open={!!refundOrder}
@@ -209,12 +230,19 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
         onStaleData={onRefundSubmitted}
       />
 
-      <RefundNoticeModal open={noticeOpen} onClose={() => setNoticeOpen(false)} />
+      <RefundNoticeModal
+        open={noticeOpen}
+        onClose={() => setNoticeOpen(false)}
+      />
 
       <EnrollmentRequestModal
         open={!!enrollmentRequest}
         order={enrollmentRequest}
-        childName={enrollmentRequest ? nameById[enrollmentRequest.student_profile_id] : ''}
+        childName={
+          enrollmentRequest
+            ? nameById[enrollmentRequest.student_profile_id]
+            : ""
+        }
         onClose={() => setEnrollmentRequest(null)}
         onRejected={() => {
           setEnrollmentRequest(null);
@@ -225,7 +253,9 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
       <RefundApprovalModal
         open={!!approvalRequest}
         request={approvalRequest}
-        childName={approvalRequest ? nameById[approvalRequest.student_profile_id] : ''}
+        childName={
+          approvalRequest ? nameById[approvalRequest.student_profile_id] : ""
+        }
         onClose={() => setApprovalRequest(null)}
         onResponded={() => {
           setApprovalRequest(null);

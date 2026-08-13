@@ -1,4 +1,4 @@
-import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from '../weekdayTokens';
+import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from "../weekdayTokens";
 
 // 주간 학습 계획표 보드 — docs/figma-goal/part-09.md #27(빈) / part-10.md #29(채움) 정본 그리드.
 // #29가 그리드 규격의 정본이다(화면별 지침 §2 확정 사항): 개방형 1194px(74.625rem) =
@@ -12,13 +12,13 @@ import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from '../weekdayTokens';
 //
 // WEEKDAY_BG_CLASS/WEEKDAY_ACCENT는 공용 상수 모듈(weekdayTokens.js)로 분리했다(코드 검수 NIT §6).
 const DAY_KEY = {
-  월요일: 'mon',
-  화요일: 'tue',
-  수요일: 'wed',
-  목요일: 'thu',
-  금요일: 'fri',
-  토요일: 'sat',
-  일요일: 'sun'
+  월요일: "mon",
+  화요일: "tue",
+  수요일: "wed",
+  목요일: "thu",
+  금요일: "fri",
+  토요일: "sat",
+  일요일: "sun",
 };
 
 // todayKey(선택) — 현재 표시 중인 주에 오늘이 포함될 때만 그 요일의 short key를
@@ -32,18 +32,24 @@ export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
           part-09 §286 "한 텍스트 노드 안 2가지 스타일" 근거로 span 분리. */}
       <div className="grid grid-cols-7 gap-[1.5rem]">
         {days.map((day) => {
-          const key = DAY_KEY[day.day] ?? 'mon';
+          const key = DAY_KEY[day.day] ?? "mon";
           const isToday = todayKey != null && key === todayKey;
           return (
             <div
               key={day.day}
               className={`flex h-[2.25rem] items-center rounded-lg px-3 ${WEEKDAY_BG_CLASS[key]} ${
-                isToday ? 'ring-2 ring-ink-strong ring-offset-1' : ''
+                isToday ? "ring-2 ring-ink-strong ring-offset-1" : ""
               }`}
             >
               <span className="truncate text-[0.8125rem] leading-[1.4]">
-                <span className={`text-ink-strong ${isToday ? 'font-black' : 'font-bold'}`}>{day.day}</span>{' '}
-                <span className="text-ink-sub">{String(day.date).padStart(2, '0')}</span>
+                <span
+                  className={`text-ink-strong ${isToday ? "font-black" : "font-bold"}`}
+                >
+                  {day.day}
+                </span>{" "}
+                <span className="text-ink-sub">
+                  {String(day.date).padStart(2, "0")}
+                </span>
                 {isToday && <span className="sr-only"> (오늘)</span>}
               </span>
             </div>
@@ -69,7 +75,7 @@ export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
           items-start로 짧은 컬럼(예: 일요일)이 늘어나지 않게 한다. */}
       <div className="mt-[1.5rem] grid grid-cols-7 items-start gap-[1.5rem]">
         {days.map((day) => {
-          const key = DAY_KEY[day.day] ?? 'mon';
+          const key = DAY_KEY[day.day] ?? "mon";
           return (
             <div key={day.day} className="flex flex-col gap-[0.75rem]">
               {day.tasks.map((task, index) => (
@@ -85,7 +91,9 @@ export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
                     {task.subject}
                   </p>
                   {/* 문서 §173 "말줄임 확정" — 1행 ellipsis. */}
-                  <p className="mt-1 truncate text-[0.8125rem] leading-[1.4] text-ink-sub">{task.title}</p>
+                  <p className="mt-1 truncate text-[0.8125rem] leading-[1.4] text-ink-sub">
+                    {task.title}
+                  </p>
                 </div>
               ))}
             </div>

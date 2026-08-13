@@ -1,25 +1,31 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { AuthLayout, AuthTitle, TextField, PrimaryButton, TextLinkButton } from '../components/auth';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import {
+  AuthLayout,
+  AuthTitle,
+  TextField,
+  PrimaryButton,
+  TextLinkButton,
+} from "../components/auth";
 
 // 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
 function safeRedirect(value) {
-  if (!value) return '/';
+  if (!value) return "/";
   try {
     // origin 비교로 판단해야 백슬래시('/\evil.com')처럼 startsWith('//') 검사를
     // 우회하는 프로토콜 상대 URL도 브라우저의 URL 파싱과 동일하게 차단된다.
     const u = new URL(value, window.location.origin);
-    if (u.origin !== window.location.origin) return '/';
+    if (u.origin !== window.location.origin) return "/";
 
     const path = u.pathname + u.search + u.hash;
     // pathname 자체가 '//' 또는 '/\'로 시작하면 브라우저가 프로토콜 상대 URL로 해석해
     // window.location.href 대입 시 외부 사이트로 이동할 수 있으므로 최종 차단한다.
-    if (path.startsWith('//') || path.startsWith('/\\')) return '/';
+    if (path.startsWith("//") || path.startsWith("/\\")) return "/";
 
     return path;
   } catch {
-    return '/';
+    return "/";
   }
 }
 
@@ -30,19 +36,19 @@ function withTimeout(promise, ms, fallbackValue = null) {
     promise,
     new Promise((resolve) => {
       window.setTimeout(() => resolve(fallbackValue), ms);
-    })
+    }),
   ]);
 }
 
 export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirectTo = safeRedirect(params.get('redirect'));
+  const redirectTo = safeRedirect(params.get("redirect"));
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   // 이미 로그인된 사용자에게 로그인 폼이 잠깐 노출되는 것을 막는 게이트.
   // getSession() 확인이 끝날 때까지는 로딩 화면만 보여준다.
   const [sessionChecking, setSessionChecking] = useState(true);
@@ -53,7 +59,7 @@ export default function Login() {
     async function checkSession() {
       try {
         const { data } = await withTimeout(supabase.auth.getSession(), 3500, {
-          data: { session: null }
+          data: { session: null },
         });
 
         if (!alive) return;
@@ -67,7 +73,7 @@ export default function Login() {
 
         setSessionChecking(false);
       } catch (error) {
-        console.error('기존 세션 확인 오류:', error);
+        console.error("기존 세션 확인 오류:", error);
         // 세션 확인 자체가 실패해도 로그인 폼은 반드시 열어야 하므로
         // fail-open으로 게이트를 해제한다.
         if (alive) setSessionChecking(false);
@@ -82,14 +88,14 @@ export default function Login() {
   }, [navigate, redirectTo]);
 
   function getFriendlyError(errorMessage) {
-    if (!errorMessage) return '로그인 중 문제가 발생했습니다.';
+    if (!errorMessage) return "로그인 중 문제가 발생했습니다.";
 
-    if (errorMessage.includes('Invalid login credentials')) {
-      return '이메일 또는 비밀번호가 올바르지 않습니다.';
+    if (errorMessage.includes("Invalid login credentials")) {
+      return "이메일 또는 비밀번호가 올바르지 않습니다.";
     }
 
-    if (errorMessage.includes('Email not confirmed')) {
-      return '이메일 인증이 완료되지 않았습니다. 받은 메일함을 확인해 주세요.';
+    if (errorMessage.includes("Email not confirmed")) {
+      return "이메일 인증이 완료되지 않았습니다. 받은 메일함을 확인해 주세요.";
     }
 
     return errorMessage;
@@ -101,21 +107,24 @@ export default function Login() {
     if (loading) return;
 
     setLoading(true);
-    setMessage('');
+    setMessage("");
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
       const loginPromise = supabase.auth.signInWithPassword({
         email: normalizedEmail,
-        password
+        password,
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        window.setTimeout(() => reject(new Error('login_timeout')), 12000);
+        window.setTimeout(() => reject(new Error("login_timeout")), 12000);
       });
 
-      const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
+      const { data, error } = await Promise.race([
+        loginPromise,
+        timeoutPromise,
+      ]);
 
       if (error) {
         setMessage(getFriendlyError(error.message));
@@ -124,7 +133,7 @@ export default function Login() {
       }
 
       if (!data?.user) {
-        setMessage('사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+        setMessage("사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.");
         setLoading(false);
         return;
       }
@@ -135,12 +144,14 @@ export default function Login() {
       // 바운스가 생긴다. replace로 히스토리에서 /login 자체를 지워 이를 막는다.
       window.location.replace(redirectTo);
     } catch (error) {
-      console.error('로그인 처리 오류:', error);
+      console.error("로그인 처리 오류:", error);
 
-      if (error?.message === 'login_timeout') {
-        setMessage('로그인 응답이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.');
+      if (error?.message === "login_timeout") {
+        setMessage(
+          "로그인 응답이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.",
+        );
       } else {
-        setMessage('로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.');
+        setMessage("로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.");
       }
 
       setLoading(false);
@@ -207,7 +218,7 @@ export default function Login() {
           autoComplete="current-password"
           required
           helperText={message || undefined}
-          status={message ? 'error' : 'default'}
+          status={message ? "error" : "default"}
         />
 
         {/* 버튼 라벨 시안 실측: 390 16px w700 lh20 / 1920 20px w700 lh20.
@@ -222,7 +233,7 @@ export default function Login() {
           weight="bold"
           className="leading-5 sm:text-xl sm:leading-5 md:mt-8"
         >
-          {loading ? '로그인 처리 중...' : '로그인'}
+          {loading ? "로그인 처리 중..." : "로그인"}
         </PrimaryButton>
       </form>
 
@@ -231,7 +242,7 @@ export default function Login() {
           ink.title(#181d24)보다 가까워(약 42.5 vs 48.6) ink 로 맞춘다. 시안이 링크를
           네이비가 아닌 본문색 + 굵기로만 구분하므로 tone 도 primary → ink 로 되돌린다. */}
       <p className="whitespace-nowrap text-center text-xs font-medium text-ink sm:text-base">
-        아직 위닝에듀 회원이 아니신가요?{' '}
+        아직 위닝에듀 회원이 아니신가요?{" "}
         <TextLinkButton
           as="link"
           to="/signup"

@@ -1,6 +1,10 @@
-import SectionedReportView, { getVisibleSections } from '../report/SectionedReportView';
-import PerformanceReportSurface from '../report/PerformanceReportSurface';
-import ReportModalShell, { REPORT_MODAL_FOOTER_BUTTON } from '../report/ReportModalShell';
+import SectionedReportView, {
+  getVisibleSections,
+} from "../report/SectionedReportView";
+import PerformanceReportSurface from "../report/PerformanceReportSurface";
+import ReportModalShell, {
+  REPORT_MODAL_FOOTER_BUTTON,
+} from "../report/ReportModalShell";
 
 // STEP4 설계 리포트 전체보기 모달 — docs/수행평가-상세-명세.md §5.13(`3754:4722` 실측) /
 // §10.2 P10 「대형 모달, PDF/인쇄(`@media print`)」.
@@ -22,10 +26,10 @@ import ReportModalShell, { REPORT_MODAL_FOOTER_BUTTON } from '../report/ReportMo
 // 클릭·그 버튼을 전부 같은 `onClose`로 수렴시킨다.
 
 /** §5.13 헤더 — 시안에 문구 원문이 없다(제목/부제 텍스트가 실측 표에 빠져 있음). 제안. */
-const MODAL_TITLE = '통합 설계 리포트';
+const MODAL_TITLE = "통합 설계 리포트";
 /** 인쇄 버튼 라벨. §5.13 primary 원문 그대로(가운데 공백 포함). */
-const PRINT_LABEL = 'PDF로 저장 / 인쇄';
-const CLOSE_LABEL = '창 닫고 작성하기';
+const PRINT_LABEL = "PDF로 저장 / 인쇄";
+const CLOSE_LABEL = "창 닫고 작성하기";
 
 /**
  * @param {boolean} open
@@ -35,7 +39,12 @@ const CLOSE_LABEL = '창 닫고 작성하기';
  * @param {string} [topicTitle] 확정한 주제 제목. 헤더 부제로 쓴다.
  * @param {() => void} onClose ESC·딤 클릭·`창 닫고 작성하기` 공통 핸들러.
  */
-export default function DesignReportModal({ open, report, topicTitle, onClose }) {
+export default function DesignReportModal({
+  open,
+  report,
+  topicTitle,
+  onClose,
+}) {
   // `open`과 `report`를 한 표현식에서 파생시킨다 — 훅 입력과 렌더 조건이 갈리면
   // `open=true, report=null` 조합에서 body 스크롤이 잠기고 ESC 리스너가 붙는데 아무것도
   // 렌더되지 않는 무음 실패에 빠진다(`ReportModalShell` 호출부 계약).
@@ -56,7 +65,11 @@ export default function DesignReportModal({ open, report, topicTitle, onClose })
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose} className={REPORT_MODAL_FOOTER_BUTTON.secondary}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={REPORT_MODAL_FOOTER_BUTTON.secondary}
+          >
             {CLOSE_LABEL}
           </button>
           <button

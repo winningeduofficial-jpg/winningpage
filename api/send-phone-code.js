@@ -16,7 +16,7 @@
 // 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
 // duplicate_phone이 잡는다.
 
-import { createSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
   CODE_TTL_SECONDS,
   COOLDOWN_SECONDS,
@@ -26,21 +26,26 @@ import {
   hashCode,
   isValidMobile,
   maskPhone,
-  normalizePhone
-} from './_lib/phoneCode.js';
-import { getChannel, isDryRun, sendVerificationCode } from './_lib/aligo.js';
+  normalizePhone,
+} from "./_lib/phoneCode.js";
+import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
-const ALLOWED_PURPOSES = ['signup', 'parent_signup', 'phone_change', 'mentor_apply'];
+const ALLOWED_PURPOSES = [
+  "signup",
+  "parent_signup",
+  "phone_change",
+  "mentor_apply",
+];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가
 // 자기 자신과 중복으로 잡히는데, 이 엔드포인트는 인증이 없어서 본인을 구분할 수 없다.
 // 'mentor_apply'(멘토 지원서 본인인증)도 여기 넣으면 안 된다 — 지원은 비회원 기준이지만
 // 이미 위닝에듀 회원인 대학생이 지원하는 경우가 정상 시나리오이고, 넣는 순간 그 번호가
 // isPhoneTaken에 걸려 409 'phone_taken'으로 거절돼 지원 자체가 막힌다.
-const SIGNUP_PURPOSES = ['signup', 'parent_signup'];
+const SIGNUP_PURPOSES = ["signup", "parent_signup"];
 
 /**
  * 010-1234-5678 형태로 되돌린다.
@@ -50,8 +55,10 @@ const SIGNUP_PURPOSES = ['signup', 'parent_signup'];
  * 두 표기를 모두 대조한다.
  */
 function toHyphenated(digits) {
-  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11)
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10)
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   return digits;
 }
 
@@ -64,16 +71,16 @@ function toHyphenated(digits) {
  */
 async function isPhoneTaken(supabase, phone) {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .not('member_type', 'is', null)
+    .from("profiles")
+    .select("id")
+    .not("member_type", "is", null)
     .or(`phone.eq.${phone},phone.eq.${toHyphenated(phone)}`)
     .limit(1);
 
   // 조회가 실패했다고 발송까지 막으면 장애가 가입 전면 중단으로 번진다.
   // 최종 방어선은 DB의 unique 인덱스와 가입 RPC(duplicate_phone)다.
   if (error) {
-    console.error('[send-phone-code] 번호 중복 조회 실패:', error);
+    console.error("[send-phone-code] 번호 중복 조회 실패:", error);
     return false;
   }
 
@@ -81,27 +88,30 @@ async function isPhoneTaken(supabase, phone) {
 }
 
 const LIMIT_MESSAGES = {
-  cooldown: '잠시 후에 다시 시도해 주세요.',
-  hourly_limit: '인증번호 요청이 많습니다. 1시간 후에 다시 시도해 주세요.',
-  daily_limit: '오늘 요청 가능한 횟수를 초과했습니다. 내일 다시 시도해 주세요.',
-  ip_hourly_limit: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
-  ip_daily_limit: '요청이 많습니다. 내일 다시 시도해 주세요.',
-  service_daily_limit: '일시적으로 인증번호 발송이 어렵습니다. 고객센터로 문의해 주세요.'
+  cooldown: "잠시 후에 다시 시도해 주세요.",
+  hourly_limit: "인증번호 요청이 많습니다. 1시간 후에 다시 시도해 주세요.",
+  daily_limit: "오늘 요청 가능한 횟수를 초과했습니다. 내일 다시 시도해 주세요.",
+  ip_hourly_limit: "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+  ip_daily_limit: "요청이 많습니다. 내일 다시 시도해 주세요.",
+  service_daily_limit:
+    "일시적으로 인증번호 발송이 어렵습니다. 고객센터로 문의해 주세요.",
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
 
   const phone = normalizePhone(req.body?.phone);
-  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose) ? req.body.purpose : 'signup';
+  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose)
+    ? req.body.purpose
+    : "signup";
 
   if (!isValidMobile(phone)) {
     return res.status(400).json({
       ok: false,
-      reason: 'invalid_phone',
-      detail: '휴대폰 번호 형식이 올바르지 않습니다.'
+      reason: "invalid_phone",
+      detail: "휴대폰 번호 형식이 올바르지 않습니다.",
     });
   }
 
@@ -112,11 +122,14 @@ export default async function handler(req, res) {
 
     // 한도 검사보다 먼저 본다. 어차피 가입할 수 없는 번호에 문자 요금과
     // 쿨타임을 쓸 이유가 없다.
-    if (SIGNUP_PURPOSES.includes(purpose) && (await isPhoneTaken(supabase, phone))) {
+    if (
+      SIGNUP_PURPOSES.includes(purpose) &&
+      (await isPhoneTaken(supabase, phone))
+    ) {
       return res.status(409).json({
         ok: false,
-        reason: 'phone_taken',
-        detail: '중복된 전화번호입니다.'
+        reason: "phone_taken",
+        detail: "중복된 전화번호입니다.",
       });
     }
 
@@ -124,18 +137,23 @@ export default async function handler(req, res) {
 
     if (!limit.allowed) {
       // Retry-After는 초 단위 표준 헤더다. 프론트가 쿨타임 표시에 쓸 수 있다.
-      res.setHeader('Retry-After', String(limit.retryAfter || COOLDOWN_SECONDS));
+      res.setHeader(
+        "Retry-After",
+        String(limit.retryAfter || COOLDOWN_SECONDS),
+      );
 
       return res.status(429).json({
         ok: false,
         reason: limit.reason,
         retry_after: limit.retryAfter || COOLDOWN_SECONDS,
-        detail: LIMIT_MESSAGES[limit.reason] || '잠시 후에 다시 시도해 주세요.'
+        detail: LIMIT_MESSAGES[limit.reason] || "잠시 후에 다시 시도해 주세요.",
       });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + CODE_TTL_SECONDS * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + CODE_TTL_SECONDS * 1000,
+    ).toISOString();
 
     // 발송을 먼저 시도한다. 저장부터 하면 발송이 실패했을 때 쿨타임만 소모된다.
     const result = await sendVerificationCode({ phone, code });
@@ -143,33 +161,35 @@ export default async function handler(req, res) {
     if (!result.ok) {
       console.error(
         `[send-phone-code] 발송 실패 ${maskPhone(phone)} channel=${result.channel} ` +
-          `code=${result.providerCode} message=${result.providerMessage}`
+          `code=${result.providerCode} message=${result.providerMessage}`,
       );
 
       return res.status(502).json({
         ok: false,
-        reason: 'send_failed',
-        detail: '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+        reason: "send_failed",
+        detail: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
 
-    const { error: insertError } = await supabase.from('phone_verifications').insert({
-      phone,
-      code_hash: hashCode(phone, code),
-      purpose,
-      expires_at: expiresAt,
-      request_ip: ip
-    });
+    const { error: insertError } = await supabase
+      .from("phone_verifications")
+      .insert({
+        phone,
+        code_hash: hashCode(phone, code),
+        purpose,
+        expires_at: expiresAt,
+        request_ip: ip,
+      });
 
     if (insertError) {
       // 문자는 이미 나갔는데 기록이 안 된 상태다. 사용자는 코드를 받았지만
       // 검증할 수 없으므로 재발송을 유도한다.
-      console.error('[send-phone-code] 인증 기록 저장 실패:', insertError);
+      console.error("[send-phone-code] 인증 기록 저장 실패:", insertError);
 
       return res.status(500).json({
         ok: false,
-        reason: 'store_failed',
-        detail: '인증번호 처리 중 문제가 발생했습니다. 다시 시도해 주세요.'
+        reason: "store_failed",
+        detail: "인증번호 처리 중 문제가 발생했습니다. 다시 시도해 주세요.",
       });
     }
 
@@ -179,19 +199,21 @@ export default async function handler(req, res) {
       cooldown: COOLDOWN_SECONDS,
       // 운영에서는 항상 false여야 한다. true면 문자가 실제로 안 나간 것이다.
       dry_run: Boolean(result.dryRun),
-      channel: getChannel()
+      channel: getChannel(),
     });
   } catch (error) {
-    console.error('[send-phone-code] 오류:', error);
+    console.error("[send-phone-code] 오류:", error);
 
     // 설정 누락(프록시·키·시크릿)은 개발자가 봐야 할 오류라 구분해 남긴다.
     const isConfigError =
-      /환경변수|FIXIE_URL|PHONE_CODE_SECRET/.test(String(error?.message || '')) && !isDryRun();
+      /환경변수|FIXIE_URL|PHONE_CODE_SECRET/.test(
+        String(error?.message || ""),
+      ) && !isDryRun();
 
     return res.status(500).json({
       ok: false,
-      reason: isConfigError ? 'server_misconfigured' : 'unknown',
-      detail: '인증번호 발송 중 오류가 발생했습니다.'
+      reason: isConfigError ? "server_misconfigured" : "unknown",
+      detail: "인증번호 발송 중 오류가 발생했습니다.",
     });
   }
 }

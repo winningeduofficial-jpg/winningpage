@@ -30,8 +30,8 @@ import {
   diffDaysYMD,
   getDayIndexFromYMDServer,
   VIRTUAL_DAY_NAMES,
-  calculateDailyBonusV2
-} from '../../src/lib/goal/calc/index.js';
+  calculateDailyBonusV2,
+} from "../../src/lib/goal/calc/index.js";
 
 import {
   PAID_MESSAGE,
@@ -41,10 +41,10 @@ import {
   fetchTodayRecord,
   num,
   openGoalSession,
-  upsertDailyRecord
-} from '../_lib/goalRepo.js';
+  upsertDailyRecord,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 // ---------------------------------------------------------------------------
 // 화이트리스트 — 코드값 → 한글 라벨 (src/data/goalStudyMock.js 와 글자 단위로 같다)
@@ -54,26 +54,26 @@ export const config = { runtime: 'nodejs' };
 // mockExam→'기출/모의고사' 는 bonusV2.js 의 TASK_NAESIN/TASK_MOCK_EXAM 태그 가산
 // 입력이기도 하다 — 라벨이 어긋나면 태그 가산이 조용히 0배가 된다.
 const TASK_LABELS = {
-  concept: '개념 학습',
-  academyHomework: '학원 숙제',
-  wrongAnswerReview: '오답 정리',
-  schoolSubject: '내신 과목',
-  mockExam: '기출/모의고사',
-  etc: '기타'
+  concept: "개념 학습",
+  academyHomework: "학원 숙제",
+  wrongAnswerReview: "오답 정리",
+  schoolSubject: "내신 과목",
+  mockExam: "기출/모의고사",
+  etc: "기타",
 };
 
 // mockDisturbanceOptions(goalStudyMock.js:40-46). 수식 미반영 — 기록 전용(팀장 지시).
 const REASON_LABELS = {
-  academySchedule: '수업 · 학원 일정',
-  smartphone: '스마트폰',
-  fatigue: '피로 · 수면 부족',
-  distraction: '집중 안 됨',
-  none: '없었음'
+  academySchedule: "수업 · 학원 일정",
+  smartphone: "스마트폰",
+  fatigue: "피로 · 수면 부족",
+  distraction: "집중 안 됨",
+  none: "없었음",
 };
 
 // mockConditionOptions(goalStudyMock.js:31-36). sql/73_goal_daily_record_v2.sql 의
 // body_condition CHECK 값 도메인과 정확히 같다(빈 문자열 별도 허용).
-const BODY_CONDITIONS = new Set(['great', 'normal', 'tired', 'exhausted']);
+const BODY_CONDITIONS = new Set(["great", "normal", "tired", "exhausted"]);
 
 const MEMO_MAX_LENGTH = 1000;
 const STUDY_HOURS_MAX = 24;
@@ -83,11 +83,11 @@ const STUDY_HOURS_MAX = 24;
 // ---------------------------------------------------------------------------
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isNumericInput(raw) {
-  return typeof raw === 'number' || typeof raw === 'string';
+  return typeof raw === "number" || typeof raw === "string";
 }
 
 function fail(status, body) {
@@ -96,7 +96,7 @@ function fail(status, body) {
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -141,10 +141,10 @@ async function requireActiveStudent(supabaseAdmin, profileId) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
 
   if (!row || !row.onboarded_at) {
-    return { error: fail(409, { reason: 'not_onboarded' }).error };
+    return { error: fail(409, { reason: "not_onboarded" }).error };
   }
-  if (row.status !== 'active') {
-    return { error: fail(409, { reason: 'awaiting_cuts' }).error };
+  if (row.status !== "active") {
+    return { error: fail(409, { reason: "awaiting_cuts" }).error };
   }
 
   return { row };
@@ -157,10 +157,10 @@ function buildRecordPayload(row) {
     recordIndex: num(row.record_index),
     recordDate: row.record_date,
     studyHours: num(row.study_hours) ?? 0,
-    bodyCondition: row.body_condition || '',
+    bodyCondition: row.body_condition || "",
     tasks: row.tasks || [],
     reasons: row.reasons || [],
-    memo: row.memo || ''
+    memo: row.memo || "",
   };
 }
 
@@ -170,7 +170,7 @@ function buildProbsPayload(stateRow) {
     idealSusi: num(state.ideal_susi),
     idealJungsi: num(state.ideal_jungsi),
     minSusi: num(state.min_susi),
-    minJungsi: num(state.min_jungsi)
+    minJungsi: num(state.min_jungsi),
   };
 }
 
@@ -196,13 +196,13 @@ async function handleGet(req, res, session) {
 
   const [record, stateRow] = await Promise.all([
     fetchTodayRecord(supabaseAdmin, profileId, recordDate),
-    fetchStudentStateRow(supabaseAdmin, profileId)
+    fetchStudentStateRow(supabaseAdmin, profileId),
   ]);
 
   return res.status(200).json({
     ok: true,
     record: buildRecordPayload(record),
-    probs: buildProbsPayload(stateRow)
+    probs: buildProbsPayload(stateRow),
   });
 }
 
@@ -226,7 +226,7 @@ async function handlePost(req, res, session) {
 
   const body = readBody(req);
   if (!isPlainObject(body)) {
-    return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
   }
 
   const now = new Date();
@@ -235,20 +235,28 @@ async function handlePost(req, res, session) {
   // 실제 달력 모델의 정본 계산 — "제출 N번째"가 아니라 시작일부터 실제 경과 일수.
   const recordIndex = diffDaysYMD(student.actual_start_date, recordDate, now);
   if (!Number.isFinite(recordIndex) || recordIndex < 0) {
-    return res.status(400).json({ reason: 'before_start_date' });
+    return res.status(400).json({ reason: "before_start_date" });
   }
 
   const existing = await fetchTodayRecord(supabaseAdmin, profileId, recordDate);
 
   // ── 병합 — 바디에 있는 필드만 교체, 없으면 기존 행 값 유지 ────────────────
-  const tasksResult = mapWhitelist(body.tasks, TASK_LABELS, '학습 항목');
-  if (tasksResult.error) return res.status(tasksResult.error.status).json(tasksResult.error.body);
+  const tasksResult = mapWhitelist(body.tasks, TASK_LABELS, "학습 항목");
+  if (tasksResult.error)
+    return res.status(tasksResult.error.status).json(tasksResult.error.body);
 
-  const reasonsResult = mapWhitelist(body.reasons, REASON_LABELS, '방해 요인');
-  if (reasonsResult.error) return res.status(reasonsResult.error.status).json(reasonsResult.error.body);
+  const reasonsResult = mapWhitelist(body.reasons, REASON_LABELS, "방해 요인");
+  if (reasonsResult.error)
+    return res
+      .status(reasonsResult.error.status)
+      .json(reasonsResult.error.body);
 
-  const tasks = tasksResult.value !== undefined ? tasksResult.value : existing?.tasks || [];
-  const reasons = reasonsResult.value !== undefined ? reasonsResult.value : existing?.reasons || [];
+  const tasks =
+    tasksResult.value !== undefined ? tasksResult.value : existing?.tasks || [];
+  const reasons =
+    reasonsResult.value !== undefined
+      ? reasonsResult.value
+      : existing?.reasons || [];
 
   // bodyCondition — 신규 값이 오면 화이트리스트 검증, 없으면 기존 값 유지, 그마저
   // 없으면(오늘 첫 제출이 카드-only) ''(빈 문자열)로 둔다. bonusV2 는 ''를
@@ -257,22 +265,22 @@ async function handlePost(req, res, session) {
   let bodyCondition;
   if (body.bodyCondition !== undefined) {
     if (!BODY_CONDITIONS.has(body.bodyCondition)) {
-      return res.status(400).json({ detail: '컨디션 값이 올바르지 않습니다.' });
+      return res.status(400).json({ detail: "컨디션 값이 올바르지 않습니다." });
     }
     bodyCondition = body.bodyCondition;
   } else {
-    bodyCondition = existing?.body_condition || '';
+    bodyCondition = existing?.body_condition || "";
   }
 
   // memo — trim + 1000자 컷. 신규 값이 없으면 기존 값 유지.
   let memo;
   if (body.memo !== undefined) {
-    if (typeof body.memo !== 'string') {
-      return res.status(400).json({ detail: '메모 형식이 올바르지 않습니다.' });
+    if (typeof body.memo !== "string") {
+      return res.status(400).json({ detail: "메모 형식이 올바르지 않습니다." });
     }
     memo = body.memo.trim().slice(0, MEMO_MAX_LENGTH);
   } else {
-    memo = existing?.memo || '';
+    memo = existing?.memo || "";
   }
 
   // studyHours — 병합 결과에 최종 검증을 건다(부분 제출이라 "이 요청에 studyHours가
@@ -280,22 +288,31 @@ async function handlePost(req, res, session) {
   let studyHoursInput;
   if (body.studyHours !== undefined) {
     if (!isNumericInput(body.studyHours)) {
-      return res.status(400).json({ detail: '순공 시간 형식이 올바르지 않습니다.' });
+      return res
+        .status(400)
+        .json({ detail: "순공 시간 형식이 올바르지 않습니다." });
     }
     studyHoursInput = Number(body.studyHours);
   } else {
     studyHoursInput = num(existing?.study_hours) ?? 0;
   }
 
-  if (!Number.isFinite(studyHoursInput) || studyHoursInput <= 0 || studyHoursInput > STUDY_HOURS_MAX) {
-    return res.status(400).json({ reason: 'no_study_time' });
+  if (
+    !Number.isFinite(studyHoursInput) ||
+    studyHoursInput <= 0 ||
+    studyHoursInput > STUDY_HOURS_MAX
+  ) {
+    return res.status(400).json({ reason: "no_study_time" });
   }
   const studyHours = Math.round(studyHoursInput * 10) / 10;
 
   // ── 오늘 적용 목표 시간 스냅샷 — study_schedule[요일] ──────────────────
   const dayIndex = getDayIndexFromYMDServer(recordDate, now);
   const dayName = VIRTUAL_DAY_NAMES[dayIndex];
-  const daySchedule = (student.study_schedule || {})[dayName] || { ideal: 0, min: 0 };
+  const daySchedule = (student.study_schedule || {})[dayName] || {
+    ideal: 0,
+    min: 0,
+  };
   const idealHours = num(daySchedule.ideal) ?? 0;
   const minHours = num(daySchedule.min) ?? 0;
 
@@ -311,7 +328,7 @@ async function handlePost(req, res, session) {
     tasks,
     studyHours,
     idealHours,
-    minHours
+    minHours,
   });
 
   const payload = {
@@ -321,8 +338,8 @@ async function handlePost(req, res, session) {
     submitted_on: kstYMD(now),
 
     study_hours: studyHours,
-    achievement: '',
-    focus: '',
+    achievement: "",
+    focus: "",
     body_condition: bodyCondition,
     reasons,
     tasks,
@@ -334,7 +351,7 @@ async function handlePost(req, res, session) {
     delta_ideal_susi: delta.idealSusiBonus,
     delta_ideal_jungsi: delta.idealJungsiBonus,
     delta_min_susi: delta.minSusiBonus,
-    delta_min_jungsi: delta.minJungsiBonus
+    delta_min_jungsi: delta.minJungsiBonus,
   };
 
   const savedRow = await upsertDailyRecord(supabaseAdmin, payload);
@@ -342,7 +359,13 @@ async function handlePost(req, res, session) {
   const stateRow = await fetchStudentStateRow(supabaseAdmin, profileId);
   const probs = buildProbsPayload(stateRow);
 
-  await appendProbabilityLog(supabaseAdmin, profileId, probs, 'daily_record', savedRow.id);
+  await appendProbabilityLog(
+    supabaseAdmin,
+    profileId,
+    probs,
+    "daily_record",
+    savedRow.id,
+  );
 
   return res.status(200).json({
     ok: true,
@@ -351,10 +374,10 @@ async function handlePost(req, res, session) {
       idealSusi: delta.idealSusiBonus,
       idealJungsi: delta.idealJungsiBonus,
       minSusi: delta.minSusiBonus,
-      minJungsi: delta.minJungsiBonus
+      minJungsi: delta.minJungsiBonus,
     },
     probs,
-    recordCount: num(stateRow?.record_count) ?? 0
+    recordCount: num(stateRow?.record_count) ?? 0,
   });
 }
 
@@ -363,8 +386,8 @@ async function handlePost(req, res, session) {
 // ---------------------------------------------------------------------------
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -373,12 +396,12 @@ export default async function handler(req, res) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    if (req.method === 'GET') {
+    if (req.method === "GET") {
       return await handleGet(req, res, session);
     }
     return await handlePost(req, res, session);
   } catch (error) {
-    console.error('goal/daily-record error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/daily-record error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

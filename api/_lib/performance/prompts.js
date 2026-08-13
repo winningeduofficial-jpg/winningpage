@@ -127,7 +127,8 @@ ${CORE_PRINCIPLES}
  * 사용자 프롬프트(이미지 뒤에 붙는 텍스트 파트). 원문 `analyze-assessment-storage.js:117`.
  * 1장일 때는 이 문장 그대로 나간다.
  */
-export const GUIDE_EXTRACTION_USER_PROMPT = '수행평가 안내문의 모든 정보를 추출해주세요.';
+export const GUIDE_EXTRACTION_USER_PROMPT =
+  "수행평가 안내문의 모든 정보를 추출해주세요.";
 
 /**
  * 여러 장을 **한 번의 호출로** 분석할 때 위 문장 앞에 붙는 한 줄.
@@ -144,16 +145,15 @@ export function buildGuideExtractionUserPrompt(pageCount) {
 
   return [
     `아래 사진 ${pageCount}장은 순서대로 이어지는 하나의 수행평가 안내문입니다. 모든 장의 내용을 종합해 한 벌로 정리하세요.`,
-    GUIDE_EXTRACTION_USER_PROMPT
-  ].join('\n');
+    GUIDE_EXTRACTION_USER_PROMPT,
+  ].join("\n");
 }
 
 /**
  * 안내문 추출 프롬프트 버전. 프롬프트 문자열을 손대면 반드시 함께 올린다.
  * 기록 위치는 이 파일 상단 「버전 문자열을 어디에 기록하는가」 참조.
  */
-export const GUIDE_PROMPT_VERSION = 'guide-v1';
-
+export const GUIDE_PROMPT_VERSION = "guide-v1";
 
 // ─────────────────────────────────────────────────────────────────────
 // CROSS_SUBJECT_CONNECTION_GUIDE — 교과 연계 매트릭스 11조
@@ -189,7 +189,6 @@ export const CROSS_SUBJECT_CONNECTION_GUIDE = `
 10. 추천 3개 중 최소 1개는 같은 과목 이전 수행이 있으면 같은 과목 심화 주제로 구성한다.
 11. 다른 과목 선배 데이터는 선택 사항이며, 억지로 반드시 반영하지 않는다.
 `.trim();
-
 
 // ─────────────────────────────────────────────────────────────────────
 // 주제 추천 (P8)
@@ -246,13 +245,13 @@ export const CROSS_SUBJECT_CONNECTION_GUIDE = `
 //   토큰만 쓰고 버려진다. 순서도 시안 순서(점수 강점 → 추후 심화 방향)를 따른다.
 
 /** 위닝DB RAG 결과가 비었을 때 프롬프트에 렌더하는 문구. 원문 `dynamic-knowledge.js:388`. */
-export const NO_KNOWLEDGE_TEXT = '관련 위닝DB 항목 없음';
+export const NO_KNOWLEDGE_TEXT = "관련 위닝DB 항목 없음";
 
 /** 학생 과거 수행 RAG 결과가 비었을 때 렌더하는 문구. 원문 `reports.js:222`. */
-export const NO_STUDENT_HISTORY_TEXT = '관련 학생 과거 수행 기록 없음';
+export const NO_STUDENT_HISTORY_TEXT = "관련 학생 과거 수행 기록 없음";
 
 /** 값이 없는 학생 컨텍스트 필드에 렌더하는 리터럴. 평가 프롬프트와 통일(§12.1). */
-export const UNKNOWN_FIELD_TEXT = '미입력';
+export const UNKNOWN_FIELD_TEXT = "미입력";
 
 /**
  * `previous_topic` 기본값. **원문 리터럴 `'없음'`을 유지한다**(§12.1) — user 지시 2조
@@ -260,7 +259,7 @@ export const UNKNOWN_FIELD_TEXT = '미입력';
  * 주석도 "'없음'은 「입력하지 않았다」가 아니라 「이전 주제가 없다고 답했다」"라고
  * 두 상태의 구분을 규정한다(sql/54_performance_app.sql 1-1).
  */
-export const NO_PREVIOUS_TOPIC_TEXT = '없음';
+export const NO_PREVIOUS_TOPIC_TEXT = "없음";
 
 /**
  * 주제 추천 system 프롬프트.
@@ -270,8 +269,8 @@ export const NO_PREVIOUS_TOPIC_TEXT = '없음';
  * @param {string} [params.studentHistoryText] `formatRelevantStudentSessionsForPrompt()` 결과
  */
 export function buildTopicRecommendationSystem({
-  topicKnowledgeText = '',
-  studentHistoryText = ''
+  topicKnowledgeText = "",
+  studentHistoryText = "",
 } = {}) {
   return `
 ${CORE_PRINCIPLES}
@@ -341,35 +340,37 @@ ${CROSS_SUBJECT_CONNECTION_GUIDE}
  *   평문으로 편 결과 또는 직접 입력 원문). 직렬화는 호출부 몫이다.
  */
 export function buildTopicRecommendationUser({
-  gradeLabel = '',
-  semester = '',
-  schoolType = '',
-  subjectGroup = '',
-  subject = '',
-  career = '',
-  previousTopic = '',
-  assessmentText = ''
+  gradeLabel = "",
+  semester = "",
+  schoolType = "",
+  subjectGroup = "",
+  subject = "",
+  career = "",
+  previousTopic = "",
+  assessmentText = "",
 } = {}) {
-  const gradeText = [gradeLabel, semester]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' ') || UNKNOWN_FIELD_TEXT;
+  const gradeText =
+    [gradeLabel, semester]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ") || UNKNOWN_FIELD_TEXT;
 
-  const subjectText = [subjectGroup, subject]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' / ') || UNKNOWN_FIELD_TEXT;
+  const subjectText =
+    [subjectGroup, subject]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" / ") || UNKNOWN_FIELD_TEXT;
 
   return `
 [학생 정보]
 - 학년/학기: ${gradeText}
-- 학교 유형: ${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 학교 유형: ${String(schoolType || "").trim() || UNKNOWN_FIELD_TEXT}
 - 선택 과목: ${subjectText}
-- 희망 진로: ${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
-- 같은 과목에서 이전에 한 주제: ${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+- 희망 진로: ${String(career || "").trim() || UNKNOWN_FIELD_TEXT}
+- 같은 과목에서 이전에 한 주제: ${String(previousTopic || "").trim() || NO_PREVIOUS_TOPIC_TEXT}
 
 [수행평가 안내문]
-${String(assessmentText || '').trim() || '수행평가 안내문 정보 없음'}
+${String(assessmentText || "").trim() || "수행평가 안내문 정보 없음"}
 
 작업:
 1. 수행평가 안내문 조건을 최우선으로 반영한다.
@@ -399,14 +400,14 @@ ${String(assessmentText || '').trim() || '수행평가 안내문 정보 없음'}
  */
 export function buildTopicExclusionBlock(titles = []) {
   const list = (Array.isArray(titles) ? titles : [])
-    .map((value) => String(value || '').trim())
+    .map((value) => String(value || "").trim())
     .filter(Boolean);
 
-  if (!list.length) return '';
+  if (!list.length) return "";
 
   return `
 [이미 추천한 주제 — 재추천 대상에서 제외]
-${list.map((title) => `- ${title}`).join('\n')}
+${list.map((title) => `- ${title}`).join("\n")}
 
 재추천 규칙:
 1. 위 목록에 있는 주제, 그리고 사실상 같은 주제(표현만 바꾼 주제)는 다시 제안하지 않는다.
@@ -423,12 +424,12 @@ ${list.map((title) => `- ${title}`).join('\n')}
  * 데이터로 보존해야 상세 모달이 무엇을 어떤 순서로 렌더할지 한 곳에서 정해진다.
  */
 export const TOPIC_DETAIL_SECTIONS = [
-  { id: 'selection_basis', label: '선정 근거' },
-  { id: 'core_content', label: '핵심 내용' },
-  { id: 'previous_link', label: '이전 주제와의 연결' },
-  { id: 'cross_subject', label: '다른 과목 연계 포인트' },
-  { id: 'score_strength', label: '점수 강점' },
-  { id: 'deepening', label: '추후 심화 방향' }
+  { id: "selection_basis", label: "선정 근거" },
+  { id: "core_content", label: "핵심 내용" },
+  { id: "previous_link", label: "이전 주제와의 연결" },
+  { id: "cross_subject", label: "다른 과목 연계 포인트" },
+  { id: "score_strength", label: "점수 강점" },
+  { id: "deepening", label: "추후 심화 방향" },
 ];
 
 /**
@@ -443,46 +444,46 @@ export const TOPIC_DETAIL_SECTIONS = [
  * 더할 때도 string으로 받아 서버에서 파싱해야 한다.
  */
 export const TOPIC_RECOMMENDATION_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
     topics: {
-      type: 'array',
+      type: "array",
       minItems: 3,
       maxItems: 3,
       items: {
-        type: 'object',
+        type: "object",
         properties: {
-          title: { type: 'string' },
-          selection_basis: { type: 'string' },
-          core_content: { type: 'string' },
-          previous_link: { type: 'string' },
-          cross_subject: { type: 'string' },
-          score_strength: { type: 'string' },
-          deepening: { type: 'string' }
+          title: { type: "string" },
+          selection_basis: { type: "string" },
+          core_content: { type: "string" },
+          previous_link: { type: "string" },
+          cross_subject: { type: "string" },
+          score_strength: { type: "string" },
+          deepening: { type: "string" },
         },
         required: [
-          'title',
-          'selection_basis',
-          'core_content',
-          'previous_link',
-          'cross_subject',
-          'score_strength',
-          'deepening'
+          "title",
+          "selection_basis",
+          "core_content",
+          "previous_link",
+          "cross_subject",
+          "score_strength",
+          "deepening",
         ],
         propertyOrdering: [
-          'title',
-          'selection_basis',
-          'core_content',
-          'previous_link',
-          'cross_subject',
-          'score_strength',
-          'deepening'
-        ]
-      }
-    }
+          "title",
+          "selection_basis",
+          "core_content",
+          "previous_link",
+          "cross_subject",
+          "score_strength",
+          "deepening",
+        ],
+      },
+    },
   },
-  required: ['topics'],
-  propertyOrdering: ['topics']
+  required: ["topics"],
+  propertyOrdering: ["topics"],
 };
 
 /**
@@ -504,7 +505,7 @@ export const TOPIC_RECOMMENDATION_SCHEMA = {
  */
 export const TOPIC_GENERATION_DEFAULTS = {
   temperature: 0.25,
-  maxOutputTokens: 6144
+  maxOutputTokens: 6144,
 };
 
 /**
@@ -519,8 +520,7 @@ export const TOPIC_MAX_OUTPUT_TOKENS_RETRY = 8192;
  * 주제 추천 프롬프트 버전. `performance_reports.prompt_version`에 기록한다(§8.3).
  * 위 ⓐ/ⓑ/ⓒ 경계 중 **어느 한 줄이라도** 바뀌면 이 값을 올린다.
  */
-export const TOPIC_PROMPT_VERSION = 'topic-v1';
-
+export const TOPIC_PROMPT_VERSION = "topic-v1";
 
 // ─────────────────────────────────────────────────────────────────────
 // 설계 리포트 (P10)
@@ -591,7 +591,6 @@ export const TOPIC_PROMPT_VERSION = 'topic-v1';
 //   낼 자리 자체를 없애면** 16원칙 8~13(DB 밖 자료 생성 금지)이 프롬프트 준수가 아니라
 //   구조적 불가능이 된다.
 
-
 // ─────────────────────────────────────────────────────────────────────
 // CORE_PRINCIPLES ↔ 16원칙 병합 (§11 ~~Q83~~ 결정 — 주입한다)
 // ─────────────────────────────────────────────────────────────────────
@@ -639,18 +638,17 @@ export const CORE_PRINCIPLES_DESIGN_BRIDGE = `
 - 위 핵심 원칙과 아래 중요 원칙이 어긋나면 아래 중요 원칙을 따른다.
 `.trim();
 
-
 /** 위닝DB 자료 RAG 결과가 비었을 때 렌더하는 문구. 원문 `find-resources.js:409`. */
-export const NO_RESOURCE_KNOWLEDGE_TEXT = '사용 가능한 내부 자료 없음';
+export const NO_RESOURCE_KNOWLEDGE_TEXT = "사용 가능한 내부 자료 없음";
 
 /** 사용 허용 자료 목록이 비었을 때 렌더하는 문구. 원문 `find-resources.js:357`. */
-export const NO_ALLOWED_RESOURCE_TEXT = '없음';
+export const NO_ALLOWED_RESOURCE_TEXT = "없음";
 
 /** `selected_topic_detail`·`previous_topic`이 비었을 때. 원문 `:498`, `:505`. */
-export const NO_TOPIC_DETAIL_TEXT = '없음';
+export const NO_TOPIC_DETAIL_TEXT = "없음";
 
 /** 안내문 요약이 비었을 때. 원문 `:508`. */
-export const NO_ASSESSMENT_INFO_TEXT = '안내문 정보 없음';
+export const NO_ASSESSMENT_INFO_TEXT = "안내문 정보 없음";
 
 /**
  * 설계 리포트 프롬프트 버전 2종.
@@ -664,9 +662,9 @@ export const NO_ASSESSMENT_INFO_TEXT = '안내문 정보 없음';
  */
 export const DESIGN_PROMPT_VERSIONS = Object.freeze({
   /** `CORE_PRINCIPLES` 미주입 — 외부 앱 동작 재현본. **A/B 검증 전용.** */
-  WITHOUT_CORE: 'design-v1',
+  WITHOUT_CORE: "design-v1",
   /** `CORE_PRINCIPLES` 주입 — ~~Q83~~ 결정 정본. */
-  WITH_CORE: 'design-v2'
+  WITH_CORE: "design-v2",
 });
 
 /** 기본값 = 주입본 고정(~~Q83~~). */
@@ -679,7 +677,7 @@ export const DESIGN_PROMPT_VERSION_DEFAULT = DESIGN_PROMPT_VERSIONS.WITH_CORE;
  * `GEMINI_API_KEY`, `embeddings.js:57` `GEMINI_EMBEDDING_MODEL`) — 요청 body로 모델
  * 파라미터를 받는 선례가 없다. 프롬프트 선택도 같은 계층에 둔다.
  */
-export const DESIGN_PROMPT_VERSION_ENV = 'PERFORMANCE_DESIGN_PROMPT_VERSION';
+export const DESIGN_PROMPT_VERSION_ENV = "PERFORMANCE_DESIGN_PROMPT_VERSION";
 
 /**
  * 이번 요청에 쓸 설계 리포트 프롬프트 버전을 **서버가** 정한다.
@@ -694,7 +692,7 @@ export const DESIGN_PROMPT_VERSION_ENV = 'PERFORMANCE_DESIGN_PROMPT_VERSION';
  * @returns {'design-v1'|'design-v2'}
  */
 export function resolveDesignPromptVersion(env = process.env) {
-  const raw = String(env?.[DESIGN_PROMPT_VERSION_ENV] || '').trim();
+  const raw = String(env?.[DESIGN_PROMPT_VERSION_ENV] || "").trim();
 
   return raw === DESIGN_PROMPT_VERSIONS.WITHOUT_CORE
     ? DESIGN_PROMPT_VERSIONS.WITHOUT_CORE
@@ -713,12 +711,20 @@ export function resolveDesignPromptVersion(env = process.env) {
  * 스키마에서 뺀 이유」 참조).
  */
 export const DESIGN_REPORT_SECTIONS = [
-  { id: 'final_topic', label: '최종 주제', authoredBy: 'model' },
-  { id: 'recommended_resources', label: '추천 자료 및 활용 포인트', authoredBy: 'server' },
-  { id: 'required_format', label: '안내문 요구 형식 분석', authoredBy: 'model' },
-  { id: 'overall_direction', label: '수행평가 전체 방향', authoredBy: 'model' },
-  { id: 'writing_structure', label: '작성 구조 설계', authoredBy: 'model' },
-  { id: 'checklist', label: '학생 작성 체크리스트', authoredBy: 'model' }
+  { id: "final_topic", label: "최종 주제", authoredBy: "model" },
+  {
+    id: "recommended_resources",
+    label: "추천 자료 및 활용 포인트",
+    authoredBy: "server",
+  },
+  {
+    id: "required_format",
+    label: "안내문 요구 형식 분석",
+    authoredBy: "model",
+  },
+  { id: "overall_direction", label: "수행평가 전체 방향", authoredBy: "model" },
+  { id: "writing_structure", label: "작성 구조 설계", authoredBy: "model" },
+  { id: "checklist", label: "학생 작성 체크리스트", authoredBy: "model" },
 ];
 
 /**
@@ -731,23 +737,26 @@ export const DESIGN_REPORT_SECTIONS = [
  */
 export const DESIGN_SECTION_ROW_LABELS = Object.freeze({
   final_topic: [
-    { key: 'topic_name', label: '주제명' },
-    { key: 'core_meaning', label: '주제의 핵심 의미' },
-    { key: 'subject_link', label: '선택 과목과 연결되는 지점' },
-    { key: 'career_link', label: '희망 진로와 연결되는 지점' }
+    { key: "topic_name", label: "주제명" },
+    { key: "core_meaning", label: "주제의 핵심 의미" },
+    { key: "subject_link", label: "선택 과목과 연결되는 지점" },
+    { key: "career_link", label: "희망 진로와 연결되는 지점" },
   ],
   required_format: [
-    { key: 'submission_format', label: '안내문상 제출 형식' },
-    { key: 'item_vs_criteria', label: '답변해야 할 항목과 평가기준의 구분' },
-    { key: 'report_structure', label: '이번 리포트에서 따라야 할 글 구조' },
-    { key: 'cautions', label: '주의할 점' }
+    { key: "submission_format", label: "안내문상 제출 형식" },
+    { key: "item_vs_criteria", label: "답변해야 할 항목과 평가기준의 구분" },
+    { key: "report_structure", label: "이번 리포트에서 따라야 할 글 구조" },
+    { key: "cautions", label: "주의할 점" },
   ],
   overall_direction: [
-    { key: 'core_goal', label: '중심 목표' },
-    { key: 'analysis_points', label: '분석 포인트' },
-    { key: 'concept_expression', label: '교과 개념을 드러내는 방식' },
-    { key: 'student_interpretation', label: '학생의 해석이 꼭 들어가야 하는 부분' }
-  ]
+    { key: "core_goal", label: "중심 목표" },
+    { key: "analysis_points", label: "분석 포인트" },
+    { key: "concept_expression", label: "교과 개념을 드러내는 방식" },
+    {
+      key: "student_interpretation",
+      label: "학생의 해석이 꼭 들어가야 하는 부분",
+    },
+  ],
 });
 
 /**
@@ -756,21 +765,23 @@ export const DESIGN_SECTION_ROW_LABELS = Object.freeze({
  * 문자열 조립(`:160-175`)은 폐기됐다(§12.1) — `resources[]` 배열이 대신한다.
  */
 export const DESIGN_RESOURCE_CARD_FIELDS = Object.freeze([
-  { key: 'title', label: '자료명', source: 'db' },
-  { key: 'source', label: '출처 정보', source: 'db' },
-  { key: 'link', label: '출처 링크', source: 'db' },
-  { key: 'core_concepts', label: '핵심 개념', source: 'db' },
-  { key: 'use_point', label: '활용 포인트', source: 'model' },
-  { key: 'caution', label: '작성 시 주의', source: 'const' }
+  { key: "title", label: "자료명", source: "db" },
+  { key: "source", label: "출처 정보", source: "db" },
+  { key: "link", label: "출처 링크", source: "db" },
+  { key: "core_concepts", label: "핵심 개념", source: "db" },
+  { key: "use_point", label: "활용 포인트", source: "model" },
+  { key: "caution", label: "작성 시 주의", source: "const" },
 ]);
 
 /** 자료 카드 필드가 비었을 때 채우는 문구. 원문 `find-resources.js:167-171`. */
 export const DESIGN_RESOURCE_FIELD_FALLBACKS = Object.freeze({
-  source: '출처 정보 확인 필요',
-  link: '출처 링크 확인 필요',
-  core_concepts: '선택 주제와 직접 관련되는 핵심 개념을 중심으로 확인한다.',
-  use_point: '자료의 사례와 분석 관점을 본론 근거로 활용하되, 학생의 해석을 덧붙인다.',
-  caution: '자료 내용을 그대로 옮기지 말고, 선택 주제와 연결되는 부분만 근거로 사용한다.'
+  source: "출처 정보 확인 필요",
+  link: "출처 링크 확인 필요",
+  core_concepts: "선택 주제와 직접 관련되는 핵심 개념을 중심으로 확인한다.",
+  use_point:
+    "자료의 사례와 분석 관점을 본론 근거로 활용하되, 학생의 해석을 덧붙인다.",
+  caution:
+    "자료 내용을 그대로 옮기지 말고, 선택 주제와 연결되는 부분만 근거로 사용한다.",
 });
 
 /**
@@ -779,9 +790,20 @@ export const DESIGN_RESOURCE_FIELD_FALLBACKS = Object.freeze({
  * `주의할 점` 행의 문구는 §12.1이 「서비스 신뢰 문구」로 지목한 원문 `:157`이다.
  */
 export const DESIGN_EMPTY_RESOURCE_ROWS = Object.freeze([
-  { label: '자료 활용 기준', content: '수업 개념과 선택 주제를 직접 연결할 수 있는 도서·기사·기관 자료만 사용한다.' },
-  { label: '작성 방식', content: '자료명, 저자 또는 기관, 출처 링크를 실제 확인한 뒤 본론의 근거로 정리한다.' },
-  { label: '주의할 점', content: '확인하지 않은 자료명이나 링크를 임의로 넣지 않는다.' }
+  {
+    label: "자료 활용 기준",
+    content:
+      "수업 개념과 선택 주제를 직접 연결할 수 있는 도서·기사·기관 자료만 사용한다.",
+  },
+  {
+    label: "작성 방식",
+    content:
+      "자료명, 저자 또는 기관, 출처 링크를 실제 확인한 뒤 본론의 근거로 정리한다.",
+  },
+  {
+    label: "주의할 점",
+    content: "확인하지 않은 자료명이나 링크를 임의로 넣지 않는다.",
+  },
 ]);
 
 /**
@@ -794,10 +816,25 @@ export const DESIGN_EMPTY_RESOURCE_ROWS = Object.freeze([
  * `writing_structure`의 결론 단계가 비었을 때 채우는 **기본값**으로만 쓴다.
  */
 export const DESIGN_CONCLUSION_DEFAULT_ROWS = Object.freeze([
-  { label: '정리 방식', content: '안내문 형식에 맞춰 앞에서 다룬 핵심 내용을 2~3가지로 압축한다.' },
-  { label: '새롭게 알게 된 점', content: '교과 개념과 선택 주제가 실제 문제 이해에 어떻게 도움이 되었는지 정리한다.' },
-  { label: '진로 또는 후속 탐구 연결', content: '희망 진로와 연결하되 과장하지 말고, 다음에 더 확인할 질문을 제시한다.' },
-  { label: '피해야 할 점', content: '본문에 없던 새로운 자료나 주장을 마지막에 갑자기 추가하지 않는다.' }
+  {
+    label: "정리 방식",
+    content: "안내문 형식에 맞춰 앞에서 다룬 핵심 내용을 2~3가지로 압축한다.",
+  },
+  {
+    label: "새롭게 알게 된 점",
+    content:
+      "교과 개념과 선택 주제가 실제 문제 이해에 어떻게 도움이 되었는지 정리한다.",
+  },
+  {
+    label: "진로 또는 후속 탐구 연결",
+    content:
+      "희망 진로와 연결하되 과장하지 말고, 다음에 더 확인할 질문을 제시한다.",
+  },
+  {
+    label: "피해야 할 점",
+    content:
+      "본문에 없던 새로운 자료나 주장을 마지막에 갑자기 추가하지 않는다.",
+  },
 ]);
 
 /**
@@ -853,7 +890,7 @@ export const DESIGN_WRITING_BRANCHES = Object.freeze({
 카드뉴스/발표/칼럼/독서감상문 등 다른 형식이면:
 - 해당 형식의 항목명에 맞춰 3~5개 작성 단계를 제시한다.
 - 서론/본론/결론이라는 명칭을 억지로 쓰지 않는다.
-`.trim()
+`.trim(),
 });
 
 /**
@@ -866,18 +903,22 @@ export const DESIGN_WRITING_BRANCHES = Object.freeze({
  * `기본 보고서형`(`:295`)이기 때문이다.
  */
 export const DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE = Object.freeze({
-  '문항별 답변형': 'question',
-  '카드뉴스·홍보물형': 'other',
-  '발표·PPT형': 'other',
-  '칼럼·논술형': 'other',
-  '안내문 맞춤 작성형': 'other',
-  '탐구보고서형': 'report',
-  '기본 보고서형': 'report'
+  "문항별 답변형": "question",
+  카드뉴스·홍보물형: "other",
+  발표·PPT형: "other",
+  칼럼·논술형: "other",
+  "안내문 맞춤 작성형": "other",
+  탐구보고서형: "report",
+  "기본 보고서형": "report",
 });
 
 /** @param {string} [structureType] `inferAssessmentStructure().type` */
-export function resolveDesignWritingBranch(structureType = '') {
-  return DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE[String(structureType || '').trim()] || 'report';
+export function resolveDesignWritingBranch(structureType = "") {
+  return (
+    DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE[
+      String(structureType || "").trim()
+    ] || "report"
+  );
 }
 
 /**
@@ -897,13 +938,13 @@ export function resolveDesignWritingBranch(structureType = '') {
 export function buildAllowedResourceList(resources = []) {
   const lines = (Array.isArray(resources) ? resources : [])
     .map((resource) => ({
-      id: String(resource?.id || '').trim(),
-      title: String(resource?.title || '').trim()
+      id: String(resource?.id || "").trim(),
+      title: String(resource?.title || "").trim(),
     }))
     .filter((resource) => resource.id && resource.title)
     .map((resource) => `- ${resource.id} | ${resource.title}`);
 
-  return lines.length ? lines.join('\n') : NO_ALLOWED_RESOURCE_TEXT;
+  return lines.length ? lines.join("\n") : NO_ALLOWED_RESOURCE_TEXT;
 }
 
 /**
@@ -923,16 +964,17 @@ export function buildAllowedResourceList(resources = []) {
  */
 export function buildDesignReportSystem({
   promptVersion = DESIGN_PROMPT_VERSION_DEFAULT,
-  structureType = '',
-  structureReason = '',
-  writingFrame = '',
-  writingBranch = '',
-  resourceKnowledgeText = '',
+  structureType = "",
+  structureReason = "",
+  writingFrame = "",
+  writingBranch = "",
+  resourceKnowledgeText = "",
   allowedResources = [],
-  studentHistoryText = ''
+  studentHistoryText = "",
 } = {}) {
   const branchKey = writingBranch || resolveDesignWritingBranch(structureType);
-  const branchText = DESIGN_WRITING_BRANCHES[branchKey] || DESIGN_WRITING_BRANCHES.report;
+  const branchText =
+    DESIGN_WRITING_BRANCHES[branchKey] || DESIGN_WRITING_BRANCHES.report;
 
   // ⓐ 원문 본문. v1은 이것 그대로이고, v2는 이 앞에 두 블록이 더 붙을 뿐이다.
   const body = `
@@ -961,13 +1003,13 @@ export function buildDesignReportSystem({
 16. 과거 수행과 유사한 흐름이 있으면 이번 선택 주제에 맞게 심화·확장 방향으로 재구성한다.
 
 [안내문 구조 판정]
-- 판정 유형: ${String(structureType || '').trim() || UNKNOWN_FIELD_TEXT}
-- 판정 근거: ${String(structureReason || '').trim() || UNKNOWN_FIELD_TEXT}
+- 판정 유형: ${String(structureType || "").trim() || UNKNOWN_FIELD_TEXT}
+- 판정 근거: ${String(structureReason || "").trim() || UNKNOWN_FIELD_TEXT}
 - 우선 작성 틀:
-${String(writingFrame || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(writingFrame || "").trim() || UNKNOWN_FIELD_TEXT}
 
 [홈페이지 위닝 수행 자료 DB]
-${String(resourceKnowledgeText || '').trim() || NO_RESOURCE_KNOWLEDGE_TEXT}
+${String(resourceKnowledgeText || "").trim() || NO_RESOURCE_KNOWLEDGE_TEXT}
 
 [사용 허용 자료명 목록]
 ${buildAllowedResourceList(allowedResources)}
@@ -975,7 +1017,7 @@ ${buildAllowedResourceList(allowedResources)}
 주의: chosen_resources 필드에는 위 [사용 허용 자료명 목록]에 있는 자료 id만 쓸 수 있다. 목록이 '없음'이면 id를 만들지 말고 chosen_resources를 빈 배열로 두며, 학생용 표현으로 자료 확인이 필요하다고만 정리하라. 학생에게 보이는 출력에는 DB, 내부 자료, RAG, 검증 자료 부족이라는 표현을 쓰지 마라.
 
 [학생 과거 수행 RAG]
-${String(studentHistoryText || '').trim() || NO_STUDENT_HISTORY_TEXT}
+${String(studentHistoryText || "").trim() || NO_STUDENT_HISTORY_TEXT}
 
 출력 방식:
 안내문이 문항별 답변형이면 문항별 작성 방향을 제시하고, 보고서형이면 서론/본론/결론 흐름을 제시하라.
@@ -1050,43 +1092,45 @@ ${branchText}
  * @param {string} [params.assessmentText] 수행평가 안내문 요약
  */
 export function buildDesignReportUser({
-  selectedTopic = '',
-  selectedTopicDetail = '',
-  gradeLabel = '',
-  semester = '',
-  schoolType = '',
-  subjectGroup = '',
-  subject = '',
-  career = '',
-  previousTopic = '',
-  assessmentText = ''
+  selectedTopic = "",
+  selectedTopicDetail = "",
+  gradeLabel = "",
+  semester = "",
+  schoolType = "",
+  subjectGroup = "",
+  subject = "",
+  career = "",
+  previousTopic = "",
+  assessmentText = "",
 } = {}) {
-  const gradeText = [gradeLabel, semester]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' ') || UNKNOWN_FIELD_TEXT;
+  const gradeText =
+    [gradeLabel, semester]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ") || UNKNOWN_FIELD_TEXT;
 
-  const subjectText = [subjectGroup, subject]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' / ') || UNKNOWN_FIELD_TEXT;
+  const subjectText =
+    [subjectGroup, subject]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" / ") || UNKNOWN_FIELD_TEXT;
 
   return `
 [선택 주제]
-${String(selectedTopic || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(selectedTopic || "").trim() || UNKNOWN_FIELD_TEXT}
 
 [선택 주제 상세]
-${String(selectedTopicDetail || '').trim() || NO_TOPIC_DETAIL_TEXT}
+${String(selectedTopicDetail || "").trim() || NO_TOPIC_DETAIL_TEXT}
 
 [학생 정보]
 - 학년/학기: ${gradeText}
-- 학교 유형: ${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+- 학교 유형: ${String(schoolType || "").trim() || UNKNOWN_FIELD_TEXT}
 - 선택 과목: ${subjectText}
-- 희망 진로: ${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
-- 이전 주제: ${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+- 희망 진로: ${String(career || "").trim() || UNKNOWN_FIELD_TEXT}
+- 이전 주제: ${String(previousTopic || "").trim() || NO_PREVIOUS_TOPIC_TEXT}
 
 [수행평가 안내문 요약]
-${String(assessmentText || '').trim() || NO_ASSESSMENT_INFO_TEXT}
+${String(assessmentText || "").trim() || NO_ASSESSMENT_INFO_TEXT}
 
 작업:
 - 선택 주제를 기준으로 통합 수행평가 설계 리포트를 작성하라.
@@ -1127,131 +1171,151 @@ ${String(assessmentText || '').trim() || NO_ASSESSMENT_INFO_TEXT}
  *   7 (라벨 없이 자료 재등장) → **시안 오류로 판정돼 스키마에 없다**(§5.13, §11-Q13)
  */
 export const DESIGN_REPORT_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
     final_topic: {
-      type: 'object',
+      type: "object",
       properties: {
-        topic_name: { type: 'string' },
-        core_meaning: { type: 'string' },
-        subject_link: { type: 'string' },
-        career_link: { type: 'string' }
+        topic_name: { type: "string" },
+        core_meaning: { type: "string" },
+        subject_link: { type: "string" },
+        career_link: { type: "string" },
       },
-      required: ['topic_name', 'core_meaning', 'subject_link', 'career_link'],
-      propertyOrdering: ['topic_name', 'core_meaning', 'subject_link', 'career_link']
+      required: ["topic_name", "core_meaning", "subject_link", "career_link"],
+      propertyOrdering: [
+        "topic_name",
+        "core_meaning",
+        "subject_link",
+        "career_link",
+      ],
     },
     required_format: {
-      type: 'object',
+      type: "object",
       properties: {
-        submission_format: { type: 'string' },
-        item_vs_criteria: { type: 'string' },
-        report_structure: { type: 'string' },
-        cautions: { type: 'string' }
+        submission_format: { type: "string" },
+        item_vs_criteria: { type: "string" },
+        report_structure: { type: "string" },
+        cautions: { type: "string" },
       },
-      required: ['submission_format', 'item_vs_criteria', 'report_structure', 'cautions'],
-      propertyOrdering: ['submission_format', 'item_vs_criteria', 'report_structure', 'cautions']
+      required: [
+        "submission_format",
+        "item_vs_criteria",
+        "report_structure",
+        "cautions",
+      ],
+      propertyOrdering: [
+        "submission_format",
+        "item_vs_criteria",
+        "report_structure",
+        "cautions",
+      ],
     },
     overall_direction: {
-      type: 'object',
+      type: "object",
       properties: {
-        core_goal: { type: 'string' },
+        core_goal: { type: "string" },
         // §5.13 실측: `분석 포인트:`만 번호 목록이다. 번호는 서버가 붙인다.
         analysis_points: {
-          type: 'array',
+          type: "array",
           minItems: 2,
           maxItems: 6,
-          items: { type: 'string' }
+          items: { type: "string" },
         },
-        concept_expression: { type: 'string' },
-        student_interpretation: { type: 'string' }
+        concept_expression: { type: "string" },
+        student_interpretation: { type: "string" },
       },
-      required: ['core_goal', 'analysis_points', 'concept_expression', 'student_interpretation'],
+      required: [
+        "core_goal",
+        "analysis_points",
+        "concept_expression",
+        "student_interpretation",
+      ],
       propertyOrdering: [
-        'core_goal',
-        'analysis_points',
-        'concept_expression',
-        'student_interpretation'
-      ]
+        "core_goal",
+        "analysis_points",
+        "concept_expression",
+        "student_interpretation",
+      ],
     },
     writing_structure: {
-      type: 'object',
+      type: "object",
       properties: {
         steps: {
-          type: 'array',
+          type: "array",
           // 문항형 안내문은 문항 수만큼 단계가 늘고, `그 외` 형식은 원문이 `3~5개`로
           // 못박는다(`find-resources.js:482`). 상한 12는 그 사이를 덮으면서
           // `maxOutputTokens` 안에 들어오는 값이다.
           minItems: 1,
           maxItems: 12,
           items: {
-            type: 'object',
+            type: "object",
             properties: {
               // `서론 구성 방향` / `문항 1. [문항 내용]` 같은 단계 제목.
-              title: { type: 'string' },
+              title: { type: "string" },
               rows: {
-                type: 'array',
+                type: "array",
                 minItems: 1,
                 maxItems: 8,
                 items: {
-                  type: 'object',
+                  type: "object",
                   properties: {
-                    label: { type: 'string' },
-                    content: { type: 'string' }
+                    label: { type: "string" },
+                    content: { type: "string" },
                   },
-                  required: ['label', 'content'],
-                  propertyOrdering: ['label', 'content']
-                }
-              }
+                  required: ["label", "content"],
+                  propertyOrdering: ["label", "content"],
+                },
+              },
             },
-            required: ['title', 'rows'],
-            propertyOrdering: ['title', 'rows']
-          }
-        }
+            required: ["title", "rows"],
+            propertyOrdering: ["title", "rows"],
+          },
+        },
       },
-      required: ['steps'],
-      propertyOrdering: ['steps']
+      required: ["steps"],
+      propertyOrdering: ["steps"],
     },
     // 원문 뼈대가 `체크 1:` ~ `체크 5:`로 5개를 고정한다(`find-resources.js:486-490`).
     checklist: {
-      type: 'array',
+      type: "array",
       minItems: 5,
       maxItems: 5,
-      items: { type: 'string' }
+      items: { type: "string" },
     },
     // §8.4 「`chosen_resource_ids: string[]`(최대 3) + 자료별 `use_point`」.
     // **두 배열을 나란히 두지 않고 객체 배열 하나로 합쳤다** — 병렬 배열은 길이가
     // 어긋나는 순간 활용 포인트가 엉뚱한 자료에 붙고, 그 오류는 렌더까지 조용히 간다.
     chosen_resources: {
-      type: 'array',
+      type: "array",
       minItems: 0,
       maxItems: 3,
       items: {
-        type: 'object',
+        type: "object",
         properties: {
-          resource_id: { type: 'string' },
-          use_point: { type: 'string' }
+          resource_id: { type: "string" },
+          use_point: { type: "string" },
         },
-        required: ['resource_id', 'use_point'],
-        propertyOrdering: ['resource_id', 'use_point']
-      }
-    }
+        required: ["resource_id", "use_point"],
+        propertyOrdering: ["resource_id", "use_point"],
+      },
+    },
   },
   required: [
-    'final_topic',
-    'required_format',
-    'overall_direction',
-    'writing_structure',
-    'checklist',
-    'chosen_resources'
+    "final_topic",
+    "required_format",
+    "overall_direction",
+    "writing_structure",
+    "checklist",
+    "chosen_resources",
   ],
   propertyOrdering: [
-    'final_topic',
-    'required_format',
-    'overall_direction',
-    'writing_structure',
-    'checklist',
-    'chosen_resources'
-  ]
+    "final_topic",
+    "required_format",
+    "overall_direction",
+    "writing_structure",
+    "checklist",
+    "chosen_resources",
+  ],
 };
 
 /**
@@ -1287,7 +1351,7 @@ export const DESIGN_REPORT_SCHEMA = {
  */
 export const DESIGN_GENERATION_DEFAULTS = {
   temperature: 0.25,
-  maxOutputTokens: 8192
+  maxOutputTokens: 8192,
 };
 
 /**
@@ -1297,7 +1361,6 @@ export const DESIGN_GENERATION_DEFAULTS = {
  * 가능성이 높으므로 더 올리지 않고 422로 끝낸다.
  */
 export const DESIGN_MAX_OUTPUT_TOKENS_RETRY = 12288;
-
 
 // ─────────────────────────────────────────────────────────────────────
 // 평가 리포트 (P11)
@@ -1377,13 +1440,13 @@ export const DESIGN_MAX_OUTPUT_TOKENS_RETRY = 12288;
  * `:113`)에서 번호 접두어만 뗀 문자열이고, §5.16 시안 섹션 라벨과도 일치한다.
  */
 export const EVALUATION_REPORT_SECTIONS = [
-  { id: 'rubric_fit', label: '평가 기준 충족도', kind: 'triad' },
-  { id: 'topic_fit', label: '주제 적합성', kind: 'triad' },
-  { id: 'content_structure', label: '내용 구성', kind: 'triad' },
-  { id: 'resource_use', label: '자료 활용', kind: 'triad' },
-  { id: 'career_link', label: '진로 및 심화 탐구 연결성', kind: 'triad' },
-  { id: 'plagiarism', label: '표절 위험 문장', kind: 'note' },
-  { id: 'record_summary', label: '누적 기록용 요약', kind: 'keyValue' }
+  { id: "rubric_fit", label: "평가 기준 충족도", kind: "triad" },
+  { id: "topic_fit", label: "주제 적합성", kind: "triad" },
+  { id: "content_structure", label: "내용 구성", kind: "triad" },
+  { id: "resource_use", label: "자료 활용", kind: "triad" },
+  { id: "career_link", label: "진로 및 심화 탐구 연결성", kind: "triad" },
+  { id: "plagiarism", label: "표절 위험 문장", kind: "note" },
+  { id: "record_summary", label: "누적 기록용 요약", kind: "keyValue" },
 ];
 
 /**
@@ -1392,9 +1455,9 @@ export const EVALUATION_REPORT_SECTIONS = [
  * 스키마 필드명 → 렌더 라벨 사상을 여기 한 곳에서만 정한다.
  */
 export const EVALUATION_TRIAD_ROW_LABELS = Object.freeze([
-  { key: 'good', label: '잘한 점' },
-  { key: 'bad', label: '아쉬운 점' },
-  { key: 'improve', label: '보완할 점' }
+  { key: "good", label: "잘한 점" },
+  { key: "bad", label: "아쉬운 점" },
+  { key: "improve", label: "보완할 점" },
 ]);
 
 /**
@@ -1402,10 +1465,10 @@ export const EVALUATION_TRIAD_ROW_LABELS = Object.freeze([
  * §8.4가 `minItems/maxItems:4`로 못박은 그 4행이다.
  */
 export const EVALUATION_RECORD_SUMMARY_ROW_LABELS = Object.freeze([
-  { key: 'core_summary', label: '수행 핵심 요약' },
-  { key: 'keywords', label: '핵심 키워드' },
-  { key: 'same_subject_next', label: '같은 과목에서 다음에 심화할 방향' },
-  { key: 'cross_subject_next', label: '다른 과목으로 확장 가능한 방향' }
+  { key: "core_summary", label: "수행 핵심 요약" },
+  { key: "keywords", label: "핵심 키워드" },
+  { key: "same_subject_next", label: "같은 과목에서 다음에 심화할 방향" },
+  { key: "cross_subject_next", label: "다른 과목으로 확장 가능한 방향" },
 ]);
 
 /**
@@ -1413,8 +1476,8 @@ export const EVALUATION_RECORD_SUMMARY_ROW_LABELS = Object.freeze([
  * §5.16 실측 헤더는 `종합 평가 점수`이고 본문에 `86/100` + `총평:`이 온다.
  */
 export const EVALUATION_SCORE_CARD_LABELS = Object.freeze({
-  score: '종합 평가 점수',
-  summary: '총평'
+  score: "종합 평가 점수",
+  summary: "총평",
 });
 
 /**
@@ -1434,14 +1497,14 @@ export const SUBMISSION_MIN_CHARS = 100;
  * **다른 문자열이다.** 두 원문이 서로 다른 문구를 쓰므로 통일하지 않는다 — 통일하는 순간
  * 어느 한쪽이 원문 이식이 아니게 된다.
  */
-export const NO_ASSESSMENT_CRITERIA_TEXT = '평가 기준 정보 없음';
+export const NO_ASSESSMENT_CRITERIA_TEXT = "평가 기준 정보 없음";
 
 /** 원문 `evaluate-text.js:34` — 제출물이 비었을 때. `400 EMPTY_SUBMISSION`의 message. */
-export const EMPTY_SUBMISSION_MESSAGE = '평가할 제출물이 필요합니다.';
+export const EMPTY_SUBMISSION_MESSAGE = "평가할 제출물이 필요합니다.";
 
 /** 원문 `evaluate-text.js:39` — 최소 길이 미달. `400 SUBMISSION_TOO_SHORT`의 message. */
 export const SUBMISSION_TOO_SHORT_MESSAGE =
-  '제출물이 너무 짧습니다. 실제 수행평가 제출물을 입력한 뒤 평가해주세요.';
+  "제출물이 너무 짧습니다. 실제 수행평가 제출물을 입력한 뒤 평가해주세요.";
 
 // ⚠️ **글자 수 계산 함수는 이 파일에 두지 않는다.**
 //    P11 초기에 여기에도 `countSubmissionChars(fields)`가 있었는데(모든 키를 UTF-16
@@ -1507,16 +1570,16 @@ export const EVALUATION_FORMAT_BRIDGE_RULES = `
  * @param {string} [params.writingFrame] 같은 함수의 `writingFrame`
  */
 export function buildEvaluationFormatBridge({
-  structureType = '',
-  structureReason = '',
-  writingFrame = ''
+  structureType = "",
+  structureReason = "",
+  writingFrame = "",
 } = {}) {
   return `
 [제출 형식 컨텍스트]
-- 판정 유형: ${String(structureType || '').trim() || UNKNOWN_FIELD_TEXT}
-- 판정 근거: ${String(structureReason || '').trim() || UNKNOWN_FIELD_TEXT}
+- 판정 유형: ${String(structureType || "").trim() || UNKNOWN_FIELD_TEXT}
+- 판정 근거: ${String(structureReason || "").trim() || UNKNOWN_FIELD_TEXT}
 - 안내문이 요구한 작성 틀:
-${String(writingFrame || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(writingFrame || "").trim() || UNKNOWN_FIELD_TEXT}
 ${EVALUATION_FORMAT_BRIDGE_RULES}
 `.trim();
 }
@@ -1537,9 +1600,9 @@ ${EVALUATION_FORMAT_BRIDGE_RULES}
  * @param {string} [params.writingFrame] 같은 함수의 `writingFrame`
  */
 export function buildEvaluationSystem({
-  structureType = '',
-  structureReason = '',
-  writingFrame = ''
+  structureType = "",
+  structureReason = "",
+  writingFrame = "",
 } = {}) {
   // ⓐ+ⓑ 원문 앞덩어리 — 역할 3줄(`:65-67`) + 출력 규칙(`:69`,`:70`,`:73-80`).
   //    삭제한 것은 `:71`·`:72`(포맷 강제)뿐이고 나머지는 번호만 1~9로 당겨졌다.
@@ -1605,7 +1668,11 @@ export function buildEvaluationSystem({
 - 총평:
 `.trim();
 
-  const bridge = buildEvaluationFormatBridge({ structureType, structureReason, writingFrame });
+  const bridge = buildEvaluationFormatBridge({
+    structureType,
+    structureReason,
+    writingFrame,
+  });
 
   return `${CORE_PRINCIPLES}\n\n${head}\n\n${bridge}\n\n${format}`;
 }
@@ -1645,51 +1712,53 @@ export function buildEvaluationSystem({
  *   (§8.6 — 「평문 결합 텍스트를 클라이언트가 조립해 보내지 않는다」)
  */
 export function buildEvaluationUser({
-  assessmentText = '',
-  selectedTopic = '',
-  career = '',
-  gradeLabel = '',
-  semester = '',
-  schoolType = '',
-  subjectGroup = '',
-  subject = '',
-  previousTopic = '',
-  submissionText = ''
+  assessmentText = "",
+  selectedTopic = "",
+  career = "",
+  gradeLabel = "",
+  semester = "",
+  schoolType = "",
+  subjectGroup = "",
+  subject = "",
+  previousTopic = "",
+  submissionText = "",
 } = {}) {
-  const gradeText = [gradeLabel, semester]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' ') || UNKNOWN_FIELD_TEXT;
+  const gradeText =
+    [gradeLabel, semester]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ") || UNKNOWN_FIELD_TEXT;
 
-  const subjectText = [subjectGroup, subject]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)
-    .join(' / ') || UNKNOWN_FIELD_TEXT;
+  const subjectText =
+    [subjectGroup, subject]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" / ") || UNKNOWN_FIELD_TEXT;
 
   return `
 [평가 기준]
-${String(assessmentText || '').trim() || NO_ASSESSMENT_CRITERIA_TEXT}
+${String(assessmentText || "").trim() || NO_ASSESSMENT_CRITERIA_TEXT}
 
 [선택 주제]
-${String(selectedTopic || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(selectedTopic || "").trim() || UNKNOWN_FIELD_TEXT}
 
 [희망 진로]
-${String(career || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(career || "").trim() || UNKNOWN_FIELD_TEXT}
 
 [학년/학기]
 ${gradeText}
 
 [학교 유형]
-${String(schoolType || '').trim() || UNKNOWN_FIELD_TEXT}
+${String(schoolType || "").trim() || UNKNOWN_FIELD_TEXT}
 
 [선택 과목]
 ${subjectText}
 
 [이전에 했던 주제]
-${String(previousTopic || '').trim() || NO_PREVIOUS_TOPIC_TEXT}
+${String(previousTopic || "").trim() || NO_PREVIOUS_TOPIC_TEXT}
 
 [학생 제출물]
-${String(submissionText || '')}
+${String(submissionText || "")}
 
 작업:
 수행평가 안내문의 평가 기준을 최우선으로 하여 제출물을 평가하세요.
@@ -1734,67 +1803,77 @@ ${String(submissionText || '')}
  */
 function evaluationTriadField() {
   return {
-    type: 'object',
+    type: "object",
     properties: {
-      good: { type: 'string' },
-      bad: { type: 'string' },
-      improve: { type: 'string' }
+      good: { type: "string" },
+      bad: { type: "string" },
+      improve: { type: "string" },
     },
-    required: ['good', 'bad', 'improve'],
-    propertyOrdering: ['good', 'bad', 'improve']
+    required: ["good", "bad", "improve"],
+    propertyOrdering: ["good", "bad", "improve"],
   };
 }
 
 export const EVALUATION_REPORT_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
     // §8.4 완화책 ⓐ — number 금지. 0~100 범위 검증은 서버(`parseEvaluationScore`).
     // 스키마의 `pattern`은 1차 방어일 뿐이며 서버 검증을 대신하지 않는다.
-    score: { type: 'string', pattern: '^\\d{1,3}$' },
-    summary: { type: 'string' },
+    score: { type: "string", pattern: "^\\d{1,3}$" },
+    summary: { type: "string" },
     rubric_fit: evaluationTriadField(),
     topic_fit: evaluationTriadField(),
     content_structure: evaluationTriadField(),
     resource_use: evaluationTriadField(),
     career_link: evaluationTriadField(),
-    plagiarism: { type: 'string' },
+    plagiarism: { type: "string" },
     record_summary: {
-      type: 'object',
+      type: "object",
       properties: {
-        core_summary: { type: 'string' },
-        keywords: { type: 'string' },
-        same_subject_next: { type: 'string' },
-        cross_subject_next: { type: 'string' }
+        core_summary: { type: "string" },
+        keywords: { type: "string" },
+        same_subject_next: { type: "string" },
+        cross_subject_next: { type: "string" },
       },
-      required: ['core_summary', 'keywords', 'same_subject_next', 'cross_subject_next'],
-      propertyOrdering: ['core_summary', 'keywords', 'same_subject_next', 'cross_subject_next']
-    }
+      required: [
+        "core_summary",
+        "keywords",
+        "same_subject_next",
+        "cross_subject_next",
+      ],
+      propertyOrdering: [
+        "core_summary",
+        "keywords",
+        "same_subject_next",
+        "cross_subject_next",
+      ],
+    },
   },
   required: [
-    'score',
-    'summary',
-    'rubric_fit',
-    'topic_fit',
-    'content_structure',
-    'resource_use',
-    'career_link',
-    'plagiarism',
-    'record_summary'
+    "score",
+    "summary",
+    "rubric_fit",
+    "topic_fit",
+    "content_structure",
+    "resource_use",
+    "career_link",
+    "plagiarism",
+    "record_summary",
   ],
   // 원문 평가 형식 항목 순서(1 종합 평가 → 2~8)를 그대로 따른다. Gemini는 이 배열
   // 순서로 필드를 생성하므로, 점수를 먼저 내게 해서 8항목 끝까지 못 가고 잘려도
   // 점수 카드가 살아남는 쪽에 건다.
   propertyOrdering: [
-    'score',
-    'summary',
-    'rubric_fit',
-    'topic_fit',
-    'content_structure',
-    'resource_use',
-    'career_link',
-    'plagiarism',
-    'record_summary'
-  ]
+    "score",
+    "summary",
+    "rubric_fit",
+    "topic_fit",
+    "content_structure",
+    "resource_use",
+    "career_link",
+    "plagiarism",
+    "record_summary",
+  ],
 };
 
 /**
@@ -1822,7 +1901,7 @@ export const EVALUATION_REPORT_SCHEMA = {
  * @returns {number|null} 0~100 정수, 아니면 `null`
  */
 export function parseEvaluationScore(raw) {
-  if (typeof raw !== 'string') return null;
+  if (typeof raw !== "string") return null;
 
   const text = raw.trim();
 
@@ -1864,7 +1943,7 @@ export function parseEvaluationScore(raw) {
  */
 export const EVALUATION_GENERATION_DEFAULTS = {
   temperature: 0.25,
-  maxOutputTokens: 6144
+  maxOutputTokens: 6144,
 };
 
 /**
@@ -1884,4 +1963,4 @@ export const EVALUATION_MAX_OUTPUT_TOKENS_RETRY = 8192;
  *
  * 위 ⓐ~ⓔ 경계 중 **어느 한 줄이라도** 바뀌면 이 값을 올린다.
  */
-export const EVALUATION_PROMPT_VERSION = 'eval-v1';
+export const EVALUATION_PROMPT_VERSION = "eval-v1";

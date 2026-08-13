@@ -4,8 +4,14 @@ export default function GoalCardHeader({ title, meta, action }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-baseline gap-2">
-        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">{title}</h3>
-        {meta && <span className="text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">{meta}</span>}
+        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+          {title}
+        </h3>
+        {meta && (
+          <span className="text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">
+            {meta}
+          </span>
+        )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

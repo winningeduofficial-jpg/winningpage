@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useRef } from "react";
 
 // 모달 내 단일 선택 라디오 그룹(세그먼트 칩) — docs/figma-goal/00-INDEX.md §5-4 `SegmentedChipGroup`.
 // 시안 실측 폭은 80×39 ×5 / 99×39 ×4 / 81×39 ×4로 모달마다 다르지만, 폭을 고정하지 말고
@@ -11,7 +11,12 @@ import { useId, useRef } from 'react';
 //
 // 접근성(코드 검수 §4): role="radiogroup"/"radio"인데 roving tabindex·방향키 이동이 없었다.
 // GoalTabs.jsx의 패턴을 그대로 이식한다.
-export default function SegmentedChipGroup({ options, value, onChange, ariaLabel }) {
+export default function SegmentedChipGroup({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}) {
   const groupId = useId();
   const optionRefs = useRef([]);
 
@@ -21,12 +26,12 @@ export default function SegmentedChipGroup({ options, value, onChange, ariaLabel
   };
 
   const handleKeyDown = (event, index) => {
-    if (event.key === 'ArrowRight') {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;
       onChange(options[next].value);
       focusOption(next);
-    } else if (event.key === 'ArrowLeft') {
+    } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       const prev = (index - 1 + options.length) % options.length;
       onChange(options[prev].value);
@@ -35,7 +40,11 @@ export default function SegmentedChipGroup({ options, value, onChange, ariaLabel
   };
 
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className="flex flex-wrap gap-[0.375rem]">
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="flex flex-wrap gap-[0.375rem]"
+    >
       {options.map((option, index) => {
         const selected = option.value === value;
         return (
@@ -53,8 +62,8 @@ export default function SegmentedChipGroup({ options, value, onChange, ariaLabel
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={`h-[2.4375rem] min-w-[4rem] flex-1 rounded-lg border px-3 text-[0.8125rem] font-medium leading-[1.4] transition-colors ${
               selected
-                ? 'border-accent bg-surface-03 font-bold text-accent' // (추정) 선택 상태
-                : 'border-[#E3E3E3] bg-white text-ink-sub'
+                ? "border-accent bg-surface-03 font-bold text-accent" // (추정) 선택 상태
+                : "border-[#E3E3E3] bg-white text-ink-sub"
             }`}
           >
             {option.label}

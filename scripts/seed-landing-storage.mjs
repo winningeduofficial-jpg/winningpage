@@ -22,13 +22,13 @@
 //   - DDL·시드 SQL은 이 스크립트가 다루지 않음 (sql/30_landing_admin_media.sql 참고).
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
-import { createInterface } from 'node:readline/promises';
-import { parseArgs } from 'node:util';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { createClient } from "@supabase/supabase-js";
+import { readdir, readFile, writeFile, stat } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
+import { parseArgs } from "node:util";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------
 // 멘토 한글 파일명 → Storage 키 슬러그 매핑 (photos/cards 공용, 22명)
@@ -37,70 +37,75 @@ import { fileURLToPath } from 'node:url';
 // 이후 SQL 백필·검증 스크립트에서 재사용 (export 유지).
 // ---------------------------------------------------------------------
 export const MENTOR_SLUGS = {
-  강지후: '01-kang-jihu',
-  김형준: '02-kim-hyeongjun',
-  박서정: '03-park-seojeong',
-  박찬일: '04-park-chanil',
-  이청훈: '05-lee-cheonghun',
-  김무경: '06-kim-mugyeong',
-  하현서: '07-ha-hyeonseo',
-  제민규: '08-je-mingyu',
-  김단아: '09-kim-dana',
-  김성훈: '10-kim-seonghun',
-  박민정: '11-park-minjeong',
-  김정윤: '12-kim-jeongyun',
-  손주연: '13-son-juyeon',
-  신영진: '14-shin-yeongjin',
-  정재웅: '15-jeong-jaewoong',
-  성민우: '16-seong-minwoo',
-  최정연: '17-choi-jeongyeon',
-  이승현: '18-lee-seunghyun',
-  한정원: '19-han-jeongwon',
-  정채윤: '20-jeong-chaeyun',
-  함다현: '21-ham-dahyun',
-  한혜원: '22-han-hyewon',
+  강지후: "01-kang-jihu",
+  김형준: "02-kim-hyeongjun",
+  박서정: "03-park-seojeong",
+  박찬일: "04-park-chanil",
+  이청훈: "05-lee-cheonghun",
+  김무경: "06-kim-mugyeong",
+  하현서: "07-ha-hyeonseo",
+  제민규: "08-je-mingyu",
+  김단아: "09-kim-dana",
+  김성훈: "10-kim-seonghun",
+  박민정: "11-park-minjeong",
+  김정윤: "12-kim-jeongyun",
+  손주연: "13-son-juyeon",
+  신영진: "14-shin-yeongjin",
+  정재웅: "15-jeong-jaewoong",
+  성민우: "16-seong-minwoo",
+  최정연: "17-choi-jeongyeon",
+  이승현: "18-lee-seunghyun",
+  한정원: "19-han-jeongwon",
+  정채윤: "20-jeong-chaeyun",
+  함다현: "21-ham-dahyun",
+  한혜원: "22-han-hyewon",
 };
 
-const BUCKET = 'banners';
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
-const CACHE_CONTROL = '31536000, immutable';
+const BUCKET = "banners";
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
+const CACHE_CONTROL = "31536000, immutable";
 const MAX_LONG_EDGE = 1600; // px — 초과 시 비율 유지 리사이즈
 const MAX_BYTES = 500 * 1024; // 500KB 초과 시 재인코딩 시도
-const LOCAL_PREFIX = '/images/landing/';
+const LOCAL_PREFIX = "/images/landing/";
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const landingDir = path.join(rootDir, 'public/images/landing');
+const rootDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const landingDir = path.join(rootDir, "public/images/landing");
 
 // URL 컬럼 UPDATE 대상 (플랜 §1-3: 5개 테이블 고정)
 const DB_TARGETS = [
-  { table: 'banners', columns: ['image_url'] },
-  { table: 'home_side_banners', columns: ['image_url', 'mobile_image_url'] },
-  { table: 'university_acceptances', columns: ['emblem_url'] },
-  { table: 'program_categories', columns: ['icon_image_url'] },
-  { table: 'home_mentor_strategies', columns: ['photo_url'] },
+  { table: "banners", columns: ["image_url"] },
+  { table: "home_side_banners", columns: ["image_url", "mobile_image_url"] },
+  { table: "university_acceptances", columns: ["emblem_url"] },
+  { table: "program_categories", columns: ["icon_image_url"] },
+  { table: "home_mentor_strategies", columns: ["photo_url"] },
 ];
 
 function parseCliArgs() {
   const { values } = parseArgs({
     options: {
-      env: { type: 'string' },
-      'apply-db': { type: 'boolean', default: false },
-      out: { type: 'string', default: './landing-url-map.json' },
+      env: { type: "string" },
+      "apply-db": { type: "boolean", default: false },
+      out: { type: "string", default: "./landing-url-map.json" },
     },
   });
-  if (values.env !== 'dev' && values.env !== 'prod') {
-    console.error('사용법: --env dev|prod 필수 (예: node scripts/seed-landing-storage.mjs --env dev)');
+  if (values.env !== "dev" && values.env !== "prod") {
+    console.error(
+      "사용법: --env dev|prod 필수 (예: node scripts/seed-landing-storage.mjs --env dev)",
+    );
     process.exit(1);
   }
-  return { env: values.env, applyDb: values['apply-db'], out: values.out };
+  return { env: values.env, applyDb: values["apply-db"], out: values.out };
 }
 
 async function confirmProd() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const answer = (await rl.question("PROD 업로드 진행? yes 입력: ")).trim();
   rl.close();
-  if (answer !== 'yes') {
-    console.error('중단: yes가 입력되지 않았습니다.');
+  if (answer !== "yes") {
+    console.error("중단: yes가 입력되지 않았습니다.");
     process.exit(1);
   }
 }
@@ -110,7 +115,9 @@ async function confirmProd() {
 // ---------------------------------------------------------------------
 async function listPngs(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
-  return entries.filter((e) => e.isFile() && e.name.endsWith('.png')).map((e) => e.name);
+  return entries
+    .filter((e) => e.isFile() && e.name.endsWith(".png"))
+    .map((e) => e.name);
 }
 
 async function collectFiles() {
@@ -124,32 +131,38 @@ async function collectFiles() {
   };
 
   // hero: 전 파일 (미참조 main-banner-bg, side-banner-callmentor 포함)
-  for (const name of await listPngs(path.join(landingDir, 'hero'))) {
+  for (const name of await listPngs(path.join(landingDir, "hero"))) {
     add(`hero/${name}`, `hero/${name}`);
   }
 
   // acceptance: medical 하위 폴더 평면화, 파일명 충돌 시 medical- prefix
-  const topNames = await listPngs(path.join(landingDir, 'acceptance'));
+  const topNames = await listPngs(path.join(landingDir, "acceptance"));
   for (const name of topNames) {
     add(`acceptance/${name}`, `acceptance/${name}`);
   }
-  for (const name of await listPngs(path.join(landingDir, 'acceptance/medical'))) {
+  for (const name of await listPngs(
+    path.join(landingDir, "acceptance/medical"),
+  )) {
     const flatName = topNames.includes(name) ? `medical-${name}` : name;
     add(`acceptance/medical/${name}`, `acceptance/${flatName}`);
   }
 
   // services: icon-shadow.png는 정적 유지 — 이관 제외
-  for (const name of await listPngs(path.join(landingDir, 'services'))) {
-    if (name === 'icon-shadow.png') continue;
+  for (const name of await listPngs(path.join(landingDir, "services"))) {
+    if (name === "icon-shadow.png") continue;
     add(`services/${name}`, `services/${name}`);
   }
 
   // mentors: 한글 파일명 → 슬러그 키 (Storage 키에 한글 금지)
-  for (const sub of ['photos', 'cards']) {
-    for (const name of await listPngs(path.join(landingDir, `mentors/${sub}`))) {
-      const slug = MENTOR_SLUGS[path.basename(name, '.png')];
+  for (const sub of ["photos", "cards"]) {
+    for (const name of await listPngs(
+      path.join(landingDir, `mentors/${sub}`),
+    )) {
+      const slug = MENTOR_SLUGS[path.basename(name, ".png")];
       if (!slug) {
-        throw new Error(`MENTOR_SLUGS에 없는 멘토 파일: mentors/${sub}/${name} — 매핑 추가 필요`);
+        throw new Error(
+          `MENTOR_SLUGS에 없는 멘토 파일: mentors/${sub}/${name} — 매핑 추가 필요`,
+        );
       }
       add(`mentors/${sub}/${name}`, `mentors/${sub}/${slug}.png`);
     }
@@ -163,9 +176,11 @@ async function collectFiles() {
 // ---------------------------------------------------------------------
 async function loadSharp() {
   try {
-    return (await import('sharp')).default;
+    return (await import("sharp")).default;
   } catch {
-    console.warn('[warn] sharp 미설치 — 원본 그대로 업로드합니다. 최적화하려면: pnpm add -D sharp');
+    console.warn(
+      "[warn] sharp 미설치 — 원본 그대로 업로드합니다. 최적화하려면: pnpm add -D sharp",
+    );
     return null;
   }
 }
@@ -176,18 +191,26 @@ async function prepareBuffer(sharp, absPath) {
 
   const meta = await sharp(original).metadata();
   const longEdge = Math.max(meta.width ?? 0, meta.height ?? 0);
-  if (longEdge <= MAX_LONG_EDGE && original.length <= MAX_BYTES) return original;
+  if (longEdge <= MAX_LONG_EDGE && original.length <= MAX_BYTES)
+    return original;
 
   // fit:'inside' — 장변 기준 비율 유지 축소 (확대 금지)
   const optimized = await sharp(original)
-    .resize({ width: MAX_LONG_EDGE, height: MAX_LONG_EDGE, fit: 'inside', withoutEnlargement: true })
+    .resize({
+      width: MAX_LONG_EDGE,
+      height: MAX_LONG_EDGE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
     .png({ compressionLevel: 9 })
     .toBuffer();
 
   if (optimized.length >= original.length) return original;
   console.log(
     `  최적화 ${path.basename(absPath)}: ${(original.length / 1024).toFixed(0)}KB → ${(optimized.length / 1024).toFixed(0)}KB` +
-      (longEdge > MAX_LONG_EDGE ? ` (장변 ${longEdge}px → ${MAX_LONG_EDGE}px)` : '')
+      (longEdge > MAX_LONG_EDGE
+        ? ` (장변 ${longEdge}px → ${MAX_LONG_EDGE}px)`
+        : ""),
   );
   return optimized;
 }
@@ -202,15 +225,19 @@ async function uploadAll(supabase, sharp, files) {
 
   for (const file of files) {
     const buffer = await prepareBuffer(sharp, file.absPath);
-    const { error } = await supabase.storage.from(BUCKET).upload(file.key, buffer, {
-      cacheControl: CACHE_CONTROL,
-      contentType: 'image/png',
-      upsert: false,
-    });
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(file.key, buffer, {
+        cacheControl: CACHE_CONTROL,
+        contentType: "image/png",
+        upsert: false,
+      });
 
     if (error) {
       // 이미 존재(409) — 키 불변 정책상 정상 케이스, skip 후 URL만 수집
-      const isConflict = error.statusCode === '409' || /already exists/i.test(error.message ?? '');
+      const isConflict =
+        error.statusCode === "409" ||
+        /already exists/i.test(error.message ?? "");
       if (!isConflict) {
         throw new Error(`업로드 실패 ${file.key}: ${error.message}`);
       }
@@ -220,10 +247,14 @@ async function uploadAll(supabase, sharp, files) {
       uploaded += 1;
     }
 
-    urlMap[file.localPath] = supabase.storage.from(BUCKET).getPublicUrl(file.key).data.publicUrl;
+    urlMap[file.localPath] = supabase.storage
+      .from(BUCKET)
+      .getPublicUrl(file.key).data.publicUrl;
   }
 
-  console.log(`업로드 완료: 신규 ${uploaded}건, skip ${skipped}건, 총 ${files.length}키`);
+  console.log(
+    `업로드 완료: 신규 ${uploaded}건, skip ${skipped}건, 총 ${files.length}키`,
+  );
   return urlMap;
 }
 
@@ -250,17 +281,21 @@ async function updateDb(supabase, urlMap, applyDb) {
       for (const row of rows) {
         const publicUrl = urlMap[row[column]];
         if (!publicUrl) {
-          console.warn(`  [warn] 매핑 없음 — ${table}#${row.id} ${column}=${row[column]} (건너뜀)`);
+          console.warn(
+            `  [warn] 매핑 없음 — ${table}#${row.id} ${column}=${row[column]} (건너뜀)`,
+          );
           continue;
         }
         // update에도 like 가드 재적용 — 조회~수정 사이 관리자 변경 보존
         const { error: updateError } = await supabase
           .from(table)
           .update({ [column]: publicUrl })
-          .eq('id', row.id)
+          .eq("id", row.id)
           .like(column, `${LOCAL_PREFIX}%`);
         if (updateError) {
-          throw new Error(`${table}#${row.id} ${column} UPDATE 실패: ${updateError.message}`);
+          throw new Error(
+            `${table}#${row.id} ${column} UPDATE 실패: ${updateError.message}`,
+          );
         }
         updated += 1;
       }
@@ -275,18 +310,18 @@ async function main() {
   const supabaseUrl = process.env.SEED_SUPABASE_URL;
   const serviceRoleKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
-    console.error('환경변수 SEED_SUPABASE_URL, SEED_SERVICE_ROLE_KEY 필요');
+    console.error("환경변수 SEED_SUPABASE_URL, SEED_SERVICE_ROLE_KEY 필요");
     process.exit(1);
   }
 
   console.log(`대상 환경: ${env} (${supabaseUrl})`);
-  if (env === 'dev' && !supabaseUrl.includes(DEV_PROJECT_REF)) {
+  if (env === "dev" && !supabaseUrl.includes(DEV_PROJECT_REF)) {
     console.error(
-      `중단: --env dev인데 SEED_SUPABASE_URL에 dev 프로젝트 ref(${DEV_PROJECT_REF})가 없습니다 — 운영 URL 오기입 방지`
+      `중단: --env dev인데 SEED_SUPABASE_URL에 dev 프로젝트 ref(${DEV_PROJECT_REF})가 없습니다 — 운영 URL 오기입 방지`,
     );
     process.exit(1);
   }
-  if (env === 'prod') await confirmProd();
+  if (env === "prod") await confirmProd();
 
   await stat(landingDir).catch(() => {
     console.error(`이미지 디렉터리 없음: ${landingDir}`);
@@ -309,12 +344,15 @@ async function main() {
 
   await updateDb(supabase, urlMap, applyDb);
   if (!applyDb) {
-    console.log('dry-run 종료 — 실제 UPDATE는 --apply-db 지정');
+    console.log("dry-run 종료 — 실제 UPDATE는 --apply-db 지정");
   }
 }
 
 // 직접 실행 시에만 구동 — MENTOR_SLUGS import 재사용 시 부작용 방지
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   main().catch((err) => {
     console.error(err);
     process.exit(1);
