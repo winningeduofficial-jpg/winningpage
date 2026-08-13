@@ -9,7 +9,6 @@ import Checkout from './pages/Checkout';
 import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
-import LearningDiagnosis from './pages/LearningDiagnosis';
 import LearningDiagnosisLanding from './pages/renewal/LearningDiagnosisLanding';
 import Callmentor from './pages/services/Callmentor';
 import GoalManagement from './pages/services/GoalManagement';
@@ -38,6 +37,10 @@ import CompanyNewsList from './pages/CompanyNewsList';
 import ProtectedAdmin from './components/ProtectedAdmin';
 import ProtectedRoute from './components/ProtectedRoute';
 import SiteLayout from './components/SiteLayout';
+import SurveyStepShell from './pages/renewal/SurveyStepShell';
+import SurveyStepPage from './pages/renewal/SurveyStepPage';
+import SurveyPreview from './pages/renewal/SurveyPreview';
+import FreeDiagnosisReport from './pages/renewal/FreeDiagnosisReport';
 import { SignupProvider } from './context/SignupContext';
 
 // 목표관리 학생 앱(goal-app-shell) — 사이드바 셸 + 서브페이지 10종. docs/figma-goal/00-INDEX.md
@@ -145,6 +148,7 @@ export default function App() {
           {/* 결제 실패도 완료와 같은 셸(헤더/푸터 포함)을 쓴다 — 실패 화면에서
               GNB·문의 연락처가 사라지면 이탈 경로가 없어진다. */}
           <Route path="/payment/fail" element={<PaymentFail />} />
+          <Route path="/learning-diagnosis/report" element={<FreeDiagnosisReport />} />
 
           {/* 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
               /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...
@@ -153,7 +157,15 @@ export default function App() {
           {/* ⚠️ 설계 리스크 — 이 화면은 무료·체험 성격이라 로그인 없이 접근 가능해야 할 수 있다.
               추후 /app/* 전체에 일괄 로그인 가드를 걸 때 이 라우트를 예외 처리해야 한다(이번
               단계에서는 가드 자체를 구현하지 않는다). */}
-          <Route path="/app/learning-diagnosis/survey" element={<LearningDiagnosis />} />
+          <Route path="/app/learning-diagnosis/survey" element={<SurveyStepShell />}>
+            {/* /survey 진입은 스텝1로 명시 리다이렉트. 없으면 최하단 catch-all 이 홈으로 삼킨다. */}
+            <Route index element={<Navigate to="/app/learning-diagnosis/survey/1" replace />} />
+            {/* 정적 세그먼트를 :step 보다 먼저 선언 — v6 랭킹상 정적이 우선이지만 의도를 코드로 고정한다. */}
+            <Route path="preview" element={<SurveyPreview />} />
+            <Route path=":step" element={<SurveyStepPage />} />
+            {/* /survey/1/2 같은 초과 세그먼트 방어. 반드시 마지막. */}
+            <Route path="*" element={<Navigate to="/app/learning-diagnosis/survey/1" replace />} />
+          </Route>
 
           {/* 구 경로 4종 호환. 외부 링크·북마크 보호용이라 영구 유지한다.
               /free-diagnosis 계열은 원래 /learning-diagnosis로 2홉 리다이렉트였으나, 목적지가
@@ -173,6 +185,10 @@ export default function App() {
           <Route
             path="/free-diagnosis/survey"
             element={<Navigate to="/app/learning-diagnosis/survey" replace />}
+          />
+          <Route
+            path="/free-diagnosis/report"
+            element={<Navigate to="/learning-diagnosis/report" replace />}
           />
 
           {/* 목표관리 온보딩(설문 7단계) — 시안상 공통 헤더/푸터가 있고 사이드바가 없어
