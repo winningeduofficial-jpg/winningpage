@@ -119,6 +119,7 @@ export function SessionProvider({ serviceKey, children }) {
   }, []);
 
   // ── 이용권·회차 조회. userId가 바뀌거나 refresh가 걸릴 때만 돈다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken은 effect 안에서 읽지 않는 재조회 트리거 전용 카운터다.
   useEffect(() => {
     let alive = true;
 

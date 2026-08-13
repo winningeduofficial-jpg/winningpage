@@ -87,6 +87,7 @@ export function useInfiniteMarquee({
   // 반복 카피 수 보정: 사이클 폭이 좁으면 래핑 가능하도록 카피 수 증가 (증가만, 축소 없음)
   // enabled(itemCount > 1) 가드 필수 — 소비자는 1건일 때 원본만 정적 렌더하므로
   // DOM에 카피가 없고, scrollWidth/repeatCount 기반 계산이 무한 증가 루프에 빠진다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: itemCount/repeatCount는 effect 안에서 ref(itemCountRef/repeatCountRef)로만 읽는다 — 값이 바뀔 때 재계산을 트리거하기 위한 목적으로 deps에 남겨둔다.
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || !enabled) return undefined;
@@ -118,6 +119,7 @@ export function useInfiniteMarquee({
   }, [enabled, itemCount, repeatCount]);
 
   // 초기 중앙 사이클 배치 + resize 재배치 (1건 정적 렌더 시에는 불필요 — enabled 가드)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: itemCount/repeatCount는 effect 안에서 ref(itemCountRef/repeatCountRef)로만 읽는다 — 값이 바뀔 때 재배치를 트리거하기 위한 목적으로 deps에 남겨둔다.
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || !enabled) return undefined;

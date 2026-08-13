@@ -68,6 +68,7 @@ export function useAdmissionCascade(cascadeValue) {
   );
 
   // 대학 목록. 셸 마운트 1회 + 재시도 시.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: universitiesNonce는 effect 안에서 읽지 않는 재시도 트리거 전용 값이다(위 주석).
   useEffect(() => {
     let alive = true;
     setUniversities((prev) => ({ ...prev, loading: true, error: null }));
@@ -212,7 +213,6 @@ export function useAdmissionCascade(cascadeValue) {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     universityKey,
     departmentKey,
