@@ -41,7 +41,7 @@ export default function PerformanceSkeleton() {
           <Block className="mx-perf-inset h-[1.3125rem] w-16" />
           <div className="mx-[0.625rem] mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex h-9 items-center gap-4 pl-[0.625rem]">
+              <div key={index} className="flex h-9 w-perf-pill items-center gap-4 pl-[3.125rem]">
                 <Block className="h-5 w-5 flex-shrink-0 rounded-full" />
                 <Block className="h-[1.3125rem] w-20" />
               </div>
@@ -53,7 +53,7 @@ export default function PerformanceSkeleton() {
       {/* 캔버스 골격 — 페이지 타이틀 + 콘텐츠 자리. */}
       <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
         <div className="max-w-perf-content">
-          <Block className="h-8 w-80" />
+          <Block className="h-[2.625rem] w-80" />
           <Block className="mt-8 h-24 w-full max-w-perf-bubble" />
           <Block className="mt-4 h-24 w-full max-w-perf-bubble" />
         </div>
