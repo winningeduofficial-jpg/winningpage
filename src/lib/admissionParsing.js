@@ -101,15 +101,18 @@ export function replaceKnownPuaChars(value) {
 }
 
 export function normalizeAdmissionText(value) {
-  return replaceKnownPuaChars(clean(value))
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/\u0000/g, "")
-    .replace(/⦁/g, "·")
-    .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    replaceKnownPuaChars(clean(value))
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: NUL 문자를 걸러내는 정규식이라 의도된 사용이다.
+      .replace(/\u0000/g, "")
+      .replace(/⦁/g, "·")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 export function splitAdmissionLines(value) {

@@ -178,7 +178,7 @@ export function normalizeDoubleEscapedEntities(html) {
 
 // (b-4-b) 제어문자(tab/lf/cr 제외) 제거.
 export function stripControlChars(html) {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 제어문자 자체를 걸러내는 정규식이라 의도된 사용이다.
   return String(html || "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
 }
 
