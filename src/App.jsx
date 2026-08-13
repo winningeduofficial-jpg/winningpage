@@ -9,7 +9,6 @@ import Checkout from './pages/Checkout';
 import Legal from './pages/Legal';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
-// 구 설문(pages/LearningDiagnosis.jsx)은 리뉴얼 스텝 설문으로 대체돼 라우트에서 빠졌다. 파일 처분은 별도 결정.
 import LearningDiagnosisLanding from './pages/renewal/LearningDiagnosisLanding';
 import Callmentor from './pages/services/Callmentor';
 import GoalManagement from './pages/services/GoalManagement';
