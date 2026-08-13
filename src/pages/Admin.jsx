@@ -3825,6 +3825,7 @@ function LearningDiagnosisAdmin() {
     });
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 1회만 — loadAll은 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
   useEffect(() => {
     loadAll();
   }, []);
@@ -6621,6 +6622,7 @@ function AdminTable({
   const sectionColumns = config.columns.filter(
     (column) => column.type === "admissionSection",
   );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sectionColumns는 매 렌더 config.columns.filter(...)로 새로 만들어지는 배열이라, 그걸 deps로 쓰면 위 주석이 막으려던 "페이지 행이 안 바뀌어도 매 렌더 재계산"이 그대로 재발한다. 안정적인 config.columns를 대리 deps로 쓴다.
   const sectionSummaries = useMemo(() => {
     if (sectionColumns.length === 0) return null;
     return pageRows.map((row) => {
@@ -6634,7 +6636,6 @@ function AdminTable({
       return summaries;
     });
     // config.columns는 모듈 레벨 CONFIGS 리터럴이라 참조가 안정적이다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageRows, config.columns]);
 
   return (
@@ -8160,6 +8161,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken/mutationSeq는 effect 안에서 읽지 않는 트리거 전용 카운터 — 부모가 변이 후 값을 올려 재조회를 강제한다.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -9394,9 +9396,9 @@ export default function Admin() {
   const serverPage = config.serverPaginate ? page : 0;
   const serverTerm = config.serverPaginate ? searchTerm : "";
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loadRows는 매 렌더 새로 생성되는 미메모 함수라 deps에 그대로 넣으면 렌더마다 재조회된다. 실제 조회 트리거는 activeKey/serverPage/serverTerm 세 값이고, loadRows는 그 시점의 클로저를 그대로 쓴다.
   useEffect(() => {
     loadRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey, serverPage, serverTerm]);
 
   // 삭제 등으로 총 건수가 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 당긴다.
@@ -9993,11 +9995,11 @@ function PremiumBookAdmin() {
     setRows(data || []);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 1회만 — loadRows/revokePreviewUrls는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회·재정리된다.
   useEffect(() => {
     loadRows();
     // 언마운트·재변환 시 blob URL 누수 방지(명세 §D2).
     return () => revokePreviewUrls();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const duplicateSortOrders = useMemo(() => {
@@ -10588,6 +10590,7 @@ function MentorApplicationsAdmin() {
     setRows(data || []);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 1회만 — loadRows는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
   useEffect(() => {
     loadRows();
   }, []);
