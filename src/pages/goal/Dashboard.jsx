@@ -11,14 +11,7 @@ import StudyPlanRail from '../../components/goal/dashboard/StudyPlanRail';
 import ScheduleRail from '../../components/goal/dashboard/ScheduleRail';
 import RankingRail from '../../components/goal/dashboard/RankingRail';
 import GoalCard from '../../components/goal/GoalCard';
-import {
-  mockAdvice,
-  mockTodayPlan,
-  mockSchedules,
-  mockRanking,
-  mockAchievementChart,
-  mockDailyGoalEmpty
-} from '../../data/goalMock';
+import { mockAdvice, mockTodayPlan, mockSchedules, mockRanking, mockDailyGoalEmpty } from '../../data/goalMock';
 import { fetchGoalStudent } from '../../lib/goalApi';
 
 // ---------------------------------------------------------------------------
@@ -108,10 +101,10 @@ function mapNaesin(student) {
 //
 // 조언 유형("일일 분석 조언" ↔ "AI 입시 분석 조언") 상태 축은 `DashboardPageHeader`의
 // `adviceType` prop으로 옮겼다(part-06 #17/#18 뱃지 변형). 기본 렌더는 "오늘 기록 있음"(#20) ·
-// adviceType="ai" · "차트 데이터 있음"(#15) 상태다. 다른 두 축(#12 미기록, #13 빈 차트)을
-// 확인하려면 goalMock.js의 `mockDailyGoalEmpty`, `mockAchievementChartEmpty`로 아래 props만
-// 바꿔 끼우면 된다 — 각 위젯이 데이터 유무로 상태를 스스로 분기하므로 컴포넌트 코드는 수정할
-// 필요가 없다.
+// adviceType="ai" 상태다. 미기록 축을 확인하려면 goalMock.js의 `mockDailyGoalEmpty`로
+// TodayGoalCard/TomorrowPlanCard props만 바꿔 끼우면 된다 — 위젯이 데이터 유무로 상태를
+// 스스로 분기하므로 컴포넌트 코드는 수정할 필요가 없다. AchievementChart는 실데이터
+// (student.probabilityHistory) 기준이라 빈 상태는 이력 0~1건일 때 컴포넌트가 자체 분기한다.
 export default function Dashboard() {
   const advice = mockAdvice.ai;
 
@@ -216,8 +209,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* AchievementChart: 회차별 백분위/등급 추이 계산이 미이식 상태라 mock 유지. */}
-            <AchievementChart data={mockAchievementChart} />
+            {/* AchievementChart: goal_probability_logs 실이력(probabilityHistory, §goalRepo.js
+                buildStudentPayload) — 4계열(이상/최소 × 수시/정시) 라인 차트. */}
+            <AchievementChart data={student.probabilityHistory} />
           </div>
 
           <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">

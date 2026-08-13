@@ -132,6 +132,32 @@ export async function fetchStudentStateRow(supabaseAdmin, profileId) {
 }
 
 /**
+ * 확률 스냅샷 이력 — 오래된 순으로 전부 반환한다(대시보드 "학업 성취도 변화 추이" 차트 전용).
+ * appendProbabilityLog()가 직전 행과 4값이 전부 같으면 건너뛰므로, 여기 담기는 행은
+ * 이미 "변화가 있었던" 시점만 남는다 — 클라이언트에서 다시 중복 제거할 필요가 없다.
+ *
+ * @returns {{recordedAt:string, idealSusi:number|null, idealJungsi:number|null,
+ *            minSusi:number|null, minJungsi:number|null}[]}
+ */
+export async function fetchProbabilityHistory(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PROBABILITY_LOGS)
+    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((row) => ({
+    recordedAt: row.created_at,
+    idealSusi: num(row.ideal_susi),
+    idealJungsi: num(row.ideal_jungsi),
+    minSusi: num(row.min_susi),
+    minJungsi: num(row.min_jungsi)
+  }));
+}
+
+/**
  * 대학·학과 컷 1건.
  *
  * department 는 널이 아니라 빈 문자열로 매칭한다 — 대학 단위 컷은
@@ -307,8 +333,9 @@ export function buildTargets(row) {
  * @param {object} stateRow  goal_student_state 뷰 행
  * @param {string} schoolCutType getSchoolCutType(row.school_type) 결과.
  *   DB 에 저장하지 않고 매번 파생한다(§7-2).
+ * @param {Array}  historyRows fetchProbabilityHistory() 결과(오래된 순). 생략 시 빈 배열.
  */
-export function buildStudentPayload(row, stateRow, schoolCutType) {
+export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = []) {
   const state = stateRow || {};
 
   return {
@@ -362,6 +389,9 @@ export function buildStudentPayload(row, stateRow, schoolCutType) {
     actualStartDate: ymd(row.actual_start_date),
     recordCount: num(state.record_count) ?? 0,
     lastRecordDate: ymd(state.last_record_date),
+    // "학업 성취도 변화 추이" 차트(4계열 라인) 전용. 오래된 순 그대로 넘긴다 — 정렬은
+    // fetchProbabilityHistory()가 이미 했다(§9-4 확장).
+    probabilityHistory: historyRows,
     // false 면 UI 는 정시 게이지를 "0%"가 아니라 "데이터 준비 중"으로 그린다.
     // calcJeongsiProb 은 currentMogo <= 0 일 때도 0 을 내므로(pipeline.js:227-228)
     // 이 플래그 없이는 두 상태를 구분할 수 없다(§9-4).
