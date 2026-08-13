@@ -13,7 +13,6 @@ import RankingRail from '../../components/goal/dashboard/RankingRail';
 import GoalCard from '../../components/goal/GoalCard';
 import {
   mockAdvice,
-  mockTodayPlan,
   mockSchedules,
   mockRanking,
   mockAchievementChart,
@@ -222,8 +221,11 @@ export default function Dashboard() {
 
           <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">
             <TargetUniversityRail data={targetUniversities} />
-            {/* StudyPlanRail: 오늘 체크리스트를 만들 과제 테이블이 미생성 — mock 유지. */}
-            <StudyPlanRail tasks={mockTodayPlan} />
+            {/* StudyPlanRail: 단계 E(임무 지시)부터 실데이터 — 모달 오픈 상태를 스스로
+                소유하던 기존 관례를 그대로 확장해, 오늘 과제 조회(GET /api/goal/plan-tasks)도
+                위젯이 직접 한다(StudyPlanRail.jsx 참고). Dashboard는 더 이상 tasks를 내려주지
+                않는다. */}
+            <StudyPlanRail />
             {/* ScheduleRail: 중요일정 테이블이 미생성 — mock 유지. */}
             <ScheduleRail schedules={mockSchedules} />
             {/* RankingRail: 학생 간 순위 집계 로직·테이블이 미생성 — mock 유지. */}

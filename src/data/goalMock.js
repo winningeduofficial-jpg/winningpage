@@ -169,9 +169,10 @@ export const mockTodayPlan = [
   { id: 4, text: '수학 미적분 3단원 문제 32개', status: 'pending' }
 ];
 
-// 위 체크리스트의 빈 상태(#13/#15 계열 — 오늘 등록된 계획이 없을 때). 대시보드 기본 렌더에는
-// 쓰지 않지만, StudyPlanRail(dashboard/StudyPlanRail.jsx)의 `hasTasks` empty 분기를 확인하려면
-// Dashboard.jsx의 `<StudyPlanRail tasks={mockTodayPlan} />`를 이 배열로 바꿔 끼우면 된다.
+// 위 체크리스트의 빈 상태(#13/#15 계열 — 오늘 등록된 계획이 없을 때) 참고용 상수.
+// ⚠ 단계 E(임무 지시)부터 StudyPlanRail(dashboard/StudyPlanRail.jsx)은 이 두 mock을 더 이상
+// props로 받지 않는다 — GET /api/goal/plan-tasks를 위젯이 직접 조회한다. `hasTasks` empty
+// 분기를 확인하려면 오늘 날짜에 등록된 과제가 0건인 계정으로 로그인해서 볼 것.
 export const mockTodayPlanEmpty = [];
 
 // 중요일정 3건(D-1 / D-7 / D-19) — 「중요일정」 목록·대시보드 레일 공용(part-13/14 카피 전문).
