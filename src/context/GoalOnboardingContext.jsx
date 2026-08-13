@@ -21,7 +21,14 @@
 // 완료 플래그(resetOnboarding(), lib/goalOnboarding.js)와 이 입력값 저장소
 // (clearOnboardingFlow(), 이 파일) 둘 다 지워야 한다 — 하나만 지우면 RequireGoalAccess의
 // 3단계 판정이나 위저드 복구 로직이 이전 상태를 다시 불러온다.
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   DAILY_SCHEDULE_FIELDS,
   MOCK_EXAM_ROUNDS,
@@ -172,12 +179,12 @@ export function GoalOnboardingProvider({ children }) {
     writeStoredFlow(state);
   }, [state]);
 
-  function setSchoolType(schoolType) {
+  const setSchoolType = useCallback((schoolType) => {
     // 유형을 바꾸면 이전 유형에서 고르던 학년 선택은 더 이상 유효하지 않으므로 함께 초기화한다.
     setState((prev) => ({ ...prev, schoolType, grade: null }));
-  }
+  }, []);
 
-  function setGrade(grade) {
+  const setGrade = useCallback((grade) => {
     // 학년을 바꾸면 priorNaesinGrade 도 함께 비운다(setSchoolType 이 grade 를 비우는 것과 같은
     // 연쇄 무효화). 같은 한 칸이 학년마다 다른 의미를 갖기 때문이다 — 고1에서 "중학교 평균"으로
     // 넣은 값이 고2로 바꾸면 화면 라벨만 "고1까지 누적"으로 바뀐 채 그대로 제출되고, 서버 분기도
@@ -186,23 +193,23 @@ export function GoalOnboardingProvider({ children }) {
     setState((prev) =>
       prev.grade === grade ? prev : { ...prev, grade, priorNaesinGrade: "" },
     );
-  }
+  }, []);
 
-  function setUpperUniversity(partial) {
+  const setUpperUniversity = useCallback((partial) => {
     setState((prev) => ({
       ...prev,
       upperUniversity: { ...prev.upperUniversity, ...partial },
     }));
-  }
+  }, []);
 
-  function setLowerUniversity(partial) {
+  const setLowerUniversity = useCallback((partial) => {
     setState((prev) => ({
       ...prev,
       lowerUniversity: { ...prev.lowerUniversity, ...partial },
     }));
-  }
+  }, []);
 
-  function updateNaesin(examKey, partial) {
+  const updateNaesin = useCallback((examKey, partial) => {
     setState((prev) => ({
       ...prev,
       naesin: {
@@ -210,14 +217,14 @@ export function GoalOnboardingProvider({ children }) {
         [examKey]: { ...prev.naesin[examKey], ...partial },
       },
     }));
-  }
+  }, []);
 
   // 내신 전 회차 "없음" 특례 입력. 4회차 중 하나라도 "없음"이 해제되면 Step4가 ''로 비운다.
-  function setPriorNaesinGrade(value) {
+  const setPriorNaesinGrade = useCallback((value) => {
     setState((prev) => ({ ...prev, priorNaesinGrade: value }));
-  }
+  }, []);
 
-  function updateMockExam(roundKey, partial) {
+  const updateMockExam = useCallback((roundKey, partial) => {
     setState((prev) => ({
       ...prev,
       mockExam: {
@@ -225,21 +232,21 @@ export function GoalOnboardingProvider({ children }) {
         [roundKey]: { ...prev.mockExam[roundKey], ...partial },
       },
     }));
-  }
+  }, []);
 
-  function setStudyHour(dayKey, value) {
+  const setStudyHour = useCallback((dayKey, value) => {
     setState((prev) => ({
       ...prev,
       studyHours: { ...prev.studyHours, [dayKey]: value },
     }));
-  }
+  }, []);
 
-  function setDailyScheduleField(fieldKey, value) {
+  const setDailyScheduleField = useCallback((fieldKey, value) => {
     setState((prev) => ({
       ...prev,
       dailySchedule: { ...prev.dailySchedule, [fieldKey]: value },
     }));
-  }
+  }, []);
 
   // 온보딩 완료(7단계 "다음") 시 호출한다 — 저장된 입력값을 비우고 컨텍스트 state도
   // 초기값으로 되돌린다. src/pages/goal/Onboarding.jsx의 handleFinish가
@@ -247,10 +254,10 @@ export function GoalOnboardingProvider({ children }) {
   // 배선돼 있다(SignupContext의 resetSignup()과 같은 역할). 2026-08-11 이전엔
   // markOnboardingDone() 직후 호출이었으나, 이제 완료 판정은 서버(goal_students)가
   // 정본이라 클라이언트 완료 플래그를 세우는 절차 자체가 없어졌다.
-  function resetOnboardingFlow() {
+  const resetOnboardingFlow = useCallback(() => {
     clearStoredFlow();
     setState(buildDefaultState());
-  }
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -266,8 +273,19 @@ export function GoalOnboardingProvider({ children }) {
       setDailyScheduleField,
       resetOnboardingFlow,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state],
+    [
+      state,
+      setSchoolType,
+      setGrade,
+      setUpperUniversity,
+      setLowerUniversity,
+      updateNaesin,
+      setPriorNaesinGrade,
+      updateMockExam,
+      setStudyHour,
+      setDailyScheduleField,
+      resetOnboardingFlow,
+    ],
   );
 
   return (

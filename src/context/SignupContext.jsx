@@ -4,7 +4,14 @@
 // 동기화한다. 새로고침 시 자동 복구되며, hasFlow로 "진행 중이던 가입 흐름이 있었는지"를
 // 노출해 각 페이지가 단계 강제 이동(예: memberType 없이 폼 단계 직접 진입 시 /signup으로
 // redirect) 정책을 스스로 구현할 수 있게 한다. resetSignup()은 가입 완료·이탈 시 호출한다.
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const STORAGE_KEY = "signup-flow";
 
@@ -203,34 +210,34 @@ export function SignupProvider({ children }) {
     writeStoredFlow(state);
   }, [state]);
 
-  function setMemberType(memberType) {
+  const setMemberType = useCallback((memberType) => {
     setState((prev) => ({ ...prev, memberType }));
-  }
+  }, []);
 
-  function setBirthDate(birthDate) {
+  const setBirthDate = useCallback((birthDate) => {
     setState((prev) => ({
       ...prev,
       birthDate,
       isUnder14: computeIsUnder14(birthDate),
     }));
-  }
+  }, []);
 
-  function updateFormData(partial) {
+  const updateFormData = useCallback((partial) => {
     setState((prev) => ({
       ...prev,
       formData: { ...prev.formData, ...partial },
     }));
-  }
+  }, []);
 
-  function updateAgreements(partial) {
+  const updateAgreements = useCallback((partial) => {
     setState((prev) => ({
       ...prev,
       agreements: { ...prev.agreements, ...partial },
     }));
-  }
+  }, []);
 
   // keys를 지정하면 그 키만 일괄 토글(예: 학생 6항목 vs 학부모 4항목 '모두 동의' 분리).
-  function setAllAgreements(value, keys) {
+  const setAllAgreements = useCallback((value, keys) => {
     setState((prev) => {
       const targetKeys = keys || Object.keys(prev.agreements);
       const nextAgreements = { ...prev.agreements };
@@ -239,10 +246,10 @@ export function SignupProvider({ children }) {
       });
       return { ...prev, agreements: nextAgreements };
     });
-  }
+  }, []);
 
   // section: 'phone' | 'email' | 'pass'
-  function updateVerification(section, partial) {
+  const updateVerification = useCallback((section, partial) => {
     setState((prev) => ({
       ...prev,
       verification: {
@@ -250,27 +257,27 @@ export function SignupProvider({ children }) {
         [section]: { ...prev.verification[section], ...partial },
       },
     }));
-  }
+  }, []);
 
-  function setLinkCode(linkCode) {
+  const setLinkCode = useCallback((linkCode) => {
     setState((prev) => ({ ...prev, linkCode }));
-  }
+  }, []);
 
-  function setSignupCompleted(signupCompleted) {
+  const setSignupCompleted = useCallback((signupCompleted) => {
     setState((prev) => ({ ...prev, signupCompleted }));
-  }
+  }, []);
 
   // signupCompleted(학생)와 동일 패턴 — 학부모 가입 성공 직후 true, sessionStorage로 영속.
-  function setParentSignupCompleted(parentSignupCompleted) {
+  const setParentSignupCompleted = useCallback((parentSignupCompleted) => {
     setState((prev) => ({ ...prev, parentSignupCompleted }));
-  }
+  }, []);
 
   // 유형 선택(학생/학부모)을 되돌아가 다시 고를 때, 이전 유형에서 입력하던 폼데이터/동의/
   // 인증/완료 플래그가 새 유형 흐름에 그대로 남아있으면 상태가 오염된다(예: 학부모로
   // 전환했는데 학생 인증 플래그가 verified로 남는 등). memberType 설정과 동시에 관련
   // 상태를 전부 INITIAL로 되돌려 안전하게 유형을 전환한다. birthDate/isUnder14/linkCode는
   // 유형과 무관하게 유지한다.
-  function resetForMemberType(memberType) {
+  const resetForMemberType = useCallback((memberType) => {
     setState((prev) => ({
       ...prev,
       memberType,
@@ -280,12 +287,12 @@ export function SignupProvider({ children }) {
       signupCompleted: false,
       parentSignupCompleted: false,
     }));
-  }
+  }, []);
 
-  function resetSignup() {
+  const resetSignup = useCallback(() => {
     clearStoredFlow();
     setState({ ...INITIAL_STATE });
-  }
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -303,8 +310,21 @@ export function SignupProvider({ children }) {
       resetForMemberType,
       resetSignup,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, hasFlow],
+    [
+      state,
+      hasFlow,
+      updateVerification,
+      setMemberType,
+      setParentSignupCompleted,
+      setSignupCompleted,
+      updateAgreements,
+      resetSignup,
+      updateFormData,
+      setLinkCode,
+      setAllAgreements,
+      setBirthDate,
+      resetForMemberType,
+    ],
   );
 
   return (
