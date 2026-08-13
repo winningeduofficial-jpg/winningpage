@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, LogOut, Settings, X } from 'lucide-react';
-import { MY_MENU } from './myMenuItems';
+import { buildMyMenu } from './myMenuItems';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -16,6 +16,7 @@ export default function MobileNavDrawer({
   isLoggedIn,
   displayName,
   memberLabel,
+  isParentMember = false,
   csatDDay,
   isAdmin,
   onLogout,
@@ -200,7 +201,7 @@ export default function MobileNavDrawer({
         <div className="border-t border-[#eeeeee] px-4 py-4">
           {shouldShowLoggedInHeader ? (
             <>
-              {MY_MENU.map((item) => {
+              {buildMyMenu(isParentMember).map((item) => {
                 const Icon = item.icon;
 
                 return (
