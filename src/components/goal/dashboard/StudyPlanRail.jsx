@@ -31,8 +31,7 @@ export default function StudyPlanRail() {
 
   const loadTasks = useCallback(() => {
     fetchGoalPlanTasks({ from: today, to: today }).then(setResult);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [today]);
 
   useEffect(() => {
     loadTasks();

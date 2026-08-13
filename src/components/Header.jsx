@@ -1,5 +1,5 @@
 import { ChevronDown, Menu, Settings } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
 import {
@@ -309,12 +309,12 @@ export default function Header() {
   // 중 어느 쪽도 재진입하지 않으면) 유예 후 닫힌다.
   const megaCloseTimerRef = useRef(null);
 
-  function clearMegaCloseTimer() {
+  const clearMegaCloseTimer = useCallback(() => {
     if (megaCloseTimerRef.current) {
       window.clearTimeout(megaCloseTimerRef.current);
       megaCloseTimerRef.current = null;
     }
-  }
+  }, []);
 
   function scheduleMegaClose() {
     clearMegaCloseTimer();
@@ -324,7 +324,7 @@ export default function Header() {
     }, 100);
   }
 
-  useEffect(() => () => clearMegaCloseTimer(), []);
+  useEffect(() => () => clearMegaCloseTimer(), [clearMegaCloseTimer]);
 
   // activeMega(어떤 그룹이 활성인지)와 megaPanelPhase(패널이 화면에서 어떻게 보이는지)를
   // 분리한다 — 그룹이 바뀌어도(호버 이동) activeMega만 바뀌고 phase는 'open'을 유지해

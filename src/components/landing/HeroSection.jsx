@@ -46,6 +46,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   const isPaused = hoverPaused || focusPaused || pointerPaused;
 
   // 자동 전환: setTimeout 체인 (activeIndex 변경 시 자동 리셋)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeIndex는 함수형 업데이터(prev => ...)로만 갱신해 effect 본문에서 직접 읽지 않는다 — 슬라이드가 바뀔 때마다 타이머를 처음부터 다시 재는 트리거 전용 값이다.
   useEffect(() => {
     if (slideCount <= 1 || isPaused || reducedMotion) return undefined;
     const timer = setTimeout(() => {
