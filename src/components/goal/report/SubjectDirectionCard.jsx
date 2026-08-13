@@ -6,6 +6,10 @@ import GoalCard from '../GoalCard';
 //
 // 본문 폭 603px 고정 + 카드 높이 311px 고정이면 3줄 이상일 때 넘친다(part-13 §159) — 카드 높이를
 // 고정하지 않고 min-height + 콘텐츠에 따라 자라도록 구현한다(고정 h 금지).
+//
+// materials(추천 교재/자료)는 선택 prop이다 — 실배선(api/goal/report.js)은 콘텐츠 추천 엔진이
+// 없어 이 필드를 채우지 않는다(D13, 팀장 확정 "추천 교재 블록 렌더 생략"). materials가
+// 비어 있으면 그 섹션 자체를 렌더하지 않는다(빈 타이틀+빈 wrap 잔여물 방지).
 export default function SubjectDirectionCard({ name, zoneLabel, badge, body, materials }) {
   return (
     <GoalCard tone="neutral" className="flex min-h-[19.4375rem] flex-col gap-4 px-[1.875rem] py-[1.875rem]">
@@ -24,19 +28,21 @@ export default function SubjectDirectionCard({ name, zoneLabel, badge, body, mat
         <p className="max-w-[37.6875rem] text-[0.875rem] leading-[1.6] text-ink">{body}</p>
       </div>
 
-      <div className="mt-auto flex flex-col gap-2.5">
-        <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">추천 교재/자료</p>
-        <div className="flex flex-wrap gap-2">
-          {materials.map((material) => (
-            <span
-              key={material}
-              className="inline-flex h-8 w-fit items-center rounded-full bg-goal-cardTone-cream px-3 text-[0.8125rem] font-medium leading-[1.4] text-ink-strong"
-            >
-              {material}
-            </span>
-          ))}
+      {materials?.length > 0 && (
+        <div className="mt-auto flex flex-col gap-2.5">
+          <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">추천 교재/자료</p>
+          <div className="flex flex-wrap gap-2">
+            {materials.map((material) => (
+              <span
+                key={material}
+                className="inline-flex h-8 w-fit items-center rounded-full bg-goal-cardTone-cream px-3 text-[0.8125rem] font-medium leading-[1.4] text-ink-strong"
+              >
+                {material}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </GoalCard>
   );
 }

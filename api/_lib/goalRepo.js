@@ -263,6 +263,158 @@ export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
 }
 
 // ---------------------------------------------------------------------------
+// 성장/학습방향 리포트(#33/#34/#37/#38) 조회 — api/goal/report.js 전용.
+//
+// 이 절의 함수 이름은 병렬 브랜치(daily-record/timer/plan)의 goalRepo.js 헬퍼와
+// 겹치지 않도록 전부 `*InRange` 접미사로 새로 지었다(팀장 지시 — dev 머지 시
+// union되도록). 계산은 전혀 하지 않는다 — 행을 그대로 돌려주고, 합산·백분위 같은
+// 산술은 src/lib/goal/report/aggregate.js(순수 함수)가 한다(이 파일의 §1 헌장 유지).
+// ---------------------------------------------------------------------------
+
+export const TABLE_DAILY_RECORDS = 'goal_daily_records';
+export const TABLE_TIMER_SESSIONS = 'goal_timer_sessions';
+export const TABLE_PLAN_TASKS = 'goal_plan_tasks';
+export const TABLE_MENTOR_COMMENTS = 'goal_mentor_comments';
+
+/** goal_daily_records — profile_id 1건, record_date 구간(양끝 포함) 전량. */
+export async function fetchRecordsInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select('record_date, study_hours, body_condition, reasons, tasks')
+    .eq('profile_id', profileId)
+    .gte('record_date', fromYmd)
+    .lte('record_date', toYmd)
+    .order('record_date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * goal_timer_sessions — profile_id 1건, session_date 구간 전량. 마감된 세션만
+ * 돌려준다(ended_at is not null) — 진행 중인 세션은 duration_seconds 가 null 이라
+ * D7/D8 합산에 넣을 수 없다(reconcile 은 api/goal/timer.js 진입점에서만 도는데
+ * 리포트 GET 은 그 진입점을 거치지 않으므로, 자정을 넘겨 여러 날 방치된 열린
+ * 세션이 있어도 이 쿼리는 그 세션을 아예 보지 않는다 — 과소집계될 수 있다는
+ * 뜻이지만, 열린 세션의 duration 을 리포트가 임의로 추정해 보여주는 것보다는
+ * 안전하다고 판단했다, 판단 지점).
+ */
+export async function fetchTimerSessionsInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .select('subject, started_at, duration_seconds')
+    .eq('profile_id', profileId)
+    .gte('session_date', fromYmd)
+    .lte('session_date', toYmd)
+    .not('ended_at', 'is', null)
+    .order('started_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축). */
+export async function fetchPlanTasksInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PLAN_TASKS)
+    .select('done')
+    .eq('profile_id', profileId)
+    .gte('plan_date', fromYmd)
+    .lte('plan_date', toYmd);
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * 확률 스냅샷 1건 — created_at 이 atOrBeforeIso 이하인 것 중 가장 최신.
+ * 리포트 "합격 가능성 변화" 델타(D-합격가능성)의 시작/끝 스냅샷 조회에 공용으로 쓴다
+ * (시작 스냅샷은 기간 시작 00:00 KST 이하, 끝 스냅샷은 기간 끝 23:59:59 KST 이하로
+ *  호출부가 경계를 달리 넘긴다). 없으면 null.
+ */
+export async function fetchProbabilityLogAtOrBefore(supabaseAdmin, profileId, atOrBeforeIso) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PROBABILITY_LOGS)
+    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
+    .eq('profile_id', profileId)
+    .lte('created_at', atOrBeforeIso)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * 가장 이른 확률 스냅샷 1건 — 기간 시작 이전에 로그가 하나도 없을 때(리포트 기간이
+ * 온보딩 주/달과 겹치는 경우) 시작 스냅샷 대체값으로 쓴다(판단 지점: "0에서 시작"이
+ * 아니라 "온보딩 직후 첫 스냅샷에서 시작"으로 델타를 잡아야 온보딩 당일의 base 확률
+ * 산출을 증가분으로 잘못 표시하지 않는다).
+ */
+export async function fetchEarliestProbabilityLog(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PROBABILITY_LOGS)
+    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * 목표군 코호트(D4) — 동일 이상목표 대학·학과 + status='active' 학생의 profile_id 전량
+ * (본인 포함, 호출부가 본인 id 를 그대로 넘긴다). sql/80_goal_report_indexes.sql
+ * goal_students_ideal_target_idx 가 이 조합을 인덱싱한다.
+ */
+export async function fetchActiveCohortProfileIds(supabaseAdmin, idealUniversity, idealDepartment) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_STUDENTS)
+    .select('profile_id')
+    .eq('ideal_university', idealUniversity)
+    .eq('ideal_department', idealDepartment)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  return (data || []).map((row) => row.profile_id);
+}
+
+/**
+ * 코호트 전원의 기간 내 goal_daily_records 원본 행(profile_id, study_hours만).
+ * profile_id 별 합산은 aggregate.js sumHoursByProfile() 이 한다(이 함수는 조회만).
+ */
+export async function fetchDailyRecordsForProfilesInRange(supabaseAdmin, profileIds, fromYmd, toYmd) {
+  if (!profileIds.length) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select('profile_id, study_hours')
+    .in('profile_id', profileIds)
+    .gte('record_date', fromYmd)
+    .lte('record_date', toYmd);
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 멘토 코멘트 1건(기간당 1건). 없으면 null — 리포트는 이때 멘토 카드를 렌더하지 않는다. */
+export async function fetchMentorComment(supabaseAdmin, profileId, periodType, periodKey) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_MENTOR_COMMENTS)
+    .select('body, written_at')
+    .eq('profile_id', profileId)
+    .eq('period_type', periodType)
+    .eq('period_key', periodKey)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+// ---------------------------------------------------------------------------
 // 쓰기
 // ---------------------------------------------------------------------------
 
