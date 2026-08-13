@@ -8,6 +8,7 @@ import PaymentsTab from '../components/mypage/PaymentsTab';
 import ProfileTab from '../components/mypage/ProfileTab';
 import ChildrenTab from '../components/mypage/parent/ChildrenTab';
 import EnrollmentInbox from '../components/mypage/parent/EnrollmentInbox';
+import RefundApprovalInbox from '../components/mypage/parent/RefundApprovalInbox';
 
 function cleanText(value) {
   return String(value || '').trim();
