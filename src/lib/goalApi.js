@@ -469,3 +469,87 @@ export async function updateGoalSchedule({ id, title, category, dueDate, memo })
 export async function deleteGoalSchedule({ id }) {
   return submitGoalSchedule('DELETE', { id });
 }
+
+// GET /api/goal/student · POST /api/goal/intake · /api/goal/plan-tasks(CRUD) 공용 클라이언트.
+// ---------------------------------------------------------------------------
+// 학습 계획 과제(goal_plan_tasks) — GET/POST/PUT/DELETE /api/goal/plan-tasks
+// ---------------------------------------------------------------------------
+//
+// 네 함수 모두 fetchGoalStudent/submitGoalIntake와 같은 규약(예외를 던지지
+// 않고 discriminated union으로 반환, `kind` 필드로 분기)을 따른다.
+//
+// task shape(camelCase, api/_lib/goalRepo.js buildPlanTaskPayload와 동일):
+//   { id, planDate, title, subject, durationMinutes, done, sortOrder }
+//   subject는 한글 라벨('국어'/'수학'/'영어'/'탐구'/'기타') — 서버가 DB 코드와
+//   왕복 변환하므로 클라이언트는 항상 이 라벨만 다룬다(AddTaskModal 과목 칩과 동일).
+
+/** 공용 요청 실행기 — 인증 헤더 부착 + JSON 직렬화 + 안전 파싱까지 4개 함수가 공유. */
+async function requestPlanTasks(method, { query, body } = {}) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  const qs = query ? `?${new URLSearchParams(query).toString()}` : '';
+
+  let response;
+  try {
+    response = await fetch(`/api/goal/plan-tasks${qs}`, {
+      method,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeader
+      },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+  } catch (error) {
+    console.error(`[goalApi] ${method} /api/goal/plan-tasks 호출 오류:`, error);
+    return { kind: 'error' };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 404) return { kind: 'not-found' };
+  if (response.status === 400) return { kind: 'validation-error', detail: result?.detail };
+
+  if (!response.ok) {
+    console.error(`[goalApi] ${method} /api/goal/plan-tasks 실패:`, response.status, result?.detail);
+    return { kind: 'error' };
+  }
+
+  return { kind: 'success', body: result };
+}
+
+/**
+ * 기간(from~to, YYYY-MM-DD, 양끝 포함) 과제 목록.
+ *   { kind: 'success', tasks }  — 200 {ok:true, tasks:[...]}.
+ *   { kind: 'not-allowed' }     — 200 {allowed:false}. 이용권 없음(조회형 규약).
+ *   그 외 kind는 requestPlanTasks 공통 계약(no-session/validation-error/error).
+ */
+export async function fetchGoalPlanTasks({ from, to }) {
+  const result = await requestPlanTasks('GET', { query: { from, to } });
+  if (result.kind !== 'success') return result;
+  if (result.body?.allowed === false) return { kind: 'not-allowed' };
+  return { kind: 'success', tasks: result.body?.tasks || [] };
+}
+
+/** 과제 1건 생성. 성공 시 { kind:'success', task }. */
+export async function createGoalPlanTask({ planDate, title, subject, durationMinutes }) {
+  const result = await requestPlanTasks('POST', { body: { planDate, title, subject, durationMinutes } });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success', task: result.body?.task };
+}
+
+/** 과제 1건 부분 수정(완료 토글 포함). patch에 있는 필드만 반영된다. */
+export async function updateGoalPlanTask(id, patch) {
+  const result = await requestPlanTasks('PUT', { body: { id, ...patch } });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success', task: result.body?.task };
+}
+
+/** 과제 1건 삭제. */
+export async function deleteGoalPlanTask(id) {
+  const result = await requestPlanTasks('DELETE', { body: { id } });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success' };
+}

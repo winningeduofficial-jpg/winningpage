@@ -13,7 +13,6 @@ import RankingRail from '../../components/goal/dashboard/RankingRail';
 import GoalCard from '../../components/goal/GoalCard';
 import {
   mockAdvice,
-  mockTodayPlan,
   mockRanking,
   mockDailyGoal,
   mockDailyGoalEmpty
@@ -296,8 +295,9 @@ export default function Dashboard() {
 
           <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">
             <TargetUniversityRail data={targetUniversities} />
-            {/* StudyPlanRail: 오늘 체크리스트를 만들 과제 테이블이 미생성 — mock 유지. */}
-            <StudyPlanRail tasks={mockTodayPlan} />
+            {/* StudyPlanRail: 오늘 과제 조회(GET /api/goal/plan-tasks)를 위젯이 직접 한다
+                (StudyPlanRail.jsx 참고). Dashboard는 tasks를 내려주지 않는다. */}
+            <StudyPlanRail />
             {/* ScheduleRail: GET /api/goal/schedules 실데이터, 가까운 순 3건(mapNearestSchedules). */}
             <ScheduleRail schedules={mapNearestSchedules(schedules)} />
             {/* RankingRail: 학생 간 순위 집계 로직·테이블이 미생성 — mock 유지. */}

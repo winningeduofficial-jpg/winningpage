@@ -28,6 +28,7 @@ export const TABLE_STUDENTS = 'goal_students';
 export const TABLE_STATE_VIEW = 'goal_student_state';
 export const TABLE_PROBABILITY_LOGS = 'goal_probability_logs';
 export const TABLE_UNIVERSITY_CUTS = 'goal_university_cuts';
+export const TABLE_PLAN_TASKS = 'goal_plan_tasks';
 
 // create-service-ticket.js:71-73 과 글자 단위로 같은 문구를 쓴다.
 export const PAID_MESSAGE = '유료결제이후 이용해주세요!';
@@ -35,6 +36,22 @@ export const LOGIN_MESSAGE = '로그인이 필요합니다.';
 
 // 컷 4종의 논리 이름. 422 응답의 missing 배열과 GET 응답의 missingCuts 에 그대로 실린다.
 export const CUT_KEYS = ['idealNaesin', 'idealJungsi', 'minNaesin', 'minJungsi'];
+
+// 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 5종(sql/75_goal_plan_tasks.sql)과
+// AddTaskModal 과목 칩의 한글 라벨(goalModalOptions.taskSubjects, goalMock.js:296)을 잇는다.
+// '탐구' → 'science' 매핑은 team-lead가 sql/75 CHECK 값을 먼저 확정해 준 결과다 —
+// 사회탐구까지 포괄하는 라벨이지만 DB 값은 그대로 따른다. api/goal/plan-tasks.js 는 이
+// 배럴만 참조하고 자체 매핑을 두지 않는다(단일 정본).
+export const SUBJECT_CODE_TO_LABEL = {
+  korean: '국어',
+  math: '수학',
+  english: '영어',
+  science: '탐구',
+  etc: '기타'
+};
+export const SUBJECT_LABEL_TO_CODE = Object.fromEntries(
+  Object.entries(SUBJECT_CODE_TO_LABEL).map(([code, label]) => [label, code])
+);
 
 // ---------------------------------------------------------------------------
 // 값 변환 헬퍼
@@ -328,6 +345,84 @@ export async function appendProbabilityLog(
 
   if (insertError) throw insertError;
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// 학습 계획 과제 (goal_plan_tasks) — CRUD
+//
+// 소유자 판정은 이 파일 상단 규약 그대로: 모든 조회·수정·삭제가 profileId를
+// where 절에 함께 건다. service_role은 RLS를 우회하므로(§ openGoalSession
+// 주석) 이 스코프가 유일한 방어선이다.
+// ---------------------------------------------------------------------------
+
+/** 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순. */
+export async function fetchPlanTasks(supabaseAdmin, profileId, fromDate, toDate) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PLAN_TASKS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .gte('plan_date', fromDate)
+    .lte('plan_date', toDate)
+    .order('plan_date', { ascending: true })
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 과제 1건 생성. */
+export async function insertPlanTask(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin.from(TABLE_PLAN_TASKS).insert(row).select('*').single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 과제 1건 부분 수정(본인 소유 확인 겸용) — update 자체를
+ * `.eq('id', id).eq('profile_id', profileId)` 로 좁혀 소유자 스코프와 존재 확인을
+ * 한 왕복으로 처리한다. 반환이 null 이면 "없음" 과 "타인 소유" 를 구분하지 않는다
+ * (다른 회원 존재 유무를 노출하지 않기 위해 호출부는 둘 다 404 로 접는다).
+ */
+export async function updatePlanTask(supabaseAdmin, profileId, id, patch) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PLAN_TASKS)
+    .update(patch)
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 과제 1건 삭제(본인 소유 확인 겸용). 실제로 지웠으면 true. */
+export async function deletePlanTask(supabaseAdmin, profileId, id) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PLAN_TASKS)
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+/** goal_plan_tasks 행 → API 카멜 케이스. subject 는 한글 라벨로 되돌린다. */
+export function buildPlanTaskPayload(row) {
+  return {
+    id: row.id,
+    planDate: ymd(row.plan_date),
+    title: row.title,
+    subject: SUBJECT_CODE_TO_LABEL[row.subject] || row.subject,
+    durationMinutes: num(row.duration_minutes) ?? 0,
+    done: Boolean(row.done),
+    sortOrder: num(row.sort_order) ?? 0
+  };
 }
 
 // ---------------------------------------------------------------------------
