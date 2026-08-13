@@ -2,17 +2,38 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { GOAL_NAV_GROUPS, GOAL_NAV_FOOTER } from './goalNavItems';
 import { mockStudent } from '../../data/goalMock';
-import { fetchGoalSchedules } from '../../lib/goalApi';
+import { fetchGoalSchedules, fetchGoalTimer } from '../../lib/goalApi';
 import { kstYMD } from '../../lib/goal/calc/index.js';
 
-// 사이드바 뱃지 소스 — 중요일정 카운트만 실데이터로 전환했다(GET /api/goal/schedules, "다가오는
-// 일정 수" = due_date가 오늘(KST) 이후인 행 수, 팀장 지시). 나머지 2종(공부 기록 저장 여부,
-// 타이머 진행 여부)은 각각 별도 UoW 소관이라 목업 고정값을 유지한다.
-//
-// GoalAppLayout이 이 컴포넌트를 /app/goal/* 전 라우트에서 props 없이 셸로 마운트하므로
-// (props로 끌어올리는 대신) 이 컴포넌트가 직접 fetchGoalSchedules()를 호출한다 — 최소 변경.
+// "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
+// GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
+const TIMER_BADGE_POLL_MS = 45 * 1000;
+
+// 사이드바 뱃지 소스 — 중요일정 카운트(GET /api/goal/schedules, due_date 오늘 이후 행 수)와
+// 타이머 진행 여부(GET /api/goal/timer 45초 폴링)를 실데이터로 쓴다. dailyRecordDone은
+// 별도 UoW 소관이라 목업 고정값 유지. GoalAppLayout이 props 없이 셸로 마운트하므로
+// 이 컴포넌트가 직접 조회한다(StudyPlanRail 자체 조회 선례, 전역 상태 도입 없음).
 export default function GoalSidebar() {
+  const [timerRunning, setTimerRunning] = useState(false);
   const [scheduleCount, setScheduleCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      const result = await fetchGoalTimer();
+      if (!cancelled && result.kind === 'success') {
+        setTimerRunning(Boolean(result.summary?.running));
+      }
+    };
+
+    poll();
+    const intervalId = setInterval(poll, TIMER_BADGE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -29,7 +50,7 @@ export default function GoalSidebar() {
     };
   }, []);
 
-  const navBadgeData = { scheduleCount, dailyRecordDone: false, timerRunning: false };
+  const navBadgeData = { scheduleCount, dailyRecordDone: false, timerRunning };
 
   return (
     <aside className="flex min-h-screen w-[20.25rem] flex-shrink-0 flex-col bg-goal-sidebar">

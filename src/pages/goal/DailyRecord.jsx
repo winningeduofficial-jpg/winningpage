@@ -5,12 +5,13 @@ import ConditionSection from '../../components/goal/study/ConditionSection';
 import ChipSelectSection from '../../components/goal/study/ChipSelectSection';
 import RetrospectSection from '../../components/goal/study/RetrospectSection';
 import {
-  mockStudySubjectTimes,
+  TIMER_SUBJECT_ORDER,
   mockConditionOptions,
   mockDisturbanceOptions,
   mockStudyItemOptions
 } from '../../data/goalStudyMock';
-import { fetchTodayGoalRecord, submitDailyRecord } from '../../lib/goalApi';
+import { getSubjectLabel } from '../../components/goal/subjectTokens';
+import { fetchTodayGoalRecord, submitDailyRecord, fetchGoalTimer } from '../../lib/goalApi';
 
 // 코드값 → 라벨(goalStudyMock.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
 // api/goal/daily-record.js 가 한글 라벨로 저장하므로 역매핑이 필요하다).
@@ -30,6 +31,27 @@ export default function DailyRecord() {
   // 대시보드 "오늘의 목표" 카드 또는 열공 타이머(#25, 타이머 영속화는 별도 작업)에서만
   // 채워진다(임무 지시 배경 절). hasExistingRecord는 오늘 행 존재 여부로 버튼 문구를 바꾼다.
   const [studyHours, setStudyHours] = useState(0);
+
+  // 과목별 순공 시간 표시(read-only) — GET /api/goal/timer의 마감 세션 합계 스냅샷.
+  // 진행 중 세션의 실시간 경과는 얹지 않는다(이 페이지는 기록 스냅샷, 매초 갱신 불필요).
+  const [studySubjectTimes, setStudySubjectTimes] = useState(
+    TIMER_SUBJECT_ORDER.map((id) => ({ id, label: getSubjectLabel(id), hours: 0 }))
+  );
+
+  useEffect(() => {
+    fetchGoalTimer().then((result) => {
+      if (result.kind !== 'success') return;
+      const seconds = {};
+      for (const row of result.summary?.subjects || []) seconds[row.subject] = row.seconds;
+      setStudySubjectTimes(
+        TIMER_SUBJECT_ORDER.map((id) => ({
+          id,
+          label: getSubjectLabel(id),
+          hours: (seconds[id] || 0) / 3600
+        }))
+      );
+    });
+  }, []);
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState(null);
@@ -163,10 +185,7 @@ export default function DailyRecord() {
           ref={studyTimeRef}
           className={`rounded-2xl transition-shadow ${highlightStudyTime ? 'ring-2 ring-red-400' : ''}`}
         >
-          {/* 과목별 순공 시간 배분은 아직 실데이터가 없다(타이머 영속화·과목별 목표는
-              별도 작업, D-8 PR1) — rows는 계속 mockStudySubjectTimes를 쓴다. totalHours만
-              GET /api/goal/daily-record 로 프리필된 실제 오늘 순공 시간으로 교체한다. */}
-          <StudyTimeSection rows={mockStudySubjectTimes} totalHours={studyHours} />
+          <StudyTimeSection rows={studySubjectTimes} totalHours={studyHours} />
         </div>
 
         {/* 섹션2·3 — 시안은 639×265 + 531×265 2열(part-09 §160~161, 639:531 ≈ 6:5) */}

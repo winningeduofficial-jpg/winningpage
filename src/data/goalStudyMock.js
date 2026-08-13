@@ -6,26 +6,12 @@
 // 과목 색 매핑은 src/components/goal/subjectTokens.js로 정본화했다(코드 검수 §1) —
 // #25/#26을 포함한 앱 전체가 그 헬퍼를 공유한다. 여기서는 더 이상 로컬 매핑을 두지 않는다.
 
-// 열공 타이머(#25) 4과목 초기 상태 — part-09 §120~123 카피 전문 그대로.
-// elapsedSeconds는 시안 표기 시간(00:50:12 등)을 초로 환산한 값. 탐구만 진행 중(running=true).
-// 카드 배치 순서(수학→국어→영어→탐구)는 part-09 §60 그리드 좌표(수학 x=384/국어 x=824/영어
-// x=384,y=561/탐구 x=824,y=561) 순서를 그대로 따른다.
-export const mockSubjectTimers = [
-  { id: 'math', label: '수학', targetHours: 2.0, elapsedSeconds: 50 * 60 + 12, running: false },
-  { id: 'korean', label: '국어', targetHours: 1.5, elapsedSeconds: 40 * 60 + 12, running: false },
-  { id: 'english', label: '영어', targetHours: 1.0, elapsedSeconds: 25 * 60 + 12, running: false },
-  { id: 'science', label: '탐구', targetHours: 1.0, elapsedSeconds: 12 * 60 + 12, running: true }
-];
-
-// 오늘의 공부 기록(#26) 섹션1 "과목별 순공 시간" — 이 화면은 시안상 전체 빈 상태(part-09 §239)라
-// 4과목 전부 0.0h(아직 기록 없음)로 시작한다. #25 열공 타이머에서 종료 시 자동 유입되는 값이라는
-// 설계이나(part-09 §241) 이 페이지 자체에는 편집 UI가 없어 값을 바꿀 방법이 없다 — 그대로 읽기 전용.
-export const mockStudySubjectTimes = [
-  { id: 'math', label: '수학', hours: 0 },
-  { id: 'korean', label: '국어', hours: 0 },
-  { id: 'english', label: '영어', hours: 0 },
-  { id: 'science', label: '탐구', hours: 0 }
-];
+// 열공 타이머(#25) 카드 4장 + 오늘의 공부 기록(#26) 과목별 순공 시간 섹션이 공유하는
+// 표시 순서(id만 — 시간·목표·진행 상태는 실 데이터, api/goal/timer.js). 카드 배치 순서
+// (수학→국어→영어→탐구)는 part-09 §60 그리드 좌표(수학 x=384/국어 x=824/영어
+// x=384,y=561/탐구 x=824,y=561) 순서를 그대로 따른다. 'etc'(기타)는 저장은 되지만
+// 이 두 화면 다 4과목 고정 그리드라 카드로는 그리지 않는다(시안 범위 밖).
+export const TIMER_SUBJECT_ORDER = ['math', 'korean', 'english', 'science'];
 
 // 섹션2 "오늘의 컨디션" — 단일 선택. part-09 §180 카피 전문.
 export const mockConditionOptions = [
