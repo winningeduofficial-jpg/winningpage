@@ -281,6 +281,7 @@ function ResultTable({ tableRows, years, activeYear }) {
   // 열이 8 → 6으로 줄면서 375px에서도 스크롤이 안 생기는 경우가 생겼다. 안내 문구를
   // 폭 미디어쿼리(wide:hidden)로 걸면 스크롤이 없는데도 "좌우로 미세요"라 말하는
   // 거짓 안내가 된다(§5.3(d) T5) → 실제 overflow를 재서 조건부로 그린다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tableRows/years는 effect 안에서 읽지 않는 트리거 전용 값 — 표 내용이 바뀌어 폭이 달라질 때마다 overflow를 다시 재기 위한 재실행 신호다.
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return undefined;
@@ -538,6 +539,7 @@ export default function DetailView({
   const [ownError, setOwnError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken은 effect 안에서 읽지 않는 재조회 트리거 전용 카운터다.
   useEffect(() => {
     if (controlled) return undefined;
 

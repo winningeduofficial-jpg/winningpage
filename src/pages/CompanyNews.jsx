@@ -918,6 +918,7 @@ export default function CompanyNews() {
   // ?id= 변화(상세 진입·목록 복귀 모두)에서 스크롤을 최상단으로 되돌린다. 회사소식 섹션이
   // 페이지 하단(~5000px)에 있어 setSearchParams만으로는 pathname이 안 바뀌어
   // App.jsx의 ScrollToTop(pathname 전용)이 반응하지 않는다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedId는 effect 안에서 읽지 않는 트리거 전용 값 — ?id= 가 바뀔 때마다 스크롤을 맨 위로 되돌리기 위한 재실행 신호다.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [selectedId]);

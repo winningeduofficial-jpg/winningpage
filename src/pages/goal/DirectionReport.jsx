@@ -46,8 +46,7 @@ export default function DirectionReport() {
         { replace: true },
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  }, [result, periodParam, setSearchParams]);
 
   function handleTabChange(nextTab) {
     setSearchParams((prev) => {
