@@ -310,14 +310,14 @@ export function getStudyMultiplier(university, department) {
 export function calcAvailableHours(day, hasSchool) {
   const wake = parseFloat(day.wake);
   const sleep = parseFloat(day.sleep);
-  if (isNaN(wake) || isNaN(sleep) || sleep <= wake) return 0;
+  if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake - 1.5;
 
   if (hasSchool) {
     const sStart = parseFloat(day.schoolStart);
     const sEnd = parseFloat(day.schoolEnd);
-    if (!isNaN(sStart) && !isNaN(sEnd) && sEnd > sStart) {
+    if (!Number.isNaN(sStart) && !Number.isNaN(sEnd) && sEnd > sStart) {
       available -= sEnd - sStart;
       available += sStart - wake;
     }
@@ -326,7 +326,7 @@ export function calcAvailableHours(day, hasSchool) {
   for (const ac of day.academies) {
     const acStart = parseFloat(ac.start);
     const acEnd = parseFloat(ac.end);
-    if (!isNaN(acStart) && !isNaN(acEnd) && acEnd > acStart)
+    if (!Number.isNaN(acStart) && !Number.isNaN(acEnd) && acEnd > acStart)
       available -= acEnd - acStart + 1;
   }
 
@@ -443,17 +443,17 @@ export function calculateWeekSchedule(form) {
 export function calcAvailableHoursApprox(steppers, hasSchool = true) {
   const wake = parseFloat(steppers?.wakeUpHour);
   const sleep = parseFloat(steppers?.sleepHour);
-  if (isNaN(wake) || isNaN(sleep) || sleep <= wake) return 0;
+  if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake;
 
   if (hasSchool) {
     const stay = parseFloat(steppers?.schoolStayHours);
-    if (!isNaN(stay)) available -= stay;
+    if (!Number.isNaN(stay)) available -= stay;
   }
 
   const academy = parseFloat(steppers?.academyHours);
-  if (!isNaN(academy)) available -= academy;
+  if (!Number.isNaN(academy)) available -= academy;
 
   return Math.max(0, Math.round(available * 10) / 10);
 }
