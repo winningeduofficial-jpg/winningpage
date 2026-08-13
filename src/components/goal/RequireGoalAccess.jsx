@@ -62,6 +62,7 @@ function GoalOnboardingGate() {
   // evaluate()를 다시 돌리기 위한 트리거. "재시도" 버튼이 이 값을 바꿔 useEffect를 재실행한다.
   const [retryToken, setRetryToken] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isOnOnboardingRoute는 마운트 생애주기 동안 값이 안 바뀌어 deps에서 뺐고(위 주석), retryToken은 effect 안에서 읽지 않는 재시도 트리거 전용 값이다.
   useEffect(() => {
     let alive = true;
 

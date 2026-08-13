@@ -157,7 +157,7 @@ export default function PaymentsTab({
     return () => {
       alive = false;
     };
-  }, [orders]);
+  }, []);
 
   const detailStatus = detailOrder
     ? resolveStudentStatus(detailOrder, refunds, finishedByOrder)

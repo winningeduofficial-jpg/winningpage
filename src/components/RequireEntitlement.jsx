@@ -54,6 +54,7 @@ function currentPathWithQuery(location) {
 function useStandaloneEntitlement(serviceKey, disabled, retryToken) {
   const [state, setState] = useState("loading");
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retryToken은 effect 안에서 읽지 않는 재시도 트리거 전용 값이다.
   useEffect(() => {
     if (disabled) return undefined;
 

@@ -7,11 +7,11 @@ export default function ImeSafeTextarea({ value, onCommit, ...rest }) {
   const [draft, setDraft] = useState(value ?? "");
   const composingRef = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft를 deps에 넣으면 로컬 타이핑(setDraft)마다 이 effect가 다시 돌아, 아직 부모로 커밋 안 된 방금 입력한 값을 상위 value로 즉시 덮어써 버린다. value가 바뀔 때만 동기화해야 한다.
   useEffect(() => {
     if (!composingRef.current && value !== draft) {
       setDraft(value ?? "");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   function handleChange(event) {
