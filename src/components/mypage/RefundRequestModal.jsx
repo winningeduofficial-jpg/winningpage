@@ -62,7 +62,7 @@ const REFUND_UNKNOWN_ERROR_TEXT = '환불 신청에 실패했습니다. 잠시 �
 
 const QUOTE_LOAD_ERROR_TEXT = '환불 금액을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
-export default function RefundRequestModal({ open, order, onClose, onSubmitted }) {
+export default function RefundRequestModal({ open, order, onClose, onSubmitted, onStaleData }) {
   const titleId = useId();
 
   const [quote, setQuote] = useState(null);
@@ -137,11 +137,18 @@ export default function RefundRequestModal({ open, order, onClose, onSubmitted }
       setSubmitError(
         error.code in REFUND_ERROR_TEXT ? REFUND_ERROR_TEXT[error.code] : REFUND_UNKNOWN_ERROR_TEXT
       );
+
+      // 서버가 "이미 신청이 있다"(WC007) 또는 "이미 환불 완료"(WC037)라고
+      // 하면 화면의 환불 목록이 낡았다는 뜻이다 — 이 화면을 연 뒤에(또는 다른
+      // 탭/기기에서) 신청이 생긴 경우다. 목록을 다시 읽어 표의 상태 배지가
+      // '환불 진행 중'으로 바뀌게 하고, 그러면 진입 버튼도 사라진다.
+      // 이걸 안 하면 사용자가 같은 버튼을 계속 눌러 같은 에러만 반복해서 본다.
+      if (error.code === 'WC007' || error.code === 'WC037') onStaleData?.();
       return;
     }
 
     onSubmitted?.();
-  }, [orderId, reason, etcText, saving, onSubmitted]);
+  }, [orderId, reason, etcText, saving, onSubmitted, onStaleData]);
 
   if (!open || !order) return null;
 

@@ -16,6 +16,8 @@ import MyPageModalShell from './MyPageModalShell';
 const STATUS_TEXT = {
   paid: '결제 완료',
   pending: '입금 대기',
+  refund_approval_pending: '환불 요청 대기',
+  refund_parent_rejected: '학부모 반려',
   refund_requested: '환불 진행 중',
   refund_processing: '환불 진행 중',
   refund_completed: '환불 완료',
@@ -59,7 +61,11 @@ export default function PaymentDetailModal({ open, order, status, onClose, onReq
   // 환불 신청 버튼은 결제가 확정된 건에만 노출한다. 입금 대기(가상계좌 미입금)는
   // 아직 들어온 돈이 없고, 이미 환불이 걸린 건은 중복 신청이 서버에서 거부된다
   // (WC007) — 누를 수 있게 두면 실패만 보게 된다.
-  const canRequestRefund = status === 'paid';
+  //
+  // 학부모 반려 건은 예외로 다시 열어준다. 반려는 종결이 아니라 "이번엔 안
+  // 된다"이고, 같은 주문으로 재신청하는 것이 설계 확정 사항이다(sql/68 —
+  // 미종결 판정에서 approval_status='rejected' 를 빼둔 이유가 이것이다).
+  const canRequestRefund = status === 'paid' || status === 'refund_parent_rejected';
 
   return (
     <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[33.75rem]">

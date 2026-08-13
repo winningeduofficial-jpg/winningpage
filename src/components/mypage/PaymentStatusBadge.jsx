@@ -5,12 +5,30 @@
 // hex — tailwind.config.js에 대응 토큰이 없어 임의값(bg-[...])으로 쓴다. 텍스트 색은
 // 전부 기존 토큰과 정확히 일치해 토큰명을 그대로 썼다(accent #0B84FD / gold #af9364 /
 // error #eb2626).
+// refund_requests 는 축이 둘이다(sql/68) — status(어드민 처리축)와
+// approval_status(학부모 승인축). 배지는 그 조합을 사람이 읽는 한 문장으로
+// 눌러 담은 것이다. 조합 → 키 변환은 PaymentsTab.resolveStatus 가 한다.
+//
+// ⚠ 시안(3661:4082 외)에 있는 배지는 결제완료 / 입금대기 / 환불 진행 중 3종뿐이다.
+// 아래 나머지 3종(환불 요청 대기 · 환불 반려 · 환불완료)은 시안에 없는 상태라
+// 신규 카피다 — 승인 필요.
 const STATUS_STYLES = {
   paid: { label: '결제완료', cls: 'bg-[#e7f2fb] text-accent' },
   pending: { label: '입금대기', cls: 'bg-[#fff3d1] text-gold' },
+
+  // 학생이 신청했고 학부모가 아직 응답하지 않음(approval_status='requested').
+  // 아직 아무도 처리를 시작하지 않았으므로 "진행 중"이 아니다 — 입금대기와
+  // 같은 대기 톤(노랑)으로 둔다.
+  refund_approval_pending: { label: '환불 요청 대기', cls: 'bg-[#fff3d1] text-gold' },
+
+  // 학부모가 반려. status 는 requested 그대로이고 같은 주문으로 재신청할 수
+  // 있다(sql/68 설계 확정) — 종결이 아니라는 뜻에서 어드민 반려와 색을 나눈다.
+  refund_parent_rejected: { label: '학부모 반려', cls: 'bg-surface-04 text-ink-sub' },
+
+  // 승인은 끝났고 어드민이 처리 중(status requested/processing).
   refund_requested: { label: '환불 진행 중', cls: 'bg-[#ffd9d9] text-error' },
   refund_processing: { label: '환불 진행 중', cls: 'bg-[#ffd9d9] text-error' },
-  // 환불완료는 시안 실측 대상에 없어 중립 슬레이트 톤으로 폴백.
+
   refund_completed: { label: '환불완료', cls: 'bg-slate-100 text-slate-600' },
   refund_rejected: { label: '환불 반려', cls: 'bg-[#ffd9d9] text-error' }
 };

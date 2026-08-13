@@ -52,9 +52,18 @@ function resolveStatus(order, refunds) {
   if (order.status === 'waiting_deposit') return 'pending';
   const refund = refunds.find((r) => r.order_id === order.id);
   if (!refund) return 'paid';
+
+  // 어드민 처리축(status)이 종결된 건이 먼저다 — 제약상 이 두 값은 승인
+  // 이후에만 나올 수 있다(refund_requests_approval_before_processing_check).
   if (refund.status === 'completed') return 'refund_completed';
   if (refund.status === 'rejected') return 'refund_rejected';
-  // requested/processing 모두 시안 표기는 "환불 진행 중" 하나로 통일.
+
+  // 여기부터 status 는 requested/processing 이다. 승인축을 봐야 "누구를
+  // 기다리는 중인지"가 갈린다 — 이걸 안 보면 학부모 응답 대기와 어드민
+  // 처리 중이 같은 배지로 뭉개진다(2026-08-13 수정 전 동작).
+  if (refund.approval_status === 'requested') return 'refund_approval_pending';
+  if (refund.approval_status === 'rejected') return 'refund_parent_rejected';
+
   return 'refund_requested';
 }
 
@@ -165,6 +174,9 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
         order={refundOrder}
         onClose={() => setRefundOrder(null)}
         onSubmitted={handleRefundSubmitted}
+        // 서버가 "이미 신청 있음"으로 거부하면 목록만 다시 읽는다(접수 완료
+        // 모달은 띄우지 않는다 — 접수된 게 아니다).
+        onStaleData={onRefundSubmitted}
       />
 
       <RefundNoticeModal open={noticeOpen} onClose={() => setNoticeOpen(false)} />
