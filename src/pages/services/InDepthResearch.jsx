@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { useInView } from '../../hooks/useInView';
 
 import { alertServiceNotReady } from '../../lib/paidServiceAccess';
+import { getDemoAccessState } from '../../lib/demoAccess';
 import ServiceSection from '../../components/services/ServiceSection';
 import ServiceProcessCards from '../../components/services/ServiceProcessCards';
 import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
@@ -179,6 +181,30 @@ function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + LearningDiagnosisLanding
   // 공통 useInView 훅 구조.
   const [auraRef, auraInView] = useInView();
+  const navigate = useNavigate();
+
+  // 히어로 CTA — 로그인 게이트 3분기(demoAccess.js의 getDemoAccessState, ProtectedAdmin과
+  // 동일 기준을 재사용). 비로그인은 /login으로 보내 복귀지를 이 랜딩 자신으로 남기고(자동
+  // 재실행은 하지 않는다 — 로그인 후 다시 CTA를 눌러야 한다), 어드민은 데모 라우트로,
+  // 로그인했지만 비어드민이면 기존 준비중 alert 그대로 유지한다. 실제 접근 통제는 라우트의
+  // ProtectedAdmin이 최종 방어선이다.
+  async function handleHeroCta(event) {
+    const access = await getDemoAccessState();
+
+    if (access === 'admin') {
+      event?.preventDefault?.();
+      navigate('/demo/research');
+      return;
+    }
+
+    if (access === 'guest') {
+      event?.preventDefault?.();
+      navigate(`/login?redirect=${encodeURIComponent('/services/research')}`, { replace: true });
+      return;
+    }
+
+    alertServiceNotReady(event);
+  }
 
   return (
     // 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리・수행평가・자기평가 히어로와 동일 규격
@@ -265,7 +291,7 @@ function HeroSection() {
             (alertServiceNotReady — 상세 페이지 미구현, 위 상단 주석 참고). */}
         <button
           type="button"
-          onClick={alertServiceNotReady}
+          onClick={handleHeroCta}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기
