@@ -10,11 +10,14 @@
 import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
 
 export const SURVEY_TOTAL_STEPS = 5;
-export const SURVEY_FIRST_STEP_PATH = '/learning-diagnosis/survey/1';
+// 설문 앱 라우트는 /app/{slug}/... 통일 규칙(App.jsx 154-156)에 마운트된다. 접두어를 빠뜨리면
+// 어떤 라우트와도 매치되지 않아 catch-all(홈)로 튕기며 답변이 소실된다. 리포트(/learning-diagnosis/report)는
+// 앱이 아니라 결과 문서라 /app 밖에 그대로 둔다.
+export const SURVEY_FIRST_STEP_PATH = '/app/learning-diagnosis/survey/1';
 export const SURVEY_REPORT_PATH = '/learning-diagnosis/report';
 
 export function getStepPath(step) {
-  return `/learning-diagnosis/survey/${step}`;
+  return `/app/learning-diagnosis/survey/${step}`;
 }
 
 export const surveyMainQuestions = renewalSurveyQuestions

@@ -108,7 +108,7 @@ export const SCREEN_EXTRAS = Object.freeze({
 export const SAMPLE_REPORT_COPY = Object.freeze({
   BANNER: '이 화면은 리포트 구성을 보여 드리는 예시입니다. 학습진단을 완료하시면 학생 본인의 결과로 바뀝니다.',
   CTA: '학습진단 시작하기',
-  CTA_HREF: '/learning-diagnosis/survey/1',
+  CTA_HREF: '/app/learning-diagnosis/survey/1',
   /**
    * G-3(NIT 5, 2026-08-12) — 종전엔 CSS `content: '예시'` 리터럴이라 JS 문구 검사·격리 스캔
    * 어느 쪽에도 안 잡혔다(정의처가 report-print.css 하나뿐이었다). 정의처를 여기로 옮기고
