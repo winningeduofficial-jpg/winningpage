@@ -8,7 +8,7 @@
 -- 포함:
 --   1) public.goal_plan_tasks   요일별 학습 과제(주간 계획표 컬럼 + 대시보드
 --                                "오늘 학습 계획" 레일이 공유하는 단일 테이블)
---   2) RLS — select own + admin all(쓰기는 client 정책 0건, service_role 전용)
+--   2) RLS — select own + admin select(쓰기는 client 정책 0건, service_role 전용)
 --   3) updated_at 트리거(공용 public.set_updated_at() 재사용)
 --
 -- 배경(임무 지시 "단계 E: 학습 계획 백엔드 + 배선"):
@@ -121,7 +121,11 @@ create index if not exists goal_plan_tasks_profile_date_idx
 -- ---------------------------------------------------------------------
 -- (2) RLS — "본인 행 읽기"만 가능(55번:686-696 관례와 동일).
 --     클라이언트 write 정책은 두지 않는다 — 쓰기 경로는 service_role을 쓰는
---     api/goal/plan-tasks.js 하나뿐이다.
+--     api/goal/plan-tasks.js 하나뿐이다. 어드민 정책도 select 전용이다
+--     (goal_plan_tasks_admin_select) — `for all + with check`는 어드민
+--     세션에도 쓰기를 열어 "쓰기는 service_role 전용" 원칙을 어긴다
+--     (55번:706-716 goal_students_admin_all과 달리, 이 테이블은 어드민
+--     UI에서 직접 수정할 필요가 없어 select만으로 충분하다). 검수 반려 반영.
 -- ---------------------------------------------------------------------
 alter table public.goal_plan_tasks enable row level security;
 
@@ -130,11 +134,13 @@ create policy "goal_plan_tasks_select_own" on public.goal_plan_tasks
     as permissive for select to authenticated
     using (profile_id = auth.uid());
 
+-- 두 이름 모두 선행 drop — 이 파일이 이전에 admin_all로 이미 실행된 DB에서도
+-- 재실행하면 조용히 select 전용으로 좁혀지게 한다(재실행 순서 무관, 55번 관례).
 drop policy if exists "goal_plan_tasks_admin_all" on public.goal_plan_tasks;
-create policy "goal_plan_tasks_admin_all" on public.goal_plan_tasks
-    as permissive for all to authenticated
-    using (public.is_winning_admin())
-    with check (public.is_winning_admin());
+drop policy if exists "goal_plan_tasks_admin_select" on public.goal_plan_tasks;
+create policy "goal_plan_tasks_admin_select" on public.goal_plan_tasks
+    as permissive for select to authenticated
+    using (public.is_winning_admin());
 
 
 -- ---------------------------------------------------------------------
@@ -156,4 +162,4 @@ create trigger trg_goal_plan_tasks_updated_at
 -- select policyname, cmd from pg_policies
 --   where schemaname = 'public' and tablename = 'goal_plan_tasks'
 --   order by policyname;
---   -- goal_plan_tasks_admin_all(ALL) / goal_plan_tasks_select_own(SELECT) = 2건
+--   -- goal_plan_tasks_admin_select(SELECT) / goal_plan_tasks_select_own(SELECT) = 2건
