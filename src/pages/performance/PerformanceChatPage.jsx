@@ -308,9 +308,11 @@ function buildResumeChoiceCopy(profileName, lastSession) {
 const RESUME_CONTINUE_COPY = '이전 진행 기록을 불러왔어요. 이어서 진행할게요.';
 
 export default function PerformanceChatPage() {
-  const { session } = useSession();
+  // quotaRemaining은 SessionContext가 정본이다(§5.20 (A) 배너 판정, P15 [FIX]) —
+  // recommend-topics 응답 등 채팅 진행 중 값과 이원화하지 않는다. null=무제한/판정 불가.
+  const { session, quotaRemaining } = useSession();
   const { success: toastSuccess, error: toastError } = useToast();
-  const { setStepStates } = usePerformanceShell();
+  const { setStepStates, setQuotaBannerVisible } = usePerformanceShell();
   const accessToken = session?.access_token || null;
   const routeParams = useParams();
   const routeSessionId = typeof routeParams?.sessionId === 'string' ? routeParams.sessionId : null;
@@ -551,6 +553,33 @@ export default function PerformanceChatPage() {
       setStepStates(['todo', 'todo', 'todo', 'todo', 'todo']);
     };
   }, [createdSession, guideDone, designPhase, designModalOpen, setStepStates]);
+
+  // ── 셸 상단 회차 소진 배너 배선(§5.20 (A), P15 [FIX]) ─────────────────────────
+  //
+  // 조건: `quotaRemaining === 0` && 「이어할 수 있는 세션이 하나도 없음」.
+  // 후자를 `!createdSession && !lastSessionSummary`로 정의한다 —
+  //   · `createdSession`이 있으면(STEP2 이후, 또는 재개 완료) 그 세션을 이어할 수 있다.
+  //   · `createdSession`이 아직 없어도 `lastSessionSummary`(bootstrap이 돌려준, 재개
+  //     선택 카드의 근거)가 있으면 「이어서 하기」로 진입할 후보가 있다는 뜻이다
+  //     (`entryMode`가 'pending'/'choice'인 구간이 정확히 이 경우다 — entryMode 자체를
+  //     조건으로 쓰지 않는 이유는 'pending'이 "아직 판정 전"과 "판정했지만 재개 후보
+  //     없음" 둘 다를 가리켜 이 판정에는 한 단계 더 원시적인 `lastSessionSummary`가
+  //     더 정확하기 때문이다).
+  // `bootstrapLoading` 동안은 `lastSessionSummary`가 아직 신뢰할 수 없으므로(초기값
+  // null과 "조회했더니 없음"을 구분 못 함) 배너를 띄우지 않는다 — 판정 불가는 §5.20
+  // 취지(선제 "안내"이지 강제 차단이 아님)상 "안 띄움"으로 보수적으로 처리한다.
+  //
+  // 저장 리포트 등 이 페이지 밖으로 나가면 셸 기본값(false)으로 되돌린다 — 그 화면엔
+  // 판정 근거 자체가 없으므로 배너를 띄우지 않는 것이 맞다(PerformanceShellContext.jsx
+  // 주석과 같은 규율, stepStates cleanup과 동일 패턴).
+  useEffect(() => {
+    const hasResumableSession = Boolean(createdSession) || Boolean(lastSessionSummary);
+    setQuotaBannerVisible(!bootstrapLoading && quotaRemaining === 0 && !hasResumableSession);
+
+    return () => {
+      setQuotaBannerVisible(false);
+    };
+  }, [bootstrapLoading, quotaRemaining, createdSession, lastSessionSummary, setQuotaBannerVisible]);
 
   useEffect(() => {
     let alive = true;

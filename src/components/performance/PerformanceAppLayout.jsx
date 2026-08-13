@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import PerformanceSidebar from './PerformanceSidebar';
+import QuotaExhaustedBanner from './quota/QuotaExhaustedBanner';
 import { ToastProvider } from '../../context/ToastContext';
 import { PerformanceShellProvider, usePerformanceShell } from '../../context/PerformanceShellContext';
 
@@ -42,7 +43,7 @@ export default function PerformanceAppLayout() {
 }
 
 function PerformanceShellContent() {
-  const { stepStates } = usePerformanceShell();
+  const { stepStates, quotaBannerVisible } = usePerformanceShell();
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -59,6 +60,14 @@ function PerformanceShellContent() {
           pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
       <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
         <div className="max-w-perf-content">
+          {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
+              조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
+              `quotaRemaining === 0 && 진행 중 세션 없음`을 판정해 셸 컨텍스트로
+              올리고(PerformanceChatPage.jsx), 여기는 그 값을 그대로 읽어 렌더만 한다.
+              저장 리포트 등 판정 근거가 없는 화면은 기본값 false라 배너가 뜨지 않는다
+              (PerformanceShellContext.jsx 주석 참고). */}
+          {quotaBannerVisible && <QuotaExhaustedBanner />}
+
           {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
               TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
               §11 Q7 미결이라 아직 만들지 않는다. */}

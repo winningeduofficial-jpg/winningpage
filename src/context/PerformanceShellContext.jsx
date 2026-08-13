@@ -15,9 +15,15 @@ import { createContext, useContext, useMemo, useState } from 'react';
 // 채팅 페이지 쪽 `useEffect` cleanup에서 직접 기본값으로 리셋한다(컨텍스트 자체는
 // 리셋 시점을 모른다 — 값을 들고 있을 뿐이다).
 //
-// 지금은 stepStates 전용이다. 프로필(이름/학교유형/학년, P5 몫)까지 이 통로로 옮기는
-// 확장 여지는 있지만 이번 범위 밖이라 만들지 않는다 — PerformanceSidebar 상단 주석·
-// PerformanceAppLayout TODO(P5) 참고.
+// P15 [FIX] — 같은 통로에 회차 소진 배너(§5.20 (A)) 노출 여부도 얹는다. 판정 근거
+// (bootstrap의 lastSession·현재 진행 세션)는 채팅 페이지만 알고, 배너를 그리는 자리는
+// 셸(PerformanceAppLayout)이라 stepStates와 같은 자식→부모 방향 문제다. 저장 리포트 등
+// 판정 근거가 없는 화면은 기본값 false를 그대로 받는다 — 판정 불가를 "안 띄움"으로
+// 보수적으로 처리하는 것이 §5.20 취지(선제 안내이지 강제 차단이 아님)에 맞는다.
+//
+// 지금은 stepStates·quotaBannerVisible 두 값뿐이다. 프로필(이름/학교유형/학년, P5 몫)까지
+// 이 통로로 옮기는 확장 여지는 있지만 이번 범위 밖이라 만들지 않는다 — PerformanceSidebar
+// 상단 주석·PerformanceAppLayout TODO(P5) 참고.
 
 const DEFAULT_STEP_STATES = ['todo', 'todo', 'todo', 'todo', 'todo'];
 
@@ -25,15 +31,19 @@ const PerformanceShellContext = createContext(null);
 
 export function PerformanceShellProvider({ children }) {
   const [stepStates, setStepStates] = useState(DEFAULT_STEP_STATES);
+  const [quotaBannerVisible, setQuotaBannerVisible] = useState(false);
 
-  const value = useMemo(() => ({ stepStates, setStepStates }), [stepStates]);
+  const value = useMemo(
+    () => ({ stepStates, setStepStates, quotaBannerVisible, setQuotaBannerVisible }),
+    [stepStates, quotaBannerVisible]
+  );
 
   return (
     <PerformanceShellContext.Provider value={value}>{children}</PerformanceShellContext.Provider>
   );
 }
 
-/** @returns {{stepStates: Array<'done'|'current'|'todo'>, setStepStates: (next: Array<'done'|'current'|'todo'>) => void}} */
+/** @returns {{stepStates: Array<'done'|'current'|'todo'>, setStepStates: (next: Array<'done'|'current'|'todo'>) => void, quotaBannerVisible: boolean, setQuotaBannerVisible: (next: boolean) => void}} */
 export function usePerformanceShell() {
   const ctx = useContext(PerformanceShellContext);
   if (!ctx) {
