@@ -1,46 +1,28 @@
 import { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import '../../styles/report-print.css';
 import '../../styles/report-responsive.css';
-import renewalReportSample from '../../data/renewalReportSample';
 import { buildReport } from '../../lib/diagnosisReport';
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
-import { DIAGNOSIS_INPUT_STORAGE_KEY, loadDiagnosisInput } from '../../lib/diagnosisInputStorage';
-import { fill, templateCopy } from '../../lib/diagnosisCopyBinding';
+import { loadDiagnosisInput } from '../../lib/diagnosisInputStorage';
 import ReportPageOne from '../../components/renewal/report/ReportPageOne';
 import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
-import ReportSampleBanner from '../../components/renewal/report/ReportSampleBanner';
 import ReportSincerityBanner from '../../components/renewal/report/ReportSincerityBanner';
 import ReportScreenExtras from '../../components/renewal/report/ReportScreenExtras';
 
-/**
- * 픽스처(1차 디자인 샘플)를 현재 ReportData 계약에 맞춘다.
- *
- * 픽스처는 buildReport 이전 shape 라 traitsHeading 이 없다. 문자열을 새로 쓰지 않고
- * 문구집 템플릿(section_traits)으로 채운다 — 픽스처 파일은 스냅샷 기준이라 수정하지 않는다.
- */
-function adaptSample(sample) {
-  return {
-    ...sample,
-    // F-18 — 예시 표시(화면 배너 + 인쇄 워터마크)를 켜는 유일한 스위치. buildReport 를 통과한
-    // 데이터는 정의상 isSample:false 라, 실제 응답 리포트에 예시 표시가 붙을 경로가 구조적으로 없다.
-    isSample: true,
-    traitsHeading: fill(
-      templateCopy('section_traits'),
-      { name: sample.student.name },
-      'section_traits'
-    )
-  };
-}
+// 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
+const SURVEY_ENTRY_PATH = '/app/learning-diagnosis/survey';
 
 /**
  * 무료진단 결과 리포트 페이지.
  *
  * - 채점 실행 위치는 이 페이지 하나다(§7.4.2). 제출 시점에는 normalizeAnswers() 결과만 저장하고
  *   이동하므로, 새로고침·직접 URL 진입·프리뷰가 전부 같은 경로 하나를 탄다.
- * - 응답이 없으면 승인된 디자인 샘플(renewalReportSample)로 렌더한다 — 개발 모드에서만 그 사실을 알린다.
- *   (설문 1스텝으로 리다이렉트하지 않는 이유: 디자인 확인·인쇄 레이아웃 점검이 이 URL 로만 가능하다.)
+ * - 저장된 응답이 없으면(무입력 직접 진입·손상 페이로드) 설문 시작점으로 리다이렉트한다.
+ *   종전에는 승인된 디자인 샘플(renewalReportSample)을 '예시' 표기와 함께 렌더했으나, 학생이
+ *   가상 리포트를 본인 결과로 오인할 여지를 없애기 위해 라우트 가드로 전환했다(2026-08-13 확정).
+ *   그 결정으로 예시 픽스처·샘플 배너·인쇄 워터마크 경로 전체가 이 페이지에서 제거됐다.
  * - A4 시트 2장(1120×1584.94 = 70rem×99.0588rem)을 화면에서는 세로로 쌓아 보여주고,
  *   "PDF 파일로 다운 받기" 클릭 시 window.print() 로 브라우저 인쇄 다이얼로그를 띄운다
  *   (결정9 — 전용 PDF 파일 생성은 2차, report-print.css 의 @media print 가 A4 2장만 남긴다).
@@ -57,49 +39,40 @@ export default function FreeDiagnosisReport() {
 
   const data = useMemo(() => {
     const input = loadDiagnosisInput(location.state);
-    if (input) {
-      try {
-        // B-1(2026-08-11 확정) — 입결 컷은 스텝5 캐스케이드가 선택 시점에 이미 조회해 페이로드에
-        // 실어 뒀다(diagnosisInputStorage.submitDiagnosisAnswers). 이 페이지는 다시 조회하지 않는다
-        // — 그대로면 buildReport 는 여전히 동기다. 미연결(admissionCuts 없음)이면 ctx.cuts 가
-        // undefined 로 떨어져 §4.6 그대로 BAND_NODATA 로 조립된다.
-        // F-22 — cutsError 는 '지금 못 불러왔다'(일시 오류)를 '이 조합은 원래 자료가 없다'
-        // (영구 부재)와 가르는 유일한 신호다. 이걸 빼면 조회 실패 학생에게 BAND_NODATA
-        // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
-        // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
-        return buildReport(input, {
-          cuts: input.admissionCuts,
-          cutsError: input.admissionCutsError,
-          admissionMeta: input.admissionMeta
-        });
-      } catch (error) {
-        // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장)까지는 막지 못한다.
-        // 조립이 실패해 리포트 전체가 흰 화면이 되는 것보다 픽스처를 보여주고 원인을 로그로 남기는 편이 낫다.
-        if (import.meta.env?.DEV) console.error('[free-diagnosis] 리포트 조립 실패 — 픽스처로 폴백한다', error);
-      }
+    if (!input) return null; // 무입력 → 가드(아래에서 리다이렉트)
+    try {
+      // B-1(2026-08-11 확정) — 입결 컷은 스텝5 캐스케이드가 선택 시점에 이미 조회해 페이로드에
+      // 실어 뒀다(diagnosisInputStorage.submitDiagnosisAnswers). 이 페이지는 다시 조회하지 않는다
+      // — 그대로면 buildReport 는 여전히 동기다. 미연결(admissionCuts 없음)이면 ctx.cuts 가
+      // undefined 로 떨어져 §4.6 그대로 BAND_NODATA 로 조립된다.
+      // F-22 — cutsError 는 '지금 못 불러왔다'(일시 오류)를 '이 조합은 원래 자료가 없다'
+      // (영구 부재)와 가르는 유일한 신호다. 이걸 빼면 조회 실패 학생에게 BAND_NODATA
+      // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
+      // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
+      return buildReport(input, {
+        cuts: input.admissionCuts,
+        cutsError: input.admissionCutsError,
+        admissionMeta: input.admissionMeta
+      });
+    } catch (error) {
+      // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
+      // 리포트 대신 설문으로 돌려보낸다 — null 을 반환하면 아래 가드가 리다이렉트한다.
+      if (import.meta.env?.DEV) console.error('[free-diagnosis] 리포트 조립 실패 — 설문으로 리다이렉트한다', error);
+      return null;
     }
-    if (import.meta.env?.DEV) {
-      console.info(
-        '[free-diagnosis] 저장된 진단 응답이 없어 renewalReportSample 픽스처로 렌더한다 ' +
-          `(sessionStorage['${DIAGNOSIS_INPUT_STORAGE_KEY}'] 비어 있음 또는 스키마 버전 불일치).`
-      );
-    }
-    return adaptSample(renewalReportSample);
   }, [location.state]);
+
+  // 무입력·손상 페이로드는 설문 시작점으로 돌려보낸다(가짜 리포트를 본인 결과로 오인하는 것을 원천 차단).
+  if (!data) {
+    return <Navigate to={SURVEY_ENTRY_PATH} replace />;
+  }
 
   return (
     <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
-      {/* fd-report-sample — 인쇄 워터마크 훅. report-print.css 가 이 조상 클래스로
-          .fd-report-sheet::after('예시')를 켠다. 문서 흐름 밖(absolute)이라 A4 2장 높이 영향 0. */}
-      <div
-        className={`fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem] ${
-          data.isSample ? 'fd-report-sample' : ''
-        }`}
-      >
-        {/* 두 배너 모두 시트 **위**에 둔다 — '이건 예시다' / '결과가 다를 수 있다'는 경고가
-            리포트 2장을 다 읽은 뒤에 나오면 아무 기능도 하지 못한다. 시트 안이 아니라 밖인
-            이유는 승인된 A4 레이아웃의 첫 요소(페이지 라벨)를 밀어내지 않기 위해서다. */}
-        {data.isSample && <ReportSampleBanner />}
+      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem]">
+        {/* 불성실 응답 경고는 시트 **위**에 둔다 — '결과가 다를 수 있다'는 안내가 리포트 2장을
+            다 읽은 뒤에 나오면 기능을 못 한다. 시트 밖인 이유는 승인된 A4 레이아웃의 첫 요소를
+            밀어내지 않기 위해서다. */}
         <ReportSincerityBanner message={data.notices?.sincerityBanner} />
 
         <ReportPageOne data={data} />
