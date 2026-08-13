@@ -50,10 +50,9 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
   const [names, setNames] = useState({ student: '', parent: '' });
 
   // 신청 상세 모달이 "신청자 / 결제담당"을 보여주려면 두 이름이 필요하다.
-  // 학생은 자기 프로필만 읽을 수 있고(profiles_select_own) 학부모 이름은
-  // 못 읽는다 — parent_child_links 로 상대 id 는 알 수 있지만 이름은 아니다.
-  // 그래서 학부모 이름은 알 수 없으면 빈 값으로 두고 모달이 일반 라벨
-  // ("학부모님")로 떨어뜨린다. 지어내지 않는다.
+  // 본인 이름은 profiles 에서 바로 읽지만, 학부모 이름은 못 읽는다 —
+  // profiles_select_own 이 본인 행만 열어 주기 때문이다. 그래서 학부모는
+  // fn_student_parent(sql/77)로 받는다(fn_parent_children 의 반대 방향).
   useEffect(() => {
     let alive = true;
 
@@ -62,13 +61,18 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
       const uid = session?.session?.user?.id;
       if (!uid) return;
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', uid)
-        .maybeSingle();
+      const [me, parent] = await Promise.all([
+        supabase.from('profiles').select('name').eq('id', uid).maybeSingle(),
+        supabase.rpc('fn_student_parent')
+      ]);
 
-      if (alive) setNames((prev) => ({ ...prev, student: data?.name || '' }));
+      if (!alive) return;
+
+      // RPC 는 approved 를 먼저 정렬해 돌려준다 — 첫 행만 쓴다.
+      const parentRow = Array.isArray(parent.data) ? parent.data[0] : null;
+      if (parent.error) console.warn('학부모 조회 실패:', parent.error.message);
+
+      setNames({ student: me.data?.name || '', parent: parentRow?.parent_name || '' });
     })();
 
     return () => {

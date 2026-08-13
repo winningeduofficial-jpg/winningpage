@@ -10,5 +10,9 @@ export const COMPANY = {
   address: '(본점) 세종특별자치시 마음안1로 61, 404호',
   tel: '010-3664-0081', // 대표전화
   centerTel: '051-902-0080', // 센터문의
-  kakao: 'winningedu_official'
+  kakao: 'winningedu_official',
+  // 카카오톡 채널 URL(pf.kakao.com/_xxxx). 위 kakao 는 채널 **아이디**일 뿐이라
+  // URL 을 만들 수 없다 — 채널 키를 받아 여기에 채우면 마이페이지 우하단
+  // 상담 버튼(KakaoConsultButton)이 그때부터 노출된다. 비어 있으면 숨는다.
+  kakaoChannelUrl: ''
 };

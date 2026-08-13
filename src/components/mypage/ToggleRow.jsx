@@ -36,9 +36,15 @@ export default function ToggleRow({
           checked ? 'bg-accent' : 'bg-line'
         }`}
       >
+        {/* left-0 이 없으면 노브가 트랙 밖으로 삐져나온다. <button> 은 기본
+            text-align: center 라, left/right 를 주지 않은 absolute 자식의 기준
+            위치(static position)가 좌상단이 아니라 **가운데**로 잡힌다. 거기에
+            translate-x 가 더해져 오른쪽으로 밀려 나갔다(2026-08-13 수정).
+            translate 로 움직이는 값이므로 left 는 0 으로 고정하고 오프셋은
+            transform 이 전담한다. */}
         <span
           aria-hidden="true"
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
             checked ? 'translate-x-[1.125rem]' : 'translate-x-0.5'
           }`}
         />

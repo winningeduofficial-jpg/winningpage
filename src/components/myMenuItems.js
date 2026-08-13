@@ -11,7 +11,9 @@ import { UserRound, CreditCard, RotateCcw } from 'lucide-react';
 // 막히는 화면으로 보내는 대신 실제로 할 일이 있는 곳으로 보낸다.
 export function buildMyMenu(isParent = false) {
   return [
-    { label: '내정보·자녀수정', to: '/mypage', icon: UserRound },
+    // 학생에겐 '자녀'가 없다 — 자녀 등록·수정 탭 자체가 학부모 전용이다
+    // (MyPage.jsx PARENT_TABS). 라벨에 남겨두면 없는 기능을 광고하는 셈이다.
+    { label: isParent ? '내정보·자녀수정' : '내정보', to: '/mypage', icon: UserRound },
     {
       label: '수강신청·결제',
       to: isParent ? '/mypage?tab=payments' : '/pricing',

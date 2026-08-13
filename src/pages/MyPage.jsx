@@ -6,6 +6,7 @@ import MyPageTabs from '../components/mypage/MyPageTabs';
 import MyServicesTab from '../components/mypage/MyServicesTab';
 import PaymentsTab from '../components/mypage/PaymentsTab';
 import ProfileTab from '../components/mypage/ProfileTab';
+import KakaoConsultButton from '../components/mypage/KakaoConsultButton';
 import ChildrenTab from '../components/mypage/parent/ChildrenTab';
 import ParentPaymentsTab from '../components/mypage/parent/ParentPaymentsTab';
 
@@ -300,6 +301,10 @@ export default function MyPage() {
           )}
         </div>
       </div>
+
+      {/* 시안 지시 — "카카오톡 상담하기 버튼은 마이페이지에서 오른쪽 하단에
+          항상 뜨게 해주세요!"(3656:362) */}
+      <KakaoConsultButton />
     </main>
   );
 }

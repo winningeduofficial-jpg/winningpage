@@ -58,9 +58,20 @@ export default function ChangePasswordModal({ open, email, onClose, onChanged })
       password: current
     });
     if (authError) {
+      console.error('현재 비밀번호 확인 실패:', authError);
       setSaving(false);
       setStep('form');
-      setErrorMsg('현재 비밀번호가 일치하지 않아요.');
+      // 인증 오류를 전부 "비밀번호 불일치"로 뭉개면 안 된다 — 실제로는 맞게
+      // 입력했는데 레이트리밋(429)에 걸린 경우가 있고, 그때 "비밀번호가 틀렸다"고
+      // 하면 사용자는 맞는 비밀번호를 계속 의심하며 재시도한다(2026-08-13 실사용
+      // 신고). 상태 코드로 갈라서 실제 사유를 말한다.
+      if (authError.status === 429) {
+        setErrorMsg('시도가 너무 많았어요. 잠시 후 다시 시도해 주세요.');
+      } else if (authError.status === 400 || /invalid|credential/i.test(authError.message || '')) {
+        setErrorMsg('현재 비밀번호가 일치하지 않아요.');
+      } else {
+        setErrorMsg('본인 확인에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      }
       return;
     }
 
@@ -70,13 +81,21 @@ export default function ChangePasswordModal({ open, email, onClose, onChanged })
       console.error('비밀번호 변경 실패:', error);
       setSaving(false);
       setStep('form');
-      // Supabase 는 "새 비밀번호가 기존과 같음"을 별도 코드로 주지 않아
-      // 메시지 키워드로만 구분한다. 그 외는 일반 문구로 덮는다.
-      setErrorMsg(
-        /same/i.test(error.message || '')
-          ? '기존과 다른 비밀번호를 입력해주세요.'
-          : '비밀번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.'
-      );
+      // Supabase 는 "새 비밀번호가 기존과 같음"을 별도 코드로 주지 않아 메시지
+      // 키워드로만 구분한다. 실제 문구는 "New password should be different from
+      // the old password." 라 'same' 만 보면 걸리지 않는다 — 두 표현을 함께 본다.
+      const raw = error.message || '';
+      if (/same|different from the old/i.test(raw)) {
+        setErrorMsg('기존과 다른 비밀번호를 입력해주세요.');
+      } else if (error.status === 429) {
+        setErrorMsg('시도가 너무 많았어요. 잠시 후 다시 시도해 주세요.');
+      } else if (/reauthentication/i.test(raw)) {
+        // 대시보드에서 "Secure password change"를 켜면 nonce 재인증을 요구한다.
+        // 이 화면은 그 흐름을 구현하지 않았으므로 원인을 그대로 알린다.
+        setErrorMsg('보안 설정 때문에 이 화면에서 변경할 수 없어요. 고객센터로 문의해 주세요.');
+      } else {
+        setErrorMsg('비밀번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      }
       return;
     }
 

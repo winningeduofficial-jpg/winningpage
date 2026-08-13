@@ -90,6 +90,7 @@ export default function ProfileTab({ user, profile, memberType }) {
   // 내 연결코드.
   const [linkCode, setLinkCode] = useState('');
   const [reissuing, setReissuing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // profile prop은 마이페이지 셸(다른 에이전트가 동시 작업 중)이 어떤 컬럼을 select 했는지에
   // 따라 형태가 달라질 수 있어, 이 탭에 필요한 컬럼(학교·수신동의 2종)을 user.id 기준으로
@@ -275,6 +276,19 @@ export default function ProfileTab({ user, profile, memberType }) {
       return;
     }
     setParentLink(null);
+  }
+
+  // 연결코드 복사 — clipboard API 는 보안 컨텍스트(https/localhost)에서만
+  // 동작하므로 실패 시 조용히 넘긴다(코드 자체는 화면에 보이므로 손으로도 옮길 수 있다).
+  async function handleCopyCode() {
+    if (!linkCode) return;
+    try {
+      await navigator.clipboard.writeText(linkCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (copyError) {
+      console.warn('연결코드 복사 실패:', copyError);
+    }
   }
 
   // 연결코드 재발급 — sql/40_auth_signup.sql의 reissue_link_code RPC를 그대로 호출한다.
@@ -512,13 +526,17 @@ export default function ProfileTab({ user, profile, memberType }) {
           <div className={`${ROW_BOX_CLASS} flex-1 tracking-[0.2em] bg-surface-footer text-ink-sub`}>
             {linkCode || '-'}
           </div>
+          {/* 시안(3665:5323)은 '복사'다. 재발급(reissue_link_code)은 코드를 바꿔
+              버려서 학부모가 이미 받아 둔 코드를 무효로 만든다 — 학생이 코드를
+              전달하려고 누르는 버튼의 동작으로는 맞지 않는다. 복사로 바꾸고
+              재발급은 노출하지 않는다(필요해지면 별도 진입점으로). */}
           <button
             type="button"
-            onClick={handleReissueCode}
-            disabled={reissuing}
+            onClick={handleCopyCode}
+            disabled={!linkCode}
             className="shrink-0 whitespace-nowrap text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            새로고침
+            {copied ? '복사됨' : '복사'}
           </button>
         </div>
       </div>
