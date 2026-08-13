@@ -427,7 +427,7 @@ export async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
     );
     await ensureDevProgramAccessRow(supabaseAdmin, userId, config);
     await ensureDevProgramAccessGrant(supabaseAdmin, userId, config);
-    return true;
+    return { allowed: true, reason: null };
   }
 
   const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);

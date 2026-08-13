@@ -231,7 +231,7 @@ async function authorize(req, res, supabaseAdmin, sessionId) {
 
   // 이용권 재판정(§8.6 공통 규약). 잔여 회차는 보지 않는다 — 이미 차감된 세션은
   // 소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정 「막는 것은 새 세션뿐」).
-  const hasAccess = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+  const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
   if (!hasAccess) {
     fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
     return null;
