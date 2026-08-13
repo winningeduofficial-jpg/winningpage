@@ -128,10 +128,9 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
             직접 규정하고 하단 대응 좌표는 없다(마지막 섹션이 스크롤 대상이라 "끝까지 스크롤한
             뒤 여백"이라는 별도 실측 자체가 시안에 없음). 별도 근거가 없는 한 상하를 같은
             값으로 둔다(검토 B-2). */}
-        <div
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — useModalBehavior가 이 div를 초기 포커스로 잡는다.
+        <section
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — useModalBehavior가 이 요소를 초기 포커스로 잡는다.
           tabIndex={0}
-          role="region"
           aria-label="주제 상세 내용"
           className="min-h-0 flex-1 overflow-y-auto px-[2.125rem] py-[1.25rem] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
@@ -146,7 +145,7 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
               </p>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 푸터 — 높이 5rem, 흰 배경, 상단 구분선, 하단 모서리만 라운드. 비대칭 2버튼 +
             gap 1.25rem(§5.11 실측). 좌우 인셋은 본문과 같은 2.125rem으로 근사한다(푸터는

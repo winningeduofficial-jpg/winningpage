@@ -172,15 +172,14 @@ export default function ReportModalShell({
             포커서블 요소가 없는 스크롤 컨테이너는 Tab으로 도달할 수 없으므로 `tabIndex`를
             준다(ARIA APG "Scrollable Regions"). 이름 없는 generic div가 포커스 스톱이 되면
             낭독이 무음이라 `role="region"` + `aria-label`을 함께 준다. */}
-        <div
+        <section
           // biome-ignore lint/a11y/noNoninteractiveTabindex: 위 주석 참고 — APG Scrollable Regions 패턴.
           tabIndex={0}
-          role="region"
           aria-label={scrollLabel}
           className="performance-report-scroll min-h-0 flex-1 overflow-y-auto px-[1.25rem] py-10 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-[4.5rem]"
         >
           <div className="max-w-[70.5rem]">{children}</div>
-        </div>
+        </section>
 
         {/* 푸터 — 높이 5rem, 흰 배경, 버튼 우측 정렬 그룹 33.25rem(16.25 + 0.75 + 16.25) ×
             3.25rem(§5.13/§5.16 실측). 상단 구분선은 시안 실측에 없으나 본문이 그 아래로

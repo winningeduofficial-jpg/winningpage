@@ -223,8 +223,7 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
         {/* 좌측 캐러셀 969×429 + 카드 바깥 하단 인디케이터 */}
         {leftSlideCount > 0 && (
           <div className="flex w-full flex-col items-center lg:basis-[73.89%] lg:grow lg:shrink-0">
-            <div
-              role="region"
+            <section
               aria-roledescription="carousel"
               aria-label="메인 배너"
               className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-[969/429] hero-reveal-left"
@@ -306,7 +305,7 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                   );
                 })}
               </div>
-            </div>
+            </section>
 
             {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만)
                 lg 배너→인디케이터 간격: 시안 35px×0.8347=29.21→1.83rem */}
@@ -334,8 +333,7 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
         {/* 우측 캐러셀 321×429 + 카드 바깥 하단 인디케이터 */}
         {rightSlideCount > 0 && (
           <div className="flex w-full max-w-[20.0625rem] flex-col items-center md:max-w-[26rem] lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
-            <div
-              role="region"
+            <section
               aria-roledescription="carousel"
               aria-label="이벤트 배너"
               className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-gradient-to-b from-[#0039B6] to-[#001950] aspect-[321/429] hero-reveal-right"
@@ -407,7 +405,7 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                   );
                 })}
               </div>
-            </div>
+            </section>
 
             {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만)
                 lg 배너→인디케이터 간격: 시안 35px×0.8347=29.21→1.83rem */}

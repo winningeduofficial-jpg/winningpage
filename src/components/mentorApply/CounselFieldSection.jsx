@@ -90,9 +90,8 @@ export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
           py-2 는 카드 그림자(y+4, blur 8) 세로 클리핑 방지로 그대로 남긴다.
       */}
       <div className="mt-8 sm:mt-10 lg:mt-[3.25rem]" {...containerHandlers}>
-        <div
+        <section
           ref={scrollRef}
-          role="region"
           aria-label={COUNSEL_FIELD_SECTION.title}
           // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — 가로 스크롤 영역을 키보드로도 스크롤할 수 있게 한다.
           tabIndex={0}
@@ -132,7 +131,7 @@ export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
               );
             })}
           </ul>
-        </div>
+        </section>
       </div>
     </section>
   );
