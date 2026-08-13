@@ -50,7 +50,7 @@ export default function Efforts() {
     setLoadError(true);
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 마운트 1회만 — loadWorkbooks는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadWorkbooks는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
   useEffect(() => {
     loadWorkbooks();
   }, []);

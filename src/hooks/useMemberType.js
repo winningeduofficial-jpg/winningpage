@@ -38,7 +38,7 @@ export function useMemberType() {
 
   const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey는 effect 안에서 읽지 않는 refetch 트리거 전용 카운터다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) reloadKey는 effect 안에서 읽지 않는 refetch 트리거 전용 카운터다.
   useEffect(() => {
     let alive = true;
 

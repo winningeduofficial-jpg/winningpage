@@ -211,7 +211,7 @@ export default function BookViewer({
 
   // 모드나 모션 설정이 바뀌면 진행 중인 넘김을 즉시 확정한다 — leaf DOM이 사라지면
   // transitionend가 오지 않아 입력이 영구히 잠긴다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: isSpread/reducedMotion은 effect 안에서 읽지 않는 트리거 전용 값 — 모드·모션 설정이 바뀔 때마다 진행 중인 넘김을 확정시키기 위한 재실행 신호다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) isSpread/reducedMotion은 effect 안에서 읽지 않는 트리거 전용 값 — 모드·모션 설정이 바뀔 때마다 진행 중인 넘김을 확정시키기 위한 재실행 신호다.
   useEffect(() => {
     commitFlip();
   }, [isSpread, reducedMotion, commitFlip]);

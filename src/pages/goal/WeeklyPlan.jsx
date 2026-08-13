@@ -35,7 +35,7 @@ export default function WeeklyPlan() {
   const weekDates = getWeekDates(weekOffset);
   const todayKey = getTodayShortKeyInWeek(weekDates);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: weekDates는 weekOffset의 순함수라 weekOffset만 의존성으로 둔다 — 매 렌더 새 배열 참조 때문에 무한 재요청되는 것을 막는다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) weekDates는 weekOffset의 순함수라 weekOffset만 의존성으로 둔다 — 매 렌더 새 배열 참조 때문에 무한 재요청되는 것을 막는다.
   const loadTasks = useCallback(() => {
     setResult(null);
     fetchGoalPlanTasks({ from: weekDates[0], to: weekDates[6] }).then(

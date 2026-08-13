@@ -13,7 +13,7 @@ export default function ImeSafeInput({ value, onCommit, ...rest }) {
 
   // 조합 중이 아닐 때만 상위 값 변경을 반영한다(예: undo/외부 갱신).
   // 조합 중에 덮어쓰면 그게 바로 "캐럿 튐/조합 끊김" 버그다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: draft를 deps에 넣으면 로컬 타이핑(setDraft)마다 이 effect가 다시 돌아, 아직 부모로 커밋 안 된 방금 입력한 값을 상위 value로 즉시 덮어써 버린다. value가 바뀔 때만 동기화해야 한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) draft를 deps에 넣으면 로컬 타이핑(setDraft)마다 이 effect가 다시 돌아, 아직 부모로 커밋 안 된 방금 입력한 값을 상위 value로 즉시 덮어써 버린다. value가 바뀔 때만 동기화해야 한다.
   useEffect(() => {
     if (!composingRef.current && value !== draft) {
       setDraft(value ?? "");

@@ -147,7 +147,7 @@ const PerformanceReportsPage = lazy(
 // 라우트 이동 시 페이지 최상단으로 스크롤 (해시 앵커 이동은 예외)
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname은 effect 안에서 읽지 않는 트리거 전용 값 — 라우트가 바뀔 때마다 스크롤을 맨 위로 되돌리기 위한 재실행 신호다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) pathname은 effect 안에서 읽지 않는 트리거 전용 값 — 라우트가 바뀔 때마다 스크롤을 맨 위로 되돌리기 위한 재실행 신호다.
   useEffect(() => {
     if (hash) return;
     window.scrollTo(0, 0);

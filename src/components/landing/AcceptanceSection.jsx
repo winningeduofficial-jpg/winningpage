@@ -50,7 +50,7 @@ export default function AcceptanceSection({ universities = [] }) {
     });
 
   // 탭 전환 시 캐러셀 위치 리셋 (중앙 사이클로 재배치 — 훅의 동적 repeatCount 반영)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeTrack은 effect 안에서 읽지 않는 트리거 전용 값 — 탭이 바뀔 때마다 recenter를 다시 부르기 위한 재실행 신호다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) activeTrack은 effect 안에서 읽지 않는 트리거 전용 값 — 탭이 바뀔 때마다 recenter를 다시 부르기 위한 재실행 신호다.
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => recenter());
     return () => window.cancelAnimationFrame(frame);

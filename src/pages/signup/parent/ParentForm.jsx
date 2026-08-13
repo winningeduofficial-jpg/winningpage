@@ -153,7 +153,7 @@ export default function ParentForm() {
   const normalizedPhone = normalizePhone(formData.phone);
 
   // ── 휴대폰 ────────────────────────────────────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const code = formData.phoneCode;
 
@@ -234,7 +234,7 @@ export default function ParentForm() {
   }
 
   // ── 이메일 ────────────────────────────────────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const token = formData.emailCode;
 

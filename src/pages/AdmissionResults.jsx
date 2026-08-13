@@ -86,7 +86,7 @@ export default function AdmissionResults() {
   // isDetail 가드: 딥링크(?u=&d=)로 바로 상세에 진입해도 검색 뷰 전용 목록 쿼리가
   // 무조건 실행되던 문제(SearchView는 렌더조차 안 되는데 응답을 기다림)를 막는다.
   // isDetail이 나중에 false로 바뀌면(onBack) 그때 다시 실행된다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: universitiesReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) universitiesReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
   useEffect(() => {
     if (isDetail) return undefined;
 
@@ -107,7 +107,7 @@ export default function AdmissionResults() {
   }, [universitiesReloadToken, isDetail]);
 
   // Q2 — 모집단위 목록 (대학 선택 시)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: departmentsReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) departmentsReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
   useEffect(() => {
     if (isDetail || !universityKey) {
       setDepartments([]);
@@ -286,7 +286,7 @@ export default function AdmissionResults() {
 
   // ScrollToTop(src/App.jsx:50)은 pathname 변경에만 반응하므로 쿼리 전환 시 스크롤이 남는다.
   // 상세로 넘어갈 때만 상세 영역 상단으로 직접 옮긴다(AdmissionGuidelines.jsx:1286-1289 규율).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: detailUniversityKey/detailDepartmentKey는 effect 안에서 읽지 않는 트리거 전용 값 — 상세 대상이 바뀔 때마다 다시 스크롤하기 위한 재실행 신호다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) detailUniversityKey/detailDepartmentKey는 effect 안에서 읽지 않는 트리거 전용 값 — 상세 대상이 바뀔 때마다 다시 스크롤하기 위한 재실행 신호다.
   useEffect(() => {
     if (!isDetail) return;
     detailRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });

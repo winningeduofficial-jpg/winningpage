@@ -1222,7 +1222,7 @@ export default function AdmissionGuidelines() {
     fetchInfoContent(universityName, section, row, cacheKey);
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: universityName/title 두 값만 트리거로 좁혔다 — selectedInfo 전체를 deps로 쓰면 같은 대상의 status/doc/html 등 로딩 상태 전환마다 스크롤이 리셋된다. 실제로 다른 대상으로 바뀔 때만 리셋해야 한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) universityName/title 두 값만 트리거로 좁혔다 — selectedInfo 전체를 deps로 쓰면 같은 대상의 status/doc/html 등 로딩 상태 전환마다 스크롤이 리셋된다. 실제로 다른 대상으로 바뀔 때만 리셋해야 한다.
   useEffect(() => {
     if (!selectedInfo) return;
     window.requestAnimationFrame(() => {

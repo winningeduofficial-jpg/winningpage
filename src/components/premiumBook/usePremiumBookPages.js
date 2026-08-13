@@ -22,7 +22,7 @@ export function usePremiumBookPages() {
   const [error, setError] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken은 effect 안에서 읽지 않는 재조회(refetch) 트리거 전용 카운터다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) reloadToken은 effect 안에서 읽지 않는 재조회(refetch) 트리거 전용 카운터다.
   useEffect(() => {
     let alive = true;
 
