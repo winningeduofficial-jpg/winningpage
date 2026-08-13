@@ -82,6 +82,7 @@ export default function AdmissionModalShell({
 
   // 모달 접근성: Escape 닫기, 포커스 트랩, 배경 스크롤 잠금, 닫힐 때 트리거로 포커스 복귀.
   // 로딩/에러/본문 상태 전환마다 재실행되지 않도록 열림 여부에만 의존한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: triggerRef/activeTriggerRef는 ref라 deps에 넣어도 변경을 못 잡는다. 의도적으로 [open]에만 의존해 상태 전환마다 재실행되지 않게 한다(위 주석).
   useEffect(() => {
     if (!open) return undefined;
 
