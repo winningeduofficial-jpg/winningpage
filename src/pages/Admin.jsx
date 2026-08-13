@@ -12,6 +12,7 @@ import {
   Eye,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Settings,
   Trash2,
@@ -33,6 +34,12 @@ import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringif
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import { getAdmissionActiveYear, setAdmissionActiveYear } from '../lib/admissionSettings';
 import {
+  GOAL_BACKFILL_YEAR_MODES,
+  fetchBackfillSourceRows,
+  goalCutConflictKey,
+  computeGoalCutBackfill
+} from '../lib/goal/goalCutBackfill';
+import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
   BULK_XLSX_COLUMNS
@@ -42,6 +49,11 @@ import {
   parseAdmissionResultRowsFromXlsx,
   BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS
 } from '../lib/admissionResultsBulkXlsx';
+import {
+  exportGoalUniversityCutRowsToXlsx,
+  parseGoalUniversityCutRowsFromXlsx,
+  GOAL_CUT_RANGE
+} from '../lib/goalUniversityCutsBulkXlsx';
 import * as XLSX from 'xlsx';
 import AdmissionSectionView from '../components/admission/AdmissionSectionView';
 import SafeHtml from '../components/admission/SafeHtml';
@@ -64,6 +76,24 @@ import BookViewer from '../components/premiumBook/BookViewer';
 // Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
 import CouponAdmin from '../components/admin/CouponAdmin';
+// 목표관리 학생 현황(§4-3)이 쓰는 계산 엔진 상수·함수. **읽기 전용 import 다** —
+// src/lib/goal/calc/** 는 209개 테스트로 동결돼 있어 이 화면이 한 글자도 고치지 않는다.
+//  - getSchoolCutType: 학생 school_type → 컷 종류(normal|special). 컷 스냅샷 diff의
+//    현재 컷 조회 술어가 goalRepo.fetchUniversityCut과 같아야 하므로 같은 함수를 쓴다.
+//  - CONDITION_MULTIPLIER: 일별 기록 수식 v2(bonusV2.js)의 컨디션 배수 테이블.
+//    일별 기록 표가 body_condition 값을 배수와 함께 표시한다. 한글 라벨을 새로
+//    지어내면 학생 화면과 어긋나므로 원본 키를 그대로 쓴다.
+//  - kstYMD / addDaysYMD: riskFlags('오늘 미제출' / '최근 7일 기록 없음')의 기준일.
+//    toISOString().slice(0,10)은 UTC라 KST 00~09시에 하루 전날로 잘린다 — 학생이
+//    자정 직후 제출한 기록이 '오늘 미제출'로 잘못 뜨는 사고를 막으려면 KST 고정이 필수다.
+//  - VIRTUAL_DAY_NAMES: study_schedule jsonb의 요일 7키(monday…sunday) 순서 정본.
+import {
+  getSchoolCutType,
+  CONDITION_MULTIPLIER,
+  VIRTUAL_DAY_NAMES,
+  kstYMD,
+  addDaysYMD
+} from '../lib/goal/calc/index.js';
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -127,6 +157,15 @@ const MENU_GROUPS = [
     items: [
       { key: 'dailyEntries', label: '일일 입장' },
       { key: 'usageStatus', label: '이용 현황' }
+    ]
+  },
+  // 목표관리(goal_*) — 학생 앱의 확률 산출에 쓰이는 컷 기준표와 학생 현황.
+  // 등록 지점은 이 배열과 CONFIGS 둘뿐이다(다른 배선 없음).
+  {
+    title: '목표관리',
+    items: [
+      { key: 'goalUniversityCuts', label: '대학 컷 관리' },
+      { key: 'goalStudents', label: '학생 현황' }
     ]
   },
   {
@@ -322,6 +361,41 @@ const MENTOR_APPLICATION_STATUS_OPTIONS = [
   { value: 'training', label: '교육' },
   { value: 'active', label: '활동중' },
   { value: 'rejected', label: '불합격' }
+];
+
+// ---------------------------------------------------------------------
+// 목표관리 도메인 상수 (docs/figma-goal/goal-admin-spec.md §4-1-2)
+// DB 저장값은 영문 키 그대로 두고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
+// ---------------------------------------------------------------------
+
+// sql/55_goal_management.sql 의 goal_university_cuts_cut_type_check 와 동일 집합.
+// 여기 없는 값을 넣으면 저장 시 23514로 죽는다.
+const GOAL_CUT_TYPE_OPTIONS = [
+  { value: 'normal', label: '수시 일반고 (내신 등급)' },
+  { value: 'special', label: '수시 특목·자사고 (내신 등급)' },
+  { value: 'jungsi', label: '정시 (백분위)' }
+];
+
+// GOAL_CUT_RANGE(sql/55 의 goal_university_cuts_avg_cut_check 미러)는 여기서
+// 선언하지 않고 src/lib/goalUniversityCutsBulkXlsx.js 에서 import 한다 —
+// 폼(config.validate)과 엑셀 파서가 **같은 상수**를 봐야 두 입력 경로의
+// 스케일 판정이 갈라지지 않기 때문이다. CHECK 는 "1~9 범위 안의 정시
+// 백분위"(예: 3.5) 같은 혼입을 잡지 못하므로 그 상수가 실질 방어선이다
+// (명세 §3-D4). 수시는 작을수록 우세(등급), 정시는 클수록 우세(백분위)다.
+
+// source: 백필(admission_results 유도)로 만들어진 행인지, 사람이 손으로 넣은
+// 행인지를 구분한다. 백필 재실행이 'manual' 행을 덮어쓰지 않는 근거 컬럼이다.
+const GOAL_CUT_SOURCE_OPTIONS = [
+  { value: 'admission_results', label: '입결정보 유도' },
+  { value: 'manual', label: '수기 입력' }
+];
+
+// goal_students.status. sql/55 의 CHECK 제약과 동일 집합.
+// awaiting_cuts = 온보딩은 제출했으나 컷이 없어 확률이 산출되지 않은 상태.
+const GOAL_STUDENT_STATUS_OPTIONS = [
+  { value: 'active', label: '진행중' },
+  { value: 'awaiting_cuts', label: '컷 대기' },
+  { value: 'paused', label: '정지' }
 ];
 
 const CONFIGS = {
@@ -2645,6 +2719,241 @@ const CONFIGS = {
     custom: true,
     CustomComponent: CouponAdmin,
     searchPlaceholder: ''
+  },
+
+  // -------------------------------------------------------------------
+  // 목표관리 (docs/figma-goal/goal-admin-spec.md §4-2 / §4-3)
+  // 탭 2개다 — 대학 컷 관리(§4-2, 표준 CRUD + ListSummary 3블록)와
+  // 학생 현황(§4-3, custom 컴포넌트). 두 config 는 서로 아무것도 공유하지
+  // 않으므로 각각 독립적으로 읽고 고칠 수 있다.
+  // -------------------------------------------------------------------
+
+  goalUniversityCuts: {
+    title: '목표관리 대학 컷',
+    table: 'goal_university_cuts',
+    searchPlaceholder: '대학명 또는 학과명을 검색하세요',
+    // 동점 처리축 id 필수. 없으면 .range() 페이지 경계에서 행이 중복·누락된다
+    // (같은 논리를 admissionResults가 이미 쓴다 — 이 파일의 orderBy 주석 참고).
+    orderBy: [
+      ['university_name', true],
+      ['department_name', true],
+      ['cut_type', true],
+      ['id', true]
+    ],
+    // 백필 후 13,000행 이상. PostgREST 기본 1,000행 상한을 크게 넘는다.
+    serverPaginate: true,
+    searchColumns: ['university_name', 'department_name'],
+    homepage: true,
+    // excel / rowCapWarning은 선언하지 않는다 — 엑셀 버튼 2개 공존 금지(2026-08-07
+    // 사용자 지시), serverPaginate를 켰으므로 행수 경고도 불필요.
+    guideText: `학생 온보딩의 목표 대학 확률 산출에 쓰이는 컷 기준표입니다. 이 표에 있는 조합만 학생이 고를 수 있습니다 — 여기서 지우거나 노출을 끄면 온보딩 대학 목록에서도 사라집니다.
+⚠ 컷 값의 단위가 종류에 따라 다릅니다. 수시(일반고/특목·자사고)는 내신 등급 1~9(작을수록 우세), 정시는 백분위 0~100(클수록 우세)입니다. 섞여 들어가면 합격 확률의 우열이 통째로 뒤집힙니다.
+🔴 학과명은 반드시 채워 주세요. 학과명이 빈 행은 어떤 학생에게도 매칭되지 않습니다 — 온보딩이 학과를 필수로 요구하고, 확률 조회가 학과명 완전일치로 이뤄지기 때문입니다.
+🔴 정시 컷은 같은 (대학, 학과)의 수시 컷과 글자 하나까지 같아야 정시 확률이 산출됩니다. 수시 컷 행의 대학명·학과명을 그대로 복사해 넣어 주세요.
+컷을 고쳐도 이미 온보딩을 마친 학생의 확률은 바뀌지 않습니다 — 학생의 확률은 온보딩 시점의 컷으로 확정됩니다.`,
+    ListSummary: GoalCutsListSummary,
+    columns: [
+      { key: 'cut_type', label: '컷 종류', options: GOAL_CUT_TYPE_OPTIONS },
+      { key: 'university_name', label: '대학' },
+      // department_name은 공용 formatValue 그대로 둔다 — 빈 값은 '-'로 나오고,
+      // 빈 학과명 행은 정상 운영에서 생기지 않는다(폼·엑셀·백필 모두 필수).
+      { key: 'department_name', label: '학과' },
+      {
+        key: 'avg_cut',
+        label: '컷 값',
+        // 🔴 목록에서 2.35(등급)와 87.5(백분위)가 단위 없이 섞여 보이면 스케일
+        // 혼입을 눈으로 잡을 수 없다. formatValue는 (value, type, options)만 받아
+        // 같은 행의 cut_type을 볼 수 없으므로 공용 훅 column.render(row)를 쓴다.
+        render: (row) => {
+          const value = row?.avg_cut;
+          if (value === null || value === undefined || value === '') return '-';
+          const unit = GOAL_CUT_RANGE[row?.cut_type]?.unit || '';
+          return `${value}${unit}`;
+        }
+      },
+      { key: 'source', label: '출처', options: GOAL_CUT_SOURCE_OPTIONS },
+      { key: 'source_year', label: '기준 연도' },
+      { key: 'is_active', label: '노출', type: 'boolean' },
+      { key: 'updated_at', label: '수정일', type: 'datetime' }
+    ],
+    fields: [
+      { key: 'is_active', label: '노출 여부', type: 'radioBoolean', required: true },
+      {
+        key: 'cut_type',
+        label: '컷 종류',
+        type: 'select',
+        required: true,
+        options: GOAL_CUT_TYPE_OPTIONS,
+        // 편집 모드(row 있음)에서는 읽기 전용 텍스트로 렌더한다 —
+        // AdminForm이 readOnly 필드에는 AdminInput을 아예 호출하지 않고
+        // formatValue로 정적 텍스트를 그린다(options 라벨 매핑 포함).
+        // ⚠ 이건 사용성 개선일 뿐 방어가 아니다. 실질 차단은 validate 규칙 0이다.
+        resolve: (form, row) =>
+          row
+            ? {
+                readOnly: true,
+                help: '기존 행의 컷 종류는 바꿀 수 없습니다. 종류를 바꾸려면 이 행을 삭제한 뒤 새로 등록해 주세요 — 등급 3.2짜리 행을 정시로 바꾸면 "백분위 3.2"로 읽혀 합격 확률의 우열이 통째로 뒤집힙니다.'
+              }
+            : {}
+      },
+      {
+        key: 'university_name',
+        label: '대학명',
+        type: 'text',
+        required: true,
+        help: '학생 온보딩에 그대로 노출되고, 확률 조회 키로도 쓰입니다(goalRepo.js fetchUniversityCut). 오타 1건이 그 조합의 온보딩을 전부 막습니다.'
+      },
+      {
+        key: 'department_name',
+        label: '학과명',
+        type: 'text',
+        required: true,
+        help: '온보딩이 학과를 필수로 요구하고 확률 조회가 학과명 완전일치라, 비워 두면 어떤 학생에게도 매칭되지 않습니다.'
+      },
+      // nullable: true 필수 — 비우면 0이 아니라 null로 저장돼야 한다. null은
+      // "컷 미확보"이고 API가 422로 응답한다. 0은 jungsi 스케일에서 합법 값이라
+      // 의미가 완전히 다르다.
+      {
+        key: 'avg_cut',
+        label: '컷 값',
+        type: 'number',
+        nullable: true,
+        // cut_type에 따라 라벨·단위·범위·placeholder가 통째로 달라진다(§3-D4 ①).
+        // cut_type 미선택 상태에서는 readOnly로 두어 입력 자체를 막는다 —
+        // AdminInput에 disabled 속성을 새로 뚫는 것보다(공용 경로 추가 변경)
+        // 이미 승인된 훅만으로 같은 효과를 낸다.
+        resolve: (form) => {
+          const range = GOAL_CUT_RANGE[form?.cut_type];
+          if (!range) {
+            return {
+              readOnly: true,
+              help: '컷 종류를 먼저 선택해 주세요 — 종류에 따라 값의 단위(등급/백분위)가 달라집니다.'
+            };
+          }
+          return {
+            label: `컷 값 (${range.unit})`,
+            min: range.min,
+            max: range.max,
+            // 🔴 step:'any' 없이 min만 주면 소수 컷이 통째로 저장 불가가 된다.
+            //   내신 컷은 2.35, 정시 백분위는 87.5 처럼 소수가 정상값이고
+            //   백필 13,282행 중 96%가 소수다. 근거는 AdminInput의 step 주석.
+            step: 'any',
+            placeholder: `${range.min} ~ ${range.max}`,
+            help: `${range.label}. 비워 두면 "컷 미확보"(null)로 저장되고 그 조합은 온보딩에서 422로 막힙니다 — 0은 정시 백분위에서 합법 값이라 의미가 완전히 다릅니다.`
+          };
+        }
+      },
+      { key: 'source', label: '출처', type: 'select', options: GOAL_CUT_SOURCE_OPTIONS },
+      { key: 'source_year', label: '기준 연도', type: 'number', nullable: true },
+      { key: 'note', label: '운영 메모', type: 'textarea' }
+    ],
+    // university_key / department_key는 폼에 노출하지 않는다 — 어드민은 항상
+    // 표시명과 동일하게 강제한다(명세 §3-D5). 강제는 formToPayload가 한다.
+    //
+    // rowToForm이 원본 avg_cut을 __origAvgCut에 실어 두는 이유: formToPayload는
+    // row를 받지 못해서, "관리자가 컷 값을 손으로 고쳤는가"를 알 방법이 이것뿐이다.
+    // 그 판정이 없으면 백필 보존 술어(source='manual')의 첫 항이 영원히 비어
+    // 있게 되어, 관리자의 수정이 백필 재실행마다 덮어써진다(명세 §4-2-H-2 7단계).
+    rowToForm: (row) => ({ ...row, __origAvgCut: row.avg_cut }),
+    formToPayload: (form) => {
+      const universityName = String(form.university_name ?? '').trim();
+      // department_name은 NOT NULL DEFAULT ''라 null을 보내면 저장이 거부된다.
+      // 폼에서는 필수라 빈 문자열이 오지 않지만, ?? ''는 엑셀·백필 경로와
+      // payload 형태를 맞추기 위한 방어다.
+      const departmentName = String(form.department_name ?? '').trim();
+      const payload = {
+        ...form,
+        university_key: universityName,
+        university_name: universityName,
+        department_key: departmentName,
+        department_name: departmentName,
+        // 유도 행을 관리자가 손으로 고치면 '수기 입력'으로 승격시킨다.
+        source:
+          form.__origAvgCut !== undefined && form.avg_cut !== form.__origAvgCut
+            ? 'manual'
+            : form.source
+      };
+      // saveRow는 created_at/updated_at/view_count만 자동으로 지운다 —
+      // __ 접두 키는 여기서 직접 지워야 42703으로 죽지 않는다.
+      delete payload.__origAvgCut;
+      delete payload.created_at;
+      delete payload.updated_at;
+      return payload;
+    },
+    // 🔴 스케일 이원성의 정본 방어선(§3-D4 층 ②). DB CHECK는 jungsi에 2.5(등급)를
+    // 넣어도 통과시킨다 — 1~9 구간은 두 스케일 모두 합법이라 DB가 구분할 수 없다.
+    validate: (form, row) => {
+      // 규칙 0 — 기존 행의 컷 종류 변경 차단. 이 탭이 막아야 할 1순위 사고다.
+      if (row && row.cut_type && form.cut_type !== row.cut_type) {
+        return '컷 종류는 변경할 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.';
+      }
+      const range = GOAL_CUT_RANGE[form.cut_type];
+      if (!range) return '컷 종류를 선택해 주세요.';
+      if (!String(form.university_name ?? '').trim()) return '대학명을 입력해 주세요.';
+      if (!String(form.department_name ?? '').trim()) {
+        return '학과명을 입력해 주세요. 학과명이 빈 행은 어떤 학생에게도 매칭되지 않습니다.';
+      }
+      // 컷 미확보(null/빈 값)는 통과시킨다.
+      if (form.avg_cut === null || form.avg_cut === undefined || form.avg_cut === '') return null;
+      const avgCut = Number(form.avg_cut);
+      if (!Number.isFinite(avgCut)) return '컷 값은 숫자로 입력해 주세요.';
+      if (avgCut < range.min || avgCut > range.max) {
+        return `선택한 컷 종류(${range.label})의 범위를 벗어났습니다 — ${range.min} ~ ${range.max} 사이로 입력해 주세요.`;
+      }
+      // 거부가 아니라 확인 — 백분위 9 이하가 불가능하진 않지만 실무상
+      // 스케일 혼입일 확률이 압도적이다. validate는 동기 함수이고 호출부가
+      // 반환값을 무조건 alert하므로, 취소를 누르면 경고창이 한 번 더 뜬다.
+      // 그래서 반환 문구를 alert로 읽어도 자연스러운 문장으로 확정했다.
+      if (form.cut_type === 'jungsi' && avgCut <= 9) {
+        const ok = window.confirm(
+          '정시 컷에 9 이하 값을 넣으셨습니다. 내신 등급을 잘못 입력하신 것은 아닌가요? 백분위 값이 맞다면 [확인]을 눌러 주세요.'
+        );
+        if (!ok) return '저장하지 않았습니다. 정시 컷 값을 다시 확인해 주세요.';
+      }
+      return null;
+    },
+    // ⚠ 명세 §4-2-F 는 cut_type 기본값을 'normal' 로 적었으나 ''(미선택)로 둔다.
+    //    'normal' 로 두면 §4-2-C 가 요구하는 "cut_type 미선택 시 avg_cut 입력
+    //    disabled" 상태에 신규 등록이 절대 도달하지 못해 그 방어가 죽는다.
+    //    관리자가 종류를 고르지 않고 컷 값부터 치는 것이 스케일 혼입의 시작이다.
+    //    AdminInput 의 select 는 <option value="">선택</option> 을 항상 먼저
+    //    렌더하므로 ''는 "선택" 으로 정상 표시되고, 저장은 required 검사와
+    //    validate 규칙 1이 함께 막는다.
+    defaults: {
+      is_active: true,
+      cut_type: '',
+      university_name: '',
+      department_name: '',
+      avg_cut: null,
+      source: 'manual',
+      source_year: null,
+      note: ''
+    }
+  },
+
+  goalStudents: {
+    title: '목표관리 학생 현황',
+    // 명세 §4-3. 목록 컬럼이 4소스(goal_student_state 뷰 + goal_students +
+    // profiles + 파생 riskFlags) 합성이고 상세가 6소스 합성이라 CONFIGS로
+    // 표현할 수 없다. custom: true로 공용 목록·폼·검색·페이지네이션을 통째로
+    // 끄고(Admin.jsx의 loadRows custom 분기 / 렌더 custom 삼항) 컴포넌트가
+    // 전부 그린다. table을 선언하지 않는 이유도 같다 — loadRows가 custom이면
+    // 즉시 rows=[]로 빠져나가 이 값을 읽지 않는다(learningDiagnosis 선례).
+    //
+    // ⚠ CustomComponent는 반드시 function 선언문이어야 한다. CONFIGS 리터럴이
+    //   모듈 초기화 시점에 이 참조를 평가하는데 GoalStudentsAdmin은 파일 끝에
+    //   있으므로, const 화살표 함수로 쓰면 TDZ ReferenceError로 어드민 전체가
+    //   죽는다.
+    custom: true,
+    CustomComponent: GoalStudentsAdmin,
+    searchPlaceholder: '이름 또는 연락처로 검색하세요',
+    // 학생 데이터는 어드민이 한 글자도 고칠 수 없다(명세 §3-D6 / §3-D7).
+    // custom: true라 공용 CRUD 경로 자체가 닿지 않으므로 이 두 플래그는 실행에
+    // 영향을 주지 않는다 — 선언 의도를 config에 남겨두는 문서 역할이다
+    // (mentorApplications가 같은 조합을 쓴다). RLS도 sql/57이 for select로
+    // 좁혀 브라우저 콘솔 직접 UPDATE까지 막는다.
+    readOnly: true,
+    noCreate: true
   }
 };
 
@@ -4062,6 +4371,27 @@ function AdminInput({ field, value, onChange, disabled }) {
       }}
       disabled={disabled}
       readOnly={readOnly}
+      // placeholder/min/max/step: 선언한 필드에만 붙는다. 값이 undefined면
+      // React가 속성 자체를 DOM에 렌더하지 않으므로, 이 네 키를 선언하지 않은
+      // 기존 필드는 마크업이 바이트 단위로 동일하다.
+      //
+      // 🔴 min/max는 "브라우저 힌트"가 아니라 실제로 submit을 막는다
+      //   (rangeUnderflow/rangeOverflow → form.checkValidity() false → onSubmit
+      //    자체가 발화하지 않아 config.validate가 호출조차 되지 않는다).
+      //   그래서 min을 선언하는 필드는 step도 함께 선언해야 한다 — HTML 사양상
+      //   number 입력의 step base는 min 속성이 있으면 min, 없으면 value
+      //   콘텐트 속성이다. 기본 step은 1이므로 min만 붙이는 순간 소수값이
+      //   전부 stepMismatch로 막힌다(실측: <input type=number min=1 value="2.35">
+      //   → stepMismatch true, "가장 근접한 유효 값 2개는 2 및 3입니다").
+      //   min/max/step을 선언하지 않은 기존 필드는 step base가 value라
+      //   소수 입력이 지금까지 통과해 왔다 — 그래서 이 결함은 min을 처음
+      //   선언한 필드(목표관리 대학 컷 avg_cut)에서만 터졌다.
+      //   step='any'를 함께 주면 stepMismatch는 사라지고 min/max 범위 방어는
+      //   그대로 남는다(실측: step=any + max=9 에 12 → rangeOverflow true).
+      placeholder={field.placeholder}
+      min={field.min}
+      max={field.max}
+      step={field.step}
       className={`${base} ${readOnly ? 'bg-gray-50 text-gray-500' : ''}`}
     />
   );
@@ -4864,11 +5194,15 @@ function AdminForm({
   onSave,
   onUpload,
   origin = 'form',
-  initialSection = null
+  initialSection = null,
+  // createDefaults: 다른 탭에서 "이 값으로 새 행을 만들어라"며 넘겨 온 1회성
+  // 프리필. Admin()의 pendingCreateDefaults가 유일한 공급자다. 넘기지 않으면
+  // undefined라 아래 spread가 {}가 되어 기존 동작과 완전히 동일하다.
+  createDefaults = null
 }) {
   const [form, setForm] = useState(() => {
     if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
-    return { ...(config.defaults || {}) };
+    return { ...(config.defaults || {}), ...(createDefaults || {}) };
   });
   const [dirty, setDirty] = useState(false);
   // 열려 있는 카테고리 편집 다이얼로그의 섹션 키(field.group 있는 config,
@@ -5094,7 +5428,23 @@ function AdminForm({
                 />
               );
             }
-            const field = item.field;
+            // field.resolve(form, row): 같은 폼의 다른 필드 값에 따라 이 필드의
+            // 표시 속성(label/help/placeholder/min/max/readOnly)만 부분 덮어쓴다.
+            // 목표관리 대학 컷의 avg_cut이 cut_type에 따라 단위·범위가 통째로
+            // 달라지는 요구 때문에 들어왔다(명세 §3-D4 ①). key/type은 덮지 않는
+            // 것이 계약이다 — 덮으면 form 상태의 키가 어긋난다.
+            // resolve를 선언하지 않은 config는 item.field를 그대로 쓰므로 기존
+            // 탭들의 렌더 경로가 바뀌지 않는다(저장소 전체 field.resolve 선언 0건).
+            //
+            // ⚠ 적용 범위 계약: **이 폼 본문 루프뿐이다.** 카테고리 편집 모달의
+            //   groupFields(config.fields.filter(f => f.group === modalSection))는
+            //   resolve를 거치지 않고 원본 field를 그대로 렌더한다. 지금은
+            //   resolve를 쓰는 config(goalUniversityCuts)에 group 필드가 없어
+            //   실효가 없지만, group과 resolve를 함께 쓰려면 그쪽에도 같은
+            //   변환을 태워야 한다.
+            const field = item.field.resolve
+              ? { ...item.field, ...item.field.resolve(form, row) }
+              : item.field;
 
             return (
               <div key={field.key} className="grid grid-cols-[220px_1fr] border-b border-[#edf0f4]">
@@ -5542,7 +5892,28 @@ function AdminTable({
                           미주입으로 스크립트가 ReferenceError 로 죽는다.
                           (앵커 문자열을 이 주석에 그대로 복제하지도 말 것 —
                           "정확히 1개" 조건이 깨져 슬라이스가 실패한다.) */}
-                      {column.type === 'universityNameMeta' && onOpenMetaEdit ? (
+                      {/* column.render(row): 같은 행의 다른 컬럼을 봐야 하는 셀
+                          전용 훅. formatValue 시그니처가 (value, type, options)라
+                          값 하나만 받아 이웃 컬럼을 볼 수 없다 — 목표관리 대학 컷의
+                          avg_cut을 cut_type에 따라 "2.35등급" / "87.5백분위"로
+                          렌더하는 요구가 이 훅을 강제한다(명세 §4-1-3 (c)).
+
+                          ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
+                          있어야 한다 — 아래 universityNameMeta 분기의 주석과 같은
+                          이유다(scripts/verify-admission-admin-entry.mjs 슬라이스).
+
+                          render를 선언하지 않은 컬럼은 아래 기존 분기를 그대로
+                          탄다(저장소 전체 column.render 선언 0건).
+
+                          ⚠ 적용 범위 계약: **표 셀뿐이다.** CSV 내보내기(csvBody)는
+                          render를 보지 않고 formatValue만 쓴다 — 목록에 "2.35등급"
+                          으로 보이는 값이 CSV에는 "2.35"로 나간다. render를 쓰는
+                          config(goalUniversityCuts)는 excel/CSV 경로를 아예
+                          선언하지 않아 지금은 실효가 없지만, 그 탭에 내보내기를
+                          켜려면 csvBody에도 같은 훅을 태워야 한다. */}
+                      {column.render ? (
+                        column.render(row)
+                      ) : column.type === 'universityNameMeta' && onOpenMetaEdit ? (
                         <button
                           type="button"
                           onClick={() => onOpenMetaEdit(row)}
@@ -6663,6 +7034,1009 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
   );
 }
 
+// =====================================================================
+// 목표관리 대학 컷(goal_university_cuts) — CONFIGS.goalUniversityCuts 의
+// ListSummary 진입점과 그 3블록.
+//
+//   H-1 현황 요약        GoalCutsOverviewBlock
+//   H-2 입결 유도 백필    GoalCutsBackfillPanel
+//   H-3 엑셀 일괄 왕복    GoalCutsBulkXlsxPanel
+//
+// serverPaginate 탭이므로 세 블록 모두 props 의 rows 를 쓰지 않는다 —
+// AdminTable 이 들고 있는 건 현재 페이지 10행뿐이라 그걸로 집계하면
+// 전부 틀린 수치가 나온다(AdmissionResultsBulkXlsxPanel 과 같은 이유).
+// 필요한 데이터는 각 블록이 직접 PostgREST 상한(1,000행)에 맞춰
+// .range() 청크 반복으로 읽는다.
+// =====================================================================
+
+const GOAL_CUTS_TABLE = 'goal_university_cuts';
+// sql/83_goal_admin_options_rls.sql 이 만든 (대학, 학과) 단위 집계 뷰.
+// has_normal/has_special/has_jungsi 플래그를 준다.
+const GOAL_CUTS_OPTIONS_VIEW = 'goal_university_options';
+// PostgREST 기본 응답 상한과 맞춘 읽기 청크.
+const GOAL_CUTS_READ_CHUNK = 1000;
+// upsert/update 배치 크기. 백필 최대 산출이 13,000행대라 27회 요청이 된다.
+const GOAL_CUTS_APPLY_CHUNK = 500;
+
+const GOAL_CUTS_WARNING_GROUPS = [
+  {
+    key: 'jungsiLooksLikeGrade',
+    label: '🔴 정시 컷에 9 이하 값 — 내신 등급 혼입 의심',
+    tone: 'danger',
+    types: ['jungsiLooksLikeGrade']
+  },
+  {
+    key: 'naesinCutTooHigh',
+    label: '수시 컷이 8등급 이상',
+    tone: 'warning',
+    types: ['naesinCutTooHigh']
+  },
+  { key: 'cutMissing', label: '컷 값이 비어 있음(온보딩 422)', tone: 'warning', types: ['cutMissing'] },
+  {
+    key: 'unknownSource',
+    label: "출처를 알 수 없어 '수기 입력'으로 강등 — 이후 백필에서 갱신 안 됨",
+    tone: 'warning',
+    types: ['unknownSource']
+  },
+  { key: 'inactiveRow', label: '노출 꺼짐(온보딩 목록에서 사라짐)', tone: 'neutral', types: ['inactiveRow'] }
+];
+
+const GOAL_CUTS_TONE_CLASS = {
+  danger: 'border-red-300 bg-red-50 text-red-700',
+  warning: 'border-amber-400 bg-amber-50 text-amber-700',
+  neutral: 'border-gray-300 bg-gray-50 text-gray-600'
+};
+
+async function goalCutsCount(applyFilters) {
+  let query = supabase.from(GOAL_CUTS_TABLE).select('id', { count: 'exact', head: true });
+  if (applyFilters) query = applyFilters(query);
+  const { count, error } = await query;
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+// id 오름차순으로 청크 반복해 전량을 읽는다. order 없이 .range() 만 반복하면
+// PostgREST 가 매 요청마다 정렬을 보장하지 않아 페이지 경계에서 행이 중복·
+// 누락된다(admissionResults 쪽과 같은 논리).
+async function fetchAllGoalCutRows(columns, onProgress) {
+  const total = await goalCutsCount();
+  const all = [];
+  for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(GOAL_CUTS_TABLE)
+      .select(columns)
+      .order('id', { ascending: true })
+      .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+// 엑셀 업로드 검증용. id → 그 행의 현재 cut_type 을 통째로 읽어 Map 으로
+// 돌려준다 — idNotFound 와 cutTypeChanged 를 **같은 조회 결과**로 판정한다.
+// 캐시하지 않는다: 그 사이 다른 관리자가 지운 id 를 놓치지 않기 위해서다.
+async function fetchGoalCutIdCutTypeMap(onProgress) {
+  const rows = await fetchAllGoalCutRows('id, cut_type', onProgress);
+  return new Map(rows.map((r) => [r.id, r.cut_type]));
+}
+
+// goal_university_options 뷰 전량. (대학, 학과) 단위로 이미 접혀 있어
+// 조합 약 6,600건이면 한 번의 청크 반복으로 충분하다. 뷰에는 id 가 없어
+// 정렬 축을 university_key + department_key 로 잡는다(이 둘이 뷰의
+// group by 축이라 조합이 유일하다).
+async function fetchGoalUniversityOptionRows() {
+  const { count, error: countError } = await supabase
+    .from(GOAL_CUTS_OPTIONS_VIEW)
+    .select('university_key', { count: 'exact', head: true });
+  if (countError) throw new Error(countError.message);
+  const total = count ?? 0;
+  const all = [];
+  for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
+    const { data, error } = await supabase
+      .from(GOAL_CUTS_OPTIONS_VIEW)
+      .select('university_key, university_name, department_key, department_name, has_normal, has_special, has_jungsi')
+      .order('university_key', { ascending: true })
+      .order('department_key', { ascending: true })
+      .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...data);
+  }
+  return all;
+}
+
+// H-2 백필 — 소스 조회 + 순수 집계는 src/lib/goal/goalCutBackfill.js 로
+// 옮겼다(scripts/run-goal-cuts-backfill.mjs 와 로직을 공유한다). 이 파일은
+// 위 import 로 그 함수들을 그대로 쓴다.
+
+// 산출 payload 를 기존 행과 대조한다. 순수 함수다.
+// (블록 주석 금지 — 위 computeGoalCutBackfill 머리말의 회귀 가드 설명 참고.)
+//
+// 반환:
+//   overlapCount   기존 행과 자연키가 겹치는 산출 행 수
+//   manualCount / inactiveCount / notedCount  보존 술어별 건수(중복 가능)
+//   preservedKeys  보존 대상 conflictKey 집합(= 산출에서 제외할 대상)
+//   orphanIds      이번 산출에 없는 기존 유도 행(source=admission_results,
+//                  is_active=true)의 id. source='manual' 은 절대 대상이 아니다.
+//   nameAxisKeys   🔴 goal_university_cuts_name_key(partial UNIQUE, where
+//                  is_active)와 충돌해 청크 전체를 23505 로 죽일 산출 행.
+//                  key 축에서는 안 걸리는데 name 축에서만 걸리는 경우다 —
+//                  기존 행의 key 와 name 이 다를 때 생긴다(dev 실측으로
+//                  409/23505 재현 확인). 어드민은 key := name 을 강제하므로
+//                  정상 운영에서는 0이지만, 나면 청크 500행이 통째로
+//                  날아가므로 미리보기에서 걸러 낸다.
+function analyzeGoalCutBackfillAgainstExisting(payloads, existingRows) {
+  const existingByConflictKey = new Map();
+  const activeConflictKeyByNameKey = new Map();
+  (existingRows || []).forEach((row) => {
+    const conflictKey = goalCutConflictKey(row.cut_type, row.university_key, row.department_key);
+    existingByConflictKey.set(conflictKey, row);
+    if (row.is_active) {
+      const nameKey = goalCutConflictKey(row.cut_type, row.university_name, row.department_name);
+      if (!activeConflictKeyByNameKey.has(nameKey)) {
+        activeConflictKeyByNameKey.set(nameKey, conflictKey);
+      }
+    }
+  });
+
+  let overlapCount = 0;
+  let manualCount = 0;
+  let inactiveCount = 0;
+  let notedCount = 0;
+  const preservedKeys = new Set();
+  const nameAxisKeys = new Set();
+  const producedKeys = new Set();
+
+  payloads.forEach((p) => {
+    const conflictKey = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+    producedKeys.add(conflictKey);
+
+    const existing = existingByConflictKey.get(conflictKey);
+    if (existing) {
+      overlapCount += 1;
+      let preserved = false;
+      if (existing.source === 'manual') {
+        manualCount += 1;
+        preserved = true;
+      }
+      if (existing.is_active === false) {
+        inactiveCount += 1;
+        preserved = true;
+      }
+      if (String(existing.note ?? '').trim() !== '') {
+        notedCount += 1;
+        preserved = true;
+      }
+      if (preserved) preservedKeys.add(conflictKey);
+    }
+
+    // key := name 이므로 payload 의 nameKey 는 conflictKey 와 같은 문자열이다.
+    // 기존 활성 행이 같은 name 축을 다른 key 축으로 점유하고 있으면 23505 다.
+    const holder = activeConflictKeyByNameKey.get(conflictKey);
+    if (holder && holder !== conflictKey) nameAxisKeys.add(conflictKey);
+  });
+
+  const orphanIds = (existingRows || [])
+    .filter(
+      (row) =>
+        row.source === 'admission_results' &&
+        row.is_active === true &&
+        !producedKeys.has(goalCutConflictKey(row.cut_type, row.university_key, row.department_key))
+    )
+    .map((row) => row.id);
+
+  return {
+    overlapCount,
+    manualCount,
+    inactiveCount,
+    notedCount,
+    preservedKeys,
+    nameAxisKeys,
+    orphanIds
+  };
+}
+
+// ---------------------------------------------------------------------
+// H-1 현황 요약
+// ---------------------------------------------------------------------
+
+function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      // head:true 카운트(본문 0바이트) 6회 + 뷰 전량 1회.
+      const [total, active, normal, special, jungsi, missing] = await Promise.all([
+        goalCutsCount(),
+        goalCutsCount((q) => q.eq('is_active', true)),
+        goalCutsCount((q) => q.eq('cut_type', 'normal')),
+        goalCutsCount((q) => q.eq('cut_type', 'special')),
+        goalCutsCount((q) => q.eq('cut_type', 'jungsi')),
+        goalCutsCount((q) => q.is('avg_cut', null))
+      ]);
+      const options = await fetchGoalUniversityOptionRows();
+      const comboTotal = options.length;
+      const comboNoJungsi = options.filter((o) => !o.has_jungsi).length;
+      if (!cancelled) {
+        setSummary({ total, active, normal, special, jungsi, missing, comboTotal, comboNoJungsi });
+      }
+    })()
+      // 실패해도 화면을 막지 않는다 — 참고 지표일 뿐이다.
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshToken, mutationSeq]);
+
+  if (loading && !summary) {
+    return (
+      <div className="bg-white p-4 text-sm shadow">
+        <div className="font-black">현황 요약</div>
+        <p className="mt-2 text-xs text-gray-500">불러오는 중…</p>
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="bg-white p-4 text-sm shadow">
+        <div className="font-black">현황 요약</div>
+        <p className="mt-2 text-xs text-gray-500">현황을 불러오지 못했습니다(목록 사용에는 영향 없습니다).</p>
+      </div>
+    );
+  }
+
+  const n = (v) => v.toLocaleString();
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="font-black">현황 요약</div>
+      <p className="mt-2 text-xs font-bold text-gray-700">
+        전체 {n(summary.total)}건 · 노출 {n(summary.active)}건 · 수시 일반 {n(summary.normal)}건 · 수시 특목{' '}
+        {n(summary.special)}건 · 정시 {n(summary.jungsi)}건 · 컷 미확보 {n(summary.missing)}건
+      </p>
+      {/* 🟠(품질 지표)이지 🔴(블로커)가 아니다 — 정시 컷이 없어도 그 조합은
+          온보딩 목록에 뜨고 학생은 고를 수 있다. 다만 그 학생의 정시 확률
+          2종이 계속 미산출로 남고, 나중에 컷을 채워도 재계산되지 않는다
+          (base_* 는 온보딩 이후 불변). */}
+      <p className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-700">
+        🟠 정시 컷 없는 (대학, 학과) 조합: {n(summary.comboNoJungsi)}건 / 전체 {n(summary.comboTotal)}조합 — 이
+        조합을 고른 학생은 정시 확률 2종이 계속 미산출입니다.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// H-2 입결 유도 백필
+// ---------------------------------------------------------------------
+
+function GoalCutsBackfillPanel({ onReload }) {
+  const [yearMode, setYearMode] = useState('prefer2026');
+  const [preserveMode, setPreserveMode] = useState('preserve'); // preserve | overwrite
+  const [orphanMode, setOrphanMode] = useState('keep'); // keep | deactivate
+  const [sourceProgress, setSourceProgress] = useState(null);
+  const [computing, setComputing] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyProgress, setApplyProgress] = useState(null);
+
+  const busy = Boolean(sourceProgress || computing || applying);
+
+  // 옵션이 바뀌면 미리보기를 버린다 — 산출값(N)이 확인 게이트 문구와
+  // 적용 대상 양쪽의 근거라, 옵션과 어긋난 미리보기를 남겨 두면
+  // "확인한 N행"과 "실제 반영되는 N행"이 달라진다.
+  function resetPreview() {
+    setPreview(null);
+    setConfirmChecked(false);
+  }
+
+  async function handleCompute() {
+    if (busy) return;
+    setComputing(true);
+    setPreview(null);
+    setConfirmChecked(false);
+    try {
+      setSourceProgress({ done: 0, total: 0 });
+      const sourceRows = await fetchBackfillSourceRows(supabase, yearMode, (p) => setSourceProgress(p));
+      setSourceProgress(null);
+      const { payloads, stats } = computeGoalCutBackfill(sourceRows, yearMode);
+      const existingRows = await fetchAllGoalCutRows(
+        'id, cut_type, university_key, university_name, department_key, department_name, source, is_active, note'
+      );
+      const analysis = analyzeGoalCutBackfillAgainstExisting(payloads, existingRows);
+      const applyPayloads = payloads.filter((p) => {
+        const key = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+        if (analysis.nameAxisKeys.has(key)) return false;
+        if (preserveMode === 'preserve' && analysis.preservedKeys.has(key)) return false;
+        return true;
+      });
+      setPreview({ stats, analysis, applyPayloads, sourceRowCount: sourceRows.length });
+    } catch (err) {
+      setPreview(null);
+      alert(`미리보기 계산 실패: ${err.message}`);
+    } finally {
+      setSourceProgress(null);
+      setComputing(false);
+    }
+  }
+
+  async function handleApply() {
+    if (!preview || !confirmChecked || applying) return;
+    const rowsToApply = preview.applyPayloads;
+    const orphanIds = orphanMode === 'deactivate' ? preview.analysis.orphanIds : [];
+    const total = rowsToApply.length + orphanIds.length;
+    if (total === 0) {
+      alert('반영할 행이 없습니다.');
+      return;
+    }
+    setApplying(true);
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < rowsToApply.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = rowsToApply.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        // onConflict 는 goal_university_cuts_key(평범한 3컬럼 UNIQUE btree)를
+        // 가리킨다 — dev 실측으로 신규 201 / 재실행 200 · id 보존 · is_active
+        // 와 note 보존까지 확인했다.
+        const { error } = await supabase
+          .from(GOAL_CUTS_TABLE)
+          .upsert(chunk, { onConflict: 'cut_type,university_key,department_key' });
+        if (error) {
+          throw new Error(`컷 반영 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < orphanIds.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = orphanIds.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        // 삭제하지 않는다 — 되돌릴 수 있어야 한다.
+        const { error } = await supabase
+          .from(GOAL_CUTS_TABLE)
+          .update({ is_active: false })
+          .in('id', chunk);
+        if (error) {
+          throw new Error(`고아 유도 행 노출 끄기 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(
+        `백필 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`
+      );
+      onReload?.();
+      return;
+    }
+
+    setApplying(false);
+    setApplyProgress(null);
+    setPreview(null);
+    setConfirmChecked(false);
+    onReload?.();
+    alert(
+      `입결 유도 컷 ${rowsToApply.length.toLocaleString()}행을 반영했습니다.` +
+        (orphanIds.length ? ` 고아 유도 행 ${orphanIds.length.toLocaleString()}건의 노출을 껐습니다.` : '')
+    );
+  }
+
+  const stats = preview?.stats;
+  const analysis = preview?.analysis;
+  const affectedCount =
+    (preview?.applyPayloads.length ?? 0) +
+    (orphanMode === 'deactivate' ? (analysis?.orphanIds.length ?? 0) : 0);
+
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="font-black">입결정보에서 수시 컷 일괄 생성</div>
+      <p className="mt-2 text-xs leading-5 text-gray-600">
+        입결정보(admission_results)의 70% 컷 등급에서 수시 컷을 유도해 이 표에 채웁니다. 정시 컷은 원본
+        데이터가 없어 생성되지 않습니다 — 수기 또는 엑셀로 입력해 주세요.
+      </p>
+
+      <div className="mt-3 space-y-2 rounded border border-gray-200 bg-[#fafafa] p-3 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">기준 연도</span>
+          {GOAL_BACKFILL_YEAR_MODES.map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillYear"
+                checked={yearMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setYearMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">기존 행 처리</span>
+          {[
+            { value: 'preserve', label: '관리자가 손댄 행은 보존' },
+            { value: 'overwrite', label: '전부 덮어쓰기' }
+          ].map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillPreserve"
+                checked={preserveMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setPreserveMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="w-32 shrink-0 font-black">이번 산출에 없는 기존 유도 행</span>
+          {[
+            { value: 'keep', label: '그대로 둔다' },
+            { value: 'deactivate', label: '노출을 끈다(is_active=false)' }
+          ].map((mode) => (
+            <label key={mode.value} className="flex items-center gap-1 font-bold">
+              <input
+                type="radio"
+                name="goalCutsBackfillOrphan"
+                checked={orphanMode === mode.value}
+                disabled={busy}
+                onChange={() => {
+                  setOrphanMode(mode.value);
+                  resetPreview();
+                }}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={handleCompute}
+          disabled={busy}
+          className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {sourceProgress
+            ? `입결 읽는 중… ${sourceProgress.done.toLocaleString()} / ${sourceProgress.total.toLocaleString()}행`
+            : computing
+              ? '계산 중…'
+              : '미리보기 계산'}
+        </button>
+      </div>
+
+      {preview && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            생성 대상: 대학 {stats.universityCount.toLocaleString()}개 · 학과 조합{' '}
+            {stats.pairCount.toLocaleString()}개 · 총 {stats.totalRows.toLocaleString()}행 (수시 일반{' '}
+            {stats.normalCount.toLocaleString()} / 수시 특목 {stats.specialCount.toLocaleString()})
+          </p>
+          <p className="mt-1 text-gray-700">
+            소스 {preview.sourceRowCount.toLocaleString()}행 · 기준 연도 내역: 2026 기준{' '}
+            {stats.year2026Pairs.toLocaleString()}조합 · 2025 폴백 {stats.year2025Pairs.toLocaleString()}조합
+          </p>
+          <p className="mt-1 text-gray-700">
+            제외: (*) 접미 {stats.excludedStarPairs.toLocaleString()}조합 · 빈 학과명{' '}
+            {stats.excludedEmptyPairs.toLocaleString()}조합 · 교과·종합 없음{' '}
+            {stats.excludedNoTrackPairs.toLocaleString()}조합 (현재 데이터 기준 전부 0이 정상입니다)
+          </p>
+          <p className="mt-1 text-gray-700">중복 병합: {stats.mergedCount.toLocaleString()}건</p>
+
+          <p className="mt-2 font-bold text-gray-700">
+            컷 값 분포 — min {stats.distribution.min ?? '-'} · p25 {stats.distribution.p25 ?? '-'} · median{' '}
+            {stats.distribution.median ?? '-'} · p75 {stats.distribution.p75 ?? '-'} · max{' '}
+            {stats.distribution.max ?? '-'} (전부 내신 등급 1~9 스케일이어야 합니다)
+          </p>
+
+          <div className="mt-2 rounded border border-gray-300 bg-white p-2">
+            <p className="font-black">기존 행과 겹침: {analysis.overlapCount.toLocaleString()}행</p>
+            <ul className="mt-1 space-y-0.5 text-gray-700">
+              <li>├ 수기 입력(source=manual) {analysis.manualCount.toLocaleString()}행</li>
+              <li>├ 노출이 꺼져 있음(is_active=false) {analysis.inactiveCount.toLocaleString()}행</li>
+              <li>└ 운영 메모가 있음(note&lt;&gt;&apos;&apos;) {analysis.notedCount.toLocaleString()}행</li>
+            </ul>
+            <p className="mt-1 text-gray-700">
+              {preserveMode === 'preserve'
+                ? `→ 보존 대상 ${analysis.preservedKeys.size.toLocaleString()}행을 이번 반영에서 제외합니다.`
+                : '→ 전부 덮어쓰기 — 보존 술어를 적용하지 않습니다.'}
+            </p>
+            <p className="mt-1 text-gray-700">
+              이번 산출에 없는 기존 유도 행(source=admission_results):{' '}
+              {analysis.orphanIds.length.toLocaleString()}행
+              {orphanMode === 'deactivate' ? ' → 노출을 끕니다' : ' → 그대로 둡니다'}
+            </p>
+          </div>
+
+          {analysis.nameAxisKeys.size > 0 && (
+            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+              🔴 {analysis.nameAxisKeys.size.toLocaleString()}행이 기존 활성 행과 (컷 종류, 대학명, 학과명)은
+              같은데 key 컬럼이 달라 유일성 인덱스 goal_university_cuts_name_key 와 충돌합니다. 그대로 보내면
+              청크 500행이 통째로 실패하므로 이번 반영에서 제외했습니다 — 해당 기존 행을 목록에서 찾아 정리해
+              주세요.
+            </p>
+          )}
+
+          {preserveMode === 'overwrite' && (
+            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+              노출이 꺼진 {analysis.inactiveCount.toLocaleString()}행이 다시 켜지지는 않지만, 컷 값·출처·기준
+              연도는 전부 덮어써집니다.
+            </p>
+          )}
+
+          {stats.samples.length > 0 && (
+            <div className="mt-3 overflow-x-auto">
+              <p className="font-black">상위 {stats.samples.length}행 샘플</p>
+              <table className="mt-1 w-full min-w-[37.5rem] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-gray-300 font-black">
+                    <th className="py-1 pr-2">대학</th>
+                    <th className="py-1 pr-2">학과</th>
+                    <th className="py-1 pr-2">종류</th>
+                    <th className="py-1 pr-2">컷</th>
+                    <th className="py-1 pr-2">연도</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.samples.map((s) => (
+                    <tr
+                      key={`${s.cut_type}-${s.university_key}-${s.department_key}`}
+                      className="border-b border-gray-200"
+                    >
+                      <td className="py-1 pr-2">{s.university_name}</td>
+                      <td className="py-1 pr-2">{s.department_name}</td>
+                      <td className="py-1 pr-2">{s.cut_type === 'normal' ? '수시 일반' : '수시 특목'}</td>
+                      <td className="py-1 pr-2">{s.avg_cut}등급</td>
+                      <td className="py-1 pr-2">{s.source_year}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            ⚠ 되돌릴 수 없는 작업입니다 — {affectedCount.toLocaleString()}행이 생성·갱신됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={resetPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// H-3 엑셀 일괄 왕복
+// ---------------------------------------------------------------------
+
+function GoalCutsBulkXlsxPanel({ onReload }) {
+  // 다운로드 버튼은 하나뿐이다(2026-08-07 사용자 지시: "엑셀 다운로드
+  // 버튼이 여러 개다, 우리가 개발한 걸로 통일해라"). 범위는 라디오로 고른다.
+  const [downloadScope, setDownloadScope] = useState('all'); // all | jungsiTemplate
+  const [totalRowCount, setTotalRowCount] = useState(null);
+  const [fetchProgress, setFetchProgress] = useState(null);
+  const [idMapProgress, setIdMapProgress] = useState(null);
+  const [applyProgress, setApplyProgress] = useState(null);
+  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseResult, setParseResult] = useState(null);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    goalCutsCount()
+      .then((count) => {
+        if (!cancelled) setTotalRowCount(count);
+      })
+      .catch(() => {
+        // 버튼 라벨용 참고 수치라 실패해도 화면을 막지 않는다.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const busy = Boolean(fetchProgress || idMapProgress || applying);
+
+  async function handleDownload() {
+    if (busy) return;
+    try {
+      setFetchProgress({ done: 0, total: totalRowCount ?? 0 });
+      let rows;
+      let fileNamePrefix;
+      if (downloadScope === 'jungsiTemplate') {
+        // 정시 컷 없는 (대학, 학과)를 id 빈 정시 템플릿 행으로 내려준다.
+        // 🔴 대학명·학과명은 수시 컷 행의 문자열을 **그대로 복사**한다 —
+        // 관리자가 손으로 타이핑하면 goalRepo.fetchUniversityCut 의 완전일치
+        // 조회가 깨져 그 학생의 정시 확률이 영원히 미산출로 남는다.
+        const options = await fetchGoalUniversityOptionRows();
+        rows = options
+          .filter((o) => !o.has_jungsi)
+          .map((o) => ({
+            id: '',
+            cut_type: 'jungsi',
+            university_name: o.university_name,
+            department_name: o.department_name,
+            avg_cut: '',
+            source: 'manual',
+            source_year: '',
+            is_active: true,
+            note: ''
+          }));
+        fileNamePrefix = '목표관리_정시컷_템플릿';
+      } else {
+        rows = await fetchAllGoalCutRows(
+          'id, cut_type, university_name, department_name, avg_cut, source, source_year, is_active, note',
+          (p) => setFetchProgress(p)
+        );
+        fileNamePrefix = '목표관리_대학컷_전체';
+      }
+      const { workbook, truncatedCells } = exportGoalUniversityCutRowsToXlsx(rows);
+      setExportTruncatedCells(truncatedCells);
+      const today = new Date();
+      const fileName = `${fileNamePrefix}_${today.getFullYear()}${pad2(today.getMonth() + 1)}${pad2(today.getDate())}.xlsx`;
+      if (typeof document !== 'undefined') {
+        triggerXlsxDownload(workbook, fileName);
+      }
+    } catch (err) {
+      alert(`엑셀 다운로드 실패: ${err.message}`);
+    } finally {
+      setFetchProgress(null);
+    }
+  }
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // 같은 파일을 다시 선택해도 change 가 발생하게 리셋
+    if (!file) return;
+
+    setParseErrors([]);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+
+    try {
+      const buffer = await file.arrayBuffer();
+      setIdMapProgress({ done: 0, total: totalRowCount ?? 0 });
+      // idNotFound 와 cutTypeChanged 를 같은 조회 결과로 판정한다.
+      const idMap = await fetchGoalCutIdCutTypeMap((p) => setIdMapProgress(p));
+      setIdMapProgress(null);
+
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      setParseResult(parseGoalUniversityCutRowsFromXlsx(workbook, idMap));
+    } catch (err) {
+      setIdMapProgress(null);
+      setParseErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+    }
+  }
+
+  function toggleGroup(key) {
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function cancelPreview() {
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+  }
+
+  async function handleApply() {
+    if (!parseResult || !confirmChecked || applying) return;
+    setApplying(true);
+
+    // id 유무로 이미 갈라진 payload 를 그대로 배치에 나눠 보낸다. 두 배치는
+    // 컬럼 구성이 달라(update 만 id 를 가짐) 같은 요청에 섞지 않는다 —
+    // PostgREST 가 배열 안 객체들의 키 집합이 다르면 누락 키를 일괄
+    // default/null 로 해석한다.
+    const insertRows = parseResult.rows.filter((row) => !('id' in row));
+    const updateRows = parseResult.rows.filter((row) => 'id' in row);
+    const total = insertRows.length + updateRows.length;
+    let done = 0;
+    setApplyProgress({ done, total });
+
+    try {
+      for (let i = 0; i < insertRows.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = insertRows.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        const { error } = await supabase.from(GOAL_CUTS_TABLE).insert(chunk);
+        if (error) {
+          throw new Error(`신규 등록 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+      for (let i = 0; i < updateRows.length; i += GOAL_CUTS_APPLY_CHUNK) {
+        const chunk = updateRows.slice(i, i + GOAL_CUTS_APPLY_CHUNK);
+        const { error } = await supabase.from(GOAL_CUTS_TABLE).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw new Error(`수정 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`);
+        }
+        done += chunk.length;
+        setApplyProgress({ done, total });
+      }
+    } catch (err) {
+      setApplying(false);
+      setApplyProgress(null);
+      alert(
+        `엑셀 적용 실패 — 이미 반영된 청크는 되돌려지지 않습니다(청크 단위 배치라 단일 트랜잭션이 아님). ${err.message}`
+      );
+      onReload?.();
+      return;
+    }
+
+    const { summary } = parseResult;
+    setApplying(false);
+    setApplyProgress(null);
+    setParseResult(null);
+    setConfirmChecked(false);
+    setExpandedGroups({});
+    goalCutsCount()
+      .then((count) => setTotalRowCount(count))
+      .catch(() => {});
+    onReload?.();
+    alert(
+      `엑셀 적용 완료 — 신규 ${summary.willInsert}건 · 수정 ${summary.willUpdate}건 · 거부 ${summary.willSkip}건.`
+    );
+  }
+
+  const affectedCount = parseResult
+    ? parseResult.summary.willInsert + parseResult.summary.willUpdate
+    : 0;
+
+  return (
+    <div className="bg-white p-4 text-sm shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="font-black">엑셀 일괄 관리</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {fetchProgress
+              ? `읽는 중… ${fetchProgress.done.toLocaleString()} / ${fetchProgress.total.toLocaleString()}행`
+              : downloadScope === 'jungsiTemplate'
+                ? '엑셀 다운로드 (정시 컷 템플릿)'
+                : `엑셀 다운로드 (전체 ${totalRowCount === null ? '-' : totalRowCount.toLocaleString()}행)`}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="h-9 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {idMapProgress
+              ? `업로드 검증 준비 중… ${idMapProgress.done.toLocaleString()} / ${idMapProgress.total.toLocaleString()}행`
+              : '엑셀 업로드'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="목표관리 대학 컷 xlsx 파일 선택"
+          />
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className="font-black">다운로드 범위</span>
+        {[
+          { value: 'all', label: '전체' },
+          { value: 'jungsiTemplate', label: '정시 컷 없는 조합(정시 템플릿)' }
+        ].map((scope) => (
+          <label key={scope.value} className="flex items-center gap-1 font-bold">
+            <input
+              type="radio"
+              name="goalCutsDownloadScope"
+              checked={downloadScope === scope.value}
+              disabled={busy}
+              onChange={() => setDownloadScope(scope.value)}
+            />
+            {scope.label}
+          </label>
+        ))}
+      </div>
+
+      {exportTruncatedCells.length > 0 && (
+        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          <p>
+            {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어 잘린 채로 다운로드됐습니다. 이
+            파일을 그대로 재업로드하면 해당 행은 자동으로 거부됩니다(데이터 손상 아님).
+          </p>
+        </div>
+      )}
+
+      {parseErrors.length > 0 && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+          {parseErrors.map((message, idx) => (
+            <p key={idx}>{message}</p>
+          ))}
+        </div>
+      )}
+
+      {parseResult && (
+        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+          <p className="font-black text-[#2348ff]">
+            신규 {parseResult.summary.willInsert}건 · 수정 {parseResult.summary.willUpdate}건 · 거부{' '}
+            {parseResult.summary.willSkip}건 · 경고{' '}
+            {Object.values(parseResult.summary.warningCounts || {}).reduce((sum, n) => sum + n, 0)}건
+          </p>
+
+          {parseResult.errors.length > 0 && (
+            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+              <p className="font-black text-red-600">
+                거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히 제외됩니다)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {parseResult.errors.map((err, idx) => (
+                  <li key={idx} className="text-red-700">
+                    행 {err.row + 1} · {err.universityName || '(대학명 없음)'} ·{' '}
+                    {err.departmentName || '(학과명 없음)'} — {err.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 건수는 lib 이 준 warningCounts 에서 합산한다 — UI 는 reason
+              문자열을 파싱하지 않고 type 으로만 분기·집계한다. */}
+          {GOAL_CUTS_WARNING_GROUPS.map((group) => {
+            const groupCount = group.types.reduce(
+              (sum, t) => sum + (parseResult.summary.warningCounts?.[t] || 0),
+              0
+            );
+            if (groupCount === 0) return null;
+            const items = parseResult.warnings.filter((w) => group.types.includes(w.type));
+            const isOpen = Boolean(expandedGroups[group.key]);
+            return (
+              <div key={group.key} className={`mt-3 rounded border p-2 ${GOAL_CUTS_TONE_CLASS[group.tone]}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex w-full items-center justify-between text-left font-black"
+                >
+                  <span>
+                    {group.label} — {groupCount}건
+                  </span>
+                  <span>{isOpen ? '접기' : '자세히 보기'}</span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-1 font-normal">
+                    {items.map((w, idx) => (
+                      <li key={idx}>
+                        행 {w.row + 1} · {w.universityName || '(대학명 없음)'} ·{' '}
+                        {w.departmentName || '(학과명 없음)'}
+                        {w.column ? ` · ${w.column}` : ''} — {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+            되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄 반영됩니다.
+          </p>
+
+          <label className="mt-2 flex items-center gap-2 font-bold">
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            영향받는 {affectedCount}행을 확인했습니다
+          </label>
+
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!confirmChecked || applying}
+              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+            >
+              {applying
+                ? applyProgress
+                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                  : '적용 중…'
+                : '적용'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelPreview}
+              disabled={applying}
+              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// CONFIGS.goalUniversityCuts.ListSummary 의 진입점. CONFIGS 리터럴이 모듈
+// 초기화 시점에 이 참조를 평가하므로 **반드시 function 선언문이어야 한다**
+// (const 화살표 함수로 쓰면 TDZ ReferenceError 로 어드민 전체가 죽는다).
+//
+// props 는 { rows, onReload, mutationSeq } 지만 rows 는 쓰지 않는다 —
+// serverPaginate 탭이라 현재 페이지 10행뿐이다.
+function GoalCutsListSummary({ onReload, mutationSeq }) {
+  // 백필·엑셀 적용 후 H-1 현황 요약도 같이 갱신되게 하는 토큰.
+  const [refreshToken, setRefreshToken] = useState(0);
+  function handleReload() {
+    setRefreshToken((t) => t + 1);
+    onReload?.();
+  }
+  return (
+    <div className="mb-6 space-y-4">
+      {/* 갱신 신호가 둘이다 — 이 컴포넌트 안의 백필·엑셀 적용(refreshToken)과
+          목록의 등록·수정·삭제(mutationSeq, Admin()이 내려 준다). 둘 중 무엇이
+          바뀌어도 집계를 다시 읽어야 화면 숫자가 DB와 어긋나지 않는다. */}
+      <GoalCutsOverviewBlock refreshToken={refreshToken} mutationSeq={mutationSeq} />
+      <GoalCutsBackfillPanel onReload={handleReload} />
+      <GoalCutsBulkXlsxPanel onReload={handleReload} />
+    </div>
+  );
+}
+
 function AcceptanceRateSummary({ rows }) {
   const active = (rows || []).filter((row) => row.is_active);
   if (active.length === 0) return null;
@@ -6800,6 +8174,20 @@ export default function Admin() {
   // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
   // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
   const [pendingSection, setPendingSection] = useState(null);
+  // 다른 탭에서 넘겨 온 신규 등록 프리필. pendingSection과 같은 성격이지만
+  // 결정적으로 다른 점이 하나 있다 — changeTab이 이 값을 지우지 않는다.
+  // 공급자(학생 상세의 "이 조합의 컷 만들기")가 changeTab으로 탭을 옮긴 뒤
+  // 폼을 여는 구조라, 여기서 리셋하면 프리필이 통째로 사라진다.
+  // 대신 소비 직후(취소·저장) 와 수동 [등록] 클릭 시 비운다 — 1회성 값이다.
+  // 기본값 null이라 이 state를 쓰지 않는 기존 44개 탭은 동작이 바뀌지 않는다.
+  const [pendingCreateDefaults, setPendingCreateDefaults] = useState(null);
+  // 목록 CRUD(등록·수정·삭제) 성공 횟수. ListSummary가 "자기 집계를 다시 읽어야
+  // 하는 시점"을 아는 유일한 신호다 — loadRows()는 목록 rows만 새로 받고
+  // ListSummary가 스스로 던지는 집계 쿼리(예: GoalCutsOverviewBlock의 head
+  // 카운트 6종)는 건드리지 않아서, 행을 지워도 상단 요약이 옛 숫자를 그대로
+  // 보여 준다. page/keyword 변경으로는 올라가지 않으므로 페이지 이동마다
+  // 집계를 다시 던지는 낭비도 없다.
+  const [mutationSeq, setMutationSeq] = useState(0);
   // 관리 열 ⚙️(메타 전용 모달)이 열려 있는 행. null이면 닫힘 — mode는
   // 'list'로 그대로 두고 오버레이만 뜬다(목록 셀 [수정]과 같은 1뎁스 UX).
   const [metaEditRow, setMetaEditRow] = useState(null);
@@ -6936,6 +8324,13 @@ export default function Admin() {
     setKeyword('');
     setSearchTerm('');
     setPage(1);
+    // 1회성 프리필은 탭을 옮기면 무조건 버린다. 남겨 두면 "학생 상세 →
+    // 컷 만들기 → (취소하지 않고) 다른 탭으로 이동" 뒤 그 탭의 등록 폼에
+    // 엉뚱한 컬럼(university_name 등)이 섞여 들어간다.
+    // 프리필 경로는 깨지지 않는다 — 공급자(GoalStudentDetail.createCutFromSlot)가
+    // onNavigate → onPrefillCreate 순서로 부르므로 같은 배치 안에서 null이
+    // 먼저, 값이 나중에 적용된다.
+    setPendingCreateDefaults(null);
   }
 
   // 검색어 디바운스. 확정되는 순간 1페이지로 되돌린다 — 5페이지를 보다 검색하면
@@ -6978,6 +8373,9 @@ export default function Admin() {
   function createRow() {
     setEditingRow(null);
     setPendingSection(null);
+    // 목록의 [등록] 버튼으로 들어온 신규 등록은 항상 백지에서 시작한다 —
+    // 남아 있던 프리필이 묻어 들어가면 안 된다.
+    setPendingCreateDefaults(null);
     setMode('create');
   }
 
@@ -7084,6 +8482,8 @@ export default function Admin() {
     setMode('list');
     setEditingRow(null);
     setPendingSection(null);
+    setPendingCreateDefaults(null);
+    setMutationSeq((seq) => seq + 1);
     await loadRows();
   }
 
@@ -7097,6 +8497,7 @@ export default function Admin() {
       return;
     }
 
+    setMutationSeq((seq) => seq + 1);
     await loadRows();
   }
 
@@ -7216,7 +8617,24 @@ export default function Admin() {
             // 기존 하드코딩 동작이 그대로 보존된다 — 회귀 위험 0. 신규 섹션(premiumBookPages)은
             // config.CustomComponent로 자기 컴포넌트를 지정한다.
             config.CustomComponent ? (
-              <config.CustomComponent />
+              // 🔴 공용 변경 (e) — 명세 §4-1-3 의 (a)~(d) 에 없던 5번째 항목이다.
+              //   왜 필요한가: 토대 단계가 pendingCreateDefaults state 를 만들었지만
+              //   **공급자가 생길 통로가 없었다.** 그 유일한 공급자는 학생 상세의
+              //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 CustomComponent 로
+              //   렌더되고 이 줄이 props 를 하나도 넘기지 않았다. 그래서 버튼을 눌러도
+              //   탭을 옮기거나 폼을 열 수단이 없다.
+              //   기존 소비처 무영향 근거: CustomComponent 를 선언한 config 는 2개뿐이고
+              //   (premiumBookPages / mentorApplications) 두 컴포넌트 모두 인자를 받지
+              //   않는다(이 파일의 `function PremiumBookAdmin()` / `function
+              //   MentorApplicationsAdmin()` 선언 — 파라미터 목록이 비어 있다).
+              //   CustomComponent 미지정 경로(learningDiagnosis)는 이 분기에 오지 않는다.
+              <config.CustomComponent
+                onNavigate={changeTab}
+                onPrefillCreate={(values) => {
+                  setPendingCreateDefaults(values);
+                  setMode('create');
+                }}
+              />
             ) : (
               <LearningDiagnosisAdmin />
             )
@@ -7356,7 +8774,15 @@ export default function Admin() {
                 </div>
 
                 <MoneySummary activeKey={activeKey} rows={filteredRows} />
-                {config.ListSummary && <config.ListSummary rows={rows} onReload={loadRows} />}
+                {/* mutationSeq: 목록 CRUD 성공 시에만 올라가는 카운터. 자기 집계를
+                    따로 던지는 ListSummary(현재 GoalCutsListSummary 하나)가 이 값을
+                    보고 다시 읽는다. 이 prop을 받지 않는 기존 3개
+                    (AcceptanceRateSummary / AdmissionListSummary /
+                    AdmissionResultsListSummary)는 전부 props를 구조분해로 받으므로
+                    추가 prop을 그냥 무시한다 — 회귀 없음. */}
+                {config.ListSummary && (
+                  <config.ListSummary rows={rows} onReload={loadRows} mutationSeq={mutationSeq} />
+                )}
 
                 {loading ? (
                   <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
@@ -7394,10 +8820,12 @@ export default function Admin() {
               row={editingRow}
               origin={pendingSection ? 'list' : 'form'}
               initialSection={pendingSection}
+              createDefaults={pendingCreateDefaults}
               onCancel={() => {
                 setMode('list');
                 setEditingRow(null);
                 setPendingSection(null);
+                setPendingCreateDefaults(null);
               }}
               onSave={saveRow}
               onUpload={uploadImage}
@@ -8235,6 +9663,1522 @@ function MentorApplicationsAdmin() {
           onDelete={() => {}}
         />
       )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// 목표관리 학생 현황 (docs/figma-goal/goal-admin-spec.md §4-3)
+//
+// custom: true + CustomComponent 라 공용 목록·폼·검색·페이지네이션이 전부
+// 비활성화된다(loadRows 조기 반환 + custom 삼항). 검색·필터·페이지네이션·상세를
+// 이 블록 안에서 전부 그린다.
+//
+// 🔴 쓰기 UI 0개(§3-D6 / §3-D7). 이 블록 안에 supabase 의 insert/update/delete/
+//    upsert 호출이 단 하나도 없어야 한다. DB 쪽도 goal_students /
+//    goal_daily_records / goal_probability_logs 의 어드민 정책이 for select 로
+//    좁혀져 있어(sql/83_goal_admin_options_rls.sql) 시도해도 통과하지 않는다.
+// 🔴 CSV/엑셀 내보내기 경로를 만들지 않는다(§3-D6). downloadCsv 계열을 호출하지 말 것.
+// 🔴 계산 엔진(src/lib/goal/calc/**)은 import 만 한다 — 한 글자도 고치지 않는다.
+// ===========================================================================
+
+// 목록 필터 버튼. key 가 'all' 이 아니면 전부 **서버 술어**로 나간다 —
+// 클라이언트 필터와 서버 페이지네이션을 섞으면 페이지 경계가 무너진다(§4-3-B).
+// 검색 선행 조회(profiles)의 상한. goal_student_state 에는 이름·연락처가 없어
+// id 집합을 먼저 얻어야 하는데, 그 조회가 잘리면 초과분 학생이 결과에서 조용히
+// 사라진다. 상한에 닿으면 화면에 절단 사실을 띄운다(searchTruncated).
+const PROFILE_SEARCH_LIMIT = 500;
+
+const GOAL_STUDENT_FILTERS = [
+  { key: 'all', label: '전체' },
+  { key: 'awaiting_cuts', label: '컷 대기' },
+  { key: 'noSubmitToday', label: '오늘 미제출' },
+  { key: 'noRecord', label: '기록 없음' },
+  { key: 'paused', label: '정지' }
+];
+
+// 상세 상단 안내에 쓰는 컷 4종의 표시 순서/라벨. goalRepo.js:37 CUT_KEYS 와 같은 순서다.
+const GOAL_CUT_SLOTS = [
+  { key: 'idealNaesin', label: '상한 내신', snapshotKey: 'ideal_naesin_cut', side: 'ideal', axis: 'naesin' },
+  { key: 'idealJungsi', label: '상한 정시', snapshotKey: 'ideal_jungsi_cut', side: 'ideal', axis: 'jungsi' },
+  { key: 'minNaesin', label: '하한 내신', snapshotKey: 'min_naesin_cut', side: 'min', axis: 'naesin' },
+  { key: 'minJungsi', label: '하한 정시', snapshotKey: 'min_jungsi_cut', side: 'min', axis: 'jungsi' }
+];
+
+// 게이지 분해(§4-3-C-2) 4행. 뷰가 base / cum / 최종값을 한 행에 나란히 갖고 있다.
+const GOAL_GAUGE_ROWS = [
+  { label: '상한 수시', base: 'base_ideal_susi', cum: 'cum_ideal_susi', now: 'ideal_susi', rate: 'rate_ideal_susi' },
+  { label: '상한 정시', base: 'base_ideal_jungsi', cum: 'cum_ideal_jungsi', now: 'ideal_jungsi', rate: 'rate_ideal_jungsi' },
+  { label: '하한 수시', base: 'base_min_susi', cum: 'cum_min_susi', now: 'min_susi', rate: 'rate_min_susi' },
+  { label: '하한 정시', base: 'base_min_jungsi', cum: 'cum_min_jungsi', now: 'min_jungsi', rate: 'rate_min_jungsi' }
+];
+
+const GOAL_WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
+
+function goalOptionLabel(options, value) {
+  const matched = options.find((option) => option.value === value);
+  return matched ? matched.label : value || '-';
+}
+
+function goalTrim(value) {
+  return String(value ?? '').trim();
+}
+
+function goalNum(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// 🔴 null 과 0 은 다른 상태다. base_* 가 null 이면 뷰의 최종값도 null 이고
+//    (sql/55 의 case when ... is null then null 가드) 그건 "컷 미확보로 미산출"이다.
+//    0 은 "확률 0%"다. 같은 회색 텍스트로 뭉개면 관리자가 컷 누락을 결함으로 신고한다.
+function GoalProb({ value, digits = 2, suffix = '%' }) {
+  const parsed = goalNum(value);
+  if (parsed === null) return <span className="font-bold text-gray-400">미산출</span>;
+  return (
+    <span>
+      {parsed.toFixed(digits)}
+      {suffix}
+    </span>
+  );
+}
+
+function GoalStatusBadge({ status }) {
+  const tone =
+    status === 'awaiting_cuts'
+      ? 'border-[#B88737]/40 bg-[#FFF8E8] text-[#7A4A12]'
+      : status === 'paused'
+        ? 'border-gray-300 bg-gray-100 text-gray-500'
+        : 'border-[#2348ff]/30 bg-[#eef2ff] text-[#2348ff]';
+
+  return (
+    <span
+      className={`inline-flex items-center whitespace-nowrap border px-2 py-0.5 text-xs font-black ${tone}`}
+    >
+      {goalOptionLabel(GOAL_STUDENT_STATUS_OPTIONS, status)}
+    </span>
+  );
+}
+
+function GoalRiskBadge({ tone, children }) {
+  const cls =
+    tone === 'red'
+      ? 'border-red-300 bg-red-50 text-red-600'
+      : tone === 'orange'
+        ? 'border-[#B88737]/40 bg-[#FFF8E8] text-[#7A4A12]'
+        : 'border-gray-300 bg-gray-50 text-gray-500';
+
+  return (
+    <span className={`inline-flex items-center border px-1.5 py-0.5 text-[0.6875rem] font-black ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+// 안내 문구 카드. 진단 힌트(§4-3-C-1 / §4-3-C-5)와 상태 안내(§4-3-C-3)가 공유한다.
+function GoalNotice({ tone = 'info', children }) {
+  const cls =
+    tone === 'danger'
+      ? 'border-red-300 bg-red-50 text-red-700'
+      : tone === 'warn'
+        ? 'border-[#B88737]/40 bg-[#FFF8E8] text-[#7A4A12]'
+        : 'border-gray-300 bg-[#fafafa] text-gray-600';
+
+  return (
+    <div className={`border px-4 py-3 text-sm font-bold leading-6 ${cls}`}>{children}</div>
+  );
+}
+
+// riskFlags 4종(§4-3-B). 전부 goal_student_state 한 행에서 나온다 — 목록용 추가 쿼리 0회.
+// 원본 target/api/student.mjs:571-575 의 '공부시간 감소'(최근 7일 vs 이전 7일)는
+// goal_daily_records 가 0행이고 daily-record API 도 미배포라 지금 산출할 수 없다.
+// 정의만 남기고 켜지 않는다(§4-3-B 각주).
+function buildGoalRiskFlags(row, todayYMD) {
+  const flags = [];
+  const last = row.last_record_date || null;
+  const weekAgo = addDaysYMD(todayYMD, -7);
+
+  if (row.status === 'awaiting_cuts') flags.push({ key: 'awaiting', tone: 'orange', label: '컷 대기' });
+  if (Number(row.record_count || 0) === 0) flags.push({ key: 'noRecord', tone: 'red', label: '기록 없음' });
+  // last 가 null 이면 두 비교 모두 false 다 — 그 상태는 '기록 없음' 이 이미 표현한다.
+  if (last && last < todayYMD) flags.push({ key: 'today', tone: 'gray', label: '오늘 미제출' });
+  if (last && last < weekAgo) flags.push({ key: 'week', tone: 'red', label: '최근 7일 기록 없음' });
+
+  return flags;
+}
+
+// 온보딩 시점 컷 스냅샷 4칸 중 null 인 것 = 빠진 컷.
+// api/_lib/goalRepo.js:270-278 listMissingCuts 와 같은 규칙이지만 그 모듈은
+// service_role 클라이언트를 끌고 오므로(supabaseAdmin.js) 브라우저 번들로 import 하지 않는다.
+function listGoalMissingCutSlots(student) {
+  if (!student) return [];
+  return GOAL_CUT_SLOTS.filter((slot) => goalNum(student[slot.snapshotKey]) === null);
+}
+
+// 빠진 컷 1칸을 "컷 관리 탭에서 만들어야 할 행" 으로 번역한다.
+// 내신 컷의 cut_type 은 학교 유형에서 유도한다 — DB에 저장하지 않고 매번 파생하는 것이
+// 계산 엔진의 규약이다(primitives.js:43-47 getSchoolCutType, import 만 한다).
+function describeGoalCutSlot(slot, student) {
+  const naesinType = getSchoolCutType(student?.school_type);
+  return {
+    ...slot,
+    cutType: slot.axis === 'naesin' ? naesinType : 'jungsi',
+    university: goalTrim(slot.side === 'ideal' ? student?.ideal_university : student?.min_university),
+    department: goalTrim(slot.side === 'ideal' ? student?.ideal_department : student?.min_department)
+  };
+}
+
+function goalDiffDays(fromYMD, toYMD) {
+  if (!fromYMD || !toYMD) return 0;
+  const a = Date.parse(`${String(fromYMD).slice(0, 10)}T00:00:00Z`);
+  const b = Date.parse(`${String(toYMD).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
+
+function goalSigned(value, digits = 4) {
+  const parsed = goalNum(value);
+  if (parsed === null) return '-';
+  return `${parsed >= 0 ? '+' : ''}${parsed.toFixed(digits)}`;
+}
+
+function GoalDetailRow({ label, children }) {
+  return (
+    <div className="grid grid-cols-[8.75rem_1fr] border-b border-[#edf0f4] last:border-b-0">
+      <div className="bg-[#fafafa] px-4 py-2.5 text-xs font-black text-gray-600">{label}</div>
+      <div className="whitespace-pre-line px-4 py-2.5 text-sm font-bold">{children}</div>
+    </div>
+  );
+}
+
+function GoalCard({ title, right, children }) {
+  return (
+    <div className="mb-5 bg-white shadow">
+      <div className="flex items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3">
+        <span className="text-sm font-black">{title}</span>
+        {right}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function GoalStudentsAdmin({ onNavigate, onPrefillCreate }) {
+  const config = CONFIGS.goalStudents;
+
+  // 목록 state. 상세로 갔다 와도 유지되어야 하므로(§4-3-A) 상세는 하위 컴포넌트로 빼고
+  // 이 컴포넌트는 언마운트되지 않는다.
+  const [rows, setRows] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState('');
+  const [term, setTerm] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  // profiles 조회가 비어 돌아온 경우. profiles 의 어드민 정책은 is_winning_admin() 이
+  // 아니라 is_admin()(role='admin' 엄격)이라, admin_basic 계열 계정에서는 학생 행은
+  // 읽히는데 이름·연락처만 통째로 비는 부분 실패가 난다. 조용히 '-' 로 두면 데이터
+  // 결손으로 오인하므로 화면에 사유를 띄운다.
+  const [profileGap, setProfileGap] = useState(false);
+  // 검색 선행 조회(profiles)가 상한에 닿았는가. 이름·연락처 부분일치가
+  // PROFILE_SEARCH_LIMIT 을 넘으면 초과분 학생이 결과에서 조용히 사라지므로
+  // 절단 사실을 화면에 알린다.
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [detailId, setDetailId] = useState(null);
+
+  const todayYMD = useMemo(() => kstYMD(), []);
+
+  // 검색 디바운스. 확정 시 1페이지로 되돌린다(공용 목록의 관행과 동일).
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTerm(keyword.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadList() {
+      setLoading(true);
+      setProfileGap(false);
+      setSearchTruncated(false);
+
+      // ── 1) 검색: profiles 를 먼저 친다 ────────────────────────────────
+      // goal_student_state 에는 이름·연락처가 없다. PostgREST 임베딩도 불가능하다
+      // (goal_students.profile_id FK 가 auth.users 를 가리켜 profiles 관계가 없다 —
+      //  실제 요청에서 PGRST200 확인). 그래서 id 목록을 먼저 얻어 .in() 으로 좁힌다.
+      let idFilter = null;
+
+      if (term) {
+        const safe = term.replace(/[,()%_\\*]/g, ' ').trim();
+        if (!safe) {
+          if (!cancelled) {
+            setRows([]);
+            setTotalCount(0);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`name.ilike.%${safe}%,phone.ilike.%${safe}%`)
+          .limit(PROFILE_SEARCH_LIMIT);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error(error);
+          alert(`학생 검색 실패: ${error.message}`);
+          setRows([]);
+          setTotalCount(0);
+          setLoading(false);
+          return;
+        }
+
+        idFilter = (data || []).map((row) => row.id);
+        // 상한에 정확히 닿았으면 더 있는데 잘렸을 수 있다고 본다. 이 경우
+        // 초과분 학생은 아래 .in() 에 아예 들어가지 않아 "그런 학생이 없다"로
+        // 보인다 — 조용히 두면 안 되는 종류의 누락이다.
+        if (idFilter.length >= PROFILE_SEARCH_LIMIT) setSearchTruncated(true);
+
+        if (idFilter.length === 0) {
+          setRows([]);
+          setTotalCount(0);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ── 2) goal_student_state (뷰) — 페이지 단위 ──────────────────────
+      let query = supabase.from('goal_student_state').select('*', { count: 'exact' });
+
+      if (idFilter) query = query.in('profile_id', idFilter);
+
+      // 필터는 전부 서버 술어다. 뷰 컬럼이라 그대로 나간다.
+      if (filter === 'awaiting_cuts') query = query.eq('status', 'awaiting_cuts');
+      else if (filter === 'paused') query = query.eq('status', 'paused');
+      else if (filter === 'noRecord') query = query.eq('record_count', 0);
+      // last_record_date 가 null 인 행은 이 비교에 걸리지 않는다(SQL null 의미론) —
+      // 기록이 0행인 학생은 '기록 없음' 필터가 담당한다.
+      else if (filter === 'noSubmitToday') query = query.lt('last_record_date', todayYMD);
+
+      // 🔴 2축 정렬 필수(§4-3-B). 이 뷰에는 id 가 없고 awaiting_cuts 학생은
+      //    onboarded_at 이 전부 null 이라 동점이 대량 발생한다. 동점 처리축이 없으면
+      //    .range() 페이지 경계에서 행이 중복·누락된다(입결 탭이 이미 겪은 사고).
+      query = query
+        .order('onboarded_at', { ascending: false, nullsFirst: true })
+        .order('profile_id', { ascending: true })
+        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+      const { data: stateRows, error: stateError, count } = await query;
+
+      if (cancelled) return;
+
+      if (stateError) {
+        console.error(stateError);
+        alert(`${config.title} 조회 실패: ${stateError.message}`);
+        setRows([]);
+        setTotalCount(0);
+        setLoading(false);
+        return;
+      }
+
+      const ids = (stateRows || []).map((row) => row.profile_id);
+
+      if (ids.length === 0) {
+        setRows([]);
+        setTotalCount(count ?? 0);
+        setLoading(false);
+        return;
+      }
+
+      // ── 3) goal_students / profiles 를 같은 id 집합으로 채워 병합 ──────
+      const [studentRes, profileRes] = await Promise.all([
+        supabase
+          .from('goal_students')
+          .select(
+            'profile_id, grade, school_type, ideal_university, ideal_department, min_university, min_department'
+          )
+          .in('profile_id', ids),
+        supabase.from('profiles').select('id, name, phone').in('id', ids)
+      ]);
+
+      if (cancelled) return;
+
+      if (studentRes.error) {
+        console.error(studentRes.error);
+        alert(`학생 정보 조회 실패: ${studentRes.error.message}`);
+      }
+
+      if (profileRes.error) console.error(profileRes.error);
+
+      const studentMap = new Map((studentRes.data || []).map((row) => [row.profile_id, row]));
+      const profileMap = new Map((profileRes.data || []).map((row) => [row.id, row]));
+
+      setProfileGap(Boolean(profileRes.error) || profileMap.size === 0);
+
+      setRows(
+        (stateRows || []).map((row) => ({
+          ...row,
+          student: studentMap.get(row.profile_id) || null,
+          profile: profileMap.get(row.profile_id) || null
+        }))
+      );
+      setTotalCount(count ?? 0);
+      setLoading(false);
+    }
+
+    loadList();
+
+    return () => {
+      cancelled = true;
+    };
+    // config.title 은 모듈 상수라 참조가 안정적이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, term, filter, todayYMD]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const windowSize = Math.min(totalPages, 10);
+  const windowStart = Math.min(
+    Math.max(1, page - Math.floor(windowSize / 2)),
+    Math.max(1, totalPages - windowSize + 1)
+  );
+  const pageNumbers = Array.from({ length: windowSize }, (_, index) => windowStart + index);
+
+  if (detailId) {
+    return (
+      <GoalStudentDetail
+        profileId={detailId}
+        onBack={() => setDetailId(null)}
+        onNavigate={onNavigate}
+        onPrefillCreate={onPrefillCreate}
+      />
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-5 bg-white px-6 py-5 shadow">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {GOAL_STUDENT_FILTERS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  setFilter(item.key);
+                  setPage(1);
+                }}
+                className={`inline-flex h-9 items-center border px-3 text-xs font-black ${
+                  filter === item.key
+                    ? 'border-[#2348ff] bg-[#2348ff] text-white'
+                    : 'border-gray-400 bg-white text-gray-700'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center">
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder={config.searchPlaceholder}
+              className="h-9 w-[20rem] border border-gray-400 px-3 text-sm outline-none"
+            />
+            <span className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold text-gray-500">
+              <Search size={14} />
+              이름·연락처
+            </span>
+          </div>
+        </div>
+
+        <h1 className="mt-4 text-xl font-black">{config.title}</h1>
+        <p className="mt-1 text-xs font-bold text-gray-500">
+          읽기 전용 화면입니다. 학생 데이터는 어드민에서 수정할 수 없습니다 — 확률은 온보딩 시점에
+          확정되고, 컷을 고쳐도 이미 온보딩한 학생의 값은 바뀌지 않습니다. 유일한 예외는 학생상세의
+          "온보딩 리셋" 버튼입니다(재입력 정정용, 명시적 확인 후에만 동작합니다).
+        </p>
+      </div>
+
+      {profileGap && (
+        <div className="mb-5">
+          <GoalNotice tone="warn">
+            학생 이름·연락처를 가져오지 못했습니다. <code>profiles</code> 의 어드민 조회 정책은{' '}
+            <code>is_admin()</code>(<code>role=&#39;admin&#39;</code> 엄격)이라, 다른 관리자 역할로
+            로그인하면 학생 행은 보이지만 이름 칸만 비게 됩니다. 나머지 지표는 정상입니다.
+          </GoalNotice>
+        </div>
+      )}
+
+      {searchTruncated && (
+        <div className="mb-5">
+          <GoalNotice tone="warn">
+            검색어에 걸리는 회원이 {PROFILE_SEARCH_LIMIT}명을 넘습니다. 목록에는 앞의{' '}
+            {PROFILE_SEARCH_LIMIT}명 안에서만 학생을 찾아 보여 주므로 일부가 빠져 있을 수 있습니다 —
+            이름을 더 길게 입력하거나 연락처 뒷자리로 좁혀 주세요.
+          </GoalNotice>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          데이터를 불러오는 중입니다.
+        </div>
+      ) : (
+        <div className="bg-white p-6 shadow">
+          <div className="mb-4 text-sm font-bold text-gray-500">
+            전체 <span className="text-[#2348ff]">{totalCount.toLocaleString()}</span>명
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[81.25rem] border-collapse text-sm">
+              <thead>
+                {/* 표 폭이 컨테이너보다 넓으면 가로 스크롤로 처리한다(§4-1 관행).
+                    머리글이 줄바꿈되면 "상한 수 / 시" 처럼 끊겨 읽히므로 nowrap 을 건다. */}
+                <tr className="border-y border-gray-300 text-left [&>th]:whitespace-nowrap">
+                  <th className="px-3 py-3">이름</th>
+                  <th className="px-3 py-3">연락처</th>
+                  <th className="px-3 py-3">학년</th>
+                  <th className="px-3 py-3">학교 유형</th>
+                  <th className="px-3 py-3">상한 목표</th>
+                  <th className="px-3 py-3">하한 목표</th>
+                  <th className="px-3 py-3">상태</th>
+                  <th className="px-3 py-3">상한 수시</th>
+                  <th className="px-3 py-3">상한 정시</th>
+                  <th className="px-3 py-3">하한 수시</th>
+                  <th className="px-3 py-3">하한 정시</th>
+                  <th className="px-3 py-3">기록 수</th>
+                  <th className="px-3 py-3">최근 기록일</th>
+                  <th className="px-3 py-3">위험</th>
+                  <th className="w-20 px-3 py-3 text-center">관리</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={15} className="py-12 text-center text-gray-400">
+                      {term || filter !== 'all'
+                        ? '조건에 맞는 학생이 없습니다.'
+                        : '온보딩을 마친 학생이 아직 없습니다.'}
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => {
+                    const flags = buildGoalRiskFlags(row, todayYMD);
+                    return (
+                      <tr key={row.profile_id} className="border-b border-gray-100">
+                        <td className="whitespace-nowrap px-3 py-3 font-bold">
+                          {row.profile?.name || '-'}
+                        </td>
+                        {/* 목록은 마스킹, 상세는 원본 — maskedPhone 선례와 같은 규칙(§3-D6) */}
+                        <td className="whitespace-nowrap px-3 py-3">
+                          {formatValue(row.profile?.phone, 'maskedPhone')}
+                        </td>
+                        <td className="px-3 py-3">{row.student?.grade || '-'}</td>
+                        <td className="px-3 py-3">{row.student?.school_type || '-'}</td>
+                        <td className="px-3 py-3">
+                          {row.student?.ideal_university || '-'}
+                          <span className="block text-xs text-gray-500">
+                            {row.student?.ideal_department || '-'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          {row.student?.min_university || '-'}
+                          <span className="block text-xs text-gray-500">
+                            {row.student?.min_department || '-'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <GoalStatusBadge status={row.status} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <GoalProb value={row.ideal_susi} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <GoalProb value={row.ideal_jungsi} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <GoalProb value={row.min_susi} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <GoalProb value={row.min_jungsi} />
+                        </td>
+                        <td className="px-3 py-3">{Number(row.record_count || 0).toLocaleString()}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{row.last_record_date || '-'}</td>
+                        <td className="px-3 py-3">
+                          <span className="flex flex-wrap gap-1">
+                            {flags.length === 0 ? (
+                              <span className="text-gray-300">-</span>
+                            ) : (
+                              flags.map((flag) => (
+                                <GoalRiskBadge key={flag.key} tone={flag.tone}>
+                                  {flag.label}
+                                </GoalRiskBadge>
+                              ))
+                            )}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setDetailId(row.profile_id)}
+                            title="상세 보기"
+                            className="inline-flex h-7 w-7 items-center justify-center border border-gray-300 text-gray-600"
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex items-center justify-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="inline-flex h-8 w-8 items-center justify-center border border-gray-300 disabled:opacity-30"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page <= 1}
+              className="inline-flex h-8 w-8 items-center justify-center border border-gray-300 disabled:opacity-30"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            {pageNumbers.map((number) => (
+              <button
+                key={number}
+                type="button"
+                onClick={() => setPage(number)}
+                className={`inline-flex h-8 min-w-8 items-center justify-center border px-2 text-xs font-black ${
+                  number === page ? 'border-[#2348ff] bg-[#2348ff] text-white' : 'border-gray-300'
+                }`}
+              >
+                {number}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages}
+              className="inline-flex h-8 w-8 items-center justify-center border border-gray-300 disabled:opacity-30"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              className="inline-flex h-8 w-8 items-center justify-center border border-gray-300 disabled:opacity-30"
+            >
+              <ChevronsRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 확률 로그 시계열. 차트 라이브러리 선례가 이 파일에 0건이라 SVG polyline 으로 직접 그린다.
+// 정시 2선은 컷이 없으면 null 이라(sql/56_goal_jungsi_optional.sql) **끊어진 선**이 되어야 한다 —
+// null 을 0 으로 접으면 "정시 확률이 0%로 떨어졌다"는 거짓 그림이 된다.
+function GoalProbabilityChart({ logs }) {
+  const series = [
+    { key: 'ideal_susi', label: '상한 수시', color: '#2348ff' },
+    { key: 'ideal_jungsi', label: '상한 정시', color: '#7c3aed' },
+    { key: 'min_susi', label: '하한 수시', color: '#0f9d58' },
+    { key: 'min_jungsi', label: '하한 정시', color: '#B88737' }
+  ];
+
+  const width = 640;
+  const height = 220;
+  const padLeft = 34;
+  const padRight = 10;
+  const padTop = 10;
+  const padBottom = 22;
+
+  if (logs.length === 0) {
+    return <div className="px-5 py-8 text-center text-sm font-bold text-gray-400">확률 로그가 없습니다.</div>;
+  }
+
+  const stepX =
+    logs.length <= 1 ? 0 : (width - padLeft - padRight) / (logs.length - 1);
+  const toX = (index) => padLeft + stepX * index;
+  const toY = (value) => padTop + (height - padTop - padBottom) * (1 - Number(value) / 100);
+
+  return (
+    <div className="px-5 py-4">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img">
+        {[0, 25, 50, 75, 100].map((tick) => (
+          <g key={tick}>
+            <line
+              x1={padLeft}
+              x2={width - padRight}
+              y1={toY(tick)}
+              y2={toY(tick)}
+              stroke="#e5e7eb"
+              strokeWidth="1"
+            />
+            <text x={4} y={toY(tick) + 4} fontSize="10" fill="#9ca3af">
+              {tick}
+            </text>
+          </g>
+        ))}
+
+        {series.map((item) => {
+          // null 구간에서 선을 끊는다 — 연속된 non-null 묶음마다 polyline 을 하나씩 만든다.
+          const segments = [];
+          let current = [];
+
+          logs.forEach((log, index) => {
+            const value = goalNum(log[item.key]);
+            if (value === null) {
+              if (current.length > 0) segments.push(current);
+              current = [];
+              return;
+            }
+            current.push(`${toX(index)},${toY(value)}`);
+          });
+
+          if (current.length > 0) segments.push(current);
+
+          return (
+            <g key={item.key}>
+              {segments.map((points, index) => (
+                <polyline
+                  key={index}
+                  points={points.join(' ')}
+                  fill="none"
+                  stroke={item.color}
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </g>
+          );
+        })}
+      </svg>
+
+      <div className="mt-2 flex flex-wrap gap-4">
+        {series.map((item) => (
+          <span key={item.key} className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600">
+            <span className="inline-block h-0.5 w-4" style={{ backgroundColor: item.color }} />
+            {item.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const GOAL_RECORD_PAGE = 30;
+
+function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
+  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState(null);
+  const [state, setState] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [cutRows, setCutRows] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [recordTotal, setRecordTotal] = useState(0);
+  const [recordLimit, setRecordLimit] = useState(GOAL_RECORD_PAGE);
+  const [showRaw, setShowRaw] = useState(false);
+  const [openMemo, setOpenMemo] = useState({});
+  // 온보딩 리셋(Q3) 진행 상태. 성공 시 목록 상태('컷 대기')까지 함께 갱신돼야
+  // 하므로 페이지를 통째로 새로고침한다(list/detail 두 컴포넌트를 각각
+  // 부분 갱신하는 것보다 안전하다 — GoalStudentsAdmin의 rows state는
+  // mutationSeq 같은 재조회 트리거를 두지 않는다).
+  const [resetting, setResetting] = useState(false);
+
+  const todayYMD = useMemo(() => kstYMD(), []);
+
+  async function handleResetOnboarding() {
+    if (!student?.profile_id) return;
+
+    const confirmed = window.confirm(
+      '이 학생을 온보딩 이전 상태로 되돌립니다. 학생은 재접속 시 온보딩을 처음부터 다시 진행하게 됩니다. 학습 기록은 보존되지만 확률은 초기화됩니다. 계속하시겠습니까?'
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+
+    try {
+      const accessToken = await getFreshSupabaseAccessToken();
+
+      const response = await fetch('/api/goal/admin/reset-student', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ profileId: student.profile_id })
+      });
+
+      const result = await response.json().catch(async () => {
+        const text = await response.text().catch(() => '');
+        return { detail: text || `HTTP ${response.status}` };
+      });
+
+      if (!response.ok) {
+        throw new Error(result?.detail || `HTTP ${response.status}`);
+      }
+
+      alert('온보딩 리셋이 완료되었습니다. 학생은 재접속 시 온보딩부터 다시 진행합니다.');
+      // 목록 탭의 상태('컷 대기')까지 함께 반영해야 하므로 전체 새로고침한다.
+      window.location.reload();
+    } catch (error) {
+      console.error('goal/admin/reset-student 실패:', error);
+      alert(`온보딩 리셋 실패: ${error.message}`);
+      setResetting(false);
+    }
+  }
+
+  // 학생 1명분 정적 데이터. 기록 목록만 '더보기'로 따로 늘린다.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDetail() {
+      setLoading(true);
+
+      const [studentRes, stateRes, profileRes, logRes] = await Promise.all([
+        supabase.from('goal_students').select('*').eq('profile_id', profileId).maybeSingle(),
+        supabase.from('goal_student_state').select('*').eq('profile_id', profileId).maybeSingle(),
+        supabase.from('profiles').select('id, name, phone, email').eq('id', profileId).maybeSingle(),
+        supabase
+          .from('goal_probability_logs')
+          .select('*')
+          .eq('profile_id', profileId)
+          .order('created_at', { ascending: true })
+      ]);
+
+      if (cancelled) return;
+
+      if (studentRes.error) {
+        console.error(studentRes.error);
+        alert(`학생 상세 조회 실패: ${studentRes.error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const studentRow = studentRes.data || null;
+
+      setStudent(studentRow);
+      setState(stateRes.data || null);
+      setProfile(profileRes.data || null);
+      setLogs(logRes.data || []);
+
+      // ── 현재 컷 조회 (§4-3-C-3) ──────────────────────────────────────
+      // 술어는 goalRepo.fetchUniversityCut(api/_lib/goalRepo.js:156-171)과
+      // 글자 단위로 같아야 한다 — cut_type + university_name + department_name +
+      // is_active=true + order('id') + limit(1). 하나라도 어긋나면 화면의 "현재 컷"과
+      // 온보딩이 실제로 집어 갈 컷이 달라져 diff 표 자체가 거짓말이 된다.
+      const slots = studentRow
+        ? GOAL_CUT_SLOTS.map((slot) => describeGoalCutSlot(slot, studentRow))
+        : [];
+
+      const cutResults = await Promise.all(
+        slots.map(async (slot) => {
+          if (!slot.university || !slot.department) return [slot.key, null];
+
+          const { data, error } = await supabase
+            .from('goal_university_cuts')
+            .select('avg_cut, source, source_year, updated_at')
+            .eq('cut_type', slot.cutType)
+            .eq('university_name', slot.university)
+            .eq('department_name', slot.department)
+            .eq('is_active', true)
+            .order('id', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error(error);
+            return [slot.key, null];
+          }
+
+          return [slot.key, data || null];
+        })
+      );
+
+      if (cancelled) return;
+
+      setCutRows(Object.fromEntries(cutResults));
+      setLoading(false);
+    }
+
+    loadDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+
+  // 일별 기록. record_index 내림차순 최근 N행 + 더보기.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecords() {
+      const { data, error, count } = await supabase
+        .from('goal_daily_records')
+        .select('*', { count: 'exact' })
+        .eq('profile_id', profileId)
+        .order('record_index', { ascending: false })
+        .range(0, recordLimit - 1);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setRecords(data || []);
+      setRecordTotal(count ?? 0);
+    }
+
+    loadRecords();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, recordLimit]);
+
+  // 원클릭 컷 만들기(§4-3-C-4). 공급자는 이 컴포넌트, 소비자는 Admin() 최상단의
+  // config.CustomComponent 렌더 분기(onNavigate/onPrefillCreate 계약, 그 지점 참고) —
+  // 반드시 onNavigate로 탭을 먼저 옮긴 뒤 onPrefillCreate로 프리필을 실어야 한다.
+  // changeTab이 mode를 'list'로 되돌리므로, 순서가 뒤바뀌면(프리필 먼저) 직후의
+  // changeTab이 mode를 다시 'list'로 덮어써 등록 폼이 열리지 않는다.
+  // 두 핸들러 모두 함수일 때만 동작한다 — 클립보드 백업 경로는 두지 않는다(진입점
+  // 하나만 정본으로 둔다). 미제공 시 버튼 자체를 렌더하지 않는다(canCreateCut).
+  const canCreateCut = typeof onNavigate === 'function' && typeof onPrefillCreate === 'function';
+
+  function createCutFromSlot(slot) {
+    if (!canCreateCut) return;
+    onNavigate('goalUniversityCuts');
+    onPrefillCreate({
+      cut_type: slot.cutType,
+      university_name: slot.university,
+      department_name: slot.department
+    });
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-black text-[#111827]">학생 상세</h1>
+          <ActionButton variant="light" onClick={onBack}>
+            목록으로
+          </ActionButton>
+        </div>
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          데이터를 불러오는 중입니다.
+        </div>
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-black text-[#111827]">학생 상세</h1>
+          <ActionButton variant="light" onClick={onBack}>
+            목록으로
+          </ActionButton>
+        </div>
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          학생 행을 찾을 수 없습니다.
+        </div>
+      </div>
+    );
+  }
+
+  const missingSlots = listGoalMissingCutSlots(student).map((slot) =>
+    describeGoalCutSlot(slot, student)
+  );
+  const missingJungsiOnly = missingSlots.filter((slot) => slot.axis === 'jungsi');
+  const naesinCutType = getSchoolCutType(student.school_type);
+  const currentMogo = goalNum(student.current_mogo);
+  const remainNaesin = Number(student.remain_naesin || 0);
+  const remainMogo = Number(student.remain_mogo || 0);
+  // 고1 무내신 특례. 이번 브랜치에서 grade 는 학생이 실제로 고른 학년을 그대로 저장하고
+  // (intake.js:703 `grade: inputGrade`), 특례 식별자는 naesin_scores.priorNaesinGrade 다.
+  // 이 학생은 remain_naesin=10 / remain_mogo=14 가 정상값이라 데이터 결손이 아니다.
+  const priorNaesinGrade =
+    student.naesin_scores && typeof student.naesin_scores === 'object'
+      ? student.naesin_scores.priorNaesinGrade
+      : null;
+
+  const cumAllZero =
+    state &&
+    ['cum_ideal_susi', 'cum_ideal_jungsi', 'cum_min_susi', 'cum_min_jungsi'].every(
+      (key) => Number(state[key] || 0) === 0
+    );
+
+  const schedule = student.study_schedule && typeof student.study_schedule === 'object'
+    ? student.study_schedule
+    : {};
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-[#111827]">
+            {profile?.name || '이름 없음'} <GoalStatusBadge status={state?.status || student.status} />
+          </h1>
+          <p className="mt-1 font-mono text-xs text-gray-400">{student.profile_id}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ActionButton variant="danger" onClick={handleResetOnboarding} disabled={resetting}>
+            <RotateCcw size={14} />
+            {resetting ? '리셋 중…' : '온보딩 리셋'}
+          </ActionButton>
+          <ActionButton variant="light" onClick={onBack}>
+            목록으로
+          </ActionButton>
+        </div>
+      </div>
+
+      {/* ── 진단 힌트 (§4-3-C-1) ───────────────────────────────────────── */}
+      <div className="mb-5 space-y-2">
+        {state?.status === 'awaiting_cuts' && (
+          <GoalNotice tone="danger">
+            🔴 컷 미확보로 확률이 산출되지 않았습니다. 빠진 컷:{' '}
+            <b>{missingSlots.map((slot) => slot.label).join(', ') || '없음'}</b>
+            {canCreateCut && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {missingSlots.map((slot) => (
+                  <button
+                    key={slot.key}
+                    type="button"
+                    onClick={() => createCutFromSlot(slot)}
+                    className="inline-flex h-8 items-center border border-red-300 bg-white px-3 text-xs font-black text-red-600"
+                  >
+                    {slot.label} 컷 만들기
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-2 text-xs font-bold">
+              ⓘ 빠진 컷을 만들어 준 뒤 <b>학생이 온보딩을 다시 제출하면</b> 그대로 진행중으로
+              전환됩니다 — 관리자가 할 추가 작업은 없고, 자동으로 되지도 않습니다. 학생에게 온보딩
+              재제출을 안내해 주세요.
+            </div>
+          </GoalNotice>
+        )}
+
+        {state?.status !== 'awaiting_cuts' && missingJungsiOnly.length > 0 && (
+          <GoalNotice tone="warn">
+            🟠 정시 컷이 없어 <b>정시 확률 2종이 미산출</b>입니다(수시는 정상 산출). 빠진 컷:{' '}
+            <b>{missingJungsiOnly.map((slot) => slot.label).join(', ')}</b>
+            {canCreateCut && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {missingJungsiOnly.map((slot) => (
+                  <button
+                    key={slot.key}
+                    type="button"
+                    onClick={() => createCutFromSlot(slot)}
+                    className="inline-flex h-8 items-center border border-[#B88737]/50 bg-white px-3 text-xs font-black text-[#7A4A12]"
+                  >
+                    {slot.label} 컷 만들기
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-2 text-xs font-bold">
+              ⓘ 지금 정시 컷을 채워도 <b>이 학생의 정시 확률은 영원히 미산출로 남습니다</b> — 확률
+              기준값(base)은 온보딩 시점에 1회 산출되고 재계산 경로가 없습니다.
+            </div>
+          </GoalNotice>
+        )}
+
+        {currentMogo !== null && currentMogo <= 0 && (
+          <GoalNotice tone="danger">
+            🔴 모의고사 환산점수가 {currentMogo} 입니다(0 이하) — 정시 확률 2종이 구조적으로 0이
+            됩니다. 영어 감점이 최대 −16 이라 종합 백분위가 음수가 될 수 있습니다.
+          </GoalNotice>
+        )}
+
+        {(remainNaesin >= 8 || remainMogo >= 11) && (
+          <GoalNotice>
+            ⓘ 남은 시험 회차가 많습니다(내신 {remainNaesin}/10, 모의 {remainMogo}/14). 시간계수 때문에
+            우세 갈래에서도 확률이 깎입니다 — 남은 회차가 전부 남았을 때 계수는 최저 0.55 입니다.
+          </GoalNotice>
+        )}
+
+        {priorNaesinGrade ? (
+          <GoalNotice>
+            ⓘ 내신 회차가 전부 &lsquo;없음&rsquo;인 특례 학생입니다. 현재 성적은 이전 단계 평균 등급(
+            <b>{priorNaesinGrade}</b>)으로 대체됐고, 잔여 회차가 전부 남은 값(내신 {remainNaesin},
+            모의 {remainMogo})인 것이 정상입니다. <code>grade</code> 는 학생이 실제로 고른 학년입니다.
+          </GoalNotice>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {/* ── C-1 좌측: 입력과 파생 ─────────────────────────────────── */}
+        <div>
+          <GoalCard title="기본">
+            <GoalDetailRow label="이름">{profile?.name || '-'}</GoalDetailRow>
+            {/* 상세는 원본 연락처를 그대로 보여준다(목록만 마스킹, §3-D6) */}
+            <GoalDetailRow label="연락처">{profile?.phone || '-'}</GoalDetailRow>
+            <GoalDetailRow label="이메일">{profile?.email || '-'}</GoalDetailRow>
+            <GoalDetailRow label="학년">{student.grade || '-'}</GoalDetailRow>
+            <GoalDetailRow label="학교 유형">
+              {student.school_type || '-'}
+              <span className="ml-2 text-xs font-bold text-gray-400">
+                내신 컷 종류: {naesinCutType}
+              </span>
+            </GoalDetailRow>
+            <GoalDetailRow label="온보딩일">
+              {formatValue(student.onboarded_at, 'datetime')}
+            </GoalDetailRow>
+            <GoalDetailRow label="상태">
+              <GoalStatusBadge status={state?.status || student.status} />
+            </GoalDetailRow>
+            <GoalDetailRow label="가상 날짜 원점">{student.actual_start_date || '-'}</GoalDetailRow>
+          </GoalCard>
+
+          <GoalCard title="목표">
+            <GoalDetailRow label="상한 대학">{student.ideal_university || '-'}</GoalDetailRow>
+            <GoalDetailRow label="상한 학과">{student.ideal_department || '-'}</GoalDetailRow>
+            <GoalDetailRow label="하한 대학">{student.min_university || '-'}</GoalDetailRow>
+            <GoalDetailRow label="하한 학과">{student.min_department || '-'}</GoalDetailRow>
+          </GoalCard>
+
+          <GoalCard title="성적 파생값">
+            <GoalDetailRow label="현재 성적">{student.current_score ?? '-'}</GoalDetailRow>
+            <GoalDetailRow label="변환 등급">{student.converted_grade ?? '-'}</GoalDetailRow>
+            <GoalDetailRow label="모의 환산점수">{student.current_mogo ?? '-'}</GoalDetailRow>
+          </GoalCard>
+
+          <GoalCard title="시험 회차">
+            <GoalDetailRow label="최근 내신">{student.last_naesin_exam || '-'}</GoalDetailRow>
+            <GoalDetailRow label="잔여 내신">{remainNaesin} / 10</GoalDetailRow>
+            <GoalDetailRow label="최근 모의">{student.last_mogo_exam || '-'}</GoalDetailRow>
+            <GoalDetailRow label="잔여 모의">{remainMogo} / 14</GoalDetailRow>
+          </GoalCard>
+
+          <GoalCard title="학습 목표">
+            <GoalDetailRow label="주간 이상">{student.week_ideal ?? '-'} 시간</GoalDetailRow>
+            <GoalDetailRow label="주간 최소">{student.week_min ?? '-'} 시간</GoalDetailRow>
+            <div className="overflow-x-auto px-4 py-3">
+              <table className="w-full min-w-[25rem] border-collapse text-xs">
+                <thead>
+                  <tr className="border-y border-gray-200 text-left">
+                    <th className="px-2 py-2">요일</th>
+                    {GOAL_WEEKDAY_LABELS.map((label) => (
+                      <th key={label} className="px-2 py-2">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-2 py-2 font-black">이상</td>
+                    {VIRTUAL_DAY_NAMES.map((day) => (
+                      <td key={day} className="px-2 py-2">
+                        {schedule?.[day]?.ideal ?? '-'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="px-2 py-2 font-black">최소</td>
+                    {VIRTUAL_DAY_NAMES.map((day) => (
+                      <td key={day} className="px-2 py-2">
+                        {schedule?.[day]?.min ?? '-'}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs font-bold text-gray-400">
+                주간 합계는 월~토만 더합니다(일요일 제외).
+              </p>
+            </div>
+          </GoalCard>
+
+          {/* 성적 원자료 — 목록 미노출, 상세 접힘 기본(§3-D6) */}
+          <GoalCard
+            title="성적 원자료"
+            right={
+              <ActionButton variant="light" onClick={() => setShowRaw((prev) => !prev)}>
+                {showRaw ? '접기' : '성적 원자료 펼치기'}
+              </ActionButton>
+            }
+          >
+            {showRaw ? (
+              <div className="space-y-3 px-5 py-4">
+                <div>
+                  <div className="mb-1 text-xs font-black text-gray-500">naesin_scores</div>
+                  <pre className="overflow-x-auto border border-gray-200 bg-[#fafafa] p-3 text-xs">
+                    {JSON.stringify(student.naesin_scores ?? null, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-black text-gray-500">mock_exam_scores</div>
+                  <pre className="overflow-x-auto border border-gray-200 bg-[#fafafa] p-3 text-xs">
+                    {JSON.stringify(student.mock_exam_scores ?? null, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="px-5 py-4 text-xs font-bold text-gray-400">
+                개인 성적 원자료입니다. 필요할 때만 펼쳐 주세요.
+              </div>
+            )}
+          </GoalCard>
+        </div>
+
+        {/* ── C-2 우측: 게이지 분해 + C-3 컷 diff ────────────────────── */}
+        <div>
+          <GoalCard title="확률 분해 (base + Σdelta = 현재)">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[30rem] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">항목</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">base</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">Σdelta</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">현재</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">rate(%/일)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {GOAL_GAUGE_ROWS.map((row) => (
+                    <tr key={row.label} className="border-b border-gray-100 last:border-b-0">
+                      <td className="px-4 py-2.5 font-black">{row.label}</td>
+                      <td className="px-4 py-2.5">
+                        <GoalProb value={state?.[row.base]} digits={1} suffix="" />
+                      </td>
+                      <td className="px-4 py-2.5">{goalSigned(state?.[row.cum])}</td>
+                      <td className="px-4 py-2.5 font-black">
+                        <GoalProb value={state?.[row.now]} digits={4} />
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500">
+                        {goalNum(student[row.rate]) === null
+                          ? '-'
+                          : Number(student[row.rate]).toFixed(4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t border-[#edf0f4] px-5 py-3 text-xs font-bold leading-6 text-gray-500">
+              rate = (100 − base) ÷ (기준일까지 남은 일수 + 학년 오프셋)입니다. base 가 95라면 rate 는
+              0.02%/일 수준이라 &ldquo;매일 제출하는데 확률이 안 오른다&rdquo;는 문의의 1순위 답이 됩니다.
+              {cumAllZero && (
+                <div className="mt-1">
+                  ※ 증분(Σdelta)이 전부 0입니다 — 일별 기록 API(<code>api/goal/daily-record</code>)
+                  미배포 상태에서는 정상입니다.
+                </div>
+              )}
+            </div>
+          </GoalCard>
+
+          {/* ── C-3 컷 스냅샷 vs 현재 컷 diff ────────────────────────── */}
+          <GoalCard title="컷 스냅샷 vs 현재 컷">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[34rem] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">항목</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">온보딩 스냅샷</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">현재 컷</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">출처 / 연도 / 수정일</th>
+                    <th className="px-4 py-2.5 text-xs font-black text-gray-500">차이</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {GOAL_CUT_SLOTS.map((slot) => {
+                    const described = describeGoalCutSlot(slot, student);
+                    const snapshot = goalNum(student[slot.snapshotKey]);
+                    const currentRow = cutRows[slot.key] || null;
+                    const current = goalNum(currentRow?.avg_cut);
+                    const changed =
+                      snapshot !== null && current !== null && Math.abs(snapshot - current) > 1e-9;
+
+                    return (
+                      <tr key={slot.key} className="border-b border-gray-100 last:border-b-0">
+                        <td className="px-4 py-2.5">
+                          <span className="font-black">{slot.label}</span>
+                          <span className="block text-xs font-bold text-gray-400">
+                            {described.cutType} / {described.university || '-'} /{' '}
+                            {described.department || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {snapshot === null ? (
+                            <span className="font-bold text-gray-400">미확보</span>
+                          ) : (
+                            snapshot.toFixed(2)
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {current === null ? (
+                            <span className="font-bold text-gray-400">없음</span>
+                          ) : (
+                            current.toFixed(2)
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-gray-500">
+                          {currentRow
+                            ? `${goalOptionLabel(GOAL_CUT_SOURCE_OPTIONS, currentRow.source)} / ${
+                                currentRow.source_year ?? '-'
+                              } / ${formatValue(currentRow.updated_at, 'datetime')}`
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {changed ? (
+                            <GoalRiskBadge tone="orange">
+                              {goalSigned(current - snapshot, 2)}
+                            </GoalRiskBadge>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t border-[#edf0f4] px-5 py-3">
+              {state?.status === 'awaiting_cuts' ? (
+                <GoalNotice>
+                  ⓘ 이 학생은 아직 확률이 산출되지 않았습니다. <b>빠진 컷을 만들어 준 뒤 학생이
+                  온보딩을 다시 제출하면</b> 그대로 진행중으로 전환됩니다 — 관리자가 할 추가 작업은
+                  없고, 자동으로 되지도 않습니다.
+                </GoalNotice>
+              ) : (
+                <GoalNotice>
+                  ⓘ 컷이 바뀌어도 <b>이 학생의 확률은 온보딩 시점 컷으로 확정</b>돼 있어 바뀌지
+                  않습니다. 이는 정상 동작입니다. 새 컷을 반영할 방법은 현재 없습니다 — 재온보딩은
+                  409(<code>already_onboarded</code>)로 막혀 있고 학생 초기화 기능은 아직 없습니다.
+                </GoalNotice>
+              )}
+            </div>
+          </GoalCard>
+
+          <GoalCard title={`확률 로그 (${logs.length.toLocaleString()}건)`}>
+            {/* 0건일 때 차트를 그리지 않는다 — 아래 표가 이미 같은 빈 상태 문구를 낸다. */}
+            {logs.length > 0 && <GoalProbabilityChart logs={logs} />}
+
+            <div className="overflow-x-auto border-t border-[#edf0f4]">
+              <table className="w-full min-w-[34rem] border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="px-4 py-2">기록 시각</th>
+                    <th className="px-4 py-2">사유</th>
+                    <th className="px-4 py-2">상한 수시</th>
+                    <th className="px-4 py-2">상한 정시</th>
+                    <th className="px-4 py-2">하한 수시</th>
+                    <th className="px-4 py-2">하한 정시</th>
+                    <th className="px-4 py-2">기록 id</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-400">
+                        확률 로그가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    logs.map((log) => (
+                      <tr key={log.id} className="border-b border-gray-100">
+                        <td className="px-4 py-2">{formatValue(log.created_at, 'datetime')}</td>
+                        <td className="px-4 py-2">{log.reason}</td>
+                        <td className="px-4 py-2">
+                          <GoalProb value={log.ideal_susi} digits={4} />
+                        </td>
+                        <td className="px-4 py-2">
+                          <GoalProb value={log.ideal_jungsi} digits={4} />
+                        </td>
+                        <td className="px-4 py-2">
+                          <GoalProb value={log.min_susi} digits={4} />
+                        </td>
+                        <td className="px-4 py-2">
+                          <GoalProb value={log.min_jungsi} digits={4} />
+                        </td>
+                        <td className="px-4 py-2 text-gray-400">{log.source_record_id ?? '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </GoalCard>
+        </div>
+      </div>
+
+      {/* ── C-5 하단: 일별 기록 타임라인 ──────────────────────────────── */}
+      <GoalCard
+        title={`일별 기록 (${recordTotal.toLocaleString()}건)`}
+        right={
+          recordTotal > records.length ? (
+            <ActionButton
+              variant="light"
+              onClick={() => setRecordLimit((prev) => prev + GOAL_RECORD_PAGE)}
+            >
+              더보기
+            </ActionButton>
+          ) : null
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[62.5rem] border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-gray-200 text-left">
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">가상 날짜</th>
+                <th className="px-3 py-2">제출일</th>
+                <th className="px-3 py-2">공부시간</th>
+                <th className="px-3 py-2">목표(이상/최소)</th>
+                <th className="px-3 py-2">컨디션</th>
+                <th className="px-3 py-2">과목 태그</th>
+                <th className="px-3 py-2">Δ상한수시</th>
+                <th className="px-3 py-2">Δ상한정시</th>
+                <th className="px-3 py-2">Δ하한수시</th>
+                <th className="px-3 py-2">Δ하한정시</th>
+                <th className="px-3 py-2">진단</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="py-10 text-center text-gray-400">
+                    제출된 일별 기록이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                records.map((record) => {
+                  const gap = goalDiffDays(record.record_date, record.submitted_on);
+                  const hints = [];
+
+                  if (
+                    Number(record.target_ideal_hours || 0) === 0 ||
+                    Number(record.target_min_hours || 0) === 0
+                  ) {
+                    hints.push({
+                      key: 'target0',
+                      tone: 'orange',
+                      text: '목표 시간이 0이라 "이미 다 채움"으로 취급돼 rate 가 만액 지급됩니다(일요일 구멍).'
+                    });
+                  }
+                  if (Number(record.study_hours || 0) === 0) {
+                    hints.push({
+                      key: 'study0',
+                      tone: 'red',
+                      text: '0시간 기록이 존재합니다 — v2는 이 경로를 daily-record API에서 차단하므로 이상 데이터입니다.'
+                    });
+                  }
+                  if (Math.abs(gap) >= 2) {
+                    hints.push({
+                      key: 'gap',
+                      tone: 'gray',
+                      text: `가상 날짜와 실제 제출일이 ${Math.abs(gap)}일 차이납니다.`
+                    });
+                  }
+
+                  const memo = goalTrim(record.memo);
+
+                  return (
+                    <tr key={record.id} className="border-b border-gray-100 align-top">
+                      <td className="px-3 py-2">{record.record_index}</td>
+                      <td className="px-3 py-2">
+                        {record.record_date}
+                        <span className="block text-gray-400">
+                          {GOAL_WEEKDAY_LABELS[record.virtual_day_index] || ''}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">{record.submitted_on}</td>
+                      <td className="px-3 py-2">{record.study_hours}</td>
+                      <td className="px-3 py-2">
+                        {record.target_ideal_hours} / {record.target_min_hours}
+                      </td>
+                      <td className="px-3 py-2">
+                        {record.body_condition ? (
+                          <>
+                            {record.body_condition}
+                            <span className="block text-gray-400">
+                              ×{CONDITION_MULTIPLIER[record.body_condition] ?? '?'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400">미입력(정상 배수 1.0 적용)</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {(record.tasks || []).length === 0 ? '-' : (record.tasks || []).join(', ')}
+                      </td>
+                      <td className="px-3 py-2">{goalSigned(record.delta_ideal_susi)}</td>
+                      <td className="px-3 py-2">{goalSigned(record.delta_ideal_jungsi)}</td>
+                      <td className="px-3 py-2">{goalSigned(record.delta_min_susi)}</td>
+                      <td className="px-3 py-2">{goalSigned(record.delta_min_jungsi)}</td>
+                      <td className="px-3 py-2">
+                        <span className="flex flex-col gap-1">
+                          {hints.length === 0 ? (
+                            <span className="text-gray-300">-</span>
+                          ) : (
+                            hints.map((hint) => (
+                              <GoalRiskBadge key={hint.key} tone={hint.tone}>
+                                {hint.text}
+                              </GoalRiskBadge>
+                            ))
+                          )}
+                          {/* memo 는 학생 자유 서술이라 목록 미노출·상세 접힘 기본(§3-D6) */}
+                          {memo && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenMemo((prev) => ({ ...prev, [record.id]: !prev[record.id] }))
+                              }
+                              className="self-start border border-gray-300 px-1.5 py-0.5 text-[0.6875rem] font-black text-gray-600"
+                            >
+                              {openMemo[record.id] ? '메모 접기' : '메모 보기'}
+                            </button>
+                          )}
+                          {memo && openMemo[record.id] && (
+                            <span className="whitespace-pre-line border border-gray-200 bg-[#fafafa] p-2 text-[0.6875rem] font-bold text-gray-600">
+                              {memo}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </GoalCard>
     </div>
   );
 }
