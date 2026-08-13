@@ -1,0 +1,38 @@
+// STEP3/4/5 AI 호출 공용 timeout — docs/수행평가-상세-명세.md §8.6.
+//
+// `recommend-topics`/`design-report`/`evaluate`는 서버 `maxDuration: 60`(analyze-guide.js:658,
+// design-report.js:1217, evaluate.js:816, recommend-topics.js:840)이 걸려 있다. 브라우저
+// fetch는 별도 timeout이 없어 플랫폼이 함수를 죽인 뒤(504)에도 응답을 기다리거나, 네트워크가
+// 끊겨도 무한 대기할 수 있다. 여기서는 서버 예산(60초)보다 넉넉한 클라이언트 timeout을 걸어
+// AbortController로 강제 종료하고, `error.code = 'TIMEOUT'`을 실어 던진다 — 각 호출부의 기존
+// catch(error) 블록이 이 에러도 똑같이 잡아 기존 실패 카드로 흡수한다(신규 UI 불필요).
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/** AI 호출처럼 서버 `maxDuration: 60`이 걸린 엔드포인트에 쓰는 넉넉한 timeout. */
+export const AI_CALL_TIMEOUT_MS = 70000;
+
+/**
+ * @param {string} url
+ * @param {RequestInit} [options]
+ * @param {number} [timeoutMs]
+ * @returns {Promise<Response>}
+ */
+export async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('요청이 시간 내에 끝나지 않았어요.');
+      timeoutError.code = 'TIMEOUT';
+      timeoutError.cause = error;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}

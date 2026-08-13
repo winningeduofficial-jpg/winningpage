@@ -1,4 +1,6 @@
-import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
+import { useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { useInView } from '../../hooks/useInView';
 
 import ServiceSection from '../../components/services/ServiceSection';
@@ -74,7 +76,25 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 // [가격 정본] 가격은 Supabase `products` 테이블(service_key='suhaeng')에서 조회한다.
 // 정본은 DB이며 프론트에는 가격을 하드코딩하지 않는다.
 
-const HERO_SERVICE = { name: '수행평가 서비스', to: '/pricing' };
+// 수행평가 진입 동선은 목표관리(GoalManagement.jsx)와 동일한 하드 전환 패턴을 따른다
+// (2026-08-13 사용자 확정 — 외부 앱은 실운영 서비스가 아니라 고객사 초안 프로토타입으로
+// 이관 종결됐고, 이 브랜치의 dev 머지 시점이 곧 인앱 전환 시점이라 병행 플래그가
+// 불필요하다). 히어로 CTA는 `/app/performance`로 단순 이동만 하고, 실제 판정(로그인
+// 여부・결제 여부)은 전부 RequireEntitlement 가드(App.jsx)가 처리한다 — 여기서
+// openPaidServiceOrAlert 같은 판정 로직을 다시 호출하면 이중 판정이 된다(GoalManagement.jsx
+// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 `forbiddenTo="/services/performance#pricing"`
+// 로 되돌리는 것도 §2.2 설계상 정상 경로다 — 가드가 최종 권위이므로 랜딩에서 이용권을
+// 이중 판정할 이유가 없다.
+const HERO_SERVICE = { name: '수행평가 서비스', to: '/app/performance' };
+
+// 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
+// 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
+// 명세서 §2.2 forbidden 행). 그 계약을 이 페이지가 받는 지점이 아래 둘이다.
+//   ① 앵커 — `#pricing`이 가리킬 실제 id. 없으면 최상단에 그대로 머문다.
+//   ② 인라인 안내 — RequireEntitlement가 `location.state.entitlementNotice`로
+//      실어 보내는 문구. 소비하는 쪽이 없으면 사용자는 왜 튕겼는지 알 수 없다
+//      (§2.2 「현행 alert 대신 화면 안내로 승격」).
+const PRICING_ANCHOR_ID = 'pricing';
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
 // 배열의 각 원소가 한 줄이며 ServiceProcessCards 가 <br />로 잇는다.
@@ -269,6 +289,8 @@ const FAQ_ITEMS = [
 // 히어로는 페이지 고유 섹션이라 공통화 대상이 아니다(오라 회전 애니메이션・브라우저 목업의
 // 위치값이 4페이지 전부 다름). 이 함수는 이번 공통 컴포넌트 전환에서 손대지 않았다.
 function HeroSection() {
+  const navigate = useNavigate();
+
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
   // (서비스 랜딩 4종 + LearningDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
   const [auraRef, auraInView] = useInView();
@@ -365,7 +387,7 @@ function HeroSection() {
 
         <button
           type="button"
-          onClick={(event) => openPaidServiceOrAlert(event, HERO_SERVICE)}
+          onClick={() => navigate(HERO_SERVICE.to)}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기
@@ -388,8 +410,55 @@ function HeroSection() {
 }
 
 export default function PerformanceAssessment() {
+  const location = useLocation();
+  const entitlementNotice = location.state?.entitlementNotice || null;
+
+  // 해시(`#pricing`)로 도착해도 가격 섹션이 늘 로딩 분기일 수 있으므로 id는
+  // ServicePricingSection의 3분기 모두에 붙어 있다. 도착 오차는 scroll-mt-24가 흡수한다.
+  const scrollToPricing = useCallback(() => {
+    document.getElementById(PRICING_ANCHOR_ID)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, []);
+
+  // SPA 내부 이동은 해시를 브라우저가 처리해 주지 않는다 — App.jsx의 ScrollToTop은
+  // 해시가 있을 때 "최상단으로 이동"만 건너뛸 뿐, 앵커로 스크롤하는 코드는 저장소
+  // 어디에도 없다(<a href="#...">를 쓰는 콜멘토는 같은 문서 내 이동이라 해당 없음).
+  // 그래서 가드가 보낸 `#pricing`을 여기서 직접 처리한다.
+  useEffect(() => {
+    if (location.hash !== `#${PRICING_ANCHOR_ID}`) return undefined;
+    // 단, 안내 배너가 떠 있으면 자동 이동하지 않는다 — 배너는 "왜 되돌아왔는지"를
+    // 설명하는 유일한 표면인데 곧바로 가격 섹션으로 내려버리면 그 문장을 아무도
+    // 읽지 못한다. 배너의 CTA가 같은 앵커로 데려간다.
+    if (entitlementNotice) return undefined;
+
+    // 레이아웃이 한 번 확정된 뒤에 이동한다(첫 프레임 좌표는 지연 로드 이미지 탓에
+    // 실제 위치와 다르다).
+    const frame = requestAnimationFrame(scrollToPricing);
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash, entitlementNotice, scrollToPricing]);
+
   return (
     <main className="min-h-screen bg-white pt-16">
+      {/* 이용권 미보유로 되돌려진 경우에만 뜬다. 평상시 방문에는 아무것도 렌더하지 않는다. */}
+      {entitlementNotice ? (
+        <div className="mx-auto w-full max-w-content px-5 pt-6 sm:px-8">
+          <div
+            role="status"
+            className="flex flex-col gap-3 rounded-2xl border border-[#D7D7D7] bg-[#F9FAFB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-[1rem] font-semibold leading-[1.5] text-[#013262]">{entitlementNotice}</p>
+            {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
+                이동이 되어 브라우저가 아무것도 하지 않는다. 그래서 직접 스크롤한다. */}
+            <button
+              type="button"
+              onClick={scrollToPricing}
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
+            >
+              이용권 보러가기
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <HeroSection />
 
       {/* 히어로 목업이 lg:mb-[-7.89375rem]로 이 섹션 위에 겹치므로 pt 가 페이지 내 최소값이다. */}
@@ -441,14 +510,17 @@ export default function PerformanceAssessment() {
       </ServiceSection>
 
       {/* 문구・금액・상품 데이터는 Supabase 원본 그대로다 — 이 전환에서 한 글자도 바꾸지 않았다. */}
+      {/* scroll-mt-24: fixed 헤더(h-16)에 앵커 상단이 가리지 않게 한다
+          (MentorApplyForm·BoardListPage와 같은 선례값). */}
       <ServicePricingSection
+        id={PRICING_ANCHOR_ID}
         serviceKey="suhaeng"
         heading="위닝 수행평가 이용권 구매하기"
         cta={{
           label: '이용권 구매하기',
-          onClick: (event) => openPaidServiceOrAlert(event, HERO_SERVICE)
+          to: '/pricing'
         }}
-        className="pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
+        className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
       />
     </main>
   );
