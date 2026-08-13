@@ -18,13 +18,13 @@ import MyPageModalShell from './MyPageModalShell';
 
 const ETC_REASON = '기타 사유 (직접 입력)';
 
-// 시안 실측 7종. 표시 순서까지 시안 그대로다.
+// 확정 디자인(3967:3561) 실측 6종. 표시 순서까지 시안 그대로다.
+// 이전 구현은 '서비스 이용 장애'를 포함한 7종이었다(구 시안 3665:6635).
 const REASONS = [
   '단순 변심',
   '잘못된 상품 결제',
   '중복·오결제',
   '강의 내용·품질 불만족',
-  '서비스 이용 장애',
   '강의 취소·폐강 등 운영상 사유',
   ETC_REASON
 ];
@@ -62,7 +62,15 @@ const REFUND_UNKNOWN_ERROR_TEXT = '환불 신청에 실패했습니다. 잠시 �
 
 const QUOTE_LOAD_ERROR_TEXT = '환불 금액을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
-export default function RefundRequestModal({ open, order, onClose, onSubmitted, onStaleData }) {
+export default function RefundRequestModal({
+  open,
+  order,
+  asStudent = false,
+  parentName = '',
+  onClose,
+  onSubmitted,
+  onStaleData
+}) {
   const titleId = useId();
 
   const [quote, setQuote] = useState(null);
@@ -173,8 +181,17 @@ export default function RefundRequestModal({ open, order, onClose, onSubmitted, 
     <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title">
-          환불을 신청할게요
+          {asStudent ? '환불을 요청할게요' : '환불을 신청할게요'}
         </h2>
+
+        {/* 학생 모드 안내(3967:3561 실측) — 결제 주체가 학부모라는 사실과
+            요청이 어디로 가는지를 먼저 알려준다. */}
+        {asStudent && (
+          <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
+            결제는 {parentName ? `${parentName} ` : ''}학부모님이 하셨어요. 환불 요청을 보내면 학부모님이
+            확인 후 환불을 진행합니다.
+          </p>
+        )}
 
         {/* 취소/환불 규정 안내 */}
         <p className="mt-6 text-[0.8125rem] font-semibold text-ink">취소/환불 규정 안내</p>
@@ -188,7 +205,10 @@ export default function RefundRequestModal({ open, order, onClose, onSubmitted, 
             {order.order_name}
           </p>
 
-          {loading ? (
+          {/* 금액은 학생에게 보여주지 않는다(2026-08-13 확정) — 결제 주체인
+              학부모의 확인 화면(RefundApprovalModal)에서만 공개한다. 산정 자체는
+              그대로 돌아간다(아래 blockedByPolicy 가 0원 건을 막는 근거로 쓴다). */}
+          {asStudent ? null : loading ? (
             <p className="mt-3 text-[0.875rem] text-ink-sub">환불 금액 계산 중...</p>
           ) : quoteError ? (
             <p className="mt-3 text-[0.875rem] text-error">{quoteError}</p>
@@ -291,7 +311,7 @@ export default function RefundRequestModal({ open, order, onClose, onSubmitted, 
             canSubmit ? 'bg-error hover:bg-error/90' : 'cursor-not-allowed bg-line'
           }`}
         >
-          {saving ? '접수 중...' : '환불 하기'}
+          {saving ? '접수 중...' : asStudent ? '환불 요청 하기' : '환불 하기'}
         </button>
       </div>
     </MyPageModalShell>

@@ -13,8 +13,17 @@
 // 아래 나머지 3종(환불 요청 대기 · 환불 반려 · 환불완료)은 시안에 없는 상태라
 // 신규 카피다 — 승인 필요.
 const STATUS_STYLES = {
-  paid: { label: '결제완료', cls: 'bg-[#e7f2fb] text-accent' },
-  pending: { label: '입금대기', cls: 'bg-[#fff3d1] text-gold' },
+  // ── 학부모 "결제 내역" 어휘 (3967:3944 실측) ──────────────────────────
+  paid: { label: '결제 완료', cls: 'bg-[#e9f4ff] text-accent' },
+  pending: { label: '입금대기', cls: 'bg-[#f5ebcb] text-gold' },
+
+  // ── 학생 "신청 내역" 어휘 (3967:3016 실측) ───────────────────────────
+  // 학생 화면은 돈이 아니라 **신청·이용** 관점이다. 같은 주문이라도 학부모는
+  // '결제 완료', 학생은 '이용 중'으로 읽는다 — 그래서 키를 나눈다.
+  student_active: { label: '이용 중', cls: 'bg-[#e9f4ff] text-accent' },
+  student_waiting_parent: { label: '학부모 결제대기', cls: 'bg-[#f5ebcb] text-gold' },
+  student_canceled: { label: '신청 취소', cls: 'bg-[#d9d9d9] text-[#808080]' },
+  student_done: { label: '이용 완료', cls: 'bg-[#d9d9d9] text-[#808080]' },
 
   // 학생이 신청했고 학부모가 아직 응답하지 않음(approval_status='requested').
   // 아직 아무도 처리를 시작하지 않았으므로 "진행 중"이 아니다 — 입금대기와
@@ -26,11 +35,11 @@ const STATUS_STYLES = {
   refund_parent_rejected: { label: '학부모 반려', cls: 'bg-surface-04 text-ink-sub' },
 
   // 승인은 끝났고 어드민이 처리 중(status requested/processing).
-  refund_requested: { label: '환불 진행 중', cls: 'bg-[#ffd9d9] text-error' },
-  refund_processing: { label: '환불 진행 중', cls: 'bg-[#ffd9d9] text-error' },
+  refund_requested: { label: '환불 진행 중', cls: 'bg-[#f7dad8] text-error' },
+  refund_processing: { label: '환불 진행 중', cls: 'bg-[#f7dad8] text-error' },
 
-  refund_completed: { label: '환불완료', cls: 'bg-slate-100 text-slate-600' },
-  refund_rejected: { label: '환불 반려', cls: 'bg-[#ffd9d9] text-error' }
+  refund_completed: { label: '환불 완료', cls: 'bg-[#e3f3e8] text-[#2e7d4f]' },
+  refund_rejected: { label: '환불 반려', cls: 'bg-[#f7dad8] text-error' }
 };
 
 // 시안에 없는 상태(향후 DB에 새 status 값이 추가되는 경우)를 위한 중립 폴백.

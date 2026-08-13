@@ -65,7 +65,7 @@ async function queryProfile(user) {
 // '상담 및 문의'는 내용 디자인도 백엔드도 없어 넣지 않았다.
 const STUDENT_TABS = [
   { key: 'services', label: '나의 서비스' },
-  { key: 'payments', label: '수강/결제 내역' },
+  { key: 'payments', label: '신청 내역' },
   { key: 'profile', label: '내 정보 수정' }
 ];
 
@@ -171,7 +171,7 @@ export default function MyPage() {
           // 두 축을 OR 로 함께 본다 — RLS(orders select)가 이미 쌍 당사자만
           // 통과시키므로 남의 주문이 섞일 여지는 없다.
           .or(`user_id.eq.${user.id},student_profile_id.eq.${user.id}`)
-          .in('status', ['paid', 'waiting_deposit'])
+          .in('status', ['pending', 'paid', 'waiting_deposit', 'canceled', 'refunded'])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
           // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
           .order('created_at', { ascending: false }),

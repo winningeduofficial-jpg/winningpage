@@ -225,7 +225,13 @@ export default function MyServicesTab({ orders = [] }) {
   // — 가상계좌는 계좌만 발급됐고 돈은 아직 안 들어왔으므로 권한을 주지 않는다). 여기서
   // 걸러내지 않으면 입금 전 주문이 "이용 중인 서비스"로 잘못 표시된다. 로컬 QA 전용
   // 가짜 이용권 주문(status 필드 없음)은 이 필터에 걸리지 않고 그대로 노출된다.
-  const usableOrders = orders.filter((order) => order.status !== 'waiting_deposit');
+  // 상위(MyPage)는 신청 내역 표를 위해 pending/canceled/refunded 까지 내려준다
+  // (2026-08-13). 이용 권한은 결제 확정(paid)에만 붙으므로 여기서 좁힌다 —
+  // 예전에는 waiting_deposit 만 빼면 됐지만 이제 그 필터로는 부족하다.
+  // 로컬 QA 가짜 주문(status 없음)은 그대로 통과시킨다.
+  const usableOrders = orders.filter(
+    (order) => order.status === 'paid' || order.is_fake_entitlement
+  );
 
   if (!usableOrders.length) {
     return <EmptyState />;

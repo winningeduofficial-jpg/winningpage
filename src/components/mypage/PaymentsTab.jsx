@@ -1,185 +1,140 @@
-import { Fragment, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { formatKRW } from '../../data/pricingCatalog';
+import PaymentTable from './PaymentTable';
 import PaymentStatusBadge from './PaymentStatusBadge';
-import PaymentDetailModal from './PaymentDetailModal';
-import ReceiptModal from './ReceiptModal';
+import StudentRequestDetailModal from './StudentRequestDetailModal';
 import RefundRequestModal from './RefundRequestModal';
 import RefundNoticeModal from './RefundNoticeModal';
+import { formatOrderId, formatApprovedAt, resolveOrderStatus } from './paymentRows';
 
-// 결제/환불 내역 탭 (Figma 3661:4082 표 + 모달 4종).
+// 학생 "신청 내역" 탭 — 확정 디자인 3967:3016(목록) / 3967:2757(빈 상태).
 //
-// 시안 플로우 — 주문번호 클릭
-//   → 결제 상세 내역(3665:6278, PaymentDetailModal)
-//       → [영수증 보기] → 결제 영수증(3665:6975, ReceiptModal)
-//       → [환불 신청]   → 환불 신청(3665:6635, RefundRequestModal)
-//                          → 접수 완료(3665:6730, RefundNoticeModal)
+// 학부모의 "결제 내역"과 같은 표를 쓰지만 관점이 다르다. 학생은 돈이 아니라
+// **신청과 이용**을 본다:
+//   · 열 라벨   신청번호 / 신청일 / 상품 / 이용금액 / 상태
+//   · 상태 어휘 이용 중 / 학부모 결제대기 / 신청 취소 / 이용 완료
+//   · 상세 모달 신청 상세 내역(금액 없음, 신청자·결제담당을 보여준다)
+// 금액을 학생에게 노출하지 않는 것은 2026-08-13 확정 사항이다 — 환불 금액도
+// 학부모 확인 화면에서만 보여준다.
 //
-// 2026-08-13 이전에는 이 체인이 없었다: 주문번호를 누르면 영수증이 바로 떴고,
-// 환불은 표 아래 접히는 자체 폼(주문 select + 사유 textarea + 은행/계좌/예금주)
-// 이었다. 그 폼을 걷어내고 시안 모달로 옮겼다 — 환불 신청 자체의 서버 계약
-// (fn_request_refund RPC)은 그대로이고, 금액만 서버 산정(제33조,
-// sql/72_refund_policy_calc.sql)으로 바뀌었다.
-//
-// 로컬 QA 전용 가짜 이용권 주문(is_fake_entitlement)은 환불 진입을 막는다 —
-// 존재하지 않는 order_id 로 RPC 를 호출하면 WC005 만 보게 된다.
+// ⚠ '이용 완료'(만료) 판정은 이 표의 데이터만으로는 할 수 없다. orders 에는
+// 이용 기간이 없고, 만료는 program_access_grants.expires_at 이 정본이다
+// (MyServicesTab 은 order_name 문자열을 파싱해 근사치를 낸다 — 그 휴리스틱을
+// 여기로 복제하지 않았다). 결제가 끝난 건은 일단 '이용 중'으로 두고, 만료
+// 표시가 필요해지면 부여 원장을 함께 읽어야 한다.
 
-// 승인 일시 YYYY/MM/DD 포맷.
-function formatApprovedAt(value) {
-  if (!value) return '-';
-  const raw = String(value).slice(0, 10);
-  const [y, m, d] = raw.split('-');
-  if (!y || !m || !d) return raw;
-  return `${y}/${m}/${d}`;
-}
+const STUDENT_HEADERS = {
+  id: '신청번호',
+  date: '신청일',
+  product: '상품',
+  amount: '이용금액',
+  status: '상태'
+};
 
-// 표시용 주문번호 축약. 시안(9자리 숫자, 예: 123283945)은 그대로 두고, 실데이터의
-// 토스 orderId(order_1785898468780_adf9e6aa, sql/10_pricing_orders.sql)처럼 긴 값만
-// order_ 접두어를 떼고 뒤쪽 10자만 남겨 220px 컬럼을 넘지 않게 한다. 원본은 title 속성에
-// 그대로 남아 있으므로(아래 버튼) hover로 전체 값을 확인할 수 있다.
-function formatOrderId(id) {
-  const raw = String(id || '');
-  const stripped = raw.startsWith('order_') ? raw.slice('order_'.length) : raw;
-  if (stripped.length <= 12) return stripped;
-  return `…${stripped.slice(-10)}`;
-}
+// 학생 관점의 상태 판정. 환불이 걸린 건은 학부모와 같은 어휘를 쓴다 —
+// 환불 진행 상황은 학생도 그대로 알아야 하고, 달리 부를 이름도 없다.
+function resolveStudentStatus(order, refunds) {
+  if (order.status === 'pending') return 'student_waiting_parent';
+  if (order.status === 'canceled' || order.status === 'failed') return 'student_canceled';
 
-// order + 매칭되는 refund_requests 최신 행으로 표에 보여줄 상태를 계산한다.
-// refunds는 상위(MyPage)에서 created_at desc로 정렬해 내려주므로 첫 매칭이 최신 건이다.
-function resolveStatus(order, refunds) {
-  // 가상계좌 미입금(waiting_deposit)은 환불 신청 대상이 아니므로 refunds 매칭보다 먼저
-  // 본다 — 돈이 안 들어온 주문이라 refund_requests 행이 있을 수 없다(PaymentStatusBadge의
-  // pending = 시안 "입금대기").
-  if (order.status === 'waiting_deposit') return 'pending';
-  const refund = refunds.find((r) => r.order_id === order.id);
-  if (!refund) return 'paid';
-
-  // 어드민 처리축(status)이 종결된 건이 먼저다 — 제약상 이 두 값은 승인
-  // 이후에만 나올 수 있다(refund_requests_approval_before_processing_check).
-  if (refund.status === 'completed') return 'refund_completed';
-  if (refund.status === 'rejected') return 'refund_rejected';
-
-  // 여기부터 status 는 requested/processing 이다. 승인축을 봐야 "누구를
-  // 기다리는 중인지"가 갈린다 — 이걸 안 보면 학부모 응답 대기와 어드민
-  // 처리 중이 같은 배지로 뭉개진다(2026-08-13 수정 전 동작).
-  if (refund.approval_status === 'requested') return 'refund_approval_pending';
-  if (refund.approval_status === 'rejected') return 'refund_parent_rejected';
-
-  return 'refund_requested';
+  const shared = resolveOrderStatus(order, refunds);
+  if (shared === 'paid') return 'student_active';
+  return shared;
 }
 
 export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitted }) {
   const [detailOrder, setDetailOrder] = useState(null);
-  const [receiptOrder, setReceiptOrder] = useState(null);
   const [refundOrder, setRefundOrder] = useState(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [names, setNames] = useState({ student: '', parent: '' });
 
-  const detailStatus = detailOrder ? resolveStatus(detailOrder, refunds) : null;
+  // 신청 상세 모달이 "신청자 / 결제담당"을 보여주려면 두 이름이 필요하다.
+  // 학생은 자기 프로필만 읽을 수 있고(profiles_select_own) 학부모 이름은
+  // 못 읽는다 — parent_child_links 로 상대 id 는 알 수 있지만 이름은 아니다.
+  // 그래서 학부모 이름은 알 수 없으면 빈 값으로 두고 모달이 일반 라벨
+  // ("학부모님")로 떨어뜨린다. 지어내지 않는다.
+  useEffect(() => {
+    let alive = true;
 
-  function handleRequestRefund() {
-    const target = detailOrder;
-    setDetailOrder(null);
-    if (target?.is_fake_entitlement) return;
-    setRefundOrder(target);
-  }
+    (async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session?.session?.user?.id;
+      if (!uid) return;
 
-  function handleViewReceipt() {
-    const target = detailOrder;
-    setDetailOrder(null);
-    setReceiptOrder(target);
-  }
+      const { data } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', uid)
+        .maybeSingle();
 
-  function handleRefundSubmitted() {
-    setRefundOrder(null);
-    setNoticeOpen(true);
-    onRefundSubmitted?.();
-  }
+      if (alive) setNames((prev) => ({ ...prev, student: data?.name || '' }));
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const detailStatus = detailOrder ? resolveStudentStatus(detailOrder, refunds) : null;
 
   return (
     <section>
-      <h2 className="text-[1.5rem] font-semibold text-ink">결제내역</h2>
+      <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">신청 내역</h2>
 
-      {orders.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-line bg-surface-04 px-5 py-6 text-center text-sm text-ink-sub">
-          결제 내역이 없습니다.
-        </p>
-      ) : (
-        // 콘텐츠 폭(최대 1100px, MyPage.jsx maxWidth)을 표가 강제로 넘기지 않도록 w-full 기반
-        // 그리드로 구성한다. 컬럼폭은 시안 실측(주문번호/승인일시 각 220px, 금액/상태는 우측
-        // 정렬 배지 폭에 맞춘 고정폭)을 기준으로 하되, 상품만 minmax(0,1fr)로 남는 폭을
-        // 채운다 — 바깥 1fr은 grid item의 기본 최소폭(min-content)이 긴 상품명에서 열 합이
-        // 컨테이너를 넘겨 배지를 잘라내므로, min을 0으로 강제해 실제로 줄어들 수 있게 한다.
-        // 좁은 화면 대비 overflow-x-auto는 유지하되 1100px 부모에서는 스크롤이 생기지 않는다.
-        <div className="mt-[4.4375rem] overflow-x-auto">
-          <div className="w-full text-sm">
-            <div className="grid grid-cols-[13.75rem_13.75rem_minmax(0,1fr)_9rem_7rem] gap-x-2 border-b border-line pb-[0.625rem] text-sm font-semibold text-ink-sub">
-              <span>주문번호</span>
-              <span>승인 일시</span>
-              <span>상품</span>
-              <span className="text-right">결제 금액</span>
-              <span className="text-right">상태</span>
-            </div>
-
-            <div className="grid grid-cols-[13.75rem_13.75rem_minmax(0,1fr)_9rem_7rem] gap-x-2 gap-y-5 pt-[1.25rem]">
-              {orders.map((order) => {
-                const status = resolveStatus(order, refunds);
-                return (
-                  <Fragment key={order.id}>
-                    {/* orders.id = 토스 orderId(sql/10_pricing_orders.sql) — 별도 order_number
-                        컬럼이 없어 이 값 자체가 주문번호다. 실데이터는 시안(9자리 숫자)보다
-                        훨씬 길어 표시는 formatOrderId로 축약하고 원본은 title에 남긴다. */}
-                    <button
-                      type="button"
-                      onClick={() => setDetailOrder(order)}
-                      title={order.id}
-                      className="h-8 truncate self-center text-left text-accent underline underline-offset-2"
-                    >
-                      {formatOrderId(order.id)}
-                    </button>
-                    <span className="flex h-8 items-center truncate text-ink-sub">
-                      {formatApprovedAt(order.paid_at)}
-                    </span>
-                    <span className="flex h-8 items-center truncate text-ink-strong">
-                      {order.order_name}
-                      {order.is_fake_entitlement && (
-                        <span className="ml-1.5 shrink-0 text-xs text-ink-sub">(개발용)</span>
-                      )}
-                    </span>
-                    <span className="flex h-8 items-center justify-end truncate text-ink-strong">
-                      {formatKRW(order.amount)}
-                    </span>
-                    <span className="flex h-8 items-center justify-end">
-                      <PaymentStatusBadge status={status} />
-                    </span>
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <PaymentDetailModal
-        open={!!detailOrder}
-        order={detailOrder}
-        status={detailStatus}
-        onClose={() => setDetailOrder(null)}
-        onRequestRefund={handleRequestRefund}
-        onViewReceipt={handleViewReceipt}
+      <PaymentTable
+        headers={STUDENT_HEADERS}
+        emptyText="아직 신청한 서비스가 없어요"
+        rows={orders.map((o) => ({
+          key: o.id,
+          idFull: o.id,
+          idText: formatOrderId(o.id),
+          // 결제 전 건은 승인일시가 없다 — 신청 시각(created_at)이 이 표의 축이다.
+          dateText: formatApprovedAt(o.created_at || o.paid_at),
+          productText: o.order_name,
+          amountText: formatKRW(o.amount),
+          note: o.is_fake_entitlement ? '(개발용)' : null,
+          raw: o
+        }))}
+        onSelect={(row) => setDetailOrder(row.raw)}
+        renderStatus={(row) => <PaymentStatusBadge status={resolveStudentStatus(row.raw, refunds)} />}
       />
 
-      <ReceiptModal open={!!receiptOrder} order={receiptOrder} onClose={() => setReceiptOrder(null)} />
+      <StudentRequestDetailModal
+        open={!!detailOrder}
+        order={detailOrder}
+        studentName={names.student}
+        parentName={names.parent}
+        // 환불은 결제가 끝난 건에만. 학부모 반려 건은 재신청이 열려 있다
+        // (sql/68 미종결 판정에서 rejected 를 뺀 이유).
+        canRequestRefund={
+          !detailOrder?.is_fake_entitlement &&
+          (detailStatus === 'student_active' || detailStatus === 'refund_parent_rejected')
+        }
+        onClose={() => setDetailOrder(null)}
+        onRequestRefund={() => {
+          const target = detailOrder;
+          setDetailOrder(null);
+          setRefundOrder(target);
+        }}
+      />
 
       <RefundRequestModal
         open={!!refundOrder}
         order={refundOrder}
+        // 학생 요청 모드 — 금액을 숨기고 문구를 "요청"으로 바꾼다(3967:3561).
+        asStudent
+        parentName={names.parent}
         onClose={() => setRefundOrder(null)}
-        onSubmitted={handleRefundSubmitted}
-        // 서버가 "이미 신청 있음"으로 거부하면 목록만 다시 읽는다(접수 완료
-        // 모달은 띄우지 않는다 — 접수된 게 아니다).
+        onSubmitted={() => {
+          setRefundOrder(null);
+          setNoticeOpen(true);
+          onRefundSubmitted?.();
+        }}
         onStaleData={onRefundSubmitted}
       />
 
-      <RefundNoticeModal open={noticeOpen} onClose={() => setNoticeOpen(false)} />
+      <RefundNoticeModal open={noticeOpen} asStudent parentName={names.parent} onClose={() => setNoticeOpen(false)} />
     </section>
   );
 }

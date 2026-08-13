@@ -5,7 +5,7 @@ import { useEffect, useId, useRef } from 'react';
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function RefundNoticeModal({ open, onClose }) {
+export default function RefundNoticeModal({ open, asStudent = false, parentName = '', onClose }) {
   const panelRef = useRef(null);
   const triggerElRef = useRef(null);
   const titleId = useId();
@@ -62,15 +62,25 @@ export default function RefundNoticeModal({ open, onClose }) {
         className="relative flex w-[33.75rem] flex-col items-center rounded-xl bg-white px-[2.1875rem] py-[3.125rem] text-center shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
       >
         <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
-          환불 신청이 접수됐어요
+          {asStudent ? '환불 요청을 보냈어요' : '환불 신청이 접수됐어요'}
         </h2>
-        <p className="mt-[0.9375rem] break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
-          영업일 기준 1~2일 안에 검토 후
-          <br />
-          결제하신 수단으로 환급해드려요.
-          <br />
-          진행 상황은 결제 내역에서 확인할 수 있어요.
-        </p>
+        {/* 학생 완료 문구는 확정 디자인 3967:3933 실측. 학생 요청은 곧바로
+            환불되지 않고 학부모 확인을 거치므로 안내가 달라야 한다. */}
+        {asStudent ? (
+          <p className="mt-[0.9375rem] break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
+            {parentName ? `${parentName} ` : ''}학부모님께 환불 요청이 전달됐어요.
+            <br />
+            학부모님이 확인하고 환불을 진행하면 알림으로 알려드릴게요.
+          </p>
+        ) : (
+          <p className="mt-[0.9375rem] break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
+            영업일 기준 1~2일 안에 검토 후
+            <br />
+            결제하신 수단으로 환급해드려요.
+            <br />
+            진행 상황은 결제 내역에서 확인할 수 있어요.
+          </p>
+        )}
 
         <button
           type="button"
