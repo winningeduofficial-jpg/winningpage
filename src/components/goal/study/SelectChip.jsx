@@ -8,18 +8,20 @@
 // (추정).
 export default function SelectChip({ label, selected, onClick }) {
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={selected}
-      onClick={onClick}
-      className={`flex h-[3.25rem] w-fit shrink-0 items-center justify-center rounded-full border px-5 text-[0.9375rem] font-medium leading-[1.2] transition-colors ${
+    <label
+      className={`flex h-[3.25rem] w-fit shrink-0 cursor-pointer items-center justify-center rounded-full border px-5 text-[0.9375rem] font-medium leading-[1.2] transition-colors ${
         selected
           ? "border-accent bg-surface-03 font-bold text-accent"
           : "border-line bg-white text-ink"
       }`}
     >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onClick}
+        className="sr-only"
+      />
       {label}
-    </button>
+    </label>
   );
 }

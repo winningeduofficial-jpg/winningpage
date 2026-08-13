@@ -45,6 +45,7 @@ export default function ConditionSection({ options, value, onChange }) {
         {options.map((option, index) => {
           const selected = option.value === value;
           return (
+            // biome-ignore lint/a11y/useSemanticElements: 위 주석대로 roving tabindex + 방향키 이동을 직접 구현한 라디오그룹이다(코드 검수 §4 수정 이력). optionRefs.focus() 호출과 tabIndex 로직이 button 기준으로 맞춰져 있어 input 전환은 그 로직 전체를 다시 검증해야 하는 더 큰 리스크라 시각 회귀 우려까지 겹쳐 보류한다 — 별도 QA 필요.
             <button
               key={option.value}
               ref={(el) => {
