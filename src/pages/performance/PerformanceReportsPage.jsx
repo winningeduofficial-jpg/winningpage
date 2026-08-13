@@ -286,7 +286,7 @@ export default function PerformanceReportsPage() {
         )}
 
         {!detailLoading && detailError && (
-          <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-error">
+          <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]">
             {detailError}
           </p>
         )}
@@ -405,7 +405,7 @@ export default function PerformanceReportsPage() {
       )}
 
       {!listLoading && listError && (
-        <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-error">
+        <p role="alert" className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]">
           {listError}
         </p>
       )}

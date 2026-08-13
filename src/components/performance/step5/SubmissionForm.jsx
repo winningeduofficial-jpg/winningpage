@@ -336,7 +336,7 @@ export default function SubmissionForm({
         </p>
 
         {error && (
-          <p id={errorId} role="alert" className="text-[0.875rem] leading-[1.125rem] text-error">
+          <p id={errorId} role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
             {error}
           </p>
         )}

@@ -47,7 +47,7 @@ export default function ResumeChoiceCard({ onContinue, onRestart, busy = false, 
         <ChoiceButton label={RESTART_LABEL} onClick={onRestart} disabled={busy} />
       </div>
       {error && (
-        <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-error">
+        <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
           {error}
         </p>
       )}

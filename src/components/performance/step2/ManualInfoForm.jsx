@@ -87,7 +87,7 @@ export default function ManualInfoForm({ onSubmit, submitting = false, submitErr
         {/* 에러 표시 UI는 시안에 없다(§11.3 Q39 — 시안에 토스트 컴포넌트 자체가 없다).
             GuideUploadCard·BasicInfoForm과 같은 한 줄 `role="alert"` 관례로 최소한만 만든다. */}
         {submitError && (
-          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-error">
+          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
             {submitError}
           </p>
         )}

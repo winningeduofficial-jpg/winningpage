@@ -240,7 +240,7 @@ export default function GuideUploadCard({
       </p>
 
       {visibleError && (
-        <p role="alert" className="mt-3 text-[0.875rem] leading-[1.125rem] text-error">
+        <p role="alert" className="mt-3 text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
           {visibleError}
         </p>
       )}

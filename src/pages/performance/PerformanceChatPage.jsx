@@ -1957,7 +1957,7 @@ export default function PerformanceChatPage() {
       ) : submissionLoadError ? (
         // 스키마 없이 임의의 기본 폼을 그리지 않는다(위 `SUBMISSION_LOAD_FAILED_FALLBACK`).
         <div className="flex flex-col items-start gap-3">
-          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-error">
+          <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
             {submissionLoadError}
           </p>
           <RetryButton onClick={handleRetrySubmissionLoad}>제출폼 다시 불러오기</RetryButton>

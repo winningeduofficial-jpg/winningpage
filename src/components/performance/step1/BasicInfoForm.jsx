@@ -278,7 +278,7 @@ export default function BasicInfoForm({
       </div>
 
       {submitError && (
-        <p role="alert" className="text-[0.875rem] text-error">
+        <p role="alert" className="text-[0.875rem] text-[#d01c1c]">
           {submitError}
         </p>
       )}
