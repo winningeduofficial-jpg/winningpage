@@ -126,8 +126,7 @@ export default function ParentForm() {
     if (PARENT_SIGNUP_ENABLED && memberType !== "parent") {
       setMemberType("parent");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [memberType, setMemberType]);
 
   const [phoneSending, setPhoneSending] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
@@ -154,6 +153,7 @@ export default function ParentForm() {
   const normalizedPhone = normalizePhone(formData.phone);
 
   // ── 휴대폰 ────────────────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const code = formData.phoneCode;
 
@@ -185,7 +185,6 @@ export default function ParentForm() {
         lastPhoneAttempt.current = "";
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.phoneCode]);
 
   async function handleSendPhoneCode() {
@@ -235,6 +234,7 @@ export default function ParentForm() {
   }
 
   // ── 이메일 ────────────────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const token = formData.emailCode;
 
@@ -263,7 +263,6 @@ export default function ParentForm() {
       updateVerification("email", { verified: true });
       setEmailMessage({ text: "인증되었습니다", status: "success" });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.emailCode]);
 
   async function handleSendEmailCode() {

@@ -271,6 +271,7 @@ export default function UnifiedSignupForm() {
 
   // 6자리가 채워지면 곧바로 검증한다 — 별도 "확인" 버튼을 두지 않는다.
   // (휴대폰 알림톡 인증과 같은 방식. StudentForm/ParentForm/Under14Form과 동일 패턴)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const token = formData.emailCode;
 
@@ -324,7 +325,6 @@ export default function UnifiedSignupForm() {
         status: "success",
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.emailCode]);
 
   // TODO(§4.3 GAP): "다음" 버튼이 가리키는 후속 스텝이 시안에 없다("다음" 버튼 → 후속 스텝
