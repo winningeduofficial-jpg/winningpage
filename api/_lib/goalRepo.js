@@ -450,3 +450,95 @@ export function buildAwaitingCutsPayload(row) {
     missingCuts: listMissingCuts(row)
   };
 }
+
+// ---------------------------------------------------------------------------
+// 문제집(goal_workbooks) — "나의 노력" 화면(Efforts.jsx). api/goal/workbooks.js 전용.
+// 스키마 정본: sql/76_goal_workbooks.sql.
+// ---------------------------------------------------------------------------
+
+export const TABLE_WORKBOOKS = 'goal_workbooks';
+
+/**
+ * current_page/total_pages 비교로 완독 여부를 재계산한다. sql/76 (1) 주석과 같은 규약 —
+ * status는 클라이언트가 직접 보낼 수 없고 이 함수의 결과만 저장한다.
+ */
+export function computeWorkbookStatus(currentPage, totalPages) {
+  return currentPage >= totalPages ? 'done' : 'reading';
+}
+
+/** 본인 문제집 전체 목록. 등록 순서(오래된 순)를 그대로 보존한다. */
+export async function fetchWorkbooks(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 문제집 1건(본인 소유 한정). 없거나 타인 소유면 null — goalRepo 규약 #1(profileId 스코프가 유일한 소유자 판정). */
+export async function fetchWorkbookOwned(supabaseAdmin, id, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .select('*')
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 문제집 insert. 저장된 행을 그대로 돌려준다. */
+export async function insertWorkbook(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .insert(row)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** 문제집 update(본인 소유 한정). 없거나 타인 소유면 null — 두 조건 모두 eq에 실어 한 번에 판정한다. */
+export async function updateWorkbookOwned(supabaseAdmin, id, profileId, patch) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .update(patch)
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 문제집 delete(본인 소유 한정). 실제로 지운 행이 있었으면 true. */
+export async function deleteWorkbookOwned(supabaseAdmin, id, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_WORKBOOKS)
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+/** DB 스네이크 → API 카멜. subject는 id 그대로 실어 보낸다(한글 라벨 변환은 프론트 subjectTokens.js 담당). */
+export function buildWorkbookPayload(row) {
+  return {
+    id: row.id,
+    subject: row.subject,
+    title: row.title,
+    totalPages: num(row.total_pages),
+    currentPage: num(row.current_page),
+    status: row.status
+  };
+}

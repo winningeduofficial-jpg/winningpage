@@ -294,3 +294,82 @@ export async function submitDailyRecord(body) {
   console.error('[goalApi] POST /api/goal/daily-record 실패:', response.status, result?.detail);
   return { kind: 'error' };
 }
+
+// ---------------------------------------------------------------------------
+// 문제집(goal_workbooks) — "나의 노력" 화면(Efforts.jsx) 전용 CRUD.
+// 4함수 모두 위 두 함수와 같은 규약을 따른다: 예외를 던지지 않고 discriminated
+// union으로 실패를 표현하며, 응답 본문은 api/_lib/goalRepo.js buildWorkbookPayload
+// 모양 그대로다({ id, subject, title, totalPages, currentPage, status }).
+//
+// 공통 kind:
+//   { kind: 'no-session' }              — 401. /login으로.
+//   { kind: 'not-allowed' }             — GET 200 {allowed:false} 또는 쓰기형 403. /pricing?service=goal로.
+//   { kind: 'validation-error', detail } — 400. 정상 경로에선 나오지 않아야 하는 방어적 분기.
+//   { kind: 'not-found' }               — 404(PUT/DELETE 전용). 이미 지워졌거나 남의 문제집.
+//   { kind: 'error' }                   — 500 / 네트워크 오류 / 예상 밖 상태코드.
+// ---------------------------------------------------------------------------
+
+async function goalWorkbooksRequest(method, body) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/workbooks', {
+      method,
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeader
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+    });
+  } catch (error) {
+    console.error(`[goalApi] ${method} /api/goal/workbooks 호출 오류:`, error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 404) return { kind: 'not-found' };
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 400) return { kind: 'validation-error', detail: result?.detail };
+
+  if (!response.ok) {
+    console.error(`[goalApi] ${method} /api/goal/workbooks 실패:`, response.status, result?.detail);
+    return { kind: 'error' };
+  }
+
+  if (result?.allowed === false) return { kind: 'not-allowed' };
+
+  return { kind: 'success', result };
+}
+
+/** GET — 본인 문제집 전체 목록. */
+export async function fetchGoalWorkbooks() {
+  const outcome = await goalWorkbooksRequest('GET');
+  if (outcome.kind !== 'success') return outcome;
+  return { kind: 'success', workbooks: outcome.result?.workbooks ?? [] };
+}
+
+/** POST — 문제집 1건 등록. payload: {subject, title, totalPages, currentPage?}. */
+export async function createGoalWorkbook(payload) {
+  const outcome = await goalWorkbooksRequest('POST', payload);
+  if (outcome.kind !== 'success') return outcome;
+  return { kind: 'success', workbook: outcome.result?.workbook };
+}
+
+/** PUT — 문제집 1건 수정. payload: {id, title?, totalPages?, currentPage?}. */
+export async function updateGoalWorkbook(payload) {
+  const outcome = await goalWorkbooksRequest('PUT', payload);
+  if (outcome.kind !== 'success') return outcome;
+  return { kind: 'success', workbook: outcome.result?.workbook };
+}
+
+/** DELETE — 문제집 1건 삭제. */
+export async function deleteGoalWorkbook(id) {
+  const outcome = await goalWorkbooksRequest('DELETE', { id });
+  if (outcome.kind !== 'success') return outcome;
+  return { kind: 'success' };
+}
