@@ -23,6 +23,7 @@
 //   최후 수단으로 24시간 고아 스윕이 같은 자리를 치운다.
 
 import { supabase } from '../supabase';
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
 
 /** 서버 메시지가 없을 때만 쓰는 폴백. 서버가 준 문구가 있으면 항상 그쪽이 우선이다. */
 const GENERIC_UPLOAD_ERROR = '사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요.';
@@ -37,18 +38,22 @@ function userError(message, cause) {
   return error;
 }
 
-async function postJson(path, accessToken, body) {
+async function postJson(path, accessToken, body, timeoutMs) {
   let response;
 
   try {
-    response = await fetch(path, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+    response = await fetchWithTimeout(
+      path,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(body)
       },
-      body: JSON.stringify(body)
-    });
+      timeoutMs
+    );
   } catch (error) {
     throw userError(NETWORK_ERROR, error);
   }
@@ -109,10 +114,12 @@ export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
  * 경로·MIME·크기를 실어 보내지 않는다(§8.8 BLOCK).
  */
 export async function analyzeGuideUpload({ accessToken, sessionId, attachmentIds }) {
-  const { response, data } = await postJson('/api/performance/analyze-guide', accessToken, {
-    sessionId,
-    attachmentIds
-  });
+  const { response, data } = await postJson(
+    '/api/performance/analyze-guide',
+    accessToken,
+    { sessionId, attachmentIds },
+    AI_CALL_TIMEOUT_MS
+  );
 
   if (!response.ok) {
     throw userError(data?.error?.message || GENERIC_ANALYZE_ERROR);
