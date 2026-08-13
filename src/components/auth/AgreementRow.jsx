@@ -22,13 +22,13 @@ export default function AgreementRow({
     <div
       className={`flex items-center justify-between gap-3 rounded-lg bg-surface-card px-5 py-4 ${className}`}
     >
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
-        onClick={onToggle}
-        className="-my-4 flex flex-1 items-center gap-3 py-4 text-left"
-      >
+      <label className="-my-4 flex flex-1 cursor-pointer items-center gap-3 py-4 text-left">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="sr-only"
+        />
         <span
           aria-hidden="true"
           style={
@@ -51,7 +51,7 @@ export default function AgreementRow({
           </span>
           {label}
         </span>
-      </button>
+      </label>
 
       {to && (
         <Link

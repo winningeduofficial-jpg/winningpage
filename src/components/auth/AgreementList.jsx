@@ -40,13 +40,13 @@ export default function AgreementList({
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={allChecked}
-        onClick={handleToggleAll}
-        className="flex items-center gap-3 rounded-lg bg-surface-card px-5 py-4 text-left"
-      >
+      <label className="flex cursor-pointer items-center gap-3 rounded-lg bg-surface-card px-5 py-4 text-left">
+        <input
+          type="checkbox"
+          checked={allChecked}
+          onChange={handleToggleAll}
+          className="sr-only"
+        />
         <span
           aria-hidden="true"
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
@@ -59,7 +59,7 @@ export default function AgreementList({
         </span>
 
         <span className="text-sm font-medium text-ink">모두 동의합니다</span>
-      </button>
+      </label>
 
       {(items || []).map((item, index) => (
         <AgreementRow
