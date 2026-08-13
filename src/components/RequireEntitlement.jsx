@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { fetchEntitlement } from '../lib/entitlement';
 import { useSessionOptional } from '../context/SessionContext';
+import PerformanceSkeleton from './performance/PerformanceSkeleton';
 
 // 유료 서비스 진입 가드 — 명세서 §2.2의 4상태(`loading`/`guest`/`forbidden`/`ok`)
 // + 판정 불가 1상태(`check-failed`).
@@ -118,6 +119,15 @@ export default function RequireEntitlement({
   }
 
   if (status === 'loading') {
+    // 수행평가(§2.2)만 전체 화면 스켈레톤을 쓴다 — 골격이 수행평가 사이드바 실측
+    // (프로필 1자리 + 메뉴 2자리 + 진행단계 5자리, 폭 20.25rem 고정)에 맞춰져 있어
+    // 목표관리(4그룹 10항목) 등 다른 셸에 그대로 쓰면 모양이 어긋난다. 다른
+    // 서비스는 기존 중앙 텍스트 카드를 유지한다 — 이 가드가 아직 모르는 셸에
+    // 수행평가 전용 골격을 강제하지 않기 위해서다.
+    if (serviceKey === 'suhaeng') {
+      return <PerformanceSkeleton />;
+    }
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-white text-[#0D1B2A]">
         {/* 가드가 조기 반환하면 이전 라우트 DOM이 통째로 언마운트되고 포커스도 옮겨지지
