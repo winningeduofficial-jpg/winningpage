@@ -28,6 +28,8 @@
 //   아니면 새로 만든다"가 자동으로 성립한다. `regenerate:true`는 재생성 예산(2회)을 태우는
 //   별개 행동이라 그 UI(§5.13에 없음)가 생길 때 함께 배선한다.
 
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+
 const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
 
 /** 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백. */
@@ -77,14 +79,18 @@ export async function requestDesignReport({ accessToken, sessionId, topicId, reg
   let response;
 
   try {
-    response = await fetch('/api/performance/design-report', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+    response = await fetchWithTimeout(
+      '/api/performance/design-report',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(regenerate ? { sessionId, topicId, regenerate: true } : { sessionId, topicId })
       },
-      body: JSON.stringify(regenerate ? { sessionId, topicId, regenerate: true } : { sessionId, topicId })
-    });
+      AI_CALL_TIMEOUT_MS
+    );
   } catch (error) {
     const wrapped = new DesignReportError('NETWORK', NETWORK_ERROR, {});
     wrapped.cause = error;

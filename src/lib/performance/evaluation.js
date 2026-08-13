@@ -39,6 +39,8 @@
 //   `guideUpload.js`/`topics.js`/`designReport.js`가 이미 쓰는 규약이라 읽는 쪽이 출처를
 //   따지지 않아도 된다.
 
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+
 const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
 
 /**
@@ -93,18 +95,22 @@ export class EvaluationRequestError extends Error {
 }
 
 /** 두 호출이 공유하는 fetch + 실패 변환. 성공 응답 본문을 그대로 돌려준다. */
-async function postJson(path, body, accessToken, fallbackMap, genericMessage) {
+async function postJson(path, body, accessToken, fallbackMap, genericMessage, timeoutMs) {
   let response;
 
   try {
-    response = await fetch(path, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+    response = await fetchWithTimeout(
+      path,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(body)
       },
-      body: JSON.stringify(body)
-    });
+      timeoutMs
+    );
   } catch (error) {
     const wrapped = new EvaluationRequestError('NETWORK', NETWORK_ERROR);
     wrapped.cause = error;
@@ -146,7 +152,8 @@ export async function requestEvaluation({ accessToken, sessionId, submissionId }
     { sessionId, submissionId },
     accessToken,
     EVALUATE_FALLBACK,
-    EVALUATE_GENERIC
+    EVALUATE_GENERIC,
+    AI_CALL_TIMEOUT_MS
   );
 }
 

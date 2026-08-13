@@ -25,6 +25,8 @@
 //   모델 원문을 응답에 싣지 않으므로(`recommend-topics.js`의 `fail()`) 그대로 화면에 띄워도
 //   내부 정보가 새지 않는다. 서버 문구가 없을 때만 아래 폴백을 쓴다.
 
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+
 const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
 
 /** 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백. */
@@ -75,14 +77,18 @@ export async function recommendTopics({ accessToken, sessionId, round }) {
   let response;
 
   try {
-    response = await fetch('/api/performance/recommend-topics', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+    response = await fetchWithTimeout(
+      '/api/performance/recommend-topics',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(round ? { sessionId, round } : { sessionId })
       },
-      body: JSON.stringify(round ? { sessionId, round } : { sessionId })
-    });
+      AI_CALL_TIMEOUT_MS
+    );
   } catch (error) {
     const wrapped = new TopicRequestError('NETWORK', NETWORK_ERROR, {});
     wrapped.cause = error;

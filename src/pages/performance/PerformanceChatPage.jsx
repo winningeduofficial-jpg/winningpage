@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
+import { useToast } from '../../context/ToastContext';
 import ChatTimeline from '../../components/performance/chat/ChatTimeline';
 import AiLoadingBubble from '../../components/performance/chat/AiLoadingBubble';
 import InlineCard from '../../components/performance/chat/InlineCard';
@@ -306,6 +307,7 @@ const RESUME_CONTINUE_COPY = '이전 진행 기록을 불러왔어요. 이어서
 
 export default function PerformanceChatPage() {
   const { session } = useSession();
+  const { success: toastSuccess, error: toastError } = useToast();
   const accessToken = session?.access_token || null;
   const routeParams = useParams();
   const routeSessionId = typeof routeParams?.sessionId === 'string' ? routeParams.sessionId : null;
@@ -1002,9 +1004,12 @@ export default function PerformanceChatPage() {
         mode: 'draft'
       });
       setSubmissionSavedAt(data.savedAt || new Date().toISOString());
+      toastSuccess('중간 저장이 완료되었습니다. 다음 로그인 때 이어서 할 수 있습니다.');
     } catch (error) {
       console.error('[performance] 중간 저장 실패:', error?.code, error);
-      setSubmissionActionError(error?.userMessage || '중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      const message = error?.userMessage || '중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.';
+      setSubmissionActionError(message);
+      toastError(message);
     } finally {
       setSavingDraft(false);
     }
@@ -1133,6 +1138,8 @@ export default function PerformanceChatPage() {
         });
       }
 
+      toastSuccess('최종 수행평가가 저장되었습니다.');
+
       if (action === 'new_assessment') {
         // 서버가 `nextSessionId`(기존 미차감 세션 재사용 또는 신규 draft)를 준비해 뒀다.
         // 준비에 실패해 null이어도 확정은 이미 성립했으므로 그대로 STEP1로 되돌린다 —
@@ -1144,7 +1151,9 @@ export default function PerformanceChatPage() {
       setFinalizeResult({ action, keptPointer });
     } catch (error) {
       console.error('[performance] 최종본 확정 실패:', error?.code, error);
-      setFinalizeError({ action, message: error?.userMessage || FINALIZE_FAILED_FALLBACK });
+      const message = error?.userMessage || FINALIZE_FAILED_FALLBACK;
+      setFinalizeError({ action, message });
+      toastError(message);
     } finally {
       setFinalizeAction(null);
     }
