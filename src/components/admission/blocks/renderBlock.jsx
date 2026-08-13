@@ -21,8 +21,10 @@ export function renderBlock(block, key) {
       return <TableBlockView key={key} block={block} />;
     case 'keyValue':
       return <KeyValueView key={key} rows={block.rows} />;
+    // `ordered`는 §8.5 블록 뷰 확장분(번호 목록). 없으면 `undefined`가 넘어가
+    // `PlainListView`의 기본값(`false`, `<ul>`)이 그대로 걸린다 — 기존 생성 경로 무영향.
     case 'plainList':
-      return <PlainListView key={key} items={block.items} />;
+      return <PlainListView key={key} items={block.items} ordered={block.ordered} />;
     case 'preText':
       return <PreTextView key={key} text={block.text} />;
     case 'emptyBox':
