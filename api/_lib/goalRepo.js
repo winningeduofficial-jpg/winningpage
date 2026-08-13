@@ -271,9 +271,8 @@ export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
 // 산술은 src/lib/goal/report/aggregate.js(순수 함수)가 한다(이 파일의 §1 헌장 유지).
 // ---------------------------------------------------------------------------
 
-export const TABLE_DAILY_RECORDS = 'goal_daily_records';
-export const TABLE_TIMER_SESSIONS = 'goal_timer_sessions';
-export const TABLE_PLAN_TASKS = 'goal_plan_tasks';
+// 테이블 상수는 위(§별 절)에서 이미 선언된 것을 재사용한다 — 병렬 브랜치 union 머지 때
+// 리포트 절이 들고 온 중복 선언(TABLE_DAILY_RECORDS/TIMER_SESSIONS/PLAN_TASKS)은 제거했다.
 export const TABLE_MENTOR_COMMENTS = 'goal_mentor_comments';
 
 /** goal_daily_records — profile_id 1건, record_date 구간(양끝 포함) 전량. */
