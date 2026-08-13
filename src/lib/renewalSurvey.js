@@ -10,11 +10,11 @@
 import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
 
 export const SURVEY_TOTAL_STEPS = 5;
-export const SURVEY_FIRST_STEP_PATH = '/free-diagnosis/survey/1';
-export const SURVEY_REPORT_PATH = '/free-diagnosis/report';
+export const SURVEY_FIRST_STEP_PATH = '/learning-diagnosis/survey/1';
+export const SURVEY_REPORT_PATH = '/learning-diagnosis/report';
 
 export function getStepPath(step) {
-  return `/free-diagnosis/survey/${step}`;
+  return `/learning-diagnosis/survey/${step}`;
 }
 
 export const surveyMainQuestions = renewalSurveyQuestions
