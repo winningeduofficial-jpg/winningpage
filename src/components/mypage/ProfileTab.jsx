@@ -10,6 +10,8 @@ import { supabase } from '../../lib/supabase';
 import ProfileField from './ProfileField';
 import ToggleRow from './ToggleRow';
 import WithdrawModal from './WithdrawModal';
+import ChangeEmailModal from './ChangeEmailModal';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 
@@ -64,6 +66,8 @@ export default function ProfileTab({ user, profile, memberType }) {
   const [toggles, setToggles] = useState({ marketing_agreed: false, ads_agreed: false });
   const [errorMsg, setErrorMsg] = useState('');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   // 이름 인라인 편집(블러 시 저장) — 마지막으로 서버에 반영된 값과 비교해 불필요한 저장을 막는다.
   const [savedName, setSavedName] = useState(profile?.name || '');
@@ -453,9 +457,7 @@ export default function ProfileTab({ user, profile, memberType }) {
         value={form.email}
         readOnly
         actionLabel="변경"
-        onAction={() => {
-          // TODO(백엔드 미구현): 이메일 변경 플로우(인증 메일 발송 등) 연동 전까지 버튼은 UI만 제공한다.
-        }}
+        onAction={() => setEmailOpen(true)}
         className="mb-5"
       />
 
@@ -465,9 +467,7 @@ export default function ProfileTab({ user, profile, memberType }) {
         value="***********"
         readOnly
         actionLabel="변경"
-        onAction={() => {
-          // TODO(백엔드 미구현): 비밀번호 변경 플로우 연동 전까지 버튼은 UI만 제공한다.
-        }}
+        onAction={() => setPasswordOpen(true)}
         className="mb-5"
       />
 
@@ -533,6 +533,24 @@ export default function ProfileTab({ user, profile, memberType }) {
       </button>
 
       <WithdrawModal open={withdrawOpen} onClose={() => setWithdrawOpen(false)} />
+
+      <ChangeEmailModal
+        open={emailOpen}
+        currentEmail={form.email}
+        profileId={profileId}
+        onClose={() => setEmailOpen(false)}
+        onChanged={(email) => {
+          updateForm('email', email);
+          // 헤더 등 다른 화면도 프로필을 다시 읽게 한다(persistProfile 과 같은 신호).
+          window.dispatchEvent(new Event('winning-profile-updated'));
+        }}
+      />
+
+      <ChangePasswordModal
+        open={passwordOpen}
+        email={form.email}
+        onClose={() => setPasswordOpen(false)}
+      />
     </div>
   );
 }
