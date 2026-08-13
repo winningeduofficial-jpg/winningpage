@@ -49,12 +49,18 @@ function GradeField({ label, value, onChange }) {
   );
 }
 
-export default function AddNaesinGradeModal({ open, onClose }) {
+// onSubmit: async (entry) => {ok:boolean, detail?:string} — entry = {term, enteredAt, subjects}.
+// 실제 API 호출(addGoalGrade)은 호출부(Grades.jsx / NaesinCard.jsx)가 맡는다 — 이 모달은
+// 입력 UI와 폼 상태만 소유한다(house 패턴, AddMockExamGradeModal과 동일).
+export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
   const [semester, setSemester] = useState('');
   const [enteredAt, setEnteredAt] = useState(todayDateValue());
   const [grades, setGrades] = useState({ korean: '', math: '', english: '', science: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const canSubmit =
+    !submitting &&
     semester.trim().length > 0 &&
     enteredAt.trim().length > 0 &&
     SUBJECTS.every(({ key }) => grades[key].toString().trim().length > 0);
@@ -63,6 +69,7 @@ export default function AddNaesinGradeModal({ open, onClose }) {
     setSemester('');
     setEnteredAt(todayDateValue());
     setGrades({ korean: '', math: '', english: '', science: '' });
+    setError('');
   }
 
   function handleClose() {
@@ -70,10 +77,17 @@ export default function AddNaesinGradeModal({ open, onClose }) {
     onClose();
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    // 목업 스텁 — 실제 저장/API 연동 금지(확정 사항 §1). 콘솔 로그 + 모달 닫기만 수행.
-    console.log('[AddNaesinGradeModal] submit', { semester, enteredAt, grades });
+    setSubmitting(true);
+    setError('');
+    const result = await onSubmit({ term: semester.trim(), enteredAt, subjects: grades });
+    setSubmitting(false);
+
+    if (!result?.ok) {
+      setError(result?.detail || '저장에 실패했습니다. 다시 시도해 주세요.');
+      return;
+    }
     handleClose();
   }
 
@@ -85,10 +99,14 @@ export default function AddNaesinGradeModal({ open, onClose }) {
       subtitle="학기별 과목 등급을 입력하면 평균이 자동 환산돼요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel="성적 저장하기"
+      submitLabel={submitting ? '저장 중…' : '성적 저장하기'}
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
+      {error && (
+        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-[1.5] text-[#D14343]">{error}</p>
+      )}
+
       <div className="grid grid-cols-2 gap-[0.5rem]">
         <ModalField
           label="학기"
