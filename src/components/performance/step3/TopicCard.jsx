@@ -69,26 +69,12 @@ export default function TopicCard({ index, topic, onDetail, className = "" }) {
     onDetail?.(topic);
   }
 
-  function handleKeyDown(event) {
-    if (
-      event.key === "Enter" ||
-      event.key === " " ||
-      event.key === "Spacebar"
-    ) {
-      // Space의 기본 동작(페이지 스크롤)을 막지 않으면 카드를 열면서 화면이 함께 튄다.
-      event.preventDefault();
-      open();
-    }
-  }
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={open}
-      onKeyDown={handleKeyDown}
       className={[
-        "w-full max-w-perf-bubble cursor-pointer rounded-2xl border border-performance-line bg-transparent p-5",
+        "w-full max-w-perf-bubble cursor-pointer rounded-2xl border border-performance-line bg-transparent p-5 text-left",
         "min-h-[12.125rem] transition-colors hover:border-ink-sub",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         className,
@@ -126,6 +112,6 @@ export default function TopicCard({ index, topic, onDetail, className = "" }) {
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }
