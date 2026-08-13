@@ -376,7 +376,6 @@ export default function App() {
             </Route>
           </Route>
         </Route>
-        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/services" element={<Services />} />
         <Route path="/learning-analysis" element={<LearningAnalysis />} />
