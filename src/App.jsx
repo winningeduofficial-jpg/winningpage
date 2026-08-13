@@ -68,8 +68,8 @@ import GoalProfile from './pages/goal/Profile';
 import RequireEntitlement from './components/RequireEntitlement';
 import { SessionProvider } from './context/SessionContext';
 import PerformanceAppLayout from './components/performance/PerformanceAppLayout';
-import PerformancePlaceholder from './pages/performance/PerformancePlaceholder';
 import PerformanceChatPage from './pages/performance/PerformanceChatPage';
+import PerformanceReportsPage from './pages/performance/PerformanceReportsPage';
 
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
 import MemberType from './pages/signup/MemberType';
@@ -360,18 +360,18 @@ export default function App() {
                   :sessionId보다 우선 매칭되므로 `reports`가 세션 id로 오인되지 않는다. */}
               <Route
                 path="/app/performance/reports"
-                element={<PerformancePlaceholder screen="저장 리포트 목록" />}
+                element={<PerformanceReportsPage />}
               />
               <Route
                 path="/app/performance/reports/:sessionId"
-                element={<PerformancePlaceholder screen="저장 리포트 상세" />}
+                element={<PerformanceReportsPage />}
               />
               {/* 새로고침 복구 진입점(§2.1). 외부 앱은 sessionId가 인메모리라 새로고침
                   시 재로그인으로 떨어졌다. 세션 id는 인증 수단이 아니라 리소스 ID이므로
                   URL에 노출해도 안전하다 — 소유권은 서버가 auth.uid()로 판정한다. */}
               <Route
                 path="/app/performance/:sessionId"
-                element={<PerformancePlaceholder screen="세션 복구" />}
+                element={<PerformanceChatPage />}
               />
             </Route>
           </Route>
