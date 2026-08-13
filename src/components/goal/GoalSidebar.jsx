@@ -1,20 +1,36 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { GOAL_NAV_GROUPS, GOAL_NAV_FOOTER } from './goalNavItems';
-import { mockStudent, mockSchedules } from '../../data/goalMock';
+import { mockStudent } from '../../data/goalMock';
+import { fetchGoalSchedules } from '../../lib/goalApi';
+import { kstYMD } from '../../lib/goal/calc/index.js';
 
-// 사이드바 뱃지 소스 — 목업 단계 고정값. 실데이터 연동 시 서버 상태(공부 기록 저장 여부,
-// 타이머 진행 여부)로 교체한다. 중요일정 카운트는 mockSchedules 길이를 그대로 사용.
-const NAV_BADGE_DATA = {
-  scheduleCount: mockSchedules.length,
-  dailyRecordDone: false,
-  timerRunning: false
-};
-
-// 목표관리 앱 좌측 고정 사이드바 — docs/figma-goal/00-INDEX.md §5-2 `GoalSidebar`.
-// 실측 규격: 폭 324px(20.25rem), min-height 100vh(시안 rect 높이 2121/2325/3169는 프레임 초과값이라 무시).
-// 시안 절대좌표(사용자 블록 x=60/y=100·130, 내비 시작 y=271, 그룹 pitch 207, 항목 pitch 42, 활성
-// pill 304×36 x=10)는 초기 배치 근거로만 쓰고, 실제 구현은 flex column + gap으로 반응형 여지를 둔다.
+// 사이드바 뱃지 소스 — 중요일정 카운트만 실데이터로 전환했다(GET /api/goal/schedules, "다가오는
+// 일정 수" = due_date가 오늘(KST) 이후인 행 수, 팀장 지시). 나머지 2종(공부 기록 저장 여부,
+// 타이머 진행 여부)은 각각 별도 UoW 소관이라 목업 고정값을 유지한다.
+//
+// GoalAppLayout이 이 컴포넌트를 /app/goal/* 전 라우트에서 props 없이 셸로 마운트하므로
+// (props로 끌어올리는 대신) 이 컴포넌트가 직접 fetchGoalSchedules()를 호출한다 — 최소 변경.
 export default function GoalSidebar() {
+  const [scheduleCount, setScheduleCount] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+
+    fetchGoalSchedules().then((result) => {
+      if (!alive || result.kind !== 'success') return;
+      const today = kstYMD(new Date());
+      const upcoming = result.schedules.filter((schedule) => schedule.dueDate >= today);
+      setScheduleCount(upcoming.length);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const navBadgeData = { scheduleCount, dailyRecordDone: false, timerRunning: false };
+
   return (
     <aside className="flex min-h-screen w-[20.25rem] flex-shrink-0 flex-col bg-goal-sidebar">
       {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형 */}
@@ -36,7 +52,7 @@ export default function GoalSidebar() {
             </p>
             <ul className="flex flex-col gap-1">
               {items.map((item) => {
-                const badge = item.getBadge?.(NAV_BADGE_DATA);
+                const badge = item.getBadge?.(navBadgeData);
                 return (
                   <li key={item.to}>
                     <NavLink

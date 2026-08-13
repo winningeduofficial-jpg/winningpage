@@ -62,6 +62,27 @@ export default async function handler(req, res) {
 
   try {
     const { service_key } = req.body || {};
+
+    // 수행평가 인앱 전환(하드 전환, 2026-08-13 사용자 확정) — 외부 앱은 고객사
+    // 초안 프로토타입으로 이관 종결됐고, 이 브랜치의 dev 머지 시점이 곧 전환
+    // 시점이라 병행 플래그를 두지 않는다. 히어로 CTA는 더 이상 이 엔드포인트를
+    // 부르지 않지만(PerformanceAssessment.jsx는 이제 /app/performance로 직접
+    // 이동한다), 구 링크・북마크로 이 엔드포인트가 여전히 호출될 수 있어(명세
+    // §11-③) 분기를 제거하지 않고 인앱 경로 안내 응답으로 교체한다. SSO
+    // 티켓 발급(target_url/SSO_SECRET/서명)은 더 이상 필요 없다 — 실제 이용권
+    // 판정은 /app/performance 진입 가드(RequireEntitlement, App.jsx)가 서버
+    // 최종 권위로 다시 수행하므로 여기서 이중 판정하지 않는다.
+    // 응답 필드는 기존 SSO 티켓 응답과 동일한 `redirect_url`을 쓴다 — 프론트
+    // 소비 코드(src/lib/paidServiceAccess.js의 `window.location.href =
+    // result.redirect_url`)가 절대/상대 경로를 가리지 않아 그대로 호환된다.
+    if (clean(service_key) === 'suhaeng') {
+      return res.status(200).json({
+        ok: true,
+        service_key: 'suhaeng',
+        redirect_url: '/app/performance'
+      });
+    }
+
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {

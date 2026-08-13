@@ -20,6 +20,9 @@ import ServiceSection from './ServiceSection';
 //     - cta        : { label, to?, onClick? }. to 가 있으면 <Link to>(목표관리 '/pricing'),
 //                    없으면 <button onClick>(수행평가 openPaidServiceOrAlert 콜백).
 //     - className  : 섹션 패딩. ServiceSection 으로 그대로 전달되며 3분기 모두 동일 적용.
+//     - id         : 인페이지 앵커 타깃(ServiceSection 의 id 패스스루). 로딩·에러 분기에도
+//                    똑같이 붙인다 — 상품 조회가 늦거나 실패해도 `#pricing` 이동은
+//                    도착해야 하기 때문이다(수행평가 랜딩의 이용권 미보유 안내 경로).
 //
 // 안내문·로딩 문구·에러 문구·'다시 시도'·'추천' 배지 텍스트는 두 페이지가 문자 그대로 동일하므로
 // 컴포넌트 내부에 원문 그대로 고정한다 — 단 한 글자도 바꾸지 않았다.
@@ -32,13 +35,13 @@ import ServiceSection from './ServiceSection';
 // (text-[1.0625rem] sm:text-[1.375rem] md:text-[1.125rem] 형태 = 폰트에 배율을 적용한 흔적,
 // 3원칙 1번 위반)는 전부 단일값 text-[1.125rem] 로 정리했다.
 // CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
-export default function ServicePricingSection({ serviceKey, heading, cta, className = '' }) {
+export default function ServicePricingSection({ serviceKey, heading, cta, id, className = '' }) {
   const { services, loading, error, refetch } = useProducts(serviceKey);
   const products = services[0]?.products || [];
 
   if (loading) {
     return (
-      <ServiceSection className={className} containerClassName="text-center" heading={heading}>
+      <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
         <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 lg:mt-[5.625rem]">
           이용권 정보를 불러오는 중입니다.
         </p>
@@ -48,7 +51,7 @@ export default function ServicePricingSection({ serviceKey, heading, cta, classN
 
   if (error || products.length === 0) {
     return (
-      <ServiceSection className={className} containerClassName="text-center" heading={heading}>
+      <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
         <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 lg:mt-[5.625rem]">
           요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
@@ -68,7 +71,7 @@ export default function ServicePricingSection({ serviceKey, heading, cta, classN
     'mt-8 inline-flex h-14 w-full max-w-[14.375rem] items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-[3.0625rem] lg:h-[3.25rem] lg:w-[14.375rem] lg:px-0';
 
   return (
-    <ServiceSection className={className} containerClassName="text-center" heading={heading}>
+    <ServiceSection id={id} className={className} containerClassName="text-center" heading={heading}>
       {/* 헤딩→리스트 gap 117 × 0.766 ≈ 90px(lg:mt-[5.625rem]). */}
       <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-[5.625rem] lg:gap-[0.5625rem]">
         {products.map((product) => {
@@ -127,6 +130,12 @@ export default function ServicePricingSection({ serviceKey, heading, cta, classN
           );
         })}
       </div>
+
+      {serviceKey === 'suhaeng' && (
+        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
+          1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
+        </p>
+      )}
 
       {/* 리스트 하단→안내문 gap 12 × 0.766 ≈ 9px. 부모 컨테이너 text-center 상속을
           text-left 로 해제한다. */}
