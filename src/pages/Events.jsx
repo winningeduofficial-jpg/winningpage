@@ -2,6 +2,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import BoardListPage from "../components/board/BoardListPage";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
@@ -184,10 +185,9 @@ export default function Events() {
             <article className="min-h-[420px] px-4 py-12">
               {images.length > 0 ? (
                 <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                  {images.map((url, index) => (
+                  {withDedupedKeys(images).map(({ item: url, key }, index) => (
                     <img
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 공지 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                      key={`${url}-${index}`}
+                      key={key}
                       src={url}
                       alt={`${selectedNotice.title} 이미지 ${index + 1}`}
                       className="w-full object-contain"
@@ -213,24 +213,21 @@ export default function Events() {
                   </p>
 
                   <div className="space-y-2">
-                    {attachments.map((file, index) => {
-                      const url = getAttachmentUrl(file);
-                      if (!url) return null;
-
-                      return (
-                        <a
-                          // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 첨부파일 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                          key={`${url}-${index}`}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
-                        >
-                          <Download size={16} />
-                          {getAttachmentName(file)}
-                        </a>
-                      );
-                    })}
+                    {withDedupedKeys(
+                      attachments.filter((file) => getAttachmentUrl(file)),
+                      getAttachmentUrl,
+                    ).map(({ item: file, key }) => (
+                      <a
+                        key={key}
+                        href={getAttachmentUrl(file)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                      >
+                        <Download size={16} />
+                        {getAttachmentName(file)}
+                      </a>
+                    ))}
                   </div>
                 </div>
               ) : selectedNotice.file_url ? (

@@ -5,6 +5,7 @@ import ColumnBody, {
   hasBlockContent,
 } from "../../components/column/ColumnBody";
 import ColumnCard from "../../components/column/ColumnCard";
+import { withDedupedKeys } from "../../lib/reactKeys";
 import {
   ALL_CATEGORY,
   fetchActiveColumns,
@@ -192,15 +193,16 @@ export default function ColumnDetail() {
 
           {remainingImages.length > 0 && !hasBlocks && (
             <div className="mt-10 space-y-5">
-              {remainingImages.map((url, index) => (
-                <img
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 게시글 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                  key={`${url}-${index}`}
-                  src={url}
-                  alt={`${post.title || ""} 이미지 ${index + 2}`}
-                  className="w-full rounded-xl object-cover"
-                />
-              ))}
+              {withDedupedKeys(remainingImages).map(
+                ({ item: url, key }, index) => (
+                  <img
+                    key={key}
+                    src={url}
+                    alt={`${post.title || ""} 이미지 ${index + 2}`}
+                    className="w-full rounded-xl object-cover"
+                  />
+                ),
+              )}
             </div>
           )}
         </div>

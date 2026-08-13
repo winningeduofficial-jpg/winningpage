@@ -11,6 +11,7 @@ import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.
 import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
 import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
 import { alertServiceNotReady } from "../lib/paidServiceAccess";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
@@ -772,15 +773,16 @@ function NewsDetail({ row, onBack }) {
           <div className="min-h-[20rem] px-1 py-12">
             {finalImages.length > 0 && (
               <div className="mx-auto mb-10 max-w-[57.5rem] space-y-4">
-                {finalImages.map((url, index) => (
-                  <img
-                    // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 게시글 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                    key={`${url}-${index}`}
-                    src={url}
-                    alt={`${row.title} 이미지 ${index + 1}`}
-                    className="w-full rounded-2xl object-contain"
-                  />
-                ))}
+                {withDedupedKeys(finalImages).map(
+                  ({ item: url, key }, index) => (
+                    <img
+                      key={key}
+                      src={url}
+                      alt={`${row.title} 이미지 ${index + 1}`}
+                      className="w-full rounded-2xl object-contain"
+                    />
+                  ),
+                )}
               </div>
             )}
 
@@ -792,24 +794,21 @@ function NewsDetail({ row, onBack }) {
                   첨부파일
                 </p>
                 <div className="space-y-2">
-                  {attachments.map((file, index) => {
-                    const url = getAttachmentUrl(file);
-                    if (!url) return null;
-
-                    return (
-                      <a
-                        // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 첨부파일 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                        key={`${url}-${index}`}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                        {getAttachmentName(file)}
-                      </a>
-                    );
-                  })}
+                  {withDedupedKeys(
+                    attachments.filter((file) => getAttachmentUrl(file)),
+                    getAttachmentUrl,
+                  ).map(({ item: file, key }) => (
+                    <a
+                      key={key}
+                      href={getAttachmentUrl(file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      {getAttachmentName(file)}
+                    </a>
+                  ))}
 
                   {attachments.length === 0 && row.file_url && (
                     <a

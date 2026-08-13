@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import ColumnBody, {
   hasBlockContent,
 } from "../../components/column/ColumnBody";
+import { withDedupedKeys } from "../../lib/reactKeys";
 import {
   CATEGORY_LABELS,
   fetchAdmissionCaseById,
@@ -89,15 +90,16 @@ export default function AdmissionCaseDetail() {
 
           {!hasBlocks && fallbackImages.length > 0 && (
             <div className="mt-10 space-y-5">
-              {fallbackImages.map((url, index) => (
-                <img
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 게시글 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                  key={`${url}-${index}`}
-                  src={url}
-                  alt={`${post.title || ""} 이미지 ${index + 1}`}
-                  className="w-full rounded-xl object-cover"
-                />
-              ))}
+              {withDedupedKeys(fallbackImages).map(
+                ({ item: url, key }, index) => (
+                  <img
+                    key={key}
+                    src={url}
+                    alt={`${post.title || ""} 이미지 ${index + 1}`}
+                    className="w-full rounded-xl object-cover"
+                  />
+                ),
+              )}
             </div>
           )}
 

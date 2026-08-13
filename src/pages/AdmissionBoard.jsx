@@ -1,6 +1,7 @@
 import { Download, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
 const DEFAULT_META = {
@@ -202,10 +203,9 @@ export default function AdmissionBoard() {
 
               {images.length > 0 ? (
                 <div className="mt-10 space-y-0 overflow-hidden rounded-2xl border border-[#E6E9EF] bg-white">
-                  {images.map((url, index) => (
+                  {withDedupedKeys(images).map(({ item: url, key }) => (
                     <img
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 게시글 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                      key={`${url}-${index}`}
+                      key={key}
                       src={url}
                       alt=""
                       className="w-full object-contain"
@@ -226,24 +226,21 @@ export default function AdmissionBoard() {
 
               {attachments.length > 0 ? (
                 <div className="mt-10 space-y-2">
-                  {attachments.map((file, index) => {
-                    const url = getAttachmentUrl(file);
-                    if (!url) return null;
-
-                    return (
-                      <a
-                        // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 첨부파일 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                        key={`${url}-${index}`}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
-                      >
-                        <Download size={17} />
-                        {getAttachmentName(file)}
-                      </a>
-                    );
-                  })}
+                  {withDedupedKeys(
+                    attachments.filter((file) => getAttachmentUrl(file)),
+                    getAttachmentUrl,
+                  ).map(({ item: file, key }) => (
+                    <a
+                      key={key}
+                      href={getAttachmentUrl(file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
+                    >
+                      <Download size={17} />
+                      {getAttachmentName(file)}
+                    </a>
+                  ))}
                 </div>
               ) : post.file_url ? (
                 <a

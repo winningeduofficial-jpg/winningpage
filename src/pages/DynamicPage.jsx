@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
 function normalizeArray(value) {
@@ -154,10 +155,9 @@ export default function DynamicPage() {
 
             {bottomImages.length > 0 && (
               <div className="space-y-6">
-                {bottomImages.map((url, index) => (
+                {withDedupedKeys(bottomImages).map(({ item: url, key }) => (
                   <img
-                    // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 페이지 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
-                    key={`${url}-${index}`}
+                    key={key}
                     src={url}
                     alt=""
                     className="mx-auto w-full max-w-[980px] object-contain"
