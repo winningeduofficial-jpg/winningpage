@@ -7,8 +7,10 @@ import { Plus } from 'lucide-react';
 //   라벨    `사진 추가` 0.875rem w500 `#d9d9d9` @505,867
 //
 // 아이콘·라벨 색이 흰 배경 대비 미달이라는 것은 §11.3 Q31이 이미 기록한 시안 자체의
-// 문제다(placeholder `#d9d9d9`). 임의로 톤을 올리지 않고 시안 값을 그대로 쓴다 —
-// 대신 버튼의 접근 이름은 색과 무관하게 읽히도록 텍스트로 보장한다.
+// 문제다(placeholder `#d9d9d9`, 흰 배경 대비 1.41:1). 라벨은 WCAG AA(4.5:1)를 시안
+// 의도보다 우선해 `ink-sub`(#6b6b6b, 흰 배경 5.33:1)로 상향했다 — 새 토큰을 만들지
+// 않고 기존 보조 텍스트 토큰을 재사용한다. 아이콘(`Plus`)은 `aria-hidden`이고 옆
+// 라벨이 접근 이름을 이미 보장하므로 대비 요건 대상이 아니라 시안 값을 유지한다.
 //
 // **파일 입력은 이 컴포넌트가 갖지 않는다.** `<input type="file">`은 카드
 // (`GuideUploadCard`)가 하나만 두고 이 타일은 그걸 여는 버튼일 뿐이다 — 타일마다
@@ -34,7 +36,7 @@ export default function PhotoAddTile({ onClick, disabled = false }) {
         strokeWidth={2}
         aria-hidden="true"
       />
-      <span className="text-[0.875rem] font-medium leading-[1.125rem] text-performance-line">
+      <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
         사진 추가
       </span>
     </button>
