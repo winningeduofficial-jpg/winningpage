@@ -379,6 +379,7 @@ export default function StudentEnrollmentRequest() {
                       : 0;
 
                     return (
+                      // biome-ignore lint/a11y/useSemanticElements: handleRadioKeyDown이 구현한 roving tabindex + 방향키 이동 라디오그룹이다. 결제 상품 선택 UI라 input 전환의 리스크(로직 재검증 + 시각 회귀)를 감수하지 않는다 — 별도 QA 필요.
                       <button
                         type="button"
                         key={product.id}

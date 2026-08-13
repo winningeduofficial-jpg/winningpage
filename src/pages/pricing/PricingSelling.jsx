@@ -427,6 +427,7 @@ export default function PricingSelling() {
                     // 이 button 밖(서비스명 h2 · 자세히보기/셰브론 · 설명문 · 단일선택 안내 ·
                     // 컨테이너 패딩 · 요약바)은 접힘과 무관하고 각자 sm 근거가 따로 있어 손대지 않았다.
                     return (
+                      // biome-ignore lint/a11y/useSemanticElements: 아래 주석대로 재클릭 시 선택 해제되는 의도적 비-네이티브 동작이다 — 네이티브 radio input은 클릭으로 해제할 수 없어 이 상품을 "건너뛴다" 표현이 불가능해진다.
                       <button
                         type="button"
                         key={product.id}

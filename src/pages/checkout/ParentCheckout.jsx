@@ -121,13 +121,13 @@ function AgreementCheckRow({
   return (
     <div className="rounded-xl border border-line">
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={checked}
-          onClick={onToggleCheck}
-          className="flex flex-1 items-center gap-3 text-left"
-        >
+        <label className="flex flex-1 cursor-pointer items-center gap-3 text-left">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={onToggleCheck}
+            className="sr-only"
+          />
           <span
             aria-hidden="true"
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
@@ -142,7 +142,7 @@ function AgreementCheckRow({
             <span className="mr-1.5 font-semibold text-primary">필수</span>
             {label}
           </span>
-        </button>
+        </label>
         <button
           type="button"
           aria-label={`${label} 본문 ${expanded ? "접기" : "펼치기"}`}

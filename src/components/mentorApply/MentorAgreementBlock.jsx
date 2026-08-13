@@ -69,18 +69,18 @@ export default function MentorAgreementBlock({
           프레임이고 역할(접기/펼치기 vs 장식)이 미확정이다 — 명세 확인 항목 29.
           TODO(mentor-apply): 확인 항목 29 확정 후 chevron 노출/동작 결정. 임의로 아코디언을
           만들면 되돌리기 어려우므로 지금은 렌더하지 않는다. */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={allChecked}
-        onClick={handleToggleAll}
-        className="flex items-center gap-5 rounded-lg border border-line bg-white p-5 text-left md:gap-10"
-      >
+      <label className="flex cursor-pointer items-center gap-5 rounded-lg border border-line bg-white p-5 text-left md:gap-10">
+        <input
+          type="checkbox"
+          checked={allChecked}
+          onChange={handleToggleAll}
+          className="sr-only"
+        />
         <CheckBox checked={allChecked} />
         <span className="text-base font-semibold leading-[1.4] text-ink">
           {AGREEMENT_COPY.agreeAllLabel}
         </span>
-      </button>
+      </label>
 
       {/* 항목 리스트 — 753×220, 보더/배경 없음, 컨테이너 padding 20 + 행 간 gap 20. */}
       <div className="flex flex-col gap-5 p-5">
@@ -89,13 +89,13 @@ export default function MentorAgreementBlock({
 
           return (
             <div key={item.key} className="flex items-center gap-3">
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                onClick={() => onToggle?.(item.key)}
-                className="-my-2 flex min-w-0 flex-1 items-center gap-3 py-2 text-left"
-              >
+              <label className="-my-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle?.(item.key)}
+                  className="sr-only"
+                />
                 <CheckBox
                   checked={checked}
                   index={index}
@@ -119,7 +119,7 @@ export default function MentorAgreementBlock({
                     {item.label}
                   </span>
                 </span>
-              </button>
+              </label>
 
               {item.to && (
                 <Link
