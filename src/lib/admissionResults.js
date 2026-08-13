@@ -535,10 +535,7 @@ export const TAIL_CATEGORY_KEYS = ["practical", "adult", "nonsul", "overseas"];
 const CATEGORY_LABELS = {
   [FALLBACK_CATEGORY.key]: FALLBACK_CATEGORY.label,
   [ETC_CATEGORY.key]: ETC_CATEGORY.label,
-  ...CATEGORY_RULES.reduce(
-    (acc, rule) => ({ ...acc, [rule.key]: rule.label }),
-    {},
-  ),
+  ...Object.fromEntries(CATEGORY_RULES.map((rule) => [rule.key, rule.label])),
 };
 
 export function categorize(row) {

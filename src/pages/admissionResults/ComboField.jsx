@@ -419,6 +419,7 @@ export default function ComboField({
                   const isActive = index === activeIndex;
                   const isSelected = value?.key === option.key;
                   return (
+                    // biome-ignore lint/a11y/useFocusableInteractive: APG Combobox 패턴 — 포커스는 input에 남고 활성 옵션은 aria-activedescendant로 가리킨다(주석 §25-26 참고).
                     <li
                       key={option.key}
                       id={optionId(index)}

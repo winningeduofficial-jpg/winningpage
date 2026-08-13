@@ -97,6 +97,7 @@ const ROUND4_CASES = [
   [undefined, 0],
   ["", 0],
   ["abc", NaN],
+  // biome-ignore lint/suspicious/noApproximativeNumericConstant: Math.PI 근사가 아니라 반올림 함수의 소수 4자리 반올림 골든값이다.
   ["3.14159", 3.1416],
   [NaN, 0],
   [Infinity, Infinity],

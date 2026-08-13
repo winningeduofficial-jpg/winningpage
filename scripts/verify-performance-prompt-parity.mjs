@@ -1137,6 +1137,7 @@ check(
 check(
   "CORE_PRINCIPLES가 원문 :63과 같은 자리(맨 앞)에 주입된다",
   EVAL_SYSTEM.startsWith(ported.CORE_PRINCIPLES) &&
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: 원본 소스 63행에 남아있는 미해석 플레이스홀더 문자열 자체를 검증하는 리터럴 비교다.
     sourceLine(ET, 63) === "${CORE_PRINCIPLES}",
 );
 

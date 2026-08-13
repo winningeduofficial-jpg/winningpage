@@ -668,6 +668,7 @@ async function main() {
       newColumn.role === "data" &&
       getCellKind("score", newColumn.role) === "text";
     record(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: "${n}"은 리터럴로 보여주려는 테스트 설명 문자열이다. 템플릿 리터럴로 바꾸면 n이 스코프에 없어 깨진다.
       '8c. addColumn 기본 role이 defaultNewColumnRole(variant)를 씀("col${n}" 아님)',
       pass,
       JSON.stringify(newColumn),
