@@ -32,6 +32,7 @@ import {
 import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc, stableStringifyDoc } from '../lib/admissionDoc';
 import { isDocRenderEnabled } from '../lib/admissionFlags';
 import { getAdmissionActiveYear, setAdmissionActiveYear } from '../lib/admissionSettings';
+import { normalizeUniversityName } from '../lib/goal/universityNameNormalize';
 import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
@@ -7250,7 +7251,7 @@ function goalCutQuantile(sorted, q) {
 function computeGoalCutBackfill(sourceRows, yearMode) {
   const byPair = new Map();
   (sourceRows || []).forEach((r) => {
-    const uni = String(r.university_name ?? '').trim();
+    const uni = normalizeUniversityName(String(r.university_name ?? '').trim());
     const dept = String(r.department_name ?? '').trim();
     if (!uni) return;
     const grade = Number(r.grade_70);
