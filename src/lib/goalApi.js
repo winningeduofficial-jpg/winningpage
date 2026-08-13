@@ -373,3 +373,99 @@ export async function deleteGoalWorkbook(id) {
   if (outcome.kind !== 'success') return outcome;
   return { kind: 'success' };
 }
+
+// GET /api/goal/student · POST /api/goal/intake · GET/POST/PUT/DELETE /api/goal/schedules
+// 공용 클라이언트.
+// ---------------------------------------------------------------------------
+// 중요일정 — GET/POST/PUT/DELETE /api/goal/schedules
+// ---------------------------------------------------------------------------
+//
+// fetchGoalSchedules 반환 계약(discriminated union):
+//   { kind: 'no-session' }             — 401.
+//   { kind: 'not-allowed' }            — 200 {allowed:false}. 이용권 없음.
+//   { kind: 'success', schedules }     — 200 {ok:true, schedules}. schedules는
+//                                         api/_lib/goalRepo.js buildSchedulePayload() 배열:
+//                                         [{id,title,category,dueDate,memo}].
+//   { kind: 'error' }                  — 그 외 전부(409 not_onboarded 포함, 판정 불가로
+//                                         접는다 — /app/goal/schedules는 RequireGoalAccess가
+//                                         이미 온보딩 완료를 보장해 정상 경로에선 안 나온다).
+export async function fetchGoalSchedules() {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/schedules', { method: 'GET', headers: authHeader });
+  } catch (error) {
+    console.error('[goalApi] GET /api/goal/schedules 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (!response.ok) {
+    console.error('[goalApi] GET /api/goal/schedules 실패:', response.status);
+    return { kind: 'error' };
+  }
+
+  const body = await parseJsonSafe(response);
+  if (body?.allowed === false) return { kind: 'not-allowed' };
+  if (body?.ok === true) return { kind: 'success', schedules: body.schedules || [] };
+
+  console.error('[goalApi] GET /api/goal/schedules 예상 밖 응답 모양:', body);
+  return { kind: 'error' };
+}
+
+// create/update/delete 3종이 공유하는 요청·응답 판정. 반환 계약:
+//   { kind: 'success', schedule? }       — 200. create/update만 schedule을 담는다.
+//   { kind: 'no-session' }               — 401.
+//   { kind: 'not-allowed' }              — 403(쓰기형이라 200 {allowed:false}가 아니다).
+//   { kind: 'not-found' }                — 404(update/delete가 본인 소유 행을 못 찾음).
+//   { kind: 'validation-error', detail } — 400.
+//   { kind: 'error' }                    — 409(not_onboarded 등 방어적 분기) 포함 그 외 전부.
+async function submitGoalSchedule(method, body) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/schedules', {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    console.error(`[goalApi] ${method} /api/goal/schedules 호출 오류:`, error);
+    return { kind: 'error' };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    return { kind: 'success', schedule: result?.schedule };
+  }
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 404) return { kind: 'not-found' };
+  if (response.status === 400) return { kind: 'validation-error', detail: result?.detail };
+
+  console.error(`[goalApi] ${method} /api/goal/schedules 실패:`, response.status, result?.detail);
+  return { kind: 'error' };
+}
+
+/** @param {{title:string, category:string, dueDate:string, memo?:string}} input */
+export async function createGoalSchedule({ title, category, dueDate, memo }) {
+  return submitGoalSchedule('POST', { title, category, dueDate, memo });
+}
+
+/** @param {{id:number, title:string, category:string, dueDate:string, memo?:string}} input */
+export async function updateGoalSchedule({ id, title, category, dueDate, memo }) {
+  return submitGoalSchedule('PUT', { id, title, category, dueDate, memo });
+}
+
+/** @param {{id:number}} input */
+export async function deleteGoalSchedule({ id }) {
+  return submitGoalSchedule('DELETE', { id });
+}

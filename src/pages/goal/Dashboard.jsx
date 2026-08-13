@@ -14,12 +14,12 @@ import GoalCard from '../../components/goal/GoalCard';
 import {
   mockAdvice,
   mockTodayPlan,
-  mockSchedules,
   mockRanking,
   mockDailyGoal,
   mockDailyGoalEmpty
 } from '../../data/goalMock';
-import { fetchGoalStudent, fetchTodayGoalRecord } from '../../lib/goalApi';
+import { fetchGoalSchedules, fetchGoalStudent, fetchTodayGoalRecord } from '../../lib/goalApi';
+import { formatScheduleDday, formatScheduleMeta } from '../../lib/goal/scheduleDday';
 import { kstYMD, getDayIndexFromYMDServer, VIRTUAL_DAY_NAMES } from '../../lib/goal/calc/index.js';
 
 // ---------------------------------------------------------------------------
@@ -99,8 +99,8 @@ function mapMockExam(student) {
   return {
     // lastMogoExam 라벨은 api/goal/intake.js MOCK_ROUNDS와 동일('3모'/'6모'/'9모'/'10모').
     round: lastMogoExam ? `${lastMogoExam} 모의고사` : '모의고사 기록 없음',
-    // 대시보드에 실데이터 D-day 소스가 없다(중요일정 D-day는 mockSchedules 전용, 모의고사
-    // 회차 일정 테이블 자체가 미생성) — undefined로 두면 GoalDdayBadge가 빈 뱃지를 렌더한다
+    // 모의고사 카드는 D-day 소스가 없다(회차 일정 테이블 자체가 미생성 — 중요일정과 달리
+    // 실데이터 전환 대상이 아니다) — undefined로 두면 GoalDdayBadge가 빈 뱃지를 렌더한다
     // (React는 undefined 자식을 그리지 않는다). 가짜 날짜를 지어내지 않기 위한 선택.
     dday: undefined,
     metricLabel: '현재 종합 백분위',
@@ -109,6 +109,24 @@ function mapMockExam(student) {
     // AdviceCard와 동일 사유) — 실데이터인 척 숫자를 만들어 넣지 않고 준비 중 문구로 둔다.
     advice: '학습 조언은 준비 중입니다.'
   };
+}
+
+/**
+ * 우측 레일 "중요일정 체크하기" 카드용 — 오늘(KST) 이후(오늘 포함) 마감일 중 가장 가까운
+ * 3건. 지난 일정은 이 위젯(체크리스트 목적)에서 제외한다 — 전체 이력은
+ * Schedules.jsx(/app/goal/schedules)가 담당한다(이번 UoW 판단 지점).
+ */
+function mapNearestSchedules(schedules, now = new Date()) {
+  const today = kstYMD(now);
+  return [...(schedules || [])]
+    .filter((schedule) => schedule.dueDate >= today)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 3)
+    .map((schedule) => ({
+      ...schedule,
+      dday: formatScheduleDday(schedule.dueDate, now),
+      meta: formatScheduleMeta(schedule.dueDate, schedule.memo)
+    }));
 }
 
 function mapNaesin(student) {
@@ -152,6 +170,11 @@ export default function Dashboard() {
   // 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
   const [result, setResult] = useState(null);
 
+  // ScheduleRail(우측 레일 "중요일정 체크하기") 전용 — student 판정과 무관하게 독립 조회한다.
+  // null = 로딩 중. 실패 시 빈 배열로 접는다 — 이 카드는 student처럼 페이지 전체를 막는
+  // 필수 데이터가 아니라 조회 실패를 mock으로 되돌리지 않고 그냥 빈 상태로 보여준다.
+  const [schedules, setSchedules] = useState(null);
+
   // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours). null = 로딩 중.
   // fetchGoalStudent()와 별도 상태로 둔다 — 하나가 실패해도 다른 하나는 정상 렌더돼야
   // 한다(예: daily-record 네트워크 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
@@ -160,7 +183,6 @@ export default function Dashboard() {
   const reloadDailyRecord = () => {
     fetchTodayGoalRecord().then((r) => setDailyRecordResult(r));
   };
-
   useEffect(() => {
     let alive = true;
     fetchGoalStudent().then((r) => {
@@ -168,6 +190,17 @@ export default function Dashboard() {
     });
     fetchTodayGoalRecord().then((r) => {
       if (alive) setDailyRecordResult(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetchGoalSchedules().then((r) => {
+      if (!alive) return;
+      setSchedules(r.kind === 'success' ? r.schedules : []);
     });
     return () => {
       alive = false;
@@ -265,8 +298,8 @@ export default function Dashboard() {
             <TargetUniversityRail data={targetUniversities} />
             {/* StudyPlanRail: 오늘 체크리스트를 만들 과제 테이블이 미생성 — mock 유지. */}
             <StudyPlanRail tasks={mockTodayPlan} />
-            {/* ScheduleRail: 중요일정 테이블이 미생성 — mock 유지. */}
-            <ScheduleRail schedules={mockSchedules} />
+            {/* ScheduleRail: GET /api/goal/schedules 실데이터, 가까운 순 3건(mapNearestSchedules). */}
+            <ScheduleRail schedules={mapNearestSchedules(schedules)} />
             {/* RankingRail: 학생 간 순위 집계 로직·테이블이 미생성 — mock 유지. */}
             <RankingRail ranking={mockRanking} />
           </div>
