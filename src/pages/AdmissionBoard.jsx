@@ -3,21 +3,17 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { Download, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+const DEFAULT_META = {
+  title: '게시판',
+  label: '게시판',
+  description: ''
+};
+
 const CATEGORY_META = {
-  'susi-jungsi': {
-    title: '수시·정시',
-    label: '수시·정시',
-    description: '대학별 수시·정시 전형 정보, 지원전략, 입시 일정 자료를 확인하세요.'
-  },
-  susi: {
-    title: '수시정보',
-    label: '수시',
-    description: '학생부교과, 학생부종합, 대학별 수시 전형 정보를 확인하세요.'
-  },
-  jungsi: {
-    title: '정시정보',
-    label: '정시',
-    description: '수능 반영비율, 영역별 가중치, 대학별 정시 전략을 확인하세요.'
+  essay: {
+    title: '논술정보',
+    label: '논술',
+    description: '논술 전형 정보와 대학별 논술 가이드를 확인하세요.'
   }
 };
 
@@ -67,11 +63,9 @@ export default function AdmissionBoard() {
   const params = useParams();
   const location = useLocation();
   const pathCategory = location.pathname.split('/').filter(Boolean)[1];
-  const category =
-    params.category ||
-    (['susi', 'jungsi', 'susi-jungsi'].includes(pathCategory) ? pathCategory : 'susi-jungsi');
+  const category = params.category || pathCategory;
   const id = params.id;
-  const routeMeta = CATEGORY_META[category] || CATEGORY_META['susi-jungsi'];
+  const routeMeta = CATEGORY_META[category] || DEFAULT_META;
 
   const [rows, setRows] = useState([]);
   const [post, setPost] = useState(null);
@@ -102,10 +96,7 @@ export default function AdmissionBoard() {
 
       let query = supabase.from('admission_posts').select('*').eq('is_active', true);
 
-      query =
-        category === 'susi-jungsi'
-          ? query.in('category', ['susi', 'jungsi'])
-          : query.eq('category', category);
+      query = query.eq('category', category);
 
       const { data, error } = await query
         .order('is_pinned', { ascending: false })
@@ -157,8 +148,8 @@ export default function AdmissionBoard() {
   if (id) {
     const images = post ? normalizeArray(post.image_urls) : [];
     const attachments = post ? normalizeArray(post.attachments) : [];
-    const detailCategory = post?.category === 'jungsi' ? 'jungsi' : 'susi';
-    const detailMeta = CATEGORY_META[detailCategory];
+    const detailCategory = post?.category || category;
+    const detailMeta = CATEGORY_META[detailCategory] || DEFAULT_META;
     const detailListPath = `/admission/${detailCategory}`;
 
     return (
@@ -286,30 +277,7 @@ export default function AdmissionBoard() {
         </section>
 
         <section className="mx-auto max-w-content px-6 py-12">
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-2">
-              <Link
-                to="/admission/susi"
-                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
-                  category === 'susi'
-                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
-                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
-                }`}
-              >
-                수시
-              </Link>
-              <Link
-                to="/admission/jungsi"
-                className={`rounded-xl border px-6 py-3 text-sm font-black transition ${
-                  category === 'jungsi'
-                    ? 'border-[#0D1B2A] bg-[#0D1B2A] text-white'
-                    : 'border-gray-200 bg-white text-[#0D1B2A] hover:border-[#0D1B2A]'
-                }`}
-              >
-                정시
-              </Link>
-            </div>
-
+          <div className="mb-8 flex flex-wrap items-center justify-end gap-4">
             <div className="flex h-11 w-full max-w-[360px] items-center rounded-xl border border-gray-300 bg-white px-4">
               <Search size={17} className="text-gray-400" />
               <input
