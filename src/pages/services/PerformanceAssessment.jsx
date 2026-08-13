@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import { openPaidServiceOrAlert } from '../../lib/paidServiceAccess';
 import { useInView } from '../../hooks/useInView';
 
 import ServiceSection from '../../components/services/ServiceSection';
@@ -77,7 +76,16 @@ import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
 // [가격 정본] 가격은 Supabase `products` 테이블(service_key='suhaeng')에서 조회한다.
 // 정본은 DB이며 프론트에는 가격을 하드코딩하지 않는다.
 
-const HERO_SERVICE = { name: '수행평가 서비스', to: '/pricing' };
+// 수행평가 진입 동선은 목표관리(GoalManagement.jsx)와 동일한 하드 전환 패턴을 따른다
+// (2026-08-13 사용자 확정 — 외부 앱은 실운영 서비스가 아니라 고객사 초안 프로토타입으로
+// 이관 종결됐고, 이 브랜치의 dev 머지 시점이 곧 인앱 전환 시점이라 병행 플래그가
+// 불필요하다). 히어로 CTA는 `/app/performance`로 단순 이동만 하고, 실제 판정(로그인
+// 여부・결제 여부)은 전부 RequireEntitlement 가드(App.jsx)가 처리한다 — 여기서
+// openPaidServiceOrAlert 같은 판정 로직을 다시 호출하면 이중 판정이 된다(GoalManagement.jsx
+// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 `forbiddenTo="/services/performance#pricing"`
+// 로 되돌리는 것도 §2.2 설계상 정상 경로다 — 가드가 최종 권위이므로 랜딩에서 이용권을
+// 이중 판정할 이유가 없다.
+const HERO_SERVICE = { name: '수행평가 서비스', to: '/app/performance' };
 
 // 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
 // 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
@@ -281,6 +289,8 @@ const FAQ_ITEMS = [
 // 히어로는 페이지 고유 섹션이라 공통화 대상이 아니다(오라 회전 애니메이션・브라우저 목업의
 // 위치값이 4페이지 전부 다름). 이 함수는 이번 공통 컴포넌트 전환에서 손대지 않았다.
 function HeroSection() {
+  const navigate = useNavigate();
+
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
   // (서비스 랜딩 4종 + LearningDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
   const [auraRef, auraInView] = useInView();
@@ -377,7 +387,7 @@ function HeroSection() {
 
         <button
           type="button"
-          onClick={(event) => openPaidServiceOrAlert(event, HERO_SERVICE)}
+          onClick={() => navigate(HERO_SERVICE.to)}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기

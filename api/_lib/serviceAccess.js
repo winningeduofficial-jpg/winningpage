@@ -21,7 +21,11 @@ export const SERVICE_CONFIGS = {
   suhaeng: {
     service_key: 'suhaeng',
     service_name: 'AI 수행평가 서비스',
-    target_url: process.env.SUHAENG_SERVICE_URL,
+    // target_url(SUHAENG_SERVICE_URL) 폐기(인앱 전환, 2026-08-13) — 수행평가는
+    // 더 이상 외부 앱으로 SSO 티켓 발급・리다이렉트하지 않는다
+    // (api/create-service-ticket.js의 suhaeng 조기 분기 참고). 이 config 자체는
+    // 계속 쓴다 — payment_keywords/program_keys는 hasPaidServiceAccess 판정
+    // (check-service-access.js, RequireEntitlement 가드 경로)이 그대로 참조한다.
     payment_keywords: ['수행', '수행평가', 'AI 수행평가', '세특팅'],
     program_keys: ['suhaeng']
   },
