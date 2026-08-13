@@ -68,7 +68,9 @@ async function parseJsonSafe(response) {
 //       { onboarded, status, profile:{schoolType,grade,schoolCutType},
 //         targets, scores, baseProbs, rates, cumulativeBonus, probs,
 //         weeklySchedule, weekIdeal, weekMin, actualStartDate, recordCount,
-//         lastRecordDate, jungsiAvailable }
+//         lastRecordDate, jungsiAvailable, probabilityHistory }
+//       probabilityHistory: {recordedAt, idealSusi, idealJungsi, minSusi, minJungsi}[]
+//       — 오래된 순. "학업 성취도 변화 추이" 차트(AchievementChart) 전용.
 export async function fetchGoalStudent() {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: 'no-session' };
