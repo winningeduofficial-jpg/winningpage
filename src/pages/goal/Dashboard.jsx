@@ -15,11 +15,10 @@ import {
   mockAdvice,
   mockTodayPlan,
   mockSchedules,
-  mockRanking,
   mockAchievementChart,
   mockDailyGoalEmpty
 } from '../../data/goalMock';
-import { fetchGoalStudent } from '../../lib/goalApi';
+import { fetchGoalStudent, fetchGoalRanking } from '../../lib/goalApi';
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/
@@ -81,6 +80,25 @@ function mapMockExam(student) {
   };
 }
 
+// GET /api/goal/ranking 결과(kind:'ok') → RankingRail이 그리는 행 배열.
+//
+// "상위 5명 + 내 순위"를 두 블록 그대로 이어붙인다 — top(서버가 이미 "홍O동"으로
+// 마스킹) 뒤에 me(본인 실명)를 별도 행으로 추가한다. 내 등수가 이미 top 안에
+// 있어도(예: 내가 5등) 병합하지 않는다 — 동률일 때 top의 어느 행이 "나"인지
+// 클라이언트가 rank/hours만 보고 추측해 그 자리를 내 실명으로 바꿔치기하면,
+// 실제로는 다른 학생인 동률 상대의 마스킹 이름이 내 실명으로 뒤바뀌는 사고가
+// 난다(마스킹은 서버 전용 — api/goal/ranking.js 파일 헤더 참고). 그 대가로 내가
+// 상위 5명 안에 들면 같은 사람이 두 행(마스킹+실명)으로 중복 표시될 수 있다 —
+// 이 페이지가 소유한 판단.
+function mapRankingRows(rankingResult) {
+  if (!rankingResult || rankingResult.kind !== 'ok') return [];
+  const rows = rankingResult.top.map((row) => ({ ...row, isSelf: false }));
+  if (rankingResult.me) {
+    rows.push({ ...rankingResult.me, isSelf: true });
+  }
+  return rows;
+}
+
 function mapNaesin(student) {
   const { lastNaesinExam, convertedGrade } = student.scores;
   return {
@@ -121,11 +139,25 @@ export default function Dashboard() {
   // 통과시키므로 정상 경로에선 result.kind는 항상 'onboarded'다 — 그 외 kind는
   // 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
   const [result, setResult] = useState(null);
+  // null = 로딩 중. kind가 'ok'가 아닌 나머지(no-session/not-allowed/error)는
+  // mapRankingRows가 빈 배열로 접어 RankingRail의 빈 상태 문구로 흡수한다 —
+  // 이 카드 하나 때문에 대시보드 전체를 에러 화면으로 떨어뜨리지 않는다.
+  const [rankingResult, setRankingResult] = useState(null);
 
   useEffect(() => {
     let alive = true;
     fetchGoalStudent().then((r) => {
       if (alive) setResult(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetchGoalRanking().then((r) => {
+      if (alive) setRankingResult(r);
     });
     return () => {
       alive = false;
@@ -226,8 +258,7 @@ export default function Dashboard() {
             <StudyPlanRail tasks={mockTodayPlan} />
             {/* ScheduleRail: 중요일정 테이블이 미생성 — mock 유지. */}
             <ScheduleRail schedules={mockSchedules} />
-            {/* RankingRail: 학생 간 순위 집계 로직·테이블이 미생성 — mock 유지. */}
-            <RankingRail ranking={mockRanking} />
+            <RankingRail ranking={mapRankingRows(rankingResult)} />
           </div>
         </div>
       </div>
