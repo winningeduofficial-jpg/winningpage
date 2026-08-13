@@ -58,7 +58,6 @@ export default function ColumnPreviewModal({
       aria-label={`${label} 미리보기`}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다. */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일. */}
       <div
         role="presentation"
         className="absolute inset-0 bg-black/50"

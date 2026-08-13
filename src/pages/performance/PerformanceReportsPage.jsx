@@ -130,12 +130,16 @@ function ViewerStatusOverlay({ loading, error, onDismiss }) {
   if (!loading && !error) return null;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: 배경 클릭은 에러일 때만 켜지는 보조 닫기 경로다 — 실제 키보드 접근 경로는 안쪽 "닫기" button이 맡는다.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일.
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-performance-dim"
       onClick={error ? onDismiss : undefined}
       role={error ? "alert" : "status"}
       aria-live="polite"
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: 배경 클릭이 안쪽까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일. */}
       <div
         className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-[1rem] font-medium leading-[1.3125rem] text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(event) => event.stopPropagation()}

@@ -1596,6 +1596,8 @@ export default function AdmissionGuidelines() {
               <div className="relative">
                 <div
                   ref={mapRef}
+                  role="group"
+                  aria-label="지역 선택 지도"
                   className="admission-map relative p-4 md:p-6"
                   onClick={handleMapClick}
                   onKeyDown={handleMapKeyDown}

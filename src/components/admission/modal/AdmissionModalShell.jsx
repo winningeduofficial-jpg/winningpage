@@ -170,7 +170,6 @@ export default function AdmissionModalShell({
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다.
-    // biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일 — 클릭 전용 백드롭, 키보드 등가 동작 불필요.
     <div
       role="presentation"
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 px-4"

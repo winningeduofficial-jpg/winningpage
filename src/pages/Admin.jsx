@@ -6253,6 +6253,7 @@ function AdminForm({
                         {field.type === "blockEditor" && (
                           // onInput/onKeyDown은 BlockNote가 내부에 렌더하는 contenteditable DOM에서
                           // 버블링돼 올라온다 — BlockEditor 자체를 건드리지 않고 dirty만 감지한다.
+                          // biome-ignore lint/a11y/noStaticElementInteractions: 클릭이 아니라 이미 키보드 이벤트(onKeyDown)까지 감지하는 dirty 트래킹 전용 래퍼다 — 안쪽 BlockNote가 실제 편집 가능 영역을 갖는다.
                           <div
                             onInput={() => setDirty(true)}
                             onKeyDown={() => setDirty(true)}
