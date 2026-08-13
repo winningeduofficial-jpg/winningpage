@@ -553,3 +553,51 @@ export async function deleteGoalPlanTask(id) {
   if (result.kind !== 'success') return result;
   return { kind: 'success' };
 }
+
+// ---------------------------------------------------------------------------
+// fetchGoalRanking — GET /api/goal/ranking
+// ---------------------------------------------------------------------------
+//
+// 반환 계약(discriminated union, `kind` 필드로 분기):
+//
+//   { kind: 'no-session' }              — 세션 없음 또는 401.
+//   { kind: 'error' }                   — 판정 불가(네트워크·파싱·5xx 등).
+//   { kind: 'not-allowed' }             — 200 {allowed:false}. 이용권 없음.
+//   { kind: 'ok', date, top, me }       — 200 {ok:true, ...}. top은 서버가 이미
+//                                          "홍O동" 형태로 마스킹한 배열, me는
+//                                          본인이 오늘 기록을 제출했을 때만
+//                                          {rank,name,hours}이고 그 외엔 null
+//                                          (api/goal/ranking.js 참고).
+export async function fetchGoalRanking() {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/ranking', {
+      method: 'GET',
+      headers: authHeader
+    });
+  } catch (error) {
+    console.error('[goalApi] GET /api/goal/ranking 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+
+  if (!response.ok) {
+    console.error('[goalApi] GET /api/goal/ranking 실패:', response.status);
+    return { kind: 'error' };
+  }
+
+  const body = await parseJsonSafe(response);
+
+  if (body?.allowed === false) return { kind: 'not-allowed' };
+
+  if (body?.ok === true) {
+    return { kind: 'ok', date: body.date, top: body.top || [], me: body.me || null };
+  }
+
+  console.error('[goalApi] GET /api/goal/ranking 예상 밖 응답 모양:', body);
+  return { kind: 'error' };
+}
