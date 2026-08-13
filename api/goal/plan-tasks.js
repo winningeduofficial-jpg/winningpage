@@ -41,8 +41,12 @@ const DURATION_MAX_MINUTES = 24 * 60;
 // 이 API 계약이 명시하지 않은 값이라 방어적으로 넓게(약 2개월) 잡았다(판단 기록).
 const MAX_RANGE_DAYS = 62;
 
+// 검증기는 전부 `return { error: fail(400, ...) }` 형태로 감싸 호출한다 — 그래서
+// fail() 자신은 { status, body }만 반환해야 한다({ error: {...} }로 한 번 더 감싸면
+// 호출부의 `x.error.status`가 정의되지 않아 res.status(undefined)가 ERR_HTTP_INVALID_STATUS_CODE로
+// 500을 던진다 — 스모크에서 잡힌 이중 래핑 버그, 수정).
 function fail(status, detail, extra) {
-  return { error: { status, body: { detail, ...extra } } };
+  return { status, body: { detail, ...extra } };
 }
 
 function isValidYmd(value) {
