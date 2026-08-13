@@ -658,6 +658,7 @@ export default function PerformanceChatPage() {
   //     화면 없이 곧장 그 세션을 조회해 재개 분기 판정표를 태운다(`resolveSessionEntry`).
   //   · 없고 `lastSession`이 있으면 재개 선택 카드(`entryMode:'choice'`)를 보여준다.
   //   · 둘 다 없으면 기존 그대로 STEP1 그리팅부터 시작한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resolveSessionEntry는 여러 핸들러가 공유하는 미메모 함수라 deps에 넣으면 매 렌더 재실행되지만, entryResolvedRef 가드가 실제 실행을 최초 1회로 막아 안전하다.
   useEffect(() => {
     if (bootstrapLoading || entryResolvedRef.current) return;
     entryResolvedRef.current = true;
@@ -668,8 +669,7 @@ export default function PerformanceChatPage() {
     }
 
     setEntryMode(lastSessionSummary ? "choice" : "chat");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bootstrapLoading]);
+  }, [bootstrapLoading, lastSessionSummary, routeSessionId]);
 
   // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
   // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩
@@ -722,6 +722,7 @@ export default function PerformanceChatPage() {
    * 서버가 스키마와 **이어서 쓸 초안**을 함께 준다. 화면이 이미 값을 들고 있으면 덮어쓰지
    * 않는다 — 재시도 조회가 작성 중인 원고를 서버 스냅샷으로 되돌리면 안 된다.
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: submissionSchema는 의도적으로 deps에서 뺐다(위 주석) — 성공 직후 재실행돼 같은 GET을 두 번 쏘는 걸 막는다. 재조회 트리거는 submissionLoadToken 하나뿐이다.
   useEffect(() => {
     if (designPhase !== "ready" || !accessToken || !createdSession)
       return undefined;

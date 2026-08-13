@@ -41,6 +41,7 @@ export default function useModalProxyXScroll({
   visible,
   setModalXScroll,
 }) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: visible은 파일 상단 주석·verify-admission-modal-shell.mjs가 보호하는 의도된 배열이다. barRef.current/bodyRef.current는 ref라 deps에 넣어도 변경을 못 잡아 의미가 없다.
   useEffect(() => {
     if (!selectedInfo) {
       setModalXScroll({ visible: false, width: 0 });
