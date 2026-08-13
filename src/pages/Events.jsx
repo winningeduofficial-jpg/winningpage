@@ -1,6 +1,7 @@
 import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import SafeHtml from "../components/admission/SafeHtml";
 import BoardListPage from "../components/board/BoardListPage";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
@@ -43,12 +44,7 @@ function renderNoticeContent(content) {
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
 
   if (hasHtml) {
-    return (
-      <div
-        className="notice-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <SafeHtml html={content} className="notice-content" />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;

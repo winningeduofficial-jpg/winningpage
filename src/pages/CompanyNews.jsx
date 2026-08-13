@@ -4,12 +4,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import bizAiPlatform from "../assets/company/biz-ai-platform.png";
 import bizConsulting from "../assets/company/biz-consulting.png";
 import bizNetwork from "../assets/company/biz-network.png";
-
 import directorPortrait from "../assets/company/director-portrait.png";
 import missionBg from "../assets/company/mission-bg.jpg";
 import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.png";
 import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
 import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
+import SafeHtml from "../components/admission/SafeHtml";
 import { alertServiceNotReady } from "../lib/paidServiceAccess";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
@@ -263,12 +263,7 @@ function renderContent(content) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return (
-      <div
-        className="notice-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <SafeHtml html={content} className="notice-content" />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;

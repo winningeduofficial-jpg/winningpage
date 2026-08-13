@@ -21,6 +21,19 @@ import { Fragment } from "react";
 //   5. parseDocument 테스트 훅을 SafeHtml 컴포넌트 props에서 빼고
 //      sanitizeToReact(html, parseDocument) 별도 export로 분리 — 프로덕션
 //      표면에 테스트 전용 prop을 남기지 않는다.
+//
+// CompanyNews/Events 본문 sanitize 도입(2026-08-14) — a/img 지원 추가:
+//   기존엔 <a>/<img>가 화이트리스트 밖이라 <a>는 unwrap(텍스트만 유지),
+//   <img>는 자식이 없어 항상 사라졌다(2번 테스트가 그 동작을 golden으로
+//   고정하고 있었다). CMS 본문(회사소식/공지) 텍스트에어리어에 관리자가
+//   붙여넣는 링크·이미지를 살리기 위해 태그 자체는 허용하되, href/src는
+//   isSafeUrl로 스킴을 검사해 javascript:/data: 등 실행형 스킴만 통과
+//   못 시킨다(값 자체를 버림 — 중화가 아니라 제거). <a>는 href가 살아있을
+//   때만 target="_blank" rel="noopener noreferrer"를 강제로 붙인다(작성자가
+//   준 target/rel 값은 신뢰하지 않는다 — KeyValueView.jsx의 기존 관례와
+//   동일). 대입 모집요강 rawHtml 골든 코퍼스(verify-admission-doc-equivalence.mjs
+//   Gate B)에는 a/img 태그가 없어 이 확장이 그 계약을 건드리지 않는다
+//   (재확인 완료, 2506/2506 그대로 통과).
 
 // 허용 태그 — 이 외 전부 제거(단, 자식은 unwrap으로 승계).
 const ALLOWED_TAGS = new Set([
@@ -43,7 +56,27 @@ const ALLOWED_TAGS = new Set([
   "td",
   "section",
   "h3",
+  "a",
+  "img",
 ]);
+
+// href/src에 허용하는 URL 스킴. javascript:/data:/vbscript: 등 실행형·
+// 페이로드형 스킴을 차단한다. 스킴이 없는 값(상대경로 "/foo", "foo.html",
+// "#anchor", protocol-relative "//host/foo")은 스크립트를 실행할 수 없으므로
+// 그대로 허용한다.
+const SAFE_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+function isSafeUrl(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value) return false;
+  // 제어 문자로 스킴을 흐리는 우회("java\tscript:")를 막기 위해 검사 전
+  // ASCII 제어문자를 제거한다 — 브라우저 URL 파서의 관례와 동일하다.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: URL 스킴 우회(예: "java\tscript:") 방어가 목적이라 제어문자 자체를 매치 대상으로 써야 한다.
+  const normalized = value.replace(/[\x00-\x1f\x7f]/g, "");
+  const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(normalized);
+  if (!schemeMatch) return true;
+  return SAFE_URL_SCHEMES.has(`${schemeMatch[1].toLowerCase()}:`);
+}
 
 // 태그 자체뿐 아니라 자식 서브트리까지 통째로 버려야 하는 태그.
 // - script/style/iframe/object/embed/svg: 기존 5종 + svg(실행/임베드 표면).
@@ -104,16 +137,39 @@ const NODE_TYPE = { ELEMENT: 1, TEXT: 3, COMMENT: 8 };
 
 class SafeHtmlBudgetExceededError extends Error {}
 
-function convertAttributes(element) {
+function convertAttributes(element, tagName) {
   const props = {};
   const attributes = element.attributes;
-  if (!attributes) return props;
-  for (let i = 0; i < attributes.length; i += 1) {
-    const attr = attributes[i];
-    const name = String(attr.name || "").toLowerCase();
-    const prop = ATTR_TO_PROP[name];
-    if (!prop) continue;
-    props[prop] = attr.value;
+  if (attributes) {
+    for (let i = 0; i < attributes.length; i += 1) {
+      const attr = attributes[i];
+      const name = String(attr.name || "").toLowerCase();
+      // href/src는 값 자체를 스킴 검사한다 — 통과하면 값을 그대로 쓰고,
+      // 안 통과하면 속성 자체를 아예 넣지 않는다(중화가 아니라 제거).
+      if (name === "href" && tagName === "a") {
+        if (isSafeUrl(attr.value)) props.href = attr.value;
+        continue;
+      }
+      if (name === "src" && tagName === "img") {
+        if (isSafeUrl(attr.value)) props.src = attr.value;
+        continue;
+      }
+      if (name === "alt" && tagName === "img") {
+        props.alt = attr.value;
+        continue;
+      }
+      const prop = ATTR_TO_PROP[name];
+      if (!prop) continue;
+      props[prop] = attr.value;
+    }
+  }
+  // href가 실제로 살아있는 <a>만 target/rel을 강제로 붙인다 — 작성자가 준
+  // target/rel 값은 신뢰하지 않는다(탭내빙 방지). href가 없거나 스킴 검사에
+  // 걸러졌으면 붙이지 않는다(빈 <a>는 하이퍼링크가 아니라 그냥 인라인
+  // 텍스트 래퍼다).
+  if (tagName === "a" && props.href) {
+    props.target = "_blank";
+    props.rel = "noopener noreferrer";
   }
   return props;
 }
@@ -174,10 +230,14 @@ function convertNode(node, depth, key, budget) {
     return <Fragment key={key}>{children}</Fragment>;
   }
 
-  const props = convertAttributes(node);
+  const props = convertAttributes(node, tagName);
 
-  if (tagName === "br") {
-    return <br key={key} {...props} />;
+  // br/img는 HTML void 요소다 — DOMParser도 childNodes를 항상 비워서
+  // 주지만(children은 always []), 여기서도 JSX void 규칙을 명시적으로
+  // 지킨다(React가 img에 children을 넘기면 경고한다).
+  if (tagName === "br" || tagName === "img") {
+    const Tag = tagName;
+    return <Tag key={key} {...props} />;
   }
 
   const Tag = tagName;

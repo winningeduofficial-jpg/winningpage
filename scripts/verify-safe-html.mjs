@@ -291,17 +291,44 @@ async function main() {
     record("1. 정상 표 HTML 구조/클래스/colspan/rowspan 보존", pass, out);
   }
 
-  // 2) <img src=x onerror=alert(1)> — 흔적 없이 제거
+  // 2) <img src=x onerror=alert(1)> — onerror는 흔적 없이 제거, src="x"는
+  //    스킴 없는 상대경로라 안전하게 통과(2026-08-14부터 img가 화이트리스트에
+  //    들어왔다 — CompanyNews/Events sanitize 도입). onerror 등 on*는
+  //    ATTR_TO_PROP 화이트리스트 밖이라 애초에 convertAttributes가 거른다.
   {
     const input = "<div>앞<img src=x onerror=alert(1)>뒤</div>";
     const out = render(input);
     const pass =
       !out.includes("onerror") &&
       !out.includes("alert") &&
-      !out.includes("<img") &&
+      out.includes('<img src="x"') &&
       out.includes("앞") &&
       out.includes("뒤");
-    record("2. <img onerror> 흔적 없이 제거", pass, out);
+    record("2. <img onerror> 속성만 제거되고 태그는 살아남는다", pass, out);
+  }
+
+  // 2b) <img src="javascript:alert(1)"> — 위험 스킴은 src 자체를 버린다(빈
+  //     src가 아니라 속성 자체가 없는 img가 나온다).
+  {
+    const input = '<div><img src="javascript:alert(1)" alt="x"></div>';
+    const out = render(input);
+    const pass =
+      !out.includes("javascript") &&
+      !out.includes("src=") &&
+      out.includes('alt="x"');
+    record("2b. img src=javascript: 스킴 차단 — src 속성 자체 제거", pass, out);
+  }
+
+  // 2c) <img src="https://cdn.example.com/a.png" alt="설명"> — 정상 이미지는
+  //     src/alt 보존.
+  {
+    const input =
+      '<div><img src="https://cdn.example.com/a.png" alt="설명"></div>';
+    const out = render(input);
+    const pass =
+      out.includes('src="https://cdn.example.com/a.png"') &&
+      out.includes('alt="설명"');
+    record("2c. 정상 https img — src/alt 보존", pass, out);
   }
 
   // 3) <svg onload=alert(1)><circle>...</svg> — 통째 제거
@@ -322,16 +349,52 @@ async function main() {
     record("3. <svg onload> 자식까지 통째 제거", pass, out);
   }
 
-  // 4) <a href="javascript:alert(1)">x</a> — unwrap, 텍스트만 남음
+  // 4) <a href="javascript:alert(1)">x</a> — a 태그는 살아남되(2026-08-14부터
+  //    화이트리스트에 들어왔다) href는 위험 스킴이라 아예 안 붙는다. href가
+  //    없으니 target/rel 강제 부착도 같이 안 붙는다(하이퍼링크가 아니므로).
   {
     const input = '<div><a href="javascript:alert(1)">x</a></div>';
     const out = render(input);
     const pass =
-      !out.includes("<a") &&
       !out.includes("href") &&
       !out.includes("javascript") &&
-      /(?:^|>)x(?:<|$)/.test(out);
-    record('4. <a href="javascript:..."> unwrap, 텍스트만 유지', pass, out);
+      !out.includes("target") &&
+      out.includes("<a>x</a>");
+    record(
+      '4. <a href="javascript:..."> href 속성만 제거, 태그는 유지',
+      pass,
+      out,
+    );
+  }
+
+  // 4b) <a href="https://example.com">x</a> — 정상 링크는 href 보존 +
+  //     target="_blank" rel="noopener noreferrer" 강제 부착(작성자가 준
+  //     target/rel 값은 신뢰하지 않는다).
+  {
+    const input =
+      '<div><a href="https://example.com" target="_self" rel="bogus">x</a></div>';
+    const out = render(input);
+    const pass =
+      out.includes('href="https://example.com"') &&
+      out.includes('target="_blank"') &&
+      out.includes('rel="noopener noreferrer"') &&
+      !out.includes("_self") &&
+      !out.includes("bogus");
+    record(
+      "4b. 정상 https 링크 — href 보존 + target/rel 강제(작성자 값 무시)",
+      pass,
+      out,
+    );
+  }
+
+  // 4c) <a href="data:text/html,...">x</a> — data: 스킴도 href 자체를 버린다.
+  {
+    const input =
+      '<div><a href="data:text/html,<script>alert(1)</script>">x</a></div>';
+    const out = render(input);
+    const pass =
+      !out.includes("href") && !out.includes("data:") && out.includes(">x<");
+    record("4c. a href=data: 스킴 차단 — href 속성 자체 제거", pass, out);
   }
 
   // 5) <div style="position:fixed">x</div> — style 속성 제거
