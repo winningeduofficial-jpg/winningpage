@@ -35,8 +35,7 @@ export default function InviteChild() {
     if (memberType !== "parent" || !parentSignupCompleted) {
       navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, parentSignupCompleted]);
+  }, [memberType, parentSignupCompleted, navigate]);
 
   const [name, setName] = useState(location.state?.childName || "");
   const [phone, setPhone] = useState("");

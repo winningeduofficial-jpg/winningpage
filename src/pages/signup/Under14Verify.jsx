@@ -57,8 +57,7 @@ export default function Under14Verify() {
     if (isUnder14 !== true) {
       navigate("/signup/student/birth", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, isUnder14]);
+  }, [memberType, isUnder14, navigate]);
 
   // ⚠️ 팝업 차단을 피하려면 이 핸들러가 runIdentityVerification을 직접 불러야 한다.
   //   중간에 다른 await를 끼워 넣으면 창이 사용자 제스처와 분리돼 차단된다.

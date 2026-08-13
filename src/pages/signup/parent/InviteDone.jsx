@@ -27,8 +27,7 @@ export default function InviteDone() {
     if (memberType !== "parent" || !parentSignupCompleted) {
       navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, parentSignupCompleted]);
+  }, [memberType, parentSignupCompleted, navigate]);
 
   function handleGoHome() {
     resetSignup();

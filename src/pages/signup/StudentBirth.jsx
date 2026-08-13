@@ -35,8 +35,7 @@ export default function StudentBirth() {
     if (memberType !== "student") {
       navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType]);
+  }, [memberType, navigate]);
 
   function handleChange(next) {
     setValue(next.replace(/\D/g, "").slice(0, 8));
