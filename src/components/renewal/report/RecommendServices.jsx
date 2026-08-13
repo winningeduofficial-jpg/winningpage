@@ -7,6 +7,8 @@
 // leadNote(F-05 · F-06) — '왜 카드가 적은지'를 설명하는 조건부 안내(중3 / 고3 6월 이후).
 // prop 이름을 serviceLimit 이 아니라 일반명 leadNote 로 둔 이유: 학년별 제한 안내가 두 자리로
 // 갈라지지 않게 같은 슬롯을 계속 재사용하기 위해서다. 조건 판정은 엔진이 소유한다(buildNotices).
+import { withDedupedKeys } from "../../../lib/reactKeys";
+
 const RecommendServices = ({ cards, leadNote = null }) => {
   return (
     // fd-recommend-* — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
@@ -43,10 +45,9 @@ const RecommendServices = ({ cards, leadNote = null }) => {
               {card.desc}
             </p>
             <div className="mt-[0.6875rem] flex flex-wrap gap-x-[1.375rem] gap-y-2">
-              {card.chips.map((chip, index) => (
+              {withDedupedKeys(card.chips).map(({ item: chip, key }) => (
                 <span
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 정적 추천 카드 데이터의 칩 문자열 목록 — id 없고 재정렬 없음.
-                  key={index}
+                  key={key}
                   className="inline-flex h-7 items-center justify-center rounded-[0.75rem] bg-[#f1f8ff] px-2 py-1 text-[0.875rem] font-normal text-[#1b5da0]"
                 >
                   {chip}

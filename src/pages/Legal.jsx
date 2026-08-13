@@ -1,4 +1,5 @@
 import { getLegalDoc } from "../data/legalDocs";
+import { withDedupedKeys } from "../lib/reactKeys";
 
 // 조/항 제목 라인 판별
 function isHeading(line, docKey) {
@@ -37,15 +38,13 @@ export default function Legal({ docKey }) {
               문서 내용을 준비 중입니다.
             </p>
           ) : (
-            lines.map((line, i) => {
+            withDedupedKeys(lines).map(({ item: line, key }) => {
               const t = line.trim();
-              // biome-ignore lint/suspicious/noArrayIndexKey: 정적 문서 텍스트를 줄바꿈으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
-              if (t === "") return <div key={i} className="h-3" />;
+              if (t === "") return <div key={key} className="h-3" />;
               if (isHeading(t, docKey)) {
                 return (
                   <h2
-                    // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
-                    key={i}
+                    key={key}
                     className="mb-1 mt-8 text-[17px] font-black text-ink-strong"
                   >
                     {t}
@@ -56,8 +55,7 @@ export default function Legal({ docKey }) {
                 /^[·\-①-⑳]/.test(t) || /^\d+\.\s/.test(t) ? "pl-3.5" : "";
               return (
                 <p
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
-                  key={i}
+                  key={key}
                   className={`break-keep text-[14px] leading-[1.85] text-ink ${indent}`}
                 >
                   {t}

@@ -4,6 +4,8 @@
 // 컬럼이므로(§3.0 "본문 1100px 좌측 정렬 컬럼(py 100, gap 40)") 별도 컴포넌트로 분리했다.
 // 반응형(adapt.md): 인라인 style은 브레이크포인트를 못 태우므로 클래스로 이전 — 1100px은
 // w-full 위 상한(max-w)일 뿐이라 유동폭 자체는 원래도 성립했고, 여백만 모바일 우선으로 램프.
+import { withDedupedKeys } from "../../lib/reactKeys";
+
 export default function TermsPageLayout({
   title,
   pageTitle, // 페이지 대제목(예: "이용약관"). 지정 시 32px H1은 이 값으로, title은 그 아래
@@ -75,13 +77,12 @@ const DOMAIN_PATTERN =
 
 function linkify(text) {
   const parts = text.split(DOMAIN_PATTERN);
-  return parts.map((part, i) => {
+  return withDedupedKeys(parts).map(({ item: part, key }, i) => {
     if (i % 2 === 1) {
       const href = part.startsWith("http") ? part : `https://${part}`;
       return (
         <a
-          // biome-ignore lint/suspicious/noArrayIndexKey: 정적 약관 텍스트를 정규식으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
-          key={i}
+          key={key}
           href={href}
           target="_blank"
           rel="noreferrer"
@@ -91,8 +92,7 @@ function linkify(text) {
         </a>
       );
     }
-    // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 정적 텍스트 분할 파생 배열.
-    return <span key={i}>{part}</span>;
+    return <span key={key}>{part}</span>;
   });
 }
 
@@ -112,16 +112,14 @@ export function TermsArticleBody({ text, className = "" }) {
 
   return (
     <div className={`flex flex-col ${className}`}>
-      {lines.map((line, i) => {
+      {withDedupedKeys(lines).map(({ item: line, key }) => {
         const t = line.trim();
-        // biome-ignore lint/suspicious/noArrayIndexKey: 정적 약관 텍스트를 줄바꿈으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
-        if (t === "") return <div key={i} className="h-2" />;
+        if (t === "") return <div key={key} className="h-2" />;
 
         if (isHeading(t)) {
           return (
             <p
-              // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
-              key={i}
+              key={key}
               className="mb-1 mt-4 text-sm font-semibold text-ink-title first:mt-0"
             >
               {linkify(t)}
@@ -132,8 +130,7 @@ export function TermsArticleBody({ text, className = "" }) {
         const indented = /^[·\-①-⑳]/.test(t);
         return (
           <p
-            // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
-            key={i}
+            key={key}
             className={`break-keep text-xs leading-[1.85] text-ink ${indented ? "pl-3.5" : ""}`}
           >
             {linkify(t)}
