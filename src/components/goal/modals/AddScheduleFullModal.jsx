@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import AppModal from '../AppModal';
 import ModalField from '../ModalField';
 import SegmentedChipGroup from '../SegmentedChipGroup';
-import { goalModalOptions } from '../../../data/goalMock';
+import { SCHEDULE_CATEGORIES } from '../../../lib/goal/scheduleCategory';
+import { createGoalSchedule, deleteGoalSchedule, updateGoalSchedule } from '../../../lib/goalApi';
 
-// 중요일정 등록 모달(624px 버전) — docs/figma-goal/part-14.md #40 (530×624 = 33.125rem × 39rem,
-// **모달 정본** — 화면별 지침 §3 확정 사항). 대시보드 진입용 AddScheduleModal(#19, 530×574,
-// modals/AddScheduleModal.jsx — 읽기 전용, 정본 아님)과는 별개 파일이다.
+// 중요일정 등록·수정 모달(624px 버전) — docs/figma-goal/part-14.md #40 (530×624 = 33.125rem ×
+// 39rem, **모달 정본** — 화면별 지침 §3 확정 사항). 대시보드 진입용 AddScheduleModal(#19,
+// 530×574, modals/AddScheduleModal.jsx — 읽기 전용, 정본 아님)과는 별개 파일이다.
 //
 // #40은 #19와 필드 구성이 다르다: "일정" 반복 범위 select가 없고(총 4필드: 종류/이름/마감일/메모),
 // 메모가 textarea(461×101, part-14 §77)로 더 크다. 마감일도 #19처럼 다른 필드와 2열로 짝짓지
@@ -19,15 +20,23 @@ import { goalModalOptions } from '../../../data/goalMock';
 //
 // 트리거: 중요일정 목록 페이지(Schedules.jsx) 우상단 `일정 등록`(신규) / 카드별 `수정`(값 프리필,
 // initial prop — 수정용 시안은 없어 동일 모달 재사용을 추정한 구현, part-14 §164).
-const SCHEDULE_TYPE_OPTIONS = goalModalOptions.scheduleTypes.map((label) => ({ value: label, label }));
+//
+// scheduleType은 값(value)을 카테고리 **코드**로 쓴다(api/goal/schedules.js 와이어 계약,
+// src/lib/goal/scheduleCategory.js 참고) — 라벨은 화면 전용이고 저장·전송은 항상 코드다.
+const SCHEDULE_TYPE_OPTIONS = SCHEDULE_CATEGORIES.map(({ code, label }) => ({ value: code, label }));
 
 const EMPTY_FORM = { scheduleType: null, title: '', dueDate: '', memo: '' };
 
-export default function AddScheduleFullModal({ open, onClose, initial = null }) {
+// initial.id가 있으면 수정, 없으면 신규 등록 — Schedules.jsx의 openCreate/openEdit이 이 규약을 만든다.
+export default function AddScheduleFullModal({ open, onClose, initial = null, onSaved, onDeleted }) {
   const [scheduleType, setScheduleType] = useState(initial?.scheduleType ?? EMPTY_FORM.scheduleType);
   const [title, setTitle] = useState(initial?.title ?? EMPTY_FORM.title);
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? EMPTY_FORM.dueDate);
   const [memo, setMemo] = useState(initial?.memo ?? EMPTY_FORM.memo);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const isEditing = Boolean(initial?.id);
 
   // 이 모달은 Schedules.jsx에 상시 마운트돼 `initial`이 최초 null → 값 있는 객체로 나중에 바뀔 수
   // 있다. useState 초기화자는 마운트 시 1회만 실행되므로 그 갱신을 반영하려면 `open`이 true로 바뀔
@@ -38,39 +47,96 @@ export default function AddScheduleFullModal({ open, onClose, initial = null }) 
       setTitle(initial?.title ?? EMPTY_FORM.title);
       setDueDate(initial?.dueDate ?? EMPTY_FORM.dueDate);
       setMemo(initial?.memo ?? EMPTY_FORM.memo);
+      setErrorMessage('');
     }
   }, [open, initial]);
 
-  const canSubmit = Boolean(scheduleType) && title.trim().length > 0 && dueDate.trim().length > 0;
+  const canSubmit = Boolean(scheduleType) && title.trim().length > 0 && dueDate.trim().length > 0 && !submitting;
 
   function resetForm() {
     setScheduleType(initial?.scheduleType ?? EMPTY_FORM.scheduleType);
     setTitle(initial?.title ?? EMPTY_FORM.title);
     setDueDate(initial?.dueDate ?? EMPTY_FORM.dueDate);
     setMemo(initial?.memo ?? EMPTY_FORM.memo);
+    setErrorMessage('');
   }
 
   function handleClose() {
+    if (submitting) return;
     resetForm();
     onClose();
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
-    // 목업 스텁 — 실제 저장/API 연동 금지(확정 사항 §1). 콘솔 로그 + 모달 닫기만 수행.
-    console.log('[AddScheduleFullModal] submit', { scheduleType, title, dueDate, memo });
-    handleClose();
+    setSubmitting(true);
+    setErrorMessage('');
+
+    const payload = { title: title.trim(), category: scheduleType, dueDate, memo };
+    const result = isEditing
+      ? await updateGoalSchedule({ id: initial.id, ...payload })
+      : await createGoalSchedule(payload);
+
+    setSubmitting(false);
+
+    if (result.kind === 'success') {
+      onSaved?.(result.schedule);
+      resetForm();
+      onClose();
+      return;
+    }
+
+    if (result.kind === 'validation-error') {
+      setErrorMessage(result.detail || '입력값을 다시 확인해 주세요.');
+      return;
+    }
+    if (result.kind === 'not-found') {
+      setErrorMessage('이미 삭제된 일정입니다.');
+      return;
+    }
+    if (result.kind === 'not-allowed') {
+      setErrorMessage('유료결제이후 이용해주세요!');
+      return;
+    }
+    setErrorMessage('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+
+  // 삭제 UI는 시안에 없다(part-13 §323 "삭제는 수정 모달 내부에 있을 가능성" 추정) — 팀장
+  // 지시("기존 UI에 없으면 수정 모달에 삭제 버튼 추가")에 따라 수정 모드에서만 노출한다.
+  async function handleDelete() {
+    if (!isEditing || submitting) return;
+    if (!window.confirm('이 일정을 삭제하시겠습니까?')) return;
+
+    setSubmitting(true);
+    setErrorMessage('');
+    const result = await deleteGoalSchedule({ id: initial.id });
+    setSubmitting(false);
+
+    if (result.kind === 'success') {
+      onDeleted?.(initial.id);
+      resetForm();
+      onClose();
+      return;
+    }
+    if (result.kind === 'not-found') {
+      // 이미 지워진 행 — 목록 기준으로는 삭제와 같은 결과이므로 성공과 동일하게 처리한다.
+      onDeleted?.(initial.id);
+      resetForm();
+      onClose();
+      return;
+    }
+    setErrorMessage('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
   }
 
   return (
     <AppModal
       open={open}
       onClose={handleClose}
-      title="중요일정 등록"
+      title={isEditing ? '중요일정 수정' : '중요일정 등록'}
       subtitle="등록하면 D-day와 알림으로 챙겨드려요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel="일정 저장하기"
+      submitLabel={submitting ? '저장 중…' : isEditing ? '수정 저장하기' : '일정 저장하기'}
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
@@ -121,6 +187,21 @@ export default function AddScheduleFullModal({ open, onClose, initial = null }) 
           className="h-[6.3125rem] w-full resize-none rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] py-[0.625rem] text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
       </div>
+
+      {errorMessage && <p className="text-[0.8125rem] leading-[1.4] text-error">{errorMessage}</p>}
+
+      {isEditing && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={submitting}
+            className="text-[0.8125rem] font-medium text-error transition-opacity hover:opacity-80 disabled:opacity-50"
+          >
+            일정 삭제
+          </button>
+        </div>
+      )}
     </AppModal>
   );
 }
