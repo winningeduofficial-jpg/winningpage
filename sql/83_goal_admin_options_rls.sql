@@ -10,9 +10,12 @@
 --
 -- ⚠ 번호에 대하여. 명세 §5-4 는 이 파일을 `56_goal_admin_options_rls.sql`
 --   이라 적었지만, 56 은 이미 `56_goal_jungsi_optional.sql`(정시 확률 2열
---   NOT NULL 해제, dev 적용 완료)이 점유하고 있다. 그래서 57 로 올린다.
---   명세 §5-4 가 이 파일에 함께 담으라고 했던 세 번째 산출물(정시 확률
---   NOT NULL 해제)은 **56 이 이미 수행했으므로 여기서 반복하지 않는다.**
+--   NOT NULL 해제, dev 적용 완료)이 점유하고 있어 57 로 올렸었다. 이후
+--   dev 리베이스 과정에서 57 도 이미 `57_profiles_insert_hardening.sql`
+--   이 점유한 것을 발견해 83 으로 다시 올렸다(리베이스 시점 dev 최신 번호가
+--   82까지 찬 상태). 명세 §5-4 가 이 파일에 함께 담으라고 했던 세 번째
+--   산출물(정시 확률 NOT NULL 해제)은 **56 이 이미 수행했으므로 여기서
+--   반복하지 않는다.**
 --
 -- 재실행 안전성: 전 문장이 idempotent 하다(create or replace view /
 --   drop policy if exists → create policy). sql/55 와 이 파일을 어느

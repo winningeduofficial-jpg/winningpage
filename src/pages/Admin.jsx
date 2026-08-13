@@ -7049,7 +7049,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
 // =====================================================================
 
 const GOAL_CUTS_TABLE = 'goal_university_cuts';
-// sql/57_goal_admin_options_rls.sql 이 만든 (대학, 학과) 단위 집계 뷰.
+// sql/83_goal_admin_options_rls.sql 이 만든 (대학, 학과) 단위 집계 뷰.
 // has_normal/has_special/has_jungsi 플래그를 준다.
 const GOAL_CUTS_OPTIONS_VIEW = 'goal_university_options';
 // PostgREST 기본 응답 상한과 맞춘 읽기 청크.
@@ -9676,7 +9676,7 @@ function MentorApplicationsAdmin() {
 // 🔴 쓰기 UI 0개(§3-D6 / §3-D7). 이 블록 안에 supabase 의 insert/update/delete/
 //    upsert 호출이 단 하나도 없어야 한다. DB 쪽도 goal_students /
 //    goal_daily_records / goal_probability_logs 의 어드민 정책이 for select 로
-//    좁혀져 있어(sql/57_goal_admin_options_rls.sql) 시도해도 통과하지 않는다.
+//    좁혀져 있어(sql/83_goal_admin_options_rls.sql) 시도해도 통과하지 않는다.
 // 🔴 CSV/엑셀 내보내기 경로를 만들지 않는다(§3-D6). downloadCsv 계열을 호출하지 말 것.
 // 🔴 계산 엔진(src/lib/goal/calc/**)은 import 만 한다 — 한 글자도 고치지 않는다.
 // ===========================================================================
