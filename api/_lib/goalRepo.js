@@ -19,6 +19,7 @@
 
 import { createSupabaseAdmin } from './supabaseAdmin.js';
 import { SERVICE_CONFIGS, clean, getBearerToken, hasPaidServiceAccess } from './serviceAccess.js';
+import { kstYMD } from '../../src/lib/goal/calc/index.js';
 
 // ---------------------------------------------------------------------------
 // 테이블 · 공통 상수
@@ -28,6 +29,23 @@ export const TABLE_STUDENTS = 'goal_students';
 export const TABLE_STATE_VIEW = 'goal_student_state';
 export const TABLE_PROBABILITY_LOGS = 'goal_probability_logs';
 export const TABLE_UNIVERSITY_CUTS = 'goal_university_cuts';
+export const TABLE_TIMER_SESSIONS = 'goal_timer_sessions';
+export const TABLE_SUBJECT_TARGETS = 'goal_subject_targets';
+
+// 과목 코드 5종. sql/75_goal_plan_tasks.sql·77_goal_timer_sessions.sql·
+// 78_goal_subject_targets.sql이 공유하는 CHECK 도메인과 글자 단위로 같다.
+export const TIMER_SUBJECTS = ['korean', 'math', 'english', 'science', 'etc'];
+
+export const SUBJECT_CODE_TO_LABEL = {
+  korean: '국어',
+  math: '수학',
+  english: '영어',
+  science: '탐구',
+  etc: '기타'
+};
+export const SUBJECT_LABEL_TO_CODE = Object.fromEntries(
+  Object.entries(SUBJECT_CODE_TO_LABEL).map(([code, label]) => [label, code])
+);
 
 // create-service-ticket.js:71-73 과 글자 단위로 같은 문구를 쓴다.
 export const PAID_MESSAGE = '유료결제이후 이용해주세요!';
@@ -381,4 +399,222 @@ export function buildAwaitingCutsPayload(row) {
     targets: buildTargets(row),
     missingCuts: listMissingCuts(row)
   };
+}
+
+// ---------------------------------------------------------------------------
+// 열공 타이머(#25) — 서버 시각 기반 세션 영속화 + 과목별 목표
+//
+// 원칙: started_at/ended_at/duration_seconds 는 전부 서버 now() 로만 계산한다.
+// 클라이언트가 보낸 시각·초 값은 어디서도 신뢰·저장하지 않는다(sql/77 헤더 배경).
+// ---------------------------------------------------------------------------
+
+// 하트비트가 이 시간(ms)보다 오래 끊기면 열린 세션을 서버가 강제 마감한다.
+const TIMER_STALE_MS = 5 * 60 * 1000;
+
+/** ended_at - started_at 을 초로, [0, 43200](12시간) 캡 적용해 계산한다. */
+function computeTimerDurationSeconds(startedAt, endedAtDate) {
+  const seconds = Math.round((endedAtDate.getTime() - new Date(startedAt).getTime()) / 1000);
+  return Math.max(0, Math.min(43200, seconds));
+}
+
+/** 주어진 KST 날짜(session_date, 'YYYY-MM-DD')의 다음날 00:00(+09:00)을 Date로. */
+function nextKstMidnight(sessionDateYmd) {
+  const base = new Date(`${sessionDateYmd}T00:00:00+09:00`);
+  return new Date(base.getTime() + 24 * 60 * 60 * 1000);
+}
+
+/** 학생의 열린(ended_at is null) 세션 1건. 없으면 null. */
+async function fetchOpenTimerSession(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .select('*')
+    .eq('profile_id', profileId)
+    .is('ended_at', null)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** 세션 1건을 지정 시각·사유로 마감한다. duration_seconds 는 서버가 계산한다. */
+async function closeTimerSessionRow(supabaseAdmin, row, endedAtDate, endReason) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .update({
+      ended_at: endedAtDate.toISOString(),
+      duration_seconds: computeTimerDurationSeconds(row.started_at, endedAtDate),
+      end_reason: endReason
+    })
+    .eq('id', row.id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** 새 세션을 연다. session_date 는 startedAtDate 의 KST 날짜로 서버가 채운다. */
+async function insertTimerSession(supabaseAdmin, profileId, subject, startedAtDate) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .insert({
+      profile_id: profileId,
+      subject,
+      session_date: kstYMD(startedAtDate),
+      started_at: startedAtDate.toISOString()
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 모든 타이머 진입점(start/stop/heartbeat/GET/setTarget)이 공통으로 먼저 거치는
+ * 멱등 정리 2단계.
+ *
+ *  (a) 자정 분할 — 열린 세션의 session_date 가 오늘(KST)보다 과거면, 날짜
+ *      경계마다 그 세션을 다음날 00:00(+09:00)에 'midnight' 마감하고 같은
+ *      과목으로 그 시각에 새 세션을 이어 붙인다. 여러 날에 걸쳐 있으면
+ *      today 에 닿을 때까지 반복한다.
+ *  (b) 스테일 스윕 — (a) 이후 남은 열린 세션의 `now - coalesce(last_heartbeat_at,
+ *      started_at)` 이 5분을 넘으면, 그 하트비트/시작 시각으로(=지금이 아니라)
+ *      'timeout' 마감한다.
+ *
+ * @returns 정리 후 남은 열린 세션(없으면 null).
+ */
+export async function reconcileTimerState(supabaseAdmin, profileId, now = new Date()) {
+  let open = await fetchOpenTimerSession(supabaseAdmin, profileId);
+  const today = kstYMD(now);
+
+  // 자정을 여러 날 건너뛴 방치 세션도 유한 시간에 끝나도록 상한을 둔다
+  // (시계 오류 등으로 session_date 가 미래로 새는 이상 상태에서도 무한루프 방지).
+  let guard = 0;
+  while (open && open.session_date < today && guard < 400) {
+    const midnight = nextKstMidnight(open.session_date);
+    await closeTimerSessionRow(supabaseAdmin, open, midnight, 'midnight');
+    open = await insertTimerSession(supabaseAdmin, profileId, open.subject, midnight);
+    guard += 1;
+  }
+
+  if (open) {
+    const reference = new Date(open.last_heartbeat_at || open.started_at);
+    if (now.getTime() - reference.getTime() > TIMER_STALE_MS) {
+      await closeTimerSessionRow(supabaseAdmin, open, reference, 'timeout');
+      open = null;
+    }
+  }
+
+  return open;
+}
+
+/**
+ * 과목 측정을 시작한다. 열린 세션이 있으면 'switch'로 먼저 마감한다.
+ * partial unique index(profile_id) where ended_at is null 위반(23505)은
+ * 동시 탭 등으로 그 사이 다른 세션이 열렸다는 뜻이라, 다시 열린 세션을
+ * 찾아 마감 후 1회만 재시도한다.
+ */
+export async function startTimerSession(supabaseAdmin, profileId, subject, now = new Date()) {
+  const open = await reconcileTimerState(supabaseAdmin, profileId, now);
+  if (open) {
+    await closeTimerSessionRow(supabaseAdmin, open, now, 'switch');
+  }
+
+  try {
+    return await insertTimerSession(supabaseAdmin, profileId, subject, now);
+  } catch (error) {
+    if (error?.code === '23505') {
+      const stillOpen = await fetchOpenTimerSession(supabaseAdmin, profileId);
+      if (stillOpen) {
+        await closeTimerSessionRow(supabaseAdmin, stillOpen, now, 'switch');
+      }
+      return await insertTimerSession(supabaseAdmin, profileId, subject, now);
+    }
+    throw error;
+  }
+}
+
+/** 열린 세션을 'stop'으로 마감한다. 열린 세션이 없으면 null(멱등, 에러 아님). */
+export async function stopTimerSession(supabaseAdmin, profileId, now = new Date()) {
+  const open = await reconcileTimerState(supabaseAdmin, profileId, now);
+  if (!open) return null;
+  return closeTimerSessionRow(supabaseAdmin, open, now, 'stop');
+}
+
+/** 열린 세션의 last_heartbeat_at 을 touch 한다. 열린 세션이 없으면 null(무해). */
+export async function touchTimerHeartbeat(supabaseAdmin, profileId, now = new Date()) {
+  const open = await reconcileTimerState(supabaseAdmin, profileId, now);
+  if (!open) return null;
+
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .update({ last_heartbeat_at: now.toISOString() })
+    .eq('id', open.id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * GET 응답용 오늘(KST) 요약. reconcile 을 먼저 거친 뒤, 오늘 날짜로 마감된
+ * 세션만 과목별로 합산한다 — 진행 중 세션의 경과분은 서버가 더하지 않는다
+ * (프론트가 serverNow - startedAt 으로 표시용 라이브 값을 얹는다, 임무 지시
+ * 프론트 절 참고).
+ */
+export async function fetchTimerDaySummary(supabaseAdmin, profileId, now = new Date()) {
+  const open = await reconcileTimerState(supabaseAdmin, profileId, now);
+  const today = kstYMD(now);
+
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SESSIONS)
+    .select('subject, duration_seconds')
+    .eq('profile_id', profileId)
+    .eq('session_date', today)
+    .not('ended_at', 'is', null);
+
+  if (error) throw error;
+
+  const bySubject = {};
+  for (const row of data || []) {
+    bySubject[row.subject] = (bySubject[row.subject] || 0) + (num(row.duration_seconds) ?? 0);
+  }
+
+  const subjects = TIMER_SUBJECTS.map((subject) => ({ subject, seconds: bySubject[subject] || 0 }));
+  const totalSeconds = subjects.reduce((sum, item) => sum + item.seconds, 0);
+
+  return {
+    date: today,
+    running: open ? { subject: open.subject, startedAt: open.started_at } : null,
+    subjects,
+    totalSeconds
+  };
+}
+
+/** 과목별 목표 시간(설정된 과목만). 미설정 과목은 행 자체가 없다 — 기본값은 프론트 파생. */
+export async function fetchSubjectTargets(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SUBJECT_TARGETS)
+    .select('subject, target_hours')
+    .eq('profile_id', profileId);
+
+  if (error) throw error;
+  return (data || []).map((row) => ({ subject: row.subject, targetHours: num(row.target_hours) }));
+}
+
+/** 과목별 목표 시간 upsert(학생이 타이머 페이지에서 자율 설정). */
+export async function upsertSubjectTarget(supabaseAdmin, profileId, subject, targetHours) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SUBJECT_TARGETS)
+    .upsert(
+      { profile_id: profileId, subject, target_hours: targetHours },
+      { onConflict: 'profile_id,subject' }
+    )
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return { subject: data.subject, targetHours: num(data.target_hours) };
 }
