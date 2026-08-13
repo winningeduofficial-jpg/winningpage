@@ -19,6 +19,7 @@
 
 import { createSupabaseAdmin } from './supabaseAdmin.js';
 import { SERVICE_CONFIGS, clean, getBearerToken, hasPaidServiceAccess } from './serviceAccess.js';
+import { kstYMD } from '../../src/lib/goal/calc/virtualDate.js';
 
 // ---------------------------------------------------------------------------
 // 테이블 · 공통 상수
