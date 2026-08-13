@@ -79,16 +79,16 @@ import CouponAdmin from '../components/admin/CouponAdmin';
 // src/lib/goal/calc/** 는 209개 테스트로 동결돼 있어 이 화면이 한 글자도 고치지 않는다.
 //  - getSchoolCutType: 학생 school_type → 컷 종류(normal|special). 컷 스냅샷 diff의
 //    현재 컷 조회 술어가 goalRepo.fetchUniversityCut과 같아야 하므로 같은 함수를 쓴다.
-//  - ACHIEVEMENT/FOCUS_MULTIPLIER: 일별 기록의 성취도·집중도 키를 배수와 함께
-//    표시한다. 한글 라벨을 새로 지어내면 학생 화면과 어긋나므로 원본 키를 그대로 쓴다.
+//  - CONDITION_MULTIPLIER: 일별 기록 수식 v2(bonusV2.js)의 컨디션 배수 테이블.
+//    일별 기록 표가 body_condition 값을 배수와 함께 표시한다. 한글 라벨을 새로
+//    지어내면 학생 화면과 어긋나므로 원본 키를 그대로 쓴다.
 //  - kstYMD / addDaysYMD: riskFlags('오늘 미제출' / '최근 7일 기록 없음')의 기준일.
 //    toISOString().slice(0,10)은 UTC라 KST 00~09시에 하루 전날로 잘린다 — 학생이
 //    자정 직후 제출한 기록이 '오늘 미제출'로 잘못 뜨는 사고를 막으려면 KST 고정이 필수다.
 //  - VIRTUAL_DAY_NAMES: study_schedule jsonb의 요일 7키(monday…sunday) 순서 정본.
 import {
   getSchoolCutType,
-  ACHIEVEMENT_MULTIPLIER,
-  FOCUS_MULTIPLIER,
+  CONDITION_MULTIPLIER,
   VIRTUAL_DAY_NAMES,
   kstYMD,
   addDaysYMD
@@ -11006,8 +11006,7 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
                 <th className="px-3 py-2">제출일</th>
                 <th className="px-3 py-2">공부시간</th>
                 <th className="px-3 py-2">목표(이상/최소)</th>
-                <th className="px-3 py-2">성취도</th>
-                <th className="px-3 py-2">집중도</th>
+                <th className="px-3 py-2">컨디션</th>
                 <th className="px-3 py-2">과목 태그</th>
                 <th className="px-3 py-2">Δ상한수시</th>
                 <th className="px-3 py-2">Δ상한정시</th>
@@ -11019,7 +11018,7 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-10 text-center text-gray-400">
+                  <td colSpan={12} className="py-10 text-center text-gray-400">
                     제출된 일별 기록이 없습니다.
                   </td>
                 </tr>
@@ -11028,13 +11027,6 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
                   const gap = goalDiffDays(record.record_date, record.submitted_on);
                   const hints = [];
 
-                  if (!record.achievement || !record.focus) {
-                    hints.push({
-                      key: 'multiplier',
-                      tone: 'red',
-                      text: '배수 키가 비어 있어 이 날의 증분이 0으로 계산됩니다.'
-                    });
-                  }
                   if (
                     Number(record.target_ideal_hours || 0) === 0 ||
                     Number(record.target_min_hours || 0) === 0
@@ -11048,8 +11040,8 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
                   if (Number(record.study_hours || 0) === 0) {
                     hints.push({
                       key: 'study0',
-                      tone: 'orange',
-                      text: '0시간 제출은 rate 전액이 음수로 반영됩니다.'
+                      tone: 'red',
+                      text: '0시간 기록이 존재합니다 — v2는 이 경로를 daily-record API에서 차단하므로 이상 데이터입니다.'
                     });
                   }
                   if (Math.abs(gap) >= 2) {
@@ -11077,27 +11069,15 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
                         {record.target_ideal_hours} / {record.target_min_hours}
                       </td>
                       <td className="px-3 py-2">
-                        {record.achievement ? (
+                        {record.body_condition ? (
                           <>
-                            {record.achievement}
+                            {record.body_condition}
                             <span className="block text-gray-400">
-                              ×{ACHIEVEMENT_MULTIPLIER[record.achievement] ?? '?'}
+                              ×{CONDITION_MULTIPLIER[record.body_condition] ?? '?'}
                             </span>
                           </>
                         ) : (
-                          <span className="font-black text-red-500">(빈값)</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {record.focus ? (
-                          <>
-                            {record.focus}
-                            <span className="block text-gray-400">
-                              ×{FOCUS_MULTIPLIER[record.focus] ?? '?'}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-black text-red-500">(빈값)</span>
+                          <span className="text-gray-400">미입력(정상 배수 1.0 적용)</span>
                         )}
                       </td>
                       <td className="px-3 py-2">
