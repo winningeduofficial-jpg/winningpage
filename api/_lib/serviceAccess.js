@@ -117,6 +117,25 @@ export function isPaidStatus(value) {
   ].some((item) => status.includes(item));
 }
 
+// program_access.access_status는 CHECK 제약으로 영문 enum이 강제된다
+// (inactive/active/expired/suspended). findProgramAccessRow()의 statusRank가
+// isPaidStatus와 함께 이 함수로 "유효한 행"을 가른다 — service-access-unify
+// 작업(290160d) 때 게이트(checkProgramAccessTable)가 fn_program_access_state
+// RPC로 옮겨가며 이 함수가 삭제됐는데, findProgramAccessRow는 여전히 이걸
+// 참조하고 있어 program_access 행이 2건 이상인 사용자에서 ReferenceError로
+// 죽었다(statusRank 비교자 실행 시점).
+//
+// 영문은 정확 일치만 인정한다(isPaidStatus와 동일 이유) — 'inactive'는
+// DENIED_PAYMENT_STATUSES에 단어로 없어서 includes('active')로 걸면
+// 'inactive'.includes('active') === true 로 비활성이 활성으로 오판된다.
+export function isActiveStatus(value) {
+  const status = normalizeStatus(value);
+  if (status === 'active') return true;
+  if (['inactive', 'expired', 'suspended'].includes(status)) return false;
+  if (DENIED_PAYMENT_STATUSES.some((item) => status.includes(item))) return false;
+  return ['활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
+}
+
 /** Authorization: Bearer <token> 헤더에서 토큰만 뽑는다. */
 export function getBearerToken(req) {
   return clean(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -505,10 +524,9 @@ export async function findProgramAccessRow(supabaseAdmin, userId, config) {
 
   if (error || !data?.length) return null;
 
-  // 유효한 행(0)을 만료·환불·정지된 행(1)보다 앞에 둔다. 판정 기준은 진입
-  // 게이트(checkProgramAccessTable)와 같은 isPaidStatus/isActiveStatus에
-  // 기간 만료를 더한 것이다 — 게이트가 통과시킨 행이 여기서 뒤로 밀리지
-  // 않도록 같은 술어를 쓴다.
+  // 유효한 행(0)을 만료·환불·정지된 행(1)보다 앞에 둔다. 진입 게이트
+  // (checkProgramAccessTable)는 fn_program_access_state RPC로 판정하므로
+  // 이 술어와 별개다 — 여기는 표시용 행을 고르는 로컬 판정일 뿐이다.
   const statusRank = (row) => {
     const endsAt = row.access_expires_at || row.expires_at || null;
     const expired = endsAt ? new Date(endsAt).getTime() <= Date.now() : false;
