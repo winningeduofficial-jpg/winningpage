@@ -16,18 +16,18 @@
 // Date 를 만들지 않으므로 이 위치에서 지정해도 안전하다.
 process.env.TZ = "Asia/Seoul";
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
   ACHIEVEMENT_MULTIPLIER,
-  FOCUS_MULTIPLIER,
-  TASK_BONUS_MULTIPLIER,
-  TASK_NAESIN,
-  TASK_MOCK_EXAM,
   calcStudentBonusRates,
-  getAchievementRateMultiplier,
   calculateDailyBonus,
+  FOCUS_MULTIPLIER,
+  getAchievementRateMultiplier,
+  TASK_BONUS_MULTIPLIER,
+  TASK_MOCK_EXAM,
+  TASK_NAESIN,
 } from "./bonus.js";
 
 // 부동소수 비교. NaN 은 NaN 끼리 같은 것으로 본다(원본이 NaN 을 그대로 흘리는 경로가 있다).

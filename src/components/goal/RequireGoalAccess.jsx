@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import RequireEntitlement from "../RequireEntitlement";
 import { isOnboardingDone } from "../../lib/goalOnboarding";
+import RequireEntitlement from "../RequireEntitlement";
 
 // 목표관리 진입 가드 체인(사용자 확정 플로우) — /app/goal/* 전체(대시보드 셸 +
 // 온보딩 7단계)를 감싼다. App.jsx에서 두 곳에 각각 <Route element={<RequireGoalAccess />}>로

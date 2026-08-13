@@ -1,4 +1,4 @@
-import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
+import { ANONYMOUS, loadTossPayments } from "@tosspayments/tosspayments-sdk";
 
 // 발급받은 클라이언트 키. (.env 의 VITE_TOSS_CLIENT_KEY / Vercel 환경변수)
 export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;

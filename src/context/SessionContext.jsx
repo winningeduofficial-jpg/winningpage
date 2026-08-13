@@ -7,8 +7,8 @@ import {
   useState,
 } from "react";
 import { Outlet } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { fetchEntitlement } from "../lib/entitlement";
+import { supabase } from "../lib/supabase";
 
 // 인앱 셸 공유 세션 컨텍스트 — 명세서 §2.3.
 //

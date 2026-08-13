@@ -1,9 +1,9 @@
-import ReportSheetA4 from "./ReportSheetA4";
-import ReadinessOverview from "./ReadinessOverview";
+import AdmissionSection from "./AdmissionSection";
 import DimensionBarChart from "./DimensionBarChart";
 import InsightColumns from "./InsightColumns";
-import AdmissionSection from "./AdmissionSection";
+import ReadinessOverview from "./ReadinessOverview";
 import RecommendServices from "./RecommendServices";
+import ReportSheetA4 from "./ReportSheetA4";
 
 // 결과 리포트 2페이지(A4-4) — 학교 생활 및 입시 준비도 / 6영역 바 그래프 /
 // 잘하고 있는 부분·보완할 부분 / 목표 대학 입결 비교 / 추천 지원 서비스.

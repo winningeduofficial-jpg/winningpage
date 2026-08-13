@@ -43,14 +43,14 @@
 //    언제나 `consume_performance_credit` RPC를 감싼 응답(409 QUOTA_EXHAUSTED)이다
 //    (sql/54_performance_app.sql (4), 명세서 §9.3).
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 // 이용권 조회 키. 신규 자산은 performance 네이밍이지만 이 값은 운영 DB의
 // `program_access.program_key`와 `SERVICE_CONFIGS`에 이미 박혀 있어 개명

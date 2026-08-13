@@ -1,74 +1,20 @@
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
-  Routes,
-  Route,
   Navigate,
   Outlet,
+  Route,
+  Routes,
   useLocation,
 } from "react-router-dom";
-import { useEffect, lazy, Suspense } from "react";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import MyPage from "./pages/MyPage";
-import ChildReport from "./pages/mypage/ChildReport";
-import Pricing from "./pages/Pricing";
-import Checkout from "./pages/Checkout";
-import Legal from "./pages/Legal";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import PaymentFail from "./pages/PaymentFail";
-import LearningDiagnosisLanding from "./pages/renewal/LearningDiagnosisLanding";
-import Callmentor from "./pages/services/Callmentor";
-import GoalManagement from "./pages/services/GoalManagement";
-import PerformanceAssessment from "./pages/services/PerformanceAssessment";
-import SelfAssessment from "./pages/services/SelfAssessment";
-import InDepthResearch from "./pages/services/InDepthResearch";
-import Services from "./pages/Services";
-import LearningAnalysis from "./pages/LearningAnalysis";
-import AdmissionBoard from "./pages/AdmissionBoard";
-import AdmissionCases from "./pages/admission/AdmissionCases";
-import AdmissionCaseDetail from "./pages/admission/AdmissionCaseDetail";
-import SpecialHighschoolCases from "./pages/special/SpecialHighschoolCases";
-import AdmissionGuidelines from "./pages/AdmissionGuidelines";
-import AdmissionResults from "./pages/AdmissionResults";
-import ColumnHome from "./pages/column/ColumnHome";
-import ColumnList from "./pages/column/ColumnList";
-import ColumnDetail from "./pages/column/ColumnDetail";
-import Events from "./pages/Events";
-import Reviews from "./pages/Reviews";
-import Faq from "./pages/Faq";
-import DynamicPage from "./pages/DynamicPage";
-import PremiumApply from "./pages/PremiumApply";
-import MentorApply from "./pages/MentorApply";
-import CompanyNews from "./pages/CompanyNews";
-import CompanyNewsList from "./pages/CompanyNewsList";
-import ProtectedAdmin from "./components/ProtectedAdmin";
-import ProtectedRoute from "./components/ProtectedRoute";
-import SiteLayout from "./components/SiteLayout";
-import SurveyStepShell from "./pages/renewal/SurveyStepShell";
-import SurveyStepPage from "./pages/renewal/SurveyStepPage";
-import SurveyPreview from "./pages/renewal/SurveyPreview";
-import FreeDiagnosisReport from "./pages/renewal/FreeDiagnosisReport";
-import { SignupProvider } from "./context/SignupContext";
-
 // 목표관리 학생 앱(goal-app-shell) — 사이드바 셸 + 서브페이지 10종. docs/figma-goal/00-INDEX.md
 // §5-1 기준 마케팅 헤더/푸터를 쓰지 않는 별개 앱 셸이라 `/mypage`·`/admin`과 같은 방식으로
 // SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
 // 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
 import GoalAppLayout from "./components/goal/GoalAppLayout";
 import RequireGoalAccess from "./components/goal/RequireGoalAccess";
-import GoalOnboarding from "./pages/goal/Onboarding";
-import GoalDashboard from "./pages/goal/Dashboard";
-import GoalTargetUniversity from "./pages/goal/TargetUniversity";
-import GoalTimer from "./pages/goal/Timer";
-import GoalDailyRecord from "./pages/goal/DailyRecord";
-import GoalWeeklyPlan from "./pages/goal/WeeklyPlan";
-import GoalEfforts from "./pages/goal/Efforts";
-import GoalGrowthReport from "./pages/goal/GrowthReport";
-import GoalGrades from "./pages/goal/Grades";
-import GoalDirectionReport from "./pages/goal/DirectionReport";
-import GoalSchedules from "./pages/goal/Schedules";
-import GoalProfile from "./pages/goal/Profile";
-
+import ProtectedAdmin from "./components/ProtectedAdmin";
+import ProtectedRoute from "./components/ProtectedRoute";
 // 수행평가 학생 앱(performance) — 목표관리와 같은 규칙으로 SiteLayout 밖에 둔다.
 // 시안 24노드 어디에도 사이트 헤더/푸터가 없고 셸이 자체 사이드바를 갖는다
 // (docs/수행평가-상세-명세.md §2.1 「/app/performance/*는 SiteLayout 밖」).
@@ -76,33 +22,83 @@ import GoalProfile from "./pages/goal/Profile";
 // ⚠️ 신규 자산 네이밍은 performance지만 **이용권 조회 키는 'suhaeng'** 이다 —
 //    운영 DB의 program_access.program_key에 이미 박힌 값이라 개명 대상이 아니다(§1.4).
 import RequireEntitlement from "./components/RequireEntitlement";
+import SiteLayout from "./components/SiteLayout";
 import { SessionProvider } from "./context/SessionContext";
-
+import { SignupProvider } from "./context/SignupContext";
+import AdmissionBoard from "./pages/AdmissionBoard";
+import AdmissionGuidelines from "./pages/AdmissionGuidelines";
+import AdmissionResults from "./pages/AdmissionResults";
+import AdmissionCaseDetail from "./pages/admission/AdmissionCaseDetail";
+import AdmissionCases from "./pages/admission/AdmissionCases";
+import Checkout from "./pages/Checkout";
+import CompanyNews from "./pages/CompanyNews";
+import CompanyNewsList from "./pages/CompanyNewsList";
+import ColumnDetail from "./pages/column/ColumnDetail";
+import ColumnHome from "./pages/column/ColumnHome";
+import ColumnList from "./pages/column/ColumnList";
+import DynamicPage from "./pages/DynamicPage";
+import Events from "./pages/Events";
+import Faq from "./pages/Faq";
+import GoalDailyRecord from "./pages/goal/DailyRecord";
+import GoalDashboard from "./pages/goal/Dashboard";
+import GoalDirectionReport from "./pages/goal/DirectionReport";
+import GoalEfforts from "./pages/goal/Efforts";
+import GoalGrades from "./pages/goal/Grades";
+import GoalGrowthReport from "./pages/goal/GrowthReport";
+import GoalOnboarding from "./pages/goal/Onboarding";
+import GoalProfile from "./pages/goal/Profile";
+import GoalSchedules from "./pages/goal/Schedules";
+import GoalTargetUniversity from "./pages/goal/TargetUniversity";
+import GoalTimer from "./pages/goal/Timer";
+import GoalWeeklyPlan from "./pages/goal/WeeklyPlan";
+import Home from "./pages/Home";
+import LearningAnalysis from "./pages/LearningAnalysis";
+import Legal from "./pages/Legal";
+import Login from "./pages/Login";
+import MentorApply from "./pages/MentorApply";
+import MyPage from "./pages/MyPage";
+import ChildReport from "./pages/mypage/ChildReport";
+import PaymentFail from "./pages/PaymentFail";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PremiumApply from "./pages/PremiumApply";
+import Pricing from "./pages/Pricing";
+import Reviews from "./pages/Reviews";
+import FreeDiagnosisReport from "./pages/renewal/FreeDiagnosisReport";
+import LearningDiagnosisLanding from "./pages/renewal/LearningDiagnosisLanding";
+import SurveyPreview from "./pages/renewal/SurveyPreview";
+import SurveyStepPage from "./pages/renewal/SurveyStepPage";
+import SurveyStepShell from "./pages/renewal/SurveyStepShell";
+import Services from "./pages/Services";
+import Callmentor from "./pages/services/Callmentor";
+import GoalManagement from "./pages/services/GoalManagement";
+import InDepthResearch from "./pages/services/InDepthResearch";
+import PerformanceAssessment from "./pages/services/PerformanceAssessment";
+import SelfAssessment from "./pages/services/SelfAssessment";
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
 import MemberType from "./pages/signup/MemberType";
-import StudentBirth from "./pages/signup/StudentBirth";
-import StudentForm from "./pages/signup/StudentForm";
-import Under14Verify from "./pages/signup/Under14Verify";
-import Under14Form from "./pages/signup/Under14Form";
-import UnifiedSignupForm from "./pages/signup/UnifiedSignupForm";
-import StudentComplete from "./pages/signup/StudentComplete";
-import ParentForm from "./pages/signup/parent/ParentForm";
+import InviteChild from "./pages/signup/parent/InviteChild";
+import InviteDone from "./pages/signup/parent/InviteDone";
 import LinkChoice from "./pages/signup/parent/LinkChoice";
 import LinkCode from "./pages/signup/parent/LinkCode";
 import LinkDone from "./pages/signup/parent/LinkDone";
-import InviteChild from "./pages/signup/parent/InviteChild";
-import InviteDone from "./pages/signup/parent/InviteDone";
+import ParentForm from "./pages/signup/parent/ParentForm";
 import ParentHome from "./pages/signup/parent/ParentHome";
-
-// 약관 8종(§5.2) — 학생 5종 + 학부모 3종, 전부 정적 문서 페이지
-import StudentService from "./pages/terms/StudentService";
-import StudentPrivacy from "./pages/terms/StudentPrivacy";
+import StudentBirth from "./pages/signup/StudentBirth";
+import StudentComplete from "./pages/signup/StudentComplete";
+import StudentForm from "./pages/signup/StudentForm";
+import Under14Form from "./pages/signup/Under14Form";
+import Under14Verify from "./pages/signup/Under14Verify";
+import UnifiedSignupForm from "./pages/signup/UnifiedSignupForm";
+import SpecialHighschoolCases from "./pages/special/SpecialHighschoolCases";
+import ParentMarketing from "./pages/terms/ParentMarketing";
+import ParentPrivacy from "./pages/terms/ParentPrivacy";
+import ParentService from "./pages/terms/ParentService";
 import StudentIdentity from "./pages/terms/StudentIdentity";
 import StudentMarketing from "./pages/terms/StudentMarketing";
+import StudentPrivacy from "./pages/terms/StudentPrivacy";
 import StudentPromotion from "./pages/terms/StudentPromotion";
-import ParentService from "./pages/terms/ParentService";
-import ParentPrivacy from "./pages/terms/ParentPrivacy";
-import ParentMarketing from "./pages/terms/ParentMarketing";
+// 약관 8종(§5.2) — 학생 5종 + 학부모 3종, 전부 정적 문서 페이지
+import StudentService from "./pages/terms/StudentService";
 
 // 신규 노드 2516-1974('통합 가입 폼', docs/impl-status-recheck.md §4) — 시안 미확정(손그림
 // 낙서) 임시 라우트라 플래그가 켜져 있을 때만 등록한다. 꺼져 있으면 라우트 자체가 없으므로

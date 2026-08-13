@@ -145,8 +145,8 @@ export function calcNaesinProb(
   // 우세 갈래는 0.55 아래, 열세 갈래는 1.0 위로 벗어난다.
   const factor =
     currentGrade <= targetCut
-      ? 0.55 + 0.45 * (1 - Math.pow(ratio, 0.8))
-      : 0.55 + 0.45 * Math.pow(ratio, 0.8);
+      ? 0.55 + 0.45 * (1 - ratio ** 0.8)
+      : 0.55 + 0.45 * ratio ** 0.8;
 
   return clampProb(Math.max(1, pBase * factor));
 }

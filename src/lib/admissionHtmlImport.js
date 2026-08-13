@@ -37,21 +37,21 @@
 // needsReview로 반환한다.
 // =====================================================================
 
+import { stableStringifyDoc } from "./admissionDoc.js";
 import {
+  buildSpecialCategoryDoc,
+  clean,
   importChangeDocFromHtml,
-  importSelectionDocFromHtml,
+  importEmptyBoxDocFromHtml,
   importExamDocFromHtml,
   importMinimumDocFromHtml,
-  importEmptyBoxDocFromHtml,
   importPlainListDocFromHtml,
   importRecordDocFromHtml,
   importRecruitExactDocFromHtml,
   importRecruitLegacyDocFromHtml,
-  buildSpecialCategoryDoc,
+  importSelectionDocFromHtml,
   renderDocToHtml,
-  clean,
 } from "./admissionParsing.js";
-import { stableStringifyDoc } from "./admissionDoc.js";
 
 // 카테고리별 시도 순서(표 → emptyBox → plainList). 앞선 임포터가 null을
 // 반환하거나 DOM 동형 검증에 실패하면 다음으로 넘어간다 — 전부 실패하면

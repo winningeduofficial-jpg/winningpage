@@ -19,13 +19,14 @@
 //    정할 수 없기 때문이다. 조립 단계에서 두 컨트롤이 같은 values.phone 을 바라보게 두면
 //    1번에서 입력한 번호로 5번에서 그대로 인증할 수 있다. 시안이 같은 값을 두 번 묻는
 //    구조인지(중복 결함)는 명세 미해결 항목이다.
-import MentorTextField, { MentorFieldShell } from "./MentorTextField";
-import ChipGroup from "./ChipGroup";
-import FormSectionCard from "./FormSectionCard";
-import FormFieldRow from "./FormFieldRow";
+
 import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from "../../data/mentorApply";
-import { isValidEmail, isValidBirthDate } from "../../lib/validators";
 import { isValidMobile } from "../../lib/phoneVerification";
+import { isValidBirthDate, isValidEmail } from "../../lib/validators";
+import ChipGroup from "./ChipGroup";
+import FormFieldRow from "./FormFieldRow";
+import FormSectionCard from "./FormSectionCard";
+import MentorTextField, { MentorFieldShell } from "./MentorTextField";
 
 // 사이드바(§6-3)가 앵커로 점프할 타깃. 5개 섹션이 같은 규칙으로 id 를 만든다.
 export const APPLICANT_SECTION_ID = "mentor-form-section-1";

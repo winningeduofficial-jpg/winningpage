@@ -72,12 +72,12 @@
 //    되돌린다(`src/lib/performance/guideUpload.js`).
 
 import crypto from "crypto";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

@@ -36,9 +36,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
 import {
   EVALUATION_RECORD_SUMMARY_ROW_LABELS,
   EVALUATION_REPORT_SECTIONS,

@@ -77,24 +77,18 @@
 //   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
 };
 import {
-  buildRawSectionHtml,
-  buildHwpCategoryDoc,
-  clean,
-  normalizeName,
-} from "../src/lib/admissionParsing.js";
-import {
-  validateAdmissionDoc,
   shouldSkipForRegression,
+  validateAdmissionDoc,
 } from "../src/lib/admissionDoc.js";
 // importCell은 2026-08-06 src/lib/admissionHtmlImport.js로 이동했다(위치만
 // 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에서 가져왔지만,
@@ -102,6 +96,12 @@ import {
 // (해가 없긴 하지만) 어드민 일괄 엑셀 업로드가 브라우저에서 같은 함수를
 // 재사용할 수 있게 lib으로 뺀 김에 여기 import 경로도 정본으로 맞췄다.
 import { importCell } from "../src/lib/admissionHtmlImport.js";
+import {
+  buildHwpCategoryDoc,
+  buildRawSectionHtml,
+  clean,
+  normalizeName,
+} from "../src/lib/admissionParsing.js";
 import { runDocEquivalenceVerification } from "./verify-admission-doc-equivalence.mjs";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";

@@ -1,17 +1,16 @@
 import { Link } from "react-router-dom";
-import { useInView } from "../../hooks/useInView";
-
-import ServiceProcessCards from "../../components/services/ServiceProcessCards";
 import heroBrowserV2 from "../../assets/renewal/landing/hero-browser-v2.png";
 import heroGlow from "../../assets/renewal/landing/hero-glow.svg";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
-import illustrationStrength from "../../assets/renewal/landing/illustration-strength.png";
-import illustrationWeakness from "../../assets/renewal/landing/illustration-weakness.png";
-import illustrationTrial from "../../assets/renewal/landing/illustration-trial.png";
-import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
 import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
+import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
 import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
+import illustrationStrength from "../../assets/renewal/landing/illustration-strength.png";
+import illustrationTrial from "../../assets/renewal/landing/illustration-trial.png";
+import illustrationWeakness from "../../assets/renewal/landing/illustration-weakness.png";
 import macbookFull from "../../assets/renewal/landing/macbook-full.png";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import { useInView } from "../../hooks/useInView";
 
 const CTA_LINK_CLASS =
   "inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]";

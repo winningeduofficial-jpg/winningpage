@@ -1,6 +1,6 @@
+import DeltaBadge from "../DeltaBadge";
 import GoalCard from "../GoalCard";
 import GoalProgressBar from "../GoalProgressBar";
-import DeltaBadge from "../DeltaBadge";
 
 // Row3 카드③ `합격 가능성 변화` — docs/figma-goal/00-INDEX.md §5-4 `AdmissionChanceCard`.
 // 대학 2블록 × (수시/정시) 2행. 데이터 형태는 goalMock.js의 `mockAdmissionChance`와 동일 스키마

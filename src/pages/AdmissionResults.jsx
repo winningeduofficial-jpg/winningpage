@@ -13,13 +13,13 @@ import {
   fetchSusiUniversities,
   fetchTrendingDepartments,
 } from "../lib/admissionResultsQueries";
-import SearchView from "./admissionResults/SearchView";
-import { LoadingBlock } from "./admissionResults/StateBlocks";
 import {
   CONTAINER,
   formatDeptCount,
   formatTrackTags,
 } from "./admissionResults/constants";
+import SearchView from "./admissionResults/SearchView";
+import { LoadingBlock } from "./admissionResults/StateBlocks";
 
 // 상세 뷰는 검색 화면에서 즉시 필요하지 않고 표·스파크라인까지 들고 있어 무겁다.
 // 이 저장소에서 lazy는 Admin(App.jsx:35)만 쓰지만, 여기는 같은 라우트 안의 두 번째 화면이라

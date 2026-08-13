@@ -23,9 +23,10 @@
  * 5개 컬럼은 인구 자체가 달라(합격자·최초합격자 ≠ 최종등록자) finalAvg 로 대체 매핑하지 않는다 —
  * 추측이 아니라 원본 스크립트의 stage 정의로 확인된 사실이다.
  */
-import { supabase } from "./supabase";
+
 import { isUsableNumber } from "../data/diagnosisGradeScale.js";
 import { ADMISSION_FETCH_ERROR } from "../data/diagnosisScoringTable.js";
+import { supabase } from "./supabase";
 
 export { ADMISSION_FETCH_ERROR };
 

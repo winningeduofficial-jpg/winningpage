@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
 import ColumnBody from "../column/ColumnBody";
 import "./faqAnswerBody.css";
 

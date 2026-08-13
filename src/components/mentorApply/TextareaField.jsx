@@ -11,9 +11,9 @@
 import { useId } from "react";
 
 import {
+  getMentorFieldDescribedBy,
   MENTOR_CONTROL_CLASS,
   MentorFieldShell,
-  getMentorFieldDescribedBy,
 } from "./MentorTextField";
 
 export default function TextareaField({

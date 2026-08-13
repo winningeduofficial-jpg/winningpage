@@ -1,12 +1,12 @@
-import QuestionCard from "../QuestionCard";
-import GradeNumberField from "../GradeNumberField";
-import NoneCheckbox from "../NoneCheckbox";
-import WizardActions from "../WizardActions";
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 import {
   MOCK_EXAM_ROUNDS,
   MOCK_EXAM_SUBJECTS,
 } from "../../../../data/goalOnboardingMock";
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import GradeNumberField from "../GradeNumberField";
+import NoneCheckbox from "../NoneCheckbox";
+import QuestionCard from "../QuestionCard";
+import WizardActions from "../WizardActions";
 
 function isValidGrade(raw) {
   const num = Number(raw);

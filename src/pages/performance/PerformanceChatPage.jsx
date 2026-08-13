@@ -1,40 +1,40 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useSession } from "../../context/SessionContext";
-import { useToast } from "../../context/ToastContext";
-import { usePerformanceShell } from "../../context/PerformanceShellContext";
-import { deriveStepStates } from "../../components/performance/deriveStepStates";
-import ChatTimeline from "../../components/performance/chat/ChatTimeline";
 import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
+import ChatTimeline from "../../components/performance/chat/ChatTimeline";
 import InlineCard from "../../components/performance/chat/InlineCard";
 import { PERFORMANCE_LOADING_COPY } from "../../components/performance/chat/loadingCopy";
+import { deriveStepStates } from "../../components/performance/deriveStepStates";
+import QuotaExhaustedCard from "../../components/performance/quota/QuotaExhaustedCard";
+import ResumeChoiceCard from "../../components/performance/resume/ResumeChoiceCard";
 import BasicInfoForm from "../../components/performance/step1/BasicInfoForm";
 import GuideUploadCard from "../../components/performance/step2/GuideUploadCard";
 import ManualInfoForm from "../../components/performance/step2/ManualInfoForm";
 import TopicCardList from "../../components/performance/step3/TopicCardList";
 import TopicDetailModal from "../../components/performance/step3/TopicDetailModal";
 import DesignReportModal from "../../components/performance/step4/DesignReportModal";
-import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
 import EvaluationBranchActions from "../../components/performance/step5/EvaluationBranchActions";
+import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
 import SubmissionForm from "../../components/performance/step5/SubmissionForm";
-import QuotaExhaustedCard from "../../components/performance/quota/QuotaExhaustedCard";
-import ResumeChoiceCard from "../../components/performance/resume/ResumeChoiceCard";
-import {
-  analyzeGuideUpload,
-  submitManualGuide,
-  uploadGuidePhotos,
-} from "../../lib/performance/guideUpload";
-import { recommendTopics } from "../../lib/performance/topics";
+import { usePerformanceShell } from "../../context/PerformanceShellContext";
+import { useSession } from "../../context/SessionContext";
+import { useToast } from "../../context/ToastContext";
 import { requestDesignReport } from "../../lib/performance/designReport";
 import {
   finalizeSubmission,
   requestEvaluation,
 } from "../../lib/performance/evaluation";
 import {
+  analyzeGuideUpload,
+  submitManualGuide,
+  uploadGuidePhotos,
+} from "../../lib/performance/guideUpload";
+import { fetchSessionDetail } from "../../lib/performance/session";
+import {
   fetchSubmissionForm,
   saveSubmission,
 } from "../../lib/performance/submission";
-import { fetchSessionDetail } from "../../lib/performance/session";
+import { recommendTopics } from "../../lib/performance/topics";
 
 // STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /

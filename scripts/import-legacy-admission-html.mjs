@@ -39,13 +39,11 @@
 //   node scripts/import-legacy-admission-html.mjs --restore <backup.json> --apply
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
-import { readFile, writeFile, mkdir, access } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
-
-import { HWP_SECTION_HTML_KEYS } from "../src/lib/admissionParsing.js";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 import {
   HWP_SECTION_JSON_KEYS,
   stableStringifyDoc,
@@ -57,9 +55,10 @@ import {
 // 생성이 있어 브라우저 번들에 못 들어간다. IMPORTER_CHAINS도 그 파일이
 // 정본이다(여기서 재정의하지 않는다).
 import {
-  SUPPORTED_CATEGORY_KEYS,
   importCell,
+  SUPPORTED_CATEGORY_KEYS,
 } from "../src/lib/admissionHtmlImport.js";
+import { HWP_SECTION_HTML_KEYS } from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-doc-backups";

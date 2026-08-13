@@ -8,9 +8,9 @@ import {
   getViewCount,
   paginate,
 } from "../../pages/board/boardData";
+import BoardPagination from "./BoardPagination";
 import BoardSearchBar from "./BoardSearchBar";
 import BoardTable from "./BoardTable";
-import BoardPagination from "./BoardPagination";
 
 /**
  * 게시판(회사소식·공지사항) 목록 페이지 셸.

@@ -9,8 +9,8 @@
 // (node:test 러너 — 실패해도 프로세스가 nonzero exit code로 끝난다, package.json
 //  test:calc 스크립트와 같은 러너를 재사용한다.)
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
   bucketTimeSlots,

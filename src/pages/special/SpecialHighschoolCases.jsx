@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import AcceptanceRateHero from "../../components/admission/AcceptanceRateHero";
 import SpecialHighschoolCaseCard from "../../components/special/SpecialHighschoolCaseCard";
 import {
-  SPECIAL_HS_TABS,
-  SPECIAL_HS_DESCRIPTION,
   fetchSpecialHighschoolCases,
   filterByType,
+  SPECIAL_HS_DESCRIPTION,
+  SPECIAL_HS_TABS,
 } from "./specialHighschoolData";
 
 const TABPANEL_ID = "special-hs-tabpanel";

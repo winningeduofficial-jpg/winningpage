@@ -26,15 +26,15 @@
 //   SUPABASE_SERVICE_ROLE_KEY
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
 
 import {
-  fetchBackfillSourceRows,
   computeGoalCutBackfill,
+  fetchBackfillSourceRows,
 } from "../src/lib/goal/goalCutBackfill.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

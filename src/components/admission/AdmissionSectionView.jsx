@@ -1,8 +1,8 @@
+import { isEmptyDoc } from "../../lib/admissionDoc";
 import {
   getSectionTitleText,
   stripHtmlToText,
 } from "../../lib/admissionParsing";
-import { isEmptyDoc } from "../../lib/admissionDoc";
 import { renderBlock } from "./blocks/renderBlock";
 
 // 구조화 문서(AdmissionDoc) 진입점. 설계 문서 §5.2/§5.3 정본.

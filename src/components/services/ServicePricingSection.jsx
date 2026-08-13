@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { formatKRW } from "../../data/pricingCatalog";
 import { useProducts } from "../../lib/products";

@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { goalModalOptions } from "../../../data/goalMock";
 import AppModal from "../AppModal";
 import ModalField from "../ModalField";
 import SegmentedChipGroup from "../SegmentedChipGroup";
-import { goalModalOptions } from "../../../data/goalMock";
 
 // 중요일정 등록 모달 — docs/figma-goal/part-07.md #19 (530×574 = 33.125rem × 35.875rem, 대시보드
 // 진입 버전). 624px 버전(#40/#42, 중요일정 목록 페이지 전용, AddScheduleFullModal.jsx)이 정본이다.

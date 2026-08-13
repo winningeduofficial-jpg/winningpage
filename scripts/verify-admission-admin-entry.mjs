@@ -53,9 +53,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
 
 // 실제 소스 파일(.jsx)을 번들해 import한다 — AdmissionMetaEditModal.jsx는
 // supabase 등 외부 부작용 의존이 없는 순수 컴포넌트라, verify-admission-

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { getFaqTabId, FAQ_TABPANEL_ID } from "./faqTabId";
+import { FAQ_TABPANEL_ID, getFaqTabId } from "./faqTabId";
 
 // role="tab" 을 붙이면 WAI-ARIA tabs 패턴상 tablist 안에서 Tab 키는 활성 탭
 // 1개만 통과하고 좌우 화살표로 이동해야 한다(roving tabindex). 저장소 기존

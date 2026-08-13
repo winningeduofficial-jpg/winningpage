@@ -9,8 +9,8 @@
 // 바뀌어도 이 판정이 자동으로 따라간다(값 복제 방식의 동기화 누락 위험을
 // 원천 차단).
 import {
-  validateAdmissionDoc,
   stableStringifyDoc,
+  validateAdmissionDoc,
 } from "../../../lib/admissionDoc";
 
 // 편집 중인 Block 배열(문서 전체 또는 그 일부)을 최소 AdmissionDoc으로

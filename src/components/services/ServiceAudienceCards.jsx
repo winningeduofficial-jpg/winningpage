@@ -1,4 +1,4 @@
-import { CARD_TITLE_CLASS, CARD_DESC_CLASS } from "./serviceTokens";
+import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // cardSurface: 리터럴 lookup — 클래스 문자열 템플릿 조립 금지 규약(SECTION_SURFACE 와 동일).
 const AUDIENCE_CARD_SURFACE = {

@@ -13,14 +13,13 @@
 //   package.json 의 test:bonus-v2 스크립트가 이미 이 형태로 고정돼 있다.
 // =====================================================================
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
-
+import { test } from "node:test";
+import { getAchievementRateMultiplier } from "../src/lib/goal/calc/bonus.js";
 import {
   CONDITION_MULTIPLIER,
   calculateDailyBonusV2,
 } from "../src/lib/goal/calc/bonusV2.js";
-import { getAchievementRateMultiplier } from "../src/lib/goal/calc/bonus.js";
 
 // 부동소수 오차 허용 비교. round4 결과는 소수 4자리 이내라 1e-9 여유면 충분하다.
 function assertClose(actual, expected, label) {

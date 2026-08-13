@@ -32,8 +32,8 @@
 
 import {
   CELL_STATE,
-  computeDeltaFromSeries,
   CUT_MISMATCH_NOTE,
+  computeDeltaFromSeries,
   DELTA_STATE,
   formatGradeValue,
 } from "../../lib/admissionResults";

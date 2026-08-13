@@ -1,15 +1,15 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { BlockNoteView } from "@blocknote/ariakit";
 import {
   filterSuggestionItems,
   insertOrUpdateBlockForSlashMenu,
 } from "@blocknote/core";
 import { ko } from "@blocknote/core/locales";
-import { BlockNoteView } from "@blocknote/ariakit";
 import {
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { blocksToPlainText } from "../../lib/blockToPlainText";
 import { columnSchema } from "./columnSchema";
 // @blocknote/ariakit/style.css 하나가 core+react+ariakit 스타일을 전부 포함하는 자체완결 번들이다

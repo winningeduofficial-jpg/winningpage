@@ -59,34 +59,33 @@
 // 종료 코드: mismatch가 하나라도 있으면 1, 전부 일치하면 0.
 // =====================================================================
 
-import { readFile } from "node:fs/promises";
 import fs from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
-
-import golden from "../tests/fixtures/admission-html-golden.json" with {
-  type: "json",
-};
-import {
-  buildGolden,
-  buildHashGolden,
-  buildCellKey,
-  hashString,
-} from "./build-admission-html-golden.mjs";
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
 };
 import {
-  buildRawSectionDoc,
   buildHwpCategoryDoc,
-  renderDocToHtml,
-  HWP_SECTION_HTML_KEYS,
+  buildRawSectionDoc,
   clean,
+  HWP_SECTION_HTML_KEYS,
+  renderDocToHtml,
 } from "../src/lib/admissionParsing.js";
+import golden from "../tests/fixtures/admission-html-golden.json" with {
+  type: "json",
+};
+import {
+  buildCellKey,
+  buildGolden,
+  buildHashGolden,
+  hashString,
+} from "./build-admission-html-golden.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");

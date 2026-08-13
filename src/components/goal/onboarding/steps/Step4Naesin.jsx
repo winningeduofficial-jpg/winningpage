@@ -1,9 +1,9 @@
-import QuestionCard from "../QuestionCard";
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import { NAESIN_EXAMS } from "../../../../data/goalOnboardingMock";
 import GradeNumberField from "../GradeNumberField";
 import NoneCheckbox from "../NoneCheckbox";
+import QuestionCard from "../QuestionCard";
 import WizardActions from "../WizardActions";
-import { NAESIN_EXAMS } from "../../../../data/goalOnboardingMock";
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 
 function isValidGrade(raw) {
   const num = Number(raw);
@@ -57,10 +57,7 @@ export default function Step4Naesin({ goPrev, goNext }) {
   // `{...defaults, ...stored}`는 값을 검증하지 않는다) 'constructor' 같은 Object.prototype 키면
   // 대괄호 조회가 truthy한 비-문구 객체를 잡아 `||` 폴백이 발동하지 않고 배너·라벨이 전부
   // 빈칸으로 렌더된다(같은 함정을 calc/bonus.js:107-109가 이미 if-else 사슬로 회피한다).
-  const priorCopy = Object.prototype.hasOwnProperty.call(
-    PRIOR_NAESIN_COPY,
-    grade,
-  )
+  const priorCopy = Object.hasOwn(PRIOR_NAESIN_COPY, grade)
     ? PRIOR_NAESIN_COPY[grade]
     : PRIOR_NAESIN_COPY.g1;
 

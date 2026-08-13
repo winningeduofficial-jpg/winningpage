@@ -30,23 +30,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AgreementList,
   AuthLayout,
   AuthTitle,
-  TextField,
-  SelectField,
   PrimaryButton,
-  AgreementList,
+  SelectField,
+  TextField,
 } from "../../components/auth";
 import { useSignup } from "../../context/SignupContext";
-import { supabase } from "../../lib/supabase";
-import {
-  EMAIL_RESEND_COOLDOWN_SECONDS,
-  EMAIL_STATE,
-  MESSAGES,
-  applySignupPassword,
-  sendSignupEmailCode,
-  verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
 import { useCooldown } from "../../hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
@@ -55,6 +46,15 @@ import {
   sendPhoneCode,
   verifyPhoneCode,
 } from "../../lib/phoneVerification";
+import {
+  applySignupPassword,
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  EMAIL_STATE,
+  MESSAGES,
+  sendSignupEmailCode,
+  verifySignupEmailCode,
+} from "../../lib/signupEmailAuth";
+import { supabase } from "../../lib/supabase";
 
 // Under14Form(D-2)도 동일 지역 목록(17개 시도 + '기타')을 쓰므로 이 상수를 공유한다.
 export const REGION_OPTIONS = [

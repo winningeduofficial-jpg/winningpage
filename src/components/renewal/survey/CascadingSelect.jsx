@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 // 플레이스홀더는 Figma 시안 `1889:10708`(survey-10656.md §2.6)의 필드 표시값 원문이다
 // (`건국대학교` / `경영학과` / `학생부종합` / `KU자기추천`). 안내문이 아니라 예시 값이며,

@@ -1,11 +1,11 @@
+import { Check, ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Check, ChevronDown } from "lucide-react";
-import { supabase } from "../../lib/supabase";
-import { getTossPayments, ANONYMOUS } from "../../lib/toss";
-import { formatKRW } from "../../data/pricingCatalog";
-import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
 import ConfirmModal from "../../components/checkout/ConfirmModal";
+import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
+import { formatKRW } from "../../data/pricingCatalog";
+import { supabase } from "../../lib/supabase";
+import { ANONYMOUS, getTossPayments } from "../../lib/toss";
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
 // (?order=<id> 유무). 학생이 fn_request_enrollment 로 만든 요청(StudentEnrollmentRequest.jsx

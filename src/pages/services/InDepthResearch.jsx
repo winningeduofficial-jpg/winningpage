@@ -1,25 +1,24 @@
 import { useNavigate } from "react-router-dom";
-import { useInView } from "../../hooks/useInView";
-
-import { alertServiceNotReady } from "../../lib/paidServiceAccess";
-import { getDemoAccessState } from "../../lib/demoAccess";
-import ServiceSection from "../../components/services/ServiceSection";
-import ServiceProcessCards from "../../components/services/ServiceProcessCards";
-import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
-import ServiceStepCards from "../../components/services/ServiceStepCards";
-import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
-import ServiceTestimonials from "../../components/services/ServiceTestimonials";
-import ServiceFaq from "../../components/services/ServiceFaq";
-import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
-import heroAura from "../../assets/services/in-depth-research/hero-aura.svg";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
-import audienceTopic from "../../assets/services/research/audience-topic.png";
-import audienceDesign from "../../assets/services/research/audience-design.png";
+import heroAura from "../../assets/services/in-depth-research/hero-aura.svg";
 import audienceData from "../../assets/services/research/audience-data.png";
+import audienceDesign from "../../assets/services/research/audience-design.png";
+import audienceTopic from "../../assets/services/research/audience-topic.png";
+import outcomeCalendar from "../../assets/services/research/outcome-calendar.png";
+import outcomeFolder from "../../assets/services/research/outcome-folder.png";
 import outcomeSkill from "../../assets/services/research/outcome-skill.png";
 import outcomeWallet from "../../assets/services/research/outcome-wallet.png";
-import outcomeFolder from "../../assets/services/research/outcome-folder.png";
-import outcomeCalendar from "../../assets/services/research/outcome-calendar.png";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceFaq from "../../components/services/ServiceFaq";
+import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
+import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceStepCards from "../../components/services/ServiceStepCards";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import { useInView } from "../../hooks/useInView";
+import { getDemoAccessState } from "../../lib/demoAccess";
+import { alertServiceNotReady } from "../../lib/paidServiceAccess";
 
 // 심화탐구 서비스 랜딩 — /services/research (구 경로 /page/services-in-depth-research)
 // Figma 시안(1907:21352, "심화탐구" 프레임, 1920×5871) + 히어로 합성 프레임(2181:9089) +

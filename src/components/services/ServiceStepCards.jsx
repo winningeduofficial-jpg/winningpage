@@ -11,7 +11,7 @@
 //                      2행의 lg:max-w-[45.25rem] 이 '카드 2장' 기준 실측값이라
 //                      columns=3 + items 5개 조합에서만 지원한다.
 //
-import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from "./serviceTokens";
+import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // ⚠ Tailwind JIT: columns→클래스 매핑은 반드시 아래처럼 리터럴 lookup 객체로 쓴다.
 //    `lg:grid-cols-${n}` 템플릿 조립은 클래스가 생성되지 않아 조용히 깨진다.

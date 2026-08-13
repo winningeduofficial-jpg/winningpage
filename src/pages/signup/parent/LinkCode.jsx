@@ -16,9 +16,9 @@ import { useNavigate } from "react-router-dom";
 import {
   AuthLayout,
   AuthTitle,
-  TextField,
-  PrimaryButton,
   ChildPreviewCard,
+  PrimaryButton,
+  TextField,
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";
 import {

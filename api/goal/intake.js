@@ -32,11 +32,11 @@
 // 오버라이드 규칙을 이 파일에 베껴 쓰면 두 벌이 갈린다(buildWeeklySchedule 주석 참고).
 
 import {
-  GRADE_PERCENTILE,
   buildInitialStudentState,
+  calcAvailableHoursApprox,
   calcJeongsiCompositeFE,
   calculateWeekSchedule,
-  calcAvailableHoursApprox,
+  GRADE_PERCENTILE,
   getRemainingMogo,
   getSchoolCutType,
   kstYMD,
@@ -44,13 +44,13 @@ import {
 } from "../../src/lib/goal/calc/index.js";
 
 import {
-  PAID_MESSAGE,
   appendProbabilityLog,
   buildStudentPayload,
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTargetCuts,
   openGoalSession,
+  PAID_MESSAGE,
   upsertStudentRow,
 } from "../_lib/goalRepo.js";
 

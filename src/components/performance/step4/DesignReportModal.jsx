@@ -1,10 +1,10 @@
-import SectionedReportView, {
-  getVisibleSections,
-} from "../report/SectionedReportView";
 import PerformanceReportSurface from "../report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
 } from "../report/ReportModalShell";
+import SectionedReportView, {
+  getVisibleSections,
+} from "../report/SectionedReportView";
 
 // STEP4 설계 리포트 전체보기 모달 — docs/수행평가-상세-명세.md §5.13(`3754:4722` 실측) /
 // §10.2 P10 「대형 모달, PDF/인쇄(`@media print`)」.

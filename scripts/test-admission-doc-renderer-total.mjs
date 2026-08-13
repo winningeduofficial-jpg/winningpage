@@ -12,16 +12,16 @@
 // 종료 코드: 전부 통과하면 0, 하나라도 실패하면 1.
 // =====================================================================
 
-import {
-  renderDocToHtml,
-  buildRawSectionHtml,
-  buildRawSectionDoc,
-  buildSpecialCategoryDoc,
-} from "../src/lib/admissionParsing.js";
-import { validateAdmissionDoc } from "../src/lib/admissionDoc.js";
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
 };
+import { validateAdmissionDoc } from "../src/lib/admissionDoc.js";
+import {
+  buildRawSectionDoc,
+  buildRawSectionHtml,
+  buildSpecialCategoryDoc,
+  renderDocToHtml,
+} from "../src/lib/admissionParsing.js";
 
 const SECTION_KEYS = [
   "previous_year_changes",

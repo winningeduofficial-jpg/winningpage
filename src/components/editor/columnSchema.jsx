@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from "react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
+import { useCallback, useRef, useState } from "react";
 
 export const CALLOUT_DEFAULT_ICON = "💡";
 

@@ -1,11 +1,11 @@
-import { memo, useCallback, useId, useMemo, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import CharCounter from "./CharCounter";
+import { memo, useCallback, useId, useMemo, useRef } from "react";
 import {
-  SUBMISSION_MIN_CHARS,
   checkFieldsMinLength,
   countFieldChars,
+  SUBMISSION_MIN_CHARS,
 } from "../../../lib/performance/submission";
+import CharCounter from "./CharCounter";
 
 // STEP5 수행평가 제출폼 — docs/수행평가-상세-명세.md §5.14(`3754:3992` 빈 상태 /
 // `3754:4119` 작성 완료) / §6.1 컴포넌트 표(props `schema`·`value`·`onChange`·

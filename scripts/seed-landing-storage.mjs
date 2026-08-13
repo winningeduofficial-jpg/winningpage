@@ -22,13 +22,13 @@
 //   - DDL·시드 SQL은 이 스크립트가 다루지 않음 (sql/30_landing_admin_media.sql 참고).
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
-import { readdir, readFile, writeFile, stat } from "node:fs/promises";
-import { createInterface } from "node:readline/promises";
-import { parseArgs } from "node:util";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------
 // 멘토 한글 파일명 → Storage 키 슬러그 매핑 (photos/cards 공용, 22명)

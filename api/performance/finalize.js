@@ -71,13 +71,13 @@
 // 실패하면 `nextSessionId:null`로 돌려주고 클라이언트가 `POST /api/performance/session`
 // 으로 이어가면 된다(아래 「실패 경로별 잔여 상태」).
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { resolveSessionSubmissionSchema } from "../_lib/performance/submission-schema.js";
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { resolveSessionSubmissionSchema } from "../_lib/performance/submission-schema.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

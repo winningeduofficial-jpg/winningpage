@@ -7,12 +7,13 @@
 // 라벨을 필수 필드와 다르게 그렸다고 기록돼 있으나 색 값 자체가 명세에 없다 — 필수 표시 `*`
 // (accent #0B84FD)의 유무가 그대로 그 차이라고 보고 `required` 를 빼는 것으로만 구현했다.
 // 별도 라벨 색이 확정되면 MentorFieldShell 에 optional 표기 슬롯을 여는 쪽이 맞다.
-import MentorTextField, { MentorFieldShell } from "./MentorTextField";
-import ChipGroup from "./ChipGroup";
-import FormSectionCard from "./FormSectionCard";
-import FormFieldRow from "./FormFieldRow";
+
 import { FORM_SECTIONS, HIGHSCHOOL_TYPE_OPTIONS } from "../../data/mentorApply";
 import { isWithinMaxLength } from "../../lib/validators";
+import ChipGroup from "./ChipGroup";
+import FormFieldRow from "./FormFieldRow";
+import FormSectionCard from "./FormSectionCard";
+import MentorTextField, { MentorFieldShell } from "./MentorTextField";
 
 export const HIGHSCHOOL_SECTION_ID = "mentor-form-section-3";
 

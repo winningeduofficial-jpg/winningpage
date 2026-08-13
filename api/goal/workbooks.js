@@ -12,7 +12,6 @@
 // src/components/goal/subjectTokens.js가 프론트에서 담당한다.
 
 import {
-  PAID_MESSAGE,
   buildWorkbookPayload,
   computeWorkbookStatus,
   deleteWorkbookOwned,
@@ -20,6 +19,7 @@ import {
   fetchWorkbooks,
   insertWorkbook,
   openGoalSession,
+  PAID_MESSAGE,
   updateWorkbookOwned,
 } from "../_lib/goalRepo.js";
 

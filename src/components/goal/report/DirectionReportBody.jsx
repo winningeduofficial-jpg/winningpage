@@ -1,7 +1,7 @@
 import GoalPageHeader from "../GoalPageHeader";
 import GoalTabs from "../GoalTabs";
-import PeriodChipRow from "./PeriodChipRow";
 import DirectionSummaryBanner from "./DirectionSummaryBanner";
+import PeriodChipRow from "./PeriodChipRow";
 import SubjectDirectionCard from "./SubjectDirectionCard";
 
 const TAB_OPTIONS = [

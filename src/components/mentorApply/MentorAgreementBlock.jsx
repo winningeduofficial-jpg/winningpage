@@ -16,8 +16,9 @@
 // `내용보기` 는 모달이 아니라 풀페이지 라우트 이동이다(명세 확인 항목 30에서 라우트로 확정 —
 // 근거: Figma 주석 노드 2393:6156 + AgreementRow 의 기존 `<Link to>` 관례). `to` 는
 // MENTOR_AGREEMENTS 가 /terms/student/* 로 이미 매핑해 둔 기존 라우트를 가리킨다.
-import { useEffect, useState } from "react";
+
 import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AGREEMENT_COPY } from "../../data/mentorApply";
 

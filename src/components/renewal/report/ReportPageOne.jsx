@@ -1,8 +1,8 @@
-import ReportSheetA4 from "./ReportSheetA4";
+import PriorityTable from "./PriorityTable";
 import RadarChart6 from "./RadarChart6";
+import ReportSheetA4 from "./ReportSheetA4";
 import StudentInfoBlock from "./StudentInfoBlock";
 import SummaryCards from "./SummaryCards";
-import PriorityTable from "./PriorityTable";
 import TraitNarratives from "./TraitNarratives";
 
 // 결과 리포트 1페이지(A4-3) — 헤드라인+레이더 / 학생 기본정보 / 주요 학습 특성 섹션

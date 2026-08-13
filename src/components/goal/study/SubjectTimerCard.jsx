@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Pencil } from "lucide-react";
+import { useState } from "react";
 import GoalProgressBar from "../GoalProgressBar";
 import { getSubjectStrongClass } from "../subjectTokens";
 

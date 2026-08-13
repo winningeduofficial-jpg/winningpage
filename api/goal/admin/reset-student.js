@@ -27,8 +27,8 @@
 // goal-admin 앱의 리셋 버튼 UI는 이번 범위 밖이다(PR #63, 이 브랜치엔 미포함) —
 // 이 엔드포인트는 백엔드만 완성한다.
 
-import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
 import { resolveWinningAdmin } from "../../_lib/adminAuth.js";
+import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 

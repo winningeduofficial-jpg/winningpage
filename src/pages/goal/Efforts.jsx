@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
 import AddWorkbookModal from "../../components/goal/modals/AddWorkbookModal";
+import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
 import {
   createGoalWorkbook,
   fetchGoalWorkbooks,

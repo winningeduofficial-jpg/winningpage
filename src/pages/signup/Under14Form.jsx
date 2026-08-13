@@ -7,20 +7,21 @@
 //  - "학부모 정보 (필수)" 섹션 추가(전화번호 + 수집 안내 + 법정대리인 동의 체크).
 // 약관 동의 항목은 D-2 전용 차이가 스펙에 기록돼 있지 않아 C-1(학생 6항목 중 필수3/선택2 —
 // 7825 정본 채택분)과 동일 구성으로 채택한다.
+
+import { Check } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
 import {
+  AgreementList,
   AuthLayout,
   AuthTitle,
-  TextField,
-  SelectField,
-  PrimaryButton,
   InfoCard,
-  AgreementList,
+  PrimaryButton,
+  SelectField,
+  TextField,
 } from "../../components/auth";
 import { useSignup } from "../../context/SignupContext";
-import { supabase } from "../../lib/supabase";
+import { useCooldown } from "../../hooks/useCooldown";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
@@ -28,7 +29,7 @@ import {
   sendSignupEmailCode,
   verifySignupEmailCode,
 } from "../../lib/signupEmailAuth";
-import { useCooldown } from "../../hooks/useCooldown";
+import { supabase } from "../../lib/supabase";
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
 import { REGION_OPTIONS } from "./StudentForm";

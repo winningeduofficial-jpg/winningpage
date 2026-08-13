@@ -36,12 +36,12 @@
 //    "객체는 지웠는데 행이 남은" 상태이고, 그 행은 pending이라 24시간 스윕이
 //    정리한다(remove는 이미 없는 객체에 대해 에러가 아니다).
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { BUCKET } from "./upload-url.js";
 
 const SERVICE_KEY = "suhaeng";

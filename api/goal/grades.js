@@ -48,9 +48,9 @@
 // 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
 
 import {
-  PAID_MESSAGE,
   fetchStudentRow,
   openGoalSession,
+  PAID_MESSAGE,
   updateStudentGrades,
 } from "../_lib/goalRepo.js";
 
@@ -222,12 +222,10 @@ async function handlePost(req, res, session) {
 
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row) {
-    return res
-      .status(404)
-      .json({
-        detail: "온보딩을 먼저 완료해 주세요.",
-        reason: "not_onboarded",
-      });
+    return res.status(404).json({
+      detail: "온보딩을 먼저 완료해 주세요.",
+      reason: "not_onboarded",
+    });
   }
 
   const record = validated.record;

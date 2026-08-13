@@ -7,8 +7,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   AuthLayout,
   AuthTitle,
-  TextField,
   OutlineButton,
+  TextField,
   TextLinkButton,
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";

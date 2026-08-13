@@ -35,11 +35,11 @@
 //     미승인 주문이 웹훅 경로로 결제완료 처리되는 것을 막는다(sql/68
 //     orders_approval_before_payment_check 의 API 층 선반영).
 
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 import {
   grantProgramAccessForOrder,
   revokeProgramAccessForOrder,
 } from "./_lib/programAccess.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
 const TOSS_PAYMENT_BY_ORDER_URL =
   "https://api.tosspayments.com/v1/payments/orders";
@@ -97,10 +97,7 @@ function isPermanentDbError(error) {
 // 멱등 재응답(raw.status/raw.secret)뿐이라 키 추가가 기존 리더를 깨지 않는다.
 // 성공 시에는 이전 실패 흔적을 지운다(같은 주문이 복구됐다는 사실도 정보다).
 async function recordGrantOutcome(supabaseAdmin, { orderId, raw, access }) {
-  const had = Object.prototype.hasOwnProperty.call(
-    raw || {},
-    "access_grant_error",
-  );
+  const had = Object.hasOwn(raw || {}, "access_grant_error");
   if (access.ok && !had) return;
 
   const nextRaw = { ...(raw || {}) };
@@ -167,13 +164,11 @@ export default async function handler(req, res) {
           orderId,
           selectError,
         );
-        return res
-          .status(200)
-          .json({
-            ignored: true,
-            reason: "permanent_db_error",
-            code: selectError.code,
-          });
+        return res.status(200).json({
+          ignored: true,
+          reason: "permanent_db_error",
+          code: selectError.code,
+        });
       }
       throw selectError;
     }
@@ -286,13 +281,11 @@ export default async function handler(req, res) {
             orderId,
             finalizeError,
           );
-          return res
-            .status(200)
-            .json({
-              ignored: true,
-              reason: "permanent_db_error",
-              code: finalizeError.code,
-            });
+          return res.status(200).json({
+            ignored: true,
+            reason: "permanent_db_error",
+            code: finalizeError.code,
+          });
         }
         throw finalizeError;
       }
@@ -344,13 +337,11 @@ export default async function handler(req, res) {
               orderId,
               updateError,
             );
-            return res
-              .status(200)
-              .json({
-                ignored: true,
-                reason: "permanent_db_error",
-                code: updateError.code,
-              });
+            return res.status(200).json({
+              ignored: true,
+              reason: "permanent_db_error",
+              code: updateError.code,
+            });
           }
           throw updateError;
         }

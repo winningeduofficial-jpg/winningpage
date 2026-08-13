@@ -32,22 +32,21 @@
 //   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
 import process from "node:process";
-
-import {
-  renderDocToHtml,
-  HWP_SECTION_HTML_KEYS,
-  clean,
-} from "../src/lib/admissionParsing.js";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 import { HWP_SECTION_JSON_KEYS } from "../src/lib/admissionDoc.js";
 // compareStoredHtmlEquivalence는 2026-08-06 src/lib/admissionHtmlImport.js로
 // 이동했다(위치만 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에
 // 있었다.
 import { compareStoredHtmlEquivalence } from "../src/lib/admissionHtmlImport.js";
+import {
+  clean,
+  HWP_SECTION_HTML_KEYS,
+  renderDocToHtml,
+} from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =

@@ -22,21 +22,21 @@
 // (메모리) → 경로 생성 → createSignedUploadUrl(외부 API 호출).
 
 import crypto from "crypto";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
   getClientIp,
   isValidMobile,
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
   ALLOWED_FILE_TYPES,
   BUCKET,
+  clean,
+  findValidPhoneVerification,
   MAX_FILE_BYTES,
   MAX_FILE_MB_LABEL,
   NEUTRAL_MIME_TYPES,
-  clean,
-  findValidPhoneVerification,
 } from "./mentor-apply.js";
 
 // api/mentor-apply.js 와 같은 이유로 nodejs 런타임을 쓴다(형제 파일과 일관성).

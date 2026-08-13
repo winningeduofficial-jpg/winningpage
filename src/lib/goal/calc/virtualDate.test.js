@@ -11,20 +11,20 @@
 //   (getRecordDateFromActualStart 는 DST 타임존에서 결과가 달라질 수 있어 —
 //    모듈의 NOTE(target-parity) 참고 — 전환 구간을 넘는 입력은 픽스처에서 제외했다.)
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
-  toYMD,
-  kstYMD,
-  getRecordDateFromActualStart,
-  getDayIndexFromYMDServer,
   addDaysYMD,
-  getMondayYMD,
+  getDayIndexFromYMDServer,
   getFirstSundayYMD,
-  isMiniStartDay,
-  getWeeklyReportRange,
+  getMondayYMD,
+  getRecordDateFromActualStart,
   getRegularWeekIndexFromSundayCount,
+  getWeeklyReportRange,
+  isMiniStartDay,
+  kstYMD,
+  toYMD,
 } from "./virtualDate.js";
 
 // 결과가 { value } | { nan } | { throws } 중 무엇이든 동일하게 검증하는 헬퍼

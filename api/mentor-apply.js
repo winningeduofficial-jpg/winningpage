@@ -119,13 +119,13 @@
 // 객체를 지운다. cron(Vercel Cron 또는 Supabase Edge Function)으로 하루 1회면
 // 충분한 규모다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
   getClientIp,
   isValidMobile,
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 // service_role 클라이언트·타이밍에 민감한 인증 소비 로직 등 Node 전용 API 를 쓰는
 // 이 저장소 api/* 형제 파일들과 런타임을 맞춘다.
@@ -581,7 +581,6 @@ function validateFields(body) {
       }
 
       values[spec.key] = picked;
-      continue;
     }
   }
 

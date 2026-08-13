@@ -17,37 +17,6 @@
  * AdmissionSection 은 admission 을 무조건 구조분해하고 rows.map 을 돌기 때문에 null 이면 흰 화면이 된다.
  */
 
-// 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
-import {
-  admissionBand,
-  admissionRows,
-  classifyStudentType,
-  convertToNineScale,
-  detectEmotionalSignal,
-  levelOf,
-  overallScore,
-  priorityBadges,
-  // 함수명과 출력 키(admission.probabilityRangeLabel = 라벨 문자열)가 헷갈리지 않게 별칭을 준다.
-  probabilityRangeLabel as toProbabilityRange,
-  rankServices,
-  scoreAreas,
-  sincerityOf,
-  sortByScoreAsc,
-  stateOf,
-  successProbability,
-  targetGap,
-  toneOf,
-  urgencyOf,
-} from "./diagnosisScoring.js";
-import {
-  areaCopy,
-  commonCopy,
-  fill,
-  levelCopy,
-  narrativeCopy,
-  serviceCopy,
-  templateCopy,
-} from "./diagnosisCopyBinding.js";
 import {
   ADMISSION_BAND_COPY,
   ADMISSION_BAND_LABEL,
@@ -70,6 +39,37 @@ import {
   URGENCY_LEVEL_LABEL,
 } from "../data/diagnosisScoringTable.js";
 import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+import {
+  areaCopy,
+  commonCopy,
+  fill,
+  levelCopy,
+  narrativeCopy,
+  serviceCopy,
+  templateCopy,
+} from "./diagnosisCopyBinding.js";
+// 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
+import {
+  admissionBand,
+  admissionRows,
+  classifyStudentType,
+  convertToNineScale,
+  detectEmotionalSignal,
+  levelOf,
+  overallScore,
+  priorityBadges,
+  rankServices,
+  scoreAreas,
+  sincerityOf,
+  sortByScoreAsc,
+  stateOf,
+  successProbability,
+  targetGap,
+  toneOf,
+  // 함수명과 출력 키(admission.probabilityRangeLabel = 라벨 문자열)가 헷갈리지 않게 별칭을 준다.
+  probabilityRangeLabel as toProbabilityRange,
+  urgencyOf,
+} from "./diagnosisScoring.js";
 
 /* ================================================================== *
  * 0. 이 파일이 소유하는 최소 상수

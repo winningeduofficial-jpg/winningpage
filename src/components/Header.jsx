@@ -1,10 +1,7 @@
+import { ChevronDown, Menu, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Menu, Settings } from "lucide-react";
-import { supabase } from "../lib/supabase";
-import { buildMyMenu } from "./myMenuItems";
-import MobileNavDrawer from "./MobileNavDrawer";
-import { cleanText, isSameObject, useNavGroups } from "../hooks/useNavGroups";
+import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
 import {
   MEGA_COL_GAP,
   MEGA_COL_W,
@@ -13,7 +10,10 @@ import {
   NAV_CELL_W,
   NAV_GUARD,
 } from "../data/navigation";
-import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
+import { cleanText, isSameObject, useNavGroups } from "../hooks/useNavGroups";
+import { supabase } from "../lib/supabase";
+import MobileNavDrawer from "./MobileNavDrawer";
+import { buildMyMenu } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";

@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import WeekdayPlanBoard from "../../components/goal/plan/WeekdayPlanBoard";
-import AddTaskModal from "../../components/goal/modals/AddTaskModal";
+import { useCallback, useEffect, useState } from "react";
 import GoalCard from "../../components/goal/GoalCard";
+import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import AddTaskModal from "../../components/goal/modals/AddTaskModal";
+import WeekdayPlanBoard from "../../components/goal/plan/WeekdayPlanBoard";
 import { createGoalPlanTask, fetchGoalPlanTasks } from "../../lib/goalApi";
 import {
-  WEEKDAY_LABELS,
   durationLabelToMinutes,
   formatWeekRangeLabel,
   getTodayShortKeyInWeek,
   getWeekDates,
+  WEEKDAY_LABELS,
 } from "../../lib/goalPlanUtils";
 
 // 주간 학습 계획표(#27 빈 / #29 채움) — docs/figma-goal/part-09.md·part-10.md.

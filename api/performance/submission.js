@@ -65,22 +65,22 @@
 //    평가 프롬프트에 그대로 실린다(토큰 비용). §9.2 「과금과 남용 방지를 분리한다」에
 //    따라 회차가 아니라 상한으로 막는다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import {
-  SERVICE_CONFIGS,
-  getBearerToken,
-  hasPaidServiceAccess,
-} from "../_lib/serviceAccess.js";
-import {
-  SUBMISSION_MIN_CHARS,
-  checkSubmissionMinLength,
-  countSubmissionChars,
-  resolveSessionSubmissionSchema,
-} from "../_lib/performance/submission-schema.js";
 import {
   EMPTY_SUBMISSION_MESSAGE,
   SUBMISSION_TOO_SHORT_MESSAGE,
 } from "../_lib/performance/prompts.js";
+import {
+  checkSubmissionMinLength,
+  countSubmissionChars,
+  resolveSessionSubmissionSchema,
+  SUBMISSION_MIN_CHARS,
+} from "../_lib/performance/submission-schema.js";
+import {
+  getBearerToken,
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

@@ -121,7 +121,7 @@ export function getTimeFactorPercentile(
   if (remainExams == null || totalExams <= 0) return 1;
 
   const ratio = remainExams / totalExams;
-  const p = Math.pow(ratio, 0.8);
+  const p = ratio ** 0.8;
 
   // NOTE(target-parity): ratio 에 상한이 없어 remainExams > totalExams 이면 계수가 1 을 넘는다
   // (예: 20/14 → 약 1.165). 또 ratio 가 음수면 Math.pow(음수, 0.8) 가 NaN 이라 계수도 NaN 이

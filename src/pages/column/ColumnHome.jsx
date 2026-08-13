@@ -1,8 +1,8 @@
+import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
-import ColumnCard from "../../components/column/ColumnCard";
 import CategoryChips from "../../components/column/CategoryChips";
+import ColumnCard from "../../components/column/ColumnCard";
 import {
   ALL_CATEGORY,
   fetchActiveColumns,

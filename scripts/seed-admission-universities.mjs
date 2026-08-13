@@ -19,12 +19,12 @@
 //   - --dry-run 이면 파싱 결과 개수·샘플만 출력하고 DB에 쓰지 않음.
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
-import { parseArgs } from "node:util";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");

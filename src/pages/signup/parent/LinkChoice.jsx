@@ -6,6 +6,8 @@
 // mode='add'(E-5, 이미 자녀 연결 후 추가 연결) — 건너뛰기 → 사이트 홈('/'), 플로우 종료로 보고
 // resetSignup() 호출.
 // icon: Figma 일러스트 에셋 미제공(§6.2) — lucide-react 아이콘 placeholder.
+
+import { UserCheck, UserPlus } from "lucide-react";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -15,7 +17,6 @@ import {
   TextLinkButton,
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";
-import { UserCheck, UserPlus } from "lucide-react";
 
 export default function LinkChoice({ mode = "initial" }) {
   const navigate = useNavigate();

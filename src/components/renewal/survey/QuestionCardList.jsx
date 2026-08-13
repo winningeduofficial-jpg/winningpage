@@ -1,11 +1,11 @@
-import QuestionCard from "./QuestionCard";
-import AnswerField from "./AnswerField";
-import EmbeddedField from "./EmbeddedField";
-import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
 import {
   GRADE_SYSTEM_INPUT_RULES,
   getOptionCode,
 } from "../../../data/renewalSurveyQuestions";
+import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
+import AnswerField from "./AnswerField";
+import EmbeddedField from "./EmbeddedField";
+import QuestionCard from "./QuestionCard";
 
 /**
  * 카드 스택 gap 40. 스텝 페이지는 getStepQuestions(step) 결과를,

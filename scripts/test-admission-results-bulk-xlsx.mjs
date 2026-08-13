@@ -15,12 +15,12 @@ import * as XLSX from "xlsx";
 
 import {
   BULK_XLSX_COLUMNS,
-  MAIN_TRACK_OPTIONS,
-  SCREENING_CATEGORY_OPTIONS,
-  RESULT_YEAR_OPTIONS,
-  TRUNCATION_MARKER,
   exportAdmissionResultRowsToXlsx,
+  MAIN_TRACK_OPTIONS,
   parseAdmissionResultRowsFromXlsx,
+  RESULT_YEAR_OPTIONS,
+  SCREENING_CATEGORY_OPTIONS,
+  TRUNCATION_MARKER,
 } from "../src/lib/admissionResultsBulkXlsx.js";
 
 let failCount = 0;

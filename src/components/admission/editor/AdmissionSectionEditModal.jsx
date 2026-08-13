@@ -1,6 +1,6 @@
+import AdmissionSurface from "../AdmissionSurface";
 import AdmissionModalShell from "../modal/AdmissionModalShell";
 import AdmissionModalStyles from "../modal/AdmissionModalStyles";
-import AdmissionSurface from "../AdmissionSurface";
 import AdmissionEditorSurface from "./AdmissionEditorSurface";
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.

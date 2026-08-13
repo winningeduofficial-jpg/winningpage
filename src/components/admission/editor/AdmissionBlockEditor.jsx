@@ -1,11 +1,11 @@
-import TableBlockEditor from "./TableBlockEditor";
-import NoteBlockEditor from "./blocks/NoteBlockEditor";
 import EmptyBoxBlockEditor from "./blocks/EmptyBoxBlockEditor";
-import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
-import PreTextBlockEditor from "./blocks/PreTextBlockEditor";
-import PlainListBlockEditor from "./blocks/PlainListBlockEditor";
 import FootnoteBlockEditor from "./blocks/FootnoteBlockEditor";
 import GroupBlockEditor from "./blocks/GroupBlockEditor";
+import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
+import NoteBlockEditor from "./blocks/NoteBlockEditor";
+import PlainListBlockEditor from "./blocks/PlainListBlockEditor";
+import PreTextBlockEditor from "./blocks/PreTextBlockEditor";
+import TableBlockEditor from "./TableBlockEditor";
 
 // Block.kind 디스패처(편집판). AdmissionSectionView/blocks/renderBlock.jsx
 // (표시판)와 나란한 구조지만 재사용하지 않는다 — 표시판은 Gate B 바이트

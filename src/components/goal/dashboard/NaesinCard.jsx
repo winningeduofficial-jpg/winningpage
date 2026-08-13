@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { addGoalGrade } from "../../../lib/goalApi";
 import GoalCard from "../GoalCard";
 import GoalCardHeader from "../GoalCardHeader";
 import GoalStatChip from "../GoalStatChip";
 import AddNaesinGradeModal from "../modals/AddNaesinGradeModal";
-import { addGoalGrade } from "../../../lib/goalApi";
 
 // "내신" 카드(530×364, part-07 #20 정본 기준) — 모의고사 카드와 짝을 이루는 2열 레이아웃.
 // mockAdvice.naesin에는 dday 필드가 남아 있으나(mockExam과 동일 스키마를 재사용한 흔적) #20

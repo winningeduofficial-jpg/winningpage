@@ -20,14 +20,14 @@
 //   같은 구멍이며, 가입 RPC에서 identity_verifications를 consume 하도록
 //   함께 막아야 한다.
 
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
-import { getClientIp } from "./_lib/phoneCode.js";
 import {
-  REQUEST_TTL_SECONDS,
-  SVC_TYPE_MOBILE,
   generateRequestNo,
   issueAuthUrl,
+  REQUEST_TTL_SECONDS,
+  SVC_TYPE_MOBILE,
 } from "./_lib/niceIdentity.js";
+import { getClientIp } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };

@@ -37,11 +37,11 @@
 //   않고 명확한 에러 메시지와 함께 즉시 종료한다.
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile, writeFile } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
@@ -49,9 +49,9 @@ import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
 import {
   buildRawSectionHtml,
   buildSmartRawHtml,
-  looksLikeHtml,
-  HWP_SECTION_HTML_KEYS,
   clean,
+  HWP_SECTION_HTML_KEYS,
+  looksLikeHtml,
 } from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";

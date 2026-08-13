@@ -16,9 +16,10 @@
 //   본인확인을 받을 파라미터가 없어서 identity_verifications.consumed_at을 찍는 주체가
 //   없다. 그래서 지금은 "인증했다"는 사실이 컨텍스트에만 남고 서버가 가입 시점에
 //   재확인하지는 못한다. 휴대폰 인증과 같은 구멍이며 둘을 함께 막아야 한다.
+
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
 import {
   AuthLayout,
   AuthTitle,

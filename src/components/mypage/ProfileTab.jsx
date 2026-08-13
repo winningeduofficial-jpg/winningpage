@@ -3,16 +3,17 @@
 //
 // 레이아웃·필드 라벨·순서는 team-lead가 전달한 시안 PNG(profile-20170.png, 3762:20170)를
 // 직접 판독해 반영했다. 정확한 여백·폰트 스케일까지 픽셀 재현하지는 않았다(러프 구현 지시).
+
+import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import ProfileField from "./ProfileField";
-import ToggleRow from "./ToggleRow";
-import WithdrawModal from "./WithdrawModal";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
+import ProfileField from "./ProfileField";
+import ToggleRow from "./ToggleRow";
+import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 

@@ -1,5 +1,5 @@
-import { templateCopy } from "../../../lib/diagnosisCopyBinding";
 import { SCREEN_EXTRAS } from "../../../data/diagnosisScreenCopy";
+import { templateCopy } from "../../../lib/diagnosisCopyBinding";
 
 /**
  * 화면 전용 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.

@@ -55,18 +55,17 @@
 //    회차를 태우는 프롬프트를 클라이언트가 조작할 수 있었다. 여기서 바디로 받는 것은
 //    `sessionId`와 `round`뿐이고 나머지는 전부 세션 행에서 읽는다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import {
-  SERVICE_CONFIGS,
-  findProgramAccessRow,
-  getBearerToken,
-  hasPaidServiceAccess,
-  readQuotaSnapshot,
-} from "../_lib/serviceAccess.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
 } from "../_lib/performance/gemini.js";
+import {
+  formatRelevantStudentSessionsForPrompt,
+  loadDynamicAssessmentKnowledge,
+  loadRelevantStudentSessions,
+  STUDENT_HISTORY_PROMPT_LIMIT,
+  TOPIC_MAX_CHARS,
+} from "../_lib/performance/knowledge.js";
 import {
   buildTopicExclusionBlock,
   buildTopicRecommendationSystem,
@@ -79,12 +78,13 @@ import {
   TOPIC_RECOMMENDATION_SCHEMA,
 } from "../_lib/performance/prompts.js";
 import {
-  formatRelevantStudentSessionsForPrompt,
-  loadDynamicAssessmentKnowledge,
-  loadRelevantStudentSessions,
-  STUDENT_HISTORY_PROMPT_LIMIT,
-  TOPIC_MAX_CHARS,
-} from "../_lib/performance/knowledge.js";
+  findProgramAccessRow,
+  getBearerToken,
+  hasPaidServiceAccess,
+  readQuotaSnapshot,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

@@ -26,7 +26,6 @@
 //   405 { detail }        POST 아님.
 //   500 { detail }        임베딩 실패, 서버 설정 누락 등.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { resolveAdmin } from "../_lib/adminAuth.js";
 import {
   buildKnowledgeSearchText,
@@ -34,6 +33,7 @@ import {
   getEmbeddingDimension,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 
@@ -309,20 +309,16 @@ export default async function handler(req, res) {
         force: forceFlag,
       });
 
-      return res
-        .status(200)
-        .json({
-          action,
-          embedding_dimension: getEmbeddingDimension(),
-          ...result,
-        });
+      return res.status(200).json({
+        action,
+        embedding_dimension: getEmbeddingDimension(),
+        ...result,
+      });
     }
 
-    return res
-      .status(400)
-      .json({
-        detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'.",
-      });
+    return res.status(400).json({
+      detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'.",
+    });
   } catch (error) {
     console.error("admin-embed error:", error);
     return res.status(500).json({ detail: errorMessage(error) });

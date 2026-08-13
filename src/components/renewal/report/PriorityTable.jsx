@@ -1,5 +1,5 @@
-import StatusBadge from "./StatusBadge";
 import ScoreBar from "./ScoreBar";
+import StatusBadge from "./StatusBadge";
 
 // 우선순위 표 6행 — 뱃지 / 영역 / 현재·목표 수준 게이지 / 현재 상태 / 필요한 것.
 // rows = [...data.learningAxes].sort((a, b) => a.score - b.score) (ReportPageOne 소유).

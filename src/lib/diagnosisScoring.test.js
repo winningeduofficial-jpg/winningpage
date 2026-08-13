@@ -11,17 +11,16 @@
 // 실행: cd <repo> && node --test src/lib/diagnosisScoring.test.js
 //   (또는 npm run test:diagnosis)
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
-
-import {
-  roundHalfUp,
-  levelOf,
-  stateOf,
-  sortByScoreAsc,
-  admissionBand,
-} from "./diagnosisScoring.js";
+import { test } from "node:test";
 import { PAGE1_AREAS } from "../data/diagnosisScoringTable.js";
+import {
+  admissionBand,
+  levelOf,
+  roundHalfUp,
+  sortByScoreAsc,
+  stateOf,
+} from "./diagnosisScoring.js";
 
 // ── 1. sortByScoreAsc 동점 타이브레이크 ─────────────────────────────
 // 규칙(§4.2.1): 점수 오름차순, 동점이면 areas 배열의 인덱스 순으로 가른다.

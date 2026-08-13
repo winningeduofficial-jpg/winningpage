@@ -33,8 +33,9 @@
 // 뷰로 바뀌면서 인풋이 이름을 잃는 문제가 있었다 — 뷰 상태와 무관하게 항상 켜져 있는
 // `aria-label` 을 인풋에 직접 달아 해결한다(accname 우선순위상 aria-label 이 label
 // 연결보다 앞서므로 두 뷰에서 이름이 갈리지 않는다).
-import { useRef, useState } from "react";
+
 import { CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
 
 // 시안 보조 문구(§폼 명세 5-1)는 원래 "100MB 이하"였으나, Supabase 전역 업로드
 // 상한 실측(50MB, 파일 상단 ⚠️ 참고)에 맞춰 사용자 승인 하에 50MB 로 정정했다.

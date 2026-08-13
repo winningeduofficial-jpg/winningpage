@@ -48,13 +48,13 @@
 // external 로 남겨 React 인스턴스 중복을 피한다.
 // =====================================================================
 
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
 
 const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const PAGE_REL = "src/pages/AdmissionGuidelines.jsx";

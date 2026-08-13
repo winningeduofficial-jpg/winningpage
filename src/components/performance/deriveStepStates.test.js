@@ -6,8 +6,8 @@
 // (디렉터리 인자를 주면 Node 24가 index.js로 오인해 0건 통과하는 가짜 green이 난다):
 //   node --test "src/components/performance/*.test.js"
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { deriveStepStates } from "./deriveStepStates.js";
 
 test("deriveStepStates - 기본값(인자 없음)은 5스텝 전부 todo", () => {

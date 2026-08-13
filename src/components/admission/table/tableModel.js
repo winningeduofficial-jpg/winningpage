@@ -27,16 +27,16 @@
 // 최적화를 하지 말고, 반대로 현행이 안 찍는 자리에 1을 채워 넣지도 말 것.
 
 import {
-  getTableVariantLayout,
-  SELECTION_CELL_CLASS_BY_ROLE,
-  selectionEmptyFallback,
   CHANGE_CELL_CLASS_BY_ROLE,
   CHANGE_EMPTY_FALLBACK_BY_ROLE,
-  RECRUIT_FIXED_CELL_CLASS_BY_ROLE,
-  recruitFixedEmptyFallback,
-  recruitExactFixedCellClassName,
-  isGenericLeftColumn,
   getCellKind,
+  getTableVariantLayout,
+  isGenericLeftColumn,
+  RECRUIT_FIXED_CELL_CLASS_BY_ROLE,
+  recruitExactFixedCellClassName,
+  recruitFixedEmptyFallback,
+  SELECTION_CELL_CLASS_BY_ROLE,
+  selectionEmptyFallback,
 } from "../admissionLayout";
 import { resolveCellKind } from "../editor/tableEditorValidation";
 

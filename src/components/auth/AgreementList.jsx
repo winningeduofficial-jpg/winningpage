@@ -8,8 +8,9 @@
 // 반응 — staggered=false). batchAnimating 윈도우가 끝나면 자동으로 꺼져 이후 리렌더에는
 // 영향을 주지 않는다. 총 stagger 시간은 항목 수에 비례해 상한(§ 10개 500ms 규칙)을 넘지 않도록
 // 40ms/행으로 짧게 유지한다(AgreementRow.jsx의 auth-check-pop 참고).
-import { useEffect, useState } from "react";
+
 import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 import AgreementRow from "./AgreementRow";
 
 export default function AgreementList({

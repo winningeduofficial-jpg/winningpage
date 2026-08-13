@@ -1,8 +1,8 @@
 import { useMemberType } from "../hooks/useMemberType";
-import StudentEnrollmentRequest from "./checkout/StudentEnrollmentRequest";
-import ParentCheckout from "./checkout/ParentCheckout";
 import BlockedMemberNotice from "./checkout/BlockedMemberNotice";
 import MemberTypeRetryNotice from "./checkout/MemberTypeRetryNotice";
+import ParentCheckout from "./checkout/ParentCheckout";
+import StudentEnrollmentRequest from "./checkout/StudentEnrollmentRequest";
 
 // 리뷰 BLOCK 수정(2026-08-12) — /checkout(App.jsx:109, ProtectedRoute 안쪽)이
 // 이 파일을 그대로 렌더한다. 예전엔 이 파일 자체가 "장바구니 담아 바로 결제"

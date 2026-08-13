@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
+import { supabase } from "../lib/supabase";
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;

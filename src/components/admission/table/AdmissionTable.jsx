@@ -1,4 +1,4 @@
-import { describeTable, describeHeader, describeCell } from "./tableModel";
+import { describeCell, describeHeader, describeTable } from "./tableModel";
 import viewSlots from "./viewSlots";
 
 // 대입모집요강 표의 **유일한 골격**. <div>/<table>/<thead>/<tbody>/<tr>/<th>/<td>를

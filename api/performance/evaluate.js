@@ -84,19 +84,17 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4, §12.4가 `index.html:1769-1851`
 //   전량을 폐기로 지정). 이 파일의 유일한 파싱은 `JSON.parse` 한 줄이다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import {
-  SERVICE_CONFIGS,
-  findProgramAccessRow,
-  getBearerToken,
-  hasPaidServiceAccess,
-  readQuotaSnapshot,
-} from "../_lib/serviceAccess.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
 } from "../_lib/performance/gemini.js";
 import {
+  guideTextFromSession,
+  inferGuideStructure,
+} from "../_lib/performance/guide-structure.js";
+import {
+  buildEvaluationSystem,
+  buildEvaluationUser,
   EMPTY_SUBMISSION_MESSAGE,
   EVALUATION_GENERATION_DEFAULTS,
   EVALUATION_MAX_OUTPUT_TOKENS_RETRY,
@@ -106,24 +104,26 @@ import {
   EVALUATION_REPORT_SECTIONS,
   EVALUATION_TRIAD_ROW_LABELS,
   NO_PREVIOUS_TOPIC_TEXT,
-  SUBMISSION_TOO_SHORT_MESSAGE,
-  buildEvaluationSystem,
-  buildEvaluationUser,
   parseEvaluationScore,
+  SUBMISSION_TOO_SHORT_MESSAGE,
 } from "../_lib/performance/prompts.js";
 import {
-  guideTextFromSession,
-  inferGuideStructure,
-} from "../_lib/performance/guide-structure.js";
+  flattenReportSectionsToText,
+  upsertSessionVectorMetadata,
+} from "../_lib/performance/session-vectors.js";
 import {
   buildSubmissionText,
   checkSubmissionMinLength,
   resolveSessionSubmissionSchema,
 } from "../_lib/performance/submission-schema.js";
 import {
-  upsertSessionVectorMetadata,
-  flattenReportSectionsToText,
-} from "../_lib/performance/session-vectors.js";
+  findProgramAccessRow,
+  getBearerToken,
+  hasPaidServiceAccess,
+  readQuotaSnapshot,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

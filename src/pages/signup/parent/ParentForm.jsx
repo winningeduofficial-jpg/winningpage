@@ -17,23 +17,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AgreementList,
   AuthLayout,
   AuthTitle,
-  TextField,
   PrimaryButton,
-  AgreementList,
+  TextField,
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";
-import { supabase } from "../../../lib/supabase";
 import { useCooldown } from "../../../hooks/useCooldown";
-import {
-  EMAIL_RESEND_COOLDOWN_SECONDS,
-  EMAIL_STATE,
-  MESSAGES as EMAIL_MESSAGES,
-  applySignupPassword,
-  sendSignupEmailCode,
-  verifySignupEmailCode,
-} from "../../../lib/signupEmailAuth";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
@@ -41,6 +32,15 @@ import {
   sendPhoneCode,
   verifyPhoneCode,
 } from "../../../lib/phoneVerification";
+import {
+  applySignupPassword,
+  MESSAGES as EMAIL_MESSAGES,
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  EMAIL_STATE,
+  sendSignupEmailCode,
+  verifySignupEmailCode,
+} from "../../../lib/signupEmailAuth";
+import { supabase } from "../../../lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;

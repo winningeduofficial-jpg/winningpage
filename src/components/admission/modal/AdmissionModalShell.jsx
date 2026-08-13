@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 // 대학모집요강 모달의 공용 "껍데기".
 //

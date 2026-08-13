@@ -4,19 +4,19 @@
 // 이 파일도 같은 이유로 TZ 를 고정한다.
 process.env.TZ = "Asia/Seoul";
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
-  buildInitialStudentState,
   applyDailyRecord,
+  buildInitialStudentState,
   getConversionTypeForStudent,
-  isMiddleStudent,
   isElementaryStudent,
+  isMiddleStudent,
   isPreHighStudent,
 } from "./pipeline.js";
+import { applyPreHighGradePenalty, calcNaesinProb } from "./primitives.js";
 import { VIRTUAL_DAY_NAMES } from "./schedule.js";
-import { calcNaesinProb, applyPreHighGradePenalty } from "./primitives.js";
 
 // bonus.js:96-125 를 그대로 복제해 D-day 일수를 독립적으로 구한다(검증용 — 손계산이 아니라
 // 원본과 동일한 코드를 실행해서 기대값을 만든다). 고2 이하 학년의 오프셋만 옮겼다(이 파일에서

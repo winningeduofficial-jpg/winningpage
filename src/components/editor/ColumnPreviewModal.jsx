@@ -1,7 +1,7 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
-import ColumnBody, { getContentBlocks } from "../column/ColumnBody";
+import { useEffect } from "react";
 import { getCoverUrl } from "../../pages/column/columnData";
+import ColumnBody, { getContentBlocks } from "../column/ColumnBody";
 import { isEmptyDocument } from "./BlockEditor";
 
 // 온디맨드 스냅샷 렌더러 — 에디터 state를 구독하지 않는다.

@@ -39,8 +39,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
  */
 function resolveBoardTable(source) {
   if (BOARD_TABLE_NAMES.includes(source)) return source;
-  if (Object.prototype.hasOwnProperty.call(BOARD_SOURCES, source))
-    return BOARD_SOURCES[source];
+  if (Object.hasOwn(BOARD_SOURCES, source)) return BOARD_SOURCES[source];
   return null;
 }
 

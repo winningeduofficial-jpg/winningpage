@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import AdmissionBlockEditor from "./AdmissionBlockEditor";
-import { validateBlocks } from "./tableEditorValidation";
 import * as docOps from "./docBlockOperations";
+import { validateBlocks } from "./tableEditorValidation";
 
 // 블록 kind → 화면 표기 라벨. 헤더 배지("표 1" 등)와 추가 셀렉트 옵션이
 // 이 한 곳만 본다(2026-08-06 사용자 지적으로 헤더는 먼저 한글화됐는데

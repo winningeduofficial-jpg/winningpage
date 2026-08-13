@@ -3,7 +3,7 @@
 // 필수/선택 배지(필수 text-primary/선택 text-ink-sub — text-line은 대비 1.38:1로 판독 불가라 상향) →
 // 약관명 순, 우측 펼침 chevron(약관 페이지로
 // 링크 이동 — §3.3 F: "별도 풀페이지가 존재하므로 페이지 이동으로 추정" 채택).
-import { ChevronRight, Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AgreementRow({

@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// admissionResultsQueries.js(다른 세션 소유, recruitment_period 필터가 새 스키마에서 깨져 있다)를
-// 재사용하지 않는다 — diagnosisAdmissionMasterQueries.js 헤더 주석 참고.
 import {
-  fetchAdmissionUniversities,
-  fetchAdmissionDepartments,
-  fetchAdmissionTrackRows,
-} from "../lib/diagnosisAdmissionMasterQueries";
+  deriveAdmissionTracks,
+  deriveMainTracks,
+  deriveSubjectReflections,
+  NO_SUBJECT_REFLECTION_LABEL,
+} from "../lib/diagnosisAdmissionCascade";
 import {
   ADMISSION_FETCH_ERROR,
   fetchAdmissionCuts,
 } from "../lib/diagnosisAdmissionCuts";
+// admissionResultsQueries.js(다른 세션 소유, recruitment_period 필터가 새 스키마에서 깨져 있다)를
+// 재사용하지 않는다 — diagnosisAdmissionMasterQueries.js 헤더 주석 참고.
 import {
-  NO_SUBJECT_REFLECTION_LABEL,
-  deriveAdmissionTracks,
-  deriveMainTracks,
-  deriveSubjectReflections,
-} from "../lib/diagnosisAdmissionCascade";
+  fetchAdmissionDepartments,
+  fetchAdmissionTrackRows,
+  fetchAdmissionUniversities,
+} from "../lib/diagnosisAdmissionMasterQueries";
 
 const EMPTY_RESOURCE = { data: [], loading: false, error: null };
 

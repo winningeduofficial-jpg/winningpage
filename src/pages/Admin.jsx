@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   ChevronDown,
   ChevronLeft,
@@ -18,72 +16,61 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
-import MentorCard from "../components/landing/MentorCard";
-import {
-  HWP_SECTION_ORDER,
-  HWP_SECTION_LABELS,
-  HWP_SECTION_HTML_KEYS,
-  splitHwpTextIntoSections,
-  buildHwpCategoryHtml,
-  buildHwpCategoryDoc,
-  renderDocToHtml,
-  clean as cleanAdmissionText,
-} from "../lib/admissionParsing";
-import {
-  HWP_SECTION_JSON_KEYS,
-  validateAdmissionDoc,
-  isEmptyDoc,
-  stableStringifyDoc,
-} from "../lib/admissionDoc";
-import { isDocRenderEnabled } from "../lib/admissionFlags";
-import {
-  getAdmissionActiveYear,
-  setAdmissionActiveYear,
-} from "../lib/admissionSettings";
-import {
-  GOAL_BACKFILL_YEAR_MODES,
-  fetchBackfillSourceRows,
-  goalCutConflictKey,
-  computeGoalCutBackfill,
-} from "../lib/goal/goalCutBackfill";
-import {
-  exportAdmissionRowsToXlsx,
-  parseAdmissionRowsFromXlsx,
-  BULK_XLSX_COLUMNS,
-} from "../lib/admissionBulkXlsx";
-import {
-  exportAdmissionResultRowsToXlsx,
-  parseAdmissionResultRowsFromXlsx,
-  BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS,
-} from "../lib/admissionResultsBulkXlsx";
-import {
-  exportGoalUniversityCutRowsToXlsx,
-  parseGoalUniversityCutRowsFromXlsx,
-  GOAL_CUT_RANGE,
-} from "../lib/goalUniversityCutsBulkXlsx";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
-import AdmissionSectionView from "../components/admission/AdmissionSectionView";
-import SafeHtml from "../components/admission/SafeHtml";
-import AdmissionSurface from "../components/admission/AdmissionSurface";
-import DocBlocksEditor from "../components/admission/editor/DocBlocksEditor";
-import AdmissionSectionEditModal from "../components/admission/editor/AdmissionSectionEditModal";
-import AdmissionMetaEditModal from "../components/admission/editor/AdmissionMetaEditModal";
-import BlockEditor from "../components/editor/BlockEditor";
-import ColumnPreviewModal from "../components/editor/ColumnPreviewModal";
-import { blocksToPlainText } from "../lib/blockToPlainText";
-import { plainTextToBlocks } from "../lib/plainTextToBlocks";
-import { FAQ_CATEGORIES } from "../data/faqCategories";
-// BookViewer는 표현 전용 컴포넌트라 가볍다(bookPairing.js + book-viewer.css) — 정적 import 대상은
-// pdfjs-dist뿐이다(PremiumBookAdmin 참고). BookViewer까지 동적 import하면 얻는 것 없이 미리보기 전환에
-// 스피너만 하나 더 생긴다.
-import BookViewer from "../components/premiumBook/BookViewer";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
 // CustomComponent 로 붙인다 — premiumBookPages 선례와 같은 방식이다.
 // Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
 import CouponAdmin from "../components/admin/CouponAdmin";
+import AdmissionSectionView from "../components/admission/AdmissionSectionView";
+import AdmissionSurface from "../components/admission/AdmissionSurface";
+import AdmissionMetaEditModal from "../components/admission/editor/AdmissionMetaEditModal";
+import AdmissionSectionEditModal from "../components/admission/editor/AdmissionSectionEditModal";
+import DocBlocksEditor from "../components/admission/editor/DocBlocksEditor";
+import SafeHtml from "../components/admission/SafeHtml";
+import BlockEditor from "../components/editor/BlockEditor";
+import ColumnPreviewModal from "../components/editor/ColumnPreviewModal";
+import MentorCard from "../components/landing/MentorCard";
+// BookViewer는 표현 전용 컴포넌트라 가볍다(bookPairing.js + book-viewer.css) — 정적 import 대상은
+// pdfjs-dist뿐이다(PremiumBookAdmin 참고). BookViewer까지 동적 import하면 얻는 것 없이 미리보기 전환에
+// 스피너만 하나 더 생긴다.
+import BookViewer from "../components/premiumBook/BookViewer";
+import { FAQ_CATEGORIES } from "../data/faqCategories";
+import {
+  BULK_XLSX_COLUMNS,
+  exportAdmissionRowsToXlsx,
+  parseAdmissionRowsFromXlsx,
+} from "../lib/admissionBulkXlsx";
+import {
+  HWP_SECTION_JSON_KEYS,
+  isEmptyDoc,
+  stableStringifyDoc,
+  validateAdmissionDoc,
+} from "../lib/admissionDoc";
+import { isDocRenderEnabled } from "../lib/admissionFlags";
+import {
+  buildHwpCategoryDoc,
+  buildHwpCategoryHtml,
+  clean as cleanAdmissionText,
+  HWP_SECTION_HTML_KEYS,
+  HWP_SECTION_LABELS,
+  HWP_SECTION_ORDER,
+  renderDocToHtml,
+  splitHwpTextIntoSections,
+} from "../lib/admissionParsing";
+import {
+  BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS,
+  exportAdmissionResultRowsToXlsx,
+  parseAdmissionResultRowsFromXlsx,
+} from "../lib/admissionResultsBulkXlsx";
+import {
+  getAdmissionActiveYear,
+  setAdmissionActiveYear,
+} from "../lib/admissionSettings";
+import { blocksToPlainText } from "../lib/blockToPlainText";
 // 목표관리 학생 현황(§4-3)이 쓰는 계산 엔진 상수·함수. **읽기 전용 import 다** —
 // src/lib/goal/calc/** 는 209개 테스트로 동결돼 있어 이 화면이 한 글자도 고치지 않는다.
 //  - getSchoolCutType: 학생 school_type → 컷 종류(normal|special). 컷 스냅샷 diff의
@@ -96,12 +83,25 @@ import CouponAdmin from "../components/admin/CouponAdmin";
 //    자정 직후 제출한 기록이 '오늘 미제출'로 잘못 뜨는 사고를 막으려면 KST 고정이 필수다.
 //  - VIRTUAL_DAY_NAMES: study_schedule jsonb의 요일 7키(monday…sunday) 순서 정본.
 import {
-  getSchoolCutType,
-  CONDITION_MULTIPLIER,
-  VIRTUAL_DAY_NAMES,
-  kstYMD,
   addDaysYMD,
+  CONDITION_MULTIPLIER,
+  getSchoolCutType,
+  kstYMD,
+  VIRTUAL_DAY_NAMES,
 } from "../lib/goal/calc/index.js";
+import {
+  computeGoalCutBackfill,
+  fetchBackfillSourceRows,
+  GOAL_BACKFILL_YEAR_MODES,
+  goalCutConflictKey,
+} from "../lib/goal/goalCutBackfill";
+import {
+  exportGoalUniversityCutRowsToXlsx,
+  GOAL_CUT_RANGE,
+  parseGoalUniversityCutRowsFromXlsx,
+} from "../lib/goalUniversityCutsBulkXlsx";
+import { plainTextToBlocks } from "../lib/plainTextToBlocks";
+import { supabase } from "../lib/supabase";
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -8335,11 +8335,9 @@ function GoalCutsBackfillPanel({ onReload }) {
         // onConflict 는 goal_university_cuts_key(평범한 3컬럼 UNIQUE btree)를
         // 가리킨다 — dev 실측으로 신규 201 / 재실행 200 · id 보존 · is_active
         // 와 note 보존까지 확인했다.
-        const { error } = await supabase
-          .from(GOAL_CUTS_TABLE)
-          .upsert(chunk, {
-            onConflict: "cut_type,university_key,department_key",
-          });
+        const { error } = await supabase.from(GOAL_CUTS_TABLE).upsert(chunk, {
+          onConflict: "cut_type,university_key,department_key",
+        });
         if (error) {
           throw new Error(
             `컷 반영 실패(청크 ${i + 1}~${i + chunk.length}행): ${error.message}`,

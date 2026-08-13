@@ -43,11 +43,11 @@
 //   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
-import { readFile, writeFile, mkdir, access } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =

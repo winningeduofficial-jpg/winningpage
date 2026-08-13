@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import {
   BarChart3,
   Brain,
@@ -11,8 +9,10 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { SERVICE_NAME_ROUTES } from "../../data/navigation";
+import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
 
 // DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
 // 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.

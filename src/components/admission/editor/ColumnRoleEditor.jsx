@@ -1,5 +1,5 @@
-import ImeSafeInput from "./ImeSafeInput";
 import { getKnownRolesForVariant } from "../admissionLayout";
+import ImeSafeInput from "./ImeSafeInput";
 
 const CUSTOM_ROLE_OPTION = "__custom__";
 

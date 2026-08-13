@@ -1,24 +1,24 @@
 import { useEffect, useState } from "react";
-import CountUpNumber from "../CountUpNumber";
+import cau from "../../assets/admission/universities/cau.png";
+import hanyang from "../../assets/admission/universities/hanyang.png";
+import hufs from "../../assets/admission/universities/hufs.png";
+import kaist from "../../assets/admission/universities/kaist.png";
+import konkuk from "../../assets/admission/universities/konkuk.png";
+import korea from "../../assets/admission/universities/korea.png";
+import pusan from "../../assets/admission/universities/pusan.png";
+import skku from "../../assets/admission/universities/skku.png";
+import snu from "../../assets/admission/universities/snu.png";
+import sogang from "../../assets/admission/universities/sogang.png";
+import unist from "../../assets/admission/universities/unist.png";
+import yonsei from "../../assets/admission/universities/yonsei.png";
 import {
-  HERO_SCOPES,
-  DEFAULT_HERO_SCOPE,
   computeAcceptanceAverage,
+  DEFAULT_HERO_SCOPE,
   fetchAcceptanceRates,
   fetchAdmissionCaseLogos,
+  HERO_SCOPES,
 } from "../../pages/admission/admissionCaseData";
-import snu from "../../assets/admission/universities/snu.png";
-import yonsei from "../../assets/admission/universities/yonsei.png";
-import korea from "../../assets/admission/universities/korea.png";
-import hanyang from "../../assets/admission/universities/hanyang.png";
-import pusan from "../../assets/admission/universities/pusan.png";
-import kaist from "../../assets/admission/universities/kaist.png";
-import unist from "../../assets/admission/universities/unist.png";
-import skku from "../../assets/admission/universities/skku.png";
-import hufs from "../../assets/admission/universities/hufs.png";
-import konkuk from "../../assets/admission/universities/konkuk.png";
-import cau from "../../assets/admission/universities/cau.png";
-import sogang from "../../assets/admission/universities/sogang.png";
+import CountUpNumber from "../CountUpNumber";
 
 // 번들 폴백 로고 — admission_case_logos 테이블이 없거나 비어 있을 때 사용.
 // 1440→1164 컨테이너 축소 비율(1164/1440≈0.808) 적용 후 rem 환산.

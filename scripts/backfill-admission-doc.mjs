@@ -49,23 +49,22 @@
 //   node scripts/backfill-admission-doc.mjs --restore <backup.json> --apply
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
-import { readFile, writeFile, mkdir, access } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
-
-import {
-  buildRawSectionDoc,
-  renderDocToHtml,
-  HWP_SECTION_HTML_KEYS,
-  clean,
-} from "../src/lib/admissionParsing.js";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 import {
   HWP_SECTION_JSON_KEYS,
-  validateAdmissionDoc,
   stableStringifyDoc,
+  validateAdmissionDoc,
 } from "../src/lib/admissionDoc.js";
+import {
+  buildRawSectionDoc,
+  clean,
+  HWP_SECTION_HTML_KEYS,
+  renderDocToHtml,
+} from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-doc-backups";

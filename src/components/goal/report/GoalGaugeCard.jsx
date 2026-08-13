@@ -1,6 +1,6 @@
+import DeltaBadge from "../DeltaBadge";
 import GoalCard from "../GoalCard";
 import GoalProgressBar from "../GoalProgressBar";
-import DeltaBadge from "../DeltaBadge";
 
 // 성적 관리 KPI 게이지 카드(680×207, #35) — 목표까지 격차를 진행바 + 목표 마커(세로선)로 표시.
 //

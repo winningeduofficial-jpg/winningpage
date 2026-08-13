@@ -22,13 +22,13 @@
 //    않는다. consumed_at을 찍는 주체가 없으므로, 지금은 "인증을 했다"는 사실만
 //    남고 가입 절차를 강제하지는 못한다.
 
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 import {
   computeKoreanAge,
   fetchAuthResult,
   isUnder14,
   parseNiceBirthDate,
 } from "./_lib/niceIdentity.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 

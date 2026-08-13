@@ -1,6 +1,6 @@
+import ColumnRoleEditor from "./ColumnRoleEditor";
 import CellEditor from "./cells/CellEditor";
 import ImeSafeInput from "./ImeSafeInput";
-import ColumnRoleEditor from "./ColumnRoleEditor";
 
 // 표 골격(table/AdmissionTable.jsx)의 **편집 모드 리프**. viewSlots.jsx가
 // 표시 쪽 <th>/<td> 안쪽을 소유하는 것과 정확히 대칭이며, 여기서도

@@ -2,13 +2,13 @@ import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import AdmissionTable from "../table/AdmissionTable";
 import { describeCell } from "../table/tableModel";
-import TableGroupHeaderEditor from "./TableGroupHeaderEditor";
 import createEditSlots, { EDIT_PARITY_FROZEN } from "./editSlots";
-import {
-  validateTableBlock,
-  getColumnMutationBlockReason,
-} from "./tableEditorValidation";
+import TableGroupHeaderEditor from "./TableGroupHeaderEditor";
 import * as ops from "./tableBlockOperations";
+import {
+  getColumnMutationBlockReason,
+  validateTableBlock,
+} from "./tableEditorValidation";
 import {
   exportTableBlockToXlsx,
   importTableBlockFromXlsx,

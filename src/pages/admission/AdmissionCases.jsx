@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import AdmissionCaseCard from "../../components/admission/AdmissionCaseCard";
 import AcceptanceRateHero from "../../components/admission/AcceptanceRateHero";
+import AdmissionCaseCard from "../../components/admission/AdmissionCaseCard";
 import {
   CASE_CATEGORIES,
   CATEGORY_LABELS,

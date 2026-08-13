@@ -23,20 +23,21 @@
 //    같은 계열 — §4.1 각주, "시안 원문 문구는 그대로" 원칙).
 //  - "약관 동의" 섹션 제목은 재추출 원문에 후행 공백이 있다("약관 동의 ") — 브라우저가
 //    표시상 접어버리지만 원문 재현 원칙에 따라 문자열 그대로 남긴다.
+
+import { Check } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
 import {
+  AgreementList,
   AuthLayout,
   AuthTitle,
-  TextField,
-  SelectField,
-  PrimaryButton,
   InfoCard,
-  AgreementList,
+  PrimaryButton,
+  SelectField,
+  TextField,
 } from "../../components/auth";
 import { useSignup } from "../../context/SignupContext";
-import { supabase } from "../../lib/supabase";
+import { useCooldown } from "../../hooks/useCooldown";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
@@ -44,7 +45,7 @@ import {
   sendSignupEmailCode,
   verifySignupEmailCode,
 } from "../../lib/signupEmailAuth";
-import { useCooldown } from "../../hooks/useCooldown";
+import { supabase } from "../../lib/supabase";
 // StudentForm(C-1)/Under14Form(D-2)과 동일한 17개 시도 + '기타' 지역 목록을 공유한다.
 import { REGION_OPTIONS } from "./StudentForm";
 

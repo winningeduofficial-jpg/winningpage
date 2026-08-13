@@ -94,8 +94,8 @@
 //     backoff가 아니라 상한을 쓰는 이유: cron이 하루 1회라 실행 간격 자체가 이미 24시간
 //     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { isAuthorizedCron } from "../_lib/cronAuth.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { BUCKET } from "./upload-url.js";
 
 /** §8.8 「보관 기간 — 90일」 */

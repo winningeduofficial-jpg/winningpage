@@ -18,8 +18,8 @@
 //   엔드포인트를 부른다(자리를 비운 사이 남이 번호를 바꾸는 것을 막는 목적,
 //   ChangePasswordModal.jsx 와 동일 근거).
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -47,13 +47,11 @@ export default async function handler(req, res) {
 
   const token = getBearerToken(req);
   if (!token) {
-    return res
-      .status(401)
-      .json({
-        ok: false,
-        reason: "not_authenticated",
-        detail: "로그인이 필요합니다.",
-      });
+    return res.status(401).json({
+      ok: false,
+      reason: "not_authenticated",
+      detail: "로그인이 필요합니다.",
+    });
   }
 
   try {
@@ -85,13 +83,11 @@ export default async function handler(req, res) {
 
     if (verificationError) {
       console.error("[change-phone] 인증 이력 조회 실패:", verificationError);
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          reason: "unknown",
-          detail: "처리 중 오류가 발생했습니다.",
-        });
+      return res.status(500).json({
+        ok: false,
+        reason: "unknown",
+        detail: "처리 중 오류가 발생했습니다.",
+      });
     }
 
     if (
@@ -115,13 +111,11 @@ export default async function handler(req, res) {
 
     if (updateError) {
       console.error("[change-phone] profiles.phone 갱신 실패:", updateError);
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          reason: "unknown",
-          detail: "번호 변경에 실패했습니다.",
-        });
+      return res.status(500).json({
+        ok: false,
+        reason: "unknown",
+        detail: "번호 변경에 실패했습니다.",
+      });
     }
 
     // 소비 처리 — 재사용(같은 인증 건으로 두 번 변경) 방지.
@@ -142,12 +136,10 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, phone: rawPhone });
   } catch (error) {
     console.error("[change-phone] 오류:", error);
-    return res
-      .status(500)
-      .json({
-        ok: false,
-        reason: "unknown",
-        detail: "번호 변경 중 오류가 발생했습니다.",
-      });
+    return res.status(500).json({
+      ok: false,
+      reason: "unknown",
+      detail: "번호 변경 중 오류가 발생했습니다.",
+    });
   }
 }

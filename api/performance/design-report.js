@@ -163,19 +163,25 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4). 이 파일의 유일한 파싱은
 //   `JSON.parse` 한 줄이고, 형식 강제는 `responseSchema`가 한다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import {
-  SERVICE_CONFIGS,
-  findProgramAccessRow,
-  getBearerToken,
-  hasPaidServiceAccess,
-  readQuotaSnapshot,
-} from "../_lib/serviceAccess.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
 } from "../_lib/performance/gemini.js";
 import {
+  guideTextFromSession,
+  inferGuideStructure,
+} from "../_lib/performance/guide-structure.js";
+import {
+  formatRelevantStudentSessionsForPrompt,
+  loadDynamicAssessmentKnowledge,
+  loadRelevantStudentSessions,
+  RESOURCE_MAX_CHARS,
+  STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
+  STUDENT_HISTORY_PROMPT_LIMIT,
+} from "../_lib/performance/knowledge.js";
+import {
+  buildDesignReportSystem,
+  buildDesignReportUser,
   DESIGN_CONCLUSION_DEFAULT_ROWS,
   DESIGN_EMPTY_RESOURCE_ROWS,
   DESIGN_GENERATION_DEFAULTS,
@@ -186,23 +192,17 @@ import {
   DESIGN_RESOURCE_FIELD_FALLBACKS,
   DESIGN_SECTION_ROW_LABELS,
   NO_PREVIOUS_TOPIC_TEXT,
-  buildDesignReportSystem,
-  buildDesignReportUser,
   resolveDesignPromptVersion,
   resolveDesignWritingBranch,
 } from "../_lib/performance/prompts.js";
 import {
-  guideTextFromSession,
-  inferGuideStructure,
-} from "../_lib/performance/guide-structure.js";
-import {
-  RESOURCE_MAX_CHARS,
-  STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
-  STUDENT_HISTORY_PROMPT_LIMIT,
-  formatRelevantStudentSessionsForPrompt,
-  loadDynamicAssessmentKnowledge,
-  loadRelevantStudentSessions,
-} from "../_lib/performance/knowledge.js";
+  findProgramAccessRow,
+  getBearerToken,
+  hasPaidServiceAccess,
+  readQuotaSnapshot,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

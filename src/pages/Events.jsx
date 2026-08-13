@@ -1,8 +1,8 @@
+import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, Download } from "lucide-react";
-import { supabase } from "../lib/supabase";
 import BoardListPage from "../components/board/BoardListPage";
+import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
   formatBoardDate,

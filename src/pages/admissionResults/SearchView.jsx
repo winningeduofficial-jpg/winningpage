@@ -1,11 +1,11 @@
-import SelectorBar from "./SelectorBar";
-import TrendingChips from "./TrendingChips";
 import {
   CONTAINER,
   HERO_DESCRIPTION,
   HERO_EYEBROW,
   HERO_TITLE,
 } from "./constants";
+import SelectorBar from "./SelectorBar";
+import TrendingChips from "./TrendingChips";
 
 /**
  * 검색 뷰 (Figma 2029:661) — 히어로 → 셀렉터 바 → 지금 뜨고 있는 학과.

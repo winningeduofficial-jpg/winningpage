@@ -17,8 +17,8 @@
 //   학생 가입(StudentForm)은 가입 직후 signOut 하는 AS-IS 정책을 따르지만,
 //   학부모는 가입 → 자녀 연결로 흐름이 이어지므로 세션을 유지해야 한다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { getClientIp } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 

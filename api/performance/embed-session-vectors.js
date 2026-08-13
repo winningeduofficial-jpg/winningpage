@@ -48,12 +48,12 @@
 //   행별로 try/catch를 감싸 실패를 격리한다. 실패 기록(`embedding_status='error'`)
 //   자체가 또 실패해도 로그만 남기고 원래 루프는 계속 돈다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { isAuthorizedCron } from "../_lib/cronAuth.js";
 import {
   embedText,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const TABLE = "performance_session_vectors";
 

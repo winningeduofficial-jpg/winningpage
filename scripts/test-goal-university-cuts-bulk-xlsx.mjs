@@ -14,9 +14,9 @@ import * as XLSX from "xlsx";
 
 import {
   exportGoalUniversityCutRowsToXlsx,
-  parseGoalUniversityCutRowsFromXlsx,
-  GOAL_CUTS_XLSX_HEADERS,
   GOAL_CUT_RANGE,
+  GOAL_CUTS_XLSX_HEADERS,
+  parseGoalUniversityCutRowsFromXlsx,
   TRUNCATION_MARKER,
 } from "../src/lib/goalUniversityCutsBulkXlsx.js";
 

@@ -1,10 +1,10 @@
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
-import { supabase } from "../../lib/supabase";
-import { SINGLE_SELECT_NOTICE, formatKRW } from "../../data/pricingCatalog";
-import { useProducts } from "../../lib/products";
+import { formatKRW, SINGLE_SELECT_NOTICE } from "../../data/pricingCatalog";
 import { saveCart } from "../../lib/cart";
+import { useProducts } from "../../lib/products";
+import { supabase } from "../../lib/supabase";
 
 // products.service_key → 서비스 상세 페이지 라우트.
 // 링크 목적지는 products 테이블에 컬럼을 추가하지 않고 코드측 매핑으로 둔다 —

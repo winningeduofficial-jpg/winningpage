@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import InlineCard from "../chat/InlineCard";
-import PhotoAddTile from "./PhotoAddTile";
-import PhotoThumb from "./PhotoThumb";
-import PrimaryButton from "../../auth/PrimaryButton";
-import OutlineButton from "../../auth/OutlineButton";
 import {
   HEIC_REJECT_MESSAGE,
   IMAGE_ACCEPT_ATTR,
+  isAllowedImageFile,
+  isHeicFile,
   MAX_FILE_BYTES,
   MAX_PHOTOS,
   MAX_TOTAL_BYTES,
-  isAllowedImageFile,
-  isHeicFile,
   prepareGuideImage,
 } from "../../../lib/performance/guideImage";
+import OutlineButton from "../../auth/OutlineButton";
+import PrimaryButton from "../../auth/PrimaryButton";
+import InlineCard from "../chat/InlineCard";
+import PhotoAddTile from "./PhotoAddTile";
+import PhotoThumb from "./PhotoThumb";
 
 // STEP2 안내문 업로드 카드 — docs/수행평가-상세-명세.md §5.6(`3754:3261`) / §5.7(`3754:3315`).
 //

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { goalModalOptions } from "../../../data/goalMock";
 import AppModal from "../AppModal";
 import ModalField from "../ModalField";
 import SegmentedChipGroup from "../SegmentedChipGroup";
-import { goalModalOptions } from "../../../data/goalMock";
 import { resolveSubjectId } from "../subjectTokens";
 
 // 문제집 추가/수정 모달 — docs/figma-goal/part-11.md #31 (530×468 = 33.125rem × 29.25rem).

@@ -1,7 +1,7 @@
-import TextCellEditor from "./TextCellEditor";
+import { resolveCellKind } from "../tableEditorValidation";
 import BadgeCellEditor from "./BadgeCellEditor";
 import ChipsCellEditor from "./ChipsCellEditor";
-import { resolveCellKind } from "../tableEditorValidation";
+import TextCellEditor from "./TextCellEditor";
 
 // Cell 스키마 3형태(문자열/{text,badge}/{chips}) 디스패처.
 // roleKind는 admissionLayout.js의 getCellKind(variant, column.role) 결과다.

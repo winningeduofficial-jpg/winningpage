@@ -28,11 +28,11 @@
 //     보인다). 빈 배열은 빈 문자열.
 import * as XLSX from "xlsx";
 import {
-  getKnownRolesForVariant,
-  getCellKind,
   defaultNewColumnRole,
+  getCellKind,
+  getKnownRolesForVariant,
 } from "../../admissionLayout";
-import { validateTableBlock, blocksEqual } from "../tableEditorValidation";
+import { blocksEqual, validateTableBlock } from "../tableEditorValidation";
 
 // 엑셀 셀 문자 수 한도(SheetJS가 XLSX.writeFile 시점에 실제로 이 값으로
 // throw한다 — 직접 재현 확인함). 사전 검사로 이 예외를 만나기 전에

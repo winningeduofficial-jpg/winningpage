@@ -41,15 +41,15 @@
 // `allowed` 하나만 읽는다. 위 4필드는 **추가**일 뿐이며 allowed의 의미·타입은
 // 바뀌지 않았다. 회차 개념이 없는 서비스(goal)는 4필드가 전부 null로 나간다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   clean,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
+  SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

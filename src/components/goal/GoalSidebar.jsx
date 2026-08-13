@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { GOAL_NAV_GROUPS, GOAL_NAV_FOOTER } from "./goalNavItems";
 import { mockStudent } from "../../data/goalMock";
-import { fetchGoalSchedules, fetchGoalTimer } from "../../lib/goalApi";
 import { kstYMD } from "../../lib/goal/calc/index.js";
+import { fetchGoalSchedules, fetchGoalTimer } from "../../lib/goalApi";
+import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.

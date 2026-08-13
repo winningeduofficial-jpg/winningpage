@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import StudyTimeSection from "../../components/goal/study/StudyTimeSection";
-import ConditionSection from "../../components/goal/study/ConditionSection";
 import ChipSelectSection from "../../components/goal/study/ChipSelectSection";
+import ConditionSection from "../../components/goal/study/ConditionSection";
 import RetrospectSection from "../../components/goal/study/RetrospectSection";
+import StudyTimeSection from "../../components/goal/study/StudyTimeSection";
+import { getSubjectLabel } from "../../components/goal/subjectTokens";
 import {
-  TIMER_SUBJECT_ORDER,
   mockConditionOptions,
   mockDisturbanceOptions,
   mockStudyItemOptions,
+  TIMER_SUBJECT_ORDER,
 } from "../../data/goalStudyMock";
-import { getSubjectLabel } from "../../components/goal/subjectTokens";
 import {
+  fetchGoalTimer,
   fetchTodayGoalRecord,
   submitDailyRecord,
-  fetchGoalTimer,
 } from "../../lib/goalApi";
 
 // 코드값 → 라벨(goalStudyMock.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는

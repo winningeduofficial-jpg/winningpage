@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useSession } from "../../context/SessionContext";
-import SavedReportCard, {
-  formatSavedAt,
-} from "../../components/performance/reports/SavedReportCard";
-import ArtifactChip from "../../components/performance/reports/ArtifactChip";
 import SelectField from "../../components/auth/SelectField";
-import SectionedReportView, {
-  getVisibleSections,
-} from "../../components/performance/report/SectionedReportView";
 import PerformanceReportSurface from "../../components/performance/report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
 } from "../../components/performance/report/ReportModalShell";
+import SectionedReportView, {
+  getVisibleSections,
+} from "../../components/performance/report/SectionedReportView";
+import ArtifactChip from "../../components/performance/reports/ArtifactChip";
+import SavedReportCard, {
+  formatSavedAt,
+} from "../../components/performance/reports/SavedReportCard";
 import DesignReportModal from "../../components/performance/step4/DesignReportModal";
 import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
+import { useSession } from "../../context/SessionContext";
 import {
   fetchSavedReportDetail,
   fetchSavedReportsList,

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildViews, FACE_GAP, FACE_PAGE, FACE_VOID } from "./bookPairing";
 import "./book-viewer.css";
 

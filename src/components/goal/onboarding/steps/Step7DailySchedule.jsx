@@ -1,8 +1,8 @@
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import { DAILY_SCHEDULE_FIELDS } from "../../../../data/goalOnboardingMock";
 import QuestionCard from "../QuestionCard";
 import StepperRow from "../StepperRow";
 import WizardActions from "../WizardActions";
-import { DAILY_SCHEDULE_FIELDS } from "../../../../data/goalOnboardingMock";
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 
 // 7단계(마지막) — docs/figma-goal/part-04.md #10. 기상・취침・학교체류・학원과외 시간.
 // 시안상 두 버튼 모두 항상 활성(비활성/에러 표현 없음) — 기본값이 이미 채워져 있어 별도

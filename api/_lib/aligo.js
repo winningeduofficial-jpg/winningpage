@@ -30,8 +30,8 @@
 //   ALIGO_DRY_RUN        'true'면 알리고를 아예 호출하지 않음 (로컬 로직 검증용)
 
 import { outboundFetch } from "./outbound.js";
-import { getEnv } from "./supabaseAdmin.js";
 import { maskPhone } from "./phoneCode.js";
+import { getEnv } from "./supabaseAdmin.js";
 
 const SMS_ENDPOINT = "https://apis.aligo.in/send/";
 const ALIMTALK_ENDPOINT = "https://kakaoapi.aligo.in/akv10/alimtalk/send/";

@@ -26,21 +26,21 @@
 // 제출도 카드가 이미 기록한 순공 시간을 지우지 않는다.
 
 import {
-  kstYMD,
+  calculateDailyBonusV2,
   diffDaysYMD,
   getDayIndexFromYMDServer,
+  kstYMD,
   VIRTUAL_DAY_NAMES,
-  calculateDailyBonusV2,
 } from "../../src/lib/goal/calc/index.js";
 
 import {
-  PAID_MESSAGE,
   appendProbabilityLog,
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTodayRecord,
   num,
   openGoalSession,
+  PAID_MESSAGE,
   upsertDailyRecord,
 } from "../_lib/goalRepo.js";
 

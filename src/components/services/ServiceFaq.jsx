@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 // FAQ 아코디언(단일 open).
 //

@@ -1,11 +1,11 @@
-import QuestionCard from "../QuestionCard";
-import RadioChip from "../RadioChip";
-import WizardActions from "../WizardActions";
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 import {
   HIGH_SCHOOL_GRADE_OPTIONS,
   SCHOOL_TYPE_OPTIONS,
 } from "../../../../data/goalOnboardingMock";
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import QuestionCard from "../QuestionCard";
+import RadioChip from "../RadioChip";
+import WizardActions from "../WizardActions";
 
 // 1단계 — docs/figma-goal/part-01.md #1(학교 유형) + #2(선택 시 같은 화면에 누적 노출되는
 // 1-2 학년 카드). 별도 스텝이 아니라 하나의 스텝 안에서 카드가 조건부로 추가된다.

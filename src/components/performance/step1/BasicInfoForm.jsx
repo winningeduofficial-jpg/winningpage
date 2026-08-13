@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import TextField from "../../auth/TextField";
-import SelectField from "../../auth/SelectField";
-import PrimaryButton from "../../auth/PrimaryButton";
 import {
-  SUBJECT_GROUPS,
   getSubjectOptions,
+  SUBJECT_GROUPS,
 } from "../../../data/performanceCurriculum";
+import PrimaryButton from "../../auth/PrimaryButton";
+import SelectField from "../../auth/SelectField";
+import TextField from "../../auth/TextField";
 
 // STEP1 기본 정보 입력 폼 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) 단정 전문.
 //

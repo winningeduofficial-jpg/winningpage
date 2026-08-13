@@ -35,10 +35,10 @@
 // 0인 잎 모듈이라 브라우저 번들에 들어가도 서버 코드를 끌고 오지 않는다 — 그 파일 상단
 // 주석이 "import를 추가하지 마라"로 그 성질을 계약으로 못박고 있다.
 export {
-  SUBMISSION_MIN_CHARS,
+  checkFieldsMinLength,
   countFieldChars,
   countFieldsChars,
-  checkFieldsMinLength,
+  SUBMISSION_MIN_CHARS,
 } from "../../../api/_lib/performance/submission-chars.js";
 
 const NETWORK_ERROR =

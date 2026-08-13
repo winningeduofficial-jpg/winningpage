@@ -33,9 +33,9 @@
 
 import {
   getAchievementRateMultiplier,
-  TASK_NAESIN,
-  TASK_MOCK_EXAM,
   TASK_BONUS_MULTIPLIER,
+  TASK_MOCK_EXAM,
+  TASK_NAESIN,
 } from "./bonus.js";
 
 // 컨디션 배수 — 신시안 "오늘의 컨디션" 4지선다(part-09 §180,

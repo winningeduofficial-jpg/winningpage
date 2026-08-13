@@ -15,22 +15,8 @@
 // 기간 경계는 순수 달력이다(팀장 확정) — 주간 period='그 주 월요일 YMD',
 // 월간 period='YYYY-MM'. 생략하면 오늘(KST) 기준 이번 주/이번 달로 기본값 처리한다.
 
-import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import { GRADE_PERCENTILE } from "../../src/lib/goal/calc/jeongsi.js";
-
-import {
-  fetchActiveCohortProfileIds,
-  fetchDailyRecordsForProfilesInRange,
-  fetchEarliestProbabilityLog,
-  fetchMentorComment,
-  fetchPlanTasksInRange,
-  fetchProbabilityLogAtOrBefore,
-  fetchRecordsInRange,
-  fetchStudentRow,
-  fetchTimerSessionsInRange,
-  openGoalSession,
-} from "../_lib/goalRepo.js";
-
+import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import {
   bucketTimeSlots,
   buildJeongsiSubjectMetrics,
@@ -56,7 +42,6 @@ import {
   sumHoursByProfile,
   toNum,
 } from "../../src/lib/goal/report/aggregate.js";
-
 import {
   buildConditionTip,
   buildCoreItemsTip,
@@ -70,6 +55,18 @@ import {
   buildSubjectShareTip,
   buildTimeSlotTip,
 } from "../../src/lib/goal/report/insights.js";
+import {
+  fetchActiveCohortProfileIds,
+  fetchDailyRecordsForProfilesInRange,
+  fetchEarliestProbabilityLog,
+  fetchMentorComment,
+  fetchPlanTasksInRange,
+  fetchProbabilityLogAtOrBefore,
+  fetchRecordsInRange,
+  fetchStudentRow,
+  fetchTimerSessionsInRange,
+  openGoalSession,
+} from "../_lib/goalRepo.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -561,11 +558,9 @@ export default async function handler(req, res) {
 
     const type = req.query?.type;
     if (!VALID_TYPES.includes(type)) {
-      return res
-        .status(400)
-        .json({
-          detail: "type은 weekly|monthly|direction 중 하나여야 합니다.",
-        });
+      return res.status(400).json({
+        detail: "type은 weekly|monthly|direction 중 하나여야 합니다.",
+      });
     }
 
     const student = await fetchStudentRow(supabaseAdmin, profileId);

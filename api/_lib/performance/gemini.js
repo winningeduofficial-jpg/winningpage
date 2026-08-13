@@ -99,7 +99,7 @@ export async function generateWithRetry(request, retryCount = 2) {
         throw error;
       }
 
-      const delayMs = 700 * Math.pow(2, attempt);
+      const delayMs = 700 * 2 ** attempt;
       console.warn(
         `[Gemini retry] attempt ${attempt + 1}, waiting ${delayMs}ms`,
       );

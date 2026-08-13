@@ -1,10 +1,10 @@
-import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import {
-  SERVICE_CONFIGS,
   clean,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
 
 const PAID_MESSAGE = "유료결제이후 이용해주세요!";
@@ -107,21 +107,16 @@ export default async function handler(req, res) {
     }
 
     if (!config.target_url) {
-      return res
-        .status(500)
-        .json({
-          detail: `${config.service_name} target_url 환경변수가 필요합니다.`,
-        });
+      return res.status(500).json({
+        detail: `${config.service_name} target_url 환경변수가 필요합니다.`,
+      });
     }
 
     const secret = getEnv("SSO_SECRET");
     if (!secret || secret.length < 32) {
-      return res
-        .status(500)
-        .json({
-          detail:
-            "SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.",
-        });
+      return res.status(500).json({
+        detail: "SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.",
+      });
     }
 
     const token = getBearerToken(req);

@@ -7,14 +7,14 @@
 // 무차별 대입 방어는 해시가 아니라 시도 횟수가 담당한다. 6자리 숫자는 경우의
 // 수가 100만뿐이라 해시를 어떻게 걸든 시도를 막지 않으면 뚫린다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import {
-  MAX_VERIFY_ATTEMPTS,
   hashCode,
   isValidMobile,
+  MAX_VERIFY_ATTEMPTS,
   normalizePhone,
   safeCompareHash,
 } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 

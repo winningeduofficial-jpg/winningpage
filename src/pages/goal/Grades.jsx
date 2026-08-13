@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import AddMockExamGradeModal from "../../components/goal/modals/AddMockExamGradeModal";
+import AddNaesinGradeModal from "../../components/goal/modals/AddNaesinGradeModal";
 import GoalGaugeCard from "../../components/goal/report/GoalGaugeCard";
 import GoalTable from "../../components/goal/report/GoalTable";
-import AddNaesinGradeModal from "../../components/goal/modals/AddNaesinGradeModal";
-import AddMockExamGradeModal from "../../components/goal/modals/AddMockExamGradeModal";
 import {
+  addGoalGrade,
   fetchGoalGrades,
   fetchGoalStudent,
-  addGoalGrade,
 } from "../../lib/goalApi";
 import {
   improvementDelta,

@@ -13,9 +13,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
 import * as XLSX from "xlsx";
 import {
   buildSpecialCategoryDoc,

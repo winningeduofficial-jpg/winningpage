@@ -7,18 +7,18 @@
 //
 // 실행: cd <repo> && node --test src/lib/goal/calc/primitives.test.js
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
+  applyPreHighGradePenalty,
+  calcNaesinProb,
+  clampProb,
+  getRemainingMogo,
+  getRemainingNaesin,
+  getSchoolCutType,
   round1,
   round4,
-  clampProb,
-  getSchoolCutType,
-  getRemainingNaesin,
-  getRemainingMogo,
-  calcNaesinProb,
-  applyPreHighGradePenalty,
   toNum,
 } from "./primitives.js";
 

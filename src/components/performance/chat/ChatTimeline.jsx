@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import AiMessage from "./AiMessage";
-import UserMessage from "./UserMessage";
 import AiLoadingBubble from "./AiLoadingBubble";
+import AiMessage from "./AiMessage";
 import InlineCard from "./InlineCard";
+import UserMessage from "./UserMessage";
 
 // 채팅 타임라인 조립 — docs/수행평가-상세-명세.md §3.1(공통 셸 관례) / §5.9·§5.12·§5.15
 // (로딩 노드 3종) / §5.6·§5.8(`3754:3261`/`3754:3370` 메시지 누적) 실측.

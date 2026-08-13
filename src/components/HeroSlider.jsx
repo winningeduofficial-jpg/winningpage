@@ -1,6 +1,6 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 const FALLBACK_BANNERS = [

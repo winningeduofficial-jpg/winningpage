@@ -1,13 +1,13 @@
-import TableBlockView from "./TableBlockView";
+import EmptyBoxView from "./EmptyBoxView";
+import FootnoteView from "./FootnoteView";
+import GroupView from "./GroupView";
+import HeadingView from "./HeadingView";
 import KeyValueView from "./KeyValueView";
+import NoteView from "./NoteView";
 import PlainListView from "./PlainListView";
 import PreTextView from "./PreTextView";
-import EmptyBoxView from "./EmptyBoxView";
-import NoteView from "./NoteView";
-import FootnoteView from "./FootnoteView";
-import HeadingView from "./HeadingView";
-import GroupView from "./GroupView";
 import RawHtmlView from "./RawHtmlView";
+import TableBlockView from "./TableBlockView";
 
 // Block.kind 디스패처. AdmissionSectionView(최상위)와 GroupView(중첩
 // children)가 공유한다 — GroupView가 이 함수를 다시 import하는 순환 참조가

@@ -230,12 +230,10 @@ export default async function handler(req, res) {
             // 대한 별개의 결제 시도다 — 멱등 응답 대상이 아니라 막아야 한다.
             const storedKey = clean(order.payment_key);
             if (!storedKey || storedKey !== clean(paymentKey)) {
-              return res
-                .status(409)
-                .json({
-                  error: "이미 처리된 결제입니다.",
-                  status: order.status,
-                });
+              return res.status(409).json({
+                error: "이미 처리된 결제입니다.",
+                status: order.status,
+              });
             }
           }
           // 이미 승인된 주문 (성공 페이지 재요청/새로고침 등) → 저장해둔 승인 원본으로 멱등 응답.
@@ -412,12 +410,10 @@ export default async function handler(req, res) {
             orderId,
             queried?.status,
           );
-          return res
-            .status(409)
-            .json({
-              error: "이미 처리된 결제입니다.",
-              status: queried?.status,
-            });
+          return res.status(409).json({
+            error: "이미 처리된 결제입니다.",
+            status: queried?.status,
+          });
         } else {
           console.error("이미 처리된 결제 재조회 실패:", orderId, queried);
           if (supabaseAdmin && order) {

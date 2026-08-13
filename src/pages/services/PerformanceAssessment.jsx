@@ -1,40 +1,37 @@
 import { useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-import { useInView } from "../../hooks/useInView";
-
-import ServiceSection from "../../components/services/ServiceSection";
-import ServiceProcessCards from "../../components/services/ServiceProcessCards";
-import ServiceTabsPanel from "../../components/services/ServiceTabsPanel";
-import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
-import ServiceStepCards from "../../components/services/ServiceStepCards";
-import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
-import ServiceTestimonials from "../../components/services/ServiceTestimonials";
-import ServiceFaq from "../../components/services/ServiceFaq";
-import ServicePricingSection from "../../components/services/ServicePricingSection";
-import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
-
-import heroAura from "../../assets/services/performance/hero-aura.svg";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
-import coachBinoculars from "../../assets/services/performance/coach-binoculars.png";
-import coachSisyphus from "../../assets/services/performance/coach-sisyphus.png";
-import coachLightbulb from "../../assets/services/performance/coach-lightbulb.png";
-import coachLaptopChair from "../../assets/services/performance/coach-laptop-chair.png";
-import coachSummitHiking from "../../assets/services/performance/coach-summit-hiking.png";
-import coachTablet from "../../assets/services/performance/coach-tablet.png";
-import coachWriting from "../../assets/services/performance/coach-writing.png";
-import coachTreadmill from "../../assets/services/performance/coach-treadmill.png";
-import coachEmail from "../../assets/services/performance/coach-email.png";
-import coachRockingChair from "../../assets/services/performance/coach-rocking-chair.png";
-import coachLaptopWork from "../../assets/services/performance/coach-laptop-work.png";
-import audienceTopic from "../../assets/services/performance/audience-topic.jpg";
+import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
+import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
+import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
+import audienceQuality from "../../assets/services/performance/audience-quality-v2.jpg";
 import audienceResearch from "../../assets/services/performance/audience-research.jpg";
 import audienceStructure from "../../assets/services/performance/audience-structure.jpg";
-import audienceQuality from "../../assets/services/performance/audience-quality-v2.jpg";
-import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
+import audienceTopic from "../../assets/services/performance/audience-topic.jpg";
+import coachBinoculars from "../../assets/services/performance/coach-binoculars.png";
+import coachEmail from "../../assets/services/performance/coach-email.png";
+import coachLaptopChair from "../../assets/services/performance/coach-laptop-chair.png";
+import coachLaptopWork from "../../assets/services/performance/coach-laptop-work.png";
+import coachLightbulb from "../../assets/services/performance/coach-lightbulb.png";
+import coachRockingChair from "../../assets/services/performance/coach-rocking-chair.png";
+import coachSisyphus from "../../assets/services/performance/coach-sisyphus.png";
+import coachSummitHiking from "../../assets/services/performance/coach-summit-hiking.png";
+import coachTablet from "../../assets/services/performance/coach-tablet.png";
+import coachTreadmill from "../../assets/services/performance/coach-treadmill.png";
+import coachWriting from "../../assets/services/performance/coach-writing.png";
+import heroAura from "../../assets/services/performance/hero-aura.svg";
 import iconCalendar from "../../assets/services/performance/icon-calendar-v2.png";
-import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
-import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceFaq from "../../components/services/ServiceFaq";
+import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
+import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
+import ServicePricingSection from "../../components/services/ServicePricingSection";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceStepCards from "../../components/services/ServiceStepCards";
+import ServiceTabsPanel from "../../components/services/ServiceTabsPanel";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import { useInView } from "../../hooks/useInView";
 
 // 수행평가 서비스 랜딩 — /services/performance (구 경로 /page/services-ai-performance)
 //

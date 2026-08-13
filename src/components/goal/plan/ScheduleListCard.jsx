@@ -1,5 +1,5 @@
-import GoalDdayBadge from "../GoalDdayBadge";
 import { scheduleCategoryLabel } from "../../../lib/goal/scheduleCategory";
+import GoalDdayBadge from "../GoalDdayBadge";
 
 // 중요일정 목록 카드 — docs/figma-goal/part-14.md #41(목록 정본), 1116×120.
 // 삭제 UI는 시안에 없다(part-13 §323 "삭제는 수정 모달 내부에 있을 가능성" 추정) — 삭제는

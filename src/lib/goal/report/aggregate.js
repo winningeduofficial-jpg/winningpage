@@ -13,9 +13,9 @@
 // getEffectiveScheduleTarget(calc/schedule.js, 동결 순수 함수)이 그 경계 안의
 // 요일별 목표(월~토, 일요일 제외)를 합산한다. 새 요일 합산 로직을 이 파일에 만들지 않는다.
 
-import { getMondayYMD, addDaysYMD } from "../calc/virtualDate.js";
-import { getEffectiveScheduleTarget } from "../calc/schedule.js";
 import { GRADE_PERCENTILE } from "../calc/jeongsi.js";
+import { getEffectiveScheduleTarget } from "../calc/schedule.js";
+import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
 
 // ---------------------------------------------------------------------------
 // 공통 숫자 헬퍼

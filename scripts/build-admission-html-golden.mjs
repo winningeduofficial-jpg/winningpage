@@ -53,22 +53,22 @@
 //   node scripts/build-admission-html-golden.mjs --full-out <full-json-path>
 // =====================================================================
 
-import { writeFile, stat, mkdir } from "node:fs/promises";
-import { parseArgs } from "node:util";
+import { createHash } from "node:crypto";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createHash } from "node:crypto";
+import { parseArgs } from "node:util";
 
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
 };
 import {
-  buildRawSectionHtml,
   buildHwpCategoryHtml,
+  buildRawSectionHtml,
   buildRecruitmentResultHtml,
-  HWP_SECTION_HTML_KEYS,
   clean,
+  HWP_SECTION_HTML_KEYS,
 } from "../src/lib/admissionParsing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

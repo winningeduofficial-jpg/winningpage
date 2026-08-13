@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { submitDailyRecord } from "../../../lib/goalApi";
 import GoalCard from "../GoalCard";
 import GoalProgressBar from "../GoalProgressBar";
-import { submitDailyRecord } from "../../../lib/goalApi";
 
 // 대시보드 "오늘의 목표" 카드 — part-07 #20(카드 배경 정본, 1076×409 = 67.25rem×25.5625rem).
 // #21의 "카드 배경 1076×12 축소"는 시안 편집 사고로 판단해 채택하지 않는다(작업 지시 §확정사항 6).

@@ -29,9 +29,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import * as esbuild from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import * as esbuild from "esbuild";
 
 const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const EDITOR_SURFACE_REL =

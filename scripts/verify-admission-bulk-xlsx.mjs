@@ -11,19 +11,19 @@
 // 종료 코드: 전부 통과하면 0, 하나라도 실패하면 1.
 // =====================================================================
 
-import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
-import { parseArgs } from "node:util";
-import { pathToFileURL } from "node:url";
-import { join } from "node:path";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
 import {
+  BULK_XLSX_COLUMNS,
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
-  BULK_XLSX_COLUMNS,
   TRUNCATION_MARKER,
 } from "../src/lib/admissionBulkXlsx.js";
 import {
@@ -206,7 +206,7 @@ function assertNotNullColumnsSatisfied(rows, notNullColumns) {
   const violations = [];
   rows.forEach((row, idx) => {
     notNullColumns.forEach((col) => {
-      if (!Object.prototype.hasOwnProperty.call(row, col)) return;
+      if (!Object.hasOwn(row, col)) return;
       if (row[col] === null || row[col] === undefined) {
         violations.push(`row[${idx}](${row.university_key || "?"}).${col}`);
       }

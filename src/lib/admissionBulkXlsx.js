@@ -116,18 +116,17 @@
 // =====================================================================
 
 import * as XLSX from "xlsx";
-
-import {
-  buildHwpCategoryDoc,
-  renderDocToHtml,
-  HWP_SECTION_HTML_KEYS,
-  clean,
-} from "./admissionParsing.js";
 import {
   HWP_SECTION_JSON_KEYS,
-  validateAdmissionDoc,
   shouldSkipForRegression,
+  validateAdmissionDoc,
 } from "./admissionDoc.js";
+import {
+  buildHwpCategoryDoc,
+  clean,
+  HWP_SECTION_HTML_KEYS,
+  renderDocToHtml,
+} from "./admissionParsing.js";
 
 export const BULK_XLSX_COLUMNS = [
   "id",

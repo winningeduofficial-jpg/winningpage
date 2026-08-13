@@ -1,6 +1,6 @@
+import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { buildMyMenu } from "./myMenuItems";
 
 const FOCUSABLE_SELECTOR =

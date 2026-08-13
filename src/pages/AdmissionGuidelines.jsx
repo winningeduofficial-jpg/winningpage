@@ -1,14 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   RotateCcw,
+  Search,
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AdmissionSectionView from "../components/admission/AdmissionSectionView";
+import AdmissionSurface from "../components/admission/AdmissionSurface";
+import AdmissionModalShell from "../components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "../components/admission/modal/AdmissionModalStyles";
+import useModalProxyXScroll from "../components/admission/modal/modalProxyXScroll";
+import SafeHtml from "../components/admission/SafeHtml";
+import {
+  HWP_SECTION_JSON_KEYS,
+  isEmptyDoc,
+  validateAdmissionDoc,
+} from "../lib/admissionDoc";
+import { isDocRenderEnabled } from "../lib/admissionFlags";
 import {
   buildRawSectionHtml,
   buildResourceIndex,
@@ -25,19 +36,8 @@ import {
   stripHtmlToText,
   withHwpSectionHeading,
 } from "../lib/admissionParsing";
-import {
-  HWP_SECTION_JSON_KEYS,
-  validateAdmissionDoc,
-  isEmptyDoc,
-} from "../lib/admissionDoc";
-import { isDocRenderEnabled } from "../lib/admissionFlags";
 import { getAdmissionActiveYear } from "../lib/admissionSettings";
-import AdmissionSectionView from "../components/admission/AdmissionSectionView";
-import SafeHtml from "../components/admission/SafeHtml";
-import AdmissionSurface from "../components/admission/AdmissionSurface";
-import AdmissionModalShell from "../components/admission/modal/AdmissionModalShell";
-import AdmissionModalStyles from "../components/admission/modal/AdmissionModalStyles";
-import useModalProxyXScroll from "../components/admission/modal/modalProxyXScroll";
+import { supabase } from "../lib/supabase";
 
 const REGION_ORDER = [
   "강원",

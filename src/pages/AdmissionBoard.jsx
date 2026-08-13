@@ -1,6 +1,6 @@
+import { Download, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { Download, Search } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 const DEFAULT_META = {

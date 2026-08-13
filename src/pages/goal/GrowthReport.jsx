@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
 import GoalCard from "../../components/goal/GoalCard";
+import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
 import { fetchGoalReport } from "../../lib/goalApi";
 
 const VALID_PERIODS = ["weekly", "monthly"];

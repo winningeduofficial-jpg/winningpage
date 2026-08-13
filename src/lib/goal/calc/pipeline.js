@@ -61,22 +61,21 @@
 //      그대로 등급으로 쓴다. student.mjs:646-651 참고. 이 경로는 주입 없이도 동작한다.)
 // 이 두 데이터가 확보되기 전까지 파이프라인은 (고3이 아닌 학년에 한해) 주입 없이 동작하지 않는다.
 
-import {
-  getSchoolCutType,
-  getRemainingNaesin,
-  getRemainingMogo,
-  calcNaesinProb,
-  applyPreHighGradePenalty,
-} from "./primitives.js";
-
-import { calcJeongsiProb, calcJeongsiCompositeFE } from "./jeongsi.js";
-
 import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.js";
 
+import { calcJeongsiCompositeFE, calcJeongsiProb } from "./jeongsi.js";
 import {
-  VIRTUAL_DAY_NAMES,
-  sumWeeklySchedule,
+  applyPreHighGradePenalty,
+  calcNaesinProb,
+  getRemainingMogo,
+  getRemainingNaesin,
+  getSchoolCutType,
+} from "./primitives.js";
+
+import {
   calculateWeekSchedule,
+  sumWeeklySchedule,
+  VIRTUAL_DAY_NAMES,
 } from "./schedule.js";
 
 // ── 이식 누락 보충: student.mjs 의 네 판정 헬퍼 ─────────────────────────────

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import DirectionReportBody from "../../components/goal/report/DirectionReportBody";
 import GoalCard from "../../components/goal/GoalCard";
+import DirectionReportBody from "../../components/goal/report/DirectionReportBody";
 import { fetchGoalReport } from "../../lib/goalApi";
 
 const VALID_TABS = ["naesin", "jeongsi"];

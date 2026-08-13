@@ -46,12 +46,12 @@
 //    평가했는지는 `evaluation.submissionId`/`evaluation.revision`으로 프론트가
 //    매칭한다(추가 조인 없이 봉투에 이미 들어있는 값, evaluate.js `buildReportEnvelope`).
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

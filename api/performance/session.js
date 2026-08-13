@@ -42,14 +42,14 @@
 // ── 회차는 차감하지 않는다 (§9.3 "세션 생성 | 없음")
 //    quotaRemaining은 안내용 스냅샷으로만 응답에 싣는다.
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
-  SERVICE_CONFIGS,
   findProgramAccessRow,
   getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
+  SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

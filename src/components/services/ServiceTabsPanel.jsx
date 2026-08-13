@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 
-import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from "./serviceTokens";
+import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // 탭 UI 섹션 본문(탭바 + 탭패널 카드).
 //

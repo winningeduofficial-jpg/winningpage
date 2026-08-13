@@ -1,4 +1,4 @@
-import { UserRound, CreditCard, RotateCcw } from "lucide-react";
+import { CreditCard, RotateCcw, UserRound } from "lucide-react";
 
 // 헤더 데스크톱 드롭다운과 모바일 드로어가 공유하는 마이페이지 메뉴.
 //

@@ -16,8 +16,8 @@
 //   - 연도 축은 2025·2026 2개년이다. 2점은 추세(trend)가 아니라 변화(change)이므로
 //     "평균" 열/스파크라인 대신 Δ 전년대비 열과 GradeDelta 슬로프를 쓴다(명세 §8.3).
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import GradeDelta from "../../components/charts/GradeDelta";
 import Sparkline from "../../components/charts/Sparkline";

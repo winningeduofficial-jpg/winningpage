@@ -5,8 +5,9 @@
 // 단계를 거치지 않는다(§5.2 라우트 표에도 /signup/parent/birth 없음).
 // icon: Figma 일러스트 에셋(image 282/283)은 T1 단계에서 재추출되지 않아 제공되지 않는다
 // (§6.2) — 임시로 lucide-react 아이콘을 자리표시자로 사용. 실제 일러스트 확보 시 교체 필요.
-import { useNavigate } from "react-router-dom";
+
 import { GraduationCap, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   AuthLayout,
   AuthTitle,

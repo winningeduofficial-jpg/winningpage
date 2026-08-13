@@ -20,13 +20,13 @@
 // 달리 status==='active'까지는 요구하지 않는다(중요일정은 확률 계산과 무관하다).
 
 import {
-  PAID_MESSAGE,
   buildSchedulePayload,
   deleteSchedule,
   fetchSchedules,
   fetchStudentRow,
   insertSchedule,
   openGoalSession,
+  PAID_MESSAGE,
   updateSchedule,
 } from "../_lib/goalRepo.js";
 

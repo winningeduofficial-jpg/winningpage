@@ -29,9 +29,9 @@
 // (④ 리터럴 대조는 원본이 있어야 기준값을 얻으므로 함께 SKIP된다.)
 // =====================================================================
 
+import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import assert from "node:assert";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(

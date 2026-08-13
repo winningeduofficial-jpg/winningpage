@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
 import OnboardingCalculatingOverlay from "../../components/goal/onboarding/OnboardingCalculatingOverlay";
+import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
 import Step1School from "../../components/goal/onboarding/steps/Step1School";
 import Step2UpperUniversity from "../../components/goal/onboarding/steps/Step2UpperUniversity";
 import Step3LowerUniversity from "../../components/goal/onboarding/steps/Step3LowerUniversity";

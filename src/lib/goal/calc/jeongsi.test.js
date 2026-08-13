@@ -14,19 +14,19 @@
 //
 // 실행: cd /Users/hyunsoo/uwellnow/winningpage-goal-app && node --test src/lib/goal/calc/jeongsi.test.js
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
-  getPercentileBands,
-  getWeightedEffortAmount,
   calcJeongsiBaseProb,
-  getTimeFactorPercentile,
-  calcJeongsiProb,
   calcJeongsiCompositeFE,
-  getEnglishPenaltyFE,
-  getPercentileChips,
+  calcJeongsiProb,
   GRADE_PERCENTILE,
+  getEnglishPenaltyFE,
+  getPercentileBands,
+  getPercentileChips,
+  getTimeFactorPercentile,
+  getWeightedEffortAmount,
 } from "./jeongsi.js";
 
 // 부동소수 비교 헬퍼. NaN 은 NaN 끼리만 같다고 본다(원본이 NaN 을 뱉는 케이스가 있다).

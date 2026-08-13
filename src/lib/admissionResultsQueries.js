@@ -18,11 +18,11 @@
 // 목록 쿼리는 집계 뷰만 읽고, 상세 쿼리도 31컬럼 중 필요한 13개만 받는다.
 // 본선 데이터가 434행 → 43,170행으로 100배가 됐으므로 이 규율은 더 엄격해졌다.
 
-import { supabase } from "./supabase";
 import {
   collectFallbackAdmissionTracks,
   RESULT_YEARS,
 } from "./admissionResults";
+import { supabase } from "./supabase";
 
 // 통합 테이블(admission_results)은 sql/53에서 recruitment_period 축이 제거돼
 // **수시 전용**이 됐다(원본 자료 3종 어디에도 모집시기 개념이 없음 — 명세 §6.1 Q1 확정).

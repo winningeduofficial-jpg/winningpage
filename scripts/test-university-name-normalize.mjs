@@ -5,8 +5,8 @@
 //    통과(가짜 green)로 종료 코드 0 을 낸다.
 //    사용법: node --test scripts/test-university-name-normalize.mjs
 
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 import { normalizeUniversityName } from "../src/lib/goal/universityNameNormalize.js";
 

@@ -3,7 +3,7 @@
 // 도 React/DOM 없이 이 함수들만 직접 import해서 로직을 단언한다(컴포넌트를
 // 렌더하지 않고도 "열 추가 시 전 행 길이가 함께 맞춰지는지" 같은 구조적
 // 불변식을 검증할 수 있다).
-import { getCellKind, defaultNewColumnRole } from "../admissionLayout";
+import { defaultNewColumnRole, getCellKind } from "../admissionLayout";
 import { emptyCellForKind } from "./tableEditorValidation";
 
 export function updateCell(block, rowIdx, colIdx, nextCellValue) {

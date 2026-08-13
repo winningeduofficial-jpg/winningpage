@@ -4,12 +4,12 @@
 // 경찰대학·사관학교·과기원 하드코딩 상수. Phase 4에서 src/data/로 이관했다
 // (아래 buildScienceSpecialHtml 등에서 그대로 소비).
 import {
-  SCIENCE_SPECIAL_DATA,
-  POLICE_SPECIAL_DATA,
   ACADEMY_SPECIAL_DATA,
+  POLICE_SPECIAL_DATA,
+  SCIENCE_SPECIAL_DATA,
 } from "../data/admissionSpecialUniversityData.js";
 
-export { SCIENCE_SPECIAL_DATA, POLICE_SPECIAL_DATA, ACADEMY_SPECIAL_DATA };
+export { ACADEMY_SPECIAL_DATA, POLICE_SPECIAL_DATA, SCIENCE_SPECIAL_DATA };
 
 export function clean(value) {
   return String(value || "").trim();
@@ -42,7 +42,7 @@ export function sanitizeAdmissionDisplayText(
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  if (/^[,./|:;·\-–—()\[\]{}\s]*$/.test(text)) return "";
+  if (/^[,./|:;·\-–—()[\]{}\s]*$/.test(text)) return "";
   return text;
 }
 
@@ -87,7 +87,7 @@ export function escapeHtml(value) {
 // 이 함수를 거치므로, 여기 없으면 향후 재파싱 시 판별된 PUA 문자가 다시 새어 나온다.
 // 판별 근거는 scripts/normalize-admission-html.mjs의 주석과 동일(HWP 원문자 ①②가 보조
 // 평면 PUA-A 코드로 내보내진 케이스만 확정 매핑, 그 외 PUA는 손대지 않는다).
-const KNOWN_PUA_CODEPOINT_MAP = { 0xf02ce: "①", 0xf02cf: "②" };
+const KNOWN_PUA_CODEPOINT_MAP = { 983758: "①", 983759: "②" };
 export function replaceKnownPuaChars(value) {
   let text = String(value || "");
   for (const [codePoint, replacement] of Object.entries(
@@ -818,7 +818,7 @@ export function splitSubnumberedChangeItem(text) {
 }
 
 export function parseChangeRowTitleAndContent(text) {
-  let source = normalizeChangeTokenSpacing(text);
+  const source = normalizeChangeTokenSpacing(text);
   let title = "주요 변경";
   let content = source;
 
@@ -1098,7 +1098,7 @@ export function splitLeadingSelectionMinimumAndMethod(value) {
   const v = clean(value).replace(/ /g, " ");
   if (!v) return { minimum: "", method: "" };
 
-  const mark = v.match(/^([◯○●]+(?:\([^)]+\))?)\s*(?:[\/·,]|\s{2,})\s*(.+)$/);
+  const mark = v.match(/^([◯○●]+(?:\([^)]+\))?)\s*(?:[/·,]|\s{2,})\s*(.+)$/);
   if (mark && looksLikeSelectionMinimumToken(mark[1])) {
     return { minimum: mark[1], method: clean(mark[2]) };
   }
@@ -1243,7 +1243,7 @@ export function parseSelectionMethodRows(lines) {
       if (isSelectionSeatToken(data[i + 1])) {
         currentType = token;
         const name = normalizeSelectionName(token);
-        let seats = normalizeSelectionSeat(data[i + 1]);
+        const seats = normalizeSelectionSeat(data[i + 1]);
         i += 2;
         let minimum = "-";
         const methodParts = [];
@@ -4309,7 +4309,7 @@ const LEGACY_IMPORT_GENERATOR_TAG = "import-legacy-admission-html@phase5";
 export function normalizeName(value) {
   return clean(value)
     .replace(/\s+/g, "")
-    .replace(/[［\[]/g, "(")
+    .replace(/[［[]/g, "(")
     .replace(/[］\]]/g, ")")
     .toLowerCase();
 }

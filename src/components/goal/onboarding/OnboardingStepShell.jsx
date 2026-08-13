@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import OnboardingProgress from "./OnboardingProgress";
 import { supabase } from "../../../lib/supabase";
+import OnboardingProgress from "./OnboardingProgress";
 
 // 로그인 사용자 이름 추출 — api/create-service-ticket.js의 getUserName()과 동일한 우선순위
 // (user_metadata.name → full_name → student_name → email)를 프런트에서 재사용할 별도 헬퍼가

@@ -10,8 +10,9 @@
  * React 를 import 하지 않는다. window 접근은 전부 try/catch 로 감싼다 —
  * 프라이빗 모드·용량 초과에서 sessionStorage 가 던지면 제출 버튼이 통째로 죽는다.
  */
-import { normalizeAnswers } from "./diagnosisScoring.js";
+
 import { SCHEMA_VERSION } from "../data/diagnosisScoringTable.js";
+import { normalizeAnswers } from "./diagnosisScoring.js";
 
 /** sessionStorage 키. 새로고침·직접 URL 진입에서도 같은 리포트가 나오게 하는 유일한 근거다. */
 export const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";

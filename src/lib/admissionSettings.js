@@ -54,16 +54,14 @@ export async function setAdmissionActiveYear(supabaseClient, year) {
   if (!Number.isFinite(numericYear) || numericYear <= 0) {
     return { ok: false, error: `유효하지 않은 연도: ${year}` };
   }
-  const { error } = await supabaseClient
-    .from(TABLE)
-    .upsert(
-      {
-        key: ADMISSION_ACTIVE_YEAR_KEY,
-        value: numericYear,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "key" },
-    );
+  const { error } = await supabaseClient.from(TABLE).upsert(
+    {
+      key: ADMISSION_ACTIVE_YEAR_KEY,
+      value: numericYear,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

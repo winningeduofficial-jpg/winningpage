@@ -15,9 +15,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   AuthLayout,
   AuthTitle,
-  TextField,
-  PrimaryButton,
   InfoCard,
+  PrimaryButton,
+  TextField,
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";
 import { sendChildInvite } from "./mockApi";

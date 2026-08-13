@@ -17,14 +17,14 @@
 //      값이 갈린다(설계 문서 §4 "결정적 근거").
 //   3) 응답 필드명은 카멜 케이스다. DB 스네이크를 그대로 노출하지 않는다(§9-2).
 
-import { createSupabaseAdmin } from "./supabaseAdmin.js";
+import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import {
-  SERVICE_CONFIGS,
   clean,
   getBearerToken,
   hasPaidServiceAccess,
+  SERVICE_CONFIGS,
 } from "./serviceAccess.js";
-import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
+import { createSupabaseAdmin } from "./supabaseAdmin.js";
 
 // ---------------------------------------------------------------------------
 // 테이블 · 공통 상수

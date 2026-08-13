@@ -1,5 +1,5 @@
-import { useId, useRef } from "react";
 import { X } from "lucide-react";
+import { useId, useRef } from "react";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 
 // 목표관리 앱 모달 6종 공용 셸 — docs/figma-goal/00-INDEX.md §5-4 `AppModal` / §6-3 "모달 규격(전 6종 공통)".

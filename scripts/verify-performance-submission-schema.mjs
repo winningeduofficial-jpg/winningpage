@@ -36,9 +36,9 @@
 //  SKIP된다 — 외부 계산식과의 '차이'를 증명하는 것이 이 검사의 목적이기 때문이다.)
 // =====================================================================
 
+import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import assert from "node:assert";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(

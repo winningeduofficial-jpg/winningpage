@@ -1,7 +1,7 @@
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 import QuestionCard from "../QuestionCard";
 import UniversitySelect from "../UniversitySelect";
 import WizardActions from "../WizardActions";
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
 
 // 2단계 — docs/figma-goal/part-01.md #3 + part-02.md #4. 상한(이상) 목표 대학.
 export default function Step2UpperUniversity({ goPrev, goNext }) {

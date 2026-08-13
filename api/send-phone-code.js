@@ -16,7 +16,7 @@
 // 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
 // duplicate_phone이 잡는다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
 import {
   CODE_TTL_SECONDS,
   COOLDOWN_SECONDS,
@@ -28,7 +28,7 @@ import {
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };

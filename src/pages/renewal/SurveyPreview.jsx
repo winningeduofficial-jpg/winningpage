@@ -3,13 +3,13 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
 import SurveyProgress from "../../components/renewal/survey/SurveyProgress";
 import { useUnansweredNavigation } from "../../hooks/useUnansweredNavigation";
-import {
-  SURVEY_REPORT_PATH,
-  isQuestionAnswered,
-  surveyMainQuestions,
-} from "../../lib/renewalSurvey";
 // sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. SurveyStepPage 와 같은 계약.
 import { applySurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides";
+import {
+  isQuestionAnswered,
+  SURVEY_REPORT_PATH,
+  surveyMainQuestions,
+} from "../../lib/renewalSurvey";
 
 /**
  * 17문항 롱스크롤 QA 화면. /learning-diagnosis/survey/preview 로 강등 보존한다(SPEC B12).

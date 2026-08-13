@@ -16,23 +16,23 @@
 
 import {
   ACTIVE_RESULT_YEAR,
-  CATEGORY_ORDER,
-  CELL_STATE,
-  CUT_MISMATCH_NOTE,
-  DELTA_STATE,
-  EMPTY_CELL,
-  NEW_CELL,
-  UNDISCLOSED_CELL,
   buildCategories,
   buildDetailModel,
   buildTableRows,
   buildTrackSummaries,
+  CATEGORY_ORDER,
+  CELL_STATE,
+  CUT_MISMATCH_NOTE,
   categorize,
   computeDelta,
+  DELTA_STATE,
+  EMPTY_CELL,
   formatCompetitionRate,
   formatGradeCell,
+  NEW_CELL,
   pickGrade,
   pickInitialCategoryKey,
+  UNDISCLOSED_CELL,
 } from "../src/lib/admissionResults.js";
 
 let failCount = 0;

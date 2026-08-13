@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { UNIVERSITY_OPTIONS } from "../../../data/goalOnboardingMock";
 
 // 대학 검색 콤보박스 + 학과 셀렉트 — docs/figma-goal/00-INDEX.md §5-3 `UniversitySelect`.

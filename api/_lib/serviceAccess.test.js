@@ -23,9 +23,9 @@
 // green이 난다):
 //   node --test "api/_lib/*.test.js"
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isPaidStatus, isActiveStatus } from "./serviceAccess.js";
+import { test } from "node:test";
+import { isActiveStatus, isPaidStatus } from "./serviceAccess.js";
 
 test("isPaidStatus - 버그 재현: unpaid는 결제완료가 아니다", () => {
   assert.equal(isPaidStatus("unpaid"), false);

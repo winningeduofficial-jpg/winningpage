@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { supabase } from "../lib/supabase";
-import { FAQ_CATEGORIES } from "../data/faqCategories";
-import FaqCategoryTabs from "../components/faq/FaqCategoryTabs";
+import { useEffect, useMemo, useState } from "react";
 import FaqAccordionRow from "../components/faq/FaqAccordionRow";
-import { getFaqTabId, FAQ_TABPANEL_ID } from "../components/faq/faqTabId";
+import FaqCategoryTabs from "../components/faq/FaqCategoryTabs";
+import { FAQ_TABPANEL_ID, getFaqTabId } from "../components/faq/faqTabId";
+import { FAQ_CATEGORIES } from "../data/faqCategories";
+import { supabase } from "../lib/supabase";
 
 // '전체'는 DB category 값이 아니라 UI 전용 키다 — faqs.category 에는 절대
 // 저장하지 않는다(계약 §1).

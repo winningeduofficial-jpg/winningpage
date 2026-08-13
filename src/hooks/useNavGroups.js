@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
-import { supabase } from "../lib/supabase";
 import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "../data/navigation";
+import { supabase } from "../lib/supabase";
 
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
 // v3: 콜멘토 링크가 /page/services-content → /services/callmentor 로 바뀌어(callmentor-spec.md)

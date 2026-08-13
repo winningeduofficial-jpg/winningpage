@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Download } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import bizAiPlatform from "../assets/company/biz-ai-platform.png";
+import bizConsulting from "../assets/company/biz-consulting.png";
+import bizNetwork from "../assets/company/biz-network.png";
+
+import directorPortrait from "../assets/company/director-portrait.png";
+import missionBg from "../assets/company/mission-bg.jpg";
+import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.png";
+import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
+import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
 import { alertServiceNotReady } from "../lib/paidServiceAccess";
+import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
   formatBoardDate,
   incrementBoardView,
 } from "./board/boardData";
-
-import directorPortrait from "../assets/company/director-portrait.png";
-import missionBg from "../assets/company/mission-bg.jpg";
-import bizAiPlatform from "../assets/company/biz-ai-platform.png";
-import bizConsulting from "../assets/company/biz-consulting.png";
-import bizNetwork from "../assets/company/biz-network.png";
-import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.png";
-import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
-import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
 
 // 회사소개(/company-news) — Figma 시안(1882:19182 "회사소개", 1920×6363) 전면 재작성.
 // 라우트 · 헤더/푸터(SiteLayout 전역 렌더) · Supabase 조회/검색/상세/첨부 기능은 그대로 두고

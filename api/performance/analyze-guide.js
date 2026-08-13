@@ -96,18 +96,18 @@
 //    3회가 사라졌다. 응답의 `charged:false`는 그 사실을 계약으로 못박은 것이다.
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import {
-  SERVICE_CONFIGS,
-  getBearerToken,
-  hasPaidServiceAccess,
-} from "../_lib/serviceAccess.js";
 import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
 import {
+  buildGuideExtractionUserPrompt,
   GUIDE_EXTRACTION_SYSTEM,
   GUIDE_PROMPT_VERSION,
-  buildGuideExtractionUserPrompt,
 } from "../_lib/performance/prompts.js";
+import {
+  getBearerToken,
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   ALLOWED_MIME_EXT,
   BUCKET,

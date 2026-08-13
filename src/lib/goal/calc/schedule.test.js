@@ -9,16 +9,16 @@
 // 이 파일의 목적 절반은 "원본의 병리를 고정"하는 것이다. 아래 NOTE(target-parity) 가 붙은
 // 케이스는 버그처럼 보여도 원본 동작이며, 사용자가 그대로 이식하기로 확정했다. 고치지 말 것.
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
-  sumWeeklySchedule,
+  calcAvailableHours,
+  calcAvailableHoursApprox,
+  calculateWeekSchedule,
   getEffectiveScheduleTarget,
   getStudyMultiplier,
-  calcAvailableHours,
-  calculateWeekSchedule,
-  calcAvailableHoursApprox,
+  sumWeeklySchedule,
 } from "./schedule.js";
 
 const EPS = 1e-9;

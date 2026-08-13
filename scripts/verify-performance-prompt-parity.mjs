@@ -640,10 +640,7 @@ for (const no of [248, 256, 264, 272, 280, 288, 295]) {
   check(
     `구조 판정 유형 원문 :${no}  ${type}`,
     Boolean(type) &&
-      Object.prototype.hasOwnProperty.call(
-        ported.DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE,
-        type,
-      ),
+      Object.hasOwn(ported.DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE, type),
   );
 }
 
@@ -807,7 +804,7 @@ check(
   )
     .map((section) => section.id)
     .join() === "recommended_resources" &&
-    !Object.prototype.hasOwnProperty.call(
+    !Object.hasOwn(
       ported.DESIGN_REPORT_SCHEMA.properties,
       "recommended_resources",
     ),

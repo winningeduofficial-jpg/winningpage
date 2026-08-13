@@ -67,7 +67,7 @@ export function countFieldsChars(schemaFields, values = {}) {
   let total = 0;
 
   for (const field of fields) {
-    if (Object.prototype.hasOwnProperty.call(perField, field.key)) continue;
+    if (Object.hasOwn(perField, field.key)) continue;
     const count = countFieldChars(source[field.key]);
     perField[field.key] = count;
     total += count;
