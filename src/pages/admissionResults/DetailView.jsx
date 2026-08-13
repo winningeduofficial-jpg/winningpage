@@ -355,6 +355,7 @@ function ResultTable({ tableRows, years, activeYear }) {
                 const { delta } = row;
 
                 return (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: row.key가 없을 수 있어("unnamed" 폴백) index로 중복을 구분한다 — 읽기 전용 표, 재정렬 없음.
                   <tr key={`${row.key || "unnamed"}-${index}`}>
                     <th scope="row" className="ar-name-cell">
                       <span className="ar-name-group">

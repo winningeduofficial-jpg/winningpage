@@ -774,6 +774,7 @@ function NewsDetail({ row, onBack }) {
               <div className="mx-auto mb-10 max-w-[57.5rem] space-y-4">
                 {finalImages.map((url, index) => (
                   <img
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 게시글 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
                     key={`${url}-${index}`}
                     src={url}
                     alt={`${row.title} 이미지 ${index + 1}`}
@@ -797,6 +798,7 @@ function NewsDetail({ row, onBack }) {
 
                     return (
                       <a
+                        // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 첨부파일 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
                         key={`${url}-${index}`}
                         href={url}
                         target="_blank"

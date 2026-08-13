@@ -186,6 +186,7 @@ export default function Events() {
                 <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
                   {images.map((url, index) => (
                     <img
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 공지 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
                       key={`${url}-${index}`}
                       src={url}
                       alt={`${selectedNotice.title} 이미지 ${index + 1}`}
@@ -218,6 +219,7 @@ export default function Events() {
 
                       return (
                         <a
+                          // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 첨부파일 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
                           key={`${url}-${index}`}
                           href={url}
                           target="_blank"

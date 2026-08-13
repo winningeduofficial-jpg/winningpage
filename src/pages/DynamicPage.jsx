@@ -156,6 +156,7 @@ export default function DynamicPage() {
               <div className="space-y-6">
                 {bottomImages.map((url, index) => (
                   <img
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 페이지 이미지 목록 — 같은 url이 중복될 수 있어 index로 구분한다. 재정렬 없음.
                     key={`${url}-${index}`}
                     src={url}
                     alt=""

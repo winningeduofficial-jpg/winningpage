@@ -6371,6 +6371,7 @@ function AdminForm({
                                 normalizeArray(form[field.key]).map(
                                   (url, index) => (
                                     <div
+                                      // biome-ignore lint/suspicious/noArrayIndexKey: 삭제만 가능하고 재정렬은 없다. img는 상태 없이 src만 그리므로 삭제로 index가 밀려도 항상 올바른 url을 보여준다.
                                       key={`${url}-${index}`}
                                       className="relative"
                                     >
@@ -6429,6 +6430,7 @@ function AdminForm({
 
                                     return (
                                       <div
+                                        // biome-ignore lint/suspicious/noArrayIndexKey: 삭제만 가능하고 재정렬은 없다. 링크는 상태 없이 fileUrl/fileName만 그리므로 삭제로 index가 밀려도 항상 올바른 값을 보여준다.
                                         key={`${fileUrl}-${index}`}
                                         className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
                                       >
@@ -7340,6 +7342,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {parseErrors.map((msg, idx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
             <p key={idx}>{msg}</p>
           ))}
         </div>
@@ -7380,6 +7383,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
               </p>
               <ul className="mt-1 space-y-1">
                 {parseResult.errors.map((err, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
                   <li key={idx} className="text-red-700">
                     행 {err.row + 1} · {err.admissionYear ?? "-"}학년도 ·{" "}
                     {err.universityKey || "(키 없음)"} — {err.reason}
@@ -7421,6 +7425,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
                     {items.map((w, idx) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
                       <li key={idx}>
                         행 {w.row + 1} · {w.admissionYear ?? "-"}학년도 ·{" "}
                         {w.universityKey || "(키 없음)"}
@@ -7796,6 +7801,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {parseErrors.map((msg, idx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
             <p key={idx}>{msg}</p>
           ))}
         </div>
@@ -7822,6 +7828,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
               </p>
               <ul className="mt-1 space-y-1">
                 {parseResult.errors.map((err, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
                   <li key={idx} className="text-red-700">
                     행 {err.row + 1} · {err.resultYear ?? "-"}학년도 ·{" "}
                     {err.universityKey || "(대학 키 없음)"}/
@@ -7861,6 +7868,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
                     {items.map((w, idx) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
                       <li key={idx}>
                         행 {w.row + 1} · {w.resultYear ?? "-"}학년도 ·{" "}
                         {w.universityKey || "(대학 키 없음)"}/
@@ -8909,6 +8917,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {parseErrors.map((message, idx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
             <p key={idx}>{message}</p>
           ))}
         </div>
@@ -8935,6 +8944,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
               </p>
               <ul className="mt-1 space-y-1">
                 {parseResult.errors.map((err, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
                   <li key={idx} className="text-red-700">
                     행 {err.row + 1} · {err.universityName || "(대학명 없음)"} ·{" "}
                     {err.departmentName || "(학과명 없음)"} — {err.reason}
@@ -8974,6 +8984,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
                     {items.map((w, idx) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
                       <li key={idx}>
                         행 {w.row + 1} · {w.universityName || "(대학명 없음)"} ·{" "}
                         {w.departmentName || "(학과명 없음)"}
@@ -11619,6 +11630,7 @@ function GoalProbabilityChart({ logs }) {
             <g key={item.key}>
               {segments.map((points, index) => (
                 <polyline
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 차트 렌더마다 좌표에서 새로 계산되는 선분 조각 — id 없고 재정렬 없음.
                   key={index}
                   points={points.join(" ")}
                   fill="none"
