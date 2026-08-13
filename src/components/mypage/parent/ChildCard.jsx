@@ -12,10 +12,14 @@
 //    자리에 [삭제하기]를 두고 있고, 삭제 확인 모달(3709:2630)도 존재한다.
 //    구현 가능한 동작이 삭제 하나뿐이라 [삭제하기]로 뒀다 — [관리]가 별도
 //    화면이라면 디자인이 필요하다.
-// 3) "학습 리포트 보기 →" 가 갈 곳이 없다. 학부모가 자녀의 리포트를 보는
-//    라우트가 App.jsx 에 없고, /app/goal 은 본인 것만 연다
-//    (RequireGoalAccess 는 호출자 본인의 이용권을 본다). 라우트를 지어내면
-//    학부모 자기 화면으로 보내는 오작동이 되므로 비활성으로 둔다.
+// 3) "학습 리포트 보기 →" 는 /mypage/children/:studentId/report(학부모 뷰어,
+//    src/pages/mypage/ChildReport.jsx)로 간다. 수락 전(pending)에는 볼 것이
+//    없으므로 링크를 걸지 않는다.
+//    ⚠ 그 리포트 본문은 아직 실데이터가 아니다(GrowthReportBody 가 goalReportMock
+//    을 직접 읽는다) — 뷰어가 상단에 샘플 표시를 띄운다. 자세한 사정은 ChildReport
+//    파일 상단 주석 참고.
+
+import { Link } from 'react-router-dom';
 
 const STATUS_BADGE = {
   approved: { label: '연결됨', cls: 'bg-[#e7f2fb] text-accent' },
@@ -106,13 +110,22 @@ export default function ChildCard({ child, onRemove }) {
         <span className="text-[0.75rem] text-ink-sub">
           {formatLinkedAt(child.linked_at)} {child.link_status === 'approved' ? '연결' : '요청'}
         </span>
-        <span
-          aria-disabled="true"
-          title="학부모가 자녀의 리포트를 여는 화면이 아직 없습니다."
-          className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
-        >
-          학습 리포트 보기 →
-        </span>
+        {child.link_status === 'approved' ? (
+          <Link
+            to={`/mypage/children/${child.student_profile_id}/report`}
+            className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
+          >
+            학습 리포트 보기 →
+          </Link>
+        ) : (
+          <span
+            aria-disabled="true"
+            title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
+            className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
+          >
+            학습 리포트 보기 →
+          </span>
+        )}
       </div>
     </div>
   );
