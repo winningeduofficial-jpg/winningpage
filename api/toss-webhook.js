@@ -215,60 +215,94 @@ export default async function handler(req, res) {
 
     // 이미 paid 인 주문에 재전송이 온 경우 orders 는 다시 쓸 필요가 없다.
     let paidAt = order.paid_at ?? null;
-    if (!unchanged) {
-      const patch = {
-        status: nextStatus,
-        method: payment.method ?? null,
-        raw: payment,
-      };
-      // paid_at 은 "입금이 확인된 시각"이다. 입금 완료가 아닌 전이에서는 건드리지 않는다.
-      if (nextStatus === 'paid') {
-        patch.paid_at = payment.approvedAt ?? new Date().toISOString();
-        paidAt = patch.paid_at;
-      }
-
-      const { error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update(patch)
-        .eq('id', orderId);
-
-      if (updateError) {
-        if (isPermanentDbError(updateError)) {
-          // 제약 위반·도메인 예외(예: WC039 refunded_order_immutable 트리거)는
-          // 재시도해도 같은 결과다 — 200 으로 닫아 토스의 재시도 폭주를 막는다.
-          console.error('toss-webhook 영구 오류(주문 갱신):', orderId, updateError);
-          return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: updateError.code });
-        }
-        throw updateError;
-      }
-    }
-
-    // 즉시 입장(사용자 확정): 가상계좌 입금이 확인된 이 순간이 권한 부여 지점이다.
-    // 카드·간편결제 경로(api/confirm-payment.js)와 같은 api/_lib/programAccess.js
-    // 를 쓴다 — 부여 규칙이 두 벌로 갈라지지 않게 한다.
-    // 부여 실패로 5xx 를 주면 토스가 웹훅을 재시도하지만 그 재시도가 곧 복구
-    // 경로이므로(위 unchanged 분기) 200 을 유지하고 실패는 응답 + orders.raw 에
-    // 남긴다.
     let access = null;
-    if (nextStatus === 'paid') {
-      access = await grantProgramAccessForOrder(supabaseAdmin, {
-        orderId,
-        userId: order.user_id,
-        paidAt,
-        // 새 입금이 확인된 전이만 회수된 권한을 되살릴 수 있다. 재전송(unchanged)
-        // 은 새 돈의 근거가 없는 재시도이므로 환불 회수를 되돌리지 않는다.
-        restoreRevoked: !unchanged
-      });
+
+    if (nextStatus === 'paid' && !unchanged) {
+      // 신규 전이(입금 확인) — orders 확정 UPDATE 와 권한 부여를 한 트랜잭션으로
+      // 묶는다(sql/79 fn_finalize_paid_order, api/confirm-payment.js 와 같은
+      // RPC). 예전에는 이 둘이 별도 왕복이라 그 사이 크래시하면 paid 인데
+      // 권한만 없는 주문이 남았다 — 웹훅 재전송이 유일한 복구 수단이었다.
+      // p_confirm_amount=null(웹훅은 금액을 재검증하지 않는다, 기존 blind
+      // update 와 동일), p_require_pending_or_failed=false(원래도 상태 조건 없이
+      // 갱신했다 — approval/refunded 는 이미 위에서 걸렀다).
+      paidAt = payment.approvedAt ?? new Date().toISOString();
+
+      const { data: finalizeResult, error: finalizeError } = await supabaseAdmin.rpc(
+        'fn_finalize_paid_order',
+        {
+          p_order_id: orderId,
+          p_status: 'paid',
+          p_payment_key: null,
+          p_method: payment.method ?? null,
+          p_paid_at: paidAt,
+          p_raw: payment,
+          p_confirm_amount: null,
+          p_require_pending_or_failed: false,
+          // 새 입금이 확인된 전이만 회수된 권한을 되살릴 수 있다.
+          p_restore_revoked: true
+        }
+      );
+
+      if (finalizeError) {
+        if (isPermanentDbError(finalizeError)) {
+          console.error('toss-webhook 영구 오류(주문 확정):', orderId, finalizeError);
+          return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: finalizeError.code });
+        }
+        throw finalizeError;
+      }
+      if (!finalizeResult?.ok) {
+        console.error('toss-webhook: 주문 확정 UPDATE 실패:', orderId, finalizeResult);
+        return res.status(500).json({ error: '주문 확정 실패', detail: finalizeResult });
+      }
+
+      access = finalizeResult.access;
       if (!access.ok) {
         console.error('program_access grant failed (webhook):', orderId, access.error);
       }
-      // 마커는 DB 에 저장된 raw 를 기준으로 붙였다 떼야 한다. unchanged 경로는
-      // 위에서 orders 를 건드리지 않았으므로 저장본(order.raw)이 기준이다.
-      await recordGrantOutcome(supabaseAdmin, {
-        orderId,
-        raw: unchanged ? order.raw : payment,
-        access
-      });
+      await recordGrantOutcome(supabaseAdmin, { orderId, raw: payment, access });
+    } else {
+      // 그 외 전이(paid 이외 상태로의 갱신)와, paid+unchanged 재시도(묶을 UPDATE
+      // 자체가 없는 경우)는 기존 경로를 그대로 둔다.
+      if (!unchanged) {
+        const patch = {
+          status: nextStatus,
+          method: payment.method ?? null,
+          raw: payment,
+        };
+
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update(patch)
+          .eq('id', orderId);
+
+        if (updateError) {
+          if (isPermanentDbError(updateError)) {
+            // 제약 위반·도메인 예외(예: WC039 refunded_order_immutable 트리거)는
+            // 재시도해도 같은 결과다 — 200 으로 닫아 토스의 재시도 폭주를 막는다.
+            console.error('toss-webhook 영구 오류(주문 갱신):', orderId, updateError);
+            return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: updateError.code });
+          }
+          throw updateError;
+        }
+      }
+
+      // 즉시 입장(사용자 확정): paid+unchanged 재전송의 부여 재시도. 카드·
+      // 간편결제 경로(api/confirm-payment.js)와 같은 api/_lib/programAccess.js
+      // 를 쓴다 — 부여 규칙이 두 벌로 갈라지지 않게 한다.
+      if (nextStatus === 'paid') {
+        access = await grantProgramAccessForOrder(supabaseAdmin, {
+          orderId,
+          userId: order.user_id,
+          paidAt,
+          // 재전송(unchanged)은 새 돈의 근거가 없는 재시도이므로 환불 회수를
+          // 되돌리지 않는다.
+          restoreRevoked: false
+        });
+        if (!access.ok) {
+          console.error('program_access grant failed (webhook):', orderId, access.error);
+        }
+        await recordGrantOutcome(supabaseAdmin, { orderId, raw: order.raw, access });
+      }
     }
 
     // 즉시 입장의 대칭: 결제가 종결(취소·환불·만료)되면 권한도 즉시 닫는다.
