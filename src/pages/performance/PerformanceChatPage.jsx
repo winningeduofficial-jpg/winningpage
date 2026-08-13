@@ -317,6 +317,10 @@ export default function PerformanceChatPage() {
   //   건너뛰어진다(그 블록들의 게이트 상태가 이 시점엔 전부 초기값이라 자연히 비어 있기도
   //   하다 — `entryMode`는 오직 재개 선택 카드 자체의 노출 여부만 가른다).
   const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  // bootstrap의 `latestDraft` — "새로 시작하기"가 §9.3 미차감 세션 1개 제한에 걸리는지
+  // 미리 판정하는 근거다(`handleResumeRestart` 참고). `lastSessionSummary`와 별개 질문에
+  // 답한다(bootstrap.js 주석: lastSession="이어서 할 게 있는가", latestDraft="새로 시작해도 되는가").
+  const [latestDraft, setLatestDraft] = useState(null);
   const [entryMode, setEntryMode] = useState('pending'); // 'pending' | 'choice' | 'chat'
   const [resumeBusy, setResumeBusy] = useState(false);
   const [resumeError, setResumeError] = useState(null);
@@ -327,6 +331,10 @@ export default function PerformanceChatPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  // `submitError`가 `409 UNCHARGED_SESSION_EXISTS`일 때만 채워진다 — 저장 리포트로는
+  // 못 돌아가므로(미차감 세션은 산출물이 없어 목록에 안 뜬다) 재개 선택 카드로 돌아가는
+  // 실제 출구 버튼을 조건부로 렌더하는 스위치다(`handleBackToResumeChoice`).
+  const [submitErrorCode, setSubmitErrorCode] = useState(null);
   const [createdSession, setCreatedSession] = useState(null);
 
   // STEP2 분기. 'upload' = 업로드 카드, 'manual' = 직접 입력 폼(§5.8).
@@ -499,6 +507,7 @@ export default function PerformanceChatPage() {
         if (response.ok) {
           setProfileName(data?.profile?.name || null);
           setLastSessionSummary(data?.lastSession || null);
+          setLatestDraft(data?.latestDraft || null);
         }
       } catch (error) {
         console.error('[performance] bootstrap 조회 실패:', error);
@@ -630,6 +639,7 @@ export default function PerformanceChatPage() {
 
     setSubmitting(true);
     setSubmitError(null);
+    setSubmitErrorCode(null);
 
     try {
       // 기본은 `'create'`다. `추가 수행평가 진행하기`로 되돌아온 직후에만 `'resume'`인데,
@@ -650,9 +660,11 @@ export default function PerformanceChatPage() {
 
       if (!response.ok) {
         if (response.status === 409 && data?.error?.code === 'UNCHARGED_SESSION_EXISTS') {
-          setSubmitError(
-            '이미 진행 중인(회차를 아직 쓰지 않은) 수행평가가 있어요. 저장 리포트에서 이어서 진행해 주세요.'
-          );
+          // 저장 리포트로는 못 돌아간다 — 미차감 세션은 정의상 산출물이 없어 그 목록에
+          // 뜨지 않는다(api/performance/reports.js). 대신 재개 선택 카드로 돌아가는
+          // 버튼을 실제로 렌더한다(`submitErrorCode`, InlineCard 아래 렌더 지점).
+          setSubmitError('이미 진행 중인(회차를 아직 쓰지 않은) 수행평가가 있어요.');
+          setSubmitErrorCode('UNCHARGED_SESSION_EXISTS');
         } else {
           setSubmitError(data?.error?.message || '세션을 생성하지 못했어요. 다시 시도해 주세요.');
         }
@@ -1165,6 +1177,7 @@ export default function PerformanceChatPage() {
     setSessionStartMode(hasNextSession ? 'resume' : 'create');
     setCreatedSession(null);
     setSubmitError(null);
+    setSubmitErrorCode(null);
 
     setGuideMode('upload');
     setGuideDone(false);
@@ -1314,13 +1327,29 @@ export default function PerformanceChatPage() {
   }
 
   /**
-   * 재개 선택 카드 `새로 시작하기` — 기존 `resetForNextAssessment`를 재사용한다(§9.3
-   * 제약은 그 함수가 건드리지 않는 `handleSubmit`의 기존 409 처리가 지킨다). 방금
+   * STEP1 폼에서 `409 UNCHARGED_SESSION_EXISTS`를 만났을 때의 실제 출구. 저장 리포트
+   * 안내는 거짓이므로(위 `handleSubmit` 주석) 재개 선택 카드로 되돌린다 — 이 카드가
+   * `이어서 하기`로 그 미차감 세션을 이어받는 정상 경로를 제공한다.
+   */
+  function handleBackToResumeChoice() {
+    setSubmitError(null);
+    setSubmitErrorCode(null);
+    setEntryMode('choice');
+  }
+
+  /**
+   * 재개 선택 카드 `새로 시작하기` — 기존 `resetForNextAssessment`를 재사용한다. 방금
    * finalize한 것이 없으므로 `notice: null`로 그 안내를 억누른다(파일 상단 함수 주석).
+   *
+   * `hasNextSession`은 `latestDraft`(bootstrap이 이미 조회해 둔, 아직 회차를 쓰지 않은
+   * 세션) 존재 여부로 정한다 — `false`로 고정하면 `sessionStartMode`가 `'create'`가 되어
+   * STEP1 재제출이 §9.3 미차감 세션 1개 제한에 걸려 `409 UNCHARGED_SESSION_EXISTS`로
+   * 막힌다(재개 선택 카드가 뜬 시점엔 이미 미차감 세션이 있다는 뜻이므로 이 경로가 실제로
+   * 발생한다). `latestDraft`가 있으면 `'resume'`이 되어 그 세션을 그대로 이어받는다.
    */
   function handleResumeRestart() {
     if (resumeBusy) return;
-    resetForNextAssessment({ keptPointer: false, hasNextSession: false, notice: null });
+    resetForNextAssessment({ keptPointer: false, hasNextSession: Boolean(latestDraft), notice: null });
     setEntryMode('chat');
   }
 
@@ -1409,6 +1438,13 @@ export default function PerformanceChatPage() {
       children: createdSession ? null : (
         <InlineCard>
           <BasicInfoForm onSubmit={handleSubmit} submitting={submitting} submitError={submitError} />
+          {/* `409 UNCHARGED_SESSION_EXISTS`의 실제 출구 — 저장 리포트엔 못 뜨는 세션이라
+              (`handleSubmit` 주석) 재개 선택 카드로 돌아가는 버튼을 여기서 직접 렌더한다. */}
+          {submitErrorCode === 'UNCHARGED_SESSION_EXISTS' && (
+            <div className="mt-3">
+              <RetryButton onClick={handleBackToResumeChoice}>이어서 하기로 돌아가기</RetryButton>
+            </div>
+          )}
         </InlineCard>
       )
     });
