@@ -1,4 +1,4 @@
-// GET /api/goal/student · POST /api/goal/intake 공용 클라이언트.
+// GET /api/goal/student · POST /api/goal/intake · GET/POST /api/goal/timer 공용 클라이언트.
 //
 // src/lib/entitlement.js의 hasEntitlement()와 같은 패턴(세션 조회 → 세션 없으면 조기
 // 반환 → fetch → 안전한 JSON 파싱 → 상태코드 분기)을 따른다. entitlement.js는 참고만
@@ -173,4 +173,101 @@ export async function submitGoalIntake(body) {
 
   console.error('[goalApi] POST /api/goal/intake 실패:', response.status, result?.detail);
   return { kind: 'error' };
+}
+
+// ---------------------------------------------------------------------------
+// 열공 타이머(#25) — GET/POST /api/goal/timer
+// ---------------------------------------------------------------------------
+//
+// 다섯 함수 모두 fetchGoalStudent/submitGoalIntake와 같은 규약(예외를 던지지
+// 않고 discriminated union으로 반환, `kind` 필드로 분기)을 따른다.
+//
+// summary shape(camelCase, api/goal/timer.js GET 응답 그대로):
+//   { date, serverNow, running:{subject,startedAt}|null,
+//     subjects:[{subject,seconds}], totalSeconds,
+//     targets:[{subject,targetHours}] }
+// subject 값은 코드('korean'|'math'|'english'|'science'|'etc') — 한글 라벨
+// 변환은 src/components/goal/subjectTokens.js가 담당한다(plan-tasks의
+// 한글 왕복 변환과 달리, 타이머는 코드값을 그대로 화면까지 들고 간다).
+//
+// ⚠ pagehide 하트비트는 navigator.sendBeacon이 아니라 fetch(..., {keepalive:true})를
+// 쓴다(judgement call) — sendBeacon은 커스텀 헤더를 지원하지 않아 이 저장소의
+// Bearer 토큰 인증(getBearerToken, Authorization 헤더 전용)과 양립할 수 없다.
+// keepalive:true는 sendBeacon과 동일하게 페이지 언로드 이후에도 요청이 살아남는
+// 것을 브라우저가 보장하는 표준 대안이다.
+
+/** 공용 요청 실행기 — 인증 헤더 부착 + JSON 직렬화 + 안전 파싱까지 공유. */
+async function requestGoalTimer(method, body, { keepalive = false } = {}) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/timer', {
+      method,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeader
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(keepalive ? { keepalive: true } : {})
+    });
+  } catch (error) {
+    console.error(`[goalApi] ${method} /api/goal/timer 호출 오류:`, error);
+    return { kind: 'error' };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 400) return { kind: 'validation-error', detail: result?.detail };
+
+  if (!response.ok) {
+    console.error(`[goalApi] ${method} /api/goal/timer 실패:`, response.status, result?.detail);
+    return { kind: 'error' };
+  }
+
+  return { kind: 'success', body: result };
+}
+
+/**
+ * 오늘(KST) 타이머 요약 조회.
+ *   { kind: 'success', summary }  — 200. summary는 위 shape 그대로.
+ *   { kind: 'not-allowed' }       — 200 {allowed:false}. 이용권 없음(조회형 규약).
+ *   그 외 kind는 requestGoalTimer 공통 계약(no-session/error).
+ */
+export async function fetchGoalTimer() {
+  const result = await requestGoalTimer('GET');
+  if (result.kind !== 'success') return result;
+  if (result.body?.allowed === false) return { kind: 'not-allowed' };
+  return { kind: 'success', summary: result.body };
+}
+
+/** 과목 측정 시작 — 진행 중이던 다른 과목이 있으면 서버가 자동으로 전환 마감한다. */
+export async function startGoalTimer(subject) {
+  const result = await requestGoalTimer('POST', { action: 'start', subject });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success', running: result.body?.running };
+}
+
+/** 진행 중인 세션 종료. 진행 중이 없어도 200(멱등) — 항상 success로 접는다. */
+export async function stopGoalTimer({ keepalive = false } = {}) {
+  const result = await requestGoalTimer('POST', { action: 'stop' }, { keepalive });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success' };
+}
+
+/** 하트비트 touch. pagehide에서 호출할 땐 keepalive:true를 넘긴다(위 주석 참고). */
+export async function heartbeatGoalTimer({ keepalive = false } = {}) {
+  const result = await requestGoalTimer('POST', { action: 'heartbeat' }, { keepalive });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success', running: result.body?.running };
+}
+
+/** 과목별 목표 시간 저장(학생 자율 설정). */
+export async function setGoalTimerTarget(subject, targetHours) {
+  const result = await requestGoalTimer('POST', { action: 'setTarget', subject, targetHours });
+  if (result.kind !== 'success') return result;
+  return { kind: 'success', target: result.body?.target };
 }

@@ -1,11 +1,26 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import GoalCard from '../GoalCard';
 import { formatClock } from './SubjectTimerCard';
+import { stopGoalTimer } from '../../../lib/goalApi';
 
 // 전체 합계 바(#25, 860×100) — 4과목 elapsedSeconds 합계. part-09 §135 "합계 반영: 클라이언트 계산".
-// CTA `전체 종료 후 기록` → #26 오늘의 공부 기록으로 이동(part-09 §136 "종료 시 오늘의 공부 기록과
-// 순공 시간에 자동 반영" 카피 근거). 실제 반영 로직은 이번 범위 밖(스텁 네비게이션만).
+// CTA `전체 종료 후 기록` → 진행 중인 세션이 있으면 서버에 stop을 보내 마감한 뒤(#26 오늘의 공부
+// 기록에 "종료 시 자동 반영"이라는 카피 근거, part-09 §136) 오늘의 공부 기록으로 이동한다.
 export default function TimerSummaryBar({ totalSeconds }) {
+  const navigate = useNavigate();
+  const [finishing, setFinishing] = useState(false);
+
+  const handleFinish = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      await stopGoalTimer();
+    } finally {
+      navigate('/app/goal/daily-record');
+    }
+  };
+
   return (
     <GoalCard tone="neutral" className="flex flex-wrap items-center justify-between gap-4 px-[2rem] py-[1.5rem]">
       <div className="flex items-baseline gap-3">
@@ -14,12 +29,14 @@ export default function TimerSummaryBar({ totalSeconds }) {
           {formatClock(totalSeconds)}
         </span>
       </div>
-      <Link
-        to="/app/goal/daily-record"
-        className="flex h-[2.4375rem] shrink-0 items-center justify-center rounded-full bg-ink-strong px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white"
+      <button
+        type="button"
+        onClick={handleFinish}
+        disabled={finishing}
+        className="flex h-[2.4375rem] shrink-0 items-center justify-center rounded-full bg-ink-strong px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:opacity-60"
       >
         전체 종료 후 기록
-      </Link>
+      </button>
     </GoalCard>
   );
 }

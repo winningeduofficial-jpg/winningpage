@@ -22,6 +22,21 @@ export function resolveSubjectId(key) {
   return SUBJECT_ID_BY_NAME[key] ?? 'etc';
 }
 
+// id → 한글 라벨. api/_lib/goalRepo.js SUBJECT_CODE_TO_LABEL과 글자 단위로 같다
+// (서버 파일은 클라이언트 번들에 끌어올 수 없어 — service_role 키를 물고 있는
+// supabaseAdmin.js를 재수출하게 된다 — 여기 별도로 둔다).
+export const SUBJECT_LABELS = {
+  korean: '국어',
+  math: '수학',
+  english: '영어',
+  science: '탐구',
+  etc: '기타'
+};
+
+export function getSubjectLabel(key) {
+  return SUBJECT_LABELS[resolveSubjectId(key)] ?? SUBJECT_LABELS.etc;
+}
+
 // 배경(칩) 전용 파스텔 톤 클래스 — tailwind.config.js `goal.subject.*`.
 export function getSubjectBgClass(key) {
   return `bg-goal-subject-${resolveSubjectId(key)}`;

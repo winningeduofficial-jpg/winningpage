@@ -1,15 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import GoalPageHeader from '../../components/goal/GoalPageHeader';
 import StudyTimeSection from '../../components/goal/study/StudyTimeSection';
 import ConditionSection from '../../components/goal/study/ConditionSection';
 import ChipSelectSection from '../../components/goal/study/ChipSelectSection';
 import RetrospectSection from '../../components/goal/study/RetrospectSection';
-import {
-  mockStudySubjectTimes,
-  mockConditionOptions,
-  mockDisturbanceOptions,
-  mockStudyItemOptions
-} from '../../data/goalStudyMock';
+import { TIMER_SUBJECT_ORDER, mockConditionOptions, mockDisturbanceOptions, mockStudyItemOptions } from '../../data/goalStudyMock';
+import { getSubjectLabel } from '../../components/goal/subjectTokens';
+import { fetchGoalTimer } from '../../lib/goalApi';
 
 // 오늘의 공부 기록(#26). 시안 실측 콘텐츠 폭은 1190px(74.375rem, part-09 §156)이지만 앱 공통 폭
 // 통일 원칙(00-INDEX.md §5-2 `PageHeader`, tailwind.config.js `max-w-goal-content` 83.75rem)에
@@ -19,6 +16,27 @@ export default function DailyRecord() {
   const [disturbances, setDisturbances] = useState([]);
   const [studyItems, setStudyItems] = useState([]);
   const [retrospect, setRetrospect] = useState('');
+  // 열공 타이머(#25) 종료 시 자동 반영된 과목별 순공 시간 — 읽기 전용 참고 표시(임무 지시).
+  // 진행 중인 세션의 실시간 경과는 얹지 않는다 — 이 페이지는 "오늘의 기록" 스냅샷이라
+  // Timer.jsx처럼 매초 갱신할 필요가 없고, 마감된(종료된) 세션 합계만 보여준다.
+  const [studySubjectTimes, setStudySubjectTimes] = useState(
+    TIMER_SUBJECT_ORDER.map((id) => ({ id, label: getSubjectLabel(id), hours: 0 }))
+  );
+
+  useEffect(() => {
+    fetchGoalTimer().then((result) => {
+      if (result.kind !== 'success') return;
+      const seconds = {};
+      for (const row of result.summary?.subjects || []) seconds[row.subject] = row.seconds;
+      setStudySubjectTimes(
+        TIMER_SUBJECT_ORDER.map((id) => ({
+          id,
+          label: getSubjectLabel(id),
+          hours: (seconds[id] || 0) / 3600
+        }))
+      );
+    });
+  }, []);
 
   // `없었음`은 다른 방해 요인과 상호배타 처리(part-09 §247 "추정").
   const toggleDisturbance = (value) => {
@@ -44,7 +62,7 @@ export default function DailyRecord() {
     console.log('오늘의 공부 기록 저장', { condition, disturbances, studyItems, retrospect });
   };
 
-  const totalHours = mockStudySubjectTimes.reduce((sum, row) => sum + row.hours, 0);
+  const totalHours = studySubjectTimes.reduce((sum, row) => sum + row.hours, 0);
 
   return (
     <>
@@ -54,7 +72,7 @@ export default function DailyRecord() {
         subcopy="하루를 마감하며 기록하면 달성률과 리포트에 반영됩니다."
       />
       <div className="max-w-goal-content flex flex-col gap-5 px-[3rem] pb-24">
-        <StudyTimeSection rows={mockStudySubjectTimes} totalHours={totalHours} />
+        <StudyTimeSection rows={studySubjectTimes} totalHours={totalHours} />
 
         {/* 섹션2·3 — 시안은 639×265 + 531×265 2열(part-09 §160~161, 639:531 ≈ 6:5) */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[6fr_5fr]">

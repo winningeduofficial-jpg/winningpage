@@ -1,20 +1,50 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { GOAL_NAV_GROUPS, GOAL_NAV_FOOTER } from './goalNavItems';
 import { mockStudent, mockSchedules } from '../../data/goalMock';
+import { fetchGoalTimer } from '../../lib/goalApi';
 
-// 사이드바 뱃지 소스 — 목업 단계 고정값. 실데이터 연동 시 서버 상태(공부 기록 저장 여부,
-// 타이머 진행 여부)로 교체한다. 중요일정 카운트는 mockSchedules 길이를 그대로 사용.
-const NAV_BADGE_DATA = {
-  scheduleCount: mockSchedules.length,
-  dailyRecordDone: false,
-  timerRunning: false
-};
+// "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
+// GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
+const TIMER_BADGE_POLL_MS = 45 * 1000;
 
-// 목표관리 앱 좌측 고정 사이드바 — docs/figma-goal/00-INDEX.md §5-2 `GoalSidebar`.
-// 실측 규격: 폭 324px(20.25rem), min-height 100vh(시안 rect 높이 2121/2325/3169는 프레임 초과값이라 무시).
-// 시안 절대좌표(사용자 블록 x=60/y=100·130, 내비 시작 y=271, 그룹 pitch 207, 항목 pitch 42, 활성
-// pill 304×36 x=10)는 초기 배치 근거로만 쓰고, 실제 구현은 flex column + gap으로 반응형 여지를 둔다.
+// 사이드바 뱃지 소스. scheduleCount·dailyRecordDone은 아직 목업 단계 고정값(실데이터 연동
+// 대상 — 각각 중요일정·오늘의 기록 작업 범위). timerRunning만 이번 작업(단계 B)에서
+// 실데이터로 교체한다 — 기존 데이터 흐름에 새 상태·store를 얹지 않고, StudyPlanRail(학습
+// 계획 레일)이 자체적으로 자기 데이터를 조회하는 것과 같은 방식으로 사이드바가 직접
+// GET /api/goal/timer를 폴링해 running 필드만 뽑아 쓴다(판단 지점 — 전역 상태 관리 도입은
+// 이 저장소에 선례가 없어 최소 변경 쪽을 택했다).
 export default function GoalSidebar() {
+  const [timerRunning, setTimerRunning] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      const result = await fetchGoalTimer();
+      if (!cancelled && result.kind === 'success') {
+        setTimerRunning(Boolean(result.summary?.running));
+      }
+    };
+
+    poll();
+    const intervalId = setInterval(poll, TIMER_BADGE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  const navBadgeData = {
+    scheduleCount: mockSchedules.length,
+    dailyRecordDone: false,
+    timerRunning
+  };
+
+  // 목표관리 앱 좌측 고정 사이드바 — docs/figma-goal/00-INDEX.md §5-2 `GoalSidebar`.
+  // 실측 규격: 폭 324px(20.25rem), min-height 100vh(시안 rect 높이 2121/2325/3169는 프레임 초과값이라 무시).
+  // 시안 절대좌표(사용자 블록 x=60/y=100·130, 내비 시작 y=271, 그룹 pitch 207, 항목 pitch 42, 활성
+  // pill 304×36 x=10)는 초기 배치 근거로만 쓰고, 실제 구현은 flex column + gap으로 반응형 여지를 둔다.
   return (
     <aside className="flex min-h-screen w-[20.25rem] flex-shrink-0 flex-col bg-goal-sidebar">
       {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형 */}
@@ -36,7 +66,7 @@ export default function GoalSidebar() {
             </p>
             <ul className="flex flex-col gap-1">
               {items.map((item) => {
-                const badge = item.getBadge?.(NAV_BADGE_DATA);
+                const badge = item.getBadge?.(navBadgeData);
                 return (
                   <li key={item.to}>
                     <NavLink
