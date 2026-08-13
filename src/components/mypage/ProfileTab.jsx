@@ -12,6 +12,7 @@ import ToggleRow from './ToggleRow';
 import WithdrawModal from './WithdrawModal';
 import ChangeEmailModal from './ChangeEmailModal';
 import ChangePasswordModal from './ChangePasswordModal';
+import ChangePhoneModal from './ChangePhoneModal';
 
 const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
 
@@ -68,6 +69,7 @@ export default function ProfileTab({ user, profile, memberType }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
 
   // 이름 인라인 편집(블러 시 저장) — 마지막으로 서버에 반영된 값과 비교해 불필요한 저장을 막는다.
   const [savedName, setSavedName] = useState(profile?.name || '');
@@ -77,11 +79,6 @@ export default function ProfileTab({ user, profile, memberType }) {
   const [editingSchool, setEditingSchool] = useState(false);
   const [schoolDraft, setSchoolDraft] = useState({ school_type: '', school_name: '' });
   const [savingSchool, setSavingSchool] = useState(false);
-
-  // 휴대폰 번호 인라인 편집.
-  const [editingPhone, setEditingPhone] = useState(false);
-  const [phoneDraft, setPhoneDraft] = useState('');
-  const [savingPhone, setSavingPhone] = useState(false);
 
   // 학부모 연동 상태 — undefined 로딩중, null 연결 없음, {id,status,date} 연결/요청 있음.
   const [parentLink, setParentLink] = useState(undefined);
@@ -236,22 +233,6 @@ export default function ProfileTab({ user, profile, memberType }) {
       updateForm('school_type', schoolDraft.school_type);
       updateForm('school_name', school_name);
       setEditingSchool(false);
-    }
-  }
-
-  function startEditPhone() {
-    setPhoneDraft(form.phone);
-    setEditingPhone(true);
-  }
-
-  async function savePhone() {
-    setSavingPhone(true);
-    const phone = cleanText(phoneDraft);
-    const ok = await persistProfile({ phone });
-    setSavingPhone(false);
-    if (ok) {
-      updateForm('phone', phone);
-      setEditingPhone(false);
     }
   }
 
@@ -424,46 +405,16 @@ export default function ProfileTab({ user, profile, memberType }) {
       </ProfileField>
       )}
 
-      {/* 휴대폰 번호 */}
-      <ProfileField label="휴대폰 번호" className="mb-5">
-        {editingPhone ? (
-          <div className="flex w-full items-center gap-2">
-            <input
-              type="tel"
-              value={phoneDraft}
-              onChange={(e) => setPhoneDraft(e.target.value)}
-              placeholder="010-0000-0000"
-              className="h-[3.25rem] w-full rounded-xl border border-line px-5 text-base text-ink outline-none focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => setEditingPhone(false)}
-              className="h-[3.25rem] shrink-0 rounded-xl border border-line px-3 text-xs text-ink-sub"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={savePhone}
-              disabled={savingPhone}
-              className="h-[3.25rem] shrink-0 rounded-xl bg-primary px-3 text-xs font-semibold text-white disabled:opacity-60"
-            >
-              저장
-            </button>
-          </div>
-        ) : (
-          <div className="flex w-full items-center gap-2">
-            <div className={`${ROW_BOX_CLASS} flex-1 bg-surface-footer text-ink-sub`}>{form.phone || '-'}</div>
-            <button
-              type="button"
-              onClick={startEditPhone}
-              className="h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card"
-            >
-              변경
-            </button>
-          </div>
-        )}
-      </ProfileField>
+      {/* 휴대폰 번호 — 변경은 모달(카카오 인증번호) 경유, 인라인 즉시저장 아님
+          (Figma 3973:15330→16090→16297→16478, ChangePhoneModal.jsx). */}
+      <ProfileField
+        label="휴대폰 번호"
+        value={form.phone || '-'}
+        readOnly
+        actionLabel="변경"
+        onAction={() => setPhoneOpen(true)}
+        className="mb-5"
+      />
 
       {/* 이메일 — 변경 플로우(인증 메일 등) 백엔드 미구현. */}
       <ProfileField
@@ -568,6 +519,16 @@ export default function ProfileTab({ user, profile, memberType }) {
         open={passwordOpen}
         email={form.email}
         onClose={() => setPasswordOpen(false)}
+      />
+
+      <ChangePhoneModal
+        open={phoneOpen}
+        currentPhone={form.phone}
+        onClose={() => setPhoneOpen(false)}
+        onChanged={(phone) => {
+          updateForm('phone', phone);
+          window.dispatchEvent(new Event('winning-profile-updated'));
+        }}
       />
     </div>
   );
