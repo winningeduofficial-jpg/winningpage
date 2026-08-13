@@ -75,8 +75,48 @@ const SESSION_COLUMNS = [
   'updated_at'
 ].join(',');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET 전용 — POST(SESSION_COLUMNS)엔 없는 `guide_input_mode`/`selected_topic_id`를
+// 더 싣는다. 재개 분기 판정표(§5.4)가 이 두 컬럼으로 ⓐ/ⓑ/ⓒ를 가른다.
+const GET_SESSION_COLUMNS = [
+  'id',
+  'status',
+  'current_step',
+  'completed_steps',
+  'grade_label',
+  'semester',
+  'school_type',
+  'subject_group',
+  'subject',
+  'career_goal',
+  'previous_topic',
+  'guide_input_mode',
+  'selected_topic_id',
+  'created_at',
+  'updated_at'
+].join(',');
+
+// `recommend-topics.js`의 `MAX_ROUNDS`와 같은 값(§9.2). GET은 새 라운드를 만들지
+// 않지만 응답의 `maxRounds`를 클라이언트의 버튼 비활성 판정 재료로 그대로 싣는다.
+const MAX_ROUNDS = 3;
+
 function fail(res, status, code, message, extra) {
   return res.status(status).json({ error: { code, message }, ...extra });
+}
+
+/** `recommend-topics.js`의 `toClientTopic`과 같은 모양(§8.3 `performance_topics` 계약). */
+function toClientTopic(row) {
+  return {
+    id: row.id,
+    round: row.round,
+    idx: row.idx,
+    title: row.title,
+    subtitle: row.subtitle,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    detail: Array.isArray(row.detail) ? row.detail : [],
+    selected: row.selected === true
+  };
 }
 
 function toClientSession(row) {
@@ -166,8 +206,8 @@ async function findUnchargedSession(supabaseAdmin, userId) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'GET 또는 POST만 허용됩니다.');
   }
 
   res.setHeader('Cache-Control', 'no-store');
@@ -198,6 +238,82 @@ export default async function handler(req, res) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, serviceConfig);
     if (!hasAccess) {
       return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // GET — 재개 분기 판정표(§5.4 `3754:5028`, 2370행) 재료 조회. §8.6 표에는 없는
+    // 추가분이다(형제 라우트 `submission.js` GET과 같은 판단 — 세션 리소스를 다루는
+    // 파일에 같이 둔다, 새 엔드포인트를 만들지 않는다).
+    //   `?sessionId=…` → 200 { session, topics, round, maxRounds }
+    //   `topics`는 **최신 라운드 3건뿐**이다(`recommend-topics.js` 저장 단위와 동일) —
+    //   재개 화면은 "지금 보여줄 카드"만 필요하고, 지난 라운드까지 합치면 §5.10의
+    //   "재추천은 교체다" 판단과 화면이 어긋난다.
+    //   ⓐ/ⓑ/ⓒ 분기는 클라이언트가 `session.selectedTopicId`·`topics.length`로 가른다
+    //   (이 파일은 판정하지 않고 재료만 준다 — §8.3 "판정은 서버 소유"는 스키마 판정류
+    //   얘기이고, 여기 분기는 순수 존재 여부라 클라이언트에서 갈라도 위조 여지가 없다).
+    // ─────────────────────────────────────────────────────────────────
+    if (req.method === 'GET') {
+      const sessionId = typeof req.query?.sessionId === 'string' ? req.query.sessionId.trim() : '';
+      if (!UUID_RE.test(sessionId)) {
+        return fail(res, 400, 'INVALID_SESSION_ID', 'sessionId가 올바르지 않습니다.');
+      }
+
+      const { data: sessionRow, error: sessionError } = await supabaseAdmin
+        .from('performance_sessions')
+        .select(GET_SESSION_COLUMNS)
+        .eq('id', sessionId)
+        .eq('profile_id', userId)
+        .maybeSingle();
+
+      if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+      if (!sessionRow) {
+        return fail(res, 403, 'NOT_SESSION_OWNER', '세션을 찾을 수 없습니다.');
+      }
+
+      const { data: topicRows, error: topicsError } = await supabaseAdmin
+        .from('performance_topics')
+        .select('id,round,idx,title,subtitle,tags,detail,selected')
+        .eq('session_id', sessionRow.id)
+        .order('round', { ascending: true })
+        .order('idx', { ascending: true });
+
+      if (topicsError) throw new Error(`주제 조회 실패: ${topicsError.message}`);
+
+      const allTopics = topicRows || [];
+      const lastRound = allTopics.reduce((max, row) => Math.max(max, Number(row.round) || 0), 0);
+      const latestRoundTopics = allTopics
+        .filter((row) => Number(row.round) === lastRound)
+        .map(toClientTopic);
+
+      // 확정 주제 제목 — 최신 라운드에 있으면 그대로 쓰고, 옛 라운드의 주제를 확정한
+      // 경우(재추천 뒤 이전 라운드 주제를 골랐을 리는 없지만 방어적으로)에만 추가 조회한다.
+      let selectedTopicTitle = null;
+      if (sessionRow.selected_topic_id) {
+        const inLatest = latestRoundTopics.find((topic) => topic.id === sessionRow.selected_topic_id);
+        if (inLatest) {
+          selectedTopicTitle = inLatest.title;
+        } else {
+          const { data: topicRow, error: topicRowError } = await supabaseAdmin
+            .from('performance_topics')
+            .select('title')
+            .eq('id', sessionRow.selected_topic_id)
+            .maybeSingle();
+          if (topicRowError) throw new Error(`확정 주제 조회 실패: ${topicRowError.message}`);
+          selectedTopicTitle = topicRow?.title || null;
+        }
+      }
+
+      return res.status(200).json({
+        session: {
+          ...toClientSession(sessionRow),
+          guideInputMode: sessionRow.guide_input_mode,
+          selectedTopicId: sessionRow.selected_topic_id || null,
+          selectedTopicTitle
+        },
+        topics: latestRoundTopics,
+        round: lastRound,
+        maxRounds: MAX_ROUNDS
+      });
     }
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};

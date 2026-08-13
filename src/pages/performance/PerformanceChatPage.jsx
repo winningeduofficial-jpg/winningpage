@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import ChatTimeline from '../../components/performance/chat/ChatTimeline';
 import AiLoadingBubble from '../../components/performance/chat/AiLoadingBubble';
@@ -14,6 +15,7 @@ import EvaluationReportModal from '../../components/performance/step5/Evaluation
 import EvaluationBranchActions from '../../components/performance/step5/EvaluationBranchActions';
 import SubmissionForm from '../../components/performance/step5/SubmissionForm';
 import QuotaExhaustedCard from '../../components/performance/quota/QuotaExhaustedCard';
+import ResumeChoiceCard from '../../components/performance/resume/ResumeChoiceCard';
 import {
   analyzeGuideUpload,
   submitManualGuide,
@@ -23,6 +25,7 @@ import { recommendTopics } from '../../lib/performance/topics';
 import { requestDesignReport } from '../../lib/performance/designReport';
 import { finalizeSubmission, requestEvaluation } from '../../lib/performance/evaluation';
 import { fetchSubmissionForm, saveSubmission } from '../../lib/performance/submission';
+import { fetchSessionDetail } from '../../lib/performance/session';
 
 // STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
@@ -57,10 +60,29 @@ import { fetchSubmissionForm, saveSubmission } from '../../lib/performance/submi
 //   · 제출 결과는 사용자 말풍선으로 남는다 — 업로드 경로는 `안내문 {n}장을 업로드했어요`
 //     (§5.9 제안대로 장수 동적 치환), 직접 입력 경로는 입력한 원문 그대로다(`3754:3493`).
 //
+// **§5.4 재방문 분기(P13, 이번 슬라이스)**
+//   bootstrap의 `lastSession`이 있으면 STEP1 인사말 대신 재개 선택 카드(`ResumeChoiceCard`)를
+//   먼저 보여준다 — 진입 시점 상태는 `entryMode`(`'pending'|'choice'|'chat'`)가 갖는다.
+//   `이어서 하기` → `GET /api/performance/session?sessionId=…`(`fetchSessionDetail`)로 그
+//   세션의 재개 재료(주제 확정 여부·최신 라운드 카드)를 받아 재개 분기 판정표(명세 2370행)
+//   3갈래로 곧장 점프한다:
+//     ⓐ `selectedTopicId` 있음 → `requestDesign`을 멱등 재생 경로로 호출해 STEP5로.
+//     ⓑ `topics`만 있음      → STEP3 카드로.
+//     ⓒ 둘 다 없음            → `requestTopics`를 다시 불러 STEP3 로딩으로.
+//   `guideInputMode`가 아직 없으면(STEP2도 안 끝난 세션) 3갈래를 타지 않고 기존 STEP1/2
+//   흐름 그대로 이어간다(`createdSession`만 채우고 `guideDone`은 그대로 둔다).
+//   `새로 시작하기`는 `resetForNextAssessment`를 재사용한다(§9.3 미차감 세션 1개 제한은
+//   `handleSubmit`의 기존 409 처리가 자동으로 지킨다).
+//   `/app/performance/:sessionId` 딥링크는 `useParams().sessionId`로 읽어 선택 화면 없이
+//   곧장 같은 3갈래 분기를 탄다 — 라우트에 `:sessionId`를 실제로 잇는 것은 별도 통합 몫이라
+//   이 컴포넌트는 파라미터가 없을 때(`App.jsx` 미연결 상태)도 정상 동작해야 한다.
+//   STEP1/2를 이미 지난 재개는 그 두 스텝의 말풍선을 재생하지 않는다(저장된 안내문 원문·
+//   업로드 장수를 bootstrap이 안 주므로 재생하면 빈 값이 보인다) — 대신 다리 역할의 안내
+//   한 줄만 남기고 STEP3~5로 넘어간다.
+//
 // **이 페이지가 안 하는 일 (다음 슬라이스 몫)**:
-//   · §5.3/§5.4 재방문 분기(이어서 하기/새로 시작하기) — P13. 여기서는 `lastSession`/
-//     `latestDraft` 유무와 무관하게 항상 STEP1 인사말+폼을 그대로 보여준다.
-//   · 이전 값 프리필 — P13. `initialValues`를 비워 둔 채로 `BasicInfoForm`에 넘긴다.
+//   · 이전 값 프리필 — STEP1 폼 재작성 시나리오(§5.4가 다루는 "이어서 하기"와는 다른 축).
+//     `initialValues`를 비워 둔 채로 `BasicInfoForm`에 넘긴다.
 //   · §5.11 주제 상세 모달은 P9에서 배선했다 — 카드 `onDetail` → `TopicDetailModal` 오픈,
 //     `이 주제로 확정하기` → `handleConfirmTopic`.
 //   · §5.20 (A) 셸 상단 회차 배너 — 셸(`PerformanceAppLayout`) 소관이라 여기서 만들지 않는다.
@@ -253,12 +275,55 @@ function buildBasicInfoSummary(session) {
     .join(' / ');
 }
 
+/**
+ * §5.4 재개 선택 카드의 AI 안내 문구. 시안 원문(`3754:5028`)의 구조(인사 → 요약 →
+ * 안내)를 그대로 따르되 값은 전부 `bootstrap`의 `lastSession` 실값이다 — 시안의
+ * `김형준`/`고1 1학기` 같은 더미를 박아 넣지 않는다(`buildBasicInfoSummary`와 같은 판단).
+ * 값이 없는 줄은 절(節)째 뺀다(이름 없으면 "님" 절 생략, 선택 주제 없으면 🎯 줄 생략).
+ */
+function buildResumeChoiceCopy(profileName, lastSession) {
+  if (!lastSession) return '';
+
+  const grade = [lastSession.gradeLabel, lastSession.semester].filter(Boolean).join(' ');
+  const summary = [grade, lastSession.subjectGroup, lastSession.subject].filter(Boolean).join(' / ');
+
+  const rows = [
+    profileName ? `반갑습니다, ${profileName}님!` : '반갑습니다!',
+    '',
+    '지난번 진행 기록을 불러왔습니다.'
+  ];
+  if (summary) rows.push(`📚 학년/과목: ${summary}`);
+  if (lastSession.selectedTopicTitle) rows.push(`🎯 선택 주제: ${lastSession.selectedTopicTitle}`);
+  rows.push('', '평가 리포트까지 만들지 않았어도, 선택한 주제부터 이어서 진행할 수 있습니다.');
+
+  return rows.join('\n');
+}
+
+// 시안 없음 — 제안. STEP1/2를 이미 지난 재개("이어서 하기" ⓐ/ⓑ/ⓒ)는 그 두 스텝의
+// 말풍선을 재생하지 않는다(저장된 안내문 원문·업로드 장수를 bootstrap이 안 준다, 위
+// 파일 상단 주석). 대신 다리 역할의 안내 한 줄만 남긴다.
+const RESUME_CONTINUE_COPY = '이전 진행 기록을 불러왔어요. 이어서 진행할게요.';
+
 export default function PerformanceChatPage() {
   const { session } = useSession();
   const accessToken = session?.access_token || null;
+  const routeParams = useParams();
+  const routeSessionId = typeof routeParams?.sessionId === 'string' ? routeParams.sessionId : null;
 
   const [bootstrapLoading, setBootstrapLoading] = useState(true);
   const [profileName, setProfileName] = useState(null);
+
+  // ── §5.4 재방문 분기. `entryMode`가 `'choice'`인 동안은 아래 STEP1~5 렌더 블록이 전부
+  //   건너뛰어진다(그 블록들의 게이트 상태가 이 시점엔 전부 초기값이라 자연히 비어 있기도
+  //   하다 — `entryMode`는 오직 재개 선택 카드 자체의 노출 여부만 가른다).
+  const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  const [entryMode, setEntryMode] = useState('pending'); // 'pending' | 'choice' | 'chat'
+  const [resumeBusy, setResumeBusy] = useState(false);
+  const [resumeError, setResumeError] = useState(null);
+  // STEP1/2를 이미 지난 재개일 때만 채워진다(위 `RESUME_CONTINUE_COPY` 주석) — 그 값이
+  // STEP1 그리팅·STEP2 블록을 다리 안내 한 줄로 갈음하는 스위치다.
+  const [resumeContinueNotice, setResumeContinueNotice] = useState(null);
+  const entryResolvedRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -431,7 +496,10 @@ export default function PerformanceChatPage() {
         });
         const data = await response.json().catch(() => null);
         if (!alive) return;
-        if (response.ok) setProfileName(data?.profile?.name || null);
+        if (response.ok) {
+          setProfileName(data?.profile?.name || null);
+          setLastSessionSummary(data?.lastSession || null);
+        }
       } catch (error) {
         console.error('[performance] bootstrap 조회 실패:', error);
       } finally {
@@ -443,6 +511,26 @@ export default function PerformanceChatPage() {
       alive = false;
     };
   }, [accessToken]);
+
+  // §5.4 진입 분기 판정 — bootstrap이 끝난 뒤(`bootstrapLoading` false) 딱 한 번만 돈다
+  // (`entryResolvedRef`, STEP1 그리팅 이펙트와 달리 재실행될 이유가 없다 — 세션 목록은
+  // 이 페이지 안에서 다시 바뀌지 않는다).
+  //   · 라우트에 `sessionId`가 있으면(딥링크, §2.1 저장 리포트에서 "이어서" 진입) 선택
+  //     화면 없이 곧장 그 세션을 조회해 재개 분기 판정표를 태운다(`resolveSessionEntry`).
+  //   · 없고 `lastSession`이 있으면 재개 선택 카드(`entryMode:'choice'`)를 보여준다.
+  //   · 둘 다 없으면 기존 그대로 STEP1 그리팅부터 시작한다.
+  useEffect(() => {
+    if (bootstrapLoading || entryResolvedRef.current) return;
+    entryResolvedRef.current = true;
+
+    if (routeSessionId) {
+      void resolveSessionEntry(routeSessionId);
+      return;
+    }
+
+    setEntryMode(lastSessionSummary ? 'choice' : 'chat');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrapLoading]);
 
   // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
   // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩
@@ -589,12 +677,17 @@ export default function PerformanceChatPage() {
    * 회차 차감은 서버가 AI 성공 이후에만 커밋하고(§9.3) 재추천은 `already_charged`로 무차감
    * 통과하므로, 이 화면은 차감을 예측하거나 표시하지 않는다.
    *
-   * @param {{isRegenerate?: boolean}} [options] `isRegenerate`면 ⓐ 진행 중에도 카드·버튼을
-   *   화면에 남기고(포커스 유지 — `topicRegenerating` 주석) ⓑ 실패 시 이미 받은 3카드
-   *   화면으로 되돌리고 실패 사유만 카드 아래 한 줄로 알린다(있던 결과를 실패로 지우지 않는다).
+   * @param {{isRegenerate?: boolean, sessionOverride?: {id: string}}} [options] `isRegenerate`면
+   *   ⓐ 진행 중에도 카드·버튼을 화면에 남기고(포커스 유지 — `topicRegenerating` 주석) ⓑ 실패
+   *   시 이미 받은 3카드 화면으로 되돌리고 실패 사유만 카드 아래 한 줄로 알린다(있던 결과를
+   *   실패로 지우지 않는다). `sessionOverride`는 §5.4 재개 분기 ⓒ 전용이다 —
+   *   `applyResumedSession`이 `setCreatedSession` 직후 같은 틱에 이 함수를 부르므로
+   *   `createdSession` 상태는 아직 갱신 전(stale closure)이다. 그 세션 객체를 직접 받아
+   *   `createdSession`을 대신 참조한다.
    */
-  async function requestTopics({ isRegenerate = false } = {}) {
-    if (!accessToken || !createdSession) return;
+  async function requestTopics({ isRegenerate = false, sessionOverride = null } = {}) {
+    const activeSession = sessionOverride || createdSession;
+    if (!accessToken || !activeSession) return;
 
     // 최초 추천만 타임라인을 로딩 버블로 교체한다. 재추천은 기존 메시지를 남긴 채
     // 플래그만 켜고, 로딩 버블은 카드 묶음 **아래**에 덧붙는다.
@@ -605,7 +698,7 @@ export default function PerformanceChatPage() {
     try {
       const data = await recommendTopics({
         accessToken,
-        sessionId: createdSession.id
+        sessionId: activeSession.id
       });
 
       setTopics(Array.isArray(data?.topics) ? data.topics : []);
@@ -727,9 +820,15 @@ export default function PerformanceChatPage() {
    * **재시도는 `regenerate`를 보내지 않는다.** 같은 `topicId` 재요청은 서버에서 멱등 재생
    * (모델 미호출)이라, 응답만 유실된 경우에는 저장된 리포트를 그대로 복구하고 아니면 새로
    * 만든다. `regenerate:true`는 재생성 예산(2회)을 태우는 별개 행동이다.
+   *
+   * @param {object} topic
+   * @param {{id: string}} [sessionOverride] §5.4 재개 분기 ⓐ 전용(위 `requestTopics`의
+   *   같은 이름 인자와 같은 이유 — `applyResumedSession`이 `setCreatedSession` 직후 같은
+   *   틱에 이 함수를 부르므로 `createdSession` state가 아직 stale하다).
    */
-  async function requestDesign(topic) {
-    if (!accessToken || !createdSession || !topic) return;
+  async function requestDesign(topic, sessionOverride = null) {
+    const activeSession = sessionOverride || createdSession;
+    if (!accessToken || !activeSession || !topic) return;
 
     setDesignPhase('loading');
     setDesignError(null);
@@ -737,7 +836,7 @@ export default function PerformanceChatPage() {
     try {
       const data = await requestDesignReport({
         accessToken,
-        sessionId: createdSession.id,
+        sessionId: activeSession.id,
         topicId: topic.id
       });
 
@@ -1051,11 +1150,18 @@ export default function PerformanceChatPage() {
    * `추가 수행평가 진행하기` 성공 후 화면을 STEP1로 되돌린다. 세션은 서버가 이미 만들어
    * 뒀으므로 여기서 만들지 않고, STEP1 제출만 `'resume'`으로 보내게 표시해 둔다.
    *
+   * §5.4 재개 선택 카드의 `새로 시작하기`도 이 함수를 그대로 재사용한다(§9.3 미차감 세션
+   * 1개 제한은 `handleSubmit`의 기존 `create → 409 UNCHARGED_SESSION_EXISTS` 처리가 자동으로
+   * 지킨다 — 이 함수는 차감 판정에 관여하지 않는다). 그 호출부는 `keptPointer`/`hasNextSession`
+   * 둘 다 해당하지 않으므로(방금 finalize한 것이 없다) `notice`를 명시적으로 넘겨 아래
+   * 「최종본으로 저장했어요」류 안내를 억누른다 — 넘기지 않았을 때만(호출부가 이 인자를
+   * 아예 안 주면) 기존 finalize 흐름의 기본 안내를 그대로 쓴다.
+   *
    * ⚠️ **STEP5 제출폼 상태(§5.14)도 여기서 함께 비운다.** 빠뜨리면 새 수행평가의 STEP5에서
    *   이전 수행평가의 원고가 그대로 프리필된다 — `추가 평가 받기`가 작성값을 **남기는**
    *   것과 정반대의 요구다(그쪽은 같은 세션의 폼 복원, 여기는 다른 세션의 시작이다).
    */
-  function resetForNextAssessment({ keptPointer, hasNextSession }) {
+  function resetForNextAssessment({ keptPointer, hasNextSession, notice }) {
     setSessionStartMode(hasNextSession ? 'resume' : 'create');
     setCreatedSession(null);
     setSubmitError(null);
@@ -1064,6 +1170,7 @@ export default function PerformanceChatPage() {
     setGuideDone(false);
     setUploadedCount(0);
     setManualText('');
+    setResumeContinueNotice(null);
 
     setTopicPhase('idle');
     setTopicRegenerating(false);
@@ -1098,8 +1205,123 @@ export default function PerformanceChatPage() {
     setFinalizeResult(null);
     setFinalizeError(null);
 
-    setRestartNotice(keptPointer ? NEW_ASSESSMENT_KEPT_POINTER_COPY : NEW_ASSESSMENT_STARTED_COPY);
-    setRestartToken((n) => n + 1);
+    const resolvedNotice =
+      notice !== undefined ? notice : keptPointer ? NEW_ASSESSMENT_KEPT_POINTER_COPY : NEW_ASSESSMENT_STARTED_COPY;
+    if (resolvedNotice) {
+      setRestartNotice(resolvedNotice);
+      setRestartToken((n) => n + 1);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // §5.4 재방문 분기 — 재개 선택 카드 / 딥링크 진입점 공통 재개 로직
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * `GET /api/performance/session` 응답을 받아 재개 분기 판정표(명세 2370행) 3갈래로
+   * 화면 상태를 세팅한다. **`sessionOverride`를 `requestDesign`/`requestTopics`에 직접
+   * 넘긴다** — 바로 위 `setCreatedSession`은 비동기라 이 함수가 끝나기 전에는
+   * `createdSession` state에 반영되지 않는다(stale closure, 두 함수 상단 주석 참고).
+   *
+   * `guideInputMode`가 없으면(STEP2도 안 끝난 세션) 3갈래를 타지 않는다 — 재개 분기
+   * 판정표는 주제 추천 이후만 다루므로, 그보다 이른 지점은 기존 STEP1/2 흐름이 그대로
+   * 이어간다(`createdSession`만 채우고 STEP2 업로드/직접입력 카드가 정상 노출된다).
+   */
+  function applyResumedSession(data) {
+    const s = data?.session || {};
+    const sessionForState = {
+      id: s.id,
+      status: s.status,
+      currentStep: s.currentStep,
+      completedSteps: s.completedSteps,
+      gradeLabel: s.gradeLabel,
+      semester: s.semester,
+      schoolType: s.schoolType,
+      subjectGroup: s.subjectGroup,
+      subject: s.subject,
+      careerGoal: s.careerGoal,
+      previousTopic: s.previousTopic,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt
+    };
+    setCreatedSession(sessionForState);
+
+    const guideStepDone = Boolean(s.guideInputMode);
+    if (!guideStepDone) {
+      setGuideMode('upload');
+      setGuideDone(false);
+      return;
+    }
+
+    setGuideMode(s.guideInputMode === 'manual' ? 'manual' : 'upload');
+    setGuideDone(true);
+    setResumeContinueNotice(RESUME_CONTINUE_COPY);
+
+    if (s.selectedTopicId) {
+      // ⓐ 주제 확정까지 끝남 → STEP5로. `requestDesign`은 같은 `topicId` 재요청을 멱등
+      // 재생(모델 미호출)으로 처리하므로 여기서 그대로 재사용한다(`design-report.js`
+      // 「멱등 재생 vs 재생성」).
+      const topic = { id: s.selectedTopicId, title: s.selectedTopicTitle || null };
+      setConfirmedTopic(topic);
+      void requestDesign(topic, sessionForState);
+      return;
+    }
+
+    if (Array.isArray(data?.topics) && data.topics.length) {
+      // ⓑ 주제 카드까지만 받음 → STEP3 카드 화면으로.
+      setTopics(data.topics);
+      setTopicRound(Number(data.round) || 1);
+      if (Number(data.maxRounds) > 0) setTopicMaxRounds(Number(data.maxRounds));
+      setTopicRoundLimited(false);
+      setTopicPhase('ready');
+      return;
+    }
+
+    // ⓒ 둘 다 없음 → 주제 추천 자동 재호출(STEP3 로딩 상태로 진입).
+    void requestTopics({ sessionOverride: sessionForState });
+  }
+
+  /**
+   * 세션 1건의 재개 재료를 조회해 적용한다. 재개 선택 카드의 `이어서 하기`와 딥링크
+   * (`/app/performance/:sessionId`) 진입점이 공유한다 — 후자는 `entryMode`가 아직
+   * `'pending'`인 상태에서 부른다.
+   */
+  async function resolveSessionEntry(sessionId) {
+    setResumeBusy(true);
+    setResumeError(null);
+
+    try {
+      const data = await fetchSessionDetail({ accessToken, sessionId });
+      applyResumedSession(data);
+      setEntryMode('chat');
+    } catch (error) {
+      console.error('[performance] 세션 이어가기 실패:', error?.code, error);
+      // 딥링크 진입 실패는 재개 선택 카드가 있으면 그리로, 없으면(=이 세션이 유일한
+      // 후보였는데도 조회가 죽은 경우) STEP1부터 새로 시작하는 것 말고는 출구가 없다.
+      setResumeError(
+        error?.userMessage || '이전 진행 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'
+      );
+      setEntryMode(lastSessionSummary ? 'choice' : 'chat');
+    } finally {
+      setResumeBusy(false);
+    }
+  }
+
+  /** 재개 선택 카드 `이어서 하기`. */
+  function handleResumeContinue() {
+    if (resumeBusy || !lastSessionSummary?.sessionId) return;
+    void resolveSessionEntry(lastSessionSummary.sessionId);
+  }
+
+  /**
+   * 재개 선택 카드 `새로 시작하기` — 기존 `resetForNextAssessment`를 재사용한다(§9.3
+   * 제약은 그 함수가 건드리지 않는 `handleSubmit`의 기존 409 처리가 지킨다). 방금
+   * finalize한 것이 없으므로 `notice: null`로 그 안내를 억누른다(파일 상단 함수 주석).
+   */
+  function handleResumeRestart() {
+    if (resumeBusy) return;
+    resetForNextAssessment({ keptPointer: false, hasNextSession: false, notice: null });
+    setEntryMode('chat');
   }
 
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
@@ -1133,7 +1355,7 @@ export default function PerformanceChatPage() {
         '주제 추천부터 자료 · 글 구조 설계, 제출 후 평가까지 이 채팅에서 진행됩니다. 먼저 학년, 과목, 이전 주제, 희망 진로를 입력해주세요.'
       ].join('\n');
 
-  if (bootstrapLoading) {
+  if (bootstrapLoading || entryMode === 'pending') {
     return (
       <div className="mt-10">
         <AiLoadingBubble title="정보를 불러오는 중입니다." subtitle="잠시만 기다려 주세요." />
@@ -1143,98 +1365,121 @@ export default function PerformanceChatPage() {
 
   const messages = [];
 
-  if (restartNotice) {
-    // `추가 수행평가 진행하기` 직후(§5.17). 새 수행평가의 **첫** 메시지 자리라 인사말보다
-    // 앞에 온다 — 직전 수행평가에서 무슨 일이 있었는지(최종본 저장)를 여기서 한 번만 말한다.
-    // 타임라인이 통째로 갈리는 전이라 포커스 목적지이기도 하다.
+  if (entryMode === 'choice') {
+    // §5.4 재개 선택 카드. STEP1 그리팅 대신 이 한 항목만 렌더한다 — 나머지 STEP1~5
+    // 블록은 이 시점에 전부 초기 상태(게이트가 닫혀 있다)라 자연히 아무것도 밀어넣지 않는다.
     messages.push({
-      id: 'step5-new-assessment',
+      id: 'resume-choice',
       role: 'ai',
       kind: 'text',
-      body: restartNotice,
-      focusRef: restartRef
+      body: buildResumeChoiceCopy(profileName, lastSessionSummary),
+      children: (
+        <ResumeChoiceCard
+          onContinue={handleResumeContinue}
+          onRestart={handleResumeRestart}
+          busy={resumeBusy}
+          error={resumeError}
+        />
+      )
     });
-  }
-
-  messages.push({
-    id: 'step1-greeting',
-    role: 'ai',
-    kind: 'text',
-    body: greetingBody,
-    // 세션이 만들어지면 폼 카드는 사라진다(§5.6 — `3754:3261`에 폼 카드가 없다).
-    children: createdSession ? null : (
-      <InlineCard>
-        <BasicInfoForm onSubmit={handleSubmit} submitting={submitting} submitError={submitError} />
-      </InlineCard>
-    )
-  });
-
-  if (createdSession) {
-    messages.push({
-      id: 'step1-summary',
-      role: 'user',
-      kind: 'text',
-      body: buildBasicInfoSummary(createdSession)
-    });
-
-    messages.push({
-      id: 'step2-intro',
-      role: 'ai',
-      kind: 'text',
-      body: GUIDE_INTRO,
-      // 업로드 카드는 ⓐ 직접 입력으로 넘어갔거나 ⓑ STEP2가 끝나면 타임라인에서 빠진다.
-      // 말풍선 자체는 두 경로 모두에서 남는다(`3754:3562`/`3754:3493` 둘 다 @626에 있다).
-      children:
-        guideMode === 'upload' && !guideDone ? (
-          <GuideUploadCard
-            onSubmit={handleGuideSubmit}
-            onSkip={handleSkipGuide}
-            submitting={submitting}
-            submitError={submitError}
-          />
-        ) : null
-    });
-  }
-
-  if (createdSession && guideMode === 'manual') {
-    messages.push({
-      id: 'step2-manual-choice',
-      role: 'user',
-      kind: 'text',
-      body: MANUAL_CHOICE
-    });
-
-    // AI3 안내 말풍선 + 직접 입력 폼은 제출과 동시에 **함께** 사라진다(§5.9 단정 —
-    // `3754:3493`에 둘 다 없다). 그래서 카드만 걷는 것이 아니라 메시지를 통째로 뺀다.
-    if (!guideDone) {
+  } else if (resumeContinueNotice) {
+    // §5.4 「이어서 하기」 ⓐ/ⓑ/ⓒ — STEP1/2를 이미 지난 재개. 그 두 스텝의 말풍선을
+    // 재생하지 않고(파일 상단 주석) 다리 안내 한 줄만 남긴 채 아래 STEP3~5 블록으로 넘어간다.
+    messages.push({ id: 'resume-continue', role: 'ai', kind: 'text', body: resumeContinueNotice });
+  } else {
+    if (restartNotice) {
+      // `추가 수행평가 진행하기` 직후(§5.17). 새 수행평가의 **첫** 메시지 자리라 인사말보다
+      // 앞에 온다 — 직전 수행평가에서 무슨 일이 있었는지(최종본 저장)를 여기서 한 번만 말한다.
+      // 타임라인이 통째로 갈리는 전이라 포커스 목적지이기도 하다.
       messages.push({
-        id: 'step2-manual-intro',
+        id: 'step5-new-assessment',
         role: 'ai',
         kind: 'text',
-        body: MANUAL_INTRO,
-        children: (
-          <ManualInfoForm
-            onSubmit={handleManualSubmit}
-            submitting={submitting}
-            submitError={submitError}
-          />
-        )
+        body: restartNotice,
+        focusRef: restartRef
       });
     }
-  }
 
-  if (guideDone) {
-    // 제출 결과 사용자 말풍선(§5.9) — 업로드 경로는 장수 요약, 직접 입력 경로는 원문 그대로.
-    messages.push(
-      guideMode === 'manual'
-        ? { id: 'step2-manual-text', role: 'user', kind: 'text', body: manualText }
-        : {
-            id: 'step2-upload-summary',
-            role: 'user',
-            kind: 'text',
-            body: `안내문 ${uploadedCount}장을 업로드했어요`
-          }
-    );
+    messages.push({
+      id: 'step1-greeting',
+      role: 'ai',
+      kind: 'text',
+      body: greetingBody,
+      // 세션이 만들어지면 폼 카드는 사라진다(§5.6 — `3754:3261`에 폼 카드가 없다).
+      children: createdSession ? null : (
+        <InlineCard>
+          <BasicInfoForm onSubmit={handleSubmit} submitting={submitting} submitError={submitError} />
+        </InlineCard>
+      )
+    });
+
+    if (createdSession) {
+      messages.push({
+        id: 'step1-summary',
+        role: 'user',
+        kind: 'text',
+        body: buildBasicInfoSummary(createdSession)
+      });
+
+      messages.push({
+        id: 'step2-intro',
+        role: 'ai',
+        kind: 'text',
+        body: GUIDE_INTRO,
+        // 업로드 카드는 ⓐ 직접 입력으로 넘어갔거나 ⓑ STEP2가 끝나면 타임라인에서 빠진다.
+        // 말풍선 자체는 두 경로 모두에서 남는다(`3754:3562`/`3754:3493` 둘 다 @626에 있다).
+        children:
+          guideMode === 'upload' && !guideDone ? (
+            <GuideUploadCard
+              onSubmit={handleGuideSubmit}
+              onSkip={handleSkipGuide}
+              submitting={submitting}
+              submitError={submitError}
+            />
+          ) : null
+      });
+    }
+
+    if (createdSession && guideMode === 'manual') {
+      messages.push({
+        id: 'step2-manual-choice',
+        role: 'user',
+        kind: 'text',
+        body: MANUAL_CHOICE
+      });
+
+      // AI3 안내 말풍선 + 직접 입력 폼은 제출과 동시에 **함께** 사라진다(§5.9 단정 —
+      // `3754:3493`에 둘 다 없다). 그래서 카드만 걷는 것이 아니라 메시지를 통째로 뺀다.
+      if (!guideDone) {
+        messages.push({
+          id: 'step2-manual-intro',
+          role: 'ai',
+          kind: 'text',
+          body: MANUAL_INTRO,
+          children: (
+            <ManualInfoForm
+              onSubmit={handleManualSubmit}
+              submitting={submitting}
+              submitError={submitError}
+            />
+          )
+        });
+      }
+    }
+
+    if (guideDone) {
+      // 제출 결과 사용자 말풍선(§5.9) — 업로드 경로는 장수 요약, 직접 입력 경로는 원문 그대로.
+      messages.push(
+        guideMode === 'manual'
+          ? { id: 'step2-manual-text', role: 'user', kind: 'text', body: manualText }
+          : {
+              id: 'step2-upload-summary',
+              role: 'user',
+              kind: 'text',
+              body: `안내문 ${uploadedCount}장을 업로드했어요`
+            }
+      );
+    }
   }
 
   if (guideDone && topicPhase === 'loading') {
