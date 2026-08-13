@@ -362,8 +362,13 @@ export default function SubmissionForm({
             aria-busy={saving || undefined}
             aria-describedby={describedBy}
             className={[
-              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition active:scale-[0.97] motion-reduce:active:scale-100',
-              saveLocked ? 'cursor-not-allowed opacity-50' : 'hover:border-ink-sub'
+              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100',
+              // 비활성 표현은 opacity가 아니라 :388(제출 버튼)과 동일한 실제 배경/글자색
+              // 조합으로 한다 — `aria-disabled`라 진짜 disabled가 아니고(여전히 포커스·클릭
+              // 가능) opacity는 WCAG 비활성 컨트롤 대비 예외를 못 받아 2.2:1로 미달이었다.
+              saveLocked
+                ? 'cursor-not-allowed bg-performance-line text-ink'
+                : 'bg-white text-ink-sub hover:border-ink-sub'
             ].join(' ')}
           >
             {saving && (
