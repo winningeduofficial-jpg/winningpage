@@ -131,6 +131,12 @@ export default function ServicePricingSection({ serviceKey, heading, cta, id, cl
         })}
       </div>
 
+      {serviceKey === 'suhaeng' && (
+        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
+          1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
+        </p>
+      )}
+
       {/* 리스트 하단→안내문 gap 12 × 0.766 ≈ 9px. 부모 컨테이너 text-center 상속을
           text-left 로 해제한다. */}
       <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">

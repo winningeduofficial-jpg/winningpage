@@ -508,7 +508,7 @@ export default function PerformanceAssessment() {
         heading="위닝 수행평가 이용권 구매하기"
         cta={{
           label: '이용권 구매하기',
-          onClick: (event) => openPaidServiceOrAlert(event, HERO_SERVICE)
+          to: '/pricing'
         }}
         className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
       />
