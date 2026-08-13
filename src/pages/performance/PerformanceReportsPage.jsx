@@ -114,7 +114,7 @@ function ViewerStatusOverlay({ loading, error, onDismiss }) {
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-performance-dim"
       onClick={error ? onDismiss : undefined}
-      role={error ? 'alertdialog' : 'status'}
+      role={error ? 'alert' : 'status'}
       aria-live="polite"
     >
       <div
