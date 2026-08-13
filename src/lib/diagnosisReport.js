@@ -851,10 +851,15 @@ export function buildReport(input, ctx = {}) {
     summaryCards: buildSummaryCards(page1Overall, page2Overall, gap),
     traits: buildTraits(areaScores),
 
-    // F-03 — 판정된 유형 코드(8종 중 하나) 또는 null. TYPE_COPY.detail·todos 를 붙일 자리가
-    // 예약돼 있어(1페이지 헤드라인 아래 · 확장 영역 '먼저 할 일') UI 가 이 코드로 조회한다.
-    // 이번 범위에서는 렌더하지 않는다 — 자리를 새로 파지 말고 이 코드를 쓰라는 뜻이다.
+    // F-03 완성(2026-08-13) — 판정된 유형 코드(8종 중 하나) 또는 null.
     studentType,
+    // TYPE_COPY.detail·todos 를 head 와 같은 방식으로 엔진에서 해석해 내린다(컴포넌트에 TYPE_COPY
+    // 결합을 새어나가게 하지 않는다). 과거 미렌더 사유였던 '일부 유형에만 문구가 있어 비대칭'은
+    // 8종 문구 전량 확정으로 해소됐다. 판정 불가(null)·직선응답이면 detail=null·todos=[] 이라
+    // 예약 슬롯(1페이지 헤드라인 아래 detail · 확장 영역 '먼저 할 일' todos)이 자연히 접힌다.
+    // 둘 다 화면 전용 슬롯이라 인쇄 A4 2장에는 영향이 없다.
+    typeDetail: studentType ? TYPE_COPY[studentType]?.detail ?? null : null,
+    typeTodos: studentType ? TYPE_COPY[studentType]?.todos ?? [] : [],
     // F-15 — UI 계약은 flagged 불리언 하나다. 나머지 두 필드는 어드민·검산 진단용이며
     // 화면 분기에 쓰지 마라(임계값이 UI 로 새면 되돌릴 곳이 두 군데가 된다).
     sincerity,

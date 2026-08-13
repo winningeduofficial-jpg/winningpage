@@ -65,7 +65,14 @@ export const SCREEN_EXTRAS = Object.freeze({
     }),
 
     /** **재사용** — 문구집 02 시트의 구분명('맞춤 전략') 그대로. '먼저 할 일'은 TYPE_COPY.todos 가 쓸 자리라 피했다. */
-    strategyTitle: '맞춤 전략'
+    strategyTitle: '맞춤 전략',
+
+    /**
+     * 자체 결정(2026-08-13) 확정. 원본 근거 없음. F-03 배선 시 TYPE_COPY.todos(유형별 '먼저 할 일'
+     * 3항목) 리스트의 소제목이다 — strategyTitle('맞춤 전략') 이 이 라벨을 피해 비워 둔 자리를 채운다.
+     * 변경 시 이 값만 교체.
+     */
+    strategyTodosTitle: '먼저 할 일'
   }),
 
   rules: Object.freeze({

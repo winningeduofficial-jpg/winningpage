@@ -9,7 +9,7 @@ import TraitNarratives from './TraitNarratives';
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
 export default function ReportPageOne({ data }) {
-  const { student, headlineLines, learningAxes, summaryCards, traits, traitsHeading, urgency, notices } =
+  const { student, headlineLines, learningAxes, summaryCards, traits, traitsHeading, urgency, notices, typeDetail } =
     data;
 
   // 우선순위 표 = 학습 6축을 점수 오름차순 정렬(정렬 결과가 곧 시안 행 순서와 일치).
@@ -35,14 +35,17 @@ export default function ReportPageOne({ data }) {
         </p>
 
         {/*
-          자리 예약(F-03) — TYPE_COPY.detail(유형별 상세 설명 1문단)이 확정되면 헤드라인 바로
-          아래, 즉 여기에 화면 전용(fd-screen-only)으로 들어간다. head 의 부연이라 다른 자리가
-          없고, 데스크톱에서 헤드라인 오른쪽은 절대배치 레이더가 차지하고 있어 이 아래로 약
-          20rem 의 화면 전용 여백이 실제로 비어 있다(레이더는 flow 에 기여하지 않는다).
-          폭은 헤드라인과 같은 lg:w-[35.875rem] 을 재사용하면 되고, fd-screen-only 라 인쇄 훅은
-          필요 없다. 조회 키는 data.studentType — 자리를 새로 파지 마라.
-          이번 범위에서 렌더하지 않는 이유: 8종 중 문구가 갖춰진 일부에만 뜨면 비대칭이 노출된다.
+          F-03 배선(2026-08-13) — TYPE_COPY.detail(유형별 상세 설명 1문단)을 헤드라인 바로 아래에
+          화면 전용(fd-screen-only)으로 싣는다. head 의 부연이라 다른 자리가 없고, 데스크톱에서
+          헤드라인 오른쪽은 절대배치 레이더가 차지해 이 아래로 약 20rem 의 화면 전용 여백이 비어
+          있다(레이더는 flow 에 기여하지 않는다). 폭은 헤드라인과 같은 lg:w-[35.875rem] 재사용,
+          fd-screen-only 라 인쇄 훅 불필요. typeDetail 이 null(판정 불가·직선응답)이면 접힌다.
         */}
+        {typeDetail && (
+          <p className="fd-screen-only mt-4 w-full break-keep text-base leading-[1.5] text-[#6b6b6b] lg:mt-5 lg:w-[35.875rem]">
+            {typeDetail}
+          </p>
+        )}
 
         {/* fd-radar-overlay — 인쇄 훅(BLOCK 수정). 데스크톱은 헤드라인 옆에 레이더를
             절대배치로 겹쳐 올리는 2단 구성이다; 인쇄에서 lg: 가 꺼지면 모바일처럼 세로로

@@ -92,7 +92,7 @@ function StrategyGroup({ group }) {
 }
 
 export default function ReportScreenExtras({ data }) {
-  const { areaDetails, strategyGroups, urgency, notices } = data ?? {};
+  const { areaDetails, strategyGroups, urgency, notices, typeTodos } = data ?? {};
 
   const detailRows = rules.showAreaDetails ? areaDetails : null;
   const hasAreaDetails =
@@ -121,9 +121,11 @@ export default function ReportScreenExtras({ data }) {
 
   const hasStrategies = focusGroups.length > 0;
   const hasNotice = Boolean(notices?.reportLimit);
+  // F-03 — 유형별 '먼저 할 일' 3항목. 판정 불가·직선응답이면 빈 배열이라 자리가 접힌다.
+  const hasTodos = Array.isArray(typeTodos) && typeTodos.length > 0;
 
-  // 실을 것이 하나도 없으면(디자인 픽스처 경로 등) 섹션을 통째로 만들지 않는다 — 빈 제목만 남기지 않는다.
-  if (!hasAreaDetails && !hasStrategies && !strategyLead && !hasNotice) return null;
+  // 실을 것이 하나도 없으면(판정 불가 등) 섹션을 통째로 만들지 않는다 — 빈 제목만 남기지 않는다.
+  if (!hasAreaDetails && !hasStrategies && !strategyLead && !hasNotice && !hasTodos) return null;
 
   const page1Title = templateCopy('card_exec.title') ?? copy.areaDetailTitle.page1;
 
@@ -157,7 +159,7 @@ export default function ReportScreenExtras({ data }) {
       )}
 
       {/* ── 블록 B — 긴급도 한 줄 + 맞춤 전략(AREA_COPY.strategies) ── */}
-      {(strategyLead || hasStrategies) && (
+      {(strategyLead || hasStrategies || hasTodos) && (
         <section>
           <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-[#0b84fd] lg:mt-16">
             {copy.strategyTitle}
@@ -167,12 +169,24 @@ export default function ReportScreenExtras({ data }) {
           )}
 
           {/*
-            자리 예약(F-03) — TYPE_COPY.todos 3항목('먼저 할 일')이 확정되면 여기, 즉 이 리드
-            문장 다음이자 아래 전략 그리드 **앞**에 들어간다. 유형 기반 과제(3)가 영역 기반
-            전략(12)보다 상위 서사라 순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라
-            '맞춤 전략'으로 잡은 이유이기도 하다). 다른 자리를 새로 파지 마라 — data.studentType
-            으로 조회하면 된다.
+            F-03 배선(2026-08-13) — TYPE_COPY.todos 3항목('먼저 할 일')을 리드 문장 다음이자 아래
+            전략 그리드 **앞**에 싣는다. 유형 기반 과제(3)가 영역 기반 전략(12)보다 상위 서사라
+            순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라 '맞춤 전략'으로 잡은 이유이기도 하다).
           */}
+          {hasTodos && (
+            <div className="mt-6">
+              <h4 className="break-keep text-base font-semibold leading-[1.5] text-[#525252]">
+                {copy.strategyTodosTitle}
+              </h4>
+              <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-[1.5] text-[#525252]">
+                {typeTodos.map((item) => (
+                  <li key={item} className="break-keep">
+                    {item}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {hasStrategies && (
             <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
