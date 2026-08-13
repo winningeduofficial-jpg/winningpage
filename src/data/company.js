@@ -11,8 +11,10 @@ export const COMPANY = {
   tel: '010-3664-0081', // 대표전화
   centerTel: '051-902-0080', // 센터문의
   kakao: 'winningedu_official',
-  // 카카오톡 채널 URL(pf.kakao.com/_xxxx). 위 kakao 는 채널 **아이디**일 뿐이라
-  // URL 을 만들 수 없다 — 채널 키를 받아 여기에 채우면 마이페이지 우하단
-  // 상담 버튼(KakaoConsultButton)이 그때부터 노출된다. 비어 있으면 숨는다.
-  kakaoChannelUrl: ''
+  // 카카오톡 채널 URL. 위 kakao 는 **검색용 아이디**일 뿐 URL 이 아니다 —
+  // 링크에 쓰는 값은 채널 키가 들어간 이 주소다(2026-08-13 수령).
+  // 원본은 http 로 받았지만 https 로 적는다 — 사이트가 https 라 http 링크는
+  // 브라우저가 혼합 콘텐츠로 경고하거나 승격시킨다. pf.kakao.com 은 https 를 지원한다.
+  // 채팅창을 바로 열려면 뒤에 `/chat` 을 붙이면 된다(지금은 채널 홈으로 보낸다).
+  kakaoChannelUrl: 'https://pf.kakao.com/_EfjwX'
 };
