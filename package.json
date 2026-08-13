@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "// test:calc": "디렉터리 인자(node --test src/lib/goal/calc/)는 Node 24 에서 테스트를 탐색하지 않는다. 디렉터리를 index.js 로 해석해 단일 테스트 파일로 실행해 버려서 0건 통과(가짜 green)가 된다. 반드시 glob 으로 지정할 것.",
     "test:calc": "node --test \"src/lib/goal/calc/**/*.test.js\"",
+    "test:diagnosis": "node --test \"src/lib/diagnosisScoring.test.js\"",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"*.{js,cjs}\" index.html",
     "verify": "node scripts/verify-admission-doc-equivalence.mjs && node scripts/verify-admission-doc-html-drift.mjs && node scripts/verify-admission-block-render.mjs && node scripts/verify-admission-table-editor.mjs && node scripts/verify-admission-bulk-xlsx.mjs && node scripts/verify-safe-html.mjs && node scripts/verify-admission-modal-shell.mjs && node scripts/test-admission-doc-renderer-total.mjs && node scripts/test-admission-doc-regression-guard.mjs && node scripts/verify-diagnosis-scoring.mjs",
     "verify:diagnosis": "node scripts/verify-diagnosis-scoring.mjs"
