@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, Menu, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { MY_MENU } from './myMenuItems';
+import { buildMyMenu } from './myMenuItems';
 import MobileNavDrawer from './MobileNavDrawer';
 import { cleanText, isSameObject, useNavGroups } from '../hooks/useNavGroups';
 import {
@@ -492,6 +492,10 @@ export default function Header() {
   const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
   const displayName = cleanText(profile?.name) || '';
   const memberLabel = getMemberLabel(profile);
+  // 학부모는 '수강신청·결제'가 /pricing 이 아니라 마이페이지 결제 내역으로 간다
+  // (myMenuItems.js buildMyMenu 주석 참고).
+  const isParentMember = cleanText(profile?.member_type).toLowerCase() === 'parent';
+  const myMenu = buildMyMenu(isParentMember);
   const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
 
   // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
@@ -561,7 +565,7 @@ export default function Header() {
                 {myOpen && (
                   <div className="absolute right-0 top-full z-50 w-[16rem]">
                     <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {MY_MENU.map((item) => {
+                      {myMenu.map((item) => {
                         const Icon = item.icon;
 
                         return (
@@ -618,7 +622,7 @@ export default function Header() {
                 {myOpen && (
                   <div className="absolute right-0 top-full z-50 w-[16rem]">
                     <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {MY_MENU.map((item) => {
+                      {myMenu.map((item) => {
                         const Icon = item.icon;
 
                         return (
@@ -892,6 +896,7 @@ export default function Header() {
         isLoggedIn={isLoggedIn}
         displayName={displayName}
         memberLabel={memberLabel}
+        isParentMember={isParentMember}
         csatDDay={csatDDay}
         isAdmin={isAdmin}
         onLogout={handleLogout}
