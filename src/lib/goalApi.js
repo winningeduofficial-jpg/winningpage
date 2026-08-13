@@ -174,3 +174,61 @@ export async function submitGoalIntake(body) {
   console.error('[goalApi] POST /api/goal/intake 실패:', response.status, result?.detail);
   return { kind: 'error' };
 }
+
+// ---------------------------------------------------------------------------
+// fetchGoalReport — GET /api/goal/report
+// ---------------------------------------------------------------------------
+//
+// 반환 계약(discriminated union, `kind` 필드로 분기) — fetchGoalStudent()와 같은 판별자
+// 이름을 재사용하되, 이 엔드포인트는 항상 GET(조회형)이라 'not-allowed'까지만 필요하고
+// 'validation-error'/'cuts-missing' 같은 쓰기 전용 분기는 없다.
+//
+//   { kind: 'no-session' }        — 401.
+//   { kind: 'not-allowed' }       — 200 {allowed:false}. 이용권 없음.
+//   { kind: 'not-onboarded' }     — 409 reason:'not_onboarded'. 온보딩 자체를 시작 안 함.
+//   { kind: 'awaiting-cuts' }     — 409 reason:'awaiting_cuts'. 컷 대기 중이라 rate/target 미확정.
+//   { kind: 'success', report }   — 200 {ok:true, report}. report는 type별로 모양이 다르다
+//     (GrowthReportBody.jsx / DirectionReportBody.jsx가 그대로 소비하는 shape — api/goal/report.js
+//     buildGrowthReport()/buildDirectionReport() 참고).
+//   { kind: 'error' }             — 네트워크 오류, 400, 5xx, 예상 밖 응답.
+//
+// @param {'weekly'|'monthly'|'direction'} type
+// @param {string} [period] weekly='그 주 월요일 YMD', monthly='YYYY-MM', direction=기간 칩 value.
+// @param {'naesin'|'jeongsi'} [track] type==='direction'일 때만 쓴다.
+export async function fetchGoalReport(type, period, track) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  const params = new URLSearchParams({ type });
+  if (period) params.set('period', period);
+  if (type === 'direction' && track) params.set('track', track);
+
+  let response;
+  try {
+    response = await fetch(`/api/goal/report?${params.toString()}`, {
+      method: 'GET',
+      headers: authHeader
+    });
+  } catch (error) {
+    console.error('[goalApi] GET /api/goal/report 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+
+  const body = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    if (body?.allowed === false) return { kind: 'not-allowed' };
+    if (body?.ok === true) return { kind: 'success', report: body.report };
+    console.error('[goalApi] GET /api/goal/report 예상 밖 200 응답 모양:', body);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 409) {
+    return { kind: body?.reason === 'awaiting_cuts' ? 'awaiting-cuts' : 'not-onboarded' };
+  }
+
+  console.error('[goalApi] GET /api/goal/report 실패:', response.status, body?.detail);
+  return { kind: 'error' };
+}

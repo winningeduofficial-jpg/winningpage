@@ -14,8 +14,6 @@ import LearningTypeCard from './LearningTypeCard';
 import StrategyListCard from './StrategyListCard';
 import ExpectedEffectCard from './ExpectedEffectCard';
 import MentorCommentCard from './MentorCommentCard';
-import { weeklyGrowthReport, monthlyGrowthReport, monthlyAdmissionChance } from '../../../data/goalReportMock';
-import { mockAdmissionChance } from '../../../data/goalMock';
 
 const PERIOD_TABS = [
   { value: 'weekly', label: '주간' },
@@ -26,8 +24,14 @@ const PERIOD_TABS = [
 // 분리된 재사용 컴포넌트다. 이번 범위는 학생 뷰(GoalAppLayout)만 이 컴포넌트를 감싸지만, 나중에
 // 학부모 뷰 셸(GoalViewerLayout, parent-view-spec.md §2)이 동일한 `period`/`onPeriodChange`만
 // 넘기면 그대로 재사용 가능하도록 이 파일 안에 `if (isParent)` 류의 뷰어 분기를 절대 두지 않는다.
-// 데이터는 이 컴포넌트가 스스로 소유한다(뷰어가 데이터를 주입할 필요가 없다 — parent-view-spec.md
-// §1-3 "카피 전문 — 동일. 본문 리포트는 100% 공유 컴포넌트로 구현").
+//
+// mock 제거(I단계 실배선) — 데이터는 더 이상 이 컴포넌트가 소유하지 않는다. fetch 훅은
+// pages/goal/GrowthReport.jsx가 갖고, `report`는 api/goal/report.js buildGrowthReport()가
+// 만드는 그대로다(합격 가능성 변화 데이터도 report.admission으로 함께 온다 — 예전엔
+// goalMock.mockAdmissionChance/goalReportMock.monthlyAdmissionChance 두 파일에서 따로
+// import했었다). 순수 프레젠테이션 컴포넌트로만 남긴다 — 데이터 유무 판단(빈 상태 등)은
+// 전부 report 필드 자체(예: execution.subjectShare.empty)로 표현되고, 이 컴포넌트는
+// 그 값을 그대로 자식에게 흘린다.
 //
 // 주간/월간 차이는 오직 데이터 단위뿐이다(요일 7 ↔ 주차 4, Row1 카드①의 확장 여부, Row4 존재
 // 여부) — 컴포넌트 트리는 동일하게 두고 데이터로만 분기한다(작업 지시 준수).
@@ -39,9 +43,8 @@ const PERIOD_TABS = [
 // 학습방향 리포트)이라 시안 확인 결과 이 차이는 구현 버그가 아니라 원본 시안의 의도적 차이로
 // 판단해 각자 자기 시안 순서를 그대로 유지한다(작업 지시 "시안이 서로 다르면 시안을 따르되 그
 // 사실을 주석으로 남길 것" 적용 — 강제 통일하지 않음).
-export default function GrowthReportBody({ period, onPeriodChange }) {
-  const report = period === 'monthly' ? monthlyGrowthReport : weeklyGrowthReport;
-  const admissionData = period === 'monthly' ? monthlyAdmissionChance : mockAdmissionChance;
+export default function GrowthReportBody({ period, onPeriodChange, report }) {
+  const { overview, execution, outcome, strategy, mentorComment, admission } = report;
 
   return (
     <div className="max-w-goal-content px-[3rem] pb-24 pt-[3.75rem]">
@@ -63,71 +66,55 @@ export default function GrowthReportBody({ period, onPeriodChange }) {
       </div>
 
       <div className="mt-10 flex flex-col gap-10">
-        <ReportSection label={report.overview.label} subLabel={report.overview.subLabel}>
+        <ReportSection label={overview.label} subLabel={overview.subLabel}>
           {/* Row1 — 비균등 3열. 시안 실측 372/720/196을 그대로 고정폭 쓰지 않고 가운데 칸을
               fr로 흘려보내 콘텐츠 우측 끝까지 재배분한다(결함8: 월간 Row1 우측 끝 1414 미정렬 수정). */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[23.25rem_1fr_12.25rem]">
             <GoalAchievementCard
-              title={report.overview.achievement.title}
+              title={overview.achievement.title}
               variant={period}
-              rows={report.overview.achievement.rows ?? report.overview.achievement.summaryRows}
-              weeks={report.overview.achievement.weeks}
+              rows={overview.achievement.rows}
+              weeks={overview.achievement.weeks}
             />
-            <StudyTimeBarChartCard
-              title={report.overview.studyTime.title}
-              bars={report.overview.studyTime.bars}
-              unit={report.overview.studyTime.unit}
-            />
-            <ConditionListCard title={report.overview.condition.title} rows={report.overview.condition.rows} />
+            <StudyTimeBarChartCard title={overview.studyTime.title} bars={overview.studyTime.bars} unit={overview.studyTime.unit} />
+            <ConditionListCard title={overview.condition.title} rows={overview.condition.rows} />
           </div>
         </ReportSection>
 
-        <ReportSection label={report.execution.label} subLabel={report.execution.subLabel}>
+        <ReportSection label={execution.label} subLabel={execution.subLabel}>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <SubjectShareCard {...report.execution.subjectShare} />
-            <TimeSlotEfficiencyCard
-              title={report.execution.timeSlot.title}
-              rows={report.execution.timeSlot.rows}
-              tip={report.execution.timeSlot.tip}
-            />
-            <DistractionCard
-              title={report.execution.distraction.title}
-              rows={report.execution.distraction.rows}
-              tip={report.execution.distraction.tip}
-            />
+            <SubjectShareCard {...execution.subjectShare} />
+            <TimeSlotEfficiencyCard title={execution.timeSlot.title} rows={execution.timeSlot.rows} tip={execution.timeSlot.tip} />
+            <DistractionCard title={execution.distraction.title} rows={execution.distraction.rows} tip={execution.distraction.tip} />
           </div>
         </ReportSection>
 
-        <ReportSection label={report.outcome.label} subLabel={report.outcome.subLabel}>
+        <ReportSection label={outcome.label} subLabel={outcome.subLabel}>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <CoreItemsCard
-              title={report.outcome.coreItems.title}
-              rows={report.outcome.coreItems.rows}
-              tip={report.outcome.coreItems.tip}
-            />
-            <ConditionTileCard
-              title={report.outcome.conditionTiles.title}
-              tiles={report.outcome.conditionTiles.tiles}
-              tip={report.outcome.conditionTiles.tip}
-            />
-            <AdmissionChanceCard title={report.outcome.admission.title} data={admissionData} />
+            <CoreItemsCard title={outcome.coreItems.title} rows={outcome.coreItems.rows} tip={outcome.coreItems.tip} />
+            <ConditionTileCard title={outcome.conditionTiles.title} tiles={outcome.conditionTiles.tiles} tip={outcome.conditionTiles.tip} />
+            <AdmissionChanceCard title={outcome.admission.title} data={admission} />
           </div>
         </ReportSection>
 
-        {period === 'monthly' && report.strategy && (
-          <ReportSection label={report.strategy.label} subLabel={report.strategy.subLabel}>
+        {period === 'monthly' && strategy && (
+          <ReportSection label={strategy.label} subLabel={strategy.subLabel}>
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_1fr_27rem]">
-              <LearningTypeCard {...report.strategy.learningType} />
-              <StrategyListCard {...report.strategy.plan} />
-              <ExpectedEffectCard {...report.strategy.expectedEffect} />
+              <LearningTypeCard {...strategy.learningType} />
+              <StrategyListCard {...strategy.plan} />
+              <ExpectedEffectCard {...strategy.expectedEffect} />
             </div>
           </ReportSection>
         )}
       </div>
 
-      <div className="mt-10">
-        <MentorCommentCard dateLabel={report.mentorComment.dateLabel} body={report.mentorComment.body} />
-      </div>
+      {/* 멘토가 이 기간에 아직 코멘트를 쓰지 않았으면(goal_mentor_comments 행 없음) 카드
+          자체를 렌더하지 않는다(팀장 확정 "리포트에서 코멘트 행 없으면 멘토 카드 자체 미렌더"). */}
+      {mentorComment && (
+        <div className="mt-10">
+          <MentorCommentCard dateLabel={mentorComment.dateLabel} body={mentorComment.body} />
+        </div>
+      )}
     </div>
   );
 }
