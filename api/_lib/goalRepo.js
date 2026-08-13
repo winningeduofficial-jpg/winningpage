@@ -28,6 +28,7 @@ export const TABLE_STUDENTS = 'goal_students';
 export const TABLE_STATE_VIEW = 'goal_student_state';
 export const TABLE_PROBABILITY_LOGS = 'goal_probability_logs';
 export const TABLE_UNIVERSITY_CUTS = 'goal_university_cuts';
+export const TABLE_SCHEDULES = 'goal_schedules';
 
 // create-service-ticket.js:71-73 과 글자 단위로 같은 문구를 쓴다.
 export const PAID_MESSAGE = '유료결제이후 이용해주세요!';
@@ -380,5 +381,83 @@ export function buildAwaitingCutsPayload(row) {
     status: row.status,
     targets: buildTargets(row),
     missingCuts: listMissingCuts(row)
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 중요일정 (sql/74_goal_schedules.sql) — 학생당 다건, 소유자 스코프는 profile_id.
+// service_role 이 RLS 를 우회하므로 update/delete 는 반드시 .eq('profile_id', ...)를
+// 같이 걸어 소유자 판정을 서버가 직접 강제한다(위 openGoalSession JSDoc 규약 1과 동일).
+// ---------------------------------------------------------------------------
+
+const SCHEDULE_SELECT_COLUMNS = 'id, title, category, due_date, memo';
+
+/** 본인 일정 전체, 마감일 오름차순. */
+export async function fetchSchedules(supabaseAdmin, profileId) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .eq('profile_id', profileId)
+    .order('due_date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/** 일정 1건 insert. 저장된 행을 그대로 돌려준다. */
+export async function insertSchedule(supabaseAdmin, row) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .insert(row)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 본인 소유 일정 1건 update.
+ * @returns {object|null} 갱신된 행. id가 없거나 본인 소유가 아니면 null(0행 매치).
+ */
+export async function updateSchedule(supabaseAdmin, profileId, id, patch) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .update(patch)
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select(SCHEDULE_SELECT_COLUMNS)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * 본인 소유 일정 1건 delete.
+ * @returns {boolean} 실제로 삭제됐으면 true(0행 매치면 false).
+ */
+export async function deleteSchedule(supabaseAdmin, profileId, id) {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_SCHEDULES)
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+/** DB 행(snake) → API 응답(camel). */
+export function buildSchedulePayload(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    dueDate: ymd(row.due_date),
+    memo: row.memo || ''
   };
 }
