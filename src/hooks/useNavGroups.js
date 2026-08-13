@@ -159,6 +159,49 @@ function ensureLearningDiagnosisInService(groups) {
   });
 }
 
+// '성장설계'(/services/growth)를 '서비스' 그룹에 삽입한다. 비로그인 포함 전원에게 노출되지만,
+// 아직 DB(page_contents)에 정식 등록되지 않은 임시 대체(고객사 목업 데모)라 이 훅의 최종
+// 반환값에만 적용한다 — readCachedNavGroups/buildNavGroups(즉 캐시·DB 경로)에는 절대 섞지
+// 않는다. page_contents(DB)는 dev의 전 브랜치가 공유하므로 캐시나 DB 파생 경로에 넣으면
+// 이 라우트가 없는 다른 브랜치 프리뷰에서도 메뉴 링크가 뜨고 App.jsx의 path="*"에 걸려
+// 홈으로 튕긴다. 정식 메뉴로 DB 등록되면 이 함수와 호출부는 제거한다.
+// '수행평가' 다음, '자기평가' 앞이 확정 순서이고, '자기평가'를 못 찾으면(DB 변경 등) 그룹
+// 끝에 append해 항목 자체가 사라지지 않게 한다.
+function insertGrowthPlanningInService(groups) {
+  const source = Array.isArray(groups) ? groups : [];
+  const growthLink = '/services/growth';
+
+  return source.map((group) => {
+    if (cleanText(group?.title) !== '서비스') {
+      return group;
+    }
+
+    const items = Array.isArray(group.items) ? group.items : [];
+    // 재계산(realtime 갱신 등)으로 이 함수가 다시 호출돼도 중복 삽입되지 않도록 기존 항목을
+    // 먼저 제거하고 다시 계산한다.
+    const withoutGrowth = items.filter((item) => cleanText(item?.to) !== growthLink);
+
+    const selfAssessmentIndex = withoutGrowth.findIndex((item) => {
+      const label = cleanText(item?.label).replace(/\s+/g, '');
+      return label === '자기평가' || cleanText(item?.to) === '/services/self-assessment';
+    });
+
+    const growthItem = { label: '성장설계', to: growthLink, sortOrder: 0 };
+    const nextItems = [...withoutGrowth];
+
+    if (selfAssessmentIndex === -1) {
+      nextItems.push(growthItem);
+    } else {
+      nextItems.splice(selfAssessmentIndex, 0, growthItem);
+    }
+
+    return {
+      ...group,
+      items: nextItems
+    };
+  });
+}
+
 function readCachedNavGroups() {
   try {
     const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
@@ -321,5 +364,6 @@ export function useNavGroups() {
     };
   }, [instanceId]);
 
-  return navGroups;
+  // '성장설계' 주입은 여기(최종 반환값)에만 적용한다 — 위 insertGrowthPlanningInService 주석 참고.
+  return insertGrowthPlanningInService(navGroups);
 }
