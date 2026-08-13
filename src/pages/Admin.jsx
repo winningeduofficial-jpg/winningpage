@@ -12,6 +12,7 @@ import {
   Eye,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Settings,
   Trash2,
@@ -10101,7 +10102,8 @@ function GoalStudentsAdmin({ onNavigate, onPrefillCreate }) {
         <h1 className="mt-4 text-xl font-black">{config.title}</h1>
         <p className="mt-1 text-xs font-bold text-gray-500">
           읽기 전용 화면입니다. 학생 데이터는 어드민에서 수정할 수 없습니다 — 확률은 온보딩 시점에
-          확정되고, 컷을 고쳐도 이미 온보딩한 학생의 값은 바뀌지 않습니다.
+          확정되고, 컷을 고쳐도 이미 온보딩한 학생의 값은 바뀌지 않습니다. 유일한 예외는 학생상세의
+          "온보딩 리셋" 버튼입니다(재입력 정정용, 명시적 확인 후에만 동작합니다).
         </p>
       </div>
 
@@ -10402,8 +10404,54 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
   const [recordLimit, setRecordLimit] = useState(GOAL_RECORD_PAGE);
   const [showRaw, setShowRaw] = useState(false);
   const [openMemo, setOpenMemo] = useState({});
+  // 온보딩 리셋(Q3) 진행 상태. 성공 시 목록 상태('컷 대기')까지 함께 갱신돼야
+  // 하므로 페이지를 통째로 새로고침한다(list/detail 두 컴포넌트를 각각
+  // 부분 갱신하는 것보다 안전하다 — GoalStudentsAdmin의 rows state는
+  // mutationSeq 같은 재조회 트리거를 두지 않는다).
+  const [resetting, setResetting] = useState(false);
 
   const todayYMD = useMemo(() => kstYMD(), []);
+
+  async function handleResetOnboarding() {
+    if (!student?.profile_id) return;
+
+    const confirmed = window.confirm(
+      '이 학생을 온보딩 이전 상태로 되돌립니다. 학생은 재접속 시 온보딩을 처음부터 다시 진행하게 됩니다. 학습 기록은 보존되지만 확률은 초기화됩니다. 계속하시겠습니까?'
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+
+    try {
+      const accessToken = await getFreshSupabaseAccessToken();
+
+      const response = await fetch('/api/goal/admin/reset-student', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ profileId: student.profile_id })
+      });
+
+      const result = await response.json().catch(async () => {
+        const text = await response.text().catch(() => '');
+        return { detail: text || `HTTP ${response.status}` };
+      });
+
+      if (!response.ok) {
+        throw new Error(result?.detail || `HTTP ${response.status}`);
+      }
+
+      alert('온보딩 리셋이 완료되었습니다. 학생은 재접속 시 온보딩부터 다시 진행합니다.');
+      // 목록 탭의 상태('컷 대기')까지 함께 반영해야 하므로 전체 새로고침한다.
+      window.location.reload();
+    } catch (error) {
+      console.error('goal/admin/reset-student 실패:', error);
+      alert(`온보딩 리셋 실패: ${error.message}`);
+      setResetting(false);
+    }
+  }
 
   // 학생 1명분 정적 데이터. 기록 목록만 '더보기'로 따로 늘린다.
   useEffect(() => {
@@ -10601,9 +10649,15 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
           </h1>
           <p className="mt-1 font-mono text-xs text-gray-400">{student.profile_id}</p>
         </div>
-        <ActionButton variant="light" onClick={onBack}>
-          목록으로
-        </ActionButton>
+        <div className="flex items-center gap-2">
+          <ActionButton variant="danger" onClick={handleResetOnboarding} disabled={resetting}>
+            <RotateCcw size={14} />
+            {resetting ? '리셋 중…' : '온보딩 리셋'}
+          </ActionButton>
+          <ActionButton variant="light" onClick={onBack}>
+            목록으로
+          </ActionButton>
+        </div>
       </div>
 
       {/* ── 진단 힌트 (§4-3-C-1) ───────────────────────────────────────── */}
