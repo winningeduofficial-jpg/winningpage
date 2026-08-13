@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import PerformanceSidebar from './PerformanceSidebar';
+import { ToastProvider } from '../../context/ToastContext';
 
 // 수행평가 학생 앱 셸 — docs/수행평가-상세-명세.md §3.1(전체 골격) / §3.5(헤더).
 //
@@ -25,28 +26,32 @@ import PerformanceSidebar from './PerformanceSidebar';
 //   좁은 화면·모바일 대응은 이번 범위 밖이며, 임의 모바일 레이아웃을 만들지 않는다.
 export default function PerformanceAppLayout() {
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
-          TODO(P5/P13): `GET /api/performance/bootstrap`의 `profile`/`lastSession`을 셸에서 한 번
-          읽어 여기로 내려보낸다. 지금 값을 넘기지 않는 것은 배선이 없어서지 기본값이 정본이라서가
-          아니다 — 없는 값 자리에 가짜 이름·리터럴 학교유형을 채우지 않는 것이 §11 Q61-ⓔ 규칙이다. */}
-      <PerformanceSidebar />
+    // ToastProvider는 P18 토스트 컨텍스트 배선 — src/context/ToastContext.jsx 참고.
+    // 이 셸 하위 전 화면(STEP1~5, 리포트, 마이리포트)이 useToast()를 공유한다.
+    <ToastProvider>
+      <div className="flex min-h-screen bg-white">
+        {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
+            TODO(P5/P13): `GET /api/performance/bootstrap`의 `profile`/`lastSession`을 셸에서 한 번
+            읽어 여기로 내려보낸다. 지금 값을 넘기지 않는 것은 배선이 없어서지 기본값이 정본이라서가
+            아니다 — 없는 값 자리에 가짜 이름·리터럴 학교유형을 채우지 않는 것이 §11 Q61-ⓔ 규칙이다. */}
+        <PerformanceSidebar />
 
-      {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
-          콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
-          pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
-      <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
-        <div className="max-w-perf-content">
-          {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
-              TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
-              §11 Q7 미결이라 아직 만들지 않는다. */}
-          <h1 className="text-[2rem] font-semibold leading-[2.625rem] tracking-[-0.04rem] text-ink-strong">
-            위닝 수행평가 서비스
-          </h1>
+        {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
+            콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
+            pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
+        <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
+          <div className="max-w-perf-content">
+            {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
+                TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
+                §11 Q7 미결이라 아직 만들지 않는다. */}
+            <h1 className="text-[2rem] font-semibold leading-[2.625rem] tracking-[-0.04rem] text-ink-strong">
+              위닝 수행평가 서비스
+            </h1>
 
-          <Outlet />
-        </div>
-      </main>
-    </div>
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
