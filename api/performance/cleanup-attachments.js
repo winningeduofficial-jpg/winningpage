@@ -94,8 +94,8 @@
 //     backoff가 아니라 상한을 쓰는 이유: cron이 하루 1회라 실행 간격 자체가 이미 24시간
 //     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
-import crypto from 'crypto';
-import { createSupabaseAdmin, getEnv } from '../_lib/supabaseAdmin.js';
+import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { isAuthorizedCron } from '../_lib/cronAuth.js';
 import { BUCKET } from './upload-url.js';
 
 /** §8.8 「보관 기간 — 90일」 */
@@ -123,32 +123,6 @@ const MAX_CLEANUP_ATTEMPTS = 5;
 
 function fail(res, status, code, message) {
   return res.status(status).json({ error: { code, message } });
-}
-
-/** 길이가 달라도 예외를 던지지 않는 상수시간 비교. */
-function safeEqual(a, b) {
-  const left = Buffer.from(String(a || ''), 'utf8');
-  const right = Buffer.from(String(b || ''), 'utf8');
-  if (left.length !== right.length) return false;
-  return crypto.timingSafeEqual(left, right);
-}
-
-/**
- * Vercel Cron 호출인지 확인한다.
- * @returns {boolean} `CRON_SECRET` 미설정이면 무조건 false(fail-closed).
- */
-function isAuthorizedCron(req) {
-  const secret = getEnv('CRON_SECRET');
-  if (!secret) {
-    console.error(
-      'performance/cleanup-attachments: CRON_SECRET이 설정되지 않아 요청을 거부했습니다. ' +
-        '이 상태에서는 90일 보관 정책 cron이 전혀 실행되지 않습니다(.env.example 참고).'
-    );
-    return false;
-  }
-
-  const header = req.headers?.authorization || req.headers?.Authorization || '';
-  return safeEqual(header, `Bearer ${secret}`);
 }
 
 function clampBatch(raw) {
