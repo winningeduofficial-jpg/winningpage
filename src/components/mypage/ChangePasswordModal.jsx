@@ -53,8 +53,24 @@ export default function ChangePasswordModal({ open, email, onClose, onChanged })
     setErrorMsg('');
 
     // 1) 현재 비밀번호 확인(위 주석 참고).
+    //
+    // 로그인 이메일은 **세션에서 직접** 읽는다. 상위가 넘겨주는 값은
+    // profiles.email(프로필 미러)이라 auth 의 로그인 이메일과 다를 수 있고,
+    // 다르면 비밀번호가 맞아도 invalid_credentials 로 떨어져 "현재 비밀번호가
+    // 틀렸다"는 잘못된 안내를 하게 된다(2026-08-13 실사용 신고 — 400
+    // invalid_credentials). 미러는 화면 표시용이지 인증용 식별자가 아니다.
+    const { data: sessionUser } = await supabase.auth.getUser();
+    const authEmail = sessionUser?.user?.email || email;
+
+    if (!authEmail) {
+      setSaving(false);
+      setStep('form');
+      setErrorMsg('로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.');
+      return;
+    }
+
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: authEmail,
       password: current
     });
     if (authError) {

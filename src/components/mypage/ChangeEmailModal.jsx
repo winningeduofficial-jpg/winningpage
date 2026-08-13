@@ -37,6 +37,14 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [sent, setSent] = useState(false);
+  // true = 새 주소 확인은 끝났지만 기존 주소 확인이 남아 아직 미확정.
+  const [pendingOldConfirm, setPendingOldConfirm] = useState(false);
+  // 화면에 보여주고 "같은 주소인지" 판정하는 기준은 **auth 의 로그인 이메일**이다.
+  // 상위가 넘겨주는 currentEmail 은 profiles.email(표시용 미러)이라 확정 전
+  // 변경이 남아 있거나 미러가 어긋나면 실제와 다르다 — 그 상태에서 판정하면
+  // "현재와 같은 주소"를 변경 가능한 것으로 잘못 통과시키고, 서버는 보낼 게
+  // 없어 인증번호가 오지 않는다(2026-08-13 실사용 신고).
+  const [authEmail, setAuthEmail] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -46,15 +54,39 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
     setSaving(false);
     setErrorMsg('');
     setSent(false);
+    setPendingOldConfirm(false);
+
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (alive) setAuthEmail(data?.user?.email || '');
+    })();
+    return () => {
+      alive = false;
+    };
   }, [open]);
 
-  const emailValid = isValidEmail(nextEmail) && nextEmail.trim().toLowerCase() !== String(currentEmail || '').toLowerCase();
+  // 표시·판정 기준. auth 를 아직 못 읽었으면 미러로 임시 대체한다.
+  const baseEmail = authEmail || currentEmail || '';
+
+  const emailValid =
+    isValidEmail(nextEmail) && nextEmail.trim().toLowerCase() !== baseEmail.toLowerCase();
 
   // 인증번호 발송 — updateUser({ email }) 이 곧 발송 트리거다.
   const sendCode = useCallback(async () => {
     if (saving || !emailValid) return;
     setSaving(true);
     setErrorMsg('');
+
+    // 발송 직전 한 번 더 본다 — 모달을 열어둔 사이에 다른 탭에서 바뀌었을 수 있다.
+    const { data: fresh } = await supabase.auth.getUser();
+    const liveEmail = fresh?.user?.email || baseEmail;
+    if (liveEmail && liveEmail.toLowerCase() === nextEmail.trim().toLowerCase()) {
+      setAuthEmail(liveEmail);
+      setSaving(false);
+      setErrorMsg('지금 쓰고 있는 이메일이에요. 다른 주소를 입력해 주세요.');
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ email: nextEmail.trim() });
     setSaving(false);
@@ -92,10 +124,17 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
       return;
     }
 
-    // profiles.email 미러 갱신(위 주석). 실패해도 auth 쪽 변경은 끝났으므로
-    // 흐름을 막지 않고 경고만 남긴다 — 다음 로그인 때 화면이 옛 주소를 보일 수
-    // 있어 콘솔에 남겨 추적 가능하게 한다.
-    if (profileId) {
+    // 코드 검증이 통과해도 변경이 **확정되지 않을 수 있다** — 대시보드의
+    // "Secure email change"가 켜져 있으면 기존 주소에서도 확인해야 최종
+    // 반영된다(그래서 메일이 두 통 간다). 그 상태에서 profiles.email 을 먼저
+    // 갱신하면 auth 이메일과 갈라져, 화면은 새 주소인데 로그인은 옛 주소로
+    // 해야 하는 상태가 된다. 그러니 auth 를 다시 읽어 실제로 바뀌었는지
+    // 확인한 뒤에만 미러를 갱신한다.
+    const { data: fresh } = await supabase.auth.getUser();
+    const applied =
+      String(fresh?.user?.email || '').toLowerCase() === nextEmail.trim().toLowerCase();
+
+    if (applied && profileId) {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ email: nextEmail.trim().toLowerCase(), updated_at: new Date().toISOString() })
@@ -104,8 +143,9 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
     }
 
     setSaving(false);
+    setPendingOldConfirm(!applied);
     setStep('done');
-    onChanged?.(nextEmail.trim());
+    if (applied) onChanged?.(nextEmail.trim());
   }, [saving, code, nextEmail, profileId, onChanged]);
 
   if (!open) return null;
@@ -115,8 +155,16 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
       <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
         <div className="flex flex-col items-center px-6 py-10 text-center">
           <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-title">
-            변경이 완료됐어요
+            {pendingOldConfirm ? '기존 이메일에서도 확인해주세요' : '변경이 완료됐어요'}
           </h2>
+          {pendingOldConfirm && (
+            // ⚠ 신규 카피 — 승인 필요. "Secure email change"가 켜져 있을 때만 나온다.
+            <p className="mt-4 break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
+              보안 설정 때문에 기존 이메일로도 확인 메일이 갔어요.
+              <br />
+              그 메일까지 확인해야 변경이 완료돼요.
+            </p>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -179,7 +227,7 @@ export default function ChangeEmailModal({ open, currentEmail, profileId, onClos
         <div className="mt-7">
           <span className="text-[0.8125rem] font-semibold text-ink">현재 이메일</span>
           <div className={`mt-2 ${FIELD_CLASS} flex items-center bg-surface-footer text-ink-sub`}>
-            {currentEmail || '-'}
+            {baseEmail || '-'}
           </div>
         </div>
 
