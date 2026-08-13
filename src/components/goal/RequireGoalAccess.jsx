@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { hasEntitlement } from '../../lib/entitlement';
+import RequireEntitlement from '../RequireEntitlement';
 import { isOnboardingDone } from '../../lib/goalOnboarding';
 
 // 목표관리 진입 가드 체인(사용자 확정 플로우) — /app/goal/* 전체(대시보드 셸 +
@@ -16,17 +15,26 @@ import { isOnboardingDone } from '../../lib/goalOnboarding';
 //   3) 온보딩 완료 판정   — 미완료   → /app/goal/onboarding/step-1
 //   4) 전부 통과          → 자식(대시보드 또는 온보딩 페이지) 렌더
 //
+// **1・2단계는 공용 <RequireEntitlement>로 이관했다(2026-08-11).** 수행평가 셸이
+// 같은 4상태 판정을 필요로 해서, 서비스 키를 받는 형태로 일반화한 뒤 이 컴포넌트가
+// 그것을 호출하도록 바꿨다. 상태 정의·리다이렉트 목적지·`null`(판정 불가) 처리 규칙은
+// 전부 그쪽 파일(`src/components/RequireEntitlement.jsx`)에 있고 동작은 이전과 같다.
+// 3단계(온보딩)는 목표관리 고유 규칙이라 여기 남는다.
+//
 // 2026-08-11: 3단계도 goal_students 서버 조회(isOnboardingDone(), src/lib/goalOnboarding.js)로
-// 바뀌었다. 과거엔 localStorage 동기 판정이라 렌더 중 즉시 계산했지만, 지금은 1·2단계와
-// 같은 이유(서버 왕복)로 await가 필요해 같은 effect·같은 status state machine에
-// 편입시켰다 — 더 이상 렌더 함수 본문에서 동기로 계산하지 않는다.
+// 바뀌었다. 과거엔 localStorage 동기 판정이라 렌더 중 즉시 계산했지만, 지금은 서버
+// 왕복이 필요해 GoalOnboardingGate 자체가 작은 status state machine
+// ('loading'/'no-onboarding'/'onboarding-check-failed'/'ok')을 갖는다 — 더 이상 렌더
+// 함수 본문에서 동기로 계산하지 않는다. 1·2단계는 RequireEntitlement가 이미 같은 이유로
+// 자체 state machine을 갖고 있으므로 여기서 다시 처리하지 않는다(이중 판정 방지) —
+// GoalOnboardingGate는 RequireEntitlement가 ok를 낸 뒤에만 렌더되는 children이다.
 //
 // ⚠️ 무한 리다이렉트 방지: 3단계는 "지금 온보딩 경로에 있는가"를 먼저 확인해 그 경우
 // 검사 자체를 건너뛴다. 온보딩 경로에서도 3단계를 그대로 적용하면
 // /app/goal/onboarding/step-1 진입 시 "온보딩 미완료 → /app/goal/onboarding/step-1로
 // 리다이렉트"가 자기 자신을 가리켜 무한 루프가 된다. 1・2단계(로그인·이용권)는 온보딩
 // 경로에서도 그대로 적용한다 — 온보딩도 로그인・결제 이후 화면이기 때문. 이 조건·순서는
-// 그대로 유지했다(effect 안으로 들어갔을 뿐 판단 로직은 바뀌지 않았다).
+// dev의 원 구현(effect 안으로 들어가기 전)과 동일하게 유지했다.
 //
 // ⚠️ 결제 복귀 배선 한계(이번 범위 밖, 손대지 않음): 2단계에서 /pricing?redirect=...로
 // 보내지만, Pricing.jsx가 redirect 쿼리를 읽지 않고 로그인 필요 시 `/login?redirect=/checkout`을
@@ -40,14 +48,14 @@ function currentPathWithQuery(location) {
   return `${location.pathname}${location.search}${location.hash}`;
 }
 
-export default function RequireGoalAccess() {
+// 3단계 — 1・2단계를 통과했을 때만 렌더된다(RequireEntitlement가 children을
+// ok 상태에서만 렌더한다). isOnboardingDone()이 서버 조회 비동기 함수라 이 컴포넌트도
+// 자체 status state machine을 갖는다(위 2026-08-11 주석 참고).
+function GoalOnboardingGate() {
   const location = useLocation();
+  const isOnOnboardingRoute = location.pathname.startsWith(ONBOARDING_PATH_PREFIX);
 
-  // 'loading' | 'no-session' | 'no-entitlement' | 'check-failed'
-  //   | 'no-onboarding' | 'onboarding-check-failed' | 'ok'
-  // 1・2・3단계 모두 비동기(세션 조회·/api/check-service-access 호출·/api/goal/student
-  // 호출)라 로딩 상태가 필요하다. 깜빡임 방지를 위해 판정이 끝나기 전까지는 절대 자식을
-  // 렌더하지 않는다(아래 loading 분기가 유일한 렌더).
+  // 'loading' | 'no-onboarding' | 'onboarding-check-failed' | 'ok'
   const [status, setStatus] = useState('loading');
   // evaluate()를 다시 돌리기 위한 트리거. "재시도" 버튼이 이 값을 바꿔 useEffect를 재실행한다.
   const [retryToken, setRetryToken] = useState(0);
@@ -58,40 +66,6 @@ export default function RequireGoalAccess() {
     async function evaluate() {
       setStatus('loading');
 
-      // 1) 로그인 판정
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-
-      if (!alive) return;
-
-      if (!user) {
-        setStatus('no-session');
-        return;
-      }
-
-      // 2) 이용권 판정 — hasEntitlement는 true/false 외에 null(판정 불가: 서버 호출
-      // 실패·네트워크 오류 등)도 반환할 수 있다(src/lib/entitlement.js 계약 참고).
-      // false(서버가 명시적으로 "미결제"라고 답함)와 null(서버에 물어보지 못함)을 반드시
-      // 구분해야 한다 — null을 false처럼 처리해 /pricing으로 보내면, 서버가 일시적으로
-      // 죽었을 뿐인 결제 완료 사용자가 결제 페이지로 튕기는 최악의 오탐이 발생한다.
-      // 그래서 null은 별도 상태('check-failed')로 두고 그 자리에 머무르며 재시도를
-      // 제공한다. 리다이렉트는 false(명시적 미보유)일 때만 한다.
-      const entitled = await hasEntitlement('goal');
-
-      if (!alive) return;
-
-      if (entitled === false) {
-        setStatus('no-entitlement');
-        return;
-      }
-
-      if (entitled !== true) {
-        setStatus('check-failed');
-        return;
-      }
-
-      // 3) 온보딩 완료 판정 — 1・2단계 통과 후에만 도달한다.
-      //
       // ⚠️ 무한 리다이렉트 방지(원래 로직 그대로 유지, 위치만 render → effect):
       // 지금 온보딩 경로에 있으면 이 판정 자체를 건너뛰고 곧장 'ok'로 통과시킨다.
       // 건너뛰지 않으면 /app/goal/onboarding/step-1 진입 시 "온보딩 미완료 →
@@ -100,10 +74,8 @@ export default function RequireGoalAccess() {
       // 대시보드 라우트 그룹)이 서로 다른 서브트리라 마운트 생애주기 동안 값이
       // 바뀌지 않는다(상단 주석 참고) — 그래서 useEffect 의존성에 location을 넣지
       // 않아도 안전하다.
-      const isOnOnboardingRoute = location.pathname.startsWith(ONBOARDING_PATH_PREFIX);
-
       if (isOnOnboardingRoute) {
-        setStatus('ok');
+        if (alive) setStatus('ok');
         return;
       }
 
@@ -145,44 +117,6 @@ export default function RequireGoalAccess() {
     );
   }
 
-  if (status === 'no-session') {
-    const redirectPath = currentPathWithQuery(location);
-    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />;
-  }
-
-  if (status === 'no-entitlement') {
-    const redirectPath = currentPathWithQuery(location);
-    return (
-      <Navigate
-        to={`/pricing?service=goal&redirect=${encodeURIComponent(redirectPath)}`}
-        replace
-      />
-    );
-  }
-
-  if (status === 'check-failed') {
-    // 이용권 판정 불가(서버 호출 실패 등). /pricing으로 보내지 않고 이 화면에 머무른다 —
-    // 결제를 마친 사용자가 일시적 오류로 결제 페이지에 튕기는 상황을 막기 위해서다.
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
-        <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
-          <p className="text-sm font-extrabold">이용 가능 여부를 확인하지 못했습니다.</p>
-          <p className="text-xs text-[#0D1B2A]/60">
-            네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧 다시
-            확인됩니다.
-          </p>
-          <button
-            type="button"
-            onClick={() => setRetryToken((v) => v + 1)}
-            className="mt-2 rounded-full bg-[#0D1B2A] px-5 py-2 text-xs font-extrabold text-white"
-          >
-            다시 시도
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   if (status === 'no-onboarding') {
     return <Navigate to="/app/goal/onboarding/step-1" replace />;
   }
@@ -190,7 +124,8 @@ export default function RequireGoalAccess() {
   if (status === 'onboarding-check-failed') {
     // 온보딩 완료 여부 판정 불가(서버 호출 실패 등). 온보딩으로도, 대시보드로도 보내지
     // 않고 이 화면에 머무른다 — 이미 온보딩을 마친 사용자가 일시적 오류로 온보딩
-    // 화면에 다시 튕기는 상황을 막기 위해서다(check-failed와 동일한 이유, 대상만 다름).
+    // 화면에 다시 튕기는 상황을 막기 위해서다(RequireEntitlement의 check-failed와
+    // 동일한 이유, 대상만 다르다).
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
         <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
@@ -211,7 +146,21 @@ export default function RequireGoalAccess() {
     );
   }
 
-  // status === 'ok' — 1・2・3단계 전부 통과(또는 온보딩 경로라 3단계를 건너뜀).
+  // status === 'ok' — 3단계 통과(또는 온보딩 경로라 건너뜀).
   // 4) 대시보드 랜딩(또는 온보딩 페이지) — 실제 자식 라우트 렌더.
   return <Outlet />;
+}
+
+export default function RequireGoalAccess() {
+  return (
+    <RequireEntitlement
+      serviceKey="goal"
+      forbiddenTo={(location) =>
+        `/pricing?service=goal&redirect=${encodeURIComponent(currentPathWithQuery(location))}`
+      }
+      forbiddenNotice="목표관리 서비스는 유료 이용권을 결제하신 뒤 이용할 수 있습니다."
+    >
+      <GoalOnboardingGate />
+    </RequireEntitlement>
+  );
 }

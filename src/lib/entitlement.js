@@ -28,7 +28,7 @@ export function getMockPaidOrders() {
     },
     {
       id: 'dev-fake-suhaeng-6',
-      order_name: '[3개월 6회 이용권] 위닝 AI수행평가',
+      order_name: '[3개월 6회 이용권] 위닝 수행평가',
       amount: 24000,
       paid_at: now,
       is_fake_entitlement: true
@@ -66,11 +66,39 @@ import { supabase } from './supabase';
 //     자리에 머무르게 해야 한다(RequireGoalAccess.jsx 참고).
 //   - 그 외에는 서버가 준 실제 판정(true/false)을 그대로 반환한다.
 export async function hasEntitlement(serviceKey) {
-  if (FAKE_ENTITLEMENT_ENABLED) return true;
+  const { allowed } = await fetchEntitlement(serviceKey);
+  return allowed;
+}
+
+// fetchEntitlement — hasEntitlement의 상위 집합. 판정(allowed)에 더해 회차·플랜
+// 정보를 함께 돌려준다. 수행평가 셸(SessionContext)이 사이드바 "남은 횟수"와
+// §5.20 소진 배너를 그리려면 boolean 하나로는 부족해서 추가했다.
+//
+// allowed의 계약은 hasEntitlement와 **완전히 같다**(true/false/null 3값, null은
+// "판정 불가"). 회차 필드는 다음과 같이 읽는다.
+//
+//   quotaRemaining === null  →  **무제한**(0이 아니다). 서버가 값을 모르는
+//                               경우도 여기로 떨어진다 — 회차 개념이 없는
+//                               서비스(goal), program_access 행이 없는 사용자
+//                               (admin_enrollments 경로), meta 미설정 등.
+//   quotaRemaining === 0     →  소진. 셸 진입은 계속 허용하고(§2.2 결정)
+//                               새 세션 시작만 막는 안내를 띄운다.
+//   quotaRemaining > 0       →  잔여 회차.
+//
+// ⚠️ 이 값은 안내용이다. 실제 차단 권위는 서버의 차감 RPC이며, 화면이 잔여
+//    회차를 1로 알고 있어도 다른 탭이 먼저 쓰면 api/performance/*가
+//    409 QUOTA_EXHAUSTED를 돌려준다. 클라이언트는 그 409를 정상 분기로
+//    처리해야 하고, 이 값으로 선제 차단을 구현하면 안 된다(명세서 §2.2, §9.3).
+export async function fetchEntitlement(serviceKey) {
+  const empty = { quotaRemaining: null, quotaTotal: null, planEndsAt: null, planLabel: null };
+
+  // 로컬 QA 플래그. 서버를 부르지 않으므로 회차는 알 수 없다 → 무제한(null)로
+  // 둔다. 소진 UI를 로컬에서 보려면 플래그를 끄고 vercel dev로 실제 응답을 받아야 한다.
+  if (FAKE_ENTITLEMENT_ENABLED) return { allowed: true, ...empty };
 
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData?.session;
-  if (!session?.user || !session?.access_token) return null;
+  if (!session?.user || !session?.access_token) return { allowed: null, ...empty };
 
   try {
     const response = await fetch('/api/check-service-access', {
@@ -91,12 +119,24 @@ export async function hasEntitlement(serviceKey) {
 
     if (!response.ok) {
       console.error('[entitlement] check-service-access 실패:', response.status, result?.detail);
-      return null;
+      return { allowed: null, ...empty };
     }
 
-    return result?.allowed === true;
+    return {
+      allowed: result?.allowed === true,
+      // 구버전 서버(회차 필드 이전 배포)가 응답하면 키 자체가 없다 →
+      // undefined가 아니라 null로 정규화해 호출부가 항상 3값만 보게 한다.
+      quotaRemaining: normalizeQuota(result?.quotaRemaining),
+      quotaTotal: normalizeQuota(result?.quotaTotal),
+      planEndsAt: result?.planEndsAt ?? null,
+      planLabel: result?.planLabel ?? null
+    };
   } catch (error) {
     console.error('[entitlement] check-service-access 호출 오류:', error);
-    return null;
+    return { allowed: null, ...empty };
   }
+}
+
+function normalizeQuota(value) {
+  return Number.isInteger(value) ? value : null;
 }

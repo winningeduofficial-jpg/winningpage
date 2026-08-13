@@ -60,6 +60,14 @@ export {
   calculateDailyBonus,
 } from './bonus.js';
 
+// ── bonusV2 ─────────────────────────────────────────────────────────────
+// 일별 기록 수식 v2(신시안 "오늘의 공부 기록" #26 전용, 원본 파리티 밖 — 자세한
+// 배경은 bonusV2.js 헤더 참고). bonus.js(v1)와 이름이 겹치지 않아 같은 배럴에서
+// 공존한다. getAchievementRateMultiplier/TASK_NAESIN/TASK_MOCK_EXAM/
+// TASK_BONUS_MULTIPLIER 는 bonus.js 판이 정본이며 bonusV2.js 가 그대로 재사용한다
+// (위 bonus export 절 참고 — 사본을 만들지 않는다).
+export { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from './bonusV2.js';
+
 // ── schedule ────────────────────────────────────────────────────────────
 // calcAvailableHoursApprox 만 원본에 없는 우리 앱 전용 근사 어댑터다.
 export {
@@ -75,12 +83,15 @@ export {
 // ── virtualDate ─────────────────────────────────────────────────────────
 // schedule.js 안에도 toYMD/kstYMD/getDayIndexFromYMDServer/addDaysYMD 사본이
 // 있지만 export 하지 않는다. 외부에서 쓸 때는 이 배럴(=virtualDate 판)을 쓸 것.
+// getRecordDateFromActualStart/getRegularWeekIndexFromSundayCount 는 @deprecated —
+// goal_daily_records 가 실제 달력 모델(diffDaysYMD)로 전환했다(virtualDate.js 참고).
 export {
   toYMD,
   kstYMD,
   getRecordDateFromActualStart,
   getDayIndexFromYMDServer,
   addDaysYMD,
+  diffDaysYMD,
   getMondayYMD,
   getFirstSundayYMD,
   isMiniStartDay,

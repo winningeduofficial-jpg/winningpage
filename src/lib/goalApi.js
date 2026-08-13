@@ -1,5 +1,4 @@
-// GET /api/goal/student · POST /api/goal/intake · GET·POST·PUT·DELETE
-// /api/goal/workbooks 공용 클라이언트.
+// GET /api/goal/student · POST /api/goal/intake 공용 클라이언트.
 //
 // src/lib/entitlement.js의 hasEntitlement()와 같은 패턴(세션 조회 → 세션 없으면 조기
 // 반환 → fetch → 안전한 JSON 파싱 → 상태코드 분기)을 따른다. entitlement.js는 참고만
@@ -69,7 +68,9 @@ async function parseJsonSafe(response) {
 //       { onboarded, status, profile:{schoolType,grade,schoolCutType},
 //         targets, scores, baseProbs, rates, cumulativeBonus, probs,
 //         weeklySchedule, weekIdeal, weekMin, actualStartDate, recordCount,
-//         lastRecordDate, jungsiAvailable }
+//         lastRecordDate, jungsiAvailable, probabilityHistory }
+//       probabilityHistory: {recordedAt, idealSusi, idealJungsi, minSusi, minJungsi}[]
+//       — 오래된 순. "학업 성취도 변화 추이" 차트(AchievementChart) 전용.
 export async function fetchGoalStudent() {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: 'no-session' };
@@ -173,6 +174,124 @@ export async function submitGoalIntake(body) {
   if (response.status === 403) return { kind: 'not-allowed' };
 
   console.error('[goalApi] POST /api/goal/intake 실패:', response.status, result?.detail);
+  return { kind: 'error' };
+}
+
+// ---------------------------------------------------------------------------
+// fetchTodayGoalRecord — GET /api/goal/daily-record
+// ---------------------------------------------------------------------------
+//
+// 반환 계약(discriminated union, `kind` 필드로 분기):
+//
+//   { kind: 'no-session' }              — 401.
+//   { kind: 'not-allowed' }             — 200 {allowed:false}. 이용권 없음.
+//   { kind: 'not-active' }              — 409 reason:'not_onboarded'|'awaiting_cuts'.
+//                                          정상 경로에선 RequireGoalAccess가 이미
+//                                          걸러 도달하지 않는 방어적 분기(intake.js와
+//                                          동일 사유).
+//   { kind: 'success', record, probs }  — 200 {ok:true, record, probs}. record는
+//                                          오늘 기록이 없으면 null(api/goal/daily-record.js
+//                                          buildRecordPayload 계약).
+//   { kind: 'error' }                   — 네트워크 오류·JSON 파싱 실패·5xx·예상 밖 상태코드.
+export async function fetchTodayGoalRecord() {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/daily-record', {
+      method: 'GET',
+      headers: authHeader
+    });
+  } catch (error) {
+    console.error('[goalApi] GET /api/goal/daily-record 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 409) return { kind: 'not-active' };
+
+  if (!response.ok) {
+    console.error('[goalApi] GET /api/goal/daily-record 실패:', response.status);
+    return { kind: 'error' };
+  }
+
+  const body = await parseJsonSafe(response);
+
+  if (body?.allowed === false) return { kind: 'not-allowed' };
+
+  if (body?.ok === true) {
+    return { kind: 'success', record: body.record ?? null, probs: body.probs };
+  }
+
+  console.error('[goalApi] GET /api/goal/daily-record 예상 밖 응답 모양:', body);
+  return { kind: 'error' };
+}
+
+// ---------------------------------------------------------------------------
+// submitDailyRecord — POST /api/goal/daily-record
+// ---------------------------------------------------------------------------
+//
+// body는 부분 제출을 허용한다 — { studyHours?, bodyCondition?, reasons?, tasks?, memo? }.
+// 대시보드 카드는 { studyHours }만, "오늘의 공부 기록" 페이지는 나머지 필드(+선택적
+// studyHours)를 보낸다(api/goal/daily-record.js 헤더 "부분 제출" 절과 동일 계약).
+//
+// 반환 계약(discriminated union, `kind` 필드로 분기):
+//
+//   { kind: 'no-session' }                  — 401.
+//   { kind: 'not-allowed' }                 — 403. 이용권 없음.
+//   { kind: 'not-active' }                  — 409 reason:'not_onboarded'|'awaiting_cuts'.
+//   { kind: 'no-study-time' }               — 400 reason:'no_study_time'. 순공 시간이
+//                                              0(이거나 미기록)이라 저장할 수 없음 —
+//                                              DailyRecord.jsx가 이 kind를 받으면
+//                                              시간 섹션으로 스크롤+안내한다.
+//   { kind: 'before-start-date' }           — 400 reason:'before_start_date'. 방어적
+//                                              분기(정상 입력으로는 발생하지 않는다).
+//   { kind: 'validation-error', detail }    — 그 외 400(잘못된 컨디션·태그 코드 등).
+//   { kind: 'success', record, delta, probs, recordCount } — 200 {ok:true, ...}.
+//   { kind: 'error' }                       — 네트워크 오류·5xx·예상 밖 상태코드.
+export async function submitDailyRecord(body) {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: 'no-session' };
+
+  let response;
+  try {
+    response = await fetch('/api/goal/daily-record', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    console.error('[goalApi] POST /api/goal/daily-record 호출 오류:', error);
+    return { kind: 'error' };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    return {
+      kind: 'success',
+      record: result?.record,
+      delta: result?.delta,
+      probs: result?.probs,
+      recordCount: result?.recordCount
+    };
+  }
+
+  if (response.status === 401) return { kind: 'no-session' };
+  if (response.status === 403) return { kind: 'not-allowed' };
+  if (response.status === 409) return { kind: 'not-active' };
+
+  if (response.status === 400) {
+    if (result?.reason === 'no_study_time') return { kind: 'no-study-time' };
+    if (result?.reason === 'before_start_date') return { kind: 'before-start-date' };
+    return { kind: 'validation-error', detail: result?.detail };
+  }
+
+  console.error('[goalApi] POST /api/goal/daily-record 실패:', response.status, result?.detail);
   return { kind: 'error' };
 }
 
