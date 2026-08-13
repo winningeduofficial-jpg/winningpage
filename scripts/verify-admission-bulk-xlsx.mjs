@@ -26,10 +26,7 @@ import {
   parseAdmissionRowsFromXlsx,
   TRUNCATION_MARKER,
 } from "../src/lib/admissionBulkXlsx.js";
-import {
-  HWP_SECTION_JSON_KEYS,
-  stableStringifyDoc,
-} from "../src/lib/admissionDoc.js";
+import { HWP_SECTION_JSON_KEYS } from "../src/lib/admissionDoc.js";
 import { clean } from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";

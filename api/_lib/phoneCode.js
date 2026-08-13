@@ -3,7 +3,7 @@
 // 저장은 sql/40_auth_signup.sql [6] phone_verifications (RLS 전면 거부 + 권한 회수).
 // 이 파일과 라우트만 service_role로 그 테이블에 접근한다.
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { getEnv } from "./supabaseAdmin.js";
 
 export const CODE_LENGTH = 6;

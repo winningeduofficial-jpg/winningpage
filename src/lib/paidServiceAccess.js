@@ -91,7 +91,7 @@ function setGlobalLoadingCursor(isLoading) {
 }
 
 function setButtonLoading(target, isLoading, label = "이동 중...") {
-  const el = target && target.closest ? target.closest("button, a") : target;
+  const el = target?.closest ? target.closest("button, a") : target;
   if (!el || !("style" in el)) return;
 
   if (isLoading) {
@@ -101,7 +101,7 @@ function setButtonLoading(target, isLoading, label = "이동 중...") {
     el.style.cursor = "progress";
     el.style.pointerEvents = "none";
     if (el.tagName === "BUTTON") el.disabled = true;
-    if (el.textContent && el.textContent.trim()) el.textContent = label;
+    if (el.textContent?.trim()) el.textContent = label;
   } else {
     el.style.cursor = "";
     el.style.pointerEvents = "";

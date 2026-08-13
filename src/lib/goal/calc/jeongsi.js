@@ -166,7 +166,7 @@ export const GRADE_PERCENTILE = {
 // 등급 문자열 → 선택 가능한 백분위 칩 목록 [{ value, label }].
 // 구간 폭이 6 이하면 전부 나열하고, 그보다 넓으면 5분위(컷/25%/중앙/75%/최고)만 낸다.
 export function getPercentileChips(gradeStr) {
-  const g = parseInt(gradeStr);
+  const g = parseInt(gradeStr, 10);
   if (!g || g < 1 || g > 9) return [];
   const { min, max } = GRADE_PERCENTILE[g];
   // NOTE(target-parity): 여기서 width 는 max - min 이다(밴드의 max - min + 1 과 다름).

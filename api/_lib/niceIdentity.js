@@ -25,7 +25,7 @@
 //   NICE도 IP 화이트리스트를 쓴다. 배포 경로와 동일하게 두려고 outbound.js를
 //   경유한다(로컬은 프록시 없이 직접 나간다).
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { outboundFetch } from "./outbound.js";
 import { getEnv } from "./supabaseAdmin.js";
 

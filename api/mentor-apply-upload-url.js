@@ -21,7 +21,7 @@
 // **소비하지 않음**) → 확장자·MIME 화이트리스트(메모리) → 선언된 size 상한
 // (메모리) → 경로 생성 → createSignedUploadUrl(외부 API 호출).
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import {
   getClientIp,
   isValidMobile,

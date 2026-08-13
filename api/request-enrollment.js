@@ -13,7 +13,7 @@
 //   WINNING_SUPABASE_URL / SUPABASE_URL / VITE_SUPABASE_URL
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 function clean(value) {

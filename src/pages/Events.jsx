@@ -151,109 +151,107 @@ export default function Events() {
     const attachments = normalizeArray(selectedNotice.attachments);
 
     return (
-      <>
-        <main className="min-h-screen bg-white pt-16">
-          <section className="mx-auto max-w-content px-6 py-16">
-            <button
-              type="button"
-              onClick={() => setSearchParams({})}
-              className="mb-8 inline-flex items-center gap-2 text-[16px] font-bold text-gray-600 hover:text-black"
-            >
-              <ArrowLeft size={20} />
-              목록으로
-            </button>
+      <main className="min-h-screen bg-white pt-16">
+        <section className="mx-auto max-w-content px-6 py-16">
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="mb-8 inline-flex items-center gap-2 text-[16px] font-bold text-gray-600 hover:text-black"
+          >
+            <ArrowLeft size={20} />
+            목록으로
+          </button>
 
-            <div className="border-y border-[#d9d9d9]">
-              <div className="border-b border-[#e5e5e5] px-4 py-7">
-                <div className="mb-3 flex items-center gap-2">
-                  {selectedNotice.is_pinned && (
-                    <span className="rounded bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
-                      공지
-                    </span>
-                  )}
-
-                  <span className="text-sm font-medium text-gray-500">
-                    {formatBoardDate(selectedNotice.created_at)}
+          <div className="border-y border-[#d9d9d9]">
+            <div className="border-b border-[#e5e5e5] px-4 py-7">
+              <div className="mb-3 flex items-center gap-2">
+                {selectedNotice.is_pinned && (
+                  <span className="rounded bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
+                    공지
                   </span>
-                </div>
+                )}
 
-                <h1 className="break-keep text-[30px] font-black leading-[1.35] tracking-[-0.03em] text-[#111827]">
-                  {selectedNotice.title}
-                </h1>
+                <span className="text-sm font-medium text-gray-500">
+                  {formatBoardDate(selectedNotice.created_at)}
+                </span>
               </div>
 
-              <article className="min-h-[420px] px-4 py-12">
-                {images.length > 0 ? (
-                  <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                    {images.map((url, index) => (
-                      <img
-                        key={`${url}-${index}`}
-                        src={url}
-                        alt={`${selectedNotice.title} 이미지 ${index + 1}`}
-                        className="w-full object-contain"
-                      />
-                    ))}
-                  </div>
-                ) : selectedNotice.image_url ? (
-                  <div className="mb-10 flex justify-center">
-                    <img
-                      src={selectedNotice.image_url}
-                      alt={selectedNotice.title}
-                      className="max-h-none max-w-full object-contain"
-                    />
-                  </div>
-                ) : null}
-
-                {renderNoticeContent(selectedNotice.content)}
-
-                {attachments.length > 0 ? (
-                  <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">
-                      첨부파일
-                    </p>
-
-                    <div className="space-y-2">
-                      {attachments.map((file, index) => {
-                        const url = getAttachmentUrl(file);
-                        if (!url) return null;
-
-                        return (
-                          <a
-                            key={`${url}-${index}`}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
-                          >
-                            <Download size={16} />
-                            {getAttachmentName(file)}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : selectedNotice.file_url ? (
-                  <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">
-                      첨부파일
-                    </p>
-
-                    <a
-                      href={selectedNotice.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
-                    >
-                      <Download size={16} />
-                      {selectedNotice.file_name || "첨부파일 다운로드"}
-                    </a>
-                  </div>
-                ) : null}
-              </article>
+              <h1 className="break-keep text-[30px] font-black leading-[1.35] tracking-[-0.03em] text-[#111827]">
+                {selectedNotice.title}
+              </h1>
             </div>
-          </section>
-        </main>
-      </>
+
+            <article className="min-h-[420px] px-4 py-12">
+              {images.length > 0 ? (
+                <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                  {images.map((url, index) => (
+                    <img
+                      key={`${url}-${index}`}
+                      src={url}
+                      alt={`${selectedNotice.title} 이미지 ${index + 1}`}
+                      className="w-full object-contain"
+                    />
+                  ))}
+                </div>
+              ) : selectedNotice.image_url ? (
+                <div className="mb-10 flex justify-center">
+                  <img
+                    src={selectedNotice.image_url}
+                    alt={selectedNotice.title}
+                    className="max-h-none max-w-full object-contain"
+                  />
+                </div>
+              ) : null}
+
+              {renderNoticeContent(selectedNotice.content)}
+
+              {attachments.length > 0 ? (
+                <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                  <p className="mb-3 text-sm font-black text-[#111827]">
+                    첨부파일
+                  </p>
+
+                  <div className="space-y-2">
+                    {attachments.map((file, index) => {
+                      const url = getAttachmentUrl(file);
+                      if (!url) return null;
+
+                      return (
+                        <a
+                          key={`${url}-${index}`}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                        >
+                          <Download size={16} />
+                          {getAttachmentName(file)}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : selectedNotice.file_url ? (
+                <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                  <p className="mb-3 text-sm font-black text-[#111827]">
+                    첨부파일
+                  </p>
+
+                  <a
+                    href={selectedNotice.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                  >
+                    <Download size={16} />
+                    {selectedNotice.file_name || "첨부파일 다운로드"}
+                  </a>
+                </div>
+              ) : null}
+            </article>
+          </div>
+        </section>
+      </main>
     );
   }
 

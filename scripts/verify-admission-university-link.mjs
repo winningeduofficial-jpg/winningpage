@@ -341,7 +341,7 @@ async function main() {
     try {
       html = renderRow(null);
     } catch (err) {
-      threw = String(err && err.message);
+      threw = String(err?.message);
     }
     const pass =
       threw === null &&

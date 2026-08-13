@@ -17,7 +17,7 @@
 // **PII(학생코드·학생명)는 애초에 파라미터에 존재하지 않는다** — 함수 시그니처
 // 자체가 그 규율을 강제한다.
 
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 
 /** 요약 압축. `knowledge.js:compactText`와 같은 방식(로컬 정의, export 안 함). */
 function compactText(text, max = 1200) {

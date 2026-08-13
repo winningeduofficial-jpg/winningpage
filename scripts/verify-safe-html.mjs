@@ -362,7 +362,7 @@ async function main() {
     const samples = [];
     for (const uni of universities) {
       const html = golden[uni]?.recruitment_quota?.recruitmentResultHtml;
-      if (html && html.includes("<table") && samples.length < 3) {
+      if (html?.includes("<table") && samples.length < 3) {
         samples.push({ uni, html });
       }
       if (samples.length >= 3) break;
@@ -376,7 +376,7 @@ async function main() {
         out = render(html, "admission-existing-html");
       } catch (err) {
         threw = true;
-        out = String(err && err.stack ? err.stack : err);
+        out = String(err?.stack ? err.stack : err);
       }
       const srcTable = countTag(html, "table");
       const srcTr = countTag(html, "tr");
@@ -441,7 +441,7 @@ async function main() {
 
   // 9) 크기 상한 — html.length > MAX_HTML_LENGTH(512KB)면 평문(<pre>)으로 격하
   {
-    const big = "<div>" + "a".repeat(530 * 1024) + "</div>";
+    const big = `<div>${"a".repeat(530 * 1024)}</div>`;
     const result = sanitizeToReact(big, parseMiniHtml);
     const pass =
       Boolean(result) &&
@@ -474,8 +474,7 @@ async function main() {
   // 11) 깊이 상한 초과 시 텍스트 유출 방지 — 이전 버전은 node.textContent를
   //     반환해 STRIP_SUBTREE_TAGS 검사를 거치지 않은 script 내용이 샜다.
   {
-    const input =
-      "<div>".repeat(102) + "<script>alert(1)</script>" + "</div>".repeat(102);
+    const input = `${"<div>".repeat(102)}<script>alert(1)</script>${"</div>".repeat(102)}`;
     const out = render(input);
     const pass = !out.includes("alert") && !out.includes("script");
     record(

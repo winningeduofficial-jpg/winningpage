@@ -675,7 +675,7 @@ async function main() {
       );
     } catch (err) {
       threw = true;
-      html = String(err && err.stack ? err.stack : err);
+      html = String(err?.stack ? err.stack : err);
     }
     const requiredLabels = [
       "대학명",

@@ -159,7 +159,7 @@ function specifierOf(statement) {
 // 하네스를 저장소 루트에 쓰므로, 페이지 기준 상대 경로를 루트 기준으로 다시 쓴다.
 function rewriteSpecifier(statement) {
   const spec = specifierOf(statement);
-  if (!spec || !spec.startsWith(".")) return statement;
+  if (!spec?.startsWith(".")) return statement;
   const abs = path.resolve(path.dirname(PAGE_PATH), spec);
   let next = path.relative(REPO_ROOT, abs);
   if (!next.startsWith(".")) next = `./${next}`;
@@ -675,7 +675,7 @@ function verifyBrowser(capturedPath, record) {
   const golden = JSON.parse(fs.readFileSync(BROWSER_FIXTURE, "utf8"));
   const actual = JSON.parse(fs.readFileSync(capturedPath, "utf8"));
   for (const [name, g] of Object.entries(golden.cases)) {
-    const a = actual[name] || (actual.cases && actual.cases[name]);
+    const a = actual[name] || actual.cases?.[name];
     if (!a) {
       record(`browser:${name}`, false, "새 캡처에 해당 케이스 없음");
       continue;

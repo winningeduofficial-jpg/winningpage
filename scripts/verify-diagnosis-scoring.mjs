@@ -2634,7 +2634,7 @@ check(
 );
 check(
   "매핑 없는 전형 유형은 원값 통과",
-  SELF_DECIDED.ADMISSION_TYPE_DISPLAY["논술"] ?? "논술",
+  SELF_DECIDED.ADMISSION_TYPE_DISPLAY.논술 ?? "논술",
   "논술",
 );
 

@@ -64,36 +64,32 @@ export default function DynamicPage() {
 
   if (loading) {
     return (
-      <>
-        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
-          <div className="mx-auto max-w-content px-6 py-24 text-center text-sm font-bold text-gray-500">
-            페이지를 불러오는 중입니다.
-          </div>
-        </main>
-      </>
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
+        <div className="mx-auto max-w-content px-6 py-24 text-center text-sm font-bold text-gray-500">
+          페이지를 불러오는 중입니다.
+        </div>
+      </main>
     );
   }
 
   if (!page) {
     return (
-      <>
-        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
-          <div className="mx-auto max-w-content px-6 py-24 text-center">
-            <h1 className="text-3xl font-black tracking-[-0.04em]">
-              페이지를 찾을 수 없습니다.
-            </h1>
-            <p className="mt-4 text-base font-medium text-gray-500">
-              요청하신 페이지가 없거나 비활성화되어 있습니다.
-            </p>
-            <Link
-              to="/"
-              className="mt-8 inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 text-sm font-black text-white"
-            >
-              메인으로 이동
-            </Link>
-          </div>
-        </main>
-      </>
+      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
+        <div className="mx-auto max-w-content px-6 py-24 text-center">
+          <h1 className="text-3xl font-black tracking-[-0.04em]">
+            페이지를 찾을 수 없습니다.
+          </h1>
+          <p className="mt-4 text-base font-medium text-gray-500">
+            요청하신 페이지가 없거나 비활성화되어 있습니다.
+          </p>
+          <Link
+            to="/"
+            className="mt-8 inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 text-sm font-black text-white"
+          >
+            메인으로 이동
+          </Link>
+        </div>
+      </main>
     );
   }
 
@@ -114,65 +110,63 @@ export default function DynamicPage() {
   };
 
   return (
-    <>
-      <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
-        <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-          <div className="mx-auto max-w-content px-6 py-20 text-center">
-            {menuGroup && (
-              <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">
-                {menuGroup}
-              </p>
+    <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
+      <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
+        <div className="mx-auto max-w-content px-6 py-20 text-center">
+          {menuGroup && (
+            <p className="text-sm font-black tracking-[-0.02em] text-[#B88737]">
+              {menuGroup}
+            </p>
+          )}
+
+          <h1 className="mx-auto mt-5 max-w-[900px] text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
+            {title}
+          </h1>
+
+          {subtitle && (
+            <p className="mx-auto mt-6 max-w-[820px] text-xl font-bold leading-8 tracking-[-0.04em] text-[#5E6A7B]">
+              {subtitle}
+            </p>
+          )}
+
+          {page.button_text && page.button_link && (
+            <button
+              type="button"
+              onClick={(event) =>
+                openPaidServiceOrAlert(event, paidServiceContext)
+              }
+              className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
+            >
+              {page.button_text}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {(body || bottomImages.length > 0) && (
+        <section className="bg-white">
+          <div className="mx-auto max-w-content px-6 py-16">
+            {body && (
+              <div className="mb-12 whitespace-pre-line text-lg font-semibold leading-9 tracking-[-0.04em] text-[#26364A]">
+                {body}
+              </div>
             )}
 
-            <h1 className="mx-auto mt-5 max-w-[900px] text-5xl font-black leading-tight tracking-[-0.06em] text-[#0D1B2A] md:text-6xl">
-              {title}
-            </h1>
-
-            {subtitle && (
-              <p className="mx-auto mt-6 max-w-[820px] text-xl font-bold leading-8 tracking-[-0.04em] text-[#5E6A7B]">
-                {subtitle}
-              </p>
-            )}
-
-            {page.button_text && page.button_link && (
-              <button
-                type="button"
-                onClick={(event) =>
-                  openPaidServiceOrAlert(event, paidServiceContext)
-                }
-                className="mt-9 inline-flex h-13 items-center justify-center rounded-xl bg-[#0D1B2A] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(13,27,42,0.18)] transition hover:bg-[#162A40]"
-              >
-                {page.button_text}
-              </button>
+            {bottomImages.length > 0 && (
+              <div className="space-y-6">
+                {bottomImages.map((url, index) => (
+                  <img
+                    key={`${url}-${index}`}
+                    src={url}
+                    alt=""
+                    className="mx-auto w-full max-w-[980px] object-contain"
+                  />
+                ))}
+              </div>
             )}
           </div>
         </section>
-
-        {(body || bottomImages.length > 0) && (
-          <section className="bg-white">
-            <div className="mx-auto max-w-content px-6 py-16">
-              {body && (
-                <div className="mb-12 whitespace-pre-line text-lg font-semibold leading-9 tracking-[-0.04em] text-[#26364A]">
-                  {body}
-                </div>
-              )}
-
-              {bottomImages.length > 0 && (
-                <div className="space-y-6">
-                  {bottomImages.map((url, index) => (
-                    <img
-                      key={`${url}-${index}`}
-                      src={url}
-                      alt=""
-                      className="mx-auto w-full max-w-[980px] object-contain"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-      </main>
-    </>
+      )}
+    </main>
   );
 }

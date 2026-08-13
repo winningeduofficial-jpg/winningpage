@@ -138,7 +138,7 @@ async function grantAndLog(
       "program_access granted:",
       orderId,
       access.granted,
-      "ledger_inserted=" + (access.ledgerInserted ?? 0),
+      `ledger_inserted=${access.ledgerInserted ?? 0}`,
     );
   }
   return access;
@@ -527,7 +527,7 @@ export default async function handler(req, res) {
           "program_access granted:",
           orderId,
           access.granted,
-          "ledger_inserted=" + (access.ledger_inserted ?? 0),
+          `ledger_inserted=${access.ledger_inserted ?? 0}`,
         );
       }
     }

@@ -805,42 +805,42 @@ export default function Header() {
           조건부 마운트는 클로즈 애니메이션이 불가능하고(언마운트 즉시 사라짐), 마운트 직후
           클래스를 바로 여는 첫 프레임에 트랜지션이 발화하지 않을 위험이 있어 폐기했다 —
           항상 DOM에 상주(opacity-0 + invisible + pointer-events-none)시켜 두 문제를 모두 해소한다. */}
-      <>
-        {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
+
+      {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
             패널이 차지하는 영역만 자연히 dim이 가려지므로 패널 높이를 따로 측정할 필요가 없다.
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
             이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
-        <div
-          className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
-              : isMegaPanelClosing
-                ? "visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]"
-                : "invisible opacity-0 pointer-events-none"
-          }`}
-          onClick={() => setActiveMega(null)}
-          aria-hidden="true"
-        />
+      <div
+        className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          isMegaPanelOpen
+            ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
+            : isMegaPanelClosing
+              ? "visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]"
+              : "invisible opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setActiveMega(null)}
+        aria-hidden="true"
+      />
 
-        <div
-          className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
-              : isMegaPanelClosing
-                ? "visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]"
-                : "invisible opacity-0 -translate-y-2 pointer-events-none"
-          }`}
-          aria-hidden={!isMegaPanelOpen}
-          onMouseEnter={clearMegaCloseTimer}
-          onMouseLeave={scheduleMegaClose}
-        >
-          {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
+      <div
+        className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          isMegaPanelOpen
+            ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
+            : isMegaPanelClosing
+              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]"
+              : "invisible opacity-0 -translate-y-2 pointer-events-none"
+        }`}
+        aria-hidden={!isMegaPanelOpen}
+        onMouseEnter={clearMegaCloseTimer}
+        onMouseLeave={scheduleMegaClose}
+      >
+        {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
                 1920 밴드 — 헤더 계정 그룹과 같은 축)를 같은 grid cell(col-start-1 row-start-1)에
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
-          <div className="grid">
-            {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
+        <div className="grid">
+          {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
                   컨테이너를 공유하고, marginLeft도 nav와 동일한 MEGA_GUARD(= NAV_GUARD)를 쓴다 —
                   nav 텍스트가 셀 안에서 좌측 정렬(justify-start)이라 정렬 기준은 "좌측선 공유":
                   컬럼 0의 시작 x가 nav 셀 0의 텍스트 시작 x와 그대로 일치한다(별도 오프셋
@@ -856,41 +856,41 @@ export default function Header() {
                   컬럼 상단 그룹 타이틀(서비스/프리미엄/...)은 바로 위 nav 아이템과 문구가
                   완전히 중복되어 제거했다 — 첫 아이템이 기존 타이틀 자리(패널 상단 py-6=1.5rem)
                   에서 바로 시작하며, 타이틀이 쓰던 간격은 패널 상단 패딩이 그대로 흡수한다. */}
-            <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
-              <div
-                className="grid"
-                style={{
-                  marginLeft: MEGA_GUARD,
-                  gridTemplateColumns: `repeat(5, ${MEGA_COL_W})`,
-                  columnGap: MEGA_COL_GAP,
-                }}
-              >
-                {navGroups.map((group) => (
-                  <div
-                    key={`mega-col-${group.title}`}
-                    className="flex flex-col gap-3"
-                  >
-                    {group.items.map((item) => (
-                      <Link
-                        key={`mega-${group.title}-${item.to}-${item.label}`}
-                        to={item.to}
-                        onClick={() => setActiveMega(null)}
-                        className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
+          <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
+            <div
+              className="grid"
+              style={{
+                marginLeft: MEGA_GUARD,
+                gridTemplateColumns: `repeat(5, ${MEGA_COL_W})`,
+                columnGap: MEGA_COL_GAP,
+              }}
+            >
+              {navGroups.map((group) => (
+                <div
+                  key={`mega-col-${group.title}`}
+                  className="flex flex-col gap-3"
+                >
+                  {group.items.map((item) => (
+                    <Link
+                      key={`mega-${group.title}-${item.to}-${item.label}`}
+                      to={item.to}
+                      onClick={() => setActiveMega(null)}
+                      className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
+          {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
                   mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에 겹치므로
                   바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
                   pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
-            <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-              {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
+          <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
+            {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
                     (파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
                     붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
                     서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 박스 자연 높이(카드+5rem)가
@@ -901,11 +901,11 @@ export default function Header() {
                     4방향 동일 패딩(p-10)은 그대로 두고 박스 자체의 우측 기준점만 8px 우측으로
                     옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
                     맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
-              <div
-                className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
-                style={{ transform: "translateX(0.5rem)" }}
-              >
-                {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
+            <div
+              className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
+              style={{ transform: "translateX(0.5rem)" }}
+            >
+              {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
                       편집 가능한 배너로 전환 후보.
                       Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
                       rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
@@ -917,40 +917,39 @@ export default function Header() {
                       비로그인 카드(1483:926)와 크기·간격·그림자·타이포가 완전히 동일해 위 스케일
                       값은 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 megaPromo
                       (MEGA_PROMO_GUEST/MEGA_PROMO_MEMBER)로 교체한다. */}
+              <div
+                className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
+                style={{ width: MEGA_PROMO_W }}
+              >
                 <div
-                  className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
-                  style={{ width: MEGA_PROMO_W }}
+                  className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
+                  aria-hidden="true"
+                />
+                <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
+                  {megaPromo.title}
+                </p>
+                <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
+                  {megaPromo.subtitle}
+                </p>
+
+                <img
+                  src={megaPromo.image}
+                  alt=""
+                  className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
+                />
+
+                <Link
+                  to={megaPromo.ctaTo}
+                  onClick={() => setActiveMega(null)}
+                  className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
                 >
-                  <div
-                    className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
-                    aria-hidden="true"
-                  />
-                  <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
-                    {megaPromo.title}
-                  </p>
-                  <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
-                    {megaPromo.subtitle}
-                  </p>
-
-                  <img
-                    src={megaPromo.image}
-                    alt=""
-                    className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
-                  />
-
-                  <Link
-                    to={megaPromo.ctaTo}
-                    onClick={() => setActiveMega(null)}
-                    className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
-                  >
-                    {megaPromo.ctaLabel}
-                  </Link>
-                </div>
+                  {megaPromo.ctaLabel}
+                </Link>
               </div>
             </div>
           </div>
         </div>
-      </>
+      </div>
 
       <MobileNavDrawer
         open={mobileNavOpen}

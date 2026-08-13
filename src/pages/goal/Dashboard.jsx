@@ -135,7 +135,7 @@ function mapMockExam(student) {
 // 상위 5명 안에 들면 같은 사람이 두 행(마스킹+실명)으로 중복 표시될 수 있다 —
 // 이 페이지가 소유한 판단.
 function mapRankingRows(rankingResult) {
-  if (!rankingResult || rankingResult.kind !== "ok") return [];
+  if (rankingResult?.kind !== "ok") return [];
   const rows = rankingResult.top.map((row) => ({ ...row, isSelf: false }));
   if (rankingResult.me) {
     rows.push({ ...rankingResult.me, isSelf: true });

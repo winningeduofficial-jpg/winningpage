@@ -72,7 +72,7 @@ const INITIAL_STATE = {
 // 비상식적인 연도)은 null을 반환하므로, 호출부는 null을 "계산 불가 → 에러 표시"로 다뤄야
 // 한다. StudentBirth 등 다른 화면에서 동일 로직을 중복 구현하지 않도록 export한다.
 export function computeIsUnder14(birthDate8) {
-  if (!birthDate8 || birthDate8.length !== 8) return null;
+  if (birthDate8?.length !== 8) return null;
 
   const year = Number(birthDate8.slice(0, 4));
   const month = Number(birthDate8.slice(4, 6));

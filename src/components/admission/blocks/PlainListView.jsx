@@ -48,7 +48,7 @@ function groupItems(items) {
  * @param {boolean} [ordered] true면 bullet 묶음을 `<ol>`(번호 목록)로 낸다. 기본 `<ul>`.
  */
 export default function PlainListView({ items, ordered = false }) {
-  if (!items || !items.length) return null;
+  if (!items?.length) return null;
   const groups = groupItems(items);
   const ListTag = ordered ? "ol" : "ul";
   const listClassName = ordered

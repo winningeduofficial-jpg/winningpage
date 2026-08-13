@@ -499,45 +499,44 @@ export default function PaymentSuccess() {
   // 분기한다(아래 렌더 각 지점 주석 참고).
 
   return (
-    <>
-      <main className="min-h-screen bg-white pt-16">
-        {status === "confirming" && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-            {/* 시안에 없는 과도 상태. 색·타입은 시안 규약 안에서 고른다 —
+    <main className="min-h-screen bg-white pt-16">
+      {status === "confirming" && (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+          {/* 시안에 없는 과도 상태. 색·타입은 시안 규약 안에서 고른다 —
                 트랙 border-line(#d7d7d7), 진행 border-t-primary, 문구는 시안 CTA 단계와
                 같은 16px w600 #525252. */}
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-primary" />
-            <p className="mt-5 text-base font-semibold text-ink">
-              결제 승인 처리 중…
-            </p>
-          </div>
-        )}
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-primary" />
+          <p className="mt-5 text-base font-semibold text-ink">
+            결제 승인 처리 중…
+          </p>
+        </div>
+      )}
 
-        {status === "missing_params" && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-            {/* 파라미터 없는 재방문은 실패가 아니다 — 가상계좌 구매자가 계좌번호를
+      {status === "missing_params" && (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+          {/* 파라미터 없는 재방문은 실패가 아니다 — 가상계좌 구매자가 계좌번호를
                 다시 보려고 히스토리로 돌아오는 것도 이 경로로 들어온다. 빨간 에러
                 대신 중립색 안내로 분기하고 재결제 경로 없이 마이페이지로만 보낸다. */}
-            <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
-              결제 완료 페이지는 다시 열 수 없습니다
-            </h1>
-            <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
-              이 화면은 결제 직후에만 볼 수 있습니다. 계좌번호 등 주문 내용은
-              마이페이지에서 확인해 주세요.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate(FALLBACK_PATH)}
-              className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
-            >
-              마이페이지에서 확인하기
-            </button>
-          </div>
-        )}
+          <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
+            결제 완료 페이지는 다시 열 수 없습니다
+          </h1>
+          <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
+            이 화면은 결제 직후에만 볼 수 있습니다. 계좌번호 등 주문 내용은
+            마이페이지에서 확인해 주세요.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(FALLBACK_PATH)}
+            className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
+          >
+            마이페이지에서 확인하기
+          </button>
+        </div>
+      )}
 
-        {status === "error" && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-            {/* 시안에 없는 실패 상태. 완료 화면의 타입 단계(H1 / CTA 16px)를 그대로 재사용하고
+      {status === "error" && (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+          {/* 시안에 없는 실패 상태. 완료 화면의 타입 단계(H1 / CTA 16px)를 그대로 재사용하고
                 font-black(w900)은 시안 최대 무게(w700)를 넘으므로 제거했다.
                 원시 오류 문자열(errorMsg)은 더 이상 H1 에 얹지 않는다 — Toss 승인은
                 이미 성공했는데 우리 confirm 호출만 실패한 경우가 섞여 있고, 그 상태에서
@@ -552,49 +551,49 @@ export default function PaymentSuccess() {
                 이 H1 은 안내 박스가 아니라 타이틀 단계라 같은 성격의 UI 요소도 아니다.
                 원칙(소비처 확산 금지)을 깨면서까지 3번째 소비처를 만들 이유가 없어
                 파라미터 없는 재방문 분기(위)가 이미 쓰는 ink 중립으로 맞춘다. */}
-            <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
-              결제 확인이 지연되고 있습니다
-            </h1>
-            <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
-              결제는 이미 정상 처리됐을 수 있습니다. 아래 연락처로 주문번호와
-              함께 문의해 주세요.
-            </p>
-            <dl className="mt-6 flex flex-col items-center gap-1 text-sm font-medium text-ink">
-              <div className="flex items-center gap-2">
-                <dt className="text-ink-sub">주문번호</dt>
-                <dd>{orderId || "-"}</dd>
-              </div>
-              <div className="flex items-center gap-2">
-                <dt className="text-ink-sub">총 결제 금액</dt>
-                <dd>{formatKRW(amount)}</dd>
-              </div>
-            </dl>
-            {errorMsg && (
-              <p className="mt-4 text-xs leading-4 text-ink-sub">{errorMsg}</p>
-            )}
-            {/* 재결제 경로(/pricing, /checkout)를 만들지 않는다 — 이미 승인된 결제를
+          <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
+            결제 확인이 지연되고 있습니다
+          </h1>
+          <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
+            결제는 이미 정상 처리됐을 수 있습니다. 아래 연락처로 주문번호와 함께
+            문의해 주세요.
+          </p>
+          <dl className="mt-6 flex flex-col items-center gap-1 text-sm font-medium text-ink">
+            <div className="flex items-center gap-2">
+              <dt className="text-ink-sub">주문번호</dt>
+              <dd>{orderId || "-"}</dd>
+            </div>
+            <div className="flex items-center gap-2">
+              <dt className="text-ink-sub">총 결제 금액</dt>
+              <dd>{formatKRW(amount)}</dd>
+            </div>
+          </dl>
+          {errorMsg && (
+            <p className="mt-4 text-xs leading-4 text-ink-sub">{errorMsg}</p>
+          )}
+          {/* 재결제 경로(/pricing, /checkout)를 만들지 않는다 — 이미 승인된 결제를
                 다시 결제하게 만드는 사고를 구조적으로 막는다. 1순위는 전화 문의(권한
                 부여 실패 분기와 같은 번호), 2순위는 마이페이지에서 본인 확인. */}
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={`tel:${COMPANY.centerTel}`}
-                className="rounded-xl bg-primary px-8 py-3.5 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
-              >
-                센터로 문의하기
-              </a>
-              <button
-                type="button"
-                onClick={() => navigate(FALLBACK_PATH)}
-                className="rounded-xl border border-line px-8 py-3.5 text-base font-semibold leading-5 text-ink transition hover:bg-surface-card"
-              >
-                마이페이지에서 확인하기
-              </button>
-            </div>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <a
+              href={`tel:${COMPANY.centerTel}`}
+              className="rounded-xl bg-primary px-8 py-3.5 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
+            >
+              센터로 문의하기
+            </a>
+            <button
+              type="button"
+              onClick={() => navigate(FALLBACK_PATH)}
+              className="rounded-xl border border-line px-8 py-3.5 text-base font-semibold leading-5 text-ink transition hover:bg-surface-card"
+            >
+              마이페이지에서 확인하기
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {status === "done" && (
-          /* 시안 확정 실측: 완료 카드 폭 650px 고정(=40.625rem, 1920·1280 동일).
+      {status === "done" && (
+        /* 시안 확정 실측: 완료 카드 폭 650px 고정(=40.625rem, 1920·1280 동일).
              카드의 max-w-[40.625rem] 은 시안 확정값이라 건드리지 않고, 바깥
              컨테이너를 전역 컨텐츠 영역 규약 `mx-auto w-full max-w-content px-5
              sm:px-8` 로 통일한다(Pricing.jsx:100-119 주석의 근거 참고. 세로
@@ -612,28 +611,24 @@ export default function PaymentSuccess() {
              390/1280/1920), 이전 값은 카드가 규약 콘텐츠 밴드 밖으로 좌우 각
              8px(640) / 7px(700) 비어져 나간 상태였다. 규약 안에서 클램프되는
              편이 낫다는 판단이다. */
-          <div className="mx-auto w-full max-w-content px-5 py-12 text-center sm:px-8 sm:py-16">
-            {/* color prop 대신 className 으로 색을 준다 — lucide 아이콘은 stroke=currentColor
+        <div className="mx-auto w-full max-w-content px-5 py-12 text-center sm:px-8 sm:py-16">
+          {/* color prop 대신 className 으로 색을 준다 — lucide 아이콘은 stroke=currentColor
                 이므로 text-primary 가 그대로 선 색이 된다(하드코딩 hex 제거).
                 입금대기는 체크 아이콘을 쓰지 않는다 — 아직 완료가 아니라서다(위
                 isWaitingDeposit 분기 사유 주석 참고). 시계 아이콘으로 '진행 중'을
                 표현하되 색은 warning 토큰을 쓰지 않는다 — 그 토큰은 안내 박스 2곳
                 전용으로 고정하기로 했다(tailwind.config.js 주석). 브랜드 네이비
                 (primary)를 그대로 써 실패가 아니라 진행 중임을 중립적으로 전달한다. */}
-            {isWaitingDeposit ? (
-              <Clock
-                size={64}
-                strokeWidth={2}
-                className="mx-auto text-primary"
-              />
-            ) : (
-              <CheckCircle2
-                size={64}
-                strokeWidth={2}
-                className="mx-auto text-primary"
-              />
-            )}
-            {/* H1 시안 실측: 390(1882:14145) 24px w600 lh31 #525252 ls-0.48 /
+          {isWaitingDeposit ? (
+            <Clock size={64} strokeWidth={2} className="mx-auto text-primary" />
+          ) : (
+            <CheckCircle2
+              size={64}
+              strokeWidth={2}
+              className="mx-auto text-primary"
+            />
+          )}
+          {/* H1 시안 실측: 390(1882:14145) 24px w600 lh31 #525252 ls-0.48 /
                 1920(1882:13833) 50px w600 lh70 #525252 ls-1. 두 폭 모두 ls = 크기 × -0.02
                 이라 tracking 단일값. lh 는 31/16 = 1.9375rem, 70/16 = 4.375rem.
                 이전 값(36px w900 #0D1B2A)은 시안보다 작고 무거웠다 — 시안 위계는
@@ -642,27 +637,27 @@ export default function PaymentSuccess() {
                 움직이지 않은 상태에서 완료를 선언하는 것이라 의도적으로 시안을
                 벗어난다(위 isWaitingDeposit 분기 사유 주석 참고). 타입 단계는
                 그대로 재사용한다. */}
-            <h1 className="mt-8 text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
-              {isWaitingDeposit
-                ? "입금이 확인되면 이용이 시작돼요"
-                : "주문이 완료됐어요!"}
-            </h1>
+          <h1 className="mt-8 text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
+            {isWaitingDeposit
+              ? "입금이 확인되면 이용이 시작돼요"
+              : "주문이 완료됐어요!"}
+          </h1>
 
-            {isWaitingDeposit && (
-              <div className="mx-auto mt-10 w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6">
-                {/* 계좌 정보 승격 블록 — 이전에는 아래 명세 카드의 '가상계좌 번호'
+          {isWaitingDeposit && (
+            <div className="mx-auto mt-10 w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6">
+              {/* 계좌 정보 승격 블록 — 이전에는 아래 명세 카드의 '가상계좌 번호'
                     한 줄(14px, 다른 39개 명세 행과 동일 위계)이었고 복사 버튼이
                     없어 사용자가 은행 앱으로 손으로 옮겨 적어야 했다. 지금 당장
                     사용자가 취해야 할 행동이라 명세보다 한 단 큰 타이포로 카드
                     최상단에 올리고 복사 버튼을 붙인다. */}
-                <p className="text-[0.875rem] font-semibold leading-5 text-ink-sub">
-                  입금할 계좌
+              <p className="text-[0.875rem] font-semibold leading-5 text-ink-sub">
+                입금할 계좌
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-lg font-semibold leading-6 text-ink sm:text-xl sm:leading-7">
+                  {accountLabel(virtualAccount)}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <p className="text-lg font-semibold leading-6 text-ink sm:text-xl sm:leading-7">
-                    {accountLabel(virtualAccount)}
-                  </p>
-                  {/* 복사 완료 라벨 문구 — '복사됨'(코퍼스 0건, '~됨' 꼴)을 '복사되었습니다'로
+                {/* 복사 완료 라벨 문구 — '복사됨'(코퍼스 0건, '~됨' 꼴)을 '복사되었습니다'로
                       정정했다. 폭이 2배 이상 늘어 이 승격 블록(계좌번호 + 복사 버튼이 든
                       flex-wrap 행)의 레이아웃이 깨지는지 layout 390 에서 실측했다 — 계좌번호
                       행 자체가 이미 flex-wrap 으로 버튼이 둘째 줄로 내려가 있는 상태(계좌번호
@@ -679,63 +674,63 @@ export default function PaymentSuccess() {
                       선례가 있다(Pricing.jsx '자세히보기': after:h-11 after:w-full
                       after:-translate-y-1/2). h-11(2.75rem=44px) 오버레이로 세로
                       히트영역이 44px 이상임을 실측 확인했다(아래 검증 참고). */}
-                  <button
-                    type="button"
-                    onClick={handleCopyAccount}
-                    className="relative flex shrink-0 items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-surface-card after:absolute after:left-0 after:top-1/2 after:h-11 after:w-full after:-translate-y-1/2 after:content-['']"
-                  >
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied ? "복사되었습니다" : "계좌번호 복사하기"}
-                  </button>
-                  {/* 시각 피드백(버튼 라벨)과 별개로 스크린리더용 알림을 role=status
+                <button
+                  type="button"
+                  onClick={handleCopyAccount}
+                  className="relative flex shrink-0 items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-surface-card after:absolute after:left-0 after:top-1/2 after:h-11 after:w-full after:-translate-y-1/2 after:content-['']"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? "복사되었습니다" : "계좌번호 복사하기"}
+                </button>
+                {/* 시각 피드백(버튼 라벨)과 별개로 스크린리더용 알림을 role=status
                       로 낸다 — 버튼 텍스트 변경만으로는 보조기술이 안정적으로
                       읽어주지 않는다. */}
-                  <span role="status" className="sr-only">
-                    {copied ? "계좌번호를 복사했습니다" : ""}
-                  </span>
-                </div>
-                <p className="mt-1 text-base font-semibold leading-6 text-ink">
-                  입금액 {formatKRW(totalAmount)}
-                </p>
+                <span role="status" className="sr-only">
+                  {copied ? "계좌번호를 복사했습니다" : ""}
+                </span>
               </div>
-            )}
+              <p className="mt-1 text-base font-semibold leading-6 text-ink">
+                입금액 {formatKRW(totalAmount)}
+              </p>
+            </div>
+          )}
 
-            {/* 명세 카드 테두리는 시안 픽셀 실측 #d7d7d7 = line 토큰이다(이전 slate-200
+          {/* 명세 카드 테두리는 시안 픽셀 실측 #d7d7d7 = line 토큰이다(이전 slate-200
                 = #e2e8f0 은 토큰 밖 색). 시안 카드에는 그림자가 없어 하드코딩 rgba
                 그림자도 함께 걷어냈다 — 폭 max-w-[40.625rem]과 radius 는 확정값이라 유지.
                 입금대기는 위에 계좌 승격 블록이 먼저 오므로 간격을 mt-6(카드-카드
                 간격, 안내 박스와 동일)으로 좁힌다 — mt-10/12 는 H1 바로 아래 첫
                 블록일 때만 쓰는 간격이다. */}
-            <div
-              className={`mx-auto w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6 ${
-                isWaitingDeposit ? "mt-6" : "mt-10 sm:mt-12"
-              }`}
-            >
-              <dl>
-                {rows.map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex items-center justify-between gap-3 py-3 sm:gap-6 sm:py-4"
-                  >
-                    {/* 명세 행 시안 실측: 라벨·값이 완전히 같은 한 단계다 —
+          <div
+            className={`mx-auto w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6 ${
+              isWaitingDeposit ? "mt-6" : "mt-10 sm:mt-12"
+            }`}
+          >
+            <dl>
+              {rows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between gap-3 py-3 sm:gap-6 sm:py-4"
+                >
+                  {/* 명세 행 시안 실측: 라벨·값이 완전히 같은 한 단계다 —
                         14px w500 lh20 #525252 (1882:13833 에서 이 스타일이 39회 반복,
                         390 도 동일 크기). 이전 코드는 값만 15px w700 #111111 로 키워
                         시안에 없는 단계를 만들고 있었다. 그래서 dd 를 dt 와 같은 값으로
                         내려 시안의 단계 수(H1 / 명세 14px / CTA 16px = 3단계)에 맞춘다.
                         ls: 1920 시안은 이 크기에 자간을 주지 않으므로(390 만 -0.14)
                         tracking 을 붙이지 않는다. */}
-                    <dt className="shrink-0 text-[0.875rem] font-medium leading-5 text-ink">
-                      {row.label}
-                    </dt>
-                    <dd className="break-all text-right text-[0.875rem] font-medium leading-5 text-ink">
-                      {row.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+                  <dt className="shrink-0 text-[0.875rem] font-medium leading-5 text-ink">
+                    {row.label}
+                  </dt>
+                  <dd className="break-all text-right text-[0.875rem] font-medium leading-5 text-ink">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
 
-            {/* 이용 안내 — 운영 모델은 '즉시 입장'(사용자 확정)이다. 결제 승인
+          {/* 이용 안내 — 운영 모델은 '즉시 입장'(사용자 확정)이다. 결제 승인
                 시점에 api/confirm-payment.js 가 권한을 자동 부여하므로 "담당
                 매니저가 영업일 1~2일 내 안내"(수동 프로비저닝) 문구는 삭제했다.
                 상태별로 사실이 다르므로 6분기로 쓴다(입금대기 / 로그인 필요 /
@@ -745,7 +740,7 @@ export default function PaymentSuccess() {
                 '이용 중인 서비스' 목록에 입장 수단이 없어서(src/pages/MyPage.jsx:
                 470-497, openPaidServiceOrAlert 호출 0건) 지킬 수 없는 약속이다.
                 마이페이지에 입장 버튼이 들어가면 그때 되살릴 문구다. */}
-            {/* 이 안내 박스는 시안에 없는 블록이다(시안 완료 화면은 H1·명세·CTA 3요소뿐).
+          {/* 이 안내 박스는 시안에 없는 블록이다(시안 완료 화면은 H1·명세·CTA 3요소뿐).
                 그래서 새 타입 단계를 만들지 않고 시안의 명세 단계(14px #525252)에 얹어
                 무게·색으로만 위계를 만든다 — 라벨 w600 / 본문 w500 / 문의 w500 ink.sub.
                 기본 배경은 시안 토큰 surface.info(#e9f4ff, '안내 박스' 용도)로 바꿨다
@@ -756,55 +751,55 @@ export default function PaymentSuccess() {
                 이번에 warning 토큰으로 정식 승격하면서 입금대기도 같은 색으로
                 묶는다 — '즉시 이용 성공'(surface-info)과는 색으로 분리되는 게
                 핵심이다. */}
-            <div
-              className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-8 ${
-                isWaitingDeposit || grantFailed
-                  ? "border-warning bg-surface-warning"
-                  : "border-line bg-surface-info"
-              }`}
-            >
-              <p className="text-[0.875rem] font-semibold leading-5 text-ink">
-                {isWaitingDeposit
-                  ? "입금 안내"
-                  : needsLogin
-                    ? "로그인 후 이용"
-                    : grantPermanent
-                      ? "이용 등록 확인이 필요합니다"
-                      : grantFailed
-                        ? "이용 권한 등록 지연"
-                        : "이용 안내"}
-              </p>
-              {/* 문구는 각 상태에서 "검증 가능한 사실"만 남긴 초안이다 — 최종 문안은
+          <div
+            className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-8 ${
+              isWaitingDeposit || grantFailed
+                ? "border-warning bg-surface-warning"
+                : "border-line bg-surface-info"
+            }`}
+          >
+            <p className="text-[0.875rem] font-semibold leading-5 text-ink">
+              {isWaitingDeposit
+                ? "입금 안내"
+                : needsLogin
+                  ? "로그인 후 이용"
+                  : grantPermanent
+                    ? "이용 등록 확인이 필요합니다"
+                    : grantFailed
+                      ? "이용 권한 등록 지연"
+                      : "이용 안내"}
+            </p>
+            {/* 문구는 각 상태에서 "검증 가능한 사실"만 남긴 초안이다 — 최종 문안은
                   사용자 승인 대기(입장 앱 없는 상품 안내 / 비회원 결제 안내 2건). */}
-              {/* 크기·무게·색은 시안 명세 단계(14px w500 #525252)와 같게 두고, lh 만
+            {/* 크기·무게·색은 시안 명세 단계(14px w500 #525252)와 같게 두고, lh 만
                   leading-relaxed 를 유지한다 — 시안의 lh20(1.43)은 한 줄짜리 명세 행 기준
                   값이라 3~4줄 문단에 그대로 쓰면 답답해진다. */}
-              <p className="mt-2 break-keep text-[0.875rem] font-medium leading-relaxed text-ink">
-                {isWaitingDeposit
-                  ? "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다."
-                  : needsLogin
-                    ? "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요."
-                    : needsSignup
-                      ? "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                      : grantPermanent
-                        ? "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                        : grantFailed
-                          ? "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요."
-                          : noEntryProduct
-                            ? "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다."
-                            : entries.length > 1
-                              ? "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요."
-                              : "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요."}
-              </p>
-              {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
+            <p className="mt-2 break-keep text-[0.875rem] font-medium leading-relaxed text-ink">
+              {isWaitingDeposit
+                ? "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다."
+                : needsLogin
+                  ? "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요."
+                  : needsSignup
+                    ? "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
+                    : grantPermanent
+                      ? "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
+                      : grantFailed
+                        ? "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요."
+                        : noEntryProduct
+                          ? "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다."
+                          : entries.length > 1
+                            ? "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요."
+                            : "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요."}
+            </p>
+            {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
                   ink.sub(#808080)로 표현한다(무게는 본문과 같은 w500). */}
-              <p className="mt-3 text-[0.875rem] font-medium leading-5 text-ink-sub">
-                문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} ·
-                센터문의 {COMPANY.centerTel}
-              </p>
-            </div>
+            <p className="mt-3 text-[0.875rem] font-medium leading-5 text-ink-sub">
+              문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의{" "}
+              {COMPANY.centerTel}
+            </p>
+          </div>
 
-            {/* CTA 는 390에서 카드 폭(=풀폭), sm 이상에서 내용 폭.
+          {/* CTA 는 390에서 카드 폭(=풀폭), sm 이상에서 내용 폭.
                 즉시 입장이므로 기본 CTA 는 '프로그램 시작하기'다. 눌러도 막히는
                 버튼은 만들지 않는다 — 그래서 목적지가 실제로 성립하는 경우만 버튼을
                 띄운다.
@@ -817,64 +812,63 @@ export default function PaymentSuccess() {
                     MyPage.jsx:133 에서 /login 으로 튕긴다) 전화 문의만 남긴다.
                     카카오톡은 채널 URL 정본이 없어 링크로 걸지 않았다(문의 줄에
                     아이디로 노출). */}
-            <div className="mx-auto mt-8 w-full max-w-[40.625rem] sm:mt-10">
-              {canStart ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  {entries.map((item) => (
-                    <button
-                      key={item.serviceKey}
-                      type="button"
-                      onClick={(event) => handleStart(event, item)}
-                      className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-                    >
-                      {entries.length > 1
-                        ? `${item.label} 시작하기`
-                        : "프로그램 시작하기"}
-                    </button>
-                  ))}
-                </div>
-              ) : needsLogin ? (
-                <Link
-                  to="/login"
-                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-                >
-                  로그인하고 이용하기
-                </Link>
-              ) : needsSignup ? (
-                <Link
-                  to="/signup"
-                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-                >
-                  회원가입하고 이용 등록하기
-                </Link>
-              ) : grantPermanent ? (
-                <a
-                  href={`tel:${COMPANY.centerTel}`}
-                  className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-                >
-                  센터로 문의하기
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(
-                      isParentPayer
-                        ? `${FALLBACK_PATH}?tab=payments`
-                        : FALLBACK_PATH,
-                    )
-                  }
-                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-                >
-                  {isParentPayer
-                    ? "결제 내역 보러가기"
-                    : "마이페이지에서 확인하기"}
-                </button>
-              )}
-            </div>
+          <div className="mx-auto mt-8 w-full max-w-[40.625rem] sm:mt-10">
+            {canStart ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                {entries.map((item) => (
+                  <button
+                    key={item.serviceKey}
+                    type="button"
+                    onClick={(event) => handleStart(event, item)}
+                    className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  >
+                    {entries.length > 1
+                      ? `${item.label} 시작하기`
+                      : "프로그램 시작하기"}
+                  </button>
+                ))}
+              </div>
+            ) : needsLogin ? (
+              <Link
+                to="/login"
+                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+              >
+                로그인하고 이용하기
+              </Link>
+            ) : needsSignup ? (
+              <Link
+                to="/signup"
+                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+              >
+                회원가입하고 이용 등록하기
+              </Link>
+            ) : grantPermanent ? (
+              <a
+                href={`tel:${COMPANY.centerTel}`}
+                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+              >
+                센터로 문의하기
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    isParentPayer
+                      ? `${FALLBACK_PATH}?tab=payments`
+                      : FALLBACK_PATH,
+                  )
+                }
+                className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+              >
+                {isParentPayer
+                  ? "결제 내역 보러가기"
+                  : "마이페이지에서 확인하기"}
+              </button>
+            )}
           </div>
-        )}
-      </main>
-    </>
+        </div>
+      )}
+    </main>
   );
 }

@@ -12,7 +12,7 @@
 // 실행: node scripts/e2e-onboarding-smoke.mjs
 
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const REPO_ROOT = new URL("..", import.meta.url).pathname;

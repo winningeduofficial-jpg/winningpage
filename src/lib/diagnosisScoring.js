@@ -225,8 +225,7 @@ export function normalizeAnswers(answers, meta = {}) {
   const cascade =
     source.q15 && typeof source.q15 === "object" ? source.q15 : null;
   const admissionQuery =
-    cascade &&
-    cascade.university &&
+    cascade?.university &&
     cascade.department &&
     cascade.admissionType &&
     cascade.detailType

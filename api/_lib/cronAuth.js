@@ -2,7 +2,7 @@
 // `cleanup-attachments.js`가 정본 구현이었고 여기로 추출했다. `embed-session-vectors.js`가
 // 같은 로직을 재사용한다.
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { getEnv } from "./supabaseAdmin.js";
 
 /** 길이가 달라도 예외를 던지지 않는 상수시간 비교. */

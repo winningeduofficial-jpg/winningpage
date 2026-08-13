@@ -567,7 +567,7 @@ export default async function handler(req, res) {
 
     // daily-record.js requireActiveStudent와 동일한 판정 순서 — 온보딩 미완료/컷 대기 학생은
     // 리포트를 만들 데이터 기반(rate/cut)이 없다.
-    if (!student || !student.onboarded_at) {
+    if (!student?.onboarded_at) {
       return res.status(409).json({ reason: "not_onboarded" });
     }
     if (student.status !== "active") {

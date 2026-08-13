@@ -212,7 +212,7 @@ function cellViewOf(block, variant, role, colIdx, raw, text, kind) {
       }
       // 구 RecruitTable.jsx:36-51
       const chips = cellChipsOf(raw);
-      return chips && chips.length
+      return chips?.length
         ? { ...base, leaf: "chips", chips }
         : { ...base, leaf: "muted", chips };
     }

@@ -40,7 +40,6 @@ import MentorCard from "../components/landing/MentorCard";
 import BookViewer from "../components/premiumBook/BookViewer";
 import { FAQ_CATEGORIES } from "../data/faqCategories";
 import {
-  BULK_XLSX_COLUMNS,
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
 } from "../lib/admissionBulkXlsx";
@@ -3340,7 +3339,7 @@ const CONFIGS = {
     // 넣어도 통과시킨다 — 1~9 구간은 두 스케일 모두 합법이라 DB가 구분할 수 없다.
     validate: (form, row) => {
       // 규칙 0 — 기존 행의 컷 종류 변경 차단. 이 탭이 막아야 할 1순위 사고다.
-      if (row && row.cut_type && form.cut_type !== row.cut_type) {
+      if (row?.cut_type && form.cut_type !== row.cut_type) {
         return "컷 종류는 변경할 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.";
       }
       const range = GOAL_CUT_RANGE[form.cut_type];
@@ -3485,8 +3484,7 @@ const WINNING_RAG_KNOWLEDGE_TYPES = new Set([
 const WINNING_EMBED_ENDPOINT = "/api/performance/admin-embed";
 
 function shouldRequestWinningEmbedding(config, row) {
-  if (!config || config.table !== "winning_assessment_knowledge_items")
-    return false;
+  if (config?.table !== "winning_assessment_knowledge_items") return false;
   return WINNING_RAG_KNOWLEDGE_TYPES.has(String(row?.knowledge_type || ""));
 }
 

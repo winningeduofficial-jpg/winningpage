@@ -2201,7 +2201,7 @@ export function recruitChunkLabelMap(chunk) {
 }
 
 export function buildRecruitCell(values) {
-  if (!values || !values.length) return '<span class="muted">-</span>';
+  if (!values?.length) return '<span class="muted">-</span>';
   const labels = recruitChunkLabelMap(values);
   return `<div class="admission-recruit-cell-values">
     ${values.map((v, idx) => `<span><b>${escapeHtml(labels[idx] || `값 ${idx + 1}`)}</b>${escapeHtml(v)}</span>`).join("")}
@@ -2572,7 +2572,7 @@ function makeDoc(
     blocks,
   };
   if (wrapModifier) doc.wrapModifier = wrapModifier;
-  if (warnings && warnings.length) doc.warnings = warnings;
+  if (warnings?.length) doc.warnings = warnings;
   return doc;
 }
 
@@ -3310,12 +3310,7 @@ function renderRecordBlocksHtml(blocks) {
   blocks.forEach((block, idx) => {
     if (block.kind !== "heading") return;
     const tableBlock = blocks[idx + 1];
-    if (
-      !tableBlock ||
-      tableBlock.kind !== "table" ||
-      tableBlock.variant !== "score"
-    )
-      return;
+    if (tableBlock?.kind !== "table" || tableBlock.variant !== "score") return;
     scoreTables.push(`
         <div class="admission-subhead">${escapeHtml(block.text)}</div>
         ${htmlTable(
@@ -3359,8 +3354,9 @@ function renderRecruitBlocksHtml(blocks) {
       ${groupLabels
         .map((_, idx) => {
           const cell = row[2 + idx];
-          const values =
-            cell && cell.chips ? cell.chips.map((chip) => chip.value) : [];
+          const values = cell?.chips
+            ? cell.chips.map((chip) => chip.value)
+            : [];
           return `<td class="recruit-values-cell">${buildRecruitCell(values)}</td>`;
         })
         .join("")}

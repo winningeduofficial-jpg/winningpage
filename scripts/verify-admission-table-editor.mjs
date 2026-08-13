@@ -467,7 +467,7 @@ async function main() {
       );
     } catch (err) {
       threw = true;
-      out = String(err && err.stack ? err.stack : err);
+      out = String(err?.stack ? err.stack : err);
     }
     const inputCount = (out.match(/<input/g) || []).length;
     // 2026-08-06 위계 재정리 후: 기본 상태(열 설정 닫힘)에서는 컬럼 라벨
@@ -573,7 +573,7 @@ async function main() {
       );
     } catch (err) {
       threw = true;
-      out = String(err && err.stack ? err.stack : err);
+      out = String(err?.stack ? err.stack : err);
     }
     const pass = !threw && out.includes(">10<");
     record(
@@ -897,7 +897,7 @@ async function main() {
       );
     } catch (err) {
       threw = true;
-      out = String(err && err.stack ? err.stack : err);
+      out = String(err?.stack ? err.stack : err);
     }
     const pass =
       !threw &&
@@ -968,7 +968,7 @@ async function main() {
       );
     } catch (err) {
       groupFixtureThrew = true;
-      groupFixtureOut = String(err && err.stack ? err.stack : err);
+      groupFixtureOut = String(err?.stack ? err.stack : err);
     }
     const pass =
       !groupFixtureThrew &&
@@ -1033,11 +1033,7 @@ async function main() {
       },
     });
     const childEditors = React.Children.toArray(element.props.children).filter(
-      (child) =>
-        child &&
-        child.props &&
-        child.props.block &&
-        child.props.block.kind === "table",
+      (child) => child?.props?.block && child.props.block.kind === "table",
     );
     const nextChild = { ...block.children[0], rows: [["원서접수(수정)"]] };
     if (childEditors[0]) childEditors[0].props.onChange(nextChild);
@@ -1218,7 +1214,7 @@ async function main() {
           );
         } catch (err) {
           failures.push(
-            `${section}/${stateLabel}: threw ${String(err && err.message ? err.message : err)}`,
+            `${section}/${stateLabel}: threw ${String(err?.message ? err.message : err)}`,
           );
           continue;
         }
@@ -1386,7 +1382,7 @@ async function main() {
       );
     } catch (err) {
       threw = true;
-      out = String(err && err.stack ? err.stack : err);
+      out = String(err?.stack ? err.stack : err);
     }
     const renderPass =
       !threw && out.includes("항목 추가") && out.includes("삭제");
@@ -1712,7 +1708,7 @@ async function main() {
   {
     const workbook = buildTableBlockWorkbook(selectionBlock);
     // 헤더에 컬럼 하나를 몰래 추가(관리자가 엑셀에서 열을 늘린 상황 재현)
-    const ws = workbook.Sheets["표"];
+    const ws = workbook.Sheets.표;
     const range = XLSX.utils.decode_range(ws["!ref"]);
     XLSX.utils.sheet_add_aoa(ws, [["새컬럼"]], {
       origin: { r: 0, c: range.e.c + 1 },
@@ -1738,7 +1734,7 @@ async function main() {
   // 15e) groups 합계 불일치 → 거부(그룹 헤더 라벨 셀 하나를 지워 병합이 깨진 것처럼 재현)
   {
     const workbook = buildTableBlockWorkbook(recruitExactRoundTripBlock);
-    const ws = workbook.Sheets["표"];
+    const ws = workbook.Sheets.표;
     // '지역균형' 그룹(단일 컬럼, 병합 없음) 하나를 통째로 열에서 지운다 —
     // 헤더 폭은 그대로 두고 값만 지워 컬럼 수 불일치가 아니라 "그 컬럼의
     // 데이터가 통째로 비어버리는" 실수 대신, 여기서는 명확히 groups 합
@@ -1770,7 +1766,7 @@ async function main() {
     // 어긋나고, 그 결과 남은 데이터 컬럼 수가 하나 부족해져 열 배열
     // 길이(columns.length)와 rows 길이가 어긋난다.
     const workbook = buildTableBlockWorkbook(recruitExactRoundTripBlock);
-    const ws = workbook.Sheets["표"];
+    const ws = workbook.Sheets.표;
     ws["!merges"] = (ws["!merges"] || []).filter(
       (m) => !(m.s.r === 0 && m.e.r === 1 && m.s.c === 1),
     ); // 2번째 고정 컬럼(모집단위) 세로 병합 제거
@@ -1802,7 +1798,7 @@ async function main() {
   // 15f) 행 길이 초과 → 거부 (짧은 행은 채움)
   {
     const workbook = buildTableBlockWorkbook(scoreBlock);
-    const ws = workbook.Sheets["표"];
+    const ws = workbook.Sheets.표;
     // 바디 2행 중 1행에 컬럼 수보다 많은 값을 몰래 추가.
     XLSX.utils.sheet_add_aoa(ws, [["x", "y", "z", "초과"]], { origin: "A2" });
     const range = XLSX.utils.decode_range(ws["!ref"]);
@@ -1826,8 +1822,8 @@ async function main() {
   {
     // 짧은 행(마지막 셀 누락)은 빈 문자열로 채워 통과해야 한다.
     const workbook = buildTableBlockWorkbook(scoreBlock);
-    const ws = workbook.Sheets["표"];
-    delete ws["C2"]; // 바디 2행 중 1행의 마지막 셀 삭제(엑셀에서 지우고 저장한 상황 재현)
+    const ws = workbook.Sheets.표;
+    delete ws.C2; // 바디 2행 중 1행의 마지막 셀 삭제(엑셀에서 지우고 저장한 상황 재현)
     const result = importTableBlockFromXlsx(
       workbook,
       scoreBlock,
@@ -1847,7 +1843,7 @@ async function main() {
   // 15h) 빈 행(트레일링) 무시
   {
     const workbook = buildTableBlockWorkbook(scoreBlock);
-    const ws = workbook.Sheets["표"];
+    const ws = workbook.Sheets.표;
     // 완전히 빈 트레일링 행을 하나 더 추가.
     XLSX.utils.sheet_add_aoa(ws, [["", "", ""]], { origin: -1 });
     const result = importTableBlockFromXlsx(
@@ -1867,8 +1863,8 @@ async function main() {
   // 15i) 수식/서식 셀 — 값만 취함(SheetJS가 캐시된 계산값을 반환하는지 직접 확인)
   {
     const workbook = buildTableBlockWorkbook(scoreBlock);
-    const ws = workbook.Sheets["표"];
-    ws["B2"] = { t: "n", v: 99, f: "SUM(1,98)" }; // 수식 셀 흉내(캐시값 99)
+    const ws = workbook.Sheets.표;
+    ws.B2 = { t: "n", v: 99, f: "SUM(1,98)" }; // 수식 셀 흉내(캐시값 99)
     const result = importTableBlockFromXlsx(
       workbook,
       scoreBlock,

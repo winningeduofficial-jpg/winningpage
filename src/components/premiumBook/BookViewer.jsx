@@ -183,7 +183,7 @@ export default function BookViewer({
   // 폴백 타이머를 함께 거는 이유: 백그라운드 탭에서는 rAF가 멈춰 armed에 갇히는데, 커밋
   // 타이머는 running에서만 걸리므로 flipRef가 찬 채로 입력이 영구히 잠긴다.
   useEffect(() => {
-    if (!flip || flip.phase !== "armed") return undefined;
+    if (flip?.phase !== "armed") return undefined;
     const promote = () =>
       setFlip((prev) =>
         prev && prev.phase === "armed" ? { ...prev, phase: "running" } : prev,
@@ -203,7 +203,7 @@ export default function BookViewer({
   // 커밋 시점을 transitionend에서 분리한다. 백그라운드 탭·합성 실패·중단처럼 transitionend가
   // 아예 발화하지 않는 경로가 있고, 1페이지 모드에는 3D leaf 자체가 없다.
   useEffect(() => {
-    if (!flip || flip.phase !== "running") return undefined;
+    if (flip?.phase !== "running") return undefined;
     const delay = isSpread ? FLIP_MS + 80 : SINGLE_MS;
     const id = window.setTimeout(commitFlip, delay);
     return () => window.clearTimeout(id);

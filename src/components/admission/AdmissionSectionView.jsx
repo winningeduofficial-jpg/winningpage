@@ -32,8 +32,7 @@ import { renderBlock } from "./blocks/renderBlock";
 function firstBlockAlreadyHasHeading(doc, heading) {
   if (!heading) return false;
   const firstBlock = doc.blocks[0];
-  if (!firstBlock || firstBlock.kind !== "rawHtml" || !firstBlock.html)
-    return false;
+  if (firstBlock?.kind !== "rawHtml" || !firstBlock.html) return false;
   return stripHtmlToText(firstBlock.html).startsWith(heading);
 }
 

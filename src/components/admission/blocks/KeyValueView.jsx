@@ -26,7 +26,7 @@
 const NEW_WINDOW_SUFFIX = " (새 창)";
 
 export default function KeyValueView({ rows }) {
-  if (!rows || !rows.length) return null;
+  if (!rows?.length) return null;
 
   return (
     <div className="admission-readable-body">

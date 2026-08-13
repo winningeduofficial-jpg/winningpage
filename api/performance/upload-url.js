@@ -71,7 +71,7 @@
 //    클라이언트는 업로드 실패 시 그 세션에서 이미 올린 첨부를 이 엔드포인트로
 //    되돌린다(`src/lib/performance/guideUpload.js`).
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import {
   getBearerToken,
   hasPaidServiceAccess,

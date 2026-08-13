@@ -140,7 +140,7 @@ function mapWhitelist(rawArray, labelMap, label) {
 async function requireActiveStudent(supabaseAdmin, profileId) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
 
-  if (!row || !row.onboarded_at) {
+  if (!row?.onboarded_at) {
     return { error: fail(409, { reason: "not_onboarded" }).error };
   }
   if (row.status !== "active") {
@@ -309,7 +309,7 @@ async function handlePost(req, res, session) {
   // ── 오늘 적용 목표 시간 스냅샷 — study_schedule[요일] ──────────────────
   const dayIndex = getDayIndexFromYMDServer(recordDate, now);
   const dayName = VIRTUAL_DAY_NAMES[dayIndex];
-  const daySchedule = (student.study_schedule || {})[dayName] || {
+  const daySchedule = student.study_schedule?.[dayName] || {
     ideal: 0,
     min: 0,
   };

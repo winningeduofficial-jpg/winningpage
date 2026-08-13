@@ -395,7 +395,7 @@ export function summarizeBlockChange(oldBlock, newBlock) {
  *   changeSummary?: object, unchanged?: boolean }}
  */
 export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
-  const worksheet = workbook.Sheets?.["표"];
+  const worksheet = workbook.Sheets?.표;
   if (!worksheet) {
     return {
       ok: false,

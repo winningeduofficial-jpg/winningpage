@@ -156,212 +156,208 @@ export default function AdmissionBoard() {
     const detailListPath = `/admission/${detailCategory}`;
 
     return (
-      <>
-        <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
-          <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
-            <div className="mx-auto max-w-content px-6 py-14">
-              <p className="text-sm font-black text-[#B88737]">입시정보</p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">
-                {detailMeta.title}
-              </h1>
-            </div>
-          </section>
-
-          <section className="mx-auto max-w-[980px] px-6 py-14">
-            {loading ? (
-              <div className="py-20 text-center text-sm font-bold text-gray-500">
-                불러오는 중입니다.
-              </div>
-            ) : !post ? (
-              <div className="py-20 text-center">
-                <p className="text-lg font-black">게시글을 찾을 수 없습니다.</p>
-                <Link
-                  to={detailListPath}
-                  className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0D1B2A] px-6 text-sm font-black text-white"
-                >
-                  목록으로
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div className="border-b border-[#0D1B2A] pb-7">
-                  <div className="mb-4 flex items-center gap-2">
-                    {post.is_pinned && (
-                      <span className="rounded-full bg-[#0D1B2A] px-3 py-1 text-xs font-black text-white">
-                        중요
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-gray-500">
-                      {formatDate(post.created_at)}
-                    </span>
-                  </div>
-
-                  <h2 className="text-3xl font-black tracking-[-0.04em]">
-                    {post.title}
-                  </h2>
-                </div>
-
-                {images.length > 0 ? (
-                  <div className="mt-10 space-y-0 overflow-hidden rounded-2xl border border-[#E6E9EF] bg-white">
-                    {images.map((url, index) => (
-                      <img
-                        key={`${url}-${index}`}
-                        src={url}
-                        alt=""
-                        className="w-full object-contain"
-                      />
-                    ))}
-                  </div>
-                ) : post.image_url ? (
-                  <img
-                    src={post.image_url}
-                    alt=""
-                    className="mt-10 max-h-[520px] w-full rounded-2xl object-cover"
-                  />
-                ) : null}
-
-                <div className="prose prose-lg mt-10 max-w-none whitespace-pre-wrap leading-8 text-[#1F2937]">
-                  {post.content || ""}
-                </div>
-
-                {attachments.length > 0 ? (
-                  <div className="mt-10 space-y-2">
-                    {attachments.map((file, index) => {
-                      const url = getAttachmentUrl(file);
-                      if (!url) return null;
-
-                      return (
-                        <a
-                          key={`${url}-${index}`}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
-                        >
-                          <Download size={17} />
-                          {getAttachmentName(file)}
-                        </a>
-                      );
-                    })}
-                  </div>
-                ) : post.file_url ? (
-                  <a
-                    href={post.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-10 inline-flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
-                  >
-                    <Download size={17} />
-                    {post.file_name || "첨부파일 다운로드"}
-                  </a>
-                ) : null}
-
-                <div className="mt-14 border-t border-gray-200 pt-8 text-center">
-                  <Link
-                    to={detailListPath}
-                    className="inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 text-sm font-black text-white"
-                  >
-                    목록으로
-                  </Link>
-                </div>
-              </>
-            )}
-          </section>
-        </main>
-      </>
-    );
-  }
-
-  return (
-    <>
       <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
         <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
           <div className="mx-auto max-w-content px-6 py-14">
             <p className="text-sm font-black text-[#B88737]">입시정보</p>
             <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">
-              {routeMeta.title}
+              {detailMeta.title}
             </h1>
-            <p className="mt-4 text-base font-medium text-gray-500">
-              {routeMeta.description}
-            </p>
           </div>
         </section>
 
-        <section className="mx-auto max-w-content px-6 py-12">
-          <div className="mb-8 flex flex-wrap items-center justify-end gap-4">
-            <div className="flex h-11 w-full max-w-[360px] items-center rounded-xl border border-gray-300 bg-white px-4">
-              <Search size={17} className="text-gray-400" />
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder={`${routeMeta.title} 검색`}
-                className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-none"
-              />
+        <section className="mx-auto max-w-[980px] px-6 py-14">
+          {loading ? (
+            <div className="py-20 text-center text-sm font-bold text-gray-500">
+              불러오는 중입니다.
             </div>
-          </div>
+          ) : !post ? (
+            <div className="py-20 text-center">
+              <p className="text-lg font-black">게시글을 찾을 수 없습니다.</p>
+              <Link
+                to={detailListPath}
+                className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#0D1B2A] px-6 text-sm font-black text-white"
+              >
+                목록으로
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-[#0D1B2A] pb-7">
+                <div className="mb-4 flex items-center gap-2">
+                  {post.is_pinned && (
+                    <span className="rounded-full bg-[#0D1B2A] px-3 py-1 text-xs font-black text-white">
+                      중요
+                    </span>
+                  )}
+                  <span className="text-sm font-bold text-gray-500">
+                    {formatDate(post.created_at)}
+                  </span>
+                </div>
 
-          <div className="mb-4 text-sm font-bold text-gray-500">
-            전체 <span className="text-[#B88737]">{filteredRows.length}</span>건
-          </div>
-
-          <div className="overflow-hidden border-y border-[#D7DEE8]">
-            {loading ? (
-              <div className="py-20 text-center text-sm font-bold text-gray-500">
-                불러오는 중입니다.
+                <h2 className="text-3xl font-black tracking-[-0.04em]">
+                  {post.title}
+                </h2>
               </div>
-            ) : filteredRows.length === 0 ? (
-              <div className="py-20 text-center text-sm font-bold text-gray-400">
-                등록된 게시글이 없습니다.
+
+              {images.length > 0 ? (
+                <div className="mt-10 space-y-0 overflow-hidden rounded-2xl border border-[#E6E9EF] bg-white">
+                  {images.map((url, index) => (
+                    <img
+                      key={`${url}-${index}`}
+                      src={url}
+                      alt=""
+                      className="w-full object-contain"
+                    />
+                  ))}
+                </div>
+              ) : post.image_url ? (
+                <img
+                  src={post.image_url}
+                  alt=""
+                  className="mt-10 max-h-[520px] w-full rounded-2xl object-cover"
+                />
+              ) : null}
+
+              <div className="prose prose-lg mt-10 max-w-none whitespace-pre-wrap leading-8 text-[#1F2937]">
+                {post.content || ""}
               </div>
-            ) : (
-              filteredRows.map((row) => {
-                const attachmentCount =
-                  normalizeArray(row.attachments).length ||
-                  (row.file_url ? 1 : 0);
 
-                return (
-                  <Link
-                    key={row.id}
-                    to={`/admission/${row.category}/${row.id}`}
-                    className="block border-b border-[#EEF2F6] px-2 py-6 transition last:border-b-0 hover:bg-[#F8FAFC]"
-                  >
-                    <div className="flex items-start justify-between gap-5">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          {row.is_pinned && (
-                            <span className="rounded-full bg-[#0D1B2A] px-2.5 py-1 text-xs font-black text-white">
-                              중요
-                            </span>
-                          )}
-                          <h2 className="truncate text-xl font-black tracking-[-0.04em]">
-                            {row.title}
-                          </h2>
-                        </div>
+              {attachments.length > 0 ? (
+                <div className="mt-10 space-y-2">
+                  {attachments.map((file, index) => {
+                    const url = getAttachmentUrl(file);
+                    if (!url) return null;
 
-                        {row.content && (
-                          <p className="mt-3 text-sm font-medium leading-6 text-gray-500">
-                            {getContentPreview(row.content)}
-                          </p>
-                        )}
+                    return (
+                      <a
+                        key={`${url}-${index}`}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
+                      >
+                        <Download size={17} />
+                        {getAttachmentName(file)}
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : post.file_url ? (
+                <a
+                  href={post.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-10 inline-flex h-12 items-center gap-2 rounded-xl border border-[#B88737]/40 bg-[#FFF8E8] px-5 text-sm font-black text-[#8A5B16]"
+                >
+                  <Download size={17} />
+                  {post.file_name || "첨부파일 다운로드"}
+                </a>
+              ) : null}
 
-                        {attachmentCount > 0 && (
-                          <p className="mt-3 text-xs font-black text-[#B88737]">
-                            첨부파일 {attachmentCount}개
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="shrink-0 text-sm font-bold text-gray-400">
-                        {formatDate(row.created_at)}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
+              <div className="mt-14 border-t border-gray-200 pt-8 text-center">
+                <Link
+                  to={detailListPath}
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#0D1B2A] px-8 text-sm font-black text-white"
+                >
+                  목록으로
+                </Link>
+              </div>
+            </>
+          )}
         </section>
       </main>
-    </>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-white pt-16 text-[#0D1B2A]">
+      <section className="border-b border-[#E8EDF3] bg-[#F8FAFC]">
+        <div className="mx-auto max-w-content px-6 py-14">
+          <p className="text-sm font-black text-[#B88737]">입시정보</p>
+          <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">
+            {routeMeta.title}
+          </h1>
+          <p className="mt-4 text-base font-medium text-gray-500">
+            {routeMeta.description}
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-content px-6 py-12">
+        <div className="mb-8 flex flex-wrap items-center justify-end gap-4">
+          <div className="flex h-11 w-full max-w-[360px] items-center rounded-xl border border-gray-300 bg-white px-4">
+            <Search size={17} className="text-gray-400" />
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder={`${routeMeta.title} 검색`}
+              className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="mb-4 text-sm font-bold text-gray-500">
+          전체 <span className="text-[#B88737]">{filteredRows.length}</span>건
+        </div>
+
+        <div className="overflow-hidden border-y border-[#D7DEE8]">
+          {loading ? (
+            <div className="py-20 text-center text-sm font-bold text-gray-500">
+              불러오는 중입니다.
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-20 text-center text-sm font-bold text-gray-400">
+              등록된 게시글이 없습니다.
+            </div>
+          ) : (
+            filteredRows.map((row) => {
+              const attachmentCount =
+                normalizeArray(row.attachments).length ||
+                (row.file_url ? 1 : 0);
+
+              return (
+                <Link
+                  key={row.id}
+                  to={`/admission/${row.category}/${row.id}`}
+                  className="block border-b border-[#EEF2F6] px-2 py-6 transition last:border-b-0 hover:bg-[#F8FAFC]"
+                >
+                  <div className="flex items-start justify-between gap-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        {row.is_pinned && (
+                          <span className="rounded-full bg-[#0D1B2A] px-2.5 py-1 text-xs font-black text-white">
+                            중요
+                          </span>
+                        )}
+                        <h2 className="truncate text-xl font-black tracking-[-0.04em]">
+                          {row.title}
+                        </h2>
+                      </div>
+
+                      {row.content && (
+                        <p className="mt-3 text-sm font-medium leading-6 text-gray-500">
+                          {getContentPreview(row.content)}
+                        </p>
+                      )}
+
+                      {attachmentCount > 0 && (
+                        <p className="mt-3 text-xs font-black text-[#B88737]">
+                          첨부파일 {attachmentCount}개
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="shrink-0 text-sm font-bold text-gray-400">
+                      {formatDate(row.created_at)}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </section>
+    </main>
   );
 }

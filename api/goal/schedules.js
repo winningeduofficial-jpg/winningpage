@@ -140,7 +140,7 @@ function validateScheduleFields(body) {
 
 async function requireOnboardedStudent(supabaseAdmin, profileId) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
-  if (!row || !row.onboarded_at) {
+  if (!row?.onboarded_at) {
     return { error: fail(409, { reason: "not_onboarded" }).error };
   }
   return { row };
