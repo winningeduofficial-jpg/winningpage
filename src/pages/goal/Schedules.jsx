@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import GoalPageHeader from '../../components/goal/GoalPageHeader';
 import GoalEmptyState from '../../components/goal/GoalEmptyState';
 import ScheduleListCard from '../../components/goal/plan/ScheduleListCard';
@@ -20,6 +21,9 @@ function toDisplaySchedule(schedule, now) {
 }
 
 export default function Schedules() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null); // null=신규 등록, 값 있으면 수정 프리필
   // null=로딩 중, 배열=로드 완료(빈 배열 포함). loadError는 로딩 실패 시에만 메시지를 담는다.
@@ -47,6 +51,18 @@ export default function Schedules() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  // ScheduleRail("+")이 navigate(..., { state: { openCreate: true } })로 진입시킨 경우 —
+  // 마운트 시 1회만 소비하고 즉시 history를 replace해 지운다. 지우지 않으면 뒤로가기로
+  // 이 페이지에 돌아올 때마다(브라우저가 location.state를 유지한다) 모달이 또 열린다.
+  useEffect(() => {
+    if (location.state?.openCreate) {
+      openCreate();
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // 의도적으로 마운트 1회만 — location.state를 deps에 넣으면 위 replace가 만드는
+    // 새 location으로 effect가 다시 돌아 무한 루프가 된다.
   }, []);
 
   const displaySchedules = (schedules || []).map((schedule) => toDisplaySchedule(schedule, new Date()));
