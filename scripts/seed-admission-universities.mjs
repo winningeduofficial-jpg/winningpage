@@ -53,8 +53,7 @@ async function parseUniversitySource() {
   }
   const entryRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
   const generalRows = [];
-  let m;
-  while ((m = entryRe.exec(directoryMatch[1])) !== null) {
+  for (const m of directoryMatch[1].matchAll(entryRe)) {
     generalRows.push({ region: m[1], name: m[2], special_group: null });
   }
 
@@ -67,13 +66,11 @@ async function parseUniversitySource() {
   const groupBlockRe =
     /\{\s*key:\s*'([^']+)'[\s\S]*?items:\s*\[([\s\S]*?)\]\s*\}/g;
   const specialRows = [];
-  let g;
-  while ((g = groupBlockRe.exec(groupsMatch[1])) !== null) {
+  for (const g of groupsMatch[1].matchAll(groupBlockRe)) {
     const groupKey = g[1];
     const itemsBlock = g[2];
     const itemRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
-    let im;
-    while ((im = itemRe.exec(itemsBlock)) !== null) {
+    for (const im of itemsBlock.matchAll(itemRe)) {
       specialRows.push({ region: im[1], name: im[2], special_group: groupKey });
     }
   }

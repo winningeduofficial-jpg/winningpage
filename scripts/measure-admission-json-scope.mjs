@@ -111,9 +111,7 @@ async function resolveCredentials() {
 function collectClassesInDoc(html) {
   const classes = new Set();
   const text = String(html || "");
-  let m;
-  CLASS_ATTR_RE.lastIndex = 0;
-  while ((m = CLASS_ATTR_RE.exec(text)) !== null) {
+  for (const m of text.matchAll(CLASS_ATTR_RE)) {
     m[1]
       .split(/\s+/)
       .map((c) => c.trim())
@@ -162,11 +160,9 @@ export function collectMaskedTokenFindings(raw, key, row, universityName) {
   }
   const text = String(html || "");
   const findings = [];
-  // MASKED_TOKEN_RE는 다른 함수에서도 exec 없이(match만) 재사용되므로,
-  // lastIndex 상태를 공유하지 않도록 exec용 인스턴스를 매번 새로 만든다.
-  const re = new RegExp(MASKED_TOKEN_RE.source, MASKED_TOKEN_RE.flags);
-  let m;
-  while ((m = re.exec(text)) !== null) {
+  // matchAll은 넘겨받은 정규식을 내부적으로 복제해 순회하므로, MASKED_TOKEN_RE가
+  // 다른 함수(match만 쓰는 곳)와 lastIndex를 공유할 걱정이 없다.
+  for (const m of text.matchAll(MASKED_TOKEN_RE)) {
     const matchedText = m[0];
     const start = Math.max(0, m.index - MASKED_TOKEN_CONTEXT);
     const end = Math.min(
@@ -180,8 +176,6 @@ export function collectMaskedTokenFindings(raw, key, row, universityName) {
       classification: classifyMaskedTokenMatch(matchedText),
       context: text.slice(start, end),
     });
-    // 폭 0 매칭 방지(이 패턴은 전부 폭>0이라 실질적으로 불필요하지만 안전장치로 둔다).
-    if (m[0].length === 0) re.lastIndex += 1;
   }
   return findings;
 }

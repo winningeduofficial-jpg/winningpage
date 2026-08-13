@@ -4043,12 +4043,10 @@ export function importPlainListDocFromHtml(sectionKey, html) {
   const items = [];
   const nodeRe =
     /<ul class="admission-bullet-list">([\s\S]*?)<\/ul>|<div class="admission-subtitle-line">([\s\S]*?)<\/div>|<div class="admission-text-line">([\s\S]*?)<\/div>/gi;
-  let m;
-  while ((m = nodeRe.exec(bodyHtml)) !== null) {
+  for (const m of bodyHtml.matchAll(nodeRe)) {
     if (m[1] !== undefined) {
       const liRe = /<li>([\s\S]*?)<\/li>/gi;
-      let liMatch;
-      while ((liMatch = liRe.exec(m[1])) !== null) {
+      for (const liMatch of m[1].matchAll(liRe)) {
         items.push({
           type: "bullet",
           text: clean(stripHtmlToText(liMatch[1])),
@@ -4078,8 +4076,7 @@ export function importPlainListDocFromHtml(sectionKey, html) {
 function extractOrderedTableFragments(html) {
   const fragments = [];
   const tableRe = /<table([^>]*)>([\s\S]*?)<\/table>/gi;
-  let m;
-  while ((m = tableRe.exec(html)) !== null) {
+  for (const m of html.matchAll(tableRe)) {
     fragments.push({
       type: "table",
       index: m.index,
@@ -4088,7 +4085,7 @@ function extractOrderedTableFragments(html) {
     });
   }
   const headingRe = /<div class="admission-subhead">([\s\S]*?)<\/div>/gi;
-  while ((m = headingRe.exec(html)) !== null) {
+  for (const m of html.matchAll(headingRe)) {
     fragments.push({
       type: "heading",
       index: m.index,
@@ -4256,9 +4253,7 @@ export function importRecruitLegacyDocFromHtml(html) {
     const seriesCells = valueCells.map((cell) => {
       if (/class="muted"/.test(cell.innerHtml)) return { chips: [] };
       const chips = [];
-      let m;
-      chipRe.lastIndex = 0;
-      while ((m = chipRe.exec(cell.innerHtml)) !== null) {
+      for (const m of cell.innerHtml.matchAll(chipRe)) {
         chips.push({
           label: clean(decodeBasicHtmlEntities(m[1])),
           value: clean(decodeBasicHtmlEntities(m[2])),

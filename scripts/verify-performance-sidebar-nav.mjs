@@ -114,8 +114,7 @@ async function loadHarness() {
 function collectAnchors(html) {
   const anchors = [];
   const re = /<a\b([^>]*)>([\s\S]*?)<\/a>/g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
+  for (const m of html.matchAll(re)) {
     anchors.push({ attrs: m[1], text: m[2].replace(/<[^>]*>/g, "").trim() });
   }
   return anchors;

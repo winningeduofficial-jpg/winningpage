@@ -629,7 +629,8 @@ export default function CouponAdmin() {
 
     const byCoupon = {};
     for (const row of redemptionRes.data || []) {
-      const bucket = (byCoupon[row.coupon_id] ||= { active: 0, total: 0 });
+      byCoupon[row.coupon_id] ||= { active: 0, total: 0 };
+      const bucket = byCoupon[row.coupon_id];
       bucket.total += 1;
       if (row.voided_at === null) bucket.active += 1;
     }

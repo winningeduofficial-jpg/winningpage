@@ -64,7 +64,8 @@ export function ToastProvider({ children }) {
 
   const pushToast = useCallback(
     (type, message, { duration = DEFAULT_DURATION } = {}) => {
-      const id = `toast-${(toastSeq += 1)}`;
+      toastSeq += 1;
+      const id = `toast-${toastSeq}`;
       setToasts((prev) => {
         const next = [...prev, { id, type, message }];
         if (next.length <= MAX_TOASTS) return next;

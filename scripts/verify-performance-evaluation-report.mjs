@@ -123,9 +123,9 @@ const stripTags = (value) => value.replace(/<[^>]*>/g, "").trim();
 function collect(html, tag) {
   const out = [];
   const re = new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)</${tag}>`, "g");
-  let m;
-  while ((m = re.exec(html)) !== null)
+  for (const m of html.matchAll(re)) {
     out.push({ attrs: m[1], text: stripTags(m[2]) });
+  }
   return out;
 }
 
