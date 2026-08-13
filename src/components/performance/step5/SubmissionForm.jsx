@@ -307,7 +307,7 @@ export default function SubmissionForm({
               type="text"
               value={topicTitle || ''}
               readOnly
-              className="h-[2.625rem] w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none"
+              className="h-[2.625rem] w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
           </div>
 
