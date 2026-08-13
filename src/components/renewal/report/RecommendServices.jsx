@@ -45,6 +45,7 @@ const RecommendServices = ({ cards, leadNote = null }) => {
             <div className="mt-[0.6875rem] flex flex-wrap gap-x-[1.375rem] gap-y-2">
               {card.chips.map((chip, index) => (
                 <span
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 정적 추천 카드 데이터의 칩 문자열 목록 — id 없고 재정렬 없음.
                   key={index}
                   className="inline-flex h-7 items-center justify-center rounded-[0.75rem] bg-[#f1f8ff] px-2 py-1 text-[0.875rem] font-normal text-[#1b5da0]"
                 >

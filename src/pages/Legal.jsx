@@ -39,10 +39,12 @@ export default function Legal({ docKey }) {
           ) : (
             lines.map((line, i) => {
               const t = line.trim();
+              // biome-ignore lint/suspicious/noArrayIndexKey: 정적 문서 텍스트를 줄바꿈으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
               if (t === "") return <div key={i} className="h-3" />;
               if (isHeading(t, docKey)) {
                 return (
                   <h2
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
                     key={i}
                     className="mb-1 mt-8 text-[17px] font-black text-ink-strong"
                   >
@@ -54,6 +56,7 @@ export default function Legal({ docKey }) {
                 /^[·\-①-⑳]/.test(t) || /^\d+\.\s/.test(t) ? "pl-3.5" : "";
               return (
                 <p
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
                   key={i}
                   className={`break-keep text-[14px] leading-[1.85] text-ink ${indent}`}
                 >

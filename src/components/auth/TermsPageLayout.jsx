@@ -80,6 +80,7 @@ function linkify(text) {
       const href = part.startsWith("http") ? part : `https://${part}`;
       return (
         <a
+          // biome-ignore lint/suspicious/noArrayIndexKey: 정적 약관 텍스트를 정규식으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
           key={i}
           href={href}
           target="_blank"
@@ -90,6 +91,7 @@ function linkify(text) {
         </a>
       );
     }
+    // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 정적 텍스트 분할 파생 배열.
     return <span key={i}>{part}</span>;
   });
 }
@@ -112,11 +114,13 @@ export function TermsArticleBody({ text, className = "" }) {
     <div className={`flex flex-col ${className}`}>
       {lines.map((line, i) => {
         const t = line.trim();
+        // biome-ignore lint/suspicious/noArrayIndexKey: 정적 약관 텍스트를 줄바꿈으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
         if (t === "") return <div key={i} className="h-2" />;
 
         if (isHeading(t)) {
           return (
             <p
+              // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
               key={i}
               className="mb-1 mt-4 text-sm font-semibold text-ink-title first:mt-0"
             >
@@ -128,6 +132,7 @@ export function TermsArticleBody({ text, className = "" }) {
         const indented = /^[·\-①-⑳]/.test(t);
         return (
           <p
+            // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일.
             key={i}
             className={`break-keep text-xs leading-[1.85] text-ink ${indented ? "pl-3.5" : ""}`}
           >

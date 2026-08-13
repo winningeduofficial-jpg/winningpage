@@ -120,6 +120,7 @@ export default function TopicCard({ index, topic, onDetail, className = "" }) {
         {tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
             {tags.map((tag, tagIndex) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 태그 문자열이 중복될 수 있어 tagIndex로 구분한다 — 태그에는 별도 id가 없다.
               <MetaTag key={`${tag}-${tagIndex}`}>{tag}</MetaTag>
             ))}
           </div>

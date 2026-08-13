@@ -42,6 +42,7 @@ export default function PerformanceSkeleton() {
           <div className="mx-[0.625rem] mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: 실데이터 없는 로딩 스켈레톤 placeholder — index 외에 다른 값이 없다.
                 key={index}
                 className="flex h-9 w-perf-pill items-center gap-4 pl-[3.125rem]"
               >

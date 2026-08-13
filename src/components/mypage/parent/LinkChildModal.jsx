@@ -186,6 +186,7 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
         <div className="mt-6 flex justify-center gap-2" onPaste={handlePaste}>
           {chars.map((ch, index) => (
             <input
+              // biome-ignore lint/suspicious/noArrayIndexKey: 고정 6자리 코드 입력칸 — index 자체가 "몇 번째 자리"라는 의미이고 재정렬되지 않는다.
               key={index}
               ref={(el) => {
                 inputsRef.current[index] = el;

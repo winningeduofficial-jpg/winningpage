@@ -83,6 +83,7 @@ export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
                 // 컬러 액센트 바 + 본문 면 구조", §181 "border-left: 4px solid로 구현하면 안쪽 그룹
                 // 146px가 자연스럽게 맞는다"). #29 카드 18개 전부 이 구조라 여기서 제거하지 않는다.
                 <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: subject만으로는 같은 과목 태스크가 중복될 수 있어 index로 구분한다 — 태스크 고유 id가 없다.
                   key={`${task.subject}-${index}`}
                   className={`h-[4.6875rem] rounded-lg border-l-4 px-3 py-[0.75rem] ${WEEKDAY_BG_CLASS[key]}`}
                   style={{ borderLeftColor: WEEKDAY_ACCENT[key] }}

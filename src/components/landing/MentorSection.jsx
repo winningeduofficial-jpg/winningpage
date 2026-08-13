@@ -82,6 +82,7 @@ export default function MentorSection({ mentors = [], variant = "default" }) {
 
                 return (
                   <MentorCard
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 mentor.id가 여러 번 반복된다 — position으로 각 클론 사본을 구분한다.
                     key={`${mentor.id}-${position}`}
                     mentor={mentor}
                     isClone={isClone}

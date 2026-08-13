@@ -20,6 +20,7 @@ const ReadinessOverview = ({ scoreLabel, summaryLines }) => {
           lg:w-[30.5625rem] 과 동일한 값으로 강제한다. */}
       <div className="fd-readiness-summary mt-4 w-full text-base font-normal leading-[1.3] text-[#808080] lg:w-[30.5625rem]">
         {summaryLines.map((line, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 리포트 생성 시 매번 새로 만들어지는 문자열 목록 — id 없고 재정렬 없음.
           <p key={index}>{line}</p>
         ))}
       </div>

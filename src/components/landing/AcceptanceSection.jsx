@@ -151,6 +151,7 @@ export default function AcceptanceSection({ universities = [] }) {
 
                 return (
                   <li
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 university.id가 여러 번 반복된다 — renderIndex로 각 클론 사본을 구분한다.
                     key={`${university.id}-${renderIndex}`}
                     aria-hidden={isClone || undefined}
                     className={`flex h-[18.75rem] w-[12.5rem] shrink-0 flex-col items-center gap-6 rounded-[2rem] pt-[3.25rem] ${

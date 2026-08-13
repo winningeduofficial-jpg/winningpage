@@ -109,6 +109,7 @@ export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
 
               return (
                 <li
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 item.key가 여러 번 반복된다 — position으로 각 클론 사본을 구분한다.
                   key={`${item.key}-${position}`}
                   aria-hidden={isClone || undefined}
                   className="flex"
