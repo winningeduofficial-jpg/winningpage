@@ -96,7 +96,9 @@ export default function MobileNavDrawer({
       className={`fixed inset-0 z-[60] desktop:hidden ${open ? "" : "pointer-events-none"}`}
       aria-hidden={!open}
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 document keydown 리스너(위)가 처리한다. */}
       <div
+        role="presentation"
         className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
           open ? "opacity-100" : "opacity-0"
         }`}

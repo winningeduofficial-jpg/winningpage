@@ -164,16 +164,19 @@ export default function AdmissionModalShell({
     };
     // 원본의 [isModalOpen] 을 그대로 옮긴 것. onClose 를 의존성에 넣으면
     // 인라인 화살표 함수 때문에 매 렌더 재구독이 되어 원본과 달라진다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일 — 클릭 전용 백드롭, 키보드 등가 동작 불필요.
     <div
+      role="presentation"
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 px-4"
       onClick={requestClose}
     >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: onClick은 배경 클릭이 대화상자 안까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
       <div
         ref={sheetRef}
         role="dialog"
