@@ -23,6 +23,8 @@
 //    `ordered`를 만들기 시작하는 순간 게이트가 조용히 갈라진다.
 //    (`keyValue`는 아직 미러에 케이스가 없다 — 대입 쪽 생성 경로가 0건이라 남겨 둔 것이고,
 //     그 경로가 생기면 미러도 함께 만들어야 한다.)
+import { withDedupedKeys } from "../../../lib/reactKeys";
+
 function groupItems(items) {
   const groups = [];
   let currentBullets = null;
@@ -57,15 +59,19 @@ export default function PlainListView({ items, ordered = false }) {
 
   return (
     <div className="admission-readable-body">
-      {groups.map((group, idx) => {
+      {withDedupedKeys(groups, (group) =>
+        group.kind === "bulletGroup"
+          ? `bulletGroup-${group.items.join("|")}`
+          : `${group.kind}-${group.text}`,
+      ).map(({ item: group, key }) => {
         if (group.kind === "bulletGroup") {
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 문서 렌더러 — groups/items는 doc JSON에 id가 없고, 사용자가 재정렬하지 않는 뷰 전용 목록이다.
-            <ListTag key={idx} className={listClassName}>
-              {group.items.map((text, itemIdx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 텍스트 항목엔 id가 없다.
-                <li key={itemIdx}>{text}</li>
-              ))}
+            <ListTag key={key} className={listClassName}>
+              {withDedupedKeys(group.items).map(
+                ({ item: text, key: itemKey }) => (
+                  <li key={itemKey}>{text}</li>
+                ),
+              )}
             </ListTag>
           );
         }
@@ -74,8 +80,7 @@ export default function PlainListView({ items, ordered = false }) {
             ? "admission-subtitle-line"
             : "admission-text-line";
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — 읽기 전용 문서 렌더러, id 없음.
-          <div key={idx} className={className}>
+          <div key={key} className={className}>
             {group.text}
           </div>
         );

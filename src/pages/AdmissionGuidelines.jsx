@@ -37,6 +37,7 @@ import {
   withHwpSectionHeading,
 } from "../lib/admissionParsing";
 import { getAdmissionActiveYear } from "../lib/admissionSettings";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
 const REGION_ORDER = [
@@ -170,9 +171,8 @@ function ButtonLabel({ item }) {
   if (item.lines?.length > 1) {
     return (
       <span className="admission-directory-head-label">
-        {item.lines.map((line, idx) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 라벨 텍스트를 줄바꿈으로 매 렌더 분할한 파생 배열 — id 없고 재정렬 없음.
-          <span key={idx} className="admission-directory-head-line">
+        {withDedupedKeys(item.lines).map(({ item: line, key }) => (
+          <span key={key} className="admission-directory-head-line">
             {line}
           </span>
         ))}
@@ -1066,12 +1066,12 @@ function AdmissionQaPanel({ rows }) {
           </thead>
           <tbody>
             {issues.length ? (
-              issues.slice(0, 300).map((issue, idx) => (
-                <tr
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 같은 대학·섹션 조합이 여러 이슈로 중복될 수 있어 idx로 구분한다 — 읽기 전용 진단표, 재정렬 없음.
-                  key={`${issue.university}-${issue.section}-${idx}`}
-                  className="border-b border-[#EEF2F7]"
-                >
+              withDedupedKeys(
+                issues.slice(0, 300),
+                (issue) =>
+                  `${issue.university}-${issue.section}-${issue.message}`,
+              ).map(({ item: issue, key }) => (
+                <tr key={key} className="border-b border-[#EEF2F7]">
                   <td className="px-3 py-2 font-black">
                     {issue.severity === "error" ? "오류" : "주의"}
                   </td>

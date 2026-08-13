@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { withDedupedKeys } from "../../../lib/reactKeys";
 import AdmissionBlockEditor from "./AdmissionBlockEditor";
 import * as docOps from "./docBlockOperations";
 import { validateBlocks } from "./tableEditorValidation";
@@ -77,9 +78,8 @@ export default function DocBlocksEditor({
         <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>문서 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
-            {validation.errors.map((error, idx) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>

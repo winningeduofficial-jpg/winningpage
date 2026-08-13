@@ -22,6 +22,8 @@
 // `PURCHASE_ARIA_LABEL`과 같은 관례). `rel="noopener noreferrer"`는 `target="_blank"`의
 // 필수 동반 속성이다(opener 탈취·referrer 유출 방지).
 
+import { withDedupedKeys } from "../../../lib/reactKeys";
+
 /** 링크 라벨 접미. 시각적 표시가 없는 링크라 접근성 이름으로만 새 창을 알린다. */
 const NEW_WINDOW_SUFFIX = " (새 창)";
 
@@ -30,9 +32,11 @@ export default function KeyValueView({ rows }) {
 
   return (
     <div className="admission-readable-body">
-      {rows.map((row, idx) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 문서 렌더러 — rows는 doc JSON에 id가 없고, 사용자가 재정렬하지 않는 뷰 전용 목록이다.
-        <div key={idx} className="admission-text-line">
+      {withDedupedKeys(
+        rows,
+        (row) => `${row.label}-${row.content}-${row.href}`,
+      ).map(({ item: row, key }) => (
+        <div key={key} className="admission-text-line">
           {row.label ? <b>{row.label}</b> : null}
           {row.label && row.content ? " " : ""}
           {row.href ? (

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import { withDedupedKeys } from "../../../lib/reactKeys";
 import AdmissionTable from "../table/AdmissionTable";
 import { describeCell } from "../table/tableModel";
 import createEditSlots, { EDIT_PARITY_FROZEN } from "./editSlots";
@@ -214,9 +215,8 @@ export default function TableBlockEditor({
         <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>표 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
-            {validation.errors.map((error, idx) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>
@@ -272,9 +272,8 @@ export default function TableBlockEditor({
             시도하세요:
           </p>
           <ul className="mt-1 list-disc pl-4">
-            {xlsxImportErrors.map((error, idx) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 임포트 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(xlsxImportErrors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>
@@ -330,9 +329,10 @@ export default function TableBlockEditor({
             잘라내지 않고 중단합니다. 아래 셀을 줄인 뒤 다시 시도하세요:
           </p>
           <ul className="mt-1 list-disc pl-4">
-            {xlsxOversized.map((cell, idx) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 내보내기 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-              <li key={idx}>
+            {xlsxOversized.map((cell) => (
+              // area/row/col 조합이 셀 하나를 유일하게 식별한다 — 같은 표 안에서
+              // 같은 (area, row, col)이 두 번 나올 수 없으므로 index가 필요 없다.
+              <li key={`${cell.area}-${cell.row}-${cell.col}`}>
                 {cell.area === "header" ? "헤더" : `본문 행 ${cell.row + 1}`} ·{" "}
                 {cell.columnLabel || `컬럼 ${cell.col + 1}`} ·{" "}
                 {cell.length.toLocaleString()}자

@@ -1,3 +1,4 @@
+import { withDedupedKeys } from "../../../lib/reactKeys";
 import MetaTag from "./MetaTag";
 
 // STEP3 추천 주제 카드 1장 — docs/수행평가-상세-명세.md §5.10(`3754:3629`/`3754:3746` 실측).
@@ -105,9 +106,8 @@ export default function TopicCard({ index, topic, onDetail, className = "" }) {
             줄바꿈되도록 `flex-wrap`을 두고 줄 간격도 같은 0.75rem으로 맞춘다. */}
         {tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
-            {tags.map((tag, tagIndex) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 태그 문자열이 중복될 수 있어 tagIndex로 구분한다 — 태그에는 별도 id가 없다.
-              <MetaTag key={`${tag}-${tagIndex}`}>{tag}</MetaTag>
+            {withDedupedKeys(tags).map(({ item: tag, key }) => (
+              <MetaTag key={key}>{tag}</MetaTag>
             ))}
           </div>
         )}

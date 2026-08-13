@@ -100,6 +100,7 @@ import {
   parseGoalUniversityCutRowsFromXlsx,
 } from "../lib/goalUniversityCutsBulkXlsx";
 import { plainTextToBlocks } from "../lib/plainTextToBlocks";
+import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
@@ -6370,30 +6371,26 @@ function AdminForm({
                           <div className="space-y-3">
                             <div className="flex flex-wrap gap-3">
                               {normalizeArray(form[field.key]).length > 0 ? (
-                                normalizeArray(form[field.key]).map(
-                                  (url, index) => (
-                                    <div
-                                      // biome-ignore lint/suspicious/noArrayIndexKey: 삭제만 가능하고 재정렬은 없다. img는 상태 없이 src만 그리므로 삭제로 index가 밀려도 항상 올바른 url을 보여준다.
-                                      key={`${url}-${index}`}
-                                      className="relative"
+                                withDedupedKeys(
+                                  normalizeArray(form[field.key]),
+                                ).map(({ item: url, key }, index) => (
+                                  <div key={key} className="relative">
+                                    <img
+                                      src={url}
+                                      alt=""
+                                      className="h-28 w-40 rounded border object-cover"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeListItem(field.key, index)
+                                      }
+                                      className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
                                     >
-                                      <img
-                                        src={url}
-                                        alt=""
-                                        className="h-28 w-40 rounded border object-cover"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          removeListItem(field.key, index)
-                                        }
-                                        className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
-                                      >
-                                        삭제
-                                      </button>
-                                    </div>
-                                  ),
-                                )
+                                      삭제
+                                    </button>
+                                  </div>
+                                ))
                               ) : (
                                 <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
                                   이미지 없음
@@ -6421,43 +6418,42 @@ function AdminForm({
                           <div className="space-y-3">
                             <div className="space-y-2">
                               {normalizeArray(form[field.key]).length > 0 ? (
-                                normalizeArray(form[field.key]).map(
-                                  (item, index) => {
-                                    const fileUrl =
-                                      typeof item === "string"
-                                        ? item
-                                        : item?.url;
-                                    const fileName =
-                                      item?.name || getFileNameFromUrl(fileUrl);
+                                withDedupedKeys(
+                                  normalizeArray(form[field.key]),
+                                  (item) =>
+                                    typeof item === "string" ? item : item?.url,
+                                ).map(({ item, key }, index) => {
+                                  const fileUrl =
+                                    typeof item === "string" ? item : item?.url;
+                                  const fileName =
+                                    item?.name || getFileNameFromUrl(fileUrl);
 
-                                    return (
-                                      <div
-                                        // biome-ignore lint/suspicious/noArrayIndexKey: 삭제만 가능하고 재정렬은 없다. 링크는 상태 없이 fileUrl/fileName만 그리므로 삭제로 index가 밀려도 항상 올바른 값을 보여준다.
-                                        key={`${fileUrl}-${index}`}
-                                        className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
+                                  return (
+                                    <div
+                                      key={key}
+                                      className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
+                                    >
+                                      <a
+                                        href={fileUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-sm font-bold text-blue-700 hover:underline"
                                       >
-                                        <a
-                                          href={fileUrl}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-sm font-bold text-blue-700 hover:underline"
-                                        >
-                                          {fileName}
-                                        </a>
+                                        {fileName}
+                                      </a>
 
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            removeListItem(field.key, index)
-                                          }
-                                          className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
-                                        >
-                                          삭제
-                                        </button>
-                                      </div>
-                                    );
-                                  },
-                                )
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeListItem(field.key, index)
+                                        }
+                                        className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
+                                      >
+                                        삭제
+                                      </button>
+                                    </div>
+                                  );
+                                })
                               ) : (
                                 <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
                                   첨부파일 없음
@@ -7343,9 +7339,8 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
 
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-          {parseErrors.map((msg, idx) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-            <p key={idx}>{msg}</p>
+          {withDedupedKeys(parseErrors).map(({ item: msg, key }) => (
+            <p key={key}>{msg}</p>
           ))}
         </div>
       )}
@@ -7384,9 +7379,11 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                 제외됩니다)
               </p>
               <ul className="mt-1 space-y-1">
-                {parseResult.errors.map((err, idx) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
-                  <li key={idx} className="text-red-700">
+                {withDedupedKeys(
+                  parseResult.errors,
+                  (err) => `${err.row}-${err.universityKey}-${err.reason}`,
+                ).map(({ item: err, key }) => (
+                  <li key={key} className="text-red-700">
                     행 {err.row + 1} · {err.admissionYear ?? "-"}학년도 ·{" "}
                     {err.universityKey || "(키 없음)"} — {err.reason}
                   </li>
@@ -7426,9 +7423,12 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                 </button>
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
-                    {items.map((w, idx) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
-                      <li key={idx}>
+                    {withDedupedKeys(
+                      items,
+                      (w) =>
+                        `${w.row}-${w.universityKey}-${w.column}-${w.reason}`,
+                    ).map(({ item: w, key }) => (
+                      <li key={key}>
                         행 {w.row + 1} · {w.admissionYear ?? "-"}학년도 ·{" "}
                         {w.universityKey || "(키 없음)"}
                         {w.column ? ` · ${w.column}` : ""} — {w.reason}
@@ -7802,9 +7802,8 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
 
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-          {parseErrors.map((msg, idx) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-            <p key={idx}>{msg}</p>
+          {withDedupedKeys(parseErrors).map(({ item: msg, key }) => (
+            <p key={key}>{msg}</p>
           ))}
         </div>
       )}
@@ -7829,9 +7828,12 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
                 제외됩니다)
               </p>
               <ul className="mt-1 space-y-1">
-                {parseResult.errors.map((err, idx) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
-                  <li key={idx} className="text-red-700">
+                {withDedupedKeys(
+                  parseResult.errors,
+                  (err) =>
+                    `${err.row}-${err.universityKey}-${err.departmentKey}-${err.admissionTrack}-${err.reason}`,
+                ).map(({ item: err, key }) => (
+                  <li key={key} className="text-red-700">
                     행 {err.row + 1} · {err.resultYear ?? "-"}학년도 ·{" "}
                     {err.universityKey || "(대학 키 없음)"}/
                     {err.departmentKey || "(모집단위 키 없음)"} ·{" "}
@@ -7869,9 +7871,12 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
                 </button>
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
-                    {items.map((w, idx) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
-                      <li key={idx}>
+                    {withDedupedKeys(
+                      items,
+                      (w) =>
+                        `${w.row}-${w.universityKey}-${w.departmentKey}-${w.admissionTrack}-${w.reason}`,
+                    ).map(({ item: w, key }) => (
+                      <li key={key}>
                         행 {w.row + 1} · {w.resultYear ?? "-"}학년도 ·{" "}
                         {w.universityKey || "(대학 키 없음)"}/
                         {w.departmentKey || "(모집단위 키 없음)"} ·{" "}
@@ -8918,9 +8923,8 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
 
       {parseErrors.length > 0 && (
         <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-          {parseErrors.map((message, idx) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 메시지 목록 — 재정렬 없음.
-            <p key={idx}>{message}</p>
+          {withDedupedKeys(parseErrors).map(({ item: message, key }) => (
+            <p key={key}>{message}</p>
           ))}
         </div>
       )}
@@ -8945,9 +8949,12 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
                 제외됩니다)
               </p>
               <ul className="mt-1 space-y-1">
-                {parseResult.errors.map((err, idx) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 파싱 시도마다 새로 만들어지는 일회성 오류 목록 — 재정렬 없음.
-                  <li key={idx} className="text-red-700">
+                {withDedupedKeys(
+                  parseResult.errors,
+                  (err) =>
+                    `${err.row}-${err.universityName}-${err.departmentName}-${err.reason}`,
+                ).map(({ item: err, key }) => (
+                  <li key={key} className="text-red-700">
                     행 {err.row + 1} · {err.universityName || "(대학명 없음)"} ·{" "}
                     {err.departmentName || "(학과명 없음)"} — {err.reason}
                   </li>
@@ -8985,9 +8992,12 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
                 </button>
                 {isOpen && (
                   <ul className="mt-2 space-y-1 font-normal">
-                    {items.map((w, idx) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 검증 실행마다 새로 만들어지는 일회성 경고 목록 — 재정렬 없음.
-                      <li key={idx}>
+                    {withDedupedKeys(
+                      items,
+                      (w) =>
+                        `${w.row}-${w.universityName}-${w.departmentName}-${w.column}-${w.reason}`,
+                    ).map(({ item: w, key }) => (
+                      <li key={key}>
                         행 {w.row + 1} · {w.universityName || "(대학명 없음)"} ·{" "}
                         {w.departmentName || "(학과명 없음)"}
                         {w.column ? ` · ${w.column}` : ""} — {w.reason}

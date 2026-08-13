@@ -31,6 +31,7 @@ import {
   UNDISCLOSED_CELL,
 } from "../../lib/admissionResults";
 import { fetchSusiResultRows } from "../../lib/admissionResultsQueries";
+import { withDedupedKeys } from "../../lib/reactKeys";
 import { CONTAINER } from "./constants";
 import { ErrorBlock, LoadingBlock } from "./StateBlocks";
 
@@ -350,47 +351,48 @@ function ResultTable({ tableRows, years, activeYear }) {
                 </td>
               </tr>
             ) : (
-              tableRows.map((row, index) => {
-                const badge = trackBadge(row.mainTrack);
-                const { delta } = row;
+              withDedupedKeys(tableRows, (row) => row.key || "unnamed").map(
+                ({ item: row, key }) => {
+                  const badge = trackBadge(row.mainTrack);
+                  const { delta } = row;
 
-                return (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: row.key가 없을 수 있어("unnamed" 폴백) index로 중복을 구분한다 — 읽기 전용 표, 재정렬 없음.
-                  <tr key={`${row.key || "unnamed"}-${index}`}>
-                    <th scope="row" className="ar-name-cell">
-                      <span className="ar-name-group">
-                        <span className="ar-name">{row.admissionType}</span>
-                        {badge && <span className="ar-badge">{badge}</span>}
-                      </span>
-                    </th>
-                    {row.cells.map((cell) => (
-                      <td key={cell.year}>
-                        <GradeCellValue cell={cell} />
-                      </td>
-                    ))}
-                    {/* Δ는 구 "평균" 열 자리다. 2개년에서 평균은 옆 두 칸의 재계산이라
+                  return (
+                    <tr key={key}>
+                      <th scope="row" className="ar-name-cell">
+                        <span className="ar-name-group">
+                          <span className="ar-name">{row.admissionType}</span>
+                          {badge && <span className="ar-badge">{badge}</span>}
+                        </span>
+                      </th>
+                      {row.cells.map((cell) => (
+                        <td key={cell.year}>
+                          <GradeCellValue cell={cell} />
+                        </td>
+                      ))}
+                      {/* Δ는 구 "평균" 열 자리다. 2개년에서 평균은 옆 두 칸의 재계산이라
                         정보량이 0이고 컷 혼합이라 의미도 불명이었다(§8.3). */}
-                    <td
-                      className="ar-delta-cell"
-                      style={{
-                        color: DELTA_TONE_COLOR[delta.tone] ?? "#525252",
-                      }}
-                    >
-                      {delta.display}
-                      {delta.state === DELTA_STATE.CUT_MISMATCH && (
-                        <>
-                          <span aria-hidden="true" className="ar-cut">
-                            *
-                          </span>
-                          <span className="sr-only">{delta.note}</span>
-                        </>
-                      )}
-                    </td>
-                    <td>{row.activeQuotaDisplay}</td>
-                    <td>{row.activeCompetitionRateDisplay}</td>
-                  </tr>
-                );
-              })
+                      <td
+                        className="ar-delta-cell"
+                        style={{
+                          color: DELTA_TONE_COLOR[delta.tone] ?? "#525252",
+                        }}
+                      >
+                        {delta.display}
+                        {delta.state === DELTA_STATE.CUT_MISMATCH && (
+                          <>
+                            <span aria-hidden="true" className="ar-cut">
+                              *
+                            </span>
+                            <span className="sr-only">{delta.note}</span>
+                          </>
+                        )}
+                      </td>
+                      <td>{row.activeQuotaDisplay}</td>
+                      <td>{row.activeCompetitionRateDisplay}</td>
+                    </tr>
+                  );
+                },
+              )
             )}
           </tbody>
         </table>
