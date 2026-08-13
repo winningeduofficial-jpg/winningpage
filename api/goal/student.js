@@ -27,6 +27,7 @@ import { getSchoolCutType } from '../../src/lib/goal/calc/index.js';
 import {
   buildAwaitingCutsPayload,
   buildStudentPayload,
+  fetchProbabilityHistory,
   fetchStudentRow,
   fetchStudentStateRow,
   openGoalSession
@@ -67,12 +68,15 @@ export default async function handler(req, res) {
       return res.status(200).json(buildAwaitingCutsPayload(row));
     }
 
-    const stateRow = await fetchStudentStateRow(supabaseAdmin, profileId);
+    const [stateRow, historyRows] = await Promise.all([
+      fetchStudentStateRow(supabaseAdmin, profileId),
+      fetchProbabilityHistory(supabaseAdmin, profileId)
+    ]);
 
     // schoolCutType 은 DB 에 저장하지 않고 school_type 에서 매번 파생한다(§7-2).
     return res
       .status(200)
-      .json(buildStudentPayload(row, stateRow, getSchoolCutType(row.school_type)));
+      .json(buildStudentPayload(row, stateRow, getSchoolCutType(row.school_type), historyRows));
   } catch (error) {
     console.error('goal/student error:', error);
     return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });

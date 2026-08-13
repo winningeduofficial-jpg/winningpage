@@ -21,7 +21,11 @@ const DAY_KEY = {
   일요일: 'sun'
 };
 
-export default function WeekdayPlanBoard({ days, onAddTask }) {
+// todayKey(선택) — 현재 표시 중인 주에 오늘이 포함될 때만 그 요일의 short key를
+// 넘긴다(src/lib/goalPlanUtils.js getTodayShortKeyInWeek). 확정 사항: 오늘 요일은
+// 헤더 pill에 링 강조 + 굵기를 한 단계 더 올려 표시한다(원래 확정 pill 디자인은
+// 그대로 두고 얹기만 한다).
+export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
   return (
     <div className="w-full max-w-[74.625rem]">
       {/* 요일 헤더 행 — 150×36, gap 24px(part-09 §269). 요일명(bold)+날짜(회색) 인라인 2스타일 —
@@ -29,14 +33,18 @@ export default function WeekdayPlanBoard({ days, onAddTask }) {
       <div className="grid grid-cols-7 gap-[1.5rem]">
         {days.map((day) => {
           const key = DAY_KEY[day.day] ?? 'mon';
+          const isToday = todayKey != null && key === todayKey;
           return (
             <div
               key={day.day}
-              className={`flex h-[2.25rem] items-center rounded-lg px-3 ${WEEKDAY_BG_CLASS[key]}`}
+              className={`flex h-[2.25rem] items-center rounded-lg px-3 ${WEEKDAY_BG_CLASS[key]} ${
+                isToday ? 'ring-2 ring-ink-strong ring-offset-1' : ''
+              }`}
             >
               <span className="truncate text-[0.8125rem] leading-[1.4]">
-                <span className="font-bold text-ink-strong">{day.day}</span>{' '}
+                <span className={`text-ink-strong ${isToday ? 'font-black' : 'font-bold'}`}>{day.day}</span>{' '}
                 <span className="text-ink-sub">{String(day.date).padStart(2, '0')}</span>
+                {isToday && <span className="sr-only"> (오늘)</span>}
               </span>
             </div>
           );
@@ -49,7 +57,7 @@ export default function WeekdayPlanBoard({ days, onAddTask }) {
           <button
             key={day.day}
             type="button"
-            onClick={() => onAddTask(day.day)}
+            onClick={() => onAddTask(day.day, day.dateYmd)}
             className="flex h-[2.6875rem] items-center justify-center rounded-lg border border-line bg-white text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
           >
             + 추가

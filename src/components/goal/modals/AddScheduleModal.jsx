@@ -5,9 +5,13 @@ import SegmentedChipGroup from '../SegmentedChipGroup';
 import { goalModalOptions } from '../../../data/goalMock';
 
 // 중요일정 등록 모달 — docs/figma-goal/part-07.md #19 (530×574 = 33.125rem × 35.875rem, 대시보드
-// 진입 버전). 624px 버전(#40/#42, 중요일정 목록 페이지 전용)은 이번 범위 아님 — AppModal이 그대로
-// 재사용 가능하니 폼 구성만 그쪽에서 다시 만들면 된다.
-// 트리거: ScheduleRail("+").
+// 진입 버전). 624px 버전(#40/#42, 중요일정 목록 페이지 전용, AddScheduleFullModal.jsx)이 정본이다.
+//
+// ⚠ 미사용(중요일정 D 백엔드 배선 UoW, 2026-08-13) — ScheduleRail("+")은 더 이상 이 모달을
+// 열지 않고 /app/goal/schedules(정본 등록 모달)로 이동한다. 이 폼의 `range`(반복 범위, RANGE_OPTIONS)
+// 필드가 goal_schedules 테이블(sql/74_goal_schedules.sql)에 대응 컬럼이 없어, 그대로 실 API에
+// 연결하면 사용자가 고른 값을 서버가 조용히 버려야 한다 — 스키마가 그 필드를 받을 방법이 생기기
+// 전까지는 컴포넌트를 지우지 않고 미사용 상태로만 남겨 둔다(트리거가 없어 현재 어디서도 렌더되지 않는다).
 const SCHEDULE_TYPE_OPTIONS = goalModalOptions.scheduleTypes.map((label) => ({ value: label, label }));
 const RANGE_OPTIONS = goalModalOptions.scheduleRanges.map((label) => ({ value: label, label }));
 

@@ -472,6 +472,47 @@ async function main() {
     const doc = baseDoc([{ kind: 'keyValue', rows: [{ label: '지원자격', content: '고등학교 졸업(예정)자' }] }]);
     const out = render(doc);
     record('block:keyValue — 렌더 성공(legacy 대응 마크업 없음, 최소 구현)', out.includes('지원자격') && out.includes('고등학교 졸업'), out);
+    // 하위 호환 잠금 — `href` 확장(수행평가 설계 리포트 §8.5)이 들어온 뒤에도 href 없는 행은
+    // 앵커를 만들지 않는다. 대입 모집요강 생성 경로는 href를 만들지 않으므로 이 경로가 정상이다.
+    record('block:keyValue — href 없으면 <a> 없음(기존 경로 불변)', !out.includes('<a '), out);
+  }
+
+  {
+    // `href` 확장 — 외부 자료 링크라 새 창 + noopener noreferrer가 필수다.
+    const doc = baseDoc([
+      {
+        kind: 'keyValue',
+        rows: [{ label: '출처 링크', content: 'https://example.org/a', href: 'https://example.org/a' }]
+      }
+    ]);
+    const out = render(doc);
+    const pass =
+      out.includes('<a class="admission-inline-link"') &&
+      out.includes('href="https://example.org/a"') &&
+      out.includes('target="_blank"') &&
+      out.includes('rel="noopener noreferrer"') &&
+      out.includes('aria-label="https://example.org/a (새 창)"');
+    record('block:keyValue — href 확장이 새 창 앵커 + 안전 속성을 낸다', pass, out);
+  }
+
+  {
+    // `ordered` 확장 — `<ol>` + admission-ordered-list. 기존 `<ul>` 경로는 위 픽스처가 잠근다.
+    const doc = baseDoc([
+      {
+        kind: 'plainList',
+        ordered: true,
+        items: [
+          { type: 'bullet', text: '첫째' },
+          { type: 'bullet', text: '둘째' }
+        ]
+      }
+    ]);
+    const out = render(doc);
+    const pass =
+      out.includes('<ol class="admission-bullet-list admission-ordered-list">') &&
+      !out.includes('<ul') &&
+      (out.match(/<li>/g) || []).length === 2;
+    record('block:plainList — ordered:true면 <ol>(번호 목록)', pass, out);
   }
 
   {
