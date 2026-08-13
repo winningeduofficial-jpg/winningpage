@@ -17,6 +17,10 @@
     {
       "path": "/api/performance/cleanup-attachments",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/performance/embed-session-vectors",
+      "schedule": "30 18 * * *"
     }
   ]
 }
