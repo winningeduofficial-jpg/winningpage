@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>위닝 자기평가서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --blue:#2C6BE8; --blue-d:#1B4FBF; --blue-l:#EEF3FE; --blue-ll:#F7FAFF;
+  --ink:#0E1726; --ink2:#3D4A5C; --ink3:#7A879B; --line:#E4E9F2; --bg:#F4F6FA;
+  --ok:#12855F; --ok-bg:#E7F6F0; --warn:#B5741A; --warn-bg:#FDF4E4; --danger:#C0392B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Pretendard,-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;font-size:14px;line-height:1.6}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+
+/* Header */
+.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.top-in{max-width:1120px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
+.logo{font-weight:800;font-size:17px;letter-spacing:-.4px;display:flex;align-items:center;gap:8px}
+.logo b{color:var(--blue)}
+.logo-mark{width:26px;height:26px;border-radius:8px;background:var(--blue);color:#fff;
+  display:grid;place-items:center;font-size:13px;font-weight:900}
+.spacer{flex:1}
+.chip{background:var(--blue-l);color:var(--blue-d);padding:6px 12px;border-radius:999px;
+  font-size:12px;font-weight:700}
+.chip.grey{background:#F1F3F7;color:var(--ink2)}
+.avatar{width:32px;height:32px;border-radius:50%;background:#DDE6FA;color:var(--blue-d);
+  display:grid;place-items:center;font-weight:800;font-size:12px}
+
+/* Steps */
+.steps{background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
+.steps-in{max-width:1120px;margin:0 auto;padding:0 20px;display:flex;gap:2px}
+.step{padding:13px 16px;font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer;
+  border-bottom:2.5px solid transparent;white-space:nowrap;background:none;border-top:0;border-left:0;border-right:0;font-family:inherit}
+.step:hover{color:var(--ink2)}
+.step.on{color:var(--blue);border-bottom-color:var(--blue)}
+.step span{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:6px;
+  background:#EDF0F5;color:var(--ink3);font-size:11px;font-weight:800;margin-right:7px}
+.step.on span{background:var(--blue);color:#fff}
+
+/* Layout */
+.screen{display:none;padding-top:26px}
+.screen.on{display:block}
+h1{font-size:23px;font-weight:800;letter-spacing:-.6px;margin-bottom:5px}
+.sub{color:var(--ink3);font-size:13.5px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+.card-t{font-size:15px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-s{font-size:12.5px;color:var(--ink3);margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cols{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+@media(max-width:900px){.grid2,.grid3,.cols{grid-template-columns:1fr}}
+
+/* Form */
+label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px}
+.inp{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  font-family:inherit;font-size:13.5px;background:#fff;color:var(--ink)}
+.inp:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
+textarea.inp{resize:vertical;line-height:1.7}
+.field{margin-bottom:14px}
+.hint{font-size:11.5px;color:var(--ink3);margin-top:5px}
+.pill-row{display:flex;gap:7px;flex-wrap:wrap}
+.pill{padding:8px 14px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;
+  font-weight:600;cursor:pointer;background:#fff;color:var(--ink2);font-family:inherit}
+.pill.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn{padding:11px 20px;border-radius:11px;border:0;font-family:inherit;font-size:13.5px;
+  font-weight:700;cursor:pointer;background:var(--blue);color:#fff}
+.btn:hover{background:var(--blue-d)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink2)}
+.btn.sm{padding:8px 14px;font-size:12.5px;border-radius:9px}
+.actions{display:flex;gap:9px;justify-content:flex-end;margin-top:20px}
+
+/* Activity list */
+.act{border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:9px;
+  display:flex;gap:13px;align-items:flex-start;background:#fff}
+.act.sel{border-color:var(--blue);background:var(--blue-ll);box-shadow:0 0 0 1px var(--blue) inset}
+.act input{margin-top:3px;width:16px;height:16px;accent-color:var(--blue)}
+.act-h{font-weight:700;font-size:13.5px;margin-bottom:5px;line-height:1.4}
+.act-m{font-size:11.5px;color:var(--ink3);display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.tag{background:#F1F3F7;color:var(--ink2);padding:2.5px 8px;border-radius:6px;font-size:11px;font-weight:600}
+.tag.b{background:var(--blue-l);color:var(--blue-d)}
+.tag.g{background:var(--ok-bg);color:var(--ok)}
+.act-x{font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.65}
+
+/* JSON edit */
+.kv{display:grid;grid-template-columns:150px 1fr;gap:0;border-top:1px solid var(--line)}
+.kv > div{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--line)}
+.kv .k{background:#FAFBFD;font-weight:700;color:var(--ink2);font-size:12px}
+.kv .v{line-height:1.65}
+.kv .v[contenteditable]{outline:none}
+.kv .v:focus{background:var(--blue-ll)}
+
+/* Result */
+.doc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;
+  font-size:14.5px;line-height:2.05;letter-spacing:-.2px}
+.doc mark{background:#FFF3D6;padding:1px 0;border-bottom:1.5px dashed #E0A33A}
+.doc .ev{background:var(--blue-ll);border-bottom:1.5px solid #B9CDF6;padding:1px 0;cursor:help}
+.meter{display:flex;gap:10px;margin-bottom:14px}
+.meter div{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.meter .n{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.meter .l{font-size:11.5px;color:var(--ink3);font-weight:600}
+.bar{height:6px;background:#EDF0F5;border-radius:99px;overflow:hidden;margin-top:9px}
+.bar i{display:block;height:100%;background:var(--blue);border-radius:99px}
+.note{border-left:3px solid var(--blue);background:var(--blue-ll);padding:12px 15px;
+  border-radius:0 10px 10px 0;font-size:12.5px;color:var(--ink2);line-height:1.7}
+.note.warn{border-color:#E0A33A;background:var(--warn-bg);color:var(--warn)}
+.note.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.chk{display:flex;gap:9px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12.5px;align-items:flex-start}
+.chk:last-child{border:0}
+.chk > b{flex-shrink:0;width:17px;height:17px;border-radius:6px;display:grid;place-items:center;
+  font-size:10px;color:#fff;margin-top:1px;font-weight:800;line-height:1}
+.chk.o > b{background:var(--ok)}.chk.w > b{background:#E0A33A}
+/* Version */
+.ver{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);align-items:center}
+.ver:last-child{border:0}
+.ver .vn{width:44px;height:44px;border-radius:12px;background:var(--blue-l);color:var(--blue-d);
+  display:grid;place-items:center;font-weight:800;font-size:13px;flex-shrink:0}
+.ver .vt{flex:1;font-size:13px}
+.ver .vt small{display:block;color:var(--ink3);font-size:11.5px;margin-top:2px}
+/* Login */
+.login{max-width:400px;margin:70px auto;background:#fff;border:1px solid var(--line);
+  border-radius:20px;padding:34px}
+.stat{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;
+  background:var(--blue-ll);border:1px solid #DCE7FC;border-radius:12px;margin-bottom:8px}
+.stat b{font-size:15px;color:var(--blue-d)}
+/* 방향 배너 */
+.dir{background:linear-gradient(135deg,#1B4FBF,#2C6BE8);color:#fff;border-radius:16px;padding:24px 26px;margin-bottom:16px}
+.dir .eb{font-size:10.5px;font-weight:800;letter-spacing:1.2px;opacity:.75;margin-bottom:8px}
+.dir h3{font-size:18px;font-weight:800;letter-spacing:-.5px;line-height:1.45;margin-bottom:10px}
+.dir p{font-size:13px;opacity:.92;line-height:1.75}
+.dir .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.dir .row span{background:rgba(255,255,255,.16);padding:5px 11px;border-radius:8px;font-size:11.5px;font-weight:700}
+.dir.slim{padding:16px 20px;margin-bottom:14px}
+.dir.slim h3{font-size:14.5px;margin-bottom:5px}
+.dir.slim p{font-size:12.5px}
+/* 연계 후보 */
+.lk{border:1px solid var(--line);border-radius:14px;padding:17px 19px;margin-bottom:10px;background:#fff;cursor:pointer}
+.lk.on{border-color:var(--blue);background:var(--blue-ll);box-shadow:0 0 0 1px var(--blue) inset}
+.lk.no{background:#FAFBFD;opacity:.75}
+.lk-h{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:800;margin-bottom:8px}
+.lk-r{display:grid;grid-template-columns:82px 1fr;font-size:12.5px;line-height:1.7}
+.lk-r > div{padding:6px 0;border-top:1px solid var(--line)}
+.lk-r .k{font-weight:700;color:var(--ink3);font-size:11.5px}
+.lk.on .lk-r > div{border-color:#CFE0FA}
+.fit{display:flex;gap:3px;align-items:center}
+.fit b{width:16px;height:5px;border-radius:99px;background:#E4E9F2;display:block}
+.fit b.f{background:var(--blue)}
+.fit.low b.f{background:#C3CCDA}
+/* 추천 배지 */
+.rec{background:var(--ok-bg);color:var(--ok);font-size:10.5px;font-weight:800;padding:2.5px 8px;border-radius:6px}
+.act.auto{border-color:#B6DCC9;background:#F4FBF8}
+.why{font-size:11.5px;color:var(--ok);margin-top:7px;display:flex;gap:6px;align-items:flex-start;line-height:1.6}
+.why.no{color:var(--ink3)}
+/* 검사 카테고리 */
+.cat{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--line)}
+.cat:first-of-type{margin-top:0;padding-top:0;border-top:0}
+.cat .cn{width:22px;height:22px;border-radius:7px;background:var(--ink);color:#fff;
+  display:grid;place-items:center;font-size:11px;font-weight:800}
+.cat h4{font-size:13.5px;font-weight:800;flex:1}
+.cat .cs{font-size:11.5px;font-weight:700;color:var(--ok)}
+.cat .cs.w{color:var(--warn)}
+.ideal{border:1px solid #CFE0FA;background:var(--blue-ll);border-radius:12px;padding:15px 17px;margin-top:10px}
+.ideal .src{font-size:10.5px;font-weight:800;color:var(--blue-d);letter-spacing:.5px;margin-bottom:7px}
+.ideal q{display:block;font-size:13px;font-weight:700;line-height:1.65;margin-bottom:9px;quotes:none}
+.ideal p{font-size:12.5px;color:var(--ink2);line-height:1.7}
+.fix{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:9px}
+.fix .fh{font-size:12.5px;font-weight:800;margin-bottom:6px;display:flex;gap:7px;align-items:center}
+.fix .fb{font-size:12.5px;color:var(--ink2);line-height:1.7}
+.fix .fo{font-size:12.5px;background:#FFF3D6;border-radius:8px;padding:9px 11px;margin-top:8px;line-height:1.65}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="top-in">
+  <div class="logo"><span class="logo-mark">W</span>위닝 <b>자기평가서</b></div>
+  <div class="spacer"></div>
+  <div class="chip">잔여 7 / 10회</div>
+  <div class="chip grey">2026학년도 2학기</div>
+  <div class="avatar">김서</div>
+</div></div>
+
+<div class="steps"><div class="steps-in">
+  <button class="step on" onclick="go(0,this)"><span>1</span>진입</button>
+  <button class="step" onclick="go(1,this)"><span>2</span>기본 입력</button>
+  <button class="step" onclick="go(2,this)"><span>3</span>활동 불러오기</button>
+  <button class="step" onclick="go(3,this)"><span>4</span>분석 확인</button>
+  <button class="step" onclick="go(4,this)"><span>5</span>생성 결과</button>
+  <button class="step" onclick="go(5,this)"><span>6</span>검증·저장</button>
+</div></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section class="screen on">
+  <div class="login">
+    <div class="logo" style="margin-bottom:20px"><span class="logo-mark">W</span>위닝 <b>자기평가서</b></div>
+    <h1 style="font-size:19px">김서연 학생, 반갑습니다</h1>
+    <p class="sub" style="margin-bottom:20px">위닝 홈페이지에서 바로 입장했습니다.</p>
+    <div class="stat"><span>이용 가능 횟수</span><b>7 / 10회</b></div>
+    <div class="stat"><span>저장된 활동</span><b>14건</b></div>
+    <div class="stat"><span>작성 중인 자기평가서</span><b>2건</b></div>
+    <button class="btn" style="width:100%;margin-top:18px">새 자기평가서 만들기</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px">이어서 작성하기</button>
+    <p class="hint" style="text-align:center;margin-top:16px">한빛고등학교 · 2학년 · 도시공학 계열 희망</p>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="screen">
+  <h1>어떤 자기평가서를 쓸까요</h1>
+  <p class="sub">과목과 문항을 입력하면 이번 학기 방향과 연계 후보를 찾아드립니다.</p>
+  <div class="cols">
+    <div>
+      <div class="card">
+        <div class="card-t">작성 범위</div>
+        <div class="grid3">
+          <div class="field"><label>학년도</label><input class="inp" value="2026"></div>
+          <div class="field"><label>학년</label><input class="inp" value="2학년"></div>
+          <div class="field"><label>학기</label><input class="inp" value="2학기"></div>
+        </div>
+        <div class="field"><label>작성 영역</label>
+          <div class="pill-row">
+            <button class="pill on">교과</button><button class="pill">자율</button>
+            <button class="pill">동아리</button><button class="pill">진로</button>
+          </div>
+        </div>
+        <div class="field"><label>과목</label><input class="inp" value="확률과 통계"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-t">학교에서 제시한 문항</div>
+        <div class="field">
+          <textarea class="inp" rows="3">수업 중 진행한 탐구 활동에서 자신이 맡은 역할과 그 과정에서 배운 점을 구체적으로 서술하시오.</textarea>
+        </div>
+        <div class="field"><label>선생님 요구사항</label>
+          <textarea class="inp" rows="2">활동 나열 금지. 판단 근거와 수정 과정이 드러날 것.</textarea>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>목표 글자 수</label><input class="inp" value="1050"></div>
+          <div class="field"><label>계산 방식</label>
+            <div class="pill-row"><button class="pill on">공백 포함</button><button class="pill">공백 제외</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dir">
+        <div class="eb">위닝 성장설계 제안 · 2026.11.14 리포트</div>
+        <h3>자료를 받아 쓰는 사람에서<br>자료를 만들고 검증하는 사람으로</h3>
+        <p>2학년 2학기 교과 활동은 이 방향으로 묶는 것을 권합니다. 학생은 지금까지 관찰한 것을 숫자로 바꾸는 데는 익숙하지만, 그 숫자가 믿을 만한지 따지는 기록은 이번 학기에 처음 나옵니다. 이 지점을 세특의 중심에 두세요.</p>
+        <div class="row">
+          <span>강조 · 측정 기준을 스스로 정한 경험</span>
+          <span>강조 · 판단을 되돌린 과정</span>
+          <span>피할 것 · 결과 수치 나열</span>
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--blue);background:var(--blue-ll);padding:16px 20px;
+        display:flex;align-items:center;gap:12px">
+        <div style="flex:1;font-size:13px;line-height:1.65">
+          <b>이 방향을 이번 자기평가서에 적용합니다.</b><br>
+          <span style="color:var(--ink3);font-size:12.5px">적용하면 활동 선택과 문장 강조점이 이 방향에 맞춰집니다.</span>
+        </div>
+        <span class="tag g">적용됨</span>
+        <button class="btn ghost sm">해제</button>
+      </div>
+
+      <div class="card">
+        <div class="card-t">연계 과목 후보</div>
+        <div class="card-s">확률과 통계에 저장된 활동 내용을 읽고, <b>이전 활동이 이번 활동으로 발전한 흐름</b>이 있는 과목을 찾았습니다. 학생이 직접 적을 필요는 없습니다.</div>
+
+        <div class="lk on">
+          <div class="lk-h">한국지리 <span class="rec">1순위</span>
+            <span class="spacer" style="flex:1"></span><span class="tag b">선택됨</span></div>
+          <div class="lk-r">
+            <div class="k">이전 활동</div><div>지역성을 활용한 장소마케팅 (2026.10.02) — 지자체 유동인구 공개데이터로 상권 밀집 구간 도출</div>
+            <div class="k">발전 지점</div><div>그 활동에서 <b>결측 구간을 발견하고도 이유를 몰라 제외</b>했습니다. 이번 확률과 통계 활동에서는 자료를 직접 수집해 표본과 통제 조건을 스스로 정하는 데까지 갔습니다.</div>
+            <div class="k">전개 방향</div><div>“남이 준 자료를 쓰다 한계를 만남 → 자료를 만드는 쪽으로 이동 → 만들면서 같은 문제를 다시 만남”. 성장설계 방향과 정확히 맞습니다.</div>
+            <div class="k">적합도</div><div><span class="fit"><b class="f"></b><b class="f"></b><b class="f"></b><b class="f"></b><b class="f"></b></span> 높음</div>
+          </div>
+        </div>
+
+        <div class="lk">
+          <div class="lk-h">통합과학 <span class="tag">2순위</span></div>
+          <div class="lk-r">
+            <div class="k">이전 활동</div><div>도시 열섬 현상 조사 (1학년, 2025.06) — 지점별 온도 측정 후 완화 정책 정리</div>
+            <div class="k">발전 지점</div><div>측정 지점 선정 기준을 세웠던 경험이 이번 대기인원 조작적 정의와 이어집니다. 다만 <b>1년 반의 공백</b>이 있어 흐름이 끊겨 보일 수 있습니다.</div>
+            <div class="k">전개 방향</div><div>“측정 기준을 정하는 일은 과목이 달라도 같다”로 묶습니다. 성장설계가 제안한 <b>끊긴 축 잇기</b>에는 부합합니다.</div>
+            <div class="k">적합도</div><div><span class="fit"><b class="f"></b><b class="f"></b><b class="f"></b><b></b><b></b></span> 보통</div>
+          </div>
+        </div>
+
+        <div class="lk no">
+          <div class="lk-h" style="color:var(--ink3)">화법과 작문 <span class="tag">권하지 않음</span></div>
+          <div class="lk-r">
+            <div class="k">이전 활동</div><div>토론 발표 3건</div>
+            <div class="k">판단</div><div>발표 경험은 있으나 <b>개념이 발전한 흐름이 없습니다.</b> 이번 활동과 나란히 놓으면 과목 이름만 늘어난 것으로 읽힙니다.</div>
+            <div class="k">적합도</div><div><span class="fit low"><b class="f"></b><b></b><b></b><b></b><b></b></span> 낮음</div>
+          </div>
+        </div>
+
+        <button class="btn ghost sm" style="width:100%;margin-top:6px">연계 없이 이 과목만으로 쓰기</button>
+      </div>
+      <div class="actions"><button class="btn ghost">임시 저장</button><button class="btn">활동 불러오기 →</button></div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-t">진로 정보</div>
+        <div class="card-s">활동 선택과 강조점에만 씁니다.</div>
+        <div class="field"><label>희망 진로</label><input class="inp" value="도시데이터 분석"></div>
+        <div class="field"><label>희망 학과</label><input class="inp" value="도시공학과"></div>
+        <div class="field"><label>희망 대학</label><input class="inp" value="건국대학교"></div>
+        <div class="note">완성된 문장에 대학 이름은 넣지 않습니다.</div>
+      </div>
+      <div class="card">
+        <div class="card-t">연계란 무엇인가</div>
+        <div class="chk o"><b>✓</b><div>연계 과목의 <b>이전 활동</b>이 지금 이 과목의 활동으로 <b>발전한 경우</b>에만 씁니다</div></div>
+        <div class="chk w"><b>!</b><div>같은 주제를 두 과목에서 비슷한 수준으로 반복한 것은 연계가 아닙니다</div></div>
+        <div class="chk w"><b>!</b><div>발전한 흐름이 없으면 <b>연계 없이 쓰는 편</b>이 낫습니다</div></div>
+      </div>
+      <div class="card">
+        <div class="card-t">문체</div>
+        <div class="pill-row" style="margin-bottom:10px">
+          <button class="pill on">학생 제출형</button><button class="pill">교사 기록형</button>
+        </div>
+        <p class="hint">학생 제출형은 '~했다', 교사 기록형은 '~함' 문체로 씁니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="screen">
+  <h1>이 방향에 맞는 활동을 골라뒀습니다</h1>
+  <p class="sub">추천을 해제하거나 다른 활동을 추가할 수 있습니다. 최종 선택은 학생이 합니다.</p>
+
+  <div class="dir slim">
+    <div class="eb">적용된 방향 · 성장설계 제안</div>
+    <h3>자료를 받아 쓰는 사람에서 자료를 만들고 검증하는 사람으로</h3>
+    <p>연계 과목 · 한국지리 &nbsp;|&nbsp; 강조 · 측정 기준을 스스로 정한 경험, 판단을 되돌린 과정</p>
+  </div>
+
+  <div class="card" style="padding:18px 20px">
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:9px">불러올 곳</div>
+    <div class="pill-row multi" style="margin-bottom:14px">
+      <button class="pill on">위닝 수행평가 9</button>
+      <button class="pill on">위닝 심화탐구 2</button>
+      <button class="pill on">위닝 자기평가서 3</button>
+      <button class="pill">직접 입력 0</button>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:14px">
+      <select class="inp" style="width:auto"><option>2026학년도</option></select>
+      <select class="inp" style="width:auto"><option>2학년</option></select>
+      <select class="inp" style="width:auto"><option>2학기</option></select>
+      <select class="inp" style="width:auto"><option>전체 영역</option></select>
+      <select class="inp" style="width:auto"><option>확률과 통계 + 한국지리</option></select>
+      <div class="spacer"></div>
+      <span class="chip">추천 3건 선택됨</span>
+    </div>
+  </div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--ok);letter-spacing:.4px;margin:20px 0 10px">
+    방향에 맞는 활동 · 자동 선택됨</div>
+
+  <div class="act sel auto"><input type="checkbox" checked><div>
+    <div class="act-h">버스 배차 간격과 정류장 대기인원의 관계 분석 <span class="rec">핵심</span></div>
+    <div class="act-m"><span class="tag b">확률과 통계</span><span class="tag">수행평가</span>
+      <span class="tag g">위닝 수행평가</span>2026.09.18</div>
+    <div class="act-x">3개 정류장에서 평일 열흘간 대기인원을 직접 계수. 조원 간 측정 기준이 달라 조작적 정의를 다시 세우고 재측정함. 상관계수 0.71을 얻었으나 강수일이 섞여 회귀 예측은 철회.</div>
+    <div class="why"><b>추천</b><div>측정 기준을 스스로 정하고 판단을 되돌린 기록이 둘 다 들어 있습니다. 이번 방향의 중심 활동입니다.</div></div>
+  </div></div>
+
+  <div class="act sel auto"><input type="checkbox" checked><div>
+    <div class="act-h">지역성을 활용한 장소마케팅 <span class="rec">연계</span></div>
+    <div class="act-m"><span class="tag b">한국지리</span><span class="tag">발표</span>
+      <span class="tag g">위닝 심화탐구</span>2026.10.02</div>
+    <div class="act-x">지자체 유동인구 공개데이터를 요일·시간대별로 재가공해 상권 밀집 구간 도출. 결측 구간을 발견했으나 이유를 알 수 없어 제외하고 진행.</div>
+    <div class="why"><b>추천</b><div>선택하신 연계 과목의 <b>출발 활동</b>입니다. 첫 문단의 "받아 쓰는 자료"에 해당합니다.</div></div>
+  </div></div>
+
+  <div class="act sel auto"><input type="checkbox" checked><div>
+    <div class="act-h">표본조사 설계 오류 사례 발표 <span class="rec">마무리</span></div>
+    <div class="act-m"><span class="tag b">확률과 통계</span><span class="tag">발표</span>2026.11.06</div>
+    <div class="act-x">자신의 배차 분석 표본 편향을 사례로 단순임의추출·층화추출·계통추출을 비교 발표함.</div>
+    <div class="why"><b>추천</b><div>자기 판단을 다시 검토한 기록이라 마지막 문단으로 쓰기 좋습니다.</div></div>
+  </div></div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--ink3);letter-spacing:.4px;margin:24px 0 10px">
+    이번 방향에서는 추천하지 않음 · 직접 추가할 수 있습니다</div>
+
+  <div class="act"><input type="checkbox"><div>
+    <div class="act-h">강수 조건을 통제한 대기인원 재분석</div>
+    <div class="act-m"><span class="tag b">확률과 통계</span><span class="tag">심화탐구</span>
+      <span class="tag g">위닝 심화탐구</span>2026.11.14</div>
+    <div class="act-x">기상청 공개데이터를 결합해 강수일을 분리하는 계획. 관측은 11월 18일 시작 예정.</div>
+    <div class="why no"><b>·</b><div>아직 수행하지 않은 활동입니다. 넣으면 하지 않은 일을 쓴 것이 됩니다.</div></div>
+  </div></div>
+
+  <div class="act"><input type="checkbox"><div>
+    <div class="act-h">기후변화와 도시 열섬 현상 독서 기록</div>
+    <div class="act-m"><span class="tag b">통합과학</span><span class="tag">독서</span>2026.05.21</div>
+    <div class="act-x">『도시는 왜 뜨거워지는가』를 읽고 열섬 완화 정책 세 가지를 정리함.</div>
+    <div class="why no"><b>·</b><div>주제는 가깝지만 <b>자료를 다루는 태도</b>와는 연결점이 없습니다. 이번 방향과 어긋납니다.</div></div>
+  </div></div>
+
+  <div class="act"><input type="checkbox"><div>
+    <div class="act-h">1학년 열섬 조사 후속 — 도시 온도와 유동인구 함께 보기</div>
+    <div class="act-m"><span class="tag b">통합과학</span><span class="tag">프로젝트</span>
+      <span class="tag g">위닝 성장설계 제안</span>2026.11.20 예정</div>
+    <div class="act-x">성장설계 리포트에서 제안받아 계획한 활동. 아직 수행 전.</div>
+    <div class="why no"><b>·</b><div>수행 전이라 이번에는 쓸 수 없습니다. 다음 학기 자기평가서에서 쓰세요.</div></div>
+  </div></div>
+
+  <div class="card" style="background:var(--blue-ll);border-color:#DCE7FC;margin-top:18px">
+    <div class="card-t">추가로 넣을 자료</div>
+    <div class="card-s">저장된 활동 외에 직접 쓰거나 파일을 올릴 수 있습니다.</div>
+    <div class="grid3">
+      <button class="btn ghost">직접 입력</button>
+      <button class="btn ghost">파일 올리기</button>
+      <button class="btn ghost">선생님 피드백 추가</button>
+    </div>
+    <p class="hint">PDF · 이미지 · TXT · DOCX / 파일당 10MB, 최대 5개</p>
+  </div>
+  <div class="actions"><button class="btn ghost">← 이전</button><button class="btn">선택한 3건 분석하기</button></div>
+</section>
+
+<!-- 4 -->
+<section class="screen">
+  <h1>분석한 내용이 맞는지 봐주세요</h1>
+  <p class="sub">틀린 부분은 직접 고칠 수 있습니다. 확인되지 않은 항목은 비워두어도 됩니다.</p>
+  <div class="cols">
+    <div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--line)">
+          <div class="card-t" style="margin:0">버스 배차 간격과 정류장 대기인원의 관계 분석
+            <span class="tag b" style="margin-left:4px">핵심 활동</span></div>
+        </div>
+        <div class="kv">
+          <div class="k">계기</div><div class="v" contenteditable>등교 시간대에만 유독 버스가 붐비는 이유가 배차 때문인지 확인하고 싶었음</div>
+          <div class="k">교과 개념</div><div class="v" contenteditable>상관계수, 산점도, 표본추출, 이상치 처리</div>
+          <div class="k">한 일</div><div class="v" contenteditable>3개 정류장 평일 10일간 07:20~08:40 대기인원 직접 계수 / 배차표 대조 / 엑셀로 산점도 작성</div>
+          <div class="k">방법</div><div class="v" contenteditable>직접 관측 + 공개 배차표 대조, 상관계수 산출</div>
+          <div class="k">결과·근거</div><div class="v" contenteditable>상관계수 0.71로 양의 상관 확인. 다만 표본 10일은 결론을 일반화하기에 부족하다고 판단</div>
+          <div class="k">역할</div><div class="v" contenteditable>3인 모둠에서 자료 수집 설계와 분석 담당</div>
+          <div class="k">협업</div><div class="v" contenteditable>정류장별 관측 담당을 나누고, 계수 기준이 달라 생긴 오차를 회의로 통일</div>
+          <div class="k">배운 점</div><div class="v" contenteditable>상관이 인과가 아니라는 점, 표본 크기가 결론의 범위를 정한다는 점</div>
+          <div class="k">진로 연결</div><div class="v" contenteditable>도시 교통 데이터를 다루는 일에 관심이 생김</div>
+          <div class="k">한계</div><div class="v" contenteditable>날씨·요일 효과를 통제하지 못함</div>
+          <div class="k">다음 단계</div><div class="v" contenteditable>기간을 늘리고 강수일을 분리해 재분석</div>
+          <div class="k" style="color:var(--warn)">확인 필요</div>
+          <div class="v" style="background:var(--warn-bg);color:var(--warn)">
+            관측 기간이 <b>10일</b>이 맞습니까? 업로드한 보고서에는 "2주"로 적혀 있습니다. 하나로 맞춰주세요.</div>
+        </div>
+      </div>
+      <div class="actions"><button class="btn ghost">← 이전</button><button class="btn">이 내용으로 작성하기</button></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-t">활동 비중</div>
+        <div class="card-s">핵심 활동을 중심으로 쓰고, 나머지는 짧게 연결합니다.</div>
+        <div style="font-size:13px;line-height:2.2">
+          <div>① 버스 배차 분석 <span class="tag b" style="float:right">핵심</span></div>
+          <div>② 유동인구 재가공 <span class="tag" style="float:right">보조</span></div>
+          <div>③ 표본 오류 발표 <span class="tag" style="float:right">보조</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-t">작성 원칙</div>
+        <div class="chk o"><b>✓</b><div>자료에서 확인된 사실만 씁니다</div></div>
+        <div class="chk o"><b>✓</b><div>수치·감정·태도 변화를 지어내지 않습니다</div></div>
+        <div class="chk o"><b>✓</b><div>활동 나열 대신 판단과 수정 과정을 씁니다</div></div>
+        <div class="chk o"><b>✓</b><div>진로를 억지로 연결하지 않습니다</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="screen">
+  <h1>자기평가서가 완성됐습니다</h1>
+  <p class="sub">문장을 클릭하면 어떤 활동에서 나왔는지 볼 수 있습니다. 바로 고쳐도 됩니다.</p>
+  <div class="meter">
+    <div><div class="l">공백 포함</div><div class="n">1,043자</div><div class="bar"><i style="width:100%"></i></div></div>
+    <div><div class="l">공백 제외</div><div class="n">841자</div></div>
+    <div><div class="l">목표 1,050자 대비</div><div class="n" style="color:var(--ok)">-7자</div></div>
+    <div><div class="l">사용한 활동</div><div class="n">3건</div></div>
+  </div>
+  <div class="cols">
+    <div>
+      <div class="doc" contenteditable>
+        <p>앞서 한국지리 장소마케팅 활동에서 <span class="ev">지자체 유동인구 공개데이터로 상권 밀집 구간을 도출하다가 특정 기간의 값이 통째로 비어 있는 것을 발견했다.</span> 그때는 이유를 알 수 없어 해당 구간을 제외하고 넘어갔는데, 확률과 통계 <b>표본과 자료의 정리</b> 단원을 배우면서 그 판단이 자료를 주어진 것으로만 다뤘기 때문이라는 것을 알게 됐다. <span class="ev">자료를 직접 만들어보면 어디에서 문제가 생기는지 알 수 있겠다고 판단해</span> 이번에는 배차 간격과 정류장 대기인원을 직접 수집하는 쪽으로 탐구를 설계했다.</p>
+
+        <p>세 정류장에서 평일 아침 열흘간 대기인원을 직접 세었다. 사흘째에 <span class="ev">조원마다 '대기인원'의 기준이 달라 같은 시간대 수치가 두 배 가까이 벌어지는 것</span>을 확인했다. 수업에서 배운 <b>측정의 신뢰도</b>가 실제로 무너지는 상황이었다. 회의를 열어 '버스 도착 직전 표지판 3미터 안에 서 있는 사람'으로 조작적 정의를 다시 세우고 이틀 치를 재측정했다. 이 과정에서 <span class="ev">유동인구 데이터의 빈 구간도 누군가의 측정 기준이 바뀐 결과일 수 있겠다</span>는 데까지 생각이 이어졌다.</p>
+
+        <p>배차 간격과 대기인원의 <b>상관계수는 0.71</b>이었다. 처음에는 이 값으로 회귀식을 세워 대기인원을 예측해보려 했다. 그러나 <span class="ev">표본이 열흘이고 그중 이틀이 강수일이라 두 조건이 섞여 있었다.</span> 상관계수는 두 변수의 관계만 말해줄 뿐 다른 변수가 개입했는지는 알려주지 않는다는 점을 확인하고, 예측까지 나아가지 않기로 판단을 수정했다. 대신 산점도와 상관계수까지만 제시하고 통제하지 못한 조건을 발표에 명시했다. <mark>상관이 인과가 아니라는 문장을 수업에서 들었을 때는 당연하게 느꼈지만, 내 자료 앞에서 그 판단을 직접 내려보니 의미가 달랐다.</mark></p>
+
+        <p>학기말 발표에서는 <span class="ev">내 탐구의 표본이 왜 편향되었는지를 직접 사례로 들어</span> 단순임의추출·층화추출·계통추출을 비교했다. 요일과 날씨를 층으로 나누어 뽑았다면 열흘로도 다른 결론에 닿았을 것이라는 점을 정리하면서, 표본추출 방식이 자료를 모은 뒤에 고르는 것이 아니라 <b>설계 단계에서 결정되는 것</b>임을 이해했다. 처음 한국지리에서 가졌던 의문 — 빈 자료를 어떻게 다룰 것인가 — 도 결국 같은 자리에서 갈린다는 것을 이 학기에 배웠다.</p>
+      </div>
+      <div class="actions"><button class="btn ghost">다시 생성</button><button class="btn ghost">복사</button><button class="btn">검증하기 →</button></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-t">문장 근거</div>
+        <div class="card-s">파란 밑줄 문장의 출처입니다.</div>
+        <div class="chk o"><b>✓</b><div><b>1문단</b> · 연계 발전 지점<br><span style="color:var(--ink3)">한국지리 장소마케팅 활동 → 이번 활동으로 이어진 흐름</span></div></div>
+        <div class="chk o"><b>✓</b><div><b>2문단</b> · 측정 기준<br><span style="color:var(--ink3)">버스 배차 분석 활동 원문 · 모둠 회의록</span></div></div>
+        <div class="chk o"><b>✓</b><div><b>3문단</b> · 판단 수정<br><span style="color:var(--ink3)">버스 배차 분석 결과 및 발표자료</span></div></div>
+        <div class="chk o"><b>✓</b><div><b>4문단</b> · 개념 정리<br><span style="color:var(--ink3)">표본조사 설계 오류 발표 원고</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-t" style="color:var(--warn)">확인이 필요한 표현</div>
+        <div class="chk w"><b>!</b><div>노란 표시는 <b>느낀 점</b>입니다. 자료로는 확인되지 않는 문장이니, 실제로 그렇게 생각했는지 확인하고 아니면 지우세요.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="screen">
+  <h1>검증 결과</h1>
+  <p class="sub">18개 항목을 확인했습니다. 1건은 학생 판단이 필요합니다.</p>
+  <div class="cols">
+    <div>
+      <div class="card">
+        <div class="cat"><span class="cn">A</span><h4>사실성</h4><span class="cs">4 / 4 통과</span></div>
+        <div class="chk o"><b>✓</b><div><b>근거 확인</b> — 모든 문장이 선택한 활동 3건의 원문에서 확인됩니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>미수행 활동</b> — 하지 않은 활동을 했다고 쓴 문장이 없습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>수치 검증</b> — 상관계수 0.71, 관측 열흘, 표지판 3미터. 세 수치 모두 활동 원문과 일치합니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>역할 기술</b> — "자료 수집 설계와 분석 담당"은 활동 기록에 있는 내용입니다.</div></div>
+
+        <div class="cat"><span class="cn">B</span><h4>문항 대응</h4><span class="cs">4 / 4 통과</span></div>
+        <div class="chk o"><b>✓</b><div><b>문항 ①</b> 맡은 역할 — 2문단에서 조작적 정의를 세우고 재측정을 주도한 과정으로 답했습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>문항 ②</b> 배운 점 — 3·4문단에서 상관과 인과, 표본추출 설계 순서로 답했습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>교사 요구</b> 활동 나열 금지 — 활동명을 나열한 문장이 없습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>교사 요구</b> 판단 근거·수정 과정 — 판단을 되돌린 지점이 두 번 드러납니다.</div></div>
+
+        <div class="cat"><span class="cn">C</span><h4>교과 적합성</h4><span class="cs">3 / 3 통과</span></div>
+        <div class="chk o"><b>✓</b><div><b>교과 개념</b> — 표본의 신뢰도, 조작적 정의, 상관계수, 표본추출 방식 4개가 본문에 쓰였습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>교육과정 범위</b> — 모두 확률과 통계 성취기준 안에 있습니다. 범위를 넘는 용어가 없습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>개념의 쓰임</b> — 용어를 언급만 하지 않고, 판단을 바꾸는 근거로 실제로 사용했습니다.</div></div>
+
+        <div class="cat"><span class="cn">D</span><h4>연계·발전성</h4><span class="cs">2 / 2 통과</span></div>
+        <div class="chk o"><b>✓</b><div><b>연계 처리</b> — 한국지리 활동을 나란히 나열하지 않고, <b>그 활동이 이번 활동으로 발전한 흐름</b>으로 썼습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>단순 반복 아님</b> — 질문(자료를 쓰는 입장 → 만드는 입장)과 자료 수집 방식이 모두 달라졌습니다.</div></div>
+
+        <div class="cat"><span class="cn">E</span><h4>진로·인재상</h4><span class="cs">3 / 3 통과</span></div>
+        <div class="chk o"><b>✓</b><div><b>진로 연결</b> — 억지 연결 없음. 진로를 직접 언급하지 않고 탐구 태도로만 드러납니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>인재상 반영</b> — 아래 참조. 대학 이름은 본문에 넣지 않고 강조점에만 반영했습니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>학문적 정직성</b> — 성과를 부풀린 표현이 없습니다. 한계를 명시한 문장이 두 곳 있습니다.</div></div>
+
+        <div class="ideal">
+          <div class="src">위닝 등록 데이터 · 건국대학교 KU자기추천 · 2027학년도</div>
+          <q>스스로 문제를 발견하고 해결 과정을 설계하는 자기주도적 탐구 역량</q>
+          <p>이 항목이 <b>2문단</b>(측정 기준이 무너진 것을 스스로 발견하고 조작적 정의를 다시 세움)과 <b>3문단</b>(회귀 예측 계획을 스스로 철회함)에서 드러나게 작성되었습니다.<br>
+          <span style="color:var(--ink3)">본문에 대학 이름과 전형 이름은 넣지 않았습니다. 인재상은 <b>어떤 활동을 고르고 어디를 강조할지</b>에만 반영합니다.</span></p>
+        </div>
+
+        <div class="cat"><span class="cn">F</span><h4>형식</h4><span class="cs w">3 / 4 · 1건 확인 필요</span></div>
+        <div class="chk o"><b>✓</b><div><b>분량</b> — 공백 포함 1,043자. 목표 1,050자 대비 -7자로 허용 범위입니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>중복 표현</b> — 같은 표현 반복 없음. '자료' 6회는 주제 특성상 자연스러운 수준입니다.</div></div>
+        <div class="chk o"><b>✓</b><div><b>문체 일관성</b> — 학생 제출형 '~했다'로 끝까지 통일되어 있습니다.</div></div>
+        <div class="chk w"><b>!</b><div><b>과장 가능성</b> — "의미가 달랐다"는 주관적 표현입니다. 자료로 확인되지 않으니 남길지 판단해주세요.</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-t">고치면 좋은 곳</div>
+        <div class="card-s">필수는 아닙니다. 학생이 판단하세요.</div>
+        <div class="fix">
+          <div class="fh"><span class="tag w">3문단</span>주관적 표현</div>
+          <div class="fb">활동 기록에 없는 감상입니다. 남기려면 실제로 그렇게 느꼈는지 확인하고, 아니면 개념 정리 문장으로 바꾸는 편이 안전합니다.</div>
+          <div class="fo"><b>대안</b> "상관이 인과가 아니라는 것을 자료를 앞에 두고 판단해보니, 수업에서 들었을 때와 달리 어떤 조건을 확인해야 하는지가 구체적으로 보였다."</div>
+        </div>
+        <div class="fix">
+          <div class="fh"><span class="tag">4문단</span>더 살릴 수 있는 부분</div>
+          <div class="fb">"층으로 나누어 뽑았다면 열흘로도 다른 결론에 닿았을 것"이라는 대목이 짧게 지나갑니다. 한 문장 더 쓰면 개념 이해가 분명해집니다.</div>
+        </div>
+      </div>
+      <div class="actions"><button class="btn ghost">← 이전</button><button class="btn ghost">다시 검증</button></div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-t">검증 요약</div>
+        <div class="stat"><span>전체 항목</span><b>18개</b></div>
+        <div class="stat"><span>통과</span><b style="color:var(--ok)">17개</b></div>
+        <div class="stat"><span>확인 필요</span><b style="color:var(--warn)">1개</b></div>
+        <div class="stat"><span>실패</span><b>0개</b></div>
+      </div>
+      <div class="card">
+        <div class="card-t">이번 작업</div>
+        <div class="stat"><span>사용 횟수</span><b>1회 차감</b></div>
+        <div class="stat"><span>남은 횟수</span><b>7 / 10회</b></div>
+        <p class="hint" style="margin-top:10px">생성이 실패하면 횟수는 차감되지 않습니다.</p>
+      </div>
+      <div class="card">
+        <div class="card-t">적용된 방향</div>
+        <p style="font-size:12.5px;line-height:1.75;color:var(--ink2)">
+          <b>자료를 받아 쓰는 사람에서<br>자료를 만들고 검증하는 사람으로</b><br>
+          <span style="color:var(--ink3)">위닝 성장설계 제안 · 연계 한국지리</span></p>
+      </div>
+      <div class="card">
+        <div class="card-t">사용한 활동</div>
+        <div style="font-size:12.5px;line-height:2;color:var(--ink2)">
+          버스 배차 간격 분석 <span class="tag g">핵심</span><br>
+          지역성을 활용한 장소마케팅 <span class="tag">연계</span><br>
+          표본조사 설계 오류 발표 <span class="tag">보조</span></div>
+      </div>
+      <button class="btn" style="width:100%">최종본으로 저장</button>
+      <button class="btn ghost" style="width:100%;margin-top:8px">전체 복사</button>
+    </div>
+  </div>
+</section>
+
+</div>
+<script>
+function go(i,el){
+  document.querySelectorAll('.screen').forEach((s,n)=>s.classList.toggle('on',n===i));
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on'); window.scrollTo(0,0);
+}
+document.querySelectorAll('.pill').forEach(p=>p.onclick=function(){
+  if(this.parentNode.classList.contains('multi')){this.classList.toggle('on');return;}
+  [...this.parentNode.children].forEach(x=>x.classList.remove('on'));this.classList.add('on')});
+document.querySelectorAll('.act input').forEach(c=>c.onchange=function(){
+  this.closest('.act').classList.toggle('sel',this.checked)});
+</script>
+</body>
+</html>
