@@ -9,6 +9,7 @@ import ReceiptModal from '../ReceiptModal';
 import RefundRequestModal from '../RefundRequestModal';
 import RefundNoticeModal from '../RefundNoticeModal';
 import RefundApprovalModal from './RefundApprovalModal';
+import EnrollmentRequestModal from './EnrollmentRequestModal';
 import { formatOrderId, formatApprovedAt, resolveOrderStatus } from '../paymentRows';
 
 // 학부모 "결제 내역" 탭 — 확정 디자인 3967:3944(내용 있음) / 3967:4412(빈 상태).
@@ -48,6 +49,7 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
   const [refundOrder, setRefundOrder] = useState(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [approvalRequest, setApprovalRequest] = useState(null);
+  const [enrollmentRequest, setEnrollmentRequest] = useState(null);
 
   // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에 없다 — 그쪽은
   // paid/waiting_deposit 만 읽는다. 이 탭에서만 필요하므로 여기서 직접 읽는다.
@@ -102,7 +104,7 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
     <div className="flex flex-col gap-[4.5rem]">
       {/* 1) 환불요청 */}
       <section>
-        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">환불요청</h2>
+        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">자녀의 환불요청</h2>
         <PaymentTable
           headers={TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
@@ -116,7 +118,15 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
             raw: r
           }))}
           onSelect={(row) => setApprovalRequest(row.raw)}
-          renderStatus={() => <PaymentStatusBadge status="refund_approval_pending" />}
+          renderStatus={(row) => (
+            <button
+              type="button"
+              onClick={() => setApprovalRequest(row.raw)}
+              className="transition hover:brightness-95"
+            >
+              <PaymentStatusBadge status="refund_approval_pending" />
+            </button>
+          )}
         />
       </section>
 
@@ -139,7 +149,9 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
             amountText: formatKRW(o.amount),
             raw: o
           }))}
-          // 이 섹션은 상태 칩 자체가 링크라 행 클릭 핸들러를 두지 않는다.
+          // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
+          // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
+          onSelect={(row) => setEnrollmentRequest(row.raw)}
           renderStatus={(row) => (
             <Link
               to={`/checkout?order=${encodeURIComponent(row.raw.id)}`}
@@ -198,6 +210,17 @@ export default function ParentPaymentsTab({ orders = [], refunds = [], onRefundS
       />
 
       <RefundNoticeModal open={noticeOpen} onClose={() => setNoticeOpen(false)} />
+
+      <EnrollmentRequestModal
+        open={!!enrollmentRequest}
+        order={enrollmentRequest}
+        childName={enrollmentRequest ? nameById[enrollmentRequest.student_profile_id] : ''}
+        onClose={() => setEnrollmentRequest(null)}
+        onRejected={() => {
+          setEnrollmentRequest(null);
+          reloadPending();
+        }}
+      />
 
       <RefundApprovalModal
         open={!!approvalRequest}
