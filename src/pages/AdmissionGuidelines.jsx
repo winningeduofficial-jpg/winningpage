@@ -1594,6 +1594,7 @@ export default function AdmissionGuidelines() {
           <section className="grid gap-6 lg:grid-cols-[26%_1fr] lg:items-start lg:gap-8">
             <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
               <div className="relative">
+                {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
                 <div
                   ref={mapRef}
                   role="group"
@@ -1925,6 +1926,7 @@ export default function AdmissionGuidelines() {
           belowBody={
             selectedInfo.isHtml && modalXScroll.visible ? (
               <div className="admission-modal-x-scroll-shell">
+                {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
                 <div
                   ref={modalXScrollRef}
                   role="group"

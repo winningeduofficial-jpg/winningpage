@@ -372,6 +372,7 @@ export default function BookViewer({
     // 이 섹션에 로컬 스태킹 컨텍스트를 만든다. Header.jsx:508 fixed 헤더가 z-50이라
     // 그보다 낮은 z-10을 써서 헤더 위로는 절대 올라가지 않는다.
     <section className="relative z-10 mx-auto flex max-w-content justify-center px-6 pb-16">
+      {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
       <div
         className="pbv-viewport"
         style={{

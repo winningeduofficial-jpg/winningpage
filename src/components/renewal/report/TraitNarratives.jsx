@@ -2,6 +2,7 @@
 // (SummaryCards·PriorityTable·TraitNarratives 공용 섹션) heading 은 접근성 라벨로만 소비한다.
 export default function TraitNarratives({ items, heading }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다.
     <div
       role="group"
       className="flex w-full flex-col gap-10"

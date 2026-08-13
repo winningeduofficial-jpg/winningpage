@@ -110,6 +110,7 @@ export default function FormSectionDocuments({
         >
           {/* 에러는 드롭존이 직접 표시한다 — 형식·용량 위반은 드롭존이 자체 검출하므로
               부모 에러와 한 자리에서 합쳐 보여주는 편이 원인 파악이 쉽다. */}
+          {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-labelledby로 이미 접근성 요건은 충족한다. */}
           <div
             role="group"
             aria-labelledby={getMentorFieldLabelId(FILE_FIELD_ID)}
@@ -156,6 +157,7 @@ export default function FormSectionDocuments({
           required
           groupLabel
         >
+          {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-labelledby로 이미 접근성 요건은 충족한다. */}
           <div
             role="group"
             aria-labelledby={getMentorFieldLabelId(AGREEMENT_FIELD_ID)}
