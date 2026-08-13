@@ -70,8 +70,16 @@ create index if not exists goal_schedules_profile_due_idx
 
 
 -- ---------------------------------------------------------------------
--- (2) RLS — sql/55_goal_management.sql (6-2) goal_daily_records 관례 그대로.
---     클라이언트는 본인 행 읽기만 가능하다. 쓰기 정책은 두지 않는다.
+-- (2) RLS — 클라이언트는 본인 행 읽기만 가능하다. 쓰기 정책은 두지 않는다.
+--
+--     ⚠ 어드민 정책은 select 전용이다(sql/55 goal_students/goal_daily_records의
+--     `_admin_all`(for all + with check)을 그대로 베끼지 않는다) — sql/55:706-716
+--     주석 자체가 명시하듯 그 테이블들의 admin_all은 "확률 게이지 컬럼을 RLS가
+--     가릴 수 없어 update를 열면 학생이 자기 확률을 조작할 수 있다"는 특수 사정
+--     때문에 어쩔 수 없이 연 것이다. goal_schedules에는 그런 사정이 없고, 어드민
+--     세션에 쓰기를 여는 것 자체가 하우스 규칙 위반이다(sql/57 profiles_admin_select_all
+--     류 <테이블>_admin_select_all 이름 규약과 동일한 select-only 전례 — 39/43/59/64번도
+--     같은 패턴). 정책명은 팀장 지시대로 `goal_schedules_admin_select`로 둔다.
 -- ---------------------------------------------------------------------
 alter table public.goal_schedules enable row level security;
 
@@ -80,11 +88,13 @@ create policy "goal_schedules_select_own" on public.goal_schedules
     as permissive for select to authenticated
     using (profile_id = auth.uid());
 
+-- 두 이름 모두 선행 drop — 이 파일의 이전 판(admin_all)으로 이미 실행된 DB에서도
+-- 재실행이 안전하도록 한다(sql/55 관례).
 drop policy if exists "goal_schedules_admin_all" on public.goal_schedules;
-create policy "goal_schedules_admin_all" on public.goal_schedules
-    as permissive for all to authenticated
-    using (public.is_winning_admin())
-    with check (public.is_winning_admin());
+drop policy if exists "goal_schedules_admin_select" on public.goal_schedules;
+create policy "goal_schedules_admin_select" on public.goal_schedules
+    as permissive for select to authenticated
+    using (public.is_winning_admin());
 
 
 -- ---------------------------------------------------------------------
@@ -106,7 +116,7 @@ create trigger trg_goal_schedules_updated_at
 --
 -- select tablename, policyname, cmd, roles from pg_policies
 --   where schemaname = 'public' and tablename = 'goal_schedules'
---   order by policyname;   -- 정책 2건
+--   order by policyname;   -- 정책 2건(select_own, admin_select) — 전부 cmd='SELECT'여야 한다
 --
 -- select relname, relrowsecurity, relforcerowsecurity from pg_class
 --   where relnamespace = 'public'::regnamespace and relname = 'goal_schedules';
@@ -121,6 +131,6 @@ create trigger trg_goal_schedules_updated_at
 -- =====================================================================
 -- drop trigger if exists trg_goal_schedules_updated_at on public.goal_schedules;
 -- -- public.set_updated_at() 은 공용 함수라 절대 drop 하지 마라.
--- drop policy if exists "goal_schedules_admin_all"  on public.goal_schedules;
--- drop policy if exists "goal_schedules_select_own" on public.goal_schedules;
+-- drop policy if exists "goal_schedules_admin_select" on public.goal_schedules;
+-- drop policy if exists "goal_schedules_select_own"   on public.goal_schedules;
 -- drop table if exists public.goal_schedules;
