@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import AcceptanceRateHero from "../../components/admission/AcceptanceRateHero";
-import AdmissionCaseCard from "../../components/admission/AdmissionCaseCard";
+import AdmissionCaseCard, {
+  type AdmissionCaseRow,
+} from "../../components/admission/AdmissionCaseCard";
 import {
   CASE_CATEGORIES,
   CATEGORY_LABELS,
@@ -19,7 +21,7 @@ export default function AdmissionCases() {
     CASE_CATEGORIES.find((key) => pathname.startsWith(`/admission/${key}`)) ||
     "susi";
 
-  const [rows, setRows] = useState<Array<{ id: string | number }>>([]);
+  const [rows, setRows] = useState<AdmissionCaseRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

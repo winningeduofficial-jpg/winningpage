@@ -28,7 +28,7 @@ function Thumbnail({ url, title }: ThumbnailProps) {
   );
 }
 
-type AdmissionCaseRow = {
+export type AdmissionCaseRow = {
   id: string | number;
   category: string;
   title?: string;
