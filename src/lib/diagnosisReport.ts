@@ -38,7 +38,7 @@ import {
   URGENCY_AREA_THRESHOLD,
   URGENCY_LEVEL_LABEL,
 } from "../data/diagnosisScoringTable.ts";
-import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.ts";
 import {
   areaCopy,
   commonCopy,

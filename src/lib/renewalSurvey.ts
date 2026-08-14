@@ -7,7 +7,7 @@
  */
 // 확장자 .js 명시 — verify 스크립트가 이 모듈(진행 판정 술어)을 plain node ESM 으로 직접 import 한다.
 // node 는 Vite 와 달리 확장자 생략을 해석하지 못해 ERR_MODULE_NOT_FOUND 로 죽는다.
-import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.ts";
 
 // renewalSurveyQuestions.js는 타입 선언 없는 순수 JS 데이터 배열이라 문항 형태를 여기서
 // 직접 규정한다(원본 데이터 파일은 이번 전환 대상이 아니라 손대지 않는다).

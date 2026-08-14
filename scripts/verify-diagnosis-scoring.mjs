@@ -120,7 +120,7 @@ import {
   SAMPLE_REPORT_COPY,
   SCREEN_EXTRAS,
 } from "../src/data/diagnosisScreenCopy.ts";
-import { renewalSurveyQuestions } from "../src/data/renewalSurveyQuestions.js";
+import { renewalSurveyQuestions } from "../src/data/renewalSurveyQuestions.ts";
 import { fill, findBannedPhrases } from "../src/lib/diagnosisCopyBinding.ts";
 // 정적 import 다. 동적 import + try/catch 로 감싸면 문법 오류·잘못된 경로 같은 진짜 고장까지
 // 삼켜서 §7.4.3 불변식을 통째로 건너뛴 채 PASS 를 낸다(T16 이 아직 없을 수 있다는 전제는 해소됐다).
