@@ -50,7 +50,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

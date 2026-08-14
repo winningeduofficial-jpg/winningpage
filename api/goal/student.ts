@@ -23,7 +23,7 @@
 // 카멜 케이스로 옮기기만 한다.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getSchoolCutType } from "../../src/lib/goal/calc/index.ts";
+import { getSchoolCutType } from "../../src/lib/goal/calc/index.js";
 
 import {
   buildAwaitingCutsPayload,
