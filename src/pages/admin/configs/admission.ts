@@ -1,5 +1,6 @@
 import {
   HWP_SECTION_JSON_KEYS,
+  type SectionKey,
   validateAdmissionDoc,
 } from "../../../lib/admissionDoc";
 import {
@@ -7,6 +8,7 @@ import {
   HWP_SECTION_ORDER,
 } from "../../../lib/admissionParsing";
 import { blocksToPlainText } from "../../../lib/blockToPlainText";
+import type { AdminColumn, AdminConfig } from "../shared/AdminEngine";
 import {
   AdmissionParsingPreview,
   admissionGuidelinesValidate,
@@ -70,7 +72,7 @@ const SPECIAL_HIGHSCHOOL_LABEL_OPTIONS = [
   { value: "합격생", label: "합격생" },
 ];
 
-export const admissionConfigs = {
+export const admissionConfigs: Record<string, AdminConfig> = {
   specialHighschool: {
     title: "특목고 합격 사례",
     table: "special_highschool_cases",
@@ -478,12 +480,17 @@ export const admissionConfigs = {
       { key: "matched_hwp_name", label: "원문 대학명" },
       { key: "detail_status", label: "상태" },
       { key: "is_active", label: "노출", type: "boolean" },
-      ...HWP_SECTION_ORDER.map((key) => ({
-        key: `__section_${key}`,
-        label: HWP_SECTION_LABELS[key],
-        type: "admissionSection",
-        sectionKey: key,
-      })),
+      // HWP_SECTION_ORDER는 admissionParsing.ts(다른 배치 소유, 미변환 스타일)가
+      // 내보내는 string[]이라 리터럴 유니온으로 좁혀져 있지 않다 — 실제 값은
+      // admissionDoc.ts의 SectionKey 6종 그대로라는 게 두 파일의 계약이라 캐스팅한다.
+      ...(HWP_SECTION_ORDER as SectionKey[]).map(
+        (key): AdminColumn => ({
+          key: `__section_${key}`,
+          label: HWP_SECTION_LABELS[key],
+          type: "admissionSection",
+          sectionKey: key,
+        }),
+      ),
     ],
 
     fields: [

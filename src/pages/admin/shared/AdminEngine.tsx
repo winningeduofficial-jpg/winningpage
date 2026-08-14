@@ -9,14 +9,20 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AdmissionSurface from "../../../components/admission/AdmissionSurface";
 import AdmissionSectionEditModal from "../../../components/admission/editor/AdmissionSectionEditModal";
 import DocBlocksEditor from "../../../components/admission/editor/DocBlocksEditor";
-import BlockEditor from "../../../components/editor/BlockEditor";
+import type { ColumnBodyPost } from "../../../components/column/ColumnBody";
+import BlockEditor, {
+  type BlockEditorHandle,
+} from "../../../components/editor/BlockEditor";
 import ColumnPreviewModal from "../../../components/editor/ColumnPreviewModal";
 import {
+  type AdmissionDoc,
   HWP_SECTION_JSON_KEYS,
+  type SectionKey,
   validateAdmissionDoc,
 } from "../../../lib/admissionDoc";
 import {
@@ -31,6 +37,7 @@ import { withDedupedKeys } from "../../../lib/reactKeys";
 import { supabase } from "../../../lib/supabase";
 import { reportAdminError } from "./adminErrors";
 import {
+  type FieldOption,
   formatListValue,
   formatValue,
   getFileNameFromUrl,
@@ -44,9 +51,185 @@ import {
 // 도메인 컴포넌트도 이 둘을 그대로 재사용한다(각자 파일에서 import).
 // Admin.jsx가 이 파일을 import 하므로 역방향 import는 만들지 않는다 — 순환 참조 방지.
 
+// =====================================================================
+// 타입. CONFIGS 35개 도메인이 각기 다른 컬럼 셋을 갖는 Supabase 행이라
+// 프로젝트 전역 canonical row 타입은 없다(새로 만들지도 않는다 — 지시사항) —
+// AdminRow는 그 현실을 그대로 반영한 로컬 타입이다. 값 타입은 열마다
+// 제각각(문자열/숫자/불리언/jsonb 객체/배열)이라 any로 둔다.
+export type AdminRow = Record<string, any>;
+
+// csvExport.ts의 FieldOption과 동일한 셰이프(문자열 또는 {value,label}) —
+// formatValue/csvBody가 field.options/column.options를 그대로 받아 쓰므로
+// 별도 타입을 만들지 않고 재사용한다.
+export type AdminOption = FieldOption;
+
+export type AdminImageSpec = {
+  width?: number;
+  height?: number;
+  tolerance?: number;
+  maxMB?: number;
+  aspectOnly?: boolean;
+};
+
+// AdminForm의 config.fields 항목과 AdminTable의 config.columns 항목이 공유하는
+// 서술자 셰이프. buildFieldRenderItems가 `config.fields || config.columns`로
+// 둘을 같은 배열로 다루는 폴백 경로가 실존해(아래 :~570 부근) 두 용도를 별도
+// 타입으로 쪼개면 그 폴백에서 유니온이 깨진다 — 이미 있는 런타임 계약(둘 다
+// { key, label, type, ... } 셰이프의 확장 가능한 서술자)을 그대로 타입으로
+// 옮긴다. type은 필드 전용 값(text/select/...)과 컬럼 전용 값(boolean/image/...)의
+// 합집합이다 — 실제로 한쪽에만 쓰이지만, 같은 프로퍼티 이름을 공유하는 이상
+// 유니온을 좁게 유지할 이유가 없다(둘 다 문자열 비교로만 분기한다).
+export type AdminFieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "datetime"
+  | "textarea"
+  | "select"
+  | "checkbox"
+  | "radioBoolean"
+  | "image"
+  | "file"
+  | "multiImage"
+  | "multiFile"
+  | "blockEditor"
+  | "admissionDoc"
+  | "boolean"
+  | "money"
+  | "maskedPhone"
+  | "imageList"
+  | "fileList"
+  | "truncate"
+  | "universityNameMeta"
+  | "admissionSection";
+
+export type AdminField<T extends AdminRow = AdminRow> = {
+  key: string;
+  label?: string;
+  type?: AdminFieldType;
+  required?: boolean;
+  options?: AdminOption[];
+  rows?: number;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number | "any";
+  nullable?: boolean;
+  readOnly?: boolean;
+  help?: string;
+  group?: SectionKey;
+  sectionKey?: SectionKey;
+  showFileName?: boolean;
+  hideUrlInput?: boolean;
+  nameKey?: string;
+  accept?: string;
+  compress?: boolean;
+  imageSpec?: AdminImageSpec;
+  folder?: string;
+  cacheControl?: string;
+  showIf?: (form: T) => boolean;
+  // 같은 폼의 다른 필드 값에 따라 표시 속성 일부만 덮어쓴다(:672 부근 계약
+  // 참고) — key/type을 덮지 않는 것이 계약이라 반환값은 Partial이다.
+  resolve?: (form: T, row?: T | null) => Partial<AdminField<T>>;
+  // AdminTable 셀 전용 훅. formatValue(value,type,options) 시그니처가 값
+  // 하나만 받아 이웃 컬럼을 못 보는 한계를 우회한다(:1210 부근 계약).
+  render?: (row: T) => ReactNode;
+};
+
+// fields/columns가 같은 서술자 셰이프를 공유하는 런타임 계약을 그대로 타입에 옮긴다(위 AdminField 주석).
+export type AdminColumn<T extends AdminRow = AdminRow> = AdminField<T>;
+
+export type AdminUploadedFile = {
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+};
+
+export type AdminUploadHandler<T extends AdminRow = AdminRow> = (
+  files: File | (File | null | undefined)[] | FileList | null | undefined,
+  field: Partial<AdminField<T>>,
+) => Promise<AdminUploadedFile[] | null | undefined>;
+
+// multiFile 필드 값(form[field.key]) 항목 셰이프. 업로드 직후엔 uploadImage가
+// 만든 {name,url,size,type}이지만, 기존 데이터에는 문자열(URL)만 저장된
+// 경우도 있다(아래 렌더가 `typeof item === 'string'` 분기로 두 형태를 모두
+// 받아온다).
+export type AdminFileListItem =
+  | string
+  | { name?: string; url?: string; size?: number; type?: string };
+
+export type AdminConfig<T extends AdminRow = AdminRow> = {
+  title: string;
+  table?: string;
+  tabs?: { key: string; label: string }[];
+  searchPlaceholder?: string;
+  order?: string;
+  orderBy?: [string, boolean][];
+  serverPaginate?: boolean;
+  searchColumns?: string[];
+  homepage?: boolean;
+  guideText?: string;
+  listSummaryKey?: string;
+  hideRowEdit?: boolean;
+  showMetaEdit?: boolean;
+  excel?: boolean;
+  noCreate?: boolean;
+  readOnly?: boolean;
+  fixedCategories?: string[];
+  columns: AdminColumn<T>[];
+  fields?: AdminField<T>[];
+  defaults?: Partial<T>;
+  rowToForm?: (row: T) => T;
+  formToPayload?: (form: T) => Record<string, unknown>;
+  validate?: (form: T, row?: T | null) => string | null | undefined | void;
+  previewTitleKey?: string;
+  previewLabel?: string;
+  FormPreview?: (props: {
+    form: T;
+    onPatch: (patch: Partial<T>) => void;
+    locked: boolean;
+  }) => ReactNode;
+};
+
+// PremiumBookAdmin.tsx 같은 개별 페이지 wrapper는 config를 "자신이 읽는
+// 필드만" 좁혀 인덱스 시그니처(unknown)로 나머지를 열어둔다(그 파일 자체
+// 주석 참고) — AdminTable/AdminForm의 config prop 경계는 그 컨벤션과
+// 호환되도록 최소 마커(title)만 요구하는 쪽도 허용한다. 실제 columns/fields
+// 등 엔진이 읽는 계약은 AdminConfig<T>이고, admission.ts처럼 config를 직접
+// 정의하는 파일은 그쪽을 따른다. 컴포넌트 본문은 진입 시 1회 캐스팅해
+// AdminConfig<T>로 다룬다(아래 rawConfig as AdminConfig<T>).
+export type AdminConfigInput<T extends AdminRow = AdminRow> =
+  | AdminConfig<T>
+  | ({ title: string } & Record<string, unknown>);
+
 export const PAGE_SIZE = 10;
 
-function AdminInput({ field, value, onChange, disabled }) {
+// AdminOption(문자열 | {value,label}) 판별. 함수로 분리해 매 호출부의 반환
+// 타입을 string으로 고정한다(런타임 분기 로직은 원본과 동일 — typeof
+// 'object' 대신 'string'으로 뒤집은 것은 단순 typeof 판별이라 TS가 양쪽
+// 분기 모두 안정적으로 좁힌다).
+function optionValueOf(option: AdminOption): string {
+  return typeof option === "string" ? option : option.value;
+}
+
+function optionLabelOf(option: AdminOption): string {
+  return typeof option === "string" ? option : option.label;
+}
+
+function AdminInput({
+  field,
+  value,
+  onChange,
+  disabled,
+}: {
+  field: AdminField;
+  // 폼 값 타입은 필드 종류(text/number/checkbox/select/date...)마다 달라 공용 렌더러
+  // 경계에서는 좁힐 수 없다 — change()/patch()가 실제로 받는 타입(AdminRow의 값)과 동일하게 any.
+  value: any;
+  onChange: (key: string, value: any) => void;
+  disabled?: boolean;
+}) {
   const base =
     "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
   // field.readOnly: 폼 전체 disabled와 별개로 "이 필드 하나만" 편집 불가로
@@ -78,14 +261,8 @@ function AdminInput({ field, value, onChange, disabled }) {
       >
         <option value="">선택</option>
         {(field.options || []).map((option) => {
-          const optionValue =
-            typeof option === "object" && option !== null
-              ? option.value
-              : option;
-          const optionLabel =
-            typeof option === "object" && option !== null
-              ? option.label
-              : option;
+          const optionValue = optionValueOf(option);
+          const optionLabel = optionLabelOf(option);
           return (
             <option key={optionValue} value={optionValue}>
               {optionLabel}
@@ -195,11 +372,23 @@ function AdminInput({ field, value, onChange, disabled }) {
 // 해야 doc만 고치고 html이 낡는 사고(2026-08-06에 실제로 있었던 결함,
 // 27b397e에서 "파싱 실행" 경로는 고쳤지만 편집기 경로는 이번에 처음
 // 배선된다)가 편집기에서도 재발하지 않는다.
-function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
-  const sectionKey = field.sectionKey;
+function AdmissionDocFieldEditor({
+  field,
+  form,
+  onPatch,
+  onDirty,
+}: {
+  field: AdminField;
+  form: AdminRow;
+  onPatch: (patch: AdminRow) => void;
+  onDirty: () => void;
+}) {
+  // 이 렌더러는 field.type === 'admissionDoc' 전용이라 sectionKey가 항상 실려 있다
+  // (admission.ts 필드 선언 계약) — 호출부 방어는 field.type 분기가 이미 한다.
+  const sectionKey = field.sectionKey as SectionKey;
   const htmlKey = HWP_SECTION_HTML_KEYS[sectionKey];
   const existing = form[field.key];
-  const doc =
+  const doc: AdmissionDoc =
     existing && typeof existing === "object" && Array.isArray(existing.blocks)
       ? existing
       : {
@@ -211,14 +400,14 @@ function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
           blocks: [],
         };
 
-  function handleBlocksChange(nextBlocks) {
-    const nextDoc = {
+  function handleBlocksChange(nextBlocks: AdmissionDoc["blocks"]) {
+    const nextDoc: AdmissionDoc = {
       ...doc,
       blocks: nextBlocks,
       source: "manual",
       generatedAt: new Date().toISOString(),
     };
-    const nextPatch = { [field.key]: nextDoc };
+    const nextPatch: AdminRow = { [field.key]: nextDoc };
     // doc(정본)은 형태와 무관하게 항상 patch에 실린다 — 편집 중 일시적으로
     // 불변식을 어기는 상태(예: 열 개수 변경 중간 단계)도 그대로 저장 시도
     // 대상이 된다(저장 게이트는 formToPayload가 validateAdmissionDoc으로
@@ -262,7 +451,7 @@ function AdmissionDocFieldEditor({ field, form, onPatch, onDirty }) {
 }
 
 // URL 마지막 세그먼트를 파일명으로 추출 (쿼리스트링 제거 + decodeURIComponent로 한글 파일명 대비)
-function fileNameFromUrl(url) {
+function fileNameFromUrl(url: unknown) {
   if (!url) return "";
   try {
     const withoutQuery = String(url).split("?")[0].split("#")[0];
@@ -290,7 +479,7 @@ function fileNameFromUrl(url) {
 // 카테고리 헤더에 보여줄 한 줄 요약. doc이 있으면 표/블록 개수, 없으면
 // 원문 유무만 판정한다 — 관리자가 어느 카테고리를 열지 판단하는 용도라
 // 정확한 렌더 결과 예측까지는 필요 없다(그건 펼쳐서 문서 편집기로 본다).
-function summarizeHwpSection(sectionKey, form) {
+function summarizeHwpSection(sectionKey: SectionKey, form: AdminRow) {
   const jsonKey = HWP_SECTION_JSON_KEYS[sectionKey];
   const doc = jsonKey ? form[jsonKey] : null;
   const blocks = doc && Array.isArray(doc.blocks) ? doc.blocks : [];
@@ -321,9 +510,21 @@ function summarizeHwpSection(sectionKey, form) {
 // 만들지 않아 폼 높이 9,873px / input 502개를 3,744px / 14개로 줄인 것 — 은
 // 그대로 유지된다: 카테고리 필드는 이제 폼이 아니라 모달이 마운트하고,
 // 모달은 한 번에 최대 1개만 열린다(modalSection이 단일 값).
-function buildFieldRenderItems(fields, form) {
-  const items = [];
-  const seenGroups = new Set();
+type FieldRenderItem =
+  | { type: "field"; field: AdminField }
+  | {
+      type: "header";
+      groupKey: SectionKey;
+      label: string;
+      summary: string;
+    };
+
+function buildFieldRenderItems(
+  fields: AdminField[],
+  form: AdminRow,
+): FieldRenderItem[] {
+  const items: FieldRenderItem[] = [];
+  const seenGroups = new Set<SectionKey>();
   fields.forEach((field) => {
     if (!field.group) {
       items.push({ type: "field", field });
@@ -345,7 +546,13 @@ function buildFieldRenderItems(fields, form) {
 // 구 CategoryAccordionHeader. 같은 자리·같은 모양이지만 여는 대상이 인라인
 // 펼침이 아니라 편집 다이얼로그다 — ▸ 회전 표시 대신 "수정" 어포던스를 둔다
 // (목록 셀의 [수정]과 같은 동작, 같은 모달).
-function CategorySectionButton({ item, onOpen }) {
+function CategorySectionButton({
+  item,
+  onOpen,
+}: {
+  item: { label: string; summary: string };
+  onOpen: () => void;
+}) {
   return (
     <button
       type="button"
@@ -386,6 +593,13 @@ function AdmissionGroupField({
   onChange: _onChange,
   onPatch,
   onDirty,
+}: {
+  field: AdminField;
+  form: AdminRow;
+  readonly?: boolean;
+  onChange: (key: string, value: any) => void;
+  onPatch: (patch: AdminRow) => void;
+  onDirty: () => void;
 }) {
   if (field.type !== "admissionDoc") return null;
   return (
@@ -406,8 +620,8 @@ function AdmissionGroupField({
   );
 }
 
-export function AdminForm({
-  config,
+export function AdminForm<T extends AdminRow = AdminRow>({
+  config: rawConfig,
   mode,
   row,
   onCancel,
@@ -419,10 +633,28 @@ export function AdminForm({
   // 프리필. Admin()의 pendingCreateDefaults가 유일한 공급자다. 넘기지 않으면
   // undefined라 아래 spread가 {}가 되어 기존 동작과 완전히 동일하다.
   createDefaults = null,
+}: {
+  config: AdminConfigInput<T>;
+  mode: string;
+  row?: T | null;
+  onCancel: () => void;
+  onSave: (form: T) => void;
+  onUpload: AdminUploadHandler<T>;
+  origin?: "form" | "list";
+  initialSection?: string | null;
+  createDefaults?: Partial<T> | null;
 }) {
-  const [form, setForm] = useState(() => {
-    if (row) return config.rowToForm ? config.rowToForm(row) : { ...row };
-    return { ...(config.defaults || {}), ...(createDefaults || {}) };
+  // config prop 경계는 PremiumBookAdmin.tsx류 개별 페이지 wrapper의 좁은(인덱스
+  // 시그니처) config 타입도 받아야 한다(AdminConfigInput 주석 참고) — 본문은
+  // 진입 시 1회 캐스팅해 엔진이 실제로 기대하는 형태(AdminConfig<T>)로 다룬다.
+  const config = rawConfig as AdminConfig<T>;
+  const [form, setForm] = useState<T>(() => {
+    if (row)
+      return config.rowToForm ? config.rowToForm(row) : ({ ...row } as T);
+    return {
+      ...(config.defaults || {}),
+      ...(createDefaults || {}),
+    } as T;
   });
   const [dirty, setDirty] = useState(false);
   // 열려 있는 카테고리 편집 다이얼로그의 섹션 키(field.group 있는 config,
@@ -432,24 +664,28 @@ export function AdminForm({
   //   실려 와 마운트 즉시 모달이 열린다. 폼은 오버레이 뒤에서 저장 엔진으로만
   //   산다 — 사용자에게는 "목록 → 다이얼로그" 1뎁스로 보인다(공개와 동일).
   // 모드 B(origin === 'form'): 기존 ✏️ 경로. 폼 화면의 카테고리 버튼으로 연다.
-  const [modalSection, setModalSection] = useState(initialSection);
+  const [modalSection, setModalSection] = useState<string | null>(
+    initialSection,
+  );
   // 모달 푸터 [저장]이 실제 <form>의 submit을 발화시키기 위한 ref.
   // requestSubmit()은 click() 우회와 달리 onSubmit 핸들러와 HTML 검증을
   // 정상적으로 태운다 — 저장 경로가 폼 하단 [저장]과 완전히 동일해진다.
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLFormElement>(null);
   // blockEditor는 uncontrolled라 값 변화를 form에 반영하지 않는다 — ref는 key당 1개만 유지.
-  const editorRefs = useRef(new Map());
+  const editorRefs = useRef(
+    new Map<string, { current: BlockEditorHandle | null }>(),
+  );
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
   // null이면 닫힘 — 라이브 갱신 없음, 에디터로 되돌아가는 데이터 경로 없음.
-  const [previewPost, setPreviewPost] = useState(null);
+  const [previewPost, setPreviewPost] = useState<ColumnBodyPost | null>(null);
   const blockEditorField = (config.fields || []).find(
     (field) => field.type === "blockEditor",
   );
 
-  function getEditorRef(key) {
+  function getEditorRef(key: string) {
     if (!editorRefs.current.has(key))
       editorRefs.current.set(key, { current: null });
-    return editorRefs.current.get(key);
+    return editorRefs.current.get(key)!;
   }
 
   function openPreview() {
@@ -473,7 +709,7 @@ export function AdminForm({
   // 편집 여부 판정은 단순하게(필드 변경 또는 에디터 영역 입력 감지) 둔다.
   useEffect(() => {
     if (!dirty) return undefined;
-    function handleBeforeUnload(e) {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = "";
     }
@@ -507,17 +743,21 @@ export function AdminForm({
     setModalSection(null);
   }
 
-  function change(key, value) {
+  // value 타입은 AdminInput 등 렌더러 경계와 동일한 이유로 any(:206 부근 주석).
+  function change(key: string, value: any) {
     setDirty(true);
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value }) as T);
   }
 
-  function patch(values) {
+  function patch(values: Partial<T>) {
     setDirty(true);
-    setForm((prev) => ({ ...prev, ...values }));
+    setForm((prev) => ({ ...prev, ...values }) as T);
   }
 
-  async function uploadMultiple(fileList, field) {
+  async function uploadMultiple(
+    fileList: FileList | File[] | null | undefined,
+    field: AdminField<T>,
+  ) {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
@@ -544,15 +784,15 @@ export function AdminForm({
     }
   }
 
-  function removeListItem(key, index) {
+  function removeListItem(key: string, index: number) {
     const current = normalizeArray(form[key]);
     change(
       key,
-      current.filter((_, i) => i !== index),
+      current.filter((_: unknown, i: number) => i !== index),
     );
   }
 
-  function submit(e) {
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (readonly) {
@@ -587,15 +827,15 @@ export function AdminForm({
       }
     }
 
-    let merged = form;
+    let merged: T = form;
     const blockEditorFields = (config.fields || []).filter(
       (field) => field.type === "blockEditor",
     );
     if (blockEditorFields.length > 0) {
-      merged = { ...form };
+      merged = { ...form } as T;
       for (const field of blockEditorFields) {
         const editorRef = editorRefs.current.get(field.key);
-        merged[`__blocks_${field.key}`] = editorRef?.current
+        (merged as AdminRow)[`__blocks_${field.key}`] = editorRef?.current
           ? editorRef.current.getBlocks()
           : [];
       }
@@ -884,7 +1124,7 @@ export function AdminForm({
                             <div className="flex flex-wrap gap-3">
                               {normalizeArray(form[field.key]).length > 0 ? (
                                 withDedupedKeys(
-                                  normalizeArray(form[field.key]),
+                                  normalizeArray(form[field.key]) as string[],
                                 ).map(({ item: url, key }, index) => (
                                   <div key={key} className="relative">
                                     <img
@@ -931,14 +1171,17 @@ export function AdminForm({
                             <div className="space-y-2">
                               {normalizeArray(form[field.key]).length > 0 ? (
                                 withDedupedKeys(
-                                  normalizeArray(form[field.key]),
+                                  normalizeArray(
+                                    form[field.key],
+                                  ) as AdminFileListItem[],
                                   (item) =>
                                     typeof item === "string" ? item : item?.url,
                                 ).map(({ item, key }, index) => {
                                   const fileUrl =
                                     typeof item === "string" ? item : item?.url;
                                   const fileName =
-                                    item?.name || getFileNameFromUrl(fileUrl);
+                                    (typeof item !== "string" && item?.name) ||
+                                    getFileNameFromUrl(fileUrl);
 
                                   return (
                                     <div
@@ -1080,15 +1323,15 @@ export function AdminForm({
 // fn_complete_refund 가 그대로 거부할 상태를 버튼 단계에서 먼저 막는다(Baseline
 // §2 fn_complete_refund 본문 WC035/WC036 조건과 동일) — refundRequests 탭
 // 전용 판정이라 activeKey==='refundRequests' 일 때만 쓰인다.
-function isRefundCompletionBlocked(row) {
+function isRefundCompletionBlocked(row: AdminRow | null | undefined) {
   if (!row) return true;
   if (row.approval_status !== "approved") return true;
   if (!["requested", "processing"].includes(row.status)) return true;
   return false;
 }
 
-export function AdminTable({
-  config,
+export function AdminTable<T extends AdminRow = AdminRow>({
+  config: rawConfig,
   rows,
   page,
   setPage,
@@ -1099,13 +1342,32 @@ export function AdminTable({
   onCompleteRefund,
   onOpenSection,
   onOpenMetaEdit,
+}: {
+  config: AdminConfigInput<T>;
+  rows: T[];
+  page: number;
+  setPage: (updater: number | ((prev: number) => number)) => void;
+  // config.serverPaginate(입결 43k행) config만 실어 보낸다 — 나머지 config는
+  // 클라이언트에서 rows.length로 전체 건수를 계산해 없어도 된다.
+  totalCount?: number;
+  onEdit: (row: T) => void;
+  onDelete: (row: T) => void;
+  activeKey?: string;
+  onCompleteRefund?: (row: T) => void;
+  onOpenSection?: (row: T, sectionKey: SectionKey) => void;
+  onOpenMetaEdit?: (row: T) => void;
 }) {
+  // config prop 경계는 AdminForm과 동일한 이유로 느슨하다(AdminConfigInput
+  // 주석 참고) — 본문은 AdminConfig<T>로 캐스팅해 다룬다.
+  const config = rawConfig as AdminConfig<T>;
   // 두 가지 조달 방식이 한 표를 공유한다.
   //  - 기본(35개 config): loadRows가 전량을 가져오고 여기서 PAGE_SIZE로 잘라 쓴다.
   //  - config.serverPaginate(입결 43k행): rows가 이미 "현재 페이지 PAGE_SIZE행"이라
   //    자르면 안 되고, 전체 건수는 서버 count(totalCount)로 따로 받는다.
   const serverPaginated = Boolean(config.serverPaginate);
-  const total = serverPaginated ? totalCount : rows.length;
+  // serverPaginate config는 항상 totalCount를 함께 넘긴다는 게 호출부 계약이다
+  // (Admin.jsx가 유일한 공급자) — 그 계약을 타입으로 강제할 수 없어 캐스팅한다.
+  const total = serverPaginated ? (totalCount as number) : rows.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageRows = useMemo(
@@ -1270,7 +1532,7 @@ export function AdminTable({
                         normalizeArray(row[column.key]).length > 0 ? (
                           <div className="flex items-center gap-2">
                             <img
-                              src={normalizeArray(row[column.key])[0]}
+                              src={normalizeArray(row[column.key])[0] as string}
                               alt=""
                               className="h-12 w-20 rounded object-cover"
                             />
@@ -1490,13 +1752,13 @@ const IMAGE_BUCKET = "banners";
 
 const COMPRESS_THRESHOLD_BYTES = 500 * 1024;
 
-function formatFileSize(bytes) {
+function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   return `${Math.round(bytes / 1024)}KB`;
 }
 
 // maxMB 초과 시 alert 후 false 반환. 압축 대상 필드는 압축 이후(uploadImage)에 별도 호출.
-function validateMaxMB(file, maxMB) {
+function validateMaxMB(file: File, maxMB: number | undefined) {
   if (!maxMB) return true;
   if (file.size > maxMB * 1024 * 1024) {
     alert(
@@ -1508,7 +1770,7 @@ function validateMaxMB(file, maxMB) {
 }
 
 // 압축 적용 대상 필드인지 판정: field.compress === true이고 file/multiFile 타입이 아님
-function isCompressibleField(field = {}) {
+function isCompressibleField(field: Partial<AdminField> = {}) {
   return (
     field.compress === true &&
     field.type !== "file" &&
@@ -1519,7 +1781,11 @@ function isCompressibleField(field = {}) {
 // 이미지 규격 검증: imageSpec = { width, height, tolerance(기본 0.02), maxMB, aspectOnly }
 // 반환값 false = 업로드 중단, true = 계속 진행
 // options.skipMaxMB: true면 maxMB 검증은 건너뜀 (압축 대상 필드는 압축 이후 별도 검증)
-async function validateImageSpec(file, imageSpec, options = {}) {
+async function validateImageSpec(
+  file: File,
+  imageSpec: AdminImageSpec | undefined,
+  options: { skipMaxMB?: boolean } = {},
+) {
   if (!imageSpec) return true;
 
   const { width, height, tolerance = 0.02, maxMB, aspectOnly } = imageSpec;
@@ -1528,7 +1794,7 @@ async function validateImageSpec(file, imageSpec, options = {}) {
 
   if (!width || !height) return true;
 
-  let bitmap;
+  let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
@@ -1540,8 +1806,8 @@ async function validateImageSpec(file, imageSpec, options = {}) {
   const actualHeight = bitmap.height;
   bitmap.close?.();
 
-  let matches;
-  let expectedText;
+  let matches: boolean;
+  let expectedText: string;
 
   if (aspectOnly) {
     const expectedRatio = width / height;
@@ -1565,12 +1831,12 @@ async function validateImageSpec(file, imageSpec, options = {}) {
 
 // 500KB 초과 이미지 canvas 재인코딩 (치수 유지, png→png / jpeg 품질 0.85)
 // 재인코딩 결과가 원본보다 작을 때만 교체. field.compress === true인 필드만 대상 (옵트인).
-async function maybeCompressImage(file, field = {}) {
+async function maybeCompressImage(file: File, field: Partial<AdminField> = {}) {
   if (!isCompressibleField(field)) return file;
   if (file.type !== "image/png" && file.type !== "image/jpeg") return file;
   if (file.size <= COMPRESS_THRESHOLD_BYTES) return file;
 
-  let bitmap;
+  let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
@@ -1587,7 +1853,7 @@ async function maybeCompressImage(file, field = {}) {
     ctx.drawImage(bitmap, 0, 0);
 
     const isPng = file.type === "image/png";
-    const blob = await new Promise((resolve) =>
+    const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, file.type, isPng ? undefined : 0.85),
     );
 
@@ -1606,11 +1872,21 @@ async function maybeCompressImage(file, field = {}) {
 
 // Admin()이 AdminForm에 onUpload로 넘기던 함수. 컴포넌트 상태를 전혀 참조하지 않는 순수 함수라
 // PremiumBookAdmin(제네릭 개별 페이지 편집)도 그대로 재사용할 수 있도록 모듈 스코프로 뺐다.
-export async function uploadImage(files, field = {}) {
-  const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
+export async function uploadImage(
+  files: File | File[] | FileList | null | undefined,
+  field: Partial<AdminField> = {},
+): Promise<AdminUploadedFile[]> {
+  // 배열이면 그대로(원본 그대로 — Boolean 필터를 태우지 않는다), 아니면
+  // (단일 File 또는 falsy) [files]로 감싸 Boolean 필터를 태운다 — 실제
+  // 호출부는 항상 File[] 아니면 단일 File만 넘긴다(uploadMultiple이 미리
+  // Array.from으로 변환), FileList는 파라미터 계약(AdminUploadHandler)에만
+  // 존재하는 여유분이라 as File[]로 좁힌다.
+  const fileList: File[] = Array.isArray(files)
+    ? files
+    : ([files].filter(Boolean) as File[]);
   if (fileList.length === 0) return [];
 
-  const uploaded = [];
+  const uploaded: AdminUploadedFile[] = [];
 
   for (const rawFile of fileList) {
     const willCompress = isCompressibleField(field);
