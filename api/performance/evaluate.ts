@@ -245,7 +245,8 @@ async function readQuota(
       await findProgramAccessRow(
         supabaseAdmin,
         userId,
-        SERVICE_CONFIGS[SERVICE_KEY],
+        // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+        SERVICE_CONFIGS[SERVICE_KEY]!,
       ),
     );
   } catch (error) {
@@ -451,7 +452,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -469,7 +470,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
-      SERVICE_CONFIGS[SERVICE_KEY],
+      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+      SERVICE_CONFIGS[SERVICE_KEY]!,
     );
     if (!hasAccess) {
       return fail(
@@ -634,7 +636,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── 제출 스키마. 세션에 영속화된 값이 정본이고(§8.3 「서버 소유로 승격」) 없으면
     //    판정한다. 판정 결과를 여기서 저장하지는 않는다 — 저장 지점은 `submission.js`
     //    하나로 둔다(두 곳에서 쓰면 어느 쪽이 먼저 도느냐로 값이 갈릴 수 있다).
-    const { schema } = resolveSessionSubmissionSchema(sessionRow);
+    // sessionRow는 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
+    const { schema } = resolveSessionSubmissionSchema(
+      sessionRow as Parameters<typeof resolveSessionSubmissionSchema>[0],
+    );
     const fields =
       submissionRow.fields && typeof submissionRow.fields === "object"
         ? submissionRow.fields
@@ -778,12 +783,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? designReport.sections
         : {};
     const storedStructure = designEnvelope.structure;
+    // sessionRow는 GuideSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다(unknown 캐스트 경유).
     const structure =
       storedStructure && trimmed(storedStructure.type)
         ? storedStructure
-        : inferGuideStructure(sessionRow);
+        : inferGuideStructure(
+            sessionRow as Parameters<typeof inferGuideStructure>[0],
+          );
 
-    const assessmentText = guideTextFromSession(sessionRow);
+    const assessmentText = guideTextFromSession(
+      sessionRow as Parameters<typeof guideTextFromSession>[0],
+    );
     const submissionText = buildSubmissionText(selectedTopic, schema, fields);
 
     const system = buildEvaluationSystem({
@@ -796,15 +806,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //   원문 작업 지시 `내부 위닝DB 자료는 사용하지 말고`(`evaluate-text.js:151`)가
     //   평가 단계의 계약이라, 여기서 자료를 끌어오면 채점이 오염된다. 설계 리포트와
     //   정반대 방향이므로 `loadDynamicAssessmentKnowledge`를 import조차 하지 않는다.
+    // buildEvaluationUser는 값을 `|| ""`로 다루므로 null→"" 치환은 결과에 영향 없다.
     const userMsg = buildEvaluationUser({
       assessmentText,
       selectedTopic,
-      career: sessionRow.career_goal,
-      gradeLabel: sessionRow.grade_label,
-      semester: sessionRow.semester,
-      schoolType: sessionRow.school_type,
-      subjectGroup: sessionRow.subject_group,
-      subject: sessionRow.subject,
+      career: sessionRow.career_goal || "",
+      gradeLabel: sessionRow.grade_label || "",
+      semester: sessionRow.semester || "",
+      schoolType: sessionRow.school_type || "",
+      subjectGroup: sessionRow.subject_group || "",
+      subject: sessionRow.subject || "",
       previousTopic:
         trimmed(sessionRow.previous_topic) || NO_PREVIOUS_TOPIC_TEXT,
       submissionText,
@@ -955,10 +966,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supabase: supabaseAdmin,
         sessionId: sessionRow.id,
         profileId: userId,
-        gradeLabel: sessionRow.grade_label,
-        subjectGroup: sessionRow.subject_group,
-        subject: sessionRow.subject,
-        careerGoal: sessionRow.career_goal,
+        // upsertSessionVectorMetadata 내부는 `|| null`로 저장하므로 null→"" 치환은 결과에 영향 없다.
+        gradeLabel: sessionRow.grade_label || "",
+        subjectGroup: sessionRow.subject_group || "",
+        subject: sessionRow.subject || "",
+        careerGoal: sessionRow.career_goal || "",
         topicTitle: selectedTopic,
         summaryText: `평가 총평: ${summary}\n설계 리포트: ${flattenReportSectionsToText(designEnvelope.sections)}`,
       });
@@ -987,7 +999,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         p_profile_id: userId,
         p_submission_id: submissionRow.id,
         p_sections: buildReportEnvelope({
-          score,
+          // payload가 non-null이면(위 가드 통과) score도 같은 블록에서 함께 설정됐다.
+          score: score!,
           summary,
           sections,
           structure: structureForClient,

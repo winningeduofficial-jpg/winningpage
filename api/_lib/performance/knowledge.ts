@@ -432,7 +432,11 @@ async function loadByVectorSearch(
       knowledgeType === "verified_resource"
         ? RESOURCE_MATCH_THRESHOLD
         : TOPIC_MATCH_THRESHOLD,
-    filter_subject: resolveFilterSubject({ includeOtherSubjects, subject }),
+    // includeOtherSubjects/subject는 falsy 취급이 undefined와 동일해 값 대체가 안전하다.
+    filter_subject: resolveFilterSubject({
+      includeOtherSubjects: Boolean(includeOtherSubjects),
+      subject: subject ?? "",
+    }),
   });
 
   if (error) throw error;
@@ -529,7 +533,9 @@ async function loadByLegacyKeywordSearch(
 
   if (error) throw error;
 
-  const scored = rows
+  // supabase 타입상 data는 null일 수 있으나(에러 없으면 실제로는 항상 배열),
+  // 위 기본값(`data: rows = []`)이 undefined만 커버하므로 null도 여기서 방어한다.
+  const scored = (rows ?? [])
     .map((row) => {
       const blob = [
         row.subject,

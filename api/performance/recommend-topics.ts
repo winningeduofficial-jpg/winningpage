@@ -340,7 +340,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -359,7 +359,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
-      SERVICE_CONFIGS[SERVICE_KEY],
+      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+      SERVICE_CONFIGS[SERVICE_KEY]!,
     );
     if (!hasAccess) {
       return fail(
@@ -498,7 +499,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await findProgramAccessRow(
             supabaseAdmin,
             userId,
-            SERVICE_CONFIGS[SERVICE_KEY],
+            // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+            SERVICE_CONFIGS[SERVICE_KEY]!,
           ),
         );
       } catch (quotaError) {
@@ -588,7 +590,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await findProgramAccessRow(
             supabaseAdmin,
             userId,
-            SERVICE_CONFIGS[SERVICE_KEY],
+            // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+            SERVICE_CONFIGS[SERVICE_KEY]!,
           ),
         );
 
@@ -740,11 +743,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     );
 
+    // buildTopicRecommendationUser는 값을 `|| ""`로 다루므로 null→"" 치환은 결과에 영향 없다.
     const baseUser = buildTopicRecommendationUser({
       gradeLabel,
-      semester: sessionRow.semester,
-      schoolType: sessionRow.school_type,
-      subjectGroup: sessionRow.subject_group,
+      semester: sessionRow.semester || "",
+      schoolType: sessionRow.school_type || "",
+      subjectGroup: sessionRow.subject_group || "",
       subject,
       career,
       previousTopic,

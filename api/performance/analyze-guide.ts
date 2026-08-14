@@ -251,7 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let analyzedIds: string[] | null = null;
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -268,7 +268,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
-      SERVICE_CONFIGS[SERVICE_KEY],
+      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+      SERVICE_CONFIGS[SERVICE_KEY]!,
     );
     if (!hasAccess) {
       return fail(

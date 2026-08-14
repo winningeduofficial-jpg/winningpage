@@ -129,9 +129,9 @@ type SessionRow = {
   guide_freetext?: string;
   guide_json?: { mode?: string; text?: string };
   submission_format?: string | null;
-  submission_schema?: Parameters<
-    typeof resolveSessionSubmissionSchema
-  >[0]["submission_schema"];
+  submission_schema?: NonNullable<
+    Parameters<typeof resolveSessionSubmissionSchema>[0]
+  >["submission_schema"];
   selected_topic_id: string | null;
 };
 
@@ -202,7 +202,10 @@ async function resolveAndPersistSchema(
   supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
   sessionRow: SessionRow,
 ) {
-  const { schema, inferred } = resolveSessionSubmissionSchema(sessionRow);
+  // sessionRow는 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
+  const { schema, inferred } = resolveSessionSubmissionSchema(
+    sessionRow as Parameters<typeof resolveSessionSubmissionSchema>[0],
+  );
 
   if (inferred) {
     const { error } = await supabaseAdmin
@@ -292,7 +295,7 @@ async function authorize(
   supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
   sessionId: string,
 ): Promise<{ userId: string; sessionRow: SessionRow } | null> {
-  const token = getBearerToken(req);
+  const token = getBearerToken(req as { headers: Record<string, string> });
   if (!token) {
     fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     return null;
@@ -312,7 +315,8 @@ async function authorize(
   const { allowed: hasAccess } = await hasPaidServiceAccess(
     supabaseAdmin,
     userId,
-    SERVICE_CONFIGS[SERVICE_KEY],
+    // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+    SERVICE_CONFIGS[SERVICE_KEY]!,
   );
   if (!hasAccess) {
     fail(
