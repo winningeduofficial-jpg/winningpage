@@ -1,5 +1,17 @@
-import AdmissionBlockEditor from "../AdmissionBlockEditor";
+import AdmissionBlockEditor, {
+  type AdmissionBlock,
+} from "../AdmissionBlockEditor";
 import * as docOps from "../docBlockOperations";
+
+type GroupBlock = AdmissionBlock & { children?: AdmissionBlock[] };
+
+type GroupBlockEditorProps = {
+  section?: unknown;
+  block: GroupBlock;
+  onChange: (block: GroupBlock) => void;
+  universityName?: string;
+  sectionLabel?: string;
+};
 
 // GroupBlock(kind:'group', 제목 + 중첩 children) 편집기.
 //
@@ -29,7 +41,7 @@ export default function GroupBlockEditor({
   onChange,
   universityName,
   sectionLabel,
-}) {
+}: GroupBlockEditorProps) {
   const children = block.children || [];
 
   return (

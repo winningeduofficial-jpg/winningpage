@@ -1,24 +1,35 @@
 import ImeSafeInput from "../ImeSafeInput";
 
+type Chip = { label?: string; value?: string };
+type ChipsCellValue = { chips?: Chip[] };
+
+type ChipsCellEditorProps = {
+  value: ChipsCellValue | undefined;
+  onChange: (value: ChipsCellValue) => void;
+};
+
 // {chips: [{label, value}]} 셀 편집기 — recruit variant의 값 셀
 // (admission-recruit-cell-values) 전용. 칩 추가·삭제·라벨/값 수정.
-export default function ChipsCellEditor({ value, onChange }) {
-  const chips =
+export default function ChipsCellEditor({
+  value,
+  onChange,
+}: ChipsCellEditorProps) {
+  const chips: Chip[] =
     value && typeof value === "object" && Array.isArray(value.chips)
       ? value.chips
       : [];
 
-  function commitChips(nextChips) {
+  function commitChips(nextChips: Chip[]) {
     onChange({ chips: nextChips });
   }
 
-  function updateChip(idx, patch) {
+  function updateChip(idx: number, patch: Partial<Chip>) {
     commitChips(
       chips.map((chip, i) => (i === idx ? { ...chip, ...patch } : chip)),
     );
   }
 
-  function removeChip(idx) {
+  function removeChip(idx: number) {
     commitChips(chips.filter((_, i) => i !== idx));
   }
 

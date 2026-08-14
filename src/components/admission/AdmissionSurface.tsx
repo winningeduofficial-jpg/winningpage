@@ -54,10 +54,15 @@
 // admission-raw-pre/admission-safe-text-block/admission-recruit-legend/
 // admission-bullet-list처럼 이름이 비슷해 헷갈리기 쉬운 것들은 전부 실사용
 // 확인 후 남겼다.)
+type AdmissionSurfaceProps = {
+  showSectionTitle?: boolean;
+  showChangeNoColumn?: boolean;
+};
+
 export default function AdmissionSurface({
   showSectionTitle = false,
   showChangeNoColumn = false,
-}) {
+}: AdmissionSurfaceProps) {
   return (
     <style>{`
         .admission-table-wrap,

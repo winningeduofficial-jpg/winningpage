@@ -5,18 +5,32 @@ import ImeSafeInput from "../ImeSafeInput";
 // join한 단일 admission-footnote div로 렌더한다(blocks/FootnoteView.jsx도
 // 동일) — 항목은 개별 편집하되, 실제 렌더 결과를 미리 보여주기 위해
 // join(' ') 미리보기 줄을 함께 보여준다.
-export default function FootnoteBlockEditor({ block, onChange }) {
+type FootnoteBlock = {
+  kind: string;
+  items?: string[];
+  [key: string]: unknown;
+};
+
+type FootnoteBlockEditorProps = {
+  block: FootnoteBlock;
+  onChange: (block: FootnoteBlock) => void;
+};
+
+export default function FootnoteBlockEditor({
+  block,
+  onChange,
+}: FootnoteBlockEditorProps) {
   const items = block.items || [];
 
-  function commitItems(nextItems) {
+  function commitItems(nextItems: string[]) {
     onChange({ ...block, items: nextItems });
   }
 
-  function updateItem(idx, text) {
+  function updateItem(idx: number, text: string) {
     commitItems(items.map((item, i) => (i === idx ? text : item)));
   }
 
-  function removeItem(idx) {
+  function removeItem(idx: number) {
     commitItems(items.filter((_, i) => i !== idx));
   }
 

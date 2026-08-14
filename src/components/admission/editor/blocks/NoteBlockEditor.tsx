@@ -1,8 +1,18 @@
 import { useId } from "react";
 import ImeSafeInput from "../ImeSafeInput";
 
+type NoteBlock = { kind: string; text?: string; [key: string]: unknown };
+
+type NoteBlockEditorProps = {
+  block: NoteBlock;
+  onChange: (block: NoteBlock) => void;
+};
+
 // NoteBlock 최소 편집기 — text 하나.
-export default function NoteBlockEditor({ block, onChange }) {
+export default function NoteBlockEditor({
+  block,
+  onChange,
+}: NoteBlockEditorProps) {
   const inputId = useId();
   return (
     <div className="p-2">

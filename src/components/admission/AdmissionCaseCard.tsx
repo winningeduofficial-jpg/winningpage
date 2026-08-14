@@ -4,7 +4,12 @@ import {
   getThumbnailUrl,
 } from "../../pages/admission/admissionCaseData";
 
-function Thumbnail({ url, title }) {
+type ThumbnailProps = {
+  url?: string;
+  title?: string;
+};
+
+function Thumbnail({ url, title }: ThumbnailProps) {
   if (!url) {
     return (
       <div
@@ -23,7 +28,19 @@ function Thumbnail({ url, title }) {
   );
 }
 
-export default function AdmissionCaseCard({ row }) {
+type AdmissionCaseRow = {
+  id: string | number;
+  category: string;
+  title?: string;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
+type AdmissionCaseCardProps = {
+  row: AdmissionCaseRow;
+};
+
+export default function AdmissionCaseCard({ row }: AdmissionCaseCardProps) {
   const thumbnail = getThumbnailUrl(row);
 
   return (

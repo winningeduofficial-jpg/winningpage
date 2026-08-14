@@ -25,9 +25,14 @@
 //     그 경로가 생기면 미러도 함께 만들어야 한다.)
 import { withDedupedKeys } from "../../../lib/reactKeys";
 
-function groupItems(items) {
-  const groups = [];
-  let currentBullets = null;
+type PlainListItem = { type: "bullet" | "subtitle" | string; text: string };
+type ItemGroup =
+  | { kind: "bulletGroup"; items: string[] }
+  | { kind: "line"; type: string; text: string };
+
+function groupItems(items: PlainListItem[]): ItemGroup[] {
+  const groups: ItemGroup[] = [];
+  let currentBullets: string[] | null = null;
 
   items.forEach((item) => {
     if (item.type === "bullet") {
@@ -39,17 +44,22 @@ function groupItems(items) {
       return;
     }
     currentBullets = null;
-    groups.push({ kind: item.type, text: item.text });
+    groups.push({ kind: "line", type: item.type, text: item.text });
   });
 
   return groups;
 }
 
-/**
- * @param {Array<{type: 'bullet'|'subtitle', text: string}>} items
- * @param {boolean} [ordered] true면 bullet 묶음을 `<ol>`(번호 목록)로 낸다. 기본 `<ul>`.
- */
-export default function PlainListView({ items, ordered = false }) {
+type PlainListViewProps = {
+  items?: PlainListItem[];
+  /** true면 bullet 묶음을 `<ol>`(번호 목록)로 낸다. 기본 `<ul>`. */
+  ordered?: boolean;
+};
+
+export default function PlainListView({
+  items,
+  ordered = false,
+}: PlainListViewProps) {
   if (!items?.length) return null;
   const groups = groupItems(items);
   const ListTag = ordered ? "ol" : "ul";
@@ -62,7 +72,7 @@ export default function PlainListView({ items, ordered = false }) {
       {withDedupedKeys(groups, (group) =>
         group.kind === "bulletGroup"
           ? `bulletGroup-${group.items.join("|")}`
-          : `${group.kind}-${group.text}`,
+          : `${group.type}-${group.text}`,
       ).map(({ item: group, key }) => {
         if (group.kind === "bulletGroup") {
           return (
@@ -76,7 +86,7 @@ export default function PlainListView({ items, ordered = false }) {
           );
         }
         const className =
-          group.kind === "subtitle"
+          group.type === "subtitle"
             ? "admission-subtitle-line"
             : "admission-text-line";
         return (

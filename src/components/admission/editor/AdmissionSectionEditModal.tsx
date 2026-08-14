@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import AdmissionSurface from "../AdmissionSurface";
 import AdmissionModalShell from "../modal/AdmissionModalShell";
 import AdmissionModalStyles from "../modal/AdmissionModalStyles";
@@ -47,6 +48,18 @@ const EDITOR_BODY_CLASS =
 const EDITOR_FOOTER_CLASS =
   "border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-12";
 
+type AdmissionSectionEditModalProps = {
+  open: boolean;
+  sectionKey?: string;
+  sectionLabel?: string;
+  universityName?: string;
+  dirty?: boolean;
+  origin?: "list" | "form";
+  onClose: () => void;
+  onSave: () => void;
+  children?: ReactNode;
+};
+
 export default function AdmissionSectionEditModal({
   open,
   sectionKey,
@@ -58,7 +71,7 @@ export default function AdmissionSectionEditModal({
   onClose,
   onSave,
   children,
-}) {
+}: AdmissionSectionEditModalProps) {
   if (!open) return null;
 
   const closeLabel = origin === "list" ? "닫기" : "폼으로";

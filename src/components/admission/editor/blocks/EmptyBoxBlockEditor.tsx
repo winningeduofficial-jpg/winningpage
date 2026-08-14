@@ -1,8 +1,18 @@
 import { useId } from "react";
 import ImeSafeInput from "../ImeSafeInput";
 
+type EmptyBoxBlock = { kind: string; message?: string; [key: string]: unknown };
+
+type EmptyBoxBlockEditorProps = {
+  block: EmptyBoxBlock;
+  onChange: (block: EmptyBoxBlock) => void;
+};
+
 // EmptyBoxBlock 최소 편집기 — message 하나.
-export default function EmptyBoxBlockEditor({ block, onChange }) {
+export default function EmptyBoxBlockEditor({
+  block,
+  onChange,
+}: EmptyBoxBlockEditorProps) {
   const inputId = useId();
   return (
     <div className="p-2">

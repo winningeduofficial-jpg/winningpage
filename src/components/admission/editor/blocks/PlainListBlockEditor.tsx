@@ -8,14 +8,29 @@ import ImeSafeInput from "../ImeSafeInput";
 // PlainListBlock 편집기 — items의 type·text 편집 + 항목 추가·삭제·순서
 // 변경(2026-08-06 보완: "최소 편집"을 items 필드 편집으로만 좁게 해석해
 // 항목 조작을 뺐던 첫 버전은 편집기로 실사용 불가였다는 지적 반영).
-export default function PlainListBlockEditor({ block, onChange }) {
+type PlainListEditorItem = { type?: string; text?: string };
+type PlainListBlock = {
+  kind: string;
+  items?: PlainListEditorItem[];
+  [key: string]: unknown;
+};
+
+type PlainListBlockEditorProps = {
+  block: PlainListBlock;
+  onChange: (block: PlainListBlock) => void;
+};
+
+export default function PlainListBlockEditor({
+  block,
+  onChange,
+}: PlainListBlockEditorProps) {
   const items = block.items || [];
 
-  function commitItems(nextItems) {
+  function commitItems(nextItems: PlainListEditorItem[]) {
     onChange({ ...block, items: nextItems });
   }
 
-  function updateItem(idx, patch) {
+  function updateItem(idx: number, patch: Partial<PlainListEditorItem>) {
     commitItems(
       items.map((item, i) => (i === idx ? { ...item, ...patch } : item)),
     );
@@ -25,11 +40,11 @@ export default function PlainListBlockEditor({ block, onChange }) {
     commitItems(appendBlock(items, { type: "text", text: "" }));
   }
 
-  function removeItem(idx) {
+  function removeItem(idx: number) {
     commitItems(removeBlockAt(items, idx));
   }
 
-  function moveItem(idx, delta) {
+  function moveItem(idx: number, delta: number) {
     commitItems(moveBlock(items, idx, delta));
   }
 

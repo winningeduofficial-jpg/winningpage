@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import { getKnownRolesForVariant } from "../admissionLayout";
 import ImeSafeInput from "./ImeSafeInput";
 
@@ -10,12 +11,22 @@ const CUSTOM_ROLE_OPTION = "__custom__";
 // 옮긴 값)을 드롭다운으로 제공하고, 목록에 없는 값(기존 데이터가 이미
 // 알려지지 않은 role을 갖고 있는 경우 포함)에는 "직접 입력" 텍스트
 // 필드 + 경고를 보여준다.
-export default function ColumnRoleEditor({ variant, role, onChange }) {
-  const options = getKnownRolesForVariant(variant);
-  const isKnown = options.includes(role);
+type ColumnRoleEditorProps = {
+  variant: string;
+  role?: string;
+  onChange: (next: string) => void;
+};
+
+export default function ColumnRoleEditor({
+  variant,
+  role,
+  onChange,
+}: ColumnRoleEditorProps) {
+  const options: string[] = getKnownRolesForVariant(variant);
+  const isKnown = options.includes(role ?? "");
   const selectValue = isKnown ? role : CUSTOM_ROLE_OPTION;
 
-  function handleSelectChange(event) {
+  function handleSelectChange(event: ChangeEvent<HTMLSelectElement>) {
     const next = event.target.value;
     onChange(next === CUSTOM_ROLE_OPTION ? "" : next);
   }

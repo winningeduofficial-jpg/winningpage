@@ -1,4 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type ComponentPropsWithoutRef,
+  type CompositionEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+type ImeSafeInputProps = Omit<
+  ComponentPropsWithoutRef<"input">,
+  "value" | "onChange" | "onCommit"
+> & {
+  value?: string;
+  onCommit: (value: string) => void;
+};
 
 // 한글 등 조합 입력(IME) 안전 controlled input.
 //
@@ -7,7 +22,11 @@ import { useEffect, useRef, useState } from "react";
 // 캐럿이 튀는 문제가 알려져 있다(react + IME composition 조합 중 흔한
 // 함정). 조합 중(onCompositionStart~onCompositionEnd)에는 로컬 draft만
 // 갱신하고, 상위로의 커밋(onCommit)은 조합이 끝난 뒤에만 흘려보낸다.
-export default function ImeSafeInput({ value, onCommit, ...rest }) {
+export default function ImeSafeInput({
+  value,
+  onCommit,
+  ...rest
+}: ImeSafeInputProps) {
   const [draft, setDraft] = useState(value ?? "");
   const composingRef = useRef(false);
 
@@ -20,7 +39,7 @@ export default function ImeSafeInput({ value, onCommit, ...rest }) {
     }
   }, [value]);
 
-  function handleChange(event) {
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
     setDraft(next);
     if (!composingRef.current) onCommit(next);
@@ -30,9 +49,9 @@ export default function ImeSafeInput({ value, onCommit, ...rest }) {
     composingRef.current = true;
   }
 
-  function handleCompositionEnd(event) {
+  function handleCompositionEnd(event: CompositionEvent<HTMLInputElement>) {
     composingRef.current = false;
-    const next = event.target.value;
+    const next = event.currentTarget.value;
     setDraft(next);
     onCommit(next);
   }

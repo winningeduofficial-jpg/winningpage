@@ -27,7 +27,17 @@ import { withDedupedKeys } from "../../../lib/reactKeys";
 /** 링크 라벨 접미. 시각적 표시가 없는 링크라 접근성 이름으로만 새 창을 알린다. */
 const NEW_WINDOW_SUFFIX = " (새 창)";
 
-export default function KeyValueView({ rows }) {
+type KeyValueRow = {
+  label?: string;
+  content?: string;
+  href?: string;
+};
+
+type KeyValueViewProps = {
+  rows?: KeyValueRow[];
+};
+
+export default function KeyValueView({ rows }: KeyValueViewProps) {
   if (!rows?.length) return null;
 
   return (
