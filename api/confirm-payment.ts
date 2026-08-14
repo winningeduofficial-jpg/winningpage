@@ -27,7 +27,10 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { grantProgramAccessForOrder } from "./_lib/programAccess.js";
+import {
+  type GrantProgramAccessOptions,
+  grantProgramAccessForOrder,
+} from "./_lib/programAccess.js";
 
 // 토스 결제 승인(POST /v1/payments/confirm)·조회(GET .../orders/{orderId}) 두
 // 응답 모두 이 라우트가 실제로 읽는 필드만 담는다. 실패 응답의 code/message도
@@ -66,6 +69,21 @@ const STATUS_FAILED = "failed";
 // orders.status 를 refunded 에서 되돌리는 UPDATE 자체를 막는 이중 방어선이다.
 const STATUS_REFUNDED = "refunded";
 const APPROVAL_APPROVED = "approved";
+
+// orders 테이블 select("id, user_id, amount, status, approval_status,
+// payment_key, paid_at, raw")의 결과 행 모양. supabase-js 클라이언트가
+// 제네릭 타입 없이 생성돼 있어(createSupabaseAdmin) select 결과가 자동으로
+// 좁혀지지 않는다 — 아래에서 실제로 읽는 필드만 담는다.
+type OrderRow = {
+  id: string;
+  user_id: string | null;
+  amount: number;
+  status: string;
+  approval_status: string;
+  payment_key: string | null;
+  paid_at: string | null;
+  raw: TossPaymentResponse | null;
+};
 
 // 토스 "이미 처리된 결제" 계열 오류 코드. 정확한 코드명이 SDK 버전에 따라
 // 갈릴 수 있어 접두어로도 잡는다 — 이 경우는 우리 쪽 실패가 아니라 이전 시도가
@@ -149,7 +167,7 @@ async function grantAndLog(
     userId,
     paidAt,
     restoreRevoked,
-  });
+  } as GrantProgramAccessOptions);
   if (!access.ok) {
     console.error("program_access grant failed:", orderId, access.error);
   } else {
@@ -214,7 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabaseAdmin = createSupabaseAdmin();
 
     // 서버가 생성한 주문의 금액을 신뢰값으로 사용한다. (클라이언트가 보낸 amount 는 검증용)
-    let order = null;
+    let order: OrderRow | null = null;
     if (supabaseAdmin) {
       const { data } = await supabaseAdmin
         .from("orders")
@@ -289,7 +307,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } else {
             access = await grantAndLog(supabaseAdmin, {
               orderId,
-              userId: order.user_id,
+              userId: order.user_id!,
               paidAt: order.paid_at,
             });
           }
@@ -431,7 +449,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "WAITING_FOR_DEPOSIT",
         ]);
 
-        if (queryRes.ok && RECOVERABLE_TOSS_STATUSES.has(queried?.status)) {
+        if (
+          queryRes.ok &&
+          RECOVERABLE_TOSS_STATUSES.has(queried?.status ?? "")
+        ) {
           data = queried;
         } else if (queryRes.ok) {
           console.error(
