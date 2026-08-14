@@ -606,10 +606,10 @@ export async function upsertDailyRecord(
 }
 
 export type ProbabilitySnapshot = {
-  idealSusi: number;
-  idealJungsi: number;
-  minSusi: number;
-  minJungsi: number;
+  idealSusi: number | null;
+  idealJungsi: number | null;
+  minSusi: number | null;
+  minJungsi: number | null;
 };
 
 export type ProbabilityLogReason = "intake" | "daily_record" | "score_update";
