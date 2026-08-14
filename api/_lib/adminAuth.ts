@@ -29,7 +29,7 @@
 //   막으려면 SQL 함수와 이 파일을 **같이** 고쳐야 한다.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getBearerToken } from "./serviceAccess.ts";
+import { getBearerToken } from "./serviceAccess.js";
 
 export { getBearerToken };
 

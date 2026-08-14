@@ -14,7 +14,7 @@ import {
   getSchoolCutType,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../lib/goal/calc/index.ts";
+} from "../../lib/goal/calc/index.js";
 import { supabase } from "../../lib/supabase";
 import { PAGE_SIZE } from "../../pages/admin/shared/AdminEngine";
 import { formatValue } from "../../pages/admin/shared/csvExport";

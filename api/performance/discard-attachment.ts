@@ -43,7 +43,7 @@ import {
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { BUCKET } from "./upload-url.ts";
+import { BUCKET } from "./upload-url.js";
 
 const SERVICE_KEY = "suhaeng";
 

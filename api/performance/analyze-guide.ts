@@ -97,7 +97,7 @@
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.ts";
+import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
 import {
   buildGuideExtractionUserPrompt,
   GUIDE_EXTRACTION_SYSTEM,
@@ -108,14 +108,14 @@ import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import {
   ALLOWED_MIME_EXT,
   BUCKET,
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
   MAX_TOTAL_BYTES,
-} from "./upload-url.ts";
+} from "./upload-url.js";
 
 const SERVICE_KEY = "suhaeng";
 

@@ -26,7 +26,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { kstYMD } from "../../src/lib/goal/calc/index.ts";
+import { kstYMD } from "../../src/lib/goal/calc/index.js";
 import { num, openGoalSession } from "../_lib/goalRepo.js";
 
 export const config = { runtime: "nodejs" };

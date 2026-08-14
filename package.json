@@ -10,20 +10,21 @@
     "build": "vite build",
     "preview": "vite preview",
     "// test:calc": "디렉터리 인자(node --test src/lib/goal/calc/)는 Node 24 에서 테스트를 탐색하지 않는다. 디렉터리를 index.js 로 해석해 단일 테스트 파일로 실행해 버려서 0건 통과(가짜 green)가 된다. 반드시 glob 으로 지정할 것.",
-    "test:calc": "node --test \"src/lib/goal/calc/**/*.test.{js,ts}\"",
-    "test:diagnosis": "node --test \"src/lib/diagnosisScoring.test.ts\"",
-    "test:bonus-v2": "node --test scripts/test-bonus-v2.mjs",
+    "// tsx": "production(api/, .js 확장자 import)과 로컬 node --test(.ts 파일이 디스크에 그대로 있어야 함)가 요구하는 확장자가 정반대라, .ts 소스를 실행하는 로컬 스크립트는 전부 node 대신 tsx(esbuild 기반, .js specifier를 .ts로 정확히 리졸브)로 돌린다.",
+    "test:calc": "tsx --test \"src/lib/goal/calc/**/*.test.{js,ts}\"",
+    "test:diagnosis": "tsx --test \"src/lib/diagnosisScoring.test.ts\"",
+    "test:bonus-v2": "tsx --test scripts/test-bonus-v2.mjs",
     "format": "biome check --write .",
     "format:ci": "biome ci .",
     "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
     "// test:goal-cuts": "목표관리 대학 컷 엑셀 왕복 파서 회귀. verify 체인에도 들어 있지만 단독 실행 경로를 따로 둔다 — 체인은 && 직렬이라 앞쪽 스크립트가 하나라도 죽으면 뒤가 통째로 건너뛰어진다(현재 verify-admission-doc-html-drift / verify-admission-bulk-xlsx 가 로컬 키 파일 부재로 죽는다).",
-    "test:goal-cuts": "node scripts/test-goal-university-cuts-bulk-xlsx.mjs",
+    "test:goal-cuts": "tsx scripts/test-goal-university-cuts-bulk-xlsx.mjs",
     "// test:univ-normalize": "목표관리 대학 컷 백필의 단축형→전체형 대학명 정규화 회귀.",
-    "test:univ-normalize": "node --test scripts/test-university-name-normalize.mjs",
+    "test:univ-normalize": "tsx --test scripts/test-university-name-normalize.mjs",
     "// verify": "체인 순서 규칙 — 외부 자산(DB 키·골든 캐시)에 의존하지 않는 순수 스크립트를 앞에 둔다. 뒤로 갈수록 환경 의존이 커지므로, 뒤에 붙인 테스트는 앞이 죽는 환경에서 영원히 실행되지 않는다.",
-    "verify": "node scripts/verify-admission-doc-equivalence.mjs && node scripts/test-goal-university-cuts-bulk-xlsx.mjs && node scripts/verify-admission-doc-html-drift.mjs && node scripts/verify-admission-block-render.mjs && node scripts/verify-admission-table-editor.mjs && node scripts/verify-admission-bulk-xlsx.mjs && node scripts/verify-safe-html.mjs && node scripts/verify-admission-modal-shell.mjs && node scripts/test-admission-doc-renderer-total.mjs && node scripts/test-admission-doc-regression-guard.mjs && node scripts/verify-diagnosis-scoring.mjs && node scripts/verify-performance-sidebar-nav.mjs && node scripts/verify-performance-prompt-parity.mjs && node scripts/verify-performance-guide-structure.mjs && node scripts/verify-performance-submission-schema.mjs && node scripts/verify-performance-submission-api.mjs && node scripts/verify-performance-submission-form.mjs && node scripts/verify-performance-evaluation-report.mjs",
-    "verify:diagnosis": "node scripts/verify-diagnosis-scoring.mjs"
+    "verify": "tsx scripts/verify-admission-doc-equivalence.mjs && tsx scripts/test-goal-university-cuts-bulk-xlsx.mjs && tsx scripts/verify-admission-doc-html-drift.mjs && tsx scripts/verify-admission-block-render.mjs && tsx scripts/verify-admission-table-editor.mjs && tsx scripts/verify-admission-bulk-xlsx.mjs && tsx scripts/verify-safe-html.mjs && tsx scripts/verify-admission-modal-shell.mjs && tsx scripts/test-admission-doc-renderer-total.mjs && tsx scripts/test-admission-doc-regression-guard.mjs && tsx scripts/verify-diagnosis-scoring.mjs && tsx scripts/verify-performance-sidebar-nav.mjs && tsx scripts/verify-performance-prompt-parity.mjs && tsx scripts/verify-performance-guide-structure.mjs && tsx scripts/verify-performance-submission-schema.mjs && tsx scripts/verify-performance-submission-api.mjs && tsx scripts/verify-performance-submission-form.mjs && tsx scripts/verify-performance-evaluation-report.mjs",
+    "verify:diagnosis": "tsx scripts/verify-diagnosis-scoring.mjs"
   },
   "dependencies": {
     "@blocknote/ariakit": "0.52.1",
@@ -55,6 +56,7 @@
     "postcss": "^8.4.49",
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.12",
     "typescript": "^5.9.3"
   }
 }

@@ -95,9 +95,9 @@
 //     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isAuthorizedCron } from "../_lib/cronAuth.ts";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
-import { BUCKET } from "./upload-url.ts";
+import { isAuthorizedCron } from "../_lib/cronAuth.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { BUCKET } from "./upload-url.js";
 
 /** §8.8 「보관 기간 — 90일」 */
 const RETENTION_DAYS = 90;
