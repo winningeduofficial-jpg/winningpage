@@ -61,25 +61,25 @@
 //      그대로 등급으로 쓴다. student.mjs:646-651 참고. 이 경로는 주입 없이도 동작한다.)
 // 이 두 데이터가 확보되기 전까지 파이프라인은 (고3이 아닌 학년에 한해) 주입 없이 동작하지 않는다.
 
-import type { DailyBonusResult, StudentBonusRates } from "./bonus.ts";
-import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.ts";
+import type { DailyBonusResult, StudentBonusRates } from "./bonus.js";
+import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.js";
 
-import type { JeongsiMogoRound } from "./jeongsi.ts";
-import { calcJeongsiCompositeFE, calcJeongsiProb } from "./jeongsi.ts";
+import type { JeongsiMogoRound } from "./jeongsi.js";
+import { calcJeongsiCompositeFE, calcJeongsiProb } from "./jeongsi.js";
 import {
   applyPreHighGradePenalty,
   calcNaesinProb,
   getRemainingMogo,
   getRemainingNaesin,
   getSchoolCutType,
-} from "./primitives.ts";
+} from "./primitives.js";
 
-import type { WeekScheduleForm } from "./schedule.ts";
+import type { WeekScheduleForm } from "./schedule.js";
 import {
   calculateWeekSchedule,
   sumWeeklySchedule,
   VIRTUAL_DAY_NAMES,
-} from "./schedule.ts";
+} from "./schedule.js";
 
 // ── 이식 누락 보충: student.mjs 의 네 판정 헬퍼 ─────────────────────────────
 // 5개 calc 모듈에는 없었다(원본에서도 순수 함수이지만 지금까지 아무도 이식하지 않았다).

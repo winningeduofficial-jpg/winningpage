@@ -7,7 +7,7 @@ import {
   ACADEMY_SPECIAL_DATA,
   POLICE_SPECIAL_DATA,
   SCIENCE_SPECIAL_DATA,
-} from "../data/admissionSpecialUniversityData.ts";
+} from "../data/admissionSpecialUniversityData.js";
 
 export { ACADEMY_SPECIAL_DATA, POLICE_SPECIAL_DATA, SCIENCE_SPECIAL_DATA };
 

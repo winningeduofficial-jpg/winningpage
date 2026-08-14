@@ -36,7 +36,7 @@ import {
   TASK_BONUS_MULTIPLIER,
   TASK_MOCK_EXAM,
   TASK_NAESIN,
-} from "./bonus.ts";
+} from "./bonus.js";
 
 // 컨디션 배수 — 신시안 "오늘의 컨디션" 4지선다(part-09 §180,
 // src/data/goalStudyMock.js mockConditionOptions)와 값 도메인이 정확히 같다.
