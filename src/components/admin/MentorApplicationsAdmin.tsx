@@ -17,12 +17,38 @@ import {
 // "상태만 변경 가능, 나머지는 읽기전용" 요구와 맞지 않는다).
 // ---------------------------------------------------------------------------
 
+// mentor_applications row. AdminTable(AdminEngine.tsx, 미변환 영역)이 소유하는
+// 제네릭 목록 데이터라 구체 타입이 없다 — 이 파일이 실제로 읽고 쓰는 키만 얕게 좁힌다.
+interface MentorApplicationRow {
+  id: string;
+  status?: string;
+  proof_file_path?: string;
+  proof_file_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
 // 섹션 구분은 sql/52_mentor_applications.sql 컬럼 주석의 1~5절 순서를 그대로 따른다.
 //   array: true       → text[] 컬럼(normalizeArray로 콤마 나열)
 //   boolean: true     → boolean 컬럼('동의'/'미동의')
 //   type: 'datetime'  → timestamptz 컬럼(formatDateTime)
 //   proof: true        → proof_file_name(사용자 입력 원본 파일명) 전용 — 아래 렌더에서 이스케이프됨
-const MENTOR_APPLICATION_DETAIL_SECTIONS = [
+interface MentorApplicationDetailField {
+  key: string;
+  label: string;
+  array?: boolean;
+  boolean?: boolean;
+  type?: "datetime";
+  proof?: boolean;
+}
+
+interface MentorApplicationDetailSection {
+  title: string;
+  fields: MentorApplicationDetailField[];
+}
+
+const MENTOR_APPLICATION_DETAIL_SECTIONS: MentorApplicationDetailSection[] = [
   {
     title: "1. 지원자 정보",
     fields: [
@@ -85,14 +111,17 @@ const MENTOR_APPLICATION_DETAIL_SECTIONS = [
   },
 ];
 
-function formatDateTime(value) {
+function formatDateTime(value: unknown): string {
   if (!value) return "-";
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString("ko-KR");
 }
 
-function renderMentorApplicationDetailValue(app, field) {
+function renderMentorApplicationDetailValue(
+  app: MentorApplicationRow,
+  field: MentorApplicationDetailField,
+): string {
   const value = app[field.key];
 
   if (field.array) {
@@ -107,19 +136,29 @@ function renderMentorApplicationDetailValue(app, field) {
   if (field.proof) {
     // proof_file_name은 지원자가 올린 원본 파일명 — 사용자 입력이다. React의 기본 텍스트
     // 렌더링(자동 이스케이프)만 쓴다. dangerouslySetInnerHTML은 절대 쓰지 않는다.
-    return value || (app.proof_file_path ? "(파일명 없음)" : "-");
+    return (value as string) || (app.proof_file_path ? "(파일명 없음)" : "-");
   }
 
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
 }
 
-export default function MentorApplicationsAdmin({ config }) {
-  const [rows, setRows] = useState([]);
+interface MentorApplicationsAdminProps {
+  config: {
+    title: string;
+    searchPlaceholder?: string;
+    [key: string]: unknown;
+  };
+}
+
+export default function MentorApplicationsAdmin({
+  config,
+}: MentorApplicationsAdminProps) {
+  const [rows, setRows] = useState<MentorApplicationRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(null); // 상세로 연 행. null이면 목록.
+  const [selected, setSelected] = useState<MentorApplicationRow | null>(null); // 상세로 연 행. null이면 목록.
   const [statusDraft, setStatusDraft] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
 
@@ -140,7 +179,7 @@ export default function MentorApplicationsAdmin({ config }) {
       return;
     }
 
-    setRows(data || []);
+    setRows((data as MentorApplicationRow[]) || []);
   }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadRows는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
@@ -154,7 +193,7 @@ export default function MentorApplicationsAdmin({ config }) {
     return rows.filter((row) => searchable(row).includes(q));
   }, [rows, keyword]);
 
-  function openDetail(row) {
+  function openDetail(row: MentorApplicationRow) {
     setSelected(row);
     setStatusDraft(row.status || "submitted");
   }
@@ -352,6 +391,15 @@ export default function MentorApplicationsAdmin({ config }) {
           setPage={setPage}
           onEdit={openDetail}
           onDelete={() => {}}
+          // AdminEngine.tsx(다른 배치 소유, 아직 옵셔널 마킹 전)의 AdminTable 구조분해
+          // 매개변수가 타입 주석 없이 선언돼 있어, 넘기지 않은 나머지 prop까지 전부
+          // 필수로 추론된다 — 원래 JS 호출부(이 다섯 개를 넘기지 않음)와 런타임 동작이
+          // 완전히 동일한 undefined를 명시적으로 채워 타입만 만족시킨다(로직 변경 없음).
+          totalCount={undefined}
+          activeKey={undefined}
+          onCompleteRefund={undefined}
+          onOpenSection={undefined}
+          onOpenMetaEdit={undefined}
         />
       )}
     </div>

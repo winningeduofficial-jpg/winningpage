@@ -1,3 +1,5 @@
+import type { ComponentType } from "react";
+import type { FieldOption } from "../shared/csvExport";
 import {
   MentorCardFormPreview,
   mentorFormToPayload,
@@ -6,14 +8,101 @@ import {
 } from "./mentorStrategiesForm";
 
 // DB 저장값은 영문 키 그대로 유지하고 화면 표기만 한글로 바꾼다(다른 select 옵션과 동일 관례).
-const PREMIUM_CONSULT_STATUS_OPTIONS = [
+const PREMIUM_CONSULT_STATUS_OPTIONS: FieldOption[] = [
   { value: "new", label: "신규" },
   { value: "contacted", label: "연락함" },
   { value: "done", label: "완료" },
   { value: "cancelled", label: "취소" },
 ];
 
-export const mainConfigs = {
+interface MainImageSpec {
+  width?: number;
+  height?: number;
+  maxMB?: number;
+  aspectOnly?: boolean;
+}
+
+interface MainColumn {
+  key: string;
+  label: string;
+  type?: "image" | "date" | "datetime" | "boolean" | "imageList" | "truncate";
+  showFileName?: boolean;
+  options?: FieldOption[];
+}
+
+interface MainField {
+  key: string;
+  label: string;
+  type:
+    | "radioBoolean"
+    | "text"
+    | "checkbox"
+    | "image"
+    | "date"
+    | "datetime"
+    | "number"
+    | "textarea"
+    | "select"
+    | "multiImage";
+  required?: boolean;
+  readOnly?: boolean;
+  help?: string;
+  hideUrlInput?: boolean;
+  compress?: boolean;
+  imageSpec?: MainImageSpec;
+  folder?: string;
+  cacheControl?: string;
+  rows?: number;
+  options?: FieldOption[];
+  showIf?: (form: Record<string, unknown>) => boolean;
+}
+
+interface MainCrudConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  homepage?: boolean;
+  noCreate?: boolean;
+  rowCapWarning?: boolean;
+  retentionNotice?: string;
+  guideText?: string;
+  columns: MainColumn[];
+  fields: MainField[];
+  defaults: Record<string, unknown>;
+  rowToForm?: (row: Record<string, unknown>) => Record<string, unknown>;
+  formToPayload?: (form: Record<string, unknown>) => Record<string, unknown>;
+  validate?: (
+    form: Record<string, unknown>,
+    row?: Record<string, unknown> | null,
+  ) => string | null;
+  // FormPreview: AdminForm(AdminEngine.jsx)이 xl 화면 폭에서 폼 옆에 얹는 사이드 프리뷰
+  // 컴포넌트. mentorStrategies 하나만 이 훅을 쓴다.
+  FormPreview?: ComponentType<{
+    form: Record<string, unknown>;
+    onPatch: (patch: Record<string, unknown>) => void;
+    locked?: boolean;
+  }>;
+}
+
+// premiumBookPages: custom:true 도메인 컴포넌트(PremiumBookAdmin, 다른 배치 소유)가
+// PDF 일괄 변환 패널 + 개별 페이지 CRUD(내부에서 AdminTable/AdminForm 재사용)를
+// 함께 그린다 — columns/fields는 그 내부 제네릭 편집에 쓰인다.
+interface MainCustomConfig
+  extends Pick<MainCrudConfig, "columns" | "fields" | "defaults"> {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  homepage: boolean;
+  custom: true;
+  customComponentKey: string;
+  guideText?: string;
+}
+
+type MainConfig = MainCrudConfig | MainCustomConfig;
+
+export const mainConfigs: Record<string, MainConfig> = {
   popups: {
     title: "팝업 관리",
     table: "popups",

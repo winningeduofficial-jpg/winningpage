@@ -1,7 +1,9 @@
+import type { FieldOption } from "../shared/csvExport";
+
 // refund_requests.status DB CHECK 값(requested|processing|completed|rejected)과
 // 화면 라벨을 분리한다 — 저장은 영문, 표시는 한글(MyPage.jsx REFUND_STATUS
 // 재사용). CONFIGS.refundRequests 참고.
-const REFUND_REQUEST_STATUS_OPTIONS = [
+const REFUND_REQUEST_STATUS_OPTIONS: FieldOption[] = [
   { value: "requested", label: "접수" },
   { value: "processing", label: "처리중" },
   { value: "completed", label: "환불완료" },
@@ -12,15 +14,16 @@ const REFUND_REQUEST_STATUS_OPTIONS = [
 // completed 전환을 막는다) — 편집 폼 select 에는 completed 를 노출하지 않는다.
 // 목록 표시(컬럼)는 이미 완료된 행의 라벨도 보여줘야 하므로 위
 // REFUND_REQUEST_STATUS_OPTIONS(완료 포함)를 그대로 쓴다.
-const REFUND_REQUEST_STATUS_EDIT_OPTIONS = REFUND_REQUEST_STATUS_OPTIONS.filter(
-  (option) => option.value !== "completed",
-);
+const REFUND_REQUEST_STATUS_EDIT_OPTIONS: FieldOption[] =
+  REFUND_REQUEST_STATUS_OPTIONS.filter(
+    (option) => typeof option === "object" && option.value !== "completed",
+  );
 
 // refund_requests.approval_status DB CHECK 값(requested|approved|rejected) — 학부모가
 // 아닌 신청자가 낸 환불 신청의 승인 여부 축이다(payments.status·refund_requests.status
 // 와는 다른 별개 축, Baseline §8 CHECK 목록 참고). fn_complete_refund 가 approved
 // 아니면 WC035 로 막으므로 목록에서 바로 판별할 수 있어야 한다.
-const REFUND_APPROVAL_STATUS_OPTIONS = [
+const REFUND_APPROVAL_STATUS_OPTIONS: FieldOption[] = [
   { value: "requested", label: "승인대기" },
   { value: "approved", label: "승인완료" },
   { value: "rejected", label: "승인반려" },
@@ -41,7 +44,7 @@ const REFUND_APPROVAL_STATUS_OPTIONS = [
 // 형태로 맞춰 취소완료로 쓴다. failed 도 같은 이유로 '납부' 접두를 살려
 // 납부실패로 쓴다 — refunds 탭(2188행)의 '취소요청'/'환불완료'/'반려' 축과는
 // 다른 테이블·다른 상태 축이라 혼동하지 않는다.
-const PAYMENT_STATUS_OPTIONS = [
+const PAYMENT_STATUS_OPTIONS: FieldOption[] = [
   { value: "pending", label: "납부대기" },
   { value: "paid", label: "납부완료" },
   { value: "failed", label: "납부실패" },
@@ -49,7 +52,46 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: "cancelled", label: "취소완료" },
 ];
 
-export const revenueConfigs = {
+interface RevenueColumn {
+  key: string;
+  label: string;
+  type?: "money" | "date" | "select";
+  options?: FieldOption[];
+}
+
+interface RevenueField {
+  key: string;
+  label: string;
+  type: "text" | "number" | "textarea" | "select" | "date";
+  required?: boolean;
+  options?: FieldOption[];
+}
+
+interface RevenueCrudConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order?: string;
+  excel?: boolean;
+  readOnly?: boolean;
+  noCreate?: boolean;
+  columns: RevenueColumn[];
+  fields?: RevenueField[];
+  defaults?: Record<string, unknown>;
+}
+
+// coupons: custom:true 도메인 컴포넌트(CouponAdmin) 전용 — 다른 배치 소유 컴포넌트라
+// 이 파일에서는 config 형태만 선언한다(customComponentKey로만 연결).
+interface RevenueCustomConfig {
+  title: string;
+  custom: true;
+  customComponentKey: string;
+  searchPlaceholder: string;
+}
+
+type RevenueConfig = RevenueCrudConfig | RevenueCustomConfig;
+
+export const revenueConfigs: Record<string, RevenueConfig> = {
   payments: {
     title: "매출 조정",
     table: "payments",

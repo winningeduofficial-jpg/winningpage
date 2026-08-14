@@ -2,6 +2,33 @@ import MentorCard from "../../../components/landing/MentorCard";
 
 // ── 멘토 성공전략 카드: photo_layout jsonb ↔ 평탄화 폼 필드 변환 + 라이브 프리뷰 ──
 
+// AdminForm이 config.rowToForm/formToPayload/validate/FormPreview에 넘기는 form은
+// AdminEngine.jsx(미변환, allowJs)가 소유한 제네릭 폼 상태라 구체 타입이 없다 —
+// 여기서는 이 파일이 실제로 읽고 쓰는 photo_* 평탄화 키만 얕게 좁혀서 쓴다.
+interface MentorForm {
+  photo_top?: unknown;
+  photo_left?: unknown;
+  photo_width?: unknown;
+  photo_height?: unknown;
+  photo_crop_enabled?: unknown;
+  photo_crop_top?: unknown;
+  photo_crop_height?: unknown;
+  title_lines?: unknown;
+  mentor_name?: unknown;
+  badge?: unknown;
+  photo_url?: unknown;
+  card_width?: unknown;
+  [key: string]: unknown;
+}
+
+interface PhotoLayout {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  crop?: { top: string; height: string };
+}
+
 const MENTOR_PHOTO_FORM_KEYS = [
   "photo_top",
   "photo_left",
@@ -10,10 +37,14 @@ const MENTOR_PHOTO_FORM_KEYS = [
   "photo_crop_enabled",
   "photo_crop_top",
   "photo_crop_height",
-];
+] as const;
 
 // 프리셋 좌표 근거: sql/30 백필 22건 (표준 = 최빈 배치, 와이드 = 김무경, 크롭형 = 김성훈)
-const MENTOR_CARD_PRESETS = [
+const MENTOR_CARD_PRESETS: {
+  label: string;
+  help: string;
+  patch: Record<string, unknown>;
+}[] = [
   {
     label: "표준",
     help: "기존 22건 최빈 배치 — 210 카드",
@@ -58,7 +89,7 @@ const MENTOR_CARD_PRESETS = [
   },
 ];
 
-function parseMentorTitleLines(value) {
+function parseMentorTitleLines(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((line) => String(line).trim()).filter(Boolean);
   }
@@ -69,7 +100,7 @@ function parseMentorTitleLines(value) {
 }
 
 // 폼의 photo_* 평탄화 값 → photo_layout jsonb ({top,left,width,height,crop?}) / 미완성이면 null
-function buildMentorPhotoLayout(form) {
+function buildMentorPhotoLayout(form: MentorForm): PhotoLayout | null {
   const raw = [
     form.photo_top,
     form.photo_left,
@@ -82,7 +113,7 @@ function buildMentorPhotoLayout(form) {
   if (![top, left, width, height].every(Number.isFinite)) return null;
   if (width <= 0 || height <= 0) return null;
 
-  const layout = { top, left, width, height };
+  const layout: PhotoLayout = { top, left, width, height };
 
   if (form.photo_crop_enabled) {
     const cropTop = String(form.photo_crop_top || "").trim();
@@ -94,8 +125,10 @@ function buildMentorPhotoLayout(form) {
   return layout;
 }
 
-export function mentorRowToForm(row) {
-  let titleLines = row.title_lines;
+export function mentorRowToForm(
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  let titleLines: unknown = row.title_lines;
   if (typeof titleLines === "string") {
     try {
       titleLines = JSON.parse(titleLines);
@@ -104,12 +137,12 @@ export function mentorRowToForm(row) {
     }
   }
 
-  const layout =
+  const layout: PhotoLayout | null =
     row.photo_layout && typeof row.photo_layout === "object"
-      ? row.photo_layout
+      ? (row.photo_layout as PhotoLayout)
       : null;
 
-  const form = {
+  const form: Record<string, unknown> = {
     ...row,
     title_lines: Array.isArray(titleLines) ? titleLines.join("\n") : "",
     card_width: row.card_width ?? 210,
@@ -128,7 +161,7 @@ export function mentorRowToForm(row) {
 
 // 크롭 사용 체크했는데 top/height 중 하나라도 비면 저장 중단 (조용한 소실 방지)
 // 반환값: 에러 메시지(문자열) 또는 null(검증 통과)
-export function mentorFormValidate(form) {
+export function mentorFormValidate(form: MentorForm): string | null {
   if (form.photo_crop_enabled) {
     const cropTop = String(form.photo_crop_top || "").trim();
     const cropHeight = String(form.photo_crop_height || "").trim();
@@ -139,8 +172,8 @@ export function mentorFormValidate(form) {
   return null;
 }
 
-export function mentorFormToPayload(form) {
-  const payload = { ...form };
+export function mentorFormToPayload(form: MentorForm): Record<string, unknown> {
+  const payload: Record<string, unknown> = { ...form };
   const titleLines = parseMentorTitleLines(form.title_lines);
 
   payload.mentor_name = String(form.mentor_name || "").trim();
@@ -154,7 +187,15 @@ export function mentorFormToPayload(form) {
   return payload;
 }
 
-export function MentorCardFormPreview({ form, onPatch }) {
+interface MentorCardFormPreviewProps {
+  form: MentorForm;
+  onPatch: (patch: Record<string, unknown>) => void;
+}
+
+export function MentorCardFormPreview({
+  form,
+  onPatch,
+}: MentorCardFormPreviewProps) {
   const titleLines = parseMentorTitleLines(form.title_lines);
   const photoLayout = buildMentorPhotoLayout(form);
 

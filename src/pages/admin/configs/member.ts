@@ -1,6 +1,56 @@
+import type { FieldOption } from "../shared/csvExport";
 import { MENTOR_APPLICATION_STATUS_OPTIONS } from "../shared/formFields";
 
-export const memberConfigs = {
+interface MemberColumn {
+  key: string;
+  label: string;
+  type?: "date" | "money" | "maskedPhone";
+  options?: FieldOption[];
+}
+
+interface MemberField {
+  key: string;
+  label: string;
+  type:
+    | "text"
+    | "date"
+    | "number"
+    | "select"
+    | "radioBoolean"
+    | "checkbox"
+    | "textarea";
+  required?: boolean;
+  options?: FieldOption[];
+}
+
+interface MemberCrudConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  excel?: boolean;
+  noCreate?: boolean;
+  columns: MemberColumn[];
+  fields: MemberField[];
+  defaults: Record<string, unknown>;
+}
+
+// mentorApplications: custom:true 컴포넌트(MentorApplicationsAdmin)가 목록만 AdminTable로
+// 재사용하고 상세/폼은 자체 렌더한다 — fields/defaults가 없는 게 정상 형태다.
+interface MemberCustomConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  readOnly: true;
+  custom: true;
+  customComponentKey: string;
+  columns: MemberColumn[];
+}
+
+type MemberConfig = MemberCrudConfig | MemberCustomConfig;
+
+export const memberConfigs: Record<string, MemberConfig> = {
   members: {
     title: "회원 목록",
     table: "profiles",

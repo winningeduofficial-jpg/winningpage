@@ -1,7 +1,69 @@
 import { FAQ_CATEGORIES } from "../../../data/faqCategories";
 import { blocksToPlainText } from "../../../lib/blockToPlainText";
+import type { FieldOption } from "../shared/csvExport";
 
-export const boardConfigs = {
+interface BoardColumn {
+  key: string;
+  label: string;
+  type?: "boolean" | "imageList" | "fileList" | "date" | "truncate";
+}
+
+interface BoardImageSpec {
+  maxMB?: number;
+}
+
+interface BoardField {
+  key: string;
+  label: string;
+  type:
+    | "radioBoolean"
+    | "text"
+    | "select"
+    | "checkbox"
+    | "textarea"
+    | "multiImage"
+    | "multiFile"
+    | "number"
+    | "blockEditor";
+  required?: boolean;
+  readOnly?: boolean;
+  options?: FieldOption[];
+  accept?: string;
+  folder?: string;
+  compress?: boolean;
+  imageSpec?: BoardImageSpec;
+}
+
+interface BoardCrudConfig {
+  title: string;
+  table: string;
+  searchPlaceholder?: string;
+  order: string;
+  orderBy?: [string, boolean][];
+  homepage?: boolean;
+  noCreate?: boolean;
+  guideText?: string;
+  previewTitleKey?: string;
+  previewLabel?: string;
+  columns: BoardColumn[];
+  fields: BoardField[];
+  defaults: Record<string, unknown>;
+  rowToForm?: (row: Record<string, unknown>) => Record<string, unknown>;
+  formToPayload?: (form: Record<string, unknown>) => Record<string, unknown>;
+}
+
+// learningDiagnosis: custom:true 도메인 컴포넌트(LearningDiagnosisAdmin, 다른 배치 소유)
+// 전용 — columns/fields 없이 customComponentKey로만 연결된다.
+interface BoardCustomConfig {
+  title: string;
+  custom: true;
+  customComponentKey: string;
+  searchPlaceholder: string;
+}
+
+type BoardConfig = BoardCrudConfig | BoardCustomConfig;
+
+export const boardConfigs: Record<string, BoardConfig> = {
   notices: {
     title: "공지사항",
     table: "notices",
@@ -193,7 +255,7 @@ export const boardConfigs = {
     // 평문 미러(content)로 분리해 저장하고 임시 키는 페이로드에서 제거한다.
     formToPayload: (form) => {
       const { __blocks_content, ...rest } = form;
-      const blocks = __blocks_content || [];
+      const blocks = (__blocks_content as unknown[]) || [];
       return {
         ...rest,
         content_json: { v: 1, editor: "blocknote@0.52.1", blocks },
@@ -256,7 +318,7 @@ export const boardConfigs = {
     // 주의: 교육칼럼/합격사례 선례는 평문 미러 컬럼이 content지만 FAQ는 answer다.
     formToPayload: (form) => {
       const { __blocks_answer, answer_json, ...rest } = form;
-      const blocks = __blocks_answer || [];
+      const blocks = (__blocks_answer as unknown[]) || [];
       return {
         ...rest,
         content_json: { v: 1, editor: "blocknote@0.52.1", blocks },

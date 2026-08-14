@@ -1,4 +1,32 @@
-export const programConfigs = {
+// programConfigs: 프로그램 운영(일일 입장/이용 현황) 2개 탭. 필드 타입이
+// date/text/number/textarea 4종뿐이라 좁은 로컬 유니온으로 충분하다 — 다른
+// configs/*.ts 파일과 하나의 인터페이스를 억지로 공유하지 않는다.
+
+interface ProgramColumn {
+  key: string;
+  label: string;
+  type?: "date";
+}
+
+interface ProgramField {
+  key: string;
+  label: string;
+  type: "date" | "text" | "number" | "textarea";
+  required?: boolean;
+}
+
+interface ProgramConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  excel?: boolean;
+  columns: ProgramColumn[];
+  fields: ProgramField[];
+  defaults: Record<string, unknown>;
+}
+
+export const programConfigs: Record<string, ProgramConfig> = {
   dailyEntries: {
     title: "일일 입장",
     table: "daily_entries",

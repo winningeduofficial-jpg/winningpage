@@ -1,4 +1,45 @@
-export const winningConfigs = {
+import type { FieldOption } from "../shared/csvExport";
+
+interface WinningColumn {
+  key: string;
+  label: string;
+  type?: "boolean" | "date";
+}
+
+interface WinningField {
+  key: string;
+  label: string;
+  type: "radioBoolean" | "select" | "text" | "textarea" | "number";
+  required?: boolean;
+  options?: FieldOption[];
+}
+
+interface WinningCrudConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  order: string;
+  excel?: boolean;
+  // fixedValues: knowledge_type 컬럼처럼 폼에 노출하지 않고 항상 같은 값으로
+  // 고정 저장하는 필드 — winning_assessment_knowledge_items 테이블을 4개
+  // knowledge_type으로 나눠 쓰는 이 파일 전용 관용구다.
+  fixedValues?: Record<string, unknown>;
+  columns: WinningColumn[];
+  fields: WinningField[];
+  defaults: Record<string, unknown>;
+}
+
+// winningSetukDb/winningDeepReportDb: 아직 테이블이 없는 준비중 메뉴 — table/columns/fields가
+// 없는 게 정상 형태다(comingSoon 전용 분기, Admin.jsx가 이 config를 만나면 안내문만 그린다).
+interface WinningComingSoonConfig {
+  title: string;
+  comingSoon: true;
+  description: string;
+}
+
+type WinningConfig = WinningCrudConfig | WinningComingSoonConfig;
+
+export const winningConfigs: Record<string, WinningConfig> = {
   winningSuhaengTopicDb: {
     title: "위닝 수행 주제 DB",
     table: "winning_assessment_knowledge_items",

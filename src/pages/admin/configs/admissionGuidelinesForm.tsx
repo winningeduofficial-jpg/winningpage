@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AdmissionSectionView from "../../../components/admission/AdmissionSectionView";
 import SafeHtml from "../../../components/admission/SafeHtml";
+import type { AdmissionDoc } from "../../../lib/admissionDoc";
 import {
   HWP_SECTION_JSON_KEYS,
   isEmptyDoc,
@@ -17,6 +18,14 @@ import {
   HWP_SECTION_ORDER,
   splitHwpTextIntoSections,
 } from "../../../lib/admissionParsing";
+
+// admissionGuidelines row/form은 AdminForm(AdminEngine.jsx, 미변환)이 소유하는
+// 제네릭 폼 상태다 — HWP 6섹션(raw/*_html/*_json) + university_name 정도만
+// 이 파일이 실제로 읽고 쓰므로 그 키만 얕게 좁히고 나머지는 인덱스 시그니처로 둔다.
+interface AdmissionGuidelinesForm {
+  university_name?: string;
+  [key: string]: unknown;
+}
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -36,20 +45,24 @@ const ADMISSION_EXISTING_WRAP_RE =
 // 비교식으로 두면 서로 다른 객체끼리도 항상 '[object Object]' === '[object Object]'로
 // "같음" 판정된다(실질적으로 이 가드가 무력화된다). stableStringifyDoc로 deep 비교해야
 // 실제 doc 변경을 잡는다(generatedAt은 stableStringifyDoc이 비교에서 알아서 뺀다).
-export function admissionGuidelinesValidate(form, row) {
+export function admissionGuidelinesValidate(
+  form: AdmissionGuidelinesForm,
+  row?: AdmissionGuidelinesForm | null,
+): string | null {
   if (!row) return null;
 
-  const changedLabels = HWP_SECTION_ORDER.filter((key) => {
+  const changedLabels = HWP_SECTION_ORDER.filter((key: string) => {
     const htmlKey = HWP_SECTION_HTML_KEYS[key];
-    const jsonKey = HWP_SECTION_JSON_KEYS[key];
+    const jsonKey =
+      HWP_SECTION_JSON_KEYS[key as keyof typeof HWP_SECTION_JSON_KEYS];
     const htmlChanged =
       cleanAdmissionText(form[htmlKey]) !==
       cleanAdmissionText(row[htmlKey] ?? "");
     const docChanged =
-      stableStringifyDoc(form[jsonKey] ?? null) !==
-      stableStringifyDoc(row[jsonKey] ?? null);
+      stableStringifyDoc((form[jsonKey] as AdmissionDoc | null) ?? null) !==
+      stableStringifyDoc((row[jsonKey] as AdmissionDoc | null) ?? null);
     return htmlChanged || docChanged;
-  }).map((key) => HWP_SECTION_LABELS[key]);
+  }).map((key: string) => HWP_SECTION_LABELS[key]);
 
   if (changedLabels.length === 0) return null;
 
@@ -58,6 +71,12 @@ export function admissionGuidelinesValidate(form, row) {
   );
 
   return proceed ? null : "저장이 취소되었습니다.";
+}
+
+interface AdmissionParsingPreviewProps {
+  form: AdmissionGuidelinesForm;
+  onPatch: (patch: Record<string, unknown>) => void;
+  locked?: boolean;
 }
 
 // admissionGuidelines 편집 폼 전용: HWP 원문 텍스트를 붙여넣으면 공유 파싱 모듈(admissionParsing.js)로
@@ -69,14 +88,22 @@ export function admissionGuidelinesValidate(form, row) {
 // buildPreviewPatch로 **6섹션을 한 번에** patch하므로, 모달에서 편집 중인
 // 섹션 doc이 발밑에서 통째로 갈릴 수 있다. 오버레이가 이미 클릭을 막지만
 // 상태를 정합시키기 위해 버튼 자체를 disabled로 둔다(모달을 닫으면 풀린다).
-export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
+export function AdmissionParsingPreview({
+  form,
+  onPatch,
+  locked = false,
+}: AdmissionParsingPreviewProps) {
   const [hwpSource, setHwpSource] = useState("");
-  const [splitStatus, setSplitStatus] = useState(null); // null | 'auto' | 'fallback' | 'manual'
+  const [splitStatus, setSplitStatus] = useState<
+    "auto" | "fallback" | "manual" | null
+  >(null);
   // 카테고리별 "파싱 결과로 기존 HTML 덮어쓰기" 동의 체크박스 상태. 기본은 비동의(false) —
   // 이미 값이 있는 카테고리는 사용자가 명시적으로 동의해야만 덮어쓴다.
-  const [overwriteConsent, setOverwriteConsent] = useState({});
+  const [overwriteConsent, setOverwriteConsent] = useState<
+    Record<string, boolean>
+  >({});
 
-  function toggleConsent(key) {
+  function toggleConsent(key: string) {
     setOverwriteConsent((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
@@ -98,14 +125,15 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
   //     보존) — 대신 docFailures로 반환해 호출부가 관리자에게 실패 사유를 보여준다.
   //     html은 그 경우에도 계속 갱신한다(원래도 무손실 폴백 경로라, doc이 실패해도
   //     html까지 막을 이유는 없다 — 적어도 html은 최신으로 유지된다).
-  function buildPreviewPatch(sourceForm) {
-    const patch = {};
-    const skipped = [];
-    const docFailures = [];
+  function buildPreviewPatch(sourceForm: AdmissionGuidelinesForm) {
+    const patch: Record<string, unknown> = {};
+    const skipped: string[] = [];
+    const docFailures: { label: string; errors: string[] }[] = [];
 
-    HWP_SECTION_ORDER.forEach((key) => {
+    HWP_SECTION_ORDER.forEach((key: string) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      const jsonKey = HWP_SECTION_JSON_KEYS[key];
+      const jsonKey =
+        HWP_SECTION_JSON_KEYS[key as keyof typeof HWP_SECTION_JSON_KEYS];
       const rawText = sourceForm[key];
 
       const generatedHtml = buildHwpCategoryHtml(
@@ -116,7 +144,10 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
       );
       if (!generatedHtml) return;
 
-      const existingDoc = sourceForm[jsonKey];
+      const existingDoc = sourceForm[jsonKey] as
+        | AdmissionDoc
+        | null
+        | undefined;
       const hasExisting =
         (existingDoc && !isEmptyDoc(existingDoc)) ||
         Boolean(cleanAdmissionText(sourceForm[htmlKey]));
@@ -148,14 +179,14 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
     return { patch, skipped, docFailures };
   }
 
-  function warnSkipped(skipped) {
+  function warnSkipped(skipped: string[]) {
     if (!skipped.length) return;
     alert(
       `다음 카테고리는 이미 내용이 있어 자동 반영하지 않았습니다(기존 값 보존):\n- ${skipped.join("\n- ")}\n\n덮어쓰려면 해당 카테고리의 "파싱 결과로 덮어쓰기 동의" 체크박스를 켠 뒤 다시 실행하세요.`,
     );
   }
 
-  function warnDocFailures(docFailures) {
+  function warnDocFailures(docFailures: { label: string; errors: string[] }[]) {
     if (!docFailures.length) return;
     const detail = docFailures
       .map((f) => `- ${f.label}: ${f.errors.join(" / ")}`)
@@ -172,7 +203,7 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
     }
 
     const sections = splitHwpTextIntoSections(hwpSource);
-    const found = HWP_SECTION_ORDER.some((key) =>
+    const found = HWP_SECTION_ORDER.some((key: string) =>
       cleanAdmissionText(sections[key]),
     );
 
@@ -184,8 +215,8 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
       return;
     }
 
-    const rawPatch = {};
-    HWP_SECTION_ORDER.forEach((key) => {
+    const rawPatch: Record<string, unknown> = {};
+    HWP_SECTION_ORDER.forEach((key: string) => {
       if (cleanAdmissionText(sections[key])) rawPatch[key] = sections[key];
     });
     const mergedRaw = { ...form, ...rawPatch };
@@ -262,10 +293,12 @@ export function AdmissionParsingPreview({ form, onPatch, locked = false }) {
           전수조사로 확인). data-section은 카테고리별로 다르므로 아래 map 안 개별 항목에
           붙인다(minimum_requirements/exam_schedule 폭 규칙이 카테고리 단위이기 때문). */}
       <div className="mt-4 space-y-4 border-t border-[#edf0f4] pt-4">
-        {HWP_SECTION_ORDER.map((key) => {
-          const html = form[HWP_SECTION_HTML_KEYS[key]];
+        {HWP_SECTION_ORDER.map((key: string) => {
+          const html = form[HWP_SECTION_HTML_KEYS[key]] as string | undefined;
           const doc = isDocRenderEnabled()
-            ? form[HWP_SECTION_JSON_KEYS[key]]
+            ? (form[
+                HWP_SECTION_JSON_KEYS[key as keyof typeof HWP_SECTION_JSON_KEYS]
+              ] as AdmissionDoc | null | undefined)
             : null;
           const docOk = Boolean(
             doc && validateAdmissionDoc(doc).ok && !isEmptyDoc(doc),

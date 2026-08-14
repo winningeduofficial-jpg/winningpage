@@ -1,4 +1,5 @@
 import { GOAL_CUT_RANGE } from "../../../lib/goalUniversityCutsBulkXlsx";
+import type { FieldOption } from "../shared/csvExport";
 import { GOAL_CUT_SOURCE_OPTIONS } from "../shared/formFields";
 
 // ---------------------------------------------------------------------
@@ -8,7 +9,7 @@ import { GOAL_CUT_SOURCE_OPTIONS } from "../shared/formFields";
 
 // sql/55_goal_management.sql 의 goal_university_cuts_cut_type_check 와 동일 집합.
 // 여기 없는 값을 넣으면 저장 시 23514로 죽는다.
-const GOAL_CUT_TYPE_OPTIONS = [
+const GOAL_CUT_TYPE_OPTIONS: FieldOption[] = [
   { value: "normal", label: "수시 일반고 (내신 등급)" },
   { value: "special", label: "수시 특목·자사고 (내신 등급)" },
   { value: "jungsi", label: "정시 (백분위)" },
@@ -20,8 +21,85 @@ const GOAL_CUT_TYPE_OPTIONS = [
 // 스케일 판정이 갈라지지 않기 때문이다. CHECK 는 "1~9 범위 안의 정시
 // 백분위"(예: 3.5) 같은 혼입을 잡지 못하므로 그 상수가 실질 방어선이다
 // (명세 §3-D4). 수시는 작을수록 우세(등급), 정시는 클수록 우세(백분위)다.
+// goalUniversityCutsBulkXlsx.js는 이 배치 소유가 아니라(.js 유지, allowJs로
+// 구조 추론) GOAL_CUT_RANGE는 여기서 재선언하지 않고 그 추론 타입을 그대로 쓴다.
 
-export const goalConfigs = {
+// row(goal_university_cuts 행)는 AdminForm(AdminEngine.jsx, 미변환)이 소유하는
+// 제네릭 폼 상태라 구체 타입이 없다 — 이 파일이 실제로 읽고 쓰는 키만 얕게 좁힌다.
+interface GoalCutRow {
+  cut_type?: string;
+  avg_cut?: number | string | null;
+  university_name?: string;
+  department_name?: string;
+  source?: string;
+  [key: string]: unknown;
+}
+
+interface GoalColumn {
+  key: string;
+  label: string;
+  type?: "boolean" | "datetime";
+  options?: FieldOption[];
+  render?: (row: GoalCutRow) => string;
+}
+
+interface GoalFieldResolveResult {
+  readOnly?: boolean;
+  help?: string;
+  label?: string;
+  min?: number;
+  max?: number;
+  step?: string;
+  placeholder?: string;
+}
+
+interface GoalField {
+  key: string;
+  label: string;
+  type: "radioBoolean" | "select" | "text" | "number" | "textarea";
+  required?: boolean;
+  nullable?: boolean;
+  options?: FieldOption[];
+  help?: string;
+  resolve?: (
+    form: GoalCutRow,
+    row?: GoalCutRow | null,
+  ) => GoalFieldResolveResult;
+}
+
+interface GoalUniversityCutsConfig {
+  title: string;
+  table: string;
+  searchPlaceholder: string;
+  orderBy: [string, boolean][];
+  serverPaginate: boolean;
+  searchColumns: string[];
+  homepage: boolean;
+  guideText: string;
+  listSummaryKey: string;
+  columns: GoalColumn[];
+  fields: GoalField[];
+  rowToForm: (row: GoalCutRow) => GoalCutRow;
+  formToPayload: (form: GoalCutRow) => Record<string, unknown>;
+  validate: (form: GoalCutRow, row?: GoalCutRow | null) => string | null;
+  defaults: Record<string, unknown>;
+}
+
+// goalStudents: custom:true 컴포넌트(GoalStudentsAdmin, 다른 배치 소유)가 4~6소스
+// 합성 목록/상세를 전부 그린다 — CONFIGS는 문서용 플래그(readOnly/noCreate)만 갖는다.
+interface GoalStudentsConfig {
+  title: string;
+  custom: true;
+  customComponentKey: string;
+  searchPlaceholder: string;
+  readOnly: true;
+  noCreate: true;
+}
+
+export const goalConfigs: {
+  goalUniversityCuts: GoalUniversityCutsConfig;
+  goalStudents: GoalStudentsConfig;
+} = {
   // -------------------------------------------------------------------
   // 목표관리 (docs/figma-goal/goal-admin-spec.md §4-2 / §4-3)
   // 탭 2개다 — 대학 컷 관리(§4-2, 표준 CRUD + ListSummary 3블록)와
@@ -68,7 +146,9 @@ export const goalConfigs = {
         render: (row) => {
           const value = row?.avg_cut;
           if (value === null || value === undefined || value === "") return "-";
-          const unit = GOAL_CUT_RANGE[row?.cut_type]?.unit || "";
+          const unit =
+            GOAL_CUT_RANGE[row?.cut_type as keyof typeof GOAL_CUT_RANGE]
+              ?.unit || "";
           return `${value}${unit}`;
         },
       },
@@ -129,7 +209,8 @@ export const goalConfigs = {
         // AdminInput에 disabled 속성을 새로 뚫는 것보다(공용 경로 추가 변경)
         // 이미 승인된 훅만으로 같은 효과를 낸다.
         resolve: (form) => {
-          const range = GOAL_CUT_RANGE[form?.cut_type];
+          const range =
+            GOAL_CUT_RANGE[form?.cut_type as keyof typeof GOAL_CUT_RANGE];
           if (!range) {
             return {
               readOnly: true,
@@ -177,7 +258,7 @@ export const goalConfigs = {
       // 폼에서는 필수라 빈 문자열이 오지 않지만, ?? ''는 엑셀·백필 경로와
       // payload 형태를 맞추기 위한 방어다.
       const departmentName = String(form.department_name ?? "").trim();
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...form,
         university_key: universityName,
         university_name: universityName,
@@ -203,7 +284,8 @@ export const goalConfigs = {
       if (row?.cut_type && form.cut_type !== row.cut_type) {
         return "컷 종류는 변경할 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.";
       }
-      const range = GOAL_CUT_RANGE[form.cut_type];
+      const range =
+        GOAL_CUT_RANGE[form.cut_type as keyof typeof GOAL_CUT_RANGE];
       if (!range) return "컷 종류를 선택해 주세요.";
       if (!String(form.university_name ?? "").trim())
         return "대학명을 입력해 주세요.";
