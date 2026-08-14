@@ -64,7 +64,8 @@ interface XlsxOversizedCell {
   area: "header" | "body";
   row: number;
   col: number;
-  columnLabel?: string;
+  // xlsx/tableBlockXlsx.ts의 OversizedCell.columnLabel과 동일 사유(exactOptionalPropertyTypes라 undefined 명시 허용).
+  columnLabel?: string | undefined;
   length: number;
 }
 

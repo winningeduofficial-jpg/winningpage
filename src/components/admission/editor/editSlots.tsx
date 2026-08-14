@@ -113,7 +113,9 @@ export default function createEditSlots({
             <>
               <ColumnRoleEditor
                 variant={block.variant}
-                role={column?.role}
+                // ColumnRoleEditor(수정 범위 밖)의 role은 exactOptionalPropertyTypes라
+                // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
+                {...(column?.role !== undefined ? { role: column.role } : {})}
                 onChange={(next) => onUpdateColumnField(colIdx, "role", next)}
               />
               <select

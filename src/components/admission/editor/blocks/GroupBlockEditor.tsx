@@ -1,3 +1,4 @@
+import type { Block } from "../../../../lib/admissionDoc";
 import AdmissionBlockEditor, {
   type AdmissionBlock,
 } from "../AdmissionBlockEditor";
@@ -9,8 +10,8 @@ type GroupBlockEditorProps = {
   section?: unknown;
   block: GroupBlock;
   onChange: (block: GroupBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 };
 
 // GroupBlock(kind:'group', 제목 + 중첩 children) 편집기.
@@ -62,7 +63,14 @@ export default function GroupBlockEditor({
           onChange={(next) =>
             onChange({
               ...block,
-              children: docOps.updateBlockAt(children, idx, next),
+              // docBlockOperations는 lib/admissionDoc의 엄격한 Block 유니온을
+              // 다룬다 — children은 그 값들을 이 편집기의 느슨한 로컬
+              // AdmissionBlock 타입으로 통과시켜 온 것이라 런타임 형태는 같다.
+              children: docOps.updateBlockAt(
+                children as unknown as Block[],
+                idx,
+                next as unknown as Block,
+              ) as unknown as AdmissionBlock[],
             })
           }
           universityName={universityName}

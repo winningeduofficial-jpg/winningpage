@@ -44,15 +44,17 @@ export default function DocBlocksEditor({
   section: string;
   blocks: Block[];
   onChange: (nextBlocks: Block[]) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 }) {
   const { primary, advanced } = useMemo(
     () => docOps.getAddableKindsForSection(section),
     [section],
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [addKind, setAddKind] = useState(primary[0] || advanced[0]);
+  // ALL_BLOCK_KINDS(docBlockOperations.ts, 7종)보다 한 섹션의 primary 목록이
+  // 항상 짧아(최대 4종) advanced가 비지 않는다 — primary[0]가 없어도 advanced[0]는 항상 있다.
+  const [addKind, setAddKind] = useState(primary[0] || advanced[0]!);
   const validation = useMemo(
     () => validateBlocks(section, blocks),
     [section, blocks],
@@ -211,7 +213,7 @@ export default function DocBlocksEditor({
                 onChange={(e) => {
                   setShowAdvanced(e.target.checked);
                   if (!e.target.checked && advanced.includes(addKind))
-                    setAddKind(primary[0] || advanced[0]);
+                    setAddKind(primary[0] || advanced[0]!); // 위 초기화와 동일한 근거로 non-null.
                 }}
               />
               고급(이 항목에 잘 안 쓰는 종류도 표시)
