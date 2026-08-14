@@ -23,38 +23,66 @@ export const FACE_PAGE = "page";
 export const FACE_GAP = "gap";
 export const FACE_VOID = "void";
 
-const VOID_FACE = Object.freeze({ kind: FACE_VOID, order: null, page: null });
+export type FaceKind = typeof FACE_PAGE | typeof FACE_GAP | typeof FACE_VOID;
 
-function pageFace(order, page) {
+export type PremiumBookPage = {
+  id?: unknown;
+  sort_order?: number;
+  image_url?: string;
+  [key: string]: unknown;
+};
+
+export type Face = {
+  kind: FaceKind;
+  order: number | null;
+  page: PremiumBookPage | null;
+};
+
+export type BookView = {
+  index: number;
+  left: Face;
+  right: Face;
+  primaryOrder: number;
+};
+
+export type BuildViewsResult = {
+  views: BookView[];
+  lastOrder: number;
+  viewIndexByOrder: Map<number, number>;
+  faceByOrder: Map<number, Face>;
+};
+
+const VOID_FACE: Face = Object.freeze({
+  kind: FACE_VOID,
+  order: null,
+  page: null,
+});
+
+function pageFace(order: number, page: PremiumBookPage): Face {
   return { kind: FACE_PAGE, order, page };
 }
 
-function gapFace(order) {
+function gapFace(order: number): Face {
   return { kind: FACE_GAP, order, page: null };
 }
 
 /**
  * premium_book_pages 행 배열을 좌/우 spread 뷰 목록으로 만든다.
  *
- * @param {Array<{ id?: unknown, sort_order?: number, image_url?: string }>} pages
- *        sort_order 오름차순 조회 결과. 정렬돼 있지 않아도 되고 결번이 있어도 된다.
- * @param {{ coverAlone?: boolean }} [options]
- *        coverAlone 미지정 시 모듈 상수 COVER_ALONE을 쓴다.
- * @returns {{
- *   views: Array<{ index: number, left: object, right: object, primaryOrder: number }>,
- *   lastOrder: number,
- *   viewIndexByOrder: Map<number, number>,
- *   faceByOrder: Map<number, object>
- * }}
- *        views는 spread 모드용, faceByOrder는 1페이지 모드용이다.
- *        lastOrder가 0이면 빈 책(views 길이 0).
+ * @param pages sort_order 오름차순 조회 결과. 정렬돼 있지 않아도 되고 결번이 있어도 된다.
+ * @param options coverAlone 미지정 시 모듈 상수 COVER_ALONE을 쓴다.
+ * @returns views는 spread 모드용, faceByOrder는 1페이지 모드용이다.
+ *          lastOrder가 0이면 빈 책(views 길이 0).
  */
-export function buildViews(pages, options = {}) {
+export function buildViews(
+  pages: PremiumBookPage[] | null | undefined,
+  options: { coverAlone?: boolean } = {},
+): BuildViewsResult {
   const coverAlone = options.coverAlone ?? COVER_ALONE;
 
   // sort_order에 UNIQUE 제약이 없다(sql/47_premium_book.sql). 중복이 오면 첫 행만 쓰고
   // 경고를 남긴다 — 조용히 한 장을 삼키면 어드민이 원인을 찾을 단서가 없다.
-  const byOrder = new Map();
+  const byOrder = new Map<number, PremiumBookPage>();
   for (const page of pages ?? []) {
     const order = Number(page?.sort_order);
     if (!Number.isInteger(order) || order < 1) continue;
@@ -72,11 +100,13 @@ export function buildViews(pages, options = {}) {
     if (order > lastOrder) lastOrder = order;
   }
 
-  const slot = (order) =>
-    byOrder.has(order) ? pageFace(order, byOrder.get(order)) : gapFace(order);
+  const slot = (order: number): Face =>
+    byOrder.has(order)
+      ? pageFace(order, byOrder.get(order) as PremiumBookPage)
+      : gapFace(order);
 
-  const views = [];
-  const push = (left, right) => {
+  const views: BookView[] = [];
+  const push = (left: Face, right: Face) => {
     views.push({
       index: views.length,
       left,
@@ -96,11 +126,11 @@ export function buildViews(pages, options = {}) {
   }
 
   // 결번 슬롯도 인덱싱한다 — 결번 페이지로 이동해도 뷰를 찾지 못해 0으로 튀면 안 된다.
-  const viewIndexByOrder = new Map();
-  const faceByOrder = new Map();
+  const viewIndexByOrder = new Map<number, number>();
+  const faceByOrder = new Map<number, Face>();
   for (const view of views) {
     for (const face of [view.left, view.right]) {
-      if (face.kind === FACE_VOID) continue;
+      if (face.kind === FACE_VOID || face.order == null) continue;
       viewIndexByOrder.set(face.order, view.index);
       faceByOrder.set(face.order, face);
     }

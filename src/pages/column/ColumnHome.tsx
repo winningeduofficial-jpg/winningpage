@@ -5,6 +5,7 @@ import CategoryChips from "../../components/column/CategoryChips";
 import ColumnCard from "../../components/column/ColumnCard";
 import {
   ALL_CATEGORY,
+  type ColumnRow,
   fetchActiveColumns,
   getCategoryLabel,
   pickFeaturedColumns,
@@ -14,7 +15,7 @@ const SECTION_TITLE =
   "break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]";
 
 export default function ColumnHome() {
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<ColumnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(ALL_CATEGORY);
 

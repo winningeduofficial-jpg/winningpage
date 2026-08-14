@@ -10,8 +10,25 @@ import {
 
 const TABPANEL_ID = "special-hs-tabpanel";
 
+// special_highschool_cases 행 — 이 화면이 실제로 읽는 필드만 좁혀서 둔다.
+// specialHighschoolData.ts의 filterByType은 { school_type? } 만 아는 더 느슨한 타입을
+// 쓰므로(그 파일은 이번 배치 대상이 아니라 수정하지 않는다), 그 반환값을 이 타입으로
+// 다시 좁혀 SpecialHighschoolCaseCard가 기대하는 필드(id 포함)를 되살린다.
+type SpecialHighschoolCaseRow = {
+  id: string | number;
+  school_type?: string;
+  year?: number | string;
+  result_label?: string;
+  student_name?: string;
+  middle_school?: string;
+  school_name?: string;
+  sort_order?: number;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
 export default function SpecialHighschoolCases() {
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<SpecialHighschoolCaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
 
@@ -22,7 +39,7 @@ export default function SpecialHighschoolCases() {
       setLoading(true);
       const data = await fetchSpecialHighschoolCases();
       if (!alive) return;
-      setRows(data);
+      setRows(data as SpecialHighschoolCaseRow[]);
       setLoading(false);
     })();
 
@@ -53,7 +70,7 @@ export default function SpecialHighschoolCases() {
     }
   }, [loading, visibleTabs, tab]);
 
-  const visible = filterByType(rows, tab);
+  const visible = filterByType(rows, tab) as SpecialHighschoolCaseRow[];
 
   return (
     <main className="bg-white pt-16">

@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense } from "react";
+import { Component, lazy, type ReactNode, Suspense } from "react";
 
 // 본문 렌더는 BlockNote 자체 렌더 경로(BlockNoteView editable={false})로 통일한다.
 // 자체 블록 매핑 렌더러는 에디터와 계속 어긋났기 때문에 폐기했다 — 일치성이 0순위.
@@ -12,22 +12,37 @@ const RICH_BASE =
 const PLAIN_BASE =
   "max-w-[45rem] whitespace-pre-wrap break-keep text-base font-normal leading-8 text-[#525252]";
 
+// post는 소비처마다(galleries 행 / admission_cases 행 / faqs 어댑터) 모양이 조금씩 다르다 —
+// 이 컴포넌트가 실제로 읽는 필드(id/content_json/content)만 좁혀서 두고, 그 외는
+// 인덱스 시그니처로 열어 둔다(호출부의 더 넓은 row 타입을 그대로 받기 위함).
+export type ColumnBodyPost = {
+  id?: string | number;
+  content_json?: unknown;
+  content?: string;
+  [key: string]: unknown;
+};
+
 /**
  * content_json 봉투를 벗긴다.
  * 정본: { v:1, editor:'blocknote@0.52.1', blocks:[...] }
  * 미리보기 스냅샷: { blocks:[...] }        (v/editor 없음)
  * 레거시 방어: 배열 그대로 저장된 행
  * v 필드를 검사하지 마라 — 미리보기 스냅샷이 즉시 깨진다.
- * @returns {Array<object>} 항상 배열(없으면 빈 배열)
+ * @returns 항상 배열(없으면 빈 배열)
  */
-export function getContentBlocks(post) {
+export function getContentBlocks(
+  post: ColumnBodyPost | null | undefined,
+): Record<string, unknown>[] {
   const cj = post?.content_json;
   if (Array.isArray(cj)) return cj;
-  return Array.isArray(cj?.blocks) ? cj.blocks : [];
+  const blocks = (cj as { blocks?: unknown })?.blocks;
+  return Array.isArray(blocks) ? blocks : [];
 }
 
 /** 호출부 3곳에 흩어져 있던 hasBlocks 판정의 유일한 정본. */
-export function hasBlockContent(post) {
+export function hasBlockContent(
+  post: ColumnBodyPost | null | undefined,
+): boolean {
   return getContentBlocks(post).length > 0;
 }
 
@@ -35,14 +50,17 @@ export function hasBlockContent(post) {
 // 청크 로드 실패·스키마 밖 블록 타입(예: 구버전 프런트에 imageRow 문서) 같은 렌더 에러가
 // 여기서 안 잡히면 React 트리 전체가 언마운트돼 헤더·푸터까지 사라진 백지가 된다.
 // fallback으로 평문 미러를 재사용해 "본문만 평문으로 보인다"로 격하시킨다.
-class ColumnBodyBoundary extends Component {
+class ColumnBodyBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { hasError: boolean }
+> {
   state = { hasError: false };
 
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error: unknown) {
     if (import.meta.env?.DEV)
       console.error("[ColumnBody] block 렌더 실패, 평문으로 대체", error);
   }
@@ -52,7 +70,12 @@ class ColumnBodyBoundary extends Component {
   }
 }
 
-export default function ColumnBody({ post, className = "" }) {
+type ColumnBodyProps = {
+  post: ColumnBodyPost | null | undefined;
+  className?: string;
+};
+
+export default function ColumnBody({ post, className = "" }: ColumnBodyProps) {
   const blocks = getContentBlocks(post);
   // 이중 저장의 롤백 안전망 = 평문 미러. 청크 로딩 중 fallback으로도 재사용해
   // LCP/크롤러가 본문을 즉시 보게 한다.

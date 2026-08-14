@@ -52,6 +52,13 @@ import {
 
 import { CHART_COLORS, CHART_FONT_SIZE } from "./chartTheme";
 
+// buildTrackSeries()가 만드는 연도별 점 하나.
+type SparkPoint = {
+  year: number;
+  value: number | null;
+  displayValue: string;
+};
+
 // viewBox 시절과 같은 종횡비(400:112)를 유지해 시각 크기가 크게 달라지지 않게 한다.
 // 이 면적은 3개년 이상 꺾은선 기준이다 — 2점짜리 그림에 쓰면 데이터-잉크 비율이 최악이라
 // 2개년 축에서는 아예 이 컴포넌트를 부르지 않는다(파일 상단 주석 참고).
@@ -95,7 +102,7 @@ const BALLOON = {
 
 // 등급 축 도메인. 등급은 1이 최상이므로 y를 반전한다(작은 값이 위).
 // 시안 1882:2958이 2.7과 3.2를 같은 y에 그린 것은 오류라 재현하지 않는다(명세 §8).
-export function gradeDomain(values) {
+export function gradeDomain(values: number[]) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   let lo = Math.max(1, Math.floor((min - 0.4) * 2) / 2);
@@ -108,7 +115,7 @@ export function gradeDomain(values) {
 }
 
 // 데이터 점 — 상시 표시. 결측 연도는 cx/cy가 없으므로 그리지 않는다.
-function SparkDot({ cx, cy }) {
+function SparkDot({ cx, cy }: { cx?: number; cy?: number }) {
   if (cx == null || cy == null) return null;
   return <circle cx={cx} cy={cy} r={DOT_RADIUS} fill={CHART_COLORS.line} />;
 }
@@ -121,7 +128,15 @@ function SparkDot({ cx, cy }) {
 // value가 null인 연도의 activeDot은 recharts가 이미 렌더 자체를 막으므로(ActivePoints가
 // y좌표 없는 포인트를 걸러냄) 이 함수까지 value==null인 채로 호출되는 경우가 없다 — 그래서
 // payload.value 가드는 두지 않는다.
-function SparkActiveDot({ cx, cy, payload }) {
+function SparkActiveDot({
+  cx,
+  cy,
+  payload,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: SparkPoint;
+}) {
   if (cx == null || cy == null || !payload) return null;
 
   // 기본은 점 위, 꼬리가 아래로 향하게(normalBoxTop) 그린다. 최상단 점 근처처럼 이 위치가
@@ -164,14 +179,22 @@ function SparkActiveDot({ cx, cy, payload }) {
 }
 
 // 연도 라벨 — 결측 연도는 흐리게 두되 축에서 지우지는 않는다.
-function makeYearTick(valueByYear) {
-  return function YearTick({ x, y, payload }) {
-    const year = payload.value;
+function makeYearTick(valueByYear: Map<number, number | null>) {
+  return function YearTick({
+    x,
+    y,
+    payload,
+  }: {
+    x?: number;
+    y?: number;
+    payload?: { value: number };
+  }) {
+    const year = payload?.value;
     const hasValue = valueByYear.get(year) != null;
     return (
       <text
         x={x}
-        y={y + 12}
+        y={(y ?? 0) + 12}
         textAnchor="middle"
         fontSize={CHART_FONT_SIZE}
         fill={hasValue ? CHART_COLORS.label : CHART_COLORS.grid}
@@ -182,11 +205,16 @@ function makeYearTick(valueByYear) {
   };
 }
 
-export default function Sparkline({ series, label }) {
+type SparklineProps = {
+  series?: SparkPoint[];
+  label?: string;
+};
+
+export default function Sparkline({ series, label }: SparklineProps) {
   // 훅은 Rules of Hooks 때문에 아래 조기 return보다 반드시 위에 있어야 한다 — series가
   // "값 있음 → 전부 null"로 바뀌어 리렌더되면 조기 return이 훅 호출 순서를 바꿔 React가
   // "Rendered more hooks than during the previous render"로 죽는다.
-  const wrapperRef = useRef(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Recharts는 마우스 호버를 mouseleave로 닫아 주지만, 터치에는 "닫아 주는" 쪽이 없다
   // (touchmove로 열리기만 하고, 손을 떼거나 스크롤하거나 다른 곳을 탭해도 저절로 안 닫힌다 —
@@ -209,8 +237,8 @@ export default function Sparkline({ series, label }) {
       );
     };
 
-    const handleOutsideTouch = (event) => {
-      if (container.contains(event.target)) return; // 차트 안(점 재탭 포함)은 내부 로직에 맡긴다.
+    const handleOutsideTouch = (event: TouchEvent) => {
+      if (container.contains(event.target as Node)) return; // 차트 안(점 재탭 포함)은 내부 로직에 맡긴다.
       dismissActive();
     };
 
@@ -240,7 +268,7 @@ export default function Sparkline({ series, label }) {
   if (list.length < MIN_SERIES_YEARS) return null;
   if (points.length <= 1) return null;
 
-  const { lo, hi } = gradeDomain(points.map((point) => point.value));
+  const { lo, hi } = gradeDomain(points.map((point) => point.value as number));
   const summary = points
     .map((point) => `${point.year}년 ${point.displayValue}등급`)
     .join(", ");

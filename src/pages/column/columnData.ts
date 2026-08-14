@@ -14,11 +14,46 @@ export const COLUMN_CATEGORIES = [
   "학생부•수행평가•세특", // 가운뎃점 U+2022 BULLET
 ];
 
+export type ColumnRow = {
+  id: string | number;
+  title?: string;
+  category?: string;
+  content?: string;
+  content_json?: unknown;
+  image_url?: string;
+  image_urls?: unknown;
+  view_count?: number;
+  is_featured?: boolean;
+  published_at?: string;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
+// ColumnRow보다 느슨한 모양 — id를 요구하지 않는다. galleries 행뿐 아니라 어드민 미리보기
+// 스냅샷(ColumnBody의 ColumnBodyPost처럼 id가 없을 수도 있는 값)도 그대로 받기 위함이다.
+// 아래 순수 판독 함수들은 id를 전혀 쓰지 않으므로 요구할 이유가 없다.
+export type ColumnRowLike = {
+  id?: string | number;
+  title?: string;
+  category?: string;
+  content?: string;
+  content_json?: unknown;
+  image_url?: string;
+  image_urls?: unknown;
+  view_count?: number;
+  is_featured?: boolean;
+  published_at?: string;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
 /**
  * galleries.image_urls(jsonb/string/array 혼재) → 문자열 배열로 정규화.
  * AS-IS Gallery.jsx normalizeArray 이식.
  */
-export function normalizeImageUrls(row) {
+export function normalizeImageUrls(
+  row: ColumnRowLike | null | undefined,
+): string[] {
   const value = row?.image_urls;
   if (Array.isArray(value)) return value;
   if (!value) return [];
@@ -35,22 +70,24 @@ export function normalizeImageUrls(row) {
   return [];
 }
 
-export function getThumbnailUrl(row) {
+export function getThumbnailUrl(row: ColumnRowLike | null | undefined): string {
   return normalizeImageUrls(row)[0] || row?.image_url || "";
 }
 
 // 커버 이미지도 동일 로직 — 의미 분리용 별칭.
-export function getCoverUrl(row) {
+export function getCoverUrl(row: ColumnRowLike | null | undefined): string {
   return getThumbnailUrl(row);
 }
 
-export function getDisplayDate(row) {
-  return row?.published_at || row?.created_at;
+export function getDisplayDate(
+  row: ColumnRowLike | null | undefined,
+): string | undefined {
+  return (row?.published_at as string | undefined) || row?.created_at;
 }
 
-export function formatDate(value) {
+export function formatDate(value: unknown): string {
   if (!value) return "";
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
   return date.toISOString().slice(0, 10);
 }
@@ -58,7 +95,9 @@ export function formatDate(value) {
 /**
  * view_count 없거나 부재/비정상 값이면 null — 호출부는 null이면 조회수 메타 자체를 숨겨야 함.
  */
-export function getViewCount(row) {
+export function getViewCount(
+  row: ColumnRowLike | null | undefined,
+): number | null {
   const num = Number(row?.view_count);
   return Number.isFinite(num) ? num : null;
 }
@@ -66,16 +105,20 @@ export function getViewCount(row) {
 /**
  * category가 COLUMN_CATEGORIES에 속하지 않으면 '전체' 취급(필터 미노출·뱃지/칩 미렌더 판단은 호출부 몫).
  */
-export function getCategoryLabel(row) {
+export function getCategoryLabel(
+  row: ColumnRowLike | null | undefined,
+): string {
   const value = row?.category;
-  return COLUMN_CATEGORIES.includes(value) ? value : ALL_CATEGORY;
+  return COLUMN_CATEGORIES.includes(value as string)
+    ? (value as string)
+    : ALL_CATEGORY;
 }
 
 /**
  * select('*') 고정 — category/view_count/published_at/is_featured 컬럼이 DB에 없어도
  * 에러 없이 동작해야 함 (스키마 확장 전 fallback 원칙).
  */
-export async function fetchActiveColumns() {
+export async function fetchActiveColumns(): Promise<ColumnRow[]> {
   const { data, error } = await supabase
     .from("galleries")
     .select("*")
@@ -87,10 +130,12 @@ export async function fetchActiveColumns() {
     return [];
   }
 
-  return data || [];
+  return (data || []) as ColumnRow[];
 }
 
-export async function fetchColumnById(id) {
+export async function fetchColumnById(
+  id: string | number | undefined,
+): Promise<ColumnRow | null> {
   const { data, error } = await supabase
     .from("galleries")
     .select("*")
@@ -103,17 +148,18 @@ export async function fetchColumnById(id) {
     return null;
   }
 
-  return data || null;
+  return (data as ColumnRow) || null;
 }
 
 /**
  * is_featured===true 인 것을 getDisplayDate desc로 최대 4건 뽑고,
  * 부족하면(또는 전부 false/컬럼 부재) 최신순으로 채워 총 4건을 반환.
  */
-export function pickFeaturedColumns(rows) {
+export function pickFeaturedColumns(rows: ColumnRow[]): ColumnRow[] {
   const sorted = [...rows].sort(
     (a, b) =>
-      new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0),
+      new Date(getDisplayDate(b) || 0).getTime() -
+      new Date(getDisplayDate(a) || 0).getTime(),
   );
 
   const featured = sorted

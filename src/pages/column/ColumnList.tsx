@@ -4,6 +4,7 @@ import CategoryChips from "../../components/column/CategoryChips";
 import ColumnCard from "../../components/column/ColumnCard";
 import {
   ALL_CATEGORY,
+  type ColumnRow,
   fetchActiveColumns,
   getCategoryLabel,
   getDisplayDate,
@@ -14,7 +15,7 @@ const SORT_LATEST = "최신순";
 const SORT_VIEWS = "조회순";
 
 export default function ColumnList() {
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<ColumnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(ALL_CATEGORY);
   const [sortKey, setSortKey] = useState(SORT_LATEST);
@@ -63,7 +64,8 @@ export default function ColumnList() {
     } else {
       sorted.sort(
         (a, b) =>
-          new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0),
+          new Date(getDisplayDate(b) || 0).getTime() -
+          new Date(getDisplayDate(a) || 0).getTime(),
       );
     }
 

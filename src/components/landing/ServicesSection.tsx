@@ -14,6 +14,17 @@ import { Link } from "react-router-dom";
 import { SERVICE_NAME_ROUTES } from "../../data/navigation";
 import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
 
+// program_categories 활성 row(sort_order asc).
+type Service = {
+  id: string;
+  name: string;
+  description?: string;
+  link?: string;
+  icon?: string;
+  icon_image_url?: string;
+  sort_order?: number;
+};
+
 // DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
 // 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.
 const DEAD_SERVICE_LINK_FALLBACK = "/services/learning-diagnosis";
@@ -21,22 +32,23 @@ const DEAD_SERVICE_LINK_FALLBACK = "/services/learning-diagnosis";
 // service.link 해석 순서: 1) /page/services-* 구슬러그면 신규 라우트로 승격(useNavGroups와
 // 동일 매핑 재사용) 2) 그래도 죽은 값('/services')·빈 값이면 서비스명으로 정본 라우트 매칭
 // 3) 그것도 없으면 학습진단으로 폴백.
-function resolveServiceLink(service) {
+function resolveServiceLink(service: Service) {
   const raw = String(service?.link || "").trim();
   const promoted = resolvePromotedSlugLink(raw);
 
   if (promoted && promoted !== "/services") return promoted;
 
   return (
-    SERVICE_NAME_ROUTES[String(service?.name || "").trim()] ||
-    DEAD_SERVICE_LINK_FALLBACK
+    SERVICE_NAME_ROUTES[
+      String(service?.name || "").trim() as keyof typeof SERVICE_NAME_ROUTES
+    ] || DEAD_SERVICE_LINK_FALLBACK
   );
 }
 
 const ICON_SHADOW_SRC = "/images/landing/services/icon-shadow.png";
 
 // 기존 Home.jsx serviceIconMap과 동일 — icon_image_url 부재 시 lucide 폴백
-const serviceIconMap = {
+const serviceIconMap: Record<string, typeof Target> = {
   target: Target,
   brain: Brain,
   file: FileText,
@@ -65,6 +77,18 @@ const ILLUSTRATION_LIFT_CLASS =
   "service-illustration [@media(hover:hover)]:group-hover:-translate-y-[0.1875rem] " +
   "group-focus-visible:-translate-y-[0.1875rem] active:translate-y-[0.0625rem]";
 
+type IllustrationLayout = {
+  boxW: string;
+  w: string;
+  h: string;
+  right: string;
+  top: string;
+  rotate: string;
+  shadowW: string;
+  shadowH: string;
+  shadowBottom: string;
+};
+
 /* 카드별 일러스트 배치 (lg 전용) — 0729 시안(2207:12970, 1100 캔버스, 카드 상대좌표) 실측(px÷16=rem).
    학습진단·목표관리·콜멘토는 시안 직접 실측치. 수행평가·자기평가·심화탐구는 시안 미제공 —
    구 시안(카드 356.4×181.1) 배치 비율을 신 카드(352×179, sx≈0.9877 / sy≈0.9883)로 재산정.
@@ -73,7 +97,7 @@ const ILLUSTRATION_LIFT_CLASS =
    본체 하단과 겹치게 깐다(그림자 위치는 시안 미제공 — 구 값을 동일 비율로 재산정).
    boxW: 래퍼 폭(회전 카드는 회전 후 bbox 폭), w/h: 본체 이미지, top: 본체 상단 오프셋.
    인덱스 = sort_order 순 = 시안 카드 순서. */
-const ILLUSTRATION_LAYOUTS = [
+const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
   // 학습진단 — 시안 실측 본체 118.9×100.2 / top 39.1 / right 53
   {
     boxW: "7.43rem",
@@ -148,10 +172,17 @@ const ILLUSTRATION_LAYOUTS = [
   },
 ];
 
-function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
+function ServiceCard({
+  service,
+  layout = ILLUSTRATION_LAYOUTS[0],
+}: {
+  service: Service;
+  layout?: IllustrationLayout;
+}) {
   const link = resolveServiceLink(service);
   const isExternal = /^https?:\/\//i.test(link);
-  const FallbackIcon = serviceIconMap[service.icon] || serviceIconMap.default;
+  const FallbackIcon =
+    serviceIconMap[service.icon ?? "default"] || serviceIconMap.default;
 
   const content = (
     <>
@@ -183,17 +214,19 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
       {service.icon_image_url ? (
         <span
           aria-hidden="true"
-          style={{
-            "--illo-box-w": layout.boxW,
-            "--illo-w": layout.w,
-            "--illo-h": layout.h,
-            "--illo-right": layout.right,
-            "--illo-top": layout.top,
-            "--illo-rotate": layout.rotate,
-            "--illo-shadow-w": layout.shadowW,
-            "--illo-shadow-h": layout.shadowH,
-            "--illo-shadow-bottom": layout.shadowBottom,
-          }}
+          style={
+            {
+              "--illo-box-w": layout.boxW,
+              "--illo-w": layout.w,
+              "--illo-h": layout.h,
+              "--illo-right": layout.right,
+              "--illo-top": layout.top,
+              "--illo-rotate": layout.rotate,
+              "--illo-shadow-w": layout.shadowW,
+              "--illo-shadow-h": layout.shadowH,
+              "--illo-shadow-bottom": layout.shadowBottom,
+            } as React.CSSProperties
+          }
           className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-[var(--illo-right)] lg:w-[var(--illo-box-w)] lg:justify-start ${ILLUSTRATION_LIFT_CLASS}`}
         >
           <img
@@ -250,6 +283,10 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
   );
 }
 
+type ServicesSectionProps = {
+  services?: Service[];
+};
+
 /**
  * 핵심 서비스 섹션 (명세 3.3)
  * - 아이브로우(accent) + 2줄 2톤 대제목(1행 #525252, 2행 #013262) + 3열×2행 카드 그리드
@@ -258,13 +295,10 @@ function ServiceCard({ service, layout = ILLUSTRATION_LAYOUTS[0] }) {
  * - 일러스트: lg 미만은 세로 중앙, lg는 시안 카드별 상단 기준 배치(크기·여백·회전 차등)
  * - 카드 전체가 link 필드로 이동하는 클릭 영역 (resolveServiceLink — 죽은 값/공백은
  *   서비스명 매칭 후 최종 /services/learning-diagnosis로 폴백)
- *
- * @param {object} props
- * @param {Array<{id: string, name: string, description?: string, link?: string,
- *   icon?: string, icon_image_url?: string, sort_order?: number}>} props.services
- *   program_categories 활성 rows (sort_order asc)
  */
-export default function ServicesSection({ services = [] }) {
+export default function ServicesSection({
+  services = [],
+}: ServicesSectionProps) {
   const visibleServices = useMemo(
     () =>
       [...services]

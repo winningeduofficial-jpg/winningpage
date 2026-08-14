@@ -22,17 +22,19 @@ const WHEEL_RESET_DELAY = 300;
  * - 포인터 스와이프 + 트랙패드 휠 좌우 이동, 드래그 직후 링크 클릭 방지
  * - pointerPaused 고착 방지 window 폴백 리스너
  *
- * @param {number} slideCount
- * @param {boolean} reducedMotion
- * @param {number} interval 자동 전환 간격 (ms) — 좌측은 MAIN_BANNER_INTERVAL, 우측은 SIDE_BANNER_INTERVAL
+ * @param interval 자동 전환 간격 (ms) — 좌측은 MAIN_BANNER_INTERVAL, 우측은 SIDE_BANNER_INTERVAL
  */
-function useHeroCarousel(slideCount, reducedMotion, interval) {
+function useHeroCarousel(
+  slideCount: number,
+  reducedMotion: boolean,
+  interval: number,
+) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoverPaused, setHoverPaused] = useState(false);
   const [focusPaused, setFocusPaused] = useState(false);
   const [pointerPaused, setPointerPaused] = useState(false);
 
-  const dragStartXRef = useRef(null);
+  const dragStartXRef = useRef<number | null>(null);
   const dragMovedRef = useRef(false);
   const wheelAccumRef = useRef(0);
   const wheelCooldownUntilRef = useRef(0);
@@ -56,7 +58,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   }, [slideCount, isPaused, reducedMotion, activeIndex, interval]);
 
   const goTo = useCallback(
-    (index) => {
+    (index: number) => {
       if (slideCount === 0) return;
       setActiveIndex(((index % slideCount) + slideCount) % slideCount);
     },
@@ -66,7 +68,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   // 트랙패드 휠 좌우 이동: 가로 성분 우세 시 누적 deltaX로 슬라이드 전환.
   // 이동 후 쿨다운으로 관성 스크롤 연속 전환 방지. activeIndex 변경으로 자동 전환 타이머는 리셋됨.
   const handleWheel = useCallback(
-    (event) => {
+    (event: React.WheelEvent) => {
       if (slideCount <= 1) return;
       if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
 
@@ -91,13 +93,13 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   );
 
   // 포인터 스와이프 (터치/마우스 드래그 공용)
-  const handlePointerDown = useCallback((event) => {
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
     dragStartXRef.current = event.clientX;
     dragMovedRef.current = false;
     setPointerPaused(true);
   }, []);
 
-  const handlePointerMove = useCallback((event) => {
+  const handlePointerMove = useCallback((event: React.PointerEvent) => {
     if (dragStartXRef.current === null) return;
     if (Math.abs(event.clientX - dragStartXRef.current) > 8) {
       dragMovedRef.current = true;
@@ -105,7 +107,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   }, []);
 
   const handlePointerUp = useCallback(
-    (event) => {
+    (event: { clientX: number }) => {
       if (dragStartXRef.current !== null) {
         const deltaX = event.clientX - dragStartXRef.current;
         if (Math.abs(deltaX) >= SWIPE_THRESHOLD && slideCount > 1) {
@@ -137,7 +139,7 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   }, [pointerPaused, handlePointerUp, handlePointerCancel]);
 
   // 드래그 직후 링크 클릭 방지
-  const handleSlideClick = useCallback((event) => {
+  const handleSlideClick = useCallback((event: React.MouseEvent) => {
     if (dragMovedRef.current) {
       event.preventDefault();
       dragMovedRef.current = false;
@@ -160,6 +162,33 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
   };
 }
 
+// banners 활성분(sort_order asc). 클릭 URL은 link_url 우선, 없으면 레거시 컬럼 button_link.
+type MainBanner = {
+  id?: string;
+  title?: string;
+  image_url: string;
+  button_link?: string;
+  link_url?: string;
+  sort_order?: number;
+};
+
+// home_side_banners 활성분(sort_order asc).
+type SideBanner = {
+  id?: string;
+  title?: string;
+  subtitle?: string;
+  image_url?: string;
+  mobile_image_url?: string;
+  link_url?: string;
+  open_new_window?: boolean;
+  sort_order?: number;
+};
+
+type HeroSectionProps = {
+  banners?: MainBanner[];
+  sideBanners?: SideBanner[];
+};
+
 /**
  * 히어로 섹션 (명세 3.1)
  * - 좌측 969×429: banners 활성분 캐러셀 — 자동 전환(10s, setTimeout 체인) + 카드 바깥 하단 중앙
@@ -171,17 +200,11 @@ function useHeroCarousel(slideCount, reducedMotion, interval) {
  * - 좌/우 캐러셀은 useHeroCarousel 훅의 독립 인스턴스를 사용해 타이머가 서로 간섭하지 않는다.
  * - hover/focus/pointerdown 일시정지, prefers-reduced-motion 시 자동 전환 비활성(컴포넌트
  *   레벨에서 1회 감지 후 좌/우 훅에 공유 전달)
- *
- * @param {object} props
- * @param {Array<{id: string, title?: string, image_url: string,
- *   button_link?: string, link_url?: string, sort_order?: number}>} props.banners
- *   활성 메인 배너 목록 (sort_order asc)
- * @param {Array<{id: string, title?: string, subtitle?: string, image_url?: string,
- *   mobile_image_url?: string, link_url?: string, open_new_window?: boolean,
- *   sort_order?: number}>} props.sideBanners
- *   활성 우측 소형 배너 목록 (sort_order asc)
  */
-export default function HeroSection({ banners = [], sideBanners = [] }) {
+export default function HeroSection({
+  banners = [],
+  sideBanners = [],
+}: HeroSectionProps) {
   const leftSlides = banners.filter((item) => item.image_url);
   const leftSlideCount = leftSlides.length;
   const rightSlides = sideBanners.filter(
@@ -196,7 +219,8 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(mql.matches);
-    const onChange = (event) => setReducedMotion(event.matches);
+    const onChange = (event: MediaQueryListEvent) =>
+      setReducedMotion(event.matches);
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
@@ -249,7 +273,7 @@ export default function HeroSection({ banners = [], sideBanners = [] }) {
                   // 매핑에 없는 값은 원본 그대로 통과하므로 외부 URL에도 안전하다.
                   // ('/free-diagnosis'는 이 매핑이 아니라 App.jsx의 <Navigate replace> 라우트가 처리한다.)
                   const clickUrl = resolvePromotedSlugLink(
-                    banner.link_url || banner.button_link,
+                    banner.link_url || banner.button_link || "",
                   );
                   const label = banner.title || `메인 배너 ${index + 1}`;
                   const isActive = index === leftCarousel.activeIndex;

@@ -1,10 +1,28 @@
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import type { useNavGroups } from "../hooks/useNavGroups";
 import { buildMyMenu } from "./myMenuItems";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+type NavGroups = ReturnType<typeof useNavGroups>;
+
+type MobileNavDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  navGroups: NavGroups;
+  shouldShowLoggedInHeader: boolean;
+  isLoggedIn: boolean;
+  displayName: string;
+  memberLabel: string;
+  isParentMember?: boolean;
+  csatDDay: string;
+  isAdmin: boolean;
+  onLogout: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+};
 
 // 헤더 nav(desktop:flex 미만)를 대체하는 전체화면 드로어.
 // 5개 nav 그룹 + 로그인 상태의 마이페이지/관리자/로그아웃(또는 로그인/회원가입)을 아코디언으로 노출한다.
@@ -21,10 +39,10 @@ export default function MobileNavDrawer({
   isAdmin,
   onLogout,
   triggerRef,
-}) {
-  const panelRef = useRef(null);
-  const closeButtonRef = useRef(null);
-  const [openGroup, setOpenGroup] = useState(null);
+}: MobileNavDrawerProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -43,7 +61,7 @@ export default function MobileNavDrawer({
 
     closeButtonRef.current?.focus();
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -56,7 +74,7 @@ export default function MobileNavDrawer({
       if (!panel) return;
 
       const focusable = Array.from(
-        panel.querySelectorAll(FOCUSABLE_SELECTOR),
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
       ).filter((el) => !el.hasAttribute("disabled"));
 
       if (focusable.length === 0) return;
@@ -87,7 +105,7 @@ export default function MobileNavDrawer({
     }
   }, [open]);
 
-  function toggleGroup(title) {
+  function toggleGroup(title: string) {
     setOpenGroup((prev) => (prev === title ? null : title));
   }
 

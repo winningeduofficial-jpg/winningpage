@@ -39,10 +39,34 @@ import {
 } from "../../lib/admissionResults";
 import { CHART_COLORS, CHART_FONT_SIZE } from "./chartTheme";
 
+// buildTrackSeries()가 만드는 셀 하나 — 이 컴포넌트가 실제로 읽는 필드만 좁혀서 둔다.
+type GradeCell = {
+  year: number;
+  value: number | null;
+  cut?: number | string | null;
+  state: string;
+  display?: string;
+};
+
+// computeDelta()/computeDeltaFromSeries()의 반환 모양(admissionResults.js 주석 참고).
+type GradeDeltaResult = {
+  state: string;
+  direction: string | null;
+  delta: number | null;
+  raw: number | null;
+  arrow: string | null;
+  tone: string;
+  label: string;
+  display: string;
+  note: string | null;
+  cutMismatch: boolean;
+  availableYear: number | null;
+};
+
 // 톤별 색. `up`(성적 상승)은 차트 정본 색을 그대로 쓰고, `down`은 이 화면이 이미 쓰는
 // 경고 적색(TrendingChips.jsx:8)을 따른다. chartTheme.js에 넣지 않는 이유는 아직 이 컴포넌트
 // 하나만 쓰는 색이라서다 — 두 번째 사용처가 생기면 그때 공용 토큰으로 올린다.
-const TONE = {
+const TONE: Record<string, { fg: string; bg: string }> = {
   up: { fg: "#013262", bg: "#eef2f8" },
   down: { fg: "#e5484d", bg: "#fdeded" },
   flat: { fg: "#8f8f8f", bg: "#f4f4f4" },
@@ -58,7 +82,7 @@ const SLOPE_VIEWBOX = { width: 56, height: 16 };
 const SLOPE_RISE = 4;
 
 // 셀 한 칸 — 연도 라벨 + 등급값(+ 컷 괄호). 결측/미공개는 lib이 만든 display 문자열을 쓴다.
-function YearValue({ cell, emphasis }) {
+function YearValue({ cell, emphasis }: { cell: GradeCell; emphasis: boolean }) {
   const hasValue = cell?.state === CELL_STATE.VALUE;
   const color = hasValue && emphasis ? CHART_COLORS.line : "#8f8f8f";
 
@@ -87,7 +111,15 @@ function YearValue({ cell, emphasis }) {
 }
 
 // 두 값을 잇는 슬로프. 비교 불가면 아무것도 긋지 않고 자리만 지킨다(위 §2).
-function Slope({ state, tone, direction }) {
+function Slope({
+  state,
+  tone,
+  direction,
+}: {
+  state: string;
+  tone: string;
+  direction: string | null;
+}) {
   const { width, height } = SLOPE_VIEWBOX;
   const mid = height / 2;
 
@@ -131,8 +163,13 @@ function Slope({ state, tone, direction }) {
 }
 
 // aria 요약 한 문장. 색·글리프를 못 보는 사용자에게도 방향과 의미가 그대로 전달돼야 한다.
-function ariaSummary(label, previous, current, delta) {
-  const cellText = (cell) =>
+function ariaSummary(
+  label: string | undefined,
+  previous: GradeCell,
+  current: GradeCell,
+  delta: GradeDeltaResult,
+) {
+  const cellText = (cell: GradeCell) =>
     cell?.state === CELL_STATE.VALUE
       ? `${cell.year}학년도 ${formatGradeValue(cell.value)}등급${cell.cut != null ? ` (${cell.cut}%컷)` : ""}`
       : `${cell?.year ?? ""}학년도 ${cell?.display ?? "자료 없음"}`;
@@ -152,7 +189,13 @@ function ariaSummary(label, previous, current, delta) {
   return `${head}: ${values}. ${delta.label}. 등급은 수치가 낮을수록 상위입니다.${tail}`;
 }
 
-export default function GradeDelta({ series, delta, label }) {
+type GradeDeltaProps = {
+  series?: GradeCell[];
+  delta?: GradeDeltaResult;
+  label?: string;
+};
+
+export default function GradeDelta({ series, delta, label }: GradeDeltaProps) {
   const cells = [...(series ?? [])].sort((a, b) => a.year - b.year);
 
   // 값이 한 칸도 없으면 그리지 않는다 — 연도 라벨과 `-` 두 개만 남은 껍데기가 된다.
@@ -161,7 +204,7 @@ export default function GradeDelta({ series, delta, label }) {
 
   const previous = cells[0];
   const current = cells[cells.length - 1];
-  const result = delta ?? computeDeltaFromSeries(cells);
+  const result = delta ?? (computeDeltaFromSeries(cells) as GradeDeltaResult);
   const tone = TONE[result.tone] ?? TONE.muted;
 
   return (

@@ -1,5 +1,13 @@
 import { ChevronDown } from "lucide-react";
-import { cloneElement, isValidElement, useId, useRef, useState } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import BookViewer from "../components/premiumBook/BookViewer";
 import { usePremiumBookPages } from "../components/premiumBook/usePremiumBookPages";
 
@@ -28,7 +36,16 @@ const SERVICE_OPTIONS = [
   "국제・해외고 국내대 입학컨설팅",
 ];
 
-const INITIAL_FORM = {
+type FormState = {
+  name: string;
+  phone: string;
+  email: string;
+  service: string;
+  message: string;
+  agree: boolean;
+};
+
+const INITIAL_FORM: FormState = {
   name: "",
   phone: "",
   email: "",
@@ -37,16 +54,25 @@ const INITIAL_FORM = {
   agree: false,
 };
 
+type FormErrors = Partial<Record<keyof FormState, string>>;
+
 // DOM 순서와 동일 — 첫 오류 필드로 포커스를 옮길 때 이 순서대로 훑는다.
-const FIELD_ORDER = ["name", "phone", "email", "service", "message", "agree"];
+const FIELD_ORDER: (keyof FormState)[] = [
+  "name",
+  "phone",
+  "email",
+  "service",
+  "message",
+  "agree",
+];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_ALLOWED_PATTERN = /^[0-9-]+$/;
 
 // 서버(api/create-consult-request.js)와 동일한 규칙. 클라이언트에서 먼저 걸러 왕복을
 // 줄이되, 최종 검증은 서버가 다시 한다.
-function validateForm(form) {
-  const errors = {};
+function validateForm(form: FormState): FormErrors {
+  const errors: FormErrors = {};
 
   const name = form.name.trim();
   if (!name) {
@@ -91,12 +117,24 @@ function validateForm(form) {
 // 그 컨트롤이라는 뜻이라 cloneElement로 id를 꽂는다. label이 children까지
 // 감싸면(중첩 연결) flex-col gap-2가 한 아이템으로 합쳐져 라벨·입력 사이
 // 간격이 사라지므로 형제 구조를 유지한다.
-function FormField({ label, error, children, controlId }) {
+function FormField({
+  label,
+  error,
+  children,
+  controlId,
+}: {
+  label: string;
+  error?: string;
+  children: ReactNode;
+  controlId?: string;
+}) {
   const generatedId = useId();
   const isSingleControl = controlId === undefined && isValidElement(children);
   const inputId = controlId ?? (isSingleControl ? generatedId : undefined);
   const control = isSingleControl
-    ? cloneElement(children, { id: children.props.id ?? inputId })
+    ? cloneElement(children as ReactElement<{ id?: string }>, {
+        id: (children as ReactElement<{ id?: string }>).props.id ?? inputId,
+      })
     : children;
   return (
     <div className="flex flex-col gap-2">
@@ -117,14 +155,19 @@ const inputClass =
 const inputErrorClass = "border-red-400 focus:border-red-500";
 
 export default function PremiumApply() {
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [errors, setErrors] = useState({});
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { pages, loading, error, retry } = usePremiumBookPages();
 
-  const fieldRefs = {
+  const fieldRefs: Record<
+    keyof FormState,
+    React.RefObject<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+    >
+  > = {
     name: useRef(null),
     phone: useRef(null),
     email: useRef(null),
@@ -133,11 +176,11 @@ export default function PremiumApply() {
     agree: useRef(null),
   };
 
-  function updateField(key, value) {
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return; // 중복 클릭으로 두 번 신청되는 것을 막는다.
 
@@ -252,7 +295,9 @@ export default function PremiumApply() {
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <FormField label="이름 *" error={errors.name}>
                       <input
-                        ref={fieldRefs.name}
+                        ref={
+                          fieldRefs.name as React.RefObject<HTMLInputElement>
+                        }
                         type="text"
                         value={form.name}
                         onChange={(e) => updateField("name", e.target.value)}
@@ -262,7 +307,9 @@ export default function PremiumApply() {
                     </FormField>
                     <FormField label="연락처 *" error={errors.phone}>
                       <input
-                        ref={fieldRefs.phone}
+                        ref={
+                          fieldRefs.phone as React.RefObject<HTMLInputElement>
+                        }
                         type="tel"
                         value={form.phone}
                         onChange={(e) => updateField("phone", e.target.value)}
@@ -275,7 +322,9 @@ export default function PremiumApply() {
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <FormField label="이메일" error={errors.email}>
                       <input
-                        ref={fieldRefs.email}
+                        ref={
+                          fieldRefs.email as React.RefObject<HTMLInputElement>
+                        }
                         type="email"
                         value={form.email}
                         onChange={(e) => updateField("email", e.target.value)}
@@ -291,7 +340,9 @@ export default function PremiumApply() {
                       <div className="relative">
                         <select
                           id="premium-apply-service"
-                          ref={fieldRefs.service}
+                          ref={
+                            fieldRefs.service as React.RefObject<HTMLSelectElement>
+                          }
                           value={form.service}
                           onChange={(e) =>
                             updateField("service", e.target.value)
@@ -316,7 +367,9 @@ export default function PremiumApply() {
 
                   <FormField label="문의사항" error={errors.message}>
                     <textarea
-                      ref={fieldRefs.message}
+                      ref={
+                        fieldRefs.message as React.RefObject<HTMLTextAreaElement>
+                      }
                       value={form.message}
                       onChange={(e) => updateField("message", e.target.value)}
                       rows={5}
@@ -330,7 +383,9 @@ export default function PremiumApply() {
                     {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — legalDocs.js 「4. 보유 및 이용기간」과 표현 일치 */}
                     <label className="flex items-start gap-2 text-sm font-normal leading-5 text-[#525252]">
                       <input
-                        ref={fieldRefs.agree}
+                        ref={
+                          fieldRefs.agree as React.RefObject<HTMLInputElement>
+                        }
                         type="checkbox"
                         checked={form.agree}
                         onChange={(e) => updateField("agree", e.target.checked)}

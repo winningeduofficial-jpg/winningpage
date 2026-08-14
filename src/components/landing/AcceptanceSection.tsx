@@ -4,7 +4,25 @@ import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
 const TRACK_TABS = [
   { key: "general", label: "일반계열" },
   { key: "medical_special", label: "의약학 · 특수계열" },
-];
+] as const;
+
+type TrackKey = (typeof TRACK_TABS)[number]["key"];
+
+// university_acceptances 활성 row(sort_order asc). 서브라벨은 subtitle 우선(예: '7명 합격',
+// '의예과'), 없으면 count 기반 'N명 합격' 폴백.
+type University = {
+  id: string;
+  name: string;
+  emblem_url?: string;
+  subtitle?: string;
+  count?: number | null;
+  track: TrackKey;
+  sort_order?: number;
+};
+
+type AcceptanceSectionProps = {
+  universities?: University[];
+};
 
 /**
  * 합격생 섹션 (명세 3.2)
@@ -12,14 +30,10 @@ const TRACK_TABS = [
  * - useInfiniteMarquee 훅 사용 (화살표 없음, hover pause + 드래그/터치 스크롤 가드)
  * - 탭은 button + aria-selected, 탭 전환 시 캐러셀 위치 리셋
  * - 카드 행은 좌우 블리드(풀폭 오버플로) — 뷰포트보다 좁으면 중앙 정렬
- *
- * @param {object} props
- * @param {Array<{id: string, name: string, emblem_url?: string, subtitle?: string,
- *   count?: number|null, track: 'general'|'medical_special', sort_order?: number}>} props.universities
- *   university_acceptances 활성 rows (sort_order asc)
- *   — 서브라벨은 subtitle 우선(예: '7명 합격', '의예과'), 없으면 count 기반 'N명 합격' 폴백
  */
-export default function AcceptanceSection({ universities = [] }) {
+export default function AcceptanceSection({
+  universities = [],
+}: AcceptanceSectionProps) {
   const trackCounts = useMemo(
     () => ({
       general: universities.filter((item) => item.track === "general").length,
@@ -30,10 +44,10 @@ export default function AcceptanceSection({ universities = [] }) {
     [universities],
   );
 
-  const [selectedTrack, setSelectedTrack] = useState("general");
+  const [selectedTrack, setSelectedTrack] = useState<TrackKey>("general");
 
   // 선택 탭 데이터가 0건이면 데이터가 있는 탭으로 폴백
-  const activeTrack =
+  const activeTrack: TrackKey =
     trackCounts[selectedTrack] > 0
       ? selectedTrack
       : (TRACK_TABS.find((tab) => trackCounts[tab.key] > 0)?.key ??
@@ -131,7 +145,7 @@ export default function AcceptanceSection({ universities = [] }) {
           {...containerHandlers}
         >
           <div
-            ref={scrollRef}
+            ref={scrollRef as React.RefObject<HTMLDivElement>}
             className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul

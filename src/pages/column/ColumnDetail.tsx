@@ -8,6 +8,7 @@ import ColumnCard from "../../components/column/ColumnCard";
 import { withDedupedKeys } from "../../lib/reactKeys";
 import {
   ALL_CATEGORY,
+  type ColumnRow,
   fetchActiveColumns,
   fetchColumnById,
   getCategoryLabel,
@@ -19,8 +20,8 @@ const RELATED_PAGE_SIZE = 4;
 
 export default function ColumnDetail() {
   const { id } = useParams();
-  const [post, setPost] = useState(null);
-  const [relatedPool, setRelatedPool] = useState([]);
+  const [post, setPost] = useState<ColumnRow | null>(null);
+  const [relatedPool, setRelatedPool] = useState<ColumnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
   const [copied, setCopied] = useState(false);

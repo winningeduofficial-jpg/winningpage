@@ -7,11 +7,14 @@ import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
+  type BoardRow,
   formatBoardDate,
   incrementBoardView,
 } from "./board/boardData";
 
-function normalizeArray(value) {
+type Attachment = string | { name?: string; url?: string };
+
+function normalizeArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
@@ -27,18 +30,18 @@ function normalizeArray(value) {
   return [];
 }
 
-function getAttachmentName(file) {
+function getAttachmentName(file: Attachment | null | undefined) {
   if (!file) return "첨부파일 다운로드";
   if (typeof file === "string") return "첨부파일 다운로드";
   return file.name || "첨부파일 다운로드";
 }
 
-function getAttachmentUrl(file) {
+function getAttachmentUrl(file: Attachment | null | undefined) {
   if (!file) return "";
-  return typeof file === "string" ? file : file.url;
+  return typeof file === "string" ? file : file.url || "";
 }
 
-function renderNoticeContent(content) {
+function renderNoticeContent(content: string | null | undefined) {
   if (!content) return null;
 
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
@@ -54,9 +57,9 @@ export default function Events() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("id");
 
-  const [notices, setNotices] = useState([]);
+  const [notices, setNotices] = useState<BoardRow[]>([]);
   // 어떤 id 요청에 대한 로드가 끝났는지. 상세 대기 상태와 '없는 글' 을 구분하는 유일한 근거다.
-  const [loadedId, setLoadedId] = useState(null);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
   // 목록은 BoardListPage 가 스스로 로드한다. 여기서는 `?id=` 상세일 때만 조회한다.
   // (목록 분기에서도 조회하면 같은 테이블을 두 번 읽는다.)
@@ -89,7 +92,7 @@ export default function Events() {
         return;
       }
 
-      setNotices(data || []);
+      setNotices((data || []) as BoardRow[]);
       setLoadedId(selectedId);
     }
 
@@ -111,12 +114,12 @@ export default function Events() {
   // StrictMode 개발 모드의 effect 이중 실행에도 id 당 1회만 나가도록 ref 로 잠근다.
   // ref 는 StrictMode 재마운트 시뮬레이션에서도 보존되므로 두 번째 실행은 건너뛴다.
   // incrementBoardView 는 어떤 실패에도 throw 하지 않는다(boardData.js:181-201).
-  const viewedIdRef = useRef(null);
+  const viewedIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (!selectedNotice) return;
 
-    const noticeId = selectedNotice.id;
+    const noticeId = selectedNotice.id as string | number;
 
     if (viewedIdRef.current === noticeId) return;
 
@@ -144,8 +147,10 @@ export default function Events() {
   }
 
   if (selectedNotice) {
-    const images = normalizeArray(selectedNotice.image_urls);
-    const attachments = normalizeArray(selectedNotice.attachments);
+    const images = normalizeArray(selectedNotice.image_urls) as string[];
+    const attachments = normalizeArray(
+      selectedNotice.attachments,
+    ) as Attachment[];
 
     return (
       <main className="min-h-screen bg-white pt-16">
@@ -193,14 +198,14 @@ export default function Events() {
               ) : selectedNotice.image_url ? (
                 <div className="mb-10 flex justify-center">
                   <img
-                    src={selectedNotice.image_url}
-                    alt={selectedNotice.title}
+                    src={selectedNotice.image_url as string}
+                    alt={selectedNotice.title as string}
                     className="max-h-none max-w-full object-contain"
                   />
                 </div>
               ) : null}
 
-              {renderNoticeContent(selectedNotice.content)}
+              {renderNoticeContent(selectedNotice.content as string)}
 
               {attachments.length > 0 ? (
                 <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
@@ -233,13 +238,14 @@ export default function Events() {
                   </p>
 
                   <a
-                    href={selectedNotice.file_url}
+                    href={selectedNotice.file_url as string}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
                   >
                     <Download size={16} />
-                    {selectedNotice.file_name || "첨부파일 다운로드"}
+                    {(selectedNotice.file_name as string) ||
+                      "첨부파일 다운로드"}
                   </a>
                 </div>
               ) : null}
@@ -258,7 +264,9 @@ export default function Events() {
       title="공지사항"
       source={BOARD_SOURCES.notices}
       searchAriaLabel="공지사항 검색"
-      getDetailHref={(row) => `/events?id=${encodeURIComponent(row.id)}`}
+      getDetailHref={(row) =>
+        `/events?id=${encodeURIComponent(String(row.id))}`
+      }
       emptyMessage="등록된 공지사항이 없습니다."
     />
   );

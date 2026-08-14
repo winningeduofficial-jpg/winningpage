@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import type { PremiumBookPage } from "./bookPairing";
 import { createDevDummyPages } from "./devDummyPages";
 
 // 프리미엄 안내 책자 페이지 조회 훅 — 공개 페이지(/premium-apply) 전용 데이터 소스다.
@@ -17,9 +18,9 @@ import { createDevDummyPages } from "./devDummyPages";
 // 의도적으로 이 훅 안에만 둔다 — 어드민 미리보기 경로는 이 훅을 호출하지 않으므로 더미가
 // 새어들 일이 없다.
 export function usePremiumBookPages() {
-  const [pages, setPages] = useState([]);
+  const [pages, setPages] = useState<PremiumBookPage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<unknown>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) reloadToken은 effect 안에서 읽지 않는 재조회(refetch) 트리거 전용 카운터다.
@@ -42,7 +43,7 @@ export function usePremiumBookPages() {
         setError(queryError);
         setPages([]);
       } else {
-        setPages(data ?? []);
+        setPages((data ?? []) as PremiumBookPage[]);
       }
       setLoading(false);
     })();

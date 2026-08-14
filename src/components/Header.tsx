@@ -1,3 +1,4 @@
+import type { Session, User } from "@supabase/supabase-js";
 import { ChevronDown, Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -93,7 +94,17 @@ function getCsatDay() {
   return `수능 D+${Math.abs(diff)}`;
 }
 
-function getMemberLabel(profile) {
+// profiles 테이블 행 — 헤더가 실제로 읽는 컬럼만 좁혀서 둔다.
+type Profile = {
+  id?: string;
+  name?: string;
+  email?: string;
+  username?: string;
+  member_type?: string;
+  role?: string;
+};
+
+function getMemberLabel(profile: Profile | null) {
   const raw = cleanText(profile?.member_type).toLowerCase();
   const role = cleanText(profile?.role).toLowerCase();
 
@@ -113,7 +124,7 @@ function getMemberLabel(profile) {
   return raw.endsWith("회원") ? raw : `${raw}회원`;
 }
 
-function readCachedProfile() {
+function readCachedProfile(): Profile | null {
   try {
     const raw = window.localStorage.getItem(HEADER_PROFILE_CACHE_KEY);
     if (!raw) return null;
@@ -125,7 +136,7 @@ function readCachedProfile() {
   }
 }
 
-function writeCachedProfile(profile) {
+function writeCachedProfile(profile: Profile | null) {
   try {
     if (!profile) {
       window.localStorage.removeItem(HEADER_PROFILE_CACHE_KEY);
@@ -141,7 +152,10 @@ function writeCachedProfile(profile) {
   }
 }
 
-function isSameUserProfile(profile, user) {
+function isSameUserProfile(
+  profile: Profile | null | undefined,
+  user: User | null | undefined,
+) {
   if (!profile || !user) return false;
 
   const profileId = cleanText(profile.id);
@@ -155,16 +169,22 @@ function isSameUserProfile(profile, user) {
   );
 }
 
-function withTimeout(promise, ms, fallbackValue = null) {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallbackValue: T,
+): Promise<T> {
   return Promise.race([
     promise,
-    new Promise((resolve) =>
+    new Promise<T>((resolve) =>
       window.setTimeout(() => resolve(fallbackValue), ms),
     ),
   ]);
 }
 
-async function queryProfileById(userId) {
+async function queryProfileById(
+  userId: string | undefined,
+): Promise<Profile | null> {
   if (!userId) return null;
 
   const { data, error } = await supabase
@@ -181,7 +201,9 @@ async function queryProfileById(userId) {
   return data || null;
 }
 
-async function queryProfileByEmail(email) {
+async function queryProfileByEmail(
+  email: string | null | undefined,
+): Promise<Profile | null> {
   const normalizedEmail = cleanText(email).toLowerCase();
 
   if (!normalizedEmail) return null;
@@ -200,7 +222,9 @@ async function queryProfileByEmail(email) {
   return data || null;
 }
 
-async function queryProfileByUsername(email) {
+async function queryProfileByUsername(
+  email: string | null | undefined,
+): Promise<Profile | null> {
   const username = cleanText(email).split("@")[0];
 
   if (!username) return null;
@@ -219,7 +243,9 @@ async function queryProfileByUsername(email) {
   return data || null;
 }
 
-async function fetchProfile(user) {
+async function fetchProfile(
+  user: User | null | undefined,
+): Promise<Profile | null> {
   if (!user) return null;
 
   const byId = await queryProfileById(user.id);
@@ -235,11 +261,13 @@ async function fetchProfile(user) {
 }
 
 export default function Header() {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(() => readCachedProfile());
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(() =>
+    readCachedProfile(),
+  );
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
-  const [activeMega, setActiveMega] = useState(null);
+  const [activeMega, setActiveMega] = useState<string | null>(null);
   // 메가 패널 애니메이션 상태(open/closed 3-phase state machine, 사용자 확정 스펙).
   // 'closed' → 마운트는 유지하되 opacity-0/invisible/pointer-events-none으로 완전히 상주(비표시).
   // 'open'   → activeMega가 켜지는 즉시 진입, 180ms ease-out-quart로 opacity+translateY 페이드인.
@@ -247,11 +275,13 @@ export default function Header() {
   //            120ms opacity만 페이드아웃(이동 없음) 후 아래 타이머로 'closed'에 도달한다.
   // 패널이 always-mounted(조건부 렌더 아님)라 첫 hover 시에도 트랜지션이 항상 이미 걸려있는
   // 상태에서 클래스만 토글되므로 최초 오픈에서도 트랜지션이 확실히 발화한다.
-  const [megaPanelPhase, setMegaPanelPhase] = useState("closed");
-  const megaPanelAnimTimerRef = useRef(null);
+  const [megaPanelPhase, setMegaPanelPhase] = useState<
+    "closed" | "open" | "closing"
+  >("closed");
+  const megaPanelAnimTimerRef = useRef<number | null>(null);
   const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const mobileNavTriggerRef = useRef(null);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const navGroups = useNavGroups();
   const { pathname } = useLocation();
 
@@ -264,21 +294,23 @@ export default function Header() {
   // 세그먼트가 없는 경로(예: '/')는 2단계에서 제외 — 홈은 어느 nav 그룹에도 속하지 않는다.
   // navGroups 순회 순서상 먼저 오는 그룹 하나만 활성으로 삼아 동시 활성을 방지한다.
   const activePathTitle = useMemo(() => {
-    function firstSegment(path) {
+    function firstSegment(path: string | null | undefined) {
       const segment = String(path || "")
         .split("/")
         .filter(Boolean)[0];
       return segment || null;
     }
 
-    function internalCandidates(group) {
+    function internalCandidates(group: (typeof navGroups)[number]) {
       const raw = [
         group?.to,
         ...(Array.isArray(group?.items) ? group.items : []).map(
           (item) => item?.to,
         ),
       ];
-      return raw.filter((to) => typeof to === "string" && to.startsWith("/"));
+      return raw.filter(
+        (to): to is string => typeof to === "string" && to.startsWith("/"),
+      );
     }
 
     for (const group of navGroups) {
@@ -307,7 +339,7 @@ export default function Header() {
   // 않고, nav↔패널 이동 시 짧은 순간 두 영역 모두를 벗어나는 프레임이 있을 수 있어
   // 즉시 닫지 않고 ~100ms 유예를 둔다. 로고·계정 그룹·딤·기타 영역으로 나가면(두 영역
   // 중 어느 쪽도 재진입하지 않으면) 유예 후 닫힌다.
-  const megaCloseTimerRef = useRef(null);
+  const megaCloseTimerRef = useRef<number | null>(null);
 
   const clearMegaCloseTimer = useCallback(() => {
     if (megaCloseTimerRef.current) {
@@ -376,7 +408,7 @@ export default function Header() {
     let alive = true;
     let seq = 0;
 
-    async function syncSession(nextSession) {
+    async function syncSession(nextSession?: Session | null) {
       const currentSeq = ++seq;
 
       try {
@@ -385,14 +417,18 @@ export default function Header() {
             ? nextSession
             : await withTimeout(supabase.auth.getSession(), 1200, {
                 data: { session: null },
-              });
+              } as Awaited<ReturnType<typeof supabase.auth.getSession>>);
 
         if (!alive || currentSeq !== seq) return;
 
-        const currentSession =
+        const currentSession: Session | null =
           nextSession !== undefined
-            ? sessionResult
-            : sessionResult?.data?.session || null;
+            ? (sessionResult as Session | null)
+            : (
+                sessionResult as Awaited<
+                  ReturnType<typeof supabase.auth.getSession>
+                >
+              )?.data?.session || null;
 
         if (!currentSession?.user) {
           setSession(null);
@@ -403,7 +439,7 @@ export default function Header() {
         }
 
         const cachedProfile = readCachedProfile();
-        let nextProfile = null;
+        let nextProfile: Profile | null = null;
 
         if (isSameUserProfile(cachedProfile, currentSession.user)) {
           nextProfile = cachedProfile;
@@ -479,7 +515,7 @@ export default function Header() {
 
   function clearSupabaseAuthStorage() {
     try {
-      const localKeys = [];
+      const localKeys: string[] = [];
 
       for (let i = 0; i < window.localStorage.length; i += 1) {
         const key = window.localStorage.key(i);
@@ -497,7 +533,7 @@ export default function Header() {
         }
       });
 
-      const sessionKeys = [];
+      const sessionKeys: string[] = [];
 
       for (let i = 0; i < window.sessionStorage.length; i += 1) {
         const key = window.sessionStorage.key(i);

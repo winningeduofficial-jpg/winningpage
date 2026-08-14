@@ -24,6 +24,9 @@ export const BOARD_SOURCES = Object.freeze({
   notices: "notices",
 });
 
+export type BoardSourceKey = keyof typeof BOARD_SOURCES;
+export type BoardTableName = (typeof BOARD_SOURCES)[BoardSourceKey];
+
 const BOARD_TABLE_NAMES = Object.freeze(Object.values(BOARD_SOURCES));
 
 /** 페이지당 행 수 (설계 결정 D5). */
@@ -33,13 +36,27 @@ export const BOARD_PAGE_SIZE = 10;
 // +9h 시프트 방식. toISOString() 단독 사용 시 KST 00:00~08:59 생성 글이 전날로 표시된다.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
+export type BoardRow = {
+  id?: string | number;
+  title?: string;
+  is_pinned?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  view_count?: number;
+  [key: string]: unknown;
+};
+
 /**
  * BOARD_SOURCES 값(=테이블명)만 통과시킨다. key('companyNews')로 넘어와도 받아준다.
  * 허용되지 않으면 null.
  */
-function resolveBoardTable(source) {
-  if (BOARD_TABLE_NAMES.includes(source)) return source;
-  if (Object.hasOwn(BOARD_SOURCES, source)) return BOARD_SOURCES[source];
+function resolveBoardTable(source: string): BoardTableName | null {
+  if ((BOARD_TABLE_NAMES as string[]).includes(source)) {
+    return source as BoardTableName;
+  }
+  if (Object.hasOwn(BOARD_SOURCES, source)) {
+    return BOARD_SOURCES[source as BoardSourceKey];
+  }
   return null;
 }
 
@@ -50,10 +67,11 @@ function resolveBoardTable(source) {
  * PGRST204 로 목록 전체가 죽는다. 부재 컬럼은 getViewCount 가 null 로 폴백한다
  * (columnData.js:74-91 과 동일한 이유·동일한 에러 처리: throw 하지 않고 빈 결과 반환).
  *
- * @param {string} source BOARD_SOURCES 의 값 또는 키
- * @returns {Promise<{ rows: object[], total: number }>}
+ * @param source BOARD_SOURCES 의 값 또는 키
  */
-export async function fetchBoardRows(source) {
+export async function fetchBoardRows(
+  source: string,
+): Promise<{ rows: BoardRow[]; total: number }> {
   const table = resolveBoardTable(source);
 
   if (!table) {
@@ -74,7 +92,7 @@ export async function fetchBoardRows(source) {
     return { rows: [], total: 0 };
   }
 
-  const rows = data || [];
+  const rows = (data || []) as BoardRow[];
 
   return { rows, total: rows.length };
 }
@@ -84,18 +102,18 @@ export async function fetchBoardRows(source) {
  * 표에서는 null 이면 '-' 를 표시하고, 전 행이 null 이면 컬럼 자체를 숨긴다
  * (ColumnList.jsx:39 hasViewCounts 계약과 동일한 취급).
  */
-export function getViewCount(row) {
-  return Number.isFinite(row?.view_count) ? row.view_count : null;
+export function getViewCount(row: BoardRow): number | null {
+  return Number.isFinite(row?.view_count) ? (row.view_count as number) : null;
 }
 
 /**
  * KST 기준 'YYYY-MM-DD'.
  * 파싱 불가 값은 원문 앞 10자 반환(기존 formatDate 7벌의 공통 폴백 관행 유지).
  */
-export function formatBoardDate(value) {
+export function formatBoardDate(value: unknown): string {
   if (!value) return "";
 
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
 
   if (Number.isNaN(date.getTime())) {
     return String(value).slice(0, 10);
@@ -107,7 +125,10 @@ export function formatBoardDate(value) {
 /**
  * 제목 대상 클라이언트 필터. 공백 trim, 대소문자 무시. 빈 키워드면 원본 배열 그대로 반환.
  */
-export function filterBoardRows(rows, keyword) {
+export function filterBoardRows(
+  rows: BoardRow[] | null | undefined,
+  keyword: string | null | undefined,
+): BoardRow[] {
   const list = Array.isArray(rows) ? rows : [];
   const query = String(keyword ?? "")
     .trim()
@@ -125,10 +146,12 @@ export function filterBoardRows(rows, keyword) {
 /**
  * 전량 로드 후 slice. AdmissionGuidelines.jsx:1245-1249 관행 이식 + 하한 클램프 추가.
  * 빈 목록에서도 totalPages 는 1 (페이지네이션 컴포넌트가 totalPages <= 1 이면 null 렌더).
- *
- * @returns {{ pageRows: object[], totalPages: number, safePage: number }}
  */
-export function paginate(rows, page, pageSize = BOARD_PAGE_SIZE) {
+export function paginate(
+  rows: BoardRow[] | null | undefined,
+  page: number,
+  pageSize: number = BOARD_PAGE_SIZE,
+): { pageRows: BoardRow[]; totalPages: number; safePage: number } {
   const list = Array.isArray(rows) ? rows : [];
   const size =
     Number.isFinite(pageSize) && pageSize > 0
@@ -159,12 +182,16 @@ export function paginate(rows, page, pageSize = BOARD_PAGE_SIZE) {
  * 중요(is_pinned) 행은 번호 대신 '중요' 칩을 노출하므로 null 을 반환한다.
  * 단 인덱스 자리는 그대로 소비하므로 나머지 행의 번호는 중복 없이 단조 감소한다.
  *
- * @param {object} row 대상 행
- * @param {number} indexInFiltered 필터 결과 배열에서의 0-based 인덱스
- * @param {number} total 필터 결과 배열의 길이
- * @returns {number|null} 표시 번호. 중요 행 또는 계산 불가 시 null
+ * @param row 대상 행
+ * @param indexInFiltered 필터 결과 배열에서의 0-based 인덱스
+ * @param total 필터 결과 배열의 길이
+ * @returns 표시 번호. 중요 행 또는 계산 불가 시 null
  */
-export function getDisplayNumber(row, indexInFiltered, total) {
+export function getDisplayNumber(
+  row: BoardRow,
+  indexInFiltered: number,
+  total: number,
+): number | null {
   if (row?.is_pinned === true) return null;
 
   if (!Number.isFinite(total) || !Number.isFinite(indexInFiltered)) return null;
@@ -181,7 +208,10 @@ export function getDisplayNumber(row, indexInFiltered, total) {
  * 권한 부족, 네트워크 실패 어느 경우에도 상세 화면 렌더를 막으면 안 된다.
  * 조용히 삼키되 console.warn 은 남긴다.
  */
-export async function incrementBoardView(source, id) {
+export async function incrementBoardView(
+  source: string,
+  id: string | number | null | undefined,
+): Promise<void> {
   const table = resolveBoardTable(source);
 
   if (!table || !id) {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BOARD_PAGE_SIZE,
+  type BoardRow,
   fetchBoardRows,
   filterBoardRows,
   formatBoardDate,
@@ -16,7 +17,7 @@ import BoardTable from "./BoardTable";
  * 게시판(회사소식·공지사항) 목록 페이지 셸.
  *
  * 조립만 한다 — supabase 를 직접 부르지 않고, 표/검색/페이지네이션의 마크업도 갖지 않는다.
- * 데이터는 `src/pages/board/boardData.js`, 표시는 `BoardTable` / `BoardSearchBar` /
+ * 데이터는 `src/pages/board/boardData.ts`, 표시는 `BoardTable` / `BoardSearchBar` /
  * `BoardPagination` 이 각각 소유하고 여기서는 상태(로딩·에러·빈·무결과)와 배선만 맡는다.
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -66,22 +67,27 @@ const ERROR_MESSAGE =
   "게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 /** 무결과 문구 기본값 — 검색어를 따옴표로 감싸 노출하는 Faq.jsx:159 형식 그대로. */
-function defaultNoResultMessage(keyword) {
+function defaultNoResultMessage(keyword: string) {
   return `'${keyword}'에 대한 검색 결과가 없습니다.`;
 }
 
-/**
- * @param {object} props
- * @param {string} props.title 페이지 제목이자 `<h1>` 텍스트. 예: '회사소식'
- * @param {string} props.source `BOARD_SOURCES` 의 값('company_news') 또는 키('companyNews')
- * @param {number} [props.pageSize=10] 페이지당 행 수(설계 결정 D5)
- * @param {string} [props.searchAriaLabel] 검색 입력 라벨. 생략 시 `'{title} 검색'`
- * @param {(row: object) => (string|null)} [props.getDetailHref]
- *   상세 링크 경로. null 이면 제목이 클릭 불가 텍스트가 된다(BoardTable 계약).
- * @param {string} [props.emptyMessage] 데이터 0건 문구
- * @param {string|((keyword: string) => string)} [props.noResultMessage]
- *   검색 결과 0건 문구. 함수면 trim 된 검색어를 인자로 받는다.
- */
+type BoardListPageProps = {
+  /** 페이지 제목이자 `<h1>` 텍스트. 예: '회사소식' */
+  title: string;
+  /** `BOARD_SOURCES` 의 값('company_news') 또는 키('companyNews') */
+  source: string;
+  /** 페이지당 행 수(설계 결정 D5) */
+  pageSize?: number;
+  /** 검색 입력 라벨. 생략 시 `'{title} 검색'` */
+  searchAriaLabel?: string;
+  /** 상세 링크 경로. null 이면 제목이 클릭 불가 텍스트가 된다(BoardTable 계약). */
+  getDetailHref?: (row: BoardRow) => string | null;
+  /** 데이터 0건 문구 */
+  emptyMessage?: string;
+  /** 검색 결과 0건 문구. 함수면 trim 된 검색어를 인자로 받는다. */
+  noResultMessage?: string | ((keyword: string) => string);
+};
+
 export default function BoardListPage({
   title,
   source,
@@ -90,14 +96,14 @@ export default function BoardListPage({
   getDetailHref,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   noResultMessage = defaultNoResultMessage,
-}) {
-  const [rows, setRows] = useState([]);
+}: BoardListPageProps) {
+  const [rows, setRows] = useState<BoardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
 
-  const listRef = useRef(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // paginate 내부의 보정 규칙(boardData.js:133)을 그대로 복제한다.
   // 번호 채번 어댑터가 paginate 와 **같은 크기**를 써야 페이지 경계에서 번호가 어긋나지 않는다.
@@ -161,14 +167,14 @@ export default function BoardListPage({
   // 검색 결과가 줄어 현재 페이지가 사라져도 paginate 가 safePage 로 클램프하므로 화면은 안 깨진다.
   // 다만 검색 변경 시 페이지 리셋은 소비자(=여기) 의무다 — BoardSearchBar.jsx:10-14 계약.
   // 이 리셋이 빠지면 3페이지에서 검색했을 때 결과가 1페이지뿐인데 빈 화면이 뜬다.
-  function handleKeywordChange(next) {
+  function handleKeywordChange(next: string) {
     setKeyword(next);
     setPage(1);
   }
 
   // AdmissionGuidelines.jsx:1286-1289 goToPage 선례 그대로 — 페이지 이동 후 목록 상단으로 스크롤.
   // 대상 요소에는 같은 선례의 scroll-mt-24 를 붙여 fixed 헤더(h-16)에 가리지 않게 한다.
-  function handlePageChange(nextPage) {
+  function handlePageChange(nextPage: number) {
     setPage(nextPage);
     listRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }

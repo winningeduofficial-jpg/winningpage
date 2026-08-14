@@ -13,7 +13,96 @@ import { supabase } from "../lib/supabase";
 // 공지사항 섹션(company_news/notices)은 이 플래그와 무관하게 항상 DB 연동.
 const LANDING_PREVIEW = false;
 
-function preloadImage(src) {
+type Banner = {
+  id?: string;
+  title?: string;
+  highlight?: string | null;
+  image_url: string;
+  button_text?: string | null;
+  button_link?: string;
+  link_url?: string;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
+type SideBanner = {
+  id?: string;
+  title?: string;
+  subtitle?: string;
+  image_url?: string;
+  mobile_image_url?: string;
+  link_url?: string;
+  open_new_window?: boolean;
+  sort_order?: number;
+};
+
+type University = {
+  id: string;
+  name: string;
+  emblem_url?: string;
+  subtitle?: string;
+  count?: number | null;
+  track: "general" | "medical_special";
+  sort_order?: number;
+};
+
+type Service = {
+  id: string;
+  name: string;
+  description?: string;
+  link?: string;
+  icon?: string;
+  icon_image_url?: string;
+  sort_order?: number;
+};
+
+type MentorPhotoLayout = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  crop?: { top: string; height: string };
+};
+
+type MentorRow = {
+  id: string | number;
+  mentor_name?: string;
+  badge?: string;
+  title_lines?: unknown;
+  photo_url?: string;
+  photo_layout?: Record<string, unknown> | null;
+  card_width?: number;
+  sort_order?: number;
+  [key: string]: unknown;
+};
+
+type NormalizedMentor = MentorRow & {
+  title_lines: string[] | null;
+  photo: MentorPhotoLayout | null;
+};
+
+type Popup = {
+  id: string;
+  title?: string;
+  url?: string;
+  image_url?: string;
+  mobile_image_url?: string;
+  open_new_window?: boolean;
+  start_date?: string | null;
+  end_date?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
+type NewsItem = {
+  id: string;
+  title: string;
+  created_at: string;
+  category?: string | null;
+  sort_order?: number;
+};
+
+function preloadImage(src: string | undefined): Promise<string> {
   if (!src) return Promise.resolve("");
 
   return new Promise((resolve) => {
@@ -27,7 +116,7 @@ function preloadImage(src) {
 // home_mentor_strategies row → MentorSection/MentorCard props 정규화
 // - photo_layout(jsonb) → photo 매핑 (컴포넌트 무수정 유지)
 // - title_lines가 문자열(JSON)로 오는 경우 방어 파싱 — 실패/비배열이면 null(카드 미노출 유도)
-function normalizeMentorRow(row) {
+function normalizeMentorRow(row: MentorRow): NormalizedMentor {
   let titleLines = row.title_lines;
   if (typeof titleLines === "string") {
     try {
@@ -46,8 +135,10 @@ function normalizeMentorRow(row) {
   return {
     ...row,
     title_lines:
-      Array.isArray(titleLines) && titleLines.length > 0 ? titleLines : null,
-    photo: hasValidLayout ? layout : null,
+      Array.isArray(titleLines) && titleLines.length > 0
+        ? (titleLines as string[])
+        : null,
+    photo: hasValidLayout ? (layout as unknown as MentorPhotoLayout) : null,
   };
 }
 
@@ -57,7 +148,7 @@ function todayKstYmd() {
   return kst.toISOString().slice(0, 10);
 }
 
-function getHiddenPopupIds() {
+function getHiddenPopupIds(): Record<string, string> {
   try {
     const saved = localStorage.getItem("hiddenPopupIds");
     return saved ? JSON.parse(saved) : {};
@@ -66,7 +157,7 @@ function getHiddenPopupIds() {
   }
 }
 
-function setHiddenPopupToday(id) {
+function setHiddenPopupToday(id: string) {
   try {
     const today = todayKstYmd();
     const saved = getHiddenPopupIds();
@@ -77,7 +168,15 @@ function setHiddenPopupToday(id) {
   }
 }
 
-function HomePopupLayer({ popups, onClose, onCloseToday }) {
+function HomePopupLayer({
+  popups,
+  onClose,
+  onCloseToday,
+}: {
+  popups: Popup[];
+  onClose: (id: string) => void;
+  onCloseToday: (id: string) => void;
+}) {
   if (!popups.length) return null;
 
   return (
@@ -101,7 +200,8 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
                 className="flex w-[clamp(320px,28vw,440px)] shrink-0 flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.36)]"
               >
                 <Wrapper
-                  {...wrapperProps}
+                  // biome-ignore lint/suspicious/noExplicitAny: Wrapper는 'a' | 'div' 중 런타임에 결정되는 태그명이라 각 태그 전용 props(href/target/rel)를 하나의 정적 타입으로 표현할 수 없다.
+                  {...(wrapperProps as any)}
                   className="block aspect-[3/4] w-full overflow-hidden bg-white"
                 >
                   <picture>
@@ -159,26 +259,26 @@ function HomePopupLayer({ popups, onClose, onCloseToday }) {
 }
 
 export default function Home() {
-  const [banners, setBanners] = useState(
-    LANDING_PREVIEW ? landingPreview.banners : [],
+  const [banners, setBanners] = useState<Banner[]>(
+    LANDING_PREVIEW ? (landingPreview.banners as Banner[]) : [],
   );
   const [heroReady, setHeroReady] = useState(false);
-  const [popups, setPopups] = useState([]);
-  const [sideBanners, setSideBanners] = useState(
-    LANDING_PREVIEW ? landingPreview.sideBanners : [],
+  const [popups, setPopups] = useState<Popup[]>([]);
+  const [sideBanners, setSideBanners] = useState<SideBanner[]>(
+    LANDING_PREVIEW ? (landingPreview.sideBanners as SideBanner[]) : [],
   );
-  const [universities, setUniversities] = useState(
-    LANDING_PREVIEW ? landingPreview.universities : [],
+  const [universities, setUniversities] = useState<University[]>(
+    LANDING_PREVIEW ? (landingPreview.universities as University[]) : [],
   );
-  const [services, setServices] = useState(
-    LANDING_PREVIEW ? landingPreview.services : [],
+  const [services, setServices] = useState<Service[]>(
+    LANDING_PREVIEW ? (landingPreview.services as Service[]) : [],
   );
-  const [mentors, setMentors] = useState(
-    LANDING_PREVIEW ? landingPreview.mentors : [],
+  const [mentors, setMentors] = useState<NormalizedMentor[]>(
+    LANDING_PREVIEW ? (landingPreview.mentors as NormalizedMentor[]) : [],
   );
   // 공지사항 섹션(회사소식/공지사항)은 실 Supabase DB 연동 완료 — 프리뷰 대상 아님.
-  const [companyNews, setCompanyNews] = useState([]);
-  const [notices, setNotices] = useState([]);
+  const [companyNews, setCompanyNews] = useState<NewsItem[]>([]);
+  const [notices, setNotices] = useState<NewsItem[]>([]);
 
   useEffect(() => {
     if (LANDING_PREVIEW) return undefined;
@@ -202,7 +302,9 @@ export default function Home() {
         return;
       }
 
-      const normalized = (data || []).filter((item) => item.image_url);
+      const normalized = ((data || []) as Banner[]).filter(
+        (item) => item.image_url,
+      );
       setBanners(normalized);
     }
 
@@ -233,7 +335,7 @@ export default function Home() {
         return;
       }
 
-      setServices(data || []);
+      setServices((data || []) as Service[]);
     }
 
     fetchServices();
@@ -267,7 +369,7 @@ export default function Home() {
       }
 
       const hidden = getHiddenPopupIds();
-      const visiblePopups = (data || [])
+      const visiblePopups = ((data || []) as Popup[])
         .filter((popup) => popup.image_url || popup.mobile_image_url)
         .filter((popup) => hidden[popup.id] !== today);
 
@@ -316,7 +418,7 @@ export default function Home() {
         console.error("우측 배너 조회 오류:", sideResult.error);
         setSideBanners([]);
       } else {
-        const visible = (sideResult.data || []).filter(
+        const visible = ((sideResult.data || []) as SideBanner[]).filter(
           (item) => item.image_url || item.mobile_image_url,
         );
         setSideBanners(visible);
@@ -327,14 +429,16 @@ export default function Home() {
         console.error("합격생 대학 조회 오류:", universityResult.error);
         setUniversities([]);
       } else {
-        setUniversities(universityResult.data || []);
+        setUniversities((universityResult.data || []) as University[]);
       }
 
       if (mentorResult.error) {
         console.error("멘토 조회 오류:", mentorResult.error);
         setMentors([]);
       } else {
-        setMentors((mentorResult.data || []).map(normalizeMentorRow));
+        setMentors(
+          ((mentorResult.data || []) as MentorRow[]).map(normalizeMentorRow),
+        );
       }
     }
 
@@ -375,14 +479,14 @@ export default function Home() {
         console.error("회사소식 조회 오류:", companyResult.error);
         setCompanyNews([]);
       } else {
-        setCompanyNews(companyResult.data || []);
+        setCompanyNews((companyResult.data || []) as NewsItem[]);
       }
 
       if (noticeResult.error) {
         console.error("공지사항 미리보기 조회 오류:", noticeResult.error);
         setNotices([]);
       } else {
-        setNotices(noticeResult.data || []);
+        setNotices((noticeResult.data || []) as NewsItem[]);
       }
     }
 
@@ -419,11 +523,11 @@ export default function Home() {
     };
   }, [banners]);
 
-  function closePopup(id) {
+  function closePopup(id: string) {
     setPopups((prev) => prev.filter((popup) => popup.id !== id));
   }
 
-  function closePopupToday(id) {
+  function closePopupToday(id: string) {
     setHiddenPopupToday(id);
     closePopup(id);
   }

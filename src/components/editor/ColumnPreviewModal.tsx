@@ -1,8 +1,18 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
 import { getCoverUrl } from "../../pages/column/columnData";
-import ColumnBody, { getContentBlocks } from "../column/ColumnBody";
+import ColumnBody, {
+  type ColumnBodyPost,
+  getContentBlocks,
+} from "../column/ColumnBody";
 import { isEmptyDocument } from "./BlockEditor";
+
+type ColumnPreviewModalProps = {
+  open: boolean;
+  onClose: () => void;
+  post: ColumnBodyPost | null | undefined;
+  label?: string;
+};
 
 // 온디맨드 스냅샷 렌더러 — 에디터 state를 구독하지 않는다.
 // post는 "미리보기" 버튼을 눌렀을 때 editorRef.getBlocks()를 1회 호출해 만든 스냅샷이며,
@@ -12,7 +22,7 @@ export default function ColumnPreviewModal({
   onClose,
   post,
   label = "교육칼럼",
-}) {
+}: ColumnPreviewModalProps) {
   useEffect(() => {
     if (!open) return undefined;
 
@@ -28,7 +38,7 @@ export default function ColumnPreviewModal({
   useEffect(() => {
     if (!open) return undefined;
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -83,7 +93,7 @@ export default function ColumnPreviewModal({
           {coverUrl && (
             <img
               src={coverUrl}
-              alt={post?.title || ""}
+              alt={(post?.title as string) || ""}
               className="h-[16rem] w-full object-cover sm:h-[20rem]"
             />
           )}
@@ -96,7 +106,7 @@ export default function ColumnPreviewModal({
               {label}
             </p>
             <h1 className="mb-8 break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
-              {post?.title || "(제목 없음)"}
+              {(post?.title as string) || "(제목 없음)"}
             </h1>
 
             {isEmpty ? (

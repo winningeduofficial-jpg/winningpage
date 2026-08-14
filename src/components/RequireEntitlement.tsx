@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { type ReactNode, useEffect, useState } from "react";
+import { type Location, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSessionOptional } from "../context/SessionContext";
 import { fetchEntitlement } from "../lib/entitlement";
 import { supabase } from "../lib/supabase";
@@ -43,7 +43,9 @@ import PerformanceSkeleton from "./performance/PerformanceSkeleton";
 //       goal 가드를 두는 순간 goal 이용권이 없는 사용자가 suhaeng 판정으로 조용히
 //       통과한다. 이용권 가드의 오탐 방향이 「열림」이 되는 건 허용할 수 없다.
 
-function currentPathWithQuery(location) {
+type GuardState = "loading" | "guest" | "ok" | "forbidden" | "check-failed";
+
+function currentPathWithQuery(location: Location) {
   return `${location.pathname}${location.search}${location.hash}`;
 }
 
@@ -51,8 +53,12 @@ function currentPathWithQuery(location) {
  * 프로바이더 밖에서 쓰일 때만 동작하는 자체 조회. `disabled`면 아무것도 하지
  * 않는다(훅은 조건부로 호출할 수 없으므로 effect 안에서 끈다).
  */
-function useStandaloneEntitlement(serviceKey, disabled, retryToken) {
-  const [state, setState] = useState("loading");
+function useStandaloneEntitlement(
+  serviceKey: string,
+  disabled: boolean,
+  retryToken: number,
+): GuardState {
+  const [state, setState] = useState<GuardState>("loading");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) retryToken은 effect 안에서 읽지 않는 재시도 트리거 전용 값이다.
   useEffect(() => {
@@ -86,24 +92,30 @@ function useStandaloneEntitlement(serviceKey, disabled, retryToken) {
   return state;
 }
 
-/**
- * @param {string} serviceKey 이용권 조회 키(`'suhaeng'` | `'goal'`). 수행평가의
- *   신규 자산 네이밍은 performance지만 이 키는 운영 DB에 박힌 `'suhaeng'`이다.
- * @param {string|((location) => string)} forbiddenTo 이용권 미보유 시 목적지.
- * @param {string} [forbiddenNotice] 목적지 화면에 띄울 인라인 안내 문구.
- *   `location.state.entitlementNotice`로 전달한다 — 현행 `alert()` 대신
- *   화면 안내로 승격하라는 §2.2 제안을 따른 것이며, 목적지가 아직 이 state를
- *   읽지 않아도 동작에는 영향이 없다.
- * @param {string} [loadingLabel] 로딩 문구.
- * @param {React.ReactNode} [children] 통과 시 렌더. 기본 `<Outlet />`.
- */
+type RequireEntitlementProps = {
+  /** 이용권 조회 키(`'suhaeng'` | `'goal'`). 수행평가의 신규 자산 네이밍은 performance지만
+   *  이 키는 운영 DB에 박힌 `'suhaeng'`이다. */
+  serviceKey: string;
+  /** 이용권 미보유 시 목적지. */
+  forbiddenTo?: string | ((location: Location) => string);
+  /** 목적지 화면에 띄울 인라인 안내 문구.
+   *  `location.state.entitlementNotice`로 전달한다 — 현행 `alert()` 대신
+   *  화면 안내로 승격하라는 §2.2 제안을 따른 것이며, 목적지가 아직 이 state를
+   *  읽지 않아도 동작에는 영향이 없다. */
+  forbiddenNotice?: string;
+  /** 로딩 문구. */
+  loadingLabel?: string;
+  /** 통과 시 렌더. 기본 `<Outlet />`. */
+  children?: ReactNode;
+};
+
 export default function RequireEntitlement({
   serviceKey,
   forbiddenTo,
   forbiddenNotice,
   loadingLabel = "이용 가능 여부 확인 중...",
   children,
-}) {
+}: RequireEntitlementProps) {
   const location = useLocation();
   const sessionCtx = useSessionOptional();
   const [retryToken, setRetryToken] = useState(0);
@@ -116,7 +128,7 @@ export default function RequireEntitlement({
     Boolean(ctx),
     retryToken,
   );
-  const status = ctx ? ctx.guardState : standaloneState;
+  const status: GuardState = ctx ? ctx.guardState : standaloneState;
 
   function retry() {
     if (ctx) ctx.refreshEntitlement();

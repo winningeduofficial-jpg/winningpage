@@ -12,12 +12,23 @@ const ALL_TAB = "전체";
 
 const EMPTY_STATE_CLASS = "py-24 text-center text-sm font-bold text-gray-400";
 
+type FaqRow = {
+  id: string | number;
+  question: string;
+  answer?: string;
+  category?: string;
+  content_json?: unknown;
+  sort_order?: number;
+  created_at?: string;
+  is_active?: boolean;
+};
+
 export default function Faq() {
-  const [faqs, setFaqs] = useState([]);
+  const [faqs, setFaqs] = useState<FaqRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(ALL_TAB);
   const [keyword, setKeyword] = useState("");
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState<string | number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -40,7 +51,7 @@ export default function Faq() {
         console.error("FAQ 조회 오류:", error);
         setFaqs([]);
       } else {
-        setFaqs(data || []);
+        setFaqs((data || []) as FaqRow[]);
       }
 
       setLoading(false);
@@ -88,21 +99,21 @@ export default function Faq() {
 
   const visibleFaqs = isSearching ? searchFiltered : categoryFiltered;
 
-  function handleTabChange(tab) {
+  function handleTabChange(tab: string) {
     setActiveTab(tab);
     setOpenId(null);
   }
 
-  function handleKeywordChange(event) {
+  function handleKeywordChange(event: React.ChangeEvent<HTMLInputElement>) {
     setKeyword(event.target.value);
     setOpenId(null);
   }
 
-  function toggleFaq(id) {
+  function toggleFaq(id: string | number) {
     setOpenId((prev) => (prev === id ? null : id));
   }
 
-  function renderList(emptyMessage) {
+  function renderList(emptyMessage: string) {
     if (loading) {
       return <div className={EMPTY_STATE_CLASS}>불러오는 중입니다.</div>;
     }
