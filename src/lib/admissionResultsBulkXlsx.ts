@@ -285,7 +285,10 @@ type ErrorEntry = {
   universityKey: unknown;
   departmentKey: unknown;
   admissionTrack: unknown;
-  column?: string;
+  // RowContext.column도 optional(string | undefined)이라 fail()이 그대로
+  // 전달한다 — exactOptionalPropertyTypes 하에서 undefined 명시 대입을
+  // 허용해야 한다(키 생략과 동일하게 취급, 값 자체는 원래도 optional).
+  column?: string | undefined;
   type: ErrorType;
   reason: string;
 };
@@ -473,7 +476,7 @@ export function parseAdmissionResultRowsFromXlsx(
     // (fallback true) 필수값 검사 대상이 아니다 — 빈 셀이면 그냥 노출로 간주한다.
     const universityName = clean(rowObj.university_name);
     const departmentName = clean(rowObj.department_name);
-    const missing = [];
+    const missing: string[] = [];
     if (!ctx.resultYear && ctx.resultYear !== 0) missing.push("result_year");
     if (!ctx.universityKey) missing.push("university_key");
     if (!universityName) missing.push("university_name");
@@ -708,10 +711,12 @@ export function parseAdmissionResultRowsFromXlsx(
           "경쟁률이 0입니다 — §Q2 정책상 미공개는 0이 아니라 빈 값이어야 합니다.",
       });
     }
+    // GRADE_COLUMNS 루프((6))가 위에서 9개 키를 전부 채웠다(검증 실패 시
+    // 이미 return) — grade_50/grade_70은 여기서 항상 정의돼 있다.
     if (
-      gradeValues.grade_50 !== null &&
-      gradeValues.grade_70 !== null &&
-      gradeValues.grade_50 > gradeValues.grade_70
+      gradeValues.grade_50! !== null &&
+      gradeValues.grade_70! !== null &&
+      gradeValues.grade_50! > gradeValues.grade_70!
     ) {
       warnings.push({
         row: rowIndex,
@@ -737,25 +742,27 @@ export function parseAdmissionResultRowsFromXlsx(
       main_track: mainTrack || null,
       screening_category: screeningCategory || null,
       admission_track: ctx.admissionTrack as string,
-      grade_50: gradeValues.grade_50,
-      grade_70: gradeValues.grade_70,
-      grade_85: gradeValues.grade_85,
-      grade_90: gradeValues.grade_90,
-      grade_avg: gradeValues.grade_avg,
-      grade_min: gradeValues.grade_min,
-      grade_avg10: gradeValues.grade_avg10,
-      grade_min10: gradeValues.grade_min10,
-      grade_first_avg: gradeValues.grade_first_avg,
-      converted_score: scoreValues.converted_score,
-      percentile: scoreValues.percentile,
-      quota: integerValues.quota,
+      // gradeValues/scoreValues/integerValues는 각각 (6)/(7)/(9) 루프가 위에서
+      // 전 컬럼 키를 채웠다(검증 실패 시 이미 return) — 아래 키들은 항상 정의됨.
+      grade_50: gradeValues.grade_50!,
+      grade_70: gradeValues.grade_70!,
+      grade_85: gradeValues.grade_85!,
+      grade_90: gradeValues.grade_90!,
+      grade_avg: gradeValues.grade_avg!,
+      grade_min: gradeValues.grade_min!,
+      grade_avg10: gradeValues.grade_avg10!,
+      grade_min10: gradeValues.grade_min10!,
+      grade_first_avg: gradeValues.grade_first_avg!,
+      converted_score: scoreValues.converted_score!,
+      percentile: scoreValues.percentile!,
+      quota: integerValues.quota!,
       competition_rate: competitionRate,
       waitlist_rank: clean(rowObj.waitlist_rank) || null,
       subject_reflection: clean(rowObj.subject_reflection) || null,
       // 위 (9)에서 빈 셀이면 0으로 채워 항상 number다(null 없음).
       variant_seq: integerValues.variant_seq as number,
       source_sheet: clean(rowObj.source_sheet) || null,
-      source_row: integerValues.source_row,
+      source_row: integerValues.source_row!,
       note: clean(rowObj.note) || null,
       is_active: parseBooleanCell(rowObj.is_active, true),
       // id: insert면 생략(bigint identity 자동 채번), update면 아래서 채운다.
