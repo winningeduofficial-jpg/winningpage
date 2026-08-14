@@ -95,10 +95,10 @@ export function safeCompareHash(a: unknown, b: unknown): boolean {
 /** 프록시를 거치므로 소켓 주소가 아니라 X-Forwarded-For의 첫 값이 실제 클라이언트다. */
 export function getClientIp(req: {
   headers: Record<string, string | string[] | undefined>;
-  socket?: { remoteAddress?: string | null };
+  socket?: { remoteAddress?: string | null | undefined };
 }): string | null {
   const forwarded = String(req.headers["x-forwarded-for"] || "")
-    .split(",")[0]
+    .split(",")[0]!
     .trim();
 
   return forwarded || req.socket?.remoteAddress || null;
@@ -120,7 +120,7 @@ async function countSince(
     .gte("created_at", isoAgo(seconds));
 
   const { count, error } =
-    value === null ? await query : await query.eq(column, value);
+    value === null ? await query : await query.eq(column!, value);
 
   if (error) throw error;
   return count || 0;
