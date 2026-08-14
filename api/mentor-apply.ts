@@ -119,6 +119,8 @@
 // 객체를 지운다. cron(Vercel Cron 또는 Supabase Edge Function)으로 하루 1회면
 // 충분한 규모다.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getClientIp,
   isValidMobile,
@@ -285,7 +287,23 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // 와 같은 기준이라야 클라이언트 통과분이 서버에서 거절되지 않는다.
 // ---------------------------------------------------------------------------
 
-const FIELD_SPECS = [
+/** 30개 필드 검증 표. kind별로 필요한 옵션 필드가 갈리므로 전부 선택 필드로 둔다. */
+type FieldSpec = {
+  key: string;
+  kind: "text" | "birthDate" | "year" | "decimal" | "enum" | "enumArray";
+  required: boolean;
+  max?: number;
+  min?: number;
+  regex?: RegExp;
+  options?: string[];
+  errorField?: string;
+  emptyReason?: string;
+  emptyDetail?: string;
+  regexReason?: string;
+  regexDetail?: string;
+};
+
+const FIELD_SPECS: FieldSpec[] = [
   // 1. 지원자 정보
   { key: "name", kind: "text", required: true, max: 50 },
   { key: "birth_date", kind: "birthDate", required: true },
@@ -398,16 +416,22 @@ const OPTIONAL_AGREEMENTS = ["agree_marketing", "agree_ad"];
 
 // api/mentor-apply-upload-url.js 도 같은 트림 규칙으로 phone/fileName/contentType 을
 // 다뤄야 두 라우트의 "빈 값" 판정이 어긋나지 않는다.
-export function clean(value) {
+export function clean(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function fail(res, status, reason, detail, extra = {}) {
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string | undefined,
+  detail: string,
+  extra: Record<string, unknown> = {},
+) {
   return res.status(status).json({ ok: false, reason, detail, ...extra });
 }
 
 /** 생년월일 8자리 + 실제 존재하는 날짜인지. src/lib/validators.js isValidBirthDate 와 동일 규칙. */
-function isValidBirthDate(digits) {
+function isValidBirthDate(digits: string): boolean {
   if (!/^\d{8}$/.test(digits)) return false;
 
   const year = Number(digits.slice(0, 4));
@@ -430,12 +454,23 @@ function isValidBirthDate(digits) {
   return birth.getTime() <= Date.now();
 }
 
+/** 필드/업로드/인증 검증 실패 공통 형태. */
+type FieldError = {
+  status: number;
+  reason: string;
+  detail: string;
+  field?: string;
+};
+
 /**
  * FIELD_SPECS 대로 본문을 검사해 insert 에 쓸 값으로 바꾼다.
  * @returns {{ error?: {status:number, reason:string, detail:string, field:string}, values?: object }}
  */
-function validateFields(body) {
-  const values = {};
+function validateFields(body: Record<string, unknown>): {
+  error?: FieldError;
+  values?: Record<string, unknown>;
+} {
+  const values: Record<string, unknown> = {};
 
   for (const spec of FIELD_SPECS) {
     const raw = body[spec.key];
@@ -565,7 +600,9 @@ function validateFields(body) {
     }
 
     if (spec.kind === "enumArray") {
-      const picked = [...new Set(raw.map((item) => clean(item)))];
+      const picked = [
+        ...new Set((raw as unknown[]).map((item) => clean(item))),
+      ];
 
       const hasUnknown = picked.some((item) => !spec.options.includes(item));
 
@@ -618,7 +655,10 @@ function validateFields(body) {
  * 위반(크기 초과·형식 불일치)이면 그 객체를 지운다. 존재하지 않으면(=업로드
  * URL만 받고 실제 업로드는 안 한 경우) 지울 것이 없으니 그냥 거절한다.
  */
-async function verifyUploadedProof(supabase, path) {
+async function verifyUploadedProof(
+  supabase: SupabaseClient,
+  path: string,
+): Promise<{ error?: FieldError }> {
   const extension = path.split(".").pop().toLowerCase();
   const allowedMimes = ALLOWED_FILE_TYPES[extension];
 
@@ -680,11 +720,16 @@ async function verifyUploadedProof(supabase, path) {
   };
 }
 
-function isoAgo(seconds) {
+function isoAgo(seconds: number): string {
   return new Date(Date.now() - seconds * 1000).toISOString();
 }
 
-async function countSubmitsSince(supabase, column, value, seconds) {
+async function countSubmitsSince(
+  supabase: SupabaseClient,
+  column: string,
+  value: string,
+  seconds: number,
+): Promise<number> {
   const { count, error } = await supabase
     .from("mentor_applications")
     .select("id", { count: "exact", head: true })
@@ -704,7 +749,12 @@ async function countSubmitsSince(supabase, column, value, seconds) {
  * 으로 실패 요청까지 세는 근사치다. 완벽히 하려면 전용 시도 로그 테이블이 필요하다
  * (리포트 참고).
  */
-async function countAttemptsSince(supabase, column, value, seconds) {
+async function countAttemptsSince(
+  supabase: SupabaseClient,
+  column: string,
+  value: string,
+  seconds: number,
+): Promise<number> {
   const { count, error } = await supabase
     .from("phone_verifications")
     .select("id", { count: "exact", head: true })
@@ -721,7 +771,10 @@ async function countAttemptsSince(supabase, column, value, seconds) {
  * 제출 한도. api/_lib/phoneCode.js checkSendLimits 와 같은 형태로 돌려준다.
  * @returns {Promise<{allowed: boolean, reason?: string, retryAfter?: number}>}
  */
-async function checkSubmitLimits(supabase, { phone, ip }) {
+async function checkSubmitLimits(
+  supabase: SupabaseClient,
+  { phone, ip }: { phone: string; ip: string | null },
+): Promise<{ allowed: boolean; reason?: string; retryAfter?: number }> {
   // 1) 같은 번호의 직전 제출 — 더블클릭·재시도로 같은 지원서가 두 벌 쌓이는 걸 막는다.
   const { data: latest, error: latestError } = await supabase
     .from("mentor_applications")
@@ -780,7 +833,7 @@ async function checkSubmitLimits(supabase, { phone, ip }) {
   return { allowed: true };
 }
 
-const NOT_VERIFIED_ERROR = {
+const NOT_VERIFIED_ERROR: { error: FieldError } = {
   error: {
     status: 403,
     reason: "phone_not_verified",
@@ -797,7 +850,13 @@ const NOT_VERIFIED_ERROR = {
  *
  * @returns {Promise<{error?: object, row?: {id: string, verified_at: string}}>}
  */
-export async function findValidPhoneVerification(supabase, phone) {
+export async function findValidPhoneVerification(
+  supabase: SupabaseClient,
+  phone: string,
+): Promise<{
+  error?: FieldError;
+  row?: { id: string; verified_at: string };
+}> {
   const { data: row, error: selectError } = await supabase
     .from("phone_verifications")
     .select("id, verified_at")
@@ -846,7 +905,10 @@ export async function findValidPhoneVerification(supabase, phone) {
  *
  * @returns {Promise<{error?: object, verifiedAt?: string}>}
  */
-async function consumePhoneVerification(supabase, phone) {
+async function consumePhoneVerification(
+  supabase: SupabaseClient,
+  phone: string,
+): Promise<{ error?: FieldError; verifiedAt?: string }> {
   const found = await findValidPhoneVerification(supabase, phone);
 
   if (found.error) return found;
@@ -868,7 +930,7 @@ async function consumePhoneVerification(supabase, phone) {
 // 핸들러
 // ---------------------------------------------------------------------------
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "method_not_allowed", "Method not allowed");
   }
@@ -915,7 +977,7 @@ export default async function handler(req, res) {
   const ip = getClientIp(req);
   // verifyUploadedProof 가 위반 객체를 스스로 지우므로, 여기서 추적하는 건 "검증까지
   // 통과했는데 그 뒤(insert) 단계가 실패한" 경우뿐이다 — 이때만 고아가 남는다.
-  let objectPath;
+  let objectPath: string | undefined;
   let objectVerified = false;
 
   // 이 아래로는 값싼 검사부터 비싼 검사 순으로 배치한다:
@@ -952,7 +1014,7 @@ export default async function handler(req, res) {
     }
 
     // 인증된 번호만 여기 도달한다. 이제부터 비싼 작업(Storage 조회)을 한다.
-    objectPath = values.proof_file_path;
+    objectPath = (values as Record<string, unknown>).proof_file_path as string;
 
     const proof = await verifyUploadedProof(supabase, objectPath);
 
