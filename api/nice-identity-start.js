@@ -20,26 +20,26 @@
 //   같은 구멍이며, 가입 RPC에서 identity_verifications를 consume 하도록
 //   함께 막아야 한다.
 
-import { createSupabaseAdmin, getEnv } from './_lib/supabaseAdmin.js';
-import { getClientIp } from './_lib/phoneCode.js';
 import {
+  generateRequestNo,
+  issueAuthUrl,
   REQUEST_TTL_SECONDS,
   SVC_TYPE_MOBILE,
-  generateRequestNo,
-  issueAuthUrl
-} from './_lib/niceIdentity.js';
+} from "./_lib/niceIdentity.js";
+import { getClientIp } from "./_lib/phoneCode.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
-const ALLOWED_PURPOSES = ['signup', 'under14_guardian', 'phone_change'];
+const ALLOWED_PURPOSES = ["signup", "under14_guardian", "phone_change"];
 
 // 본인확인은 건당 과금이다. 정상 사용이라면 몇 번이면 끝나므로 좁게 잡는다.
 const MAX_STARTS_PER_HOUR_PER_IP = 10;
 
 function getBearerToken(req) {
-  return String(req.headers.authorization || '')
-    .replace(/^Bearer\s+/i, '')
+  return String(req.headers.authorization || "")
+    .replace(/^Bearer\s+/i, "")
     .trim();
 }
 
@@ -48,27 +48,29 @@ function getBearerToken(req) {
  * NICE 콜백은 web_transaction_id만 돌려주기 때문에 이것 말고는 열쇠가 없다.
  */
 function buildReturnUrl(requestNo) {
-  const base = getEnv('NICE_RETURN_URL');
-  if (!base) throw new Error('NICE_RETURN_URL 환경변수가 필요합니다.');
+  const base = getEnv("NICE_RETURN_URL");
+  if (!base) throw new Error("NICE_RETURN_URL 환경변수가 필요합니다.");
 
   const url = new URL(base);
-  url.searchParams.set('rid', requestNo);
+  url.searchParams.set("rid", requestNo);
 
   // 가이드상 return_url은 250byte까지다. 넘으면 NICE가 거절하므로 미리 막는다.
   const built = url.toString();
-  if (Buffer.byteLength(built, 'utf8') > 250) {
-    throw new Error('NICE_RETURN_URL이 너무 깁니다(250byte 초과).');
+  if (Buffer.byteLength(built, "utf8") > 250) {
+    throw new Error("NICE_RETURN_URL이 너무 깁니다(250byte 초과).");
   }
 
   return built;
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
 
-  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose) ? req.body.purpose : 'signup';
+  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose)
+    ? req.body.purpose
+    : "signup";
   const ip = getClientIp(req);
 
   try {
@@ -84,18 +86,18 @@ export default async function handler(req, res) {
     }
 
     const { count, error: countError } = await supabase
-      .from('identity_verifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('request_ip', ip)
-      .gte('requested_at', new Date(Date.now() - 3600 * 1000).toISOString());
+      .from("identity_verifications")
+      .select("id", { count: "exact", head: true })
+      .eq("request_ip", ip)
+      .gte("requested_at", new Date(Date.now() - 3600 * 1000).toISOString());
 
     if (countError) throw countError;
 
     if ((count || 0) >= MAX_STARTS_PER_HOUR_PER_IP) {
       return res.status(429).json({
         ok: false,
-        reason: 'rate_limited',
-        detail: '본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.'
+        reason: "rate_limited",
+        detail: "본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
 
@@ -104,22 +106,26 @@ export default async function handler(req, res) {
     const auth = await issueAuthUrl({
       requestNo,
       returnUrl: buildReturnUrl(requestNo),
-      svcTypes: [SVC_TYPE_MOBILE]
+      svcTypes: [SVC_TYPE_MOBILE],
     });
 
     // 표준창을 열기 전에 저장한다. 순서를 바꾸면 사용자가 인증을 마쳤는데
     // 우리 쪽에 행이 없어 결과를 버리는 경우가 생긴다.
-    const { error: insertError } = await supabase.from('identity_verifications').insert({
-      request_id: auth.requestNo,
-      user_id: userId,
-      purpose,
-      status: 'pending',
-      transaction_id: auth.transactionId,
-      auth_ticket: auth.ticket,
-      auth_iterators: auth.iterators,
-      request_ip: ip,
-      expires_at: new Date(Date.now() + REQUEST_TTL_SECONDS * 1000).toISOString()
-    });
+    const { error: insertError } = await supabase
+      .from("identity_verifications")
+      .insert({
+        request_id: auth.requestNo,
+        user_id: userId,
+        purpose,
+        status: "pending",
+        transaction_id: auth.transactionId,
+        auth_ticket: auth.ticket,
+        auth_iterators: auth.iterators,
+        request_ip: ip,
+        expires_at: new Date(
+          Date.now() + REQUEST_TTL_SECONDS * 1000,
+        ).toISOString(),
+      });
 
     if (insertError) throw insertError;
 
@@ -128,27 +134,29 @@ export default async function handler(req, res) {
       // 프론트는 이 URL을 window.open으로 연다. 파라미터를 따로 싣지 않는다.
       auth_url: auth.authUrl,
       request_id: auth.requestNo,
-      expires_in: REQUEST_TTL_SECONDS
+      expires_in: REQUEST_TTL_SECONDS,
     });
   } catch (error) {
-    console.error('[nice-identity-start] 오류:', error);
+    console.error("[nice-identity-start] 오류:", error);
 
     // 설정 오류 / NICE가 거절 / NICE에 닿지 못함을 구분한다. 앞의 둘은
     // 재시도해도 그대로라 "잠시 후 다시"라고 안내하면 안 된다.
-    const isConfigError = /환경변수|너무 깁니다/.test(String(error?.message || ''));
+    const isConfigError = /환경변수|너무 깁니다/.test(
+      String(error?.message || ""),
+    );
     const reason = isConfigError
-      ? 'server_misconfigured'
+      ? "server_misconfigured"
       : error?.niceResultCode
-        ? 'vendor_rejected'
-        : 'vendor_unavailable';
+        ? "vendor_rejected"
+        : "vendor_unavailable";
 
     return res.status(500).json({
       ok: false,
       reason,
       detail:
-        reason === 'vendor_unavailable'
-          ? '본인확인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.'
-          : '본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.'
+        reason === "vendor_unavailable"
+          ? "본인확인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요."
+          : "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
     });
   }
 }

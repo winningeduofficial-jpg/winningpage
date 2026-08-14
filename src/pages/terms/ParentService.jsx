@@ -3,9 +3,12 @@
 // docs/terms-fulltext.md에 그대로 있음(학부모 버전이 정본으로 별도 추출된 노드).
 // 학생 버전(StudentService.jsx)과 조문 본문은 동일하나(제6조·제7조가 학생/학부모를 함께
 // 규정하는 하나의 약관), 학부모 전제를 설명하는 도입부 문장은 이 페이지에만 유지한다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsArticleBody,
+} from "../../components/auth/TermsPageLayout";
 
-const INTRO = '학부모회원은 만 19세 이상 성인을 전제로 하며, 자녀(학생회원)와는 별도의 독립 계정으로 가입합니다. 연동 없이도 학부모회원 계정 자체는 이용할 수 있습니다.';
+const INTRO =
+  "학부모회원은 만 19세 이상 성인을 전제로 하며, 자녀(학생회원)와는 별도의 독립 계정으로 가입합니다. 연동 없이도 학부모회원 계정 자체는 이용할 수 있습니다.";
 
 const ARTICLES = `제1조 (목적)
 본 약관은 주식회사 위닝에듀(이하 "회사")가 운영하는 웹사이트 및 모바일 애플리케이션 등 온라인 플랫폼(이하 "서비스")을 통해 제공하는 온라인교육서비스, 교육콘텐츠 제작 및 제공 서비스, 위닝콜멘토서비스, 입시·학습 관리 서비스, 입시컨설팅 등의 이용과 관련하여 회사와 회원 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.

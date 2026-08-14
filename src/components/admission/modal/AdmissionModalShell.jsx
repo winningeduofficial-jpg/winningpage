@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 // 대학모집요강 모달의 공용 "껍데기".
 //
@@ -39,18 +39,18 @@ import { X } from 'lucide-react';
 
 // AdmissionGuidelines.jsx 원문 그대로.
 export const PUBLIC_SHEET_CLASS =
-  'admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]';
+  "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
 export const PUBLIC_BODY_CLASS =
-  'admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12';
+  "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12";
 export const PUBLIC_FOOTER_CLASS =
-  'border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4';
+  "border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4";
 
 export default function AdmissionModalShell({
   open = true,
   onClose,
   eyebrow,
   title,
-  idPrefix = 'admission-modal',
+  idPrefix = "admission-modal",
   sheetClassName = PUBLIC_SHEET_CLASS,
   bodyRef,
   bodyProps,
@@ -59,7 +59,7 @@ export default function AdmissionModalShell({
   footerClassName = PUBLIC_FOOTER_CLASS,
   footer,
   triggerRef,
-  children
+  children,
 }) {
   const sheetRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -82,12 +82,15 @@ export default function AdmissionModalShell({
 
   // 모달 접근성: Escape 닫기, 포커스 트랩, 배경 스크롤 잠금, 닫힐 때 트리거로 포커스 복귀.
   // 로딩/에러/본문 상태 전환마다 재실행되지 않도록 열림 여부에만 의존한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: triggerRef/activeTriggerRef는 ref라 deps에 넣어도 변경을 못 잡는다. 의도적으로 [open]에만 의존해 상태 전환마다 재실행되지 않게 한다(위 주석).
   useEffect(() => {
     if (!open) return undefined;
 
     if (!triggerRef) {
       fallbackTriggerRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
     }
 
     const sheet = sheetRef.current;
@@ -97,7 +100,9 @@ export default function AdmissionModalShell({
 
     const getFocusable = () =>
       sheet
-        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter((el) => el.offsetParent !== null)
+        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter(
+            (el) => el.offsetParent !== null,
+          )
         : [];
 
     const rafId = window.requestAnimationFrame(() => {
@@ -112,13 +117,13 @@ export default function AdmissionModalShell({
       // 격리했다). keyCode 229 는 isComposing 을 안 주는 구형 IME 폴백이다.
       if (event.isComposing || event.keyCode === 229) return;
 
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current?.();
         return;
       }
 
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const focusable = getFocusable();
       if (!focusable.length) return;
@@ -135,20 +140,21 @@ export default function AdmissionModalShell({
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     // 배경 스크롤 잠금. 스크롤바가 사라지며 레이아웃이 흔들리지 않도록 그만큼 padding으로 보정한다.
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
       document.body.style.paddingRight = originalPaddingRight;
       if (previouslyFocused && document.contains(previouslyFocused)) {
@@ -158,16 +164,18 @@ export default function AdmissionModalShell({
     };
     // 원본의 [isModalOpen] 을 그대로 옮긴 것. onClose 를 의존성에 넣으면
     // 인라인 화살표 함수 때문에 매 렌더 재구독이 되어 원본과 달라진다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다.
     <div
+      role="presentation"
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 px-4"
       onClick={requestClose}
     >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: onClick은 배경 클릭이 대화상자 안까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
       <div
         ref={sheetRef}
         role="dialog"
@@ -192,7 +200,10 @@ export default function AdmissionModalShell({
           >
             {eyebrow}
           </p>
-          <h3 id={`${idPrefix}-title`} className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]">
+          <h3
+            id={`${idPrefix}-title`}
+            className="admission-modal-sheet-title mt-1 text-xl md:text-[1.75rem]"
+          >
             {title}
           </h3>
         </div>

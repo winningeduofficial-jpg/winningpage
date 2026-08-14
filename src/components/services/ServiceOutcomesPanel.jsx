@@ -18,7 +18,7 @@
 // 지원 개수: 4(심화탐구・자기평가・수행평가) / 5(목표관리). 미등록 개수는 4열로 폴백한다
 // (4페이지 중 3페이지가 4장 — 배열이 늘거나 줄어도 className 에 'undefined' 문자열이
 // 박히는 조용한 회귀를 막는다).
-const OUTCOME_COLS = { 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5' };
+const OUTCOME_COLS = { 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" };
 
 export default function ServiceOutcomesPanel({ items }) {
   return (
@@ -29,7 +29,10 @@ export default function ServiceOutcomesPanel({ items }) {
       {items.map((item) => (
         // 아이콘 100 × 0.7618 = 76.2px = 4.75rem, 아이콘↔라벨 18 → 13.75px = 0.875rem.
         // 라벨은 weight 600 / #525252 단일값 — 페이지별 md 반응형 오버라이드는 폐기.
-        <div key={item.label} className="flex flex-col items-center gap-[0.875rem] px-4 py-2 text-center">
+        <div
+          key={item.label}
+          className="flex flex-col items-center gap-[0.875rem] px-4 py-2 text-center"
+        >
           <img
             src={item.icon}
             alt=""

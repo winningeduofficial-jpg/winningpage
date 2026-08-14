@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { buildViews, FACE_GAP, FACE_PAGE, FACE_VOID } from './bookPairing';
-import './book-viewer.css';
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildViews, FACE_GAP, FACE_PAGE, FACE_VOID } from "./bookPairing";
+import "./book-viewer.css";
 
 // 프리미엄 안내 책자 뷰어 — 표현 전용(presentational) 컴포넌트.
 //
@@ -24,24 +24,26 @@ const SWIPE_MIN_PX = 48;
 // armed → running 승격의 rAF 폴백. 백그라운드 탭에서는 rAF가 멈추지만 setTimeout은 발화한다.
 const ARM_FALLBACK_MS = 120;
 
-const SPREAD_QUERY = '(min-width: 1024px)';
-const REDUCE_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+const SPREAD_QUERY = "(min-width: 1024px)";
+const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-const WATERMARK_SRC = '/images/winning-logo-stacked.svg';
+const WATERMARK_SRC = "/images/winning-logo-stacked.svg";
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query).matches : false
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia(query).matches
+      : false,
   );
 
   // HeroSection.jsx:190-198 패턴 — 마운트 시 1회 읽고 change 리스너를 건다.
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
     const mql = window.matchMedia(query);
     setMatches(mql.matches);
     const onChange = (event) => setMatches(event.matches);
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, [query]);
 
   return matches;
@@ -55,16 +57,23 @@ function FaceContent({ face, failed, onFail, eager, hidden }) {
   if (face.kind === FACE_GAP) {
     return (
       <div className="pbv-blank">
-        <img className="pbv-watermark" src={WATERMARK_SRC} alt="" aria-hidden="true" />
+        <img
+          className="pbv-watermark"
+          src={WATERMARK_SRC}
+          alt=""
+          aria-hidden="true"
+        />
       </div>
     );
   }
 
-  const url = face.page?.image_url ?? '';
+  const url = face.page?.image_url ?? "";
   if (!url || failed) {
     return (
       <div className="pbv-blank">
-        <p className="pbv-blank-text">{face.order}페이지를 불러오지 못했습니다.</p>
+        <p className="pbv-blank-text">
+          {face.order}페이지를 불러오지 못했습니다.
+        </p>
       </div>
     );
   }
@@ -74,8 +83,8 @@ function FaceContent({ face, failed, onFail, eager, hidden }) {
       className="pbv-page-img"
       src={url}
       // alt는 DB 컬럼 없이 프론트에서 생성한다(§5.3, sql/47에서 alt_text를 뺀 이유).
-      alt={hidden ? '' : `프리미엄 안내 책자 ${face.order}페이지`}
-      loading={eager ? 'eager' : 'lazy'}
+      alt={hidden ? "" : `프리미엄 안내 책자 ${face.order}페이지`}
+      loading={eager ? "eager" : "lazy"}
       decoding="async"
       draggable="false"
       onError={() => onFail(face.order, url)}
@@ -86,7 +95,12 @@ function FaceContent({ face, failed, onFail, eager, hidden }) {
 // pages: { sort_order, image_url }[] — premium_book_pages 행과 동일한 모양.
 // loading/error: 상위(훅 또는 어드민 상태)가 넘기는 페칭 상태. 둘 다 기본값은 "이미 준비됨"이다.
 // onRetry: error 상태의 "다시 시도" 버튼 핸들러. 재시도 개념이 없는 소비처는 생략해도 된다.
-export default function BookViewer({ pages, loading = false, error = null, onRetry }) {
+export default function BookViewer({
+  pages,
+  loading = false,
+  error = null,
+  onRetry,
+}) {
   // 현재 위치는 뷰 인덱스가 아니라 페이지(sort_order) 앵커로 들고 있다.
   // spread ↔ 1페이지 모드가 바뀌어도 보고 있던 페이지가 유지된다.
   const [anchorOrder, setAnchorOrder] = useState(1);
@@ -102,18 +116,28 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
   const book = useMemo(() => buildViews(pages), [pages]);
   const { views, lastOrder, viewIndexByOrder, faceByOrder } = book;
 
-  const status = loading ? 'loading' : error ? 'error' : lastOrder === 0 ? 'empty' : 'ready';
+  const status = loading
+    ? "loading"
+    : error
+      ? "error"
+      : lastOrder === 0
+        ? "empty"
+        : "ready";
 
   // 책이 바뀌면 앵커를 범위 안으로 되돌린다.
   useEffect(() => {
-    setAnchorOrder((prev) => Math.min(Math.max(prev, 1), Math.max(lastOrder, 1)));
+    setAnchorOrder((prev) =>
+      Math.min(Math.max(prev, 1), Math.max(lastOrder, 1)),
+    );
   }, [lastOrder]);
 
   const viewIndex = viewIndexByOrder.get(anchorOrder) ?? 0;
   const currentView = views[viewIndex] ?? null;
 
   const hasPrev = isSpread ? viewIndex > 0 : anchorOrder > 1;
-  const hasNext = isSpread ? viewIndex < views.length - 1 : anchorOrder < lastOrder;
+  const hasNext = isSpread
+    ? viewIndex < views.length - 1
+    : anchorOrder < lastOrder;
 
   const commitFlip = useCallback(() => {
     const token = flipRef.current;
@@ -125,17 +149,17 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
 
   const step = useCallback(
     (dir) => {
-      if (status !== 'ready') return;
+      if (status !== "ready") return;
       if (flipRef.current) return; // 진행 중인 넘김이 끝날 때까지 입력을 무시한다
 
       let targetOrder = null;
       if (isSpread) {
-        const targetIndex = dir === 'next' ? viewIndex + 1 : viewIndex - 1;
+        const targetIndex = dir === "next" ? viewIndex + 1 : viewIndex - 1;
         const targetView = views[targetIndex];
         if (!targetView) return;
         targetOrder = targetView.primaryOrder;
       } else {
-        const next = dir === 'next' ? anchorOrder + 1 : anchorOrder - 1;
+        const next = dir === "next" ? anchorOrder + 1 : anchorOrder - 1;
         if (next < 1 || next > lastOrder) return;
         targetOrder = next;
       }
@@ -150,18 +174,20 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
       flipRef.current = { dir, targetOrder };
       // armed(각도 0) 프레임은 3D 잎이 있는 spread 모드에만 필요하다. 1페이지 모드는 페이드라
       // 무대에 올릴 0도 프레임이 없어, arm을 거치면 rAF 의존만 늘고 얻는 게 없다.
-      setFlip({ dir, targetOrder, phase: isSpread ? 'armed' : 'running' });
+      setFlip({ dir, targetOrder, phase: isSpread ? "armed" : "running" });
     },
-    [status, isSpread, viewIndex, views, anchorOrder, lastOrder, reducedMotion]
+    [status, isSpread, viewIndex, views, anchorOrder, lastOrder, reducedMotion],
   );
 
   // armed(각도 0) 프레임이 실제로 페인트된 뒤에 각도를 바꿔야 트랜지션이 발화한다.
   // 폴백 타이머를 함께 거는 이유: 백그라운드 탭에서는 rAF가 멈춰 armed에 갇히는데, 커밋
   // 타이머는 running에서만 걸리므로 flipRef가 찬 채로 입력이 영구히 잠긴다.
   useEffect(() => {
-    if (!flip || flip.phase !== 'armed') return undefined;
+    if (flip?.phase !== "armed") return undefined;
     const promote = () =>
-      setFlip((prev) => (prev && prev.phase === 'armed' ? { ...prev, phase: 'running' } : prev));
+      setFlip((prev) =>
+        prev && prev.phase === "armed" ? { ...prev, phase: "running" } : prev,
+      );
     let inner = 0;
     const outer = requestAnimationFrame(() => {
       inner = requestAnimationFrame(promote);
@@ -177,7 +203,7 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
   // 커밋 시점을 transitionend에서 분리한다. 백그라운드 탭·합성 실패·중단처럼 transitionend가
   // 아예 발화하지 않는 경로가 있고, 1페이지 모드에는 3D leaf 자체가 없다.
   useEffect(() => {
-    if (!flip || flip.phase !== 'running') return undefined;
+    if (flip?.phase !== "running") return undefined;
     const delay = isSpread ? FLIP_MS + 80 : SINGLE_MS;
     const id = window.setTimeout(commitFlip, delay);
     return () => window.clearTimeout(id);
@@ -185,13 +211,17 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
 
   // 모드나 모션 설정이 바뀌면 진행 중인 넘김을 즉시 확정한다 — leaf DOM이 사라지면
   // transitionend가 오지 않아 입력이 영구히 잠긴다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) isSpread/reducedMotion은 effect 안에서 읽지 않는 트리거 전용 값 — 모드·모션 설정이 바뀔 때마다 진행 중인 넘김을 확정시키기 위한 재실행 신호다.
   useEffect(() => {
     commitFlip();
   }, [isSpread, reducedMotion, commitFlip]);
 
-  useEffect(() => () => {
-    flipRef.current = null;
-  }, []);
+  useEffect(
+    () => () => {
+      flipRef.current = null;
+    },
+    [],
+  );
 
   const handleImageError = useCallback((order, url) => {
     console.error(`프리미엄 책자 ${order}페이지 이미지 로드 실패:`, url);
@@ -204,24 +234,28 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
   }, []);
 
   function handleKeyDown(event) {
-    if (event.key === 'ArrowLeft') {
+    if (event.key === "ArrowLeft") {
       event.preventDefault();
-      step('prev');
-    } else if (event.key === 'ArrowRight') {
+      step("prev");
+    } else if (event.key === "ArrowRight") {
       event.preventDefault();
-      step('next');
+      step("next");
       // Home/End는 여러 뷰를 건너뛴다. 잎 1장으로 표현할 수 없는 이동이라 넘김 없이 즉시 점프한다.
-    } else if (event.key === 'Home') {
+    } else if (event.key === "Home") {
       event.preventDefault();
       if (!flipRef.current) setAnchorOrder(1);
-    } else if (event.key === 'End') {
+    } else if (event.key === "End") {
       event.preventDefault();
       if (!flipRef.current && lastOrder > 0) setAnchorOrder(lastOrder);
     }
   }
 
   function handlePointerDown(event) {
-    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    pointerRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
   }
 
   function handlePointerUp(event) {
@@ -231,7 +265,7 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return;
-    step(dx < 0 ? 'next' : 'prev');
+    step(dx < 0 ? "next" : "prev");
   }
 
   // 넘김 중에는 정지 면과 잎 앞/뒷면의 배치가 달라진다.
@@ -239,13 +273,15 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
   //   후진 — 그 거울상.
   const frame = useMemo(() => {
     const targetView =
-      flip && isSpread ? views[viewIndexByOrder.get(flip.targetOrder) ?? viewIndex] : null;
+      flip && isSpread
+        ? views[viewIndexByOrder.get(flip.targetOrder) ?? viewIndex]
+        : null;
 
     if (!isSpread) {
       return {
         left: faceByOrder.get(anchorOrder) ?? null,
         right: null,
-        leaf: null
+        leaf: null,
       };
     }
 
@@ -254,34 +290,45 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
       return { left: currentView.left, right: currentView.right, leaf: null };
     }
 
-    if (flip.dir === 'next') {
+    if (flip.dir === "next") {
       return {
         left: currentView.left,
         right: targetView.right,
-        leaf: { front: currentView.right, back: targetView.left }
+        leaf: { front: currentView.right, back: targetView.left },
       };
     }
     return {
       left: targetView.left,
       right: currentView.right,
-      leaf: { front: currentView.left, back: targetView.right }
+      leaf: { front: currentView.left, back: targetView.right },
     };
-  }, [flip, isSpread, views, viewIndexByOrder, viewIndex, currentView, faceByOrder, anchorOrder]);
+  }, [
+    flip,
+    isSpread,
+    views,
+    viewIndexByOrder,
+    viewIndex,
+    currentView,
+    faceByOrder,
+    anchorOrder,
+  ]);
 
   // 현재 spread 2장은 화면에 있으니 eager, 다음 spread 2장만 이 슬롯에서 미리 받는다(§5.1).
   // 나머지 페이지는 DOM에 넣지 않는다 — 슬롯이 0×0이라도 뷰포트 '안'이라 브라우저가
   // loading="lazy"를 지연시키지 않고, 전 페이지를 넣으면 16장이 통째로 첫 페인트에 실린다.
   const preloadFaces = useMemo(() => {
-    if (status !== 'ready') return [];
+    if (status !== "ready") return [];
     const visible = new Set(
       [frame.left, frame.right, frame.leaf?.front, frame.leaf?.back]
         .filter((face) => face && face.kind === FACE_PAGE)
-        .map((face) => face.order)
+        .map((face) => face.order),
     );
     const nextView = views[viewIndex + 1];
     const wanted = isSpread
       ? nextView
-        ? [nextView.left, nextView.right].filter((f) => f.kind === FACE_PAGE).map((f) => f.order)
+        ? [nextView.left, nextView.right]
+            .filter((f) => f.kind === FACE_PAGE)
+            .map((f) => f.order)
         : []
       : [anchorOrder + 1];
 
@@ -298,26 +345,26 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
   }, [status, frame, views, viewIndex, faceByOrder, isSpread, anchorOrder]);
 
   const statusLabel = useMemo(() => {
-    if (status !== 'ready') return '';
+    if (status !== "ready") return "";
     const orders = isSpread
       ? [currentView?.left, currentView?.right]
           .filter((face) => face && face.kind !== FACE_VOID)
           .map((face) => face.order)
       : [anchorOrder];
     if (orders.length === 0) return `${lastOrder} 페이지`;
-    return `${orders.join('-')} / ${lastOrder} 페이지`;
+    return `${orders.join("-")} / ${lastOrder} 페이지`;
   }, [status, isSpread, currentView, anchorOrder, lastOrder]);
 
   const stageClass = [
-    'pbv-stage',
-    isSpread ? 'pbv-stage--spread' : 'pbv-stage--single',
-    !isSpread && flip ? `pbv-stage--leaving-${flip.dir}` : ''
+    "pbv-stage",
+    isSpread ? "pbv-stage--spread" : "pbv-stage--single",
+    !isSpread && flip ? `pbv-stage--leaving-${flip.dir}` : "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   const arrowClass =
-    'pbv-arrow flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e3e3e3] text-white shadow-[0_0.167rem_0.5rem_rgba(0,0,0,0.10)] transition hover:bg-[#cfcfcf] disabled:cursor-not-allowed disabled:opacity-40';
+    "pbv-arrow flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e3e3e3] text-white shadow-[0_0.167rem_0.5rem_rgba(0,0,0,0.10)] transition hover:bg-[#cfcfcf] disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     // relative + z-10: .pbv-stage가 더 이상 넘김 잎을 클리핑하지 않으므로(book-viewer.css
@@ -325,11 +372,16 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
     // 이 섹션에 로컬 스태킹 컨텍스트를 만든다. Header.jsx:508 fixed 헤더가 z-50이라
     // 그보다 낮은 z-10을 써서 헤더 위로는 절대 올라가지 않는다.
     <section className="relative z-10 mx-auto flex max-w-content justify-center px-6 pb-16">
+      {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
       <div
         className="pbv-viewport"
-        style={{ '--pbv-flip-ms': `${FLIP_MS}ms`, '--pbv-single-ms': `${SINGLE_MS}ms` }}
+        style={{
+          "--pbv-flip-ms": `${FLIP_MS}ms`,
+          "--pbv-single-ms": `${SINGLE_MS}ms`,
+        }}
         role="group"
         aria-label="프리미엄 안내 책자"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: onKeyDown으로 페이지 넘김을 키보드로 조작하기 위해 포커스 가능해야 한다.
         tabIndex={0}
         onKeyDown={handleKeyDown}
         // 스와이프는 stage가 아니라 이 층에서 받는다. 1페이지 모드의 화살표는 stage 위에
@@ -343,8 +395,8 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
       >
         <button
           type="button"
-          disabled={status !== 'ready' || !hasPrev}
-          onClick={() => step('prev')}
+          disabled={status !== "ready" || !hasPrev}
+          onClick={() => step("prev")}
           aria-label="이전 페이지"
           className={`${arrowClass} pbv-arrow--prev`}
         >
@@ -352,13 +404,15 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
         </button>
 
         <div className={stageClass}>
-          {status === 'ready' ? (
+          {status === "ready" ? (
             <>
               <div className="pbv-spread">
                 <div className="pbv-page pbv-page--left">
                   <FaceContent
                     face={frame.left}
-                    failed={frame.left ? failedOrders.has(frame.left.order) : false}
+                    failed={
+                      frame.left ? failedOrders.has(frame.left.order) : false
+                    }
                     onFail={handleImageError}
                     eager
                   />
@@ -366,7 +420,9 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                 <div className="pbv-page pbv-page--right">
                   <FaceContent
                     face={frame.right}
-                    failed={frame.right ? failedOrders.has(frame.right.order) : false}
+                    failed={
+                      frame.right ? failedOrders.has(frame.right.order) : false
+                    }
                     onFail={handleImageError}
                     eager
                   />
@@ -377,16 +433,21 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                   // 스크린리더에서는 숨긴다.
                   <div
                     className={[
-                      'pbv-flipper',
+                      "pbv-flipper",
                       `pbv-flipper--${flip.dir}`,
-                      flip.phase === 'armed' ? 'pbv-flipper--armed' : ''
+                      flip.phase === "armed" ? "pbv-flipper--armed" : "",
                     ]
                       .filter(Boolean)
-                      .join(' ')}
-                    style={{ '--pbv-flip': flip.phase === 'running' ? '1' : '0' }}
+                      .join(" ")}
+                    style={{
+                      "--pbv-flip": flip.phase === "running" ? "1" : "0",
+                    }}
                     aria-hidden="true"
                     onTransitionEnd={(event) => {
-                      if (event.propertyName === 'transform' && event.target === event.currentTarget) {
+                      if (
+                        event.propertyName === "transform" &&
+                        event.target === event.currentTarget
+                      ) {
                         commitFlip();
                       }
                     }}
@@ -395,7 +456,9 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                       <FaceContent
                         face={frame.leaf.front}
                         failed={
-                          frame.leaf.front ? failedOrders.has(frame.leaf.front.order) : false
+                          frame.leaf.front
+                            ? failedOrders.has(frame.leaf.front.order)
+                            : false
                         }
                         onFail={handleImageError}
                         eager
@@ -405,7 +468,11 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                     <div className="pbv-face pbv-face--back">
                       <FaceContent
                         face={frame.leaf.back}
-                        failed={frame.leaf.back ? failedOrders.has(frame.leaf.back.order) : false}
+                        failed={
+                          frame.leaf.back
+                            ? failedOrders.has(frame.leaf.back.order)
+                            : false
+                        }
                         onFail={handleImageError}
                         eager
                         hidden
@@ -433,7 +500,9 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                     loading="eager"
                     decoding="async"
                     // 여기서 실패를 잡아두면 그 페이지로 넘어가기 전에 플레이스홀더가 확정된다.
-                    onError={() => handleImageError(face.order, face.page.image_url)}
+                    onError={() =>
+                      handleImageError(face.order, face.page.image_url)
+                    }
                   />
                 ))}
               </div>
@@ -442,17 +511,19 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
             // loading / error / empty 전부 stage 안에서 그린다 — stage가 aspect-ratio로
             // 높이를 잡고 있으므로 상태가 바뀌어도 아래 상담 섹션이 밀리지 않는다(CLS 0, §5.1).
             <div className="pbv-state" role="status">
-              {status === 'loading' ? (
+              {status === "loading" ? (
                 <p className="text-base font-semibold text-[#525252]">
                   안내 책자를 불러오는 중입니다.
                 </p>
               ) : null}
-              {status === 'error' ? (
+              {status === "error" ? (
                 <>
                   <p className="text-base font-semibold text-red-600">
                     안내 책자를 불러오지 못했습니다.
                   </p>
-                  <p className="text-sm font-medium text-red-400">잠시 후 다시 시도해 주세요.</p>
+                  <p className="text-sm font-medium text-red-400">
+                    잠시 후 다시 시도해 주세요.
+                  </p>
                   <button
                     type="button"
                     onClick={() => onRetry?.()}
@@ -462,7 +533,7 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
                   </button>
                 </>
               ) : null}
-              {status === 'empty' ? (
+              {status === "empty" ? (
                 <p className="text-base font-semibold text-[#525252]">
                   안내 책자를 준비 중입니다.
                 </p>
@@ -473,8 +544,8 @@ export default function BookViewer({ pages, loading = false, error = null, onRet
 
         <button
           type="button"
-          disabled={status !== 'ready' || !hasNext}
-          onClick={() => step('next')}
+          disabled={status !== "ready" || !hasNext}
+          onClick={() => step("next")}
           aria-label="다음 페이지"
           className={`${arrowClass} pbv-arrow--next`}
         >

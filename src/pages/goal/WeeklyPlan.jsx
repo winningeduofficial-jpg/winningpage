@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import GoalPageHeader from '../../components/goal/GoalPageHeader';
-import WeekdayPlanBoard from '../../components/goal/plan/WeekdayPlanBoard';
-import AddTaskModal from '../../components/goal/modals/AddTaskModal';
-import GoalCard from '../../components/goal/GoalCard';
-import { createGoalPlanTask, fetchGoalPlanTasks } from '../../lib/goalApi';
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import GoalCard from "../../components/goal/GoalCard";
+import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import AddTaskModal from "../../components/goal/modals/AddTaskModal";
+import WeekdayPlanBoard from "../../components/goal/plan/WeekdayPlanBoard";
+import { createGoalPlanTask, fetchGoalPlanTasks } from "../../lib/goalApi";
 import {
-  WEEKDAY_LABELS,
   durationLabelToMinutes,
   formatWeekRangeLabel,
   getTodayShortKeyInWeek,
-  getWeekDates
-} from '../../lib/goalPlanUtils';
+  getWeekDates,
+  WEEKDAY_LABELS,
+} from "../../lib/goalPlanUtils";
 
 // 주간 학습 계획표(#27 빈 / #29 채움) — docs/figma-goal/part-09.md·part-10.md.
 // 단계 E(임무 지시) 배선: GET /api/goal/plan-tasks로 이번 주 실데이터를 그리드에 채우고,
@@ -35,12 +35,12 @@ export default function WeeklyPlan() {
   const weekDates = getWeekDates(weekOffset);
   const todayKey = getTodayShortKeyInWeek(weekDates);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) weekDates는 weekOffset의 순함수라 weekOffset만 의존성으로 둔다 — 매 렌더 새 배열 참조 때문에 무한 재요청되는 것을 막는다.
   const loadTasks = useCallback(() => {
     setResult(null);
-    fetchGoalPlanTasks({ from: weekDates[0], to: weekDates[6] }).then(setResult);
-    // weekDates는 weekOffset의 순함수라 weekOffset만 의존성으로 둔다 — 매 렌더 새 배열
-    // 참조 때문에 무한 재요청되는 것을 막는다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchGoalPlanTasks({ from: weekDates[0], to: weekDates[6] }).then(
+      setResult,
+    );
   }, [weekOffset]);
 
   useEffect(() => {
@@ -64,18 +64,23 @@ export default function WeeklyPlan() {
   // 없으므로 "매주 반복"은 "이번 주만"과 동일하게 현재 표시 중인 주 7일에만 만든다 —
   // 스키마를 넓히지 않고 안전(최대 7행)하게 담을 수 있는 유일한 해석이다.
   async function handleTaskSubmit({ subject, taskText, duration, schedule }) {
-    const targetDates = schedule === '오늘만' ? [selectedDate] : weekDates;
+    const targetDates = schedule === "오늘만" ? [selectedDate] : weekDates;
     const durationMinutes = durationLabelToMinutes(duration);
 
     const results = await Promise.all(
       targetDates.map((planDate) =>
-        createGoalPlanTask({ planDate, title: taskText, subject, durationMinutes })
-      )
+        createGoalPlanTask({
+          planDate,
+          title: taskText,
+          subject,
+          durationMinutes,
+        }),
+      ),
     );
 
-    const failed = results.filter((r) => r.kind !== 'success');
+    const failed = results.filter((r) => r.kind !== "success");
     if (failed.length > 0) {
-      console.error('[WeeklyPlan] 일부 과제 생성 실패:', failed);
+      console.error("[WeeklyPlan] 일부 과제 생성 실패:", failed);
     }
 
     loadTasks();
@@ -83,7 +88,7 @@ export default function WeeklyPlan() {
     if (failed.length === targetDates.length) {
       // 전량 실패면 모달을 닫지 않고 사용자가 다시 시도할 수 있게 예외를 던진다
       // (AddTaskModal.handleSubmit이 이 예외를 잡아 폼을 유지한다).
-      throw new Error('과제 생성에 실패했습니다.');
+      throw new Error("과제 생성에 실패했습니다.");
     }
   }
 
@@ -103,8 +108,8 @@ export default function WeeklyPlan() {
       tasks: (tasksByDate.get(dateYmd) || []).map((task) => ({
         id: task.id,
         subject: task.subject,
-        title: task.title
-      }))
+        title: task.title,
+      })),
     }));
   }
 
@@ -140,14 +145,16 @@ export default function WeeklyPlan() {
       <div className="max-w-goal-content px-[3rem] pb-24">
         {result === null && (
           <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">주간 계획을 불러오는 중입니다…</p>
+            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+              주간 계획을 불러오는 중입니다…
+            </p>
           </GoalCard>
         )}
 
         {/* not-allowed(미결제)·no-session 등은 이 페이지가 스스로 처리하지 않는다 — RequireGoalAccess가
             이미 이 라우트를 3단계 게이트로 감싸므로(Dashboard.jsx §154 주석과 동일 전제) 정상 경로에선
             도달하지 않는 방어적 분기다. 크래시 대신 안내만 하고 게이트가 다음 진입 때 재판정하게 둔다. */}
-        {result && result.kind !== 'success' && (
+        {result && result.kind !== "success" && (
           <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               주간 계획을 불러오지 못했습니다. 새로고침해 주세요.
@@ -155,8 +162,12 @@ export default function WeeklyPlan() {
           </GoalCard>
         )}
 
-        {result?.kind === 'success' && (
-          <WeekdayPlanBoard days={buildBoardDays(result.tasks)} onAddTask={handleAddTask} todayKey={todayKey} />
+        {result?.kind === "success" && (
+          <WeekdayPlanBoard
+            days={buildBoardDays(result.tasks)}
+            onAddTask={handleAddTask}
+            todayKey={todayKey}
+          />
         )}
       </div>
 

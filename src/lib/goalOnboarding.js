@@ -11,9 +11,9 @@
 // 전혀 읽지 않는다 — localStorage 플래그를 세우거나 지워도 서버 판정 결과는 바뀌지
 // 않는다. Onboarding.jsx의 handleFinish()도 더 이상 markOnboardingDone()을 호출하지
 // 않는다(서버가 진실이므로 클라이언트 완료 플래그를 세울 이유가 없다).
-import { fetchGoalStudent } from './goalApi';
+import { fetchGoalStudent } from "./goalApi";
 
-const ONBOARDING_DONE_KEY = 'winning-goal-onboarding-done-v1';
+const ONBOARDING_DONE_KEY = "winning-goal-onboarding-done-v1";
 
 // 로컬 QA 전용 "온보딩 완료 가정" 플래그.
 // 사용법: .env.local에 VITE_FAKE_ONBOARDING_DONE=true 를 추가하고 개발 서버를 재시작한다.
@@ -22,7 +22,8 @@ const ONBOARDING_DONE_KEY = 'winning-goal-onboarding-done-v1';
 // FAKE_ENTITLEMENT_ENABLED(src/lib/entitlement.js)와 판정 대상이 다르다 — 그건 "결제했다고
 // 가정", 이건 "온보딩을 마쳤다고 가정"이다.
 export const FAKE_ONBOARDING_DONE_ENABLED =
-  import.meta.env.DEV === true && import.meta.env.VITE_FAKE_ONBOARDING_DONE === 'true';
+  import.meta.env.DEV === true &&
+  import.meta.env.VITE_FAKE_ONBOARDING_DONE === "true";
 
 // 반환값 계약(호출부, 특히 RequireGoalAccess.jsx가 반드시 구분해야 함) —
 // hasEntitlement()(src/lib/entitlement.js)와 같은 3값 계약:
@@ -43,30 +44,31 @@ export async function isOnboardingDone() {
 
   const result = await fetchGoalStudent();
 
-  if (result.kind === 'onboarded') return true;
-  if (result.kind === 'not-onboarded' || result.kind === 'awaiting-cuts') return false;
+  if (result.kind === "onboarded") return true;
+  if (result.kind === "not-onboarded" || result.kind === "awaiting-cuts")
+    return false;
 
   // 'no-session' | 'not-allowed' | 'error' — 전부 판정 불가.
   return null;
 }
 
 export function markOnboardingDone() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+    window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
   } catch (error) {
-    console.error('[goalOnboarding] localStorage 쓰기 오류:', error);
+    console.error("[goalOnboarding] localStorage 쓰기 오류:", error);
   }
 }
 
 // QA용 초기화 — 온보딩 가드를 반복 확인할 때 콘솔에서 호출.
 export function resetOnboarding() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
 
   try {
     window.localStorage.removeItem(ONBOARDING_DONE_KEY);
   } catch (error) {
-    console.error('[goalOnboarding] localStorage 삭제 오류:', error);
+    console.error("[goalOnboarding] localStorage 삭제 오류:", error);
   }
 }

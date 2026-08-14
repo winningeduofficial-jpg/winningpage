@@ -1,23 +1,23 @@
-import GoalTabs from '../GoalTabs';
-import ReportHeroCard from './ReportHeroCard';
-import ReportSection from './ReportSection';
-import GoalAchievementCard from './GoalAchievementCard';
-import StudyTimeBarChartCard from './StudyTimeBarChartCard';
-import ConditionListCard from './ConditionListCard';
-import SubjectShareCard from './SubjectShareCard';
-import TimeSlotEfficiencyCard from './TimeSlotEfficiencyCard';
-import DistractionCard from './DistractionCard';
-import CoreItemsCard from './CoreItemsCard';
-import ConditionTileCard from './ConditionTileCard';
-import AdmissionChanceCard from './AdmissionChanceCard';
-import LearningTypeCard from './LearningTypeCard';
-import StrategyListCard from './StrategyListCard';
-import ExpectedEffectCard from './ExpectedEffectCard';
-import MentorCommentCard from './MentorCommentCard';
+import GoalTabs from "../GoalTabs";
+import AdmissionChanceCard from "./AdmissionChanceCard";
+import ConditionListCard from "./ConditionListCard";
+import ConditionTileCard from "./ConditionTileCard";
+import CoreItemsCard from "./CoreItemsCard";
+import DistractionCard from "./DistractionCard";
+import ExpectedEffectCard from "./ExpectedEffectCard";
+import GoalAchievementCard from "./GoalAchievementCard";
+import LearningTypeCard from "./LearningTypeCard";
+import MentorCommentCard from "./MentorCommentCard";
+import ReportHeroCard from "./ReportHeroCard";
+import ReportSection from "./ReportSection";
+import StrategyListCard from "./StrategyListCard";
+import StudyTimeBarChartCard from "./StudyTimeBarChartCard";
+import SubjectShareCard from "./SubjectShareCard";
+import TimeSlotEfficiencyCard from "./TimeSlotEfficiencyCard";
 
 const PERIOD_TABS = [
-  { value: 'weekly', label: '주간' },
-  { value: 'monthly', label: '월간' }
+  { value: "weekly", label: "주간" },
+  { value: "monthly", label: "월간" },
 ];
 
 // 성장 리포트 본문(#33 주간 / #34 월간) — parent-view-spec.md §1-3/§4 원칙에 따라 셸과 완전히
@@ -44,7 +44,8 @@ const PERIOD_TABS = [
 // 판단해 각자 자기 시안 순서를 그대로 유지한다(작업 지시 "시안이 서로 다르면 시안을 따르되 그
 // 사실을 주석으로 남길 것" 적용 — 강제 통일하지 않음).
 export default function GrowthReportBody({ period, onPeriodChange, report }) {
-  const { overview, execution, outcome, strategy, mentorComment, admission } = report;
+  const { overview, execution, outcome, strategy, mentorComment, admission } =
+    report;
 
   return (
     <div className="max-w-goal-content px-[3rem] pb-24 pt-[3.75rem]">
@@ -57,12 +58,19 @@ export default function GrowthReportBody({ period, onPeriodChange, report }) {
       />
 
       <div className="mt-6 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">{report.heading}</h1>
-        <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">{report.periodLabel}</span>
+        <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
+          {report.heading}
+        </h1>
+        <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+          {report.periodLabel}
+        </span>
       </div>
 
       <div className="mt-6">
-        <ReportHeroCard narrative={report.hero.narrative} kpis={report.hero.kpis} />
+        <ReportHeroCard
+          narrative={report.hero.narrative}
+          kpis={report.hero.kpis}
+        />
       </div>
 
       <div className="mt-10 flex flex-col gap-10">
@@ -76,28 +84,54 @@ export default function GrowthReportBody({ period, onPeriodChange, report }) {
               rows={overview.achievement.rows}
               weeks={overview.achievement.weeks}
             />
-            <StudyTimeBarChartCard title={overview.studyTime.title} bars={overview.studyTime.bars} unit={overview.studyTime.unit} />
-            <ConditionListCard title={overview.condition.title} rows={overview.condition.rows} />
+            <StudyTimeBarChartCard
+              title={overview.studyTime.title}
+              bars={overview.studyTime.bars}
+              unit={overview.studyTime.unit}
+            />
+            <ConditionListCard
+              title={overview.condition.title}
+              rows={overview.condition.rows}
+            />
           </div>
         </ReportSection>
 
         <ReportSection label={execution.label} subLabel={execution.subLabel}>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <SubjectShareCard {...execution.subjectShare} />
-            <TimeSlotEfficiencyCard title={execution.timeSlot.title} rows={execution.timeSlot.rows} tip={execution.timeSlot.tip} />
-            <DistractionCard title={execution.distraction.title} rows={execution.distraction.rows} tip={execution.distraction.tip} />
+            <TimeSlotEfficiencyCard
+              title={execution.timeSlot.title}
+              rows={execution.timeSlot.rows}
+              tip={execution.timeSlot.tip}
+            />
+            <DistractionCard
+              title={execution.distraction.title}
+              rows={execution.distraction.rows}
+              tip={execution.distraction.tip}
+            />
           </div>
         </ReportSection>
 
         <ReportSection label={outcome.label} subLabel={outcome.subLabel}>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <CoreItemsCard title={outcome.coreItems.title} rows={outcome.coreItems.rows} tip={outcome.coreItems.tip} />
-            <ConditionTileCard title={outcome.conditionTiles.title} tiles={outcome.conditionTiles.tiles} tip={outcome.conditionTiles.tip} />
-            <AdmissionChanceCard title={outcome.admission.title} data={admission} />
+            <CoreItemsCard
+              title={outcome.coreItems.title}
+              rows={outcome.coreItems.rows}
+              tip={outcome.coreItems.tip}
+            />
+            <ConditionTileCard
+              title={outcome.conditionTiles.title}
+              tiles={outcome.conditionTiles.tiles}
+              tip={outcome.conditionTiles.tip}
+            />
+            <AdmissionChanceCard
+              title={outcome.admission.title}
+              data={admission}
+            />
           </div>
         </ReportSection>
 
-        {period === 'monthly' && strategy && (
+        {period === "monthly" && strategy && (
           <ReportSection label={strategy.label} subLabel={strategy.subLabel}>
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_1fr_27rem]">
               <LearningTypeCard {...strategy.learningType} />
@@ -112,7 +146,10 @@ export default function GrowthReportBody({ period, onPeriodChange, report }) {
           자체를 렌더하지 않는다(팀장 확정 "리포트에서 코멘트 행 없으면 멘토 카드 자체 미렌더"). */}
       {mentorComment && (
         <div className="mt-10">
-          <MentorCommentCard dateLabel={mentorComment.dateLabel} body={mentorComment.body} />
+          <MentorCommentCard
+            dateLabel={mentorComment.dateLabel}
+            body={mentorComment.body}
+          />
         </div>
       )}
     </div>

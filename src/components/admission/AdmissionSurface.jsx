@@ -54,7 +54,10 @@
 // admission-raw-pre/admission-safe-text-block/admission-recruit-legend/
 // admission-bullet-list처럼 이름이 비슷해 헷갈리기 쉬운 것들은 전부 실사용
 // 확인 후 남겼다.)
-export default function AdmissionSurface({ showSectionTitle = false, showChangeNoColumn = false }) {
+export default function AdmissionSurface({
+  showSectionTitle = false,
+  showChangeNoColumn = false,
+}) {
   return (
     <style>{`
         .admission-table-wrap,
@@ -185,9 +188,11 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
         .admission-surface .admission-raw-section-wrap,
         .admission-surface .admission-existing-html { background: #fff; border: 0; border-radius: 0; padding: 0; }
         .admission-surface .admission-table-wrap { background: #fff; }
-        ${showSectionTitle
-          ? '.admission-surface .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }'
-          : '.admission-surface .admission-hwp-section-title { display: none; }'}
+        ${
+          showSectionTitle
+            ? ".admission-surface .admission-hwp-section-title { margin: 0 0 8px 0; color: #013262; font-size: 14px; line-height: 1.3; font-weight: 950; letter-spacing: -0.03em; }"
+            : ".admission-surface .admission-hwp-section-title { display: none; }"
+        }
         .admission-surface .admission-result-note,
         .admission-surface .admission-recruit-legend { display: none !important; }
         .admission-surface .admission-special-title,
@@ -356,11 +361,12 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
           .admission-surface .admission-record-info-table td:first-child { min-width: 4.5rem; }
         }
 
-        ${showChangeNoColumn
-          ? '' /* 번호 컬럼을 되살릴 땐 위 베이스 admission-change-table-v87 규칙(58px/260px/auto)이
+        ${
+          showChangeNoColumn
+            ? "" /* 번호 컬럼을 되살릴 땐 위 베이스 admission-change-table-v87 규칙(58px/260px/auto)이
                   그대로 적용된다 — 36%/64% 재분배는 2컬럼 전제라 3컬럼(번호 포함)엔 안 맞으므로
                   아예 규칙을 안 낸다(=Admin.jsx가 지시받은 "되살려라"). */
-          : `/* 2026-08-06 컴포넌트화(사용자 지시) — surface별로 갈리는 두 항목 중 나머지 하나.
+            : `/* 2026-08-06 컴포넌트화(사용자 지시) — surface별로 갈리는 두 항목 중 나머지 하나.
            공개(1882:4416 실측): 시안엔 번호 컬럼이 없는 2컬럼(변경 항목 36% / 변경 내용
            64%) 표다. 기존 구현은 번호 컬럼(3컬럼)을 포함하므로 기본(showChangeNoColumn=false)
            은 숨기고 남은 2컬럼 폭을 재분배한다 — 데이터 자체(3컬럼 구조)는 바꾸지 않는다. */
@@ -369,7 +375,8 @@ export default function AdmissionSurface({ showSectionTitle = false, showChangeN
         .admission-surface .admission-change-table-v87 th:nth-child(2),
         .admission-surface .admission-change-table-v87 td:nth-child(2) { width: 36%; text-align: center; }
         .admission-surface .admission-change-table-v87 th:nth-child(3),
-        .admission-surface .admission-change-table-v87 td:nth-child(3) { width: 64%; text-align: center; }`}
+        .admission-surface .admission-change-table-v87 td:nth-child(3) { width: 64%; text-align: center; }`
+        }
 
         /* BLOCK5: 최저학력기준(minimum_requirements)·대학별고사일(exam_schedule)은 실제 DB
            html 126/180행이 admission-minimum-table/admission-exam-table 클래스를 갖지 않고

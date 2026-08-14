@@ -22,45 +22,45 @@
 // ⚠ 완료 화면은 **시안에 존재하지 않는다.** 별도 라우트를 만들지 않고 폼 자리를 인라인 완료
 //    메시지로 치환한다(지시 사항). 카피도 시안 부재라 파생이며 아래 COMPLETION_COPY 에 모아
 //    TODO 로 표시해 두었다.
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import { FORM_HEADER, PROGRESS_SIDEBAR } from '../../data/mentorApply';
-import { isValidMobile, normalizePhone } from '../../lib/phoneVerification';
-import { supabase } from '../../lib/supabase';
-import { isWithinMaxLength } from '../../lib/validators';
-import { MENTOR_HEADING_LG } from '../services/serviceTokens';
+import { FORM_HEADER, PROGRESS_SIDEBAR } from "../../data/mentorApply";
+import { isValidMobile, normalizePhone } from "../../lib/phoneVerification";
+import { supabase } from "../../lib/supabase";
+import { isWithinMaxLength } from "../../lib/validators";
+import { MENTOR_HEADING_LG } from "../services/serviceTokens";
 import FormSectionApplicant, {
   APPLICANT_FIELDS,
   APPLICANT_REQUIRED_FIELDS,
   APPLICANT_SECTION_ID,
-  validateApplicantSection
-} from './FormSectionApplicant';
+  validateApplicantSection,
+} from "./FormSectionApplicant";
 import FormSectionCompetency, {
   COMPETENCY_FIELD_NAMES,
   COMPETENCY_MAX_LENGTHS,
   COMPETENCY_MULTI_FIELD_NAMES,
   COMPETENCY_REQUIRED_FIELD_NAMES,
-  COMPETENCY_SECTION_ID
-} from './FormSectionCompetency';
+  COMPETENCY_SECTION_ID,
+} from "./FormSectionCompetency";
 import FormSectionDocuments, {
   DOCUMENTS_AGREEMENT_KEYS,
   DOCUMENTS_REQUIRED_AGREEMENT_KEYS,
-  DOCUMENTS_SECTION_ID
-} from './FormSectionDocuments';
+  DOCUMENTS_SECTION_ID,
+} from "./FormSectionDocuments";
 import FormSectionHighschool, {
   HIGHSCHOOL_FIELDS,
   HIGHSCHOOL_REQUIRED_FIELDS,
   HIGHSCHOOL_SECTION_ID,
-  validateHighschoolSection
-} from './FormSectionHighschool';
+  validateHighschoolSection,
+} from "./FormSectionHighschool";
 import FormSectionUniversity, {
   UNIVERSITY_FIELDS,
   UNIVERSITY_REQUIRED_FIELDS,
   UNIVERSITY_SECTION_ID,
-  validateUniversitySection
-} from './FormSectionUniversity';
-import { MENTOR_FORM_ANCHOR_ID } from './MentorHero';
-import ProgressSidebar from './ProgressSidebar';
+  validateUniversitySection,
+} from "./FormSectionUniversity";
+import { MENTOR_FORM_ANCHOR_ID } from "./MentorHero";
+import ProgressSidebar from "./ProgressSidebar";
 
 // ---------------------------------------------------------------------------
 // 초기 상태
@@ -70,40 +70,40 @@ import ProgressSidebar from './ProgressSidebar';
 // 비제어→제어 전환 경고가 나고, ProgressSidebar.isFieldFilled 의 판정도 흔들린다.
 const INITIAL_VALUES = Object.freeze({
   // 1. 지원자 정보
-  name: '',
-  birth_date: '',
-  phone: '',
-  email: '',
-  residence_region: '',
+  name: "",
+  birth_date: "",
+  phone: "",
+  email: "",
+  residence_region: "",
   // 2. 대학 및 합격 전형
-  university: '',
-  major: '',
-  admission_year: '',
-  enrollment_status: '',
-  admission_history: '',
-  final_admission_track: '',
-  exam_results: '',
+  university: "",
+  major: "",
+  admission_year: "",
+  enrollment_status: "",
+  admission_history: "",
+  final_admission_track: "",
+  exam_results: "",
   // 3. 출신 고등학교
-  highschool_region: '',
-  highschool_name: '',
-  highschool_type: '',
-  gpa_average: '',
-  csat_summary: '',
+  highschool_region: "",
+  highschool_name: "",
+  highschool_type: "",
+  gpa_average: "",
+  csat_summary: "",
   // 4. 멘토 역량 — 복수선택 2종만 배열이다(COMPETENCY_MULTI_FIELD_NAMES).
   consult_fields: [],
-  strongest_field_reason: '',
+  strongest_field_reason: "",
   consult_grades: [],
-  weekly_capacity: '',
-  available_timeslot: '',
-  motivation: '',
-  strengths: '',
-  ineffective_method: '',
-  situation_answer: '',
-  tutoring_experience: ''
+  weekly_capacity: "",
+  available_timeslot: "",
+  motivation: "",
+  strengths: "",
+  ineffective_method: "",
+  situation_answer: "",
+  tutoring_experience: "",
 });
 
 const INITIAL_AGREEMENTS = Object.freeze(
-  Object.fromEntries(DOCUMENTS_AGREEMENT_KEYS.map((key) => [key, false]))
+  Object.fromEntries(DOCUMENTS_AGREEMENT_KEYS.map((key) => [key, false])),
 );
 
 // ---------------------------------------------------------------------------
@@ -124,15 +124,15 @@ const INITIAL_AGREEMENTS = Object.freeze(
 
 const COMPETENCY_ERROR_MESSAGES = {
   // 칩 복수선택 2종
-  multi: '하나 이상 선택해 주세요.',
+  multi: "하나 이상 선택해 주세요.",
   // 셀렉트 2종
-  select: '선택해 주세요.',
+  select: "선택해 주세요.",
   // 텍스트에어리어
-  text: '입력해 주세요.',
-  tooLong: (max) => `${max}자 이내로 입력해 주세요.`
+  text: "입력해 주세요.",
+  tooLong: (max) => `${max}자 이내로 입력해 주세요.`,
 };
 
-const COMPETENCY_SELECT_FIELDS = ['weekly_capacity', 'available_timeslot'];
+const COMPETENCY_SELECT_FIELDS = ["weekly_capacity", "available_timeslot"];
 
 function validateCompetencySection(values = {}) {
   const errors = {};
@@ -149,7 +149,7 @@ function validateCompetencySection(values = {}) {
       return;
     }
 
-    const text = String(value ?? '').trim();
+    const text = String(value ?? "").trim();
 
     if (isRequired && !text) {
       errors[name] = COMPETENCY_SELECT_FIELDS.includes(name)
@@ -169,11 +169,11 @@ function validateCompetencySection(values = {}) {
 
 // ⚠ [시안 부재 — 파생 카피] 위와 같은 사정이다.
 const DOCUMENTS_ERROR_MESSAGES = {
-  proof_file: '재학 증빙 서류를 첨부해 주세요.',
-  phone_required: '휴대폰 번호를 입력해 주세요.',
-  phone_format: '휴대폰 번호 형식이 올바르지 않습니다.',
-  phone_unverified: '휴대폰 본인인증을 완료해 주세요.',
-  agreements: '필수 약관에 모두 동의해 주세요.'
+  proof_file: "재학 증빙 서류를 첨부해 주세요.",
+  phone_required: "휴대폰 번호를 입력해 주세요.",
+  phone_format: "휴대폰 번호 형식이 올바르지 않습니다.",
+  phone_unverified: "휴대폰 본인인증을 완료해 주세요.",
+  agreements: "필수 약관에 모두 동의해 주세요.",
 };
 
 function validateDocumentsSection({ values, file, phoneVerified, agreements }) {
@@ -187,12 +187,16 @@ function validateDocumentsSection({ values, file, phoneVerified, agreements }) {
   // 안 끝난 경우 이 결과가 섹션 1 형식 에러 자리를 그대로 덮어써서 표시·스크롤이 둘 다
   // 엉뚱하게 섹션 1로 간다(리뷰 WARN #1). 그래서 "인증까지 끝났는가"는 `phone_verified`
   // 라는 별도 키로 낸다 — 형식 검사 자체는 섹션 1 검증이 이미 하므로 여기서 다시 본다.
-  const phone = String(values.phone ?? '').trim();
+  const phone = String(values.phone ?? "").trim();
   if (!phone) errors.phone = DOCUMENTS_ERROR_MESSAGES.phone_required;
-  else if (!isValidMobile(phone)) errors.phone = DOCUMENTS_ERROR_MESSAGES.phone_format;
-  else if (!phoneVerified) errors.phone_verified = DOCUMENTS_ERROR_MESSAGES.phone_unverified;
+  else if (!isValidMobile(phone))
+    errors.phone = DOCUMENTS_ERROR_MESSAGES.phone_format;
+  else if (!phoneVerified)
+    errors.phone_verified = DOCUMENTS_ERROR_MESSAGES.phone_unverified;
 
-  const allAgreed = DOCUMENTS_REQUIRED_AGREEMENT_KEYS.every((key) => agreements?.[key] === true);
+  const allAgreed = DOCUMENTS_REQUIRED_AGREEMENT_KEYS.every(
+    (key) => agreements?.[key] === true,
+  );
   if (!allAgreed) errors.agreements = DOCUMENTS_ERROR_MESSAGES.agreements;
 
   return errors;
@@ -211,9 +215,9 @@ const FIELD_ORDER = [
   ...UNIVERSITY_FIELDS,
   ...HIGHSCHOOL_FIELDS,
   ...COMPETENCY_FIELD_NAMES,
-  'proof_file',
-  'phone_verified',
-  'agreements'
+  "proof_file",
+  "phone_verified",
+  "agreements",
 ];
 
 // 필드 이름 → 스크롤·포커스 대상 DOM id.
@@ -225,20 +229,20 @@ const FIELD_ORDER = [
 // 대신 MentorFieldShell 이 **에러가 없을 때도 항상** `${fieldId}-error` 노드를 렌더하므로
 // (레이아웃 시프트 방지용 고정 슬롯) 그 노드를 스크롤 앵커로 쓴다. 포커스는 걸지 않는다.
 const FIELD_ANCHORS = {
-  residence_region: 'mentor-residence-region-error',
-  enrollment_status: 'enrollment_status', // SelectField 실제 컨트롤 id
-  admission_history: 'mentor-admission-history-error',
-  final_admission_track: 'mentor-final-admission-track-error',
-  highschool_type: 'mentor-highschool-type-error',
-  consult_fields: 'mentor-apply-consult-fields-error',
-  consult_grades: 'mentor-apply-consult-grades-error',
-  weekly_capacity: 'mentor-apply-weekly-capacity', // SelectField 실제 컨트롤 id
-  available_timeslot: 'mentor-apply-available-timeslot',
-  proof_file: 'mentor-apply-proof-error',
+  residence_region: "mentor-residence-region-error",
+  enrollment_status: "enrollment_status", // SelectField 실제 컨트롤 id
+  admission_history: "mentor-admission-history-error",
+  final_admission_track: "mentor-final-admission-track-error",
+  highschool_type: "mentor-highschool-type-error",
+  consult_fields: "mentor-apply-consult-fields-error",
+  consult_grades: "mentor-apply-consult-grades-error",
+  weekly_capacity: "mentor-apply-weekly-capacity", // SelectField 실제 컨트롤 id
+  available_timeslot: "mentor-apply-available-timeslot",
+  proof_file: "mentor-apply-proof-error",
   // 5-2 본인인증 미완료 에러의 스크롤·포커스 대상. PhoneVerifyField 의 번호 인풋 id 이자
   // FormSectionDocuments.jsx PHONE_INPUT_ID 와 같은 문자열이어야 한다(리뷰 WARN #1).
-  phone_verified: 'mentor-apply-phone',
-  agreements: 'mentor-apply-agreements-error'
+  phone_verified: "mentor-apply-phone",
+  agreements: "mentor-apply-agreements-error",
 };
 
 // ProgressSidebar 와 같은 값. 전역 헤더(fixed, h-16=4rem) + 시각 여백 2.5rem.
@@ -246,24 +250,36 @@ const SCROLL_OFFSET_REM = 6.5;
 
 // 포커스를 걸어도 되는 컨트롤인지. 에러 슬롯(<p>)에 focus() 를 부르면 아무 일도 일어나지
 // 않거나(비포커스 요소) 브라우저가 임의로 스크롤을 되돌릴 수 있어 대상을 좁힌다.
-const FOCUSABLE_SELECTOR = 'input, select, textarea, button, [tabindex]';
+const FOCUSABLE_SELECTOR = "input, select, textarea, button, [tabindex]";
 
 function scrollToField(fieldName) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
 
   const anchorId = FIELD_ANCHORS[fieldName] || fieldName;
   const target = document.getElementById(anchorId);
   if (!target) return;
 
-  const rootFontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+  const rootFontSize =
+    parseFloat(window.getComputedStyle(document.documentElement).fontSize) ||
+    16;
   const top =
-    target.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET_REM * rootFontSize;
+    target.getBoundingClientRect().top +
+    window.scrollY -
+    SCROLL_OFFSET_REM * rootFontSize;
 
   // prefers-reduced-motion 존중 — 저장소 관례(BookViewer.jsx:28, ProgressSidebar.jsx:129).
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  window.scrollTo({ top: Math.max(top, 0), behavior: prefersReduced ? 'auto' : 'smooth' });
+  const prefersReduced = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  window.scrollTo({
+    top: Math.max(top, 0),
+    behavior: prefersReduced ? "auto" : "smooth",
+  });
 
-  if (typeof target.focus === 'function' && target.matches(FOCUSABLE_SELECTOR)) {
+  if (
+    typeof target.focus === "function" &&
+    target.matches(FOCUSABLE_SELECTOR)
+  ) {
     // preventScroll — 위에서 계산한 오프셋을 브라우저 기본 스크롤이 덮어쓰지 않게 한다.
     target.focus({ preventScroll: true });
   }
@@ -284,7 +300,7 @@ function scrollToField(fieldName) {
 // 발급(/api/mentor-apply-upload-url)이 휴대폰 인증 완료를 전제로 하므로, 인증 전에 파일을
 // 고르면 발급이 실패한다. 제출 시점이면 클라이언트 검증(필수 필드·동의·인증)이 이미 전부
 // 끝난 뒤라 업로드 URL 발급이 실패할 조건이 남지 않는다.
-const BUCKET = 'mentor-applications';
+const BUCKET = "mentor-applications";
 
 // 업로드 성공 후 제출(3단계)만 실패한 경우 재시도 시 같은 파일을 다시 올리지 않도록
 // { file, path } 를 보관해 재사용한다. 파일이 바뀌면(handleFileChange) 폐기한다.
@@ -312,8 +328,8 @@ class SubmitStepError extends Error {
 // 그와 별개로 폼 하단(아래 submitStage 렌더 지점)의 문단은 "지금 몇 단계인지"를 알리는
 // 용도라 남겨 둔다 — 배지는 파일 하나에 붙는 상태고, 이 문단은 폼 전체 진행 상태다.
 const SUBMIT_STAGE_LABELS = {
-  uploading: '증빙 서류를 업로드하고 있습니다...',
-  submitting: '지원서를 제출하고 있습니다...'
+  uploading: "증빙 서류를 업로드하고 있습니다...",
+  submitting: "지원서를 제출하고 있습니다...",
 };
 
 // 서버 실패 응답(reason)을 어느 필드 에러로 흘려보낼지. 서버가 `field` 를 함께 주는 경우는
@@ -326,36 +342,37 @@ const SUBMIT_STAGE_LABELS = {
 //   겹칠 수 있다. file_* 계열은 이제 제출 요청이 아니라 발급 요청에서 나는 편이 자연스럽지만,
 //   두 엔드포인트 모두 결국 proof_file 로 모이므로 매핑을 나눌 실익이 없다.
 const SERVER_REASON_TO_FIELD = {
-  invalid_phone: 'phone',
-  phone_not_verified: 'phone_verified',
-  phone_verification_expired: 'phone_verified',
-  file_type_not_allowed: 'proof_file',
-  file_too_large: 'proof_file',
-  file_required: 'proof_file',
-  upload_failed: 'proof_file'
+  invalid_phone: "phone",
+  phone_not_verified: "phone_verified",
+  phone_verification_expired: "phone_verified",
+  file_type_not_allowed: "proof_file",
+  file_too_large: "proof_file",
+  file_required: "proof_file",
+  upload_failed: "proof_file",
 };
 
 // 서버가 `field` 로 돌려주는 동의 키(agree_terms 등)는 화면에 개별 슬롯이 없다 —
 // 약관 블록 하나가 통째로 errors.agreements 를 본다.
 function normalizeServerField(reason, field) {
-  if (reason === 'agreement_required') return 'agreements';
+  if (reason === "agreement_required") return "agreements";
   if (field) return field;
   return SERVER_REASON_TO_FIELD[reason] || null;
 }
 
 // ⚠ [시안 부재 — 파생 카피] 네트워크 실패·서버 미분류 오류용 문구.
-const GENERIC_SUBMIT_ERROR = '제출에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+const GENERIC_SUBMIT_ERROR = "제출에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 // ⚠ [시안 부재 — 파생 카피] 업로드 URL 발급/Storage 업로드(1~2단계) 실패용 문구 —
 // 서버가 detail 을 안 주는 네트워크 오류 등에서만 쓰인다.
-const UPLOAD_STEP_ERROR = '파일 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+const UPLOAD_STEP_ERROR =
+  "파일 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
 // ⚠ [시안 부재 — 파생 카피] 완료 화면이 시안에 없다(파일 상단 주석). 확정 문구가 내려오면
 //    이 상수만 교체하면 되고, 확정 시 src/data/mentorApply.js 로 옮기는 것이 맞다.
 //    TODO(mentor-apply): 제출 완료 카피 확정 필요 — 아래는 잠정 파생 문구다.
 const COMPLETION_COPY = {
-  title: '지원서가 접수되었습니다',
-  body: '작성해 주신 내용을 검토한 뒤 등록하신 연락처로 결과를 안내드립니다.',
-  idLabel: '접수번호'
+  title: "지원서가 접수되었습니다",
+  body: "작성해 주신 내용을 검토한 뒤 등록하신 연락처로 결과를 안내드립니다.",
+  idLabel: "접수번호",
 };
 
 // ---------------------------------------------------------------------------
@@ -368,13 +385,13 @@ export default function MentorApplyForm() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   // '' | 'uploading' | 'submitting' — submitting 이 true 인 동안만 의미가 있다.
-  const [submitStage, setSubmitStage] = useState('');
+  const [submitStage, setSubmitStage] = useState("");
   // 업로드까지는 성공했는데 제출(3단계)만 실패해 재시도하는 경우, 같은 파일을 다시
   // Storage 에 올리지 않도록 { file, path } 를 보관한다. { file, path } | null.
   const [uploadedProof, setUploadedProof] = useState(null);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState("");
   // 접수 성공 시 서버가 돌려주는 uuid. 이 값이 있으면 폼 자리를 완료 메시지로 치환한다.
-  const [applicationId, setApplicationId] = useState('');
+  const [applicationId, setApplicationId] = useState("");
 
   function updateField(key, value) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -385,17 +402,21 @@ export default function MentorApplyForm() {
     // 인증을 마친 뒤 번호를 바꾸면 서버의 인증 레코드와 어긋나므로 인증 상태를 되돌린다.
     // (PhoneVerifyField 는 verified 동안 입력을 잠그지만, 섹션 1 의 휴대폰 번호 인풋은
     //  같은 `phone` 키를 공유하면서 잠기지 않는다.)
-    if (key === 'phone') {
+    if (key === "phone") {
       setPhoneVerified(false);
       // 번호를 고치는 순간 인증 상태가 초기화되므로, 이전 "본인인증을 완료해 주세요"
       // 에러도 같이 지운다 — 안 지우면 새 번호를 입력하는 중에도 그 문구가 남아 있는다.
-      setErrors((prev) => (prev.phone_verified ? { ...prev, phone_verified: undefined } : prev));
+      setErrors((prev) =>
+        prev.phone_verified ? { ...prev, phone_verified: undefined } : prev,
+      );
     }
   }
 
   function handleFileChange(next) {
     setFile(next);
-    setErrors((prev) => (prev.proof_file ? { ...prev, proof_file: undefined } : prev));
+    setErrors((prev) =>
+      prev.proof_file ? { ...prev, proof_file: undefined } : prev,
+    );
     // 파일이 바뀌면 이전에 올려 둔 결과(있다면)는 더 이상 이 파일을 가리키지 않으므로
     // 폐기한다 — 안 지우면 uploadedProof.path 가 옛 파일의 경로인데 새 파일 이름으로
     // 제출되는 상태 불일치가 생긴다.
@@ -408,20 +429,30 @@ export default function MentorApplyForm() {
     // updateField 를 쓰면 phoneVerified 가 곧바로 false 로 되돌아가므로 직접 setValues 한다.
     setValues((prev) => ({ ...prev, phone: normalized }));
     setErrors((prev) =>
-      prev.phone || prev.phone_verified ? { ...prev, phone: undefined, phone_verified: undefined } : prev
+      prev.phone || prev.phone_verified
+        ? { ...prev, phone: undefined, phone_verified: undefined }
+        : prev,
     );
   }
 
   function handleAgreementToggle(key) {
     setAgreements((prev) => ({ ...prev, [key]: !prev[key] }));
-    setErrors((prev) => (prev.agreements ? { ...prev, agreements: undefined } : prev));
+    setErrors((prev) =>
+      prev.agreements ? { ...prev, agreements: undefined } : prev,
+    );
   }
 
   function handleAgreementToggleAll() {
     // 하나라도 꺼져 있으면 전체 켜기, 전부 켜져 있으면 전체 끄기(MentorAgreementBlock 계약).
     const allChecked = DOCUMENTS_AGREEMENT_KEYS.every((key) => agreements[key]);
-    setAgreements(Object.fromEntries(DOCUMENTS_AGREEMENT_KEYS.map((key) => [key, !allChecked])));
-    setErrors((prev) => (prev.agreements ? { ...prev, agreements: undefined } : prev));
+    setAgreements(
+      Object.fromEntries(
+        DOCUMENTS_AGREEMENT_KEYS.map((key) => [key, !allChecked]),
+      ),
+    );
+    setErrors((prev) =>
+      prev.agreements ? { ...prev, agreements: undefined } : prev,
+    );
   }
 
   // [시안 부재 — 파생 처리] 업로드/제출 진행 중 이탈 경고.
@@ -436,11 +467,11 @@ export default function MentorApplyForm() {
       event.preventDefault();
       // Chrome 은 returnValue 세팅을 요구한다(구형 API 잔재, 대부분 브라우저는 값 자체는
       // 무시하고 세팅 여부만 본다).
-      event.returnValue = '';
+      event.returnValue = "";
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [submitting]);
 
   // 진행률 사이드바가 보는 값. 파일·인증·약관은 `values` 밖에 있으므로 여기서 합성한다.
@@ -458,7 +489,9 @@ export default function MentorApplyForm() {
     ...values,
     proof_file: file,
     phone_verified: phoneVerified,
-    agreements: DOCUMENTS_REQUIRED_AGREEMENT_KEYS.every((key) => agreements[key] === true)
+    agreements: DOCUMENTS_REQUIRED_AGREEMENT_KEYS.every(
+      (key) => agreements[key] === true,
+    ),
   };
 
   // FileDropzone 의 uploadStatus prop 값으로 변환(파일 상단 SUBMIT_STAGE_LABELS 주석 참고).
@@ -466,39 +499,43 @@ export default function MentorApplyForm() {
   // (제출(3단계) 중에는 이미 업로드가 끝난 뒤라 uploadedProof 가 현재 file 을 가리키므로
   // 'done' 으로 떨어진다 — 별도 분기가 필요 없다).
   const uploadStatus =
-    submitStage === 'uploading' ? 'uploading' : isSameProof(uploadedProof, file) ? 'done' : 'idle';
+    submitStage === "uploading"
+      ? "uploading"
+      : isSameProof(uploadedProof, file)
+        ? "done"
+        : "idle";
 
   const sidebarSections = [
     {
       no: 1,
       label: PROGRESS_SIDEBAR.steps[0],
       id: APPLICANT_SECTION_ID,
-      fields: APPLICANT_REQUIRED_FIELDS
+      fields: APPLICANT_REQUIRED_FIELDS,
     },
     {
       no: 2,
       label: PROGRESS_SIDEBAR.steps[1],
       id: UNIVERSITY_SECTION_ID,
-      fields: UNIVERSITY_REQUIRED_FIELDS
+      fields: UNIVERSITY_REQUIRED_FIELDS,
     },
     {
       no: 3,
       label: PROGRESS_SIDEBAR.steps[2],
       id: HIGHSCHOOL_SECTION_ID,
-      fields: HIGHSCHOOL_REQUIRED_FIELDS
+      fields: HIGHSCHOOL_REQUIRED_FIELDS,
     },
     {
       no: 4,
       label: PROGRESS_SIDEBAR.steps[3],
       id: COMPETENCY_SECTION_ID,
-      fields: COMPETENCY_REQUIRED_FIELD_NAMES
+      fields: COMPETENCY_REQUIRED_FIELD_NAMES,
     },
     {
       no: 5,
       label: PROGRESS_SIDEBAR.steps[4],
       id: DOCUMENTS_SECTION_ID,
-      fields: ['proof_file', 'phone_verified', 'agreements']
-    }
+      fields: ["proof_file", "phone_verified", "agreements"],
+    },
   ];
 
   async function handleSubmit(event) {
@@ -511,7 +548,7 @@ export default function MentorApplyForm() {
       ...validateUniversitySection(values),
       ...validateHighschoolSection(values),
       ...validateCompetencySection(values),
-      ...validateDocumentsSection({ values, file, phoneVerified, agreements })
+      ...validateDocumentsSection({ values, file, phoneVerified, agreements }),
     };
 
     if (Object.keys(nextErrors).length > 0) {
@@ -519,14 +556,16 @@ export default function MentorApplyForm() {
       // 필드마다 있던 role="alert" 슬롯을 없앤 대신(리뷰 WARN #2), 제출 실패는 이 한 문단
       // (아래 submitError 렌더 지점, role="alert")에서만 발화한다 — 필드별 에러 문구
       // 자체는 aria-describedby 로 각 인풋에 연결돼 있어 포커스가 옮겨갈 때 함께 읽힌다.
-      setSubmitError(`${Object.keys(nextErrors).length}개 항목을 확인해 주세요.`);
+      setSubmitError(
+        `${Object.keys(nextErrors).length}개 항목을 확인해 주세요.`,
+      );
       const firstField = FIELD_ORDER.find((name) => nextErrors[name]);
       if (firstField) scrollToField(firstField);
       return;
     }
 
     setErrors({});
-    setSubmitError('');
+    setSubmitError("");
     setSubmitting(true);
 
     const normalizedPhone = normalizePhone(values.phone);
@@ -534,25 +573,27 @@ export default function MentorApplyForm() {
     try {
       // 1~2단계: 업로드 URL 발급 + Storage 직접 업로드. 재시도로 다시 들어왔고 같은
       // 파일을 이미 올려 뒀다면(uploadedProof) 건너뛴다.
-      let proofPath = isSameProof(uploadedProof, file) ? uploadedProof.path : null;
+      let proofPath = isSameProof(uploadedProof, file)
+        ? uploadedProof.path
+        : null;
 
       if (!proofPath) {
-        setSubmitStage('uploading');
+        setSubmitStage("uploading");
 
-        const issueResponse = await fetch('/api/mentor-apply-upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const issueResponse = await fetch("/api/mentor-apply-upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: normalizedPhone,
             fileName: file.name,
             contentType: file.type,
-            size: file.size
-          })
+            size: file.size,
+          }),
         });
         const issueResult = await issueResponse.json().catch(() => null);
 
         if (!issueResponse.ok || !issueResult?.ok) {
-          throw new SubmitStepError('upload', issueResult);
+          throw new SubmitStepError("upload", issueResult);
         }
 
         // anon 클라이언트를 그대로 쓴다 — 버킷이 비공개라도 signed upload token 이 이
@@ -562,7 +603,7 @@ export default function MentorApplyForm() {
           .uploadToSignedUrl(issueResult.path, issueResult.token, file);
 
         if (storageError) {
-          throw new SubmitStepError('upload', { detail: storageError.message });
+          throw new SubmitStepError("upload", { detail: storageError.message });
         }
 
         proofPath = issueResult.path;
@@ -570,7 +611,7 @@ export default function MentorApplyForm() {
       }
 
       // 3단계: 나머지 필드 + 업로드 경로로 제출.
-      setSubmitStage('submitting');
+      setSubmitStage("submitting");
 
       const payload = {
         ...values,
@@ -585,37 +626,40 @@ export default function MentorApplyForm() {
         agree_ad: agreements.ad === true,
         // base64 첨부 대신 1~2단계에서 올린 경로만 보낸다(팀 계약, api/mentor-apply.js).
         proof_file_path: proofPath,
-        proof_file_name: file.name
+        proof_file_name: file.name,
       };
 
-      const response = await fetch('/api/mentor-apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const response = await fetch("/api/mentor-apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       // 플랫폼이 본문 크기 상한 등으로 요청을 끊으면 JSON 이 아닌 응답이 돌아온다.
       const result = await response.json().catch(() => null);
 
       if (!response.ok || !result?.ok) {
-        throw new SubmitStepError('submit', result);
+        throw new SubmitStepError("submit", result);
       }
 
-      setApplicationId(result.application_id || '');
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+      setApplicationId(result.application_id || "");
+      if (typeof window !== "undefined")
+        window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       if (error instanceof SubmitStepError) {
         const { stage, result } = error;
         const reason = result?.reason;
         // 화면 문구는 서버 detail 을 그대로 쓴다 — 문구를 새로 지으면 서버 reason 과
         // 표현이 갈라진다(api/mentor-apply.js 호출 규약 주석).
-        const fallbackDetail = stage === 'upload' ? UPLOAD_STEP_ERROR : GENERIC_SUBMIT_ERROR;
+        const fallbackDetail =
+          stage === "upload" ? UPLOAD_STEP_ERROR : GENERIC_SUBMIT_ERROR;
         const detail = result?.detail || fallbackDetail;
         // upload 단계 실패는 reason 이 있어도 결국 증빙 파일 문제이므로 기본값을
         // proof_file 로 둔다 — SERVER_REASON_TO_FIELD 에 없는 새 reason 이 오더라도
         // 사용자가 어느 항목을 다시 봐야 하는지는 알 수 있게 한다.
         const field =
-          normalizeServerField(reason, result?.field) || (stage === 'upload' ? 'proof_file' : null);
+          normalizeServerField(reason, result?.field) ||
+          (stage === "upload" ? "proof_file" : null);
 
         if (field) {
           setErrors({ [field]: detail });
@@ -623,7 +667,8 @@ export default function MentorApplyForm() {
           // SERVER_REASON_TO_FIELD) scrollToField(field) 만으로 섹션 1 이 아니라 인증
           // 컨트롤로 정확히 간다 — phoneVerified 상태만 별도로 되돌려 준다.
           const isVerificationIssue =
-            reason === 'phone_not_verified' || reason === 'phone_verification_expired';
+            reason === "phone_not_verified" ||
+            reason === "phone_verification_expired";
           if (isVerificationIssue) setPhoneVerified(false);
           scrollToField(field);
         }
@@ -633,11 +678,11 @@ export default function MentorApplyForm() {
       }
 
       // 네트워크 단절·JSON 파싱 실패 등. 콘솔 로그는 저장소 관례(MyPage.jsx:245)를 따른다.
-      console.error('멘토 지원서 제출 실패:', error);
+      console.error("멘토 지원서 제출 실패:", error);
       setSubmitError(GENERIC_SUBMIT_ERROR);
     } finally {
       setSubmitting(false);
-      setSubmitStage('');
+      setSubmitStage("");
     }
   }
 
@@ -673,15 +718,38 @@ export default function MentorApplyForm() {
           // 전환을 wide 로 잡고 있어 그리드도 같은 지점에서 바뀌어야 어긋나지 않는다.
           // items-start: 사이드바(h≈393)와 폼(h≈5090)의 상단 정렬 + sticky 동작 조건.
           <div className="mt-12 grid grid-cols-1 gap-4 wide:grid-cols-[19.1875rem_minmax(0,1fr)] wide:items-start">
-            <ProgressSidebar sections={sidebarSections} values={progressValues} />
+            <ProgressSidebar
+              sections={sidebarSections}
+              values={progressValues}
+            />
 
             {/* noValidate — 검증은 전부 이 컴포넌트가 한다. 브라우저 기본 말풍선이 뜨면
                 우리 인라인 에러가 표시되기 전에 제출이 막혀 두 체계가 충돌한다. */}
-            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-8">
-              <FormSectionApplicant values={values} errors={errors} onChange={updateField} />
-              <FormSectionUniversity values={values} errors={errors} onChange={updateField} />
-              <FormSectionHighschool values={values} errors={errors} onChange={updateField} />
-              <FormSectionCompetency values={values} errors={errors} onChange={updateField} />
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="flex flex-col gap-8"
+            >
+              <FormSectionApplicant
+                values={values}
+                errors={errors}
+                onChange={updateField}
+              />
+              <FormSectionUniversity
+                values={values}
+                errors={errors}
+                onChange={updateField}
+              />
+              <FormSectionHighschool
+                values={values}
+                errors={errors}
+                onChange={updateField}
+              />
+              <FormSectionCompetency
+                values={values}
+                errors={errors}
+                onChange={updateField}
+              />
               {/* onSubmit prop 은 넘기지 않는다 — 제출 버튼이 type="submit" 이라
                   <form onSubmit> 으로 이미 연결돼 있고, 둘 다 주면 한 번 클릭에 두 번 돈다
                   (FormSectionDocuments.jsx 의 onSubmit prop 주석). */}
@@ -708,7 +776,11 @@ export default function MentorApplyForm() {
                   role="status"(assertive 아님) — 이 폼의 assertive live region 은 아래
                   submitError 한 곳뿐이어야 한다는 관례(바로 아래 주석)를 지킨다. */}
               {submitting && submitStage && (
-                <p role="status" aria-live="polite" className="text-sm leading-[1.4] text-ink-sub">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="text-sm leading-[1.4] text-ink-sub"
+                >
                   {SUBMIT_STAGE_LABELS[submitStage]}
                 </p>
               )}
@@ -723,7 +795,10 @@ export default function MentorApplyForm() {
                   이 문단에 채우고, 실제 필드별 문구는 aria-describedby 로 각 인풋에 연결돼
                   포커스가 옮겨갈 때(scrollToField 의 focus({ preventScroll })) 함께 읽힌다. */}
               {submitError && (
-                <p role="alert" className="break-keep text-sm leading-[1.4] text-error">
+                <p
+                  role="alert"
+                  className="break-keep text-sm leading-[1.4] text-error"
+                >
                   {submitError}
                 </p>
               )}
@@ -751,7 +826,8 @@ function CompletionPanel({ applicationId }) {
       </p>
       {applicationId && (
         <p className="mt-6 text-sm font-normal leading-[1.4] text-ink-sub">
-          {COMPLETION_COPY.idLabel} <span className="text-ink-strong">{applicationId}</span>
+          {COMPLETION_COPY.idLabel}{" "}
+          <span className="text-ink-strong">{applicationId}</span>
         </p>
       )}
     </div>

@@ -62,9 +62,13 @@
  *   `SectionedReportView`.
  * @param {string} [className] 래퍼에 추가할 클래스.
  */
-export default function PerformanceReportSurface({ children, className = '' }) {
+export default function PerformanceReportSurface({ children, className = "" }) {
   return (
-    <div className={['performance-report-surface', className].filter(Boolean).join(' ')}>
+    <div
+      className={["performance-report-surface", className]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <style>{`
         /* ── 블록 공통 컨테이너 (§5.13 섹션 내부 gap 0.5rem) */
         .performance-report-surface .admission-readable-body { display: grid; gap: 0.5rem; }

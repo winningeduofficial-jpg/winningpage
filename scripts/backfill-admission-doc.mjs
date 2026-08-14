@@ -49,19 +49,27 @@
 //   node scripts/backfill-admission-doc.mjs --restore <backup.json> --apply
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import { pathToFileURL } from 'node:url';
-import process from 'node:process';
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
+import {
+  HWP_SECTION_JSON_KEYS,
+  stableStringifyDoc,
+  validateAdmissionDoc,
+} from "../src/lib/admissionDoc.js";
+import {
+  buildRawSectionDoc,
+  clean,
+  HWP_SECTION_HTML_KEYS,
+  renderDocToHtml,
+} from "../src/lib/admissionParsing.js";
 
-import { buildRawSectionDoc, renderDocToHtml, HWP_SECTION_HTML_KEYS, clean } from '../src/lib/admissionParsing.js';
-import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, stableStringifyDoc } from '../src/lib/admissionDoc.js';
-
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
-const DEFAULT_BACKUP_DIR = '/Users/hyunsoo/uwellnow/.admission-doc-backups';
-const TABLE = 'admission_university_resources';
-const BACKFILL_GENERATOR_TAG = 'backfill-admission-doc@phase3';
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
+const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-doc-backups";
+const TABLE = "admission_university_resources";
+const BACKFILL_GENERATOR_TAG = "backfill-admission-doc@phase3";
 
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 const HTML_COLUMNS_BY_KEY = HWP_SECTION_HTML_KEYS;
@@ -82,19 +90,20 @@ async function resolveCredentials() {
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (envUrl && envKey) return { url: envUrl, serviceKey: envKey };
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE;
+  const keysFile = args["keys-file"] || process.env.SEED_KEYS_FILE;
   if (!keysFile) {
     throw new Error(
-      'DB 자격증명을 찾을 수 없습니다. SEED_SUPABASE_URL/SEED_SERVICE_ROLE_KEY 환경변수를 ' +
-        '설정하거나 --keys-file <path>를 지정하세요.'
+      "DB 자격증명을 찾을 수 없습니다. SEED_SUPABASE_URL/SEED_SERVICE_ROLE_KEY 환경변수를 " +
+        "설정하거나 --keys-file <path>를 지정하세요.",
     );
   }
-  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
-  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
-  if (!serviceEntry) throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
+  const raw = JSON.parse(await readFile(keysFile, "utf-8"));
+  const serviceEntry = raw.find((entry) => entry.name === "service_role");
+  if (!serviceEntry)
+    throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
   return {
     url: `https://${DEV_PROJECT_REF}.supabase.co`,
-    serviceKey: serviceEntry.api_key
+    serviceKey: serviceEntry.api_key,
   };
 }
 
@@ -104,7 +113,7 @@ async function resolveCredentials() {
 // -----------------------------------------------------------------------
 async function buildTimestampedBackupPath() {
   await mkdir(DEFAULT_BACKUP_DIR, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `${DEFAULT_BACKUP_DIR}/admission-doc-backup-${stamp}.json`;
 }
 
@@ -116,7 +125,7 @@ async function assertBackupFileDoesNotExist(path) {
   }
   throw new Error(
     `백업 파일이 이미 존재합니다: ${path}\n` +
-      '기존 백업(롤백 수단)을 덮어쓰지 않기 위해 중단합니다. --backup-file로 다른 경로를 지정하세요.'
+      "기존 백업(롤백 수단)을 덮어쓰지 않기 위해 중단합니다. --backup-file로 다른 경로를 지정하세요.",
   );
 }
 
@@ -129,16 +138,22 @@ export function buildCuratedHtmlDoc(sectionKey, html) {
   return {
     v: 1,
     section: sectionKey,
-    source: 'legacy-html',
+    source: "legacy-html",
     generator: BACKFILL_GENERATOR_TAG,
     generatedAt: new Date().toISOString(),
-    blocks: [{ kind: 'rawHtml', html, reason: 'curated-html' }],
-    warnings: [{ code: 'curated-html-preserved' }]
+    blocks: [{ kind: "rawHtml", html, reason: "curated-html" }],
+    warnings: [{ code: "curated-html-preserved" }],
   };
 }
 
 // 셀 하나(대학×카테고리) 분류. 반환: null(컬럼 미기록) | { doc, classification }
-export function classifyCell(rawValue, htmlValue, sectionKey, row, universityName) {
+export function classifyCell(
+  rawValue,
+  htmlValue,
+  sectionKey,
+  row,
+  universityName,
+) {
   const rawText = clean(rawValue);
   const htmlText = clean(htmlValue);
   if (!rawText && !htmlText) return null;
@@ -146,26 +161,36 @@ export function classifyCell(rawValue, htmlValue, sectionKey, row, universityNam
   if (rawText) {
     const doc = buildRawSectionDoc(rawText, sectionKey, row, universityName);
     assertGenerationIdempotent(rawText, sectionKey, row, universityName);
-    if (!htmlText) return { doc, classification: 'parser' };
+    if (!htmlText) return { doc, classification: "parser" };
 
     const rendered = renderDocToHtml(doc, sectionKey);
-    if (rendered === htmlText) return { doc, classification: 'parser' };
-    return { doc: buildCuratedHtmlDoc(sectionKey, htmlText), classification: 'legacy-html' };
+    if (rendered === htmlText) return { doc, classification: "parser" };
+    return {
+      doc: buildCuratedHtmlDoc(sectionKey, htmlText),
+      classification: "legacy-html",
+    };
   }
 
   // rawText 없음 + htmlText 있음
-  return { doc: buildCuratedHtmlDoc(sectionKey, htmlText), classification: 'legacy-html' };
+  return {
+    doc: buildCuratedHtmlDoc(sectionKey, htmlText),
+    classification: "legacy-html",
+  };
 }
 
 // 멱등 assert: 같은 입력으로 doc을 2회 생성해 stableStringifyDoc(generatedAt
 // 제외 직렬화)이 동일해야 한다. 위반 시 즉시 throw — doc 생성이 비결정적
 // 이면 이후 모든 안전장치(재감사 등)가 무의미해진다.
 function assertGenerationIdempotent(rawText, sectionKey, row, universityName) {
-  const once = stableStringifyDoc(buildRawSectionDoc(rawText, sectionKey, row, universityName));
-  const twice = stableStringifyDoc(buildRawSectionDoc(rawText, sectionKey, row, universityName));
+  const once = stableStringifyDoc(
+    buildRawSectionDoc(rawText, sectionKey, row, universityName),
+  );
+  const twice = stableStringifyDoc(
+    buildRawSectionDoc(rawText, sectionKey, row, universityName),
+  );
   if (once !== twice) {
     throw new Error(
-      `멱등성 위반: ${universityName} / ${sectionKey} — buildRawSectionDoc을 2회 호출한 결과(generatedAt 제외)가 다릅니다.`
+      `멱등성 위반: ${universityName} / ${sectionKey} — buildRawSectionDoc을 2회 호출한 결과(generatedAt 제외)가 다릅니다.`,
     );
   }
 }
@@ -176,25 +201,29 @@ function assertGenerationIdempotent(rawText, sectionKey, row, universityName) {
 async function main() {
   args = parseArgs({
     options: {
-      apply: { type: 'boolean', default: false },
-      'keys-file': { type: 'string' },
-      category: { type: 'string' },
-      university: { type: 'string' },
-      limit: { type: 'string' },
-      'backup-file': { type: 'string' },
-      restore: { type: 'string' }
-    }
+      apply: { type: "boolean", default: false },
+      "keys-file": { type: "string" },
+      category: { type: "string" },
+      university: { type: "string" },
+      limit: { type: "string" },
+      "backup-file": { type: "string" },
+      restore: { type: "string" },
+    },
   }).values;
 
   if (args.category && !CATEGORY_KEYS.includes(args.category)) {
-    throw new Error(`알 수 없는 --category: ${args.category} (허용: ${CATEGORY_KEYS.join(', ')})`);
+    throw new Error(
+      `알 수 없는 --category: ${args.category} (허용: ${CATEGORY_KEYS.join(", ")})`,
+    );
   }
   const targetCategories = args.category ? [args.category] : CATEGORY_KEYS;
   const limit = args.limit ? Number(args.limit) : null;
 
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
-    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+    throw new Error(
+      "dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.",
+    );
   }
   const supabase = createClient(url, serviceKey);
 
@@ -203,22 +232,27 @@ async function main() {
     return;
   }
 
-  console.log(`=== 1) 자격 확인 (${args.apply ? 'apply' : 'dry-run'} 모드) ===`);
-  console.log(`대상 카테고리: ${targetCategories.join(', ')}${args.university ? ` / 대학: ${args.university}` : ''}${limit ? ` / limit: ${limit}` : ''}`);
+  console.log(
+    `=== 1) 자격 확인 (${args.apply ? "apply" : "dry-run"} 모드) ===`,
+  );
+  console.log(
+    `대상 카테고리: ${targetCategories.join(", ")}${args.university ? ` / 대학: ${args.university}` : ""}${limit ? ` / limit: ${limit}` : ""}`,
+  );
 
-  console.log('\n=== 2) 조회 + 백업 ===');
-  const backupFile = args['backup-file'] || (await buildTimestampedBackupPath());
+  console.log("\n=== 2) 조회 + 백업 ===");
+  const backupFile =
+    args["backup-file"] || (await buildTimestampedBackupPath());
   await assertBackupFileDoesNotExist(backupFile);
 
   const baseColumns = [
-    'id',
-    'university_name',
-    'university_key',
-    'campus',
-    'detail_status',
-    'updated_at',
+    "id",
+    "university_name",
+    "university_key",
+    "campus",
+    "detail_status",
+    "updated_at",
     ...CATEGORY_KEYS,
-    ...CATEGORY_KEYS.map((key) => HTML_COLUMNS_BY_KEY[key])
+    ...CATEGORY_KEYS.map((key) => HTML_COLUMNS_BY_KEY[key]),
   ];
   const jsonColumns = CATEGORY_KEYS.map((key) => JSON_COLUMNS_BY_KEY[key]);
 
@@ -229,35 +263,48 @@ async function main() {
   // 42703(컬럼 없음)으로 실패하면 경고만 남기고 그 컬럼 없이 재시도한다
   // — --apply는 이 경우 sql/47 미실행을 스스로 감지해 아래서 막는다.
   let jsonColumnsExist = true;
-  let query = supabase.from(TABLE).select([...baseColumns, ...jsonColumns].join(', ')).order('id');
-  if (args.university) query = query.eq('university_name', args.university);
+  let query = supabase
+    .from(TABLE)
+    .select([...baseColumns, ...jsonColumns].join(", "))
+    .order("id");
+  if (args.university) query = query.eq("university_name", args.university);
   let { data: allRows, error: fetchError } = await query;
   if (fetchError && /does not exist/i.test(fetchError.message)) {
     console.warn(
-      `[경고] *_json 컬럼이 아직 없습니다(sql/47_admission_section_json.sql 미실행으로 보입니다): ${fetchError.message}`
+      `[경고] *_json 컬럼이 아직 없습니다(sql/47_admission_section_json.sql 미실행으로 보입니다): ${fetchError.message}`,
     );
-    console.warn('[경고] json 컬럼 없이 raw/html만으로 재조회합니다(분류/집계는 가능, --apply는 차단됩니다).');
+    console.warn(
+      "[경고] json 컬럼 없이 raw/html만으로 재조회합니다(분류/집계는 가능, --apply는 차단됩니다).",
+    );
     jsonColumnsExist = false;
-    let retryQuery = supabase.from(TABLE).select(baseColumns.join(', ')).order('id');
-    if (args.university) retryQuery = retryQuery.eq('university_name', args.university);
+    let retryQuery = supabase
+      .from(TABLE)
+      .select(baseColumns.join(", "))
+      .order("id");
+    if (args.university)
+      retryQuery = retryQuery.eq("university_name", args.university);
     ({ data: allRows, error: fetchError } = await retryQuery);
   }
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
   if (args.apply && !jsonColumnsExist) {
     throw new Error(
-      '*_json 컬럼이 없어 --apply를 실행할 수 없습니다. sql/47_admission_section_json.sql을 ' +
-        'Supabase SQL Editor에서 먼저 실행하세요.'
+      "*_json 컬럼이 없어 --apply를 실행할 수 없습니다. sql/47_admission_section_json.sql을 " +
+        "Supabase SQL Editor에서 먼저 실행하세요.",
     );
   }
 
   const rows = limit ? allRows.slice(0, limit) : allRows;
-  await writeFile(backupFile, JSON.stringify(allRows, null, 2), 'utf-8');
+  await writeFile(backupFile, JSON.stringify(allRows, null, 2), "utf-8");
   console.log(`백업 완료: ${allRows.length}행(전체) → ${backupFile}`);
   console.log(`처리 대상: ${rows.length}행`);
 
-  console.log('\n=== 3) 계산/분류 ===');
-  const stats = Object.fromEntries(CATEGORY_KEYS.map((key) => [key, { parser: 0, 'legacy-html': 0, skip: 0 }]));
-  const samples = Object.fromEntries(CATEGORY_KEYS.map((key) => [key, { parser: [], 'legacy-html': [] }]));
+  console.log("\n=== 3) 계산/분류 ===");
+  const stats = Object.fromEntries(
+    CATEGORY_KEYS.map((key) => [key, { parser: 0, "legacy-html": 0, skip: 0 }]),
+  );
+  const samples = Object.fromEntries(
+    CATEGORY_KEYS.map((key) => [key, { parser: [], "legacy-html": [] }]),
+  );
   const validationFailures = [];
   // 행별 payload — { id, updatedAt, patch:{ [jsonColumn]: doc } }
   const rowPatches = [];
@@ -269,7 +316,13 @@ async function main() {
     targetCategories.forEach((key) => {
       const rawValue = row[key];
       const htmlValue = row[HTML_COLUMNS_BY_KEY[key]];
-      const result = classifyCell(rawValue, htmlValue, key, row, row.university_name);
+      const result = classifyCell(
+        rawValue,
+        htmlValue,
+        key,
+        row,
+        row.university_name,
+      );
       if (!result) {
         stats[key].skip += 1;
         return;
@@ -281,7 +334,11 @@ async function main() {
 
       const validation = validateAdmissionDoc(result.doc);
       if (!validation.ok) {
-        validationFailures.push({ university: row.university_name, category: key, errors: validation.errors });
+        validationFailures.push({
+          university: row.university_name,
+          category: key,
+          errors: validation.errors,
+        });
         return; // 검증 실패 셀은 payload에 넣지 않는다(컬럼 미기록과 동일 취급, 실패는 별도 보고)
       }
 
@@ -290,37 +347,54 @@ async function main() {
     });
 
     if (hasChange) {
-      rowPatches.push({ id: row.id, universityName: row.university_name, updatedAt: row.updated_at, patch });
+      rowPatches.push({
+        id: row.id,
+        universityName: row.university_name,
+        updatedAt: row.updated_at,
+        patch,
+      });
     }
   });
 
-  console.log('\n=== 4) 집계 ===');
-  console.log('카테고리별 분류(parser / legacy-html / 컬럼 미기록):');
+  console.log("\n=== 4) 집계 ===");
+  console.log("카테고리별 분류(parser / legacy-html / 컬럼 미기록):");
   targetCategories.forEach((key) => {
     const s = stats[key];
-    console.log(`  - ${key}: parser ${s.parser} / legacy-html ${s['legacy-html']} / skip ${s.skip}`);
+    console.log(
+      `  - ${key}: parser ${s.parser} / legacy-html ${s["legacy-html"]} / skip ${s.skip}`,
+    );
   });
   console.log(`행 단위 변경 대상: ${rowPatches.length}/${rows.length}행`);
   if (validationFailures.length) {
-    console.error(`validateAdmissionDoc 실패 ${validationFailures.length}건(payload 제외됨):`);
+    console.error(
+      `validateAdmissionDoc 실패 ${validationFailures.length}건(payload 제외됨):`,
+    );
     validationFailures.slice(0, 10).forEach((f) => {
-      console.error(`  - ${f.university} / ${f.category}: ${f.errors.join('; ')}`);
+      console.error(
+        `  - ${f.university} / ${f.category}: ${f.errors.join("; ")}`,
+      );
     });
   }
 
-  console.log('\n=== 5) 샘플 ===');
+  console.log("\n=== 5) 샘플 ===");
   targetCategories.forEach((key) => {
     const s = samples[key];
-    if (s.parser.length) console.log(`  - ${key} parser 샘플: ${s.parser.join(', ')}`);
-    if (s['legacy-html'].length) console.log(`  - ${key} legacy-html 샘플: ${s['legacy-html'].join(', ')}`);
+    if (s.parser.length)
+      console.log(`  - ${key} parser 샘플: ${s.parser.join(", ")}`);
+    if (s["legacy-html"].length)
+      console.log(
+        `  - ${key} legacy-html 샘플: ${s["legacy-html"].join(", ")}`,
+      );
   });
 
   if (!args.apply) {
-    console.log('\ndry-run 모드입니다. 실제 DB에는 아무것도 쓰지 않았습니다. --apply로 재실행하면 적용됩니다.');
+    console.log(
+      "\ndry-run 모드입니다. 실제 DB에는 아무것도 쓰지 않았습니다. --apply로 재실행하면 적용됩니다.",
+    );
     return;
   }
 
-  console.log('\n=== 6) 적용 ===');
+  console.log("\n=== 6) 적용 ===");
   let updated = 0;
   const failedUpdates = [];
   const skippedByConcurrentEdit = [];
@@ -331,22 +405,34 @@ async function main() {
     // 조용히 덮어써지는 사고를 막는다).
     const { data: freshRow, error: freshError } = await supabase
       .from(TABLE)
-      .select('updated_at')
-      .eq('id', id)
+      .select("updated_at")
+      .eq("id", id)
       .single();
     if (freshError) {
-      failedUpdates.push({ id, universityName, message: `재조회 실패: ${freshError.message}` });
+      failedUpdates.push({
+        id,
+        universityName,
+        message: `재조회 실패: ${freshError.message}`,
+      });
       continue;
     }
     if (freshRow.updated_at !== updatedAt) {
-      skippedByConcurrentEdit.push({ id, universityName, backedUpAt: updatedAt, currentAt: freshRow.updated_at });
+      skippedByConcurrentEdit.push({
+        id,
+        universityName,
+        backedUpAt: updatedAt,
+        currentAt: freshRow.updated_at,
+      });
       continue;
     }
 
     let lastError = null;
     let succeeded = false;
     for (let attempt = 1; attempt <= 3 && !succeeded; attempt += 1) {
-      const { error: updateError } = await supabase.from(TABLE).update(patch).eq('id', id);
+      const { error: updateError } = await supabase
+        .from(TABLE)
+        .update(patch)
+        .eq("id", id);
       if (!updateError) {
         succeeded = true;
         updated += 1;
@@ -356,27 +442,35 @@ async function main() {
     }
     if (!succeeded) {
       failedUpdates.push({ id, universityName, message: lastError?.message });
-      console.error(`  업데이트 실패(3회 재시도 후 포기): ${universityName} (id=${id}) — ${lastError?.message}`);
+      console.error(
+        `  업데이트 실패(3회 재시도 후 포기): ${universityName} (id=${id}) — ${lastError?.message}`,
+      );
     }
   }
 
   console.log(
-    `적용 완료: ${updated}행 UPDATE, 실패 ${failedUpdates.length}건, 동시편집으로 스킵 ${skippedByConcurrentEdit.length}건.`
+    `적용 완료: ${updated}행 UPDATE, 실패 ${failedUpdates.length}건, 동시편집으로 스킵 ${skippedByConcurrentEdit.length}건.`,
   );
   if (skippedByConcurrentEdit.length) {
-    console.error('동시편집 스킵 목록(백업 시점 이후 다른 곳에서 수정됨 — 재실행 필요):');
-    skippedByConcurrentEdit.forEach((s) => console.error(`  - ${s.universityName} (id=${s.id})`));
+    console.error(
+      "동시편집 스킵 목록(백업 시점 이후 다른 곳에서 수정됨 — 재실행 필요):",
+    );
+    skippedByConcurrentEdit.forEach((s) => {
+      console.error(`  - ${s.universityName} (id=${s.id})`);
+    });
   }
   if (failedUpdates.length) {
-    console.error('실패 목록(재실행하면 재시도):');
-    failedUpdates.forEach((f) => console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`));
+    console.error("실패 목록(재실행하면 재시도):");
+    failedUpdates.forEach((f) => {
+      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`);
+    });
   }
 
-  console.log('\n=== 7) 재감사 ===');
+  console.log("\n=== 7) 재감사 ===");
   const { data: verifyRows, error: verifyError } = await supabase
     .from(TABLE)
-    .select([...baseColumns, ...jsonColumns].join(', '))
-    .order('id');
+    .select([...baseColumns, ...jsonColumns].join(", "))
+    .order("id");
   if (verifyError) throw new Error(`재감사 조회 실패: ${verifyError.message}`);
 
   let residual = 0;
@@ -385,18 +479,27 @@ async function main() {
     targetCategories.forEach((key) => {
       const rawValue = row[key];
       const htmlValue = row[HTML_COLUMNS_BY_KEY[key]];
-      const expected = classifyCell(rawValue, htmlValue, key, row, row.university_name);
+      const expected = classifyCell(
+        rawValue,
+        htmlValue,
+        key,
+        row,
+        row.university_name,
+      );
       const jsonCol = JSON_COLUMNS_BY_KEY[key];
       const actualDoc = row[jsonCol];
 
       if (!expected) return; // 컬럼 미기록 대상은 재감사하지 않는다(적용 단계에서 애초에 안 건드림)
       if (!actualDoc) return; // 검증 실패로 payload 제외된 셀 — validationFailures에서 이미 보고됨
-      if (stableStringifyDoc(actualDoc) !== stableStringifyDoc(expected.doc)) residual += 1;
+      if (stableStringifyDoc(actualDoc) !== stableStringifyDoc(expected.doc))
+        residual += 1;
     });
   });
   console.log(`재감사 결과: 기대값과 다른 잔여 건수 = ${residual}`);
   if (residual !== 0 || failedUpdates.length) {
-    console.error('경고: 잔여 건수 또는 실패 건수가 0이 아닙니다. 원인을 확인하세요.');
+    console.error(
+      "경고: 잔여 건수 또는 실패 건수가 0이 아닙니다. 원인을 확인하세요.",
+    );
     process.exitCode = 1;
   }
 }
@@ -406,12 +509,14 @@ async function main() {
 // -----------------------------------------------------------------------
 async function runRestore(supabase, backupPath) {
   console.log(`=== 백업 복원: ${backupPath} ===`);
-  const backupRows = JSON.parse(await readFile(backupPath, 'utf-8'));
+  const backupRows = JSON.parse(await readFile(backupPath, "utf-8"));
   console.log(`백업 행 수: ${backupRows.length}`);
 
   if (!args.apply) {
-    console.log('dry-run 모드입니다. --apply를 추가하면 실제로 복원합니다.');
-    console.log(`복원 대상 컬럼: ${CATEGORY_KEYS.map((key) => JSON_COLUMNS_BY_KEY[key]).join(', ')}`);
+    console.log("dry-run 모드입니다. --apply를 추가하면 실제로 복원합니다.");
+    console.log(
+      `복원 대상 컬럼: ${CATEGORY_KEYS.map((key) => JSON_COLUMNS_BY_KEY[key]).join(", ")}`,
+    );
     return;
   }
 
@@ -422,18 +527,26 @@ async function runRestore(supabase, backupPath) {
     CATEGORY_KEYS.forEach((key) => {
       patch[JSON_COLUMNS_BY_KEY[key]] = row[JSON_COLUMNS_BY_KEY[key]] ?? null;
     });
-    const { error } = await supabase.from(TABLE).update(patch).eq('id', row.id);
-    if (error) failed.push({ id: row.id, universityName: row.university_name, message: error.message });
+    const { error } = await supabase.from(TABLE).update(patch).eq("id", row.id);
+    if (error)
+      failed.push({
+        id: row.id,
+        universityName: row.university_name,
+        message: error.message,
+      });
     else restored += 1;
   }
   console.log(`복원 완료: ${restored}행, 실패 ${failed.length}건.`);
   if (failed.length) {
-    failed.forEach((f) => console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`));
+    failed.forEach((f) => {
+      console.error(`  - ${f.universityName} (id=${f.id}): ${f.message}`);
+    });
     process.exitCode = 1;
   }
 }
 
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

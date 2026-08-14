@@ -1,5 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Info, X, XCircle } from "lucide-react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 // 인앱 토스트 컨텍스트 — docs/수행평가-상세-명세.md §6.1(P18, 신규 컴포넌트 표).
 //
@@ -16,24 +24,24 @@ const DEFAULT_DURATION = 3000;
 const TONE = {
   success: {
     icon: CheckCircle2,
-    iconClass: 'text-emerald-600',
-    barClass: 'bg-emerald-500',
-    role: 'status',
-    ariaLive: 'polite',
+    iconClass: "text-emerald-600",
+    barClass: "bg-emerald-500",
+    role: "status",
+    ariaLive: "polite",
   },
   error: {
     icon: XCircle,
-    iconClass: 'text-red-600',
-    barClass: 'bg-red-500',
-    role: 'alert',
-    ariaLive: 'assertive',
+    iconClass: "text-red-600",
+    barClass: "bg-red-500",
+    role: "alert",
+    ariaLive: "assertive",
   },
   info: {
     icon: Info,
-    iconClass: 'text-primary',
-    barClass: 'bg-primary',
-    role: 'status',
-    ariaLive: 'polite',
+    iconClass: "text-primary",
+    barClass: "bg-primary",
+    role: "status",
+    ariaLive: "polite",
   },
 };
 
@@ -56,7 +64,8 @@ export function ToastProvider({ children }) {
 
   const pushToast = useCallback(
     (type, message, { duration = DEFAULT_DURATION } = {}) => {
-      const id = `toast-${(toastSeq += 1)}`;
+      toastSeq += 1;
+      const id = `toast-${toastSeq}`;
       setToasts((prev) => {
         const next = [...prev, { id, type, message }];
         if (next.length <= MAX_TOASTS) return next;
@@ -85,16 +94,18 @@ export function ToastProvider({ children }) {
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
-      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.forEach((timerId) => {
+        clearTimeout(timerId);
+      });
       timers.clear();
     };
   }, []);
 
   const value = useMemo(
     () => ({
-      success: (message, options) => pushToast('success', message, options),
-      error: (message, options) => pushToast('error', message, options),
-      info: (message, options) => pushToast('info', message, options),
+      success: (message, options) => pushToast("success", message, options),
+      error: (message, options) => pushToast("error", message, options),
+      info: (message, options) => pushToast("info", message, options),
       dismiss: removeToast,
     }),
     [pushToast, removeToast],
@@ -111,7 +122,8 @@ export function ToastProvider({ children }) {
 /** @returns {{success: (message: string, options?: {duration?: number}) => string, error: (message: string, options?: {duration?: number}) => string, info: (message: string, options?: {duration?: number}) => string, dismiss: (id: string) => void}} */
 export function useToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast는 ToastProvider 내부에서만 호출할 수 있다.');
+  if (!ctx)
+    throw new Error("useToast는 ToastProvider 내부에서만 호출할 수 있다.");
   return ctx;
 }
 
@@ -141,8 +153,14 @@ function ToastItem({ toast, onDismiss }) {
       aria-live={tone.ariaLive}
       className="pointer-events-auto flex items-start gap-3 overflow-hidden rounded-2xl bg-white py-3 pl-4 pr-3 shadow-[0_0.75rem_2.5rem_rgba(1,50,98,0.16)]"
     >
-      <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${tone.barClass}`} aria-hidden="true" />
-      <Icon className={`h-5 w-5 shrink-0 ${tone.iconClass}`} aria-hidden="true" />
+      <span
+        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${tone.barClass}`}
+        aria-hidden="true"
+      />
+      <Icon
+        className={`h-5 w-5 shrink-0 ${tone.iconClass}`}
+        aria-hidden="true"
+      />
       <p className="min-w-0 flex-1 whitespace-pre-line text-sm font-medium leading-[1.3125rem] text-ink-strong">
         {toast.message}
       </p>

@@ -1,24 +1,36 @@
-import { useEffect, useState } from 'react';
-import DashboardPageHeader from '../../components/goal/dashboard/DashboardPageHeader';
-import TodayGoalCard from '../../components/goal/dashboard/TodayGoalCard';
-import AdviceCard from '../../components/goal/dashboard/AdviceCard';
-import TomorrowPlanCard from '../../components/goal/dashboard/TomorrowPlanCard';
-import MockExamCard from '../../components/goal/dashboard/MockExamCard';
-import NaesinCard from '../../components/goal/dashboard/NaesinCard';
-import AchievementChart from '../../components/goal/dashboard/AchievementChart';
-import TargetUniversityRail from '../../components/goal/dashboard/TargetUniversityRail';
-import StudyPlanRail from '../../components/goal/dashboard/StudyPlanRail';
-import ScheduleRail from '../../components/goal/dashboard/ScheduleRail';
-import RankingRail from '../../components/goal/dashboard/RankingRail';
-import GoalCard from '../../components/goal/GoalCard';
+import { useEffect, useState } from "react";
+import AchievementChart from "../../components/goal/dashboard/AchievementChart";
+import AdviceCard from "../../components/goal/dashboard/AdviceCard";
+import DashboardPageHeader from "../../components/goal/dashboard/DashboardPageHeader";
+import MockExamCard from "../../components/goal/dashboard/MockExamCard";
+import NaesinCard from "../../components/goal/dashboard/NaesinCard";
+import RankingRail from "../../components/goal/dashboard/RankingRail";
+import ScheduleRail from "../../components/goal/dashboard/ScheduleRail";
+import StudyPlanRail from "../../components/goal/dashboard/StudyPlanRail";
+import TargetUniversityRail from "../../components/goal/dashboard/TargetUniversityRail";
+import TodayGoalCard from "../../components/goal/dashboard/TodayGoalCard";
+import TomorrowPlanCard from "../../components/goal/dashboard/TomorrowPlanCard";
+import GoalCard from "../../components/goal/GoalCard";
 import {
   mockAdvice,
   mockDailyGoal,
-  mockDailyGoalEmpty
-} from '../../data/goalMock';
-import { fetchGoalSchedules, fetchGoalStudent, fetchTodayGoalRecord, fetchGoalRanking } from '../../lib/goalApi';
-import { formatScheduleDday, formatScheduleMeta } from '../../lib/goal/scheduleDday';
-import { kstYMD, getDayIndexFromYMDServer, VIRTUAL_DAY_NAMES } from '../../lib/goal/calc/index.js';
+  mockDailyGoalEmpty,
+} from "../../data/goalMock";
+import {
+  getDayIndexFromYMDServer,
+  kstYMD,
+  VIRTUAL_DAY_NAMES,
+} from "../../lib/goal/calc/index.js";
+import {
+  formatScheduleDday,
+  formatScheduleMeta,
+} from "../../lib/goal/scheduleDday";
+import {
+  fetchGoalRanking,
+  fetchGoalSchedules,
+  fetchGoalStudent,
+  fetchTodayGoalRecord,
+} from "../../lib/goalApi";
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/
@@ -45,21 +57,21 @@ function mapTargetUniversities(student) {
   const { jungsiAvailable } = student;
   return {
     upper: {
-      label: '이상목표대학',
+      label: "이상목표대학",
       university: student.targets.ideal.university,
       department: student.targets.ideal.department,
       susiRate: pctRound(student.probs.idealSusi),
       jeongsiRate: pctRound(student.probs.idealJungsi),
-      jungsiAvailable
+      jungsiAvailable,
     },
     lower: {
-      label: '최소목표대학',
+      label: "최소목표대학",
       university: student.targets.min.university,
       department: student.targets.min.department,
       susiRate: pctRound(student.probs.minSusi),
       jeongsiRate: pctRound(student.probs.minJungsi),
-      jungsiAvailable
-    }
+      jungsiAvailable,
+    },
   };
 }
 
@@ -71,7 +83,8 @@ function mapTargetUniversities(student) {
  * 인 빈 상태로 그린다 — TodayGoalCard의 hasRecord 파생(studyHours>0)과 자연히 맞는다.
  */
 function mapTodayGoal(student, dailyRecordResult) {
-  const record = dailyRecordResult?.kind === 'success' ? dailyRecordResult.record : null;
+  const record =
+    dailyRecordResult?.kind === "success" ? dailyRecordResult.record : null;
   const studyHours = record?.studyHours || 0;
 
   const now = new Date();
@@ -80,7 +93,9 @@ function mapTodayGoal(student, dailyRecordResult) {
   const daySchedule = student.weeklySchedule?.[dayName] || { ideal: 0, min: 0 };
 
   const rateOf = (targetHours) =>
-    targetHours > 0 ? Math.min(100, Math.round((studyHours / targetHours) * 100)) : 0;
+    targetHours > 0
+      ? Math.min(100, Math.round((studyHours / targetHours) * 100))
+      : 0;
 
   return {
     studyHours,
@@ -88,7 +103,7 @@ function mapTodayGoal(student, dailyRecordResult) {
     // 이미 이 값을 들고 있어 그대로 재사용한다(사본을 새로 만들지 않는다).
     quickAddOptions: mockDailyGoal.quickAddOptions,
     upperGoalRate: rateOf(daySchedule.ideal),
-    lowerGoalRate: rateOf(daySchedule.min)
+    lowerGoalRate: rateOf(daySchedule.min),
   };
 }
 
@@ -96,16 +111,16 @@ function mapMockExam(student) {
   const { lastMogoExam, currentMogo } = student.scores;
   return {
     // lastMogoExam 라벨은 api/goal/intake.js MOCK_ROUNDS와 동일('3모'/'6모'/'9모'/'10모').
-    round: lastMogoExam ? `${lastMogoExam} 모의고사` : '모의고사 기록 없음',
+    round: lastMogoExam ? `${lastMogoExam} 모의고사` : "모의고사 기록 없음",
     // 모의고사 카드는 D-day 소스가 없다(회차 일정 테이블 자체가 미생성 — 중요일정과 달리
     // 실데이터 전환 대상이 아니다) — undefined로 두면 GoalDdayBadge가 빈 뱃지를 렌더한다
     // (React는 undefined 자식을 그리지 않는다). 가짜 날짜를 지어내지 않기 위한 선택.
     dday: undefined,
-    metricLabel: '현재 종합 백분위',
-    metricValue: currentMogo != null ? currentMogo : '기록 없음',
+    metricLabel: "현재 종합 백분위",
+    metricValue: currentMogo != null ? currentMogo : "기록 없음",
     // AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2,
     // AdviceCard와 동일 사유) — 실데이터인 척 숫자를 만들어 넣지 않고 준비 중 문구로 둔다.
-    advice: '학습 조언은 준비 중입니다.'
+    advice: "학습 조언은 준비 중입니다.",
   };
 }
 
@@ -120,7 +135,7 @@ function mapMockExam(student) {
 // 상위 5명 안에 들면 같은 사람이 두 행(마스킹+실명)으로 중복 표시될 수 있다 —
 // 이 페이지가 소유한 판단.
 function mapRankingRows(rankingResult) {
-  if (!rankingResult || rankingResult.kind !== 'ok') return [];
+  if (rankingResult?.kind !== "ok") return [];
   const rows = rankingResult.top.map((row) => ({ ...row, isSelf: false }));
   if (rankingResult.me) {
     rows.push({ ...rankingResult.me, isSelf: true });
@@ -142,17 +157,21 @@ function mapNearestSchedules(schedules, now = new Date()) {
     .map((schedule) => ({
       ...schedule,
       dday: formatScheduleDday(schedule.dueDate, now),
-      meta: formatScheduleMeta(schedule.dueDate, schedule.memo)
-    }));}
+      meta: formatScheduleMeta(schedule.dueDate, schedule.memo),
+    }));
+}
 
 function mapNaesin(student) {
   const { lastNaesinExam, convertedGrade } = student.scores;
   return {
     // NAESIN_ROUNDS 라벨 그대로('1학기 중간'/'1학기 기말'/'2학기 중간'/'2학기 기말').
-    round: lastNaesinExam || '내신 기록 없음',
-    metricLabel: '현재 내신 평균',
-    metricValue: convertedGrade != null ? `${convertedGrade.toFixed(2)} 등급 (9등급 환산)` : '기록 없음',
-    advice: '학습 조언은 준비 중입니다.'
+    round: lastNaesinExam || "내신 기록 없음",
+    metricLabel: "현재 내신 평균",
+    metricValue:
+      convertedGrade != null
+        ? `${convertedGrade.toFixed(2)} 등급 (9등급 환산)`
+        : "기록 없음",
+    advice: "학습 조언은 준비 중입니다.",
   };
 }
 
@@ -220,7 +239,7 @@ export default function Dashboard() {
     let alive = true;
     fetchGoalSchedules().then((r) => {
       if (!alive) return;
-      setSchedules(r.kind === 'success' ? r.schedules : []);
+      setSchedules(r.kind === "success" ? r.schedules : []);
     });
     return () => {
       alive = false;
@@ -242,14 +261,16 @@ export default function Dashboard() {
   // `grid-cols-[67.25rem_23.25rem] gap-x-[2.5rem]` = 93rem 고정이라 6rem이 컨테이너를 넘쳤다
   // (결함2). 이제 max-w-goal-dashboard는 패딩의 영향을 받지 않는 안쪽 컨테이너에 붙어 93rem을
   // 온전히 쓴다. `max-w-goal-dashboard` 토큰 값(93rem) 자체는 그대로 둔다.
-  const outerClassName = 'px-[3rem] pb-24 pt-[6.25rem]';
+  const outerClassName = "px-[3rem] pb-24 pt-[6.25rem]";
 
   if (result === null) {
     return (
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">대시보드를 불러오는 중입니다…</p>
+            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+              대시보드를 불러오는 중입니다…
+            </p>
           </GoalCard>
         </div>
       </div>
@@ -260,16 +281,18 @@ export default function Dashboard() {
   // (no-session/not-allowed/not-onboarded/awaiting-cuts는 3단계 게이트 대상,
   // error는 hasEntitlement 계열과 동일하게 "판정 불가"다). 크래시 대신 안내만 하고
   // 게이트가 다음 진입 때 다시 판정하도록 둔다 — 여기서 직접 리다이렉트하지 않는다.
-  if (result.kind !== 'onboarded') {
+  if (result.kind !== "onboarded") {
     const message =
-      result.kind === 'awaiting-cuts'
-        ? '합격 기준 데이터를 준비 중입니다. 잠시 후 다시 확인해 주세요.'
-        : '대시보드 데이터를 불러오지 못했습니다. 새로고침해 주세요.';
+      result.kind === "awaiting-cuts"
+        ? "합격 기준 데이터를 준비 중입니다. 잠시 후 다시 확인해 주세요."
+        : "대시보드 데이터를 불러오지 못했습니다. 새로고침해 주세요.";
     return (
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">{message}</p>
+            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+              {message}
+            </p>
           </GoalCard>
         </div>
       </div>

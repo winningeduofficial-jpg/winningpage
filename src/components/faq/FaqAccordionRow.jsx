@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import ColumnBody from '../column/ColumnBody';
-import './faqAnswerBody.css';
+import { ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import ColumnBody from "../column/ColumnBody";
+import "./faqAnswerBody.css";
 
 // 답변 패널(id={answerId})은 항상 렌더하고 hidden 속성으로 접는다(ServiceFaq.jsx:41-43
 // 선례) — aria-controls가 가리키는 id가 닫힌 상태에도 DOM에 있어야 axe
@@ -37,7 +37,7 @@ export default function FaqAccordionRow({ faq, isOpen, onToggle }) {
         <ChevronDown
           aria-hidden="true"
           className={`h-[1.125rem] w-[1.125rem] shrink-0 text-[#1F1F1F] transition-transform ${
-            isOpen ? 'rotate-180' : ''
+            isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
@@ -55,7 +55,13 @@ export default function FaqAccordionRow({ faq, isOpen, onToggle }) {
         {/* ColumnBody에는 className을 넘기지 않는다 — 여백(padding)은 이 래퍼 div가
             담당하고, ColumnBody는 기본 타이포(RICH_BASE/PLAIN_BASE)만 그대로 쓴다. */}
         {mounted && (
-          <ColumnBody post={{ id: faq.id, content_json: faq.content_json, content: faq.answer }} />
+          <ColumnBody
+            post={{
+              id: faq.id,
+              content_json: faq.content_json,
+              content: faq.answer,
+            }}
+          />
         )}
       </div>
     </div>

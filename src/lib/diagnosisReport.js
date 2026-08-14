@@ -17,44 +17,13 @@
  * AdmissionSection 은 admission 을 무조건 구조분해하고 rows.map 을 돌기 때문에 null 이면 흰 화면이 된다.
  */
 
-// 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
-import {
-  admissionBand,
-  admissionRows,
-  classifyStudentType,
-  convertToNineScale,
-  detectEmotionalSignal,
-  levelOf,
-  overallScore,
-  priorityBadges,
-  // 함수명과 출력 키(admission.probabilityRangeLabel = 라벨 문자열)가 헷갈리지 않게 별칭을 준다.
-  probabilityRangeLabel as toProbabilityRange,
-  rankServices,
-  scoreAreas,
-  sincerityOf,
-  sortByScoreAsc,
-  stateOf,
-  successProbability,
-  targetGap,
-  toneOf,
-  urgencyOf
-} from './diagnosisScoring.js';
-import {
-  areaCopy,
-  commonCopy,
-  fill,
-  levelCopy,
-  narrativeCopy,
-  serviceCopy,
-  templateCopy
-} from './diagnosisCopyBinding.js';
 import {
   ADMISSION_BAND_COPY,
   ADMISSION_BAND_LABEL,
   COPY_FALLBACK,
   TYPE_COPY,
-  URGENCY_COPY
-} from '../data/diagnosisCopy.js';
+  URGENCY_COPY,
+} from "../data/diagnosisCopy.js";
 import {
   AREA_CODES,
   AREA_LABEL,
@@ -67,9 +36,40 @@ import {
   STRENGTH_THRESHOLD,
   TARGET_SCORE,
   URGENCY_AREA_THRESHOLD,
-  URGENCY_LEVEL_LABEL
-} from '../data/diagnosisScoringTable.js';
-import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
+  URGENCY_LEVEL_LABEL,
+} from "../data/diagnosisScoringTable.js";
+import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+import {
+  areaCopy,
+  commonCopy,
+  fill,
+  levelCopy,
+  narrativeCopy,
+  serviceCopy,
+  templateCopy,
+} from "./diagnosisCopyBinding.js";
+// 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
+import {
+  admissionBand,
+  admissionRows,
+  classifyStudentType,
+  convertToNineScale,
+  detectEmotionalSignal,
+  levelOf,
+  overallScore,
+  priorityBadges,
+  rankServices,
+  scoreAreas,
+  sincerityOf,
+  sortByScoreAsc,
+  stateOf,
+  successProbability,
+  targetGap,
+  toneOf,
+  // 함수명과 출력 키(admission.probabilityRangeLabel = 라벨 문자열)가 헷갈리지 않게 별칭을 준다.
+  probabilityRangeLabel as toProbabilityRange,
+  urgencyOf,
+} from "./diagnosisScoring.js";
 
 /* ================================================================== *
  * 0. 이 파일이 소유하는 최소 상수
@@ -81,7 +81,7 @@ import { renewalSurveyQuestions } from '../data/renewalSurveyQuestions.js';
  * BADGES(우선순위 뱃지)와 문자열이 같지만 의미가 달라 재사용하지 않는다 — 뱃지 라벨이 바뀌어도
  * 서비스 순위 표기는 따라가면 안 된다.
  */
-const RANK_LABELS = ['1순위', '2순위'];
+const RANK_LABELS = ["1순위", "2순위"];
 
 /**
  * 문구집에 대응 문장이 없어 이 파일이 잠정으로 갖는 사용자 노출 문자열.
@@ -95,9 +95,9 @@ const RANK_LABELS = ['1순위', '2순위'];
  *   실패했을 때(문구집이 '{prob}% 합격 가능성' 류로 바뀌면 접두가 빈 문자열이 된다) 쓰는 라벨이다.
  */
 const REPORT_FALLBACK = {
-  BAND_VALUE_NODATA: '자료 없음',
-  TRAITS_HEADING_ANON: '주요 학습 특성',
-  PROBABILITY_LABEL: '합격 가능성'
+  BAND_VALUE_NODATA: "자료 없음",
+  TRAITS_HEADING_ANON: "주요 학습 특성",
+  PROBABILITY_LABEL: "합격 가능성",
 };
 
 /**
@@ -145,7 +145,7 @@ export const SELF_DECIDED = Object.freeze({
    * lg:w-[12.5rem](200px) 안에서 1줄(높이 20px)이다. NINE 표기는 123.8px.
    * 즉 **여유는 54.6px** 이며, 접미사를 바꿀 때 이 안에 들어야 한다(넘치면 2줄로 접혀 정보 행이 밀린다).
    */
-  GPA_UNKNOWN_SUFFIX: '등급(체계 미확인)',
+  GPA_UNKNOWN_SUFFIX: "등급(체계 미확인)",
 
   /**
    * 자체 결정(2026-08-12) 확정. FLAT('정체')만 시안 2967:8107 인용이고 나머지 5종은 원본 근거
@@ -155,12 +155,12 @@ export const SELF_DECIDED = Object.freeze({
    * 그대로 잘라 왔고, '대부분/일부' 대비쌍은 UP_MOST 와 UP_PART 가 같은 라벨로 무너지지 않도록 보존했다.
    */
   GRADE_TREND_SHORT_LABEL: Object.freeze({
-    UP_MOST: '대부분 상승',
-    UP_PART: '일부 상승',
-    FLAT: '정체',
-    DOWN_PART: '일부 하락',
-    VOLATILE: '과목별 변동',
-    NO_DATA: '비교 자료 부족'
+    UP_MOST: "대부분 상승",
+    UP_PART: "일부 상승",
+    FLAT: "정체",
+    DOWN_PART: "일부 하락",
+    VOLATILE: "과목별 변동",
+    NO_DATA: "비교 자료 부족",
   }),
 
   /**
@@ -172,8 +172,8 @@ export const SELF_DECIDED = Object.freeze({
    * 이 객체를 {} 로 비우면 전량 DB 원값 통과(순수 passthrough)로 즉시 롤백된다.
    */
   ADMISSION_TYPE_DISPLAY: Object.freeze({
-    교과: '학생부교과',
-    종합: '학생부종합'
+    교과: "학생부교과",
+    종합: "학생부종합",
   }),
 
   /**
@@ -186,7 +186,7 @@ export const SELF_DECIDED = Object.freeze({
    * 대상입니다')의 어휘·문형에 맞췄다.
    */
   SERVICE_H3_LATE_NOTICE:
-    '고등학교 3학년 6월 이후에는 남은 기간 안에 바로 실행할 수 있는 위닝 목표관리와 위닝 콜멘토 두 가지를 우선 안내드립니다.',
+    "고등학교 3학년 6월 이후에는 남은 기간 안에 바로 실행할 수 있는 위닝 목표관리와 위닝 콜멘토 두 가지를 우선 안내드립니다.",
 
   /**
    * 자체 결정(2026-08-12) 확정. 문구집에 대응 문장 없음(원본 근거 없음, 신규 발주 대기). 변경 시
@@ -196,15 +196,16 @@ export const SELF_DECIDED = Object.freeze({
    * 평균'은 원본에 **존재하지 않는** 값이라(모집단이 다른 grade_avg 계열로 대체 금지) 영구 미렌더다.
    * 어휘는 05_구간_공통 BAND_NODATA('공개된 입결 자료가 없어…')의 '공개된 입결 자료' 표현을 그대로 이었다.
    */
-  ADMISSION_FINAL_AVG_OMITTED: '공개된 입결 자료에는 최종등록자 평균이 포함되어 있지 않아 표에서 제외했습니다.',
+  ADMISSION_FINAL_AVG_OMITTED:
+    "공개된 입결 자료에는 최종등록자 평균이 포함되어 있지 않아 표에서 제외했습니다.",
 
   /**
    * 06_금지어 '결과 단정' 행의 **대체 표현 열 원문 인용** — 신규 발주가 아니다. 관련 F-01
    * (BANNED_PHRASES 를 런타임 조회하지 않는 이유: alternatives 배열의 순서에 의존하게 되어
    *  문구집 편집 한 번에 화면 문자열이 조용히 바뀐다. 대신 verify 가 두 값의 일치를 단언한다.)
    */
-  PROB_RANGE_HEADING: '합격 가능성 예상 범위',
-  PROB_REFERENCE_BADGE: '참고 결과',
+  PROB_RANGE_HEADING: "합격 가능성 예상 범위",
+  PROB_REFERENCE_BADGE: "참고 결과",
 
   /**
    * 자체 결정(2026-08-12) 확정 — 원본 근거 없음, 신규 발주 대기. 변경 시 이 값만 교체. 관련 G-1c
@@ -215,7 +216,7 @@ export const SELF_DECIDED = Object.freeze({
    * 이름의 값이 다른 숫자로 두 번 보여 오류로 오인될 수 있다(WARN G-1c 실측). 9등급제(NINE)
    * 학생은 두 값이 항상 같으므로 접미어를 붙이지 않는다(조건부 생략).
    */
-  ADMISSION_MINE_CONVERTED_SUFFIX: '(9등급 환산)'
+  ADMISSION_MINE_CONVERTED_SUFFIX: "(9등급 환산)",
 });
 
 /**
@@ -235,7 +236,9 @@ export const SELF_DECIDED = Object.freeze({
  * 1. 조회 · 포맷 유틸
  * ================================================================== */
 
-const QUESTION_BY_ID = new Map(renewalSurveyQuestions.map((question) => [question.id, question]));
+const QUESTION_BY_ID = new Map(
+  renewalSurveyQuestions.map((question) => [question.id, question]),
+);
 
 /**
  * 코드 → 선택지 라벨 역변환(§7.2 "q1 / q2 라벨 그대로").
@@ -248,16 +251,18 @@ function optionLabelOf(questionId, code) {
   const index = question?.optionCodes?.indexOf(code) ?? -1;
   if (index === -1) return null;
   const option = question.options?.[index];
-  return typeof option === 'string' ? option : (option?.label ?? option?.value ?? null);
+  return typeof option === "string"
+    ? option
+    : (option?.label ?? option?.value ?? null);
 }
 
 /** 값이 없으면 '미입력'(§7.2 가 명시한 유일한 노출 폴백). 빈 문자열이 화면에 나가지 않게 하는 관문이다. */
 function orMissing(value) {
-  return value == null || value === '' ? COPY_FALLBACK.VALUE_MISSING : value;
+  return value == null || value === "" ? COPY_FALLBACK.VALUE_MISSING : value;
 }
 
 function isNumber(value) {
-  return typeof value === 'number' && Number.isFinite(value);
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 /**
@@ -267,11 +272,11 @@ function isNumber(value) {
 function formatGpa(gradeSystem, raw) {
   if (!isNumber(raw)) return COPY_FALLBACK.VALUE_MISSING;
   switch (gradeSystem) {
-    case 'NINE':
+    case "NINE":
       return `${raw.toFixed(2)}등급(9등급제)`;
-    case 'FIVE':
+    case "FIVE":
       return `${raw.toFixed(2)}등급(5등급제)`;
-    case 'MIDDLE_AVG':
+    case "MIDDLE_AVG":
       return `${raw.toFixed(1)}점`;
     default:
       // UNKNOWN — F-12 확정(2026-08-11). 종전 주석('체계를 모르면 단위를 붙일 수 없다')의 전제가
@@ -290,18 +295,20 @@ function formatGpa(gradeSystem, raw) {
  * 매핑에 없는 코드는 q8 원문 라벨로 되돌린다 — 선택지가 늘어나도 빈 칸이 되지 않는다.
  */
 function formatGradeTrend(code) {
-  return SELF_DECIDED.GRADE_TREND_SHORT_LABEL[code] ?? optionLabelOf('q8', code);
+  return (
+    SELF_DECIDED.GRADE_TREND_SHORT_LABEL[code] ?? optionLabelOf("q8", code)
+  );
 }
 
 /** 제출 시각 → 'YYYY.MM.DD'(§7.2). 파싱 실패는 null 로 떨어뜨려 호출부가 '미입력'을 쓰게 한다. */
 function formatDiagnosedAt(value) {
-  if (typeof value !== 'string' || value === '') return null;
+  if (typeof value !== "string" || value === "") return null;
   const matched = value.match(/^(\d{4})[-./](\d{2})[-./](\d{2})/);
   if (matched) return `${matched[1]}.${matched[2]}.${matched[3]}`;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const day = String(parsed.getDate()).padStart(2, '0');
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
   return `${parsed.getFullYear()}.${month}.${day}`;
 }
 
@@ -320,16 +327,23 @@ function formatDiagnosedAt(value) {
  * (추가가 아니라 치환이다 — 인쇄 1페이지 하단 여유가 71.0px 뿐이라 줄 수를 늘릴 수 없다).
  * 문구 조회가 실패하면(=null) 치환하지 않고 기존 경로를 그대로 탄다 — 빈 헤드라인을 만들지 않는다.
  */
-function buildHeadlineLines(input, areaScores, page1Level, type, sincerityFlagged) {
+function buildHeadlineLines(
+  input,
+  _areaScores,
+  page1Level,
+  type,
+  sincerityFlagged,
+) {
   if (sincerityFlagged) {
-    const head = commonCopy('SINCERITY_HEAD');
+    const head = commonCopy("SINCERITY_HEAD");
     if (head) return [head];
   }
 
   const head = type ? TYPE_COPY[type]?.head : null;
   const name = input.profile?.name ?? null;
 
-  if (head && name) return [fill(templateCopy('headline'), { name, head }, 'headline')];
+  if (head && name)
+    return [fill(templateCopy("headline"), { name, head }, "headline")];
   if (head) return [head];
   return [levelCopy(1, page1Level)].filter((line) => line != null);
 }
@@ -340,7 +354,9 @@ function buildHeadlineLines(input, areaScores, page1Level, type, sincerityFlagge
  * 반드시 일치해야 한다 — 그래서 뱃지는 직접 세지 않고 priorityBadges() 결과를 인덱싱한다.
  */
 function buildLearningAxes(areaScores) {
-  const badgeByCode = new Map(priorityBadges(areaScores).map((row) => [row.code, row.badge]));
+  const badgeByCode = new Map(
+    priorityBadges(areaScores).map((row) => [row.code, row.badge]),
+  );
 
   return PAGE1_AREAS.map((code) => {
     const score = areaScores[code] ?? 0;
@@ -355,7 +371,9 @@ function buildLearningAxes(areaScores) {
       tone: toneOf(score),
       // W2 확정(2026-08-11) — 뱃지는 배점표대로 상대 순위 유지, '필요한 것' 조언만 절대 임계
       // (70점 이상 = TOP)로 분기한다. 순위와 조언 축을 분리한다(문구집 03_진단서술 어휘 규율).
-      need: (state === 'TOP' ? need?.keep : need?.improve) ?? COPY_FALLBACK.VALUE_MISSING
+      need:
+        (state === "TOP" ? need?.keep : need?.improve) ??
+        COPY_FALLBACK.VALUE_MISSING,
     };
   });
 }
@@ -364,29 +382,39 @@ function buildLearningAxes(areaScores) {
 function buildSummaryCards(page1Overall, page2Overall, gap) {
   return [
     {
-      label: templateCopy('card_exec.title'),
+      label: templateCopy("card_exec.title"),
       value: `${page1Overall}점`,
-      sub: fill(templateCopy('card_exec.sub'), { target: TARGET_SCORE }, 'card_exec.sub')
+      sub: fill(
+        templateCopy("card_exec.sub"),
+        { target: TARGET_SCORE },
+        "card_exec.sub",
+      ),
     },
     {
-      label: templateCopy('card_school.title'),
+      label: templateCopy("card_school.title"),
       value: `${page2Overall}점`,
       sub: fill(
-        templateCopy('card_school.sub'),
+        templateCopy("card_school.sub"),
         { grade: LEVEL_LABEL[levelOf(page2Overall)] },
-        'card_school.sub'
-      )
+        "card_school.sub",
+      ),
     },
     {
       // Q-29 확정(2026-08-11) — gap <= 0(모든 영역이 목표 점수 도달)이면 제목·부제를
       // card_goal_met 전용 키로 함께 교체한다. '가장 시급한 영역'이라 써 놓고 바로 아래에서
       // '도달했다'고 말하는 자기모순을 막는다.
-      label: gap.reached ? templateCopy('card_goal_met.title') : templateCopy('card_urgent.title'),
+      label: gap.reached
+        ? templateCopy("card_goal_met.title")
+        : templateCopy("card_urgent.title"),
       value: gap.lowestName,
       sub: gap.reached
-        ? templateCopy('card_goal_met.sub')
-        : fill(templateCopy('card_urgent.sub'), { gap: gap.gap }, 'card_urgent.sub')
-    }
+        ? templateCopy("card_goal_met.sub")
+        : fill(
+            templateCopy("card_urgent.sub"),
+            { gap: gap.gap },
+            "card_urgent.sub",
+          ),
+    },
   ];
 }
 
@@ -420,16 +448,19 @@ function buildReadinessSummary(areaScores, page2Overall) {
   const lowScore = areaScores[lowCode] ?? 0;
   const highScore = areaScores[highCode] ?? 0;
   const highState = stateOf(highScore);
-  const fallback = [levelCopy(2, levelOf(page2Overall))].filter((line) => line != null);
+  const fallback = [levelCopy(2, levelOf(page2Overall))].filter(
+    (line) => line != null,
+  );
 
   // 동점 판정은 **점수**로 한다. 코드 동일성(highCode === lowCode)은 원소가 6개라 절대 성립하지
   // 않는 죽은 분기였고, 그 탓에 6영역이 모두 같은 점수인 응답에서 두 영역을 우열로 서술했다.
-  if (highScore === lowScore || (highState !== 'TOP' && highState !== 'MID')) return fallback;
+  if (highScore === lowScore || (highState !== "TOP" && highState !== "MID"))
+    return fallback;
 
   const line = fill(
-    templateCopy('page2_summary'),
+    templateCopy("page2_summary"),
     { high: AREA_LABEL[highCode], low: AREA_LABEL[lowCode] },
-    'page2_summary'
+    "page2_summary",
   );
   return line ? [line] : fallback;
 }
@@ -442,7 +473,7 @@ function buildReadinessAreas(areaScores) {
       name: AREA_LABEL[code],
       score,
       tone: toneOf(score),
-      status: STATE_LABEL.page2[stateOf(score)]
+      status: STATE_LABEL.page2[stateOf(score)],
     };
   });
 }
@@ -457,15 +488,17 @@ function buildStrengths(areaScores) {
     .sort(
       (a, b) =>
         (areaScores[b] ?? 0) - (areaScores[a] ?? 0) ||
-        STRENGTH_SCOPE.indexOf(a) - STRENGTH_SCOPE.indexOf(b)
+        STRENGTH_SCOPE.indexOf(a) - STRENGTH_SCOPE.indexOf(b),
     )
     .filter((code) => (areaScores[code] ?? 0) >= STRENGTH_THRESHOLD)
     .slice(0, STRENGTH_MAX)
     .map((code) => areaCopy(code)?.strength)
-    .filter((text) => typeof text === 'string');
+    .filter((text) => typeof text === "string");
 
-  if (items.length === 0) return [commonCopy('STR_NONE')].filter((text) => text != null);
-  if (items.length === 1) return [commonCopy('STR_ONE'), items[0]].filter((text) => text != null);
+  if (items.length === 0)
+    return [commonCopy("STR_NONE")].filter((text) => text != null);
+  if (items.length === 1)
+    return [commonCopy("STR_ONE"), items[0]].filter((text) => text != null);
   return items;
 }
 
@@ -474,7 +507,7 @@ function buildImprovements(areaScores) {
   return sortByScoreAsc(IMPROVEMENT_SCOPE, areaScores)
     .slice(0, IMPROVEMENT_MAX)
     .map((code) => areaCopy(code)?.weakness)
-    .filter((text) => typeof text === 'string');
+    .filter((text) => typeof text === "string");
 }
 
 /**
@@ -489,7 +522,10 @@ function buildAdmission(input, ctx) {
   // 가른 결과가 ctx.cutsError 로 올라온다. 여기서는 불리언 하나만 본다.
   const fetchFailed = ctx.cutsError === true;
   const cuts = ctx.cuts ?? {};
-  const mine = convertToNineScale(input.gradeSystem, input.scores?.naesinOverall);
+  const mine = convertToNineScale(
+    input.gradeSystem,
+    input.scores?.naesinOverall,
+  );
   const band = admissionBand(mine, cuts);
   // F-01 — mine/cuts 를 함께 넘겨야 열린 구간 보정(EDGE)이 산다. 생략하면 '컷보다 1등급 여유'와
   // '컷 언저리'가 같은 확률을 받는다.
@@ -499,42 +535,50 @@ function buildAdmission(input, ctx) {
   // TODO(Q-04): 확률 비노출이 확정되면 라벨은 '합격 가능성'이 된다. 지금은 문구집 원문에서 접두를
   // 잘라 쓴다 — 문자열을 새로 쓰지 않으면서 '{prob}%' 슬롯만 밴드 4글자로 대체하는 경로다.
   // 접두가 비면(문구집이 '{prob}% 합격 가능성' 류로 바뀌면) 라벨이 화면에서 조용히 사라진다.
-  const headlineTpl = templateCopy('admission_headline') ?? '';
-  const probabilityLabel = headlineTpl.split('{prob}')[0].trim() || REPORT_FALLBACK.PROBABILITY_LABEL;
+  const headlineTpl = templateCopy("admission_headline") ?? "";
+  const probabilityLabel =
+    headlineTpl.split("{prob}")[0].trim() || REPORT_FALLBACK.PROBABILITY_LABEL;
 
   const query = input.admissionQuery;
   const year = ctx.admissionMeta?.year ?? null;
   // F-19 — 전형 유형은 표시 경로에서만 확장형으로 바꾼다(조회 키는 건드리지 않는다).
   const typeDisplay =
     query?.admissionType != null
-      ? (SELF_DECIDED.ADMISSION_TYPE_DISPLAY[query.admissionType] ?? query.admissionType)
+      ? (SELF_DECIDED.ADMISSION_TYPE_DISPLAY[query.admissionType] ??
+        query.admissionType)
       : null;
   // 토큰이 하나라도 비면 '{university} {major}' 원문이 그대로 노출된다 → 상시 노출 대상인
   // ADMISSION_NOTE 로 대체한다(§2.3 이 요구하는 안내가 이 단일 캡션 슬롯을 함께 쓴다).
   const caption =
     query && year
       ? fill(
-          templateCopy('admission_source'),
-          { university: query.university, major: query.department, type: typeDisplay, year },
-          'admission_source'
+          templateCopy("admission_source"),
+          {
+            university: query.university,
+            major: query.department,
+            type: typeDisplay,
+            year,
+          },
+          "admission_source",
         )
-      : commonCopy('ADMISSION_NOTE');
+      : commonCopy("ADMISSION_NOTE");
 
   // F-09 — cuts.finalAvg 는 영구 null 이라 'avg' 행은 절대 나오지 않는다. 실제로 렌더되는 행은
   // 최대 3행(cut50 / cut70 / mine)이다. grade_avg 계열로 대체 매핑하지 마라(모집단이 다르다).
   // G-1c — 'mine' 행이 9등급 환산값일 때만 접미어를 붙인다(NINE 은 원값=환산값이라 표기 불필요).
-  const mineIsConverted = input.gradeSystem != null && input.gradeSystem !== 'NINE';
+  const mineIsConverted =
+    input.gradeSystem != null && input.gradeSystem !== "NINE";
   const rows = admissionRows(mine, cuts).map((row) => ({
     label:
-      row.key === 'mine' && mineIsConverted
-        ? `${templateCopy('cut_labels.mine')}${SELF_DECIDED.ADMISSION_MINE_CONVERTED_SUFFIX}`
+      row.key === "mine" && mineIsConverted
+        ? `${templateCopy("cut_labels.mine")}${SELF_DECIDED.ADMISSION_MINE_CONVERTED_SUFFIX}`
         : templateCopy(`cut_labels.${row.key}`),
     grade: `${row.value.toFixed(2)}등급`,
     gap: formatAdmissionDiff(row),
-    emphasis: row.emphasis
+    emphasis: row.emphasis,
   }));
 
-  const admissionNote = commonCopy('ADMISSION_NOTE');
+  const admissionNote = commonCopy("ADMISSION_NOTE");
 
   // G-3(NIT 1, 2026-08-12) — PROB_DISPLAY_MODE 를 'HEADLINE_SLOT' 으로 되돌리면 구간 라벨이
   // probabilityValue(헤드라인)에 실린다. buildAdmission 은 모드와 무관하게 화면 전용 슬롯도 항상
@@ -542,7 +586,8 @@ function buildAdmission(input, ctx) {
   // (결정문이 약속한 "상수 한 줄 롤백"이 성립하지 않는 원인). HEADLINE_SLOT 모드에서는 화면
   // 전용 슬롯 3종(range/rangeLabel/probNote)만 null 로 죽인다 — badge('참고 결과')는 헤드라인
   // 옆에 계속 붙어야 하므로 모드와 무관하게 유지한다.
-  const screenProbabilityRange = PROB_DISPLAY_MODE === 'HEADLINE_SLOT' ? null : probabilityRange;
+  const screenProbabilityRange =
+    PROB_DISPLAY_MODE === "HEADLINE_SLOT" ? null : probabilityRange;
 
   return {
     /* ── AdmissionSection 이 무조건 구조분해하는 5키(§7.4.3 불변식) ── */
@@ -552,14 +597,15 @@ function buildAdmission(input, ctx) {
     // 값에 소수·정수 정밀도를 부여하지 않는다는 결정이다. 'HEADLINE_SLOT' 으로 뒤집으면 이 자리에
     // 구간 라벨이 들어가 인쇄에도 실린다(상수 한 줄로 되돌린다).
     probabilityValue:
-      PROB_DISPLAY_MODE === 'HEADLINE_SLOT' && probabilityRange != null
+      PROB_DISPLAY_MODE === "HEADLINE_SLOT" && probabilityRange != null
         ? probabilityRange
         : (ADMISSION_BAND_LABEL[band] ?? REPORT_FALLBACK.BAND_VALUE_NODATA),
     // 조회 실패에 BAND_NODATA('…자료가 없어 산출하지 않았습니다')를 쓰는 것은 학생에게 거짓을
     // 말하는 것이다 — 그 문장은 영구 부재를 **단정**한다. 실패 전용 문구로 가른다(인쇄에도 나간다).
     summary: fetchFailed
-      ? (commonCopy('ADMISSION_FETCH_FAIL') ?? commonCopy('BAND_NODATA'))
-      : (band ? ADMISSION_BAND_COPY[band]?.text : commonCopy('BAND_NODATA')) ?? commonCopy('BAND_NODATA'),
+      ? (commonCopy("ADMISSION_FETCH_FAIL") ?? commonCopy("BAND_NODATA"))
+      : ((band ? ADMISSION_BAND_COPY[band]?.text : commonCopy("BAND_NODATA")) ??
+        commonCopy("BAND_NODATA")),
     caption,
     rows,
 
@@ -575,17 +621,21 @@ function buildAdmission(input, ctx) {
     // 아니다 — diagnosisScreenCopy.js 헤더 주석 참조) — 그래서 모드와 무관하게 항상 값만
     // 계산해 내려주고, "쓸지 말지"는 AdmissionSection 이 SCREEN_EXTRAS.rules 를 직접 읽어 정한다.
     // 새 문구가 아니라 REPORT_FALLBACK.BAND_VALUE_NODATA('자료 없음') 재사용이다.
-    emptyNotice: rows.some((row) => !row.emphasis) ? null : REPORT_FALLBACK.BAND_VALUE_NODATA,
+    emptyNotice: rows.some((row) => !row.emphasis)
+      ? null
+      : REPORT_FALLBACK.BAND_VALUE_NODATA,
     fetchFailed,
     // 어드민·저장 페이로드용 원값. 화면에 그대로 쓰지 마라 — 노출은 probabilityRange 로만 한다.
     probability,
     // G-3(NIT 1) — 화면 전용 슬롯은 screenProbabilityRange 를 쓴다(위 주석). HEADLINE_SLOT 모드가
     // 아닌 한(=현재) screenProbabilityRange === probabilityRange 라 동작은 그대로다.
     probabilityRange: screenProbabilityRange,
-    probabilityRangeLabel: screenProbabilityRange != null ? SELF_DECIDED.PROB_RANGE_HEADING : null,
+    probabilityRangeLabel:
+      screenProbabilityRange != null ? SELF_DECIDED.PROB_RANGE_HEADING : null,
     // '참고 결과' 배지는 확률이 있을 때만 붙인다(자료 없음 상태에 붙일 이유가 없다). 헤드라인
     // 옆 인라인 배지라 모드와 무관하게 원래 probabilityRange(=확률 유무)를 기준으로 삼는다.
-    probabilityBadge: probabilityRange != null ? SELF_DECIDED.PROB_REFERENCE_BADGE : null,
+    probabilityBadge:
+      probabilityRange != null ? SELF_DECIDED.PROB_REFERENCE_BADGE : null,
     // F-05 probNote — buildNotices 가 조립만 하고 슬롯이 없어 죽어 있던 키가 여기서 살아난다.
     // G-2(WARN 4, 2026-08-12 판단) — 밴드(성적-컷 거리만 반영)와 확률 구간(+ 14~16번 수능최저·
     // 학생부연계·면접 가감, −30~+15%p)은 근거가 서로 달라 같은 화면에서 '안정'인데 '40~50%'처럼
@@ -594,19 +644,23 @@ function buildAdmission(input, ctx) {
     // 외 요인까지 반영한다는 사실을 밝히고 있고, 구간 라벨 바로 아래(fd-screen-only)에 인접
     // 배치돼 있다(AdmissionSection.jsx). 가감 폭을 인위로 줄이는 것(clamp)은 14~16번 원문 규칙을
     // 화면 표시 단계에서 조용히 무력화하는 것이라 채택하지 않았다.
-    probNote: screenProbabilityRange != null ? commonCopy('PROB_NOTE') : null,
+    probNote: screenProbabilityRange != null ? commonCopy("PROB_NOTE") : null,
     // 캡션이 이미 같은 원문을 쓰고 있으면(q15 미완주 폴백) 같은 문장이 두 번 나온다 → 중복 가드.
-    tableNote: admissionNote != null && admissionNote !== caption ? admissionNote : null,
+    tableNote:
+      admissionNote != null && admissionNote !== caption ? admissionNote : null,
     // 표가 그려질 때만 '왜 최종등록자 평균 행이 없는지'를 밝힌다(F-09). hasRows 와 같은 조건으로
     // 게이트한다(G-1b) — mine 행뿐인 상태에서 "평균 행만 빠졌다"는 인상을 주지 않기 위해서다.
-    finalAvgNote: rows.some((row) => !row.emphasis) ? SELF_DECIDED.ADMISSION_FINAL_AVG_OMITTED : null
+    finalAvgNote: rows.some((row) => !row.emphasis)
+      ? SELF_DECIDED.ADMISSION_FINAL_AVG_OMITTED
+      : null,
   };
 }
 
 /** diff > 0 이면 내 등급 숫자가 더 커서 '부족', 음수면 '우위'. 내 성적 행과 동률은 '기준점'이다. */
 function formatAdmissionDiff(row) {
-  if (row.key === 'mine' || row.diff == null || row.diff === 0) return templateCopy('diff_base');
-  const key = row.diff > 0 ? 'diff_short' : 'diff_over';
+  if (row.key === "mine" || row.diff == null || row.diff === 0)
+    return templateCopy("diff_base");
+  const key = row.diff > 0 ? "diff_short" : "diff_over";
   return fill(templateCopy(key), { v: Math.abs(row.diff).toFixed(2) }, key);
 }
 
@@ -620,16 +674,18 @@ function buildRecommendations(services) {
   const picked = [rank1, rank2].filter((service) => service != null);
 
   if (picked.length === 0) {
-    return [{ rank: '', name: '', desc: commonCopy('SVC_NONE') ?? '', chips: [] }];
+    return [
+      { rank: "", name: "", desc: commonCopy("SVC_NONE") ?? "", chips: [] },
+    ];
   }
 
   return picked.map((service, index) => {
     const copy = serviceCopy(service.code, service.tier);
     return {
       rank: RANK_LABELS[index],
-      name: SERVICE_LABEL[service.code] ?? service.name ?? '',
+      name: SERVICE_LABEL[service.code] ?? service.name ?? "",
       desc: copy?.text ?? rankPrefix(index, service),
-      chips: copy?.tags ?? []
+      chips: copy?.tags ?? [],
     };
   });
 }
@@ -643,13 +699,13 @@ function buildRecommendations(services) {
  * 치환값은 rankServices 가 이미 산출한 lowestLinkedAreaName 이다.
  */
 function rankPrefix(index, service) {
-  const generic = commonCopy('SVC_RANK1_PREFIX') ?? '';
+  const generic = commonCopy("SVC_RANK1_PREFIX") ?? "";
   // 치환값이 없으면 토큰이 남으므로 아예 토큰 없는 1순위 캡션으로 떨어뜨린다.
   if (index === 0 || service.lowestLinkedAreaName == null) return generic;
   return fill(
-    commonCopy('SVC_RANK2_PREFIX') ?? '',
+    commonCopy("SVC_RANK2_PREFIX") ?? "",
     { 영역: service.lowestLinkedAreaName },
-    'SVC_RANK2_PREFIX'
+    "SVC_RANK2_PREFIX",
   );
 }
 
@@ -676,7 +732,7 @@ function buildUrgency(input, areaScores) {
     // '{threshold}점 미만 영역 N개' 문장을 UI 가 조립할 때 쓰는 임계. 리터럴 40 을 UI 에 심으면
     // 값이 두 벌이 된다.
     areaThreshold: URGENCY_AREA_THRESHOLD,
-    message: URGENCY_COPY[urgency.level] ?? null
+    message: URGENCY_COPY[urgency.level] ?? null,
   };
 }
 
@@ -707,11 +763,14 @@ function buildAreaDetails(areaScores) {
         // 페이지별 상태 어휘가 다르다(1p '취약' ↔ 2p '우선 보완') — 블록이 속한 페이지 축을 따른다.
         status: STATE_LABEL[pageKey][stateOf(score)],
         tone: toneOf(score),
-        detail: areaCopy(code)?.levels?.[level] ?? null
+        detail: areaCopy(code)?.levels?.[level] ?? null,
       };
     });
 
-  return { page1: rowsOf(PAGE1_AREAS, 'page1'), page2: rowsOf(PAGE2_AREAS, 'page2') };
+  return {
+    page1: rowsOf(PAGE1_AREAS, "page1"),
+    page2: rowsOf(PAGE2_AREAS, "page2"),
+  };
 }
 
 /**
@@ -728,7 +787,7 @@ function buildStrategyGroups(areaScores) {
       code,
       name: AREA_LABEL[code],
       score: areaScores[code] ?? 0,
-      items: areaCopy(code)?.strategies ?? []
+      items: areaCopy(code)?.strategies ?? [],
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -749,36 +808,39 @@ function buildStrategyGroups(areaScores) {
 function buildNotices(input, serviceFilterReason, sincerityFlagged) {
   const likert = { ...(input.likert1 ?? {}), ...(input.likert2 ?? {}) };
   const likertKeys = Object.keys(likert);
-  const hasSkipped = likertKeys.length > 0 && likertKeys.some((key) => likert[key] == null);
+  const hasSkipped =
+    likertKeys.length > 0 && likertKeys.some((key) => likert[key] == null);
 
   return {
     // 불성실 판정이면 '이번 진단에서 확인된 특성 세 가지입니다' 대신 "점수만을 기준으로 정리했다"는
     // 문장으로 **치환**한다(유형 판정만 보류하고 점수는 그대로 낸다는 F-15 원칙).
-    traitIntro: (sincerityFlagged ? commonCopy('SINCERITY_TRAIT') : null) ?? commonCopy('TRAIT_INTRO'),
-    hexCaption: commonCopy('HEX_CAPTION'),
-    goalCompare: commonCopy('GOAL_COMPARE'),
-    reportBasis: commonCopy('REPORT_BASIS'),
-    reportLimit: commonCopy('REPORT_LIMIT'),
+    traitIntro:
+      (sincerityFlagged ? commonCopy("SINCERITY_TRAIT") : null) ??
+      commonCopy("TRAIT_INTRO"),
+    hexCaption: commonCopy("HEX_CAPTION"),
+    goalCompare: commonCopy("GOAL_COMPARE"),
+    reportBasis: commonCopy("REPORT_BASIS"),
+    reportLimit: commonCopy("REPORT_LIMIT"),
     // ⚠️ probNote·admissionNote 는 admission 블록에도 **조건부로** 실린다(admission.probNote /
     // admission.tableNote). 렌더는 admission 쪽 키로만 하라 — 여기 것까지 함께 그리면 같은
     // 문단이 한 화면에 두 번 나온다. 이 두 키는 "문구가 조립은 됐다"를 보증하는 상시 슬롯이다.
-    probNote: commonCopy('PROB_NOTE'),
-    admissionNote: commonCopy('ADMISSION_NOTE'),
+    probNote: commonCopy("PROB_NOTE"),
+    admissionNote: commonCopy("ADMISSION_NOTE"),
     // 배점표 1번이 후보를 2종으로 제한하는 경우에만 붙는 안내. 중3·N수생은 학년 자체가 근거이고
     // (SERVICE_GRADE_FILTER), 고3 6~12월은 제출 시각이 근거다(serviceCandidates).
     // 문구가 갈리는 이유도 다르다 — M3 는 문구집 원문, H3_LATE 는 자체 결정(2026-08-12 확정)이다.
     serviceLimit:
-      serviceFilterReason === 'M3'
-        ? commonCopy('SVC_M3_LIMIT')
-        : serviceFilterReason === 'H3_LATE'
+      serviceFilterReason === "M3"
+        ? commonCopy("SVC_M3_LIMIT")
+        : serviceFilterReason === "H3_LATE"
           ? SELF_DECIDED.SERVICE_H3_LATE_NOTICE
           : null,
     // 리커트를 건너뛴 문장이 있으면 해당 영역이 남은 응답만으로 산출됐음을 알린다(§4.2 결측).
-    skipNote: hasSkipped ? commonCopy('SKIP_NOTE') : null,
+    skipNote: hasSkipped ? commonCopy("SKIP_NOTE") : null,
     // F-15 — 아래 2종은 불성실 판정에서만 발화하는 화면 전용 문구다. 배너는 리포트 최상단(시트
     // 밖)에 두어야 기능한다 — 2장을 다 읽은 뒤에 나오는 '결과가 다를 수 있다'는 경고는 무의미하다.
-    sincerityBanner: sincerityFlagged ? commonCopy('SINCERITY_BANNER') : null,
-    sincerityAct: sincerityFlagged ? commonCopy('SINCERITY_ACT') : null
+    sincerityBanner: sincerityFlagged ? commonCopy("SINCERITY_BANNER") : null,
+    sincerityAct: sincerityFlagged ? commonCopy("SINCERITY_ACT") : null,
   };
 }
 
@@ -800,7 +862,7 @@ function buildNotices(input, serviceFilterReason, sincerityFlagged) {
  * @returns {object} renewalReportSample 과 동일 shape + traitsHeading + 화면 전용 확장 키
  */
 export function buildReport(input, ctx = {}) {
-  const safeInput = input && typeof input === 'object' ? input : {};
+  const safeInput = input && typeof input === "object" ? input : {};
   const areaScores = scoreAreas(safeInput);
   const page1Overall = overallScore(areaScores, 1);
   const page2Overall = overallScore(areaScores, 2);
@@ -824,20 +886,20 @@ export function buildReport(input, ctx = {}) {
       name,
       // StudentInfoBlock 의 이름 행. 이름 미수집(Q-01) 상태에서 컴포넌트가 `${name} 학생` 을 조립하면
       // '학생'만 남으므로 조립을 여기로 올렸다 — 빈 문자열이어도 행 높이(h-6)가 고정이라 레이아웃은 그대로다.
-      nameLine: name ? `${name} 학생` : '',
-      grade: orMissing(optionLabelOf('q1', safeInput.profile?.gradeLevel)),
-      schoolType: orMissing(optionLabelOf('q2', safeInput.profile?.schoolType)),
+      nameLine: name ? `${name} 학생` : "",
+      grade: orMissing(optionLabelOf("q1", safeInput.profile?.gradeLevel)),
+      schoolType: orMissing(optionLabelOf("q2", safeInput.profile?.schoolType)),
       desiredMajor: orMissing(safeInput.goal?.targetMajor),
       gpa: formatGpa(safeInput.gradeSystem, safeInput.scores?.naesinOverall),
       // F-14 확정(2026-08-11) — 축약 라벨을 쓴다. 원문 라벨은 w-[12.5rem] 안에서 2줄로 접힌다.
       gradeTrend: orMissing(formatGradeTrend(safeInput.gradeTrend)),
-      diagnosedAt: orMissing(formatDiagnosedAt(safeInput.meta?.diagnosedAt))
+      diagnosedAt: orMissing(formatDiagnosedAt(safeInput.meta?.diagnosedAt)),
     },
 
     // §5.2 name 결측 폴백 — '{name} 학생의 주요 학습 특성'에서 접두를 제거한 축약형.
     // ReportPageOne 이 컴포넌트 안에서 조립하던 문자열을 여기로 올렸다(이름이 null 이면 '학생'만 남는다).
     traitsHeading: name
-      ? fill(templateCopy('section_traits'), { name }, 'section_traits')
+      ? fill(templateCopy("section_traits"), { name }, "section_traits")
       : REPORT_FALLBACK.TRAITS_HEADING_ANON,
 
     headlineLines: buildHeadlineLines(
@@ -845,7 +907,7 @@ export function buildReport(input, ctx = {}) {
       areaScores,
       levelOf(page1Overall),
       studentType,
-      sincerity.flagged
+      sincerity.flagged,
     ),
     learningAxes: buildLearningAxes(areaScores),
     summaryCards: buildSummaryCards(page1Overall, page2Overall, gap),
@@ -858,8 +920,8 @@ export function buildReport(input, ctx = {}) {
     // 8종 문구 전량 확정으로 해소됐다. 판정 불가(null)·직선응답이면 detail=null·todos=[] 이라
     // 예약 슬롯(1페이지 헤드라인 아래 detail · 확장 영역 '먼저 할 일' todos)이 자연히 접힌다.
     // 둘 다 화면 전용 슬롯이라 인쇄 A4 2장에는 영향이 없다.
-    typeDetail: studentType ? TYPE_COPY[studentType]?.detail ?? null : null,
-    typeTodos: studentType ? TYPE_COPY[studentType]?.todos ?? [] : [],
+    typeDetail: studentType ? (TYPE_COPY[studentType]?.detail ?? null) : null,
+    typeTodos: studentType ? (TYPE_COPY[studentType]?.todos ?? []) : [],
     // F-15 — UI 계약은 flagged 불리언 하나다. 나머지 두 필드는 어드민·검산 진단용이며
     // 화면 분기에 쓰지 마라(임계값이 UI 로 새면 되돌릴 곳이 두 군데가 된다).
     sincerity,
@@ -867,7 +929,7 @@ export function buildReport(input, ctx = {}) {
     readiness: {
       scoreLabel: `${page2Overall}/100`,
       summaryLines: buildReadinessSummary(areaScores, page2Overall),
-      areas: buildReadinessAreas(areaScores)
+      areas: buildReadinessAreas(areaScores),
     },
     strengths: buildStrengths(areaScores),
     improvements: buildImprovements(areaScores),
@@ -885,15 +947,19 @@ export function buildReport(input, ctx = {}) {
     serviceFilterReason: services.filterReason ?? null,
 
     urgency: buildUrgency(safeInput, areaScores),
-    notices: buildNotices(safeInput, services.filterReason ?? null, sincerity.flagged),
+    notices: buildNotices(
+      safeInput,
+      services.filterReason ?? null,
+      sincerity.flagged,
+    ),
 
     // §4.5 원문 17번 감지 신호(Q-36 해소, 사용자 확정 2026-08-11) — urgency·notices와 달리
     // "슬롯이 아직 없다"가 아니라 **의도적으로 렌더하지 않는다**. 문구집 06_금지어의 진단·낙인
     // 경계에 걸리고, 오탐 상태에서 본인에게 되돌려주면 피해가 크다(조정자 판단). 저장 페이로드와
     // 어드민 조회 전용이다 — A4 두 페이지의 어떤 컴포넌트도 이 키를 읽으면 안 된다.
     signals: {
-      emotional: detectEmotionalSignal(safeInput.freeText)
-    }
+      emotional: detectEmotionalSignal(safeInput.freeText),
+    },
   };
 }
 

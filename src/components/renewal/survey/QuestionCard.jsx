@@ -30,7 +30,7 @@ export default function QuestionCard({
   selectedCount = 0,
   questionId,
   highlighted = false,
-  children
+  children,
 }) {
   const showCounter = Number.isFinite(maxSelect);
   const counterReached = showCounter && selectedCount >= maxSelect;
@@ -43,8 +43,8 @@ export default function QuestionCard({
       id={questionId != null ? `q-${questionId}` : undefined}
       className={`flex w-full scroll-mt-20 flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 ring-4 ring-offset-4 transition-shadow duration-700 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-[3.75rem] ${
         highlighted
-          ? 'ring-[#FDB022] ring-offset-[#FBFAFA]'
-          : 'ring-transparent ring-offset-transparent'
+          ? "ring-[#FDB022] ring-offset-[#FBFAFA]"
+          : "ring-transparent ring-offset-transparent"
       }`}
     >
       <div className="flex w-full flex-col gap-5">
@@ -57,7 +57,9 @@ export default function QuestionCard({
                 </span>
               )}
               {category && (
-                <p className="text-base font-medium leading-5 text-[#D7D7D7]">{category}</p>
+                <p className="text-base font-medium leading-5 text-[#D7D7D7]">
+                  {category}
+                </p>
               )}
             </div>
 
@@ -65,7 +67,7 @@ export default function QuestionCard({
               <p
                 aria-live="polite"
                 className={`shrink-0 text-sm font-medium leading-5 ${
-                  counterReached ? 'text-[#013262]' : 'text-[#808080]'
+                  counterReached ? "text-[#013262]" : "text-[#808080]"
                 }`}
               >
                 {selectedCount} / {maxSelect}
@@ -78,7 +80,9 @@ export default function QuestionCard({
               {title}
             </h3>
             {helper && (
-              <p className="break-keep text-base font-medium leading-5 text-[#D7D7D7]">{helper}</p>
+              <p className="break-keep text-base font-medium leading-5 text-[#D7D7D7]">
+                {helper}
+              </p>
             )}
           </div>
         </div>

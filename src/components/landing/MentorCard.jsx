@@ -49,7 +49,7 @@ const toRem = (px) => `${(px * RENDER_SCALE) / 16}rem`;
 
 export default function MentorCard({ mentor, isClone = false }) {
   const hasNewCard = Boolean(
-    mentor.badge && mentor.title_lines && mentor.photo_url && mentor.photo
+    mentor.badge && mentor.title_lines && mentor.photo_url && mentor.photo,
   );
   if (!hasNewCard) return null;
 
@@ -60,7 +60,7 @@ export default function MentorCard({ mentor, isClone = false }) {
       style={{
         width: toRem(mentor.card_width || 210),
         height: toRem(CARD_HEIGHT_PX),
-        borderRadius: toRem(CARD_RADIUS_PX)
+        borderRadius: toRem(CARD_RADIUS_PX),
       }}
     >
       <div
@@ -68,7 +68,7 @@ export default function MentorCard({ mentor, isClone = false }) {
         style={{
           top: toRem(TEXT_BLOCK_TOP_PX),
           width: toRem(TEXT_BLOCK_WIDTH_PX),
-          gap: toRem(TEXT_GAP_PX)
+          gap: toRem(TEXT_GAP_PX),
         }}
       >
         <p
@@ -88,12 +88,12 @@ export default function MentorCard({ mentor, isClone = false }) {
         ))}
       </div>
       <div
-        className={`absolute ${mentor.photo.crop ? 'overflow-hidden' : ''}`}
+        className={`absolute ${mentor.photo.crop ? "overflow-hidden" : ""}`}
         style={{
           top: toRem(mentor.photo.top),
           left: toRem(mentor.photo.left),
           width: toRem(mentor.photo.width),
-          height: toRem(mentor.photo.height)
+          height: toRem(mentor.photo.height),
         }}
       >
         <img
@@ -102,7 +102,9 @@ export default function MentorCard({ mentor, isClone = false }) {
           loading="lazy"
           draggable="false"
           className={
-            mentor.photo.crop ? 'absolute left-0 w-full object-cover' : 'h-full w-full object-cover'
+            mentor.photo.crop
+              ? "absolute left-0 w-full object-cover"
+              : "h-full w-full object-cover"
           }
           style={
             mentor.photo.crop

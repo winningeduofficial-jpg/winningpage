@@ -12,10 +12,10 @@
 //         맞는다(363.5 는 0.5px 단위라 렌더 시 서브픽셀 경계가 생긴다).
 //    26 쪽을 정본으로 뒤집더라도 이 파일의 상수 한 줄만 바꾸면 된다.
 const COLUMN_CLASSES = {
-  1: 'flex flex-col',
+  1: "flex flex-col",
   // <md(768) 에서는 1컬럼 스택(명세 § 반응형 전략 §6 행). 스택 시 세로 간격은 카드의
   // 필드군 gap 과 같은 26 을 써서 1컬럼 행과 리듬이 어긋나지 않게 한다.
-  2: 'grid grid-cols-1 gap-y-[1.625rem] md:grid-cols-2 md:gap-x-[1.0625rem] md:gap-y-0'
+  2: "grid grid-cols-1 gap-y-[1.625rem] md:grid-cols-2 md:gap-x-[1.0625rem] md:gap-y-0",
 };
 
 export default function FormFieldRow({ columns = 1, children }) {

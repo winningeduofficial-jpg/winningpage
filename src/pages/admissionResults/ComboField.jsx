@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PopoverStatus } from './StateBlocks';
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { PopoverStatus } from "./StateBlocks";
 
 /**
  * 셀렉터 바의 입력형 combobox 1개. 대학교/모집단위 두 필드가 이 컴포넌트를 공유하고
@@ -50,16 +50,18 @@ const NBSP = /\u00a0/g;
  *    (통일 단계를 먼저 밟는 이유는 그래야 4종 변형이 한 번에 지워지기 때문이다).
  */
 export function normalizeForSearch(text) {
-  return String(text ?? '')
-    .normalize('NFC')
-    .replace(NBSP, ' ')
-    .replace(MIDDLE_DOT_VARIANTS, '·')
-    // 로더 norm_department_name의 `&` 주변 공백 제거 단계. 바로 아래 전체 공백 제거에
-    // 흡수되지만, 규칙이 1:1로 대응한다는 것을 눈으로 확인할 수 있게 남긴다.
-    .replace(/\s*&\s*/g, '&')
-    .replace(/\s+/g, '')
-    .toLowerCase()
-    .replace(/·/g, '');
+  return (
+    String(text ?? "")
+      .normalize("NFC")
+      .replace(NBSP, " ")
+      .replace(MIDDLE_DOT_VARIANTS, "·")
+      // 로더 norm_department_name의 `&` 주변 공백 제거 단계. 바로 아래 전체 공백 제거에
+      // 흡수되지만, 규칙이 1:1로 대응한다는 것을 눈으로 확인할 수 있게 남긴다.
+      .replace(/\s*&\s*/g, "&")
+      .replace(/\s+/g, "")
+      .toLowerCase()
+      .replace(/·/g, "")
+  );
 }
 
 export default function ComboField({
@@ -72,17 +74,17 @@ export default function ComboField({
   open = false,
   onOpenChange,
   disabled = false,
-  disabledMessage = '',
+  disabledMessage = "",
   loading = false,
   error = false,
   onRetry,
   // 목록 자체가 비어 있는 상태(= 데이터 없음).
-  emptyTitle = '',
-  emptyDescription = '',
+  emptyTitle = "",
+  emptyDescription = "",
   // 목록은 있는데 검색어에 걸리는 게 없는 상태(= 검색 결과 없음). 둘은 원인이 달라 분리한다.
-  noResultTitle = '검색 결과가 없습니다.',
-  noResultDescription = '띄어쓰기와 중점(·)은 무시하고 찾습니다.',
-  className = ''
+  noResultTitle = "검색 결과가 없습니다.",
+  noResultDescription = "띄어쓰기와 중점(·)은 무시하고 찾습니다.",
+  className = "",
 }) {
   const reactId = useId();
   const inputId = `${reactId}-input`;
@@ -96,9 +98,12 @@ export default function ComboField({
 
   // 입력값을 바깥 value와 동기화한 마지막 지점. 내가 만든 변화(선택/해제)와
   // 바깥에서 들어온 변화(딥링크 씨앗, 대학 변경에 따른 모집단위 초기화)를 구분하는 데 쓴다.
-  const syncedRef = useRef({ key: value?.key ?? null, label: value?.label ?? '' });
+  const syncedRef = useRef({
+    key: value?.key ?? null,
+    label: value?.label ?? "",
+  });
 
-  const [query, setQuery] = useState(() => value?.label ?? '');
+  const [query, setQuery] = useState(() => value?.label ?? "");
   // 사용자가 직접 타이핑했는가. 선택값이 그대로 입력에 남아 있는 상태에서 다시 열었을 때
   // 그 값으로 목록이 1행으로 좁혀지면 다른 후보를 못 보므로, 미입력 상태에선 필터를 걸지 않는다.
   const [dirty, setDirty] = useState(false);
@@ -109,11 +114,15 @@ export default function ComboField({
   // (대학 202개 / 대학당 모집단위 중앙값 33개·최대 153개 = 서울대. 전체 모집단위 3,565개를
   //  한 화면에 거는 경우는 없다 — Q2가 대학 종속 쿼리라 목록이 애초에 대학 1곳분이다).
   const searchIndex = useMemo(
-    () => options.map((option) => ({ option, haystack: normalizeForSearch(option.label) })),
-    [options]
+    () =>
+      options.map((option) => ({
+        option,
+        haystack: normalizeForSearch(option.label),
+      })),
+    [options],
   );
 
-  const normalizedQuery = dirty ? normalizeForSearch(query) : '';
+  const normalizedQuery = dirty ? normalizeForSearch(query) : "";
 
   const filtered = useMemo(() => {
     if (!normalizedQuery) return options;
@@ -124,15 +133,20 @@ export default function ComboField({
 
   const hasOptions = options.length > 0;
   const showList = !loading && !error && filtered.length > 0;
-  const showNoResult = !loading && !error && hasOptions && filtered.length === 0;
+  const showNoResult =
+    !loading && !error && hasOptions && filtered.length === 0;
 
   // 바깥에서 들어온 value 변경만 입력값에 되비춘다.
   // 타이핑 중 onClear로 value가 null이 되는 경로는 핸들러가 syncedRef를 미리 맞춰 두므로
   // 여기서 걸러진다(그렇지 않으면 입력한 글자가 곧바로 지워진다).
   useEffect(() => {
     const nextKey = value?.key ?? null;
-    const nextLabel = value?.label ?? '';
-    if (nextKey === syncedRef.current.key && nextLabel === syncedRef.current.label) return;
+    const nextLabel = value?.label ?? "";
+    if (
+      nextKey === syncedRef.current.key &&
+      nextLabel === syncedRef.current.label
+    )
+      return;
     syncedRef.current = { key: nextKey, label: nextLabel };
     setQuery(nextLabel);
     setDirty(false);
@@ -148,7 +162,9 @@ export default function ComboField({
       setActiveIndex(-1);
       return;
     }
-    const index = value ? filtered.findIndex((option) => option.key === value.key) : -1;
+    const index = value
+      ? filtered.findIndex((option) => option.key === value.key)
+      : -1;
     setActiveIndex(index >= 0 ? index : 0);
   }, [open, filtered, value]);
 
@@ -156,7 +172,7 @@ export default function ComboField({
   useEffect(() => {
     if (!open || activeIndex < 0) return;
     const node = listRef.current?.children?.[activeIndex];
-    node?.scrollIntoView({ block: 'nearest' });
+    node?.scrollIntoView({ block: "nearest" });
   }, [open, activeIndex]);
 
   // 바깥 클릭으로 닫기.
@@ -166,11 +182,11 @@ export default function ComboField({
       if (wrapperRef.current?.contains(event.target)) return;
       onOpenChange?.(false);
     }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
     };
   }, [open, onOpenChange]);
 
@@ -205,17 +221,17 @@ export default function ComboField({
     // 입력을 고치는 순간 기존 선택은 무효다. 그대로 두면 "연세"를 쳐 놓고 조회를 누르면
     // 직전에 고른 대학이 열리는 거짓 상태가 된다. onClear가 없으면 건드리지 않는다.
     if (value && onClear) {
-      syncedRef.current = { key: null, label: '' };
+      syncedRef.current = { key: null, label: "" };
       onClear();
     }
   }
 
   function handleClear() {
-    setQuery('');
+    setQuery("");
     setDirty(true);
     if (!open) onOpenChange?.(true);
     if (value && onClear) {
-      syncedRef.current = { key: null, label: '' };
+      syncedRef.current = { key: null, label: "" };
       onClear();
     }
     inputRef.current?.focus();
@@ -232,7 +248,7 @@ export default function ComboField({
     if (disabled) return;
 
     if (!open) {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         onOpenChange?.(true);
       }
@@ -240,34 +256,34 @@ export default function ComboField({
     }
 
     switch (event.key) {
-      case 'Escape':
+      case "Escape":
         event.preventDefault();
         onOpenChange?.(false);
         break;
-      case 'ArrowDown':
+      case "ArrowDown":
         event.preventDefault();
         move(1);
         break;
-      case 'ArrowUp':
+      case "ArrowUp":
         event.preventDefault();
         move(-1);
         break;
-      case 'Home':
+      case "Home":
         if (!showList) break;
         event.preventDefault();
         setActiveIndex(0);
         break;
-      case 'End':
+      case "End":
         if (!showList) break;
         event.preventDefault();
         setActiveIndex(filtered.length - 1);
         break;
-      case 'Enter':
+      case "Enter":
         // 활성 행이 없으면 첫 행을 고른다(검색어를 치고 바로 Enter 치는 흐름).
         event.preventDefault();
         if (showList) choose(activeIndex < 0 ? 0 : activeIndex);
         break;
-      case 'Tab':
+      case "Tab":
         onOpenChange?.(false);
         break;
       default:
@@ -275,22 +291,23 @@ export default function ComboField({
     }
   }
 
-  const inputPlaceholder = disabled && disabledMessage ? disabledMessage : placeholder;
+  const inputPlaceholder =
+    disabled && disabledMessage ? disabledMessage : placeholder;
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <div
         className={`flex h-[4.5rem] w-full flex-col justify-center gap-1 px-5 transition-colors wide:h-[6.1875rem] wide:px-8 ${
           disabled
-            ? ''
-            : 'focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#0b84fd]'
+            ? ""
+            : "focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#0b84fd]"
         }`}
       >
         <label
           id={labelId}
           htmlFor={inputId}
           className={`text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] ${
-            disabled ? 'text-[#8f8f8f]' : 'text-[#525252]'
+            disabled ? "text-[#8f8f8f]" : "text-[#525252]"
           }`}
         >
           {label}
@@ -309,7 +326,9 @@ export default function ComboField({
             aria-expanded={open}
             aria-controls={listboxId}
             aria-activedescendant={
-              open && activeIndex >= 0 && showList ? optionId(activeIndex) : undefined
+              open && activeIndex >= 0 && showList
+                ? optionId(activeIndex)
+                : undefined
             }
             // disabled 대신 readOnly + aria-disabled를 쓴다. disabled 입력은 접근성 트리에서
             // 빠져 포커스가 가지 않으므로, 잠금 사유("대학을 먼저 선택하세요")를 스크린리더
@@ -323,8 +342,8 @@ export default function ComboField({
             onKeyDown={handleKeyDown}
             className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-[1.125rem] font-medium leading-[1.3] tracking-[-0.02em] text-[#0f172a] outline-none wide:text-[1.5rem] ${
               disabled
-                ? 'cursor-not-allowed placeholder:text-[#8f8f8f]'
-                : 'placeholder:text-[#d7d7d7]'
+                ? "cursor-not-allowed placeholder:text-[#8f8f8f]"
+                : "placeholder:text-[#d7d7d7]"
             }`}
           />
 
@@ -339,7 +358,11 @@ export default function ComboField({
               onClick={handleClear}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8f8f8f] transition-colors hover:bg-[#f0f1f3] hover:text-[#525252]"
             >
-              <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3.5 w-3.5">
+              <svg
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+              >
                 <path
                   d="M3 3 L13 13 M13 3 L3 13"
                   stroke="currentColor"
@@ -356,7 +379,9 @@ export default function ComboField({
         <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-[1.25rem] border border-[#d7d7d7] bg-white shadow-[0_0.625rem_1.75rem_rgba(13,27,42,0.12)]">
           {/* iOS 키보드가 올라오면 vh는 줄지 않아 목록 하단이 화면 밖으로 밀린다 → dvh. */}
           <div className="ar-popover-scroll max-h-[60dvh] overflow-y-auto wide:max-h-[28rem]">
-            {loading ? <PopoverStatus title="목록을 불러오는 중입니다." /> : null}
+            {loading ? (
+              <PopoverStatus title="목록을 불러오는 중입니다." />
+            ) : null}
 
             {!loading && error ? (
               <PopoverStatus
@@ -368,17 +393,24 @@ export default function ComboField({
             ) : null}
 
             {!loading && !error && !hasOptions ? (
-              <PopoverStatus title={emptyTitle} description={emptyDescription} />
+              <PopoverStatus
+                title={emptyTitle}
+                description={emptyDescription}
+              />
             ) : null}
 
             {showNoResult ? (
-              <PopoverStatus title={noResultTitle} description={noResultDescription} />
+              <PopoverStatus
+                title={noResultTitle}
+                description={noResultDescription}
+              />
             ) : null}
 
             {showList ? (
               <ul
                 ref={listRef}
                 id={listboxId}
+                // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: APG Combobox 패턴 — 커스텀 콤보박스의 옵션 목록.
                 role="listbox"
                 aria-labelledby={labelId}
                 tabIndex={-1}
@@ -387,9 +419,12 @@ export default function ComboField({
                   const isActive = index === activeIndex;
                   const isSelected = value?.key === option.key;
                   return (
+                    // biome-ignore lint/a11y/useFocusableInteractive: APG Combobox 패턴 — 포커스는 input에 남고 활성 옵션은 aria-activedescendant로 가리킨다(주석 §25-26 참고).
+                    // biome-ignore lint/a11y/useKeyWithClickEvents: APG Combobox 패턴 — 키보드 선택은 input의 ArrowUp/Down+Enter가 activeIndex를 통해 같은 choose를 호출한다. 클릭은 마우스 사용자를 위한 보조 경로다.
                     <li
                       key={option.key}
                       id={optionId(index)}
+                      // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: APG Combobox 패턴 — 옵션 항목.
                       role="option"
                       aria-selected={isSelected}
                       onMouseEnter={() => setActiveIndex(index)}
@@ -397,12 +432,14 @@ export default function ComboField({
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => choose(index)}
                       className={`flex h-[3.625rem] cursor-pointer items-center justify-between gap-4 border-b border-[#d7d7d7] px-6 last:border-b-0 ${
-                        isActive ? 'bg-[#f9fafb]' : 'bg-white'
+                        isActive ? "bg-[#f9fafb]" : "bg-white"
                       }`}
                     >
                       <span
                         className={`min-w-0 truncate text-base leading-[1.3] tracking-[-0.02em] wide:text-xl ${
-                          isSelected ? 'font-semibold text-[#013262]' : 'font-medium text-[#525252]'
+                          isSelected
+                            ? "font-semibold text-[#013262]"
+                            : "font-medium text-[#525252]"
                         }`}
                       >
                         {option.label}

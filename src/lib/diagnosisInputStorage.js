@@ -10,11 +10,12 @@
  * React 를 import 하지 않는다. window 접근은 전부 try/catch 로 감싼다 —
  * 프라이빗 모드·용량 초과에서 sessionStorage 가 던지면 제출 버튼이 통째로 죽는다.
  */
-import { normalizeAnswers } from './diagnosisScoring.js';
-import { SCHEMA_VERSION } from '../data/diagnosisScoringTable.js';
+
+import { SCHEMA_VERSION } from "../data/diagnosisScoringTable.js";
+import { normalizeAnswers } from "./diagnosisScoring.js";
 
 /** sessionStorage 키. 새로고침·직접 URL 진입에서도 같은 리포트가 나오게 하는 유일한 근거다. */
-export const DIAGNOSIS_INPUT_STORAGE_KEY = 'winning.freeDiagnosis.input';
+export const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";
 
 /**
  * 원시 answers → DiagnosisInput 로 정규화해 저장하고 그 값을 돌려준다.
@@ -37,9 +38,17 @@ export const DIAGNOSIS_INPUT_STORAGE_KEY = 'winning.freeDiagnosis.input';
  * @returns {object} 저장된 payload (저장 실패와 무관하게 항상 유효한 객체)
  */
 export function submitDiagnosisAnswers(answers, options = {}) {
-  const { name = null, admissionCuts = null, admissionMeta = null, admissionCutsError = false } = options;
+  const {
+    name = null,
+    admissionCuts = null,
+    admissionMeta = null,
+    admissionCutsError = false,
+  } = options;
   // 시각은 여기서 찍는다 — 엔진은 순수 함수라 시계를 읽지 않는다(같은 입력이 매번 같은 리포트를 내야 한다).
-  const input = normalizeAnswers(answers, { diagnosedAt: new Date().toISOString(), name });
+  const input = normalizeAnswers(answers, {
+    diagnosedAt: new Date().toISOString(),
+    name,
+  });
   // 실패 사실은 컷이 없을 때만 의미가 있다. 조건에 admissionCutsError 를 포함하지 않으면
   // "조회에 실패했다"는 유일한 신호가 payload 에서 통째로 사라진다(그 경우 cuts 도 null 이라
   // 앞의 두 조건이 전부 falsy 다) — F-22 배선이 여기서 조용히 끊기는 자리다.
@@ -54,7 +63,10 @@ export function submitDiagnosisAnswers(answers, options = {}) {
 /** 저장. 실패해도 던지지 않는다 — 라우터 state 경로가 살아 있어 리포트는 그대로 렌더된다. */
 export function saveDiagnosisInput(input) {
   try {
-    window.sessionStorage.setItem(DIAGNOSIS_INPUT_STORAGE_KEY, JSON.stringify(input));
+    window.sessionStorage.setItem(
+      DIAGNOSIS_INPUT_STORAGE_KEY,
+      JSON.stringify(input),
+    );
     return true;
   } catch {
     return false;

@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
-import { BlockNoteView } from '@blocknote/ariakit';
-import { useCreateBlockNote } from '@blocknote/react';
-import { ko } from '@blocknote/core/locales';
-import { columnSchema } from '../editor/columnSchema';
+import { BlockNoteView } from "@blocknote/ariakit";
+import { ko } from "@blocknote/core/locales";
+import { useCreateBlockNote } from "@blocknote/react";
+import { useEffect, useRef } from "react";
+import { columnSchema } from "../editor/columnSchema";
 // CSS는 반드시 이 파일 안에서 import — 상위에서 import하면 49KB CSS가 초기 번들에 남는다.
-import '@blocknote/ariakit/style.css';
-import '../editor/blockNoteContent.css';
+import "@blocknote/ariakit/style.css";
+import "../editor/blockNoteContent.css";
 
 /**
  * 공개 페이지·미리보기 공용 읽기 전용 렌더러.
@@ -19,7 +19,7 @@ export default function ColumnBodyBlockNote({ blocks }) {
   // deps [] : uncontrolled. blocks가 바뀌면 호출부가 key로 remount한다.
   const editor = useCreateBlockNote(
     { schema: columnSchema, dictionary: ko, initialContent: blocks },
-    []
+    [],
   );
 
   const wrapperRef = useRef(null);
@@ -29,9 +29,9 @@ export default function ColumnBodyBlockNote({ blocks }) {
     // 그대로 찍는다(실측). 공개 본문은 입력 상자가 아니라 문서이므로 시맨틱을 바로잡는다 —
     // 그대로 두면 스크린리더가 "편집 가능한 텍스트 상자"로 안내하고, 키보드 사용자는
     // 본문 전체가 하나의 포커스 스톱이 돼 안쪽 링크에 곧장 닿지 못한다.
-    const node = wrapperRef.current?.querySelector('.bn-editor');
+    const node = wrapperRef.current?.querySelector(".bn-editor");
     if (!node) return;
-    node.setAttribute('role', 'article');
+    node.setAttribute("role", "article");
     node.tabIndex = -1;
   }, []);
 

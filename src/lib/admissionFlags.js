@@ -21,6 +21,6 @@ export const ADMISSION_JSON_ENABLED = true;
 // 판정해야 "select는 껐는데 렌더는 켜짐" 같은 불일치가 나지 않는다.
 export function isDocRenderEnabled() {
   if (!ADMISSION_JSON_ENABLED) return false;
-  if (typeof window === 'undefined') return true;
-  return new URLSearchParams(window.location.search).get('jsonrender') !== '0';
+  if (typeof window === "undefined") return true;
+  return new URLSearchParams(window.location.search).get("jsonrender") !== "0";
 }

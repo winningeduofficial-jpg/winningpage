@@ -1,4 +1,4 @@
-import { TRENDING_HEADING } from './constants';
+import { TRENDING_HEADING } from "./constants";
 
 // 섹션 헤딩 옆 상향 삼각형 (Figma 2029:784 Polygon 2, 20×20).
 // 원본은 SVG 에셋이지만 단색 삼각형이라 인라인으로 그린다(에셋 추가 불필요).
@@ -43,13 +43,13 @@ export default function TrendingChips({ items = [], onSelect }) {
                 type="button"
                 disabled={!linkable}
                 onClick={() => onSelect?.(item)}
-                title={linkable ? undefined : '상세 연결 정보가 아직 없습니다.'}
+                title={linkable ? undefined : "상세 연결 정보가 아직 없습니다."}
                 // 375에서 시안 치수(h 62 / px 24 / 16px)를 그대로 쓰면 칩이 한 줄에 하나씩만
                 // 들어가 세로로 8줄이 된다. 모바일만 한 단계 줄여 2열이 되게 한다.
                 className={`flex h-[3.25rem] items-center gap-2.5 rounded-full px-4 text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0b84fd] sm:h-[3.875rem] sm:px-6 sm:text-base ${
                   linkable
-                    ? 'cursor-pointer bg-[#f9fafb] text-[#525252] hover:bg-[#013262] hover:text-white'
-                    : 'cursor-not-allowed bg-[#f9fafb] text-[#d7d7d7]'
+                    ? "cursor-pointer bg-[#f9fafb] text-[#525252] hover:bg-[#013262] hover:text-white"
+                    : "cursor-not-allowed bg-[#f9fafb] text-[#d7d7d7]"
                 }`}
               >
                 {item.logoUrl ? (

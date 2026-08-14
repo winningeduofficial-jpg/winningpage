@@ -37,54 +37,87 @@
 // needsReview로 반환한다.
 // =====================================================================
 
+import { stableStringifyDoc } from "./admissionDoc.js";
 import {
+  buildSpecialCategoryDoc,
+  clean,
   importChangeDocFromHtml,
-  importSelectionDocFromHtml,
+  importEmptyBoxDocFromHtml,
   importExamDocFromHtml,
   importMinimumDocFromHtml,
-  importEmptyBoxDocFromHtml,
   importPlainListDocFromHtml,
   importRecordDocFromHtml,
   importRecruitExactDocFromHtml,
   importRecruitLegacyDocFromHtml,
-  buildSpecialCategoryDoc,
+  importSelectionDocFromHtml,
   renderDocToHtml,
-  clean
-} from './admissionParsing.js';
-import { stableStringifyDoc } from './admissionDoc.js';
+} from "./admissionParsing.js";
 
 // 카테고리별 시도 순서(표 → emptyBox → plainList). 앞선 임포터가 null을
 // 반환하거나 DOM 동형 검증에 실패하면 다음으로 넘어간다 — 전부 실패하면
 // needsReview(강행 금지).
 export const IMPORTER_CHAINS = {
   previous_year_changes: [
-    { name: 'table', run: (html) => importChangeDocFromHtml(html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('previous_year_changes', html) }
+    { name: "table", run: (html) => importChangeDocFromHtml(html) },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("previous_year_changes", html),
+    },
   ],
   selection_method: [
-    { name: 'table', run: (html) => importSelectionDocFromHtml(html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('selection_method', html) }
+    { name: "table", run: (html) => importSelectionDocFromHtml(html) },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("selection_method", html),
+    },
   ],
   minimum_requirements: [
-    { name: 'table', run: (html) => importMinimumDocFromHtml(html) },
-    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('minimum_requirements', html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('minimum_requirements', html) }
+    { name: "table", run: (html) => importMinimumDocFromHtml(html) },
+    {
+      name: "emptyBox",
+      run: (html) => importEmptyBoxDocFromHtml("minimum_requirements", html),
+    },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("minimum_requirements", html),
+    },
   ],
   exam_schedule: [
-    { name: 'table', run: (html) => importExamDocFromHtml(html) },
-    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('exam_schedule', html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('exam_schedule', html) }
+    { name: "table", run: (html) => importExamDocFromHtml(html) },
+    {
+      name: "emptyBox",
+      run: (html) => importEmptyBoxDocFromHtml("exam_schedule", html),
+    },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("exam_schedule", html),
+    },
   ],
   school_record_method: [
-    { name: 'record', run: (html) => importRecordDocFromHtml(html) },
-    { name: 'emptyBox', run: (html) => importEmptyBoxDocFromHtml('school_record_method', html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('school_record_method', html) }
+    { name: "record", run: (html) => importRecordDocFromHtml(html) },
+    {
+      name: "emptyBox",
+      run: (html) => importEmptyBoxDocFromHtml("school_record_method", html),
+    },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("school_record_method", html),
+    },
   ],
   recruitment_quota: [
-    { name: 'recruitExact', run: (html) => importRecruitExactDocFromHtml(html) },
-    { name: 'recruitLegacy', run: (html) => importRecruitLegacyDocFromHtml(html) },
-    { name: 'plainList', run: (html) => importPlainListDocFromHtml('recruitment_quota', html) }
-  ]
+    {
+      name: "recruitExact",
+      run: (html) => importRecruitExactDocFromHtml(html),
+    },
+    {
+      name: "recruitLegacy",
+      run: (html) => importRecruitLegacyDocFromHtml(html),
+    },
+    {
+      name: "plainList",
+      run: (html) => importPlainListDocFromHtml("recruitment_quota", html),
+    },
+  ],
 };
 export const SUPPORTED_CATEGORY_KEYS = Object.keys(IMPORTER_CHAINS);
 
@@ -95,28 +128,42 @@ export const SUPPORTED_CATEGORY_KEYS = Object.keys(IMPORTER_CHAINS);
 // 않는 독립 경량 구현이 낫다(브라우저에서도 이 이유가 그대로 유효하다).
 // -----------------------------------------------------------------------
 const VOID_ELEMENTS = new Set([
-  'area', 'base', 'br', 'col', 'embed', 'hr', 'img',
-  'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
 ]);
 
 function decodeEntities(str) {
   return String(str)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&');
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
 }
 
 function parseAttributeString(attrString) {
   const attrs = [];
-  const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?/g;
+  const re =
+    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?/g;
   let m = re.exec(attrString);
   while (m) {
     const name = m[1];
-    let value = '';
-    if (m[2] !== undefined) value = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[2];
+    let value = "";
+    if (m[2] !== undefined)
+      value = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[2];
     attrs.push({ name, value: decodeEntities(value) });
     m = re.exec(attrString);
   }
@@ -124,11 +171,16 @@ function parseAttributeString(attrString) {
 }
 
 function makeElementNode(tagName, attrs) {
-  const node = { nodeType: 1, tagName: tagName.toUpperCase(), attributes: attrs, childNodes: [] };
-  Object.defineProperty(node, 'textContent', {
+  const node = {
+    nodeType: 1,
+    tagName: tagName.toUpperCase(),
+    attributes: attrs,
+    childNodes: [],
+  };
+  Object.defineProperty(node, "textContent", {
     get() {
-      return node.childNodes.map((c) => c.textContent || '').join('');
-    }
+      return node.childNodes.map((c) => c.textContent || "").join("");
+    },
   });
   return node;
 }
@@ -138,26 +190,26 @@ function makeTextNode(text) {
 }
 
 function makeCommentNode() {
-  return { nodeType: 8, textContent: '' };
+  return { nodeType: 8, textContent: "" };
 }
 
 function parseMiniHtml(html) {
-  const root = makeElementNode('body', []);
+  const root = makeElementNode("body", []);
   const stack = [root];
   let i = 0;
   const n = html.length;
   const top = () => stack[stack.length - 1];
 
   while (i < n) {
-    if (html[i] === '<') {
-      if (html.startsWith('<!--', i)) {
-        const end = html.indexOf('-->', i + 4);
+    if (html[i] === "<") {
+      if (html.startsWith("<!--", i)) {
+        const end = html.indexOf("-->", i + 4);
         top().childNodes.push(makeCommentNode());
         i = end === -1 ? n : end + 3;
         continue;
       }
-      if (html.startsWith('<!', i)) {
-        const end = html.indexOf('>', i);
+      if (html.startsWith("<!", i)) {
+        const end = html.indexOf(">", i);
         i = end === -1 ? n : end + 1;
         continue;
       }
@@ -173,7 +225,10 @@ function parseMiniHtml(html) {
         i += closeMatch[0].length;
         continue;
       }
-      const openMatch = /^<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)(\/?)>/.exec(html.slice(i));
+      const openMatch =
+        /^<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)(\/?)>/.exec(
+          html.slice(i),
+        );
       if (openMatch) {
         const tagName = openMatch[1];
         const attrs = parseAttributeString(openMatch[2]);
@@ -185,11 +240,11 @@ function parseMiniHtml(html) {
         i += openMatch[0].length;
         continue;
       }
-      top().childNodes.push(makeTextNode('<'));
+      top().childNodes.push(makeTextNode("<"));
       i += 1;
       continue;
     }
-    const next = html.indexOf('<', i);
+    const next = html.indexOf("<", i);
     const end = next === -1 ? n : next;
     const text = html.slice(i, end);
     if (text) top().childNodes.push(makeTextNode(text));
@@ -200,22 +255,26 @@ function parseMiniHtml(html) {
 }
 
 function normalizeWhitespaceText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // 빈 admission-result-note/admission-recruit-legend는 renderDocToHtml만
 // 낸다(SECTION_NOTES가 항상 ''). Gate B와 동일한 허용 diff.
 function isAllowedEmptyDiffNode(node) {
   if (node.nodeType !== 1) return false;
-  if (node.tagName.toLowerCase() !== 'div') return false;
-  const classAttr = node.attributes.find((a) => a.name.toLowerCase() === 'class');
-  const classes = (classAttr?.value || '').split(/\s+/).filter(Boolean);
-  const isNoteDiv = classes.includes('admission-result-note');
-  const isLegendDiv = classes.includes('admission-recruit-legend');
+  if (node.tagName.toLowerCase() !== "div") return false;
+  const classAttr = node.attributes.find(
+    (a) => a.name.toLowerCase() === "class",
+  );
+  const classes = (classAttr?.value || "").split(/\s+/).filter(Boolean);
+  const isNoteDiv = classes.includes("admission-result-note");
+  const isLegendDiv = classes.includes("admission-recruit-legend");
   if (!isNoteDiv && !isLegendDiv) return false;
   const hasElementChild = node.childNodes.some((c) => c.nodeType === 1);
   if (hasElementChild) return false;
-  return normalizeWhitespaceText(node.textContent) === '';
+  return normalizeWhitespaceText(node.textContent) === "";
 }
 
 function collectSignificantChildren(node) {
@@ -224,12 +283,12 @@ function collectSignificantChildren(node) {
     if (child.nodeType === 8) return;
     if (child.nodeType === 3) {
       const text = normalizeWhitespaceText(child.textContent);
-      if (text) result.push({ kind: 'text', text });
+      if (text) result.push({ kind: "text", text });
       return;
     }
     if (child.nodeType === 1) {
       if (isAllowedEmptyDiffNode(child)) return;
-      result.push({ kind: 'element', node: child });
+      result.push({ kind: "element", node: child });
     }
   });
   return result;
@@ -239,8 +298,8 @@ function normalizeAttrs(node) {
   const attrs = {};
   node.attributes.forEach((a) => {
     const name = a.name.toLowerCase();
-    if (name === 'class') {
-      attrs.class = a.value.split(/\s+/).filter(Boolean).sort().join(' ');
+    if (name === "class") {
+      attrs.class = a.value.split(/\s+/).filter(Boolean).sort().join(" ");
     } else {
       attrs[name] = a.value;
     }
@@ -249,7 +308,7 @@ function normalizeAttrs(node) {
 }
 
 function truncateForReport(text, context = 100) {
-  const s = String(text ?? '');
+  const s = String(text ?? "");
   if (s.length <= context * 2) return s;
   return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
 }
@@ -268,10 +327,12 @@ function truncateForReport(text, context = 100) {
 // 이 허용은 <table> class 한정이다 — 다른 태그·다른 속성에는 적용하지
 // 않는다(진짜 불일치를 가리는 일반 규칙으로 확대하지 않는다).
 function tableClassCompatible(classA, classB) {
-  const setA = new Set(classA.split(' ').filter(Boolean));
-  const setB = new Set(classB.split(' ').filter(Boolean));
-  if (!setA.has('admission-data-table') || !setB.has('admission-data-table')) return false;
-  const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
+  const setA = new Set(classA.split(" ").filter(Boolean));
+  const setB = new Set(classB.split(" ").filter(Boolean));
+  if (!setA.has("admission-data-table") || !setB.has("admission-data-table"))
+    return false;
+  const [smaller, larger] =
+    setA.size <= setB.size ? [setA, setB] : [setB, setA];
   for (const cls of smaller) if (!larger.has(cls)) return false;
   return true;
 }
@@ -280,7 +341,11 @@ function compareElementNodes(a, b, pathLabel) {
   const tagA = a.tagName.toLowerCase();
   const tagB = b.tagName.toLowerCase();
   if (tagA !== tagB) {
-    return { ok: false, reason: `태그 불일치: <${tagA}> vs <${tagB}>`, path: pathLabel };
+    return {
+      ok: false,
+      reason: `태그 불일치: <${tagA}> vs <${tagB}>`,
+      path: pathLabel,
+    };
   }
   const nextPath = `${pathLabel}/${tagA}`;
 
@@ -288,14 +353,18 @@ function compareElementNodes(a, b, pathLabel) {
   const attrsB = normalizeAttrs(b);
   const attrKeys = new Set([...Object.keys(attrsA), ...Object.keys(attrsB)]);
   for (const key of attrKeys) {
-    if ((attrsA[key] ?? '') !== (attrsB[key] ?? '')) {
-      if (tagA === 'table' && key === 'class' && tableClassCompatible(attrsA.class ?? '', attrsB.class ?? '')) {
+    if ((attrsA[key] ?? "") !== (attrsB[key] ?? "")) {
+      if (
+        tagA === "table" &&
+        key === "class" &&
+        tableClassCompatible(attrsA.class ?? "", attrsB.class ?? "")
+      ) {
         continue;
       }
       return {
         ok: false,
-        reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? '')}" vs "${truncateForReport(attrsB[key] ?? '')}"`,
-        path: nextPath
+        reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? "")}" vs "${truncateForReport(attrsB[key] ?? "")}"`,
+        path: nextPath,
       };
     }
   }
@@ -306,21 +375,25 @@ function compareElementNodes(a, b, pathLabel) {
     return {
       ok: false,
       reason: `${nextPath} 자식 수 불일치: ${childrenA.length} vs ${childrenB.length}`,
-      path: nextPath
+      path: nextPath,
     };
   }
   for (let i = 0; i < childrenA.length; i += 1) {
     const ca = childrenA[i];
     const cb = childrenB[i];
     if (ca.kind !== cb.kind) {
-      return { ok: false, reason: `${nextPath} idx=${i} 자식 종류 불일치`, path: nextPath };
+      return {
+        ok: false,
+        reason: `${nextPath} idx=${i} 자식 종류 불일치`,
+        path: nextPath,
+      };
     }
-    if (ca.kind === 'text') {
+    if (ca.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
           reason: `${nextPath} idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
-          path: nextPath
+          path: nextPath,
         };
       }
       continue;
@@ -342,23 +415,32 @@ export function compareDomEquivalence(htmlA, htmlB) {
   const childrenB = collectSignificantChildren(treeB.body);
 
   if (childrenA.length !== childrenB.length) {
-    return { ok: false, reason: `최상위 자식 수 불일치: ${childrenA.length} vs ${childrenB.length}`, path: '/' };
+    return {
+      ok: false,
+      reason: `최상위 자식 수 불일치: ${childrenA.length} vs ${childrenB.length}`,
+      path: "/",
+    };
   }
   for (let i = 0; i < childrenA.length; i += 1) {
     const ca = childrenA[i];
     const cb = childrenB[i];
-    if (ca.kind !== cb.kind) return { ok: false, reason: `최상위 idx=${i} 자식 종류 불일치`, path: '/' };
-    if (ca.kind === 'text') {
+    if (ca.kind !== cb.kind)
+      return {
+        ok: false,
+        reason: `최상위 idx=${i} 자식 종류 불일치`,
+        path: "/",
+      };
+    if (ca.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
           reason: `최상위 idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
-          path: '/'
+          path: "/",
         };
       }
       continue;
     }
-    const result = compareElementNodes(ca.node, cb.node, '');
+    const result = compareElementNodes(ca.node, cb.node, "");
     if (!result.ok) return result;
   }
   return { ok: true };
@@ -382,20 +464,29 @@ export function compareDomEquivalence(htmlA, htmlB) {
 // 바뀌지 않음).
 // -----------------------------------------------------------------------
 function stripLeadingTableWrap(html) {
-  const m = /^\s*<div class="admission-table-wrap">\s*([\s\S]*)<\/div>\s*$/.exec(html);
+  const m =
+    /^\s*<div class="admission-table-wrap">\s*([\s\S]*)<\/div>\s*$/.exec(html);
   return m ? m[1] : html;
 }
 function stripLeadingHeading(html) {
-  return html.replace(/^\s*<div class="admission-hwp-section-title">[\s\S]*?<\/div>\s*/, '');
+  return html.replace(
+    /^\s*<div class="admission-hwp-section-title">[\s\S]*?<\/div>\s*/,
+    "",
+  );
 }
 // scripts/verify-admission-doc-html-drift.mjs와 admissionBulkXlsx.js(일괄
 // 엑셀 업로드 파서)가 재사용한다 — 현재/신규 json을 renderDocToHtml로
 // 재렌더한 결과와 html을 같은 허용 diff 기준으로 비교하기 위함(기준이
 // 다르면 "드리프트"·"임포트 실패" 판정이 지점마다 어긋난다).
 export function compareStoredHtmlEquivalence(rendered, stored) {
-  const storedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(stored);
-  const renderedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(rendered);
-  const storedHasTableWrap = /^\s*<div class="admission-table-wrap">/.test(stored);
+  const storedHasHeading = /^\s*<div class="admission-hwp-section-title">/.test(
+    stored,
+  );
+  const renderedHasHeading =
+    /^\s*<div class="admission-hwp-section-title">/.test(rendered);
+  const storedHasTableWrap = /^\s*<div class="admission-table-wrap">/.test(
+    stored,
+  );
 
   // 저장 HTML은 heading을 갖거나(change/selection_method — 이 경우는 그대로
   // 엄격 비교) 갖지 않는다(minimum/exam/school_record/recruitment 대부분,
@@ -406,7 +497,9 @@ export function compareStoredHtmlEquivalence(rendered, stored) {
   if (renderedHasHeading && !storedHasHeading) {
     normalizedRendered = stripLeadingHeading(rendered);
   }
-  const normalizedStored = storedHasTableWrap ? stripLeadingTableWrap(stored) : stored;
+  const normalizedStored = storedHasTableWrap
+    ? stripLeadingTableWrap(stored)
+    : stored;
 
   return compareDomEquivalence(normalizedRendered, normalizedStored);
 }
@@ -415,22 +508,36 @@ export function compareStoredHtmlEquivalence(rendered, stored) {
 // 후보 doc 하나(임포터 또는 생성기 결과)를 검증한다: 멱등 assert →
 // renderDocToHtml 재렌더 → DOM 동형 비교. 성공해야만 'imported'.
 // -----------------------------------------------------------------------
-function tryCandidate(buildDoc, sectionKey, html, universityName, candidateName) {
+function tryCandidate(
+  buildDoc,
+  sectionKey,
+  html,
+  universityName,
+  candidateName,
+) {
   let doc;
   try {
     doc = buildDoc();
   } catch (err) {
-    return { classification: 'needsReview', reason: `${candidateName}: 예외 ${err.message}`, kind: 'exception' };
+    return {
+      classification: "needsReview",
+      reason: `${candidateName}: 예외 ${err.message}`,
+      kind: "exception",
+    };
   }
   if (!doc) {
-    return { classification: 'needsReview', reason: `${candidateName}: 구조 파싱 실패`, kind: 'parse-failure' };
+    return {
+      classification: "needsReview",
+      reason: `${candidateName}: 구조 파싱 실패`,
+      kind: "parse-failure",
+    };
   }
 
   const once = stableStringifyDoc(doc);
   const twice = stableStringifyDoc(buildDoc());
   if (once !== twice) {
     throw new Error(
-      `멱등성 위반: ${universityName} / ${sectionKey} (${candidateName}) — 2회 호출 결과(generatedAt 제외)가 다릅니다.`
+      `멱등성 위반: ${universityName} / ${sectionKey} (${candidateName}) — 2회 호출 결과(generatedAt 제외)가 다릅니다.`,
     );
   }
 
@@ -438,14 +545,23 @@ function tryCandidate(buildDoc, sectionKey, html, universityName, candidateName)
   try {
     rendered = renderDocToHtml(doc, sectionKey);
   } catch (err) {
-    return { classification: 'needsReview', reason: `${candidateName}: 재렌더 예외 ${err.message}`, kind: 'render-exception' };
+    return {
+      classification: "needsReview",
+      reason: `${candidateName}: 재렌더 예외 ${err.message}`,
+      kind: "render-exception",
+    };
   }
 
   const comparison = compareStoredHtmlEquivalence(rendered, html);
   if (!comparison.ok) {
-    return { classification: 'needsReview', reason: `${candidateName}: ${comparison.reason}`, kind: 'dom-mismatch', doc };
+    return {
+      classification: "needsReview",
+      reason: `${candidateName}: ${comparison.reason}`,
+      kind: "dom-mismatch",
+      doc,
+    };
   }
-  return { classification: 'imported', doc, candidateName };
+  return { classification: "imported", doc, candidateName };
 }
 
 // -----------------------------------------------------------------------
@@ -461,27 +577,37 @@ export function importCell(sectionKey, dbHtml, row) {
   // 특수대학 11개교: 원본이 하드코딩 상수(SCIENCE_SPECIAL_DATA 등)라
   // 역파싱하지 않는다 — buildSpecialCategoryDoc으로 생성 후 동일하게
   // DOM 동형 검증만 한다(통과해야 imported).
-  if (sectionKey === 'selection_method' && row.detail_status === 'category') {
-    if (!html) return { classification: 'skip' };
+  if (sectionKey === "selection_method" && row.detail_status === "category") {
+    if (!html) return { classification: "skip" };
     return tryCandidate(
       () => buildSpecialCategoryDoc(null, row, universityName),
       sectionKey,
       html,
       universityName,
-      'generate:special'
+      "generate:special",
     );
   }
 
-  if (!html) return { classification: 'skip' };
+  if (!html) return { classification: "skip" };
 
   const chain = IMPORTER_CHAINS[sectionKey] || [];
-  if (!chain.length) return { classification: 'skip' };
+  if (!chain.length) return { classification: "skip" };
 
   const attempts = [];
   for (const { name, run } of chain) {
-    const result = tryCandidate(() => run(html), sectionKey, html, universityName, name);
-    if (result.classification === 'imported') return result;
+    const result = tryCandidate(
+      () => run(html),
+      sectionKey,
+      html,
+      universityName,
+      name,
+    );
+    if (result.classification === "imported") return result;
     attempts.push(result.reason);
   }
-  return { classification: 'needsReview', reason: attempts.join(' / '), kind: 'all-attempts-failed' };
+  return {
+    classification: "needsReview",
+    reason: attempts.join(" / "),
+    kind: "all-attempts-failed",
+  };
 }

@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from "react-router-dom";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -25,36 +25,48 @@ import { Link, useLocation } from 'react-router-dom';
 // 전부 제거하며 `위닝 채팅`으로 확정한다(결과적으로 시안 예외 노드와 표기가 같아진다).
 // 세 번째 항목 `설정`은 `3754:4872` 단독 출현이라 이번 범위에서 제외한다(§3.4, §11 Q3).
 const MENU_ITEMS = [
-  { label: '위닝 채팅', to: '/app/performance' },
-  { label: '저장 리포트', to: '/app/performance/reports' }
+  { label: "위닝 채팅", to: "/app/performance" },
+  { label: "저장 리포트", to: "/app/performance/reports" },
 ];
 
 // §3.3 스텝 라벨 원문. `작성・평가`의 가운뎃점은 U+30FB(・)이며 시안 원문 그대로다.
 export const PERFORMANCE_STEPS = [
-  { step: 1, label: '기본 정보' },
-  { step: 2, label: '안내문 입력' },
-  { step: 3, label: '주제 추천' },
-  { step: 4, label: '설계 리포트' },
-  { step: 5, label: '작성・평가' }
+  { step: 1, label: "기본 정보" },
+  { step: 2, label: "안내문 입력" },
+  { step: 3, label: "주제 추천" },
+  { step: 4, label: "설계 리포트" },
+  { step: 5, label: "작성・평가" },
 ];
 
 // §3.3 3상태. 시안 자체는 활성 pill 유무 2상태뿐이라 완료/미도래가 구분되지 않는데,
 // §3.3이 그 한계를 3상태로 확장하는 것을 정본으로 규정했다(배지 색·라벨 굵기·pill 표).
 const STEP_STATE_STYLES = {
   // 완료: 배지 #d1e8ff(surface-badge) + 체크, 라벨 #525252 w500, pill 없음.
-  done: { badge: 'bg-surface-badge text-ink', label: 'font-medium text-ink', pill: false },
+  done: {
+    badge: "bg-surface-badge text-ink",
+    label: "font-medium text-ink",
+    pill: false,
+  },
   // 진행 중: 배지 #0b84fd(accent) + 흰 숫자, 라벨 #525252 w600, pill #eaecef.
-  current: { badge: 'bg-accent text-white', label: 'font-semibold text-ink', pill: true },
+  current: {
+    badge: "bg-accent text-white",
+    label: "font-semibold text-ink",
+    pill: true,
+  },
   // 미도래: 배지 #f5f5f7(surface-04) + ink-sub 숫자, 라벨 ink-sub w500, pill 없음.
   // `ink-sub`가 #6b6b6b로 상향되며 배지(14px on surface-04 = 4.89:1)·라벨(16px on
   // performance-sidebar #f9f8f7 = 5.02:1) 모두 WCAG AA(4.5:1)를 충족한다(tailwind.config.js
   // `ink.sub` 주석 참고). 과거 `TODO(P19, §11.3 Q30)`는 해소되어 제거했다.
-  todo: { badge: 'bg-surface-04 text-ink-sub', label: 'font-medium text-ink-sub', pill: false }
+  todo: {
+    badge: "bg-surface-04 text-ink-sub",
+    label: "font-medium text-ink-sub",
+    pill: false,
+  },
 };
 
 // 저장 리포트 화면(`3754:3077` / `3754:3121`)은 **활성 스텝이 0개**다(§3.3 노드별 표).
 // 그래서 기본값이 「전부 미도래」이고, 활성 스텝 없음은 예외가 아니라 정상 입력이다.
-const DEFAULT_STEP_STATES = ['todo', 'todo', 'todo', 'todo', 'todo'];
+const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
 
 function CheckIcon() {
   return (
@@ -83,19 +95,19 @@ export default function PerformanceSidebar({
   profileName = null,
   schoolType = null,
   gradeLabel = null,
-  stepStates = DEFAULT_STEP_STATES
+  stepStates = DEFAULT_STEP_STATES,
 }) {
   const { pathname } = useLocation();
   // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.
   // 두 항목은 상호 배타다 — `3754:3121`에서 pill이 `저장 리포트`(@10,365)로 **이동**하고
   // `위닝 채팅` 쪽 pill은 사라진다.
-  const isReports = pathname.startsWith('/app/performance/reports');
+  const isReports = pathname.startsWith("/app/performance/reports");
 
   // §11 Q61-ⓔ 결정: 부제는 `{학년}・{학교유형}` 조합이며 **학년 값이 없으면 학년 조각만
   // 미렌더**한다. 외부 앱의 리터럴 기본값 `'일반고'`는 이식 금지 항목이라 여기서도
   // 만들지 않는다 — 둘 다 없으면 부제 줄 자체를 렌더하지 않는다.
-  const subtitle = [gradeLabel, schoolType].filter(Boolean).join('・');
+  const subtitle = [gradeLabel, schoolType].filter(Boolean).join("・");
 
   return (
     <aside
@@ -122,7 +134,9 @@ export default function PerformanceSidebar({
         {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
             충족한다(과거 TODO(P19, §11.3 Q30) 해소). */}
         {subtitle && (
-          <p className="mt-[0.25rem] text-[1rem] leading-[1.3125rem] text-ink-sub">{subtitle}</p>
+          <p className="mt-[0.25rem] text-[1rem] leading-[1.3125rem] text-ink-sub">
+            {subtitle}
+          </p>
         )}
       </div>
 
@@ -138,7 +152,8 @@ export default function PerformanceSidebar({
         </p>
         <ul className="mt-[0.6875rem] flex flex-col gap-[0.375rem]">
           {MENU_ITEMS.map((item) => {
-            const isActive = item.to === '/app/performance' ? !isReports : isReports;
+            const isActive =
+              item.to === "/app/performance" ? !isReports : isReports;
             return (
               <li key={item.to}>
                 {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기 기본값
@@ -153,13 +168,15 @@ export default function PerformanceSidebar({
                     (회귀 검증: scripts/verify-performance-sidebar-nav.mjs) */}
                 <Link
                   to={item.to}
-                  aria-current={isActive ? 'page' : undefined}
+                  aria-current={isActive ? "page" : undefined}
                   className={[
                     // pill 304×36 @x=10 r6 → mx 0.625rem + 폭 19rem, 텍스트 x=60 → pl 3.125rem.
-                    'mx-[0.625rem] flex h-9 w-perf-pill items-center rounded-md pl-[3.125rem]',
-                    'text-[1.25rem] font-medium leading-[1.625rem] text-ink transition-colors',
-                    isActive ? 'bg-performance-activePill' : 'hover:bg-performance-activePill/60'
-                  ].join(' ')}
+                    "mx-[0.625rem] flex h-9 w-perf-pill items-center rounded-md pl-[3.125rem]",
+                    "text-[1.25rem] font-medium leading-[1.625rem] text-ink transition-colors",
+                    isActive
+                      ? "bg-performance-activePill"
+                      : "hover:bg-performance-activePill/60",
+                  ].join(" ")}
                 >
                   {item.label}
                 </Link>
@@ -183,34 +200,45 @@ export default function PerformanceSidebar({
         </p>
         <ol className="mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
           {PERFORMANCE_STEPS.map(({ step, label }, index) => {
-            const state = STEP_STATE_STYLES[stepStates?.[index]] ? stepStates[index] : 'todo';
+            const state = STEP_STATE_STYLES[stepStates?.[index]]
+              ? stepStates[index]
+              : "todo";
             const style = STEP_STATE_STYLES[state];
 
             return (
               <li
                 key={step}
-                aria-current={state === 'current' ? 'step' : undefined}
+                aria-current={state === "current" ? "step" : undefined}
                 className={[
                   // 배지 x=60 → pl 3.125rem, 배지 20×20 r10, 배지↔라벨 gap 16 → 라벨 x=96.
-                  'mx-[0.625rem] flex h-9 w-perf-pill items-center gap-4 rounded-md pl-[3.125rem]',
-                  style.pill ? 'bg-performance-activePill' : ''
-                ].join(' ')}
+                  "mx-[0.625rem] flex h-9 w-perf-pill items-center gap-4 rounded-md pl-[3.125rem]",
+                  style.pill ? "bg-performance-activePill" : "",
+                ].join(" ")}
               >
                 <span
                   className={[
-                    'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full',
-                    'text-[0.875rem] font-medium leading-[1.125rem]',
-                    style.badge
-                  ].join(' ')}
+                    "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
+                    "text-[0.875rem] font-medium leading-[1.125rem]",
+                    style.badge,
+                  ].join(" ")}
                 >
                   {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
-                  {state === 'done' ? <CheckIcon /> : step}
+                  {state === "done" ? <CheckIcon /> : step}
                 </span>
-                <span className={['text-[1rem] leading-[1.3125rem]', style.label].join(' ')}>
+                <span
+                  className={[
+                    "text-[1rem] leading-[1.3125rem]",
+                    style.label,
+                  ].join(" ")}
+                >
                   {label}
                 </span>
                 <span className="sr-only">
-                  {state === 'done' ? ' 완료' : state === 'current' ? ' 진행 중' : ' 진행 전'}
+                  {state === "done"
+                    ? " 완료"
+                    : state === "current"
+                      ? " 진행 중"
+                      : " 진행 전"}
                 </span>
               </li>
             );

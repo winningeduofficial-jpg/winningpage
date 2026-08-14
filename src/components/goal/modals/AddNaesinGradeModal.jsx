@@ -1,16 +1,16 @@
-import { useId, useState } from 'react';
-import AppModal from '../AppModal';
-import ModalField from '../ModalField';
+import { useId, useState } from "react";
+import AppModal from "../AppModal";
+import ModalField from "../ModalField";
 
 // 내신 성적 추가 모달(#36, 530×537 = 33.125rem×33.5625rem) — #35 내신 표의 `+ 회차 추가` 트리거.
 // `AddMockExamGradeModal`(part-08 #22, 모의고사 표 전용)과 동일한 셸 패턴(회차/응시일 2열 +
 // 과목별 입력 리스트)을 따르되 필드 구성이 다르다: 회차 셀렉트 대신 `학기` 텍스트, 응시일 대신
 // `입력일`, 백분위 대신 등급(1~9, 소수 1자리).
 const SUBJECTS = [
-  { key: 'korean', label: '국어' },
-  { key: 'math', label: '수학' },
-  { key: 'english', label: '영어' },
-  { key: 'science', label: '탐구' }
+  { key: "korean", label: "국어" },
+  { key: "math", label: "수학" },
+  { key: "english", label: "영어" },
+  { key: "science", label: "탐구" },
 ];
 
 function todayDateValue() {
@@ -53,11 +53,16 @@ function GradeField({ label, value, onChange }) {
 // 실제 API 호출(addGoalGrade)은 호출부(Grades.jsx / NaesinCard.jsx)가 맡는다 — 이 모달은
 // 입력 UI와 폼 상태만 소유한다(house 패턴, AddMockExamGradeModal과 동일).
 export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
-  const [semester, setSemester] = useState('');
+  const [semester, setSemester] = useState("");
   const [enteredAt, setEnteredAt] = useState(todayDateValue());
-  const [grades, setGrades] = useState({ korean: '', math: '', english: '', science: '' });
+  const [grades, setGrades] = useState({
+    korean: "",
+    math: "",
+    english: "",
+    science: "",
+  });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const canSubmit =
     !submitting &&
@@ -66,10 +71,10 @@ export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
     SUBJECTS.every(({ key }) => grades[key].toString().trim().length > 0);
 
   function resetForm() {
-    setSemester('');
+    setSemester("");
     setEnteredAt(todayDateValue());
-    setGrades({ korean: '', math: '', english: '', science: '' });
-    setError('');
+    setGrades({ korean: "", math: "", english: "", science: "" });
+    setError("");
   }
 
   function handleClose() {
@@ -80,12 +85,16 @@ export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
   async function handleSubmit() {
     if (!canSubmit) return;
     setSubmitting(true);
-    setError('');
-    const result = await onSubmit({ term: semester.trim(), enteredAt, subjects: grades });
+    setError("");
+    const result = await onSubmit({
+      term: semester.trim(),
+      enteredAt,
+      subjects: grades,
+    });
     setSubmitting(false);
 
     if (!result?.ok) {
-      setError(result?.detail || '저장에 실패했습니다. 다시 시도해 주세요.');
+      setError(result?.detail || "저장에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
     handleClose();
@@ -99,12 +108,14 @@ export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
       subtitle="학기별 과목 등급을 입력하면 평균이 자동 환산돼요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel={submitting ? '저장 중…' : '성적 저장하기'}
+      submitLabel={submitting ? "저장 중…" : "성적 저장하기"}
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
       {error && (
-        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-[1.5] text-[#D14343]">{error}</p>
+        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-[1.5] text-[#D14343]">
+          {error}
+        </p>
       )}
 
       <div className="grid grid-cols-2 gap-[0.5rem]">
@@ -134,7 +145,9 @@ export default function AddNaesinGradeModal({ open, onClose, onSubmit }) {
               key={key}
               label={label}
               value={grades[key]}
-              onChange={(event) => setGrades((prev) => ({ ...prev, [key]: event.target.value }))}
+              onChange={(event) =>
+                setGrades((prev) => ({ ...prev, [key]: event.target.value }))
+              }
             />
           ))}
         </div>

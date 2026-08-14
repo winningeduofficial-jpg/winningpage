@@ -7,28 +7,29 @@
 // 라벨을 필수 필드와 다르게 그렸다고 기록돼 있으나 색 값 자체가 명세에 없다 — 필수 표시 `*`
 // (accent #0B84FD)의 유무가 그대로 그 차이라고 보고 `required` 를 빼는 것으로만 구현했다.
 // 별도 라벨 색이 확정되면 MentorFieldShell 에 optional 표기 슬롯을 여는 쪽이 맞다.
-import MentorTextField, { MentorFieldShell } from './MentorTextField';
-import ChipGroup from './ChipGroup';
-import FormSectionCard from './FormSectionCard';
-import FormFieldRow from './FormFieldRow';
-import { FORM_SECTIONS, HIGHSCHOOL_TYPE_OPTIONS } from '../../data/mentorApply';
-import { isWithinMaxLength } from '../../lib/validators';
 
-export const HIGHSCHOOL_SECTION_ID = 'mentor-form-section-3';
+import { FORM_SECTIONS, HIGHSCHOOL_TYPE_OPTIONS } from "../../data/mentorApply";
+import { isWithinMaxLength } from "../../lib/validators";
+import ChipGroup from "./ChipGroup";
+import FormFieldRow from "./FormFieldRow";
+import FormSectionCard from "./FormSectionCard";
+import MentorTextField, { MentorFieldShell } from "./MentorTextField";
+
+export const HIGHSCHOOL_SECTION_ID = "mentor-form-section-3";
 
 export const HIGHSCHOOL_FIELDS = [
-  'highschool_region',
-  'highschool_name',
-  'highschool_type',
-  'gpa_average',
-  'csat_summary'
+  "highschool_region",
+  "highschool_name",
+  "highschool_type",
+  "gpa_average",
+  "csat_summary",
 ];
 
 // 명세 §폼 명세 필수 항목 카운트: 필수 3 / 선택 2. 선택 2개는 진행률·잔여 카운터에서 빼야 한다.
 export const HIGHSCHOOL_REQUIRED_FIELDS = [
-  'highschool_region',
-  'highschool_name',
-  'highschool_type'
+  "highschool_region",
+  "highschool_name",
+  "highschool_type",
 ];
 
 const CSAT_SUMMARY_MAX_LENGTH = 200;
@@ -39,23 +40,26 @@ const GPA_PATTERN = /^[0-9](\.[0-9]{1,2})?$/;
 
 // ⚠ [시안 부재 — 파생 카피] FormSectionApplicant.jsx 의 ERROR_MESSAGES 주석과 동일한 사정이다.
 const ERROR_MESSAGES = {
-  highschool_region: '고등학교 소재 지역을 입력해 주세요.',
-  highschool_name: '고등학교명을 입력해 주세요.',
-  highschool_type: '고등학교 유형을 선택해 주세요.',
-  gpa_average_format: '내신 평균을 예) 1.87 형식으로 입력해 주세요.',
-  csat_summary_length: `${CSAT_SUMMARY_MAX_LENGTH}자 이내로 입력해 주세요.`
+  highschool_region: "고등학교 소재 지역을 입력해 주세요.",
+  highschool_name: "고등학교명을 입력해 주세요.",
+  highschool_type: "고등학교 유형을 선택해 주세요.",
+  gpa_average_format: "내신 평균을 예) 1.87 형식으로 입력해 주세요.",
+  csat_summary_length: `${CSAT_SUMMARY_MAX_LENGTH}자 이내로 입력해 주세요.`,
 };
 
 export function validateHighschoolSection(values = {}) {
   const errors = {};
-  const trimmed = (key) => String(values[key] ?? '').trim();
+  const trimmed = (key) => String(values[key] ?? "").trim();
 
-  if (!trimmed('highschool_region')) errors.highschool_region = ERROR_MESSAGES.highschool_region;
-  if (!trimmed('highschool_name')) errors.highschool_name = ERROR_MESSAGES.highschool_name;
-  if (!trimmed('highschool_type')) errors.highschool_type = ERROR_MESSAGES.highschool_type;
+  if (!trimmed("highschool_region"))
+    errors.highschool_region = ERROR_MESSAGES.highschool_region;
+  if (!trimmed("highschool_name"))
+    errors.highschool_name = ERROR_MESSAGES.highschool_name;
+  if (!trimmed("highschool_type"))
+    errors.highschool_type = ERROR_MESSAGES.highschool_type;
 
   // 선택 필드는 "비어 있으면 통과, 채웠으면 형식을 본다".
-  if (trimmed('gpa_average') && !GPA_PATTERN.test(trimmed('gpa_average'))) {
+  if (trimmed("gpa_average") && !GPA_PATTERN.test(trimmed("gpa_average"))) {
     errors.gpa_average = ERROR_MESSAGES.gpa_average_format;
   }
   if (!isWithinMaxLength(values.csat_summary, CSAT_SUMMARY_MAX_LENGTH)) {
@@ -67,7 +71,11 @@ export function validateHighschoolSection(values = {}) {
 
 const SECTION = FORM_SECTIONS[2];
 
-export default function FormSectionHighschool({ values = {}, errors = {}, onChange }) {
+export default function FormSectionHighschool({
+  values = {},
+  errors = {},
+  onChange,
+}) {
   const handle = (name) => (value) => onChange?.(name, value);
 
   return (
@@ -83,8 +91,8 @@ export default function FormSectionHighschool({ values = {}, errors = {}, onChan
           name="highschool_region"
           label="고등학교 소재 지역"
           required
-          value={values.highschool_region ?? ''}
-          onChange={handle('highschool_region')}
+          value={values.highschool_region ?? ""}
+          onChange={handle("highschool_region")}
           placeholder="예) 부산광역시 북구"
           maxLength={100}
           error={errors.highschool_region}
@@ -93,8 +101,8 @@ export default function FormSectionHighschool({ values = {}, errors = {}, onChan
           name="highschool_name"
           label="고등학교명"
           required
-          value={values.highschool_name ?? ''}
-          onChange={handle('highschool_name')}
+          value={values.highschool_name ?? ""}
+          onChange={handle("highschool_name")}
           placeholder="예) 화명고등학교"
           maxLength={100}
           error={errors.highschool_name}
@@ -117,8 +125,8 @@ export default function FormSectionHighschool({ values = {}, errors = {}, onChan
             name="highschool_type"
             ariaLabel="고등학교 유형"
             options={HIGHSCHOOL_TYPE_OPTIONS}
-            value={values.highschool_type ?? ''}
-            onChange={handle('highschool_type')}
+            value={values.highschool_type ?? ""}
+            onChange={handle("highschool_type")}
           />
         </MentorFieldShell>
       </FormFieldRow>
@@ -129,8 +137,8 @@ export default function FormSectionHighschool({ values = {}, errors = {}, onChan
           name="gpa_average"
           label="졸업 시 전체 내신 평균"
           helperText="기재하시면 내신 관리 상담 매칭에 활용됩니다."
-          value={values.gpa_average ?? ''}
-          onChange={handle('gpa_average')}
+          value={values.gpa_average ?? ""}
+          onChange={handle("gpa_average")}
           placeholder="예) 1.87"
           // 소수점을 포함하므로 numeric 이 아니라 decimal. type="number" 는 스피너·휠 스크롤로
           // 값이 조용히 바뀌는 사고가 있어 쓰지 않는다.
@@ -143,8 +151,8 @@ export default function FormSectionHighschool({ values = {}, errors = {}, onChan
           name="csat_summary"
           label="수능 성적 요약"
           helperText="등급 기준으로 간단히 적어주세요."
-          value={values.csat_summary ?? ''}
-          onChange={handle('csat_summary')}
+          value={values.csat_summary ?? ""}
+          onChange={handle("csat_summary")}
           placeholder="예) 국2 수2 영1 탐1/3"
           maxLength={CSAT_SUMMARY_MAX_LENGTH}
           error={errors.csat_summary}

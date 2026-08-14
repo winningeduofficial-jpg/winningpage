@@ -9,12 +9,12 @@
 //   ServiceSection 의 아이브로는 16px Medium primary 좌측정렬로 고정(§2 기준)인데 §7 FAQ 는
 //   14px Medium #525252 **중앙정렬**이라 타이포가 다르다. prop 으로는 덮을 수 없어 헤더만
 //   children 안에서 직접 그리고, 섹션 태그·컨테이너는 ServiceSection 을 그대로 쓴다.
-import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { FAQ_SECTION, MENTOR_FAQ } from '../../data/mentorApply';
-import ServiceSection from '../services/ServiceSection';
-import ServiceFaq from '../services/ServiceFaq';
-import { MENTOR_HEADING_LG } from '../services/serviceTokens';
+import { useEffect, useState } from "react";
+import { FAQ_SECTION, MENTOR_FAQ } from "../../data/mentorApply";
+import { supabase } from "../../lib/supabase";
+import ServiceFaq from "../services/ServiceFaq";
+import ServiceSection from "../services/ServiceSection";
+import { MENTOR_HEADING_LG } from "../services/serviceTokens";
 
 // 2026-08-11: FAQ 질문·답변과 섹션 헤더 카피가 DB(mentor_apply_faqs / mentor_apply_copy,
 //    sql/53_mentor_apply_faq_admin.sql)로 이관되어 어드민에서 편집 가능해졌다. 이 파일이 하던
@@ -39,11 +39,11 @@ import { MENTOR_HEADING_LG } from '../services/serviceTokens';
 //      · 개발(DEV): 파일 경로까지 알려주는 상세 TODO 문구.
 //      · 프로덕션: 사용자에게 노출 가능한 짧은 안내 문구.
 const DEV_ANSWER_PLACEHOLDER =
-  'TODO(mentor-apply): 답변 카피 미확보 — 어드민(멘토신청 FAQ 관리)에서 채울 것';
-const PROD_ANSWER_PLACEHOLDER = '답변을 준비 중입니다.';
+  "TODO(mentor-apply): 답변 카피 미확보 — 어드민(멘토신청 FAQ 관리)에서 채울 것";
+const PROD_ANSWER_PLACEHOLDER = "답변을 준비 중입니다.";
 
 function hasAnswer(item) {
-  return typeof item.a === 'string' && item.a.trim() !== '';
+  return typeof item.a === "string" && item.a.trim() !== "";
 }
 
 export default function MentorFaq() {
@@ -57,32 +57,38 @@ export default function MentorFaq() {
     (async () => {
       const [faqResult, copyResult] = await Promise.all([
         supabase
-          .from('mentor_apply_faqs')
-          .select('question, answer')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: false }),
-        supabase.from('mentor_apply_copy').select('copy_key, copy_value')
+          .from("mentor_apply_faqs")
+          .select("question, answer")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: false }),
+        supabase.from("mentor_apply_copy").select("copy_key, copy_value"),
       ]);
 
       if (!alive) return;
 
       // 조회 실패 또는 0행이면 MENTOR_FAQ 폴백을 그대로 유지한다(교체하지 않는다).
       if (!faqResult.error && faqResult.data && faqResult.data.length > 0) {
-        setFaqs(faqResult.data.map((row) => ({ q: row.question, a: row.answer })));
+        setFaqs(
+          faqResult.data.map((row) => ({ q: row.question, a: row.answer })),
+        );
       }
 
       // 키 단위 폴백 — 개별 키가 없거나 조회 자체가 실패하면 그 키만 FAQ_SECTION 값을 쓴다.
       if (!copyResult.error && copyResult.data) {
-        const copyMap = new Map(copyResult.data.map((row) => [row.copy_key, row.copy_value]));
+        const copyMap = new Map(
+          copyResult.data.map((row) => [row.copy_key, row.copy_value]),
+        );
         setCopy({
-          eyebrow: copyMap.has('faq.eyebrow') ? copyMap.get('faq.eyebrow') : FAQ_SECTION.eyebrow,
-          titleLead: copyMap.has('faq.title_lead')
-            ? copyMap.get('faq.title_lead')
+          eyebrow: copyMap.has("faq.eyebrow")
+            ? copyMap.get("faq.eyebrow")
+            : FAQ_SECTION.eyebrow,
+          titleLead: copyMap.has("faq.title_lead")
+            ? copyMap.get("faq.title_lead")
             : FAQ_SECTION.titleLead,
-          titleAccent: copyMap.has('faq.title_accent')
-            ? copyMap.get('faq.title_accent')
-            : FAQ_SECTION.titleAccent
+          titleAccent: copyMap.has("faq.title_accent")
+            ? copyMap.get("faq.title_accent")
+            : FAQ_SECTION.titleAccent,
         });
       }
     })();
@@ -92,14 +98,20 @@ export default function MentorFaq() {
     };
   }, []);
 
-  const placeholder = import.meta.env.DEV ? DEV_ANSWER_PLACEHOLDER : PROD_ANSWER_PLACEHOLDER;
+  const placeholder = import.meta.env.DEV
+    ? DEV_ANSWER_PLACEHOLDER
+    : PROD_ANSWER_PLACEHOLDER;
 
   // 답변 렌더는 평문 + 개행 보존이다 — 어드민이 textarea 에 실개행으로 입력하므로.
   // ServiceFaq(공용 컴포넌트, 수정 금지)는 답변에 className 을 넘길 prop 이 없어
   // 여기서 answer 자체를 whitespace-pre-line span 으로 감싸 item.a 자리에 넘긴다.
   const items = faqs.map((item) => ({
     q: item.q,
-    a: hasAnswer(item) ? <span className="whitespace-pre-line">{item.a}</span> : placeholder
+    a: hasAnswer(item) ? (
+      <span className="whitespace-pre-line">{item.a}</span>
+    ) : (
+      placeholder
+    ),
   }));
 
   // MENTOR_FAQ(폴백)이든 DB 응답이든 배열 자체가 빈 방어적 케이스만 여기서 숨긴다 —
@@ -116,7 +128,9 @@ export default function MentorFaq() {
       <div className="flex flex-col lg:gap-[1.625rem]">
         {/* 시안 헤더는 925폭 중앙정렬. 아이라인 ↔ 타이틀 gap 8(0.5rem). */}
         <div className="mx-auto flex w-full max-w-[57.8125rem] flex-col gap-2 text-center">
-          <p className="text-sm font-medium leading-[1.4] text-ink">{copy.eyebrow}</p>
+          <p className="text-sm font-medium leading-[1.4] text-ink">
+            {copy.eyebrow}
+          </p>
           {/* 38px Bold — `지원 전 `(ink.title) + `궁금한 점`(accent #0B84FD).
               ServiceSection 의 heading prop 을 쓰지 않으므로(파일 상단 주석) 여기서 h2 를 직접
               그린다 — 페이지 안에서 h2 는 이 하나뿐이라 중복되지 않는다. */}

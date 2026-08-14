@@ -20,7 +20,9 @@ export default function SummaryCards({ cards }) {
             <p className="text-[1.25rem] font-medium leading-[1.25rem] text-[#013262]">
               {card.value}
             </p>
-            <p className="text-base font-normal leading-[1.25rem] text-[#013262]">{card.sub}</p>
+            <p className="text-base font-normal leading-[1.25rem] text-[#013262]">
+              {card.sub}
+            </p>
           </div>
         </div>
       ))}

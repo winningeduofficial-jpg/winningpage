@@ -1,10 +1,10 @@
-import StatusBadge from './StatusBadge';
-import ScoreBar from './ScoreBar';
+import ScoreBar from "./ScoreBar";
+import StatusBadge from "./StatusBadge";
 
 // 우선순위 표 6행 — 뱃지 / 영역 / 현재·목표 수준 게이지 / 현재 상태 / 필요한 것.
 // rows = [...data.learningAxes].sort((a, b) => a.score - b.score) (ReportPageOne 소유).
 // 헤더/바디 공용 그리드: 116 / 188 / 237 / 120 / auto (px) → 7.25 / 11.75 / 14.8125 / 7.5rem / 1fr.
-const GRID_COLS = 'grid-cols-[7.25rem_11.75rem_14.8125rem_7.5rem_1fr]';
+const GRID_COLS = "grid-cols-[7.25rem_11.75rem_14.8125rem_7.5rem_1fr]";
 
 /*
  * R3(2026-08-11) — 5열 그리드(헤더 포함 실폭 ≈ 62.5rem/1000px)는 모바일에서 가로 스크롤
@@ -39,7 +39,7 @@ export default function PriorityTable({ rows }) {
               <div
                 key={area}
                 className={`grid h-7 ${GRID_COLS} items-center ${
-                  index > 0 ? 'border-t border-[#e5e5e5]' : ''
+                  index > 0 ? "border-t border-[#e5e5e5]" : ""
                 }`}
               >
                 <StatusBadge tone={row.tone}>{row.badge}</StatusBadge>
@@ -59,7 +59,12 @@ export default function PriorityTable({ rows }) {
                   숫자가 텍스트로 있으므로 막대는 decorative(중복 낭독 방지).
                 */}
                 <div className="flex items-center gap-2">
-                  <ScoreBar score={row.score} tone={row.tone} trackClass="w-[10.625rem]" decorative />
+                  <ScoreBar
+                    score={row.score}
+                    tone={row.tone}
+                    trackClass="w-[10.625rem]"
+                    decorative
+                  />
                   <span className="w-[2.875rem] shrink-0 text-right text-base font-normal leading-[1.25rem] text-[#525252] tabular-nums">
                     {row.score}점
                   </span>
@@ -82,7 +87,10 @@ export default function PriorityTable({ rows }) {
         {rows.map((row) => {
           const area = row.area ?? row.name;
           return (
-            <div key={area} className="flex flex-col gap-2 rounded-xl border border-[#e5e5e5] p-4">
+            <div
+              key={area}
+              className="flex flex-col gap-2 rounded-xl border border-[#e5e5e5] p-4"
+            >
               <div className="flex items-center gap-2">
                 <StatusBadge tone={row.tone}>{row.badge}</StatusBadge>
                 <span className="text-base font-medium leading-[1.25rem] text-[#525252]">
@@ -93,7 +101,12 @@ export default function PriorityTable({ rows }) {
                   {row.score}점
                 </span>
               </div>
-              <ScoreBar score={row.score} tone={row.tone} responsive decorative />
+              <ScoreBar
+                score={row.score}
+                tone={row.tone}
+                responsive
+                decorative
+              />
               {/* text-base(16px) — 본문 최소 크기. 데스크톱 그리드와 동일 폰트 크기를 유지한다. */}
               <dl className="flex flex-col gap-1 text-base leading-[1.4] text-[#525252]">
                 <div className="flex gap-1.5">

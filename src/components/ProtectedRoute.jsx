@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
 // 로그인 여부만 확인하는 라우트 가드. 관리자 권한까지 보는 ProtectedAdmin.jsx
 // 의 형제 컴포넌트 — profiles.role 조회 없이 세션 유무만 본다.
@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 export default function ProtectedRoute({ children }) {
   const location = useLocation();
 
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
     let alive = true;
@@ -23,7 +23,7 @@ export default function ProtectedRoute({ children }) {
 
       if (!alive) return;
 
-      setStatus(user ? 'authed' : 'guest');
+      setStatus(user ? "authed" : "guest");
     }
 
     checkAuth();
@@ -33,7 +33,7 @@ export default function ProtectedRoute({ children }) {
     };
   }, []);
 
-  if (status === 'loading') {
+  if (status === "loading") {
     // 마크업·문구 모두 Signup.jsx(:690) / ProtectedAdmin.jsx(:53) 세션 확인
     // 로딩 화면 재사용 — 신규 문구 아님.
     return (
@@ -45,13 +45,16 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (status === 'guest') {
+  if (status === "guest") {
     // ProtectedAdmin.jsx §5.2 와 같은 관례: Login.jsx는 location.state가 아니라
     // ?redirect= 쿼리만 읽는다. Pricing.jsx의 goCheckout()도 이미
     // '/login?redirect=/checkout'로 보낸다(선(先) 진입 가드, 여기는 후(後) 가드).
     const redirectPath = `${location.pathname}${location.search}${location.hash}`;
     return (
-      <Navigate to={`/login?redirect=${encodeURIComponent(redirectPath)}`} replace />
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirectPath)}`}
+        replace
+      />
     );
   }
 

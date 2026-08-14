@@ -71,24 +71,24 @@
 //    클라이언트는 업로드 실패 시 그 세션에서 이미 올린 첨부를 이 엔드포인트로
 //    되돌린다(`src/lib/performance/guideUpload.js`).
 
-import crypto from 'crypto';
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import crypto from "node:crypto";
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
-  hasPaidServiceAccess
-} from '../_lib/serviceAccess.js';
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
-export const BUCKET = 'performance-guides';
+export const BUCKET = "performance-guides";
 
 // §8.8 「허용 형식」 — PNG / JPG·JPEG / WEBP. 버킷의 allowed_mime_types와 같은 집합이다
 // (sql/54_performance_app.sql (6)). HEIC/HEIF는 여기에 없으므로 415로 떨어진다.
 export const ALLOWED_MIME_EXT = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp'
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
 };
 
 export const MAX_ATTACHMENTS = 5; // §8.8 「최대 장수 5장 — 서버에서 강제」
@@ -120,67 +120,105 @@ function fail(res, status, code, message, extra) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/upload-url 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/upload-url 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
 
     // 이용권 재판정 — §8.6 공통 규약. 클라이언트 가드 통과 여부를 신뢰하지 않는다.
-    const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      SERVICE_CONFIGS[SERVICE_KEY],
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-    const mimeType = typeof body.mimeType === 'string' ? body.mimeType.trim().toLowerCase() : '';
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    const mimeType =
+      typeof body.mimeType === "string"
+        ? body.mimeType.trim().toLowerCase()
+        : "";
     const byteSize = Number(body.byteSize);
 
     if (!sessionId) {
-      return fail(res, 400, 'MISSING_FIELD', 'sessionId는 필수입니다.', { field: 'sessionId' });
+      return fail(res, 400, "MISSING_FIELD", "sessionId는 필수입니다.", {
+        field: "sessionId",
+      });
     }
 
     // ① MIME 화이트리스트. HEIC를 고른 사용자는 여기까지 오기 전에 클라이언트가
     //    §8.8 지정 문구로 막지만, 파일 선택기 필터를 우회한 경우 이 검사가 정본이다.
     const ext = ALLOWED_MIME_EXT[mimeType];
     if (!ext) {
-      return fail(res, 415, 'UNSUPPORTED_MIME', 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.', {
-        allowed: Object.keys(ALLOWED_MIME_EXT)
-      });
+      return fail(
+        res,
+        415,
+        "UNSUPPORTED_MIME",
+        "PNG, JPG, WEBP 이미지만 올릴 수 있어요.",
+        {
+          allowed: Object.keys(ALLOWED_MIME_EXT),
+        },
+      );
     }
 
-    if (!Number.isFinite(byteSize) || !Number.isInteger(byteSize) || byteSize <= 0) {
-      return fail(res, 400, 'INVALID_BYTE_SIZE', '파일 크기 정보를 확인할 수 없습니다.', {
-        field: 'byteSize'
-      });
+    if (
+      !Number.isFinite(byteSize) ||
+      !Number.isInteger(byteSize) ||
+      byteSize <= 0
+    ) {
+      return fail(
+        res,
+        400,
+        "INVALID_BYTE_SIZE",
+        "파일 크기 정보를 확인할 수 없습니다.",
+        {
+          field: "byteSize",
+        },
+      );
     }
 
     if (byteSize > MAX_FILE_BYTES) {
-      return fail(res, 413, 'FILE_TOO_LARGE', '사진 한 장은 10MB까지 올릴 수 있어요.', {
-        maxBytes: MAX_FILE_BYTES
-      });
+      return fail(
+        res,
+        413,
+        "FILE_TOO_LARGE",
+        "사진 한 장은 10MB까지 올릴 수 있어요.",
+        {
+          maxBytes: MAX_FILE_BYTES,
+        },
+      );
     }
 
     // ── 소유권 확인. service_role 클라이언트라 RLS가 통째로 우회되므로 이
@@ -188,16 +226,22 @@ export default async function handler(req, res) {
     //    세션이 없는 경우와 남의 세션인 경우를 **같은 403으로 합친다** — 404로 갈라
     //    주면 "그 UUID가 존재하는가"를 알려주는 존재 오라클이 된다.
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
-      .select('id')
-      .eq('id', sessionId)
-      .eq('profile_id', userId)
+      .from("performance_sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .eq("profile_id", userId)
       .maybeSingle();
 
-    if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+    if (sessionError)
+      throw new Error(`세션 조회 실패: ${sessionError.message}`);
 
     if (!sessionRow) {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '이 수행평가 세션에 접근할 수 없습니다.');
+      return fail(
+        res,
+        403,
+        "NOT_SESSION_OWNER",
+        "이 수행평가 세션에 접근할 수 없습니다.",
+      );
     }
 
     // ② 장수 · ③ 합계 용량 — 같은 조회 한 번으로 함께 판정한다.
@@ -207,27 +251,43 @@ export default async function handler(req, res) {
     // 올릴 수 있는 우회로가 생긴다. pending 고아 행이 자리를 먹는 문제는 24시간 TTL
     // 스윕이 해결한다(파일 상단 주석).
     const { data: attachmentRows, error: attachmentError } = await supabaseAdmin
-      .from('performance_attachments')
-      .select('id,byte_size')
-      .eq('session_id', sessionRow.id);
+      .from("performance_attachments")
+      .select("id,byte_size")
+      .eq("session_id", sessionRow.id);
 
-    if (attachmentError) throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
+    if (attachmentError)
+      throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
 
     const existing = attachmentRows || [];
 
     if (existing.length >= MAX_ATTACHMENTS) {
-      return fail(res, 409, 'TOO_MANY_ATTACHMENTS', '안내문 사진은 최대 5장까지 올릴 수 있어요.', {
-        max: MAX_ATTACHMENTS
-      });
+      return fail(
+        res,
+        409,
+        "TOO_MANY_ATTACHMENTS",
+        "안내문 사진은 최대 5장까지 올릴 수 있어요.",
+        {
+          max: MAX_ATTACHMENTS,
+        },
+      );
     }
 
-    const usedBytes = existing.reduce((sum, row) => sum + (Number(row.byte_size) || 0), 0);
+    const usedBytes = existing.reduce(
+      (sum, row) => sum + (Number(row.byte_size) || 0),
+      0,
+    );
 
     if (usedBytes + byteSize > MAX_TOTAL_BYTES) {
-      return fail(res, 413, 'FILE_TOO_LARGE', '사진 전체 용량은 25MB까지 올릴 수 있어요.', {
-        maxTotalBytes: MAX_TOTAL_BYTES,
-        usedBytes
-      });
+      return fail(
+        res,
+        413,
+        "FILE_TOO_LARGE",
+        "사진 전체 용량은 25MB까지 올릴 수 있어요.",
+        {
+          maxTotalBytes: MAX_TOTAL_BYTES,
+          usedBytes,
+        },
+      );
     }
 
     // ── 경로 조립. 클라이언트 입력이 섞이는 지점이 없다(파일 상단 주석).
@@ -238,26 +298,27 @@ export default async function handler(req, res) {
       .createSignedUploadUrl(objectPath);
 
     if (signError || !signed) {
-      console.error('performance/upload-url signed URL 발급 실패:', signError);
-      return fail(res, 500, 'INTERNAL', '업로드 준비 중 오류가 발생했습니다.');
+      console.error("performance/upload-url signed URL 발급 실패:", signError);
+      return fail(res, 500, "INTERNAL", "업로드 준비 중 오류가 발생했습니다.");
     }
 
     // 토큰 발급 → 행 생성 순서다. 반대로 하면 서명 실패 시 아무 파일도 가리키지 않는
     // 행이 남는다. 이 순서에서 남을 수 있는 것은 "업로드되지 않을 토큰"뿐이고 그건
     // 아무 객체도 만들지 않는다.
     const { data: attachment, error: insertError } = await supabaseAdmin
-      .from('performance_attachments')
+      .from("performance_attachments")
       .insert({
         session_id: sessionRow.id,
         storage_path: signed.path || objectPath,
         mime_type: mimeType,
         byte_size: byteSize,
-        ocr_status: 'pending'
+        ocr_status: "pending",
       })
-      .select('id')
+      .select("id")
       .single();
 
-    if (insertError) throw new Error(`첨부 행 생성 실패: ${insertError.message}`);
+    if (insertError)
+      throw new Error(`첨부 행 생성 실패: ${insertError.message}`);
 
     return res.status(200).json({
       attachmentId: attachment.id,
@@ -265,14 +326,16 @@ export default async function handler(req, res) {
       path: signed.path || objectPath,
       token: signed.token,
       signedUrl: signed.signedUrl,
-      expiresAt: new Date(Date.now() + UPLOAD_TOKEN_TTL_SECONDS * 1000).toISOString()
+      expiresAt: new Date(
+        Date.now() + UPLOAD_TOKEN_TTL_SECONDS * 1000,
+      ).toISOString(),
     });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/upload-url error:', error);
-    return fail(res, 500, 'INTERNAL', '업로드 준비에 실패했습니다.');
+    console.error("performance/upload-url error:", error);
+    return fail(res, 500, "INTERNAL", "업로드 준비에 실패했습니다.");
   }
 }
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };

@@ -11,8 +11,8 @@
 // 않는다) — 호출부(어드민 UI/공개 페이지)가 이미 갖고 있는 client를
 // 그대로 넘기면 된다. DB 접근은 이 두 함수를 통해서만 이뤄진다.
 
-const TABLE = 'app_settings';
-const ADMISSION_ACTIVE_YEAR_KEY = 'admission_active_year';
+const TABLE = "app_settings";
+const ADMISSION_ACTIVE_YEAR_KEY = "admission_active_year";
 const DEFAULT_ADMISSION_ACTIVE_YEAR = 2027;
 
 /**
@@ -28,12 +28,14 @@ export async function getAdmissionActiveYear(supabaseClient) {
   try {
     const { data, error } = await supabaseClient
       .from(TABLE)
-      .select('value')
-      .eq('key', ADMISSION_ACTIVE_YEAR_KEY)
+      .select("value")
+      .eq("key", ADMISSION_ACTIVE_YEAR_KEY)
       .maybeSingle();
     if (error || !data) return DEFAULT_ADMISSION_ACTIVE_YEAR;
     const year = Number(data.value);
-    return Number.isFinite(year) && year > 0 ? year : DEFAULT_ADMISSION_ACTIVE_YEAR;
+    return Number.isFinite(year) && year > 0
+      ? year
+      : DEFAULT_ADMISSION_ACTIVE_YEAR;
   } catch {
     return DEFAULT_ADMISSION_ACTIVE_YEAR;
   }
@@ -52,9 +54,14 @@ export async function setAdmissionActiveYear(supabaseClient, year) {
   if (!Number.isFinite(numericYear) || numericYear <= 0) {
     return { ok: false, error: `유효하지 않은 연도: ${year}` };
   }
-  const { error } = await supabaseClient
-    .from(TABLE)
-    .upsert({ key: ADMISSION_ACTIVE_YEAR_KEY, value: numericYear, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  const { error } = await supabaseClient.from(TABLE).upsert(
+    {
+      key: ADMISSION_ACTIVE_YEAR_KEY,
+      value: numericYear,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

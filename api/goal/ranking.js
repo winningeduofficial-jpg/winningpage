@@ -24,14 +24,14 @@
 // profiles.name 원본은 이 응답 밖으로 나가지 않는다(본인 제외) — top 배열은
 // 항상 maskName()을 거친 문자열만 담는다.
 
-import { openGoalSession, num } from '../_lib/goalRepo.js';
-import { kstYMD } from '../../src/lib/goal/calc/index.js';
+import { kstYMD } from "../../src/lib/goal/calc/index.js";
+import { num, openGoalSession } from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
-const TABLE_RANKING_STUDENTS = 'goal_students';
-const TABLE_RANKING_RECORDS = 'goal_daily_records';
-const TABLE_PROFILES = 'profiles';
+const TABLE_RANKING_STUDENTS = "goal_students";
+const TABLE_RANKING_RECORDS = "goal_daily_records";
+const TABLE_PROFILES = "profiles";
 
 /**
  * "홍O동" 마스킹. 성(첫 글자)과 끝 글자는 유지, 가운데는 전부 O.
@@ -41,10 +41,10 @@ const TABLE_PROFILES = 'profiles';
  *   길이 0/1: 마스킹할 가운데가 없어 원본을 그대로 둔다(팀장 지시에 명시 없음 — 판단).
  */
 export function maskName(name) {
-  const value = String(name || '').trim();
+  const value = String(name || "").trim();
   if (value.length <= 1) return value;
   if (value.length === 2) return `${value[0]}O`;
-  const middle = 'O'.repeat(value.length - 2);
+  const middle = "O".repeat(value.length - 2);
   return `${value[0]}${middle}${value[value.length - 1]}`;
 }
 
@@ -65,8 +65,8 @@ export function assignRanks(sortedRows) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "GET") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -84,14 +84,19 @@ export default async function handler(req, res) {
 
     const today = kstYMD();
 
-    const [{ data: activeRows, error: activeError }, { data: recordRows, error: recordError }] =
-      await Promise.all([
-        supabaseAdmin.from(TABLE_RANKING_STUDENTS).select('profile_id').eq('status', 'active'),
-        supabaseAdmin
-          .from(TABLE_RANKING_RECORDS)
-          .select('profile_id, study_hours')
-          .eq('submitted_on', today)
-      ]);
+    const [
+      { data: activeRows, error: activeError },
+      { data: recordRows, error: recordError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from(TABLE_RANKING_STUDENTS)
+        .select("profile_id")
+        .eq("status", "active"),
+      supabaseAdmin
+        .from(TABLE_RANKING_RECORDS)
+        .select("profile_id, study_hours")
+        .eq("submitted_on", today),
+    ]);
 
     if (activeError) throw activeError;
     if (recordError) throw recordError;
@@ -103,7 +108,10 @@ export default async function handler(req, res) {
     for (const row of recordRows || []) {
       if (!activeIds.has(row.profile_id)) continue;
       const hours = num(row.study_hours) ?? 0;
-      hoursByProfile.set(row.profile_id, (hoursByProfile.get(row.profile_id) || 0) + hours);
+      hoursByProfile.set(
+        row.profile_id,
+        (hoursByProfile.get(row.profile_id) || 0) + hours,
+      );
     }
 
     const profileIds = [...hoursByProfile.keys()];
@@ -112,15 +120,21 @@ export default async function handler(req, res) {
     if (profileIds.length > 0) {
       const { data: profileRows, error: profileError } = await supabaseAdmin
         .from(TABLE_PROFILES)
-        .select('id, name')
-        .in('id', profileIds);
+        .select("id, name")
+        .in("id", profileIds);
 
       if (profileError) throw profileError;
-      nameById = new Map((profileRows || []).map((row) => [row.id, row.name || '']));
+      nameById = new Map(
+        (profileRows || []).map((row) => [row.id, row.name || ""]),
+      );
     }
 
     const sorted = profileIds
-      .map((id) => ({ profileId: id, name: nameById.get(id) || '', hours: hoursByProfile.get(id) }))
+      .map((id) => ({
+        profileId: id,
+        name: nameById.get(id) || "",
+        hours: hoursByProfile.get(id),
+      }))
       .sort((a, b) => b.hours - a.hours);
 
     const ranked = assignRanks(sorted);
@@ -128,15 +142,17 @@ export default async function handler(req, res) {
     const top = ranked.slice(0, 5).map((row) => ({
       rank: row.rank,
       name: maskName(row.name),
-      hours: row.hours
+      hours: row.hours,
     }));
 
     const meRow = ranked.find((row) => row.profileId === profileId) || null;
-    const me = meRow ? { rank: meRow.rank, name: meRow.name, hours: meRow.hours } : null;
+    const me = meRow
+      ? { rank: meRow.rank, name: meRow.name, hours: meRow.hours }
+      : null;
 
     return res.status(200).json({ ok: true, date: today, top, me });
   } catch (error) {
-    console.error('goal/ranking error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/ranking error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

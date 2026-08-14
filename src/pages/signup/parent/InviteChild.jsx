@@ -10,11 +10,17 @@
 // NOTE: 공통 링크 방식에서는 아래 "자동으로 연결돼요" 문구가 가리키는 가입-연결 자동화가
 // 토큰 없이는 불가능함 — 실제로는 가입 후 연결코드로 연결하는 흐름이 되어야 하며 이 동작은
 // 백엔드/기획 확정 필요(문구 자체는 Figma 시안 원문이라 수정하지 않음).
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { AuthLayout, AuthTitle, TextField, PrimaryButton, InfoCard } from '../../../components/auth';
-import { useSignup } from '../../../context/SignupContext';
-import { sendChildInvite } from './mockApi';
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  AuthLayout,
+  AuthTitle,
+  InfoCard,
+  PrimaryButton,
+  TextField,
+} from "../../../components/auth";
+import { useSignup } from "../../../context/SignupContext";
+import { sendChildInvite } from "./mockApi";
 
 const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;
 
@@ -26,14 +32,13 @@ export default function InviteChild() {
   // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
   // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
   useEffect(() => {
-    if (memberType !== 'parent' || !parentSignupCompleted) {
-      navigate('/signup', { replace: true });
+    if (memberType !== "parent" || !parentSignupCompleted) {
+      navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, parentSignupCompleted]);
+  }, [memberType, parentSignupCompleted, navigate]);
 
-  const [name, setName] = useState(location.state?.childName || '');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState(location.state?.childName || "");
+  const [phone, setPhone] = useState("");
   const [sending, setSending] = useState(false);
 
   const canSubmit = name.trim() && PHONE_REGEX.test(phone);
@@ -45,13 +50,19 @@ export default function InviteChild() {
     const { inviteUrl } = await sendChildInvite({ name, phone });
     setSending(false);
 
-    navigate('/signup/parent/invite/done', { state: { childName: name, inviteUrl } });
+    navigate("/signup/parent/invite/done", {
+      state: { childName: name, inviteUrl },
+    });
   }
 
   return (
     <AuthLayout spacing="tall" gap="wide">
       <div className="flex flex-col items-center gap-3 text-center">
-        <AuthTitle line1="아직 회원이 아닌 자녀에게" line2="초대를 보낼게요" line2Color="ink" />
+        <AuthTitle
+          line1="아직 회원이 아닌 자녀에게"
+          line2="초대를 보낼게요"
+          line2Color="ink"
+        />
         <p className="break-keep text-base font-medium text-ink sm:text-xl">
           초대 링크로 자녀가 직접 가입하면 자동으로 연결돼요
         </p>
@@ -83,11 +94,17 @@ export default function InviteChild() {
         />
 
         <InfoCard variant="info" radius="lg">
-          💡 만 14세 미만 자녀는 개인정보보호법에 따라 가입 시 법정대리인(보호자) 동의가
-          필요해요. 자녀가 링크로 가입할 때 동의 절차가 함께 진행돼요.
+          💡 만 14세 미만 자녀는 개인정보보호법에 따라 가입 시
+          법정대리인(보호자) 동의가 필요해요. 자녀가 링크로 가입할 때 동의
+          절차가 함께 진행돼요.
         </InfoCard>
 
-        <PrimaryButton size="lg" onClick={handleSubmit} disabled={!canSubmit || sending} loading={sending}>
+        <PrimaryButton
+          size="lg"
+          onClick={handleSubmit}
+          disabled={!canSubmit || sending}
+          loading={sending}
+        >
           문자로 초대 보내기
         </PrimaryButton>
       </div>

@@ -32,29 +32,29 @@
 // 오버라이드 규칙을 이 파일에 베껴 쓰면 두 벌이 갈린다(buildWeeklySchedule 주석 참고).
 
 import {
-  GRADE_PERCENTILE,
   buildInitialStudentState,
+  calcAvailableHoursApprox,
   calcJeongsiCompositeFE,
   calculateWeekSchedule,
-  calcAvailableHoursApprox,
+  GRADE_PERCENTILE,
   getRemainingMogo,
   getSchoolCutType,
   kstYMD,
-  round1
-} from '../../src/lib/goal/calc/index.js';
+  round1,
+} from "../../src/lib/goal/calc/index.js";
 
 import {
-  PAID_MESSAGE,
   appendProbabilityLog,
   buildStudentPayload,
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTargetCuts,
   openGoalSession,
-  upsertStudentRow
-} from '../_lib/goalRepo.js';
+  PAID_MESSAGE,
+  upsertStudentRow,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 // ---------------------------------------------------------------------------
 // 온보딩 코드값 → 계산 모듈 리터럴 (§7-4)
@@ -66,38 +66,38 @@ export const config = { runtime: 'nodejs' };
 // ---------------------------------------------------------------------------
 
 const SCHOOL_TYPE_MAP = {
-  general: '일반고',
-  special: '특목고' // 미결 Q6 — '특목,자사,영재고' 와 둘 다 special 로 판정된다
+  general: "일반고",
+  special: "특목고", // 미결 Q6 — '특목,자사,영재고' 와 둘 다 special 로 판정된다
 };
 
 // 중학교·초등학교는 grade_conversions 변환표가 필요해 아직 지원하지 않는다(§7-5, 미결 Q7).
-const UNSUPPORTED_SCHOOL_TYPES = ['middle', 'elementary'];
+const UNSUPPORTED_SCHOOL_TYPES = ["middle", "elementary"];
 
 const GRADE_MAP = {
-  g1: '고1',
-  g2: '고2',
-  g3: '고3'
+  g1: "고1",
+  g2: "고2",
+  g3: "고3",
 };
 
 // 라벨이 getRemainingNaesin 표의 키(primitives.js:59-72)와 글자 단위로 일치해야 한다.
 const NAESIN_ROUNDS = [
-  { key: 's1mid', label: '1학기 중간' },
-  { key: 's1final', label: '1학기 기말' },
-  { key: 's2mid', label: '2학기 중간' },
-  { key: 's2final', label: '2학기 기말' }
+  { key: "s1mid", label: "1학기 중간" },
+  { key: "s1final", label: "1학기 기말" },
+  { key: "s2mid", label: "2학기 중간" },
+  { key: "s2final", label: "2학기 기말" },
 ];
 
 // 라벨이 getRemainingMogo 표의 키(primitives.js:88-103)와 일치해야 한다.
 // ⚠️ 고3 전용 '5모'·'7모' 는 우리 온보딩에 없어 고3 remain_mogo 가 실제보다
 // 최대 2 크게 나온다(미결 Q9 — 계산 모듈 동결 + 시안에 없어 그대로 둔다).
 const MOCK_ROUNDS = [
-  { key: 'mar', label: '3모' },
-  { key: 'jun', label: '6모' },
-  { key: 'sep', label: '9모' },
-  { key: 'oct', label: '10모' }
+  { key: "mar", label: "3모" },
+  { key: "jun", label: "6모" },
+  { key: "sep", label: "9모" },
+  { key: "oct", label: "10모" },
 ];
 
-const MOCK_SUBJECTS = ['kor', 'math', 'eng', 'tam1', 'tam2'];
+const MOCK_SUBJECTS = ["kor", "math", "eng", "tam1", "tam2"];
 
 // ---------------------------------------------------------------------------
 // "성적 없음" 특례의 잔여 회차 오버라이드 표
@@ -124,13 +124,13 @@ const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 // goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
 // 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
 const WEEKDAYS = [
-  { short: 'mon', long: 'monday', hasSchool: true },
-  { short: 'tue', long: 'tuesday', hasSchool: true },
-  { short: 'wed', long: 'wednesday', hasSchool: true },
-  { short: 'thu', long: 'thursday', hasSchool: true },
-  { short: 'fri', long: 'friday', hasSchool: true },
-  { short: 'sat', long: 'saturday', hasSchool: false },
-  { short: 'sun', long: 'sunday', hasSchool: false }
+  { short: "mon", long: "monday", hasSchool: true },
+  { short: "tue", long: "tuesday", hasSchool: true },
+  { short: "wed", long: "wednesday", hasSchool: true },
+  { short: "thu", long: "thursday", hasSchool: true },
+  { short: "fri", long: "friday", hasSchool: true },
+  { short: "sat", long: "saturday", hasSchool: false },
+  { short: "sun", long: "sunday", hasSchool: false },
 ];
 
 // goalOnboardingMock.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
@@ -138,7 +138,7 @@ const DAILY_SCHEDULE_LIMITS = {
   wakeUpHour: { min: 0, max: 23 },
   sleepHour: { min: 0, max: 24 },
   schoolStayHours: { min: 0, max: 24 },
-  academyHours: { min: 0, max: 24 }
+  academyHours: { min: 0, max: 24 },
 };
 
 const NAME_MAX_LENGTH = 100;
@@ -149,11 +149,11 @@ const STUDY_HOURS_MAX = 24;
 // ---------------------------------------------------------------------------
 
 function clean(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
@@ -172,7 +172,7 @@ function isPlainObject(value) {
  *   숫자에서 되짚어 만든 문자열만 쓴다(clean 을 쓰지 않는다).
  */
 function isNumericInput(raw) {
-  return typeof raw === 'number' || typeof raw === 'string';
+  return typeof raw === "number" || typeof raw === "string";
 }
 
 // Step4Naesin.jsx:8-11 / Step5MockExam.jsx:8-11 의 isValidGrade 와 동일한 규칙.
@@ -205,13 +205,18 @@ function fail(detail) {
 }
 
 function validateTarget(value, label) {
-  if (!isPlainObject(value)) return { error: fail(`${label} 정보가 올바르지 않습니다.`).error };
+  if (!isPlainObject(value))
+    return { error: fail(`${label} 정보가 올바르지 않습니다.`).error };
 
   const university = clean(value.university);
   const department = clean(value.department);
 
-  if (!university) return { error: fail(`${label} 대학을 선택해 주세요.`).error };
-  if (university.length > NAME_MAX_LENGTH || department.length > NAME_MAX_LENGTH) {
+  if (!university)
+    return { error: fail(`${label} 대학을 선택해 주세요.`).error };
+  if (
+    university.length > NAME_MAX_LENGTH ||
+    department.length > NAME_MAX_LENGTH
+  ) {
     return { error: fail(`${label} 대학·학과 이름이 너무 깁니다.`).error };
   }
 
@@ -223,7 +228,7 @@ function validateTarget(value, label) {
  * @returns {{error?:{status:number, body:object}, input?:object}}
  */
 function validateIntakeBody(body) {
-  if (!isPlainObject(body)) return fail('요청 본문이 올바르지 않습니다.');
+  if (!isPlainObject(body)) return fail("요청 본문이 올바르지 않습니다.");
 
   // ── 학교 유형 · 학년 ──────────────────────────────────────────────────
   const schoolType = clean(body.schoolType);
@@ -233,35 +238,37 @@ function validateIntakeBody(body) {
       error: {
         status: 501,
         body: {
-          detail: '중학교·초등학교 목표관리는 아직 준비 중입니다.',
-          reason: 'grade_unsupported'
-        }
-      }
+          detail: "중학교·초등학교 목표관리는 아직 준비 중입니다.",
+          reason: "grade_unsupported",
+        },
+      },
     };
   }
 
-  if (!SCHOOL_TYPE_MAP[schoolType]) return fail('학교 유형을 선택해 주세요.');
+  if (!SCHOOL_TYPE_MAP[schoolType]) return fail("학교 유형을 선택해 주세요.");
 
   const grade = clean(body.grade);
-  if (!GRADE_MAP[grade]) return fail('학년을 선택해 주세요.');
+  if (!GRADE_MAP[grade]) return fail("학년을 선택해 주세요.");
 
   // ── 목표 대학 ────────────────────────────────────────────────────────
-  const idealTarget = validateTarget(body.upperUniversity, '이상 목표');
+  const idealTarget = validateTarget(body.upperUniversity, "이상 목표");
   if (idealTarget.error) return { error: idealTarget.error };
 
-  const minTarget = validateTarget(body.lowerUniversity, '최소 목표');
+  const minTarget = validateTarget(body.lowerUniversity, "최소 목표");
   if (minTarget.error) return { error: minTarget.error };
 
   // ── 내신 ─────────────────────────────────────────────────────────────
-  if (!isPlainObject(body.naesin)) return fail('내신 성적이 올바르지 않습니다.');
+  if (!isPlainObject(body.naesin))
+    return fail("내신 성적이 올바르지 않습니다.");
 
   const naesin = {};
   for (const { key, label } of NAESIN_ROUNDS) {
     const entry = body.naesin[key];
-    if (!isPlainObject(entry)) return fail(`내신 ${label} 입력이 누락되었습니다.`);
+    if (!isPlainObject(entry))
+      return fail(`내신 ${label} 입력이 누락되었습니다.`);
 
     if (entry.none === true) {
-      naesin[key] = { value: '', none: true };
+      naesin[key] = { value: "", none: true };
       continue;
     }
 
@@ -296,11 +303,13 @@ function validateIntakeBody(body) {
   // 전역 플래그를 두면 "플래그 OFF인데 4회차 전부 none" 같은 모순 상태가 생기고
   // 검증기가 그 모순까지 판정해야 한다. 파생이면 판정이 단 하나다.
   const naesinAllNone = NAESIN_ROUNDS.every(({ key }) => naesin[key].none);
-  let priorNaesinGrade = '';
+  let priorNaesinGrade = "";
 
   if (naesinAllNone) {
     if (!isValidGrade(body.priorNaesinGrade)) {
-      return fail('내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.');
+      return fail(
+        "내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.",
+      );
     }
     priorNaesinGrade = normalizeGrade(body.priorNaesinGrade);
   }
@@ -308,12 +317,14 @@ function validateIntakeBody(body) {
   // 화면에 보이지 않는 값이 조용히 계산이나 저장에 섞이지 않게 한다.
 
   // ── 모의고사 ─────────────────────────────────────────────────────────
-  if (!isPlainObject(body.mockExam)) return fail('모의고사 성적이 올바르지 않습니다.');
+  if (!isPlainObject(body.mockExam))
+    return fail("모의고사 성적이 올바르지 않습니다.");
 
   const mockExam = {};
   for (const { key, label } of MOCK_ROUNDS) {
     const entry = body.mockExam[key];
-    if (!isPlainObject(entry)) return fail(`모의고사 ${label} 입력이 누락되었습니다.`);
+    if (!isPlainObject(entry))
+      return fail(`모의고사 ${label} 입력이 누락되었습니다.`);
 
     if (entry.none === true) {
       mockExam[key] = { none: true };
@@ -337,17 +348,19 @@ function validateIntakeBody(body) {
   const mockAllNone = MOCK_ROUNDS.every(({ key }) => mockExam[key].none);
 
   // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
-  if (!isPlainObject(body.studyHours)) return fail('요일별 자습 시간이 올바르지 않습니다.');
+  if (!isPlainObject(body.studyHours))
+    return fail("요일별 자습 시간이 올바르지 않습니다.");
 
   const studyHours = {};
   for (const { short } of WEEKDAYS) {
     if (!isValidHours(body.studyHours[short], STUDY_HOURS_MAX)) {
-      return fail('요일별 자습 시간은 0~24 사이여야 합니다.');
+      return fail("요일별 자습 시간은 0~24 사이여야 합니다.");
     }
     studyHours[short] = Number(body.studyHours[short]);
   }
 
-  if (!isPlainObject(body.dailySchedule)) return fail('하루 일과가 올바르지 않습니다.');
+  if (!isPlainObject(body.dailySchedule))
+    return fail("하루 일과가 올바르지 않습니다.");
 
   const dailySchedule = {};
   for (const [field, limit] of Object.entries(DAILY_SCHEDULE_LIMITS)) {
@@ -355,8 +368,15 @@ function validateIntakeBody(body) {
     const value = Number(raw);
     // isNumericInput 가드 사유는 isValidGrade 와 같다 — boolean·객체가 Number 로
     // 조용히 0/1 이 되는 경로를 열어 두지 않는다.
-    if (!isNumericInput(raw) || !Number.isFinite(value) || value < limit.min || value > limit.max) {
-      return fail(`하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`);
+    if (
+      !isNumericInput(raw) ||
+      !Number.isFinite(value) ||
+      value < limit.min ||
+      value > limit.max
+    ) {
+      return fail(
+        `하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`,
+      );
     }
     dailySchedule[field] = value;
   }
@@ -373,8 +393,8 @@ function validateIntakeBody(body) {
       mockExam,
       mockAllNone,
       studyHours,
-      dailySchedule
-    }
+      dailySchedule,
+    },
   };
 }
 
@@ -397,15 +417,21 @@ function validateIntakeBody(body) {
  */
 function deriveNaesin(naesin, { naesinAllNone, priorNaesinGrade }) {
   if (naesinAllNone) {
-    return { currentScore: round1(Number(priorNaesinGrade)), lastNaesinExam: '' };
+    return {
+      currentScore: round1(Number(priorNaesinGrade)),
+      lastNaesinExam: "",
+    };
   }
 
   const taken = NAESIN_ROUNDS.filter(({ key }) => !naesin[key].none);
-  const sum = taken.reduce((acc, { key }) => acc + Number(naesin[key].value), 0);
+  const sum = taken.reduce(
+    (acc, { key }) => acc + Number(naesin[key].value),
+    0,
+  );
 
   return {
     currentScore: round1(sum / taken.length),
-    lastNaesinExam: taken[taken.length - 1].label
+    lastNaesinExam: taken[taken.length - 1].label,
   };
 }
 
@@ -424,7 +450,9 @@ function gradeToPercentile(rawGrade) {
   // NaN 을 통과시키고 GRADE_PERCENTILE[NaN] = undefined 를 읽어 TypeError 가 나던
   // 자리다 — 검증기를 통과한 입력으로 엔드포인트를 죽일 수 있었다.
   if (!Number.isFinite(numeric)) {
-    throw new Error(`[intake] gradeToPercentile: 등급이 숫자가 아니다 (${String(rawGrade)})`);
+    throw new Error(
+      `[intake] gradeToPercentile: 등급이 숫자가 아니다 (${String(rawGrade)})`,
+    );
   }
   const index = Math.min(9, Math.max(1, Math.round(numeric)));
   const band = GRADE_PERCENTILE[index];
@@ -456,7 +484,7 @@ function buildMogoScores(mockExam) {
       math: { percentile: gradeToPercentile(round.math) },
       eng: round.eng,
       exp1: { percentile: gradeToPercentile(round.tam1) },
-      exp2: { percentile: gradeToPercentile(round.tam2) }
+      exp2: { percentile: gradeToPercentile(round.tam2) },
     };
   }
 
@@ -468,7 +496,7 @@ function deriveMogo(mockExam) {
 
   return {
     currentMogo: calcJeongsiCompositeFE(buildMogoScores(mockExam)),
-    lastMogoExam: taken.length ? taken[taken.length - 1].label : ''
+    lastMogoExam: taken.length ? taken[taken.length - 1].label : "",
   };
 }
 
@@ -510,7 +538,7 @@ function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
     minUniv: min.university,
     minDept: min.department,
     weekSchedule,
-    selfStudyHours
+    selfStudyHours,
   });
 }
 
@@ -520,7 +548,7 @@ function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -529,8 +557,8 @@ function readBody(req) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -554,8 +582,8 @@ export default async function handler(req, res) {
     const existing = await fetchStudentRow(supabaseAdmin, profileId);
     if (existing?.onboarded_at) {
       return res.status(409).json({
-        detail: '이미 온보딩을 완료했습니다.',
-        reason: 'already_onboarded'
+        detail: "이미 온보딩을 완료했습니다.",
+        reason: "already_onboarded",
       });
     }
 
@@ -584,8 +612,8 @@ export default async function handler(req, res) {
     // GRADE_MAP 에 '중3' 을 넣으면 클라이언트가 직접 중3 을 주장할 수 있게 된다.
     // schoolType 은 절대 바꾸지 않는다('일반고'/'특목고' 유지 → school_type CHECK 통과 +
     // 컷 조회 대상도 그대로).
-    const isMiddleSubstituted = input.naesinAllNone && inputGrade === '고1';
-    const grade = isMiddleSubstituted ? '중3' : inputGrade;
+    const isMiddleSubstituted = input.naesinAllNone && inputGrade === "고1";
+    const grade = isMiddleSubstituted ? "중3" : inputGrade;
 
     const schoolCutType = getSchoolCutType(schoolType);
 
@@ -600,7 +628,7 @@ export default async function handler(req, res) {
     const { cuts, missing } = await fetchTargetCuts(supabaseAdmin, {
       schoolCutType,
       ideal: input.ideal,
-      min: input.min
+      min: input.min,
     });
 
     // 정시 컷을 외부 수집하지 않기로 확정했다(§9-Q1(b)) — 수시 컷만 필수로
@@ -674,7 +702,7 @@ export default async function handler(req, res) {
       // 고1·고2 는 conversionType 이 '5grade' 라 주입이 없으면 throw 한다.
       convertedGrade: currentScore,
       weeklySchedule,
-      now
+      now,
     });
 
     // 컷 쌍(수시/정시) 별 null 오버라이드를 여기서 한 번만 계산해 goal_students
@@ -687,7 +715,7 @@ export default async function handler(req, res) {
       idealSusi: hasSusiCuts ? state.baseProbs.idealSusi : null,
       idealJungsi: hasJungsiCuts ? state.baseProbs.idealJungsi : null,
       minSusi: hasSusiCuts ? state.baseProbs.minSusi : null,
-      minJungsi: hasJungsiCuts ? state.baseProbs.minJungsi : null
+      minJungsi: hasJungsiCuts ? state.baseProbs.minJungsi : null,
     };
 
     // 9) 저장
@@ -753,7 +781,7 @@ export default async function handler(req, res) {
       // 않는다(§9-Q1(b)). 수시 컷도 없는 awaiting_cuts 행만 원점을 두지 않는다.
       actual_start_date: hasSusiCuts ? kstYMD(now) : null,
       onboarded_at: hasSusiCuts ? now.toISOString() : null,
-      status: hasSusiCuts ? 'active' : 'awaiting_cuts'
+      status: hasSusiCuts ? "active" : "awaiting_cuts",
     };
 
     const savedRow = await upsertStudentRow(supabaseAdmin, row);
@@ -764,18 +792,25 @@ export default async function handler(req, res) {
     //     "컷 만들기" 버튼) 등 범용 소비처가 있어 고치지 않고, 여기 호출부에서
     //     수시 2종만 걸러 응답한다(§7-1-A 1번).
     if (!hasSusiCuts) {
-      const susiMissing = missing.filter((key) => key === 'idealNaesin' || key === 'minNaesin');
+      const susiMissing = missing.filter(
+        (key) => key === "idealNaesin" || key === "minNaesin",
+      );
       return res.status(422).json({
-        detail: '목표 대학의 합격 기준 데이터가 아직 준비되지 않았습니다.',
-        reason: 'cut_not_found',
-        missing: susiMissing
+        detail: "목표 대학의 합격 기준 데이터가 아직 준비되지 않았습니다.",
+        reason: "cut_not_found",
+        missing: susiMissing,
       });
     }
 
     // 11) 확률 스냅샷 — row 에 저장한 것과 같은 null 판정(baseProbsForStorage)을
     //     그대로 넘긴다. state.baseProbs 원값을 직접 넘기면 정시 컷이 없을 때
     //     0 이 들어가 goal_students(null)와 어긋난다.
-    await appendProbabilityLog(supabaseAdmin, profileId, baseProbsForStorage, 'intake');
+    await appendProbabilityLog(
+      supabaseAdmin,
+      profileId,
+      baseProbsForStorage,
+      "intake",
+    );
 
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다
@@ -784,10 +819,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      student: buildStudentPayload(savedRow, stateRow, state.schoolCutType)
+      student: buildStudentPayload(savedRow, stateRow, state.schoolCutType),
     });
   } catch (error) {
-    console.error('goal/intake error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/intake error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

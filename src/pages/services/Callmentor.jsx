@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react';
-import MentorSection from '../../components/landing/MentorSection';
-import ServiceSection from '../../components/services/ServiceSection';
-import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
-import ServiceTestimonials from '../../components/services/ServiceTestimonials';
-import CmButton from '../../components/callmentor/CmButton';
-import { supabase } from '../../lib/supabase';
-import { alertServiceNotReady } from '../../lib/paidServiceAccess';
-import heroCallMockup from '../../assets/callmentor/hero-call-mockup.webp';
-import stepDiagnosis from '../../assets/callmentor/step-diagnosis.jpg';
-import stepMentorMatch from '../../assets/callmentor/step-mentor-match.jpg';
-import stepCall from '../../assets/callmentor/step-call.jpg';
-import stepReview from '../../assets/callmentor/step-review.jpg';
-import audienceCareer from '../../assets/callmentor/audience-career.png';
-import audienceEntranceExam from '../../assets/callmentor/audience-entrance-exam.png';
-import audienceStudyMethod from '../../assets/callmentor/audience-study-method.jpg';
-import audienceMotivation from '../../assets/callmentor/audience-motivation.png';
-import iconValueCheck from '../../assets/callmentor/icon-value-check.svg';
-import iconValuePlan from '../../assets/callmentor/icon-value-plan.svg';
-import iconValueCard from '../../assets/callmentor/icon-value-card.svg';
+import { useEffect, useState } from "react";
+import audienceCareer from "../../assets/callmentor/audience-career.png";
+import audienceEntranceExam from "../../assets/callmentor/audience-entrance-exam.png";
+import audienceMotivation from "../../assets/callmentor/audience-motivation.png";
+import audienceStudyMethod from "../../assets/callmentor/audience-study-method.jpg";
+import heroCallMockup from "../../assets/callmentor/hero-call-mockup.webp";
+import iconValueCard from "../../assets/callmentor/icon-value-card.svg";
+import iconValueCheck from "../../assets/callmentor/icon-value-check.svg";
+import iconValuePlan from "../../assets/callmentor/icon-value-plan.svg";
+import stepCall from "../../assets/callmentor/step-call.jpg";
+import stepDiagnosis from "../../assets/callmentor/step-diagnosis.jpg";
+import stepMentorMatch from "../../assets/callmentor/step-mentor-match.jpg";
+import stepReview from "../../assets/callmentor/step-review.jpg";
+import CmButton from "../../components/callmentor/CmButton";
+import MentorSection from "../../components/landing/MentorSection";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import { alertServiceNotReady } from "../../lib/paidServiceAccess";
+import { supabase } from "../../lib/supabase";
 
 /**
  * 콜멘토 랜딩 — 골드(#AF9364 · #BF923D) 강조색과 검정 하단 CTA 밴드를 사수한 프리미엄
@@ -74,12 +74,12 @@ import iconValueCard from '../../assets/callmentor/icon-value-card.svg';
 // 콘텐츠 컨테이너 — dev 랜딩 정본 토큰 max-w-content(72.75rem) 그대로 사용(다른 페이지와 폭 통일).
 // 좌우 여백은 사이트 공통 관례(px-5 sm:px-8). §2·§3·§4·§6은 ServiceSection이 동일 컨테이너를
 // 내장하고 있어 이 상수는 §1 Hero・§7 하단 CTA(둘 다 ServiceSection 미사용) 2곳에서만 쓴다.
-const CONTAINER = 'mx-auto w-full max-w-content px-5 sm:px-8';
+const CONTAINER = "mx-auto w-full max-w-content px-5 sm:px-8";
 
 // home_mentor_strategies row → MentorSection/MentorCard props 정규화 (Home.jsx normalizeMentorRow와 동일 로직)
 function normalizeMentorRow(row) {
   let titleLines = row.title_lines;
-  if (typeof titleLines === 'string') {
+  if (typeof titleLines === "string") {
     try {
       titleLines = JSON.parse(titleLines);
     } catch {
@@ -88,82 +88,103 @@ function normalizeMentorRow(row) {
   }
   const layout = row.photo_layout;
   const hasValidLayout =
-    layout && ['top', 'left', 'width', 'height'].every((key) => Number.isFinite(layout[key]));
+    layout &&
+    ["top", "left", "width", "height"].every((key) =>
+      Number.isFinite(layout[key]),
+    );
 
   return {
     ...row,
-    title_lines: Array.isArray(titleLines) && titleLines.length > 0 ? titleLines : null,
-    photo: hasValidLayout ? layout : null
+    title_lines:
+      Array.isArray(titleLines) && titleLines.length > 0 ? titleLines : null,
+    photo: hasValidLayout ? layout : null,
   };
 }
 
 const VALUE_CARDS = [
   {
     icon: iconValueCheck,
-    title: '핵심 문제 1가지',
-    desc: '여러 고민 중 지금 가장 발목 잡는 문제를 정확히 짚어드립니다.'
+    title: "핵심 문제 1가지",
+    desc: "여러 고민 중 지금 가장 발목 잡는 문제를 정확히 짚어드립니다.",
   },
   {
     icon: iconValuePlan,
-    title: '실행 계획 3가지',
-    desc: '오늘부터 바로 할 수 있는 구체적인 행동으로 정리해드립니다.'
+    title: "실행 계획 3가지",
+    desc: "오늘부터 바로 할 수 있는 구체적인 행동으로 정리해드립니다.",
   },
   {
     icon: iconValueCard,
-    title: '액션카드 + 재점검',
-    desc: '정리된 카드를 받고, 1주 뒤 실천 여부를 다시 확인합니다.'
-  }
+    title: "액션카드 + 재점검",
+    desc: "정리된 카드를 받고, 1주 뒤 실천 여부를 다시 확인합니다.",
+  },
 ];
 
 const STEP_CARDS = [
-  { caption: '1. 학습 진단', image: stepDiagnosis, alt: '노트북으로 학습 진단을 진행하는 모습' },
-  { caption: '2. 내 상황에 맞는 멘토 매칭', image: stepMentorMatch, alt: '책상에서 노트북을 보며 매칭 결과를 확인하는 학생' },
-  { caption: '3. 30분 전화 상담', image: stepCall, alt: '전화로 멘토와 상담하는 학생' },
-  { caption: '4. 1주 후 실천 재점검', image: stepReview, alt: '노트에 실천 계획을 적는 모습' }
+  {
+    caption: "1. 학습 진단",
+    image: stepDiagnosis,
+    alt: "노트북으로 학습 진단을 진행하는 모습",
+  },
+  {
+    caption: "2. 내 상황에 맞는 멘토 매칭",
+    image: stepMentorMatch,
+    alt: "책상에서 노트북을 보며 매칭 결과를 확인하는 학생",
+  },
+  {
+    caption: "3. 30분 전화 상담",
+    image: stepCall,
+    alt: "전화로 멘토와 상담하는 학생",
+  },
+  {
+    caption: "4. 1주 후 실천 재점검",
+    image: stepReview,
+    alt: "노트에 실천 계획을 적는 모습",
+  },
 ];
 
 // alt 는 두지 않는다 — ServiceAudienceCards 가 item.title 을 alt 로 고정한다(4페이지 규약).
 const AUDIENCE_CARDS = [
   {
-    title: '진로가 고민인 학생',
-    desc: '희망 학과를 못 정했거나 여러 개를 두고 고민하는 경우',
-    image: audienceCareer
+    title: "진로가 고민인 학생",
+    desc: "희망 학과를 못 정했거나 여러 개를 두고 고민하는 경우",
+    image: audienceCareer,
   },
   {
-    title: '멘탈이 부족한 학생',
-    desc: '노력해도 결과가 안 나와 의욕이 떨어진 경우',
-    image: audienceEntranceExam
+    title: "멘탈이 부족한 학생",
+    desc: "노력해도 결과가 안 나와 의욕이 떨어진 경우",
+    image: audienceEntranceExam,
   },
   {
-    title: '공부법이 고민인 학생',
-    desc: '시간은 쓰는데 성적이 정체된 경우',
-    image: audienceStudyMethod
+    title: "공부법이 고민인 학생",
+    desc: "시간은 쓰는데 성적이 정체된 경우",
+    image: audienceStudyMethod,
   },
   {
-    title: '동기가 필요한 학생',
-    desc: '같은 시기를 지나온 사람의 이야기가 필요한 경우',
-    image: audienceMotivation
-  }
+    title: "동기가 필요한 학생",
+    desc: "같은 시기를 지나온 사람의 이야기가 필요한 경우",
+    image: audienceMotivation,
+  },
 ];
 
 // ServiceTestimonials 는 { emoji, quote, name } 키를 쓴다(구 content → quote rename).
 // '고2 고3 김O원' 오타는 '고3 김O원'으로 정정.
 const REVIEW_CARDS = [
   {
-    emoji: '😉',
-    name: '고2 이O진',
-    quote: '뭘 먼저 해야 할지 몰랐는데, 통화 끝나니 이번 주 할일이 딱 정해졌어요.'
+    emoji: "😉",
+    name: "고2 이O진",
+    quote:
+      "뭘 먼저 해야 할지 몰랐는데, 통화 끝나니 이번 주 할일이 딱 정해졌어요.",
   },
   {
-    emoji: '☺️',
-    name: '고3 김O식',
-    quote: '막막하던 학과 선택을 멘토와 이야기하며 방향을 잡았어요'
+    emoji: "☺️",
+    name: "고3 김O식",
+    quote: "막막하던 학과 선택을 멘토와 이야기하며 방향을 잡았어요",
   },
   {
-    emoji: '😊',
-    name: '고3 김O원',
-    quote: '공부 시간이 아니라 방법이 문제였다는 걸 알게 됐어요'
-  }
+    emoji: "😊",
+    name: "고3 김O원",
+    quote: "공부 시간이 아니라 방법이 문제였다는 걸 알게 됐어요",
+  },
 ];
 
 export default function Callmentor() {
@@ -174,17 +195,17 @@ export default function Callmentor() {
 
     async function fetchMentors() {
       const { data, error } = await supabase
-        .from('home_mentor_strategies')
+        .from("home_mentor_strategies")
         .select(
-          'id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order'
+          "id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order",
         )
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
 
       if (!mounted) return;
 
       if (error) {
-        console.error('콜멘토 멘토 조회 오류:', error);
+        console.error("콜멘토 멘토 조회 오류:", error);
         setMentors([]);
         return;
       }
@@ -207,22 +228,23 @@ export default function Callmentor() {
         className="relative overflow-hidden bg-white py-20 lg:pb-0 lg:pt-[8rem]"
         style={{
           backgroundImage:
-            'linear-gradient(180deg, rgba(161,147,125,0.8) 0%, rgba(171,158,138,0.8) 10.577%, rgba(185,174,158,0.8) 30.769%, rgba(222,217,209,0.8) 58.173%, #FFFFFF 100%)',
-          backgroundRepeat: 'no-repeat',
+            "linear-gradient(180deg, rgba(161,147,125,0.8) 0%, rgba(171,158,138,0.8) 10.577%, rgba(185,174,158,0.8) 30.769%, rgba(222,217,209,0.8) 58.173%, #FFFFFF 100%)",
+          backgroundRepeat: "no-repeat",
           // 45rem 고정 대신 섹션 박스 100%에 맞춘다 — lg pb 축소로 생기는 하드 엣지와
           // 모바일에서 콘텐츠 중간에 그라데이션이 끊기던 현행 버그를 동시에 해소한다.
-          backgroundSize: '100% 100%'
+          backgroundSize: "100% 100%",
         }}
       >
-        <div className={`${CONTAINER} flex flex-col items-start gap-12 lg:flex-row lg:items-center lg:justify-between`}>
+        <div
+          className={`${CONTAINER} flex flex-col items-start gap-12 lg:flex-row lg:items-center lg:justify-between`}
+        >
           <div className="flex w-full max-w-[36.5rem] flex-col gap-8">
             <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
-              막막한 입시 고민,{' '}
-              <br className="hidden sm:inline" />
+              막막한 입시 고민, <br className="hidden sm:inline" />
               30분 통화 한 번으로 끝냅니다
             </h1>
             <p className="max-w-[35.75rem] break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
-              내 학습 데이터를 먼저 분석하고, 검증된 대학생 멘토가 전화로{' '}
+              내 학습 데이터를 먼저 분석하고, 검증된 대학생 멘토가 전화로{" "}
               <br className="hidden sm:inline" />
               핵심 문제 하나와 실행 계획을 정리해 드립니다.
             </p>
@@ -270,7 +292,9 @@ export default function Callmentor() {
         heading={
           <>
             <span className="block">상담을 통해</span>
-            <span className="block text-[#AF9364]">문제를 확인할 수 있어요</span>
+            <span className="block text-[#AF9364]">
+              문제를 확인할 수 있어요
+            </span>
           </>
         }
       >
@@ -280,7 +304,12 @@ export default function Callmentor() {
               key={card.title}
               className="flex flex-col items-center gap-6 rounded-[1.875rem] border border-[#D7D7D7] p-[1.75rem] text-center"
             >
-              <img src={card.icon} alt="" aria-hidden="true" className="h-[1.875rem] w-[1.875rem]" />
+              <img
+                src={card.icon}
+                alt=""
+                aria-hidden="true"
+                className="h-[1.875rem] w-[1.875rem]"
+              />
               {/* 크기・굵기・leading・tracking 은 CARD_TITLE_CLASS 와 동일, 색만 골드로 유지
                   (공통 토큰을 그대로 import 하면 #525252 로 골드가 사라진다 — 위 JSDoc 참고). */}
               <h3 className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#AF9364]">
@@ -328,7 +357,7 @@ export default function Callmentor() {
                 className="pointer-events-none absolute inset-0"
                 style={{
                   background:
-                    'linear-gradient(180deg, rgba(217,217,217,0) 0%, rgba(109,109,109,0.5) 35.577%, #000000 100%)'
+                    "linear-gradient(180deg, rgba(217,217,217,0) 0%, rgba(109,109,109,0.5) 35.577%, #000000 100%)",
                 }}
               />
               <p className="relative z-10 px-4 pb-4 text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-white">
@@ -349,17 +378,24 @@ export default function Callmentor() {
         className="pb-16 sm:pb-20 lg:pb-[7.5rem] lg:pt-[7.5rem]"
         heading={
           <>
-            이런 학생에게<span className="text-[#BF923D]"> 전화 상담을 추천해요</span>
+            이런 학생에게
+            <span className="text-[#BF923D]"> 전화 상담을 추천해요</span>
           </>
         }
       >
-        <ServiceAudienceCards items={AUDIENCE_CARDS} imageFit="cover" cardSurface="white" />
+        <ServiceAudienceCards
+          items={AUDIENCE_CARDS}
+          imageFit="cover"
+          cardSurface="white"
+        />
       </ServiceSection>
 
       {/* 섹션 5 — 멘토스 소개 (기존 MentorSection 재사용, variant='callmentor'로 헤딩 색상・
           회색 밴드 연장만 분기). §4 와 이어지는 하나의 밴드라 ServiceSection 을 쓰지 않는다
           (위 JSDoc 참고). */}
-      {mentors.length > 0 && <MentorSection mentors={mentors} variant="callmentor" />}
+      {mentors.length > 0 && (
+        <MentorSection mentors={mentors} variant="callmentor" />
+      )}
 
       {/* 섹션 6 — 후기. ServiceTestimonials 전면 대체(공통 컴포넌트 변경 0건). pt/pb 120px 은
           각각 §5(#F4F4F6)→§6(white), §6(white)→§7(black) 배경 전환 경계라 ×0.67 미적용. */}

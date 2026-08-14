@@ -15,7 +15,7 @@
 // 미확정 사항(확인 항목 34)에 대한 구현 판단 2가지 — 둘 다 아래 해당 위치에 근거를 적어 두었다.
 //   ① sticky 상단 오프셋: `wide:top-[6.5rem]`
 //   ② 단계 배지 클릭 시 앵커 이동: **구현함**
-import { PROGRESS_SIDEBAR } from '../../data/mentorApply';
+import { PROGRESS_SIDEBAR } from "../../data/mentorApply";
 
 // sticky 상단 오프셋. 선례는 src/pages/AdmissionGuidelines.jsx:1388 의 `lg:sticky lg:top-[104px]`
 // 이며, 그 104px 의 내역은 전역 헤더 + 여백이다: Header.jsx:508 이 `fixed top-0` 이고 그 안쪽 바가
@@ -26,7 +26,7 @@ const STICKY_OFFSET_REM = 6.5;
 
 // 배지 원형 스타일 — 28×28, radius 6(0.375rem), bg Surface/02(surface.badge), 숫자 14 Medium accent.
 const BADGE_CLASS =
-  'flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.375rem] bg-surface-badge text-sm font-medium leading-none text-accent';
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.375rem] bg-surface-badge text-sm font-medium leading-none text-accent";
 
 /**
  * 값 하나가 "채워졌는가" 판정.
@@ -37,10 +37,10 @@ const BADGE_CLASS =
  */
 export function isFieldFilled(value) {
   if (value === null || value === undefined) return false;
-  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'boolean') return value; // 필수 약관은 체크(true)여야 채워진 것
-  if (typeof value === 'number') return !Number.isNaN(value);
+  if (typeof value === "boolean") return value; // 필수 약관은 체크(true)여야 채워진 것
+  if (typeof value === "number") return !Number.isNaN(value);
   return true; // File 등 객체
 }
 
@@ -74,12 +74,14 @@ export function computeProgress(sections, values) {
   const list = Array.isArray(sections) ? sections : [];
   const steps = list.map((section) => ({
     ...section,
-    ...getSectionProgress(section.fields, values)
+    ...getSectionProgress(section.fields, values),
   }));
 
   const requiredNames = new Set();
   list.forEach((section) => {
-    (Array.isArray(section.fields) ? section.fields : []).forEach((name) => requiredNames.add(name));
+    (Array.isArray(section.fields) ? section.fields : []).forEach((name) => {
+      requiredNames.add(name);
+    });
   });
 
   const totalRequired = requiredNames.size;
@@ -92,15 +94,16 @@ export function computeProgress(sections, values) {
     steps,
     totalRequired,
     filledRequired,
-    remaining: totalRequired - filledRequired
+    remaining: totalRequired - filledRequired,
   };
 }
 
 // 잔여 안내문 `필수항목 {count}개가 남았습니다` 조각내기.
 // 시안은 "25개" 전체가 accent 색이므로(§6-3 타이포) {count} 직후의 단위 문자 `개` 까지를 강조
 // 범위에 넣는다. 카피는 데이터 파일이 정본이라 여기서 문장을 새로 쓰지 않고 분해만 한다.
-const [REMAINING_HEAD, REMAINING_REST_RAW] = PROGRESS_SIDEBAR.remainingTemplate.split('{count}');
-const REMAINING_UNIT = REMAINING_REST_RAW.startsWith('개') ? '개' : '';
+const [REMAINING_HEAD, REMAINING_REST_RAW] =
+  PROGRESS_SIDEBAR.remainingTemplate.split("{count}");
+const REMAINING_UNIT = REMAINING_REST_RAW.startsWith("개") ? "개" : "";
 const REMAINING_TAIL = REMAINING_REST_RAW.slice(REMAINING_UNIT.length);
 
 export default function ProgressSidebar({ sections = [], values = {} }) {
@@ -116,18 +119,27 @@ export default function ProgressSidebar({ sections = [], values = {} }) {
   //   ② 오프셋을 sticky 와 같은 STICKY_OFFSET_REM 한 곳에서만 관리할 수 있다.
   // rem→px 환산은 루트 폰트 크기를 실측해서 한다(사용자 브라우저 글꼴 확대 설정을 존중).
   const handleStepClick = (id) => {
-    if (!id || typeof window === 'undefined') return;
+    if (!id || typeof window === "undefined") return;
     const target = document.getElementById(id);
     if (!target) return;
 
     const rootFontSize =
-      parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
-    const top = target.getBoundingClientRect().top + window.scrollY - STICKY_OFFSET_REM * rootFontSize;
+      parseFloat(window.getComputedStyle(document.documentElement).fontSize) ||
+      16;
+    const top =
+      target.getBoundingClientRect().top +
+      window.scrollY -
+      STICKY_OFFSET_REM * rootFontSize;
 
     // prefers-reduced-motion 존중 — 저장소 관례(BookViewer.jsx:28, HeroSection.jsx:194)와 동일한
     // matchMedia 판정. reduce 면 즉시 점프한다.
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: Math.max(top, 0), behavior: prefersReduced ? 'auto' : 'smooth' });
+    const prefersReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    window.scrollTo({
+      top: Math.max(top, 0),
+      behavior: prefersReduced ? "auto" : "smooth",
+    });
   };
 
   return (
@@ -146,13 +158,17 @@ export default function ProgressSidebar({ sections = [], values = {} }) {
     >
       {/* 사이드바 제목 — 14 Medium ink.sub. 폼 섹션 카드의 h3 위계를 침범하지 않도록 h2 로 두고
           시각적 크기만 작게 간다(구조상 폼 전체와 동렬인 보조 패널). */}
-      <h2 id="mentor-progress-heading" className="text-sm font-medium leading-[1.4] text-ink-sub">
+      <h2
+        id="mentor-progress-heading"
+        className="text-sm font-medium leading-[1.4] text-ink-sub"
+      >
         {PROGRESS_SIDEBAR.label}
       </h2>
 
       {/* 라벨 ↔ 리스트 gap 32(2rem) / 행 간 gap 20(1.25rem). wide 미만에서는 칩이 가로로 흐르며
           줄바꿈(flex-wrap)한다 — 가로 스크롤을 만들지 않아 스크롤 어포던스 학습이 필요 없다. */}
       <ol
+        // biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다.
         role="list"
         className="mt-4 flex list-none flex-row flex-wrap gap-x-2 gap-y-2 wide:mt-8 wide:flex-col wide:flex-nowrap wide:gap-y-5"
       >

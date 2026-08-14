@@ -53,7 +53,7 @@
 //     revoked_not_restored)도 RPC 가 같은 값으로 돌려준다.
 
 function clean(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 // 회수된 행의 payment_status. CHECK 값(unpaid|pending|paid|refunded|cancelled)
@@ -62,22 +62,22 @@ function clean(value) {
 // 이 상수는 sql/64 9)절 fn_revoke_program_access_for_order 안의 어휘와 **같은
 // 값이어야 한다.** 그 함수가 허용값을 다시 정규화하지만, 값이 갈리면 회수된 행이
 // 재부여 보호(revoked_not_restored)를 못 받는다.
-const REVOKED_PAYMENT_STATUSES = ['refunded', 'cancelled'];
+const REVOKED_PAYMENT_STATUSES = ["refunded", "cancelled"];
 
 // SQLSTATE → error 문자열. sql/64 가 배정한 코드는 WC010~WC012 다.
 // order_not_found 만 PaymentSuccess 의 PERMANENT_ACCESS_ERRORS 에 이미 있다 —
 // 나머지 둘은 구조적으로 도달 불가에 가깝다(소유자 확인은 confirm-payment 가
 // 이미 하고, 상품 스펙 누락은 products_entitlement_shape_check 가 막는다).
 const RPC_ERROR_BY_SQLSTATE = {
-  WC010: 'order_not_found',
-  WC011: 'order_user_mismatch',
-  WC012: 'product_entitlement_spec_missing'
+  WC010: "order_not_found",
+  WC011: "order_user_mismatch",
+  WC012: "product_entitlement_spec_missing",
 };
 
 function rpcErrorText(error) {
   const mapped = RPC_ERROR_BY_SQLSTATE[clean(error?.code)];
   if (mapped) return mapped;
-  return clean(error?.message) || 'rpc_failed';
+  return clean(error?.message) || "rpc_failed";
 }
 
 function toArray(value) {
@@ -109,18 +109,24 @@ function toArray(value) {
  */
 export async function grantProgramAccessForOrder(
   supabaseAdmin,
-  { orderId, userId, paidAt, restoreRevoked = false } = {}
+  { orderId, userId, paidAt, restoreRevoked = false } = {},
 ) {
-  const result = { ok: false, granted: [], serviceKeys: [], skipped: [], error: null };
+  const result = {
+    ok: false,
+    granted: [],
+    serviceKeys: [],
+    skipped: [],
+    error: null,
+  };
 
   if (!supabaseAdmin) {
     // confirm-payment.js 의 createSupabaseAdmin() 은 env 누락 시 null 을 주고도
     // 결제 승인을 계속 진행한다. 그 상태를 조용히 넘기지 않고 드러낸다.
-    result.error = 'supabase_admin_unavailable';
+    result.error = "supabase_admin_unavailable";
     return result;
   }
   if (!clean(orderId)) {
-    result.error = 'missing_order_id';
+    result.error = "missing_order_id";
     return result;
   }
 
@@ -137,17 +143,20 @@ export async function grantProgramAccessForOrder(
     // sql/67_orders_user_id_not_null.sql 이 걸렸다면 orders.user_id 자체가
     // NULL 을 못 받는다. 그래도 지우지 않는다: DB 제약을 걸지 못했을 가능성
     // (그 파일의 판단 근거 참고)과 차단 이전 레거시 행에 대한 방어로 남긴다.
-    result.error = 'order_has_no_user';
+    result.error = "order_has_no_user";
     return result;
   }
 
   try {
-    const { data, error } = await supabaseAdmin.rpc('fn_grant_program_access_for_order', {
-      p_order_id: clean(orderId),
-      p_user_id: accessId,
-      p_paid_at: clean(paidAt) || null,
-      p_restore_revoked: Boolean(restoreRevoked)
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: clean(orderId),
+        p_user_id: accessId,
+        p_paid_at: clean(paidAt) || null,
+        p_restore_revoked: Boolean(restoreRevoked),
+      },
+    );
 
     if (error) {
       result.error = rpcErrorText(error);
@@ -156,11 +165,13 @@ export async function grantProgramAccessForOrder(
 
     const payload = data || {};
     result.granted = toArray(payload.granted).map(clean).filter(Boolean);
-    result.serviceKeys = toArray(payload.service_keys).map(clean).filter(Boolean);
+    result.serviceKeys = toArray(payload.service_keys)
+      .map(clean)
+      .filter(Boolean);
     result.skipped = toArray(payload.skipped);
     // 주문 라인이 0건인 경우 RPC 가 ok=false + error='no_order_items' 를 준다.
     result.ok = payload.ok === true;
-    result.error = result.ok ? null : clean(payload.error) || 'grant_failed';
+    result.error = result.ok ? null : clean(payload.error) || "grant_failed";
     // 진단용. api/confirm-payment.js·api/toss-webhook.js 가 로그에 싣는다.
     result.ledgerInserted = Number(payload.ledger_inserted ?? 0);
     return result;
@@ -196,16 +207,22 @@ export async function grantProgramAccessForOrder(
  */
 export async function revokeProgramAccessForOrder(
   supabaseAdmin,
-  { orderId, userId, paymentStatus = 'refunded' } = {}
+  { orderId, userId, paymentStatus = "refunded" } = {},
 ) {
-  const result = { ok: false, revoked: [], serviceKeys: [], skipped: [], error: null };
+  const result = {
+    ok: false,
+    revoked: [],
+    serviceKeys: [],
+    skipped: [],
+    error: null,
+  };
 
   if (!supabaseAdmin) {
-    result.error = 'supabase_admin_unavailable';
+    result.error = "supabase_admin_unavailable";
     return result;
   }
   if (!clean(orderId)) {
-    result.error = 'missing_order_id';
+    result.error = "missing_order_id";
     return result;
   }
 
@@ -216,21 +233,26 @@ export async function revokeProgramAccessForOrder(
     // 2026-08-12: grantProgramAccessForOrder 쪽과 같은 이유로 신규 주문에서는
     // 도달 불가에 가깝지만, 레거시/제약 미적용 대비로 남긴다.
     result.ok = true;
-    result.skipped.push({ reason: 'order_has_no_user' });
+    result.skipped.push({ reason: "order_has_no_user" });
     return result;
   }
 
-  const nextPaymentStatus = REVOKED_PAYMENT_STATUSES.includes(clean(paymentStatus))
+  const nextPaymentStatus = REVOKED_PAYMENT_STATUSES.includes(
+    clean(paymentStatus),
+  )
     ? clean(paymentStatus)
-    : 'refunded';
+    : "refunded";
 
   try {
-    const { data, error } = await supabaseAdmin.rpc('fn_revoke_program_access_for_order', {
-      p_order_id: clean(orderId),
-      p_user_id: accessId,
-      p_payment_status: nextPaymentStatus,
-      p_reason: 'order_revoked'
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "fn_revoke_program_access_for_order",
+      {
+        p_order_id: clean(orderId),
+        p_user_id: accessId,
+        p_payment_status: nextPaymentStatus,
+        p_reason: "order_revoked",
+      },
+    );
 
     if (error) {
       result.error = rpcErrorText(error);
@@ -241,7 +263,7 @@ export async function revokeProgramAccessForOrder(
     result.revoked = toArray(payload.revoked).map(clean).filter(Boolean);
     result.skipped = toArray(payload.skipped);
     result.ok = payload.ok === true;
-    if (!result.ok) result.error = clean(payload.error) || 'revoke_failed';
+    if (!result.ok) result.error = clean(payload.error) || "revoke_failed";
     result.ledgerClosed = Number(payload.ledger_closed ?? 0);
     return result;
   } catch (err) {

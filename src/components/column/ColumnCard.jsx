@@ -1,13 +1,13 @@
-import { Link } from 'react-router-dom';
-import { Eye } from 'lucide-react';
+import { Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   ALL_CATEGORY,
   formatDate,
   getCategoryLabel,
   getDisplayDate,
   getThumbnailUrl,
-  getViewCount
-} from '../../pages/column/columnData';
+  getViewCount,
+} from "../../pages/column/columnData";
 
 function Thumbnail({ url, title, className }) {
   if (!url) {
@@ -17,17 +17,19 @@ function Thumbnail({ url, title, className }) {
   return (
     <img
       src={url}
-      alt={title || ''}
+      alt={title || ""}
       className={`object-cover transition duration-500 group-hover:scale-105 ${className}`}
     />
   );
 }
 
-function MetaRow({ column, className = '' }) {
+function MetaRow({ column, className = "" }) {
   const viewCount = getViewCount(column);
 
   return (
-    <div className={`flex items-center gap-4 text-sm font-normal leading-[1.3] tracking-[-0.02em] text-[#7A7A7A] ${className}`}>
+    <div
+      className={`flex items-center gap-4 text-sm font-normal leading-[1.3] tracking-[-0.02em] text-[#7A7A7A] ${className}`}
+    >
       <span>{formatDate(getDisplayDate(column))}</span>
       {viewCount !== null && (
         <span className="inline-flex items-center gap-[0.3125rem]">
@@ -39,12 +41,12 @@ function MetaRow({ column, className = '' }) {
   );
 }
 
-export default function ColumnCard({ column, variant = 'grid' }) {
+export default function ColumnCard({ column, variant = "grid" }) {
   const thumbnail = getThumbnailUrl(column);
   const categoryLabel = getCategoryLabel(column);
   const hasCategory = categoryLabel !== ALL_CATEGORY;
 
-  if (variant === 'heroLarge') {
+  if (variant === "heroLarge") {
     return (
       <Link to={`/info/column/${column.id}`} className="group block flex-1">
         <div className="relative w-full overflow-hidden rounded-[1.375rem]">
@@ -70,9 +72,12 @@ export default function ColumnCard({ column, variant = 'grid' }) {
     );
   }
 
-  if (variant === 'heroSmall') {
+  if (variant === "heroSmall") {
     return (
-      <Link to={`/info/column/${column.id}`} className="group flex items-start gap-4 sm:gap-5">
+      <Link
+        to={`/info/column/${column.id}`}
+        className="group flex items-start gap-4 sm:gap-5"
+      >
         <Thumbnail
           url={thumbnail}
           title={column.title}

@@ -30,27 +30,27 @@ export function appendBlock(blocks, block) {
 // 편집기에서 새로 만들지 않는다(중첩·레거시 승계 전용, 범위 밖).
 export function createDefaultBlock(kind) {
   switch (kind) {
-    case 'note':
-      return { kind: 'note', text: '' };
-    case 'emptyBox':
-      return { kind: 'emptyBox', message: '' };
-    case 'heading':
-      return { kind: 'heading', text: '' };
-    case 'plainList':
-      return { kind: 'plainList', items: [] };
-    case 'preText':
-      return { kind: 'preText', text: '' };
-    case 'footnote':
-      return { kind: 'footnote', items: [] };
-    case 'table':
+    case "note":
+      return { kind: "note", text: "" };
+    case "emptyBox":
+      return { kind: "emptyBox", message: "" };
+    case "heading":
+      return { kind: "heading", text: "" };
+    case "plainList":
+      return { kind: "plainList", items: [] };
+    case "preText":
+      return { kind: "preText", text: "" };
+    case "footnote":
+      return { kind: "footnote", items: [] };
+    case "table":
       return {
-        kind: 'table',
-        variant: 'generic',
+        kind: "table",
+        variant: "generic",
         columns: [
-          { role: 'type', label: '구분' },
-          { role: 'content', label: '내용' }
+          { role: "type", label: "구분" },
+          { role: "content", label: "내용" },
         ],
-        rows: []
+        rows: [],
       };
     default:
       return null;
@@ -72,25 +72,25 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION = {
   // buildChangeDocBlocks(:2329) — table(change) 1개뿐. 주석: "이
   // 카테고리는 원래도 plainList 폴백이 없다"(parseChangeItems가 "없음"도
   // 항상 최소 1행으로 반환).
-  previous_year_changes: ['table'],
+  previous_year_changes: ["table"],
   // buildSelectionDocBlocks(:2356) — table(selection). 파싱 실패
   // (validRows 0개, :2358-2360) 시 plainList 폴백.
-  selection_method: ['table', 'plainList'],
+  selection_method: ["table", "plainList"],
   // buildExamDocBlocks(:2392) — table(exam). "없음" 특수 케이스는
   // emptyBox(:2393-2394). 파싱 실패 시 plainList 폴백.
-  exam_schedule: ['table', 'emptyBox', 'plainList'],
+  exam_schedule: ["table", "emptyBox", "plainList"],
   // buildMinimumDocBlocks(:2416) — table(minimum). "없음" 특수 케이스는
   // emptyBox(:2417-2418). 파싱 실패 시 plainList 폴백.
-  minimum_requirements: ['table', 'emptyBox', 'plainList'],
+  minimum_requirements: ["table", "emptyBox", "plainList"],
   // buildRecordDocBlocks(:2447) — table(recordInfo) + [heading+table(score)]*
   // 반복 쌍. 주석: "이 카테고리는 원래도 plainList 폴백이 없다"(infoRows/
   // scoreBlocks가 전부 비어도 빈 blocks를 그대로 반환).
-  school_record_method: ['table', 'heading'],
+  school_record_method: ["table", "heading"],
   // buildRecruitDocBlocks(:2486) — table(recruit/recruitExact) +
   // footnote(선택, cleanedFootnotes 있을 때만 :2526-2527). 파싱 실패 시
   // plainList 폴백. buildRawSectionDoc의 recruitment_quota 전용 분기
   // (:2725-2731, looksLikeHtml 아닌 raw 텍스트 경로)는 preText도 만든다.
-  recruitment_quota: ['table', 'footnote', 'plainList', 'preText']
+  recruitment_quota: ["table", "footnote", "plainList", "preText"],
 };
 
 // 'note'/'group'은 어느 섹션의 기본 목록에도 없다 — build*DocBlocks 6종
@@ -102,7 +102,15 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION = {
 // 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
-export const ALL_BLOCK_KINDS = ['table', 'note', 'emptyBox', 'heading', 'plainList', 'preText', 'footnote'];
+export const ALL_BLOCK_KINDS = [
+  "table",
+  "note",
+  "emptyBox",
+  "heading",
+  "plainList",
+  "preText",
+  "footnote",
+];
 
 /**
  * @param {string} section

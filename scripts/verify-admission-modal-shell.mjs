@@ -48,28 +48,31 @@
 // external 로 남겨 React 인스턴스 중복을 피한다.
 // =====================================================================
 
-import fs from 'node:fs';
-import path from 'node:path';
-import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import * as esbuild from 'esbuild';
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import * as esbuild from "esbuild";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
-const PAGE_REL = 'src/pages/AdmissionGuidelines.jsx';
+const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const PAGE_REL = "src/pages/AdmissionGuidelines.jsx";
 const PAGE_PATH = path.join(REPO_ROOT, PAGE_REL);
-const FIXTURE_DIR = path.join(REPO_ROOT, 'scripts/__fixtures__');
-const SSR_FIXTURE = path.join(FIXTURE_DIR, 'admission-modal-shell.ssr.json');
-const BROWSER_FIXTURE = path.join(FIXTURE_DIR, 'admission-modal-shell.browser.json');
+const FIXTURE_DIR = path.join(REPO_ROOT, "scripts/__fixtures__");
+const SSR_FIXTURE = path.join(FIXTURE_DIR, "admission-modal-shell.ssr.json");
+const BROWSER_FIXTURE = path.join(
+  FIXTURE_DIR,
+  "admission-modal-shell.browser.json",
+);
 
-const SLICE_START = '{selectedInfo ? (';
-const SLICE_END = ') : null}';
+const SLICE_START = "{selectedInfo ? (";
+const SLICE_END = ") : null}";
 
 // ── 1. 모달 JSX 영역 기계 슬라이스 ─────────────────────────────────────
 
 function sliceModalRegion(sourceText) {
-  const lines = sourceText.split('\n');
+  const lines = sourceText.split("\n");
   const starts = [];
   lines.forEach((line, idx) => {
     if (line.trim() === SLICE_START) starts.push(idx);
@@ -77,11 +80,14 @@ function sliceModalRegion(sourceText) {
   if (starts.length !== 1) {
     throw new Error(
       `모달 슬라이스 앵커 "${SLICE_START}" 가 ${starts.length}개다(정확히 1개여야 함). ` +
-        '리팩터로 앵커가 사라졌다면 이 스크립트의 슬라이스 규칙 주석을 읽고 앵커를 복원하라.'
+        "리팩터로 앵커가 사라졌다면 이 스크립트의 슬라이스 규칙 주석을 읽고 앵커를 복원하라.",
     );
   }
   const start = starts[0];
-  const indent = lines[start].slice(0, lines[start].length - lines[start].trimStart().length);
+  const indent = lines[start].slice(
+    0,
+    lines[start].length - lines[start].trimStart().length,
+  );
   let end = -1;
   for (let i = start + 1; i < lines.length; i += 1) {
     if (lines[i] === `${indent}${SLICE_END}`) {
@@ -90,24 +96,30 @@ function sliceModalRegion(sourceText) {
     }
   }
   if (end === -1) {
-    throw new Error(`모달 슬라이스 종료 앵커 "${indent}${SLICE_END}" 를 찾지 못했다.`);
+    throw new Error(
+      `모달 슬라이스 종료 앵커 "${indent}${SLICE_END}" 를 찾지 못했다.`,
+    );
   }
-  return { text: lines.slice(start, end + 1).join('\n'), startLine: start + 1, endLine: end + 1 };
+  return {
+    text: lines.slice(start, end + 1).join("\n"),
+    startLine: start + 1,
+    endLine: end + 1,
+  };
 }
 
 // 파일 머리의 import 문을 통째로 모은다(다중 라인 지원).
 function collectImportStatements(sourceText) {
-  const lines = sourceText.split('\n');
+  const lines = sourceText.split("\n");
   const statements = [];
   let buffer = null;
   for (const line of lines) {
-    if (buffer === null && !line.startsWith('import ')) {
-      if (line.trim() === '' || line.startsWith('//')) continue;
+    if (buffer === null && !line.startsWith("import ")) {
+      if (line.trim() === "" || line.startsWith("//")) continue;
       if (statements.length > 0) break; // import 블록 종료
       continue;
     }
     buffer = buffer === null ? line : `${buffer}\n${line}`;
-    if (line.trimEnd().endsWith(';')) {
+    if (line.trimEnd().endsWith(";")) {
       statements.push(buffer);
       buffer = null;
     }
@@ -116,15 +128,19 @@ function collectImportStatements(sourceText) {
 }
 
 function bindingsOf(statement) {
-  const clause = statement.slice('import'.length, statement.lastIndexOf(' from ')).trim();
+  const clause = statement
+    .slice("import".length, statement.lastIndexOf(" from "))
+    .trim();
   const names = [];
-  const braceStart = clause.indexOf('{');
-  const head = (braceStart === -1 ? clause : clause.slice(0, braceStart)).replace(/,\s*$/, '').trim();
-  if (head) names.push(head.replace(/^\*\s+as\s+/, '').trim());
+  const braceStart = clause.indexOf("{");
+  const head = (braceStart === -1 ? clause : clause.slice(0, braceStart))
+    .replace(/,\s*$/, "")
+    .trim();
+  if (head) names.push(head.replace(/^\*\s+as\s+/, "").trim());
   if (braceStart !== -1) {
-    const inner = clause.slice(braceStart + 1, clause.lastIndexOf('}'));
+    const inner = clause.slice(braceStart + 1, clause.lastIndexOf("}"));
     inner
-      .split(',')
+      .split(",")
       .map((piece) => piece.trim())
       .filter(Boolean)
       .forEach((piece) => {
@@ -143,10 +159,10 @@ function specifierOf(statement) {
 // 하네스를 저장소 루트에 쓰므로, 페이지 기준 상대 경로를 루트 기준으로 다시 쓴다.
 function rewriteSpecifier(statement) {
   const spec = specifierOf(statement);
-  if (!spec || !spec.startsWith('.')) return statement;
+  if (!spec?.startsWith(".")) return statement;
   const abs = path.resolve(path.dirname(PAGE_PATH), spec);
   let next = path.relative(REPO_ROOT, abs);
-  if (!next.startsWith('.')) next = `./${next}`;
+  if (!next.startsWith(".")) next = `./${next}`;
   return statement.replace(/from\s+'[^']+';\s*$/, `from '${next}';`);
 }
 
@@ -154,14 +170,16 @@ function buildHarnessSource(sourceText) {
   const { text: slice, startLine, endLine } = sliceModalRegion(sourceText);
   const imports = collectImportStatements(sourceText)
     .filter((statement) =>
-      bindingsOf(statement).some((name) => new RegExp(`\\b${name}\\b`).test(slice))
+      bindingsOf(statement).some((name) =>
+        new RegExp(`\\b${name}\\b`).test(slice),
+      ),
     )
     .map(rewriteSpecifier);
 
   const source = `// 자동 생성 — verify-admission-modal-shell.mjs. 커밋하지 않는다.
 // 원본: ${PAGE_REL} ${startLine}-${endLine} 행 기계 슬라이스.
 import { useRef as __useRef } from 'react';
-${imports.join('\n')}
+${imports.join("\n")}
 
 export default function __ModalRegionHarness({ selectedInfo, modalXScroll }) {
   const modalSheetRef = __useRef(null);
@@ -185,24 +203,30 @@ ${slice}
 
 async function loadHarness(harnessSource) {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const harnessPath = path.join(REPO_ROOT, `.tmp-modal-shell-harness-${stamp}.jsx`);
-  const bundlePath = path.join(REPO_ROOT, `.tmp-modal-shell-bundle-${stamp}.mjs`);
+  const harnessPath = path.join(
+    REPO_ROOT,
+    `.tmp-modal-shell-harness-${stamp}.jsx`,
+  );
+  const bundlePath = path.join(
+    REPO_ROOT,
+    `.tmp-modal-shell-bundle-${stamp}.mjs`,
+  );
   fs.writeFileSync(harnessPath, harnessSource);
   try {
     const result = await esbuild.build({
       entryPoints: [harnessPath],
       bundle: true,
-      format: 'esm',
-      jsx: 'automatic',
-      jsxImportSource: 'react',
-      platform: 'node',
+      format: "esm",
+      jsx: "automatic",
+      jsxImportSource: "react",
+      platform: "node",
       // platform:'node' 기본 해석은 CJS(main)를 먼저 집는다. lucide-react 의
       // CJS 번들은 dynamic require('react') 를 쓰는데 external 로 남긴 react 와
       // 만나면 ESM 출력에서 터진다. 브라우저 번들러(vite)와 같은 ESM 진입점을
       // 쓰도록 mainFields 를 명시한다.
-      mainFields: ['module', 'main'],
-      external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server'],
-      write: false
+      mainFields: ["module", "main"],
+      external: ["react", "react-dom", "react/jsx-runtime", "react-dom/server"],
+      write: false,
     });
     fs.writeFileSync(bundlePath, result.outputFiles[0].text);
     const mod = await import(`file://${bundlePath}`);
@@ -222,62 +246,98 @@ async function loadHarness(harnessSource) {
 
 function foldStyleBodies(html) {
   return html.replace(/<style>([\s\S]*?)<\/style>/g, (_all, body) => {
-    const sha = crypto.createHash('sha256').update(body).digest('hex').slice(0, 16);
+    const sha = crypto
+      .createHash("sha256")
+      .update(body)
+      .digest("hex")
+      .slice(0, 16);
     return `<style>[folded len=${body.length} sha256=${sha}]</style>`;
   });
 }
 
-const SECTION = { key: 'selection_method', label: '전형방법' };
+const SECTION = { key: "selection_method", label: "전형방법" };
 
 const SAMPLE_DOC = {
   v: 1,
-  section: 'selection_method',
-  source: 'parser',
-  generator: 'modal-shell-fixture',
-  generatedAt: '2026-01-01T00:00:00.000Z',
+  section: "selection_method",
+  source: "parser",
+  generator: "modal-shell-fixture",
+  generatedAt: "2026-01-01T00:00:00.000Z",
   blocks: [
     {
-      kind: 'table',
-      variant: 'selection',
+      kind: "table",
+      variant: "selection",
       columns: [
-        { role: 'type', label: '전형' },
-        { role: 'name', label: '전형명' },
-        { role: 'seats', label: '인원' },
-        { role: 'minimum', label: '최저' },
-        { role: 'method', label: '전형방법' }
+        { role: "type", label: "전형" },
+        { role: "name", label: "전형명" },
+        { role: "seats", label: "인원" },
+        { role: "minimum", label: "최저" },
+        { role: "method", label: "전형방법" },
       ],
-      rows: [['학생부교과', '일반전형', '10', '3등급', '내신 100%']]
-    }
-  ]
+      rows: [["학생부교과", "일반전형", "10", "3등급", "내신 100%"]],
+    },
+  ],
 };
 
 const BASE = {
-  universityName: '검증대학교',
-  title: '전형방법',
-  cacheKey: 'fixture:selection_method',
+  universityName: "검증대학교",
+  title: "전형방법",
+  cacheKey: "fixture:selection_method",
   section: SECTION,
-  row: { id: 'fixture' }
+  row: { id: "fixture" },
 };
 
 const CASES = {
   loading: {
-    selectedInfo: { ...BASE, status: 'loading', mode: 'text', doc: null, html: '', text: '', isHtml: false },
-    modalXScroll: { visible: false, width: 0 }
+    selectedInfo: {
+      ...BASE,
+      status: "loading",
+      mode: "text",
+      doc: null,
+      html: "",
+      text: "",
+      isHtml: false,
+    },
+    modalXScroll: { visible: false, width: 0 },
   },
   error: {
-    selectedInfo: { ...BASE, status: 'error', mode: 'text', doc: null, html: '', text: '', isHtml: false },
-    modalXScroll: { visible: false, width: 0 }
+    selectedInfo: {
+      ...BASE,
+      status: "error",
+      mode: "text",
+      doc: null,
+      html: "",
+      text: "",
+      isHtml: false,
+    },
+    modalXScroll: { visible: false, width: 0 },
   },
   doc: {
-    selectedInfo: { ...BASE, status: 'ready', mode: 'doc', doc: SAMPLE_DOC, html: '', text: '', isHtml: false },
-    modalXScroll: { visible: false, width: 0 }
+    selectedInfo: {
+      ...BASE,
+      status: "ready",
+      mode: "doc",
+      doc: SAMPLE_DOC,
+      html: "",
+      text: "",
+      isHtml: false,
+    },
+    modalXScroll: { visible: false, width: 0 },
   },
   // 프록시 바가 붙는 유일한 조건은 `isHtml && modalXScroll.visible` 이다
   // (AdmissionGuidelines.jsx 원문). doc 본문 + 프록시 조합으로 하단
   // 셸/트랙/inner 인라인 width 까지 골든에 넣는다.
   docWithProxyBar: {
-    selectedInfo: { ...BASE, status: 'ready', mode: 'doc', doc: SAMPLE_DOC, html: '', text: '', isHtml: true },
-    modalXScroll: { visible: true, width: 1280 }
+    selectedInfo: {
+      ...BASE,
+      status: "ready",
+      mode: "doc",
+      doc: SAMPLE_DOC,
+      html: "",
+      text: "",
+      isHtml: true,
+    },
+    modalXScroll: { visible: true, width: 1280 },
   },
   // SSR 에는 DOMParser 가 없어 SafeHtml 이 null 을 반환한다(SafeHtml.jsx
   // :217 `typeof DOMParser === 'undefined'`). 즉 이 케이스는 본문 내용이
@@ -286,31 +346,50 @@ const CASES = {
   html: {
     selectedInfo: {
       ...BASE,
-      status: 'ready',
-      mode: 'html',
+      status: "ready",
+      mode: "html",
       doc: null,
       html: '<div class="admission-existing-html"><table><tr><td>a</td></tr></table></div>',
-      text: '',
-      isHtml: true
+      text: "",
+      isHtml: true,
     },
-    modalXScroll: { visible: true, width: 1567 }
+    modalXScroll: { visible: true, width: 1567 },
   },
   text: {
-    selectedInfo: { ...BASE, status: 'ready', mode: 'text', doc: null, html: '', text: '평문 본문입니다.', isHtml: false },
-    modalXScroll: { visible: false, width: 0 }
+    selectedInfo: {
+      ...BASE,
+      status: "ready",
+      mode: "text",
+      doc: null,
+      html: "",
+      text: "평문 본문입니다.",
+      isHtml: false,
+    },
+    modalXScroll: { visible: false, width: 0 },
   },
   empty: {
-    selectedInfo: { ...BASE, status: 'ready', mode: 'text', doc: null, html: '', text: '', isHtml: false },
-    modalXScroll: { visible: false, width: 0 }
-  }
+    selectedInfo: {
+      ...BASE,
+      status: "ready",
+      mode: "text",
+      doc: null,
+      html: "",
+      text: "",
+      isHtml: false,
+    },
+    modalXScroll: { visible: false, width: 0 },
+  },
 };
 
 async function renderAllCases(sourceText) {
-  const { source, startLine, endLine, importCount } = buildHarnessSource(sourceText);
+  const { source, startLine, endLine, importCount } =
+    buildHarnessSource(sourceText);
   const Harness = await loadHarness(source);
   const rendered = {};
   for (const [name, props] of Object.entries(CASES)) {
-    rendered[name] = foldStyleBodies(renderToStaticMarkup(React.createElement(Harness, props)));
+    rendered[name] = foldStyleBodies(
+      renderToStaticMarkup(React.createElement(Harness, props)),
+    );
   }
   return { rendered, startLine, endLine, importCount };
 }
@@ -318,33 +397,41 @@ async function renderAllCases(sourceText) {
 // ── 4. 모드별 진입점 ───────────────────────────────────────────────────
 
 function readSourceAt(rev) {
-  if (!rev) return fs.readFileSync(PAGE_PATH, 'utf8');
-  return execFileSync('git', ['show', `${rev}:${PAGE_REL}`], { cwd: REPO_ROOT, encoding: 'utf8' });
+  if (!rev) return fs.readFileSync(PAGE_PATH, "utf8");
+  return execFileSync("git", ["show", `${rev}:${PAGE_REL}`], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  });
 }
 
 function gitRevParse(rev) {
-  return execFileSync('git', ['rev-parse', rev], { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
+  return execFileSync("git", ["rev-parse", rev], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  }).trim();
 }
 
 async function capture(rev) {
   const sourceText = readSourceAt(rev);
   const { rendered, startLine, endLine } = await renderAllCases(sourceText);
-  const resolved = gitRevParse(rev || 'HEAD');
+  const resolved = gitRevParse(rev || "HEAD");
   fs.mkdirSync(FIXTURE_DIR, { recursive: true });
   const payload = {
     __why: [
-      '공개 대학모집요강 모달 껍데기의 SSR 바이트 골든.',
+      "공개 대학모집요강 모달 껍데기의 SSR 바이트 골든.",
       '이 값들은 "보기 좋아서 고른 값"이 아니라, 아래 sourceRev 커밋의',
       `${PAGE_REL} 소스에서 모달 JSX 영역을 기계적으로 잘라내 그대로`,
-      'renderToStaticMarkup 한 출력이다. 재생성 명령이 재현성을 보장한다.',
-      '골든을 새 컴포넌트 출력으로 다시 뜨면 자기증명 순환이 된다 — 하지 말 것.'
-    ].join(' '),
+      "renderToStaticMarkup 한 출력이다. 재생성 명령이 재현성을 보장한다.",
+      "골든을 새 컴포넌트 출력으로 다시 뜨면 자기증명 순환이 된다 — 하지 말 것.",
+    ].join(" "),
     sourceRev: resolved,
-    sourceRevMeansPreRefactor: rev ? `명시된 rev(${rev}) 소스에서 캡처` : '작업트리 소스에서 캡처',
+    sourceRevMeansPreRefactor: rev
+      ? `명시된 rev(${rev}) 소스에서 캡처`
+      : "작업트리 소스에서 캡처",
     sourceSlice: `${PAGE_REL}:${startLine}-${endLine}`,
     regenerate: `node scripts/verify-admission-modal-shell.mjs --capture --from-rev ${resolved.slice(0, 7)}`,
-    note: '<style> 본문은 sha256 로 접혀 있다(껍데기 게이트의 관심사가 아니므로). 접기 규칙은 스크립트의 foldStyleBodies 참고.',
-    cases: rendered
+    note: "<style> 본문은 sha256 로 접혀 있다(껍데기 게이트의 관심사가 아니므로). 접기 규칙은 스크립트의 foldStyleBodies 참고.",
+    cases: rendered,
   };
   fs.writeFileSync(SSR_FIXTURE, `${JSON.stringify(payload, null, 2)}\n`);
   console.log(`골든 기록: ${path.relative(REPO_ROOT, SSR_FIXTURE)}`);
@@ -355,20 +442,25 @@ async function capture(rev) {
   }
 }
 
-async function verifySsr(results, record) {
+async function verifySsr(_results, record) {
   if (!fs.existsSync(SSR_FIXTURE)) {
-    record('ssr:fixture-exists', false, `${path.relative(REPO_ROOT, SSR_FIXTURE)} 없음 — --capture 로 먼저 골든을 떠라`);
+    record(
+      "ssr:fixture-exists",
+      false,
+      `${path.relative(REPO_ROOT, SSR_FIXTURE)} 없음 — --capture 로 먼저 골든을 떠라`,
+    );
     return;
   }
-  const golden = JSON.parse(fs.readFileSync(SSR_FIXTURE, 'utf8'));
+  const golden = JSON.parse(fs.readFileSync(SSR_FIXTURE, "utf8"));
   const { rendered } = await renderAllCases(readSourceAt(null));
 
   const goldenNames = Object.keys(golden.cases);
   const actualNames = Object.keys(rendered);
   record(
-    'ssr:case-set',
-    goldenNames.length === actualNames.length && goldenNames.every((n) => actualNames.includes(n)),
-    `골든 ${goldenNames.length}종 / 현재 ${actualNames.length}종`
+    "ssr:case-set",
+    goldenNames.length === actualNames.length &&
+      goldenNames.every((n) => actualNames.includes(n)),
+    `골든 ${goldenNames.length}종 / 현재 ${actualNames.length}종`,
   );
 
   for (const name of goldenNames) {
@@ -379,11 +471,16 @@ async function verifySsr(results, record) {
       continue;
     }
     let at = 0;
-    while (at < expected.length && at < actual.length && expected[at] === actual[at]) at += 1;
+    while (
+      at < expected.length &&
+      at < actual.length &&
+      expected[at] === actual[at]
+    )
+      at += 1;
     record(
       `ssr:${name}`,
       false,
-      `바이트 불일치 @${at}\n      기대: ${JSON.stringify(expected.slice(Math.max(0, at - 60), at + 120))}\n      실제: ${JSON.stringify(actual.slice(Math.max(0, at - 60), at + 120))}`
+      `바이트 불일치 @${at}\n      기대: ${JSON.stringify(expected.slice(Math.max(0, at - 60), at + 120))}\n      실제: ${JSON.stringify(actual.slice(Math.max(0, at - 60), at + 120))}`,
     );
   }
 }
@@ -392,25 +489,32 @@ async function verifySsr(results, record) {
 // `visible` 자기참조가 유지되는지 정적으로 확인한다. 이 의존성이 떨어지면
 // 바 DOM 이 생긴 뒤 리스너를 붙이는 재실행이 사라져 프록시가 **무증상으로**
 // 죽는다(마크업 골든은 못 잡는다).
-const PROXY_MODULE = path.join(REPO_ROOT, 'src/components/admission/modal/modalProxyXScroll.js');
+const PROXY_MODULE = path.join(
+  REPO_ROOT,
+  "src/components/admission/modal/modalProxyXScroll.js",
+);
 
 function verifyProxyDeps(record) {
   if (!fs.existsSync(PROXY_MODULE)) {
-    record('proxy:module', true, '아직 추출 전 — 건너뜀(추출되면 자동으로 검사 대상)');
+    record(
+      "proxy:module",
+      true,
+      "아직 추출 전 — 건너뜀(추출되면 자동으로 검사 대상)",
+    );
     return;
   }
-  const src = fs.readFileSync(PROXY_MODULE, 'utf8');
+  const src = fs.readFileSync(PROXY_MODULE, "utf8");
   const deps = /\}\s*,\s*\[([^\]]*)\]\s*\)/g;
   const found = [];
   let m = deps.exec(src);
   while (m) {
-    found.push(m[1].replace(/\s+/g, ' ').trim());
+    found.push(m[1].replace(/\s+/g, " ").trim());
     m = deps.exec(src);
   }
   record(
-    'proxy:deps-include-visible',
+    "proxy:deps-include-visible",
     found.some((d) => /visible/.test(d)),
-    `발견한 의존성 배열: ${JSON.stringify(found)}`
+    `발견한 의존성 배열: ${JSON.stringify(found)}`,
   );
 }
 
@@ -432,35 +536,35 @@ function verifyProxyDeps(record) {
 // 주석을 먼저 걷어내고 문자열 리터럴만 본다. 아래 stripCommentsKeepStrings 는
 // 문자열/템플릿/정규식 상태를 추적하며 주석만 지운다(URL 의 '//' 오탐 방지).
 const SCAN_TARGETS = [
-  'src/pages/Admin.jsx',
-  'src/components/admission/editor' // 디렉터리면 재귀
+  "src/pages/Admin.jsx",
+  "src/components/admission/editor", // 디렉터리면 재귀
 ];
-const FORBIDDEN_CLASS = 'admission-modal-body';
+const FORBIDDEN_CLASS = "admission-modal-body";
 
 function stripCommentsKeepStrings(src) {
-  let out = '';
+  let out = "";
   let i = 0;
   const n = src.length;
   while (i < n) {
     const c = src[i];
     const next = src[i + 1];
-    if (c === '/' && next === '/') {
-      while (i < n && src[i] !== '\n') i += 1;
+    if (c === "/" && next === "/") {
+      while (i < n && src[i] !== "\n") i += 1;
       continue;
     }
-    if (c === '/' && next === '*') {
+    if (c === "/" && next === "*") {
       i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i += 1;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i += 1;
       i += 2;
       continue;
     }
-    if (c === '"' || c === "'" || c === '`') {
+    if (c === '"' || c === "'" || c === "`") {
       const quote = c;
       out += c;
       i += 1;
       while (i < n) {
-        if (src[i] === '\\') {
-          out += src[i] + (src[i + 1] ?? '');
+        if (src[i] === "\\") {
+          out += src[i] + (src[i + 1] ?? "");
           i += 2;
           continue;
         }
@@ -506,7 +610,7 @@ function stringLiteralsOf(strippedSrc) {
   const re = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
   let m = re.exec(strippedSrc);
   while (m) {
-    literals.push(m[1] ?? m[2] ?? m[3] ?? '');
+    literals.push(m[1] ?? m[2] ?? m[3] ?? "");
     m = re.exec(strippedSrc);
   }
   return literals;
@@ -516,20 +620,22 @@ function verifyModalBodyClassLock(record) {
   const files = collectScanFiles();
   const hits = [];
   for (const file of files) {
-    const stripped = stripCommentsKeepStrings(fs.readFileSync(file, 'utf8'));
+    const stripped = stripCommentsKeepStrings(fs.readFileSync(file, "utf8"));
     for (const literal of stringLiteralsOf(stripped)) {
       if (literal.includes(FORBIDDEN_CLASS)) {
-        hits.push(`${path.relative(REPO_ROOT, file)} → ${JSON.stringify(literal.slice(0, 120))}`);
+        hits.push(
+          `${path.relative(REPO_ROOT, file)} → ${JSON.stringify(literal.slice(0, 120))}`,
+        );
       }
     }
   }
   record(
-    'lock:no-admission-modal-body-in-admin',
+    "lock:no-admission-modal-body-in-admin",
     hits.length === 0,
     hits.length === 0
       ? `스캔 ${files.length}개 파일, 문자열 리터럴 히트 0 (주석 히트는 의도적으로 제외)`
       : `어드민 소스의 문자열 리터럴에 "${FORBIDDEN_CLASS}" 가 있다 — 9a9f3f0 사고 재발 경로다. ` +
-          `어드민 본문은 admission-editor-modal-body 를 써라.\n      ${hits.join('\n      ')}`
+          `어드민 본문은 admission-editor-modal-body 를 써라.\n      ${hits.join("\n      ")}`,
   );
 }
 
@@ -542,16 +648,16 @@ function verifyLockIsNotVacuous(record) {
     const ok = 'admission-editor-modal-body flex-1';
   `;
   const bad = `${sample}\n    const bad = "admission-modal-body flex-1";`;
-  const goodHits = stringLiteralsOf(stripCommentsKeepStrings(sample)).filter((s) =>
-    s.includes(FORBIDDEN_CLASS)
+  const goodHits = stringLiteralsOf(stripCommentsKeepStrings(sample)).filter(
+    (s) => s.includes(FORBIDDEN_CLASS),
   );
   const badHits = stringLiteralsOf(stripCommentsKeepStrings(bad)).filter((s) =>
-    s.includes(FORBIDDEN_CLASS)
+    s.includes(FORBIDDEN_CLASS),
   );
   record(
-    'lock:self-check',
+    "lock:self-check",
     goodHits.length === 0 && badHits.length === 1,
-    `주석 전용 샘플 히트 ${goodHits.length}(기대 0) / 실제 className 샘플 히트 ${badHits.length}(기대 1)`
+    `주석 전용 샘플 히트 ${goodHits.length}(기대 0) / 실제 className 샘플 히트 ${badHits.length}(기대 1)`,
   );
 }
 
@@ -559,27 +665,40 @@ function verifyLockIsNotVacuous(record) {
 // outerHTML 문자열 완전 일치 + 프록시 실측 수치 일치를 본다.
 function verifyBrowser(capturedPath, record) {
   if (!fs.existsSync(BROWSER_FIXTURE)) {
-    record('browser:fixture-exists', false, `${path.relative(REPO_ROOT, BROWSER_FIXTURE)} 없음`);
+    record(
+      "browser:fixture-exists",
+      false,
+      `${path.relative(REPO_ROOT, BROWSER_FIXTURE)} 없음`,
+    );
     return;
   }
-  const golden = JSON.parse(fs.readFileSync(BROWSER_FIXTURE, 'utf8'));
-  const actual = JSON.parse(fs.readFileSync(capturedPath, 'utf8'));
+  const golden = JSON.parse(fs.readFileSync(BROWSER_FIXTURE, "utf8"));
+  const actual = JSON.parse(fs.readFileSync(capturedPath, "utf8"));
   for (const [name, g] of Object.entries(golden.cases)) {
-    const a = actual[name] || (actual.cases && actual.cases[name]);
+    const a = actual[name] || actual.cases?.[name];
     if (!a) {
-      record(`browser:${name}`, false, '새 캡처에 해당 케이스 없음');
+      record(`browser:${name}`, false, "새 캡처에 해당 케이스 없음");
       continue;
     }
     // html: null 인 케이스는 "수치 전용"(용량 때문에 마크업을 안 담은 케이스)이다.
     if (g.html === null) {
-      record(`browser:${name}:html`, true, '수치 전용 케이스 — 마크업 비교 없음');
+      record(
+        `browser:${name}:html`,
+        true,
+        "수치 전용 케이스 — 마크업 비교 없음",
+      );
     } else if (g.html !== a.html) {
       let at = 0;
-      while (at < g.html.length && at < a.html.length && g.html[at] === a.html[at]) at += 1;
+      while (
+        at < g.html.length &&
+        at < a.html.length &&
+        g.html[at] === a.html[at]
+      )
+        at += 1;
       record(
         `browser:${name}:html`,
         false,
-        `outerHTML 불일치 @${at}\n      기대: ${JSON.stringify(g.html.slice(Math.max(0, at - 60), at + 120))}\n      실제: ${JSON.stringify(a.html.slice(Math.max(0, at - 60), at + 120))}`
+        `outerHTML 불일치 @${at}\n      기대: ${JSON.stringify(g.html.slice(Math.max(0, at - 60), at + 120))}\n      실제: ${JSON.stringify(a.html.slice(Math.max(0, at - 60), at + 120))}`,
       );
     } else {
       record(`browser:${name}:html`, true, `${a.html.length} bytes 일치`);
@@ -594,7 +713,7 @@ function verifyBrowser(capturedPath, record) {
       record(
         `browser:${name}:proxy-scroll`,
         Boolean(same),
-        `기대 ${JSON.stringify(g.metrics)} / 실제 ${JSON.stringify(a.metrics)}`
+        `기대 ${JSON.stringify(g.metrics)} / 실제 ${JSON.stringify(a.metrics)}`,
       );
     }
   }
@@ -602,8 +721,8 @@ function verifyBrowser(capturedPath, record) {
 
 async function main() {
   const argv = process.argv.slice(2);
-  if (argv.includes('--capture')) {
-    const i = argv.indexOf('--from-rev');
+  if (argv.includes("--capture")) {
+    const i = argv.indexOf("--from-rev");
     await capture(i === -1 ? null : argv[i + 1]);
     return;
   }
@@ -611,7 +730,7 @@ async function main() {
   const results = [];
   const record = (name, pass, detail) => results.push({ name, pass, detail });
 
-  const browserIdx = argv.indexOf('--browser');
+  const browserIdx = argv.indexOf("--browser");
   if (browserIdx !== -1) {
     verifyBrowser(argv[browserIdx + 1], record);
   } else {
@@ -624,7 +743,9 @@ async function main() {
   let passed = 0;
   for (const r of results) {
     if (r.pass) passed += 1;
-    console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.pass ? '' : `\n      ${r.detail}`}`);
+    console.log(
+      `${r.pass ? "PASS" : "FAIL"}  ${r.name}${r.pass ? "" : `\n      ${r.detail}`}`,
+    );
   }
   console.log(`\nmodal-shell: ${passed}/${results.length} 통과`);
   if (passed !== results.length) process.exitCode = 1;

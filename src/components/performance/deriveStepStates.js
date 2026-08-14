@@ -21,16 +21,21 @@
  *   리포트 화면처럼 §3.3이 「활성 스텝 0개」로 규정한 정상 입력이다, 예외가 아니다).
  * @returns {Array<'done'|'current'|'todo'>} 길이 5.
  */
-export function deriveStepStates({ completedSteps = [], activeStep = null } = {}) {
+export function deriveStepStates({
+  completedSteps = [],
+  activeStep = null,
+} = {}) {
   const completedSet = new Set(
-    (completedSteps || []).filter((step) => Number.isInteger(step) && step >= 1 && step <= 5)
+    (completedSteps || []).filter(
+      (step) => Number.isInteger(step) && step >= 1 && step <= 5,
+    ),
   );
 
   return Array.from({ length: 5 }, (_, index) => {
     const step = index + 1;
     // current가 done보다 우선한다 — 완료했던 스텝을 재방문해 다시 작업 중이면 current다.
-    if (step === activeStep) return 'current';
-    if (completedSet.has(step)) return 'done';
-    return 'todo';
+    if (step === activeStep) return "current";
+    if (completedSet.has(step)) return "done";
+    return "todo";
   });
 }

@@ -1,9 +1,9 @@
-import { useMemberType } from '../hooks/useMemberType';
-import PricingSelling from './pricing/PricingSelling';
-import ParentPricingBlockedModal from './pricing/ParentPricingBlockedModal';
-import StudentEnrollmentRequest from './checkout/StudentEnrollmentRequest';
-import BlockedMemberNotice from './checkout/BlockedMemberNotice';
-import MemberTypeRetryNotice from './checkout/MemberTypeRetryNotice';
+import { useMemberType } from "../hooks/useMemberType";
+import BlockedMemberNotice from "./checkout/BlockedMemberNotice";
+import MemberTypeRetryNotice from "./checkout/MemberTypeRetryNotice";
+import StudentEnrollmentRequest from "./checkout/StudentEnrollmentRequest";
+import ParentPricingBlockedModal from "./pricing/ParentPricingBlockedModal";
+import PricingSelling from "./pricing/PricingSelling";
 
 // /pricing("이용신청 > 서비스요금")도 회원 유형에 따라 갈린다(2026-08-12b
 // 팀 리드 지시 — Figma 3921-8299 가 3921-7066 과 시각적으로 동일해 별도
@@ -45,8 +45,8 @@ export default function Pricing() {
   // 완성해 달라"인데, 조회 실패는 사용자가 고칠 방법이 없는 상태다).
   if (error) return <MemberTypeRetryNotice onRetry={refetch} />;
 
-  if (memberType === 'student') return <StudentEnrollmentRequest />;
-  if (memberType === 'parent') return <ParentPricingBlockedModal />;
+  if (memberType === "student") return <StudentEnrollmentRequest />;
+  if (memberType === "parent") return <ParentPricingBlockedModal />;
 
   return <BlockedMemberNotice memberType={memberType} />;
 }

@@ -20,8 +20,8 @@ function dummySvg(pageNumber) {
     ` font-size="200" font-weight="700" fill="#013262">${pageNumber}</text>`,
     '<text x="256" y="440" text-anchor="middle" font-family="sans-serif"',
     ' font-size="30" letter-spacing="6" fill="#767676">DEV DUMMY</text>',
-    '</svg>'
-  ].join('');
+    "</svg>",
+  ].join("");
 
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -31,6 +31,6 @@ export function createDevDummyPages() {
   return Array.from({ length: DUMMY_PAGE_COUNT }, (_, i) => ({
     id: `dev-dummy-${i + 1}`,
     sort_order: i + 1,
-    image_url: dummySvg(i + 1)
+    image_url: dummySvg(i + 1),
   }));
 }

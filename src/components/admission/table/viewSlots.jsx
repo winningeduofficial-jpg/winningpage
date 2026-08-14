@@ -22,18 +22,19 @@
  */
 function renderLeaf(view) {
   switch (view.leaf) {
-    case 'badge':
+    case "badge":
       // SelectionTable.jsx:34-36 — minimum 컬럼 전용 배지.
       return (
         <span className={`admission-minimum-badge ${view.badge}`}>
           {view.text || view.fallback}
         </span>
       );
-    case 'chips':
+    case "chips":
       // RecruitTable.jsx:40-47 — buildRecruitCell(admissionParsing.js:2164) 재현.
       return (
         <div className="admission-recruit-cell-values">
           {view.chips.map((chip, chipIdx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 셀 렌더러 — chips는 doc JSON에 id가 없고 사용자가 재정렬하지 않는다.
             <span key={chipIdx}>
               <b>{chip.label}</b>
               {chip.value}
@@ -41,10 +42,14 @@ function renderLeaf(view) {
           ))}
         </div>
       );
-    case 'changePlain':
+    case "changePlain":
       // ChangeTable.jsx:32-34 — content 컬럼에 값이 있을 때만.
-      return <div className="admission-change-plain-cell">{view.text || view.fallback}</div>;
-    case 'muted':
+      return (
+        <div className="admission-change-plain-cell">
+          {view.text || view.fallback}
+        </div>
+      );
+    case "muted":
       // change(content) / recruit(값 셀) / recruitExact / generic 공통 빈값 표시.
       return <span className="muted">-</span>;
     default:
@@ -55,7 +60,7 @@ function renderLeaf(view) {
 
 const viewSlots = {
   header: (headerCell) => headerCell.label,
-  cell: (cellDesc) => renderLeaf(cellDesc.view)
+  cell: (cellDesc) => renderLeaf(cellDesc.view),
 };
 
 export default viewSlots;

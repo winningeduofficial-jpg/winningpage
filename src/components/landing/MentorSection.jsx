@@ -1,5 +1,5 @@
-import { useInfiniteMarquee } from '../../hooks/useInfiniteMarquee';
-import MentorCard from './MentorCard';
+import { useInfiniteMarquee } from "../../hooks/useInfiniteMarquee";
+import MentorCard from "./MentorCard";
 
 /**
  * 멘토 섹션 (명세 3.4, 0729 시안 2207:13029 리뉴얼)
@@ -14,39 +14,45 @@ import MentorCard from './MentorCard';
  *   콜멘토 랜딩(섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션 배경/패딩만 다르다 — 신규
  *   컴포넌트 대신 이 variant로 흡수한다(재합성 0).
  */
-export default function MentorSection({ mentors = [], variant = 'default' }) {
+export default function MentorSection({ mentors = [], variant = "default" }) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
-    itemCount: mentors.length
+    itemCount: mentors.length,
   });
 
   if (mentors.length === 0) return null;
 
   // 2개 이상일 때만 N배 반복 마퀴(기본 3배, 훅이 폭에 맞춰 자동 증가), 1개면 원본만 정적 렌더
   const isMarquee = mentors.length > 1;
-  const renderIndices = isMarquee ? repeatIndices : mentors.map((_, index) => index);
-  const isCallMentor = variant === 'callmentor';
+  const renderIndices = isMarquee
+    ? repeatIndices
+    : mentors.map((_, index) => index);
+  const isCallMentor = variant === "callmentor";
 
   return (
     <section
       aria-label="위닝 멘토"
       className={
         isCallMentor
-          ? 'mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-[2.5rem] lg:pb-[7.5rem]'
-          : 'mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]'
+          ? "mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-[2.5rem] lg:pb-[7.5rem]"
+          : "mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]"
       }
     >
       <div className="flex w-full flex-col gap-[2.5rem]">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <p
-            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? 'text-[#AF9364]' : 'text-accent'}`}
+            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? "text-[#AF9364]" : "text-accent"}`}
           >
             멘토스 소개
           </p>
           <h2 className="mt-[0.5rem] break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
-            <span className={isCallMentor ? 'text-[#AF9364]' : 'text-[#013262]'}>
-              위닝과 함께 합격한 선배에게{' '}
+            <span
+              className={isCallMentor ? "text-[#AF9364]" : "text-[#013262]"}
+            >
+              위닝과 함께 합격한 선배에게{" "}
             </span>
-            <span className={isCallMentor ? 'text-[#0F172A]' : 'text-[#808080]'}>
+            <span
+              className={isCallMentor ? "text-[#0F172A]" : "text-[#808080]"}
+            >
               멘토 상담을 받아보세요
             </span>
           </h2>
@@ -62,7 +68,7 @@ export default function MentorSection({ mentors = [], variant = 'default' }) {
           >
             <ul
               className={`flex w-max min-w-full items-center gap-[1.5625rem] px-5 sm:px-8 ${
-                isMarquee ? '' : 'justify-center'
+                isMarquee ? "" : "justify-center"
               }`}
             >
               {renderIndices.map((mentorIndex, position) => {
@@ -75,7 +81,12 @@ export default function MentorSection({ mentors = [], variant = 'default' }) {
                 const isClone = isMarquee && cycle !== 1;
 
                 return (
-                  <MentorCard key={`${mentor.id}-${position}`} mentor={mentor} isClone={isClone} />
+                  <MentorCard
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 mentor.id가 여러 번 반복된다 — position으로 각 클론 사본을 구분한다.
+                    key={`${mentor.id}-${position}`}
+                    mentor={mentor}
+                    isClone={isClone}
+                  />
                 );
               })}
             </ul>

@@ -23,35 +23,35 @@
 // green이 난다):
 //   node --test "api/_lib/*.test.js"
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { isPaidStatus, isActiveStatus } from './serviceAccess.js';
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { isActiveStatus, isPaidStatus } from "./serviceAccess.js";
 
-test('isPaidStatus - 버그 재현: unpaid는 결제완료가 아니다', () => {
-  assert.equal(isPaidStatus('unpaid'), false);
+test("isPaidStatus - 버그 재현: unpaid는 결제완료가 아니다", () => {
+  assert.equal(isPaidStatus("unpaid"), false);
 });
 
-test('isPaidStatus - 영문 상태값', () => {
-  assert.equal(isPaidStatus('unpaid'), false);
-  assert.equal(isPaidStatus('pending'), false);
-  assert.equal(isPaidStatus('paid'), true);
-  assert.equal(isPaidStatus('refunded'), false);
-  assert.equal(isPaidStatus('cancelled'), false);
+test("isPaidStatus - 영문 상태값", () => {
+  assert.equal(isPaidStatus("unpaid"), false);
+  assert.equal(isPaidStatus("pending"), false);
+  assert.equal(isPaidStatus("paid"), true);
+  assert.equal(isPaidStatus("refunded"), false);
+  assert.equal(isPaidStatus("cancelled"), false);
 });
 
-test('isPaidStatus - 한글 긍정 표기는 여전히 통과한다', () => {
-  assert.equal(isPaidStatus('완납'), true);
-  assert.equal(isPaidStatus('납부완료'), true);
-  assert.equal(isPaidStatus('결제완료'), true);
-  assert.equal(isPaidStatus('결제완료됨'), true);
-  assert.equal(isPaidStatus('결제완료/이용중'), true);
-  assert.equal(isPaidStatus('이용중'), true);
+test("isPaidStatus - 한글 긍정 표기는 여전히 통과한다", () => {
+  assert.equal(isPaidStatus("완납"), true);
+  assert.equal(isPaidStatus("납부완료"), true);
+  assert.equal(isPaidStatus("결제완료"), true);
+  assert.equal(isPaidStatus("결제완료됨"), true);
+  assert.equal(isPaidStatus("결제완료/이용중"), true);
+  assert.equal(isPaidStatus("이용중"), true);
 });
 
-test('isPaidStatus - 한글 부정 함정: DENIED_PAYMENT_STATUSES에 걸리면 차단된다', () => {
-  assert.equal(isPaidStatus('결제완료취소'), false); // '취소' 부분일치로 차단
-  assert.equal(isPaidStatus('결제완료 환불'), false); // '환불' 부분일치로 차단
-  assert.equal(isPaidStatus('납부대기'), false); // '대기' 부분일치로 차단
+test("isPaidStatus - 한글 부정 함정: DENIED_PAYMENT_STATUSES에 걸리면 차단된다", () => {
+  assert.equal(isPaidStatus("결제완료취소"), false); // '취소' 부분일치로 차단
+  assert.equal(isPaidStatus("결제완료 환불"), false); // '환불' 부분일치로 차단
+  assert.equal(isPaidStatus("납부대기"), false); // '대기' 부분일치로 차단
 });
 
 // 긍정 키워드를 포함하면서 실제로는 부정인 상태값이 잘못 통과하지 않는지
@@ -59,45 +59,45 @@ test('isPaidStatus - 한글 부정 함정: DENIED_PAYMENT_STATUSES에 걸리면 
 // 있어(#59 병합 충돌 해소 때 실수로 축소) 아래 두 케이스가 true로 오판됐다
 // (실사용 노출은 없었다 — dev enrollments 0행). 원 설계 의도(NEGATIVE_STATUS_SIGNALS
 // 16단어)로 목록을 복원해 다시 차단되는 것을 고정한다.
-test('isPaidStatus - 한글 부정 함정: 긍정 키워드를 포함해도 차단된다', () => {
-  assert.equal(isPaidStatus('완납예정'), false); // '예정' 부분일치로 차단
-  assert.equal(isPaidStatus('이용중지'), false); // '중지' 부분일치로 차단
+test("isPaidStatus - 한글 부정 함정: 긍정 키워드를 포함해도 차단된다", () => {
+  assert.equal(isPaidStatus("완납예정"), false); // '예정' 부분일치로 차단
+  assert.equal(isPaidStatus("이용중지"), false); // '중지' 부분일치로 차단
 });
 
-test('isPaidStatus - 공백/대소문자 무시', () => {
-  assert.equal(isPaidStatus('  PAID  '), true);
-  assert.equal(isPaidStatus('Paid'), true);
-  assert.equal(isPaidStatus(' 결 제 완 료 '), true);
+test("isPaidStatus - 공백/대소문자 무시", () => {
+  assert.equal(isPaidStatus("  PAID  "), true);
+  assert.equal(isPaidStatus("Paid"), true);
+  assert.equal(isPaidStatus(" 결 제 완 료 "), true);
 });
 
-test('isPaidStatus - null/undefined/빈 문자열은 false', () => {
+test("isPaidStatus - null/undefined/빈 문자열은 false", () => {
   assert.equal(isPaidStatus(null), false);
   assert.equal(isPaidStatus(undefined), false);
-  assert.equal(isPaidStatus(''), false);
-  assert.equal(isPaidStatus('   '), false);
+  assert.equal(isPaidStatus(""), false);
+  assert.equal(isPaidStatus("   "), false);
 });
 
-test('isPaidStatus - 관련 없는 임의 문자열은 false', () => {
-  assert.equal(isPaidStatus('foo'), false);
-  assert.equal(isPaidStatus('결제'), false);
+test("isPaidStatus - 관련 없는 임의 문자열은 false", () => {
+  assert.equal(isPaidStatus("foo"), false);
+  assert.equal(isPaidStatus("결제"), false);
 });
 
-test('isActiveStatus - program_access.access_status 4값(CHECK 제약)', () => {
-  assert.equal(isActiveStatus('active'), true);
-  assert.equal(isActiveStatus('inactive'), false); // 'inactive'.includes('active') 부분일치 함정 차단
-  assert.equal(isActiveStatus('expired'), false);
-  assert.equal(isActiveStatus('suspended'), false);
+test("isActiveStatus - program_access.access_status 4값(CHECK 제약)", () => {
+  assert.equal(isActiveStatus("active"), true);
+  assert.equal(isActiveStatus("inactive"), false); // 'inactive'.includes('active') 부분일치 함정 차단
+  assert.equal(isActiveStatus("expired"), false);
+  assert.equal(isActiveStatus("suspended"), false);
 });
 
-test('isActiveStatus - 한글 긍정/부정', () => {
-  assert.equal(isActiveStatus('활성'), true);
-  assert.equal(isActiveStatus('이용중'), true);
-  assert.equal(isActiveStatus('비활성'), false); // '비활성'이 '활성'을 포함하는 함정 차단
-  assert.equal(isActiveStatus('정지'), false);
+test("isActiveStatus - 한글 긍정/부정", () => {
+  assert.equal(isActiveStatus("활성"), true);
+  assert.equal(isActiveStatus("이용중"), true);
+  assert.equal(isActiveStatus("비활성"), false); // '비활성'이 '활성'을 포함하는 함정 차단
+  assert.equal(isActiveStatus("정지"), false);
 });
 
-test('isActiveStatus - null/undefined/빈 문자열은 false', () => {
+test("isActiveStatus - null/undefined/빈 문자열은 false", () => {
   assert.equal(isActiveStatus(null), false);
   assert.equal(isActiveStatus(undefined), false);
-  assert.equal(isActiveStatus(''), false);
+  assert.equal(isActiveStatus(""), false);
 });

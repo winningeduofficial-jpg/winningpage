@@ -1,7 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { fetchEntitlement } from '../lib/entitlement';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Outlet } from "react-router-dom";
+import { fetchEntitlement } from "../lib/entitlement";
+import { supabase } from "../lib/supabase";
 
 // 인앱 셸 공유 세션 컨텍스트 — 명세서 §2.3.
 //
@@ -41,7 +48,7 @@ const EMPTY_ENTITLEMENT = {
   quotaRemaining: null,
   quotaTotal: null,
   planEndsAt: null,
-  planLabel: null
+  planLabel: null,
 };
 
 /**
@@ -50,7 +57,9 @@ const EMPTY_ENTITLEMENT = {
 export function useSession() {
   const value = useContext(SessionContext);
   if (!value) {
-    throw new Error('useSession()은 <SessionProvider> 안에서만 쓸 수 있습니다.');
+    throw new Error(
+      "useSession()은 <SessionProvider> 안에서만 쓸 수 있습니다.",
+    );
   }
   return value;
 }
@@ -95,11 +104,13 @@ export function SessionProvider({ serviceKey, children }) {
     // ⚠️ 콜백 안에서 supabase 비동기 API를 부르지 않는다(supabase-js가 내부
     //    락을 잡고 있어 교착할 수 있다). 여기서는 state만 갱신하고, 이용권
     //    조회는 아래 별도 effect가 userId 변화에 반응해 수행한다.
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!alive) return;
-      setSession(nextSession || null);
-      setIsSessionReady(true);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        if (!alive) return;
+        setSession(nextSession || null);
+        setIsSessionReady(true);
+      },
+    );
 
     return () => {
       alive = false;
@@ -108,6 +119,7 @@ export function SessionProvider({ serviceKey, children }) {
   }, []);
 
   // ── 이용권·회차 조회. userId가 바뀌거나 refresh가 걸릴 때만 돈다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) refreshToken은 effect 안에서 읽지 않는 재조회 트리거 전용 카운터다.
   useEffect(() => {
     let alive = true;
 
@@ -148,13 +160,13 @@ export function SessionProvider({ serviceKey, children }) {
     //    잔여 회차는 차단 사유가 아니라 아래 quota* 필드로 셸에 전달되는
     //    컨텍스트이고, 막는 것은 "새 세션 시작" 하나뿐이다.
     let guardState;
-    if (!isSessionReady || !isEntitlementReady) guardState = 'loading';
-    else if (!userId) guardState = 'guest';
-    else if (entitlement.allowed === true) guardState = 'ok';
-    else if (entitlement.allowed === false) guardState = 'forbidden';
+    if (!isSessionReady || !isEntitlementReady) guardState = "loading";
+    else if (!userId) guardState = "guest";
+    else if (entitlement.allowed === true) guardState = "ok";
+    else if (entitlement.allowed === false) guardState = "forbidden";
     // allowed === null: 서버에 물어보지 못했다. forbidden과 반드시 구분한다 —
     // 서버 장애 중인 결제 사용자를 결제 페이지로 튕기는 오탐을 막기 위해서다.
-    else guardState = 'check-failed';
+    else guardState = "check-failed";
 
     return {
       serviceKey,
@@ -173,7 +185,7 @@ export function SessionProvider({ serviceKey, children }) {
       // 차감이 일어난 뒤(api/performance/* 가 quotaRemaining을 돌려준 직후)
       // 화면 값을 맞추는 수단이다. 클라이언트가 임의로 -1 하지 않는다 —
       // 서버가 권위이므로 서버에 다시 물어 덮는다.
-      refreshEntitlement
+      refreshEntitlement,
     };
   }, [
     serviceKey,
@@ -183,11 +195,13 @@ export function SessionProvider({ serviceKey, children }) {
     isSessionReady,
     isEntitlementReady,
     entitlement,
-    refreshEntitlement
+    refreshEntitlement,
   ]);
 
   return (
-    <SessionContext.Provider value={value}>{children ?? <Outlet />}</SessionContext.Provider>
+    <SessionContext.Provider value={value}>
+      {children ?? <Outlet />}
+    </SessionContext.Provider>
   );
 }
 

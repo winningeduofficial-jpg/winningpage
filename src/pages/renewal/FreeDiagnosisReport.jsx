@@ -1,18 +1,18 @@
-import { useMemo } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import '../../styles/report-print.css';
-import '../../styles/report-responsive.css';
-import { buildReport } from '../../lib/diagnosisReport';
+import { useMemo } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import "../../styles/report-print.css";
+import "../../styles/report-responsive.css";
+import ReportPageOne from "../../components/renewal/report/ReportPageOne";
+import ReportPageTwo from "../../components/renewal/report/ReportPageTwo";
+import ReportScreenExtras from "../../components/renewal/report/ReportScreenExtras";
+import ReportSincerityBanner from "../../components/renewal/report/ReportSincerityBanner";
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
-import { loadDiagnosisInput } from '../../lib/diagnosisInputStorage';
-import ReportPageOne from '../../components/renewal/report/ReportPageOne';
-import ReportPageTwo from '../../components/renewal/report/ReportPageTwo';
-import ReportSincerityBanner from '../../components/renewal/report/ReportSincerityBanner';
-import ReportScreenExtras from '../../components/renewal/report/ReportScreenExtras';
+import { loadDiagnosisInput } from "../../lib/diagnosisInputStorage";
+import { buildReport } from "../../lib/diagnosisReport";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
-const SURVEY_ENTRY_PATH = '/app/learning-diagnosis/survey';
+const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
 
 /**
  * 무료진단 결과 리포트 페이지.
@@ -52,12 +52,16 @@ export default function FreeDiagnosisReport() {
       return buildReport(input, {
         cuts: input.admissionCuts,
         cutsError: input.admissionCutsError,
-        admissionMeta: input.admissionMeta
+        admissionMeta: input.admissionMeta,
       });
     } catch (error) {
       // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
       // 리포트 대신 설문으로 돌려보낸다 — null 을 반환하면 아래 가드가 리다이렉트한다.
-      if (import.meta.env?.DEV) console.error('[free-diagnosis] 리포트 조립 실패 — 설문으로 리다이렉트한다', error);
+      if (import.meta.env?.DEV)
+        console.error(
+          "[free-diagnosis] 리포트 조립 실패 — 설문으로 리다이렉트한다",
+          error,
+        );
       return null;
     }
   }, [location.state]);

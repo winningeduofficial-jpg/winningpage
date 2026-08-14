@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { SAMPLE_REPORT_COPY } from '../../../data/diagnosisScreenCopy';
+import { Link } from "react-router-dom";
+import { SAMPLE_REPORT_COPY } from "../../../data/diagnosisScreenCopy";
 
 /**
  * 예시 리포트 배너(F-18) — 저장된 응답이 없어 디자인 픽스처(가상 학생)로 렌더될 때만 붙는다.

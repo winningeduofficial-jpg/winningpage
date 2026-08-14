@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from "lucide-react";
 
 // 재방문 이어서/새로 시작 선택 카드 — docs/수행평가-상세-명세.md §5.4 `3754:5028`.
 //
@@ -11,9 +11,9 @@ import { ChevronRight } from 'lucide-react';
 // 실측 치수(40×260, r0.5rem, fill #f8f7f5)가 공용 프리셋과 하나도 맞지 않고, 이
 // 저장소엔 tailwind-merge가 없어 겹쳐 쓰면 승자가 예측 불가다.
 
-const CONTINUE_LABEL = '이어서 하기';
-const RESTART_LABEL = '새로 시작하기';
-const BUSY_LABEL = '불러오는 중…';
+const CONTINUE_LABEL = "이어서 하기";
+const RESTART_LABEL = "새로 시작하기";
+const BUSY_LABEL = "불러오는 중…";
 
 function ChoiceButton({ label, onClick, disabled }) {
   return (
@@ -25,7 +25,10 @@ function ChoiceButton({ label, onClick, disabled }) {
     >
       <span>{label}</span>
       <span className="flex h-6 w-6 items-center justify-center">
-        <ChevronRight className="h-[0.6875rem] w-[0.4375rem] text-[#808080]" aria-hidden="true" />
+        <ChevronRight
+          className="h-[0.6875rem] w-[0.4375rem] text-[#808080]"
+          aria-hidden="true"
+        />
       </span>
     </button>
   );
@@ -39,15 +42,31 @@ function ChoiceButton({ label, onClick, disabled }) {
  * @param {string|null} [error] 조회 실패 안내. 실패해도 이 카드는 그대로 남아 재시도할 수
  *   있다(§5.20 인라인 실패 패턴과 같은 판단 — 모달로 가리지 않는다).
  */
-export default function ResumeChoiceCard({ onContinue, onRestart, busy = false, error = null }) {
+export default function ResumeChoiceCard({
+  onContinue,
+  onRestart,
+  busy = false,
+  error = null,
+}) {
   return (
     <div className="flex flex-col gap-3 pt-1">
       <div className="flex flex-wrap gap-4">
-        <ChoiceButton label={busy ? BUSY_LABEL : CONTINUE_LABEL} onClick={onContinue} disabled={busy} />
-        <ChoiceButton label={RESTART_LABEL} onClick={onRestart} disabled={busy} />
+        <ChoiceButton
+          label={busy ? BUSY_LABEL : CONTINUE_LABEL}
+          onClick={onContinue}
+          disabled={busy}
+        />
+        <ChoiceButton
+          label={RESTART_LABEL}
+          onClick={onRestart}
+          disabled={busy}
+        />
       </div>
       {error && (
-        <p role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
+        <p
+          role="alert"
+          className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+        >
           {error}
         </p>
       )}

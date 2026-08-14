@@ -23,9 +23,10 @@
  * 5개 컬럼은 인구 자체가 달라(합격자·최초합격자 ≠ 최종등록자) finalAvg 로 대체 매핑하지 않는다 —
  * 추측이 아니라 원본 스크립트의 stage 정의로 확인된 사실이다.
  */
-import { supabase } from './supabase';
-import { isUsableNumber } from '../data/diagnosisGradeScale.js';
-import { ADMISSION_FETCH_ERROR } from '../data/diagnosisScoringTable.js';
+
+import { isUsableNumber } from "../data/diagnosisGradeScale.js";
+import { ADMISSION_FETCH_ERROR } from "../data/diagnosisScoringTable.js";
+import { supabase } from "./supabase";
 
 export { ADMISSION_FETCH_ERROR };
 
@@ -38,10 +39,13 @@ export { ADMISSION_FETCH_ERROR };
  * 조회 결과에서 그대로 드러난다. 하드코딩된 "미래 연도" 가정 없음).
  */
 function pickLatestCutRow(rows) {
-  const withCuts = (rows ?? []).filter((row) => isUsableNumber(row.grade_50) || isUsableNumber(row.grade_70));
+  const withCuts = (rows ?? []).filter(
+    (row) => isUsableNumber(row.grade_50) || isUsableNumber(row.grade_70),
+  );
   if (withCuts.length === 0) return null;
   return withCuts.reduce((best, row) => {
-    if (row.result_year !== best.result_year) return row.result_year > best.result_year ? row : best;
+    if (row.result_year !== best.result_year)
+      return row.result_year > best.result_year ? row : best;
     return (row.variant_seq ?? 0) < (best.variant_seq ?? 0) ? row : best;
   });
 }
@@ -70,27 +74,33 @@ function pickLatestCutRow(rows) {
  */
 export async function fetchAdmissionCuts(query) {
   // 인자 부족은 실패가 아니다 — 학생이 아직 4단을 다 고르지 않은 정상 경로다.
-  if (!query?.universityKey || !query?.departmentKey || !query?.mainTrack || !query?.admissionTrack) {
+  if (
+    !query?.universityKey ||
+    !query?.departmentKey ||
+    !query?.mainTrack ||
+    !query?.admissionTrack
+  ) {
     return null;
   }
 
   try {
     let builder = supabase
-      .from('admission_results')
-      .select('result_year,grade_50,grade_70,variant_seq')
-      .eq('is_active', true)
-      .eq('university_key', query.universityKey)
-      .eq('department_key', query.departmentKey)
-      .eq('main_track', query.mainTrack)
-      .eq('admission_track', query.admissionTrack);
+      .from("admission_results")
+      .select("result_year,grade_50,grade_70,variant_seq")
+      .eq("is_active", true)
+      .eq("university_key", query.universityKey)
+      .eq("department_key", query.departmentKey)
+      .eq("main_track", query.mainTrack)
+      .eq("admission_track", query.admissionTrack);
 
-    builder = query.subjectReflection != null
-      ? builder.eq('subject_reflection', query.subjectReflection)
-      : builder.is('subject_reflection', null);
+    builder =
+      query.subjectReflection != null
+        ? builder.eq("subject_reflection", query.subjectReflection)
+        : builder.is("subject_reflection", null);
 
     const { data, error } = await builder;
     if (error) {
-      console.error('입결 컷 조회 실패:', error);
+      console.error("입결 컷 조회 실패:", error);
       return ADMISSION_FETCH_ERROR;
     }
 
@@ -102,11 +112,11 @@ export async function fetchAdmissionCuts(query) {
       cut50: isUsableNumber(target.grade_50) ? target.grade_50 : null,
       cut70: isUsableNumber(target.grade_70) ? target.grade_70 : null,
       finalAvg: null,
-      year: target.result_year
+      year: target.result_year,
     };
   } catch (caught) {
     // 네트워크 예외 등. 훅의 .catch 에만 맡기면 이 함수의 반환 계약이 두 갈래(값 또는 reject)가 된다.
-    console.error('입결 컷 조회 실패:', caught);
+    console.error("입결 컷 조회 실패:", caught);
     return ADMISSION_FETCH_ERROR;
   }
 }

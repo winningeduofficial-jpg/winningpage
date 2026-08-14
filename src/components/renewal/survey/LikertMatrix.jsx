@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 /**
  * LikertMatrix
@@ -37,23 +37,23 @@ import { useEffect, useRef } from 'react';
  *   톤을 추가로 얹고, 카드 스크롤에 이어 첫 미응답 문장으로 한 번 더 스크롤한다.
  */
 const DEFAULT_SCALE = [
-  '매우 그렇다',
-  '대체로 그렇다',
-  '보통이다',
-  '별로 그렇지 않다',
-  '전혀 그렇지 않다'
+  "매우 그렇다",
+  "대체로 그렇다",
+  "보통이다",
+  "별로 그렇지 않다",
+  "전혀 그렇지 않다",
 ];
 
 // 문장 133fr : 척도 23fr × 5 — 992 기준 532 / 92×5. 척도 컬럼 하한 44(2.75rem) = 최소 터치 타깃.
-const GRID_TEMPLATE = 'minmax(0, 133fr) repeat(5, minmax(2.75rem, 23fr))';
+const GRID_TEMPLATE = "minmax(0, 133fr) repeat(5, minmax(2.75rem, 23fr))";
 
 function normalizeStatement(statement, index) {
-  if (typeof statement === 'string') {
+  if (typeof statement === "string") {
     return { key: String(index), text: statement };
   }
   return {
     key: statement?.key ?? statement?.id ?? String(index),
-    text: statement?.text ?? statement?.label ?? ''
+    text: statement?.text ?? statement?.label ?? "",
   };
 }
 
@@ -62,7 +62,7 @@ function RadioDot({ checked }) {
     <span
       aria-hidden="true"
       className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-150 ${
-        checked ? 'border-[#013262]' : 'border-[#D7D7D7] bg-white'
+        checked ? "border-[#013262]" : "border-[#D7D7D7] bg-white"
       }`}
     >
       {checked && <span className="size-3 rounded-full bg-[#013262]" />}
@@ -75,11 +75,14 @@ export default function LikertMatrix({
   scale = DEFAULT_SCALE,
   value = {},
   highlighted = false,
-  onChange
+  onChange,
 }) {
   const rows = statements.map(normalizeStatement);
-  const missingKeys = new Set(rows.filter((row) => value[row.key] == null).map((row) => row.key));
-  const firstMissingKey = rows.find((row) => missingKeys.has(row.key))?.key ?? null;
+  const missingKeys = new Set(
+    rows.filter((row) => value[row.key] == null).map((row) => row.key),
+  );
+  const firstMissingKey =
+    rows.find((row) => missingKeys.has(row.key))?.key ?? null;
   const rowRefs = useRef({});
 
   // 카드가 스크롤 대상이 되는 순간, 12문장 중 실제로 빈 문장으로 한 번 더 좁혀 스크롤한다 —
@@ -91,8 +94,13 @@ export default function LikertMatrix({
     const entry = rowRefs.current[firstMissingKey];
     const node = entry?.desktop?.offsetParent ? entry.desktop : entry?.mobile;
     if (!node) return undefined;
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    node.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+    const prefersReducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    node.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
   }, [highlighted, firstMissingKey]);
 
   function handleSelect(rowKey, columnIndex) {
@@ -101,7 +109,7 @@ export default function LikertMatrix({
   }
 
   function rowHighlightClass(rowKey) {
-    return highlighted && missingKeys.has(rowKey) ? 'bg-[#FFF7E6]' : '';
+    return highlighted && missingKeys.has(rowKey) ? "bg-[#FFF7E6]" : "";
   }
 
   return (
@@ -112,7 +120,10 @@ export default function LikertMatrix({
           lg(1024) 부터 켜면 QuestionCard padding 40(§D6) 기준 척도 컬럼 80.7px 로 2줄이 유지되고,
           768~1023 은 아래 문장 카드 분해 레이아웃이 받는다 (SPEC §9-A5). */}
       <div className="hidden lg:block">
-        <div className="grid items-center pb-5" style={{ gridTemplateColumns: GRID_TEMPLATE }}>
+        <div
+          className="grid items-center pb-5"
+          style={{ gridTemplateColumns: GRID_TEMPLATE }}
+        >
           <span aria-hidden="true" />
           {scale.map((label) => (
             <span
@@ -129,7 +140,10 @@ export default function LikertMatrix({
             <div key={row.key}>
               <div
                 ref={(node) => {
-                  rowRefs.current[row.key] = { ...rowRefs.current[row.key], desktop: node };
+                  rowRefs.current[row.key] = {
+                    ...rowRefs.current[row.key],
+                    desktop: node,
+                  };
                 }}
                 role="radiogroup"
                 aria-label={row.text}
@@ -142,24 +156,28 @@ export default function LikertMatrix({
                 {scale.map((label, columnIndex) => {
                   const checked = value[row.key] === columnIndex;
                   return (
-                    <button
+                    <label
                       key={label}
-                      type="button"
-                      role="radio"
-                      aria-checked={checked}
-                      aria-label={`${row.text} - ${label}`}
-                      onClick={() => handleSelect(row.key, columnIndex)}
                       /* 히트 영역 확장 (WCAG 2.5.5, 44px 하한): 시안 확정 행 피치 64(행40+구분선24)를
                          지키기 위해 시각 크기(40, RadioDot 24)는 그대로 두고, ::after 로 상하 각 2px씩만
                          투명 확장한다 (40 + 2 + 2 = 44). 인접 행과의 실제 간격은 24px이므로 20px 여유가
-                         남아 겹치지 않는다. 가로는 grid 컬럼 stretch 로 버튼이 이미 컬럼 폭 전체
+                         남아 겹치지 않는다. 가로는 grid 컬럼 stretch 로 라벨이 이미 컬럼 폭 전체
                          (1024 기준 80.7px)를 차지해 44px를 넉넉히 초과하므로 별도 확장이 불필요하다.
-                         포커스 링은 버튼 자신의 실제 박스(40px)에 그려지므로 44px 히트 영역과 무관하게
+                         포커스 링은 안쪽 input 자신의 실제 박스(40px)에 그려지므로 44px 히트 영역과 무관하게
                          시각 라디오에 그대로 붙는다. */
-                      className="relative flex items-center justify-center rounded-full py-2 after:absolute after:inset-x-0 after:-top-0.5 after:-bottom-0.5 after:content-[''] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="relative flex cursor-pointer items-center justify-center rounded-full py-2 after:absolute after:inset-x-0 after:-top-0.5 after:-bottom-0.5 after:content-['']"
                     >
-                      <RadioDot checked={checked} />
-                    </button>
+                      <input
+                        type="radio"
+                        checked={checked}
+                        onChange={() => handleSelect(row.key, columnIndex)}
+                        aria-label={`${row.text} - ${label}`}
+                        className="sr-only peer"
+                      />
+                      <span className="rounded-full peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
+                        <RadioDot checked={checked} />
+                      </span>
+                    </label>
                   );
                 })}
               </div>
@@ -167,7 +185,10 @@ export default function LikertMatrix({
                   mt-3(12) + h-3(12) 이고 box-border 라 border 1px 이 박스 높이 안에서 소화된다.
                   (my-3 + border 였을 때는 12+1+12 = 25 라 피치가 65 로 밀렸다.) */}
               {rowIndex < rows.length - 1 && (
-                <div aria-hidden="true" className="mt-3 h-3 w-full border-t border-[#D7D7D7]" />
+                <div
+                  aria-hidden="true"
+                  className="mt-3 h-3 w-full border-t border-[#D7D7D7]"
+                />
               )}
             </div>
           ))}
@@ -181,13 +202,20 @@ export default function LikertMatrix({
           <div
             key={row.key}
             ref={(node) => {
-              rowRefs.current[row.key] = { ...rowRefs.current[row.key], mobile: node };
+              rowRefs.current[row.key] = {
+                ...rowRefs.current[row.key],
+                mobile: node,
+              };
             }}
             className={`rounded-2xl border border-[#EDEDED] p-4 transition-colors duration-700 ${
-              highlighted && missingKeys.has(row.key) ? 'bg-[#FFF7E6]' : 'bg-white'
+              highlighted && missingKeys.has(row.key)
+                ? "bg-[#FFF7E6]"
+                : "bg-white"
             }`}
           >
-            <p className="mb-3 break-keep text-base leading-6 text-[#525252]">{row.text}</p>
+            <p className="mb-3 break-keep text-base leading-6 text-[#525252]">
+              {row.text}
+            </p>
             {/* items-stretch: 라벨 줄 수(375 기준 1~3줄)가 달라도 5칸 버튼 높이가 최장 라벨로 통일된다.
                 items-start 였을 때 73.5 / 73.5 / 59.75 / 87.25 / 87.25 로 27.5px 편차가 났다.
                 버튼 자신이 flex-col + items-center 라 라디오 원은 여전히 상단 정렬을 유지한다. */}
@@ -199,23 +227,29 @@ export default function LikertMatrix({
               {scale.map((label, columnIndex) => {
                 const checked = value[row.key] === columnIndex;
                 return (
-                  <button
+                  <label
                     key={label}
-                    type="button"
-                    role="radio"
-                    aria-checked={checked}
-                    onClick={() => handleSelect(row.key, columnIndex)}
-                    className="flex min-h-[2.75rem] flex-1 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                    className="flex min-h-[2.75rem] flex-1 cursor-pointer flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center"
                   >
-                    <RadioDot checked={checked} />
+                    <input
+                      type="radio"
+                      checked={checked}
+                      onChange={() => handleSelect(row.key, columnIndex)}
+                      className="sr-only peer"
+                    />
+                    <span className="rounded-full peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
+                      <RadioDot checked={checked} />
+                    </span>
                     <span
                       className={`break-keep text-[0.625rem] leading-tight sm:text-[0.6875rem] md:text-sm ${
-                        checked ? 'font-semibold text-[#013262]' : 'text-[#808080]'
+                        checked
+                          ? "font-semibold text-[#013262]"
+                          : "text-[#808080]"
                       }`}
                     >
                       {label}
                     </span>
-                  </button>
+                  </label>
                 );
               })}
             </div>

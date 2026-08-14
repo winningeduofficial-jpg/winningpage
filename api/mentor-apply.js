@@ -119,12 +119,17 @@
 // 객체를 지운다. cron(Vercel Cron 또는 Supabase Edge Function)으로 하루 1회면
 // 충분한 규모다.
 
-import { createSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { getClientIp, isValidMobile, maskPhone, normalizePhone } from './_lib/phoneCode.js';
+import {
+  getClientIp,
+  isValidMobile,
+  maskPhone,
+  normalizePhone,
+} from "./_lib/phoneCode.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 // service_role 클라이언트·타이밍에 민감한 인증 소비 로직 등 Node 전용 API 를 쓰는
 // 이 저장소 api/* 형제 파일들과 런타임을 맞춘다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 // ---------------------------------------------------------------------------
 // 상수
@@ -135,11 +140,11 @@ export const config = { runtime: 'nodejs' };
 // 만드는 대신 이미 두 라우트 중 "정본"격인 이 파일에서 명명 export 했다).
 // ---------------------------------------------------------------------------
 
-export const BUCKET = 'mentor-applications';
+export const BUCKET = "mentor-applications";
 
 // 인증 목적. send-phone-code.js:36 ALLOWED_PURPOSES 와 같은 값이어야 한다.
 // 이 값으로 걸러야 회원가입용으로 받은 인증 레코드를 지원서 제출에 돌려쓰지 못한다.
-export const PHONE_PURPOSE = 'mentor_apply';
+export const PHONE_PURPOSE = "mentor_apply";
 
 // 인증 완료 후 제출까지 허용하는 시간. **명세에 수치가 없어 잡은 값이다.**
 // 폼이 길어(30개 필드) 인증을 먼저 하고 한참 뒤 제출하는 흐름이 정상이라 3분(코드
@@ -168,28 +173,28 @@ const MAX_BODY_BYTES = 192 * 1024;
 // FileDropzone.jsx 의 DEFAULT_MAX_SIZE_BYTES(클라이언트 UX 용, 번들 분리로
 // 이 상수를 import 하지 않고 별도로 든다)와 반드시 같은 값을 유지할 것.
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
-export const MAX_FILE_MB_LABEL = '50';
+export const MAX_FILE_MB_LABEL = "50";
 
 // 확장자 → 허용 MIME. 확장자만 보면 파일명을 바꿔 우회되고, MIME 만 보면 브라우저가
 // 값을 안 채워주는 경우(특히 .hwp)를 전부 막게 되므로 둘 다 본다.
 export const ALLOWED_FILE_TYPES = {
-  pdf: ['application/pdf'],
-  png: ['image/png'],
-  jpg: ['image/jpeg'],
-  jpeg: ['image/jpeg'],
+  pdf: ["application/pdf"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
   // 한컴오피스는 OS·브라우저마다 MIME 이 제각각이다. 어느 것도 표준이 아니라 알려진
   // 값을 모두 받는다.
   hwp: [
-    'application/x-hwp',
-    'application/haansofthwp',
-    'application/vnd.hancom.hwp',
-    'application/hwp'
-  ]
+    "application/x-hwp",
+    "application/haansofthwp",
+    "application/vnd.hancom.hwp",
+    "application/hwp",
+  ],
 };
 
 // 브라우저가 MIME 을 판정하지 못하면 '' 또는 octet-stream 을 준다. 이때는 확장자
 // 판정만으로 통과시킨다 — 여기서 막으면 정상 .hwp 제출이 통째로 거절된다.
-export const NEUTRAL_MIME_TYPES = ['', 'application/octet-stream'];
+export const NEUTRAL_MIME_TYPES = ["", "application/octet-stream"];
 
 // 증빙 파일 저장 경로 형식. api/mentor-apply-upload-url.js 가 만드는 형식과 정확히
 // 일치해야 한다 — `YYYY-MM-DD/<uuid>.<확장자>`. 클라이언트가 이 값을 그대로 돌려
@@ -197,8 +202,8 @@ export const NEUTRAL_MIME_TYPES = ['', 'application/octet-stream'];
 // 정규식 자체가 `../`·슬래시 삽입 같은 경로 조작의 차단선이다.
 const PROOF_PATH_PATTERN = new RegExp(
   `^\\d{4}-\\d{2}-\\d{2}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(${Object.keys(
-    ALLOWED_FILE_TYPES
-  ).join('|')})$`
+    ALLOWED_FILE_TYPES,
+  ).join("|")})$`,
 );
 
 // 제출 한도. api/_lib/phoneCode.js 의 checkSendLimits 상수 패턴을 그대로 따른다.
@@ -218,35 +223,48 @@ const MAX_SUBMITS_PER_IP_DAY = 10;
 // 이고, 셋 중 하나만 고치면 조용히 어긋나므로 **셋을 항상 함께** 고칠 것.
 // ---------------------------------------------------------------------------
 
-const RESIDENCE_REGIONS = ['부산·경남', '수도권', '대구·경북', '충청·강원', '호남·제주', '해외'];
-const ENROLLMENT_STATUSES = ['재학', '휴학', '졸업'];
-const ADMISSION_HISTORIES = ['현역', '재수', '삼수+'];
-const FINAL_TRACKS = ['수시', '정시'];
+const RESIDENCE_REGIONS = [
+  "부산·경남",
+  "수도권",
+  "대구·경북",
+  "충청·강원",
+  "호남·제주",
+  "해외",
+];
+const ENROLLMENT_STATUSES = ["재학", "휴학", "졸업"];
+const ADMISSION_HISTORIES = ["현역", "재수", "삼수+"];
+const FINAL_TRACKS = ["수시", "정시"];
 const HIGHSCHOOL_TYPES = [
-  '일반고',
-  '자율형 사립고',
-  '자율형 공립고',
-  '외국어고',
-  '국제고',
-  '과학고',
-  '영재학교',
-  '예술고·체육고',
-  '특성화·마이스터',
-  '검정고시',
-  '대안학교',
-  '해외고'
+  "일반고",
+  "자율형 사립고",
+  "자율형 공립고",
+  "외국어고",
+  "국제고",
+  "과학고",
+  "영재학교",
+  "예술고·체육고",
+  "특성화·마이스터",
+  "검정고시",
+  "대안학교",
+  "해외고",
 ];
 const CONSULT_FIELDS = [
-  '공부 방법',
-  '계획·시간관리',
-  '내신·시험 대비',
-  '진로·학과',
-  '대학·입시전략',
-  '수행평가·학생부'
+  "공부 방법",
+  "계획·시간관리",
+  "내신·시험 대비",
+  "진로·학과",
+  "대학·입시전략",
+  "수행평가·학생부",
 ];
-const CONSULT_GRADES = ['중1~중2', '중3', '고1', '고2', '고3', 'N수생'];
-const WEEKLY_CAPACITIES = ['1~2회', '3~5회', '6~9회', '10회 이상'];
-const AVAILABLE_TIMESLOTS = ['평일 오후', '평일 저녁', '주말 오전', '주말 오후', '주말 저녁'];
+const CONSULT_GRADES = ["중1~중2", "중3", "고1", "고2", "고3", "N수생"];
+const WEEKLY_CAPACITIES = ["1~2회", "3~5회", "6~9회", "10회 이상"];
+const AVAILABLE_TIMESLOTS = [
+  "평일 오후",
+  "평일 저녁",
+  "주말 오전",
+  "주말 오후",
+  "주말 저녁",
+];
 
 // 입학년도 범위. src/lib/validators.js 의 isValidAdmissionYear 와 같은 규칙이다
 // (하한 1990, 상한 현재연도 + 1). 클라이언트에서 통과한 값이 서버에서 거절되면 안 된다.
@@ -269,58 +287,110 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const FIELD_SPECS = [
   // 1. 지원자 정보
-  { key: 'name', kind: 'text', required: true, max: 50 },
-  { key: 'birth_date', kind: 'birthDate', required: true },
-  { key: 'email', kind: 'text', required: true, max: 254, regex: EMAIL_REGEX },
-  { key: 'residence_region', kind: 'enum', required: true, options: RESIDENCE_REGIONS },
+  { key: "name", kind: "text", required: true, max: 50 },
+  { key: "birth_date", kind: "birthDate", required: true },
+  { key: "email", kind: "text", required: true, max: 254, regex: EMAIL_REGEX },
+  {
+    key: "residence_region",
+    kind: "enum",
+    required: true,
+    options: RESIDENCE_REGIONS,
+  },
   // 2. 대학 및 합격 전형
-  { key: 'university', kind: 'text', required: true, max: 100 },
-  { key: 'major', kind: 'text', required: true, max: 100 },
-  { key: 'admission_year', kind: 'year', required: true },
-  { key: 'enrollment_status', kind: 'enum', required: true, options: ENROLLMENT_STATUSES },
-  { key: 'admission_history', kind: 'enum', required: true, options: ADMISSION_HISTORIES },
-  { key: 'final_admission_track', kind: 'enum', required: true, options: FINAL_TRACKS },
-  { key: 'exam_results', kind: 'text', required: true, max: 2000 },
+  { key: "university", kind: "text", required: true, max: 100 },
+  { key: "major", kind: "text", required: true, max: 100 },
+  { key: "admission_year", kind: "year", required: true },
+  {
+    key: "enrollment_status",
+    kind: "enum",
+    required: true,
+    options: ENROLLMENT_STATUSES,
+  },
+  {
+    key: "admission_history",
+    kind: "enum",
+    required: true,
+    options: ADMISSION_HISTORIES,
+  },
+  {
+    key: "final_admission_track",
+    kind: "enum",
+    required: true,
+    options: FINAL_TRACKS,
+  },
+  { key: "exam_results", kind: "text", required: true, max: 2000 },
   // 3. 출신 고등학교
-  { key: 'highschool_region', kind: 'text', required: true, max: 100 },
-  { key: 'highschool_name', kind: 'text', required: true, max: 100 },
-  { key: 'highschool_type', kind: 'enum', required: true, options: HIGHSCHOOL_TYPES },
-  { key: 'gpa_average', kind: 'decimal', required: false, min: 0, max: 9.99 },
-  { key: 'csat_summary', kind: 'text', required: false, max: 200 },
+  { key: "highschool_region", kind: "text", required: true, max: 100 },
+  { key: "highschool_name", kind: "text", required: true, max: 100 },
+  {
+    key: "highschool_type",
+    kind: "enum",
+    required: true,
+    options: HIGHSCHOOL_TYPES,
+  },
+  { key: "gpa_average", kind: "decimal", required: false, min: 0, max: 9.99 },
+  { key: "csat_summary", kind: "text", required: false, max: 200 },
   // 4. 멘토 역량
-  { key: 'consult_fields', kind: 'enumArray', required: true, options: CONSULT_FIELDS },
-  { key: 'strongest_field_reason', kind: 'text', required: true, max: 600 },
-  { key: 'consult_grades', kind: 'enumArray', required: true, options: CONSULT_GRADES },
-  { key: 'weekly_capacity', kind: 'enum', required: true, options: WEEKLY_CAPACITIES },
-  { key: 'available_timeslot', kind: 'enum', required: true, options: AVAILABLE_TIMESLOTS },
-  { key: 'motivation', kind: 'text', required: true, max: 1000 },
-  { key: 'strengths', kind: 'text', required: true, max: 1000 },
-  { key: 'ineffective_method', kind: 'text', required: true, max: 600 },
-  { key: 'situation_answer', kind: 'text', required: true, max: 800 },
-  { key: 'tutoring_experience', kind: 'text', required: false, max: 500 },
+  {
+    key: "consult_fields",
+    kind: "enumArray",
+    required: true,
+    options: CONSULT_FIELDS,
+  },
+  { key: "strongest_field_reason", kind: "text", required: true, max: 600 },
+  {
+    key: "consult_grades",
+    kind: "enumArray",
+    required: true,
+    options: CONSULT_GRADES,
+  },
+  {
+    key: "weekly_capacity",
+    kind: "enum",
+    required: true,
+    options: WEEKLY_CAPACITIES,
+  },
+  {
+    key: "available_timeslot",
+    kind: "enum",
+    required: true,
+    options: AVAILABLE_TIMESLOTS,
+  },
+  { key: "motivation", kind: "text", required: true, max: 1000 },
+  { key: "strengths", kind: "text", required: true, max: 1000 },
+  { key: "ineffective_method", kind: "text", required: true, max: 600 },
+  { key: "situation_answer", kind: "text", required: true, max: 800 },
+  { key: "tutoring_experience", kind: "text", required: false, max: 500 },
   // 5. 증빙 서류 — 파일 자체가 아니라 api/mentor-apply-upload-url.js 가 발급한 경로다.
   // 화면 필드 하나(증빙 서류 첨부)에 대응하므로 에러는 이 두 필드 모두 'proof_file'로
   // 흘려보낸다(MentorApplyForm.jsx SERVER_REASON_TO_FIELD 와 맞춘다).
   {
-    key: 'proof_file_path',
-    kind: 'text',
+    key: "proof_file_path",
+    kind: "text",
     required: true,
     max: 300,
     regex: PROOF_PATH_PATTERN,
-    errorField: 'proof_file',
-    emptyReason: 'file_required',
-    emptyDetail: '재학 증빙 서류를 첨부해 주세요.',
-    regexReason: 'invalid_file_path',
-    regexDetail: '증빙 파일 정보가 올바르지 않습니다. 처음부터 다시 시도해 주세요.'
+    errorField: "proof_file",
+    emptyReason: "file_required",
+    emptyDetail: "재학 증빙 서류를 첨부해 주세요.",
+    regexReason: "invalid_file_path",
+    regexDetail:
+      "증빙 파일 정보가 올바르지 않습니다. 처음부터 다시 시도해 주세요.",
   },
   // 원본 파일명(표시·기록용). 사용자가 지어 붙인 값이라 XSS 방지를 위해 화면
   // 렌더링 시 반드시 이스케이프해야 한다(sql/52_mentor_applications.sql 컬럼 주석).
-  { key: 'proof_file_name', kind: 'text', required: false, max: 255, errorField: 'proof_file' }
+  {
+    key: "proof_file_name",
+    kind: "text",
+    required: false,
+    max: 255,
+    errorField: "proof_file",
+  },
 ];
 
 // 5. 동의. 앞의 3개는 반드시 true 여야 하고, 뒤의 2개는 값만 받는다.
-const REQUIRED_AGREEMENTS = ['agree_terms', 'agree_privacy', 'agree_identity'];
-const OPTIONAL_AGREEMENTS = ['agree_marketing', 'agree_ad'];
+const REQUIRED_AGREEMENTS = ["agree_terms", "agree_privacy", "agree_identity"];
+const OPTIONAL_AGREEMENTS = ["agree_marketing", "agree_ad"];
 
 // ---------------------------------------------------------------------------
 // 유틸
@@ -329,7 +399,7 @@ const OPTIONAL_AGREEMENTS = ['agree_marketing', 'agree_ad'];
 // api/mentor-apply-upload-url.js 도 같은 트림 규칙으로 phone/fileName/contentType 을
 // 다뤄야 두 라우트의 "빈 값" 판정이 어긋나지 않는다.
 export function clean(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 function fail(res, status, reason, detail, extra = {}) {
@@ -349,7 +419,11 @@ function isValidBirthDate(digits) {
   const birth = new Date(year, month - 1, day);
 
   if (Number.isNaN(birth.getTime())) return false;
-  if (birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
+  if (
+    birth.getFullYear() !== year ||
+    birth.getMonth() !== month - 1 ||
+    birth.getDate() !== day
+  ) {
     return false;
   }
 
@@ -365,19 +439,21 @@ function validateFields(body) {
 
   for (const spec of FIELD_SPECS) {
     const raw = body[spec.key];
-    const isArrayKind = spec.kind === 'enumArray';
-    const text = isArrayKind ? '' : clean(raw);
-    const empty = isArrayKind ? !Array.isArray(raw) || raw.length === 0 : text === '';
+    const isArrayKind = spec.kind === "enumArray";
+    const text = isArrayKind ? "" : clean(raw);
+    const empty = isArrayKind
+      ? !Array.isArray(raw) || raw.length === 0
+      : text === "";
 
     if (empty) {
       if (spec.required) {
         return {
           error: {
             status: 400,
-            reason: spec.emptyReason || 'missing_field',
-            detail: spec.emptyDetail || '필수 항목이 비어 있습니다.',
-            field: spec.errorField || spec.key
-          }
+            reason: spec.emptyReason || "missing_field",
+            detail: spec.emptyDetail || "필수 항목이 비어 있습니다.",
+            field: spec.errorField || spec.key,
+          },
         };
       }
 
@@ -387,15 +463,15 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'text') {
+    if (spec.kind === "text") {
       if (text.length > spec.max) {
         return {
           error: {
             status: 400,
-            reason: 'too_long',
+            reason: "too_long",
             detail: `${spec.max}자 이내로 입력해 주세요.`,
-            field: spec.errorField || spec.key
-          }
+            field: spec.errorField || spec.key,
+          },
         };
       }
 
@@ -403,10 +479,10 @@ function validateFields(body) {
         return {
           error: {
             status: 400,
-            reason: spec.regexReason || 'invalid_field',
-            detail: spec.regexDetail || '형식이 올바르지 않습니다.',
-            field: spec.errorField || spec.key
-          }
+            reason: spec.regexReason || "invalid_field",
+            detail: spec.regexDetail || "형식이 올바르지 않습니다.",
+            field: spec.errorField || spec.key,
+          },
         };
       }
 
@@ -414,15 +490,15 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'birthDate') {
+    if (spec.kind === "birthDate") {
       if (!isValidBirthDate(text)) {
         return {
           error: {
             status: 400,
-            reason: 'invalid_field',
-            detail: '생년월일을 숫자 8자리로 정확히 입력해 주세요.',
-            field: spec.key
-          }
+            reason: "invalid_field",
+            detail: "생년월일을 숫자 8자리로 정확히 입력해 주세요.",
+            field: spec.key,
+          },
         };
       }
 
@@ -430,17 +506,21 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'year') {
+    if (spec.kind === "year") {
       const maxYear = new Date().getFullYear() + 1;
 
-      if (!/^\d{4}$/.test(text) || Number(text) < MIN_ADMISSION_YEAR || Number(text) > maxYear) {
+      if (
+        !/^\d{4}$/.test(text) ||
+        Number(text) < MIN_ADMISSION_YEAR ||
+        Number(text) > maxYear
+      ) {
         return {
           error: {
             status: 400,
-            reason: 'invalid_field',
+            reason: "invalid_field",
             detail: `입학년도는 ${MIN_ADMISSION_YEAR}~${maxYear} 사이의 4자리 연도여야 합니다.`,
-            field: spec.key
-          }
+            field: spec.key,
+          },
         };
       }
 
@@ -448,7 +528,7 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'decimal') {
+    if (spec.kind === "decimal") {
       const parsed = Number(text);
 
       // numeric(4,2) 컬럼이라 소수 둘째 자리까지만 받는다. 범위를 넘기면 DB 가
@@ -457,10 +537,10 @@ function validateFields(body) {
         return {
           error: {
             status: 400,
-            reason: 'invalid_field',
+            reason: "invalid_field",
             detail: `${spec.min}~${spec.max} 사이의 숫자로 입력해 주세요.`,
-            field: spec.key
-          }
+            field: spec.key,
+          },
         };
       }
 
@@ -468,15 +548,15 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'enum') {
+    if (spec.kind === "enum") {
       if (!spec.options.includes(text)) {
         return {
           error: {
             status: 400,
-            reason: 'invalid_option',
-            detail: '선택할 수 없는 값입니다.',
-            field: spec.key
-          }
+            reason: "invalid_option",
+            detail: "선택할 수 없는 값입니다.",
+            field: spec.key,
+          },
         };
       }
 
@@ -484,7 +564,7 @@ function validateFields(body) {
       continue;
     }
 
-    if (spec.kind === 'enumArray') {
+    if (spec.kind === "enumArray") {
       const picked = [...new Set(raw.map((item) => clean(item)))];
 
       const hasUnknown = picked.some((item) => !spec.options.includes(item));
@@ -493,15 +573,14 @@ function validateFields(body) {
         return {
           error: {
             status: 400,
-            reason: 'invalid_option',
-            detail: '선택할 수 없는 값이 포함되어 있습니다.',
-            field: spec.key
-          }
+            reason: "invalid_option",
+            detail: "선택할 수 없는 값이 포함되어 있습니다.",
+            field: spec.key,
+          },
         };
       }
 
       values[spec.key] = picked;
-      continue;
     }
   }
 
@@ -510,10 +589,10 @@ function validateFields(body) {
       return {
         error: {
           status: 400,
-          reason: 'agreement_required',
-          detail: '필수 약관에 모두 동의해야 제출할 수 있습니다.',
-          field: key
-        }
+          reason: "agreement_required",
+          detail: "필수 약관에 모두 동의해야 제출할 수 있습니다.",
+          field: key,
+        },
       };
     }
 
@@ -540,56 +619,64 @@ function validateFields(body) {
  * URL만 받고 실제 업로드는 안 한 경우) 지울 것이 없으니 그냥 거절한다.
  */
 async function verifyUploadedProof(supabase, path) {
-  const extension = path.split('.').pop().toLowerCase();
+  const extension = path.split(".").pop().toLowerCase();
   const allowedMimes = ALLOWED_FILE_TYPES[extension];
 
-  const { data: info, error: infoError } = await supabase.storage.from(BUCKET).info(path);
+  const { data: info, error: infoError } = await supabase.storage
+    .from(BUCKET)
+    .info(path);
 
   if (infoError || !info) {
     return {
       error: {
         status: 400,
-        reason: 'file_not_uploaded',
-        detail: '첨부파일 업로드가 확인되지 않았습니다. 다시 첨부해 주세요.',
-        field: 'proof_file'
-      }
+        reason: "file_not_uploaded",
+        detail: "첨부파일 업로드가 확인되지 않았습니다. 다시 첨부해 주세요.",
+        field: "proof_file",
+      },
     };
   }
 
   const size = Number(info.size ?? info.metadata?.size ?? 0);
-  const contentType = String(info.contentType ?? info.metadata?.mimetype ?? '').toLowerCase();
+  const contentType = String(
+    info.contentType ?? info.metadata?.mimetype ?? "",
+  ).toLowerCase();
 
   const sizeOk = Number.isFinite(size) && size > 0 && size <= MAX_FILE_BYTES;
-  const typeOk = NEUTRAL_MIME_TYPES.includes(contentType) || allowedMimes.includes(contentType);
+  const typeOk =
+    NEUTRAL_MIME_TYPES.includes(contentType) ||
+    allowedMimes.includes(contentType);
 
   if (sizeOk && typeOk) {
     return {};
   }
 
-  const { error: removeError } = await supabase.storage.from(BUCKET).remove([path]);
+  const { error: removeError } = await supabase.storage
+    .from(BUCKET)
+    .remove([path]);
 
   if (removeError) {
-    console.error('[mentor-apply] 위반 첨부파일 정리 실패:', path, removeError);
+    console.error("[mentor-apply] 위반 첨부파일 정리 실패:", path, removeError);
   }
 
   if (!sizeOk) {
     return {
       error: {
         status: 413,
-        reason: 'file_too_large',
+        reason: "file_too_large",
         detail: `첨부파일은 ${MAX_FILE_MB_LABEL}MB 이하만 올릴 수 있습니다.`,
-        field: 'proof_file'
-      }
+        field: "proof_file",
+      },
     };
   }
 
   return {
     error: {
       status: 415,
-      reason: 'file_type_not_allowed',
-      detail: '파일 형식이 확장자와 일치하지 않습니다.',
-      field: 'proof_file'
-    }
+      reason: "file_type_not_allowed",
+      detail: "파일 형식이 확장자와 일치하지 않습니다.",
+      field: "proof_file",
+    },
   };
 }
 
@@ -599,10 +686,10 @@ function isoAgo(seconds) {
 
 async function countSubmitsSince(supabase, column, value, seconds) {
   const { count, error } = await supabase
-    .from('mentor_applications')
-    .select('id', { count: 'exact', head: true })
+    .from("mentor_applications")
+    .select("id", { count: "exact", head: true })
     .eq(column, value)
-    .gte('created_at', isoAgo(seconds));
+    .gte("created_at", isoAgo(seconds));
 
   if (error) throw error;
   return count || 0;
@@ -619,12 +706,12 @@ async function countSubmitsSince(supabase, column, value, seconds) {
  */
 async function countAttemptsSince(supabase, column, value, seconds) {
   const { count, error } = await supabase
-    .from('phone_verifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('purpose', PHONE_PURPOSE)
-    .not('consumed_at', 'is', null)
+    .from("phone_verifications")
+    .select("id", { count: "exact", head: true })
+    .eq("purpose", PHONE_PURPOSE)
+    .not("consumed_at", "is", null)
     .eq(column, value)
-    .gte('consumed_at', isoAgo(seconds));
+    .gte("consumed_at", isoAgo(seconds));
 
   if (error) throw error;
   return count || 0;
@@ -637,10 +724,10 @@ async function countAttemptsSince(supabase, column, value, seconds) {
 async function checkSubmitLimits(supabase, { phone, ip }) {
   // 1) 같은 번호의 직전 제출 — 더블클릭·재시도로 같은 지원서가 두 벌 쌓이는 걸 막는다.
   const { data: latest, error: latestError } = await supabase
-    .from('mentor_applications')
-    .select('created_at')
-    .eq('phone', phone)
-    .order('created_at', { ascending: false })
+    .from("mentor_applications")
+    .select("created_at")
+    .eq("phone", phone)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -652,8 +739,8 @@ async function checkSubmitLimits(supabase, { phone, ip }) {
     if (elapsed < SUBMIT_COOLDOWN_SECONDS) {
       return {
         allowed: false,
-        reason: 'submit_cooldown',
-        retryAfter: Math.ceil(SUBMIT_COOLDOWN_SECONDS - elapsed)
+        reason: "submit_cooldown",
+        retryAfter: Math.ceil(SUBMIT_COOLDOWN_SECONDS - elapsed),
       };
     }
   }
@@ -661,32 +748,32 @@ async function checkSubmitLimits(supabase, { phone, ip }) {
   // 2) 번호 기준 일일. insert 성공 카운트와 소비된 인증(=시도) 카운트 중 큰 쪽을 쓴다
   // — 실패로 끝난 시도도 재시도를 막아야 하기 때문이다.
   const phoneDailyCount = Math.max(
-    await countSubmitsSince(supabase, 'phone', phone, 86400),
-    await countAttemptsSince(supabase, 'phone', phone, 86400)
+    await countSubmitsSince(supabase, "phone", phone, 86400),
+    await countAttemptsSince(supabase, "phone", phone, 86400),
   );
 
   if (phoneDailyCount >= MAX_SUBMITS_PER_PHONE_DAY) {
-    return { allowed: false, reason: 'phone_daily_limit', retryAfter: 86400 };
+    return { allowed: false, reason: "phone_daily_limit", retryAfter: 86400 };
   }
 
   // 3) IP 기준 — 번호를 바꿔가며 도배하는 경우. 마찬가지로 두 카운트 중 큰 쪽.
   if (ip) {
     const ipHourlyCount = Math.max(
-      await countSubmitsSince(supabase, 'request_ip', ip, 3600),
-      await countAttemptsSince(supabase, 'request_ip', ip, 3600)
+      await countSubmitsSince(supabase, "request_ip", ip, 3600),
+      await countAttemptsSince(supabase, "request_ip", ip, 3600),
     );
 
     if (ipHourlyCount >= MAX_SUBMITS_PER_IP_HOUR) {
-      return { allowed: false, reason: 'ip_hourly_limit', retryAfter: 3600 };
+      return { allowed: false, reason: "ip_hourly_limit", retryAfter: 3600 };
     }
 
     const ipDailyCount = Math.max(
-      await countSubmitsSince(supabase, 'request_ip', ip, 86400),
-      await countAttemptsSince(supabase, 'request_ip', ip, 86400)
+      await countSubmitsSince(supabase, "request_ip", ip, 86400),
+      await countAttemptsSince(supabase, "request_ip", ip, 86400),
     );
 
     if (ipDailyCount >= MAX_SUBMITS_PER_IP_DAY) {
-      return { allowed: false, reason: 'ip_daily_limit', retryAfter: 86400 };
+      return { allowed: false, reason: "ip_daily_limit", retryAfter: 86400 };
     }
   }
 
@@ -696,9 +783,9 @@ async function checkSubmitLimits(supabase, { phone, ip }) {
 const NOT_VERIFIED_ERROR = {
   error: {
     status: 403,
-    reason: 'phone_not_verified',
-    detail: '휴대폰 본인인증을 다시 진행해 주세요.'
-  }
+    reason: "phone_not_verified",
+    detail: "휴대폰 본인인증을 다시 진행해 주세요.",
+  },
 };
 
 /**
@@ -712,13 +799,13 @@ const NOT_VERIFIED_ERROR = {
  */
 export async function findValidPhoneVerification(supabase, phone) {
   const { data: row, error: selectError } = await supabase
-    .from('phone_verifications')
-    .select('id, verified_at')
-    .eq('phone', phone)
-    .eq('purpose', PHONE_PURPOSE)
-    .is('consumed_at', null)
-    .not('verified_at', 'is', null)
-    .order('created_at', { ascending: false })
+    .from("phone_verifications")
+    .select("id, verified_at")
+    .eq("phone", phone)
+    .eq("purpose", PHONE_PURPOSE)
+    .is("consumed_at", null)
+    .not("verified_at", "is", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -731,9 +818,10 @@ export async function findValidPhoneVerification(supabase, phone) {
     return {
       error: {
         status: 403,
-        reason: 'phone_verification_expired',
-        detail: '본인인증 후 시간이 오래 지났습니다. 인증을 다시 진행해 주세요.'
-      }
+        reason: "phone_verification_expired",
+        detail:
+          "본인인증 후 시간이 오래 지났습니다. 인증을 다시 진행해 주세요.",
+      },
     };
   }
 
@@ -764,11 +852,11 @@ async function consumePhoneVerification(supabase, phone) {
   if (found.error) return found;
 
   const { data: consumed, error: consumeError } = await supabase
-    .from('phone_verifications')
+    .from("phone_verifications")
     .update({ consumed_at: new Date().toISOString() })
-    .eq('id', found.row.id)
-    .is('consumed_at', null)
-    .select('id');
+    .eq("id", found.row.id)
+    .is("consumed_at", null)
+    .select("id");
 
   if (consumeError) throw consumeError;
   if (!consumed || consumed.length === 0) return NOT_VERIFIED_ERROR;
@@ -781,36 +869,47 @@ async function consumePhoneVerification(supabase, phone) {
 // ---------------------------------------------------------------------------
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'method_not_allowed', 'Method not allowed');
+  if (req.method !== "POST") {
+    return fail(res, 405, "method_not_allowed", "Method not allowed");
   }
 
-  const contentType = String(req.headers['content-type'] || '');
+  const contentType = String(req.headers["content-type"] || "");
 
-  if (!contentType.includes('application/json')) {
-    return fail(res, 415, 'invalid_content_type', 'application/json 으로 보내 주세요.');
+  if (!contentType.includes("application/json")) {
+    return fail(
+      res,
+      415,
+      "invalid_content_type",
+      "application/json 으로 보내 주세요.",
+    );
   }
 
   // 본문을 실제로 펼치기 전에 헤더로 먼저 거른다. 첨부가 더 이상 이 요청에
   // 실리지 않으므로(파일 상단 주석) 여기 걸리는 요청은 거의 항상 오작동·악용이다.
-  const contentLength = Number(req.headers['content-length'] || 0);
+  const contentLength = Number(req.headers["content-length"] || 0);
 
   if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
-    return fail(res, 413, 'payload_too_large', '요청 크기가 너무 큽니다.');
+    return fail(res, 413, "payload_too_large", "요청 크기가 너무 큽니다.");
   }
 
   const body = req.body;
 
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return fail(res, 400, 'invalid_payload', '요청 본문을 읽을 수 없습니다.');
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return fail(res, 400, "invalid_payload", "요청 본문을 읽을 수 없습니다.");
   }
 
   const phone = normalizePhone(body.phone);
 
   if (!isValidMobile(phone)) {
-    return fail(res, 400, 'invalid_phone', '휴대폰 번호 형식이 올바르지 않습니다.', {
-      field: 'phone'
-    });
+    return fail(
+      res,
+      400,
+      "invalid_phone",
+      "휴대폰 번호 형식이 올바르지 않습니다.",
+      {
+        field: "phone",
+      },
+    );
   }
 
   const ip = getClientIp(req);
@@ -833,8 +932,8 @@ export default async function handler(req, res) {
     const limits = await checkSubmitLimits(supabase, { phone, ip });
 
     if (!limits.allowed) {
-      return fail(res, 429, limits.reason, '잠시 후 다시 시도해 주세요.', {
-        retry_after: limits.retryAfter
+      return fail(res, 429, limits.reason, "잠시 후 다시 시도해 주세요.", {
+        retry_after: limits.retryAfter,
       });
     }
 
@@ -865,14 +964,14 @@ export default async function handler(req, res) {
     objectVerified = true;
 
     const { data: inserted, error: insertError } = await supabase
-      .from('mentor_applications')
+      .from("mentor_applications")
       .insert({
         ...values,
         phone,
         phone_verified_at: verification.verifiedAt,
-        request_ip: ip
+        request_ip: ip,
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (insertError) throw insertError;
@@ -884,17 +983,28 @@ export default async function handler(req, res) {
     // 그대로 낸다.
     if (objectVerified) {
       const supabase = createSupabaseAdmin();
-      const { error: removeError } = await supabase.storage.from(BUCKET).remove([objectPath]);
+      const { error: removeError } = await supabase.storage
+        .from(BUCKET)
+        .remove([objectPath]);
 
       if (removeError) {
-        console.error('[mentor-apply] 고아 파일 정리 실패:', objectPath, removeError);
+        console.error(
+          "[mentor-apply] 고아 파일 정리 실패:",
+          objectPath,
+          removeError,
+        );
       }
     }
 
     // 로그에도 번호를 그대로 남기지 않는다(phoneCode.js maskPhone 관례).
     // 경로·파일명 같은 내부 식별자는 응답에 넣지 않는다.
-    console.error('[mentor-apply] 제출 실패:', maskPhone(phone), error);
+    console.error("[mentor-apply] 제출 실패:", maskPhone(phone), error);
 
-    return fail(res, 500, 'unknown', '지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    return fail(
+      res,
+      500,
+      "unknown",
+      "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    );
   }
 }

@@ -22,13 +22,16 @@
 //   롤백 자체가 실패해도 사용자에게 다시 알리지 않는다 — 이미 보여줄 실패가 있고,
 //   최후 수단으로 24시간 고아 스윕이 같은 자리를 치운다.
 
-import { supabase } from '../supabase';
-import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+import { supabase } from "../supabase";
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from "./apiClient";
 
 /** 서버 메시지가 없을 때만 쓰는 폴백. 서버가 준 문구가 있으면 항상 그쪽이 우선이다. */
-const GENERIC_UPLOAD_ERROR = '사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요.';
-const GENERIC_ANALYZE_ERROR = '안내문을 분석하지 못했어요. 잠시 후 다시 시도해 주세요.';
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const GENERIC_UPLOAD_ERROR =
+  "사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요.";
+const GENERIC_ANALYZE_ERROR =
+  "안내문을 분석하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /** 화면에 그대로 띄울 수 있는 문구(`userMessage`)를 달고 던진다. */
 function userError(message, cause) {
@@ -45,14 +48,14 @@ async function postJson(path, accessToken, body, timeoutMs) {
     response = await fetchWithTimeout(
       path,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       },
-      timeoutMs
+      timeoutMs,
     );
   } catch (error) {
     throw userError(NETWORK_ERROR, error);
@@ -78,11 +81,15 @@ export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
   try {
     for (const file of files) {
       // ① 토큰 발급 — 이 시점에 `pending` 행이 생긴다(= 자리 점유 시작).
-      const { response, data } = await postJson('/api/performance/upload-url', accessToken, {
-        sessionId,
-        mimeType: file.type,
-        byteSize: file.size
-      });
+      const { response, data } = await postJson(
+        "/api/performance/upload-url",
+        accessToken,
+        {
+          sessionId,
+          mimeType: file.type,
+          byteSize: file.size,
+        },
+      );
 
       if (!response.ok || !data?.token || !data?.path) {
         throw userError(data?.error?.message || GENERIC_UPLOAD_ERROR);
@@ -95,7 +102,9 @@ export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
       //    (`text/plain`)을 붙여 버킷의 `allowed_mime_types`에 걸린다.
       const { error: uploadError } = await supabase.storage
         .from(data.bucket)
-        .uploadToSignedUrl(data.path, data.token, file, { contentType: file.type });
+        .uploadToSignedUrl(data.path, data.token, file, {
+          contentType: file.type,
+        });
 
       if (uploadError) {
         throw userError(GENERIC_UPLOAD_ERROR, uploadError);
@@ -104,7 +113,11 @@ export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
 
     return uploaded;
   } catch (error) {
-    await discardAttachments({ accessToken, sessionId, attachmentIds: uploaded });
+    await discardAttachments({
+      accessToken,
+      sessionId,
+      attachmentIds: uploaded,
+    });
     throw error;
   }
 }
@@ -113,12 +126,16 @@ export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
  * 업로드 분기 분석. 서버가 `attachmentIds[]`만 받는다는 계약을 여기서도 지킨다 —
  * 경로·MIME·크기를 실어 보내지 않는다(§8.8 BLOCK).
  */
-export async function analyzeGuideUpload({ accessToken, sessionId, attachmentIds }) {
+export async function analyzeGuideUpload({
+  accessToken,
+  sessionId,
+  attachmentIds,
+}) {
   const { response, data } = await postJson(
-    '/api/performance/analyze-guide',
+    "/api/performance/analyze-guide",
     accessToken,
     { sessionId, attachmentIds },
-    AI_CALL_TIMEOUT_MS
+    AI_CALL_TIMEOUT_MS,
   );
 
   if (!response.ok) {
@@ -134,10 +151,14 @@ export async function analyzeGuideUpload({ accessToken, sessionId, attachmentIds
  * 서버가 모델을 부르지 않고 `guide_input_mode='manual'` + `guide_freetext`를 채운다.
  */
 export async function submitManualGuide({ accessToken, sessionId, freetext }) {
-  const { response, data } = await postJson('/api/performance/analyze-guide', accessToken, {
-    sessionId,
-    freetext
-  });
+  const { response, data } = await postJson(
+    "/api/performance/analyze-guide",
+    accessToken,
+    {
+      sessionId,
+      freetext,
+    },
+  );
 
   if (!response.ok) {
     throw userError(data?.error?.message || GENERIC_ANALYZE_ERROR);
@@ -154,12 +175,12 @@ export async function submitManualGuide({ accessToken, sessionId, freetext }) {
 async function discardAttachments({ accessToken, sessionId, attachmentIds }) {
   for (const attachmentId of attachmentIds) {
     try {
-      await postJson('/api/performance/discard-attachment', accessToken, {
+      await postJson("/api/performance/discard-attachment", accessToken, {
         sessionId,
-        attachmentId
+        attachmentId,
       });
     } catch (error) {
-      console.error('[performance] 첨부 회수 실패:', attachmentId, error);
+      console.error("[performance] 첨부 회수 실패:", attachmentId, error);
     }
   }
 }

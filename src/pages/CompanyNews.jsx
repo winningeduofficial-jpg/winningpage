@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Download } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { alertServiceNotReady } from '../lib/paidServiceAccess';
-import { BOARD_SOURCES, formatBoardDate, incrementBoardView } from './board/boardData';
-
-import directorPortrait from '../assets/company/director-portrait.png';
-import missionBg from '../assets/company/mission-bg.jpg';
-import bizAiPlatform from '../assets/company/biz-ai-platform.png';
-import bizConsulting from '../assets/company/biz-consulting.png';
-import bizNetwork from '../assets/company/biz-network.png';
-import partnerChloeWinningArt from '../assets/company/partner-chloe-winning-art.png';
-import partnerJungsangLanguage from '../assets/company/partner-jungsang-language.png';
-import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
+import { ArrowLeft, ArrowUpRight, Download } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import bizAiPlatform from "../assets/company/biz-ai-platform.png";
+import bizConsulting from "../assets/company/biz-consulting.png";
+import bizNetwork from "../assets/company/biz-network.png";
+import directorPortrait from "../assets/company/director-portrait.png";
+import missionBg from "../assets/company/mission-bg.jpg";
+import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.png";
+import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
+import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
+import SafeHtml from "../components/admission/SafeHtml";
+import { alertServiceNotReady } from "../lib/paidServiceAccess";
+import { withDedupedKeys } from "../lib/reactKeys";
+import { supabase } from "../lib/supabase";
+import {
+  BOARD_SOURCES,
+  formatBoardDate,
+  incrementBoardView,
+} from "./board/boardData";
 
 // 회사소개(/company-news) — Figma 시안(1882:19182 "회사소개", 1920×6363) 전면 재작성.
 // 라우트 · 헤더/푸터(SiteLayout 전역 렌더) · Supabase 조회/검색/상세/첨부 기능은 그대로 두고
@@ -43,59 +48,59 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 // -------------------------------------------------------------------------
 const HERO_CARDS = [
   {
-    key: 'free',
-    bg: '#013262',
-    tint: '#bddfff',
-    title: '학습진단',
-    desc: ['나에게 필요한', '서비스 진단'],
+    key: "free",
+    bg: "#013262",
+    tint: "#bddfff",
+    title: "학습진단",
+    desc: ["나에게 필요한", "서비스 진단"],
     best: true,
-    route: '/services/learning-diagnosis'
+    route: "/services/learning-diagnosis",
   },
   {
-    key: 'goal',
-    bg: '#47406b',
-    tint: '#ffffff',
-    title: '목표관리',
-    desc: ['수험생활의', '완벽한 목표 설계'],
+    key: "goal",
+    bg: "#47406b",
+    tint: "#ffffff",
+    title: "목표관리",
+    desc: ["수험생활의", "완벽한 목표 설계"],
     best: false,
-    route: '/services/goal'
+    route: "/services/goal",
   },
   {
-    key: 'susi',
-    bg: '#6b4055',
-    tint: '#e8c0d3',
-    title: '수시카드',
-    desc: ['체계적이고 논리적인', '수시전략'],
+    key: "susi",
+    bg: "#6b4055",
+    tint: "#e8c0d3",
+    title: "수시카드",
+    desc: ["체계적이고 논리적인", "수시전략"],
     best: false,
-    route: null // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
+    route: null, // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
   },
   {
-    key: 'mentor',
-    bg: '#66452b',
-    tint: '#f2bc92',
-    title: '콜멘토',
-    desc: ['나만의 1:1', '입시 멘토링'],
+    key: "mentor",
+    bg: "#66452b",
+    tint: "#f2bc92",
+    title: "콜멘토",
+    desc: ["나만의 1:1", "입시 멘토링"],
     best: true,
-    route: '/services/callmentor'
+    route: "/services/callmentor",
   },
   {
-    key: 'perf',
-    bg: '#40606b',
-    tint: '#c0eefe',
-    title: '수행평가',
-    desc: ['주제 추천부터 연계까지', 'AI가 관리하는 수행평가'],
+    key: "perf",
+    bg: "#40606b",
+    tint: "#c0eefe",
+    title: "수행평가",
+    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
     best: false,
-    route: '/services/performance'
+    route: "/services/performance",
   },
   {
-    key: 'premium',
-    bg: '#304d2d',
-    tint: '#a0c99c',
-    title: '프리미엄',
-    desc: ['전문가가 직접 관리하는', '밀착 컨설팅'],
+    key: "premium",
+    bg: "#304d2d",
+    tint: "#a0c99c",
+    title: "프리미엄",
+    desc: ["전문가가 직접 관리하는", "밀착 컨설팅"],
     best: false,
-    route: '/page/premium-a'
-  }
+    route: "/page/premium-a",
+  },
 ];
 
 // -------------------------------------------------------------------------
@@ -103,23 +108,23 @@ const HERO_CARDS = [
 // -------------------------------------------------------------------------
 const BUSINESS_CARDS = [
   {
-    key: 'ai-platform',
+    key: "ai-platform",
     image: bizAiPlatform,
-    title: '학습 플랫폼',
-    desc: '목표관리・수시예측\n콜멘토・수행평가・학습진단'
+    title: "학습 플랫폼",
+    desc: "목표관리・수시예측\n콜멘토・수행평가・학습진단",
   },
   {
-    key: 'consulting',
+    key: "consulting",
     image: bizConsulting,
-    title: '입시 컨설팅 서비스',
-    desc: '세특관리・약점관리\n프리미엄 컨설팅'
+    title: "입시 컨설팅 서비스",
+    desc: "세특관리・약점관리\n프리미엄 컨설팅",
   },
   {
-    key: 'network',
+    key: "network",
     image: bizNetwork,
-    title: '연계 협력 네트워크',
-    desc: '정상어학원・정상수학학원\n클로이위닝 미술학원'
-  }
+    title: "연계 협력 네트워크",
+    desc: "정상어학원・정상수학학원\n클로이위닝 미술학원",
+  },
 ];
 // ⚠ 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
 // U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
@@ -129,74 +134,84 @@ const BUSINESS_CARDS = [
 // -------------------------------------------------------------------------
 const CAMPUS_CARDS = [
   {
-    key: 'sejong',
-    name: '위닝에듀 세종캠퍼스',
-    address: ['세종 마음안1로 61'],
-    href: 'https://naver.me/ximXcCHi'
+    key: "sejong",
+    name: "위닝에듀 세종캠퍼스",
+    address: ["세종 마음안1로 61"],
+    href: "https://naver.me/ximXcCHi",
   },
   {
-    key: 'hwamyeong',
-    name: '위닝에듀 화명캠퍼스',
-    address: ['부산 북구 화명대로 40', '현천휴먼 타워, 8층'],
-    href: 'https://naver.me/FFqICy0L'
+    key: "hwamyeong",
+    name: "위닝에듀 화명캠퍼스",
+    address: ["부산 북구 화명대로 40", "현천휴먼 타워, 8층"],
+    href: "https://naver.me/FFqICy0L",
   },
   {
-    key: 'centum',
-    name: '위닝에듀 센텀캠퍼스',
-    address: ['부산 해운대구 센텀1로 9 S동 24층'],
-    href: 'https://naver.me/5gFDq5b6'
+    key: "centum",
+    name: "위닝에듀 센텀캠퍼스",
+    address: ["부산 해운대구 센텀1로 9 S동 24층"],
+    href: "https://naver.me/5gFDq5b6",
   },
   {
-    key: 'cheonan',
-    name: '위닝에듀 천안캠퍼스',
-    address: ['충남 천안시 서북구 불당23로 73-27 파크힐'],
-    href: 'https://naver.me/xydFeL4Z'
+    key: "cheonan",
+    name: "위닝에듀 천안캠퍼스",
+    address: ["충남 천안시 서북구 불당23로 73-27 파크힐"],
+    href: "https://naver.me/xydFeL4Z",
   },
   {
-    key: 'jeju',
-    name: '위닝에듀 제주캠퍼스',
-    address: ['제주 제주시 애월읍 엄장로 55 106동 3층'],
-    href: 'https://naver.me/xCjzg3XD'
+    key: "jeju",
+    name: "위닝에듀 제주캠퍼스",
+    address: ["제주 제주시 애월읍 엄장로 55 106동 3층"],
+    href: "https://naver.me/xCjzg3XD",
   },
-  { key: 'daejeon', name: '위닝에듀 대전캠퍼스', address: [], comingSoon: true },
-  { key: 'daechi', name: '위닝에듀 대치캠퍼스', address: [], comingSoon: true },
-  { key: 'bundang', name: '위닝에듀 분당캠퍼스', address: [], comingSoon: true }
+  {
+    key: "daejeon",
+    name: "위닝에듀 대전캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
+  { key: "daechi", name: "위닝에듀 대치캠퍼스", address: [], comingSoon: true },
+  {
+    key: "bundang",
+    name: "위닝에듀 분당캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
 ];
 
 // 연계 협력기관 카드 3장 — 카드1만 시안이 설명문(제목)/브랜드명(부제) 위계가 다른 2·3과
 // 반대인데, 카피 변경 권한이 없어 시안 그대로 옮겼다.
 const PARTNER_CARDS = [
   {
-    key: 'chloe-winning-art',
-    title: '미대입시 실기/비실기\n전문 연계기관',
-    subtitle: '클로이위닝 미술학원',
-    brand: '클로이위닝 미술학원', // title/subtitle 위계가 카드마다 달라 링크 aria-label용 브랜드명을 별도로 둔다
+    key: "chloe-winning-art",
+    title: "미대입시 실기/비실기\n전문 연계기관",
+    subtitle: "클로이위닝 미술학원",
+    brand: "클로이위닝 미술학원", // title/subtitle 위계가 카드마다 달라 링크 aria-label용 브랜드명을 별도로 둔다
     links: [
-      { label: '해운센텀점', href: 'https://naver.me/5r9K3YCL' },
-      { label: '정관점', href: 'https://naver.me/5UEceSEF' },
-      { label: '천안점', href: 'https://naver.me/xKthcxAW' }
+      { label: "해운센텀점", href: "https://naver.me/5r9K3YCL" },
+      { label: "정관점", href: "https://naver.me/5UEceSEF" },
+      { label: "천안점", href: "https://naver.me/xKthcxAW" },
     ],
     logo: partnerChloeWinningArt,
-    logoWidth: 'w-[16.7rem]'
+    logoWidth: "w-[16.7rem]",
   },
   {
-    key: 'jungsang-language',
-    title: '정상어학원',
-    subtitle: '어학 교육 전문 연계기관',
-    brand: '정상어학원',
-    links: [{ label: '화명캠퍼스', href: 'https://naver.me/FY3j5eyl' }],
+    key: "jungsang-language",
+    title: "정상어학원",
+    subtitle: "어학 교육 전문 연계기관",
+    brand: "정상어학원",
+    links: [{ label: "화명캠퍼스", href: "https://naver.me/FY3j5eyl" }],
     logo: partnerJungsangLanguage,
-    logoWidth: 'w-[13rem]'
+    logoWidth: "w-[13rem]",
   },
   {
-    key: 'jungsang-math',
-    title: '정상수학학원',
-    subtitle: '수학 교육 전문 연계기관',
-    brand: '정상수학학원',
-    links: [{ label: '부산캠퍼스', href: 'https://naver.me/GkRHGKeZ' }],
+    key: "jungsang-math",
+    title: "정상수학학원",
+    subtitle: "수학 교육 전문 연계기관",
+    brand: "정상수학학원",
+    links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
-    logoWidth: 'w-[13rem]'
-  }
+    logoWidth: "w-[13rem]",
+  },
 ];
 // "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
 // (target="_blank" rel="noopener noreferrer")으로 연다. href가 있는 링크는 <a>, 없는 경우
@@ -212,7 +227,7 @@ function normalizeArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [value];
@@ -225,7 +240,7 @@ function normalizeArray(value) {
 }
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 // 날짜 표기는 boardData.js 의 formatBoardDate(KST 기준) 하나로 통일한다.
@@ -235,20 +250,20 @@ function cleanText(value) {
 // 폴백 동작은 동일: falsy → '', 파싱 실패 → String(value).slice(0, 10).
 
 function getAttachmentName(file) {
-  if (!file || typeof file === 'string') return '첨부파일 다운로드';
-  return file.name || '첨부파일 다운로드';
+  if (!file || typeof file === "string") return "첨부파일 다운로드";
+  return file.name || "첨부파일 다운로드";
 }
 
 function getAttachmentUrl(file) {
-  if (!file) return '';
-  return typeof file === 'string' ? file : file.url;
+  if (!file) return "";
+  return typeof file === "string" ? file : file.url;
 }
 
 function renderContent(content) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
+    return <SafeHtml html={content} className="notice-content" />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;
@@ -267,11 +282,11 @@ function HeroSection({ page }) {
   // 히어로의 아이브로우/헤드라인/컷아웃 사진 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가
   // 노출되고 투명 컷아웃 사진의 하단 플러시 구성이 깨진다. 관리자 오버레이는 회귀 위험이 낮은
   // body(보조 카피, 선택 렌더)만 유지한다.
-  const eyebrow = '10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.';
-  const headline = '강원석 원장님';
+  const eyebrow = "10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
+  const headline = "강원석 원장님";
   const body = cleanText(page?.body);
   const heroImage = directorPortrait;
-  const heroImageAlt = '위닝에듀 강원석 원장';
+  const heroImageAlt = "위닝에듀 강원석 원장";
 
   return (
     <section className="relative overflow-hidden bg-[#202f3f] pt-[7.25rem] pb-16 sm:pb-0 lg:min-h-[41.875rem] lg:pt-0 lg:pb-0">
@@ -281,7 +296,9 @@ function HeroSection({ page }) {
             높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
             "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
         <div className="flex flex-col lg:max-w-[35.625rem] lg:flex-1 lg:pt-[7.25rem] lg:pb-[6.4375rem]">
-          <p className="text-[0.9375rem] leading-[1.3] text-white/60">{eyebrow}</p>
+          <p className="text-[0.9375rem] leading-[1.3] text-white/60">
+            {eyebrow}
+          </p>
           <h1 className="mt-[0.6875rem] break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
@@ -320,7 +337,7 @@ function HeroSection({ page }) {
                 </>
               );
               const className =
-                'relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white';
+                "relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
 
               return card.route ? (
                 <Link
@@ -365,17 +382,23 @@ function HeroSection({ page }) {
 // -------------------------------------------------------------------------
 const MISSION_BLOCKS = [
   {
-    key: 'mission',
-    label: 'Mission',
-    lines: ['학생 한 명, 한명의 가능성을 믿고,', '데이터와 전문성으로 증명하는 위닝에듀입니다']
+    key: "mission",
+    label: "Mission",
+    lines: [
+      "학생 한 명, 한명의 가능성을 믿고,",
+      "데이터와 전문성으로 증명하는 위닝에듀입니다",
+    ],
   },
   {
-    key: 'vision',
-    label: 'Vision',
-    lines: ['데이터와 실적으로 증명하는', '대한민국 대표 입시 컨설팅 플랫폼입니다']
+    key: "vision",
+    label: "Vision",
+    lines: [
+      "데이터와 실적으로 증명하는",
+      "대한민국 대표 입시 컨설팅 플랫폼입니다",
+    ],
   },
   {
-    key: 'talents',
+    key: "talents",
     label: (
       <>
         Talents for
@@ -384,10 +407,10 @@ const MISSION_BLOCKS = [
       </>
     ),
     lines: [
-      '학생 한 명의 가능성을 믿고, 10년 이상의',
-      '현장 노하우와 전문성으로 함께 성장하는 사람'
-    ]
-  }
+      "학생 한 명의 가능성을 믿고, 10년 이상의",
+      "현장 노하우와 전문성으로 함께 성장하는 사람",
+    ],
+  },
 ];
 
 function MissionSection() {
@@ -417,22 +440,25 @@ function MissionSection() {
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 sm:hidden"
-        style={{ background: 'rgba(0,0,0,0.75)' }}
+        style={{ background: "rgba(0,0,0,0.75)" }}
       />
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden sm:block"
         style={{
-          '--c': 'min(100%, 72.75rem)',
-          '--x0': 'calc(50% - var(--c) / 2)',
+          "--c": "min(100%, 72.75rem)",
+          "--x0": "calc(50% - var(--c) / 2)",
           background:
-            'linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)'
+            "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
         }}
       />
 
       <div className="mx-auto flex w-full max-w-content flex-col px-5 sm:px-8">
         {MISSION_BLOCKS.map((block, index) => (
-          <div key={block.key} className={index === 0 ? '' : 'mt-5 sm:mt-7 lg:mt-[2.5rem]'}>
+          <div
+            key={block.key}
+            className={index === 0 ? "" : "mt-5 sm:mt-7 lg:mt-[2.5rem]"}
+          >
             {/* 구분선 — 첫 블록 위에는 없다. */}
             {index > 0 && (
               <span
@@ -445,9 +471,9 @@ function MissionSection() {
             </p>
             <p
               className="mt-4 max-w-[36.4375rem] whitespace-pre-line break-keep text-[1.0625rem] font-semibold leading-[1.45] text-white sm:text-[1.125rem] lg:text-[1.25rem] lg:leading-[1.3]"
-              style={{ textShadow: '0 0.1875rem 0.9375rem rgba(0,0,0,0.4)' }}
+              style={{ textShadow: "0 0.1875rem 0.9375rem rgba(0,0,0,0.4)" }}
             >
-              {block.lines.join('\n')}
+              {block.lines.join("\n")}
             </p>
           </div>
         ))}
@@ -513,7 +539,7 @@ function BusinessSection() {
 // href 유무로 <a>/<button>을 분기하되(as-element), 카드 내부 구조(span 트리)·치수·간격은
 // 두 분기에서 동일하게 공유해 시각 형태 차이가 없게 한다.
 function alertComingSoon() {
-  alert('오픈예정입니다.');
+  alert("오픈예정입니다.");
 }
 
 function CampusCard({ campus }) {
@@ -522,7 +548,9 @@ function CampusCard({ campus }) {
   const content = (
     <>
       <span className="block">
-        <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">분점</span>
+        <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">
+          분점
+        </span>
         <span className="mt-[0.375rem] block break-keep text-[1.125rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.25rem] lg:text-[1.5rem]">
           {campus.name}
         </span>
@@ -536,14 +564,14 @@ function CampusCard({ campus }) {
           구분된다. */}
       <span className="mt-3 flex items-end justify-between gap-3">
         <span className="block min-h-[2.4rem] break-keep text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
-          {campus.comingSoon ? '오픈예정' : campus.address.join(', ')}
+          {campus.comingSoon ? "오픈예정" : campus.address.join(", ")}
         </span>
         <span
           aria-hidden="true"
           className={
             hasLink
-              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]'
-              : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-[2.125rem] sm:w-[2.125rem]'
+              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]"
+              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-[2.125rem] sm:w-[2.125rem]"
           }
         >
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -597,13 +625,16 @@ function PartnerCard({ partner }) {
         <div className="mt-[1.125rem] flex flex-col gap-3">
           {partner.links.map((link) => {
             const linkClassName =
-              'flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]';
+              "flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]";
             const linkContent = (
               <>
                 <span>{link.label}</span>
                 <span className="inline-flex items-center gap-1 border-b border-[#525252]">
                   바로가기
-                  <ArrowUpRight className="h-[0.875rem] w-[0.875rem]" aria-hidden="true" />
+                  <ArrowUpRight
+                    className="h-[0.875rem] w-[0.875rem]"
+                    aria-hidden="true"
+                  />
                 </span>
               </>
             );
@@ -659,7 +690,8 @@ function LocationSection() {
           Location
         </p>
         <h2 className="mt-4 max-w-[40rem] break-keep text-[1.375rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.5rem]">
-          전국 어디서든, 필요한 입시 관리를 한곳에서 <br className="hidden sm:inline" />
+          전국 어디서든, 필요한 입시 관리를 한곳에서{" "}
+          <br className="hidden sm:inline" />
           여러 지점의 센터와 전문 연계기관을 통해 입시의 전 영역을 지원합니다.
         </h2>
 
@@ -701,7 +733,11 @@ function LocationSection() {
 // -------------------------------------------------------------------------
 function NewsDetail({ row, onBack }) {
   const images = normalizeArray(row.image_urls);
-  const finalImages = images.length ? images : row.image_url ? [row.image_url] : [];
+  const finalImages = images.length
+    ? images
+    : row.image_url
+      ? [row.image_url]
+      : [];
   const attachments = normalizeArray(row.attachments);
 
   return (
@@ -732,14 +768,16 @@ function NewsDetail({ row, onBack }) {
           <div className="min-h-[20rem] px-1 py-12">
             {finalImages.length > 0 && (
               <div className="mx-auto mb-10 max-w-[57.5rem] space-y-4">
-                {finalImages.map((url, index) => (
-                  <img
-                    key={`${url}-${index}`}
-                    src={url}
-                    alt={`${row.title} 이미지 ${index + 1}`}
-                    className="w-full rounded-2xl object-contain"
-                  />
-                ))}
+                {withDedupedKeys(finalImages).map(
+                  ({ item: url, key }, index) => (
+                    <img
+                      key={key}
+                      src={url}
+                      alt={`${row.title} 이미지 ${index + 1}`}
+                      className="w-full rounded-2xl object-contain"
+                    />
+                  ),
+                )}
               </div>
             )}
 
@@ -747,25 +785,25 @@ function NewsDetail({ row, onBack }) {
 
             {(attachments.length > 0 || row.file_url) && (
               <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-[#F9FAFB] p-5">
-                <p className="mb-3 text-sm font-bold text-[#525252]">첨부파일</p>
+                <p className="mb-3 text-sm font-bold text-[#525252]">
+                  첨부파일
+                </p>
                 <div className="space-y-2">
-                  {attachments.map((file, index) => {
-                    const url = getAttachmentUrl(file);
-                    if (!url) return null;
-
-                    return (
-                      <a
-                        key={`${url}-${index}`}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                        {getAttachmentName(file)}
-                      </a>
-                    );
-                  })}
+                  {withDedupedKeys(
+                    attachments.filter((file) => getAttachmentUrl(file)),
+                    getAttachmentUrl,
+                  ).map(({ item: file, key }) => (
+                    <a
+                      key={key}
+                      href={getAttachmentUrl(file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      {getAttachmentName(file)}
+                    </a>
+                  ))}
 
                   {attachments.length === 0 && row.file_url && (
                     <a
@@ -775,7 +813,7 @@ function NewsDetail({ row, onBack }) {
                       className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
                     >
                       <Download className="h-4 w-4" aria-hidden="true" />
-                      {row.file_name || '첨부파일 다운로드'}
+                      {row.file_name || "첨부파일 다운로드"}
                     </a>
                   )}
                 </div>
@@ -849,7 +887,11 @@ function NewsSection({ rows, loading, onSelect }) {
             </div>
           ) : (
             visibleRows.map((row) => (
-              <NewsRow key={row.id} row={row} onSelect={() => onSelect(row.id)} />
+              <NewsRow
+                key={row.id}
+                row={row}
+                onSelect={() => onSelect(row.id)}
+              />
             ))
           )}
         </div>
@@ -860,7 +902,7 @@ function NewsSection({ rows, loading, onSelect }) {
 
 export default function CompanyNews() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get('id');
+  const selectedId = searchParams.get("id");
   const [introPage, setIntroPage] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -872,6 +914,7 @@ export default function CompanyNews() {
   // ?id= 변화(상세 진입·목록 복귀 모두)에서 스크롤을 최상단으로 되돌린다. 회사소식 섹션이
   // 페이지 하단(~5000px)에 있어 setSearchParams만으로는 pathname이 안 바뀌어
   // App.jsx의 ScrollToTop(pathname 전용)이 반응하지 않는다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) selectedId는 effect 안에서 읽지 않는 트리거 전용 값 — ?id= 가 바뀔 때마다 스크롤을 맨 위로 되돌리기 위한 재실행 신호다.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [selectedId]);
@@ -884,30 +927,30 @@ export default function CompanyNews() {
 
       const [introResult, newsResult] = await Promise.all([
         supabase
-          .from('page_contents')
-          .select('*')
-          .eq('slug', 'company-intro')
-          .eq('is_active', true)
+          .from("page_contents")
+          .select("*")
+          .eq("slug", "company-intro")
+          .eq("is_active", true)
           .maybeSingle(),
         supabase
-          .from('company_news')
-          .select('*')
-          .eq('is_active', true)
-          .order('is_pinned', { ascending: false })
-          .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: false })
+          .from("company_news")
+          .select("*")
+          .eq("is_active", true)
+          .order("is_pinned", { ascending: false })
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: false }),
       ]);
 
       if (!alive) return;
 
       if (introResult.error) {
-        console.error('회사소개 조회 오류:', introResult.error);
+        console.error("회사소개 조회 오류:", introResult.error);
       } else {
         setIntroPage(introResult.data || null);
       }
 
       if (newsResult.error) {
-        console.error('회사소식 조회 오류:', newsResult.error);
+        console.error("회사소식 조회 오류:", newsResult.error);
         setRows([]);
       } else {
         setRows(newsResult.data || []);

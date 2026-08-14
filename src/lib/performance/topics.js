@@ -25,27 +25,29 @@
 //   모델 원문을 응답에 싣지 않으므로(`recommend-topics.js`의 `fail()`) 그대로 화면에 띄워도
 //   내부 정보가 새지 않는다. 서버 문구가 없을 때만 아래 폴백을 쓴다.
 
-import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from "./apiClient";
 
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /** 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백. */
 const FALLBACK_MESSAGE = {
-  QUOTA_EXHAUSTED: '이용 가능한 횟수를 모두 사용했어요.',
-  ROUND_LIMIT: '주제 추천은 최대 3회까지 받을 수 있어요.',
+  QUOTA_EXHAUSTED: "이용 가능한 횟수를 모두 사용했어요.",
+  ROUND_LIMIT: "주제 추천은 최대 3회까지 받을 수 있어요.",
   // 429 — 성공 라운드 상한(ROUND_LIMIT)과 **다른 축**이다. 실패로 끝난 모델 호출까지
   // 세는 세션당 시도 상한이라(sql/56) 재시도를 권하지 않는다.
-  TOPIC_ATTEMPT_LIMIT: '주제 추천을 너무 여러 번 요청했어요. 새 수행평가로 다시 시작해 주세요.',
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  ENTITLEMENT_EXPIRED: '이용권 사용 기간이 끝났어요.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',
-  SESSION_INCOMPLETE: '기본 정보를 먼저 입력해 주세요.',
-  GUIDE_REQUIRED: '수행평가 안내문을 먼저 입력해 주세요.',
-  MODEL_CONTRACT_VIOLATION: '주제를 정리하지 못했어요. 다시 시도해 주세요.',
-  MODEL_UNAVAILABLE: '주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.'
+  TOPIC_ATTEMPT_LIMIT:
+    "주제 추천을 너무 여러 번 요청했어요. 새 수행평가로 다시 시작해 주세요.",
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  ENTITLEMENT_EXPIRED: "이용권 사용 기간이 끝났어요.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.",
+  SESSION_INCOMPLETE: "기본 정보를 먼저 입력해 주세요.",
+  GUIDE_REQUIRED: "수행평가 안내문을 먼저 입력해 주세요.",
+  MODEL_CONTRACT_VIOLATION: "주제를 정리하지 못했어요. 다시 시도해 주세요.",
+  MODEL_UNAVAILABLE: "주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.",
 };
 
-const GENERIC_MESSAGE = '주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.';
+const GENERIC_MESSAGE = "주제를 추천하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /**
  * 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다.
@@ -55,7 +57,7 @@ const GENERIC_MESSAGE = '주제를 추천하지 못했어요. 잠시 후 다시 
 export class TopicRequestError extends Error {
   constructor(code, message, extra = {}) {
     super(message);
-    this.name = 'TopicRequestError';
+    this.name = "TopicRequestError";
     this.code = code;
     this.userMessage = message;
     this.quotaRemaining = extra.quotaRemaining ?? null;
@@ -78,19 +80,19 @@ export async function recommendTopics({ accessToken, sessionId, round }) {
 
   try {
     response = await fetchWithTimeout(
-      '/api/performance/recommend-topics',
+      "/api/performance/recommend-topics",
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(round ? { sessionId, round } : { sessionId })
+        body: JSON.stringify(round ? { sessionId, round } : { sessionId }),
       },
-      AI_CALL_TIMEOUT_MS
+      AI_CALL_TIMEOUT_MS,
     );
   } catch (error) {
-    const wrapped = new TopicRequestError('NETWORK', NETWORK_ERROR, {});
+    const wrapped = new TopicRequestError("NETWORK", NETWORK_ERROR, {});
     wrapped.cause = error;
     throw wrapped;
   }
@@ -100,7 +102,7 @@ export async function recommendTopics({ accessToken, sessionId, round }) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const code = data?.error?.code || 'UNKNOWN';
+    const code = data?.error?.code || "UNKNOWN";
     throw new TopicRequestError(
       code,
       data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE,
@@ -108,8 +110,8 @@ export async function recommendTopics({ accessToken, sessionId, round }) {
         quotaRemaining: data?.quotaRemaining,
         planEndsAt: data?.planEndsAt,
         round: data?.round,
-        maxRounds: data?.maxRounds
-      }
+        maxRounds: data?.maxRounds,
+      },
     );
   }
 

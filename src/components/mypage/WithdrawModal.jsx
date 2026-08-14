@@ -8,26 +8,26 @@
 //
 // 중요: 실제 계정 삭제/탈퇴 처리는 정책이 확정되지 않아 구현하지 않는다. 제출 핸들러는
 // 사유만 받고 모달을 닫는다 — supabase 삭제 쿼리·auth.admin 호출을 여기 추가하지 말 것.
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-const ETC_REASON = '기타 사유 (직접 입력)';
+const ETC_REASON = "기타 사유 (직접 입력)";
 
 const REASONS = [
-  '더 이상 서비스가 필요하지 않아서',
-  '서비스를 자주 이용하지 않아서',
-  '원하는 기능이나 콘텐츠가 부족해서',
-  '서비스 이용이 불편해서',
-  '다른 서비스를 이용하려고',
-  '계정을 새로 만들려고',
-  ETC_REASON
+  "더 이상 서비스가 필요하지 않아서",
+  "서비스를 자주 이용하지 않아서",
+  "원하는 기능이나 콘텐츠가 부족해서",
+  "서비스 이용이 불편해서",
+  "다른 서비스를 이용하려고",
+  "계정을 새로 만들려고",
+  ETC_REASON,
 ];
 
 const NOTICE =
-  '회원 탈퇴 시 회원 정보와 서비스 이용 내역이 삭제되며, 이용 중인 서비스(학업 활동 및 결과 리포트 등 모두 포함)와 보유한 쿠폰·혜택도 모두 소멸됩니다. 삭제된 정보는 복구할 수 없습니다.\n※ 결제 내역 등 관계 법령에 따라 보관이 필요한 정보는 일정 기간 보관됩니다.';
+  "회원 탈퇴 시 회원 정보와 서비스 이용 내역이 삭제되며, 이용 중인 서비스(학업 활동 및 결과 리포트 등 모두 포함)와 보유한 쿠폰·혜택도 모두 소멸됩니다. 삭제된 정보는 복구할 수 없습니다.\n※ 결제 내역 등 관계 법령에 따라 보관이 필요한 정보는 일정 기간 보관됩니다.";
 
 export default function WithdrawModal({ open, onClose }) {
-  const [reason, setReason] = useState('');
-  const [etcText, setEtcText] = useState('');
+  const [reason, setReason] = useState("");
+  const [etcText, setEtcText] = useState("");
 
   // 배경 스크롤 잠금 + ESC 닫기.
   useEffect(() => {
@@ -35,29 +35,30 @@ export default function WithdrawModal({ open, onClose }) {
 
     const { style } = document.body;
     const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
+    style.overflow = "hidden";
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();
       }
     }
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, onClose]);
 
   if (!open) return null;
 
-  const canSubmit = Boolean(reason) && (reason !== ETC_REASON || etcText.trim().length > 0);
+  const canSubmit =
+    Boolean(reason) && (reason !== ETC_REASON || etcText.trim().length > 0);
 
   function resetAndClose() {
-    setReason('');
-    setEtcText('');
+    setReason("");
+    setEtcText("");
     onClose?.();
   }
 
@@ -69,10 +70,13 @@ export default function WithdrawModal({ open, onClose }) {
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 이미 장식 레이어임을 명시했다. Escape는 document keydown 리스너(위)가 처리한다.
     <div
+      role="presentation"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
       onClick={resetAndClose}
     >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: onClick은 배경 클릭이 대화상자 안까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
       <div
         role="dialog"
         aria-modal="true"
@@ -80,7 +84,10 @@ export default function WithdrawModal({ open, onClose }) {
         className="w-full max-w-[26rem] rounded-[1.25rem] bg-white p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="withdraw-modal-title" className="text-center text-xl font-bold text-ink-title">
+        <h2
+          id="withdraw-modal-title"
+          className="text-center text-xl font-bold text-ink-title"
+        >
           회원 탈퇴 사유를 작성해주세요
         </h2>
 
@@ -91,16 +98,18 @@ export default function WithdrawModal({ open, onClose }) {
               <label
                 key={item}
                 className={`flex h-[3.25rem] cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
-                  selected ? 'border-accent bg-surface-info' : 'border-line'
+                  selected ? "border-accent bg-surface-info" : "border-line"
                 }`}
               >
                 <span
                   aria-hidden="true"
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                    selected ? 'border-accent' : 'border-line'
+                    selected ? "border-accent" : "border-line"
                   }`}
                 >
-                  {selected && <span className="h-2.5 w-2.5 rounded-full bg-accent" />}
+                  {selected && (
+                    <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+                  )}
                 </span>
                 <input
                   type="radio"
@@ -143,7 +152,9 @@ export default function WithdrawModal({ open, onClose }) {
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={`h-12 rounded-xl text-sm font-semibold text-white transition ${
-              canSubmit ? 'bg-error hover:bg-error/90' : 'cursor-not-allowed bg-line'
+              canSubmit
+                ? "bg-error hover:bg-error/90"
+                : "cursor-not-allowed bg-line"
             }`}
           >
             탈퇴 진행

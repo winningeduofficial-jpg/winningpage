@@ -1,12 +1,19 @@
-import { useMemo, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
-import AdmissionTable from '../table/AdmissionTable';
-import { describeCell } from '../table/tableModel';
-import TableGroupHeaderEditor from './TableGroupHeaderEditor';
-import createEditSlots, { EDIT_PARITY_FROZEN } from './editSlots';
-import { validateTableBlock, getColumnMutationBlockReason } from './tableEditorValidation';
-import * as ops from './tableBlockOperations';
-import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBlockXlsx';
+import { useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
+import { withDedupedKeys } from "../../../lib/reactKeys";
+import AdmissionTable from "../table/AdmissionTable";
+import { describeCell } from "../table/tableModel";
+import createEditSlots, { EDIT_PARITY_FROZEN } from "./editSlots";
+import TableGroupHeaderEditor from "./TableGroupHeaderEditor";
+import * as ops from "./tableBlockOperations";
+import {
+  getColumnMutationBlockReason,
+  validateTableBlock,
+} from "./tableEditorValidation";
+import {
+  exportTableBlockToXlsx,
+  importTableBlockFromXlsx,
+} from "./xlsx/tableBlockXlsx";
 
 // TableBlock(AdmissionDoc) 편집 코어. 표 골격(<div>/<table>/<thead>/<tr>/
 // <th>/<td>)은 자체 구현하지 않고 table/AdmissionTable.jsx **한 벌**에
@@ -49,11 +56,20 @@ import { exportTableBlockToXlsx, importTableBlockFromXlsx } from './xlsx/tableBl
 //     호출부가 결정한다.
 //   universityName/sectionLabel(선택): xlsx 파일명 구성용. Admin.jsx
 //     배선 전이라 생략 가능(생략 시 buildXlsxFileName의 기본값을 쓴다).
-export default function TableBlockEditor({ section, block, onChange, universityName, sectionLabel }) {
-  const validation = useMemo(() => validateTableBlock(section, block), [section, block]);
+export default function TableBlockEditor({
+  section,
+  block,
+  onChange,
+  universityName,
+  sectionLabel,
+}) {
+  const validation = useMemo(
+    () => validateTableBlock(section, block),
+    [section, block],
+  );
   const columnMutationBlockReason = useMemo(
     () => getColumnMutationBlockReason(section, block),
-    [section, block]
+    [section, block],
   );
   const columnMutationAllowed = columnMutationBlockReason === null;
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -117,7 +133,10 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   }
 
   function handleExportXlsx() {
-    const result = exportTableBlockToXlsx(block, { universityName, sectionLabel });
+    const result = exportTableBlockToXlsx(block, {
+      universityName,
+      sectionLabel,
+    });
     setXlsxOversized(result.ok ? [] : result.oversized);
   }
 
@@ -125,7 +144,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
   // 없음")를 먼저 보여주고, 관리자가 "적용"을 눌러야 onChange가 실행된다.
   function handleImportFileChange(event) {
     const file = event.target.files?.[0];
-    event.target.value = ''; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
+    event.target.value = ""; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
     if (!file) return;
 
     setXlsxImportErrors([]);
@@ -134,7 +153,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const workbook = XLSX.read(reader.result, { type: 'array' });
+        const workbook = XLSX.read(reader.result, { type: "array" });
         const result = importTableBlockFromXlsx(workbook, block, section);
         if (!result.ok) {
           setXlsxImportErrors(result.errors);
@@ -142,11 +161,13 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         }
         setXlsxImportPreview(result);
       } catch (err) {
-        setXlsxImportErrors([`파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`]);
+        setXlsxImportErrors([
+          `파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`,
+        ]);
       }
     };
     reader.onerror = () => {
-      setXlsxImportErrors(['파일을 읽지 못했습니다.']);
+      setXlsxImportErrors(["파일을 읽지 못했습니다."]);
     };
     reader.readAsArrayBuffer(file);
   }
@@ -174,7 +195,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
       const text = String(describeCell(block, rowIdx, colIdx).view.text).trim();
       if (text) return text;
     }
-    return '(빈 행)';
+    return "(빈 행)";
   }
 
   // 편집 리프(<th>/<td> 안쪽). 토글 상태와 핸들러에 의존하므로 매 렌더 새로
@@ -185,7 +206,7 @@ export default function TableBlockEditor({ section, block, onChange, universityN
     columnMutationAllowed,
     onUpdateColumnField: updateColumnField,
     onRemoveColumn: removeColumn,
-    onUpdateCell: updateCell
+    onUpdateCell: updateCell,
   });
 
   return (
@@ -194,8 +215,8 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>표 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
-            {validation.errors.map((error, idx) => (
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>
@@ -203,10 +224,18 @@ export default function TableBlockEditor({ section, block, onChange, universityN
 
       {/* 3차(구조 변경) 툴바 — 회색 소형, 한 줄에 모음. 자주 안 씀. */}
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#e5e7eb] pb-2 text-[11px] font-bold text-gray-500">
-        <button type="button" onClick={handleExportXlsx} className="hover:text-gray-700">
+        <button
+          type="button"
+          onClick={handleExportXlsx}
+          className="hover:text-gray-700"
+        >
           xlsx로 내보내기
         </button>
-        <button type="button" onClick={() => xlsxFileInputRef.current?.click()} className="hover:text-gray-700">
+        <button
+          type="button"
+          onClick={() => xlsxFileInputRef.current?.click()}
+          className="hover:text-gray-700"
+        >
           xlsx 가져오기
         </button>
         <input
@@ -220,22 +249,31 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         <button
           type="button"
           onClick={() => setShowColumnSettings((v) => !v)}
-          className={showColumnSettings ? 'text-[#2348ff]' : 'hover:text-gray-700'}
+          className={
+            showColumnSettings ? "text-[#2348ff]" : "hover:text-gray-700"
+          }
         >
-          {showColumnSettings ? '열 설정 닫기' : '열 설정(role·정렬·열 추가삭제)'}
+          {showColumnSettings
+            ? "열 설정 닫기"
+            : "열 설정(role·정렬·열 추가삭제)"}
         </button>
       </div>
 
       {!columnMutationAllowed && (
-        <p className="mb-2 text-[11px] font-bold text-gray-400">{columnMutationBlockReason}</p>
+        <p className="mb-2 text-[11px] font-bold text-gray-400">
+          {columnMutationBlockReason}
+        </p>
       )}
 
       {xlsxImportErrors.length > 0 && (
         <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
-          <p>가져오기를 거부했습니다(기존 값 보존) — 아래 문제를 고친 뒤 다시 시도하세요:</p>
+          <p>
+            가져오기를 거부했습니다(기존 값 보존) — 아래 문제를 고친 뒤 다시
+            시도하세요:
+          </p>
           <ul className="mt-1 list-disc pl-4">
-            {xlsxImportErrors.map((error, idx) => (
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(xlsxImportErrors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>
@@ -249,17 +287,35 @@ export default function TableBlockEditor({ section, block, onChange, universityN
             <>
               <p>가져오기 미리보기 — 아직 적용되지 않았습니다:</p>
               <ul className="mt-1 list-disc pl-4 font-normal">
-                <li>행 추가 {xlsxImportPreview.changeSummary.rowsAdded}개 / 삭제 {xlsxImportPreview.changeSummary.rowsRemoved}개</li>
-                <li>셀 변경 {xlsxImportPreview.changeSummary.cellsChanged}개</li>
-                <li>컬럼 구성 변경: {xlsxImportPreview.changeSummary.columnsChanged ? '있음' : '없음'}</li>
+                <li>
+                  행 추가 {xlsxImportPreview.changeSummary.rowsAdded}개 / 삭제{" "}
+                  {xlsxImportPreview.changeSummary.rowsRemoved}개
+                </li>
+                <li>
+                  셀 변경 {xlsxImportPreview.changeSummary.cellsChanged}개
+                </li>
+                <li>
+                  컬럼 구성 변경:{" "}
+                  {xlsxImportPreview.changeSummary.columnsChanged
+                    ? "있음"
+                    : "없음"}
+                </li>
               </ul>
             </>
           )}
           <div className="mt-2 flex items-center gap-2">
-            <button type="button" onClick={applyXlsxImport} className="rounded bg-[#2348ff] px-3 py-1 text-white">
+            <button
+              type="button"
+              onClick={applyXlsxImport}
+              className="rounded bg-[#2348ff] px-3 py-1 text-white"
+            >
               적용
             </button>
-            <button type="button" onClick={cancelXlsxImport} className="rounded border border-[#2348ff] px-3 py-1">
+            <button
+              type="button"
+              onClick={cancelXlsxImport}
+              className="rounded border border-[#2348ff] px-3 py-1"
+            >
               취소
             </button>
           </div>
@@ -269,13 +325,16 @@ export default function TableBlockEditor({ section, block, onChange, universityN
       {xlsxOversized.length > 0 && (
         <div className="mb-2 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
           <p>
-            셀 하나가 엑셀 문자 수 한도(32,767자)를 넘어 내보내지 못했습니다 — 잘라내지 않고 중단합니다. 아래 셀을
-            줄인 뒤 다시 시도하세요:
+            셀 하나가 엑셀 문자 수 한도(32,767자)를 넘어 내보내지 못했습니다 —
+            잘라내지 않고 중단합니다. 아래 셀을 줄인 뒤 다시 시도하세요:
           </p>
           <ul className="mt-1 list-disc pl-4">
-            {xlsxOversized.map((cell, idx) => (
-              <li key={idx}>
-                {cell.area === 'header' ? '헤더' : `본문 행 ${cell.row + 1}`} · {cell.columnLabel || `컬럼 ${cell.col + 1}`} ·{' '}
+            {xlsxOversized.map((cell) => (
+              // area/row/col 조합이 셀 하나를 유일하게 식별한다 — 같은 표 안에서
+              // 같은 (area, row, col)이 두 번 나올 수 없으므로 index가 필요 없다.
+              <li key={`${cell.area}-${cell.row}-${cell.col}`}>
+                {cell.area === "header" ? "헤더" : `본문 행 ${cell.row + 1}`} ·{" "}
+                {cell.columnLabel || `컬럼 ${cell.col + 1}`} ·{" "}
                 {cell.length.toLocaleString()}자
               </li>
             ))}
@@ -317,7 +376,12 @@ export default function TableBlockEditor({ section, block, onChange, universityN
           수도 뷰와 같다(7d). 스크롤 래퍼의 `max-w-full overflow-x-auto`
           (폼 가로 넘침 방지, 2026-08-06 실측 반영)는 scrollWrapExtra로
           편집기에만 남는다. */}
-      <AdmissionTable block={block} mode="edit" slots={editSlots} parity={EDIT_PARITY_FROZEN} />
+      <AdmissionTable
+        block={block}
+        mode="edit"
+        slots={editSlots}
+        parity={EDIT_PARITY_FROZEN}
+      />
 
       {/* 2차 — 행 조작. 구 <tr> 끝 여분 <td> 안에 있던 ↑/↓/삭제를 마크업
           그대로 표 밖으로 옮긴 것이다(7d). 버튼이 표에서 떨어져 나오면서
@@ -328,9 +392,14 @@ export default function TableBlockEditor({ section, block, onChange, universityN
           <p className="mb-1 text-xs font-bold text-gray-500">행 순서·삭제</p>
           <ul className="flex flex-col gap-1">
             {block.rows.map((_row, rowIdx) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 이 <li>는 상태 없이 rowIdx로부터 매 렌더 완전히 파생된다("행 N" 라벨 자체가 곧 인덱스) — 재정렬 시에도 항상 올바르다.
               <li key={rowIdx} className="flex items-center gap-2">
-                <span className="w-10 shrink-0 text-xs font-bold text-gray-500">행 {rowIdx + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-xs text-gray-600">{rowPreviewText(rowIdx)}</span>
+                <span className="w-10 shrink-0 text-xs font-bold text-gray-500">
+                  행 {rowIdx + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs text-gray-600">
+                  {rowPreviewText(rowIdx)}
+                </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -365,7 +434,11 @@ export default function TableBlockEditor({ section, block, onChange, universityN
         </div>
       )}
 
-      <button type="button" onClick={addRow} className="mt-2 text-sm font-bold text-[#2348ff]">
+      <button
+        type="button"
+        onClick={addRow}
+        className="mt-2 text-sm font-bold text-[#2348ff]"
+      >
         + 행 추가
       </button>
     </div>

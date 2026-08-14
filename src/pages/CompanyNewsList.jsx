@@ -1,5 +1,5 @@
-import BoardListPage from '../components/board/BoardListPage';
-import { BOARD_SOURCES } from './board/boardData';
+import BoardListPage from "../components/board/BoardListPage";
+import { BOARD_SOURCES } from "./board/boardData";
 
 /**
  * 회사소식 목록 페이지 (`/company-news/list`).

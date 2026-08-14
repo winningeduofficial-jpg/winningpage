@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
-import { formatKRW } from '../../data/pricingCatalog';
-import { COMPANY } from '../../data/company';
+import { useEffect, useId, useRef } from "react";
+import { COMPANY } from "../../data/company";
+import { formatKRW } from "../../data/pricingCatalog";
 
 // 결제 영수증 모달 (Figma 3762:19227).
 // AppModal(src/components/goal/AppModal.jsx)은 하단 취소/저장 버튼이 항상 어두운 단색(#2E2A26)
@@ -21,7 +21,7 @@ export default function ReceiptModal({ open, onClose, order }) {
     triggerElRef.current = document.activeElement;
     const { style } = document.body;
     const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
+    style.overflow = "hidden";
 
     return () => {
       style.overflow = previousOverflow;
@@ -45,12 +45,12 @@ export default function ReceiptModal({ open, onClose, order }) {
     if (!open) return undefined;
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();
         return;
       }
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const panel = panelRef.current;
       if (!panel) return;
@@ -69,8 +69,8 @@ export default function ReceiptModal({ open, onClose, order }) {
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
   if (!open || !order) return null;
@@ -81,17 +81,21 @@ export default function ReceiptModal({ open, onClose, order }) {
   // 폴백한다(DB 마이그레이션 없이, 상위가 method를 내려주기 시작하면 그대로 표시된다).
   // 시안 스크린샷은 모든 값 행을 동일한 굵기로 표시한다(총 결제 금액도 별도 강조 없음).
   const rows = [
-    { label: '상품 명', value: order.order_name || '-' },
-    { label: '판매자', value: COMPANY.name },
-    { label: '사업자등록번호', value: COMPANY.bizRegNo },
-    { label: '결제 수단', value: order.method || '-' },
-    { label: '총 결제 금액', value: formatKRW(order.amount) }
+    { label: "상품 명", value: order.order_name || "-" },
+    { label: "판매자", value: COMPANY.name },
+    { label: "사업자등록번호", value: COMPANY.bizRegNo },
+    { label: "결제 수단", value: order.method || "-" },
+    { label: "총 결제 금액", value: formatKRW(order.amount) },
   ];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* 스크림 — 클릭 시 닫기 */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       <div
         ref={panelRef}
@@ -103,15 +107,25 @@ export default function ReceiptModal({ open, onClose, order }) {
         {/* 시안(3762:19227)에는 우상단 X 닫기 버튼이 없다 — 하단 닫기/인쇄 버튼만 유지하고
             ESC·배경 클릭 닫기(위 useEffect)는 그대로 둔다. */}
         <div className="flex-1 overflow-y-auto px-[2.1875rem] pt-[2.5rem]">
-          <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
+          <h2
+            id={titleId}
+            className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
+          >
             결제 영수증
           </h2>
 
           <dl className="mt-[1.875rem] flex flex-col gap-[0.9375rem] pb-[2.1875rem]">
             {rows.map((row) => (
-              <div key={row.label} className="flex items-center justify-between gap-4 border-b border-line/60 pb-[0.9375rem]">
-                <dt className="shrink-0 text-[0.875rem] text-ink-sub">{row.label}</dt>
-                <dd className="truncate text-right text-[0.875rem] text-ink-strong">{row.value}</dd>
+              <div
+                key={row.label}
+                className="flex items-center justify-between gap-4 border-b border-line/60 pb-[0.9375rem]"
+              >
+                <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+                  {row.label}
+                </dt>
+                <dd className="truncate text-right text-[0.875rem] text-ink-strong">
+                  {row.value}
+                </dd>
               </div>
             ))}
           </dl>

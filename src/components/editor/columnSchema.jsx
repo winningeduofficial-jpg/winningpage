@@ -1,28 +1,32 @@
-import { useCallback, useRef, useState } from 'react';
-import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
-import { createReactBlockSpec } from '@blocknote/react';
+import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { createReactBlockSpec } from "@blocknote/react";
+import { useCallback, useRef, useState } from "react";
 
-export const CALLOUT_DEFAULT_ICON = '💡';
+export const CALLOUT_DEFAULT_ICON = "💡";
 
 // 강조 박스(callout). variant 프롭은 만들지 않는다 — 허용값이 하나뿐인 확장은 speculative generality다.
 export const Callout = createReactBlockSpec(
   {
-    type: 'callout',
+    type: "callout",
     propSchema: {
-      icon: { default: CALLOUT_DEFAULT_ICON }
+      icon: { default: CALLOUT_DEFAULT_ICON },
     },
-    content: 'inline'
+    content: "inline",
   },
   {
     render: ({ block, contentRef }) => (
       <div className="editor-callout">
-        <span className="editor-callout__icon" contentEditable={false} aria-hidden="true">
+        <span
+          className="editor-callout__icon"
+          contentEditable={false}
+          aria-hidden="true"
+        >
           {block.props.icon}
         </span>
         <div className="editor-callout__body" ref={contentRef} />
       </div>
-    )
-  }
+    ),
+  },
 );
 
 // 이미지 2단. createReactBlockSpec의 content 타입은 'inline' | 'none' 뿐이라 자식 블록을 담는
@@ -32,10 +36,10 @@ function ImageRowSlot({ side, block, editor }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
-  const urlKey = side === 'left' ? 'leftUrl' : 'rightUrl';
-  const altKey = side === 'left' ? 'leftAlt' : 'rightAlt';
+  const urlKey = side === "left" ? "leftUrl" : "rightUrl";
+  const altKey = side === "left" ? "leftAlt" : "rightAlt";
   const url = block.props[urlKey];
-  const alt = block.props[altKey] || '';
+  const alt = block.props[altKey] || "";
   const editable = editor.isEditable;
 
   const pick = useCallback(() => {
@@ -45,38 +49,54 @@ function ImageRowSlot({ side, block, editor }) {
   const onChange = useCallback(
     async (event) => {
       const file = event.target.files?.[0];
-      event.target.value = ''; // 같은 파일 재선택 허용
+      event.target.value = ""; // 같은 파일 재선택 허용
       if (!file || !editor.uploadFile) return;
       setBusy(true);
       try {
         const uploaded = await editor.uploadFile(file);
-        const nextUrl = typeof uploaded === 'string' ? uploaded : uploaded?.url;
+        const nextUrl = typeof uploaded === "string" ? uploaded : uploaded?.url;
         if (nextUrl) {
-          editor.updateBlock(block, { props: { [urlKey]: nextUrl, [altKey]: file.name } });
+          editor.updateBlock(block, {
+            props: { [urlKey]: nextUrl, [altKey]: file.name },
+          });
         }
       } finally {
         setBusy(false);
       }
     },
-    [editor, block, urlKey, altKey]
+    [editor, block, urlKey, altKey],
   );
 
   // 읽기 전용 + 빈 슬롯이어도 슬롯 박스 자체는 그린다(업로드 UI만 숨긴다).
   // null을 반환하면 .image-row(flex)에 자식이 하나만 남아 flex:1인 나머지 슬롯이
   // 행 전체(50:50이 아니라 100%)를 차지해 에디터와 공개 페이지의 이미지 폭이 달라진다.
-  if (!url && !editable) return <div className="image-row__slot" aria-hidden="true" />;
+  if (!url && !editable)
+    return <div className="image-row__slot" aria-hidden="true" />;
 
   return (
     <div className="image-row__slot">
       {url ? (
-        <img className="image-row__img" src={url} alt={alt} loading="lazy" decoding="async" draggable={false} />
+        <img
+          className="image-row__img"
+          src={url}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
       ) : (
-        <div className="image-row__empty" onClick={pick} role="button" tabIndex={-1}>
-          {busy ? '업로드 중…' : '이미지 선택'}
-        </div>
+        <button type="button" className="image-row__empty" onClick={pick}>
+          {busy ? "업로드 중…" : "이미지 선택"}
+        </button>
       )}
       {editable && (
-        <input className="image-row__input" ref={inputRef} type="file" accept="image/*" onChange={onChange} />
+        <input
+          className="image-row__input"
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          onChange={onChange}
+        />
       )}
     </div>
   );
@@ -84,7 +104,8 @@ function ImageRowSlot({ side, block, editor }) {
 
 function ImageRowRender({ block, editor }) {
   // 읽기 전용에서 양쪽 다 비었으면 블록 자체를 그리지 않는다.
-  if (!editor.isEditable && !block.props.leftUrl && !block.props.rightUrl) return null;
+  if (!editor.isEditable && !block.props.leftUrl && !block.props.rightUrl)
+    return null;
 
   return (
     <div className="image-row" contentEditable={false}>
@@ -96,16 +117,16 @@ function ImageRowRender({ block, editor }) {
 
 export const ImageRow = createReactBlockSpec(
   {
-    type: 'imageRow',
-    content: 'none',
+    type: "imageRow",
+    content: "none",
     propSchema: {
-      leftUrl: { default: '' },
-      rightUrl: { default: '' },
-      leftAlt: { default: '' },
-      rightAlt: { default: '' }
-    }
+      leftUrl: { default: "" },
+      rightUrl: { default: "" },
+      leftAlt: { default: "" },
+      rightAlt: { default: "" },
+    },
   },
-  { render: ImageRowRender }
+  { render: ImageRowRender },
 );
 
 // 스키마는 모듈 스코프 싱글턴 — 에디터와 리더가 반드시 이 인스턴스를 공유한다.
@@ -115,6 +136,6 @@ export const columnSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     callout: Callout(),
-    imageRow: ImageRow()
-  }
+    imageRow: ImageRow(),
+  },
 });

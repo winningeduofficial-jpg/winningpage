@@ -5,27 +5,32 @@
 // 타이틀의 "이혜진 학부모님"은 학부모 본인 이름 기준(E-1에서 입력한 formData.name)이며,
 // E-4의 자녀 이름 기준 호칭과는 별개다(§3.3 E-4 주석: 호칭 규칙 확인 필요, 이 화면은 본인
 // 이름 기준으로 데이터가 있으므로 그대로 사용).
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AuthLayout, AuthTitle, OutlineButton, TextLinkButton } from '../../../components/auth';
-import { useSignup } from '../../../context/SignupContext';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  AuthLayout,
+  AuthTitle,
+  OutlineButton,
+  TextLinkButton,
+} from "../../../components/auth";
+import { useSignup } from "../../../context/SignupContext";
 
 export default function ParentHome() {
   const navigate = useNavigate();
-  const { memberType, parentSignupCompleted, formData, resetSignup } = useSignup();
+  const { memberType, parentSignupCompleted, formData, resetSignup } =
+    useSignup();
 
   // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
   // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
   useEffect(() => {
-    if (memberType !== 'parent' || !parentSignupCompleted) {
-      navigate('/signup', { replace: true });
+    if (memberType !== "parent" || !parentSignupCompleted) {
+      navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, parentSignupCompleted]);
+  }, [memberType, parentSignupCompleted, navigate]);
 
   function handleGoHome() {
     resetSignup();
-    navigate('/');
+    navigate("/");
   }
 
   return (
@@ -34,7 +39,7 @@ export default function ParentHome() {
         <AuthTitle
           line1="안녕하세요,"
           line1Color="ink"
-          line2={formData.name ? `${formData.name} 학부모님` : '학부모님'}
+          line2={formData.name ? `${formData.name} 학부모님` : "학부모님"}
           line2Color="ink"
         />
         <p className="break-keep text-base font-medium text-ink sm:text-xl sm:whitespace-nowrap">
@@ -46,7 +51,11 @@ export default function ParentHome() {
         아직 연결된 자녀가 없어요
       </div>
 
-      <TextLinkButton onClick={() => navigate('/signup/parent/link/add')} tone="primary" size="md">
+      <TextLinkButton
+        onClick={() => navigate("/signup/parent/link/add")}
+        tone="primary"
+        size="md"
+      >
         + 자녀 추가하기
       </TextLinkButton>
 

@@ -26,24 +26,30 @@
 //     `max-w-content` 1164px 를 잘림 없이 확보하는 최소 뷰포트) 때문이다.
 //     세로 모드에서도 원 5개 해석은 유지된다 — 스텝 4개의 시작점 4개 + 마지막 종료 눈금 1개.
 //
-import { SELECTION_SECTION, SELECTION_STEPS } from '../../data/mentorApply';
-import { MENTOR_HEADING_MD } from '../services/serviceTokens';
+import { SELECTION_SECTION, SELECTION_STEPS } from "../../data/mentorApply";
+import { MENTOR_HEADING_MD } from "../services/serviceTokens";
 
 // 도트 5단 램프(#E9EDF2 → #426EA9). 좌→우 점진적으로 진해지며, 활성/비활성 상태가 아니라
 // "진행도가 쌓인다"는 정적 시각 은유다(명세 §5 색상).
 // ⚠ 5색 전부 tailwind.config.js 토큰에 없는 값이라 리터럴로 둔다(serviceTokens.js 상단 규약과 동일).
 //    Tailwind JIT 는 `bg-[${color}]` 템플릿 조립을 못 잡으므로 반드시 완성된 리터럴 배열로 쓴다.
 const DOT_COLOR_CLASSES = [
-  'bg-[#E9EDF2]',
-  'bg-[#C5D7EA]',
-  'bg-[#A3BFE0]',
-  'bg-[#4C94D3]',
-  'bg-[#426EA9]'
+  "bg-[#E9EDF2]",
+  "bg-[#C5D7EA]",
+  "bg-[#A3BFE0]",
+  "bg-[#4C94D3]",
+  "bg-[#426EA9]",
 ];
 
 // 도트 가로 위치 — 균등 4등분. 인라인 style(`left: ${n}%`) 대신 리터럴 클래스 lookup 을 쓴다
 // (명세 § 반응형 전략 4·6번 규약).
-const DOT_LEFT_CLASSES = ['left-0', 'left-1/4', 'left-1/2', 'left-3/4', 'left-full'];
+const DOT_LEFT_CLASSES = [
+  "left-0",
+  "left-1/4",
+  "left-1/2",
+  "left-3/4",
+  "left-full",
+];
 
 // 스텝 타이포 — 타이틀 20 SemiBold accent(#0B84FD) / 설명 14 Medium ink(#525252).
 // desc 의 `\n` 은 시안 원문 줄바꿈이라 whitespace-pre-line 으로 그대로 살린다.
@@ -53,14 +59,14 @@ function StepText({ step, nowrapTitle = false }) {
     <>
       <p
         className={`text-xl font-semibold leading-[1.4] text-accent ${
-          nowrapTitle ? 'whitespace-nowrap' : 'break-keep'
+          nowrapTitle ? "whitespace-nowrap" : "break-keep"
         }`}
       >
         {step.title}
       </p>
       <p
         className={`whitespace-pre-line break-keep text-sm font-medium leading-[1.4] text-ink ${
-          nowrapTitle ? 'mt-12' : 'mt-2'
+          nowrapTitle ? "mt-12" : "mt-2"
         }`}
       >
         {step.desc}
@@ -96,7 +102,10 @@ export default function SelectionTimeline() {
             className="absolute left-2 right-2 top-[3.125rem] h-px bg-gradient-to-r from-[#D2D2D2] to-[#AFAFAF]"
           />
           {/* 도트 5개 16×16, center y=50 → top 42(2.625rem). */}
-          <div aria-hidden="true" className="absolute left-2 right-2 top-[2.625rem] h-4">
+          <div
+            aria-hidden="true"
+            className="absolute left-2 right-2 top-[2.625rem] h-4"
+          >
             {DOT_COLOR_CLASSES.map((colorClass, index) => (
               <span
                 key={colorClass}
@@ -105,6 +114,7 @@ export default function SelectionTimeline() {
             ))}
           </div>
 
+          {/* biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다. */}
           <ol role="list" className="grid grid-cols-4 list-none">
             {SELECTION_STEPS.map((step) => (
               <li key={step.key} className="text-center">
@@ -126,6 +136,7 @@ export default function SelectionTimeline() {
             className="absolute bottom-2 left-2 top-[0.875rem] w-px -translate-x-1/2 bg-gradient-to-b from-[#D2D2D2] to-[#AFAFAF]"
           />
 
+          {/* biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다. */}
           <ol role="list" className="list-none space-y-8">
             {SELECTION_STEPS.map((step, index) => (
               <li key={step.key} className="relative pl-8">

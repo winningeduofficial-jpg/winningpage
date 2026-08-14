@@ -16,23 +16,23 @@
 
 // target/api/student.mjs:7 — 인덱스 0=월 … 6=일
 export const VIRTUAL_DAY_NAMES = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday'
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 
 // 주간 목표에 포함되는 요일(월~토). 일요일은 보충일이라 제외된다.
 const WEEKDAY_KEYS_MON_TO_SAT = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday'
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
 ];
 
 // ---------------------------------------------------------------------------
@@ -47,8 +47,8 @@ function toNum(v, fallback = 0) {
 
 // student.mjs:144-150
 function toYMD(v) {
-  if (!v) return '';
-  if (typeof v === 'string') return v.slice(0, 10);
+  if (!v) return "";
+  if (typeof v === "string") return v.slice(0, 10);
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
   return d.toISOString().slice(0, 10);
@@ -56,11 +56,11 @@ function toYMD(v) {
 
 // student.mjs:152-159 — 현재 시각은 인자로 주입받는다(테스트 가능성). 원본도 기본값 인자였다.
 function kstYMD(date = new Date()) {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
@@ -72,7 +72,7 @@ function round1(v) {
 // student.mjs:743-748 — 0=월 … 6=일. ymd 가 비면 오늘(KST)로 대체한다.
 function getDayIndexFromYMDServer(ymd, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
@@ -80,7 +80,7 @@ function getDayIndexFromYMDServer(ymd, now = new Date()) {
 // student.mjs:750-754
 function addDaysYMD(ymd, days, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
   return dt.toISOString().slice(0, 10);
 }
@@ -106,7 +106,7 @@ export function sumWeeklySchedule(weeklySchedule) {
 
   return {
     weekIdeal: round1(weekIdeal),
-    weekMin: round1(weekMin)
+    weekMin: round1(weekMin),
   };
 }
 
@@ -124,7 +124,12 @@ export function sumWeeklySchedule(weeklySchedule) {
  * @param {Date} [now] 날짜가 비었을 때 쓰는 기준 시각. 테스트에서 주입한다.
  * @returns {{ideal: number, min: number}}
  */
-export function getEffectiveScheduleTarget(student, startDate, endDate, now = new Date()) {
+export function getEffectiveScheduleTarget(
+  student,
+  startDate,
+  endDate,
+  now = new Date(),
+) {
   const schedule = student?.study_schedule || {};
   let ideal = 0;
   let min = 0;
@@ -149,7 +154,7 @@ export function getEffectiveScheduleTarget(student, startDate, endDate, now = ne
 
   return {
     ideal: round1(ideal),
-    min: round1(min)
+    min: round1(min),
   };
 }
 
@@ -186,62 +191,90 @@ export function getStudyMultiplier(university, department) {
   const u = university.trim();
   const d = department.trim();
   const has = (arr) => arr.some((x) => d.includes(x));
-  const isMedical = has(['의예과', '의학부', '의과대학']);
-  const isDental = has(['치의학과', '치의예과']);
-  const isOriental = has(['한의예과', '한의예과/인문', '한의예과/자연', '한의학과']);
-  const isPharm = has(['약학계열', '약학과', '약학부', '약학대학']);
-  const isVet = d.includes('수의예과');
+  const isMedical = has(["의예과", "의학부", "의과대학"]);
+  const isDental = has(["치의학과", "치의예과"]);
+  const isOriental = has([
+    "한의예과",
+    "한의예과/인문",
+    "한의예과/자연",
+    "한의학과",
+  ]);
+  const isPharm = has(["약학계열", "약학과", "약학부", "약학대학"]);
+  const isVet = d.includes("수의예과");
 
   const topMed = [
-    '울산대학교',
-    '연세대학교',
-    '성균관대학교',
-    '중앙대학교',
-    '고려대학교',
-    '경희대학교',
-    '서울대학교',
-    '카톨릭대학교',
-    '한양대학교'
+    "울산대학교",
+    "연세대학교",
+    "성균관대학교",
+    "중앙대학교",
+    "고려대학교",
+    "경희대학교",
+    "서울대학교",
+    "카톨릭대학교",
+    "한양대학교",
   ];
-  const topDental = ['경희대학교', '서울대학교', '연세대학교'];
+  const topDental = ["경희대학교", "서울대학교", "연세대학교"];
   const topPharm = [
-    '서울대학교',
-    '경희대학교',
-    '동국대학교',
-    '성균관대학교',
-    '연세대학교',
-    '중앙대학교'
+    "서울대학교",
+    "경희대학교",
+    "동국대학교",
+    "성균관대학교",
+    "연세대학교",
+    "중앙대학교",
   ];
 
   if (isMedical && topMed.includes(u)) return 0.9;
   if (isMedical) return 0.88;
   if (isDental && topDental.includes(u)) return 0.88;
-  if (isOriental && u === '경희대학교') return 0.88;
-  if (isVet && u === '서울대학교') return 0.88;
+  if (isOriental && u === "경희대학교") return 0.88;
+  if (isVet && u === "서울대학교") return 0.88;
   if (isPharm && topPharm.includes(u)) return 0.88;
   if (isDental) return 0.86;
   if (isOriental) return 0.84;
   if (isVet || isPharm) return 0.82;
-  if (u === '서울대학교') return 0.78;
-  if (['연세대학교', '고려대학교'].includes(u)) return 0.75;
-  if (['서강대학교', '한양대학교', '성균관대학교'].includes(u)) return 0.72;
-  if (['중앙대학교', '경희대학교', '한국외국어대학교', '서울시립대학교'].includes(u)) return 0.68;
-  if (['건국대학교', '동국대학교', '홍익대학교', '이화여자대학교'].includes(u)) return 0.63;
-  if (['국민대학교', '숭실대학교', '세종대학교', '단국대학교'].includes(u)) return 0.59;
-  if (['광운대학교', '명지대학교', '상명대학교', '가톨릭대학교', '숙명여자대학교'].includes(u))
+  if (u === "서울대학교") return 0.78;
+  if (["연세대학교", "고려대학교"].includes(u)) return 0.75;
+  if (["서강대학교", "한양대학교", "성균관대학교"].includes(u)) return 0.72;
+  if (
+    ["중앙대학교", "경희대학교", "한국외국어대학교", "서울시립대학교"].includes(
+      u,
+    )
+  )
+    return 0.68;
+  if (["건국대학교", "동국대학교", "홍익대학교", "이화여자대학교"].includes(u))
+    return 0.63;
+  if (["국민대학교", "숭실대학교", "세종대학교", "단국대학교"].includes(u))
+    return 0.59;
+  if (
+    [
+      "광운대학교",
+      "명지대학교",
+      "상명대학교",
+      "가톨릭대학교",
+      "숙명여자대학교",
+    ].includes(u)
+  )
     return 0.55;
-  if (['경북대학교', '부산대학교', '인하대학교', '경기대학교', '인천대학교'].includes(u))
+  if (
+    [
+      "경북대학교",
+      "부산대학교",
+      "인하대학교",
+      "경기대학교",
+      "인천대학교",
+    ].includes(u)
+  )
     return 0.52;
   if (
     [
-      '충남대학교',
-      '경남대학교',
-      '충북대학교',
-      '전남대학교',
-      '강원대학교',
-      '고려대학교(세종)',
-      '전북대학교',
-      '가천대학교'
+      "충남대학교",
+      "경남대학교",
+      "충북대학교",
+      "전남대학교",
+      "강원대학교",
+      "고려대학교(세종)",
+      "전북대학교",
+      "가천대학교",
     ].includes(u)
   )
     return 0.49;
@@ -277,14 +310,14 @@ export function getStudyMultiplier(university, department) {
 export function calcAvailableHours(day, hasSchool) {
   const wake = parseFloat(day.wake);
   const sleep = parseFloat(day.sleep);
-  if (isNaN(wake) || isNaN(sleep) || sleep <= wake) return 0;
+  if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake - 1.5;
 
   if (hasSchool) {
     const sStart = parseFloat(day.schoolStart);
     const sEnd = parseFloat(day.schoolEnd);
-    if (!isNaN(sStart) && !isNaN(sEnd) && sEnd > sStart) {
+    if (!Number.isNaN(sStart) && !Number.isNaN(sEnd) && sEnd > sStart) {
       available -= sEnd - sStart;
       available += sStart - wake;
     }
@@ -293,7 +326,8 @@ export function calcAvailableHours(day, hasSchool) {
   for (const ac of day.academies) {
     const acStart = parseFloat(ac.start);
     const acEnd = parseFloat(ac.end);
-    if (!isNaN(acStart) && !isNaN(acEnd) && acEnd > acStart) available -= acEnd - acStart + 1;
+    if (!Number.isNaN(acStart) && !Number.isNaN(acEnd) && acEnd > acStart)
+      available -= acEnd - acStart + 1;
   }
 
   return Math.max(0, Math.round(available * 10) / 10);
@@ -305,13 +339,13 @@ export function calcAvailableHours(day, hasSchool) {
 
 // 원본 DAYS_CONFIG — 월~금은 등교일, 토·일은 아님
 const DAYS_CONFIG = [
-  { key: 'monday', hasSchool: true },
-  { key: 'tuesday', hasSchool: true },
-  { key: 'wednesday', hasSchool: true },
-  { key: 'thursday', hasSchool: true },
-  { key: 'friday', hasSchool: true },
-  { key: 'saturday', hasSchool: false },
-  { key: 'sunday', hasSchool: false }
+  { key: "monday", hasSchool: true },
+  { key: "tuesday", hasSchool: true },
+  { key: "wednesday", hasSchool: true },
+  { key: "thursday", hasSchool: true },
+  { key: "friday", hasSchool: true },
+  { key: "saturday", hasSchool: false },
+  { key: "sunday", hasSchool: false },
 ];
 
 /**
@@ -409,17 +443,17 @@ export function calculateWeekSchedule(form) {
 export function calcAvailableHoursApprox(steppers, hasSchool = true) {
   const wake = parseFloat(steppers?.wakeUpHour);
   const sleep = parseFloat(steppers?.sleepHour);
-  if (isNaN(wake) || isNaN(sleep) || sleep <= wake) return 0;
+  if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake;
 
   if (hasSchool) {
     const stay = parseFloat(steppers?.schoolStayHours);
-    if (!isNaN(stay)) available -= stay;
+    if (!Number.isNaN(stay)) available -= stay;
   }
 
   const academy = parseFloat(steppers?.academyHours);
-  if (!isNaN(academy)) available -= academy;
+  if (!Number.isNaN(academy)) available -= academy;
 
   return Math.max(0, Math.round(available * 10) / 10);
 }

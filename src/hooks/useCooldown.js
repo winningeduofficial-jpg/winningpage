@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 /**
  * 남은 초를 세어주는 재발송 쿨타임 훅.
@@ -47,6 +47,6 @@ export function useCooldown(seconds) {
     remaining,
     active: remaining > 0,
     start: () => setDeadline(Date.now() + seconds * 1000),
-    reset: () => setDeadline(0)
+    reset: () => setDeadline(0),
   };
 }

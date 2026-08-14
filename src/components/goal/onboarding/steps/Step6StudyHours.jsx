@@ -1,8 +1,8 @@
-import QuestionCard from '../QuestionCard';
-import SliderRow from '../SliderRow';
-import WizardActions from '../WizardActions';
-import { WEEKDAY_OPTIONS } from '../../../../data/goalOnboardingMock';
-import { useGoalOnboarding } from '../../../../context/GoalOnboardingContext';
+import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import { WEEKDAY_OPTIONS } from "../../../../data/goalOnboardingMock";
+import QuestionCard from "../QuestionCard";
+import SliderRow from "../SliderRow";
+import WizardActions from "../WizardActions";
 
 // 6단계 — docs/figma-goal/part-03.md #8(빈값) / #9(입력 후). 요일별 자습 시간.
 // "다음"은 요일 중 하나라도 0h 초과일 때 활성화된다(part-03 #9 상태/인터랙션 근거).
@@ -20,12 +20,21 @@ export default function Step6StudyHours({ goPrev, goNext }) {
       >
         <div className="flex flex-col gap-[1.5rem]">
           {WEEKDAY_OPTIONS.map(({ key, label }) => (
-            <SliderRow key={key} label={label} value={studyHours[key]} onChange={(value) => setStudyHour(key, value)} />
+            <SliderRow
+              key={key}
+              label={label}
+              value={studyHours[key]}
+              onChange={(value) => setStudyHour(key, value)}
+            />
           ))}
         </div>
       </QuestionCard>
 
-      <WizardActions onPrev={goPrev} onNext={goNext} nextDisabled={!canProceed} />
+      <WizardActions
+        onPrev={goPrev}
+        onNext={goNext}
+        nextDisabled={!canProceed}
+      />
     </>
   );
 }

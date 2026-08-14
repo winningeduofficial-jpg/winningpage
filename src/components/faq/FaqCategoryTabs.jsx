@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { getFaqTabId, FAQ_TABPANEL_ID } from './faqTabId';
+import { useRef } from "react";
+import { FAQ_TABPANEL_ID, getFaqTabId } from "./faqTabId";
 
 // role="tab" 을 붙이면 WAI-ARIA tabs 패턴상 tablist 안에서 Tab 키는 활성 탭
 // 1개만 통과하고 좌우 화살표로 이동해야 한다(roving tabindex). 저장소 기존
@@ -14,22 +14,22 @@ export default function FaqCategoryTabs({ tabs, active, onChange }) {
   }
 
   function handleKeyDown(event, index) {
-    if (event.key === 'Home') {
+    if (event.key === "Home") {
       event.preventDefault();
       focusAndSelect(0);
       return;
     }
 
-    if (event.key === 'End') {
+    if (event.key === "End") {
       event.preventDefault();
       focusAndSelect(tabs.length - 1);
       return;
     }
 
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
 
-    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const delta = event.key === "ArrowRight" ? 1 : -1;
     const nextIndex = (index + delta + tabs.length) % tabs.length;
     focusAndSelect(nextIndex);
   }
@@ -79,7 +79,9 @@ export default function FaqCategoryTabs({ tabs, active, onChange }) {
               // 잘려 활성 인디케이터가 3px→2px로 얇아 보였다. margin 제거로 border-b
               // 3px 전체가 클리핑 없이 온전히 보이게 한다.)
               className={`shrink-0 whitespace-nowrap border-b-[0.1875rem] p-4 text-base leading-[1.3] tracking-[-0.02em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 sm:px-3 sm:py-[1.375rem] sm:text-lg ${
-                isActive ? 'border-[#013262] font-bold text-[#013262]' : 'border-transparent font-normal text-[#A3A3A3]'
+                isActive
+                  ? "border-[#013262] font-bold text-[#013262]"
+                  : "border-transparent font-normal text-[#A3A3A3]"
               }`}
             >
               {tab}

@@ -7,14 +7,14 @@
 // 이 클라이언트는 RLS를 통째로 우회한다. 그래서 이걸 쓰는 라우트는 "누가
 // 무엇을 할 수 있는지"를 스스로 검사해야 한다.
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 export function getEnv(...keys) {
   for (const key of keys) {
-    const value = String(process.env[key] || '').trim();
+    const value = String(process.env[key] || "").trim();
     if (value) return value;
   }
-  return '';
+  return "";
 }
 
 let cached = null;
@@ -22,22 +22,26 @@ let cached = null;
 export function createSupabaseAdmin() {
   if (cached) return cached;
 
-  const url = getEnv('WINNING_SUPABASE_URL', 'SUPABASE_URL', 'VITE_SUPABASE_URL');
+  const url = getEnv(
+    "WINNING_SUPABASE_URL",
+    "SUPABASE_URL",
+    "VITE_SUPABASE_URL",
+  );
   const key = getEnv(
-    'WINNING_SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'WINNING_SUPABASE_KEY',
-    'SUPABASE_KEY'
+    "WINNING_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WINNING_SUPABASE_KEY",
+    "SUPABASE_KEY",
   );
 
   if (!url || !key) {
     throw new Error(
-      'WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.'
+      "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.",
     );
   }
 
   cached = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 
   return cached;

@@ -35,7 +35,11 @@ export const SUBMISSION_MIN_CHARS = 100;
 
 /** 필드 값 1개의 글자 수. 시안 카운터가 그대로 렌더하는 수(`{n}자`)다. */
 export function countFieldChars(value) {
-  return [...String(value ?? '').replace(/\s+/g, ' ').trim()].length;
+  return [
+    ...String(value ?? "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  ].length;
 }
 
 /**
@@ -58,12 +62,12 @@ export function countFieldChars(value) {
  */
 export function countFieldsChars(schemaFields, values = {}) {
   const fields = Array.isArray(schemaFields) ? schemaFields : [];
-  const source = values && typeof values === 'object' ? values : {};
+  const source = values && typeof values === "object" ? values : {};
   const perField = {};
   let total = 0;
 
   for (const field of fields) {
-    if (Object.prototype.hasOwnProperty.call(perField, field.key)) continue;
+    if (Object.hasOwn(perField, field.key)) continue;
     const count = countFieldChars(source[field.key]);
     perField[field.key] = count;
     total += count;
@@ -94,6 +98,6 @@ export function checkFieldsMinLength(schemaFields, values = {}) {
     total,
     perField,
     threshold: SUBMISSION_MIN_CHARS,
-    missingRequired
+    missingRequired,
   };
 }

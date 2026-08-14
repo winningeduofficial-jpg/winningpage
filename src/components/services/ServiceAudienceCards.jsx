@@ -1,9 +1,9 @@
-import { CARD_TITLE_CLASS, CARD_DESC_CLASS } from './serviceTokens';
+import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // cardSurface: 리터럴 lookup — 클래스 문자열 템플릿 조립 금지 규약(SECTION_SURFACE 와 동일).
 const AUDIENCE_CARD_SURFACE = {
-  muted: 'bg-[#F9FAFB]',
-  white: 'bg-white'
+  muted: "bg-[#F9FAFB]",
+  white: "bg-white",
 };
 
 // '이런 학생에게 추천해요' 이미지 카드 4장.
@@ -25,8 +25,8 @@ const AUDIENCE_CARD_SURFACE = {
 // 레터박스 여백은 카드 배경이 그대로 채운다.
 export default function ServiceAudienceCards({
   items,
-  imageFit = 'contain',
-  cardSurface = 'muted'
+  imageFit = "contain",
+  cardSurface = "muted",
 }) {
   return (
     <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-4">
@@ -38,7 +38,7 @@ export default function ServiceAudienceCards({
           <img
             src={item.image}
             alt={item.title}
-            className={`h-[10.5rem] w-full ${imageFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+            className={`h-[10.5rem] w-full ${imageFit === "cover" ? "object-cover" : "object-contain"}`}
           />
           {/* 제목↔본문 간격 23px, 하단 패딩 39px, 상단 28px, 좌우 26px ≈ px-6. */}
           <div className="flex flex-1 flex-col gap-[1.4375rem] px-6 pb-[2.4375rem] pt-[1.75rem]">

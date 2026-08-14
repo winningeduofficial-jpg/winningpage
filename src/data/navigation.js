@@ -36,86 +36,106 @@
 //   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
 //   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
 //   의미를 코드에서 명확히 구분하기 위함이다.
-export const NAV_GUARD = 'max(0px, calc(6.04rem - (100vw - 72.75rem) / 2))';
+export const NAV_GUARD = "max(0px, calc(6.04rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
-export const NAV_CELL_W = '6.25rem';
-export const NAV_CELL_GAP = '3rem';
-export const MEGA_COL_W = '8.75rem';
-export const MEGA_COL_GAP = '0.5rem';
+export const NAV_CELL_W = "6.25rem";
+export const NAV_CELL_GAP = "3rem";
+export const MEGA_COL_W = "8.75rem";
+export const MEGA_COL_GAP = "0.5rem";
 
 // 헤더 메가메뉴·푸터 공용 fallback — DB(page_contents)가 우선, 이 상수는 오프라인/최초 페인트용.
 // 시안 2016:1796 기준.
 export const FALLBACK_NAV_GROUPS = [
   {
-    title: '서비스',
-    to: '/services/learning-diagnosis',
+    title: "서비스",
+    to: "/services/learning-diagnosis",
     items: [
-      { label: '학습진단', to: '/services/learning-diagnosis', sortOrder: 1 },
-      { label: '목표관리', to: '/services/goal', sortOrder: 2 },
-      { label: '콜멘토', to: '/services/callmentor', sortOrder: 3 },
-      { label: '수행평가', to: '/services/performance', sortOrder: 4 },
-      { label: '자기평가', to: '/services/self-assessment', sortOrder: 5 },
-      { label: '심화탐구', to: '/services/research', sortOrder: 6 }
-    ]
+      { label: "학습진단", to: "/services/learning-diagnosis", sortOrder: 1 },
+      { label: "목표관리", to: "/services/goal", sortOrder: 2 },
+      { label: "콜멘토", to: "/services/callmentor", sortOrder: 3 },
+      { label: "수행평가", to: "/services/performance", sortOrder: 4 },
+      { label: "자기평가", to: "/services/self-assessment", sortOrder: 5 },
+      { label: "심화탐구", to: "/services/research", sortOrder: 6 },
+    ],
   },
   {
-    title: '프리미엄',
-    to: '/page/premium-a',
+    title: "프리미엄",
+    to: "/page/premium-a",
     items: [
-      { label: '대입컨설팅 프로그램', to: '/page/premium-a', sortOrder: 1 },
-      { label: '특목고입학 프로그램', to: '/page/premium-special-highschool', sortOrder: 2 },
-      { label: '대학원입학 프로그램', to: '/page/premium-graduate-school', sortOrder: 3 },
-      { label: '해외명문대 진학컨설팅', to: '/page/premium-global-university', sortOrder: 4 },
-      { label: '국제학교 학습관리', to: '/page/premium-international-school', sortOrder: 5 },
+      { label: "대입컨설팅 프로그램", to: "/page/premium-a", sortOrder: 1 },
       {
-        label: '국제・해외고 국내대 입학컨설팅',
-        to: '/page/premium-returning-student',
-        sortOrder: 6
-      }
-    ]
+        label: "특목고입학 프로그램",
+        to: "/page/premium-special-highschool",
+        sortOrder: 2,
+      },
+      {
+        label: "대학원입학 프로그램",
+        to: "/page/premium-graduate-school",
+        sortOrder: 3,
+      },
+      {
+        label: "해외명문대 진학컨설팅",
+        to: "/page/premium-global-university",
+        sortOrder: 4,
+      },
+      {
+        label: "국제학교 학습관리",
+        to: "/page/premium-international-school",
+        sortOrder: 5,
+      },
+      {
+        label: "국제・해외고 국내대 입학컨설팅",
+        to: "/page/premium-returning-student",
+        sortOrder: 6,
+      },
+    ],
   },
   {
-    title: '입시정보',
-    to: '/admission/guidelines',
+    title: "입시정보",
+    to: "/admission/guidelines",
     items: [
-      { label: '대입모집요강', to: '/admission/guidelines', sortOrder: 1 },
-      { label: '입결정보', to: '/admission/results', sortOrder: 2 },
-      { label: '수시정시합격', to: '/admission/susi-jungsi', sortOrder: 3 },
-      { label: '특목고합격', to: '/admission/special-highschool', sortOrder: 4 },
-      { label: '교육칼럼', to: '/info/column', sortOrder: 5 }
-    ]
+      { label: "대입모집요강", to: "/admission/guidelines", sortOrder: 1 },
+      { label: "입결정보", to: "/admission/results", sortOrder: 2 },
+      { label: "수시정시합격", to: "/admission/susi-jungsi", sortOrder: 3 },
+      {
+        label: "특목고합격",
+        to: "/admission/special-highschool",
+        sortOrder: 4,
+      },
+      { label: "교육칼럼", to: "/info/column", sortOrder: 5 },
+    ],
   },
   {
-    title: '이용신청',
-    to: '/pricing',
+    title: "이용신청",
+    to: "/pricing",
     items: [
-      { label: '서비스요금', to: '/pricing', sortOrder: 1 },
-      { label: '프리미엄 이용', to: '/page/premium-apply', sortOrder: 2 },
-      { label: '멘토신청', to: '/page/mentor-apply', sortOrder: 3 }
-    ]
+      { label: "서비스요금", to: "/pricing", sortOrder: 1 },
+      { label: "프리미엄 이용", to: "/page/premium-apply", sortOrder: 2 },
+      { label: "멘토신청", to: "/page/mentor-apply", sortOrder: 3 },
+    ],
   },
   {
-    title: '고객안내',
-    to: '/company-news',
+    title: "고객안내",
+    to: "/company-news",
     items: [
-      { label: '회사소개', to: '/company-news', sortOrder: 1 },
-      { label: '공지사항', to: '/events', sortOrder: 2 },
-      { label: '자주하는 질문', to: '/faq', sortOrder: 3 },
-      { label: '온라인문의', to: '/page/online-inquiry', sortOrder: 4 }
-    ]
-  }
+      { label: "회사소개", to: "/company-news", sortOrder: 1 },
+      { label: "공지사항", to: "/events", sortOrder: 2 },
+      { label: "자주하는 질문", to: "/faq", sortOrder: 3 },
+      { label: "온라인문의", to: "/page/online-inquiry", sortOrder: 4 },
+    ],
+  },
 ];
 
 // program_categories(DB) 서비스명 → 서비스 6종 정본 라우트. ServicesSection 카드 클릭 링크가
 // DB link 컬럼에 죽은 값(레거시 '/services' 스텁 등)을 담고 있을 때의 이름 기반 안전망.
 // FALLBACK_NAV_GROUPS의 '서비스' 그룹 라벨・경로와 동일한 소스오브트루스로 유지할 것.
 export const SERVICE_NAME_ROUTES = {
-  학습진단: '/services/learning-diagnosis',
-  목표관리: '/services/goal',
-  콜멘토: '/services/callmentor',
-  수행평가: '/services/performance',
-  자기평가: '/services/self-assessment',
-  심화탐구: '/services/research'
+  학습진단: "/services/learning-diagnosis",
+  목표관리: "/services/goal",
+  콜멘토: "/services/callmentor",
+  수행평가: "/services/performance",
+  자기평가: "/services/self-assessment",
+  심화탐구: "/services/research",
 };
 
 export const MENU_GROUP_ORDER = {
@@ -125,5 +145,5 @@ export const MENU_GROUP_ORDER = {
   이용신청: 4,
   고객안내: 5,
   합격전략: 6,
-  회사소개: 7
+  회사소개: 7,
 };

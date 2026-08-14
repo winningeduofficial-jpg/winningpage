@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import MyPageModalShell from '../MyPageModalShell';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { supabase } from "../../../lib/supabase";
+import MyPageModalShell from "../MyPageModalShell";
 
 // 자녀 연결 모달 (Figma 3709:2579 입력 / 3709:2599 완료).
 // 두 화면이 같은 흐름의 앞뒤라 한 컴포넌트에서 단계로 전환한다.
@@ -17,17 +24,19 @@ const CODE_ALPHABET = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]$/;
 // request_parent_link(sql/40)는 errcode 없이 메시지로만 사유를 던진다.
 // PostgREST 는 그 문구를 error.message 에 그대로 실어 준다.
 const LINK_ERROR_TEXT = {
-  not_a_parent: '학부모 회원만 자녀를 연결할 수 있습니다.',
-  invalid_code_format: '연결코드 형식이 올바르지 않습니다.',
-  link_code_not_found: '일치하는 연결코드가 없습니다. 코드를 다시 확인해 주세요.',
-  cannot_link_self: '본인 계정은 자녀로 연결할 수 없습니다.',
-  student_already_linked: '이미 다른 학부모와 연결된 학생입니다.',
-  link_already_requested: '이미 연결을 요청한 학생입니다.'
+  not_a_parent: "학부모 회원만 자녀를 연결할 수 있습니다.",
+  invalid_code_format: "연결코드 형식이 올바르지 않습니다.",
+  link_code_not_found:
+    "일치하는 연결코드가 없습니다. 코드를 다시 확인해 주세요.",
+  cannot_link_self: "본인 계정은 자녀로 연결할 수 없습니다.",
+  student_already_linked: "이미 다른 학부모와 연결된 학생입니다.",
+  link_already_requested: "이미 연결을 요청한 학생입니다.",
 };
-const LINK_UNKNOWN_ERROR_TEXT = '연결 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+const LINK_UNKNOWN_ERROR_TEXT =
+  "연결 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
 function resolveLinkError(error) {
-  const raw = String(error?.message || '');
+  const raw = String(error?.message || "");
   const hit = Object.keys(LINK_ERROR_TEXT).find((key) => raw.includes(key));
   return hit ? LINK_ERROR_TEXT[hit] : LINK_UNKNOWN_ERROR_TEXT;
 }
@@ -36,25 +45,27 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
   const titleId = useId();
   const inputsRef = useRef([]);
 
-  const [chars, setChars] = useState(() => Array(CODE_LENGTH).fill(''));
+  const [chars, setChars] = useState(() => Array(CODE_LENGTH).fill(""));
   const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
   // null = 입력 단계, 문자열 = 완료 단계(요청이 전달된 학생 이름).
   const [sentTo, setSentTo] = useState(null);
 
   useEffect(() => {
     if (!open) return;
-    setChars(Array(CODE_LENGTH).fill(''));
+    setChars(Array(CODE_LENGTH).fill(""));
     setSaving(false);
-    setErrorMsg('');
+    setErrorMsg("");
     setSentTo(null);
   }, [open]);
 
-  const code = useMemo(() => chars.join(''), [chars]);
+  const code = useMemo(() => chars.join(""), [chars]);
   const filled = code.length === CODE_LENGTH && chars.every(Boolean);
 
   function writeChar(index, raw) {
-    const ch = String(raw || '').toUpperCase().slice(-1);
+    const ch = String(raw || "")
+      .toUpperCase()
+      .slice(-1);
     if (ch && !CODE_ALPHABET.test(ch)) return;
 
     setChars((prev) => {
@@ -62,17 +73,17 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
       next[index] = ch;
       return next;
     });
-    setErrorMsg('');
+    setErrorMsg("");
     if (ch && index < CODE_LENGTH - 1) inputsRef.current[index + 1]?.focus();
   }
 
   function handleKeyDown(index, event) {
-    if (event.key === 'Backspace' && !chars[index] && index > 0) {
+    if (event.key === "Backspace" && !chars[index] && index > 0) {
       event.preventDefault();
       inputsRef.current[index - 1]?.focus();
       setChars((prev) => {
         const next = [...prev];
-        next[index - 1] = '';
+        next[index - 1] = "";
         return next;
       });
     }
@@ -80,35 +91,37 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
 
   // 코드를 통째로 붙여넣는 경우(문자메시지에서 복사 등)를 흘리지 않는다.
   function handlePaste(event) {
-    const text = String(event.clipboardData?.getData('text') || '')
+    const text = String(event.clipboardData?.getData("text") || "")
       .toUpperCase()
-      .replace(/[^23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g, '')
+      .replace(/[^23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g, "")
       .slice(0, CODE_LENGTH);
     if (!text) return;
     event.preventDefault();
-    const next = Array(CODE_LENGTH).fill('');
+    const next = Array(CODE_LENGTH).fill("");
     for (let i = 0; i < text.length; i += 1) next[i] = text[i];
     setChars(next);
-    setErrorMsg('');
+    setErrorMsg("");
     inputsRef.current[Math.min(text.length, CODE_LENGTH - 1)]?.focus();
   }
 
   const handleSubmit = useCallback(async () => {
     if (!filled || saving) return;
     setSaving(true);
-    setErrorMsg('');
+    setErrorMsg("");
 
-    const { data, error } = await supabase.rpc('request_parent_link', { p_code: code });
+    const { data, error } = await supabase.rpc("request_parent_link", {
+      p_code: code,
+    });
     setSaving(false);
 
     if (error) {
-      console.error('자녀 연결 요청 실패:', error);
+      console.error("자녀 연결 요청 실패:", error);
       setErrorMsg(resolveLinkError(error));
       return;
     }
 
     // { ok, link_id, status, student_name } — 완료 모달 문구에 이름이 필요하다.
-    setSentTo(data?.student_name || '');
+    setSentTo(data?.student_name || "");
     onLinked?.();
   }, [filled, saving, code, onLinked]);
 
@@ -117,13 +130,23 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
   // ── 완료 단계 (3709:2599) ───────────────────────────────────────────
   if (sentTo !== null) {
     return (
-      <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+      <MyPageModalShell
+        open={open}
+        onClose={onClose}
+        labelledBy={titleId}
+        className="w-[26rem]"
+      >
         <div className="flex flex-col items-center px-6 py-10 text-center">
-          <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+          <h2
+            id={titleId}
+            className="text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+          >
             연결 요청을 보냈어요
           </h2>
           <p className="mt-4 break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
-            {sentTo ? `${sentTo} 학생에게 연결 요청이 전달됐어요.` : '연결 요청이 전달됐어요.'}
+            {sentTo
+              ? `${sentTo} 학생에게 연결 요청이 전달됐어요.`
+              : "연결 요청이 전달됐어요."}
             <br />
             자녀가 수락하면 목록에 추가돼요
           </p>
@@ -141,9 +164,17 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
 
   // ── 입력 단계 (3709:2579) ───────────────────────────────────────────
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[26rem]"
+    >
       <div className="flex flex-col items-center px-6 py-8 text-center">
-        <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+        <h2
+          id={titleId}
+          className="text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+        >
           연결코드를 입력해주세요
         </h2>
         <p className="mt-3 break-keep text-[0.8125rem] leading-[1.6] text-ink-sub">
@@ -155,6 +186,7 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
         <div className="mt-6 flex justify-center gap-2" onPaste={handlePaste}>
           {chars.map((ch, index) => (
             <input
+              // biome-ignore lint/suspicious/noArrayIndexKey: 고정 6자리 코드 입력칸 — index 자체가 "몇 번째 자리"라는 의미이고 재정렬되지 않는다.
               key={index}
               ref={(el) => {
                 inputsRef.current[index] = el;
@@ -172,7 +204,9 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
           ))}
         </div>
 
-        {errorMsg && <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+        )}
 
         <div className="mt-7 grid w-full grid-cols-2 gap-2">
           <button
@@ -187,10 +221,12 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
             onClick={handleSubmit}
             disabled={!filled || saving}
             className={`h-12 rounded-xl text-[0.875rem] font-semibold text-white transition ${
-              filled && !saving ? 'bg-primary hover:opacity-90' : 'cursor-not-allowed bg-line'
+              filled && !saving
+                ? "bg-primary hover:opacity-90"
+                : "cursor-not-allowed bg-line"
             }`}
           >
-            {saving ? '요청 중...' : '연결 요청 보내기'}
+            {saving ? "요청 중..." : "연결 요청 보내기"}
           </button>
         </div>
       </div>

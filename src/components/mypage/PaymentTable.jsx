@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment } from "react";
 
 // 마이페이지 결제/신청 목록 표 — 확정 디자인의 세 섹션(환불요청 / 결제 신청하기 /
 // 지난 결제내역, 3967:3944)과 학생 신청 내역(3967:3016)이 **같은 5열 표**를 쓴다.
@@ -9,9 +9,16 @@ import { Fragment } from 'react';
 // 상품은 minmax(0,1fr), 금액·상태는 고정폭. 바깥 1fr 대신 minmax(0,1fr)를 쓰는
 // 이유는 grid item 기본 최소폭(min-content)이 긴 상품명에서 열 합을 컨테이너 밖으로
 // 밀어 상태 칩을 잘라먹기 때문이다.
-const GRID = 'grid grid-cols-[13.75rem_13.75rem_minmax(0,1fr)_9rem_9rem] gap-x-2';
+const GRID =
+  "grid grid-cols-[13.75rem_13.75rem_minmax(0,1fr)_9rem_9rem] gap-x-2";
 
-export default function PaymentTable({ headers, rows, emptyText, onSelect, renderStatus }) {
+export default function PaymentTable({
+  headers,
+  rows,
+  emptyText,
+  onSelect,
+  renderStatus,
+}) {
   if (!rows.length) {
     return (
       <p className="mt-[1.5rem] rounded-lg bg-surface-04 px-5 py-6 text-center text-[0.875rem] text-ink-sub">
@@ -23,7 +30,9 @@ export default function PaymentTable({ headers, rows, emptyText, onSelect, rende
   return (
     <div className="mt-[1.5rem] overflow-x-auto">
       <div className="w-full text-sm">
-        <div className={`${GRID} border-b border-line pb-[0.625rem] text-sm font-semibold text-ink-sub`}>
+        <div
+          className={`${GRID} border-b border-line pb-[0.625rem] text-sm font-semibold text-ink-sub`}
+        >
           <span>{headers.id}</span>
           <span>{headers.date}</span>
           <span>{headers.product}</span>
@@ -42,15 +51,23 @@ export default function PaymentTable({ headers, rows, emptyText, onSelect, rende
               >
                 {row.idText}
               </button>
-              <span className="flex h-8 items-center truncate text-ink-sub">{row.dateText}</span>
+              <span className="flex h-8 items-center truncate text-ink-sub">
+                {row.dateText}
+              </span>
               <span className="flex h-8 items-center truncate text-ink-strong">
                 {row.productText}
-                {row.note && <span className="ml-1.5 shrink-0 text-xs text-ink-sub">{row.note}</span>}
+                {row.note && (
+                  <span className="ml-1.5 shrink-0 text-xs text-ink-sub">
+                    {row.note}
+                  </span>
+                )}
               </span>
               <span className="flex h-8 items-center justify-end truncate text-ink-strong">
                 {row.amountText}
               </span>
-              <span className="flex h-8 items-center justify-end">{renderStatus(row)}</span>
+              <span className="flex h-8 items-center justify-end">
+                {renderStatus(row)}
+              </span>
             </Fragment>
           ))}
         </div>

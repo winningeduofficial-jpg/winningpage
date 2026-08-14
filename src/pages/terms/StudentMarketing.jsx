@@ -9,7 +9,9 @@
 // (TermsPageLayout effectiveDate 주석 원칙) — effectiveDate 미지정.
 // 시안 자체 특이사항(§6.3): 본문 18px + 색 #000(다른 약관 페이지 12px/#525252와 불일치) —
 // 이 구현은 §5.4 공통 토큰(12px/text-ink)을 따르고 불일치는 주석으로만 남긴다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsArticleBody,
+} from "../../components/auth/TermsPageLayout";
 
 const BODY = `본 동의는 선택 사항이며, 동의하지 않아도 위닝에듀 서비스 이용에는 제한이 없습니다. 동의 후에도 언제든지 수신을 거부(철회)할 수 있습니다.
 1. 수집·이용 목적
@@ -38,7 +40,10 @@ const BODY = `본 동의는 선택 사항이며, 동의하지 않아도 위닝�
 
 export default function StudentMarketing() {
   return (
-    <TermsPageLayout pageTitle="이용약관" title="학생회원 마케팅 목적의 개인정보 수집 및 이용">
+    <TermsPageLayout
+      pageTitle="이용약관"
+      title="학생회원 마케팅 목적의 개인정보 수집 및 이용"
+    >
       <TermsArticleBody text={BODY} />
     </TermsPageLayout>
   );

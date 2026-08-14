@@ -35,55 +35,56 @@
 //     미승인 주문이 웹훅 경로로 결제완료 처리되는 것을 막는다(sql/68
 //     orders_approval_before_payment_check 의 API 층 선반영).
 
-import { createSupabaseAdmin, getEnv } from './_lib/supabaseAdmin.js';
 import {
   grantProgramAccessForOrder,
-  revokeProgramAccessForOrder
-} from './_lib/programAccess.js';
+  revokeProgramAccessForOrder,
+} from "./_lib/programAccess.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
-const TOSS_PAYMENT_BY_ORDER_URL = 'https://api.tosspayments.com/v1/payments/orders';
+const TOSS_PAYMENT_BY_ORDER_URL =
+  "https://api.tosspayments.com/v1/payments/orders";
 
 function clean(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 // 토스 결제 status → orders.status
 // 허용값은 pending | paid | waiting_deposit | failed | canceled (sql/10_pricing_orders.sql)
 function mapStatus(tossStatus) {
   switch (clean(tossStatus)) {
-    case 'DONE':
-      return 'paid';
-    case 'WAITING_FOR_DEPOSIT':
-      return 'waiting_deposit';
-    case 'CANCELED':
-    case 'PARTIAL_CANCELED':
-    case 'EXPIRED':
-      return 'canceled';
-    case 'ABORTED':
-      return 'failed';
+    case "DONE":
+      return "paid";
+    case "WAITING_FOR_DEPOSIT":
+      return "waiting_deposit";
+    case "CANCELED":
+    case "PARTIAL_CANCELED":
+    case "EXPIRED":
+      return "canceled";
+    case "ABORTED":
+      return "failed";
     default:
-      return '';
+      return "";
   }
 }
 
 // 부수효과(권한 부여·회수)가 붙은 상태. 이 상태로 오는 웹훅은 orders 상태가
 // 이미 같더라도 조기 종료하지 않는다 — 부수효과가 1회차에 실패했을 때 재전송이
 // 유일한 복구 수단이고, 부여(upsert)·회수(update)는 모두 멱등이다.
-const SIDE_EFFECT_STATUSES = new Set(['paid', 'canceled']);
+const SIDE_EFFECT_STATUSES = new Set(["paid", "canceled"]);
 
 // refunded 는 fn_complete_refund 로만 도달하는 종결 상태다. 토스가 이 주문에
 // 대한 이벤트를 다시 보내도(취소/조회 재전송 등) orders.status 를 건드리면 안
 // 된다 — sql/71 의 orders BEFORE UPDATE 트리거(WC039)가 DB 층에서도 막지만,
 // 여기서 조기 차단해 불필요한 토스 조회·업데이트 시도 자체를 줄인다.
-const STATUS_REFUNDED = 'refunded';
+const STATUS_REFUNDED = "refunded";
 
-const APPROVAL_APPROVED = 'approved';
+const APPROVAL_APPROVED = "approved";
 
 // SQLSTATE 23xxx(제약 위반) 또는 이 저장소가 쓰는 WCxxx(도메인 예외, sql/68·69·71)
 // 는 재시도해도 결과가 같은 영구 오류다 — 200 으로 닫아 토스의 재시도 폭주를
 // 막는다. 그 외(네트워크·일시적 DB 장애)는 500 으로 재시도를 유도한다.
 function isPermanentDbError(error) {
-  const code = String(error?.code || '').trim();
+  const code = String(error?.code || "").trim();
   return /^23\d{3}$/.test(code) || /^WC\d{3}$/.test(code);
 }
 
@@ -96,7 +97,7 @@ function isPermanentDbError(error) {
 // 멱등 재응답(raw.status/raw.secret)뿐이라 키 추가가 기존 리더를 깨지 않는다.
 // 성공 시에는 이전 실패 흔적을 지운다(같은 주문이 복구됐다는 사실도 정보다).
 async function recordGrantOutcome(supabaseAdmin, { orderId, raw, access }) {
-  const had = Object.prototype.hasOwnProperty.call(raw || {}, 'access_grant_error');
+  const had = Object.hasOwn(raw || {}, "access_grant_error");
   if (access.ok && !had) return;
 
   const nextRaw = { ...(raw || {}) };
@@ -104,16 +105,23 @@ async function recordGrantOutcome(supabaseAdmin, { orderId, raw, access }) {
     delete nextRaw.access_grant_error;
     nextRaw.access_grant_recovered_at = new Date().toISOString();
   } else {
-    nextRaw.access_grant_error = { error: access.error, at: new Date().toISOString() };
+    nextRaw.access_grant_error = {
+      error: access.error,
+      at: new Date().toISOString(),
+    };
   }
 
-  const { error } = await supabaseAdmin.from('orders').update({ raw: nextRaw }).eq('id', orderId);
-  if (error) console.error('orders.raw grant marker update failed:', orderId, error);
+  const { error } = await supabaseAdmin
+    .from("orders")
+    .update({ raw: nextRaw })
+    .eq("id", orderId);
+  if (error)
+    console.error("orders.raw grant marker update failed:", orderId, error);
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
@@ -124,70 +132,87 @@ export default async function handler(req, res) {
 
     if (!orderId) {
       // 재시도해도 결과가 같으므로 200 으로 닫는다(4xx 를 주면 토스가 계속 재시도한다).
-      return res.status(200).json({ ignored: true, reason: 'orderId 없음' });
+      return res.status(200).json({ ignored: true, reason: "orderId 없음" });
     }
 
-    const secretKey = getEnv('TOSS_SECRET_KEY');
+    const secretKey = getEnv("TOSS_SECRET_KEY");
     if (!secretKey) {
       // 설정 누락은 우리 쪽 문제다. 5xx 로 응답해 토스 재시도를 유도한다.
-      return res.status(500).json({ error: '서버에 TOSS_SECRET_KEY 가 설정되지 않았습니다.' });
+      return res
+        .status(500)
+        .json({ error: "서버에 TOSS_SECRET_KEY 가 설정되지 않았습니다." });
     }
 
     const supabaseAdmin = createSupabaseAdmin();
 
     const { data: order, error: selectError } = await supabaseAdmin
-      .from('orders')
+      .from("orders")
       // user_id 는 입금 확인 시 이용 권한을 줄 대상이다(즉시 입장).
       // paid_at 은 이미 paid 인 주문에 부여를 재시도할 때 이용 시작 시각으로 쓴다
       // (재시도가 시작일을 오늘로 밀어버리지 않게 한다).
       // approval_status 는 paid 확정 전 학부모 승인 여부 재확인용이다(아래).
-      .select('id, user_id, status, approval_status, paid_at, raw')
-      .eq('id', orderId)
+      .select("id, user_id, status, approval_status, paid_at, raw")
+      .eq("id", orderId)
       .maybeSingle();
 
     if (selectError) {
       if (isPermanentDbError(selectError)) {
         // 제약 위반·도메인 예외는 재시도해도 같은 결과다 — 200 으로 닫아 토스의
         // 재시도 폭주를 막는다. 원문은 로그로만 남긴다.
-        console.error('toss-webhook 영구 오류(주문 조회):', orderId, selectError);
-        return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: selectError.code });
+        console.error(
+          "toss-webhook 영구 오류(주문 조회):",
+          orderId,
+          selectError,
+        );
+        return res.status(200).json({
+          ignored: true,
+          reason: "permanent_db_error",
+          code: selectError.code,
+        });
       }
       throw selectError;
     }
     if (!order) {
-      return res.status(200).json({ ignored: true, reason: '주문 없음' });
+      return res.status(200).json({ ignored: true, reason: "주문 없음" });
     }
 
     if (order.status === STATUS_REFUNDED) {
       // 환불 종결된 주문 부활 금지. sql/71 의 orders BEFORE UPDATE 트리거(WC039)가
       // DB 층에서도 같은 UPDATE 를 막지만, 여기서 조기에 닫아 불필요한 토스 조회·
       // 업데이트 시도를 하지 않는다.
-      return res.status(200).json({ ignored: true, reason: 'refunded_order_immutable' });
+      return res
+        .status(200)
+        .json({ ignored: true, reason: "refunded_order_immutable" });
     }
 
     // 레거시 가상계좌 웹훅의 secret 대조. 승인 응답에 secret 이 있었던 주문만 검사한다.
     const storedSecret = clean(order.raw?.secret);
     if (storedSecret && claimedSecret && storedSecret !== claimedSecret) {
-      return res.status(200).json({ ignored: true, reason: 'secret 불일치' });
+      return res.status(200).json({ ignored: true, reason: "secret 불일치" });
     }
 
     // 상태의 정본은 토스 조회 응답이다.
-    const auth = Buffer.from(`${secretKey}:`).toString('base64');
-    const tossRes = await fetch(`${TOSS_PAYMENT_BY_ORDER_URL}/${encodeURIComponent(orderId)}`, {
-      headers: { Authorization: `Basic ${auth}` },
-    });
+    const auth = Buffer.from(`${secretKey}:`).toString("base64");
+    const tossRes = await fetch(
+      `${TOSS_PAYMENT_BY_ORDER_URL}/${encodeURIComponent(orderId)}`,
+      {
+        headers: { Authorization: `Basic ${auth}` },
+      },
+    );
     const payment = await tossRes.json();
 
     if (!tossRes.ok) {
       return res.status(502).json({
-        error: payment?.message ?? '토스 결제 조회 실패',
+        error: payment?.message ?? "토스 결제 조회 실패",
         code: payment?.code,
       });
     }
 
     const nextStatus = mapStatus(payment.status);
     if (!nextStatus) {
-      return res.status(200).json({ ignored: true, reason: `미지원 status(${payment.status})` });
+      return res
+        .status(200)
+        .json({ ignored: true, reason: `미지원 status(${payment.status})` });
     }
 
     // paid 확정·권한 부여는 학부모 승인(approval_status='approved')이 전제다
@@ -195,9 +220,15 @@ export default async function handler(req, res) {
     // 전이 시도는 DB 제약이 최종적으로 막지만(23514 → 위 isPermanentDbError 로
     // 200 처리), 여기서 먼저 걸러 토스 조회 이후의 불필요한 업데이트 시도와
     // 오해의 소지가 있는 로그를 줄인다.
-    if (nextStatus === 'paid' && order.approval_status !== APPROVAL_APPROVED) {
-      console.error('toss-webhook: 미승인 주문의 paid 전이 시도 — 무시:', orderId, order.approval_status);
-      return res.status(200).json({ ignored: true, reason: 'approval_not_approved' });
+    if (nextStatus === "paid" && order.approval_status !== APPROVAL_APPROVED) {
+      console.error(
+        "toss-webhook: 미승인 주문의 paid 전이 시도 — 무시:",
+        orderId,
+        order.approval_status,
+      );
+      return res
+        .status(200)
+        .json({ ignored: true, reason: "approval_not_approved" });
     }
 
     // 상태가 그대로인 웹훅(토스 재전송·수동 재전송)이라도 paid 는 그냥 닫지
@@ -210,14 +241,16 @@ export default async function handler(req, res) {
     // 유일한 복구 수단이다.
     const unchanged = nextStatus === order.status;
     if (unchanged && !SIDE_EFFECT_STATUSES.has(nextStatus)) {
-      return res.status(200).json({ ok: true, unchanged: true, status: nextStatus });
+      return res
+        .status(200)
+        .json({ ok: true, unchanged: true, status: nextStatus });
     }
 
     // 이미 paid 인 주문에 재전송이 온 경우 orders 는 다시 쓸 필요가 없다.
     let paidAt = order.paid_at ?? null;
     let access = null;
 
-    if (nextStatus === 'paid' && !unchanged) {
+    if (nextStatus === "paid" && !unchanged) {
       // 신규 전이(입금 확인) — orders 확정 UPDATE 와 권한 부여를 한 트랜잭션으로
       // 묶는다(sql/79 fn_finalize_paid_order, api/confirm-payment.js 와 같은
       // RPC). 예전에는 이 둘이 별도 왕복이라 그 사이 크래시하면 paid 인데
@@ -227,11 +260,10 @@ export default async function handler(req, res) {
       // 갱신했다 — approval/refunded 는 이미 위에서 걸렀다).
       paidAt = payment.approvedAt ?? new Date().toISOString();
 
-      const { data: finalizeResult, error: finalizeError } = await supabaseAdmin.rpc(
-        'fn_finalize_paid_order',
-        {
+      const { data: finalizeResult, error: finalizeError } =
+        await supabaseAdmin.rpc("fn_finalize_paid_order", {
           p_order_id: orderId,
-          p_status: 'paid',
+          p_status: "paid",
           p_payment_key: null,
           p_method: payment.method ?? null,
           p_paid_at: paidAt,
@@ -239,27 +271,48 @@ export default async function handler(req, res) {
           p_confirm_amount: null,
           p_require_pending_or_failed: false,
           // 새 입금이 확인된 전이만 회수된 권한을 되살릴 수 있다.
-          p_restore_revoked: true
-        }
-      );
+          p_restore_revoked: true,
+        });
 
       if (finalizeError) {
         if (isPermanentDbError(finalizeError)) {
-          console.error('toss-webhook 영구 오류(주문 확정):', orderId, finalizeError);
-          return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: finalizeError.code });
+          console.error(
+            "toss-webhook 영구 오류(주문 확정):",
+            orderId,
+            finalizeError,
+          );
+          return res.status(200).json({
+            ignored: true,
+            reason: "permanent_db_error",
+            code: finalizeError.code,
+          });
         }
         throw finalizeError;
       }
       if (!finalizeResult?.ok) {
-        console.error('toss-webhook: 주문 확정 UPDATE 실패:', orderId, finalizeResult);
-        return res.status(500).json({ error: '주문 확정 실패', detail: finalizeResult });
+        console.error(
+          "toss-webhook: 주문 확정 UPDATE 실패:",
+          orderId,
+          finalizeResult,
+        );
+        return res
+          .status(500)
+          .json({ error: "주문 확정 실패", detail: finalizeResult });
       }
 
       access = finalizeResult.access;
       if (!access.ok) {
-        console.error('program_access grant failed (webhook):', orderId, access.error);
+        console.error(
+          "program_access grant failed (webhook):",
+          orderId,
+          access.error,
+        );
       }
-      await recordGrantOutcome(supabaseAdmin, { orderId, raw: payment, access });
+      await recordGrantOutcome(supabaseAdmin, {
+        orderId,
+        raw: payment,
+        access,
+      });
     } else {
       // 그 외 전이(paid 이외 상태로의 갱신)와, paid+unchanged 재시도(묶을 UPDATE
       // 자체가 없는 경우)는 기존 경로를 그대로 둔다.
@@ -271,16 +324,24 @@ export default async function handler(req, res) {
         };
 
         const { error: updateError } = await supabaseAdmin
-          .from('orders')
+          .from("orders")
           .update(patch)
-          .eq('id', orderId);
+          .eq("id", orderId);
 
         if (updateError) {
           if (isPermanentDbError(updateError)) {
             // 제약 위반·도메인 예외(예: WC039 refunded_order_immutable 트리거)는
             // 재시도해도 같은 결과다 — 200 으로 닫아 토스의 재시도 폭주를 막는다.
-            console.error('toss-webhook 영구 오류(주문 갱신):', orderId, updateError);
-            return res.status(200).json({ ignored: true, reason: 'permanent_db_error', code: updateError.code });
+            console.error(
+              "toss-webhook 영구 오류(주문 갱신):",
+              orderId,
+              updateError,
+            );
+            return res.status(200).json({
+              ignored: true,
+              reason: "permanent_db_error",
+              code: updateError.code,
+            });
           }
           throw updateError;
         }
@@ -289,19 +350,27 @@ export default async function handler(req, res) {
       // 즉시 입장(사용자 확정): paid+unchanged 재전송의 부여 재시도. 카드·
       // 간편결제 경로(api/confirm-payment.js)와 같은 api/_lib/programAccess.js
       // 를 쓴다 — 부여 규칙이 두 벌로 갈라지지 않게 한다.
-      if (nextStatus === 'paid') {
+      if (nextStatus === "paid") {
         access = await grantProgramAccessForOrder(supabaseAdmin, {
           orderId,
           userId: order.user_id,
           paidAt,
           // 재전송(unchanged)은 새 돈의 근거가 없는 재시도이므로 환불 회수를
           // 되돌리지 않는다.
-          restoreRevoked: false
+          restoreRevoked: false,
         });
         if (!access.ok) {
-          console.error('program_access grant failed (webhook):', orderId, access.error);
+          console.error(
+            "program_access grant failed (webhook):",
+            orderId,
+            access.error,
+          );
         }
-        await recordGrantOutcome(supabaseAdmin, { orderId, raw: order.raw, access });
+        await recordGrantOutcome(supabaseAdmin, {
+          orderId,
+          raw: order.raw,
+          access,
+        });
       }
     }
 
@@ -317,7 +386,7 @@ export default async function handler(req, res) {
     //   특정할 수 있게 됐다). 트리거 신설은 별 작업이며, 그동안은 sql/64 말미
     //   감시 쿼리 (c) 로 그 상태를 관측한다.
     let revoke = null;
-    if (nextStatus === 'canceled') {
+    if (nextStatus === "canceled") {
       // 부분취소(PARTIAL_CANCELED)는 잔액이 남아 있으면 결제가 유효하게 살아 있는
       // 상태다. 토스 응답의 balanceAmount 가 "취소 후 남은 금액"이므로 0보다 크면
       // 회수하지 않는다 — 1회차분만 환불한 구매자의 권한을 통째로 닫으면 안 된다.
@@ -330,26 +399,41 @@ export default async function handler(req, res) {
       // 어느 부여를 닫아야 하는지 사람이 지정할 수 있게 된 것이 원장의 기여다.
       // (부분취소 후 남은 회차·기간의 정산 규칙은 여전히 미확정 항목이다.)
       const balanceAmount = Number(payment.balanceAmount ?? 0);
-      if (clean(payment.status) === 'PARTIAL_CANCELED' && balanceAmount > 0) {
-        console.warn('partial cancel with balance left — access kept:', orderId, balanceAmount);
-        revoke = { ok: true, revoked: [], skipped: [{ reason: 'partial_cancel_balance_left' }] };
+      if (clean(payment.status) === "PARTIAL_CANCELED" && balanceAmount > 0) {
+        console.warn(
+          "partial cancel with balance left — access kept:",
+          orderId,
+          balanceAmount,
+        );
+        revoke = {
+          ok: true,
+          revoked: [],
+          skipped: [{ reason: "partial_cancel_balance_left" }],
+        };
       } else {
         // 돈이 실제로 들어왔던 주문의 취소 = 환불(refunded), 입금 전 종결(가상계좌
         // 미입금 만료) = 취소(cancelled). 구분 근거를 orders.status 로 잡으면
         // 재전송 때는 이미 canceled 라서 refunded 가 cancelled 로 뒤집힌다. 그래서
         // 토스 응답에서 판정한다 — 승인된 적이 있으면 approvedAt 이, 취소 이력이
         // 있으면 cancels 배열이 채워진다(EXPIRED 는 둘 다 없다).
-        const wasApproved = Boolean(payment.approvedAt) || Array.isArray(payment.cancels);
+        const wasApproved =
+          Boolean(payment.approvedAt) || Array.isArray(payment.cancels);
         revoke = await revokeProgramAccessForOrder(supabaseAdmin, {
           orderId,
           userId: order.user_id,
-          paymentStatus: wasApproved ? 'refunded' : 'cancelled'
+          paymentStatus: wasApproved ? "refunded" : "cancelled",
         });
         if (!revoke.ok) {
           // 여기서 실패하면 돈은 돌려줬는데 권한이 열린 채로 남는다. 5xx 로 응답해
           // 토스 재전송을 유도한다(회수 update 는 멱등이라 재시도가 안전하다).
-          console.error('program_access revoke failed (webhook):', orderId, revoke.error);
-          return res.status(500).json({ error: 'program_access 회수 실패', revoke });
+          console.error(
+            "program_access revoke failed (webhook):",
+            orderId,
+            revoke.error,
+          );
+          return res
+            .status(500)
+            .json({ error: "program_access 회수 실패", revoke });
         }
       }
     }
@@ -359,10 +443,10 @@ export default async function handler(req, res) {
       status: nextStatus,
       ...(unchanged ? { unchanged: true } : {}),
       ...(access ? { access } : {}),
-      ...(revoke ? { revoke } : {})
+      ...(revoke ? { revoke } : {}),
     });
   } catch (err) {
-    console.error('toss-webhook error:', err);
+    console.error("toss-webhook error:", err);
     // 5xx 를 주면 토스가 재시도하므로 일시 장애는 자동 복구된다.
     return res.status(500).json({ error: String(err?.message ?? err) });
   }

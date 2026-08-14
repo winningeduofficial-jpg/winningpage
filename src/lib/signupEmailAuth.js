@@ -31,19 +31,19 @@
 //   그래서 **가입을 끝내는 화면은 반드시 applySignupPassword를 호출해야 한다** —
 //   호출하지 않으면 계정에 임시 비밀번호가 남아 로그인이 불가능해진다.
 
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 export const EMAIL_STATE = {
-  AVAILABLE: 'available',
-  RESUMABLE_UNVERIFIED: 'resumable_unverified',
-  RESUMABLE_VERIFIED: 'resumable_verified',
-  TAKEN: 'taken'
+  AVAILABLE: "available",
+  RESUMABLE_UNVERIFIED: "resumable_unverified",
+  RESUMABLE_VERIFIED: "resumable_verified",
+  TAKEN: "taken",
 };
 
 // verifyOtp에 넘길 타입. 발송에 쓴 API에 따라 달라서 발송 결과로 함께 돌려준다.
 export const OTP_MODE = {
-  SIGNUP: 'signup',
-  EMAIL: 'email'
+  SIGNUP: "signup",
+  EMAIL: "email",
 };
 
 // Supabase Auth의 "Minimum interval between emails"(기본 60초)와 맞춘다.
@@ -51,12 +51,13 @@ export const OTP_MODE = {
 export const EMAIL_RESEND_COOLDOWN_SECONDS = 60;
 
 export const MESSAGES = {
-  taken: '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.',
+  taken: "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.",
   cooldown: (left) => `인증번호는 ${left}초 후에 다시 보낼 수 있어요.`,
-  resumed: '이전에 진행하던 가입이 있어 인증코드를 다시 보냈습니다.',
-  sent: '입력한 이메일로 인증코드를 발송했습니다.',
-  checkFailed: '중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
-  codeMismatch: '인증번호가 틀립니다.'
+  resumed: "이전에 진행하던 가입이 있어 인증코드를 다시 보냈습니다.",
+  sent: "입력한 이메일로 인증코드를 발송했습니다.",
+  checkFailed:
+    "중복확인 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  codeMismatch: "인증번호가 틀립니다.",
 };
 
 /**
@@ -64,8 +65,8 @@ export const MESSAGES = {
  * @returns {Promise<{state?: string, error?: Error}>}
  */
 export async function checkEmailSignupState(email) {
-  const { data, error } = await supabase.rpc('check_email_signup_state', {
-    p_email: email
+  const { data, error } = await supabase.rpc("check_email_signup_state", {
+    p_email: email,
   });
 
   if (error) return { error };
@@ -84,7 +85,7 @@ function generateTempPassword() {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
 
-  const body = Array.from(bytes, (byte) => byte.toString(36)).join('');
+  const body = Array.from(bytes, (byte) => byte.toString(36)).join("");
 
   return `Aa1!${body}`;
 }
@@ -101,7 +102,12 @@ function generateTempPassword() {
  * @returns {Promise<{state?: string, mode?: string, resumed?: boolean, error?: Error}>}
  *          state가 'taken'이면 발송하지 않는다. mode는 검증 단계에 그대로 넘긴다.
  */
-export async function sendSignupEmailCode({ email, password, name, memberType }) {
+export async function sendSignupEmailCode({
+  email,
+  password,
+  name,
+  memberType,
+}) {
   const { state, error: stateError } = await checkEmailSignupState(email);
 
   if (stateError) return { error: stateError };
@@ -109,7 +115,7 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
 
   // 이전 세션이 남아 있으면 OTP 검증이 엉뚱한 계정에 붙을 수 있어 먼저 끊는다.
   try {
-    await supabase.auth.signOut({ scope: 'global' });
+    await supabase.auth.signOut({ scope: "global" });
   } catch (_error) {
     // 세션이 없으면 실패하는 게 정상이라 무시한다.
   }
@@ -119,7 +125,7 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
   if (state === EMAIL_STATE.RESUMABLE_VERIFIED) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false }
+      options: { shouldCreateUser: false },
     });
 
     if (error) return { error, state };
@@ -138,9 +144,9 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
         name,
         full_name: name,
         member_type: memberType,
-        role: 'user'
-      }
-    }
+        role: "user",
+      },
+    },
   });
 
   if (error) return { error, state };
@@ -148,7 +154,7 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
   return {
     state,
     mode: OTP_MODE.SIGNUP,
-    resumed: state === EMAIL_STATE.RESUMABLE_UNVERIFIED
+    resumed: state === EMAIL_STATE.RESUMABLE_UNVERIFIED,
   };
 }
 
@@ -161,10 +167,13 @@ export async function sendSignupEmailCode({ email, password, name, memberType })
  * 취급하면 같은 비밀번호를 쓴 사용자가 가입을 끝낼 수 없게 된다.
  */
 function isSamePasswordError(error) {
-  const code = String(error?.code || '').toLowerCase();
-  const message = String(error?.message || '').toLowerCase();
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
 
-  return code === 'same_password' || message.includes('different from the old password');
+  return (
+    code === "same_password" ||
+    message.includes("different from the old password")
+  );
 }
 
 /**
@@ -186,7 +195,7 @@ export async function verifySignupEmailCode({ email, token, mode }) {
   const { error } = await supabase.auth.verifyOtp({
     email,
     token,
-    type: mode || OTP_MODE.SIGNUP
+    type: mode || OTP_MODE.SIGNUP,
   });
 
   if (error) return { error };
@@ -211,7 +220,7 @@ export async function applySignupPassword(password) {
 
   // 이미 같은 비밀번호면 목적이 달성된 것이므로 성공으로 본다.
   if (error && !isSamePasswordError(error)) {
-    console.error('비밀번호 설정 실패:', error);
+    console.error("비밀번호 설정 실패:", error);
     return { error };
   }
 

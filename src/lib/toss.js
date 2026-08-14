@@ -1,4 +1,4 @@
-import { loadTossPayments, ANONYMOUS } from '@tosspayments/tosspayments-sdk';
+import { ANONYMOUS, loadTossPayments } from "@tosspayments/tosspayments-sdk";
 
 // 발급받은 클라이언트 키. (.env 의 VITE_TOSS_CLIENT_KEY / Vercel 환경변수)
 export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;
@@ -10,7 +10,7 @@ export { ANONYMOUS };
 let tossPromise;
 export function getTossPayments() {
   if (!TOSS_CLIENT_KEY) {
-    console.warn('VITE_TOSS_CLIENT_KEY 환경변수가 설정되지 않았습니다.');
+    console.warn("VITE_TOSS_CLIENT_KEY 환경변수가 설정되지 않았습니다.");
   }
   if (!tossPromise) {
     tossPromise = loadTossPayments(TOSS_CLIENT_KEY);

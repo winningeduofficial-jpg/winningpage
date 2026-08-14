@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import BookViewer from '../components/premiumBook/BookViewer';
-import { usePremiumBookPages } from '../components/premiumBook/usePremiumBookPages';
+import { ChevronDown } from "lucide-react";
+import { cloneElement, isValidElement, useId, useRef, useState } from "react";
+import BookViewer from "../components/premiumBook/BookViewer";
+import { usePremiumBookPages } from "../components/premiumBook/usePremiumBookPages";
 
 // 이용신청 > 프리미엄 이용 (node 1882:11190) 정식 페이지.
 // 러프 구현 목표 — 픽셀 재현 아님, 섹션 구조·카피·컬러 위계만 재현한다.
@@ -20,25 +20,25 @@ import { usePremiumBookPages } from '../components/premiumBook/usePremiumBookPag
 // 셀렉트 옵션 — 시안에 목록이 없어(B-13) 헤더·푸터 「프리미엄」 6개 프로그램 라벨
 // (src/data/navigation.js FALLBACK_NAV_GROUPS)을 정본으로 그대로 쓴다.
 const SERVICE_OPTIONS = [
-  '대입컨설팅 프로그램',
-  '특목고입학 프로그램',
-  '대학원입학 프로그램',
-  '해외명문대 진학컨설팅',
-  '국제학교 학습관리',
-  '국제・해외고 국내대 입학컨설팅'
+  "대입컨설팅 프로그램",
+  "특목고입학 프로그램",
+  "대학원입학 프로그램",
+  "해외명문대 진학컨설팅",
+  "국제학교 학습관리",
+  "국제・해외고 국내대 입학컨설팅",
 ];
 
 const INITIAL_FORM = {
-  name: '',
-  phone: '',
-  email: '',
-  service: '',
-  message: '',
-  agree: false
+  name: "",
+  phone: "",
+  email: "",
+  service: "",
+  message: "",
+  agree: false,
 };
 
 // DOM 순서와 동일 — 첫 오류 필드로 포커스를 옮길 때 이 순서대로 훑는다.
-const FIELD_ORDER = ['name', 'phone', 'email', 'service', 'message', 'agree'];
+const FIELD_ORDER = ["name", "phone", "email", "service", "message", "agree"];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_ALLOWED_PATTERN = /^[0-9-]+$/;
@@ -50,61 +50,77 @@ function validateForm(form) {
 
   const name = form.name.trim();
   if (!name) {
-    errors.name = '이름을 입력해주세요.';
+    errors.name = "이름을 입력해주세요.";
   } else if (name.length > 40) {
-    errors.name = '이름은 40자 이내로 입력해주세요.';
+    errors.name = "이름은 40자 이내로 입력해주세요.";
   }
 
   const phone = form.phone.trim();
-  const phoneDigits = phone.replace(/[^0-9]/g, '');
+  const phoneDigits = phone.replace(/[^0-9]/g, "");
   if (!phone) {
-    errors.phone = '연락처를 입력해주세요.';
+    errors.phone = "연락처를 입력해주세요.";
   } else if (!PHONE_ALLOWED_PATTERN.test(phone)) {
-    errors.phone = '연락처는 숫자와 하이픈(-)만 입력할 수 있습니다.';
+    errors.phone = "연락처는 숫자와 하이픈(-)만 입력할 수 있습니다.";
   } else if (phoneDigits.length < 9 || phoneDigits.length > 13) {
-    errors.phone = '연락처 자릿수를 확인해주세요.';
+    errors.phone = "연락처 자릿수를 확인해주세요.";
   }
 
   const email = form.email.trim();
   if (email && !EMAIL_PATTERN.test(email)) {
-    errors.email = '이메일 형식을 확인해주세요.';
+    errors.email = "이메일 형식을 확인해주세요.";
   }
 
   if (!form.service || !SERVICE_OPTIONS.includes(form.service)) {
-    errors.service = '이용하고 싶으신 서비스를 선택해주세요.';
+    errors.service = "이용하고 싶으신 서비스를 선택해주세요.";
   }
 
   if (form.message.length > 1000) {
-    errors.message = '문의사항은 1000자 이내로 입력해주세요.';
+    errors.message = "문의사항은 1000자 이내로 입력해주세요.";
   }
 
   if (!form.agree) {
-    errors.agree = '개인정보 수집·이용에 동의해주세요.';
+    errors.agree = "개인정보 수집·이용에 동의해주세요.";
   }
 
   return errors;
 }
 
-function FormField({ label, error, children }) {
+// controlId를 주면(서비스 선택처럼 <select>가 아이콘과 함께 <div>로 한 겹
+// 감싸여 있어 children을 직접 복제할 수 없는 경우) 그 id를 label htmlFor로
+// 쓰고, 호출부가 실제 컨트롤에 같은 id를 직접 단다. 안 주면 children이 바로
+// 그 컨트롤이라는 뜻이라 cloneElement로 id를 꽂는다. label이 children까지
+// 감싸면(중첩 연결) flex-col gap-2가 한 아이템으로 합쳐져 라벨·입력 사이
+// 간격이 사라지므로 형제 구조를 유지한다.
+function FormField({ label, error, children, controlId }) {
+  const generatedId = useId();
+  const isSingleControl = controlId === undefined && isValidElement(children);
+  const inputId = controlId ?? (isSingleControl ? generatedId : undefined);
+  const control = isSingleControl
+    ? cloneElement(children, { id: children.props.id ?? inputId })
+    : children;
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-normal text-black">{label}</label>
-      {children}
-      {error ? <p className="text-xs font-normal text-red-600">{error}</p> : null}
+      <label htmlFor={inputId} className="text-sm font-normal text-black">
+        {label}
+      </label>
+      {control}
+      {error ? (
+        <p className="text-xs font-normal text-red-600">{error}</p>
+      ) : null}
     </div>
   );
 }
 
 const inputClass =
-  'h-12 w-full rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-[#013262] focus:outline-none';
+  "h-12 w-full rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-[#013262] focus:outline-none";
 
-const inputErrorClass = 'border-red-400 focus:border-red-500';
+const inputErrorClass = "border-red-400 focus:border-red-500";
 
 export default function PremiumApply() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { pages, loading, error, retry } = usePremiumBookPages();
 
@@ -114,7 +130,7 @@ export default function PremiumApply() {
     email: useRef(null),
     service: useRef(null),
     message: useRef(null),
-    agree: useRef(null)
+    agree: useRef(null),
   };
 
   function updateField(key, value) {
@@ -127,7 +143,7 @@ export default function PremiumApply() {
 
     const nextErrors = validateForm(form);
     setErrors(nextErrors);
-    setSubmitError('');
+    setSubmitError("");
 
     const firstErrorKey = FIELD_ORDER.find((key) => nextErrors[key]);
     if (firstErrorKey) {
@@ -137,23 +153,26 @@ export default function PremiumApply() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/create-consult-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/create-consult-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
           phone: form.phone.trim(),
           email: form.email.trim(),
           service: form.service,
           message: form.message.trim(),
-          agree: form.agree
-        })
+          agree: form.agree,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.ok) {
-        setSubmitError(data.error || '상담 신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        setSubmitError(
+          data.error ||
+            "상담 신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        );
         return;
       }
 
@@ -161,7 +180,9 @@ export default function PremiumApply() {
       setErrors({});
       setSubmitted(true);
     } catch {
-      setSubmitError('네트워크 오류로 상담 신청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setSubmitError(
+        "네트워크 오류로 상담 신청에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -171,14 +192,21 @@ export default function PremiumApply() {
     <main className="min-h-screen bg-white pt-16 text-[#0d1b2a]">
       {/* 히어로 */}
       <section className="mx-auto max-w-content px-6 pt-20 pb-10 text-center">
-        <p className="text-base font-semibold leading-7 text-accent">프리미엄 이용</p>
+        <p className="text-base font-semibold leading-7 text-accent">
+          프리미엄 이용
+        </p>
         <h1 className="mx-auto mt-2 max-w-[56.25rem] text-3xl font-semibold leading-tight text-[#525252] md:text-[3.125rem] md:leading-[4.375rem]">
           위닝에듀만의 프리미엄 서비스를 확인해보세요
         </h1>
       </section>
 
       {/* 플립북 뷰어 — 섹션 래퍼까지 BookViewer가 렌더한다 */}
-      <BookViewer pages={pages} loading={loading} error={error} onRetry={retry} />
+      <BookViewer
+        pages={pages}
+        loading={loading}
+        error={error}
+        onRetry={retry}
+      />
 
       {/* 상담 신청 섹션 */}
       <section className="bg-[#f7f7f7] py-20">
@@ -196,20 +224,27 @@ export default function PremiumApply() {
           <div className="w-full max-w-[49.9375rem] rounded-[2rem] bg-white p-6 shadow-[0_0.25rem_2rem_rgba(0,0,0,0.16)] md:p-10">
             {submitted ? (
               <div className="flex min-h-[20rem] flex-col items-center justify-center gap-3 text-center">
-                <p className="text-xl font-semibold text-[#525252]">상담 신청이 접수되었습니다.</p>
+                <p className="text-xl font-semibold text-[#525252]">
+                  상담 신청이 접수되었습니다.
+                </p>
                 <p className="text-sm font-normal text-[#767676]">
                   확인 후 입력하신 연락처로 안내드리겠습니다.
                 </p>
               </div>
             ) : (
               // noValidate: 브라우저 기본 검증 말풍선 대신 validateForm 결과로 필드별 오류를 직접 그린다.
-              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-9">
+              <form
+                onSubmit={handleSubmit}
+                noValidate
+                className="flex flex-col gap-9"
+              >
                 <div className="flex flex-col gap-1.5">
                   <p className="text-xl font-medium leading-[2.0625rem] text-[#525252]">
                     문의사항을 남겨주세요
                   </p>
                   <p className="text-sm font-normal leading-[1.375rem] text-[#525252]">
-                    이용하고 싶으신 서비스와 문의사항을 남기면 상담을 시작할 수 있습니다.
+                    이용하고 싶으신 서비스와 문의사항을 남기면 상담을 시작할 수
+                    있습니다.
                   </p>
                 </div>
 
@@ -220,9 +255,9 @@ export default function PremiumApply() {
                         ref={fieldRefs.name}
                         type="text"
                         value={form.name}
-                        onChange={(e) => updateField('name', e.target.value)}
+                        onChange={(e) => updateField("name", e.target.value)}
                         placeholder="예 : 홍길동"
-                        className={`${inputClass} ${errors.name ? inputErrorClass : ''}`}
+                        className={`${inputClass} ${errors.name ? inputErrorClass : ""}`}
                       />
                     </FormField>
                     <FormField label="연락처 *" error={errors.phone}>
@@ -230,9 +265,9 @@ export default function PremiumApply() {
                         ref={fieldRefs.phone}
                         type="tel"
                         value={form.phone}
-                        onChange={(e) => updateField('phone', e.target.value)}
+                        onChange={(e) => updateField("phone", e.target.value)}
                         placeholder="010-0000-0000"
-                        className={`${inputClass} ${errors.phone ? inputErrorClass : ''}`}
+                        className={`${inputClass} ${errors.phone ? inputErrorClass : ""}`}
                       />
                     </FormField>
                   </div>
@@ -243,20 +278,27 @@ export default function PremiumApply() {
                         ref={fieldRefs.email}
                         type="email"
                         value={form.email}
-                        onChange={(e) => updateField('email', e.target.value)}
+                        onChange={(e) => updateField("email", e.target.value)}
                         placeholder="example@winningedu.com"
-                        className={`${inputClass} ${errors.email ? inputErrorClass : ''}`}
+                        className={`${inputClass} ${errors.email ? inputErrorClass : ""}`}
                       />
                     </FormField>
-                    <FormField label="이용하고 싶으신 서비스 *" error={errors.service}>
+                    <FormField
+                      label="이용하고 싶으신 서비스 *"
+                      error={errors.service}
+                      controlId="premium-apply-service"
+                    >
                       <div className="relative">
                         <select
+                          id="premium-apply-service"
                           ref={fieldRefs.service}
                           value={form.service}
-                          onChange={(e) => updateField('service', e.target.value)}
+                          onChange={(e) =>
+                            updateField("service", e.target.value)
+                          }
                           className={`${inputClass} appearance-none pr-10 ${
-                            form.service ? 'text-[#1e293b]' : 'text-[#767676]'
-                          } ${errors.service ? inputErrorClass : ''}`}
+                            form.service ? "text-[#1e293b]" : "text-[#767676]"
+                          } ${errors.service ? inputErrorClass : ""}`}
                         >
                           <option value="" disabled>
                             이용 서비스 선택
@@ -276,10 +318,10 @@ export default function PremiumApply() {
                     <textarea
                       ref={fieldRefs.message}
                       value={form.message}
-                      onChange={(e) => updateField('message', e.target.value)}
+                      onChange={(e) => updateField("message", e.target.value)}
                       rows={5}
                       className={`w-full resize-none rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] focus:border-[#013262] focus:outline-none ${
-                        errors.message ? inputErrorClass : ''
+                        errors.message ? inputErrorClass : ""
                       }`}
                     />
                   </FormField>
@@ -291,13 +333,13 @@ export default function PremiumApply() {
                         ref={fieldRefs.agree}
                         type="checkbox"
                         checked={form.agree}
-                        onChange={(e) => updateField('agree', e.target.checked)}
+                        onChange={(e) => updateField("agree", e.target.checked)}
                         className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#d7d7d7] text-[#013262] focus:ring-[#013262]"
                       />
                       <span>
-                        이름, 연락처, 이메일, 문의 내용을 상담 진행 및 안내를 위해 수집하며 상담
-                        종료 후 2년간 보관합니다. 동의하지 않으실 수 있으나 이 경우 상담 신청이
-                        제한됩니다.{' '}
+                        이름, 연락처, 이메일, 문의 내용을 상담 진행 및 안내를
+                        위해 수집하며 상담 종료 후 2년간 보관합니다. 동의하지
+                        않으실 수 있으나 이 경우 상담 신청이 제한됩니다.{" "}
                         {/* 새 탭으로 열어 작성 중인 폼(이름·연락처·문의 내용)이 리로드로 날아가지 않게 한다 */}
                         <a
                           href="/privacy"
@@ -311,13 +353,17 @@ export default function PremiumApply() {
                       </span>
                     </label>
                     {errors.agree ? (
-                      <p className="text-xs font-normal text-red-600">{errors.agree}</p>
+                      <p className="text-xs font-normal text-red-600">
+                        {errors.agree}
+                      </p>
                     ) : null}
                   </div>
                 </div>
 
                 {submitError ? (
-                  <p className="text-center text-sm font-medium text-red-600">{submitError}</p>
+                  <p className="text-center text-sm font-medium text-red-600">
+                    {submitError}
+                  </p>
                 ) : null}
 
                 <button
@@ -325,7 +371,7 @@ export default function PremiumApply() {
                   disabled={submitting}
                   className="flex h-[3.25rem] w-full items-center justify-center rounded-[0.625rem] bg-[#013262] text-sm font-semibold text-white transition hover:bg-[#012347] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submitting ? '접수 중…' : '상담 신청하기'}
+                  {submitting ? "접수 중…" : "상담 신청하기"}
                 </button>
               </form>
             )}

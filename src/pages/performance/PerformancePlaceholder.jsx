@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from "react-router-dom";
 
 // ⚠️ 플레이스홀더 — 실제 화면이 아니다.
 //
@@ -28,7 +28,7 @@ export default function PerformancePlaceholder({ screen }) {
           같은 배경에서 4.98:1로 AA를 충족해 우회를 걷어내고 ink-sub로 되돌린다. */}
       <p className="mt-2 text-[0.875rem] leading-[1.125rem] text-ink-sub">
         셸(사이드바·페이지 타이틀)만 구현된 상태다.
-        {params.sessionId ? ` sessionId=${params.sessionId}` : ''}
+        {params.sessionId ? ` sessionId=${params.sessionId}` : ""}
       </p>
       <p className="mt-1 text-[0.875rem] leading-[1.125rem] text-ink-sub">
         TODO(P5~P6): 채팅 워크스페이스·저장 리포트 화면으로 교체

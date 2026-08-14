@@ -20,7 +20,7 @@ export function toTableRows(records) {
     math: record.subjects?.math,
     english: record.subjects?.english,
     science: record.subjects?.science,
-    average: record.value
+    average: record.value,
   }));
 }
 
@@ -35,19 +35,29 @@ export function toTableRows(records) {
  * 베이스라인을 비교(같으면 0 이 아니라 아예 생략 — 같은 값 표시는 정보가 아니다),
  * 0건이면 delta 자체를 만들지 않는다(null).
  */
-export function latestKpi(records, { fallbackValue = null, fallbackRound = '' } = {}) {
+export function latestKpi(
+  records,
+  { fallbackValue = null, fallbackRound = "" } = {},
+) {
   const list = records || [];
 
   if (list.length > 0) {
     const latest = list[list.length - 1];
     const prev = list.length > 1 ? list[list.length - 2] : null;
     const compareTo = prev ? prev.value : fallbackValue;
-    const delta = compareTo != null && compareTo !== latest.value ? round1(latest.value - compareTo) : null;
+    const delta =
+      compareTo != null && compareTo !== latest.value
+        ? round1(latest.value - compareTo)
+        : null;
 
     return { round: latest.term, value: latest.value, delta };
   }
 
-  return { round: fallbackRound || '기록 없음', value: fallbackValue, delta: null };
+  return {
+    round: fallbackRound || "기록 없음",
+    value: fallbackValue,
+    delta: null,
+  };
 }
 
 /**
@@ -77,7 +87,7 @@ export function recentHistory(records, count = 3) {
   const list = records || [];
   const withDelta = list.map((record, index) => ({
     ...record,
-    delta: index > 0 ? round1(record.value - list[index - 1].value) : null
+    delta: index > 0 ? round1(record.value - list[index - 1].value) : null,
   }));
   return withDelta.slice(-count).reverse();
 }

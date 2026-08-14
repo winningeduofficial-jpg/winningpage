@@ -26,32 +26,39 @@
 //   {chips:[{label,value}]}   → 칩마다 "label: value" 한 줄씩 셀 안
 //     개행(\n)으로 이어붙인다(엑셀 Alt+Enter 줄바꿈과 동일한 형태로
 //     보인다). 빈 배열은 빈 문자열.
-import * as XLSX from 'xlsx';
-import { getKnownRolesForVariant, getCellKind, defaultNewColumnRole } from '../../admissionLayout';
-import { validateTableBlock, blocksEqual } from '../tableEditorValidation';
+import * as XLSX from "xlsx";
+import {
+  defaultNewColumnRole,
+  getCellKind,
+  getKnownRolesForVariant,
+} from "../../admissionLayout";
+import { blocksEqual, validateTableBlock } from "../tableEditorValidation";
 
 // 엑셀 셀 문자 수 한도(SheetJS가 XLSX.writeFile 시점에 실제로 이 값으로
 // throw한다 — 직접 재현 확인함). 사전 검사로 이 예외를 만나기 전에
 // 막는다.
 export const MAX_XLSX_CELL_LENGTH = 32767;
 
-const BADGE_HAS_SUFFIX = ' [최저있음]';
-const BADGE_NONE_SUFFIX = ' [최저없음]';
+const BADGE_HAS_SUFFIX = " [최저있음]";
+const BADGE_NONE_SUFFIX = " [최저없음]";
 // 직렬화 접미어를 역파싱하는 정규식 — deserializeCellFromXlsx가 쓴다.
 // 셀 끝에 붙는 " [최저있음]"/" [최저없음]"만 매칭한다(값 중간에 우연히
 // 같은 문자열이 있어도 끝이 아니면 매칭 안 됨).
 const BADGE_SUFFIX_RE = /\s?\[최저(있음|없음)\]$/;
 
 export function serializeCellForXlsx(cell) {
-  if (cell === null || cell === undefined) return '';
-  if (typeof cell === 'string') return cell;
-  if (typeof cell === 'object') {
+  if (cell === null || cell === undefined) return "";
+  if (typeof cell === "string") return cell;
+  if (typeof cell === "object") {
     if (Array.isArray(cell.chips)) {
-      return cell.chips.map((chip) => `${chip.label ?? ''}: ${chip.value ?? ''}`).join('\n');
+      return cell.chips
+        .map((chip) => `${chip.label ?? ""}: ${chip.value ?? ""}`)
+        .join("\n");
     }
-    if ('badge' in cell || 'text' in cell) {
-      const text = cell.text ?? '';
-      const suffix = cell.badge === 'minimumHas' ? BADGE_HAS_SUFFIX : BADGE_NONE_SUFFIX;
+    if ("badge" in cell || "text" in cell) {
+      const text = cell.text ?? "";
+      const suffix =
+        cell.badge === "minimumHas" ? BADGE_HAS_SUFFIX : BADGE_NONE_SUFFIX;
       return text ? `${text}${suffix}` : suffix.trim();
     }
   }
@@ -62,14 +69,29 @@ export function serializeCellForXlsx(cell) {
 export function findOversizedCells(block) {
   const oversized = [];
   const check = (rawValue, location) => {
-    const text = typeof rawValue === 'string' ? rawValue : serializeCellForXlsx(rawValue);
+    const text =
+      typeof rawValue === "string" ? rawValue : serializeCellForXlsx(rawValue);
     if (text.length > MAX_XLSX_CELL_LENGTH) {
       oversized.push({ ...location, length: text.length });
     }
   };
-  block.columns.forEach((col, c) => check(col.label, { area: 'header', row: 0, col: c, columnLabel: col.label }));
+  block.columns.forEach((col, c) => {
+    check(col.label, {
+      area: "header",
+      row: 0,
+      col: c,
+      columnLabel: col.label,
+    });
+  });
   block.rows.forEach((row, r) => {
-    row.forEach((cell, c) => check(cell, { area: 'body', row: r, col: c, columnLabel: block.columns[c]?.label }));
+    row.forEach((cell, c) => {
+      check(cell, {
+        area: "body",
+        row: r,
+        col: c,
+        columnLabel: block.columns[c]?.label,
+      });
+    });
   });
   return oversized;
 }
@@ -77,17 +99,17 @@ export function findOversizedCells(block) {
 function buildHeaderRowsAndMerges(block) {
   const { columns, groups, fixedColumnCount } = block;
   if (!groups) {
-    return { headerRows: [columns.map((c) => c.label ?? '')], merges: [] };
+    return { headerRows: [columns.map((c) => c.label ?? "")], merges: [] };
   }
 
   const fixedCount = fixedColumnCount || 0;
   const dataColumns = columns.slice(fixedCount);
-  const row0 = new Array(columns.length).fill('');
-  const row1 = new Array(columns.length).fill('');
+  const row0 = new Array(columns.length).fill("");
+  const row1 = new Array(columns.length).fill("");
   const merges = [];
 
   columns.slice(0, fixedCount).forEach((col, idx) => {
-    row0[idx] = col.label ?? '';
+    row0[idx] = col.label ?? "";
     // 고정 컬럼: rowspan=2 (세로 병합, row0~row1 같은 컬럼).
     merges.push({ s: { r: 0, c: idx }, e: { r: 1, c: idx } });
   });
@@ -96,14 +118,17 @@ function buildHeaderRowsAndMerges(block) {
   groups.forEach((group) => {
     const count = Number(group.count) || 0;
     if (count > 0) {
-      row0[cursor] = group.name ?? '';
+      row0[cursor] = group.name ?? "";
       if (count > 1) {
         // 그룹: colspan=count (가로 병합, row0만).
-        merges.push({ s: { r: 0, c: cursor }, e: { r: 0, c: cursor + count - 1 } });
+        merges.push({
+          s: { r: 0, c: cursor },
+          e: { r: 0, c: cursor + count - 1 },
+        });
       }
     }
     for (let i = 0; i < count; i += 1) {
-      row1[cursor + i] = dataColumns[cursor - fixedCount + i]?.label ?? '';
+      row1[cursor + i] = dataColumns[cursor - fixedCount + i]?.label ?? "";
     }
     cursor += count;
   });
@@ -113,47 +138,65 @@ function buildHeaderRowsAndMerges(block) {
 
 export function buildTableBlockWorksheet(block) {
   const { headerRows, merges } = buildHeaderRowsAndMerges(block);
-  const bodyRows = block.rows.map((row) => row.map((cell) => serializeCellForXlsx(cell)));
+  const bodyRows = block.rows.map((row) =>
+    row.map((cell) => serializeCellForXlsx(cell)),
+  );
   const worksheet = XLSX.utils.aoa_to_sheet([...headerRows, ...bodyRows]);
-  if (merges.length) worksheet['!merges'] = merges;
+  if (merges.length) worksheet["!merges"] = merges;
   return worksheet;
 }
 
 function buildFormatSheet(block) {
   const rows = [
-    ['winningpage 어드민 표 편집기(TableBlock) 내보내기 — 형식 안내'],
-    ['variant', block.variant],
-    [''],
-    ['셀 형식', '표기 규칙'],
-    ['문자열 셀', '그대로'],
-    ['{text,badge} 셀(예: 최저학력기준)', `"텍스트${BADGE_HAS_SUFFIX}" 또는 "텍스트${BADGE_NONE_SUFFIX}" — 대괄호 접미어로 badge 표기`],
-    ['{chips} 셀(예: 모집인원 값)', '칩마다 "라벨: 값" 한 줄씩, 셀 안 줄바꿈(Alt+Enter)으로 구분'],
-    [''],
-    [`이 variant(${block.variant})에서 알려진 role`, getKnownRolesForVariant(block.variant).join(', ') || '(없음)']
+    ["winningpage 어드민 표 편집기(TableBlock) 내보내기 — 형식 안내"],
+    ["variant", block.variant],
+    [""],
+    ["셀 형식", "표기 규칙"],
+    ["문자열 셀", "그대로"],
+    [
+      "{text,badge} 셀(예: 최저학력기준)",
+      `"텍스트${BADGE_HAS_SUFFIX}" 또는 "텍스트${BADGE_NONE_SUFFIX}" — 대괄호 접미어로 badge 표기`,
+    ],
+    [
+      "{chips} 셀(예: 모집인원 값)",
+      '칩마다 "라벨: 값" 한 줄씩, 셀 안 줄바꿈(Alt+Enter)으로 구분',
+    ],
+    [""],
+    [
+      `이 variant(${block.variant})에서 알려진 role`,
+      getKnownRolesForVariant(block.variant).join(", ") || "(없음)",
+    ],
   ];
   if (block.groups) {
-    rows.push([''], ['2단 헤더(그룹) 구성']);
-    rows.push(['fixedColumnCount', block.fixedColumnCount ?? 0]);
-    block.groups.forEach((g) => rows.push([`그룹: ${g.name}`, `count=${g.count}`]));
+    rows.push([""], ["2단 헤더(그룹) 구성"]);
+    rows.push(["fixedColumnCount", block.fixedColumnCount ?? 0]);
+    block.groups.forEach((g) => {
+      rows.push([`그룹: ${g.name}`, `count=${g.count}`]);
+    });
   }
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
 function pad2(n) {
-  return String(n).padStart(2, '0');
+  return String(n).padStart(2, "0");
 }
 
 function sanitizeFileNamePart(value) {
-  return String(value || '')
-    .replace(/[\\/:*?"<>|]/g, '_')
+  return String(value || "")
+    .replace(/[\\/:*?"<>|]/g, "_")
     .trim();
 }
 
-export function buildXlsxFileName({ universityName, sectionLabel, variant, date } = {}) {
+export function buildXlsxFileName({
+  universityName,
+  sectionLabel,
+  variant,
+  date,
+} = {}) {
   const d = date instanceof Date ? date : new Date();
   const dateStr = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
-  const namePart = sanitizeFileNamePart(universityName) || '대학명미상';
-  const labelPart = sanitizeFileNamePart(sectionLabel || variant) || '표';
+  const namePart = sanitizeFileNamePart(universityName) || "대학명미상";
+  const labelPart = sanitizeFileNamePart(sectionLabel || variant) || "표";
   return `${namePart}_${labelPart}_${dateStr}.xlsx`;
 }
 
@@ -172,7 +215,7 @@ export function exportTableBlockToXlsx(block, meta = {}) {
 
   const workbook = buildTableBlockWorkbook(block);
   const fileName = buildXlsxFileName({ ...meta, variant: block.variant });
-  if (typeof document !== 'undefined') {
+  if (typeof document !== "undefined") {
     triggerBrowserDownload(workbook, fileName);
   }
   // workbook을 함께 반환한다 — 노드 검증 스크립트가 document 없이도(다운로드
@@ -184,8 +227,8 @@ export function exportTableBlockToXlsx(block, meta = {}) {
 
 export function buildTableBlockWorkbook(block) {
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, buildTableBlockWorksheet(block), '표');
-  XLSX.utils.book_append_sheet(workbook, buildFormatSheet(block), '형식 설명');
+  XLSX.utils.book_append_sheet(workbook, buildTableBlockWorksheet(block), "표");
+  XLSX.utils.book_append_sheet(workbook, buildFormatSheet(block), "형식 설명");
   return workbook;
 }
 
@@ -201,10 +244,10 @@ export function buildTableBlockWorkbook(block) {
 // 동작하고, 노드 검증에서는 이 분기를 타지 않아 워크북 생성 로직만
 // 안정적으로 검증할 수 있다.
 function triggerBrowserDownload(workbook, fileName) {
-  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([wbout], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
   document.body.appendChild(anchor);
@@ -231,33 +274,37 @@ function triggerBrowserDownload(workbook, fileName) {
  * 관리자가 표 편집기에서 직접 고칠 수 있다).
  */
 export function deserializeCellFromXlsx(rawValue, kind) {
-  const text = rawValue === null || rawValue === undefined ? '' : String(rawValue);
+  const text =
+    rawValue === null || rawValue === undefined ? "" : String(rawValue);
 
-  if (kind === 'chips') {
+  if (kind === "chips") {
     if (!text) return { chips: [] };
-    const lines = text.split('\n');
-    const allMatch = lines.every((line) => line.includes(': '));
+    const lines = text.split("\n");
+    const allMatch = lines.every((line) => line.includes(": "));
     if (!allMatch) {
       // 형식이 "label: value" 줄바꿈 규칙을 안 지키면(관리자가 손으로
       // 다른 걸 써넣은 경우) 데이터를 조용히 버리지 않는다 — 원문 전체를
       // 라벨 하나짜리 칩으로 보존해 표 편집기에서 눈에 띄게 하고 직접
       // 고칠 수 있게 한다.
-      return { chips: [{ label: text, value: '' }] };
+      return { chips: [{ label: text, value: "" }] };
     }
     return {
       chips: lines.map((line) => {
-        const idx = line.indexOf(': ');
+        const idx = line.indexOf(": ");
         return { label: line.slice(0, idx), value: line.slice(idx + 2) };
-      })
+      }),
     };
   }
 
-  if (kind === 'badge') {
+  if (kind === "badge") {
     const match = text.match(BADGE_SUFFIX_RE);
     if (match) {
-      return { text: text.slice(0, text.length - match[0].length), badge: match[1] === '있음' ? 'minimumHas' : 'minimumNone' };
+      return {
+        text: text.slice(0, text.length - match[0].length),
+        badge: match[1] === "있음" ? "minimumHas" : "minimumNone",
+      };
     }
-    return { text, badge: 'minimumNone' };
+    return { text, badge: "minimumNone" };
   }
 
   return text;
@@ -268,16 +315,23 @@ export function deserializeCellFromXlsx(rawValue, kind) {
 // 내보내기가 병합을 안 넣으므로(1칸짜리 병합은 무의미) 병합이 없는
 // 컬럼을 count=1 그룹으로 취급한다.
 function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
-  const verticalMerges = merges.filter((m) => m.s.r === 0 && m.e.r === 1 && m.s.c === m.e.c);
+  const verticalMerges = merges.filter(
+    (m) => m.s.r === 0 && m.e.r === 1 && m.s.c === m.e.c,
+  );
   const fixedCols = verticalMerges.map((m) => m.s.c).sort((a, b) => a - b);
   const fixedColumnCount = fixedCols.length;
   const contiguousFromZero = fixedCols.every((c, idx) => c === idx);
   if (!contiguousFromZero) {
-    return { error: '고정 컬럼(세로 병합) 구성이 0번 컬럼부터 연속되지 않습니다 — 헤더 병합 구조가 손상된 것으로 보입니다.' };
+    return {
+      error:
+        "고정 컬럼(세로 병합) 구성이 0번 컬럼부터 연속되지 않습니다 — 헤더 병합 구조가 손상된 것으로 보입니다.",
+    };
   }
 
   const horizontalSpanByStart = new Map(
-    merges.filter((m) => m.s.r === 0 && m.e.r === 0 && m.e.c > m.s.c).map((m) => [m.s.c, m.e.c])
+    merges
+      .filter((m) => m.s.r === 0 && m.e.r === 0 && m.e.c > m.s.c)
+      .map((m) => [m.s.c, m.e.c]),
   );
 
   const groups = [];
@@ -285,10 +339,13 @@ function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
   while (c < totalColumns) {
     const spanEnd = horizontalSpanByStart.get(c);
     if (spanEnd !== undefined) {
-      groups.push({ name: String(row0Labels[c] ?? ''), count: spanEnd - c + 1 });
+      groups.push({
+        name: String(row0Labels[c] ?? ""),
+        count: spanEnd - c + 1,
+      });
       c = spanEnd + 1;
     } else {
-      groups.push({ name: String(row0Labels[c] ?? ''), count: 1 });
+      groups.push({ name: String(row0Labels[c] ?? ""), count: 1 });
       c += 1;
     }
   }
@@ -311,11 +368,13 @@ export function summarizeBlockChange(oldBlock, newBlock) {
     const newRow = newBlock.rows[r];
     const commonCols = Math.min(oldRow.length, newRow.length);
     for (let c = 0; c < commonCols; c += 1) {
-      if (JSON.stringify(oldRow[c]) !== JSON.stringify(newRow[c])) cellsChanged += 1;
+      if (JSON.stringify(oldRow[c]) !== JSON.stringify(newRow[c]))
+        cellsChanged += 1;
     }
   }
 
-  const columnsChanged = JSON.stringify(oldBlock.columns) !== JSON.stringify(newBlock.columns);
+  const columnsChanged =
+    JSON.stringify(oldBlock.columns) !== JSON.stringify(newBlock.columns);
 
   return { rowsAdded, rowsRemoved, cellsChanged, columnsChanged };
 }
@@ -336,9 +395,14 @@ export function summarizeBlockChange(oldBlock, newBlock) {
  *   changeSummary?: object, unchanged?: boolean }}
  */
 export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
-  const worksheet = workbook.Sheets?.['표'];
+  const worksheet = workbook.Sheets?.표;
   if (!worksheet) {
-    return { ok: false, errors: ['"표" 시트를 찾을 수 없습니다 — 이 편집기로 내보낸 xlsx 파일이 맞는지 확인하세요.'] };
+    return {
+      ok: false,
+      errors: [
+        '"표" 시트를 찾을 수 없습니다 — 이 편집기로 내보낸 xlsx 파일이 맞는지 확인하세요.',
+      ],
+    };
   }
 
   // defval을 주지 않는다 — 그러면 SheetJS가 시트 전체에서 가장 넓은 행에
@@ -346,19 +410,31 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
   // 실제로 몇 칸을 채웠는지"(행 길이 초과 판정에 필수)를 알 수 없게
   // 된다. defval 없이 읽으면 각 행 배열의 길이가 그 행이 실제로 채운
   // 마지막 칸까지만 반영된다(직접 재현 확인함).
-  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 }).map((row) =>
-    row.map((cell) => (cell === undefined || cell === null ? '' : String(cell)))
-  );
+  const grid = XLSX.utils
+    .sheet_to_json(worksheet, { header: 1 })
+    .map((row) =>
+      row.map((cell) =>
+        cell === undefined || cell === null ? "" : String(cell),
+      ),
+    );
 
   const hasGroups = Boolean(referenceBlock.groups);
   const headerRowCount = hasGroups ? 2 : 1;
   const headerRows = grid.slice(0, headerRowCount);
   // 헤더 이후 완전히 빈 행(엑셀 트레일링 공백 등)은 제외한다 — 의도적으로
   // 넣은 빈 행과 구분할 방법이 없어, "전부 빈 칸"만 제외 대상으로 삼는다.
-  const bodyRowsRaw = grid.slice(headerRowCount).filter((row) => row.some((cell) => cell !== ''));
+  const bodyRowsRaw = grid
+    .slice(headerRowCount)
+    .filter((row) => row.some((cell) => cell !== ""));
 
-  if (headerRows.length < headerRowCount || headerRows.some((row) => row.length === 0)) {
-    return { ok: false, errors: ['헤더 행을 읽을 수 없습니다 — 시트 구조가 예상과 다릅니다.'] };
+  if (
+    headerRows.length < headerRowCount ||
+    headerRows.some((row) => row.length === 0)
+  ) {
+    return {
+      ok: false,
+      errors: ["헤더 행을 읽을 수 없습니다 — 시트 구조가 예상과 다릅니다."],
+    };
   }
 
   let columns;
@@ -366,9 +442,16 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
   let fixedColumnCount;
 
   if (hasGroups) {
-    const merges = worksheet['!merges'] || [];
-    const totalColumns = Math.max(headerRows[0].length, headerRows[1]?.length || 0);
-    const reconstructed = reconstructGroupsFromMerges(merges, headerRows[0], totalColumns);
+    const merges = worksheet["!merges"] || [];
+    const totalColumns = Math.max(
+      headerRows[0].length,
+      headerRows[1]?.length || 0,
+    );
+    const reconstructed = reconstructGroupsFromMerges(
+      merges,
+      headerRows[0],
+      totalColumns,
+    );
     if (reconstructed.error) {
       return { ok: false, errors: [reconstructed.error] };
     }
@@ -376,18 +459,28 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
 
     columns = [];
     for (let c = 0; c < fixedColumnCount; c += 1) {
-      columns.push({ role: referenceBlock.columns[c]?.role ?? defaultNewColumnRole(referenceBlock.variant), label: String(headerRows[0][c] ?? '') });
+      columns.push({
+        role:
+          referenceBlock.columns[c]?.role ??
+          defaultNewColumnRole(referenceBlock.variant),
+        label: String(headerRows[0][c] ?? ""),
+      });
     }
     for (let c = fixedColumnCount; c < totalColumns; c += 1) {
-      columns.push({ role: referenceBlock.columns[c]?.role ?? defaultNewColumnRole(referenceBlock.variant), label: String(headerRows[1][c] ?? '') });
+      columns.push({
+        role:
+          referenceBlock.columns[c]?.role ??
+          defaultNewColumnRole(referenceBlock.variant),
+        label: String(headerRows[1][c] ?? ""),
+      });
     }
   } else {
     columns = headerRows[0].map((label, idx) => {
       const refCol = referenceBlock.columns[idx];
       return {
         role: refCol?.role ?? defaultNewColumnRole(referenceBlock.variant),
-        label: String(label ?? ''),
-        ...(refCol?.align ? { align: refCol.align } : {})
+        label: String(label ?? ""),
+        ...(refCol?.align ? { align: refCol.align } : {}),
       };
     });
   }
@@ -398,15 +491,23 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
     // candidate에 실어 validateTableBlock의 rows.length===columns.length
     // 불변식이 거부하게 한다("길면 거부"를 이 파일에서 재구현하지 않고
     // 기존 검증기에 위임).
-    const padded = row.length < targetColumnCount ? [...row, ...new Array(targetColumnCount - row.length).fill('')] : row;
-    return padded.map((cell, colIdx) => deserializeCellFromXlsx(cell, getCellKind(referenceBlock.variant, columns[colIdx]?.role)));
+    const padded =
+      row.length < targetColumnCount
+        ? [...row, ...new Array(targetColumnCount - row.length).fill("")]
+        : row;
+    return padded.map((cell, colIdx) =>
+      deserializeCellFromXlsx(
+        cell,
+        getCellKind(referenceBlock.variant, columns[colIdx]?.role),
+      ),
+    );
   });
 
   const candidate = {
     ...referenceBlock,
     columns,
     rows,
-    ...(hasGroups ? { groups, fixedColumnCount } : {})
+    ...(hasGroups ? { groups, fixedColumnCount } : {}),
   };
 
   const validation = validateTableBlock(section, candidate);
@@ -418,6 +519,6 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
     ok: true,
     block: candidate,
     changeSummary: summarizeBlockChange(referenceBlock, candidate),
-    unchanged: blocksEqual(section, referenceBlock, candidate)
+    unchanged: blocksEqual(section, referenceBlock, candidate),
   };
 }

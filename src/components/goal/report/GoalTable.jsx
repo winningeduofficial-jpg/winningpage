@@ -1,14 +1,14 @@
-import GoalCardHeader from '../GoalCardHeader';
-import GoalEmptyState from '../GoalEmptyState';
-import DeltaBadge from '../DeltaBadge';
+import DeltaBadge from "../DeltaBadge";
+import GoalCardHeader from "../GoalCardHeader";
+import GoalEmptyState from "../GoalEmptyState";
 
 const COLUMNS = [
-  { key: 'term', label: '회차' },
-  { key: 'korean', label: '국어' },
-  { key: 'math', label: '수학' },
-  { key: 'english', label: '영어' },
-  { key: 'science', label: '탐구' },
-  { key: 'average', label: '평균' }
+  { key: "term", label: "회차" },
+  { key: "korean", label: "국어" },
+  { key: "math", label: "수학" },
+  { key: "english", label: "영어" },
+  { key: "science", label: "탐구" },
+  { key: "average", label: "평균" },
 ];
 
 // 성적 관리 표(#35, 1018px 카드) — 내신·모의고사 공용. 직전 회차가 없는 첫 행은 델타 배지를
@@ -26,7 +26,7 @@ const COLUMNS = [
 // 행 수정/삭제 UI는 시안에 없다(part-12 §235) — 이번 범위에서 의도적으로 미구현(주석으로 남김).
 // 0회차 빈 상태 시안도 없어(part-12 §245) `GoalEmptyState`로 근사한다(추정).
 function inferLowerIsBetter(title) {
-  return typeof title === 'string' && title.includes('내신');
+  return typeof title === "string" && title.includes("내신");
 }
 
 export default function GoalTable({ title, rows, onAddRound, lowerIsBetter }) {
@@ -49,7 +49,10 @@ export default function GoalTable({ title, rows, onAddRound, lowerIsBetter }) {
 
       {rows.length === 0 ? (
         <div className="mt-5">
-          <GoalEmptyState message="아직 등록된 회차가 없습니다. 첫 회차를 추가해보세요." onAdd={onAddRound} />
+          <GoalEmptyState
+            message="아직 등록된 회차가 없습니다. 첫 회차를 추가해보세요."
+            onAdd={onAddRound}
+          />
         </div>
       ) : (
         <div className="mt-5 overflow-x-auto">
@@ -66,14 +69,30 @@ export default function GoalTable({ title, rows, onAddRound, lowerIsBetter }) {
             <tbody>
               {rows.map((row, index) => {
                 const prevAverage = index > 0 ? rows[index - 1].average : null;
-                const diff = prevAverage != null ? row.average - prevAverage : null;
-                const direction = diff == null || diff === 0 ? 'flat' : diff > 0 ? 'up' : 'down';
-                const isImprovement = diff != null && diff !== 0 && (isLowerBetter ? diff < 0 : diff > 0);
-                const tone = diff == null || diff === 0 ? 'neutral' : isImprovement ? 'positive' : 'negative';
+                const diff =
+                  prevAverage != null ? row.average - prevAverage : null;
+                const direction =
+                  diff == null || diff === 0
+                    ? "flat"
+                    : diff > 0
+                      ? "up"
+                      : "down";
+                const isImprovement =
+                  diff != null &&
+                  diff !== 0 &&
+                  (isLowerBetter ? diff < 0 : diff > 0);
+                const tone =
+                  diff == null || diff === 0
+                    ? "neutral"
+                    : isImprovement
+                      ? "positive"
+                      : "negative";
 
                 return (
                   <tr key={row.term} className="text-ink">
-                    <td className="py-3 pr-3 font-medium text-ink-strong">{row.term}</td>
+                    <td className="py-3 pr-3 font-medium text-ink-strong">
+                      {row.term}
+                    </td>
                     <td className="py-3 pr-3">{row.korean}</td>
                     <td className="py-3 pr-3">{row.math}</td>
                     <td className="py-3 pr-3">{row.english}</td>
@@ -81,7 +100,11 @@ export default function GoalTable({ title, rows, onAddRound, lowerIsBetter }) {
                     <td className="py-3 pr-3">
                       <span className="flex items-center gap-2 font-semibold text-ink-strong">
                         {diff != null && (
-                          <DeltaBadge value={Math.abs(diff).toFixed(2)} direction={direction} tone={tone} />
+                          <DeltaBadge
+                            value={Math.abs(diff).toFixed(2)}
+                            direction={direction}
+                            tone={tone}
+                          />
                         )}
                         {row.average}
                       </span>

@@ -1,4 +1,4 @@
-import ImeSafeInput from './ImeSafeInput';
+import ImeSafeInput from "./ImeSafeInput";
 
 // TableBlock.groups/fixedColumnCount(2단 헤더, recruitExact 전용 실사용)
 // 편집 UI. 열 자체(columns 배열)는 여기서 바꾸지 않는다 — 열 추가·삭제는
@@ -21,13 +21,17 @@ export default function TableGroupHeaderEditor({
   onAddGroup,
   onRemoveGroup,
   onUpdateFixedColumnCount,
-  onEnableGroups
+  onEnableGroups,
 }) {
   if (!groups) {
     if (!expanded) return null;
     return (
       <div className="mb-2 rounded border border-dashed border-[#d7d7d7] p-2">
-        <button type="button" onClick={onEnableGroups} className="text-[11px] font-bold text-gray-500 hover:text-gray-700">
+        <button
+          type="button"
+          onClick={onEnableGroups}
+          className="text-[11px] font-bold text-gray-500 hover:text-gray-700"
+        >
           + 2단 헤더(그룹) 구성 추가
         </button>
       </div>
@@ -40,8 +44,9 @@ export default function TableGroupHeaderEditor({
   if (!expanded) {
     return (
       <p className="mb-2 text-[11px] font-bold text-gray-400">
-        2단 헤더 — 그룹 {groups.length}개 · 고정 컬럼 {fixedColumnCount ?? 0}개 · 합계 {total}/{columnsLength}
-        {total !== columnsLength ? ' (불일치 — 열 설정에서 확인)' : ' (일치)'}
+        2단 헤더 — 그룹 {groups.length}개 · 고정 컬럼 {fixedColumnCount ?? 0}개
+        · 합계 {total}/{columnsLength}
+        {total !== columnsLength ? " (불일치 — 열 설정에서 확인)" : " (일치)"}
       </p>
     );
   }
@@ -50,7 +55,7 @@ export default function TableGroupHeaderEditor({
     <div className="mb-2 rounded border border-[#d7d7d7] p-2">
       <p className="mb-1 text-[11px] font-bold text-gray-500">
         2단 헤더(그룹) — 합계 {total} / 컬럼 수 {columnsLength}
-        {total !== columnsLength ? ' (아래 배너의 검증 오류 참고)' : ' (일치)'}
+        {total !== columnsLength ? " (아래 배너의 검증 오류 참고)" : " (일치)"}
       </p>
 
       <label className="mb-2 flex items-center gap-2 text-[11px] font-bold text-gray-600">
@@ -59,18 +64,21 @@ export default function TableGroupHeaderEditor({
           type="number"
           min={0}
           value={fixedColumnCount ?? 0}
-          onChange={(e) => onUpdateFixedColumnCount(Number(e.target.value) || 0)}
+          onChange={(e) =>
+            onUpdateFixedColumnCount(Number(e.target.value) || 0)
+          }
           className="w-16 border border-[#d7d7d7] px-1 py-1 text-[11px]"
         />
       </label>
 
       <div className="flex flex-col gap-1">
         {groups.map((group, idx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: groups는 삭제가 가능하지만 doc 스키마에 group id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
           <div key={idx} className="flex items-center gap-1">
             <ImeSafeInput
               type="text"
-              value={group.name ?? ''}
-              onCommit={(next) => onUpdateGroupField(idx, 'name', next)}
+              value={group.name ?? ""}
+              onCommit={(next) => onUpdateGroupField(idx, "name", next)}
               aria-label={`그룹 ${idx + 1} 이름`}
               className="admission-cell-editor-input w-32 border border-[#d7d7d7] px-1.5 py-1 text-[11px]"
             />
@@ -78,7 +86,9 @@ export default function TableGroupHeaderEditor({
               type="number"
               min={0}
               value={group.count ?? 0}
-              onChange={(e) => onUpdateGroupField(idx, 'count', Number(e.target.value) || 0)}
+              onChange={(e) =>
+                onUpdateGroupField(idx, "count", Number(e.target.value) || 0)
+              }
               aria-label={`그룹 ${idx + 1} 컬럼 수`}
               className="w-14 border border-[#d7d7d7] px-1 py-1 text-[11px]"
             />
@@ -93,7 +103,11 @@ export default function TableGroupHeaderEditor({
           </div>
         ))}
       </div>
-      <button type="button" onClick={onAddGroup} className="mt-1 text-[11px] font-bold text-gray-500 hover:text-gray-700">
+      <button
+        type="button"
+        onClick={onAddGroup}
+        className="mt-1 text-[11px] font-bold text-gray-500 hover:text-gray-700"
+      >
         + 그룹 추가
       </button>
     </div>

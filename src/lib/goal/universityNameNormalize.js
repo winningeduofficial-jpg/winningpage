@@ -8,19 +8,19 @@
 
 // 규칙만으로는 못 맞히는 단축형 → 전체형 예외. 완전일치(trim 후) 우선.
 export const NORMALIZE_EXCEPTIONS = {
-  '한국외대': '한국외국어대학교',
-  '한국외대(글로벌)': '한국외국어대학교'
+  한국외대: "한국외국어대학교",
+  "한국외대(글로벌)": "한국외국어대학교",
 };
 
 function applyBaseRule(base) {
   if (NORMALIZE_EXCEPTIONS[base]) return NORMALIZE_EXCEPTIONS[base];
-  if (base.endsWith('여대')) return `${base.slice(0, -2)}여자대학교`;
-  if (base.endsWith('대')) return `${base.slice(0, -1)}대학교`;
+  if (base.endsWith("여대")) return `${base.slice(0, -2)}여자대학교`;
+  if (base.endsWith("대")) return `${base.slice(0, -1)}대학교`;
   return base;
 }
 
 export function normalizeUniversityName(short) {
-  const input = String(short ?? '').trim();
+  const input = String(short ?? "").trim();
   if (!input) return input;
 
   // 완전일치 예외가 최우선이다(캠퍼스 suffix 포함 형태도 예외에 있을 수 있다).
@@ -30,7 +30,7 @@ export function normalizeUniversityName(short) {
   // base "고려대", suffix "(세종)".
   const suffixMatch = input.match(/^(.*)(\([^()]*\))$/);
   const base = suffixMatch ? suffixMatch[1].trim() : input;
-  const suffix = suffixMatch ? suffixMatch[2] : '';
+  const suffix = suffixMatch ? suffixMatch[2] : "";
 
   const normalizedBase = applyBaseRule(base);
   return suffix ? `${normalizedBase}${suffix}` : normalizedBase;

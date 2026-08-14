@@ -4,13 +4,15 @@
 // title/helper/선택지 라벨/리커트 문장 **표시 문구만** DB 값으로 덮어씌우는 순수 오버레이 계층이다
 // — scoringId/optionCodes/type/page 등 구조 필드는 원본을 그대로 통과시킨다(mentor_apply_copy와
 // 같은 키 단위 폴백: 테이블이 없거나 특정 키가 없으면 그 필드만 정적 값을 쓴다).
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
-const TABLE = 'learning_diagnosis_v2_survey_copy';
+const TABLE = "learning_diagnosis_v2_survey_copy";
 
 /** 조회 실패·0행이면 빈 Map — 호출부는 오버라이드 0건으로 취급해 원본 그대로 렌더한다. */
 export async function fetchSurveyCopyOverrides() {
-  const { data, error } = await supabase.from(TABLE).select('copy_key, copy_value');
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("copy_key, copy_value");
   if (error || !data) return new Map();
   return new Map(data.map((row) => [row.copy_key, row.copy_value]));
 }
@@ -47,7 +49,10 @@ export function applySurveyCopyOverrides(questions, overrideMap) {
       }
     }
 
-    if (Array.isArray(question.optionCodes) && question.optionCodes.length > 0) {
+    if (
+      Array.isArray(question.optionCodes) &&
+      question.optionCodes.length > 0
+    ) {
       const options = question.options.map((label, i) => {
         const code = question.optionCodes[i];
         if (code == null) return label;
@@ -59,7 +64,10 @@ export function applySurveyCopyOverrides(questions, overrideMap) {
         next.options = options;
         changed = true;
 
-        if (Array.isArray(question.exclusiveCodes) && question.exclusiveCodes.length > 0) {
+        if (
+          Array.isArray(question.exclusiveCodes) &&
+          question.exclusiveCodes.length > 0
+        ) {
           next.exclusiveValues = question.exclusiveCodes
             .map((code) => {
               const idx = question.optionCodes.indexOf(code);
@@ -70,13 +78,22 @@ export function applySurveyCopyOverrides(questions, overrideMap) {
       }
     }
 
-    if (Array.isArray(question.extra?.statements) && question.extra.statements.length > 0) {
+    if (
+      Array.isArray(question.extra?.statements) &&
+      question.extra.statements.length > 0
+    ) {
       const statements = question.extra.statements.map((statement) => {
         const override = overrideMap.get(`${id}.statement.${statement.key}`);
-        return override !== undefined ? { ...statement, text: override } : statement;
+        return override !== undefined
+          ? { ...statement, text: override }
+          : statement;
       });
 
-      if (statements.some((statement, i) => statement !== question.extra.statements[i])) {
+      if (
+        statements.some(
+          (statement, i) => statement !== question.extra.statements[i],
+        )
+      ) {
         next.extra = { ...question.extra, statements };
         changed = true;
       }

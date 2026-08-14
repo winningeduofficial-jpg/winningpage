@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId } from "react";
 
 // STEP5 평가 후 분기 3버튼 — docs/수행평가-상세-명세.md §5.17(`3754:4349` 실측) /
 // §12.2 「평가 후 3분기 확정 의미론」(동작 정본).
@@ -32,9 +32,9 @@ import { useId } from 'react';
 // 액션이 아니다), 대신 **결과를 미리 알리는 한 줄**을 둔다. 실측 스택(260×180) 바깥의
 // 형제라 시안 치수를 건드리지 않으며, 두 확정 버튼의 `aria-describedby` 대상이기도 하다.
 
-const REEVALUATE_LABEL = '추가 평가 받기';
-const CONFIRM_LABEL = '이대로 확정짓기';
-const NEW_ASSESSMENT_LABEL = '추가 수행평가 진행하기';
+const REEVALUATE_LABEL = "추가 평가 받기";
+const CONFIRM_LABEL = "이대로 확정짓기";
+const NEW_ASSESSMENT_LABEL = "추가 수행평가 진행하기";
 
 /** 제안 — 위 「결과 고지 문구」 주석 참고. */
 const FINALIZE_NOTICE = `‘${CONFIRM_LABEL}’과 ‘${NEW_ASSESSMENT_LABEL}’는 지금 제출본을 최종본으로 저장합니다.`;
@@ -51,13 +51,11 @@ const FINALIZE_NOTICE = `‘${CONFIRM_LABEL}’과 ‘${NEW_ASSESSMENT_LABEL}’
 //      바로 아래 주석의 의도가 성립하려면 버튼이 포커스 가능해야 한다.
 // 그래서 실제 차단은 `onClick` 첫 줄의 가드가 한다(`guard()`).
 const BUTTON_BASE =
-  'flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100';
-const SECONDARY =
-  `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
+  "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100";
+const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
 // 비활성 primary는 흰 글자 on `#d9d9d9`가 1.41:1이라 라벨이 판독되지 않는다 —
 // 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
-const PRIMARY =
-  `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
+const PRIMARY = `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
 /**
  * @param {() => void} onReevaluate `추가 평가 받기` — 확정 없이 폼 복원.
@@ -76,7 +74,7 @@ export default function EvaluationBranchActions({
   onNewAssessment,
   busyAction = null,
   reevaluateDisabled = false,
-  reevaluateNote = ''
+  reevaluateNote = "",
 }) {
   const baseId = useId();
   const noticeId = `${baseId}-finalize-notice`;
@@ -113,7 +111,7 @@ export default function EvaluationBranchActions({
           aria-describedby={noticeId}
           // 어느 버튼이 요청을 물고 있는지 보조기술에 알린다(셋 다 잠겨 시각적으로는
           // 구분되지 않는다). 진행 상태 문구 자체는 호출부(타임라인)가 낸다.
-          aria-busy={busyAction === 'confirm' || undefined}
+          aria-busy={busyAction === "confirm" || undefined}
           className={SECONDARY}
         >
           {CONFIRM_LABEL}
@@ -126,7 +124,7 @@ export default function EvaluationBranchActions({
           }}
           aria-disabled={busy}
           aria-describedby={noticeId}
-          aria-busy={busyAction === 'new_assessment' || undefined}
+          aria-busy={busyAction === "new_assessment" || undefined}
           className={PRIMARY}
         >
           {NEW_ASSESSMENT_LABEL}

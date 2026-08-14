@@ -1,12 +1,12 @@
-import GoalPageHeader from '../GoalPageHeader';
-import GoalTabs from '../GoalTabs';
-import PeriodChipRow from './PeriodChipRow';
-import DirectionSummaryBanner from './DirectionSummaryBanner';
-import SubjectDirectionCard from './SubjectDirectionCard';
+import GoalPageHeader from "../GoalPageHeader";
+import GoalTabs from "../GoalTabs";
+import DirectionSummaryBanner from "./DirectionSummaryBanner";
+import PeriodChipRow from "./PeriodChipRow";
+import SubjectDirectionCard from "./SubjectDirectionCard";
 
 const TAB_OPTIONS = [
-  { value: 'naesin', label: '내신 리포트' },
-  { value: 'jeongsi', label: '정시 리포트' }
+  { value: "naesin", label: "내신 리포트" },
+  { value: "jeongsi", label: "정시 리포트" },
 ];
 
 // 학습방향 리포트 본문(#37 내신 / #38 정시) — 같은 컴포넌트 트리에 데이터 스키마만 다르게
@@ -22,12 +22,23 @@ const TAB_OPTIONS = [
 // 이 순서를 그대로 보여준다 — part-11.md #33(성장 리포트, 탭 y=106 → 타이틀 y=271)과 정반대다.
 // 두 리포트 시안 자체가 다른 순서라 구현 버그가 아니라고 판단해 강제 통일하지 않고 각자 시안을
 // 따른다(GrowthReportBody.jsx 상단 주석 참고).
-export default function DirectionReportBody({ tab, onTabChange, report, onPeriodChange }) {
+export default function DirectionReportBody({
+  tab,
+  onTabChange,
+  report,
+  onPeriodChange,
+}) {
   return (
     <>
       <GoalPageHeader title={report.heading} meta={report.meta} />
       <div className="max-w-goal-content flex flex-col gap-7 px-[3rem] pb-24">
-        <GoalTabs tabs={TAB_OPTIONS} value={tab} onChange={onTabChange} ariaLabel="리포트 유형" gap="1.25rem" />
+        <GoalTabs
+          tabs={TAB_OPTIONS}
+          value={tab}
+          onChange={onTabChange}
+          ariaLabel="리포트 유형"
+          gap="1.25rem"
+        />
         {report.periodChips.length > 0 && (
           <PeriodChipRow
             options={report.periodChips}
@@ -36,7 +47,11 @@ export default function DirectionReportBody({ tab, onTabChange, report, onPeriod
             ariaLabel="시험 회차 선택"
           />
         )}
-        <DirectionSummaryBanner meta={report.summary.meta} typeLabel={report.summary.typeLabel} body={report.summary.body} />
+        <DirectionSummaryBanner
+          meta={report.summary.meta}
+          typeLabel={report.summary.typeLabel}
+          body={report.summary.body}
+        />
         <div className="grid grid-cols-1 gap-x-[1.3125rem] gap-y-[2.5rem] xl:grid-cols-2">
           {report.subjects.map((subject) => (
             <SubjectDirectionCard key={subject.name} {...subject} />

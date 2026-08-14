@@ -18,16 +18,20 @@ export const AI_CALL_TIMEOUT_MS = 70000;
  * @param {number} [timeoutMs]
  * @returns {Promise<Response>}
  */
-export async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+export async function fetchWithTimeout(
+  url,
+  options = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      const timeoutError = new Error('요청이 시간 내에 끝나지 않았어요.');
-      timeoutError.code = 'TIMEOUT';
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error("요청이 시간 내에 끝나지 않았어요.");
+      timeoutError.code = "TIMEOUT";
       timeoutError.cause = error;
       throw timeoutError;
     }

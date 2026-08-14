@@ -53,11 +53,11 @@
  * · gray 는 신규 색이 아니라 NewsSection 의 기존 폴백 리터럴(#F1F5F9/#525252)을 그대로 옮긴 것이다.
  */
 const TONE_STYLES = Object.freeze({
-  blue: Object.freeze({ backgroundColor: '#E9F4FF', color: '#013262' }),
-  green: Object.freeze({ backgroundColor: '#EEFFE9', color: '#016215' }),
-  coral: Object.freeze({ backgroundColor: '#FFC4C4', color: '#FF7373' }),
-  red: Object.freeze({ backgroundColor: '#FFD9D9', color: '#991E1E' }),
-  gray: Object.freeze({ backgroundColor: '#F1F5F9', color: '#525252' })
+  blue: Object.freeze({ backgroundColor: "#E9F4FF", color: "#013262" }),
+  green: Object.freeze({ backgroundColor: "#EEFFE9", color: "#016215" }),
+  coral: Object.freeze({ backgroundColor: "#FFC4C4", color: "#FF7373" }),
+  red: Object.freeze({ backgroundColor: "#FFD9D9", color: "#991E1E" }),
+  gray: Object.freeze({ backgroundColor: "#F1F5F9", color: "#525252" }),
 });
 
 /**
@@ -76,12 +76,13 @@ const TONE_STYLES = Object.freeze({
  *   소비처가 0이 되어 함께 지웠다 — 다시 필요해지면 그때 실측해서 새로 넣을 것.
  */
 const SIZE_CLASSES = Object.freeze({
-  md: 'rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem]',
-  'md-fixed': 'h-[1.75rem] w-[3rem] rounded-[0.625rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.02em]'
+  md: "rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem]",
+  "md-fixed":
+    "h-[1.75rem] w-[3rem] rounded-[0.625rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.02em]",
 });
 
 /** 모든 size 가 공유하는 골격. 추출 당시 세 소비처의 기존 마크업이 전부 이 조합이었다. */
-const BASE_CLASS = 'inline-flex items-center justify-center whitespace-nowrap';
+const BASE_CLASS = "inline-flex items-center justify-center whitespace-nowrap";
 
 /**
  * @param {object} props
@@ -92,13 +93,19 @@ const BASE_CLASS = 'inline-flex items-center justify-center whitespace-nowrap';
  *   색·글자 크기를 여기서 덮어쓰면 tone/size 토큰이 무의미해진다.
  * @param {React.ReactNode} props.children 칩 문구.
  */
-export default function Chip({ tone = 'gray', size = 'md', className = '', children, ...rest }) {
+export default function Chip({
+  tone = "gray",
+  size = "md",
+  className = "",
+  children,
+  ...rest
+}) {
   const sizeClass = SIZE_CLASSES[size] ?? SIZE_CLASSES.md;
   const toneStyle = TONE_STYLES[tone] ?? TONE_STYLES.gray;
 
   return (
     <span
-      className={[BASE_CLASS, sizeClass, className].filter(Boolean).join(' ')}
+      className={[BASE_CLASS, sizeClass, className].filter(Boolean).join(" ")}
       style={toneStyle}
       {...rest}
     >

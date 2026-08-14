@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import GoalPageHeader from '../../components/goal/GoalPageHeader';
-import SubjectTimerCard from '../../components/goal/study/SubjectTimerCard';
-import TimerSummaryBar from '../../components/goal/study/TimerSummaryBar';
-import SessionRecordPanel from '../../components/goal/study/SessionRecordPanel';
-import { TIMER_SUBJECT_ORDER } from '../../data/goalStudyMock';
-import { getSubjectLabel } from '../../components/goal/subjectTokens';
-import { fetchGoalStudent, fetchGoalTimer, heartbeatGoalTimer, setGoalTimerTarget, startGoalTimer, stopGoalTimer } from '../../lib/goalApi';
-import { VIRTUAL_DAY_NAMES, getDayIndexFromYMDServer, kstYMD } from '../../lib/goal/calc/index.js';
+import { useCallback, useEffect, useRef, useState } from "react";
+import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import SessionRecordPanel from "../../components/goal/study/SessionRecordPanel";
+import SubjectTimerCard from "../../components/goal/study/SubjectTimerCard";
+import TimerSummaryBar from "../../components/goal/study/TimerSummaryBar";
+import { getSubjectLabel } from "../../components/goal/subjectTokens";
+import { TIMER_SUBJECT_ORDER } from "../../data/goalStudyMock";
+import {
+  getDayIndexFromYMDServer,
+  kstYMD,
+  VIRTUAL_DAY_NAMES,
+} from "../../lib/goal/calc/index.js";
+import {
+  fetchGoalStudent,
+  fetchGoalTimer,
+  heartbeatGoalTimer,
+  setGoalTimerTarget,
+  startGoalTimer,
+  stopGoalTimer,
+} from "../../lib/goalApi";
 
 const POLL_INTERVAL_MS = 20 * 1000; // GET 폴링 15~30초 범위(임무 지시)
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
@@ -29,16 +40,18 @@ export default function Timer() {
 
   const applySummary = useCallback((body) => {
     const subjectSeconds = {};
-    for (const row of body.subjects || []) subjectSeconds[row.subject] = row.seconds;
+    for (const row of body.subjects || [])
+      subjectSeconds[row.subject] = row.seconds;
     const subjectTargets = {};
-    for (const row of body.targets || []) subjectTargets[row.subject] = row.targetHours;
+    for (const row of body.targets || [])
+      subjectTargets[row.subject] = row.targetHours;
 
     setSummary({
       date: body.date,
       running: body.running || null,
       subjectSeconds,
       subjectTargets,
-      totalSeconds: body.totalSeconds ?? 0
+      totalSeconds: body.totalSeconds ?? 0,
     });
     setClockOffsetMs(new Date(body.serverNow).getTime() - Date.now());
     setLoadError(false);
@@ -46,9 +59,9 @@ export default function Timer() {
 
   const reload = useCallback(async () => {
     const result = await fetchGoalTimer();
-    if (result.kind === 'success') {
+    if (result.kind === "success") {
       applySummary(result.summary);
-    } else if (result.kind !== 'no-session' && result.kind !== 'not-allowed') {
+    } else if (result.kind !== "no-session" && result.kind !== "not-allowed") {
       setLoadError(true);
     }
   }, [applySummary]);
@@ -58,11 +71,16 @@ export default function Timer() {
     reload();
 
     fetchGoalStudent().then((result) => {
-      if (result.kind !== 'onboarded') return;
+      if (result.kind !== "onboarded") return;
       const weeklySchedule = result.student?.weeklySchedule || {};
-      const dayName = VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))];
+      const dayName =
+        VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))];
       const idealToday = weeklySchedule?.[dayName]?.ideal;
-      setDefaultTargetHours(typeof idealToday === 'number' ? idealToday / TIMER_SUBJECT_ORDER.length : null);
+      setDefaultTargetHours(
+        typeof idealToday === "number"
+          ? idealToday / TIMER_SUBJECT_ORDER.length
+          : null,
+      );
     });
   }, [reload]);
 
@@ -70,12 +88,12 @@ export default function Timer() {
   useEffect(() => {
     const intervalId = setInterval(reload, POLL_INTERVAL_MS);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') reload();
+      if (document.visibilityState === "visible") reload();
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [reload]);
 
@@ -94,18 +112,22 @@ export default function Timer() {
     const onPageHide = () => {
       heartbeatGoalTimer({ keepalive: true });
     };
-    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       clearInterval(intervalId);
-      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, []);
 
   const estimatedNowMs = Date.now() + clockOffsetMs;
   const runningSubject = summary?.running?.subject ?? null;
-  const runningStartedAtMs = summary?.running?.startedAt ? new Date(summary.running.startedAt).getTime() : null;
+  const runningStartedAtMs = summary?.running?.startedAt
+    ? new Date(summary.running.startedAt).getTime()
+    : null;
   const liveElapsedSeconds =
-    runningStartedAtMs != null ? Math.max(0, Math.floor((estimatedNowMs - runningStartedAtMs) / 1000)) : 0;
+    runningStartedAtMs != null
+      ? Math.max(0, Math.floor((estimatedNowMs - runningStartedAtMs) / 1000))
+      : 0;
 
   // 배타 실행: 진행 중인 카드를 다시 누르면 종료, 그 외 카드를 누르면 서버가 자동으로
   // 이전 과목을 전환 마감한다(part-09 §133 "다른 과목을 시작하면 이전 과목은 자동으로 멈춥니다").
@@ -126,9 +148,14 @@ export default function Timer() {
 
   const handleTargetChange = async (subjectId, hours) => {
     const result = await setGoalTimerTarget(subjectId, hours);
-    if (result.kind === 'success') {
+    if (result.kind === "success") {
       setSummary((prev) =>
-        prev ? { ...prev, subjectTargets: { ...prev.subjectTargets, [subjectId]: hours } } : prev
+        prev
+          ? {
+              ...prev,
+              subjectTargets: { ...prev.subjectTargets, [subjectId]: hours },
+            }
+          : prev,
       );
     }
   };
@@ -137,15 +164,19 @@ export default function Timer() {
     const accumulatedSeconds = summary?.subjectSeconds?.[id] ?? 0;
     const running = runningSubject === id;
     const hasCustomTarget = summary?.subjectTargets?.[id] != null;
-    const targetHours = hasCustomTarget ? summary.subjectTargets[id] : defaultTargetHours ?? 0;
+    const targetHours = hasCustomTarget
+      ? summary.subjectTargets[id]
+      : (defaultTargetHours ?? 0);
 
     return {
       id,
       label: getSubjectLabel(id),
       targetHours,
       isDefaultTarget: !hasCustomTarget,
-      elapsedSeconds: running ? accumulatedSeconds + liveElapsedSeconds : accumulatedSeconds,
-      running
+      elapsedSeconds: running
+        ? accumulatedSeconds + liveElapsedSeconds
+        : accumulatedSeconds,
+      running,
     };
   });
 
@@ -159,7 +190,8 @@ export default function Timer() {
       />
       <div className="max-w-goal-content px-[3rem] pb-24">
         <p className="mb-6 text-[0.9375rem] leading-[1.4] text-ink-sub">
-          한 번에 한 과목만 측정돼요. 다른 과목을 시작하면 이전 과목은 자동으로 멈춥니다.
+          한 번에 한 과목만 측정돼요. 다른 과목을 시작하면 이전 과목은 자동으로
+          멈춥니다.
         </p>
         {loadError && (
           <p className="mb-6 text-[0.875rem] leading-[1.4] text-error">
@@ -182,7 +214,9 @@ export default function Timer() {
                   elapsedSeconds={subject.elapsedSeconds}
                   running={subject.running}
                   onToggle={() => handleToggle(subject.id)}
-                  onTargetChange={(hours) => handleTargetChange(subject.id, hours)}
+                  onTargetChange={(hours) =>
+                    handleTargetChange(subject.id, hours)
+                  }
                 />
               ))}
             </div>

@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { FAKE_ENTITLEMENT_ENABLED, getMockPaidOrders } from '../lib/entitlement';
-import MyPageTabs from '../components/mypage/MyPageTabs';
-import MyServicesTab from '../components/mypage/MyServicesTab';
-import PaymentsTab from '../components/mypage/PaymentsTab';
-import ProfileTab from '../components/mypage/ProfileTab';
-import KakaoConsultButton from '../components/mypage/KakaoConsultButton';
-import ChildrenTab from '../components/mypage/parent/ChildrenTab';
-import ParentPaymentsTab from '../components/mypage/parent/ParentPaymentsTab';
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import KakaoConsultButton from "../components/mypage/KakaoConsultButton";
+import MyPageTabs from "../components/mypage/MyPageTabs";
+import MyServicesTab from "../components/mypage/MyServicesTab";
+import PaymentsTab from "../components/mypage/PaymentsTab";
+import ProfileTab from "../components/mypage/ProfileTab";
+import ChildrenTab from "../components/mypage/parent/ChildrenTab";
+import ParentPaymentsTab from "../components/mypage/parent/ParentPaymentsTab";
+import {
+  FAKE_ENTITLEMENT_ENABLED,
+  getMockPaidOrders,
+} from "../lib/entitlement";
+import { supabase } from "../lib/supabase";
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function withTimeout(promise, ms, fallbackValue = null) {
@@ -19,19 +22,21 @@ function withTimeout(promise, ms, fallbackValue = null) {
     promise,
     new Promise((resolve) => {
       window.setTimeout(() => resolve(fallbackValue), ms);
-    })
+    }),
   ]);
 }
 
 async function queryProfile(user) {
   const byId = await withTimeout(
     supabase
-      .from('profiles')
-      .select('id, name, email, phone, region, school_type, school_name, member_type, role')
-      .eq('id', user.id)
+      .from("profiles")
+      .select(
+        "id, name, email, phone, region, school_type, school_name, member_type, role",
+      )
+      .eq("id", user.id)
       .maybeSingle(),
     3500,
-    { data: null, error: new Error('profile_timeout') }
+    { data: null, error: new Error("profile_timeout") },
   );
 
   if (!byId?.error && byId?.data?.name) return byId.data;
@@ -41,12 +46,14 @@ async function queryProfile(user) {
   if (email) {
     const byEmail = await withTimeout(
       supabase
-        .from('profiles')
-        .select('id, name, email, phone, region, school_type, school_name, member_type, role')
-        .eq('email', email)
+        .from("profiles")
+        .select(
+          "id, name, email, phone, region, school_type, school_name, member_type, role",
+        )
+        .eq("email", email)
         .maybeSingle(),
       3500,
-      { data: null, error: new Error('profile_timeout') }
+      { data: null, error: new Error("profile_timeout") },
     );
 
     if (!byEmail?.error && byEmail?.data?.name) return byEmail.data;
@@ -65,15 +72,15 @@ async function queryProfile(user) {
 // 추가(3616:2892). 2026-08-13 사용자 확정으로 3636:104(3탭)을 정본으로 삼는다.
 // '상담 및 문의'는 내용 디자인도 백엔드도 없어 넣지 않았다.
 const STUDENT_TABS = [
-  { key: 'services', label: '나의 서비스' },
-  { key: 'payments', label: '신청 내역' },
-  { key: 'profile', label: '내 정보 수정' }
+  { key: "services", label: "나의 서비스" },
+  { key: "payments", label: "신청 내역" },
+  { key: "profile", label: "내 정보 수정" },
 ];
 
 const PARENT_TABS = [
-  { key: 'children', label: '자녀 등록 및 수정' },
-  { key: 'payments', label: '결제 내역' },
-  { key: 'profile', label: '내 정보 수정' }
+  { key: "children", label: "자녀 등록 및 수정" },
+  { key: "payments", label: "결제 내역" },
+  { key: "profile", label: "내 정보 수정" },
 ];
 
 export default function MyPage() {
@@ -96,15 +103,19 @@ export default function MyPage() {
       setLoading(true);
 
       try {
-        const sessionResult = await withTimeout(supabase.auth.getSession(), 3500, {
-          data: { session: null }
-        });
+        const sessionResult = await withTimeout(
+          supabase.auth.getSession(),
+          3500,
+          {
+            data: { session: null },
+          },
+        );
         const currentUser = sessionResult?.data?.session?.user;
 
         if (!alive) return;
 
         if (!currentUser) {
-          navigate('/login', { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
 
@@ -116,10 +127,10 @@ export default function MyPage() {
         setProfile({
           ...loadedProfile,
           id: loadedProfile?.id || currentUser.id,
-          email: loadedProfile?.email || currentUser.email || ''
+          email: loadedProfile?.email || currentUser.email || "",
         });
       } catch (error) {
-        console.error('마이페이지 로딩 오류:', error);
+        console.error("마이페이지 로딩 오류:", error);
       } finally {
         if (alive) setLoading(false);
       }
@@ -136,14 +147,16 @@ export default function MyPage() {
   const reloadRefunds = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from('refund_requests')
-      .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
+      .from("refund_requests")
+      .select(
+        "id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at",
+      )
       // orders 와 같은 이유로 쌍 두 축을 함께 본다 — refund_requests.user_id 는
       // "신청한 사람"이라, 학부모가 신청한 환불을 학생이 못 보거나 그 반대가 된다.
       // RLS(sql/68 "refund_requests select own")가 이미 두 축(student_profile_id,
       // parent_profile_id)으로 열려 있어 이 조회와 정확히 맞물린다.
       .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+      .order("created_at", { ascending: false });
     setRefunds(data || []);
   }, [user]);
 
@@ -155,7 +168,7 @@ export default function MyPage() {
     (async () => {
       const [{ data: ord }, { data: reqs }] = await Promise.all([
         supabase
-          .from('orders')
+          .from("orders")
           // 가상계좌는 승인 직후 paid 가 아니라 waiting_deposit 으로 기록된다
           // (api/confirm-payment.js — 계좌 발급만 끝난 상태). paid 만 조회하면 입금 전
           // 주문이 마이페이지에서 통째로 사라지므로 두 상태를 함께 읽고, 배지·환불 대상
@@ -165,24 +178,36 @@ export default function MyPage() {
           // 쓴다. 부가세는 우리가 금액에서 역산하지 않고 토스 승인 응답 원본
           // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
           // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
-          .select('id, order_name, amount, paid_at, status, method, vat:raw->>vat')
+          .select(
+            "id, order_name, amount, paid_at, status, method, vat:raw->>vat",
+          )
           // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
           // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생
           // 계정은 자기가 신청해서 이용 중인 주문을 하나도 못 본다(빈 목록).
           // 두 축을 OR 로 함께 본다 — RLS(orders select)가 이미 쌍 당사자만
           // 통과시키므로 남의 주문이 섞일 여지는 없다.
           .or(`user_id.eq.${user.id},student_profile_id.eq.${user.id}`)
-          .in('status', ['pending', 'paid', 'waiting_deposit', 'canceled', 'refunded'])
+          .in("status", [
+            "pending",
+            "paid",
+            "waiting_deposit",
+            "canceled",
+            "refunded",
+          ])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
           // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
-          .order('created_at', { ascending: false }),
+          .order("created_at", { ascending: false }),
         supabase
-          .from('refund_requests')
-          .select('id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at')
+          .from("refund_requests")
+          .select(
+            "id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at",
+          )
           // 위 reloadRefunds 와 같은 쌍 두 축 조회(그쪽 주석 참고) — 두 경로가
           // 다른 결과를 주면 환불 신청 직후 표의 상태 배지가 흔들린다.
-          .or(`student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`)
-          .order('created_at', { ascending: false })
+          .or(
+            `student_profile_id.eq.${user.id},parent_profile_id.eq.${user.id}`,
+          )
+          .order("created_at", { ascending: false }),
       ]);
       if (!alive) return;
 
@@ -191,7 +216,9 @@ export default function MyPage() {
       // 선택 목록에서는 반드시 제외해야 한다(PaymentsTab의 refundableOrders 필터 참고) —
       // 가짜 주문에 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
       if (FAKE_ENTITLEMENT_ENABLED) {
-        console.info('[entitlement] 로컬 가짜 이용권 주문을 마이페이지에 표시합니다.');
+        console.info(
+          "[entitlement] 로컬 가짜 이용권 주문을 마이페이지에 표시합니다.",
+        );
         setOrders([...getMockPaidOrders(), ...(ord || [])]);
       } else {
         setOrders(ord || []);
@@ -206,7 +233,7 @@ export default function MyPage() {
   }, [user]);
 
   const memberType = cleanText(profile?.member_type).toLowerCase();
-  const isParent = memberType === 'parent';
+  const isParent = memberType === "parent";
 
   // 결제 대기 주문 건수 — 위 orders 조회는 paid/waiting_deposit 만 읽으므로
   // pending 은 여기서 따로 센다(탭 배지 전용, 목록은 ParentPaymentsTab 이 읽는다).
@@ -216,11 +243,11 @@ export default function MyPage() {
 
     (async () => {
       const { count } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('parent_profile_id', user.id)
-        .eq('status', 'pending')
-        .in('approval_status', ['requested', 'approved']);
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_profile_id", user.id)
+        .eq("status", "pending")
+        .in("approval_status", ["requested", "approved"]);
       if (alive) setPendingOrderCount(count || 0);
     })();
 
@@ -229,28 +256,33 @@ export default function MyPage() {
     };
   }, [user, isParent]);
 
-  const refundRequestCount = refunds.filter((r) => r.approval_status === 'requested').length;
+  const refundRequestCount = refunds.filter(
+    (r) => r.approval_status === "requested",
+  ).length;
 
   const tabs = (isParent ? PARENT_TABS : STUDENT_TABS).map((tab) =>
-    isParent && tab.key === 'payments'
+    isParent && tab.key === "payments"
       ? {
           ...tab,
           badges: [
-            { label: '결제 요청', count: pendingOrderCount },
-            { label: '환불 요청', count: refundRequestCount }
-          ]
+            { label: "결제 요청", count: pendingOrderCount },
+            { label: "환불 요청", count: refundRequestCount },
+          ],
         }
-      : tab
+      : tab,
   );
 
-  const requestedTab = searchParams.get('tab');
-  const activeTab = tabs.some((tab) => tab.key === requestedTab) ? requestedTab : tabs[0].key;
+  const requestedTab = searchParams.get("tab");
+  const activeTab = tabs.some((tab) => tab.key === requestedTab)
+    ? requestedTab
+    : tabs[0].key;
 
   // 구 /mypage#refund 진입 호환 — 결제/환불 내역이 있는 payments 탭으로 매핑한다.
   useEffect(() => {
-    if (loading || location.hash !== '#refund' || searchParams.get('tab')) return;
+    if (loading || location.hash !== "#refund" || searchParams.get("tab"))
+      return;
     const next = new URLSearchParams(searchParams);
-    next.set('tab', 'payments');
+    next.set("tab", "payments");
     setSearchParams(next, { replace: true });
   }, [loading, location.hash, searchParams, setSearchParams]);
 
@@ -276,11 +308,11 @@ export default function MyPage() {
         </div>
 
         <div className="mt-[6.25rem]">
-          {activeTab === 'services' && <MyServicesTab orders={orders} />}
+          {activeTab === "services" && <MyServicesTab orders={orders} />}
 
-          {activeTab === 'children' && <ChildrenTab />}
+          {activeTab === "children" && <ChildrenTab />}
 
-          {activeTab === 'payments' && (
+          {activeTab === "payments" && (
             <>
               {/* 학부모만 — 학생이 만든 결제요청을 발견하는 경로(handoff 작업 1·2).
                   학생 화면에는 인박스 개념 자체가 없다(요청을 만드는 쪽이라서). */}
@@ -291,12 +323,16 @@ export default function MyPage() {
                   onRefundSubmitted={reloadRefunds}
                 />
               ) : (
-                <PaymentsTab orders={orders} refunds={refunds} onRefundSubmitted={reloadRefunds} />
+                <PaymentsTab
+                  orders={orders}
+                  refunds={refunds}
+                  onRefundSubmitted={reloadRefunds}
+                />
               )}
             </>
           )}
 
-          {activeTab === 'profile' && (
+          {activeTab === "profile" && (
             <ProfileTab user={user} profile={profile} memberType={memberType} />
           )}
         </div>

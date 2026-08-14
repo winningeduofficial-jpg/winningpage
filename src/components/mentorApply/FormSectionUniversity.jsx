@@ -9,30 +9,31 @@
 // label 을 넘기지 않고** MentorFieldShell 로 감싼다 — 셸의 <label htmlFor> 가 SelectField 에
 // 넘긴 id 를 그대로 가리키므로 라벨 클릭·스크린리더 연결이 정상 동작하고, 같은 카드 안의
 // 인풋·텍스트에어리어와 라벨 위치·gap·에러 슬롯 높이가 정확히 일치한다.
-import MentorTextField, { MentorFieldShell } from './MentorTextField';
-import TextareaField from './TextareaField';
-import ChipGroup from './ChipGroup';
-import FormSectionCard from './FormSectionCard';
-import FormFieldRow from './FormFieldRow';
-import SelectField from '../auth/SelectField';
-import {
-  FORM_SECTIONS,
-  ENROLLMENT_STATUS_OPTIONS,
-  ADMISSION_HISTORY_OPTIONS,
-  FINAL_TRACK_OPTIONS
-} from '../../data/mentorApply';
-import { isValidAdmissionYear, isWithinMaxLength } from '../../lib/validators';
 
-export const UNIVERSITY_SECTION_ID = 'mentor-form-section-2';
+import {
+  ADMISSION_HISTORY_OPTIONS,
+  ENROLLMENT_STATUS_OPTIONS,
+  FINAL_TRACK_OPTIONS,
+  FORM_SECTIONS,
+} from "../../data/mentorApply";
+import { isValidAdmissionYear, isWithinMaxLength } from "../../lib/validators";
+import SelectField from "../auth/SelectField";
+import ChipGroup from "./ChipGroup";
+import FormFieldRow from "./FormFieldRow";
+import FormSectionCard from "./FormSectionCard";
+import MentorTextField, { MentorFieldShell } from "./MentorTextField";
+import TextareaField from "./TextareaField";
+
+export const UNIVERSITY_SECTION_ID = "mentor-form-section-2";
 
 export const UNIVERSITY_FIELDS = [
-  'university',
-  'major',
-  'admission_year',
-  'enrollment_status',
-  'admission_history',
-  'final_admission_track',
-  'exam_results'
+  "university",
+  "major",
+  "admission_year",
+  "enrollment_status",
+  "admission_history",
+  "final_admission_track",
+  "exam_results",
 ];
 
 // 섹션 2 는 7개 전부 필수다(명세 §폼 명세 필수 항목 카운트: 필수 7 / 선택 0).
@@ -43,36 +44,40 @@ const EXAM_RESULTS_MAX_LENGTH = 2000;
 
 // ⚠ [시안 부재 — 파생 카피] FormSectionApplicant.jsx 의 ERROR_MESSAGES 주석과 동일한 사정이다.
 const ERROR_MESSAGES = {
-  university: '대학교를 입력해 주세요.',
-  major: '학과·학부를 입력해 주세요.',
-  admission_year_required: '입학년도를 입력해 주세요.',
-  admission_year_format: '입학년도를 4자리 연도로 정확히 입력해 주세요.',
-  enrollment_status: '재학 상태를 선택해 주세요.',
-  admission_history: '입시 이력을 선택해 주세요.',
-  final_admission_track: '최종 등록한 합격 전형을 선택해 주세요.',
-  exam_results_required: '응시 정보와 결과를 입력해 주세요.',
-  exam_results_length: `${EXAM_RESULTS_MAX_LENGTH}자 이내로 입력해 주세요.`
+  university: "대학교를 입력해 주세요.",
+  major: "학과·학부를 입력해 주세요.",
+  admission_year_required: "입학년도를 입력해 주세요.",
+  admission_year_format: "입학년도를 4자리 연도로 정확히 입력해 주세요.",
+  enrollment_status: "재학 상태를 선택해 주세요.",
+  admission_history: "입시 이력을 선택해 주세요.",
+  final_admission_track: "최종 등록한 합격 전형을 선택해 주세요.",
+  exam_results_required: "응시 정보와 결과를 입력해 주세요.",
+  exam_results_length: `${EXAM_RESULTS_MAX_LENGTH}자 이내로 입력해 주세요.`,
 };
 
 export function validateUniversitySection(values = {}) {
   const errors = {};
-  const trimmed = (key) => String(values[key] ?? '').trim();
+  const trimmed = (key) => String(values[key] ?? "").trim();
 
-  if (!trimmed('university')) errors.university = ERROR_MESSAGES.university;
-  if (!trimmed('major')) errors.major = ERROR_MESSAGES.major;
+  if (!trimmed("university")) errors.university = ERROR_MESSAGES.university;
+  if (!trimmed("major")) errors.major = ERROR_MESSAGES.major;
 
-  if (!trimmed('admission_year')) errors.admission_year = ERROR_MESSAGES.admission_year_required;
+  if (!trimmed("admission_year"))
+    errors.admission_year = ERROR_MESSAGES.admission_year_required;
   else if (!isValidAdmissionYear(values.admission_year)) {
     errors.admission_year = ERROR_MESSAGES.admission_year_format;
   }
 
-  if (!trimmed('enrollment_status')) errors.enrollment_status = ERROR_MESSAGES.enrollment_status;
-  if (!trimmed('admission_history')) errors.admission_history = ERROR_MESSAGES.admission_history;
-  if (!trimmed('final_admission_track')) {
+  if (!trimmed("enrollment_status"))
+    errors.enrollment_status = ERROR_MESSAGES.enrollment_status;
+  if (!trimmed("admission_history"))
+    errors.admission_history = ERROR_MESSAGES.admission_history;
+  if (!trimmed("final_admission_track")) {
     errors.final_admission_track = ERROR_MESSAGES.final_admission_track;
   }
 
-  if (!trimmed('exam_results')) errors.exam_results = ERROR_MESSAGES.exam_results_required;
+  if (!trimmed("exam_results"))
+    errors.exam_results = ERROR_MESSAGES.exam_results_required;
   else if (!isWithinMaxLength(values.exam_results, EXAM_RESULTS_MAX_LENGTH)) {
     errors.exam_results = ERROR_MESSAGES.exam_results_length;
   }
@@ -91,7 +96,11 @@ const EXAM_RESULTS_PLACEHOLDER = `형식) 대학 / 모집단위 / 전형 / 결�
 
 const SECTION = FORM_SECTIONS[1];
 
-export default function FormSectionUniversity({ values = {}, errors = {}, onChange }) {
+export default function FormSectionUniversity({
+  values = {},
+  errors = {},
+  onChange,
+}) {
   const handle = (name) => (value) => onChange?.(name, value);
 
   return (
@@ -108,8 +117,8 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
           label="대학교"
           required
           helperText="약칭이 아닌 정식 명칭으로 입력해주세요."
-          value={values.university ?? ''}
-          onChange={handle('university')}
+          value={values.university ?? ""}
+          onChange={handle("university")}
           placeholder="예) 부산대학교"
           maxLength={100}
           error={errors.university}
@@ -119,8 +128,8 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
           label="학과·학부"
           required
           helperText="모집단위 정식 명칭으로 입력해 주세요."
-          value={values.major ?? ''}
-          onChange={handle('major')}
+          value={values.major ?? ""}
+          onChange={handle("major")}
           placeholder="예) 경영학과"
           maxLength={100}
           error={errors.major}
@@ -133,8 +142,8 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
           name="admission_year"
           label="입학년도"
           required
-          value={values.admission_year ?? ''}
-          onChange={handle('admission_year')}
+          value={values.admission_year ?? ""}
+          onChange={handle("admission_year")}
           placeholder="예) 2025"
           inputMode="numeric"
           maxLength={4}
@@ -153,14 +162,14 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
           <SelectField
             id="enrollment_status"
             name="enrollment_status"
-            value={values.enrollment_status ?? ''}
-            onChange={handle('enrollment_status')}
+            value={values.enrollment_status ?? ""}
+            onChange={handle("enrollment_status")}
             options={ENROLLMENT_STATUS_OPTIONS}
             placeholder="재학 상태 선택"
             required
             // helperText 는 넘기지 않는다 — 넘기면 셸의 에러 슬롯 아래에 두 번째 메시지 줄이
             // 생겨 세로 리듬이 이 필드만 어긋난다. status 는 aria-invalid 전달용.
-            status={errors.enrollment_status ? 'error' : 'default'}
+            status={errors.enrollment_status ? "error" : "default"}
           />
         </MentorFieldShell>
       </FormFieldRow>
@@ -179,8 +188,8 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
             name="admission_history"
             ariaLabel="입시 이력"
             options={ADMISSION_HISTORY_OPTIONS}
-            value={values.admission_history ?? ''}
-            onChange={handle('admission_history')}
+            value={values.admission_history ?? ""}
+            onChange={handle("admission_history")}
           />
         </MentorFieldShell>
 
@@ -194,8 +203,8 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
             name="final_admission_track"
             ariaLabel="최종 등록한 합격 전형"
             options={FINAL_TRACK_OPTIONS}
-            value={values.final_admission_track ?? ''}
-            onChange={handle('final_admission_track')}
+            value={values.final_admission_track ?? ""}
+            onChange={handle("final_admission_track")}
           />
         </MentorFieldShell>
       </FormFieldRow>
@@ -208,13 +217,15 @@ export default function FormSectionUniversity({ values = {}, errors = {}, onChan
           required
           helperText={
             <>
-              {'지원한 모든 대학의 결과를 합격·불합격 구분 없이 적어 주세요. '}
-              <span className="text-accent">불합격 이력도 후배에게는 중요한 정보</span>
+              {"지원한 모든 대학의 결과를 합격·불합격 구분 없이 적어 주세요. "}
+              <span className="text-accent">
+                불합격 이력도 후배에게는 중요한 정보
+              </span>
               입니다.
             </>
           }
-          value={values.exam_results ?? ''}
-          onChange={handle('exam_results')}
+          value={values.exam_results ?? ""}
+          onChange={handle("exam_results")}
           placeholder={EXAM_RESULTS_PLACEHOLDER}
           // 시안 높이 172 = 상하 패딩 40 + 본문 132. 16px × lh 1.4 = 22.4px 이므로 약 6줄.
           rows={6}

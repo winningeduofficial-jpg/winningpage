@@ -6,43 +6,48 @@
 // mode='add'(E-5, 이미 자녀 연결 후 추가 연결) — 건너뛰기 → 사이트 홈('/'), 플로우 종료로 보고
 // resetSignup() 호출.
 // icon: Figma 일러스트 에셋 미제공(§6.2) — lucide-react 아이콘 placeholder.
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { AuthLayout, AuthTitle, ChoiceCard, TextLinkButton } from '../../../components/auth';
-import { useSignup } from '../../../context/SignupContext';
-import { UserCheck, UserPlus } from 'lucide-react';
 
-export default function LinkChoice({ mode = 'initial' }) {
+import { UserCheck, UserPlus } from "lucide-react";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  AuthLayout,
+  AuthTitle,
+  ChoiceCard,
+  TextLinkButton,
+} from "../../../components/auth";
+import { useSignup } from "../../../context/SignupContext";
+
+export default function LinkChoice({ mode = "initial" }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { memberType, parentSignupCompleted, resetSignup } = useSignup();
 
-  const childName = location.state?.childName || '';
+  const childName = location.state?.childName || "";
 
   // memberType만으로는 가드가 뚫린다(선택만 하고 실제 가입은 완료하지 않은 채 URL 직접
   // 진입 가능) — ParentForm의 handleSubmit이 성공해야만 true가 되는 parentSignupCompleted를
   // 함께 요구해 학부모 온보딩(E-2~E-8) 진입을 실제 가입 완료 이후로 한정한다.
   useEffect(() => {
-    if (memberType !== 'parent' || !parentSignupCompleted) {
-      navigate('/signup', { replace: true });
+    if (memberType !== "parent" || !parentSignupCompleted) {
+      navigate("/signup", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberType, parentSignupCompleted]);
+  }, [memberType, parentSignupCompleted, navigate]);
 
   function handleSkip() {
-    if (mode === 'add') {
+    if (mode === "add") {
       resetSignup();
-      navigate('/');
+      navigate("/");
     } else {
-      navigate('/signup/parent/home');
+      navigate("/signup/parent/home");
     }
   }
 
   return (
     <AuthLayout>
-      {mode === 'add' ? (
+      {mode === "add" ? (
         <AuthTitle
-          line1={childName ? `${childName} 학부모님,` : '학부모님,'}
+          line1={childName ? `${childName} 학부모님,` : "학부모님,"}
           line1Color="ink"
           line2="자녀를 더 연결할까요?"
           line2Color="primary"
@@ -51,7 +56,11 @@ export default function LinkChoice({ mode = 'initial' }) {
         <AuthTitle
           line1="회원이 되신 것을 환영해요!"
           line1Color="ink"
-          line2={<span className="sm:whitespace-nowrap">자녀 연결하면 학습 현황을 볼 수 있어요</span>}
+          line2={
+            <span className="sm:whitespace-nowrap">
+              자녀 연결하면 학습 현황을 볼 수 있어요
+            </span>
+          }
           line2Color="primary"
         />
       )}
@@ -59,22 +68,35 @@ export default function LinkChoice({ mode = 'initial' }) {
       <div className="flex w-full flex-col items-center gap-4 md:w-auto md:flex-row md:gap-5">
         <ChoiceCard
           size="md"
-          icon={<UserCheck className="h-12 w-12 text-primary" strokeWidth={1.5} />}
+          icon={
+            <UserCheck className="h-12 w-12 text-primary" strokeWidth={1.5} />
+          }
           title="자녀가 회원이예요"
           description="자녀 계정에서 연결코드를 입력하면 바로 연결돼요"
-          onClick={() => navigate('/signup/parent/link/code', { state: { childName } })}
+          onClick={() =>
+            navigate("/signup/parent/link/code", { state: { childName } })
+          }
         />
 
         <ChoiceCard
           size="md"
-          icon={<UserPlus className="h-12 w-12 text-primary" strokeWidth={1.5} />}
+          icon={
+            <UserPlus className="h-12 w-12 text-primary" strokeWidth={1.5} />
+          }
           title="자녀가 회원이 아니예요"
           description="문자나 링크로 초대하면 가입 시 자동으로 연결돼요"
-          onClick={() => navigate('/signup/parent/invite', { state: { childName } })}
+          onClick={() =>
+            navigate("/signup/parent/invite", { state: { childName } })
+          }
         />
       </div>
 
-      <TextLinkButton onClick={handleSkip} tone="muted" size="lg" weight="medium">
+      <TextLinkButton
+        onClick={handleSkip}
+        tone="muted"
+        size="lg"
+        weight="medium"
+      >
         건너뛰기
       </TextLinkButton>
     </AuthLayout>

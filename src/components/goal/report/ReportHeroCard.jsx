@@ -4,13 +4,22 @@
 export default function ReportHeroCard({ narrative, kpis }) {
   return (
     <div className="flex min-h-[14.375rem] flex-col justify-center gap-6 rounded-2xl bg-surface-04 px-8 py-7">
-      <p className="max-w-[50rem] text-[0.9375rem] leading-[1.7] text-ink-strong">{narrative}</p>
+      <p className="max-w-[50rem] text-[0.9375rem] leading-[1.7] text-ink-strong">
+        {narrative}
+      </p>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl bg-white px-6 py-5 sm:grid-cols-5 sm:divide-x sm:divide-[#E9E9E9]">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="flex flex-col items-center gap-1.5 px-2 text-center">
-            <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">{kpi.label}</span>
-            <span className="text-[1.125rem] font-bold leading-[1.3] text-ink-strong">{kpi.value}</span>
+          <div
+            key={kpi.label}
+            className="flex flex-col items-center gap-1.5 px-2 text-center"
+          >
+            <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">
+              {kpi.label}
+            </span>
+            <span className="text-[1.125rem] font-bold leading-[1.3] text-ink-strong">
+              {kpi.value}
+            </span>
           </div>
         ))}
       </div>

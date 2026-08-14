@@ -3,7 +3,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 /**
  * 게시판 공통 페이지네이션.
@@ -27,19 +27,23 @@ export default function BoardPagination({
   totalPages,
   onPageChange,
   windowSize = 10,
-  className = '',
+  className = "",
 }) {
   const safeTotalPages = Math.max(1, Math.floor(totalPages) || 1);
-  const safeCurrentPage = Math.min(Math.max(1, Math.floor(currentPage) || 1), safeTotalPages);
+  const safeCurrentPage = Math.min(
+    Math.max(1, Math.floor(currentPage) || 1),
+    safeTotalPages,
+  );
 
   if (safeTotalPages <= 1) return null;
 
   // AdmissionGuidelines.jsx 원본 윈도우 계산: 현재 페이지가 속한 블록의 시작 번호를 구하고
   // 남은 페이지 수로 클램프해 마지막 블록에서 빈 버튼이 생기지 않게 한다.
-  const windowStart = Math.floor((safeCurrentPage - 1) / windowSize) * windowSize + 1;
+  const windowStart =
+    Math.floor((safeCurrentPage - 1) / windowSize) * windowSize + 1;
   const paginationNumbers = Array.from(
     { length: Math.min(windowSize, safeTotalPages - windowStart + 1) },
-    (_, idx) => windowStart + idx
+    (_, idx) => windowStart + idx,
   );
 
   const goToPage = (pageNumber) => {
@@ -84,11 +88,11 @@ export default function BoardPagination({
               key={pageNumber}
               type="button"
               onClick={() => goToPage(pageNumber)}
-              aria-current={isActive ? 'page' : undefined}
+              aria-current={isActive ? "page" : undefined}
               className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
                 isActive
-                  ? 'bg-[#013262] font-medium text-white'
-                  : 'font-normal text-[#525252] hover:text-[#013262]'
+                  ? "bg-[#013262] font-medium text-white"
+                  : "font-normal text-[#525252] hover:text-[#013262]"
               }`}
             >
               {pageNumber}

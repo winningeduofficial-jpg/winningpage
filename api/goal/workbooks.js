@@ -12,7 +12,6 @@
 // src/components/goal/subjectTokens.js가 프론트에서 담당한다.
 
 import {
-  PAID_MESSAGE,
   buildWorkbookPayload,
   computeWorkbookStatus,
   deleteWorkbookOwned,
@@ -20,13 +19,14 @@ import {
   fetchWorkbooks,
   insertWorkbook,
   openGoalSession,
-  updateWorkbookOwned
-} from '../_lib/goalRepo.js';
+  PAID_MESSAGE,
+  updateWorkbookOwned,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 // sql/76_goal_workbooks.sql goal_workbooks_subject_check와 정확히 같은 5종.
-const SUBJECT_IDS = ['korean', 'math', 'english', 'science', 'etc'];
+const SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
 
 const TITLE_MAX_LENGTH = 100;
 // 페이지 수 상한 — 실제 문제집 규모를 훨씬 웃도는 값으로 여유를 두되, 오입력(자릿수
@@ -34,17 +34,17 @@ const TITLE_MAX_LENGTH = 100;
 const MAX_PAGES = 100000;
 
 function clean(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 // intake.js isNumericInput과 동일한 사유 — boolean/객체가 Number()를 통해 조용히
 // 숫자로 접히는 경로를 막는다.
 function isNumericInput(raw) {
-  return typeof raw === 'number' || typeof raw === 'string';
+  return typeof raw === "number" || typeof raw === "string";
 }
 
 function isValidPageCount(raw, { min, max }) {
@@ -59,7 +59,7 @@ function fail(detail) {
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -73,24 +73,33 @@ function validateId(rawId) {
 }
 
 function validateCreateBody(body) {
-  if (!isPlainObject(body)) return { error: fail('요청 본문이 올바르지 않습니다.') };
+  if (!isPlainObject(body))
+    return { error: fail("요청 본문이 올바르지 않습니다.") };
 
   const subject = clean(body.subject);
-  if (!SUBJECT_IDS.includes(subject)) return { error: fail('과목을 선택해 주세요.') };
+  if (!SUBJECT_IDS.includes(subject))
+    return { error: fail("과목을 선택해 주세요.") };
 
   const title = clean(body.title);
-  if (!title) return { error: fail('문제집 이름을 입력해 주세요.') };
-  if (title.length > TITLE_MAX_LENGTH) return { error: fail('문제집 이름이 너무 깁니다.') };
+  if (!title) return { error: fail("문제집 이름을 입력해 주세요.") };
+  if (title.length > TITLE_MAX_LENGTH)
+    return { error: fail("문제집 이름이 너무 깁니다.") };
 
   if (!isValidPageCount(body.totalPages, { min: 1, max: MAX_PAGES })) {
-    return { error: fail(`전체 페이지는 1~${MAX_PAGES} 사이의 숫자여야 합니다.`) };
+    return {
+      error: fail(`전체 페이지는 1~${MAX_PAGES} 사이의 숫자여야 합니다.`),
+    };
   }
   const totalPages = Number(body.totalPages);
 
   let currentPage = 0;
-  if (body.currentPage !== undefined && body.currentPage !== null && body.currentPage !== '') {
+  if (
+    body.currentPage !== undefined &&
+    body.currentPage !== null &&
+    body.currentPage !== ""
+  ) {
     if (!isValidPageCount(body.currentPage, { min: 0, max: MAX_PAGES })) {
-      return { error: fail('현재 페이지는 0 이상의 숫자여야 합니다.') };
+      return { error: fail("현재 페이지는 0 이상의 숫자여야 합니다.") };
     }
     currentPage = Number(body.currentPage);
   }
@@ -107,44 +116,48 @@ function validateCreateBody(body) {
  * 과목을 바꾸려면 삭제 후 재등록해야 한다.
  */
 function validateUpdateBody(body) {
-  if (!isPlainObject(body)) return { error: fail('요청 본문이 올바르지 않습니다.') };
+  if (!isPlainObject(body))
+    return { error: fail("요청 본문이 올바르지 않습니다.") };
 
   const id = validateId(body.id);
-  if (!id) return { error: fail('문제집을 찾을 수 없습니다.') };
+  if (!id) return { error: fail("문제집을 찾을 수 없습니다.") };
 
   const patch = {};
 
   if (body.title !== undefined) {
     const title = clean(body.title);
-    if (!title) return { error: fail('문제집 이름을 입력해 주세요.') };
-    if (title.length > TITLE_MAX_LENGTH) return { error: fail('문제집 이름이 너무 깁니다.') };
+    if (!title) return { error: fail("문제집 이름을 입력해 주세요.") };
+    if (title.length > TITLE_MAX_LENGTH)
+      return { error: fail("문제집 이름이 너무 깁니다.") };
     patch.title = title;
   }
 
   if (body.totalPages !== undefined) {
     if (!isValidPageCount(body.totalPages, { min: 1, max: MAX_PAGES })) {
-      return { error: fail(`전체 페이지는 1~${MAX_PAGES} 사이의 숫자여야 합니다.`) };
+      return {
+        error: fail(`전체 페이지는 1~${MAX_PAGES} 사이의 숫자여야 합니다.`),
+      };
     }
     patch.totalPages = Number(body.totalPages);
   }
 
   if (body.currentPage !== undefined) {
     if (!isValidPageCount(body.currentPage, { min: 0, max: MAX_PAGES })) {
-      return { error: fail('현재 페이지는 0 이상의 숫자여야 합니다.') };
+      return { error: fail("현재 페이지는 0 이상의 숫자여야 합니다.") };
     }
     patch.currentPage = Number(body.currentPage);
   }
 
   if (Object.keys(patch).length === 0) {
-    return { error: fail('변경할 값이 없습니다.') };
+    return { error: fail("변경할 값이 없습니다.") };
   }
 
   return { value: { id, patch } };
 }
 
 export default async function handler(req, res) {
-  if (!['GET', 'POST', 'PUT', 'DELETE'].includes(req.method)) {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (!["GET", "POST", "PUT", "DELETE"].includes(req.method)) {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -155,12 +168,14 @@ export default async function handler(req, res) {
 
     const { supabaseAdmin, profileId, allowed } = session;
 
-    if (req.method === 'GET') {
+    if (req.method === "GET") {
       // 조회형 규약 — 미결제는 에러가 아니다(student.js와 동일).
       if (!allowed) return res.status(200).json({ allowed: false });
 
       const rows = await fetchWorkbooks(supabaseAdmin, profileId);
-      return res.status(200).json({ ok: true, workbooks: rows.map(buildWorkbookPayload) });
+      return res
+        .status(200)
+        .json({ ok: true, workbooks: rows.map(buildWorkbookPayload) });
     }
 
     // 이하 전부 쓰기형이므로 미결제는 403이다(intake.js와 동일).
@@ -168,9 +183,10 @@ export default async function handler(req, res) {
 
     const body = readBody(req);
 
-    if (req.method === 'POST') {
+    if (req.method === "POST") {
       const validated = validateCreateBody(body);
-      if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+      if (validated.error)
+        return res.status(validated.error.status).json(validated.error.body);
 
       const { subject, title, totalPages, currentPage } = validated.value;
       const row = await insertWorkbook(supabaseAdmin, {
@@ -179,47 +195,59 @@ export default async function handler(req, res) {
         title,
         total_pages: totalPages,
         current_page: currentPage,
-        status: computeWorkbookStatus(currentPage, totalPages)
+        status: computeWorkbookStatus(currentPage, totalPages),
       });
 
-      return res.status(200).json({ ok: true, workbook: buildWorkbookPayload(row) });
+      return res
+        .status(200)
+        .json({ ok: true, workbook: buildWorkbookPayload(row) });
     }
 
-    if (req.method === 'PUT') {
+    if (req.method === "PUT") {
       const validated = validateUpdateBody(body);
-      if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+      if (validated.error)
+        return res.status(validated.error.status).json(validated.error.body);
 
       const { id, patch } = validated.value;
       const existing = await fetchWorkbookOwned(supabaseAdmin, id, profileId);
-      if (!existing) return res.status(404).json({ detail: '문제집을 찾을 수 없습니다.' });
+      if (!existing)
+        return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
 
       // 바뀌지 않은 필드는 기존 값을 그대로 되먹여 항상 완전한 행을 쓴다 —
       // 부분 patch 조립보다 단순하고, current_page/total_pages 조합이 바뀔 때마다
       // status를 놓치지 않는다(sql/76 status 컬럼 코멘트와 동일 규약).
       const nextTotalPages = patch.totalPages ?? existing.total_pages;
-      const nextCurrentPage = Math.min(patch.currentPage ?? existing.current_page, nextTotalPages);
+      const nextCurrentPage = Math.min(
+        patch.currentPage ?? existing.current_page,
+        nextTotalPages,
+      );
 
       const updated = await updateWorkbookOwned(supabaseAdmin, id, profileId, {
         title: patch.title ?? existing.title,
         total_pages: nextTotalPages,
         current_page: nextCurrentPage,
-        status: computeWorkbookStatus(nextCurrentPage, nextTotalPages)
+        status: computeWorkbookStatus(nextCurrentPage, nextTotalPages),
       });
 
-      if (!updated) return res.status(404).json({ detail: '문제집을 찾을 수 없습니다.' });
-      return res.status(200).json({ ok: true, workbook: buildWorkbookPayload(updated) });
+      if (!updated)
+        return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
+      return res
+        .status(200)
+        .json({ ok: true, workbook: buildWorkbookPayload(updated) });
     }
 
     // DELETE
     const id = validateId(body?.id);
-    if (!id) return res.status(400).json({ detail: '문제집을 찾을 수 없습니다.' });
+    if (!id)
+      return res.status(400).json({ detail: "문제집을 찾을 수 없습니다." });
 
     const deleted = await deleteWorkbookOwned(supabaseAdmin, id, profileId);
-    if (!deleted) return res.status(404).json({ detail: '문제집을 찾을 수 없습니다.' });
+    if (!deleted)
+      return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
 
     return res.status(200).json({ ok: true });
   } catch (error) {
-    console.error('goal/workbooks error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/workbooks error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }

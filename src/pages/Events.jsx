@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import BoardListPage from '../components/board/BoardListPage';
-import { BOARD_SOURCES, formatBoardDate, incrementBoardView } from './board/boardData';
+import { ArrowLeft, Download } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import SafeHtml from "../components/admission/SafeHtml";
+import BoardListPage from "../components/board/BoardListPage";
+import { withDedupedKeys } from "../lib/reactKeys";
+import { supabase } from "../lib/supabase";
+import {
+  BOARD_SOURCES,
+  formatBoardDate,
+  incrementBoardView,
+} from "./board/boardData";
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
@@ -22,14 +28,14 @@ function normalizeArray(value) {
 }
 
 function getAttachmentName(file) {
-  if (!file) return '첨부파일 다운로드';
-  if (typeof file === 'string') return '첨부파일 다운로드';
-  return file.name || '첨부파일 다운로드';
+  if (!file) return "첨부파일 다운로드";
+  if (typeof file === "string") return "첨부파일 다운로드";
+  return file.name || "첨부파일 다운로드";
 }
 
 function getAttachmentUrl(file) {
-  if (!file) return '';
-  return typeof file === 'string' ? file : file.url;
+  if (!file) return "";
+  return typeof file === "string" ? file : file.url;
 }
 
 function renderNoticeContent(content) {
@@ -38,7 +44,7 @@ function renderNoticeContent(content) {
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
 
   if (hasHtml) {
-    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
+    return <SafeHtml html={content} className="notice-content" />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;
@@ -46,7 +52,7 @@ function renderNoticeContent(content) {
 
 export default function Events() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get('id');
+  const selectedId = searchParams.get("id");
 
   const [notices, setNotices] = useState([]);
   // 어떤 id 요청에 대한 로드가 끝났는지. 상세 대기 상태와 '없는 글' 을 구분하는 유일한 근거다.
@@ -67,17 +73,17 @@ export default function Events() {
 
     async function fetchNotices() {
       const { data, error } = await supabase
-        .from('notices')
-        .select('*')
-        .eq('is_active', true)
-        .order('is_pinned', { ascending: false })
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+        .from("notices")
+        .select("*")
+        .eq("is_active", true)
+        .order("is_pinned", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
 
       if (!mounted) return;
 
       if (error) {
-        console.error('공지사항 조회 오류:', error);
+        console.error("공지사항 조회 오류:", error);
         setNotices([]);
         setLoadedId(selectedId);
         return;
@@ -96,7 +102,9 @@ export default function Events() {
 
   const selectedNotice = useMemo(() => {
     if (!selectedId) return null;
-    return notices.find((notice) => String(notice.id) === String(selectedId)) || null;
+    return (
+      notices.find((notice) => String(notice.id) === String(selectedId)) || null
+    );
   }, [selectedId, notices]);
 
   // 조회수 +1 (설계 결정 D3 — 1일 1회 IP 중복 방지는 RPC 내부 책임).
@@ -124,7 +132,10 @@ export default function Events() {
     return (
       <main className="min-h-screen bg-white pt-16">
         <section className="mx-auto max-w-content px-6 py-16">
-          <div role="status" className="py-16 text-center text-sm font-medium text-[#767676]">
+          <div
+            role="status"
+            className="py-16 text-center text-sm font-medium text-[#767676]"
+          >
             불러오는 중입니다.
           </div>
         </section>
@@ -137,105 +148,105 @@ export default function Events() {
     const attachments = normalizeArray(selectedNotice.attachments);
 
     return (
-      <>
-        <main className="min-h-screen bg-white pt-16">
-          <section className="mx-auto max-w-content px-6 py-16">
-            <button
-              type="button"
-              onClick={() => setSearchParams({})}
-              className="mb-8 inline-flex items-center gap-2 text-[16px] font-bold text-gray-600 hover:text-black"
-            >
-              <ArrowLeft size={20} />
-              목록으로
-            </button>
+      <main className="min-h-screen bg-white pt-16">
+        <section className="mx-auto max-w-content px-6 py-16">
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="mb-8 inline-flex items-center gap-2 text-[16px] font-bold text-gray-600 hover:text-black"
+          >
+            <ArrowLeft size={20} />
+            목록으로
+          </button>
 
-            <div className="border-y border-[#d9d9d9]">
-              <div className="border-b border-[#e5e5e5] px-4 py-7">
-                <div className="mb-3 flex items-center gap-2">
-                  {selectedNotice.is_pinned && (
-                    <span className="rounded bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
-                      공지
-                    </span>
-                  )}
-
-                  <span className="text-sm font-medium text-gray-500">
-                    {formatBoardDate(selectedNotice.created_at)}
+          <div className="border-y border-[#d9d9d9]">
+            <div className="border-b border-[#e5e5e5] px-4 py-7">
+              <div className="mb-3 flex items-center gap-2">
+                {selectedNotice.is_pinned && (
+                  <span className="rounded bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
+                    공지
                   </span>
-                </div>
+                )}
 
-                <h1 className="break-keep text-[30px] font-black leading-[1.35] tracking-[-0.03em] text-[#111827]">
-                  {selectedNotice.title}
-                </h1>
+                <span className="text-sm font-medium text-gray-500">
+                  {formatBoardDate(selectedNotice.created_at)}
+                </span>
               </div>
 
-              <article className="min-h-[420px] px-4 py-12">
-                {images.length > 0 ? (
-                  <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                    {images.map((url, index) => (
-                      <img
-                        key={`${url}-${index}`}
-                        src={url}
-                        alt={`${selectedNotice.title} 이미지 ${index + 1}`}
-                        className="w-full object-contain"
-                      />
+              <h1 className="break-keep text-[30px] font-black leading-[1.35] tracking-[-0.03em] text-[#111827]">
+                {selectedNotice.title}
+              </h1>
+            </div>
+
+            <article className="min-h-[420px] px-4 py-12">
+              {images.length > 0 ? (
+                <div className="mb-10 space-y-0 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                  {withDedupedKeys(images).map(({ item: url, key }, index) => (
+                    <img
+                      key={key}
+                      src={url}
+                      alt={`${selectedNotice.title} 이미지 ${index + 1}`}
+                      className="w-full object-contain"
+                    />
+                  ))}
+                </div>
+              ) : selectedNotice.image_url ? (
+                <div className="mb-10 flex justify-center">
+                  <img
+                    src={selectedNotice.image_url}
+                    alt={selectedNotice.title}
+                    className="max-h-none max-w-full object-contain"
+                  />
+                </div>
+              ) : null}
+
+              {renderNoticeContent(selectedNotice.content)}
+
+              {attachments.length > 0 ? (
+                <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                  <p className="mb-3 text-sm font-black text-[#111827]">
+                    첨부파일
+                  </p>
+
+                  <div className="space-y-2">
+                    {withDedupedKeys(
+                      attachments.filter((file) => getAttachmentUrl(file)),
+                      getAttachmentUrl,
+                    ).map(({ item: file, key }) => (
+                      <a
+                        key={key}
+                        href={getAttachmentUrl(file)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                      >
+                        <Download size={16} />
+                        {getAttachmentName(file)}
+                      </a>
                     ))}
                   </div>
-                ) : selectedNotice.image_url ? (
-                  <div className="mb-10 flex justify-center">
-                    <img
-                      src={selectedNotice.image_url}
-                      alt={selectedNotice.title}
-                      className="max-h-none max-w-full object-contain"
-                    />
-                  </div>
-                ) : null}
+                </div>
+              ) : selectedNotice.file_url ? (
+                <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                  <p className="mb-3 text-sm font-black text-[#111827]">
+                    첨부파일
+                  </p>
 
-                {renderNoticeContent(selectedNotice.content)}
-
-                {attachments.length > 0 ? (
-                  <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">첨부파일</p>
-
-                    <div className="space-y-2">
-                      {attachments.map((file, index) => {
-                        const url = getAttachmentUrl(file);
-                        if (!url) return null;
-
-                        return (
-                          <a
-                            key={`${url}-${index}`}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
-                          >
-                            <Download size={16} />
-                            {getAttachmentName(file)}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : selectedNotice.file_url ? (
-                  <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-5">
-                    <p className="mb-3 text-sm font-black text-[#111827]">첨부파일</p>
-
-                    <a
-                      href={selectedNotice.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
-                    >
-                      <Download size={16} />
-                      {selectedNotice.file_name || '첨부파일 다운로드'}
-                    </a>
-                  </div>
-                ) : null}
-              </article>
-            </div>
-          </section>
-        </main>
-      </>
+                  <a
+                    href={selectedNotice.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:border-[#0D1B2A] hover:text-[#0D1B2A]"
+                  >
+                    <Download size={16} />
+                    {selectedNotice.file_name || "첨부파일 다운로드"}
+                  </a>
+                </div>
+              ) : null}
+            </article>
+          </div>
+        </section>
+      </main>
     );
   }
 

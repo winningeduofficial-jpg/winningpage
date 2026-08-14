@@ -10,7 +10,7 @@
 //
 // 경로는 전부 `public/` 기준 절대 경로(Vite 는 public 하위를 루트로 서빙)라 `/images/...` 로 시작한다.
 
-const BASE = '/images/mentor-apply';
+const BASE = "/images/mentor-apply";
 
 // ---------------------------------------------------------------------------
 // §1 히어로 배경 (3362:2758)
@@ -21,7 +21,7 @@ const BASE = '/images/mentor-apply';
 // 히어로 딤(3362:2759)은 rgba(0,0,0,0.2) 단색 레이어라 에셋이 아니다 — CSS 로 처리한다.
 const heroBg = {
   src: `${BASE}/hero-bg-1280.webp`,
-  srcSet: `${BASE}/hero-bg-768.webp 768w, ${BASE}/hero-bg-1280.webp 1280w, ${BASE}/hero-bg-1920.webp 1920w`
+  srcSet: `${BASE}/hero-bg-768.webp 768w, ${BASE}/hero-bg-1280.webp 1280w, ${BASE}/hero-bg-1920.webp 1920w`,
 };
 
 // ---------------------------------------------------------------------------
@@ -32,14 +32,14 @@ const heroBg = {
 // 병합해 저장했다. export 에 따라온 조상 배경 사각형(112×93 플레이스홀더, 페이지 배경 1920×10722,
 // 섹션 배경 1920×815)은 불투명하게 딸려와 회색 박스로 보이므로 전부 제거했다 — 순수 일러스트만 남았다.
 const majors = {
-  medical: `${BASE}/major-medical.svg`,               // 청진기
-  engineering: `${BASE}/major-engineering.svg`,       // 로봇 팔
+  medical: `${BASE}/major-medical.svg`, // 청진기
+  engineering: `${BASE}/major-engineering.svg`, // 로봇 팔
   naturalScience: `${BASE}/major-natural-science.svg`, // 삼각플라스크
-  education: `${BASE}/major-education.svg`,           // 깃발 달린 학교 건물
-  business: `${BASE}/major-business.svg`,             // 막대그래프 + 상승 화살표
-  socialScience: `${BASE}/major-social-science.svg`,  // 지구본
-  humanities: `${BASE}/major-humanities.svg`,         // 석고 흉상
-  arts: `${BASE}/major-arts.svg`                      // 팔레트 + 붓
+  education: `${BASE}/major-education.svg`, // 깃발 달린 학교 건물
+  business: `${BASE}/major-business.svg`, // 막대그래프 + 상승 화살표
+  socialScience: `${BASE}/major-social-science.svg`, // 지구본
+  humanities: `${BASE}/major-humanities.svg`, // 석고 흉상
+  arts: `${BASE}/major-arts.svg`, // 팔레트 + 붓
 };
 
 // ---------------------------------------------------------------------------
@@ -47,9 +47,9 @@ const majors = {
 // ---------------------------------------------------------------------------
 // 배경이 제거된(투명) 원본 변형을 받았다. 해상도는 슬롯 대비 약 2배(명세 §3 "2x 에셋 확보 권장").
 const benefits = {
-  stipend: `${BASE}/benefit-stipend.png`,         // 활동비 지급
+  stipend: `${BASE}/benefit-stipend.png`, // 활동비 지급
   certificate: `${BASE}/benefit-certificate.png`, // 활동 인증서 발급
-  training: `${BASE}/benefit-training.png`        // 정기 교육 제공
+  training: `${BASE}/benefit-training.png`, // 정기 교육 제공
 };
 
 // ---------------------------------------------------------------------------
@@ -60,18 +60,18 @@ const benefits = {
 //   디자이너 미완/플레이스홀더로 판단되나 시안이 그러하므로 두 키가 같은 파일을 가리키게 두었다 —
 //   입시전략 전용 아이콘이 확정되면 admissionStrategy 만 새 파일로 교체하면 된다(명세 확인 항목 ⑪).
 const fields = {
-  studyMethod: `${BASE}/field-study-method.png`,             // 공부방법 — 전구 + 책
-  planning: `${BASE}/field-planning.png`,                    // 계획·시간관리 — 달력 + 시계
-  schoolExam: `${BASE}/field-school-exam.png`,               // 내신·시험 대비 — 성적표 + 연필
-  career: `${BASE}/field-career.png`,                        // 진로·학과 — 학사모 + 책
-  admissionStrategy: `${BASE}/field-planning.png`,           // ⚠ planning 과 동일 파일(위 주석 참고)
+  studyMethod: `${BASE}/field-study-method.png`, // 공부방법 — 전구 + 책
+  planning: `${BASE}/field-planning.png`, // 계획·시간관리 — 달력 + 시계
+  schoolExam: `${BASE}/field-school-exam.png`, // 내신·시험 대비 — 성적표 + 연필
+  career: `${BASE}/field-career.png`, // 진로·학과 — 학사모 + 책
+  admissionStrategy: `${BASE}/field-planning.png`, // ⚠ planning 과 동일 파일(위 주석 참고)
   performanceRecord: `${BASE}/field-performance-record.png`, // 수행평가·학생부 — 돋보기 + 리포트
-  motivation: `${BASE}/field-motivation.png`                 // 공부 의욕·고민 — 스탠드 + 책
+  motivation: `${BASE}/field-motivation.png`, // 공부 의욕·고민 — 스탠드 + 책
 };
 
 export const MENTOR_ASSETS = {
   heroBg,
   majors,
   benefits,
-  fields
+  fields,
 };

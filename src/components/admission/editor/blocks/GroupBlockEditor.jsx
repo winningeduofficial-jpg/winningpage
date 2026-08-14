@@ -1,5 +1,5 @@
-import AdmissionBlockEditor from '../AdmissionBlockEditor';
-import * as docOps from '../docBlockOperations';
+import AdmissionBlockEditor from "../AdmissionBlockEditor";
+import * as docOps from "../docBlockOperations";
 
 // GroupBlock(kind:'group', 제목 + 중첩 children) 편집기.
 //
@@ -23,21 +23,36 @@ import * as docOps from '../docBlockOperations';
 // 표시판(blocks/GroupView.jsx)과 같은 껍데기 class를 쓴다 — 관리자가 공개
 // 화면과 같은 모양의 표를 보고 편집해야 하기 때문이다(AdmissionSurface.jsx
 // :166-171 의 .admission-special-* 규칙을 그대로 탄다).
-export default function GroupBlockEditor({ section, block, onChange, universityName, sectionLabel }) {
+export default function GroupBlockEditor({
+  section,
+  block,
+  onChange,
+  universityName,
+  sectionLabel,
+}) {
   const children = block.children || [];
 
   return (
     <section className="admission-special-block p-2">
-      {block.title ? <div className="admission-special-title">{block.title}</div> : null}
+      {block.title ? (
+        <div className="admission-special-title">{block.title}</div>
+      ) : null}
       <p className="text-[11px] font-bold text-gray-400">
-        그룹 제목·구성 변경은 지원하지 않습니다 — 그룹 안의 표 내용만 편집할 수 있습니다.
+        그룹 제목·구성 변경은 지원하지 않습니다 — 그룹 안의 표 내용만 편집할 수
+        있습니다.
       </p>
       {children.map((child, idx) => (
         <AdmissionBlockEditor
+          // biome-ignore lint/suspicious/noArrayIndexKey: 위 안내문대로 이 에디터는 그룹 구성 변경을 지원하지 않는다 — children 순서가 고정이다.
           key={idx}
           section={section}
           block={child}
-          onChange={(next) => onChange({ ...block, children: docOps.updateBlockAt(children, idx, next) })}
+          onChange={(next) =>
+            onChange({
+              ...block,
+              children: docOps.updateBlockAt(children, idx, next),
+            })
+          }
           universityName={universityName}
           sectionLabel={sectionLabel}
         />

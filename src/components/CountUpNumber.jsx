@@ -1,14 +1,14 @@
-import { useCountUp } from '../hooks/useCountUp';
+import { useCountUp } from "../hooks/useCountUp";
 
 export default function CountUpNumber({
   value,
   decimals = 1,
   duration = 1600,
   srLabel,
-  className = ''
+  className = "",
 }) {
   const ref = useCountUp(value, { duration, decimals });
-  const finalText = Number.isFinite(value) ? value.toFixed(decimals) : '';
+  const finalText = Number.isFinite(value) ? value.toFixed(decimals) : "";
 
   return (
     <>

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import DirectionReportBody from '../../components/goal/report/DirectionReportBody';
-import GoalCard from '../../components/goal/GoalCard';
-import { fetchGoalReport } from '../../lib/goalApi';
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import GoalCard from "../../components/goal/GoalCard";
+import DirectionReportBody from "../../components/goal/report/DirectionReportBody";
+import { fetchGoalReport } from "../../lib/goalApi";
 
-const VALID_TABS = ['naesin', 'jeongsi'];
+const VALID_TABS = ["naesin", "jeongsi"];
 
 // 학습방향 리포트 라우트(#37 내신 탭 / #38 정시 탭) — fetch 훅을 여기서 소유한다
 // (DirectionReportBody는 mock을 뗀 순수 프레젠테이션). 쿼리 파라미터 `tab`(내신/정시)과
@@ -13,16 +13,16 @@ const VALID_TABS = ['naesin', 'jeongsi'];
 // (api/goal/report.js buildDirectionReport() — options[0]).
 export default function DirectionReport() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const tab = VALID_TABS.includes(tabParam) ? tabParam : 'naesin';
-  const periodParam = searchParams.get('period') || undefined;
+  const tabParam = searchParams.get("tab");
+  const tab = VALID_TABS.includes(tabParam) ? tabParam : "naesin";
+  const periodParam = searchParams.get("period") || undefined;
 
   const [result, setResult] = useState(null);
 
   useEffect(() => {
     let alive = true;
     setResult(null);
-    fetchGoalReport('direction', periodParam, tab).then((r) => {
+    fetchGoalReport("direction", periodParam, tab).then((r) => {
       if (alive) setResult(r);
     });
     return () => {
@@ -32,24 +32,27 @@ export default function DirectionReport() {
 
   // 서버가 고른 기본 회차를 URL에 반영한다 — 새로고침·공유 링크에서도 같은 회차가 열리도록.
   useEffect(() => {
-    if (result?.kind === 'success' && !periodParam && result.report.activePeriod) {
+    if (
+      result?.kind === "success" &&
+      !periodParam &&
+      result.report.activePeriod
+    ) {
       setSearchParams(
         (prev) => {
           const params = new URLSearchParams(prev);
-          params.set('period', result.report.activePeriod);
+          params.set("period", result.report.activePeriod);
           return params;
         },
-        { replace: true }
+        { replace: true },
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  }, [result, periodParam, setSearchParams]);
 
   function handleTabChange(nextTab) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
-      params.set('tab', nextTab);
-      params.delete('period'); // 탭이 바뀌면 그 탭의 회차 목록으로 새로 고른다.
+      params.set("tab", nextTab);
+      params.delete("period"); // 탭이 바뀌면 그 탭의 회차 목록으로 새로 고른다.
       return params;
     });
   }
@@ -57,29 +60,36 @@ export default function DirectionReport() {
   function handlePeriodChange(nextPeriod) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
-      params.set('period', nextPeriod);
+      params.set("period", nextPeriod);
       return params;
     });
   }
 
-  if (result === null || result.kind !== 'success') {
+  if (result === null || result.kind !== "success") {
     const message =
       result === null
-        ? '리포트를 불러오는 중입니다…'
-        : result.kind === 'awaiting-cuts'
-          ? '합격 기준 데이터를 준비 중입니다. 잠시 후 다시 확인해 주세요.'
-          : '리포트를 불러오지 못했습니다. 새로고침해 주세요.';
+        ? "리포트를 불러오는 중입니다…"
+        : result.kind === "awaiting-cuts"
+          ? "합격 기준 데이터를 준비 중입니다. 잠시 후 다시 확인해 주세요."
+          : "리포트를 불러오지 못했습니다. 새로고침해 주세요.";
 
     return (
       <div className="max-w-goal-content px-[3rem] pb-24 pt-[6.25rem]">
         <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
-          <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">{message}</p>
+          <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            {message}
+          </p>
         </GoalCard>
       </div>
     );
   }
 
   return (
-    <DirectionReportBody tab={tab} onTabChange={handleTabChange} report={result.report} onPeriodChange={handlePeriodChange} />
+    <DirectionReportBody
+      tab={tab}
+      onTabChange={handleTabChange}
+      report={result.report}
+      onPeriodChange={handlePeriodChange}
+    />
   );
 }

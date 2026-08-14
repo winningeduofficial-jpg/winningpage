@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BOARD_PAGE_SIZE,
   fetchBoardRows,
@@ -6,11 +6,11 @@ import {
   formatBoardDate,
   getDisplayNumber,
   getViewCount,
-  paginate
-} from '../../pages/board/boardData';
-import BoardSearchBar from './BoardSearchBar';
-import BoardTable from './BoardTable';
-import BoardPagination from './BoardPagination';
+  paginate,
+} from "../../pages/board/boardData";
+import BoardPagination from "./BoardPagination";
+import BoardSearchBar from "./BoardSearchBar";
+import BoardTable from "./BoardTable";
 
 /**
  * 게시판(회사소식·공지사항) 목록 페이지 셸.
@@ -57,11 +57,13 @@ import BoardPagination from './BoardPagination';
 /** 상태 문구 공통 클래스 — CompanyNews.jsx:776-782(같은 게시판 도메인)에서 가져왔다.
  *  Faq.jsx:13 의 `text-gray-400`(#9CA3AF, 흰 배경 대비 2.85:1 → AA 미달) 대신
  *  #767676(4.66:1, AA 통과)을 쓰는 CompanyNews 쪽을 정본으로 택했다. */
-const STATE_BLOCK_CLASS = 'py-16 text-center text-sm font-medium text-[#767676]';
+const STATE_BLOCK_CLASS =
+  "py-16 text-center text-sm font-medium text-[#767676]";
 
-const DEFAULT_EMPTY_MESSAGE = '등록된 게시글이 없습니다.';
-const LOADING_MESSAGE = '불러오는 중입니다.';
-const ERROR_MESSAGE = '게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const DEFAULT_EMPTY_MESSAGE = "등록된 게시글이 없습니다.";
+const LOADING_MESSAGE = "불러오는 중입니다.";
+const ERROR_MESSAGE =
+  "게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 /** 무결과 문구 기본값 — 검색어를 따옴표로 감싸 노출하는 Faq.jsx:159 형식 그대로. */
 function defaultNoResultMessage(keyword) {
@@ -87,12 +89,12 @@ export default function BoardListPage({
   searchAriaLabel,
   getDetailHref,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
-  noResultMessage = defaultNoResultMessage
+  noResultMessage = defaultNoResultMessage,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
 
   const listRef = useRef(null);
@@ -100,7 +102,9 @@ export default function BoardListPage({
   // paginate 내부의 보정 규칙(boardData.js:133)을 그대로 복제한다.
   // 번호 채번 어댑터가 paginate 와 **같은 크기**를 써야 페이지 경계에서 번호가 어긋나지 않는다.
   const safePageSize =
-    Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : BOARD_PAGE_SIZE;
+    Number.isFinite(pageSize) && pageSize > 0
+      ? Math.floor(pageSize)
+      : BOARD_PAGE_SIZE;
 
   useEffect(() => {
     let alive = true;
@@ -108,7 +112,7 @@ export default function BoardListPage({
     (async () => {
       setLoading(true);
       setHasError(false);
-      setKeyword('');
+      setKeyword("");
       setPage(1);
 
       try {
@@ -122,7 +126,7 @@ export default function BoardListPage({
       } catch (error) {
         if (!alive) return;
 
-        console.error('게시판 목록 로드 실패:', error);
+        console.error("게시판 목록 로드 실패:", error);
         setRows([]);
         setHasError(true);
       } finally {
@@ -135,14 +139,21 @@ export default function BoardListPage({
     };
   }, [source]);
 
-  const filtered = useMemo(() => filterBoardRows(rows, keyword), [rows, keyword]);
+  const filtered = useMemo(
+    () => filterBoardRows(rows, keyword),
+    [rows, keyword],
+  );
 
   // ※ 한때 여기에 `showViewCount` 판정(전 행의 view_count 가 null 이면 조회수 컬럼을 숨김)이
   //    있었으나 제거했다. 시안(Figma 2235:3618)에 조회수 컬럼이 항상 존재하고, 조건부 렌더가
   //    "검색 0건에서 헤더가 3↔4컬럼으로 튐" / "로딩→도착 사이 컬럼 점프" 두 결함의 원인이었다.
   //    이제 BoardTable 이 컬럼을 무조건 그리고, 값 없는 행은 셀에 '-' 만 찍는다.
 
-  const { pageRows, totalPages, safePage } = paginate(filtered, page, safePageSize);
+  const { pageRows, totalPages, safePage } = paginate(
+    filtered,
+    page,
+    safePageSize,
+  );
 
   const trimmedKeyword = keyword.trim();
   const isSearching = trimmedKeyword.length > 0;
@@ -159,7 +170,7 @@ export default function BoardListPage({
   // 대상 요소에는 같은 선례의 scroll-mt-24 를 붙여 fixed 헤더(h-16)에 가리지 않게 한다.
   function handlePageChange(nextPage) {
     setPage(nextPage);
-    listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    listRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
   function renderStateMessage() {
@@ -169,7 +180,7 @@ export default function BoardListPage({
 
     // 빈 상태 2종 구분: 데이터 자체가 0건 vs 검색 결과만 0건.
     if (isSearching) {
-      return typeof noResultMessage === 'function'
+      return typeof noResultMessage === "function"
         ? noResultMessage(trimmedKeyword)
         : noResultMessage;
     }
@@ -200,7 +211,11 @@ export default function BoardListPage({
               rows={pageRows}
               getDetailHref={getDetailHref}
               getDisplayNumber={(row, indexInPage) =>
-                getDisplayNumber(row, (safePage - 1) * safePageSize + indexInPage, filtered.length)
+                getDisplayNumber(
+                  row,
+                  (safePage - 1) * safePageSize + indexInPage,
+                  filtered.length,
+                )
               }
               formatDate={formatBoardDate}
               getViewCount={getViewCount}

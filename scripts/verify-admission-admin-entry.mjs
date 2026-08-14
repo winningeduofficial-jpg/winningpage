@@ -51,11 +51,11 @@
 // 제약: npm install 금지, jsdom 없음. esbuild(transform) + react-dom/server 만.
 // =====================================================================
 
-import fs from 'node:fs';
-import path from 'node:path';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import * as esbuild from 'esbuild';
+import fs from "node:fs";
+import path from "node:path";
+import * as esbuild from "esbuild";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 // 실제 소스 파일(.jsx)을 번들해 import한다 — AdmissionMetaEditModal.jsx는
 // supabase 등 외부 부작용 의존이 없는 순수 컴포넌트라, verify-admission-
@@ -64,17 +64,23 @@ async function loadModule(entry, exportName) {
   const result = await esbuild.build({
     entryPoints: [path.join(REPO_ROOT, entry)],
     bundle: true,
-    format: 'esm',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    platform: 'node',
-    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server', 'lucide-react'],
-    write: false
+    format: "esm",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    platform: "node",
+    external: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react-dom/server",
+      "lucide-react",
+    ],
+    write: false,
   });
   const code = result.outputFiles[0].text;
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-admin-entry-module-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-admin-entry-module-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, code);
   try {
@@ -85,30 +91,35 @@ async function loadModule(entry, exportName) {
   }
 }
 
-const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
-const ADMIN_REL = 'src/pages/Admin.jsx';
+const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const ADMIN_REL = "src/pages/Admin.jsx";
 
 const CELL_SLICE_START = "column.type === 'admissionSection' ? (";
 const CELL_SLICE_END = ") : column.type === 'fileList' ? (";
 
 // 관리 열(✏️/🗑) 슬라이스 앵커. 소스 전체에서 정확히 1개여야 한다.
-const MANAGE_ANCHOR = 'onClick={() => onEdit(row)}';
+const MANAGE_ANCHOR = "onClick={() => onEdit(row)}";
 
-const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
 
 // ── 셀 분기 기계 슬라이스 ──────────────────────────────────────────────
 function sliceSectionCell(source) {
   const startIdx = source.indexOf(CELL_SLICE_START);
-  if (startIdx === -1 || source.indexOf(CELL_SLICE_START, startIdx + 1) !== -1) {
+  if (
+    startIdx === -1 ||
+    source.indexOf(CELL_SLICE_START, startIdx + 1) !== -1
+  ) {
     throw new Error(
       `셀 슬라이스 앵커 "${CELL_SLICE_START}" 가 정확히 1개가 아니다. ` +
-        '리팩터로 앵커가 사라졌다면 이 스크립트 상단의 슬라이스 규칙을 읽고 복원하라.'
+        "리팩터로 앵커가 사라졌다면 이 스크립트 상단의 슬라이스 규칙을 읽고 복원하라.",
     );
   }
   const bodyStart = startIdx + CELL_SLICE_START.length;
   const endIdx = source.indexOf(CELL_SLICE_END, bodyStart);
   if (endIdx === -1) {
-    throw new Error(`셀 슬라이스 종료 앵커 "${CELL_SLICE_END}" 를 찾지 못했다.`);
+    throw new Error(
+      `셀 슬라이스 종료 앵커 "${CELL_SLICE_END}" 를 찾지 못했다.`,
+    );
   }
   return source.slice(bodyStart, endIdx);
 }
@@ -127,14 +138,14 @@ export default function SectionCellHarness({ sectionSummaries, index, column, ro
 }
 `;
   const out = await esbuild.transform(harness, {
-    loader: 'jsx',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    format: 'esm'
+    loader: "jsx",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    format: "esm",
   });
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-admin-entry-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-admin-entry-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, out.code);
   try {
@@ -162,13 +173,14 @@ function sliceManageCell(source) {
   if (first === -1 || source.indexOf(MANAGE_ANCHOR, first + 1) !== -1) {
     throw new Error(
       `관리 열 앵커 "${MANAGE_ANCHOR}" 가 정확히 1개가 아니다. ` +
-        '리팩터로 앵커가 사라졌다면 이 스크립트 상단의 슬라이스 규칙을 읽고 복원하라.'
+        "리팩터로 앵커가 사라졌다면 이 스크립트 상단의 슬라이스 규칙을 읽고 복원하라.",
     );
   }
-  const start = source.lastIndexOf('<td', first);
-  const end = source.indexOf('</td>', first);
-  if (start === -1 || end === -1) throw new Error('관리 열 <td> 경계를 찾지 못했다.');
-  return source.slice(start, end + '</td>'.length);
+  const start = source.lastIndexOf("<td", first);
+  const end = source.indexOf("</td>", first);
+  if (start === -1 || end === -1)
+    throw new Error("관리 열 <td> 경계를 찾지 못했다.");
+  return source.slice(start, end + "</td>".length);
 }
 
 // 아이콘(lucide-react)은 번들하지 않고 스텁으로 갈아끼운다 — 이 검사의 관심사는
@@ -189,14 +201,14 @@ export default function ManageCellHarness({ config, row, onEdit, onDelete, onOpe
 }
 `;
   const out = await esbuild.transform(harness, {
-    loader: 'jsx',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    format: 'esm'
+    loader: "jsx",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    format: "esm",
   });
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-admin-manage-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-admin-manage-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, out.code);
   try {
@@ -220,20 +232,22 @@ export default function ManageCellHarness({ config, row, onEdit, onDelete, onOpe
 // 검사의 관심사는 "raw/html 패널이 안 그려지는가"이지 문서 편집기
 // 내부가 아니다).
 const GROUP_FIELD_START =
-  'function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {';
-const GROUP_FIELD_END = '\nfunction AdminForm({';
+  "function AdmissionGroupField({ field, form, readonly, onChange, onPatch, onDirty }) {";
+const GROUP_FIELD_END = "\nfunction AdminForm({";
 
 function sliceAdmissionGroupField(source) {
   const start = source.indexOf(GROUP_FIELD_START);
   if (start === -1 || source.indexOf(GROUP_FIELD_START, start + 1) !== -1) {
     throw new Error(
       `AdmissionGroupField 슬라이스 시작 앵커가 정확히 1개가 아니다. ` +
-        '리팩터로 시그니처가 바뀌었다면 이 스크립트의 GROUP_FIELD_START를 맞춰 고쳐라.'
+        "리팩터로 시그니처가 바뀌었다면 이 스크립트의 GROUP_FIELD_START를 맞춰 고쳐라.",
     );
   }
   const end = source.indexOf(GROUP_FIELD_END, start);
   if (end === -1) {
-    throw new Error(`AdmissionGroupField 슬라이스 종료 앵커 "${GROUP_FIELD_END}" 를 찾지 못했다.`);
+    throw new Error(
+      `AdmissionGroupField 슬라이스 종료 앵커 "${GROUP_FIELD_END}" 를 찾지 못했다.`,
+    );
   }
   return source.slice(start, end).trim();
 }
@@ -248,14 +262,14 @@ ${sliceText}
 export default AdmissionGroupField;
 `;
   const out = await esbuild.transform(harness, {
-    loader: 'jsx',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    format: 'esm'
+    loader: "jsx",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    format: "esm",
   });
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-admin-groupfield-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-admin-groupfield-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, out.code);
   try {
@@ -269,7 +283,7 @@ export default AdmissionGroupField;
 // 렌더 트리에서 첫 <button> 엘리먼트를 찾는다. SSR 문자열엔 핸들러가 남지
 // 않으므로, "버튼이 실제로 onOpenSection 을 부르는가"는 엘리먼트 트리로 본다.
 function findButton(node) {
-  if (!node || typeof node !== 'object') return null;
+  if (!node || typeof node !== "object") return null;
   if (Array.isArray(node)) {
     for (const child of node) {
       const hit = findButton(child);
@@ -277,13 +291,14 @@ function findButton(node) {
     }
     return null;
   }
-  if (node.type === 'button') return node;
+  if (node.type === "button") return node;
   return findButton(node.props?.children);
 }
 
 async function main() {
   const results = [];
-  const record = (id, name, pass, detail) => results.push({ id, name, pass, detail });
+  const record = (id, name, pass, detail) =>
+    results.push({ id, name, pass, detail });
 
   const adminSrc = read(ADMIN_REL);
   const SectionCell = await loadSectionCell(sliceSectionCell(adminSrc));
@@ -291,18 +306,20 @@ async function main() {
   const makeProps = (summary, sink) => ({
     sectionSummaries: [{ selection_method: summary }],
     index: 0,
-    column: { sectionKey: 'selection_method' },
-    row: { id: 'fixture', university_name: '검증대학교' },
-    onOpenSection: (...args) => sink.push(args)
+    column: { sectionKey: "selection_method" },
+    row: { id: "fixture", university_name: "검증대학교" },
+    onOpenSection: (...args) => sink.push(args),
   });
 
   const renderCell = (summary) =>
-    renderToStaticMarkup(React.createElement(SectionCell, makeProps(summary, [])));
+    renderToStaticMarkup(
+      React.createElement(SectionCell, makeProps(summary, [])),
+    );
 
   // summarizeHwpSection 이 낼 수 있는 값 3종. '내용 없음' 만 특별 취급 대상이었다.
-  const EMPTY = '내용 없음';
-  const RAW_ONLY = '원문 있음(문서 미생성)';
-  const FILLED = '표 1개 · 5열 12행';
+  const EMPTY = "내용 없음";
+  const RAW_ONLY = "원문 있음(문서 미생성)";
+  const FILLED = "표 1개 · 5열 12행";
 
   // ── entry:1 — 빈 칸에서도 버튼이 렌더된다 (핵심) ─────────────────────
   //
@@ -313,10 +330,10 @@ async function main() {
     const hasButton = /<button\b/.test(html);
     const pass = hasButton;
     record(
-      'entry:1',
+      "entry:1",
       "요약이 '내용 없음'인 빈 카테고리 칸에서도 <button>이 렌더된다(진입 게이트 부활 차단)",
       pass,
-      html
+      html,
     );
   }
 
@@ -332,15 +349,18 @@ async function main() {
       const el = React.createElement(SectionCell, props);
       const button = findButton(el.type(el.props));
       button?.props?.onClick?.();
-      const ok = Boolean(button) && clicks.length === 1 && clicks[0][1] === 'selection_method';
+      const ok =
+        Boolean(button) &&
+        clicks.length === 1 &&
+        clicks[0][1] === "selection_method";
       detail[summary] = { hasButton: Boolean(button), clicks };
       if (!ok) pass = false;
     }
     record(
-      'entry:2',
-      '빈 칸/원문만 있음/내용 있음 3상태 전부 onOpenSection(row, sectionKey)를 조건 없이 호출한다',
+      "entry:2",
+      "빈 칸/원문만 있음/내용 있음 3상태 전부 onOpenSection(row, sectionKey)를 조건 없이 호출한다",
       pass,
-      JSON.stringify(detail)
+      JSON.stringify(detail),
     );
   }
 
@@ -353,16 +373,16 @@ async function main() {
     const filled = renderCell(FILLED);
     const rawOnly = renderCell(RAW_ONLY);
     const pass =
-      empty.includes('추가') &&
-      !empty.includes('수정') &&
-      filled.includes('수정') &&
-      !filled.includes('추가') &&
-      rawOnly.includes('수정');
+      empty.includes("추가") &&
+      !empty.includes("수정") &&
+      filled.includes("수정") &&
+      !filled.includes("추가") &&
+      rawOnly.includes("수정");
     record(
-      'entry:3',
+      "entry:3",
       "빈 칸 라벨은 '추가', 내용/원문 있는 칸 라벨은 '수정'",
       pass,
-      JSON.stringify({ empty, filled, rawOnly })
+      JSON.stringify({ empty, filled, rawOnly }),
     );
   }
 
@@ -388,9 +408,9 @@ async function main() {
   // 주석에는 계약 문자열이 설명 목적으로 잔뜩 등장한다(이 저장소 관행).
   // 락은 **코드**를 봐야 하므로 주석을 걷어낸 사본에서 검사한다.
   const code = adminSrc
-    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '') // JSX 주석 {/* … */}
-    .replace(/\/\*[\s\S]*?\*\//g, '') // 블록 주석
-    .replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1'); // 줄 주석(URL 의 // 는 제외)
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "") // JSX 주석 {/* … */}
+    .replace(/\/\*[\s\S]*?\*\//g, "") // 블록 주석
+    .replace(/(^|[^:'"`\\])\/\/[^\n]*/g, "$1"); // 줄 주석(URL 의 // 는 제외)
 
   // 어떤 인덱스가 어떤 config 블록 안에 있는지 판정한다.
   // config 는 `const CONFIGS = { <key>: { … }, … }` 형태의 최상위 객체다.
@@ -408,12 +428,12 @@ async function main() {
 
   // 관리 열 <td> 안쪽(✏️/🗑 이 사는 블록)만 잘라낸다.
   const manageCell = (() => {
-    const anchor = code.indexOf('onClick={() => onEdit(row)}');
+    const anchor = code.indexOf("onClick={() => onEdit(row)}");
     if (anchor === -1) return null;
-    const start = code.lastIndexOf('<td', anchor);
-    const end = code.indexOf('</td>', anchor);
+    const start = code.lastIndexOf("<td", anchor);
+    const end = code.indexOf("</td>", anchor);
     if (start === -1 || end === -1) return null;
-    return code.slice(start, end + '</td>'.length);
+    return code.slice(start, end + "</td>".length);
   })();
 
   // ── entry:4 — ✏️ 가 hideRowEdit 로 게이팅돼 있다 ─────────────────────
@@ -421,12 +441,12 @@ async function main() {
     const pass =
       Boolean(manageCell) &&
       /\{!config\.hideRowEdit && \(\s*<button/.test(manageCell) &&
-      manageCell.includes('onClick={() => onEdit(row)}');
+      manageCell.includes("onClick={() => onEdit(row)}");
     record(
-      'entry:4',
-      '관리 열의 onEdit(row) 버튼이 `{!config.hideRowEdit && (` 로 감싸져 있다',
+      "entry:4",
+      "관리 열의 onEdit(row) 버튼이 `{!config.hideRowEdit && (` 로 감싸져 있다",
       pass,
-      manageCell ? manageCell.slice(0, 500) : '관리 열 <td> 를 찾지 못했다'
+      manageCell ? manageCell.slice(0, 500) : "관리 열 <td> 를 찾지 못했다",
     );
   }
 
@@ -434,12 +454,12 @@ async function main() {
   {
     const decls = [...code.matchAll(/\bhideRowEdit:\s*true\b/g)];
     const owners = decls.map((m) => configKeyAt(m.index));
-    const pass = decls.length === 1 && owners[0] === 'admissionGuidelines';
+    const pass = decls.length === 1 && owners[0] === "admissionGuidelines";
     record(
-      'entry:5',
-      '`hideRowEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)',
+      "entry:5",
+      "`hideRowEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)",
       pass,
-      JSON.stringify({ count: decls.length, owners })
+      JSON.stringify({ count: decls.length, owners }),
     );
   }
 
@@ -451,13 +471,13 @@ async function main() {
     const pass =
       Boolean(manageCell) &&
       /\{!config\.readOnly && \(\s*<button/.test(manageCell) &&
-      manageCell.includes('onClick={() => onDelete(row)}') &&
-      manageCell.includes('<Trash2 size={17} />');
+      manageCell.includes("onClick={() => onDelete(row)}") &&
+      manageCell.includes("<Trash2 size={17} />");
     record(
-      'entry:6',
-      '🗑(onDelete) 버튼이 여전히 존재하고 !config.readOnly 게이트를 유지한다(사용자 미언급 = 손대지 않음)',
+      "entry:6",
+      "🗑(onDelete) 버튼이 여전히 존재하고 !config.readOnly 게이트를 유지한다(사용자 미언급 = 손대지 않음)",
       pass,
-      manageCell ? manageCell.slice(0, 800) : '관리 열 <td> 를 찾지 못했다'
+      manageCell ? manageCell.slice(0, 800) : "관리 열 <td> 를 찾지 못했다",
     );
   }
 
@@ -465,12 +485,14 @@ async function main() {
   {
     const pass =
       Boolean(manageCell) &&
-      /config\.readOnly \? <Eye size=\{17\} \/> : <Edit3 size=\{17\} \/>/.test(manageCell);
+      /config\.readOnly \? <Eye size=\{17\} \/> : <Edit3 size=\{17\} \/>/.test(
+        manageCell,
+      );
     record(
-      'entry:7',
-      '`config.readOnly ? <Eye /> : <Edit3 />` 분기가 그대로다(readOnly 메뉴의 상세보기 파손 방지)',
+      "entry:7",
+      "`config.readOnly ? <Eye /> : <Edit3 />` 분기가 그대로다(readOnly 메뉴의 상세보기 파손 방지)",
       pass,
-      manageCell ? manageCell.slice(0, 500) : '관리 열 <td> 를 찾지 못했다'
+      manageCell ? manageCell.slice(0, 500) : "관리 열 <td> 를 찾지 못했다",
     );
   }
 
@@ -486,10 +508,10 @@ async function main() {
     const defined = /function AdmissionParsingPreview\(/.test(code);
     const pass = wired && rendered && defined;
     record(
-      'entry:8',
-      'AdmissionParsingPreview 가 여전히 config.FormPreview 로 배선·렌더된다(신규 등록 폼의 HWP 파싱 경로 생존)',
+      "entry:8",
+      "AdmissionParsingPreview 가 여전히 config.FormPreview 로 배선·렌더된다(신규 등록 폼의 HWP 파싱 경로 생존)",
       pass,
-      JSON.stringify({ wired, rendered, defined })
+      JSON.stringify({ wired, rendered, defined }),
     );
   }
 
@@ -512,34 +534,40 @@ async function main() {
       const html = renderToStaticMarkup(
         React.createElement(ManageCell, {
           config,
-          row: { id: 'fixture' },
-          onEdit: (...a) => clicks.push(['edit', ...a]),
-          onDelete: (...a) => clicks.push(['delete', ...a])
-        })
+          row: { id: "fixture" },
+          onEdit: (...a) => clicks.push(["edit", ...a]),
+          onDelete: (...a) => clicks.push(["delete", ...a]),
+        }),
       );
       return {
         edit: html.includes('data-icon="edit3"'),
         eye: html.includes('data-icon="eye"'),
         trash: html.includes('data-icon="trash2"'),
-        html
+        html,
       };
     };
     const a = renderManage({ hideRowEdit: true });
     const b = renderManage({});
     const c = renderManage({ readOnly: true });
     const pass =
-      !a.edit && !a.eye && a.trash && // 대학모집요강: 행 수정 진입점만 사라진다
-      b.edit && !b.eye && b.trash && // 나머지 34개: 완전 보존
-      c.eye && !c.edit && !c.trash; // readOnly: 👁 상세보기 보존, 🗑 없음
+      !a.edit &&
+      !a.eye &&
+      a.trash && // 대학모집요강: 행 수정 진입점만 사라진다
+      b.edit &&
+      !b.eye &&
+      b.trash && // 나머지 34개: 완전 보존
+      c.eye &&
+      !c.edit &&
+      !c.trash; // readOnly: 👁 상세보기 보존, 🗑 없음
     record(
-      'entry:9',
-      '관리 열 실제 렌더 — hideRowEdit=✏️만 사라짐 / 기본 config=✏️🗑 보존 / readOnly=👁 보존(35개 메뉴 동반 파괴 차단)',
+      "entry:9",
+      "관리 열 실제 렌더 — hideRowEdit=✏️만 사라짐 / 기본 config=✏️🗑 보존 / readOnly=👁 보존(35개 메뉴 동반 파괴 차단)",
       pass,
       JSON.stringify({
         hideRowEdit: { edit: a.edit, eye: a.eye, trash: a.trash },
         default: { edit: b.edit, eye: b.eye, trash: b.trash },
-        readOnly: { edit: c.edit, eye: c.eye, trash: c.trash }
-      })
+        readOnly: { edit: c.edit, eye: c.eye, trash: c.trash },
+      }),
     );
   }
 
@@ -557,12 +585,12 @@ async function main() {
   {
     const decls = [...code.matchAll(/\bshowMetaEdit:\s*true\b/g)];
     const owners = decls.map((m) => configKeyAt(m.index));
-    const pass = decls.length === 1 && owners[0] === 'admissionGuidelines';
+    const pass = decls.length === 1 && owners[0] === "admissionGuidelines";
     record(
-      'entry:10',
-      '`showMetaEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)',
+      "entry:10",
+      "`showMetaEdit: true` 가 소스 전체에서 정확히 1회, admissionGuidelines config 안에만 있다(35개 메뉴 감염 방지)",
       pass,
-      JSON.stringify({ count: decls.length, owners })
+      JSON.stringify({ count: decls.length, owners }),
     );
   }
 
@@ -573,17 +601,17 @@ async function main() {
       const clicks = [];
       const element = React.createElement(ManageCell, {
         config,
-        row: { id: 'fixture' },
+        row: { id: "fixture" },
         onEdit: () => {},
         onDelete: () => {},
-        onOpenMetaEdit: (...a) => clicks.push(a)
+        onOpenMetaEdit: (...a) => clicks.push(a),
       });
       const html = renderToStaticMarkup(element);
       const settingsIcon = html.includes('data-icon="settings"');
       // 클릭까지 재현한다(entry:2와 같은 이유 — 버튼이 있어도 핸들러가
       // 조건부면 의미가 없다). 트리에서 aria-label로 정확히 집는다.
       function findByAriaLabel(node, label) {
-        if (!node || typeof node !== 'object') return null;
+        if (!node || typeof node !== "object") return null;
         if (Array.isArray(node)) {
           for (const child of node) {
             const hit = findByAriaLabel(child, label);
@@ -591,10 +619,13 @@ async function main() {
           }
           return null;
         }
-        if (node.props?.['aria-label'] === label) return node;
+        if (node.props?.["aria-label"] === label) return node;
         return findByAriaLabel(node.props?.children, label);
       }
-      const button = findByAriaLabel(element.type(element.props), '메타 정보 수정');
+      const button = findByAriaLabel(
+        element.type(element.props),
+        "메타 정보 수정",
+      );
       button?.props?.onClick?.();
       return { settingsIcon, hasButton: Boolean(button), clicks };
     };
@@ -604,76 +635,88 @@ async function main() {
       withFlag.settingsIcon &&
       withFlag.hasButton &&
       withFlag.clicks.length === 1 &&
-      withFlag.clicks[0][0].id === 'fixture' &&
+      withFlag.clicks[0][0].id === "fixture" &&
       !withoutFlag.settingsIcon &&
       !withoutFlag.hasButton;
     record(
-      'entry:11',
+      "entry:11",
       'showMetaEdit=true 인 config 만 ⚙️(data-icon="settings")를 렌더하고 클릭 시 onOpenMetaEdit(row)를 조건 없이 호출한다; 기본 config 는 렌더하지 않는다',
       pass,
-      JSON.stringify({ withFlag, withoutFlag })
+      JSON.stringify({ withFlag, withoutFlag }),
     );
   }
 
   // ── entry:12 — AdmissionMetaEditModal: 9필드 전부 렌더되고, 표 편집기·HWP 파싱 패널은 없다 ──
   {
     const AdmissionMetaEditModal = await loadModule(
-      'src/components/admission/editor/AdmissionMetaEditModal.jsx'
+      "src/components/admission/editor/AdmissionMetaEditModal.jsx",
     );
     const row = {
-      id: 'fixture',
-      university_name: '검증대학교',
-      matched_hwp_name: '검증대學校',
-      university_key: 'geomjeung',
-      region: '서울',
+      id: "fixture",
+      university_name: "검증대학교",
+      matched_hwp_name: "검증대學校",
+      university_key: "geomjeung",
+      region: "서울",
       admission_year: 2027,
-      jungsi_guideline_url: 'https://example.com/jungsi.pdf',
-      memo: '검증용 메모',
+      jungsi_guideline_url: "https://example.com/jungsi.pdf",
+      memo: "검증용 메모",
       is_active: true,
-      detail_status: '상세입력완료'
+      detail_status: "상세입력완료",
     };
-    let html = '';
+    let html = "";
     let threw = false;
     try {
       html = renderToStaticMarkup(
-        React.createElement(AdmissionMetaEditModal, { row, onClose: () => {}, onSave: async () => true })
+        React.createElement(AdmissionMetaEditModal, {
+          row,
+          onClose: () => {},
+          onSave: async () => true,
+        }),
       );
     } catch (err) {
       threw = true;
-      html = String(err && err.stack ? err.stack : err);
+      html = String(err?.stack ? err.stack : err);
     }
     const requiredLabels = [
-      '대학명',
-      '원문 대학명',
-      '대학 키값',
-      '지역',
-      '입학연도',
-      '정시모집요강 URL',
-      '메모',
-      '노출 여부',
-      '상태'
+      "대학명",
+      "원문 대학명",
+      "대학 키값",
+      "지역",
+      "입학연도",
+      "정시모집요강 URL",
+      "메모",
+      "노출 여부",
+      "상태",
     ];
-    const missingLabels = requiredLabels.filter((label) => !html.includes(label));
+    const missingLabels = requiredLabels.filter(
+      (label) => !html.includes(label),
+    );
     // 표 편집기·HWP 파싱 패널이 흘러 들어오지 않는다는 것을 구조로 못 박는다
     // (AdmissionMetaEditModal은 애초에 그 컴포넌트들을 import하지 않으므로
     // 이 문자열들은 그 컴포넌트가 렌더될 때만 나올 수 있다). <style> 블록은
     // 먼저 걷어낸다 — AdmissionModalStyles가 그리는 공용 CSS 셀렉터 텍스트에
     // 'admission-scroll-table' 같은 클래스명이 문자 그대로 등장해 오탐을 낸다
     // (실제 DOM 엘리먼트가 아니라 셀렉터 문자열이다).
-    const htmlWithoutStyleTags = html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '');
+    const htmlWithoutStyleTags = html.replace(
+      /<style[^>]*>[\s\S]*?<\/style>/g,
+      "",
+    );
     const forbiddenMarkers = [
-      'admission-scroll-table', // TableBlockEditor(표 편집기)의 스크롤 래퍼
-      'admission-data-table', // 표 셀 그리드
-      'HWP 원문 파싱', // AdmissionParsingPreview 패널 헤딩
-      '열 추가', // 표 편집기 열 조작
-      '행 추가' // 표 편집기 행 조작
+      "admission-scroll-table", // TableBlockEditor(표 편집기)의 스크롤 래퍼
+      "admission-data-table", // 표 셀 그리드
+      "HWP 원문 파싱", // AdmissionParsingPreview 패널 헤딩
+      "열 추가", // 표 편집기 열 조작
+      "행 추가", // 표 편집기 행 조작
     ].filter((marker) => htmlWithoutStyleTags.includes(marker));
-    const pass = !threw && missingLabels.length === 0 && forbiddenMarkers.length === 0;
+    const pass =
+      !threw && missingLabels.length === 0 && forbiddenMarkers.length === 0;
     record(
-      'entry:12',
-      'AdmissionMetaEditModal — 메타 9필드 라벨이 전부 렌더되고, 표 편집기·HWP 파싱 패널 마커는 없다',
+      "entry:12",
+      "AdmissionMetaEditModal — 메타 9필드 라벨이 전부 렌더되고, 표 편집기·HWP 파싱 패널 마커는 없다",
       pass,
-      threw ? html : JSON.stringify({ missingLabels, forbiddenMarkers, len: html.length })
+      threw
+        ? html
+        : JSON.stringify({ missingLabels, forbiddenMarkers, len: html.length }),
     );
   }
 
@@ -691,48 +734,57 @@ async function main() {
 
   // ── entry:13 — 다이얼로그 SSR: raw/html 문구 없음, admissionDoc만 렌더 ──
   {
-    const GroupField = await loadAdmissionGroupField(sliceAdmissionGroupField(adminSrc));
-    const rawField = { key: 'selection_method', type: 'textarea', group: 'selection_method' };
+    const GroupField = await loadAdmissionGroupField(
+      sliceAdmissionGroupField(adminSrc),
+    );
+    const rawField = {
+      key: "selection_method",
+      type: "textarea",
+      group: "selection_method",
+    };
     const htmlField = {
-      key: 'selection_method_html',
-      type: 'textarea',
+      key: "selection_method_html",
+      type: "textarea",
       readOnly: true,
-      group: 'selection_method'
+      group: "selection_method",
     };
     const docField = {
-      key: 'selection_method_json',
-      type: 'admissionDoc',
-      sectionKey: 'selection_method',
-      group: 'selection_method'
+      key: "selection_method_json",
+      type: "admissionDoc",
+      sectionKey: "selection_method",
+      group: "selection_method",
     };
     const renderGroupField = (field) =>
       renderToStaticMarkup(
         React.createElement(GroupField, {
           field,
-          form: { selection_method: '원문 텍스트', selection_method_html: '<p>미러</p>' },
+          form: {
+            selection_method: "원문 텍스트",
+            selection_method_html: "<p>미러</p>",
+          },
           readonly: false,
           onChange: () => {},
           onPatch: () => {},
-          onDirty: () => {}
-        })
+          onDirty: () => {},
+        }),
       );
     const rawHtml = renderGroupField(rawField);
     const htmlHtml = renderGroupField(htmlField);
     const docHtml = renderGroupField(docField);
     const combined = rawHtml + htmlHtml + docHtml;
     const pass =
-      rawHtml === '' &&
-      htmlHtml === '' &&
-      !combined.includes('원문(raw) 보기/편집') &&
-      !combined.includes('HTML 미러 보기') &&
-      !combined.includes('<details') &&
+      rawHtml === "" &&
+      htmlHtml === "" &&
+      !combined.includes("원문(raw) 보기/편집") &&
+      !combined.includes("HTML 미러 보기") &&
+      !combined.includes("<details") &&
       docHtml.includes('data-testid="doc-editor"') &&
-      docHtml.includes('admission-surface');
+      docHtml.includes("admission-surface");
     record(
-      'entry:13',
+      "entry:13",
       '카테고리 편집 다이얼로그 본문(AdmissionGroupField) — raw/html 필드는 아무것도 렌더하지 않고(빈 문자열), admissionDoc 필드만 렌더된다; "원문(raw) 보기/편집"·"HTML 미러 보기"·<details> 마커 없음',
       pass,
-      JSON.stringify({ rawHtml, htmlHtml, docHtmlLen: docHtml.length })
+      JSON.stringify({ rawHtml, htmlHtml, docHtmlLen: docHtml.length }),
     );
   }
 
@@ -746,16 +798,18 @@ async function main() {
   // html 6개 = 12개 필드 키가 각각 group과 함께 소스에 그대로 있는지 잠근다.
   {
     const HWP_KEYS = [
-      'previous_year_changes',
-      'selection_method',
-      'minimum_requirements',
-      'exam_schedule',
-      'school_record_method',
-      'recruitment_quota'
+      "previous_year_changes",
+      "selection_method",
+      "minimum_requirements",
+      "exam_schedule",
+      "school_record_method",
+      "recruitment_quota",
     ];
     const missing = [];
     for (const key of HWP_KEYS) {
-      const rawDecl = new RegExp(`key:\\s*'${key}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?group:\\s*'${key}'`);
+      const rawDecl = new RegExp(
+        `key:\\s*'${key}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?group:\\s*'${key}'`,
+      );
       if (!rawDecl.test(code)) missing.push(`raw:${key}`);
     }
     // html 키는 3개(previous_year_changes_html/selection_method_html/
@@ -764,39 +818,41 @@ async function main() {
     // recruitment_result_html이다(기존 컬럼명 불일치, 이 스크립트가 만든 게
     // 아니라 기존 소스 그대로) — 매핑을 명시한다.
     const HTML_KEY_MAP = {
-      previous_year_changes: 'previous_year_changes_html',
-      selection_method: 'selection_method_html',
-      minimum_requirements: 'minimum_requirements_html',
-      exam_schedule: 'exam_schedule_html',
-      school_record_method: 'school_record_method_html',
-      recruitment_quota: 'recruitment_result_html'
+      previous_year_changes: "previous_year_changes_html",
+      selection_method: "selection_method_html",
+      minimum_requirements: "minimum_requirements_html",
+      exam_schedule: "exam_schedule_html",
+      school_record_method: "school_record_method_html",
+      recruitment_quota: "recruitment_result_html",
     };
     for (const [group, htmlKey] of Object.entries(HTML_KEY_MAP)) {
       const htmlDecl = new RegExp(
-        `key:\\s*'${htmlKey}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?readOnly:\\s*true,[\\s\\S]{0,120}?group:\\s*'${group}'`
+        `key:\\s*'${htmlKey}',[\\s\\S]{0,200}?type:\\s*'textarea',[\\s\\S]{0,120}?readOnly:\\s*true,[\\s\\S]{0,120}?group:\\s*'${group}'`,
       );
       if (!htmlDecl.test(code)) missing.push(`html:${htmlKey}`);
     }
     const pass = missing.length === 0;
     record(
-      'entry:14',
-      'admissionGuidelines.fields — raw 6개 + html 6개(총 12개) 필드 정의가 group과 함께 소스에 그대로 남아 있다(렌더 제거 ≠ 필드 삭제)',
+      "entry:14",
+      "admissionGuidelines.fields — raw 6개 + html 6개(총 12개) 필드 정의가 group과 함께 소스에 그대로 남아 있다(렌더 제거 ≠ 필드 삭제)",
       pass,
-      JSON.stringify({ missing })
+      JSON.stringify({ missing }),
     );
   }
 
   // ── 출력 ────────────────────────────────────────────────────────────
-  console.log('=== 어드민 대학모집요강 편집 진입 경로 검증 결과 ===\n');
+  console.log("=== 어드민 대학모집요강 편집 진입 경로 검증 결과 ===\n");
   let failCount = 0;
   for (const r of results) {
-    console.log(`[${r.pass ? 'PASS' : 'FAIL'}] ${r.id}. ${r.name}`);
+    console.log(`[${r.pass ? "PASS" : "FAIL"}] ${r.id}. ${r.name}`);
     if (!r.pass) {
       failCount += 1;
-      console.log('  detail:', r.detail);
+      console.log("  detail:", r.detail);
     }
   }
-  console.log(`\n총 ${results.length}건 중 ${results.length - failCount}건 통과, ${failCount}건 실패.`);
+  console.log(
+    `\n총 ${results.length}건 중 ${results.length - failCount}건 통과, ${failCount}건 실패.`,
+  );
   if (failCount > 0) process.exitCode = 1;
 }
 

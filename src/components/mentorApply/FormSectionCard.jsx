@@ -11,7 +11,7 @@ export default function FormSectionCard({
   title,
   subtitle,
   id, // 사이드바 앵커 타깃
-  children
+  children,
 }) {
   const headingId = id ? `${id}-heading` : undefined;
 
@@ -29,11 +29,16 @@ export default function FormSectionCard({
     >
       {/* 섹션 헤더 — 타이틀 + gap 8 + 부제 */}
       <div className="flex flex-col gap-2">
-        <h3 id={headingId} className="text-xl font-semibold leading-[1.4] text-ink">
+        <h3
+          id={headingId}
+          className="text-xl font-semibold leading-[1.4] text-ink"
+        >
           {no}. {title}
         </h3>
         {subtitle && (
-          <p className="text-sm font-normal leading-[1.4] text-ink-sub">{subtitle}</p>
+          <p className="text-sm font-normal leading-[1.4] text-ink-sub">
+            {subtitle}
+          </p>
         )}
       </div>
 

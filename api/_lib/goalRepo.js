@@ -17,26 +17,36 @@
 //      값이 갈린다(설계 문서 §4 "결정적 근거").
 //   3) 응답 필드명은 카멜 케이스다. DB 스네이크를 그대로 노출하지 않는다(§9-2).
 
-import { createSupabaseAdmin } from './supabaseAdmin.js';
-import { SERVICE_CONFIGS, clean, getBearerToken, hasPaidServiceAccess } from './serviceAccess.js';
-import { kstYMD } from '../../src/lib/goal/calc/virtualDate.js';
+import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
+import {
+  clean,
+  getBearerToken,
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "./serviceAccess.js";
+import { createSupabaseAdmin } from "./supabaseAdmin.js";
 
 // ---------------------------------------------------------------------------
 // 테이블 · 공통 상수
 // ---------------------------------------------------------------------------
 
-export const TABLE_STUDENTS = 'goal_students';
-export const TABLE_STATE_VIEW = 'goal_student_state';
-export const TABLE_PROBABILITY_LOGS = 'goal_probability_logs';
-export const TABLE_UNIVERSITY_CUTS = 'goal_university_cuts';
-export const TABLE_PLAN_TASKS = 'goal_plan_tasks';
+export const TABLE_STUDENTS = "goal_students";
+export const TABLE_STATE_VIEW = "goal_student_state";
+export const TABLE_PROBABILITY_LOGS = "goal_probability_logs";
+export const TABLE_UNIVERSITY_CUTS = "goal_university_cuts";
+export const TABLE_PLAN_TASKS = "goal_plan_tasks";
 
 // create-service-ticket.js:71-73 과 글자 단위로 같은 문구를 쓴다.
-export const PAID_MESSAGE = '유료결제이후 이용해주세요!';
-export const LOGIN_MESSAGE = '로그인이 필요합니다.';
+export const PAID_MESSAGE = "유료결제이후 이용해주세요!";
+export const LOGIN_MESSAGE = "로그인이 필요합니다.";
 
 // 컷 4종의 논리 이름. 422 응답의 missing 배열과 GET 응답의 missingCuts 에 그대로 실린다.
-export const CUT_KEYS = ['idealNaesin', 'idealJungsi', 'minNaesin', 'minJungsi'];
+export const CUT_KEYS = [
+  "idealNaesin",
+  "idealJungsi",
+  "minNaesin",
+  "minJungsi",
+];
 
 // 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 5종(sql/75_goal_plan_tasks.sql)과
 // AddTaskModal 과목 칩의 한글 라벨(goalModalOptions.taskSubjects, goalMock.js:296)을 잇는다.
@@ -44,14 +54,14 @@ export const CUT_KEYS = ['idealNaesin', 'idealJungsi', 'minNaesin', 'minJungsi']
 // 사회탐구까지 포괄하는 라벨이지만 DB 값은 그대로 따른다. api/goal/plan-tasks.js 는 이
 // 배럴만 참조하고 자체 매핑을 두지 않는다(단일 정본).
 export const SUBJECT_CODE_TO_LABEL = {
-  korean: '국어',
-  math: '수학',
-  english: '영어',
-  science: '탐구',
-  etc: '기타'
+  korean: "국어",
+  math: "수학",
+  english: "영어",
+  science: "탐구",
+  etc: "기타",
 };
 export const SUBJECT_LABEL_TO_CODE = Object.fromEntries(
-  Object.entries(SUBJECT_CODE_TO_LABEL).map(([code, label]) => [label, code])
+  Object.entries(SUBJECT_CODE_TO_LABEL).map(([code, label]) => [label, code]),
 );
 
 // ---------------------------------------------------------------------------
@@ -65,7 +75,7 @@ export const SUBJECT_LABEL_TO_CODE = Object.fromEntries(
  * base_* 의 null 은 "확률 미산출"이라는 의미이고 0 과 구분돼야 한다(§5 말미).
  */
 export function num(value) {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -101,7 +111,8 @@ export async function openGoalSession(req) {
   }
 
   const supabaseAdmin = createSupabaseAdmin();
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  const { data: userData, error: userError } =
+    await supabaseAdmin.auth.getUser(token);
 
   if (userError || !userData?.user?.id) {
     return { error: { status: 401, body: { detail: LOGIN_MESSAGE } } };
@@ -112,7 +123,11 @@ export async function openGoalSession(req) {
   // 참고) — 이 함수의 반환 계약(allowed:boolean, 위 JSDoc)을 지키기 위해 여기서
   // 뽑아 쓴다. 객체를 그대로 내려보내면 호출부의 `if (!allowed)` 가 항상
   // false가 되어(객체는 always-truthy) 결제 게이트가 통째로 뚫린다.
-  const { allowed } = await hasPaidServiceAccess(supabaseAdmin, profileId, SERVICE_CONFIGS.goal);
+  const { allowed } = await hasPaidServiceAccess(
+    supabaseAdmin,
+    profileId,
+    SERVICE_CONFIGS.goal,
+  );
 
   return { supabaseAdmin, profileId, allowed };
 }
@@ -125,8 +140,8 @@ export async function openGoalSession(req) {
 export async function fetchStudentRow(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
-    .select('*')
-    .eq('profile_id', profileId)
+    .select("*")
+    .eq("profile_id", profileId)
     .maybeSingle();
 
   if (error) throw error;
@@ -141,8 +156,8 @@ export async function fetchStudentRow(supabaseAdmin, profileId) {
 export async function fetchStudentStateRow(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STATE_VIEW)
-    .select('*')
-    .eq('profile_id', profileId)
+    .select("*")
+    .eq("profile_id", profileId)
     .maybeSingle();
 
   if (error) throw error;
@@ -160,9 +175,9 @@ export async function fetchStudentStateRow(supabaseAdmin, profileId) {
 export async function fetchProbabilityHistory(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PROBABILITY_LOGS)
-    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
-    .eq('profile_id', profileId)
-    .order('created_at', { ascending: true });
+    .select("ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: true });
 
   if (error) throw error;
 
@@ -171,7 +186,7 @@ export async function fetchProbabilityHistory(supabaseAdmin, profileId) {
     idealSusi: num(row.ideal_susi),
     idealJungsi: num(row.ideal_jungsi),
     minSusi: num(row.min_susi),
-    minJungsi: num(row.min_jungsi)
+    minJungsi: num(row.min_jungsi),
   }));
 }
 
@@ -201,15 +216,20 @@ export async function fetchProbabilityHistory(supabaseAdmin, profileId) {
  *
  * @returns {number|null}
  */
-export async function fetchUniversityCut(supabaseAdmin, cutType, universityName, departmentName) {
+export async function fetchUniversityCut(
+  supabaseAdmin,
+  cutType,
+  universityName,
+  departmentName,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_UNIVERSITY_CUTS)
-    .select('avg_cut')
-    .eq('cut_type', cutType)
-    .eq('university_name', clean(universityName))
-    .eq('department_name', clean(departmentName))
-    .eq('is_active', true)
-    .order('id', { ascending: true })
+    .select("avg_cut")
+    .eq("cut_type", cutType)
+    .eq("university_name", clean(universityName))
+    .eq("department_name", clean(departmentName))
+    .eq("is_active", true)
+    .order("id", { ascending: true })
     .limit(1)
     .maybeSingle();
 
@@ -228,12 +248,30 @@ export async function fetchUniversityCut(supabaseAdmin, cutType, universityName,
  *                  minNaesin:number|null, minJungsi:number|null},
  *           missing:string[]}}
  */
-export async function fetchTargetCuts(supabaseAdmin, { schoolCutType, ideal, min }) {
+export async function fetchTargetCuts(
+  supabaseAdmin,
+  { schoolCutType, ideal, min },
+) {
   const [idealNaesin, idealJungsi, minNaesin, minJungsi] = await Promise.all([
-    fetchUniversityCut(supabaseAdmin, schoolCutType, ideal.university, ideal.department),
-    fetchUniversityCut(supabaseAdmin, 'jungsi', ideal.university, ideal.department),
-    fetchUniversityCut(supabaseAdmin, schoolCutType, min.university, min.department),
-    fetchUniversityCut(supabaseAdmin, 'jungsi', min.university, min.department)
+    fetchUniversityCut(
+      supabaseAdmin,
+      schoolCutType,
+      ideal.university,
+      ideal.department,
+    ),
+    fetchUniversityCut(
+      supabaseAdmin,
+      "jungsi",
+      ideal.university,
+      ideal.department,
+    ),
+    fetchUniversityCut(
+      supabaseAdmin,
+      schoolCutType,
+      min.university,
+      min.department,
+    ),
+    fetchUniversityCut(supabaseAdmin, "jungsi", min.university, min.department),
   ]);
 
   const cuts = { idealNaesin, idealJungsi, minNaesin, minJungsi };
@@ -242,7 +280,7 @@ export async function fetchTargetCuts(supabaseAdmin, { schoolCutType, ideal, min
   return { cuts, missing };
 }
 
-export const TABLE_DAILY_RECORDS = 'goal_daily_records';
+export const TABLE_DAILY_RECORDS = "goal_daily_records";
 
 /**
  * 오늘(record_date 기준) 일별 기록 1행. 없으면 null.
@@ -254,9 +292,9 @@ export const TABLE_DAILY_RECORDS = 'goal_daily_records';
 export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_DAILY_RECORDS)
-    .select('*')
-    .eq('profile_id', profileId)
-    .eq('record_date', recordDate)
+    .select("*")
+    .eq("profile_id", profileId)
+    .eq("record_date", recordDate)
     .maybeSingle();
 
   if (error) throw error;
@@ -274,17 +312,22 @@ export async function fetchTodayRecord(supabaseAdmin, profileId, recordDate) {
 
 // 테이블 상수는 위(§별 절)에서 이미 선언된 것을 재사용한다 — 병렬 브랜치 union 머지 때
 // 리포트 절이 들고 온 중복 선언(TABLE_DAILY_RECORDS/TIMER_SESSIONS/PLAN_TASKS)은 제거했다.
-export const TABLE_MENTOR_COMMENTS = 'goal_mentor_comments';
+export const TABLE_MENTOR_COMMENTS = "goal_mentor_comments";
 
 /** goal_daily_records — profile_id 1건, record_date 구간(양끝 포함) 전량. */
-export async function fetchRecordsInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+export async function fetchRecordsInRange(
+  supabaseAdmin,
+  profileId,
+  fromYmd,
+  toYmd,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_DAILY_RECORDS)
-    .select('record_date, study_hours, body_condition, reasons, tasks')
-    .eq('profile_id', profileId)
-    .gte('record_date', fromYmd)
-    .lte('record_date', toYmd)
-    .order('record_date', { ascending: true });
+    .select("record_date, study_hours, body_condition, reasons, tasks")
+    .eq("profile_id", profileId)
+    .gte("record_date", fromYmd)
+    .lte("record_date", toYmd)
+    .order("record_date", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -299,28 +342,38 @@ export async function fetchRecordsInRange(supabaseAdmin, profileId, fromYmd, toY
  * 뜻이지만, 열린 세션의 duration 을 리포트가 임의로 추정해 보여주는 것보다는
  * 안전하다고 판단했다, 판단 지점).
  */
-export async function fetchTimerSessionsInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+export async function fetchTimerSessionsInRange(
+  supabaseAdmin,
+  profileId,
+  fromYmd,
+  toYmd,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
-    .select('subject, started_at, duration_seconds')
-    .eq('profile_id', profileId)
-    .gte('session_date', fromYmd)
-    .lte('session_date', toYmd)
-    .not('ended_at', 'is', null)
-    .order('started_at', { ascending: true });
+    .select("subject, started_at, duration_seconds")
+    .eq("profile_id", profileId)
+    .gte("session_date", fromYmd)
+    .lte("session_date", toYmd)
+    .not("ended_at", "is", null)
+    .order("started_at", { ascending: true });
 
   if (error) throw error;
   return data || [];
 }
 
 /** goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축). */
-export async function fetchPlanTasksInRange(supabaseAdmin, profileId, fromYmd, toYmd) {
+export async function fetchPlanTasksInRange(
+  supabaseAdmin,
+  profileId,
+  fromYmd,
+  toYmd,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select('done')
-    .eq('profile_id', profileId)
-    .gte('plan_date', fromYmd)
-    .lte('plan_date', toYmd);
+    .select("done")
+    .eq("profile_id", profileId)
+    .gte("plan_date", fromYmd)
+    .lte("plan_date", toYmd);
 
   if (error) throw error;
   return data || [];
@@ -332,13 +385,17 @@ export async function fetchPlanTasksInRange(supabaseAdmin, profileId, fromYmd, t
  * (시작 스냅샷은 기간 시작 00:00 KST 이하, 끝 스냅샷은 기간 끝 23:59:59 KST 이하로
  *  호출부가 경계를 달리 넘긴다). 없으면 null.
  */
-export async function fetchProbabilityLogAtOrBefore(supabaseAdmin, profileId, atOrBeforeIso) {
+export async function fetchProbabilityLogAtOrBefore(
+  supabaseAdmin,
+  profileId,
+  atOrBeforeIso,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PROBABILITY_LOGS)
-    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
-    .eq('profile_id', profileId)
-    .lte('created_at', atOrBeforeIso)
-    .order('created_at', { ascending: false })
+    .select("ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at")
+    .eq("profile_id", profileId)
+    .lte("created_at", atOrBeforeIso)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -355,9 +412,9 @@ export async function fetchProbabilityLogAtOrBefore(supabaseAdmin, profileId, at
 export async function fetchEarliestProbabilityLog(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PROBABILITY_LOGS)
-    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at')
-    .eq('profile_id', profileId)
-    .order('created_at', { ascending: true })
+    .select("ideal_susi, ideal_jungsi, min_susi, min_jungsi, created_at")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
@@ -370,13 +427,17 @@ export async function fetchEarliestProbabilityLog(supabaseAdmin, profileId) {
  * (본인 포함, 호출부가 본인 id 를 그대로 넘긴다). sql/80_goal_report_indexes.sql
  * goal_students_ideal_target_idx 가 이 조합을 인덱싱한다.
  */
-export async function fetchActiveCohortProfileIds(supabaseAdmin, idealUniversity, idealDepartment) {
+export async function fetchActiveCohortProfileIds(
+  supabaseAdmin,
+  idealUniversity,
+  idealDepartment,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
-    .select('profile_id')
-    .eq('ideal_university', idealUniversity)
-    .eq('ideal_department', idealDepartment)
-    .eq('status', 'active');
+    .select("profile_id")
+    .eq("ideal_university", idealUniversity)
+    .eq("ideal_department", idealDepartment)
+    .eq("status", "active");
 
   if (error) throw error;
   return (data || []).map((row) => row.profile_id);
@@ -386,28 +447,38 @@ export async function fetchActiveCohortProfileIds(supabaseAdmin, idealUniversity
  * 코호트 전원의 기간 내 goal_daily_records 원본 행(profile_id, study_hours만).
  * profile_id 별 합산은 aggregate.js sumHoursByProfile() 이 한다(이 함수는 조회만).
  */
-export async function fetchDailyRecordsForProfilesInRange(supabaseAdmin, profileIds, fromYmd, toYmd) {
+export async function fetchDailyRecordsForProfilesInRange(
+  supabaseAdmin,
+  profileIds,
+  fromYmd,
+  toYmd,
+) {
   if (!profileIds.length) return [];
 
   const { data, error } = await supabaseAdmin
     .from(TABLE_DAILY_RECORDS)
-    .select('profile_id, study_hours')
-    .in('profile_id', profileIds)
-    .gte('record_date', fromYmd)
-    .lte('record_date', toYmd);
+    .select("profile_id, study_hours")
+    .in("profile_id", profileIds)
+    .gte("record_date", fromYmd)
+    .lte("record_date", toYmd);
 
   if (error) throw error;
   return data || [];
 }
 
 /** 멘토 코멘트 1건(기간당 1건). 없으면 null — 리포트는 이때 멘토 카드를 렌더하지 않는다. */
-export async function fetchMentorComment(supabaseAdmin, profileId, periodType, periodKey) {
+export async function fetchMentorComment(
+  supabaseAdmin,
+  profileId,
+  periodType,
+  periodKey,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_MENTOR_COMMENTS)
-    .select('body, written_at')
-    .eq('profile_id', profileId)
-    .eq('period_type', periodType)
-    .eq('period_key', periodKey)
+    .select("body, written_at")
+    .eq("profile_id", profileId)
+    .eq("period_type", periodType)
+    .eq("period_key", periodKey)
     .maybeSingle();
 
   if (error) throw error;
@@ -422,8 +493,8 @@ export async function fetchMentorComment(supabaseAdmin, profileId, periodType, p
 export async function upsertStudentRow(supabaseAdmin, row) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
-    .upsert(row, { onConflict: 'profile_id' })
-    .select('*')
+    .upsert(row, { onConflict: "profile_id" })
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -439,8 +510,8 @@ export async function upsertStudentRow(supabaseAdmin, row) {
 export async function upsertDailyRecord(supabaseAdmin, row) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_DAILY_RECORDS)
-    .upsert(row, { onConflict: 'profile_id,record_date' })
-    .select('*')
+    .upsert(row, { onConflict: "profile_id,record_date" })
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -463,13 +534,13 @@ export async function appendProbabilityLog(
   profileId,
   probs,
   reason,
-  sourceRecordId = null
+  sourceRecordId = null,
 ) {
   const { data: previous, error: readError } = await supabaseAdmin
     .from(TABLE_PROBABILITY_LOGS)
-    .select('ideal_susi, ideal_jungsi, min_susi, min_jungsi')
-    .eq('profile_id', profileId)
-    .order('created_at', { ascending: false })
+    .select("ideal_susi, ideal_jungsi, min_susi, min_jungsi")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -485,15 +556,17 @@ export async function appendProbabilityLog(
     return false;
   }
 
-  const { error: insertError } = await supabaseAdmin.from(TABLE_PROBABILITY_LOGS).insert({
-    profile_id: profileId,
-    ideal_susi: probs.idealSusi,
-    ideal_jungsi: probs.idealJungsi,
-    min_susi: probs.minSusi,
-    min_jungsi: probs.minJungsi,
-    reason,
-    source_record_id: sourceRecordId
-  });
+  const { error: insertError } = await supabaseAdmin
+    .from(TABLE_PROBABILITY_LOGS)
+    .insert({
+      profile_id: profileId,
+      ideal_susi: probs.idealSusi,
+      ideal_jungsi: probs.idealJungsi,
+      min_susi: probs.minSusi,
+      min_jungsi: probs.minJungsi,
+      reason,
+      source_record_id: sourceRecordId,
+    });
 
   if (insertError) throw insertError;
   return true;
@@ -508,16 +581,21 @@ export async function appendProbabilityLog(
 // ---------------------------------------------------------------------------
 
 /** 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순. */
-export async function fetchPlanTasks(supabaseAdmin, profileId, fromDate, toDate) {
+export async function fetchPlanTasks(
+  supabaseAdmin,
+  profileId,
+  fromDate,
+  toDate,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select('*')
-    .eq('profile_id', profileId)
-    .gte('plan_date', fromDate)
-    .lte('plan_date', toDate)
-    .order('plan_date', { ascending: true })
-    .order('sort_order', { ascending: true })
-    .order('id', { ascending: true });
+    .select("*")
+    .eq("profile_id", profileId)
+    .gte("plan_date", fromDate)
+    .lte("plan_date", toDate)
+    .order("plan_date", { ascending: true })
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -525,7 +603,11 @@ export async function fetchPlanTasks(supabaseAdmin, profileId, fromDate, toDate)
 
 /** 과제 1건 생성. */
 export async function insertPlanTask(supabaseAdmin, row) {
-  const { data, error } = await supabaseAdmin.from(TABLE_PLAN_TASKS).insert(row).select('*').single();
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_PLAN_TASKS)
+    .insert(row)
+    .select("*")
+    .single();
 
   if (error) throw error;
   return data;
@@ -541,9 +623,9 @@ export async function updatePlanTask(supabaseAdmin, profileId, id, patch) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
     .update(patch)
-    .eq('id', id)
-    .eq('profile_id', profileId)
-    .select('*')
+    .eq("id", id)
+    .eq("profile_id", profileId)
+    .select("*")
     .maybeSingle();
 
   if (error) throw error;
@@ -555,9 +637,9 @@ export async function deletePlanTask(supabaseAdmin, profileId, id) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
     .delete()
-    .eq('id', id)
-    .eq('profile_id', profileId)
-    .select('id')
+    .eq("id", id)
+    .eq("profile_id", profileId)
+    .select("id")
     .maybeSingle();
 
   if (error) throw error;
@@ -573,7 +655,7 @@ export function buildPlanTaskPayload(row) {
     subject: SUBJECT_CODE_TO_LABEL[row.subject] || row.subject,
     durationMinutes: num(row.duration_minutes) ?? 0,
     done: Boolean(row.done),
-    sortOrder: num(row.sort_order) ?? 0
+    sortOrder: num(row.sort_order) ?? 0,
   };
 }
 
@@ -587,7 +669,7 @@ export function listMissingCuts(row) {
     idealNaesin: num(row.ideal_naesin_cut),
     idealJungsi: num(row.ideal_jungsi_cut),
     minNaesin: num(row.min_naesin_cut),
-    minJungsi: num(row.min_jungsi_cut)
+    minJungsi: num(row.min_jungsi_cut),
   };
   return CUT_KEYS.filter((key) => stored[key] === null);
 }
@@ -596,17 +678,17 @@ export function listMissingCuts(row) {
 export function buildTargets(row) {
   return {
     ideal: {
-      university: row.ideal_university || '',
-      department: row.ideal_department || '',
+      university: row.ideal_university || "",
+      department: row.ideal_department || "",
       naesinCut: num(row.ideal_naesin_cut),
-      jungsiCut: num(row.ideal_jungsi_cut)
+      jungsiCut: num(row.ideal_jungsi_cut),
     },
     min: {
-      university: row.min_university || '',
-      department: row.min_department || '',
+      university: row.min_university || "",
+      department: row.min_department || "",
       naesinCut: num(row.min_naesin_cut),
-      jungsiCut: num(row.min_jungsi_cut)
-    }
+      jungsiCut: num(row.min_jungsi_cut),
+    },
   };
 }
 
@@ -620,7 +702,12 @@ export function buildTargets(row) {
  *   DB 에 저장하지 않고 매번 파생한다(§7-2).
  * @param {Array}  historyRows fetchProbabilityHistory() 결과(오래된 순). 생략 시 빈 배열.
  */
-export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = []) {
+export function buildStudentPayload(
+  row,
+  stateRow,
+  schoolCutType,
+  historyRows = [],
+) {
   const state = stateRow || {};
 
   return {
@@ -629,7 +716,7 @@ export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = 
     profile: {
       schoolType: row.school_type,
       grade: row.grade,
-      schoolCutType
+      schoolCutType,
     },
     targets: buildTargets(row),
     scores: {
@@ -638,14 +725,14 @@ export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = 
       currentMogo: num(row.current_mogo),
       remainNaesin: num(row.remain_naesin),
       remainMogo: num(row.remain_mogo),
-      lastNaesinExam: row.last_naesin_exam || '',
-      lastMogoExam: row.last_mogo_exam || ''
+      lastNaesinExam: row.last_naesin_exam || "",
+      lastMogoExam: row.last_mogo_exam || "",
     },
     baseProbs: {
       idealSusi: num(row.base_ideal_susi),
       idealJungsi: num(row.base_ideal_jungsi),
       minSusi: num(row.base_min_susi),
-      minJungsi: num(row.base_min_jungsi)
+      minJungsi: num(row.base_min_jungsi),
     },
     // 파이프라인 반환 키(state.rates.idealSusiBonus)를 그대로 유지한다 —
     // 클라이언트가 state.rates 를 계산 모듈에 되먹일 수 있어야 한다(§7-2).
@@ -653,20 +740,20 @@ export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = 
       idealSusiBonus: num(row.rate_ideal_susi),
       idealJungsiBonus: num(row.rate_ideal_jungsi),
       minSusiBonus: num(row.rate_min_susi),
-      minJungsiBonus: num(row.rate_min_jungsi)
+      minJungsiBonus: num(row.rate_min_jungsi),
     },
     cumulativeBonus: {
       idealSusi: num(state.cum_ideal_susi) ?? 0,
       idealJungsi: num(state.cum_ideal_jungsi) ?? 0,
       minSusi: num(state.cum_min_susi) ?? 0,
-      minJungsi: num(state.cum_min_jungsi) ?? 0
+      minJungsi: num(state.cum_min_jungsi) ?? 0,
     },
     // 저장된 값이 아니라 뷰가 base + Σdelta 로 매번 재계산한 값이다.
     probs: {
       idealSusi: num(state.ideal_susi),
       idealJungsi: num(state.ideal_jungsi),
       minSusi: num(state.min_susi),
-      minJungsi: num(state.min_jungsi)
+      minJungsi: num(state.min_jungsi),
     },
     weeklySchedule: row.study_schedule || {},
     weekIdeal: num(row.week_ideal) ?? 0,
@@ -680,7 +767,8 @@ export function buildStudentPayload(row, stateRow, schoolCutType, historyRows = 
     // false 면 UI 는 정시 게이지를 "0%"가 아니라 "데이터 준비 중"으로 그린다.
     // calcJeongsiProb 은 currentMogo <= 0 일 때도 0 을 내므로(pipeline.js:227-228)
     // 이 플래그 없이는 두 상태를 구분할 수 없다(§9-4).
-    jungsiAvailable: num(row.ideal_jungsi_cut) !== null && num(row.min_jungsi_cut) !== null
+    jungsiAvailable:
+      num(row.ideal_jungsi_cut) !== null && num(row.min_jungsi_cut) !== null,
   };
 }
 
@@ -694,7 +782,7 @@ export function buildAwaitingCutsPayload(row) {
     onboarded: false,
     status: row.status,
     targets: buildTargets(row),
-    missingCuts: listMissingCuts(row)
+    missingCuts: listMissingCuts(row),
   };
 }
 
@@ -703,23 +791,23 @@ export function buildAwaitingCutsPayload(row) {
 // 스키마 정본: sql/76_goal_workbooks.sql.
 // ---------------------------------------------------------------------------
 
-export const TABLE_WORKBOOKS = 'goal_workbooks';
+export const TABLE_WORKBOOKS = "goal_workbooks";
 
 /**
  * current_page/total_pages 비교로 완독 여부를 재계산한다. sql/76 (1) 주석과 같은 규약 —
  * status는 클라이언트가 직접 보낼 수 없고 이 함수의 결과만 저장한다.
  */
 export function computeWorkbookStatus(currentPage, totalPages) {
-  return currentPage >= totalPages ? 'done' : 'reading';
+  return currentPage >= totalPages ? "done" : "reading";
 }
 
 /** 본인 문제집 전체 목록. 등록 순서(오래된 순)를 그대로 보존한다. */
 export async function fetchWorkbooks(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_WORKBOOKS)
-    .select('*')
-    .eq('profile_id', profileId)
-    .order('created_at', { ascending: true });
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -729,9 +817,9 @@ export async function fetchWorkbooks(supabaseAdmin, profileId) {
 export async function fetchWorkbookOwned(supabaseAdmin, id, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_WORKBOOKS)
-    .select('*')
-    .eq('id', id)
-    .eq('profile_id', profileId)
+    .select("*")
+    .eq("id", id)
+    .eq("profile_id", profileId)
     .maybeSingle();
 
   if (error) throw error;
@@ -743,7 +831,7 @@ export async function insertWorkbook(supabaseAdmin, row) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_WORKBOOKS)
     .insert(row)
-    .select('*')
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -755,9 +843,9 @@ export async function updateWorkbookOwned(supabaseAdmin, id, profileId, patch) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_WORKBOOKS)
     .update(patch)
-    .eq('id', id)
-    .eq('profile_id', profileId)
-    .select('*')
+    .eq("id", id)
+    .eq("profile_id", profileId)
+    .select("*")
     .maybeSingle();
 
   if (error) throw error;
@@ -769,9 +857,9 @@ export async function deleteWorkbookOwned(supabaseAdmin, id, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_WORKBOOKS)
     .delete()
-    .eq('id', id)
-    .eq('profile_id', profileId)
-    .select('id')
+    .eq("id", id)
+    .eq("profile_id", profileId)
+    .select("id")
     .maybeSingle();
 
   if (error) throw error;
@@ -786,26 +874,26 @@ export function buildWorkbookPayload(row) {
     title: row.title,
     totalPages: num(row.total_pages),
     currentPage: num(row.current_page),
-    status: row.status
+    status: row.status,
   };
 }
 
-export const TABLE_SCHEDULES = 'goal_schedules';
+export const TABLE_SCHEDULES = "goal_schedules";
 // ---------------------------------------------------------------------------
 // 중요일정 (sql/74_goal_schedules.sql) — 학생당 다건, 소유자 스코프는 profile_id.
 // service_role 이 RLS 를 우회하므로 update/delete 는 반드시 .eq('profile_id', ...)를
 // 같이 걸어 소유자 판정을 서버가 직접 강제한다(위 openGoalSession JSDoc 규약 1과 동일).
 // ---------------------------------------------------------------------------
 
-const SCHEDULE_SELECT_COLUMNS = 'id, title, category, due_date, memo';
+const SCHEDULE_SELECT_COLUMNS = "id, title, category, due_date, memo";
 
 /** 본인 일정 전체, 마감일 오름차순. */
 export async function fetchSchedules(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_SCHEDULES)
     .select(SCHEDULE_SELECT_COLUMNS)
-    .eq('profile_id', profileId)
-    .order('due_date', { ascending: true });
+    .eq("profile_id", profileId)
+    .order("due_date", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -831,8 +919,8 @@ export async function updateSchedule(supabaseAdmin, profileId, id, patch) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_SCHEDULES)
     .update(patch)
-    .eq('id', id)
-    .eq('profile_id', profileId)
+    .eq("id", id)
+    .eq("profile_id", profileId)
     .select(SCHEDULE_SELECT_COLUMNS)
     .maybeSingle();
 
@@ -848,9 +936,9 @@ export async function deleteSchedule(supabaseAdmin, profileId, id) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_SCHEDULES)
     .delete()
-    .eq('id', id)
-    .eq('profile_id', profileId)
-    .select('id')
+    .eq("id", id)
+    .eq("profile_id", profileId)
+    .select("id")
     .maybeSingle();
 
   if (error) throw error;
@@ -865,7 +953,7 @@ export function buildSchedulePayload(row) {
     title: row.title,
     category: row.category,
     dueDate: ymd(row.due_date),
-    memo: row.memo || ''
+    memo: row.memo || "",
   };
 }
 
@@ -878,7 +966,11 @@ export function buildSchedulePayload(row) {
  * 위험이 있다(onConflict upsert는 누락 컬럼을 그대로 두지 않는다). update는 명시한
  * 키만 건드리므로 이 위험이 없다.
  */
-export async function updateStudentGrades(supabaseAdmin, profileId, { naesin_scores, mock_exam_scores }) {
+export async function updateStudentGrades(
+  supabaseAdmin,
+  profileId,
+  { naesin_scores, mock_exam_scores },
+) {
   const patch = {};
   if (naesin_scores !== undefined) patch.naesin_scores = naesin_scores;
   if (mock_exam_scores !== undefined) patch.mock_exam_scores = mock_exam_scores;
@@ -886,20 +978,20 @@ export async function updateStudentGrades(supabaseAdmin, profileId, { naesin_sco
   const { data, error } = await supabaseAdmin
     .from(TABLE_STUDENTS)
     .update(patch)
-    .eq('profile_id', profileId)
-    .select('naesin_scores, mock_exam_scores')
+    .eq("profile_id", profileId)
+    .select("naesin_scores, mock_exam_scores")
     .single();
 
   if (error) throw error;
   return data;
 }
 
-export const TABLE_TIMER_SESSIONS = 'goal_timer_sessions';
-export const TABLE_SUBJECT_TARGETS = 'goal_subject_targets';
+export const TABLE_TIMER_SESSIONS = "goal_timer_sessions";
+export const TABLE_SUBJECT_TARGETS = "goal_subject_targets";
 
 // 과목 코드 5종. sql/75_goal_plan_tasks.sql·77_goal_timer_sessions.sql·
 // 78_goal_subject_targets.sql이 공유하는 CHECK 도메인과 글자 단위로 같다.
-export const TIMER_SUBJECTS = ['korean', 'math', 'english', 'science', 'etc'];
+export const TIMER_SUBJECTS = ["korean", "math", "english", "science", "etc"];
 
 // ---------------------------------------------------------------------------
 // 열공 타이머(#25) — 서버 시각 기반 세션 영속화 + 과목별 목표
@@ -913,7 +1005,9 @@ const TIMER_STALE_MS = 5 * 60 * 1000;
 
 /** ended_at - started_at 을 초로, [0, 43200](12시간) 캡 적용해 계산한다. */
 function computeTimerDurationSeconds(startedAt, endedAtDate) {
-  const seconds = Math.round((endedAtDate.getTime() - new Date(startedAt).getTime()) / 1000);
+  const seconds = Math.round(
+    (endedAtDate.getTime() - new Date(startedAt).getTime()) / 1000,
+  );
   return Math.max(0, Math.min(43200, seconds));
 }
 
@@ -927,9 +1021,9 @@ function nextKstMidnight(sessionDateYmd) {
 async function fetchOpenTimerSession(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
-    .select('*')
-    .eq('profile_id', profileId)
-    .is('ended_at', null)
+    .select("*")
+    .eq("profile_id", profileId)
+    .is("ended_at", null)
     .maybeSingle();
 
   if (error) throw error;
@@ -937,16 +1031,24 @@ async function fetchOpenTimerSession(supabaseAdmin, profileId) {
 }
 
 /** 세션 1건을 지정 시각·사유로 마감한다. duration_seconds 는 서버가 계산한다. */
-async function closeTimerSessionRow(supabaseAdmin, row, endedAtDate, endReason) {
+async function closeTimerSessionRow(
+  supabaseAdmin,
+  row,
+  endedAtDate,
+  endReason,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
     .update({
       ended_at: endedAtDate.toISOString(),
-      duration_seconds: computeTimerDurationSeconds(row.started_at, endedAtDate),
-      end_reason: endReason
+      duration_seconds: computeTimerDurationSeconds(
+        row.started_at,
+        endedAtDate,
+      ),
+      end_reason: endReason,
     })
-    .eq('id', row.id)
-    .select('*')
+    .eq("id", row.id)
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -954,16 +1056,21 @@ async function closeTimerSessionRow(supabaseAdmin, row, endedAtDate, endReason) 
 }
 
 /** 새 세션을 연다. session_date 는 startedAtDate 의 KST 날짜로 서버가 채운다. */
-async function insertTimerSession(supabaseAdmin, profileId, subject, startedAtDate) {
+async function insertTimerSession(
+  supabaseAdmin,
+  profileId,
+  subject,
+  startedAtDate,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
     .insert({
       profile_id: profileId,
       subject,
       session_date: kstYMD(startedAtDate),
-      started_at: startedAtDate.toISOString()
+      started_at: startedAtDate.toISOString(),
     })
-    .select('*')
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -984,7 +1091,11 @@ async function insertTimerSession(supabaseAdmin, profileId, subject, startedAtDa
  *
  * @returns 정리 후 남은 열린 세션(없으면 null).
  */
-export async function reconcileTimerState(supabaseAdmin, profileId, now = new Date()) {
+export async function reconcileTimerState(
+  supabaseAdmin,
+  profileId,
+  now = new Date(),
+) {
   let open = await fetchOpenTimerSession(supabaseAdmin, profileId);
   const today = kstYMD(now);
 
@@ -993,15 +1104,20 @@ export async function reconcileTimerState(supabaseAdmin, profileId, now = new Da
   let guard = 0;
   while (open && open.session_date < today && guard < 400) {
     const midnight = nextKstMidnight(open.session_date);
-    await closeTimerSessionRow(supabaseAdmin, open, midnight, 'midnight');
-    open = await insertTimerSession(supabaseAdmin, profileId, open.subject, midnight);
+    await closeTimerSessionRow(supabaseAdmin, open, midnight, "midnight");
+    open = await insertTimerSession(
+      supabaseAdmin,
+      profileId,
+      open.subject,
+      midnight,
+    );
     guard += 1;
   }
 
   if (open) {
     const reference = new Date(open.last_heartbeat_at || open.started_at);
     if (now.getTime() - reference.getTime() > TIMER_STALE_MS) {
-      await closeTimerSessionRow(supabaseAdmin, open, reference, 'timeout');
+      await closeTimerSessionRow(supabaseAdmin, open, reference, "timeout");
       open = null;
     }
   }
@@ -1015,19 +1131,24 @@ export async function reconcileTimerState(supabaseAdmin, profileId, now = new Da
  * 동시 탭 등으로 그 사이 다른 세션이 열렸다는 뜻이라, 다시 열린 세션을
  * 찾아 마감 후 1회만 재시도한다.
  */
-export async function startTimerSession(supabaseAdmin, profileId, subject, now = new Date()) {
+export async function startTimerSession(
+  supabaseAdmin,
+  profileId,
+  subject,
+  now = new Date(),
+) {
   const open = await reconcileTimerState(supabaseAdmin, profileId, now);
   if (open) {
-    await closeTimerSessionRow(supabaseAdmin, open, now, 'switch');
+    await closeTimerSessionRow(supabaseAdmin, open, now, "switch");
   }
 
   try {
     return await insertTimerSession(supabaseAdmin, profileId, subject, now);
   } catch (error) {
-    if (error?.code === '23505') {
+    if (error?.code === "23505") {
       const stillOpen = await fetchOpenTimerSession(supabaseAdmin, profileId);
       if (stillOpen) {
-        await closeTimerSessionRow(supabaseAdmin, stillOpen, now, 'switch');
+        await closeTimerSessionRow(supabaseAdmin, stillOpen, now, "switch");
       }
       return await insertTimerSession(supabaseAdmin, profileId, subject, now);
     }
@@ -1036,22 +1157,30 @@ export async function startTimerSession(supabaseAdmin, profileId, subject, now =
 }
 
 /** 열린 세션을 'stop'으로 마감한다. 열린 세션이 없으면 null(멱등, 에러 아님). */
-export async function stopTimerSession(supabaseAdmin, profileId, now = new Date()) {
+export async function stopTimerSession(
+  supabaseAdmin,
+  profileId,
+  now = new Date(),
+) {
   const open = await reconcileTimerState(supabaseAdmin, profileId, now);
   if (!open) return null;
-  return closeTimerSessionRow(supabaseAdmin, open, now, 'stop');
+  return closeTimerSessionRow(supabaseAdmin, open, now, "stop");
 }
 
 /** 열린 세션의 last_heartbeat_at 을 touch 한다. 열린 세션이 없으면 null(무해). */
-export async function touchTimerHeartbeat(supabaseAdmin, profileId, now = new Date()) {
+export async function touchTimerHeartbeat(
+  supabaseAdmin,
+  profileId,
+  now = new Date(),
+) {
   const open = await reconcileTimerState(supabaseAdmin, profileId, now);
   if (!open) return null;
 
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
     .update({ last_heartbeat_at: now.toISOString() })
-    .eq('id', open.id)
-    .select('*')
+    .eq("id", open.id)
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -1064,32 +1193,42 @@ export async function touchTimerHeartbeat(supabaseAdmin, profileId, now = new Da
  * (프론트가 serverNow - startedAt 으로 표시용 라이브 값을 얹는다, 임무 지시
  * 프론트 절 참고).
  */
-export async function fetchTimerDaySummary(supabaseAdmin, profileId, now = new Date()) {
+export async function fetchTimerDaySummary(
+  supabaseAdmin,
+  profileId,
+  now = new Date(),
+) {
   const open = await reconcileTimerState(supabaseAdmin, profileId, now);
   const today = kstYMD(now);
 
   const { data, error } = await supabaseAdmin
     .from(TABLE_TIMER_SESSIONS)
-    .select('subject, duration_seconds')
-    .eq('profile_id', profileId)
-    .eq('session_date', today)
-    .not('ended_at', 'is', null);
+    .select("subject, duration_seconds")
+    .eq("profile_id", profileId)
+    .eq("session_date", today)
+    .not("ended_at", "is", null);
 
   if (error) throw error;
 
   const bySubject = {};
   for (const row of data || []) {
-    bySubject[row.subject] = (bySubject[row.subject] || 0) + (num(row.duration_seconds) ?? 0);
+    bySubject[row.subject] =
+      (bySubject[row.subject] || 0) + (num(row.duration_seconds) ?? 0);
   }
 
-  const subjects = TIMER_SUBJECTS.map((subject) => ({ subject, seconds: bySubject[subject] || 0 }));
+  const subjects = TIMER_SUBJECTS.map((subject) => ({
+    subject,
+    seconds: bySubject[subject] || 0,
+  }));
   const totalSeconds = subjects.reduce((sum, item) => sum + item.seconds, 0);
 
   return {
     date: today,
-    running: open ? { subject: open.subject, startedAt: open.started_at } : null,
+    running: open
+      ? { subject: open.subject, startedAt: open.started_at }
+      : null,
     subjects,
-    totalSeconds
+    totalSeconds,
   };
 }
 
@@ -1097,22 +1236,30 @@ export async function fetchTimerDaySummary(supabaseAdmin, profileId, now = new D
 export async function fetchSubjectTargets(supabaseAdmin, profileId) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_SUBJECT_TARGETS)
-    .select('subject, target_hours')
-    .eq('profile_id', profileId);
+    .select("subject, target_hours")
+    .eq("profile_id", profileId);
 
   if (error) throw error;
-  return (data || []).map((row) => ({ subject: row.subject, targetHours: num(row.target_hours) }));
+  return (data || []).map((row) => ({
+    subject: row.subject,
+    targetHours: num(row.target_hours),
+  }));
 }
 
 /** 과목별 목표 시간 upsert(학생이 타이머 페이지에서 자율 설정). */
-export async function upsertSubjectTarget(supabaseAdmin, profileId, subject, targetHours) {
+export async function upsertSubjectTarget(
+  supabaseAdmin,
+  profileId,
+  subject,
+  targetHours,
+) {
   const { data, error } = await supabaseAdmin
     .from(TABLE_SUBJECT_TARGETS)
     .upsert(
       { profile_id: profileId, subject, target_hours: targetHours },
-      { onConflict: 'profile_id,subject' }
+      { onConflict: "profile_id,subject" },
     )
-    .select('*')
+    .select("*")
     .single();
 
   if (error) throw error;

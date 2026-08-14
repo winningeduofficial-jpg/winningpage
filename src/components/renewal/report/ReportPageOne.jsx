@@ -1,16 +1,25 @@
-import ReportSheetA4 from './ReportSheetA4';
-import RadarChart6 from './RadarChart6';
-import StudentInfoBlock from './StudentInfoBlock';
-import SummaryCards from './SummaryCards';
-import PriorityTable from './PriorityTable';
-import TraitNarratives from './TraitNarratives';
+import PriorityTable from "./PriorityTable";
+import RadarChart6 from "./RadarChart6";
+import ReportSheetA4 from "./ReportSheetA4";
+import StudentInfoBlock from "./StudentInfoBlock";
+import SummaryCards from "./SummaryCards";
+import TraitNarratives from "./TraitNarratives";
 
 // 결과 리포트 1페이지(A4-3) — 헤드라인+레이더 / 학생 기본정보 / 주요 학습 특성 섹션
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
 export default function ReportPageOne({ data }) {
-  const { student, headlineLines, learningAxes, summaryCards, traits, traitsHeading, urgency, notices, typeDetail } =
-    data;
+  const {
+    student,
+    headlineLines,
+    learningAxes,
+    summaryCards,
+    traits,
+    traitsHeading,
+    urgency,
+    notices,
+    typeDetail,
+  } = data;
 
   // 우선순위 표 = 학습 6축을 점수 오름차순 정렬(정렬 결과가 곧 시안 행 순서와 일치).
   const priorityRows = [...learningAxes].sort((a, b) => a.score - b.score);
@@ -101,7 +110,9 @@ export default function ReportPageOne({ data }) {
           StudentInfoBlock 모바일 라벨이 이미 쓰는 #6b6b6b(대비 ≈5.34:1)를 재사용한다
           (새 색상값 도입 아님, 팀리드 재조정 지시 2026-08-11). */}
       {urgency?.message && (
-        <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-[#6b6b6b] lg:mt-2">{urgency.message}</p>
+        <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-[#6b6b6b] lg:mt-2">
+          {urgency.message}
+        </p>
       )}
 
       <div className="fd-mt-priority mt-8 lg:mt-[3.9375rem]">
@@ -127,7 +138,9 @@ export default function ReportPageOne({ data }) {
             특정하지 않는다 — 이 블록 바로 위에서만 좁혀 소개한다. */}
         {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. */}
         {notices?.traitIntro && (
-          <p className="mb-3 text-sm leading-[1.4] text-[#6b6b6b]">{notices.traitIntro}</p>
+          <p className="mb-3 text-sm leading-[1.4] text-[#6b6b6b]">
+            {notices.traitIntro}
+          </p>
         )}
         <TraitNarratives items={traits} heading={traitsHeading} />
       </div>

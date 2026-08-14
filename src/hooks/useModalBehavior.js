@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 // 모달 동작 로직(ESC 닫기, Tab focus trap, 배경 스크롤 잠금, 포커스 이동/복귀) 공용 훅.
 //
@@ -37,7 +37,7 @@ export function useModalBehavior({ open, onClose, panelRef }) {
     triggerElRef.current = document.activeElement;
     const { style } = document.body;
     const previousOverflow = style.overflow;
-    style.overflow = 'hidden';
+    style.overflow = "hidden";
 
     return () => {
       style.overflow = previousOverflow;
@@ -73,12 +73,12 @@ export function useModalBehavior({ open, onClose, panelRef }) {
     if (!open) return undefined;
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onClose();
         return;
       }
-      if (event.key !== 'Tab') return;
+      if (event.key !== "Tab") return;
 
       const panel = panelRef.current;
       if (!panel) return;
@@ -97,7 +97,7 @@ export function useModalBehavior({ open, onClose, panelRef }) {
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose, panelRef]);
 }

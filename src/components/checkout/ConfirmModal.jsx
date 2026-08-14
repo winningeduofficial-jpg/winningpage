@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 // 결제 요청 흐름 공용 안내 모달 — 학생 화면의 학부모 미연결 실패 모달
 // (시안 3921:7480, StudentEnrollmentRequest.jsx)과 Pricing.jsx 의 학부모용
@@ -9,13 +9,19 @@ import { useEffect } from 'react';
 //
 // 버튼 동작(그냥 닫기 vs 페이지 이동)은 onConfirm 으로 호출부가 정한다 —
 // 생략하면 onClose 와 동일하게 닫기만 한다.
-export default function ConfirmModal({ title, children, buttonLabel = '확인', onConfirm, onClose }) {
+export default function ConfirmModal({
+  title,
+  children,
+  buttonLabel = "확인",
+  onConfirm,
+  onClose,
+}) {
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   return (
@@ -25,7 +31,11 @@ export default function ConfirmModal({ title, children, buttonLabel = '확인', 
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
     >
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div className="relative flex w-full max-w-[34.125rem] flex-col items-center rounded-[1.25rem] bg-white px-6 py-10 shadow-2xl lg:h-[21.1875rem] lg:justify-center lg:px-0 lg:py-0">
         <div className="mx-auto flex w-full max-w-[22.625rem] flex-col items-center gap-9 text-center">
           <h2

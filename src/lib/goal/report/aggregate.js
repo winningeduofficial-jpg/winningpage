@@ -13,16 +13,16 @@
 // getEffectiveScheduleTarget(calc/schedule.js, 동결 순수 함수)이 그 경계 안의
 // 요일별 목표(월~토, 일요일 제외)를 합산한다. 새 요일 합산 로직을 이 파일에 만들지 않는다.
 
-import { getMondayYMD, addDaysYMD } from '../calc/virtualDate.js';
-import { getEffectiveScheduleTarget } from '../calc/schedule.js';
-import { GRADE_PERCENTILE } from '../calc/jeongsi.js';
+import { GRADE_PERCENTILE } from "../calc/jeongsi.js";
+import { getEffectiveScheduleTarget } from "../calc/schedule.js";
+import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
 
 // ---------------------------------------------------------------------------
 // 공통 숫자 헬퍼
 // ---------------------------------------------------------------------------
 
 export function toNum(value, fallback = 0) {
-  if (value === null || value === undefined || value === '') return fallback;
+  if (value === null || value === undefined || value === "") return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -45,13 +45,14 @@ function clamp0to100(value) {
 // ---------------------------------------------------------------------------
 
 export function isValidYmd(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return false;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
 export function isValidYm(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}$/.test(value);
+  return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
 }
 
 function maxYmd(a, b) {
@@ -68,7 +69,7 @@ function minYmd(a, b) {
 
 /** 월의 마지막 날짜(YYYY-MM-DD). ym='YYYY-MM'. */
 export function lastDayOfMonthYmd(ym) {
-  const [y, m] = ym.split('-').map(Number);
+  const [y, m] = ym.split("-").map(Number);
   // UTC 기준 다음 달 0일 = 이번 달 마지막 날 (윤년 자동 처리, virtualDate.js addDaysYMD와 동일 기법).
   const d = new Date(Date.UTC(y, m, 0));
   return d.toISOString().slice(0, 10);
@@ -76,9 +77,20 @@ export function lastDayOfMonthYmd(ym) {
 
 /** 'YYYY-MM-DD' 두 날짜 사이(양끝 포함) 일수. 역순이면 0. */
 export function diffDaysInclusive(startYmd, endYmd) {
-  if (!isValidYmd(startYmd) || !isValidYmd(endYmd) || startYmd > endYmd) return 0;
-  const start = Date.UTC(...startYmd.split('-').map(Number).map((v, i) => (i === 1 ? v - 1 : v)));
-  const end = Date.UTC(...endYmd.split('-').map(Number).map((v, i) => (i === 1 ? v - 1 : v)));
+  if (!isValidYmd(startYmd) || !isValidYmd(endYmd) || startYmd > endYmd)
+    return 0;
+  const start = Date.UTC(
+    ...startYmd
+      .split("-")
+      .map(Number)
+      .map((v, i) => (i === 1 ? v - 1 : v)),
+  );
+  const end = Date.UTC(
+    ...endYmd
+      .split("-")
+      .map(Number)
+      .map((v, i) => (i === 1 ? v - 1 : v)),
+  );
   return Math.round((end - start) / 86400000) + 1;
 }
 
@@ -114,10 +126,16 @@ export function resolveMonthlyPeriod(periodParam, nowYmd) {
  * min(기간 끝, 오늘). actual_start_date 가 없으면(온보딩 직후 등) 기간 시작을 그대로 쓴다.
  * 역전(시작 > 끝, 예: 기간 전체가 미래이거나 온보딩 전)이면 elapsedDays=0.
  */
-export function computeEffectiveWindow({ periodStart, periodEnd, actualStartDate, nowYmd }) {
+export function computeEffectiveWindow({
+  periodStart,
+  periodEnd,
+  actualStartDate,
+  nowYmd,
+}) {
   const start = maxYmd(periodStart, actualStartDate || periodStart);
   const end = minYmd(periodEnd, nowYmd);
-  if (!start || !end || start > end) return { start: null, end: null, elapsedDays: 0 };
+  if (!start || !end || start > end)
+    return { start: null, end: null, elapsedDays: 0 };
   return { start, end, elapsedDays: diffDaysInclusive(start, end) };
 }
 
@@ -135,14 +153,29 @@ export function computeStudyHours(records) {
  * effectiveWindow 안의 요일별 목표 합(getEffectiveScheduleTarget, 일요일 제외).
  * effectiveWindow 가 없으면(아직 시작 전 등) 0%.
  */
-export function computeAchievementRate({ totalStudyHours, student, effectiveWindow }) {
+export function computeAchievementRate({
+  totalStudyHours,
+  student,
+  effectiveWindow,
+}) {
   if (!effectiveWindow.start || !effectiveWindow.end) {
     return { idealRate: 0, minRate: 0, idealTargetHours: 0, minTargetHours: 0 };
   }
-  const target = getEffectiveScheduleTarget(student, effectiveWindow.start, effectiveWindow.end);
-  const idealRate = target.ideal > 0 ? round0((totalStudyHours / target.ideal) * 100) : 0;
-  const minRate = target.min > 0 ? round0((totalStudyHours / target.min) * 100) : 0;
-  return { idealRate, minRate, idealTargetHours: target.ideal, minTargetHours: target.min };
+  const target = getEffectiveScheduleTarget(
+    student,
+    effectiveWindow.start,
+    effectiveWindow.end,
+  );
+  const idealRate =
+    target.ideal > 0 ? round0((totalStudyHours / target.ideal) * 100) : 0;
+  const minRate =
+    target.min > 0 ? round0((totalStudyHours / target.min) * 100) : 0;
+  return {
+    idealRate,
+    minRate,
+    idealTargetHours: target.ideal,
+    minTargetHours: target.min,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -153,13 +186,22 @@ export function computeAchievementRate({ totalStudyHours, student, effectiveWind
  * 완성도 = 0.5×min(100,이상달성률) + 0.3×(기록 제출일수÷경과일수×100) + 0.2×(과제 done÷전체×100).
  * 기간 내 과제 0건이면 계획 축을 빼고 0.5/0.3 을 0.625/0.375 로 재정규화한다(팀장 확정).
  */
-export function computeCompletionScore({ idealRate, recordDays, elapsedDays, doneTasks, totalTasks }) {
+export function computeCompletionScore({
+  idealRate,
+  recordDays,
+  elapsedDays,
+  doneTasks,
+  totalTasks,
+}) {
   const achievementAxis = clamp0to100(idealRate);
-  const consistencyAxis = elapsedDays > 0 ? clamp0to100((recordDays / elapsedDays) * 100) : 0;
+  const consistencyAxis =
+    elapsedDays > 0 ? clamp0to100((recordDays / elapsedDays) * 100) : 0;
 
   if (totalTasks > 0) {
     const planAxis = clamp0to100((doneTasks / totalTasks) * 100);
-    return round0(0.5 * achievementAxis + 0.3 * consistencyAxis + 0.2 * planAxis);
+    return round0(
+      0.5 * achievementAxis + 0.3 * consistencyAxis + 0.2 * planAxis,
+    );
   }
 
   return round0(0.625 * achievementAxis + 0.375 * consistencyAxis);
@@ -180,21 +222,35 @@ export function computeCompletionScore({ idealRate, recordDays, elapsedDays, don
 export function sumHoursByProfile(records) {
   const totals = {};
   for (const record of records) {
-    totals[record.profile_id] = (totals[record.profile_id] || 0) + toNum(record.study_hours);
+    totals[record.profile_id] =
+      (totals[record.profile_id] || 0) + toNum(record.study_hours);
   }
-  return Object.entries(totals).map(([profileId, hours]) => ({ profileId, hours: round1(hours) }));
+  return Object.entries(totals).map(([profileId, hours]) => ({
+    profileId,
+    hours: round1(hours),
+  }));
 }
 
 export function computeCohortPercentile(selfProfileId, cohortHours) {
   if (!Array.isArray(cohortHours) || cohortHours.length < 2) {
-    return { insufficientSample: true, rank: null, total: cohortHours?.length ?? 0, topPercent: null };
+    return {
+      insufficientSample: true,
+      rank: null,
+      total: cohortHours?.length ?? 0,
+      topPercent: null,
+    };
   }
   const self = cohortHours.find((x) => x.profileId === selfProfileId);
   const selfHours = self ? toNum(self.hours) : 0;
   const better = cohortHours.filter((x) => toNum(x.hours) > selfHours).length;
   const rank = better + 1;
   const topPercent = Math.max(1, round0((rank / cohortHours.length) * 100));
-  return { insufficientSample: false, rank, total: cohortHours.length, topPercent };
+  return {
+    insufficientSample: false,
+    rank,
+    total: cohortHours.length,
+    topPercent,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -202,10 +258,10 @@ export function computeCohortPercentile(selfProfileId, cohortHours) {
 // ---------------------------------------------------------------------------
 
 export const CONDITION_ORDER = [
-  { code: 'great', emoji: '😆', label: '아주 좋음' },
-  { code: 'normal', emoji: '🙂', label: '보통' },
-  { code: 'tired', emoji: '😣', label: '피곤함' },
-  { code: 'exhausted', emoji: '😫', label: '힘듦' }
+  { code: "great", emoji: "😆", label: "아주 좋음" },
+  { code: "normal", emoji: "🙂", label: "보통" },
+  { code: "tired", emoji: "😣", label: "피곤함" },
+  { code: "exhausted", emoji: "😫", label: "힘듦" },
 ];
 
 /**
@@ -213,7 +269,9 @@ export const CONDITION_ORDER = [
  * 4종 전부 항상 반환한다(기록 0건인 컨디션도 "0일"로 노출).
  */
 export function computeConditionBreakdown(records) {
-  const byCondition = Object.fromEntries(CONDITION_ORDER.map((c) => [c.code, { count: 0, sum: 0 }]));
+  const byCondition = Object.fromEntries(
+    CONDITION_ORDER.map((c) => [c.code, { count: 0, sum: 0 }]),
+  );
 
   for (const record of records) {
     const bucket = byCondition[record.body_condition];
@@ -225,7 +283,7 @@ export function computeConditionBreakdown(records) {
   const listRows = CONDITION_ORDER.map((c) => ({
     emoji: c.emoji,
     label: c.label,
-    value: `${byCondition[c.code].count}일`
+    value: `${byCondition[c.code].count}일`,
   }));
 
   const tiles = CONDITION_ORDER.map((c) => {
@@ -234,7 +292,7 @@ export function computeConditionBreakdown(records) {
       emoji: c.emoji,
       label: c.label,
       value: `${count}일`,
-      avg: `평균 ${count > 0 ? round1(sum / count) : 0}h`
+      avg: `평균 ${count > 0 ? round1(sum / count) : 0}h`,
     };
   });
 
@@ -245,7 +303,13 @@ export function computeConditionBreakdown(records) {
 // D7 — 과목별 학습 비중(타이머 세션 기준)
 // ---------------------------------------------------------------------------
 
-const SUBJECT_LABELS = { korean: '국어', math: '수학', english: '영어', science: '탐구', etc: '기타' };
+const SUBJECT_LABELS = {
+  korean: "국어",
+  math: "수학",
+  english: "영어",
+  science: "탐구",
+  etc: "기타",
+};
 
 /** D7 — goal_timer_sessions.duration_seconds 를 과목별 비중(%)으로. 세션 없으면 empty. */
 export function computeSubjectShare(sessions) {
@@ -255,7 +319,7 @@ export function computeSubjectShare(sessions) {
   for (const session of sessions) {
     const seconds = toNum(session.duration_seconds, 0);
     if (seconds <= 0) continue;
-    const code = session.subject in SUBJECT_LABELS ? session.subject : 'etc';
+    const code = session.subject in SUBJECT_LABELS ? session.subject : "etc";
     totals[code] = (totals[code] || 0) + seconds;
     total += seconds;
   }
@@ -263,7 +327,10 @@ export function computeSubjectShare(sessions) {
   if (total <= 0) return { empty: true, rows: [] };
 
   const rows = Object.entries(totals)
-    .map(([code, seconds]) => ({ label: SUBJECT_LABELS[code], value: round0((seconds / total) * 100) }))
+    .map(([code, seconds]) => ({
+      label: SUBJECT_LABELS[code],
+      value: round0((seconds / total) * 100),
+    }))
     .sort((a, b) => b.value - a.value);
 
   return { empty: false, rows };
@@ -274,24 +341,24 @@ export function computeSubjectShare(sessions) {
 // ---------------------------------------------------------------------------
 
 export const TIME_SLOT_BUCKETS = [
-  { label: '심야 0~6', startHour: 0, endHour: 6 },
-  { label: '오전 6~9', startHour: 6, endHour: 9 },
-  { label: '오전 9~12', startHour: 9, endHour: 12 },
-  { label: '오후 12~3', startHour: 12, endHour: 15 },
-  { label: '오후 3~6', startHour: 15, endHour: 18 },
-  { label: '오후 6~9', startHour: 18, endHour: 21 },
-  { label: '오후 9~12', startHour: 21, endHour: 24 }
+  { label: "심야 0~6", startHour: 0, endHour: 6 },
+  { label: "오전 6~9", startHour: 6, endHour: 9 },
+  { label: "오전 9~12", startHour: 9, endHour: 12 },
+  { label: "오후 12~3", startHour: 12, endHour: 15 },
+  { label: "오후 3~6", startHour: 15, endHour: 18 },
+  { label: "오후 6~9", startHour: 18, endHour: 21 },
+  { label: "오후 9~12", startHour: 21, endHour: 24 },
 ];
 
 /** 세션 started_at(timestamptz ISO)의 KST 시(0~23). */
 export function kstHour(isoString) {
   const d = new Date(isoString);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Seoul',
-    hour: '2-digit',
-    hourCycle: 'h23'
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    hourCycle: "h23",
   }).formatToParts(d);
-  return Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  return Number(parts.find((p) => p.type === "hour")?.value ?? 0);
 }
 
 /**
@@ -299,7 +366,12 @@ export function kstHour(isoString) {
  * "시작 시각이 속한 버킷 전체"로 판단, 판단 지점).
  */
 export function bucketTimeSlots(sessions) {
-  const buckets = TIME_SLOT_BUCKETS.map((b) => ({ label: b.label, startHour: b.startHour, endHour: b.endHour, seconds: 0 }));
+  const buckets = TIME_SLOT_BUCKETS.map((b) => ({
+    label: b.label,
+    startHour: b.startHour,
+    endHour: b.endHour,
+    seconds: 0,
+  }));
 
   for (const session of sessions) {
     const seconds = toNum(session.duration_seconds, 0);
@@ -309,7 +381,11 @@ export function bucketTimeSlots(sessions) {
     if (bucket) bucket.seconds += seconds;
   }
 
-  return buckets.map((b) => ({ label: b.label, value: round1(b.seconds / 3600), unit: 'h' }));
+  return buckets.map((b) => ({
+    label: b.label,
+    value: round1(b.seconds / 3600),
+    unit: "h",
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -321,12 +397,12 @@ export function computeDistraction(records) {
   const counts = {};
   for (const record of records) {
     for (const label of record.reasons || []) {
-      if (label === '없었음') continue;
+      if (label === "없었음") continue;
       counts[label] = (counts[label] || 0) + 1;
     }
   }
   return Object.entries(counts)
-    .map(([label, value]) => ({ label, value, unit: '회' }))
+    .map(([label, value]) => ({ label, value, unit: "회" }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -339,7 +415,7 @@ export function computeCoreItems(records) {
     }
   }
   return Object.entries(counts)
-    .map(([label, value]) => ({ label, value, unit: '회' }))
+    .map(([label, value]) => ({ label, value, unit: "회" }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -347,13 +423,14 @@ export function computeCoreItems(records) {
 // 요일별/주차별 공부 시간 막대(StudyTimeBarChartCard)
 // ---------------------------------------------------------------------------
 
-const DAY_LABELS_MON_TO_SUN = ['월', '화', '수', '목', '금', '토', '일'];
+const DAY_LABELS_MON_TO_SUN = ["월", "화", "수", "목", "금", "토", "일"];
 
 /** 주간 리포트 — 월~일 7개 막대. */
 export function buildWeeklyStudyTimeBars(records, weekStart) {
   const hoursByDate = {};
   for (const record of records) {
-    hoursByDate[record.record_date] = (hoursByDate[record.record_date] || 0) + toNum(record.study_hours);
+    hoursByDate[record.record_date] =
+      (hoursByDate[record.record_date] || 0) + toNum(record.study_hours);
   }
 
   return DAY_LABELS_MON_TO_SUN.map((label, index) => {
@@ -368,10 +445,17 @@ export function buildWeeklyStudyTimeBars(records, weekStart) {
  * effectiveWindow(=actual_start_date~오늘)는 주 단위로도 동일하게 적용한다 — 시작 전/미래
  * 주는 목표가 0이라 달성률도 0%가 된다(전체 기간 effectiveWindow 규칙과 동일 취지).
  */
-export function buildMonthlyWeeks({ records, student, monthStart, monthEnd, nowYmd }) {
+export function buildMonthlyWeeks({
+  records,
+  student,
+  monthStart,
+  monthEnd,
+  nowYmd,
+}) {
   const hoursByDate = {};
   for (const record of records) {
-    hoursByDate[record.record_date] = (hoursByDate[record.record_date] || 0) + toNum(record.study_hours);
+    hoursByDate[record.record_date] =
+      (hoursByDate[record.record_date] || 0) + toNum(record.study_hours);
   }
 
   const weeks = [];
@@ -398,15 +482,21 @@ export function buildMonthlyWeeks({ records, student, monthStart, monthEnd, nowY
         periodStart: clippedStart,
         periodEnd: clippedEnd,
         actualStartDate: student.actual_start_date,
-        nowYmd
+        nowYmd,
       });
       const { idealRate, minRate } = computeAchievementRate({
         totalStudyHours: round1(hours),
         student,
-        effectiveWindow
+        effectiveWindow,
       });
 
-      weeks.push({ label: `${weekIndex}주`, weekLabel: `${weekIndex}주차`, hours: round1(hours), idealRate, minRate });
+      weeks.push({
+        label: `${weekIndex}주`,
+        weekLabel: `${weekIndex}주차`,
+        hours: round1(hours),
+        idealRate,
+        minRate,
+      });
     }
 
     cursor = addDaysYMD(cursor, 7);
@@ -431,11 +521,18 @@ function buildAdmissionBlock(university, susiSnapshot, jeongsiSnapshot) {
     const end = toNum(snapshot.endValue, 0);
     const diff = round1(end - start);
     return {
-      delta: { direction: diff < 0 ? 'down' : 'up', value: `${Math.abs(diff).toFixed(2)}%` },
-      rate: round1(end)
+      delta: {
+        direction: diff < 0 ? "down" : "up",
+        value: `${Math.abs(diff).toFixed(2)}%`,
+      },
+      rate: round1(end),
     };
   }
-  return { university, susi: toDelta(susiSnapshot), jeongsi: toDelta(jeongsiSnapshot) };
+  return {
+    university,
+    susi: toDelta(susiSnapshot),
+    jeongsi: toDelta(jeongsiSnapshot),
+  };
 }
 
 /**
@@ -447,20 +544,24 @@ export function computeAdmissionDelta({ targets, startLog, endLog }) {
   const start = startLog || {};
   const end = endLog || {};
 
-  const upperUniversity = [targets.ideal.university, targets.ideal.department].filter(Boolean).join(' ');
-  const lowerUniversity = [targets.min.university, targets.min.department].filter(Boolean).join(' ');
+  const upperUniversity = [targets.ideal.university, targets.ideal.department]
+    .filter(Boolean)
+    .join(" ");
+  const lowerUniversity = [targets.min.university, targets.min.department]
+    .filter(Boolean)
+    .join(" ");
 
   return {
     upper: buildAdmissionBlock(
       upperUniversity,
       { startValue: start.ideal_susi, endValue: end.ideal_susi },
-      { startValue: start.ideal_jungsi, endValue: end.ideal_jungsi }
+      { startValue: start.ideal_jungsi, endValue: end.ideal_jungsi },
     ),
     lower: buildAdmissionBlock(
       lowerUniversity,
       { startValue: start.min_susi, endValue: end.min_susi },
-      { startValue: start.min_jungsi, endValue: end.min_jungsi }
-    )
+      { startValue: start.min_jungsi, endValue: end.min_jungsi },
+    ),
   };
 }
 
@@ -475,11 +576,11 @@ export function computeAdmissionDelta({ targets, startLog, endLog }) {
  * "판단 애매하면 9등급제 기본").
  */
 export function deriveGradeSystem(grade, nowYmd) {
-  const match = /^고([1-3])$/.exec(String(grade || '').trim());
-  if (!match || !isValidYmd(nowYmd)) return '9등급제';
+  const match = /^고([1-3])$/.exec(String(grade || "").trim());
+  if (!match || !isValidYmd(nowYmd)) return "9등급제";
 
   const gradeNum = Number(match[1]);
-  const [y, m] = nowYmd.split('-').map(Number);
+  const [y, m] = nowYmd.split("-").map(Number);
   // 한국 학년도는 3월 시작 — 1~2월은 전년도 학년도 소속.
   const schoolYear = m >= 3 ? y : y - 1;
   // 이 학생이 고3이 되는 학년도(= 수능 응시 학년도).
@@ -487,7 +588,7 @@ export function deriveGradeSystem(grade, nowYmd) {
   // 대입 학년도(입학 연도) = 수능 응시 학년도 + 1.
   const admissionCalendarYear = admissionSchoolYear + 1;
 
-  return admissionCalendarYear >= 2028 ? '5등급제' : '9등급제';
+  return admissionCalendarYear >= 2028 ? "5등급제" : "9등급제";
 }
 
 // ---------------------------------------------------------------------------
@@ -495,19 +596,19 @@ export function deriveGradeSystem(grade, nowYmd) {
 // ---------------------------------------------------------------------------
 
 const NAESIN_SUBJECT_ORDER = [
-  { key: 'korean', name: '국어군' },
-  { key: 'math', name: '수학군' },
-  { key: 'english', name: '영어군' },
+  { key: "korean", name: "국어군" },
+  { key: "math", name: "수학군" },
+  { key: "english", name: "영어군" },
   // 사회/과학 분기는 goal_students 에 계열(track) 컬럼이 없어 판정 근거가 없다(D14, 팀장 확정) —
   // 항상 "탐구군" 제네릭 라벨을 쓴다.
-  { key: 'science', name: '탐구군' }
+  { key: "science", name: "탐구군" },
 ];
 
 const JEONGSI_SUBJECT_ORDER = [
-  { key: 'korean', name: '국어' },
-  { key: 'math', name: '수학' },
-  { key: 'english', name: '영어' },
-  { key: 'science', name: '탐구' }
+  { key: "korean", name: "국어" },
+  { key: "math", name: "수학" },
+  { key: "english", name: "영어" },
+  { key: "science", name: "탐구" },
 ];
 
 /** 백분위 → 9등급(GRADE_PERCENTILE 역조회). 표 밖 값은 경계 등급으로 clamp. */
@@ -522,22 +623,22 @@ export function percentileToGrade(percentile) {
 
 /** 내신 과목군 구간(등급 낮을수록 우세) — 이상 목표선 이내=강점 유지, 최소 목표선 이내=보완 필요, 밖=집중 보완. */
 export function classifyNaesinZone(subjectGrade, idealCut, minCut) {
-  if (idealCut != null && subjectGrade <= idealCut) return 'strong';
-  if (minCut != null && subjectGrade <= minCut) return 'improve';
-  return 'focus';
+  if (idealCut != null && subjectGrade <= idealCut) return "strong";
+  if (minCut != null && subjectGrade <= minCut) return "improve";
+  return "focus";
 }
 
 /** 정시 과목 구간(백분위 높을수록 우세) — 등급 판정과 부등호 방향만 반대. */
 export function classifyJeongsiZone(subjectPercentile, idealCut, minCut) {
-  if (idealCut != null && subjectPercentile >= idealCut) return 'strong';
-  if (minCut != null && subjectPercentile >= minCut) return 'improve';
-  return 'focus';
+  if (idealCut != null && subjectPercentile >= idealCut) return "strong";
+  if (minCut != null && subjectPercentile >= minCut) return "improve";
+  return "focus";
 }
 
 export const ZONE_LABELS = {
-  strong: '강점 유지 구간',
-  improve: '보완 필요 구간',
-  focus: '집중 보완 구간'
+  strong: "강점 유지 구간",
+  improve: "보완 필요 구간",
+  focus: "집중 보완 구간",
 };
 
 /**
@@ -549,12 +650,20 @@ export const ZONE_LABELS = {
 export function buildNaesinSubjectMetrics(student, entry) {
   const idealCut = toNum(student.ideal_naesin_cut, null);
   const minCut = toNum(student.min_naesin_cut, null);
-  const hasSubjects = entry?.subjects && typeof entry.subjects === 'object';
+  const hasSubjects = entry?.subjects && typeof entry.subjects === "object";
 
   return NAESIN_SUBJECT_ORDER.map(({ key, name }) => {
-    const grade = hasSubjects ? toNum(entry.subjects[key], toNum(entry.value)) : toNum(entry?.value);
+    const grade = hasSubjects
+      ? toNum(entry.subjects[key], toNum(entry.value))
+      : toNum(entry?.value);
     const zone = classifyNaesinZone(grade, idealCut, minCut);
-    return { name, zoneLabel: ZONE_LABELS[zone], zone, badge: `${round1(grade).toFixed(2)} 등급`, grade };
+    return {
+      name,
+      zoneLabel: ZONE_LABELS[zone],
+      zone,
+      badge: `${round1(grade).toFixed(2)} 등급`,
+      grade,
+    };
   });
 }
 
@@ -562,13 +671,21 @@ export function buildNaesinSubjectMetrics(student, entry) {
 export function buildJeongsiSubjectMetrics(student, entry) {
   const idealCut = toNum(student.ideal_jungsi_cut, null);
   const minCut = toNum(student.min_jungsi_cut, null);
-  const hasSubjects = entry?.subjects && typeof entry.subjects === 'object';
+  const hasSubjects = entry?.subjects && typeof entry.subjects === "object";
 
   return JEONGSI_SUBJECT_ORDER.map(({ key, name }) => {
-    const percentile = hasSubjects ? toNum(entry.subjects[key], toNum(entry.value)) : toNum(entry?.value);
+    const percentile = hasSubjects
+      ? toNum(entry.subjects[key], toNum(entry.value))
+      : toNum(entry?.value);
     const zone = classifyJeongsiZone(percentile, idealCut, minCut);
     const grade = percentileToGrade(percentile);
-    return { name, zoneLabel: ZONE_LABELS[zone], zone, badge: `${grade}등급 (백분위 ${round1(percentile)})`, percentile };
+    return {
+      name,
+      zoneLabel: ZONE_LABELS[zone],
+      zone,
+      badge: `${grade}등급 (백분위 ${round1(percentile)})`,
+      percentile,
+    };
   });
 }
 
@@ -577,8 +694,10 @@ export function buildJeongsiSubjectMetrics(student, entry) {
  * 확률 산출 전용 파이프라인이라 이 표시용 요약에는 재사용하지 않는다, 판단 지점).
  */
 export function computeJeongsiComposite(entry) {
-  const hasSubjects = entry?.subjects && typeof entry.subjects === 'object';
+  const hasSubjects = entry?.subjects && typeof entry.subjects === "object";
   if (!hasSubjects) return round1(entry?.value);
-  const values = JEONGSI_SUBJECT_ORDER.map(({ key }) => toNum(entry.subjects[key]));
+  const values = JEONGSI_SUBJECT_ORDER.map(({ key }) =>
+    toNum(entry.subjects[key]),
+  );
   return round1(values.reduce((s, v) => s + v, 0) / values.length);
 }

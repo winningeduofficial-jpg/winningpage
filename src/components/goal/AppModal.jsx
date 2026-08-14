@@ -1,6 +1,6 @@
-import { useId, useRef } from 'react';
-import { X } from 'lucide-react';
-import { useModalBehavior } from '../../hooks/useModalBehavior';
+import { X } from "lucide-react";
+import { useId, useRef } from "react";
+import { useModalBehavior } from "../../hooks/useModalBehavior";
 
 // 목표관리 앱 모달 6종 공용 셸 — docs/figma-goal/00-INDEX.md §5-4 `AppModal` / §6-3 "모달 규격(전 6종 공통)".
 // 이번 범위는 3종(과제 추가/중요일정 등록/모의고사 성적 추가)이지만, 폭 33.125rem + 좌우패딩
@@ -26,12 +26,12 @@ export default function AppModal({
   title,
   subtitle,
   children,
-  cancelLabel = '취소',
+  cancelLabel = "취소",
   onCancel,
-  submitLabel = '저장',
+  submitLabel = "저장",
   onSubmit,
   submitDisabled = false,
-  className = ''
+  className = "",
 }) {
   const panelRef = useRef(null);
   const titleId = useId();
@@ -46,7 +46,11 @@ export default function AppModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* 스크림 — 클릭 시 닫기 */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       <div
         ref={panelRef}
@@ -68,18 +72,27 @@ export default function AppModal({
           {(title || subtitle) && (
             <div className="mb-[1.6875rem] pr-6">
               {title && (
-                <h2 id={titleId} className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+                <h2
+                  id={titleId}
+                  className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong"
+                >
                   {title}
                 </h2>
               )}
-              {subtitle && <p className="mt-1 text-[0.8125rem] leading-[1.4] text-ink-sub">{subtitle}</p>}
+              {subtitle && (
+                <p className="mt-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
+                  {subtitle}
+                </p>
+              )}
             </div>
           )}
 
           {/* 블록 pitch(93px = 5.8125rem)는 라벨(21)+간격(27)+컨트롤(39) 합(87)에 근접한 값이라,
               필드 블록 사이는 별도 큰 gap 없이 살짝만(0.5rem) 띄운다 — ModalField가 라벨→컨트롤
               간격(1.6875rem)을 자체 보유하므로 여기서는 블록 간 최소 여백만 추가. */}
-          <div className="flex flex-col gap-[0.5rem] pb-[1.875rem]">{children}</div>
+          <div className="flex flex-col gap-[0.5rem] pb-[1.875rem]">
+            {children}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-[0.5rem] border-t border-[#F0F0F0] px-[1.875rem] py-[1.25rem]">

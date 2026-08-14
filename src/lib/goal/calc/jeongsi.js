@@ -101,7 +101,8 @@ export function calcJeongsiBaseProb(currentScore, targetScore) {
   const a = 0.41;
 
   if (currentScore < targetScore) return round1(70 * Math.exp(-a * effort));
-  if (currentScore > targetScore) return round1(70 + 20 * (1 - Math.exp(-a * effort)));
+  if (currentScore > targetScore)
+    return round1(70 + 20 * (1 - Math.exp(-a * effort)));
   return 70;
 }
 
@@ -109,26 +110,41 @@ export function calcJeongsiBaseProb(currentScore, targetScore) {
 //   현재 < 목표 : 남은 회차가 많을수록 유리 (0.50 → 1.00)
 //   현재 > 목표 : 남은 회차가 적을수록 유리(이미 도달했으므로 지킬 시간이 짧을수록) (0.65 → 1.00)
 //   현재 = 목표 : 남은 회차가 많을수록 유리 (0.58 → 1.00)
-export function getTimeFactorPercentile(currentScore, targetCut, remainExams, totalExams = 14) {
+export function getTimeFactorPercentile(
+  currentScore,
+  targetCut,
+  remainExams,
+  totalExams = 14,
+) {
   // NOTE(target-parity): remainExams == null (null·undefined) 이거나 totalExams <= 0 이면
   // 시간계수를 1 로 둔다. 즉 "정보 없음"이 "가장 유리"로 처리된다.
   if (remainExams == null || totalExams <= 0) return 1;
 
   const ratio = remainExams / totalExams;
-  const p = Math.pow(ratio, 0.8);
+  const p = ratio ** 0.8;
 
   // NOTE(target-parity): ratio 에 상한이 없어 remainExams > totalExams 이면 계수가 1 을 넘는다
   // (예: 20/14 → 약 1.165). 또 ratio 가 음수면 Math.pow(음수, 0.8) 가 NaN 이라 계수도 NaN 이
   // 되는데, 최종 clampProb 가 NaN 을 0 으로 접어버려 확률이 0% 로 나온다.
-  if (currentScore < targetCut) return 0.50 + 0.50 * p;
+  if (currentScore < targetCut) return 0.5 + 0.5 * p;
   if (currentScore > targetCut) return 0.65 + 0.35 * (1 - p);
   return 0.58 + 0.42 * p;
 }
 
 // 정시 최종 합격 확률 = 기본 확률 × 시간계수 (0~100 클램프).
-export function calcJeongsiProb(currentScore, targetCut, remainExams, totalExams = 14) {
+export function calcJeongsiProb(
+  currentScore,
+  targetCut,
+  remainExams,
+  totalExams = 14,
+) {
   const pBase = calcJeongsiBaseProb(currentScore, targetCut);
-  const factor = getTimeFactorPercentile(currentScore, targetCut, remainExams, totalExams);
+  const factor = getTimeFactorPercentile(
+    currentScore,
+    targetCut,
+    remainExams,
+    totalExams,
+  );
   // NOTE(target-parity): 내신 확률(calcNaesinProb)과 달리 하한 1% 보정이 없다. 0% 가 나올 수 있다.
   return clampProb(pBase * factor);
 }
@@ -150,7 +166,7 @@ export const GRADE_PERCENTILE = {
 // 등급 문자열 → 선택 가능한 백분위 칩 목록 [{ value, label }].
 // 구간 폭이 6 이하면 전부 나열하고, 그보다 넓으면 5분위(컷/25%/중앙/75%/최고)만 낸다.
 export function getPercentileChips(gradeStr) {
-  const g = parseInt(gradeStr);
+  const g = parseInt(gradeStr, 10);
   if (!g || g < 1 || g > 9) return [];
   const { min, max } = GRADE_PERCENTILE[g];
   // NOTE(target-parity): 여기서 width 는 max - min 이다(밴드의 max - min + 1 과 다름).
@@ -163,11 +179,22 @@ export function getPercentileChips(gradeStr) {
     return `${v}`;
   };
   if (width <= 6) {
-    return Array.from({ length: width + 1 }, (_, i) => ({ value: min + i, label: makeLabel(min + i) }));
+    return Array.from({ length: width + 1 }, (_, i) => ({
+      value: min + i,
+      label: makeLabel(min + i),
+    }));
   }
   // NOTE(target-parity): 반올림 결과가 겹치면 Set 으로 중복만 제거하므로 칩 개수가 5개 미만이 될 수 있다.
-  const pts = [min, Math.round(min + width * 0.25), Math.round((min + max) / 2), Math.round(min + width * 0.75), max];
-  return [...new Set(pts)].sort((a, b) => a - b).map((v) => ({ value: v, label: makeLabel(v) }));
+  const pts = [
+    min,
+    Math.round(min + width * 0.25),
+    Math.round((min + max) / 2),
+    Math.round(min + width * 0.75),
+    max,
+  ];
+  return [...new Set(pts)]
+    .sort((a, b) => a - b)
+    .map((v) => ({ value: v, label: makeLabel(v) }));
 }
 
 // ── 영어 감점 / 종합 백분위 (IntakeForm.tsx:485-505) ─────────────────────
@@ -178,8 +205,19 @@ export function getEnglishPenaltyFE(grade) {
   // NOTE(target-parity): 등급 0 이하(=미입력 0 포함)는 1등급과 동일하게 감점 0 이다.
   if (grade <= 1) return 0;
   if (grade >= 9) return -16;
-  const floor = Math.floor(grade), ceil = Math.ceil(grade);
-  const t = { 1: 0, 2: -2, 3: -4, 4: -6, 5: -8, 6: -10, 7: -12, 8: -14, 9: -16 };
+  const floor = Math.floor(grade),
+    ceil = Math.ceil(grade);
+  const t = {
+    1: 0,
+    2: -2,
+    3: -4,
+    4: -6,
+    5: -8,
+    6: -10,
+    7: -12,
+    8: -14,
+    9: -16,
+  };
   return t[floor] + (grade - floor) * (t[ceil] - t[floor]);
 }
 
@@ -193,7 +231,10 @@ export function getEnglishPenaltyFE(grade) {
 //   exp1: { grade, percentile }, exp2: { grade, percentile }, exp1Track, exp2Track
 // }>
 export function calcJeongsiCompositeFE(mogoScores) {
-  const korPs = [], mathPs = [], exp1Ps = [], exp2Ps = [];
+  const korPs = [],
+    mathPs = [],
+    exp1Ps = [],
+    exp2Ps = [];
   let engGrade = 0;
   Object.values(mogoScores).forEach((s) => {
     if (s.kor.percentile != null) korPs.push(s.kor.percentile);
@@ -206,7 +247,14 @@ export function calcJeongsiCompositeFE(mogoScores) {
   });
   // NOTE(target-parity): 값이 없는 과목의 평균은 0 으로 처리된다. 그래서 탐구를 입력하지
   // 않으면 탐구평균 0 이 그대로 3분할에 들어가 종합 백분위가 크게 낮아진다.
-  const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const avg = (arr) =>
+    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
   const inquiryAvg = (avg(exp1Ps) + avg(exp2Ps)) / 2;
-  return Math.round(((avg(korPs) + avg(mathPs) + inquiryAvg) / 3 + getEnglishPenaltyFE(engGrade)) * 100) / 100;
+  return (
+    Math.round(
+      ((avg(korPs) + avg(mathPs) + inquiryAvg) / 3 +
+        getEnglishPenaltyFE(engGrade)) *
+        100,
+    ) / 100
+  );
 }

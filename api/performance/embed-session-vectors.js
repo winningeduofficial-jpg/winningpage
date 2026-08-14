@@ -48,11 +48,14 @@
 //   행별로 try/catch를 감싸 실패를 격리한다. 실패 기록(`embedding_status='error'`)
 //   자체가 또 실패해도 로그만 남기고 원래 루프는 계속 돈다.
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { isAuthorizedCron } from '../_lib/cronAuth.js';
-import { embedText, getEmbeddingModel } from '../_lib/performance/embeddings.js';
+import { isAuthorizedCron } from "../_lib/cronAuth.js";
+import {
+  embedText,
+  getEmbeddingModel,
+} from "../_lib/performance/embeddings.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
-const TABLE = 'performance_session_vectors';
+const TABLE = "performance_session_vectors";
 
 // admin-embed.js DEFAULT_BACKFILL_LIMIT / MAX_BACKFILL_LIMIT과 같은 근거(파일 상단 주석).
 const DEFAULT_BATCH = 30;
@@ -69,7 +72,7 @@ function clampLimit(value) {
 }
 
 function errorMessage(error) {
-  return String(error?.message || error || '알 수 없는 임베딩 오류');
+  return String(error?.message || error || "알 수 없는 임베딩 오류");
 }
 
 /**
@@ -80,13 +83,17 @@ async function markEmbeddingError(supabaseAdmin, sessionId, message) {
   const { error } = await supabaseAdmin
     .from(TABLE)
     .update({
-      embedding_status: 'error',
-      embedding_error: message.slice(0, 2000)
+      embedding_status: "error",
+      embedding_error: message.slice(0, 2000),
     })
-    .eq('session_id', sessionId);
+    .eq("session_id", sessionId);
 
   if (error) {
-    console.error('embed-session-vectors: embedding_error 기록 실패', sessionId, error.message);
+    console.error(
+      "embed-session-vectors: embedding_error 기록 실패",
+      sessionId,
+      error.message,
+    );
   }
 }
 
@@ -104,19 +111,27 @@ async function embedOne(supabaseAdmin, row) {
       .update({
         embedding,
         embedding_model: model,
-        embedding_status: 'done',
+        embedding_status: "done",
         embedding_error: null,
-        embedded_at: new Date().toISOString()
+        embedded_at: new Date().toISOString(),
       })
-      .eq('session_id', row.session_id);
+      .eq("session_id", row.session_id);
 
     if (updateError) {
       throw new Error(`임베딩 저장 실패: ${updateError.message}`);
     }
 
-    return { session_id: row.session_id, status: 'embedded', embedding_model: model };
+    return {
+      session_id: row.session_id,
+      status: "embedded",
+      embedding_model: model,
+    };
   } catch (error) {
-    await markEmbeddingError(supabaseAdmin, row.session_id, errorMessage(error));
+    await markEmbeddingError(
+      supabaseAdmin,
+      row.session_id,
+      errorMessage(error),
+    );
     throw error;
   }
 }
@@ -124,13 +139,13 @@ async function embedOne(supabaseAdmin, row) {
 export default async function handler(req, res) {
   // Vercel Cron은 GET으로 호출한다. POST는 운영자가 손으로 두드릴 때를 위한 것이며
   // 인증은 동일하다(cleanup-attachments.js와 같은 규약).
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'GET 또는 POST만 허용됩니다.');
+  if (req.method !== "GET" && req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 POST만 허용됩니다.");
   }
 
   if (!isAuthorizedCron(req)) {
     // 무엇이 틀렸는지(시크릿 미설정 / 불일치) 알려주지 않는다.
-    return fail(res, 401, 'UNAUTHORIZED', '인증이 필요합니다.');
+    return fail(res, 401, "UNAUTHORIZED", "인증이 필요합니다.");
   }
 
   const batch = clampLimit(req.query?.limit);
@@ -143,9 +158,9 @@ export default async function handler(req, res) {
     // 소비한다(파일 상단 주석). 오래된 것부터 걷어 큐가 확정적으로 줄어든다.
     const { data, error } = await supabaseAdmin
       .from(TABLE)
-      .select('session_id, search_text')
-      .eq('embedding_status', 'pending')
-      .order('created_at', { ascending: true })
+      .select("session_id, search_text")
+      .eq("embedding_status", "pending")
+      .order("created_at", { ascending: true })
       .limit(batch);
 
     if (error) {
@@ -167,10 +182,14 @@ export default async function handler(req, res) {
         failed += 1;
         results.push({
           session_id: row.session_id,
-          status: 'error',
-          reason: errorMessage(itemError)
+          status: "error",
+          reason: errorMessage(itemError),
         });
-        console.error('performance/embed-session-vectors 행 실패:', row.session_id, itemError);
+        console.error(
+          "performance/embed-session-vectors 행 실패:",
+          row.session_id,
+          itemError,
+        );
       }
     }
 
@@ -181,14 +200,14 @@ export default async function handler(req, res) {
       scanned: rows.length,
       embedded,
       failed,
-      results
+      results,
     });
   } catch (error) {
-    console.error('performance/embed-session-vectors error:', error);
-    return fail(res, 500, 'INTERNAL', '세션 벡터 임베딩에 실패했습니다.');
+    console.error("performance/embed-session-vectors error:", error);
+    return fail(res, 500, "INTERNAL", "세션 벡터 임베딩에 실패했습니다.");
   }
 }
 
 // Gemini 호출이 붙어 있어 기본 10초로는 배치가 잘린다(1건당 수백ms~수초 × 최대
 // 50건). maxDuration은 Vercel Hobby 상한 60초를 그대로 쓴다(admin-embed.js와 동일).
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

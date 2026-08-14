@@ -1,5 +1,5 @@
-import { useId } from 'react';
-import MyPageModalShell from './MyPageModalShell';
+import { useId } from "react";
+import MyPageModalShell from "./MyPageModalShell";
 
 // 학생 "신청 상세 내역" 모달 (Figma 3967:3571, 583×376).
 //
@@ -15,10 +15,10 @@ import MyPageModalShell from './MyPageModalShell';
 // parentName 으로 내려준다. 이름을 모르면 일반 라벨로 떨어뜨린다(지어내지 않는다).
 
 function formatStamp(value) {
-  if (!value) return '-';
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  const p = (n) => String(n).padStart(2, '0');
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}. ${p(d.getMonth() + 1)}. ${p(d.getDate())}. ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
@@ -29,24 +29,41 @@ export default function StudentRequestDetailModal({
   parentName,
   canRequestRefund = false,
   onClose,
-  onRequestRefund
+  onRequestRefund,
 }) {
   const titleId = useId();
 
   if (!open || !order) return null;
 
   const rows = [
-    { label: '신청일', value: formatStamp(order.created_at) },
-    { label: '신청자', value: studentName ? `${studentName}(학생)` : '학생 본인' },
-    { label: '결제담당', value: parentName ? `${parentName} 학부모님` : '학부모님' },
+    { label: "신청일", value: formatStamp(order.created_at) },
+    {
+      label: "신청자",
+      value: studentName ? `${studentName}(학생)` : "학생 본인",
+    },
+    {
+      label: "결제담당",
+      value: parentName ? `${parentName} 학부모님` : "학부모님",
+    },
     // 결제 전이면 아직 없다 — 대시로 둔다(0원·미정 같은 값을 만들지 않는다).
-    { label: '결제완료일', value: order.paid_at ? formatStamp(order.paid_at) : '-' }
+    {
+      label: "결제완료일",
+      value: order.paid_at ? formatStamp(order.paid_at) : "-",
+    },
   ];
 
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[33.75rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[33.75rem]"
+    >
       <div className="flex-1 overflow-y-auto px-[2.1875rem] pt-[2.5rem]">
-        <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
+        <h2
+          id={titleId}
+          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
+        >
           신청 상세 내역
         </h2>
 
@@ -56,8 +73,12 @@ export default function StudentRequestDetailModal({
               key={row.label}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-[0.9375rem]"
             >
-              <dt className="shrink-0 text-[0.875rem] text-ink-sub">{row.label}</dt>
-              <dd className="truncate text-right text-[0.875rem] text-ink-strong">{row.value}</dd>
+              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+                {row.label}
+              </dt>
+              <dd className="truncate text-right text-[0.875rem] text-ink-strong">
+                {row.value}
+              </dd>
             </div>
           ))}
         </dl>

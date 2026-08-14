@@ -30,17 +30,17 @@ export const PREVIOUS_RESULT_YEAR = 2025;
 // 40.8%가 짝 없음)와 "대학이 등급을 공개하지 않았다"의 구분 가치가 크다.
 //   행 부재            → EMPTY_CELL       '-'
 //   행 존재 + 등급 null → UNDISCLOSED_CELL '미공개'
-export const EMPTY_CELL = '-';
-export const UNDISCLOSED_CELL = '미공개';
+export const EMPTY_CELL = "-";
+export const UNDISCLOSED_CELL = "미공개";
 
 // Δ 열에서 "전년 행이 아예 없어 비교 자체가 불가"한 셀의 표기.
-export const NEW_CELL = '신규';
+export const NEW_CELL = "신규";
 
 // 연도 셀의 3상태. 위 표기 2종 + 값 있음.
 export const CELL_STATE = {
-  VALUE: 'value',
-  UNDISCLOSED: 'undisclosed',
-  ABSENT: 'absent'
+  VALUE: "value",
+  UNDISCLOSED: "undisclosed",
+  ABSENT: "absent",
 };
 
 // pickGrade가 훑는 컷 우선순위. 50 → 70 → 85 → 90 (§8.4 Tier 1).
@@ -55,13 +55,13 @@ export const GRADE_CUTS = [50, 70, 85, 90];
 // PostgREST의 numeric 컬럼은 보통 JSON number로 내려오지만, 드라이버/버전에 따라
 // 문자열로 오는 경우까지 방어한다. 빈 문자열·NaN·Infinity는 전부 null 취급.
 function toNumber(value) {
-  if (value == null || value === '') return null;
+  if (value == null || value === "") return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }
 
 function trimmed(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 function round2(value) {
@@ -72,16 +72,16 @@ function round2(value) {
 // 하므로 그룹 키를 하나로 정규화한다(null 그룹 1개 = 표 1행).
 function groupKeyOf(value) {
   const text = trimmed(value);
-  return text === '' ? ' __null__' : text;
+  return text === "" ? " __null__" : text;
 }
 
 function isNullGroupKey(key) {
-  return key === ' __null__';
+  return key === " __null__";
 }
 
 // 표 그룹키 구분자. 원자료(대학명·전형명·모집단위)에 등장하지 않는 문자를 쓴다.
 // HTML 레퍼런스(454)의 `tracks[r[1]] + '§' + r[4]`와 동일한 (중심전형, 전형명) 축.
-const GROUP_KEY_SEPARATOR = '§';
+const GROUP_KEY_SEPARATOR = "§";
 
 // 표 연도 축(RESULT_YEARS, 기본값) 밖의 행을 걸러낸다. 조회 단계(admissionResultsQueries.js
 // .in('result_year', RESULT_YEARS))가 1차 방어이고, 이 함수는 buildDetailModel 진입부와
@@ -192,14 +192,15 @@ export function weightedGrade(rows) {
     if (year != null) years.add(year);
   }
 
-  if (denominator === 0) return { value: null, sampleN: 0, years: [], cut: null, cuts: [] };
+  if (denominator === 0)
+    return { value: null, sampleN: 0, years: [], cut: null, cuts: [] };
 
   return {
     value: round2(numerator / denominator),
     sampleN,
     years: [...years].sort((a, b) => a - b),
     cut: representativeCut,
-    cuts: [...cuts].sort((a, b) => a - b)
+    cuts: [...cuts].sort((a, b) => a - b),
   };
 }
 
@@ -224,7 +225,7 @@ function buildYearCell(rows, year) {
       cuts: [],
       state: CELL_STATE.ABSENT,
       rowCount: 0,
-      display: EMPTY_CELL
+      display: EMPTY_CELL,
     };
   }
 
@@ -237,7 +238,7 @@ function buildYearCell(rows, year) {
       cuts: [],
       state: CELL_STATE.UNDISCLOSED,
       rowCount: yearRows.length,
-      display: UNDISCLOSED_CELL
+      display: UNDISCLOSED_CELL,
     };
   }
 
@@ -249,7 +250,7 @@ function buildYearCell(rows, year) {
     state: CELL_STATE.VALUE,
     rowCount: yearRows.length,
     sampleN,
-    display: formatGradeWithCut(value, cut)
+    display: formatGradeWithCut(value, cut),
   };
 }
 
@@ -285,29 +286,29 @@ function averageCompetitionRate(rows, year) {
 // 2점은 정의상 추세(trend)가 아니라 변화(change)다. 세로 스케일을 만들지 않고
 // 부호·크기·상태만 계산해 넘긴다(§8.3).
 export const DELTA_STATE = {
-  IMPROVED: 'improved', // 등급 수치 감소 = 성적 상승
-  WORSENED: 'worsened', // 등급 수치 증가 = 성적 하락
-  SAME: 'same',
-  INCOMPARABLE: 'incomparable', // 한쪽 연도에 값이 없음 (2026 행의 40.8%)
-  CUT_MISMATCH: 'cut_mismatch' // 양쪽 다 값은 있으나 컷 기준이 다름 (10,506쌍 중 440, 4.2%)
+  IMPROVED: "improved", // 등급 수치 감소 = 성적 상승
+  WORSENED: "worsened", // 등급 수치 증가 = 성적 하락
+  SAME: "same",
+  INCOMPARABLE: "incomparable", // 한쪽 연도에 값이 없음 (2026 행의 40.8%)
+  CUT_MISMATCH: "cut_mismatch", // 양쪽 다 값은 있으나 컷 기준이 다름 (10,506쌍 중 440, 4.2%)
 };
 
 // 등급은 낮을수록 상위다. 화살표만으로는 "올랐다"가 등급 상승인지 성적 상승인지
 // 반대로 읽히므로 한국어 라벨을 반드시 병기한다.
 const DELTA_DIRECTION_LABEL = {
-  [DELTA_STATE.IMPROVED]: '상승',
-  [DELTA_STATE.WORSENED]: '하락',
-  [DELTA_STATE.SAME]: '변동 없음'
+  [DELTA_STATE.IMPROVED]: "상승",
+  [DELTA_STATE.WORSENED]: "하락",
+  [DELTA_STATE.SAME]: "변동 없음",
 };
 
 const DELTA_ARROW = {
-  [DELTA_STATE.IMPROVED]: '▼',
-  [DELTA_STATE.WORSENED]: '▲',
-  [DELTA_STATE.SAME]: '—'
+  [DELTA_STATE.IMPROVED]: "▼",
+  [DELTA_STATE.WORSENED]: "▲",
+  [DELTA_STATE.SAME]: "—",
 };
 
 // 컷 기준이 다를 때 화면이 덧붙일 주석. 톤은 중립(회)으로 낮춘다.
-export const CUT_MISMATCH_NOTE = '컷 기준 상이';
+export const CUT_MISMATCH_NOTE = "컷 기준 상이";
 
 // Δ 계산 본체. previous / current는 buildYearCell 결과(또는 { year, value, cut }
 // 모양의 임의 객체)를 그대로 받는다.
@@ -334,7 +335,11 @@ export function computeDelta(previous, current) {
 
   if (previousValue == null || currentValue == null) {
     const availableYear =
-      currentValue != null ? currentYear : previousValue != null ? previousYear : null;
+      currentValue != null
+        ? currentYear
+        : previousValue != null
+          ? previousYear
+          : null;
     return {
       state: DELTA_STATE.INCOMPARABLE,
       direction: null,
@@ -347,28 +352,34 @@ export function computeDelta(previous, current) {
       cutMismatch: false,
       availableYear,
       arrow: null,
-      tone: 'muted',
-      label: availableYear == null ? '수록 없음' : `${availableYear}만 수록`,
+      tone: "muted",
+      label: availableYear == null ? "수록 없음" : `${availableYear}만 수록`,
       // 전년이 없고 올해만 있으면 '신규', 그 밖(올해가 없음/양쪽 다 없음)은 '-'.
-      display: currentValue != null && previousValue == null ? NEW_CELL : EMPTY_CELL,
-      note: null
+      display:
+        currentValue != null && previousValue == null ? NEW_CELL : EMPTY_CELL,
+      note: null,
     };
   }
 
   const raw = round2(currentValue - previousValue);
   const delta = Math.abs(raw);
   const direction =
-    raw < 0 ? DELTA_STATE.IMPROVED : raw > 0 ? DELTA_STATE.WORSENED : DELTA_STATE.SAME;
-  const cutMismatch = previousCut != null && currentCut != null && previousCut !== currentCut;
+    raw < 0
+      ? DELTA_STATE.IMPROVED
+      : raw > 0
+        ? DELTA_STATE.WORSENED
+        : DELTA_STATE.SAME;
+  const cutMismatch =
+    previousCut != null && currentCut != null && previousCut !== currentCut;
 
   const arrow = DELTA_ARROW[direction];
   const tone = cutMismatch
-    ? 'muted'
+    ? "muted"
     : direction === DELTA_STATE.IMPROVED
-      ? 'up'
+      ? "up"
       : direction === DELTA_STATE.WORSENED
-        ? 'down'
-        : 'flat';
+        ? "down"
+        : "flat";
 
   return {
     // 컷 기준이 다르면 Δ 계산은 하되 상태를 CUT_MISMATCH로 승격해 톤을 낮춘다.
@@ -388,15 +399,18 @@ export function computeDelta(previous, current) {
       direction === DELTA_STATE.SAME
         ? DELTA_DIRECTION_LABEL[direction]
         : `${delta.toFixed(2)} ${DELTA_DIRECTION_LABEL[direction]}`,
-    display: direction === DELTA_STATE.SAME ? arrow : `${arrow}${delta.toFixed(2)}`,
-    note: cutMismatch ? CUT_MISMATCH_NOTE : null
+    display:
+      direction === DELTA_STATE.SAME ? arrow : `${arrow}${delta.toFixed(2)}`,
+    note: cutMismatch ? CUT_MISMATCH_NOTE : null,
   };
 }
 
 // 연도 시계열(오름차순 연도 축) → Δ. 축의 첫 연도와 마지막 연도를 비교한다.
 // 2개년 축에서는 (2025, 2026)이 그대로 잡힌다.
 export function computeDeltaFromSeries(series) {
-  const list = [...(series ?? [])].sort((a, b) => toNumber(a?.year) - toNumber(b?.year));
+  const list = [...(series ?? [])].sort(
+    (a, b) => toNumber(a?.year) - toNumber(b?.year),
+  );
   if (list.length === 0) return computeDelta(null, null);
   if (list.length === 1) return computeDelta(null, list[0]);
   return computeDelta(list[0], list[list.length - 1]);
@@ -416,109 +430,112 @@ export function computeDeltaFromSeries(series) {
 // opportunity 정규식에서 제거하고, 좁은 규칙을 먼저 두어 넓은 규칙이 삼키지 못하게 한다.
 export const CATEGORY_RULES = [
   {
-    key: 'overseas',
-    label: '재외국민',
-    test: (row) => /재외국민/.test(trimmed(row.admission_track))
+    key: "overseas",
+    label: "재외국민",
+    test: (row) => /재외국민/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'adult',
-    label: '성인학습자',
-    test: (row) => /성인학습자|만학도/.test(trimmed(row.admission_track))
+    key: "adult",
+    label: "성인학습자",
+    test: (row) => /성인학습자|만학도/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'special',
-    label: '특수교육',
-    test: (row) => /특수교육/.test(trimmed(row.admission_track))
+    key: "special",
+    label: "특수교육",
+    test: (row) => /특수교육/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'vocational',
-    label: '특성화고',
-    test: (row) => /특성화고|마이스터|전문계|실업계/.test(trimmed(row.admission_track))
+    key: "vocational",
+    label: "특성화고",
+    test: (row) =>
+      /특성화고|마이스터|전문계|실업계/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'regional',
-    label: '지역인재',
-    test: (row) => /지역인재/.test(trimmed(row.admission_track))
+    key: "regional",
+    label: "지역인재",
+    test: (row) => /지역인재/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'nongeochon',
-    label: '농어촌',
-    test: (row) => /농[·ㆍ・]?어촌/.test(trimmed(row.admission_track))
+    key: "nongeochon",
+    label: "농어촌",
+    test: (row) => /농[·ㆍ・]?어촌/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'opportunity',
-    label: '기회균형',
+    key: "opportunity",
+    label: "기회균형",
     test: (row) =>
       /기회균형|기회균등|고른기회|사회통합|사회배려|기초생활|국가보훈/.test(
-        trimmed(row.admission_track)
-      )
+        trimmed(row.admission_track),
+      ),
   },
   {
-    key: 'recommend',
-    label: '추천형',
-    test: (row) => /추천/.test(trimmed(row.admission_track))
+    key: "recommend",
+    label: "추천형",
+    test: (row) => /추천/.test(trimmed(row.admission_track)),
   },
   {
-    key: 'nonsul',
-    label: '논술',
+    key: "nonsul",
+    label: "논술",
     // 논술·실기는 main_track 축이기도 해서 두 컬럼을 합쳐 검사한다.
-    test: (row) => /논술/.test(`${trimmed(row.main_track)} ${trimmed(row.admission_track)}`)
+    test: (row) =>
+      /논술/.test(`${trimmed(row.main_track)} ${trimmed(row.admission_track)}`),
   },
   {
-    key: 'practical',
-    label: '실기',
-    test: (row) => /실기/.test(`${trimmed(row.main_track)} ${trimmed(row.admission_track)}`)
-  }
+    key: "practical",
+    label: "실기",
+    test: (row) =>
+      /실기/.test(`${trimmed(row.main_track)} ${trimmed(row.admission_track)}`),
+  },
 ];
 
-export const FALLBACK_CATEGORY = { key: 'general', label: '일반' };
-export const ETC_CATEGORY = { key: 'etc', label: '기타' };
+export const FALLBACK_CATEGORY = { key: "general", label: "일반" };
+export const ETC_CATEGORY = { key: "etc", label: "기타" };
 
 // screening_category 컬럼값 → 탭 키 매핑. 컬럼값을 그대로 신뢰하는 유일한 경로다.
 // 원자료 11종 전부를 덮는다(과거 6종만 덮어 7,192행 16.7%가 정규식 fallback으로
 // 잘못 내려가던 결함 해소). '기타'는 정규식으로는 도달할 수 없고 컬럼값으로만 온다.
 const SCREENING_CATEGORY_MAP = {
   일반: FALLBACK_CATEGORY,
-  추천형: { key: 'recommend', label: '추천형' },
-  지역인재: { key: 'regional', label: '지역인재' },
-  농어촌: { key: 'nongeochon', label: '농어촌' },
-  기회균형: { key: 'opportunity', label: '기회균형' },
-  특성화고: { key: 'vocational', label: '특성화고' },
-  특수교육: { key: 'special', label: '특수교육' },
-  실기: { key: 'practical', label: '실기' },
-  성인학습자: { key: 'adult', label: '성인학습자' },
-  논술: { key: 'nonsul', label: '논술' },
-  재외국민: { key: 'overseas', label: '재외국민' },
-  기타: ETC_CATEGORY
+  추천형: { key: "recommend", label: "추천형" },
+  지역인재: { key: "regional", label: "지역인재" },
+  농어촌: { key: "nongeochon", label: "농어촌" },
+  기회균형: { key: "opportunity", label: "기회균형" },
+  특성화고: { key: "vocational", label: "특성화고" },
+  특수교육: { key: "special", label: "특수교육" },
+  실기: { key: "practical", label: "실기" },
+  성인학습자: { key: "adult", label: "성인학습자" },
+  논술: { key: "nonsul", label: "논술" },
+  재외국민: { key: "overseas", label: "재외국민" },
+  기타: ETC_CATEGORY,
 };
 
 // 탭 노출 순서 고정 (HTML 레퍼런스 441의 order 배열 + 기타는 맨 뒤).
 // 행이 없는 카테고리는 탭 자체를 만들지 않는다.
 export const CATEGORY_ORDER = [
-  'general',
-  'recommend',
-  'regional',
-  'nongeochon',
-  'opportunity',
-  'vocational',
-  'special',
-  'nonsul',
-  'practical',
-  'adult',
-  'overseas',
-  'etc'
+  "general",
+  "recommend",
+  "regional",
+  "nongeochon",
+  "opportunity",
+  "vocational",
+  "special",
+  "nonsul",
+  "practical",
+  "adult",
+  "overseas",
+  "etc",
 ];
 
 // 전체 43,170행 기준 합 109행(0.25%)뿐인 꼬리 4종. 탭 접기 임계는 전체 분포를 봐야
 // 정할 수 있는데 이 파일은 모집단위 1개분 행만 손에 쥐므로(모집단위 단위 count는
 // 어느 유형이든 한 자릿수) 여기서 임계를 적용하지 않는다. 접기 여부는 화면이
 // 이 목록을 보고 결정한다.
-export const TAIL_CATEGORY_KEYS = ['practical', 'adult', 'nonsul', 'overseas'];
+export const TAIL_CATEGORY_KEYS = ["practical", "adult", "nonsul", "overseas"];
 
 const CATEGORY_LABELS = {
   [FALLBACK_CATEGORY.key]: FALLBACK_CATEGORY.label,
   [ETC_CATEGORY.key]: ETC_CATEGORY.label,
-  ...CATEGORY_RULES.reduce((acc, rule) => ({ ...acc, [rule.key]: rule.label }), {})
+  ...Object.fromEntries(CATEGORY_RULES.map((rule) => [rule.key, rule.label])),
 };
 
 export function categorize(row) {
@@ -533,7 +550,9 @@ export function categorize(row) {
   }
 
   const matched = CATEGORY_RULES.find((rule) => rule.test(row));
-  return matched ? { key: matched.key, label: matched.label } : FALLBACK_CATEGORY;
+  return matched
+    ? { key: matched.key, label: matched.label }
+    : FALLBACK_CATEGORY;
 }
 
 // fallback 감시용. "미분류"가 아니라 "screening_category가 없거나 매핑 밖 값이라 전형명
@@ -567,12 +586,18 @@ export function collectFallbackAdmissionTracks(rows) {
 // 그 유형만으로 평균하고, 어느 기준으로 냈는지 basis를 함께 반환한다.
 function pickSummaryBasis(rows) {
   const list = rows ?? [];
-  const general = list.filter((row) => categorize(row).key === FALLBACK_CATEGORY.key);
+  const general = list.filter(
+    (row) => categorize(row).key === FALLBACK_CATEGORY.key,
+  );
   if (general.length > 0) {
-    return { basisKey: FALLBACK_CATEGORY.key, basis: FALLBACK_CATEGORY.label, rows: general };
+    return {
+      basisKey: FALLBACK_CATEGORY.key,
+      basis: FALLBACK_CATEGORY.label,
+      rows: general,
+    };
   }
   if (list.length === 0) {
-    return { basisKey: null, basis: '', rows: [] };
+    return { basisKey: null, basis: "", rows: [] };
   }
 
   // 모집인원 가중 최다 유형. quota 미기재 행은 1로 센다(가중평균 규칙과 동일).
@@ -585,17 +610,19 @@ function pickSummaryBasis(rows) {
       order.push(key);
     }
     const rawWeight = toNumber(row.quota);
-    weights.get(key).weight += rawWeight != null && rawWeight > 0 ? rawWeight : 1;
+    weights.get(key).weight +=
+      rawWeight != null && rawWeight > 0 ? rawWeight : 1;
   }
 
   const winner = [...weights.values()].sort(
-    (a, b) => b.weight - a.weight || order.indexOf(a.key) - order.indexOf(b.key)
+    (a, b) =>
+      b.weight - a.weight || order.indexOf(a.key) - order.indexOf(b.key),
   )[0];
 
   return {
     basisKey: winner.key,
     basis: winner.label,
-    rows: list.filter((row) => categorize(row).key === winner.key)
+    rows: list.filter((row) => categorize(row).key === winner.key),
   };
 }
 
@@ -605,14 +632,18 @@ function pickSummaryBasis(rows) {
 // 등급이 없는 track도 카드를 만든다(HTML .card.void 403·407) — hasValue=false로
 // 표시하고, 화면이 "등급 미제공" 사유 문구를 붙인다. 카드를 통째로 지워 버리면
 // "그 중심전형으로 모집은 하는데 등급만 없다"는 사실이 화면에서 사라진다.
-export function buildTrackSummaries(rows, { limit = 4, years = RESULT_YEARS } = {}) {
+export function buildTrackSummaries(
+  rows,
+  { limit = 4, years = RESULT_YEARS } = {},
+) {
   const scoped = filterToYears(rows, years); // 축 밖 연도 방어 (이중 방어 — buildDetailModel 진입부와 함께)
   const buckets = new Map();
 
   for (const row of scoped) {
     const track = trimmed(row.main_track);
     if (!track) continue; // 라벨을 만들 수 없는 행은 카드 대상에서 제외
-    if (!buckets.has(track)) buckets.set(track, { track, rows: [], order: buckets.size });
+    if (!buckets.has(track))
+      buckets.set(track, { track, rows: [], order: buckets.size });
     buckets.get(track).rows.push(row);
   }
 
@@ -644,11 +675,14 @@ export function buildTrackSummaries(rows, { limit = 4, years = RESULT_YEARS } = 
       // 카드 부제 — 기준 연도 모집인원 합계 / 경쟁률 평균 (HTML 471-472)
       activeQuota: sumQuota(basisRows, ACTIVE_RESULT_YEAR),
       activeQuotaDisplay: formatQuota(sumQuota(basisRows, ACTIVE_RESULT_YEAR)),
-      activeCompetitionRate: averageCompetitionRate(basisRows, ACTIVE_RESULT_YEAR),
-      activeCompetitionRateDisplay: formatCompetitionRate(
-        averageCompetitionRate(basisRows, ACTIVE_RESULT_YEAR)
+      activeCompetitionRate: averageCompetitionRate(
+        basisRows,
+        ACTIVE_RESULT_YEAR,
       ),
-      order: bucket.order
+      activeCompetitionRateDisplay: formatCompetitionRate(
+        averageCompetitionRate(basisRows, ACTIVE_RESULT_YEAR),
+      ),
+      order: bucket.order,
     });
   }
 
@@ -683,15 +717,19 @@ export function buildTableRows(rows, { years = RESULT_YEARS } = {}) {
     const [mainKey, trackKey] = key.split(GROUP_KEY_SEPARATOR);
     const cells = years.map((year) => buildYearCell(groupRows, year));
     const activeQuota = sumQuota(groupRows, ACTIVE_RESULT_YEAR);
-    const activeCompetitionRate = averageCompetitionRate(groupRows, ACTIVE_RESULT_YEAR);
+    const activeCompetitionRate = averageCompetitionRate(
+      groupRows,
+      ACTIVE_RESULT_YEAR,
+    );
     const subjectReflection =
-      groupRows.map((row) => trimmed(row.subject_reflection)).find(Boolean) ?? '';
+      groupRows.map((row) => trimmed(row.subject_reflection)).find(Boolean) ??
+      "";
     const { key: categoryKey, label: categoryLabel } = categorize(groupRows[0]);
 
     return {
       key,
       admissionType: isNullGroupKey(trackKey) ? EMPTY_CELL : trackKey,
-      mainTrack: isNullGroupKey(mainKey) ? '' : mainKey,
+      mainTrack: isNullGroupKey(mainKey) ? "" : mainKey,
       categoryKey,
       categoryLabel,
       subjectReflection: subjectReflection || EMPTY_CELL,
@@ -702,9 +740,11 @@ export function buildTableRows(rows, { years = RESULT_YEARS } = {}) {
       activeQuota,
       activeQuotaDisplay: formatQuota(activeQuota),
       activeCompetitionRate,
-      activeCompetitionRateDisplay: formatCompetitionRate(activeCompetitionRate),
+      activeCompetitionRateDisplay: formatCompetitionRate(
+        activeCompetitionRate,
+      ),
       rowCount: groupRows.length,
-      rows: groupRows
+      rows: groupRows,
     };
   });
 }
@@ -720,7 +760,9 @@ export function buildCategories(rows, { years = RESULT_YEARS } = {}) {
     buckets.get(key).push(row);
   }
 
-  return CATEGORY_ORDER.filter((key) => (buckets.get(key)?.length ?? 0) > 0).map((key) => {
+  return CATEGORY_ORDER.filter(
+    (key) => (buckets.get(key)?.length ?? 0) > 0,
+  ).map((key) => {
     const categoryRows = buckets.get(key);
     const tableRows = buildTableRows(categoryRows, { years });
     return {
@@ -729,7 +771,7 @@ export function buildCategories(rows, { years = RESULT_YEARS } = {}) {
       count: tableRows.length,
       isTail: TAIL_CATEGORY_KEYS.includes(key),
       rows: categoryRows,
-      tableRows
+      tableRows,
     };
   });
 }
@@ -740,14 +782,22 @@ export function buildCategories(rows, { years = RESULT_YEARS } = {}) {
 export function pickInitialCategoryKey(categories) {
   const list = categories ?? [];
   if (list.length === 0) return null;
-  const general = list.find((category) => category.key === FALLBACK_CATEGORY.key);
+  const general = list.find(
+    (category) => category.key === FALLBACK_CATEGORY.key,
+  );
   if (general) return general.key;
-  return list.reduce((best, current) => (current.count > best.count ? current : best), list[0]).key;
+  return list.reduce(
+    (best, current) => (current.count > best.count ? current : best),
+    list[0],
+  ).key;
 }
 
 // 상세 화면이 필요로 하는 집계 전체를 한 번에 만든다. 탭 전환 시 재요청 없이
 // 이 결과를 useMemo로 잡아 두고 클라이언트에서 필터한다.
-export function buildDetailModel(rows, { years = RESULT_YEARS, summaryLimit = 4 } = {}) {
+export function buildDetailModel(
+  rows,
+  { years = RESULT_YEARS, summaryLimit = 4 } = {},
+) {
   // 축 밖 연도 방어 — 조회 단계(.in('result_year', RESULT_YEARS))와 이중 방어.
   // 여기서 한 번 걸러 두면 이어지는 buildTrackSummaries/buildCategories/buildTableRows가
   // 전부 이미 걸러진 리스트를 받는다(각 함수 내부에도 filterToYears를 한 번 더 건다).
@@ -756,20 +806,24 @@ export function buildDetailModel(rows, { years = RESULT_YEARS, summaryLimit = 4 
 
   // 축 상수(years)가 아니라 실제로 행이 존재하는 연도. "N개년" 카피는 이쪽을 써야 한다
   // — 2025뿐인 모집단위에서 "2개년"이라 쓰면 거짓이다.
-  const observedYears = years.filter((year) => rowsOfYear(list, year).length > 0);
+  const observedYears = years.filter(
+    (year) => rowsOfYear(list, year).length > 0,
+  );
 
   return {
     rowCount: list.length,
     isEmpty: list.length === 0,
     // 딥링크(?u=&d=)로 바로 들어온 경우 셀렉터 목록이 손에 없어도 히어로 h1을
     // 그릴 수 있도록 Q3가 university_name / department_name을 함께 받아 온다.
-    universityName: list.map((row) => trimmed(row.university_name)).find(Boolean) ?? '',
-    departmentName: list.map((row) => trimmed(row.department_name)).find(Boolean) ?? '',
+    universityName:
+      list.map((row) => trimmed(row.university_name)).find(Boolean) ?? "",
+    departmentName:
+      list.map((row) => trimmed(row.department_name)).find(Boolean) ?? "",
     trackSummaries: buildTrackSummaries(list, { limit: summaryLimit, years }),
     categories,
     initialCategoryKey: pickInitialCategoryKey(categories),
     fallbackAdmissionTracks: collectFallbackAdmissionTracks(list),
     years,
-    observedYears
+    observedYears,
   };
 }

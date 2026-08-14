@@ -30,11 +30,14 @@
  * @param {string} [id] `aria-describedby` 연결용.
  * @param {string} [className] 루트에 추가할 클래스.
  */
-export default function CharCounter({ count = 0, id, className = '' }) {
+export default function CharCounter({ count = 0, id, className = "" }) {
   return (
     <p
       id={id}
-      className={['text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub', className].join(' ')}
+      className={[
+        "text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub",
+        className,
+      ].join(" ")}
     >
       {count}자
     </p>

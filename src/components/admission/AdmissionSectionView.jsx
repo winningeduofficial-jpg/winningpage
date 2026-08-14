@@ -1,6 +1,9 @@
-import { getSectionTitleText, stripHtmlToText } from '../../lib/admissionParsing';
-import { isEmptyDoc } from '../../lib/admissionDoc';
-import { renderBlock } from './blocks/renderBlock';
+import { isEmptyDoc } from "../../lib/admissionDoc";
+import {
+  getSectionTitleText,
+  stripHtmlToText,
+} from "../../lib/admissionParsing";
+import { renderBlock } from "./blocks/renderBlock";
 
 // 구조화 문서(AdmissionDoc) 진입점. 설계 문서 §5.2/§5.3 정본.
 //
@@ -29,17 +32,24 @@ import { renderBlock } from './blocks/renderBlock';
 function firstBlockAlreadyHasHeading(doc, heading) {
   if (!heading) return false;
   const firstBlock = doc.blocks[0];
-  if (!firstBlock || firstBlock.kind !== 'rawHtml' || !firstBlock.html) return false;
+  if (firstBlock?.kind !== "rawHtml" || !firstBlock.html) return false;
   return stripHtmlToText(firstBlock.html).startsWith(heading);
 }
 
-export default function AdmissionSectionView({ doc, sectionKey, surface = 'public' }) {
+export default function AdmissionSectionView({
+  doc,
+  sectionKey,
+  surface = "public",
+}) {
   if (doc?.v !== 1 || isEmptyDoc(doc)) return null;
 
-  const heading = getSectionTitleText(sectionKey) || getSectionTitleText(doc.section);
-  const title = firstBlockAlreadyHasHeading(doc, heading) ? '' : heading;
+  const heading =
+    getSectionTitleText(sectionKey) || getSectionTitleText(doc.section);
+  const title = firstBlockAlreadyHasHeading(doc, heading) ? "" : heading;
   const wrapClassName =
-    doc.wrapModifier === 'special' ? 'admission-raw-section-wrap admission-special-wrap' : 'admission-raw-section-wrap';
+    doc.wrapModifier === "special"
+      ? "admission-raw-section-wrap admission-special-wrap"
+      : "admission-raw-section-wrap";
 
   // surface는 현재 마크업에 영향을 주지 않는다(설계 문서 §5.2 — 로깅/경고
   // 배지 용도로 예약, 공개/어드민 DOM은 동일해야 한다). 미사용 경고 방지용
@@ -48,8 +58,12 @@ export default function AdmissionSectionView({ doc, sectionKey, surface = 'publi
 
   return (
     <>
-      {title ? <div className="admission-hwp-section-title">{title}</div> : null}
-      <div className={wrapClassName}>{doc.blocks.map((block, idx) => renderBlock(block, idx))}</div>
+      {title ? (
+        <div className="admission-hwp-section-title">{title}</div>
+      ) : null}
+      <div className={wrapClassName}>
+        {doc.blocks.map((block, idx) => renderBlock(block, idx))}
+      </div>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 // 모달 하단 "프록시 가로 스크롤바" 배선.
 //
@@ -34,7 +34,14 @@ import { useEffect } from 'react';
 // 별도 바디 클래스를 써서 네이티브 스크롤바를 그대로 쓴다(커밋 9a9f3f0
 // 참고 — 어드민에 모달 CSS 를 딸려 보냈다가 표 스크롤 수단을 잃은 사고).
 
-export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, visible, setModalXScroll }) {
+export default function useModalProxyXScroll({
+  selectedInfo,
+  bodyRef,
+  barRef,
+  visible,
+  setModalXScroll,
+}) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: visible은 파일 상단 주석·verify-admission-modal-shell.mjs가 보호하는 의도된 배열이다. barRef.current/bodyRef.current는 ref라 deps에 넣어도 변경을 못 잡아 의미가 없다.
   useEffect(() => {
     if (!selectedInfo) {
       setModalXScroll({ visible: false, width: 0 });
@@ -52,8 +59,8 @@ export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, vi
     const getHorizontalTargets = () =>
       Array.from(
         body.querySelectorAll(
-          '.admission-scroll-table, .admission-table-wrap, .admission-existing-html'
-        )
+          ".admission-scroll-table, .admission-table-wrap, .admission-existing-html",
+        ),
       ).filter((element) => element.scrollWidth > element.clientWidth + 6);
 
     const pickTarget = () => {
@@ -75,7 +82,10 @@ export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, vi
       const maxBar = Math.max(1, bar.scrollWidth - bar.clientWidth);
       const ratio = bar.scrollLeft / maxBar;
       getHorizontalTargets().forEach((element) => {
-        const maxElement = Math.max(0, element.scrollWidth - element.clientWidth);
+        const maxElement = Math.max(
+          0,
+          element.scrollWidth - element.clientWidth,
+        );
         element.scrollLeft = maxElement * ratio;
       });
       window.requestAnimationFrame(() => {
@@ -119,8 +129,8 @@ export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, vi
 
     const attachTargetListeners = () => {
       getHorizontalTargets().forEach((element) => {
-        element.removeEventListener('scroll', onTargetScroll);
-        element.addEventListener('scroll', onTargetScroll, { passive: true });
+        element.removeEventListener("scroll", onTargetScroll);
+        element.addEventListener("scroll", onTargetScroll, { passive: true });
       });
     };
 
@@ -130,9 +140,9 @@ export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, vi
       attachTargetListeners();
     }, 80);
 
-    bar?.addEventListener('scroll', syncTargetsFromBar, { passive: true });
-    body.addEventListener('scroll', scheduleRefresh, { passive: true });
-    window.addEventListener('resize', scheduleRefresh);
+    bar?.addEventListener("scroll", syncTargetsFromBar, { passive: true });
+    body.addEventListener("scroll", scheduleRefresh, { passive: true });
+    window.addEventListener("resize", scheduleRefresh);
 
     const observer = new ResizeObserver(() => {
       scheduleRefresh();
@@ -143,12 +153,12 @@ export default function useModalProxyXScroll({ selectedInfo, bodyRef, barRef, vi
     return () => {
       window.clearTimeout(timeoutId);
       window.cancelAnimationFrame(rafId);
-      bar?.removeEventListener('scroll', syncTargetsFromBar);
-      body.removeEventListener('scroll', scheduleRefresh);
-      window.removeEventListener('resize', scheduleRefresh);
-      getHorizontalTargets().forEach((element) =>
-        element.removeEventListener('scroll', onTargetScroll)
-      );
+      bar?.removeEventListener("scroll", syncTargetsFromBar);
+      body.removeEventListener("scroll", scheduleRefresh);
+      window.removeEventListener("resize", scheduleRefresh);
+      getHorizontalTargets().forEach((element) => {
+        element.removeEventListener("scroll", onTargetScroll);
+      });
       observer.disconnect();
     };
     // 원본(AdmissionGuidelines.jsx)의 [selectedInfo, modalXScroll.visible] 을

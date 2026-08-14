@@ -28,10 +28,10 @@
 // 차원 변경은 여기에 더해 컬럼 타입(`vector(768)`)과 HNSW 인덱스
 // (`winning_suhaeng_embedding_hnsw_idx`) 재생성까지 따라온다.
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
 
 /** 코퍼스에 이미 저장된 벡터를 만든 모델. 위 경고 참고. */
-export const DEFAULT_EMBEDDING_MODEL = 'gemini-embedding-2';
+export const DEFAULT_EMBEDDING_MODEL = "gemini-embedding-2";
 
 /** `vector(768)` 컬럼 타입과 일치해야 하는 출력 차원. 위 경고 참고. */
 export const DEFAULT_EMBEDDING_DIMENSION = 768;
@@ -39,10 +39,10 @@ export const DEFAULT_EMBEDDING_DIMENSION = 768;
 let geminiClient = null;
 
 function getGeminiClient() {
-  const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+  const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
 
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY 환경변수가 설정되지 않았습니다.');
+    throw new Error("GEMINI_API_KEY 환경변수가 설정되지 않았습니다.");
   }
 
   if (!geminiClient) {
@@ -54,12 +54,17 @@ function getGeminiClient() {
 
 /** 지금 임베딩에 쓰는 모델 이름. 갱신 행의 `embedding_model` 컬럼에 그대로 기록한다. */
 export function getEmbeddingModel() {
-  return String(process.env.GEMINI_EMBEDDING_MODEL || '').trim() || DEFAULT_EMBEDDING_MODEL;
+  return (
+    String(process.env.GEMINI_EMBEDDING_MODEL || "").trim() ||
+    DEFAULT_EMBEDDING_MODEL
+  );
 }
 
 /** 지금 임베딩에 쓰는 출력 차원. */
 export function getEmbeddingDimension() {
-  const raw = Number(process.env.GEMINI_EMBEDDING_DIMENSION || DEFAULT_EMBEDDING_DIMENSION);
+  const raw = Number(
+    process.env.GEMINI_EMBEDDING_DIMENSION || DEFAULT_EMBEDDING_DIMENSION,
+  );
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_EMBEDDING_DIMENSION;
 }
 
@@ -109,17 +114,17 @@ export function getEmbeddingDimension() {
  */
 export function buildKnowledgeSearchText(item = {}) {
   return [
-    `DB유형: ${item.knowledge_type || ''}`,
-    `학년: ${item.grade || ''}`,
-    `교과군: ${item.subject || ''}`,
-    `진로분야: ${item.career_field || ''}`,
-    `제목: ${item.title || ''}`,
-    `핵심 내용: ${item.content || ''}`,
-    `출처: ${item.source || ''}`,
-    `출처 링크: ${item.source_link || ''}`,
-    `키워드: ${item.keywords || ''}`,
-    `메모: ${item.memo || ''}`
-  ].join('\n');
+    `DB유형: ${item.knowledge_type || ""}`,
+    `학년: ${item.grade || ""}`,
+    `교과군: ${item.subject || ""}`,
+    `진로분야: ${item.career_field || ""}`,
+    `제목: ${item.title || ""}`,
+    `핵심 내용: ${item.content || ""}`,
+    `출처: ${item.source || ""}`,
+    `출처 링크: ${item.source_link || ""}`,
+    `키워드: ${item.keywords || ""}`,
+    `메모: ${item.memo || ""}`,
+  ].join("\n");
 }
 
 /**
@@ -130,10 +135,10 @@ export function buildKnowledgeSearchText(item = {}) {
  * 보이기 때문에, 실패는 조용히 넘기지 않고 반드시 터뜨린다.
  */
 export async function embedText(text) {
-  const value = String(text || '').trim();
+  const value = String(text || "").trim();
 
   if (!value) {
-    throw new Error('임베딩할 텍스트가 비어 있습니다.');
+    throw new Error("임베딩할 텍스트가 비어 있습니다.");
   }
 
   const ai = getGeminiClient();
@@ -143,13 +148,15 @@ export async function embedText(text) {
   const response = await ai.models.embedContent({
     model,
     contents: value,
-    config: { outputDimensionality }
+    config: { outputDimensionality },
   });
 
   const embedding = response.embeddings?.[0]?.values;
 
   if (!Array.isArray(embedding) || embedding.length === 0) {
-    throw new Error('Gemini embedding 생성 실패: embedding 값이 비어 있습니다.');
+    throw new Error(
+      "Gemini embedding 생성 실패: embedding 값이 비어 있습니다.",
+    );
   }
 
   return embedding;

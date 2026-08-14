@@ -1,6 +1,6 @@
-import GoalCard from '../GoalCard';
-import GoalProgressBar from '../GoalProgressBar';
-import DeltaBadge from '../DeltaBadge';
+import DeltaBadge from "../DeltaBadge";
+import GoalCard from "../GoalCard";
+import GoalProgressBar from "../GoalProgressBar";
 
 // Row3 카드③ `합격 가능성 변화` — docs/figma-goal/00-INDEX.md §5-4 `AdmissionChanceCard`.
 // 대학 2블록 × (수시/정시) 2행. 데이터 형태는 goalMock.js의 `mockAdmissionChance`와 동일 스키마
@@ -17,13 +17,15 @@ import DeltaBadge from '../DeltaBadge';
 // direction="up" → tone="positive", "down" → tone="negative"로 그대로 대응시킨다.
 function AdmissionBlock({ university, susi, jeongsi }) {
   const rows = [
-    { label: '수시', ...susi },
-    { label: '정시', ...jeongsi }
+    { label: "수시", ...susi },
+    { label: "정시", ...jeongsi },
   ];
 
   return (
     <div className="flex flex-col gap-3">
-      <h4 className="text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">{university}</h4>
+      <h4 className="text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        {university}
+      </h4>
       {rows.map((row) => (
         <div key={row.label} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-[0.8125rem] leading-[1.4]">
@@ -32,7 +34,7 @@ function AdmissionBlock({ university, susi, jeongsi }) {
               <DeltaBadge
                 value={row.delta.value}
                 direction={row.delta.direction}
-                tone={row.delta.direction === 'down' ? 'negative' : 'positive'}
+                tone={row.delta.direction === "down" ? "negative" : "positive"}
               />
               <span className="font-semibold text-ink-strong">{row.rate}%</span>
             </span>
@@ -46,8 +48,13 @@ function AdmissionBlock({ university, susi, jeongsi }) {
 
 export default function AdmissionChanceCard({ title, data }) {
   return (
-    <GoalCard tone="neutral" className="flex min-h-[22.4375rem] flex-col gap-5 px-6 py-6">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">{title}</h3>
+    <GoalCard
+      tone="neutral"
+      className="flex min-h-[22.4375rem] flex-col gap-5 px-6 py-6"
+    >
+      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+        {title}
+      </h3>
       <div className="flex flex-1 flex-col justify-between gap-4">
         <AdmissionBlock {...data.upper} />
         <AdmissionBlock {...data.lower} />

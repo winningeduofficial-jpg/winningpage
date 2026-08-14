@@ -1,7 +1,11 @@
-import { useId } from 'react';
-import SectionedReportView, { getVisibleSections } from '../report/SectionedReportView';
-import PerformanceReportSurface from '../report/PerformanceReportSurface';
-import ReportModalShell, { REPORT_MODAL_FOOTER_BUTTON } from '../report/ReportModalShell';
+import { useId } from "react";
+import PerformanceReportSurface from "../report/PerformanceReportSurface";
+import ReportModalShell, {
+  REPORT_MODAL_FOOTER_BUTTON,
+} from "../report/ReportModalShell";
+import SectionedReportView, {
+  getVisibleSections,
+} from "../report/SectionedReportView";
 
 // STEP5 평가 리포트 모달 — docs/수행평가-상세-명세.md §5.16(`3754:4512` 실측) / §8.5 렌더 계약.
 //
@@ -50,9 +54,9 @@ import ReportModalShell, { REPORT_MODAL_FOOTER_BUTTON } from '../report/ReportMo
  * §5.16 헤더 — 시안 실측 표에 제목/부제 문구 원문이 없다(§5.13과 같은 누락). 제안이며
  * `DesignReportModal`의 `통합 설계 리포트`와 같은 형식(리포트 종류 1줄 + 주제 부제)을 쓴다.
  */
-const MODAL_TITLE = '평가 리포트';
-const PRINT_LABEL = 'PDF로 저장 / 인쇄';
-const NEXT_LABEL = '다음 단계 선택하기';
+const MODAL_TITLE = "평가 리포트";
+const PRINT_LABEL = "PDF로 저장 / 인쇄";
+const NEXT_LABEL = "다음 단계 선택하기";
 
 /**
  * 점수 카드 라벨 2종. 서버 `EVALUATION_SCORE_CARD_LABELS`(prompts.js)와 같은 문자열이며,
@@ -60,8 +64,8 @@ const NEXT_LABEL = '다음 단계 선택하기';
  * ⚠ `api/_lib/*`는 서버 전용 모듈이라 프론트에서 import하지 않는다(저장소 전반의 관례 —
  * `src/lib/validators.js` 주석과 같은 이유). 두 곳이 갈라지지 않게 여기 근거를 남긴다.
  */
-const SCORE_SECTION_LABEL = '종합 평가 점수';
-const SUMMARY_ROW_LABEL = '총평';
+const SCORE_SECTION_LABEL = "종합 평가 점수";
+const SUMMARY_ROW_LABEL = "총평";
 
 /** 만점. 프롬프트 원문 `- 예상 점수: X점 / 100점`(`evaluate-text.js:120`)의 100이다. */
 const MAX_SCORE = 100;
@@ -74,13 +78,19 @@ const MAX_SCORE = 100;
  * @param {string} [topicTitle] 확정 주제. 헤더 부제.
  * @param {() => void} onClose ESC·딤 클릭·`다음 단계 선택하기` 공통 핸들러.
  */
-export default function EvaluationReportModal({ open, report, topicTitle, onClose }) {
+export default function EvaluationReportModal({
+  open,
+  report,
+  topicTitle,
+  onClose,
+}) {
   // 훅 입력과 렌더 조건을 한 표현식에서 파생시킨다(`ReportModalShell` 호출부 계약).
   const isOpen = open && Boolean(report);
   const visibleSections = report ? getVisibleSections(report.sections) : [];
   const score = normalizeScore(report?.score);
-  const summary = typeof report?.summary === 'string' ? report.summary.trim() : '';
-  const hasScoreCard = score !== null || summary !== '';
+  const summary =
+    typeof report?.summary === "string" ? report.summary.trim() : "";
+  const hasScoreCard = score !== null || summary !== "";
   const hasContent = hasScoreCard || visibleSections.length > 0;
 
   return (
@@ -100,7 +110,11 @@ export default function EvaluationReportModal({ open, report, topicTitle, onClos
           >
             {PRINT_LABEL}
           </button>
-          <button type="button" onClick={onClose} className={REPORT_MODAL_FOOTER_BUTTON.primary}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={REPORT_MODAL_FOOTER_BUTTON.primary}
+          >
             {NEXT_LABEL}
           </button>
         </>
@@ -185,7 +199,7 @@ function ScoreCard({ score, summary }) {
  * "0점"이라는 사실이 아닌 단정을 한다.
  */
 function normalizeScore(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const rounded = Math.round(value);
   if (rounded < 0 || rounded > MAX_SCORE) return null;
   return rounded;

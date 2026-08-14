@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { formatKRW } from '../../data/pricingCatalog';
-import PaymentTable from './PaymentTable';
-import PaymentStatusBadge from './PaymentStatusBadge';
-import StudentRequestDetailModal from './StudentRequestDetailModal';
-import RefundRequestModal from './RefundRequestModal';
-import RefundNoticeModal from './RefundNoticeModal';
-import { formatOrderId, formatApprovedAt, resolveOrderStatus } from './paymentRows';
+import { useEffect, useState } from "react";
+import { formatKRW } from "../../data/pricingCatalog";
+import { supabase } from "../../lib/supabase";
+import PaymentStatusBadge from "./PaymentStatusBadge";
+import PaymentTable from "./PaymentTable";
+import {
+  formatApprovedAt,
+  formatOrderId,
+  resolveOrderStatus,
+} from "./paymentRows";
+import RefundNoticeModal from "./RefundNoticeModal";
+import RefundRequestModal from "./RefundRequestModal";
+import StudentRequestDetailModal from "./StudentRequestDetailModal";
 
 // 학생 "신청 내역" 탭 — 확정 디자인 3967:3016(목록) / 3967:2757(빈 상태).
 //
@@ -24,31 +28,36 @@ import { formatOrderId, formatApprovedAt, resolveOrderStatus } from './paymentRo
 // MyServicesTab 이 쓰는 order_name 문자열 파싱 휴리스틱은 복제하지 않았다.
 
 const STUDENT_HEADERS = {
-  id: '신청번호',
-  date: '신청일',
-  product: '상품',
-  amount: '이용금액',
-  status: '상태'
+  id: "신청번호",
+  date: "신청일",
+  product: "상품",
+  amount: "이용금액",
+  status: "상태",
 };
 
 // 학생 관점의 상태 판정. 환불이 걸린 건은 학부모와 같은 어휘를 쓴다 —
 // 환불 진행 상황은 학생도 그대로 알아야 하고, 달리 부를 이름도 없다.
 function resolveStudentStatus(order, refunds, finishedByOrder = {}) {
-  if (order.status === 'pending') return 'student_waiting_parent';
-  if (order.status === 'canceled' || order.status === 'failed') return 'student_canceled';
+  if (order.status === "pending") return "student_waiting_parent";
+  if (order.status === "canceled" || order.status === "failed")
+    return "student_canceled";
 
   const shared = resolveOrderStatus(order, refunds);
-  if (shared !== 'paid') return shared;
+  if (shared !== "paid") return shared;
 
   // 환불이 걸리지 않은 결제 건만 이용 상태로 갈린다.
-  return finishedByOrder[order.id] === true ? 'student_done' : 'student_active';
+  return finishedByOrder[order.id] === true ? "student_done" : "student_active";
 }
 
-export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitted }) {
+export default function PaymentsTab({
+  orders = [],
+  refunds = [],
+  onRefundSubmitted,
+}) {
   const [detailOrder, setDetailOrder] = useState(null);
   const [refundOrder, setRefundOrder] = useState(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
-  const [names, setNames] = useState({ student: '', parent: '' });
+  const [names, setNames] = useState({ student: "", parent: "" });
   // orderId → true(이용 완료). 부여 원장이 없는 주문은 키가 없다(판정 보류).
   const [finishedByOrder, setFinishedByOrder] = useState({});
 
@@ -65,17 +74,20 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
       if (!uid) return;
 
       const [me, parent] = await Promise.all([
-        supabase.from('profiles').select('name').eq('id', uid).maybeSingle(),
-        supabase.rpc('fn_student_parent')
+        supabase.from("profiles").select("name").eq("id", uid).maybeSingle(),
+        supabase.rpc("fn_student_parent"),
       ]);
 
       if (!alive) return;
 
       // RPC 는 approved 를 먼저 정렬해 돌려준다 — 첫 행만 쓴다.
       const parentRow = Array.isArray(parent.data) ? parent.data[0] : null;
-      if (parent.error) console.warn('학부모 조회 실패:', parent.error.message);
+      if (parent.error) console.warn("학부모 조회 실패:", parent.error.message);
 
-      setNames({ student: me.data?.name || '', parent: parentRow?.parent_name || '' });
+      setNames({
+        student: me.data?.name || "",
+        parent: parentRow?.parent_name || "",
+      });
     })();
 
     return () => {
@@ -99,20 +111,25 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
 
       const [grants, ledger] = await Promise.all([
         supabase
-          .from('program_access_grants')
-          .select('id, order_id, expires_at, granted_sessions, revoked_at')
-          .eq('profile_id', uid),
-        supabase.from('performance_credit_ledger').select('grant_id, delta').eq('profile_id', uid)
+          .from("program_access_grants")
+          .select("id, order_id, expires_at, granted_sessions, revoked_at")
+          .eq("profile_id", uid),
+        supabase
+          .from("performance_credit_ledger")
+          .select("grant_id, delta")
+          .eq("profile_id", uid),
       ]);
 
       if (!alive || grants.error) {
-        if (grants.error) console.warn('부여 원장 조회 실패:', grants.error.message);
+        if (grants.error)
+          console.warn("부여 원장 조회 실패:", grants.error.message);
         return;
       }
 
       const usedByGrant = {};
       for (const row of ledger.data || []) {
-        usedByGrant[row.grant_id] = (usedByGrant[row.grant_id] || 0) + -Number(row.delta || 0);
+        usedByGrant[row.grant_id] =
+          (usedByGrant[row.grant_id] || 0) + -Number(row.delta || 0);
       }
 
       const now = Date.now();
@@ -121,9 +138,12 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
         if (!g.order_id) continue;
         if (g.revoked_at) continue;
 
-        const expired = g.expires_at ? new Date(g.expires_at).getTime() <= now : false;
+        const expired = g.expires_at
+          ? new Date(g.expires_at).getTime() <= now
+          : false;
         const exhausted =
-          g.granted_sessions !== null && (usedByGrant[g.id] || 0) >= g.granted_sessions;
+          g.granted_sessions !== null &&
+          (usedByGrant[g.id] || 0) >= g.granted_sessions;
 
         const live = !expired && !exhausted;
         // 하나라도 살아 있으면 그 주문은 아직 이용 중이다.
@@ -137,13 +157,17 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
     return () => {
       alive = false;
     };
-  }, [orders]);
+  }, []);
 
-  const detailStatus = detailOrder ? resolveStudentStatus(detailOrder, refunds, finishedByOrder) : null;
+  const detailStatus = detailOrder
+    ? resolveStudentStatus(detailOrder, refunds, finishedByOrder)
+    : null;
 
   return (
     <section>
-      <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">신청 내역</h2>
+      <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
+        신청 내역
+      </h2>
 
       <PaymentTable
         headers={STUDENT_HEADERS}
@@ -156,12 +180,14 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
           dateText: formatApprovedAt(o.created_at || o.paid_at),
           productText: o.order_name,
           amountText: formatKRW(o.amount),
-          note: o.is_fake_entitlement ? '(개발용)' : null,
-          raw: o
+          note: o.is_fake_entitlement ? "(개발용)" : null,
+          raw: o,
         }))}
         onSelect={(row) => setDetailOrder(row.raw)}
         renderStatus={(row) => (
-          <PaymentStatusBadge status={resolveStudentStatus(row.raw, refunds, finishedByOrder)} />
+          <PaymentStatusBadge
+            status={resolveStudentStatus(row.raw, refunds, finishedByOrder)}
+          />
         )}
       />
 
@@ -174,7 +200,8 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
         // (sql/68 미종결 판정에서 rejected 를 뺀 이유).
         canRequestRefund={
           !detailOrder?.is_fake_entitlement &&
-          (detailStatus === 'student_active' || detailStatus === 'refund_parent_rejected')
+          (detailStatus === "student_active" ||
+            detailStatus === "refund_parent_rejected")
         }
         onClose={() => setDetailOrder(null)}
         onRequestRefund={() => {
@@ -199,7 +226,12 @@ export default function PaymentsTab({ orders = [], refunds = [], onRefundSubmitt
         onStaleData={onRefundSubmitted}
       />
 
-      <RefundNoticeModal open={noticeOpen} asStudent parentName={names.parent} onClose={() => setNoticeOpen(false)} />
+      <RefundNoticeModal
+        open={noticeOpen}
+        asStudent
+        parentName={names.parent}
+        onClose={() => setNoticeOpen(false)}
+      />
     </section>
   );
 }

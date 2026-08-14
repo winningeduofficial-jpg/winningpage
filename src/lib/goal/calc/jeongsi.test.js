@@ -14,20 +14,20 @@
 //
 // 실행: cd /Users/hyunsoo/uwellnow/winningpage-goal-app && node --test src/lib/goal/calc/jeongsi.test.js
 
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
-  getPercentileBands,
-  getWeightedEffortAmount,
   calcJeongsiBaseProb,
-  getTimeFactorPercentile,
-  calcJeongsiProb,
   calcJeongsiCompositeFE,
-  getEnglishPenaltyFE,
-  getPercentileChips,
+  calcJeongsiProb,
   GRADE_PERCENTILE,
-} from './jeongsi.js';
+  getEnglishPenaltyFE,
+  getPercentileBands,
+  getPercentileChips,
+  getTimeFactorPercentile,
+  getWeightedEffortAmount,
+} from "./jeongsi.js";
 
 // 부동소수 비교 헬퍼. NaN 은 NaN 끼리만 같다고 본다(원본이 NaN 을 뱉는 케이스가 있다).
 function assertClose(actual, expected, label) {
@@ -37,7 +37,7 @@ function assertClose(actual, expected, label) {
   }
   assert.ok(
     Math.abs(actual - expected) < 1e-9,
-    `${label}: 기대 ${expected}, 실제 ${actual}`
+    `${label}: 기대 ${expected}, 실제 ${actual}`,
   );
 }
 
@@ -204,23 +204,134 @@ const FIXTURES = {
     [100, -16],
   ],
   chips: [
-    ["1", [{"value":96,"label":"96(컷)"},{"value":97,"label":"97"},{"value":98,"label":"98(안정)"},{"value":99,"label":"99"},{"value":100,"label":"100(만점)"}]],
-    ["2", [{"value":89,"label":"89(컷)"},{"value":90,"label":"90"},{"value":91,"label":"91"},{"value":92,"label":"92(안정)"},{"value":93,"label":"93"},{"value":94,"label":"94"},{"value":95,"label":"95(최고)"}]],
-    ["3", [{"value":77,"label":"77(컷)"},{"value":80,"label":"80"},{"value":83,"label":"83(안정)"},{"value":85,"label":"85"},{"value":88,"label":"88(최고)"}]],
-    ["4", [{"value":60,"label":"60(컷)"},{"value":64,"label":"64"},{"value":68,"label":"68(안정)"},{"value":72,"label":"72"},{"value":76,"label":"76(최고)"}]],
-    ["5", [{"value":40,"label":"40(컷)"},{"value":45,"label":"45"},{"value":50,"label":"50(안정)"},{"value":54,"label":"54"},{"value":59,"label":"59(최고)"}]],
-    ["6", [{"value":23,"label":"23(컷)"},{"value":27,"label":"27"},{"value":31,"label":"31(안정)"},{"value":35,"label":"35"},{"value":39,"label":"39(최고)"}]],
-    ["7", [{"value":11,"label":"11(컷)"},{"value":14,"label":"14"},{"value":17,"label":"17(안정)"},{"value":19,"label":"19"},{"value":22,"label":"22(최고)"}]],
-    ["8", [{"value":4,"label":"4(컷)"},{"value":5,"label":"5"},{"value":6,"label":"6"},{"value":7,"label":"7(안정)"},{"value":8,"label":"8"},{"value":9,"label":"9"},{"value":10,"label":"10(최고)"}]],
-    ["9", [{"value":0,"label":"0(컷)"},{"value":1,"label":"1"},{"value":2,"label":"2(안정)"},{"value":3,"label":"3(최고)"}]],
+    [
+      "1",
+      [
+        { value: 96, label: "96(컷)" },
+        { value: 97, label: "97" },
+        { value: 98, label: "98(안정)" },
+        { value: 99, label: "99" },
+        { value: 100, label: "100(만점)" },
+      ],
+    ],
+    [
+      "2",
+      [
+        { value: 89, label: "89(컷)" },
+        { value: 90, label: "90" },
+        { value: 91, label: "91" },
+        { value: 92, label: "92(안정)" },
+        { value: 93, label: "93" },
+        { value: 94, label: "94" },
+        { value: 95, label: "95(최고)" },
+      ],
+    ],
+    [
+      "3",
+      [
+        { value: 77, label: "77(컷)" },
+        { value: 80, label: "80" },
+        { value: 83, label: "83(안정)" },
+        { value: 85, label: "85" },
+        { value: 88, label: "88(최고)" },
+      ],
+    ],
+    [
+      "4",
+      [
+        { value: 60, label: "60(컷)" },
+        { value: 64, label: "64" },
+        { value: 68, label: "68(안정)" },
+        { value: 72, label: "72" },
+        { value: 76, label: "76(최고)" },
+      ],
+    ],
+    [
+      "5",
+      [
+        { value: 40, label: "40(컷)" },
+        { value: 45, label: "45" },
+        { value: 50, label: "50(안정)" },
+        { value: 54, label: "54" },
+        { value: 59, label: "59(최고)" },
+      ],
+    ],
+    [
+      "6",
+      [
+        { value: 23, label: "23(컷)" },
+        { value: 27, label: "27" },
+        { value: 31, label: "31(안정)" },
+        { value: 35, label: "35" },
+        { value: 39, label: "39(최고)" },
+      ],
+    ],
+    [
+      "7",
+      [
+        { value: 11, label: "11(컷)" },
+        { value: 14, label: "14" },
+        { value: 17, label: "17(안정)" },
+        { value: 19, label: "19" },
+        { value: 22, label: "22(최고)" },
+      ],
+    ],
+    [
+      "8",
+      [
+        { value: 4, label: "4(컷)" },
+        { value: 5, label: "5" },
+        { value: 6, label: "6" },
+        { value: 7, label: "7(안정)" },
+        { value: 8, label: "8" },
+        { value: 9, label: "9" },
+        { value: 10, label: "10(최고)" },
+      ],
+    ],
+    [
+      "9",
+      [
+        { value: 0, label: "0(컷)" },
+        { value: 1, label: "1" },
+        { value: 2, label: "2(안정)" },
+        { value: 3, label: "3(최고)" },
+      ],
+    ],
     ["0", []],
     ["10", []],
     ["-1", []],
     ["", []],
     ["abc", []],
-    ["3.7", [{"value":77,"label":"77(컷)"},{"value":80,"label":"80"},{"value":83,"label":"83(안정)"},{"value":85,"label":"85"},{"value":88,"label":"88(최고)"}]],
-    ["  5  ", [{"value":40,"label":"40(컷)"},{"value":45,"label":"45"},{"value":50,"label":"50(안정)"},{"value":54,"label":"54"},{"value":59,"label":"59(최고)"}]],
-    ["1등급", [{"value":96,"label":"96(컷)"},{"value":97,"label":"97"},{"value":98,"label":"98(안정)"},{"value":99,"label":"99"},{"value":100,"label":"100(만점)"}]],
+    [
+      "3.7",
+      [
+        { value: 77, label: "77(컷)" },
+        { value: 80, label: "80" },
+        { value: 83, label: "83(안정)" },
+        { value: 85, label: "85" },
+        { value: 88, label: "88(최고)" },
+      ],
+    ],
+    [
+      "  5  ",
+      [
+        { value: 40, label: "40(컷)" },
+        { value: 45, label: "45" },
+        { value: 50, label: "50(안정)" },
+        { value: 54, label: "54" },
+        { value: 59, label: "59(최고)" },
+      ],
+    ],
+    [
+      "1등급",
+      [
+        { value: 96, label: "96(컷)" },
+        { value: 97, label: "97" },
+        { value: 98, label: "98(안정)" },
+        { value: 99, label: "99" },
+        { value: 100, label: "100(만점)" },
+      ],
+    ],
   ],
   composite: [
     ["empty", 0],
@@ -240,176 +351,212 @@ const FIXTURES = {
     ["rounding", 61.4],
     ["undefined-percentile", -2],
   ],
-  bands: [{"min":0,"max":3,"width":4,"weight":1},{"min":4,"max":10,"width":7,"weight":1.1},{"min":11,"max":22,"width":12,"weight":1.25},{"min":23,"max":39,"width":17,"weight":1.45},{"min":40,"max":59,"width":20,"weight":1.7},{"min":60,"max":76,"width":17,"weight":2},{"min":77,"max":88,"width":12,"weight":2.4},{"min":89,"max":95,"width":7,"weight":3},{"min":96,"max":100,"width":5,"weight":3.8}],
-  gradePercentile: {"1":{"min":96,"max":100},"2":{"min":89,"max":95},"3":{"min":77,"max":88},"4":{"min":60,"max":76},"5":{"min":40,"max":59},"6":{"min":23,"max":39},"7":{"min":11,"max":22},"8":{"min":4,"max":10},"9":{"min":0,"max":3}},};
+  bands: [
+    { min: 0, max: 3, width: 4, weight: 1 },
+    { min: 4, max: 10, width: 7, weight: 1.1 },
+    { min: 11, max: 22, width: 12, weight: 1.25 },
+    { min: 23, max: 39, width: 17, weight: 1.45 },
+    { min: 40, max: 59, width: 20, weight: 1.7 },
+    { min: 60, max: 76, width: 17, weight: 2 },
+    { min: 77, max: 88, width: 12, weight: 2.4 },
+    { min: 89, max: 95, width: 7, weight: 3 },
+    { min: 96, max: 100, width: 5, weight: 3.8 },
+  ],
+  gradePercentile: {
+    1: { min: 96, max: 100 },
+    2: { min: 89, max: 95 },
+    3: { min: 77, max: 88 },
+    4: { min: 60, max: 76 },
+    5: { min: 40, max: 59 },
+    6: { min: 23, max: 39 },
+    7: { min: 11, max: 22 },
+    8: { min: 4, max: 10 },
+    9: { min: 0, max: 3 },
+  },
+};
 
 // calcJeongsiCompositeFE 입력 픽스처. 이름은 FIXTURES.composite 의 첫 항목과 짝을 이룬다.
 function subj(kor, math, eng, e1, e2) {
   return {
-    kor: { grade: '', percentile: kor },
-    math: { grade: '', percentile: math },
+    kor: { grade: "", percentile: kor },
+    math: { grade: "", percentile: math },
     eng,
-    exp1: { grade: '', percentile: e1 },
-    exp2: { grade: '', percentile: e2 },
-    exp1Track: '',
-    exp2Track: '',
+    exp1: { grade: "", percentile: e1 },
+    exp2: { grade: "", percentile: e2 },
+    exp1Track: "",
+    exp2Track: "",
   };
 }
 
 const COMPOSITE_INPUTS = {
-  'empty': {},
-  'single-full': { a: subj(96, 89, '2', 77, 60) },
-  'single-noeng': { a: subj(96, 89, '', 77, 60) },
-  'three-rounds': {
-    a: subj(90, 80, '1', 70, 60),
-    b: subj(92, 82, '2', 72, 62),
-    c: subj(94, 84, '3', 74, 64),
+  empty: {},
+  "single-full": { a: subj(96, 89, "2", 77, 60) },
+  "single-noeng": { a: subj(96, 89, "", 77, 60) },
+  "three-rounds": {
+    a: subj(90, 80, "1", 70, 60),
+    b: subj(92, 82, "2", 72, 62),
+    c: subj(94, 84, "3", 74, 64),
   },
-  'nulls': { a: subj(null, null, '', null, null) },
-  'partial-null-exp': { a: subj(96, 89, '2', null, null) },
-  'only-kor': { a: subj(100, null, '', null, null) },
-  'eng-fraction': { a: subj(80, 80, '3.5', 80, 80) },
-  'eng-out-of-range': { a: subj(80, 80, '12', 80, 80) },
-  'eng-zero-string': { a: subj(80, 80, '0', 80, 80) },
-  'eng-nonnumeric': { a: subj(80, 80, 'x', 80, 80) },
-  'eng-last-wins': { a: subj(80, 80, '1', 80, 80), b: subj(80, 80, '9', 80, 80) },
-  'zeros': { a: subj(0, 0, '1', 0, 0) },
-  'negatives': { a: subj(-10, -20, '1', -30, -40) },
-  'rounding': { a: subj(78.4, 63.7, '2', 51.3, 44.9) },
-  'undefined-percentile': { a: subj(undefined, undefined, '2', undefined, undefined) },
+  nulls: { a: subj(null, null, "", null, null) },
+  "partial-null-exp": { a: subj(96, 89, "2", null, null) },
+  "only-kor": { a: subj(100, null, "", null, null) },
+  "eng-fraction": { a: subj(80, 80, "3.5", 80, 80) },
+  "eng-out-of-range": { a: subj(80, 80, "12", 80, 80) },
+  "eng-zero-string": { a: subj(80, 80, "0", 80, 80) },
+  "eng-nonnumeric": { a: subj(80, 80, "x", 80, 80) },
+  "eng-last-wins": {
+    a: subj(80, 80, "1", 80, 80),
+    b: subj(80, 80, "9", 80, 80),
+  },
+  zeros: { a: subj(0, 0, "1", 0, 0) },
+  negatives: { a: subj(-10, -20, "1", -30, -40) },
+  rounding: { a: subj(78.4, 63.7, "2", 51.3, 44.9) },
+  "undefined-percentile": {
+    a: subj(undefined, undefined, "2", undefined, undefined),
+  },
 };
 
 // ── 테스트 ─────────────────────────────────────────────────────────────
 
-test('getPercentileBands: 9구간 리터럴이 원본과 완전히 일치한다', () => {
+test("getPercentileBands: 9구간 리터럴이 원본과 완전히 일치한다", () => {
   assert.deepEqual(getPercentileBands(), FIXTURES.bands);
 });
 
-test('getPercentileBands: 9구간 전부 width === max - min + 1 이다', () => {
+test("getPercentileBands: 9구간 전부 width === max - min + 1 이다", () => {
   // 분석 문서(target-app-analysis.md §9.5·부록)는 "일치하지 않는 구간이 있다"고 적었으나
   // 원본을 실행해 확인한 결과 9구간 모두 일치한다. 문서 쪽이 틀렸다.
   for (const band of getPercentileBands()) {
     assert.equal(
       band.width,
       band.max - band.min + 1,
-      `밴드 ${band.min}~${band.max} 의 width 불일치`
+      `밴드 ${band.min}~${band.max} 의 width 불일치`,
     );
   }
 });
 
-test('getPercentileBands: 매 호출마다 새 배열을 돌려준다(호출자 변형에 안전)', () => {
+test("getPercentileBands: 매 호출마다 새 배열을 돌려준다(호출자 변형에 안전)", () => {
   const first = getPercentileBands();
   first[0].weight = 999;
   assert.equal(getPercentileBands()[0].weight, 1.0);
 });
 
-test('getWeightedEffortAmount: 골든 픽스처', () => {
+test("getWeightedEffortAmount: 골든 픽스처", () => {
   for (const [current, target, expected] of FIXTURES.effort) {
     assertClose(
       getWeightedEffortAmount(current, target),
       expected,
-      `effort(${String(current)}, ${String(target)})`
+      `effort(${String(current)}, ${String(target)})`,
     );
   }
 });
 
-test('getWeightedEffortAmount: 역순 입력은 정순과 같은 값이다', () => {
-  const pairs = [[0, 100], [78.4, 92], [11, 22], [50, 150]];
+test("getWeightedEffortAmount: 역순 입력은 정순과 같은 값이다", () => {
+  const pairs = [
+    [0, 100],
+    [78.4, 92],
+    [11, 22],
+    [50, 150],
+  ];
   for (const [a, b] of pairs) {
     assertClose(
       getWeightedEffortAmount(a, b),
       getWeightedEffortAmount(b, a),
-      `effort 대칭 ${a}<->${b}`
+      `effort 대칭 ${a}<->${b}`,
     );
   }
 });
 
-test('calcJeongsiBaseProb: 골든 픽스처', () => {
+test("calcJeongsiBaseProb: 골든 픽스처", () => {
   for (const [current, target, expected] of FIXTURES.baseProb) {
     assertClose(
       calcJeongsiBaseProb(current, target),
       expected,
-      `baseProb(${String(current)}, ${String(target)})`
+      `baseProb(${String(current)}, ${String(target)})`,
     );
   }
 });
 
-test('getTimeFactorPercentile: 골든 픽스처', () => {
+test("getTimeFactorPercentile: 골든 픽스처", () => {
   for (const [current, cut, remain, total, expected] of FIXTURES.timeFactor) {
     assertClose(
       getTimeFactorPercentile(current, cut, remain, total),
       expected,
-      `timeFactor(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`
+      `timeFactor(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`,
     );
   }
 });
 
-test('getTimeFactorPercentile: totalExams 기본값 14', () => {
-  for (const [current, cut, remain, expected] of FIXTURES.timeFactorDefaultTotal) {
+test("getTimeFactorPercentile: totalExams 기본값 14", () => {
+  for (const [
+    current,
+    cut,
+    remain,
+    expected,
+  ] of FIXTURES.timeFactorDefaultTotal) {
     assertClose(
       getTimeFactorPercentile(current, cut, remain),
       expected,
-      `timeFactor 기본총회차(${current}, ${cut}, ${remain})`
+      `timeFactor 기본총회차(${current}, ${cut}, ${remain})`,
     );
     assertClose(
       getTimeFactorPercentile(current, cut, remain, 14),
       expected,
-      `timeFactor 명시총회차(${current}, ${cut}, ${remain})`
+      `timeFactor 명시총회차(${current}, ${cut}, ${remain})`,
     );
   }
 });
 
-test('calcJeongsiProb: 골든 픽스처', () => {
+test("calcJeongsiProb: 골든 픽스처", () => {
   for (const [current, cut, remain, total, expected] of FIXTURES.prob) {
     assertClose(
       calcJeongsiProb(current, cut, remain, total),
       expected,
-      `prob(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`
+      `prob(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`,
     );
   }
 });
 
-test('calcJeongsiProb: totalExams 기본값 14', () => {
+test("calcJeongsiProb: totalExams 기본값 14", () => {
   for (const [current, cut, remain, expected] of FIXTURES.probDefaultTotal) {
     assertClose(
       calcJeongsiProb(current, cut, remain),
       expected,
-      `prob 기본총회차(${current}, ${cut}, ${remain})`
+      `prob 기본총회차(${current}, ${cut}, ${remain})`,
     );
   }
 });
 
-test('calcJeongsiProb: 항상 0~100 범위 안이다', () => {
+test("calcJeongsiProb: 항상 0~100 범위 안이다", () => {
   for (const [, , , , expected] of FIXTURES.prob) {
     assert.ok(expected >= 0 && expected <= 100, `범위 밖 픽스처: ${expected}`);
   }
 });
 
-test('GRADE_PERCENTILE: 9등급 구간 리터럴이 원본과 일치한다', () => {
+test("GRADE_PERCENTILE: 9등급 구간 리터럴이 원본과 일치한다", () => {
   assert.deepEqual(GRADE_PERCENTILE, FIXTURES.gradePercentile);
 });
 
-test('getPercentileChips: 골든 픽스처', () => {
+test("getPercentileChips: 골든 픽스처", () => {
   for (const [gradeStr, expected] of FIXTURES.chips) {
     assert.deepEqual(
       getPercentileChips(gradeStr),
       expected,
-      `chips(${JSON.stringify(gradeStr)})`
+      `chips(${JSON.stringify(gradeStr)})`,
     );
   }
 });
 
-test('getEnglishPenaltyFE: 골든 픽스처', () => {
+test("getEnglishPenaltyFE: 골든 픽스처", () => {
   for (const [grade, expected] of FIXTURES.engPenalty) {
     assertClose(getEnglishPenaltyFE(grade), expected, `engPenalty(${grade})`);
   }
 });
 
-test('getEnglishPenaltyFE: NaN 등급은 NaN 을 낸다(원본 동작)', () => {
+test("getEnglishPenaltyFE: NaN 등급은 NaN 을 낸다(원본 동작)", () => {
   assert.ok(Number.isNaN(getEnglishPenaltyFE(NaN)));
 });
 
-test('calcJeongsiCompositeFE: 골든 픽스처', () => {
+test("calcJeongsiCompositeFE: 골든 픽스처", () => {
   for (const [name, expected] of FIXTURES.composite) {
     const input = COMPOSITE_INPUTS[name];
     assert.notEqual(input, undefined, `입력 픽스처 누락: ${name}`);

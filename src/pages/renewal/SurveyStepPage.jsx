@@ -1,22 +1,27 @@
-import { useEffect, useMemo } from 'react';
-import { Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import QuestionCardList from '../../components/renewal/survey/QuestionCardList';
-import SurveyProgress from '../../components/renewal/survey/SurveyProgress';
-import { useUnansweredNavigation } from '../../hooks/useUnansweredNavigation';
+import { useEffect, useMemo } from "react";
 import {
-  SURVEY_FIRST_STEP_PATH,
-  SURVEY_REPORT_PATH,
-  SURVEY_TOTAL_STEPS,
+  Navigate,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from "react-router-dom";
+import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
+import SurveyProgress from "../../components/renewal/survey/SurveyProgress";
+import { useUnansweredNavigation } from "../../hooks/useUnansweredNavigation";
+// sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. 셸이 fetch 해 outlet context 로 내려준 값을
+// 화면에 실제 보여줄 questions 배열에만 입힌다(요건 판정용 requiredQuestions 는 구조만 보므로 무관).
+import { applySurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides";
+import {
   getRemainingAfterStep,
   getStepPath,
   getStepQuestions,
   getStepRequiredQuestions,
   isStepComplete,
-  parseStepParam
-} from '../../lib/renewalSurvey';
-// sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. 셸이 fetch 해 outlet context 로 내려준 값을
-// 화면에 실제 보여줄 questions 배열에만 입힌다(요건 판정용 requiredQuestions 는 구조만 보므로 무관).
-import { applySurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides';
+  parseStepParam,
+  SURVEY_FIRST_STEP_PATH,
+  SURVEY_REPORT_PATH,
+  SURVEY_TOTAL_STEPS,
+} from "../../lib/renewalSurvey";
 
 /**
  * 설문 한 스텝. 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고,
@@ -32,25 +37,33 @@ import { applySurveyCopyOverrides } from '../../lib/diagnosisSurveyCopyOverrides
  */
 export default function SurveyStepPage() {
   const { step: rawStep } = useParams(); // 훅은 early return 앞에 전부 호출
-  const { answers, setAnswer, submitDiagnosis, cascadeLevels, surveyCopyOverrides } = useOutletContext();
+  const {
+    answers,
+    setAnswer,
+    submitDiagnosis,
+    cascadeLevels,
+    surveyCopyOverrides,
+  } = useOutletContext();
   const navigate = useNavigate();
 
   const step = parseStepParam(rawStep);
   const safeStep = step ?? 1;
-  const requiredQuestions = useMemo(() => getStepRequiredQuestions(safeStep), [safeStep]);
+  const requiredQuestions = useMemo(
+    () => getStepRequiredQuestions(safeStep),
+    [safeStep],
+  );
   const stepQuestions = useMemo(
-    () => applySurveyCopyOverrides(getStepQuestions(safeStep), surveyCopyOverrides),
-    [safeStep, surveyCopyOverrides]
+    () =>
+      applySurveyCopyOverrides(getStepQuestions(safeStep), surveyCopyOverrides),
+    [safeStep, surveyCopyOverrides],
   );
-  const { highlightedId, announcement, scrollToFirstUnanswered } = useUnansweredNavigation(
-    requiredQuestions,
-    answers
-  );
+  const { highlightedId, announcement, scrollToFirstUnanswered } =
+    useUnansweredNavigation(requiredQuestions, answers);
 
   // 스텝 전환은 같은 스크롤 컨테이너 안에서 일어난다 — 긴 카드 스택 하단에서 이동하면
   // 다음 스텝도 하단부터 보이므로 최상단으로 되돌린다.
   useEffect(() => {
-    if (step !== null) window.scrollTo({ top: 0, behavior: 'auto' });
+    if (step !== null) window.scrollTo({ top: 0, behavior: "auto" });
   }, [step]);
 
   if (step === null) return <Navigate to={SURVEY_FIRST_STEP_PATH} replace />;
@@ -61,9 +74,9 @@ export default function SurveyStepPage() {
 
   const label = stepComplete
     ? isLastStep
-      ? '진단 결과 보기'
+      ? "진단 결과 보기"
       : `${getRemainingAfterStep(step)}개 문항이 남았어요`
-    : '모든 항목에 응답해주세요';
+    : "모든 항목에 응답해주세요";
 
   // 마지막 스텝의 CTA 가 채점 파이프라인의 진입점이다(§7.4.2). 정규화·저장은 answers 를 소유한
   // 셸(submitDiagnosis)이 하고, 여기서는 그 결과를 라우터 state 로도 넘긴다 —
@@ -91,7 +104,11 @@ export default function SurveyStepPage() {
       />
 
       <div className="flex w-full flex-col items-start gap-4">
-        <SurveyProgress complete={stepComplete} label={label} onClick={handleClick} />
+        <SurveyProgress
+          complete={stepComplete}
+          label={label}
+          onClick={handleClick}
+        />
         {/* role="status" 배너를 없앤 만큼, 미완료 클릭 시 이동 상황을 스크린리더에 알린다. */}
         <p aria-live="polite" className="sr-only">
           {announcement}

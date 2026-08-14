@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
-import TextField from '../../auth/TextField';
-import SelectField from '../../auth/SelectField';
-import PrimaryButton from '../../auth/PrimaryButton';
-import { SUBJECT_GROUPS, getSubjectOptions } from '../../../data/performanceCurriculum';
+import { useMemo, useState } from "react";
+import {
+  getSubjectOptions,
+  SUBJECT_GROUPS,
+} from "../../../data/performanceCurriculum";
+import PrimaryButton from "../../auth/PrimaryButton";
+import SelectField from "../../auth/SelectField";
+import TextField from "../../auth/TextField";
 
 // STEP1 기본 정보 입력 폼 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) 단정 전문.
 //
@@ -34,13 +37,13 @@ import { SUBJECT_GROUPS, getSubjectOptions } from '../../../data/performanceCurr
 
 // §5.5 Q10 결정 — 학년·학기 옵션은 시안에 없어 원본 select 원문을 그대로 옮긴다
 // (`suhaengpyeong/index.html:1420-1435`). 학교유형 옵션은 여기 없다 — 폼에서 묻지 않는다.
-const GRADE_OPTIONS = ['고1', '고2', '고3'];
-const SEMESTER_OPTIONS = ['1학기', '2학기'];
+const GRADE_OPTIONS = ["고1", "고2", "고3"];
+const SEMESTER_OPTIONS = ["1학기", "2학기"];
 
-const CUSTOM_SUBJECT_SENTINEL = '직접 입력';
+const CUSTOM_SUBJECT_SENTINEL = "직접 입력";
 
-const REQUIRED_LABEL_CLASS = 'text-performance-required';
-const OPTIONAL_LABEL_CLASS = 'text-ink-sub';
+const REQUIRED_LABEL_CLASS = "text-performance-required";
+const OPTIONAL_LABEL_CLASS = "text-ink-sub";
 
 // 필수/선택 구분을 색 하나에만 맡기지 않는다(WCAG 1.4.1) — 필수 라벨엔 시각적 `*`(aria-hidden,
 // 색만으로 구분 못 하는 사용자를 위한 비색상 단서) + 스크린리더용 "(필수)" sr-only 텍스트를
@@ -60,30 +63,36 @@ function optionalLabel(text) {
 }
 
 const EMPTY_VALUES = {
-  gradeLabel: '',
-  semester: '',
-  subjectGroup: '',
-  subject: '',
-  customSubject: '',
-  previousTopic: '',
-  careerGoal: ''
+  gradeLabel: "",
+  semester: "",
+  subjectGroup: "",
+  subject: "",
+  customSubject: "",
+  previousTopic: "",
+  careerGoal: "",
 };
 
-const REQUIRED_KEYS = ['gradeLabel', 'semester', 'subjectGroup', 'subject', 'careerGoal'];
+const REQUIRED_KEYS = [
+  "gradeLabel",
+  "semester",
+  "subjectGroup",
+  "subject",
+  "careerGoal",
+];
 
 const INFO_ITEMS = [
   {
-    label: '교과군 · 과목',
-    body: '과목별 평가 기준과 교육과정 학습 목표를 확인해, 탐구가 어느 단원과 연결되는지 정합니다.'
+    label: "교과군 · 과목",
+    body: "과목별 평가 기준과 교육과정 학습 목표를 확인해, 탐구가 어느 단원과 연결되는지 정합니다.",
   },
   {
-    label: '이전에 한 주제',
-    body: '겹치지 않으면서 연계되는 심화 주제를 설계합니다. 학생부는 한 편이 아니라 흐름으로 읽힙니다.'
+    label: "이전에 한 주제",
+    body: "겹치지 않으면서 연계되는 심화 주제를 설계합니다. 학생부는 한 편이 아니라 흐름으로 읽힙니다.",
   },
   {
-    label: '희망 진로',
-    body: '교과와 진로가 동시에 맞닿는 지점을 찾는 것이 이 서비스의 출발점입니다.'
-  }
+    label: "희망 진로",
+    body: "교과와 진로가 동시에 맞닿는 지점을 찾는 것이 이 서비스의 출발점입니다.",
+  },
 ];
 
 /**
@@ -98,15 +107,15 @@ export default function BasicInfoForm({
   initialValues,
   onSubmit,
   submitting = false,
-  submitError = null
+  submitError = null,
 }) {
   const [values, setValues] = useState({ ...EMPTY_VALUES, ...initialValues });
   // 과목 옵션 갱신·값 초기화를 스크린리더에 알리는 sr-only aria-live 문구(WARN #3).
-  const [subjectAnnouncement, setSubjectAnnouncement] = useState('');
+  const [subjectAnnouncement, setSubjectAnnouncement] = useState("");
 
   const subjectOptions = useMemo(
     () => (values.subjectGroup ? getSubjectOptions(values.subjectGroup) : []),
-    [values.subjectGroup]
+    [values.subjectGroup],
   );
 
   const isSubjectCustom = values.subject === CUSTOM_SUBJECT_SENTINEL;
@@ -115,17 +124,17 @@ export default function BasicInfoForm({
     setValues((prev) => {
       const next = { ...prev, [key]: value };
 
-      if (key === 'subjectGroup') {
+      if (key === "subjectGroup") {
         // 교과군이 바뀌면 과목 옵션이 갱신된다 — 기존 선택값이 새 옵션에 없으면 초기화한다.
         const nextOptions = value ? getSubjectOptions(value) : [];
         if (!nextOptions.includes(prev.subject)) {
-          next.subject = '';
-          next.customSubject = '';
+          next.subject = "";
+          next.customSubject = "";
         }
       }
 
-      if (key === 'subject' && value !== CUSTOM_SUBJECT_SENTINEL) {
-        next.customSubject = '';
+      if (key === "subject" && value !== CUSTOM_SUBJECT_SENTINEL) {
+        next.customSubject = "";
       }
 
       return next;
@@ -137,24 +146,27 @@ export default function BasicInfoForm({
   // 정의되는 렌더 시점의 최신 상태를 클로저로 캡처하므로 stale 걱정 없다.
   function handleSubjectGroupChange(value) {
     const nextOptions = value ? getSubjectOptions(value) : [];
-    const willReset = values.subject !== '' && !nextOptions.includes(values.subject);
+    const willReset =
+      values.subject !== "" && !nextOptions.includes(values.subject);
 
-    setField('subjectGroup', value);
+    setField("subjectGroup", value);
 
     if (!value) {
-      setSubjectAnnouncement('교과군을 선택하면 과목을 고를 수 있습니다.');
+      setSubjectAnnouncement("교과군을 선택하면 과목을 고를 수 있습니다.");
     } else if (willReset) {
       setSubjectAnnouncement(
-        `과목 옵션이 ${nextOptions.length}개로 갱신되었습니다. 선택했던 과목은 새 옵션에 없어 초기화되었습니다.`
+        `과목 옵션이 ${nextOptions.length}개로 갱신되었습니다. 선택했던 과목은 새 옵션에 없어 초기화되었습니다.`,
       );
     } else {
-      setSubjectAnnouncement(`과목 옵션이 ${nextOptions.length}개로 갱신되었습니다.`);
+      setSubjectAnnouncement(
+        `과목 옵션이 ${nextOptions.length}개로 갱신되었습니다.`,
+      );
     }
   }
 
   const isValid =
-    REQUIRED_KEYS.every((key) => values[key].trim() !== '') &&
-    (!isSubjectCustom || values.customSubject.trim() !== '');
+    REQUIRED_KEYS.every((key) => values[key].trim() !== "") &&
+    (!isSubjectCustom || values.customSubject.trim() !== "");
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -166,7 +178,7 @@ export default function BasicInfoForm({
       subjectGroup: values.subjectGroup,
       subject: isSubjectCustom ? values.customSubject.trim() : values.subject,
       previousTopic: values.previousTopic.trim(),
-      careerGoal: values.careerGoal.trim()
+      careerGoal: values.careerGoal.trim(),
     });
   }
 
@@ -180,7 +192,7 @@ export default function BasicInfoForm({
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
           value={values.gradeLabel}
-          onChange={(value) => setField('gradeLabel', value)}
+          onChange={(value) => setField("gradeLabel", value)}
           options={GRADE_OPTIONS}
           placeholder="학년 선택"
         />
@@ -191,7 +203,7 @@ export default function BasicInfoForm({
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
           value={values.semester}
-          onChange={(value) => setField('semester', value)}
+          onChange={(value) => setField("semester", value)}
           options={SEMESTER_OPTIONS}
           placeholder="학기 선택"
         />
@@ -216,9 +228,11 @@ export default function BasicInfoForm({
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
           value={values.subject}
-          onChange={(value) => setField('subject', value)}
+          onChange={(value) => setField("subject", value)}
           options={subjectOptions}
-          placeholder={values.subjectGroup ? '과목 선택' : '교과군을 먼저 선택하세요'}
+          placeholder={
+            values.subjectGroup ? "과목 선택" : "교과군을 먼저 선택하세요"
+          }
           disabled={!values.subjectGroup}
         />
       </div>
@@ -237,18 +251,18 @@ export default function BasicInfoForm({
           labelClassName={REQUIRED_LABEL_CLASS}
           size="perf"
           value={values.customSubject}
-          onChange={(value) => setField('customSubject', value)}
+          onChange={(value) => setField("customSubject", value)}
           placeholder="예: 심화 국어 특강"
         />
       )}
 
       <TextField
-        label={optionalLabel('같은 과목에서 이전에 한 주제')}
+        label={optionalLabel("같은 과목에서 이전에 한 주제")}
         name="previousTopic"
         labelClassName={OPTIONAL_LABEL_CLASS}
         size="perf"
         value={values.previousTopic}
-        onChange={(value) => setField('previousTopic', value)}
+        onChange={(value) => setField("previousTopic", value)}
         placeholder="예: 항생제 내성, 조건부확률, 소설 속 인물 심리 분석"
       />
 
@@ -259,19 +273,25 @@ export default function BasicInfoForm({
         labelClassName={REQUIRED_LABEL_CLASS}
         size="perf"
         value={values.careerGoal}
-        onChange={(value) => setField('careerGoal', value)}
+        onChange={(value) => setField("careerGoal", value)}
         placeholder="예: 의학, 컴퓨터공학, 심리학"
       />
 
       {/* 안내 패널 — §5.5 단정 실측(536×216, r8, fill performance-bubble, stroke performance-line).
           학년·학기는 다루지 않는다(§5.5 명시 — 이 결정 범위 밖). */}
       <div className="rounded-lg border border-performance-line bg-performance-bubble px-5 py-4">
-        <p className="text-[0.875rem] font-medium text-ink">이 세 가지를 왜 묻나요?</p>
+        <p className="text-[0.875rem] font-medium text-ink">
+          이 세 가지를 왜 묻나요?
+        </p>
         <ul className="mt-3 flex flex-col gap-3">
           {INFO_ITEMS.map((item) => (
             <li key={item.label}>
-              <p className="text-[0.875rem] font-medium text-ink">{item.label}</p>
-              <p className="mt-1 text-[0.875rem] leading-[1.25rem] text-ink-sub">{item.body}</p>
+              <p className="text-[0.875rem] font-medium text-ink">
+                {item.label}
+              </p>
+              <p className="mt-1 text-[0.875rem] leading-[1.25rem] text-ink-sub">
+                {item.body}
+              </p>
             </li>
           ))}
         </ul>

@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useId, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useCooldown } from '../../hooks/useCooldown';
-import { isValidMobile, normalizePhone, sendPhoneCode, verifyPhoneCode } from '../../lib/phoneVerification';
-import MyPageModalShell from './MyPageModalShell';
+import { useCallback, useEffect, useId, useState } from "react";
+import { useCooldown } from "../../hooks/useCooldown";
+import {
+  isValidMobile,
+  normalizePhone,
+  sendPhoneCode,
+  verifyPhoneCode,
+} from "../../lib/phoneVerification";
+import { supabase } from "../../lib/supabase";
+import MyPageModalShell from "./MyPageModalShell";
 
 // 휴대폰 번호 변경 (Figma 3973:15330 입력 / 3973:16090 인증번호 / 3973:16297 확인
 // / 3973:16478 완료). 4단계 — ChangeEmailModal.jsx/ChangePasswordModal.jsx 와 같은
@@ -26,54 +31,60 @@ import MyPageModalShell from './MyPageModalShell';
 // ChangeEmailModal/ChangePasswordModal 과 같은 이유로 별도 모달 대신 이 모달의
 // form 단계 안에 필드로 흡수했다(자리를 비운 사이 남이 번호를 바꾸는 것을 막는
 // 목적 — 세션만 있으면 통과되는 구멍을 메운다).
-const PHONE_PURPOSE = 'phone_change';
+const PHONE_PURPOSE = "phone_change";
 const RESEND_COOLDOWN_SECONDS = 60;
 
 const FIELD_CLASS =
-  'h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent';
+  "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
 
-export default function ChangePhoneModal({ open, currentPhone, onClose, onChanged }) {
+export default function ChangePhoneModal({
+  open,
+  currentPhone,
+  onClose,
+  onChanged,
+}) {
   const titleId = useId();
-  const [step, setStep] = useState('form'); // form | verify | confirm | done
-  const [nextPhone, setNextPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
+  const [step, setStep] = useState("form"); // form | verify | confirm | done
+  const [nextPhone, setNextPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
   const [requested, setRequested] = useState(false);
 
   const cooldown = useCooldown(RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (!open) return;
-    setStep('form');
-    setNextPhone('');
-    setPassword('');
-    setCode('');
+    setStep("form");
+    setNextPhone("");
+    setPassword("");
+    setCode("");
     setSending(false);
     setVerifying(false);
     setConfirming(false);
-    setErrorMsg('');
+    setErrorMsg("");
     setRequested(false);
   }, [open]);
 
   const normalizedNext = normalizePhone(nextPhone);
   const phoneValid =
-    isValidMobile(normalizedNext) && normalizedNext !== normalizePhone(currentPhone || '');
+    isValidMobile(normalizedNext) &&
+    normalizedNext !== normalizePhone(currentPhone || "");
 
   // 인증번호 발송 — 본인 확인(현재 비밀번호) 후 sendPhoneCode.
   const sendCode = useCallback(async () => {
     if (sending || !phoneValid || !password) return;
     setSending(true);
-    setErrorMsg('');
+    setErrorMsg("");
 
     const { data: sessionData } = await supabase.auth.getSession();
     const authEmail = sessionData?.session?.user?.email;
     if (!authEmail) {
       setSending(false);
-      setErrorMsg('로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.');
+      setErrorMsg("로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.");
       return;
     }
 
@@ -81,16 +92,19 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
     // signInWithPassword 를 태워 맞는지 확인, 세션은 갱신될 뿐 깨지지 않는다).
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: authEmail,
-      password
+      password,
     });
     if (authError) {
       setSending(false);
       if (authError.status === 429) {
-        setErrorMsg('시도가 너무 많았어요. 잠시 후 다시 시도해 주세요.');
-      } else if (authError.status === 400 || /invalid|credential/i.test(authError.message || '')) {
-        setErrorMsg('비밀번호가 일치하지 않아요.');
+        setErrorMsg("시도가 너무 많았어요. 잠시 후 다시 시도해 주세요.");
+      } else if (
+        authError.status === 400 ||
+        /invalid|credential/i.test(authError.message || "")
+      ) {
+        setErrorMsg("비밀번호가 일치하지 않아요.");
       } else {
-        setErrorMsg('본인 확인에 실패했어요. 잠시 후 다시 시도해 주세요.');
+        setErrorMsg("본인 확인에 실패했어요. 잠시 후 다시 시도해 주세요.");
       }
       return;
     }
@@ -105,16 +119,16 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
     }
 
     setRequested(true);
-    setCode('');
+    setCode("");
     cooldown.start();
-    setStep('verify');
+    setStep("verify");
   }, [sending, phoneValid, password, nextPhone, cooldown]);
 
   // 인증번호 검증.
   const verifyCode = useCallback(async () => {
     if (verifying || code.trim().length !== 6) return;
     setVerifying(true);
-    setErrorMsg('');
+    setErrorMsg("");
 
     const result = await verifyPhoneCode(nextPhone, code);
     setVerifying(false);
@@ -124,57 +138,71 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
       return;
     }
 
-    setStep('confirm');
+    setStep("confirm");
   }, [verifying, code, nextPhone]);
 
   // 최종 확정 — api/change-phone.js.
   const submit = useCallback(async () => {
     if (confirming) return;
     setConfirming(true);
-    setErrorMsg('');
+    setErrorMsg("");
 
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
     if (!token) {
       setConfirming(false);
-      setStep('verify');
-      setErrorMsg('로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.');
+      setStep("verify");
+      setErrorMsg("로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.");
       return;
     }
 
     try {
-      const res = await fetch('/api/change-phone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ phone: nextPhone })
+      const res = await fetch("/api/change-phone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ phone: nextPhone }),
       });
       const payload = await res.json();
       setConfirming(false);
 
       if (!res.ok || !payload?.ok) {
-        setStep('verify');
-        setErrorMsg(payload?.detail || '번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.');
+        setStep("verify");
+        setErrorMsg(
+          payload?.detail ||
+            "번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.",
+        );
         return;
       }
 
-      setStep('done');
+      setStep("done");
       onChanged?.(payload.phone || nextPhone);
     } catch (err) {
-      console.error('휴대폰 번호 변경 요청 실패:', err);
+      console.error("휴대폰 번호 변경 요청 실패:", err);
       setConfirming(false);
-      setStep('verify');
-      setErrorMsg('번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      setStep("verify");
+      setErrorMsg("번호 변경에 실패했어요. 잠시 후 다시 시도해 주세요.");
     }
   }, [confirming, nextPhone, onChanged]);
 
   if (!open) return null;
 
   // ── 완료(3973:16478) ────────────────────────────────────────────────
-  if (step === 'done') {
+  if (step === "done") {
     return (
-      <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+      <MyPageModalShell
+        open={open}
+        onClose={onClose}
+        labelledBy={titleId}
+        className="w-[26rem]"
+      >
         <div className="flex flex-col items-center px-6 py-10 text-center">
-          <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+          <h2
+            id={titleId}
+            className="text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+          >
             변경이 완료됐어요
           </h2>
           <button
@@ -190,11 +218,19 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
   }
 
   // ── 확인(3973:16297) ────────────────────────────────────────────────
-  if (step === 'confirm') {
+  if (step === "confirm") {
     return (
-      <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+      <MyPageModalShell
+        open={open}
+        onClose={onClose}
+        labelledBy={titleId}
+        className="w-[26rem]"
+      >
         <div className="flex flex-col items-center px-6 py-9 text-center">
-          <h2 id={titleId} className="text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+          <h2
+            id={titleId}
+            className="text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+          >
             정말 변경하시겠어요?
           </h2>
           <p className="mt-4 break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
@@ -203,12 +239,14 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
             변경 후 새 번호로 인증 문자가 전송돼요.
           </p>
 
-          {errorMsg && <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>}
+          {errorMsg && (
+            <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+          )}
 
           <div className="mt-7 grid w-full grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setStep('verify')}
+              onClick={() => setStep("verify")}
               className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
             >
               취소
@@ -219,7 +257,7 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
               disabled={confirming}
               className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {confirming ? '변경 중...' : '변경할게요'}
+              {confirming ? "변경 중..." : "변경할게요"}
             </button>
           </div>
         </div>
@@ -227,14 +265,26 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
     );
   }
 
-  const isVerifyStep = step === 'verify';
-  const sendLabel = cooldown.active ? `${cooldown.remaining}초 후` : requested ? '다시 보내기' : '인증번호 보내기';
+  const isVerifyStep = step === "verify";
+  const sendLabel = cooldown.active
+    ? `${cooldown.remaining}초 후`
+    : requested
+      ? "다시 보내기"
+      : "인증번호 보내기";
 
   // ── 입력(3973:15330) / 인증번호(3973:16090) ─────────────────────────
   return (
-    <MyPageModalShell open={open} onClose={onClose} labelledBy={titleId} className="w-[26rem]">
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="w-[26rem]"
+    >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2 id={titleId} className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title">
+        <h2
+          id={titleId}
+          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+        >
           휴대폰 번호를 변경해요
         </h2>
         <p className="mt-3 text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
@@ -242,14 +292,20 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
         </p>
 
         <div className="mt-7">
-          <span className="text-[0.8125rem] font-semibold text-ink">현재 휴대폰 번호</span>
-          <div className={`mt-2 ${FIELD_CLASS} flex items-center bg-surface-footer text-ink-sub`}>
-            {currentPhone || '-'}
+          <span className="text-[0.8125rem] font-semibold text-ink">
+            현재 휴대폰 번호
+          </span>
+          <div
+            className={`mt-2 ${FIELD_CLASS} flex items-center bg-surface-footer text-ink-sub`}
+          >
+            {currentPhone || "-"}
           </div>
         </div>
 
         <label className="mt-5 block">
-          <span className="text-[0.8125rem] font-semibold text-ink">새 휴대폰 번호</span>
+          <span className="text-[0.8125rem] font-semibold text-ink">
+            새 휴대폰 번호
+          </span>
           <div className="mt-2 flex gap-2">
             <input
               type="tel"
@@ -257,11 +313,11 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
               value={nextPhone}
               onChange={(e) => {
                 setNextPhone(e.target.value);
-                setErrorMsg('');
+                setErrorMsg("");
               }}
               readOnly={isVerifyStep}
               placeholder="010-0000-0000"
-              className={`${FIELD_CLASS} ${isVerifyStep ? 'bg-surface-footer text-ink-sub' : ''}`}
+              className={`${FIELD_CLASS} ${isVerifyStep ? "bg-surface-footer text-ink-sub" : ""}`}
             />
             <button
               type="button"
@@ -269,8 +325,8 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
               disabled={!phoneValid || !password || sending || cooldown.active}
               className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
                 phoneValid && password && !sending && !cooldown.active
-                  ? 'bg-primary text-white hover:opacity-90'
-                  : 'cursor-not-allowed bg-line text-white'
+                  ? "bg-primary text-white hover:opacity-90"
+                  : "cursor-not-allowed bg-line text-white"
               }`}
             >
               {sendLabel}
@@ -280,14 +336,16 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
 
         {!isVerifyStep && (
           <label className="mt-5 block">
-            <span className="text-[0.8125rem] font-semibold text-ink">현재 비밀번호</span>
+            <span className="text-[0.8125rem] font-semibold text-ink">
+              현재 비밀번호
+            </span>
             <input
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                setErrorMsg('');
+                setErrorMsg("");
               }}
               placeholder="본인 확인을 위해 비밀번호를 입력해주세요"
               className={`mt-2 ${FIELD_CLASS}`}
@@ -297,7 +355,9 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
 
         {isVerifyStep && (
           <label className="mt-5 block">
-            <span className="text-[0.8125rem] font-semibold text-ink">인증번호</span>
+            <span className="text-[0.8125rem] font-semibold text-ink">
+              인증번호
+            </span>
             <input
               type="text"
               inputMode="numeric"
@@ -305,8 +365,8 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
               maxLength={6}
               value={code}
               onChange={(e) => {
-                setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6));
-                setErrorMsg('');
+                setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6));
+                setErrorMsg("");
               }}
               placeholder="카카오톡으로 보낸 인증번호를 입력해주세요"
               className={`mt-2 ${FIELD_CLASS}`}
@@ -314,7 +374,9 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
           </label>
         )}
 
-        {errorMsg && <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 px-6 py-5">
@@ -331,11 +393,11 @@ export default function ChangePhoneModal({ open, currentPhone, onClose, onChange
           disabled={!isVerifyStep || code.trim().length !== 6 || verifying}
           className={`h-12 rounded-xl text-[0.875rem] font-semibold text-white transition ${
             isVerifyStep && code.trim().length === 6 && !verifying
-              ? 'bg-primary hover:opacity-90'
-              : 'cursor-not-allowed bg-line'
+              ? "bg-primary hover:opacity-90"
+              : "cursor-not-allowed bg-line"
           }`}
         >
-          {verifying ? '확인 중...' : '다음'}
+          {verifying ? "확인 중..." : "다음"}
         </button>
       </div>
     </MyPageModalShell>

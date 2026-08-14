@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { GOAL_NAV_GROUPS, GOAL_NAV_FOOTER } from './goalNavItems';
-import { mockStudent } from '../../data/goalMock';
-import { fetchGoalSchedules, fetchGoalTimer } from '../../lib/goalApi';
-import { kstYMD } from '../../lib/goal/calc/index.js';
+import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
+import { mockStudent } from "../../data/goalMock";
+import { kstYMD } from "../../lib/goal/calc/index.js";
+import { fetchGoalSchedules, fetchGoalTimer } from "../../lib/goalApi";
+import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
@@ -22,7 +22,7 @@ export default function GoalSidebar() {
 
     const poll = async () => {
       const result = await fetchGoalTimer();
-      if (!cancelled && result.kind === 'success') {
+      if (!cancelled && result.kind === "success") {
         setTimerRunning(Boolean(result.summary?.running));
       }
     };
@@ -39,9 +39,11 @@ export default function GoalSidebar() {
     let alive = true;
 
     fetchGoalSchedules().then((result) => {
-      if (!alive || result.kind !== 'success') return;
+      if (!alive || result.kind !== "success") return;
       const today = kstYMD(new Date());
-      const upcoming = result.schedules.filter((schedule) => schedule.dueDate >= today);
+      const upcoming = result.schedules.filter(
+        (schedule) => schedule.dueDate >= today,
+      );
       setScheduleCount(upcoming.length);
     });
 
@@ -78,14 +80,14 @@ export default function GoalSidebar() {
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
-                      end={item.to === '/app/goal'}
+                      end={item.to === "/app/goal"}
                       className={({ isActive }) =>
                         [
-                          'mx-[0.625rem] flex h-[2.25rem] items-center justify-between rounded-lg pl-[3.125rem] pr-4 text-[0.875rem] leading-[1.4] transition-colors',
+                          "mx-[0.625rem] flex h-[2.25rem] items-center justify-between rounded-lg pl-[3.125rem] pr-4 text-[0.875rem] leading-[1.4] transition-colors",
                           isActive
-                            ? 'bg-goal-activePill font-semibold text-ink-strong'
-                            : 'text-ink hover:bg-goal-activePill/60'
-                        ].join(' ')
+                            ? "bg-goal-activePill font-semibold text-ink-strong"
+                            : "text-ink hover:bg-goal-activePill/60",
+                        ].join(" ")
                       }
                     >
                       <span>{item.label}</span>

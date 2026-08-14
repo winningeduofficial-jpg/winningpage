@@ -1,6 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Ban, Check, ChevronLeft, Edit3, History, Plus, RefreshCw, Search, Users, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import {
+  Ban,
+  Check,
+  ChevronLeft,
+  Edit3,
+  History,
+  Plus,
+  RefreshCw,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 // =====================================================================
 // 어드민 "쿠폰관리" — 목록 / 생성·수정 / 사용이력 / void / 발급 관리
@@ -75,32 +86,32 @@ import { supabase } from '../../lib/supabase';
 // DB 컬럼명으로 대체하던 폴백은 제거했다(FieldName 참고) — 라벨이 아직
 // 승인되지 않은 자리는 값 그대로 null 로 두어 아무것도 그리지 않는다.
 const FIELD_LABEL = {
-  slug: '쿠폰 키', // 값을 바꾸면 시드 멱등성에 영향
-  code: '고객 입력 코드',
-  title: '쿠폰 이름',
-  discount_amount: '할인 금액',
-  min_amount: '최소 결제 금액',
-  valid_until: '사용 기한',
-  is_active: '판매 상태',
-  max_uses_per_user: '1인당 사용 횟수',
-  max_redemptions: '총 발행 수량',
-  stackable: '중복 사용',
-  grant_type: '배포 방식',
-  grant_on_signup: '가입 시 자동 발급',
-  used: '사용 건수', // 파생값(DB 컬럼 아님) — 유효 / 전체(무효화 포함)
-  id: '내부 키',
-  created_at: '등록 일시',
+  slug: "쿠폰 키", // 값을 바꾸면 시드 멱등성에 영향
+  code: "고객 입력 코드",
+  title: "쿠폰 이름",
+  discount_amount: "할인 금액",
+  min_amount: "최소 결제 금액",
+  valid_until: "사용 기한",
+  is_active: "판매 상태",
+  max_uses_per_user: "1인당 사용 횟수",
+  max_redemptions: "총 발행 수량",
+  stackable: "중복 사용",
+  grant_type: "배포 방식",
+  grant_on_signup: "가입 시 자동 발급",
+  used: "사용 건수", // 파생값(DB 컬럼 아님) — 유효 / 전체(무효화 포함)
+  id: "내부 키",
+  created_at: "등록 일시",
   // ── 사용이력(coupon_redemptions) ──
-  order_id: '주문번호',
-  user: '사용자', // 파생값. profiles 조인
-  voided_at: '무효화 일시',
-  void_reason: '무효화 사유',
+  order_id: "주문번호",
+  user: "사용자", // 파생값. profiles 조인
+  voided_at: "무효화 일시",
+  void_reason: "무효화 사유",
   // ── 발급 관리(coupon_grants) ──
-  granted_at: '발급 일시',
-  granted_by: '발급 출처', // 값 자체는 signup(가입) / admin(직접) / event
-  revoked_at: '회수 일시',
-  revoke_reason: '회수 사유',
-  email: '이메일' // "사용자 검색(이메일·이름)" 라벨. 목록 칼럼엔 없고 검색 폼에서만 쓴다
+  granted_at: "발급 일시",
+  granted_by: "발급 출처", // 값 자체는 signup(가입) / admin(직접) / event
+  revoked_at: "회수 일시",
+  revoke_reason: "회수 사유",
+  email: "이메일", // "사용자 검색(이메일·이름)" 라벨. 목록 칼럼엔 없고 검색 폼에서만 쓴다
 };
 
 // 무제한/무기한(NULL 규약)을 고르는 선택지의 라벨(2026-08-12, 사용자 지시로
@@ -113,16 +124,16 @@ const FIELD_LABEL = {
 // 구조 변경이라 하지 않는다. '무제한'은 두 맥락 모두에서 통용되는 표현이라
 // (예: "무제한 이용권") 단일 라벨로 문제가 없다. UNLIMITED_FALLBACK('∞')은
 // 값이 비었을 때만 쓰이는 방어용 폴백으로 남긴다.
-const UNLIMITED_LABEL = '무제한';
-const UNLIMITED_FALLBACK = '∞';
+const UNLIMITED_LABEL = "무제한";
+const UNLIMITED_FALLBACK = "∞";
 
 // 아이콘 전용 액션의 접근성 라벨. 팀 리드가 승인한 코퍼스 규범 문자열이다
 // (2026-08-11) — AdminTable 의 기존 수정/삭제 아이콘 버튼(Admin.jsx:4674-4692)
 // 은 여전히 무라벨이지만, 이 화면은 승인된 라벨을 받았으므로 붙인다.
-const HISTORY_ACTION_LABEL = '사용 이력';
-const VOID_ACTION_LABEL = '무효화';
-const BACK_ACTION_LABEL = '목록으로';
-const VOID_REASON_PLACEHOLDER = '무효화 사유를 입력하세요';
+const HISTORY_ACTION_LABEL = "사용 이력";
+const VOID_ACTION_LABEL = "무효화";
+const BACK_ACTION_LABEL = "목록으로";
+const VOID_REASON_PLACEHOLDER = "무효화 사유를 입력하세요";
 
 // fn_void_coupon_redemption 이 구분해 던지는 두 에러(sql/55 1-g절).
 // 42501 / WC002 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의 예상 밖
@@ -131,8 +142,8 @@ const VOID_REASON_PLACEHOLDER = '무효화 사유를 입력하세요';
 // ADMIN_UNKNOWN_ERROR_TEXT 를 보여준다 — DB 원문(error.message)을 화면에
 // 그대로 띄우던 경로를 닫았다(팀 리드 지시, 2026-08-11).
 const VOID_ERROR_TEXT = {
-  42501: '관리자 권한이 없습니다.',
-  WC002: '이미 무효화되었거나 존재하지 않는 사용 이력입니다.'
+  42501: "관리자 권한이 없습니다.",
+  WC002: "이미 무효화되었거나 존재하지 않는 사용 이력입니다.",
 };
 
 // 알려지지 않은 에러 코드에 대한 어드민 공통 문구(팀 리드 승인, 2026-08-11).
@@ -142,7 +153,7 @@ const VOID_ERROR_TEXT = {
 // console.error(원본 error)로 남긴다(loadGrants/searchUsers 등 이 파일의
 // 기존 조회 실패 처리와 같은 방식). 이 화면 밖에서도 같은 문제가 생기면
 // 이 상수를 그대로 재사용할 수 있도록 export 한다.
-export const ADMIN_UNKNOWN_ERROR_TEXT = '알 수 없는 오류가 발생했습니다.';
+export const ADMIN_UNKNOWN_ERROR_TEXT = "알 수 없는 오류가 발생했습니다.";
 
 // 조회(select) 실패 4곳(loadList/loadHistory/loadGrants/searchUsers) 전용
 // 문구(2026-08-12, 사용자 지시로 채움). ADMIN_UNKNOWN_ERROR_TEXT 를 그대로
@@ -151,7 +162,7 @@ export const ADMIN_UNKNOWN_ERROR_TEXT = '알 수 없는 오류가 발생했습�
 // 붙이면 이중으로 모호해진다. 대신 이 저장소의 재시도 유도 관용구(Login.jsx
 // /MyPage.jsx REFUND_UNKNOWN_ERROR_TEXT 의 "잠시 후 다시 시도해 주세요.")를
 // 재사용한다 — DB 원문(error.message)은 console.error 로만 남긴다.
-const ADMIN_LOAD_ERROR_TEXT = '잠시 후 다시 시도해 주세요.';
+const ADMIN_LOAD_ERROR_TEXT = "잠시 후 다시 시도해 주세요.";
 
 // 쿠폰 등록·수정 실패 전용(2026-08-12). sql/58 이 coupons 에 건 금액 CHECK
 // (discount_amount>0, min_amount>=0)를 어기면 Postgres 원문이 그대로 뜨던
@@ -159,7 +170,8 @@ const ADMIN_LOAD_ERROR_TEXT = '잠시 후 다시 시도해 주세요.';
 // 알려준다. 그 밖의 예상 밖 에러는 ADMIN_UNKNOWN_ERROR_TEXT 로 떨어진다
 // (VOID_ERROR_TEXT/GRANT_ERROR_TEXT 와 같은 분기 규범).
 const COUPON_SAVE_ERROR_TEXT = {
-  23514: '할인 금액·최소 결제 금액을 확인해 주세요. 할인 금액은 0보다 커야 하고, 최소 결제 금액은 0 이상이어야 합니다.'
+  23514:
+    "할인 금액·최소 결제 금액을 확인해 주세요. 할인 금액은 0보다 커야 하고, 최소 결제 금액은 0 이상이어야 합니다.",
 };
 
 // sql/70 이 추가한 파생 CHECK(coupons_cap_derived_from_grant_type_check —
@@ -167,30 +179,30 @@ const COUPON_SAVE_ERROR_TEXT = {
 // validateForm 이 화면에서 먼저 막지만, 폼을 거치지 않은 경합(다른 창에서
 // grant_type 을 바꾼 뒤 저장)까지 막을 수는 없어 DB 제약명으로도 분기한다.
 const COUPON_SAVE_CAP_MISMATCH_TEXT =
-  '배포 방식과 1인당 사용 횟수가 맞지 않습니다. 발급형은 1인당 사용 횟수가 1이어야 하고, 조건형은 무제한이어야 합니다.';
+  "배포 방식과 1인당 사용 횟수가 맞지 않습니다. 발급형은 1인당 사용 횟수가 1이어야 하고, 조건형은 무제한이어야 합니다.";
 
 // slug 중복은 저장 전에 막는다(요구사항).
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
 //   ② 차단 alert 는 아래 승인된 문구를 쓴다.
-const SLUG_DUPLICATE_TEXT = '이미 사용 중인 쿠폰 키입니다.';
+const SLUG_DUPLICATE_TEXT = "이미 사용 중인 쿠폰 키입니다.";
 
 // ── 발급 관리(2026-08-11 추가) 문구 ──────────────────────────────────────
-const GRANTS_ACTION_LABEL = '발급 이력';
-const REVOKE_ACTION_LABEL = '회수';
-const REVOKE_REASON_PLACEHOLDER = '회수 사유를 입력하세요';
-const USER_SEARCH_PLACEHOLDER = '이메일로 검색';
+const GRANTS_ACTION_LABEL = "발급 이력";
+const REVOKE_ACTION_LABEL = "회수";
+const REVOKE_REASON_PLACEHOLDER = "회수 사유를 입력하세요";
+const USER_SEARCH_PLACEHOLDER = "이메일로 검색";
 // 이미 발급된 사용자를 검색 결과에서 표시하는 자리. 발급 버튼 자리에 체크
 // 아이콘을 두고(버튼 없음) 이 문구를 title/aria-label 로 붙인다.
-const ALREADY_GRANTED_TEXT = '이미 발급된 사용자입니다.';
+const ALREADY_GRANTED_TEXT = "이미 발급된 사용자입니다.";
 
 // fn_grant_coupon / fn_revoke_coupon_grant 가 구분해 던지는 에러(sql/55 1-i절).
 // 42501 / WC003 / WC004 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의
 // 예상 밖 코드는 submitGrant/submitRevoke 의 명시적 분기에서 ADMIN_UNKNOWN_ERROR_TEXT
 // 를 보여준다 — VOID_ERROR_TEXT 와 같은 규범이다.
 const GRANT_ERROR_TEXT = {
-  42501: '관리자 권한이 없습니다.',
-  WC003: '이미 회수되었거나 존재하지 않는 발급입니다.',
-  WC004: '발급할 수 없는 쿠폰입니다.'
+  42501: "관리자 권한이 없습니다.",
+  WC003: "이미 회수되었거나 존재하지 않는 발급입니다.",
+  WC004: "발급할 수 없는 쿠폰입니다.",
 };
 
 // ── 재사용한 기존 문구 (출처) ──────────────────────────────────────────
@@ -207,7 +219,7 @@ const GRANT_ERROR_TEXT = {
 //   '저장 완료'                        Admin.jsx saveRow(:5054)
 //   '등록 실패: ' / '수정 실패: ' / ' 조회 실패: '  Admin.jsx saveRow/loadRows
 //   'N원'                             Admin.jsx formatValue money(:3240)
-const TITLE = '쿠폰관리';
+const TITLE = "쿠폰관리";
 
 // coupon_redemptions 는 이력 테이블이라 무한히 늘어난다. 목록의 사용 건수는
 // (coupon_id, voided_at) 두 컬럼만 받아 클라이언트에서 집계한다 — PostgREST 는
@@ -227,7 +239,7 @@ const GRANT_PAGE_LIMIT = 200;
 const USER_SEARCH_LIMIT = 20;
 
 const INPUT_CLASS =
-  'h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100';
+  "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
 
 function moneyText(value) {
   return `${Number(value || 0).toLocaleString()}원`;
@@ -236,7 +248,7 @@ function moneyText(value) {
 // is_active 전용. '사용/미사용' 은 formatValue(Admin.jsx:3238) 가 boolean 컬럼에
 // 쓰는 기존 표기이고, is_active 는 실제로 "사용 여부" 라서 의미가 맞다.
 function boolText(value) {
-  return value ? '사용' : '미사용';
+  return value ? "사용" : "미사용";
 }
 
 // stackable 은 불리언이지만 의미가 "사용 여부" 가 아니라 "다른 쿠폰과 결합 가능"
@@ -244,24 +256,25 @@ function boolText(value) {
 // 체크박스를 쓴 것과 같은 이유). 헤더가 컬럼명을 이미 들고 있으므로 값은 기호로만
 // 표시한다. 새 한국어 문구를 만들지 않는 쪽의 선택이다.
 function flagMark(value) {
-  return value ? '✓' : '-';
+  return value ? "✓" : "-";
 }
 
 // timestamptz → 'YYYY-MM-DD HH:mm' (Asia/Seoul). Header.jsx:80 / PopupLayer.jsx:7
 // 의 명명 존 방식을 따른다 — 오프셋(+9h)을 손으로 더하지 않는다.
 function dateTimeText(value) {
-  if (!value) return '-';
+  if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date
-    .toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' })
-    .replace('T', ' ')
+    .toLocaleString("sv-SE", { timeZone: "Asia/Seoul" })
+    .replace("T", " ")
     .slice(0, 16);
 }
 
 // NULL = 무기한·무제한 규약을 목록에서 표기. 값이 있으면 그대로, NULL 이면 ∞.
-function nullableText(value, suffix = '') {
-  if (value === null || value === undefined) return UNLIMITED_LABEL ?? UNLIMITED_FALLBACK;
+function nullableText(value, suffix = "") {
+  if (value === null || value === undefined)
+    return UNLIMITED_LABEL ?? UNLIMITED_FALLBACK;
   return `${Number(value).toLocaleString()}${suffix}`;
 }
 
@@ -273,32 +286,32 @@ function FieldName({ k }) {
 }
 
 const FORM_KEYS = [
-  'is_active',
-  'slug',
-  'code',
-  'title',
-  'discount_amount',
-  'min_amount',
-  'valid_until',
-  'max_uses_per_user',
-  'max_redemptions',
-  'stackable',
-  'grant_type',
-  'grant_on_signup'
+  "is_active",
+  "slug",
+  "code",
+  "title",
+  "discount_amount",
+  "min_amount",
+  "valid_until",
+  "max_uses_per_user",
+  "max_redemptions",
+  "stackable",
+  "grant_type",
+  "grant_on_signup",
 ];
 
 // coupons_grant_type_check 가 허용하는 값. DB 에 쓰는 값은 반드시 이 두 문자열
 // 그대로다 — 아래 GRANT_TYPE_LABEL 은 화면 표시 전용이라 절대 payload 로
 // 흘려보내지 않는다(formToPayload 는 form.grant_type 원본을 그대로 쓴다).
-const GRANT_TYPES = ['auto', 'granted'];
+const GRANT_TYPES = ["auto", "granted"];
 
 // grant_type 표시 라벨(팀 리드 승인, 2026-08-11). 목록 칼럼과 폼 라디오 둘 다
 // 이 라벨로 보여주고, DB 값·폼 상태(form.grant_type)는 GRANT_TYPES 의 영문을
 // 그대로 유지한다 — 어드민 폼이 한글 값을 영문 CHECK 컬럼에 써 결제(payments)
 // 등록이 실패하던 결함을 반복하지 않는다.
 const GRANT_TYPE_LABEL = {
-  auto: '조건형',
-  granted: '발급형'
+  auto: "조건형",
+  granted: "발급형",
 };
 
 // NULL 을 고를 수 있는 3개 필드. 3상태다:
@@ -309,39 +322,40 @@ const GRANT_TYPE_LABEL = {
 // 없애려는 결함 ①) "무제한" 을 고르려면 반드시 골라야 한다. valid_until /
 // max_redemptions 도 같은 NULL 규약이라 같은 컨트롤·같은 규칙을 쓴다 — 필드마다
 // 다른 규칙을 두면 운영자가 어느 것이 강제인지 외워야 한다.
-const NULLABLE_KEYS = ['valid_until', 'max_uses_per_user', 'max_redemptions'];
+const NULLABLE_KEYS = ["valid_until", "max_uses_per_user", "max_redemptions"];
 
 // max_uses_per_user 는 sql/70 이후 grant_type 의 파생값이라(발급형=1,
 // 조건형=무제한) 손으로 고칠 수 없다(disabled) — grant_on_signup 체크박스와
 // 같은 이유다. NullableField 가 비활성일 때만 이 안내를 붙인다(2026-08-12,
 // 사용자 지시로 신규 작성).
-const MAX_USES_PER_USER_DERIVED_HINT_TEXT = '배포 방식에 따라 자동으로 정해집니다.';
+const MAX_USES_PER_USER_DERIVED_HINT_TEXT =
+  "배포 방식에 따라 자동으로 정해집니다.";
 
 function emptyForm() {
   return {
     is_active: true,
-    slug: '',
-    code: '',
-    title: '',
-    discount_amount: '',
+    slug: "",
+    code: "",
+    title: "",
+    discount_amount: "",
     min_amount: 0,
     stackable: false,
     // DB DEFAULT 와 같은 값으로 시작한다(sql/55 0-e절) — 신규 쿠폰은
     // 조건형이 기본이고, 발급형은 명시적으로 골라야 한다.
-    grant_type: 'auto',
+    grant_type: "auto",
     grant_on_signup: false,
-    valid_until: '',
-    valid_until_mode: '',
-    max_uses_per_user: '',
+    valid_until: "",
+    valid_until_mode: "",
+    max_uses_per_user: "",
     // grant_type 기본값 'auto' 의 파생값과 일치시킨다(sql/70
     // coupons_cap_derived_from_grant_type_check — 조건형은 1인당 사용 횟수
     // 무제한이어야 한다). NullableField 가 이 필드를 항상 disabled 로 잠가
     // 화면에서 라디오를 눌러 고칠 수 없으므로, 여기를 ''(미선택)으로 두면
     // validateForm 이 매번 막아 신규 등록 기본 경로가 원천 봉쇄된다
     // (2026-08-12, 리뷰 BLOCK 수정).
-    max_uses_per_user_mode: 'unlimited',
-    max_redemptions: '',
-    max_redemptions_mode: ''
+    max_uses_per_user_mode: "unlimited",
+    max_redemptions: "",
+    max_redemptions_mode: "",
   };
 }
 
@@ -349,22 +363,23 @@ function rowToForm(row) {
   const form = { ...emptyForm() };
 
   form.is_active = row.is_active !== false;
-  form.slug = row.slug ?? '';
-  form.code = row.code ?? '';
-  form.title = row.title ?? '';
-  form.discount_amount = row.discount_amount ?? '';
+  form.slug = row.slug ?? "";
+  form.code = row.code ?? "";
+  form.title = row.title ?? "";
+  form.discount_amount = row.discount_amount ?? "";
   form.min_amount = row.min_amount ?? 0;
   form.stackable = row.stackable === true;
   // 알 수 없는 값이 오면 조건형으로 떨어뜨리지 않고 원본을 그대로 들고 있다가
   // 저장 시 validateForm 이 막는다 — 화면이 조용히 값을 바꿔 저장하면
   // "열어보기만 했는데 정책이 바뀌는" 사고가 된다.
-  form.grant_type = row.grant_type ?? 'auto';
+  form.grant_type = row.grant_type ?? "auto";
   form.grant_on_signup = row.grant_on_signup === true;
 
   for (const key of NULLABLE_KEYS) {
     const value = row[key];
-    form[`${key}_mode`] = value === null || value === undefined ? 'unlimited' : 'value';
-    form[key] = value === null || value === undefined ? '' : value;
+    form[`${key}_mode`] =
+      value === null || value === undefined ? "unlimited" : "value";
+    form[key] = value === null || value === undefined ? "" : value;
   }
 
   return form;
@@ -372,11 +387,11 @@ function rowToForm(row) {
 
 function formToPayload(form) {
   const payload = {
-    slug: String(form.slug ?? '').trim(),
+    slug: String(form.slug ?? "").trim(),
     // code 는 UNIQUE 인데 NULL 은 다중 허용이다 — 빈 문자열로 저장하면 두 번째
     // 코드 없는 쿠폰이 23505 로 막힌다. 반드시 NULL 로 정규화한다.
-    code: String(form.code ?? '').trim() || null,
-    title: String(form.title ?? '').trim(),
+    code: String(form.code ?? "").trim() || null,
+    title: String(form.title ?? "").trim(),
     discount_amount: Number(form.discount_amount),
     min_amount: Number(form.min_amount),
     is_active: form.is_active === true,
@@ -385,15 +400,16 @@ function formToPayload(form) {
     // coupons_grant_on_signup_check 가 "granted 가 아니면 켤 수 없다" 를
     // 강제한다 — 폼이 이미 비활성화하지만, 라디오를 되돌린 직후의 잔여값이
     // 그대로 전송돼 23514 원문이 노출되는 걸 여기서도 막는다.
-    grant_on_signup: form.grant_type === 'granted' && form.grant_on_signup === true
+    grant_on_signup:
+      form.grant_type === "granted" && form.grant_on_signup === true,
   };
 
   for (const key of NULLABLE_KEYS) {
-    if (form[`${key}_mode`] === 'unlimited') {
+    if (form[`${key}_mode`] === "unlimited") {
       payload[key] = null;
       continue;
     }
-    payload[key] = key === 'valid_until' ? form[key] : Number(form[key]);
+    payload[key] = key === "valid_until" ? form[key] : Number(form[key]);
   }
 
   return payload;
@@ -402,27 +418,27 @@ function formToPayload(form) {
 // 검증 실패한 첫 키를 반환(없으면 null). 문구는 AdminForm 의 기존 템플릿에
 // 이 키를 끼워 넣어 만든다 — 새 문구를 만들지 않는다.
 function validateForm(form) {
-  if (String(form.slug ?? '').trim() === '') return 'slug';
-  if (String(form.title ?? '').trim() === '') return 'title';
+  if (String(form.slug ?? "").trim() === "") return "slug";
+  if (String(form.title ?? "").trim() === "") return "title";
 
   const discount = Number(form.discount_amount);
   // DB 에 CHECK 는 없지만 0원/음수 쿠폰은 의미가 없다(fn_redeem_coupons 도
   // 할인 0원을 적용해도 주문 금액이 그대로다). "안 채운 것" 과 같이 취급한다.
-  if (!Number.isInteger(discount) || discount <= 0) return 'discount_amount';
+  if (!Number.isInteger(discount) || discount <= 0) return "discount_amount";
 
   const min = Number(form.min_amount);
-  if (!Number.isInteger(min) || min < 0) return 'min_amount';
+  if (!Number.isInteger(min) || min < 0) return "min_amount";
 
   // coupons_grant_type_check 를 화면에서 먼저 건다 — 23514 원문 노출 방지.
-  if (!GRANT_TYPES.includes(form.grant_type)) return 'grant_type';
+  if (!GRANT_TYPES.includes(form.grant_type)) return "grant_type";
 
   for (const key of NULLABLE_KEYS) {
     const mode = form[`${key}_mode`];
-    if (mode !== 'unlimited' && mode !== 'value') return key;
-    if (mode !== 'value') continue;
+    if (mode !== "unlimited" && mode !== "value") return key;
+    if (mode !== "value") continue;
 
-    if (key === 'valid_until') {
-      if (String(form[key] ?? '').trim() === '') return key;
+    if (key === "valid_until") {
+      if (String(form[key] ?? "").trim() === "") return key;
       continue;
     }
 
@@ -437,13 +453,16 @@ function validateForm(form) {
   // max_uses_per_user 를 disabled 로 잠가 화면 조작으로는 어긋날 수 없지만,
   // rowToForm 이 들고 온 기존 값(전환 전 데이터)까지 방어해 저장 시 23514
   // 원문이 뜨지 않게 한다.
-  if (form.grant_type === 'granted') {
-    if (form.max_uses_per_user_mode !== 'value' || Number(form.max_uses_per_user) !== 1) {
-      return 'max_uses_per_user';
+  if (form.grant_type === "granted") {
+    if (
+      form.max_uses_per_user_mode !== "value" ||
+      Number(form.max_uses_per_user) !== 1
+    ) {
+      return "max_uses_per_user";
     }
-  } else if (form.grant_type === 'auto') {
-    if (form.max_uses_per_user_mode !== 'unlimited') {
-      return 'max_uses_per_user';
+  } else if (form.grant_type === "auto") {
+    if (form.max_uses_per_user_mode !== "unlimited") {
+      return "max_uses_per_user";
     }
   }
 
@@ -455,37 +474,51 @@ function validateForm(form) {
 // max_uses_per_user 뿐 — grant_type 파생값) 라디오 두 개와 입력까지 전부 잠그고
 // 안내 문구를 붙인다 — grant_on_signup 체크박스(:1528)와 같은 "파생값은 손편집
 // 금지" 규범이다.
-function NullableField({ fieldKey, type, mode, value, onChange, disabled = false }) {
+function NullableField({
+  fieldKey,
+  type,
+  mode,
+  value,
+  onChange,
+  disabled = false,
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       <label className="inline-flex items-center gap-2 text-sm font-bold">
         <input
           type="radio"
           name={`${fieldKey}_mode`}
-          checked={mode === 'unlimited'}
+          checked={mode === "unlimited"}
           disabled={disabled}
-          onChange={() => onChange({ [`${fieldKey}_mode`]: 'unlimited', [fieldKey]: '' })}
+          onChange={() =>
+            onChange({ [`${fieldKey}_mode`]: "unlimited", [fieldKey]: "" })
+          }
         />
-        <span className="text-base leading-none">{UNLIMITED_LABEL ?? UNLIMITED_FALLBACK}</span>
+        <span className="text-base leading-none">
+          {UNLIMITED_LABEL ?? UNLIMITED_FALLBACK}
+        </span>
       </label>
 
       <label className="inline-flex items-center gap-2 text-sm font-bold">
         <input
           type="radio"
           name={`${fieldKey}_mode`}
-          checked={mode === 'value'}
+          checked={mode === "value"}
           disabled={disabled}
-          onChange={() => onChange({ [`${fieldKey}_mode`]: 'value' })}
+          onChange={() => onChange({ [`${fieldKey}_mode`]: "value" })}
         />
         <span className="w-[10rem]">
           <input
             type={type}
-            min={type === 'number' ? 1 : undefined}
-            value={value ?? ''}
-            disabled={disabled || mode !== 'value'}
+            min={type === "number" ? 1 : undefined}
+            value={value ?? ""}
+            disabled={disabled || mode !== "value"}
             onChange={(e) =>
               onChange({
-                [fieldKey]: type === 'number' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value
+                [fieldKey]:
+                  type === "number"
+                    ? e.target.value.replace(/[^0-9]/g, "")
+                    : e.target.value,
               })
             }
             className={INPUT_CLASS}
@@ -503,9 +536,12 @@ function NullableField({ fieldKey, type, mode, value, onChange, disabled = false
 }
 
 export default function CouponAdmin() {
-  const [view, setView] = useState('list'); // list | create | edit | history | grants
+  const [view, setView] = useState("list"); // list | create | edit | history | grants
   const [coupons, setCoupons] = useState([]);
-  const [redemptionStats, setRedemptionStats] = useState({ byCoupon: {}, truncated: false });
+  const [redemptionStats, setRedemptionStats] = useState({
+    byCoupon: {},
+    truncated: false,
+  });
   // grant_type 이 'granted' 가 아니게 전환된 쿠폰도, 과거에 살아있는(회수 안 된)
   // 발급이 있었다면 발급 이력 버튼을 계속 보여줘야 한다(요구사항 ⑥) — 행
   // 데이터 자체엔 이 정보가 없어 목록 로드 시 한 번 더 조회해 집합으로 든다.
@@ -521,7 +557,7 @@ export default function CouponAdmin() {
   const [historyProfiles, setHistoryProfiles] = useState({});
   const [historyLoading, setHistoryLoading] = useState(false);
   const [voidingId, setVoidingId] = useState(null);
-  const [voidReason, setVoidReason] = useState('');
+  const [voidReason, setVoidReason] = useState("");
   // 진행 중 표시. 아이콘 버튼은 더블클릭이 쉬워서(피드백이 alert 뿐이다) 두 번째
   // 호출이 WC002/WC003 알럿을 띄운다 — 요청 중에는 액션을 잠근다.
   const [actionBusy, setActionBusy] = useState(false);
@@ -532,8 +568,8 @@ export default function CouponAdmin() {
   const [grantProfiles, setGrantProfiles] = useState({});
   const [grantLoading, setGrantLoading] = useState(false);
   const [revokingId, setRevokingId] = useState(null);
-  const [revokeReason, setRevokeReason] = useState('');
-  const [userQuery, setUserQuery] = useState('');
+  const [revokeReason, setRevokeReason] = useState("");
+  const [userQuery, setUserQuery] = useState("");
   const [userResults, setUserResults] = useState(null); // null = 아직 검색 안 함
   const [userSearching, setUserSearching] = useState(false);
 
@@ -543,16 +579,20 @@ export default function CouponAdmin() {
     // 정렬은 slug 오름차순 — sql/55 3)절 fn_usable_coupons 의 `order by c.slug`
     // 와 같은 기준이라 "어드민에서 보이는 순서 = 판정 순회 순서" 가 된다.
     const [couponRes, redemptionRes, grantExistsRes] = await Promise.all([
-      supabase.from('coupons').select('*').order('slug', { ascending: true }),
+      supabase.from("coupons").select("*").order("slug", { ascending: true }),
       supabase
-        .from('coupon_redemptions')
-        .select('coupon_id, voided_at')
+        .from("coupon_redemptions")
+        .select("coupon_id, voided_at")
         .limit(REDEMPTION_SCAN_LIMIT),
       // 요구사항 ⑥ — 발급 이력 버튼 게이트용. revoked_at is null(살아있는 발급)
       // 인 행만 봐서 grantedCouponIds 를 만든다. 실패해도 목록 자체는 살리고
       // 게이트는 grant_type 단독 조건으로 열화시킨다(redemptionStats 와 같은
       // 열화 방식).
-      supabase.from('coupon_grants').select('coupon_id').is('revoked_at', null).limit(REDEMPTION_SCAN_LIMIT)
+      supabase
+        .from("coupon_grants")
+        .select("coupon_id")
+        .is("revoked_at", null)
+        .limit(REDEMPTION_SCAN_LIMIT),
     ]);
 
     setLoading(false);
@@ -569,29 +609,35 @@ export default function CouponAdmin() {
     if (grantExistsRes.error) {
       // 이력 버튼 게이트만 열화시킨다 — grant_type==='granted' 단독 조건으로
       // 되돌아간다(전환된 쿠폰의 이력 버튼만 못 보일 뿐, 목록 자체는 살아있다).
-      console.warn('발급 이력 존재 여부 조회 실패:', grantExistsRes.error.message);
+      console.warn(
+        "발급 이력 존재 여부 조회 실패:",
+        grantExistsRes.error.message,
+      );
       setGrantedCouponIds(new Set());
     } else {
-      setGrantedCouponIds(new Set((grantExistsRes.data || []).map((row) => row.coupon_id)));
+      setGrantedCouponIds(
+        new Set((grantExistsRes.data || []).map((row) => row.coupon_id)),
+      );
     }
 
     if (redemptionRes.error) {
       // 쿠폰 목록 자체는 살린다 — 사용 건수만 못 보는 상태로 열화시킨다.
-      console.warn('사용 건수 조회 실패:', redemptionRes.error.message);
+      console.warn("사용 건수 조회 실패:", redemptionRes.error.message);
       setRedemptionStats({ byCoupon: {}, truncated: false });
       return;
     }
 
     const byCoupon = {};
     for (const row of redemptionRes.data || []) {
-      const bucket = (byCoupon[row.coupon_id] ||= { active: 0, total: 0 });
+      byCoupon[row.coupon_id] ||= { active: 0, total: 0 };
+      const bucket = byCoupon[row.coupon_id];
       bucket.total += 1;
       if (row.voided_at === null) bucket.active += 1;
     }
 
     setRedemptionStats({
       byCoupon,
-      truncated: (redemptionRes.data || []).length >= REDEMPTION_SCAN_LIMIT
+      truncated: (redemptionRes.data || []).length >= REDEMPTION_SCAN_LIMIT,
     });
   }, []);
 
@@ -608,11 +654,11 @@ export default function CouponAdmin() {
   // 입력 중인 slug 가 다른 쿠폰과 충돌하는지. 충돌 쿠폰 행 자체를 반환해
   // 화면에 그대로 보여준다(문구 창작 없이 상황을 전달하는 방법).
   const slugConflict = useMemo(() => {
-    const slug = String(form.slug ?? '').trim();
+    const slug = String(form.slug ?? "").trim();
     if (!slug) return null;
     const found = slugIndex.get(slug);
     if (!found) return null;
-    if (view === 'edit' && found.id === editingId) return null;
+    if (view === "edit" && found.id === editingId) return null;
     return found;
   }, [form.slug, slugIndex, view, editingId]);
 
@@ -623,17 +669,17 @@ export default function CouponAdmin() {
   function openCreate() {
     setForm(emptyForm());
     setEditingId(null);
-    setView('create');
+    setView("create");
   }
 
   function openEdit(row) {
     setForm(rowToForm(row));
     setEditingId(row.id);
-    setView('edit');
+    setView("edit");
   }
 
   function closeForm() {
-    setView('list');
+    setView("list");
     setEditingId(null);
     setForm(emptyForm());
   }
@@ -650,7 +696,7 @@ export default function CouponAdmin() {
 
     if (slugConflict) {
       // 사전 검증 — DB 23505(coupons_slug_key) 원문을 사용자에게 보이지 않는다.
-      alert(SLUG_DUPLICATE_TEXT ?? 'slug 항목을 입력해주세요.');
+      alert(SLUG_DUPLICATE_TEXT ?? "slug 항목을 입력해주세요.");
       return;
     }
 
@@ -658,9 +704,9 @@ export default function CouponAdmin() {
     setSaving(true);
 
     const { error } =
-      view === 'create'
-        ? await supabase.from('coupons').insert(payload)
-        : await supabase.from('coupons').update(payload).eq('id', editingId);
+      view === "create"
+        ? await supabase.from("coupons").insert(payload)
+        : await supabase.from("coupons").update(payload).eq("id", editingId);
 
     setSaving(false);
 
@@ -670,18 +716,23 @@ export default function CouponAdmin() {
       // 못 가른다 — Postgres 가 error.message 에 싣는 제약명으로 분기한다
       // (2026-08-12, 사용자 지시). 그 밖의 코드는 기존 COUPON_SAVE_ERROR_TEXT.
       let saveErrorText;
-      if (error.code === '23514' && String(error.message ?? '').includes('coupons_cap_derived_from_grant_type_check')) {
+      if (
+        error.code === "23514" &&
+        String(error.message ?? "").includes(
+          "coupons_cap_derived_from_grant_type_check",
+        )
+      ) {
         saveErrorText = COUPON_SAVE_CAP_MISMATCH_TEXT;
       } else if (error.code in COUPON_SAVE_ERROR_TEXT) {
         saveErrorText = COUPON_SAVE_ERROR_TEXT[error.code];
       } else {
         saveErrorText = ADMIN_UNKNOWN_ERROR_TEXT;
       }
-      alert(`${view === 'create' ? '등록' : '수정'} 실패: ${saveErrorText}`);
+      alert(`${view === "create" ? "등록" : "수정"} 실패: ${saveErrorText}`);
       return;
     }
 
-    alert('저장 완료');
+    alert("저장 완료");
     closeForm();
     await loadList();
   }
@@ -691,8 +742,8 @@ export default function CouponAdmin() {
     setHistoryRows([]);
     setHistoryProfiles({});
     setVoidingId(null);
-    setVoidReason('');
-    setView('history');
+    setVoidReason("");
+    setView("history");
     await loadHistory(row.id);
   }
 
@@ -700,10 +751,10 @@ export default function CouponAdmin() {
     setHistoryLoading(true);
 
     const { data, error } = await supabase
-      .from('coupon_redemptions')
-      .select('*')
-      .eq('coupon_id', couponId)
-      .order('created_at', { ascending: false })
+      .from("coupon_redemptions")
+      .select("*")
+      .eq("coupon_id", couponId)
+      .order("created_at", { ascending: false })
       .limit(REDEMPTION_PAGE_LIMIT);
 
     if (error) {
@@ -720,17 +771,19 @@ export default function CouponAdmin() {
     // coupon_redemptions.user_id 는 auth.users 를 참조하므로 PostgREST 임베딩으로
     // profiles 를 끌어올 수 없다(profiles 로 가는 FK 가 없다) — 별도 조회한다.
     // 게스트 결제는 user_id 가 NULL 이라 빠진다.
-    const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
+    const userIds = [
+      ...new Set(rows.map((row) => row.user_id).filter(Boolean)),
+    ];
 
     if (userIds.length > 0) {
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', userIds);
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", userIds);
 
       if (profileError) {
         // 이력 자체는 살린다 — 사용자 이름만 못 보는 상태로 열화시킨다.
-        console.warn('사용자 조회 실패:', profileError.message);
+        console.warn("사용자 조회 실패:", profileError.message);
       } else {
         const map = {};
         for (const profile of profiles || []) map[profile.id] = profile;
@@ -745,9 +798,9 @@ export default function CouponAdmin() {
     if (actionBusy) return;
     setActionBusy(true);
 
-    const { error } = await supabase.rpc('fn_void_coupon_redemption', {
+    const { error } = await supabase.rpc("fn_void_coupon_redemption", {
       p_redemption_id: row.id,
-      p_reason: voidReason.trim() || null
+      p_reason: voidReason.trim() || null,
     });
 
     if (error) {
@@ -756,13 +809,15 @@ export default function CouponAdmin() {
       // 코드(42501/WC002)는 VOID_ERROR_TEXT 를, 그 밖의 예상 밖 코드는
       // ADMIN_UNKNOWN_ERROR_TEXT 를 쓴다. 원본은 콘솔에 남겨 추적 가능하게 한다.
       console.error(error);
-      alert(`수정 실패: ${error.code in VOID_ERROR_TEXT ? VOID_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
+      alert(
+        `수정 실패: ${error.code in VOID_ERROR_TEXT ? VOID_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`,
+      );
       return;
     }
 
     setVoidingId(null);
-    setVoidReason('');
-    alert('저장 완료');
+    setVoidReason("");
+    alert("저장 완료");
     await loadHistory(row.coupon_id);
     // 목록의 사용 건수(유효/전체)도 갱신돼야 한다.
     await loadList();
@@ -775,10 +830,10 @@ export default function CouponAdmin() {
     setGrantRows([]);
     setGrantProfiles({});
     setRevokingId(null);
-    setRevokeReason('');
-    setUserQuery('');
+    setRevokeReason("");
+    setUserQuery("");
     setUserResults(null);
-    setView('grants');
+    setView("grants");
     await loadGrants(row.id);
   }
 
@@ -786,10 +841,10 @@ export default function CouponAdmin() {
     setGrantLoading(true);
 
     const { data, error } = await supabase
-      .from('coupon_grants')
-      .select('*')
-      .eq('coupon_id', couponId)
-      .order('granted_at', { ascending: false })
+      .from("coupon_grants")
+      .select("*")
+      .eq("coupon_id", couponId)
+      .order("granted_at", { ascending: false })
       .limit(GRANT_PAGE_LIMIT);
 
     if (error) {
@@ -805,17 +860,19 @@ export default function CouponAdmin() {
 
     // coupon_grants.user_id 는 auth.users FK 라 profiles 를 임베딩할 수 없다 —
     // 사용이력(loadHistory)과 같은 방식으로 따로 조회한다.
-    const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
+    const userIds = [
+      ...new Set(rows.map((row) => row.user_id).filter(Boolean)),
+    ];
 
     if (userIds.length > 0) {
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', userIds);
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", userIds);
 
       if (profileError) {
         // 발급 목록 자체는 살린다 — 사용자 이름만 못 보는 상태로 열화시킨다.
-        console.warn('사용자 조회 실패:', profileError.message);
+        console.warn("사용자 조회 실패:", profileError.message);
       } else {
         const map = {};
         for (const profile of profiles || []) map[profile.id] = profile;
@@ -830,14 +887,19 @@ export default function CouponAdmin() {
   // 데 쓴다 — fn_grant_coupon 은 멱등이라 눌러도 안전하지만, 버튼이 있으면
   // "눌렀는데 아무 일도 안 일어난다" 로 읽힌다.
   const grantedUserIds = useMemo(
-    () => new Set(grantRows.filter((row) => row.revoked_at === null).map((row) => row.user_id)),
-    [grantRows]
+    () =>
+      new Set(
+        grantRows
+          .filter((row) => row.revoked_at === null)
+          .map((row) => row.user_id),
+      ),
+    [grantRows],
   );
 
   async function searchUsers() {
     // PostgREST 의 or 필터는 콤마·괄호로 절을 구분한다 — 검색어에 그 문자가
     // 있으면 필터 문법이 깨진다(주입이 아니라 파싱 오류). 미리 걷어낸다.
-    const query = userQuery.trim().replace(/[,()*"\\]/g, '');
+    const query = userQuery.trim().replace(/[,()*"\\]/g, "");
     if (!query) {
       setUserResults(null);
       return;
@@ -845,8 +907,8 @@ export default function CouponAdmin() {
 
     setUserSearching(true);
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, email')
+      .from("profiles")
+      .select("id, name, email")
       .or(`email.ilike.%${query}%,name.ilike.%${query}%`)
       .limit(USER_SEARCH_LIMIT);
     setUserSearching(false);
@@ -866,20 +928,22 @@ export default function CouponAdmin() {
     setActionBusy(true);
 
     // 쓰기는 RPC 전용이다 — coupon_grants 에는 insert 정책이 없다(sql/55 1-h절).
-    const { error } = await supabase.rpc('fn_grant_coupon', {
+    const { error } = await supabase.rpc("fn_grant_coupon", {
       p_coupon_id: grantCoupon.id,
-      p_user_id: profile.id
+      p_user_id: profile.id,
     });
 
     if (error) {
       setActionBusy(false);
       // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
       console.error(error);
-      alert(`등록 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
+      alert(
+        `등록 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`,
+      );
       return;
     }
 
-    alert('저장 완료');
+    alert("저장 완료");
     await loadGrants(grantCoupon.id);
     setActionBusy(false);
   }
@@ -888,28 +952,30 @@ export default function CouponAdmin() {
     if (actionBusy) return;
     setActionBusy(true);
 
-    const { error } = await supabase.rpc('fn_revoke_coupon_grant', {
+    const { error } = await supabase.rpc("fn_revoke_coupon_grant", {
       p_grant_id: row.id,
-      p_reason: revokeReason.trim() || null
+      p_reason: revokeReason.trim() || null,
     });
 
     if (error) {
       setActionBusy(false);
       // GRANT_ERROR_TEXT 와 같은 명시적 분기 — VOID_ERROR_TEXT 주석 참고.
       console.error(error);
-      alert(`수정 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`);
+      alert(
+        `수정 실패: ${error.code in GRANT_ERROR_TEXT ? GRANT_ERROR_TEXT[error.code] : ADMIN_UNKNOWN_ERROR_TEXT}`,
+      );
       return;
     }
 
     setRevokingId(null);
-    setRevokeReason('');
-    alert('저장 완료');
+    setRevokeReason("");
+    alert("저장 완료");
     await loadGrants(row.coupon_id);
     setActionBusy(false);
   }
 
   // ── 목록 ────────────────────────────────────────────────────────────
-  if (view === 'list') {
+  if (view === "list") {
     return (
       <>
         <div className="mb-6 bg-white px-6 py-5 shadow">
@@ -954,18 +1020,18 @@ export default function CouponAdmin() {
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
                     {[
-                      'slug',
-                      'title',
-                      'discount_amount',
-                      'min_amount',
-                      'valid_until',
-                      'max_uses_per_user',
-                      'max_redemptions',
-                      'stackable',
-                      'grant_type',
-                      'grant_on_signup',
-                      'used',
-                      'is_active'
+                      "slug",
+                      "title",
+                      "discount_amount",
+                      "min_amount",
+                      "valid_until",
+                      "max_uses_per_user",
+                      "max_redemptions",
+                      "stackable",
+                      "grant_type",
+                      "grant_on_signup",
+                      "used",
+                      "is_active",
                     ].map((key) => (
                       <th key={key} className="px-3 py-3 text-left">
                         <FieldName k={key} />
@@ -975,26 +1041,34 @@ export default function CouponAdmin() {
                         표가 컨테이너보다 넓어지는데(페이지 가로 스크롤은 0 이지만
                         표 안에서 잘린다), 액션이 오른쪽 끝에 있어 기본 화면에서
                         보이지 않으면 발급·이력 진입점이 없는 화면이 된다. */}
-                    <th className="sticky right-0 w-28 bg-white px-3 py-3 text-center">관리</th>
+                    <th className="sticky right-0 w-28 bg-white px-3 py-3 text-center">
+                      관리
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {coupons.length === 0 ? (
                     <tr>
-                      <td colSpan={14} className="py-12 text-center text-gray-400">
+                      <td
+                        colSpan={14}
+                        className="py-12 text-center text-gray-400"
+                      >
                         등록된 데이터가 없습니다.
                       </td>
                     </tr>
                   ) : (
                     coupons.map((row, index) => {
-                      const used = redemptionStats.byCoupon[row.id] || { active: 0, total: 0 };
+                      const used = redemptionStats.byCoupon[row.id] || {
+                        active: 0,
+                        total: 0,
+                      };
 
                       return (
                         <tr
                           key={row.id}
                           className={`border-b border-gray-100 ${
-                            row.is_active ? '' : 'bg-[#fafafa] text-gray-400'
+                            row.is_active ? "" : "bg-[#fafafa] text-gray-400"
                           }`}
                         >
                           <td className="px-3 py-3">{index + 1}</td>
@@ -1003,24 +1077,40 @@ export default function CouponAdmin() {
                               보여준다 — 'signup-6000' 이 실제로 2,000원이던
                               사고(sql/55 P1-2)가 여기서 반복되지 않게 하는 지점이다. */}
                           <td className="px-3 py-3">
-                            <div className="font-mono text-[0.8125rem] font-bold">{row.slug}</div>
+                            <div className="font-mono text-[0.8125rem] font-bold">
+                              {row.slug}
+                            </div>
                             <div className="text-xs font-bold text-blue-600">
                               {moneyText(row.discount_amount)}
                             </div>
                             {row.code && (
-                              <div className="font-mono text-xs text-gray-500">{row.code}</div>
+                              <div className="font-mono text-xs text-gray-500">
+                                {row.code}
+                              </div>
                             )}
                           </td>
 
                           <td className="px-3 py-3">{row.title}</td>
-                          <td className="px-3 py-3">{moneyText(row.discount_amount)}</td>
-                          <td className="px-3 py-3">{moneyText(row.min_amount)}</td>
                           <td className="px-3 py-3">
-                            {row.valid_until ?? (UNLIMITED_LABEL ?? UNLIMITED_FALLBACK)}
+                            {moneyText(row.discount_amount)}
                           </td>
-                          <td className="px-3 py-3">{nullableText(row.max_uses_per_user)}</td>
-                          <td className="px-3 py-3">{nullableText(row.max_redemptions)}</td>
-                          <td className="px-3 py-3">{flagMark(row.stackable)}</td>
+                          <td className="px-3 py-3">
+                            {moneyText(row.min_amount)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {row.valid_until ??
+                              UNLIMITED_LABEL ??
+                              UNLIMITED_FALLBACK}
+                          </td>
+                          <td className="px-3 py-3">
+                            {nullableText(row.max_uses_per_user)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {nullableText(row.max_redemptions)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {flagMark(row.stackable)}
+                          </td>
 
                           {/* 표시는 GRANT_TYPE_LABEL(승인된 한국어 라벨) — DB 값
                               auto/granted 는 이 칼럼에 노출하지 않는다. 폼의 라디오도
@@ -1028,7 +1118,9 @@ export default function CouponAdmin() {
                           <td className="px-3 py-3">
                             {GRANT_TYPE_LABEL[row.grant_type] ?? row.grant_type}
                           </td>
-                          <td className="px-3 py-3">{flagMark(row.grant_on_signup)}</td>
+                          <td className="px-3 py-3">
+                            {flagMark(row.grant_on_signup)}
+                          </td>
 
                           {/* 유효 건수 / 전체 건수(무효화 포함)를 둘 다 보여준다 —
                               void 한 이력이 사라지지 않는 것이 이 도메인의 원칙이라
@@ -1036,14 +1128,16 @@ export default function CouponAdmin() {
                               "되돌린 기록" 을 각각 놓친다. */}
                           <td className="px-3 py-3 font-mono text-[0.8125rem]">
                             {used.active} / {used.total}
-                            {redemptionStats.truncated && '+'}
+                            {redemptionStats.truncated && "+"}
                           </td>
 
-                          <td className="px-3 py-3">{boolText(row.is_active)}</td>
+                          <td className="px-3 py-3">
+                            {boolText(row.is_active)}
+                          </td>
 
                           <td
                             className={`sticky right-0 px-3 py-3 ${
-                              row.is_active ? 'bg-white' : 'bg-[#fafafa]'
+                              row.is_active ? "bg-white" : "bg-[#fafafa]"
                             }`}
                           >
                             <div className="flex justify-center gap-3">
@@ -1073,7 +1167,8 @@ export default function CouponAdmin() {
                                   아니면 "눌렀는데 아무도 없는" 빈 화면이거나,
                                   발급 시 WC004 로만 실패하는 버튼이 된다 — 아예
                                   그리지 않는다. */}
-                              {(row.grant_type === 'granted' || grantedCouponIds.has(row.id)) && (
+                              {(row.grant_type === "granted" ||
+                                grantedCouponIds.has(row.id)) && (
                                 <button
                                   type="button"
                                   onClick={() => openGrants(row)}
@@ -1099,7 +1194,7 @@ export default function CouponAdmin() {
   }
 
   // ── 사용이력 ────────────────────────────────────────────────────────
-  if (view === 'history') {
+  if (view === "history") {
     return (
       <>
         <div className="mb-6 bg-white px-6 py-5 shadow">
@@ -1107,7 +1202,7 @@ export default function CouponAdmin() {
             <button
               type="button"
               onClick={() => {
-                setView('list');
+                setView("list");
                 setHistoryCoupon(null);
               }}
               aria-label={BACK_ACTION_LABEL ?? undefined}
@@ -1122,10 +1217,16 @@ export default function CouponAdmin() {
           {/* 어느 쿠폰의 이력인지 — 값(데이터)만으로 식별한다. */}
           {historyCoupon && (
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold">
-              <span className="font-mono text-[0.8125rem]">{historyCoupon.slug}</span>
+              <span className="font-mono text-[0.8125rem]">
+                {historyCoupon.slug}
+              </span>
               <span>{historyCoupon.title}</span>
-              <span className="text-blue-600">{moneyText(historyCoupon.discount_amount)}</span>
-              <span className="text-gray-500">{boolText(historyCoupon.is_active)}</span>
+              <span className="text-blue-600">
+                {moneyText(historyCoupon.discount_amount)}
+              </span>
+              <span className="text-gray-500">
+                {boolText(historyCoupon.is_active)}
+              </span>
             </div>
           )}
         </div>
@@ -1145,13 +1246,18 @@ export default function CouponAdmin() {
                 <thead>
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
-                    {['order_id', 'user', 'discount_amount', 'created_at', 'voided_at', 'void_reason'].map(
-                      (key) => (
-                        <th key={key} className="px-3 py-3 text-left">
-                          <FieldName k={key} />
-                        </th>
-                      )
-                    )}
+                    {[
+                      "order_id",
+                      "user",
+                      "discount_amount",
+                      "created_at",
+                      "voided_at",
+                      "void_reason",
+                    ].map((key) => (
+                      <th key={key} className="px-3 py-3 text-left">
+                        <FieldName k={key} />
+                      </th>
+                    ))}
                     <th className="w-24 px-3 py-3 text-center">관리</th>
                   </tr>
                 </thead>
@@ -1159,39 +1265,60 @@ export default function CouponAdmin() {
                 <tbody>
                   {historyRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-gray-400">
+                      <td
+                        colSpan={8}
+                        className="py-12 text-center text-gray-400"
+                      >
                         등록된 데이터가 없습니다.
                       </td>
                     </tr>
                   ) : (
                     historyRows.map((row, index) => {
-                      const profile = row.user_id ? historyProfiles[row.user_id] : null;
+                      const profile = row.user_id
+                        ? historyProfiles[row.user_id]
+                        : null;
                       const voided = row.voided_at !== null;
 
                       return (
                         <tr
                           key={row.id}
-                          className={`border-b border-gray-100 ${voided ? 'text-gray-400' : ''}`}
+                          className={`border-b border-gray-100 ${voided ? "text-gray-400" : ""}`}
                         >
-                          <td className="px-3 py-3">{historyRows.length - index}</td>
+                          <td className="px-3 py-3">
+                            {historyRows.length - index}
+                          </td>
 
-                          <td className="px-3 py-3 font-mono text-xs">{row.order_id}</td>
+                          <td className="px-3 py-3 font-mono text-xs">
+                            {row.order_id}
+                          </td>
 
                           <td className="px-3 py-3">
                             {row.user_id ? (
                               <>
-                                <div className="font-bold">{profile?.name || profile?.email || '-'}</div>
-                                <div className="font-mono text-xs text-gray-500">{row.user_id}</div>
+                                <div className="font-bold">
+                                  {profile?.name || profile?.email || "-"}
+                                </div>
+                                <div className="font-mono text-xs text-gray-500">
+                                  {row.user_id}
+                                </div>
                               </>
                             ) : (
-                              '-'
+                              "-"
                             )}
                           </td>
 
-                          <td className="px-3 py-3">{moneyText(row.discount_amount)}</td>
-                          <td className="px-3 py-3">{dateTimeText(row.created_at)}</td>
-                          <td className="px-3 py-3">{dateTimeText(row.voided_at)}</td>
-                          <td className="px-3 py-3">{row.void_reason || '-'}</td>
+                          <td className="px-3 py-3">
+                            {moneyText(row.discount_amount)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {dateTimeText(row.created_at)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {dateTimeText(row.voided_at)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {row.void_reason || "-"}
+                          </td>
 
                           <td className="px-3 py-3">
                             {voided ? (
@@ -1205,8 +1332,12 @@ export default function CouponAdmin() {
                                 <input
                                   type="text"
                                   value={voidReason}
-                                  placeholder={VOID_REASON_PLACEHOLDER ?? undefined}
-                                  onChange={(e) => setVoidReason(e.target.value)}
+                                  placeholder={
+                                    VOID_REASON_PLACEHOLDER ?? undefined
+                                  }
+                                  onChange={(e) =>
+                                    setVoidReason(e.target.value)
+                                  }
                                   className={`${INPUT_CLASS} w-[12rem]`}
                                 />
                                 <button
@@ -1221,7 +1352,7 @@ export default function CouponAdmin() {
                                   type="button"
                                   onClick={() => {
                                     setVoidingId(null);
-                                    setVoidReason('');
+                                    setVoidReason("");
                                   }}
                                   className="text-gray-500 hover:text-black"
                                 >
@@ -1234,7 +1365,7 @@ export default function CouponAdmin() {
                                   type="button"
                                   onClick={() => {
                                     setVoidingId(row.id);
-                                    setVoidReason('');
+                                    setVoidReason("");
                                   }}
                                   aria-label={VOID_ACTION_LABEL ?? undefined}
                                   className="text-gray-500 hover:text-red-600"
@@ -1258,7 +1389,7 @@ export default function CouponAdmin() {
   }
 
   // ── 발급 관리 ────────────────────────────────────────────────────────
-  if (view === 'grants') {
+  if (view === "grants") {
     return (
       <>
         <div className="mb-6 bg-white px-6 py-5 shadow">
@@ -1266,7 +1397,7 @@ export default function CouponAdmin() {
             <button
               type="button"
               onClick={() => {
-                setView('list');
+                setView("list");
                 setGrantCoupon(null);
               }}
               aria-label={BACK_ACTION_LABEL ?? undefined}
@@ -1283,13 +1414,21 @@ export default function CouponAdmin() {
               때문이다(발급별 만료일은 두지 않았다 — sql/55 1-h절). */}
           {grantCoupon && (
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold">
-              <span className="font-mono text-[0.8125rem]">{grantCoupon.slug}</span>
-              <span>{grantCoupon.title}</span>
-              <span className="text-blue-600">{moneyText(grantCoupon.discount_amount)}</span>
-              <span className="text-gray-500">
-                {grantCoupon.valid_until ?? (UNLIMITED_LABEL ?? UNLIMITED_FALLBACK)}
+              <span className="font-mono text-[0.8125rem]">
+                {grantCoupon.slug}
               </span>
-              <span className="text-gray-500">{boolText(grantCoupon.is_active)}</span>
+              <span>{grantCoupon.title}</span>
+              <span className="text-blue-600">
+                {moneyText(grantCoupon.discount_amount)}
+              </span>
+              <span className="text-gray-500">
+                {grantCoupon.valid_until ??
+                  UNLIMITED_LABEL ??
+                  UNLIMITED_FALLBACK}
+              </span>
+              <span className="text-gray-500">
+                {boolText(grantCoupon.is_active)}
+              </span>
             </div>
           )}
         </div>
@@ -1309,7 +1448,7 @@ export default function CouponAdmin() {
                 placeholder={USER_SEARCH_PLACEHOLDER ?? undefined}
                 onChange={(e) => setUserQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') searchUsers();
+                  if (e.key === "Enter") searchUsers();
                 }}
                 className={INPUT_CLASS}
               />
@@ -1325,7 +1464,9 @@ export default function CouponAdmin() {
           </div>
 
           {userSearching && (
-            <div className="mt-4 text-sm font-bold text-gray-500">데이터를 불러오는 중입니다.</div>
+            <div className="mt-4 text-sm font-bold text-gray-500">
+              데이터를 불러오는 중입니다.
+            </div>
           )}
 
           {!userSearching && userResults !== null && (
@@ -1344,8 +1485,12 @@ export default function CouponAdmin() {
                       className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 py-3"
                     >
                       <div className="min-w-0">
-                        <div className="text-sm font-bold">{profile.name || '-'}</div>
-                        <div className="font-mono text-xs text-gray-500">{profile.email}</div>
+                        <div className="text-sm font-bold">
+                          {profile.name || "-"}
+                        </div>
+                        <div className="font-mono text-xs text-gray-500">
+                          {profile.email}
+                        </div>
                       </div>
 
                       {already ? (
@@ -1353,6 +1498,7 @@ export default function CouponAdmin() {
                         <span
                           className="text-green-600"
                           title={ALREADY_GRANTED_TEXT ?? undefined}
+                          role="img"
                           aria-label={ALREADY_GRANTED_TEXT ?? undefined}
                         >
                           <Check size={17} />
@@ -1391,13 +1537,17 @@ export default function CouponAdmin() {
                 <thead>
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
-                    {['user', 'granted_by', 'granted_at', 'revoked_at', 'revoke_reason'].map(
-                      (key) => (
-                        <th key={key} className="px-3 py-3 text-left">
-                          <FieldName k={key} />
-                        </th>
-                      )
-                    )}
+                    {[
+                      "user",
+                      "granted_by",
+                      "granted_at",
+                      "revoked_at",
+                      "revoke_reason",
+                    ].map((key) => (
+                      <th key={key} className="px-3 py-3 text-left">
+                        <FieldName k={key} />
+                      </th>
+                    ))}
                     <th className="w-24 px-3 py-3 text-center">관리</th>
                   </tr>
                 </thead>
@@ -1405,7 +1555,10 @@ export default function CouponAdmin() {
                 <tbody>
                   {grantRows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-gray-400">
+                      <td
+                        colSpan={7}
+                        className="py-12 text-center text-gray-400"
+                      >
                         등록된 데이터가 없습니다.
                       </td>
                     </tr>
@@ -1417,19 +1570,33 @@ export default function CouponAdmin() {
                       return (
                         <tr
                           key={row.id}
-                          className={`border-b border-gray-100 ${revoked ? 'text-gray-400' : ''}`}
+                          className={`border-b border-gray-100 ${revoked ? "text-gray-400" : ""}`}
                         >
-                          <td className="px-3 py-3">{grantRows.length - index}</td>
-
                           <td className="px-3 py-3">
-                            <div className="font-bold">{profile?.name || profile?.email || '-'}</div>
-                            <div className="font-mono text-xs text-gray-500">{row.user_id}</div>
+                            {grantRows.length - index}
                           </td>
 
-                          <td className="px-3 py-3 font-mono text-[0.8125rem]">{row.granted_by}</td>
-                          <td className="px-3 py-3">{dateTimeText(row.granted_at)}</td>
-                          <td className="px-3 py-3">{dateTimeText(row.revoked_at)}</td>
-                          <td className="px-3 py-3">{row.revoke_reason || '-'}</td>
+                          <td className="px-3 py-3">
+                            <div className="font-bold">
+                              {profile?.name || profile?.email || "-"}
+                            </div>
+                            <div className="font-mono text-xs text-gray-500">
+                              {row.user_id}
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 font-mono text-[0.8125rem]">
+                            {row.granted_by}
+                          </td>
+                          <td className="px-3 py-3">
+                            {dateTimeText(row.granted_at)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {dateTimeText(row.revoked_at)}
+                          </td>
+                          <td className="px-3 py-3">
+                            {row.revoke_reason || "-"}
+                          </td>
 
                           <td className="px-3 py-3">
                             {revoked ? (
@@ -1443,8 +1610,12 @@ export default function CouponAdmin() {
                                 <input
                                   type="text"
                                   value={revokeReason}
-                                  placeholder={REVOKE_REASON_PLACEHOLDER ?? undefined}
-                                  onChange={(e) => setRevokeReason(e.target.value)}
+                                  placeholder={
+                                    REVOKE_REASON_PLACEHOLDER ?? undefined
+                                  }
+                                  onChange={(e) =>
+                                    setRevokeReason(e.target.value)
+                                  }
                                   className={`${INPUT_CLASS} w-[12rem]`}
                                 />
                                 <button
@@ -1459,7 +1630,7 @@ export default function CouponAdmin() {
                                   type="button"
                                   onClick={() => {
                                     setRevokingId(null);
-                                    setRevokeReason('');
+                                    setRevokeReason("");
                                   }}
                                   className="text-gray-500 hover:text-black"
                                 >
@@ -1472,7 +1643,7 @@ export default function CouponAdmin() {
                                   type="button"
                                   onClick={() => {
                                     setRevokingId(row.id);
-                                    setRevokeReason('');
+                                    setRevokeReason("");
                                   }}
                                   aria-label={REVOKE_ACTION_LABEL ?? undefined}
                                   className="text-gray-500 hover:text-red-600"
@@ -1496,12 +1667,13 @@ export default function CouponAdmin() {
   }
 
   // ── 생성 · 수정 ──────────────────────────────────────────────────────
-  const editingRow = view === 'edit' ? coupons.find((row) => row.id === editingId) : null;
+  const editingRow =
+    view === "edit" ? coupons.find((row) => row.id === editingId) : null;
 
   return (
     <div>
       <h1 className="mb-5 text-2xl font-black text-[#111827]">
-        {TITLE} {view === 'create' ? '등록' : '수정'}
+        {TITLE} {view === "create" ? "등록" : "수정"}
       </h1>
 
       <div className="bg-white shadow">
@@ -1520,20 +1692,25 @@ export default function CouponAdmin() {
         )}
 
         {FORM_KEYS.map((key) => (
-          <div key={key} className="grid grid-cols-[13.75rem_1fr] border-b border-[#edf0f4]">
+          <div
+            key={key}
+            className="grid grid-cols-[13.75rem_1fr] border-b border-[#edf0f4]"
+          >
             <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
               <FieldName k={key} />
               {/* 필수 표시는 AdminForm 과 같은 규범(빨간 별표). NULL 을 고를 수
                   있는 3필드도 "선택 자체" 가 필수다 — 비워둘 수 없다. code 는
                   비워도 되고(코드 없는 쿠폰), stackable 은 불리언이라 항상 값이
                   있다(기본 false) — 둘만 별표가 없다. */}
-              {key !== 'code' && key !== 'stackable' && key !== 'grant_on_signup' && (
-                <span className="ml-1 text-red-500">*</span>
-              )}
+              {key !== "code" &&
+                key !== "stackable" &&
+                key !== "grant_on_signup" && (
+                  <span className="ml-1 text-red-500">*</span>
+                )}
             </div>
 
             <div className="px-5 py-3">
-              {key === 'is_active' && (
+              {key === "is_active" && (
                 <div className="flex items-center gap-6">
                   <label className="inline-flex items-center gap-2 text-sm font-bold">
                     <input
@@ -1556,7 +1733,7 @@ export default function CouponAdmin() {
                 </div>
               )}
 
-              {key === 'stackable' && (
+              {key === "stackable" && (
                 // 불리언이지만 '사용/미사용' 의미가 아니라(결합 가능 여부) 그
                 // 문구를 재사용하면 거짓말이 된다 — 라벨 없는 체크박스로 둔다.
                 // 기본은 배타(false)다: sql/55 0-c절.
@@ -1567,13 +1744,16 @@ export default function CouponAdmin() {
                 />
               )}
 
-              {key === 'grant_type' && (
+              {key === "grant_type" && (
                 // 라벨은 GRANT_TYPE_LABEL(승인된 한국어) — value(라디오가 실제로
                 // 들고 있는 값)는 GRANT_TYPES 의 영문 그대로다. 저장 시에는
                 // form.grant_type(영문)이 그대로 payload 로 나간다(formToPayload).
                 <div className="flex items-center gap-6">
                   {GRANT_TYPES.map((value) => (
-                    <label key={value} className="inline-flex items-center gap-2 text-sm font-bold">
+                    <label
+                      key={value}
+                      className="inline-flex items-center gap-2 text-sm font-bold"
+                    >
                       <input
                         type="radio"
                         name="grant_type"
@@ -1585,14 +1765,18 @@ export default function CouponAdmin() {
                             // 같이 확정한다(2026-08-12, 사용자 지시). 조건형으로
                             // 되돌리면 grant_on_signup 도 함께 끈다 —
                             // coupons_grant_on_signup_check 가 그 조합을 금지한다.
-                            value === 'granted'
-                              ? { grant_type: value, max_uses_per_user_mode: 'value', max_uses_per_user: 1 }
+                            value === "granted"
+                              ? {
+                                  grant_type: value,
+                                  max_uses_per_user_mode: "value",
+                                  max_uses_per_user: 1,
+                                }
                               : {
                                   grant_type: value,
                                   grant_on_signup: false,
-                                  max_uses_per_user_mode: 'unlimited',
-                                  max_uses_per_user: ''
-                                }
+                                  max_uses_per_user_mode: "unlimited",
+                                  max_uses_per_user: "",
+                                },
                           )
                         }
                       />
@@ -1602,69 +1786,75 @@ export default function CouponAdmin() {
                 </div>
               )}
 
-              {key === 'grant_on_signup' && (
+              {key === "grant_on_signup" && (
                 // stackable 과 같은 라벨 없는 체크박스. 발급형이 아니면 켤 수
                 // 없으므로(DB CHECK) 비활성화한다 — "켰는데 저장이 23514 로
                 // 실패하는" 화면을 만들지 않는다.
                 <input
                   type="checkbox"
                   checked={form.grant_on_signup === true}
-                  disabled={form.grant_type !== 'granted'}
+                  disabled={form.grant_type !== "granted"}
                   onChange={(e) => patch({ grant_on_signup: e.target.checked })}
                 />
               )}
 
-              {key === 'slug' && (
+              {key === "slug" && (
                 <>
                   <input
                     type="text"
                     value={form.slug}
                     onChange={(e) => patch({ slug: e.target.value })}
                     className={`${INPUT_CLASS} font-mono ${
-                      slugConflict ? 'border-red-500' : ''
+                      slugConflict ? "border-red-500" : ""
                     }`}
                   />
                   {slugConflict && (
                     // 문구를 지어내지 않고 "충돌한 기존 쿠폰 행" 을 그대로 보여준다.
                     <div className="mt-2 border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold">
                       {SLUG_DUPLICATE_TEXT && (
-                        <div className="mb-1 text-red-600">{SLUG_DUPLICATE_TEXT}</div>
+                        <div className="mb-1 text-red-600">
+                          {SLUG_DUPLICATE_TEXT}
+                        </div>
                       )}
                       <span className="font-mono">{slugConflict.slug}</span>
                       <span className="mx-2">{slugConflict.title}</span>
                       <span className="text-blue-600">
                         {moneyText(slugConflict.discount_amount)}
                       </span>
-                      <span className="ml-2 text-gray-500">{boolText(slugConflict.is_active)}</span>
+                      <span className="ml-2 text-gray-500">
+                        {boolText(slugConflict.is_active)}
+                      </span>
                     </div>
                   )}
                 </>
               )}
 
-              {(key === 'code' || key === 'title') && (
+              {(key === "code" || key === "title") && (
                 <input
                   type="text"
                   value={form[key]}
                   onChange={(e) => patch({ [key]: e.target.value })}
-                  className={`${INPUT_CLASS} ${key === 'code' ? 'font-mono' : ''}`}
+                  className={`${INPUT_CLASS} ${key === "code" ? "font-mono" : ""}`}
                 />
               )}
 
-              {(key === 'discount_amount' || key === 'min_amount') && (
+              {(key === "discount_amount" || key === "min_amount") && (
                 <div className="flex items-center gap-3">
                   <span className="w-[10rem]">
                     <input
                       type="number"
-                      min={key === 'discount_amount' ? 1 : 0}
+                      min={key === "discount_amount" ? 1 : 0}
                       value={form[key]}
-                      onChange={(e) => patch({ [key]: e.target.value.replace(/[^0-9]/g, '') })}
+                      onChange={(e) =>
+                        patch({ [key]: e.target.value.replace(/[^0-9]/g, "") })
+                      }
                       className={INPUT_CLASS}
                     />
                   </span>
                   {/* 금액을 사람이 읽는 형태로 함께 보여준다 — 자릿수 오입력
                       (2,000 ↔ 20,000)이 이 도메인의 실제 사고 유형이었다. */}
                   <span className="text-sm font-bold text-blue-600">
-                    {moneyText(form[key] === '' ? 0 : form[key])}
+                    {moneyText(form[key] === "" ? 0 : form[key])}
                   </span>
                 </div>
               )}
@@ -1672,13 +1862,13 @@ export default function CouponAdmin() {
               {NULLABLE_KEYS.includes(key) && (
                 <NullableField
                   fieldKey={key}
-                  type={key === 'valid_until' ? 'date' : 'number'}
+                  type={key === "valid_until" ? "date" : "number"}
                   mode={form[`${key}_mode`]}
                   value={form[key]}
                   onChange={patch}
                   // sql/70 이후 max_uses_per_user 는 grant_type 의 파생값이라
                   // (라디오 onChange 가 이미 확정) 손편집을 막는다 — 항상 잠금.
-                  disabled={key === 'max_uses_per_user'}
+                  disabled={key === "max_uses_per_user"}
                 />
               )}
             </div>

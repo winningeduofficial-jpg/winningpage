@@ -19,42 +19,45 @@ import {
   CONSULT_FIELD_OPTIONS,
   CONSULT_GRADE_OPTIONS,
   FORM_SECTIONS,
-  WEEKLY_CAPACITY_OPTIONS
-} from '../../data/mentorApply';
-import SelectField from '../auth/SelectField';
-import ChipGroup from './ChipGroup';
-import FormFieldRow from './FormFieldRow';
-import FormSectionCard from './FormSectionCard';
-import { MentorFieldShell } from './MentorTextField';
-import TextareaField from './TextareaField';
+  WEEKLY_CAPACITY_OPTIONS,
+} from "../../data/mentorApply";
+import SelectField from "../auth/SelectField";
+import ChipGroup from "./ChipGroup";
+import FormFieldRow from "./FormFieldRow";
+import FormSectionCard from "./FormSectionCard";
+import { MentorFieldShell } from "./MentorTextField";
+import TextareaField from "./TextareaField";
 
 const SECTION = FORM_SECTIONS.find((section) => section.no === 4);
 
 // 사이드바 앵커 기본값(§6-3). 부모가 다른 id 체계를 쓰면 prop 으로 덮는다.
-export const COMPETENCY_SECTION_ID = 'mentor-apply-section-4';
+export const COMPETENCY_SECTION_ID = "mentor-apply-section-4";
 
 // 부모가 초기 상태·검증·진행률 계산에 쓸 수 있도록 이 섹션이 소유하는 필드를 그대로 노출한다.
 // 순서는 시안 4-1 ~ 4-10 순서와 동일하다.
 export const COMPETENCY_FIELD_NAMES = [
-  'consult_fields',
-  'strongest_field_reason',
-  'consult_grades',
-  'weekly_capacity',
-  'available_timeslot',
-  'motivation',
-  'strengths',
-  'ineffective_method',
-  'situation_answer',
-  'tutoring_experience'
+  "consult_fields",
+  "strongest_field_reason",
+  "consult_grades",
+  "weekly_capacity",
+  "available_timeslot",
+  "motivation",
+  "strengths",
+  "ineffective_method",
+  "situation_answer",
+  "tutoring_experience",
 ];
 
 // 4-10 `과외·멘토링 경험` 만 선택 항목이다(§폼 명세 섹션 4 표 — 필수 9 / 선택 1).
 export const COMPETENCY_REQUIRED_FIELD_NAMES = COMPETENCY_FIELD_NAMES.filter(
-  (name) => name !== 'tutoring_experience'
+  (name) => name !== "tutoring_experience",
 );
 
 // 값이 배열인 필드 — 부모가 초기값을 `[]` 로 잡아야 하는 필드를 헷갈리지 않게 명시한다.
-export const COMPETENCY_MULTI_FIELD_NAMES = ['consult_fields', 'consult_grades'];
+export const COMPETENCY_MULTI_FIELD_NAMES = [
+  "consult_fields",
+  "consult_grades",
+];
 
 // 글자수 상한(§폼 명세 섹션 4 검증규칙). 서버(api/mentor-apply.js)와 동일한 값이다.
 //
@@ -71,25 +74,27 @@ export const COMPETENCY_MAX_LENGTHS = {
   strengths: 1000,
   ineffective_method: 600,
   situation_answer: 800,
-  tutoring_experience: 500
+  tutoring_experience: 500,
 };
 
 // 셀렉트 placeholder 원문(§폼 명세 4-4 / 4-5).
-const SELECT_PLACEHOLDER = '선택';
+const SELECT_PLACEHOLDER = "선택";
 
 // placeholder 는 시안 원문 그대로 옮긴다 — 줄바꿈·번호·연속 공백까지 보존한다.
 // (4-10 의 `개인과외` 와 `(500자 이내)` 사이 공백 2칸도 원문이다.)
 const PLACEHOLDER = {
   strongest_field_reason:
-    '예) 계획·시간관리 - 고2 1학기까지 계획을 세워도 절반도 못 지켰는데, 무엇을 바꿔서 어떻게 달라졌는지\n(600자 이내)',
+    "예) 계획·시간관리 - 고2 1학기까지 계획을 세워도 절반도 못 지켰는데, 무엇을 바꿔서 어떻게 달라졌는지\n(600자 이내)",
   motivation:
-    '고등학교 시절 어떤 도움이 필요했는지, 지금 어떤 도움을 줄 수 있다고 생각하는지 중심으로 적어주세요.\n(1000자 이내)',
+    "고등학교 시절 어떤 도움이 필요했는지, 지금 어떤 도움을 줄 수 있다고 생각하는지 중심으로 적어주세요.\n(1000자 이내)",
   strengths:
-    '1. 고2 1학기 수학 5등급에서 고3 1학기 2등급까지 올린 과정과 그때 실제로 바꾼 공부 순서\n2. ...\n3. ...\n\n(1000자 이내)',
-  ineffective_method: '어떤 방법이었는지, 왜 효과가 없었다고 생각하는지 적어주세요. (600자 이내)',
+    "1. 고2 1학기 수학 5등급에서 고3 1학기 2등급까지 올린 과정과 그때 실제로 바꾼 공부 순서\n2. ...\n3. ...\n\n(1000자 이내)",
+  ineffective_method:
+    "어떤 방법이었는지, 왜 효과가 없었다고 생각하는지 적어주세요. (600자 이내)",
   situation_answer:
-    '정답은 없습니다. 본인이라면 어떤 순서로 접근할지 솔직하게 적어주세요. (800자 이내)',
-  tutoring_experience: '예) 2025.03~2025.12 / 고1 / 수학·영어 개인과외  (500자 이내)'
+    "정답은 없습니다. 본인이라면 어떤 순서로 접근할지 솔직하게 적어주세요. (800자 이내)",
+  tutoring_experience:
+    "예) 2025.03~2025.12 / 고1 / 수학·영어 개인과외  (500자 이내)",
 };
 
 // 도움말 내 강조는 시안에서 `#0B84FD`(accent) 동일 크기 인라인 스팬이다(§6-6).
@@ -101,19 +106,24 @@ function Accent({ children }) {
 // 16px × lh1.4 = 22.4px/행 + 상하 패딩 40px 기준 → 150≈5행, 172≈6행.
 const ROWS = {
   default: 5,
-  strengths: 6
+  strengths: 6,
 };
 
 export default function FormSectionCompetency({
   values = {},
   errors = {},
   onChange, // (name, value) => void
-  id = COMPETENCY_SECTION_ID
+  id = COMPETENCY_SECTION_ID,
 }) {
   const handle = (name) => (value) => onChange?.(name, value);
 
   return (
-    <FormSectionCard no={SECTION.no} title={SECTION.title} subtitle={SECTION.subtitle} id={id}>
+    <FormSectionCard
+      no={SECTION.no}
+      title={SECTION.title}
+      subtitle={SECTION.subtitle}
+      id={id}
+    >
       {/* 4-1 상담 가능 분야 — 복수 선택 6종.
           ⚠ §4 상담 분야 카드 7종(COUNSEL_FIELDS)과 개수·표기가 다르지만 DB(consult_fields)에
              저장되는 정본은 폼 6종이다 — mentorApply.js CONSULT_FIELD_OPTIONS 주석 참고. */}
@@ -127,7 +137,7 @@ export default function FormSectionCompetency({
           name="consult_fields"
           options={CONSULT_FIELD_OPTIONS}
           value={values.consult_fields}
-          onChange={handle('consult_fields')}
+          onChange={handle("consult_fields")}
           multiple
           // 칩 그룹은 <label htmlFor> 로 이름을 받을 수 없어(대상이 단일 컨트롤이 아니다)
           // 그룹 자체에 접근 이름을 직접 준다. 리포트 needsOtherFile 참고.
@@ -142,12 +152,12 @@ export default function FormSectionCompetency({
         required
         helperText={
           <>
-            위에서 고른 분야 중 하나를 골라, <Accent>본인이 직접 겪은 경험</Accent>을 근거로
-            설명해주세요.
+            위에서 고른 분야 중 하나를 골라,{" "}
+            <Accent>본인이 직접 겪은 경험</Accent>을 근거로 설명해주세요.
           </>
         }
-        value={values.strongest_field_reason ?? ''}
-        onChange={handle('strongest_field_reason')}
+        value={values.strongest_field_reason ?? ""}
+        onChange={handle("strongest_field_reason")}
         placeholder={PLACEHOLDER.strongest_field_reason}
         error={errors.strongest_field_reason}
         rows={ROWS.default}
@@ -166,7 +176,7 @@ export default function FormSectionCompetency({
           name="consult_grades"
           options={CONSULT_GRADE_OPTIONS}
           value={values.consult_grades}
-          onChange={handle('consult_grades')}
+          onChange={handle("consult_grades")}
           multiple
           ariaLabel="상담 가능 학년"
         />
@@ -187,14 +197,14 @@ export default function FormSectionCompetency({
           <SelectField
             id="mentor-apply-weekly-capacity"
             name="weekly_capacity"
-            value={values.weekly_capacity ?? ''}
-            onChange={handle('weekly_capacity')}
+            value={values.weekly_capacity ?? ""}
+            onChange={handle("weekly_capacity")}
             options={WEEKLY_CAPACITY_OPTIONS}
             placeholder={SELECT_PLACEHOLDER}
             required
             // helperText 를 넘기지 않으면 SelectField 는 아무 노드도 더 그리지 않고
             // aria-invalid 만 켠다(에러 문구는 위 shell 의 고정 슬롯이 담당).
-            status={errors.weekly_capacity ? 'error' : 'default'}
+            status={errors.weekly_capacity ? "error" : "default"}
           />
         </MentorFieldShell>
 
@@ -207,12 +217,12 @@ export default function FormSectionCompetency({
           <SelectField
             id="mentor-apply-available-timeslot"
             name="available_timeslot"
-            value={values.available_timeslot ?? ''}
-            onChange={handle('available_timeslot')}
+            value={values.available_timeslot ?? ""}
+            onChange={handle("available_timeslot")}
             options={AVAILABLE_TIMESLOT_OPTIONS}
             placeholder={SELECT_PLACEHOLDER}
             required
-            status={errors.available_timeslot ? 'error' : 'default'}
+            status={errors.available_timeslot ? "error" : "default"}
           />
         </MentorFieldShell>
       </FormFieldRow>
@@ -223,8 +233,8 @@ export default function FormSectionCompetency({
         label="지원 동기"
         required
         helperText="위닝 콜멘토 멘토로 지원한 이유를 적어 주세요."
-        value={values.motivation ?? ''}
-        onChange={handle('motivation')}
+        value={values.motivation ?? ""}
+        onChange={handle("motivation")}
         placeholder={PLACEHOLDER.motivation}
         error={errors.motivation}
         rows={ROWS.default}
@@ -239,12 +249,12 @@ export default function FormSectionCompetency({
         required
         helperText={
           <>
-            성격이나 태도보다 <Accent>실제 경험과 결과</Accent>로 설명해주세요. 번호를 붙여 세
-            가지로 나누어 작성합니다.{' '}
+            성격이나 태도보다 <Accent>실제 경험과 결과</Accent>로 설명해주세요.
+            번호를 붙여 세 가지로 나누어 작성합니다.{" "}
           </>
         }
-        value={values.strengths ?? ''}
-        onChange={handle('strengths')}
+        value={values.strengths ?? ""}
+        onChange={handle("strengths")}
         placeholder={PLACEHOLDER.strengths}
         error={errors.strengths}
         rows={ROWS.strengths}
@@ -259,12 +269,12 @@ export default function FormSectionCompetency({
         required
         helperText={
           <>
-            본인이 입시 준비 중 시도했지만 <Accent>효과가 없었던 방법</Accent>과 그 이유를 적어
-            주세요. 성공 경험만큼 중요한 정보입니다.
+            본인이 입시 준비 중 시도했지만 <Accent>효과가 없었던 방법</Accent>과
+            그 이유를 적어 주세요. 성공 경험만큼 중요한 정보입니다.
           </>
         }
-        value={values.ineffective_method ?? ''}
-        onChange={handle('ineffective_method')}
+        value={values.ineffective_method ?? ""}
+        onChange={handle("ineffective_method")}
         placeholder={PLACEHOLDER.ineffective_method}
         error={errors.ineffective_method}
         rows={ROWS.default}
@@ -280,14 +290,15 @@ export default function FormSectionCompetency({
         required
         helperText={
           <>
-            상황 - 고2 학생이 “계획은 매일 세우는데 집중력이 없어서 못 지킨다"고 말합니다.
+            상황 - 고2 학생이 “계획은 매일 세우는데 집중력이 없어서 못 지킨다"고
+            말합니다.
             <br />
-            상담을 시작하면서 <Accent>무엇을 먼저 확인하시겠습니까?</Accent> 확인할 내용과 그
-            이유를 적어주세요.
+            상담을 시작하면서 <Accent>무엇을 먼저 확인하시겠습니까?</Accent>{" "}
+            확인할 내용과 그 이유를 적어주세요.
           </>
         }
-        value={values.situation_answer ?? ''}
-        onChange={handle('situation_answer')}
+        value={values.situation_answer ?? ""}
+        onChange={handle("situation_answer")}
         placeholder={PLACEHOLDER.situation_answer}
         error={errors.situation_answer}
         rows={ROWS.default}
@@ -300,8 +311,8 @@ export default function FormSectionCompetency({
         name="tutoring_experience"
         label="과외·멘토링 경험"
         helperText="기간, 대상 학년, 담당 과목 순으로 적어주세요. 경험이 없어도 지원할 수 있습니다. "
-        value={values.tutoring_experience ?? ''}
-        onChange={handle('tutoring_experience')}
+        value={values.tutoring_experience ?? ""}
+        onChange={handle("tutoring_experience")}
         placeholder={PLACEHOLDER.tutoring_experience}
         error={errors.tutoring_experience}
         rows={ROWS.default}

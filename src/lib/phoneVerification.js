@@ -15,24 +15,24 @@
 
 // 이미 가입에 쓰인 번호일 때의 문구. 발송 API(reason:'phone_taken')와 가입 RPC
 // (duplicate_phone) 양쪽에서 같은 말을 해야 해서 상수로 뽑아 export한다.
-export const DUPLICATE_PHONE_MESSAGE = '중복된 전화번호입니다.';
+export const DUPLICATE_PHONE_MESSAGE = "중복된 전화번호입니다.";
 
 const MESSAGES = {
-  invalid_phone: '휴대폰 번호 형식이 올바르지 않습니다.',
+  invalid_phone: "휴대폰 번호 형식이 올바르지 않습니다.",
   phone_taken: DUPLICATE_PHONE_MESSAGE,
-  invalid_code_format: '인증번호 6자리를 입력해 주세요.',
-  code_not_found: '인증번호를 먼저 요청해 주세요.',
-  code_expired: '인증번호가 만료되었습니다. 다시 요청해 주세요.',
-  code_mismatch: '인증번호가 일치하지 않습니다.',
-  too_many_attempts: '시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요.',
-  send_failed: '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-  network: '연결 상태를 확인한 뒤 다시 시도해 주세요.',
-  unknown: '잠시 후 다시 시도해 주세요.'
+  invalid_code_format: "인증번호 6자리를 입력해 주세요.",
+  code_not_found: "인증번호를 먼저 요청해 주세요.",
+  code_expired: "인증번호가 만료되었습니다. 다시 요청해 주세요.",
+  code_mismatch: "인증번호가 일치하지 않습니다.",
+  too_many_attempts: "시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요.",
+  send_failed: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  network: "연결 상태를 확인한 뒤 다시 시도해 주세요.",
+  unknown: "잠시 후 다시 시도해 주세요.",
 };
 
 /** 하이픈·공백을 걷어낸다. 서버도 정규화하지만 화면 표시와 비교를 맞추려면 여기서도 한다. */
 export function normalizePhone(raw) {
-  return String(raw || '').replace(/[^0-9]/g, '');
+  return String(raw || "").replace(/[^0-9]/g, "");
 }
 
 export function isValidMobile(phone) {
@@ -42,9 +42,9 @@ export function isValidMobile(phone) {
 async function postJson(url, body) {
   try {
     const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
     const payload = await response.json();
     return { response, payload };
@@ -58,28 +58,33 @@ async function postJson(url, body) {
  * @returns {Promise<{ok: true, expiresIn: number, cooldown: number, dryRun: boolean}
  *   | {ok: false, reason: string, message: string, retryAfter?: number}>}
  */
-export async function sendPhoneCode(phone, purpose = 'parent_signup') {
+export async function sendPhoneCode(phone, purpose = "parent_signup") {
   const normalized = normalizePhone(phone);
 
   if (!isValidMobile(normalized)) {
-    return { ok: false, reason: 'invalid_phone', message: MESSAGES.invalid_phone };
+    return {
+      ok: false,
+      reason: "invalid_phone",
+      message: MESSAGES.invalid_phone,
+    };
   }
 
-  const { response, payload } = await postJson('/api/send-phone-code', {
+  const { response, payload } = await postJson("/api/send-phone-code", {
     phone: normalized,
-    purpose
+    purpose,
   });
 
-  if (!response) return { ok: false, reason: 'network', message: MESSAGES.network };
+  if (!response)
+    return { ok: false, reason: "network", message: MESSAGES.network };
 
   if (!response.ok || !payload?.ok) {
-    const reason = payload?.reason || 'unknown';
+    const reason = payload?.reason || "unknown";
     return {
       ok: false,
       reason,
       // 한도 관련 문구는 서버가 남은 시간까지 담아 보내므로 그대로 쓴다.
       message: payload?.detail || MESSAGES[reason] || MESSAGES.unknown,
-      retryAfter: payload?.retry_after
+      retryAfter: payload?.retry_after,
     };
   }
 
@@ -88,7 +93,7 @@ export async function sendPhoneCode(phone, purpose = 'parent_signup') {
     expiresIn: payload.expires_in,
     cooldown: payload.cooldown,
     // 운영에서 true면 문자가 실제로 안 나간 것이다(ALIGO_TEST_MODE/DRY_RUN).
-    dryRun: Boolean(payload.dry_run)
+    dryRun: Boolean(payload.dry_run),
   };
 }
 
@@ -99,23 +104,24 @@ export async function sendPhoneCode(phone, purpose = 'parent_signup') {
  */
 export async function verifyPhoneCode(phone, code) {
   const normalized = normalizePhone(phone);
-  const trimmed = String(code || '').trim();
+  const trimmed = String(code || "").trim();
 
-  const { response, payload } = await postJson('/api/verify-phone-code', {
+  const { response, payload } = await postJson("/api/verify-phone-code", {
     phone: normalized,
-    code: trimmed
+    code: trimmed,
   });
 
-  if (!response) return { ok: false, reason: 'network', message: MESSAGES.network };
+  if (!response)
+    return { ok: false, reason: "network", message: MESSAGES.network };
 
   if (!response.ok || !payload?.ok) {
-    const reason = payload?.reason || 'unknown';
+    const reason = payload?.reason || "unknown";
     const remaining = payload?.remaining_attempts;
 
     let message = payload?.detail || MESSAGES[reason] || MESSAGES.unknown;
     // 남은 기회를 알려주지 않으면 사용자가 몇 번 더 시도할 수 있는지 모른 채
     // 갑자기 차단된다.
-    if (reason === 'code_mismatch' && Number.isInteger(remaining)) {
+    if (reason === "code_mismatch" && Number.isInteger(remaining)) {
       message = `인증번호가 일치하지 않습니다. (${remaining}회 남음)`;
     }
 

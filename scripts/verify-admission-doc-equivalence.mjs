@@ -59,29 +59,40 @@
 // 종료 코드: mismatch가 하나라도 있으면 1, 전부 일치하면 0.
 // =====================================================================
 
-import { readFile } from 'node:fs/promises';
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import * as esbuild from 'esbuild';
-
-import golden from '../tests/fixtures/admission-html-golden.json' with { type: 'json' };
-import { buildGolden, buildHashGolden, buildCellKey, hashString } from './build-admission-html-golden.mjs';
-import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
+import fs from "node:fs";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import * as esbuild from "esbuild";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
+  type: "json",
+};
 import {
-  buildRawSectionDoc,
   buildHwpCategoryDoc,
-  renderDocToHtml,
+  buildRawSectionDoc,
+  clean,
   HWP_SECTION_HTML_KEYS,
-  clean
-} from '../src/lib/admissionParsing.js';
+  renderDocToHtml,
+} from "../src/lib/admissionParsing.js";
+import golden from "../tests/fixtures/admission-html-golden.json" with {
+  type: "json",
+};
+import {
+  buildCellKey,
+  buildGolden,
+  buildHashGolden,
+  hashString,
+} from "./build-admission-html-golden.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
-const FULL_CACHE_PATH = path.join(REPO_ROOT, '.golden-cache/admission-html-golden.full.json');
+const REPO_ROOT = path.resolve(__dirname, "..");
+const FULL_CACHE_PATH = path.join(
+  REPO_ROOT,
+  ".golden-cache/admission-html-golden.full.json",
+);
 const MAX_DIFF_SAMPLES = 5;
 const DIFF_CONTEXT = 200;
 
@@ -94,7 +105,7 @@ const MIN_COMPARED_CELLS = 2481;
 
 async function loadFullCacheIfPresent() {
   try {
-    const raw = await readFile(FULL_CACHE_PATH, 'utf-8');
+    const raw = await readFile(FULL_CACHE_PATH, "utf-8");
     return JSON.parse(raw);
   } catch {
     return null;
@@ -106,8 +117,8 @@ async function loadFullCacheIfPresent() {
 // 공통 접두사가 갈리는 지점 기준 고정 폭 윈도우만 보여준다(정확한 diff가
 // 아니라 "어디가 왜 깨졌는지 눈으로 확인"하는 용도로 충분하다).
 function diffSnippet(before, after, context = DIFF_CONTEXT) {
-  const a = String(before || '');
-  const b = String(after || '');
+  const a = String(before || "");
+  const b = String(after || "");
   let start = 0;
   const minLen = Math.min(a.length, b.length);
   while (start < minLen && a[start] === b[start]) start += 1;
@@ -115,7 +126,7 @@ function diffSnippet(before, after, context = DIFF_CONTEXT) {
   const windowStart = Math.max(start - context, 0);
   return {
     before: a.slice(windowStart, start + context),
-    after: b.slice(windowStart, start + context)
+    after: b.slice(windowStart, start + context),
   };
 }
 
@@ -134,9 +145,10 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
     if (!actual) {
       mismatches.push({
         key,
-        reason: '현재 코드가 이 셀을 더 이상 생성하지 않음(빈 문자열로 바뀌었거나 경로가 사라짐)',
+        reason:
+          "현재 코드가 이 셀을 더 이상 생성하지 않음(빈 문자열로 바뀌었거나 경로가 사라짐)",
         expectedBytes: expected.bytes,
-        actualBytes: null
+        actualBytes: null,
       });
       return;
     }
@@ -144,14 +156,16 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
     if (actual.sha256 !== expected.sha256) {
       mismatches.push({
         key,
-        reason: '해시 불일치',
+        reason: "해시 불일치",
         expectedBytes: expected.bytes,
-        actualBytes: actual.bytes
+        actualBytes: actual.bytes,
       });
     }
   });
 
-  const newKeys = Object.keys(currentHashGolden.cells).filter((key) => !(key in golden.cells));
+  const newKeys = Object.keys(currentHashGolden.cells).filter(
+    (key) => !(key in golden.cells),
+  );
 
   const matched = total - mismatches.length;
   const matchRate = total ? (matched / total) * 100 : 100;
@@ -159,17 +173,17 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
   if (total < MIN_COMPARED_CELLS) {
     throw new Error(
       `공허한 통과 방지: 비교 대상 셀 수(${total})가 하한(${MIN_COMPARED_CELLS})보다 적습니다. ` +
-        'tests/fixtures/admission-html-golden.json 로딩이 실패했거나 골든 코퍼스가 축소된 것은 아닌지 확인하세요.'
+        "tests/fixtures/admission-html-golden.json 로딩이 실패했거나 골든 코퍼스가 축소된 것은 아닌지 확인하세요.",
     );
   }
 
   if (verbose) {
     console.log(
-      `[doc-equivalence] Gate A: 골든 셀 ${total}개 중 ${matched}개 해시 일치 (${matchRate.toFixed(2)}%)`
+      `[doc-equivalence] Gate A: 골든 셀 ${total}개 중 ${matched}개 해시 일치 (${matchRate.toFixed(2)}%)`,
     );
     if (newKeys.length) {
       console.log(
-        `[doc-equivalence] 참고: 골든에 없는 신규 셀 ${newKeys.length}개(코드가 새 출력을 만들기 시작함 — 골든 갱신 필요할 수 있음)`
+        `[doc-equivalence] 참고: 골든에 없는 신규 셀 ${newKeys.length}개(코드가 새 출력을 만들기 시작함 — 골든 갱신 필요할 수 있음)`,
       );
     }
 
@@ -180,28 +194,37 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
 
       for (const m of mismatches) {
         if (shown >= MAX_DIFF_SAMPLES) break;
-        const [universityName, category, pathName] = m.key.split('|');
-        console.error(`  - ${m.key}: ${m.reason} (기존 ${m.expectedBytes}자 → 현재 ${m.actualBytes ?? 0}자)`);
+        const [universityName, category, pathName] = m.key.split("|");
+        console.error(
+          `  - ${m.key}: ${m.reason} (기존 ${m.expectedBytes}자 → 현재 ${m.actualBytes ?? 0}자)`,
+        );
 
         if (fullCache) {
-          const before = fullCache?.[universityName]?.[category]?.[pathName] || '';
-          const after = currentFullGolden?.[universityName]?.[category]?.[pathName] || '';
-          const { before: beforeSnippet, after: afterSnippet } = diffSnippet(before, after);
+          const before =
+            fullCache?.[universityName]?.[category]?.[pathName] || "";
+          const after =
+            currentFullGolden?.[universityName]?.[category]?.[pathName] || "";
+          const { before: beforeSnippet, after: afterSnippet } = diffSnippet(
+            before,
+            after,
+          );
           console.error(`      전: ...${beforeSnippet}...`);
           console.error(`      후: ...${afterSnippet}...`);
         } else {
           console.error(
-            '      (전문 캐시 없음 — .golden-cache/admission-html-golden.full.json이 없어 길이 차이만 표시합니다. ' +
-              '실제 diff가 필요하면 스크립트 상단 주석의 재구성 방법을 참고하세요.)'
+            "      (전문 캐시 없음 — .golden-cache/admission-html-golden.full.json이 없어 길이 차이만 표시합니다. " +
+              "실제 diff가 필요하면 스크립트 상단 주석의 재구성 방법을 참고하세요.)",
           );
         }
         shown += 1;
       }
       if (mismatches.length > MAX_DIFF_SAMPLES) {
-        console.error(`  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`);
+        console.error(
+          `  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`,
+        );
       }
     } else {
-      console.log('[doc-equivalence] 전 항목 100% 일치.');
+      console.log("[doc-equivalence] 전 항목 100% 일치.");
     }
   }
 
@@ -209,11 +232,11 @@ export async function runDocEquivalenceVerification({ verbose = true } = {}) {
 }
 
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
-const GATE_A2_PATHS = ['rawSectionHtml', 'hwpCategoryHtml'];
+const GATE_A2_PATHS = ["rawSectionHtml", "hwpCategoryHtml"];
 
 function docBuilderForPath(pathName) {
-  if (pathName === 'rawSectionHtml') return buildRawSectionDoc;
-  if (pathName === 'hwpCategoryHtml') {
+  if (pathName === "rawSectionHtml") return buildRawSectionDoc;
+  if (pathName === "hwpCategoryHtml") {
     // buildHwpCategoryDoc(sectionKey, rawText, ...) — 인자 순서가 나머지와
     // 다르다(buildRawSectionDoc은 (value, sectionKey, ...)).
     return (value, sectionKey, row, universityName) =>
@@ -243,7 +266,12 @@ export async function runGateA2Verification({ verbose = true } = {}) {
         let rendered = null;
         let error = null;
         try {
-          const doc = docBuilderForPath(pathName)(raw, key, row, universityName);
+          const doc = docBuilderForPath(pathName)(
+            raw,
+            key,
+            row,
+            universityName,
+          );
           rendered = renderDocToHtml(doc, key);
         } catch (err) {
           error = err;
@@ -254,7 +282,7 @@ export async function runGateA2Verification({ verbose = true } = {}) {
             key: cellKey,
             reason: `렌더링 오류: ${error.message}`,
             expectedBytes: expected.bytes,
-            actualBytes: null
+            actualBytes: null,
           });
           return;
         }
@@ -265,10 +293,10 @@ export async function runGateA2Verification({ verbose = true } = {}) {
         } else {
           mismatches.push({
             key: cellKey,
-            reason: '해시 불일치',
+            reason: "해시 불일치",
             expectedBytes: expected.bytes,
-            actualBytes: Buffer.byteLength(rendered, 'utf-8'),
-            rendered
+            actualBytes: Buffer.byteLength(rendered, "utf-8"),
+            rendered,
           });
         }
       });
@@ -279,26 +307,34 @@ export async function runGateA2Verification({ verbose = true } = {}) {
 
   if (verbose) {
     console.log(
-      `[doc-equivalence] Gate A2: 골든 셀 ${total}개 중 ${matched}개 해시 일치 (${matchRate.toFixed(2)}%)`
+      `[doc-equivalence] Gate A2: 골든 셀 ${total}개 중 ${matched}개 해시 일치 (${matchRate.toFixed(2)}%)`,
     );
     if (mismatches.length) {
       console.error(`[doc-equivalence] Gate A2 불일치 ${mismatches.length}건:`);
       const fullCache = await loadFullCacheIfPresent();
       mismatches.slice(0, MAX_DIFF_SAMPLES).forEach((m) => {
-        const [universityName, category, pathName] = m.key.split('|');
-        console.error(`  - ${m.key}: ${m.reason} (기존 ${m.expectedBytes}자 → 현재 ${m.actualBytes ?? 0}자)`);
+        const [universityName, category, pathName] = m.key.split("|");
+        console.error(
+          `  - ${m.key}: ${m.reason} (기존 ${m.expectedBytes}자 → 현재 ${m.actualBytes ?? 0}자)`,
+        );
         if (fullCache && m.rendered !== undefined) {
-          const before = fullCache?.[universityName]?.[category]?.[pathName] || '';
-          const { before: beforeSnippet, after: afterSnippet } = diffSnippet(before, m.rendered);
+          const before =
+            fullCache?.[universityName]?.[category]?.[pathName] || "";
+          const { before: beforeSnippet, after: afterSnippet } = diffSnippet(
+            before,
+            m.rendered,
+          );
           console.error(`      전: ...${beforeSnippet}...`);
           console.error(`      후: ...${afterSnippet}...`);
         }
       });
       if (mismatches.length > MAX_DIFF_SAMPLES) {
-        console.error(`  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`);
+        console.error(
+          `  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`,
+        );
       }
     } else {
-      console.log('[doc-equivalence] Gate A2 전 항목 100% 일치.');
+      console.log("[doc-equivalence] Gate A2 전 항목 100% 일치.");
     }
   }
 
@@ -312,7 +348,7 @@ export async function runGateA2Verification({ verbose = true } = {}) {
 
 const ADMISSION_SECTION_VIEW_ENTRY = path.join(
   REPO_ROOT,
-  'src/components/admission/AdmissionSectionView.jsx'
+  "src/components/admission/AdmissionSectionView.jsx",
 );
 
 // scripts/verify-admission-block-render.mjs와 동일한 미니 HTML 파서(요약본).
@@ -321,28 +357,42 @@ const ADMISSION_SECTION_VIEW_ENTRY = path.join(
 // 0건(측정 스크립트 실측)이라 rawHtml 블록이 실제로는 등장하지 않지만,
 // 향후 코퍼스가 바뀌어도 죽지 않도록 방어적으로 등록해둔다.
 const VOID_ELEMENTS = new Set([
-  'area', 'base', 'br', 'col', 'embed', 'hr', 'img',
-  'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
 ]);
 
 function decodeEntities(str) {
   return String(str)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&');
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
 }
 
 function parseAttributeString(attrString) {
   const attrs = [];
-  const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?/g;
+  const re =
+    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?/g;
   let m = re.exec(attrString);
   while (m) {
     const name = m[1];
-    let value = '';
-    if (m[2] !== undefined) value = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[2];
+    let value = "";
+    if (m[2] !== undefined)
+      value = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[2];
     attrs.push({ name, value: decodeEntities(value) });
     m = re.exec(attrString);
   }
@@ -350,11 +400,16 @@ function parseAttributeString(attrString) {
 }
 
 function makeElementNode(tagName, attrs) {
-  const node = { nodeType: 1, tagName: tagName.toUpperCase(), attributes: attrs, childNodes: [] };
-  Object.defineProperty(node, 'textContent', {
+  const node = {
+    nodeType: 1,
+    tagName: tagName.toUpperCase(),
+    attributes: attrs,
+    childNodes: [],
+  };
+  Object.defineProperty(node, "textContent", {
     get() {
-      return node.childNodes.map((c) => c.textContent || '').join('');
-    }
+      return node.childNodes.map((c) => c.textContent || "").join("");
+    },
   });
   return node;
 }
@@ -364,26 +419,26 @@ function makeTextNode(text) {
 }
 
 function makeCommentNode() {
-  return { nodeType: 8, textContent: '' };
+  return { nodeType: 8, textContent: "" };
 }
 
 function parseMiniHtml(html) {
-  const root = makeElementNode('body', []);
+  const root = makeElementNode("body", []);
   const stack = [root];
   let i = 0;
   const n = html.length;
   const top = () => stack[stack.length - 1];
 
   while (i < n) {
-    if (html[i] === '<') {
-      if (html.startsWith('<!--', i)) {
-        const end = html.indexOf('-->', i + 4);
+    if (html[i] === "<") {
+      if (html.startsWith("<!--", i)) {
+        const end = html.indexOf("-->", i + 4);
         top().childNodes.push(makeCommentNode());
         i = end === -1 ? n : end + 3;
         continue;
       }
-      if (html.startsWith('<!', i)) {
-        const end = html.indexOf('>', i);
+      if (html.startsWith("<!", i)) {
+        const end = html.indexOf(">", i);
         i = end === -1 ? n : end + 1;
         continue;
       }
@@ -399,7 +454,10 @@ function parseMiniHtml(html) {
         i += closeMatch[0].length;
         continue;
       }
-      const openMatch = /^<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)(\/?)>/.exec(html.slice(i));
+      const openMatch =
+        /^<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)(\/?)>/.exec(
+          html.slice(i),
+        );
       if (openMatch) {
         const tagName = openMatch[1];
         const attrs = parseAttributeString(openMatch[2]);
@@ -411,11 +469,11 @@ function parseMiniHtml(html) {
         i += openMatch[0].length;
         continue;
       }
-      top().childNodes.push(makeTextNode('<'));
+      top().childNodes.push(makeTextNode("<"));
       i += 1;
       continue;
     }
-    const next = html.indexOf('<', i);
+    const next = html.indexOf("<", i);
     const end = next === -1 ? n : next;
     const text = html.slice(i, end);
     if (text) top().childNodes.push(makeTextNode(text));
@@ -436,17 +494,17 @@ async function loadAdmissionSectionView() {
   const result = await esbuild.build({
     entryPoints: [ADMISSION_SECTION_VIEW_ENTRY],
     bundle: true,
-    format: 'esm',
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-    platform: 'node',
-    external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/server'],
-    write: false
+    format: "esm",
+    jsx: "automatic",
+    jsxImportSource: "react",
+    platform: "node",
+    external: ["react", "react-dom", "react/jsx-runtime", "react-dom/server"],
+    write: false,
   });
   const code = result.outputFiles[0].text;
   const tmpFile = path.join(
     REPO_ROOT,
-    `.tmp-gate-b-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`
+    `.tmp-gate-b-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
   );
   fs.writeFileSync(tmpFile, code);
   try {
@@ -462,26 +520,30 @@ async function loadAdmissionSectionView() {
 // 상태일 때만 — 실제 문구가 있는 note는 그대로 비교 대상이다).
 function isAllowedEmptyDiffNode(node) {
   if (node.nodeType !== 1) return false;
-  if (node.tagName.toLowerCase() !== 'div') return false;
-  const classAttr = node.attributes.find((a) => a.name.toLowerCase() === 'class');
-  const classes = (classAttr?.value || '').split(/\s+/).filter(Boolean);
-  const isNoteDiv = classes.includes('admission-result-note');
-  const isLegendDiv = classes.includes('admission-recruit-legend');
+  if (node.tagName.toLowerCase() !== "div") return false;
+  const classAttr = node.attributes.find(
+    (a) => a.name.toLowerCase() === "class",
+  );
+  const classes = (classAttr?.value || "").split(/\s+/).filter(Boolean);
+  const isNoteDiv = classes.includes("admission-result-note");
+  const isLegendDiv = classes.includes("admission-recruit-legend");
   if (!isNoteDiv && !isLegendDiv) return false;
   const hasElementChild = node.childNodes.some((c) => c.nodeType === 1);
   if (hasElementChild) return false;
-  return normalizeWhitespaceText(node.textContent) === '';
+  return normalizeWhitespaceText(node.textContent) === "";
 }
 
 function normalizeWhitespaceText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // Gate B 불일치 리포트용 — recruitment_quota의 <pre> 원문처럼 셀 하나가
 // 수만 자인 경우 reason 문자열에 통째로 박히면 콘솔 로그가 읽을 수 없게
 // 길어진다. 앞뒤 100자만 남기고 가운데를 생략 표시한다.
 function truncateForReport(text, context = 100) {
-  const s = String(text ?? '');
+  const s = String(text ?? "");
   if (s.length <= context * 2) return s;
   return `${s.slice(0, context)}…(${s.length - context * 2}자 생략)…${s.slice(-context)}`;
 }
@@ -494,12 +556,12 @@ function collectSignificantChildren(node) {
     if (child.nodeType === 8) return;
     if (child.nodeType === 3) {
       const text = normalizeWhitespaceText(child.textContent);
-      if (text) result.push({ kind: 'text', text });
+      if (text) result.push({ kind: "text", text });
       return;
     }
     if (child.nodeType === 1) {
       if (isAllowedEmptyDiffNode(child)) return;
-      result.push({ kind: 'element', node: child });
+      result.push({ kind: "element", node: child });
     }
   });
   return result;
@@ -512,8 +574,8 @@ function normalizeAttrs(node) {
   const attrs = {};
   node.attributes.forEach((a) => {
     const name = a.name.toLowerCase();
-    if (name === 'class') {
-      attrs.class = a.value.split(/\s+/).filter(Boolean).sort().join(' ');
+    if (name === "class") {
+      attrs.class = a.value.split(/\s+/).filter(Boolean).sort().join(" ");
     } else {
       attrs[name] = a.value;
     }
@@ -525,7 +587,11 @@ function compareElementNodes(a, b, pathLabel) {
   const tagA = a.tagName.toLowerCase();
   const tagB = b.tagName.toLowerCase();
   if (tagA !== tagB) {
-    return { ok: false, reason: `태그 불일치: <${tagA}> vs <${tagB}>`, path: pathLabel };
+    return {
+      ok: false,
+      reason: `태그 불일치: <${tagA}> vs <${tagB}>`,
+      path: pathLabel,
+    };
   }
   const nextPath = `${pathLabel}/${tagA}`;
 
@@ -533,11 +599,11 @@ function compareElementNodes(a, b, pathLabel) {
   const attrsB = normalizeAttrs(b);
   const attrKeys = new Set([...Object.keys(attrsA), ...Object.keys(attrsB)]);
   for (const key of attrKeys) {
-    if ((attrsA[key] ?? '') !== (attrsB[key] ?? '')) {
+    if ((attrsA[key] ?? "") !== (attrsB[key] ?? "")) {
       return {
         ok: false,
-        reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? '')}" vs "${truncateForReport(attrsB[key] ?? '')}"`,
-        path: nextPath
+        reason: `${nextPath} 속성 ${key} 불일치: "${truncateForReport(attrsA[key] ?? "")}" vs "${truncateForReport(attrsB[key] ?? "")}"`,
+        path: nextPath,
       };
     }
   }
@@ -548,21 +614,25 @@ function compareElementNodes(a, b, pathLabel) {
     return {
       ok: false,
       reason: `${nextPath} 자식 수 불일치: ${childrenA.length} vs ${childrenB.length}`,
-      path: nextPath
+      path: nextPath,
     };
   }
   for (let i = 0; i < childrenA.length; i += 1) {
     const ca = childrenA[i];
     const cb = childrenB[i];
     if (ca.kind !== cb.kind) {
-      return { ok: false, reason: `${nextPath} idx=${i} 자식 종류(텍스트/엘리먼트) 불일치`, path: nextPath };
+      return {
+        ok: false,
+        reason: `${nextPath} idx=${i} 자식 종류(텍스트/엘리먼트) 불일치`,
+        path: nextPath,
+      };
     }
-    if (ca.kind === 'text') {
+    if (ca.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
           reason: `${nextPath} idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
-          path: nextPath
+          path: nextPath,
         };
       }
       continue;
@@ -587,26 +657,30 @@ function compareHtmlFragments(htmlReact, htmlMirror) {
     return {
       ok: false,
       reason: `최상위 자식 수 불일치: React ${childrenReact.length} vs HTML미러 ${childrenMirror.length}`,
-      path: '/'
+      path: "/",
     };
   }
   for (let i = 0; i < childrenReact.length; i += 1) {
     const ca = childrenReact[i];
     const cb = childrenMirror[i];
     if (ca.kind !== cb.kind) {
-      return { ok: false, reason: `최상위 idx=${i} 자식 종류 불일치`, path: '/' };
+      return {
+        ok: false,
+        reason: `최상위 idx=${i} 자식 종류 불일치`,
+        path: "/",
+      };
     }
-    if (ca.kind === 'text') {
+    if (ca.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
           reason: `최상위 idx=${i} 텍스트 불일치: "${truncateForReport(ca.text)}" vs "${truncateForReport(cb.text)}"`,
-          path: '/'
+          path: "/",
         };
       }
       continue;
     }
-    const result = compareElementNodes(ca.node, cb.node, '');
+    const result = compareElementNodes(ca.node, cb.node, "");
     if (!result.ok) return result;
   }
   return { ok: true };
@@ -614,8 +688,8 @@ function compareHtmlFragments(htmlReact, htmlMirror) {
 
 export async function runGateBVerification({ verbose = true } = {}) {
   console.log(
-    '[doc-equivalence] Gate B 참고: KeyValueBlock — 파서/doc 생성기 어느 쪽도 생산하지 않아(생산자 0) ' +
-      '"정답이 없는" 케이스입니다. 코퍼스에 등장하지 않으므로 비교 대상에서 명시적으로 제외합니다.'
+    "[doc-equivalence] Gate B 참고: KeyValueBlock — 파서/doc 생성기 어느 쪽도 생산하지 않아(생산자 0) " +
+      '"정답이 없는" 케이스입니다. 코퍼스에 등장하지 않으므로 비교 대상에서 명시적으로 제외합니다.',
   );
 
   const AdmissionSectionView = await loadAdmissionSectionView();
@@ -637,20 +711,33 @@ export async function runGateBVerification({ verbose = true } = {}) {
 
         let comparison;
         try {
-          const doc = docBuilderForPath(pathName)(raw, key, row, universityName);
+          const doc = docBuilderForPath(pathName)(
+            raw,
+            key,
+            row,
+            universityName,
+          );
           const htmlMirror = renderDocToHtml(doc, key);
           const htmlReact = renderToStaticMarkup(
-            React.createElement(AdmissionSectionView, { doc, sectionKey: key, surface: 'public' })
+            React.createElement(AdmissionSectionView, {
+              doc,
+              sectionKey: key,
+              surface: "public",
+            }),
           );
           comparison = compareHtmlFragments(htmlReact, htmlMirror);
         } catch (err) {
-          comparison = { ok: false, reason: `예외: ${err.message}`, path: '/' };
+          comparison = { ok: false, reason: `예외: ${err.message}`, path: "/" };
         }
 
         if (comparison.ok) {
           matched += 1;
         } else {
-          mismatches.push({ key: cellKey, reason: comparison.reason, path: comparison.path });
+          mismatches.push({
+            key: cellKey,
+            reason: comparison.reason,
+            path: comparison.path,
+          });
         }
       });
     });
@@ -659,29 +746,40 @@ export async function runGateBVerification({ verbose = true } = {}) {
   const matchRate = total ? (matched / total) * 100 : 100;
 
   if (verbose) {
-    console.log(`[doc-equivalence] Gate B: 대상 ${total}개 중 ${matched}개 정규화 DOM 일치 (${matchRate.toFixed(2)}%)`);
+    console.log(
+      `[doc-equivalence] Gate B: 대상 ${total}개 중 ${matched}개 정규화 DOM 일치 (${matchRate.toFixed(2)}%)`,
+    );
     if (mismatches.length) {
       console.error(`[doc-equivalence] Gate B 불일치 ${mismatches.length}건:`);
       mismatches.slice(0, MAX_DIFF_SAMPLES).forEach((m) => {
         console.error(`  - ${m.key}: ${m.reason}`);
       });
       if (mismatches.length > MAX_DIFF_SAMPLES) {
-        console.error(`  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`);
+        console.error(
+          `  ... 외 ${mismatches.length - MAX_DIFF_SAMPLES}건 생략`,
+        );
       }
     } else {
-      console.log('[doc-equivalence] Gate B 전 항목 일치.');
+      console.log("[doc-equivalence] Gate B 전 항목 일치.");
     }
   }
 
   return { total, matched, matchRate, mismatches };
 }
 
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   Promise.all([runDocEquivalenceVerification(), runGateA2Verification()])
     .then(async ([gateA, gateA2]) => {
       const gateB = await runGateBVerification();
-      process.exit(gateA.mismatches.length || gateA2.mismatches.length || gateB.mismatches.length ? 1 : 0);
+      process.exit(
+        gateA.mismatches.length ||
+          gateA2.mismatches.length ||
+          gateB.mismatches.length
+          ? 1
+          : 0,
+      );
     })
     .catch((err) => {
       console.error(err);

@@ -94,9 +94,9 @@
 //     backoff가 아니라 상한을 쓰는 이유: cron이 하루 1회라 실행 간격 자체가 이미 24시간
 //     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { isAuthorizedCron } from '../_lib/cronAuth.js';
-import { BUCKET } from './upload-url.js';
+import { isAuthorizedCron } from "../_lib/cronAuth.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { BUCKET } from "./upload-url.js";
 
 /** §8.8 「보관 기간 — 90일」 */
 const RETENTION_DAYS = 90;
@@ -126,7 +126,7 @@ function fail(res, status, code, message) {
 }
 
 function clampBatch(raw) {
-  const value = Number.parseInt(String(raw ?? ''), 10);
+  const value = Number.parseInt(String(raw ?? ""), 10);
   if (!Number.isFinite(value) || value <= 0) return DEFAULT_BATCH;
   return Math.min(value, MAX_BATCH);
 }
@@ -151,24 +151,27 @@ function chunk(list, size) {
  * @param {number} spec.batch 이번 실행 처리 상한
  * @param {object} [spec.extraPatch] 마감 시 함께 쓸 컬럼(예: ocr_status)
  */
-async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = {} }) {
+async function runSweep(
+  supabaseAdmin,
+  { name, applyFilter, batch, extraPatch = {} },
+) {
   // 필터를 먼저 다 얹고 나서 order/limit을 붙인다. supabase-js에서 `.order()`·`.limit()`은
   // TransformBuilder를 돌려주므로, 그 뒤에 비교 필터를 이어 붙이면 타입 계약을 벗어난다.
   const filtered = applyFilter(
     supabaseAdmin
-      .from('performance_attachments')
-      .select('id,storage_path,cleanup_attempts')
+      .from("performance_attachments")
+      .select("id,storage_path,cleanup_attempts")
       // 이미 지운 행은 두 스윕 모두에서 제외한다. `deleted_at`이 A·B의 공통
       // 멱등 표식이라 재실행해도 같은 행을 다시 집지 않는다.
-      .is('deleted_at', null)
+      .is("deleted_at", null)
       // 계속 실패하는 행이 배치 앞자리를 영원히 점유하지 못하게 한다(파일 상단
       // 「head-of-line blocking」). 제외된 행은 아래 `countStuck`이 세어 보고한다.
-      .lt('cleanup_attempts', MAX_CLEANUP_ATTEMPTS)
+      .lt("cleanup_attempts", MAX_CLEANUP_ATTEMPTS),
   );
 
   const { data, error } = await filtered
     // 오래된 것부터. 반복 실행으로 큐가 확정적으로 줄어든다.
-    .order('created_at', { ascending: true })
+    .order("created_at", { ascending: true })
     // batch + 1건을 떠서 "다음 실행에 남은 게 있는지"를 추가 count 쿼리 없이 판정한다.
     .limit(batch + 1);
   if (error) throw new Error(`${name} 대상 조회 실패: ${error.message}`);
@@ -183,7 +186,9 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
   // 재시도 카운터를 올릴 때 쓸 현재값. supabase-js에는 원자적 증가가 없어 조회값 +1로
   // 쓴다 — 이 잡은 cron 단독 실행이라 경합이 없고, 값이 한 번 어긋나도 상한 판정이
   // 하루 늦어질 뿐이다(정확한 회계가 아니라 배치 보호가 목적이다).
-  const attemptsById = new Map(rows.map((row) => [row.id, Number(row.cleanup_attempts) || 0]));
+  const attemptsById = new Map(
+    rows.map((row) => [row.id, Number(row.cleanup_attempts) || 0]),
+  );
 
   // ── ① Storage 원본 삭제
   //    `storage_path`가 이미 null인 행(업로드 토큰만 받고 서명 실패 등으로 경로를 잃은
@@ -195,17 +200,24 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
 
   for (const group of chunk(withPath, REMOVE_CHUNK)) {
     const paths = group.map((row) => row.storage_path);
-    const { error: removeError } = await supabaseAdmin.storage.from(BUCKET).remove(paths);
+    const { error: removeError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .remove(paths);
 
     if (removeError) {
       // 실패한 묶음은 `deleted_at`을 찍지 않는다 — 파일이 살아 있는데 장부만 닫으면
       // 그 행은 다음 실행의 대상에서 빠져 영구 잔존물이 된다. 대신 재시도 카운터를
       // 올려 이 묶음이 다음 배치의 앞자리를 계속 점유하지 못하게 한다.
       result.removeFailed += group.length;
-      await bumpCleanupAttempts(supabaseAdmin, name, group.map((row) => row.id), attemptsById);
+      await bumpCleanupAttempts(
+        supabaseAdmin,
+        name,
+        group.map((row) => row.id),
+        attemptsById,
+      );
       console.error(
         `performance/cleanup-attachments[${name}] Storage 원본 삭제 실패 (${group.length}건, 다음 실행에서 재시도):`,
-        removeError
+        removeError,
       );
       continue;
     }
@@ -226,9 +238,9 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
 
   for (const ids of chunk(closable, UPDATE_CHUNK)) {
     const { error: updateError } = await supabaseAdmin
-      .from('performance_attachments')
+      .from("performance_attachments")
       .update({ deleted_at: deletedAt, storage_path: null, ...extraPatch })
-      .in('id', ids);
+      .in("id", ids);
 
     if (updateError) {
       // 파일은 지웠는데 장부를 못 닫은 경우다. 다음 실행이 같은 행을 다시 집지만
@@ -238,7 +250,7 @@ async function runSweep(supabaseAdmin, { name, applyFilter, batch, extraPatch = 
       await bumpCleanupAttempts(supabaseAdmin, name, ids, attemptsById);
       console.error(
         `performance/cleanup-attachments[${name}] deleted_at 기록 실패 (${ids.length}건, 원본은 이미 삭제됨):`,
-        updateError
+        updateError,
       );
       continue;
     }
@@ -272,14 +284,17 @@ async function bumpCleanupAttempts(supabaseAdmin, name, ids, attemptsById) {
   for (const [attempts, group] of byValue) {
     for (const chunkIds of chunk(group, UPDATE_CHUNK)) {
       const { error } = await supabaseAdmin
-        .from('performance_attachments')
-        .update({ cleanup_attempts: attempts, cleanup_last_error_at: erroredAt })
-        .in('id', chunkIds);
+        .from("performance_attachments")
+        .update({
+          cleanup_attempts: attempts,
+          cleanup_last_error_at: erroredAt,
+        })
+        .in("id", chunkIds);
 
       if (error) {
         console.error(
           `performance/cleanup-attachments[${name}] 재시도 카운터 갱신 실패 (${chunkIds.length}건):`,
-          error
+          error,
         );
       }
     }
@@ -293,13 +308,13 @@ async function bumpCleanupAttempts(supabaseAdmin, name, ids, attemptsById) {
  */
 async function countStuck(supabaseAdmin) {
   const { count, error } = await supabaseAdmin
-    .from('performance_attachments')
-    .select('id', { count: 'exact', head: true })
-    .is('deleted_at', null)
-    .gte('cleanup_attempts', MAX_CLEANUP_ATTEMPTS);
+    .from("performance_attachments")
+    .select("id", { count: "exact", head: true })
+    .is("deleted_at", null)
+    .gte("cleanup_attempts", MAX_CLEANUP_ATTEMPTS);
 
   if (error) {
-    console.error('performance/cleanup-attachments stuck 집계 실패:', error);
+    console.error("performance/cleanup-attachments stuck 집계 실패:", error);
     return null;
   }
 
@@ -309,13 +324,13 @@ async function countStuck(supabaseAdmin) {
 export default async function handler(req, res) {
   // Vercel Cron은 GET으로 호출한다. POST는 운영자가 `vercel crons run` 대신 손으로
   // 두드릴 때를 위한 것이며 인증은 동일하다.
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'GET만 허용됩니다.');
+  if (req.method !== "GET" && req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
   }
 
   if (!isAuthorizedCron(req)) {
     // 무엇이 틀렸는지(시크릿 미설정 / 불일치) 알려주지 않는다.
-    return fail(res, 401, 'UNAUTHORIZED', '인증이 필요합니다.');
+    return fail(res, 401, "UNAUTHORIZED", "인증이 필요합니다.");
   }
 
   const batch = clampBatch(req.query?.limit);
@@ -326,11 +341,13 @@ export default async function handler(req, res) {
 
     // ── A. 90일 보관 정책 집행 (§8.8 「결정 (cron 인프라 신설)」)
     //    deleted_at is null and created_at < now() - interval '90 days'
-    const retentionCutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const retentionCutoff = new Date(
+      now - RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const retention = await runSweep(supabaseAdmin, {
-      name: 'retention-90d',
+      name: "retention-90d",
       batch,
-      applyFilter: (query) => query.lt('created_at', retentionCutoff)
+      applyFilter: (query) => query.lt("created_at", retentionCutoff),
       // 상태는 건드리지 않는다. 만기 삭제는 분석 결과(`ocr_status`/`ocr_text`)를
       // 부정하는 사건이 아니라 **원본 보관 기한**이 끝났다는 뜻이다.
     });
@@ -339,15 +356,18 @@ export default async function handler(req, res) {
     //    ocr_status='pending' and created_at < now() - interval '24 hours'
     //    A가 먼저 돌며 90일 넘은 pending 행에 이미 deleted_at을 찍었으므로 여기 조회
     //    (`.is('deleted_at', null)`)에서 그 행은 빠진다 — 이중 처리가 없다.
-    const orphanCutoff = new Date(now - ORPHAN_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const orphanCutoff = new Date(
+      now - ORPHAN_TTL_HOURS * 60 * 60 * 1000,
+    ).toISOString();
     const orphan = await runSweep(supabaseAdmin, {
-      name: 'orphan-24h',
+      name: "orphan-24h",
       batch,
-      applyFilter: (query) => query.eq('ocr_status', 'pending').lt('created_at', orphanCutoff),
+      applyFilter: (query) =>
+        query.eq("ocr_status", "pending").lt("created_at", orphanCutoff),
       // 원본이 사라진 뒤에도 `pending`(=「업로드만 됨(파일 존재)」, sql/54 컬럼 주석)으로
       // 남으면 상태와 실제가 어긋난다. 분석에 도달하지 못한 채 종료된 것이므로 failed로
       // 닫는다(check 제약이 허용하는 세 값 중 이 상황에 맞는 유일한 종료 상태다).
-      extraPatch: { ocr_status: 'failed' }
+      extraPatch: { ocr_status: "failed" },
     });
 
     // 임계를 넘겨 배치에서 빠진 건수. 이번 실행의 실패 카운터 갱신까지 반영해야
@@ -357,7 +377,7 @@ export default async function handler(req, res) {
     if (stuck) {
       console.error(
         `performance/cleanup-attachments: ${stuck}건이 ${MAX_CLEANUP_ATTEMPTS}회 이상 실패해 ` +
-          '배치 대상에서 제외됐습니다. 자동으로 풀리지 않습니다 — 원본 경로/버킷 정책을 확인할 것.'
+          "배치 대상에서 제외됐습니다. 자동으로 풀리지 않습니다 — 원본 경로/버킷 정책을 확인할 것.",
       );
     }
 
@@ -368,7 +388,7 @@ export default async function handler(req, res) {
       // 걸리게 한다(개별 실패는 runSweep이 이미 찍었다).
       console.error(
         `performance/cleanup-attachments: ${failed}건을 정리하지 못했습니다 ` +
-          `(retention ${retention.removeFailed} / orphan ${orphan.removeFailed}). 다음 실행에서 재시도합니다.`
+          `(retention ${retention.removeFailed} / orphan ${orphan.removeFailed}). 다음 실행에서 재시도합니다.`,
       );
     }
 
@@ -381,12 +401,16 @@ export default async function handler(req, res) {
       batchLimit: batch,
       stuck,
       maxCleanupAttempts: MAX_CLEANUP_ATTEMPTS,
-      retention: { ...retention, cutoff: retentionCutoff, retentionDays: RETENTION_DAYS },
-      orphan: { ...orphan, cutoff: orphanCutoff, ttlHours: ORPHAN_TTL_HOURS }
+      retention: {
+        ...retention,
+        cutoff: retentionCutoff,
+        retentionDays: RETENTION_DAYS,
+      },
+      orphan: { ...orphan, cutoff: orphanCutoff, ttlHours: ORPHAN_TTL_HOURS },
     });
   } catch (error) {
-    console.error('performance/cleanup-attachments error:', error);
-    return fail(res, 500, 'INTERNAL', '첨부 정리에 실패했습니다.');
+    console.error("performance/cleanup-attachments error:", error);
+    return fail(res, 500, "INTERNAL", "첨부 정리에 실패했습니다.");
   }
 }
 
@@ -394,4 +418,4 @@ export default async function handler(req, res) {
 // 기본 10초로는 잘리므로 Vercel Hobby 상한인 60초를 그대로 쓴다(`admin-embed.js`와 동일).
 // 60초로도 모자라면 `?limit=`을 줄이는 게 아니라 **주기를 늘리는 쪽**이 맞다 — 배치를
 // 줄이면 한 번에 처리되는 양이 줄어 만기 적체가 오히려 길어진다.
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: "nodejs", maxDuration: 60 };

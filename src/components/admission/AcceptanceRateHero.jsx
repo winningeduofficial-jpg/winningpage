@@ -1,24 +1,24 @@
-import { useEffect, useState } from 'react';
-import CountUpNumber from '../CountUpNumber';
+import { useEffect, useState } from "react";
+import cau from "../../assets/admission/universities/cau.png";
+import hanyang from "../../assets/admission/universities/hanyang.png";
+import hufs from "../../assets/admission/universities/hufs.png";
+import kaist from "../../assets/admission/universities/kaist.png";
+import konkuk from "../../assets/admission/universities/konkuk.png";
+import korea from "../../assets/admission/universities/korea.png";
+import pusan from "../../assets/admission/universities/pusan.png";
+import skku from "../../assets/admission/universities/skku.png";
+import snu from "../../assets/admission/universities/snu.png";
+import sogang from "../../assets/admission/universities/sogang.png";
+import unist from "../../assets/admission/universities/unist.png";
+import yonsei from "../../assets/admission/universities/yonsei.png";
 import {
-  HERO_SCOPES,
-  DEFAULT_HERO_SCOPE,
   computeAcceptanceAverage,
+  DEFAULT_HERO_SCOPE,
   fetchAcceptanceRates,
-  fetchAdmissionCaseLogos
-} from '../../pages/admission/admissionCaseData';
-import snu from '../../assets/admission/universities/snu.png';
-import yonsei from '../../assets/admission/universities/yonsei.png';
-import korea from '../../assets/admission/universities/korea.png';
-import hanyang from '../../assets/admission/universities/hanyang.png';
-import pusan from '../../assets/admission/universities/pusan.png';
-import kaist from '../../assets/admission/universities/kaist.png';
-import unist from '../../assets/admission/universities/unist.png';
-import skku from '../../assets/admission/universities/skku.png';
-import hufs from '../../assets/admission/universities/hufs.png';
-import konkuk from '../../assets/admission/universities/konkuk.png';
-import cau from '../../assets/admission/universities/cau.png';
-import sogang from '../../assets/admission/universities/sogang.png';
+  fetchAdmissionCaseLogos,
+  HERO_SCOPES,
+} from "../../pages/admission/admissionCaseData";
+import CountUpNumber from "../CountUpNumber";
 
 // 번들 폴백 로고 — admission_case_logos 테이블이 없거나 비어 있을 때 사용.
 // 1440→1164 컨테이너 축소 비율(1164/1440≈0.808) 적용 후 rem 환산.
@@ -26,49 +26,105 @@ import sogang from '../../assets/admission/universities/sogang.png';
 // DB 행은 width 컬럼이 없으므로 widthRem이 undefined → width:auto + object-contain.
 const FALLBACK_LOGO_ROWS = [
   [
-    { key: 'snu', src: snu, name: '서울대학교', heightRem: 1.858, widthRem: 5.994, opacity: 1 },
     {
-      key: 'yonsei',
+      key: "snu",
+      src: snu,
+      name: "서울대학교",
+      heightRem: 1.858,
+      widthRem: 5.994,
+      opacity: 1,
+    },
+    {
+      key: "yonsei",
       src: yonsei,
-      name: '연세대학교',
+      name: "연세대학교",
       heightRem: 2.043,
       widthRem: 5.856,
-      opacity: 1
+      opacity: 1,
     },
-    { key: 'korea', src: korea, name: '고려대학교', heightRem: 1.67, widthRem: 6.186, opacity: 1 },
     {
-      key: 'hanyang',
+      key: "korea",
+      src: korea,
+      name: "고려대학교",
+      heightRem: 1.67,
+      widthRem: 6.186,
+      opacity: 1,
+    },
+    {
+      key: "hanyang",
       src: hanyang,
-      name: '한양대학교',
+      name: "한양대학교",
       heightRem: 2.044,
       widthRem: 6.596,
-      opacity: 1
+      opacity: 1,
     },
-    { key: 'pusan', src: pusan, name: '부산대학교', heightRem: 2.043, widthRem: 8.132, opacity: 1 },
-    { key: 'kaist', src: kaist, name: 'KAIST', heightRem: 1.858, widthRem: 5.326, opacity: 0.7 },
-    { key: 'unist', src: unist, name: 'UNIST', heightRem: 1.111, widthRem: 6.315, opacity: 0.7 }
+    {
+      key: "pusan",
+      src: pusan,
+      name: "부산대학교",
+      heightRem: 2.043,
+      widthRem: 8.132,
+      opacity: 1,
+    },
+    {
+      key: "kaist",
+      src: kaist,
+      name: "KAIST",
+      heightRem: 1.858,
+      widthRem: 5.326,
+      opacity: 0.7,
+    },
+    {
+      key: "unist",
+      src: unist,
+      name: "UNIST",
+      heightRem: 1.111,
+      widthRem: 6.315,
+      opacity: 0.7,
+    },
   ],
   [
-    { key: 'skku', src: skku, name: '성균관대학교', heightRem: 2.416, widthRem: 6.528, opacity: 1 },
     {
-      key: 'hufs',
+      key: "skku",
+      src: skku,
+      name: "성균관대학교",
+      heightRem: 2.416,
+      widthRem: 6.528,
+      opacity: 1,
+    },
+    {
+      key: "hufs",
       src: hufs,
-      name: '한국외국어대학교',
+      name: "한국외국어대학교",
       heightRem: 1.516,
       widthRem: 7.376,
-      opacity: 0.8
+      opacity: 0.8,
     },
     {
-      key: 'konkuk',
+      key: "konkuk",
       src: konkuk,
-      name: '건국대학교',
+      name: "건국대학교",
       heightRem: 2.041,
       widthRem: 4.791,
-      opacity: 1
+      opacity: 1,
     },
-    { key: 'cau', src: cau, name: '중앙대학교', heightRem: 1.861, widthRem: 7.468, opacity: 1 },
-    { key: 'sogang', src: sogang, name: '서강대학교', heightRem: 1.86, widthRem: 5.568, opacity: 1 }
-  ]
+    {
+      key: "cau",
+      src: cau,
+      name: "중앙대학교",
+      heightRem: 1.861,
+      widthRem: 7.468,
+      opacity: 1,
+    },
+    {
+      key: "sogang",
+      src: sogang,
+      name: "서강대학교",
+      heightRem: 1.86,
+      widthRem: 5.568,
+      opacity: 1,
+    },
+  ],
 ];
 
 function toLogoItems(dbRows) {
@@ -80,7 +136,7 @@ function toLogoItems(dbRows) {
     widthRem: undefined,
     opacity: Number(row.opacity) || 1,
     // row_no 없거나 2가 아니면 1행으로 취급 — 마이그레이션 미적용 환경 대비.
-    rowNo: Number(row.row_no) === 2 ? 2 : 1
+    rowNo: Number(row.row_no) === 2 ? 2 : 1,
   }));
 }
 
@@ -111,8 +167,8 @@ function LogoRow({ logos }) {
           // DB 값에서 오는 치수는 반드시 inline style로 준다.
           style={{
             height: `${logo.heightRem}rem`,
-            width: logo.widthRem ? `${logo.widthRem}rem` : 'auto',
-            opacity: logo.opacity
+            width: logo.widthRem ? `${logo.widthRem}rem` : "auto",
+            opacity: logo.opacity,
           }}
         />
       ))}
@@ -121,7 +177,8 @@ function LogoRow({ logos }) {
 }
 
 export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
-  const { heroLabel, fallbackRates } = HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
+  const { heroLabel, fallbackRates } =
+    HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
   // 초기값을 scope별 폴백으로 두어 첫 페인트부터 '5개년 평균 95.4%'가 나온다(레이아웃 시프트 없음).
   // scope는 마운트 후 바뀌지 않는 프레젠테이션 prop이라 lazy 초기화만으로 충분하고,
   // 조회 결과는 아래 useEffect가 scope 변경 시마다 다시 fetchAcceptanceRates(scope)로 덮어쓴다.
@@ -134,7 +191,7 @@ export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
     (async () => {
       const [rateRows, logoDbRows] = await Promise.all([
         fetchAcceptanceRates(scope),
-        fetchAdmissionCaseLogos()
+        fetchAdmissionCaseLogos(),
       ]);
       if (!alive) return;
 
@@ -145,7 +202,11 @@ export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
       // logoDbRows === null: 조회 실패 → 초기값(번들 폴백 로고)을 그대로 유지.
       // logoDbRows가 배열이면 정상 응답 → 그대로 반영(0건이면 빈 배열 → 스트립 숨김).
       if (logoDbRows !== null) {
-        setLogoRows(logoDbRows.length > 0 ? splitIntoTwoRows(toLogoItems(logoDbRows)) : []);
+        setLogoRows(
+          logoDbRows.length > 0
+            ? splitIntoTwoRows(toLogoItems(logoDbRows))
+            : [],
+        );
       }
     })();
 
@@ -204,11 +265,12 @@ export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
           <div
             className={
               hasRates
-                ? 'mt-12 flex flex-col items-center gap-8 sm:mt-[6.3125rem]'
-                : 'flex flex-col items-center gap-8'
+                ? "mt-12 flex flex-col items-center gap-8 sm:mt-[6.3125rem]"
+                : "flex flex-col items-center gap-8"
             }
           >
             {logoRows.map((row, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: logoRows는 로고 배열을 고정 개수로 청크한 정적 목록 — 재정렬·추가·삭제 없이 렌더할 때마다 같은 순서로 재생성된다.
               <LogoRow key={index} logos={row} />
             ))}
           </div>

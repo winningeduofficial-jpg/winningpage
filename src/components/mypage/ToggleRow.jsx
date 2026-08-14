@@ -14,7 +14,7 @@ export default function ToggleRow({
   checked = false,
   onChange,
   disabled = false,
-  className = ''
+  className = "",
 }) {
   return (
     <div
@@ -22,7 +22,11 @@ export default function ToggleRow({
     >
       <div className="min-w-0">
         <p className="text-sm text-ink">{label}</p>
-        {description && <p className="mt-0.5 break-keep text-xs text-ink-sub">{description}</p>}
+        {description && (
+          <p className="mt-0.5 break-keep text-xs text-ink-sub">
+            {description}
+          </p>
+        )}
       </div>
 
       <button
@@ -33,7 +37,7 @@ export default function ToggleRow({
         onClick={() => !disabled && onChange?.(!checked)}
         disabled={disabled}
         className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-          checked ? 'bg-accent' : 'bg-line'
+          checked ? "bg-accent" : "bg-line"
         }`}
       >
         {/* left-0 이 없으면 노브가 트랙 밖으로 삐져나온다. <button> 은 기본
@@ -45,7 +49,7 @@ export default function ToggleRow({
         <span
           aria-hidden="true"
           className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-            checked ? 'translate-x-[1.125rem]' : 'translate-x-0.5'
+            checked ? "translate-x-[1.125rem]" : "translate-x-0.5"
           }`}
         />
       </button>

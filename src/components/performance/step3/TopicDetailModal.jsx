@@ -1,6 +1,8 @@
-import { useId, useRef } from 'react';
-import { useModalBehavior } from '../../../hooks/useModalBehavior';
-import SectionedReportView, { getVisibleSections } from '../report/SectionedReportView';
+import { useId, useRef } from "react";
+import { useModalBehavior } from "../../../hooks/useModalBehavior";
+import SectionedReportView, {
+  getVisibleSections,
+} from "../report/SectionedReportView";
 
 // STEP3 주제 상세 모달 — docs/수행평가-상세-명세.md §5.11(`3754:4872` 실측) / §10.2 P9
 // 「범용 모달(ESC/딤/포커스 트랩), `SectionedReportView`, 6섹션 렌더, 확정 버튼은 모달
@@ -52,7 +54,9 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
   // `validateTopicsPayload`가 6필드 공백을 걸러 도달하지 않지만, 기존 세션을 복원하는 경로
   // (`recommend-topics.js`의 `detail: Array.isArray(row.detail) ? row.detail : []`)는 빈
   // 배열을 그대로 통과시켜 여기까지 온다.
-  const hasVisibleDetail = topic ? getVisibleSections(topic.detail).length > 0 : false;
+  const hasVisibleDetail = topic
+    ? getVisibleSections(topic.detail).length > 0
+    : false;
 
   useModalBehavior({ open: isOpen, onClose, panelRef });
 
@@ -61,7 +65,11 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* 딤 — `#00000066`(검정 40%, §5.11 실측 = `performance-dim` 토큰). 클릭 시 닫기. */}
-      <div className="absolute inset-0 bg-performance-dim" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-performance-dim"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       <div
         ref={panelRef}
@@ -95,7 +103,10 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
         <div className="shrink-0 border-b border-performance-line px-[2.125rem] py-[1.5rem]">
           {/* break-words — 긴 무공백 문자열(URL 등)이 제목에 오면 패널 `overflow-hidden`에
               잘려서 소실된다(검토 D-4). */}
-          <h2 id={titleId} className="break-words text-[1.25rem] font-semibold leading-[1.625rem] text-ink">
+          <h2
+            id={titleId}
+            className="break-words text-[1.25rem] font-semibold leading-[1.625rem] text-ink"
+          >
             {topic.title}
           </h2>
           {/* 시안 원문 고정 문구(§5.11 「문구 원문」 둘째 줄) — 특정 주제의 샘플 본문이 아니라
@@ -117,9 +128,9 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
             직접 규정하고 하단 대응 좌표는 없다(마지막 섹션이 스크롤 대상이라 "끝까지 스크롤한
             뒤 여백"이라는 별도 실측 자체가 시안에 없음). 별도 근거가 없는 한 상하를 같은
             값으로 둔다(검토 B-2). */}
-        <div
+        <section
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — useModalBehavior가 이 요소를 초기 포커스로 잡는다.
           tabIndex={0}
-          role="region"
           aria-label="주제 상세 내용"
           className="min-h-0 flex-1 overflow-y-auto px-[2.125rem] py-[1.25rem] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
@@ -129,11 +140,12 @@ export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
             ) : (
               // 유효 섹션이 0개 — 검토 C-2. 근거 없이 확정할 수 있는 상태를 막는다(§11.1 Q48).
               <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
-                이 주제의 선정 근거 정보를 아직 불러오지 못했어요. 다른 주제를 선택해 주세요.
+                이 주제의 선정 근거 정보를 아직 불러오지 못했어요. 다른 주제를
+                선택해 주세요.
               </p>
             )}
           </div>
-        </div>
+        </section>
 
         {/* 푸터 — 높이 5rem, 흰 배경, 상단 구분선, 하단 모서리만 라운드. 비대칭 2버튼 +
             gap 1.25rem(§5.11 실측). 좌우 인셋은 본문과 같은 2.125rem으로 근사한다(푸터는

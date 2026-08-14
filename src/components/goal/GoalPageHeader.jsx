@@ -11,19 +11,31 @@ export default function GoalPageHeader({
   meta,
   subcopy,
   actions,
-  maxWidthClassName = 'max-w-goal-content'
+  maxWidthClassName = "max-w-goal-content",
 }) {
   return (
-    <header className={`w-full px-[3rem] pb-[2.5rem] pt-[6.25rem] ${maxWidthClassName}`}>
+    <header
+      className={`w-full px-[3rem] pb-[2.5rem] pt-[6.25rem] ${maxWidthClassName}`}
+    >
       <div className="flex items-start justify-between gap-6">
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">{title}</h1>
-          {meta && <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">{meta}</span>}
+          <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
+            {title}
+          </h1>
+          {meta && (
+            <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+              {meta}
+            </span>
+          )}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        )}
       </div>
       {subcopy && (
-        <p className="mt-[0.75rem] text-[0.875rem] leading-[1.4] text-ink-sub">{subcopy}</p>
+        <p className="mt-[0.75rem] text-[0.875rem] leading-[1.4] text-ink-sub">
+          {subcopy}
+        </p>
       )}
     </header>
   );

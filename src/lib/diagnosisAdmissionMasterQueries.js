@@ -11,7 +11,7 @@
  * select('*') 금지 — 대입모집요강 5MB+/57014 timeout 전례(admissionResultsQueries.js 헤더 주석과
  * 동일 규율). 필요한 컬럼만 명시한다.
  */
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 function fail(label, error) {
   console.error(`${label} 조회 실패:`, error);
@@ -40,11 +40,11 @@ async function run(label, build) {
 
 /** 대학 목록 — 문항 진입 시 1회(admission_result_university_index). */
 export async function fetchAdmissionUniversities() {
-  return run('대학 목록', () =>
+  return run("대학 목록", () =>
     supabase
-      .from('admission_result_university_index')
-      .select('university_key,university_name')
-      .order('university_name', { ascending: true })
+      .from("admission_result_university_index")
+      .select("university_key,university_name")
+      .order("university_name", { ascending: true }),
   );
 }
 
@@ -52,12 +52,12 @@ export async function fetchAdmissionUniversities() {
 export async function fetchAdmissionDepartments(universityKey) {
   if (!universityKey) return ok([]);
 
-  return run('학과 목록', () =>
+  return run("학과 목록", () =>
     supabase
-      .from('admission_result_department_index')
-      .select('department_key,department_name')
-      .eq('university_key', universityKey)
-      .order('department_name', { ascending: true })
+      .from("admission_result_department_index")
+      .select("department_key,department_name")
+      .eq("university_key", universityKey)
+      .order("department_name", { ascending: true }),
   );
 }
 
@@ -69,14 +69,16 @@ export async function fetchAdmissionDepartments(universityKey) {
 export async function fetchAdmissionTrackRows(universityKey, departmentKey) {
   if (!universityKey || !departmentKey) return ok([]);
 
-  return run('입결 상세', () =>
+  return run("입결 상세", () =>
     supabase
-      .from('admission_results')
-      .select('result_year,main_track,admission_track,subject_reflection,grade_50,grade_70')
-      .eq('is_active', true)
-      .eq('university_key', universityKey)
-      .eq('department_key', departmentKey)
-      .order('admission_track', { ascending: true })
-      .order('result_year', { ascending: true })
+      .from("admission_results")
+      .select(
+        "result_year,main_track,admission_track,subject_reflection,grade_50,grade_70",
+      )
+      .eq("is_active", true)
+      .eq("university_key", universityKey)
+      .eq("department_key", departmentKey)
+      .order("admission_track", { ascending: true })
+      .order("result_year", { ascending: true }),
   );
 }

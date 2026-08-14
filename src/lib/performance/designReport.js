@@ -28,26 +28,31 @@
 //   아니면 새로 만든다"가 자동으로 성립한다. `regenerate:true`는 재생성 예산(2회)을 태우는
 //   별개 행동이라 그 UI(§5.13에 없음)가 생길 때 함께 배선한다.
 
-import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from './apiClient';
+import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from "./apiClient";
 
-const NETWORK_ERROR = '네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.';
+const NETWORK_ERROR =
+  "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /** 서버가 문구를 주지 못한 경우(504로 본문이 비는 등)에만 쓰는 폴백. */
 const FALLBACK_MESSAGE = {
-  NO_ENTITLEMENT: '유료 이용권을 결제하신 뒤 이용할 수 있습니다.',
-  NOT_SESSION_OWNER: '세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.',
-  TOPIC_NOT_IN_SESSION: '이 수행평가의 주제가 아니에요.',
-  TOPIC_ALREADY_CONFIRMED: '이미 다른 주제로 확정한 수행평가예요.',
-  SESSION_NOT_CHARGED: '주제 추천을 먼저 받아 주세요.',
-  SESSION_INCOMPLETE: '기본 정보를 먼저 입력해 주세요.',
-  GUIDE_REQUIRED: '수행평가 안내문을 먼저 입력해 주세요.',
-  RATE_LIMITED: '설계 리포트는 정해진 횟수까지만 다시 만들 수 있어요.',
-  DESIGN_ATTEMPT_LIMIT: '설계 리포트를 너무 여러 번 요청했어요. 잠시 후 다시 시도해 주세요.',
-  MODEL_CONTRACT_VIOLATION: '설계 리포트를 정리하지 못했어요. 다시 시도해 주세요.',
-  MODEL_UNAVAILABLE: '설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
+  NO_ENTITLEMENT: "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+  NOT_SESSION_OWNER: "세션을 찾을 수 없어요. 처음부터 다시 시작해 주세요.",
+  TOPIC_NOT_IN_SESSION: "이 수행평가의 주제가 아니에요.",
+  TOPIC_ALREADY_CONFIRMED: "이미 다른 주제로 확정한 수행평가예요.",
+  SESSION_NOT_CHARGED: "주제 추천을 먼저 받아 주세요.",
+  SESSION_INCOMPLETE: "기본 정보를 먼저 입력해 주세요.",
+  GUIDE_REQUIRED: "수행평가 안내문을 먼저 입력해 주세요.",
+  RATE_LIMITED: "설계 리포트는 정해진 횟수까지만 다시 만들 수 있어요.",
+  DESIGN_ATTEMPT_LIMIT:
+    "설계 리포트를 너무 여러 번 요청했어요. 잠시 후 다시 시도해 주세요.",
+  MODEL_CONTRACT_VIOLATION:
+    "설계 리포트를 정리하지 못했어요. 다시 시도해 주세요.",
+  MODEL_UNAVAILABLE:
+    "설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
 };
 
-const GENERIC_MESSAGE = '설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
+const GENERIC_MESSAGE =
+  "설계 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /**
  * 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다.
@@ -57,7 +62,7 @@ const GENERIC_MESSAGE = '설계 리포트를 만들지 못했어요. 잠시 후 
 export class DesignReportError extends Error {
   constructor(code, message, extra = {}) {
     super(message);
-    this.name = 'DesignReportError';
+    this.name = "DesignReportError";
     this.code = code;
     this.userMessage = message;
     // `TOPIC_ALREADY_CONFIRMED`에서만 실린다. 화면이 "이미 확정된 그 주제"로 안내를 바꾸는 데 쓴다.
@@ -75,24 +80,33 @@ export class DesignReportError extends Error {
  * @returns {Promise<object>} §8.6 성공 응답 전체.
  * @throws {DesignReportError}
  */
-export async function requestDesignReport({ accessToken, sessionId, topicId, regenerate = false }) {
+export async function requestDesignReport({
+  accessToken,
+  sessionId,
+  topicId,
+  regenerate = false,
+}) {
   let response;
 
   try {
     response = await fetchWithTimeout(
-      '/api/performance/design-report',
+      "/api/performance/design-report",
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(regenerate ? { sessionId, topicId, regenerate: true } : { sessionId, topicId })
+        body: JSON.stringify(
+          regenerate
+            ? { sessionId, topicId, regenerate: true }
+            : { sessionId, topicId },
+        ),
       },
-      AI_CALL_TIMEOUT_MS
+      AI_CALL_TIMEOUT_MS,
     );
   } catch (error) {
-    const wrapped = new DesignReportError('NETWORK', NETWORK_ERROR, {});
+    const wrapped = new DesignReportError("NETWORK", NETWORK_ERROR, {});
     wrapped.cause = error;
     throw wrapped;
   }
@@ -102,12 +116,16 @@ export async function requestDesignReport({ accessToken, sessionId, topicId, reg
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const code = data?.error?.code || 'UNKNOWN';
-    throw new DesignReportError(code, data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE, {
-      confirmedTopicId: data?.confirmedTopicId,
-      generationCount: data?.generationCount,
-      maxGenerations: data?.maxGenerations
-    });
+    const code = data?.error?.code || "UNKNOWN";
+    throw new DesignReportError(
+      code,
+      data?.error?.message || FALLBACK_MESSAGE[code] || GENERIC_MESSAGE,
+      {
+        confirmedTopicId: data?.confirmedTopicId,
+        generationCount: data?.generationCount,
+        maxGenerations: data?.maxGenerations,
+      },
+    );
   }
 
   return data;

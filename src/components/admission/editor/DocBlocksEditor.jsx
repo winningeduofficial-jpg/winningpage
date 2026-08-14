@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import AdmissionBlockEditor from './AdmissionBlockEditor';
-import { validateBlocks } from './tableEditorValidation';
-import * as docOps from './docBlockOperations';
+import { useMemo, useState } from "react";
+import { withDedupedKeys } from "../../../lib/reactKeys";
+import AdmissionBlockEditor from "./AdmissionBlockEditor";
+import * as docOps from "./docBlockOperations";
+import { validateBlocks } from "./tableEditorValidation";
 
 // 블록 kind → 화면 표기 라벨. 헤더 배지("표 1" 등)와 추가 셀렉트 옵션이
 // 이 한 곳만 본다(2026-08-06 사용자 지적으로 헤더는 먼저 한글화됐는데
@@ -12,15 +13,15 @@ import * as docOps from './docBlockOperations';
 // emptyBox는 다른 kind와 달리 원어 라벨을 그대로 줄이지 않고 뜻을
 // 풀어 썼다 — "빈 상태 박스"는 그 자체로 무슨 상태인지 짐작하기 어렵다.
 const BLOCK_KIND_LABELS = {
-  table: '표',
-  note: '안내 문구',
-  emptyBox: '내용 없음 안내 문구',
-  heading: '소제목',
-  plainList: '목록',
-  preText: '원문 텍스트',
-  footnote: '각주',
-  group: '그룹',
-  rawHtml: '원본 HTML(레거시)'
+  table: "표",
+  note: "안내 문구",
+  emptyBox: "내용 없음 안내 문구",
+  heading: "소제목",
+  plainList: "목록",
+  preText: "원문 텍스트",
+  footnote: "각주",
+  group: "그룹",
+  rawHtml: "원본 HTML(레거시)",
 };
 
 // AdmissionDoc.blocks 배열 전체를 편집하는 최상위 컴포넌트. controlled —
@@ -32,11 +33,23 @@ const BLOCK_KIND_LABELS = {
 // 만드는 종류만 기본 노출). renderDocToHtml이 그 조합 밖에서 정보를
 // 잃거나 예외를 던지는 걸 실제로 재현 확인했기 때문이다(bc6f689) — 제한
 // 밖 종류는 "고급" 토글 뒤에 두고, 선택 시 경고를 보여준다.
-export default function DocBlocksEditor({ section, blocks, onChange, universityName, sectionLabel }) {
-  const { primary, advanced } = useMemo(() => docOps.getAddableKindsForSection(section), [section]);
+export default function DocBlocksEditor({
+  section,
+  blocks,
+  onChange,
+  universityName,
+  sectionLabel,
+}) {
+  const { primary, advanced } = useMemo(
+    () => docOps.getAddableKindsForSection(section),
+    [section],
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [addKind, setAddKind] = useState(primary[0] || advanced[0]);
-  const validation = useMemo(() => validateBlocks(section, blocks), [section, blocks]);
+  const validation = useMemo(
+    () => validateBlocks(section, blocks),
+    [section, blocks],
+  );
 
   const visibleKinds = showAdvanced ? [...primary, ...advanced] : primary;
   const isAdvancedKindSelected = advanced.includes(addKind);
@@ -65,15 +78,15 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>문서 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
-            {validation.errors.map((error, idx) => (
-              <li key={idx}>{error}</li>
+            {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
+              <li key={key}>{error}</li>
             ))}
           </ul>
         </div>
       )}
 
       {blocks.map((block, idx) => {
-        const isTable = block.kind === 'table';
+        const isTable = block.kind === "table";
         // 표 블록은 카드 껍데기(테두리+헤더바)를 벗긴다 — 표 자체가 이미
         // .admission-scroll-table 테두리를 갖고 있어 이중 테두리였고,
         // "공개 모달과 같은 모양" 요구상 표가 페이지에 바로 앉아야 한다.
@@ -113,6 +126,7 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
 
         if (isTable) {
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: blocks는 이 편집기에서 순서 이동·삭제가 가능하지만 doc 스키마에 block id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
             <div key={idx} className="group relative mb-4">
               <div className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded border border-[#e5e7eb] bg-white/95 px-1.5 py-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                 {blockControls}
@@ -136,15 +150,18 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         // 살아 있다 — GroupBlockEditor가 이미 렌더하는 안내문("그룹 제목·
         // 구성 변경은 지원하지 않습니다")이 이유를 설명하므로 헤더에
         // 별도 안내를 더 얹지 않는다.
-        const isGroup = block.kind === 'group';
+        const isGroup = block.kind === "group";
 
         return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — blocks에 id가 없는 기존 스키마 제약.
           <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
             <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
               <span className="text-[11px] font-bold text-gray-500">
                 {BLOCK_KIND_LABELS[block.kind] || block.kind} {idx + 1}
               </span>
-              {!isGroup && <div className="flex items-center gap-1">{blockControls}</div>}
+              {!isGroup && (
+                <div className="flex items-center gap-1">{blockControls}</div>
+              )}
             </div>
             <AdmissionBlockEditor
               section={section}
@@ -172,7 +189,11 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
               </option>
             ))}
           </select>
-          <button type="button" onClick={addBlock} className="hover:text-gray-700">
+          <button
+            type="button"
+            onClick={addBlock}
+            className="hover:text-gray-700"
+          >
             + 내용 추가
           </button>
           {advanced.length > 0 && (
@@ -182,7 +203,8 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
                 checked={showAdvanced}
                 onChange={(e) => {
                   setShowAdvanced(e.target.checked);
-                  if (!e.target.checked && advanced.includes(addKind)) setAddKind(primary[0] || advanced[0]);
+                  if (!e.target.checked && advanced.includes(addKind))
+                    setAddKind(primary[0] || advanced[0]);
                 }}
               />
               고급(이 항목에 잘 안 쓰는 종류도 표시)
@@ -191,8 +213,9 @@ export default function DocBlocksEditor({ section, blocks, onChange, universityN
         </div>
         {showAdvanced && isAdvancedKindSelected && (
           <p className="text-[11px] font-bold text-amber-600">
-            이 내용은 이 항목에서 잘 쓰이지 않는 종류입니다 — 문서에는 저장되지만 공개 페이지 HTML 미러에는
-            반영되지 않거나 정보가 누락될 수 있습니다.
+            이 내용은 이 항목에서 잘 쓰이지 않는 종류입니다 — 문서에는
+            저장되지만 공개 페이지 HTML 미러에는 반영되지 않거나 정보가 누락될
+            수 있습니다.
           </p>
         )}
       </div>

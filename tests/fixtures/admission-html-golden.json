@@ -3,11 +3,7 @@
     "generatedFrom": "src/data/admissionHwpSections.json",
     "universityCount": 218,
     "cellCount": 2757,
-    "paths": [
-      "rawSectionHtml",
-      "hwpCategoryHtml",
-      "recruitmentResultHtml"
-    ]
+    "paths": ["rawSectionHtml", "hwpCategoryHtml", "recruitmentResultHtml"]
   },
   "cells": {
     "가톨릭관동대학교|previous_year_changes|rawSectionHtml": {

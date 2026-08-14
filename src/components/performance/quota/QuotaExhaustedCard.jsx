@@ -1,4 +1,4 @@
-import InlineCard from '../chat/InlineCard';
+import InlineCard from "../chat/InlineCard";
 
 // 회차 소진 인라인 카드 (표면 B) — docs/수행평가-상세-명세.md §5.20 / §9.3 / §8.6.
 //
@@ -51,17 +51,17 @@ import InlineCard from '../chat/InlineCard';
 //   전부 허용이다. 소진이 막는 것은 **새 세션 시작**뿐이다. 그래서 이 카드는 "다시 시도"를
 //   권하지 않고 이용권 추가 경로만 제시한다.
 
-const TITLE = '이용 가능한 횟수를 모두 사용했어요.';
+const TITLE = "이용 가능한 횟수를 모두 사용했어요.";
 
 // §5.20 확정본. 손대지 말 것 — "지금까지 입력한 내용은 저장돼 있으니"가 위 단정과 한 쌍이다.
 const DESCRIPTION =
-  '추천을 시작하려 했지만 남은 횟수가 없습니다. 지금까지 입력한 내용은 저장돼 있으니, 이용권을 추가하면 이어서 진행할 수 있어요.';
+  "추천을 시작하려 했지만 남은 횟수가 없습니다. 지금까지 입력한 내용은 저장돼 있으니, 이용권을 추가하면 이어서 진행할 수 있어요.";
 
-const PURCHASE_LABEL = '이용권 구매하기';
-const LATER_LABEL = '나중에 하기';
+const PURCHASE_LABEL = "이용권 구매하기";
+const LATER_LABEL = "나중에 하기";
 
 /** §5.20 CTA 목적지. 랜딩 가격 섹션(§13)이다. */
-const PURCHASE_TO = '/services/performance#pricing';
+const PURCHASE_TO = "/services/performance#pricing";
 
 /** 새 창 이동을 라벨에도 알린다(시각적 표시가 없는 링크라 접근성 이름으로만 전달된다). */
 const PURCHASE_ARIA_LABEL = `${PURCHASE_LABEL} (새 창)`;
@@ -74,7 +74,11 @@ function formatPlanEndsAt(value) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 /**
@@ -91,8 +95,12 @@ export default function QuotaExhaustedCard({ planEndsAt = null, onDismiss }) {
       {/* 시안 없는 표면이라 내부 리듬은 §5.20 표의 항목 순서를 그대로 세로 스택으로 편다.
           제목↔설명 0.5rem, 설명↔버튼 줄 1.25rem — STEP2 카드(§5.6)와 같은 리듬이다. */}
       <div className="flex flex-col gap-2">
-        <p className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">{TITLE}</p>
-        <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">{DESCRIPTION}</p>
+        <p className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+          {TITLE}
+        </p>
+        <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+          {DESCRIPTION}
+        </p>
         {endsAtText && (
           <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
             현재 이용권은 {endsAtText}까지 유효해요.

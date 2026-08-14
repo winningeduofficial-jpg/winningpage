@@ -6,7 +6,9 @@
 // 요약 블록은 뒤이은 1~6항의 상세 조문과 함께 시안 원문에 그대로 존재하는 구조로,
 // ParentPrivacy.jsx·StudentPrivacy.jsx 도입부(항목/목적/보유기간 라벨 블록 + 번호 조항)와 동일한
 // 문서 관례다. 조/항 번호(1~6)가 있는 형태라 TermsArticleBody로 줄 단위 렌더링한다.
-import TermsPageLayout, { TermsArticleBody } from '../../components/auth/TermsPageLayout';
+import TermsPageLayout, {
+  TermsArticleBody,
+} from "../../components/auth/TermsPageLayout";
 
 const BODY = `본 동의는 선택 사항이며, 동의하지 않아도 위닝에듀 서비스 이용에는 제한이 없습니다. 동의 후에도 언제든지 수신을 거부(철회)할 수 있습니다.
 

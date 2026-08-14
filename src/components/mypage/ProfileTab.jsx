@@ -3,18 +3,19 @@
 //
 // 레이아웃·필드 라벨·순서는 team-lead가 전달한 시안 PNG(profile-20170.png, 3762:20170)를
 // 직접 판독해 반영했다. 정확한 여백·폰트 스케일까지 픽셀 재현하지는 않았다(러프 구현 지시).
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import ProfileField from './ProfileField';
-import ToggleRow from './ToggleRow';
-import WithdrawModal from './WithdrawModal';
-import ChangeEmailModal from './ChangeEmailModal';
-import ChangePasswordModal from './ChangePasswordModal';
-import ChangePhoneModal from './ChangePhoneModal';
 
-const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '기타'];
+import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import ChangeEmailModal from "./ChangeEmailModal";
+import ChangePasswordModal from "./ChangePasswordModal";
+import ChangePhoneModal from "./ChangePhoneModal";
+import ProfileField from "./ProfileField";
+import ToggleRow from "./ToggleRow";
+import WithdrawModal from "./WithdrawModal";
+
+const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
@@ -24,26 +25,27 @@ const SCHOOL_TYPES = ['초등학교', '중학교', '고등학교', 'N수생', '�
 // privacy·marketing 3개뿐이고 identity 는 학생 전용이다(App.jsx:287-294). 없는
 // 라우트를 링크하면 404 로 떨어지므로 2개만 노출한다.
 const STUDENT_GUIDE_LINKS = [
-  { label: '서비스 이용약관', to: '/terms/student/service' },
-  { label: '개인정보처리방침', to: '/terms/student/privacy' },
-  { label: '본인 인증을 위한 정보 수집 약관', to: '/terms/student/identity' }
+  { label: "서비스 이용약관", to: "/terms/student/service" },
+  { label: "개인정보처리방침", to: "/terms/student/privacy" },
+  { label: "본인 인증을 위한 정보 수집 약관", to: "/terms/student/identity" },
 ];
 
 const PARENT_GUIDE_LINKS = [
-  { label: '서비스 이용약관', to: '/terms/parent/service' },
-  { label: '개인정보처리방침', to: '/terms/parent/privacy' }
+  { label: "서비스 이용약관", to: "/terms/parent/service" },
+  { label: "개인정보처리방침", to: "/terms/parent/privacy" },
 ];
 
-const ROW_BOX_CLASS = 'flex h-[3.25rem] items-center rounded-xl border border-line px-5 text-base text-ink';
+const ROW_BOX_CLASS =
+  "flex h-[3.25rem] items-center rounded-xl border border-line px-5 text-base text-ink";
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function formatLinkDate(iso) {
-  if (!iso) return '';
+  if (!iso) return "";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
+  if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
 }
 
@@ -52,32 +54,38 @@ export default function ProfileTab({ user, profile, memberType }) {
   // 학교·학년, 학부모 연결, 내 연결코드가 없다. 그 셋은 전부 학생 계정의 개념이다
   // (학부모에겐 연결할 "학부모"도, 발급받을 연결코드도 없다 — 코드는 학생이 발급하고
   // 학부모가 입력한다, sql/40 issue_student_link_code).
-  const isParent = memberType === 'parent';
+  const isParent = memberType === "parent";
   const guideLinks = isParent ? PARENT_GUIDE_LINKS : STUDENT_GUIDE_LINKS;
 
   const profileId = profile?.id || user?.id;
 
   const [form, setForm] = useState({
-    name: profile?.name || '',
-    email: profile?.email || user?.email || '',
-    phone: profile?.phone || '',
-    school_type: profile?.school_type || '',
-    school_name: profile?.school_name || ''
+    name: profile?.name || "",
+    email: profile?.email || user?.email || "",
+    phone: profile?.phone || "",
+    school_type: profile?.school_type || "",
+    school_name: profile?.school_name || "",
   });
-  const [toggles, setToggles] = useState({ marketing_agreed: false, ads_agreed: false });
-  const [errorMsg, setErrorMsg] = useState('');
+  const [toggles, setToggles] = useState({
+    marketing_agreed: false,
+    ads_agreed: false,
+  });
+  const [errorMsg, setErrorMsg] = useState("");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
 
   // 이름 인라인 편집(블러 시 저장) — 마지막으로 서버에 반영된 값과 비교해 불필요한 저장을 막는다.
-  const [savedName, setSavedName] = useState(profile?.name || '');
+  const [savedName, setSavedName] = useState(profile?.name || "");
   const [savingName, setSavingName] = useState(false);
 
   // 학교·학년 인라인 편집.
   const [editingSchool, setEditingSchool] = useState(false);
-  const [schoolDraft, setSchoolDraft] = useState({ school_type: '', school_name: '' });
+  const [schoolDraft, setSchoolDraft] = useState({
+    school_type: "",
+    school_name: "",
+  });
   const [savingSchool, setSavingSchool] = useState(false);
 
   // 학부모 연동 상태 — undefined 로딩중, null 연결 없음, {id,status,date} 연결/요청 있음.
@@ -85,7 +93,7 @@ export default function ProfileTab({ user, profile, memberType }) {
   const [revoking, setRevoking] = useState(false);
 
   // 내 연결코드.
-  const [linkCode, setLinkCode] = useState('');
+  const [linkCode, setLinkCode] = useState("");
   const [reissuing, setReissuing] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -98,9 +106,11 @@ export default function ProfileTab({ user, profile, memberType }) {
 
     (async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('name, email, phone, school_type, school_name, marketing_agreed, ads_agreed')
-        .eq('id', profileId)
+        .from("profiles")
+        .select(
+          "name, email, phone, school_type, school_name, marketing_agreed, ads_agreed",
+        )
+        .eq("id", profileId)
         .maybeSingle();
 
       if (!alive || error || !data) return;
@@ -111,12 +121,12 @@ export default function ProfileTab({ user, profile, memberType }) {
         email: data.email ?? prev.email,
         phone: data.phone ?? prev.phone,
         school_type: data.school_type ?? prev.school_type,
-        school_name: data.school_name ?? prev.school_name
+        school_name: data.school_name ?? prev.school_name,
       }));
-      setSavedName(data.name || '');
+      setSavedName(data.name || "");
       setToggles({
         marketing_agreed: Boolean(data.marketing_agreed),
-        ads_agreed: Boolean(data.ads_agreed)
+        ads_agreed: Boolean(data.ads_agreed),
       });
     })();
 
@@ -135,21 +145,21 @@ export default function ProfileTab({ user, profile, memberType }) {
 
     (async () => {
       const { data, error } = await supabase
-        .from('parent_child_links')
-        .select('id, status, requested_at, responded_at')
-        .eq('student_id', profileId)
-        .in('status', ['approved', 'pending']);
+        .from("parent_child_links")
+        .select("id, status, requested_at, responded_at")
+        .eq("student_id", profileId)
+        .in("status", ["approved", "pending"]);
 
       if (!alive) return;
       if (error || !data || data.length === 0) {
         setParentLink(null);
         return;
       }
-      const row = data.find((r) => r.status === 'approved') || data[0];
+      const row = data.find((r) => r.status === "approved") || data[0];
       setParentLink({
         id: row.id,
         status: row.status,
-        date: row.status === 'approved' ? row.responded_at : row.requested_at
+        date: row.status === "approved" ? row.responded_at : row.requested_at,
       });
     })();
 
@@ -165,14 +175,14 @@ export default function ProfileTab({ user, profile, memberType }) {
 
     (async () => {
       const { data, error } = await supabase
-        .from('student_link_codes')
-        .select('code')
-        .eq('student_id', profileId)
-        .eq('is_active', true)
+        .from("student_link_codes")
+        .select("code")
+        .eq("student_id", profileId)
+        .eq("is_active", true)
         .maybeSingle();
 
       if (!alive || error) return;
-      setLinkCode(data?.code || '');
+      setLinkCode(data?.code || "");
     })();
 
     return () => {
@@ -186,25 +196,33 @@ export default function ProfileTab({ user, profile, memberType }) {
 
   // 공용 저장 헬퍼 — src/pages/MyPage.jsx handleSubmit의 upsert 흐름을 재사용한다.
   async function persistProfile(fields, { syncAuthName = false } = {}) {
-    const payload = { id: profileId, updated_at: new Date().toISOString(), ...fields };
-    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+    const payload = {
+      id: profileId,
+      updated_at: new Date().toISOString(),
+      ...fields,
+    };
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "id" });
 
     if (error) {
-      console.error('프로필 저장 실패:', error);
-      setErrorMsg('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      console.error("프로필 저장 실패:", error);
+      setErrorMsg("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       return false;
     }
 
     if (syncAuthName && fields.name) {
       try {
-        await supabase.auth.updateUser({ data: { name: fields.name, full_name: fields.name } });
+        await supabase.auth.updateUser({
+          data: { name: fields.name, full_name: fields.name },
+        });
       } catch (metadataError) {
-        console.error('인증 메타데이터 저장 오류:', metadataError);
+        console.error("인증 메타데이터 저장 오류:", metadataError);
       }
     }
 
-    setErrorMsg('');
-    window.dispatchEvent(new Event('winning-profile-updated'));
+    setErrorMsg("");
+    window.dispatchEvent(new Event("winning-profile-updated"));
     return true;
   }
 
@@ -220,18 +238,24 @@ export default function ProfileTab({ user, profile, memberType }) {
   }
 
   function startEditSchool() {
-    setSchoolDraft({ school_type: form.school_type, school_name: form.school_name });
+    setSchoolDraft({
+      school_type: form.school_type,
+      school_name: form.school_name,
+    });
     setEditingSchool(true);
   }
 
   async function saveSchool() {
     setSavingSchool(true);
     const school_name = cleanText(schoolDraft.school_name);
-    const ok = await persistProfile({ school_type: schoolDraft.school_type, school_name });
+    const ok = await persistProfile({
+      school_type: schoolDraft.school_type,
+      school_name,
+    });
     setSavingSchool(false);
     if (ok) {
-      updateForm('school_type', schoolDraft.school_type);
-      updateForm('school_name', school_name);
+      updateForm("school_type", schoolDraft.school_type);
+      updateForm("school_name", school_name);
       setEditingSchool(false);
     }
   }
@@ -249,11 +273,13 @@ export default function ProfileTab({ user, profile, memberType }) {
   async function handleRevokeLink() {
     if (!parentLink?.id || revoking) return;
     setRevoking(true);
-    const { error } = await supabase.rpc('revoke_parent_link', { p_link_id: parentLink.id });
+    const { error } = await supabase.rpc("revoke_parent_link", {
+      p_link_id: parentLink.id,
+    });
     setRevoking(false);
     if (error) {
-      console.error('학부모 연결 해제 실패:', error);
-      setErrorMsg('연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      console.error("학부모 연결 해제 실패:", error);
+      setErrorMsg("연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
     setParentLink(null);
@@ -268,76 +294,82 @@ export default function ProfileTab({ user, profile, memberType }) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch (copyError) {
-      console.warn('연결코드 복사 실패:', copyError);
+      console.warn("연결코드 복사 실패:", copyError);
     }
   }
 
   // 연결코드 재발급 — sql/40_auth_signup.sql의 reissue_link_code RPC를 그대로 호출한다.
-  async function handleReissueCode() {
+  async function _handleReissueCode() {
     if (reissuing) return;
     setReissuing(true);
-    const { data, error } = await supabase.rpc('reissue_link_code');
+    const { data, error } = await supabase.rpc("reissue_link_code");
     setReissuing(false);
     if (error) {
-      console.error('연결코드 재발급 실패:', error);
-      setErrorMsg('연결코드 재발급에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      console.error("연결코드 재발급 실패:", error);
+      setErrorMsg(
+        "연결코드 재발급에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
       return;
     }
     if (data?.link_code) setLinkCode(data.link_code);
   }
 
-  const schoolSummary = [form.school_name, form.school_type].filter(Boolean).join(' · ') || '-';
+  const schoolSummary =
+    [form.school_name, form.school_type].filter(Boolean).join(" · ") || "-";
 
   return (
     <div className="mx-auto w-full max-w-sm">
       {/* 학부모 연결 — 학생 전용(학부모에겐 연결할 상대가 이 축에 없다). */}
       {!isParent && (
-      <div className="mb-5">
-        <p className="mb-2 text-sm text-ink">학부모 연결</p>
+        <div className="mb-5">
+          <p className="mb-2 text-sm text-ink">학부모 연결</p>
 
-        {parentLink ? (
-          <div className="rounded-xl border border-line bg-surface-card px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-ink">학부모님</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    parentLink.status === 'approved'
-                      ? 'bg-surface-info text-accent'
-                      : 'bg-surface-footer text-ink-sub'
-                  }`}
+          {parentLink ? (
+            <div className="rounded-xl border border-line bg-surface-card px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-ink">학부모님</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      parentLink.status === "approved"
+                        ? "bg-surface-info text-accent"
+                        : "bg-surface-footer text-ink-sub"
+                    }`}
+                  >
+                    {parentLink.status === "approved"
+                      ? "연결됨"
+                      : "승인 대기중"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRevokeLink}
+                  disabled={revoking}
+                  className="text-xs text-ink-sub underline underline-offset-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {parentLink.status === 'approved' ? '연결됨' : '승인 대기중'}
-                </span>
+                  연결 해제
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleRevokeLink}
-                disabled={revoking}
-                className="text-xs text-ink-sub underline underline-offset-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                연결 해제
-              </button>
+              {parentLink.date && (
+                <p className="mt-1 text-xs text-ink-sub">
+                  {formatLinkDate(parentLink.date)}{" "}
+                  {parentLink.status === "approved" ? "연결" : "요청"}
+                </p>
+              )}
             </div>
-            {parentLink.date && (
-              <p className="mt-1 text-xs text-ink-sub">
-                {formatLinkDate(parentLink.date)} {parentLink.status === 'approved' ? '연결' : '요청'}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-line bg-surface-card px-4 py-3 text-sm text-ink-sub">
-            연결된 학부모가 없습니다.
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="rounded-xl border border-line bg-surface-card px-4 py-3 text-sm text-ink-sub">
+              연결된 학부모가 없습니다.
+            </div>
+          )}
+        </div>
       )}
 
       {/* 이름 */}
       <ProfileField
         label="이름"
         value={form.name}
-        onChange={(v) => updateForm('name', v)}
+        onChange={(v) => updateForm("name", v)}
         onBlur={handleNameBlur}
         placeholder="이름 입력"
         readOnly={savingName}
@@ -346,70 +378,84 @@ export default function ProfileTab({ user, profile, memberType }) {
 
       {/* 학교 · 학년 — 학생 전용(학부모 시안 3379:12569 에는 이 행이 없다). */}
       {!isParent && (
-      <ProfileField label="학교 · 학년" className="mb-5">
-        {/* 학년(숫자) 컬럼이 profiles에 없어 재학 구분(학교급)만 반영한다 — PNG의 "고1" 같은
+        <ProfileField label="학교 · 학년" className="mb-5">
+          {/* 학년(숫자) 컬럼이 profiles에 없어 재학 구분(학교급)만 반영한다 — PNG의 "고1" 같은
             구체 학년은 스키마 확장이 필요하다(이 작업 범위 밖, DB 마이그레이션 금지 지시). */}
-        {editingSchool ? (
-          <div className="flex w-full flex-col gap-2">
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={schoolDraft.school_type}
-                onChange={(e) => setSchoolDraft((prev) => ({ ...prev, school_type: e.target.value }))}
-                className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
-              >
-                <option value="">선택</option>
-                {SCHOOL_TYPES.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={schoolDraft.school_name}
-                onChange={(e) => setSchoolDraft((prev) => ({ ...prev, school_name: e.target.value }))}
-                placeholder="학교명 입력"
-                className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
-              />
+          {editingSchool ? (
+            <div className="flex w-full flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={schoolDraft.school_type}
+                  onChange={(e) =>
+                    setSchoolDraft((prev) => ({
+                      ...prev,
+                      school_type: e.target.value,
+                    }))
+                  }
+                  className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
+                >
+                  <option value="">선택</option>
+                  {SCHOOL_TYPES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={schoolDraft.school_name}
+                  onChange={(e) =>
+                    setSchoolDraft((prev) => ({
+                      ...prev,
+                      school_name: e.target.value,
+                    }))
+                  }
+                  placeholder="학교명 입력"
+                  className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingSchool(false)}
+                  className="h-9 rounded-lg border border-line px-3 text-xs text-ink-sub"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={saveSchool}
+                  disabled={savingSchool}
+                  className="h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  저장
+                </button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
+          ) : (
+            <div className="flex w-full items-center gap-2">
+              <div
+                className={`${ROW_BOX_CLASS} flex-1 bg-surface-footer text-ink-sub`}
+              >
+                {schoolSummary}
+              </div>
               <button
                 type="button"
-                onClick={() => setEditingSchool(false)}
-                className="h-9 rounded-lg border border-line px-3 text-xs text-ink-sub"
+                onClick={startEditSchool}
+                className="h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card"
               >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={saveSchool}
-                disabled={savingSchool}
-                className="h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-white disabled:opacity-60"
-              >
-                저장
+                변경
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="flex w-full items-center gap-2">
-            <div className={`${ROW_BOX_CLASS} flex-1 bg-surface-footer text-ink-sub`}>{schoolSummary}</div>
-            <button
-              type="button"
-              onClick={startEditSchool}
-              className="h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card"
-            >
-              변경
-            </button>
-          </div>
-        )}
-      </ProfileField>
+          )}
+        </ProfileField>
       )}
 
       {/* 휴대폰 번호 — 변경은 모달(카카오 인증번호) 경유, 인라인 즉시저장 아님
           (Figma 3973:15330→16090→16297→16478, ChangePhoneModal.jsx). */}
       <ProfileField
         label="휴대폰 번호"
-        value={form.phone || '-'}
+        value={form.phone || "-"}
         readOnly
         actionLabel="변경"
         onAction={() => setPhoneOpen(true)}
@@ -437,7 +483,9 @@ export default function ProfileTab({ user, profile, memberType }) {
       />
 
       {errorMsg && (
-        <div className="mb-5 rounded-xl bg-[#FCEAEE] px-4 py-3 text-xs text-[#D6336C]">{errorMsg}</div>
+        <div className="mb-5 rounded-xl bg-[#FCEAEE] px-4 py-3 text-xs text-[#D6336C]">
+          {errorMsg}
+        </div>
       )}
 
       {/* 이용안내 — chevron 링크 3종 + 토글 2종, 같은 박스 목록으로 렌더. */}
@@ -458,12 +506,12 @@ export default function ProfileTab({ user, profile, memberType }) {
           <ToggleRow
             label="마케팅 목적의 개인정보 수집 및 이용"
             checked={toggles.marketing_agreed}
-            onChange={(v) => persistToggle('marketing_agreed', v)}
+            onChange={(v) => persistToggle("marketing_agreed", v)}
           />
           <ToggleRow
             label="광고성 정보 수신 동의"
             checked={toggles.ads_agreed}
-            onChange={(v) => persistToggle('ads_agreed', v)}
+            onChange={(v) => persistToggle("ads_agreed", v)}
           />
         </div>
       </div>
@@ -471,26 +519,28 @@ export default function ProfileTab({ user, profile, memberType }) {
       {/* 내 연결코드 — 학생 전용. 코드는 학생이 발급하고 학부모가 입력하는 방향이라
           (sql/40 issue_student_link_code) 학부모 화면에는 존재하지 않는다. */}
       {!isParent && (
-      <div className="mb-6">
-        <p className="mb-2 text-sm text-ink">내 연결코드</p>
-        <div className="flex items-center gap-2">
-          <div className={`${ROW_BOX_CLASS} flex-1 tracking-[0.2em] bg-surface-footer text-ink-sub`}>
-            {linkCode || '-'}
-          </div>
-          {/* 시안(3665:5323)은 '복사'다. 재발급(reissue_link_code)은 코드를 바꿔
+        <div className="mb-6">
+          <p className="mb-2 text-sm text-ink">내 연결코드</p>
+          <div className="flex items-center gap-2">
+            <div
+              className={`${ROW_BOX_CLASS} flex-1 tracking-[0.2em] bg-surface-footer text-ink-sub`}
+            >
+              {linkCode || "-"}
+            </div>
+            {/* 시안(3665:5323)은 '복사'다. 재발급(reissue_link_code)은 코드를 바꿔
               버려서 학부모가 이미 받아 둔 코드를 무효로 만든다 — 학생이 코드를
               전달하려고 누르는 버튼의 동작으로는 맞지 않는다. 복사로 바꾸고
               재발급은 노출하지 않는다(필요해지면 별도 진입점으로). */}
-          <button
-            type="button"
-            onClick={handleCopyCode}
-            disabled={!linkCode}
-            className="shrink-0 whitespace-nowrap text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {copied ? '복사됨' : '복사'}
-          </button>
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              disabled={!linkCode}
+              className="shrink-0 whitespace-nowrap text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {copied ? "복사됨" : "복사"}
+            </button>
+          </div>
         </div>
-      </div>
       )}
 
       <button
@@ -501,7 +551,10 @@ export default function ProfileTab({ user, profile, memberType }) {
         회원탈퇴
       </button>
 
-      <WithdrawModal open={withdrawOpen} onClose={() => setWithdrawOpen(false)} />
+      <WithdrawModal
+        open={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+      />
 
       <ChangeEmailModal
         open={emailOpen}
@@ -509,9 +562,9 @@ export default function ProfileTab({ user, profile, memberType }) {
         profileId={profileId}
         onClose={() => setEmailOpen(false)}
         onChanged={(email) => {
-          updateForm('email', email);
+          updateForm("email", email);
           // 헤더 등 다른 화면도 프로필을 다시 읽게 한다(persistProfile 과 같은 신호).
-          window.dispatchEvent(new Event('winning-profile-updated'));
+          window.dispatchEvent(new Event("winning-profile-updated"));
         }}
       />
 
@@ -526,8 +579,8 @@ export default function ProfileTab({ user, profile, memberType }) {
         currentPhone={form.phone}
         onClose={() => setPhoneOpen(false)}
         onChanged={(phone) => {
-          updateForm('phone', phone);
-          window.dispatchEvent(new Event('winning-profile-updated'));
+          updateForm("phone", phone);
+          window.dispatchEvent(new Event("winning-profile-updated"));
         }}
       />
     </div>

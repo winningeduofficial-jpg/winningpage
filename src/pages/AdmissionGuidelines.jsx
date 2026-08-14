@@ -1,14 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Search,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  RotateCcw
-} from 'lucide-react';
-import { supabase } from '../lib/supabase';
+  RotateCcw,
+  Search,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AdmissionSectionView from "../components/admission/AdmissionSectionView";
+import AdmissionSurface from "../components/admission/AdmissionSurface";
+import AdmissionModalShell from "../components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "../components/admission/modal/AdmissionModalStyles";
+import useModalProxyXScroll from "../components/admission/modal/modalProxyXScroll";
+import SafeHtml from "../components/admission/SafeHtml";
+import {
+  HWP_SECTION_JSON_KEYS,
+  isEmptyDoc,
+  validateAdmissionDoc,
+} from "../lib/admissionDoc";
+import { isDocRenderEnabled } from "../lib/admissionFlags";
 import {
   buildRawSectionHtml,
   buildResourceIndex,
@@ -23,36 +34,30 @@ import {
   resolveSectionText,
   sanitizeAdmissionRenderedHtml,
   stripHtmlToText,
-  withHwpSectionHeading
-} from '../lib/admissionParsing';
-import { HWP_SECTION_JSON_KEYS, validateAdmissionDoc, isEmptyDoc } from '../lib/admissionDoc';
-import { isDocRenderEnabled } from '../lib/admissionFlags';
-import { getAdmissionActiveYear } from '../lib/admissionSettings';
-import AdmissionSectionView from '../components/admission/AdmissionSectionView';
-import SafeHtml from '../components/admission/SafeHtml';
-import AdmissionSurface from '../components/admission/AdmissionSurface';
-import AdmissionModalShell from '../components/admission/modal/AdmissionModalShell';
-import AdmissionModalStyles from '../components/admission/modal/AdmissionModalStyles';
-import useModalProxyXScroll from '../components/admission/modal/modalProxyXScroll';
+  withHwpSectionHeading,
+} from "../lib/admissionParsing";
+import { getAdmissionActiveYear } from "../lib/admissionSettings";
+import { withDedupedKeys } from "../lib/reactKeys";
+import { supabase } from "../lib/supabase";
 
 const REGION_ORDER = [
-  '강원',
-  '경기',
-  '경남',
-  '경북',
-  '광주',
-  '대구',
-  '대전',
-  '부산',
-  '서울',
-  '세종',
-  '울산',
-  '인천',
-  '전남',
-  '전북',
-  '제주',
-  '충남',
-  '충북'
+  "강원",
+  "경기",
+  "경남",
+  "경북",
+  "광주",
+  "대구",
+  "대전",
+  "부산",
+  "서울",
+  "세종",
+  "울산",
+  "인천",
+  "전남",
+  "전북",
+  "제주",
+  "충남",
+  "충북",
 ];
 
 const REGION_LABEL_POSITIONS = {
@@ -72,13 +77,13 @@ const REGION_LABEL_POSITIONS = {
   울산: { x: 79, y: 72 },
   부산: { x: 72, y: 77 },
   경남: { x: 58, y: 76 },
-  제주: { x: 26, y: 91 }
+  제주: { x: 26, y: 91 },
 };
 
 const SPECIAL_GROUP_META = {
-  police: { label: '경찰대' },
-  science: { label: '과학기술원' },
-  academy: { label: '사관학교' }
+  police: { label: "경찰대" },
+  science: { label: "과학기술원" },
+  academy: { label: "사관학교" },
 };
 
 const LIST_PAGE_SIZE = 15;
@@ -99,76 +104,87 @@ const KOREA_MAP_SVG =
 
 const INFO_SECTIONS = [
   {
-    label: '전년도와 차이점(수시)',
-    lines: ['전년도와', '차이점(수시)'],
-    key: 'previous_year_changes',
-    htmlKey: 'previous_year_changes_html'
+    label: "전년도와 차이점(수시)",
+    lines: ["전년도와", "차이점(수시)"],
+    key: "previous_year_changes",
+    htmlKey: "previous_year_changes_html",
   },
   {
-    label: '전형방법',
-    key: 'selection_method',
-    htmlKey: 'selection_method_html'
+    label: "전형방법",
+    key: "selection_method",
+    htmlKey: "selection_method_html",
   },
   {
-    label: '최저학력기준',
-    lines: ['최저학력', '기준'],
-    key: 'minimum_requirements',
-    htmlKey: 'minimum_requirements_html'
+    label: "최저학력기준",
+    lines: ["최저학력", "기준"],
+    key: "minimum_requirements",
+    htmlKey: "minimum_requirements_html",
   },
   {
-    label: '대학별고사일',
-    lines: ['대학별', '고사일'],
-    key: 'exam_schedule',
-    htmlKey: 'exam_schedule_html',
+    label: "대학별고사일",
+    lines: ["대학별", "고사일"],
+    key: "exam_schedule",
+    htmlKey: "exam_schedule_html",
     // 1882:681/1882:1291 헤더 실측: 이 컬럼만 텍스트 컬러 #013262(남색) 강조.
-    headAccent: true
+    headAccent: true,
   },
   {
-    label: '학생부반영방법',
-    lines: ['학생부', '반영방법'],
-    key: 'school_record_method',
-    htmlKey: 'school_record_method_html',
-    headAccent: true
+    label: "학생부반영방법",
+    lines: ["학생부", "반영방법"],
+    key: "school_record_method",
+    htmlKey: "school_record_method_html",
+    headAccent: true,
   },
   {
-    label: '모집인원 및 입결',
-    lines: ['모집인원', '및 입결'],
-    key: 'recruitment_quota',
-    htmlKey: 'recruitment_result_html'
-  }
-].map((section) => ({ ...section, jsonKey: HWP_SECTION_JSON_KEYS[section.key] }));
+    label: "모집인원 및 입결",
+    lines: ["모집인원", "및 입결"],
+    key: "recruitment_quota",
+    htmlKey: "recruitment_result_html",
+  },
+].map((section) => ({
+  ...section,
+  jsonKey: HWP_SECTION_JSON_KEYS[section.key],
+}));
 
 const LINK_SECTIONS = [
   {
-    label: '정시모집요강',
-    lines: ['정시모집', '요강'],
-    keys: ['jungsi_guideline_url', 'jungsi_url', 'regular_guideline_url', 'regular_url'],
-    wide: true
-  }
+    label: "정시모집요강",
+    lines: ["정시모집", "요강"],
+    keys: [
+      "jungsi_guideline_url",
+      "jungsi_url",
+      "regular_guideline_url",
+      "regular_url",
+    ],
+    wide: true,
+  },
 ];
 
 const CATEGORY_INFO_SECTIONS = [
   {
-    label: '입학자료',
-    key: 'selection_method'
-  }
+    label: "입학자료",
+    key: "selection_method",
+  },
 ];
 
 function ButtonLabel({ item }) {
   if (item.lines?.length > 1) {
     return (
       <span className="admission-directory-head-label">
-        {item.lines.map((line, idx) => (
-          <span key={idx} className="admission-directory-head-line">
+        {withDedupedKeys(item.lines).map(({ item: line, key }) => (
+          <span key={key} className="admission-directory-head-line">
             {line}
           </span>
         ))}
       </span>
     );
   }
-  return <span className="admission-directory-head-label whitespace-nowrap">{item.label}</span>;
+  return (
+    <span className="admission-directory-head-label whitespace-nowrap">
+      {item.label}
+    </span>
+  );
 }
-
 
 // 목록 단계(경량 뷰 admission_university_resource_index)는 본문 없이
 // has_<컬럼> 존재 여부 불리언만 갖고 있다. "html이 있거나 raw가 있으면 활성"
@@ -176,7 +192,9 @@ function ButtonLabel({ item }) {
 function sectionHasContent(row, section) {
   if (!row) return false;
   const rawFlag = Boolean(row[`has_${section.key}`]);
-  const htmlFlag = section.htmlKey ? Boolean(row[`has_${section.htmlKey}`]) : false;
+  const htmlFlag = section.htmlKey
+    ? Boolean(row[`has_${section.htmlKey}`])
+    : false;
   return rawFlag || htmlFlag;
 }
 
@@ -202,9 +220,12 @@ function resolveInfoContent(row, section, universityName) {
   const rawTextContent = resolveSectionText(row, section);
   const htmlContent =
     section.htmlKey &&
-    !hasDifferentNumberedSectionOnly(stripHtmlToText(row?.[section.htmlKey]), section.key)
+    !hasDifferentNumberedSectionOnly(
+      stripHtmlToText(row?.[section.htmlKey]),
+      section.key,
+    )
       ? clean(row?.[section.htmlKey])
-      : '';
+      : "";
   const hasMeaningfulRaw = rawTextContent && rawTextContent.length >= 20;
 
   // DB 행의 *_html을 우선 렌더. 없으면 raw 필드를 모듈 파서(buildRawSectionHtml)로
@@ -212,29 +233,39 @@ function resolveInfoContent(row, section, universityName) {
   // 저장된 html이 이미 admission-existing-html/admission-raw-section-wrap을 포함하면
   // (buildRawSectionHtml/buildHwpCategoryHtml 결과를 그대로 저장한 경우) 한 겹 더
   // 감싸지 않는다 — 이중 스크롤 컨테이너(overflow-x:auto 중첩)를 방지한다.
-  const alreadyWrapped = /admission-existing-html|admission-raw-section-wrap/.test(htmlContent);
+  const alreadyWrapped =
+    /admission-existing-html|admission-raw-section-wrap/.test(htmlContent);
   const html = htmlContent
     ? sanitizeAdmissionRenderedHtml(
         alreadyWrapped
           ? withHwpSectionHeading(htmlContent, section.key)
-          : withHwpSectionHeading(`<div class="admission-existing-html">${htmlContent}</div>`, section.key)
+          : withHwpSectionHeading(
+              `<div class="admission-existing-html">${htmlContent}</div>`,
+              section.key,
+            ),
       )
     : hasMeaningfulRaw
       ? buildRawSectionHtml(rawTextContent, section.key, row, universityName)
-      : '';
+      : "";
 
   if (isDocRenderEnabled() && section.jsonKey) {
     const doc = row?.[section.jsonKey];
     if (doc && validateAdmissionDoc(doc).ok && !isEmptyDoc(doc)) {
-      return { mode: 'doc', doc, html, text: '', isHtml: true };
+      return { mode: "doc", doc, html, text: "", isHtml: true };
     }
   }
 
   if (html) {
-    return { mode: 'html', doc: null, html, text: '', isHtml: true };
+    return { mode: "html", doc: null, html, text: "", isHtml: true };
   }
 
-  return { mode: 'text', doc: null, html: '', text: rawTextContent, isHtml: false };
+  return {
+    mode: "text",
+    doc: null,
+    html: "",
+    text: rawTextContent,
+    isHtml: false,
+  };
 }
 
 // 모달 on-demand fetch 시 필요한 컬럼만 select 한다. detail_status/university_key/
@@ -243,25 +274,25 @@ function resolveInfoContent(row, section, universityName) {
 // 카테고리와 무관하게 항상 포함한다.
 function buildInfoSelectColumns(section) {
   const columns = new Set([
-    'id',
-    'university_name',
-    'university_key',
-    'campus',
-    'detail_status',
-    section.key
+    "id",
+    "university_name",
+    "university_key",
+    "campus",
+    "detail_status",
+    section.key,
   ]);
   if (section.htmlKey) columns.add(section.htmlKey);
   // ADMISSION_JSON_ENABLED가 false인 동안은(sql/43 dev DB 적용 전) 이 컬럼을
   // 절대 select에 넣지 않는다 — 없는 컬럼을 select하면 PostgREST가 에러를
   // 낸다.
   if (isDocRenderEnabled() && section.jsonKey) columns.add(section.jsonKey);
-  return Array.from(columns).join(',');
+  return Array.from(columns).join(",");
 }
 
-function InfoButton({ section, row, onOpen, label = '보기' }) {
+function InfoButton({ section, row, onOpen, label = "보기" }) {
   // 1882:681/1882:1291 실측: 데이터 셀은 버튼(배경/보더)이 아니라 언더라인 텍스트.
   const linkClass =
-    'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
+    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]";
 
   if (!sectionHasContent(row, section)) {
     return (
@@ -298,14 +329,14 @@ function InfoButton({ section, row, onOpen, label = '보기' }) {
 // admissionParsing.js의 getFirstUrl 자체는 건드리지 않는다 — 여러 게이트가
 // 읽는 공유 모듈이라 이 화면 사정으로 시그니처를 바꿀 이유가 없다.
 function externalUrl(value) {
-  const url = typeof value === 'string' ? value.trim() : '';
-  return /^https?:\/\//i.test(url) ? url : '';
+  const url = typeof value === "string" ? value.trim() : "";
+  return /^https?:\/\//i.test(url) ? url : "";
 }
 
 function LinkButton({ section, row }) {
   const url = externalUrl(getFirstUrl(row, section.keys));
   const linkClass =
-    'admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]';
+    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]";
 
   if (!url) {
     return (
@@ -339,7 +370,7 @@ function requestUniversityInfo(onOpenInfo, university, openedSection, row) {
 }
 
 function UniversityResourceRow({ university, row, onOpenInfo }) {
-  const isCategory = row?.detail_status === 'category';
+  const isCategory = row?.detail_status === "category";
 
   // 대학명 → 그 대학 입시 홈페이지(official_source_url).
   // 같은 표의 '정시모집요강' 버튼이 읽는 jungsi_guideline_url과는 다른
@@ -359,7 +390,9 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
     <tr className="admission-directory-row">
       <th scope="row" className="admission-directory-name-cell">
         <span className="admission-directory-name-group">
-          <span className="admission-directory-region">{university.region}</span>
+          <span className="admission-directory-region">
+            {university.region}
+          </span>
           {nameUrl ? (
             <a
               href={nameUrl}
@@ -377,12 +410,17 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
       </th>
 
       {isCategory ? (
-        <td colSpan={INFO_SECTIONS.length} className="admission-directory-category-cell">
+        <td
+          colSpan={INFO_SECTIONS.length}
+          className="admission-directory-category-cell"
+        >
           <InfoButton
             section={CATEGORY_INFO_SECTIONS[0]}
             row={row}
             label="통합 자료 보기"
-            onOpen={(openedSection) => requestUniversityInfo(onOpenInfo, university, openedSection, row)}
+            onOpen={(openedSection) =>
+              requestUniversityInfo(onOpenInfo, university, openedSection, row)
+            }
           />
         </td>
       ) : (
@@ -391,7 +429,14 @@ function UniversityResourceRow({ university, row, onOpenInfo }) {
             <InfoButton
               section={section}
               row={row}
-              onOpen={(openedSection) => requestUniversityInfo(onOpenInfo, university, openedSection, row)}
+              onOpen={(openedSection) =>
+                requestUniversityInfo(
+                  onOpenInfo,
+                  university,
+                  openedSection,
+                  row,
+                )
+              }
             />
           </td>
         ))
@@ -417,7 +462,11 @@ function UniversityResourceTable({ universities, resourceIndex, onOpenInfo }) {
             {INFO_SECTIONS.map((section) => (
               <th
                 key={section.key}
-                className={section.headAccent ? 'admission-directory-head-accent' : undefined}
+                className={
+                  section.headAccent
+                    ? "admission-directory-head-accent"
+                    : undefined
+                }
               >
                 <ButtonLabel item={section} />
               </th>
@@ -445,31 +494,34 @@ function UniversityResourceTable({ universities, resourceIndex, onOpenInfo }) {
 function hasNumericOnlyCellAsLabel(html, className) {
   const re = new RegExp(
     `<td[^>]*class="[^"]*${className}[^"]*"[^>]*>\\s*(?:<[^>]+>)*\\s*[0-9][0-9,]*(?:\\.[0-9]+)?(?:\\s*\\([^)]*\\))?\\s*(?:</[^>]+>)*\\s*</td>`,
-    'i'
+    "i",
   );
-  return re.test(String(html || ''));
+  return re.test(String(html || ""));
 }
 
 function countMatches(source, pattern) {
-  return (String(source || '').match(pattern) || []).length;
+  return (String(source || "").match(pattern) || []).length;
 }
 
 function extractHtmlCells(html) {
-  const source = String(html || '');
+  const source = String(html || "");
   const matches = source.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
   return matches
-    .map((htmlCell) => ({ html: htmlCell, text: clean(stripHtmlToText(htmlCell)) }))
+    .map((htmlCell) => ({
+      html: htmlCell,
+      text: clean(stripHtmlToText(htmlCell)),
+    }))
     .filter((cell) => cell.text);
 }
 
-function extractHtmlCellTexts(html) {
+function _extractHtmlCellTexts(html) {
   return extractHtmlCells(html).map((cell) => cell.text);
 }
 
 function hasTableButNoBodyRows(html) {
-  const source = String(html || '');
+  const source = String(html || "");
   if (!/<table/i.test(source)) return false;
-  const body = (source.match(/<tbody[\s\S]*?<\/tbody>/i) || [''])[0];
+  const body = (source.match(/<tbody[\s\S]*?<\/tbody>/i) || [""])[0];
   if (!body) return false;
   return !/<tr/i.test(body);
 }
@@ -477,9 +529,9 @@ function hasTableButNoBodyRows(html) {
 function isTooLongReadableCell(text, section) {
   const v = clean(text);
   if (!v) return false;
-  if (section === '모집인원 및 입결') return false;
-  if (section === '학생부반영방법' && v.length > 360) return true;
-  if (section === '전년도와 차이점' && v.length > 220) return true;
+  if (section === "모집인원 및 입결") return false;
+  if (section === "학생부반영방법" && v.length > 360) return true;
+  if (section === "전년도와 차이점" && v.length > 220) return true;
   return v.length > 280;
 }
 
@@ -489,25 +541,42 @@ function containsMixedYearComparisonInOneCell(text) {
 }
 
 function looksLikeBrokenAdmissionHtml(html) {
-  return /undefined|NaN|\[object Object\]|null\s*null/i.test(String(html || ''));
+  return /undefined|NaN|\[object Object\]|null\s*null/i.test(
+    String(html || ""),
+  );
 }
 
-function addGlobalSectionQa(add, row, section, rawText, html) {
+function addGlobalSectionQa(add, row, section, _rawText, html) {
   const plain = stripHtmlToText(html);
   if (looksLikeBrokenAdmissionHtml(html)) {
-    add(row, section, 'error', '깨진 렌더링 토큰(undefined/NaN/object)이 있습니다.');
+    add(
+      row,
+      section,
+      "error",
+      "깨진 렌더링 토큰(undefined/NaN/object)이 있습니다.",
+    );
   }
   if (/[◯○●☆★♥♡❤]/.test(plain)) {
-    add(row, section, 'error', '원표 체크·주석 기호가 화면에 그대로 남아 있습니다.');
+    add(
+      row,
+      section,
+      "error",
+      "원표 체크·주석 기호가 화면에 그대로 남아 있습니다.",
+    );
   }
   if (
     /(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(plain) ||
-    /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(String(html || ''))
+    /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(String(html || ""))
   ) {
-    add(row, section, 'error', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
+    add(
+      row,
+      section,
+      "error",
+      "화면에 보이면 안 되는 임시 라벨이 남아 있습니다.",
+    );
   }
   if (hasTableButNoBodyRows(html)) {
-    add(row, section, 'error', '표 헤더만 있고 본문 행이 없습니다.');
+    add(row, section, "error", "표 헤더만 있고 본문 행이 없습니다.");
   }
   const cells = extractHtmlCells(html);
   cells.forEach((cell) => {
@@ -519,42 +588,64 @@ function addGlobalSectionQa(add, row, section, rawText, html) {
       /admission-change-arrow-after/.test(cellHtml);
     if (
       containsMixedYearComparisonInOneCell(cellText) &&
-      !(section === '전년도와 차이점' && hasVisualPairLayout)
+      !(section === "전년도와 차이점" && hasVisualPairLayout)
     ) {
-      add(row, section, 'error', '2026학년도와 2027학년도 내용이 같은 셀에 뭉쳐 있습니다.');
+      add(
+        row,
+        section,
+        "error",
+        "2026학년도와 2027학년도 내용이 같은 셀에 뭉쳐 있습니다.",
+      );
     }
-    if (section === '전년도와 차이점' && hasVisualPairLayout) {
+    if (section === "전년도와 차이점" && hasVisualPairLayout) {
       const beforeText = clean(
         stripHtmlToText(
           (cellHtml.match(
-            /<div class="admission-change-arrow-before">[\s\S]*?<\/div>\s*<div class="admission-change-arrow-icon">/i
-          ) || [''])[0]
-        )
+            /<div class="admission-change-arrow-before">[\s\S]*?<\/div>\s*<div class="admission-change-arrow-icon">/i,
+          ) || [""])[0],
+        ),
       );
       const afterText = clean(
         stripHtmlToText(
-          (cellHtml.match(/<div class="admission-change-arrow-after">[\s\S]*?<\/div>/i) || [''])[0]
-        )
+          (cellHtml.match(
+            /<div class="admission-change-arrow-after">[\s\S]*?<\/div>/i,
+          ) || [""])[0],
+        ),
       );
       if (
         /\($/.test(beforeText) ||
         /^\)/.test(afterText) ||
         (/\)$/.test(afterText) && !/\(/.test(afterText))
       ) {
-        add(row, section, 'error', '변경 전·후 비교값에 괄호가 잘못 남아 있습니다.');
+        add(
+          row,
+          section,
+          "error",
+          "변경 전·후 비교값에 괄호가 잘못 남아 있습니다.",
+        );
       }
       if (/(?:변경|신설|폐지|개편)\s*\(/.test(beforeText)) {
-        add(row, section, 'error', '변경 항목 설명이 변경 전 값에 섞여 있습니다.');
+        add(
+          row,
+          section,
+          "error",
+          "변경 항목 설명이 변경 전 값에 섞여 있습니다.",
+        );
       }
     }
     if (
       isTooLongReadableCell(cellText, section) &&
       !(
-        section === '전년도와 차이점' &&
+        section === "전년도와 차이점" &&
         /admission-change-lines|admission-change-arrow-row/.test(cellHtml)
       )
     ) {
-      add(row, section, 'warn', '한 셀의 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
+      add(
+        row,
+        section,
+        "warn",
+        "한 셀의 내용이 너무 길어 가독성이 떨어질 수 있습니다.",
+      );
     }
   });
 }
@@ -563,55 +654,78 @@ function buildAdmissionVisualAudit(rows) {
   const issues = [];
   const add = (row, section, severity, message) => {
     issues.push({
-      university: clean(row?.university_name || row?.name || row?.university_key || '-'),
+      university: clean(
+        row?.university_name || row?.name || row?.university_key || "-",
+      ),
       section,
       severity,
-      message
+      message,
     });
   };
 
   (rows || []).forEach((row) => {
-    const universityName = clean(row?.university_name || row?.name || row?.university_key || '');
+    const universityName = clean(
+      row?.university_name || row?.name || row?.university_key || "",
+    );
 
     try {
-      const previousText = getSectionText(row, 'previous_year_changes');
+      const previousText = getSectionText(row, "previous_year_changes");
       if (previousText) {
         const previousHtml = buildRawSectionHtml(
           previousText,
-          'previous_year_changes',
+          "previous_year_changes",
           row,
-          universityName
+          universityName,
         );
-        addGlobalSectionQa(add, row, '전년도와 차이점', previousText, previousHtml);
+        addGlobalSectionQa(
+          add,
+          row,
+          "전년도와 차이점",
+          previousText,
+          previousHtml,
+        );
         const previousPlain = stripHtmlToText(previousHtml);
         if (
-          /변경\s*전\s*변경\s*후|구조개편\s*전\s*구조개편\s*후/.test(previousPlain) &&
+          /변경\s*전\s*변경\s*후|구조개편\s*전\s*구조개편\s*후/.test(
+            previousPlain,
+          ) &&
           !/admission-change-lines|admission-change-arrow-row|admission-change-simple/.test(
-            previousHtml
+            previousHtml,
           )
         ) {
-          add(row, '전년도와 차이점', 'warn', '변경 전/후 자료가 한 줄로 뭉쳐 보일 수 있습니다.');
+          add(
+            row,
+            "전년도와 차이점",
+            "warn",
+            "변경 전/후 자료가 한 줄로 뭉쳐 보일 수 있습니다.",
+          );
         }
         if (
-          (previousPlain || '').length > 220 &&
+          (previousPlain || "").length > 220 &&
           !/admission-change-lines|admission-change-arrow-row|admission-change-simple/.test(
-            previousHtml
+            previousHtml,
           )
         ) {
-          add(row, '전년도와 차이점', 'warn', '변경 내용이 너무 길어 가독성이 떨어질 수 있습니다.');
+          add(
+            row,
+            "전년도와 차이점",
+            "warn",
+            "변경 내용이 너무 길어 가독성이 떨어질 수 있습니다.",
+          );
         }
 
         // 전년도와 차이점 전수 QA: 비교 박스 단위로만 검사한다.
         const previousRaw = normalizeChangeTokenSpacing(previousText);
-        const hasYearComparison = /2026학년도/.test(previousRaw) && /2027학년도/.test(previousRaw);
+        const hasYearComparison =
+          /2026학년도/.test(previousRaw) && /2027학년도/.test(previousRaw);
         const pairBlocks =
           previousHtml.match(
-            /<div class="admission-change-arrow-row">[\s\S]*?<\/div>\s*<\/div>/gi
+            /<div class="admission-change-arrow-row">[\s\S]*?<\/div>\s*<\/div>/gi,
           ) || [];
         const hasRenderedYearPair = pairBlocks.some(
           (block) =>
             /admission-change-arrow-before[\s\S]*2026학년도/.test(block) &&
-            /admission-change-arrow-after[\s\S]*2027학년도/.test(block)
+            /admission-change-arrow-after[\s\S]*2027학년도/.test(block),
         );
         const badPair = pairBlocks.some(
           (block) =>
@@ -619,62 +733,90 @@ function buildAdmissionVisualAudit(rows) {
             /admission-change-arrow-after[\s\S]*2026학년도/.test(block) ||
             /admission-change-arrow-before[\s\S]*>\s*-\s*</.test(block) ||
             /(?:변경|신설|폐지|개편)\s*\(/.test(stripHtmlToText(block)) ||
-            /\(\s*→|→\s*\)/.test(stripHtmlToText(block))
+            /\(\s*→|→\s*\)/.test(stripHtmlToText(block)),
         );
         const simpleCells =
           previousHtml.match(
-            /<td[^>]*class="[^"]*change-content-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi
+            /<td[^>]*class="[^"]*change-content-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi,
           ) || [];
         const simpleCellHasBothYears = simpleCells.some(
           (cell) =>
             /2026학년도/.test(stripHtmlToText(cell)) &&
             /2027학년도/.test(stripHtmlToText(cell)) &&
-            !/admission-change-arrow-row/.test(cell)
+            !/admission-change-arrow-row/.test(cell),
         );
-        if (hasYearComparison && (!hasRenderedYearPair || badPair || simpleCellHasBothYears)) {
+        if (
+          hasYearComparison &&
+          (!hasRenderedYearPair || badPair || simpleCellHasBothYears)
+        ) {
           add(
             row,
-            '전년도와 차이점',
-            'error',
-            '2026학년도/2027학년도 비교가 변경 전·후로 분리되지 않았거나 비교값에 불필요한 문구가 섞였습니다.'
+            "전년도와 차이점",
+            "error",
+            "2026학년도/2027학년도 비교가 변경 전·후로 분리되지 않았거나 비교값에 불필요한 문구가 섞였습니다.",
           );
         }
-        if (/→/.test(previousPlain) && !/admission-change-arrow-row/.test(previousHtml)) {
-          add(row, '전년도와 차이점', 'warn', '화살표 변경사항이 비교 구조로 정리되지 않았습니다.');
+        if (
+          /→/.test(previousPlain) &&
+          !/admission-change-arrow-row/.test(previousHtml)
+        ) {
+          add(
+            row,
+            "전년도와 차이점",
+            "warn",
+            "화살표 변경사항이 비교 구조로 정리되지 않았습니다.",
+          );
         }
         if (/undefined|NaN|\[object Object\]/.test(previousHtml)) {
-          add(row, '전년도와 차이점', 'error', '깨진 렌더링 토큰이 있습니다.');
+          add(row, "전년도와 차이점", "error", "깨진 렌더링 토큰이 있습니다.");
         }
       }
     } catch (error) {
-      add(row, '전년도와 차이점', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(
+        row,
+        "전년도와 차이점",
+        "error",
+        `렌더링 오류: ${error?.message || error}`,
+      );
     }
 
     try {
-      const selectionText = getSectionText(row, 'selection_method');
+      const selectionText = getSectionText(row, "selection_method");
       if (selectionText) {
         const selectionHtml = buildRawSectionHtml(
           selectionText,
-          'selection_method',
+          "selection_method",
           row,
-          universityName
+          universityName,
         );
-        addGlobalSectionQa(add, row, '전형방법', selectionText, selectionHtml);
-        if (hasNumericOnlyCellAsLabel(selectionHtml, 'selection-name-cell')) {
-          add(row, '전형방법', 'error', '전형명 칸에 숫자만 들어간 행이 있습니다.');
+        addGlobalSectionQa(add, row, "전형방법", selectionText, selectionHtml);
+        if (hasNumericOnlyCellAsLabel(selectionHtml, "selection-name-cell")) {
+          add(
+            row,
+            "전형방법",
+            "error",
+            "전형명 칸에 숫자만 들어간 행이 있습니다.",
+          );
         }
         if (
           /<td[^>]*class="[^"]*selection-name-cell[^"]*"[^>]*>\s*(?:학생부\(교과\)|서류\s*100|논술\s*100|1단계:)/i.test(
-            selectionHtml
+            selectionHtml,
           )
         ) {
-          add(row, '전형방법', 'error', '전형방법 내용이 전형명 칸으로 밀린 행이 있습니다.');
+          add(
+            row,
+            "전형방법",
+            "error",
+            "전형방법 내용이 전형명 칸으로 밀린 행이 있습니다.",
+          );
         }
         const methodCells =
           selectionHtml.match(
-            /<td[^>]*class="[^"]*selection-method-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi
+            /<td[^>]*class="[^"]*selection-method-cell[^"]*"[^>]*>[\s\S]*?<\/td>/gi,
           ) || [];
-        const emptyMethodCells = methodCells.filter((cell) => />\s*-\s*<\/td>/i.test(cell)).length;
+        const emptyMethodCells = methodCells.filter((cell) =>
+          />\s*-\s*<\/td>/i.test(cell),
+        ).length;
         if (
           methodCells.length > 0 &&
           emptyMethodCells === methodCells.length &&
@@ -682,130 +824,187 @@ function buildAdmissionVisualAudit(rows) {
         ) {
           add(
             row,
-            '전형방법',
-            'warn',
-            '전형방법 원자료는 있는데 화면 전형방법 칸이 비어 있는 행이 있을 수 있습니다.'
+            "전형방법",
+            "warn",
+            "전형방법 원자료는 있는데 화면 전형방법 칸이 비어 있는 행이 있을 수 있습니다.",
           );
         }
       }
     } catch (error) {
-      add(row, '전형방법', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(row, "전형방법", "error", `렌더링 오류: ${error?.message || error}`);
     }
 
     try {
-      const minimumText = getSectionText(row, 'minimum_requirements');
+      const minimumText = getSectionText(row, "minimum_requirements");
       if (minimumText) {
         const minimumHtml = buildRawSectionHtml(
           minimumText,
-          'minimum_requirements',
+          "minimum_requirements",
           row,
-          universityName
+          universityName,
         );
-        addGlobalSectionQa(add, row, '최저학력기준', minimumText, minimumHtml);
+        addGlobalSectionQa(add, row, "최저학력기준", minimumText, minimumHtml);
         const minimumPlain = stripHtmlToText(minimumHtml);
-        if (/☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★♥♡❤]\s*필수/i.test(minimumPlain)) {
-          add(row, '최저학력기준', 'warn', '별표 필수 설명이 비고에 노출될 가능성이 있습니다.');
+        if (
+          /☆\s*[:：]\s*필수|★\s*[:：]\s*필수|[☆★♥♡❤]\s*필수/i.test(minimumPlain)
+        ) {
+          add(
+            row,
+            "최저학력기준",
+            "warn",
+            "별표 필수 설명이 비고에 노출될 가능성이 있습니다.",
+          );
         }
         if (/[◯○●☆★♥♡❤]/.test(minimumPlain)) {
           add(
             row,
-            '최저학력기준',
-            'warn',
-            '비고/표 안에 원표 체크 기호가 그대로 노출될 가능성이 있습니다.'
+            "최저학력기준",
+            "warn",
+            "비고/표 안에 원표 체크 기호가 그대로 노출될 가능성이 있습니다.",
           );
         }
         if (
           /<td[^>]*>\s*(?:[^<]*자유전공[^<]*|[^<]*미래융합[^<]*|[^<]*자연[^<]*)\s*[◯○●]\s*\d?\s*<\/td>/i.test(
-            minimumHtml
+            minimumHtml,
           )
         ) {
           add(
             row,
-            '최저학력기준',
-            'warn',
-            '대상/반영영역 조각이 비고 칸으로 밀린 행이 있을 수 있습니다.'
+            "최저학력기준",
+            "warn",
+            "대상/반영영역 조각이 비고 칸으로 밀린 행이 있을 수 있습니다.",
           );
         }
         if (/undefined|NaN|\[object Object\]/.test(minimumHtml)) {
-          add(row, '최저학력기준', 'error', '깨진 렌더링 토큰이 있습니다.');
+          add(row, "최저학력기준", "error", "깨진 렌더링 토큰이 있습니다.");
         }
       }
     } catch (error) {
-      add(row, '최저학력기준', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(
+        row,
+        "최저학력기준",
+        "error",
+        `렌더링 오류: ${error?.message || error}`,
+      );
     }
 
     try {
-      const examText = getSectionText(row, 'exam_schedule');
+      const examText = getSectionText(row, "exam_schedule");
       if (examText) {
-        const examHtml = buildRawSectionHtml(examText, 'exam_schedule', row, universityName);
-        addGlobalSectionQa(add, row, '대학별고사일', examText, examHtml);
+        const examHtml = buildRawSectionHtml(
+          examText,
+          "exam_schedule",
+          row,
+          universityName,
+        );
+        addGlobalSectionQa(add, row, "대학별고사일", examText, examHtml);
         const examPlain = stripHtmlToText(examHtml);
         if (
-          !/없음|\d{1,2}\.\d{1,2}|\d{4}-\d{2}-\d{2}|\(.[월화수목금토일]\)/.test(examPlain) &&
+          !/없음|\d{1,2}\.\d{1,2}|\d{4}-\d{2}-\d{2}|\(.[월화수목금토일]\)/.test(
+            examPlain,
+          ) &&
           /(면접|논술|실기|고사)/.test(examText)
         ) {
           add(
             row,
-            '대학별고사일',
-            'warn',
-            '고사 원자료는 있는데 날짜/일정이 화면에서 명확하지 않을 수 있습니다.'
+            "대학별고사일",
+            "warn",
+            "고사 원자료는 있는데 날짜/일정이 화면에서 명확하지 않을 수 있습니다.",
           );
         }
       }
     } catch (error) {
-      add(row, '대학별고사일', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(
+        row,
+        "대학별고사일",
+        "error",
+        `렌더링 오류: ${error?.message || error}`,
+      );
     }
 
     try {
-      const recordText = getSectionText(row, 'school_record_method');
+      const recordText = getSectionText(row, "school_record_method");
       if (recordText) {
         const recordHtml = buildRawSectionHtml(
           recordText,
-          'school_record_method',
+          "school_record_method",
           row,
-          universityName
+          universityName,
         );
-        addGlobalSectionQa(add, row, '학생부반영방법', recordText, recordHtml);
+        addGlobalSectionQa(add, row, "학생부반영방법", recordText, recordHtml);
         if (countMatches(recordHtml, />\s*내용\s*<\/td>/g) >= 3) {
-          add(row, '학생부반영방법', 'error', '구분 칸에 “내용”이 반복됩니다.');
+          add(row, "학생부반영방법", "error", "구분 칸에 “내용”이 반복됩니다.");
         }
         if (/undefined|NaN|\[object Object\]/.test(recordHtml)) {
-          add(row, '학생부반영방법', 'error', '깨진 렌더링 토큰이 있습니다.');
+          add(row, "학생부반영방법", "error", "깨진 렌더링 토큰이 있습니다.");
         }
       }
     } catch (error) {
-      add(row, '학생부반영방법', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(
+        row,
+        "학생부반영방법",
+        "error",
+        `렌더링 오류: ${error?.message || error}`,
+      );
     }
 
     try {
-      const quotaText = getSectionText(row, 'recruitment_quota');
+      const quotaText = getSectionText(row, "recruitment_quota");
       const quotaHtmlRaw = clean(row?.recruitment_result_html);
       if (quotaText || quotaHtmlRaw) {
         const quotaHtml = quotaHtmlRaw
-          ? sanitizeAdmissionRenderedHtml(normalizeRecruitmentExactHtml(quotaHtmlRaw, quotaText))
-          : buildRawSectionHtml(quotaText, 'recruitment_quota', row, universityName);
-        addGlobalSectionQa(add, row, '모집인원 및 입결', quotaText || quotaHtmlRaw, quotaHtml);
-        if (hasNumericOnlyCellAsLabel(quotaHtml, 'recruit-track-cell')) {
-          add(row, '모집인원 및 입결', 'error', '계열 칸에 숫자가 들어간 행이 있습니다.');
+          ? sanitizeAdmissionRenderedHtml(
+              normalizeRecruitmentExactHtml(quotaHtmlRaw, quotaText),
+            )
+          : buildRawSectionHtml(
+              quotaText,
+              "recruitment_quota",
+              row,
+              universityName,
+            );
+        addGlobalSectionQa(
+          add,
+          row,
+          "모집인원 및 입결",
+          quotaText || quotaHtmlRaw,
+          quotaHtml,
+        );
+        if (hasNumericOnlyCellAsLabel(quotaHtml, "recruit-track-cell")) {
+          add(
+            row,
+            "모집인원 및 입결",
+            "error",
+            "계열 칸에 숫자가 들어간 행이 있습니다.",
+          );
         }
         const quotaPlain = stripHtmlToText(quotaHtml);
         if (
           /(확인 수치|원자료|HWP|표 값|자료\s*\d)/.test(quotaPlain) ||
           /<t[dh][^>]*>\s*자료\s*<\/t[dh]>/i.test(quotaHtml)
         ) {
-          add(row, '모집인원 및 입결', 'warn', '화면에 보이면 안 되는 임시 라벨이 남아 있습니다.');
+          add(
+            row,
+            "모집인원 및 입결",
+            "warn",
+            "화면에 보이면 안 되는 임시 라벨이 남아 있습니다.",
+          );
         }
         if (/[◯○●☆★♥♡❤]/.test(quotaPlain)) {
           add(
             row,
-            '모집인원 및 입결',
-            'warn',
-            '모집인원/입결 표 안에 원표 체크·주석 기호가 그대로 노출될 가능성이 있습니다.'
+            "모집인원 및 입결",
+            "warn",
+            "모집인원/입결 표 안에 원표 체크·주석 기호가 그대로 노출될 가능성이 있습니다.",
           );
         }
       }
     } catch (error) {
-      add(row, '모집인원 및 입결', 'error', `렌더링 오류: ${error?.message || error}`);
+      add(
+        row,
+        "모집인원 및 입결",
+        "error",
+        `렌더링 오류: ${error?.message || error}`,
+      );
     }
   });
 
@@ -814,19 +1013,24 @@ function buildAdmissionVisualAudit(rows) {
 
 function AdmissionQaPanel({ rows }) {
   const issues = useMemo(() => buildAdmissionVisualAudit(rows), [rows]);
-  const errorCount = issues.filter((issue) => issue.severity === 'error').length;
-  const warnCount = issues.filter((issue) => issue.severity !== 'error').length;
+  const errorCount = issues.filter(
+    (issue) => issue.severity === "error",
+  ).length;
+  const warnCount = issues.filter((issue) => issue.severity !== "error").length;
 
   return (
     <section className="mb-8 rounded-3xl border border-[#F04438]/25 bg-white p-5 shadow-[0_12px_30px_rgba(13,27,42,0.08)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">ADMISSION QA MODE</p>
+          <p className="text-xs font-black tracking-[0.18em] text-[#B88737]">
+            ADMISSION QA MODE
+          </p>
           <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#0D1B2A]">
             자동 이상치 검수 결과
           </h2>
           <p className="mt-1 text-sm font-bold text-[#667085]">
-            URL에 ?qa=1을 붙이면 전체 대학의 6개 섹션 렌더링 이상치를 한 번에 확인합니다.
+            URL에 ?qa=1을 붙이면 전체 대학의 6개 섹션 렌더링 이상치를 한 번에
+            확인합니다.
           </p>
         </div>
         <div className="flex gap-2 text-sm font-black">
@@ -846,21 +1050,30 @@ function AdmissionQaPanel({ rows }) {
         <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead className="sticky top-0 bg-[#EEF2F7] text-[#0D1B2A]">
             <tr>
-              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">상태</th>
-              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">대학</th>
-              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">섹션</th>
-              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">내용</th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">
+                상태
+              </th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">
+                대학
+              </th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">
+                섹션
+              </th>
+              <th className="border-b border-[#D7DEE8] px-3 py-3 text-left">
+                내용
+              </th>
             </tr>
           </thead>
           <tbody>
             {issues.length ? (
-              issues.slice(0, 300).map((issue, idx) => (
-                <tr
-                  key={`${issue.university}-${issue.section}-${idx}`}
-                  className="border-b border-[#EEF2F7]"
-                >
+              withDedupedKeys(
+                issues.slice(0, 300),
+                (issue) =>
+                  `${issue.university}-${issue.section}-${issue.message}`,
+              ).map(({ item: issue, key }) => (
+                <tr key={key} className="border-b border-[#EEF2F7]">
                   <td className="px-3 py-2 font-black">
-                    {issue.severity === 'error' ? '오류' : '주의'}
+                    {issue.severity === "error" ? "오류" : "주의"}
                   </td>
                   <td className="px-3 py-2 font-bold">{issue.university}</td>
                   <td className="px-3 py-2 font-bold">{issue.section}</td>
@@ -869,7 +1082,10 @@ function AdmissionQaPanel({ rows }) {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="px-3 py-8 text-center font-black text-[#12B76A]">
+                <td
+                  colSpan="4"
+                  className="px-3 py-8 text-center font-black text-[#12B76A]"
+                >
                   자동 검수 기준상 감지된 이상치가 없습니다.
                 </td>
               </tr>
@@ -884,22 +1100,29 @@ function AdmissionQaPanel({ rows }) {
 export default function AdmissionGuidelines() {
   const mapRef = useRef(null);
   const listSectionRef = useRef(null);
-  const [selectedRegion, setSelectedRegion] = useState('');
-  const [selectedSpecialGroupKey, setSelectedSpecialGroupKey] = useState('');
-  const [keyword, setKeyword] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [selectedSpecialGroupKey, setSelectedSpecialGroupKey] = useState("");
+  const [keyword, setKeyword] = useState("");
   // app_settings 조회 완료 전/실패 시에도 DEFAULT_ADMISSION_ACTIVE_YEAR로 즉시
   // 렌더한다(빈 목록 깜빡임 없음) — getAdmissionActiveYear 자체가 "던지지 않고
   // 조용히 폴백"하도록 설계돼 있어(admissionSettings.js), 이 페이지도 그 설계를
   // 그대로 신뢰해 로딩 게이트를 따로 두지 않는다. 조회가 다른 값으로 끝나면
   // 아래 리소스 조회 effect가 activeAdmissionYear 의존성으로 자동 재실행된다.
-  const [activeAdmissionYear, setActiveAdmissionYear] = useState(DEFAULT_ADMISSION_ACTIVE_YEAR);
+  const [activeAdmissionYear, setActiveAdmissionYear] = useState(
+    DEFAULT_ADMISSION_ACTIVE_YEAR,
+  );
   const [universities, setUniversities] = useState([]);
   const [universitiesLoading, setUniversitiesLoading] = useState(true);
   const [universitiesError, setUniversitiesError] = useState(false);
   const [resourceRows, setResourceRows] = useState([]);
   const [resourcesLoading, setResourcesLoading] = useState(true);
   const [resourcesError, setResourcesError] = useState(false);
-  const [tooltip, setTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    label: "",
+    x: 0,
+    y: 0,
+  });
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   // 모달 본문/프록시 트랙 ref는 여기 남는다 — 프록시 스크롤바 계산의 입력이라
@@ -911,7 +1134,10 @@ export default function AdmissionGuidelines() {
   // 껍데기가 아니라 페이지가 소유한다 — 트리거를 아는 것은 "여는 쪽"이고,
   // 클릭 시점에 잡아야 그 뒤 포커스가 어디로 가든 원래 자리가 보존된다.
   const modalTriggerRef = useRef(null);
-  const [modalXScroll, setModalXScroll] = useState({ visible: false, width: 0 });
+  const [modalXScroll, setModalXScroll] = useState({
+    visible: false,
+    width: 0,
+  });
   // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { mode, doc, html, text, isHtml }.
   // 같은 셀 재클릭 시 재요청하지 않는다.
   const infoCacheRef = useRef(new Map());
@@ -922,33 +1148,53 @@ export default function AdmissionGuidelines() {
   async function fetchInfoContent(universityName, section, row, cacheKey) {
     try {
       const { data, error } = await supabase
-        .from('admission_university_resources')
+        .from("admission_university_resources")
         .select(buildInfoSelectColumns(section))
-        .eq('id', row.id)
+        .eq("id", row.id)
         .single();
 
-      if (error || !data) throw error || new Error('empty admission_university_resources response');
+      if (error || !data)
+        throw (
+          error || new Error("empty admission_university_resources response")
+        );
 
       const resolved = resolveInfoContent(data, section, universityName);
       infoCacheRef.current.set(cacheKey, resolved);
 
       setSelectedInfo((prev) =>
-        prev && prev.cacheKey === cacheKey ? { ...prev, ...resolved, status: 'ready' } : prev
+        prev && prev.cacheKey === cacheKey
+          ? { ...prev, ...resolved, status: "ready" }
+          : prev,
       );
     } catch (err) {
-      console.error('상세 자료 조회 실패:', err);
-      setSelectedInfo((prev) => (prev && prev.cacheKey === cacheKey ? { ...prev, status: 'error' } : prev));
+      console.error("상세 자료 조회 실패:", err);
+      setSelectedInfo((prev) =>
+        prev && prev.cacheKey === cacheKey
+          ? { ...prev, status: "error" }
+          : prev,
+      );
     }
   }
 
   function handleOpenInfo({ universityName, section, row }) {
     if (!row?.id) return;
-    modalTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modalTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const cacheKey = `${row.id}:${section.key}`;
     const cached = infoCacheRef.current.get(cacheKey);
 
     if (cached) {
-      setSelectedInfo({ universityName, title: section.label, cacheKey, section, row, status: 'ready', ...cached });
+      setSelectedInfo({
+        universityName,
+        title: section.label,
+        cacheKey,
+        section,
+        row,
+        status: "ready",
+        ...cached,
+      });
       return;
     }
 
@@ -958,12 +1204,12 @@ export default function AdmissionGuidelines() {
       cacheKey,
       section,
       row,
-      status: 'loading',
-      mode: 'text',
+      status: "loading",
+      mode: "text",
       doc: null,
-      html: '',
-      text: '',
-      isHtml: false
+      html: "",
+      text: "",
+      isHtml: false,
     });
 
     fetchInfoContent(universityName, section, row, cacheKey);
@@ -972,10 +1218,11 @@ export default function AdmissionGuidelines() {
   function handleRetryInfo() {
     if (!selectedInfo) return;
     const { universityName, section, row, cacheKey } = selectedInfo;
-    setSelectedInfo((prev) => (prev ? { ...prev, status: 'loading' } : prev));
+    setSelectedInfo((prev) => (prev ? { ...prev, status: "loading" } : prev));
     fetchInfoContent(universityName, section, row, cacheKey);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) universityName/title 두 값만 트리거로 좁혔다 — selectedInfo 전체를 deps로 쓰면 같은 대상의 status/doc/html 등 로딩 상태 전환마다 스크롤이 리셋된다. 실제로 다른 대상으로 바뀔 때만 리셋해야 한다.
   useEffect(() => {
     if (!selectedInfo) return;
     window.requestAnimationFrame(() => {
@@ -1016,15 +1263,15 @@ export default function AdmissionGuidelines() {
       // 유발했다. 본문은 모달 오픈 시 admission_university_resources에서
       // id 기준 on-demand 조회한다(handleOpenInfo/fetchInfoContent 참고).
       const { data, error } = await supabase
-        .from('admission_university_resource_index')
-        .select('*')
-        .eq('is_active', true)
-        .eq('admission_year', activeAdmissionYear);
+        .from("admission_university_resource_index")
+        .select("*")
+        .eq("is_active", true)
+        .eq("admission_year", activeAdmissionYear);
 
       if (!alive) return;
 
       if (error) {
-        console.error('입시자료 URL 조회 실패:', error);
+        console.error("입시자료 URL 조회 실패:", error);
         setResourceRows([]);
         setResourcesError(true);
         setResourcesLoading(false);
@@ -1050,15 +1297,15 @@ export default function AdmissionGuidelines() {
       setUniversitiesError(false);
 
       const { data, error } = await supabase
-        .from('admission_universities')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .from("admission_universities")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
 
       if (!alive) return;
 
       if (error) {
-        console.error('대학 목록 조회 실패:', error);
+        console.error("대학 목록 조회 실패:", error);
         setUniversities([]);
         setUniversitiesError(true);
         setUniversitiesLoading(false);
@@ -1080,10 +1327,10 @@ export default function AdmissionGuidelines() {
     const root = mapRef.current;
     if (!root) return;
 
-    root.querySelectorAll('#korea-map path').forEach((path) => {
+    root.querySelectorAll("#korea-map path").forEach((path) => {
       const isActive = Boolean(selectedRegion) && path.id === selectedRegion;
-      path.classList.toggle('active', isActive);
-      path.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      path.classList.toggle("active", isActive);
+      path.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
   }, [selectedRegion]);
 
@@ -1095,44 +1342,55 @@ export default function AdmissionGuidelines() {
     bodyRef: modalBodyRef,
     barRef: modalXScrollRef,
     visible: modalXScroll.visible,
-    setModalXScroll
+    setModalXScroll,
   });
 
-  const mergedResourceRows = useMemo(() => mergeHwpResourceRows(resourceRows), [resourceRows]);
-  const resourceIndex = useMemo(() => buildResourceIndex(mergedResourceRows), [mergedResourceRows]);
+  const mergedResourceRows = useMemo(
+    () => mergeHwpResourceRows(resourceRows),
+    [resourceRows],
+  );
+  const resourceIndex = useMemo(
+    () => buildResourceIndex(mergedResourceRows),
+    [mergedResourceRows],
+  );
 
   const regularUniversities = useMemo(
     () => universities.filter((university) => !university.special_group),
-    [universities]
+    [universities],
   );
 
   const specialGroups = useMemo(() => {
     const grouped = new Map();
     universities.forEach((university) => {
       if (!university.special_group) return;
-      if (!grouped.has(university.special_group)) grouped.set(university.special_group, []);
+      if (!grouped.has(university.special_group))
+        grouped.set(university.special_group, []);
       grouped.get(university.special_group).push(university);
     });
     return Array.from(grouped.entries()).map(([key, items]) => ({
       key,
       label: SPECIAL_GROUP_META[key]?.label || key,
-      items
+      items,
     }));
   }, [universities]);
 
   const selectedSpecialGroup = useMemo(
-    () => specialGroups.find((group) => group.key === selectedSpecialGroupKey) || null,
-    [specialGroups, selectedSpecialGroupKey]
+    () =>
+      specialGroups.find((group) => group.key === selectedSpecialGroupKey) ||
+      null,
+    [specialGroups, selectedSpecialGroupKey],
   );
 
   const specialUniversities = useMemo(
     () => selectedSpecialGroup?.items || [],
-    [selectedSpecialGroup]
+    [selectedSpecialGroup],
   );
 
   const regionUniversities = useMemo(() => {
     if (!selectedRegion) return [];
-    return regularUniversities.filter((university) => university.region === selectedRegion);
+    return regularUniversities.filter(
+      (university) => university.region === selectedRegion,
+    );
   }, [selectedRegion, regularUniversities]);
 
   const globalSearchUniversities = useMemo(() => {
@@ -1140,7 +1398,7 @@ export default function AdmissionGuidelines() {
     if (selectedRegion || selectedSpecialGroupKey) return [];
     if (!q) return universities;
     return universities.filter((university) =>
-      `${university.region} ${university.name}`.toLowerCase().includes(q)
+      `${university.region} ${university.name}`.toLowerCase().includes(q),
     );
   }, [keyword, selectedRegion, selectedSpecialGroupKey, universities]);
 
@@ -1155,7 +1413,7 @@ export default function AdmissionGuidelines() {
     if (!q || (!selectedRegion && !selectedSpecialGroupKey)) return baseList;
 
     return baseList.filter((university) =>
-      `${university.region} ${university.name}`.toLowerCase().includes(q)
+      `${university.region} ${university.name}`.toLowerCase().includes(q),
     );
   }, [
     keyword,
@@ -1163,51 +1421,58 @@ export default function AdmissionGuidelines() {
     selectedSpecialGroupKey,
     specialUniversities,
     regionUniversities,
-    globalSearchUniversities
+    globalSearchUniversities,
   ]);
 
-  const selectedLabelPosition = selectedRegion ? REGION_LABEL_POSITIONS[selectedRegion] : null;
-  const isGlobalSearchMode = !selectedRegion && !selectedSpecialGroupKey && keyword.trim();
+  const selectedLabelPosition = selectedRegion
+    ? REGION_LABEL_POSITIONS[selectedRegion]
+    : null;
+  const isGlobalSearchMode =
+    !selectedRegion && !selectedSpecialGroupKey && keyword.trim();
   const currentListTitle =
     selectedSpecialGroup?.label ||
     selectedRegion ||
-    (isGlobalSearchMode ? '검색 결과' : '전체');
+    (isGlobalSearchMode ? "검색 결과" : "전체");
   const isQaMode =
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('qa') === '1';
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("qa") === "1";
 
-  const totalPages = Math.max(1, Math.ceil(visibleUniversities.length / LIST_PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleUniversities.length / LIST_PAGE_SIZE),
+  );
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pagedUniversities = visibleUniversities.slice(
     (safeCurrentPage - 1) * LIST_PAGE_SIZE,
-    safeCurrentPage * LIST_PAGE_SIZE
+    safeCurrentPage * LIST_PAGE_SIZE,
   );
   const paginationWindowStart = Math.floor((safeCurrentPage - 1) / 10) * 10 + 1;
   const paginationNumbers = Array.from(
     { length: Math.min(10, totalPages - paginationWindowStart + 1) },
-    (_, idx) => paginationWindowStart + idx
+    (_, idx) => paginationWindowStart + idx,
   );
 
   function selectRegion(regionId) {
     setSelectedRegion(regionId);
-    setSelectedSpecialGroupKey('');
-    setKeyword('');
-    setTooltip({ visible: false, label: '', x: 0, y: 0 });
+    setSelectedSpecialGroupKey("");
+    setKeyword("");
+    setTooltip({ visible: false, label: "", x: 0, y: 0 });
     setCurrentPage(1);
   }
 
   function selectSpecialGroup(groupKey) {
     setSelectedSpecialGroupKey(groupKey);
-    setSelectedRegion('');
-    setKeyword('');
-    setTooltip({ visible: false, label: '', x: 0, y: 0 });
+    setSelectedRegion("");
+    setKeyword("");
+    setTooltip({ visible: false, label: "", x: 0, y: 0 });
     setCurrentPage(1);
   }
 
   function clearSelection() {
-    setSelectedRegion('');
-    setSelectedSpecialGroupKey('');
-    setKeyword('');
-    setTooltip({ visible: false, label: '', x: 0, y: 0 });
+    setSelectedRegion("");
+    setSelectedSpecialGroupKey("");
+    setKeyword("");
+    setTooltip({ visible: false, label: "", x: 0, y: 0 });
     setCurrentPage(1);
   }
 
@@ -1218,11 +1483,14 @@ export default function AdmissionGuidelines() {
 
   function goToPage(pageNumber) {
     setCurrentPage(pageNumber);
-    listSectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    listSectionRef.current?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
   }
 
   function handleMapClick(event) {
-    const path = event.target.closest?.('path');
+    const path = event.target.closest?.("path");
     const regionId = path?.id;
 
     if (regionId && REGION_ORDER.includes(regionId)) {
@@ -1231,7 +1499,7 @@ export default function AdmissionGuidelines() {
   }
 
   function handleMapMove(event) {
-    const path = event.target.closest?.('path');
+    const path = event.target.closest?.("path");
     const regionId = path?.id;
 
     if (!regionId || !REGION_ORDER.includes(regionId)) {
@@ -1252,14 +1520,15 @@ export default function AdmissionGuidelines() {
       visible: true,
       label: regionId,
       x: event.clientX,
-      y: event.clientY
+      y: event.clientY,
     });
   }
 
   function handleMapKeyDown(event) {
-    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar")
+      return;
 
-    const path = event.target.closest?.('path');
+    const path = event.target.closest?.("path");
     const regionId = path?.id;
 
     if (regionId && REGION_ORDER.includes(regionId)) {
@@ -1288,7 +1557,7 @@ export default function AdmissionGuidelines() {
                 {keyword ? (
                   <button
                     type="button"
-                    onClick={() => handleKeywordChange('')}
+                    onClick={() => handleKeywordChange("")}
                     className="absolute right-12 top-1/2 -translate-y-1/2 text-base font-black text-[#98A2B3]"
                     aria-label="검색어 지우기"
                   >
@@ -1325,15 +1594,21 @@ export default function AdmissionGuidelines() {
           <section className="grid gap-6 lg:grid-cols-[26%_1fr] lg:items-start lg:gap-8">
             <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
               <div className="relative">
+                {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
                 <div
                   ref={mapRef}
+                  role="group"
+                  aria-label="지역 선택 지도"
                   className="admission-map relative p-4 md:p-6"
                   onClick={handleMapClick}
                   onKeyDown={handleMapKeyDown}
                   onMouseMove={handleMapMove}
                   onMouseLeave={() =>
-                    setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev))
+                    setTooltip((prev) =>
+                      prev.visible ? { ...prev, visible: false } : prev,
+                    )
                   }
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: KOREA_MAP_SVG는 이 파일 상단에 하드코딩된 정적 SVG 문자열이다 — 외부/사용자 입력이 아니다.
                   dangerouslySetInnerHTML={{ __html: KOREA_MAP_SVG }}
                 />
                 {selectedLabelPosition ? (
@@ -1343,7 +1618,7 @@ export default function AdmissionGuidelines() {
                       style={{
                         left: `${selectedLabelPosition.x}%`,
                         top: `${selectedLabelPosition.y}%`,
-                        transform: 'translate(-50%, -50%)'
+                        transform: "translate(-50%, -50%)",
                       }}
                     >
                       {selectedRegion}
@@ -1366,32 +1641,32 @@ export default function AdmissionGuidelines() {
                     </div>
                   ) : (
                     specialGroups.map((group) => (
-                    <button
-                      key={group.key}
-                      type="button"
-                      onClick={() => selectSpecialGroup(group.key)}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
-                        selectedSpecialGroupKey === group.key
-                          ? 'border-[#013262] bg-[#013262] text-white shadow-sm'
-                          : 'border-[#d7d7d7] bg-white text-[#525252] hover:border-[#0b84fd] hover:bg-[#e9f4ff]'
-                      }`}
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold tracking-[-0.02em]">
-                          {group.label}
+                      <button
+                        key={group.key}
+                        type="button"
+                        onClick={() => selectSpecialGroup(group.key)}
+                        className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                          selectedSpecialGroupKey === group.key
+                            ? "border-[#013262] bg-[#013262] text-white shadow-sm"
+                            : "border-[#d7d7d7] bg-white text-[#525252] hover:border-[#0b84fd] hover:bg-[#e9f4ff]"
+                        }`}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold tracking-[-0.02em]">
+                            {group.label}
+                          </span>
+                          <span
+                            className={`mt-0.5 block text-xs font-medium ${selectedSpecialGroupKey === group.key ? "text-white/70" : "text-[#808080]"}`}
+                          >
+                            {group.items.length}개교
+                          </span>
                         </span>
                         <span
-                          className={`mt-0.5 block text-xs font-medium ${selectedSpecialGroupKey === group.key ? 'text-white/70' : 'text-[#808080]'}`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpecialGroupKey === group.key ? "bg-white/15 text-white" : "bg-[#f9fafb] text-[#667085]"}`}
                         >
-                          {group.items.length}개교
+                          보기
                         </span>
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpecialGroupKey === group.key ? 'bg-white/15 text-white' : 'bg-[#f9fafb] text-[#667085]'}`}
-                      >
-                        보기
-                      </span>
-                    </button>
+                      </button>
                     ))
                   )}
                 </div>
@@ -1410,7 +1685,7 @@ export default function AdmissionGuidelines() {
                     </span>
                     <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
                       <span className="text-[#0b84fd]">
-                        {universitiesLoading ? '-' : visibleUniversities.length}
+                        {universitiesLoading ? "-" : visibleUniversities.length}
                       </span>
                       <span className="text-[#525252]">개교</span>
                     </span>
@@ -1440,7 +1715,9 @@ export default function AdmissionGuidelines() {
                   <p className="text-lg font-semibold text-red-600">
                     데이터를 불러오지 못했습니다.
                   </p>
-                  <p className="mt-2 text-sm font-medium text-red-400">잠시 후 다시 시도해주세요.</p>
+                  <p className="mt-2 text-sm font-medium text-red-400">
+                    잠시 후 다시 시도해주세요.
+                  </p>
                   <button
                     type="button"
                     onClick={() => window.location.reload()}
@@ -1451,7 +1728,9 @@ export default function AdmissionGuidelines() {
                 </div>
               ) : visibleUniversities.length === 0 ? (
                 <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-                  <p className="text-lg font-semibold text-[#525252]">검색 결과가 없습니다.</p>
+                  <p className="text-lg font-semibold text-[#525252]">
+                    검색 결과가 없습니다.
+                  </p>
                   <p className="mt-2 text-sm font-medium text-[#808080]">
                     검색어를 지우거나 다른 지역을 선택하세요.
                   </p>
@@ -1464,11 +1743,13 @@ export default function AdmissionGuidelines() {
                   </p>
                   {resourcesLoading ? (
                     <p className="mb-2 text-xs font-semibold text-[#8f8f8f]">
-                      상세 자료를 불러오는 중입니다 — 잠시 후 &quot;보기&quot; 버튼이 표시됩니다.
+                      상세 자료를 불러오는 중입니다 — 잠시 후 &quot;보기&quot;
+                      버튼이 표시됩니다.
                     </p>
                   ) : resourcesError ? (
                     <p className="mb-2 text-xs font-semibold text-red-500">
-                      상세 자료를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.
+                      상세 자료를 불러오지 못했습니다. 새로고침 후 다시
+                      시도해주세요.
                     </p>
                   ) : null}
                   <UniversityResourceTable
@@ -1496,7 +1777,9 @@ export default function AdmissionGuidelines() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => goToPage(Math.max(1, safeCurrentPage - 1))}
+                          onClick={() =>
+                            goToPage(Math.max(1, safeCurrentPage - 1))
+                          }
                           disabled={safeCurrentPage === 1}
                           className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="이전 페이지"
@@ -1513,8 +1796,8 @@ export default function AdmissionGuidelines() {
                             onClick={() => goToPage(pageNumber)}
                             className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
                               pageNumber === safeCurrentPage
-                                ? 'bg-[#013262] font-medium text-white'
-                                : 'font-normal text-[#525252] hover:text-[#013262]'
+                                ? "bg-[#013262] font-medium text-white"
+                                : "font-normal text-[#525252] hover:text-[#013262]"
                             }`}
                           >
                             {pageNumber}
@@ -1525,7 +1808,9 @@ export default function AdmissionGuidelines() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
+                          onClick={() =>
+                            goToPage(Math.min(totalPages, safeCurrentPage + 1))
+                          }
                           disabled={safeCurrentPage === totalPages}
                           className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="다음 페이지"
@@ -1554,7 +1839,11 @@ export default function AdmissionGuidelines() {
       {tooltip.visible ? (
         <div
           className="pointer-events-none fixed z-[9999] rounded-xl bg-black px-3 py-2 text-sm font-medium text-white shadow-lg"
-          style={{ left: tooltip.x + 12, top: tooltip.y, transform: 'translateY(-50%)' }}
+          style={{
+            left: tooltip.x + 12,
+            top: tooltip.y,
+            transform: "translateY(-50%)",
+          }}
         >
           {tooltip.label}
         </div>
@@ -1633,12 +1922,14 @@ export default function AdmissionGuidelines() {
           eyebrow={selectedInfo.universityName}
           title={selectedInfo.title}
           bodyRef={modalBodyRef}
-          bodyProps={{ 'data-section': selectedInfo.section?.key || '' }}
+          bodyProps={{ "data-section": selectedInfo.section?.key || "" }}
           belowBody={
             selectedInfo.isHtml && modalXScroll.visible ? (
               <div className="admission-modal-x-scroll-shell">
+                {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
                 <div
                   ref={modalXScrollRef}
+                  role="group"
                   className="admission-modal-x-scroll"
                   aria-label="표 좌우 이동"
                 >
@@ -1667,46 +1958,52 @@ export default function AdmissionGuidelines() {
                   병합하고, 스타일은 이 컴포넌트가 <style> 태그로만 렌더한다. 공개 모달
                   기본값(showSectionTitle=false, showChangeNoColumn=false) — 기존 동작
                   그대로(절 제목 숨김, 전년도와 차이점 번호 컬럼 숨김+36/64 재배분). */}
-              <AdmissionSurface />
-              {selectedInfo.status === 'loading' ? (
-                <div
-                  className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[#8f8f8f]"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
-                  불러오는 중입니다...
-                </div>
-              ) : selectedInfo.status === 'error' ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-16 text-sm font-semibold text-red-500">
-                  <p>상세 자료를 불러오지 못했습니다.</p>
-                  <button
-                    type="button"
-                    onClick={handleRetryInfo}
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
-                  >
-                    다시 시도
-                  </button>
-                </div>
-              ) : selectedInfo.mode === 'doc' ? (
-                <div className="admission-table-wrap">
-                  <AdmissionSectionView doc={selectedInfo.doc} sectionKey={selectedInfo.section?.key} surface="public" />
-                </div>
-              ) : selectedInfo.mode === 'html' ? (
-                // resolveInfoContent의 html은 항상 자기 래퍼(admission-existing-html
-                // 또는 admission-raw-section-wrap)를 문자열 안에 이미 갖고 있다
-                // (alreadyWrapped 분기, :219-226 부근). 여기서 className을 또
-                // 주면 admission-existing-html이 이중으로 붙어 overflow-x:auto
-                // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
-                // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
-                <div className="admission-table-wrap">
-                  <SafeHtml html={selectedInfo.html} />
-                </div>
-              ) : selectedInfo.text ? (
-                <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
-              ) : (
-                <div className="whitespace-pre-wrap text-[#8f8f8f]">등록된 정보가 없습니다.</div>
-              )}
+          <AdmissionSurface />
+          {selectedInfo.status === "loading" ? (
+            <div
+              className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[#8f8f8f]"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
+              불러오는 중입니다...
+            </div>
+          ) : selectedInfo.status === "error" ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-sm font-semibold text-red-500">
+              <p>상세 자료를 불러오지 못했습니다.</p>
+              <button
+                type="button"
+                onClick={handleRetryInfo}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : selectedInfo.mode === "doc" ? (
+            <div className="admission-table-wrap">
+              <AdmissionSectionView
+                doc={selectedInfo.doc}
+                sectionKey={selectedInfo.section?.key}
+                surface="public"
+              />
+            </div>
+          ) : selectedInfo.mode === "html" ? (
+            // resolveInfoContent의 html은 항상 자기 래퍼(admission-existing-html
+            // 또는 admission-raw-section-wrap)를 문자열 안에 이미 갖고 있다
+            // (alreadyWrapped 분기, :219-226 부근). 여기서 className을 또
+            // 주면 admission-existing-html이 이중으로 붙어 overflow-x:auto
+            // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
+            // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
+            <div className="admission-table-wrap">
+              <SafeHtml html={selectedInfo.html} />
+            </div>
+          ) : selectedInfo.text ? (
+            <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
+          ) : (
+            <div className="whitespace-pre-wrap text-[#8f8f8f]">
+              등록된 정보가 없습니다.
+            </div>
+          )}
         </AdmissionModalShell>
       ) : null}
 

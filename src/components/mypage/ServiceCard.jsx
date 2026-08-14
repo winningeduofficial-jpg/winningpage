@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 /**
  * 마이페이지 "나의 서비스" 탭 카드 — Figma hsokTD6OilcNEXyCR24sn4 노드 3762:18713 실측.
@@ -20,14 +20,26 @@ import { Link } from 'react-router-dom';
  * @param {Array<{kind: 'link'|'outline'|'solid', label: string, href: string}>} props.card.actions
  */
 export default function ServiceCard({ card }) {
-  const { serviceName, statusLabel, isOngoing, progressPercent, metaLeft, metaRight, actions } = card;
+  const {
+    serviceName,
+    statusLabel,
+    isOngoing,
+    progressPercent,
+    metaLeft,
+    metaRight,
+    actions,
+  } = card;
 
-  const statusPillClass = isOngoing ? 'bg-[#e7f2fb] text-accent' : 'bg-[#d9d9d9] text-ink-sub';
+  const statusPillClass = isOngoing
+    ? "bg-[#e7f2fb] text-accent"
+    : "bg-[#d9d9d9] text-ink-sub";
 
   return (
     <div className="flex flex-col gap-[1.1875rem] rounded-[1.25rem] border border-[#d9d9d9] bg-white p-[2rem]">
       <div className="flex items-center justify-between gap-[0.75rem]">
-        <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">{serviceName}</h3>
+        <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
+          {serviceName}
+        </h3>
         <span
           className={`inline-flex h-[2rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] px-[0.75rem] text-[0.875rem] font-semibold leading-[1.4] ${statusPillClass}`}
         >
@@ -36,7 +48,10 @@ export default function ServiceCard({ card }) {
       </div>
 
       <div className="h-[0.375rem] w-full rounded-[0.75rem] bg-[#d9d9d9]">
-        <div className="h-full rounded-[0.75rem] bg-primary" style={{ width: `${Math.round(progressPercent)}%` }} />
+        <div
+          className="h-full rounded-[0.75rem] bg-primary"
+          style={{ width: `${Math.round(progressPercent)}%` }}
+        />
       </div>
 
       <div className="flex items-center justify-between gap-[0.5rem] text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub">
@@ -58,9 +73,9 @@ export default function ServiceCard({ card }) {
               key={action.kind}
               to={action.href}
               className={
-                action.kind === 'outline'
-                  ? 'inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04'
-                  : 'inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]'
+                action.kind === "outline"
+                  ? "inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04"
+                  : "inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]"
               }
             >
               {action.label}

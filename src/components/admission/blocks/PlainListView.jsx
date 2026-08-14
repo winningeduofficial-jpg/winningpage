@@ -23,15 +23,17 @@
 //    `ordered`를 만들기 시작하는 순간 게이트가 조용히 갈라진다.
 //    (`keyValue`는 아직 미러에 케이스가 없다 — 대입 쪽 생성 경로가 0건이라 남겨 둔 것이고,
 //     그 경로가 생기면 미러도 함께 만들어야 한다.)
+import { withDedupedKeys } from "../../../lib/reactKeys";
+
 function groupItems(items) {
   const groups = [];
   let currentBullets = null;
 
   items.forEach((item) => {
-    if (item.type === 'bullet') {
+    if (item.type === "bullet") {
       if (!currentBullets) {
         currentBullets = [];
-        groups.push({ kind: 'bulletGroup', items: currentBullets });
+        groups.push({ kind: "bulletGroup", items: currentBullets });
       }
       currentBullets.push(item.text);
       return;
@@ -48,28 +50,37 @@ function groupItems(items) {
  * @param {boolean} [ordered] true면 bullet 묶음을 `<ol>`(번호 목록)로 낸다. 기본 `<ul>`.
  */
 export default function PlainListView({ items, ordered = false }) {
-  if (!items || !items.length) return null;
+  if (!items?.length) return null;
   const groups = groupItems(items);
-  const ListTag = ordered ? 'ol' : 'ul';
+  const ListTag = ordered ? "ol" : "ul";
   const listClassName = ordered
-    ? 'admission-bullet-list admission-ordered-list'
-    : 'admission-bullet-list';
+    ? "admission-bullet-list admission-ordered-list"
+    : "admission-bullet-list";
 
   return (
     <div className="admission-readable-body">
-      {groups.map((group, idx) => {
-        if (group.kind === 'bulletGroup') {
+      {withDedupedKeys(groups, (group) =>
+        group.kind === "bulletGroup"
+          ? `bulletGroup-${group.items.join("|")}`
+          : `${group.kind}-${group.text}`,
+      ).map(({ item: group, key }) => {
+        if (group.kind === "bulletGroup") {
           return (
-            <ListTag key={idx} className={listClassName}>
-              {group.items.map((text, itemIdx) => (
-                <li key={itemIdx}>{text}</li>
-              ))}
+            <ListTag key={key} className={listClassName}>
+              {withDedupedKeys(group.items).map(
+                ({ item: text, key: itemKey }) => (
+                  <li key={itemKey}>{text}</li>
+                ),
+              )}
             </ListTag>
           );
         }
-        const className = group.kind === 'subtitle' ? 'admission-subtitle-line' : 'admission-text-line';
+        const className =
+          group.kind === "subtitle"
+            ? "admission-subtitle-line"
+            : "admission-text-line";
         return (
-          <div key={idx} className={className}>
+          <div key={key} className={className}>
             {group.text}
           </div>
         );

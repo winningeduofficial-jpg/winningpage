@@ -15,7 +15,7 @@
 // 동시에 검증되는 폼이라 시프트가 누적되면 사용자가 보고 있던 위치를 잃는다. 그래서
 // **에러가 없어도 높이를 차지하는** 고정 슬롯으로 예약한다(min-h). 대가는 필드마다 26px의
 // 상시 여백이며, 이는 명세 §6-4 의 필드군 세로 gap 26 과 겹쳐 흡수되도록 mt-2 + min-h 로 나눴다.
-import { useId } from 'react';
+import { useId } from "react";
 
 // auth/TextField.jsx:91 에서 그대로 가져온 컨트롤 공통 클래스(시안 §6-5 와 일치하는 부분).
 // h 52 는 인풋 전용이라 여기 넣지 않고 각 컨트롤에서 붙인다(텍스트에어리어는 높이가 가변).
@@ -23,7 +23,7 @@ import { useId } from 'react';
 // 시안 §6-6 의 placeholder 색이 `Surface/01 #D9D9D9` 이고, 신규 hex 하드코딩 금지 원칙상
 // 가장 가까운 기존 토큰이 `line`(#d7d7d7)이다(명세 확인 항목 ㊼ — #D9D9D9 vs #D7D7D7 정본 미확정).
 export const MENTOR_CONTROL_CLASS =
-  'w-full rounded-xl border border-line bg-white px-5 text-base text-ink outline-none transition placeholder:text-line focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer';
+  "w-full rounded-xl border border-line bg-white px-5 text-base text-ink outline-none transition placeholder:text-line focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer";
 
 // aria-describedby 는 도움말/에러 두 슬롯을 함께 가리켜야 한다.
 // 에러 슬롯은 항상 렌더되지만 비어 있을 때 가리키면 스크린리더가 빈 노드를 읽으므로 error 가 있을 때만 연결한다.
@@ -31,7 +31,7 @@ export function getMentorFieldDescribedBy(fieldId, { helperText, error } = {}) {
   const ids = [];
   if (helperText) ids.push(`${fieldId}-helper`);
   if (error) ids.push(`${fieldId}-error`);
-  return ids.length ? ids.join(' ') : undefined;
+  return ids.length ? ids.join(" ") : undefined;
 }
 
 // 라벨 요소의 id. <label htmlFor> 로 묶을 대상 컨트롤이 없는 그룹 컨트롤(칩 그룹·파일
@@ -52,16 +52,16 @@ export function MentorFieldShell({
   required = false,
   helperText,
   error,
-  className = '',
+  className = "",
   children,
   // 그룹 컨트롤(칩 그룹·파일 드롭존·약관 블록)용. 이 라벨이 가리킬 단일 포커스 대상이
   // 없을 때 true 로 준다 — <label htmlFor> 대신 id 만 가진 <span> 을 그리고, 호출부가
   // getMentorFieldLabelId(fieldId) 로 그 id 를 얻어 그룹 컨테이너의 aria-labelledby 에
   // 연결한다(리뷰 WARN #3). htmlFor 가 존재하지 않는 id 를 가리키면 스크린리더가
   // 아예 이름을 읽지 못하므로, <label htmlFor="없는-id"> 로 방치하는 것보다 낫다.
-  groupLabel = false
+  groupLabel = false,
 }) {
-  const LabelTag = groupLabel ? 'span' : 'label';
+  const LabelTag = groupLabel ? "span" : "label";
 
   return (
     <div className={className}>
@@ -76,7 +76,7 @@ export function MentorFieldShell({
               필수 여부는 컨트롤의 required/aria-required 가 전달한다. */}
           {required && (
             <span aria-hidden="true" className="text-accent">
-              {' '}
+              {" "}
               *
             </span>
           )}
@@ -86,13 +86,16 @@ export function MentorFieldShell({
       {helperText && (
         // 라벨 ↔ 도움말 gap 4(0.25rem). 도움말 굵기는 시안이 Rg/Md 혼재라(§6-10 결함 6)
         // 다수값인 Regular 로 통일했다. 도움말 안의 accent 강조는 호출부가 ReactNode 로 넘긴다.
-        <p id={`${fieldId}-helper`} className="mt-1 break-keep text-sm leading-[1.4] text-ink-sub">
+        <p
+          id={`${fieldId}-helper`}
+          className="mt-1 break-keep text-sm leading-[1.4] text-ink-sub"
+        >
           {helperText}
         </p>
       )}
 
       {/* (라벨+도움말) ↔ 컨트롤 gap 12 */}
-      <div className={label || helperText ? 'mt-3' : ''}>{children}</div>
+      <div className={label || helperText ? "mt-3" : ""}>{children}</div>
 
       {/* 에러 슬롯 — 항상 렌더(파일 상단 주석 참고). 비어 있어도 높이를 차지한다(레이아웃
           시프트 방지, 의도된 설계다 — 그대로 유지).
@@ -106,10 +109,10 @@ export function MentorFieldShell({
       <p
         id={`${fieldId}-error`}
         className={`mt-2 min-h-[1.125rem] break-keep text-xs leading-[1.125rem] text-error ${
-          error ? 'auth-message-enter' : ''
+          error ? "auth-message-enter" : ""
         }`}
       >
-        {error || ''}
+        {error || ""}
       </p>
     </div>
   );
@@ -124,7 +127,7 @@ export default function MentorTextField({
   value,
   onChange,
   placeholder,
-  type = 'text',
+  type = "text",
   error,
   // 인풋 "옆"에 붙는 액션 슬롯(ReactNode). 시안 5-2 의 94×34 `인증번호 발송`/`인증번호 확인`
   // 아웃라인 버튼이 여기 들어간다. auth/TextField 의 actionLabel/onAction(인풋 아래 링크)과 달리
@@ -134,7 +137,7 @@ export default function MentorTextField({
   maxLength,
   inputMode,
   autoComplete,
-  className = ''
+  className = "",
 }) {
   const reactId = useId();
   const fieldId = id || name || reactId;
@@ -154,8 +157,11 @@ export default function MentorTextField({
       autoComplete={autoComplete}
       aria-required={required || undefined}
       aria-invalid={error ? true : undefined}
-      aria-describedby={getMentorFieldDescribedBy(fieldId, { helperText, error })}
-      className={`h-[3.25rem] ${MENTOR_CONTROL_CLASS} ${error ? 'border-error' : ''}`}
+      aria-describedby={getMentorFieldDescribedBy(fieldId, {
+        helperText,
+        error,
+      })}
+      className={`h-[3.25rem] ${MENTOR_CONTROL_CLASS} ${error ? "border-error" : ""}`}
     />
   );
 

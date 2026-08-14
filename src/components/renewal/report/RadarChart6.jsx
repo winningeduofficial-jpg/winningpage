@@ -8,12 +8,12 @@ const R_LABEL = R_MAX + 18;
 // 축 인덱스(k)별 라벨 배치 — 결정된 6축 순서(12시부터 시계방향) 전제.
 // k0 위(가운데 정렬, 라벨 위쪽) · k3 아래(가운데 정렬, 라벨 아래쪽) · k1·k2 우측(start) · k4·k5 좌측(end).
 const LABEL_LAYOUT = [
-  { anchor: 'middle', nameDy: -22, scoreDy: 0 },
-  { anchor: 'start', nameDy: -4, scoreDy: 18 },
-  { anchor: 'start', nameDy: -4, scoreDy: 18 },
-  { anchor: 'middle', nameDy: 0, scoreDy: 22 },
-  { anchor: 'end', nameDy: -4, scoreDy: 18 },
-  { anchor: 'end', nameDy: -4, scoreDy: 18 },
+  { anchor: "middle", nameDy: -22, scoreDy: 0 },
+  { anchor: "start", nameDy: -4, scoreDy: 18 },
+  { anchor: "start", nameDy: -4, scoreDy: 18 },
+  { anchor: "middle", nameDy: 0, scoreDy: 22 },
+  { anchor: "end", nameDy: -4, scoreDy: 18 },
+  { anchor: "end", nameDy: -4, scoreDy: 18 },
 ];
 
 function polarPoint(angleDeg, radius) {
@@ -25,16 +25,23 @@ function polarPoint(angleDeg, radius) {
 }
 
 function toPointsAttr(points) {
-  return points.map((p) => `${p.x},${p.y}`).join(' ');
+  return points.map((p) => `${p.x},${p.y}`).join(" ");
 }
 
-export default function RadarChart6({ axes, max = 100, rings = 4, className = '' }) {
+export default function RadarChart6({
+  axes,
+  max = 100,
+  rings = 4,
+  className = "",
+}) {
   const count = axes.length;
   // θ_k = -90° + (360/count)·k — k=0 이 12시, 시계방향.
   const angles = axes.map((_, k) => -90 + (360 / count) * k);
   const ringRatios = Array.from({ length: rings }, (_, i) => (i + 1) / rings);
 
-  const dataPoints = axes.map((axis, k) => polarPoint(angles[k], (axis.score / max) * R_MAX));
+  const dataPoints = axes.map((axis, k) =>
+    polarPoint(angles[k], (axis.score / max) * R_MAX),
+  );
   const spokeEnds = angles.map((angle) => polarPoint(angle, R_MAX));
   const labelPoints = angles.map((angle) => polarPoint(angle, R_LABEL));
 
@@ -52,14 +59,16 @@ export default function RadarChart6({ axes, max = 100, rings = 4, className = ''
       aria-label="학습 6축 레이더 차트"
     >
       {ringRatios.map((ratio) => {
-        const ringPoints = angles.map((angle) => polarPoint(angle, R_MAX * ratio));
+        const ringPoints = angles.map((angle) =>
+          polarPoint(angle, R_MAX * ratio),
+        );
         const isOutermost = ratio === 1;
         return (
           <polygon
             key={ratio}
             points={toPointsAttr(ringPoints)}
             fill="none"
-            stroke={isOutermost ? '#d7d7d7' : '#e5e5e5'}
+            stroke={isOutermost ? "#d7d7d7" : "#e5e5e5"}
             strokeWidth="1"
           />
         );
@@ -91,10 +100,22 @@ export default function RadarChart6({ axes, max = 100, rings = 4, className = ''
         const { x, y } = labelPoints[k];
         return (
           <text key={axis.name} x={x} textAnchor={layout.anchor}>
-            <tspan x={x} y={y + layout.nameDy} fontSize="16" fontWeight="500" fill="#525252">
+            <tspan
+              x={x}
+              y={y + layout.nameDy}
+              fontSize="16"
+              fontWeight="500"
+              fill="#525252"
+            >
               {axis.name}
             </tspan>
-            <tspan x={x} y={y + layout.scoreDy} fontSize="20" fontWeight="600" fill="#191919">
+            <tspan
+              x={x}
+              y={y + layout.scoreDy}
+              fontSize="20"
+              fontWeight="600"
+              fill="#191919"
+            >
               {axis.score}
             </tspan>
           </text>

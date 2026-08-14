@@ -1,18 +1,24 @@
-import ImeSafeInput from '../ImeSafeInput';
+import ImeSafeInput from "../ImeSafeInput";
 
 // {text, badge} 셀 편집기 — selection variant의 minimum 컬럼(admission-minimum-badge
 // has/none) 전용. text와 badge를 각각 편집한다.
 export default function BadgeCellEditor({ value, onChange }) {
-  const cell = value && typeof value === 'object' ? value : { text: typeof value === 'string' ? value : '', badge: 'minimumNone' };
-  const text = cell.text ?? '';
-  const badge = cell.badge === 'minimumHas' ? 'minimumHas' : 'minimumNone';
+  const cell =
+    value && typeof value === "object"
+      ? value
+      : { text: typeof value === "string" ? value : "", badge: "minimumNone" };
+  const text = cell.text ?? "";
+  const badge = cell.badge === "minimumHas" ? "minimumHas" : "minimumNone";
 
   function commitText(nextText) {
     onChange({ text: nextText, badge });
   }
 
   function commitBadge(event) {
-    onChange({ text, badge: event.target.value === 'minimumHas' ? 'minimumHas' : 'minimumNone' });
+    onChange({
+      text,
+      badge: event.target.value === "minimumHas" ? "minimumHas" : "minimumNone",
+    });
   }
 
   return (

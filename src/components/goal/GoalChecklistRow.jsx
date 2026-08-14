@@ -17,17 +17,27 @@
 // 구분한다(fail은 취소선 대신 빨간 텍스트). 표시 전용 span을 실제 버튼으로 승격하며 aria-label을
 // 추가해 액션의 의미(완료 처리/취소, 삭제)를 아이콘이 아니라 텍스트로도 전달한다.
 const struck = { done: true, fail: false, pending: false };
-const STATUS_LABEL = { done: '완료', fail: '미실행', pending: '대기' };
+const STATUS_LABEL = { done: "완료", fail: "미실행", pending: "대기" };
 
-export default function GoalChecklistRow({ index, text, status = 'pending', onCheck, onDelete }) {
-  const isDone = status === 'done';
-  const isFail = status === 'fail';
+export default function GoalChecklistRow({
+  index,
+  text,
+  status = "pending",
+  onCheck,
+  onDelete,
+}) {
+  const isDone = status === "done";
+  const isFail = status === "fail";
 
   return (
     <li className="flex h-[2.375rem] items-center justify-between gap-2 rounded-lg bg-white px-3">
       <span
         className={`flex min-w-0 items-center gap-2 truncate text-[0.875rem] leading-[1.4] ${
-          isFail ? 'text-error' : struck[status] ? 'text-ink-sub line-through' : 'text-ink-strong'
+          isFail
+            ? "text-error"
+            : struck[status]
+              ? "text-ink-sub line-through"
+              : "text-ink-strong"
         }`}
       >
         <span className="shrink-0 text-ink-sub">{index}</span>
@@ -38,10 +48,12 @@ export default function GoalChecklistRow({ index, text, status = 'pending', onCh
         <button
           type="button"
           onClick={onCheck}
-          aria-label={isDone ? '완료 취소' : '완료 처리'}
+          aria-label={isDone ? "완료 취소" : "완료 처리"}
           aria-pressed={isDone}
           className={`flex h-5 w-5 items-center justify-center rounded-md border text-[0.625rem] font-bold transition-colors ${
-            isDone ? 'border-transparent bg-[#4CAF6D] text-white' : 'border-[#B8DFC4] text-transparent'
+            isDone
+              ? "border-transparent bg-[#4CAF6D] text-white"
+              : "border-[#B8DFC4] text-transparent"
           }`}
         >
           ✓
@@ -51,7 +63,9 @@ export default function GoalChecklistRow({ index, text, status = 'pending', onCh
           onClick={onDelete}
           aria-label="과제 삭제"
           className={`flex h-5 w-5 items-center justify-center rounded-md border text-[0.625rem] font-bold transition-colors ${
-            isFail ? 'border-transparent bg-error text-white' : 'border-[#F3C4C4] text-transparent'
+            isFail
+              ? "border-transparent bg-error text-white"
+              : "border-[#F3C4C4] text-transparent"
           }`}
         >
           ✕

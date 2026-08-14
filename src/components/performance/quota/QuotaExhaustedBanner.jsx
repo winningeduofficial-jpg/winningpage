@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 // 회차 소진 안내 (표면 A) — 셸 상단 배너. docs/수행평가-상세-명세.md §5.20 (A) / §11.1 Q47.
 //
@@ -27,11 +27,11 @@ import { Link } from 'react-router-dom';
 //   상태가 없다 — 그래서 평범한 `<Link>`로 같은 탭 이동한다.
 
 const MESSAGE =
-  '이용 가능한 횟수를 모두 사용했어요. 이용권을 추가하면 새 수행평가를 시작할 수 있습니다.';
-const CTA_LABEL = '이용권 구매하기';
+  "이용 가능한 횟수를 모두 사용했어요. 이용권을 추가하면 새 수행평가를 시작할 수 있습니다.";
+const CTA_LABEL = "이용권 구매하기";
 
 /** §5.20 CTA 목적지. 랜딩 가격 섹션(§13)이다. QuotaExhaustedCard와 동일. */
-const PURCHASE_TO = '/services/performance#pricing';
+const PURCHASE_TO = "/services/performance#pricing";
 
 export default function QuotaExhaustedBanner() {
   return (
@@ -39,7 +39,9 @@ export default function QuotaExhaustedBanner() {
       role="status"
       className="mb-6 flex min-h-[3rem] w-full flex-wrap items-center justify-between gap-3 rounded-xl bg-performance-tag px-6 py-3"
     >
-      <p className="text-[0.9375rem] font-medium leading-[1.375rem] text-ink">{MESSAGE}</p>
+      <p className="text-[0.9375rem] font-medium leading-[1.375rem] text-ink">
+        {MESSAGE}
+      </p>
       <Link
         to={PURCHASE_TO}
         className="shrink-0 rounded-lg bg-primary px-4 py-2 text-[0.875rem] font-semibold leading-[1.125rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"

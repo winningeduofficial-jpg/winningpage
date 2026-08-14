@@ -1,18 +1,20 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 // 로컬 QA 전용 결제 게이트 우회 플래그.
 // 사용법: .env.local에 VITE_DISABLE_PAID_GATE=true 를 추가하고 개발 서버를 재시작한다.
 // import.meta.env.DEV를 반드시 함께 검사한다 — 프로덕션 빌드는 항상 DEV=false이므로,
 // 이 값이 실수로 환경변수에 들어가도(Vercel 등) 프로덕션 번들에서는 우회가 절대 불가능하다.
 // 플래그 단독으로 판정하면 그 안전장치가 사라진다.
-const PAID_GATE_DISABLED = import.meta.env.DEV === true && import.meta.env.VITE_DISABLE_PAID_GATE === 'true';
+const PAID_GATE_DISABLED =
+  import.meta.env.DEV === true &&
+  import.meta.env.VITE_DISABLE_PAID_GATE === "true";
 
-const PAID_MESSAGE = '유료결제이후 이용해주세요!';
+const PAID_MESSAGE = "유료결제이후 이용해주세요!";
 
 const PAID_SERVICE_CONFIGS = [
   {
-    serviceKey: 'suhaeng',
-    serviceName: '수행평가 서비스',
+    serviceKey: "suhaeng",
+    serviceName: "수행평가 서비스",
     match(service = {}) {
       const text = [
         service.name,
@@ -22,24 +24,24 @@ const PAID_SERVICE_CONFIGS = [
         service.desc,
         service.link,
         service.to,
-        service.slug
+        service.slug,
       ]
-        .map((v) => String(v || '').toLowerCase())
-        .join(' ');
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
 
       return (
-        text.includes('수행') ||
-        text.includes('수행평가') ||
-        text.includes('assessment') ||
-        text.includes('services-ai-performance') ||
-        text.includes('services/assessment') ||
-        text.includes('services#ai')
+        text.includes("수행") ||
+        text.includes("수행평가") ||
+        text.includes("assessment") ||
+        text.includes("services-ai-performance") ||
+        text.includes("services/assessment") ||
+        text.includes("services#ai")
       );
-    }
+    },
   },
   {
-    serviceKey: 'goal',
-    serviceName: '목표관리 서비스',
+    serviceKey: "goal",
+    serviceName: "목표관리 서비스",
     match(service = {}) {
       const text = [
         service.name,
@@ -49,29 +51,29 @@ const PAID_SERVICE_CONFIGS = [
         service.desc,
         service.link,
         service.to,
-        service.slug
+        service.slug,
       ]
-        .map((v) => String(v || '').toLowerCase())
-        .join(' ');
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
 
       return (
-        text.includes('목표관리') ||
-        text.includes('목표 관리') ||
-        text.includes('목표') ||
-        text.includes('goal') ||
-        text.includes('target-main') ||
-        text.includes('target') ||
-        text.includes('services#goal')
+        text.includes("목표관리") ||
+        text.includes("목표 관리") ||
+        text.includes("목표") ||
+        text.includes("goal") ||
+        text.includes("target-main") ||
+        text.includes("target") ||
+        text.includes("services#goal")
       );
-    }
-  }
+    },
+  },
 ];
 
 export function getPaidServiceConfig(service) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
-const SERVICE_NOT_READY_MESSAGE = '서비스 준비중입니다.';
+const SERVICE_NOT_READY_MESSAGE = "서비스 준비중입니다.";
 
 // 상세 페이지(= PAID_SERVICE_CONFIGS 등록 서비스)가 아직 없는 서비스의 히어로 CTA용 핸들러.
 // 자기평가・심화탐구・콜멘토 3종이 여기 해당한다(2026-08-05, 사용자 확정). 서비스가 실제 앱을
@@ -83,26 +85,27 @@ export function alertServiceNotReady(event) {
 }
 
 function setGlobalLoadingCursor(isLoading) {
-  if (typeof document === 'undefined') return;
-  document.documentElement.style.cursor = isLoading ? 'progress' : '';
-  document.body.style.cursor = isLoading ? 'progress' : '';
+  if (typeof document === "undefined") return;
+  document.documentElement.style.cursor = isLoading ? "progress" : "";
+  document.body.style.cursor = isLoading ? "progress" : "";
 }
 
-function setButtonLoading(target, isLoading, label = '이동 중...') {
-  const el = target && target.closest ? target.closest('button, a') : target;
-  if (!el || !('style' in el)) return;
+function setButtonLoading(target, isLoading, label = "이동 중...") {
+  const el = target?.closest ? target.closest("button, a") : target;
+  if (!el || !("style" in el)) return;
 
   if (isLoading) {
-    if (!el.dataset.originalText) el.dataset.originalText = el.textContent || '';
-    el.dataset.ssoLoading = 'true';
-    el.style.cursor = 'progress';
-    el.style.pointerEvents = 'none';
-    if (el.tagName === 'BUTTON') el.disabled = true;
-    if (el.textContent && el.textContent.trim()) el.textContent = label;
+    if (!el.dataset.originalText)
+      el.dataset.originalText = el.textContent || "";
+    el.dataset.ssoLoading = "true";
+    el.style.cursor = "progress";
+    el.style.pointerEvents = "none";
+    if (el.tagName === "BUTTON") el.disabled = true;
+    if (el.textContent?.trim()) el.textContent = label;
   } else {
-    el.style.cursor = '';
-    el.style.pointerEvents = '';
-    if (el.tagName === 'BUTTON') el.disabled = false;
+    el.style.cursor = "";
+    el.style.pointerEvents = "";
+    if (el.tagName === "BUTTON") el.disabled = false;
     if (el.dataset.originalText) el.textContent = el.dataset.originalText;
     delete el.dataset.ssoLoading;
   }
@@ -132,13 +135,15 @@ export async function openPaidServiceOrAlert(event, service) {
   }
 
   if (PAID_GATE_DISABLED) {
-    console.info(`[paidServiceAccess] 로컬 결제 게이트 우회: ${config.serviceKey} (${config.serviceName})`);
+    console.info(
+      `[paidServiceAccess] 로컬 결제 게이트 우회: ${config.serviceKey} (${config.serviceName})`,
+    );
     openNormalLink(service?.link || service?.to);
     return true;
   }
 
   setGlobalLoadingCursor(true);
-  setButtonLoading(targetEl, true, '입장 확인 중...');
+  setButtonLoading(targetEl, true, "입장 확인 중...");
 
   try {
     const { data } = await supabase.auth.getSession();
@@ -149,13 +154,13 @@ export async function openPaidServiceOrAlert(event, service) {
       return true;
     }
 
-    const response = await fetch('/api/create-service-ticket', {
-      method: 'POST',
+    const response = await fetch("/api/create-service-ticket", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ service_key: config.serviceKey })
+      body: JSON.stringify({ service_key: config.serviceKey }),
     });
 
     let result = {};
@@ -170,11 +175,11 @@ export async function openPaidServiceOrAlert(event, service) {
       return true;
     }
 
-    setButtonLoading(targetEl, true, '이동 중...');
+    setButtonLoading(targetEl, true, "이동 중...");
     window.location.href = result.redirect_url;
     return true;
   } catch (error) {
-    console.error('유료 서비스 접근 확인 오류:', error);
+    console.error("유료 서비스 접근 확인 오류:", error);
     window.alert(PAID_MESSAGE);
     return true;
   } finally {

@@ -25,17 +25,18 @@ export const SCREEN_EXTRAS = Object.freeze({
      * 아래 두 블록 소제목('영역별 상세 진단' · '맞춤 전략')을 그대로 이어 붙여, 학생이
      * h2 만 읽어도 이 구역에 무엇이 두 덩어리로 오는지 미리 알 수 있게 했다.
      */
-    sectionTitle: '영역별 상세 진단과 맞춤 전략',
+    sectionTitle: "영역별 상세 진단과 맞춤 전략",
 
     /**
      * 자체 결정(2026-08-12) 확정. 원본 근거 없음, 신규 발주 대기. PDF 에 없는 이유를 학생이
      * 묻지 않게 하는 문장이다 — 화면에만 있는 내용을 아무 말 없이 두면 "인쇄가 잘렸다"로
      * 읽힌다(F-10 과 같은 계열의 오인 위험).
      */
-    screenOnlyNote: '아래 내용은 화면에서만 제공되며 PDF에는 포함되지 않습니다.',
+    screenOnlyNote:
+      "아래 내용은 화면에서만 제공되며 PDF에는 포함되지 않습니다.",
 
     /** 자체 결정(2026-08-12) 확정. 원본 근거 없음, 신규 발주 대기. 접기(disclosure)는 이 페이지 전체에서 이것 하나만 허용한다. */
-    strategyMoreLabel: '나머지 영역의 맞춤 전략 보기',
+    strategyMoreLabel: "나머지 영역의 맞춤 전략 보기",
 
     /**
      * 자체 결정(2026-08-12) 확정. 원본 근거 없음, 신규 템플릿(문구집 05_구간_공통의
@@ -46,33 +47,33 @@ export const SCREEN_EXTRAS = Object.freeze({
      * 옆의 영역 점수 0~100 과 같은 척도로 오독된다).
      * lowAreaCount 가 0 이면 ' · ' 뒤 절은 통째로 뗀다(0개를 굳이 말하지 않는다).
      */
-    urgencyLine: '이번 진단 긴급도 {level} · {threshold}점 미만 영역 {count}개',
+    urgencyLine: "이번 진단 긴급도 {level} · {threshold}점 미만 영역 {count}개",
 
     /** 자체 결정(2026-08-12) 확정. 원본 근거 없음, 신규 발주 대기. extras 마지막 블록(해석 한계 고지) 제목. */
-    noticeTitle: '이 리포트를 읽을 때',
+    noticeTitle: "이 리포트를 읽을 때",
 
     areaDetailTitle: Object.freeze({
       /** 자체 결정(2026-08-12) 확정. 원본 근거 없음, 신규 발주 대기. 블록 A 제목. */
-      section: '영역별 상세 진단',
+      section: "영역별 상세 진단",
       /**
        * **재사용**(창작 아님) — page1 은 요약 카드 제목 templateCopy('card_exec.title'),
        * page2 는 ReadinessOverview 의 정적 섹션 제목과 같은 문자열이다. 학생이 위에서 본
        * 두 묶음의 이름을 그대로 되풀이해야 6+6 소섹션이 어느 페이지와 짝인지 읽힌다.
        * page1 은 런타임에 문구집에서 조회하고 여기 값은 조회 실패 폴백으로만 쓴다.
        */
-      page1: '학습 실행 역량',
-      page2: '학교 생활 및 입시 준비도'
+      page1: "학습 실행 역량",
+      page2: "학교 생활 및 입시 준비도",
     }),
 
     /** **재사용** — 문구집 02 시트의 구분명('맞춤 전략') 그대로. '먼저 할 일'은 TYPE_COPY.todos 가 쓸 자리라 피했다. */
-    strategyTitle: '맞춤 전략',
+    strategyTitle: "맞춤 전략",
 
     /**
      * 자체 결정(2026-08-13) 확정. 원본 근거 없음. F-03 배선 시 TYPE_COPY.todos(유형별 '먼저 할 일'
      * 3항목) 리스트의 소제목이다 — strategyTitle('맞춤 전략') 이 이 라벨을 피해 비워 둔 자리를 채운다.
      * 변경 시 이 값만 교체.
      */
-    strategyTodosTitle: '먼저 할 일'
+    strategyTodosTitle: "먼저 할 일",
   }),
 
   rules: Object.freeze({
@@ -99,8 +100,8 @@ export const SCREEN_EXTRAS = Object.freeze({
      *   'NOTICE_ROW' — 박스는 그리되 표 대신 안내 행 1개를 넣는다. 새 문구를 만들지 않는다 —
      *                  diagnosisReport.js REPORT_FALLBACK.BAND_VALUE_NODATA('자료 없음')를 재사용한다.
      */
-    admissionEmptyTableMode: 'HIDE' // 'HIDE' | 'NOTICE_ROW'
-  })
+    admissionEmptyTableMode: "HIDE", // 'HIDE' | 'NOTICE_ROW'
+  }),
 });
 
 /**
@@ -113,9 +114,10 @@ export const SCREEN_EXTRAS = Object.freeze({
  * CTA 라벨은 창작이 아니라 LearningDiagnosisLanding 의 기존 버튼 문구 인용이다.
  */
 export const SAMPLE_REPORT_COPY = Object.freeze({
-  BANNER: '이 화면은 리포트 구성을 보여 드리는 예시입니다. 학습진단을 완료하시면 학생 본인의 결과로 바뀝니다.',
-  CTA: '학습진단 시작하기',
-  CTA_HREF: '/app/learning-diagnosis/survey/1',
+  BANNER:
+    "이 화면은 리포트 구성을 보여 드리는 예시입니다. 학습진단을 완료하시면 학생 본인의 결과로 바뀝니다.",
+  CTA: "학습진단 시작하기",
+  CTA_HREF: "/app/learning-diagnosis/survey/1",
   /**
    * G-3(NIT 5, 2026-08-12) — 종전엔 CSS `content: '예시'` 리터럴이라 JS 문구 검사·격리 스캔
    * 어느 쪽에도 안 잡혔다(정의처가 report-print.css 하나뿐이었다). 정의처를 여기로 옮기고
@@ -123,7 +125,7 @@ export const SAMPLE_REPORT_COPY = Object.freeze({
    * `data-watermark` 속성으로 내려보낸다) — 이제 findBannedPhrases 같은 JS 스캔이 이 문자열도
    * 정상적으로 훑는다. 자체 결정(2026-08-12) 확정, 원본 근거 없음. 변경 시 이 값만 교체.
    */
-  WATERMARK: '예시'
+  WATERMARK: "예시",
 });
 
 export default SCREEN_EXTRAS;

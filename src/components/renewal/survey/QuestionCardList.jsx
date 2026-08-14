@@ -1,8 +1,11 @@
-import QuestionCard from './QuestionCard';
-import AnswerField from './AnswerField';
-import EmbeddedField from './EmbeddedField';
-import { surveyEmbeddedByParent } from '../../../lib/renewalSurvey';
-import { GRADE_SYSTEM_INPUT_RULES, getOptionCode } from '../../../data/renewalSurveyQuestions';
+import {
+  GRADE_SYSTEM_INPUT_RULES,
+  getOptionCode,
+} from "../../../data/renewalSurveyQuestions";
+import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
+import AnswerField from "./AnswerField";
+import EmbeddedField from "./EmbeddedField";
+import QuestionCard from "./QuestionCard";
 
 /**
  * 카드 스택 gap 40. 스텝 페이지는 getStepQuestions(step) 결과를,
@@ -30,7 +33,13 @@ function resolveConstraint(question, answers) {
 // cascadeLevels: q15(cascade 타입) 전용 fetch 상태(options/loading/error) — SurveyStepShell 의
 // useAdmissionCascade 가 소유하고 여기를 거쳐 AnswerField 로 내려간다(B-1 확정). 다른 문항 타입은
 // 이 prop 을 받지 않는다 — AnswerField 가 question.type === 'cascade' 일 때만 소비한다.
-export default function QuestionCardList({ questions, answers, onAnswer, highlightedId, cascadeLevels }) {
+export default function QuestionCardList({
+  questions,
+  answers,
+  onAnswer,
+  highlightedId,
+  cascadeLevels,
+}) {
   return (
     <div className="flex w-full flex-col items-start gap-10">
       {questions.map((question) => {
@@ -57,7 +66,9 @@ export default function QuestionCardList({ questions, answers, onAnswer, highlig
               value={value}
               constraint={constraint}
               highlighted={highlighted}
-              cascadeLevels={question.type === 'cascade' ? cascadeLevels : undefined}
+              cascadeLevels={
+                question.type === "cascade" ? cascadeLevels : undefined
+              }
               onChange={(nextValue) => onAnswer(question.id, nextValue)}
             />
 

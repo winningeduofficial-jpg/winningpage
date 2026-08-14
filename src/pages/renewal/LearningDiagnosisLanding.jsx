@@ -1,27 +1,26 @@
-import { Link } from 'react-router-dom';
-import { useInView } from '../../hooks/useInView';
-
-import ServiceProcessCards from '../../components/services/ServiceProcessCards';
-import heroBrowserV2 from '../../assets/renewal/landing/hero-browser-v2.png';
-import heroGlow from '../../assets/renewal/landing/hero-glow.svg';
-import heroGrain from '../../assets/renewal/landing/hero-grain.png';
-import illustrationStrength from '../../assets/renewal/landing/illustration-strength.png';
-import illustrationWeakness from '../../assets/renewal/landing/illustration-weakness.png';
-import illustrationTrial from '../../assets/renewal/landing/illustration-trial.png';
-import iconLock from '../../assets/renewal/landing/icon-lock-v2.png';
-import iconFolder from '../../assets/renewal/landing/icon-folder-v2.png';
-import iconShield from '../../assets/renewal/landing/icon-shield-v2.png';
-import macbookFull from '../../assets/renewal/landing/macbook-full.png';
+import { Link } from "react-router-dom";
+import heroBrowserV2 from "../../assets/renewal/landing/hero-browser-v2.png";
+import heroGlow from "../../assets/renewal/landing/hero-glow.svg";
+import heroGrain from "../../assets/renewal/landing/hero-grain.png";
+import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
+import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
+import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
+import illustrationStrength from "../../assets/renewal/landing/illustration-strength.png";
+import illustrationTrial from "../../assets/renewal/landing/illustration-trial.png";
+import illustrationWeakness from "../../assets/renewal/landing/illustration-weakness.png";
+import macbookFull from "../../assets/renewal/landing/macbook-full.png";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import { useInView } from "../../hooks/useInView";
 
 const CTA_LINK_CLASS =
-  'inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]';
+  "inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]";
 
 // STEP 라벨은 데이터에 두지 않는다 — ServiceProcessCards 가 index 로 생성한다.
 const STEPS = [
-  { title: '문항 입력', desc: '학년, 성적 흐름을 간단히 입력해요' },
-  { title: '상세 분석', desc: '지금 겪는 어려움을 선택해요' },
-  { title: '결과 확인', desc: '응답을 바탕으로 유형을 분석해요' },
-  { title: '서비스 추천', desc: '가장 먼저 필요한 서비스를 추천해요' }
+  { title: "문항 입력", desc: "학년, 성적 흐름을 간단히 입력해요" },
+  { title: "상세 분석", desc: "지금 겪는 어려움을 선택해요" },
+  { title: "결과 확인", desc: "응답을 바탕으로 유형을 분석해요" },
+  { title: "서비스 추천", desc: "가장 먼저 필요한 서비스를 추천해요" },
 ];
 
 // 시안은 카드마다 이미지 규격이 다르다 — 카드1 353×269/top 0(상단 플러시), 카드2·3 353×235/top 34.
@@ -34,28 +33,31 @@ const STEPS = [
 const AUDIENCE = [
   {
     image: illustrationStrength,
-    imageClass: 'wide:mt-0 wide:h-[16.8125rem]',
-    titleLines: ['내 강점이 뭔지', '아직 정리가 안된 학생'],
-    descLines: ['목표는 있는데 지금 무엇을 준비해야', '할지 감이 안 잡히는 경우']
+    imageClass: "wide:mt-0 wide:h-[16.8125rem]",
+    titleLines: ["내 강점이 뭔지", "아직 정리가 안된 학생"],
+    descLines: [
+      "목표는 있는데 지금 무엇을 준비해야",
+      "할지 감이 안 잡히는 경우",
+    ],
   },
   {
     image: illustrationWeakness,
-    imageClass: 'wide:mt-[2.125rem] wide:h-[14.6875rem]',
-    titleLines: ['어떤 학습부분에서 약한지', '확인하고 싶은 학생'],
-    descLines: ['해야 할 건 많은데 우선순위가', '서지 않아 시작이 어려운 경우']
+    imageClass: "wide:mt-[2.125rem] wide:h-[14.6875rem]",
+    titleLines: ["어떤 학습부분에서 약한지", "확인하고 싶은 학생"],
+    descLines: ["해야 할 건 많은데 우선순위가", "서지 않아 시작이 어려운 경우"],
   },
   {
     image: illustrationTrial,
-    imageClass: 'wide:mt-[2.125rem] wide:h-[14.6875rem]',
-    titleLines: ['유료 서비스 전에 무료로', '서비스를 경험해보고 싶은 분'],
-    descLines: ['내 위치를 데이터로 확인하고', '맞는 서비스를 찾고 있는 경우']
-  }
+    imageClass: "wide:mt-[2.125rem] wide:h-[14.6875rem]",
+    titleLines: ["유료 서비스 전에 무료로", "서비스를 경험해보고 싶은 분"],
+    descLines: ["내 위치를 데이터로 확인하고", "맞는 서비스를 찾고 있는 경우"],
+  },
 ];
 
 const BENEFITS = [
-  { icon: iconLock, label: '상세 진단 요약 카드' },
-  { icon: iconFolder, label: '나의 강점 정리본' },
-  { icon: iconShield, label: '보완 안내' }
+  { icon: iconLock, label: "상세 진단 요약 카드" },
+  { icon: iconFolder, label: "나의 강점 정리본" },
+  { icon: iconShield, label: "보완 안내" },
 ];
 
 // 플로팅 칩 — 시안 절대좌표(x290~1605, 스팬 1315)가 max-w-content(1164) 밖이라 그대로 쓸 수 없다.
@@ -75,29 +77,29 @@ const pctY = (px) => `${(px / MACBOOK_H) * 100}%`;
 // 통일하면 위상만 다른 하나의 기계로 읽힌다.
 const FLOATING_BADGES = [
   {
-    emoji: '📊',
-    label: '상세 진단 요약 카드',
+    emoji: "📊",
+    label: "상세 진단 요약 카드",
     style: { left: pctX(-120), top: pctY(201) },
-    x: { amplitude: '0.375rem', duration: '4.3s', delay: '0s' },
-    y: { amplitude: '1rem', duration: '3.1s', delay: '-1.1s' },
-    rot: { amplitude: '1deg', duration: '5.7s', delay: '-2.3s' }
+    x: { amplitude: "0.375rem", duration: "4.3s", delay: "0s" },
+    y: { amplitude: "1rem", duration: "3.1s", delay: "-1.1s" },
+    rot: { amplitude: "1deg", duration: "5.7s", delay: "-2.3s" },
   },
   {
-    emoji: '📋',
-    label: '보완 안내',
+    emoji: "📋",
+    label: "보완 안내",
     style: { left: pctX(914), top: pctY(-69) },
-    x: { amplitude: '0.3125rem', duration: '5.1s', delay: '-0.4s' },
-    y: { amplitude: '0.8125rem', duration: '3.7s', delay: '-1.6s' },
-    rot: { amplitude: '1.2deg', duration: '6.3s', delay: '-3.4s' }
+    x: { amplitude: "0.3125rem", duration: "5.1s", delay: "-0.4s" },
+    y: { amplitude: "0.8125rem", duration: "3.7s", delay: "-1.6s" },
+    rot: { amplitude: "1.2deg", duration: "6.3s", delay: "-3.4s" },
   },
   {
-    emoji: '✏️',
-    label: '나의 강점 정리본',
+    emoji: "✏️",
+    label: "나의 강점 정리본",
     style: { left: pctX(914), top: pctY(344) },
-    x: { amplitude: '0.375rem', duration: '4.7s', delay: '-0.9s' },
-    y: { amplitude: '1.125rem', duration: '4.1s', delay: '-2.2s' },
-    rot: { amplitude: '0.8deg', duration: '6.9s', delay: '-4.1s' }
-  }
+    x: { amplitude: "0.375rem", duration: "4.7s", delay: "-0.9s" },
+    y: { amplitude: "1.125rem", duration: "4.1s", delay: "-2.2s" },
+    rot: { amplitude: "0.8deg", duration: "6.9s", delay: "-4.1s" },
+  },
 ];
 
 // 맥북 통이미지(macbook-full.png) — 2208×1374 @2x = 1104×687 @1x.
@@ -107,29 +109,29 @@ const MACBOOK_IMG_STYLE = {
   left: pctX(-48),
   top: pctY(-48),
   width: pctX(1104),
-  height: pctY(687)
+  height: pctY(687),
 };
 
 // 시안 칩 폰트 굵기가 하나만 600, 둘은 500 → 시안 실수로 보고 셋 다 500으로 통일.
 const BADGE_BASE_CLASS =
-  'inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] font-medium leading-[1.4] text-[#013262]';
+  "inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] font-medium leading-[1.4] text-[#013262]";
 
 const SECTION_HEADING_CLASS =
-  'break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] sm:text-[1.75rem] md:text-[2rem]';
+  "break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] sm:text-[1.75rem] md:text-[2rem]";
 
 // 히어로 전용 타이포 — SECTION_HEADING_CLASS는 다른 섹션과 공유하므로 별도 정의.
 const HERO_EYEBROW_CLASS =
-  'text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]';
+  "text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]";
 const HERO_HEADLINE_CLASS =
-  'break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem] lg:max-w-none lg:whitespace-nowrap';
+  "break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem] lg:max-w-none lg:whitespace-nowrap";
 const HERO_SUBTEXT_CLASS =
-  'text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]';
+  "text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]";
 
 // Figma TILE fill(scalingFactor 0.609 → 134px/8.375rem 타일) + blendMode OVERLAY 재현.
 // 글로우 프레임 내부 1겹 + 히어로 프레임 전체 1겹, 총 2겹으로 원본과 동일하게 겹친다.
 const HERO_GRAIN_STYLE = { backgroundImage: `url(${heroGrain})` };
 const HERO_GRAIN_CLASS =
-  'pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay';
+  "pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay";
 
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
@@ -205,9 +207,15 @@ function HeroSection() {
         `}</style>
         <div
           className="fd-hero-spin absolute left-0 top-[-16.6667%] aspect-square w-full"
-          data-float={glowInView ? 'on' : 'off'}
+          data-float={glowInView ? "on" : "off"}
         >
-          <img src={heroGlow} alt="" aria-hidden="true" draggable="false" className="block w-full" />
+          <img
+            src={heroGlow}
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            className="block w-full"
+          />
         </div>
       </div>
       <div
@@ -215,7 +223,11 @@ function HeroSection() {
         style={HERO_GRAIN_STYLE}
         className={`${HERO_GRAIN_CLASS} left-1/2 top-[-1.09%] aspect-[4/3] w-[83.34%] -translate-x-1/2`}
       />
-      <div aria-hidden="true" style={HERO_GRAIN_STYLE} className={`${HERO_GRAIN_CLASS} inset-0`} />
+      <div
+        aria-hidden="true"
+        style={HERO_GRAIN_STYLE}
+        className={`${HERO_GRAIN_CLASS} inset-0`}
+      />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
         <p className={HERO_EYEBROW_CLASS}>학습진단</p>
@@ -224,7 +236,9 @@ function HeroSection() {
           학생부 업로드 없이 나에게 딱 맞는 서비스를 추천받아요
         </h1>
 
-        <p className={`mt-6 ${HERO_SUBTEXT_CLASS}`}>설문조사로 나의 강점과 약점을 찾아드려요</p>
+        <p className={`mt-6 ${HERO_SUBTEXT_CLASS}`}>
+          설문조사로 나의 강점과 약점을 찾아드려요
+        </p>
 
         <Link
           to="/app/learning-diagnosis/survey"
@@ -271,7 +285,9 @@ function AudienceSection() {
   return (
     <section className="bg-white pt-20 pb-10 md:pt-[15.625rem] md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>이런 학생에게 학습 진단을 추천해요</h2>
+        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>
+          이런 학생에게 학습 진단을 추천해요
+        </h2>
 
         {/* 353×498 카드 3장 + gap 20 = 1099 → 컨테이너 내부 1100 안에 정확히 수용.
             3열은 wide(1184)에서만 성립한다 — lg(1024) 내부 950으로 3열을 짜면 카드 300.67,
@@ -282,7 +298,7 @@ function AudienceSection() {
         <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-[3.75rem] wide:grid-cols-[repeat(3,22.0625rem)] wide:gap-[1.25rem]">
           {AUDIENCE.map((item) => (
             <article
-              key={item.titleLines.join('')}
+              key={item.titleLines.join("")}
               /* 640~1183: 마지막 카드를 2칸 스팬 + 중앙정렬한다. 스팬 영역 폭 W(=행 전체)에 대해
                  calc(50% - 0.75rem) = W/2 − 12 = (W − gap24)/2 이므로 폭이 앞 두 장과 정확히 같다
                  (실측 검산: vw640 컨테이너 566 → 271 = 실측 컬럼 폭 일치).
@@ -294,7 +310,7 @@ function AudienceSection() {
             >
               <img
                 src={item.image}
-                alt={item.titleLines.join(' ')}
+                alt={item.titleLines.join(" ")}
                 className={`aspect-[353/269] w-full shrink-0 object-contain object-bottom wide:aspect-auto wide:w-[22.0625rem] ${item.imageClass}`}
               />
               <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 wide:ml-[1.9375rem] wide:mt-[2.75rem] wide:w-[17.6875rem] wide:gap-5 wide:p-0">
@@ -321,7 +337,9 @@ function BenefitsSection() {
   return (
     <section className="bg-white pb-10 pt-20 md:pt-[15rem] md:pb-0">
       <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-[3.75rem]">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>학습진단으로 얻을 수 있는 것</h2>
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>
+          학습진단으로 얻을 수 있는 것
+        </h2>
 
         <div className="w-full max-w-[60.625rem] rounded-[0.75rem] border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
           <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -421,7 +439,7 @@ function MacbookMockup() {
         aria-hidden="true"
       >
         {FLOATING_BADGES.map((badge) => {
-          const floatState = chipsInView ? 'on' : 'off';
+          const floatState = chipsInView ? "on" : "off";
           return (
             /* 바깥 래퍼 = 위치 전담(left/top 절대배치 + 진폭 CSS 변수 주입).
                변수는 하위로 상속되므로 keyframes 3종은 자식 쪽에서 그대로 var()로 읽는다. */
@@ -430,27 +448,36 @@ function MacbookMockup() {
               className="absolute"
               style={{
                 ...badge.style,
-                '--fd-x': badge.x.amplitude,
-                '--fd-y': badge.y.amplitude,
-                '--fd-rot': badge.rot.amplitude
+                "--fd-x": badge.x.amplitude,
+                "--fd-y": badge.y.amplitude,
+                "--fd-rot": badge.rot.amplitude,
               }}
             >
               <div
                 className="fd-chip-x inline-block"
                 data-float={floatState}
-                style={{ animationDuration: badge.x.duration, animationDelay: badge.x.delay }}
+                style={{
+                  animationDuration: badge.x.duration,
+                  animationDelay: badge.x.delay,
+                }}
               >
                 <div
                   className="fd-chip-y inline-block"
                   data-float={floatState}
-                  style={{ animationDuration: badge.y.duration, animationDelay: badge.y.delay }}
+                  style={{
+                    animationDuration: badge.y.duration,
+                    animationDelay: badge.y.delay,
+                  }}
                 >
                   {/* 회전 요소 = 실제 칩. drop-shadow → box-shadow: 시각 결과는 같고
                       애니메이션 중 필터 래스터화 비용이 사라진다. */}
                   <span
                     className={`fd-chip-rot h-[4.25rem] px-[1.25rem] text-[1.25rem] shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.4)] ${BADGE_BASE_CLASS}`}
                     data-float={floatState}
-                    style={{ animationDuration: badge.rot.duration, animationDelay: badge.rot.delay }}
+                    style={{
+                      animationDuration: badge.rot.duration,
+                      animationDelay: badge.rot.delay,
+                    }}
                   >
                     {badge.emoji} {badge.label}
                   </span>

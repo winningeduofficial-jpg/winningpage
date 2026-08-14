@@ -1,6 +1,14 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import GoalCard from '../GoalCard';
-import { CHART_COLORS, CHART_FONT_SIZE } from '../../charts/chartTheme';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { CHART_COLORS, CHART_FONT_SIZE } from "../../charts/chartTheme";
+import GoalCard from "../GoalCard";
 
 // "학업 성취도 변화 추이" 카드(1076×408 = 67.25rem×25.5rem) — 4012:22399 정본(재조사,
 // docs/figma-goal/resurvey/4012-22399-목표관리-대시보드.md §학업 성취도 변화 추이).
@@ -21,10 +29,10 @@ import { CHART_COLORS, CHART_FONT_SIZE } from '../../charts/chartTheme';
 // 이상(진하게)·최소(연하게)로 톤만 가른다 — 수시 파랑 계열(이상 진한 파랑/최소 연한 파랑),
 // 정시 초록 계열(이상 진한 초록/최소 연한 초록).
 const SERIES = [
-  { key: 'idealSusi', label: '이상_수시', color: '#1D63B3' },
-  { key: 'idealJungsi', label: '이상_정시', color: '#2E8B57' },
-  { key: 'minSusi', label: '최소_수시', color: '#5AA6F0' },
-  { key: 'minJungsi', label: '최소_정시', color: '#6FC98A' }
+  { key: "idealSusi", label: "이상_수시", color: "#1D63B3" },
+  { key: "idealJungsi", label: "이상_정시", color: "#2E8B57" },
+  { key: "minSusi", label: "최소_수시", color: "#5AA6F0" },
+  { key: "minJungsi", label: "최소_정시", color: "#6FC98A" },
 ];
 
 const Y_TICKS = [0, 25, 50, 75, 100];
@@ -32,11 +40,11 @@ const Y_TICKS = [0, 25, 50, 75, 100];
 // X축·툴팁 공용 시각 라벨 — "11/21 9:40"(월/일 시:분, 시안 실측 그대로 시는 0패딩 없음).
 function formatTimeLabel(isoString) {
   const date = new Date(isoString);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return "";
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${month}/${day} ${hours}:${minutes}`;
 }
 
@@ -51,7 +59,10 @@ function ChartTooltip({ active, payload, label }) {
   return (
     <div
       className="rounded-[0.375rem] px-3 py-2 text-[0.75rem] leading-[1.5]"
-      style={{ backgroundColor: CHART_COLORS.tooltipBg, color: CHART_COLORS.tooltipText }}
+      style={{
+        backgroundColor: CHART_COLORS.tooltipBg,
+        color: CHART_COLORS.tooltipText,
+      }}
     >
       <p className="font-semibold">{label} 기록</p>
       {SERIES.map((series) => {
@@ -59,7 +70,11 @@ function ChartTooltip({ active, payload, label }) {
         if (!point || point.value == null) return null;
         return (
           <p key={series.key} className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: series.color }}
+            />
             {series.label} {formatPercent(point.value)}
           </p>
         );
@@ -78,22 +93,39 @@ export default function AchievementChart({ data }) {
   // 통째로 숨긴다(연결선/범례 모두 미노출) — 값이 간헐적으로만 비는 경우는
   // connectNulls로 이어 그린다(중간 결측 1건 때문에 계열 전체를 숨기지 않는다).
   const visibleSeries = hasData
-    ? SERIES.filter((series) => history.some((point) => point[series.key] != null))
+    ? SERIES.filter((series) =>
+        history.some((point) => point[series.key] != null),
+      )
     : [];
 
   const chartData = hasData
-    ? history.map((point) => ({ ...point, label: formatTimeLabel(point.recordedAt) }))
+    ? history.map((point) => ({
+        ...point,
+        label: formatTimeLabel(point.recordedAt),
+      }))
     : [];
 
   return (
-    <GoalCard tone="neutral" className="flex h-[25.5rem] w-full flex-col gap-4 px-[2rem] py-[1.75rem]">
+    <GoalCard
+      tone="neutral"
+      className="flex h-[25.5rem] w-full flex-col gap-4 px-[2rem] py-[1.75rem]"
+    >
       <div className="flex items-center justify-between">
-        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">학업 성취도 변화 추이</h3>
+        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+          학업 성취도 변화 추이
+        </h3>
         {hasData && (
           <ul className="flex items-center gap-5">
             {visibleSeries.map((series) => (
-              <li key={series.key} className="flex items-center gap-2 text-[0.8125rem] leading-[1.4] text-ink">
-                <span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: series.color }} />
+              <li
+                key={series.key}
+                className="flex items-center gap-2 text-[0.8125rem] leading-[1.4] text-ink"
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: series.color }}
+                />
                 {series.label}
               </li>
             ))}
@@ -104,8 +136,15 @@ export default function AchievementChart({ data }) {
       {hasData ? (
         <div className="min-h-0 flex-1">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={CHART_COLORS.grid} strokeWidth={1} />
+            <LineChart
+              data={chartData}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke={CHART_COLORS.grid}
+                strokeWidth={1}
+              />
               <XAxis
                 dataKey="label"
                 axisLine={false}
@@ -120,7 +159,10 @@ export default function AchievementChart({ data }) {
                 width={32}
                 tick={{ fill: CHART_COLORS.label, fontSize: CHART_FONT_SIZE }}
               />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: CHART_COLORS.grid, strokeWidth: 1 }} />
+              <Tooltip
+                content={<ChartTooltip />}
+                cursor={{ stroke: CHART_COLORS.grid, strokeWidth: 1 }}
+              />
               {visibleSeries.map((series) => (
                 <Line
                   key={series.key}

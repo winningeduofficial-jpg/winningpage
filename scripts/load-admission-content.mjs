@@ -77,39 +77,49 @@
 //   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readFile } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import { pathToFileURL } from 'node:url';
-import process from 'node:process';
+import { readFile } from "node:fs/promises";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
-import admissionHwpSections from '../src/data/admissionHwpSections.json' with { type: 'json' };
-import { buildRawSectionHtml, buildHwpCategoryDoc, clean, normalizeName } from '../src/lib/admissionParsing.js';
-import { validateAdmissionDoc, shouldSkipForRegression } from '../src/lib/admissionDoc.js';
+import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
+  type: "json",
+};
+import {
+  shouldSkipForRegression,
+  validateAdmissionDoc,
+} from "../src/lib/admissionDoc.js";
 // importCell은 2026-08-06 src/lib/admissionHtmlImport.js로 이동했다(위치만
 // 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에서 가져왔지만,
 // 이 스크립트가 그 파일을 import하면 Node 전용 코드까지 딸려 들어와서
 // (해가 없긴 하지만) 어드민 일괄 엑셀 업로드가 브라우저에서 같은 함수를
 // 재사용할 수 있게 lib으로 뺀 김에 여기 import 경로도 정본으로 맞췄다.
-import { importCell } from '../src/lib/admissionHtmlImport.js';
-import { runDocEquivalenceVerification } from './verify-admission-doc-equivalence.mjs';
+import { importCell } from "../src/lib/admissionHtmlImport.js";
+import {
+  buildHwpCategoryDoc,
+  buildRawSectionHtml,
+  clean,
+  normalizeName,
+} from "../src/lib/admissionParsing.js";
+import { runDocEquivalenceVerification } from "./verify-admission-doc-equivalence.mjs";
 
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =
-  '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
-const TABLE = 'admission_university_resources';
+  "/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json";
+const TABLE = "admission_university_resources";
 
 let args = {};
 
 // 카테고리 key -> DB html 컬럼 매핑. 페이지의 INFO_SECTIONS(AdmissionGuidelines.jsx)
 // 정의와 동일하다.
 const CATEGORY_HTML_KEY = {
-  previous_year_changes: 'previous_year_changes_html',
-  selection_method: 'selection_method_html',
-  minimum_requirements: 'minimum_requirements_html',
-  exam_schedule: 'exam_schedule_html',
-  school_record_method: 'school_record_method_html',
-  recruitment_quota: 'recruitment_result_html'
+  previous_year_changes: "previous_year_changes_html",
+  selection_method: "selection_method_html",
+  minimum_requirements: "minimum_requirements_html",
+  exam_schedule: "exam_schedule_html",
+  school_record_method: "school_record_method_html",
+  recruitment_quota: "recruitment_result_html",
 };
 const CATEGORY_KEYS = Object.keys(CATEGORY_HTML_KEY);
 
@@ -117,12 +127,12 @@ const CATEGORY_KEYS = Object.keys(CATEGORY_HTML_KEY);
 // 어긋나 있을 뿐, json은 6개 전부 `<rawKey>_json` 접미어로 통일이다(sql/47 정본,
 // 구 sql/43 — origin/dev와 번호 충돌해 2026-08-06 재번호).
 const CATEGORY_JSON_KEY = {
-  previous_year_changes: 'previous_year_changes_json',
-  selection_method: 'selection_method_json',
-  minimum_requirements: 'minimum_requirements_json',
-  exam_schedule: 'exam_schedule_json',
-  school_record_method: 'school_record_method_json',
-  recruitment_quota: 'recruitment_quota_json'
+  previous_year_changes: "previous_year_changes_json",
+  selection_method: "selection_method_json",
+  minimum_requirements: "minimum_requirements_json",
+  exam_schedule: "exam_schedule_json",
+  school_record_method: "school_record_method_json",
+  recruitment_quota: "recruitment_quota_json",
 };
 
 async function resolveCredentials() {
@@ -130,13 +140,15 @@ async function resolveCredentials() {
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (envUrl && envKey) return { url: envUrl, serviceKey: envKey };
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
-  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
-  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
-  if (!serviceEntry) throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
+  const keysFile =
+    args["keys-file"] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
+  const raw = JSON.parse(await readFile(keysFile, "utf-8"));
+  const serviceEntry = raw.find((entry) => entry.name === "service_role");
+  if (!serviceEntry)
+    throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
   return {
     url: `https://${DEV_PROJECT_REF}.supabase.co`,
-    serviceKey: serviceEntry.api_key
+    serviceKey: serviceEntry.api_key,
   };
 }
 
@@ -169,7 +181,14 @@ async function resolveCredentials() {
 // 줄었는지 본다. 줄었으면 덮어쓰지 않고 기존 값을 보존한다
 // (jsonSource='regressionSkipped'). ignoreRegression이 true면 이 검사를
 // 건너뛴다(forceRegenerate와는 독립된 플래그 — 파일 최상단 정책 설명 참고).
-function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRegenerate, ignoreRegression) {
+function buildCategoryContent(
+  sectionKey,
+  hwpRow,
+  dbRow,
+  universityName,
+  forceRegenerate,
+  ignoreRegression,
+) {
   const htmlKey = CATEGORY_HTML_KEY[sectionKey];
   const jsonKey = CATEGORY_JSON_KEY[sectionKey];
   const existingHtml = clean(hwpRow?.[htmlKey]) || clean(dbRow?.[htmlKey]);
@@ -180,20 +199,27 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
   let htmlSource;
   if (existingHtml) {
     html = existingHtml;
-    htmlSource = 'preserved';
+    htmlSource = "preserved";
   } else if (rawText) {
     html = buildRawSectionHtml(rawText, sectionKey, hwpRow, universityName);
-    htmlSource = 'generated';
+    htmlSource = "generated";
   } else {
-    html = '';
-    htmlSource = 'empty';
+    html = "";
+    htmlSource = "empty";
   }
 
-  const existingDocValid = Boolean(existingDoc) && validateAdmissionDoc(existingDoc).ok;
+  const existingDocValid =
+    Boolean(existingDoc) && validateAdmissionDoc(existingDoc).ok;
 
   // 1단: 기존 json이 이미 유효하면 계산 자체를 하지 않는다.
   if (existingDocValid && !forceRegenerate) {
-    return { html, htmlSource, doc: undefined, jsonSource: 'preserved', jsonDetail: undefined };
+    return {
+      html,
+      htmlSource,
+      doc: undefined,
+      jsonSource: "preserved",
+      jsonDetail: undefined,
+    };
   }
 
   let candidate;
@@ -207,16 +233,16 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
     try {
       result = importCell(sectionKey, existingHtml, dbRow);
     } catch (err) {
-      jsonSource = 'exception';
+      jsonSource = "exception";
       jsonDetail = err.message;
       result = null;
     }
     if (result) {
-      if (result.classification === 'imported') {
+      if (result.classification === "imported") {
         candidate = result.doc;
-        jsonSource = 'imported-from-html';
+        jsonSource = "imported-from-html";
       } else {
-        jsonSource = result.classification === 'skip' ? 'skip' : 'needsReview';
+        jsonSource = result.classification === "skip" ? "skip" : "needsReview";
         jsonDetail = result.reason;
       }
     }
@@ -224,23 +250,28 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
     // 3단
     let generated;
     try {
-      generated = buildHwpCategoryDoc(sectionKey, rawText, dbRow, universityName);
+      generated = buildHwpCategoryDoc(
+        sectionKey,
+        rawText,
+        dbRow,
+        universityName,
+      );
     } catch (err) {
-      jsonSource = 'exception';
+      jsonSource = "exception";
       jsonDetail = err.message;
     }
     if (generated) {
       const { ok, errors } = validateAdmissionDoc(generated);
       if (ok) {
         candidate = generated;
-        jsonSource = 'generated-from-raw';
+        jsonSource = "generated-from-raw";
       } else {
-        jsonSource = 'invalid';
-        jsonDetail = errors.join('; ');
+        jsonSource = "invalid";
+        jsonDetail = errors.join("; ");
       }
     }
   } else {
-    jsonSource = 'empty';
+    jsonSource = "empty";
   }
 
   // 정보량 감소 가드: 후보가 있고, 비교할 기존 doc이 있고(무효해도 상관
@@ -252,7 +283,7 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
     const guard = shouldSkipForRegression(existingDoc, candidate);
     if (guard.skip) {
       doc = undefined;
-      jsonSource = 'regressionSkipped';
+      jsonSource = "regressionSkipped";
       jsonDetail = guard.detail;
     }
   }
@@ -263,59 +294,62 @@ function buildCategoryContent(sectionKey, hwpRow, dbRow, universityName, forceRe
 async function main() {
   args = parseArgs({
     options: {
-      apply: { type: 'boolean', default: false },
-      'dry-run': { type: 'boolean', default: false },
-      'force-regenerate': { type: 'boolean', default: false },
-      'ignore-regression': { type: 'boolean', default: false },
-      'keys-file': { type: 'string' },
-      'admission-year': { type: 'string', default: '2027' },
-      'skip-equivalence-check': { type: 'boolean', default: false }
-    }
+      apply: { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
+      "force-regenerate": { type: "boolean", default: false },
+      "ignore-regression": { type: "boolean", default: false },
+      "keys-file": { type: "string" },
+      "admission-year": { type: "string", default: "2027" },
+      "skip-equivalence-check": { type: "boolean", default: false },
+    },
   }).values;
 
-  if (args['dry-run']) {
+  if (args["dry-run"]) {
     console.warn(
-      '--dry-run 플래그는 더 이상 의미가 없습니다(기본이 이미 dry-run입니다). ' +
-        '실제로 적용하려면 --apply를 쓰세요.'
+      "--dry-run 플래그는 더 이상 의미가 없습니다(기본이 이미 dry-run입니다). " +
+        "실제로 적용하려면 --apply를 쓰세요.",
     );
   }
-  if (args['force-regenerate']) {
+  if (args["force-regenerate"]) {
     console.warn(
-      '--force-regenerate: 기존 json이 유효해도 다시 계산합니다(가드는 그대로 작동 — ' +
-        '재계산 결과가 나빠지면 regressionSkipped로 보존됩니다).'
+      "--force-regenerate: 기존 json이 유효해도 다시 계산합니다(가드는 그대로 작동 — " +
+        "재계산 결과가 나빠지면 regressionSkipped로 보존됩니다).",
     );
   }
-  if (args['ignore-regression']) {
+  if (args["ignore-regression"]) {
     console.warn(
-      '\n' +
-        '########################################################\n' +
-        '# 경고: --ignore-regression — 품질 회귀 검사를 끕니다. #\n' +
-        '# 이번 사고(2026-08-06)의 재발 경로입니다.             #\n' +
-        '# 정말로 의도한 것이 맞는지 다시 확인하세요.           #\n' +
-        '########################################################\n'
+      "\n" +
+        "########################################################\n" +
+        "# 경고: --ignore-regression — 품질 회귀 검사를 끕니다. #\n" +
+        "# 이번 사고(2026-08-06)의 재발 경로입니다.             #\n" +
+        "# 정말로 의도한 것이 맞는지 다시 확인하세요.           #\n" +
+        "########################################################\n",
     );
   }
 
-  console.log('=== 1) 골든 대조 회귀 검증(Gate A) ===');
-  if (args['skip-equivalence-check']) {
-    console.warn('--skip-equivalence-check: 검증을 건너뜁니다(권장하지 않음).');
+  console.log("=== 1) 골든 대조 회귀 검증(Gate A) ===");
+  if (args["skip-equivalence-check"]) {
+    console.warn("--skip-equivalence-check: 검증을 건너뜁니다(권장하지 않음).");
   } else {
-    const { total, matched, matchRate, mismatches } = await runDocEquivalenceVerification();
+    const { total, matched, matchRate, mismatches } =
+      await runDocEquivalenceVerification();
     if (mismatches.length) {
       console.error(
-        `골든 대조 검증 실패: ${total}건 중 ${matched}건만 일치(${matchRate.toFixed(2)}%). 적재를 중단합니다.`
+        `골든 대조 검증 실패: ${total}건 중 ${matched}건만 일치(${matchRate.toFixed(2)}%). 적재를 중단합니다.`,
       );
       process.exit(1);
     }
   }
 
-  console.log('\n=== 2) university_name 매칭 + payload 계산 ===');
-  const admissionYear = Number(args['admission-year']);
+  console.log("\n=== 2) university_name 매칭 + payload 계산 ===");
+  const admissionYear = Number(args["admission-year"]);
   const universityNames = Object.keys(admissionHwpSections);
 
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
-    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+    throw new Error(
+      "dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.",
+    );
   }
   const supabase = createClient(url, serviceKey);
 
@@ -324,22 +358,22 @@ async function main() {
   // 기준값이다. json은 buildCategoryContent가 importCell(detail_status로
   // 특수대학 판정)에 dbRow를 그대로 넘기므로 필요하다.
   const existingColumns = [
-    'id',
-    'university_name',
-    'university_key',
-    'admission_year',
-    'region',
-    'is_active',
-    'detail_status',
+    "id",
+    "university_name",
+    "university_key",
+    "admission_year",
+    "region",
+    "is_active",
+    "detail_status",
     ...CATEGORY_KEYS,
     ...CATEGORY_KEYS.map((key) => CATEGORY_HTML_KEY[key]),
-    ...CATEGORY_KEYS.map((key) => CATEGORY_JSON_KEY[key])
-  ].join(', ');
+    ...CATEGORY_KEYS.map((key) => CATEGORY_JSON_KEY[key]),
+  ].join(", ");
 
   const { data: existingRows, error: fetchError } = await supabase
     .from(TABLE)
     .select(existingColumns)
-    .eq('admission_year', admissionYear);
+    .eq("admission_year", admissionYear);
   if (fetchError) throw new Error(`기존 행 조회 실패: ${fetchError.message}`);
 
   const exactMap = new Map();
@@ -352,30 +386,32 @@ async function main() {
 
   const matchFailures = [];
   const categoryStats = Object.fromEntries(
-    CATEGORY_KEYS.map((key) => [key, { preserved: 0, generated: 0, empty: 0 }])
+    CATEGORY_KEYS.map((key) => [key, { preserved: 0, generated: 0, empty: 0 }]),
   );
   const jsonStats = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [
       key,
       {
         preserved: 0,
-        'imported-from-html': 0,
-        'generated-from-raw': 0,
+        "imported-from-html": 0,
+        "generated-from-raw": 0,
         regressionSkipped: 0,
         empty: 0,
         skip: 0,
         needsReview: 0,
         invalid: 0,
-        exception: 0
-      }
-    ])
+        exception: 0,
+      },
+    ]),
   );
   const jsonFailures = [];
   const payloads = [];
 
   universityNames.forEach((universityName) => {
     const hwpRow = admissionHwpSections[universityName];
-    const dbRow = exactMap.get(universityName) || normalizedMap.get(normalizeName(universityName));
+    const dbRow =
+      exactMap.get(universityName) ||
+      normalizedMap.get(normalizeName(universityName));
     if (!dbRow) {
       matchFailures.push(universityName);
       return;
@@ -388,20 +424,22 @@ async function main() {
       region: dbRow.region,
       // 신규 행에만 기본값을 채우고 기존 행은 어드민이 지정한 값을 보존한다:
       // JSON에 값이 있으면 그것을 우선하되, 없으면 DB 현재 값 → 최종 기본값 순으로 폴백.
-      detail_status: clean(hwpRow.detail_status) || clean(dbRow.detail_status) || 'normal',
+      detail_status:
+        clean(hwpRow.detail_status) || clean(dbRow.detail_status) || "normal",
       matched_hwp_name: clean(hwpRow.hwp_source_name) || universityName,
-      is_active: typeof dbRow.is_active === 'boolean' ? dbRow.is_active : true
+      is_active: typeof dbRow.is_active === "boolean" ? dbRow.is_active : true,
     };
 
     CATEGORY_KEYS.forEach((key) => {
-      const { html, htmlSource, doc, jsonSource, jsonDetail } = buildCategoryContent(
-        key,
-        hwpRow,
-        dbRow,
-        universityName,
-        args['force-regenerate'],
-        args['ignore-regression']
-      );
+      const { html, htmlSource, doc, jsonSource, jsonDetail } =
+        buildCategoryContent(
+          key,
+          hwpRow,
+          dbRow,
+          universityName,
+          args["force-regenerate"],
+          args["ignore-regression"],
+        );
 
       payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
       payload[CATEGORY_HTML_KEY[key]] = html;
@@ -410,12 +448,17 @@ async function main() {
       const jsonKey = CATEGORY_JSON_KEY[key];
       jsonStats[key][jsonSource] += 1;
       if (
-        jsonSource === 'needsReview' ||
-        jsonSource === 'invalid' ||
-        jsonSource === 'exception' ||
-        jsonSource === 'regressionSkipped'
+        jsonSource === "needsReview" ||
+        jsonSource === "invalid" ||
+        jsonSource === "exception" ||
+        jsonSource === "regressionSkipped"
       ) {
-        jsonFailures.push({ universityName, key, source: jsonSource, detail: jsonDetail });
+        jsonFailures.push({
+          universityName,
+          key,
+          source: jsonSource,
+          detail: jsonDetail,
+        });
       }
       // doc이 undefined면 payload에서 이 컬럼을 아예 뺀다 — upsert가 기존
       // DB 값을 건드리지 않는다는 뜻이다(Admin.jsx formToPayload와 동일 패턴).
@@ -427,61 +470,76 @@ async function main() {
 
   console.log(`매칭 성공: ${payloads.length}/${universityNames.length}개교`);
   if (matchFailures.length) {
-    console.error(`매칭 실패 ${matchFailures.length}개교:`, matchFailures.join(', '));
+    console.error(
+      `매칭 실패 ${matchFailures.length}개교:`,
+      matchFailures.join(", "),
+    );
   } else {
-    console.log('매칭 실패 없음(218개교 전원 매칭).');
+    console.log("매칭 실패 없음(218개교 전원 매칭).");
   }
 
-  console.log('\n카테고리별 HTML 소스(보존/생성/원자료없음):');
+  console.log("\n카테고리별 HTML 소스(보존/생성/원자료없음):");
   CATEGORY_KEYS.forEach((key) => {
     const s = categoryStats[key];
     console.log(
-      `  - ${key} (${CATEGORY_HTML_KEY[key]}): 보존 ${s.preserved} / 생성 ${s.generated} / 원자료없음 ${s.empty}`
+      `  - ${key} (${CATEGORY_HTML_KEY[key]}): 보존 ${s.preserved} / 생성 ${s.generated} / 원자료없음 ${s.empty}`,
     );
   });
 
-  console.log('\n카테고리별 JSON 생성 결과(기존보존/html임포트/raw생성/원자료없음/실패류-기존보존):');
+  console.log(
+    "\n카테고리별 JSON 생성 결과(기존보존/html임포트/raw생성/원자료없음/실패류-기존보존):",
+  );
   CATEGORY_KEYS.forEach((key) => {
     const s = jsonStats[key];
     console.log(
-      `  - ${key} (${CATEGORY_JSON_KEY[key]}): 기존보존(1단) ${s.preserved} / html임포트(2단) ${s['imported-from-html']} / ` +
-        `raw생성(3단) ${s['generated-from-raw']} / 원자료없음 ${s.empty} / skip ${s.skip} / ` +
-        `정보량감소로보존 ${s.regressionSkipped} / needsReview(기존보존) ${s.needsReview} / 검증실패(기존보존) ${s.invalid} / 예외(기존보존) ${s.exception}`
+      `  - ${key} (${CATEGORY_JSON_KEY[key]}): 기존보존(1단) ${s.preserved} / html임포트(2단) ${s["imported-from-html"]} / ` +
+        `raw생성(3단) ${s["generated-from-raw"]} / 원자료없음 ${s.empty} / skip ${s.skip} / ` +
+        `정보량감소로보존 ${s.regressionSkipped} / needsReview(기존보존) ${s.needsReview} / 검증실패(기존보존) ${s.invalid} / 예외(기존보존) ${s.exception}`,
     );
   });
   if (jsonFailures.length) {
-    console.log(`\nJSON 실패/보존 상세(${jsonFailures.length}건 중 최대 20건, regressionSkipped 포함):`);
+    console.log(
+      `\nJSON 실패/보존 상세(${jsonFailures.length}건 중 최대 20건, regressionSkipped 포함):`,
+    );
     jsonFailures.slice(0, 20).forEach((f) => {
-      console.log(`  - [${f.universityName}] ${f.key} (${f.source}): ${f.detail}`);
+      console.log(
+        `  - [${f.universityName}] ${f.key} (${f.source}): ${f.detail}`,
+      );
     });
   } else {
-    console.log('\nJSON 생성 실패 없음.');
+    console.log("\nJSON 생성 실패 없음.");
   }
 
   if (!args.apply) {
-    console.log('\ndry-run(기본값): DB에 쓰지 않고 종료합니다. 실제로 적용하려면 --apply를 쓰세요.');
+    console.log(
+      "\ndry-run(기본값): DB에 쓰지 않고 종료합니다. 실제로 적용하려면 --apply를 쓰세요.",
+    );
     return;
   }
 
-  console.log('\n=== 3) upsert 적재 ===');
+  console.log("\n=== 3) upsert 적재 ===");
   const { error: upsertError, count } = await supabase
     .from(TABLE)
-    .upsert(payloads, { onConflict: 'admission_year,university_key', count: 'exact' });
+    .upsert(payloads, {
+      onConflict: "admission_year,university_key",
+      count: "exact",
+    });
   if (upsertError) throw new Error(`upsert 실패: ${upsertError.message}`);
   console.log(`upsert 완료: ${count ?? payloads.length}행 처리`);
 
-  console.log('\n=== 4) 적재 결과 확인 SQL ===');
+  console.log("\n=== 4) 적재 결과 확인 SQL ===");
   console.log(
     `select count(*) as total,\n` +
       CATEGORY_KEYS.map(
         (key) =>
-          `  count(*) filter (where ${CATEGORY_HTML_KEY[key]} is not null and ${CATEGORY_HTML_KEY[key]} <> '') as ${CATEGORY_HTML_KEY[key]}_filled`
-      ).join(',\n') +
-      ',\n' +
+          `  count(*) filter (where ${CATEGORY_HTML_KEY[key]} is not null and ${CATEGORY_HTML_KEY[key]} <> '') as ${CATEGORY_HTML_KEY[key]}_filled`,
+      ).join(",\n") +
+      ",\n" +
       CATEGORY_KEYS.map(
-        (key) => `  count(*) filter (where ${CATEGORY_JSON_KEY[key]} is not null) as ${CATEGORY_JSON_KEY[key]}_filled`
-      ).join(',\n') +
-      `\nfrom ${TABLE} where admission_year = ${admissionYear};`
+        (key) =>
+          `  count(*) filter (where ${CATEGORY_JSON_KEY[key]} is not null) as ${CATEGORY_JSON_KEY[key]}_filled`,
+      ).join(",\n") +
+      `\nfrom ${TABLE} where admission_year = ${admissionYear};`,
   );
 }
 
@@ -490,7 +548,8 @@ async function main() {
 // 스크립트가 나중에 여기서 뭔가를 재사용하려고 import할 가능성을 막는
 // 안전망으로 계속 둔다 — main()이 import 시점에 곧바로 실행돼 실제
 // Supabase 호출을 시도하는 사고를 이미 한 번 겪었다(2026-08-06).
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

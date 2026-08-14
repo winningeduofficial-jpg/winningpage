@@ -5,10 +5,16 @@
 // 단계를 거치지 않는다(§5.2 라우트 표에도 /signup/parent/birth 없음).
 // icon: Figma 일러스트 에셋(image 282/283)은 T1 단계에서 재추출되지 않아 제공되지 않는다
 // (§6.2) — 임시로 lucide-react 아이콘을 자리표시자로 사용. 실제 일러스트 확보 시 교체 필요.
-import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Users } from 'lucide-react';
-import { AuthLayout, AuthTitle, ChoiceCard, TextLinkButton } from '../../components/auth';
-import { useSignup } from '../../context/SignupContext';
+
+import { GraduationCap, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  AuthLayout,
+  AuthTitle,
+  ChoiceCard,
+  TextLinkButton,
+} from "../../components/auth";
+import { useSignup } from "../../context/SignupContext";
 
 export default function MemberType() {
   const navigate = useNavigate();
@@ -24,10 +30,10 @@ export default function MemberType() {
   function handleSelect(memberType) {
     resetForMemberType(memberType);
 
-    if (memberType === 'student') {
-      navigate('/signup/student/birth');
+    if (memberType === "student") {
+      navigate("/signup/student/birth");
     } else {
-      navigate('/signup/parent');
+      navigate("/signup/parent");
     }
   }
 
@@ -36,31 +42,51 @@ export default function MemberType() {
       <AuthTitle
         line1="성공적인 진학의 시작,"
         line1Color="primary"
-        line2={<span className="sm:whitespace-nowrap">위닝에듀에 오신 것을 환영해요</span>}
+        line2={
+          <span className="sm:whitespace-nowrap">
+            위닝에듀에 오신 것을 환영해요
+          </span>
+        }
         line2Color="ink"
       />
 
       <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row">
         <ChoiceCard
           size="lg"
-          icon={<GraduationCap className="h-[3.5rem] w-[3.5rem] text-primary" strokeWidth={1.5} />}
+          icon={
+            <GraduationCap
+              className="h-[3.5rem] w-[3.5rem] text-primary"
+              strokeWidth={1.5}
+            />
+          }
           title="학생 회원"
           description="진학 성공을 준비하는 학생이라면"
-          onClick={() => handleSelect('student')}
+          onClick={() => handleSelect("student")}
         />
 
         <ChoiceCard
           size="lg"
-          icon={<Users className="h-[3.5rem] w-[3.5rem] text-primary" strokeWidth={1.5} />}
+          icon={
+            <Users
+              className="h-[3.5rem] w-[3.5rem] text-primary"
+              strokeWidth={1.5}
+            />
+          }
           title="학부모회원"
           description="학생 회원의 자녀가 있다면"
-          onClick={() => handleSelect('parent')}
+          onClick={() => handleSelect("parent")}
         />
       </div>
 
       <p className="text-base text-ink">
-        위닝에듀 회원이신가요?{' '}
-        <TextLinkButton as="link" to="/login" tone="primary" size="md" weight="semibold">
+        위닝에듀 회원이신가요?{" "}
+        <TextLinkButton
+          as="link"
+          to="/login"
+          tone="primary"
+          size="md"
+          weight="semibold"
+        >
           로그인
         </TextLinkButton>
       </p>

@@ -17,7 +17,7 @@
   color: #525252;
 }
 
-.bn-doc [data-content-type='paragraph'] {
+.bn-doc [data-content-type="paragraph"] {
   line-height: 2rem;
   color: #525252;
 }
@@ -33,7 +33,7 @@
 }
 
 /* font-size/font-weight만 !important — BlockNote 기본 CSS가 더 높은 특이도로 강제한다. */
-.bn-doc .bn-block-content[data-content-type='heading'][data-level='2'] {
+.bn-doc .bn-block-content[data-content-type="heading"][data-level="2"] {
   font-size: 1.25rem !important;
   font-weight: 600 !important;
   line-height: 1.3;
@@ -41,7 +41,7 @@
   color: #525252;
 }
 
-.bn-doc .bn-block-content[data-content-type='heading'][data-level='3'] {
+.bn-doc .bn-block-content[data-content-type="heading"][data-level="3"] {
   font-size: 1.125rem !important;
   font-weight: 600 !important;
   line-height: 1.3;
@@ -50,11 +50,11 @@
 }
 
 @media (min-width: 40rem) {
-  .bn-doc .bn-block-content[data-content-type='heading'][data-level='2'] {
+  .bn-doc .bn-block-content[data-content-type="heading"][data-level="2"] {
     font-size: 1.5rem !important;
   }
 
-  .bn-doc .bn-block-content[data-content-type='heading'][data-level='3'] {
+  .bn-doc .bn-block-content[data-content-type="heading"][data-level="3"] {
     font-size: 1.25rem !important;
   }
 }
@@ -81,15 +81,20 @@
    강제로 블록화해 무효함을 헤드리스 크롬으로 직접 확인했다 — 그래서 display는 그대로 두고
    width만 조정한다. 줄바꿈 시엔 width:fit-content가 가용 폭까지 차오르며 사각 밴드가 되는데
    (피그마의 줄 단위 형광펜과는 다름), 실제 데이터는 모두 한 줄이라 문제되지 않는다. */
-.bn-doc .bn-block:has(> .bn-block-content[data-content-type='heading'][data-background-color]) {
+.bn-doc
+.bn-block:has(
+  > .bn-block-content[data-content-type="heading"][data-background-color]
+) {
   background-color: transparent;
 }
 
-.bn-doc .bn-block-content[data-content-type='heading'][data-background-color] {
+.bn-doc .bn-block-content[data-content-type="heading"][data-background-color] {
   background-color: transparent;
 }
 
-.bn-doc .bn-block-content[data-content-type='heading'][data-background-color] > .bn-inline-content {
+.bn-doc
+  .bn-block-content[data-content-type="heading"][data-background-color]
+  > .bn-inline-content {
   background-color: #e8f1ec; /* green 및 그 외 값 폴백 — 시안 실측 민트 #E8F1EC */
   width: fit-content;
   max-width: 100%;
@@ -98,7 +103,9 @@
   border-radius: 0; /* 시안 확대 실측 — 모서리 둥글기 없음 */
 }
 
-.bn-doc .bn-block-content[data-content-type='heading'][data-background-color='pink'] > .bn-inline-content {
+.bn-doc
+  .bn-block-content[data-content-type="heading"][data-background-color="pink"]
+  > .bn-inline-content {
   background-color: #fbe9e7; /* 시안 실측 분홍 #FBE9E7 */
 }
 
@@ -142,7 +149,10 @@
 /* ── 읽기 전용 전용 방어 ─────────────────────────────────
    .bn-editor는 editable={false}에서 contenteditable="false"가 된다(prosemirror-view).
    BlockNote 자신의 CSS도 .bn-editor[contenteditable=true] 셀렉터를 쓴다 = 속성 토글 확정. */
-.bn-doc .bn-editor[contenteditable='false'] [data-file-block] .bn-file-block-content-wrapper {
+.bn-doc
+  .bn-editor[contenteditable="false"]
+  [data-file-block]
+  .bn-file-block-content-wrapper {
   cursor: default;
   -webkit-user-select: auto;
   user-select: auto;
@@ -150,7 +160,9 @@
 
 /* url=''인 image/file 블록이 공개 페이지에 "이미지 추가" 버튼으로 노출되는 것을 막는다.
    0.52.1 AddFileButton은 isEditable을 보지 않는다(dist 실측). */
-.bn-doc .bn-editor[contenteditable='false'] .bn-block-content[data-file-block]:has(.bn-add-file-button) {
+.bn-doc
+  .bn-editor[contenteditable="false"]
+  .bn-block-content[data-file-block]:has(.bn-add-file-button) {
   display: none;
 }
 
@@ -193,6 +205,8 @@
 
 /* 양쪽 슬롯이 모두 빈 imageRow는 ImageRowRender가 null을 반환하지만, BlockNote의
    .bn-block-content 래퍼 자체는 흐름에 남아 정체불명 여백(~6px)을 만든다. */
-.bn-doc .bn-editor[contenteditable='false'] .bn-block-content[data-content-type='imageRow']:empty {
+.bn-doc
+  .bn-editor[contenteditable="false"]
+  .bn-block-content[data-content-type="imageRow"]:empty {
   display: none;
 }

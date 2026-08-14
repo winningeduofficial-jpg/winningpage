@@ -38,59 +38,59 @@
 //      — 이 lib은 DB에 손대지 않는다.
 // =====================================================================
 
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
-import { clean } from './admissionParsing.js';
+import { clean } from "./admissionParsing.js";
 
 export const BULK_XLSX_COLUMNS = [
-  'id',
-  'is_active',
-  'result_year',
-  'university_key',
-  'university_name',
-  'department_key',
-  'department_name',
-  'main_track',
-  'screening_category',
-  'admission_track',
-  'grade_50',
-  'grade_70',
-  'grade_85',
-  'grade_90',
-  'grade_avg',
-  'grade_min',
-  'grade_avg10',
-  'grade_min10',
-  'grade_first_avg',
-  'converted_score',
-  'percentile',
-  'quota',
-  'competition_rate',
-  'waitlist_rank',
-  'subject_reflection',
-  'variant_seq',
-  'source_sheet',
-  'source_row',
-  'note'
+  "id",
+  "is_active",
+  "result_year",
+  "university_key",
+  "university_name",
+  "department_key",
+  "department_name",
+  "main_track",
+  "screening_category",
+  "admission_track",
+  "grade_50",
+  "grade_70",
+  "grade_85",
+  "grade_90",
+  "grade_avg",
+  "grade_min",
+  "grade_avg10",
+  "grade_min10",
+  "grade_first_avg",
+  "converted_score",
+  "percentile",
+  "quota",
+  "competition_rate",
+  "waitlist_rank",
+  "subject_reflection",
+  "variant_seq",
+  "source_sheet",
+  "source_row",
+  "note",
 ];
 
 // sql/53의 CHECK 도메인. main_track/screening_category는 CHECK 자체가
 // "null이거나 이 목록 중 하나"라 빈 값은 허용하고, 값이 있는데 목록 밖이면
 // 거부한다.
-export const MAIN_TRACK_OPTIONS = ['교과', '종합', '논술', '실기', '기타'];
+export const MAIN_TRACK_OPTIONS = ["교과", "종합", "논술", "실기", "기타"];
 export const SCREENING_CATEGORY_OPTIONS = [
-  '일반',
-  '추천형',
-  '지역인재',
-  '농어촌',
-  '기회균형',
-  '특성화고',
-  '특수교육',
-  '논술',
-  '실기',
-  '성인학습자',
-  '재외국민',
-  '기타'
+  "일반",
+  "추천형",
+  "지역인재",
+  "농어촌",
+  "기회균형",
+  "특성화고",
+  "특수교육",
+  "논술",
+  "실기",
+  "성인학습자",
+  "재외국민",
+  "기타",
 ];
 
 // sql/43의 CHECK는 2015~2035를 허용하지만, 마스터 소스 자체가 2개년
@@ -102,15 +102,15 @@ export const RESULT_YEAR_OPTIONS = [2025, 2026];
 // 소수점 자릿수 초과는 Postgres가 반올림해 저장하므로(거부 아님) 여기서
 // 따로 막지 않는다 — 스키마가 실제로 거부하는 조건(자릿수 초과)만 막는다.
 const GRADE_COLUMNS = [
-  'grade_50',
-  'grade_70',
-  'grade_85',
-  'grade_90',
-  'grade_avg',
-  'grade_min',
-  'grade_avg10',
-  'grade_min10',
-  'grade_first_avg'
+  "grade_50",
+  "grade_70",
+  "grade_85",
+  "grade_90",
+  "grade_avg",
+  "grade_min",
+  "grade_avg10",
+  "grade_min10",
+  "grade_first_avg",
 ];
 const GRADE_RANGE_LIMIT = 100;
 
@@ -119,21 +119,21 @@ const COMPETITION_RATE_RANGE_LIMIT = 10000;
 
 // 정수 컬럼(정수형이 아니면 DB가 즉시 거부한다: quota/source_row는
 // integer, variant_seq는 smallint).
-const INTEGER_COLUMNS = ['quota', 'variant_seq', 'source_row'];
+const INTEGER_COLUMNS = ["quota", "variant_seq", "source_row"];
 
 // sql/53 유일성 인덱스(admission_results_unique_key_idx)와 동일한 8축.
 // main_track/screening_category/subject_reflection은 DB가 coalesce(x,'')
 // 로 접어 비교하므로 여기서도 똑같이 접어야 한다 — 안 그러면 DB는 같은
 // 키로 보는데 이 lib은 다른 키로 봐서 파일 내부 중복을 놓친다.
 const NATURAL_KEY_COLUMNS = [
-  'result_year',
-  'university_key',
-  'department_key',
-  'main_track',
-  'screening_category',
-  'admission_track',
-  'subject_reflection',
-  'variant_seq'
+  "result_year",
+  "university_key",
+  "department_key",
+  "main_track",
+  "screening_category",
+  "admission_track",
+  "subject_reflection",
+  "variant_seq",
 ];
 
 // 엑셀 셀 문자 수 한도. 이 테이블 컬럼은 대부분 짧은 스칼라값이라 실측상
@@ -141,16 +141,18 @@ const NATURAL_KEY_COLUMNS = [
 // 요강 lib과 같은 방어 로직을 남겨 둔다(admissionBulkXlsx.js와 동일 값).
 export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
-  '…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]';
+  "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
 function serializeExportCell(rawValue) {
-  if (rawValue === null || rawValue === undefined) return '';
-  if (typeof rawValue === 'boolean' || typeof rawValue === 'number') return rawValue;
+  if (rawValue === null || rawValue === undefined) return "";
+  if (typeof rawValue === "boolean" || typeof rawValue === "number")
+    return rawValue;
   return String(rawValue);
 }
 
 function truncateIfNeeded(value, location, truncatedCells) {
-  if (typeof value !== 'string' || value.length <= MAX_XLSX_CELL_LENGTH) return value;
+  if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
+    return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
   truncatedCells.push({ ...location, originalLength: value.length });
   return value.slice(0, keep) + TRUNCATION_MARKER;
@@ -163,10 +165,10 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // 않는다(등급·경쟁률 같은 수치 컬럼이 문자열로 오인되지 않는 이유이기도 하다).
 function forceStringCellTypes(worksheet) {
   Object.keys(worksheet).forEach((address) => {
-    if (address.startsWith('!')) return;
+    if (address.startsWith("!")) return;
     const cell = worksheet[address];
-    if (cell && typeof cell.v === 'string') {
-      cell.t = 's';
+    if (cell && typeof cell.v === "string") {
+      cell.t = "s";
       delete cell.f;
     }
   });
@@ -187,31 +189,37 @@ export function exportAdmissionResultRowsToXlsx(rows) {
   const dataRows = (rows || []).map((row, rowIndex) =>
     BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
-      return truncateIfNeeded(serialized, { id: row?.id, rowIndex, column }, truncatedCells);
-    })
+      return truncateIfNeeded(
+        serialized,
+        { id: row?.id, rowIndex, column },
+        truncatedCells,
+      );
+    }),
   );
 
-  const worksheet = forceStringCellTypes(XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]));
+  const worksheet = forceStringCellTypes(
+    XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]),
+  );
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, '입결정보');
+  XLSX.utils.book_append_sheet(workbook, worksheet, "입결정보");
 
   return { workbook, truncatedCells };
 }
 
 function buildTypeCounts(items) {
   return items.reduce((acc, item) => {
-    const key = item.type || 'unknown';
+    const key = item.type || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 }
 
 function parseBooleanCell(value, fallback = true) {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
-  if (s === 'TRUE' || s === '1') return true;
-  if (s === 'FALSE' || s === '0') return false;
+  if (s === "TRUE" || s === "1") return true;
+  if (s === "FALSE" || s === "0") return false;
   return fallback;
 }
 
@@ -221,15 +229,15 @@ function parseBooleanCell(value, fallback = true) {
 // 컬럼(등급/환산점수/백분위/경쟁률/정수 3종/id)은 이 헬퍼로 null/undefined
 // 만 빈 값으로 보고, 0은 값으로 살려 둔다.
 function numericCellText(value) {
-  if (value === null || value === undefined) return '';
+  if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
 function naturalKeyOf(fields) {
   return NATURAL_KEY_COLUMNS.map((col) => {
     const value = fields[col];
-    return value === null || value === undefined ? '' : String(value);
-  }).join('::');
+    return value === null || value === undefined ? "" : String(value);
+  }).join("::");
 }
 
 /**
@@ -284,7 +292,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       admissionTrack: ctx.admissionTrack,
       column: ctx.column,
       type,
-      reason
+      reason,
     });
     willSkip += 1;
   }
@@ -296,8 +304,8 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       universityKey: null,
       departmentKey: null,
       admissionTrack: null,
-      type: 'sheetNotFound',
-      reason: '시트를 찾을 수 없습니다.'
+      type: "sheetNotFound",
+      reason: "시트를 찾을 수 없습니다.",
     });
     return {
       rows,
@@ -308,8 +316,8 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
         willUpdate,
         willSkip,
         warningCounts: buildTypeCounts(warnings),
-        errorCounts: buildTypeCounts(errors)
-      }
+        errorCounts: buildTypeCounts(errors),
+      },
     };
   }
 
@@ -319,8 +327,13 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
   const columnIndexByName = new Map();
   headerRow.forEach((name, idx) => {
-    const key = typeof name === 'string' ? name.trim() : name;
-    if (key !== undefined && key !== null && key !== '' && !columnIndexByName.has(key)) {
+    const key = typeof name === "string" ? name.trim() : name;
+    if (
+      key !== undefined &&
+      key !== null &&
+      key !== "" &&
+      !columnIndexByName.has(key)
+    ) {
       columnIndexByName.set(key, idx);
     }
   });
@@ -328,7 +341,13 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
 
   bodyRows.forEach((rawRow, rowIndex) => {
     // 완전히 빈 행(엑셀 트레일링 공백 등)은 조용히 건너뛴다.
-    if (!rawRow.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')) return;
+    if (
+      !rawRow.some(
+        (cell) =>
+          cell !== undefined && cell !== null && String(cell).trim() !== "",
+      )
+    )
+      return;
 
     const rowObj = {};
     BULK_XLSX_COLUMNS.forEach((col) => {
@@ -344,20 +363,22 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       resultYear: rowObj.result_year,
       universityKey: clean(rowObj.university_key),
       departmentKey: clean(rowObj.department_key),
-      admissionTrack: clean(rowObj.admission_track)
+      admissionTrack: clean(rowObj.admission_track),
     };
 
     // (1) 잘림 마커 — 이 테이블은 카테고리 구분 없이 전 컬럼이 "메타데이터"
     // 성격이라(모집요강처럼 재생성 가능한 raw/doc 쌍이 없다), 어느 컬럼에서
     // 발견되든 행 전체를 거부한다(잘린 채 반영하면 데이터가 손상된다).
     const truncatedColumns = BULK_XLSX_COLUMNS.filter(
-      (col) => typeof rowObj[col] === 'string' && rowObj[col].includes(TRUNCATION_MARKER)
+      (col) =>
+        typeof rowObj[col] === "string" &&
+        rowObj[col].includes(TRUNCATION_MARKER),
     );
     if (truncatedColumns.length) {
       fail(
-        'truncatedColumn',
-        `잘림 마커가 있는 컬럼(${truncatedColumns.join(', ')})이 있어 행을 거부합니다.`,
-        ctx
+        "truncatedColumn",
+        `잘림 마커가 있는 컬럼(${truncatedColumns.join(", ")})이 있어 행을 거부합니다.`,
+        ctx,
       );
       return;
     }
@@ -367,24 +388,31 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     const universityName = clean(rowObj.university_name);
     const departmentName = clean(rowObj.department_name);
     const missing = [];
-    if (!ctx.resultYear && ctx.resultYear !== 0) missing.push('result_year');
-    if (!ctx.universityKey) missing.push('university_key');
-    if (!universityName) missing.push('university_name');
-    if (!ctx.departmentKey) missing.push('department_key');
-    if (!departmentName) missing.push('department_name');
-    if (!ctx.admissionTrack) missing.push('admission_track');
+    if (!ctx.resultYear && ctx.resultYear !== 0) missing.push("result_year");
+    if (!ctx.universityKey) missing.push("university_key");
+    if (!universityName) missing.push("university_name");
+    if (!ctx.departmentKey) missing.push("department_key");
+    if (!departmentName) missing.push("department_name");
+    if (!ctx.admissionTrack) missing.push("admission_track");
     if (missing.length) {
-      fail('missingRequiredFields', `${missing.join(', ')}가 비어 있습니다.`, ctx);
+      fail(
+        "missingRequiredFields",
+        `${missing.join(", ")}가 비어 있습니다.`,
+        ctx,
+      );
       return;
     }
 
     // (3) result_year 도메인 — 마스터 소스가 2025/2026학년도뿐이다.
     const resultYear = Number(rowObj.result_year);
-    if (!Number.isInteger(resultYear) || !RESULT_YEAR_OPTIONS.includes(resultYear)) {
+    if (
+      !Number.isInteger(resultYear) ||
+      !RESULT_YEAR_OPTIONS.includes(resultYear)
+    ) {
       fail(
-        'invalidResultYear',
-        `result_year는 ${RESULT_YEAR_OPTIONS.join('/')} 중 하나여야 합니다(입력값: ${rowObj.result_year}).`,
-        ctx
+        "invalidResultYear",
+        `result_year는 ${RESULT_YEAR_OPTIONS.join("/")} 중 하나여야 합니다(입력값: ${rowObj.result_year}).`,
+        ctx,
       );
       return;
     }
@@ -394,20 +422,23 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     const mainTrack = clean(rowObj.main_track);
     if (mainTrack && !MAIN_TRACK_OPTIONS.includes(mainTrack)) {
       fail(
-        'invalidMainTrack',
-        `main_track "${mainTrack}"은(는) 허용 값(${MAIN_TRACK_OPTIONS.join('|')})이 아닙니다.`,
-        ctx
+        "invalidMainTrack",
+        `main_track "${mainTrack}"은(는) 허용 값(${MAIN_TRACK_OPTIONS.join("|")})이 아닙니다.`,
+        ctx,
       );
       return;
     }
 
     // (5) screening_category 도메인 — 비어 있으면 통과.
     const screeningCategory = clean(rowObj.screening_category);
-    if (screeningCategory && !SCREENING_CATEGORY_OPTIONS.includes(screeningCategory)) {
+    if (
+      screeningCategory &&
+      !SCREENING_CATEGORY_OPTIONS.includes(screeningCategory)
+    ) {
       fail(
-        'invalidScreeningCategory',
-        `screening_category "${screeningCategory}"은(는) 허용 값(${SCREENING_CATEGORY_OPTIONS.join('|')})이 아닙니다.`,
-        ctx
+        "invalidScreeningCategory",
+        `screening_category "${screeningCategory}"은(는) 허용 값(${SCREENING_CATEGORY_OPTIONS.join("|")})이 아닙니다.`,
+        ctx,
       );
       return;
     }
@@ -423,15 +454,19 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       }
       const num = Number(text);
       if (!Number.isFinite(num)) {
-        fail('invalidGrade', `${col} 값 "${rowObj[col]}"이(가) 숫자가 아닙니다.`, { ...ctx, column: col });
+        fail(
+          "invalidGrade",
+          `${col} 값 "${rowObj[col]}"이(가) 숫자가 아닙니다.`,
+          { ...ctx, column: col },
+        );
         gradeValidationFailed = true;
         break;
       }
       if (Math.abs(num) >= GRADE_RANGE_LIMIT) {
         fail(
-          'invalidGrade',
+          "invalidGrade",
           `${col} 값(${num})이 numeric(4,2) 범위(절댓값 100 미만)를 벗어났습니다.`,
-          { ...ctx, column: col }
+          { ...ctx, column: col },
         );
         gradeValidationFailed = true;
         break;
@@ -443,7 +478,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     // (7) converted_score/percentile — DB에 정밀도 제약이 없어 "숫자인가"만 본다.
     let scoreValidationFailed = false;
     const scoreValues = {};
-    for (const col of ['converted_score', 'percentile']) {
+    for (const col of ["converted_score", "percentile"]) {
       const text = numericCellText(rowObj[col]);
       if (!text) {
         scoreValues[col] = null;
@@ -451,7 +486,11 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       }
       const num = Number(text);
       if (!Number.isFinite(num)) {
-        fail('invalidNumber', `${col} 값 "${rowObj[col]}"이(가) 숫자가 아닙니다.`, { ...ctx, column: col });
+        fail(
+          "invalidNumber",
+          `${col} 값 "${rowObj[col]}"이(가) 숫자가 아닙니다.`,
+          { ...ctx, column: col },
+        );
         scoreValidationFailed = true;
         break;
       }
@@ -465,14 +504,18 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     if (competitionRateText) {
       const num = Number(competitionRateText);
       if (!Number.isFinite(num)) {
-        fail('invalidCompetitionRate', `competition_rate 값 "${rowObj.competition_rate}"이(가) 숫자가 아닙니다.`, ctx);
+        fail(
+          "invalidCompetitionRate",
+          `competition_rate 값 "${rowObj.competition_rate}"이(가) 숫자가 아닙니다.`,
+          ctx,
+        );
         return;
       }
       if (Math.abs(num) >= COMPETITION_RATE_RANGE_LIMIT) {
         fail(
-          'invalidCompetitionRate',
+          "invalidCompetitionRate",
           `competition_rate 값(${num})이 numeric(6,2) 범위(절댓값 10,000 미만)를 벗어났습니다.`,
-          ctx
+          ctx,
         );
         return;
       }
@@ -486,12 +529,16 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     for (const col of INTEGER_COLUMNS) {
       const text = numericCellText(rowObj[col]);
       if (!text) {
-        integerValues[col] = col === 'variant_seq' ? 0 : null;
+        integerValues[col] = col === "variant_seq" ? 0 : null;
         continue;
       }
       const num = Number(text);
       if (!Number.isInteger(num)) {
-        fail('invalidInteger', `${col} 값 "${rowObj[col]}"이(가) 정수가 아닙니다.`, { ...ctx, column: col });
+        fail(
+          "invalidInteger",
+          `${col} 값 "${rowObj[col]}"이(가) 정수가 아닙니다.`,
+          { ...ctx, column: col },
+        );
         integerValidationFailed = true;
         break;
       }
@@ -502,15 +549,19 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     // (10) id 기반 insert/update 분기 — 이 테이블의 유일한 매칭 키.
     const idText = numericCellText(rowObj.id);
     let existingId = null;
-    const isInsert = idText === '';
+    const isInsert = idText === "";
     if (!isInsert) {
       const idNum = Number(idText);
       if (!Number.isFinite(idNum)) {
-        fail('invalidId', `id 값 "${rowObj.id}"이(가) 숫자가 아닙니다.`, ctx);
+        fail("invalidId", `id 값 "${rowObj.id}"이(가) 숫자가 아닙니다.`, ctx);
         return;
       }
       if (!existingIdSet.has(idNum)) {
-        fail('idNotFound', `id ${idNum}이(가) DB에 존재하지 않습니다(삭제됐거나 오타일 수 있습니다).`, ctx);
+        fail(
+          "idNotFound",
+          `id ${idNum}이(가) DB에 존재하지 않습니다(삭제됐거나 오타일 수 있습니다).`,
+          ctx,
+        );
         return;
       }
       existingId = idNum;
@@ -527,21 +578,23 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       screening_category: screeningCategory,
       admission_track: ctx.admissionTrack,
       subject_reflection: clean(rowObj.subject_reflection),
-      variant_seq: integerValues.variant_seq
+      variant_seq: integerValues.variant_seq,
     });
     if (seenNaturalKeys.has(naturalKey)) {
       const firstRow = seenNaturalKeys.get(naturalKey);
       fail(
-        'duplicateNaturalKey',
+        "duplicateNaturalKey",
         `행 ${firstRow + 1}과 자연키(학년도·대학·모집단위·중심전형·전형유형·전형명·반영교과·분할모집순번)가 동일합니다.`,
-        ctx
+        ctx,
       );
       return;
     }
     seenNaturalKeys.set(naturalKey, rowIndex);
 
     // (12) 경고 3종 — 거부는 아니지만 관리자가 확인해야 하는 값.
-    const allGradesEmpty = GRADE_COLUMNS.every((col) => gradeValues[col] === null);
+    const allGradesEmpty = GRADE_COLUMNS.every(
+      (col) => gradeValues[col] === null,
+    );
     if (allGradesEmpty) {
       warnings.push({
         row: rowIndex,
@@ -549,8 +602,8 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
         universityKey: ctx.universityKey,
         departmentKey: ctx.departmentKey,
         admissionTrack: ctx.admissionTrack,
-        type: 'allGradesEmpty',
-        reason: '등급 9종이 전부 비어 있습니다.'
+        type: "allGradesEmpty",
+        reason: "등급 9종이 전부 비어 있습니다.",
       });
     }
     // 경쟁률 0은 "결측"이 아니라 명시적 0으로 저장되면 공개 화면에 "0.00 : 1"
@@ -563,21 +616,26 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
         universityKey: ctx.universityKey,
         departmentKey: ctx.departmentKey,
         admissionTrack: ctx.admissionTrack,
-        column: 'competition_rate',
-        type: 'competitionRateZero',
-        reason: '경쟁률이 0입니다 — §Q2 정책상 미공개는 0이 아니라 빈 값이어야 합니다.'
+        column: "competition_rate",
+        type: "competitionRateZero",
+        reason:
+          "경쟁률이 0입니다 — §Q2 정책상 미공개는 0이 아니라 빈 값이어야 합니다.",
       });
     }
-    if (gradeValues.grade_50 !== null && gradeValues.grade_70 !== null && gradeValues.grade_50 > gradeValues.grade_70) {
+    if (
+      gradeValues.grade_50 !== null &&
+      gradeValues.grade_70 !== null &&
+      gradeValues.grade_50 > gradeValues.grade_70
+    ) {
       warnings.push({
         row: rowIndex,
         resultYear,
         universityKey: ctx.universityKey,
         departmentKey: ctx.departmentKey,
         admissionTrack: ctx.admissionTrack,
-        column: 'grade_50',
-        type: 'gradeCutInversion',
-        reason: `50%컷(${gradeValues.grade_50})이 70%컷(${gradeValues.grade_70})보다 낮은 등급(숫자가 큼) 역전입니다 — 원문을 확인하세요.`
+        column: "grade_50",
+        type: "gradeCutInversion",
+        reason: `50%컷(${gradeValues.grade_50})이 70%컷(${gradeValues.grade_70})보다 낮은 등급(숫자가 큼) 역전입니다 — 원문을 확인하세요.`,
       });
     }
 
@@ -612,7 +670,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       source_sheet: clean(rowObj.source_sheet) || null,
       source_row: integerValues.source_row,
       note: clean(rowObj.note) || null,
-      is_active: parseBooleanCell(rowObj.is_active, true)
+      is_active: parseBooleanCell(rowObj.is_active, true),
       // id: insert면 생략(bigint identity 자동 채번), update면 아래서 채운다.
       // created_at/updated_at: 읽지도 쓰지도 않는다(DB가 관리).
     };
@@ -630,7 +688,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       willUpdate,
       willSkip,
       warningCounts: buildTypeCounts(warnings),
-      errorCounts: buildTypeCounts(errors)
-    }
+      errorCounts: buildTypeCounts(errors),
+    },
   };
 }

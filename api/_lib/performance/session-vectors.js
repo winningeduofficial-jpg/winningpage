@@ -17,11 +17,13 @@
 // **PII(학생코드·학생명)는 애초에 파라미터에 존재하지 않는다** — 함수 시그니처
 // 자체가 그 규율을 강제한다.
 
-import { createHash } from 'crypto';
+import { createHash } from "node:crypto";
 
 /** 요약 압축. `knowledge.js:compactText`와 같은 방식(로컬 정의, export 안 함). */
 function compactText(text, max = 1200) {
-  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  const value = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
@@ -43,22 +45,24 @@ function compactText(text, max = 1200) {
  * @returns {string} 입력이 배열이 아니거나 비어있으면 빈 문자열.
  */
 export function flattenReportSectionsToText(sections = []) {
-  if (!Array.isArray(sections) || sections.length === 0) return '';
+  if (!Array.isArray(sections) || sections.length === 0) return "";
 
   function flattenBlock(block) {
-    if (!block || typeof block !== 'object') return [];
+    if (!block || typeof block !== "object") return [];
 
     switch (block.kind) {
-      case 'keyValue':
+      case "keyValue":
         return (Array.isArray(block.rows) ? block.rows : [])
-          .map((row) => String(row?.content || '').trim())
+          .map((row) => String(row?.content || "").trim())
           .filter(Boolean);
-      case 'plainList':
+      case "plainList":
         return (Array.isArray(block.items) ? block.items : [])
-          .map((item) => String(item?.text || '').trim())
+          .map((item) => String(item?.text || "").trim())
           .filter(Boolean);
-      case 'group':
-        return (Array.isArray(block.children) ? block.children : []).flatMap(flattenBlock);
+      case "group":
+        return (Array.isArray(block.children) ? block.children : []).flatMap(
+          flattenBlock,
+        );
       default:
         // 모르는 kind는 방어적으로 건너뛴다.
         return [];
@@ -66,8 +70,12 @@ export function flattenReportSectionsToText(sections = []) {
   }
 
   return sections
-    .map((section) => (Array.isArray(section?.blocks) ? section.blocks : []).flatMap(flattenBlock).join(' '))
-    .join('\n');
+    .map((section) =>
+      (Array.isArray(section?.blocks) ? section.blocks : [])
+        .flatMap(flattenBlock)
+        .join(" "),
+    )
+    .join("\n");
 }
 
 /**
@@ -79,23 +87,25 @@ export function buildSessionVectorSearchText({
   subject,
   careerGoal,
   topicTitle,
-  summaryText
+  summaryText,
 } = {}) {
   return [
-    `학년: ${gradeLabel || ''}`,
-    `교과군: ${subjectGroup || ''}`,
-    `과목: ${subject || ''}`,
-    `진로: ${careerGoal || ''}`,
-    `주제: ${topicTitle || ''}`,
-    `내용: ${summaryText || ''}`
-  ].join('\n');
+    `학년: ${gradeLabel || ""}`,
+    `교과군: ${subjectGroup || ""}`,
+    `과목: ${subject || ""}`,
+    `진로: ${careerGoal || ""}`,
+    `주제: ${topicTitle || ""}`,
+    `내용: ${summaryText || ""}`,
+  ].join("\n");
 }
 
 /**
  * 무변경 재임베딩 스킵 판정용 캐시 키. 보안 용도가 아니다(단순 콘텐츠 지문).
  */
 export function computeContentHash(text) {
-  return createHash('sha256').update(String(text || '')).digest('hex');
+  return createHash("sha256")
+    .update(String(text || ""))
+    .digest("hex");
 }
 
 /**
@@ -123,7 +133,7 @@ export async function upsertSessionVectorMetadata({
   subject,
   careerGoal,
   topicTitle,
-  summaryText
+  summaryText,
 }) {
   // 1600자 기준: 설계+평가 2개 리포트를 합치므로 knowledge.js의 단일 리포트 압축
   // 기준(1200자)보다 여유를 둔 것이다.
@@ -138,18 +148,20 @@ export async function upsertSessionVectorMetadata({
     subject,
     careerGoal,
     topicTitle,
-    summaryText: compactedSummaryText
+    summaryText: compactedSummaryText,
   });
   const contentHash = computeContentHash(searchText);
 
   const { data: existing, error: selectError } = await supabase
-    .from('performance_session_vectors')
-    .select('content_hash')
-    .eq('session_id', sessionId)
+    .from("performance_session_vectors")
+    .select("content_hash")
+    .eq("session_id", sessionId)
     .maybeSingle();
 
   if (selectError) {
-    throw new Error(`performance_session_vectors 조회 실패: ${selectError.message}`);
+    throw new Error(
+      `performance_session_vectors 조회 실패: ${selectError.message}`,
+    );
   }
 
   const patch = {
@@ -162,13 +174,13 @@ export async function upsertSessionVectorMetadata({
     topic_title: topicTitle || null,
     summary_text: compactedSummaryText || null,
     search_text: searchText,
-    content_hash: contentHash
+    content_hash: contentHash,
   };
 
   // 기존 행이 없거나 콘텐츠가 실제로 바뀌었을 때만 재임베딩을 신호한다. 내용이
   // 그대로면 이미 `done` 상태를 건드리지 않아 불필요한 재임베딩을 막는다.
   if (!existing || existing.content_hash !== contentHash) {
-    patch.embedding_status = 'pending';
+    patch.embedding_status = "pending";
     patch.embedding = null;
     patch.embedding_error = null;
     patch.embedded_at = null;
@@ -187,10 +199,12 @@ export async function upsertSessionVectorMetadata({
   // 하는 것이 설계 원칙이다 — 이 함수가 손대면 그 단일 승격 지점 원칙이 깨진다.
 
   const { error: upsertError } = await supabase
-    .from('performance_session_vectors')
-    .upsert(patch, { onConflict: 'session_id' });
+    .from("performance_session_vectors")
+    .upsert(patch, { onConflict: "session_id" });
 
   if (upsertError) {
-    throw new Error(`performance_session_vectors upsert 실패: ${upsertError.message}`);
+    throw new Error(
+      `performance_session_vectors upsert 실패: ${upsertError.message}`,
+    );
   }
 }

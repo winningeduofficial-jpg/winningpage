@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
-import { DEMO_REGISTRY } from '../../demo/demoRegistry';
+import { useEffect, useMemo } from "react";
+import { Navigate, useParams } from "react-router-dom";
+import { DEMO_REGISTRY } from "../../demo/demoRegistry";
 
 // srcDoc 문서의 document URL은 about:srcdoc이지만 base URL은 부모(SPA) 문서를 그대로
 // 상속한다. 그래서 목업 안의 <a href="#process">가 about:srcdoc이 아니라 부모 경로
@@ -40,8 +40,8 @@ const FRAGMENT_NAV_FIX_SCRIPT = `
 // 인라인 <script>(go() 스텝 네비게이터, pill 핸들러) 뒤에 오도록 </body> 직전에 주입한다.
 // </body>를 못 찾는 방어적인 경우엔 문자열 끝에 덧붙인다.
 function injectFragmentNavFix(html) {
-  if (html.includes('</body>')) {
-    return html.replace('</body>', `${FRAGMENT_NAV_FIX_SCRIPT}</body>`);
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${FRAGMENT_NAV_FIX_SCRIPT}</body>`);
   }
   return html + FRAGMENT_NAV_FIX_SCRIPT;
 }
@@ -56,16 +56,19 @@ export default function DemoFrame({ demoKeyOverride } = {}) {
   const demo = DEMO_REGISTRY[demoKeyOverride || paramKey];
 
   // HTML이 최대 69KB라 렌더마다 문자열을 새로 만들지 않도록 메모이즈한다.
-  const html = useMemo(() => (demo ? injectFragmentNavFix(demo.html) : undefined), [demo]);
+  const html = useMemo(
+    () => (demo ? injectFragmentNavFix(demo.html) : undefined),
+    [demo],
+  );
 
   // SiteLayout 밖 라우트라 헤더/푸터가 없어 react-helmet류를 쓸 이유가 없다 — 마운트 시
   // robots 메타만 직접 넣고 언마운트 시 제거한다.
   useEffect(() => {
     if (!demo) return undefined;
 
-    const meta = document.createElement('meta');
-    meta.name = 'robots';
-    meta.content = 'noindex';
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex";
     document.head.appendChild(meta);
 
     return () => {

@@ -10,8 +10,8 @@
 //
 // 카피는 src/data/mentorApply.js(HERO_COPY), 이미지 경로는 src/data/mentorApplyAssets.js 만
 // 참조한다. 리터럴을 박지 마라.
-import { HERO_COPY } from '../../data/mentorApply';
-import { MENTOR_ASSETS } from '../../data/mentorApplyAssets';
+import { HERO_COPY } from "../../data/mentorApply";
+import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
 
 // CTA 앵커 타깃 id.
 //
@@ -21,7 +21,7 @@ import { MENTOR_ASSETS } from '../../data/mentorApplyAssets';
 //   동작한다 — 폼 담당이 폼 래퍼에 `id={MENTOR_FORM_ANCHOR_ID}` + `scroll-mt-24`(fixed 헤더 h-16
 //   보정, BoardListPage.jsx:198 선례)를 붙이는 것을 전제로 한다. 목적지가 외부 페이지로 확정되면
 //   아래 상수 대신 <Link to> 로 바꾸면 된다.
-export const MENTOR_FORM_ANCHOR_ID = 'mentor-apply-form';
+export const MENTOR_FORM_ANCHOR_ID = "mentor-apply-form";
 
 export default function MentorHero() {
   return (
@@ -64,16 +64,16 @@ export default function MentorHero() {
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 lg:hidden"
-        style={{ background: 'rgba(0,0,0,0.75)' }}
+        style={{ background: "rgba(0,0,0,0.75)" }}
       />
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden lg:block"
         style={{
-          '--c': 'min(100%, 72.75rem)',
-          '--x0': 'calc(50% - var(--c) / 2)',
+          "--c": "min(100%, 72.75rem)",
+          "--x0": "calc(50% - var(--c) / 2)",
           background:
-            'linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)'
+            "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
         }}
       />
 
@@ -87,7 +87,7 @@ export default function MentorHero() {
               (CompanyNews.jsx:448)과 동일 값. */}
           <p
             className="break-keep text-[1.125rem] font-medium leading-[1.3] tracking-[-0.02em] text-white/70 sm:text-[1.25rem] lg:text-[1.5rem]"
-            style={{ textShadow: '0 0.1875rem 0.9375rem rgba(0,0,0,0.4)' }}
+            style={{ textShadow: "0 0.1875rem 0.9375rem rgba(0,0,0,0.4)" }}
           >
             {HERO_COPY.eyebrow}
           </p>
@@ -100,7 +100,7 @@ export default function MentorHero() {
           <h1
             id="mentor-hero-heading"
             className="mt-3 break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[2.25rem] lg:text-[2.75rem]"
-            style={{ textShadow: '0 0.1875rem 0.9375rem rgba(0,0,0,0.4)' }}
+            style={{ textShadow: "0 0.1875rem 0.9375rem rgba(0,0,0,0.4)" }}
           >
             {HERO_COPY.headingLines.map((line) => (
               <span key={line} className="block">

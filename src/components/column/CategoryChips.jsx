@@ -1,12 +1,12 @@
-import { ALL_CATEGORY, COLUMN_CATEGORIES } from '../../pages/column/columnData';
+import { ALL_CATEGORY, COLUMN_CATEGORIES } from "../../pages/column/columnData";
 
 const OPTIONS = [ALL_CATEGORY, ...COLUMN_CATEGORIES];
 
-export default function CategoryChips({ active, onChange, align = 'left' }) {
+export default function CategoryChips({ active, onChange, align = "left" }) {
   return (
     <div
       className={`flex flex-wrap gap-x-3 gap-y-4 ${
-        align === 'center' ? 'justify-center' : 'justify-start'
+        align === "center" ? "justify-center" : "justify-start"
       }`}
     >
       {OPTIONS.map((option) => {
@@ -18,7 +18,9 @@ export default function CategoryChips({ active, onChange, align = 'left' }) {
             type="button"
             onClick={() => onChange?.(option)}
             className={`shrink-0 rounded-full px-[1.125rem] py-2.5 text-base font-medium leading-[1.4] tracking-[-0.02em] transition-colors ${
-              isActive ? 'bg-[#013262] text-white' : 'bg-[#F9FAFB] text-[#525252]'
+              isActive
+                ? "bg-[#013262] text-white"
+                : "bg-[#F9FAFB] text-[#525252]"
             }`}
           >
             {option}

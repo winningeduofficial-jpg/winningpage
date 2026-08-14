@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 /**
  * 콜멘토 랜딩 전용 버튼.
@@ -19,19 +19,21 @@ import { Link } from 'react-router-dom';
 // white variant 는 §7 검정 밴드 위에서만 쓰이는데 #013262 링은 #000 대비 1.5:1 로
 // 사실상 보이지 않아(순수 a11y 결함) 골드 #AF9364 로 바꾼다. primary/outline 은 무변경.
 const VARIANT_CLASSES = {
-  primary: 'bg-[#013262] text-white hover:bg-[#012A52] focus-visible:outline-[#013262]',
+  primary:
+    "bg-[#013262] text-white hover:bg-[#012A52] focus-visible:outline-[#013262]",
   outline:
-    'border border-[#0F172A] bg-transparent text-[#0F172A] hover:bg-[#0F172A]/[0.04] focus-visible:outline-[#013262]',
-  white: 'bg-white text-[#525252] hover:bg-[#F4F4F6] focus-visible:outline-[#AF9364]'
+    "border border-[#0F172A] bg-transparent text-[#0F172A] hover:bg-[#0F172A]/[0.04] focus-visible:outline-[#013262]",
+  white:
+    "bg-white text-[#525252] hover:bg-[#F4F4F6] focus-visible:outline-[#AF9364]",
 };
 
 export default function CmButton({
-  variant = 'primary',
+  variant = "primary",
   to,
   href,
   onClick,
   children,
-  className = ''
+  className = "",
 }) {
   const classes = `inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-[0.9375rem] px-[2.875rem] py-[1.125rem] text-[1.25rem] leading-[1.25rem] font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto ${VARIANT_CLASSES[variant]} ${className}`;
 

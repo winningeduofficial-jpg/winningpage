@@ -17,46 +17,47 @@
 // 아니다).
 export const TABLE_VARIANT_LAYOUT = {
   selection: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-selection-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-selection-table",
   },
   change: {
-    scrollWrapClassName: 'admission-scroll-table admission-change-scroll-table',
-    tableClassName: 'admission-data-table admission-change-table admission-change-table-v87'
+    scrollWrapClassName: "admission-scroll-table admission-change-scroll-table",
+    tableClassName:
+      "admission-data-table admission-change-table admission-change-table-v87",
   },
   recruit: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-recruit-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-recruit-table",
   },
   recruitExact: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-normalized-recruit-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-normalized-recruit-table",
   },
   exam: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-exam-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-exam-table",
   },
   minimum: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-minimum-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-minimum-table",
   },
   recordInfo: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-record-info-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-record-info-table",
   },
   score: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-score-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-score-table",
   },
   special: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table admission-special-table'
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table admission-special-table",
   },
   // 스키마 상 존재하나 현재 파서 어느 빌더도 만들지 않는 탈출구. 실측 근거 없음.
   generic: {
-    scrollWrapClassName: 'admission-scroll-table',
-    tableClassName: 'admission-data-table'
-  }
+    scrollWrapClassName: "admission-scroll-table",
+    tableClassName: "admission-data-table",
+  },
 };
 
 export function getTableVariantLayout(variant) {
@@ -65,47 +66,47 @@ export function getTableVariantLayout(variant) {
 
 // ── selection 셀 클래스(admissionParsing.js:1194 buildSelectionMethodTable) ──
 export const SELECTION_CELL_CLASS_BY_ROLE = {
-  type: 'selection-type-cell',
-  name: 'left selection-name-cell',
-  seats: 'selection-seat-cell',
-  minimum: 'selection-minimum-cell',
-  method: 'left selection-method-cell'
+  type: "selection-type-cell",
+  name: "left selection-name-cell",
+  seats: "selection-seat-cell",
+  minimum: "selection-minimum-cell",
+  method: "left selection-method-cell",
 };
 
 // selection 비-minimum 컬럼의 빈값은 muted span이 아니라 리터럴 '-'다.
-export function selectionEmptyFallback(role) {
-  return '-';
+export function selectionEmptyFallback(_role) {
+  return "-";
 }
 
 // ── change 셀 클래스(admissionParsing.js:941 buildChangeTableHtml) ─────
 export const CHANGE_CELL_CLASS_BY_ROLE = {
-  no: 'change-no-cell',
-  title: 'change-title-cell',
-  content: 'change-content-cell'
+  no: "change-no-cell",
+  title: "change-title-cell",
+  content: "change-content-cell",
 };
 
 export const CHANGE_EMPTY_FALLBACK_BY_ROLE = {
-  no: '-',
-  title: '주요 변경'
+  no: "-",
+  title: "주요 변경",
   // content는 값이 없으면 muted span — TableBlockView/ChangeTable에서 별도 처리.
 };
 
 // ── recruit 고정 셀 클래스(admissionParsing.js:2261 buildRecruitmentHtml) ──
 export const RECRUIT_FIXED_CELL_CLASS_BY_ROLE = {
-  group: 'left group-cell',
-  unit: 'left unit-cell'
+  group: "left group-cell",
+  unit: "left unit-cell",
 };
 
 // group/unit 빈값은 리터럴 '-'(escapeHtml(row.group || '-')).
 export function recruitFixedEmptyFallback() {
-  return '-';
+  return "-";
 }
 
 // ── recruitExact 고정 컬럼 클래스(admissionParsing.js:553 normalizeRecruitmentExactHtml) ──
 // 위치 기반이다(role이 아니라 fixedColumnCount로 판정) — legacy가
 // `idx === 0 ? 'series-cell' : ''`로 오직 첫 컬럼만 구분하기 때문.
 export function recruitExactFixedCellClassName(idx) {
-  return idx === 0 ? 'left series-cell' : 'left';
+  return idx === 0 ? "left series-cell" : "left";
 }
 
 // ── generic(exam/minimum/recordInfo/score/special) 셀 클래스(htmlTable:294) ──
@@ -126,9 +127,10 @@ export function isGenericLeftColumn(idx) {
 // ⚠ 이 함수를 고치면 편집 UI뿐 아니라 공개 화면 마크업(Gate B, 실데이터
 // 2506건)이 함께 움직인다. 그것이 단일 정본의 대가이자 안전장치다.
 export function getCellKind(variant, role) {
-  if (variant === 'selection' && role === 'minimum') return 'badge';
-  if (variant === 'recruit' && role !== 'group' && role !== 'unit') return 'chips';
-  return 'text';
+  if (variant === "selection" && role === "minimum") return "badge";
+  if (variant === "recruit" && role !== "group" && role !== "unit")
+    return "chips";
+  return "text";
 }
 
 // ── variant별 알려진 role 목록(표 편집기 role 드롭다운 전용) ────────────
@@ -142,27 +144,37 @@ export const KNOWN_ROLES_BY_VARIANT = {
   selection: Object.keys(SELECTION_CELL_CLASS_BY_ROLE), // type,name,seats,minimum,method
   change: Object.keys(CHANGE_CELL_CLASS_BY_ROLE), // no,title,content
   // exam_schedule doc 생성기(admissionParsing.js:2493/3465): 전형/대상/일정.
-  exam: ['type', 'target', 'schedule'],
+  exam: ["type", "target", "schedule"],
   // minimum_requirements doc 생성기(:2520/3495): 전형/대상/반영 영역/최저/비고.
-  minimum: ['type', 'target', 'areas', 'minimum', 'note'],
+  minimum: ["type", "target", "areas", "minimum", "note"],
   // school_record_method(recordInfo) doc 생성기(:2548/3608): 구분/내용.
-  recordInfo: ['type', 'content'],
+  recordInfo: ["type", "content"],
   // recruitment_quota(score 환산표) doc 생성기(:2564): 구분(type) + 등급별
   // 컬럼 전부 data. 헤더 라벨(과목명 등)은 매 대학·학년마다 달라지지만
   // role 자체는 이 2종으로 고정.
-  score: ['type', 'data'],
+  score: ["type", "data"],
   // recruitment_quota(recruit, admission-recruit-table chips 계열) doc
   // 생성기(:2604-2608/3728-3732): group/unit + 값 컬럼은 전부 series.
-  recruit: [...Object.keys(RECRUIT_FIXED_CELL_CLASS_BY_ROLE), 'series'],
+  recruit: [...Object.keys(RECRUIT_FIXED_CELL_CLASS_BY_ROLE), "series"],
   // recruitment_quota(recruitExact, 2단 헤더) legacy 임포터(:3666-3668):
   // 고정 컬럼 idx0=series/그 외=unit, 데이터 컬럼은 전부 data.
-  recruitExact: ['series', 'unit', 'data'],
+  recruitExact: ["series", "unit", "data"],
   // 특수대학(경찰대/사관학교/과기원) SPECIAL_COLUMN_ROLE_MAP(:2655-2674) 값
   // 전체 + inferSpecialColumnRole 기본 폴백(data).
-  special: ['type', 'name', 'seats', 'method', 'minimum', 'note', 'series', 'content', 'data'],
+  special: [
+    "type",
+    "name",
+    "seats",
+    "method",
+    "minimum",
+    "note",
+    "series",
+    "content",
+    "data",
+  ],
   // 어느 생성기도 만들지 않는 탈출구 variant(admissionLayout.js 상단 주석
   // "실측 근거 없음") — 알려진 role이 없다.
-  generic: []
+  generic: [],
 };
 
 export function getKnownRolesForVariant(variant) {
@@ -177,5 +189,5 @@ export function getKnownRolesForVariant(variant) {
 // "직접 입력" 경고 상태로 보여준다.
 export function defaultNewColumnRole(variant) {
   const roles = getKnownRolesForVariant(variant);
-  return roles.length ? roles[roles.length - 1] : '';
+  return roles.length ? roles[roles.length - 1] : "";
 }

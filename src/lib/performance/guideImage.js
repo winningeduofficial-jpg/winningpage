@@ -27,11 +27,15 @@
 //      일부 스캐너 출력은 실제로 정사각이므로 예외로 빼고 디코더 보정에 맡긴다.
 //    · JPEG이 아닌 입력(PNG/WEBP)은 EXIF 방향 태그가 사실상 쓰이지 않아 검사하지 않는다.
 
-export const ALLOWED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+];
 
 // §8.8 「HEIC」 — 외부 앱은 `accept="image/*"`(suhaengpyeong/index.html:1540)라 HEIC가
 // 파일 선택기에 그대로 노출됐다. 목록을 좁혀 애초에 고를 수 없게 한다.
-export const IMAGE_ACCEPT_ATTR = ALLOWED_IMAGE_MIME_TYPES.join(',');
+export const IMAGE_ACCEPT_ATTR = ALLOWED_IMAGE_MIME_TYPES.join(",");
 
 export const MAX_PHOTOS = 5; // §8.8 「최대 장수」
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // §8.8 「파일당」
@@ -40,20 +44,23 @@ export const MAX_LONG_EDGE = 2000; // §8.8 「클라이언트 전처리」
 
 // §8.8 지정 문구. 토스트 문구를 임의로 바꾸지 말 것 — 해결 방법을 알려주는 것이 이 문구의 요점이다.
 export const HEIC_REJECT_MESSAGE =
-  'HEIC 형식은 지원하지 않아요. 사진 앱에서 JPG로 저장한 뒤 올려주세요.';
+  "HEIC 형식은 지원하지 않아요. 사진 앱에서 JPG로 저장한 뒤 올려주세요.";
 
 /**
  * HEIC/HEIF 여부. MIME이 비어 오는 경우(파일 선택기 필터를 우회했거나 OS가 타입을
  * 못 붙인 경우)를 위해 확장자도 함께 본다.
  */
 export function isHeicFile(file) {
-  const type = String(file?.type || '').toLowerCase();
-  if (type.startsWith('image/heic') || type.startsWith('image/heif')) return true;
-  return /\.(heic|heif)$/i.test(String(file?.name || ''));
+  const type = String(file?.type || "").toLowerCase();
+  if (type.startsWith("image/heic") || type.startsWith("image/heif"))
+    return true;
+  return /\.(heic|heif)$/i.test(String(file?.name || ""));
 }
 
 export function isAllowedImageFile(file) {
-  return ALLOWED_IMAGE_MIME_TYPES.includes(String(file?.type || '').toLowerCase());
+  return ALLOWED_IMAGE_MIME_TYPES.includes(
+    String(file?.type || "").toLowerCase(),
+  );
 }
 
 /** JPEG 마커를 훑어 EXIF orientation과 원본(SOF) 치수를 읽는다. 실패하면 전부 null/1이다. */
@@ -102,7 +109,13 @@ async function readJpegMeta(file) {
 
       // SOF0~SOF15(DHT 0xC4 / JPG 0xC8 / DAC 0xCC 제외) — 원본 픽셀 치수
       const low = marker & 0xff;
-      if (low >= 0xc0 && low <= 0xcf && low !== 0xc4 && low !== 0xc8 && low !== 0xcc) {
+      if (
+        low >= 0xc0 &&
+        low <= 0xcf &&
+        low !== 0xc4 &&
+        low !== 0xc8 &&
+        low !== 0xcc
+      ) {
         if (offset + 9 <= view.byteLength) {
           height = view.getUint16(offset + 5);
           width = view.getUint16(offset + 7);
@@ -126,7 +139,7 @@ function loadImageElement(file) {
     image.onload = () => resolve({ image, url });
     image.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('이미지를 읽을 수 없습니다.'));
+      reject(new Error("이미지를 읽을 수 없습니다."));
     };
     image.src = url;
   });
@@ -134,14 +147,16 @@ function loadImageElement(file) {
 
 /** EXIF 방향이 반영된 상태로 디코딩한다(파일 상단 주석의 1차 경로). */
 async function decodeOriented(file) {
-  if (typeof createImageBitmap === 'function') {
+  if (typeof createImageBitmap === "function") {
     try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const bitmap = await createImageBitmap(file, {
+        imageOrientation: "from-image",
+      });
       return {
         source: bitmap,
         width: bitmap.width,
         height: bitmap.height,
-        release: () => bitmap.close?.()
+        release: () => bitmap.close?.(),
       };
     } catch {
       // 옵션 미지원 등 — <img> 경로로 내려간다.
@@ -153,7 +168,7 @@ async function decodeOriented(file) {
     source: image,
     width: image.naturalWidth,
     height: image.naturalHeight,
-    release: () => URL.revokeObjectURL(url)
+    release: () => URL.revokeObjectURL(url),
   };
 }
 
@@ -194,14 +209,19 @@ function canvasToFile(canvas, file, mimeType) {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('이미지를 변환하지 못했습니다.'));
+          reject(new Error("이미지를 변환하지 못했습니다."));
           return;
         }
-        resolve(new File([blob], file.name, { type: mimeType, lastModified: Date.now() }));
+        resolve(
+          new File([blob], file.name, {
+            type: mimeType,
+            lastModified: Date.now(),
+          }),
+        );
       },
       mimeType,
       // PNG는 quality 인자를 무시한다. JPEG/WEBP만 0.9로 재인코딩한다.
-      mimeType === 'image/png' ? undefined : 0.9
+      mimeType === "image/png" ? undefined : 0.9,
     );
   });
 }
@@ -214,20 +234,20 @@ function canvasToFile(canvas, file, mimeType) {
  * @returns {Promise<File>} 업로드할 파일(원본이거나 리사이즈·회전 보정본)
  */
 export async function prepareGuideImage(file) {
-  const mimeType = String(file?.type || '').toLowerCase();
+  const mimeType = String(file?.type || "").toLowerCase();
   if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
-    throw new Error('지원하지 않는 이미지 형식입니다.');
+    throw new Error("지원하지 않는 이미지 형식입니다.");
   }
 
   const meta =
-    mimeType === 'image/jpeg'
+    mimeType === "image/jpeg"
       ? await readJpegMeta(file)
       : { orientation: 1, width: null, height: null };
   const decoded = await decodeOriented(file);
 
   try {
     const { width, height } = decoded;
-    if (!width || !height) throw new Error('이미지 크기를 읽을 수 없습니다.');
+    if (!width || !height) throw new Error("이미지 크기를 읽을 수 없습니다.");
 
     // 디코더가 축 뒤바뀜(5~8)을 반영하지 않은 경우에만 우리가 직접 돌린다(파일 상단 주석).
     // `meta.width !== meta.height`가 이 판정의 전제다 — 정사각 원본은 회전해도 치수가
@@ -250,12 +270,12 @@ export async function prepareGuideImage(file) {
     const dw = Math.max(1, Math.round(width * scale));
     const dh = Math.max(1, Math.round(height * scale));
 
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = orientation >= 5 ? dh : dw;
     canvas.height = orientation >= 5 ? dw : dh;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas를 사용할 수 없습니다.');
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas를 사용할 수 없습니다.");
 
     applyOrientationTransform(ctx, orientation, dw, dh);
     ctx.drawImage(decoded.source, 0, 0, dw, dh);

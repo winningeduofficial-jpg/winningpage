@@ -1,6 +1,6 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState } from "react";
 
-import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from './serviceTokens';
+import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // 탭 UI 섹션 본문(탭바 + 탭패널 카드).
 //
@@ -28,7 +28,10 @@ import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from './serviceTokens';
 // 지원 개수: 3(기본값, 수행평가・자기평가) / 5(목표관리). 미등록 columns 값은 폴백 없이
 // 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에 띄게 깨지므로 호출자가
 // 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
-const TAB_PANEL_COLS = { 3: 'sm:grid-cols-3 lg:grid-cols-3', 5: 'sm:grid-cols-3 lg:grid-cols-5' };
+const TAB_PANEL_COLS = {
+  3: "sm:grid-cols-3 lg:grid-cols-3",
+  5: "sm:grid-cols-3 lg:grid-cols-5",
+};
 
 export default function ServiceTabsPanel({
   tabs,
@@ -36,10 +39,10 @@ export default function ServiceTabsPanel({
   columns = 3,
   ariaLabel,
   idPrefix,
-  panelHeightClass = ''
+  panelHeightClass = "",
 }) {
   const [activeTab, setActiveTab] = useState(
-    () => tabs.find((tab) => content[tab]?.length) ?? tabs[0]
+    () => tabs.find((tab) => content[tab]?.length) ?? tabs[0],
   );
   const activeCards = content[activeTab] || [];
 
@@ -65,13 +68,18 @@ export default function ServiceTabsPanel({
                 aria-controls={`${idPrefix}-tabpanel`}
                 onClick={() => !isDisabled && setActiveTab(tab)}
                 className={`shrink-0 whitespace-nowrap text-[1.125rem] leading-[1.4] ${
-                  isActive ? 'font-semibold text-[#525252]' : 'font-medium text-[#A3A3A3]'
-                } ${isDisabled ? 'cursor-default' : ''}`}
+                  isActive
+                    ? "font-semibold text-[#525252]"
+                    : "font-medium text-[#A3A3A3]"
+                } ${isDisabled ? "cursor-default" : ""}`}
               >
                 {tab}
               </button>
               {index < tabs.length - 1 && (
-                <span aria-hidden="true" className="h-[1.4375rem] w-px shrink-0 bg-[#D7D7D7]" />
+                <span
+                  aria-hidden="true"
+                  className="h-[1.4375rem] w-px shrink-0 bg-[#D7D7D7]"
+                />
               )}
             </Fragment>
           );
@@ -85,7 +93,10 @@ export default function ServiceTabsPanel({
         className={`mt-8 grid grid-cols-1 items-start gap-5 sm:mt-10 lg:mt-[1.875rem] ${TAB_PANEL_COLS[columns]} lg:gap-[1.875rem] ${panelHeightClass}`}
       >
         {activeCards.map((card) => (
-          <div key={`${activeTab}-${card.title}`} className="flex flex-col text-left">
+          <div
+            key={`${activeTab}-${card.title}`}
+            className="flex flex-col text-left"
+          >
             <div className="flex aspect-[453/200] items-center justify-center rounded-[0.5625rem] border border-[#D7D7D7] bg-[#F9FAFB]">
               {/* 아이콘은 시안 절대치 138px 고정이다. 박스는 aspect-[453/200]이지만 플렉스
                   아이템의 min-height:auto content-based minimum 이 작동해, 카드가 좁아 aspect
@@ -100,7 +111,9 @@ export default function ServiceTabsPanel({
               />
             </div>
             <p className={`mt-4 ${CARD_TITLE_CLASS}`}>{card.title}</p>
-            <p className={`mt-[0.9375rem] ${CARD_DESC_MUTED_CLASS}`}>{card.desc}</p>
+            <p className={`mt-[0.9375rem] ${CARD_DESC_MUTED_CLASS}`}>
+              {card.desc}
+            </p>
           </div>
         ))}
       </div>

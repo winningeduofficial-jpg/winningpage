@@ -36,105 +36,138 @@
 //    "객체는 지웠는데 행이 남은" 상태이고, 그 행은 pending이라 24시간 스윕이
 //    정리한다(remove는 이미 없는 객체에 대해 에러가 아니다).
 
-import { createSupabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
-  SERVICE_CONFIGS,
   getBearerToken,
-  hasPaidServiceAccess
-} from '../_lib/serviceAccess.js';
-import { BUCKET } from './upload-url.js';
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "../_lib/serviceAccess.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { BUCKET } from "./upload-url.js";
 
-const SERVICE_KEY = 'suhaeng';
+const SERVICE_KEY = "suhaeng";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fail(res, status, code, message, extra) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return fail(res, 405, 'METHOD_NOT_ALLOWED', 'POST만 허용됩니다.');
+  if (req.method !== "POST") {
+    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 
   let supabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
-    console.error('performance/discard-attachment 설정 오류:', error);
-    return fail(res, 500, 'INTERNAL', '서버 설정이 올바르지 않습니다.');
+    console.error("performance/discard-attachment 설정 오류:", error);
+    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
   }
 
   try {
     const token = getBearerToken(req);
     if (!token) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user?.id) {
-      return fail(res, 401, 'UNAUTHENTICATED', '로그인이 필요합니다.');
+      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
 
     const userId = userData.user.id;
 
     // 이용권 재판정 — §8.6 공통 규약(다른 performance 라우트와 같은 관례).
-    const { allowed: hasAccess } = await hasPaidServiceAccess(supabaseAdmin, userId, SERVICE_CONFIGS[SERVICE_KEY]);
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
+      supabaseAdmin,
+      userId,
+      SERVICE_CONFIGS[SERVICE_KEY],
+    );
     if (!hasAccess) {
-      return fail(res, 403, 'NO_ENTITLEMENT', '유료 이용권을 결제하신 뒤 이용할 수 있습니다.');
+      return fail(
+        res,
+        403,
+        "NO_ENTITLEMENT",
+        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+      );
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-    const attachmentId = typeof body.attachmentId === 'string' ? body.attachmentId.trim() : '';
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    const attachmentId =
+      typeof body.attachmentId === "string" ? body.attachmentId.trim() : "";
 
     if (!sessionId) {
-      return fail(res, 400, 'MISSING_FIELD', 'sessionId는 필수입니다.', { field: 'sessionId' });
+      return fail(res, 400, "MISSING_FIELD", "sessionId는 필수입니다.", {
+        field: "sessionId",
+      });
     }
 
     if (!UUID_RE.test(attachmentId)) {
-      return fail(res, 400, 'INVALID_ATTACHMENT_ID', 'attachmentId 형식이 올바르지 않습니다.', {
-        field: 'attachmentId'
-      });
+      return fail(
+        res,
+        400,
+        "INVALID_ATTACHMENT_ID",
+        "attachmentId 형식이 올바르지 않습니다.",
+        {
+          field: "attachmentId",
+        },
+      );
     }
 
     // 세션 소유권 — service_role이라 RLS가 우회되므로 이 조건이 유일한 방어선이다.
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from('performance_sessions')
-      .select('id')
-      .eq('id', sessionId)
-      .eq('profile_id', userId)
+      .from("performance_sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .eq("profile_id", userId)
       .maybeSingle();
 
-    if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
+    if (sessionError)
+      throw new Error(`세션 조회 실패: ${sessionError.message}`);
 
     if (!sessionRow) {
-      return fail(res, 403, 'NOT_SESSION_OWNER', '이 수행평가 세션에 접근할 수 없습니다.');
+      return fail(
+        res,
+        403,
+        "NOT_SESSION_OWNER",
+        "이 수행평가 세션에 접근할 수 없습니다.",
+      );
     }
 
     // 첨부 조회는 **세션에 묶어서** 한다(analyze-guide.js와 같은 IDOR 차단 방식).
     // 없는 id와 남의 첨부를 같은 403으로 합친다(존재 오라클 방지).
     const { data: attachmentRow, error: attachmentError } = await supabaseAdmin
-      .from('performance_attachments')
-      .select('id,storage_path,ocr_status,deleted_at')
-      .eq('id', attachmentId)
-      .eq('session_id', sessionRow.id)
+      .from("performance_attachments")
+      .select("id,storage_path,ocr_status,deleted_at")
+      .eq("id", attachmentId)
+      .eq("session_id", sessionRow.id)
       .maybeSingle();
 
-    if (attachmentError) throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
+    if (attachmentError)
+      throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
 
     if (!attachmentRow) {
-      return fail(res, 403, 'NOT_ATTACHMENT_OWNER', '이 안내문 사진에 접근할 수 없습니다.');
+      return fail(
+        res,
+        403,
+        "NOT_ATTACHMENT_OWNER",
+        "이 안내문 사진에 접근할 수 없습니다.",
+      );
     }
 
-    if (attachmentRow.ocr_status !== 'pending') {
+    if (attachmentRow.ocr_status !== "pending") {
       return fail(
         res,
         409,
-        'ATTACHMENT_ALREADY_ANALYZED',
-        '이미 분석에 사용된 사진은 취소할 수 없어요.'
+        "ATTACHMENT_ALREADY_ANALYZED",
+        "이미 분석에 사용된 사진은 취소할 수 없어요.",
       );
     }
 
@@ -147,26 +180,37 @@ export default async function handler(req, res) {
       if (removeError) {
         // 객체를 못 지웠으면 행을 남긴다 — 행이 사라지면 cleanup 잡이 이 객체를
         // 영영 다시 집지 못한다(그 잡은 행을 순회한다).
-        console.error('performance/discard-attachment 원본 삭제 실패:', removeError);
-        return fail(res, 500, 'INTERNAL', '사진을 취소하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        console.error(
+          "performance/discard-attachment 원본 삭제 실패:",
+          removeError,
+        );
+        return fail(
+          res,
+          500,
+          "INTERNAL",
+          "사진을 취소하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
       }
     }
 
     const { error: deleteError } = await supabaseAdmin
-      .from('performance_attachments')
+      .from("performance_attachments")
       .delete()
-      .eq('id', attachmentRow.id)
-      .eq('session_id', sessionRow.id);
+      .eq("id", attachmentRow.id)
+      .eq("session_id", sessionRow.id);
 
-    if (deleteError) throw new Error(`첨부 행 삭제 실패: ${deleteError.message}`);
+    if (deleteError)
+      throw new Error(`첨부 행 삭제 실패: ${deleteError.message}`);
 
-    return res.status(200).json({ discarded: true, attachmentId: attachmentRow.id });
+    return res
+      .status(200)
+      .json({ discarded: true, attachmentId: attachmentRow.id });
   } catch (error) {
     // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error('performance/discard-attachment error:', error);
-    return fail(res, 500, 'INTERNAL', '사진 취소에 실패했습니다.');
+    console.error("performance/discard-attachment error:", error);
+    return fail(res, 500, "INTERNAL", "사진 취소에 실패했습니다.");
   }
 }
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };

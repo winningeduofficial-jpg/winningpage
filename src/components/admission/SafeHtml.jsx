@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment } from "react";
 
 // dangerouslySetInnerHTML을 대체하는 화이트리스트 렌더러.
 // DOMParser로 문자열을 파싱한 뒤 재귀적으로 React 엘리먼트로 변환한다.
@@ -21,29 +21,62 @@ import { Fragment } from 'react';
 //   5. parseDocument 테스트 훅을 SafeHtml 컴포넌트 props에서 빼고
 //      sanitizeToReact(html, parseDocument) 별도 export로 분리 — 프로덕션
 //      표면에 테스트 전용 prop을 남기지 않는다.
+//
+// CompanyNews/Events 본문 sanitize 도입(2026-08-14) — a/img 지원 추가:
+//   기존엔 <a>/<img>가 화이트리스트 밖이라 <a>는 unwrap(텍스트만 유지),
+//   <img>는 자식이 없어 항상 사라졌다(2번 테스트가 그 동작을 golden으로
+//   고정하고 있었다). CMS 본문(회사소식/공지) 텍스트에어리어에 관리자가
+//   붙여넣는 링크·이미지를 살리기 위해 태그 자체는 허용하되, href/src는
+//   isSafeUrl로 스킴을 검사해 javascript:/data: 등 실행형 스킴만 통과
+//   못 시킨다(값 자체를 버림 — 중화가 아니라 제거). <a>는 href가 살아있을
+//   때만 target="_blank" rel="noopener noreferrer"를 강제로 붙인다(작성자가
+//   준 target/rel 값은 신뢰하지 않는다 — KeyValueView.jsx의 기존 관례와
+//   동일). 대입 모집요강 rawHtml 골든 코퍼스(verify-admission-doc-equivalence.mjs
+//   Gate B)에는 a/img 태그가 없어 이 확장이 그 계약을 건드리지 않는다
+//   (재확인 완료, 2506/2506 그대로 통과).
 
 // 허용 태그 — 이 외 전부 제거(단, 자식은 unwrap으로 승계).
 const ALLOWED_TAGS = new Set([
-  'div',
-  'span',
-  'p',
-  'br',
-  'b',
-  'strong',
-  'em',
-  'pre',
-  'ul',
-  'ol',
-  'li',
-  'table',
-  'thead',
-  'tbody',
-  'tr',
-  'th',
-  'td',
-  'section',
-  'h3'
+  "div",
+  "span",
+  "p",
+  "br",
+  "b",
+  "strong",
+  "em",
+  "pre",
+  "ul",
+  "ol",
+  "li",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "section",
+  "h3",
+  "a",
+  "img",
 ]);
+
+// href/src에 허용하는 URL 스킴. javascript:/data:/vbscript: 등 실행형·
+// 페이로드형 스킴을 차단한다. 스킴이 없는 값(상대경로 "/foo", "foo.html",
+// "#anchor", protocol-relative "//host/foo")은 스크립트를 실행할 수 없으므로
+// 그대로 허용한다.
+const SAFE_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+function isSafeUrl(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value) return false;
+  // 제어 문자로 스킴을 흐리는 우회("java\tscript:")를 막기 위해 검사 전
+  // ASCII 제어문자를 제거한다 — 브라우저 URL 파서의 관례와 동일하다.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: URL 스킴 우회(예: "java\tscript:") 방어가 목적이라 제어문자 자체를 매치 대상으로 써야 한다.
+  const normalized = value.replace(/[\x00-\x1f\x7f]/g, "");
+  const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(normalized);
+  if (!schemeMatch) return true;
+  return SAFE_URL_SCHEMES.has(`${schemeMatch[1].toLowerCase()}:`);
+}
 
 // 태그 자체뿐 아니라 자식 서브트리까지 통째로 버려야 하는 태그.
 // - script/style/iframe/object/embed/svg: 기존 5종 + svg(실행/임베드 표면).
@@ -59,20 +92,20 @@ const ALLOWED_TAGS = new Set([
 //   옮기므로 일반 childNodes로는 애초에 안 보인다 — 이미 안전하지만 의도를
 //   명시적으로 못박기 위해 넣는다.
 const STRIP_SUBTREE_TAGS = new Set([
-  'script',
-  'style',
-  'iframe',
-  'object',
-  'embed',
-  'svg',
-  'title',
-  'textarea',
-  'noembed',
-  'noframes',
-  'xmp',
-  'plaintext',
-  'template',
-  'noscript'
+  "script",
+  "style",
+  "iframe",
+  "object",
+  "embed",
+  "svg",
+  "title",
+  "textarea",
+  "noembed",
+  "noframes",
+  "xmp",
+  "plaintext",
+  "template",
+  "noscript",
 ]);
 
 // 허용 속성 화이트리스트 — 이 3개만 통과한다. on*/href/src/style/srcset/data-* 등은 전량 차단.
@@ -81,9 +114,9 @@ const STRIP_SUBTREE_TAGS = new Set([
 // ATTR_TO_PROP['constructor']가 Object 함수로 truthy 평가돼 통과선을 가짜로
 // 넘을 수 있었다(React가 이후 걸러내 실제 출력엔 영향 없었지만 가드 자체가 없었다).
 const ATTR_TO_PROP = Object.assign(Object.create(null), {
-  class: 'className',
-  colspan: 'colSpan',
-  rowspan: 'rowSpan'
+  class: "className",
+  colspan: "colSpan",
+  rowspan: "rowSpan",
 });
 
 // 악의적 중첩(예: <div><div><div>...) 방어용 재귀 깊이 상한.
@@ -104,16 +137,39 @@ const NODE_TYPE = { ELEMENT: 1, TEXT: 3, COMMENT: 8 };
 
 class SafeHtmlBudgetExceededError extends Error {}
 
-function convertAttributes(element) {
+function convertAttributes(element, tagName) {
   const props = {};
   const attributes = element.attributes;
-  if (!attributes) return props;
-  for (let i = 0; i < attributes.length; i += 1) {
-    const attr = attributes[i];
-    const name = String(attr.name || '').toLowerCase();
-    const prop = ATTR_TO_PROP[name];
-    if (!prop) continue;
-    props[prop] = attr.value;
+  if (attributes) {
+    for (let i = 0; i < attributes.length; i += 1) {
+      const attr = attributes[i];
+      const name = String(attr.name || "").toLowerCase();
+      // href/src는 값 자체를 스킴 검사한다 — 통과하면 값을 그대로 쓰고,
+      // 안 통과하면 속성 자체를 아예 넣지 않는다(중화가 아니라 제거).
+      if (name === "href" && tagName === "a") {
+        if (isSafeUrl(attr.value)) props.href = attr.value;
+        continue;
+      }
+      if (name === "src" && tagName === "img") {
+        if (isSafeUrl(attr.value)) props.src = attr.value;
+        continue;
+      }
+      if (name === "alt" && tagName === "img") {
+        props.alt = attr.value;
+        continue;
+      }
+      const prop = ATTR_TO_PROP[name];
+      if (!prop) continue;
+      props[prop] = attr.value;
+    }
+  }
+  // href가 실제로 살아있는 <a>만 target/rel을 강제로 붙인다 — 작성자가 준
+  // target/rel 값은 신뢰하지 않는다(탭내빙 방지). href가 없거나 스킴 검사에
+  // 걸러졌으면 붙이지 않는다(빈 <a>는 하이퍼링크가 아니라 그냥 인라인
+  // 텍스트 래퍼다).
+  if (tagName === "a" && props.href) {
+    props.target = "_blank";
+    props.rel = "noopener noreferrer";
   }
   return props;
 }
@@ -133,7 +189,7 @@ function convertNode(node, depth, key, budget) {
   if (!node) return null;
 
   if (node.nodeType === NODE_TYPE.TEXT) {
-    return node.textContent || node.data || '';
+    return node.textContent || node.data || "";
   }
 
   // 주석 노드는 제거.
@@ -143,10 +199,12 @@ function convertNode(node, depth, key, budget) {
 
   budget.count += 1;
   if (budget.count > MAX_NODE_COUNT) {
-    throw new SafeHtmlBudgetExceededError(`노드 수가 상한(${MAX_NODE_COUNT})을 초과했습니다.`);
+    throw new SafeHtmlBudgetExceededError(
+      `노드 수가 상한(${MAX_NODE_COUNT})을 초과했습니다.`,
+    );
   }
 
-  const tagName = String(node.tagName || '').toLowerCase();
+  const tagName = String(node.tagName || "").toLowerCase();
 
   // script/style/iframe/object/embed/svg/title/textarea/noembed/noframes/
   // xmp/plaintext/template/noscript는 자식까지 통째로 버린다.
@@ -160,7 +218,7 @@ function convertNode(node, depth, key, budget) {
   // 상한은 애초에 정상 데이터가 절대 도달하지 않는 방어선이므로, 내용을
   // 보존하지 않고 완전히 버리는 쪽이 안전하다.
   if (depth > MAX_DEPTH) {
-    return '';
+    return "";
   }
 
   const children = convertChildNodes(node.childNodes, depth + 1, key, budget);
@@ -172,10 +230,14 @@ function convertNode(node, depth, key, budget) {
     return <Fragment key={key}>{children}</Fragment>;
   }
 
-  const props = convertAttributes(node);
+  const props = convertAttributes(node, tagName);
 
-  if (tagName === 'br') {
-    return <br key={key} {...props} />;
+  // br/img는 HTML void 요소다 — DOMParser도 childNodes를 항상 비워서
+  // 주지만(children은 always []), 여기서도 JSX void 규칙을 명시적으로
+  // 지킨다(React가 img에 children을 넘기면 경고한다).
+  if (tagName === "br" || tagName === "img") {
+    const Tag = tagName;
+    return <Tag key={key} {...props} />;
   }
 
   const Tag = tagName;
@@ -187,26 +249,28 @@ function convertNode(node, depth, key, budget) {
 }
 
 function isEffectivelyEmpty(children) {
-  return children.every((child) => typeof child === 'string' && child.trim() === '');
+  return children.every(
+    (child) => typeof child === "string" && child.trim() === "",
+  );
 }
 
 // 크기/노드 수 상한을 넘겨 평문으로 격하할 때 쓰는 텍스트 추출기.
 // STRIP_SUBTREE_TAGS는 여기서도 동일하게 존중한다 — script/style 등의
 // 내용이 "격하됐으니까 안전"이라는 착각으로 텍스트에 새면 안 된다.
 function extractSafeText(node, depth = 0) {
-  if (!node) return '';
+  if (!node) return "";
 
   if (node.nodeType === NODE_TYPE.TEXT) {
-    return node.textContent || node.data || '';
+    return node.textContent || node.data || "";
   }
-  if (node.nodeType !== NODE_TYPE.ELEMENT) return '';
+  if (node.nodeType !== NODE_TYPE.ELEMENT) return "";
 
-  const tagName = String(node.tagName || '').toLowerCase();
-  if (STRIP_SUBTREE_TAGS.has(tagName)) return '';
-  if (depth > MAX_DEPTH) return '';
+  const tagName = String(node.tagName || "").toLowerCase();
+  if (STRIP_SUBTREE_TAGS.has(tagName)) return "";
+  if (depth > MAX_DEPTH) return "";
 
   const nodes = node.childNodes || [];
-  let text = '';
+  let text = "";
   for (let i = 0; i < nodes.length; i += 1) {
     text += extractSafeText(nodes[i], depth + 1);
   }
@@ -214,8 +278,8 @@ function extractSafeText(node, depth = 0) {
 }
 
 function defaultParseDocument(html) {
-  if (typeof DOMParser === 'undefined') return null;
-  return new DOMParser().parseFromString(html, 'text/html');
+  if (typeof DOMParser === "undefined") return null;
+  return new DOMParser().parseFromString(html, "text/html");
 }
 
 /**
@@ -249,7 +313,7 @@ export function sanitizeToReact(html, parseDocument) {
   const budget = { count: 0 };
   let children;
   try {
-    children = convertChildNodes(root.childNodes, 0, 'safe-html', budget);
+    children = convertChildNodes(root.childNodes, 0, "safe-html", budget);
   } catch (err) {
     if (!(err instanceof SafeHtmlBudgetExceededError)) throw err;
     // 노드 수 상한 초과 — 이미 만든 부분 트리는 버리고 평문으로 격하한다.

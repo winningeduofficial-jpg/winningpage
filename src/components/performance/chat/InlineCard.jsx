@@ -24,13 +24,13 @@
  *   않으므로 호출부가 채운다(P6+).
  * @param {string} [className] 루트에 추가할 클래스.
  */
-export default function InlineCard({ children, className = '' }) {
+export default function InlineCard({ children, className = "" }) {
   return (
     <div
       className={[
-        'w-full max-w-perf-bubble rounded-2xl border border-performance-line bg-white px-[1.875rem] py-5',
-        className
-      ].join(' ')}
+        "w-full max-w-perf-bubble rounded-2xl border border-performance-line bg-white px-[1.875rem] py-5",
+        className,
+      ].join(" ")}
     >
       {children}
     </div>

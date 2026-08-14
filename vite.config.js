@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
@@ -13,16 +13,16 @@ export default defineConfig({
         // 리더 경로에 들어오지 않는다(emojiPicker={false}로 컨트롤러도 껐다).
         manualChunks(id) {
           if (
-            id.includes('node_modules/@blocknote/') ||
-            id.includes('node_modules/prosemirror-') ||
-            id.includes('node_modules/@tiptap/') ||
-            id.includes('node_modules/@ariakit/') ||
-            id.includes('node_modules/@floating-ui/')
+            id.includes("node_modules/@blocknote/") ||
+            id.includes("node_modules/prosemirror-") ||
+            id.includes("node_modules/@tiptap/") ||
+            id.includes("node_modules/@ariakit/") ||
+            id.includes("node_modules/@floating-ui/")
           ) {
-            return 'blocknote';
+            return "blocknote";
           }
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 });

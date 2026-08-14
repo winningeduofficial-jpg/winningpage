@@ -13,7 +13,7 @@
 // 지원 개수: 2(수행평가) / 3(기본값, 심화탐구・자기평가・목표관리). 미등록 columns 값은 폴백
 // 없이 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에 띄게 깨지므로 호출자가
 // 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
-const TESTIMONIAL_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3' };
+const TESTIMONIAL_COLS = { 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" };
 
 export default function ServiceTestimonials({ items, columns = 3 }) {
   return (
@@ -36,7 +36,7 @@ export default function ServiceTestimonials({ items, columns = 3 }) {
               aria-hidden="true"
               className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#F1F1F1] text-[1.75rem]"
             >
-              {item.emoji ?? '😉'}
+              {item.emoji ?? "😉"}
             </span>
             <span className="text-[0.875rem] font-medium text-[#767676]">
               {item.name}

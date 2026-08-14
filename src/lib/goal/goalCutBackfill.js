@@ -7,21 +7,21 @@
 // React/JSX 의존 없는 순수 모듈이다. supabase 클라이언트는 인자로
 // 주입받는다(호출부가 anon 키든 service role 이든 자유롭게 고르도록).
 
-import { normalizeUniversityName } from './universityNameNormalize.js';
+import { normalizeUniversityName } from "./universityNameNormalize.js";
 
-export const GOAL_BACKFILL_SOURCE_TABLE = 'admission_results';
+export const GOAL_BACKFILL_SOURCE_TABLE = "admission_results";
 
 // 🔴 백필 소스 필터의 핵심 축. 기회균형·농어촌·지역인재·특성화고·특수교육은
 // **지원 자격이 제한된 전형**이라 일반 학생 기준으로 쓰면 컷이 비현실적으로
 // 완화된다. 반면 추천형(학교장추천 등)은 자격제한 전형이 아니고, 일반·교과와
 // 둘 다 있는 쌍의 평균 차이가 +0.059등급으로 사실상 동일하다 — 배제하면
 // 762쌍이 종합 컷으로 폴백돼 normal 컷이 오히려 느슨해진다(명세 §3-D3).
-export const GOAL_BACKFILL_SCREENING_CATEGORIES = ['일반', '추천형'];
+export const GOAL_BACKFILL_SCREENING_CATEGORIES = ["일반", "추천형"];
 
 export const GOAL_BACKFILL_YEAR_MODES = [
-  { value: 'prefer2026', label: '2026 우선(없으면 2025)' },
-  { value: 'only2026', label: '2026만' },
-  { value: 'only2025', label: '2025만' }
+  { value: "prefer2026", label: "2026 우선(없으면 2025)" },
+  { value: "only2026", label: "2026만" },
+  { value: "only2025", label: "2025만" },
 ];
 
 // PostgREST 기본 응답 상한과 맞춘 읽기 청크. Admin.jsx 의 GOAL_CUTS_READ_CHUNK
@@ -33,31 +33,35 @@ const BACKFILL_READ_CHUNK = 1000;
 // 키 클라이언트, 백필 스크립트는 service role 클라이언트를 넘긴다).
 export function buildBackfillSourceQuery(client, yearMode, options = {}) {
   const selectArgs = options.head
-    ? ['university_name', { count: 'exact', head: true }]
-    : ['university_name, department_name, main_track, grade_70, result_year'];
+    ? ["university_name", { count: "exact", head: true }]
+    : ["university_name, department_name, main_track, grade_70, result_year"];
   let query = client.from(GOAL_BACKFILL_SOURCE_TABLE).select(...selectArgs);
   query = query
-    .eq('is_active', true)
+    .eq("is_active", true)
     // percentile 은 0행이라 쓸 수 없다. grade_70 이 유일한 소스이고,
     // [1, 9] 밖 값은 goal_university_cuts 의 CHECK 를 위반한다.
-    .gte('grade_70', 1)
-    .lte('grade_70', 9)
-    .in('screening_category', GOAL_BACKFILL_SCREENING_CATEGORIES);
-  if (yearMode === 'only2026') query = query.eq('result_year', 2026);
-  else if (yearMode === 'only2025') query = query.eq('result_year', 2025);
-  else query = query.in('result_year', [2025, 2026]);
+    .gte("grade_70", 1)
+    .lte("grade_70", 9)
+    .in("screening_category", GOAL_BACKFILL_SCREENING_CATEGORIES);
+  if (yearMode === "only2026") query = query.eq("result_year", 2026);
+  else if (yearMode === "only2025") query = query.eq("result_year", 2025);
+  else query = query.in("result_year", [2025, 2026]);
   return query;
 }
 
 export async function fetchBackfillSourceRows(client, yearMode, onProgress) {
-  const { count, error: countError } = await buildBackfillSourceQuery(client, yearMode, { head: true });
+  const { count, error: countError } = await buildBackfillSourceQuery(
+    client,
+    yearMode,
+    { head: true },
+  );
   if (countError) throw new Error(countError.message);
   const total = count ?? 0;
   const all = [];
   for (let from = 0; from < total; from += BACKFILL_READ_CHUNK) {
     const { data, error } = await buildBackfillSourceQuery(client, yearMode)
       // 정렬 없이 .range() 만 반복하면 페이지 경계에서 행이 중복·누락된다.
-      .order('id', { ascending: true })
+      .order("id", { ascending: true })
       .range(from, from + BACKFILL_READ_CHUNK - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
@@ -79,7 +83,10 @@ export function goalCutQuantile(sorted, q) {
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);
   if (lo === hi) return sorted[lo];
-  return Math.round((sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)) * 100) / 100;
+  return (
+    Math.round((sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)) * 100) /
+    100
+  );
 }
 
 // goal_university_cuts_key(cut_type, university_key, department_key)와 같은 축.
@@ -109,8 +116,8 @@ export function goalCutConflictKey(cutType, universityKey, departmentKey) {
 export function computeGoalCutBackfill(sourceRows, yearMode) {
   const byPair = new Map();
   (sourceRows || []).forEach((r) => {
-    const uni = normalizeUniversityName(String(r.university_name ?? '').trim());
-    const dept = String(r.department_name ?? '').trim();
+    const uni = normalizeUniversityName(String(r.university_name ?? "").trim());
+    const dept = String(r.department_name ?? "").trim();
     if (!uni) return;
     const grade = Number(r.grade_70);
     if (!Number.isFinite(grade)) return;
@@ -126,9 +133,9 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
       buckets = { gyogwa: [], jonghap: [] };
       entry.years.set(year, buckets);
     }
-    const track = String(r.main_track ?? '').trim();
-    if (track === '교과') buckets.gyogwa.push(grade);
-    else if (track === '종합') buckets.jonghap.push(grade);
+    const track = String(r.main_track ?? "").trim();
+    if (track === "교과") buckets.gyogwa.push(grade);
+    else if (track === "종합") buckets.jonghap.push(grade);
   });
 
   let excludedStarPairs = 0;
@@ -141,7 +148,7 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
   byPair.forEach((entry) => {
     // 학과명 정제 — 아래에 해당하면 행을 만들지 않는다(명세 §4-2-H-2 3단계).
     // 현재 데이터에서 둘 다 실효 0건이지만, 입결 재적재 대비 방어로 남긴다.
-    if (entry.dept.includes('(*)')) {
+    if (entry.dept.includes("(*)")) {
       excludedStarPairs += 1;
       return;
     }
@@ -163,17 +170,18 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
     };
 
     let usedYear = null;
-    if (yearMode === 'only2026') usedYear = hasTrackRows(2026) ? 2026 : null;
-    else if (yearMode === 'only2025') usedYear = hasTrackRows(2025) ? 2025 : null;
+    if (yearMode === "only2026") usedYear = hasTrackRows(2026) ? 2026 : null;
+    else if (yearMode === "only2025")
+      usedYear = hasTrackRows(2025) ? 2025 : null;
     else if (hasTrackRows(2026)) usedYear = 2026;
     else if (hasTrackRows(2025)) usedYear = 2025;
     if (usedYear === null) {
       // 어느 연도에도 교과·종합이 없는 쌍(논술·실기뿐). 연도 자체가 없어
       // 대상 밖인 쌍(only2026 모드에서 2026 행이 없는 등)과 구분해 센다.
       const inScope =
-        yearMode === 'only2026'
+        yearMode === "only2026"
           ? entry.years.has(2026)
-          : yearMode === 'only2025'
+          : yearMode === "only2025"
             ? entry.years.has(2025)
             : entry.years.size > 0;
       if (inScope) excludedNoTrackPairs += 1;
@@ -197,8 +205,8 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
     // university_key := university_name, department_key := department_name.
     // 두 유일성 인덱스를 동치로 유지해야 upsert 가 안전하다(명세 §3-D5).
     [
-      ['normal', normal],
-      ['special', special]
+      ["normal", normal],
+      ["special", special],
     ].forEach(([cutType, avgCut]) => {
       rawPayloads.push({
         cut_type: cutType,
@@ -207,8 +215,8 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
         department_key: entry.dept,
         department_name: entry.dept,
         avg_cut: avgCut,
-        source: 'admission_results',
-        source_year: usedYear
+        source: "admission_results",
+        source_year: usedYear,
       });
     });
   });
@@ -222,7 +230,11 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
   const merged = new Map();
   let mergedCount = 0;
   rawPayloads.forEach((p) => {
-    const key = goalCutConflictKey(p.cut_type, p.university_key, p.department_key);
+    const key = goalCutConflictKey(
+      p.cut_type,
+      p.university_key,
+      p.department_key,
+    );
     if (merged.has(key)) mergedCount += 1;
     merged.set(key, p);
   });
@@ -230,14 +242,16 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
 
   const cutValues = payloads.map((p) => p.avg_cut).sort((a, b) => a - b);
   const universities = new Set(payloads.map((p) => p.university_key));
-  const pairs = new Set(payloads.map((p) => `${p.university_key}\u0000${p.department_key}`));
+  const pairs = new Set(
+    payloads.map((p) => `${p.university_key}\u0000${p.department_key}`),
+  );
   const samples = payloads
     .slice()
     .sort(
       (a, b) =>
         a.university_name.localeCompare(b.university_name) ||
         a.department_name.localeCompare(b.department_name) ||
-        a.cut_type.localeCompare(b.cut_type)
+        a.cut_type.localeCompare(b.cut_type),
     )
     .slice(0, 20);
 
@@ -247,8 +261,8 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
       universityCount: universities.size,
       pairCount: pairs.size,
       totalRows: payloads.length,
-      normalCount: payloads.filter((p) => p.cut_type === 'normal').length,
-      specialCount: payloads.filter((p) => p.cut_type === 'special').length,
+      normalCount: payloads.filter((p) => p.cut_type === "normal").length,
+      specialCount: payloads.filter((p) => p.cut_type === "special").length,
       year2026Pairs,
       year2025Pairs,
       excludedStarPairs,
@@ -260,9 +274,9 @@ export function computeGoalCutBackfill(sourceRows, yearMode) {
         p25: goalCutQuantile(cutValues, 0.25),
         median: goalCutQuantile(cutValues, 0.5),
         p75: goalCutQuantile(cutValues, 0.75),
-        max: cutValues[cutValues.length - 1] ?? null
+        max: cutValues[cutValues.length - 1] ?? null,
       },
-      samples
-    }
+      samples,
+    },
   };
 }

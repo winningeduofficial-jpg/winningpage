@@ -23,17 +23,17 @@
  *   문자열로 조립할 수 없어(JIT 인식 불가) 전용 CSS(grade-input-grid-filler.css)의
  *   data-v-{bp} 속성 스위치로 뷰포트별 표시 여부를 토글한다.
  */
-import '../../../styles/grade-input-grid-filler.css';
+import "../../../styles/grade-input-grid-filler.css";
 import {
   GRADE_SYSTEM_INPUT_RULES,
-  MOCK_GRADE_INPUT_RULE
-} from '../../../data/renewalSurveyQuestions';
+  MOCK_GRADE_INPUT_RULE,
+} from "../../../data/renewalSurveyQuestions";
 
 // grade-input-grid-filler.css 의 data-v-{bp} 속성명과 반드시 같은 순서로 대응한다.
 // wide(74rem/1184px) 이상은 auto-fill(6.25rem) 트랙이지만, 그리드 자체가 max-w-[62rem](992px)로
 // 캡핑되어 있고 이 폭은 wide 진입 시점에 이미 확보되는 상한이라(카드 padding·컨테이너 max-width가
 // wide 임계값보다 먼저 고정된다) 실측상 열 수가 8로 고정된다(Playwright 실측 확인 완료).
-const GRID_BREAKPOINTS = ['base', 'sm', 'md', 'lg', 'wide'];
+const GRID_BREAKPOINTS = ["base", "sm", "md", "lg", "wide"];
 const BREAKPOINT_COLS = [3, 4, 6, 7, 8];
 
 function neededFillerCount(fieldCount, cols) {
@@ -53,22 +53,28 @@ function neededFillerCount(fieldCount, cols) {
  * constraint 가 없는 호출부(등급 체계에 종속되지 않는 문항)는 9등급제 규격으로 떨어진다.
  */
 function ruleForField(field, constraint) {
-  if (field.scale === 'MOCK') return MOCK_GRADE_INPUT_RULE;
+  if (field.scale === "MOCK") return MOCK_GRADE_INPUT_RULE;
   return constraint ?? GRADE_SYSTEM_INPUT_RULES.NINE;
 }
 
 function isOutOfRange(raw, rule) {
-  if (raw === '' || raw == null) return false;
+  if (raw === "" || raw == null) return false;
   const num = Number(raw);
   if (Number.isNaN(num)) return true;
   return num < rule.min || num > rule.max;
 }
 
-export default function GradeInputGrid({ groups, constraint, value, onChange }) {
+export default function GradeInputGrid({
+  groups,
+  constraint,
+  value,
+  onChange,
+}) {
   const values = value || {};
 
   function handleFieldChange(field, raw) {
-    if (raw !== '' && !ruleForField(field, constraint).pattern.test(raw)) return;
+    if (raw !== "" && !ruleForField(field, constraint).pattern.test(raw))
+      return;
     onChange?.({ ...values, [field.key]: raw });
   }
 
@@ -78,7 +84,7 @@ export default function GradeInputGrid({ groups, constraint, value, onChange }) 
   // 복구할 방법이 없다. 대신 채점 계층이 등급 체계에 맞지 않는 칸을 무시한다(§3.4: MIDDLE_AVG →
   // recentExamAvg 미사용 · mockFilledCount = 0).
   const visibleGroups = groups.filter(
-    (group) => !group.hiddenWhenGradeSystem?.includes(constraint?.code)
+    (group) => !group.hiddenWhenGradeSystem?.includes(constraint?.code),
   );
 
   return (
@@ -87,14 +93,18 @@ export default function GradeInputGrid({ groups, constraint, value, onChange }) 
         const fieldCount = group.fields.length;
         // 브레이크포인트별로 부족한 칸 수. 그 중 최댓값만큼만 플레이스홀더 DOM을 만들고,
         // 각 뷰포트에서는 앞에서부터 필요한 개수만 data-v-{bp}="1"로 표시한다(나머지는 CSS로 숨김).
-        const neededByBp = BREAKPOINT_COLS.map((cols) => neededFillerCount(fieldCount, cols));
+        const neededByBp = BREAKPOINT_COLS.map((cols) =>
+          neededFillerCount(fieldCount, cols),
+        );
         const fillerCount = Math.max(0, ...neededByBp);
         const fillers = Array.from({ length: fillerCount }, (_, i) => i);
 
         return (
           <div key={group.key} className="flex w-full flex-col gap-2">
             {group.label && (
-              <p className="text-base font-medium leading-5 text-[#525252]">{group.label}</p>
+              <p className="text-base font-medium leading-5 text-[#525252]">
+                {group.label}
+              </p>
             )}
 
             {/* 열 수는 명시 고정한다. sm 이상을 auto-fill(100px) 로 두면
@@ -105,12 +115,13 @@ export default function GradeInputGrid({ groups, constraint, value, onChange }) 
                 wide(1184) 이상은 시안 규격(100px 고정 트랙)으로 복귀한다. */}
             <div className="grid w-full grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 wide:grid-cols-[repeat(auto-fill,6.25rem)]">
               {group.fields.map((field) => {
-                const raw = values[field.key] ?? '';
+                const raw = values[field.key] ?? "";
                 const rule = ruleForField(field, constraint);
                 const outOfRange = isOutOfRange(raw, rule);
                 const inputId = `grade-input-${field.key}`;
                 // 체계별 예시값이 따로 있으면 그것을 쓴다(중학생 평균에서 `3.24` 는 오입력을 유도한다).
-                const placeholder = field.placeholderBySystem?.[rule.code] ?? field.placeholder;
+                const placeholder =
+                  field.placeholderBySystem?.[rule.code] ?? field.placeholder;
 
                 return (
                   <div key={field.key} className="flex min-w-0 flex-col gap-1">
@@ -128,13 +139,15 @@ export default function GradeInputGrid({ groups, constraint, value, onChange }) 
                       autoComplete="off"
                       placeholder={placeholder}
                       value={raw}
-                      onChange={(event) => handleFieldChange(field, event.target.value)}
+                      onChange={(event) =>
+                        handleFieldChange(field, event.target.value)
+                      }
                       aria-invalid={outOfRange || undefined}
                       aria-required={field.required || undefined}
                       className={`h-[4.25rem] w-full min-w-0 rounded-lg border bg-white text-center text-xl font-normal leading-5 text-[#181D24] transition-[border-color,box-shadow] duration-150 placeholder:text-[#D7D7D7] focus:outline focus:outline-2 focus:outline-accent/30 ${
                         outOfRange
-                          ? 'border-[#D92D20]'
-                          : 'border-[#D7D7D7] hover:border-[#B0B0B0] focus:border-[#013262]'
+                          ? "border-[#D92D20]"
+                          : "border-[#D7D7D7] hover:border-[#B0B0B0] focus:border-[#013262]"
                       }`}
                     />
                   </div>
@@ -144,7 +157,8 @@ export default function GradeInputGrid({ groups, constraint, value, onChange }) 
               {fillers.map((i) => {
                 const visibility = {};
                 GRID_BREAKPOINTS.forEach((bp, bpIndex) => {
-                  visibility[`data-v-${bp}`] = i < neededByBp[bpIndex] ? '1' : '0';
+                  visibility[`data-v-${bp}`] =
+                    i < neededByBp[bpIndex] ? "1" : "0";
                 });
 
                 return (

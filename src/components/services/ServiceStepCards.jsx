@@ -11,18 +11,19 @@
 //                      2행의 lg:max-w-[45.25rem] 이 '카드 2장' 기준 실측값이라
 //                      columns=3 + items 5개 조합에서만 지원한다.
 //
-import { CARD_TITLE_CLASS, CARD_DESC_MUTED_CLASS } from './serviceTokens';
+import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // ⚠ Tailwind JIT: columns→클래스 매핑은 반드시 아래처럼 리터럴 lookup 객체로 쓴다.
 //    `lg:grid-cols-${n}` 템플릿 조립은 클래스가 생성되지 않아 조용히 깨진다.
 // 지원 개수: 3(기본값, 심화탐구・자기평가・목표관리 ManagementSection) / 4(수행평가). 미등록
 // columns 값은 폴백 없이 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에
 // 띄게 깨지므로 호출자가 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
-const STEP_COLS = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' };
+const STEP_COLS = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" };
 
 // 패딩은 시안 실효 pt 44 / pb 40 / px 30.5 → ×0.766 = 34 / 30 / 23.
 // radius 12는 스케일 미적용(rounded-xl 유지). 설명 색 #808080 → #767676 상향(회색 하한).
-const STEP_CARD_CLASS = 'rounded-xl bg-[#F5F5F7] px-6 pb-[1.875rem] pt-[2.125rem]';
+const STEP_CARD_CLASS =
+  "rounded-xl bg-[#F5F5F7] px-6 pb-[1.875rem] pt-[2.125rem]";
 
 function StepCard({ item }) {
   return (
@@ -33,7 +34,11 @@ function StepCard({ item }) {
   );
 }
 
-export default function ServiceStepCards({ items, columns = 3, splitLastRow = false }) {
+export default function ServiceStepCards({
+  items,
+  columns = 3,
+  splitLastRow = false,
+}) {
   const firstRow = splitLastRow ? items.slice(0, columns) : items;
   const secondRow = splitLastRow ? items.slice(columns) : [];
 

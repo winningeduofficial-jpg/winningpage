@@ -41,9 +41,9 @@ export function clampProb(v) {
 // NOTE(target-parity): '자사고'·'영재고' 같은 단일 문자열은 매칭되지 않는다.
 // 정확히 '특목,자사,영재고' 또는 '특목고' 두 리터럴만 special 이다.
 export function getSchoolCutType(schoolType) {
-  return schoolType === '특목,자사,영재고' || schoolType === '특목고'
-    ? 'special'
-    : 'normal';
+  return schoolType === "특목,자사,영재고" || schoolType === "특목고"
+    ? "special"
+    : "normal";
 }
 
 // 남은 내신 시험 회차 (총 10회 기준).
@@ -51,58 +51,58 @@ export function getSchoolCutType(schoolType) {
 export function getRemainingNaesin(grade, lastExam, fallback = null) {
   // NOTE(target-parity): fallback 은 Number() 로만 변환하고 Math.max(0, ...) 클램프를
   // 거치지 않는다. 음수·NaN 이 그대로 반환될 수 있다.
-  if (fallback !== null && fallback !== undefined && fallback !== '') {
+  if (fallback !== null && fallback !== undefined && fallback !== "") {
     return Number(fallback);
   }
 
   const order = {
-    '고1_1학기 중간': 1,
-    '고1_1학기 기말': 2,
-    '고1_2학기 중간': 3,
-    '고1_2학기 기말': 4,
-    '고2_1학기 중간': 5,
-    '고2_1학기 기말': 6,
-    '고2_2학기 중간': 7,
-    '고2_2학기 기말': 8,
-    '고3_1학기 중간': 9,
+    "고1_1학기 중간": 1,
+    "고1_1학기 기말": 2,
+    "고1_2학기 중간": 3,
+    "고1_2학기 기말": 4,
+    "고2_1학기 중간": 5,
+    "고2_1학기 기말": 6,
+    "고2_2학기 중간": 7,
+    "고2_2학기 기말": 8,
+    "고3_1학기 중간": 9,
     // NOTE(target-parity): 고3 1학기 기말 / 2학기 중간 / 2학기 기말이 전부 순번 10 으로
     // 같다 — 즉 셋 다 남은 회차 0. 표 자체가 12개 항목이다.
-    '고3_1학기 기말': 10,
-    '고3_2학기 중간': 10,
-    '고3_2학기 기말': 10,
+    "고3_1학기 기말": 10,
+    "고3_2학기 중간": 10,
+    "고3_2학기 기말": 10,
   };
 
-  const key = `${grade}_${lastExam || ''}`;
+  const key = `${grade}_${lastExam || ""}`;
   return key in order ? Math.max(0, 10 - order[key]) : 0;
 }
 
 // 남은 모의고사 회차 (총 14회 기준).
 export function getRemainingMogo(grade, lastExam, fallback = null) {
   // NOTE(target-parity): getRemainingNaesin 과 동일하게 fallback 은 클램프하지 않는다.
-  if (fallback !== null && fallback !== undefined && fallback !== '') {
+  if (fallback !== null && fallback !== undefined && fallback !== "") {
     return Number(fallback);
   }
 
   // NOTE(target-parity): 고1·고2 는 5모·7모 항목이 없고 고3 만 5·7모를 갖는다.
   // 미매칭 키는 "남은 회차 0" 으로 떨어져 중·초 학생과 구분되지 않는다.
   const order = {
-    '고1_3모': 1,
-    '고1_6모': 2,
-    '고1_9모': 3,
-    '고1_10모': 4,
-    '고2_3모': 5,
-    '고2_6모': 6,
-    '고2_9모': 7,
-    '고2_10모': 8,
-    '고3_3모': 9,
-    '고3_5모': 10,
-    '고3_6모': 11,
-    '고3_7모': 12,
-    '고3_9모': 13,
-    '고3_10모': 14,
+    고1_3모: 1,
+    고1_6모: 2,
+    고1_9모: 3,
+    고1_10모: 4,
+    고2_3모: 5,
+    고2_6모: 6,
+    고2_9모: 7,
+    고2_10모: 8,
+    고3_3모: 9,
+    고3_5모: 10,
+    고3_6모: 11,
+    고3_7모: 12,
+    고3_9모: 13,
+    고3_10모: 14,
   };
 
-  const key = `${grade}_${lastExam || ''}`;
+  const key = `${grade}_${lastExam || ""}`;
   return key in order ? Math.max(0, 14 - order[key]) : 0;
 }
 
@@ -111,7 +111,12 @@ export function getRemainingMogo(grade, lastExam, fallback = null) {
 //   우세: pBase = min(95, 70 + 20 * (1 - exp(-2.0 * diff)))
 //   열세: pBase = max(10, 60 * exp(-0.8 * diff))
 // 남은 시험 회차가 있으면 시간계수 factor 를 곱하고 하한 1 을 적용한다.
-export function calcNaesinProb(currentGrade, targetCut, remainExams, totalExams = 10) {
+export function calcNaesinProb(
+  currentGrade,
+  targetCut,
+  remainExams,
+  totalExams = 10,
+) {
   currentGrade = Number(currentGrade || 0);
   targetCut = Number(targetCut || 0);
 
@@ -138,9 +143,10 @@ export function calcNaesinProb(currentGrade, targetCut, remainExams, totalExams 
   // NOTE(target-parity): 우세 갈래는 남은 시험이 많을수록 확률이 깎인다(1 - ratio^0.8).
   // ratio <= 1 일 때만 factor 가 [0.55, 1.0] 안에 들어가고, remainExams > totalExams 면
   // 우세 갈래는 0.55 아래, 열세 갈래는 1.0 위로 벗어난다.
-  const factor = currentGrade <= targetCut
-    ? 0.55 + 0.45 * (1 - Math.pow(ratio, 0.8))
-    : 0.55 + 0.45 * Math.pow(ratio, 0.8);
+  const factor =
+    currentGrade <= targetCut
+      ? 0.55 + 0.45 * (1 - ratio ** 0.8)
+      : 0.55 + 0.45 * ratio ** 0.8;
 
   return clampProb(Math.max(1, pBase * factor));
 }
@@ -150,18 +156,17 @@ export function calcNaesinProb(currentGrade, targetCut, remainExams, totalExams 
 export function applyPreHighGradePenalty(schoolType, grade, convertedGrade) {
   let penalty = 0;
 
-  if (grade === '중1') penalty = 0.50;
-  else if (grade === '중2') penalty = 0.30;
-  else if (grade === '중3') penalty = 0.10;
-  else if (schoolType === '중학교') penalty = 0.30;
-
-  else if (grade === '초1') penalty = 0.40;
-  else if (grade === '초2') penalty = 0.35;
-  else if (grade === '초3') penalty = 0.30;
-  else if (grade === '초4') penalty = 0.25;
-  else if (grade === '초5') penalty = 0.20;
-  else if (grade === '초6') penalty = 0.10;
-  else if (schoolType === '초등학교') penalty = 0.35;
+  if (grade === "중1") penalty = 0.5;
+  else if (grade === "중2") penalty = 0.3;
+  else if (grade === "중3") penalty = 0.1;
+  else if (schoolType === "중학교") penalty = 0.3;
+  else if (grade === "초1") penalty = 0.4;
+  else if (grade === "초2") penalty = 0.35;
+  else if (grade === "초3") penalty = 0.3;
+  else if (grade === "초4") penalty = 0.25;
+  else if (grade === "초5") penalty = 0.2;
+  else if (grade === "초6") penalty = 0.1;
+  else if (schoolType === "초등학교") penalty = 0.35;
 
   // NOTE(target-parity): 페널티가 0 인 고교생도 이 클램프를 거친다 — 변환등급 0 은 1 로,
   // 9 초과는 9 로 접힌다. 또 schoolType === '중학교' 이면 grade 가 '고1' 이어도

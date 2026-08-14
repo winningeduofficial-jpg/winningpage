@@ -1,5 +1,5 @@
-import { templateCopy } from '../../../lib/diagnosisCopyBinding';
-import { SCREEN_EXTRAS } from '../../../data/diagnosisScreenCopy';
+import { SCREEN_EXTRAS } from "../../../data/diagnosisScreenCopy";
+import { templateCopy } from "../../../lib/diagnosisCopyBinding";
 
 /**
  * 화면 전용 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
@@ -32,7 +32,9 @@ function AreaDetailGroup({ title, rows }) {
 
   return (
     <section className="mt-8">
-      <h4 className="text-base font-semibold leading-[1.5] text-[#525252]">{title}</h4>
+      <h4 className="text-base font-semibold leading-[1.5] text-[#525252]">
+        {title}
+      </h4>
 
       <div className="mt-3">
         {visible.map((row) => (
@@ -92,7 +94,8 @@ function StrategyGroup({ group }) {
 }
 
 export default function ReportScreenExtras({ data }) {
-  const { areaDetails, strategyGroups, urgency, notices, typeTodos } = data ?? {};
+  const { areaDetails, strategyGroups, urgency, notices, typeTodos } =
+    data ?? {};
 
   const detailRows = rules.showAreaDetails ? areaDetails : null;
   const hasAreaDetails =
@@ -105,14 +108,14 @@ export default function ReportScreenExtras({ data }) {
 
   // 긴급도 한 줄. 라벨이 없으면(판정 실패) 줄 자체를 만들지 않는다 — 숫자만 남은 문장을 내지 않는다.
   // lowAreaCount 가 0 이면 ' · ' 뒤 절을 뗀다(템플릿은 하나로 유지하고 자르기만 한다).
-  const [urgencyHead, urgencyTail] = copy.urgencyLine.split(' · ');
+  const [urgencyHead, urgencyTail] = copy.urgencyLine.split(" · ");
   const urgencyLine = urgency?.levelLabel
-    ? urgencyHead.replace('{level}', urgency.levelLabel) +
+    ? urgencyHead.replace("{level}", urgency.levelLabel) +
       (urgency.lowAreaCount > 0
         ? ` · ${urgencyTail
-            .replace('{threshold}', String(urgency.areaThreshold))
-            .replace('{count}', String(urgency.lowAreaCount))}`
-        : '')
+            .replace("{threshold}", String(urgency.areaThreshold))
+            .replace("{count}", String(urgency.lowAreaCount))}`
+        : "")
     : null;
 
   // F-15 — 불성실 판정이면 '급하다'(긴급도)와 '판단이 어렵다'(성실도)가 한 화면에서 모순되므로
@@ -125,9 +128,17 @@ export default function ReportScreenExtras({ data }) {
   const hasTodos = Array.isArray(typeTodos) && typeTodos.length > 0;
 
   // 실을 것이 하나도 없으면(판정 불가 등) 섹션을 통째로 만들지 않는다 — 빈 제목만 남기지 않는다.
-  if (!hasAreaDetails && !hasStrategies && !strategyLead && !hasNotice && !hasTodos) return null;
+  if (
+    !hasAreaDetails &&
+    !hasStrategies &&
+    !strategyLead &&
+    !hasNotice &&
+    !hasTodos
+  )
+    return null;
 
-  const page1Title = templateCopy('card_exec.title') ?? copy.areaDetailTitle.page1;
+  const page1Title =
+    templateCopy("card_exec.title") ?? copy.areaDetailTitle.page1;
 
   return (
     <section
@@ -137,7 +148,9 @@ export default function ReportScreenExtras({ data }) {
       <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-[#013262]">
         {copy.sectionTitle}
       </h2>
-      <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">{copy.screenOnlyNote}</p>
+      <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+        {copy.screenOnlyNote}
+      </p>
 
       {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
       {hasAreaDetails && (
@@ -151,10 +164,15 @@ export default function ReportScreenExtras({ data }) {
             기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
           */}
           {notices?.skipNote && (
-            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">{notices.skipNote}</p>
+            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+              {notices.skipNote}
+            </p>
           )}
           <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
-          <AreaDetailGroup title={copy.areaDetailTitle.page2} rows={detailRows?.page2} />
+          <AreaDetailGroup
+            title={copy.areaDetailTitle.page2}
+            rows={detailRows?.page2}
+          />
         </section>
       )}
 
@@ -165,7 +183,9 @@ export default function ReportScreenExtras({ data }) {
             {copy.strategyTitle}
           </h3>
           {strategyLead && (
-            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">{strategyLead}</p>
+            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+              {strategyLead}
+            </p>
           )}
 
           {/*

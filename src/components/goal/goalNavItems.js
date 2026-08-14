@@ -8,44 +8,51 @@
 // 조합한 `navBadgeData` 객체를 넘기고, 반환값이 falsy면 뱃지를 렌더하지 않는다.
 export const GOAL_NAV_GROUPS = [
   {
-    group: '홈',
+    group: "홈",
     items: [
-      { label: '대시보드', to: '/app/goal' },
-      { label: '내 목표 대학', to: '/app/goal/target-university' },
-      { label: '열공 타이머', to: '/app/goal/timer', getBadge: (d) => (d?.timerRunning ? '진행중' : null) }
-    ]
-  },
-  {
-    group: '기록',
-    items: [
+      { label: "대시보드", to: "/app/goal" },
+      { label: "내 목표 대학", to: "/app/goal/target-university" },
       {
-        label: '오늘의 공부 기록',
-        to: '/app/goal/daily-record',
-        getBadge: (d) => (d?.dailyRecordDone ? null : '미기록')
+        label: "열공 타이머",
+        to: "/app/goal/timer",
+        getBadge: (d) => (d?.timerRunning ? "진행중" : null),
       },
-      { label: '주간 학습 계획표', to: '/app/goal/weekly-plan' },
-      { label: '나의 노력', to: '/app/goal/efforts' }
-    ]
+    ],
   },
   {
-    group: '분석',
-    items: [
-      { label: '성장 리포트', to: '/app/goal/reports/growth' },
-      { label: '성적 관리', to: '/app/goal/grades' },
-      { label: '학습방향 리포트', to: '/app/goal/reports/direction' }
-    ]
-  },
-  {
-    group: '일정',
+    group: "기록",
     items: [
       {
-        label: '중요일정',
-        to: '/app/goal/schedules',
-        getBadge: (d) => (d?.scheduleCount ? String(d.scheduleCount) : null)
-      }
-    ]
-  }
+        label: "오늘의 공부 기록",
+        to: "/app/goal/daily-record",
+        getBadge: (d) => (d?.dailyRecordDone ? null : "미기록"),
+      },
+      { label: "주간 학습 계획표", to: "/app/goal/weekly-plan" },
+      { label: "나의 노력", to: "/app/goal/efforts" },
+    ],
+  },
+  {
+    group: "분석",
+    items: [
+      { label: "성장 리포트", to: "/app/goal/reports/growth" },
+      { label: "성적 관리", to: "/app/goal/grades" },
+      { label: "학습방향 리포트", to: "/app/goal/reports/direction" },
+    ],
+  },
+  {
+    group: "일정",
+    items: [
+      {
+        label: "중요일정",
+        to: "/app/goal/schedules",
+        getBadge: (d) => (d?.scheduleCount ? String(d.scheduleCount) : null),
+      },
+    ],
+  },
 ];
 
 // 사이드바 하단 유틸 링크(그룹 밖, 활성 하이라이트 대상 아님).
-export const GOAL_NAV_FOOTER = { label: '내 정보 수정', to: '/app/goal/profile' };
+export const GOAL_NAV_FOOTER = {
+  label: "내 정보 수정",
+  to: "/app/goal/profile",
+};

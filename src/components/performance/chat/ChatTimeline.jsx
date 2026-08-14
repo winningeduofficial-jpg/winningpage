@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import AiMessage from './AiMessage';
-import UserMessage from './UserMessage';
-import AiLoadingBubble from './AiLoadingBubble';
-import InlineCard from './InlineCard';
+import { useEffect, useRef } from "react";
+import AiLoadingBubble from "./AiLoadingBubble";
+import AiMessage from "./AiMessage";
+import InlineCard from "./InlineCard";
+import UserMessage from "./UserMessage";
 
 // 채팅 타임라인 조립 — docs/수행평가-상세-명세.md §3.1(공통 셸 관례) / §5.9·§5.12·§5.15
 // (로딩 노드 3종) / §5.6·§5.8(`3754:3261`/`3754:3370` 메시지 누적) 실측.
@@ -83,24 +83,29 @@ import InlineCard from './InlineCard';
  * @param {import('react').ReactNode} [children] `messages` 생략 시 그대로 렌더.
  * @param {string} [className] 루트에 추가할 클래스.
  */
-export default function ChatTimeline({ messages, children, className = '' }) {
+export default function ChatTimeline({ messages, children, className = "" }) {
   const lastItemRef = useRef(null);
-  const lastId = messages?.length ? messages[messages.length - 1].id : undefined;
+  const lastId = messages?.length
+    ? messages[messages.length - 1].id
+    : undefined;
 
   useEffect(() => {
     if (lastId === undefined) return;
     const node = lastItemRef.current;
     if (!node) return;
     const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    node.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'end' });
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "end",
+    });
   }, [lastId]);
 
   return (
     <div
       aria-live="polite"
-      className={['flex w-full flex-col gap-10', className].join(' ')}
+      className={["flex w-full flex-col gap-10", className].join(" ")}
     >
       {messages
         ? messages.map((message, index) => {
@@ -108,7 +113,9 @@ export default function ChatTimeline({ messages, children, className = '' }) {
             // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
             // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
             const wrapperFocusRef =
-              message.focusRef && (message.kind ?? 'text') !== 'loading' ? message.focusRef : null;
+              message.focusRef && (message.kind ?? "text") !== "loading"
+                ? message.focusRef
+                : null;
             // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수 있어야 해서
             // 콜백 ref로 합친다.
             const setNode = (node) => {
@@ -120,7 +127,7 @@ export default function ChatTimeline({ messages, children, className = '' }) {
                 key={message.id}
                 ref={isLast || wrapperFocusRef ? setNode : undefined}
                 tabIndex={wrapperFocusRef ? -1 : undefined}
-                aria-live={message.focusRef ? 'off' : undefined}
+                aria-live={message.focusRef ? "off" : undefined}
               >
                 {renderMessage(message)}
               </div>
@@ -132,9 +139,16 @@ export default function ChatTimeline({ messages, children, className = '' }) {
 }
 
 function renderMessage(message) {
-  const { role = 'ai', kind = 'text', body, payload, children, focusRef } = message;
+  const {
+    role = "ai",
+    kind = "text",
+    body,
+    payload,
+    children,
+    focusRef,
+  } = message;
 
-  if (kind === 'loading') {
+  if (kind === "loading") {
     return (
       <AiLoadingBubble
         ref={focusRef}
@@ -146,12 +160,12 @@ function renderMessage(message) {
     );
   }
 
-  if (kind === 'card') {
+  if (kind === "card") {
     // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=4.5rem)에 맞춰 들여쓴다.
     return <InlineCard className="ml-[4.5rem]">{children}</InlineCard>;
   }
 
-  if (role === 'user') {
+  if (role === "user") {
     return <UserMessage>{body}</UserMessage>;
   }
 

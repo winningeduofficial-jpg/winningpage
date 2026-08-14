@@ -1,7 +1,11 @@
-import { memo, useCallback, useId, useMemo, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
-import CharCounter from './CharCounter';
-import { SUBMISSION_MIN_CHARS, checkFieldsMinLength, countFieldChars } from '../../../lib/performance/submission';
+import { Loader2 } from "lucide-react";
+import { memo, useCallback, useId, useMemo, useRef } from "react";
+import {
+  checkFieldsMinLength,
+  countFieldChars,
+  SUBMISSION_MIN_CHARS,
+} from "../../../lib/performance/submission";
+import CharCounter from "./CharCounter";
 
 // STEP5 수행평가 제출폼 — docs/수행평가-상세-명세.md §5.14(`3754:3992` 빈 상태 /
 // `3754:4119` 작성 완료) / §6.1 컴포넌트 표(props `schema`·`value`·`onChange`·
@@ -102,21 +106,27 @@ import { SUBMISSION_MIN_CHARS, checkFieldsMinLength, countFieldChars } from '../
 //   · 모션은 저장소 관례 그대로 `active:scale-[0.97] motion-reduce:active:scale-100`.
 
 /** §5.14 카드 본문 원문. 제목·`안내문 분석 결과:` 접두는 시안 문자열 그대로다. */
-const CARD_TITLE = '수행평가 제출폼';
-const SCHEMA_LABEL_PREFIX = '안내문 분석 결과: ';
+const CARD_TITLE = "수행평가 제출폼";
+const SCHEMA_LABEL_PREFIX = "안내문 분석 결과: ";
 
 /** §5.14 필드 표 — 주제 칸은 확정 주제 prefill이다(제출 필드가 아니다, 아래 주석). */
-const TOPIC_LABEL = '주제';
+const TOPIC_LABEL = "주제";
 
-const SAVE_LABEL = '중간 저장';
-const SUBMIT_LABEL = '제출하고 평가 리포트 받기';
+const SAVE_LABEL = "중간 저장";
+const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
 /**
  * 필드 1개. `memo`로 감싼 이유는 문항형 20필드다(파일 상단 ⓑ) — `field`는 스키마 객체라
  * 참조가 안정적이고, `value`는 문자열, `onChange`는 호출부에서 단 한 번 만들어진 함수라
  * 실제로 "그 필드만" 리렌더된다.
  */
-const SubmissionField = memo(function SubmissionField({ field, value, onChange, idPrefix, readOnly }) {
+const SubmissionField = memo(function SubmissionField({
+  field,
+  value,
+  onChange,
+  idPrefix,
+  readOnly,
+}) {
   const id = `${idPrefix}-${field.key}`;
   const helperId = field.helper ? `${id}-helper` : null;
   const counterId = `${id}-counter`;
@@ -129,9 +139,9 @@ const SubmissionField = memo(function SubmissionField({ field, value, onChange, 
       <label
         htmlFor={id}
         className={[
-          'text-[0.875rem] font-medium leading-[1.125rem]',
-          field.required ? 'text-performance-required' : 'text-ink-sub'
-        ].join(' ')}
+          "text-[0.875rem] font-medium leading-[1.125rem]",
+          field.required ? "text-performance-required" : "text-ink-sub",
+        ].join(" ")}
       >
         {field.label}
         {/* 필수를 색 하나에만 맡기지 않는다(WCAG 1.4.1) — 시안 `서론*` 표기를 그대로 쓰되
@@ -156,7 +166,7 @@ const SubmissionField = memo(function SubmissionField({ field, value, onChange, 
         onChange={(event) => onChange(field.key, event.target.value)}
         placeholder={field.helper || undefined}
         readOnly={readOnly}
-        aria-describedby={[helperId, counterId].filter(Boolean).join(' ')}
+        aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
         className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none transition placeholder:text-performance-line focus:border-primary"
       />
 
@@ -201,7 +211,7 @@ export default function SubmissionForm({
   saving = false,
   submitting = false,
   error = null,
-  savedAt = null
+  savedAt = null,
 }) {
   const reactId = useId();
   const idPrefix = `performance-submission${reactId}`;
@@ -222,7 +232,10 @@ export default function SubmissionForm({
   }, []);
 
   // 게이트·카운터는 서버와 같은 함수로 잰다(파일 상단 2).
-  const gate = useMemo(() => checkFieldsMinLength(fields, value), [fields, value]);
+  const gate = useMemo(
+    () => checkFieldsMinLength(fields, value),
+    [fields, value],
+  );
 
   const busy = saving || submitting;
   const isEmpty = gate.total === 0;
@@ -240,9 +253,10 @@ export default function SubmissionForm({
   // 버튼이 이 문장을 `aria-describedby`로 가리킨다(비활성 사유의 프로그램적 전달).
   let gateMessage;
   if (isEmpty) {
-    gateMessage = '아직 작성한 내용이 없어요. 내용을 입력하면 저장하거나 제출할 수 있어요.';
+    gateMessage =
+      "아직 작성한 내용이 없어요. 내용을 입력하면 저장하거나 제출할 수 있어요.";
   } else if (gate.missingRequired.length) {
-    gateMessage = `필수 항목을 모두 작성해야 제출할 수 있어요. 남은 항목: ${gate.missingRequired.join(', ')} (현재 ${gate.total}자)`;
+    gateMessage = `필수 항목을 모두 작성해야 제출할 수 있어요. 남은 항목: ${gate.missingRequired.join(", ")} (현재 ${gate.total}자)`;
   } else if (gate.total < SUBMISSION_MIN_CHARS) {
     gateMessage = `제출하려면 전체 ${SUBMISSION_MIN_CHARS}자 이상 작성해야 해요. 현재 ${gate.total}자예요.`;
   } else {
@@ -250,7 +264,9 @@ export default function SubmissionForm({
   }
 
   // 두 버튼이 함께 가리키는 설명 — 게이트 사유 + (있다면) 서버 실패 문구.
-  const describedBy = [gateId, error ? errorId : null].filter(Boolean).join(' ');
+  const describedBy = [gateId, error ? errorId : null]
+    .filter(Boolean)
+    .join(" ");
 
   function handleSaveDraft() {
     if (saveLocked) return;
@@ -277,7 +293,9 @@ export default function SubmissionForm({
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <h3 className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">{CARD_TITLE}</h3>
+          <h3 className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+            {CARD_TITLE}
+          </h3>
           {/* §5.14 카드 본문 2·3행. 유형 라벨·안내문은 **서버 스키마 값**이라 8종에 따라
               바뀐다(시안의 `기본 보고서형`은 그중 하나다). */}
           <p className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
@@ -285,7 +303,9 @@ export default function SubmissionForm({
             {schema?.label}
           </p>
           {schema?.notice && (
-            <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">{schema.notice}</p>
+            <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+              {schema.notice}
+            </p>
           )}
         </div>
 
@@ -300,12 +320,15 @@ export default function SubmissionForm({
             >
               {TOPIC_LABEL}
               <span aria-hidden="true">*</span>
-              <span className="sr-only"> (필수 — 확정한 주제이며 수정할 수 없습니다)</span>
+              <span className="sr-only">
+                {" "}
+                (필수 — 확정한 주제이며 수정할 수 없습니다)
+              </span>
             </label>
             <input
               id={`${idPrefix}-topic`}
               type="text"
-              value={topicTitle || ''}
+              value={topicTitle || ""}
               readOnly
               className="h-[2.625rem] w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
@@ -315,7 +338,7 @@ export default function SubmissionForm({
             <SubmissionField
               key={field.key}
               field={field}
-              value={value?.[field.key] ?? ''}
+              value={value?.[field.key] ?? ""}
               onChange={handleFieldChange}
               idPrefix={idPrefix}
               // 제출 중에는 값이 바뀌면 안 되지만 `disabled`를 걸면 포커스가 날아간다 —
@@ -326,24 +349,34 @@ export default function SubmissionForm({
         </div>
 
         {/* 게이트 문구(비활성 사유). live region이 아니다 — 숫자가 매 글자 바뀐다. */}
-        <p id={gateId} className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+        <p
+          id={gateId}
+          className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub"
+        >
           {gateMessage}
         </p>
 
         {/* 임계값을 넘나드는 순간에만 문자열이 바뀌므로 그때만 announce된다. */}
         <p aria-live="polite" className="sr-only">
-          {gate.ok ? '제출할 수 있는 분량이 되었어요.' : ''}
+          {gate.ok ? "제출할 수 있는 분량이 되었어요." : ""}
         </p>
 
         {error && (
-          <p id={errorId} role="alert" className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]">
+          <p
+            id={errorId}
+            role="alert"
+            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+          >
             {error}
           </p>
         )}
 
         {/* 저장 성공 피드백. `role="status"`라 `savedAt`이 갱신될 때만 1회 읽힌다. */}
         {savedAt && !error && (
-          <p role="status" className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+          <p
+            role="status"
+            className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub"
+          >
             {formatSavedAt(savedAt)}에 중간 저장했어요.
           </p>
         )}
@@ -362,17 +395,22 @@ export default function SubmissionForm({
             aria-busy={saving || undefined}
             aria-describedby={describedBy}
             className={[
-              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100',
+              "flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 표현은 opacity가 아니라 :388(제출 버튼)과 동일한 실제 배경/글자색
               // 조합으로 한다 — `aria-disabled`라 진짜 disabled가 아니고(여전히 포커스·클릭
               // 가능) opacity는 WCAG 비활성 컨트롤 대비 예외를 못 받아 2.2:1로 미달이었다.
               saveLocked
-                ? 'cursor-not-allowed bg-performance-line text-ink'
-                : 'bg-white text-ink-sub hover:border-ink-sub'
-            ].join(' ')}
+                ? "cursor-not-allowed bg-performance-line text-ink"
+                : "bg-white text-ink-sub hover:border-ink-sub",
+            ].join(" ")}
           >
             {saving && (
-              <Loader2 size={18} strokeWidth={2.5} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              <Loader2
+                size={18}
+                strokeWidth={2.5}
+                className="animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             )}
             {SAVE_LABEL}
           </button>
@@ -383,20 +421,25 @@ export default function SubmissionForm({
             aria-busy={submitting || undefined}
             aria-describedby={describedBy}
             className={[
-              'flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100',
+              "flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 **면 색**은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
               // `PrimaryButton`의 disabled 톤을 그대로 따른다 — 처리중(`bg-primary/80`)과
               // 비활성을 시각적으로 구분하는 것도 그 컴포넌트의 관례다.
               // **글자색만** 비활성에서 `ink`로 내린다(파일 상단 4 대비 항의 ⚠️).
               submitting
-                ? 'cursor-progress bg-primary/80 text-white'
+                ? "cursor-progress bg-primary/80 text-white"
                 : submitLocked
-                  ? 'cursor-not-allowed bg-performance-line text-ink'
-                  : 'bg-primary text-white hover:bg-primary/90'
-            ].join(' ')}
+                  ? "cursor-not-allowed bg-performance-line text-ink"
+                  : "bg-primary text-white hover:bg-primary/90",
+            ].join(" ")}
           >
             {submitting && (
-              <Loader2 size={18} strokeWidth={2.5} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              <Loader2
+                size={18}
+                strokeWidth={2.5}
+                className="animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             )}
             {SUBMIT_LABEL}
           </button>
@@ -409,6 +452,9 @@ export default function SubmissionForm({
 /** `2026. 08. 12. 14:03` 같은 절대 시각 대신 시:분만 — 같은 세션 안의 피드백이다. */
 function formatSavedAt(iso) {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '방금';
-  return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  if (Number.isNaN(date.getTime())) return "방금";
+  return date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

@@ -29,24 +29,24 @@
 //   ALIGO_TEST_MODE      'true'면 알리고 테스트모드 — 과금·실발송 없음
 //   ALIGO_DRY_RUN        'true'면 알리고를 아예 호출하지 않음 (로컬 로직 검증용)
 
-import { outboundFetch } from './outbound.js';
-import { getEnv } from './supabaseAdmin.js';
-import { maskPhone } from './phoneCode.js';
+import { outboundFetch } from "./outbound.js";
+import { maskPhone } from "./phoneCode.js";
+import { getEnv } from "./supabaseAdmin.js";
 
-const SMS_ENDPOINT = 'https://apis.aligo.in/send/';
-const ALIMTALK_ENDPOINT = 'https://kakaoapi.aligo.in/akv10/alimtalk/send/';
+const SMS_ENDPOINT = "https://apis.aligo.in/send/";
+const ALIMTALK_ENDPOINT = "https://kakaoapi.aligo.in/akv10/alimtalk/send/";
 
 export function getChannel() {
   // 미설정이면 알림톡. SMS는 'sms'라고 명시했을 때만 쓴다.
-  return getEnv('ALIGO_CHANNEL').toLowerCase() === 'sms' ? 'sms' : 'alimtalk';
+  return getEnv("ALIGO_CHANNEL").toLowerCase() === "sms" ? "sms" : "alimtalk";
 }
 
 export function isDryRun() {
-  return getEnv('ALIGO_DRY_RUN').toLowerCase() === 'true';
+  return getEnv("ALIGO_DRY_RUN").toLowerCase() === "true";
 }
 
 function isTestMode() {
-  return getEnv('ALIGO_TEST_MODE').toLowerCase() === 'true';
+  return getEnv("ALIGO_TEST_MODE").toLowerCase() === "true";
 }
 
 /**
@@ -61,13 +61,13 @@ function isTestMode() {
  */
 export function buildAlimtalkMessage(code) {
   return [
-    '안녕하세요, 위닝에듀입니다.',
-    '',
-    '본인 확인을 위한 인증번호를 입력해주세요.',
+    "안녕하세요, 위닝에듀입니다.",
+    "",
+    "본인 확인을 위한 인증번호를 입력해주세요.",
     `인증번호: ${code}`,
-    '',
-    '※ 본인이 요청하지 않은 경우, 인증번호를 입력하거나 타인에게 공유하지 마세요.'
-  ].join('\n');
+    "",
+    "※ 본인이 요청하지 않은 경우, 인증번호를 입력하거나 타인에게 공유하지 마세요.",
+  ].join("\n");
 }
 
 // SMS 1건은 90바이트까지다(EUC-KR 기준 한글 2바이트). 넘으면 LMS로 자동 전환되는데
@@ -104,16 +104,18 @@ async function postForm(url, params) {
   const body = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== "") {
       body.append(key, String(value));
     }
   }
 
   const response = await outboundFetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' },
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
+    },
     body: body.toString(),
-    timeoutMs: 10_000
+    timeoutMs: 10_000,
   });
 
   const text = await response.text();
@@ -122,24 +124,30 @@ async function postForm(url, params) {
     return { httpStatus: response.status, payload: JSON.parse(text) };
   } catch {
     // 알리고가 장애 시 HTML을 반환하는 경우가 있어 원문을 남긴다.
-    return { httpStatus: response.status, payload: null, raw: text.slice(0, 300) };
+    return {
+      httpStatus: response.status,
+      payload: null,
+      raw: text.slice(0, 300),
+    };
   }
 }
 
 async function sendSms({ phone, code }) {
   const params = {
-    key: getEnv('ALIGO_API_KEY'),
-    user_id: getEnv('ALIGO_USER_ID'),
-    sender: getEnv('ALIGO_SENDER'),
+    key: getEnv("ALIGO_API_KEY"),
+    user_id: getEnv("ALIGO_USER_ID"),
+    sender: getEnv("ALIGO_SENDER"),
     receiver: phone,
     msg: buildSmsMessage(code),
     // 90바이트를 넘으면 알리고가 LMS로 올려 과금하므로 SMS로 명시하고 길이를 지킨다.
-    msg_type: 'SMS',
-    testmode_yn: isTestMode() ? 'Y' : 'N'
+    msg_type: "SMS",
+    testmode_yn: isTestMode() ? "Y" : "N",
   };
 
   if (!params.key || !params.user_id || !params.sender) {
-    throw new Error('ALIGO_API_KEY / ALIGO_USER_ID / ALIGO_SENDER 환경변수가 필요합니다.');
+    throw new Error(
+      "ALIGO_API_KEY / ALIGO_USER_ID / ALIGO_SENDER 환경변수가 필요합니다.",
+    );
   }
 
   const { httpStatus, payload, raw } = await postForm(SMS_ENDPOINT, params);
@@ -149,50 +157,53 @@ async function sendSms({ phone, code }) {
 
   return {
     ok,
-    channel: 'sms',
+    channel: "sms",
     providerCode: payload?.result_code ?? httpStatus,
-    providerMessage: payload?.message || raw || '',
-    messageId: payload?.msg_id || null
+    providerMessage: payload?.message || raw || "",
+    messageId: payload?.msg_id || null,
   };
 }
 
 async function sendAlimtalk({ phone, code }) {
   const params = {
-    apikey: getEnv('ALIGO_API_KEY'),
-    userid: getEnv('ALIGO_USER_ID'),
-    senderkey: getEnv('ALIGO_SENDER_KEY'),
-    tpl_code: getEnv('ALIGO_TEMPLATE_CODE'),
-    sender: getEnv('ALIGO_SENDER'),
+    apikey: getEnv("ALIGO_API_KEY"),
+    userid: getEnv("ALIGO_USER_ID"),
+    senderkey: getEnv("ALIGO_SENDER_KEY"),
+    tpl_code: getEnv("ALIGO_TEMPLATE_CODE"),
+    sender: getEnv("ALIGO_SENDER"),
     receiver_1: phone,
-    subject_1: '인증번호',
+    subject_1: "인증번호",
     message_1: buildAlimtalkMessage(code),
     // 알림톡 실패(카카오 미사용자 등) 시 SMS로 자동 대체 발송한다.
     // 대체 발송은 SMS라 알림톡 본문이 아니라 짧은 SMS 문구를 쓴다(LMS 과금 회피).
-    failover: 'Y',
-    fsubject_1: '인증번호',
+    failover: "Y",
+    fsubject_1: "인증번호",
     fmessage_1: buildSmsMessage(code),
-    testMode: isTestMode() ? 'Y' : 'N'
+    testMode: isTestMode() ? "Y" : "N",
   };
 
   if (!params.senderkey || !params.tpl_code) {
     throw new Error(
-      '알림톡 발송에 ALIGO_SENDER_KEY / ALIGO_TEMPLATE_CODE 환경변수가 필요합니다. ' +
-        'ALIGO_TEMPLATE_CODE는 카카오 템플릿 심사 승인 후 발급됩니다. ' +
-        '승인 전이라면 ALIGO_CHANNEL=sms를 명시해 임시로 SMS로 운영하세요.'
+      "알림톡 발송에 ALIGO_SENDER_KEY / ALIGO_TEMPLATE_CODE 환경변수가 필요합니다. " +
+        "ALIGO_TEMPLATE_CODE는 카카오 템플릿 심사 승인 후 발급됩니다. " +
+        "승인 전이라면 ALIGO_CHANNEL=sms를 명시해 임시로 SMS로 운영하세요.",
     );
   }
 
-  const { httpStatus, payload, raw } = await postForm(ALIMTALK_ENDPOINT, params);
+  const { httpStatus, payload, raw } = await postForm(
+    ALIMTALK_ENDPOINT,
+    params,
+  );
 
   // 알림톡은 code가 0일 때 성공이다 (SMS의 result_code와 규칙이 다르다).
   const ok = Number(payload?.code) === 0;
 
   return {
     ok,
-    channel: 'alimtalk',
+    channel: "alimtalk",
     providerCode: payload?.code ?? httpStatus,
-    providerMessage: payload?.message || raw || '',
-    messageId: payload?.info?.mid || null
+    providerMessage: payload?.message || raw || "",
+    messageId: payload?.info?.mid || null,
   };
 }
 
@@ -205,17 +216,21 @@ export async function sendVerificationCode({ phone, code }) {
     // 실제 발송 없이 발송 성공으로 처리한다. 코드까지 로그로 남겨야
     // 로컬에서 검증 단계를 이어서 테스트할 수 있다.
     // 운영에서는 절대 켜지 말 것 — 인증번호가 로그에 남는다.
-    console.warn(`[aligo] DRY_RUN — 실제 발송 없음. ${maskPhone(phone)} code=${code}`);
+    console.warn(
+      `[aligo] DRY_RUN — 실제 발송 없음. ${maskPhone(phone)} code=${code}`,
+    );
 
     return {
       ok: true,
       channel: `${getChannel()}(dry-run)`,
-      providerCode: 'dry_run',
-      providerMessage: 'dry run',
+      providerCode: "dry_run",
+      providerMessage: "dry run",
       messageId: null,
-      dryRun: true
+      dryRun: true,
     };
   }
 
-  return getChannel() === 'alimtalk' ? sendAlimtalk({ phone, code }) : sendSms({ phone, code });
+  return getChannel() === "alimtalk"
+    ? sendAlimtalk({ phone, code })
+    : sendSms({ phone, code });
 }

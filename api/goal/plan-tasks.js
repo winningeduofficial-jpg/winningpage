@@ -22,17 +22,17 @@
 // 걸친 반복 생성은 클라이언트가 POST를 날짜 수만큼 반복 호출해서 만든다.
 
 import {
-  PAID_MESSAGE,
-  SUBJECT_LABEL_TO_CODE,
   buildPlanTaskPayload,
   deletePlanTask,
   fetchPlanTasks,
   insertPlanTask,
   openGoalSession,
-  updatePlanTask
-} from '../_lib/goalRepo.js';
+  PAID_MESSAGE,
+  SUBJECT_LABEL_TO_CODE,
+  updatePlanTask,
+} from "../_lib/goalRepo.js";
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: "nodejs" };
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TITLE_MAX_LENGTH = 100;
@@ -50,14 +50,14 @@ function fail(status, detail, extra) {
 }
 
 function isValidYmd(value) {
-  if (typeof value !== 'string' || !YMD_RE.test(value)) return false;
+  if (typeof value !== "string" || !YMD_RE.test(value)) return false;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
 function readBody(req) {
   const body = req.body;
-  if (typeof body !== 'string') return body;
+  if (typeof body !== "string") return body;
   try {
     return JSON.parse(body);
   } catch {
@@ -66,7 +66,7 @@ function readBody(req) {
 }
 
 function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -76,38 +76,53 @@ function isPlainObject(value) {
 
 /** @returns {{error?:object, value?:string}} */
 function validateTitle(raw) {
-  if (typeof raw !== 'string') return { error: fail(400, '과제 내용을 입력해 주세요.') };
+  if (typeof raw !== "string")
+    return { error: fail(400, "과제 내용을 입력해 주세요.") };
   const title = raw.trim();
   if (!title || title.length > TITLE_MAX_LENGTH) {
-    return { error: fail(400, `과제 내용은 1~${TITLE_MAX_LENGTH}자 사이여야 합니다.`) };
+    return {
+      error: fail(400, `과제 내용은 1~${TITLE_MAX_LENGTH}자 사이여야 합니다.`),
+    };
   }
   return { value: title };
 }
 
 /** @returns {{error?:object, value?:string}} 한글 라벨 → DB 코드. */
 function validateSubject(raw) {
-  const code = SUBJECT_LABEL_TO_CODE[String(raw ?? '').trim()];
-  if (!code) return { error: fail(400, '과목을 선택해 주세요.') };
+  const code = SUBJECT_LABEL_TO_CODE[String(raw ?? "").trim()];
+  if (!code) return { error: fail(400, "과목을 선택해 주세요.") };
   return { value: code };
 }
 
 /** @returns {{error?:object, value?:number}} */
 function validateDurationMinutes(raw) {
   if (raw === undefined || raw === null) return { value: 0 };
-  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > DURATION_MAX_MINUTES) {
-    return { error: fail(400, `예상 소요 시간은 0~${DURATION_MAX_MINUTES}분 사이여야 합니다.`) };
+  if (
+    typeof raw !== "number" ||
+    !Number.isFinite(raw) ||
+    raw < 0 ||
+    raw > DURATION_MAX_MINUTES
+  ) {
+    return {
+      error: fail(
+        400,
+        `예상 소요 시간은 0~${DURATION_MAX_MINUTES}분 사이여야 합니다.`,
+      ),
+    };
   }
   return { value: Math.round(raw) };
 }
 
 function validatePlanDate(raw) {
-  if (!isValidYmd(raw)) return { error: fail(400, '날짜 형식이 올바르지 않습니다(YYYY-MM-DD).') };
+  if (!isValidYmd(raw))
+    return { error: fail(400, "날짜 형식이 올바르지 않습니다(YYYY-MM-DD).") };
   return { value: raw };
 }
 
 function validateId(raw) {
   const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) return { error: fail(400, '과제 id가 올바르지 않습니다.') };
+  if (!Number.isInteger(id) || id <= 0)
+    return { error: fail(400, "과제 id가 올바르지 않습니다.") };
   return { value: id };
 }
 
@@ -124,18 +139,25 @@ async function handleGet(req, res, session) {
   const from = req.query?.from;
   const to = req.query?.to;
   if (!isValidYmd(from) || !isValidYmd(to)) {
-    return res.status(400).json({ detail: 'from/to는 YYYY-MM-DD 형식이어야 합니다.' });
+    return res
+      .status(400)
+      .json({ detail: "from/to는 YYYY-MM-DD 형식이어야 합니다." });
   }
   if (from > to) {
-    return res.status(400).json({ detail: 'from은 to보다 이전이어야 합니다.' });
+    return res.status(400).json({ detail: "from은 to보다 이전이어야 합니다." });
   }
-  const rangeDays = (new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000;
+  const rangeDays =
+    (new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000;
   if (rangeDays > MAX_RANGE_DAYS) {
-    return res.status(400).json({ detail: `조회 기간은 최대 ${MAX_RANGE_DAYS}일까지 가능합니다.` });
+    return res
+      .status(400)
+      .json({ detail: `조회 기간은 최대 ${MAX_RANGE_DAYS}일까지 가능합니다.` });
   }
 
   const rows = await fetchPlanTasks(supabaseAdmin, profileId, from, to);
-  return res.status(200).json({ ok: true, tasks: rows.map(buildPlanTaskPayload) });
+  return res
+    .status(200)
+    .json({ ok: true, tasks: rows.map(buildPlanTaskPayload) });
 }
 
 async function handlePost(req, res, session) {
@@ -143,26 +165,30 @@ async function handlePost(req, res, session) {
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
 
   const body = readBody(req);
-  if (!isPlainObject(body)) return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
 
   const planDate = validatePlanDate(body.planDate);
-  if (planDate.error) return res.status(planDate.error.status).json(planDate.error.body);
+  if (planDate.error)
+    return res.status(planDate.error.status).json(planDate.error.body);
 
   const title = validateTitle(body.title);
   if (title.error) return res.status(title.error.status).json(title.error.body);
 
   const subject = validateSubject(body.subject);
-  if (subject.error) return res.status(subject.error.status).json(subject.error.body);
+  if (subject.error)
+    return res.status(subject.error.status).json(subject.error.body);
 
   const duration = validateDurationMinutes(body.durationMinutes);
-  if (duration.error) return res.status(duration.error.status).json(duration.error.body);
+  if (duration.error)
+    return res.status(duration.error.status).json(duration.error.body);
 
   const row = await insertPlanTask(supabaseAdmin, {
     profile_id: profileId,
     plan_date: planDate.value,
     title: title.value,
     subject: subject.value,
-    duration_minutes: duration.value
+    duration_minutes: duration.value,
   });
 
   return res.status(200).json({ ok: true, task: buildPlanTaskPayload(row) });
@@ -173,7 +199,8 @@ async function handlePut(req, res, session) {
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
 
   const body = readBody(req);
-  if (!isPlainObject(body)) return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
 
   const id = validateId(body.id);
   if (id.error) return res.status(id.error.status).json(id.error.body);
@@ -183,39 +210,44 @@ async function handlePut(req, res, session) {
 
   if (body.title !== undefined) {
     const title = validateTitle(body.title);
-    if (title.error) return res.status(title.error.status).json(title.error.body);
+    if (title.error)
+      return res.status(title.error.status).json(title.error.body);
     patch.title = title.value;
   }
 
   if (body.subject !== undefined) {
     const subject = validateSubject(body.subject);
-    if (subject.error) return res.status(subject.error.status).json(subject.error.body);
+    if (subject.error)
+      return res.status(subject.error.status).json(subject.error.body);
     patch.subject = subject.value;
   }
 
   if (body.durationMinutes !== undefined) {
     const duration = validateDurationMinutes(body.durationMinutes);
-    if (duration.error) return res.status(duration.error.status).json(duration.error.body);
+    if (duration.error)
+      return res.status(duration.error.status).json(duration.error.body);
     patch.duration_minutes = duration.value;
   }
 
   if (body.planDate !== undefined) {
     const planDate = validatePlanDate(body.planDate);
-    if (planDate.error) return res.status(planDate.error.status).json(planDate.error.body);
+    if (planDate.error)
+      return res.status(planDate.error.status).json(planDate.error.body);
     patch.plan_date = planDate.value;
   }
 
   if (body.done !== undefined) {
-    if (typeof body.done !== 'boolean') return res.status(400).json({ detail: 'done은 boolean이어야 합니다.' });
+    if (typeof body.done !== "boolean")
+      return res.status(400).json({ detail: "done은 boolean이어야 합니다." });
     patch.done = body.done;
   }
 
   if (Object.keys(patch).length === 0) {
-    return res.status(400).json({ detail: '수정할 필드가 없습니다.' });
+    return res.status(400).json({ detail: "수정할 필드가 없습니다." });
   }
 
   const row = await updatePlanTask(supabaseAdmin, profileId, id.value, patch);
-  if (!row) return res.status(404).json({ detail: '과제를 찾을 수 없습니다.' });
+  if (!row) return res.status(404).json({ detail: "과제를 찾을 수 없습니다." });
 
   return res.status(200).json({ ok: true, task: buildPlanTaskPayload(row) });
 }
@@ -225,20 +257,22 @@ async function handleDelete(req, res, session) {
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
 
   const body = readBody(req);
-  if (!isPlainObject(body)) return res.status(400).json({ detail: '요청 본문이 올바르지 않습니다.' });
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
 
   const id = validateId(body.id);
   if (id.error) return res.status(id.error.status).json(id.error.body);
 
   const deleted = await deletePlanTask(supabaseAdmin, profileId, id.value);
-  if (!deleted) return res.status(404).json({ detail: '과제를 찾을 수 없습니다.' });
+  if (!deleted)
+    return res.status(404).json({ detail: "과제를 찾을 수 없습니다." });
 
   return res.status(200).json({ ok: true });
 }
 
 export default async function handler(req, res) {
-  if (!['GET', 'POST', 'PUT', 'DELETE'].includes(req.method)) {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (!["GET", "POST", "PUT", "DELETE"].includes(req.method)) {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
@@ -248,20 +282,20 @@ export default async function handler(req, res) {
     }
 
     switch (req.method) {
-      case 'GET':
+      case "GET":
         return await handleGet(req, res, session);
-      case 'POST':
+      case "POST":
         return await handlePost(req, res, session);
-      case 'PUT':
+      case "PUT":
         return await handlePut(req, res, session);
-      case 'DELETE':
+      case "DELETE":
         return await handleDelete(req, res, session);
       default:
         // 위 405 가드가 이미 걸렀다 — 도달하지 않는다.
-        return res.status(405).json({ detail: 'Method not allowed' });
+        return res.status(405).json({ detail: "Method not allowed" });
     }
   } catch (error) {
-    console.error('goal/plan-tasks error:', error);
-    return res.status(500).json({ detail: '처리 중 오류가 발생했습니다.' });
+    console.error("goal/plan-tasks error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
   }
 }
