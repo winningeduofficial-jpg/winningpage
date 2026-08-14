@@ -42,6 +42,7 @@
 // ── 회차는 차감하지 않는다 (§9.3 "세션 생성 | 없음")
 //    quotaRemaining은 안내용 스냅샷으로만 응답에 싣는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   findProgramAccessRow,
   getBearerToken,
@@ -63,7 +64,7 @@ const REQUIRED_BASIC_INFO_FIELDS = [
   "subjectGroup",
   "subject",
   "careerGoal",
-];
+] as const;
 
 const SESSION_COLUMNS = [
   "id",
@@ -108,12 +109,61 @@ const GET_SESSION_COLUMNS = [
 // 않지만 응답의 `maxRounds`를 클라이언트의 버튼 비활성 판정 재료로 그대로 싣는다.
 const MAX_ROUNDS = 3;
 
-function fail(res, status, code, message, extra) {
+type SessionRow = {
+  id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  grade_label: string | null;
+  semester: string | null;
+  school_type: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  previous_topic: string | null;
+  guide_input_mode?: string | null;
+  selected_topic_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TopicRow = {
+  id: string;
+  round: number;
+  idx: number;
+  title: string;
+  subtitle: string | null;
+  tags: unknown;
+  detail: unknown;
+  selected: boolean;
+};
+
+type BasicInfoColumns = {
+  grade_label: string;
+  semester: string;
+  subject_group: string;
+  subject: string;
+  career_goal: string;
+  previous_topic: string | null;
+};
+
+type NormalizeBasicInfoResult =
+  | { ok: true; columns: BasicInfoColumns }
+  | { ok: false; code: "INVALID_BASIC_INFO" }
+  | { ok: false; code: "MISSING_FIELD"; field: string };
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
 /** `recommend-topics.js`의 `toClientTopic`과 같은 모양(§8.3 `performance_topics` 계약). */
-function toClientTopic(row) {
+function toClientTopic(row: TopicRow) {
   return {
     id: row.id,
     round: row.round,
@@ -126,7 +176,7 @@ function toClientTopic(row) {
   };
 }
 
-function toClientSession(row) {
+function toClientSession(row: SessionRow) {
   return {
     id: row.id,
     status: row.status,
@@ -151,12 +201,13 @@ function toClientSession(row) {
  * 읽지 않는다** — 이 함수가 꺼내는 키는 아래 6개가 전부이며, 그 외 클라이언트가
  * 무엇을 보내든 무시된다(신뢰 경계, Q61-ⓔ).
  */
-function normalizeBasicInfo(raw) {
+function normalizeBasicInfo(raw: unknown): NormalizeBasicInfoResult {
   if (!raw || typeof raw !== "object") {
     return { ok: false, code: "INVALID_BASIC_INFO" };
   }
 
-  const clean = {};
+  const source = raw as Record<string, unknown>;
+  const clean: Record<string, string> = {};
   for (const key of [
     "gradeLabel",
     "semester",
@@ -165,7 +216,7 @@ function normalizeBasicInfo(raw) {
     "careerGoal",
     "previousTopic",
   ]) {
-    const value = raw[key];
+    const value = source[key];
     clean[key] = typeof value === "string" ? value.trim() : "";
   }
 
@@ -195,7 +246,10 @@ function normalizeBasicInfo(raw) {
  * 없어 후보 세션을 먼저 뽑고 원장에 있는 session_id를 빼는 두 단계로 판정한다
  * (bootstrap.js `latestDraftRow`와 동일한 패턴).
  */
-async function findUnchargedSession(supabaseAdmin, userId) {
+async function findUnchargedSession(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
+): Promise<SessionRow | null> {
   const { data: sessionRows, error: sessionError } = await supabaseAdmin
     .from("performance_sessions")
     .select(SESSION_COLUMNS)
@@ -205,7 +259,10 @@ async function findUnchargedSession(supabaseAdmin, userId) {
 
   if (sessionError) throw new Error(`세션 조회 실패: ${sessionError.message}`);
 
-  const rows = sessionRows || [];
+  // `SESSION_COLUMNS`가 런타임 조립 문자열(`string`)이라 supabase-js가 리터럴
+  // 파싱 기반 열 추론을 못 하고 `GenericStringError`로 떨어진다 — 실제 select
+  // 목록과 SessionRow 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
+  const rows = (sessionRows || []) as unknown as SessionRow[];
   if (!rows.length) return null;
 
   const ids = rows.map((row) => row.id);
@@ -222,14 +279,14 @@ async function findUnchargedSession(supabaseAdmin, userId) {
   return rows.find((row) => !chargedIds.has(row.id)) || null;
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST" && req.method !== "GET") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -293,7 +350,7 @@ export default async function handler(req, res) {
         );
       }
 
-      const { data: sessionRow, error: sessionError } = await supabaseAdmin
+      const { data: sessionData, error: sessionError } = await supabaseAdmin
         .from("performance_sessions")
         .select(GET_SESSION_COLUMNS)
         .eq("id", sessionId)
@@ -302,9 +359,11 @@ export default async function handler(req, res) {
 
       if (sessionError)
         throw new Error(`세션 조회 실패: ${sessionError.message}`);
-      if (!sessionRow) {
+      if (!sessionData) {
         return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.");
       }
+
+      const sessionRow = sessionData as unknown as SessionRow;
 
       const { data: topicRows, error: topicsError } = await supabaseAdmin
         .from("performance_topics")
@@ -316,7 +375,7 @@ export default async function handler(req, res) {
       if (topicsError)
         throw new Error(`주제 조회 실패: ${topicsError.message}`);
 
-      const allTopics = topicRows || [];
+      const allTopics: TopicRow[] = topicRows || [];
       const lastRound = allTopics.reduce(
         (max, row) => Math.max(max, Number(row.round) || 0),
         0,
@@ -327,7 +386,7 @@ export default async function handler(req, res) {
 
       // 확정 주제 제목 — 최신 라운드에 있으면 그대로 쓰고, 옛 라운드의 주제를 확정한
       // 경우(재추천 뒤 이전 라운드 주제를 골랐을 리는 없지만 방어적으로)에만 추가 조회한다.
-      let selectedTopicTitle = null;
+      let selectedTopicTitle: string | null = null;
       if (sessionRow.selected_topic_id) {
         const inLatest = latestRoundTopics.find(
           (topic) => topic.id === sessionRow.selected_topic_id,
@@ -370,10 +429,10 @@ export default async function handler(req, res) {
       );
     }
 
-    let basicInfo = null;
+    let basicInfo: BasicInfoColumns | null = null;
     if (body.basicInfo !== undefined && body.basicInfo !== null) {
       const result = normalizeBasicInfo(body.basicInfo);
-      if (!result.ok) {
+      if (result.ok === false) {
         if (result.code === "MISSING_FIELD") {
           return fail(
             res,
@@ -432,7 +491,7 @@ export default async function handler(req, res) {
       if (profileError)
         throw new Error(`프로필 조회 실패: ${profileError.message}`);
 
-      const insertRow = {
+      const insertRow: Record<string, unknown> = {
         profile_id: userId,
         school_type: profileRow?.school_type || null,
         status: basicInfo ? "in_progress" : "draft",
@@ -451,7 +510,7 @@ export default async function handler(req, res) {
         throw new Error(`세션 생성 실패: ${insertError.message}`);
 
       return res.status(201).json({
-        session: toClientSession(created),
+        session: toClientSession(created as unknown as SessionRow),
         quotaRemaining: quota.quotaRemaining,
       });
     }
@@ -467,7 +526,7 @@ export default async function handler(req, res) {
       );
     }
 
-    let resultRow = unchargedSession;
+    let resultRow: SessionRow = unchargedSession;
 
     if (basicInfo) {
       const completed = new Set(
@@ -497,7 +556,7 @@ export default async function handler(req, res) {
 
       if (updateError)
         throw new Error(`세션 갱신 실패: ${updateError.message}`);
-      resultRow = updated;
+      resultRow = updated as unknown as SessionRow;
     }
 
     return res.status(201).json({

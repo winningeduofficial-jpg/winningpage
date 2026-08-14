@@ -46,6 +46,7 @@
 //    평가했는지는 `evaluation.submissionId`/`evaluation.revision`으로 프론트가
 //    매칭한다(추가 조인 없이 봉투에 이미 들어있는 값, evaluate.js `buildReportEnvelope`).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getBearerToken,
   hasPaidServiceAccess,
@@ -96,11 +97,73 @@ const REPORT_COLUMNS =
 const SUBMISSION_COLUMNS =
   "id,revision,fields,char_counts,is_draft,is_final,finalized_at,finalize_reason,submitted_at,created_at,updated_at";
 
-function fail(res, status, code, message) {
+type ListRow = {
+  session_id: string;
+  topic_title: string | null;
+  grade_label: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  updated_at: string;
+  has_design: boolean;
+  has_evaluation: boolean;
+  has_final: boolean;
+  design_report_id: string | null;
+  evaluation_report_id: string | null;
+  final_report_id: string | null;
+};
+
+type SessionRow = {
+  id: string;
+  status: string;
+  grade_label: string | null;
+  semester: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  selected_topic_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ReportRow = {
+  id: string;
+  report_type: string;
+  topic_id: string | null;
+  submission_id: string | null;
+  sections: Record<string, unknown> | null;
+  score: number | null;
+  summary: string | null;
+  model: string | null;
+  prompt_version: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SubmissionRow = {
+  id: string;
+  revision: number;
+  fields: unknown;
+  char_counts: unknown;
+  is_draft: boolean;
+  is_final: boolean;
+  finalized_at: string | null;
+  finalize_reason: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+) {
   return res.status(status).json({ error: { code, message } });
 }
 
-function toListItem(row) {
+function toListItem(row: ListRow) {
   return {
     sessionId: row.session_id,
     topicTitle: row.topic_title,
@@ -119,10 +182,11 @@ function toListItem(row) {
 }
 
 /** design-report.js `toClientReport`와 같은 봉투 모양(`{structure,sections,resources}`). */
-function toDesignReport(row) {
+function toDesignReport(row: ReportRow | null) {
   if (!row) return null;
-  const envelope =
-    row.sections && typeof row.sections === "object" ? row.sections : {};
+  const envelope = (
+    row.sections && typeof row.sections === "object" ? row.sections : {}
+  ) as Record<string, unknown>;
   return {
     reportId: row.id,
     topicId: row.topic_id ?? null,
@@ -137,10 +201,11 @@ function toDesignReport(row) {
 }
 
 /** evaluate.js `toClientReport`와 같은 봉투 모양(`{score,summary,sections,structure}`). */
-function toEvaluationReport(row) {
+function toEvaluationReport(row: ReportRow | null) {
   if (!row) return null;
-  const envelope =
-    row.sections && typeof row.sections === "object" ? row.sections : {};
+  const envelope = (
+    row.sections && typeof row.sections === "object" ? row.sections : {}
+  ) as Record<string, unknown>;
   return {
     reportId: row.id,
     submissionId: row.submission_id ?? envelope.submissionId ?? null,
@@ -157,10 +222,11 @@ function toEvaluationReport(row) {
 }
 
 /** finalize.js가 저장하는 봉투 모양(`{sections}` — 서버가 제출 필드로 조립, 모델 산출물 아님). */
-function toFinalReport(row) {
+function toFinalReport(row: ReportRow | null) {
   if (!row) return null;
-  const envelope =
-    row.sections && typeof row.sections === "object" ? row.sections : {};
+  const envelope = (
+    row.sections && typeof row.sections === "object" ? row.sections : {}
+  ) as Record<string, unknown>;
   return {
     reportId: row.id,
     submissionId: row.submission_id ?? null,
@@ -172,7 +238,7 @@ function toFinalReport(row) {
   };
 }
 
-function toSubmission(row) {
+function toSubmission(row: SubmissionRow) {
   return {
     submissionId: row.id,
     revision: row.revision,
@@ -188,7 +254,12 @@ function toSubmission(row) {
   };
 }
 
-async function handleList(req, res, supabaseAdmin, userId) {
+async function handleList(
+  req: VercelRequest,
+  res: VercelResponse,
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
+) {
   const rawLimit = parseInt(String(req.query.limit ?? ""), 10);
   const limit = Number.isInteger(rawLimit)
     ? Math.min(Math.max(rawLimit, 1), LIST_LIMIT_MAX)
@@ -196,7 +267,7 @@ async function handleList(req, res, supabaseAdmin, userId) {
 
   const cursor =
     typeof req.query.cursor === "string" ? req.query.cursor.trim() : "";
-  let cursorIso = null;
+  let cursorIso: string | null = null;
   if (cursor) {
     const cursorDate = new Date(cursor);
     if (Number.isNaN(cursorDate.getTime())) {
@@ -236,7 +307,10 @@ async function handleList(req, res, supabaseAdmin, userId) {
   if (viewError)
     throw new Error(`저장 리포트 목록 조회 실패: ${viewError.message}`);
 
-  const pageRows = rows || [];
+  // `LIST_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+  // 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 ListRow 필드는
+  // 위 상수와 정확히 대응하므로 안전한 캐스트다.
+  const pageRows = (rows || []) as unknown as ListRow[];
   const hasMore = pageRows.length > limit;
   const items = (hasMore ? pageRows.slice(0, limit) : pageRows).map(toListItem);
   const nextCursor = hasMore ? items[items.length - 1].updatedAt : null;
@@ -244,7 +318,13 @@ async function handleList(req, res, supabaseAdmin, userId) {
   return res.status(200).json({ items, nextCursor });
 }
 
-async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
+async function handleDetail(
+  _req: VercelRequest,
+  res: VercelResponse,
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
+  sessionId: string,
+) {
   if (!UUID_RE.test(sessionId)) {
     return fail(
       res,
@@ -268,13 +348,18 @@ async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
     return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.");
   }
 
-  let topicTitle = null;
-  if (sessionRow.selected_topic_id) {
+  // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반
+  // 열 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 SessionRow
+  // 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
+  const session = sessionRow as unknown as SessionRow;
+
+  let topicTitle: string | null = null;
+  if (session.selected_topic_id) {
     const { data: topicRow, error: topicError } = await supabaseAdmin
       .from("performance_topics")
       .select("title")
-      .eq("id", sessionRow.selected_topic_id)
-      .eq("session_id", sessionRow.id)
+      .eq("id", session.selected_topic_id)
+      .eq("session_id", session.id)
       .maybeSingle();
 
     if (topicError) throw new Error(`주제 조회 실패: ${topicError.message}`);
@@ -284,12 +369,12 @@ async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
   const { data: reportRows, error: reportsError } = await supabaseAdmin
     .from("performance_reports")
     .select(REPORT_COLUMNS)
-    .eq("session_id", sessionRow.id);
+    .eq("session_id", session.id);
 
   if (reportsError)
     throw new Error(`리포트 조회 실패: ${reportsError.message}`);
 
-  const rows = reportRows || [];
+  const rows: ReportRow[] = reportRows || [];
   const designRow = rows.find((row) => row.report_type === "design") || null;
   const evaluationRow =
     rows.find((row) => row.report_type === "evaluation") || null;
@@ -299,7 +384,7 @@ async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
   const { data: submissionRows, error: submissionsError } = await supabaseAdmin
     .from("performance_submissions")
     .select(SUBMISSION_COLUMNS)
-    .eq("session_id", sessionRow.id)
+    .eq("session_id", session.id)
     .order("revision", { ascending: true });
 
   if (submissionsError)
@@ -307,26 +392,26 @@ async function handleDetail(_req, res, supabaseAdmin, userId, sessionId) {
 
   return res.status(200).json({
     session: {
-      sessionId: sessionRow.id,
-      status: sessionRow.status,
-      gradeLabel: sessionRow.grade_label,
-      semester: sessionRow.semester,
-      subjectGroup: sessionRow.subject_group,
-      subject: sessionRow.subject,
-      careerGoal: sessionRow.career_goal,
-      topicId: sessionRow.selected_topic_id,
+      sessionId: session.id,
+      status: session.status,
+      gradeLabel: session.grade_label,
+      semester: session.semester,
+      subjectGroup: session.subject_group,
+      subject: session.subject,
+      careerGoal: session.career_goal,
+      topicId: session.selected_topic_id,
       topicTitle,
-      createdAt: sessionRow.created_at,
-      updatedAt: sessionRow.updated_at,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
     },
     design: toDesignReport(designRow),
     evaluation: toEvaluationReport(evaluationRow),
     final: toFinalReport(finalRow),
-    submissions: (submissionRows || []).map(toSubmission),
+    submissions: ((submissionRows as SubmissionRow[]) || []).map(toSubmission),
   });
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
   }
@@ -335,7 +420,7 @@ export default async function handler(req, res) {
   // 있으므로 저장 자체를 금지한다(bootstrap.js와 동일).
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {

@@ -43,6 +43,7 @@
 //    언제나 `consume_performance_credit` RPC를 감싼 응답(409 QUOTA_EXHAUSTED)이다
 //    (sql/54_performance_app.sql (4), 명세서 §9.3).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   findProgramAccessRow,
   getBearerToken,
@@ -97,7 +98,36 @@ const SESSION_COLUMNS = [
   "updated_at",
 ].join(",");
 
-function fail(res, status, code, message) {
+type SessionRow = {
+  id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  grade_label: string | null;
+  semester: string | null;
+  school_type: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  previous_topic: string | null;
+  guide_input_mode: string | null;
+  selected_topic_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SessionSummaryContext = {
+  charged: boolean;
+  topicTitle: string | null | undefined;
+  reportTypes: Set<string>;
+};
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+) {
   return res.status(status).json({ error: { code, message } });
 }
 
@@ -114,7 +144,7 @@ function fail(res, status, code, message) {
  * 둘이 어긋나면 **더 앞선 쪽**을 택한다 — 완료 표시가 누락된 세션을 이미 지난
  * 단계로 되돌려 보내면 사용자가 입력을 다시 하게 되기 때문이다.
  */
-function deriveResumeStep(session) {
+function deriveResumeStep(session: SessionRow) {
   const completed = Array.isArray(session.completed_steps)
     ? session.completed_steps
     : [];
@@ -123,7 +153,7 @@ function deriveResumeStep(session) {
     .filter((v) => Number.isInteger(v) && v >= 1 && v <= 5);
   const lastCompleted = numeric.length ? Math.max(...numeric) : 0;
   const currentStep = Number.isInteger(session.current_step)
-    ? session.current_step
+    ? (session.current_step as number)
     : 1;
 
   return {
@@ -136,10 +166,10 @@ function deriveResumeStep(session) {
 /**
  * 재방문 요약 카드(§5.4)가 쓰는 표시 필드 + 분기 판정 근거를 담은 형태로 변환.
  *
- * @param {object} session performance_sessions 행
- * @param {object} ctx { charged, topicTitle, reportTypes:Set<string> }
+ * @param session performance_sessions 행
+ * @param ctx { charged, topicTitle, reportTypes:Set<string> }
  */
-function toSessionSummary(session, ctx) {
+function toSessionSummary(session: SessionRow, ctx: SessionSummaryContext) {
   const { lastCompletedStep, resumeStep } = deriveResumeStep(session);
 
   return {
@@ -186,7 +216,7 @@ function toSessionSummary(session, ctx) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
   }
@@ -195,7 +225,7 @@ export default async function handler(req, res) {
   // 새어 나갈 수 있으므로 저장 자체를 금지한다.
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -277,14 +307,17 @@ export default async function handler(req, res) {
       throw new Error(`세션 조회 실패: ${sessionError.message}`);
     }
 
-    const sessions = sessionRows || [];
+    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반
+    // 열 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 SessionRow
+    // 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
+    const sessions = (sessionRows || []) as unknown as SessionRow[];
     const sessionIds = sessions.map((row) => row.id);
 
     // ── 부수 정보 3종을 한 번에 모은다. 세션이 없으면 조회 자체를 건너뛴다
     //    (`in.()` 빈 배열은 PostgREST에서 파싱 오류가 된다).
-    const chargedSessionIds = new Set();
-    const reportTypesBySession = new Map();
-    const topicTitleById = new Map();
+    const chargedSessionIds = new Set<string>();
+    const reportTypesBySession = new Map<string, Set<string>>();
+    const topicTitleById = new Map<string, string>();
 
     if (sessionIds.length) {
       const topicIds = sessions
@@ -322,14 +355,14 @@ export default async function handler(req, res) {
       for (const row of reportResult.data || []) {
         if (!reportTypesBySession.has(row.session_id))
           reportTypesBySession.set(row.session_id, new Set());
-        reportTypesBySession.get(row.session_id).add(row.report_type);
+        reportTypesBySession.get(row.session_id)?.add(row.report_type);
       }
 
       for (const row of topicResult.data || [])
         topicTitleById.set(row.id, row.title);
     }
 
-    const summaryOf = (session) =>
+    const summaryOf = (session: SessionRow) =>
       toSessionSummary(session, {
         charged: chargedSessionIds.has(session.id),
         topicTitle: session.selected_topic_id

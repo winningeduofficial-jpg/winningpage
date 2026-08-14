@@ -65,6 +65,7 @@
 //    평가 프롬프트에 그대로 실린다(토큰 비용). §9.2 「과금과 남용 방지를 분리한다」에
 //    따라 회차가 아니라 상한으로 막는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   EMPTY_SUBMISSION_MESSAGE,
   SUBMISSION_TOO_SHORT_MESSAGE,
@@ -74,7 +75,7 @@ import {
   countSubmissionChars,
   resolveSessionSubmissionSchema,
   SUBMISSION_MIN_CHARS,
-} from "../_lib/performance/submission-schema.js";
+} from "../_lib/performance/submission-schema.ts";
 import {
   getBearerToken,
   hasPaidServiceAccess,
@@ -118,13 +119,59 @@ const SESSION_COLUMNS = [
 const SUBMISSION_COLUMNS =
   "id,revision,fields,char_counts,is_draft,is_final,finalized_at,finalize_reason,submitted_at,created_at,updated_at";
 
-function fail(res, status, code, message, extra) {
+type SessionRow = {
+  id: string;
+  profile_id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  guide_input_mode?: string;
+  guide_freetext?: string;
+  guide_json?: { mode?: string; text?: string };
+  submission_format?: string | null;
+  submission_schema?: Parameters<
+    typeof resolveSessionSubmissionSchema
+  >[0]["submission_schema"];
+  selected_topic_id: string | null;
+};
+
+type SubmissionRow = {
+  id: string;
+  revision: number;
+  fields: unknown;
+  char_counts: unknown;
+  is_draft: boolean;
+  is_final: boolean;
+  finalized_at: string | null;
+  finalize_reason: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type Schema = ReturnType<typeof resolveSessionSubmissionSchema>["schema"];
+
+type NormalizeFieldsResult =
+  | { ok: true; fields: Record<string, string> }
+  | { ok: false; code: "INVALID_FIELDS" }
+  | { ok: false; code: "UNKNOWN_FIELD"; field: string }
+  | { ok: false; code: "INVALID_FIELD_VALUE"; field: string }
+  | { ok: false; code: "FIELD_TOO_LARGE"; field: string; label: string }
+  | { ok: false; code: "SUBMISSION_TOO_LARGE" };
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-const trimmed = (value) => String(value ?? "").trim();
+const trimmed = (value: unknown) => String(value ?? "").trim();
 
-function toClientSubmission(row) {
+function toClientSubmission(row: SubmissionRow | null) {
   if (!row) return null;
   return {
     submissionId: row.id,
@@ -151,7 +198,10 @@ function toClientSubmission(row) {
  * 학생이 개발자도구로 필드 목록을 바꿔 보낼 수 있었다(`index.html:2411`).
  * 저장에 실패해도 요청을 죽이지 않는다(다음 요청이 같은 판정을 다시 낸다).
  */
-async function resolveAndPersistSchema(supabaseAdmin, sessionRow) {
+async function resolveAndPersistSchema(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  sessionRow: SessionRow,
+) {
   const { schema, inferred } = resolveSessionSubmissionSchema(sessionRow);
 
   if (inferred) {
@@ -172,7 +222,10 @@ async function resolveAndPersistSchema(supabaseAdmin, sessionRow) {
 }
 
 /** 세션의 최신 제출본 1건(없으면 null). revision 내림차순. */
-async function loadLatestSubmission(supabaseAdmin, sessionId) {
+async function loadLatestSubmission(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  sessionId: string,
+): Promise<SubmissionRow | null> {
   const { data, error } = await supabaseAdmin
     .from("performance_submissions")
     .select(SUBMISSION_COLUMNS)
@@ -182,7 +235,7 @@ async function loadLatestSubmission(supabaseAdmin, sessionId) {
     .maybeSingle();
 
   if (error) throw new Error(`제출본 조회 실패: ${error.message}`);
-  return data || null;
+  return (data as SubmissionRow) || null;
 }
 
 /**
@@ -192,15 +245,15 @@ async function loadLatestSubmission(supabaseAdmin, sessionId) {
  * 버리면 학생이 쓴 내용이 소리 없이 사라지고, 클라이언트 폼이 서버 스키마와
  * 어긋났다는 사실도 드러나지 않는다.
  */
-function normalizeFields(schema, raw) {
+function normalizeFields(schema: Schema, raw: unknown): NormalizeFieldsResult {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, code: "INVALID_FIELDS" };
   }
 
   const allowed = new Map(schema.fields.map((field) => [field.key, field]));
-  const clean = {};
+  const clean: Record<string, string> = {};
 
-  for (const [key, value] of Object.entries(raw)) {
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     const field = allowed.get(key);
     if (!field) return { ok: false, code: "UNKNOWN_FIELD", field: key };
 
@@ -233,7 +286,12 @@ function normalizeFields(schema, raw) {
 }
 
 /** 세션 + 인증 공통부. 성공하면 `{ userId, sessionRow }`. */
-async function authorize(req, res, supabaseAdmin, sessionId) {
+async function authorize(
+  req: VercelRequest,
+  res: VercelResponse,
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  sessionId: string,
+): Promise<{ userId: string; sessionRow: SessionRow } | null> {
   const token = getBearerToken(req);
   if (!token) {
     fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
@@ -286,17 +344,17 @@ async function authorize(req, res, supabaseAdmin, sessionId) {
     return null;
   }
 
-  return { userId, sessionRow };
+  return { userId, sessionRow: sessionRow as unknown as SessionRow };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "PUT" && req.method !== "GET") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 PUT만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -358,7 +416,7 @@ export default async function handler(req, res) {
     }
 
     const normalized = normalizeFields(schema, body.fields);
-    if (!normalized.ok) {
+    if (normalized.ok === false) {
       if (normalized.code === "UNKNOWN_FIELD") {
         return fail(
           res,
@@ -428,7 +486,7 @@ export default async function handler(req, res) {
       latest && latest.is_draft === true && latest.is_final !== true,
     );
     const targetRevision = reuseLatest
-      ? latest.revision
+      ? (latest as SubmissionRow).revision
       : (latest?.revision || 0) + 1;
 
     if (targetRevision > MAX_REVISIONS) {
@@ -470,7 +528,7 @@ export default async function handler(req, res) {
      *
      * 23505 복구 경로도 방금 insert 된 draft 행을 대상으로 하므로 이 조건에 걸리지 않는다.
      */
-    async function updateRevision(revision) {
+    async function updateRevision(revision: number) {
       const { data, error } = await supabaseAdmin
         .from("performance_submissions")
         .update(payload)
@@ -482,10 +540,10 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (error) throw new Error(`제출본 저장 실패: ${error.message}`);
-      return data || null;
+      return (data as SubmissionRow) || null;
     }
 
-    let row = null;
+    let row: SubmissionRow | null = null;
 
     if (reuseLatest) {
       row = await updateRevision(targetRevision);
@@ -513,7 +571,7 @@ export default async function handler(req, res) {
           throw new Error(`제출본 생성 실패: ${error.message}`);
         }
       } else {
-        row = data;
+        row = data as SubmissionRow;
       }
     }
 
@@ -584,7 +642,7 @@ export default async function handler(req, res) {
 
       if (submitError)
         throw new Error(`제출 표시 실패: ${submitError.message}`);
-      if (submitted) row = submitted;
+      if (submitted) row = submitted as SubmissionRow;
     }
 
     return res.status(200).json({

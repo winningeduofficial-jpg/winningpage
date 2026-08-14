@@ -26,13 +26,14 @@
 //   405 { detail }        POST 아님.
 //   500 { detail }        임베딩 실패, 서버 설정 누락 등.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveAdmin } from "../_lib/adminAuth.js";
 import {
   buildKnowledgeSearchText,
   embedText,
   getEmbeddingDimension,
   getEmbeddingModel,
-} from "../_lib/performance/embeddings.js";
+} from "../_lib/performance/embeddings.ts";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 
 const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
@@ -74,14 +75,37 @@ const SELECT_COLUMNS = [
   "embedded_at",
 ].join(",");
 
-function clampLimit(value) {
+type KnowledgeItemRow = {
+  id: string;
+  knowledge_type: string | null;
+  grade: string | null;
+  subject: string | null;
+  career_field: string | null;
+  title: string | null;
+  content: string | null;
+  source: string | null;
+  source_link: string | null;
+  keywords: string | null;
+  memo: string | null;
+  search_text: string | null;
+  embedding: unknown;
+  embedding_model: string | null;
+  embedding_status: string | null;
+  embedded_at: string | null;
+};
+
+function clampLimit(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_BACKFILL_LIMIT;
   return Math.min(Math.max(Math.trunc(parsed), 1), MAX_BACKFILL_LIMIT);
 }
 
-function errorMessage(error) {
-  return String(error?.message || error || "알 수 없는 임베딩 오류");
+function errorMessage(error: unknown) {
+  return String(
+    (error as { message?: string })?.message ||
+      error ||
+      "알 수 없는 임베딩 오류",
+  );
 }
 
 /**
@@ -94,7 +118,11 @@ function errorMessage(error) {
  *
  * 이 갱신 자체가 또 실패해도 원래 예외를 덮지 않는다 — 삼키고 로그만 남긴다.
  */
-async function markEmbeddingError(supabaseAdmin, id, message) {
+async function markEmbeddingError(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  id: string,
+  message: string,
+) {
   const { error } = await supabaseAdmin
     .from(KNOWLEDGE_TABLE)
     .update({
@@ -111,11 +139,15 @@ async function markEmbeddingError(supabaseAdmin, id, message) {
 /**
  * 지식 항목 1건 임베딩.
  *
- * @returns {Promise<object>} status: 'embedded' | 'skipped' | 'not_found'
+ * @returns status: 'embedded' | 'skipped' | 'not_found'
  * @throws 조회·임베딩·저장 실패 (호출부가 500으로 변환)
  */
-async function embedOne(supabaseAdmin, id, { force = false } = {}) {
-  const { data: item, error: fetchError } = await supabaseAdmin
+async function embedOne(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  id: string,
+  { force = false }: { force?: boolean } = {},
+) {
+  const { data: itemData, error: fetchError } = await supabaseAdmin
     .from(KNOWLEDGE_TABLE)
     .select(SELECT_COLUMNS)
     .eq("id", id)
@@ -124,6 +156,11 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
   if (fetchError) {
     throw new Error(`지식 항목 조회 실패: ${fetchError.message}`);
   }
+
+  // `SELECT_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+  // 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 KnowledgeItemRow
+  // 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
+  const item = itemData as unknown as KnowledgeItemRow | null;
 
   if (!item) {
     return { id, status: "not_found", reason: "지식 항목을 찾을 수 없습니다." };
@@ -216,7 +253,10 @@ async function embedOne(supabaseAdmin, id, { force = false } = {}) {
  * 다만 계속 실패하는 행은 `embedded_at`이 갱신되지 않아 매 호출마다 앞자리를
  * 차지한다. 그 행은 `embedding_error`를 보고 손으로 처리해야 한다.
  */
-async function backfill(supabaseAdmin, { limit, force }) {
+async function backfill(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  { limit, force }: { limit: number; force: boolean },
+) {
   let query = supabaseAdmin
     .from(KNOWLEDGE_TABLE)
     .select("id")
@@ -239,7 +279,7 @@ async function backfill(supabaseAdmin, { limit, force }) {
   let embedded = 0;
   let skipped = 0;
   let failed = 0;
-  const results = [];
+  const results: Array<Record<string, unknown>> = [];
 
   for (const row of rows || []) {
     try {
@@ -270,12 +310,12 @@ async function backfill(supabaseAdmin, { limit, force }) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ detail: "Method not allowed" });
   }
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
 
   try {
     supabaseAdmin = createSupabaseAdmin();
@@ -286,7 +326,7 @@ export default async function handler(req, res) {
 
   const auth = await resolveAdmin(supabaseAdmin, req);
 
-  if (!auth.ok) {
+  if (auth.ok === false) {
     return res.status(auth.status).json({ detail: auth.detail });
   }
 

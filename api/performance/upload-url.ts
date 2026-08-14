@@ -72,6 +72,7 @@
 //    되돌린다(`src/lib/performance/guideUpload.js`).
 
 import crypto from "node:crypto";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getBearerToken,
   hasPaidServiceAccess,
@@ -85,7 +86,7 @@ export const BUCKET = "performance-guides";
 
 // §8.8 「허용 형식」 — PNG / JPG·JPEG / WEBP. 버킷의 allowed_mime_types와 같은 집합이다
 // (sql/54_performance_app.sql (6)). HEIC/HEIF는 여기에 없으므로 415로 떨어진다.
-export const ALLOWED_MIME_EXT = {
+export const ALLOWED_MIME_EXT: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
@@ -115,18 +116,24 @@ export const MAX_TOTAL_BYTES = 25 * 1024 * 1024; // 25MB (세션 누적)
 //  실측까지가 여기서 확인 가능한 전부다.)
 const UPLOAD_TOKEN_TTL_SECONDS = 2 * 60 * 60;
 
-function fail(res, status, code, message, extra) {
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {

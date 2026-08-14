@@ -48,11 +48,12 @@
 //   행별로 try/catch를 감싸 실패를 격리한다. 실패 기록(`embedding_status='error'`)
 //   자체가 또 실패해도 로그만 남기고 원래 루프는 계속 돈다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isAuthorizedCron } from "../_lib/cronAuth.ts";
 import {
   embedText,
   getEmbeddingModel,
-} from "../_lib/performance/embeddings.js";
+} from "../_lib/performance/embeddings.ts";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 
 const TABLE = "performance_session_vectors";
@@ -61,25 +62,40 @@ const TABLE = "performance_session_vectors";
 const DEFAULT_BATCH = 30;
 const MAX_BATCH = 50;
 
-function fail(res, status, code, message) {
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+) {
   return res.status(status).json({ error: { code, message } });
 }
 
-function clampLimit(value) {
+function clampLimit(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_BATCH;
   return Math.min(Math.max(Math.trunc(parsed), 1), MAX_BATCH);
 }
 
-function errorMessage(error) {
-  return String(error?.message || error || "알 수 없는 임베딩 오류");
+function errorMessage(error: unknown) {
+  return String(
+    (error as { message?: string })?.message ||
+      error ||
+      "알 수 없는 임베딩 오류",
+  );
 }
+
+type SessionVectorRow = { session_id: string; search_text: string };
 
 /**
  * 실패 사유를 행에 남긴다. admin-embed.js `markEmbeddingError`와 같은 규율 —
  * 이 갱신 자체가 실패해도 원래 예외를 삼키지 않고 로그만 남긴다(루프를 막지 않는다).
  */
-async function markEmbeddingError(supabaseAdmin, sessionId, message) {
+async function markEmbeddingError(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  sessionId: string,
+  message: string,
+) {
   const { error } = await supabaseAdmin
     .from(TABLE)
     .update({
@@ -100,7 +116,10 @@ async function markEmbeddingError(supabaseAdmin, sessionId, message) {
 /**
  * pending 벡터 1건 임베딩. 실패는 던지고, 호출부가 카운트·기록을 담당한다.
  */
-async function embedOne(supabaseAdmin, row) {
+async function embedOne(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  row: SessionVectorRow,
+) {
   const model = getEmbeddingModel();
 
   try {
@@ -136,7 +155,7 @@ async function embedOne(supabaseAdmin, row) {
   }
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vercel Cron은 GET으로 호출한다. POST는 운영자가 손으로 두드릴 때를 위한 것이며
   // 인증은 동일하다(cleanup-attachments.js와 같은 규약).
   if (req.method !== "GET" && req.method !== "POST") {
@@ -167,10 +186,10 @@ export default async function handler(req, res) {
       throw new Error(`대상 조회 실패: ${error.message}`);
     }
 
-    const rows = data || [];
+    const rows: SessionVectorRow[] = data || [];
     let embedded = 0;
     let failed = 0;
-    const results = [];
+    const results: Array<Record<string, unknown>> = [];
 
     for (const row of rows) {
       try {

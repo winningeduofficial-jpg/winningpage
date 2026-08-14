@@ -96,6 +96,7 @@
 //    3회가 사라졌다. 응답의 `charged:false`는 그 사실을 계약으로 못박은 것이다.
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.ts";
 import {
   buildGuideExtractionUserPrompt,
@@ -114,7 +115,7 @@ import {
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
   MAX_TOTAL_BYTES,
-} from "./upload-url.js";
+} from "./upload-url.ts";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -134,12 +135,53 @@ const VISION_TIMEOUT_MS = 45 * 1000;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function fail(res, status, code, message, extra) {
+type SupabaseAdmin = ReturnType<typeof createSupabaseAdmin>;
+
+type SessionRow = {
+  id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  guide_json: {
+    mode?: string;
+    promptVersion?: string;
+    model?: string;
+    [key: string]: unknown;
+  } | null;
+  guide_analysis_count: number | null;
+};
+
+type AttachmentRow = {
+  id: string;
+  storage_path: string | null;
+  ocr_status: string;
+  deleted_at: string | null;
+};
+
+type MeasuredItem = {
+  id: string;
+  path: string;
+  size: number;
+  mimeType: string;
+};
+
+type ReadAttachmentIdsResult =
+  | { present: false }
+  | { present: true; ok: false; message: string }
+  | { present: true; ok: true; ids: string[] };
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
 /** STEP2 완료 반영 패치. 이미 더 앞서 있는 세션을 되돌리지 않는다(session.js와 같은 규칙). */
-function stepPatch(sessionRow) {
+function stepPatch(sessionRow: SessionRow) {
   const completed = new Set(
     Array.isArray(sessionRow.completed_steps) ? sessionRow.completed_steps : [],
   );
@@ -154,7 +196,9 @@ function stepPatch(sessionRow) {
 }
 
 /** 요청 본문에서 `attachmentIds`를 꺼내 형식 검증한다. 경로 문자열은 쳐다보지도 않는다. */
-function readAttachmentIds(body) {
+function readAttachmentIds(
+  body: Record<string, unknown>,
+): ReadAttachmentIdsResult {
   const raw = body.attachmentIds;
   if (raw === undefined || raw === null) return { present: false };
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -172,7 +216,7 @@ function readAttachmentIds(body) {
     };
   }
 
-  const ids = [];
+  const ids: string[] = [];
   for (const value of raw) {
     const id = typeof value === "string" ? value.trim() : "";
     if (!UUID_RE.test(id)) {
@@ -188,14 +232,14 @@ function readAttachmentIds(body) {
   return { present: true, ok: true, ids };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: SupabaseAdmin;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -204,7 +248,7 @@ export default async function handler(req, res) {
   }
 
   // 모델 호출이 터졌을 때 첨부를 failed로 되돌리기 위해 catch 바깥에서 들고 있는다.
-  let analyzedIds = null;
+  let analyzedIds: string[] | null = null;
 
   try {
     const token = getBearerToken(req);
@@ -249,7 +293,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (attachments.present && !attachments.ok) {
+    if (attachments.present && attachments.ok === false) {
       return fail(res, 400, "INVALID_ATTACHMENT_IDS", attachments.message, {
         field: "attachmentIds",
       });
@@ -278,7 +322,7 @@ export default async function handler(req, res) {
     // ── 세션 소유권. service_role 클라이언트라 RLS가 통째로 우회되므로 이
     //    `.eq('profile_id', userId)` 조건이 유일한 방어선이다(upload-url.js와 같은 관례).
     //    세션이 없는 경우와 남의 세션인 경우를 같은 403으로 합친다(존재 오라클 방지).
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    const { data: sessionData, error: sessionError } = await supabaseAdmin
       .from("performance_sessions")
       .select(
         "id,status,current_step,completed_steps,guide_json,guide_analysis_count",
@@ -290,7 +334,7 @@ export default async function handler(req, res) {
     if (sessionError)
       throw new Error(`세션 조회 실패: ${sessionError.message}`);
 
-    if (!sessionRow) {
+    if (!sessionData) {
       return fail(
         res,
         403,
@@ -298,6 +342,8 @@ export default async function handler(req, res) {
         "이 수행평가 세션에 접근할 수 없습니다.",
       );
     }
+
+    const sessionRow = sessionData as SessionRow;
 
     // ─────────────────────────────────────────────────────────────
     // ⓑ 직접 입력 분기 (§5.8) — 모델을 호출하지 않는다
@@ -332,6 +378,13 @@ export default async function handler(req, res) {
     // ⓐ 업로드 분기 — 단일 vision 호출
     // ─────────────────────────────────────────────────────────────
 
+    // 위 검증에서 present:true·ok:true 외 분기는 전부 return했다. TS는 이 다단계
+    // 판별 유니온을 여기까지 좁히지 못해(strict:false) `attachments.ids` 접근이
+    // 타입 오류가 되므로, 이미 검증된 사실을 캐스트로 명시한다(런타임 동작 없음).
+    const attachmentIds = (
+      attachments as { present: true; ok: true; ids: string[] }
+    ).ids;
+
     // 첨부 조회는 **세션에 묶어서** 한다. 이 `.eq('session_id', ...)`가 IDOR 차단의 핵심이다.
     // 정렬은 업로드 순서(`created_at`)로 고정한다 — 요청 배열 순서를 따르면 클라이언트가
     // 페이지 순서를 흔들 수 있고, 안내문은 장 순서가 곧 문서 순서다.
@@ -341,15 +394,15 @@ export default async function handler(req, res) {
       // 아니라 아래 `verifyStoredObjects`가 읽는 Storage 실측값이다(파일 상단).
       .select("id,storage_path,ocr_status,deleted_at")
       .eq("session_id", sessionRow.id)
-      .in("id", attachments.ids)
+      .in("id", attachmentIds)
       .order("created_at", { ascending: true });
 
     if (attachmentError)
       throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
 
-    const rows = attachmentRows || [];
+    const rows: AttachmentRow[] = attachmentRows || [];
 
-    if (rows.length !== attachments.ids.length) {
+    if (rows.length !== attachmentIds.length) {
       // "없는 id"와 "남의 세션 id"를 구분해 알려주지 않는다(존재 오라클 방지).
       return fail(
         res,
@@ -483,7 +536,7 @@ export default async function handler(req, res) {
     }
 
     // ── 다운로드. 경로는 오직 DB 행의 값이다(요청 본문에서 온 문자열이 아니다).
-    const images = [];
+    const images: { data: Buffer; mimeType: string }[] = [];
     for (const item of verified.measured) {
       const { data: blob, error: downloadError } = await supabaseAdmin.storage
         .from(BUCKET)
@@ -524,7 +577,7 @@ export default async function handler(req, res) {
 
     // ── 단일 vision 호출. maxOutputTokens는 gemini.js가 장수 비례로 잡는다.
     //    45초 마감 시한을 걸어 플랫폼이 함수를 죽이기 전에 실패 처리를 마친다.
-    let text;
+    let text: string;
     const abortController = new AbortController();
     const abortTimer = setTimeout(
       () => abortController.abort(),
@@ -634,17 +687,18 @@ export default async function handler(req, res) {
  *
  * 클라이언트가 upload-url에서 선언한 `byteSize`/`mimeType`이 아니라 Storage가 들고 있는
  * `size`/`contentType`을 돌려준다 — 선언값은 거짓말할 수 있어 믿지 않는다.
- *
- * @returns {Promise<{measured: {id:string,path:string,size:number,mimeType:string}[], missing: string[]}>}
  */
-async function verifyStoredObjects(supabaseAdmin, rows) {
-  const measured = [];
-  const missing = [];
+async function verifyStoredObjects(
+  supabaseAdmin: SupabaseAdmin,
+  rows: AttachmentRow[],
+) {
+  const measured: MeasuredItem[] = [];
+  const missing: string[] = [];
 
   for (const row of rows) {
     const { data: info, error: infoError } = await supabaseAdmin.storage
       .from(BUCKET)
-      .info(row.storage_path);
+      .info(row.storage_path as string);
 
     if (infoError || !info) {
       console.error(
@@ -658,8 +712,15 @@ async function verifyStoredObjects(supabaseAdmin, rows) {
 
     // storage-js 버전에 따라 카멜/메타데이터 어느 쪽에 실릴지 갈려서 둘 다 본다
     // (mentor-apply.js와 같은 방어).
-    const size = Number(info.size ?? info.metadata?.size ?? 0);
-    const mimeType = String(info.contentType ?? info.metadata?.mimetype ?? "")
+    const infoAny = info as unknown as {
+      size?: number;
+      contentType?: string;
+      metadata?: { size?: number; mimetype?: string };
+    };
+    const size = Number(infoAny.size ?? infoAny.metadata?.size ?? 0);
+    const mimeType = String(
+      infoAny.contentType ?? infoAny.metadata?.mimetype ?? "",
+    )
       .trim()
       .toLowerCase();
 
@@ -674,14 +735,22 @@ async function verifyStoredObjects(supabaseAdmin, rows) {
       continue;
     }
 
-    measured.push({ id: row.id, path: row.storage_path, size, mimeType });
+    measured.push({
+      id: row.id,
+      path: row.storage_path as string,
+      size,
+      mimeType,
+    });
   }
 
   return { measured, missing };
 }
 
 /** 실측 size/mime을 장부에 반영한다. 값이 그대로면 쓰지 않는다(불필요한 write 절감). */
-async function syncMeasuredMetadata(supabaseAdmin, measured) {
+async function syncMeasuredMetadata(
+  supabaseAdmin: SupabaseAdmin,
+  measured: MeasuredItem[],
+) {
   for (const item of measured) {
     const { error } = await supabaseAdmin
       .from("performance_attachments")
@@ -701,7 +770,10 @@ async function syncMeasuredMetadata(supabaseAdmin, measured) {
 }
 
 /** 세션 첨부의 `byte_size` 합. upload-url.js의 합계 판정과 같은 모집단(전 행)을 센다. */
-async function sumSessionBytes(supabaseAdmin, sessionId) {
+async function sumSessionBytes(
+  supabaseAdmin: SupabaseAdmin,
+  sessionId: string,
+) {
   const { data, error } = await supabaseAdmin
     .from("performance_attachments")
     .select("byte_size")
@@ -724,13 +796,16 @@ async function sumSessionBytes(supabaseAdmin, sessionId) {
  * 않는다(cleanup 잡이 다시 집게 둔다, `cleanup-attachments.js`와 같은 규율).
  * 이 정리가 실패해도 응답은 바꾸지 않는다 — 이미 결정된 거절이다.
  */
-async function removeObjects(supabaseAdmin, items) {
+async function removeObjects(
+  supabaseAdmin: SupabaseAdmin,
+  items: { id: string; path?: string | null }[],
+) {
   const targets = items.filter((item) => item.path);
   if (!targets.length) return;
 
   const { error } = await supabaseAdmin.storage
     .from(BUCKET)
-    .remove([...new Set(targets.map((item) => item.path))]);
+    .remove([...new Set(targets.map((item) => item.path as string))]);
 
   if (error) {
     console.error("performance/analyze-guide 위반 첨부 정리 실패:", error);
@@ -761,7 +836,10 @@ async function removeObjects(supabaseAdmin, items) {
  * `removeObjects`가 지운다(mentor-apply.js와 같은 처리). 이 갱신이 또 실패해도
  * 사용자에게 돌려줄 응답을 바꾸지 않는다(이미 결정된 실패다). 로그만 남긴다.
  */
-async function markAttachmentsFailed(supabaseAdmin, ids) {
+async function markAttachmentsFailed(
+  supabaseAdmin: SupabaseAdmin,
+  ids: string[] | null,
+) {
   if (!ids?.length) return;
 
   try {
