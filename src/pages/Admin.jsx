@@ -6807,11 +6807,17 @@ export default function Admin() {
             //   컴포넌트는 goalStudents뿐이고 나머지(coupons / premiumBookPages /
             //   mentorApplications / learningDiagnosis)는 인자를 받지 않는 함수 선언이라
             //   여분의 props를 그냥 무시한다.
+            //
+            // config={config}: PremiumBookAdmin/MentorApplicationsAdmin/GoalStudentsAdmin이
+            // 별도 파일로 분리되며 CONFIGS.<ownKey> 대신 이 prop을 읽는다(3단계) — activeKey가
+            // 곧 그 config의 키이므로 CONFIGS[activeKey]와 항상 같은 값이다. coupons/
+            // learningDiagnosis는 이 prop을 읽지 않고 그냥 무시한다.
             (() => {
               const CustomComponent =
                 CUSTOM_COMPONENT_REGISTRY[config.customComponentKey];
               return (
                 <CustomComponent
+                  config={config}
                   onNavigate={changeTab}
                   onPrefillCreate={(values) => {
                     setPendingCreateDefaults(values);
@@ -7053,9 +7059,7 @@ export default function Admin() {
 // upsert는 sort_order UNIQUE가 없어(sql/47_premium_book.sql) id 하이드레이션이 필수다 — 변환 직전이
 // 아니라 "적용" 시점에 기존 행을 조회해 sort_order→id 맵을 만들고, 그 id를 실어 PK 기준 upsert한다.
 // 중복 sort_order가 있으면 어느 id에 실어야 할지 판정 불가능하므로 그 자리에서 중단한다.
-function PremiumBookAdmin() {
-  const config = CONFIGS.premiumBookPages;
-
+function PremiumBookAdmin({ config }) {
   // ---- 개별 페이지 제네릭 목록(요구 C — 명세 §6 A ②) ----
   const [rows, setRows] = useState([]);
   const [rowsLoading, setRowsLoading] = useState(false);
@@ -7667,9 +7671,7 @@ function renderMentorApplicationDetailValue(app, field) {
   return String(value);
 }
 
-function MentorApplicationsAdmin() {
-  const config = CONFIGS.mentorApplications;
-
+function MentorApplicationsAdmin({ config }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -8181,9 +8183,7 @@ function GoalCard({ title, right, children }) {
   );
 }
 
-function GoalStudentsAdmin({ onNavigate, onPrefillCreate }) {
-  const config = CONFIGS.goalStudents;
-
+function GoalStudentsAdmin({ config, onNavigate, onPrefillCreate }) {
   // 목록 state. 상세로 갔다 와도 유지되어야 하므로(§4-3-A) 상세는 하위 컴포넌트로 빼고
   // 이 컴포넌트는 언마운트되지 않는다.
   const [rows, setRows] = useState([]);
@@ -8363,9 +8363,10 @@ function GoalStudentsAdmin({ onNavigate, onPrefillCreate }) {
     return () => {
       cancelled = true;
     };
-    // config.title 은 모듈 상수라 참조가 안정적이다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, term, filter, todayYMD]);
+    // config는 Admin()이 CONFIGS.goalStudents를 그대로 넘기는 prop이라 이 컴포넌트가
+    // 마운트돼 있는 동안(activeKey==='goalStudents') 항상 같은 객체를 가리킨다 — 의존성에
+    // 넣어도 재실행을 유발하지 않는다.
+  }, [page, term, filter, todayYMD, config.title]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const windowSize = Math.min(totalPages, 10);
