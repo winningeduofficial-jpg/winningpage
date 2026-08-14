@@ -2,6 +2,28 @@ import { useEffect, useId, useState } from "react";
 import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "../data/navigation";
 import { supabase } from "../lib/supabase";
 
+interface NavItem {
+  label: string;
+  to: string;
+  sortOrder: number;
+}
+
+interface NavGroup {
+  title: string;
+  to: string;
+  items: NavItem[];
+}
+
+interface PageContentRow {
+  menu_group: string | null;
+  menu_group_order: number | null;
+  menu_label: string | null;
+  title: string | null;
+  slug: string | null;
+  sort_order: number | null;
+  is_active: boolean | null;
+}
+
 // v4 트리(FALLBACK_NAV_GROUPS 구 버전) 캐시가 남아있지 않도록 신 트리(2016:1796) 전용 키로 교체.
 // v3: 콜멘토 링크가 /page/services-content → /services/callmentor 로 바뀌어(callmentor-spec.md)
 // 구 캐시에 남은 사용자에게도 즉시 새 경로가 보이도록 키 버전을 올린다.
@@ -21,7 +43,7 @@ import { supabase } from "../lib/supabase";
 // 걸러내지 못해 중복 노출되는 것을 막기 위해) 키를 다시 bump한다.
 const HEADER_NAV_CACHE_KEY = "winning-header-nav-groups-dynamic-v4-v4-v6-v7";
 
-export function cleanText(value) {
+export function cleanText(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -29,11 +51,11 @@ export function cleanText(value) {
 // 그대로 노출되지 않도록 상시 치환한다. DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정
 // 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
 // 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
-export function normalizeMenuLabel(label) {
+export function normalizeMenuLabel(label: unknown) {
   return cleanText(label).replaceAll("컬럼", "칼럼");
 }
 
-function safeJsonStringify(value) {
+function safeJsonStringify(value: unknown) {
   try {
     return JSON.stringify(value);
   } catch {
@@ -41,11 +63,11 @@ function safeJsonStringify(value) {
   }
 }
 
-export function isSameObject(a, b) {
+export function isSameObject(a: unknown, b: unknown) {
   return safeJsonStringify(a) === safeJsonStringify(b);
 }
 
-function resolveMenuLink(slug) {
+function resolveMenuLink(slug: unknown) {
   const value = cleanText(slug);
 
   if (!value) return "/";
@@ -61,7 +83,7 @@ function resolveMenuLink(slug) {
 // 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
 // /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
 // 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
-export const PROMOTED_SLUG_ROUTES = {
+export const PROMOTED_SLUG_ROUTES: Record<string, string> = {
   "services-goal": "/services/goal",
   "services-ai-performance": "/services/performance",
   "services-self-assessment": "/services/self-assessment",
@@ -74,13 +96,13 @@ export const PROMOTED_SLUG_ROUTES = {
 
 // 절대경로 구 라우트 → 신 라우트 매핑 (PROMOTED_SLUG_ROUTES는 `/page/<slug>` 패턴만 커버하므로,
 // DB slug가 선행 슬래시 절대경로(`/gallery`)로 저장된 경우를 별도로 대비한다).
-const PROMOTED_PATH_ROUTES = {
+const PROMOTED_PATH_ROUTES: Record<string, string> = {
   "/gallery": "/info/column",
 };
 
 // 단일 링크 문자열에 대한 승격 매핑 적용 — 헤더/푸터(그룹 트리)뿐 아니라 서비스 카드처럼
 // 단일 링크만 다루는 소비처(ServicesSection 등)도 이 함수 하나로 재사용한다.
-export function resolvePromotedSlugLink(to) {
+export function resolvePromotedSlugLink(to: string) {
   const value = cleanText(to);
   if (PROMOTED_PATH_ROUTES[value]) return PROMOTED_PATH_ROUTES[value];
 
@@ -89,7 +111,7 @@ export function resolvePromotedSlugLink(to) {
   return promoted || to;
 }
 
-function applyPromotedSlugRoutes(groups) {
+function applyPromotedSlugRoutes(groups: NavGroup[]): NavGroup[] {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => ({
@@ -102,7 +124,7 @@ function applyPromotedSlugRoutes(groups) {
   }));
 }
 
-function ensureLearningDiagnosisInService(groups) {
+function ensureLearningDiagnosisInService(groups: NavGroup[]): NavGroup[] {
   const source = Array.isArray(groups) ? groups : [];
 
   return source.map((group) => {
@@ -167,7 +189,7 @@ function ensureLearningDiagnosisInService(groups) {
 // 홈으로 튕긴다. 정식 메뉴로 DB 등록되면 이 함수와 호출부는 제거한다.
 // '수행평가' 다음, '자기평가' 앞이 확정 순서이고, '자기평가'를 못 찾으면(DB 변경 등) 그룹
 // 끝에 append해 항목 자체가 사라지지 않게 한다.
-function insertGrowthPlanningInService(groups) {
+function insertGrowthPlanningInService(groups: NavGroup[]): NavGroup[] {
   const source = Array.isArray(groups) ? groups : [];
   const growthLink = "/services/growth";
 
@@ -207,7 +229,7 @@ function insertGrowthPlanningInService(groups) {
   });
 }
 
-function readCachedNavGroups() {
+function readCachedNavGroups(): NavGroup[] | null {
   try {
     const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
     if (!raw) return null;
@@ -224,7 +246,7 @@ function readCachedNavGroups() {
   }
 }
 
-function writeCachedNavGroups(groups) {
+function writeCachedNavGroups(groups: NavGroup[]) {
   try {
     if (!Array.isArray(groups) || groups.length === 0) {
       return;
@@ -238,8 +260,11 @@ function writeCachedNavGroups(groups) {
 
 // menu_group이 비어있는 row는 skip한다 — 과거 '기타' 그룹 편입은 메뉴 제외 페이지가
 // 새어 나오는 버그 원인이라 제거했다.
-function buildNavGroups(rows) {
-  const grouped = new Map();
+function buildNavGroups(rows: PageContentRow[] | null): NavGroup[] {
+  const grouped = new Map<
+    string,
+    { title: string; groupOrder: number; to: string; items: NavItem[] }
+  >();
 
   (rows || []).forEach((item) => {
     const groupName = cleanText(item.menu_group);

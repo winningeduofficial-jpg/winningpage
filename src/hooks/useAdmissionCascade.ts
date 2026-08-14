@@ -17,7 +17,51 @@ import {
   fetchAdmissionUniversities,
 } from "../lib/diagnosisAdmissionMasterQueries";
 
-const EMPTY_RESOURCE = { data: [], loading: false, error: null };
+interface UniversityRow {
+  university_key: string;
+  university_name: string;
+}
+
+interface DepartmentRow {
+  department_key: string;
+  department_name: string;
+}
+
+interface TrackRow {
+  result_year: number;
+  main_track?: string | null;
+  admission_track?: string | null;
+  subject_reflection?: string | null;
+  grade_50?: number | null;
+  grade_70?: number | null;
+}
+
+interface Resource<T> {
+  data: T[];
+  loading: boolean;
+  error: unknown;
+}
+
+interface CascadeValue {
+  university?: string;
+  department?: string;
+  admissionType?: string;
+  detailType?: string;
+  subjectReflection?: string;
+}
+
+interface CutsData {
+  cut50: number | null;
+  cut70: number | null;
+  finalAvg: number | null;
+  year: number;
+}
+
+const EMPTY_RESOURCE: Resource<never> = {
+  data: [],
+  loading: false,
+  error: null,
+};
 
 /**
  * 학습진단 스텝5 q15(목표 대학 입결 조회) 캐스케이드가 필요로 하는 fetch 상태 전부를 소유한다
@@ -43,19 +87,27 @@ const EMPTY_RESOURCE = { data: [], loading: false, error: null };
  * cuts/cutsError state 가 둘 다 이전 값(대개 null/false)이라 '조회 미확정'이 '자료 영구 부재'로
  * 낙관 처리된다 — 호출부는 cuts/cutsError 를 직접 읽는 대신 반드시 이 함수로 확정값을 기다린다.
  */
-export function useAdmissionCascade(cascadeValue) {
+export function useAdmissionCascade(cascadeValue?: CascadeValue | null) {
   const value = cascadeValue ?? {};
-  const [universities, setUniversities] = useState(EMPTY_RESOURCE);
-  const [departments, setDepartments] = useState(EMPTY_RESOURCE);
-  const [trackRows, setTrackRows] = useState(EMPTY_RESOURCE);
-  const [cuts, setCuts] = useState(null);
+  const [universities, setUniversities] =
+    useState<Resource<UniversityRow>>(EMPTY_RESOURCE);
+  const [departments, setDepartments] =
+    useState<Resource<DepartmentRow>>(EMPTY_RESOURCE);
+  const [trackRows, setTrackRows] =
+    useState<Resource<TrackRow>>(EMPTY_RESOURCE);
+  // cuts 자체는 항상 데이터 또는 null이다 — ADMISSION_FETCH_ERROR 센티널은 cutsError로 갈라져
+  // 별도 불리언 상태로 빠지므로 여기엔 절대 담기지 않는다(applyOutcome 참고).
+  const [cuts, setCuts] = useState<CutsData | null>(null);
   const [cutsError, setCutsError] = useState(false);
   // G-1a(2026-08-12) — 제출 경합 방지. 캐스케이드가 막 완주돼 fetch 가 아직 안 끝난 채로 제출
   // 버튼을 누르면 cuts=null·cutsError=false(둘 다 초기값)로 읽혀 '조회 미확정'이 '자료 영구
   // 부재'로 낙관 처리된다(3회 중 2회 재현 — 실측). cutsOutcomeRef 는 상태와 항상 동기인 최신
   // 결과를, cutsSettleRef 는 진행 중인 조회가 끝나는 시점을 들고 있다 — awaitCuts() 가 제출
   // 직전 그 시점을 기다려 상태 대신 **확정된 값**을 직접 돌려준다(리렌더 타이밍에 기대지 않는다).
-  const cutsOutcomeRef = useRef({ cuts: null, cutsError: false });
+  const cutsOutcomeRef = useRef<{ cuts: CutsData | null; cutsError: boolean }>({
+    cuts: null,
+    cutsError: false,
+  });
   const cutsSettleRef = useRef(Promise.resolve());
 
   // 대학 목록 재조회 트리거. 대학 조회는 마운트 1회(deps=[])라, 최초 조회가 실패하면
@@ -169,7 +221,10 @@ export function useAdmissionCascade(cascadeValue) {
 
     // 상태(setCuts/setCutsError)와 ref(cutsOutcomeRef)를 항상 같은 값으로 갱신한다 — 리렌더는
     // 화면용, ref 는 awaitCuts() 가 즉시 읽는 동기 스냅샷용이다.
-    const applyOutcome = (nextCuts, nextCutsError) => {
+    const applyOutcome = (
+      nextCuts: CutsData | null,
+      nextCutsError: boolean,
+    ) => {
       cutsOutcomeRef.current = { cuts: nextCuts, cutsError: nextCutsError };
       setCuts(nextCuts);
       setCutsError(nextCutsError);
@@ -201,7 +256,9 @@ export function useAdmissionCascade(cascadeValue) {
           applyOutcome(null, true);
           return;
         }
-        applyOutcome(result, false);
+        // 위 참조 비교로 센티널 분기를 이미 걸러냈지만, TS는 객체 참조 동일성 비교로 유니온을
+        // 좁히지 못한다 — 나머지 가지는 CutsData 뿐이라는 걸 코드가 이미 보장한다.
+        applyOutcome(result as CutsData, false);
       })
       // fetchAdmissionCuts 는 예외를 값으로 정규화하지만, 그 계약이 깨져도 unhandled rejection 으로
       // 흘러 cuts 가 조용히 null 로 남는 일이 없게 마지막 관문을 둔다.

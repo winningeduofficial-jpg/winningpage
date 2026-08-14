@@ -2,12 +2,12 @@ import { useEffect, useRef } from "react";
 
 // easeOutExpo — 초반 급가속 후 길게 감속. t === 1 특수 처리를 빼면
 // 1 - 2^-10 = 0.999…로 끝나 최종값이 미세하게 어긋난다.
-const easeOutExpo = (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t));
+const easeOutExpo = (t: number) => (t === 1 ? 1 : 1 - 2 ** (-10 * t));
 
 // 정수부를 target의 자릿수만큼 0으로 패딩한다("00.0" → "95.4").
 // 렌더 문자열 길이를 처음부터 끝까지 고정해 CountUpNumber가 min-width 없이도
 // 흔들리지 않게 한다.
-const formatPadded = (value, decimals, intDigits) => {
+const formatPadded = (value: number, decimals: number, intDigits: number) => {
   const fixed = value.toFixed(decimals);
   const negative = fixed.startsWith("-");
   const raw = negative ? fixed.slice(1) : fixed;
@@ -21,15 +21,19 @@ const formatPadded = (value, decimals, intDigits) => {
  * 숫자 카운트업 훅. 반환한 ref를 텍스트 노드를 가진 엘리먼트에 붙인다.
  * 프레임마다 setState 하지 않고 el.textContent를 직접 갱신한다(리렌더 0회).
  *
- * @param {number} target 최종값
- * @param {{ duration?: number, decimals?: number }} options
- * @returns {import('react').RefObject<HTMLElement>}
+ * target: 최종값
  */
-export function useCountUp(target, { duration = 1600, decimals = 1 } = {}) {
-  const ref = useRef(null);
+export function useCountUp(
+  target: number,
+  {
+    duration = 1600,
+    decimals = 1,
+  }: { duration?: number; decimals?: number } = {},
+) {
+  const ref = useRef<HTMLElement | null>(null);
   // 마지막으로 페인트한 값. target이 바뀌어 effect가 재실행될 때 0이 아니라
   // 이 값에서 새 target까지 이어서 보간하기 위해 cleanup을 넘어 살아남아야 한다.
-  const lastValueRef = useRef(null);
+  const lastValueRef = useRef<number | null>(null);
   // IO가 최초로 교차를 통지해 애니메이션을 한 번이라도 시작했는지.
   // false면 아직 관찰 대기 중(0에서 시작), true면 target 변경으로 인한
   // 재실행(마지막 페인트 값에서 이어서 시작)임을 구분한다.

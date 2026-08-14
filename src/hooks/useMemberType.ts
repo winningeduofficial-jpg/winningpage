@@ -31,9 +31,9 @@ const PROFILE_COLUMNS = "id, name, email, username, member_type, role";
  */
 export function useMemberType() {
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState(null);
-  const [memberType, setMemberType] = useState(null);
-  const [error, setError] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [memberType, setMemberType] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   const refetch = useCallback(() => setReloadKey((k) => k + 1), []);

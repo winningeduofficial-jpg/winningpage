@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 // 모달 동작 로직(ESC 닫기, Tab focus trap, 배경 스크롤 잠금, 포커스 이동/복귀) 공용 훅.
 //
@@ -18,14 +18,17 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/**
- * @param {object} params
- * @param {boolean} params.open
- * @param {() => void} params.onClose
- * @param {import('react').RefObject<HTMLElement>} params.panelRef 모달 패널 루트 ref.
- */
-export function useModalBehavior({ open, onClose, panelRef }) {
-  const triggerElRef = useRef(null);
+// panelRef: 모달 패널(다이얼로그) 루트 ref.
+export function useModalBehavior({
+  open,
+  onClose,
+  panelRef,
+}: {
+  open: boolean;
+  onClose: () => void;
+  panelRef: RefObject<HTMLElement | null>;
+}) {
+  const triggerElRef = useRef<Element | null>(null);
 
   // 배경 스크롤 잠금 + 포커스 복귀. 포커스 복귀를 별도 effect의 `open: true → false` 전이에만
   // 의존하면, 모달이 열린 채로 컴포넌트가 언마운트되는 경우(예: 라우트 전환으로 모달을 감싼
@@ -62,7 +65,7 @@ export function useModalBehavior({ open, onClose, panelRef }) {
     const raf = requestAnimationFrame(() => {
       const panel = panelRef.current;
       if (!panel) return;
-      const first = panel.querySelector(FOCUSABLE_SELECTOR);
+      const first = panel.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
       first?.focus();
     });
     return () => cancelAnimationFrame(raf);
@@ -82,7 +85,9 @@ export function useModalBehavior({ open, onClose, panelRef }) {
 
       const panel = panelRef.current;
       if (!panel) return;
-      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR));
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
       if (focusables.length === 0) return;
 
       const first = focusables[0];

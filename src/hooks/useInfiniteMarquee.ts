@@ -57,11 +57,17 @@ const MIN_REPEAT_COUNT = 3; // 최소 반복 카피 수 (기존 Home.jsx 3배 �
 export function useInfiniteMarquee({
   itemCount = 0,
   speed = DEFAULT_SPEED,
+}: {
+  itemCount?: number;
+  speed?: number;
 } = {}) {
-  const scrollRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const touchResumeTimerRef = useRef(null);
-  const detachWindowReleaseRef = useRef(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const animationFrameRef = useRef<number>(0);
+  // window.setTimeout()의 실제 반환값(number)을 기준으로 타입을 잡는다 — 이 프로젝트는
+  // @types/node가 함께 실려 있어 `typeof setTimeout`류 타입 추출은 Node의 Timeout으로
+  // 잡히지만, 브라우저 런타임에서 실제 호출/반환값은 number다.
+  const touchResumeTimerRef = useRef<number | undefined>(undefined);
+  const detachWindowReleaseRef = useRef<(() => void) | null>(null);
   const dragLastXRef = useRef(0);
   const hoveringRef = useRef(false);
   const draggingRef = useRef(false);
@@ -338,18 +344,18 @@ export function useInfiniteMarquee({
  * 통과해 반복 아이템을 직접 담는 요소를 찾는다.
  */
 function measureCycleWidth(
-  container,
-  itemCount,
+  container: HTMLElement | null,
+  itemCount: number,
   repeatCount = MIN_REPEAT_COUNT,
 ) {
   if (!container) return 0;
 
-  let track = container;
+  let track: Element = container;
   while (track && track.children.length === 1) {
     track = track.children[0];
   }
 
-  const items = track?.children;
+  const items = track?.children as HTMLCollectionOf<HTMLElement> | undefined;
   if (itemCount > 0 && items && items.length > itemCount) {
     const cycleWidth = items[itemCount].offsetLeft - items[0].offsetLeft;
     if (cycleWidth > 0) return cycleWidth;
@@ -360,8 +366,8 @@ function measureCycleWidth(
 }
 
 function normalizeScrollPosition(
-  container,
-  itemCount,
+  container: HTMLElement | null,
+  itemCount: number,
   repeatCount = MIN_REPEAT_COUNT,
 ) {
   if (!container) return;
