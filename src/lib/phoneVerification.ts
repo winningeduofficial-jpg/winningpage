@@ -72,7 +72,9 @@ export async function sendPhoneCode(
     return {
       ok: false,
       reason: "invalid_phone",
-      message: MESSAGES.invalid_phone,
+      // MESSAGES는 Record<string,string>이라 인덱스 시그니처상 undefined 가능 취급되지만
+      // invalid_phone 키는 항상 정의돼 있다.
+      message: MESSAGES.invalid_phone!,
     };
   }
 
@@ -82,7 +84,8 @@ export async function sendPhoneCode(
   });
 
   if (!response)
-    return { ok: false, reason: "network", message: MESSAGES.network };
+    // network 키는 항상 정의돼 있다.
+    return { ok: false, reason: "network", message: MESSAGES.network! };
 
   if (!response.ok || !payload?.ok) {
     const reason = payload?.reason || "unknown";
@@ -118,7 +121,8 @@ export async function verifyPhoneCode(
   });
 
   if (!response)
-    return { ok: false, reason: "network", message: MESSAGES.network };
+    // network 키는 항상 정의돼 있다.
+    return { ok: false, reason: "network", message: MESSAGES.network! };
 
   if (!response.ok || !payload?.ok) {
     const reason = payload?.reason || "unknown";
