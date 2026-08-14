@@ -163,6 +163,7 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4). 이 파일의 유일한 파싱은
 //   `JSON.parse` 한 줄이고, 형식 강제는 `responseSchema`가 한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -292,11 +293,72 @@ const SESSION_COLUMNS = [
 const REPORT_COLUMNS =
   "id,topic_id,sections,model,prompt_version,created_at,updated_at";
 
-function fail(res, status, code, message, extra) {
+/** 세션 SELECT 컬럼(SESSION_COLUMNS)과 정확히 대응하는 최소 필드 형태. */
+type SessionRow = {
+  id: string;
+  profile_id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  grade_label: string | null;
+  semester: string | null;
+  school_type: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  previous_topic: string | null;
+  guide_input_mode: string | null;
+  guide_freetext: string | null;
+  guide_json: unknown;
+  selected_topic_id: string | null;
+  design_generation_count: number | null;
+  design_attempt_count: number | null;
+};
+
+/** performance_reports SELECT 컬럼(REPORT_COLUMNS)과 대응하는 최소 필드 형태. */
+type ReportRow = {
+  id: string;
+  topic_id: string | null;
+  sections: unknown;
+  model: string | null;
+  prompt_version: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+/** 위닝DB 후보 자료 행 — 이 파일이 실제로 읽는 필드만. */
+type KnowledgeRow = Record<string, unknown> & {
+  id?: string;
+  title?: string;
+  source?: string;
+  source_link?: string;
+};
+
+/** `kvRow`/`keyValueBlock`이 다루는 행 계약(§8.5). */
+type KeyValueRow = { label: string; content: string; href?: string };
+
+/** `resolveChosenResources`가 만드는 자료 카드(§8.5 자료 카드 필드 표). */
+type ResourceCard = {
+  id: unknown;
+  title: string;
+  source: string;
+  link: string;
+  coreConcepts: string;
+  usePoint: string;
+  caution: string;
+};
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-const trimmed = (value) => String(value ?? "").trim();
+const trimmed = (value: unknown): string => String(value ?? "").trim();
 
 /**
  * 잔여 회차 **읽기 전용** 스냅샷. 이 엔드포인트는 차감 RPC를 부르지 않으므로
@@ -304,7 +366,10 @@ const trimmed = (value) => String(value ?? "").trim();
  * 조회가 실패해도 리포트 응답을 죽이지 않는다 — null이면 §5.20 배너가 "정보 없음"으로
  * 떨어질 뿐이다.
  */
-async function readQuota(supabaseAdmin, userId) {
+async function readQuota(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
+) {
   try {
     return await readQuotaSnapshot(
       supabaseAdmin,
@@ -329,8 +394,12 @@ async function readQuota(supabaseAdmin, userId) {
  * 문자열 조립 규칙만 갖고 데이터 모양을 모른다). `performance_topics.detail`은
  * `[{id,label,text} × 6]` 고정 배열이라(sql/54 1-4) 라벨을 그대로 살려 옮긴다.
  */
-function flattenTopicDetail(detail) {
-  return (Array.isArray(detail) ? detail : [])
+function flattenTopicDetail(detail: unknown): string {
+  const list = (Array.isArray(detail) ? detail : []) as {
+    label?: unknown;
+    text?: unknown;
+  }[];
+  return list
     .map((section) => {
       const label = trimmed(section?.label);
       const text = trimmed(section?.text);
@@ -352,12 +421,12 @@ function flattenTopicDetail(detail) {
  * (`find-resources.js:127`), 접지 않으면 같은 책이 `자료 1`과 `자료 2`로 두 번 나온다.
  * 유사도 내림차순이라 **먼저 온 행(더 유사한 행)을 남긴다.**
  */
-function buildResourceCandidates(rows) {
-  const byHandle = new Map();
-  const seenTitle = new Set();
-  const allowed = [];
+function buildResourceCandidates(rows: unknown) {
+  const byHandle = new Map<string, KnowledgeRow>();
+  const seenTitle = new Set<string>();
+  const allowed: { id: string; title: string }[] = [];
 
-  for (const row of Array.isArray(rows) ? rows : []) {
+  for (const row of (Array.isArray(rows) ? rows : []) as KnowledgeRow[]) {
     const title = trimmed(row?.title);
     if (!title || seenTitle.has(title)) continue;
 
@@ -381,12 +450,20 @@ function buildResourceCandidates(rows) {
  * 후보에 없는 id는 **버리고 경고를 남긴다**(조용히 버리지 않는다). 이 경로가 실제로
  * 밟히면 프롬프트의 `[사용 허용 자료명 목록]` 지시가 먹지 않았다는 신호라 관측할 값이 있다.
  */
-function resolveChosenResources(chosen, candidates) {
-  const resources = [];
-  const rejected = [];
-  const usedHandles = new Set();
+function resolveChosenResources(
+  chosen: unknown,
+  candidates: ReturnType<typeof buildResourceCandidates>,
+) {
+  const resources: ResourceCard[] = [];
+  const rejected: string[] = [];
+  const usedHandles = new Set<string>();
 
-  for (const item of Array.isArray(chosen) ? chosen : []) {
+  const items = (Array.isArray(chosen) ? chosen : []) as {
+    resource_id?: unknown;
+    use_point?: unknown;
+  }[];
+
+  for (const item of items) {
     if (resources.length >= 3) break;
 
     // 대소문자·공백 흔들림만 흡수한다. 그 이상 "비슷한 id 찾아주기"는 하지 않는다 —
@@ -445,19 +522,19 @@ function resolveChosenResources(chosen, candidates) {
 // 모델 온도에 흔들리지 않는다.
 
 /** `KeyValueView`가 읽는 행 계약: `rows[].{label, content}` (+ 확장 `href`, §8.5). */
-function kvRow(label, content, href) {
-  const row = { label, content: trimmed(content) };
+function kvRow(label: string, content: unknown, href?: string): KeyValueRow {
+  const row: KeyValueRow = { label, content: trimmed(content) };
   // `href`는 §8.5가 「블록 뷰 확장」으로 지정한 필드다. **실제 URL일 때만** 붙인다 —
   // `출처 링크 확인 필요` 같은 폴백 문구에 링크를 걸면 클릭이 깨진 앵커가 된다.
   if (href) row.href = href;
   return row;
 }
 
-function keyValueBlock(rows) {
+function keyValueBlock(rows: KeyValueRow[]) {
   return { kind: "keyValue", rows: rows.filter((row) => row.content) };
 }
 
-function bulletList(items) {
+function bulletList(items: string[]) {
   return {
     kind: "plainList",
     items: items.map((text) => ({ type: "bullet", text })),
@@ -468,7 +545,7 @@ function bulletList(items) {
  * 번호 목록. `PlainListView`의 `ordered` 확장(§8.5 「`ordered` 분기 + `<ol>`」)을 타고
  * `<ol>`로 렌더된다 — 번호는 브라우저가 붙인다.
  */
-function orderedList(items) {
+function orderedList(items: string[]) {
   return {
     kind: "plainList",
     ordered: true,
@@ -477,7 +554,10 @@ function orderedList(items) {
 }
 
 /** 라벨 정의(`[{key,label}]`) + 모델 객체 → keyValue 블록. */
-function rowsFromLabels(labels, source) {
+function rowsFromLabels(
+  labels: { key: string; label: string }[],
+  source: Record<string, unknown> | undefined,
+) {
   return keyValueBlock(
     labels.map((row) => kvRow(row.label, source?.[row.key])),
   );
@@ -493,14 +573,14 @@ function rowsFromLabels(labels, source) {
  * 앞쪽으로 갈아탄 이유다. 여기서는 **모델이 습관적으로 붙여 오는 접두 번호를 걷어내기만**
  * 한다(이중 번호 방지). 이것은 출력 파싱이 아니라 라벨 정규화다.
  */
-function numberedItems(items) {
+function numberedItems(items: unknown): string[] {
   return (Array.isArray(items) ? items : [])
     .map((item) => trimmed(item).replace(/^\d+\s*[.)]\s*/, ""))
     .filter(Boolean);
 }
 
 /** `체크 1:` ~ `체크 5:` — 원문 뼈대(`find-resources.js:486-490`)의 라벨을 서버가 붙인다. */
-function checklistItems(items) {
+function checklistItems(items: unknown): string[] {
   return (Array.isArray(items) ? items : [])
     .map((item) => trimmed(item).replace(/^체크\s*\d+\s*[:：]\s*/, ""))
     .filter(Boolean)
@@ -508,7 +588,7 @@ function checklistItems(items) {
 }
 
 /** §5.13 섹션 2 — 자료가 있으면 카드 group, 없으면 원문 폴백 3행. */
-function buildResourceBlocks(resources) {
+function buildResourceBlocks(resources: ResourceCard[]) {
   if (!resources.length) {
     // 원문 `find-resources.js:154-157`. `주의할 점` 행은 §12.1이 「서비스 신뢰 문구」로
     // 지목한 문장이라 그대로 쓴다.
@@ -558,8 +638,13 @@ function buildResourceBlocks(resources) {
  * 억지로 쓰지 않는다」고 못박으므로, 카드뉴스·발표 리포트에 `결론 구성 방향`을 서버가
  * 밀어 넣으면 그 지시를 우리가 깨는 셈이 된다.
  */
-function buildWritingStructureBlocks(steps, branchKey) {
-  const blocks = (Array.isArray(steps) ? steps : [])
+function buildWritingStructureBlocks(steps: unknown, branchKey: string) {
+  const stepList = (Array.isArray(steps) ? steps : []) as {
+    title?: unknown;
+    rows?: { label?: unknown; content?: unknown }[];
+  }[];
+
+  const blocks = stepList
     .map((step) => {
       const title = trimmed(step?.title);
       const rows = (Array.isArray(step?.rows) ? step.rows : [])
@@ -569,7 +654,7 @@ function buildWritingStructureBlocks(steps, branchKey) {
       if (!title || !rows.length) return null;
       return { kind: "group", title, children: [{ kind: "keyValue", rows }] };
     })
-    .filter(Boolean);
+    .filter((block): block is NonNullable<typeof block> => Boolean(block));
 
   const hasConclusion = blocks.some((block) =>
     CONCLUSION_STEP_RE.test(block.title),
@@ -597,25 +682,36 @@ function buildWritingStructureBlocks(steps, branchKey) {
  * 순서는 `DESIGN_REPORT_SECTIONS`(시안 `3754:4722` 배치 순서)가 정하며 모델 출력
  * 순서와 무관하다.
  */
-function buildSections({ payload, resources, branchKey }) {
-  const blocksBySection = {
+function buildSections({
+  payload,
+  resources,
+  branchKey,
+}: {
+  payload: Record<string, unknown>;
+  resources: ResourceCard[];
+  branchKey: string;
+}) {
+  const blocksBySection: Record<string, Record<string, unknown>[]> = {
     final_topic: [
       rowsFromLabels(
         DESIGN_SECTION_ROW_LABELS.final_topic,
-        payload.final_topic,
+        payload.final_topic as Record<string, unknown> | undefined,
       ),
     ],
     recommended_resources: buildResourceBlocks(resources),
     required_format: [
       rowsFromLabels(
         DESIGN_SECTION_ROW_LABELS.required_format,
-        payload.required_format,
+        payload.required_format as Record<string, unknown> | undefined,
       ),
     ],
     overall_direction: (() => {
-      const direction = payload.overall_direction || {};
+      const direction = (payload.overall_direction || {}) as Record<
+        string,
+        unknown
+      >;
       const labels = DESIGN_SECTION_ROW_LABELS.overall_direction;
-      const labelOf = (key) =>
+      const labelOf = (key: string) =>
         labels.find((row) => row.key === key)?.label || key;
       const points = numberedItems(direction.analysis_points);
 
@@ -655,7 +751,7 @@ function buildSections({ payload, resources, branchKey }) {
       ];
     })(),
     writing_structure: buildWritingStructureBlocks(
-      payload.writing_structure?.steps,
+      (payload.writing_structure as { steps?: unknown } | undefined)?.steps,
       branchKey,
     ),
     checklist: (() => {
@@ -668,7 +764,11 @@ function buildSections({ payload, resources, branchKey }) {
     id: section.id,
     label: section.label,
     blocks: (blocksBySection[section.id] || []).filter(
-      (block) => !(block.kind === "keyValue" && !block.rows.length),
+      (block) =>
+        !(
+          block.kind === "keyValue" &&
+          !(block.rows as unknown[] | undefined)?.length
+        ),
     ),
   })).filter((section) => section.blocks.length);
 }
@@ -687,19 +787,24 @@ function buildSections({ payload, resources, branchKey }) {
  *
  * @returns {{ok: true} | {ok: false, reason: string}}
  */
-function validateDesignPayload(payload) {
+function validateDesignPayload(
+  payload: unknown,
+): { ok: true } | { ok: false; reason: string } {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { ok: false, reason: "not-an-object" };
   }
 
+  const record = payload as Record<string, unknown>;
+
   for (const [sectionId, labels] of Object.entries(DESIGN_SECTION_ROW_LABELS)) {
-    const source = payload[sectionId];
+    const source = record[sectionId];
     if (!source || typeof source !== "object") {
       return { ok: false, reason: `${sectionId}:missing` };
     }
+    const sourceRecord = source as Record<string, unknown>;
 
     for (const row of labels) {
-      const value = source[row.key];
+      const value = sourceRecord[row.key];
       // `analysis_points`만 배열이다(§5.13 번호 목록).
       if (Array.isArray(value)) {
         if (!value.some((item) => trimmed(item))) {
@@ -712,14 +817,17 @@ function validateDesignPayload(payload) {
     }
   }
 
-  const steps = payload.writing_structure?.steps;
+  const steps = (record.writing_structure as { steps?: unknown } | undefined)
+    ?.steps as { title?: unknown; rows?: unknown }[] | undefined;
   if (!Array.isArray(steps) || !steps.length) {
     return { ok: false, reason: "writing_structure.steps:empty" };
   }
   for (let i = 0; i < steps.length; i++) {
     if (!trimmed(steps[i]?.title))
       return { ok: false, reason: `writing_structure.steps[${i}].title:empty` };
-    const rows = steps[i]?.rows;
+    const rows = steps[i]?.rows as
+      | { label?: unknown; content?: unknown }[]
+      | undefined;
     if (
       !Array.isArray(rows) ||
       !rows.some((row) => trimmed(row?.label) && trimmed(row?.content))
@@ -728,7 +836,7 @@ function validateDesignPayload(payload) {
     }
   }
 
-  const checklist = payload.checklist;
+  const checklist = record.checklist;
   if (
     !Array.isArray(checklist) ||
     checklist.filter((item) => trimmed(item)).length < 5
@@ -751,16 +859,25 @@ function validateDesignPayload(payload) {
  *   · `resources` — 서버가 DB 행으로 채운 자료 카드. 위닝DB 행이 나중에 수정·삭제돼도
  *     학생이 본 리포트는 그대로여야 한다(리포트는 스냅샷이다).
  */
-function buildReportEnvelope({ structure, sections, resources }) {
+function buildReportEnvelope({
+  structure,
+  sections,
+  resources,
+}: {
+  structure: unknown;
+  sections: unknown;
+  resources: unknown;
+}) {
   return { v: 1, type: "design", structure, sections, resources };
 }
 
 /** 저장 봉투 → 응답 본문 공통부. 재생 경로와 신규 생성 경로가 같은 모양을 쓴다. */
-function toClientReport(reportRow) {
-  const envelope =
+function toClientReport(reportRow: ReportRow | null | undefined) {
+  const envelope = (
     reportRow?.sections && typeof reportRow.sections === "object"
       ? reportRow.sections
-      : {};
+      : {}
+  ) as Record<string, unknown>;
 
   return {
     reportId: reportRow?.id ?? null,
@@ -775,14 +892,14 @@ function toClientReport(reportRow) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -849,7 +966,7 @@ export default async function handler(req, res) {
 
     // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶어 id 존재 여부가 새지
     //    않게 한다(P8·RPC 단계 1과 같은 취지).
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    const { data: sessionRowRaw, error: sessionError } = await supabaseAdmin
       .from("performance_sessions")
       .select(SESSION_COLUMNS)
       .eq("id", sessionId)
@@ -858,11 +975,15 @@ export default async function handler(req, res) {
 
     if (sessionError)
       throw new Error(`세션 조회 실패: ${sessionError.message}`);
-    if (!sessionRow) {
+    if (!sessionRowRaw) {
       return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
         charged: false,
       });
     }
+
+    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+    // 추론을 못 하고 `GenericStringError`로 떨어진다(recommend-topics.ts와 같은 사유).
+    const sessionRow = sessionRowRaw as unknown as SessionRow;
 
     // ── 주제 소유권(§8.6 `404 TOPIC_NOT_IN_SESSION`). **세션 id로 묶어서** 조회하므로
     //    남의 세션 주제 id를 넣으면 애초에 행이 나오지 않는다.
@@ -1102,7 +1223,9 @@ export default async function handler(req, res) {
     // ── 학생 과거 수행 RAG. threshold가 주제 추천(0.48)과 다른 **0.46**인 것이 원문이다
     //    (§8.7 표 「학생 과거 수행 … 설계리포트 0.46」). 검색 실패는 빈 배열로 흡수되지만
     //    `profileId` 누락은 프로그래밍 오류로 던지므로 여기서만 감싼다.
-    let studentSessions = [];
+    let studentSessions: Awaited<
+      ReturnType<typeof loadRelevantStudentSessions>
+    > = [];
     try {
       studentSessions = await loadRelevantStudentSessions({
         supabase: supabaseAdmin,
@@ -1162,14 +1285,14 @@ export default async function handler(req, res) {
       MODEL_TIMEOUT_MS,
     );
 
-    let payload = null;
+    let payload: Record<string, unknown> | null = null;
     let lastFailure = "unknown";
 
     try {
       for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
         const isRetry = attempt > 0;
 
-        let response;
+        let response: Awaited<ReturnType<typeof generateWithRetry>>;
         try {
           response = await generateWithRetry({
             model: PERFORMANCE_MODEL,
@@ -1234,7 +1357,7 @@ export default async function handler(req, res) {
           continue;
         }
 
-        let parsed;
+        let parsed: unknown;
         try {
           // 유일한 파싱이다. `responseMimeType:'application/json'`이 형식을 보장하므로
           // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
@@ -1252,14 +1375,18 @@ export default async function handler(req, res) {
 
         const check = validateDesignPayload(parsed);
         if (!check.ok) {
-          lastFailure = `contract:${check.reason}`;
+          // tsconfig strict:false(strictNullChecks 꺼짐)에서 이 boolean 판별
+          // 유니온이 `!check.ok`만으로 좁혀지지 않는다(recommend-topics.ts와 같은
+          // 격리 재현 결과) — 그래서 여기서만 명시적으로 좁힌다.
+          const { reason } = check as { ok: false; reason: string };
+          lastFailure = `contract:${reason}`;
           console.warn(
-            `performance/design-report 계약 위반 ${check.reason} (attempt ${attempt + 1})`,
+            `performance/design-report 계약 위반 ${reason} (attempt ${attempt + 1})`,
           );
           continue;
         }
 
-        payload = parsed;
+        payload = parsed as Record<string, unknown>;
         break;
       }
     } finally {
