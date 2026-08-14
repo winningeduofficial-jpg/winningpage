@@ -35,11 +35,16 @@ import * as XLSX from "xlsx";
 
 import { clean } from "./admissionParsing.js";
 
+type CutType = "normal" | "special" | "jungsi";
+
 // sql/55_goal_management.sql 의 goal_university_cuts_avg_cut_check 를
 // 클라이언트에 미러한 것이다. Admin.jsx 의 config.validate 와 이 lib 의
 // 엑셀 파서가 같은 상수를 봐야 두 입력 경로의 판정이 갈라지지 않는다 —
 // 그래서 Admin.jsx 에 따로 선언하지 않고 여기서 export 해 쓴다.
-export const GOAL_CUT_RANGE = {
+export const GOAL_CUT_RANGE: Record<
+  CutType,
+  { min: number; max: number; unit: string; label: string }
+> = {
   normal: {
     min: 1,
     max: 9,
@@ -63,7 +68,7 @@ export const GOAL_CUT_RANGE = {
 // DB 컬럼 ↔ 엑셀 헤더. university_key / department_key 는 컬럼으로 두지
 // 않는다 — 어드민은 항상 표시명과 동일하게 강제하고(명세 §3-D5) 파서가
 // name 에서 복사한다. created_at / updated_at 은 DB 가 관리한다.
-export const GOAL_CUTS_XLSX_COLUMNS = [
+export const GOAL_CUTS_XLSX_COLUMNS: { key: string; header: string }[] = [
   { key: "id", header: "id" },
   { key: "cut_type", header: "컷 종류" },
   { key: "university_name", header: "대학명" },
@@ -82,22 +87,22 @@ export const GOAL_CUTS_XLSX_SHEET_NAME = "목표관리 대학 컷";
 
 // 엑셀 셀의 한글 라벨 ↔ DB 값. 폼(GOAL_CUT_TYPE_OPTIONS)의 라벨과 일부러
 // 다르게 짧게 뒀다 — 엑셀에서는 셀 폭이 좁고 관리자가 직접 타이핑한다.
-export const CUT_TYPE_LABEL_BY_VALUE = {
+export const CUT_TYPE_LABEL_BY_VALUE: Record<CutType, string> = {
   normal: "수시 일반",
   special: "수시 특목",
   jungsi: "정시",
 };
-export const CUT_TYPE_VALUE_BY_LABEL = {
+export const CUT_TYPE_VALUE_BY_LABEL: Record<string, CutType> = {
   "수시 일반": "normal",
   "수시 특목": "special",
   정시: "jungsi",
 };
 
-export const SOURCE_LABEL_BY_VALUE = {
+export const SOURCE_LABEL_BY_VALUE: Record<string, string> = {
   admission_results: "입결정보 유도",
   manual: "수기 입력",
 };
-export const SOURCE_VALUE_BY_LABEL = {
+export const SOURCE_VALUE_BY_LABEL: Record<string, string> = {
   "입결정보 유도": "admission_results",
   "수기 입력": "manual",
 };
@@ -114,14 +119,21 @@ export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
-function serializeExportCell(rawValue) {
+function serializeExportCell(rawValue: unknown): string | number | boolean {
   if (rawValue === null || rawValue === undefined) return "";
   if (typeof rawValue === "boolean" || typeof rawValue === "number")
     return rawValue;
   return String(rawValue);
 }
 
-function truncateIfNeeded(value, location, truncatedCells) {
+type TruncationLocation = { id: unknown; rowIndex: number; column: string };
+type TruncatedCell = TruncationLocation & { originalLength: number };
+
+function truncateIfNeeded(
+  value: string | number | boolean,
+  location: TruncationLocation,
+  truncatedCells: TruncatedCell[],
+): string | number | boolean {
   if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
     return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
@@ -133,7 +145,7 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // Excel/Sheets 가 '='/'+'/'-'/'@' 선두 텍스트를 수식으로 재해석하지
 // 못하게 한다. 숫자/불리언은 serializeExportCell 이 원시 타입으로
 // 넘기므로 이 함수가 손대지 않는다(컷 값이 문자열로 오인되지 않는다).
-function forceStringCellTypes(worksheet) {
+function forceStringCellTypes(worksheet: XLSX.WorkSheet): XLSX.WorkSheet {
   Object.keys(worksheet).forEach((address) => {
     if (address.startsWith("!")) return;
     const cell = worksheet[address];
@@ -149,12 +161,12 @@ function forceStringCellTypes(worksheet) {
 // 빈 문자열 취급한다 — 숫자 0 은 falsy 라 clean(0) 이 '' 이 돼 "빈 셀"로
 // 오판된다. avg_cut 은 jungsi 스케일에서 0 이 합법(백분위 0)이므로 숫자
 // 컬럼은 반드시 이 헬퍼를 쓴다.
-function numericCellText(value) {
+function numericCellText(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
-function parseBooleanCell(value, fallback = true) {
+function parseBooleanCell(value: unknown, fallback = true): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
@@ -163,29 +175,33 @@ function parseBooleanCell(value, fallback = true) {
   return fallback;
 }
 
-function buildTypeCounts(items) {
-  return items.reduce((acc, item) => {
-    const key = item.type || "unknown";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
+function buildTypeCounts(items: { type?: string }[]): Record<string, number> {
+  return items.reduce(
+    (acc: Record<string, number>, item) => {
+      const key = item.type || "unknown";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 }
 
 /**
  * DB 행 배열 → xlsx workbook. id 컬럼을 포함한다(업로드 시 insert/update
  * 분기의 유일한 근거). id 가 없는 행(정시 템플릿)은 빈 셀로 나가고,
  * 업로드하면 신규 등록으로 처리된다.
- *
- * @param {Array<Record<string, unknown>>} rows
- * @returns {{ workbook: import('xlsx').WorkBook, truncatedCells: Array<{ id: unknown, rowIndex: number, column: string, originalLength: number }> }}
  */
-export function exportGoalUniversityCutRowsToXlsx(rows) {
-  const truncatedCells = [];
+export function exportGoalUniversityCutRowsToXlsx(
+  rows: Record<string, unknown>[],
+): { workbook: XLSX.WorkBook; truncatedCells: TruncatedCell[] } {
+  const truncatedCells: TruncatedCell[] = [];
   const dataRows = (rows || []).map((row, rowIndex) =>
     GOAL_CUTS_XLSX_COLUMNS.map((column) => {
-      let raw = row?.[column.key];
-      if (column.key === "cut_type") raw = CUT_TYPE_LABEL_BY_VALUE[raw] ?? raw;
-      else if (column.key === "source") raw = SOURCE_LABEL_BY_VALUE[raw] ?? raw;
+      let raw: unknown = row?.[column.key];
+      if (column.key === "cut_type")
+        raw = CUT_TYPE_LABEL_BY_VALUE[raw as CutType] ?? raw;
+      else if (column.key === "source")
+        raw = SOURCE_LABEL_BY_VALUE[raw as string] ?? raw;
       else if (column.key === "is_active") raw = raw === false ? "N" : "Y";
       const serialized = serializeExportCell(raw);
       return truncateIfNeeded(
@@ -205,58 +221,119 @@ export function exportGoalUniversityCutRowsToXlsx(rows) {
   return { workbook, truncatedCells };
 }
 
-function naturalKeyOf(cutType, universityName, departmentName) {
+function naturalKeyOf(
+  cutType: string,
+  universityName: string,
+  departmentName: string,
+): string {
   return [cutType, universityName, departmentName].join("::");
 }
+
+type ErrorType =
+  | "sheetNotFound"
+  | "truncatedColumn"
+  | "missingRequiredFields"
+  | "invalidCutType"
+  | "invalidNumber"
+  | "cutScaleOutOfRange"
+  | "cutTypeChanged"
+  | "invalidSourceYear"
+  | "invalidId"
+  | "idNotFound"
+  | "duplicateNaturalKey";
+
+// 원본 JSDoc에는 없었지만 실제 코드가 만드는 경고 종류다("unknownSource",
+// 아래 (9) 이후 출처 셀 분기) — 코드가 정본이라 JSDoc이 놓친 값도 여기
+// 포함한다.
+type WarningType =
+  | "jungsiLooksLikeGrade"
+  | "naesinCutTooHigh"
+  | "cutMissing"
+  | "inactiveRow"
+  | "unknownSource";
+
+type RowContext = {
+  rowIndex: number;
+  cutType: unknown;
+  universityName: unknown;
+  departmentName: unknown;
+  column?: string;
+};
+
+type ErrorEntry = {
+  row: number;
+  cutType: unknown;
+  universityName: unknown;
+  departmentName: unknown;
+  column?: string;
+  type: ErrorType;
+  reason: string;
+};
+
+type WarningEntry = {
+  row: number;
+  cutType: unknown;
+  universityName: unknown;
+  departmentName: unknown;
+  column?: string;
+  type: WarningType;
+  reason: string;
+};
+
+type CutPayload = {
+  cut_type: CutType;
+  university_key: string;
+  university_name: string;
+  department_key: string;
+  department_name: string;
+  avg_cut: number | null;
+  source: string;
+  source_year: number | null;
+  is_active: boolean;
+  note: string | null;
+  id?: number;
+};
 
 /**
  * xlsx workbook → payload 행 배열 + errors/warnings + 미리보기용 summary.
  *
- * @param {import('xlsx').WorkBook} workbook
- * @param {Map<number, string>} existingCutTypeById DB 에 실제로 존재하는
- *   id → 그 행의 현재 cut_type. id 가 비어 있으면 신규(insert), id 가
- *   있고 이 Map 에 있으면 수정(update), id 가 있는데 없으면 거부한다.
- *   같은 Map 이 cutTypeChanged 판정에도 쓰인다 — 두 검사가 같은 조회
- *   결과를 보므로 호출부가 select('id, cut_type') 한 번만 하면 된다.
+ * @param existingCutTypeById DB 에 실제로 존재하는 id → 그 행의 현재
+ *   cut_type. id 가 비어 있으면 신규(insert), id 가 있고 이 Map 에 있으면
+ *   수정(update), id 가 있는데 없으면 거부한다. 같은 Map 이 cutTypeChanged
+ *   판정에도 쓰인다 — 두 검사가 같은 조회 결과를 보므로 호출부가
+ *   select('id, cut_type') 한 번만 하면 된다.
  *
  * errors/warnings 는 둘 다 `type` 으로 종류를 구분한다 — UI 는 `reason`
  * 문자열을 파싱하지 말고 `type` 으로 분기·집계해야 한다.
- *
- * @returns {{
- *   rows: Array<Record<string, unknown>>,
- *   errors: Array<{
- *     row: number, cutType: unknown, universityName: unknown, departmentName: unknown,
- *     column?: string, reason: string,
- *     type: 'sheetNotFound' | 'truncatedColumn' | 'missingRequiredFields' | 'invalidCutType' |
- *       'invalidNumber' | 'cutScaleOutOfRange' | 'cutTypeChanged' | 'invalidSourceYear' |
- *       'invalidId' | 'idNotFound' | 'duplicateNaturalKey'
- *   }>,
- *   warnings: Array<{
- *     row: number, cutType: unknown, universityName: unknown, departmentName: unknown,
- *     column?: string, reason: string,
- *     type: 'jungsiLooksLikeGrade' | 'naesinCutTooHigh' | 'cutMissing' | 'inactiveRow'
- *   }>,
- *   summary: {
- *     willInsert: number, willUpdate: number, willSkip: number,
- *     warningCounts: Record<string, number>, errorCounts: Record<string, number>
- *   }
- * }}
  */
 export function parseGoalUniversityCutRowsFromXlsx(
-  workbook,
-  existingCutTypeById,
-) {
+  workbook: XLSX.WorkBook,
+  existingCutTypeById: Map<number, string>,
+): {
+  rows: CutPayload[];
+  errors: ErrorEntry[];
+  warnings: WarningEntry[];
+  summary: {
+    willInsert: number;
+    willUpdate: number;
+    willSkip: number;
+    warningCounts: Record<string, number>;
+    errorCounts: Record<string, number>;
+  };
+} {
   const idMap =
-    existingCutTypeById instanceof Map ? existingCutTypeById : new Map();
+    existingCutTypeById instanceof Map
+      ? existingCutTypeById
+      : new Map<number, string>();
   const sheetName = workbook?.SheetNames?.[0];
   const worksheet = sheetName ? workbook.Sheets[sheetName] : null;
-  const errors = [];
-  const warnings = [];
-  const rows = [];
+  const errors: ErrorEntry[] = [];
+  const warnings: WarningEntry[] = [];
+  const rows: CutPayload[] = [];
   let willInsert = 0;
   let willUpdate = 0;
   let willSkip = 0;
-  const seenNaturalKeys = new Map(); // naturalKey -> 최초로 그 키를 쓴 행 번호(0-based)
+  const seenNaturalKeys = new Map<string, number>(); // naturalKey -> 최초로 그 키를 쓴 행 번호(0-based)
 
   function summarize() {
     return {
@@ -273,7 +350,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
     };
   }
 
-  function fail(type, reason, ctx) {
+  function fail(type: ErrorType, reason: string, ctx: RowContext) {
     errors.push({
       row: ctx.rowIndex,
       cutType: ctx.cutType,
@@ -286,7 +363,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
     willSkip += 1;
   }
 
-  function warn(type, reason, ctx) {
+  function warn(type: WarningType, reason: string, ctx: RowContext) {
     warnings.push({
       row: ctx.rowIndex,
       cutType: ctx.cutType,
@@ -310,11 +387,11 @@ export function parseGoalUniversityCutRowsFromXlsx(
     return summarize();
   }
 
-  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
   // 컬럼은 위치가 아니라 헤더 이름으로 찾는다 — 컬럼 순서가 바뀌거나
   // 일부 컬럼이 빠진 파일이 와도 안전하다.
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
-  const columnIndexByHeader = new Map();
+  const columnIndexByHeader = new Map<unknown, number>();
   headerRow.forEach((name, idx) => {
     const key = typeof name === "string" ? name.trim() : name;
     if (
@@ -340,13 +417,13 @@ export function parseGoalUniversityCutRowsFromXlsx(
       return;
     }
 
-    const rowObj = {};
+    const rowObj: Record<string, unknown> = {};
     GOAL_CUTS_XLSX_COLUMNS.forEach((column) => {
       const idx = columnIndexByHeader.get(column.header);
       rowObj[column.key] = idx === undefined ? undefined : cells[idx];
     });
 
-    const ctx = {
+    const ctx: RowContext = {
       rowIndex,
       cutType: clean(rowObj.cut_type),
       universityName: clean(rowObj.university_name),
@@ -357,7 +434,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
     const truncatedHeaders = GOAL_CUTS_XLSX_COLUMNS.filter(
       (column) =>
         typeof rowObj[column.key] === "string" &&
-        rowObj[column.key].includes(TRUNCATION_MARKER),
+        (rowObj[column.key] as string).includes(TRUNCATION_MARKER),
     ).map((column) => column.header);
     if (truncatedHeaders.length) {
       fail(
@@ -370,7 +447,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
 
     // (2) id — 비어 있으면 신규, 값이 있으면 수정.
     const idText = numericCellText(rowObj.id);
-    let existingId = null;
+    let existingId: number | null = null;
     if (idText) {
       const parsed = Number(idText);
       if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -411,7 +488,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
     }
 
     // (4) cut_type 도메인.
-    const cutType = CUT_TYPE_VALUE_BY_LABEL[ctx.cutType];
+    const cutType = CUT_TYPE_VALUE_BY_LABEL[ctx.cutType as string];
     if (!cutType) {
       fail(
         "invalidCutType",
@@ -425,11 +502,11 @@ export function parseGoalUniversityCutRowsFromXlsx(
     // 같은 금지를 엑셀 경로에 건다(명세 §3-D4). 등급 3.2 짜리 행을
     // jungsi 로 바꿔 저장하면 "백분위 3.2" 가 되어 우열이 반전된다.
     if (!isInsert) {
-      const dbCutType = idMap.get(existingId);
+      const dbCutType = idMap.get(existingId as number);
       if (dbCutType && dbCutType !== cutType) {
         fail(
           "cutTypeChanged",
-          `id ${existingId} 행의 컷 종류를 ${CUT_TYPE_LABEL_BY_VALUE[dbCutType] || dbCutType} → ${ctx.cutType} 로 바꿀 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.`,
+          `id ${existingId} 행의 컷 종류를 ${CUT_TYPE_LABEL_BY_VALUE[dbCutType as CutType] || dbCutType} → ${ctx.cutType} 로 바꿀 수 없습니다. 이 행을 삭제한 뒤 새로 등록해 주세요.`,
           { ...ctx, column: "컷 종류" },
         );
         return;
@@ -440,7 +517,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
     // 스케일에서 합법이므로 numericCellText 로 살려 둔다.
     const range = GOAL_CUT_RANGE[cutType];
     const avgCutText = numericCellText(rowObj.avg_cut);
-    let avgCut = null;
+    let avgCut: number | null = null;
     if (avgCutText) {
       const num = Number(avgCutText);
       if (!Number.isFinite(num)) {
@@ -467,7 +544,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
 
     // (7) source_year.
     const sourceYearText = numericCellText(rowObj.source_year);
-    let sourceYear = null;
+    let sourceYear: number | null = null;
     if (sourceYearText) {
       const num = Number(sourceYearText);
       if (
@@ -491,11 +568,11 @@ export function parseGoalUniversityCutRowsFromXlsx(
     // 거부하는 게 낫다.
     const naturalKey = naturalKeyOf(
       cutType,
-      ctx.universityName,
-      ctx.departmentName,
+      ctx.universityName as string,
+      ctx.departmentName as string,
     );
     if (seenNaturalKeys.has(naturalKey)) {
-      const firstRow = seenNaturalKeys.get(naturalKey);
+      const firstRow = seenNaturalKeys.get(naturalKey) as number;
       fail(
         "duplicateNaturalKey",
         `행 ${firstRow + 1} 과(와) 컷 종류·대학명·학과명이 동일합니다.`,
@@ -568,19 +645,19 @@ export function parseGoalUniversityCutRowsFromXlsx(
     //
     // ⚠ 엑셀 경로는 백필과 달리 is_active / note 를 payload 에 싣는다 —
     // 엑셀은 관리자가 그 값을 명시적으로 편집한 결과이기 때문이다.
-    const payload = {
+    const payload: CutPayload = {
       cut_type: cutType,
-      university_key: ctx.universityName,
-      university_name: ctx.universityName,
-      department_key: ctx.departmentName,
-      department_name: ctx.departmentName,
+      university_key: ctx.universityName as string,
+      university_name: ctx.universityName as string,
+      department_key: ctx.departmentName as string,
+      department_name: ctx.departmentName as string,
       avg_cut: avgCut,
       source: SOURCE_VALUE_BY_LABEL[rawSource] || "manual",
       source_year: sourceYear,
       is_active: isActive,
       note: clean(rowObj.note) || null,
     };
-    if (!isInsert) payload.id = existingId;
+    if (!isInsert) payload.id = existingId as number;
     rows.push(payload);
   });
 
