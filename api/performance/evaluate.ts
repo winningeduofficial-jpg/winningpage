@@ -84,6 +84,7 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4, §12.4가 `index.html:1769-1851`
 //   전량을 폐기로 지정). 이 파일의 유일한 파싱은 `JSON.parse` 한 줄이다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -175,18 +176,68 @@ const SESSION_COLUMNS = [
 const REPORT_COLUMNS =
   "id,submission_id,report_type,sections,score,summary,model,prompt_version,created_at,updated_at";
 
-function fail(res, status, code, message, extra) {
+/** 세션 SELECT 컬럼(SESSION_COLUMNS)과 정확히 대응하는 최소 필드 형태. */
+type SessionRow = {
+  id: string;
+  profile_id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  grade_label: string | null;
+  semester: string | null;
+  school_type: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  previous_topic: string | null;
+  guide_input_mode: string | null;
+  guide_freetext: string | null;
+  guide_json: unknown;
+  submission_schema: unknown;
+  selected_topic_id: string | null;
+  evaluation_count: number | null;
+  evaluation_attempt_count: number | null;
+};
+
+/** performance_reports SELECT 컬럼(REPORT_COLUMNS)과 대응하는 최소 필드 형태. */
+type ReportRow = {
+  id: string;
+  submission_id: string | null;
+  report_type: string;
+  sections: unknown;
+  score: number | null;
+  summary: string | null;
+  model: string | null;
+  prompt_version: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  topic_id?: string | null;
+};
+
+/** 모델이 낸 평가 payload(구조 검증 전). */
+type EvaluationPayload = Record<string, unknown>;
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-const trimmed = (value) => String(value ?? "").trim();
+const trimmed = (value: unknown): string => String(value ?? "").trim();
 
 /**
  * 잔여 회차 **읽기 전용** 스냅샷. 이 엔드포인트는 차감 RPC를 부르지 않으므로
  * (§9.3 「제출 → 평가 리포트 생성 | 없음」) 응답의 `quotaRemaining`은 안내용이다.
  * 조회가 실패해도 평가 응답을 죽이지 않는다.
  */
-async function readQuota(supabaseAdmin, userId) {
+async function readQuota(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
+) {
   try {
     return await readQuotaSnapshot(
       supabaseAdmin,
@@ -204,7 +255,7 @@ async function readQuota(supabaseAdmin, userId) {
 }
 
 /** `KeyValueView`가 읽는 행 계약: `rows[].{label, content}`(§8.5). */
-function keyValueBlock(rows) {
+function keyValueBlock(rows: { label: string; content: string }[]) {
   return { kind: "keyValue", rows: rows.filter((row) => row.content) };
 }
 
@@ -224,10 +275,10 @@ function keyValueBlock(rows) {
  *   · `keyValue` → 누적 기록용 요약 4행
  * `종합 평가 점수`(프롬프트 1번)는 `score`/`summary`로 승격돼 여기 들어오지 않는다.
  */
-function buildEvaluationSections(payload) {
+function buildEvaluationSections(payload: EvaluationPayload) {
   return EVALUATION_REPORT_SECTIONS.map((section) => {
     if (section.kind === "triad") {
-      const source = payload[section.id] || {};
+      const source = (payload[section.id] || {}) as Record<string, unknown>;
       return {
         id: section.id,
         label: section.label,
@@ -250,7 +301,7 @@ function buildEvaluationSections(payload) {
       };
     }
 
-    const source = payload.record_summary || {};
+    const source = (payload.record_summary || {}) as Record<string, unknown>;
     return {
       id: section.id,
       label: section.label,
@@ -283,38 +334,43 @@ function buildEvaluationSections(payload) {
  *
  * @returns {{ok: true, score: number} | {ok: false, reason: string}}
  */
-function validateEvaluationPayload(payload) {
+function validateEvaluationPayload(
+  payload: unknown,
+): { ok: true; score: number } | { ok: false; reason: string } {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { ok: false, reason: "not-an-object" };
   }
 
-  const score = parseEvaluationScore(payload.score);
+  const record = payload as Record<string, unknown>;
+  const score = parseEvaluationScore(record.score);
   if (score === null) return { ok: false, reason: "score:unparseable" };
-  if (!trimmed(payload.summary)) return { ok: false, reason: "summary:empty" };
+  if (!trimmed(record.summary)) return { ok: false, reason: "summary:empty" };
 
   for (const section of EVALUATION_REPORT_SECTIONS) {
     if (section.kind === "triad") {
-      const source = payload[section.id];
+      const source = record[section.id];
       if (!source || typeof source !== "object")
         return { ok: false, reason: `${section.id}:missing` };
+      const sourceRecord = source as Record<string, unknown>;
       for (const row of EVALUATION_TRIAD_ROW_LABELS) {
-        if (!trimmed(source[row.key]))
+        if (!trimmed(sourceRecord[row.key]))
           return { ok: false, reason: `${section.id}.${row.key}:empty` };
       }
       continue;
     }
 
     if (section.kind === "note") {
-      if (!trimmed(payload.plagiarism))
+      if (!trimmed(record.plagiarism))
         return { ok: false, reason: "plagiarism:empty" };
       continue;
     }
 
-    const source = payload.record_summary;
+    const source = record.record_summary;
     if (!source || typeof source !== "object")
       return { ok: false, reason: "record_summary:missing" };
+    const sourceRecord = source as Record<string, unknown>;
     for (const row of EVALUATION_RECORD_SUMMARY_ROW_LABELS) {
-      if (!trimmed(source[row.key]))
+      if (!trimmed(sourceRecord[row.key]))
         return { ok: false, reason: `record_summary.${row.key}:empty` };
     }
   }
@@ -338,6 +394,13 @@ function buildReportEnvelope({
   structure,
   submissionId,
   revision,
+}: {
+  score: number;
+  summary: string;
+  sections: unknown;
+  structure: unknown;
+  submissionId: string;
+  revision: number;
 }) {
   return {
     v: 1,
@@ -352,11 +415,12 @@ function buildReportEnvelope({
 }
 
 /** 저장 봉투 → 응답 본문 공통부. 재생 경로와 신규 생성 경로가 같은 모양을 쓴다. */
-function toClientReport(reportRow) {
-  const envelope =
+function toClientReport(reportRow: ReportRow | null | undefined) {
+  const envelope = (
     reportRow?.sections && typeof reportRow.sections === "object"
       ? reportRow.sections
-      : {};
+      : {}
+  ) as Record<string, unknown>;
 
   return {
     id: reportRow?.id ?? null,
@@ -371,14 +435,14 @@ function toClientReport(reportRow) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -443,7 +507,7 @@ export default async function handler(req, res) {
     }
 
     // ── 게이트 ① 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶는다.
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    const { data: sessionRowRaw, error: sessionError } = await supabaseAdmin
       .from("performance_sessions")
       .select(SESSION_COLUMNS)
       .eq("id", sessionId)
@@ -452,11 +516,15 @@ export default async function handler(req, res) {
 
     if (sessionError)
       throw new Error(`세션 조회 실패: ${sessionError.message}`);
-    if (!sessionRow) {
+    if (!sessionRowRaw) {
       return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
         charged: false,
       });
     }
+
+    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+    // 추론을 못 하고 `GenericStringError`로 떨어진다(recommend-topics.ts와 같은 사유).
+    const sessionRow = sessionRowRaw as unknown as SessionRow;
 
     // ── 게이트 ② 제출본 소유권. **세션 id로 묶어서** 조회하므로 남의 세션 제출본 id를
     //    넣으면 애초에 행이 나오지 않는다(§8.6 소유권 규약 + sql/54 RLS 이중 방어).
@@ -749,15 +817,15 @@ export default async function handler(req, res) {
       MODEL_TIMEOUT_MS,
     );
 
-    let payload = null;
-    let score = null;
+    let payload: EvaluationPayload | null = null;
+    let score: number | null = null;
     let lastFailure = "unknown";
 
     try {
       for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
         const isRetry = attempt > 0;
 
-        let response;
+        let response: Awaited<ReturnType<typeof generateWithRetry>>;
         try {
           response = await generateWithRetry({
             model: PERFORMANCE_MODEL,
@@ -821,7 +889,7 @@ export default async function handler(req, res) {
           continue;
         }
 
-        let parsed;
+        let parsed: unknown;
         try {
           // 유일한 파싱이다. `responseMimeType:'application/json'`이 형식을 보장하므로
           // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
@@ -839,15 +907,19 @@ export default async function handler(req, res) {
 
         const check = validateEvaluationPayload(parsed);
         if (!check.ok) {
-          lastFailure = `contract:${check.reason}`;
+          // tsconfig strict:false(strictNullChecks 꺼짐)에서 이 boolean 판별
+          // 유니온이 `!check.ok`만으로 좁혀지지 않는다(recommend-topics.ts와 같은
+          // 격리 재현 결과) — 그래서 여기서만 명시적으로 좁힌다.
+          const { reason } = check as { ok: false; reason: string };
+          lastFailure = `contract:${reason}`;
           console.warn(
-            `performance/evaluate 계약 위반 ${check.reason} (attempt ${attempt + 1})`,
+            `performance/evaluate 계약 위반 ${reason} (attempt ${attempt + 1})`,
           );
           continue;
         }
 
-        payload = parsed;
-        score = check.score;
+        payload = parsed as EvaluationPayload;
+        score = (check as { ok: true; score: number }).score;
         break;
       }
     } finally {
