@@ -2,6 +2,7 @@ import AnswerField from "./AnswerField";
 import ConditionalTextInput from "./ConditionalTextInput";
 
 type EmbeddedQuestion = {
+  id: string;
   type?: string;
   title?: string;
   multiline?: boolean;

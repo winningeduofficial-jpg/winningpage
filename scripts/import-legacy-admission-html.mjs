@@ -47,7 +47,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   HWP_SECTION_JSON_KEYS,
   stableStringifyDoc,
-} from "../src/lib/admissionDoc.js";
+} from "../src/lib/admissionDoc.ts";
 // 오케스트레이션(importCell)과 DOM 동형성 비교기는 2026-08-06에
 // src/lib/admissionHtmlImport.js로 옮겼다(위치만 이동, 동작 동일) —
 // 어드민 일괄 엑셀 업로드(admissionBulkXlsx.js)가 브라우저에서 같은

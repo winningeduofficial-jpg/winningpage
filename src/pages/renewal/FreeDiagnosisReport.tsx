@@ -26,9 +26,10 @@ type DiagnosisInput = {
   admissionMeta?: { year: string | number | null };
 };
 
-type DiagnosisReportData = ComponentProps<typeof ReportPageTwo>["data"] & {
-  notices?: { sincerityBanner?: string | null };
-};
+type DiagnosisReportData = ComponentProps<typeof ReportPageTwo>["data"] &
+  ComponentProps<typeof ReportPageOne>["data"] & {
+    notices?: { sincerityBanner?: string | null };
+  };
 
 /**
  * 무료진단 결과 리포트 페이지.

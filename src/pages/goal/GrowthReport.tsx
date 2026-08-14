@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import GoalCard from "../../components/goal/GoalCard";
-import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
+import GrowthReportBody, {
+  type GrowthReport as GrowthReportData,
+} from "../../components/goal/report/GrowthReportBody";
 import { fetchGoalReport } from "../../lib/goalApi";
 
 const VALID_PERIODS = ["weekly", "monthly"] as const;
 type ReportPeriod = (typeof VALID_PERIODS)[number];
 
 type GoalReportResult =
-  | { kind: "success"; report: unknown }
+  | { kind: "success"; report: GrowthReportData }
   | { kind: "awaiting-cuts" }
   | { kind: "error" };
 

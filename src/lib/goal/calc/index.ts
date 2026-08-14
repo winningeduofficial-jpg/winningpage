@@ -27,14 +27,14 @@ export {
   TASK_BONUS_MULTIPLIER,
   TASK_MOCK_EXAM,
   TASK_NAESIN,
-} from "./bonus.js";
+} from "./bonus.ts";
 // ── bonusV2 ─────────────────────────────────────────────────────────────
 // 일별 기록 수식 v2(신시안 "오늘의 공부 기록" #26 전용, 원본 파리티 밖 — 자세한
 // 배경은 bonusV2.js 헤더 참고). bonus.js(v1)와 이름이 겹치지 않아 같은 배럴에서
 // 공존한다. getAchievementRateMultiplier/TASK_NAESIN/TASK_MOCK_EXAM/
 // TASK_BONUS_MULTIPLIER 는 bonus.js 판이 정본이며 bonusV2.js 가 그대로 재사용한다
 // (위 bonus export 절 참고 — 사본을 만들지 않는다).
-export { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from "./bonusV2.js";
+export { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from "./bonusV2.ts";
 // ── jeongsi ─────────────────────────────────────────────────────────────
 export {
   calcJeongsiBaseProb,
@@ -46,7 +46,7 @@ export {
   getPercentileChips,
   getTimeFactorPercentile,
   getWeightedEffortAmount,
-} from "./jeongsi.js";
+} from "./jeongsi.ts";
 // ── pipeline ────────────────────────────────────────────────────────────
 // 위 5개 모듈의 순수 함수를 원본 호출 순서대로 엮은 통합 조립 층. 새 계산 로직은 없다 —
 // 원본(target/components/IntakeForm.tsx, target/api/student.mjs, target/App.tsx)의 배선만
@@ -62,7 +62,7 @@ export {
   isElementaryStudent,
   isMiddleStudent,
   isPreHighStudent,
-} from "./pipeline.js";
+} from "./pipeline.ts";
 // ── primitives ──────────────────────────────────────────────────────────
 // round1 / round4 / clampProb / toNum 은 primitives 판을 정본으로 노출한다.
 // jeongsi.js(round1/clampProb), schedule.js(toNum/round1), bonus.js(round4Server/
@@ -90,7 +90,7 @@ export {
   getStudyMultiplier,
   sumWeeklySchedule,
   VIRTUAL_DAY_NAMES,
-} from "./schedule.js";
+} from "./schedule.ts";
 // ── virtualDate ─────────────────────────────────────────────────────────
 // schedule.js 안에도 toYMD/kstYMD/getDayIndexFromYMDServer/addDaysYMD 사본이
 // 있지만 export 하지 않는다. 외부에서 쓸 때는 이 배럴(=virtualDate 판)을 쓸 것.
@@ -108,4 +108,4 @@ export {
   isMiniStartDay,
   kstYMD,
   toYMD,
-} from "./virtualDate.js";
+} from "./virtualDate.ts";

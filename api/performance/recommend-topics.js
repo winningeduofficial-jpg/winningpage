@@ -58,14 +58,14 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.js";
+} from "../_lib/performance/gemini.ts";
 import {
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
   loadRelevantStudentSessions,
   STUDENT_HISTORY_PROMPT_LIMIT,
   TOPIC_MAX_CHARS,
-} from "../_lib/performance/knowledge.js";
+} from "../_lib/performance/knowledge.ts";
 import {
   buildTopicExclusionBlock,
   buildTopicRecommendationSystem,

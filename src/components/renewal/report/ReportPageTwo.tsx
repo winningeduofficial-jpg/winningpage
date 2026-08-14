@@ -1,4 +1,4 @@
-import AdmissionSection from "./AdmissionSection";
+import AdmissionSection, { type AdmissionData } from "./AdmissionSection";
 import DimensionBarChart from "./DimensionBarChart";
 import InsightColumns from "./InsightColumns";
 import ReadinessOverview from "./ReadinessOverview";
@@ -19,7 +19,7 @@ type ReportPageTwoProps = {
     };
     strengths: string[];
     improvements: string[];
-    admission: unknown;
+    admission: AdmissionData;
     recommendations: Array<{
       rank?: string;
       name?: string;
@@ -27,8 +27,17 @@ type ReportPageTwoProps = {
       chips: string[];
     }>;
     notices?: {
-      serviceLimit?: string | null;
+      traitIntro?: string | null;
+      hexCaption?: string | null;
+      goalCompare?: string | null;
       reportBasis?: string | null;
+      reportLimit?: string | null;
+      probNote?: string | null;
+      admissionNote?: string | null;
+      serviceLimit?: string | null;
+      skipNote?: string | null;
+      sincerityBanner?: string | null;
+      sincerityAct?: string | null;
     };
   };
 };

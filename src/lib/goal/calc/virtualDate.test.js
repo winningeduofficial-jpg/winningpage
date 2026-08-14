@@ -25,7 +25,7 @@ import {
   isMiniStartDay,
   kstYMD,
   toYMD,
-} from "./virtualDate.js";
+} from "./virtualDate.ts";
 
 // 결과가 { value } | { nan } | { throws } 중 무엇이든 동일하게 검증하는 헬퍼
 function assertOut(fn, expected, label) {

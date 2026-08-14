@@ -37,7 +37,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
-import { HWP_SECTION_JSON_KEYS } from "../src/lib/admissionDoc.js";
+import { HWP_SECTION_JSON_KEYS } from "../src/lib/admissionDoc.ts";
 // compareStoredHtmlEquivalence는 2026-08-06 src/lib/admissionHtmlImport.js로
 // 이동했다(위치만 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에
 // 있었다.
