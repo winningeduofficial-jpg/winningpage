@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
+import type { ComponentPropsWithoutRef } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AdmissionSectionView from "../components/admission/AdmissionSectionView";
 import AdmissionSurface from "../components/admission/AdmissionSurface";
@@ -167,8 +168,8 @@ const CATEGORY_INFO_SECTIONS = [
   },
 ];
 
-function ButtonLabel({ item }) {
-  if (item.lines?.length > 1) {
+function ButtonLabel({ item }: { item: { label: string; lines?: string[] } }) {
+  if (item.lines && item.lines.length > 1) {
     return (
       <span className="admission-directory-head-label">
         {withDedupedKeys(item.lines).map(({ item: line, key }) => (
@@ -1083,7 +1084,7 @@ function AdmissionQaPanel({ rows }) {
             ) : (
               <tr>
                 <td
-                  colSpan="4"
+                  colSpan={4}
                   className="px-3 py-8 text-center font-black text-[#12B76A]"
                 >
                   자동 검수 기준상 감지된 이상치가 없습니다.
@@ -1537,6 +1538,14 @@ export default function AdmissionGuidelines() {
     }
   }
 
+  // AdmissionModalShell#bodyProps 타입(ComponentPropsWithoutRef<"div">)에는 data-* 인덱스
+  // 시그니처가 없어 객체 리터럴을 그대로 넘기면 초과 프로퍼티 검사에 걸린다(TS2353, 이미
+  // AdmissionSectionEditModal.tsx에도 있는 동일 케이스). 변수로 한 번 감싸면 리터럴 프레시니스
+  // 검사를 피하면서 런타임 동작(data-section 속성)은 그대로다.
+  const modalBodyDataProps: ComponentPropsWithoutRef<"div"> = {
+    "data-section": selectedInfo?.section?.key || "",
+  } as ComponentPropsWithoutRef<"div">;
+
   return (
     <div className="min-h-screen bg-[#f9fafb] text-[#013262]">
       <main className="pt-16">
@@ -1922,7 +1931,7 @@ export default function AdmissionGuidelines() {
           eyebrow={selectedInfo.universityName}
           title={selectedInfo.title}
           bodyRef={modalBodyRef}
-          bodyProps={{ "data-section": selectedInfo.section?.key || "" }}
+          bodyProps={modalBodyDataProps}
           belowBody={
             selectedInfo.isHtml && modalXScroll.visible ? (
               <div className="admission-modal-x-scroll-shell">
