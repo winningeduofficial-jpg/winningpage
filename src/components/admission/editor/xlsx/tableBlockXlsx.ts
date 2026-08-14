@@ -27,6 +27,7 @@
 //     개행(\n)으로 이어붙인다(엑셀 Alt+Enter 줄바꿈과 동일한 형태로
 //     보인다). 빈 배열은 빈 문자열.
 import * as XLSX from "xlsx";
+import type { Cell, Column, TableBlock } from "../../../../lib/admissionDoc";
 import {
   defaultNewColumnRole,
   getCellKind,
@@ -46,31 +47,50 @@ const BADGE_NONE_SUFFIX = " [최저없음]";
 // 같은 문자열이 있어도 끝이 아니면 매칭 안 됨).
 const BADGE_SUFFIX_RE = /\s?\[최저(있음|없음)\]$/;
 
-export function serializeCellForXlsx(cell) {
+export function serializeCellForXlsx(cell: Cell): string {
   if (cell === null || cell === undefined) return "";
   if (typeof cell === "string") return cell;
   if (typeof cell === "object") {
-    if (Array.isArray(cell.chips)) {
-      return cell.chips
+    if (Array.isArray((cell as { chips?: unknown }).chips)) {
+      return (cell as { chips: { label: string; value: string }[] }).chips
         .map((chip) => `${chip.label ?? ""}: ${chip.value ?? ""}`)
         .join("\n");
     }
     if ("badge" in cell || "text" in cell) {
-      const text = cell.text ?? "";
+      const c = cell as { text?: string; badge?: string };
+      const text = c.text ?? "";
       const suffix =
-        cell.badge === "minimumHas" ? BADGE_HAS_SUFFIX : BADGE_NONE_SUFFIX;
+        c.badge === "minimumHas" ? BADGE_HAS_SUFFIX : BADGE_NONE_SUFFIX;
       return text ? `${text}${suffix}` : suffix.trim();
     }
   }
   return String(cell);
 }
 
+type OversizedCell = {
+  area: "header" | "body";
+  row: number;
+  col: number;
+  columnLabel?: string;
+  length: number;
+};
+
 /** 32,767자를 초과하는 셀을 전부 찾는다(헤더 라벨 포함). 빈 배열이면 안전. */
-export function findOversizedCells(block) {
-  const oversized = [];
-  const check = (rawValue, location) => {
+export function findOversizedCells(block: TableBlock): OversizedCell[] {
+  const oversized: OversizedCell[] = [];
+  const check = (
+    rawValue: unknown,
+    location: {
+      area: "header" | "body";
+      row: number;
+      col: number;
+      columnLabel?: string;
+    },
+  ) => {
     const text =
-      typeof rawValue === "string" ? rawValue : serializeCellForXlsx(rawValue);
+      typeof rawValue === "string"
+        ? rawValue
+        : serializeCellForXlsx(rawValue as Cell);
     if (text.length > MAX_XLSX_CELL_LENGTH) {
       oversized.push({ ...location, length: text.length });
     }
@@ -96,7 +116,12 @@ export function findOversizedCells(block) {
   return oversized;
 }
 
-function buildHeaderRowsAndMerges(block) {
+type Merge = { s: { r: number; c: number }; e: { r: number; c: number } };
+
+function buildHeaderRowsAndMerges(block: TableBlock): {
+  headerRows: string[][];
+  merges: Merge[];
+} {
   const { columns, groups, fixedColumnCount } = block;
   if (!groups) {
     return { headerRows: [columns.map((c) => c.label ?? "")], merges: [] };
@@ -106,7 +131,7 @@ function buildHeaderRowsAndMerges(block) {
   const dataColumns = columns.slice(fixedCount);
   const row0 = new Array(columns.length).fill("");
   const row1 = new Array(columns.length).fill("");
-  const merges = [];
+  const merges: Merge[] = [];
 
   columns.slice(0, fixedCount).forEach((col, idx) => {
     row0[idx] = col.label ?? "";
@@ -136,7 +161,7 @@ function buildHeaderRowsAndMerges(block) {
   return { headerRows: [row0, row1], merges };
 }
 
-export function buildTableBlockWorksheet(block) {
+export function buildTableBlockWorksheet(block: TableBlock): XLSX.WorkSheet {
   const { headerRows, merges } = buildHeaderRowsAndMerges(block);
   const bodyRows = block.rows.map((row) =>
     row.map((cell) => serializeCellForXlsx(cell)),
@@ -146,8 +171,8 @@ export function buildTableBlockWorksheet(block) {
   return worksheet;
 }
 
-function buildFormatSheet(block) {
-  const rows = [
+function buildFormatSheet(block: TableBlock): XLSX.WorkSheet {
+  const rows: unknown[][] = [
     ["winningpage 어드민 표 편집기(TableBlock) 내보내기 — 형식 안내"],
     ["variant", block.variant],
     [""],
@@ -177,11 +202,11 @@ function buildFormatSheet(block) {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function pad2(n) {
+function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function sanitizeFileNamePart(value) {
+function sanitizeFileNamePart(value: unknown): string {
   return String(value || "")
     .replace(/[\\/:*?"<>|]/g, "_")
     .trim();
@@ -192,7 +217,12 @@ export function buildXlsxFileName({
   sectionLabel,
   variant,
   date,
-} = {}) {
+}: {
+  universityName?: string;
+  sectionLabel?: string;
+  variant?: string;
+  date?: Date;
+} = {}): string {
   const d = date instanceof Date ? date : new Date();
   const dateStr = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
   const namePart = sanitizeFileNamePart(universityName) || "대학명미상";
@@ -205,9 +235,21 @@ export function buildXlsxFileName({
  * 있으면 파일을 만들지 않고 그 목록을 반환한다(조용한 truncate 금지 —
  * XLSX.writeFile 자체가 이 상황에서 예외를 던지는 걸 직접 재현
  * 확인했다. 그 저수준 예외 대신 어떤 셀이 문제인지 미리 알려준다).
- * @returns {{ ok: boolean, oversized: Array, fileName: string|null }}
  */
-export function exportTableBlockToXlsx(block, meta = {}) {
+export function exportTableBlockToXlsx(
+  block: TableBlock,
+  meta: {
+    universityName?: string;
+    sectionLabel?: string;
+    variant?: string;
+    date?: Date;
+  } = {},
+): {
+  ok: boolean;
+  oversized: OversizedCell[];
+  fileName: string | null;
+  workbook?: XLSX.WorkBook;
+} {
   const oversized = findOversizedCells(block);
   if (oversized.length > 0) {
     return { ok: false, oversized, fileName: null };
@@ -225,7 +267,7 @@ export function exportTableBlockToXlsx(block, meta = {}) {
   return { ok: true, oversized: [], fileName, workbook };
 }
 
-export function buildTableBlockWorkbook(block) {
+export function buildTableBlockWorkbook(block: TableBlock): XLSX.WorkBook {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, buildTableBlockWorksheet(block), "표");
   XLSX.utils.book_append_sheet(workbook, buildFormatSheet(block), "형식 설명");
@@ -243,7 +285,7 @@ export function buildTableBlockWorkbook(block) {
 // 브라우저 번들)에서는 typeof document !== 'undefined'이므로 정상
 // 동작하고, 노드 검증에서는 이 분기를 타지 않아 워크북 생성 로직만
 // 안정적으로 검증할 수 있다.
-function triggerBrowserDownload(workbook, fileName) {
+function triggerBrowserDownload(workbook: XLSX.WorkBook, fileName: string) {
   const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   const blob = new Blob([wbout], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
@@ -273,7 +315,10 @@ function triggerBrowserDownload(workbook, fileName) {
  * 접미어 없이 들어오면 has/none 여부는 기본값 minimumNone으로 폴백 —
  * 관리자가 표 편집기에서 직접 고칠 수 있다).
  */
-export function deserializeCellFromXlsx(rawValue, kind) {
+export function deserializeCellFromXlsx(
+  rawValue: unknown,
+  kind: "text" | "badge" | "chips",
+): Cell {
   const text =
     rawValue === null || rawValue === undefined ? "" : String(rawValue);
 
@@ -314,7 +359,13 @@ export function deserializeCellFromXlsx(rawValue, kind) {
 // 좌표로부터 fixedColumnCount/groups를 복원한다. count=1인 그룹은
 // 내보내기가 병합을 안 넣으므로(1칸짜리 병합은 무의미) 병합이 없는
 // 컬럼을 count=1 그룹으로 취급한다.
-function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
+function reconstructGroupsFromMerges(
+  merges: Merge[],
+  row0Labels: string[],
+  totalColumns: number,
+):
+  | { error: string }
+  | { fixedColumnCount: number; groups: { name: string; count: number }[] } {
   const verticalMerges = merges.filter(
     (m) => m.s.r === 0 && m.e.r === 1 && m.s.c === m.e.c,
   );
@@ -334,7 +385,7 @@ function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
       .map((m) => [m.s.c, m.e.c]),
   );
 
-  const groups = [];
+  const groups: { name: string; count: number }[] = [];
   let c = fixedColumnCount;
   while (c < totalColumns) {
     const spanEnd = horizontalSpanByStart.get(c);
@@ -357,7 +408,15 @@ function reconstructGroupsFromMerges(merges, row0Labels, totalColumns) {
  * TableBlock 변경 요약(행 추가/삭제 수, 셀 변경 수, 컬럼 구성 변경 여부) —
  * 가져오기 미리보기 UI가 "무엇이 바뀌는지" 보여줄 때 쓴다.
  */
-export function summarizeBlockChange(oldBlock, newBlock) {
+export function summarizeBlockChange(
+  oldBlock: TableBlock,
+  newBlock: TableBlock,
+): {
+  rowsAdded: number;
+  rowsRemoved: number;
+  cellsChanged: number;
+  columnsChanged: boolean;
+} {
   const rowsAdded = Math.max(0, newBlock.rows.length - oldBlock.rows.length);
   const rowsRemoved = Math.max(0, oldBlock.rows.length - newBlock.rows.length);
 
@@ -390,11 +449,18 @@ export function summarizeBlockChange(oldBlock, newBlock) {
  * 재구현하지 않는다 — 후보 블록을 일단 만들고 validateTableBlock에
  * 그대로 맡긴다. 실패하면 후보를 버리고 ok:false + validateAdmissionDoc
  * 원본 에러 메시지를 그대로 반환한다("억지로 고쳐서 넣지 마라").
- *
- * @returns {{ ok: boolean, errors?: string[], block?: object,
- *   changeSummary?: object, unchanged?: boolean }}
  */
-export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
+export function importTableBlockFromXlsx(
+  workbook: XLSX.WorkBook,
+  referenceBlock: TableBlock,
+  section: string,
+): {
+  ok: boolean;
+  errors?: string[];
+  block?: TableBlock;
+  changeSummary?: ReturnType<typeof summarizeBlockChange>;
+  unchanged?: boolean;
+} {
   const worksheet = workbook.Sheets?.표;
   if (!worksheet) {
     return {
@@ -410,8 +476,8 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
   // 실제로 몇 칸을 채웠는지"(행 길이 초과 판정에 필수)를 알 수 없게
   // 된다. defval 없이 읽으면 각 행 배열의 길이가 그 행이 실제로 채운
   // 마지막 칸까지만 반영된다(직접 재현 확인함).
-  const grid = XLSX.utils
-    .sheet_to_json(worksheet, { header: 1 })
+  const grid: string[][] = XLSX.utils
+    .sheet_to_json<unknown[]>(worksheet, { header: 1 })
     .map((row) =>
       row.map((cell) =>
         cell === undefined || cell === null ? "" : String(cell),
@@ -437,12 +503,12 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
     };
   }
 
-  let columns;
-  let groups;
-  let fixedColumnCount;
+  let columns: Column[];
+  let groups: { name: string; count: number }[] | undefined;
+  let fixedColumnCount: number | undefined;
 
   if (hasGroups) {
-    const merges = worksheet["!merges"] || [];
+    const merges = (worksheet["!merges"] as Merge[]) || [];
     const totalColumns = Math.max(
       headerRows[0].length,
       headerRows[1]?.length || 0,
@@ -452,7 +518,7 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
       headerRows[0],
       totalColumns,
     );
-    if (reconstructed.error) {
+    if ("error" in reconstructed) {
       return { ok: false, errors: [reconstructed.error] };
     }
     ({ fixedColumnCount, groups } = reconstructed);
@@ -486,12 +552,12 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
   }
 
   const targetColumnCount = columns.length;
-  const rows = bodyRowsRaw.map((row) => {
+  const rows: Cell[][] = bodyRowsRaw.map((row) => {
     // 짧은 행은 빈 셀로 채운다. 긴 행은 여기서 자르지 않는다 — 그대로
     // candidate에 실어 validateTableBlock의 rows.length===columns.length
     // 불변식이 거부하게 한다("길면 거부"를 이 파일에서 재구현하지 않고
     // 기존 검증기에 위임).
-    const padded =
+    const padded: string[] =
       row.length < targetColumnCount
         ? [...row, ...new Array(targetColumnCount - row.length).fill("")]
         : row;
@@ -503,7 +569,7 @@ export function importTableBlockFromXlsx(workbook, referenceBlock, section) {
     );
   });
 
-  const candidate = {
+  const candidate: TableBlock = {
     ...referenceBlock,
     columns,
     rows,
