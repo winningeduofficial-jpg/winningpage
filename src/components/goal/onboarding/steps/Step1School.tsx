@@ -1,4 +1,8 @@
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import {
+  type Grade,
+  type SchoolType,
+  useGoalOnboarding,
+} from "../../../../context/GoalOnboardingContext";
 import {
   HIGH_SCHOOL_GRADE_OPTIONS,
   SCHOOL_TYPE_OPTIONS,
@@ -41,7 +45,8 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
               key={option.value}
               label={option.label}
               selected={schoolType === option.value}
-              onClick={() => setSchoolType(option.value)}
+              // SCHOOL_TYPE_OPTIONS의 value는 SchoolType 리터럴 값만 담는 고정 목록이다.
+              onClick={() => setSchoolType(option.value as SchoolType)}
             />
           ))}
         </div>
@@ -63,7 +68,8 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
                 key={option.value}
                 label={option.label}
                 selected={grade === option.value}
-                onClick={() => setGrade(option.value)}
+                // HIGH_SCHOOL_GRADE_OPTIONS의 value는 Grade 리터럴 값만 담는 고정 목록이다.
+                onClick={() => setGrade(option.value as Grade)}
               />
             ))}
           </div>

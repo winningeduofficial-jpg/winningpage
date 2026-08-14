@@ -6,7 +6,9 @@ type ConditionOption = { value: string; label: string; emoji?: string };
 
 type ConditionSectionProps = {
   options: ConditionOption[];
-  value: string;
+  // 미선택 초기 상태(DailyRecord.tsx의 condition state)를 null로 표현한다 — 비교(===)만
+  // 하므로 null도 안전하게 처리된다(아무 것도 선택되지 않은 상태와 동일).
+  value: string | null;
   onChange: (value: string) => void;
 };
 
@@ -32,12 +34,14 @@ export default function ConditionSection({
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;
-      onChange(options[next].value);
+      // 모듈 연산으로 항상 배열 범위 안의 인덱스만 나온다.
+      onChange(options[next]!.value);
       focusOption(next);
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       const prev = (index - 1 + options.length) % options.length;
-      onChange(options[prev].value);
+      // 모듈 연산으로 항상 배열 범위 안의 인덱스만 나온다.
+      onChange(options[prev]!.value);
       focusOption(prev);
     }
   };

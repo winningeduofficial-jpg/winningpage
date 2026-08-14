@@ -91,7 +91,8 @@ export default function AddNaesinGradeModal({
     !submitting &&
     semester.trim().length > 0 &&
     enteredAt.trim().length > 0 &&
-    SUBJECTS.every(({ key }) => grades[key].toString().trim().length > 0);
+    // SUBJECTS의 key는 grades 초기값에 항상 존재하는 고정 필드다.
+    SUBJECTS.every(({ key }) => grades[key]!.toString().trim().length > 0);
 
   function resetForm() {
     setSemester("");
@@ -167,7 +168,7 @@ export default function AddNaesinGradeModal({
             <GradeField
               key={key}
               label={label}
-              value={grades[key]}
+              value={grades[key]!}
               onChange={(event) =>
                 setGrades((prev) => ({ ...prev, [key]: event.target.value }))
               }

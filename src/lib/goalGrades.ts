@@ -55,12 +55,18 @@ export function latestKpi(
   {
     fallbackValue = null,
     fallbackRound = "",
-  }: { fallbackValue?: number | null; fallbackRound?: string } = {},
+  }: {
+    // exactOptionalPropertyTypes: 호출부가 optional 필드에서 온 값(undefined 포함)을
+    // 그대로 넘기므로 명시적으로 undefined를 허용한다(값 자체 처리 로직은 그대로).
+    fallbackValue?: number | null | undefined;
+    fallbackRound?: string | undefined;
+  } = {},
 ) {
   const list = records || [];
 
   if (list.length > 0) {
-    const latest = list[list.length - 1];
+    // list.length > 0으로 이미 확인됨.
+    const latest = list[list.length - 1]!;
     const prev = list.length > 1 ? list[list.length - 2] : null;
     const compareTo = prev ? prev.value : fallbackValue;
     const delta =
@@ -111,7 +117,8 @@ export function recentHistory(
   const list = records || [];
   const withDelta = list.map((record, index) => ({
     ...record,
-    delta: index > 0 ? round1(record.value - list[index - 1].value) : null,
+    // index > 0으로 이미 확인됨.
+    delta: index > 0 ? round1(record.value - list[index - 1]!.value) : null,
   }));
   return withDelta.slice(-count).reverse();
 }

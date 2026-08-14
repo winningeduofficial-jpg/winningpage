@@ -66,10 +66,12 @@ export default function DirectionReport() {
       !periodParam &&
       result.report.activePeriod
     ) {
+      // 클로저 안에서는 위 if 가드의 narrowing이 유지되지 않아 로컬 변수로 한 번 받아둔다.
+      const activePeriod = result.report.activePeriod;
       setSearchParams(
         (prev) => {
           const params = new URLSearchParams(prev);
-          params.set("period", result.report.activePeriod);
+          params.set("period", activePeriod);
           return params;
         },
         { replace: true },

@@ -35,7 +35,8 @@ export default function Step7DailySchedule({
               unit={field.unit}
               min={field.min}
               max={field.max}
-              value={dailySchedule[field.key]}
+              // dailySchedule은 DAILY_SCHEDULE_FIELDS로부터 빌드되어 모든 key가 항상 존재한다.
+              value={dailySchedule[field.key]!}
               onChange={(value) => setDailyScheduleField(field.key, value)}
             />
           ))}

@@ -155,7 +155,8 @@ function mapTodayGoal(
 
   const now = new Date();
   const dayIndex = getDayIndexFromYMDServer(kstYMD(now), now);
-  const dayName = VIRTUAL_DAY_NAMES[dayIndex];
+  // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
+  const dayName = VIRTUAL_DAY_NAMES[dayIndex]!;
   const daySchedule = student.weeklySchedule?.[dayName] || { ideal: 0, min: 0 };
 
   const rateOf = (targetHours: number) =>
@@ -179,9 +180,10 @@ function mapMockExam(student: GoalStudent) {
     // lastMogoExam 라벨은 api/goal/intake.js MOCK_ROUNDS와 동일('3모'/'6모'/'9모'/'10모').
     round: lastMogoExam ? `${lastMogoExam} 모의고사` : "모의고사 기록 없음",
     // 모의고사 카드는 D-day 소스가 없다(회차 일정 테이블 자체가 미생성 — 중요일정과 달리
-    // 실데이터 전환 대상이 아니다) — undefined로 두면 GoalDdayBadge가 빈 뱃지를 렌더한다
+    // 실데이터 전환 대상이 아니다) — dday 키를 생략하면 GoalDdayBadge가 빈 뱃지를 렌더한다
     // (React는 undefined 자식을 그리지 않는다). 가짜 날짜를 지어내지 않기 위한 선택.
-    dday: undefined,
+    // exactOptionalPropertyTypes: optional 필드는 명시적 undefined 값을 받지 않으므로
+    // 키 자체를 생략한다(동작은 이전과 동일).
     metricLabel: "현재 종합 백분위",
     metricValue: currentMogo != null ? currentMogo : "기록 없음",
     // AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2,

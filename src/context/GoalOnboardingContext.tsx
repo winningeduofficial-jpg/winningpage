@@ -40,8 +40,8 @@ import {
 
 const STORAGE_KEY = "goal-onboarding-flow";
 
-type SchoolType = "general" | "special" | "middle" | "elementary" | null;
-type Grade = "g1" | "g2" | "g3" | null;
+export type SchoolType = "general" | "special" | "middle" | "elementary" | null;
+export type Grade = "g1" | "g2" | "g3" | null;
 
 interface UniversityChoice {
   university: string;
@@ -270,7 +270,8 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
         ...prev,
         naesin: {
           ...prev.naesin,
-          [examKey]: { ...prev.naesin[examKey], ...partial },
+          // examKey는 항상 buildInitialNaesin으로 채워진 기존 키다.
+          [examKey]: { ...prev.naesin[examKey]!, ...partial },
         },
       }));
     },
@@ -288,7 +289,13 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
         ...prev,
         mockExam: {
           ...prev.mockExam,
-          [roundKey]: { ...prev.mockExam[roundKey], ...partial },
+          // roundKey는 항상 buildInitialMockExam으로 채워진 기존 키다. partial의 string 인덱스
+          // 시그니처가 개별 필드 옵셔널을 만들어 병합 결과가 구조적으로 MockExamRound와 어긋나
+          // 보이므로 단언한다(값 자체는 항상 유효한 MockExamRound 형태로 병합된다).
+          [roundKey]: {
+            ...prev.mockExam[roundKey]!,
+            ...partial,
+          } as MockExamRound,
         },
       }));
     },

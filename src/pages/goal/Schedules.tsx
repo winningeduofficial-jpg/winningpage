@@ -104,7 +104,8 @@ export default function Schedules() {
       scheduleType: schedule.category,
       title: schedule.title,
       dueDate: schedule.dueDate,
-      memo: schedule.memo,
+      // exactOptionalPropertyTypes: 명시적 undefined를 못 받는 optional 필드라 null로 맞춘다.
+      memo: schedule.memo ?? null,
     });
     setModalOpen(true);
   }

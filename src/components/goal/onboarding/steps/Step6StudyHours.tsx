@@ -16,7 +16,8 @@ export default function Step6StudyHours({
   goNext,
 }: Step6StudyHoursProps) {
   const { studyHours, setStudyHour } = useGoalOnboarding();
-  const canProceed = WEEKDAY_OPTIONS.some(({ key }) => studyHours[key] > 0);
+  // studyHours는 WEEKDAY_OPTIONS로부터 빌드되어 모든 key가 항상 존재한다.
+  const canProceed = WEEKDAY_OPTIONS.some(({ key }) => studyHours[key]! > 0);
 
   return (
     <>
@@ -31,7 +32,7 @@ export default function Step6StudyHours({
             <SliderRow
               key={key}
               label={label}
-              value={studyHours[key]}
+              value={studyHours[key]!}
               onChange={(value) => setStudyHour(key, value)}
             />
           ))}
