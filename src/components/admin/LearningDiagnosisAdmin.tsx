@@ -1,5 +1,5 @@
 import { ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { reportAdminError } from "../../pages/admin/shared/adminErrors";
 import {
@@ -195,9 +195,12 @@ export default function LearningDiagnosisAdmin() {
     });
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadAll은 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
-  useEffect(() => {
+  const onMountLoadAll = useEffectEvent(() => {
     loadAll();
+  });
+
+  useEffect(() => {
+    onMountLoadAll();
   }, []);
 
   function updateQuestionLocal(

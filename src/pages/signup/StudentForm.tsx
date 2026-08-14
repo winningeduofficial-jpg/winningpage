@@ -27,7 +27,7 @@
 //  3. 이미 가입에 쓰인 전화번호는 "인증번호 보내기" 단계에서 걸러낸다
 //     (/api/send-phone-code reason:'phone_taken'). 경합으로 뚫린 경우는 가입 RPC의
 //     duplicate_phone이 잡는다(sql/40_auth_signup.sql [16]).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AgreementList,
@@ -317,10 +317,9 @@ export default function StudentForm() {
     }
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const code = formData.phoneCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. phoneCode 6자리 완성 시에만 실행되어야 한다.
+  const onPhoneCodeChange = useEffectEvent((code: string) => {
     if (
       code.length !== 6 ||
       !verification.phone.requested ||
@@ -353,6 +352,10 @@ export default function StudentForm() {
         lastPhoneAttempt.current = "";
       }
     });
+  });
+
+  useEffect(() => {
+    onPhoneCodeChange(formData.phoneCode);
   }, [formData.phoneCode]);
 
   // --- 이메일 인증: 기존 Signup.jsx 시퀀스 그대로(중복확인 → signUp으로 OTP 발송) ---
@@ -449,10 +452,9 @@ export default function StudentForm() {
   // 6자리가 채워지면 곧바로 검증한다 — 휴대폰(알림톡) 인증과 같은 방식이라
   // 별도 "확인" 버튼을 두지 않는다(파일 상단 2026-08-07 변경 2번).
   // ParentForm(E-1)이 이미 쓰던 패턴이다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const token = formData.emailCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. emailCode 6자리 완성 시에만 실행되어야 한다.
+  const onEmailCodeChange = useEffectEvent((token: string) => {
     if (
       token.length !== 6 ||
       !verification.email.requested ||
@@ -511,6 +513,10 @@ export default function StudentForm() {
         status: "success",
       });
     });
+  });
+
+  useEffect(() => {
+    onEmailCodeChange(formData.emailCode);
   }, [formData.emailCode]);
 
   function validateForm() {

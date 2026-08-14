@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from "react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
@@ -749,9 +749,10 @@ export default function PerformanceChatPage() {
   //     화면 없이 곧장 그 세션을 조회해 재개 분기 판정표를 태운다(`resolveSessionEntry`).
   //   · 없고 `lastSession`이 있으면 재개 선택 카드(`entryMode:'choice'`)를 보여준다.
   //   · 둘 다 없으면 기존 그대로 STEP1 그리팅부터 시작한다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) resolveSessionEntry는 여러 핸들러가 공유하는 미메모 함수라 deps에 넣으면 매 렌더 재실행되지만, entryResolvedRef 가드가 실제 실행을 최초 1회로 막아 안전하다.
-  useEffect(() => {
-    if (bootstrapLoading || entryResolvedRef.current) return;
+  // resolveSessionEntry는 여러 핸들러가 공유하는 미메모 함수다 — useEffectEvent로 감싸 최신
+  // 클로저를 그대로 읽되 deps에서는 뺀다. entryResolvedRef 가드가 실행을 최초 1회로 막는다.
+  const onBootstrapReady = useEffectEvent(() => {
+    if (entryResolvedRef.current) return;
     entryResolvedRef.current = true;
 
     if (routeSessionId) {
@@ -760,7 +761,12 @@ export default function PerformanceChatPage() {
     }
 
     setEntryMode(lastSessionSummary ? "choice" : "chat");
-  }, [bootstrapLoading, lastSessionSummary, routeSessionId]);
+  });
+
+  useEffect(() => {
+    if (bootstrapLoading) return;
+    onBootstrapReady();
+  }, [bootstrapLoading]);
 
   // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
   // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩

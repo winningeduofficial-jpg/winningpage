@@ -74,9 +74,10 @@ export default function AdmissionModalShell({
   title?: ReactNode;
   idPrefix?: string;
   sheetClassName?: string;
-  // RefObject<T>.current는 이미 T | null이라 T에 다시 null을 더하면(RefObject<T | null>)
-  // React의 ref prop 타입(LegacyRef<T>)과 공변 불일치가 난다.
-  bodyRef?: RefObject<HTMLDivElement>;
+  // React 19 @types/react부터 RefObject<T>.current가 더는 암묵적으로 T | null이
+  // 아니다(불변). useRef<T>(null)의 반환 타입이 RefObject<T | null>이므로 호출부와
+  // 맞추려면 여기도 명시적으로 null을 더해야 한다.
+  bodyRef?: RefObject<HTMLDivElement | null>;
   // ComponentPropsWithoutRef<"div">는 data-* 인덱스 시그니처가 없어(호출부가
   // 넘기는 { "data-section": ... } 실사용과 어긋난다) 명시적으로 얹는다.
   bodyProps?: ComponentPropsWithoutRef<"div"> & {
