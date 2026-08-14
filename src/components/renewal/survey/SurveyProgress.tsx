@@ -12,7 +12,17 @@
  *   padding 16·75 (1rem·4.6875rem), 라벨 20px SemiBold.
  * 미완료 = bg #D7D7D7(흰 글자 대비를 위해 텍스트는 그대로 흰색) / 완료 = bg #013262.
  */
-export default function SurveyProgress({ complete, label, onClick }) {
+type SurveyProgressProps = {
+  complete?: boolean;
+  label?: string;
+  onClick?: () => void;
+};
+
+export default function SurveyProgress({
+  complete,
+  label,
+  onClick,
+}: SurveyProgressProps) {
   const bannerClass =
     "flex h-[3.75rem] w-full items-center justify-center rounded-xl px-6 py-4 text-center text-xl font-semibold leading-5 text-white transition-colors duration-150 sm:px-[4.6875rem] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 

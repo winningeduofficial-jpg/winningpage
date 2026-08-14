@@ -21,6 +21,20 @@
  * 기존 선택 상태 #013262/#E9F4FF와 겹치지 않는 앰버 톤 — useUnansweredNavigation이 3초
  * 내외로 또는 응답 시 꺼준다).
  */
+import type { ReactNode } from "react";
+
+type QuestionCardProps = {
+  number?: number;
+  category?: string;
+  title?: ReactNode;
+  helper?: string;
+  maxSelect?: number;
+  selectedCount?: number;
+  questionId?: string | number;
+  highlighted?: boolean;
+  children?: ReactNode;
+};
+
 export default function QuestionCard({
   number,
   category,
@@ -31,7 +45,7 @@ export default function QuestionCard({
   questionId,
   highlighted = false,
   children,
-}) {
+}: QuestionCardProps) {
   const showCounter = Number.isFinite(maxSelect);
   const counterReached = showCounter && selectedCount >= maxSelect;
 

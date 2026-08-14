@@ -14,6 +14,18 @@
  *   filled  텍스트 #181D24
  *   error   border #D92D20 (스타일만, 검증 로직 없음)
  */
+type ConditionalTextInputProps = {
+  label?: string;
+  placeholder?: string;
+  value?: string | null;
+  onChange?: (value: string) => void;
+  multiline?: boolean;
+  rows?: number;
+  disabled?: boolean;
+  error?: boolean;
+  errorMessage?: string;
+};
+
 export default function ConditionalTextInput({
   label,
   placeholder,
@@ -24,7 +36,7 @@ export default function ConditionalTextInput({
   disabled = false,
   error = false,
   errorMessage,
-}) {
+}: ConditionalTextInputProps) {
   // 세로 padding 은 multiline 에만 남긴다. 1줄 입력은 input 이 박스 68px 을 그대로 채우고
   // (h-full) 텍스트는 input 자신의 단일행 수직 중앙정렬로 놓이므로 렌더 결과가 동일하면서
   // 클릭 가능 영역만 28px → 68px 로 넓어진다. py-3.5 를 남기면 content box 가 40px 이라
