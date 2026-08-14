@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { DayPattern } from "./schedule.ts";
 import {
   calcAvailableHours,
   calcAvailableHoursApprox,
@@ -124,7 +125,13 @@ const SCHEDULE = {
 };
 const STUDENT = { study_schedule: SCHEDULE };
 
-const EFFECTIVE_CASES = [
+// args 필드를 getEffectiveScheduleTarget 파라미터 튜플로 문맥 타입 지정한다 — 그래야
+// 아래 각 케이스의 배열 리터럴이 스프레드 가능한 튜플로 추론된다(순수 타입 지정, 값 불변).
+const EFFECTIVE_CASES: {
+  name: string;
+  args: Parameters<typeof getEffectiveScheduleTarget>;
+  expected: { ideal: number; min: number };
+}[] = [
   {
     name: "월~일 7일 — 일요일 제외라 월~토와 같다",
     args: [STUDENT, "2026-08-10", "2026-08-16"],
@@ -224,7 +231,9 @@ test("getEffectiveScheduleTarget — now 주입이 결과에 영향 없음 (구�
 // getStudyMultiplier — 17단 배율표 전체
 // ---------------------------------------------------------------------------
 
-const MULTIPLIER_CASES = [
+// [대학, 학과, 기대 배율] 튜플로 문맥 타입 지정 — 리터럴 배열이라 명시하지 않으면
+// TS 가 u/dept 를 `string | number` 로 합쳐 추론한다(순수 타입 지정, 값 불변).
+const MULTIPLIER_CASES: [string, string, number][] = [
   // 의예 (topMed 0.90 / 그 외 0.88)
   ["서울대학교", "의예과", 0.9],
   ["울산대학교", "의예과", 0.9],
@@ -293,7 +302,7 @@ for (const [u, dept, expected] of MULTIPLIER_CASES) {
 // NOTE(target-parity): '치의예과'·'한의예과'·'수의예과' 는 문자열상 '의예과' 를 포함하므로
 //   isMedical 분기가 먼저 걸린다. 전용 분기(치의 0.88/0.86, 한의 0.88/0.84, 수의 0.88/0.82)에
 //   도달하지 못하고 의예 배율이 나온다. 원본 그대로이며, 고치지 말 것.
-const SUBSTRING_TRAP_CASES = [
+const SUBSTRING_TRAP_CASES: [string, string, number, string][] = [
   ["경희대학교", "치의예과", 0.9, "치의 전용 0.88 이 아니라 topMed 0.90"],
   ["경희대학교", "한의예과", 0.9, "한의 전용 0.88 이 아니라 topMed 0.90"],
   ["경희대학교", "한의예과/자연", 0.9, "한의 전용 0.88 이 아니라 topMed 0.90"],
@@ -343,7 +352,12 @@ const day = (wake, sleep, schoolStart, schoolEnd, academies = []) => ({
   academies,
 });
 
-const AVAIL_CASES = [
+// args 를 calcAvailableHours 파라미터 튜플로 문맥 타입 지정한다(순수 타입 지정, 값 불변).
+const AVAIL_CASES: {
+  name: string;
+  args: Parameters<typeof calcAvailableHours>;
+  expected: number;
+}[] = [
   {
     name: "검증샘플 기상7·취침24·학교8~16·학원17~19",
     args: [day("7", "24", "8", "16", [{ start: "17", end: "19" }]), true],
@@ -472,11 +486,21 @@ test("calcAvailableHours — [parity] 기상(9시)이 등교(8시)보다 늦으�
 
 // NOTE(target-parity): day / day.academies 방어가 없어 TypeError 가 난다. 원본 그대로.
 test("calcAvailableHours — [parity] day 또는 academies 누락이면 TypeError", () => {
-  assert.throws(() => calcAvailableHours(null, false), TypeError);
+  assert.throws(
+    () => calcAvailableHours(null as unknown as DayPattern, false),
+    TypeError,
+  );
   assert.throws(
     () =>
       calcAvailableHours(
-        { wake: "7", sleep: "24", schoolStart: "", schoolEnd: "" },
+        // academies 필드를 의도적으로 누락한 잘못된 입력 — 런타임 TypeError 를 검증하는
+        // 케이스라 값은 그대로 두고 타입만 캐스팅한다.
+        {
+          wake: "7",
+          sleep: "24",
+          schoolStart: "",
+          schoolEnd: "",
+        } as DayPattern,
         false,
       ),
     TypeError,
@@ -763,7 +787,12 @@ test("calculateWeekSchedule — [parity] 병리② 목표가 가용시간을 초
 // calcAvailableHoursApprox — 우리 온보딩 근사 (원본에 없음)
 // ---------------------------------------------------------------------------
 
-const APPROX_CASES = [
+// args 를 calcAvailableHoursApprox 파라미터 튜플로 문맥 타입 지정한다(순수 타입 지정, 값 불변).
+const APPROX_CASES: {
+  name: string;
+  args: Parameters<typeof calcAvailableHoursApprox>;
+  expected: number;
+}[] = [
   {
     name: "온보딩 기본값 7/24/8/2 — 평일",
     args: [

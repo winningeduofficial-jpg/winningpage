@@ -98,7 +98,8 @@ const GRADES = [
 ];
 
 // [연, 월(0-base), 일, 시, 분, 초, ms] — 기준일 전후/당일 경계를 포함한다.
-const NOWS = [
+// Date 생성자에 스프레드하므로 튜플로 문맥 타입 지정한다(순수 타입 지정, 값 불변).
+const NOWS: [number, number, number, number, number, number, number][] = [
   [2026, 0, 1, 0, 0, 0, 0],
   [2026, 7, 11, 13, 47, 22, 123], // 평범한 오후
   [2026, 8, 11, 0, 0, 0, 0], // 수시 기준일 하루 전 → D-1
@@ -113,7 +114,8 @@ const NOWS = [
   [2028, 1, 29, 12, 0, 0, 0], // 윤년 2/29
 ];
 
-const BASE_PROBS = [72.5, 41.3, 88.1, 60];
+// calcStudentBonusRates 에 스프레드하므로 튜플로 문맥 타입 지정한다(순수 타입 지정, 값 불변).
+const BASE_PROBS: [number, number, number, number] = [72.5, 41.3, 88.1, 60];
 
 // 기준확률 경계·비정상 입력 (now 는 2026-08-11 고정, 학년 고3)
 const PROB_SETS = [
@@ -429,7 +431,13 @@ test("calcStudentBonusRates: 골든 픽스처", () => {
   for (const probs of PROB_SETS) {
     check(
       `probs=${String(probs)}`,
-      calcStudentBonusRates("고3", ...probs, new Date(2026, 7, 11, 0, 0, 0, 0)),
+      // PROB_SETS 는 방어 케이스라 null/undefined/문자열("abc")도 섞여 있고
+      // calcStudentBonusRates 시그니처(확률 4개: number)와 다르므로 캐스팅만 한다.
+      calcStudentBonusRates(
+        "고3",
+        ...(probs as [number, number, number, number]),
+        new Date(2026, 7, 11, 0, 0, 0, 0),
+      ),
     );
   }
 
@@ -551,7 +559,17 @@ test("getAchievementRateMultiplier: 부등호 방향(130·170 은 초과, 100 �
 const R = [0.0123, 0.0456, 0.0198, 0.0321];
 
 // [성취도, 집중도, rate 4종, tasks, 학습시간, 이상목표시간, 최소목표시간]
-const CDB_CASES = [
+// 열마다 문자열/숫자/null/undefined 가 섞여 있어 명시 타입 없이는 TS 가 전체를 하나의
+// 합집합으로 뭉쳐 추론한다 — 튜플로 문맥 타입 지정한다(순수 타입 지정, 값 불변).
+const CDB_CASES: [
+  string | undefined,
+  string | undefined,
+  number[],
+  string[],
+  number,
+  number | string | null | undefined,
+  number | string | null | undefined,
+][] = [
   ["full", "excellent", R, [], 8, 8, 5],
   ["full", "excellent", R, ["내신 과목"], 8, 8, 5],
   ["full", "excellent", R, ["기출/모의고사"], 8, 8, 5],
@@ -960,8 +978,10 @@ test("calculateDailyBonus: 골든 픽스처", () => {
       rates[3],
       tasks,
       sh,
-      ih,
-      mh,
+      // ih/mh 열에는 문자열('8'·'abc')·null·undefined 도 섞여 있고 함수 시그니처는
+      // number 라 캐스팅만 한다.
+      ih as number,
+      mh as number,
     );
     assertBonusEqual(
       result,
