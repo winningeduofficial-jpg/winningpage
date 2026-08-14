@@ -10,6 +10,14 @@ export const MENTOR_APPLICATION_STATUS_OPTIONS = [
   { value: "rejected", label: "불합격" },
 ];
 
+// source: 백필(admission_results 유도)로 만들어진 행인지, 사람이 손으로 넣은
+// 행인지를 구분한다. 백필 재실행이 'manual' 행을 덮어쓰지 않는 근거 컬럼이다.
+// CONFIGS.goalUniversityCuts(Admin.jsx)와 GoalStudentsAdmin이 이 배열을 공유한다.
+export const GOAL_CUT_SOURCE_OPTIONS = [
+  { value: "admission_results", label: "입결정보 유도" },
+  { value: "manual", label: "수기 입력" },
+];
+
 export function normalizeProgramIds(value) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (!value) return [];
