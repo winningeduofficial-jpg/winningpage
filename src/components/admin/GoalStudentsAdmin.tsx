@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   addDaysYMD,
@@ -23,9 +24,143 @@ import {
   GOAL_CUT_SOURCE_OPTIONS,
 } from "../../pages/admin/shared/formFields";
 
+// 이 파일 로컬 전용 타입(새 전역 타입 파일 없음). goal_students/goal_student_state는
+// 파생·원자료 컬럼이 매우 많은 넓은 테이블/뷰라 실제로 읽는 필드만 명시하고
+// 나머지(rate_*/base_*/cum_* 등 GOAL_GAUGE_ROWS·GOAL_CUT_SLOTS가 동적으로 읽는
+// 파생 컬럼)는 인덱스 시그니처로 연다.
+interface GoalStudentRow {
+  profile_id: string;
+  grade?: string | null;
+  school_type?: string | null;
+  status?: string | null;
+  ideal_university?: string | null;
+  ideal_department?: string | null;
+  min_university?: string | null;
+  min_department?: string | null;
+  current_mogo?: number | string | null;
+  current_score?: number | string | null;
+  converted_grade?: number | string | null;
+  remain_naesin?: number | string | null;
+  remain_mogo?: number | string | null;
+  last_naesin_exam?: string | null;
+  last_mogo_exam?: string | null;
+  week_ideal?: number | string | null;
+  week_min?: number | string | null;
+  naesin_scores?: { priorNaesinGrade?: number | string | null } | null;
+  mock_exam_scores?: unknown;
+  study_schedule?: Record<
+    string,
+    { ideal?: number | string | null; min?: number | string | null } | undefined
+  > | null;
+  onboarded_at?: string | null;
+  actual_start_date?: string | null;
+  [key: string]: unknown;
+}
+
+interface GoalStateRow {
+  profile_id: string;
+  status?: string | null;
+  record_count?: number | null;
+  last_record_date?: string | null;
+  onboarded_at?: string | null;
+  ideal_susi?: number | null;
+  ideal_jungsi?: number | null;
+  min_susi?: number | null;
+  min_jungsi?: number | null;
+  [key: string]: unknown;
+}
+
+interface GoalProfileRow {
+  id: string;
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
+// 목록 1행 — 뷰(goal_student_state) + goal_students/profiles 조인 결과를 이
+// 컴포넌트가 클라이언트에서 합성한다(loadList 참고).
+interface GoalListRow extends GoalStateRow {
+  student: GoalStudentRow | null;
+  profile: GoalProfileRow | null;
+}
+
+interface GoalProbabilityLogRow {
+  id: string;
+  created_at?: string | null;
+  reason?: string | null;
+  ideal_susi?: number | null;
+  ideal_jungsi?: number | null;
+  min_susi?: number | null;
+  min_jungsi?: number | null;
+  source_record_id?: string | number | null;
+  [key: string]: unknown;
+}
+
+interface GoalDailyRecordRow {
+  id: string;
+  record_index?: number | null;
+  record_date?: string | null;
+  submitted_on?: string | null;
+  virtual_day_index?: number | null;
+  study_hours?: number | string | null;
+  target_ideal_hours?: number | string | null;
+  target_min_hours?: number | string | null;
+  body_condition?: string | null;
+  tasks?: string[] | null;
+  memo?: string | null;
+  delta_ideal_susi?: number | null;
+  delta_ideal_jungsi?: number | null;
+  delta_min_susi?: number | null;
+  delta_min_jungsi?: number | null;
+  [key: string]: unknown;
+}
+
+interface GoalUniversityCutRow {
+  avg_cut?: number | null;
+  source?: string | null;
+  source_year?: number | string | null;
+  updated_at?: string | null;
+}
+
+interface GoalCutSlot {
+  key: string;
+  label: string;
+  snapshotKey: string;
+  side: "ideal" | "min";
+  axis: "naesin" | "jungsi";
+}
+
+interface GoalDescribedCutSlot extends GoalCutSlot {
+  cutType: string;
+  university: string;
+  department: string;
+}
+
+interface GoalGaugeRowDef {
+  label: string;
+  base: string;
+  cum: string;
+  now: string;
+  rate: string;
+}
+
+interface GoalRiskFlag {
+  key: string;
+  tone: "red" | "orange" | "gray";
+  label: string;
+}
+
+// customComponentKey="goalStudents" config — admin-shared-configs 배치의 CONFIGS
+// shape과 맞물리지만, 이 컴포넌트가 실제로 읽는 필드만 로컬로 추론한다.
+interface GoalStudentsAdminConfig {
+  title: string;
+  searchPlaceholder?: string;
+  [key: string]: unknown;
+}
+
 // goal_students.status. sql/55 의 CHECK 제약과 동일 집합.
 // awaiting_cuts = 온보딩은 제출했으나 컷이 없어 확률이 산출되지 않은 상태.
-const GOAL_STUDENT_STATUS_OPTIONS = [
+const GOAL_STUDENT_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "active", label: "진행중" },
   { value: "awaiting_cuts", label: "컷 대기" },
   { value: "paused", label: "정지" },
@@ -53,7 +188,7 @@ const GOAL_STUDENT_STATUS_OPTIONS = [
 // 사라진다. 상한에 닿으면 화면에 절단 사실을 띄운다(searchTruncated).
 const PROFILE_SEARCH_LIMIT = 500;
 
-const GOAL_STUDENT_FILTERS = [
+const GOAL_STUDENT_FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "awaiting_cuts", label: "컷 대기" },
   { key: "noSubmitToday", label: "오늘 미제출" },
@@ -62,7 +197,7 @@ const GOAL_STUDENT_FILTERS = [
 ];
 
 // 상세 상단 안내에 쓰는 컷 4종의 표시 순서/라벨. goalRepo.js:37 CUT_KEYS 와 같은 순서다.
-const GOAL_CUT_SLOTS = [
+const GOAL_CUT_SLOTS: GoalCutSlot[] = [
   {
     key: "idealNaesin",
     label: "상한 내신",
@@ -94,7 +229,7 @@ const GOAL_CUT_SLOTS = [
 ];
 
 // 게이지 분해(§4-3-C-2) 4행. 뷰가 base / cum / 최종값을 한 행에 나란히 갖고 있다.
-const GOAL_GAUGE_ROWS = [
+const GOAL_GAUGE_ROWS: GoalGaugeRowDef[] = [
   {
     label: "상한 수시",
     base: "base_ideal_susi",
@@ -127,16 +262,19 @@ const GOAL_GAUGE_ROWS = [
 
 const GOAL_WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
-function goalOptionLabel(options, value) {
+function goalOptionLabel(
+  options: { value: string; label: string }[],
+  value: string | null | undefined,
+) {
   const matched = options.find((option) => option.value === value);
   return matched ? matched.label : value || "-";
 }
 
-function goalTrim(value) {
+function goalTrim(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function goalNum(value) {
+function goalNum(value: unknown) {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -145,7 +283,15 @@ function goalNum(value) {
 // 🔴 null 과 0 은 다른 상태다. base_* 가 null 이면 뷰의 최종값도 null 이고
 //    (sql/55 의 case when ... is null then null 가드) 그건 "컷 미확보로 미산출"이다.
 //    0 은 "확률 0%"다. 같은 회색 텍스트로 뭉개면 관리자가 컷 누락을 결함으로 신고한다.
-function GoalProb({ value, digits = 2, suffix = "%" }) {
+function GoalProb({
+  value,
+  digits = 2,
+  suffix = "%",
+}: {
+  value: unknown;
+  digits?: number;
+  suffix?: string;
+}) {
   const parsed = goalNum(value);
   if (parsed === null)
     return <span className="font-bold text-gray-400">미산출</span>;
@@ -157,7 +303,7 @@ function GoalProb({ value, digits = 2, suffix = "%" }) {
   );
 }
 
-function GoalStatusBadge({ status }) {
+function GoalStatusBadge({ status }: { status?: string | null }) {
   const tone =
     status === "awaiting_cuts"
       ? "border-[#B88737]/40 bg-[#FFF8E8] text-[#7A4A12]"
@@ -174,7 +320,13 @@ function GoalStatusBadge({ status }) {
   );
 }
 
-function GoalRiskBadge({ tone, children }) {
+function GoalRiskBadge({
+  tone,
+  children,
+}: {
+  tone: string;
+  children: ReactNode;
+}) {
   const cls =
     tone === "red"
       ? "border-red-300 bg-red-50 text-red-600"
@@ -192,7 +344,13 @@ function GoalRiskBadge({ tone, children }) {
 }
 
 // 안내 문구 카드. 진단 힌트(§4-3-C-1 / §4-3-C-5)와 상태 안내(§4-3-C-3)가 공유한다.
-function GoalNotice({ tone = "info", children }) {
+function GoalNotice({
+  tone = "info",
+  children,
+}: {
+  tone?: string;
+  children: ReactNode;
+}) {
   const cls =
     tone === "danger"
       ? "border-red-300 bg-red-50 text-red-700"
@@ -211,8 +369,8 @@ function GoalNotice({ tone = "info", children }) {
 // 원본 target/api/student.mjs:571-575 의 '공부시간 감소'(최근 7일 vs 이전 7일)는
 // goal_daily_records 가 0행이고 daily-record API 도 미배포라 지금 산출할 수 없다.
 // 정의만 남기고 켜지 않는다(§4-3-B 각주).
-function buildGoalRiskFlags(row, todayYMD) {
-  const flags = [];
+function buildGoalRiskFlags(row: GoalListRow, todayYMD: string) {
+  const flags: GoalRiskFlag[] = [];
   const last = row.last_record_date || null;
   const weekAgo = addDaysYMD(todayYMD, -7);
 
@@ -232,7 +390,7 @@ function buildGoalRiskFlags(row, todayYMD) {
 // 온보딩 시점 컷 스냅샷 4칸 중 null 인 것 = 빠진 컷.
 // api/_lib/goalRepo.js:270-278 listMissingCuts 와 같은 규칙이지만 그 모듈은
 // service_role 클라이언트를 끌고 오므로(supabaseAdmin.js) 브라우저 번들로 import 하지 않는다.
-function listGoalMissingCutSlots(student) {
+function listGoalMissingCutSlots(student: GoalStudentRow | null) {
   if (!student) return [];
   return GOAL_CUT_SLOTS.filter(
     (slot) => goalNum(student[slot.snapshotKey]) === null,
@@ -242,7 +400,10 @@ function listGoalMissingCutSlots(student) {
 // 빠진 컷 1칸을 "컷 관리 탭에서 만들어야 할 행" 으로 번역한다.
 // 내신 컷의 cut_type 은 학교 유형에서 유도한다 — DB에 저장하지 않고 매번 파생하는 것이
 // 계산 엔진의 규약이다(primitives.js:43-47 getSchoolCutType, import 만 한다).
-function describeGoalCutSlot(slot, student) {
+function describeGoalCutSlot(
+  slot: GoalCutSlot,
+  student: GoalStudentRow | null | undefined,
+): GoalDescribedCutSlot {
   const naesinType = getSchoolCutType(student?.school_type);
   return {
     ...slot,
@@ -260,7 +421,7 @@ function describeGoalCutSlot(slot, student) {
   };
 }
 
-function goalDiffDays(fromYMD, toYMD) {
+function goalDiffDays(fromYMD: unknown, toYMD: unknown) {
   if (!fromYMD || !toYMD) return 0;
   const a = Date.parse(`${String(fromYMD).slice(0, 10)}T00:00:00Z`);
   const b = Date.parse(`${String(toYMD).slice(0, 10)}T00:00:00Z`);
@@ -268,13 +429,19 @@ function goalDiffDays(fromYMD, toYMD) {
   return Math.round((b - a) / 86400000);
 }
 
-function goalSigned(value, digits = 4) {
+function goalSigned(value: unknown, digits = 4) {
   const parsed = goalNum(value);
   if (parsed === null) return "-";
   return `${parsed >= 0 ? "+" : ""}${parsed.toFixed(digits)}`;
 }
 
-function GoalDetailRow({ label, children }) {
+function GoalDetailRow({
+  label,
+  children,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="grid grid-cols-[8.75rem_1fr] border-b border-[#edf0f4] last:border-b-0">
       <div className="bg-[#fafafa] px-4 py-2.5 text-xs font-black text-gray-600">
@@ -287,7 +454,15 @@ function GoalDetailRow({ label, children }) {
   );
 }
 
-function GoalCard({ title, right, children }) {
+function GoalCard({
+  title,
+  right,
+  children,
+}: {
+  title: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="mb-5 bg-white shadow">
       <div className="flex items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3">
@@ -299,14 +474,22 @@ function GoalCard({ title, right, children }) {
   );
 }
 
+interface GoalStudentsAdminProps {
+  config: GoalStudentsAdminConfig;
+  // Admin.jsx가 넘기는 콜백 계약(§4-3-C-4 원클릭 컷 만들기) — 둘 다 옵션이며
+  // 미제공 시 canCreateCut이 false가 되어 버튼 자체를 렌더하지 않는다.
+  onNavigate?: (key: string) => void;
+  onPrefillCreate?: (payload: Record<string, unknown>) => void;
+}
+
 export default function GoalStudentsAdmin({
   config,
   onNavigate,
   onPrefillCreate,
-}) {
+}: GoalStudentsAdminProps) {
   // 목록 state. 상세로 갔다 와도 유지되어야 하므로(§4-3-A) 상세는 하위 컴포넌트로 빼고
   // 이 컴포넌트는 언마운트되지 않는다.
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<GoalListRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState("");
@@ -322,7 +505,7 @@ export default function GoalStudentsAdmin({
   // PROFILE_SEARCH_LIMIT 을 넘으면 초과분 학생이 결과에서 조용히 사라지므로
   // 절단 사실을 화면에 알린다.
   const [searchTruncated, setSearchTruncated] = useState(false);
-  const [detailId, setDetailId] = useState(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const todayYMD = useMemo(() => kstYMD(), []);
 
@@ -347,7 +530,7 @@ export default function GoalStudentsAdmin({
       // goal_student_state 에는 이름·연락처가 없다. PostgREST 임베딩도 불가능하다
       // (goal_students.profile_id FK 가 auth.users 를 가리켜 profiles 관계가 없다 —
       //  실제 요청에서 PGRST200 확인). 그래서 id 목록을 먼저 얻어 .in() 으로 좁힌다.
-      let idFilter = null;
+      let idFilter: string[] | null = null;
 
       if (term) {
         const safe = term.replace(/[,()%_\\*]/g, " ").trim();
@@ -774,7 +957,7 @@ export default function GoalStudentsAdmin({
 // 확률 로그 시계열. 차트 라이브러리 선례가 이 파일에 0건이라 SVG polyline 으로 직접 그린다.
 // 정시 2선은 컷이 없으면 null 이라(sql/56_goal_jungsi_optional.sql) **끊어진 선**이 되어야 한다 —
 // null 을 0 으로 접으면 "정시 확률이 0%로 떨어졌다"는 거짓 그림이 된다.
-function GoalProbabilityChart({ logs }) {
+function GoalProbabilityChart({ logs }: { logs: GoalProbabilityLogRow[] }) {
   const series = [
     { key: "ideal_susi", label: "상한 수시", color: "#2348ff" },
     { key: "ideal_jungsi", label: "상한 정시", color: "#7c3aed" },
@@ -799,8 +982,8 @@ function GoalProbabilityChart({ logs }) {
 
   const stepX =
     logs.length <= 1 ? 0 : (width - padLeft - padRight) / (logs.length - 1);
-  const toX = (index) => padLeft + stepX * index;
-  const toY = (value) =>
+  const toX = (index: number) => padLeft + stepX * index;
+  const toY = (value: unknown) =>
     padTop + (height - padTop - padBottom) * (1 - Number(value) / 100);
 
   return (
@@ -829,8 +1012,8 @@ function GoalProbabilityChart({ logs }) {
 
         {series.map((item) => {
           // null 구간에서 선을 끊는다 — 연속된 non-null 묶음마다 polyline 을 하나씩 만든다.
-          const segments = [];
-          let current = [];
+          const segments: string[][] = [];
+          let current: string[] = [];
 
           logs.forEach((log, index) => {
             const value = goalNum(log[item.key]);
@@ -882,18 +1065,32 @@ function GoalProbabilityChart({ logs }) {
 
 const GOAL_RECORD_PAGE = 30;
 
-function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
+interface GoalStudentDetailProps {
+  profileId: string;
+  onBack: () => void;
+  onNavigate?: (key: string) => void;
+  onPrefillCreate?: (payload: Record<string, unknown>) => void;
+}
+
+function GoalStudentDetail({
+  profileId,
+  onBack,
+  onNavigate,
+  onPrefillCreate,
+}: GoalStudentDetailProps) {
   const [loading, setLoading] = useState(true);
-  const [student, setStudent] = useState(null);
-  const [state, setState] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [cutRows, setCutRows] = useState({});
-  const [logs, setLogs] = useState([]);
-  const [records, setRecords] = useState([]);
+  const [student, setStudent] = useState<GoalStudentRow | null>(null);
+  const [state, setState] = useState<GoalStateRow | null>(null);
+  const [profile, setProfile] = useState<GoalProfileRow | null>(null);
+  const [cutRows, setCutRows] = useState<
+    Record<string, GoalUniversityCutRow | null>
+  >({});
+  const [logs, setLogs] = useState<GoalProbabilityLogRow[]>([]);
+  const [records, setRecords] = useState<GoalDailyRecordRow[]>([]);
   const [recordTotal, setRecordTotal] = useState(0);
   const [recordLimit, setRecordLimit] = useState(GOAL_RECORD_PAGE);
   const [showRaw, setShowRaw] = useState(false);
-  const [openMemo, setOpenMemo] = useState({});
+  const [openMemo, setOpenMemo] = useState<Record<string, boolean>>({});
   // 온보딩 리셋(Q3) 진행 상태. 성공 시 목록 상태('컷 대기')까지 함께 갱신돼야
   // 하므로 페이지를 통째로 새로고침한다(list/detail 두 컴포넌트를 각각
   // 부분 갱신하는 것보다 안전하다 — GoalStudentsAdmin의 rows state는
@@ -1077,7 +1274,7 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
   const canCreateCut =
     typeof onNavigate === "function" && typeof onPrefillCreate === "function";
 
-  function createCutFromSlot(slot) {
+  function createCutFromSlot(slot: GoalDescribedCutSlot) {
     if (!canCreateCut) return;
     onNavigate("goalUniversityCuts");
     onPrefillCreate({

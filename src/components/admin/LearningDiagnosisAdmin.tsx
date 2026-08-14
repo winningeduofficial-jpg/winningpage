@@ -15,7 +15,76 @@ import {
   Toggle,
 } from "../../pages/admin/shared/formFields";
 
-const QUESTION_EMPTY = {
+// DB 로우 shape을 이 파일 안에서 로컬로 정의한다(learning_diagnosis_* 테이블, 새 전역 타입 파일 없음).
+// id 컬럼은 uuid(sql/00_base_schema.sql learning_diagnosis_*) — supabase-js가 string으로 반환한다.
+type DiagnosisId = string;
+// DB는 CHECK(input_type in 'single'|'multiple')이지만 formFields.Select의 onChange가
+// string을 돌려주므로 여기서는 string으로 느슨하게 받는다(TextInput/Select와 동일한 관례).
+interface DiagnosisQuestion {
+  id: DiagnosisId;
+  title: string;
+  description?: string;
+  input_type: string;
+  is_required: boolean;
+  is_active: boolean;
+  // TextInput onChange가 문자열을 그대로 돌려주고(원본 로직: Number 변환은 저장 시점에만),
+  // 편집 중에는 로컬 state에 문자열이 그대로 실릴 수 있다 — DB 원본은 number.
+  sort_order: number | string;
+  [key: string]: unknown;
+}
+
+interface DiagnosisQuestionDraft {
+  title: string;
+  description: string;
+  input_type: string;
+  is_required: boolean;
+  is_active: boolean;
+  sort_order: number | string;
+}
+
+interface DiagnosisOption {
+  id: DiagnosisId;
+  question_id: DiagnosisId;
+  label: string;
+  program_ids: string[];
+  is_active: boolean;
+  // TextInput onChange가 문자열을 그대로 돌려주고(원본 로직: Number 변환은 저장 시점에만),
+  // 편집 중에는 로컬 state에 문자열이 그대로 실릴 수 있다 — DB 원본은 number.
+  sort_order: number | string;
+  [key: string]: unknown;
+}
+
+interface DiagnosisProgram {
+  id: DiagnosisId;
+  title: string;
+  badge: string;
+  description: string;
+  primary_button_text: string;
+  primary_button_link: string;
+  secondary_button_text: string;
+  secondary_button_link: string;
+  icon: string;
+  is_active: boolean;
+  // TextInput onChange가 문자열을 그대로 돌려주고(원본 로직: Number 변환은 저장 시점에만),
+  // 편집 중에는 로컬 state에 문자열이 그대로 실릴 수 있다 — DB 원본은 number.
+  sort_order: number | string;
+  [key: string]: unknown;
+}
+
+interface DiagnosisProgramDraft {
+  title: string;
+  badge: string;
+  description: string;
+  primary_button_text: string;
+  primary_button_link: string;
+  secondary_button_text: string;
+  secondary_button_link: string;
+  icon: string;
+  is_active: boolean;
+  sort_order: number | string;
+}
+
+const QUESTION_EMPTY: DiagnosisQuestionDraft = {
   title: "",
   description: "",
   input_type: "single",
@@ -24,7 +93,7 @@ const QUESTION_EMPTY = {
   sort_order: 1,
 };
 
-const PROGRAM_EMPTY = {
+const PROGRAM_EMPTY: DiagnosisProgramDraft = {
   title: "",
   badge: "추천 서비스",
   description: "",
@@ -38,17 +107,21 @@ const PROGRAM_EMPTY = {
 };
 
 export default function LearningDiagnosisAdmin() {
-  const [questions, setQuestions] = useState([]);
-  const [options, setOptions] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [questions, setQuestions] = useState<DiagnosisQuestion[]>([]);
+  const [options, setOptions] = useState<DiagnosisOption[]>([]);
+  const [programs, setPrograms] = useState<DiagnosisProgram[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [openQuestions, setOpenQuestions] = useState(() => new Set());
-  const [newQuestion, setNewQuestion] = useState(QUESTION_EMPTY);
-  const [newProgram, setNewProgram] = useState(PROGRAM_EMPTY);
+  const [openQuestions, setOpenQuestions] = useState<Set<DiagnosisId>>(
+    () => new Set(),
+  );
+  const [newQuestion, setNewQuestion] =
+    useState<DiagnosisQuestionDraft>(QUESTION_EMPTY);
+  const [newProgram, setNewProgram] =
+    useState<DiagnosisProgramDraft>(PROGRAM_EMPTY);
 
   const optionsByQuestion = useMemo(() => {
-    const grouped = {};
+    const grouped: Record<string, DiagnosisOption[]> = {};
     options.forEach((option) => {
       const key = option.question_id;
       if (!grouped[key]) grouped[key] = [];
@@ -127,7 +200,10 @@ export default function LearningDiagnosisAdmin() {
     loadAll();
   }, []);
 
-  function updateQuestionLocal(id, patch) {
+  function updateQuestionLocal(
+    id: DiagnosisId,
+    patch: Partial<DiagnosisQuestion>,
+  ) {
     setQuestions((prev) =>
       prev.map((question) =>
         question.id === id ? { ...question, ...patch } : question,
@@ -135,7 +211,7 @@ export default function LearningDiagnosisAdmin() {
     );
   }
 
-  function updateOptionLocal(id, patch) {
+  function updateOptionLocal(id: DiagnosisId, patch: Partial<DiagnosisOption>) {
     setOptions((prev) =>
       prev.map((option) =>
         option.id === id ? { ...option, ...patch } : option,
@@ -143,7 +219,10 @@ export default function LearningDiagnosisAdmin() {
     );
   }
 
-  function updateProgramLocal(id, patch) {
+  function updateProgramLocal(
+    id: DiagnosisId,
+    patch: Partial<DiagnosisProgram>,
+  ) {
     setPrograms((prev) =>
       prev.map((program) =>
         program.id === id ? { ...program, ...patch } : program,
@@ -151,7 +230,7 @@ export default function LearningDiagnosisAdmin() {
     );
   }
 
-  function toggleQuestion(id) {
+  function toggleQuestion(id: DiagnosisId) {
     setOpenQuestions((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -199,7 +278,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function saveQuestion(question) {
+  async function saveQuestion(question: DiagnosisQuestion) {
     if (!String(question.title || "").trim()) {
       alert("질문 내용을 입력하세요.");
       return;
@@ -228,7 +307,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function deleteQuestion(question) {
+  async function deleteQuestion(question: DiagnosisQuestion) {
     if (
       !window.confirm(
         "질문을 삭제하면 질문 안의 답변도 함께 삭제됩니다. 삭제하시겠습니까?",
@@ -248,7 +327,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function createOption(questionId) {
+  async function createOption(questionId: DiagnosisId) {
     const questionOptions = optionsByQuestion[questionId] || [];
     const { error } = await supabase.from("learning_diagnosis_options").insert({
       question_id: questionId,
@@ -266,7 +345,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function saveOption(option) {
+  async function saveOption(option: DiagnosisOption) {
     if (!String(option.label || "").trim()) {
       alert("답변 내용을 입력하세요.");
       return;
@@ -293,7 +372,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function deleteOption(option) {
+  async function deleteOption(option: DiagnosisOption) {
     if (!window.confirm("이 답변을 삭제하시겠습니까?")) return;
 
     const { error } = await supabase
@@ -335,7 +414,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function saveProgram(program) {
+  async function saveProgram(program: DiagnosisProgram) {
     if (!String(program.title || "").trim()) {
       alert("프로그램명을 입력하세요.");
       return;
@@ -368,7 +447,7 @@ export default function LearningDiagnosisAdmin() {
     await loadAll();
   }
 
-  async function deleteProgram(program) {
+  async function deleteProgram(program: DiagnosisProgram) {
     if (
       !window.confirm(
         "추천 프로그램을 삭제하면 기존 답변과의 연결도 결과에서 제외됩니다. 삭제하시겠습니까?",
@@ -481,7 +560,7 @@ export default function LearningDiagnosisAdmin() {
                   </Field>
                   <Field label="순서">
                     <TextInput
-                      value={newProgram.sort_order}
+                      value={String(newProgram.sort_order)}
                       onChange={(value) =>
                         setNewProgram((prev) => ({
                           ...prev,
@@ -586,7 +665,7 @@ export default function LearningDiagnosisAdmin() {
                     </Field>
                     <Field label="순서">
                       <TextInput
-                        value={program.sort_order}
+                        value={String(program.sort_order)}
                         onChange={(value) =>
                           updateProgramLocal(program.id, { sort_order: value })
                         }
@@ -658,7 +737,7 @@ export default function LearningDiagnosisAdmin() {
                 </Field>
                 <Field label="순서">
                   <TextInput
-                    value={newQuestion.sort_order}
+                    value={String(newQuestion.sort_order)}
                     onChange={(value) =>
                       setNewQuestion((prev) => ({ ...prev, sort_order: value }))
                     }
@@ -770,7 +849,7 @@ export default function LearningDiagnosisAdmin() {
                           </Field>
                           <Field label="순서">
                             <TextInput
-                              value={question.sort_order}
+                              value={String(question.sort_order)}
                               onChange={(value) =>
                                 updateQuestionLocal(question.id, {
                                   sort_order: value,
@@ -862,7 +941,7 @@ export default function LearningDiagnosisAdmin() {
                                   </Field>
                                   <Field label="순서">
                                     <TextInput
-                                      value={option.sort_order}
+                                      value={String(option.sort_order)}
                                       onChange={(value) =>
                                         updateOptionLocal(option.id, {
                                           sort_order: value,

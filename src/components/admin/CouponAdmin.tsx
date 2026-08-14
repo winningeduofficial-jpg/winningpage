@@ -83,9 +83,81 @@ import { supabase } from "../../lib/supabase";
 // 수치로 확정돼 있고 신규 문구는 사용자 승인 대상이다). 아래 열 라벨 23개는
 // 팀 리드가 승인한 코퍼스 규범 문자열이다(2026-08-11).
 //
+// coupons 테이블(sql/55_coupon_policy.sql 계열) 로우 — 이 파일 로컬 전용 타입(새 전역
+// 타입 파일 없음). 실제로 읽는 컬럼만 명시하고 나머지는 인덱스 시그니처로 열어둔다.
+interface CouponRow {
+  id: string;
+  slug: string;
+  code: string | null;
+  title: string;
+  discount_amount: number;
+  min_amount: number;
+  valid_until: string | null;
+  max_uses_per_user: number | null;
+  max_redemptions: number | null;
+  stackable: boolean;
+  grant_type: string;
+  grant_on_signup: boolean;
+  is_active: boolean;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+interface RedemptionRow {
+  id: string;
+  coupon_id: string;
+  order_id?: string;
+  user_id: string | null;
+  discount_amount: number;
+  created_at: string;
+  voided_at: string | null;
+  void_reason?: string | null;
+  [key: string]: unknown;
+}
+
+interface GrantRow {
+  id: string;
+  coupon_id: string;
+  user_id: string;
+  granted_at: string;
+  granted_by: string;
+  revoked_at: string | null;
+  revoke_reason?: string | null;
+  [key: string]: unknown;
+}
+
+interface ProfileRow {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+}
+
+type ViewMode = "list" | "create" | "edit" | "history" | "grants";
+
+// 신규 등록/수정 폼 로컬 상태 — NULLABLE_KEYS 3필드는 `${key}_mode` 3상태 컨트롤과
+// 짝을 이룬다(NullableField 참고). discount_amount 등 숫자 필드는 입력 중 빈 문자열도
+// 거쳐가므로 number|string 유니온으로 원본 동작을 그대로 반영한다.
+interface CouponForm {
+  is_active: boolean;
+  slug: string;
+  code: string;
+  title: string;
+  discount_amount: number | string;
+  min_amount: number | string;
+  stackable: boolean;
+  grant_type: string;
+  grant_on_signup: boolean;
+  valid_until: string;
+  valid_until_mode: string;
+  max_uses_per_user: number | string;
+  max_uses_per_user_mode: string;
+  max_redemptions: number | string;
+  max_redemptions_mode: string;
+}
+
 // DB 컬럼명으로 대체하던 폴백은 제거했다(FieldName 참고) — 라벨이 아직
 // 승인되지 않은 자리는 값 그대로 null 로 두어 아무것도 그리지 않는다.
-const FIELD_LABEL = {
+const FIELD_LABEL: Record<string, string> = {
   slug: "쿠폰 키", // 값을 바꾸면 시드 멱등성에 영향
   code: "고객 입력 코드",
   title: "쿠폰 이름",
@@ -141,7 +213,7 @@ const VOID_REASON_PLACEHOLDER = "무효화 사유를 입력하세요";
 // submitVoid 의 명시적 분기(MyPage.jsx REFUND_ERROR_TEXT 와 같은 패턴)에서
 // ADMIN_UNKNOWN_ERROR_TEXT 를 보여준다 — DB 원문(error.message)을 화면에
 // 그대로 띄우던 경로를 닫았다(팀 리드 지시, 2026-08-11).
-const VOID_ERROR_TEXT = {
+const VOID_ERROR_TEXT: Record<string, string> = {
   42501: "관리자 권한이 없습니다.",
   WC002: "이미 무효화되었거나 존재하지 않는 사용 이력입니다.",
 };
@@ -169,7 +241,7 @@ const ADMIN_LOAD_ERROR_TEXT = "잠시 후 다시 시도해 주세요.";
 // 자리다 — 23514(check_violation)를 명시적으로 잡아 무엇을 고쳐야 하는지
 // 알려준다. 그 밖의 예상 밖 에러는 ADMIN_UNKNOWN_ERROR_TEXT 로 떨어진다
 // (VOID_ERROR_TEXT/GRANT_ERROR_TEXT 와 같은 분기 규범).
-const COUPON_SAVE_ERROR_TEXT = {
+const COUPON_SAVE_ERROR_TEXT: Record<string, string> = {
   23514:
     "할인 금액·최소 결제 금액을 확인해 주세요. 할인 금액은 0보다 커야 하고, 최소 결제 금액은 0 이상이어야 합니다.",
 };
@@ -199,7 +271,7 @@ const ALREADY_GRANTED_TEXT = "이미 발급된 사용자입니다.";
 // 42501 / WC003 / WC004 모두 팀 리드가 승인한 문구다(2026-08-11). 그 밖의
 // 예상 밖 코드는 submitGrant/submitRevoke 의 명시적 분기에서 ADMIN_UNKNOWN_ERROR_TEXT
 // 를 보여준다 — VOID_ERROR_TEXT 와 같은 규범이다.
-const GRANT_ERROR_TEXT = {
+const GRANT_ERROR_TEXT: Record<string, string> = {
   42501: "관리자 권한이 없습니다.",
   WC003: "이미 회수되었거나 존재하지 않는 발급입니다.",
   WC004: "발급할 수 없는 쿠폰입니다.",
@@ -241,13 +313,13 @@ const USER_SEARCH_LIMIT = 20;
 const INPUT_CLASS =
   "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
 
-function moneyText(value) {
+function moneyText(value: number | string | null | undefined) {
   return `${Number(value || 0).toLocaleString()}원`;
 }
 
 // is_active 전용. '사용/미사용' 은 formatValue(Admin.jsx:3238) 가 boolean 컬럼에
 // 쓰는 기존 표기이고, is_active 는 실제로 "사용 여부" 라서 의미가 맞다.
-function boolText(value) {
+function boolText(value: unknown) {
   return value ? "사용" : "미사용";
 }
 
@@ -255,13 +327,13 @@ function boolText(value) {
 // 이다 — 여기에 '사용/미사용' 을 쓰면 목록이 거짓말을 한다(폼에서 라벨 없는
 // 체크박스를 쓴 것과 같은 이유). 헤더가 컬럼명을 이미 들고 있으므로 값은 기호로만
 // 표시한다. 새 한국어 문구를 만들지 않는 쪽의 선택이다.
-function flagMark(value) {
+function flagMark(value: unknown) {
   return value ? "✓" : "-";
 }
 
 // timestamptz → 'YYYY-MM-DD HH:mm' (Asia/Seoul). Header.jsx:80 / PopupLayer.jsx:7
 // 의 명명 존 방식을 따른다 — 오프셋(+9h)을 손으로 더하지 않는다.
-function dateTimeText(value) {
+function dateTimeText(value: string | null | undefined) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
@@ -272,7 +344,7 @@ function dateTimeText(value) {
 }
 
 // NULL = 무기한·무제한 규약을 목록에서 표기. 값이 있으면 그대로, NULL 이면 ∞.
-function nullableText(value, suffix = "") {
+function nullableText(value: number | string | null | undefined, suffix = "") {
   if (value === null || value === undefined)
     return UNLIMITED_LABEL ?? UNLIMITED_FALLBACK;
   return `${Number(value).toLocaleString()}${suffix}`;
@@ -281,11 +353,11 @@ function nullableText(value, suffix = "") {
 // DB 컬럼명으로 대체하던 폴백은 제거했다 — FIELD_LABEL 을 직접 쓴다. 라벨이
 // 아직 승인되지 않은 키(email)는 값 그대로 null 을 반환해 아무것도 그리지
 // 않는다(지어낸 문구로 채우지 않는다).
-function FieldName({ k }) {
+function FieldName({ k }: { k: string }) {
   return FIELD_LABEL[k];
 }
 
-const FORM_KEYS = [
+const FORM_KEYS: (keyof CouponForm)[] = [
   "is_active",
   "slug",
   "code",
@@ -303,13 +375,13 @@ const FORM_KEYS = [
 // coupons_grant_type_check 가 허용하는 값. DB 에 쓰는 값은 반드시 이 두 문자열
 // 그대로다 — 아래 GRANT_TYPE_LABEL 은 화면 표시 전용이라 절대 payload 로
 // 흘려보내지 않는다(formToPayload 는 form.grant_type 원본을 그대로 쓴다).
-const GRANT_TYPES = ["auto", "granted"];
+const GRANT_TYPES: string[] = ["auto", "granted"];
 
 // grant_type 표시 라벨(팀 리드 승인, 2026-08-11). 목록 칼럼과 폼 라디오 둘 다
 // 이 라벨로 보여주고, DB 값·폼 상태(form.grant_type)는 GRANT_TYPES 의 영문을
 // 그대로 유지한다 — 어드민 폼이 한글 값을 영문 CHECK 컬럼에 써 결제(payments)
 // 등록이 실패하던 결함을 반복하지 않는다.
-const GRANT_TYPE_LABEL = {
+const GRANT_TYPE_LABEL: Record<string, string> = {
   auto: "조건형",
   granted: "발급형",
 };
@@ -322,7 +394,11 @@ const GRANT_TYPE_LABEL = {
 // 없애려는 결함 ①) "무제한" 을 고르려면 반드시 골라야 한다. valid_until /
 // max_redemptions 도 같은 NULL 규약이라 같은 컨트롤·같은 규칙을 쓴다 — 필드마다
 // 다른 규칙을 두면 운영자가 어느 것이 강제인지 외워야 한다.
-const NULLABLE_KEYS = ["valid_until", "max_uses_per_user", "max_redemptions"];
+const NULLABLE_KEYS: (keyof CouponForm)[] = [
+  "valid_until",
+  "max_uses_per_user",
+  "max_redemptions",
+];
 
 // max_uses_per_user 는 sql/70 이후 grant_type 의 파생값이라(발급형=1,
 // 조건형=무제한) 손으로 고칠 수 없다(disabled) — grant_on_signup 체크박스와
@@ -331,7 +407,7 @@ const NULLABLE_KEYS = ["valid_until", "max_uses_per_user", "max_redemptions"];
 const MAX_USES_PER_USER_DERIVED_HINT_TEXT =
   "배포 방식에 따라 자동으로 정해집니다.";
 
-function emptyForm() {
+function emptyForm(): CouponForm {
   return {
     is_active: true,
     slug: "",
@@ -359,7 +435,7 @@ function emptyForm() {
   };
 }
 
-function rowToForm(row) {
+function rowToForm(row: CouponRow): CouponForm {
   const form = { ...emptyForm() };
 
   form.is_active = row.is_active !== false;
@@ -375,18 +451,23 @@ function rowToForm(row) {
   form.grant_type = row.grant_type ?? "auto";
   form.grant_on_signup = row.grant_on_signup === true;
 
+  // NULLABLE_KEYS 3필드는 `${key}_mode` 라는 별도 필드명으로 확장 접근한다 —
+  // CouponForm에 이름이 정적으로 존재하지만 여기선 동적으로 조합하므로 로컬
+  // Record 캐스트로 인덱싱한다(진짜 동적 키 접근 지점).
+  const dynamicForm = form as unknown as Record<string, unknown>;
   for (const key of NULLABLE_KEYS) {
-    const value = row[key];
-    form[`${key}_mode`] =
+    const value = row[key as string];
+    dynamicForm[`${key}_mode`] =
       value === null || value === undefined ? "unlimited" : "value";
-    form[key] = value === null || value === undefined ? "" : value;
+    dynamicForm[key as string] =
+      value === null || value === undefined ? "" : value;
   }
 
   return form;
 }
 
-function formToPayload(form) {
-  const payload = {
+function formToPayload(form: CouponForm) {
+  const payload: Record<string, unknown> = {
     slug: String(form.slug ?? "").trim(),
     // code 는 UNIQUE 인데 NULL 은 다중 허용이다 — 빈 문자열로 저장하면 두 번째
     // 코드 없는 쿠폰이 23505 로 막힌다. 반드시 NULL 로 정규화한다.
@@ -404,12 +485,14 @@ function formToPayload(form) {
       form.grant_type === "granted" && form.grant_on_signup === true,
   };
 
+  const dynamicForm = form as unknown as Record<string, unknown>;
   for (const key of NULLABLE_KEYS) {
-    if (form[`${key}_mode`] === "unlimited") {
-      payload[key] = null;
+    if (dynamicForm[`${key}_mode`] === "unlimited") {
+      payload[key as string] = null;
       continue;
     }
-    payload[key] = key === "valid_until" ? form[key] : Number(form[key]);
+    payload[key as string] =
+      key === "valid_until" ? dynamicForm[key] : Number(dynamicForm[key]);
   }
 
   return payload;
@@ -417,7 +500,7 @@ function formToPayload(form) {
 
 // 검증 실패한 첫 키를 반환(없으면 null). 문구는 AdminForm 의 기존 템플릿에
 // 이 키를 끼워 넣어 만든다 — 새 문구를 만들지 않는다.
-function validateForm(form) {
+function validateForm(form: CouponForm): keyof CouponForm | null {
   if (String(form.slug ?? "").trim() === "") return "slug";
   if (String(form.title ?? "").trim() === "") return "title";
 
@@ -432,8 +515,11 @@ function validateForm(form) {
   // coupons_grant_type_check 를 화면에서 먼저 건다 — 23514 원문 노출 방지.
   if (!GRANT_TYPES.includes(form.grant_type)) return "grant_type";
 
+  // `${key}_mode` 는 동적 조합 키라 CouponForm의 정적 키로 인덱싱할 수 없다 —
+  // rowToForm/formToPayload와 같은 이유로 Record 캐스트를 쓴다.
+  const dynamicForm = form as unknown as Record<string, unknown>;
   for (const key of NULLABLE_KEYS) {
-    const mode = form[`${key}_mode`];
+    const mode = dynamicForm[`${key}_mode`];
     if (mode !== "unlimited" && mode !== "value") return key;
     if (mode !== "value") continue;
 
@@ -474,6 +560,18 @@ function validateForm(form) {
 // max_uses_per_user 뿐 — grant_type 파생값) 라디오 두 개와 입력까지 전부 잠그고
 // 안내 문구를 붙인다 — grant_on_signup 체크박스(:1528)와 같은 "파생값은 손편집
 // 금지" 규범이다.
+interface NullableFieldProps {
+  fieldKey: keyof CouponForm;
+  type: "date" | "number";
+  mode: string;
+  value: number | string;
+  // fieldKey로 조합한 동적 키(`${fieldKey}_mode`, fieldKey 자체)를 patch에 그대로
+  // 흘려보낸다 — CouponForm의 정적 프로퍼티 타입으로 표현할 수 없는 진짜 동적
+  // 지점이라 Record로 느슨하게 받는다(patch는 strict:false라 그대로 호환된다).
+  onChange: (values: Record<string, unknown>) => void;
+  disabled?: boolean;
+}
+
 function NullableField({
   fieldKey,
   type,
@@ -481,7 +579,7 @@ function NullableField({
   value,
   onChange,
   disabled = false,
-}) {
+}: NullableFieldProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       <label className="inline-flex items-center gap-2 text-sm font-bold">
@@ -535,42 +633,53 @@ function NullableField({
   );
 }
 
+interface RedemptionStats {
+  byCoupon: Record<string, { active: number; total: number }>;
+  truncated: boolean;
+}
+
 export default function CouponAdmin() {
-  const [view, setView] = useState("list"); // list | create | edit | history | grants
-  const [coupons, setCoupons] = useState([]);
-  const [redemptionStats, setRedemptionStats] = useState({
+  const [view, setView] = useState<ViewMode>("list"); // list | create | edit | history | grants
+  const [coupons, setCoupons] = useState<CouponRow[]>([]);
+  const [redemptionStats, setRedemptionStats] = useState<RedemptionStats>({
     byCoupon: {},
     truncated: false,
   });
   // grant_type 이 'granted' 가 아니게 전환된 쿠폰도, 과거에 살아있는(회수 안 된)
   // 발급이 있었다면 발급 이력 버튼을 계속 보여줘야 한다(요구사항 ⑥) — 행
   // 데이터 자체엔 이 정보가 없어 목록 로드 시 한 번 더 조회해 집합으로 든다.
-  const [grantedCouponIds, setGrantedCouponIds] = useState(() => new Set());
+  const [grantedCouponIds, setGrantedCouponIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [loading, setLoading] = useState(false);
 
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(() => emptyForm());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<CouponForm>(() => emptyForm());
   const [saving, setSaving] = useState(false);
 
-  const [historyCoupon, setHistoryCoupon] = useState(null);
-  const [historyRows, setHistoryRows] = useState([]);
-  const [historyProfiles, setHistoryProfiles] = useState({});
+  const [historyCoupon, setHistoryCoupon] = useState<CouponRow | null>(null);
+  const [historyRows, setHistoryRows] = useState<RedemptionRow[]>([]);
+  const [historyProfiles, setHistoryProfiles] = useState<
+    Record<string, ProfileRow>
+  >({});
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [voidingId, setVoidingId] = useState(null);
+  const [voidingId, setVoidingId] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("");
   // 진행 중 표시. 아이콘 버튼은 더블클릭이 쉬워서(피드백이 alert 뿐이다) 두 번째
   // 호출이 WC002/WC003 알럿을 띄운다 — 요청 중에는 액션을 잠근다.
   const [actionBusy, setActionBusy] = useState(false);
 
   // ── 발급 관리 ──
-  const [grantCoupon, setGrantCoupon] = useState(null);
-  const [grantRows, setGrantRows] = useState([]);
-  const [grantProfiles, setGrantProfiles] = useState({});
+  const [grantCoupon, setGrantCoupon] = useState<CouponRow | null>(null);
+  const [grantRows, setGrantRows] = useState<GrantRow[]>([]);
+  const [grantProfiles, setGrantProfiles] = useState<
+    Record<string, ProfileRow>
+  >({});
   const [grantLoading, setGrantLoading] = useState(false);
-  const [revokingId, setRevokingId] = useState(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
   const [userQuery, setUserQuery] = useState("");
-  const [userResults, setUserResults] = useState(null); // null = 아직 검색 안 함
+  const [userResults, setUserResults] = useState<ProfileRow[] | null>(null); // null = 아직 검색 안 함
   const [userSearching, setUserSearching] = useState(false);
 
   const loadList = useCallback(async () => {
@@ -627,7 +736,7 @@ export default function CouponAdmin() {
       return;
     }
 
-    const byCoupon = {};
+    const byCoupon: Record<string, { active: number; total: number }> = {};
     for (const row of redemptionRes.data || []) {
       byCoupon[row.coupon_id] ||= { active: 0, total: 0 };
       const bucket = byCoupon[row.coupon_id];
@@ -646,7 +755,7 @@ export default function CouponAdmin() {
   }, [loadList]);
 
   const slugIndex = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, CouponRow>();
     for (const row of coupons) map.set(row.slug, row);
     return map;
   }, [coupons]);
@@ -662,7 +771,9 @@ export default function CouponAdmin() {
     return found;
   }, [form.slug, slugIndex, view, editingId]);
 
-  function patch(values) {
+  // NullableField 등 동적 키 조합 호출부와도 함께 쓰이므로 Record로 느슨하게
+  // 받는다(NullableFieldProps.onChange 주석과 같은 이유).
+  function patch(values: Record<string, unknown>) {
     setForm((prev) => ({ ...prev, ...values }));
   }
 
@@ -672,7 +783,7 @@ export default function CouponAdmin() {
     setView("create");
   }
 
-  function openEdit(row) {
+  function openEdit(row: CouponRow) {
     setForm(rowToForm(row));
     setEditingId(row.id);
     setView("edit");
@@ -715,7 +826,7 @@ export default function CouponAdmin() {
       // 23514 는 제약이 둘이라(금액 CHECK / sql/70 파생 CHECK) error.code 만으로
       // 못 가른다 — Postgres 가 error.message 에 싣는 제약명으로 분기한다
       // (2026-08-12, 사용자 지시). 그 밖의 코드는 기존 COUPON_SAVE_ERROR_TEXT.
-      let saveErrorText;
+      let saveErrorText: string;
       if (
         error.code === "23514" &&
         String(error.message ?? "").includes(
@@ -737,7 +848,7 @@ export default function CouponAdmin() {
     await loadList();
   }
 
-  async function openHistory(row) {
+  async function openHistory(row: CouponRow) {
     setHistoryCoupon(row);
     setHistoryRows([]);
     setHistoryProfiles({});
@@ -747,7 +858,7 @@ export default function CouponAdmin() {
     await loadHistory(row.id);
   }
 
-  async function loadHistory(couponId) {
+  async function loadHistory(couponId: string) {
     setHistoryLoading(true);
 
     const { data, error } = await supabase
@@ -785,7 +896,7 @@ export default function CouponAdmin() {
         // 이력 자체는 살린다 — 사용자 이름만 못 보는 상태로 열화시킨다.
         console.warn("사용자 조회 실패:", profileError.message);
       } else {
-        const map = {};
+        const map: Record<string, ProfileRow> = {};
         for (const profile of profiles || []) map[profile.id] = profile;
         setHistoryProfiles(map);
       }
@@ -794,7 +905,7 @@ export default function CouponAdmin() {
     setHistoryLoading(false);
   }
 
-  async function submitVoid(row) {
+  async function submitVoid(row: RedemptionRow) {
     if (actionBusy) return;
     setActionBusy(true);
 
@@ -825,7 +936,7 @@ export default function CouponAdmin() {
   }
 
   // ── 발급 관리 ──────────────────────────────────────────────────────
-  async function openGrants(row) {
+  async function openGrants(row: CouponRow) {
     setGrantCoupon(row);
     setGrantRows([]);
     setGrantProfiles({});
@@ -837,7 +948,7 @@ export default function CouponAdmin() {
     await loadGrants(row.id);
   }
 
-  async function loadGrants(couponId) {
+  async function loadGrants(couponId: string) {
     setGrantLoading(true);
 
     const { data, error } = await supabase
@@ -874,7 +985,7 @@ export default function CouponAdmin() {
         // 발급 목록 자체는 살린다 — 사용자 이름만 못 보는 상태로 열화시킨다.
         console.warn("사용자 조회 실패:", profileError.message);
       } else {
-        const map = {};
+        const map: Record<string, ProfileRow> = {};
         for (const profile of profiles || []) map[profile.id] = profile;
         setGrantProfiles(map);
       }
@@ -923,7 +1034,7 @@ export default function CouponAdmin() {
     setUserResults(data || []);
   }
 
-  async function submitGrant(profile) {
+  async function submitGrant(profile: ProfileRow) {
     if (actionBusy || !grantCoupon) return;
     setActionBusy(true);
 
@@ -948,7 +1059,7 @@ export default function CouponAdmin() {
     setActionBusy(false);
   }
 
-  async function submitRevoke(row) {
+  async function submitRevoke(row: GrantRow) {
     if (actionBusy) return;
     setActionBusy(true);
 
@@ -1864,7 +1975,9 @@ export default function CouponAdmin() {
                   fieldKey={key}
                   type={key === "valid_until" ? "date" : "number"}
                   mode={form[`${key}_mode`]}
-                  value={form[key]}
+                  // NULLABLE_KEYS(valid_until/max_uses_per_user/max_redemptions)는
+                  // 항상 string|number 필드다 — boolean 필드는 이 목록에 없다.
+                  value={form[key] as string | number}
                   onChange={patch}
                   // sql/70 이후 max_uses_per_user 는 grant_type 의 파생값이라
                   // (라디오 onChange 가 이미 확정) 손편집을 막는다 — 항상 잠금.

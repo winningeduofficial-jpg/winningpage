@@ -1,4 +1,5 @@
 import { Plus, RefreshCw, UploadCloud } from "lucide-react";
+import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
@@ -8,6 +9,31 @@ import {
 } from "../../pages/admin/shared/AdminEngine";
 import { reportAdminError } from "../../pages/admin/shared/adminErrors";
 import BookViewer from "../premiumBook/BookViewer";
+import type { PremiumBookPage } from "../premiumBook/bookPairing";
+
+// CONFIGS(admin-shared-configs 배치 소관, 아직 JS)의 config 값 shape을 여기서 로컬로 추론한다 —
+// 이 컴포넌트가 실제로 읽는 필드만 명시하고 나머지(table/columns/fields/defaults 등, AdminTable/
+// AdminForm이 소비)는 인덱스 시그니처로 열어둔다.
+interface PremiumBookAdminConfig {
+  title: string;
+  homepage?: boolean;
+  guideText?: string;
+  [key: string]: unknown;
+}
+
+interface PremiumBookPageRow {
+  id: number | string;
+  sort_order: number;
+  image_url: string;
+  [key: string]: unknown;
+}
+
+interface PremiumBookPageFormValues {
+  sort_order: number | string;
+  image_url: string;
+}
+
+type ListMode = "list" | "create" | "edit";
 
 // 프리미엄 이용(BOOK) 책자 — bespoke 패널(PDF 업로드→변환→미리보기→적용) + 개별 페이지 제네릭 CRUD를
 // 한 컴포넌트 안에 함께 렌더한다. config.custom이 all-or-nothing이라(Admin() 최상단 렌더 분기) 이
@@ -32,30 +58,34 @@ import BookViewer from "../premiumBook/BookViewer";
 // upsert는 sort_order UNIQUE가 없어(sql/47_premium_book.sql) id 하이드레이션이 필수다 — 변환 직전이
 // 아니라 "적용" 시점에 기존 행을 조회해 sort_order→id 맵을 만들고, 그 id를 실어 PK 기준 upsert한다.
 // 중복 sort_order가 있으면 어느 id에 실어야 할지 판정 불가능하므로 그 자리에서 중단한다.
-export default function PremiumBookAdmin({ config }) {
+export default function PremiumBookAdmin({
+  config,
+}: {
+  config: PremiumBookAdminConfig;
+}) {
   // ---- 개별 페이지 제네릭 목록(요구 C — 명세 §6 A ②) ----
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<PremiumBookPageRow[]>([]);
   const [rowsLoading, setRowsLoading] = useState(false);
-  const [mode, setMode] = useState("list");
-  const [editingRow, setEditingRow] = useState(null);
+  const [mode, setMode] = useState<ListMode>("list");
+  const [editingRow, setEditingRow] = useState<PremiumBookPageRow | null>(null);
   const [page, setPage] = useState(1);
 
   // ---- PDF 업로드 → 변환 ----
-  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [converting, setConverting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [convertError, setConvertError] = useState("");
 
   // ---- 변환 결과(저장 전) — 미리보기는 BookViewer가 그대로 소비한다 ----
-  const [previewPages, setPreviewPages] = useState([]); // [{ sort_order, image_url: blobUrl }]
-  const [webpBlobs, setWebpBlobs] = useState([]); // Blob[] — 적용 시 이 원본을 그대로 업로드한다
+  const [previewPages, setPreviewPages] = useState<PremiumBookPage[]>([]); // [{ sort_order, image_url: blobUrl }]
+  const [webpBlobs, setWebpBlobs] = useState<Blob[]>([]); // Blob[] — 적용 시 이 원본을 그대로 업로드한다
 
   // ---- 적용(저장) ----
   const [applying, setApplying] = useState(false);
   const [applyStatus, setApplyStatus] = useState("");
   const [applyError, setApplyError] = useState("");
 
-  const blobUrlsRef = useRef([]);
+  const blobUrlsRef = useRef<string[]>([]);
   const convertTokenRef = useRef(0);
 
   function revokePreviewUrls() {
@@ -88,8 +118,8 @@ export default function PremiumBookAdmin({ config }) {
   }, []);
 
   const duplicateSortOrders = useMemo(() => {
-    const seen = new Set();
-    const dupes = new Set();
+    const seen = new Set<number>();
+    const dupes = new Set<number>();
     for (const row of rows) {
       const key = row.sort_order;
       if (seen.has(key)) dupes.add(key);
@@ -103,12 +133,12 @@ export default function PremiumBookAdmin({ config }) {
     setMode("create");
   }
 
-  function editRow(row) {
+  function editRow(row: PremiumBookPageRow) {
     setEditingRow(row);
     setMode("edit");
   }
 
-  async function deleteRow(row) {
+  async function deleteRow(row: PremiumBookPageRow) {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
 
     const { error } = await supabase
@@ -124,7 +154,7 @@ export default function PremiumBookAdmin({ config }) {
     await loadRows();
   }
 
-  async function saveRow(form) {
+  async function saveRow(form: PremiumBookPageFormValues) {
     const payload = {
       sort_order: Number(form.sort_order) || 1,
       image_url: form.image_url || "",
@@ -142,7 +172,7 @@ export default function PremiumBookAdmin({ config }) {
       const { error } = await supabase
         .from("premium_book_pages")
         .update(payload)
-        .eq("id", editingRow.id);
+        .eq("id", editingRow?.id);
       if (error) {
         reportAdminError("수정 실패", error);
         return;
@@ -155,7 +185,7 @@ export default function PremiumBookAdmin({ config }) {
     await loadRows();
   }
 
-  function handlePickPdf(e) {
+  function handlePickPdf(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     revokePreviewUrls();
     setPdfFile(file);
@@ -199,8 +229,8 @@ export default function PremiumBookAdmin({ config }) {
       setProgress({ done: 0, total: pageCount });
 
       const targetWidth = 1024;
-      const blobs = [];
-      const urls = [];
+      const blobs: Blob[] = [];
+      const urls: string[] = [];
 
       for (let n = 1; n <= pageCount; n++) {
         if (convertTokenRef.current !== token) {
@@ -223,7 +253,7 @@ export default function PremiumBookAdmin({ config }) {
 
         await pdfPage.render({ canvasContext: ctx, viewport }).promise;
 
-        const blob = await new Promise((resolve, reject) => {
+        const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob(
             (b) =>
               b ? resolve(b) : reject(new Error("canvas.toBlob returned null")),
@@ -300,7 +330,7 @@ export default function PremiumBookAdmin({ config }) {
       }
 
       // b. WebP 16장 — 전량 성공해야 다음 단계(DB)로 넘어간다(2단계 시퀀싱, 명세 §D2).
-      const urls = [];
+      const urls: string[] = [];
       for (let i = 0; i < webpBlobs.length; i++) {
         setApplyStatus(
           `페이지 이미지 업로드 중 (${i + 1}/${webpBlobs.length})...`,
