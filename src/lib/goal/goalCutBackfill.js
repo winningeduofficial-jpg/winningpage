@@ -7,7 +7,7 @@
 // React/JSX 의존 없는 순수 모듈이다. supabase 클라이언트는 인자로
 // 주입받는다(호출부가 anon 키든 service role 이든 자유롭게 고르도록).
 
-import { normalizeUniversityName } from "./universityNameNormalize.js";
+import { normalizeUniversityName } from "./universityNameNormalize.ts";
 
 export const GOAL_BACKFILL_SOURCE_TABLE = "admission_results";
 

@@ -63,7 +63,7 @@ import {
   TYPE_CODES,
   TYPE_COPY,
   URGENCY_COPY,
-} from "../src/data/diagnosisCopy.js";
+} from "../src/data/diagnosisCopy.ts";
 import {
   // §11 자체 결정 상수 — 값 자체가 아니라 값이 지켜야 할 불변식을 검사한다.
   ADMISSION_BAND_BASE_PROBABILITY,
@@ -113,13 +113,13 @@ import {
   URGENCY_BANDS,
   URGENCY_LEVEL_LABEL,
   URGENCY_SCOPE,
-} from "../src/data/diagnosisScoringTable.js";
+} from "../src/data/diagnosisScoringTable.ts";
 // 화면 전용 확장 영역·예시 리포트 문구(2026-08-12 확정). NIT 5 — 종전에는 이 두 상수가
 // 금지어 스캔(S12 scanTargets) 어디에도 걸리지 않았다.
 import {
   SAMPLE_REPORT_COPY,
   SCREEN_EXTRAS,
-} from "../src/data/diagnosisScreenCopy.js";
+} from "../src/data/diagnosisScreenCopy.ts";
 import { renewalSurveyQuestions } from "../src/data/renewalSurveyQuestions.js";
 import { fill, findBannedPhrases } from "../src/lib/diagnosisCopyBinding.js";
 // 정적 import 다. 동적 import + try/catch 로 감싸면 문법 오류·잘못된 경로 같은 진짜 고장까지
@@ -1184,7 +1184,7 @@ checkTrue(
   !scoringExports.includes("admissionMasterKey"),
 );
 const scoringTableExports = Object.keys(
-  await import("../src/data/diagnosisScoringTable.js"),
+  await import("../src/data/diagnosisScoringTable.ts"),
 );
 checkTrue(
   "F-02 — ADMISSION_MASTER_KEYS/ADMISSION_SPECIAL_SCHOOL_TYPES 재도입 없음",

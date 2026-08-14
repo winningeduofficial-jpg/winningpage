@@ -31,7 +31,7 @@ import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../src/lib/goal/calc/index.js";
+} from "../../src/lib/goal/calc/index.ts";
 
 import {
   appendProbabilityLog,

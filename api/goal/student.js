@@ -22,7 +22,7 @@
 // clamp(0, 100, base + Σdelta) 로 다시 더한다(§4). 이 파일은 그 값을 읽어
 // 카멜 케이스로 옮기기만 한다.
 
-import { getSchoolCutType } from "../../src/lib/goal/calc/index.js";
+import { getSchoolCutType } from "../../src/lib/goal/calc/index.ts";
 
 import {
   buildAwaitingCutsPayload,

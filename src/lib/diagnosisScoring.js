@@ -76,7 +76,7 @@ import {
   URGENCY_AREA_THRESHOLD,
   URGENCY_BANDS,
   URGENCY_SCOPE,
-} from "../data/diagnosisScoringTable.js";
+} from "../data/diagnosisScoringTable.ts";
 import {
   getOptionCode,
   renewalSurveyQuestions,

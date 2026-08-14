@@ -24,7 +24,7 @@
 // profiles.name 원본은 이 응답 밖으로 나가지 않는다(본인 제외) — top 배열은
 // 항상 maskName()을 거친 문자열만 담는다.
 
-import { kstYMD } from "../../src/lib/goal/calc/index.js";
+import { kstYMD } from "../../src/lib/goal/calc/index.ts";
 import { num, openGoalSession } from "../_lib/goalRepo.js";
 
 export const config = { runtime: "nodejs" };

@@ -15,7 +15,7 @@ import {
   isMiddleStudent,
   isPreHighStudent,
 } from "./pipeline.js";
-import { applyPreHighGradePenalty, calcNaesinProb } from "./primitives.js";
+import { applyPreHighGradePenalty, calcNaesinProb } from "./primitives.ts";
 import { VIRTUAL_DAY_NAMES } from "./schedule.js";
 
 // bonus.js:96-125 를 그대로 복제해 D-day 일수를 독립적으로 구한다(검증용 — 손계산이 아니라

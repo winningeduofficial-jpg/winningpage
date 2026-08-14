@@ -25,7 +25,7 @@
  */
 
 import { isUsableNumber } from "../data/diagnosisGradeScale.js";
-import { ADMISSION_FETCH_ERROR } from "../data/diagnosisScoringTable.js";
+import { ADMISSION_FETCH_ERROR } from "../data/diagnosisScoringTable.ts";
 import { supabase } from "./supabase";
 
 export { ADMISSION_FETCH_ERROR };

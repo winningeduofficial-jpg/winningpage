@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deriveStepStates } from "./deriveStepStates.js";
+import { deriveStepStates } from "./deriveStepStates.ts";
 
 test("deriveStepStates - 기본값(인자 없음)은 5스텝 전부 todo", () => {
   assert.deepEqual(deriveStepStates(), [
