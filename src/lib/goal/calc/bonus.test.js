@@ -28,7 +28,7 @@ import {
   TASK_BONUS_MULTIPLIER,
   TASK_MOCK_EXAM,
   TASK_NAESIN,
-} from "./bonus.js";
+} from "./bonus.ts";
 
 // 부동소수 비교. NaN 은 NaN 끼리 같은 것으로 본다(원본이 NaN 을 그대로 흘리는 경로가 있다).
 function assertClose(actual, expected, label) {

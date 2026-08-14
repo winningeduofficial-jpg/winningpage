@@ -87,11 +87,11 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.js";
+} from "../_lib/performance/gemini.ts";
 import {
   guideTextFromSession,
   inferGuideStructure,
-} from "../_lib/performance/guide-structure.js";
+} from "../_lib/performance/guide-structure.ts";
 import {
   buildEvaluationSystem,
   buildEvaluationUser,
@@ -110,12 +110,12 @@ import {
 import {
   flattenReportSectionsToText,
   upsertSessionVectorMetadata,
-} from "../_lib/performance/session-vectors.js";
+} from "../_lib/performance/session-vectors.ts";
 import {
   buildSubmissionText,
   checkSubmissionMinLength,
   resolveSessionSubmissionSchema,
-} from "../_lib/performance/submission-schema.js";
+} from "../_lib/performance/submission-schema.ts";
 import {
   findProgramAccessRow,
   getBearerToken,

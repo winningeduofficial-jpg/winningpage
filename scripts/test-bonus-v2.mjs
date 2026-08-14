@@ -15,11 +15,11 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getAchievementRateMultiplier } from "../src/lib/goal/calc/bonus.js";
+import { getAchievementRateMultiplier } from "../src/lib/goal/calc/bonus.ts";
 import {
   CONDITION_MULTIPLIER,
   calculateDailyBonusV2,
-} from "../src/lib/goal/calc/bonusV2.js";
+} from "../src/lib/goal/calc/bonusV2.ts";
 
 // 부동소수 오차 허용 비교. round4 결과는 소수 4자리 이내라 1e-9 여유면 충분하다.
 function assertClose(actual, expected, label) {

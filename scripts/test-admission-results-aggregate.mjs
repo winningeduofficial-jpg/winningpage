@@ -33,7 +33,7 @@ import {
   pickGrade,
   pickInitialCategoryKey,
   UNDISCLOSED_CELL,
-} from "../src/lib/admissionResults.js";
+} from "../src/lib/admissionResults.ts";
 
 let failCount = 0;
 let passCount = 0;

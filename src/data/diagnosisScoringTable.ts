@@ -19,7 +19,7 @@
  * 리포트가 정상 응답을 조용히 폐기하고 픽스처로 떨어진다(에러가 없어 진단이 어렵다).
  * 설문 UI 는 이 배점표를 import 하지 않으므로 의존 방향을 설문 쪽으로 잡았다(번들 분리 유지).
  */
-export { SURVEY_SCHEMA_VERSION as SCHEMA_VERSION } from "./renewalSurveyQuestions.js";
+export { SURVEY_SCHEMA_VERSION as SCHEMA_VERSION } from "./renewalSurveyQuestions.ts";
 
 /* ------------------------------------------------------------------ *
  * 1. 12영역 — 배점표 02_영역_구성
