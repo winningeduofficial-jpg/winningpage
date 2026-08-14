@@ -7,7 +7,7 @@ export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;
 export { ANONYMOUS };
 
 // SDK 인스턴스를 한 번만 로드해서 재사용.
-let tossPromise;
+let tossPromise: ReturnType<typeof loadTossPayments> | undefined;
 export function getTossPayments() {
   if (!TOSS_CLIENT_KEY) {
     console.warn("VITE_TOSS_CLIENT_KEY 환경변수가 설정되지 않았습니다.");

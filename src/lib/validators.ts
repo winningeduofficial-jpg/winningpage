@@ -17,7 +17,7 @@
 // trim 하지 않는 것도 기존 동작 유지다([^\s@]+ 가 앞뒤 공백을 이미 거부한다).
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function isValidEmail(value) {
+export function isValidEmail(value: string) {
   return EMAIL_REGEX.test(value);
 }
 
@@ -30,7 +30,7 @@ export function isValidEmail(value) {
 //
 // Date 는 month=13, day=32 같은 범위 밖 값을 다음 달/해로 조용히 롤오버시켜 전혀 다른 날짜를
 // 만든다(2024-02-30 → 2024-03-01). 그래서 만들어진 Date 를 다시 분해해 입력과 대조한다.
-export function isValidBirthDate(value) {
+export function isValidBirthDate(value: unknown) {
   const digits = String(value ?? "");
 
   if (!/^\d{8}$/.test(digits)) return false;
@@ -61,7 +61,7 @@ export function isValidBirthDate(value) {
 // 확정 수치가 내려오면 이 두 값만 고치면 된다.
 const MIN_ADMISSION_YEAR = 1990;
 
-export function isValidAdmissionYear(value) {
+export function isValidAdmissionYear(value: unknown) {
   const digits = String(value ?? "");
 
   if (!/^\d{4}$/.test(digits)) return false;
@@ -75,6 +75,6 @@ export function isValidAdmissionYear(value) {
 // 기준은 JS 문자열 length(UTF-16 코드유닛)다 — 서버 재검증(api/mentor-apply.js)도 반드시
 // 같은 기준을 써야 클라이언트에서 통과한 값이 서버에서 거절되는 일이 없다.
 // 값이 비어 있으면 true 다(필수 여부는 이 함수의 책임이 아니다).
-export function isWithinMaxLength(value, max) {
+export function isWithinMaxLength(value: unknown, max: number) {
   return String(value ?? "").length <= max;
 }

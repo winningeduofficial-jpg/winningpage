@@ -8,13 +8,13 @@ export const SCHEDULE_CATEGORIES = [
   { code: "exam", label: "시험" },
   { code: "deadline", label: "제출마감" },
   { code: "etc", label: "기타" },
-];
+] as const;
 
-const CODE_TO_LABEL = Object.fromEntries(
+const CODE_TO_LABEL: Record<string, string> = Object.fromEntries(
   SCHEDULE_CATEGORIES.map(({ code, label }) => [code, label]),
 );
 
 /** 카테고리 코드 → 표시 라벨. 알 수 없는 코드는 '기타'로 접는다. */
-export function scheduleCategoryLabel(code) {
+export function scheduleCategoryLabel(code: string) {
   return CODE_TO_LABEL[code] || "기타";
 }

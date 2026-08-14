@@ -15,7 +15,7 @@
 // 값을 지어내는 것보다 비우는 쪽이 안전하다.
 const CART_KEY = "winning-cart-v2";
 
-export function saveCart(items) {
+export function saveCart(items: unknown[]) {
   try {
     window.sessionStorage.setItem(
       CART_KEY,
