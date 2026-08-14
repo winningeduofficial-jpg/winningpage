@@ -2,7 +2,7 @@ import { getLegalDoc } from "../data/legalDocs";
 import { withDedupedKeys } from "../lib/reactKeys";
 
 // 조/항 제목 라인 판별
-function isHeading(line, docKey) {
+function isHeading(line: string, docKey?: string) {
   const t = line.trim();
   if (/^제\d+조/.test(t)) return true;
   if (/^제\d+장/.test(t)) return true;
@@ -16,9 +16,13 @@ function isHeading(line, docKey) {
   return false;
 }
 
-export default function Legal({ docKey }) {
+type LegalProps = {
+  docKey?: string;
+};
+
+export default function Legal({ docKey }: LegalProps) {
   const doc = getLegalDoc(docKey);
-  const lines = doc?.body ? doc.body.split("\n") : [];
+  const lines: string[] = doc?.body ? doc.body.split("\n") : [];
 
   return (
     <main className="min-h-screen bg-white pt-16">

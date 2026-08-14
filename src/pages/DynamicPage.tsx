@@ -4,7 +4,7 @@ import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
-function normalizeArray(value) {
+function normalizeArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
 
   if (!value) return [];
@@ -21,14 +21,24 @@ function normalizeArray(value) {
   return [];
 }
 
-function cleanText(value) {
+function cleanText(value: unknown) {
   return String(value || "").trim();
 }
+
+type PageContent = {
+  menu_group?: string;
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  image_urls?: unknown;
+  button_text?: string;
+  button_link?: string;
+};
 
 export default function DynamicPage() {
   const { slug } = useParams();
 
-  const [page, setPage] = useState(null);
+  const [page, setPage] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -98,7 +108,9 @@ export default function DynamicPage() {
   const title = cleanText(page.title);
   const subtitle = cleanText(page.subtitle);
   const body = cleanText(page.body);
-  const bottomImages = normalizeArray(page.image_urls).filter(Boolean);
+  const bottomImages = normalizeArray(page.image_urls).filter(
+    Boolean,
+  ) as string[];
 
   const paidServiceContext = {
     name: title,
