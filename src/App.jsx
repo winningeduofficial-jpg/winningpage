@@ -641,11 +641,9 @@ const routes = createRoutesFromElements(
   </Route>,
 );
 
-// v8_middleware — 가드 3종(로그인/관리자/목표관리 이용권+온보딩)이 컴포넌트
-// 상태머신 대신 라우트 middleware(src/lib/routeMiddleware.ts)로 판정한다(2026-08-15).
-const router = createBrowserRouter(routes, {
-  future: { v8_middleware: true },
-});
+// middleware(가드 3종의 판정 로직, src/lib/routeMiddleware.ts)는 v8부터 기본
+// 활성화라 future.v8_middleware 옵션 자체가 사라졌다(react-router 8.3.0, 2026-08-15 범프).
+const router = createBrowserRouter(routes);
 
 export default function App() {
   return <RouterProvider router={router} />;
