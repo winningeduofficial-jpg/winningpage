@@ -34,7 +34,7 @@ import {
   SERVICE_COPY,
   TEMPLATE_COPY,
   TOKEN_SCOPE,
-} from "../data/diagnosisCopy.ts";
+} from "../data/diagnosisCopy.js";
 
 /* ------------------------------------------------------------------ *
  * 0. 개발 모드 경고
