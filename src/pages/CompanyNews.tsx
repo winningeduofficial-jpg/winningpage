@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, Download } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import bizAiPlatform from "../assets/company/biz-ai-platform.png";
@@ -15,9 +16,16 @@ import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 import {
   BOARD_SOURCES,
+  type BoardRow,
   formatBoardDate,
   incrementBoardView,
 } from "./board/boardData";
+
+// company-intro 슬러그의 page_contents 행 — HeroSection 이 읽는 body 필드만 좁혀서 갖는다
+// (그 외 필드는 이 페이지가 쓰지 않는다, 파일 상단 HeroSection 주석 참고).
+type IntroPage = { body?: string | null } | null;
+
+type Attachment = string | { name?: string; url?: string };
 
 // 회사소개(/company-news) — Figma 시안(1882:19182 "회사소개", 1920×6363) 전면 재작성.
 // 라우트 · 헤더/푸터(SiteLayout 전역 렌더) · Supabase 조회/검색/상세/첨부 기능은 그대로 두고
@@ -223,7 +231,7 @@ const NEWS_PREVIEW_COUNT = 5;
 // -------------------------------------------------------------------------
 // 회사소식 데이터 유틸 — 기존 구현 계보 그대로 보존 (Events.jsx 와 동일 패턴)
 // -------------------------------------------------------------------------
-function normalizeArray(value) {
+function normalizeArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
@@ -239,7 +247,7 @@ function normalizeArray(value) {
   return [];
 }
 
-function cleanText(value) {
+function cleanText(value: unknown): string {
   return String(value || "").trim();
 }
 
@@ -249,17 +257,17 @@ function cleanText(value) {
 // 보였다. 공지사항(Events.jsx)도 formatBoardDate 를 쓴다.
 // 폴백 동작은 동일: falsy → '', 파싱 실패 → String(value).slice(0, 10).
 
-function getAttachmentName(file) {
+function getAttachmentName(file: Attachment | null | undefined) {
   if (!file || typeof file === "string") return "첨부파일 다운로드";
   return file.name || "첨부파일 다운로드";
 }
 
-function getAttachmentUrl(file) {
+function getAttachmentUrl(file: Attachment | null | undefined) {
   if (!file) return "";
   return typeof file === "string" ? file : file.url;
 }
 
-function renderContent(content) {
+function renderContent(content: string | null | undefined) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
@@ -275,7 +283,7 @@ function renderContent(content) {
 // page_contents 행이 구 디자인 기준으로 운영 중이라 title/subtitle/image_url을 그대로
 // 매핑하면 회귀가 난다). page.body만 선택적으로 보조 카피에 얹는다.
 // -------------------------------------------------------------------------
-function HeroSection({ page }) {
+function HeroSection({ page }: { page: IntroPage }) {
   // 원장 카피(아이브로우/헤드라인)와 사진은 시안 고정값으로 못박는다. company-intro 슬러그의
   // page_contents 행은 운영 중인 구 디자인(제목=회사명 "위닝에듀", 부제=설명 문단, 이미지=박스형
   // 사진, sql/34_menu_navigation_sync.sql에서 실사용 확인) 기준으로 채워져 있어, 그 값을 새
@@ -445,12 +453,14 @@ function MissionSection() {
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden sm:block"
-        style={{
-          "--c": "min(100%, 72.75rem)",
-          "--x0": "calc(50% - var(--c) / 2)",
-          background:
-            "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
-        }}
+        style={
+          {
+            "--c": "min(100%, 72.75rem)",
+            "--x0": "calc(50% - var(--c) / 2)",
+            background:
+              "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
+          } as CSSProperties
+        }
       />
 
       <div className="mx-auto flex w-full max-w-content flex-col px-5 sm:px-8">
@@ -542,7 +552,9 @@ function alertComingSoon() {
   alert("오픈예정입니다.");
 }
 
-function CampusCard({ campus }) {
+type CampusCardData = (typeof CAMPUS_CARDS)[number];
+
+function CampusCard({ campus }: { campus: CampusCardData }) {
   const hasLink = Boolean(campus.href);
 
   const content = (
@@ -608,7 +620,9 @@ function CampusCard({ campus }) {
   );
 }
 
-function PartnerCard({ partner }) {
+type PartnerCardData = (typeof PARTNER_CARDS)[number];
+
+function PartnerCard({ partner }: { partner: PartnerCardData }) {
   return (
     <div className="flex min-h-[19rem] flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-6 pb-6 pt-[1.8125rem] lg:min-h-[23.25rem] lg:px-[1.4375rem] lg:pb-[1.5625rem]">
       <div>
@@ -731,14 +745,14 @@ function LocationSection() {
 // 상세뷰(?id=)는 그대로 유지한다 — 신규 목록의 제목 링크도 /company-news?id=<id> 로 여기에
 // 되돌아오므로, 이 파일이 계속 회사소식 상세의 유일한 렌더 지점이다(§2 설계 결정).
 // -------------------------------------------------------------------------
-function NewsDetail({ row, onBack }) {
-  const images = normalizeArray(row.image_urls);
+function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
+  const images = normalizeArray(row.image_urls) as string[];
   const finalImages = images.length
     ? images
     : row.image_url
-      ? [row.image_url]
+      ? [row.image_url as string]
       : [];
-  const attachments = normalizeArray(row.attachments);
+  const attachments = normalizeArray(row.attachments) as Attachment[];
 
   return (
     <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-[4.6875rem] lg:pb-[11.9375rem]">
@@ -781,7 +795,7 @@ function NewsDetail({ row, onBack }) {
               </div>
             )}
 
-            {renderContent(row.content)}
+            {renderContent(row.content as string | null | undefined)}
 
             {(attachments.length > 0 || row.file_url) && (
               <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-[#F9FAFB] p-5">
@@ -807,13 +821,13 @@ function NewsDetail({ row, onBack }) {
 
                   {attachments.length === 0 && row.file_url && (
                     <a
-                      href={row.file_url}
+                      href={row.file_url as string}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
                     >
                       <Download className="h-4 w-4" aria-hidden="true" />
-                      {row.file_name || "첨부파일 다운로드"}
+                      {(row.file_name as string) || "첨부파일 다운로드"}
                     </a>
                   )}
                 </div>
@@ -826,7 +840,7 @@ function NewsDetail({ row, onBack }) {
   );
 }
 
-function NewsRow({ row, onSelect }) {
+function NewsRow({ row, onSelect }: { row: BoardRow; onSelect: () => void }) {
   return (
     // items-stretch(모바일 flex-col 기준)로 제목 span의 교차축 폭을 컨테이너 전체로
     // 고정해야 truncate(nowrap)가 min-content=max-content로 폭을 결정해버려 카드가 전역
@@ -850,7 +864,15 @@ function NewsRow({ row, onSelect }) {
   );
 }
 
-function NewsSection({ rows, loading, onSelect }) {
+function NewsSection({
+  rows,
+  loading,
+  onSelect,
+}: {
+  rows: BoardRow[];
+  loading: boolean;
+  onSelect: (id: BoardRow["id"]) => void;
+}) {
   const visibleRows = rows.slice(0, NEWS_PREVIEW_COUNT);
 
   return (
@@ -903,13 +925,13 @@ function NewsSection({ rows, loading, onSelect }) {
 export default function CompanyNews() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("id");
-  const [introPage, setIntroPage] = useState(null);
-  const [rows, setRows] = useState([]);
+  const [introPage, setIntroPage] = useState<IntroPage>(null);
+  const [rows, setRows] = useState<BoardRow[]>([]);
   const [loading, setLoading] = useState(true);
   // 상세뷰에서 조회수를 이미 올린 글 id. StrictMode의 effect 이중 실행과 리렌더 재호출을
   // 모두 막는다(id가 바뀌면 다시 올린다). state가 아니라 ref인 이유는 이 값의 변화가
   // 화면을 바꾸지 않아서다.
-  const viewedIdRef = useRef(null);
+  const viewedIdRef = useRef<string | null>(null);
 
   // ?id= 변화(상세 진입·목록 복귀 모두)에서 스크롤을 최상단으로 되돌린다. 회사소식 섹션이
   // 페이지 하단(~5000px)에 있어 setSearchParams만으로는 pathname이 안 바뀌어
@@ -946,14 +968,14 @@ export default function CompanyNews() {
       if (introResult.error) {
         console.error("회사소개 조회 오류:", introResult.error);
       } else {
-        setIntroPage(introResult.data || null);
+        setIntroPage((introResult.data as IntroPage) || null);
       }
 
       if (newsResult.error) {
         console.error("회사소식 조회 오류:", newsResult.error);
         setRows([]);
       } else {
-        setRows(newsResult.data || []);
+        setRows((newsResult.data || []) as BoardRow[]);
       }
 
       setLoading(false);
