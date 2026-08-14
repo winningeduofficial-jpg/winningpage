@@ -15,8 +15,6 @@ export function clean(value) {
   return String(value || "").trim();
 }
 
-export const RAW_ADMISSION_MARK_RE = /[◯○●☆★♥♡❤]/;
-
 export function sanitizeAdmissionDisplayText(
   value,
   { keepMajorFootnote = false } = {},
@@ -1722,16 +1720,6 @@ export function isGradeHeaderToken(line) {
     /^(비고|A|B|C|0일|1~2일|3~5일|6일 이상|20시간|15시간|10시간|5시간|0시간|이상)$/.test(
       v,
     )
-  );
-}
-
-export function isRecordRowLabel(line) {
-  const v = clean(line);
-  if (!v) return false;
-  if (isGradeHeaderToken(v) || isNumericTableValue(v)) return false;
-  if (/^※|^\d+\)|^①|^②|^③|^④/.test(v)) return true;
-  return /(전형|일반|추천|교과|종합|논술|학교장|지역|우수자|인재|학과|학부|전체|나눔|면접|서류|환산점수|반영 점수|과목별 점수|석차등급|성취도|출결|봉사|결석|비고|약학과|일반학과)/.test(
-    v,
   );
 }
 

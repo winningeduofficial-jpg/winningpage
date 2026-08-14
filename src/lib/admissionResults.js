@@ -23,9 +23,6 @@ export const RESULT_YEARS = [2025, 2026];
 // grade_*가 원리상 전부 null"이라는 과거 전제는 실데이터로 반증됐다.
 export const ACTIVE_RESULT_YEAR = 2026;
 
-// Δ(전년대비) 계산의 비교 기준 연도.
-export const PREVIOUS_RESULT_YEAR = 2025;
-
 // 값이 없는 셀의 표기는 2종이다. 2개년 축에서는 "그해 전형 자체가 없었다"(2026 행의
 // 40.8%가 짝 없음)와 "대학이 등급을 공개하지 않았다"의 구분 가치가 크다.
 //   행 부재            → EMPTY_CELL       '-'

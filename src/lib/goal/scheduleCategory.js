@@ -13,16 +13,8 @@ export const SCHEDULE_CATEGORIES = [
 const CODE_TO_LABEL = Object.fromEntries(
   SCHEDULE_CATEGORIES.map(({ code, label }) => [code, label]),
 );
-const LABEL_TO_CODE = Object.fromEntries(
-  SCHEDULE_CATEGORIES.map(({ code, label }) => [label, code]),
-);
 
 /** 카테고리 코드 → 표시 라벨. 알 수 없는 코드는 '기타'로 접는다. */
 export function scheduleCategoryLabel(code) {
   return CODE_TO_LABEL[code] || "기타";
-}
-
-/** 표시 라벨 → 카테고리 코드. 알 수 없는 라벨은 null(호출부가 검증 실패로 처리). */
-export function scheduleCategoryCode(label) {
-  return LABEL_TO_CODE[label] ?? null;
 }

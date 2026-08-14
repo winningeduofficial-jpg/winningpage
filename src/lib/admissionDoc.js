@@ -124,17 +124,6 @@ export const HWP_SECTION_JSON_KEYS = {
  * @property {string} [detail]
  */
 
-export const WARNING_CODES = [
-  "fallback-plain-list",
-  "label-inferred",
-  "chunk-split-heuristic",
-  "group-header-reinferred",
-  "subject-marks-flattened",
-  "merge-info-lost",
-  "masked-token",
-  "curated-html-preserved",
-];
-
 // nth-child 폭 규칙(AdmissionGuidelines.jsx의 인라인 style) 붕괴 방어선.
 // 이 5개 variant만 컬럼 수가 고정이다 — score/special/recruit/recruitExact/
 // generic은 카테고리·대학마다 컬럼 수가 달라 고정할 수 없다.
