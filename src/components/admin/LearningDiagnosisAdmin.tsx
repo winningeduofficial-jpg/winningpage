@@ -861,7 +861,7 @@ export default function LearningDiagnosisAdmin() {
                         <div className="mt-3">
                           <Field label="질문 설명">
                             <Textarea
-                              value={question.description}
+                              value={question.description ?? null}
                               onChange={(value) =>
                                 updateQuestionLocal(question.id, {
                                   description: value,

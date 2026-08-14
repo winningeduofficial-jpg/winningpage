@@ -391,15 +391,6 @@ export default function MentorApplicationsAdmin({
           setPage={setPage}
           onEdit={openDetail}
           onDelete={() => {}}
-          // AdminEngine.tsx(다른 배치 소유, 아직 옵셔널 마킹 전)의 AdminTable 구조분해
-          // 매개변수가 타입 주석 없이 선언돼 있어, 넘기지 않은 나머지 prop까지 전부
-          // 필수로 추론된다 — 원래 JS 호출부(이 다섯 개를 넘기지 않음)와 런타임 동작이
-          // 완전히 동일한 undefined를 명시적으로 채워 타입만 만족시킨다(로직 변경 없음).
-          totalCount={undefined}
-          activeKey={undefined}
-          onCompleteRefund={undefined}
-          onOpenSection={undefined}
-          onOpenMetaEdit={undefined}
         />
       )}
     </div>

@@ -738,8 +738,11 @@ export default function CouponAdmin() {
 
     const byCoupon: Record<string, { active: number; total: number }> = {};
     for (const row of redemptionRes.data || []) {
-      byCoupon[row.coupon_id] ||= { active: 0, total: 0 };
-      const bucket = byCoupon[row.coupon_id];
+      if (!byCoupon[row.coupon_id]) {
+        byCoupon[row.coupon_id] = { active: 0, total: 0 };
+      }
+      // 위에서 없으면 방금 채웠으므로 항상 존재한다(noUncheckedIndexedAccess 우회).
+      const bucket = byCoupon[row.coupon_id]!;
       bucket.total += 1;
       if (row.voided_at === null) bucket.active += 1;
     }
@@ -835,7 +838,9 @@ export default function CouponAdmin() {
       ) {
         saveErrorText = COUPON_SAVE_CAP_MISMATCH_TEXT;
       } else if (error.code in COUPON_SAVE_ERROR_TEXT) {
-        saveErrorText = COUPON_SAVE_ERROR_TEXT[error.code];
+        // 위 `in` 가드로 존재가 보장되지만 인덱스 접근 결과 타입에는 반영되지 않는다(noUncheckedIndexedAccess).
+        saveErrorText =
+          COUPON_SAVE_ERROR_TEXT[error.code] ?? ADMIN_UNKNOWN_ERROR_TEXT;
       } else {
         saveErrorText = ADMIN_UNKNOWN_ERROR_TEXT;
       }

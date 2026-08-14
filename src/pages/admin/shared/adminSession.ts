@@ -5,7 +5,8 @@ function decodeJwtPayload(token: string) {
     const parts = String(token || "").split(".");
     if (parts.length !== 3) return null;
 
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    // parts.length === 3 checked above, so parts[1] is guaranteed defined
+    const base64 = parts[1]!.replace(/-/g, "+").replace(/_/g, "/");
     const json = decodeURIComponent(
       atob(base64)
         .split("")

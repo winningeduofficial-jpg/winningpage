@@ -251,7 +251,12 @@ export default function PremiumBookAdmin({
         canvas.height = Math.round(viewport.height);
         const ctx = canvas.getContext("2d");
 
-        await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+        // getContext('2d')는 방금 만든 canvas라 사실상 항상 성공한다(브라우저가
+        // 2d를 지원하지 않는 극히 예외적 케이스는 기존에도 처리되지 않았다 — 그대로 둔다).
+        // canvas: null — pdfjs RenderParameters 타입 문서상 canvasContext로 렌더할 땐
+        // canvas는 null이어야 한다는 계약(런타임 동작은 기존과 동일, 타입만 명시).
+        await pdfPage.render({ canvas: null, canvasContext: ctx!, viewport })
+          .promise;
 
         const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob(
@@ -339,7 +344,8 @@ export default function PremiumBookAdmin({
 
         const { error: uploadError } = await supabase.storage
           .from("banners")
-          .upload(path, webpBlobs[i], { upsert: true, cacheControl: "3600" });
+          // i < webpBlobs.length는 for 루프 조건이 보장한다.
+          .upload(path, webpBlobs[i]!, { upsert: true, cacheControl: "3600" });
 
         if (uploadError) {
           throw new Error(

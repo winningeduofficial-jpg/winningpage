@@ -228,7 +228,9 @@ function AdminInput({
   // 경계에서는 좁힐 수 없다 — change()/patch()가 실제로 받는 타입(AdminRow의 값)과 동일하게 any.
   value: any;
   onChange: (key: string, value: any) => void;
-  disabled?: boolean;
+  // exactOptionalPropertyTypes: 호출부(config.readOnly)가 boolean | undefined를
+  // 그대로 넘기므로(생략이 아니라 명시적 undefined) undefined도 프로퍼티 타입에 포함한다.
+  disabled?: boolean | undefined;
 }) {
   const base =
     "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
@@ -454,7 +456,9 @@ function AdmissionDocFieldEditor({
 function fileNameFromUrl(url: unknown) {
   if (!url) return "";
   try {
-    const withoutQuery = String(url).split("?")[0].split("#")[0];
+    // String.split(sep) always returns an array with at least 1 element, so
+    // [0] is guaranteed to be defined even under noUncheckedIndexedAccess.
+    const withoutQuery = String(url).split("?")[0]!.split("#")[0]!;
     const segments = withoutQuery.split("/").filter(Boolean);
     const last = segments[segments.length - 1] || "";
     return decodeURIComponent(last);
@@ -489,7 +493,7 @@ function summarizeHwpSection(sectionKey: SectionKey, form: AdminRow) {
       : "내용 없음";
   }
   const tableBlocks = blocks.filter((block) => block.kind === "table");
-  const parts = [];
+  const parts: string[] = [];
   if (tableBlocks.length) {
     const first = tableBlocks[0];
     const cols = Array.isArray(first.columns) ? first.columns.length : 0;
@@ -596,7 +600,9 @@ function AdmissionGroupField({
 }: {
   field: AdminField;
   form: AdminRow;
-  readonly?: boolean;
+  // exactOptionalPropertyTypes: 호출부(config.readOnly)가 boolean | undefined를
+  // 명시적으로 넘기므로 undefined도 프로퍼티 타입에 포함한다(AdminInput disabled와 동일 이유).
+  readonly?: boolean | undefined;
   onChange: (key: string, value: any) => void;
   onPatch: (patch: AdminRow) => void;
   onDirty: () => void;
@@ -960,13 +966,16 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                       )
                     ) : (
                       <>
-                        {![
-                          "file",
-                          "multiImage",
-                          "multiFile",
-                          "blockEditor",
-                          "admissionDoc",
-                        ].includes(field.type) &&
+                        {!(
+                          field.type &&
+                          [
+                            "file",
+                            "multiImage",
+                            "multiFile",
+                            "blockEditor",
+                            "admissionDoc",
+                          ].includes(field.type)
+                        ) &&
                           !(field.type === "image" && field.hideUrlInput) &&
                           // readOnly textarea(예: *_html 미러)는 3차 정보 — 데이터 셀보다
                           // 큰 자리를 차지하지 않도록 기본 접힘(details/summary)으로 감싼다.
@@ -1075,7 +1084,9 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 rel="noreferrer"
                                 className="inline-flex h-10 items-center rounded border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
                               >
-                                {form[field.nameKey] || "첨부파일 보기"}
+                                {(field.nameKey
+                                  ? form[field.nameKey]
+                                  : undefined) || "첨부파일 보기"}
                               </a>
                             ) : (
                               <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
@@ -1283,7 +1294,9 @@ export function AdminForm<T extends AdminRow = AdminRow>({
           open={Boolean(previewPost)}
           onClose={() => setPreviewPost(null)}
           post={previewPost}
-          label={config.previewLabel}
+          {...(config.previewLabel !== undefined
+            ? { label: config.previewLabel }
+            : {})}
         />
       </form>
 
@@ -1291,8 +1304,13 @@ export function AdminForm<T extends AdminRow = AdminRow>({
           다이얼로그. 본문만 뷰어 대신 편집 필드를 넣는다. */}
       <AdmissionSectionEditModal
         open={Boolean(modalSection)}
-        sectionKey={modalSection}
-        sectionLabel={HWP_SECTION_LABELS[modalSection] || modalSection}
+        {...(modalSection !== null ? { sectionKey: modalSection } : {})}
+        {...(modalSection !== null
+          ? {
+              sectionLabel:
+                HWP_SECTION_LABELS[modalSection as SectionKey] || modalSection,
+            }
+          : {})}
         universityName={form.university_name}
         dirty={dirty}
         origin={origin}
@@ -1400,10 +1418,12 @@ export function AdminTable<T extends AdminRow = AdminRow>({
   const sectionSummaries = useMemo(() => {
     if (sectionColumns.length === 0) return null;
     return pageRows.map((row) => {
-      const summaries = {};
+      const summaries: Record<string, string> = {};
       sectionColumns.forEach((column) => {
-        summaries[column.sectionKey] = summarizeHwpSection(
-          column.sectionKey,
+        // admissionSection 컬럼은 항상 sectionKey를 갖는 계약이다(위 AdmissionDocFieldEditor
+        // 주석과 동일 근거 — column.type === 'admissionSection'일 때만 이 루프에 들어온다).
+        summaries[column.sectionKey!] = summarizeHwpSection(
+          column.sectionKey!,
           row,
         );
       });
@@ -1579,15 +1599,16 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                         // 이유는 목록을 훑을 때 "어디가 비었나"가 한눈에 보여야
                         // 하기 때문이다(기존 `-`가 주던 정보를 잃지 않는다).
                         (() => {
+                          // column.sectionKey는 admissionSection 컬럼 계약상 항상 실려 있다(위 useMemo 주석 참고).
                           const summary =
-                            sectionSummaries?.[index]?.[column.sectionKey];
+                            sectionSummaries?.[index]?.[column.sectionKey!];
                           const empty = summary === "내용 없음";
                           return (
                             <button
                               type="button"
                               title={summary}
                               onClick={() =>
-                                onOpenSection?.(row, column.sectionKey)
+                                onOpenSection?.(row, column.sectionKey!)
                               }
                               className={
                                 empty
@@ -1667,7 +1688,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                       {activeKey === "refundRequests" && (
                         <button
                           type="button"
-                          onClick={() => onCompleteRefund(row)}
+                          onClick={() => onCompleteRefund?.(row)}
                           disabled={isRefundCompletionBlocked(row)}
                           title={
                             isRefundCompletionBlocked(row)
