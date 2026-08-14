@@ -1,5 +1,27 @@
-import { describeCell, describeHeader, describeTable } from "./tableModel";
+import type { ReactNode } from "react";
+import type { TableBlock } from "../../../lib/admissionDoc";
+import {
+  type CellDesc,
+  describeCell,
+  describeHeader,
+  describeTable,
+  type HeaderCellDesc,
+} from "./tableModel";
 import viewSlots from "./viewSlots";
+
+export interface TableParity {
+  cellClassNames: boolean;
+  groupHeader: "render" | "flatten";
+  emptyFallback: boolean;
+  scrollWrapExtra: string;
+}
+
+export interface TableSlots {
+  header: (headerCell: HeaderCellDesc, block: TableBlock) => ReactNode;
+  cell: (cellDesc: CellDesc, block: TableBlock) => ReactNode;
+  rowTrailing?: (rowIdx: number, rowCount: number) => ReactNode;
+  headTrailing?: () => ReactNode;
+}
 
 // 대입모집요강 표의 **유일한 골격**. <div>/<table>/<thead>/<tbody>/<tr>/<th>/<td>를
 // 만드는 코드는 이 파일 하나뿐이고, 셀·헤더 안쪽(리프)은 전부 슬롯이 만든다.
@@ -24,7 +46,7 @@ import viewSlots from "./viewSlots";
 // 위한 것이지 취향이 아니다.
 
 /** 뷰(=현행 공개 DOM) 파리티. 편집 모드가 되돌려야 할 기준점이기도 하다. */
-const VIEW_PARITY = {
+const VIEW_PARITY: TableParity = {
   // <td>에 role/위치 기반 className을 부여하는가.
   cellClassNames: true,
   // 'render' = recruitExact 2단 병합 헤더 그대로, 'flatten' = 항상 1행.
@@ -38,22 +60,25 @@ const VIEW_PARITY = {
 
 // mode → 기본 슬롯/파리티. 편집 슬롯(editSlots)은 다음 단계에서 'edit' 항목으로
 // 등록된다. 그때까지 알 수 없는 mode는 뷰 기본값으로 떨어진다.
-const MODE_DEFAULTS = {
+const MODE_DEFAULTS: Record<
+  string,
+  { slots: TableSlots; parity: TableParity }
+> = {
   view: { slots: viewSlots, parity: VIEW_PARITY },
 };
 
-/**
- * @param {Object} props
- * @param {Object} props.block                     TableBlock(AdmissionDoc)
- * @param {'view'|'edit'} [props.mode]             기본 슬롯/파리티 선택용
- * @param {Object} [props.slots]                   {header, cell, rowTrailing?, headTrailing?}
- * @param {Object} [props.parity]                  VIEW_PARITY 위에 덮어쓸 값만
- */
 export default function AdmissionTable({
   block,
   mode = "view",
   slots,
   parity,
+}: {
+  block: TableBlock;
+  /** 기본 슬롯/파리티 선택용 */
+  mode?: "view" | "edit";
+  slots?: TableSlots;
+  /** VIEW_PARITY 위에 덮어쓸 값만 */
+  parity?: Partial<TableParity>;
 }) {
   const desc = describeTable(block);
   // 표로 그릴 수 없는 block(columns/rows가 배열이 아님). 이전에는

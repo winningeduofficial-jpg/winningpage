@@ -26,7 +26,9 @@
 // 없음)와 즉시 불일치한다. rowSpan/colSpan은 값이 1이어도 "생략"으로 바꾸는
 // 최적화를 하지 말고, 반대로 현행이 안 찍는 자리에 1을 채워 넣지도 말 것.
 
+import type { TableBlock } from "../../../lib/admissionDoc";
 import {
+  type CellKind,
   CHANGE_CELL_CLASS_BY_ROLE,
   CHANGE_EMPTY_FALLBACK_BY_ROLE,
   getCellKind,
@@ -40,62 +42,70 @@ import {
 } from "../admissionLayout";
 import { resolveCellKind } from "../editor/tableEditorValidation";
 
-/**
- * @typedef {string
- *   | { text?: string, badge?: 'minimumHas' | 'minimumNone' }
- *   | { chips?: { label: string, value: string }[] }} Cell
- */
+// admissionDoc.js의 Cell은 필드가 필수(text:string 등)지만, 이 모델은 실데이터의
+// 느슨한 형태(text?/badge?/chips? 전부 선택)까지 받아들인다 — describeCell이
+// block.rows[][]를 그대로 통과시키므로 원본 JSDoc과 같은 완화형을 유지한다.
+type Cell =
+  | string
+  | { text?: string; badge?: "minimumHas" | "minimumNone" }
+  | { chips?: { label: string; value: string }[] };
 
-/**
- * 헤더 한 칸. 골격 컴포넌트가 <th>에 그대로 편다.
- * @typedef {Object} HeaderCellDesc
- * @property {string} key                 현행 React key를 그대로 재현한다.
- * @property {'column'|'group'} kind
- * @property {number|null} colIdx         kind==='group'이면 null
- * @property {number} [groupIdx]
- * @property {string} label
- * @property {string|undefined} className 'fixed-head' | 'recruit-group-head' | undefined
- * @property {number|undefined} rowSpan   ⚠ 현행이 안 찍으면 반드시 undefined
- * @property {number|undefined} colSpan   ⚠ 현행 계산 그대로. "1이면 생략" 최적화 금지
- */
+/** 헤더 한 칸. 골격 컴포넌트가 <th>에 그대로 편다. */
+export interface HeaderCellDesc {
+  key: string; // 현행 React key를 그대로 재현한다.
+  kind: "column" | "group";
+  colIdx: number | null; // kind==='group'이면 null
+  groupIdx?: number;
+  label: string;
+  className: string | undefined; // 'fixed-head' | 'recruit-group-head' | undefined
+  rowSpan: number | undefined; // ⚠ 현행이 안 찍으면 반드시 undefined
+  colSpan: number | undefined; // ⚠ 현행 계산 그대로. "1이면 생략" 최적화 금지
+}
 
-/** @typedef {{ rows: { cells: HeaderCellDesc[] }[] }} HeaderDesc */ // rows.length === 1 | 2
-
-/**
- * 바디 셀 한 칸. 뷰가 필요한 것(view)과 편집이 필요한 것(edit)을 하위 객체로
- * 분리한다 — 한 객체에 섞으면 "이 필드는 누구 것인가"를 매번 추론해야 한다.
- * @typedef {Object} CellDesc
- * @property {number} rowIdx
- * @property {number} colIdx
- * @property {string|undefined} role
- * @property {string|undefined} className ⚠ ''(selection/change) vs undefined(generic/recruitExact) 구분 보존
- * @property {Cell} raw
- * @property {CellViewDesc} view
- * @property {{ kind: 'text'|'badge'|'chips' }} edit
- */
+export interface HeaderDesc {
+  rows: { cells: HeaderCellDesc[] }[]; // rows.length === 1 | 2
+}
 
 /**
  * 셀 안쪽 리프. leaf가 "무엇으로 감쌀지", 나머지가 "무엇을 넣을지"다.
  * 리터럴 텍스트 자리는 항상 `text || fallback`으로 확정된다(현행 5개 렌더러가
  * 전부 `{cellText || 폴백}` 또는 `{cellText ? cellText : muted}` 꼴이다).
- * @typedef {Object} CellViewDesc
- * @property {'badge'|'chips'|'changePlain'|'literal'|'muted'} leaf
- * @property {string} text      셀에서 뽑은 원문(없으면 '')
- * @property {'has'|'none'|null} badge
- * @property {{label:string,value:string}[]|null} chips
- * @property {string} fallback  text가 빈 값일 때 대신 넣을 리터럴('' = 폴백 없음)
  */
+export interface CellViewDesc {
+  leaf: "badge" | "chips" | "changePlain" | "literal" | "muted";
+  text: string; // 셀에서 뽑은 원문(없으면 '')
+  badge: "has" | "none" | null;
+  chips: { label: string; value: string }[] | null;
+  fallback: string; // text가 빈 값일 때 대신 넣을 리터럴('' = 폴백 없음)
+}
+
+/**
+ * 바디 셀 한 칸. 뷰가 필요한 것(view)과 편집이 필요한 것(edit)을 하위 객체로
+ * 분리한다 — 한 객체에 섞으면 "이 필드는 누구 것인가"를 매번 추론해야 한다.
+ */
+export interface CellDesc {
+  rowIdx: number;
+  colIdx: number;
+  role: string | undefined;
+  className: string | undefined; // ⚠ ''(selection/change) vs undefined(generic/recruitExact) 구분 보존
+  raw: Cell;
+  view: CellViewDesc;
+  edit: { kind: CellKind };
+}
 
 /** 셀 3형태(문자열 / {text,badge} / {chips}) 공통 텍스트 추출. 현행 7곳 중복의 정본. */
-function cellTextOf(cell) {
-  const text = typeof cell === "string" ? cell : cell?.text;
+function cellTextOf(cell: Cell): string {
+  const text =
+    typeof cell === "string" ? cell : (cell as { text?: string })?.text;
   return text == null ? "" : text;
 }
 
 /** RecruitTable.jsx:36의 chips 판정을 그대로 옮긴 것. */
-function cellChipsOf(cell) {
-  return cell && typeof cell === "object" && Array.isArray(cell.chips)
-    ? cell.chips
+function cellChipsOf(cell: Cell): { label: string; value: string }[] | null {
+  return cell &&
+    typeof cell === "object" &&
+    Array.isArray((cell as { chips?: unknown }).chips)
+    ? (cell as { chips: { label: string; value: string }[] }).chips
     : null;
 }
 
@@ -105,9 +115,11 @@ function cellChipsOf(cell) {
  * @param {Cell} cell
  * @param {string} resolvedText 폴백까지 적용된 최종 표시 텍스트
  */
-function selectionBadgeOf(cell, resolvedText) {
+function selectionBadgeOf(cell: Cell, resolvedText: string): "has" | "none" {
   const explicitBadge =
-    cell && typeof cell === "object" ? cell.badge : undefined;
+    cell && typeof cell === "object"
+      ? (cell as { badge?: string }).badge
+      : undefined;
   if (explicitBadge) return explicitBadge === "minimumHas" ? "has" : "none";
   return resolvedText === "-" ? "none" : "has";
 }
@@ -120,20 +132,27 @@ function selectionBadgeOf(cell, resolvedText) {
  *
  * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
  */
-function cellClassNameOf(block, variant, role, colIdx, kind) {
+function cellClassNameOf(
+  block: TableBlock | null | undefined,
+  variant: string | undefined,
+  role: string | undefined,
+  colIdx: number,
+  kind: CellKind,
+): string | undefined {
   switch (variant) {
     case "selection":
-      // 구 SelectionTable.jsx:26
-      return SELECTION_CELL_CLASS_BY_ROLE[role] || "";
+      // 구 SelectionTable.jsx:26. role이 undefined여도 js 인덱스 접근과
+      // 같은 결과(undefined)이도록 캐스트만 하고 값 자체는 그대로 둔다.
+      return SELECTION_CELL_CLASS_BY_ROLE[role as string] || "";
     case "change":
       // 구 ChangeTable.jsx:23
-      return CHANGE_CELL_CLASS_BY_ROLE[role] || "";
+      return CHANGE_CELL_CLASS_BY_ROLE[role as string] || "";
     case "recruit":
       // 구 RecruitTable.jsx:27(고정열) / :38(값 셀). 고정열 판정은
       // getCellKind가 정본 — recruit에서 kind==='text'가 곧 role∈{group,unit}
       // (chips를 쓰지 않는 컬럼)이며, 구 코드의 인라인 조건과 같은 분기다.
       return kind !== "chips"
-        ? RECRUIT_FIXED_CELL_CLASS_BY_ROLE[role]
+        ? RECRUIT_FIXED_CELL_CLASS_BY_ROLE[role as string]
         : "recruit-values-cell";
     case "recruitExact":
       // RecruitExactTable.jsx:40-47 — role이 아니라 위치(fixedColumnCount) 기반.
@@ -159,8 +178,16 @@ function cellClassNameOf(block, variant, role, colIdx, kind) {
  *
  * @param {'text'|'badge'|'chips'} kind getCellKind(variant, role)
  */
-function cellViewOf(_block, variant, role, _colIdx, raw, text, kind) {
-  const base = {
+function cellViewOf(
+  _block: TableBlock | null | undefined,
+  variant: string | undefined,
+  role: string | undefined,
+  _colIdx: number,
+  raw: Cell,
+  text: string,
+  kind: CellKind,
+): CellViewDesc {
+  const base: CellViewDesc = {
     leaf: "literal",
     text,
     badge: null,
@@ -198,7 +225,7 @@ function cellViewOf(_block, variant, role, _colIdx, raw, text, kind) {
       return {
         ...base,
         leaf: "literal",
-        fallback: CHANGE_EMPTY_FALLBACK_BY_ROLE[role] || "-",
+        fallback: CHANGE_EMPTY_FALLBACK_BY_ROLE[role as string] || "-",
       };
     }
     case "recruit": {
@@ -227,7 +254,10 @@ function cellViewOf(_block, variant, role, _colIdx, raw, text, kind) {
  * (TableBlockView.jsx:10의 가드와 같은 조건).
  * @returns {{ layout: {scrollWrapClassName:string, tableClassName:string}, columnCount:number } | null}
  */
-export function describeTable(block) {
+export function describeTable(block: TableBlock | null | undefined): {
+  layout: ReturnType<typeof getTableVariantLayout>;
+  columnCount: number;
+} | null {
   if (!block || !Array.isArray(block.columns) || !Array.isArray(block.rows))
     return null;
   return {
@@ -253,13 +283,16 @@ export function describeTable(block) {
  *   위해서다. 기본값은 'render' — 뷰 동작은 조금도 바뀌지 않는다.
  * @returns {HeaderDesc}
  */
-export function describeHeader(block, options) {
+export function describeHeader(
+  block: TableBlock | null | undefined,
+  options?: { groupHeader?: "render" | "flatten" },
+): HeaderDesc {
   const columns = Array.isArray(block?.columns) ? block.columns : [];
   const flatten = options?.groupHeader === "flatten";
 
   if (!flatten && block?.variant === "recruitExact") {
     const fixedCount = block.fixedColumnCount || 0;
-    const topCells = [];
+    const topCells: HeaderCellDesc[] = [];
 
     columns.slice(0, fixedCount).forEach((col, idx) => {
       topCells.push({
@@ -286,15 +319,17 @@ export function describeHeader(block, options) {
       });
     });
 
-    const bottomCells = columns.slice(fixedCount).map((col, idx) => ({
-      key: String(idx),
-      kind: "column",
-      colIdx: fixedCount + idx,
-      label: col.label,
-      className: undefined,
-      rowSpan: undefined,
-      colSpan: undefined,
-    }));
+    const bottomCells: HeaderCellDesc[] = columns
+      .slice(fixedCount)
+      .map((col, idx) => ({
+        key: String(idx),
+        kind: "column",
+        colIdx: fixedCount + idx,
+        label: col.label,
+        className: undefined,
+        rowSpan: undefined,
+        colSpan: undefined,
+      }));
 
     return { rows: [{ cells: topCells }, { cells: bottomCells }] };
   }
@@ -320,7 +355,11 @@ export function describeHeader(block, options) {
  * 바디 셀 한 칸 서술.
  * @returns {CellDesc}
  */
-export function describeCell(block, rowIdx, colIdx) {
+export function describeCell(
+  block: TableBlock | null | undefined,
+  rowIdx: number,
+  colIdx: number,
+): CellDesc {
   const variant = block?.variant;
   const columns = Array.isArray(block?.columns) ? block.columns : [];
   const rows = Array.isArray(block?.rows) ? block.rows : [];

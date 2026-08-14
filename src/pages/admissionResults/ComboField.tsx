@@ -1,5 +1,24 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { PopoverStatus } from "./StateBlocks";
+
+export interface ComboOption {
+  key: string;
+  label: string;
+  meta?: string;
+}
+
+export interface ComboValue {
+  key: string;
+  label: string;
+}
 
 /**
  * 셀렉터 바의 입력형 combobox 1개. 대학교/모집단위 두 필드가 이 컴포넌트를 공유하고
@@ -49,7 +68,7 @@ const NBSP = /\u00a0/g;
  *    안 걸린다. 사용자가 중점을 쳐 넣을 도리가 없으니 공백과 같은 급으로 무시한다
  *    (통일 단계를 먼저 밟는 이유는 그래야 4종 변형이 한 번에 지워지기 때문이다).
  */
-export function normalizeForSearch(text) {
+export function normalizeForSearch(text: unknown): string {
   return (
     String(text ?? "")
       .normalize("NFC")
@@ -67,8 +86,8 @@ export function normalizeForSearch(text) {
 export default function ComboField({
   label,
   placeholder,
-  value = null, // { key, label } | null
-  options = [], // [{ key, label, meta }]
+  value = null,
+  options = [],
   onSelect,
   onClear, // 입력을 고쳐 기존 선택이 무효가 됐을 때. 없으면 선택을 해제하지 않는다.
   open = false,
@@ -85,16 +104,35 @@ export default function ComboField({
   noResultTitle = "검색 결과가 없습니다.",
   noResultDescription = "띄어쓰기와 중점(·)은 무시하고 찾습니다.",
   className = "",
+}: {
+  label: string;
+  placeholder?: string;
+  value?: ComboValue | null;
+  options?: ComboOption[];
+  onSelect?: (option: ComboOption) => void;
+  onClear?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  disabled?: boolean;
+  disabledMessage?: string;
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  noResultTitle?: string;
+  noResultDescription?: string;
+  className?: string;
 }) {
   const reactId = useId();
   const inputId = `${reactId}-input`;
   const listboxId = `${reactId}-listbox`;
   const labelId = `${reactId}-label`;
-  const optionId = (index) => `${reactId}-option-${index}`;
+  const optionId = (index: number) => `${reactId}-option-${index}`;
 
-  const wrapperRef = useRef(null);
-  const inputRef = useRef(null);
-  const listRef = useRef(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   // 입력값을 바깥 value와 동기화한 마지막 지점. 내가 만든 변화(선택/해제)와
   // 바깥에서 들어온 변화(딥링크 씨앗, 대학 변경에 따른 모집단위 초기화)를 구분하는 데 쓴다.
@@ -178,8 +216,8 @@ export default function ComboField({
   // 바깥 클릭으로 닫기.
   useEffect(() => {
     if (!open) return undefined;
-    function handlePointerDown(event) {
-      if (wrapperRef.current?.contains(event.target)) return;
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (wrapperRef.current?.contains(event.target as Node)) return;
       onOpenChange?.(false);
     }
     document.addEventListener("mousedown", handlePointerDown);
@@ -190,7 +228,7 @@ export default function ComboField({
     };
   }, [open, onOpenChange]);
 
-  function choose(index) {
+  function choose(index: number) {
     const option = filtered[index];
     if (!option) return;
     syncedRef.current = { key: option.key, label: option.label };
@@ -201,7 +239,7 @@ export default function ComboField({
     inputRef.current?.focus();
   }
 
-  function move(delta) {
+  function move(delta: number) {
     if (!showList) return;
     const count = filtered.length;
     setActiveIndex((prev) => {
@@ -213,7 +251,7 @@ export default function ComboField({
     });
   }
 
-  function handleChange(event) {
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.value;
     setQuery(next);
     setDirty(true);
@@ -244,7 +282,7 @@ export default function ComboField({
     if (!open) onOpenChange?.(true);
   }
 
-  function handleKeyDown(event) {
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (disabled) return;
 
     if (!open) {

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import type { TableBlock } from "../../../lib/admissionDoc";
 import { withDedupedKeys } from "../../../lib/reactKeys";
 import AdmissionTable from "../table/AdmissionTable";
 import { describeCell } from "../table/tableModel";
@@ -56,12 +57,41 @@ import {
 //     호출부가 결정한다.
 //   universityName/sectionLabel(선택): xlsx 파일명 구성용. Admin.jsx
 //     배선 전이라 생략 가능(생략 시 buildXlsxFileName의 기본값을 쓴다).
+
+// xlsx/tableBlockXlsx.js(수정 범위 밖, JSDoc 없이 반환값만 있는 .js)의 결과
+// 형태를 이 컴포넌트가 실제로 읽는 필드만 좁혀 로컬로 적는다.
+interface XlsxOversizedCell {
+  area: "header" | "body";
+  row: number;
+  col: number;
+  columnLabel?: string;
+  length: number;
+}
+
+interface XlsxImportPreview {
+  block: TableBlock;
+  unchanged: boolean;
+  changeSummary: {
+    rowsAdded: number;
+    rowsRemoved: number;
+    cellsChanged: number;
+    columnsChanged: boolean;
+  };
+}
+
 export default function TableBlockEditor({
   section,
   block,
   onChange,
   universityName,
   sectionLabel,
+}: {
+  /** SectionKey(validateAdmissionDoc이 doc.section 검사에 씀) */
+  section: string;
+  block: TableBlock;
+  onChange: (nextBlock: TableBlock) => void;
+  universityName?: string;
+  sectionLabel?: string;
 }) {
   const validation = useMemo(
     () => validateTableBlock(section, block),
@@ -73,17 +103,22 @@ export default function TableBlockEditor({
   );
   const columnMutationAllowed = columnMutationBlockReason === null;
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-  const [xlsxOversized, setXlsxOversized] = useState([]);
-  const [xlsxImportErrors, setXlsxImportErrors] = useState([]);
-  const [xlsxImportPreview, setXlsxImportPreview] = useState(null); // { block, changeSummary, unchanged }
-  const xlsxFileInputRef = useRef(null);
+  const [xlsxOversized, setXlsxOversized] = useState<XlsxOversizedCell[]>([]);
+  const [xlsxImportErrors, setXlsxImportErrors] = useState<string[]>([]);
+  const [xlsxImportPreview, setXlsxImportPreview] =
+    useState<XlsxImportPreview | null>(null);
+  const xlsxFileInputRef = useRef<HTMLInputElement>(null);
 
-  function updateCell(rowIdx, colIdx, nextCellValue) {
-    onChange(ops.updateCell(block, rowIdx, colIdx, nextCellValue));
+  function updateCell(rowIdx: number, colIdx: number, nextCellValue: unknown) {
+    onChange(ops.updateCell(block, rowIdx, colIdx, nextCellValue as never));
   }
 
-  function updateColumnField(colIdx, field, fieldValue) {
-    onChange(ops.updateColumnField(block, colIdx, field, fieldValue));
+  function updateColumnField(
+    colIdx: number,
+    field: string,
+    fieldValue: unknown,
+  ) {
+    onChange(ops.updateColumnField(block, colIdx, field as never, fieldValue));
   }
 
   function addColumn() {
@@ -91,7 +126,7 @@ export default function TableBlockEditor({
     onChange(ops.addColumn(block));
   }
 
-  function removeColumn(colIdx) {
+  function removeColumn(colIdx: number) {
     if (!columnMutationAllowed) return;
     onChange(ops.removeColumn(block, colIdx));
   }
@@ -100,27 +135,31 @@ export default function TableBlockEditor({
     onChange(ops.addRow(block));
   }
 
-  function removeRow(rowIdx) {
+  function removeRow(rowIdx: number) {
     onChange(ops.removeRow(block, rowIdx));
   }
 
-  function moveRow(rowIdx, delta) {
+  function moveRow(rowIdx: number, delta: number) {
     onChange(ops.moveRow(block, rowIdx, delta));
   }
 
-  function updateGroupField(groupIdx, field, fieldValue) {
-    onChange(ops.updateGroupField(block, groupIdx, field, fieldValue));
+  function updateGroupField(
+    groupIdx: number,
+    field: string,
+    fieldValue: unknown,
+  ) {
+    onChange(ops.updateGroupField(block, groupIdx, field as never, fieldValue));
   }
 
   function addGroup() {
     onChange(ops.addGroup(block));
   }
 
-  function removeGroup(groupIdx) {
+  function removeGroup(groupIdx: number) {
     onChange(ops.removeGroup(block, groupIdx));
   }
 
-  function updateFixedColumnCount(value) {
+  function updateFixedColumnCount(value: number) {
     onChange(ops.updateFixedColumnCount(block, value));
   }
 
@@ -142,7 +181,7 @@ export default function TableBlockEditor({
 
   // 가져오기는 바로 반영하지 않는다 — 미리보기(변경 요약 또는 "변경
   // 없음")를 먼저 보여주고, 관리자가 "적용"을 눌러야 onChange가 실행된다.
-  function handleImportFileChange(event) {
+  function handleImportFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = ""; // 같은 파일을 다시 선택해도 change가 발생하게 리셋
     if (!file) return;
@@ -156,14 +195,16 @@ export default function TableBlockEditor({
         const workbook = XLSX.read(reader.result, { type: "array" });
         const result = importTableBlockFromXlsx(workbook, block, section);
         if (!result.ok) {
-          setXlsxImportErrors(result.errors);
+          setXlsxImportErrors(result.errors || []);
           return;
         }
-        setXlsxImportPreview(result);
+        // xlsx/tableBlockXlsx.js(수정 범위 밖)는 반환 형태를 JSDoc으로만
+        // 느슨하게 적어 뒀다 — ok:true 분기에선 항상 block/changeSummary/
+        // unchanged가 함께 채워진다(그 파일의 실제 구현 계약).
+        setXlsxImportPreview(result as XlsxImportPreview);
       } catch (err) {
-        setXlsxImportErrors([
-          `파일을 읽는 중 오류가 발생했습니다: ${err?.message || err}`,
-        ]);
+        const message = (err as { message?: unknown })?.message || err;
+        setXlsxImportErrors([`파일을 읽는 중 오류가 발생했습니다: ${message}`]);
       }
     };
     reader.onerror = () => {
@@ -186,7 +227,7 @@ export default function TableBlockEditor({
   // 세지 않아도 되도록 그 행의 첫 비어 있지 않은 셀 텍스트를 보여준다.
   // 텍스트 추출은 tableModel이 정본이라 여기서 다시 구현하지 않는다
   // (구 7곳 중복을 합쳐 놓은 자리에 8번째를 만들지 말 것 — 설계 §2-2 G6).
-  function rowPreviewText(rowIdx) {
+  function rowPreviewText(rowIdx: number) {
     const row = Array.isArray(block.rows?.[rowIdx]) ? block.rows[rowIdx] : [];
     for (let colIdx = 0; colIdx < row.length; colIdx += 1) {
       // view.text는 cellTextOf가 문자열 변환 없이 원값을 통과시키는 경로라

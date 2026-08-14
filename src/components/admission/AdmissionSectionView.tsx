@@ -1,3 +1,4 @@
+import type { AdmissionDoc } from "../../lib/admissionDoc";
 import { isEmptyDoc } from "../../lib/admissionDoc";
 import {
   getSectionTitleText,
@@ -29,7 +30,10 @@ import { renderBlock } from "./blocks/renderBlock";
 //   의도적으로 렌더하지 않는다 — HTML 미러 렌더러(renderDocToHtml)는 바이트
 //   재현을 위해 출력하지만, 이 컴포넌트는 SECTION_NOTES가 6키 전부 ''인
 //   현재 데이터에서 항상 빈 채로 나오는 두 div를 생략한다(Gate B 허용 diff).
-function firstBlockAlreadyHasHeading(doc, heading) {
+function firstBlockAlreadyHasHeading(
+  doc: AdmissionDoc,
+  heading: string,
+): boolean {
   if (!heading) return false;
   const firstBlock = doc.blocks[0];
   if (firstBlock?.kind !== "rawHtml" || !firstBlock.html) return false;
@@ -40,6 +44,10 @@ export default function AdmissionSectionView({
   doc,
   sectionKey,
   surface = "public",
+}: {
+  doc: AdmissionDoc | null | undefined;
+  sectionKey: string;
+  surface?: string;
 }) {
   if (doc?.v !== 1 || isEmptyDoc(doc)) return null;
 

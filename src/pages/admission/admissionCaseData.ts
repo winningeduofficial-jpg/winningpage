@@ -1,18 +1,36 @@
 import { supabase } from "../../lib/supabase";
 
-export const CATEGORY_LABELS = {
+export type CaseCategory = "susi" | "jungsi";
+
+// admission_posts 테이블 행. select('*') 고정이라 스키마 확장(content_json 등)에도
+// 조회 자체는 깨지지 않으므로, 화면이 실제로 읽는 필드만 좁혀서 적는다.
+export interface AdmissionPostRow {
+  id: string;
+  category: CaseCategory | string;
+  image_urls?: unknown;
+  image_url?: string;
+  [key: string]: unknown;
+}
+
+interface HeroScopeConfig {
+  ratesTable: string;
+  heroLabel: string;
+  fallbackRates: { year: number; rate: number }[];
+}
+
+export const CATEGORY_LABELS: Record<CaseCategory, string> = {
   susi: "수시",
   jungsi: "정시",
 };
 
-export const CASE_CATEGORIES = ["susi", "jungsi"];
+export const CASE_CATEGORIES: CaseCategory[] = ["susi", "jungsi"];
 
 /**
  * 히어로 scope — 코드는 공용, 데이터는 **테이블 자체가 다르다**.
  * 대학 로고 스트립(admission_case_logos)은 scope와 무관하게 두 페이지가 공유한다
  * (시안 실측 결과 로고 12종·1행 7개/2행 5개 배치가 완전히 동일).
  */
-export const HERO_SCOPES = {
+export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
   "susi-jungsi": {
     ratesTable: "admission_acceptance_rates",
     heroLabel: "목표 대학 합격률",
@@ -43,7 +61,15 @@ export const DEFAULT_HERO_SCOPE = "susi-jungsi";
  * admission_posts.image_urls(jsonb/string/array 혼재) → 문자열 배열로 정규화.
  * columnData.js normalizeImageUrls 이식.
  */
-export function normalizeImageUrls(row) {
+// row 파라미터는 Pick<AdmissionPostRow,...>(전부 optional인 "약한 타입")
+// 대신 인덱스 시그니처로 둔다 — 이 함수는 admission_posts 외에 다른 화면
+// (다른 배치가 소유한 row 타입, 예: AdmissionCaseCard의 AdmissionCaseRow)의
+// 조회 결과도 그대로 받는다. 전부 optional인 타입끼리는 구조적으로 호환
+// 되더라도 TS의 weak-type 검사가 "공통 속성 없음"(TS2559)으로 오판하는데,
+// 인덱스 시그니처 타입은 그 검사 대상에서 제외된다.
+export function normalizeImageUrls(
+  row: Record<string, unknown> | null | undefined,
+): string[] {
   const value = row?.image_urls;
   if (Array.isArray(value)) return value;
   if (!value) return [];
@@ -60,13 +86,15 @@ export function normalizeImageUrls(row) {
   return [];
 }
 
-export function getThumbnailUrl(row) {
-  return normalizeImageUrls(row)[0] || row?.image_url || "";
+export function getThumbnailUrl(
+  row: Record<string, unknown> | null | undefined,
+): string {
+  return normalizeImageUrls(row)[0] || (row?.image_url as string) || "";
 }
 
-export function formatDate(value) {
+export function formatDate(value: unknown): string {
   if (!value) return "";
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
   return date.toISOString().slice(0, 10);
 }
@@ -75,7 +103,9 @@ export function formatDate(value) {
  * select('*') 고정 — 운영 DB에 content_json 컬럼이 아직 없어도(38번 SQL 미적용 상태)
  * 에러 없이 동작해야 함 (스키마 확장 전 fallback 원칙, columnData.js와 동일 원칙).
  */
-export async function fetchAdmissionCases(category) {
+export async function fetchAdmissionCases(
+  category: string,
+): Promise<AdmissionPostRow[]> {
   const { data, error } = await supabase
     .from("admission_posts")
     .select("*")
@@ -93,7 +123,9 @@ export async function fetchAdmissionCases(category) {
   return data || [];
 }
 
-export async function fetchAdmissionCaseById(id) {
+export async function fetchAdmissionCaseById(
+  id: string,
+): Promise<AdmissionPostRow | null> {
   const { data, error } = await supabase
     .from("admission_posts")
     .select("*")
@@ -117,7 +149,9 @@ export async function fetchAdmissionCaseById(id) {
  * select('*') 고정 — 마이그레이션 미적용 환경에서도 죽지 않게 하는 규약(fetchAdmissionCases와 동일).
  * @returns {Promise<Array<{ year: number, rate: number }>>}
  */
-export async function fetchAcceptanceRates(scope = DEFAULT_HERO_SCOPE) {
+export async function fetchAcceptanceRates(
+  scope: string = DEFAULT_HERO_SCOPE,
+): Promise<{ year: number; rate: number }[]> {
   const scopeConfig = HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
   const { data, error } = await supabase
     .from(scopeConfig.ratesTable)
@@ -142,7 +176,19 @@ export async function fetchAcceptanceRates(scope = DEFAULT_HERO_SCOPE) {
  * @returns {Promise<Array<{ id: string, name: string, logo_url: string,
  *   display_height_rem: number, opacity: number, sort_order: number }> | null>}
  */
-export async function fetchAdmissionCaseLogos() {
+export interface AdmissionCaseLogoRow {
+  id: string;
+  name: string;
+  logo_url: string;
+  display_height_rem: number;
+  opacity: number;
+  sort_order: number;
+  row_no?: number;
+}
+
+export async function fetchAdmissionCaseLogos(): Promise<
+  AdmissionCaseLogoRow[] | null
+> {
   const { data, error } = await supabase
     .from("admission_case_logos")
     .select("*")
@@ -163,7 +209,9 @@ export async function fetchAdmissionCaseLogos() {
  * @param {Array<{ rate: number | string }>} rates
  * @returns {number}
  */
-export function computeAcceptanceAverage(rates) {
+export function computeAcceptanceAverage(
+  rates: { rate: number | string }[] | null | undefined,
+): number {
   const list = (rates || []).filter((row) =>
     Number.isFinite(Number(row?.rate)),
   );

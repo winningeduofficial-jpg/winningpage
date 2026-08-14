@@ -13,6 +13,7 @@ import {
   fetchSusiUniversities,
   fetchTrendingDepartments,
 } from "../lib/admissionResultsQueries";
+import type { ComboOption } from "./admissionResults/ComboField";
 import {
   CONTAINER,
   formatDeptCount,
@@ -21,13 +22,48 @@ import {
 import SearchView from "./admissionResults/SearchView";
 import { LoadingBlock } from "./admissionResults/StateBlocks";
 
+// admissionResultsQueries.js(수정 범위 밖의 JSDoc 없는 .js)가 돌려주는 행 모양을
+// 이 셸이 실제로 읽는 필드만 좁혀서 적는다.
+interface UniversityIndexRow {
+  university_key: string;
+  university_name?: string;
+  dept_count?: number;
+  [key: string]: unknown;
+}
+
+interface DepartmentIndexRow {
+  department_key: string;
+  department_name?: string;
+  tracks?: string[];
+  [key: string]: unknown;
+}
+
+interface TrendingDepartmentRow {
+  university_key?: string;
+  department_key?: string;
+  university_name?: string;
+  department_name?: string;
+  logo_url?: string;
+  [key: string]: unknown;
+}
+
+// SearchView.tsx(수정 범위 밖)의 로컬(비export) TrendingItem과 구조가 같은
+// 이 셸 전용 사본이다 — export되지 않은 타입이라 import할 수 없다.
+interface TrendingItem {
+  key: string;
+  label: string;
+  universityKey?: string;
+  departmentKey?: string;
+  logoUrl?: string;
+}
+
 // 상세 뷰는 검색 화면에서 즉시 필요하지 않고 표·스파크라인까지 들고 있어 무겁다.
 // 이 저장소에서 lazy는 Admin(App.jsx:35)만 쓰지만, 여기는 같은 라우트 안의 두 번째 화면이라
 // 검색 진입 비용을 늘리지 않기 위해 코드 스플릿한다.
 const DetailView = lazy(() => import("./admissionResults/DetailView"));
 
 // 쿼리스트링에서 읽은 키 1개를 DB 키 표기(NFC · 앞뒤 공백 없음)로 맞춘다.
-function normalizeParamKey(raw) {
+function normalizeParamKey(raw: unknown): string {
   return String(raw ?? "")
     .normalize("NFC")
     .trim();
@@ -66,21 +102,21 @@ export default function AdmissionResults() {
   // 딥링크(?u=&d=)로 들어왔다가 검색으로 돌아와도 셀렉터가 채워져 있게 쿼리에서 씨앗을 받는다.
   const [universityKey, setUniversityKey] = useState(detailUniversityKey);
   const [departmentKey, setDepartmentKey] = useState(detailDepartmentKey);
-  const [openField, setOpenField] = useState(null);
+  const [openField, setOpenField] = useState<string | null>(null);
 
-  const [universities, setUniversities] = useState([]);
+  const [universities, setUniversities] = useState<UniversityIndexRow[]>([]);
   const [universitiesLoading, setUniversitiesLoading] = useState(true);
   const [universitiesError, setUniversitiesError] = useState(false);
   const [universitiesReloadToken, setUniversitiesReloadToken] = useState(0);
 
-  const [departments, setDepartments] = useState([]);
+  const [departments, setDepartments] = useState<DepartmentIndexRow[]>([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [departmentsError, setDepartmentsError] = useState(false);
   const [departmentsReloadToken, setDepartmentsReloadToken] = useState(0);
 
-  const [trending, setTrending] = useState([]);
+  const [trending, setTrending] = useState<TrendingDepartmentRow[]>([]);
 
-  const detailRef = useRef(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   // Q1 — 대학 목록
   // isDetail 가드: 딥링크(?u=&d=)로 바로 상세에 진입해도 검색 뷰 전용 목록 쿼리가
@@ -242,12 +278,12 @@ export default function AdmissionResults() {
 
   // 대학을 바꾸면 모집단위 선택을 반드시 비운다
   // (AdmissionGuidelines.jsx:1257-1280 필터 초기화 규율과 동일).
-  const handleSelectUniversity = useCallback((option) => {
+  const handleSelectUniversity = useCallback((option: ComboOption) => {
     setUniversityKey(option.key);
     setDepartmentKey("");
   }, []);
 
-  const handleSelectDepartment = useCallback((option) => {
+  const handleSelectDepartment = useCallback((option: ComboOption) => {
     setDepartmentKey(option.key);
   }, []);
 
@@ -270,7 +306,7 @@ export default function AdmissionResults() {
   }, [universityKey, departmentKey, setSearchParams]);
 
   const handleSelectTrending = useCallback(
-    (item) => {
+    (item: TrendingItem) => {
       if (!item.universityKey || !item.departmentKey) return;
       setUniversityKey(item.universityKey);
       setDepartmentKey(item.departmentKey);

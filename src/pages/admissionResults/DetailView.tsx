@@ -45,12 +45,91 @@ const SPARKLINE_MIN_YEARS = 3;
 // Δ 톤 → 색. GradeDelta.jsx의 TONE 맵과 같은 값이지만, 그쪽은 배지 배경까지 함께 갖는
 // 컴포넌트 로컬 토큰이고 여기는 표 셀 글자색만 필요해서 중복 선언하지 않고 따로 둔다.
 // 두 번째·세 번째 사용처가 더 생기면 chartTheme.js 옆 공용 토큰으로 올린다.
-const DELTA_TONE_COLOR = {
+const DELTA_TONE_COLOR: Record<string, string> = {
   up: "#013262",
   down: "#e5484d",
   flat: "#8f8f8f",
   muted: "#8f8f8f",
 };
+
+// src/lib/admissionResults.js·admissionResultsQueries.js(둘 다 수정 범위 밖의
+// JSDoc 없는 .js)가 실제로 돌려주는 모양을 이 화면이 쓰는 필드만 좁혀서 적는다.
+// admission_results 원본 행(Q3) — 조회 열 그대로.
+interface ResultRow {
+  main_track?: unknown;
+  admission_track?: unknown;
+  university_name?: unknown;
+  department_name?: unknown;
+  [key: string]: unknown;
+}
+
+interface GradeCell {
+  year: number;
+  value: number | null;
+  cut?: number | string | null;
+  state: string;
+  display?: string;
+}
+
+interface DeltaResult {
+  state: string;
+  direction: string | null;
+  delta: number | null;
+  raw: number | null;
+  arrow: string | null;
+  tone: string;
+  label: string;
+  display: string;
+  note: string | null;
+  cutMismatch: boolean;
+  availableYear: number | null;
+}
+
+interface TableRow {
+  key?: string;
+  mainTrack?: string;
+  admissionType?: string;
+  cells: GradeCell[];
+  delta: DeltaResult;
+  activeQuotaDisplay: string;
+  activeCompetitionRateDisplay: string;
+}
+
+interface TrackSummaryCard {
+  track: string;
+  label?: string;
+  basis?: string;
+  isGeneralBasis?: boolean;
+  hasValue: boolean;
+  years: number[];
+  series: GradeCell[];
+  delta?: DeltaResult;
+  displayValue?: string;
+  cuts: (number | string)[];
+  sampleN?: number;
+  activeQuotaDisplay: string;
+  activeCompetitionRateDisplay: string;
+}
+
+interface ResultCategory {
+  key: string;
+  label: string;
+  count: number;
+  tableRows: TableRow[];
+}
+
+interface DetailModel {
+  rowCount: number;
+  isEmpty: boolean;
+  universityName: string;
+  departmentName: string;
+  trackSummaries: TrackSummaryCard[];
+  categories: ResultCategory[];
+  initialCategoryKey: string | null;
+  fallbackAdmissionTracks: unknown;
+  years: number[];
+  observedYears: number[];
+}
 
 // ---------------------------------------------------------------------------
 // 공용 셀 표기
@@ -60,7 +139,7 @@ const DELTA_TONE_COLOR = {
 // 대학이 등급을 안 냈으면 '미공개'(lib이 cell.state로 구분해 내려준다).
 // 컷 라벨(50·70·85·90)은 값과 같은 덩어리가 아니라 작은 첨자로 떼어 놓는다 —
 // 85/90은 2025 전용이라 두 연도의 컷이 다른 행이 눈에 띄어야 한다(§8.4).
-function GradeCellValue({ cell }) {
+function GradeCellValue({ cell }: { cell: GradeCell | null | undefined }) {
   if (!cell || cell.state !== CELL_STATE.VALUE) {
     return (
       <span
@@ -88,8 +167,8 @@ function GradeCellValue({ cell }) {
 // ---------------------------------------------------------------------------
 
 // 카드 부제 — 기준 연도 모집인원 / 경쟁률. 둘 다 없으면 줄 자체를 그리지 않는다.
-function cardMetaText(card, activeYear) {
-  const parts = [];
+function cardMetaText(card: TrackSummaryCard, activeYear: number): string {
+  const parts: string[] = [];
   if (card.activeQuotaDisplay !== EMPTY_CELL)
     parts.push(`${activeYear} ${card.activeQuotaDisplay}명 모집`);
   if (card.activeCompetitionRateDisplay !== EMPTY_CELL) {
@@ -98,7 +177,15 @@ function cardMetaText(card, activeYear) {
   return parts.join(" · ");
 }
 
-function SummaryCard({ card, axisYears, activeYear }) {
+function SummaryCard({
+  card,
+  axisYears,
+  activeYear,
+}: {
+  card: TrackSummaryCard;
+  axisYears: number[];
+  activeYear: number;
+}) {
   // length===1일 때 en dash 범위로 그리면 "2025–2025학년도"가 된다 — 같은 파일의
   // ReadingGuide(아래)는 이 분기를 이미 제대로 처리하고 있어 여기만 맞춘다.
   const yearsText =
@@ -226,7 +313,15 @@ function SummaryCard({ card, axisYears, activeYear }) {
 // 분포 기준인데 이 화면은 모집단위 1개분 행만 받아 어느 유형이든 count가 한 자릿수다.
 // 여기서 임계를 적용하면 논술·실기 탭이 항상 접힌다. 칩 랩이 이미 넘침을 해결하므로
 // 접기의 원래 동기(레이아웃 압박)도 사라졌다.
-function CategoryTabs({ categories, activeKey, onSelect }) {
+function CategoryTabs({
+  categories,
+  activeKey,
+  onSelect,
+}: {
+  categories: ResultCategory[];
+  activeKey: string;
+  onSelect: (key: string) => void;
+}) {
   return (
     <div
       role="tablist"
@@ -269,14 +364,22 @@ function CategoryTabs({ categories, activeKey, onSelect }) {
 // 배지는 중심전형(main_track)을 줄여 쓴다 — 시안의 "교과" / "통합" 표기와 같은 자리.
 // main_track 저장값은 원문 4종(교과·종합·논술·실기, Q8)이라 strip은 사실상 no-op이지만
 // 구 표기(`학생부교과`)가 섞여 들어와도 시안 표기로 수렴하도록 남긴다.
-function trackBadge(mainTrack) {
+function trackBadge(mainTrack: unknown): string {
   const text = String(mainTrack ?? "").trim();
   if (!text) return "";
   return text.replace(/^학생부/, "");
 }
 
-function ResultTable({ tableRows, years, activeYear }) {
-  const shellRef = useRef(null);
+function ResultTable({
+  tableRows,
+  years,
+  activeYear,
+}: {
+  tableRows: TableRow[];
+  years: number[];
+  activeYear: number;
+}) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const [overflowing, setOverflowing] = useState(false);
 
   // 열이 8 → 6으로 줄면서 375px에서도 스크롤이 안 생기는 경우가 생겼다. 안내 문구를
@@ -405,7 +508,13 @@ function ResultTable({ tableRows, years, activeYear }) {
 // 읽는 법 + 출처 캡션
 // ---------------------------------------------------------------------------
 
-function ReadingGuide({ rowCount, dataYears }) {
+function ReadingGuide({
+  rowCount,
+  dataYears,
+}: {
+  rowCount: number;
+  dataYears: number[];
+}) {
   // 시안 캡션의 "총 84,067행" 같은 수치는 하드코딩하지 않는다(명세 §7.2).
   // 실제로 조회된 행 수와 실제로 존재하는 연도 범위만 적는다.
   const yearsText =
@@ -491,7 +600,7 @@ function ReadingGuide({ rowCount, dataYears }) {
 
 // StateBlocks.EmptyBlock을 쓰지 않는 이유: 상세 빈 상태만 "다른 모집단위 선택하기"
 // 복귀 액션을 함께 그려야 하는데 공용 블록에는 액션 슬롯이 없다. 껍데기 클래스는 동일하다.
-function DetailEmptyBlock({ onBack }) {
+function DetailEmptyBlock({ onBack }: { onBack?: () => void }) {
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
       <p className="break-keep text-lg font-semibold text-[#525252]">
@@ -534,10 +643,20 @@ export default function DetailView({
   universityName,
   departmentName,
   onBack,
+}: {
+  universityKey?: string;
+  departmentKey?: string;
+  rows?: ResultRow[];
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  universityName?: string;
+  departmentName?: string;
+  onBack?: () => void;
 }) {
   const controlled = rows !== undefined;
 
-  const [ownRows, setOwnRows] = useState([]);
+  const [ownRows, setOwnRows] = useState<ResultRow[]>([]);
   const [ownLoading, setOwnLoading] = useState(false);
   const [ownError, setOwnError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
@@ -591,9 +710,14 @@ export default function DetailView({
     : () => setReloadToken((token) => token + 1);
 
   // 탭 전환은 이 모델을 클라이언트 필터하는 것뿐이다 — 재요청하지 않는다.
-  const model = useMemo(() => buildDetailModel(effectiveRows), [effectiveRows]);
+  // buildDetailModel(admissionResults.js, 수정 범위 밖의 JSDoc 없는 .js)의 반환 모양을
+  // 이 화면이 실제로 읽는 필드 기준으로 로컬 DetailModel에 맞춰 캐스트한다.
+  const model = useMemo(
+    () => buildDetailModel(effectiveRows) as DetailModel,
+    [effectiveRows],
+  );
 
-  const [activeKey, setActiveKey] = useState(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveKey((prev) =>
@@ -621,8 +745,8 @@ export default function DetailView({
   const heroSummary = useMemo(() => {
     if (model.isEmpty) return "";
 
-    const tracks = [];
-    const types = new Set();
+    const tracks: string[] = [];
+    const types = new Set<string>();
 
     for (const row of effectiveRows ?? []) {
       const track = String(row.main_track ?? "").trim();
@@ -631,7 +755,7 @@ export default function DetailView({
       if (type) types.add(type);
     }
 
-    const parts = [];
+    const parts: string[] = [];
     if (tracks.length > 0) parts.push(`중심전형 ${tracks.join(" · ")}`);
     if (types.size > 0) parts.push(`수록 전형 ${types.size}종`);
     if (model.observedYears.length > 0) {

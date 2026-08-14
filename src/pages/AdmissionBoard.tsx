@@ -4,13 +4,37 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 
-const DEFAULT_META = {
+interface CategoryMeta {
+  title: string;
+  label: string;
+  description: string;
+}
+
+type AttachmentFile = string | { name?: string; url: string };
+
+// admission_posts 테이블 행. select('*') — 이 화면이 실제로 읽는 필드만 좁혀서 적는다.
+interface AdmissionBoardRow {
+  id: string;
+  category: string;
+  title?: string;
+  content?: string;
+  file_name?: string;
+  file_url?: string;
+  image_url?: string;
+  image_urls?: unknown;
+  attachments?: unknown;
+  is_pinned?: boolean;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+const DEFAULT_META: CategoryMeta = {
   title: "게시판",
   label: "게시판",
   description: "",
 };
 
-const CATEGORY_META = {
+const CATEGORY_META: Record<string, CategoryMeta> = {
   essay: {
     title: "논술정보",
     label: "논술",
@@ -18,7 +42,7 @@ const CATEGORY_META = {
   },
 };
 
-function normalizeArray(value) {
+function normalizeArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
@@ -34,14 +58,14 @@ function normalizeArray(value) {
   return [];
 }
 
-function formatDate(value) {
+function formatDate(value: unknown): string {
   if (!value) return "";
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
   return date.toISOString().slice(0, 10);
 }
 
-function getContentPreview(value) {
+function getContentPreview(value: unknown): string {
   const text = String(value || "")
     .replace(/\s+/g, " ")
     .trim();
@@ -49,13 +73,13 @@ function getContentPreview(value) {
   return text.length > 120 ? `${text.slice(0, 120)}...` : text;
 }
 
-function getAttachmentName(file) {
+function getAttachmentName(file: AttachmentFile | null | undefined): string {
   if (!file) return "첨부파일 다운로드";
   if (typeof file === "string") return "첨부파일 다운로드";
   return file.name || "첨부파일 다운로드";
 }
 
-function getAttachmentUrl(file) {
+function getAttachmentUrl(file: AttachmentFile | null | undefined): string {
   if (!file) return "";
   return typeof file === "string" ? file : file.url;
 }
@@ -66,10 +90,10 @@ export default function AdmissionBoard() {
   const pathCategory = location.pathname.split("/").filter(Boolean)[1];
   const category = params.category || pathCategory;
   const id = params.id;
-  const routeMeta = CATEGORY_META[category] || DEFAULT_META;
+  const routeMeta = CATEGORY_META[category as string] || DEFAULT_META;
 
-  const [rows, setRows] = useState([]);
-  const [post, setPost] = useState(null);
+  const [rows, setRows] = useState<AdmissionBoardRow[]>([]);
+  const [post, setPost] = useState<AdmissionBoardRow | null>(null);
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +103,9 @@ export default function AdmissionBoard() {
     if (!q) return rows;
 
     return rows.filter((row) => {
-      const attachmentsText = normalizeArray(row.attachments)
+      const attachmentsText = (
+        normalizeArray(row.attachments) as AttachmentFile[]
+      )
         .map((file) => (typeof file === "string" ? file : file?.name || ""))
         .join(" ");
 
@@ -150,10 +176,12 @@ export default function AdmissionBoard() {
   }, [category, id]);
 
   if (id) {
-    const images = post ? normalizeArray(post.image_urls) : [];
-    const attachments = post ? normalizeArray(post.attachments) : [];
+    const images = post ? (normalizeArray(post.image_urls) as string[]) : [];
+    const attachments = post
+      ? (normalizeArray(post.attachments) as AttachmentFile[])
+      : [];
     const detailCategory = post?.category || category;
-    const detailMeta = CATEGORY_META[detailCategory] || DEFAULT_META;
+    const detailMeta = CATEGORY_META[detailCategory as string] || DEFAULT_META;
     const detailListPath = `/admission/${detailCategory}`;
 
     return (

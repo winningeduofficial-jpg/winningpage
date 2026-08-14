@@ -2,6 +2,26 @@ import { useState } from "react";
 import AdmissionModalShell from "../modal/AdmissionModalShell";
 import AdmissionModalStyles from "../modal/AdmissionModalStyles";
 
+type MetaFieldType = "text" | "number" | "textarea" | "select" | "radioBoolean";
+
+interface MetaFieldDef {
+  key: string;
+  label: string;
+  type: MetaFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+type MetaFieldValue = string | number | boolean;
+type MetaForm = Record<string, MetaFieldValue>;
+
+// admission_posts(대학모집요강) 행. select('*') 이후 이 모달이 실제로
+// 읽는 필드만 좁혀서 적는다 — 저장 자체는 호출부(Admin.jsx, 범위 밖)가 한다.
+export interface AdmissionMetaRow {
+  university_name?: string;
+  [key: string]: unknown;
+}
+
 // 대학모집요강 목록 '관리' 열의 메타 전용 경량 편집 모달.
 //
 // 배경: 목록 행 전체 폼(✏️)은 config.hideRowEdit(b744659)으로 이 메뉴에서
@@ -25,7 +45,7 @@ import AdmissionModalStyles from "../modal/AdmissionModalStyles";
 // 그대로 통해 기존 행 저장 경로(saveRow와 같은 supabase update)를 재사용한다.
 // 이 모달은 폼 값(9필드)만 만들어 올릴 뿐 저장 자체는 모른다 — *_json/*_html
 // 컬럼을 건드리지 않는 보장은 호출부(Admin.jsx) 쪽 책임이다.
-export const ADMISSION_META_FIELDS = [
+export const ADMISSION_META_FIELDS: MetaFieldDef[] = [
   { key: "university_name", label: "대학명", type: "text", required: true },
   { key: "matched_hwp_name", label: "원문 대학명", type: "text" },
   { key: "university_key", label: "대학 키값", type: "text", required: true },
@@ -59,7 +79,17 @@ const BODY_CLASS =
   "admission-meta-edit-modal-body flex-1 overflow-auto bg-white px-6 py-5 md:px-10";
 const FOOTER_CLASS = "border-t border-[#e5e7eb] bg-white px-6 py-4 md:px-10";
 
-function MetaFieldInput({ field, value, onChange, labelId }) {
+function MetaFieldInput({
+  field,
+  value,
+  onChange,
+  labelId,
+}: {
+  field: MetaFieldDef;
+  value: MetaFieldValue | undefined;
+  onChange: (key: string, value: MetaFieldValue) => void;
+  labelId: string;
+}) {
   const base =
     "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none";
 
@@ -67,7 +97,7 @@ function MetaFieldInput({ field, value, onChange, labelId }) {
     return (
       <textarea
         aria-labelledby={labelId}
-        value={value ?? ""}
+        value={(value as string | number | undefined) ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         rows={4}
         className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 text-sm outline-none"
@@ -79,7 +109,7 @@ function MetaFieldInput({ field, value, onChange, labelId }) {
     return (
       <select
         aria-labelledby={labelId}
-        value={value ?? ""}
+        value={(value as string | number | undefined) ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         className={base}
       >
@@ -125,7 +155,7 @@ function MetaFieldInput({ field, value, onChange, labelId }) {
     <input
       aria-labelledby={labelId}
       type={field.type === "number" ? "number" : "text"}
-      value={value ?? ""}
+      value={(value as string | number | undefined) ?? ""}
       onChange={(e) => {
         const next =
           field.type === "number"
@@ -138,14 +168,14 @@ function MetaFieldInput({ field, value, onChange, labelId }) {
   );
 }
 
-function buildInitialForm(row) {
-  const form = {};
+function buildInitialForm(row: AdmissionMetaRow | null | undefined): MetaForm {
+  const form: MetaForm = {};
   ADMISSION_META_FIELDS.forEach((field) => {
     if (field.type === "radioBoolean") {
-      form[field.key] = row?.[field.key] ?? true;
+      form[field.key] = (row?.[field.key] as MetaFieldValue) ?? true;
       return;
     }
-    form[field.key] = row?.[field.key] ?? "";
+    form[field.key] = (row?.[field.key] as MetaFieldValue) ?? "";
   });
   return form;
 }
@@ -153,12 +183,20 @@ function buildInitialForm(row) {
 // onSave(form): async — 저장 성공 시 true(또는 truthy)를 반환해야 dirty가
 // 풀리고 사용자에게 재확인 없이 닫을 수 있다. 실패 시 false/undefined를
 // 반환하면 폼을 그대로 열어둔다(입력값 유실 방지).
-export default function AdmissionMetaEditModal({ row, onClose, onSave }) {
+export default function AdmissionMetaEditModal({
+  row,
+  onClose,
+  onSave,
+}: {
+  row: AdmissionMetaRow | null | undefined;
+  onClose: () => void;
+  onSave: (form: MetaForm) => Promise<boolean | undefined>;
+}) {
   const [form, setForm] = useState(() => buildInitialForm(row));
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  function change(key, value) {
+  function change(key: string, value: MetaFieldValue) {
     setDirty(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }

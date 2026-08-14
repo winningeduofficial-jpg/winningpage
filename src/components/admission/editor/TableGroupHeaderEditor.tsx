@@ -1,4 +1,7 @@
+import type { TableBlock } from "../../../lib/admissionDoc";
 import ImeSafeInput from "./ImeSafeInput";
+
+type TableGroup = NonNullable<TableBlock["groups"]>[number];
 
 // TableBlock.groups/fixedColumnCount(2단 헤더, recruitExact 전용 실사용)
 // 편집 UI. 열 자체(columns 배열)는 여기서 바꾸지 않는다 — 열 추가·삭제는
@@ -22,6 +25,20 @@ export default function TableGroupHeaderEditor({
   onRemoveGroup,
   onUpdateFixedColumnCount,
   onEnableGroups,
+}: {
+  groups: TableGroup[] | undefined;
+  fixedColumnCount: number | undefined;
+  columnsLength: number;
+  expanded: boolean;
+  onUpdateGroupField: (
+    groupIdx: number,
+    field: keyof TableGroup,
+    value: unknown,
+  ) => void;
+  onAddGroup: () => void;
+  onRemoveGroup: (groupIdx: number) => void;
+  onUpdateFixedColumnCount: (value: number) => void;
+  onEnableGroups: () => void;
 }) {
   if (!groups) {
     if (!expanded) return null;

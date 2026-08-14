@@ -15,12 +15,13 @@
 // "정리"하지 말 것 — 리터럴 자리는 전부 `text || fallback`이며, 이 우선순위
 // 자체가 현행(예: SelectionTable.jsx:43 `{cellText || '-'}`)의 재현이다.
 
+import type { CellDesc, CellViewDesc, HeaderCellDesc } from "./tableModel";
+
 /**
  * 셀 안쪽 리프 한 개. tableModel.describeCell(...).view의 leaf가 감쌀 태그를,
  * 나머지 필드가 내용을 정한다.
- * @param {import('./tableModel').CellViewDesc} view
  */
-function renderLeaf(view) {
+function renderLeaf(view: CellViewDesc) {
   switch (view.leaf) {
     case "badge":
       // SelectionTable.jsx:34-36 — minimum 컬럼 전용 배지.
@@ -59,8 +60,8 @@ function renderLeaf(view) {
 }
 
 const viewSlots = {
-  header: (headerCell) => headerCell.label,
-  cell: (cellDesc) => renderLeaf(cellDesc.view),
+  header: (headerCell: HeaderCellDesc) => headerCell.label,
+  cell: (cellDesc: CellDesc) => renderLeaf(cellDesc.view),
 };
 
 export default viewSlots;

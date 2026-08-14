@@ -1,4 +1,27 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
+
+type AllowedTag =
+  | "div"
+  | "span"
+  | "p"
+  | "br"
+  | "b"
+  | "strong"
+  | "em"
+  | "pre"
+  | "ul"
+  | "ol"
+  | "li"
+  | "table"
+  | "thead"
+  | "tbody"
+  | "tr"
+  | "th"
+  | "td"
+  | "section"
+  | "h3"
+  | "a"
+  | "img";
 
 // dangerouslySetInnerHTML을 대체하는 화이트리스트 렌더러.
 // DOMParser로 문자열을 파싱한 뒤 재귀적으로 React 엘리먼트로 변환한다.
@@ -66,7 +89,7 @@ const ALLOWED_TAGS = new Set([
 // 그대로 허용한다.
 const SAFE_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
 
-function isSafeUrl(rawValue) {
+function isSafeUrl(rawValue: unknown): boolean {
   const value = String(rawValue || "").trim();
   if (!value) return false;
   // 제어 문자로 스킴을 흐리는 우회("java\tscript:")를 막기 위해 검사 전
@@ -113,11 +136,14 @@ const STRIP_SUBTREE_TAGS = new Set([
 // 조회를 원천 차단한다(감사 지적 4번). 일반 객체 리터럴이면
 // ATTR_TO_PROP['constructor']가 Object 함수로 truthy 평가돼 통과선을 가짜로
 // 넘을 수 있었다(React가 이후 걸러내 실제 출력엔 영향 없었지만 가드 자체가 없었다).
-const ATTR_TO_PROP = Object.assign(Object.create(null), {
-  class: "className",
-  colspan: "colSpan",
-  rowspan: "rowSpan",
-});
+const ATTR_TO_PROP: Record<string, string> = Object.assign(
+  Object.create(null),
+  {
+    class: "className",
+    colspan: "colSpan",
+    rowspan: "rowSpan",
+  },
+);
 
 // 악의적 중첩(예: <div><div><div>...) 방어용 재귀 깊이 상한.
 const MAX_DEPTH = 100;
@@ -137,8 +163,11 @@ const NODE_TYPE = { ELEMENT: 1, TEXT: 3, COMMENT: 8 };
 
 class SafeHtmlBudgetExceededError extends Error {}
 
-function convertAttributes(element, tagName) {
-  const props = {};
+function convertAttributes(
+  element: Element,
+  tagName: string,
+): Record<string, unknown> {
+  const props: Record<string, unknown> = {};
   const attributes = element.attributes;
   if (attributes) {
     for (let i = 0; i < attributes.length; i += 1) {
@@ -174,9 +203,18 @@ function convertAttributes(element, tagName) {
   return props;
 }
 
-function convertChildNodes(childNodes, depth, keyPrefix, budget) {
+interface ConvertBudget {
+  count: number;
+}
+
+function convertChildNodes(
+  childNodes: NodeListOf<ChildNode> | undefined,
+  depth: number,
+  keyPrefix: string,
+  budget: ConvertBudget,
+): ReactNode[] {
   const nodes = childNodes || [];
-  const children = [];
+  const children: ReactNode[] = [];
   for (let i = 0; i < nodes.length; i += 1) {
     const converted = convertNode(nodes[i], depth, `${keyPrefix}-${i}`, budget);
     if (converted === null || converted === undefined) continue;
@@ -185,11 +223,16 @@ function convertChildNodes(childNodes, depth, keyPrefix, budget) {
   return children;
 }
 
-function convertNode(node, depth, key, budget) {
+function convertNode(
+  node: Node | null | undefined,
+  depth: number,
+  key: string,
+  budget: ConvertBudget,
+): ReactNode {
   if (!node) return null;
 
   if (node.nodeType === NODE_TYPE.TEXT) {
-    return node.textContent || node.data || "";
+    return node.textContent || (node as CharacterData).data || "";
   }
 
   // 주석 노드는 제거.
@@ -204,7 +247,8 @@ function convertNode(node, depth, key, budget) {
     );
   }
 
-  const tagName = String(node.tagName || "").toLowerCase();
+  const element = node as Element;
+  const tagName = String(element.tagName || "").toLowerCase();
 
   // script/style/iframe/object/embed/svg/title/textarea/noembed/noframes/
   // xmp/plaintext/template/noscript는 자식까지 통째로 버린다.
@@ -221,7 +265,12 @@ function convertNode(node, depth, key, budget) {
     return "";
   }
 
-  const children = convertChildNodes(node.childNodes, depth + 1, key, budget);
+  const children = convertChildNodes(
+    element.childNodes as NodeListOf<ChildNode>,
+    depth + 1,
+    key,
+    budget,
+  );
 
   if (!ALLOWED_TAGS.has(tagName)) {
     // 화이트리스트 밖 태그: 태그는 버리되 자식은 살린다(unwrap).
@@ -230,17 +279,17 @@ function convertNode(node, depth, key, budget) {
     return <Fragment key={key}>{children}</Fragment>;
   }
 
-  const props = convertAttributes(node, tagName);
+  const props = convertAttributes(element, tagName);
 
   // br/img는 HTML void 요소다 — DOMParser도 childNodes를 항상 비워서
   // 주지만(children은 always []), 여기서도 JSX void 규칙을 명시적으로
   // 지킨다(React가 img에 children을 넘기면 경고한다).
+  // ALLOWED_TAGS 통과분만 여기 오므로 안전한 캐스트다(위 화이트리스트가 정본).
+  const Tag = tagName as AllowedTag;
   if (tagName === "br" || tagName === "img") {
-    const Tag = tagName;
     return <Tag key={key} {...props} />;
   }
 
-  const Tag = tagName;
   return (
     <Tag key={key} {...props}>
       {children}
@@ -248,7 +297,7 @@ function convertNode(node, depth, key, budget) {
   );
 }
 
-function isEffectivelyEmpty(children) {
+function isEffectivelyEmpty(children: ReactNode[]): boolean {
   return children.every(
     (child) => typeof child === "string" && child.trim() === "",
   );
@@ -257,19 +306,20 @@ function isEffectivelyEmpty(children) {
 // 크기/노드 수 상한을 넘겨 평문으로 격하할 때 쓰는 텍스트 추출기.
 // STRIP_SUBTREE_TAGS는 여기서도 동일하게 존중한다 — script/style 등의
 // 내용이 "격하됐으니까 안전"이라는 착각으로 텍스트에 새면 안 된다.
-function extractSafeText(node, depth = 0) {
+function extractSafeText(node: Node | null | undefined, depth = 0): string {
   if (!node) return "";
 
   if (node.nodeType === NODE_TYPE.TEXT) {
-    return node.textContent || node.data || "";
+    return node.textContent || (node as CharacterData).data || "";
   }
   if (node.nodeType !== NODE_TYPE.ELEMENT) return "";
 
-  const tagName = String(node.tagName || "").toLowerCase();
+  const element = node as Element;
+  const tagName = String(element.tagName || "").toLowerCase();
   if (STRIP_SUBTREE_TAGS.has(tagName)) return "";
   if (depth > MAX_DEPTH) return "";
 
-  const nodes = node.childNodes || [];
+  const nodes = element.childNodes || [];
   let text = "";
   for (let i = 0; i < nodes.length; i += 1) {
     text += extractSafeText(nodes[i], depth + 1);
@@ -277,7 +327,7 @@ function extractSafeText(node, depth = 0) {
   return text;
 }
 
-function defaultParseDocument(html) {
+function defaultParseDocument(html: string): Document | null {
   if (typeof DOMParser === "undefined") return null;
   return new DOMParser().parseFromString(html, "text/html");
 }
@@ -290,12 +340,12 @@ function defaultParseDocument(html) {
  * 등)에서 DOMParser 대용 파서를 주입하는 용도로만 쓴다 — 생략하면 브라우저
  * DOMParser를 쓴다.
  *
- * @param {string} html
- * @param {(html: string) => Document} [parseDocument]
- * @returns {{ degraded: boolean, children: unknown } | null} null이면 렌더할 게 없다는 뜻.
- *   degraded=true면 children은 이미 문자열(평문 격하 결과)이다.
+ * null이면 렌더할 게 없다는 뜻. degraded=true면 children은 이미 문자열(평문 격하 결과)이다.
  */
-export function sanitizeToReact(html, parseDocument) {
+export function sanitizeToReact(
+  html: string,
+  parseDocument?: (html: string) => Document | null,
+): { degraded: boolean; children: ReactNode } | null {
   if (!html || !String(html).trim()) return null;
   const source = String(html);
 
@@ -310,8 +360,8 @@ export function sanitizeToReact(html, parseDocument) {
     return text.trim() ? { degraded: true, children: text } : null;
   }
 
-  const budget = { count: 0 };
-  let children;
+  const budget: ConvertBudget = { count: 0 };
+  let children: ReactNode[];
   try {
     children = convertChildNodes(root.childNodes, 0, "safe-html", budget);
   } catch (err) {
@@ -327,8 +377,6 @@ export function sanitizeToReact(html, parseDocument) {
 }
 
 /**
- * @param {{ html: string, className?: string }} props
- *
  * className이 없으면 정상(비degraded) 경로에서는 감싸는 <div>를 만들지
  * 않고 Fragment로 자식만 반환한다(2026-08-06 감사 반영) — 호출부가 이미
  * 자기 래퍼(admission-existing-html/admission-raw-section-wrap)를 문자열에
@@ -337,7 +385,13 @@ export function sanitizeToReact(html, parseDocument) {
  * 위함이다. degraded(평문 격하) 경로는 <pre>의 공백 보존 의미가 필요해
  * className 유무와 무관하게 항상 <pre>를 유지한다.
  */
-export default function SafeHtml({ html, className }) {
+export default function SafeHtml({
+  html,
+  className,
+}: {
+  html: string;
+  className?: string;
+}) {
   const result = sanitizeToReact(html);
   if (!result) return null;
 

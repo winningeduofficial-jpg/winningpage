@@ -15,7 +15,12 @@
 // admission-table-compact를 붙이지 않는다(런타임 실측 우선, 설계 문서
 // §5.3의 "[ admission-table-compact]" 표기는 이론상 가능성이지 실측이
 // 아니다).
-export const TABLE_VARIANT_LAYOUT = {
+interface TableVariantLayout {
+  scrollWrapClassName: string;
+  tableClassName: string;
+}
+
+export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
   selection: {
     scrollWrapClassName: "admission-scroll-table",
     tableClassName: "admission-data-table admission-selection-table",
@@ -60,12 +65,14 @@ export const TABLE_VARIANT_LAYOUT = {
   },
 };
 
-export function getTableVariantLayout(variant) {
-  return TABLE_VARIANT_LAYOUT[variant] || TABLE_VARIANT_LAYOUT.generic;
+export function getTableVariantLayout(variant?: string): TableVariantLayout {
+  return (
+    (variant && TABLE_VARIANT_LAYOUT[variant]) || TABLE_VARIANT_LAYOUT.generic
+  );
 }
 
 // ── selection 셀 클래스(admissionParsing.js:1194 buildSelectionMethodTable) ──
-export const SELECTION_CELL_CLASS_BY_ROLE = {
+export const SELECTION_CELL_CLASS_BY_ROLE: Record<string, string> = {
   type: "selection-type-cell",
   name: "left selection-name-cell",
   seats: "selection-seat-cell",
@@ -74,44 +81,44 @@ export const SELECTION_CELL_CLASS_BY_ROLE = {
 };
 
 // selection 비-minimum 컬럼의 빈값은 muted span이 아니라 리터럴 '-'다.
-export function selectionEmptyFallback(_role) {
+export function selectionEmptyFallback(_role?: string): string {
   return "-";
 }
 
 // ── change 셀 클래스(admissionParsing.js:941 buildChangeTableHtml) ─────
-export const CHANGE_CELL_CLASS_BY_ROLE = {
+export const CHANGE_CELL_CLASS_BY_ROLE: Record<string, string> = {
   no: "change-no-cell",
   title: "change-title-cell",
   content: "change-content-cell",
 };
 
-export const CHANGE_EMPTY_FALLBACK_BY_ROLE = {
+export const CHANGE_EMPTY_FALLBACK_BY_ROLE: Record<string, string> = {
   no: "-",
   title: "주요 변경",
   // content는 값이 없으면 muted span — TableBlockView/ChangeTable에서 별도 처리.
 };
 
 // ── recruit 고정 셀 클래스(admissionParsing.js:2261 buildRecruitmentHtml) ──
-export const RECRUIT_FIXED_CELL_CLASS_BY_ROLE = {
+export const RECRUIT_FIXED_CELL_CLASS_BY_ROLE: Record<string, string> = {
   group: "left group-cell",
   unit: "left unit-cell",
 };
 
 // group/unit 빈값은 리터럴 '-'(escapeHtml(row.group || '-')).
-export function recruitFixedEmptyFallback() {
+export function recruitFixedEmptyFallback(): string {
   return "-";
 }
 
 // ── recruitExact 고정 컬럼 클래스(admissionParsing.js:553 normalizeRecruitmentExactHtml) ──
 // 위치 기반이다(role이 아니라 fixedColumnCount로 판정) — legacy가
 // `idx === 0 ? 'series-cell' : ''`로 오직 첫 컬럼만 구분하기 때문.
-export function recruitExactFixedCellClassName(idx) {
+export function recruitExactFixedCellClassName(idx: number): string {
   return idx === 0 ? "left series-cell" : "left";
 }
 
 // ── generic(exam/minimum/recordInfo/score/special) 셀 클래스(htmlTable:294) ──
 // idx 0·1에만 'left'.
-export function isGenericLeftColumn(idx) {
+export function isGenericLeftColumn(idx: number): boolean {
   return idx === 0 || idx === 1;
 }
 
@@ -126,7 +133,9 @@ export function isGenericLeftColumn(idx) {
 // 같이 고쳐라"는 수동 동기화 의무는 더 이상 없다.
 // ⚠ 이 함수를 고치면 편집 UI뿐 아니라 공개 화면 마크업(Gate B, 실데이터
 // 2506건)이 함께 움직인다. 그것이 단일 정본의 대가이자 안전장치다.
-export function getCellKind(variant, role) {
+export type CellKind = "text" | "badge" | "chips";
+
+export function getCellKind(variant?: string, role?: string): CellKind {
   if (variant === "selection" && role === "minimum") return "badge";
   if (variant === "recruit" && role !== "group" && role !== "unit")
     return "chips";
@@ -140,7 +149,7 @@ export function getCellKind(variant, role) {
 // 각 항목 옆에 생성기 함수/좌표를 남긴다. selection/change는 이미 있는
 // SELECTION_CELL_CLASS_BY_ROLE/CHANGE_CELL_CLASS_BY_ROLE 키를 그대로
 // 재사용해 값이 두 곳에서 어긋날 여지를 없앴다.
-export const KNOWN_ROLES_BY_VARIANT = {
+export const KNOWN_ROLES_BY_VARIANT: Record<string, string[]> = {
   selection: Object.keys(SELECTION_CELL_CLASS_BY_ROLE), // type,name,seats,minimum,method
   change: Object.keys(CHANGE_CELL_CLASS_BY_ROLE), // no,title,content
   // exam_schedule doc 생성기(admissionParsing.js:2493/3465): 전형/대상/일정.
@@ -177,8 +186,8 @@ export const KNOWN_ROLES_BY_VARIANT = {
   generic: [],
 };
 
-export function getKnownRolesForVariant(variant) {
-  return KNOWN_ROLES_BY_VARIANT[variant] || [];
+export function getKnownRolesForVariant(variant?: string): string[] {
+  return (variant && KNOWN_ROLES_BY_VARIANT[variant]) || [];
 }
 
 // 새 컬럼의 기본 role. 목록 마지막 항목을 쓴다 — 위 목록은 구조/고정
@@ -187,7 +196,7 @@ export function getKnownRolesForVariant(variant) {
 // 새로 추가하는 컬럼은 대개 그 "늘어나는" 종류이므로 마지막 항목이 합리적
 // 기본값이다. 목록이 비어 있으면(generic) 빈 문자열 — 편집기가 곧바로
 // "직접 입력" 경고 상태로 보여준다.
-export function defaultNewColumnRole(variant) {
+export function defaultNewColumnRole(variant?: string): string {
   const roles = getKnownRolesForVariant(variant);
   return roles.length ? roles[roles.length - 1] : "";
 }

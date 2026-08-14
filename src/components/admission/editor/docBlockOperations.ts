@@ -1,16 +1,26 @@
+import type { Block } from "../../../lib/admissionDoc";
+
 // Block 배열(문서 전체) 순서 변경·추가·삭제를 순수 함수로 분리 —
 // tableBlockOperations.js와 같은 이유로 컴포넌트(DocBlocksEditor.jsx)와
 // 검증 스크립트가 공유한다.
 
-export function updateBlockAt(blocks, idx, nextBlock) {
+export function updateBlockAt(
+  blocks: Block[],
+  idx: number,
+  nextBlock: Block,
+): Block[] {
   return blocks.map((b, i) => (i === idx ? nextBlock : b));
 }
 
-export function removeBlockAt(blocks, idx) {
+export function removeBlockAt(blocks: Block[], idx: number): Block[] {
   return blocks.filter((_, i) => i !== idx);
 }
 
-export function moveBlock(blocks, idx, delta) {
+export function moveBlock(
+  blocks: Block[],
+  idx: number,
+  delta: number,
+): Block[] {
   const targetIdx = idx + delta;
   if (targetIdx < 0 || targetIdx >= blocks.length) return blocks;
   const next = blocks.slice();
@@ -19,7 +29,7 @@ export function moveBlock(blocks, idx, delta) {
   return next;
 }
 
-export function appendBlock(blocks, block) {
+export function appendBlock(blocks: Block[], block: Block): Block[] {
   return [...blocks, block];
 }
 
@@ -28,7 +38,7 @@ export function appendBlock(blocks, block) {
 // 검증 실패가 뜨므로 시작점으로 부적절 — generic은 어떤 컬럼 수도
 // 허용된다). 'group'(GroupBlock, 중첩 컨테이너)과 'rawHtml'은 이
 // 편집기에서 새로 만들지 않는다(중첩·레거시 승계 전용, 범위 밖).
-export function createDefaultBlock(kind) {
+export function createDefaultBlock(kind: string): Block | null {
   switch (kind) {
     case "note":
       return { kind: "note", text: "" };
@@ -68,7 +78,7 @@ export function createDefaultBlock(kind) {
 //
 // 아래 매핑은 admissionParsing.js의 build*DocBlocks 6종을 읽기 전용으로
 // 전수 확인해 만들었다(추측 아님, 각 항목에 함수명·좌표 주석):
-export const PRIMARY_ADDABLE_KINDS_BY_SECTION = {
+export const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
   // buildChangeDocBlocks(:2329) — table(change) 1개뿐. 주석: "이
   // 카테고리는 원래도 plainList 폴백이 없다"(parseChangeItems가 "없음"도
   // 항상 최소 1행으로 반환).
@@ -102,7 +112,7 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION = {
 // 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
-export const ALL_BLOCK_KINDS = [
+export const ALL_BLOCK_KINDS: string[] = [
   "table",
   "note",
   "emptyBox",
@@ -118,7 +128,10 @@ export const ALL_BLOCK_KINDS = [
  *   섹션의 doc 생성기가 실제로 만드는 종류(기본 노출), advanced는
  *   나머지 전부("고급" 토글 뒤, 경고와 함께 노출).
  */
-export function getAddableKindsForSection(section) {
+export function getAddableKindsForSection(section: string): {
+  primary: string[];
+  advanced: string[];
+} {
   const primary = PRIMARY_ADDABLE_KINDS_BY_SECTION[section] || [];
   const advanced = ALL_BLOCK_KINDS.filter((kind) => !primary.includes(kind));
   return { primary, advanced };

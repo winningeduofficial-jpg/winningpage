@@ -11,6 +11,7 @@ import snu from "../../assets/admission/universities/snu.png";
 import sogang from "../../assets/admission/universities/sogang.png";
 import unist from "../../assets/admission/universities/unist.png";
 import yonsei from "../../assets/admission/universities/yonsei.png";
+import type { AdmissionCaseLogoRow } from "../../pages/admission/admissionCaseData";
 import {
   computeAcceptanceAverage,
   DEFAULT_HERO_SCOPE,
@@ -20,11 +21,21 @@ import {
 } from "../../pages/admission/admissionCaseData";
 import CountUpNumber from "../CountUpNumber";
 
+interface LogoItem {
+  key: string;
+  src: string;
+  name: string;
+  heightRem: number;
+  widthRem?: number;
+  opacity: number;
+  rowNo?: number;
+}
+
 // 번들 폴백 로고 — admission_case_logos 테이블이 없거나 비어 있을 때 사용.
 // 1440→1164 컨테이너 축소 비율(1164/1440≈0.808) 적용 후 rem 환산.
 // 폴백은 widthRem을 함께 갖는다(원본 종횡비 보존 — 현재 화면과 픽셀 동일).
 // DB 행은 width 컬럼이 없으므로 widthRem이 undefined → width:auto + object-contain.
-const FALLBACK_LOGO_ROWS = [
+const FALLBACK_LOGO_ROWS: LogoItem[][] = [
   [
     {
       key: "snu",
@@ -127,7 +138,7 @@ const FALLBACK_LOGO_ROWS = [
   ],
 ];
 
-function toLogoItems(dbRows) {
+function toLogoItems(dbRows: AdmissionCaseLogoRow[]): LogoItem[] {
   return dbRows.map((row) => ({
     key: row.id,
     src: row.logo_url,
@@ -142,16 +153,16 @@ function toLogoItems(dbRows) {
 
 // DB 로고는 sort_order 순 정렬된 상태로 들어온다 — row_no(1|2) 기준으로만 줄을 나누고
 // 줄 내부 순서는 재정렬하지 않는다.
-function splitIntoTwoRows(list) {
-  const row1 = [];
-  const row2 = [];
+function splitIntoTwoRows(list: LogoItem[]): [LogoItem[], LogoItem[]] {
+  const row1: LogoItem[] = [];
+  const row2: LogoItem[] = [];
   list.forEach((item) => {
     (item.rowNo === 2 ? row2 : row1).push(item);
   });
   return [row1, row2];
 }
 
-function LogoRow({ logos }) {
+function LogoRow({ logos }: { logos: LogoItem[] }) {
   if (!logos || logos.length === 0) return null;
 
   return (
@@ -176,14 +187,18 @@ function LogoRow({ logos }) {
   );
 }
 
-export default function AcceptanceRateHero({ scope = DEFAULT_HERO_SCOPE }) {
+export default function AcceptanceRateHero({
+  scope = DEFAULT_HERO_SCOPE,
+}: {
+  scope?: string;
+}) {
   const { heroLabel, fallbackRates } =
     HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
   // 초기값을 scope별 폴백으로 두어 첫 페인트부터 '5개년 평균 95.4%'가 나온다(레이아웃 시프트 없음).
   // scope는 마운트 후 바뀌지 않는 프레젠테이션 prop이라 lazy 초기화만으로 충분하고,
   // 조회 결과는 아래 useEffect가 scope 변경 시마다 다시 fetchAcceptanceRates(scope)로 덮어쓴다.
   const [rates, setRates] = useState(() => fallbackRates);
-  const [logoRows, setLogoRows] = useState(FALLBACK_LOGO_ROWS);
+  const [logoRows, setLogoRows] = useState<LogoItem[][]>(FALLBACK_LOGO_ROWS);
 
   useEffect(() => {
     let alive = true;

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type RefObject, useEffect } from "react";
 
 // 모달 하단 "프록시 가로 스크롤바" 배선.
 //
@@ -34,12 +34,25 @@ import { useEffect } from "react";
 // 별도 바디 클래스를 써서 네이티브 스크롤바를 그대로 쓴다(커밋 9a9f3f0
 // 참고 — 어드민에 모달 CSS 를 딸려 보냈다가 표 스크롤 수단을 잃은 사고).
 
+interface ModalXScrollState {
+  visible: boolean;
+  width: number;
+}
+
 export default function useModalProxyXScroll({
   selectedInfo,
   bodyRef,
   barRef,
   visible,
   setModalXScroll,
+}: {
+  // 모달이 보여줄 대상 정보. 존재 여부만 검사하므로 형태를 좁히지 않는다
+  // (호출부마다 다른 모양의 객체를 넘긴다).
+  selectedInfo: unknown;
+  bodyRef: RefObject<HTMLElement | null>;
+  barRef: RefObject<HTMLElement | null>;
+  visible: boolean;
+  setModalXScroll: (next: ModalXScrollState) => void;
 }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: visible은 파일 상단 주석·verify-admission-modal-shell.mjs가 보호하는 의도된 배열이다. barRef.current/bodyRef.current는 ref라 deps에 넣어도 변경을 못 잡아 의미가 없다.
   useEffect(() => {
@@ -52,18 +65,18 @@ export default function useModalProxyXScroll({
     const bar = barRef.current;
     if (!body) return undefined;
 
-    let activeTarget = null;
+    let activeTarget: HTMLElement | null = null;
     let syncing = false;
     let rafId = 0;
 
-    const getHorizontalTargets = () =>
+    const getHorizontalTargets = (): HTMLElement[] =>
       Array.from(
-        body.querySelectorAll(
+        body.querySelectorAll<HTMLElement>(
           ".admission-scroll-table, .admission-table-wrap, .admission-existing-html",
         ),
       ).filter((element) => element.scrollWidth > element.clientWidth + 6);
 
-    const pickTarget = () => {
+    const pickTarget = (): HTMLElement | null => {
       const targets = getHorizontalTargets();
       if (!targets.length) return null;
       return targets.reduce((best, current) => {
@@ -93,7 +106,7 @@ export default function useModalProxyXScroll({
       });
     };
 
-    const syncBarFromTarget = (target) => {
+    const syncBarFromTarget = (target: HTMLElement | null) => {
       if (!bar || syncing || !target) return;
 
       syncing = true;
@@ -122,8 +135,8 @@ export default function useModalProxyXScroll({
       rafId = window.requestAnimationFrame(refresh);
     };
 
-    const onTargetScroll = (event) => {
-      activeTarget = event.currentTarget;
+    const onTargetScroll = (event: Event) => {
+      activeTarget = event.currentTarget as HTMLElement;
       syncBarFromTarget(activeTarget);
     };
 

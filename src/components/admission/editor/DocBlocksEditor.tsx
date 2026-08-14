@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Block } from "../../../lib/admissionDoc";
 import { withDedupedKeys } from "../../../lib/reactKeys";
 import AdmissionBlockEditor from "./AdmissionBlockEditor";
 import * as docOps from "./docBlockOperations";
@@ -12,7 +13,7 @@ import { validateBlocks } from "./tableEditorValidation";
 // (ALL_BLOCK_KINDS 밖) 이미 doc에 있을 수 있어 헤더 표기는 필요하다.
 // emptyBox는 다른 kind와 달리 원어 라벨을 그대로 줄이지 않고 뜻을
 // 풀어 썼다 — "빈 상태 박스"는 그 자체로 무슨 상태인지 짐작하기 어렵다.
-const BLOCK_KIND_LABELS = {
+const BLOCK_KIND_LABELS: Record<string, string> = {
   table: "표",
   note: "안내 문구",
   emptyBox: "내용 없음 안내 문구",
@@ -39,6 +40,12 @@ export default function DocBlocksEditor({
   onChange,
   universityName,
   sectionLabel,
+}: {
+  section: string;
+  blocks: Block[];
+  onChange: (nextBlocks: Block[]) => void;
+  universityName?: string;
+  sectionLabel?: string;
 }) {
   const { primary, advanced } = useMemo(
     () => docOps.getAddableKindsForSection(section),
@@ -54,15 +61,15 @@ export default function DocBlocksEditor({
   const visibleKinds = showAdvanced ? [...primary, ...advanced] : primary;
   const isAdvancedKindSelected = advanced.includes(addKind);
 
-  function updateBlock(idx, nextBlock) {
+  function updateBlock(idx: number, nextBlock: Block) {
     onChange(docOps.updateBlockAt(blocks, idx, nextBlock));
   }
 
-  function removeBlock(idx) {
+  function removeBlock(idx: number) {
     onChange(docOps.removeBlockAt(blocks, idx));
   }
 
-  function moveBlockUpDown(idx, delta) {
+  function moveBlockUpDown(idx: number, delta: number) {
     onChange(docOps.moveBlock(blocks, idx, delta));
   }
 
@@ -134,7 +141,7 @@ export default function DocBlocksEditor({
               <AdmissionBlockEditor
                 section={section}
                 block={block}
-                onChange={(next) => updateBlock(idx, next)}
+                onChange={(next) => updateBlock(idx, next as Block)}
                 universityName={universityName}
                 sectionLabel={sectionLabel}
               />
@@ -166,7 +173,7 @@ export default function DocBlocksEditor({
             <AdmissionBlockEditor
               section={section}
               block={block}
-              onChange={(next) => updateBlock(idx, next)}
+              onChange={(next) => updateBlock(idx, next as Block)}
               universityName={universityName}
               sectionLabel={sectionLabel}
             />

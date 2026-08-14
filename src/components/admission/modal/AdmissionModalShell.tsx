@@ -1,5 +1,12 @@
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type MutableRefObject,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+} from "react";
 
 // 대학모집요강 모달의 공용 "껍데기".
 //
@@ -60,14 +67,29 @@ export default function AdmissionModalShell({
   footer,
   triggerRef,
   children,
+}: {
+  open?: boolean;
+  onClose: () => void;
+  eyebrow?: ReactNode;
+  title?: ReactNode;
+  idPrefix?: string;
+  sheetClassName?: string;
+  bodyRef?: RefObject<HTMLDivElement | null>;
+  bodyProps?: ComponentPropsWithoutRef<"div">;
+  bodyClassName?: string;
+  belowBody?: ReactNode;
+  footerClassName?: string;
+  footer?: ReactNode;
+  triggerRef?: MutableRefObject<HTMLElement | null>;
+  children?: ReactNode;
 }) {
-  const sheetRef = useRef(null);
-  const closeButtonRef = useRef(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   // 호출부가 트리거를 직접 들고 있으면(공개 모달은 목록의 "보기" 버튼을
   // 클릭 시점에 기억한다) 그것을 쓰고, 아니면 열릴 때의 activeElement 를
   // 폴백으로 잡는다. 공개 경로의 동작을 바꾸지 않으려고 폴백 대입은
   // triggerRef 가 없을 때만 한다.
-  const fallbackTriggerRef = useRef(null);
+  const fallbackTriggerRef = useRef<HTMLElement | null>(null);
   const activeTriggerRef = triggerRef || fallbackTriggerRef;
 
   // ESC 핸들러는 아래 effect 안에서 만들어지고 의존성이 [open] 하나뿐이라,
@@ -100,16 +122,16 @@ export default function AdmissionModalShell({
 
     const getFocusable = () =>
       sheet
-        ? Array.from(sheet.querySelectorAll(focusableSelector)).filter(
-            (el) => el.offsetParent !== null,
-          )
+        ? Array.from(
+            sheet.querySelectorAll<HTMLElement>(focusableSelector),
+          ).filter((el) => el.offsetParent !== null)
         : [];
 
     const rafId = window.requestAnimationFrame(() => {
       closeButtonRef.current?.focus();
     });
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       // IME 조합 중(한글 자모를 조립하는 동안)의 Escape/Tab 은 "입력 취소"를
       // 뜻하지 "모달 닫기"가 아니다. 가드가 없으면 한글을 치다 Escape 한 번에
       // 편집 모달이 닫히고 dirty confirm 이 조합 중간에 뜬다. 공개 모달은

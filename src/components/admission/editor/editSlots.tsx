@@ -1,3 +1,6 @@
+import type { TableBlock } from "../../../lib/admissionDoc";
+import type { TableParity, TableSlots } from "../table/AdmissionTable";
+import type { CellDesc, HeaderCellDesc } from "../table/tableModel";
 import ColumnRoleEditor from "./ColumnRoleEditor";
 import CellEditor from "./cells/CellEditor";
 import ImeSafeInput from "./ImeSafeInput";
@@ -56,7 +59,7 @@ import ImeSafeInput from "./ImeSafeInput";
  * - scrollWrapExtra — 구 `:269`의 `max-w-full overflow-x-auto`. 폼이 가로로
  *   밀리지 않도록 편집기만 직접 강제한다(2026-08-06 폼 가로 넘침 실측 반영).
  */
-export const EDIT_PARITY_FROZEN = {
+export const EDIT_PARITY_FROZEN: TableParity = {
   cellClassNames: true,
   groupHeader: "flatten",
   emptyFallback: false,
@@ -73,13 +76,6 @@ export const EDIT_PARITY_FROZEN = {
  * `parity`를 명시적으로 넘긴다 — `mode`보다 `slots`/`parity`가 우선한다는
  * 계약(AdmissionTable.jsx:60-62)이 그대로 쓰이는 자리다.
  *
- * @param {Object} deps
- * @param {boolean} deps.showColumnSettings   "열 설정" 토글 상태
- * @param {boolean} deps.columnMutationAllowed 컬럼 수 고정 variant면 false
- * @param {(colIdx:number, field:string, value:unknown)=>void} deps.onUpdateColumnField
- * @param {(colIdx:number)=>void} deps.onRemoveColumn
- * @param {(rowIdx:number, colIdx:number, next:unknown)=>void} deps.onUpdateCell
- * @returns {{header:Function, cell:Function}}
  */
 export default function createEditSlots({
   showColumnSettings,
@@ -87,11 +83,19 @@ export default function createEditSlots({
   onUpdateColumnField,
   onRemoveColumn,
   onUpdateCell,
-}) {
+}: {
+  /** "열 설정" 토글 상태 */
+  showColumnSettings: boolean;
+  /** 컬럼 수 고정 variant면 false */
+  columnMutationAllowed: boolean;
+  onUpdateColumnField: (colIdx: number, field: string, value: unknown) => void;
+  onRemoveColumn: (colIdx: number) => void;
+  onUpdateCell: (rowIdx: number, colIdx: number, next: unknown) => void;
+}): TableSlots {
   return {
     // <th> 안쪽 — 구 TableBlockEditor.jsx:275-315
-    header: (headerCell, block) => {
-      const colIdx = headerCell.colIdx;
+    header: (headerCell: HeaderCellDesc, block: TableBlock) => {
+      const colIdx = headerCell.colIdx as number;
       const column = block.columns[colIdx];
       return (
         <div className="flex flex-col gap-1 p-1">
@@ -152,7 +156,7 @@ export default function createEditSlots({
     // 한 번 더 resolveCellKind를 돌려도 결과가 같다 — 값 형태 판정이 먼저라
     // 멱등이기 때문. 즉 디스패치 결과는 구 코드와 동일하고, kind 판정 정본이
     // tableModel 한 곳으로 모인다(설계 §7-3 T3).
-    cell: (cellDesc) => (
+    cell: (cellDesc: CellDesc) => (
       <CellEditor
         roleKind={cellDesc.edit.kind}
         value={cellDesc.raw}
