@@ -13,7 +13,7 @@ import MyPageModalShell from "./MyPageModalShell";
 // ("2026. 07. 28. 14:22").
 
 // 결제 상태 행 — 표의 배지와 같은 판정(PaymentsTab resolveStatus)을 문자열로만 쓴다.
-const STATUS_TEXT = {
+const STATUS_TEXT: Record<string, string> = {
   paid: "결제 완료",
   pending: "입금 대기",
   refund_approval_pending: "환불 요청 대기",
@@ -24,7 +24,9 @@ const STATUS_TEXT = {
   refund_rejected: "환불 반려",
 };
 
-function formatApprovedAtDetail(value) {
+function formatApprovedAtDetail(
+  value: string | number | Date | null | undefined,
+) {
   if (!value) return "-";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
@@ -36,6 +38,24 @@ function formatApprovedAtDetail(value) {
   return `${y}. ${m}. ${day}. ${hh}:${mm}`;
 }
 
+type PaymentOrder = {
+  id: string;
+  method?: string;
+  order_name?: string;
+  paid_at?: string;
+  vat?: number | string | null;
+  amount: number;
+};
+
+type PaymentDetailModalProps = {
+  open: boolean;
+  order: PaymentOrder | null;
+  status?: string;
+  onClose: () => void;
+  onRequestRefund?: () => void;
+  onViewReceipt?: () => void;
+};
+
 export default function PaymentDetailModal({
   open,
   order,
@@ -43,7 +63,7 @@ export default function PaymentDetailModal({
   onClose,
   onRequestRefund,
   onViewReceipt,
-}) {
+}: PaymentDetailModalProps) {
   const titleId = useId();
 
   if (!open || !order) return null;

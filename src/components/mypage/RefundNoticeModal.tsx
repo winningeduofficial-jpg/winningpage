@@ -5,14 +5,21 @@ import { useEffect, useId, useRef } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+type RefundNoticeModalProps = {
+  open: boolean;
+  asStudent?: boolean;
+  parentName?: string;
+  onClose?: () => void;
+};
+
 export default function RefundNoticeModal({
   open,
   asStudent = false,
   parentName = "",
   onClose,
-}) {
-  const panelRef = useRef(null);
-  const triggerElRef = useRef(null);
+}: RefundNoticeModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerElRef = useRef<Element | null>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -34,7 +41,7 @@ export default function RefundNoticeModal({
   useEffect(() => {
     if (!open) return undefined;
     const raf = requestAnimationFrame(() => {
-      panelRef.current?.querySelector(FOCUSABLE_SELECTOR)?.focus();
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
     });
     return () => cancelAnimationFrame(raf);
   }, [open]);
@@ -42,7 +49,7 @@ export default function RefundNoticeModal({
   useEffect(() => {
     if (!open) return undefined;
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();

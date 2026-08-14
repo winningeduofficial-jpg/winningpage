@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Fragment } from "react";
 
 // 마이페이지 결제/신청 목록 표 — 확정 디자인의 세 섹션(환불요청 / 결제 신청하기 /
@@ -12,13 +13,40 @@ import { Fragment } from "react";
 const GRID =
   "grid grid-cols-[13.75rem_13.75rem_minmax(0,1fr)_9rem_9rem] gap-x-2";
 
+type PaymentTableHeaders = {
+  id: string;
+  date: string;
+  product: string;
+  amount: string;
+  status: string;
+};
+
+type PaymentTableRow = {
+  key: string;
+  idFull?: string;
+  idText: string;
+  dateText: string;
+  productText: string;
+  note?: string;
+  amountText: string;
+  [key: string]: unknown;
+};
+
+type PaymentTableProps = {
+  headers: PaymentTableHeaders;
+  rows: PaymentTableRow[];
+  emptyText?: ReactNode;
+  onSelect?: (row: PaymentTableRow) => void;
+  renderStatus: (row: PaymentTableRow) => ReactNode;
+};
+
 export default function PaymentTable({
   headers,
   rows,
   emptyText,
   onSelect,
   renderStatus,
-}) {
+}: PaymentTableProps) {
   if (!rows.length) {
     return (
       <p className="mt-[1.5rem] rounded-lg bg-surface-04 px-5 py-6 text-center text-[0.875rem] text-ink-sub">

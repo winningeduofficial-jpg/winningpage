@@ -1,13 +1,26 @@
 import { useCallback, useId, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import MyPageModalShell from "../MyPageModalShell";
+import type { Child } from "./ChildCard";
+
+type RemoveChildModalProps = {
+  open: boolean;
+  child: Child | null;
+  onClose: () => void;
+  onRemoved?: () => void;
+};
 
 // 자녀 삭제(연결 해제) 확인 모달 (Figma 3709:2630).
 //
 // 실제 처리는 revoke_parent_link RPC(sql/40) — 행을 지우지 않고 status 를
 // revoked 로 바꾼다. 그래서 나중에 자녀가 다시 연결코드를 주면 재연결이
 // 가능하다. "삭제"라는 라벨은 시안 문구를 따른 것이고, 데이터는 남는다.
-export default function RemoveChildModal({ open, child, onClose, onRemoved }) {
+export default function RemoveChildModal({
+  open,
+  child,
+  onClose,
+  onRemoved,
+}: RemoveChildModalProps) {
   const titleId = useId();
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");

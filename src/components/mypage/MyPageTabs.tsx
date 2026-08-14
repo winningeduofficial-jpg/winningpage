@@ -3,7 +3,18 @@ import { Link, useSearchParams } from "react-router-dom";
 // 마이페이지 탭바(Figma 3762:18713 학생/멘토, 3762:20390 학부모).
 // 탭 상태는 URL 쿼리 `?tab=`로 관리한다(MyPage.jsx) — 새로고침·공유 링크에서도
 // 활성 탭이 유지되고, 뒤로가기로 이전 탭으로 돌아갈 수 있다.
-export default function MyPageTabs({ tabs, activeTab }) {
+type MyPageTab = {
+  key: string;
+  label: string;
+  badges?: Array<{ label: string; count: number }>;
+};
+
+type MyPageTabsProps = {
+  tabs: MyPageTab[];
+  activeTab: string;
+};
+
+export default function MyPageTabs({ tabs, activeTab }: MyPageTabsProps) {
   const [searchParams] = useSearchParams();
 
   return (

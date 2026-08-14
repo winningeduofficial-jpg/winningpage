@@ -21,12 +21,12 @@
 
 import { Link } from "react-router-dom";
 
-const STATUS_BADGE = {
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   approved: { label: "연결됨", cls: "bg-[#e7f2fb] text-accent" },
   pending: { label: "수락대기", cls: "bg-[#ffd9d9] text-error" },
 };
 
-function formatLinkedAt(iso) {
+function formatLinkedAt(iso: string | null | undefined) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -38,7 +38,15 @@ function formatLinkedAt(iso) {
 
 // 기간권은 만료일, 회차권은 잔여 횟수로 표시한다. 둘 다 있으면(예: 3개월
 // 6회권) 회차를 우선한다 — 소진 단위가 회차이기 때문이다.
-function serviceStatusText(service) {
+type ChildService = {
+  program_key: string;
+  program_name: string;
+  remaining?: number | null;
+  unlimited_period?: boolean;
+  expires_at?: string | null;
+};
+
+function serviceStatusText(service: ChildService) {
   if (service.remaining !== null && service.remaining !== undefined) {
     return `잔여 ${service.remaining}회`;
   }
@@ -57,7 +65,23 @@ function serviceStatusText(service) {
   return "이용중";
 }
 
-export default function ChildCard({ child, onRemove }) {
+export type Child = {
+  link_id: string;
+  link_status: "approved" | "pending";
+  student_name: string;
+  school_name?: string | null;
+  school_type?: string | null;
+  services?: ChildService[];
+  linked_at?: string | null;
+  student_profile_id: string;
+};
+
+type ChildCardProps = {
+  child: Child;
+  onRemove?: (child: Child) => void;
+};
+
+export default function ChildCard({ child, onRemove }: ChildCardProps) {
   const badge = STATUS_BADGE[child.link_status] || STATUS_BADGE.pending;
   const subtitle = [child.school_name, child.school_type]
     .filter(Boolean)

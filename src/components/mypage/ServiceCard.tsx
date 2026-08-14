@@ -8,18 +8,33 @@ import { Link } from "react-router-dom";
  * "프로그램 가기 →" 등 화살표는 시안에서 별도 아이콘이 아니라 텍스트에 포함된 문자라
  * 아이콘 asset 대신 유니코드 화살표를 그대로 라벨에 붙여 렌더링한다.
  *
- * @param {object} props
- * @param {object} props.card
- * @param {string} props.card.id
- * @param {string} props.card.serviceName
- * @param {string} props.card.statusLabel '이용중' | '잔여 N회' | '이용완료'
- * @param {boolean} props.card.isOngoing
- * @param {number} props.card.progressPercent 0~100
- * @param {string} props.card.metaLeft 메타 한 줄 좌측(이용기간/회권/진단 완료 등)
- * @param {string} props.card.metaRight 메타 한 줄 우측(남은일수/유효기간/완료일 등)
- * @param {Array<{kind: 'link'|'outline'|'solid', label: string, href: string}>} props.card.actions
  */
-export default function ServiceCard({ card }) {
+type ServiceCardAction = {
+  kind: "link" | "outline" | "solid";
+  label: string;
+  href: string;
+};
+
+type ServiceCardData = {
+  id: string;
+  serviceName: string;
+  /** '이용중' | '잔여 N회' | '이용완료' */
+  statusLabel: string;
+  isOngoing: boolean;
+  /** 0~100 */
+  progressPercent: number;
+  /** 메타 한 줄 좌측(이용기간/회권/진단 완료 등) */
+  metaLeft: string;
+  /** 메타 한 줄 우측(남은일수/유효기간/완료일 등) */
+  metaRight: string;
+  actions: ServiceCardAction[];
+};
+
+type ServiceCardProps = {
+  card: ServiceCardData;
+};
+
+export default function ServiceCard({ card }: ServiceCardProps) {
   const {
     serviceName,
     statusLabel,

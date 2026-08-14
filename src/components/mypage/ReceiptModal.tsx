@@ -9,9 +9,25 @@ import { formatKRW } from "../../data/pricingCatalog";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function ReceiptModal({ open, onClose, order }) {
-  const panelRef = useRef(null);
-  const triggerElRef = useRef(null);
+type ReceiptOrder = {
+  order_name?: string;
+  method?: string;
+  amount: number;
+};
+
+type ReceiptModalProps = {
+  open: boolean;
+  onClose?: () => void;
+  order: ReceiptOrder | null;
+};
+
+export default function ReceiptModal({
+  open,
+  onClose,
+  order,
+}: ReceiptModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerElRef = useRef<Element | null>(null);
   const titleId = useId();
 
   // 배경 스크롤 잠금 + 닫힐 때 트리거로 포커스 복귀.
@@ -35,7 +51,7 @@ export default function ReceiptModal({ open, onClose, order }) {
   useEffect(() => {
     if (!open) return undefined;
     const raf = requestAnimationFrame(() => {
-      panelRef.current?.querySelector(FOCUSABLE_SELECTOR)?.focus();
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
     });
     return () => cancelAnimationFrame(raf);
   }, [open]);
@@ -44,7 +60,7 @@ export default function ReceiptModal({ open, onClose, order }) {
   useEffect(() => {
     if (!open) return undefined;
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();
@@ -54,7 +70,9 @@ export default function ReceiptModal({ open, onClose, order }) {
 
       const panel = panelRef.current;
       if (!panel) return;
-      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR));
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
       if (focusables.length === 0) return;
 
       const first = focusables[0];

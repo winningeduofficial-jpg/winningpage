@@ -25,7 +25,12 @@ const REASONS = [
 const NOTICE =
   "회원 탈퇴 시 회원 정보와 서비스 이용 내역이 삭제되며, 이용 중인 서비스(학업 활동 및 결과 리포트 등 모두 포함)와 보유한 쿠폰·혜택도 모두 소멸됩니다. 삭제된 정보는 복구할 수 없습니다.\n※ 결제 내역 등 관계 법령에 따라 보관이 필요한 정보는 일정 기간 보관됩니다.";
 
-export default function WithdrawModal({ open, onClose }) {
+type WithdrawModalProps = {
+  open: boolean;
+  onClose?: () => void;
+};
+
+export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
   const [reason, setReason] = useState("");
   const [etcText, setEtcText] = useState("");
 
@@ -37,7 +42,7 @@ export default function WithdrawModal({ open, onClose }) {
     const previousOverflow = style.overflow;
     style.overflow = "hidden";
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();

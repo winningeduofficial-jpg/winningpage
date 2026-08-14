@@ -5,7 +5,26 @@
 // children이 오면 기본 <input> 대신 그대로 렌더한다(학교·학년처럼 select+input을 한 행에
 // 묶어야 하는 복합 필드, 인라인 편집 모드의 저장/취소 버튼 조합 등).
 // actions가 오면 우측 슬롯에 actionLabel 단일 버튼 대신 그대로 렌더한다(저장/취소 2버튼 조합).
+import type { FocusEventHandler, ReactNode } from "react";
 import { useId } from "react";
+
+type ProfileFieldProps = {
+  label?: ReactNode;
+  value?: string;
+  onChange?: (value: string) => void;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
+  placeholder?: string;
+  type?: string;
+  readOnly?: boolean;
+  /** 예: '변경' */
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
+  helperText?: ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+};
 
 export default function ProfileField({
   label,
@@ -15,14 +34,14 @@ export default function ProfileField({
   placeholder,
   type = "text",
   readOnly = false,
-  actionLabel, // 예: '변경'
+  actionLabel,
   onAction,
   actionDisabled = false,
   helperText,
   children,
   actions,
   className = "",
-}) {
+}: ProfileFieldProps) {
   const labelId = useId();
   const inputId = useId();
   return (

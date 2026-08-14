@@ -8,6 +8,15 @@
 // 위·아래에 있는 서비스 이용약관/개인정보처리방침 같은 chevron 링크 행과 같은 박스 스타일
 // (rounded-xl border, h-[3.25rem])로 통일해 하나의 목록처럼 보이게 한다 — 시안(3762:20170)
 // 실측: 토글 on 색이 accent(#0B84FD, 밝은 파랑)이고 primary(네이비)와 다르다.
+type ToggleRowProps = {
+  label: string;
+  description?: string;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
+};
+
 export default function ToggleRow({
   label,
   description,
@@ -15,7 +24,7 @@ export default function ToggleRow({
   onChange,
   disabled = false,
   className = "",
-}) {
+}: ToggleRowProps) {
   return (
     <div
       className={`flex h-[3.25rem] items-center justify-between gap-4 rounded-xl border border-line px-5 ${className}`}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import ChildCard from "./ChildCard";
+import ChildCard, { type Child } from "./ChildCard";
 import LinkChildModal from "./LinkChildModal";
 import RemoveChildModal from "./RemoveChildModal";
 
@@ -11,7 +11,7 @@ import RemoveChildModal from "./RemoveChildModal";
 // 없는 데이터라서다 — profiles_select_own 때문에 학부모는 자녀의 이름·학교를
 // 못 읽고, 이용 권한도 못 읽는다(그 RPC 파일 상단 주석 참고).
 
-function EmptyState({ onOpenLink }) {
+function EmptyState({ onOpenLink }: { onOpenLink: () => void }) {
   return (
     <div className="flex min-h-[13rem] flex-col items-center justify-center rounded-2xl bg-surface-04 px-8 py-16 text-center">
       <p className="text-[1.0625rem] font-semibold text-ink">
@@ -34,10 +34,10 @@ function EmptyState({ onOpenLink }) {
 }
 
 export default function ChildrenTab() {
-  const [children, setChildren] = useState(null); // null = 로딩 중
+  const [children, setChildren] = useState<Child[] | null>(null); // null = 로딩 중
   const [loadError, setLoadError] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState<Child | null>(null);
 
   const reload = useCallback(async () => {
     const { data, error } = await supabase.rpc("fn_parent_children");

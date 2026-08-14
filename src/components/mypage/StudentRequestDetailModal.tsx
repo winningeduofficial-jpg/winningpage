@@ -14,13 +14,28 @@ import MyPageModalShell from "./MyPageModalShell";
 // 자기 행만 열어 준다. 상위(PaymentsTab)가 parent_child_links 로 얻은 이름을
 // parentName 으로 내려준다. 이름을 모르면 일반 라벨로 떨어뜨린다(지어내지 않는다).
 
-function formatStamp(value) {
+function formatStamp(value: string | number | Date | null | undefined) {
   if (!value) return "-";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}. ${p(d.getMonth() + 1)}. ${p(d.getDate())}. ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+type RequestOrder = {
+  created_at?: string;
+  paid_at?: string;
+};
+
+type StudentRequestDetailModalProps = {
+  open: boolean;
+  order: RequestOrder | null;
+  studentName?: string;
+  parentName?: string;
+  canRequestRefund?: boolean;
+  onClose: () => void;
+  onRequestRefund?: () => void;
+};
 
 export default function StudentRequestDetailModal({
   open,
@@ -30,7 +45,7 @@ export default function StudentRequestDetailModal({
   canRequestRefund = false,
   onClose,
   onRequestRefund,
-}) {
+}: StudentRequestDetailModalProps) {
   const titleId = useId();
 
   if (!open || !order) return null;
