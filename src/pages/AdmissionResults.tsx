@@ -34,7 +34,9 @@ interface UniversityIndexRow {
 interface DepartmentIndexRow {
   department_key: string;
   department_name?: string;
-  tracks?: string[];
+  // admissionResultsQueries.ts의 DepartmentIndexRow.tracks가 string[] | null이라
+  // (undefined가 아니라 null) 그 셰이프를 그대로 좁혀 받는다.
+  tracks?: string[] | null;
   [key: string]: unknown;
 }
 
@@ -43,7 +45,8 @@ interface TrendingDepartmentRow {
   department_key?: string;
   university_name?: string;
   department_name?: string;
-  logo_url?: string;
+  // admissionResultsQueries.ts의 TrendingDepartmentRow.logo_url이 string | null이다.
+  logo_url?: string | null;
   [key: string]: unknown;
 }
 
@@ -52,8 +55,10 @@ interface TrendingDepartmentRow {
 interface TrendingItem {
   key: string;
   label: string;
-  universityKey?: string;
-  departmentKey?: string;
+  // trendingItems 계산부(.filter 뒤 .map)가 string | undefined 필드를 그대로
+  // 실어 보낸다 — exactOptionalPropertyTypes라 옵셔널 표기만으로는 안 받아진다.
+  universityKey?: string | undefined;
+  departmentKey?: string | undefined;
   logoUrl?: string;
 }
 

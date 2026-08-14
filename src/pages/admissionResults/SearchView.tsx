@@ -11,8 +11,10 @@ import TrendingChips from "./TrendingChips";
 type TrendingItem = {
   key: string;
   label: string;
-  universityKey?: string;
-  departmentKey?: string;
+  // 호출부(AdmissionResults.tsx)의 trendingItems가 string | undefined 필드를
+  // 그대로 싣는다 — exactOptionalPropertyTypes라 옵셔널 표기만으로는 안 받아진다.
+  universityKey?: string | undefined;
+  departmentKey?: string | undefined;
   logoUrl?: string;
 };
 
@@ -70,10 +72,16 @@ export default function SearchView({
         <section
           className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}
         >
-          {/* TrendingChips(수정 범위 밖)의 onSelect는 exactOptionalPropertyTypes라
-              undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다. */}
+          {/* TrendingChips(수정 범위 밖)는 이름만 같은 자기 로컬 TrendingItem을 쓴다
+              (구조는 동일 — 위 타입 주석 참고) — 두 로컬 타입이 "unrelated"로
+              찍히므로 여기서만 좁혀 캐스트한다. onSelect는 exactOptionalPropertyTypes라
+              undefined 값을 명시적으로 넣을 수 없어 값이 있을 때만 키를 채운다. */}
           <TrendingChips
-            items={trending}
+            items={
+              trending as NonNullable<
+                ComponentProps<typeof TrendingChips>["items"]
+              >
+            }
             {...(onSelectTrending ? { onSelect: onSelectTrending } : {})}
           />
         </section>
