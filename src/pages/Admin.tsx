@@ -30,6 +30,7 @@ import {
   computeGoalCutBackfill,
   fetchBackfillSourceRows,
   GOAL_BACKFILL_YEAR_MODES,
+  type GoalBackfillYearMode,
   goalCutConflictKey,
 } from "../lib/goal/goalCutBackfill";
 import {
@@ -626,7 +627,9 @@ function triggerXlsxDownload(workbook, fileName) {
 function AdmissionBulkXlsxPanel({ rows, onReload }) {
   const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
-  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [parseResult, setParseResult] = useState<ReturnType<
+    typeof parseAdmissionRowsFromXlsx
+  > | null>(null); // { rows, errors, warnings, summary }
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -814,8 +817,8 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                   (err) => `${err.row}-${err.universityKey}-${err.reason}`,
                 ).map(({ item: err, key }) => (
                   <li key={key} className="text-red-700">
-                    행 {err.row + 1} · {err.admissionYear ?? "-"}학년도 ·{" "}
-                    {err.universityKey || "(키 없음)"} — {err.reason}
+                    행 {err.row + 1} · {String(err.admissionYear ?? "-")}학년도
+                    · {String(err.universityKey || "(키 없음)")} — {err.reason}
                   </li>
                 ))}
               </ul>
@@ -859,8 +862,8 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
                         `${w.row}-${w.universityKey}-${w.column}-${w.reason}`,
                     ).map(({ item: w, key }) => (
                       <li key={key}>
-                        행 {w.row + 1} · {w.admissionYear ?? "-"}학년도 ·{" "}
-                        {w.universityKey || "(키 없음)"}
+                        행 {w.row + 1} · {String(w.admissionYear ?? "-")}학년도
+                        · {String(w.universityKey || "(키 없음)")}
                         {w.column ? ` · ${w.column}` : ""} — {w.reason}
                       </li>
                     ))}
@@ -1009,7 +1012,7 @@ async function fetchAllResultRows(onProgress) {
 // 않는다).
 async function fetchAllResultIds(onProgress) {
   const total = await fetchResultsCount();
-  const idSet = new Set();
+  const idSet = new Set<number>();
   for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
     const { data, error } = await supabase
       .from(RESULTS_TABLE)
@@ -1033,7 +1036,9 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
   const [applyProgress, setApplyProgress] = useState(null); // 적용(insert/update) 진행률
   const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
-  const [parseResult, setParseResult] = useState(null); // { rows, errors, warnings, summary }
+  const [parseResult, setParseResult] = useState<ReturnType<
+    typeof parseAdmissionResultRowsFromXlsx
+  > | null>(null); // { rows, errors, warnings, summary }
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -1264,10 +1269,11 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
                     `${err.row}-${err.universityKey}-${err.departmentKey}-${err.admissionTrack}-${err.reason}`,
                 ).map(({ item: err, key }) => (
                   <li key={key} className="text-red-700">
-                    행 {err.row + 1} · {err.resultYear ?? "-"}학년도 ·{" "}
-                    {err.universityKey || "(대학 키 없음)"}/
-                    {err.departmentKey || "(모집단위 키 없음)"} ·{" "}
-                    {err.admissionTrack || "(전형명 없음)"} — {err.reason}
+                    행 {err.row + 1} · {String(err.resultYear ?? "-")}학년도 ·{" "}
+                    {String(err.universityKey || "(대학 키 없음)")}/
+                    {String(err.departmentKey || "(모집단위 키 없음)")} ·{" "}
+                    {String(err.admissionTrack || "(전형명 없음)")} —{" "}
+                    {err.reason}
                   </li>
                 ))}
               </ul>
@@ -1307,10 +1313,11 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
                         `${w.row}-${w.universityKey}-${w.departmentKey}-${w.admissionTrack}-${w.reason}`,
                     ).map(({ item: w, key }) => (
                       <li key={key}>
-                        행 {w.row + 1} · {w.resultYear ?? "-"}학년도 ·{" "}
-                        {w.universityKey || "(대학 키 없음)"}/
-                        {w.departmentKey || "(모집단위 키 없음)"} ·{" "}
-                        {w.admissionTrack || "(전형명 없음)"} — {w.reason}
+                        행 {w.row + 1} · {String(w.resultYear ?? "-")}학년도 ·{" "}
+                        {String(w.universityKey || "(대학 키 없음)")}/
+                        {String(w.departmentKey || "(모집단위 키 없음)")} ·{" "}
+                        {String(w.admissionTrack || "(전형명 없음)")} —{" "}
+                        {w.reason}
                       </li>
                     ))}
                   </ul>
@@ -1424,7 +1431,7 @@ const GOAL_CUTS_TONE_CLASS = {
   neutral: "border-gray-300 bg-gray-50 text-gray-600",
 };
 
-async function goalCutsCount(applyFilters) {
+async function goalCutsCount(applyFilters?) {
   let query = supabase
     .from(GOAL_CUTS_TABLE)
     .select("id", { count: "exact", head: true });
@@ -1437,7 +1444,7 @@ async function goalCutsCount(applyFilters) {
 // id 오름차순으로 청크 반복해 전량을 읽는다. order 없이 .range() 만 반복하면
 // PostgREST 가 매 요청마다 정렬을 보장하지 않아 페이지 경계에서 행이 중복·
 // 누락된다(admissionResults 쪽과 같은 논리).
-async function fetchAllGoalCutRows(columns, onProgress) {
+async function fetchAllGoalCutRows(columns, onProgress?) {
   const total = await goalCutsCount();
   const all = [];
   for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
@@ -1695,7 +1702,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
 // ---------------------------------------------------------------------
 
 function GoalCutsBackfillPanel({ onReload }) {
-  const [yearMode, setYearMode] = useState("prefer2026");
+  const [yearMode, setYearMode] = useState<GoalBackfillYearMode>("prefer2026");
   const [preserveMode, setPreserveMode] = useState("preserve"); // preserve | overwrite
   const [orphanMode, setOrphanMode] = useState("keep"); // keep | deactivate
   const [sourceProgress, setSourceProgress] = useState(null);
@@ -2106,7 +2113,9 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
   const [applyProgress, setApplyProgress] = useState(null);
   const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
-  const [parseResult, setParseResult] = useState(null);
+  const [parseResult, setParseResult] = useState<ReturnType<
+    typeof parseGoalUniversityCutRowsFromXlsx
+  > | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -2132,8 +2141,8 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
     if (busy) return;
     try {
       setFetchProgress({ done: 0, total: totalRowCount ?? 0 });
-      let rows;
-      let fileNamePrefix;
+      let rows: Record<string, unknown>[];
+      let fileNamePrefix: string;
       if (downloadScope === "jungsiTemplate") {
         // 정시 컷 없는 (대학, 학과)를 id 빈 정시 템플릿 행으로 내려준다.
         // 🔴 대학명·학과명은 수시 컷 행의 문자열을 **그대로 복사**한다 —
@@ -2385,8 +2394,10 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
                     `${err.row}-${err.universityName}-${err.departmentName}-${err.reason}`,
                 ).map(({ item: err, key }) => (
                   <li key={key} className="text-red-700">
-                    행 {err.row + 1} · {err.universityName || "(대학명 없음)"} ·{" "}
-                    {err.departmentName || "(학과명 없음)"} — {err.reason}
+                    행 {err.row + 1} ·{" "}
+                    {String(err.universityName || "(대학명 없음)")} ·{" "}
+                    {String(err.departmentName || "(학과명 없음)")} —{" "}
+                    {err.reason}
                   </li>
                 ))}
               </ul>
@@ -2428,8 +2439,9 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
                         `${w.row}-${w.universityName}-${w.departmentName}-${w.column}-${w.reason}`,
                     ).map(({ item: w, key }) => (
                       <li key={key}>
-                        행 {w.row + 1} · {w.universityName || "(대학명 없음)"} ·{" "}
-                        {w.departmentName || "(학과명 없음)"}
+                        행 {w.row + 1} ·{" "}
+                        {String(w.universityName || "(대학명 없음)")} ·{" "}
+                        {String(w.departmentName || "(학과명 없음)")}
                         {w.column ? ` · ${w.column}` : ""} — {w.reason}
                       </li>
                     ))}
@@ -2640,7 +2652,7 @@ export default function Admin() {
   // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
   // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
   // 범위(.range)와 count는 호출부가 붙인다.
-  function buildListQuery({ count } = {}) {
+  function buildListQuery({ count }: { count?: "exact" } = {}) {
     let query = supabase
       .from(config.table)
       .select("*", count ? { count } : undefined);
