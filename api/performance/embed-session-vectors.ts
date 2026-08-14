@@ -49,12 +49,12 @@
 //   자체가 또 실패해도 로그만 남기고 원래 루프는 계속 돈다.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isAuthorizedCron } from "../_lib/cronAuth.ts";
+import { isAuthorizedCron } from "../_lib/cronAuth.js";
 import {
   embedText,
   getEmbeddingModel,
-} from "../_lib/performance/embeddings.ts";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+} from "../_lib/performance/embeddings.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const TABLE = "performance_session_vectors";
 

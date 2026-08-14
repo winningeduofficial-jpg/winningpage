@@ -72,13 +72,13 @@
 // 으로 이어가면 된다(아래 「실패 경로별 잔여 상태」).
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveSessionSubmissionSchema } from "../_lib/performance/submission-schema.ts";
+import { resolveSessionSubmissionSchema } from "../_lib/performance/submission-schema.js";
 import {
   getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

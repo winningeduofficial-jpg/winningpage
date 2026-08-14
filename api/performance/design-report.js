@@ -166,11 +166,11 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.ts";
+} from "../_lib/performance/gemini.js";
 import {
   guideTextFromSession,
   inferGuideStructure,
-} from "../_lib/performance/guide-structure.ts";
+} from "../_lib/performance/guide-structure.js";
 import {
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
@@ -178,7 +178,7 @@ import {
   RESOURCE_MAX_CHARS,
   STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
   STUDENT_HISTORY_PROMPT_LIMIT,
-} from "../_lib/performance/knowledge.ts";
+} from "../_lib/performance/knowledge.js";
 import {
   buildDesignReportSystem,
   buildDesignReportUser,
@@ -202,7 +202,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

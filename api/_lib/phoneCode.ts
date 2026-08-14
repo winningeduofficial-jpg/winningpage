@@ -5,7 +5,7 @@
 
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getEnv } from "./supabaseAdmin.ts";
+import { getEnv } from "./supabaseAdmin.js";
 
 export const CODE_LENGTH = 6;
 export const CODE_TTL_SECONDS = 180; // 3분

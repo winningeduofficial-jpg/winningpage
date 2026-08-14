@@ -38,8 +38,8 @@
 // `source:'none'`이며, 이때 프롬프트에는 원문 그대로 `관련 위닝DB 항목 없음`이 들어간다.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createSupabaseAdmin } from "../supabaseAdmin.ts";
-import { embedText } from "./embeddings.ts";
+import { createSupabaseAdmin } from "../supabaseAdmin.js";
+import { embedText } from "./embeddings.js";
 import { NO_KNOWLEDGE_TEXT, NO_STUDENT_HISTORY_TEXT } from "./prompts.js";
 
 /** 위닝DB 지식 항목 행 — 이 파일이 실제로 읽는 필드만 담은 최소 형태. */

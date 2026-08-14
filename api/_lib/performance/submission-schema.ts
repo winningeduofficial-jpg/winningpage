@@ -104,8 +104,8 @@
 import {
   extractAnswerQuestions,
   guideTextFromSession,
-} from "./guide-structure.ts";
-import { checkFieldsMinLength, countFieldsChars } from "./submission-chars.ts";
+} from "./guide-structure.js";
+import { checkFieldsMinLength, countFieldsChars } from "./submission-chars.js";
 
 // 재수출 — 제출폼 쪽 호출부가 판정 함수를 쓰려고 `guide-structure.js`를 따로 import 하면
 // 사본을 만들고 싶은 유혹이 생긴다. 진입점을 하나로 모아 그 유혹을 없앤다(파일 상단 ③).
@@ -113,7 +113,7 @@ export {
   extractAnswerQuestions,
   guideTextFromSession,
   isRubricLikeQuestion,
-} from "./guide-structure.ts";
+} from "./guide-structure.js";
 
 // 문항형 필드 상한 — `index.html:2152` `questions.slice(0, 20)`.
 // §12.2 3행이 「문항형 20개 상한 유지」로 명시적으로 지정한 값이다.
@@ -688,7 +688,7 @@ export function resolveSessionSubmissionSchema(
 //    사본을 만들지 마라 — 두 벌이 되는 순간 "카운터는 통과인데 서버가 거절"이 생긴다.
 
 // 잎 모듈 재수출 — 기존 import 경로(`submission-schema.js`)를 그대로 유지하기 위함이다.
-export { countFieldChars, SUBMISSION_MIN_CHARS } from "./submission-chars.ts";
+export { countFieldChars, SUBMISSION_MIN_CHARS } from "./submission-chars.js";
 
 /**
  * 스키마 선언 필드만 골라 필드별·합계 글자 수를 낸다.
