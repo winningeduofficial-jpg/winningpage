@@ -11,14 +11,24 @@
 //      ② 정합성 — 17 이어야 컬럼 폭이 정수 368 로 떨어지고 카드 내부 콘텐츠 폭 753 과 정확히
 //         맞는다(363.5 는 0.5px 단위라 렌더 시 서브픽셀 경계가 생긴다).
 //    26 쪽을 정본으로 뒤집더라도 이 파일의 상수 한 줄만 바꾸면 된다.
-const COLUMN_CLASSES = {
+import type { ReactNode } from "react";
+
+const COLUMN_CLASSES: Record<number, string> = {
   1: "flex flex-col",
   // <md(768) 에서는 1컬럼 스택(명세 § 반응형 전략 §6 행). 스택 시 세로 간격은 카드의
   // 필드군 gap 과 같은 26 을 써서 1컬럼 행과 리듬이 어긋나지 않게 한다.
   2: "grid grid-cols-1 gap-y-[1.625rem] md:grid-cols-2 md:gap-x-[1.0625rem] md:gap-y-0",
 };
 
-export default function FormFieldRow({ columns = 1, children }) {
+type FormFieldRowProps = {
+  columns?: 1 | 2;
+  children?: ReactNode;
+};
+
+export default function FormFieldRow({
+  columns = 1,
+  children,
+}: FormFieldRowProps) {
   // Tailwind JIT 스캐너가 못 잡는 템플릿 조립(`grid-cols-${n}`)을 피하려고 리터럴 lookup 을 쓴다
   // (명세 § 반응형 전략 원칙 4, ServiceSection.jsx:3-9 규약). 미등록 키는 폴백 없이 깨뜨린다.
   return <div className={COLUMN_CLASSES[columns]}>{children}</div>;

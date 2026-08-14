@@ -19,12 +19,19 @@
 // 없다) **자체 아바타를 갖지 않는다** — 대신 `ChatTimeline`이 AI 컬럼과 같은 x축(아바타
 // 3.25rem + gap 1.25rem = 4.5rem)만큼 왼쪽 여백을 얹어 정렬을 맞춘다(§3.1). 그래서 이
 // 컴포넌트 자신은 들여쓰기를 갖지 않고 카드 자체의 모양만 책임진다.
-/**
- * @param {import('react').ReactNode} children 카드 내용. 이 단계에서는 폼 필드·버튼을 만들지
- *   않으므로 호출부가 채운다(P6+).
- * @param {string} [className] 루트에 추가할 클래스.
- */
-export default function InlineCard({ children, className = "" }) {
+import type { ReactNode } from "react";
+
+type InlineCardProps = {
+  /** 카드 내용. 이 단계에서는 폼 필드·버튼을 만들지 않으므로 호출부가 채운다(P6+). */
+  children?: ReactNode;
+  /** 루트에 추가할 클래스. */
+  className?: string;
+};
+
+export default function InlineCard({
+  children,
+  className = "",
+}: InlineCardProps) {
   return (
     <div
       className={[

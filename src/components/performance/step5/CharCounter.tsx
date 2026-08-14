@@ -24,13 +24,21 @@
 //   `ChatTimeline`(루트 `aria-live="polite"`) 안이라, `SubmissionForm` 루트가
 //   `aria-live="off"`로 그것을 무효화해 주어야 위 문장이 성립한다(검토 P11 —
 //   `SubmissionForm` 파일 상단 4의 ⚠️ 항이 그 배선이다).
-/**
- * @param {number} count 글자 수. 계산은 서버와 공유하는 `countFieldChars`가 하고
- *   (`api/_lib/performance/submission-chars.js`) 이 컴포넌트는 렌더만 한다.
- * @param {string} [id] `aria-describedby` 연결용.
- * @param {string} [className] 루트에 추가할 클래스.
- */
-export default function CharCounter({ count = 0, id, className = "" }) {
+type CharCounterProps = {
+  /** 글자 수. 계산은 서버와 공유하는 `countFieldChars`가 하고
+   * (`api/_lib/performance/submission-chars.js`) 이 컴포넌트는 렌더만 한다. */
+  count?: number;
+  /** `aria-describedby` 연결용. */
+  id?: string;
+  /** 루트에 추가할 클래스. */
+  className?: string;
+};
+
+export default function CharCounter({
+  count = 0,
+  id,
+  className = "",
+}: CharCounterProps) {
   return (
     <p
       id={id}

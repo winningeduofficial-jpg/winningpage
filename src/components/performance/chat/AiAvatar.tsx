@@ -7,7 +7,11 @@
 //
 // `AiMessage`·`AiLoadingBubble` 둘 다 이 컴포넌트를 재사용한다. 장식 요소라 스크린리더에는
 // 옆의 발신자 라벨("위닝 수행평가 서포터")이 이름을 대신하므로 `aria-hidden`을 건다.
-export default function AiAvatar({ className = "" }) {
+type AiAvatarProps = {
+  className?: string;
+};
+
+export default function AiAvatar({ className = "" }: AiAvatarProps) {
   return (
     <div
       aria-hidden="true"

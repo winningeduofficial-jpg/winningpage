@@ -19,12 +19,19 @@
 // "수행평가 정보:\n수행평가 유형: …")가 채팅 UI 관례대로 버블 내부에서는 좌측 정렬로
 // 읽히는 편이 자연스럽고, 실측 좌표도 매 줄 좌변이 텍스트 블록 x(1262/1284)로 고정돼
 // 있어 우측 정렬 근거가 없다.
-/**
- * @param {import('react').ReactNode} children 말풍선 본문. 여러 줄 문자열을 그대로 넘기면
- *   `whitespace-pre-line`이 줄바꿈을 보존한다.
- * @param {string} [className] 루트(우측 정렬 컨테이너)에 추가할 클래스.
- */
-export default function UserMessage({ children, className = "" }) {
+import type { ReactNode } from "react";
+
+type UserMessageProps = {
+  /** 말풍선 본문. 여러 줄 문자열을 그대로 넘기면 `whitespace-pre-line`이 줄바꿈을 보존한다. */
+  children?: ReactNode;
+  /** 루트(우측 정렬 컨테이너)에 추가할 클래스. */
+  className?: string;
+};
+
+export default function UserMessage({
+  children,
+  className = "",
+}: UserMessageProps) {
   return (
     <div className={["flex justify-end", className].join(" ")}>
       <div className="w-fit max-w-perf-bubble rounded-2xl bg-performance-userBubble p-5">

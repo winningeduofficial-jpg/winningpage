@@ -12,10 +12,14 @@
 //
 // 이 칩은 클릭 대상이 아니다(시안에 상태·액션 표기가 없다). 카드 전체가 버튼이므로
 // (§5.10 결정) 여기에 별도 인터랙션을 얹으면 중첩 클릭 대상이 생긴다.
-/**
- * @param {import('react').ReactNode} children 칩 라벨.
- */
-export default function MetaTag({ children }) {
+import type { ReactNode } from "react";
+
+type MetaTagProps = {
+  /** 칩 라벨. */
+  children?: ReactNode;
+};
+
+export default function MetaTag({ children }: MetaTagProps) {
   return (
     <span className="inline-flex h-[1.875rem] shrink-0 items-center rounded-[1.25rem] bg-performance-tag px-1.5 text-[0.875rem] font-medium leading-[1.125rem] text-ink">
       {children}

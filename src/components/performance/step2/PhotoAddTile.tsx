@@ -15,11 +15,17 @@ import { Plus } from "lucide-react";
 // **파일 입력은 이 컴포넌트가 갖지 않는다.** `<input type="file">`은 카드
 // (`GuideUploadCard`)가 하나만 두고 이 타일은 그걸 여는 버튼일 뿐이다 — 타일마다
 // input을 만들면 accept/멀티 선택 규칙이 여러 벌로 갈라진다.
-/**
- * @param {() => void} onClick 파일 선택기 열기
- * @param {boolean} [disabled] 5장을 이미 채웠을 때 등
- */
-export default function PhotoAddTile({ onClick, disabled = false }) {
+type PhotoAddTileProps = {
+  /** 파일 선택기 열기 */
+  onClick?: () => void;
+  /** 5장을 이미 채웠을 때 등 */
+  disabled?: boolean;
+};
+
+export default function PhotoAddTile({
+  onClick,
+  disabled = false,
+}: PhotoAddTileProps) {
   return (
     <button
       type="button"

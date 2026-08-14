@@ -1,15 +1,23 @@
+import type { ReactNode } from "react";
+
 // 상태 뱃지 공용 원자 — 3단 의미색(결정5): red(취약) / amber(보완 필요) / blue(양호·상위 등).
-const TONES = {
+const TONES: Record<string, { bg: string; text: string }> = {
   red: { bg: "#ffcdcd", text: "#991e1e" },
   amber: { bg: "rgba(255,233,155,0.8)", text: "#736123" },
   blue: { bg: "#f1f8ff", text: "#1b5da0" },
+};
+
+type StatusBadgeProps = {
+  tone?: string;
+  children?: ReactNode;
+  className?: string;
 };
 
 export default function StatusBadge({
   tone = "blue",
   children,
   className = "",
-}) {
+}: StatusBadgeProps) {
   const { bg, text } = TONES[tone] ?? TONES.blue;
 
   return (

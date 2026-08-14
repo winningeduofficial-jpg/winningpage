@@ -11,7 +11,13 @@
  * 문구는 문구집 05_구간_공통 원문 그대로 쓰고 재작성하지 마라 — '실제 상태와 다를 수 있습니다'는
  * 06_금지어 '진단·낙인'을 피하려고 고른 표현이다(학생을 비난하지 않는다).
  */
-export default function ReportSincerityBanner({ message }) {
+type ReportSincerityBannerProps = {
+  message?: string | null;
+};
+
+export default function ReportSincerityBanner({
+  message,
+}: ReportSincerityBannerProps) {
   if (!message) return null;
 
   /*

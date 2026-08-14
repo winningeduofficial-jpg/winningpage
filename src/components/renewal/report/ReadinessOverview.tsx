@@ -2,7 +2,15 @@
 // props: { scoreLabel, summaryLines } — data.readiness 에서 전달.
 import { withDedupedKeys } from "../../../lib/reactKeys";
 
-const ReadinessOverview = ({ scoreLabel, summaryLines }) => {
+type ReadinessOverviewProps = {
+  scoreLabel: string;
+  summaryLines: string[];
+};
+
+const ReadinessOverview = ({
+  scoreLabel,
+  summaryLines,
+}: ReadinessOverviewProps) => {
   return (
     <section className="mt-12">
       <h2 className="text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd]">

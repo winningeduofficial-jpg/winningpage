@@ -12,7 +12,7 @@
 // ⚠ 시안(3661:4082 외)에 있는 배지는 결제완료 / 입금대기 / 환불 진행 중 3종뿐이다.
 // 아래 나머지 3종(환불 요청 대기 · 환불 반려 · 환불완료)은 시안에 없는 상태라
 // 신규 카피다 — 승인 필요.
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   // ── 학부모 "결제 내역" 어휘 (3967:3944 실측) ──────────────────────────
   paid: { label: "결제 완료", cls: "bg-[#e9f4ff] text-accent" },
   pending: { label: "입금대기", cls: "bg-[#f5ebcb] text-gold" },
@@ -54,7 +54,15 @@ const STATUS_STYLES = {
 // 시안에 없는 상태(향후 DB에 새 status 값이 추가되는 경우)를 위한 중립 폴백.
 const FALLBACK_CLS = "bg-surface-04 text-ink-sub";
 
-export default function PaymentStatusBadge({ status, label }) {
+type PaymentStatusBadgeProps = {
+  status?: string;
+  label?: string;
+};
+
+export default function PaymentStatusBadge({
+  status,
+  label,
+}: PaymentStatusBadgeProps) {
   const preset = STATUS_STYLES[status];
   const text = label || preset?.label || status || "-";
   const cls = preset?.cls || FALLBACK_CLS;

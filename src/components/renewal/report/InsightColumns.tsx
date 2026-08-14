@@ -3,7 +3,12 @@
 // R3(2026-08-11) — 2열 고정폭(30.875rem×2 ≈ 988px)은 모바일에서 세로 스택으로 바뀐다.
 import { withDedupedKeys } from "../../../lib/reactKeys";
 
-const InsightColumns = ({ strengths, improvements }) => {
+type InsightColumnsProps = {
+  strengths: string[];
+  improvements: string[];
+};
+
+const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
   return (
     // fd-insight-columns — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과
     // 동일한 값으로 강제한다.
