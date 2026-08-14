@@ -2,7 +2,17 @@ import { ALL_CATEGORY, COLUMN_CATEGORIES } from "../../pages/column/columnData";
 
 const OPTIONS = [ALL_CATEGORY, ...COLUMN_CATEGORIES];
 
-export default function CategoryChips({ active, onChange, align = "left" }) {
+type CategoryChipsProps = {
+  active?: string;
+  onChange?: (value: string) => void;
+  align?: "left" | "center";
+};
+
+export default function CategoryChips({
+  active,
+  onChange,
+  align = "left",
+}: CategoryChipsProps) {
   return (
     <div
       className={`flex flex-wrap gap-x-3 gap-y-4 ${

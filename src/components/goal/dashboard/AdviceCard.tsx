@@ -4,7 +4,11 @@ import GoalCard from "../GoalCard";
 // 렌더한다. 조언 뱃지("일일 분석 조언"/"AI 입시 분석 조언")는 이 카드 소속이 아니라 페이지
 // 헤더(y=100, `DashboardPageHeader`)에 있다(part-07 §126 실측 정정, 2026-08-10 — 직전 작업에서
 // 이 카드 안에 뱃지를 넣었던 것은 잘못된 지시에 따른 것이었다).
-export default function AdviceCard({ data }) {
+type AdviceCardProps = {
+  data: { body: string };
+};
+
+export default function AdviceCard({ data }: AdviceCardProps) {
   return (
     <GoalCard
       tone="neutral"

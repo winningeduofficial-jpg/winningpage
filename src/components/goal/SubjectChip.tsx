@@ -7,13 +7,13 @@
 // 이전엔 요일 색(goal.weekday.*)용 `tone="weekday"` 변형도 있었지만 저장소 어디에서도 호출되지
 // 않는 죽은 코드였다(WeekdayPlanBoard.jsx는 자체 WEEKDAY_BG_CLASS를 쓴다) — 코드 검수 NIT §6로
 // 제거했다.
-const SIZE_CLASS = {
+const SIZE_CLASS: Record<string, string> = {
   sm: "h-[2rem] px-2.5 text-[0.75rem]", // 32px
   md: "h-[2.4375rem] px-3 text-[0.8125rem]", // 39px
   lg: "h-[3.25rem] px-4 text-[0.9375rem]", // 52px
 };
 
-const SUBJECT_BG_CLASS = {
+const SUBJECT_BG_CLASS: Record<string, string> = {
   korean: "bg-goal-subject-korean",
   math: "bg-goal-subject-math",
   english: "bg-goal-subject-english",
@@ -21,12 +21,19 @@ const SUBJECT_BG_CLASS = {
   etc: "bg-goal-subject-etc",
 };
 
+type SubjectChipProps = {
+  label?: string;
+  size?: string;
+  color?: string;
+  className?: string;
+};
+
 export default function SubjectChip({
   label,
   size = "md",
   color = "etc",
   className = "",
-}) {
+}: SubjectChipProps) {
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.md;
   const bgClass = SUBJECT_BG_CLASS[color] ?? SUBJECT_BG_CLASS.etc;
 

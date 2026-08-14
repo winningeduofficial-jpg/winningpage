@@ -1,6 +1,18 @@
 // 목표관리 앱 카드 헤더 — docs/figma-goal/00-INDEX.md §5-4 `CardHeader`.
+import type { ReactNode } from "react";
+
+type GoalCardHeaderProps = {
+  title: ReactNode;
+  meta?: ReactNode;
+  action?: ReactNode;
+};
+
 // 타이틀 + (옵션) 인라인 보조 텍스트(meta) + 우측 액션 슬롯(`+ 성적 추가` 등 링크/버튼).
-export default function GoalCardHeader({ title, meta, action }) {
+export default function GoalCardHeader({
+  title,
+  meta,
+  action,
+}: GoalCardHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-baseline gap-2">

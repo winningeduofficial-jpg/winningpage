@@ -7,18 +7,26 @@
 // ⚠︎ 시안은 이모지(💡🚨✅⌚️)를 아이콘이 아니라 텍스트 노드로 그대로 쓰고 있다(part-11 §365).
 // OS/브라우저별 이모지 폰트 렌더링 차이가 있어(특히 Windows vs macOS vs 안드로이드) 추후
 // SVG 아이콘 컴포넌트로 교체 검토가 필요하다. 지금은 시안 그대로 이모지 텍스트를 쓴다.
-const VARIANT = {
+import type { ReactNode } from "react";
+
+const VARIANT: Record<string, { icon: string; bgClass: string }> = {
   info: { icon: "💡", bgClass: "bg-goal-insight-info" }, // 시안 386×69
   warn: { icon: "🚨", bgClass: "bg-goal-insight-warn" }, // 시안 386×81
   success: { icon: "✅", bgClass: "bg-goal-insight-success" }, // 시안 386×100
   time: { icon: "⌚️", bgClass: "bg-goal-insight-time" }, // 시안 386×80
 };
 
+type InsightBoxProps = {
+  variant?: string;
+  children?: ReactNode;
+  className?: string;
+};
+
 export default function InsightBox({
   variant = "info",
   children,
   className = "",
-}) {
+}: InsightBoxProps) {
   const { icon, bgClass } = VARIANT[variant] ?? VARIANT.info;
 
   return (
