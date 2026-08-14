@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import "../../styles/report-print.css";
 import "../../styles/report-responsive.css";
@@ -13,6 +13,22 @@ import { buildReport } from "../../lib/diagnosisReport";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
+
+// loadDiagnosisInput()/buildReport()의 JSDoc 반환 타입({object|null}/{object})이 이 파일이
+// 읽는 필드를 담지 않아 여기서만 쓰는 최소 타입으로 좁혀 둔다(두 파일 다 이 배치 범위 밖).
+type DiagnosisInput = {
+  admissionCuts?: {
+    cut50: number | null;
+    cut70: number | null;
+    finalAvg: number | null;
+  } | null;
+  admissionCutsError?: boolean;
+  admissionMeta?: { year: string | number | null };
+};
+
+type DiagnosisReportData = ComponentProps<typeof ReportPageTwo>["data"] & {
+  notices?: { sincerityBanner?: string | null };
+};
 
 /**
  * 무료진단 결과 리포트 페이지.
@@ -49,11 +65,12 @@ export default function FreeDiagnosisReport() {
       // (영구 부재)와 가르는 유일한 신호다. 이걸 빼면 조회 실패 학생에게 BAND_NODATA
       // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
       // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
+      const typedInput = input as DiagnosisInput;
       return buildReport(input, {
-        cuts: input.admissionCuts,
-        cutsError: input.admissionCutsError,
-        admissionMeta: input.admissionMeta,
-      });
+        cuts: typedInput.admissionCuts,
+        cutsError: typedInput.admissionCutsError,
+        admissionMeta: typedInput.admissionMeta,
+      }) as DiagnosisReportData;
     } catch (error) {
       // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
       // 리포트 대신 설문으로 돌려보낸다 — null 을 반환하면 아래 가드가 리다이렉트한다.

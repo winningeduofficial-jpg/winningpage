@@ -18,7 +18,11 @@ import {
 } from "../../../components/auth";
 import { useSignup } from "../../../context/SignupContext";
 
-export default function LinkChoice({ mode = "initial" }) {
+type LinkChoiceProps = {
+  mode?: "initial" | "add";
+};
+
+export default function LinkChoice({ mode = "initial" }: LinkChoiceProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { memberType, parentSignupCompleted, resetSignup } = useSignup();

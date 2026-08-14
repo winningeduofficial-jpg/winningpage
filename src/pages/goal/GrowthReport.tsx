@@ -4,7 +4,13 @@ import GoalCard from "../../components/goal/GoalCard";
 import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
 import { fetchGoalReport } from "../../lib/goalApi";
 
-const VALID_PERIODS = ["weekly", "monthly"];
+const VALID_PERIODS = ["weekly", "monthly"] as const;
+type ReportPeriod = (typeof VALID_PERIODS)[number];
+
+type GoalReportResult =
+  | { kind: "success"; report: unknown }
+  | { kind: "awaiting-cuts" }
+  | { kind: "error" };
 
 // 성장 리포트 라우트(#33 주간 / #34 월간) — fetch 훅을 여기서 소유한다(GrowthReportBody는
 // 순수 프레젠테이션으로 mock을 뗐다). 쿼리 파라미터 `period`는 이 페이지의 탭 상태(주간/월간)만
@@ -14,18 +20,22 @@ const VALID_PERIODS = ["weekly", "monthly"];
 export default function GrowthReport() {
   const [searchParams, setSearchParams] = useSearchParams();
   const periodParam = searchParams.get("period");
-  const period = VALID_PERIODS.includes(periodParam) ? periodParam : "weekly";
+  const period: ReportPeriod = VALID_PERIODS.includes(
+    periodParam as ReportPeriod,
+  )
+    ? (periodParam as ReportPeriod)
+    : "weekly";
 
   // fetchGoalReport() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
   // null = 아직 응답 도착 전(로딩 중). RequireGoalAccess가 이미 onboarded:true만
   // 통과시키므로 정상 경로에선 kind는 대개 'success'다 — 그 외는 방어적 분기.
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<GoalReportResult | null>(null);
 
   useEffect(() => {
     let alive = true;
     setResult(null);
-    fetchGoalReport(period).then((r) => {
+    fetchGoalReport(period).then((r: GoalReportResult) => {
       if (alive) setResult(r);
     });
     return () => {
@@ -33,7 +43,7 @@ export default function GrowthReport() {
     };
   }, [period]);
 
-  function handlePeriodChange(nextPeriod) {
+  function handlePeriodChange(nextPeriod: ReportPeriod) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       params.set("period", nextPeriod);

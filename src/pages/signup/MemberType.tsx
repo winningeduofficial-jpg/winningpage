@@ -27,7 +27,7 @@ export default function MemberType() {
   // /signup/parent로 이동시킨다(ParentForm이 "준비 중" 안내를 자체 표시). memberType이
   // 'parent'로 확정되더라도, 학부모 온보딩(E-2~E-8) 각 화면은 parentSignupCompleted 가드로
   // 별도 보호되므로 ParentForm에서 실제 가입을 완료하지 않는 한 하위 화면으로 진입할 수 없다.
-  function handleSelect(memberType) {
+  function handleSelect(memberType: "student" | "parent") {
     resetForMemberType(memberType);
 
     if (memberType === "student") {

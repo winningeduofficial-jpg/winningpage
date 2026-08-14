@@ -19,6 +19,14 @@ import {
  * 하단 CTA는 스텝 페이지와 같은 사양을 따른다(17문항 전체 기준) — 미완료는
  * "모든 항목에 응답해주세요" + 첫 미응답으로 스크롤/하이라이트, 완료는 채점 후 리포트로 이동.
  */
+type SurveyOutletContext = {
+  answers: Record<string, unknown>;
+  setAnswer: (questionId: string, value: unknown) => void;
+  submitDiagnosis: () => Promise<unknown>;
+  cascadeLevels?: unknown;
+  surveyCopyOverrides?: unknown;
+};
+
 export default function SurveyPreview() {
   const {
     answers,
@@ -26,7 +34,7 @@ export default function SurveyPreview() {
     submitDiagnosis,
     cascadeLevels,
     surveyCopyOverrides,
-  } = useOutletContext();
+  } = useOutletContext<SurveyOutletContext>();
   const navigate = useNavigate();
   const previewQuestions = useMemo(
     () => applySurveyCopyOverrides(surveyMainQuestions, surveyCopyOverrides),
