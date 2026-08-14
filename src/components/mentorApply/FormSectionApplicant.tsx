@@ -61,9 +61,11 @@ const ERROR_MESSAGES = {
 // 섹션 단위 검증. 조립부(MentorApply.jsx)가 제출 시점에 5개 섹션의 검증 결과를 합쳐
 // errors 맵을 만든다. 필드별 규칙을 필드 정의 바로 옆에 두려고 컴포넌트와 같은 파일에 뒀다.
 // 반환값은 `{ [name]: message }` — 통과한 필드는 키 자체가 없다.
-export function validateApplicantSection(values = {}) {
-  const errors = {};
-  const trimmed = (key) => String(values[key] ?? "").trim();
+type ApplicantValues = Record<string, string | undefined>;
+
+export function validateApplicantSection(values: ApplicantValues = {}) {
+  const errors: Record<string, string> = {};
+  const trimmed = (key: string) => String(values[key] ?? "").trim();
 
   if (!trimmed("name")) errors.name = ERROR_MESSAGES.name;
 
@@ -88,11 +90,17 @@ export function validateApplicantSection(values = {}) {
 
 const SECTION = FORM_SECTIONS[0];
 
+type FormSectionApplicantProps = {
+  values?: ApplicantValues;
+  errors?: Record<string, string>;
+  onChange?: (name: string, value: string) => void;
+};
+
 export default function FormSectionApplicant({
   values = {},
   errors = {},
   onChange,
-}) {
+}: FormSectionApplicantProps) {
   // onChange(name, value) — 저장소 관례의 updateField 시그니처 그대로다.
   const handle = (name) => (value) => onChange?.(name, value);
 

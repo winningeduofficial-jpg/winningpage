@@ -10,6 +10,7 @@
 //
 // 카피는 src/data/mentorApply.js(HERO_COPY), 이미지 경로는 src/data/mentorApplyAssets.js 만
 // 참조한다. 리터럴을 박지 마라.
+import type { CSSProperties } from "react";
 import { HERO_COPY } from "../../data/mentorApply";
 import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
 
@@ -46,7 +47,7 @@ export default function MentorHero() {
         aria-hidden="true"
         width={1280}
         height={854}
-        fetchpriority="high"
+        fetchPriority="high"
         decoding="async"
         className="absolute inset-0 -z-10 h-full w-full object-cover object-[center_40%]"
       />
@@ -69,12 +70,14 @@ export default function MentorHero() {
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden lg:block"
-        style={{
-          "--c": "min(100%, 72.75rem)",
-          "--x0": "calc(50% - var(--c) / 2)",
-          background:
-            "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
-        }}
+        style={
+          {
+            "--c": "min(100%, 72.75rem)",
+            "--x0": "calc(50% - var(--c) / 2)",
+            background:
+              "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
+          } as CSSProperties
+        }
       />
 
       {/* 시안 좌측 기준선 410px 은 본문 컨테이너(x=402)와 8px 차이나는 제작 오차라, 명세

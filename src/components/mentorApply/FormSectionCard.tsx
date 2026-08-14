@@ -6,13 +6,25 @@
 // 소비처마다 gap 클래스를 반복 선언하면 드리프트가 생기기 때문이다.
 //
 // 작성 현황 사이드바가 단계 앵커로 점프할 수 있도록 `id` 를 루트 <section> 에 붙인다(명세 §6-3).
+import type { ReactNode } from "react";
+
+type FormSectionCardProps = {
+  /** 섹션 번호(1~5) — 제목 앞에 "N. " 로 붙는다 */
+  no: number;
+  title: string;
+  subtitle?: string;
+  /** 사이드바 앵커 타깃 */
+  id?: string;
+  children?: ReactNode;
+};
+
 export default function FormSectionCard({
-  no, // 섹션 번호(1~5) — 제목 앞에 "N. " 로 붙는다
+  no,
   title,
   subtitle,
-  id, // 사이드바 앵커 타깃
+  id,
   children,
-}) {
+}: FormSectionCardProps) {
   const headingId = id ? `${id}-heading` : undefined;
 
   return (

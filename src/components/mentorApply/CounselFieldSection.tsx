@@ -59,7 +59,13 @@ const COUNSEL_TITLE_CLASS =
 const COUNSEL_DESC_CLASS =
   "min-h-[2.6rem] whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.3] text-ink";
 
-export default function CounselFieldSection({ className = "lg:pt-[8.75rem]" }) {
+type CounselFieldSectionProps = {
+  className?: string;
+};
+
+export default function CounselFieldSection({
+  className = "lg:pt-[8.75rem]",
+}: CounselFieldSectionProps) {
   // 탭 전환이 없는 정적 7건 섹션이라 recenter 는 구조분해에서 뺀다
   // (AcceptanceSection 과 달리 콘텐츠가 바뀌어 재중앙 배치할 일이 없다).
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({

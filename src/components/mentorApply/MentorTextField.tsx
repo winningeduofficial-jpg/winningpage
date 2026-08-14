@@ -15,6 +15,7 @@
 // 동시에 검증되는 폼이라 시프트가 누적되면 사용자가 보고 있던 위치를 잃는다. 그래서
 // **에러가 없어도 높이를 차지하는** 고정 슬롯으로 예약한다(min-h). 대가는 필드마다 26px의
 // 상시 여백이며, 이는 명세 §6-4 의 필드군 세로 gap 26 과 겹쳐 흡수되도록 mt-2 + min-h 로 나눴다.
+import type { ReactNode } from "react";
 import { useId } from "react";
 
 // auth/TextField.jsx:91 에서 그대로 가져온 컨트롤 공통 클래스(시안 §6-5 와 일치하는 부분).
@@ -27,7 +28,10 @@ export const MENTOR_CONTROL_CLASS =
 
 // aria-describedby 는 도움말/에러 두 슬롯을 함께 가리켜야 한다.
 // 에러 슬롯은 항상 렌더되지만 비어 있을 때 가리키면 스크린리더가 빈 노드를 읽으므로 error 가 있을 때만 연결한다.
-export function getMentorFieldDescribedBy(fieldId, { helperText, error } = {}) {
+export function getMentorFieldDescribedBy(
+  fieldId: string,
+  { helperText, error }: { helperText?: ReactNode; error?: ReactNode } = {},
+) {
   const ids = [];
   if (helperText) ids.push(`${fieldId}-helper`);
   if (error) ids.push(`${fieldId}-error`);
@@ -38,7 +42,7 @@ export function getMentorFieldDescribedBy(fieldId, { helperText, error } = {}) {
 // 드롭존·약관 블록)이 role="group" + aria-labelledby 로 이 id 를 참조할 때 쓴다
 // (groupLabel prop, 리뷰 WARN #3). 공식을 여기 한 곳에 모아 둬서 호출부가 문자열을
 // 직접 조립하다 철자가 어긋나는 일을 막는다.
-export function getMentorFieldLabelId(fieldId) {
+export function getMentorFieldLabelId(fieldId: string) {
   return `${fieldId}-label`;
 }
 
@@ -46,6 +50,22 @@ export function getMentorFieldLabelId(fieldId) {
 // MentorTextField 와 TextareaField 가 동일 구조를 공유해야 해서(명세 §6-5 "라벨 ↔ 도움말 gap 4",
 // "(라벨+도움말) ↔ 컨트롤 gap 12") 한 곳에 모아두고 두 컴포넌트가 함께 쓴다.
 // gap 은 시안이 8/12/16 으로 혼재하므로(§6-10 결함 4) 다수값인 **12(0.75rem)** 로 통일했다.
+type MentorFieldShellProps = {
+  fieldId: string;
+  label?: ReactNode;
+  required?: boolean;
+  helperText?: ReactNode;
+  error?: string;
+  className?: string;
+  children?: ReactNode;
+  /** 그룹 컨트롤(칩 그룹·파일 드롭존·약관 블록)용. 이 라벨이 가리킬 단일 포커스 대상이
+   * 없을 때 true 로 준다 — <label htmlFor> 대신 id 만 가진 <span> 을 그리고, 호출부가
+   * getMentorFieldLabelId(fieldId) 로 그 id 를 얻어 그룹 컨테이너의 aria-labelledby 에
+   * 연결한다(리뷰 WARN #3). htmlFor 가 존재하지 않는 id 를 가리키면 스크린리더가
+   * 아예 이름을 읽지 못하므로, <label htmlFor="없는-id"> 로 방치하는 것보다 낫다. */
+  groupLabel?: boolean;
+};
+
 export function MentorFieldShell({
   fieldId,
   label,
@@ -54,13 +74,8 @@ export function MentorFieldShell({
   error,
   className = "",
   children,
-  // 그룹 컨트롤(칩 그룹·파일 드롭존·약관 블록)용. 이 라벨이 가리킬 단일 포커스 대상이
-  // 없을 때 true 로 준다 — <label htmlFor> 대신 id 만 가진 <span> 을 그리고, 호출부가
-  // getMentorFieldLabelId(fieldId) 로 그 id 를 얻어 그룹 컨테이너의 aria-labelledby 에
-  // 연결한다(리뷰 WARN #3). htmlFor 가 존재하지 않는 id 를 가리키면 스크린리더가
-  // 아예 이름을 읽지 못하므로, <label htmlFor="없는-id"> 로 방치하는 것보다 낫다.
   groupLabel = false,
-}) {
+}: MentorFieldShellProps) {
   const LabelTag = groupLabel ? "span" : "label";
 
   return (
@@ -118,6 +133,36 @@ export function MentorFieldShell({
   );
 }
 
+type MentorTextFieldProps = {
+  id?: string;
+  name?: string;
+  label?: ReactNode;
+  required?: boolean;
+  helperText?: ReactNode;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  error?: string;
+  /** 인풋 "옆"에 붙는 액션 슬롯(ReactNode). 시안 5-2 의 94×34 `인증번호 발송`/`인증번호 확인`
+   * 아웃라인 버튼이 여기 들어간다. auth/TextField 의 actionLabel/onAction(인풋 아래 링크)과 달리
+   * 버튼 모양·라벨·상태를 호출부가 전부 소유하도록 노드 슬롯으로 열어 뒀다. */
+  action?: ReactNode;
+  disabled?: boolean;
+  maxLength?: number;
+  inputMode?:
+    | "text"
+    | "search"
+    | "none"
+    | "tel"
+    | "url"
+    | "email"
+    | "numeric"
+    | "decimal";
+  autoComplete?: string;
+  className?: string;
+};
+
 export default function MentorTextField({
   id,
   name,
@@ -129,16 +174,13 @@ export default function MentorTextField({
   placeholder,
   type = "text",
   error,
-  // 인풋 "옆"에 붙는 액션 슬롯(ReactNode). 시안 5-2 의 94×34 `인증번호 발송`/`인증번호 확인`
-  // 아웃라인 버튼이 여기 들어간다. auth/TextField 의 actionLabel/onAction(인풋 아래 링크)과 달리
-  // 버튼 모양·라벨·상태를 호출부가 전부 소유하도록 노드 슬롯으로 열어 뒀다.
   action,
   disabled = false,
   maxLength,
   inputMode,
   autoComplete,
   className = "",
-}) {
+}: MentorTextFieldProps) {
   const reactId = useId();
   const fieldId = id || name || reactId;
 

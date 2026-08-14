@@ -47,9 +47,11 @@ const ERROR_MESSAGES = {
   csat_summary_length: `${CSAT_SUMMARY_MAX_LENGTH}자 이내로 입력해 주세요.`,
 };
 
-export function validateHighschoolSection(values = {}) {
-  const errors = {};
-  const trimmed = (key) => String(values[key] ?? "").trim();
+type HighschoolValues = Record<string, string | undefined>;
+
+export function validateHighschoolSection(values: HighschoolValues = {}) {
+  const errors: Record<string, string> = {};
+  const trimmed = (key: string) => String(values[key] ?? "").trim();
 
   if (!trimmed("highschool_region"))
     errors.highschool_region = ERROR_MESSAGES.highschool_region;
@@ -71,11 +73,17 @@ export function validateHighschoolSection(values = {}) {
 
 const SECTION = FORM_SECTIONS[2];
 
+type FormSectionHighschoolProps = {
+  values?: HighschoolValues;
+  errors?: Record<string, string>;
+  onChange?: (name: string, value: string) => void;
+};
+
 export default function FormSectionHighschool({
   values = {},
   errors = {},
   onChange,
-}) {
+}: FormSectionHighschoolProps) {
   const handle = (name) => (value) => onChange?.(name, value);
 
   return (

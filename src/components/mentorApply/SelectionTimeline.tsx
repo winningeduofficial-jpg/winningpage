@@ -54,7 +54,15 @@ const DOT_LEFT_CLASSES = [
 // 스텝 타이포 — 타이틀 20 SemiBold accent(#0B84FD) / 설명 14 Medium ink(#525252).
 // desc 의 `\n` 은 시안 원문 줄바꿈이라 whitespace-pre-line 으로 그대로 살린다.
 // ⚠ 1번 설명만 마침표로 끝나고 2·3·4 는 없다 — 시안 원문 그대로 두었다(확인 항목 ⑮).
-function StepText({ step, nowrapTitle = false }) {
+type Step = { key: string; title: string; desc: string };
+
+function StepText({
+  step,
+  nowrapTitle = false,
+}: {
+  step: Step;
+  nowrapTitle?: boolean;
+}) {
   return (
     <>
       <p

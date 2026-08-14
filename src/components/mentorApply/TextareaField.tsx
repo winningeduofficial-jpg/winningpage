@@ -8,6 +8,7 @@
 // 안내하고 화면 어디에도 카운터를 그리지 않았다. 노출 여부가 사용자 확정 전이므로
 // `showCounter` prop 을 열어 두되 **기본값 false**(= 시안 그대로)로 둔다.
 // 확정되면 호출부에서 showCounter 만 켜면 되고 이 파일은 다시 손대지 않아도 된다.
+import type { ReactNode } from "react";
 import { useId } from "react";
 
 import {
@@ -15,6 +16,25 @@ import {
   MENTOR_CONTROL_CLASS,
   MentorFieldShell,
 } from "./MentorTextField";
+
+type TextareaFieldProps = {
+  id?: string;
+  name?: string;
+  label?: ReactNode;
+  required?: boolean;
+  helperText?: ReactNode;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  error?: string;
+  disabled?: boolean;
+  /** 시안의 고정 높이 128 / 150 / 172 는 rows 로 근사한다(폰트·행간에 따라 실제 높이가
+   * 달라지므로 픽셀 고정 대신 rows 로 두고, 정확한 높이가 필요하면 className 으로 덮는다). */
+  rows?: number;
+  maxLength?: number;
+  showCounter?: boolean;
+  className?: string;
+};
 
 export default function TextareaField({
   id,
@@ -27,13 +47,11 @@ export default function TextareaField({
   placeholder,
   error,
   disabled = false,
-  // 시안의 고정 높이 128 / 150 / 172 는 rows 로 근사한다(폰트·행간에 따라 실제 높이가
-  // 달라지므로 픽셀 고정 대신 rows 로 두고, 정확한 높이가 필요하면 className 으로 덮는다).
   rows = 5,
   maxLength,
   showCounter = false,
   className = "",
-}) {
+}: TextareaFieldProps) {
   const reactId = useId();
   const fieldId = id || name || reactId;
   const length = String(value ?? "").length;

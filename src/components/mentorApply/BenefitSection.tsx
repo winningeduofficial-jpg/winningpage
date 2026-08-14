@@ -39,7 +39,13 @@ const BENEFIT_TITLE_CLASS =
 const BENEFIT_DESC_CLASS =
   "whitespace-pre-line break-keep text-[1rem] font-normal leading-[1.4] text-ink";
 
-export default function BenefitSection({ className = "" }) {
+type BenefitSectionProps = {
+  className?: string;
+};
+
+export default function BenefitSection({
+  className = "",
+}: BenefitSectionProps) {
   return (
     <ServiceSection
       heading={BENEFIT_SECTION.title}
