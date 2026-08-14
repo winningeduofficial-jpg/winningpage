@@ -231,7 +231,12 @@ export async function callVision(
       data:
         typeof image.data === "string"
           ? image.data
-          : Buffer.from(image.data).toString("base64"),
+          : // Buffer.from 오버로드가 Buffer|Uint8Array|ArrayBuffer 유니온을 한 번에 받지
+            // 않는다(런타임은 셋 다 지원) — isView로 갈라 각 분기가 단일 오버로드에
+            // 맞게 좁혀지게 한다. 두 분기 모두 런타임 동작은 원래의 단일 호출과 같다.
+            ArrayBuffer.isView(image.data)
+            ? Buffer.from(image.data).toString("base64")
+            : Buffer.from(image.data).toString("base64"),
     },
   }));
 

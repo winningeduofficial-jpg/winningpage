@@ -166,11 +166,11 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.js";
+} from "../_lib/performance/gemini.ts";
 import {
   guideTextFromSession,
   inferGuideStructure,
-} from "../_lib/performance/guide-structure.js";
+} from "../_lib/performance/guide-structure.ts";
 import {
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
@@ -178,7 +178,7 @@ import {
   RESOURCE_MAX_CHARS,
   STUDENT_HISTORY_DESIGN_MATCH_THRESHOLD,
   STUDENT_HISTORY_PROMPT_LIMIT,
-} from "../_lib/performance/knowledge.js";
+} from "../_lib/performance/knowledge.ts";
 import {
   buildDesignReportSystem,
   buildDesignReportUser,

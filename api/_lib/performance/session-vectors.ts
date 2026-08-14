@@ -45,8 +45,15 @@ function compactText(text: unknown, max = 1200): string {
  * @returns 입력이 배열이 아니거나 비어있으면 빈 문자열.
  */
 type ReportBlock =
-  | { kind: "keyValue"; rows?: { label?: string; content?: string; href?: string }[] }
-  | { kind: "plainList"; ordered?: boolean; items?: { type?: string; text?: string }[] }
+  | {
+      kind: "keyValue";
+      rows?: { label?: string; content?: string; href?: string }[];
+    }
+  | {
+      kind: "plainList";
+      ordered?: boolean;
+      items?: { type?: string; text?: string }[];
+    }
   | { kind: "group"; title?: string; children?: ReportBlock[] }
   | { kind: string; [key: string]: unknown };
 
@@ -178,7 +185,22 @@ export async function upsertSessionVectorMetadata({
     );
   }
 
-  const patch = {
+  const patch: {
+    session_id: string;
+    profile_id: string;
+    grade_label: string | null;
+    subject_group: string | null;
+    subject: string | null;
+    career_goal: string | null;
+    topic_title: string | null;
+    summary_text: string | null;
+    search_text: string;
+    content_hash: string;
+    embedding_status?: string;
+    embedding?: null;
+    embedding_error?: null;
+    embedded_at?: null;
+  } = {
     session_id: sessionId,
     profile_id: profileId,
     grade_label: gradeLabel || null,

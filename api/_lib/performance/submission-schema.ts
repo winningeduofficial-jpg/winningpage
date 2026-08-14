@@ -147,7 +147,6 @@ export const SUBMISSION_SCHEMA_TYPES = Object.freeze([
  * `required`는 전 8종에서 항상 `true`지만 인자를 남긴다 — `normalizeSubmissionSchema`가
  * DB에서 읽어온 값에 `required:false`가 섞여 있어도 그대로 보존해야 하기 때문이다.
  */
-/** 제출 필드 1개. `rows`는 폐기됨(파일 상단 ②). */
 export type SubmissionField = {
   key: string;
   label: string;
@@ -228,7 +227,7 @@ export function inferLengthBasedSchema(raw = ""): SubmissionSchema | null {
 
   if (!(hasLengthRule && (hasExploration || hasReflection))) return null;
 
-  const fields = [];
+  const fields: SubmissionField[] = [];
   if (/선정\s*이유|탐구\s*동기|주제\s*선정/.test(text)) {
     fields.push(
       makeSubmissionField(
@@ -560,7 +559,7 @@ export function normalizeSubmissionSchema(
   if (!schema || !Array.isArray(schema.fields) || !schema.fields.length)
     return defaultSubmissionSchema();
 
-  const seenKeys = new Set();
+  const seenKeys = new Set<string>();
 
   return {
     type: schema.type || "custom",
@@ -747,7 +746,11 @@ export function checkSubmissionMinLength(
 // DB에서 읽어온 값이 깨져 있어도 필드 목록이 비지 않게 한다(외부는 DOM에서 막 만든
 // 객체라 그럴 일이 없었다). 필드 값은 원문과 같이 `fields[key] || ''`이며, 스키마에
 // 없는 키는 애초에 순회 대상이 아니다.
-export function buildSubmissionText(topic, schema, fields = {}) {
+export function buildSubmissionText(
+  topic: unknown,
+  schema: StoredSubmissionSchema | null | undefined,
+  fields: Record<string, unknown> = {},
+): string {
   const safe = normalizeSubmissionSchema(schema);
   const source = fields && typeof fields === "object" ? fields : {};
   const lines = [
@@ -757,7 +760,7 @@ export function buildSubmissionText(topic, schema, fields = {}) {
   ];
 
   safe.fields.forEach((field) => {
-    lines.push("", `[${field.label}]`, source[field.key] || "");
+    lines.push("", `[${field.label}]`, String(source[field.key] || ""));
   });
 
   return lines.join("\n").trim();

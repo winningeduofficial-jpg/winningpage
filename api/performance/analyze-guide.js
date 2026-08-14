@@ -96,7 +96,7 @@
 //    3회가 사라졌다. 응답의 `charged:false`는 그 사실을 계약으로 못박은 것이다.
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
-import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
+import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.ts";
 import {
   buildGuideExtractionUserPrompt,
   GUIDE_EXTRACTION_SYSTEM,
