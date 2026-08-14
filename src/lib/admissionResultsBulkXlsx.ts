@@ -143,14 +143,21 @@ export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
-function serializeExportCell(rawValue) {
+function serializeExportCell(rawValue: unknown): string | number | boolean {
   if (rawValue === null || rawValue === undefined) return "";
   if (typeof rawValue === "boolean" || typeof rawValue === "number")
     return rawValue;
   return String(rawValue);
 }
 
-function truncateIfNeeded(value, location, truncatedCells) {
+type TruncationLocation = { id: unknown; rowIndex: number; column: string };
+type TruncatedCell = TruncationLocation & { originalLength: number };
+
+function truncateIfNeeded(
+  value: string | number | boolean,
+  location: TruncationLocation,
+  truncatedCells: TruncatedCell[],
+): string | number | boolean {
   if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
     return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
@@ -163,7 +170,7 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // '='/'+'/'-'/'@' 선두 텍스트를 수식으로 재해석하지 못하게 한다. 숫자/불리언
 // 값은 serializeExportCell이 애초에 원시 타입으로 넘기므로 이 함수가 손대지
 // 않는다(등급·경쟁률 같은 수치 컬럼이 문자열로 오인되지 않는 이유이기도 하다).
-function forceStringCellTypes(worksheet) {
+function forceStringCellTypes(worksheet: XLSX.WorkSheet): XLSX.WorkSheet {
   Object.keys(worksheet).forEach((address) => {
     if (address.startsWith("!")) return;
     const cell = worksheet[address];
@@ -181,11 +188,11 @@ function forceStringCellTypes(worksheet) {
  * 로 문자열 타입을 강제해 숫자/날짜로 오인되지 않게 하고, 등급·경쟁률 등
  * 수치 컬럼은 serializeExportCell이 원시 number를 그대로 넘겨 숫자 타입을
  * 유지한다.
- * @param {Array<Record<string, unknown>>} rows
- * @returns {{ workbook: import('xlsx').WorkBook, truncatedCells: Array<{ id: unknown, rowIndex: number, column: string, originalLength: number }> }}
  */
-export function exportAdmissionResultRowsToXlsx(rows) {
-  const truncatedCells = [];
+export function exportAdmissionResultRowsToXlsx(
+  rows: Record<string, unknown>[],
+): { workbook: XLSX.WorkBook; truncatedCells: TruncatedCell[] } {
+  const truncatedCells: TruncatedCell[] = [];
   const dataRows = (rows || []).map((row, rowIndex) =>
     BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
@@ -206,15 +213,18 @@ export function exportAdmissionResultRowsToXlsx(rows) {
   return { workbook, truncatedCells };
 }
 
-function buildTypeCounts(items) {
-  return items.reduce((acc, item) => {
-    const key = item.type || "unknown";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
+function buildTypeCounts(items: { type?: string }[]): Record<string, number> {
+  return items.reduce(
+    (acc: Record<string, number>, item) => {
+      const key = item.type || "unknown";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 }
 
-function parseBooleanCell(value, fallback = true) {
+function parseBooleanCell(value: unknown, fallback = true): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
@@ -228,62 +238,138 @@ function parseBooleanCell(value, fallback = true) {
 // 오판된다(경쟁률 0, 모집인원 0 등 실제로 존재하는 값을 지운다). 숫자
 // 컬럼(등급/환산점수/백분위/경쟁률/정수 3종/id)은 이 헬퍼로 null/undefined
 // 만 빈 값으로 보고, 0은 값으로 살려 둔다.
-function numericCellText(value) {
+function numericCellText(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
-function naturalKeyOf(fields) {
+function naturalKeyOf(fields: Record<string, unknown>): string {
   return NATURAL_KEY_COLUMNS.map((col) => {
     const value = fields[col];
     return value === null || value === undefined ? "" : String(value);
   }).join("::");
 }
 
+type ErrorType =
+  | "sheetNotFound"
+  | "truncatedColumn"
+  | "missingRequiredFields"
+  | "invalidResultYear"
+  | "invalidMainTrack"
+  | "invalidScreeningCategory"
+  | "invalidGrade"
+  | "invalidCompetitionRate"
+  | "invalidNumber"
+  | "invalidInteger"
+  | "invalidId"
+  | "idNotFound"
+  | "duplicateNaturalKey";
+
+type WarningType =
+  | "allGradesEmpty"
+  | "competitionRateZero"
+  | "gradeCutInversion";
+
+type RowContext = {
+  rowIndex: number;
+  resultYear: unknown;
+  universityKey: unknown;
+  departmentKey: unknown;
+  admissionTrack: unknown;
+  column?: string;
+};
+
+type ErrorEntry = {
+  row: number;
+  resultYear: unknown;
+  universityKey: unknown;
+  departmentKey: unknown;
+  admissionTrack: unknown;
+  column?: string;
+  type: ErrorType;
+  reason: string;
+};
+
+type WarningEntry = {
+  row: number;
+  resultYear: unknown;
+  universityKey: unknown;
+  departmentKey: unknown;
+  admissionTrack: unknown;
+  column?: string;
+  type: WarningType;
+  reason: string;
+};
+
+type ResultPayload = {
+  result_year: number;
+  university_key: string;
+  university_name: string;
+  department_key: string;
+  department_name: string;
+  main_track: string | null;
+  screening_category: string | null;
+  admission_track: string;
+  grade_50: number | null;
+  grade_70: number | null;
+  grade_85: number | null;
+  grade_90: number | null;
+  grade_avg: number | null;
+  grade_min: number | null;
+  grade_avg10: number | null;
+  grade_min10: number | null;
+  grade_first_avg: number | null;
+  converted_score: number | null;
+  percentile: number | null;
+  quota: number | null;
+  competition_rate: number | null;
+  waitlist_rank: string | null;
+  subject_reflection: string | null;
+  variant_seq: number;
+  source_sheet: string | null;
+  source_row: number | null;
+  note: string | null;
+  is_active: boolean;
+  id?: number;
+};
+
 /**
  * xlsx workbook → payload 행 배열 + errors/warnings + 미리보기용 summary.
  *
- * @param {import('xlsx').WorkBook} workbook
- * @param {Set<number>} existingIdSet DB에 실제로 존재하는 id 전체 집합.
+ * @param existingIdSet DB에 실제로 존재하는 id 전체 집합.
  *   id가 비어 있으면 신규(insert), id가 있고 이 집합에 있으면 수정
  *   (update), id가 있는데 이 집합에 없으면 거부한다. 호출부가 DB에서
  *   id 컬럼만 미리 전량 조회해 넘긴다(이 lib은 DB를 안 만진다).
  *
  * errors/warnings는 둘 다 `type`으로 종류를 구분한다 — UI는 `reason`
  * 문자열을 파싱하지 말고 `type`으로 분기·집계해야 한다.
- *
- * @returns {{
- *   rows: Array<Record<string, unknown>>,
- *   errors: Array<{
- *     row: number, resultYear: unknown, universityKey: unknown, departmentKey: unknown,
- *     admissionTrack: unknown, reason: string,
- *     type: 'sheetNotFound' | 'truncatedColumn' | 'missingRequiredFields' | 'invalidResultYear' |
- *       'invalidMainTrack' | 'invalidScreeningCategory' | 'invalidGrade' | 'invalidCompetitionRate' |
- *       'invalidNumber' | 'invalidInteger' | 'invalidId' | 'idNotFound' | 'duplicateNaturalKey'
- *   }>,
- *   warnings: Array<{
- *     row: number, resultYear: unknown, universityKey: unknown, departmentKey: unknown,
- *     admissionTrack: unknown, column?: string, reason: string,
- *     type: 'allGradesEmpty' | 'competitionRateZero' | 'gradeCutInversion'
- *   }>,
- *   summary: {
- *     willInsert: number, willUpdate: number, willSkip: number,
- *     warningCounts: Record<string, number>, errorCounts: Record<string, number>
- *   }
- * }}
  */
-export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
+export function parseAdmissionResultRowsFromXlsx(
+  workbook: XLSX.WorkBook,
+  existingIdSet: Set<number>,
+): {
+  rows: ResultPayload[];
+  errors: ErrorEntry[];
+  warnings: WarningEntry[];
+  summary: {
+    willInsert: number;
+    willUpdate: number;
+    willSkip: number;
+    warningCounts: Record<string, number>;
+    errorCounts: Record<string, number>;
+  };
+} {
   const sheetName = workbook.SheetNames[0];
   const worksheet = sheetName ? workbook.Sheets[sheetName] : null;
-  const errors = [];
-  const warnings = [];
-  const rows = [];
+  const errors: ErrorEntry[] = [];
+  const warnings: WarningEntry[] = [];
+  const rows: ResultPayload[] = [];
   let willInsert = 0;
   let willUpdate = 0;
   let willSkip = 0;
-  const seenNaturalKeys = new Map(); // naturalKey -> 최초로 그 키를 쓴 행 번호(0-based)
+  const seenNaturalKeys = new Map<string, number>(); // naturalKey -> 최초로 그 키를 쓴 행 번호(0-based)
 
-  function fail(type, reason, ctx) {
+  function fail(type: ErrorType, reason: string, ctx: RowContext) {
     errors.push({
       row: ctx.rowIndex,
       resultYear: ctx.resultYear,
@@ -321,11 +407,11 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     };
   }
 
-  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
   // 컬럼은 위치가 아니라 헤더 이름으로 찾는다 — 컬럼 순서가 바뀌거나
   // 일부 컬럼이 빠진 파일이 와도 안전하다(admissionBulkXlsx.js와 동일 관례).
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
-  const columnIndexByName = new Map();
+  const columnIndexByName = new Map<unknown, number>();
   headerRow.forEach((name, idx) => {
     const key = typeof name === "string" ? name.trim() : name;
     if (
@@ -349,7 +435,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     )
       return;
 
-    const rowObj = {};
+    const rowObj: Record<string, unknown> = {};
     BULK_XLSX_COLUMNS.forEach((col) => {
       const idx = columnIndexByName.get(col);
       rowObj[col] = idx === undefined ? undefined : rawRow[idx];
@@ -358,7 +444,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     // ctx는 검증 도중 계속 갱신되는 게 아니라, 식별자 후보가 아직 확정되지
     // 않은 시점에도 에러 메시지에 "무엇을 보고 있었는지"를 남기기 위한
     // 스냅샷이다 — 값이 비어 있으면 그냥 undefined/원본 셀 값을 담는다.
-    const ctx = {
+    const ctx: RowContext = {
       rowIndex,
       resultYear: rowObj.result_year,
       universityKey: clean(rowObj.university_key),
@@ -372,7 +458,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     const truncatedColumns = BULK_XLSX_COLUMNS.filter(
       (col) =>
         typeof rowObj[col] === "string" &&
-        rowObj[col].includes(TRUNCATION_MARKER),
+        (rowObj[col] as string).includes(TRUNCATION_MARKER),
     );
     if (truncatedColumns.length) {
       fail(
@@ -445,7 +531,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
 
     // (6) 등급 9종 — numeric(4,2), 절댓값 100 미만만 허용.
     let gradeValidationFailed = false;
-    const gradeValues = {};
+    const gradeValues: Record<string, number | null> = {};
     for (const col of GRADE_COLUMNS) {
       const text = numericCellText(rowObj[col]);
       if (!text) {
@@ -477,7 +563,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
 
     // (7) converted_score/percentile — DB에 정밀도 제약이 없어 "숫자인가"만 본다.
     let scoreValidationFailed = false;
-    const scoreValues = {};
+    const scoreValues: Record<string, number | null> = {};
     for (const col of ["converted_score", "percentile"]) {
       const text = numericCellText(rowObj[col]);
       if (!text) {
@@ -500,7 +586,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
 
     // (8) competition_rate — numeric(6,2), 절댓값 10,000 미만.
     const competitionRateText = numericCellText(rowObj.competition_rate);
-    let competitionRate = null;
+    let competitionRate: number | null = null;
     if (competitionRateText) {
       const num = Number(competitionRateText);
       if (!Number.isFinite(num)) {
@@ -525,7 +611,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     // (9) 정수 컬럼 3종 — quota/source_row(integer), variant_seq(smallint).
     // variant_seq는 빈 셀이면 기본값 0(sql/53 default와 동일)으로 채운다.
     let integerValidationFailed = false;
-    const integerValues = {};
+    const integerValues: Record<string, number | null> = {};
     for (const col of INTEGER_COLUMNS) {
       const text = numericCellText(rowObj[col]);
       if (!text) {
@@ -548,7 +634,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
 
     // (10) id 기반 insert/update 분기 — 이 테이블의 유일한 매칭 키.
     const idText = numericCellText(rowObj.id);
-    let existingId = null;
+    let existingId: number | null = null;
     const isInsert = idText === "";
     if (!isInsert) {
       const idNum = Number(idText);
@@ -581,7 +667,7 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       variant_seq: integerValues.variant_seq,
     });
     if (seenNaturalKeys.has(naturalKey)) {
-      const firstRow = seenNaturalKeys.get(naturalKey);
+      const firstRow = seenNaturalKeys.get(naturalKey) as number;
       fail(
         "duplicateNaturalKey",
         `행 ${firstRow + 1}과 자연키(학년도·대학·모집단위·중심전형·전형유형·전형명·반영교과·분할모집순번)가 동일합니다.`,
@@ -642,15 +728,15 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
     if (isInsert) willInsert += 1;
     else willUpdate += 1;
 
-    const payload = {
+    const payload: ResultPayload = {
       result_year: resultYear,
-      university_key: ctx.universityKey,
+      university_key: ctx.universityKey as string,
       university_name: universityName,
-      department_key: ctx.departmentKey,
+      department_key: ctx.departmentKey as string,
       department_name: departmentName,
       main_track: mainTrack || null,
       screening_category: screeningCategory || null,
-      admission_track: ctx.admissionTrack,
+      admission_track: ctx.admissionTrack as string,
       grade_50: gradeValues.grade_50,
       grade_70: gradeValues.grade_70,
       grade_85: gradeValues.grade_85,
@@ -666,7 +752,8 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       competition_rate: competitionRate,
       waitlist_rank: clean(rowObj.waitlist_rank) || null,
       subject_reflection: clean(rowObj.subject_reflection) || null,
-      variant_seq: integerValues.variant_seq,
+      // 위 (9)에서 빈 셀이면 0으로 채워 항상 number다(null 없음).
+      variant_seq: integerValues.variant_seq as number,
       source_sheet: clean(rowObj.source_sheet) || null,
       source_row: integerValues.source_row,
       note: clean(rowObj.note) || null,
@@ -674,7 +761,9 @@ export function parseAdmissionResultRowsFromXlsx(workbook, existingIdSet) {
       // id: insert면 생략(bigint identity 자동 채번), update면 아래서 채운다.
       // created_at/updated_at: 읽지도 쓰지도 않는다(DB가 관리).
     };
-    if (!isInsert) payload.id = existingId;
+    // isInsert가 false인 분기에서만 도달하며, 그 경로에서 existingId는
+    // 위 (10)의 idNotFound 검증을 통과해야만 여기까지 오므로 항상 number다.
+    if (!isInsert) payload.id = existingId as number;
 
     rows.push(payload);
   });
