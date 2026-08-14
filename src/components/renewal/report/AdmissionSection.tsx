@@ -59,9 +59,11 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
 
   // G-3(NIT 2) — 빈 표 롤백 레버. 화면 레이아웃 결정은 이 컴포넌트 소관이라(diagnosisReport.js
   // 는 값만 낸다) 모드를 여기서 직접 읽는다. 기본값 'HIDE' 는 F-10 확정 동작과 동일하다.
+  // admissionEmptyTableMode는 diagnosisScreenCopy.ts에서 리터럴 "HIDE"로 추론되지만
+  // 런타임 값은 향후 "NOTICE_ROW"로 바뀔 수 있는 설정값이라 string으로 비교(범위 밖 파일이라 위젠).
   const showEmptyNotice =
     !hasRows &&
-    SCREEN_EXTRAS.rules.admissionEmptyTableMode === "NOTICE_ROW" &&
+    (SCREEN_EXTRAS.rules.admissionEmptyTableMode as string) === "NOTICE_ROW" &&
     emptyNotice;
 
   // R4(2026-08-11) — fd-admission-* 훅: 인쇄(794px, lg: 미적용)에서 report-print.css 가

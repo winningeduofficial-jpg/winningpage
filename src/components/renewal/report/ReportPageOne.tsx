@@ -197,7 +197,11 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
             {notices.traitIntro}
           </p>
         )}
-        <TraitNarratives items={traits} heading={traitsHeading} />
+        {/* exactOptionalPropertyTypes 대응 — undefined일 때 heading 키 생략(TraitNarratives 미수정 범위). */}
+        <TraitNarratives
+          items={traits}
+          {...(traitsHeading !== undefined ? { heading: traitsHeading } : {})}
+        />
       </div>
     </ReportSheetA4>
   );

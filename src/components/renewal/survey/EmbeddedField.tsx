@@ -23,12 +23,15 @@ export default function EmbeddedField({
   // 조건부 중첩 문항: 별도 번호 카드 없이 부모 QuestionCard 안에서 라벨 + 입력만 노출.
   if (question.type === "text") {
     return (
+      // exactOptionalPropertyTypes 대응 — undefined면 키 자체를 생략(ConditionalTextInput 미수정 범위).
       <ConditionalTextInput
-        label={question.title}
-        placeholder={question.extra?.placeholder}
+        {...(question.title !== undefined ? { label: question.title } : {})}
+        {...(question.extra?.placeholder !== undefined
+          ? { placeholder: question.extra.placeholder }
+          : {})}
         multiline={Boolean(question.multiline)}
         value={typeof value === "string" ? value : ""}
-        onChange={onChange}
+        {...(onChange !== undefined ? { onChange } : {})}
       />
     );
   }
@@ -38,12 +41,11 @@ export default function EmbeddedField({
       <p className="text-base font-medium leading-5 text-[#525252]">
         {question.title}
       </p>
+      {/* cascadeLevels/constraint는 이 문항 타입에서 쓰이지 않아 애초에 생략(undefined 전달 대신). */}
       <AnswerField
         question={question}
         value={value}
-        onChange={onChange}
-        cascadeLevels={undefined}
-        constraint={undefined}
+        {...(onChange !== undefined ? { onChange } : {})}
       />
     </div>
   );
