@@ -11,6 +11,8 @@
 // 않는다) — 호출부(어드민 UI/공개 페이지)가 이미 갖고 있는 client를
 // 그대로 넘기면 된다. DB 접근은 이 두 함수를 통해서만 이뤄진다.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 const TABLE = "app_settings";
 const ADMISSION_ACTIVE_YEAR_KEY = "admission_active_year";
 const DEFAULT_ADMISSION_ACTIVE_YEAR = 2027;
@@ -21,10 +23,10 @@ const DEFAULT_ADMISSION_ACTIVE_YEAR = 2027;
  * DEFAULT_ADMISSION_ACTIVE_YEAR로 폴백한다 — 이 함수가 던지면 공개
  * 페이지 전체가 죽으므로, 설정 조회 실패가 노출 중단으로 이어지면
  * 안 된다.
- * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
- * @returns {Promise<number>}
  */
-export async function getAdmissionActiveYear(supabaseClient) {
+export async function getAdmissionActiveYear(
+  supabaseClient: SupabaseClient,
+): Promise<number> {
   try {
     const { data, error } = await supabaseClient
       .from(TABLE)
@@ -45,11 +47,11 @@ export async function getAdmissionActiveYear(supabaseClient) {
  * 공개 노출 연도를 지정한다(어드민 전용 — RLS가 is_winning_admin()만
  * 쓰기를 허용하므로, 권한 없는 호출은 DB에서 거부된다). 이 함수는
  * 그 판정을 재구현하지 않고 그대로 supabase 에러로 전파한다.
- * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
- * @param {number} year
- * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-export async function setAdmissionActiveYear(supabaseClient, year) {
+export async function setAdmissionActiveYear(
+  supabaseClient: SupabaseClient,
+  year: number,
+): Promise<{ ok: boolean; error?: string }> {
   const numericYear = Number(year);
   if (!Number.isFinite(numericYear) || numericYear <= 0) {
     return { ok: false, error: `유효하지 않은 연도: ${year}` };

@@ -12,25 +12,23 @@ const DEFAULT_TIMEOUT_MS = 30000;
 /** AI 호출처럼 서버 `maxDuration: 60`이 걸린 엔드포인트에 쓰는 넉넉한 timeout. */
 export const AI_CALL_TIMEOUT_MS = 70000;
 
-/**
- * @param {string} url
- * @param {RequestInit} [options]
- * @param {number} [timeoutMs]
- * @returns {Promise<Response>}
- */
 export async function fetchWithTimeout(
-  url,
-  options = {},
-  timeoutMs = DEFAULT_TIMEOUT_MS,
-) {
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
-    if (error?.name === "AbortError") {
-      const timeoutError = new Error("요청이 시간 내에 끝나지 않았어요.");
+    if (error instanceof Error && error.name === "AbortError") {
+      const timeoutError = new Error(
+        "요청이 시간 내에 끝나지 않았어요.",
+      ) as Error & {
+        code?: string;
+      };
       timeoutError.code = "TIMEOUT";
       timeoutError.cause = error;
       throw timeoutError;

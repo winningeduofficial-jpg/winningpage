@@ -38,7 +38,7 @@ export const WEEKDAY_SHORT_KEYS = [
  * 표시할 주(월~일)의 실제 날짜 7개(YYYY-MM-DD)를 돌려준다.
  * weekOffset=0은 이번 주, -1/+1은 지난/다음 주(주 이동 화살표용).
  */
-export function getWeekDates(weekOffset = 0, now = new Date()) {
+export function getWeekDates(weekOffset = 0, now = new Date()): string[] {
   const thisMonday = getMondayYMD(kstYMD(now), now);
   const monday =
     weekOffset === 0 ? thisMonday : addDaysYMD(thisMonday, weekOffset * 7, now);
@@ -46,7 +46,7 @@ export function getWeekDates(weekOffset = 0, now = new Date()) {
 }
 
 /** weekDates(getWeekDates 반환값) 안에 오늘이 있으면 그 요일의 short key, 없으면 null. */
-export function getTodayShortKeyInWeek(weekDates, now = new Date()) {
+export function getTodayShortKeyInWeek(weekDates: string[], now = new Date()) {
   const idx = weekDates.indexOf(kstYMD(now));
   return idx === -1 ? null : WEEKDAY_SHORT_KEYS[idx];
 }
@@ -66,7 +66,7 @@ export function getTodayWeekdayLabel(now = new Date()) {
 }
 
 /** GoalPageHeader meta 라벨. 예: "2026.07.27 – 08.02" (WeeklyPlan.jsx 기존 정적 문구와 동일 포맷). */
-export function formatWeekRangeLabel(weekDates) {
+export function formatWeekRangeLabel(weekDates: string[]) {
   const [start, end] = [weekDates[0], weekDates[weekDates.length - 1]];
   const [sy, sm, sd] = start.split("-");
   const [, em, ed] = end.split("-");
@@ -79,7 +79,7 @@ export function formatWeekRangeLabel(weekDates) {
  * "N시간"·"M분" 부분 문자열을 각각 찾아 더하는 방식이라 6개 옵션 전부와
  * 향후 라벨 추가에도 별도 표 없이 대응한다.
  */
-export function durationLabelToMinutes(label) {
+export function durationLabelToMinutes(label?: string | null) {
   if (!label) return 0;
   const hourMatch = String(label).match(/(\d+)\s*시간/);
   const minuteMatch = String(label).match(/(\d+)\s*분/);

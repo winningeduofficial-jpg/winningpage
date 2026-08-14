@@ -14,7 +14,7 @@
 // `NOTE(target-parity)` 주석만 달아 둔다. 전부 순수 함수이며 외부 의존이 없다.
 
 // 숫자 변환. 유한수가 아니면 fallback.
-export function toNum(v, fallback = 0) {
+export function toNum(v: unknown, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -22,25 +22,25 @@ export function toNum(v, fallback = 0) {
 // NOTE(target-parity): `Number(v || 0)` 이라 0·''·false·null·undefined·NaN 은 전부 0으로,
 // -0 도 0으로 접히지만, 숫자가 아닌 문자열('abc')이나 객체는 NaN 이 그대로 흘러나간다.
 // toNum 처럼 방어하지 않는다 — 원본 그대로 둔다.
-export function round1(v) {
+export function round1(v: unknown) {
   return Math.round(Number(v || 0) * 10) / 10;
 }
 
-export function round4(v) {
+export function round4(v: unknown) {
   return Math.round(Number(v || 0) * 10000) / 10000;
 }
 
 // 확률을 [0, 100] 으로 클램프하고 소수 1자리로 반올림.
 // NOTE(target-parity): round1 이 NaN 을 반환하면(예: clampProb('abc')) Math.max/min 도
 // NaN 을 통과시켜 결과가 NaN 이 된다. 즉 반환값이 항상 [0,100] 인 것은 아니다.
-export function clampProb(v) {
+export function clampProb(v: unknown) {
   return Math.min(100, Math.max(0, round1(v)));
 }
 
 // 학생의 school_type → 대학 컷 테이블의 컷 종류.
 // NOTE(target-parity): '자사고'·'영재고' 같은 단일 문자열은 매칭되지 않는다.
 // 정확히 '특목,자사,영재고' 또는 '특목고' 두 리터럴만 special 이다.
-export function getSchoolCutType(schoolType) {
+export function getSchoolCutType(schoolType: unknown) {
   return schoolType === "특목,자사,영재고" || schoolType === "특목고"
     ? "special"
     : "normal";
@@ -48,7 +48,11 @@ export function getSchoolCutType(schoolType) {
 
 // 남은 내신 시험 회차 (총 10회 기준).
 // fallback 이 주어지면(null/undefined/'' 제외) 그 값을 최우선으로 쓴다.
-export function getRemainingNaesin(grade, lastExam, fallback = null) {
+export function getRemainingNaesin(
+  grade: unknown,
+  lastExam: unknown,
+  fallback: unknown = null,
+) {
   // NOTE(target-parity): fallback 은 Number() 로만 변환하고 Math.max(0, ...) 클램프를
   // 거치지 않는다. 음수·NaN 이 그대로 반환될 수 있다.
   if (fallback !== null && fallback !== undefined && fallback !== "") {
@@ -77,7 +81,11 @@ export function getRemainingNaesin(grade, lastExam, fallback = null) {
 }
 
 // 남은 모의고사 회차 (총 14회 기준).
-export function getRemainingMogo(grade, lastExam, fallback = null) {
+export function getRemainingMogo(
+  grade: unknown,
+  lastExam: unknown,
+  fallback: unknown = null,
+) {
   // NOTE(target-parity): getRemainingNaesin 과 동일하게 fallback 은 클램프하지 않는다.
   if (fallback !== null && fallback !== undefined && fallback !== "") {
     return Number(fallback);
@@ -112,18 +120,18 @@ export function getRemainingMogo(grade, lastExam, fallback = null) {
 //   열세: pBase = max(10, 60 * exp(-0.8 * diff))
 // 남은 시험 회차가 있으면 시간계수 factor 를 곱하고 하한 1 을 적용한다.
 export function calcNaesinProb(
-  currentGrade,
-  targetCut,
-  remainExams,
+  currentGradeInput: unknown,
+  targetCutInput: unknown,
+  remainExams: number,
   totalExams = 10,
 ) {
-  currentGrade = Number(currentGrade || 0);
-  targetCut = Number(targetCut || 0);
+  const currentGrade = Number(currentGradeInput || 0);
+  const targetCut = Number(targetCutInput || 0);
 
   // NOTE(target-parity): 0 도 falsy 라 "등급 0" 은 표현 불가능하고 확률 0 이 된다.
   if (!currentGrade || !targetCut) return 0;
 
-  let pBase;
+  let pBase: number;
 
   if (currentGrade <= targetCut) {
     const diff = targetCut - currentGrade;
@@ -153,7 +161,11 @@ export function calcNaesinProb(
 
 // 고교 진학 전(중·초) 학생의 변환등급에 학년별 페널티를 가산하고 [1, 9] 로 클램프.
 // else if 체인이라 학년(grade) 매칭이 학교급(schoolType) 매칭보다 항상 먼저다.
-export function applyPreHighGradePenalty(schoolType, grade, convertedGrade) {
+export function applyPreHighGradePenalty(
+  schoolType: unknown,
+  grade: unknown,
+  convertedGrade: unknown,
+) {
   let penalty = 0;
 
   if (grade === "중1") penalty = 0.5;

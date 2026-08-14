@@ -11,13 +11,19 @@
 /** subject_reflection 이 없는(=null·공백) 행을 화면에 표시할 때 쓰는 문구(선택 UI 에 null 을 그릴 수 없다). */
 export const NO_SUBJECT_REFLECTION_LABEL = "전체";
 
-function trimmed(value) {
+type SusiResultRow = {
+  main_track?: string | null;
+  admission_track?: string | null;
+  subject_reflection?: string | null;
+};
+
+function trimmed(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function distinctInOrder(values) {
-  const seen = new Set();
-  const order = [];
+function distinctInOrder(values: string[]) {
+  const seen = new Set<string>();
+  const order: string[] = [];
   values.forEach((value) => {
     if (!seen.has(value)) {
       seen.add(value);
@@ -28,14 +34,17 @@ function distinctInOrder(values) {
 }
 
 /** 전형 유형(main_track) 후보. 학과 선택 시 받은 원본 행 전체에서 파생한다. */
-export function deriveMainTracks(rows) {
+export function deriveMainTracks(rows: SusiResultRow[] | null | undefined) {
   return distinctInOrder(
     (rows ?? []).map((row) => trimmed(row.main_track)).filter(Boolean),
   );
 }
 
 /** 세부 전형명(admission_track) 후보 — 선택된 전형 유형으로 좁힌다. */
-export function deriveAdmissionTracks(rows, mainTrack) {
+export function deriveAdmissionTracks(
+  rows: SusiResultRow[] | null | undefined,
+  mainTrack?: string | null,
+) {
   if (!mainTrack) return [];
   return distinctInOrder(
     (rows ?? [])
@@ -51,7 +60,11 @@ export function deriveAdmissionTracks(rows, mainTrack) {
  * 호출부(useAdmissionCascade)는 이 배열 길이가 2 미만이면 5단 선택 UI 자체를 노출하지 않고
  * 유일한 후보(또는 후보 없음=null)를 그대로 쓴다(B-1 확정 — "후보 2개 이상일 때만 노출").
  */
-export function deriveSubjectReflections(rows, mainTrack, admissionTrack) {
+export function deriveSubjectReflections(
+  rows: SusiResultRow[] | null | undefined,
+  mainTrack?: string | null,
+  admissionTrack?: string | null,
+) {
   if (!mainTrack || !admissionTrack) return [];
   const matched = (rows ?? []).filter(
     (row) =>

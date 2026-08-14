@@ -8,8 +8,11 @@
 //
 // getKeyValue로 각 항목에서 key로 쓸 값을 뽑는다(기본은 항목 자체). 반환값은
 // 원본 item과 계산된 key를 함께 담는다.
-export function withDedupedKeys(items, getKeyValue = (item) => item) {
-  const seen = new Map();
+export function withDedupedKeys<T, K = T>(
+  items: T[],
+  getKeyValue: (item: T) => K = (item) => item as unknown as K,
+) {
+  const seen = new Map<K, number>();
   return items.map((item) => {
     const value = getKeyValue(item);
     const count = (seen.get(value) ?? 0) + 1;
