@@ -279,8 +279,8 @@ test("시나리오2 — 완벽 기록을 D-day까지 반복하면 확률이 단�
   // 직접 다시 구하지 않고, "정시가 수시보다 항상 늦다(9/12 < 11/19)"는 원본 상수 관계만 이용해
   // 정시 D-day 까지 넉넉히 돈 뒤 수시가 그보다 먼저 100%에 도달했는지를 매 반복마다 관찰한다.
   const MAX_DAYS = 400; // 정시 기준일(11/19)까지 최악의 경우도 넉넉히 덮는 상한
-  let susiReachedAtDay = null;
-  let jungsiReachedAtDay = null;
+  let susiReachedAtDay: number | null = null;
+  let jungsiReachedAtDay: number | null = null;
   const prev = {
     idealSusi: state.idealSusi,
     idealJungsi: state.idealJungsi,
@@ -507,8 +507,8 @@ test("시나리오5 — 이상 목표 배율 < 최소 목표 배율이면 목표
   });
 
   assert.ok(
-    state.weeklySchedule.monday.ideal < state.weeklySchedule.monday.min,
-    `이상 목표(${state.weeklySchedule.monday.ideal}h)가 최소 목표(${state.weeklySchedule.monday.min}h)보다 커야 정상인데 역전됐다 — 원본 그대로다.`,
+    state.weeklySchedule.monday!.ideal < state.weeklySchedule.monday!.min,
+    `이상 목표(${state.weeklySchedule.monday!.ideal}h)가 최소 목표(${state.weeklySchedule.monday!.min}h)보다 커야 정상인데 역전됐다 — 원본 그대로다.`,
   );
   assert.ok(
     state.weekIdeal < state.weekMin,
@@ -638,7 +638,12 @@ test("시나리오2-b — 여러 기준확률/학년 조합에서도 배수 1.0 
       cuts: c.cuts,
       weeklySchedule,
       now: c.now,
-      convertedGrade: c.convertedGrade,
+      // exactOptionalPropertyTypes: c 가 convertedGrade 를 안 가진 케이스도 있어
+      // c.convertedGrade 는 number|undefined 다 — 명시적 undefined 할당 대신
+      // 값이 있을 때만 키를 넣는다(런타임 동작은 동일: 없으면 함수 기본값 null 사용).
+      ...(c.convertedGrade !== undefined
+        ? { convertedGrade: c.convertedGrade }
+        : {}),
     });
 
     const { reach } = runCalibratedLoop(
@@ -656,7 +661,7 @@ test("시나리오2-b — 여러 기준확률/학년 조합에서도 배수 1.0 
       ["minJungsi", totalJungsiDays],
     ];
     for (const [key, expectedBase] of dDayPairs) {
-      const delta = reach[key] - expectedBase;
+      const delta = reach[key]! - expectedBase;
       assert.ok(
         delta === 0 || delta === 1,
         `${c.grade}/${key}: D-day(${expectedBase}) 대비 오차가 0 또는 1이어야 하는데 ${delta}였다 ` +

@@ -30,7 +30,13 @@ import {
 // 결과가 { value } | { nan } | { throws } 중 무엇이든 동일하게 검증하는 헬퍼
 function assertOut(fn, expected, label) {
   if (expected.throws) {
-    assert.throws(fn, (v) => v.constructor.name === expected.throws, label);
+    assert.throws(
+      fn,
+      (v: unknown) =>
+        (v as { constructor: { name: string } }).constructor.name ===
+        expected.throws,
+      label,
+    );
     return;
   }
   const actual = fn();
@@ -1216,7 +1222,7 @@ test("getRegularWeekIndexFromSundayCount — 골든 픽스처", () => {
       () =>
         getRegularWeekIndexFromSundayCount(
           c.student,
-          c.sundayCount,
+          c.sundayCount as number,
           new Date(c.now),
         ),
       c.out,

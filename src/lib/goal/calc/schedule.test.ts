@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DayPattern } from "./schedule.ts";
+import type { AcademySlot, DayPattern } from "./schedule.ts";
 import {
   calcAvailableHours,
   calcAvailableHoursApprox,
@@ -336,15 +336,27 @@ test("getStudyMultiplier — [parity] 카톨릭/가톨릭 오타 분기", () => 
 
 // NOTE(target-parity): null/undefined 방어가 없어 TypeError 가 난다. 원본 그대로.
 test("getStudyMultiplier — [parity] null 입력이면 TypeError", () => {
-  assert.throws(() => getStudyMultiplier(null, "의예과"), TypeError);
-  assert.throws(() => getStudyMultiplier("서울대학교", undefined), TypeError);
+  assert.throws(
+    () => getStudyMultiplier(null as unknown as string, "의예과"),
+    TypeError,
+  );
+  assert.throws(
+    () => getStudyMultiplier("서울대학교", undefined as unknown as string),
+    TypeError,
+  );
 });
 
 // ---------------------------------------------------------------------------
 // calcAvailableHours (원본 참조 구현)
 // ---------------------------------------------------------------------------
 
-const day = (wake, sleep, schoolStart, schoolEnd, academies = []) => ({
+const day = (
+  wake: string | number,
+  sleep: string | number,
+  schoolStart: string | number,
+  schoolEnd: string | number,
+  academies: AcademySlot[] = [],
+): DayPattern => ({
   wake,
   sleep,
   schoolStart,
@@ -712,8 +724,8 @@ for (const c of WEEK_CASES) {
   test(`calculateWeekSchedule — ${c.name}`, () => {
     const got = calculateWeekSchedule(c.form);
     for (const key of Object.keys(c.expected)) {
-      near(got[key].ideal, c.expected[key].ideal, `${key}.ideal`);
-      near(got[key].min, c.expected[key].min, `${key}.min`);
+      near(got[key]!.ideal, c.expected[key]!.ideal, `${key}.ideal`);
+      near(got[key]!.min, c.expected[key]!.min, `${key}.min`);
     }
   });
 }
@@ -743,9 +755,9 @@ test("calculateWeekSchedule — [parity] 병리① 목표 역전 (이상 0.46 < 
   };
 
   for (const key of Object.keys(expected)) {
-    near(got[key].ideal, expected[key].ideal, `${key}.ideal`);
-    near(got[key].min, expected[key].min, `${key}.min`);
-    assert.ok(got[key].ideal < got[key].min, `${key}: 역전이 유지돼야 한다`);
+    near(got[key]!.ideal, expected[key]!.ideal, `${key}.ideal`);
+    near(got[key]!.min, expected[key]!.min, `${key}.min`);
+    assert.ok(got[key]!.ideal < got[key]!.min, `${key}: 역전이 유지돼야 한다`);
   }
 });
 
@@ -765,22 +777,25 @@ test("calculateWeekSchedule — [parity] 병리② 목표가 가용시간을 초
   });
 
   for (const key of ["monday", "saturday", "sunday"]) {
-    near(got[key].ideal, 16, `${key}.ideal`);
-    near(got[key].min, 15.5, `${key}.min`);
+    near(got[key]!.ideal, 16, `${key}.ideal`);
+    near(got[key]!.min, 15.5, `${key}.min`);
   }
 
   // 실제로 가용시간을 넘는지 확인 — 주말 가용은 15.5h 인데 목표 ideal 은 16h
   const weekendAvail = calcAvailableHours(WEEKEND_NO_ACADEMY, false);
   near(weekendAvail, 15.5, "weekendAvail");
   assert.ok(
-    got.saturday.ideal > weekendAvail,
+    got.saturday!.ideal > weekendAvail,
     "이상 목표가 가용시간을 초과해야 한다(병리 유지)",
   );
 
   // 평일은 가용 5.5h 인데 목표가 16h — 초과폭이 훨씬 크다
   const weekdayAvail = calcAvailableHours(WEEKDAY_DAY, true);
   near(weekdayAvail, 5.5, "weekdayAvail");
-  assert.ok(got.monday.ideal > weekdayAvail, "평일도 초과해야 한다(병리 유지)");
+  assert.ok(
+    got.monday!.ideal > weekdayAvail,
+    "평일도 초과해야 한다(병리 유지)",
+  );
 });
 
 // ---------------------------------------------------------------------------
