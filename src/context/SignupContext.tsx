@@ -6,6 +6,7 @@
 // redirect) 정책을 스스로 구현할 수 있게 한다. resetSignup()은 가입 완료·이탈 시 호출한다.
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -15,11 +16,62 @@ import {
 
 const STORAGE_KEY = "signup-flow";
 
+type MemberType = "student" | "parent" | null;
+
+interface SignupFormData {
+  name: string;
+  phone: string;
+  phoneCode: string;
+  noOwnPhone: boolean;
+  email: string;
+  emailCode: string;
+  password: string;
+  region: string;
+  schoolType: string;
+  schoolName: string;
+  guardianPhone: string;
+  guardianConsent: boolean;
+}
+
+interface SignupAgreements {
+  service: boolean;
+  privacyRequired: boolean;
+  identityRequired: boolean;
+  privacyOptional: boolean;
+  marketing: boolean;
+  ads: boolean;
+}
+
+interface SignupVerification {
+  phone: { requested: boolean; verified: boolean };
+  email: {
+    requested: boolean;
+    verified: boolean;
+    checked: boolean;
+    available: boolean;
+    mode: string | null;
+    resumed: boolean;
+  };
+  pass: { verified: boolean };
+}
+
+interface SignupState {
+  memberType: MemberType;
+  birthDate: string;
+  isUnder14: boolean | null;
+  formData: SignupFormData;
+  agreements: SignupAgreements;
+  verification: SignupVerification;
+  linkCode: string | null;
+  signupCompleted: boolean;
+  parentSignupCompleted: boolean;
+}
+
 // 학생(9필드: 이름/전화/전화인증코드/이메일/이메일인증코드/비밀번호/지역/재학구분/학교명)과
 // 학부모(6필드: 이름/전화/전화인증코드/이메일/이메일인증코드/비밀번호) + 14세 미만 부가 필드
 // (noOwnPhone/guardianPhone/guardianConsent)를 하나의 평평한 폼데이터로 통합 관리한다.
 // 화면별로 필요한 키만 골라 쓰면 되고, 안 쓰는 키는 초기값 그대로 남는다.
-const INITIAL_FORM_DATA = {
+const INITIAL_FORM_DATA: SignupFormData = {
   name: "",
   phone: "",
   phoneCode: "",
@@ -35,7 +87,7 @@ const INITIAL_FORM_DATA = {
 };
 
 // 학생 폼(C-1) 6항목 기준 — 학부모 폼(E-1)은 4항목(identityRequired/ads 미사용)만 쓰면 된다.
-const INITIAL_AGREEMENTS = {
+const INITIAL_AGREEMENTS: SignupAgreements = {
   service: false, // 필수: 위닝에듀 이용약관
   privacyRequired: false, // 필수: 개인정보 수집 및 이용
   identityRequired: false, // 필수(학생만): 본인 인증을 위한 정보 수집
@@ -44,7 +96,7 @@ const INITIAL_AGREEMENTS = {
   ads: false, // 선택(학생만): 광고성 정보 수신 동의
 };
 
-const INITIAL_VERIFICATION = {
+const INITIAL_VERIFICATION: SignupVerification = {
   phone: { requested: false, verified: false },
   // mode/resumed: 인증코드를 어떤 API로 보냈는지 기억한다. 신규 가입은 signUp
   // (verifyOtp type 'signup'), 중단된 가입 이어가기는 signInWithOtp(type 'email')라
@@ -60,7 +112,7 @@ const INITIAL_VERIFICATION = {
   pass: { verified: false }, // 법정대리인 PASS 본인인증(D-1)
 };
 
-const INITIAL_STATE = {
+const INITIAL_STATE: SignupState = {
   memberType: null, // 'student' | 'parent' | null
   birthDate: "", // 8자리 문자열, 예: '20120101'
   isUnder14: null, // birthDate로부터 계산(null=미입력)
@@ -78,7 +130,7 @@ const INITIAL_STATE = {
 // 유효하지 않은 입력(파싱 불가/Date 롤오버로 실제 날짜가 바뀐 경우/미래 날짜/1900년 이전
 // 비상식적인 연도)은 null을 반환하므로, 호출부는 null을 "계산 불가 → 에러 표시"로 다뤄야
 // 한다. StudentBirth 등 다른 화면에서 동일 로직을 중복 구현하지 않도록 export한다.
-export function computeIsUnder14(birthDate8) {
+export function computeIsUnder14(birthDate8: string): boolean | null {
   if (birthDate8?.length !== 8) return null;
 
   const year = Number(birthDate8.slice(0, 4));
@@ -117,7 +169,7 @@ export function computeIsUnder14(birthDate8) {
   return age < 14;
 }
 
-function readStoredFlow() {
+function readStoredFlow(): Partial<SignupState> | null {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -132,11 +184,15 @@ function readStoredFlow() {
 
 // 민감 필드(비밀번호/인증코드)는 sessionStorage에 평문으로 남기지 않는다 — 새로고침 복구
 // 시에는 사용자가 다시 입력해야 하며, 이 필드들은 저장 대상에서 제외한다.
-const SENSITIVE_FORM_KEYS = ["password", "phoneCode", "emailCode"];
+const SENSITIVE_FORM_KEYS: (keyof SignupFormData)[] = [
+  "password",
+  "phoneCode",
+  "emailCode",
+];
 
-function writeStoredFlow(state) {
+function writeStoredFlow(state: SignupState) {
   try {
-    const sanitizedFormData = { ...state.formData };
+    const sanitizedFormData: Partial<SignupFormData> = { ...state.formData };
     SENSITIVE_FORM_KEYS.forEach((key) => {
       delete sanitizedFormData[key];
     });
@@ -158,7 +214,7 @@ function clearStoredFlow() {
   }
 }
 
-function buildInitialState(stored) {
+function buildInitialState(stored: Partial<SignupState> | null): SignupState {
   if (!stored) return { ...INITIAL_STATE };
 
   const formData = { ...INITIAL_FORM_DATA, ...(stored.formData || {}) };
@@ -198,9 +254,27 @@ function buildInitialState(stored) {
   };
 }
 
-const SignupContext = createContext(null);
+interface SignupContextValue extends SignupState {
+  hasFlow: boolean;
+  setMemberType: (memberType: MemberType) => void;
+  setBirthDate: (birthDate: string) => void;
+  updateFormData: (partial: Partial<SignupFormData>) => void;
+  updateAgreements: (partial: Partial<SignupAgreements>) => void;
+  setAllAgreements: (value: boolean, keys?: string[]) => void;
+  updateVerification: (
+    section: keyof SignupVerification,
+    partial: Partial<SignupVerification[keyof SignupVerification]>,
+  ) => void;
+  setLinkCode: (linkCode: string | null) => void;
+  setSignupCompleted: (signupCompleted: boolean) => void;
+  setParentSignupCompleted: (parentSignupCompleted: boolean) => void;
+  resetForMemberType: (memberType: MemberType) => void;
+  resetSignup: () => void;
+}
 
-export function SignupProvider({ children }) {
+const SignupContext = createContext<SignupContextValue | null>(null);
+
+export function SignupProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(() => buildInitialState(readStoredFlow()));
   // 마운트 시점에 이미 저장돼 있던 흐름이 있었는지(=새로고침/재방문 복구 여부)는 최초 1회만
   // 판정하면 되므로 state와 분리된 lazy useState로 고정한다.
@@ -210,11 +284,11 @@ export function SignupProvider({ children }) {
     writeStoredFlow(state);
   }, [state]);
 
-  const setMemberType = useCallback((memberType) => {
+  const setMemberType = useCallback((memberType: MemberType) => {
     setState((prev) => ({ ...prev, memberType }));
   }, []);
 
-  const setBirthDate = useCallback((birthDate) => {
+  const setBirthDate = useCallback((birthDate: string) => {
     setState((prev) => ({
       ...prev,
       birthDate,
@@ -222,14 +296,14 @@ export function SignupProvider({ children }) {
     }));
   }, []);
 
-  const updateFormData = useCallback((partial) => {
+  const updateFormData = useCallback((partial: Partial<SignupFormData>) => {
     setState((prev) => ({
       ...prev,
       formData: { ...prev.formData, ...partial },
     }));
   }, []);
 
-  const updateAgreements = useCallback((partial) => {
+  const updateAgreements = useCallback((partial: Partial<SignupAgreements>) => {
     setState((prev) => ({
       ...prev,
       agreements: { ...prev.agreements, ...partial },
@@ -237,9 +311,10 @@ export function SignupProvider({ children }) {
   }, []);
 
   // keys를 지정하면 그 키만 일괄 토글(예: 학생 6항목 vs 학부모 4항목 '모두 동의' 분리).
-  const setAllAgreements = useCallback((value, keys) => {
+  const setAllAgreements = useCallback((value: boolean, keys?: string[]) => {
     setState((prev) => {
-      const targetKeys = keys || Object.keys(prev.agreements);
+      const targetKeys = (keys ||
+        Object.keys(prev.agreements)) as (keyof SignupAgreements)[];
       const nextAgreements = { ...prev.agreements };
       targetKeys.forEach((key) => {
         nextAgreements[key] = value;
@@ -249,35 +324,44 @@ export function SignupProvider({ children }) {
   }, []);
 
   // section: 'phone' | 'email' | 'pass'
-  const updateVerification = useCallback((section, partial) => {
-    setState((prev) => ({
-      ...prev,
-      verification: {
-        ...prev.verification,
-        [section]: { ...prev.verification[section], ...partial },
-      },
-    }));
-  }, []);
+  const updateVerification = useCallback(
+    (
+      section: keyof SignupVerification,
+      partial: Partial<SignupVerification[keyof SignupVerification]>,
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        verification: {
+          ...prev.verification,
+          [section]: { ...prev.verification[section], ...partial },
+        },
+      }));
+    },
+    [],
+  );
 
-  const setLinkCode = useCallback((linkCode) => {
+  const setLinkCode = useCallback((linkCode: string | null) => {
     setState((prev) => ({ ...prev, linkCode }));
   }, []);
 
-  const setSignupCompleted = useCallback((signupCompleted) => {
+  const setSignupCompleted = useCallback((signupCompleted: boolean) => {
     setState((prev) => ({ ...prev, signupCompleted }));
   }, []);
 
   // signupCompleted(학생)와 동일 패턴 — 학부모 가입 성공 직후 true, sessionStorage로 영속.
-  const setParentSignupCompleted = useCallback((parentSignupCompleted) => {
-    setState((prev) => ({ ...prev, parentSignupCompleted }));
-  }, []);
+  const setParentSignupCompleted = useCallback(
+    (parentSignupCompleted: boolean) => {
+      setState((prev) => ({ ...prev, parentSignupCompleted }));
+    },
+    [],
+  );
 
   // 유형 선택(학생/학부모)을 되돌아가 다시 고를 때, 이전 유형에서 입력하던 폼데이터/동의/
   // 인증/완료 플래그가 새 유형 흐름에 그대로 남아있으면 상태가 오염된다(예: 학부모로
   // 전환했는데 학생 인증 플래그가 verified로 남는 등). memberType 설정과 동시에 관련
   // 상태를 전부 INITIAL로 되돌려 안전하게 유형을 전환한다. birthDate/isUnder14/linkCode는
   // 유형과 무관하게 유지한다.
-  const resetForMemberType = useCallback((memberType) => {
+  const resetForMemberType = useCallback((memberType: MemberType) => {
     setState((prev) => ({
       ...prev,
       memberType,

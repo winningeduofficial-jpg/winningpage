@@ -1,5 +1,7 @@
+import type { Session, User } from "@supabase/supabase-js";
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -41,9 +43,35 @@ import { supabase } from "../lib/supabase";
 // 따로 하지 않고 이 컨텍스트 값을 읽고, 셸 안쪽 표면도 같은 값을 본다
 // (가드가 안쪽이면 컨텍스트가 가드 결과를 알 수 없어 조회가 2벌이 된다).
 
-const SessionContext = createContext(null);
+type GuardState = "loading" | "guest" | "ok" | "forbidden" | "check-failed";
 
-const EMPTY_ENTITLEMENT = {
+interface Entitlement {
+  allowed: boolean | null;
+  quotaRemaining: number | null;
+  quotaTotal: number | null;
+  planEndsAt: string | null;
+  planLabel: string | null;
+}
+
+interface SessionContextValue {
+  serviceKey: string;
+  guardState: GuardState;
+  session: Session | null;
+  user: User | null;
+  userId: string | null;
+  isSessionReady: boolean;
+  isEntitlementReady: boolean;
+  allowed: boolean | null;
+  quotaRemaining: number | null;
+  quotaTotal: number | null;
+  planEndsAt: string | null;
+  planLabel: string | null;
+  refreshEntitlement: () => void;
+}
+
+const SessionContext = createContext<SessionContextValue | null>(null);
+
+const EMPTY_ENTITLEMENT: Entitlement = {
   allowed: null,
   quotaRemaining: null,
   quotaTotal: null,
@@ -54,7 +82,7 @@ const EMPTY_ENTITLEMENT = {
 /**
  * 컨텍스트가 없으면 throw. 셸 내부 컴포넌트(사이드바·헤더·배너)용.
  */
-export function useSession() {
+export function useSession(): SessionContextValue {
   const value = useContext(SessionContext);
   if (!value) {
     throw new Error(
@@ -68,22 +96,25 @@ export function useSession() {
  * 컨텍스트가 없으면 null. 프로바이더 안팎에서 모두 쓰이는 공용 컴포넌트용
  * (RequireEntitlement가 이걸 쓴다 — 목표관리는 프로바이더 없이 마운트된다).
  */
-export function useSessionOptional() {
+export function useSessionOptional(): SessionContextValue | null {
   return useContext(SessionContext);
 }
 
-/**
- * @param {string} serviceKey 이용권 조회 키. 수행평가는 `'suhaeng'`이다 —
- *   신규 자산 네이밍은 performance지만 이 값은 운영 DB의
- *   `program_access.program_key` / `SERVICE_CONFIGS`에 이미 박혀 있어
- *   개명 대상이 아니다(명세서 §1.4, §9.4).
- * @param {React.ReactNode} [children] 없으면 `<Outlet />`을 렌더한다
- *   (라우트 element로 바로 쓸 수 있게).
- */
-export function SessionProvider({ serviceKey, children }) {
-  const [session, setSession] = useState(null);
+// serviceKey: 이용권 조회 키. 수행평가는 'suhaeng'이다 — 신규 자산 네이밍은 performance지만
+// 이 값은 운영 DB의 program_access.program_key / SERVICE_CONFIGS에 이미 박혀 있어 개명
+// 대상이 아니다(명세서 §1.4, §9.4).
+// children: 없으면 <Outlet />을 렌더한다(라우트 element로 바로 쓸 수 있게).
+export function SessionProvider({
+  serviceKey,
+  children,
+}: {
+  serviceKey: string;
+  children?: ReactNode;
+}) {
+  const [session, setSession] = useState<Session | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
-  const [entitlement, setEntitlement] = useState(EMPTY_ENTITLEMENT);
+  const [entitlement, setEntitlement] =
+    useState<Entitlement>(EMPTY_ENTITLEMENT);
   const [isEntitlementReady, setIsEntitlementReady] = useState(false);
   // 재조회 트리거. 차감 후 잔여 회차 갱신·"다시 시도" 버튼이 이 값을 올린다.
   const [refreshToken, setRefreshToken] = useState(0);
@@ -159,7 +190,7 @@ export function SessionProvider({ serviceKey, children }) {
     //    차감된 세션 이어가기는 이미 대가를 지불한 산출물이기 때문이다.
     //    잔여 회차는 차단 사유가 아니라 아래 quota* 필드로 셸에 전달되는
     //    컨텍스트이고, 막는 것은 "새 세션 시작" 하나뿐이다.
-    let guardState;
+    let guardState: GuardState;
     if (!isSessionReady || !isEntitlementReady) guardState = "loading";
     else if (!userId) guardState = "guest";
     else if (entitlement.allowed === true) guardState = "ok";

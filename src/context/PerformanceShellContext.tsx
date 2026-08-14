@@ -1,4 +1,12 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 // 수행평가 셸(사이드바) ↔ 채팅 페이지(Outlet 자식) 간 진행단계 상태 통로.
 // docs/수행평가-상세-명세.md §3.3(진행단계 5스텝 상태 머신) — P13.
@@ -25,12 +33,33 @@ import { createContext, useContext, useMemo, useState } from "react";
 // 이 통로로 옮기는 확장 여지는 있지만 이번 범위 밖이라 만들지 않는다 — PerformanceSidebar
 // 상단 주석·PerformanceAppLayout TODO(P5) 참고.
 
-const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
+type StepState = "done" | "current" | "todo";
 
-const PerformanceShellContext = createContext(null);
+const DEFAULT_STEP_STATES: StepState[] = [
+  "todo",
+  "todo",
+  "todo",
+  "todo",
+  "todo",
+];
 
-export function PerformanceShellProvider({ children }) {
-  const [stepStates, setStepStates] = useState(DEFAULT_STEP_STATES);
+interface PerformanceShellContextValue {
+  stepStates: StepState[];
+  setStepStates: Dispatch<SetStateAction<StepState[]>>;
+  quotaBannerVisible: boolean;
+  setQuotaBannerVisible: Dispatch<SetStateAction<boolean>>;
+}
+
+const PerformanceShellContext =
+  createContext<PerformanceShellContextValue | null>(null);
+
+export function PerformanceShellProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [stepStates, setStepStates] =
+    useState<StepState[]>(DEFAULT_STEP_STATES);
   const [quotaBannerVisible, setQuotaBannerVisible] = useState(false);
 
   const value = useMemo(
@@ -50,8 +79,7 @@ export function PerformanceShellProvider({ children }) {
   );
 }
 
-/** @returns {{stepStates: Array<'done'|'current'|'todo'>, setStepStates: (next: Array<'done'|'current'|'todo'>) => void, quotaBannerVisible: boolean, setQuotaBannerVisible: (next: boolean) => void}} */
-export function usePerformanceShell() {
+export function usePerformanceShell(): PerformanceShellContextValue {
   const ctx = useContext(PerformanceShellContext);
   if (!ctx) {
     throw new Error(

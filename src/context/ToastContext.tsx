@@ -1,6 +1,7 @@
 import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -17,11 +18,39 @@ import {
 // id·타이머를 갖는 스택으로 바꿔 그 결함을 없앤다 — 서로의 clearTimeout을 절대 건드리지
 // 않는다.
 
-const ToastContext = createContext(null);
+type ToastTone = "success" | "error" | "info";
+
+interface Toast {
+  id: string;
+  type: ToastTone;
+  message: string;
+}
+
+interface ToastOptions {
+  duration?: number;
+}
+
+interface ToastContextValue {
+  success: (message: string, options?: ToastOptions) => string;
+  error: (message: string, options?: ToastOptions) => string;
+  info: (message: string, options?: ToastOptions) => string;
+  dismiss: (id: string) => void;
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION = 3000;
 
-const TONE = {
+const TONE: Record<
+  ToastTone,
+  {
+    icon: typeof CheckCircle2;
+    iconClass: string;
+    barClass: string;
+    role: "status" | "alert";
+    ariaLive: "polite" | "assertive";
+  }
+> = {
   success: {
     icon: CheckCircle2,
     iconClass: "text-emerald-600",
@@ -49,11 +78,11 @@ let toastSeq = 0;
 
 const MAX_TOASTS = 3;
 
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-  const timersRef = useRef(new Map());
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-  const removeToast = useCallback((id) => {
+  const removeToast = useCallback((id: string) => {
     const timerId = timersRef.current.get(id);
     if (timerId) {
       clearTimeout(timerId);
@@ -63,7 +92,11 @@ export function ToastProvider({ children }) {
   }, []);
 
   const pushToast = useCallback(
-    (type, message, { duration = DEFAULT_DURATION } = {}) => {
+    (
+      type: ToastTone,
+      message: string,
+      { duration = DEFAULT_DURATION }: ToastOptions = {},
+    ) => {
       toastSeq += 1;
       const id = `toast-${toastSeq}`;
       setToasts((prev) => {
@@ -119,15 +152,20 @@ export function ToastProvider({ children }) {
   );
 }
 
-/** @returns {{success: (message: string, options?: {duration?: number}) => string, error: (message: string, options?: {duration?: number}) => string, info: (message: string, options?: {duration?: number}) => string, dismiss: (id: string) => void}} */
-export function useToast() {
+export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx)
     throw new Error("useToast는 ToastProvider 내부에서만 호출할 수 있다.");
   return ctx;
 }
 
-function ToastStack({ toasts, onDismiss }) {
+function ToastStack({
+  toasts,
+  onDismiss,
+}: {
+  toasts: Toast[];
+  onDismiss: (id: string) => void;
+}) {
   // 토스트가 없어도 aria-live 리전 자체는 항상 DOM에 유지한다 — 첫 토스트와
   // 동시에 리전이 삽입되면 스크린리더가 공지를 놓치는 경우가 있어서다.
   return (
@@ -143,7 +181,13 @@ function ToastStack({ toasts, onDismiss }) {
   );
 }
 
-function ToastItem({ toast, onDismiss }) {
+function ToastItem({
+  toast,
+  onDismiss,
+}: {
+  toast: Toast;
+  onDismiss: (id: string) => void;
+}) {
   const tone = TONE[toast.type] ?? TONE.info;
   const Icon = tone.icon;
 

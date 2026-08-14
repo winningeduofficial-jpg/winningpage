@@ -23,6 +23,7 @@
 // 3단계 판정이나 위저드 복구 로직이 이전 상태를 다시 불러온다.
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -39,13 +40,41 @@ import {
 
 const STORAGE_KEY = "goal-onboarding-flow";
 
-function buildInitialNaesin() {
+type SchoolType = "general" | "special" | "middle" | "elementary" | null;
+type Grade = "g1" | "g2" | "g3" | null;
+
+interface UniversityChoice {
+  university: string;
+  department: string;
+}
+
+interface NaesinEntry {
+  value: string;
+  none: boolean;
+}
+
+// 회차별 과목 점수(string) + 전체 "없음" 플래그(boolean)를 한 객체에 담는다.
+type MockExamRound = { none: boolean } & Record<string, string>;
+
+interface GoalOnboardingState {
+  schoolType: SchoolType;
+  grade: Grade;
+  upperUniversity: UniversityChoice;
+  lowerUniversity: UniversityChoice;
+  naesin: Record<string, NaesinEntry>;
+  priorNaesinGrade: string;
+  mockExam: Record<string, MockExamRound>;
+  studyHours: Record<string, number>;
+  dailySchedule: Record<string, number>;
+}
+
+function buildInitialNaesin(): Record<string, NaesinEntry> {
   return Object.fromEntries(
     NAESIN_EXAMS.map((exam) => [exam.key, { value: "", none: false }]),
   );
 }
 
-function buildInitialMockExam() {
+function buildInitialMockExam(): Record<string, MockExamRound> {
   return Object.fromEntries(
     MOCK_EXAM_ROUNDS.map((round) => [
       round.key,
@@ -56,14 +85,14 @@ function buildInitialMockExam() {
         ),
       },
     ]),
-  );
+  ) as Record<string, MockExamRound>;
 }
 
-function buildInitialStudyHours() {
+function buildInitialStudyHours(): Record<string, number> {
   return Object.fromEntries(WEEKDAY_OPTIONS.map((day) => [day.key, 0]));
 }
 
-function buildInitialDailySchedule() {
+function buildInitialDailySchedule(): Record<string, number> {
   return Object.fromEntries(
     DAILY_SCHEDULE_FIELDS.map((field) => [field.key, field.defaultValue]),
   );
@@ -71,7 +100,7 @@ function buildInitialDailySchedule() {
 
 // 저장소가 비어있거나(최초 진입) 초기화(resetOnboardingFlow)할 때 쓰는 기본값. 매번 새
 // 객체를 만들어 반환한다 — 스텝 컴포넌트들이 참조를 공유해 서로 오염시키지 않도록.
-function buildDefaultState() {
+function buildDefaultState(): GoalOnboardingState {
   return {
     schoolType: null, // 'general' | 'special' | 'middle' | 'elementary' | null
     grade: null, // 'g1' | 'g2' | 'g3' | null — general/special 경로에서만 사용
@@ -89,7 +118,7 @@ function buildDefaultState() {
   };
 }
 
-function readStoredFlow() {
+function readStoredFlow(): Partial<GoalOnboardingState> | null {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -104,7 +133,7 @@ function readStoredFlow() {
   }
 }
 
-function writeStoredFlow(state) {
+function writeStoredFlow(state: GoalOnboardingState) {
   try {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -123,7 +152,10 @@ function clearStoredFlow() {
 // 저장된 값 중 defaults에 없는 키(예: 저장 이후 NAESIN_EXAMS/MOCK_EXAM_ROUNDS 등 데이터
 // 정의가 바뀌어 시험/과목 구성이 달라진 경우)는 버리고, defaults 키 기준으로만 한 겹 병합한다.
 // 스키마 드리프트로 더 이상 존재하지 않는 키가 되살아나는 걸 막기 위한 방어다.
-function mergeKeyedObject(defaults, stored) {
+function mergeKeyedObject<T extends Record<string, object>>(
+  defaults: T,
+  stored: T | undefined,
+): T {
   if (!stored || typeof stored !== "object") return defaults;
 
   return Object.fromEntries(
@@ -133,10 +165,12 @@ function mergeKeyedObject(defaults, stored) {
         return [key, defaultValue];
       return [key, { ...defaultValue, ...storedValue }];
     }),
-  );
+  ) as T;
 }
 
-function buildInitialState(stored) {
+function buildInitialState(
+  stored: Partial<GoalOnboardingState> | null,
+): GoalOnboardingState {
   const defaults = buildDefaultState();
   if (!stored) return defaults;
 
@@ -170,21 +204,36 @@ export function clearOnboardingFlow() {
   clearStoredFlow();
 }
 
-const GoalOnboardingContext = createContext(null);
+interface GoalOnboardingContextValue extends GoalOnboardingState {
+  setSchoolType: (schoolType: SchoolType) => void;
+  setGrade: (grade: Grade) => void;
+  setUpperUniversity: (partial: Partial<UniversityChoice>) => void;
+  setLowerUniversity: (partial: Partial<UniversityChoice>) => void;
+  updateNaesin: (examKey: string, partial: Partial<NaesinEntry>) => void;
+  setPriorNaesinGrade: (value: string) => void;
+  updateMockExam: (roundKey: string, partial: Partial<MockExamRound>) => void;
+  setStudyHour: (dayKey: string, value: number) => void;
+  setDailyScheduleField: (fieldKey: string, value: number) => void;
+  resetOnboardingFlow: () => void;
+}
 
-export function GoalOnboardingProvider({ children }) {
+const GoalOnboardingContext = createContext<GoalOnboardingContextValue | null>(
+  null,
+);
+
+export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(() => buildInitialState(readStoredFlow()));
 
   useEffect(() => {
     writeStoredFlow(state);
   }, [state]);
 
-  const setSchoolType = useCallback((schoolType) => {
+  const setSchoolType = useCallback((schoolType: SchoolType) => {
     // 유형을 바꾸면 이전 유형에서 고르던 학년 선택은 더 이상 유효하지 않으므로 함께 초기화한다.
     setState((prev) => ({ ...prev, schoolType, grade: null }));
   }, []);
 
-  const setGrade = useCallback((grade) => {
+  const setGrade = useCallback((grade: Grade) => {
     // 학년을 바꾸면 priorNaesinGrade 도 함께 비운다(setSchoolType 이 grade 를 비우는 것과 같은
     // 연쇄 무효화). 같은 한 칸이 학년마다 다른 의미를 갖기 때문이다 — 고1에서 "중학교 평균"으로
     // 넣은 값이 고2로 바꾸면 화면 라벨만 "고1까지 누적"으로 바뀐 채 그대로 제출되고, 서버 분기도
@@ -195,58 +244,73 @@ export function GoalOnboardingProvider({ children }) {
     );
   }, []);
 
-  const setUpperUniversity = useCallback((partial) => {
-    setState((prev) => ({
-      ...prev,
-      upperUniversity: { ...prev.upperUniversity, ...partial },
-    }));
-  }, []);
+  const setUpperUniversity = useCallback(
+    (partial: Partial<UniversityChoice>) => {
+      setState((prev) => ({
+        ...prev,
+        upperUniversity: { ...prev.upperUniversity, ...partial },
+      }));
+    },
+    [],
+  );
 
-  const setLowerUniversity = useCallback((partial) => {
-    setState((prev) => ({
-      ...prev,
-      lowerUniversity: { ...prev.lowerUniversity, ...partial },
-    }));
-  }, []);
+  const setLowerUniversity = useCallback(
+    (partial: Partial<UniversityChoice>) => {
+      setState((prev) => ({
+        ...prev,
+        lowerUniversity: { ...prev.lowerUniversity, ...partial },
+      }));
+    },
+    [],
+  );
 
-  const updateNaesin = useCallback((examKey, partial) => {
-    setState((prev) => ({
-      ...prev,
-      naesin: {
-        ...prev.naesin,
-        [examKey]: { ...prev.naesin[examKey], ...partial },
-      },
-    }));
-  }, []);
+  const updateNaesin = useCallback(
+    (examKey: string, partial: Partial<NaesinEntry>) => {
+      setState((prev) => ({
+        ...prev,
+        naesin: {
+          ...prev.naesin,
+          [examKey]: { ...prev.naesin[examKey], ...partial },
+        },
+      }));
+    },
+    [],
+  );
 
   // 내신 전 회차 "없음" 특례 입력. 4회차 중 하나라도 "없음"이 해제되면 Step4가 ''로 비운다.
-  const setPriorNaesinGrade = useCallback((value) => {
+  const setPriorNaesinGrade = useCallback((value: string) => {
     setState((prev) => ({ ...prev, priorNaesinGrade: value }));
   }, []);
 
-  const updateMockExam = useCallback((roundKey, partial) => {
-    setState((prev) => ({
-      ...prev,
-      mockExam: {
-        ...prev.mockExam,
-        [roundKey]: { ...prev.mockExam[roundKey], ...partial },
-      },
-    }));
-  }, []);
+  const updateMockExam = useCallback(
+    (roundKey: string, partial: Partial<MockExamRound>) => {
+      setState((prev) => ({
+        ...prev,
+        mockExam: {
+          ...prev.mockExam,
+          [roundKey]: { ...prev.mockExam[roundKey], ...partial },
+        },
+      }));
+    },
+    [],
+  );
 
-  const setStudyHour = useCallback((dayKey, value) => {
+  const setStudyHour = useCallback((dayKey: string, value: number) => {
     setState((prev) => ({
       ...prev,
       studyHours: { ...prev.studyHours, [dayKey]: value },
     }));
   }, []);
 
-  const setDailyScheduleField = useCallback((fieldKey, value) => {
-    setState((prev) => ({
-      ...prev,
-      dailySchedule: { ...prev.dailySchedule, [fieldKey]: value },
-    }));
-  }, []);
+  const setDailyScheduleField = useCallback(
+    (fieldKey: string, value: number) => {
+      setState((prev) => ({
+        ...prev,
+        dailySchedule: { ...prev.dailySchedule, [fieldKey]: value },
+      }));
+    },
+    [],
+  );
 
   // 온보딩 완료(7단계 "다음") 시 호출한다 — 저장된 입력값을 비우고 컨텍스트 state도
   // 초기값으로 되돌린다. src/pages/goal/Onboarding.jsx의 handleFinish가
