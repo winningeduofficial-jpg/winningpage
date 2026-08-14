@@ -13,13 +13,29 @@ import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import AgreementRow from "./AgreementRow";
 
+type AgreementItem = {
+  key: string;
+  label: string;
+  required?: boolean;
+  checked?: boolean;
+  to?: string;
+};
+
+type AgreementListProps = {
+  items: AgreementItem[];
+  allChecked?: boolean;
+  onToggleAll?: () => void;
+  onToggleItem?: (key: string) => void;
+  className?: string;
+};
+
 export default function AgreementList({
-  items, // [{ key, label, required, checked, to }]
+  items,
   allChecked = false,
   onToggleAll,
-  onToggleItem, // (key) => void
+  onToggleItem,
   className = "",
-}) {
+}: AgreementListProps) {
   const [batchAnimating, setBatchAnimating] = useState(false);
   const itemCount = items?.length || 0;
 

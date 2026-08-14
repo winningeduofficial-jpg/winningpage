@@ -8,7 +8,9 @@
 // 반응형(adapt.md): 인라인 style은 브레이크포인트를 못 태우므로 prop을 원값 대신 토큰으로
 // 받아 모바일 우선 클래스 맵으로 치환한다 — 시안 값(100/200px, 40/80px)은 md: 이상에서만
 // 적용되고, 모바일 base는 축소된 값으로 램프한다. width는 항상 유동(px-6 안에서 max-w 상한).
-const WIDTH_CLASSES = {
+import type { ReactNode } from "react";
+
+const WIDTH_CLASSES: Record<string, string> = {
   default: "max-w-[25rem]", // 400px 콘텐츠 컬럼. 약관 안내 타이틀(1064px) 등 예외 화면은 'wide'.
   // 결제 플로우 시안(1882-9058 계열)의 로그인 화면 콘텐츠 컬럼 실측 460px ÷16 = 28.75rem
   // (1920·1280 동일). default(400px)를 바꾸면 이 컴포넌트를 공유하는 회원가입·약관 화면
@@ -17,23 +19,31 @@ const WIDTH_CLASSES = {
   wide: "max-w-[66.5rem]", // D-1 등 예외 화면.
 };
 
-const SPACING_CLASSES = {
+const SPACING_CLASSES: Record<string, string> = {
   default: "py-12 md:py-[6.25rem]", // 48px → md 100px
   tall: "py-16 md:py-[12.5rem]", // 64px → md 200px. E-6(자녀 초대)처럼 py 200px가 필요하면 'tall' 전달.
 };
 
-const GAP_CLASSES = {
+const GAP_CLASSES: Record<string, string> = {
   default: "gap-8 md:gap-10", // 32px → md 40px
   wide: "gap-12 md:gap-20", // 48px → md 80px. E-6처럼 80px가 필요하면 'wide' 전달.
 };
 
+type AuthLayoutProps = {
+  children?: ReactNode;
+  width?: string;
+  spacing?: string;
+  gap?: string;
+  className?: string;
+};
+
 export default function AuthLayout({
   children,
-  width = "default", // 'default' | 'login' | 'wide'
-  spacing = "default", // 'default' | 'tall'
-  gap = "default", // 'default' | 'wide'
+  width = "default",
+  spacing = "default",
+  gap = "default",
   className = "",
-}) {
+}: AuthLayoutProps) {
   return (
     <main className={`min-h-screen w-full bg-white pt-16 ${className}`}>
       <div

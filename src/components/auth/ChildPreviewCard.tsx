@@ -4,22 +4,35 @@
 // 선택/활성(2393-11078)엔 border-primary이나 시안상 아바타 미표시 — selected일 때 아바타를
 // 렌더하지 않는다. TODO: 코드 인식→선택 전환 시 아바타가 사라지는 상태 전환 규칙은 디자이너
 // 확인 대기(§3.3 미해결 이슈로 별도 등록 필요).
-const AVATAR_SIZE_CLASSES = {
+const AVATAR_SIZE_CLASSES: Record<string, string> = {
   default: "h-9 w-9", // 36px
   lg: "h-10 w-10", // 40px
 };
 
+type ChildPreviewCardProps = {
+  name?: string;
+  /** 예: '고3' */
+  grade?: string;
+  school?: string;
+  avatarUrl?: string;
+  selected?: boolean;
+  avatarSize?: string;
+  onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  className?: string;
+};
+
 export default function ChildPreviewCard({
   name,
-  grade, // 예: '고3'
+  grade,
   school,
   avatarUrl,
   selected = false,
-  avatarSize = "default", // 'default' | 'lg'
+  avatarSize = "default",
   onClick,
   type = "button",
   className = "",
-}) {
+}: ChildPreviewCardProps) {
   const initial = (name || "").trim().slice(0, 1);
 
   return (

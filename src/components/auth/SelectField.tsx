@@ -1,7 +1,7 @@
 // 네이티브 select + ChevronDown — docs/login-signup-renewal-spec.md §3.3(C-1 지역/재학구분)/§5.1.
 import { ChevronDown } from "lucide-react";
 
-const SIZE_CLASSES = {
+const SIZE_CLASSES: Record<string, string> = {
   default: "h-[3.25rem] rounded-xl border-line bg-white px-5 pr-12 text-base", // 52px
   lg: "h-[3.75rem] rounded-xl border-line bg-white px-5 pr-12 text-base", // 60px
   // 인앱(수행평가) 폼 전용 — docs/수행평가-상세-명세.md §5.5/§7.3 실측(3754:3206).
@@ -13,7 +13,15 @@ const SIZE_CLASSES = {
 // 셰브론 아이콘 치수·위치·색 — 사이즈별로 다르다(perf는 시안 실측 VECTOR 11×7 `#808080`,
 // default/lg는 기존 회원가입/로그인 폼 그대로 20px `text-line`). `#808080`은 전역 `ink-sub`
 // 토큰과 값이 같아 재사용한다(§7.1 재사용 원칙, performance 네임스페이스에 새로 만들지 않음).
-const CHEVRON_CONFIG = {
+type ChevronConfig = {
+  size: number;
+  width?: number;
+  height?: number;
+  position: string;
+  color: string;
+};
+
+const CHEVRON_CONFIG: Record<string, ChevronConfig> = {
   default: { size: 20, position: "right-4", color: "text-line" },
   lg: { size: 20, position: "right-4", color: "text-line" },
   perf: {
@@ -25,18 +33,39 @@ const CHEVRON_CONFIG = {
   },
 };
 
-const STATUS_TEXT_CLASSES = {
+const STATUS_TEXT_CLASSES: Record<string, string> = {
   default: "text-ink-sub",
   error: "text-error",
   success: "text-accent",
 };
 
+type SelectOption = string | { value: string; label: string };
+
 // options: string[] 또는 { value, label }[] 둘 다 허용.
-function normalizeOptions(options) {
+function normalizeOptions(options?: SelectOption[] | null) {
   return (options || []).map((option) =>
     typeof option === "string" ? { value: option, label: option } : option,
   );
 }
+
+type SelectFieldProps = {
+  label?: string;
+  id?: string;
+  name?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  options?: SelectOption[];
+  placeholder?: string;
+  size?: string;
+  /** 라벨 텍스트 색 오버라이드. 기본값이 기존 하드코딩(text-ink)과 동일해 기존 호출부는
+   * 영향받지 않는다 — TextField.jsx의 같은 확장과 동일한 이유(§5.5 필수/선택 라벨 분리). */
+  labelClassName?: string;
+  helperText?: string;
+  status?: string;
+  disabled?: boolean;
+  required?: boolean;
+  className?: string;
+};
 
 export default function SelectField({
   label,
@@ -46,16 +75,14 @@ export default function SelectField({
   onChange,
   options,
   placeholder,
-  size = "default", // 'default' | 'lg' | 'perf'(인앱 2.5rem/40px)
-  // 라벨 텍스트 색 오버라이드. 기본값이 기존 하드코딩(text-ink)과 동일해 기존 호출부는
-  // 영향받지 않는다 — TextField.jsx의 같은 확장과 동일한 이유(§5.5 필수/선택 라벨 분리).
+  size = "default",
   labelClassName = "text-ink",
   helperText,
-  status = "default", // 'default' | 'error' | 'success'
+  status = "default",
   disabled = false,
   required = false,
   className = "",
-}) {
+}: SelectFieldProps) {
   const fieldId = id || name;
   const normalizedOptions = normalizeOptions(options);
   const chevron = CHEVRON_CONFIG[size] || CHEVRON_CONFIG.default;

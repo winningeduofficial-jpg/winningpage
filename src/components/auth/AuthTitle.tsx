@@ -12,7 +12,9 @@
 // (24 × 0.02 = 0.48 / 36 × 0.02 = 0.72). lh 는 34/16 = 2.125rem, 50/16 = 3.125rem.
 // default 를 바꾸면 이 컴포넌트를 공유하는 회원가입·약관 20여 화면 타이틀이 함께
 // 커지므로, AuthLayout 의 WIDTH_CLASSES.login 선례와 같이 로그인 전용 키로 분리했다.
-const VARIANT_CLASSES = {
+import type { ReactNode } from "react";
+
+const VARIANT_CLASSES: Record<string, string> = {
   default:
     "text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[2rem]",
   login:
@@ -21,21 +23,31 @@ const VARIANT_CLASSES = {
 
 // 로그인 시안(1882:9058)은 1줄 #181d24(= ink.title) + 2줄 #013262(= primary)로
 // 픽셀 실측된다. 줄 단위 색에 'title' 을 추가해 그 배분을 프롭으로 표현할 수 있게 한다.
-const COLOR_CLASSES = {
+const COLOR_CLASSES: Record<string, string> = {
   ink: "text-ink",
   title: "text-ink-title",
   primary: "text-primary",
 };
 
+type AuthTitleProps = {
+  line1: ReactNode;
+  line2?: ReactNode;
+  line1Color?: string;
+  line2Color?: string;
+  variant?: string;
+  align?: "center" | "left";
+  className?: string;
+};
+
 export default function AuthTitle({
   line1,
   line2,
-  line1Color = "ink", // 'ink' | 'title' | 'primary'
-  line2Color = "primary", // 'ink' | 'title' | 'primary'
-  variant = "default", // 'default' | 'login'
-  align = "center", // 'center' | 'left'
+  line1Color = "ink",
+  line2Color = "primary",
+  variant = "default",
+  align = "center",
   className = "",
-}) {
+}: AuthTitleProps) {
   return (
     <h1
       className={`break-keep ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.default} ${

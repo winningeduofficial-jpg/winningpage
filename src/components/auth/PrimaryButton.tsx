@@ -10,13 +10,14 @@
 // 더할 수 있다 — 기본 false라 기존 호출부는 영향 없다. 비활성(bg-line)과 처리중(bg-primary/80)은
 // 시각적으로 구분한다(처리중은 유효한 제출이 진행 중임을, 비활성은 아직 제출 불가임을 뜻함).
 import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
-const SIZE_CLASSES = {
+const SIZE_CLASSES: Record<string, string> = {
   default: "h-[3.25rem] text-base", // 52px, 16px
   lg: "h-[3.75rem] text-xl", // 60px, 20px
 };
 
-const RADIUS_CLASSES = {
+const RADIUS_CLASSES: Record<string, string> = {
   default: "rounded-xl", // 0.75rem(12px)
   lg: "rounded-[0.875rem]", // 14px
 };
@@ -25,9 +26,23 @@ const RADIUS_CLASSES = {
 // (1882:9058 / 1882:9300)만 버튼 라벨이 w700 이다. className 으로 font-bold 를 덧붙이면
 // 같은 CSS 우선순위에서 tailwind 출력 순서에 결과가 좌우되므로(실측: font-semibold 가
 // 이겨 600 으로 렌더됐다) 프롭으로 배타 선택하게 한다.
-const WEIGHT_CLASSES = {
+const WEIGHT_CLASSES: Record<string, string> = {
   semibold: "font-semibold",
   bold: "font-bold",
+};
+
+type PrimaryButtonProps = {
+  children?: ReactNode;
+  type?: "button" | "submit" | "reset";
+  onClick?: () => void;
+  disabled?: boolean;
+  /** true면 좌측에 스피너를 더하고 처리중 톤(bg-primary/80)으로 표시 */
+  loading?: boolean;
+  size?: string;
+  radius?: string;
+  weight?: string;
+  fullWidth?: boolean;
+  className?: string;
 };
 
 export default function PrimaryButton({
@@ -35,13 +50,13 @@ export default function PrimaryButton({
   type = "button",
   onClick,
   disabled = false,
-  loading = false, // true면 좌측에 스피너를 더하고 처리중 톤(bg-primary/80)으로 표시
-  size = "default", // 'default' | 'lg'
-  radius = "default", // 'default' | 'lg'
-  weight = "semibold", // 'semibold' | 'bold'
+  loading = false,
+  size = "default",
+  radius = "default",
+  weight = "semibold",
   fullWidth = true,
   className = "",
-}) {
+}: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
 
   return (

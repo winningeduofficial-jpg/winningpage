@@ -5,21 +5,34 @@
 // 세로 스택 + 유동폭(부모가 md:flex-row로 전환 — MemberType.jsx/LinkChoice.jsx 소관)으로
 // 재구성한다. 정사각 고정 높이도 풀폭에서 과도하므로 모바일은 min-h로 완화.
 // radius 40px도 풀폭 카드에서 과대해 모바일은 rounded-3xl(24px)로 축소, md부터 원래 값.
-const SIZE_CLASSES = {
+import type { ReactNode } from "react";
+
+const SIZE_CLASSES: Record<string, string> = {
   lg: "min-h-[11rem] w-full md:min-h-0 md:h-[18.5rem] md:w-[18.5rem]",
   md: "min-h-[10rem] w-full md:min-h-0 md:h-[17.5rem] md:w-[17.5rem]",
 };
 
+type ChoiceCardProps = {
+  size?: string;
+  icon?: ReactNode;
+  title?: ReactNode;
+  description?: ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  className?: string;
+};
+
 export default function ChoiceCard({
-  size = "lg", // 'lg' | 'md'
-  icon, // 일러스트/아이콘 ReactNode
+  size = "lg",
+  icon,
   title,
   description,
   selected = false,
   onClick,
   type = "button",
   className = "",
-}) {
+}: ChoiceCardProps) {
   return (
     <button
       type={type}
