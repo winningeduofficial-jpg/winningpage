@@ -26,11 +26,13 @@ type MockExamCardData = {
   advice: string;
 };
 
-// api/goal/grades.js 회차 기록 — mockRecords 원소.
+// api/goal/grades.js 회차 기록 — mockRecords 원소. recentHistory()가 delta 를 파생시켜 붙인다.
+// (index signature 대신 실제 쓰는 필드만 선언 — goalApi.ts 의 GoalGradeRecord 는 index
+// signature 가 없어 구조적 할당 시 인덱스 시그니처 요구가 오히려 막힌다, 판단 지점)
 type MockGradeRecord = {
   term: string;
   value: number;
-  [key: string]: unknown;
+  delta?: number | null;
 };
 
 type MockExamCardProps = {
@@ -103,7 +105,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
         <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
           {data.round}
         </span>
-        <GoalDdayBadge dday={data.dday} />
+        <GoalDdayBadge dday={data.dday ?? null} />
       </div>
       <GoalStatChip
         label={data.metricLabel}

@@ -9,7 +9,7 @@ type CardTip = { variant?: string; text?: ReactNode };
 type TimeSlotEfficiencyCardProps = {
   title?: ReactNode;
   rows: StatRow[];
-  tip?: CardTip | null;
+  tip?: CardTip | null | undefined;
 };
 
 // Row2 카드② `시간대별 학습 효율` — 6개 시간대 리스트(part-11 §252~257). ⚠︎ 시안은 값이 `0h`인
@@ -42,7 +42,8 @@ export default function TimeSlotEfficiencyCard({
         ))}
       </div>
       {tip && (
-        <InsightBox variant={tip.variant} className="mt-auto">
+        // InsightBox(다른 UoW 소유)는 undefined 미허용 — "info"는 InsightBox 자체 기본값과 동일
+        <InsightBox variant={tip.variant ?? "info"} className="mt-auto">
           {tip.text}
         </InsightBox>
       )}

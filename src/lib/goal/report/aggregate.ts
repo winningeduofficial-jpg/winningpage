@@ -14,6 +14,7 @@
 // 요일별 목표(월~토, 일요일 제외)를 합산한다. 새 요일 합산 로직을 이 파일에 만들지 않는다.
 
 import { GRADE_PERCENTILE } from "../calc/jeongsi.js";
+import type { DaySchedule } from "../calc/schedule.js";
 import { getEffectiveScheduleTarget } from "../calc/schedule.js";
 import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
 
@@ -26,7 +27,7 @@ export interface GoalStudentRow {
   min_naesin_cut?: number | string | null;
   ideal_jungsi_cut?: number | string | null;
   min_jungsi_cut?: number | string | null;
-  study_schedule?: Record<string, unknown> | null;
+  study_schedule?: Record<string, DaySchedule | undefined> | null;
   grade?: string | null;
   [key: string]: unknown;
 }
@@ -120,7 +121,8 @@ function minYmd(
 
 /** 월의 마지막 날짜(YYYY-MM-DD). ym='YYYY-MM'. */
 export function lastDayOfMonthYmd(ym: string): string {
-  const [y, m] = ym.split("-").map(Number);
+  // ym='YYYY-MM' 형식 보장(호출부 resolveMonthlyPeriod 의 isValidYm 체크)
+  const [y, m] = ym.split("-").map(Number) as [number, number];
   // UTC 기준 다음 달 0일 = 이번 달 마지막 날 (윤년 자동 처리, virtualDate.js addDaysYMD와 동일 기법).
   const d = new Date(Date.UTC(y, m, 0));
   return d.toISOString().slice(0, 10);
@@ -198,7 +200,7 @@ export function computeEffectiveWindow({
 }: {
   periodStart: string;
   periodEnd: string;
-  actualStartDate?: string | null;
+  actualStartDate?: string | null | undefined;
   nowYmd: string;
 }): EffectiveWindow {
   const start = maxYmd(periodStart, actualStartDate || periodStart);
@@ -242,7 +244,12 @@ export function computeAchievementRate({
     return { idealRate: 0, minRate: 0, idealTargetHours: 0, minTargetHours: 0 };
   }
   const target = getEffectiveScheduleTarget(
-    student,
+    // getEffectiveScheduleTarget 은 study_schedule 만 읽는다(calc/schedule.js) — null/누락 모두
+    // `student?.study_schedule || {}`로 동일하게 처리되므로 값 변경 없이 정규화만(exactOptionalPropertyTypes
+    // 는 명시적 `undefined` 프로퍼티도 허용하지 않아 조건부로만 넣는다).
+    student.study_schedule != null
+      ? { study_schedule: student.study_schedule }
+      : {},
     effectiveWindow.start,
     effectiveWindow.end,
   );
@@ -385,11 +392,12 @@ export function computeConditionBreakdown(records: GoalDailyRecordRow[]): {
   const listRows = CONDITION_ORDER.map((c) => ({
     emoji: c.emoji,
     label: c.label,
-    value: `${byCondition[c.code].count}일`,
+    // byCondition 은 CONDITION_ORDER 코드로만 초기화됨(위) — c.code 는 항상 존재
+    value: `${byCondition[c.code]!.count}일`,
   }));
 
   const tiles = CONDITION_ORDER.map((c) => {
-    const { count, sum } = byCondition[c.code];
+    const { count, sum } = byCondition[c.code]!;
     return {
       emoji: c.emoji,
       label: c.label,
@@ -437,7 +445,8 @@ export function computeSubjectShare(
 
   const rows = Object.entries(totals)
     .map(([code, seconds]) => ({
-      label: SUBJECT_LABELS[code],
+      // totals 의 code 는 항상 SUBJECT_LABELS 키("etc" 포함, 위 loop 참고)
+      label: SUBJECT_LABELS[code]!,
       value: round0((seconds / total) * 100),
     }))
     .sort((a, b) => b.value - a.value);
@@ -738,7 +747,8 @@ export function deriveGradeSystem(
   if (!match || !isValidYmd(nowYmd)) return "9등급제";
 
   const gradeNum = Number(match[1]);
-  const [y, m] = nowYmd.split("-").map(Number);
+  // nowYmd 는 위에서 isValidYmd 로 'YYYY-MM-DD' 형식 확인됨
+  const [y, m] = nowYmd.split("-").map(Number) as [number, number];
   // 한국 학년도는 3월 시작 — 1~2월은 전년도 학년도 소속.
   const schoolYear = m >= 3 ? y : y - 1;
   // 이 학생이 고3이 되는 학년도(= 수능 응시 학년도).

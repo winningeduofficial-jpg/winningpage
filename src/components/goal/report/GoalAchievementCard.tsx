@@ -14,10 +14,10 @@ type AchievementRow = { label: string; value: number; max?: number };
 type AchievementWeek = { label: string; min: number; upper: number };
 
 type GoalAchievementCardProps = {
-  title?: string;
+  title?: string | undefined;
   variant?: "weekly" | "monthly";
   rows: AchievementRow[];
-  weeks?: AchievementWeek[];
+  weeks?: AchievementWeek[] | undefined;
 };
 
 export default function GoalAchievementCard({
@@ -48,13 +48,14 @@ export default function GoalAchievementCard({
               value={row.value}
               max={row.max ?? 100}
               thickness="0.375rem"
-              fillClassName={ROW_FILL[index % ROW_FILL.length]}
+              // index % ROW_FILL.length 는 항상 배열 범위 내
+              fillClassName={ROW_FILL[index % ROW_FILL.length]!}
             />
           </div>
         ))}
       </div>
 
-      {variant === "monthly" && weeks?.length > 0 && (
+      {variant === "monthly" && weeks && weeks.length > 0 && (
         <>
           <div className="h-px w-full bg-[#EEEEEE]" aria-hidden="true" />
           <div className="flex flex-1 flex-col justify-center gap-3">

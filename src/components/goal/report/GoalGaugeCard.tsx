@@ -18,7 +18,7 @@ import GoalProgressBar from "../GoalProgressBar";
 // null 로 두어 호출부가 마커·목표 텍스트를 아예 생략하게 한다(가짜 목표를 그리지 않는다).
 type ComputeGaugeArgs = {
   value: number;
-  remaining?: number | null;
+  remaining?: number | null | undefined;
   lowerIsBetter?: boolean;
 };
 

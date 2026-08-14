@@ -71,9 +71,10 @@ export default function GoalTable({
 
       {rows.length === 0 ? (
         <div className="mt-5">
+          {/* GoalEmptyState(다른 UoW 소유)는 onAdd undefined 미허용 — 없으면 prop 자체를 생략 */}
           <GoalEmptyState
             message="아직 등록된 회차가 없습니다. 첫 회차를 추가해보세요."
-            onAdd={onAddRound}
+            {...(onAddRound ? { onAdd: onAddRound } : {})}
           />
         </div>
       ) : (
@@ -90,7 +91,8 @@ export default function GoalTable({
             </thead>
             <tbody>
               {rows.map((row, index) => {
-                const prevAverage = index > 0 ? rows[index - 1].average : null;
+                // index > 0 이면 rows[index - 1] 은 항상 존재
+                const prevAverage = index > 0 ? rows[index - 1]!.average : null;
                 const diff =
                   prevAverage != null ? row.average - prevAverage : null;
                 const direction =

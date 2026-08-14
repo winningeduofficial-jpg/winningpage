@@ -13,7 +13,7 @@ type RateRowProps = {
   value: number;
   dotClassName: string;
   fillClassName: string;
-  available?: boolean;
+  available?: boolean | undefined;
 };
 
 function RateRow({
@@ -60,7 +60,7 @@ type UniversityCardProps = {
   department: string;
   susiRate: number;
   jeongsiRate: number;
-  jungsiAvailable?: boolean;
+  jungsiAvailable?: boolean | undefined;
 };
 
 function UniversityCard({

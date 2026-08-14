@@ -53,7 +53,7 @@ export default function SubjectDirectionCard({
         </p>
       </div>
 
-      {materials?.length > 0 && (
+      {materials && materials.length > 0 && (
         <div className="mt-auto flex flex-col gap-2.5">
           <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">
             추천 교재/자료
