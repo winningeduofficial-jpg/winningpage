@@ -925,7 +925,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //    잔여 회차는 보지 않는다 — 설계 리포트는 무차감이고(§9.3), 이미 차감된 세션은
     //    소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정 「막는 것은 새 세션
     //    시작뿐」). 여기서 잔여로 막으면 학생이 값을 지불한 세션이 중간에 끊긴다.
-    const hasAccess = await hasPaidServiceAccess(
+    const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
       SERVICE_CONFIGS[SERVICE_KEY],
