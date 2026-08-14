@@ -479,16 +479,20 @@ function GoalCard({
 
 interface GoalStudentsAdminProps {
   config: GoalStudentsAdminConfig;
-  // Admin.jsx가 넘기는 콜백 계약(§4-3-C-4 원클릭 컷 만들기) — 둘 다 옵션이며
-  // 미제공 시 canCreateCut이 false가 되어 버튼 자체를 렌더하지 않는다.
-  onNavigate?: (key: string) => void;
-  onPrefillCreate?: (payload: Record<string, unknown>) => void;
+  // AdminSectionRoute(Admin.tsx)가 넘기는 콜백 계약(§4-3-C-4 원클릭 컷 만들기) — 옵션이며
+  // 미제공 시 canCreateCut이 false가 되어 버튼 자체를 렌더하지 않는다. "이동 + 프리필"을
+  // 한 호출로 묶는다 — 라우팅 계층 전환(react-router v8) 이후 이동은 실제 <Route>
+  // 전환(다른 컴포넌트 인스턴스로 마운트)이라, 이동과 프리필을 별개 호출 두 번으로
+  // 나누면 두 번째 호출이 이미 사라진 인스턴스에 걸린다.
+  onNavigateWithPrefill?: (
+    key: string,
+    payload: Record<string, unknown>,
+  ) => void;
 }
 
 export default function GoalStudentsAdmin({
   config,
-  onNavigate,
-  onPrefillCreate,
+  onNavigateWithPrefill,
 }: GoalStudentsAdminProps) {
   // 목록 state. 상세로 갔다 와도 유지되어야 하므로(§4-3-A) 상세는 하위 컴포넌트로 빼고
   // 이 컴포넌트는 언마운트되지 않는다.
@@ -690,8 +694,7 @@ export default function GoalStudentsAdmin({
       <GoalStudentDetail
         profileId={detailId}
         onBack={() => setDetailId(null)}
-        onNavigate={onNavigate}
-        onPrefillCreate={onPrefillCreate}
+        onNavigateWithPrefill={onNavigateWithPrefill}
       />
     );
   }
@@ -1071,17 +1074,17 @@ const GOAL_RECORD_PAGE = 30;
 interface GoalStudentDetailProps {
   profileId: string;
   onBack: () => void;
-  // exactOptionalPropertyTypes: 호출부(위 686 부근)가 부모 prop(onNavigate?/onPrefillCreate?,
+  // exactOptionalPropertyTypes: 호출부(위 686 부근)가 부모 prop(onNavigateWithPrefill?,
   // 값은 boolean이 아니라 함수 | undefined)을 그대로 전달하므로 undefined도 명시한다.
-  onNavigate?: ((key: string) => void) | undefined;
-  onPrefillCreate?: ((payload: Record<string, unknown>) => void) | undefined;
+  onNavigateWithPrefill?:
+    | ((key: string, payload: Record<string, unknown>) => void)
+    | undefined;
 }
 
 function GoalStudentDetail({
   profileId,
   onBack,
-  onNavigate,
-  onPrefillCreate,
+  onNavigateWithPrefill,
 }: GoalStudentDetailProps) {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<GoalStudentRow | null>(null);
@@ -1269,20 +1272,16 @@ function GoalStudentDetail({
     };
   }, [profileId, recordLimit]);
 
-  // 원클릭 컷 만들기(§4-3-C-4). 공급자는 이 컴포넌트, 소비자는 Admin() 최상단의
-  // customComponentKey 렌더 분기(onNavigate/onPrefillCreate 계약, 그 지점 참고) —
-  // 반드시 onNavigate로 탭을 먼저 옮긴 뒤 onPrefillCreate로 프리필을 실어야 한다.
-  // changeTab이 mode를 'list'로 되돌리므로, 순서가 뒤바뀌면(프리필 먼저) 직후의
-  // changeTab이 mode를 다시 'list'로 덮어써 등록 폼이 열리지 않는다.
-  // 두 핸들러 모두 함수일 때만 동작한다 — 클립보드 백업 경로는 두지 않는다(진입점
-  // 하나만 정본으로 둔다). 미제공 시 버튼 자체를 렌더하지 않는다(canCreateCut).
-  const canCreateCut =
-    typeof onNavigate === "function" && typeof onPrefillCreate === "function";
+  // 원클릭 컷 만들기(§4-3-C-4). 공급자는 이 컴포넌트, 소비자는 AdminSectionRoute(Admin.tsx)
+  // 최상단의 customComponentKey 렌더 분기(onNavigateWithPrefill 계약, 그 지점 참고) —
+  // 이동과 프리필을 한 호출로 묶는다(navigateWithPrefill이 route state로 실어 나른다).
+  // 함수일 때만 동작한다 — 클립보드 백업 경로는 두지 않는다(진입점 하나만 정본으로
+  // 둔다). 미제공 시 버튼 자체를 렌더하지 않는다(canCreateCut).
+  const canCreateCut = typeof onNavigateWithPrefill === "function";
 
   function createCutFromSlot(slot: GoalDescribedCutSlot) {
     if (!canCreateCut) return;
-    onNavigate("goalUniversityCuts");
-    onPrefillCreate({
+    onNavigateWithPrefill("goalUniversityCuts", {
       cut_type: slot.cutType,
       university_name: slot.university,
       department_name: slot.department,
