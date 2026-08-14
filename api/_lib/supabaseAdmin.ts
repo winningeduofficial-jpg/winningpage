@@ -7,9 +7,9 @@
 // 이 클라이언트는 RLS를 통째로 우회한다. 그래서 이걸 쓰는 라우트는 "누가
 // 무엇을 할 수 있는지"를 스스로 검사해야 한다.
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export function getEnv(...keys) {
+export function getEnv(...keys: string[]) {
   for (const key of keys) {
     const value = String(process.env[key] || "").trim();
     if (value) return value;
@@ -17,7 +17,7 @@ export function getEnv(...keys) {
   return "";
 }
 
-let cached = null;
+let cached: SupabaseClient | null = null;
 
 export function createSupabaseAdmin() {
   if (cached) return cached;

@@ -11,7 +11,7 @@
 // 여기가 최종 방어선이다 — 클라이언트(PremiumApply.jsx) 검증은 UX용일
 // 뿐 신뢰하지 않는다.
 
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 // PremiumApply.jsx SERVICE_OPTIONS 와 글자 단위로 동일해야 한다.
 // 목록 밖 값은 위조된 요청으로 보고 거절한다.

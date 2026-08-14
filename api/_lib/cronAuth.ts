@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { getEnv } from "./supabaseAdmin.js";
 
 /** 길이가 달라도 예외를 던지지 않는 상수시간 비교. */
-export function safeEqual(a, b) {
+export function safeEqual(a: unknown, b: unknown) {
   const left = Buffer.from(String(a || ""), "utf8");
   const right = Buffer.from(String(b || ""), "utf8");
   if (left.length !== right.length) return false;
@@ -15,9 +15,11 @@ export function safeEqual(a, b) {
 
 /**
  * Vercel Cron 호출인지 확인한다.
- * @returns {boolean} `CRON_SECRET` 미설정이면 무조건 false(fail-closed).
+ * @returns `CRON_SECRET` 미설정이면 무조건 false(fail-closed).
  */
-export function isAuthorizedCron(req) {
+export function isAuthorizedCron(req: {
+  headers: Record<string, string | undefined>;
+}) {
   const secret = getEnv("CRON_SECRET");
   if (!secret) {
     console.error(

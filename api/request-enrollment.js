@@ -14,7 +14,7 @@
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
 
 import crypto from "node:crypto";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 function clean(value) {
   return String(value || "").trim();

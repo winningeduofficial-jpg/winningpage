@@ -24,7 +24,7 @@ import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "./serviceAccess.js";
-import { createSupabaseAdmin } from "./supabaseAdmin.js";
+import { createSupabaseAdmin } from "./supabaseAdmin.ts";
 
 // ---------------------------------------------------------------------------
 // 테이블 · 공통 상수

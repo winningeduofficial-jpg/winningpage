@@ -27,7 +27,7 @@ import {
   SVC_TYPE_MOBILE,
 } from "./_lib/niceIdentity.js";
 import { getClientIp } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.ts";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };

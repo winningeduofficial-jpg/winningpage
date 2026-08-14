@@ -37,7 +37,7 @@
 // 코퍼스 적재는 별도 작업이다. 검색이 빈 결과를 돌려주는 것은 버그가 아니라
 // `source:'none'`이며, 이때 프롬프트에는 원문 그대로 `관련 위닝DB 항목 없음`이 들어간다.
 
-import { createSupabaseAdmin } from "../supabaseAdmin.js";
+import { createSupabaseAdmin } from "../supabaseAdmin.ts";
 import { embedText } from "./embeddings.js";
 import { NO_KNOWLEDGE_TEXT, NO_STUDENT_HISTORY_TEXT } from "./prompts.js";
 

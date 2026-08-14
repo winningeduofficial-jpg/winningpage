@@ -107,7 +107,7 @@ import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 import {
   ALLOWED_MIME_EXT,
   BUCKET,

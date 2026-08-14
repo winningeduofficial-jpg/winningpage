@@ -26,8 +26,8 @@
 //   경유한다(로컬은 프록시 없이 직접 나간다).
 
 import crypto from "node:crypto";
-import { outboundFetch } from "./outbound.js";
-import { getEnv } from "./supabaseAdmin.js";
+import { outboundFetch } from "./outbound.ts";
+import { getEnv } from "./supabaseAdmin.ts";
 
 // ── 엔드포인트 ───────────────────────────────────────────────────────
 const API_BASE = getEnv("NICE_API_BASE") || "https://auth.niceid.co.kr";

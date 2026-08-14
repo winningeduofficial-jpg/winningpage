@@ -34,7 +34,7 @@
 export const SUBMISSION_MIN_CHARS = 100;
 
 /** 필드 값 1개의 글자 수. 시안 카운터가 그대로 렌더하는 수(`{n}자`)다. */
-export function countFieldChars(value) {
+export function countFieldChars(value: unknown) {
   return [
     ...String(value ?? "")
       .replace(/\s+/g, " ")
@@ -60,7 +60,12 @@ export function countFieldChars(value) {
  * 키가 겹치면 같은 값이 total에 두 번 더해져 100자 게이트가 실제로는 50자가 된다.
  * `perField`는 어차피 객체라 키가 하나로 접히므로, total만 그 모양과 어긋나던 것을 맞춘다.
  */
-export function countFieldsChars(schemaFields, values = {}) {
+type SchemaField = { key: string; label: string; required?: boolean };
+
+export function countFieldsChars(
+  schemaFields: SchemaField[],
+  values: Record<string, unknown> = {},
+) {
   const fields = Array.isArray(schemaFields) ? schemaFields : [];
   const source = values && typeof values === "object" ? values : {};
   const perField = {};
@@ -85,7 +90,10 @@ export function countFieldsChars(schemaFields, values = {}) {
  * 반환만 하고 throw 하지 않는다. HTTP 응답 형태(§8.6 L1811 `{ error:{code,message} }`)는
  * 엔드포인트가 정하고, 화면 문구는 제출폼이 정한다.
  */
-export function checkFieldsMinLength(schemaFields, values = {}) {
+export function checkFieldsMinLength(
+  schemaFields: SchemaField[],
+  values: Record<string, unknown> = {},
+) {
   const fields = Array.isArray(schemaFields) ? schemaFields : [];
   const { perField, total } = countFieldsChars(fields, values);
 

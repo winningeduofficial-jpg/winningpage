@@ -4,7 +4,7 @@
 // 이 파일과 라우트만 service_role로 그 테이블에 접근한다.
 
 import crypto from "node:crypto";
-import { getEnv } from "./supabaseAdmin.js";
+import { getEnv } from "./supabaseAdmin.ts";
 
 export const CODE_LENGTH = 6;
 export const CODE_TTL_SECONDS = 180; // 3분

@@ -32,12 +32,24 @@ import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req, res) {
+type ApiRequest = {
+  method?: string;
+  headers: Record<string, string>;
+  body?: Record<string, unknown>;
+};
+type ApiResponse = {
+  status: (code: number) => { json: (body: unknown) => unknown };
+};
+type WinningAdminResult =
+  | { ok: true; userId: string }
+  | { ok: false; status: number; detail: string };
+
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ detail: "Method not allowed" });
   }
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
 
   try {
     supabaseAdmin = createSupabaseAdmin();
@@ -46,8 +58,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
   }
 
-  const auth = await resolveWinningAdmin(supabaseAdmin, req);
-  if (!auth.ok) {
+  const auth: WinningAdminResult = await resolveWinningAdmin(
+    supabaseAdmin,
+    req,
+  );
+  if (auth.ok === false) {
     return res.status(auth.status).json({ detail: auth.detail });
   }
 

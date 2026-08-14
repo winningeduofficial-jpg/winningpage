@@ -39,7 +39,7 @@ export {
   countFieldChars,
   countFieldsChars,
   SUBMISSION_MIN_CHARS,
-} from "../../../api/_lib/performance/submission-chars.js";
+} from "../../../api/_lib/performance/submission-chars.ts";
 
 const NETWORK_ERROR =
   "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";

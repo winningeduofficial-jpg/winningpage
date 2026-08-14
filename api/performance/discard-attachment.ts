@@ -49,18 +49,34 @@ const SERVICE_KEY = "suhaeng";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function fail(res, status, code, message, extra) {
+type ApiRequest = {
+  method?: string;
+  headers: Record<string, string>;
+  body?: Record<string, unknown>;
+};
+type ApiResponse = {
+  status: (code: number) => { json: (body: unknown) => unknown };
+  setHeader: (name: string, value: string) => void;
+};
+
+function fail(
+  res: ApiResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {

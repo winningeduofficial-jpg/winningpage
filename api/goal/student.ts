@@ -35,7 +35,15 @@ import {
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req, res) {
+type ApiRequest = {
+  method?: string;
+  headers: Record<string, string>;
+};
+type ApiResponse = {
+  status: (code: number) => { json: (body: unknown) => unknown };
+};
+
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ detail: "Method not allowed" });
   }

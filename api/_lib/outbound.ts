@@ -17,11 +17,12 @@
 //   import { outboundFetch } from './_lib/outbound.js';
 //   const res = await outboundFetch('https://apis.aligo.in/...', { method: 'POST', body });
 
+import type { RequestInit as UndiciRequestInit } from "undici";
 import { ProxyAgent, fetch as undiciFetch } from "undici";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-let cachedAgent = null;
+let cachedAgent: ProxyAgent | null = null;
 let cachedProxyUrl = "";
 
 function readProxyUrl() {
@@ -75,12 +76,18 @@ function getAgent() {
  * 요청이라, 실패로 보이는 요청이 실제로는 전달됐을 수 있어서 자동 재시도가
  * 중복 발송을 만든다. 재시도가 필요하면 호출부가 멱등성을 보장한 뒤 직접 한다.
  *
- * @param {string} url
- * @param {object} [options] fetch 옵션 + 아래 확장
- * @param {number} [options.timeoutMs=10000]
- * @param {boolean} [options.requireProxy] 기본값: 배포 환경이면 true, 로컬이면 false
+ * @param url
+ * @param options fetch 옵션 + 아래 확장
+ *   timeoutMs 기본값 10000
+ *   requireProxy 기본값: 배포 환경이면 true, 로컬이면 false
  */
-export async function outboundFetch(url, options = {}) {
+export async function outboundFetch(
+  url: string,
+  options: UndiciRequestInit & {
+    timeoutMs?: number;
+    requireProxy?: boolean;
+  } = {},
+) {
   const {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     requireProxy = isDeployed(),

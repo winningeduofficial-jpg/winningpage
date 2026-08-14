@@ -18,7 +18,7 @@
 //   학부모는 가입 → 자녀 연결로 흐름이 이어지므로 세션을 유지해야 한다.
 
 import { getClientIp } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 export const config = { runtime: "nodejs" };
 

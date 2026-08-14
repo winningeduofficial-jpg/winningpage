@@ -28,7 +28,7 @@ import {
   isUnder14,
   parseNiceBirthDate,
 } from "./_lib/niceIdentity.js";
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.ts";
 
 export const config = { runtime: "nodejs" };
 
