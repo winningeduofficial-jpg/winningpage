@@ -17,7 +17,6 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
@@ -102,6 +101,32 @@ import {
 import { plainTextToBlocks } from "../lib/plainTextToBlocks";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
+import { AdminTopbar } from "./admin/shared/AdminTopbar";
+import { reportAdminError } from "./admin/shared/adminErrors";
+import {
+  csvBody,
+  csvHeader,
+  downloadCsv,
+  downloadCsvText,
+  formatListValue,
+  formatValue,
+  getFileNameFromUrl,
+  normalizeArray,
+  searchable,
+  truncateText,
+} from "./admin/shared/csvExport";
+import {
+  ActionButton,
+  boolValue,
+  Field,
+  getNextSortOrder,
+  normalizeProgramIds,
+  ProgramSelector,
+  Select,
+  Textarea,
+  TextInput,
+  Toggle,
+} from "./admin/shared/formFields";
 
 // resolveInfoContent(AdmissionGuidelines.jsx)와 동일한 dedup 검사 —
 // buildHwpCategoryHtml이 만든 html은 admission-raw-section-wrap을 자체
@@ -210,61 +235,6 @@ const MENU_GROUPS = [
     ],
   },
 ];
-
-// error.message 원문 alert 위생(팀 리드 지시, 2026-08-12) — Baseline 실측 WC 코드·
-// SQLSTATE 를 짧은 한국어 안내로 치환한다. 매핑에 없는 오류는 일반 실패 문구를
-// 보여주고 원문은 console.error 로만 남긴다(alert 로 DB 에러 원문을 그대로
-// 노출하지 않기 위함). 19개소(제네릭 저장 경로 두 벌 + 조회 2곳 포함) 전부
-// 아래 reportAdminError 경유로 통일한다.
-const ADMIN_ERROR_MESSAGE_MAP = [
-  {
-    pattern: /refund_not_approved_for_completion|WC035/,
-    message: "아직 승인되지 않은 환불 신청입니다.",
-  },
-  {
-    pattern: /refund_completion_not_processable|WC036/,
-    message: "지금 상태에서는 환불 완료 처리를 할 수 없습니다.",
-  },
-  {
-    pattern: /order_already_consumed|WC032/,
-    message: "이미 사용된 주문이라 환불 완료 처리를 할 수 없습니다.",
-  },
-  {
-    pattern: /refund_amount_exceeds_paid|WC037/,
-    message: "환불 금액이 결제 금액을 초과합니다.",
-  },
-  { pattern: /order_not_pending|WC040/, message: "이미 처리된 주문입니다." },
-  {
-    pattern: /order_not_paid_for_refund|WC041/,
-    message: "결제 완료된 주문만 환불할 수 있습니다.",
-  },
-  {
-    pattern: /refunded_order_immutable|WC039/,
-    message: "환불 완료된 주문은 더 이상 수정할 수 없습니다.",
-  },
-  {
-    pattern: /23514/,
-    message: "입력값이 저장 조건을 벗어났습니다. 값을 다시 확인해 주세요.",
-  },
-  {
-    pattern: /23502/,
-    message: "필수 값이 비어 있습니다. 항목을 모두 입력해 주세요.",
-  },
-  { pattern: /23505/, message: "이미 등록된 값입니다(중복)." },
-];
-
-function mapAdminErrorMessage(error) {
-  const raw = `${error?.message || ""} ${error?.code || ""}`;
-  const hit = ADMIN_ERROR_MESSAGE_MAP.find(({ pattern }) => pattern.test(raw));
-  return hit
-    ? hit.message
-    : "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-}
-
-function reportAdminError(label, error) {
-  console.error(label, error);
-  alert(`${label}: ${mapAdminErrorMessage(error)}`);
-}
 
 // AdmissionGuidelines.jsx의 REGION_ORDER와 동일하게 유지한다.
 // 여기 없는 지역 문자열을 입력하면 공개 페이지의 지역별 목록/지도에 노출되지 않는다.
@@ -3448,31 +3418,6 @@ const PROGRAM_EMPTY = {
   sort_order: 1,
 };
 
-function normalizeProgramIds(value) {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (!value) return [];
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-    } catch {
-      return value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-  }
-
-  return [];
-}
-
-function boolValue(value) {
-  if (value === true || value === "true") return true;
-  if (value === false || value === "false") return false;
-  return Boolean(value);
-}
-
 const WINNING_RAG_KNOWLEDGE_TYPES = new Set([
   "topic_pattern",
   "verified_resource",
@@ -3605,143 +3550,6 @@ async function requestWinningEmbedding(row) {
     return null;
   }
 }
-function getNextSortOrder(items) {
-  const list = Array.isArray(items) ? items : [];
-
-  if (list.length === 0) return 1;
-
-  return Math.max(...list.map((item) => Number(item.sort_order || 0))) + 1;
-}
-
-function TextInput({ value, onChange, placeholder, className = "" }) {
-  return (
-    <input
-      value={value || ""}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      className={`h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-none focus:border-[#B88737] ${className}`}
-    />
-  );
-}
-
-function Textarea({ value, onChange, placeholder, rows = 3 }) {
-  return (
-    <textarea
-      value={value || ""}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full resize-y border border-gray-300 px-3 py-2 text-sm font-bold leading-6 outline-none focus:border-[#B88737]"
-    />
-  );
-}
-
-function Select({ value, onChange, children }) {
-  return (
-    <select
-      value={value || ""}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-none focus:border-[#B88737]"
-    >
-      {children}
-    </select>
-  );
-}
-
-function Toggle({ checked, onChange, label }) {
-  return (
-    <label className="inline-flex items-center gap-2 text-sm font-black text-gray-700">
-      <input
-        type="checkbox"
-        checked={!!checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-[#0D1B2A]"
-      />
-      {label}
-    </label>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: children이 폼 컨트롤을 감싸는(중첩) 연결 방식이다 — 정적 분석이 children 내부를 못 봐서 오탐이다.
-    <label className="block">
-      <span className="mb-1 block text-xs font-black text-gray-500">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function ActionButton({
-  children,
-  onClick,
-  variant = "dark",
-  type = "button",
-  disabled = false,
-}) {
-  const variantClass =
-    variant === "danger"
-      ? "border border-red-500 bg-white text-red-600 hover:bg-red-50"
-      : variant === "light"
-        ? "border border-gray-400 bg-white text-gray-800 hover:bg-gray-50"
-        : "bg-[#0D1B2A] text-white hover:bg-[#162A40]";
-
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex h-9 items-center justify-center gap-1 px-4 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${variantClass}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ProgramSelector({ programs, value, onChange }) {
-  const selected = new Set(normalizeProgramIds(value));
-
-  function toggle(programId) {
-    const next = new Set(selected);
-    if (next.has(programId)) next.delete(programId);
-    else next.add(programId);
-    onChange(Array.from(next));
-  }
-
-  if (programs.length === 0) {
-    return (
-      <div className="rounded border border-dashed border-gray-300 px-3 py-2 text-xs font-bold text-gray-500">
-        먼저 추천 프로그램을 등록하세요.
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-      {programs.map((program) => (
-        <label
-          key={program.id}
-          className={`flex cursor-pointer items-center gap-2 border px-3 py-2 text-xs font-black transition ${
-            selected.has(program.id)
-              ? "border-[#0D1B2A] bg-[#0D1B2A] text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-[#B88737]"
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={selected.has(program.id)}
-            onChange={() => toggle(program.id)}
-            className="h-4 w-4 accent-[#B88737]"
-          />
-          {program.title || "제목 없음"}
-        </label>
-      ))}
-    </div>
-  );
-}
-
 function LearningDiagnosisAdmin() {
   const [questions, setQuestions] = useState([]);
   const [options, setOptions] = useState([]);
@@ -4641,152 +4449,6 @@ function LearningDiagnosisAdmin() {
   );
 }
 
-function formatValue(value, type, options) {
-  if (value === null || value === undefined || value === "") return "-";
-
-  if (Array.isArray(options)) {
-    const matched = options.find(
-      (option) =>
-        option && typeof option === "object" && option.value === value,
-    );
-    if (matched) return matched.label;
-  }
-
-  if (type === "boolean") return value ? "사용" : "미사용";
-
-  // 멘토 신청 내역 목록 전용 — 개인정보 최소 노출(팀장 지시). 상세 화면에서는 마스킹 없이
-  // 원본 휴대폰번호를 그대로 보여준다.
-  if (type === "maskedPhone") {
-    const digits = String(value).replace(/\D/g, "");
-    if (digits.length < 8) return String(value);
-    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
-  }
-
-  if (type === "money") return `${Number(value || 0).toLocaleString()}원`;
-
-  if (type === "date") {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (type === "datetime") {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    // toISOString()은 UTC라 KST 00~09시 신청 건이 하루 전날로 잘린다 — Asia/Seoul 고정 표시.
-    return date.toLocaleString("ko-KR", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  }
-
-  return String(value);
-}
-
-function searchable(row) {
-  return Object.values(row || {})
-    .map((value) => String(value ?? ""))
-    .join(" ")
-    .toLowerCase();
-}
-
-function csvEscape(value) {
-  const raw = String(value ?? "");
-  // CSV formula injection 방어 — Excel/Sheets는 따옴표로 감싼 필드여도
-  // 선두 = + - @ 및 탭/CR을 수식으로 해석한다. 선행 작은따옴표로 무력화한다.
-  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
-
-function csvHeader(columns) {
-  return columns.map((column) => csvEscape(column.label)).join(",");
-}
-
-// 행 배열 → CSV 본문 줄들. 전량 로드 경로(downloadCsv)와 청크 내보내기(입결 43k행)가
-// 같은 이스케이프 규칙을 쓰도록 뽑아둔 것 — 청크 쪽은 받은 행 객체를 계속 붙들지 않고
-// 줄 문자열로 접어 모은다(43k행 × 30컬럼을 통째로 메모리에 쌓지 않기 위해).
-function csvBody(rows, columns) {
-  // CSV는 표시용이 아니라 데이터 교환용이다 — column.options를 넘기지 마라.
-  // 라벨(수시/정시)로 내보내면 Supabase 재업로드 시 category CHECK 제약을 위반한다.
-  return rows
-    .map((row) =>
-      columns
-        .map((column) => csvEscape(formatValue(row[column.key], column.type)))
-        .join(","),
-    )
-    .join("\n");
-}
-
-// 헤더/본문 문자열을 그대로 받아 파일로 떨군다. 청크 내보내기는 본문을 여러 번에
-// 나눠 만든 뒤 이어 붙여 넘기므로 rows 배열을 요구하지 않는 이 형태가 필요하다.
-function downloadCsvText(filename, header, body) {
-  const blob = new Blob([`\ufeff${header}\n${body}`], {
-    type: "text/csv;charset=utf-8;",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-
-  a.href = url;
-  a.download = filename;
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
-
-function downloadCsv(filename, rows, columns) {
-  downloadCsvText(filename, csvHeader(columns), csvBody(rows, columns));
-}
-
-function normalizeArray(value) {
-  if (Array.isArray(value)) return value;
-  if (!value) return [];
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return value ? [value] : [];
-    }
-  }
-
-  return [];
-}
-
-function getFileNameFromUrl(value) {
-  if (!value) return "첨부파일";
-
-  try {
-    const raw = typeof value === "string" ? value : value.url;
-    const pathname = new URL(raw).pathname;
-    return decodeURIComponent(pathname.split("/").pop() || "첨부파일");
-  } catch {
-    return "첨부파일";
-  }
-}
-
-function formatListValue(value, type) {
-  const list = normalizeArray(value);
-  if (list.length === 0) return "-";
-  if (type === "imageList") return `이미지 ${list.length}개`;
-  if (type === "fileList") return `첨부파일 ${list.length}개`;
-  return `${list.length}개`;
-}
-
-function truncateText(value, maxLength = 10) {
-  if (value === null || value === undefined || value === "") return "-";
-  const flat = String(value).replace(/\r?\n/g, " ");
-  const chars = Array.from(flat);
-  if (chars.length <= maxLength) return flat;
-  return `${chars.slice(0, maxLength).join("")}…`;
-}
-
 function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(
     () => new Set(MENU_GROUPS.map((group) => group.title)),
@@ -4853,33 +4515,6 @@ function AdminSidebar({ activeKey, setActiveKey }) {
         })}
       </nav>
     </aside>
-  );
-}
-
-function AdminTopbar({ onLogout }) {
-  return (
-    <header className="fixed left-[224px] right-0 top-0 z-30 flex h-[56px] items-center justify-between border-b border-black/10 bg-white px-7 shadow">
-      <p className="text-[15px] font-bold text-[#3a3f45]">
-        안녕하세요, <strong>관리자님.</strong>
-      </p>
-
-      <div className="flex items-center gap-3">
-        <Link
-          to="/"
-          className="inline-flex h-[32px] items-center justify-center rounded border border-[#c9ced6] bg-white px-4 text-xs font-bold text-[#3a3f45] transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
-        >
-          메인으로 이동
-        </Link>
-
-        <button
-          type="button"
-          onClick={onLogout}
-          className="inline-flex h-[32px] items-center justify-center rounded border border-[#c9ced6] bg-white px-4 text-xs font-bold text-[#8b9098] transition hover:border-black hover:text-black"
-        >
-          로그아웃
-        </button>
-      </div>
-    </header>
   );
 }
 
