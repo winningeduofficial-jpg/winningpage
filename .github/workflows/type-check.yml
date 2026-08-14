@@ -1,0 +1,38 @@
+name: Type Check
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # tsc --noEmit — 타입 에러 자체를 잡는다(strict 서브플래그 위반 포함).
+      - name: tsc --noEmit
+        run: npm run typecheck
+
+      # api/ 는 별도 tsconfig(NodeNext resolution)로 상대 import .js 확장자
+      # 강제 — 2026-08-14 production 크래시(TS import 확장자 사고) 재발 방지 게이트.
+      - name: tsc --noEmit (api, NodeNext)
+        run: npx tsc --noEmit -p api/tsconfig.json
+
+      # any 비율 후퇴 방지 게이트. 임계값은 package.json의 type-coverage
+      # 스크립트(--at-least)에 고정돼 있다 — 개선되면 npx type-coverage --update로
+      # 임계값을 올릴 수 있지만 낮추려면 리뷰에서 이유를 설명해야 한다.
+      - name: type-coverage
+        run: npm run type-coverage
+
+      - name: biome ci
+        run: npm run format:ci
