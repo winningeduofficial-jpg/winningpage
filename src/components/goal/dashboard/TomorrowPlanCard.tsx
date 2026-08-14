@@ -5,7 +5,17 @@ import { getSubjectBgClass } from "../subjectTokens";
 // (tailwind.config.js `goal.subject.*`) 재사용, 미지정 과목은 etc(중립 웜그레이)로 폴백
 // (subjectTokens.js 헬퍼가 정본 매핑을 제공 — 코드 검수 §1).
 
-export default function TomorrowPlanCard({ plan }) {
+type TomorrowPlanItem = {
+  subject: string;
+  unit: string;
+  duration: string;
+};
+
+type TomorrowPlanCardProps = {
+  plan: TomorrowPlanItem[];
+};
+
+export default function TomorrowPlanCard({ plan }: TomorrowPlanCardProps) {
   return (
     <GoalCard
       tone="neutral"

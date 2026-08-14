@@ -3,7 +3,18 @@ import GoalCard from "../GoalCard";
 // 우측 레일 "오늘의 학습 순위" 카드(372×342, 행 332×38 pitch 46) — 사이드바 메뉴에서는
 // "학습 순위"가 정본에서 제외됐지만(goalNavItems.js 상단 주석) 대시보드 레일 카드는 유지
 // 대상이다(작업 지시 §확정사항 4). 본인 행만 주황 강조.
-export default function RankingRail({ ranking }) {
+type RankingRow = {
+  rank: number;
+  name: string;
+  hours: number;
+  isSelf?: boolean;
+};
+
+type RankingRailProps = {
+  ranking: RankingRow[];
+};
+
+export default function RankingRail({ ranking }: RankingRailProps) {
   return (
     <GoalCard
       tone="cream"

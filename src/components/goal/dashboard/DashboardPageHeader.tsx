@@ -6,7 +6,9 @@
 // part-06 #17/#18: 두 프레임은 뱃지 문구만 다른 동일 화면("일일 분석 조언" 115×32 / "AI 입시
 // 분석 조언" 134×32) — #18 구현 노트가 명시한 대로 컴포넌트 하나 + `adviceType` prop으로 분기하고,
 // 뱃지 폭은 문구 길이에 따른 hug(파란 pill, 좌우 패딩 고정)로 하드코딩하지 않는다.
-const BADGE_LABEL = {
+import type { ReactNode } from "react";
+
+const BADGE_LABEL: Record<string, string> = {
   daily: "일일 분석 조언",
   ai: "AI 입시 분석 조언",
 };
@@ -33,12 +35,19 @@ function SparkleIcon() {
 
 // adviceType: 'daily' | 'ai' — 뱃지 문구만 갈린다. dateLabel/headline은 목업에서 주입(고정 카피 아님).
 // className: 부모(Dashboard)가 그리드 배치(col/row-start)를 주입할 수 있도록 허용.
+type DashboardPageHeaderProps = {
+  adviceType?: "daily" | "ai";
+  dateLabel?: ReactNode;
+  headline?: ReactNode;
+  className?: string;
+};
+
 export default function DashboardPageHeader({
   adviceType = "ai",
   dateLabel,
   headline,
   className = "",
-}) {
+}: DashboardPageHeaderProps) {
   const badgeLabel = BADGE_LABEL[adviceType] ?? BADGE_LABEL.ai;
 
   return (

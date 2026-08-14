@@ -8,13 +8,21 @@ import GoalProgressBar from "../GoalProgressBar";
 // "미산출"로 바꾼다. 카드를 숨기면 학생이 "정시는 원래 없는 기능"으로 오해한다(임무 지시).
 // null(미산출)과 0%(가망 없음)는 반드시 시각적으로 구분돼야 하므로, 점·게이지 채움색도
 // 회색 톤으로 낮춰 "값이 없다"를 값(0%)과 구분한다.
+type RateRowProps = {
+  label: string;
+  value: number;
+  dotClassName: string;
+  fillClassName: string;
+  available?: boolean;
+};
+
 function RateRow({
   label,
   value,
   dotClassName,
   fillClassName,
   available = true,
-}) {
+}: RateRowProps) {
   return (
     <div className="flex items-center gap-2">
       {/* line(#d7d7d7)은 이 코드베이스의 "비활성" 토큰이다(tailwind.config.js 주석: 비활성
@@ -46,6 +54,15 @@ function RateRow({
   );
 }
 
+type UniversityCardProps = {
+  label: string;
+  university: string;
+  department: string;
+  susiRate: number;
+  jeongsiRate: number;
+  jungsiAvailable?: boolean;
+};
+
 function UniversityCard({
   label,
   university,
@@ -53,7 +70,7 @@ function UniversityCard({
   susiRate,
   jeongsiRate,
   jungsiAvailable,
-}) {
+}: UniversityCardProps) {
   return (
     <GoalCard
       tone="neutral"
@@ -85,7 +102,16 @@ function UniversityCard({
   );
 }
 
-export default function TargetUniversityRail({ data }) {
+type TargetUniversityRailProps = {
+  data: {
+    upper: UniversityCardProps;
+    lower: UniversityCardProps;
+  };
+};
+
+export default function TargetUniversityRail({
+  data,
+}: TargetUniversityRailProps) {
   return (
     <>
       <UniversityCard

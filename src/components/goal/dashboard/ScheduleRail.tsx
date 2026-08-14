@@ -9,7 +9,18 @@ import GoalEmptyState from "../GoalEmptyState";
 // 등록 모달(정본, AddScheduleFullModal.jsx #40)로 이동시킨다.
 
 // 우측 레일 "중요일정 체크하기" 카드 — 데이터 유무에 따라 194↔278 가변(part-07/08 §272/§200).
-export default function ScheduleRail({ schedules }) {
+type ScheduleItem = {
+  id?: string | number;
+  title: string;
+  meta?: string;
+  dday?: string | number;
+};
+
+type ScheduleRailProps = {
+  schedules?: ScheduleItem[] | null;
+};
+
+export default function ScheduleRail({ schedules }: ScheduleRailProps) {
   const navigate = useNavigate();
   const hasSchedules = Array.isArray(schedules) && schedules.length > 0;
 
