@@ -1,7 +1,12 @@
+import type { ReactNode } from "react";
+
 // sql/52_mentor_applications.sql의 status 컬럼 주석에 적힌 값 그대로(CHECK 제약은 없지만
 // 이 6개가 실제 사용 값이다). CONFIGS.mentorApplications 목록 컬럼과 MentorApplicationsAdmin의
 // 상세 상태변경 Select가 이 배열 하나를 공유한다 — 값이 어긋나면 목록에 라벨이 안 붙는다.
-export const MENTOR_APPLICATION_STATUS_OPTIONS = [
+export const MENTOR_APPLICATION_STATUS_OPTIONS: {
+  value: string;
+  label: string;
+}[] = [
   { value: "submitted", label: "제출됨" },
   { value: "screening", label: "서류심사" },
   { value: "interview", label: "면접" },
@@ -13,12 +18,12 @@ export const MENTOR_APPLICATION_STATUS_OPTIONS = [
 // source: 백필(admission_results 유도)로 만들어진 행인지, 사람이 손으로 넣은
 // 행인지를 구분한다. 백필 재실행이 'manual' 행을 덮어쓰지 않는 근거 컬럼이다.
 // CONFIGS.goalUniversityCuts(Admin.jsx)와 GoalStudentsAdmin이 이 배열을 공유한다.
-export const GOAL_CUT_SOURCE_OPTIONS = [
+export const GOAL_CUT_SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "admission_results", label: "입결정보 유도" },
   { value: "manual", label: "수기 입력" },
 ];
 
-export function normalizeProgramIds(value) {
+export function normalizeProgramIds(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (!value) return [];
 
@@ -37,21 +42,33 @@ export function normalizeProgramIds(value) {
   return [];
 }
 
-export function boolValue(value) {
+export function boolValue(value: unknown): boolean {
   if (value === true || value === "true") return true;
   if (value === false || value === "false") return false;
   return Boolean(value);
 }
 
-export function getNextSortOrder(items) {
-  const list = Array.isArray(items) ? items : [];
+export function getNextSortOrder(items: unknown): number {
+  const list: { sort_order?: number }[] = Array.isArray(items) ? items : [];
 
   if (list.length === 0) return 1;
 
   return Math.max(...list.map((item) => Number(item.sort_order || 0))) + 1;
 }
 
-export function TextInput({ value, onChange, placeholder, className = "" }) {
+interface TextInputProps {
+  value?: string | null;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+export function TextInput({
+  value,
+  onChange,
+  placeholder,
+  className = "",
+}: TextInputProps) {
   return (
     <input
       value={value || ""}
@@ -62,7 +79,19 @@ export function TextInput({ value, onChange, placeholder, className = "" }) {
   );
 }
 
-export function Textarea({ value, onChange, placeholder, rows = 3 }) {
+interface TextareaProps {
+  value?: string | null;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}
+
+export function Textarea({
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+}: TextareaProps) {
   return (
     <textarea
       value={value || ""}
@@ -74,7 +103,13 @@ export function Textarea({ value, onChange, placeholder, rows = 3 }) {
   );
 }
 
-export function Select({ value, onChange, children }) {
+interface SelectProps {
+  value?: string | null;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}
+
+export function Select({ value, onChange, children }: SelectProps) {
   return (
     <select
       value={value || ""}
@@ -86,7 +121,13 @@ export function Select({ value, onChange, children }) {
   );
 }
 
-export function Toggle({ checked, onChange, label }) {
+interface ToggleProps {
+  checked?: boolean;
+  onChange: (checked: boolean) => void;
+  label: ReactNode;
+}
+
+export function Toggle({ checked, onChange, label }: ToggleProps) {
   return (
     <label className="inline-flex items-center gap-2 text-sm font-black text-gray-700">
       <input
@@ -100,7 +141,12 @@ export function Toggle({ checked, onChange, label }) {
   );
 }
 
-export function Field({ label, children }) {
+interface FieldProps {
+  label: ReactNode;
+  children: ReactNode;
+}
+
+export function Field({ label, children }: FieldProps) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children이 폼 컨트롤을 감싸는(중첩) 연결 방식이다 — 정적 분석이 children 내부를 못 봐서 오탐이다.
     <label className="block">
@@ -112,13 +158,21 @@ export function Field({ label, children }) {
   );
 }
 
+interface ActionButtonProps {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: "dark" | "danger" | "light";
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+}
+
 export function ActionButton({
   children,
   onClick,
   variant = "dark",
   type = "button",
   disabled = false,
-}) {
+}: ActionButtonProps) {
   const variantClass =
     variant === "danger"
       ? "border border-red-500 bg-white text-red-600 hover:bg-red-50"
@@ -138,10 +192,25 @@ export function ActionButton({
   );
 }
 
-export function ProgramSelector({ programs, value, onChange }) {
+interface Program {
+  id: string;
+  title?: string | null;
+}
+
+interface ProgramSelectorProps {
+  programs: Program[];
+  value: unknown;
+  onChange: (ids: string[]) => void;
+}
+
+export function ProgramSelector({
+  programs,
+  value,
+  onChange,
+}: ProgramSelectorProps) {
   const selected = new Set(normalizeProgramIds(value));
 
-  function toggle(programId) {
+  function toggle(programId: string) {
     const next = new Set(selected);
     if (next.has(programId)) next.delete(programId);
     else next.add(programId);

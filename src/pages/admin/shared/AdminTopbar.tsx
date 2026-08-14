@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
 
-export function AdminTopbar({ onLogout }) {
+interface AdminTopbarProps {
+  onLogout: () => void;
+}
+
+export function AdminTopbar({ onLogout }: AdminTopbarProps) {
   return (
     <header className="fixed left-[224px] right-0 top-0 z-30 flex h-[56px] items-center justify-between border-b border-black/10 bg-white px-7 shadow">
       <p className="text-[15px] font-bold text-[#3a3f45]">

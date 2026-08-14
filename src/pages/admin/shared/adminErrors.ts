@@ -3,7 +3,15 @@
 // 보여주고 원문은 console.error 로만 남긴다(alert 로 DB 에러 원문을 그대로
 // 노출하지 않기 위함). 19개소(제네릭 저장 경로 두 벌 + 조회 2곳 포함) 전부
 // 아래 reportAdminError 경유로 통일한다.
-const ADMIN_ERROR_MESSAGE_MAP = [
+
+// Supabase PostgrestError 등 message/code를 갖는 임의 오류 객체를 느슨하게 받는다 —
+// 호출부가 던지는 값이 항상 Error 인스턴스는 아니다(예: { message, code } 리터럴).
+interface AdminErrorLike {
+  message?: string;
+  code?: string;
+}
+
+const ADMIN_ERROR_MESSAGE_MAP: Array<{ pattern: RegExp; message: string }> = [
   {
     pattern: /refund_not_approved_for_completion|WC035/,
     message: "아직 승인되지 않은 환불 신청입니다.",
@@ -40,7 +48,9 @@ const ADMIN_ERROR_MESSAGE_MAP = [
   { pattern: /23505/, message: "이미 등록된 값입니다(중복)." },
 ];
 
-export function mapAdminErrorMessage(error) {
+export function mapAdminErrorMessage(
+  error: AdminErrorLike | null | undefined,
+): string {
   const raw = `${error?.message || ""} ${error?.code || ""}`;
   const hit = ADMIN_ERROR_MESSAGE_MAP.find(({ pattern }) => pattern.test(raw));
   return hit
@@ -48,7 +58,10 @@ export function mapAdminErrorMessage(error) {
     : "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
-export function reportAdminError(label, error) {
+export function reportAdminError(
+  label: string,
+  error: AdminErrorLike | null | undefined,
+): void {
   console.error(label, error);
   alert(`${label}: ${mapAdminErrorMessage(error)}`);
 }
