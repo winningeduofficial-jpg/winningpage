@@ -24,11 +24,12 @@
 import type { ReactNode } from "react";
 
 type QuestionCardProps = {
-  number?: number;
-  category?: string;
-  title?: ReactNode;
-  helper?: string;
-  maxSelect?: number;
+  // exactOptionalPropertyTypes 대응 — 호출부(QuestionCardList)가 옵셔널 필드를 그대로 넘긴다.
+  number?: number | undefined;
+  category?: string | undefined;
+  title?: ReactNode | undefined;
+  helper?: string | undefined;
+  maxSelect?: number | undefined;
   selectedCount?: number;
   questionId?: string | number;
   highlighted?: boolean;
@@ -47,7 +48,8 @@ export default function QuestionCard({
   children,
 }: QuestionCardProps) {
   const showCounter = Number.isFinite(maxSelect);
-  const counterReached = showCounter && selectedCount >= maxSelect;
+  // showCounter가 true면 Number.isFinite(maxSelect)로 maxSelect가 정의됨이 런타임상 보장됨.
+  const counterReached = showCounter && selectedCount >= maxSelect!;
 
   return (
     // 좌우 padding 60(3.75rem)은 시안 전제(컨테이너 1164 / 카드 콘텐츠 992)가 실제로 확보되는

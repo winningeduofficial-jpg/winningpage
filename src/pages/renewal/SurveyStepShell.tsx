@@ -72,7 +72,9 @@ export default function SurveyStepShell() {
     ]);
     return submitDiagnosisAnswers(answers, {
       name,
-      admissionCuts: admissionResolved.cuts,
+      // submitDiagnosisAnswers(범위 밖 파일)의 admissionCuts는 Record<string, unknown> | null 시그니처다.
+      // useAdmissionCascade의 CutsData(범위 밖 파일)는 필드가 이미 알려진 값이라 값 타입은 항상 unknown의 부분집합.
+      admissionCuts: admissionResolved.cuts as Record<string, unknown> | null,
       admissionMeta: admissionResolved.cuts
         ? { year: admissionResolved.cuts.year }
         : null,

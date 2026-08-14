@@ -160,10 +160,12 @@ export default function ParentPaymentsTab({
           emptyText={EMPTY_TEXT}
           rows={refundRequests.map((r) => ({
             key: `refund-${r.id}`,
-            idFull: r.order_id,
+            // idFull은 optional(exactOptionalPropertyTypes) — order_id 없으면 키 자체를
+            // 생략한다. PaymentTable이 `idFull || idText`로 폴백하므로 동작은 동일하다.
+            ...(r.order_id !== undefined && { idFull: r.order_id }),
             idText: formatOrderId(r.order_id),
             dateText: formatApprovedAt(r.created_at),
-            productText: r.order_name,
+            productText: r.order_name || "",
             amountText: formatKRW(r.gross_amount || r.amount),
             raw: r,
           }))}
@@ -188,17 +190,24 @@ export default function ParentPaymentsTab({
         <PaymentTable
           headers={TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
-          rows={pendingOrders.map((o) => ({
-            key: `pending-${o.id}`,
-            idFull: o.id,
-            idText: formatOrderId(o.id),
-            dateText: formatApprovedAt(o.created_at),
-            productText: nameById[o.student_profile_id]
-              ? `${nameById[o.student_profile_id]} · ${o.order_name}`
-              : o.order_name,
-            amountText: formatKRW(o.amount),
-            raw: o,
-          }))}
+          rows={pendingOrders.map((o) => {
+            // student_profile_id가 없으면 nameById 조회를 건너뛴다(PaymentTableRow는
+            // productText가 필수라 undefined 대신 order_name/빈 문자열로 폴백한다).
+            const childName = o.student_profile_id
+              ? nameById[o.student_profile_id]
+              : undefined;
+            return {
+              key: `pending-${o.id}`,
+              idFull: o.id,
+              idText: formatOrderId(o.id),
+              dateText: formatApprovedAt(o.created_at),
+              productText: childName
+                ? `${childName} · ${o.order_name}`
+                : o.order_name || "",
+              amountText: formatKRW(o.amount),
+              raw: o,
+            };
+          })}
           // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
           // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
           onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
@@ -226,9 +235,9 @@ export default function ParentPaymentsTab({
             idFull: o.id,
             idText: formatOrderId(o.id),
             dateText: formatApprovedAt(o.paid_at),
-            productText: o.order_name,
+            productText: o.order_name || "",
             amountText: formatKRW(o.amount),
-            note: o.is_fake_entitlement ? "(개발용)" : null,
+            ...(o.is_fake_entitlement && { note: "(개발용)" }),
             raw: o,
           }))}
           onSelect={(row) => setDetailOrder(row.raw as Order)}
@@ -243,7 +252,12 @@ export default function ParentPaymentsTab({
       <PaymentDetailModal
         open={!!detailOrder}
         order={detailOrder}
-        status={detailOrder ? resolveOrderStatus(detailOrder, refunds) : null}
+        // status는 optional(exactOptionalPropertyTypes) — detailOrder가 없으면
+        // 컴포넌트가 `!order`로 조기 리턴하므로 status는 어차피 안 쓰인다. 키 생략으로
+        // 대체(동작 동일).
+        {...(detailOrder && {
+          status: resolveOrderStatus(detailOrder, refunds),
+        })}
         onClose={() => setDetailOrder(null)}
         onRequestRefund={handleRequestRefund}
         onViewReceipt={handleViewReceipt}
@@ -264,7 +278,9 @@ export default function ParentPaymentsTab({
           setNoticeOpen(true);
           onRefundSubmitted?.();
         }}
-        onStaleData={onRefundSubmitted}
+        // onStaleData는 optional(exactOptionalPropertyTypes) — onRefundSubmitted가
+        // undefined면 키 자체를 생략한다(동작 동일, onStaleData?.() 호출부가 처리).
+        {...(onRefundSubmitted && { onStaleData: onRefundSubmitted })}
       />
 
       <RefundNoticeModal
@@ -276,8 +292,8 @@ export default function ParentPaymentsTab({
         open={!!enrollmentRequest}
         order={enrollmentRequest}
         childName={
-          enrollmentRequest
-            ? nameById[enrollmentRequest.student_profile_id]
+          enrollmentRequest?.student_profile_id
+            ? nameById[enrollmentRequest.student_profile_id] || ""
             : ""
         }
         onClose={() => setEnrollmentRequest(null)}
@@ -291,7 +307,9 @@ export default function ParentPaymentsTab({
         open={!!approvalRequest}
         request={approvalRequest}
         childName={
-          approvalRequest ? nameById[approvalRequest.student_profile_id] : ""
+          approvalRequest?.student_profile_id
+            ? nameById[approvalRequest.student_profile_id] || ""
+            : ""
         }
         onClose={() => setApprovalRequest(null)}
         onResponded={() => {

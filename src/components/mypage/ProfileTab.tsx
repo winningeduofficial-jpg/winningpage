@@ -187,7 +187,8 @@ export default function ProfileTab({
         setParentLink(null);
         return;
       }
-      const row = data.find((r) => r.status === "approved") || data[0];
+      // 위 data.length===0 가드를 통과했으므로 data[0]은 항상 존재한다.
+      const row = data.find((r) => r.status === "approved") || data[0]!;
       setParentLink({
         id: row.id,
         status: row.status,
@@ -594,7 +595,9 @@ export default function ProfileTab({
       <ChangeEmailModal
         open={emailOpen}
         currentEmail={form.email}
-        profileId={profileId}
+        // profileId는 optional(exactOptionalPropertyTypes) — undefined면 키 자체를
+        // 생략한다(ChangeEmailModal 내부도 `profileId &&`로 truthy 체크).
+        {...(profileId !== undefined && { profileId })}
         onClose={() => setEmailOpen(false)}
         onChanged={(email) => {
           updateForm("email", email);

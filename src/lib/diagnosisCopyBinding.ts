@@ -243,7 +243,8 @@ export function serviceCopy(
     devWarn(`serviceCopy: 미커버 조합 (service=${serviceCode}, tier=${tier})`);
     return null;
   }
-  return { text, tags: entry.tags };
+  // text가 string이면(위에서 검증) entry?.tiers?.[...] 체인이 성공했다는 뜻이라 entry는 항상 존재.
+  return { text, tags: entry!.tags };
 }
 
 /**

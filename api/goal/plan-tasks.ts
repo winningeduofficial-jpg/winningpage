@@ -27,6 +27,7 @@ import {
   deletePlanTask,
   fetchPlanTasks,
   insertPlanTask,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   SUBJECT_LABEL_TO_CODE,
@@ -140,10 +141,12 @@ async function handleGet(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { allowed, supabaseAdmin, profileId } = session;
+  const { allowed } = session;
 
   // 조회형 규약 — 미결제는 에러가 아니다(§ api/goal/student.js).
   if (!allowed) return res.status(200).json({ allowed: false });
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const from = req.query?.from;
   const to = req.query?.to;
@@ -176,8 +179,10 @@ async function handlePost(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { allowed, supabaseAdmin, profileId } = session;
+  const { allowed } = session;
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const body = readBody(req);
   if (!isPlainObject(body))
@@ -214,8 +219,10 @@ async function handlePut(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { allowed, supabaseAdmin, profileId } = session;
+  const { allowed } = session;
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const body = readBody(req);
   if (!isPlainObject(body))
@@ -282,8 +289,10 @@ async function handleDelete(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { allowed, supabaseAdmin, profileId } = session;
+  const { allowed } = session;
   if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const body = readBody(req);
   if (!isPlainObject(body))

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { type ComponentProps, useEffect, useMemo } from "react";
 import {
   Navigate,
   useNavigate,
@@ -41,7 +41,8 @@ type SurveyOutletContext = {
   setAnswer: (questionId: string, value: unknown) => void;
   submitDiagnosis: () => Promise<unknown>;
   cascadeLevels?: CascadeLevel[];
-  surveyCopyOverrides?: unknown;
+  // applySurveyCopyOverrides가 요구하는 실제 형태로 좁힌다(런타임 값은 항상 문자열 오버라이드).
+  surveyCopyOverrides?: Map<string, string> | null;
 };
 
 export default function SurveyStepPage() {
@@ -104,8 +105,14 @@ export default function SurveyStepPage() {
 
   return (
     <>
+      {/* lib/renewalSurvey.ts의 SurveyQuestion과 QuestionCardList 지역 SurveyQuestion은
+          구조는 같지만 별개 타입 선언이라 이름은 같아도 서로 무관 판정된다 — 범위 밖 두 파일을
+          건드리지 않고 QuestionCardList 실제 prop 타입으로 단언한다(FreeDiagnosisReport.tsx와
+          동일 관행: ComponentProps<typeof X>["prop"]). */}
       <QuestionCardList
-        questions={stepQuestions}
+        questions={
+          stepQuestions as ComponentProps<typeof QuestionCardList>["questions"]
+        }
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}

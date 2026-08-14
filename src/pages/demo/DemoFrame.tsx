@@ -57,7 +57,9 @@ type DemoFrameProps = {
 
 export default function DemoFrame({ demoKeyOverride }: DemoFrameProps = {}) {
   const { demoKey: paramKey } = useParams();
-  const demo = DEMO_REGISTRY[demoKeyOverride || paramKey];
+  // paramKey가 없는 라우트(:demoKey 미사용)에서도 인덱스 조회가 undefined 키로 들어가지 않도록
+  // 빈 문자열로 정규화한다 — DEMO_REGISTRY[""]는 이전과 동일하게 undefined다.
+  const demo = DEMO_REGISTRY[demoKeyOverride || paramKey || ""];
 
   // HTML이 최대 69KB라 렌더마다 문자열을 새로 만들지 않도록 메모이즈한다.
   const html = useMemo(

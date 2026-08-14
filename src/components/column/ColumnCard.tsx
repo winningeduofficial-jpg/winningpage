@@ -21,7 +21,7 @@ function Thumbnail({
   className,
 }: {
   url?: string | null;
-  title?: string;
+  title?: string | undefined;
   className?: string;
 }) {
   if (!url) {

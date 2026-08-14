@@ -82,7 +82,7 @@ type EvaluationReportModalProps = {
   /** `POST /api/performance/evaluate` 응답의 `report` 그대로. */
   report?: EvaluationReport | null;
   /** 확정 주제. 헤더 부제. */
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   /** ESC·딤 클릭·`다음 단계 선택하기` 공통 핸들러. */
   onClose: () => void;
 };
@@ -106,7 +106,7 @@ export default function EvaluationReportModal({
     <ReportModalShell
       open={isOpen}
       title={MODAL_TITLE}
-      subtitle={topicTitle}
+      {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="평가 리포트 본문"
       onClose={onClose}
       footer={

@@ -88,7 +88,9 @@ export default function StudentBirth() {
           value={value}
           onChange={handleChange}
           placeholder="생년월일 8자리 입력"
-          helperText={error || undefined}
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={error}
           status={error ? "error" : "default"}
           autoComplete="off"
           required

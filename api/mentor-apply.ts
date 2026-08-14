@@ -499,7 +499,7 @@ function validateFields(body: Record<string, unknown>): {
     }
 
     if (spec.kind === "text") {
-      if (text.length > spec.max) {
+      if (text.length > spec.max!) {
         return {
           error: {
             status: 400,
@@ -568,7 +568,11 @@ function validateFields(body: Record<string, unknown>): {
 
       // numeric(4,2) 컬럼이라 소수 둘째 자리까지만 받는다. 범위를 넘기면 DB 가
       // 22003 을 던지고 그건 프론트가 해석할 수 없는 에러가 된다.
-      if (!Number.isFinite(parsed) || parsed < spec.min || parsed > spec.max) {
+      if (
+        !Number.isFinite(parsed) ||
+        parsed < spec.min! ||
+        parsed > spec.max!
+      ) {
         return {
           error: {
             status: 400,
@@ -584,7 +588,7 @@ function validateFields(body: Record<string, unknown>): {
     }
 
     if (spec.kind === "enum") {
-      if (!spec.options.includes(text)) {
+      if (!spec.options!.includes(text)) {
         return {
           error: {
             status: 400,
@@ -604,9 +608,9 @@ function validateFields(body: Record<string, unknown>): {
         ...new Set((raw as unknown[]).map((item) => clean(item))),
       ];
 
-      const hasUnknown = picked.some((item) => !spec.options.includes(item));
+      const hasUnknown = picked.some((item) => !spec.options!.includes(item));
 
-      if (picked.length > spec.options.length || hasUnknown) {
+      if (picked.length > spec.options!.length || hasUnknown) {
         return {
           error: {
             status: 400,
@@ -659,7 +663,7 @@ async function verifyUploadedProof(
   supabase: SupabaseClient,
   path: string,
 ): Promise<{ error?: FieldError }> {
-  const extension = path.split(".").pop().toLowerCase();
+  const extension = path.split(".").pop()!.toLowerCase();
   const allowedMimes = ALLOWED_FILE_TYPES[extension];
 
   const { data: info, error: infoError } = await supabase.storage
@@ -916,14 +920,14 @@ async function consumePhoneVerification(
   const { data: consumed, error: consumeError } = await supabase
     .from("phone_verifications")
     .update({ consumed_at: new Date().toISOString() })
-    .eq("id", found.row.id)
+    .eq("id", found.row!.id)
     .is("consumed_at", null)
     .select("id");
 
   if (consumeError) throw consumeError;
   if (!consumed || consumed.length === 0) return NOT_VERIFIED_ERROR;
 
-  return { verifiedAt: found.row.verified_at };
+  return { verifiedAt: found.row!.verified_at };
 }
 
 // ---------------------------------------------------------------------------
@@ -1047,7 +1051,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const supabase = createSupabaseAdmin();
       const { error: removeError } = await supabase.storage
         .from(BUCKET)
-        .remove([objectPath]);
+        .remove([objectPath!]);
 
       if (removeError) {
         console.error(

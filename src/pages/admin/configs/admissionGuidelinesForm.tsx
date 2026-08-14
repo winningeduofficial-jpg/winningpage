@@ -139,7 +139,10 @@ export function AdmissionParsingPreview({
       const generatedHtml = buildHwpCategoryHtml(
         key,
         rawText,
-        sourceForm,
+        // admissionParsing.ts(다른 배치 소유)의 row 매개변수가 기본값 null만으로 타입
+        // 추론돼(null | undefined) 실제 런타임 계약(임의 row 객체 허용)과 어긋난다 —
+        // 그 파일은 이 배치 범위 밖이라 시그니처는 고치지 않고 호출부만 캐스팅한다.
+        sourceForm as unknown as null,
         sourceForm.university_name,
       );
       if (!generatedHtml) return;
@@ -161,7 +164,9 @@ export function AdmissionParsingPreview({
       const generatedDoc = buildHwpCategoryDoc(
         key,
         rawText,
-        sourceForm,
+        // 위 buildHwpCategoryHtml 호출과 같은 이유(admissionParsing.ts row 매개변수
+        // 오추론) — 호출부 캐스팅으로만 대응한다.
+        sourceForm as unknown as null,
         sourceForm.university_name,
       );
       const docValidation = validateAdmissionDoc(generatedDoc);
@@ -338,11 +343,9 @@ export function AdmissionParsingPreview({
                 // "이미 자기 래퍼를 가졌는지" 검사해 이중 래핑을 피한다.
                 <SafeHtml
                   html={html}
-                  className={
-                    ADMISSION_EXISTING_WRAP_RE.test(html)
-                      ? undefined
-                      : "admission-existing-html"
-                  }
+                  {...(ADMISSION_EXISTING_WRAP_RE.test(html)
+                    ? {}
+                    : { className: "admission-existing-html" })}
                 />
               ) : (
                 <p className="text-xs font-bold text-gray-400">

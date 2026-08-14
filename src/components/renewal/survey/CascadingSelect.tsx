@@ -78,12 +78,13 @@ export default function CascadingSelect({
   }, [openIndex]);
 
   function handleSelect(index: number, option: string) {
+    // index는 항상 meta.map 콜백에서 전달되어 범위 내(noUncheckedIndexedAccess 대응).
     const next: Record<string, string> = {
       ...currentValue,
-      [meta[index].key]: option,
+      [meta[index]!.key]: option,
     };
     for (let i = index + 1; i < meta.length; i += 1) {
-      next[meta[i].key] = "";
+      next[meta[i]!.key] = "";
     }
     onChange?.(next);
     setOpenIndex(null);
@@ -112,8 +113,9 @@ export default function CascadingSelect({
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || "";
         const options = level.options;
+        // index>0일 때만 평가되므로 index-1은 항상 0 이상 범위 내(noUncheckedIndexedAccess 대응).
         const enabled =
-          index === 0 || Boolean(currentValue[meta[index - 1].key]);
+          index === 0 || Boolean(currentValue[meta[index - 1]!.key]);
         const isOpen = openIndex === index;
 
         return (
@@ -176,7 +178,7 @@ export default function CascadingSelect({
                     {level.onRetry && (
                       <button
                         type="button"
-                        onClick={() => level.onRetry()}
+                        onClick={() => level.onRetry?.()}
                         className="inline-flex min-h-[2.75rem] w-fit items-center rounded-xl border border-[#013262] px-4 py-2 text-base font-medium text-[#013262] transition hover:bg-[#F1F8FF] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30"
                       >
                         다시 시도

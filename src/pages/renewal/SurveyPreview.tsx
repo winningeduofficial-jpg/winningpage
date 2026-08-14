@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import type { CascadeLevel } from "../../components/renewal/survey/CascadingSelect";
 import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
@@ -25,7 +25,8 @@ type SurveyOutletContext = {
   setAnswer: (questionId: string, value: unknown) => void;
   submitDiagnosis: () => Promise<unknown>;
   cascadeLevels?: CascadeLevel[];
-  surveyCopyOverrides?: unknown;
+  // applySurveyCopyOverrides가 요구하는 실제 형태로 좁힌다(런타임 값은 항상 문자열 오버라이드).
+  surveyCopyOverrides?: Map<string, string> | null;
 };
 
 export default function SurveyPreview() {
@@ -63,8 +64,15 @@ export default function SurveyPreview() {
 
   return (
     <>
+      {/* lib/renewalSurvey.ts의 SurveyQuestion과 QuestionCardList 지역 SurveyQuestion은
+          구조는 같지만 별개 타입 선언이라 서로 무관 판정된다 — 범위 밖 파일을 건드리지 않고
+          QuestionCardList 실제 prop 타입으로 단언한다(FreeDiagnosisReport.tsx와 동일 관행). */}
       <QuestionCardList
-        questions={previewQuestions}
+        questions={
+          previewQuestions as ComponentProps<
+            typeof QuestionCardList
+          >["questions"]
+        }
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}

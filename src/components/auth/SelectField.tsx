@@ -85,7 +85,8 @@ export default function SelectField({
 }: SelectFieldProps) {
   const fieldId = id || name;
   const normalizedOptions = normalizeOptions(options);
-  const chevron = CHEVRON_CONFIG[size] || CHEVRON_CONFIG.default;
+  // CHEVRON_CONFIG.default 키는 항상 정의돼 있는 최종 폴백.
+  const chevron = CHEVRON_CONFIG[size] || CHEVRON_CONFIG.default!;
 
   return (
     <div className={className}>

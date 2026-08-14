@@ -92,9 +92,15 @@ export default function Timer() {
 
     fetchGoalStudent().then((result) => {
       if (result.kind !== "onboarded") return;
-      const weeklySchedule = result.student?.weeklySchedule || {};
+      // goalApi.ts는 weeklySchedule을 Record<string, unknown>으로만 선언한다(넓은 계약) —
+      // 실제 값 모양은 Dashboard.tsx가 이미 쓰는 {ideal, min} 레코드와 같다.
+      const weeklySchedule = (result.student?.weeklySchedule || {}) as Record<
+        string,
+        { ideal: number; min: number } | undefined
+      >;
+      // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
       const dayName =
-        VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))];
+        VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))]!;
       const idealToday = weeklySchedule?.[dayName]?.ideal;
       setDefaultTargetHours(
         typeof idealToday === "number"
@@ -184,8 +190,9 @@ export default function Timer() {
     const accumulatedSeconds = summary?.subjectSeconds?.[id] ?? 0;
     const running = runningSubject === id;
     const hasCustomTarget = summary?.subjectTargets?.[id] != null;
+    // hasCustomTarget이 이미 summary.subjectTargets[id] != null을 확인했다.
     const targetHours = hasCustomTarget
-      ? summary.subjectTargets[id]
+      ? summary!.subjectTargets![id]!
       : (defaultTargetHours ?? 0);
 
     return {

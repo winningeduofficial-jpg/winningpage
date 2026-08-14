@@ -234,7 +234,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -246,7 +246,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const userId = userData.user.id;
-    const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY];
+    // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+    const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 
     // ── 이용권 재판정. 클라이언트 가드 통과 여부는 신뢰하지 않는다(§8.6).
     const { allowed: hasAccess } = await hasPaidServiceAccess(

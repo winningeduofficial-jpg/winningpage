@@ -302,7 +302,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   // 재구매·다른 자녀 결제처럼 이미 동의 이력이 있으면 화면에서 이 섹션을
   // 아예 건너뛴다(매 결제마다 다시 체크하게 하지 않는다 — 원장은 "이 회원이
   // 이 문서에 동의했는가"를 표현하지 결제 건별 동의가 아니다).
-  const [paymentAgreed, setPaymentAgreed] = useState(null);
+  const [paymentAgreed, setPaymentAgreed] = useState<boolean | null>(null);
   const [checkedRefund, setCheckedRefund] = useState(false);
   const [checkedPayment, setCheckedPayment] = useState(false);
   const [expandedRefund, setExpandedRefund] = useState(false);
@@ -571,6 +571,8 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
   async function handlePay() {
     if (!canPay) return;
+    // canPay가 Boolean(order)를 이미 검사하므로 도달 시 항상 non-null이다.
+    if (!order) return;
     setLoading(true);
     setPayError(null);
     try {
@@ -637,7 +639,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
         orderName: order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
-        customerEmail: user?.email ?? undefined,
+        customerEmail: user?.email ?? null,
       };
 
       if (method === "VIRTUAL_ACCOUNT") {
@@ -686,6 +688,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   if (orderError === "not_actionable") {
     return <OrderNotActionable text={ALREADY_PROCESSED_TEXT} />;
   }
+  // orderLoading=false && orderError=null 인 경로는 위 useEffect에서 항상
+  // setOrder(data)를 거친다 — 여기 도달하면 order는 non-null이다.
+  if (!order) return null;
 
   return (
     <main className="min-h-screen bg-white pt-16">
@@ -823,6 +828,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                   </p>
                 )}
                 {codeFeedback?.type === "ineligible" &&
+                  codeFeedback.reason &&
                   COUPON_REASON_TEXT[codeFeedback.reason] && (
                     <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
                       {COUPON_REASON_TEXT[codeFeedback.reason]}
@@ -897,11 +903,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                                   {String(c.validUntil).replace(/-/g, ".")}까지
                                 </span>
                               )}
-                              {!eligible && COUPON_REASON_TEXT[c.reason] && (
-                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
-                                  {COUPON_REASON_TEXT[c.reason]}
-                                </span>
-                              )}
+                              {!eligible &&
+                                c.reason &&
+                                COUPON_REASON_TEXT[c.reason] && (
+                                  <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                                    {COUPON_REASON_TEXT[c.reason]}
+                                  </span>
+                                )}
                             </span>
                             <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
                               -{formatKRW(c.discount)}

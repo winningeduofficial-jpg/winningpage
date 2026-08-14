@@ -162,7 +162,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 POST만 허용됩니다.");
   }
 
-  if (!isAuthorizedCron(req)) {
+  if (
+    !isAuthorizedCron(req as { headers: Record<string, string | undefined> })
+  ) {
     // 무엇이 틀렸는지(시크릿 미설정 / 불일치) 알려주지 않는다.
     return fail(res, 401, "UNAUTHORIZED", "인증이 필요합니다.");
   }

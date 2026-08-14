@@ -119,9 +119,10 @@ export function goalCutQuantile(sorted: number[], q: number): number | null {
   const pos = (sorted.length - 1) * q;
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);
-  if (lo === hi) return sorted[lo];
+  // pos는 0~sorted.length-1 범위이므로 lo/hi 모두 유효 인덱스다.
+  if (lo === hi) return sorted[lo]!;
   return (
-    Math.round((sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)) * 100) /
+    Math.round((sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (pos - lo)) * 100) /
     100
   );
 }

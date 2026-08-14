@@ -8,7 +8,7 @@ import successCheck from "../../assets/checkout/success-check-60.svg";
 import ConfirmModal from "../../components/checkout/ConfirmModal";
 import { formatKRW } from "../../data/pricingCatalog";
 import { getApprovedParentLink } from "../../lib/parentLink";
-import { useProducts } from "../../lib/products";
+import { type ServiceProduct, useProducts } from "../../lib/products";
 import { supabase } from "../../lib/supabase";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
@@ -64,14 +64,6 @@ const DUPLICATE_REQUEST_FAIL = {
   title: "이미 진행 중인 결제 요청이 있어요.",
   body: "학부모님의 확인을 기다리고 있어요. 마이페이지에서 요청 현황을 확인해 주세요.",
 };
-
-interface ProductOption {
-  id: string;
-  name: string;
-  listPrice: number;
-  price: number;
-  recommended?: boolean;
-}
 
 interface SelectedItem {
   id: string;
@@ -141,7 +133,7 @@ export default function StudentEnrollmentRequest() {
   function handleRadioKeyDown(
     e: KeyboardEvent<HTMLButtonElement>,
     serviceKey: string,
-    products: ProductOption[],
+    products: ServiceProduct[],
     currentIndex: number,
   ) {
     if (e.key === "Escape") {
@@ -164,6 +156,7 @@ export default function StudentEnrollmentRequest() {
     const nextIndex =
       (currentIndex + delta + products.length) % products.length;
     const nextProduct = products[nextIndex];
+    if (!nextProduct) return;
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
     const group = e.currentTarget.closest('[role="radiogroup"]');
@@ -184,8 +177,10 @@ export default function StudentEnrollmentRequest() {
         serviceKey: service.key,
         serviceName: service.name,
         name: product.name,
-        listPrice: product.listPrice,
-        price: product.price,
+        // 다운스트림 합계 계산(listTotal/subtotal)이 이미 `|| 0` 폴백을 쓰므로
+        // null/undefined를 0으로 정규화해도 값 의미는 동일하다.
+        listPrice: product.listPrice ?? 0,
+        price: product.price ?? 0,
       });
     });
     return items;
@@ -258,7 +253,9 @@ export default function StudentEnrollmentRequest() {
       }
 
       // 서버가 실제로 만든 주문의 id/금액을 그대로 쓴다(표시가는 서버 신뢰값).
-      setCompletedOrder({ id: payload.orderId, amount: payload.amount });
+      // response.ok=true 경로에서 payload/orderId/amount는 기존에도 항상 있다고
+      // 가정해온 값 — 타입만 좁힌다(런타임 동작 변경 없음, 실제 누락 가능성은 보고).
+      setCompletedOrder({ id: payload!.orderId!, amount: payload!.amount! });
     } finally {
       setSubmitting(false);
     }

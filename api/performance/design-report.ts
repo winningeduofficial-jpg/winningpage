@@ -377,7 +377,8 @@ async function readQuota(
       await findProgramAccessRow(
         supabaseAdmin,
         userId,
-        SERVICE_CONFIGS[SERVICE_KEY],
+        // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+        SERVICE_CONFIGS[SERVICE_KEY]!,
       ),
     );
   } catch (error) {
@@ -908,7 +909,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -928,7 +929,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
-      SERVICE_CONFIGS[SERVICE_KEY],
+      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+      SERVICE_CONFIGS[SERVICE_KEY]!,
     );
     if (!hasAccess) {
       return fail(
@@ -1072,7 +1074,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const assessmentText = guideTextFromSession(sessionRow);
+    // sessionRow는 GuideSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다(unknown 캐스트 경유).
+    const assessmentText = guideTextFromSession(
+      sessionRow as Parameters<typeof guideTextFromSession>[0],
+    );
     if (!assessmentText) {
       return fail(
         res,
@@ -1177,7 +1182,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── 안내문 구조 판정. **모델을 부르지 않는 결정론적 판정**이라 여기서 미리 한다
     //    (§12.2 이식분, `guide-structure.js`). 결과는 프롬프트에도 들어가고 응답·저장
     //    봉투에도 그대로 실린다 — STEP5가 재판정하지 않게 하기 위함이다(§12.2 3행).
-    const structure = inferGuideStructure(sessionRow);
+    const structure = inferGuideStructure(
+      sessionRow as Parameters<typeof inferGuideStructure>[0],
+    );
     const branchKey = resolveDesignWritingBranch(structure.type);
 
     const gradeLabel = trimmed(sessionRow.grade_label);
@@ -1269,9 +1276,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       selectedTopic,
       selectedTopicDetail: flattenTopicDetail(topicRow.detail),
       gradeLabel,
-      semester: sessionRow.semester,
-      schoolType: sessionRow.school_type,
-      subjectGroup: sessionRow.subject_group,
+      // buildDesignReportUser는 값을 `|| ""`로 다루므로 null→"" 치환은 결과에 영향 없다.
+      semester: sessionRow.semester || "",
+      schoolType: sessionRow.school_type || "",
+      subjectGroup: sessionRow.subject_group || "",
       subject,
       career,
       previousTopic,

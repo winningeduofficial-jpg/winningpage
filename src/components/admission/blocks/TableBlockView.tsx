@@ -1,3 +1,4 @@
+import type { TableBlock } from "../../../lib/admissionDoc";
 import AdmissionTable from "../table/AdmissionTable";
 
 // TableBlock 뷰 진입점. 예전에는 variant별 렌더러 5개를 디스패치했지만,
@@ -11,5 +12,7 @@ type TableBlockViewProps = {
 };
 
 export default function TableBlockView({ block }: TableBlockViewProps) {
-  return <AdmissionTable block={block} />;
+  // block은 의도적으로 unknown이다(위 주석) — 형태 가드는 AdmissionTable
+  // 내부의 describeTable이 흡수한다(columns/rows가 배열이 아니면 null 렌더).
+  return <AdmissionTable block={block as TableBlock} />;
 }

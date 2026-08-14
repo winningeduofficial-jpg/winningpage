@@ -304,7 +304,9 @@ function GoalProb({
   );
 }
 
-function GoalStatusBadge({ status }: { status?: string | null }) {
+// exactOptionalPropertyTypes: 호출부의 row.status가 string | null | undefined라
+// undefined도 프로퍼티 타입에 명시한다(값 자체는 기존과 동일하게 optional 취급).
+function GoalStatusBadge({ status }: { status?: string | null | undefined }) {
   const tone =
     status === "awaiting_cuts"
       ? "border-[#B88737]/40 bg-[#FFF8E8] text-[#7A4A12]"
@@ -1069,8 +1071,10 @@ const GOAL_RECORD_PAGE = 30;
 interface GoalStudentDetailProps {
   profileId: string;
   onBack: () => void;
-  onNavigate?: (key: string) => void;
-  onPrefillCreate?: (payload: Record<string, unknown>) => void;
+  // exactOptionalPropertyTypes: 호출부(위 686 부근)가 부모 prop(onNavigate?/onPrefillCreate?,
+  // 값은 boolean이 아니라 함수 | undefined)을 그대로 전달하므로 undefined도 명시한다.
+  onNavigate?: ((key: string) => void) | undefined;
+  onPrefillCreate?: ((payload: Record<string, unknown>) => void) | undefined;
 }
 
 function GoalStudentDetail({
@@ -1889,7 +1893,8 @@ function GoalStudentDetail({
                     record.record_date,
                     record.submitted_on,
                   );
-                  const hints = [];
+                  const hints: { key: string; tone: string; text: string }[] =
+                    [];
 
                   if (
                     Number(record.target_ideal_hours || 0) === 0 ||
@@ -1927,7 +1932,9 @@ function GoalStudentDetail({
                       <td className="px-3 py-2">
                         {record.record_date}
                         <span className="block text-gray-400">
-                          {GOAL_WEEKDAY_LABELS[record.virtual_day_index] || ""}
+                          {GOAL_WEEKDAY_LABELS[
+                            record.virtual_day_index ?? -1
+                          ] || ""}
                         </span>
                       </td>
                       <td className="px-3 py-2">{record.submitted_on}</td>

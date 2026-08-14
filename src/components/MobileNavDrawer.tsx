@@ -79,8 +79,9 @@ export default function MobileNavDrawer({
 
       if (focusable.length === 0) return;
 
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      // 위에서 focusable.length === 0을 return했으므로 0번/마지막 인덱스는 항상 존재.
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

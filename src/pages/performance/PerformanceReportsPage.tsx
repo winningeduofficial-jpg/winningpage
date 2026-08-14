@@ -109,7 +109,7 @@ type ArtifactType = "design" | "evaluation" | "final";
 type ViewerState = {
   type: ArtifactType;
   sessionId: string;
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   report: SectionsReport | EvaluationReport | null;
   loading: boolean;
   error: string | null;
@@ -150,7 +150,7 @@ type FinalReportModalProps = {
   /** §5.16/§5.13과 대칭인 최종 제출본 뷰어. 상세 API의 `final` 필드
    * (`{sections, submissionId, ...}`) 그대로다 — 재사용 판단은 파일 상단 주석 참고. */
   report?: SectionsReport | null;
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   onClose: () => void;
 };
 
@@ -172,7 +172,7 @@ function FinalReportModal({
     <ReportModalShell
       open={isOpen}
       title="최종 제출본"
-      subtitle={topicTitle}
+      {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="최종 제출본 본문"
       onClose={onClose}
       footer={
@@ -401,8 +401,8 @@ export default function PerformanceReportsPage() {
   }: {
     sessionId: string;
     type: ArtifactType;
-    reportId?: string | null;
-    topicTitle?: string;
+    reportId?: string | null | undefined;
+    topicTitle?: string | undefined;
   }) {
     if (!accessToken || !sessionId || !reportId) return;
 
@@ -652,9 +652,13 @@ export default function PerformanceReportsPage() {
               {filteredItems.map((item) => (
                 <SavedReportCard
                   key={item.sessionId}
-                  title={item.topicTitle}
+                  {...(item.topicTitle !== undefined
+                    ? { title: item.topicTitle }
+                    : {})}
                   meta={buildMeta(item)}
-                  savedAt={item.updatedAt}
+                  {...(item.updatedAt !== undefined
+                    ? { savedAt: item.updatedAt }
+                    : {})}
                   sessionId={item.sessionId}
                   artifacts={toArtifacts(item)}
                   onArtifactClick={(type, reportId) =>

@@ -68,7 +68,7 @@ export default function ScheduleRail({ schedules }: ScheduleRailProps) {
                   {schedule.meta}
                 </p>
               </div>
-              <GoalDdayBadge dday={schedule.dday} />
+              <GoalDdayBadge dday={schedule.dday ?? null} />
             </li>
           ))}
         </ul>

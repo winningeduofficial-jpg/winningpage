@@ -59,13 +59,14 @@ export default function TopicDetailModal({
   // `validateTopicsPayload`가 6필드 공백을 걸러 도달하지 않지만, 기존 세션을 복원하는 경로
   // (`recommend-topics.js`의 `detail: Array.isArray(row.detail) ? row.detail : []`)는 빈
   // 배열을 그대로 통과시켜 여기까지 온다.
-  const hasVisibleDetail = topic
-    ? getVisibleSections(topic.detail).length > 0
-    : false;
+  const visibleSections = topic ? getVisibleSections(topic.detail) : [];
+  const hasVisibleDetail = visibleSections.length > 0;
 
   useModalBehavior({ open: isOpen, onClose, panelRef });
 
-  if (!isOpen) return null;
+  // isOpen === open && Boolean(topic)이므로 이 지점 이후 topic은 항상 존재한다 — `!topic`
+  // 분기는 TS 좁히기용이며 실제로는 도달하지 않는다(위 주석).
+  if (!isOpen || !topic) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -141,7 +142,7 @@ export default function TopicDetailModal({
         >
           <div className="max-w-[41.875rem]">
             {hasVisibleDetail ? (
-              <SectionedReportView sections={topic.detail} />
+              <SectionedReportView sections={visibleSections} />
             ) : (
               // 유효 섹션이 0개 — 검토 C-2. 근거 없이 확정할 수 있는 상태를 막는다(§11.1 Q48).
               <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">

@@ -145,6 +145,31 @@ const VOID_ELEMENTS = new Set([
   "wbr",
 ]);
 
+// parseMiniHtml이 만드는 경량 DOM 노드 타입(실제 DOM Node를 흉내낸
+// 순수 객체 — React/DOM 의존 없음, 파일 머리말 참고).
+type MiniAttr = { name: string; value: string };
+
+interface MiniElementNode {
+  nodeType: 1;
+  tagName: string;
+  attributes: MiniAttr[];
+  childNodes: MiniNode[];
+  readonly textContent: string;
+}
+interface MiniTextNode {
+  nodeType: 3;
+  textContent: string;
+}
+interface MiniCommentNode {
+  nodeType: 8;
+  textContent: string;
+}
+type MiniNode = MiniElementNode | MiniTextNode | MiniCommentNode;
+
+type SignificantChild =
+  | { kind: "text"; text: string }
+  | { kind: "element"; node: MiniElementNode };
+
 function decodeEntities(str) {
   return String(str)
     .replace(/&lt;/g, "<")
@@ -155,13 +180,14 @@ function decodeEntities(str) {
     .replace(/&amp;/g, "&");
 }
 
-function parseAttributeString(attrString) {
-  const attrs = [];
+function parseAttributeString(attrString: string): MiniAttr[] {
+  const attrs: MiniAttr[] = [];
   const re =
     /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?/g;
   let m = re.exec(attrString);
   while (m) {
-    const name = m[1];
+    // 그룹1(속성명)은 정규식상 선택 그룹이 아니라 매치 시 항상 캡처된다.
+    const name = m[1]!;
     let value = "";
     if (m[2] !== undefined)
       value = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[2];
@@ -171,35 +197,38 @@ function parseAttributeString(attrString) {
   return attrs;
 }
 
-function makeElementNode(tagName, attrs) {
+function makeElementNode(tagName: string, attrs: MiniAttr[]): MiniElementNode {
   const node = {
-    nodeType: 1,
+    nodeType: 1 as const,
     tagName: tagName.toUpperCase(),
     attributes: attrs,
-    childNodes: [],
+    childNodes: [] as MiniNode[],
   };
   Object.defineProperty(node, "textContent", {
-    get() {
+    get(): string {
       return node.childNodes.map((c) => c.textContent || "").join("");
     },
   });
-  return node;
+  // textContent는 위 defineProperty가 런타임에 추가한다(정적 리터럴엔 없음).
+  return node as MiniElementNode;
 }
 
-function makeTextNode(text) {
+function makeTextNode(text: string): MiniTextNode {
   return { nodeType: 3, textContent: decodeEntities(text) };
 }
 
-function makeCommentNode() {
+function makeCommentNode(): MiniCommentNode {
   return { nodeType: 8, textContent: "" };
 }
 
-function parseMiniHtml(html) {
+function parseMiniHtml(html: string): { body: MiniElementNode } {
   const root = makeElementNode("body", []);
   const stack = [root];
   let i = 0;
   const n = html.length;
-  const top = () => stack[stack.length - 1];
+  // stack은 root로 초기화되고 아래 close-tag 처리에서 s>0일 때만 자르므로
+  // 항상 길이 1 이상을 유지한다 — top()은 절대 빈 스택을 인덱싱하지 않는다.
+  const top = () => stack[stack.length - 1]!;
 
   while (i < n) {
     if (html[i] === "<") {
@@ -216,9 +245,11 @@ function parseMiniHtml(html) {
       }
       const closeMatch = /^<\/([a-zA-Z][a-zA-Z0-9-]*)\s*>/.exec(html.slice(i));
       if (closeMatch) {
-        const tagName = closeMatch[1].toLowerCase();
+        // 그룹1(태그명)은 선택 그룹이 아니라 매치 시 항상 캡처된다.
+        const tagName = closeMatch[1]!.toLowerCase();
         for (let s = stack.length - 1; s > 0; s -= 1) {
-          if (stack[s].tagName.toLowerCase() === tagName) {
+          // s는 항상 0 <= s < stack.length 범위의 유효 인덱스.
+          if (stack[s]!.tagName.toLowerCase() === tagName) {
             stack.length = s;
             break;
           }
@@ -231,8 +262,10 @@ function parseMiniHtml(html) {
           html.slice(i),
         );
       if (openMatch) {
-        const tagName = openMatch[1];
-        const attrs = parseAttributeString(openMatch[2]);
+        // 그룹1(태그명)·그룹2(속성 문자열)는 선택 그룹이 아니라(마지막
+        // \/? 만 선택) 매치 시 항상 캡처된다(그룹2는 빈 문자열일 수 있음).
+        const tagName = openMatch[1]!;
+        const attrs = parseAttributeString(openMatch[2]!);
         const selfClose = Boolean(openMatch[3]);
         const el = makeElementNode(tagName, attrs);
         top().childNodes.push(el);
@@ -278,8 +311,8 @@ function isAllowedEmptyDiffNode(node) {
   return normalizeWhitespaceText(node.textContent) === "";
 }
 
-function collectSignificantChildren(node) {
-  const result = [];
+function collectSignificantChildren(node: MiniElementNode): SignificantChild[] {
+  const result: SignificantChild[] = [];
   node.childNodes.forEach((child) => {
     if (child.nodeType === 8) return;
     if (child.nodeType === 3) {
@@ -380,8 +413,9 @@ function compareElementNodes(a, b, pathLabel) {
     };
   }
   for (let i = 0; i < childrenA.length; i += 1) {
-    const ca = childrenA[i];
-    const cb = childrenB[i];
+    // childrenA.length === childrenB.length를 위에서 확인했으므로 i는 항상 유효 인덱스.
+    const ca = childrenA[i]!;
+    const cb = childrenB[i]!;
     if (ca.kind !== cb.kind) {
       return {
         ok: false,
@@ -389,7 +423,9 @@ function compareElementNodes(a, b, pathLabel) {
         path: nextPath,
       };
     }
-    if (ca.kind === "text") {
+    // 위에서 ca.kind === cb.kind를 이미 확인했다 — cb.kind도 함께 검사하는 건
+    // TS 판별 유니온 좁히기용 동어반복이며 분기 로직은 바뀌지 않는다.
+    if (ca.kind === "text" && cb.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
@@ -399,8 +435,10 @@ function compareElementNodes(a, b, pathLabel) {
       }
       continue;
     }
-    const childResult = compareElementNodes(ca.node, cb.node, nextPath);
-    if (!childResult.ok) return childResult;
+    if (ca.kind === "element" && cb.kind === "element") {
+      const childResult = compareElementNodes(ca.node, cb.node, nextPath);
+      if (!childResult.ok) return childResult;
+    }
   }
 
   return { ok: true };
@@ -423,15 +461,18 @@ export function compareDomEquivalence(htmlA, htmlB) {
     };
   }
   for (let i = 0; i < childrenA.length; i += 1) {
-    const ca = childrenA[i];
-    const cb = childrenB[i];
+    // childrenA.length === childrenB.length를 위에서 확인했으므로 i는 항상 유효 인덱스.
+    const ca = childrenA[i]!;
+    const cb = childrenB[i]!;
     if (ca.kind !== cb.kind)
       return {
         ok: false,
         reason: `최상위 idx=${i} 자식 종류 불일치`,
         path: "/",
       };
-    if (ca.kind === "text") {
+    // 위에서 ca.kind === cb.kind를 이미 확인했다 — cb.kind도 함께 검사하는 건
+    // TS 판별 유니온 좁히기용 동어반복이며 분기 로직은 바뀌지 않는다.
+    if (ca.kind === "text" && cb.kind === "text") {
       if (ca.text !== cb.text) {
         return {
           ok: false,
@@ -441,8 +482,10 @@ export function compareDomEquivalence(htmlA, htmlB) {
       }
       continue;
     }
-    const result = compareElementNodes(ca.node, cb.node, "");
-    if (!result.ok) return result;
+    if (ca.kind === "element" && cb.kind === "element") {
+      const result = compareElementNodes(ca.node, cb.node, "");
+      if (!result.ok) return result;
+    }
   }
   return { ok: true };
 }
@@ -509,13 +552,22 @@ export function compareStoredHtmlEquivalence(rendered, stored) {
 // 후보 doc 하나(임포터 또는 생성기 결과)를 검증한다: 멱등 assert →
 // renderDocToHtml 재렌더 → DOM 동형 비교. 성공해야만 'imported'.
 // -----------------------------------------------------------------------
+type ImportCandidateResult =
+  | { classification: "imported"; doc: AdmissionDoc; candidateName: string }
+  | {
+      classification: "needsReview";
+      reason: string;
+      kind: "exception" | "parse-failure" | "render-exception" | "dom-mismatch";
+      doc?: AdmissionDoc;
+    };
+
 function tryCandidate(
   buildDoc: () => AdmissionDoc | null,
   sectionKey,
   html,
   universityName,
   candidateName,
-) {
+): ImportCandidateResult {
   let doc: AdmissionDoc | null;
   try {
     doc = buildDoc();
@@ -594,7 +646,7 @@ export function importCell(sectionKey, dbHtml, row) {
   const chain = IMPORTER_CHAINS[sectionKey] || [];
   if (!chain.length) return { classification: "skip" };
 
-  const attempts = [];
+  const attempts: string[] = [];
   for (const { name, run } of chain) {
     const result = tryCandidate(
       () => run(html),

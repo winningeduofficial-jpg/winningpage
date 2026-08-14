@@ -163,12 +163,14 @@ export async function upsertSessionVectorMetadata({
   // 압축 여부를 결정하지 못했을 가능성이 있으니 여기서 한 번 더 압축해 안전망을 둔다.
   const compactedSummaryText = compactText(summaryText, 1600);
 
+  // exactOptionalPropertyTypes 대응 — 아래 함수는 값을 `|| ""`로 다루므로
+  // undefined→""는 결과에 영향이 없다(DB 저장용 gradeLabel 등 원본 값은 그대로 둔다).
   const searchText = buildSessionVectorSearchText({
-    gradeLabel,
-    subjectGroup,
-    subject,
-    careerGoal,
-    topicTitle,
+    gradeLabel: gradeLabel || "",
+    subjectGroup: subjectGroup || "",
+    subject: subject || "",
+    careerGoal: careerGoal || "",
+    topicTitle: topicTitle || "",
     summaryText: compactedSummaryText,
   });
   const contentHash = computeContentHash(searchText);

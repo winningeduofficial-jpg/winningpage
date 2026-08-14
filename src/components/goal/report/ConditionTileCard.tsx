@@ -34,7 +34,7 @@ function ConditionTile({ emoji, label, value, avg }: ConditionTileProps) {
 type ConditionTileCardProps = {
   title?: ReactNode;
   tiles: ConditionTileProps[];
-  tip?: { variant?: string; text?: ReactNode } | null;
+  tip?: { variant?: string; text?: ReactNode } | null | undefined;
 };
 
 export default function ConditionTileCard({
@@ -56,7 +56,8 @@ export default function ConditionTileCard({
         ))}
       </div>
       {tip && (
-        <InsightBox variant={tip.variant} className="mt-auto">
+        // InsightBox(다른 UoW 소유)는 undefined 미허용 — "info"는 InsightBox 자체 기본값과 동일
+        <InsightBox variant={tip.variant ?? "info"} className="mt-auto">
           {tip.text}
         </InsightBox>
       )}

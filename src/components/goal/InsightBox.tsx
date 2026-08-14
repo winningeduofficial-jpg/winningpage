@@ -27,7 +27,8 @@ export default function InsightBox({
   children,
   className = "",
 }: InsightBoxProps) {
-  const { icon, bgClass } = VARIANT[variant] ?? VARIANT.info;
+  // VARIANT.info는 위에서 고정 선언된 키라 항상 존재한다.
+  const { icon, bgClass } = VARIANT[variant] ?? VARIANT.info!;
 
   return (
     <div

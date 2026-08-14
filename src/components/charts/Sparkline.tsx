@@ -190,7 +190,7 @@ function makeYearTick(valueByYear: Map<number, number | null>) {
     payload?: { value: number };
   }) {
     const year = payload?.value;
-    const hasValue = valueByYear.get(year) != null;
+    const hasValue = year != null && valueByYear.get(year) != null;
     return (
       <text
         x={x}

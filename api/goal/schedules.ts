@@ -26,6 +26,7 @@ import {
   fetchSchedules,
   fetchStudentRow,
   insertSchedule,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   updateSchedule,
@@ -152,8 +153,9 @@ function validateScheduleFields(body: unknown) {
 // ---------------------------------------------------------------------------
 
 async function requireOnboardedStudent(
-  supabaseAdmin: GoalSession["supabaseAdmin"],
-  profileId: GoalSession["profileId"],
+  // 호출부(아래 4개 핸들러)가 narrowGoalSession()으로 좁힌 값만 넘기므로 항상 존재한다.
+  supabaseAdmin: NonNullable<GoalSession["supabaseAdmin"]>,
+  profileId: NonNullable<GoalSession["profileId"]>,
 ) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row?.onboarded_at) {
@@ -171,12 +173,13 @@ async function handleGet(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(200).json({ allowed: false });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const gate = await requireOnboardedStudent(supabaseAdmin, profileId);
   if (gate.error) {
     return res.status(gate.error.status).json(gate.error.body);
@@ -193,12 +196,13 @@ async function handlePost(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const gate = await requireOnboardedStudent(supabaseAdmin, profileId);
   if (gate.error) {
     return res.status(gate.error.status).json(gate.error.body);
@@ -223,12 +227,13 @@ async function handlePut(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const gate = await requireOnboardedStudent(supabaseAdmin, profileId);
   if (gate.error) {
     return res.status(gate.error.status).json(gate.error.body);
@@ -269,12 +274,13 @@ async function handleDelete(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const gate = await requireOnboardedStudent(supabaseAdmin, profileId);
   if (gate.error) {
     return res.status(gate.error.status).json(gate.error.body);

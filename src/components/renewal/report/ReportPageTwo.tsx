@@ -64,9 +64,12 @@ const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
       <DimensionBarChart areas={readiness.areas} />
       <InsightColumns strengths={strengths} improvements={improvements} />
       <AdmissionSection admission={admission} />
+      {/* exactOptionalPropertyTypes 대응 — undefined일 때 leadNote 키 생략(RecommendServices 미수정 범위). */}
       <RecommendServices
         cards={recommendations}
-        leadNote={notices?.serviceLimit}
+        {...(notices?.serviceLimit !== undefined
+          ? { leadNote: notices.serviceLimit }
+          : {})}
       />
 
       {/*

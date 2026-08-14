@@ -49,9 +49,12 @@ function groupProducts(rows: ProductRow[] | null | undefined): ServiceGroup[] {
         key: r.service_key,
         name: r.service_name,
         desc: r.service_desc || "",
-        order: Number.isFinite(r.service_sort_order)
-          ? r.service_sort_order
-          : 99,
+        // Number.isFinite는 타입가드가 아니므로 typeof로 좁혀야 삼항의 true 분기가 number로 좁혀진다.
+        order:
+          typeof r.service_sort_order === "number" &&
+          Number.isFinite(r.service_sort_order)
+            ? r.service_sort_order
+            : 99,
         products: [],
       });
     }

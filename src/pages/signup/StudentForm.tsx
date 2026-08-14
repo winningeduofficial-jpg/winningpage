@@ -469,7 +469,12 @@ export default function StudentForm() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
+      // verifySignupEmailCode는 담당 파일이 아니라 수정할 수 없다 —
+      // exactOptionalPropertyTypes 때문에 값이 null이면 키 자체를 생략해 전달한다
+      // (내부에서 `mode || OTP_MODE.SIGNUP`로 처리하므로 동작은 동일하다).
+      ...(verification.email.mode !== null && {
+        mode: verification.email.mode,
+      }),
     }).then(async ({ error }) => {
       if (error) {
         updateVerification("email", { verified: false });
@@ -843,9 +848,9 @@ export default function StudentForm() {
           // 발송 이후의 안내·에러는 인증코드 필드 쪽에서 보여준다. 두 필드가 같은
           // 문구를 동시에 띄우면 어느 쪽 이야기인지 알기 어렵다. status도 함께
           // 내려야 한다 — 문구 없이 status만 error면 이 입력만 이유 없이 흔들린다.
-          helperText={
-            verification.email.requested ? undefined : emailMessage.text
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.email.requested ? "" : emailMessage.text}
           status={
             verification.email.requested ? "default" : emailMessage.status
           }

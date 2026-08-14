@@ -118,7 +118,9 @@ export default function GradeInputGrid({
   // 복구할 방법이 없다. 대신 채점 계층이 등급 체계에 맞지 않는 칸을 무시한다(§3.4: MIDDLE_AVG →
   // recentExamAvg 미사용 · mockFilledCount = 0).
   const visibleGroups = groups.filter(
-    (group) => !group.hiddenWhenGradeSystem?.includes(constraint?.code),
+    // constraint 없으면 종전에도 includes(undefined)가 항상 false→visible이었다(동일 결과를 명시).
+    (group) =>
+      !constraint || !group.hiddenWhenGradeSystem?.includes(constraint.code),
   );
 
   return (
@@ -191,8 +193,9 @@ export default function GradeInputGrid({
               {fillers.map((i) => {
                 const visibility: Record<string, string> = {};
                 GRID_BREAKPOINTS.forEach((bp, bpIndex) => {
+                  // neededByBp는 GRID_BREAKPOINTS와 동일 length로 생성되어 bpIndex는 항상 범위 내.
                   visibility[`data-v-${bp}`] =
-                    i < neededByBp[bpIndex] ? "1" : "0";
+                    i < neededByBp[bpIndex]! ? "1" : "0";
                 });
 
                 return (

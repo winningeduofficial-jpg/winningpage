@@ -9,5 +9,6 @@ type RawHtmlViewProps = {
 };
 
 export default function RawHtmlView({ html }: RawHtmlViewProps) {
-  return <SafeHtml html={html} className="admission-existing-html" />;
+  // SafeHtml은 falsy html을 이미 null 렌더로 처리한다(SafeHtml.tsx:349) — ""로 좁혀도 동일.
+  return <SafeHtml html={html ?? ""} className="admission-existing-html" />;
 }

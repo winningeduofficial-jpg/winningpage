@@ -112,7 +112,7 @@ export async function sendSignupEmailCode({
   name,
   memberType,
 }: SendSignupEmailCodeParams): Promise<{
-  state?: string;
+  state?: string | undefined;
   mode?: string;
   resumed?: boolean;
   error?: Error;
@@ -176,7 +176,10 @@ export async function sendSignupEmailCode({
  * 취급하면 같은 비밀번호를 쓴 사용자가 가입을 끝낼 수 없게 된다.
  */
 function isSamePasswordError(
-  error: { code?: string; message?: string } | null | undefined,
+  error:
+    | { code?: string | undefined; message?: string | undefined }
+    | null
+    | undefined,
 ) {
   const code = String(error?.code || "").toLowerCase();
   const message = String(error?.message || "").toLowerCase();

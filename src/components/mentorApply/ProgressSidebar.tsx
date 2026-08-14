@@ -118,7 +118,7 @@ export function computeProgress(
 // 시안은 "25개" 전체가 accent 색이므로(§6-3 타이포) {count} 직후의 단위 문자 `개` 까지를 강조
 // 범위에 넣는다. 카피는 데이터 파일이 정본이라 여기서 문장을 새로 쓰지 않고 분해만 한다.
 const [REMAINING_HEAD, REMAINING_REST_RAW] =
-  PROGRESS_SIDEBAR.remainingTemplate.split("{count}");
+  PROGRESS_SIDEBAR.remainingTemplate.split("{count}") as [string, string]; // 템플릿에 "{count}"가 정확히 1회 포함되어 항상 2조각
 const REMAINING_UNIT = REMAINING_REST_RAW.startsWith("개") ? "개" : "";
 const REMAINING_TAIL = REMAINING_REST_RAW.slice(REMAINING_UNIT.length);
 

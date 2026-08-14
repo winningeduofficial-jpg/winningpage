@@ -55,21 +55,24 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
   const { naesin, updateNaesin, grade, priorNaesinGrade, setPriorNaesinGrade } =
     useGoalOnboarding();
 
-  const allNone = NAESIN_EXAMS.every(({ key }) => naesin[key].none);
+  // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
+  const allNone = NAESIN_EXAMS.every(({ key }) => naesin[key]!.none);
   // 4단계는 1단계에서 학년을 고른 뒤에만 진입하므로 grade가 비는 경로는 없으나, 직접 URL
   // 진입 등으로 비었을 때를 대비해 고1 문구를 기본값으로 둔다(방어).
   // 소유 키만 본다 — grade 는 sessionStorage 복구값이 그대로 들어올 수 있어서(buildInitialState의
   // `{...defaults, ...stored}`는 값을 검증하지 않는다) 'constructor' 같은 Object.prototype 키면
   // 대괄호 조회가 truthy한 비-문구 객체를 잡아 `||` 폴백이 발동하지 않고 배너·라벨이 전부
   // 빈칸으로 렌더된다(같은 함정을 calc/bonus.js:107-109가 이미 if-else 사슬로 회피한다).
-  const priorCopy = Object.hasOwn(PRIOR_NAESIN_COPY, grade)
-    ? PRIOR_NAESIN_COPY[grade]
-    : PRIOR_NAESIN_COPY.g1;
+  const priorCopy =
+    grade && Object.hasOwn(PRIOR_NAESIN_COPY, grade)
+      ? PRIOR_NAESIN_COPY[grade]
+      : PRIOR_NAESIN_COPY.g1;
 
   const canProceed = allNone
     ? isValidGrade(priorNaesinGrade)
     : NAESIN_EXAMS.every(({ key }) => {
-        const exam = naesin[key];
+        // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
+        const exam = naesin[key]!;
         return exam.none || isValidGrade(exam.value);
       });
 
@@ -85,7 +88,8 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
       >
         <div className="grid grid-cols-2 gap-x-[2.5rem] gap-y-[2.5rem]">
           {NAESIN_EXAMS.map(({ key, label }) => {
-            const exam = naesin[key];
+            // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
+            const exam = naesin[key]!;
             return (
               <div key={key}>
                 <GradeNumberField

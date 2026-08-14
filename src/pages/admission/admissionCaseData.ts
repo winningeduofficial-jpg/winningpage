@@ -30,18 +30,22 @@ export const CASE_CATEGORIES: CaseCategory[] = ["susi", "jungsi"];
  * 대학 로고 스트립(admission_case_logos)은 scope와 무관하게 두 페이지가 공유한다
  * (시안 실측 결과 로고 12종·1행 7개/2행 5개 배치가 완전히 동일).
  */
+// 기본 scope 설정 — Record 인덱스 접근으로 되짚으면 undefined 가능 타입이 되므로
+// 폴백용으로 별도 상수를 먼저 만들어 둔다(DEFAULT_HERO_SCOPE_CONFIG 참고).
+const DEFAULT_HERO_SCOPE_ENTRY: HeroScopeConfig = {
+  ratesTable: "admission_acceptance_rates",
+  heroLabel: "목표 대학 합격률",
+  fallbackRates: [
+    { year: 2021, rate: 92 },
+    { year: 2022, rate: 97 },
+    { year: 2023, rate: 95 },
+    { year: 2024, rate: 95 },
+    { year: 2025, rate: 98 },
+  ],
+};
+
 export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
-  "susi-jungsi": {
-    ratesTable: "admission_acceptance_rates",
-    heroLabel: "목표 대학 합격률",
-    fallbackRates: [
-      { year: 2021, rate: 92 },
-      { year: 2022, rate: 97 },
-      { year: 2023, rate: 95 },
-      { year: 2024, rate: 95 },
-      { year: 2025, rate: 98 },
-    ],
-  },
+  "susi-jungsi": DEFAULT_HERO_SCOPE_ENTRY,
   "special-highschool": {
     ratesTable: "special_highschool_acceptance_rates",
     heroLabel: "목표 특목고 합격률",
@@ -56,6 +60,8 @@ export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
 };
 
 export const DEFAULT_HERO_SCOPE = "susi-jungsi";
+export const DEFAULT_HERO_SCOPE_CONFIG: HeroScopeConfig =
+  DEFAULT_HERO_SCOPE_ENTRY;
 
 /**
  * admission_posts.image_urls(jsonb/string/array 혼재) → 문자열 배열로 정규화.
@@ -152,7 +158,7 @@ export async function fetchAdmissionCaseById(
 export async function fetchAcceptanceRates(
   scope: string = DEFAULT_HERO_SCOPE,
 ): Promise<{ year: number; rate: number }[]> {
-  const scopeConfig = HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
+  const scopeConfig = HERO_SCOPES[scope] || DEFAULT_HERO_SCOPE_CONFIG;
   const { data, error } = await supabase
     .from(scopeConfig.ratesTable)
     .select("*")

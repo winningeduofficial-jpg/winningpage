@@ -156,21 +156,24 @@ export function extractAnswerQuestions(
   text = "",
 ): { no: number; text: string }[] {
   const seen = new Set<string>();
-  return [
-    ...String(text || "").matchAll(
-      /^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm,
-    ),
-  ]
-    .map((m) => ({ no: Number(m[1]), text: m[2].trim() }))
-    .filter((q) => q.text && !/목록\s*없음|없음/.test(q.text))
-    .filter((q) => !isRubricLikeQuestion(q.text))
-    .filter((q) => {
-      const key = `${q.no}:${q.text}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => a.no - b.no);
+  return (
+    [
+      ...String(text || "").matchAll(
+        /^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm,
+      ),
+    ]
+      // m[2]는 정규식 캡처그룹 2번 — 매치가 존재하면(matchAll 결과) 항상 존재한다.
+      .map((m) => ({ no: Number(m[1]), text: m[2]!.trim() }))
+      .filter((q) => q.text && !/목록\s*없음|없음/.test(q.text))
+      .filter((q) => !isRubricLikeQuestion(q.text))
+      .filter((q) => {
+        const key = `${q.no}:${q.text}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.no - b.no)
+  );
 }
 
 /**

@@ -25,8 +25,8 @@ type AdmissionBlockEditorProps = {
   section?: unknown;
   block: AdmissionBlock;
   onChange: (block: AdmissionBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 };
 
 export default function AdmissionBlockEditor({

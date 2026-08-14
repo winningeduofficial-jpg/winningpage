@@ -83,7 +83,8 @@ function fail(reason: string, detail?: string): ParentLinkFail {
   return {
     ok: false,
     reason,
-    message: detail || MESSAGES[reason] || MESSAGES.unknown,
+    // MESSAGES.unknown 키는 항상 정의돼 있는 최종 폴백.
+    message: detail || MESSAGES[reason] || MESSAGES.unknown!,
   };
 }
 

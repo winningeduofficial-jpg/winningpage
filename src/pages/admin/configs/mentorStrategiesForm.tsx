@@ -109,7 +109,14 @@ function buildMentorPhotoLayout(form: MentorForm): PhotoLayout | null {
   ];
   if (raw.some((v) => v === "" || v === null || v === undefined)) return null;
 
-  const [top, left, width, height] = raw.map(Number);
+  // raw는 항상 4개 원소를 가진 고정 배열이라 map 결과도 4개다(런타임 보장) — 튜플로 캐스팅해
+  // 구조분해 결과가 number(undefined 아님)로 좁혀지게 한다.
+  const [top, left, width, height] = raw.map(Number) as [
+    number,
+    number,
+    number,
+    number,
+  ];
   if (![top, left, width, height].every(Number.isFinite)) return null;
   if (width <= 0 || height <= 0) return null;
 

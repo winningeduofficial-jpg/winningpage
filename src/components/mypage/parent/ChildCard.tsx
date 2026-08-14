@@ -82,7 +82,9 @@ type ChildCardProps = {
 };
 
 export default function ChildCard({ child, onRemove }: ChildCardProps) {
-  const badge = STATUS_BADGE[child.link_status] || STATUS_BADGE.pending;
+  // STATUS_BADGE.pending은 위 리터럴에 항상 정의돼 있다(Record<string,...> 인덱스
+  // 시그니처 때문에 타입만 optional로 보인다).
+  const badge = STATUS_BADGE[child.link_status] || STATUS_BADGE.pending!;
   const subtitle = [child.school_name, child.school_type]
     .filter(Boolean)
     .join(" · ");

@@ -797,7 +797,7 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
 
             {renderContent(row.content as string | null | undefined)}
 
-            {(attachments.length > 0 || row.file_url) && (
+            {(attachments.length > 0 || Boolean(row.file_url)) && (
               <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-[#F9FAFB] p-5">
                 <p className="mb-3 text-sm font-bold text-[#525252]">
                   첨부파일
@@ -819,7 +819,7 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
                     </a>
                   ))}
 
-                  {attachments.length === 0 && row.file_url && (
+                  {attachments.length === 0 && Boolean(row.file_url) && (
                     <a
                       href={row.file_url as string}
                       target="_blank"

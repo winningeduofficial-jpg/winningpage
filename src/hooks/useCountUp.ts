@@ -12,7 +12,8 @@ const formatPadded = (value: number, decimals: number, intDigits: number) => {
   const negative = fixed.startsWith("-");
   const raw = negative ? fixed.slice(1) : fixed;
   const [intPart, decPart] = raw.split(".");
-  const paddedInt = intPart.padStart(intDigits, "0");
+  // toFixed 결과를 "."로 split하면 정수부는 항상 최소 1자리 존재.
+  const paddedInt = intPart!.padStart(intDigits, "0");
   const result = decPart !== undefined ? `${paddedInt}.${decPart}` : paddedInt;
   return negative ? `-${result}` : result;
 };
@@ -87,7 +88,7 @@ export function useCountUp(
 
       const io = new IntersectionObserver(
         ([entry]) => {
-          if (!entry.isIntersecting) return;
+          if (!entry?.isIntersecting) return;
           io.unobserve(el); // 재진입 시 재실행 차단 (ref 플래그 가드 금지)
           startedRef.current = true;
           raf = requestAnimationFrame(step);

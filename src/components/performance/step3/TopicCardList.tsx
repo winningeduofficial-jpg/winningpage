@@ -86,7 +86,11 @@ export default function TopicCardList({
       <ul role="list" className="flex flex-col gap-5">
         {topics.map((topic, index) => (
           <li key={topic.id ?? index} className="w-full">
-            <TopicCard index={index + 1} topic={topic} onDetail={onDetail} />
+            <TopicCard
+              index={index + 1}
+              topic={topic}
+              {...(onDetail ? { onDetail } : {})}
+            />
           </li>
         ))}
       </ul>

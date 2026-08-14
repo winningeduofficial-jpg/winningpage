@@ -81,8 +81,8 @@ async function readJpegMeta(file: File): Promise<JpegMeta> {
     if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return fallback;
 
     let orientation = 1;
-    let width = null;
-    let height = null;
+    let width: number | null = null;
+    let height: number | null = null;
     let offset = 2;
 
     while (offset + 4 <= view.byteLength) {

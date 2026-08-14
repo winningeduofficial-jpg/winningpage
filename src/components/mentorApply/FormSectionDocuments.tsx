@@ -34,7 +34,7 @@ import MentorAgreementBlock from "./MentorAgreementBlock";
 import { getMentorFieldLabelId, MentorFieldShell } from "./MentorTextField";
 import PhoneVerifyField from "./PhoneVerifyField";
 
-const SECTION = FORM_SECTIONS.find((section) => section.no === 5);
+const SECTION = FORM_SECTIONS.find((section) => section.no === 5)!; // FORM_SECTIONS에 no===5 항목 항상 존재
 
 // 사이드바 앵커 기본값(§6-3).
 export const DOCUMENTS_SECTION_ID = "mentor-apply-section-5";
@@ -65,7 +65,7 @@ type DocumentsValues = {
 
 type FormSectionDocumentsProps = {
   values?: DocumentsValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   /** (name, value) => void — 여기서는 'phone' 만 사용한다 */
   onChange?: (name: string, value: string) => void;
   /** File | null — 5-1 재학 증빙 서류 */
@@ -110,6 +110,13 @@ export default function FormSectionDocuments({
   submitDisabled = false, // 필수 항목 미충족 등으로 제출 불가
   id = DOCUMENTS_SECTION_ID,
 }: FormSectionDocumentsProps) {
+  // 값 형식·필수 에러(errors.phone)와 인증 미완료 에러(errors.phone_verified)는
+  // 서로 배타적이라(MentorApplyForm.jsx validateDocumentsSection) 동시에 값을
+  // 가질 수 없다 — 어느 쪽이 왔든 이 컨트롤이 그대로 보여준다(리뷰 WARN #1).
+  // 지역 변수로 한 번만 평가해야 아래 undefined 체크와 실제 스프레드 값의 타입이 같은
+  // 표현식으로 좁혀진다(같은 텍스트를 두 번 평가하면 TS가 좁힌 타입을 재사용하지 않는다).
+  const phoneVerifyError = errors.phone_verified || errors.phone;
+
   return (
     <div className="flex flex-col gap-8">
       <FormSectionCard
@@ -145,8 +152,12 @@ export default function FormSectionDocuments({
             <FileDropzone
               id={FILE_INPUT_ID}
               value={file}
-              onChange={onFileChange}
-              error={errors.proof_file}
+              // FileDropzoneProps는 담당 파일이 아니라 수정할 수 없다 — exactOptionalPropertyTypes
+              // 때문에 값이 undefined면 키 자체를 생략해 전달한다(속성 부재와 동일하게 동작).
+              {...(onFileChange !== undefined && { onChange: onFileChange })}
+              {...(errors.proof_file !== undefined && {
+                error: errors.proof_file,
+              })}
               uploadStatus={uploadStatus}
             />
           </div>
@@ -165,11 +176,14 @@ export default function FormSectionDocuments({
             value={values.phone ?? ""}
             onChange={(next) => onChange?.("phone", next)}
             verified={phoneVerified}
-            onVerified={onPhoneVerified}
-            // 값 형식·필수 에러(errors.phone)와 인증 미완료 에러(errors.phone_verified)는
-            // 서로 배타적이라(MentorApplyForm.jsx validateDocumentsSection) 동시에 값을
-            // 가질 수 없다 — 어느 쪽이 왔든 이 컨트롤이 그대로 보여준다(리뷰 WARN #1).
-            error={errors.phone_verified || errors.phone}
+            // PhoneVerifyFieldProps는 담당 파일이 아니라 수정할 수 없다 — exactOptionalPropertyTypes
+            // 때문에 값이 undefined면 키 자체를 생략해 전달한다(속성 부재와 동일하게 동작).
+            {...(onPhoneVerified !== undefined && {
+              onVerified: onPhoneVerified,
+            })}
+            {...(phoneVerifyError !== undefined && {
+              error: phoneVerifyError,
+            })}
           />
         </MentorFieldShell>
 
@@ -192,9 +206,17 @@ export default function FormSectionDocuments({
             <MentorAgreementBlock
               items={MENTOR_AGREEMENTS}
               values={agreements}
-              onToggle={onAgreementToggle}
-              onToggleAll={onAgreementToggleAll}
-              error={errors.agreements}
+              // MentorAgreementBlockProps는 담당 파일이 아니라 수정할 수 없다 —
+              // exactOptionalPropertyTypes 때문에 값이 undefined면 키 자체를 생략해 전달한다.
+              {...(onAgreementToggle !== undefined && {
+                onToggle: onAgreementToggle,
+              })}
+              {...(onAgreementToggleAll !== undefined && {
+                onToggleAll: onAgreementToggleAll,
+              })}
+              {...(errors.agreements !== undefined && {
+                error: errors.agreements,
+              })}
             />
           </div>
         </MentorFieldShell>
@@ -228,7 +250,9 @@ export default function FormSectionDocuments({
         type="submit"
         size="lg"
         radius="lg"
-        onClick={onSubmit}
+        // PrimaryButtonProps는 담당 파일이 아니라 수정할 수 없다 — exactOptionalPropertyTypes
+        // 때문에 값이 undefined면 키 자체를 생략해 전달한다(속성 부재와 동일하게 동작).
+        {...(onSubmit !== undefined && { onClick: onSubmit })}
         disabled={submitDisabled}
         loading={submitting}
         className={`min-h-[5.0625rem] !rounded-[1.25rem] ${

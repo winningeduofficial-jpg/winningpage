@@ -112,14 +112,16 @@ export default function DynamicPage() {
     Boolean,
   ) as string[];
 
+  // PaidServiceLike는 옵셔널 필드를 string|null로 받는다(exactOptionalPropertyTypes가 명시적
+  // undefined는 막는다) — button_text/button_link/slug의 undefined를 null로 정규화한다.
   const paidServiceContext = {
     name: title,
     title,
-    label: page.button_text,
+    label: page.button_text ?? null,
     description: subtitle || body,
-    link: page.button_link,
-    to: page.button_link,
-    slug,
+    link: page.button_link ?? null,
+    to: page.button_link ?? null,
+    slug: slug ?? null,
   };
 
   return (

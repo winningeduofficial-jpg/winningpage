@@ -265,7 +265,10 @@ type ErrorEntry = {
   cutType: unknown;
   universityName: unknown;
   departmentName: unknown;
-  column?: string;
+  // RowContext.column도 optional(string | undefined)이라 fail()이 그대로
+  // 전달한다 — exactOptionalPropertyTypes 하에서 undefined 명시 대입을
+  // 허용해야 한다(키 생략과 동일하게 취급, 값 자체는 원래도 optional).
+  column?: string | undefined;
   type: ErrorType;
   reason: string;
 };
@@ -275,7 +278,8 @@ type WarningEntry = {
   cutType: unknown;
   universityName: unknown;
   departmentName: unknown;
-  column?: string;
+  // ErrorEntry.column과 같은 사유.
+  column?: string | undefined;
   type: WarningType;
   reason: string;
 };
@@ -471,7 +475,7 @@ export function parseGoalUniversityCutRowsFromXlsx(
 
     // (3) 필수값. is_active 는 parseBooleanCell 이 항상 true/false 를
     // 돌려주므로(fallback true) 필수값 검사 대상이 아니다.
-    const missing = [];
+    const missing: string[] = [];
     if (!ctx.cutType) missing.push("컷 종류");
     if (!ctx.universityName) missing.push("대학명");
     // 학과명은 필수다 — 빈 학과명 행은 어떤 학생에게도 매칭되지 않는다.

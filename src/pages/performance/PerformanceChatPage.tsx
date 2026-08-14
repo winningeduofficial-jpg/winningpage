@@ -1,8 +1,10 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
-import ChatTimeline from "../../components/performance/chat/ChatTimeline";
+import ChatTimeline, {
+  type PerformanceChatMessage,
+} from "../../components/performance/chat/ChatTimeline";
 import InlineCard from "../../components/performance/chat/InlineCard";
 import { PERFORMANCE_LOADING_COPY } from "../../components/performance/chat/loadingCopy";
 import { deriveStepStates } from "../../components/performance/deriveStepStates";
@@ -11,12 +13,20 @@ import ResumeChoiceCard from "../../components/performance/resume/ResumeChoiceCa
 import BasicInfoForm from "../../components/performance/step1/BasicInfoForm";
 import GuideUploadCard from "../../components/performance/step2/GuideUploadCard";
 import ManualInfoForm from "../../components/performance/step2/ManualInfoForm";
+import type { Topic } from "../../components/performance/step3/TopicCard";
 import TopicCardList from "../../components/performance/step3/TopicCardList";
 import TopicDetailModal from "../../components/performance/step3/TopicDetailModal";
-import DesignReportModal from "../../components/performance/step4/DesignReportModal";
+import DesignReportModal, {
+  type DesignReport,
+} from "../../components/performance/step4/DesignReportModal";
 import EvaluationBranchActions from "../../components/performance/step5/EvaluationBranchActions";
-import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
-import SubmissionForm from "../../components/performance/step5/SubmissionForm";
+import EvaluationReportModal, {
+  type EvaluationReport,
+} from "../../components/performance/step5/EvaluationReportModal";
+import SubmissionForm, {
+  type SubmissionFieldValues,
+  type SubmissionSchema,
+} from "../../components/performance/step5/SubmissionForm";
 import { usePerformanceShell } from "../../context/PerformanceShellContext";
 import { useSession } from "../../context/SessionContext";
 import { useToast } from "../../context/ToastContext";
@@ -336,6 +346,51 @@ function buildResumeChoiceCopy(profileName, lastSession) {
 // 파일 상단 주석). 대신 다리 역할의 안내 한 줄만 남긴다.
 const RESUME_CONTINUE_COPY = "이전 진행 기록을 불러왔어요. 이어서 진행할게요.";
 
+// ── 이 파일 전용 로컬 타입 ────────────────────────────────────────────────────
+// `GET /api/performance/session`·bootstrap 등 서버 응답을 화면이 실제로 쓰는 필드만 좁혀서
+// 담는다(§8.6 계약은 그대로이고 타입만 좁힌다 — `session.ts` 상단 주석과 같은 판단).
+type PerformanceSession = {
+  id: string;
+  status?: string;
+  currentStep?: number;
+  completedSteps?: unknown;
+  gradeLabel?: string;
+  semester?: string;
+  schoolType?: string | null;
+  subjectGroup?: string;
+  subject?: string;
+  careerGoal?: string;
+  previousTopic?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type LastSessionSummary = {
+  sessionId: string;
+  gradeLabel?: string;
+  semester?: string;
+  subjectGroup?: string;
+  subject?: string;
+  selectedTopicTitle?: string;
+};
+
+// `handleConfirmTopic`(전체 `Topic`)과 `handleResumeConfirmedTopic`(`{id, title: string|null}`,
+// 위 JSDoc)이 함께 채운다 — 후자가 title을 모를 수 있어(§5.4 ⓐ 분기) `Topic.title: string`보다
+// 넓혀 둔다.
+type ConfirmedTopic = { id: string; title: string | null };
+
+type DesignErrorState = {
+  code: string;
+  message: string;
+  confirmedTopicId: string | null;
+};
+
+type EvaluationErrorState = { code: string; message: string };
+
+type FinalizeActionKind = "confirm" | "new_assessment";
+type FinalizeResultState = { action: FinalizeActionKind; keptPointer: boolean };
+type FinalizeErrorState = { action: FinalizeActionKind; message: string };
+
 export default function PerformanceChatPage() {
   // quotaRemaining은 SessionContext가 정본이다(§5.20 (A) 배너 판정, P15 [FIX]) —
   // recommend-topics 응답 등 채팅 진행 중 값과 이원화하지 않는다. null=무제한/판정 불가.
@@ -348,34 +403,40 @@ export default function PerformanceChatPage() {
     typeof routeParams?.sessionId === "string" ? routeParams.sessionId : null;
 
   const [bootstrapLoading, setBootstrapLoading] = useState(true);
-  const [profileName, setProfileName] = useState(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   // ── §5.4 재방문 분기. `entryMode`가 `'choice'`인 동안은 아래 STEP1~5 렌더 블록이 전부
   //   건너뛰어진다(그 블록들의 게이트 상태가 이 시점엔 전부 초기값이라 자연히 비어 있기도
   //   하다 — `entryMode`는 오직 재개 선택 카드 자체의 노출 여부만 가른다).
-  const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  const [lastSessionSummary, setLastSessionSummary] =
+    useState<LastSessionSummary | null>(null);
   // bootstrap의 `latestDraft` — "새로 시작하기"가 §9.3 미차감 세션 1개 제한에 걸리는지
   // 미리 판정하는 근거다(`handleResumeRestart` 참고). `lastSessionSummary`와 별개 질문에
   // 답한다(bootstrap.js 주석: lastSession="이어서 할 게 있는가", latestDraft="새로 시작해도 되는가").
-  const [latestDraft, setLatestDraft] = useState(null);
-  const [entryMode, setEntryMode] = useState("pending"); // 'pending' | 'choice' | 'chat'
+  const [latestDraft, setLatestDraft] = useState<unknown>(null);
+  const [entryMode, setEntryMode] = useState<"pending" | "choice" | "chat">(
+    "pending",
+  );
   const [resumeBusy, setResumeBusy] = useState(false);
-  const [resumeError, setResumeError] = useState(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
   // STEP1/2를 이미 지난 재개일 때만 채워진다(위 `RESUME_CONTINUE_COPY` 주석) — 그 값이
   // STEP1 그리팅·STEP2 블록을 다리 안내 한 줄로 갈음하는 스위치다.
-  const [resumeContinueNotice, setResumeContinueNotice] = useState(null);
+  const [resumeContinueNotice, setResumeContinueNotice] = useState<
+    string | null
+  >(null);
   const entryResolvedRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   // `submitError`가 `409 UNCHARGED_SESSION_EXISTS`일 때만 채워진다 — 저장 리포트로는
   // 못 돌아가므로(미차감 세션은 산출물이 없어 목록에 안 뜬다) 재개 선택 카드로 돌아가는
   // 실제 출구 버튼을 조건부로 렌더하는 스위치다(`handleBackToResumeChoice`).
-  const [submitErrorCode, setSubmitErrorCode] = useState(null);
-  const [createdSession, setCreatedSession] = useState(null);
+  const [submitErrorCode, setSubmitErrorCode] = useState<string | null>(null);
+  const [createdSession, setCreatedSession] =
+    useState<PerformanceSession | null>(null);
 
   // STEP2 분기. 'upload' = 업로드 카드, 'manual' = 직접 입력 폼(§5.8).
-  const [guideMode, setGuideMode] = useState("upload");
+  const [guideMode, setGuideMode] = useState<"upload" | "manual">("upload");
   // STEP2가 끝났는가(업로드 분석 성공 또는 직접 입력 제출 성공).
   const [guideDone, setGuideDone] = useState(false);
   // 제출 결과 사용자 말풍선 재료(§5.9) — 업로드 장수 / 직접 입력 원문.
@@ -389,19 +450,21 @@ export default function PerformanceChatPage() {
   //   'quota'     `409 QUOTA_EXHAUSTED` → 인라인 소진 카드(§5.20 (B)).
   //   'dismissed' 소진 카드를 `나중에 하기`로 닫은 뒤.
   //   'failed'    소진 외 실패 + 보여 줄 주제가 아직 없음 → 재시도 안내.
-  const [topicPhase, setTopicPhase] = useState("idle");
+  const [topicPhase, setTopicPhase] = useState<
+    "idle" | "loading" | "ready" | "quota" | "dismissed" | "failed"
+  >("idle");
   // 재추천 전용 플래그. **`topicPhase`를 `'loading'`으로 바꾸지 않는 것이 요점이다** —
   // 그렇게 하면 `step3-topics` 메시지(카드 3장 + `다른 주제 다시 추천` 버튼)가 타임라인에서
   // 통째로 빠지고, 방금 그 버튼을 누른 사용자의 포커스가 `<body>`로 떨어진다. 키보드
   // 사용자는 위치를 잃고 Tab을 처음부터 다시 밟아야 하며, 새 카드가 도착해도 포커스는
   // 돌아오지 않는다. 카드·버튼은 그대로 두고 로딩 버블만 그 아래에 덧붙인다.
   const [topicRegenerating, setTopicRegenerating] = useState(false);
-  const [topics, setTopics] = useState([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [topicRound, setTopicRound] = useState(0);
   const [topicMaxRounds, setTopicMaxRounds] = useState(3);
   const [topicRoundLimited, setTopicRoundLimited] = useState(false);
-  const [topicError, setTopicError] = useState(null);
-  const [quotaPlanEndsAt, setQuotaPlanEndsAt] = useState(null);
+  const [topicError, setTopicError] = useState<string | null>(null);
+  const [quotaPlanEndsAt, setQuotaPlanEndsAt] = useState<string | null>(null);
 
   // ── 주제 상세 모달(§5.11, P9). 열려 있는 주제 1건만 들고 있으면 된다 — 모달은
   //   `topicDetail`이 있을 때만 렌더한다.
@@ -415,7 +478,7 @@ export default function PerformanceChatPage() {
   //   그래서 확정 경로는 자동 복귀에 기대지 않고 `designLoadingRef`로 새 포커스 목적지(STEP4
   //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **같은 이유로 P10이
   //   추가한 설계 리포트 모달도 닫힐 때 포커스 목적지를 직접 지정한다**(`handleCloseDesignModal`).
-  const [topicDetail, setTopicDetail] = useState(null);
+  const [topicDetail, setTopicDetail] = useState<Topic | null>(null);
 
   // ── STEP4 설계 리포트(§5.12 로딩 → §5.13 모달, P10에서 완성).
   //   'idle'    주제 미확정 — STEP3 카드가 화면에 있다.
@@ -428,29 +491,33 @@ export default function PerformanceChatPage() {
   //   `'idle'`로 되돌린다. 실패 경로에서는 서버가 아무것도 커밋하지 않으므로(모델 호출 전
   //   게이트는 물론, 커밋 RPC 실패도 주제 확정 없이 끝난다 — `design-report.js` 상단 표)
   //   되돌아가 다른 주제를 고르는 것이 실제로 안전하다.
-  const [designPhase, setDesignPhase] = useState("idle");
-  const [confirmedTopic, setConfirmedTopic] = useState(null);
-  const [designReport, setDesignReport] = useState(null);
-  const [designError, setDesignError] = useState(null);
+  const [designPhase, setDesignPhase] = useState<
+    "idle" | "loading" | "ready" | "failed"
+  >("idle");
+  const [confirmedTopic, setConfirmedTopic] = useState<ConfirmedTopic | null>(
+    null,
+  );
+  const [designReport, setDesignReport] = useState<DesignReport | null>(null);
+  const [designError, setDesignError] = useState<DesignErrorState | null>(null);
   // 모달 개폐는 `designPhase`와 **별개 축**이다 — 닫아도 리포트는 그대로 남아야 다시 열 수 있다.
   const [designModalOpen, setDesignModalOpen] = useState(false);
   // `designPhase === 'loading'`으로 전이할 때 새로 나타나는 STEP4 로딩 버블로 포커스를 옮기는
   // 데 쓴다(검토 A-2, 위 `topicDetail` 주석 참고). `ChatTimeline`에 이 ref를 `focusRef`로
   // 넘기면 `AiLoadingBubble` 루트에 배선되고, 그 항목의 래퍼가 자동으로 `aria-live="off"`가
   // 되어 `ChatTimeline`의 `aria-live="polite"`와 중복 낭독되지 않는다.
-  const designLoadingRef = useRef(null);
+  const designLoadingRef = useRef<HTMLDivElement>(null);
   // 모달을 닫을 때 포커스가 갈 자리(`설계 리포트 다시 보기` 버튼). 모달은 로딩 버블이
   // 사라진 커밋에서 자동으로 열리므로 `useModalBehavior`가 기억한 트리거는 이미 detach된
   // 노드다 — 복귀 대상을 여기서 직접 준다.
-  const designReopenRef = useRef(null);
+  const designReopenRef = useRef<HTMLButtonElement>(null);
   // `designPhase` 전이 3종을 **대칭으로** 다루기 위한 나머지 두 목적지(검토 P10).
   //   · `'loading' → 'failed'`: 로딩 버블이 언마운트되는데 그 버블이 바로 직전에 프로그램적
   //     포커스를 받은 노드다(`designLoadingRef` 이펙트). 배선이 없으면 `<body>`로 떨어져
   //     `설계 리포트 다시 시도`/`주제 다시 고르기`에 도달하려면 Tab을 처음부터 밟아야 한다.
   //   · `'failed' → 'idle'`(`주제 다시 고르기`): 방금 누른 버튼 자신이 언마운트된다.
   // 둘 다 `topicRegenerating` 주석이 이미 지목한 그 함정이라 같은 rAF 패턴으로 막는다.
-  const designFailedRef = useRef(null);
-  const topicsReturnRef = useRef(null);
+  const designFailedRef = useRef<HTMLDivElement>(null);
+  const topicsReturnRef = useRef<HTMLDivElement>(null);
   // STEP3 복귀 포커스는 **`주제 다시 고르기`로 되돌아온 경우에만** 필요하다. 항상 배선하면
   // `step3-topics` 항목이 늘 `aria-live="off"`가 되어(포커스 목적지 규약) 최초 추천 결과가
   // 낭독되지 않는다. 그래서 복귀 요청이 있을 때만 켜고, 켜진 뒤에는 그대로 둔다 —
@@ -468,8 +535,12 @@ export default function PerformanceChatPage() {
   //   `추가 평가 받기`(§12.2 「확정 없이 폼을 복원한다」)가 이 값을 `'idle'`로 되돌리는 것이
   //   곧 폼 복원이다 — 별도 복원 신호를 두면 두 축이 갈라진다.
   //   폼이 제출에 성공하면 `handleSubmissionEvaluate(submissionId)`를 부른다(아래).
-  const [evaluationPhase, setEvaluationPhase] = useState("idle");
-  const [evaluationSubmissionId, setEvaluationSubmissionId] = useState(null);
+  const [evaluationPhase, setEvaluationPhase] = useState<
+    "idle" | "loading" | "ready" | "failed"
+  >("idle");
+  const [evaluationSubmissionId, setEvaluationSubmissionId] = useState<
+    string | null
+  >(null);
   /**
    * **평가에 실제로 성공한** 제출본. `evaluationSubmissionId`(마지막으로 *시도한* 제출본)와
    * 갈라지는 축이다 — 재평가가 실패하면 시도 대상은 새 제출본으로 바뀌었는데 서버의
@@ -478,9 +549,13 @@ export default function PerformanceChatPage() {
    * 를 보므로(sql/58 (5) 단계 5 → `400 NO_EVALUATION_YET`) **확정은 이 값을 써야 한다.**
    * `'ready'`에서는 둘이 같아 기존 동작이 그대로다.
    */
-  const [evaluatedSubmissionId, setEvaluatedSubmissionId] = useState(null);
-  const [evaluationReport, setEvaluationReport] = useState(null);
-  const [evaluationError, setEvaluationError] = useState(null);
+  const [evaluatedSubmissionId, setEvaluatedSubmissionId] = useState<
+    string | null
+  >(null);
+  const [evaluationReport, setEvaluationReport] =
+    useState<EvaluationReport | null>(null);
+  const [evaluationError, setEvaluationError] =
+    useState<EvaluationErrorState | null>(null);
   // 모달 개폐는 `evaluationPhase`와 **별개 축**이다(§5.13 모달과 같은 처리) — 닫아도 리포트는
   // 남아야 `평가 리포트 다시 보기`로 돌아올 수 있다.
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -492,26 +567,32 @@ export default function PerformanceChatPage() {
   const [reevaluateRound, setReevaluateRound] = useState(0);
 
   // ── 확정(§5.17 두 버튼 → `POST /api/performance/finalize`)
-  const [finalizeAction, setFinalizeAction] = useState(null); // 진행 중인 action(잠금용)
-  const [finalizeResult, setFinalizeResult] = useState(null); // { action, keptPointer }
-  const [finalizeError, setFinalizeError] = useState(null); // { action, message }
+  const [finalizeAction, setFinalizeAction] =
+    useState<FinalizeActionKind | null>(null); // 진행 중인 action(잠금용)
+  const [finalizeResult, setFinalizeResult] =
+    useState<FinalizeResultState | null>(null);
+  const [finalizeError, setFinalizeError] = useState<FinalizeErrorState | null>(
+    null,
+  );
 
   // ── `추가 수행평가 진행하기` 이후. 새 세션은 서버가 이미 만들어 두므로(finalize 응답
   //   `nextSessionId`) 이 화면은 **상태만 STEP1로 되돌린다**. 그 뒤 STEP1 제출은
   //   `action:'create'`가 아니라 `'resume'`이어야 한다 — 미차감 세션이 이미 하나 있어
   //   `create`는 `409 UNCHARGED_SESSION_EXISTS`로 막힌다(§9.3 동시 1개 제한).
-  const [sessionStartMode, setSessionStartMode] = useState("create");
-  const [restartNotice, setRestartNotice] = useState(null);
+  const [sessionStartMode, setSessionStartMode] = useState<"create" | "resume">(
+    "create",
+  );
+  const [restartNotice, setRestartNotice] = useState<string | null>(null);
   const [restartToken, setRestartToken] = useState(0);
 
   // 포커스 목적지 — 전부 「직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
   // 전이」다(`ChatTimeline`의 `focusRef` 주석과 같은 이유).
-  const evaluationLoadingRef = useRef(null); // 폼 → 로딩(폼 카드가 사라진다)
-  const evaluationFailedRef = useRef(null); // 로딩 → 실패(로딩 버블이 사라진다)
-  const evaluationReopenRef = useRef(null); // 모달 닫기(자동 오픈이라 트리거가 이미 없다)
-  const reevaluateNoticeRef = useRef(null); // 분기 버튼 → 폼 복원(누른 버튼이 사라진다)
-  const finalizeDoneRef = useRef(null); // 확정 완료 안내
-  const restartRef = useRef(null); // 새 수행평가 첫 안내(타임라인이 통째로 갈린다)
+  const evaluationLoadingRef = useRef<HTMLDivElement>(null); // 폼 → 로딩(폼 카드가 사라진다)
+  const evaluationFailedRef = useRef<HTMLDivElement>(null); // 로딩 → 실패(로딩 버블이 사라진다)
+  const evaluationReopenRef = useRef<HTMLButtonElement>(null); // 모달 닫기(자동 오픈이라 트리거가 이미 없다)
+  const reevaluateNoticeRef = useRef<HTMLDivElement>(null); // 분기 버튼 → 폼 복원(누른 버튼이 사라진다)
+  const finalizeDoneRef = useRef<HTMLDivElement>(null); // 확정 완료 안내
+  const restartRef = useRef<HTMLDivElement>(null); // 새 수행평가 첫 안내(타임라인이 통째로 갈린다)
 
   // ── STEP5 제출폼(§5.14) — 스키마·작성값·저장 상태
   //   `submissionSchema`는 **서버가 내려준 값 그대로**다(§8.3 — 8종 판정은 서버 소유이고
@@ -519,14 +600,23 @@ export default function PerformanceChatPage() {
   //   그리면 문항형 학생에게 없는 칸을 보여 주고 저장은 `400 UNKNOWN_FIELD`로 죽는다.
   //   `submissionValue`가 **평가 슬라이스와 독립된 축**인 것이 중요하다 — `추가 평가 받기`가
   //   `evaluationPhase`만 `'idle'`로 되돌려도 작성값이 그대로 남아 폼이 복원된다(§12.2 L2372).
-  const [submissionSchema, setSubmissionSchema] = useState(null);
-  const [submissionValue, setSubmissionValue] = useState({});
-  const [submissionLoadError, setSubmissionLoadError] = useState(null);
+  const [submissionSchema, setSubmissionSchema] =
+    useState<SubmissionSchema | null>(null);
+  const [submissionValue, setSubmissionValue] = useState<SubmissionFieldValues>(
+    {},
+  );
+  const [submissionLoadError, setSubmissionLoadError] = useState<string | null>(
+    null,
+  );
   const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submittingWork, setSubmittingWork] = useState(false);
-  const [submissionActionError, setSubmissionActionError] = useState(null);
-  const [submissionSavedAt, setSubmissionSavedAt] = useState(null);
+  const [submissionActionError, setSubmissionActionError] = useState<
+    string | null
+  >(null);
+  const [submissionSavedAt, setSubmissionSavedAt] = useState<string | null>(
+    null,
+  );
 
   // ── 사이드바 진행단계 배선(P13) ────────────────────────────────────────────────
   //
@@ -557,7 +647,7 @@ export default function PerformanceChatPage() {
   // 선형이라(다른 주제 재추천·재평가는 같은 스텝 안에서의 왕복이지 스텝 역행이
   // 아니다) 그보다 복잡한 규칙이 필요 없다.
   useEffect(() => {
-    let activeStep = null;
+    let activeStep: number | null = null;
 
     if (!createdSession) {
       activeStep = 1;
@@ -850,6 +940,9 @@ export default function PerformanceChatPage() {
   async function requestTopics({
     isRegenerate = false,
     sessionOverride = null,
+  }: {
+    isRegenerate?: boolean;
+    sessionOverride?: PerformanceSession | null;
   } = {}) {
     const activeSession = sessionOverride || createdSession;
     if (!accessToken || !activeSession) return;
@@ -1009,7 +1102,10 @@ export default function PerformanceChatPage() {
    *   같은 이름 인자와 같은 이유 — `applyResumedSession`이 `setCreatedSession` 직후 같은
    *   틱에 이 함수를 부르므로 `createdSession` state가 아직 stale하다).
    */
-  async function requestDesign(topic, sessionOverride = null) {
+  async function requestDesign(
+    topic,
+    sessionOverride: PerformanceSession | null = null,
+  ) {
     const activeSession = sessionOverride || createdSession;
     if (!accessToken || !activeSession || !topic) return;
 
@@ -1522,7 +1618,13 @@ export default function PerformanceChatPage() {
     setResumeError(null);
 
     try {
-      const data = await fetchSessionDetail({ accessToken, sessionId });
+      // 이 함수는 bootstrapLoading이 false로 바뀐 뒤(§5.4 진입 분기 판정 이펙트)에만
+      // 호출된다 — 그 이펙트는 bootstrap 조회(accessToken 필수, 위 이펙트)가 끝난 뒤에만
+      // bootstrapLoading을 false로 내리므로 이 시점의 accessToken은 항상 존재한다.
+      const data = await fetchSessionDetail({
+        accessToken: accessToken as string,
+        sessionId,
+      });
       applyResumedSession(data);
       setEntryMode("chat");
     } catch (error) {
@@ -1620,7 +1722,7 @@ export default function PerformanceChatPage() {
     );
   }
 
-  const messages = [];
+  const messages: PerformanceChatMessage[] = [];
 
   if (entryMode === "choice") {
     // §5.4 재개 선택 카드. STEP1 그리팅 대신 이 한 항목만 렌더한다 — 나머지 STEP1~5
@@ -1960,7 +2062,7 @@ export default function PerformanceChatPage() {
     //   400 3종(제출물을 고쳐야 풀리는 코드)을 따로 열거하던 집합은 지웠다 — 그 코드들은
     //   `RETRYABLE`에 없어 재시도 버튼이 안 뜨고, 폼 복원은 이제 무조건 열려 있다.
     const failedCode = evaluationError?.code;
-    const canRetry = EVALUATION_RETRYABLE_CODES.has(failedCode);
+    const canRetry = EVALUATION_RETRYABLE_CODES.has(failedCode ?? "");
     // 이전 평가가 살아 있으면 그 리포트를 열고 **확정까지** 할 수 있어야 한다. 확정 버튼이
     // `'ready'`에만 있으면 재평가가 상한(`409 REEVALUATION_LIMIT`)에 걸린 순간 확정 경로가
     // 통째로 사라진다 — 이미 평가받은 제출본을 최종본으로 만들 길이 없어진다(§5.17).
@@ -2221,13 +2323,13 @@ export default function PerformanceChatPage() {
       <DesignReportModal
         open={designModalOpen}
         report={designReport}
-        topicTitle={confirmedTopic?.title}
+        topicTitle={confirmedTopic?.title ?? undefined}
         onClose={handleCloseDesignModal}
       />
       <EvaluationReportModal
         open={evaluationModalOpen}
         report={evaluationReport}
-        topicTitle={confirmedTopic?.title}
+        topicTitle={confirmedTopic?.title ?? undefined}
         onClose={handleCloseEvaluationModal}
       />
     </div>
@@ -2247,7 +2349,11 @@ export default function PerformanceChatPage() {
  * @param {unknown[]} [retriggers] `active`가 켜진 채 유지되지만 **다시** 옮겨야 하는 경우의
  *   추가 의존성(예: 재평가 라운드가 한 번 더 돌 때). 없으면 켜지는 순간에만 옮긴다.
  */
-function useRafFocus(active, ref, retriggers = []) {
+function useRafFocus(
+  active: boolean,
+  ref: RefObject<HTMLElement | null>,
+  retriggers: unknown[] = [],
+) {
   useEffect(() => {
     if (!active) return undefined;
     const raf = requestAnimationFrame(() => {

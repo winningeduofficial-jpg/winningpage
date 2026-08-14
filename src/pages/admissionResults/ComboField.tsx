@@ -107,17 +107,19 @@ export default function ComboField({
 }: {
   label: string;
   placeholder?: string;
-  value?: ComboValue | null;
+  // SelectorBar가 자기 optional props(university?/onSelectUniversity? 등)를
+  // 그대로 넘기므로 exactOptionalPropertyTypes라 undefined도 명시적으로 열어 둔다.
+  value?: ComboValue | null | undefined;
   options?: ComboOption[];
-  onSelect?: (option: ComboOption) => void;
-  onClear?: () => void;
+  onSelect?: ((option: ComboOption) => void) | undefined;
+  onClear?: (() => void) | undefined;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
   disabledMessage?: string;
-  loading?: boolean;
-  error?: boolean;
-  onRetry?: () => void;
+  loading?: boolean | undefined;
+  error?: boolean | undefined;
+  onRetry?: (() => void) | undefined;
   emptyTitle?: string;
   emptyDescription?: string;
   noResultTitle?: string;
@@ -426,7 +428,9 @@ export default function ComboField({
                 tone="error"
                 title="목록을 불러오지 못했습니다."
                 description="잠시 후 다시 시도해 주세요."
-                onRetry={onRetry}
+                // PopoverStatus(수정 범위 밖)의 onRetry는 exactOptionalPropertyTypes라
+                // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
+                {...(onRetry ? { onRetry } : {})}
               />
             ) : null}
 

@@ -157,10 +157,30 @@ export async function openGoalSession(
   const { allowed } = await hasPaidServiceAccess(
     supabaseAdmin,
     profileId,
-    SERVICE_CONFIGS.goal,
+    // biome-ignore lint/style/noNonNullAssertion: goal 키는 SERVICE_CONFIGS에 정적으로 정의돼 있음
+    SERVICE_CONFIGS.goal!,
   );
 
   return { supabaseAdmin, profileId, allowed };
+}
+
+/**
+ * 호출부(api/goal/*.ts)가 `if (session.error) return ...` 를 통과시킨 뒤에만 쓴다.
+ * GoalSessionResult의 supabaseAdmin/profileId는 타입상 optional이지만(error와
+ * 상호 배타적인 필드라 TS가 자동으로 좁혀주지 않는다), openGoalSession 구현상
+ * error가 없으면 항상 채워져 있다 — 그 사실을 이 한 지점에서만 단언해 호출부마다
+ * `!`가 반복되지 않게 한다(신규 헬퍼, 기존 export 시그니처는 바꾸지 않았다).
+ */
+export function narrowGoalSession(session: GoalSessionResult): {
+  supabaseAdmin: SupabaseClient;
+  profileId: string;
+} {
+  return {
+    // biome-ignore lint/style/noNonNullAssertion: 위 설명 참고 — session.error 체크 이후에만 호출됨
+    supabaseAdmin: session.supabaseAdmin!,
+    // biome-ignore lint/style/noNonNullAssertion: 위 설명 참고 — session.error 체크 이후에만 호출됨
+    profileId: session.profileId!,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -586,10 +606,10 @@ export async function upsertDailyRecord(
 }
 
 export type ProbabilitySnapshot = {
-  idealSusi: number;
-  idealJungsi: number;
-  minSusi: number;
-  minJungsi: number;
+  idealSusi: number | null;
+  idealJungsi: number | null;
+  minSusi: number | null;
+  minJungsi: number | null;
 };
 
 export type ProbabilityLogReason = "intake" | "daily_record" | "score_update";

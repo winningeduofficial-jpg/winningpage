@@ -141,9 +141,10 @@ function programLink(serviceName: string) {
 function parseOrder(order: Order): ParsedOrder {
   const rawName = String(order?.order_name || "").trim();
   const bracketMatch = rawName.match(DURATION_BRACKET_RE);
-  const durationSpec = bracketMatch ? bracketMatch[1] : "";
+  // DURATION_BRACKET_RE의 두 캡처그룹은 옵셔널(`?`)이 아니라 매치 성공 시 항상 존재한다.
+  const durationSpec = bracketMatch ? bracketMatch[1]! : "";
   const serviceName = bracketMatch
-    ? bracketMatch[2].trim()
+    ? bracketMatch[2]!.trim()
     : rawName || "이용권";
   const category = classifyService(serviceName);
 

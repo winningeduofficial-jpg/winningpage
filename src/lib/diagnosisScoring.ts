@@ -161,14 +161,17 @@ function normalizeLikert(raw, stableKeys) {
  * 표를 여기 복사하지 않고 문항 데이터에서 파생시킨다 — GradeInputGrid 가 숨기는 칸과 채점이
  * 무시하는 칸이 같아야 하는데, 사본을 두면 한쪽만 고쳐진다.
  */
-const GRADE_FIELD_HIDDEN_SYSTEMS = new Map(
+const GRADE_FIELD_HIDDEN_SYSTEMS = new Map<string, string[]>(
   renewalSurveyQuestions
     .flatMap((question) => question.extra?.groups ?? [])
     .flatMap((group) =>
-      (group.fields ?? []).map((field) => [
-        field.key,
-        group.hiddenWhenGradeSystem ?? [],
-      ]),
+      // renewalSurveyQuestions는 원시 데이터 리터럴이라 이 시점 배열 원소가 가변 길이 배열로
+      // 추론돼 Map 생성자의 튜플 이터러블 오버로드와 맞지 않는다 — 실제 셰이프([key, hiddenList])는
+      // 데이터상 고정이므로 튜플로 캐스팅만 한다(값 자체는 그대로).
+      (group.fields ?? []).map(
+        (field) =>
+          [field.key, group.hiddenWhenGradeSystem ?? []] as [string, string[]],
+      ),
     ),
 );
 

@@ -23,8 +23,10 @@ import {
  * 컨테이너에 overflow-hidden을 걸지 않는다 — 팝오버가 바 밖으로 나와야 한다.
  */
 type SelectorBarProps = {
-  university?: ComboValue;
-  department?: ComboValue;
+  // 호출부(AdmissionResults.tsx)는 선택 없음을 null로 표현한다(ComboField.value와
+  // 동일 관례) — undefined만 허용하면 그 null을 그대로 못 받는다.
+  university?: ComboValue | null;
+  department?: ComboValue | null;
   universityOptions: ComboOption[];
   departmentOptions: ComboOption[];
   universityLoading?: boolean;

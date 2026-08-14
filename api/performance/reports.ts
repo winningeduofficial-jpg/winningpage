@@ -313,7 +313,8 @@ async function handleList(
   const pageRows = (rows || []) as unknown as ListRow[];
   const hasMore = pageRows.length > limit;
   const items = (hasMore ? pageRows.slice(0, limit) : pageRows).map(toListItem);
-  const nextCursor = hasMore ? items[items.length - 1].updatedAt : null;
+  // hasMore가 true면 slice(0, limit)로 최소 1개(limit>=1)가 남아 있다.
+  const nextCursor = hasMore ? items[items.length - 1]!.updatedAt : null;
 
   return res.status(200).json({ items, nextCursor });
 }
@@ -429,7 +430,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -446,7 +447,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
       userId,
-      SERVICE_CONFIGS[SERVICE_KEY],
+      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+      SERVICE_CONFIGS[SERVICE_KEY]!,
     );
     if (!hasAccess) {
       return fail(

@@ -39,12 +39,14 @@ export default function GoalTabs({
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % tabs.length;
-      onChange(tabs[next].value);
+      // 모듈 연산으로 항상 배열 범위 안의 인덱스만 나온다.
+      onChange(tabs[next]!.value);
       focusTab(next);
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       const prev = (index - 1 + tabs.length) % tabs.length;
-      onChange(tabs[prev].value);
+      // 모듈 연산으로 항상 배열 범위 안의 인덱스만 나온다.
+      onChange(tabs[prev]!.value);
       focusTab(prev);
     }
   };

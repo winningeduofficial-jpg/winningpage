@@ -78,7 +78,7 @@ function formatDate(value: string | number | Date | null | undefined) {
 // '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
 type ChipTone = "blue" | "green" | "coral" | "red" | "gray";
 
-function CategoryBadge({ category }: { category?: string | null }) {
+function CategoryBadge({ category }: { category?: string | null | undefined }) {
   if (!category)
     return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 

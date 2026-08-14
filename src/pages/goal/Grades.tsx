@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
 import AddMockExamGradeModal from "../../components/goal/modals/AddMockExamGradeModal";
@@ -84,13 +85,16 @@ export default function Grades() {
           return;
         }
 
+        // goalApi.ts의 GoalGradeRecord/GoalTargets는 export되지 않아(파일 소유권 제약)
+        // 이 파일의 로컬 shape와 구조는 같지만 인덱스 시그니처가 없다 — 실제 데이터는
+        // GradesState 계약을 그대로 만족하므로 여기서만 단언한다.
         setState({
           status: "ready",
           targets: studentResult.student.targets,
           scores: studentResult.student.scores,
           naesinRecords: gradesResult.naesinRecords,
           mockRecords: gradesResult.mockRecords,
-        });
+        } as unknown as GradesState);
       },
     );
 
@@ -160,11 +164,11 @@ export default function Grades() {
 
   const naesinKpi = latestKpi(naesinRecords, {
     fallbackValue: scores.convertedGrade,
-    fallbackRound: scores.lastNaesinExam,
+    fallbackRound: scores.lastNaesinExam ?? undefined,
   });
   const mockKpi = latestKpi(mockRecords, {
     fallbackValue: scores.currentMogo,
-    fallbackRound: scores.lastMogoExam,
+    fallbackRound: scores.lastMogoExam ?? undefined,
   });
 
   // 컷(naesinCut/mockCut)과 현재값(naesinKpi.value/mockKpi.value)이 둘 다 있을 때만 격차를
@@ -190,43 +194,59 @@ export default function Grades() {
           <GoalGaugeCard
             label="내신"
             round={naesinKpi.round}
-            value={naesinKpi.value}
+            // GoalGaugeCard.value는 number 필수 — 기록도 온보딩 베이스라인도 없으면 null이
+            // 될 수 있는 기존 미처리 케이스다(고쳐 넣지 않고 타입만 통과, 보고 대상).
+            value={naesinKpi.value!}
             unit="등급"
             delta={improvementDelta(naesinKpi.delta, true)}
-            targetLabel={
-              naesinCut != null ? `최소 목표 ${naesinCut} 등급` : undefined
-            }
-            remaining={
-              naesinCut != null
-                ? Math.max(0, round1(naesinKpi.value - naesinCut))
-                : undefined
-            }
+            // exactOptionalPropertyTypes: 명시적 undefined를 못 받는 optional prop이라
+            // 조건부 스프레드로 키 자체를 생략한다.
+            {...(naesinCut != null
+              ? {
+                  targetLabel: `최소 목표 ${naesinCut} 등급`,
+                  // naesinCut은 naesinKpi.value != null일 때만 만들어진다(위 계산부).
+                  remaining: Math.max(0, round1(naesinKpi.value! - naesinCut)!),
+                }
+              : {})}
             lowerIsBetter
           />
           <GoalGaugeCard
             label="모의고사"
             round={mockKpi.round}
-            value={mockKpi.value}
+            // GoalGaugeCard.value는 number 필수 — 기록도 온보딩 베이스라인도 없으면 null이
+            // 될 수 있는 기존 미처리 케이스다(고쳐 넣지 않고 타입만 통과, 보고 대상).
+            value={mockKpi.value!}
             unit="백분위"
             delta={improvementDelta(mockKpi.delta, false)}
-            targetLabel={mockCut != null ? `이상 목표 ${mockCut}` : undefined}
-            remaining={
-              mockCut != null
-                ? Math.max(0, round1(mockCut - mockKpi.value))
-                : undefined
-            }
+            // exactOptionalPropertyTypes: 명시적 undefined를 못 받는 optional prop이라
+            // 조건부 스프레드로 키 자체를 생략한다.
+            {...(mockCut != null
+              ? {
+                  targetLabel: `이상 목표 ${mockCut}`,
+                  // mockCut은 mockKpi.value != null일 때만 만들어진다(위 계산부).
+                  remaining: Math.max(0, round1(mockCut - mockKpi.value!)!),
+                }
+              : {})}
           />
         </div>
 
         <GoalTable
           title="내신・회차별 등급"
-          rows={toTableRows(naesinRecords)}
+          // GoalTable의 GoalTableRow는 미export라 여기서 컴포넌트 prop 타입으로 우회 단언한다.
+          // exactOptionalPropertyTypes가 명시적 undefined 값을 막을 뿐 런타임 형태는 동일하다.
+          rows={
+            toTableRows(naesinRecords) as ComponentProps<
+              typeof GoalTable
+            >["rows"]
+          }
           onAddRound={() => setNaesinModalOpen(true)}
           lowerIsBetter={true}
         />
         <GoalTable
           title="모의고사・회차별 백분위"
-          rows={toTableRows(mockRecords)}
+          rows={
+            toTableRows(mockRecords) as ComponentProps<typeof GoalTable>["rows"]
+          }
           onAddRound={() => setMockModalOpen(true)}
           lowerIsBetter={false}
         />

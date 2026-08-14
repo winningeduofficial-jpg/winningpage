@@ -56,7 +56,12 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                   index > 0 ? "border-t border-[#e5e5e5]" : ""
                 }`}
               >
-                <StatusBadge tone={row.tone}>{row.badge}</StatusBadge>
+                {/* exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 생략(StatusBadge 미수정 범위). */}
+                <StatusBadge
+                  {...(row.tone !== undefined ? { tone: row.tone } : {})}
+                >
+                  {row.badge}
+                </StatusBadge>
                 <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
                   {area}
                 </span>
@@ -75,7 +80,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 <div className="flex items-center gap-2">
                   <ScoreBar
                     score={row.score}
-                    tone={row.tone}
+                    {...(row.tone !== undefined ? { tone: row.tone } : {})}
                     trackClass="w-[10.625rem]"
                     decorative
                   />
@@ -106,7 +111,12 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
               className="flex flex-col gap-2 rounded-xl border border-[#e5e5e5] p-4"
             >
               <div className="flex items-center gap-2">
-                <StatusBadge tone={row.tone}>{row.badge}</StatusBadge>
+                {/* exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 생략(StatusBadge 미수정 범위). */}
+                <StatusBadge
+                  {...(row.tone !== undefined ? { tone: row.tone } : {})}
+                >
+                  {row.badge}
+                </StatusBadge>
                 <span className="text-base font-medium leading-[1.25rem] text-[#525252]">
                   {area}
                 </span>
@@ -117,7 +127,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
               </div>
               <ScoreBar
                 score={row.score}
-                tone={row.tone}
+                {...(row.tone !== undefined ? { tone: row.tone } : {})}
                 responsive
                 decorative
               />

@@ -6,9 +6,9 @@ import VerticalBarChart from "./VerticalBarChart";
 type BarItem = { label: string; value: number };
 
 type StudyTimeBarChartCardProps = {
-  title?: string;
+  title?: string | undefined;
   bars: BarItem[];
-  unit?: string;
+  unit?: string | undefined;
 };
 
 export default function StudyTimeBarChartCard({
@@ -25,7 +25,8 @@ export default function StudyTimeBarChartCard({
         {title}
       </h3>
       <div className="flex flex-1 items-end">
-        <VerticalBarChart bars={bars} unit={unit} heightRem={5} />
+        {/* VerticalBarChart(다른 UoW 소유)는 undefined 미허용 — "h"는 자체 기본값과 동일 */}
+        <VerticalBarChart bars={bars} unit={unit ?? "h"} heightRem={5} />
       </div>
     </GoalCard>
   );

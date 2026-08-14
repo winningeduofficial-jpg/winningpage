@@ -71,18 +71,18 @@ type PerformanceChatMessagePayload = {
  * 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상 자식의
  * `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
  */
-type PerformanceChatMessage = {
+export type PerformanceChatMessage = {
   /** 리스트 key 겸 스크롤 대상 식별자. */
   id: string | number;
   /** 기본 `'ai'`. `kind='text'`일 때만 분기에 쓰인다. */
-  role?: "ai" | "user" | "system";
+  role?: "ai" | "user" | "system" | undefined;
   /** 기본 `'text'`. */
-  kind?: "text" | "loading" | "card";
+  kind?: "text" | "loading" | "card" | undefined;
   /** `kind='text'`일 때 말풍선 본문. */
-  body?: string;
+  body?: string | undefined;
   /** `kind='loading'`일 때 `title`/`subtitle`, `kind='text'`(AI)일 때 `label`/
    * `bubbleMaxWidthClassName` 오버라이드. */
-  payload?: PerformanceChatMessagePayload;
+  payload?: PerformanceChatMessagePayload | undefined;
   /** `kind='text'`(AI)면 말풍선 뒤에 붙는 인라인 카드, `kind='card'`면 `InlineCard`가
    * 감쌀 내용. */
   children?: ReactNode;
@@ -91,7 +91,7 @@ type PerformanceChatMessage = {
    * 그대로 전달되고, 그 밖(`kind='text'` 등)이면 말풍선 컴포넌트가 ref를 받지 않으므로
    * **이 항목의 래퍼 div**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
    * (프로그램 포커스만 받고 Tab 순서에는 끼지 않는다). */
-  focusRef?: MutableRefObject<HTMLDivElement | null>;
+  focusRef?: MutableRefObject<HTMLDivElement | null> | undefined;
 };
 
 type ChatTimelineProps = {
@@ -108,9 +108,10 @@ export default function ChatTimeline({
   className = "",
 }: ChatTimelineProps) {
   const lastItemRef = useRef<HTMLDivElement | null>(null);
-  const lastId = messages?.length
-    ? messages[messages.length - 1].id
+  const lastMessage = messages?.length
+    ? messages[messages.length - 1]
     : undefined;
+  const lastId = lastMessage?.id;
 
   useEffect(() => {
     if (lastId === undefined) return;
@@ -176,9 +177,11 @@ function renderMessage(message: PerformanceChatMessage) {
       <AiLoadingBubble
         ref={focusRef}
         tabIndex={focusRef ? -1 : undefined}
-        title={payload?.title}
-        subtitle={payload?.subtitle}
-        label={payload?.label}
+        {...(payload?.title !== undefined ? { title: payload.title } : {})}
+        {...(payload?.subtitle !== undefined
+          ? { subtitle: payload.subtitle }
+          : {})}
+        {...(payload?.label !== undefined ? { label: payload.label } : {})}
       />
     );
   }
@@ -194,9 +197,11 @@ function renderMessage(message: PerformanceChatMessage) {
 
   return (
     <AiMessage
-      label={payload?.label}
-      body={body}
-      bubbleMaxWidthClassName={payload?.bubbleMaxWidthClassName}
+      {...(payload?.label !== undefined ? { label: payload.label } : {})}
+      {...(body !== undefined ? { body } : {})}
+      {...(payload?.bubbleMaxWidthClassName !== undefined
+        ? { bubbleMaxWidthClassName: payload.bubbleMaxWidthClassName }
+        : {})}
     >
       {children}
     </AiMessage>

@@ -71,7 +71,8 @@ type OversizedCell = {
   area: "header" | "body";
   row: number;
   col: number;
-  columnLabel?: string;
+  // check()의 location.columnLabel과 동일 사유(undefined 명시 대입 허용).
+  columnLabel?: string | undefined;
   length: number;
 };
 
@@ -84,7 +85,10 @@ export function findOversizedCells(block: TableBlock): OversizedCell[] {
       area: "header" | "body";
       row: number;
       col: number;
-      columnLabel?: string;
+      // body 쪽 columnLabel은 block.columns[c]?.label(string | undefined)을
+      // 그대로 넘긴다 — exactOptionalPropertyTypes 하에서 undefined 명시
+      // 대입을 허용해야 한다.
+      columnLabel?: string | undefined;
     },
   ) => {
     const text =
@@ -423,8 +427,10 @@ export function summarizeBlockChange(
   let cellsChanged = 0;
   const commonRows = Math.min(oldBlock.rows.length, newBlock.rows.length);
   for (let r = 0; r < commonRows; r += 1) {
-    const oldRow = oldBlock.rows[r];
-    const newRow = newBlock.rows[r];
+    // commonRows = min(oldBlock.rows.length, newBlock.rows.length)이므로
+    // r은 두 배열 모두에서 항상 유효 인덱스.
+    const oldRow = oldBlock.rows[r]!;
+    const newRow = newBlock.rows[r]!;
     const commonCols = Math.min(oldRow.length, newRow.length);
     for (let c = 0; c < commonCols; c += 1) {
       if (JSON.stringify(oldRow[c]) !== JSON.stringify(newRow[c]))
@@ -509,13 +515,14 @@ export function importTableBlockFromXlsx(
 
   if (hasGroups) {
     const merges = (worksheet["!merges"] as Merge[]) || [];
-    const totalColumns = Math.max(
-      headerRows[0].length,
-      headerRows[1]?.length || 0,
-    );
+    // 위 길이 검사(headerRows.length < headerRowCount 시 이미 return)로
+    // headerRowCount===2(hasGroups)일 때 headerRows[0]/[1]은 항상 존재.
+    const headerRow0 = headerRows[0]!;
+    const headerRow1 = headerRows[1]!;
+    const totalColumns = Math.max(headerRow0.length, headerRow1.length || 0);
     const reconstructed = reconstructGroupsFromMerges(
       merges,
-      headerRows[0],
+      headerRow0,
       totalColumns,
     );
     if ("error" in reconstructed) {
@@ -529,7 +536,7 @@ export function importTableBlockFromXlsx(
         role:
           referenceBlock.columns[c]?.role ??
           defaultNewColumnRole(referenceBlock.variant),
-        label: String(headerRows[0][c] ?? ""),
+        label: String(headerRow0[c] ?? ""),
       });
     }
     for (let c = fixedColumnCount; c < totalColumns; c += 1) {
@@ -537,11 +544,12 @@ export function importTableBlockFromXlsx(
         role:
           referenceBlock.columns[c]?.role ??
           defaultNewColumnRole(referenceBlock.variant),
-        label: String(headerRows[1][c] ?? ""),
+        label: String(headerRow1[c] ?? ""),
       });
     }
   } else {
-    columns = headerRows[0].map((label, idx) => {
+    // 위 길이 검사로 headerRowCount===1일 때도 headerRows[0]은 항상 존재.
+    columns = headerRows[0]!.map((label, idx) => {
       const refCol = referenceBlock.columns[idx];
       return {
         role: refCol?.role ?? defaultNewColumnRole(referenceBlock.variant),
@@ -573,7 +581,13 @@ export function importTableBlockFromXlsx(
     ...referenceBlock,
     columns,
     rows,
-    ...(hasGroups ? { groups, fixedColumnCount } : {}),
+    // hasGroups===true면 위 if(hasGroups) 블록에서 reconstructGroupsFromMerges의
+    // error 분기가 아닌 한 groups/fixedColumnCount가 항상 채워진다(error면 이미
+    // return). groups/fixedColumnCount의 let 선언 타입(옵셔널)이 이 조건부
+    // 스프레드에는 반영되지 않아 non-null 단언이 필요하다.
+    ...(hasGroups
+      ? { groups: groups!, fixedColumnCount: fixedColumnCount! }
+      : {}),
   };
 
   const validation = validateTableBlock(section, candidate);

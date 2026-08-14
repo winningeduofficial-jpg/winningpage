@@ -86,7 +86,13 @@ function recordAttempt(key: string) {
   attemptLog.set(key, timestamps);
 }
 
-function checkLocalRateLimit({ phone, ip }: { phone: string; ip: string }): {
+function checkLocalRateLimit({
+  phone,
+  ip,
+}: {
+  phone: string;
+  ip: string | null;
+}): {
   allowed: boolean;
   reason?: string;
   retryAfter?: number;
@@ -95,7 +101,7 @@ function checkLocalRateLimit({ phone, ip }: { phone: string; ip: string }): {
   const phoneHour = recentAttempts(phoneKey, 3600);
 
   if (phoneHour.length > 0) {
-    const elapsed = (Date.now() - phoneHour[phoneHour.length - 1]) / 1000;
+    const elapsed = (Date.now() - phoneHour[phoneHour.length - 1]!) / 1000;
 
     if (elapsed < UPLOAD_URL_COOLDOWN_SECONDS) {
       return {
@@ -167,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const localLimit = checkLocalRateLimit({ phone, ip });
 
   if (!localLimit.allowed) {
-    return fail(res, 429, localLimit.reason, "잠시 후 다시 시도해 주세요.", {
+    return fail(res, 429, localLimit.reason!, "잠시 후 다시 시도해 주세요.", {
       retry_after: localLimit.retryAfter,
     });
   }
@@ -207,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const extension = fileName.toLowerCase().split(".").pop();
 
-    if (!fileName.includes(".") || !ALLOWED_FILE_TYPES[extension]) {
+    if (!fileName.includes(".") || !ALLOWED_FILE_TYPES[extension!]) {
       return fail(
         res,
         415,
@@ -219,7 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const allowedMimes = ALLOWED_FILE_TYPES[extension];
+    const allowedMimes = ALLOWED_FILE_TYPES[extension!];
 
     if (
       !NEUTRAL_MIME_TYPES.includes(declaredType) &&

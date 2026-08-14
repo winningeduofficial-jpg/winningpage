@@ -37,7 +37,9 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
+  type GrantProgramAccessResult,
   grantProgramAccessForOrder,
+  type RevokeProgramAccessResult,
   revokeProgramAccessForOrder,
 } from "./_lib/programAccess.js";
 import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
@@ -273,7 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 이미 paid 인 주문에 재전송이 온 경우 orders 는 다시 쓸 필요가 없다.
     let paidAt = order.paid_at ?? null;
-    let access = null;
+    let access: GrantProgramAccessResult | null = null;
 
     if (nextStatus === "paid" && !unchanged) {
       // 신규 전이(입금 확인) — orders 확정 UPDATE 와 권한 부여를 한 트랜잭션으로
@@ -325,7 +327,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .json({ error: "주문 확정 실패", detail: finalizeResult });
       }
 
-      access = finalizeResult.access;
+      access = (finalizeResult as { access: GrantProgramAccessResult }).access;
       if (!access.ok) {
         console.error(
           "program_access grant failed (webhook):",
@@ -410,7 +412,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //   것이 아니라 **고칠 자리를 만든다**(주문 단위로 어느 부여를 닫아야 하는지
     //   특정할 수 있게 됐다). 트리거 신설은 별 작업이며, 그동안은 sql/64 말미
     //   감시 쿼리 (c) 로 그 상태를 관측한다.
-    let revoke = null;
+    let revoke:
+      | RevokeProgramAccessResult
+      | { ok: true; revoked: never[]; skipped: { reason: string }[] }
+      | null = null;
     if (nextStatus === "canceled") {
       // 부분취소(PARTIAL_CANCELED)는 잔액이 남아 있으면 결제가 유효하게 살아 있는
       // 상태다. 토스 응답의 balanceAmount 가 "취소 후 남은 금액"이므로 0보다 크면

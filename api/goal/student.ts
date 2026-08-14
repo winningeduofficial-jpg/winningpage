@@ -31,6 +31,7 @@ import {
   fetchProbabilityHistory,
   fetchStudentRow,
   fetchStudentStateRow,
+  narrowGoalSession,
   openGoalSession,
 } from "../_lib/goalRepo.js";
 
@@ -47,13 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    const { supabaseAdmin, profileId, allowed } = session;
+    const { allowed } = session;
 
     // 조회형 규약 — 미결제는 에러가 아니다.
     if (!allowed) {
       return res.status(200).json({ allowed: false });
     }
 
+    const { supabaseAdmin, profileId } = narrowGoalSession(session);
     const row = await fetchStudentRow(supabaseAdmin, profileId);
 
     // 아직 온보딩을 시작하지 않았다.

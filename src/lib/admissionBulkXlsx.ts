@@ -308,10 +308,13 @@ type JsonSource =
   | "generated-from-raw";
 
 type CategoryResult = {
-  doc?: AdmissionDoc;
-  html?: string;
+  // buildCategoryFromXlsxRow의 각 반환 분기가 "이 카테고리는 없음/보존"을
+  // 명시하려고 doc/html/jsonDetail에 undefined를 그대로 대입한다 —
+  // exactOptionalPropertyTypes 하에서 undefined 명시 대입을 허용해야 한다.
+  doc?: AdmissionDoc | undefined;
+  html?: string | undefined;
   jsonSource: JsonSource;
-  jsonDetail?: string;
+  jsonDetail?: string | undefined;
 };
 
 // 카테고리 하나(doc+html)를 계산한다. 반환: { doc, html, jsonSource,
@@ -360,7 +363,9 @@ function buildCategoryFromXlsxRow(
       const generated = buildHwpCategoryDoc(
         sectionKey,
         rawText,
-        referenceRow,
+        // admissionParsing.ts row 매개변수 오추론(별도 배치 소관, 손대지
+        // 않음) — admissionGuidelinesForm.tsx와 같은 이유로 호출부 캐스팅.
+        referenceRow as unknown as null,
         referenceRow.university_name,
       );
       const { ok, errors } = validateAdmissionDoc(generated);
@@ -427,7 +432,10 @@ type WarningEntry = {
   admissionYear: unknown;
   universityKey: unknown;
   column?: string;
-  reason?: string;
+  // buildCategoryFromXlsxRow의 jsonDetail(string | undefined)을 그대로
+  // 옮기는 호출부가 있다 — exactOptionalPropertyTypes 하에서 undefined
+  // 명시 대입을 허용해야 한다.
+  reason?: string | undefined;
   type: WarningType;
 };
 
@@ -528,7 +536,8 @@ export function parseAdmissionRowsFromXlsx(
   // "같은 연도의 신규 대학"으로 보고 경고를 남긴다(오타 방어).
   const knownYears = new Set<string>();
   existingRows.forEach((_value, key) => {
-    const year = key.split("::")[0];
+    // String.split은 구분자가 없어도 최소 1개 원소를 반환하므로 [0]은 항상 존재.
+    const year = key.split("::")[0]!;
     knownYears.add(year);
   });
 
@@ -599,7 +608,7 @@ export function parseAdmissionRowsFromXlsx(
     // university_key와 동급 필수값이다 — NOT NULL인데 DB 기본값이 없고,
     // 실측상 비어 있던 적이 없어 거부해도 정상 업로드를 막지 않는다.
     if (!admissionYear || !universityKey || !region) {
-      const missing = [];
+      const missing: string[] = [];
       if (!admissionYear) missing.push("admission_year");
       if (!universityKey) missing.push("university_key");
       if (!region) missing.push("region");

@@ -34,8 +34,10 @@ type Workbook = {
   id: string | number;
   subject: string;
   title: string;
-  totalPages: number;
-  currentPage: number;
+  // goalApi.ts의 GoalWorkbook과 동일하게 null 가능(서버 실값) — 이 파일에서는 상태 저장과
+  // 필터링(subject/status)에만 쓰여 null이어도 안전하다.
+  totalPages: number | null;
+  currentPage: number | null;
   status: "in_progress" | "done" | string;
 };
 
@@ -100,7 +102,9 @@ export default function Efforts() {
   }) {
     const outcome = id
       ? await updateGoalWorkbook({
-          id,
+          // GoalWorkbook.id는 항상 DB 숫자 PK다 — 모달이 재사용 목적으로 넓게 잡은
+          // string|number 타입만 여기서 좁힌다.
+          id: id as number,
           title,
           currentPage,
           totalPages: totalPage,

@@ -436,8 +436,8 @@ test("getPercentileBands: 9구간 전부 width === max - min + 1 이다", () => 
 
 test("getPercentileBands: 매 호출마다 새 배열을 돌려준다(호출자 변형에 안전)", () => {
   const first = getPercentileBands();
-  first[0].weight = 999;
-  assert.equal(getPercentileBands()[0].weight, 1.0);
+  first[0]!.weight = 999;
+  assert.equal(getPercentileBands()[0]!.weight, 1.0);
 });
 
 test("getWeightedEffortAmount: 골든 픽스처", () => {
@@ -479,7 +479,12 @@ test("calcJeongsiBaseProb: 골든 픽스처", () => {
 test("getTimeFactorPercentile: 골든 픽스처", () => {
   for (const [current, cut, remain, total, expected] of FIXTURES.timeFactor) {
     assertClose(
-      getTimeFactorPercentile(current, cut, remain, total),
+      getTimeFactorPercentile(
+        current as number,
+        cut as number,
+        remain as number | null | undefined,
+        total as number,
+      ),
       expected,
       `timeFactor(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`,
     );
@@ -494,12 +499,12 @@ test("getTimeFactorPercentile: totalExams 기본값 14", () => {
     expected,
   ] of FIXTURES.timeFactorDefaultTotal) {
     assertClose(
-      getTimeFactorPercentile(current, cut, remain),
+      getTimeFactorPercentile(current as number, cut as number, remain),
       expected,
       `timeFactor 기본총회차(${current}, ${cut}, ${remain})`,
     );
     assertClose(
-      getTimeFactorPercentile(current, cut, remain, 14),
+      getTimeFactorPercentile(current as number, cut as number, remain, 14),
       expected,
       `timeFactor 명시총회차(${current}, ${cut}, ${remain})`,
     );
@@ -509,7 +514,12 @@ test("getTimeFactorPercentile: totalExams 기본값 14", () => {
 test("calcJeongsiProb: 골든 픽스처", () => {
   for (const [current, cut, remain, total, expected] of FIXTURES.prob) {
     assertClose(
-      calcJeongsiProb(current, cut, remain, total),
+      calcJeongsiProb(
+        current as number,
+        cut as number,
+        remain as number | null | undefined,
+        total as number,
+      ),
       expected,
       `prob(${String(current)}, ${String(cut)}, ${String(remain)}, ${String(total)})`,
     );
@@ -519,7 +529,7 @@ test("calcJeongsiProb: 골든 픽스처", () => {
 test("calcJeongsiProb: totalExams 기본값 14", () => {
   for (const [current, cut, remain, expected] of FIXTURES.probDefaultTotal) {
     assertClose(
-      calcJeongsiProb(current, cut, remain),
+      calcJeongsiProb(current as number, cut as number, remain as number),
       expected,
       `prob 기본총회차(${current}, ${cut}, ${remain})`,
     );
@@ -528,7 +538,10 @@ test("calcJeongsiProb: totalExams 기본값 14", () => {
 
 test("calcJeongsiProb: 항상 0~100 범위 안이다", () => {
   for (const [, , , , expected] of FIXTURES.prob) {
-    assert.ok(expected >= 0 && expected <= 100, `범위 밖 픽스처: ${expected}`);
+    assert.ok(
+      (expected as number) >= 0 && (expected as number) <= 100,
+      `범위 밖 픽스처: ${expected}`,
+    );
   }
 });
 
@@ -550,7 +563,11 @@ test("getPercentileChips: 골든 픽스처", () => {
 
 test("getEnglishPenaltyFE: 골든 픽스처", () => {
   for (const [grade, expected] of FIXTURES.engPenalty) {
-    assertClose(getEnglishPenaltyFE(grade), expected, `engPenalty(${grade})`);
+    assertClose(
+      getEnglishPenaltyFE(grade as number),
+      expected,
+      `engPenalty(${grade})`,
+    );
   }
 });
 
@@ -560,7 +577,7 @@ test("getEnglishPenaltyFE: NaN 등급은 NaN 을 낸다(원본 동작)", () => {
 
 test("calcJeongsiCompositeFE: 골든 픽스처", () => {
   for (const [name, expected] of FIXTURES.composite) {
-    const input = COMPOSITE_INPUTS[name];
+    const input = COMPOSITE_INPUTS[name as string];
     assert.notEqual(input, undefined, `입력 픽스처 누락: ${name}`);
     assertClose(calcJeongsiCompositeFE(input), expected, `composite(${name})`);
   }

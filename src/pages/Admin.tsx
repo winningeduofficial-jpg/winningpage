@@ -31,6 +31,8 @@ import {
   fetchBackfillSourceRows,
   GOAL_BACKFILL_YEAR_MODES,
   type GoalBackfillYearMode,
+  type GoalCutBackfillPayload,
+  type GoalCutBackfillStats,
   goalCutConflictKey,
 } from "../lib/goal/goalCutBackfill";
 import {
@@ -49,6 +51,7 @@ import { revenueConfigs } from "./admin/configs/revenue";
 import { winningConfigs } from "./admin/configs/winning";
 import {
   AdminForm,
+  type AdminRow,
   AdminTable,
   PAGE_SIZE,
   uploadImage,
@@ -373,7 +376,7 @@ function AdmissionListSummary({ rows, onReload }) {
 }
 
 function AdmissionActiveYearSummary({ rows }) {
-  const [activeYear, setActiveYear] = useState(null);
+  const [activeYear, setActiveYear] = useState<number | null>(null);
   const [loadingActiveYear, setLoadingActiveYear] = useState(true);
   const [draftYear, setDraftYear] = useState("");
   const [saving, setSaving] = useState(false);
@@ -554,15 +557,19 @@ function triggerXlsxDownload(workbook, fileName) {
 }
 
 function AdmissionBulkXlsxPanel({ rows, onReload }) {
-  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
-  const [parseErrors, setParseErrors] = useState([]);
+  const [exportTruncatedCells, setExportTruncatedCells] = useState<
+    ReturnType<typeof exportAdmissionRowsToXlsx>["truncatedCells"]
+  >([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [parseResult, setParseResult] = useState<ReturnType<
     typeof parseAdmissionRowsFromXlsx
   > | null>(null); // { rows, errors, warnings, summary }
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const fileInputRef = useRef(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const totalRows = (rows || []).length;
 
@@ -919,7 +926,7 @@ async function fetchResultsCount() {
 // 유일하고 단조증가라 경계 문제가 없다.
 async function fetchAllResultRows(onProgress) {
   const total = await fetchResultsCount();
-  const all = [];
+  const all: Record<string, unknown>[] = [];
   for (let from = 0; from < total; from += RESULTS_READ_CHUNK) {
     const { data, error } = await supabase
       .from(RESULTS_TABLE)
@@ -928,7 +935,9 @@ async function fetchAllResultRows(onProgress) {
       .range(from, from + RESULTS_READ_CHUNK - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    all.push(...data);
+    // .select(동적 join 문자열)이라 supabase-js가 컬럼을 정적으로 못 읽어 data를
+    // GenericStringError[]로 잡는다(런타임 값은 평범한 행 객체 배열) — 캐스팅으로 우회한다.
+    all.push(...(data as unknown as Record<string, unknown>[]));
     onProgress?.({ done: all.length, total });
   }
   return all;
@@ -959,19 +968,32 @@ async function fetchAllResultIds(onProgress) {
 }
 
 function AdmissionResultsBulkXlsxPanel({ onReload }) {
-  const [totalRowCount, setTotalRowCount] = useState(null);
-  const [fetchProgress, setFetchProgress] = useState(null); // 다운로드 전량 읽기 진행률
-  const [idSetProgress, setIdSetProgress] = useState(null); // 업로드 검증용 id 전량 읽기 진행률
-  const [applyProgress, setApplyProgress] = useState(null); // 적용(insert/update) 진행률
-  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
-  const [parseErrors, setParseErrors] = useState([]);
+  const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
+  const [fetchProgress, setFetchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null); // 다운로드 전량 읽기 진행률
+  const [idSetProgress, setIdSetProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null); // 업로드 검증용 id 전량 읽기 진행률
+  const [applyProgress, setApplyProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null); // 적용(insert/update) 진행률
+  const [exportTruncatedCells, setExportTruncatedCells] = useState<
+    ReturnType<typeof exportAdmissionResultRowsToXlsx>["truncatedCells"]
+  >([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [parseResult, setParseResult] = useState<ReturnType<
     typeof parseAdmissionResultRowsFromXlsx
   > | null>(null); // { rows, errors, warnings, summary }
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const fileInputRef = useRef(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1375,7 +1397,7 @@ async function goalCutsCount(applyFilters?) {
 // 누락된다(admissionResults 쪽과 같은 논리).
 async function fetchAllGoalCutRows(columns, onProgress?) {
   const total = await goalCutsCount();
-  const all = [];
+  const all: Record<string, unknown>[] = [];
   for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
     const { data, error } = await supabase
       .from(GOAL_CUTS_TABLE)
@@ -1384,7 +1406,9 @@ async function fetchAllGoalCutRows(columns, onProgress?) {
       .range(from, from + GOAL_CUTS_READ_CHUNK - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    all.push(...data);
+    // columns가 호출부마다 다른 동적 문자열이라 supabase-js가 컬럼을 정적으로
+    // 못 읽어 data를 GenericStringError[]로 잡는다(런타임 값은 평범한 행 객체 배열).
+    all.push(...(data as unknown as Record<string, unknown>[]));
     onProgress?.({ done: all.length, total });
   }
   return all;
@@ -1395,7 +1419,9 @@ async function fetchAllGoalCutRows(columns, onProgress?) {
 // 캐시하지 않는다: 그 사이 다른 관리자가 지운 id 를 놓치지 않기 위해서다.
 async function fetchGoalCutIdCutTypeMap(onProgress) {
   const rows = await fetchAllGoalCutRows("id, cut_type", onProgress);
-  return new Map(rows.map((r) => [r.id, r.cut_type]));
+  return new Map<number, string>(
+    rows.map((r) => [r.id as number, r.cut_type as string]),
+  );
 }
 
 // goal_university_options 뷰 전량. (대학, 학과) 단위로 이미 접혀 있어
@@ -1408,7 +1434,15 @@ async function fetchGoalUniversityOptionRows() {
     .select("university_key", { count: "exact", head: true });
   if (countError) throw new Error(countError.message);
   const total = count ?? 0;
-  const all = [];
+  const all: {
+    university_key: unknown;
+    university_name: unknown;
+    department_key: unknown;
+    department_name: unknown;
+    has_normal: unknown;
+    has_special: unknown;
+    has_jungsi: unknown;
+  }[] = [];
   for (let from = 0; from < total; from += GOAL_CUTS_READ_CHUNK) {
     const { data, error } = await supabase
       .from(GOAL_CUTS_OPTIONS_VIEW)
@@ -1445,9 +1479,26 @@ async function fetchGoalUniversityOptionRows() {
 //                  409/23505 재현 확인). 어드민은 key := name 을 강제하므로
 //                  정상 운영에서는 0이지만, 나면 청크 500행이 통째로
 //                  날아가므로 미리보기에서 걸러 낸다.
-function analyzeGoalCutBackfillAgainstExisting(payloads, existingRows) {
-  const existingByConflictKey = new Map();
-  const activeConflictKeyByNameKey = new Map();
+// fetchAllGoalCutRows("id, cut_type, university_key, university_name,
+// department_key, department_name, source, is_active, note")가 넘겨주는 행 셰이프.
+type GoalCutExistingRow = {
+  id: number;
+  cut_type: string;
+  university_key: string;
+  university_name: string;
+  department_key: string;
+  department_name: string;
+  source: string;
+  is_active: boolean;
+  note?: string | null;
+};
+
+function analyzeGoalCutBackfillAgainstExisting(
+  payloads: GoalCutBackfillPayload[],
+  existingRows: GoalCutExistingRow[] | null | undefined,
+) {
+  const existingByConflictKey = new Map<string, GoalCutExistingRow>();
+  const activeConflictKeyByNameKey = new Map<string, string>();
   (existingRows || []).forEach((row) => {
     const conflictKey = goalCutConflictKey(
       row.cut_type,
@@ -1471,9 +1522,9 @@ function analyzeGoalCutBackfillAgainstExisting(payloads, existingRows) {
   let manualCount = 0;
   let inactiveCount = 0;
   let notedCount = 0;
-  const preservedKeys = new Set();
-  const nameAxisKeys = new Set();
-  const producedKeys = new Set();
+  const preservedKeys = new Set<string>();
+  const nameAxisKeys = new Set<string>();
+  const producedKeys = new Set<string>();
 
   payloads.forEach((p) => {
     const conflictKey = goalCutConflictKey(
@@ -1539,7 +1590,16 @@ function analyzeGoalCutBackfillAgainstExisting(payloads, existingRows) {
 // ---------------------------------------------------------------------
 
 function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
-  const [summary, setSummary] = useState(null);
+  const [summary, setSummary] = useState<{
+    total: number;
+    active: number;
+    normal: number;
+    special: number;
+    jungsi: number;
+    missing: number;
+    comboTotal: number;
+    comboNoJungsi: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) refreshToken/mutationSeq는 effect 안에서 읽지 않는 트리거 전용 카운터 — 부모가 변이 후 값을 올려 재조회를 강제한다.
@@ -1634,12 +1694,23 @@ function GoalCutsBackfillPanel({ onReload }) {
   const [yearMode, setYearMode] = useState<GoalBackfillYearMode>("prefer2026");
   const [preserveMode, setPreserveMode] = useState("preserve"); // preserve | overwrite
   const [orphanMode, setOrphanMode] = useState("keep"); // keep | deactivate
-  const [sourceProgress, setSourceProgress] = useState(null);
+  const [sourceProgress, setSourceProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [computing, setComputing] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState<{
+    stats: GoalCutBackfillStats;
+    analysis: ReturnType<typeof analyzeGoalCutBackfillAgainstExisting>;
+    applyPayloads: GoalCutBackfillPayload[];
+    sourceRowCount: number;
+  } | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [applyProgress, setApplyProgress] = useState(null);
+  const [applyProgress, setApplyProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const busy = Boolean(sourceProgress || computing || applying);
 
@@ -1670,7 +1741,9 @@ function GoalCutsBackfillPanel({ onReload }) {
       );
       const analysis = analyzeGoalCutBackfillAgainstExisting(
         payloads,
-        existingRows,
+        // fetchAllGoalCutRows는 컬럼 문자열이 동적이라 범용 Record[]를 반환한다 —
+        // 위 select 목록이 실제로 GoalCutExistingRow 셰이프임을 호출부에서 보증한다.
+        existingRows as unknown as GoalCutExistingRow[],
       );
       const applyPayloads = payloads.filter((p) => {
         const key = goalCutConflictKey(
@@ -1871,159 +1944,171 @@ function GoalCutsBackfillPanel({ onReload }) {
         </button>
       </div>
 
-      {preview && (
-        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
-          <p className="font-black text-[#2348ff]">
-            생성 대상: 대학 {stats.universityCount.toLocaleString()}개 · 학과
-            조합 {stats.pairCount.toLocaleString()}개 · 총{" "}
-            {stats.totalRows.toLocaleString()}행 (수시 일반{" "}
-            {stats.normalCount.toLocaleString()} / 수시 특목{" "}
-            {stats.specialCount.toLocaleString()})
-          </p>
-          <p className="mt-1 text-gray-700">
-            소스 {preview.sourceRowCount.toLocaleString()}행 · 기준 연도 내역:
-            2026 기준 {stats.year2026Pairs.toLocaleString()}조합 · 2025 폴백{" "}
-            {stats.year2025Pairs.toLocaleString()}조합
-          </p>
-          <p className="mt-1 text-gray-700">
-            제외: (*) 접미 {stats.excludedStarPairs.toLocaleString()}조합 · 빈
-            학과명 {stats.excludedEmptyPairs.toLocaleString()}조합 · 교과·종합
-            없음 {stats.excludedNoTrackPairs.toLocaleString()}조합 (현재 데이터
-            기준 전부 0이 정상입니다)
-          </p>
-          <p className="mt-1 text-gray-700">
-            중복 병합: {stats.mergedCount.toLocaleString()}건
-          </p>
+      {preview &&
+        // preview는 위 && 로 non-null 확정이지만 stats/analysis는 preview?.stats
+        // 로 뽑아 둔 밖의 alias라 타입이 좁혀지지 않는다 — 이 서브트리 안에서만
+        // 좁혀진 지역 변수로 다시 감싼다(로직 변경 없음, 값은 preview.stats/analysis 그대로).
+        (() => {
+          const stats = preview.stats;
+          const analysis = preview.analysis;
+          return (
+            <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+              <p className="font-black text-[#2348ff]">
+                생성 대상: 대학 {stats.universityCount.toLocaleString()}개 ·
+                학과 조합 {stats.pairCount.toLocaleString()}개 · 총{" "}
+                {stats.totalRows.toLocaleString()}행 (수시 일반{" "}
+                {stats.normalCount.toLocaleString()} / 수시 특목{" "}
+                {stats.specialCount.toLocaleString()})
+              </p>
+              <p className="mt-1 text-gray-700">
+                소스 {preview.sourceRowCount.toLocaleString()}행 · 기준 연도
+                내역: 2026 기준 {stats.year2026Pairs.toLocaleString()}조합 ·
+                2025 폴백 {stats.year2025Pairs.toLocaleString()}조합
+              </p>
+              <p className="mt-1 text-gray-700">
+                제외: (*) 접미 {stats.excludedStarPairs.toLocaleString()}조합 ·
+                빈 학과명 {stats.excludedEmptyPairs.toLocaleString()}조합 ·
+                교과·종합 없음 {stats.excludedNoTrackPairs.toLocaleString()}조합
+                (현재 데이터 기준 전부 0이 정상입니다)
+              </p>
+              <p className="mt-1 text-gray-700">
+                중복 병합: {stats.mergedCount.toLocaleString()}건
+              </p>
 
-          <p className="mt-2 font-bold text-gray-700">
-            컷 값 분포 — min {stats.distribution.min ?? "-"} · p25{" "}
-            {stats.distribution.p25 ?? "-"} · median{" "}
-            {stats.distribution.median ?? "-"} · p75{" "}
-            {stats.distribution.p75 ?? "-"} · max{" "}
-            {stats.distribution.max ?? "-"} (전부 내신 등급 1~9 스케일이어야
-            합니다)
-          </p>
+              <p className="mt-2 font-bold text-gray-700">
+                컷 값 분포 — min {stats.distribution.min ?? "-"} · p25{" "}
+                {stats.distribution.p25 ?? "-"} · median{" "}
+                {stats.distribution.median ?? "-"} · p75{" "}
+                {stats.distribution.p75 ?? "-"} · max{" "}
+                {stats.distribution.max ?? "-"} (전부 내신 등급 1~9 스케일이어야
+                합니다)
+              </p>
 
-          <div className="mt-2 rounded border border-gray-300 bg-white p-2">
-            <p className="font-black">
-              기존 행과 겹침: {analysis.overlapCount.toLocaleString()}행
-            </p>
-            <ul className="mt-1 space-y-0.5 text-gray-700">
-              <li>
-                ├ 수기 입력(source=manual){" "}
-                {analysis.manualCount.toLocaleString()}행
-              </li>
-              <li>
-                ├ 노출이 꺼져 있음(is_active=false){" "}
-                {analysis.inactiveCount.toLocaleString()}행
-              </li>
-              <li>
-                └ 운영 메모가 있음(note&lt;&gt;&apos;&apos;){" "}
-                {analysis.notedCount.toLocaleString()}행
-              </li>
-            </ul>
-            <p className="mt-1 text-gray-700">
-              {preserveMode === "preserve"
-                ? `→ 보존 대상 ${analysis.preservedKeys.size.toLocaleString()}행을 이번 반영에서 제외합니다.`
-                : "→ 전부 덮어쓰기 — 보존 술어를 적용하지 않습니다."}
-            </p>
-            <p className="mt-1 text-gray-700">
-              이번 산출에 없는 기존 유도 행(source=admission_results):{" "}
-              {analysis.orphanIds.length.toLocaleString()}행
-              {orphanMode === "deactivate"
-                ? " → 노출을 끕니다"
-                : " → 그대로 둡니다"}
-            </p>
-          </div>
+              <div className="mt-2 rounded border border-gray-300 bg-white p-2">
+                <p className="font-black">
+                  기존 행과 겹침: {analysis.overlapCount.toLocaleString()}행
+                </p>
+                <ul className="mt-1 space-y-0.5 text-gray-700">
+                  <li>
+                    ├ 수기 입력(source=manual){" "}
+                    {analysis.manualCount.toLocaleString()}행
+                  </li>
+                  <li>
+                    ├ 노출이 꺼져 있음(is_active=false){" "}
+                    {analysis.inactiveCount.toLocaleString()}행
+                  </li>
+                  <li>
+                    └ 운영 메모가 있음(note&lt;&gt;&apos;&apos;){" "}
+                    {analysis.notedCount.toLocaleString()}행
+                  </li>
+                </ul>
+                <p className="mt-1 text-gray-700">
+                  {preserveMode === "preserve"
+                    ? `→ 보존 대상 ${analysis.preservedKeys.size.toLocaleString()}행을 이번 반영에서 제외합니다.`
+                    : "→ 전부 덮어쓰기 — 보존 술어를 적용하지 않습니다."}
+                </p>
+                <p className="mt-1 text-gray-700">
+                  이번 산출에 없는 기존 유도 행(source=admission_results):{" "}
+                  {analysis.orphanIds.length.toLocaleString()}행
+                  {orphanMode === "deactivate"
+                    ? " → 노출을 끕니다"
+                    : " → 그대로 둡니다"}
+                </p>
+              </div>
 
-          {analysis.nameAxisKeys.size > 0 && (
-            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
-              🔴 {analysis.nameAxisKeys.size.toLocaleString()}행이 기존 활성
-              행과 (컷 종류, 대학명, 학과명)은 같은데 key 컬럼이 달라 유일성
-              인덱스 goal_university_cuts_name_key 와 충돌합니다. 그대로 보내면
-              청크 500행이 통째로 실패하므로 이번 반영에서 제외했습니다 — 해당
-              기존 행을 목록에서 찾아 정리해 주세요.
-            </p>
-          )}
+              {analysis.nameAxisKeys.size > 0 && (
+                <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+                  🔴 {analysis.nameAxisKeys.size.toLocaleString()}행이 기존 활성
+                  행과 (컷 종류, 대학명, 학과명)은 같은데 key 컬럼이 달라 유일성
+                  인덱스 goal_university_cuts_name_key 와 충돌합니다. 그대로
+                  보내면 청크 500행이 통째로 실패하므로 이번 반영에서
+                  제외했습니다 — 해당 기존 행을 목록에서 찾아 정리해 주세요.
+                </p>
+              )}
 
-          {preserveMode === "overwrite" && (
-            <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
-              노출이 꺼진 {analysis.inactiveCount.toLocaleString()}행이 다시
-              켜지지는 않지만, 컷 값·출처·기준 연도는 전부 덮어써집니다.
-            </p>
-          )}
+              {preserveMode === "overwrite" && (
+                <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+                  노출이 꺼진 {analysis.inactiveCount.toLocaleString()}행이 다시
+                  켜지지는 않지만, 컷 값·출처·기준 연도는 전부 덮어써집니다.
+                </p>
+              )}
 
-          {stats.samples.length > 0 && (
-            <div className="mt-3 overflow-x-auto">
-              <p className="font-black">상위 {stats.samples.length}행 샘플</p>
-              <table className="mt-1 w-full min-w-[37.5rem] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-gray-300 font-black">
-                    <th className="py-1 pr-2">대학</th>
-                    <th className="py-1 pr-2">학과</th>
-                    <th className="py-1 pr-2">종류</th>
-                    <th className="py-1 pr-2">컷</th>
-                    <th className="py-1 pr-2">연도</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.samples.map((s) => (
-                    <tr
-                      key={`${s.cut_type}-${s.university_key}-${s.department_key}`}
-                      className="border-b border-gray-200"
-                    >
-                      <td className="py-1 pr-2">{s.university_name}</td>
-                      <td className="py-1 pr-2">{s.department_name}</td>
-                      <td className="py-1 pr-2">
-                        {s.cut_type === "normal" ? "수시 일반" : "수시 특목"}
-                      </td>
-                      <td className="py-1 pr-2">{s.avg_cut}등급</td>
-                      <td className="py-1 pr-2">{s.source_year}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {stats.samples.length > 0 && (
+                <div className="mt-3 overflow-x-auto">
+                  <p className="font-black">
+                    상위 {stats.samples.length}행 샘플
+                  </p>
+                  <table className="mt-1 w-full min-w-[37.5rem] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-gray-300 font-black">
+                        <th className="py-1 pr-2">대학</th>
+                        <th className="py-1 pr-2">학과</th>
+                        <th className="py-1 pr-2">종류</th>
+                        <th className="py-1 pr-2">컷</th>
+                        <th className="py-1 pr-2">연도</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.samples.map((s) => (
+                        <tr
+                          key={`${s.cut_type}-${s.university_key}-${s.department_key}`}
+                          className="border-b border-gray-200"
+                        >
+                          <td className="py-1 pr-2">{s.university_name}</td>
+                          <td className="py-1 pr-2">{s.department_name}</td>
+                          <td className="py-1 pr-2">
+                            {s.cut_type === "normal"
+                              ? "수시 일반"
+                              : "수시 특목"}
+                          </td>
+                          <td className="py-1 pr-2">{s.avg_cut}등급</td>
+                          <td className="py-1 pr-2">{s.source_year}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+                ⚠ 되돌릴 수 없는 작업입니다 — {affectedCount.toLocaleString()}
+                행이 생성·갱신됩니다.
+              </p>
+
+              <label className="mt-2 flex items-center gap-2 font-bold">
+                <input
+                  type="checkbox"
+                  checked={confirmChecked}
+                  onChange={(e) => setConfirmChecked(e.target.checked)}
+                />
+                영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
+              </label>
+
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={!confirmChecked || applying}
+                  className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
+                >
+                  {applying
+                    ? applyProgress
+                      ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
+                      : "적용 중…"
+                    : "적용"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetPreview}
+                  disabled={applying}
+                  className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
+                >
+                  취소
+                </button>
+              </div>
             </div>
-          )}
-
-          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
-            ⚠ 되돌릴 수 없는 작업입니다 — {affectedCount.toLocaleString()}행이
-            생성·갱신됩니다.
-          </p>
-
-          <label className="mt-2 flex items-center gap-2 font-bold">
-            <input
-              type="checkbox"
-              checked={confirmChecked}
-              onChange={(e) => setConfirmChecked(e.target.checked)}
-            />
-            영향받는 {affectedCount.toLocaleString()}행을 확인했습니다
-          </label>
-
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleApply}
-              disabled={!confirmChecked || applying}
-              className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
-            >
-              {applying
-                ? applyProgress
-                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
-                  : "적용 중…"
-                : "적용"}
-            </button>
-            <button
-              type="button"
-              onClick={resetPreview}
-              disabled={applying}
-              className="h-9 border border-gray-400 bg-white px-4 font-bold disabled:opacity-50"
-            >
-              취소
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        })()}
     </div>
   );
 }
@@ -2036,19 +2121,32 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
   // 다운로드 버튼은 하나뿐이다(2026-08-07 사용자 지시: "엑셀 다운로드
   // 버튼이 여러 개다, 우리가 개발한 걸로 통일해라"). 범위는 라디오로 고른다.
   const [downloadScope, setDownloadScope] = useState("all"); // all | jungsiTemplate
-  const [totalRowCount, setTotalRowCount] = useState(null);
-  const [fetchProgress, setFetchProgress] = useState(null);
-  const [idMapProgress, setIdMapProgress] = useState(null);
-  const [applyProgress, setApplyProgress] = useState(null);
-  const [exportTruncatedCells, setExportTruncatedCells] = useState([]);
-  const [parseErrors, setParseErrors] = useState([]);
+  const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
+  const [fetchProgress, setFetchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [idMapProgress, setIdMapProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [applyProgress, setApplyProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [exportTruncatedCells, setExportTruncatedCells] = useState<
+    ReturnType<typeof exportGoalUniversityCutRowsToXlsx>["truncatedCells"]
+  >([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [parseResult, setParseResult] = useState<ReturnType<
     typeof parseGoalUniversityCutRowsFromXlsx
   > | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const fileInputRef = useRef(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -2530,17 +2628,18 @@ function MoneySummary({ activeKey, rows }) {
 export default function Admin() {
   const [activeKey, setActiveKey] = useState("popups");
   const [mode, setMode] = useState("list");
-  const [editingRow, setEditingRow] = useState(null);
+  const [editingRow, setEditingRow] = useState<AdminRow | null>(null);
   // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
   // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
-  const [pendingSection, setPendingSection] = useState(null);
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
   // 다른 탭에서 넘겨 온 신규 등록 프리필. pendingSection과 같은 성격이지만
   // 결정적으로 다른 점이 하나 있다 — changeTab이 이 값을 지우지 않는다.
   // 공급자(학생 상세의 "이 조합의 컷 만들기")가 changeTab으로 탭을 옮긴 뒤
   // 폼을 여는 구조라, 여기서 리셋하면 프리필이 통째로 사라진다.
   // 대신 소비 직후(취소·저장) 와 수동 [등록] 클릭 시 비운다 — 1회성 값이다.
   // 기본값 null이라 이 state를 쓰지 않는 기존 44개 탭은 동작이 바뀌지 않는다.
-  const [pendingCreateDefaults, setPendingCreateDefaults] = useState(null);
+  const [pendingCreateDefaults, setPendingCreateDefaults] =
+    useState<Partial<AdminRow> | null>(null);
   // 목록 CRUD(등록·수정·삭제) 성공 횟수. ListSummary가 "자기 집계를 다시 읽어야
   // 하는 시점"을 아는 유일한 신호다 — loadRows()는 목록 rows만 새로 받고
   // ListSummary가 스스로 던지는 집계 쿼리(예: GoalCutsOverviewBlock의 head
@@ -2550,8 +2649,8 @@ export default function Admin() {
   const [mutationSeq, setMutationSeq] = useState(0);
   // 관리 열 ⚙️(메타 전용 모달)이 열려 있는 행. null이면 닫힘 — mode는
   // 'list'로 그대로 두고 오버레이만 뜬다(목록 셀 [수정]과 같은 1뎁스 UX).
-  const [metaEditRow, setMetaEditRow] = useState(null);
-  const [rows, setRows] = useState([]);
+  const [metaEditRow, setMetaEditRow] = useState<AdminRow | null>(null);
+  const [rows, setRows] = useState<AdminRow[]>([]);
   const [keyword, setKeyword] = useState("");
   // 서버 페이지네이션 탭에서 실제로 서버로 나가는 검색어. keyword는 타이핑마다
   // 바뀌므로 그대로 쓰면 글자당 한 번씩 조회가 나간다 — 디바운스한 값만 넘긴다.
@@ -2562,7 +2661,10 @@ export default function Admin() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   // CSV 청크 내보내기 진행 상태. null이면 진행 중 아님.
-  const [exporting, setExporting] = useState(null);
+  const [exporting, setExporting] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const config = CONFIGS[activeKey];
   const ListSummaryComponent = config.listSummaryKey
@@ -2581,7 +2683,9 @@ export default function Admin() {
   // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
   // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
   // 범위(.range)와 count는 호출부가 붙인다.
-  function buildListQuery({ count }: { count?: "exact" } = {}) {
+  // exactOptionalPropertyTypes: 호출부(loadRows)가 `count: paginate ? "exact" : undefined`로
+  // undefined를 명시적으로 넘기므로 undefined도 프로퍼티 타입에 포함한다.
+  function buildListQuery({ count }: { count?: "exact" | undefined } = {}) {
     let query = supabase
       .from(config.table)
       .select("*", count ? { count } : undefined);
@@ -2834,7 +2938,9 @@ export default function Admin() {
       const { data, error } = await supabase
         .from(config.table)
         .update(payload)
-        .eq("id", editingRow.id)
+        // mode !== 'create'인 이 분기는 openEdit/openMetaEditFromRow가 setEditingRow(row)와
+        // setMode('edit')를 항상 함께 호출하는 계약 위에서만 도달한다 — editingRow는 항상 채워져 있다.
+        .eq("id", editingRow!.id)
         .select("*")
         .single();
 
@@ -2970,7 +3076,7 @@ export default function Admin() {
 
     setExporting({ done: 0, total: totalCount });
 
-    const parts = [];
+    const parts: string[] = [];
     let done = 0;
 
     for (let from = 0; from < totalCount; from += EXPORT_CHUNK) {

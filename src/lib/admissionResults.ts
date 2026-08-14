@@ -190,7 +190,7 @@ export function weightedGrade(rows) {
   let sampleN = 0;
   const years = new Set<number>();
   const cuts = new Set<number>();
-  let representativeCut = null;
+  let representativeCut: number | null = null;
 
   for (const row of rows ?? []) {
     const { value, cut } = pickGrade(row);
@@ -277,7 +277,7 @@ function buildYearCell(rows, year) {
 
 // 그 연도 행들의 모집인원 합계. 분할모집에서 절반만 보이던 결함 수정(HTML 469).
 function sumQuota(rows, year) {
-  let total = null;
+  let total: number | null = null;
   for (const row of rowsOfYear(rows, year)) {
     const quota = toNumber(row.quota);
     if (quota == null) continue;
@@ -430,7 +430,7 @@ export function computeDelta(previous, current) {
 // 2개년 축에서는 (2025, 2026)이 그대로 잡힌다.
 export function computeDeltaFromSeries(series) {
   const list = [...(series ?? [])].sort(
-    (a, b) => toNumber(a?.year) - toNumber(b?.year),
+    (a, b) => (toNumber(a?.year) ?? 0) - (toNumber(b?.year) ?? 0),
   );
   if (list.length === 0) return computeDelta(null, null);
   if (list.length === 1) return computeDelta(null, list[0]);
@@ -622,8 +622,11 @@ function pickSummaryBasis(rows) {
   }
 
   // 모집인원 가중 최다 유형. quota 미기재 행은 1로 센다(가중평균 규칙과 동일).
-  const weights = new Map();
-  const order = [];
+  const weights = new Map<
+    string,
+    { key: string; label: string; weight: number }
+  >();
+  const order: string[] = [];
   for (const row of list) {
     const { key, label } = categorize(row);
     if (!weights.has(key)) {
@@ -631,14 +634,17 @@ function pickSummaryBasis(rows) {
       order.push(key);
     }
     const rawWeight = toNumber(row.quota);
-    weights.get(key).weight +=
-      rawWeight != null && rawWeight > 0 ? rawWeight : 1;
+    // 바로 위에서 weights.set(key, ...)을 이미 거쳤으므로(신규거나 기존이거나) 항상 존재.
+    const entry = weights.get(key)!;
+    entry.weight += rawWeight != null && rawWeight > 0 ? rawWeight : 1;
   }
 
+  // list.length===0은 위에서 이미 걸러졌으므로(early return) weights는 최소 1건 —
+  // sort 결과 배열도 비지 않는다.
   const winner = [...weights.values()].sort(
     (a, b) =>
       b.weight - a.weight || order.indexOf(a.key) - order.indexOf(b.key),
-  )[0];
+  )[0]!;
 
   return {
     basisKey: winner.key,
@@ -668,7 +674,13 @@ export function buildTrackSummaries(
     buckets.get(track).rows.push(row);
   }
 
-  const cards = [];
+  // 아래 push 리터럴의 정확한 셰이프를 새로 타이핑하지 않는다(파일 전체가
+  // JSDoc 시절부터 무타입 rows/row를 다뤄 왔다) — 뒤에서 실제로 읽는
+  // rowCount/order 두 필드만 명시하고 나머지는 인덱스 시그니처로 통과시킨다.
+  const cards: (Record<string, unknown> & {
+    rowCount: number;
+    order: number;
+  })[] = [];
   for (const bucket of buckets.values()) {
     const { basisKey, basis, rows: basisRows } = pickSummaryBasis(bucket.rows);
     const summary = weightedGrade(basisRows);

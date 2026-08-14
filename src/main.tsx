@@ -12,7 +12,8 @@ function removePreHeader() {
   preHeader.remove();
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// index.html에 #root가 항상 존재하는 정적 마운트 포인트라 non-null 단언.
+ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
 
 requestAnimationFrame(() => {
   requestAnimationFrame(removePreHeader);

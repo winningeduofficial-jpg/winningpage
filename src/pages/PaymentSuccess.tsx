@@ -310,7 +310,8 @@ function formatCardNumber(raw?: string | null) {
   if (!value) return "-";
   const length = Math.max(value.length, 12); // 12 = 최소 카드번호 자릿수
   const masked = value.slice(0, 8).padEnd(8, "*") + "*".repeat(length - 8);
-  return masked.match(/.{1,4}/g).join("-");
+  // masked는 항상 길이 12+ 비-개행 문자열이라 /.{1,4}/g 매치가 항상 성립한다.
+  return masked.match(/.{1,4}/g)!.join("-");
 }
 
 // 0개월 = 일시불 (시안 1882-14270)
@@ -381,7 +382,8 @@ function buildRows({
     });
   } else {
     rows.push({ label: "결제수단", value: methodLabel(payment) });
-    if (isCardPayment) {
+    // isCardPayment는 Boolean(card)를 포함하므로 card는 항상 non-null이다.
+    if (isCardPayment && card) {
       rows.push({ label: "카드번호", value: formatCardNumber(card.number) });
       rows.push({
         label: "할부 개월",
@@ -520,7 +522,7 @@ export default function PaymentSuccess() {
   // (api/_lib/programAccess.js 의 skipped) 여기서 0개가 되어 CTA 가 내려간다.
   const entries = (access?.granted ?? [])
     .map((key) => SERVICE_ENTRY[key])
-    .filter(Boolean);
+    .filter((entry): entry is ServiceEntry => Boolean(entry));
   // 결제자가 학부모면 프로그램 입장 버튼을 띄우지 않는다.
   //
   // 쌍 구조(sql/68)에서 이용 권한(program_access_grants)은 **자녀**에게 부여된다

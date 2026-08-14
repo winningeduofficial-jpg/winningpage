@@ -67,10 +67,18 @@ export default function FreeDiagnosisReport() {
       // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
       // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
       const typedInput = input as DiagnosisInput;
+      // exactOptionalPropertyTypes 대응 — buildReport(범위 밖 파일)의 BuildReportCtx는 각 필드에
+      // undefined를 명시적으로 허용하지 않아, undefined면 키 자체를 생략한다(동작 동일).
       return buildReport(input, {
-        cuts: typedInput.admissionCuts,
-        cutsError: typedInput.admissionCutsError,
-        admissionMeta: typedInput.admissionMeta,
+        ...(typedInput.admissionCuts !== undefined
+          ? { cuts: typedInput.admissionCuts }
+          : {}),
+        ...(typedInput.admissionCutsError !== undefined
+          ? { cutsError: typedInput.admissionCutsError }
+          : {}),
+        ...(typedInput.admissionMeta !== undefined
+          ? { admissionMeta: typedInput.admissionMeta }
+          : {}),
       }) as DiagnosisReportData;
     } catch (error) {
       // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
@@ -95,7 +103,12 @@ export default function FreeDiagnosisReport() {
         {/* 불성실 응답 경고는 시트 **위**에 둔다 — '결과가 다를 수 있다'는 안내가 리포트 2장을
             다 읽은 뒤에 나오면 기능을 못 한다. 시트 밖인 이유는 승인된 A4 레이아웃의 첫 요소를
             밀어내지 않기 위해서다. */}
-        <ReportSincerityBanner message={data.notices?.sincerityBanner} />
+        {/* exactOptionalPropertyTypes 대응 — undefined면 키 자체를 생략(ReportSincerityBanner 미수정 범위). */}
+        <ReportSincerityBanner
+          {...(data.notices?.sincerityBanner !== undefined
+            ? { message: data.notices.sincerityBanner }
+            : {})}
+        />
 
         <ReportPageOne data={data} />
         <ReportPageTwo data={data} />

@@ -74,7 +74,7 @@ function round1(v: unknown) {
 function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
-  const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const jsDay = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 
@@ -82,7 +82,7 @@ function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
 function addDaysYMD(ymd: unknown, days: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
+  const dt = new Date(Date.UTC(y!, m! - 1, d! + Number(days || 0)));
   return dt.toISOString().slice(0, 10);
 }
 
@@ -152,7 +152,7 @@ export function getEffectiveScheduleTarget(
 
     // 월~토만 주간 목표에 포함, 일요일은 보충일
     if (idx >= 0 && idx <= 5) {
-      const dayName = VIRTUAL_DAY_NAMES[idx];
+      const dayName = VIRTUAL_DAY_NAMES[idx]!;
       ideal += toNum(schedule?.[dayName]?.ideal);
       min += toNum(schedule?.[dayName]?.min);
     }
@@ -404,7 +404,7 @@ export function calculateWeekSchedule(form: WeekScheduleForm) {
   const result: Record<string, { ideal: number; min: number }> = {};
 
   DAYS_CONFIG.forEach(({ key, hasSchool }) => {
-    const avail = calcAvailableHours(form.weekSchedule[key], hasSchool);
+    const avail = calcAvailableHours(form.weekSchedule[key]!, hasSchool);
     const calcIdeal = Math.round(avail * idealMult * 10) / 10;
     const calcMin = Math.round(avail * minMult * 10) / 10;
 

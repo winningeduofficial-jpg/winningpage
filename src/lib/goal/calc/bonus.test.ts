@@ -445,7 +445,7 @@ test("calcStudentBonusRates: 골든 픽스처", () => {
     check(
       `unknown grade=${String(grade)}`,
       calcStudentBonusRates(
-        grade,
+        grade as string,
         ...BASE_PROBS,
         new Date(2026, 7, 11, 0, 0, 0, 0),
       ),
@@ -510,7 +510,7 @@ test("calcStudentBonusRates: 학년 오프셋은 365일 등차 12단이다", () 
 // ─────────────────────────────────────────────────────────────
 
 // [입력 달성률(%), 기대 배수]
-const EXPECTED_GARM = [
+const EXPECTED_GARM: [number, number][] = [
   [-100, 0],
   [-1, 0],
   [-0.0001, 0],
@@ -970,12 +970,12 @@ test("calculateDailyBonus: 골든 픽스처", () => {
   );
   CDB_CASES.forEach(([ach, foc, rates, tasks, sh, ih, mh], idx) => {
     const result = calculateDailyBonus(
-      ach,
-      foc,
-      rates[0],
-      rates[1],
-      rates[2],
-      rates[3],
+      ach as string,
+      foc as string,
+      rates[0]!,
+      rates[1]!,
+      rates[2]!,
+      rates[3]!,
       tasks,
       sh,
       // ih/mh 열에는 문자열('8'·'abc')·null·undefined 도 섞여 있고 함수 시그니처는
@@ -1137,12 +1137,34 @@ test("calculateDailyBonus: 별칭 필드는 항상 이상 목표 값을 가리�
 test("calculateDailyBonus: tasks 가 배열이 아니면 TypeError (원본 그대로, 가드 없음)", () => {
   assert.throws(
     () =>
-      calculateDailyBonus("full", "good", 0.1, 0.2, 0.3, 0.4, null, 8, 8, 5),
+      calculateDailyBonus(
+        "full",
+        "good",
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        null as unknown as string[],
+        8,
+        8,
+        5,
+      ),
     TypeError,
   );
   // 단, 0시간 분기는 tasks 를 만지기 전에 반환하므로 예외가 나지 않는다.
   assert.doesNotThrow(() =>
-    calculateDailyBonus("full", "good", 0.1, 0.2, 0.3, 0.4, null, 0, 8, 5),
+    calculateDailyBonus(
+      "full",
+      "good",
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      null as unknown as string[],
+      0,
+      8,
+      5,
+    ),
   );
 });
 

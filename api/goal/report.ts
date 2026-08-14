@@ -36,6 +36,7 @@ import {
   computeStudyHours,
   computeSubjectShare,
   deriveGradeSystem,
+  type MonthlyWeekBar,
   percentileToGrade,
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
@@ -66,6 +67,7 @@ import {
   fetchRecordsInRange,
   fetchStudentRow,
   fetchTimerSessionsInRange,
+  narrowGoalSession,
   openGoalSession,
 } from "../_lib/goalRepo.js";
 
@@ -146,7 +148,11 @@ async function buildGrowthReport({
   });
 
   // "기록 제출일수" — 순공 시간이 실제로 기록된 날(카드-only로 0시간만 찍힌 날은 세지 않는다).
-  const recordDays = records.filter((r) => toNum(r.study_hours) > 0).length;
+  // toNum은 null을 돌려줄 수 있다 — null > 0은 JS에서 false(0으로 강제 변환)와 동일하므로
+  // ?? 0은 동작을 바꾸지 않고 타입만 좁힌다.
+  const recordDays = records.filter(
+    (r) => (toNum(r.study_hours) ?? 0) > 0,
+  ).length;
   const doneTasks = planTasks.filter((t) => t.done).length;
   const totalTasks = planTasks.length;
   const completionScore = computeCompletionScore({
@@ -256,7 +262,7 @@ async function buildGrowthReport({
 
   // aggregate.js(범위 밖) 반환 타입 미정 — biome noImplicitAnyLet 회피용 최소 타입.
   let studyTimeBars: unknown[];
-  let monthlyWeeks = [];
+  let monthlyWeeks: MonthlyWeekBar[] = [];
   if (type === "monthly") {
     monthlyWeeks = buildMonthlyWeeks({
       records,
@@ -454,7 +460,9 @@ function buildJeongsiPeriodOptions(mockScores) {
   for (const { key, label } of MOCK_ROUNDS) {
     const entry = mockScores?.[key];
     if (entry && entry.none !== true) {
-      const tamAvg = (toNum(entry.tam1) + toNum(entry.tam2)) / 2;
+      // toNum이 null을 줄 수 있다 — JS는 null을 0으로 강제 변환해 더하므로 ?? 0은
+      // 동작을 바꾸지 않고 타입만 좁힌다.
+      const tamAvg = ((toNum(entry.tam1) ?? 0) + (toNum(entry.tam2) ?? 0)) / 2;
       const converted = {
         subjects: {
           korean: gradeToPercentileMidpoint(toNum(entry.kor)),
@@ -564,7 +572,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    const { supabaseAdmin, profileId, allowed } = session;
+    const { allowed } = session;
 
     // 조회형 규약 — student.js와 동일하게 미결제는 에러가 아니다.
     if (!allowed) {
@@ -578,6 +586,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const { supabaseAdmin, profileId } = narrowGoalSession(session);
     const student = await fetchStudentRow(supabaseAdmin, profileId);
 
     // daily-record.js requireActiveStudent와 동일한 판정 순서 — 온보딩 미완료/컷 대기 학생은

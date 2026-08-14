@@ -18,6 +18,8 @@
     "format:ci": "biome ci .",
     "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
+    "// type-coverage": "any/암묵적 any 비율을 재는 후퇴 방지 게이트. strict 번다운(strictNullChecks 등) 완료 후 95.22% 실측, 95로 고정(2026-08-14). npx로 격리 설치하면 typescript peerDependency 범위(2~7)가 최신인 7.0.2로 풀려 classic 컴파일러 API가 없어 크래시한다 — 반드시 devDependency로 로컬 설치된 typescript(5.9.3)를 쓰게 두고 npx는 그 로컬 바이너리를 집는다.",
+    "type-coverage": "type-coverage --at-least 95",
     "// test:goal-cuts": "목표관리 대학 컷 엑셀 왕복 파서 회귀. verify 체인에도 들어 있지만 단독 실행 경로를 따로 둔다 — 체인은 && 직렬이라 앞쪽 스크립트가 하나라도 죽으면 뒤가 통째로 건너뛰어진다(현재 verify-admission-doc-html-drift / verify-admission-bulk-xlsx 가 로컬 키 파일 부재로 죽는다).",
     "test:goal-cuts": "tsx scripts/test-goal-university-cuts-bulk-xlsx.mjs",
     "// test:univ-normalize": "목표관리 대학 컷 백필의 단축형→전체형 대학명 정규화 회귀.",
@@ -57,6 +59,7 @@
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.12",
+    "type-coverage": "^2.30.1",
     "typescript": "^5.9.3"
   }
 }

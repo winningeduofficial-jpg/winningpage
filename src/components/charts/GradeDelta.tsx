@@ -202,10 +202,12 @@ export default function GradeDelta({ series, delta, label }: GradeDeltaProps) {
   if (cells.length === 0 || cells.every((cell) => cell.value == null))
     return null;
 
-  const previous = cells[0];
-  const current = cells[cells.length - 1];
+  // 위에서 cells.length === 0을 return했으므로 0번/마지막 인덱스는 항상 존재.
+  const previous = cells[0]!;
+  const current = cells[cells.length - 1]!;
   const result = delta ?? (computeDeltaFromSeries(cells) as GradeDeltaResult);
-  const tone = TONE[result.tone] ?? TONE.muted;
+  // TONE.muted 키는 항상 정의돼 있는 최종 폴백.
+  const tone = TONE[result.tone] ?? TONE.muted!;
 
   return (
     <div

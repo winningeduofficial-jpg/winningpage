@@ -50,6 +50,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   fetchStudentRow,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   updateStudentGrades,
@@ -151,8 +152,12 @@ function validateEntry(entry: unknown, type: "naesin" | "mock") {
   }
 
   const value = round1(
-    SUBJECT_KEYS.reduce((sum, key) => sum + subjects[key], 0) /
-      SUBJECT_KEYS.length,
+    SUBJECT_KEYS.reduce(
+      (sum, key) =>
+        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 SUBJECT_KEYS 전체를 채웠으므로 항상 존재한다.
+        sum + subjects[key]!,
+      0,
+    ) / SUBJECT_KEYS.length,
   );
 
   return {
@@ -195,12 +200,13 @@ async function handleGet(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(200).json({ allowed: false });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row) {
     return res.status(200).json({ onboarded: false });
@@ -223,7 +229,7 @@ async function handlePost(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
@@ -243,6 +249,7 @@ async function handlePost(
     return res.status(validated.error.status).json(validated.error.body);
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row) {
     return res.status(404).json({

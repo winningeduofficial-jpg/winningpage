@@ -115,6 +115,9 @@ type BlockEditorProps = {
 // uncontrolled. initialContent는 마운트 시 1회만 사용 — 값을 역주입하면 캐럿이 붕괴한다.
 const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(
   function BlockEditor({ initialContent, uploadFile }, ref) {
+    // columnSchema를 any로 다루는 선례(columnSchema.tsx 상단 주석)와 같은 이유로, 옵션 객체는
+    // any로 넘기고(exactOptionalPropertyTypes가 BlockNoteEditorOptions 내부 옵셔널 필드와 충돌)
+    // 반환값만 이 파일에서 실제로 쓰는 ColumnEditor로 되돌린다.
     const editor = useCreateBlockNote(
       {
         schema: columnSchema,
@@ -124,9 +127,10 @@ const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(
           Array.isArray(initialContent) && initialContent.length > 0
             ? initialContent
             : undefined,
-      },
+        // biome-ignore lint/suspicious/noExplicitAny: 상단 주석 참고
+      } as any,
       [],
-    );
+    ) as ColumnEditor;
 
     useImperativeHandle(
       ref,

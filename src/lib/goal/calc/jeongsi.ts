@@ -177,7 +177,7 @@ export const GRADE_PERCENTILE: Record<number, { min: number; max: number }> = {
 export function getPercentileChips(gradeStr: string) {
   const g = parseInt(gradeStr, 10);
   if (!g || g < 1 || g > 9) return [];
-  const { min, max } = GRADE_PERCENTILE[g];
+  const { min, max } = GRADE_PERCENTILE[g]!;
   // NOTE(target-parity): 여기서 width 는 max - min 이다(밴드의 max - min + 1 과 다름).
   // 그래서 8등급(4~10)은 width 6 이라 7개 전부 나열되지만, 3등급(77~88)은 width 11 이라 5분위로 압축된다.
   const width = max - min;
@@ -227,7 +227,7 @@ export function getEnglishPenaltyFE(grade: number) {
     8: -14,
     9: -16,
   };
-  return t[floor] + (grade - floor) * (t[ceil] - t[floor]);
+  return t[floor]! + (grade - floor) * (t[ceil]! - t[floor]!);
 }
 
 // 여러 회차의 모의고사 백분위를 묶어 "종합 백분위" 하나를 낸다.

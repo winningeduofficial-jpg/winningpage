@@ -43,6 +43,7 @@ import {
   kstYMD,
   round1,
 } from "../../src/lib/goal/calc/index.js";
+import type { CutsInput } from "../../src/lib/goal/calc/pipeline.js";
 
 import {
   appendProbabilityLog,
@@ -50,6 +51,7 @@ import {
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTargetCuts,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   upsertStudentRow,
@@ -305,7 +307,8 @@ function validateIntakeBody(body: unknown) {
   // 섹션 단위 "없음"을 새 전역 플래그로 받지 않고 4회차 상태에서 파생하는 이유:
   // 전역 플래그를 두면 "플래그 OFF인데 4회차 전부 none" 같은 모순 상태가 생기고
   // 검증기가 그 모순까지 판정해야 한다. 파생이면 판정이 단 하나다.
-  const naesinAllNone = NAESIN_ROUNDS.every(({ key }) => naesin[key].none);
+  // biome-ignore lint/style/noNonNullAssertion: naesin은 바로 위 루프에서 NAESIN_ROUNDS 전체 키를 채웠으므로 항상 존재한다.
+  const naesinAllNone = NAESIN_ROUNDS.every(({ key }) => naesin[key]!.none);
   let priorNaesinGrade = "";
 
   if (naesinAllNone) {
@@ -354,7 +357,8 @@ function validateIntakeBody(body: unknown) {
   // 모의고사 전 회차 '없음'. 내신과 달리 추가 입력을 받지 않는다 — 이미 정상 경로다
   // (currentMogo = 0 → 정시 확률 2종 0, buildMogoScores 주석 참고).
   // 잔여 회차 오버라이드에만 쓴다(아래 §remaining 오버라이드).
-  const mockAllNone = MOCK_ROUNDS.every(({ key }) => mockExam[key].none);
+  // biome-ignore lint/style/noNonNullAssertion: mockExam은 바로 위 루프에서 MOCK_ROUNDS 전체 키를 채웠으므로 항상 존재한다.
+  const mockAllNone = MOCK_ROUNDS.every(({ key }) => mockExam[key]!.none);
 
   // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
   if (!isPlainObject(body.studyHours))
@@ -442,7 +446,8 @@ function deriveNaesin(naesin, { naesinAllNone, priorNaesinGrade }) {
 
   return {
     currentScore: round1(sum / taken.length),
-    lastNaesinExam: taken[taken.length - 1].label,
+    // biome-ignore lint/style/noNonNullAssertion: naesinAllNone이 false인 이 분기에서는 taken에 최소 1개 회차가 있다.
+    lastNaesinExam: taken[taken.length - 1]!.label,
   };
 }
 
@@ -466,7 +471,8 @@ function gradeToPercentile(rawGrade) {
     );
   }
   const index = Math.min(9, Math.max(1, Math.round(numeric)));
-  const band = GRADE_PERCENTILE[index];
+  // biome-ignore lint/style/noNonNullAssertion: index는 항상 1~9로 클램프되고 GRADE_PERCENTILE는 1~9 전부 정의됨
+  const band = GRADE_PERCENTILE[index]!;
   return Math.round((band.min + band.max) / 2);
 }
 
@@ -507,7 +513,8 @@ function deriveMogo(mockExam) {
 
   return {
     currentMogo: calcJeongsiCompositeFE(buildMogoScores(mockExam)),
-    lastMogoExam: taken.length ? taken[taken.length - 1].label : "",
+    // biome-ignore lint/style/noNonNullAssertion: 직전 삼항의 length 체크로 존재 보장
+    lastMogoExam: taken.length ? taken[taken.length - 1]!.label : "",
   };
 }
 
@@ -579,12 +586,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    const { supabaseAdmin, profileId, allowed } = session;
+    const { allowed } = session;
 
     // 쓰기형이므로 미결제는 403 이다(조회형만 200 {allowed:false}).
     if (!allowed) {
       return res.status(403).json({ detail: PAID_MESSAGE });
     }
+
+    const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
     // 2) 재온보딩 차단 (미결 Q3 기본안)
     //    base_* 를 다시 계산하면 그동안 쌓인 Σdelta 가 옛 base 위에 얹혀 확률이 튄다.
@@ -714,7 +723,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lastMogo: lastMogoExam,
       remainingNaesin,
       remainingMogo,
-      cuts,
+      // TargetCuts(goalRepo.ts)는 컷 누락을 null로 표현하는데 pipeline.ts CutsInput은
+      // number만 받는다 — 파이프라인이 누락을 내부에서 0으로 접어 처리한다는 사실은
+      // 위 §9-Q1(b)/baseProbsForStorage 주석에 이미 문서화돼 있다. pipeline.ts는
+      // 범위 밖이라 타입을 못 바꾸므로 여기서만 캐스팅한다(런타임 동작 변경 없음).
+      cuts: cuts as CutsInput,
       // §7-5: 우리 온보딩은 1~9 등급만 받으므로 변환 대상 원점수가 애초에 없다.
       // 고1·고2 는 conversionType 이 '5grade' 라 주입이 없으면 throw 한다.
       convertedGrade: currentScore,

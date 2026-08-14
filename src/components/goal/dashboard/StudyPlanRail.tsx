@@ -71,7 +71,10 @@ export default function StudyPlanRail() {
         : prev,
     );
 
-    const updated = await updateGoalPlanTask(task.id, { done: nextDone });
+    // goal_plan_tasks.id 는 DB serial(number) — id: number|string 은 React key 겸용 방어 타입
+    const updated = await updateGoalPlanTask(task.id as number, {
+      done: nextDone,
+    });
     if (updated.kind !== "success") {
       console.error("[StudyPlanRail] 완료 토글 실패:", updated);
       loadTasks(); // 서버 상태로 복구
@@ -86,7 +89,8 @@ export default function StudyPlanRail() {
         : prev,
     );
 
-    const deleted = await deleteGoalPlanTask(task.id);
+    // goal_plan_tasks.id 는 DB serial(number) — id: number|string 은 React key 겸용 방어 타입
+    const deleted = await deleteGoalPlanTask(task.id as number);
     if (deleted.kind !== "success") {
       console.error("[StudyPlanRail] 삭제 실패:", deleted);
       setResult((prev) =>

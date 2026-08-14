@@ -298,7 +298,12 @@ export default function Under14Form() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
+      // verifySignupEmailCode는 담당 파일이 아니라 수정할 수 없다 —
+      // exactOptionalPropertyTypes 때문에 값이 null이면 키 자체를 생략해 전달한다
+      // (내부에서 `mode || OTP_MODE.SIGNUP`로 처리하므로 동작은 동일하다).
+      ...(verification.email.mode !== null && {
+        mode: verification.email.mode,
+      }),
     }).then(async ({ error }) => {
       if (error) {
         updateVerification("email", { verified: false });
@@ -434,9 +439,9 @@ export default function Under14Form() {
           actionDisabled={emailCooldown.active || verification.email.verified}
           // 발송 이후의 안내·에러는 인증코드 필드에서 보여준다(문구 중복 방지).
           // status도 같이 내린다 — 문구 없이 error만 남으면 이 입력만 흔들린다.
-          helperText={
-            verification.email.requested ? undefined : emailMessage.text
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.email.requested ? "" : emailMessage.text}
           status={
             verification.email.requested ? "default" : emailMessage.status
           }

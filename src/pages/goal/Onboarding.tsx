@@ -68,7 +68,9 @@ function OnboardingWizard() {
     resetOnboardingFlow,
   } = useGoalOnboarding();
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  // step은 라우트 파라미터라 undefined일 수 있다 — indexOf는 빈 문자열에도 항상 -1을
+  // 반환해 아래 미존재 분기(step-1로 리다이렉트)로 동일하게 흘러간다.
+  const stepIndex = STEP_ORDER.indexOf(step ?? "");
 
   if (stepIndex === -1) {
     return <Navigate to="/app/goal/onboarding/step-1" replace />;

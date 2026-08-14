@@ -110,8 +110,9 @@ export function buildSubjectShareTip(subjectShare: SubjectShare): InsightTip {
       text: "타이머 과목 데이터가 아직 충분히 누적되지 않아 과목별 학습 균형 판단은 보류합니다.",
     };
   }
-  const top = subjectShare.rows[0];
-  const weakest = subjectShare.rows[subjectShare.rows.length - 1];
+  // subjectShare.empty === false ⇒ rows.length > 0 (aggregate.ts 가 보장하는 불변식)
+  const top = subjectShare.rows[0]!;
+  const weakest = subjectShare.rows[subjectShare.rows.length - 1]!;
   if (subjectShare.rows.length < 2) {
     return {
       variant: "info",
@@ -133,9 +134,10 @@ export function buildTimeSlotTip(buckets: TimeSlotBucket[]): InsightTip {
       text: "아직 축적된 타이머 학습 시간대 데이터가 없습니다.",
     };
   }
+  // total > 0 체크(위)를 통과 ⇒ buckets 는 비어있지 않음
   const top = buckets.reduce(
     (best, b) => (b.value > best.value ? b : best),
-    buckets[0],
+    buckets[0]!,
   );
   return {
     variant: "info",
@@ -151,7 +153,8 @@ export function buildDistractionTip(rows: LabeledValue[]): InsightTip {
       text: "이번 기간 기록된 방해요인이 없습니다. 지금의 학습 환경을 유지해도 좋습니다.",
     };
   }
-  const top = rows[0];
+  // rows.length === 0 케이스는 위에서 early return
+  const top = rows[0]!;
   return {
     variant: "warn",
     text: `${top.label} 요인이 반복적으로 나타났습니다. 다음 기간에는 해당 요인이 발생하는 시간대와 과목을 함께 확인해 학습 환경을 조정할 필요가 있습니다.`,
@@ -167,7 +170,8 @@ export function buildCoreItemsTip(rows: LabeledValue[]): InsightTip {
     };
   }
   const total = rows.reduce((s, r) => s + r.value, 0);
-  const top = rows[0];
+  // rows.length === 0 케이스는 위에서 early return
+  const top = rows[0]!;
   const topShare = Math.round((top.value / total) * 100);
   if (rows.length === 1 || topShare >= 70) {
     return {
@@ -274,7 +278,8 @@ export function buildMonthlyStrategy({
 
   if (distraction.length > 0) {
     rows.push({
-      label: `${distraction[0].label} 발생 시간대 미리 점검하기`,
+      // length > 0 체크(위)를 통과
+      label: `${distraction[0]!.label} 발생 시간대 미리 점검하기`,
       value: "주 1회 이상",
     });
   }
@@ -329,7 +334,9 @@ export function buildMonthlyExpectedEffect({
 function buildDirectionTypeLabel(subjects: DirectionSubject[]): string {
   const focusSubjects = subjects.filter((s) => s.zone === "focus");
   if (focusSubjects.length === 0) return "균형 유지형";
-  if (focusSubjects.length === 1) return `${focusSubjects[0].name} 집중 보완형`;
+  // length === 1 체크(위)를 통과
+  if (focusSubjects.length === 1)
+    return `${focusSubjects[0]!.name} 집중 보완형`;
   return `${focusSubjects.map((s) => s.name).join("・")} 집중 보완형`;
 }
 
@@ -378,7 +385,8 @@ export function buildDirectionSummary({
       gap == null
         ? ""
         : gap > 0
-          ? `최소 목표 ${minCut.toFixed(2)}등급까지 ${gap}등급 남았고, `
+          ? // gap>0 ⇒ gap!=null ⇒ minCut!=null (위 계산에서 파생)
+            `최소 목표 ${minCut!.toFixed(2)}등급까지 ${gap}등급 남았고, `
           : "최소 목표선은 이미 넘었고, ";
   } else {
     const gap =
