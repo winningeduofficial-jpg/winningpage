@@ -13,20 +13,27 @@ import { Search } from "lucide-react";
  *     빈 화면이 뜬다.)
  *    예) onChange={(next) => { setKeyword(next); setPage(1); }}
  *
- * @param {object}   props
- * @param {string}   props.value        현재 검색어 (필수, 제어 값)
- * @param {(next: string) => void} props.onChange  변경된 문자열을 인자로 받는다 (이벤트 객체 아님)
- * @param {string}   props.ariaLabel    스크린리더용 라벨. 예: '회사소식 검색'
- * @param {string}  [props.placeholder] 기본 '검색'
- * @param {string}  [props.className]   래퍼에 덧붙일 유틸리티 클래스
  */
+type BoardSearchBarProps = {
+  /** 현재 검색어 (필수, 제어 값) */
+  value: string;
+  /** 변경된 문자열을 인자로 받는다 (이벤트 객체 아님) */
+  onChange: (next: string) => void;
+  /** 스크린리더용 라벨. 예: '회사소식 검색' */
+  ariaLabel: string;
+  /** 기본 '검색' */
+  placeholder?: string;
+  /** 래퍼에 덧붙일 유틸리티 클래스 */
+  className?: string;
+};
+
 export default function BoardSearchBar({
   value,
   onChange,
   ariaLabel,
   placeholder = "검색",
   className = "",
-}) {
+}: BoardSearchBarProps) {
   return (
     // 폭: 시안 검색바는 505×68이지만 Faq 정본의 sm:w-[23.625rem](378px) / h-11(44px)을 따른다.
     // 505×0.766(게시판 시안 스케일 팩터) = 386.8px = 24.18rem 으로 정본과 9px 차이뿐이고,

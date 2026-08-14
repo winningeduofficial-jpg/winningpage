@@ -1,19 +1,30 @@
+import type { KeyboardEvent } from "react";
 import { useRef } from "react";
 import { FAQ_TABPANEL_ID, getFaqTabId } from "./faqTabId";
+
+type FaqCategoryTabsProps = {
+  tabs: string[];
+  active: string;
+  onChange: (tab: string) => void;
+};
 
 // role="tab" 을 붙이면 WAI-ARIA tabs 패턴상 tablist 안에서 Tab 키는 활성 탭
 // 1개만 통과하고 좌우 화살표로 이동해야 한다(roving tabindex). 저장소 기존
 // 선례(ServiceTabsPanel.jsx, SpecialHighschoolCases.jsx)엔 이게 빠져 있어
 // role만 붙이고 실제로는 조작이 안 되는 상태였다 — 여기서는 넣는다.
-export default function FaqCategoryTabs({ tabs, active, onChange }) {
-  const buttonRefs = useRef([]);
+export default function FaqCategoryTabs({
+  tabs,
+  active,
+  onChange,
+}: FaqCategoryTabsProps) {
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function focusAndSelect(index) {
+  function focusAndSelect(index: number) {
     onChange(tabs[index]);
     buttonRefs.current[index]?.focus();
   }
 
-  function handleKeyDown(event, index) {
+  function handleKeyDown(event: KeyboardEvent, index: number) {
     if (event.key === "Home") {
       event.preventDefault();
       focusAndSelect(0);

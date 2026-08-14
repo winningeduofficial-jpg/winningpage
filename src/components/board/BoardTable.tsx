@@ -112,16 +112,25 @@ const EMPTY_VIEW_COUNT = "-";
  * (boardData 를 여기서 import 하지 않는 이유: 그러면 이 컴포넌트가 supabase 모듈 그래프에
  *  묶여 "순수 프레젠테이션" 계약이 문서상으로만 남는다.)
  */
-function defaultFormatDate(value) {
+function defaultFormatDate(value: unknown) {
   return value ? String(value).slice(0, 10) : "";
 }
 
+type BoardRow = {
+  id?: string | number;
+  is_pinned?: boolean;
+  title?: string;
+  created_at?: string;
+  view_count?: number;
+  [key: string]: unknown;
+};
+
 /** getViewCount 미주입 시의 최소 폴백. boardData.getViewCount 와 동일 판정. */
-function defaultGetViewCount(row) {
-  return Number.isFinite(row?.view_count) ? row.view_count : null;
+function defaultGetViewCount(row: BoardRow) {
+  return Number.isFinite(row?.view_count) ? (row.view_count as number) : null;
 }
 
-function PinnedChip({ className = "" }) {
+function PinnedChip({ className = "" }: { className?: string }) {
   return (
     <Chip tone={PINNED_CHIP_TONE} size="md-fixed" className={className}>
       {PINNED_CHIP_LABEL}
@@ -129,23 +138,26 @@ function PinnedChip({ className = "" }) {
   );
 }
 
-/**
- * @param {object} props
- * @param {object[]} props.rows
- *   **현재 페이지에 표시할 행만** 넘긴다(= paginate() 의 pageRows). raw supabase row 그대로.
- * @param {(row: object) => (string|null)} [props.getDetailHref]
- *   상세 링크 경로. null 을 반환하면 제목이 클릭 불가 텍스트로 렌더된다.
- * @param {(row: object, indexInPage: number) => (number|null)} [props.getDisplayNumber]
- *   표시 번호. **인자는 이 페이지 안에서의 0-based 인덱스다.**
- *   boardData.getDisplayNumber 는 "필터 결과 배열" 기준 인덱스를 받으므로, 부모가
- *   `(row, i) => getDisplayNumber(row, (safePage - 1) * BOARD_PAGE_SIZE + i, filtered.length)`
- *   형태로 감싸서 넘겨야 한다. null 이면 번호를 렌더하지 않는다.
- * @param {(value: unknown) => string} [props.formatDate] 기본값은 앞 10자 슬라이스.
- * @param {(row: object) => (number|null)} [props.getViewCount]
- *   기본값은 row.view_count 유한수 판정. null 이면 셀에 '-' 가 들어갈 뿐, 컬럼은 유지된다.
- * @param {string} [props.caption] 스크린리더용 표 설명. 예: '회사소식 목록'. 시각적으로는 숨겨진다.
- * @param {string} [props.className] shell 에 덧붙일 유틸리티 클래스.
- */
+type BoardTableProps = {
+  /** **현재 페이지에 표시할 행만** 넘긴다(= paginate() 의 pageRows). raw supabase row 그대로. */
+  rows: BoardRow[];
+  /** 상세 링크 경로. null 을 반환하면 제목이 클릭 불가 텍스트로 렌더된다. */
+  getDetailHref?: (row: BoardRow) => string | null;
+  /** 표시 번호. **인자는 이 페이지 안에서의 0-based 인덱스다.**
+   * boardData.getDisplayNumber 는 "필터 결과 배열" 기준 인덱스를 받으므로, 부모가
+   * `(row, i) => getDisplayNumber(row, (safePage - 1) * BOARD_PAGE_SIZE + i, filtered.length)`
+   * 형태로 감싸서 넘겨야 한다. null 이면 번호를 렌더하지 않는다. */
+  getDisplayNumber?: (row: BoardRow, indexInPage: number) => number | null;
+  /** 기본값은 앞 10자 슬라이스. */
+  formatDate?: (value: unknown) => string;
+  /** 기본값은 row.view_count 유한수 판정. null 이면 셀에 '-' 가 들어갈 뿐, 컬럼은 유지된다. */
+  getViewCount?: (row: BoardRow) => number | null;
+  /** 스크린리더용 표 설명. 예: '회사소식 목록'. 시각적으로는 숨겨진다. */
+  caption?: string;
+  /** shell 에 덧붙일 유틸리티 클래스. */
+  className?: string;
+};
+
 export default function BoardTable({
   rows,
   getDetailHref,
@@ -154,7 +166,7 @@ export default function BoardTable({
   getViewCount = defaultGetViewCount,
   caption,
   className = "",
-}) {
+}: BoardTableProps) {
   const list = Array.isArray(rows) ? rows : [];
 
   // ★ 조회수 컬럼은 **데이터와 무관하게 무조건 렌더한다.** 시안(Figma 2235:3618)에 조회수

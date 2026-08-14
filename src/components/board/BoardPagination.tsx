@@ -14,21 +14,27 @@ import {
  *
  * 원본 대비 추가된 개선점: 활성 번호 버튼에 aria-current="page" 부여
  * (AdmissionGuidelines 원본에는 누락되어 있었다).
- *
- * @param {object} props
- * @param {number} props.currentPage  현재 페이지(1-base)
- * @param {number} props.totalPages   전체 페이지 수
- * @param {(page: number) => void} props.onPageChange 페이지 이동 콜백(1..totalPages 로 클램프되어 전달)
- * @param {number} [props.windowSize=10] 한 번에 노출할 번호 버튼 개수
- * @param {string} [props.className] nav 에 덧붙일 클래스
  */
+type BoardPaginationProps = {
+  /** 현재 페이지(1-base) */
+  currentPage: number;
+  /** 전체 페이지 수 */
+  totalPages: number;
+  /** 페이지 이동 콜백(1..totalPages 로 클램프되어 전달) */
+  onPageChange: (page: number) => void;
+  /** 한 번에 노출할 번호 버튼 개수 */
+  windowSize?: number;
+  /** nav 에 덧붙일 클래스 */
+  className?: string;
+};
+
 export default function BoardPagination({
   currentPage,
   totalPages,
   onPageChange,
   windowSize = 10,
   className = "",
-}) {
+}: BoardPaginationProps) {
   const safeTotalPages = Math.max(1, Math.floor(totalPages) || 1);
   const safeCurrentPage = Math.min(
     Math.max(1, Math.floor(currentPage) || 1),

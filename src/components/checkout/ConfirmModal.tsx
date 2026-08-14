@@ -1,4 +1,13 @@
+import type { ReactNode } from "react";
 import { useEffect } from "react";
+
+type ConfirmModalProps = {
+  title?: ReactNode;
+  children?: ReactNode;
+  buttonLabel?: string;
+  onConfirm?: () => void;
+  onClose: () => void;
+};
 
 // 결제 요청 흐름 공용 안내 모달 — 학생 화면의 학부모 미연결 실패 모달
 // (시안 3921:7480, StudentEnrollmentRequest.jsx)과 Pricing.jsx 의 학부모용
@@ -15,9 +24,9 @@ export default function ConfirmModal({
   buttonLabel = "확인",
   onConfirm,
   onClose,
-}) {
+}: ConfirmModalProps) {
   useEffect(() => {
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", handleKeyDown);

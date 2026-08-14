@@ -9,7 +9,21 @@ import {
   getViewCount,
 } from "../../pages/column/columnData";
 
-function Thumbnail({ url, title, className }) {
+type ColumnLike = {
+  id: string | number;
+  title?: string;
+  [key: string]: unknown;
+};
+
+function Thumbnail({
+  url,
+  title,
+  className,
+}: {
+  url?: string | null;
+  title?: string;
+  className?: string;
+}) {
   if (!url) {
     return <div className={`bg-[#D9D9D9] ${className}`} aria-hidden="true" />;
   }
@@ -23,7 +37,13 @@ function Thumbnail({ url, title, className }) {
   );
 }
 
-function MetaRow({ column, className = "" }) {
+function MetaRow({
+  column,
+  className = "",
+}: {
+  column: ColumnLike;
+  className?: string;
+}) {
   const viewCount = getViewCount(column);
 
   return (
@@ -41,7 +61,15 @@ function MetaRow({ column, className = "" }) {
   );
 }
 
-export default function ColumnCard({ column, variant = "grid" }) {
+type ColumnCardProps = {
+  column: ColumnLike;
+  variant?: "grid" | "heroLarge" | "heroSmall";
+};
+
+export default function ColumnCard({
+  column,
+  variant = "grid",
+}: ColumnCardProps) {
   const thumbnail = getThumbnailUrl(column);
   const categoryLabel = getCategoryLabel(column);
   const hasCategory = categoryLabel !== ALL_CATEGORY;

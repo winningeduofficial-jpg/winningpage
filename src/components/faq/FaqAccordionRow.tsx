@@ -14,7 +14,24 @@ import "./faqAnswerBody.css";
 // FAQ 30건 기준 첫 페인트에 숨겨진 에디터 30개가 동시에 생성된다. 그래서 자식은
 // 처음 열릴 때만 지연 마운트한다(mounted latch). 한 번 열렸으면 다시 접혀도
 // 언마운트하지 않는다 — 그러지 않으면 재열림마다 BlockNote가 재생성되며 깜빡인다.
-export default function FaqAccordionRow({ faq, isOpen, onToggle }) {
+type FaqLike = {
+  id: string | number;
+  question: string;
+  answer?: string;
+  content_json?: unknown;
+};
+
+type FaqAccordionRowProps = {
+  faq: FaqLike;
+  isOpen: boolean;
+  onToggle: () => void;
+};
+
+export default function FaqAccordionRow({
+  faq,
+  isOpen,
+  onToggle,
+}: FaqAccordionRowProps) {
   const answerId = `faq-answer-${faq.id}`;
   const [mounted, setMounted] = useState(false);
 
