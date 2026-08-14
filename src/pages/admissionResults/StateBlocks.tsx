@@ -3,7 +3,11 @@
 // 저장소에 스켈레톤 관례가 없다(animate-pulse grep 0건). 텍스트 플레이스홀더가 정본이며
 // 클래스는 AdmissionGuidelines.jsx:1493-1518을 그대로 따른다.
 
-export function LoadingBlock({ title = "입결 데이터를 불러오는 중입니다." }) {
+export function LoadingBlock({
+  title = "입결 데이터를 불러오는 중입니다.",
+}: {
+  title?: string;
+}) {
   return (
     <div
       role="status"
@@ -15,11 +19,17 @@ export function LoadingBlock({ title = "입결 데이터를 불러오는 중입�
   );
 }
 
+type ErrorBlockProps = {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+};
+
 export function ErrorBlock({
   title = "입결 데이터를 불러오지 못했습니다.",
   description = "잠시 후 다시 시도해 주세요.",
   onRetry,
-}) {
+}: ErrorBlockProps) {
   return (
     <div className="rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
       <p className="text-lg font-semibold text-red-600">{title}</p>
@@ -38,12 +48,19 @@ export function ErrorBlock({
 }
 
 // 팝오버 내부용 축약 버전 — 바깥 블록(py-16)을 그대로 쓰면 드롭다운이 과하게 길어진다.
+type PopoverStatusProps = {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+  tone?: "default" | "error";
+};
+
 export function PopoverStatus({
   title,
   description,
   onRetry,
   tone = "default",
-}) {
+}: PopoverStatusProps) {
   const titleClass = tone === "error" ? "text-red-600" : "text-[#525252]";
 
   return (

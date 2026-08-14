@@ -30,7 +30,13 @@ const COPY = {
 // memberType 은 optional prop 이다 — 호출부(Checkout.jsx·Pricing.jsx)가
 // useMemberType() 으로 이미 들고 있는 값을 그대로 넘긴다(2026-08-12c 팀 리드
 // 지시, 새 조회를 만들지 않는다).
-export default function BlockedMemberNotice({ memberType }) {
+type BlockedMemberNoticeProps = {
+  memberType?: string | null;
+};
+
+export default function BlockedMemberNotice({
+  memberType,
+}: BlockedMemberNoticeProps) {
   const copy = memberType === "mentor" ? COPY.mentor : COPY.incomplete;
 
   return (

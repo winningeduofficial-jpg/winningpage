@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import {
   CONTAINER,
   HERO_DESCRIPTION,
@@ -7,13 +8,31 @@ import {
 import SelectorBar from "./SelectorBar";
 import TrendingChips from "./TrendingChips";
 
+type TrendingItem = {
+  key: string;
+  label: string;
+  universityKey?: string;
+  departmentKey?: string;
+  logoUrl?: string;
+};
+
+type SearchViewProps = {
+  selector: ComponentProps<typeof SelectorBar>;
+  trending: TrendingItem[];
+  onSelectTrending?: (item: TrendingItem) => void;
+};
+
 /**
  * 검색 뷰 (Figma 2029:661) — 히어로 → 셀렉터 바 → 지금 뜨고 있는 학과.
  *
  * 세로 리듬은 랜딩·서비스형 관례(SelfAssessment.jsx:229 외)를 따른다.
  * 시안의 섹션 간격 3종(149/113/105px)은 재현하지 않고 lg의 6.25rem으로 수렴시킨다.
  */
-export default function SearchView({ selector, trending, onSelectTrending }) {
+export default function SearchView({
+  selector,
+  trending,
+  onSelectTrending,
+}: SearchViewProps) {
   const { universityOptions, universityLoading, universityError } = selector;
   const universityUnavailable =
     !universityLoading && !universityError && universityOptions.length === 0;

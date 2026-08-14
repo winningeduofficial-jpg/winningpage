@@ -10,9 +10,15 @@ import {
   normalizeImageUrls,
 } from "./admissionCaseData";
 
+type AdmissionCasePost = {
+  category?: string;
+  title?: string;
+  [key: string]: unknown;
+};
+
 export default function AdmissionCaseDetail() {
   const { id } = useParams();
-  const [post, setPost] = useState(null);
+  const [post, setPost] = useState<AdmissionCasePost | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

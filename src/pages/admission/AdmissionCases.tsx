@@ -19,7 +19,7 @@ export default function AdmissionCases() {
     CASE_CATEGORIES.find((key) => pathname.startsWith(`/admission/${key}`)) ||
     "susi";
 
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<Array<{ id: string | number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

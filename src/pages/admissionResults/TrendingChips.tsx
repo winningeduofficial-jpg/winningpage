@@ -19,7 +19,23 @@ function TrendingMark() {
  * 빈 배열이면 섹션 전체를 렌더하지 않는다(빈 pill 그리드는 고장으로 보인다).
  * 로고(logo_url)도 값이 있을 때만 그린다 — 대학 CI는 저작권 확인 전이라 저장소에 에셋이 없다.
  */
-export default function TrendingChips({ items = [], onSelect }) {
+type TrendingItem = {
+  key: string;
+  label: string;
+  universityKey?: string;
+  departmentKey?: string;
+  logoUrl?: string;
+};
+
+type TrendingChipsProps = {
+  items?: TrendingItem[];
+  onSelect?: (item: TrendingItem) => void;
+};
+
+export default function TrendingChips({
+  items = [],
+  onSelect,
+}: TrendingChipsProps) {
   if (!items.length) return null;
 
   return (

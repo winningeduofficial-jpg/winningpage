@@ -39,7 +39,7 @@ const FRAGMENT_NAV_FIX_SCRIPT = `
 
 // 인라인 <script>(go() 스텝 네비게이터, pill 핸들러) 뒤에 오도록 </body> 직전에 주입한다.
 // </body>를 못 찾는 방어적인 경우엔 문자열 끝에 덧붙인다.
-function injectFragmentNavFix(html) {
+function injectFragmentNavFix(html: string) {
   if (html.includes("</body>")) {
     return html.replace("</body>", `${FRAGMENT_NAV_FIX_SCRIPT}</body>`);
   }
@@ -51,7 +51,11 @@ function injectFragmentNavFix(html) {
 // 의도대로 걸리지 않는다 — iframe이 자체 뷰포트를 가져야 한다.
 // demoKeyOverride — /services/growth처럼 :demoKey 파라미터가 없는 고정 라우트에서 특정 데모를
 // 강제 지정할 때 쓴다(growth-intro의 /services/growth 승격).
-export default function DemoFrame({ demoKeyOverride } = {}) {
+type DemoFrameProps = {
+  demoKeyOverride?: string;
+};
+
+export default function DemoFrame({ demoKeyOverride }: DemoFrameProps = {}) {
   const { demoKey: paramKey } = useParams();
   const demo = DEMO_REGISTRY[demoKeyOverride || paramKey];
 

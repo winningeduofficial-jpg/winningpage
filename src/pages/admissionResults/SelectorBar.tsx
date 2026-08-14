@@ -22,6 +22,26 @@ import {
  *   >= wide   : 시안대로 1행 3분할 (필드 flex-1, 조회 7.75rem)
  * 컨테이너에 overflow-hidden을 걸지 않는다 — 팝오버가 바 밖으로 나와야 한다.
  */
+type SelectorBarProps = {
+  university?: unknown;
+  department?: unknown;
+  universityOptions: unknown[];
+  departmentOptions: unknown[];
+  universityLoading?: boolean;
+  universityError?: boolean;
+  departmentLoading?: boolean;
+  departmentError?: boolean;
+  onRetryUniversities?: () => void;
+  onRetryDepartments?: () => void;
+  openField?: string | null;
+  onOpenFieldChange: (next: string | null) => void;
+  onSelectUniversity?: (option: unknown) => void;
+  onSelectDepartment?: (option: unknown) => void;
+  onClearUniversity?: () => void;
+  onClearDepartment?: () => void;
+  onSubmit?: () => void;
+};
+
 export default function SelectorBar({
   university,
   department,
@@ -40,7 +60,7 @@ export default function SelectorBar({
   onClearUniversity,
   onClearDepartment,
   onSubmit,
-}) {
+}: SelectorBarProps) {
   const universityUnavailable =
     !universityLoading && !universityError && universityOptions.length === 0;
   const departmentLocked = !university;
