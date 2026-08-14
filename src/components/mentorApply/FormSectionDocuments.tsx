@@ -20,6 +20,7 @@
 //    id 만 있는 <span>)로 그리고, 그 라벨을 `role="group"` 래퍼의 `aria-labelledby` 로
 //    참조해 이름을 전달한다. 칩 그룹(다른 섹션 파일)은 자체적으로 ariaLabel prop 을 받는
 //    구조라 이 패턴이 필요 없다.
+import type { ReactNode } from "react";
 import {
   CANCELLATION_NOTICE,
   FORM_SECTIONS,
@@ -53,9 +54,39 @@ const PHONE_INPUT_ID = "mentor-apply-phone";
 const AGREEMENT_FIELD_ID = "mentor-apply-agreements";
 
 // 도움말 내 강조는 시안에서 `#0B84FD`(accent) 동일 크기 인라인 스팬이다(§6-6).
-function Accent({ children }) {
+function Accent({ children }: { children?: ReactNode }) {
   return <span className="text-accent">{children}</span>;
 }
+
+type DocumentsValues = {
+  /** 이 섹션은 'phone'(5-2 본인인증 번호)만 읽는다 — 섹션 1과 공유하는 키다. */
+  phone?: string;
+};
+
+type FormSectionDocumentsProps = {
+  values?: DocumentsValues;
+  errors?: Record<string, string>;
+  /** (name, value) => void — 여기서는 'phone' 만 사용한다 */
+  onChange?: (name: string, value: string) => void;
+  /** File | null — 5-1 재학 증빙 서류 */
+  file?: File | null;
+  onFileChange?: (file: File | null) => void;
+  /** 'idle' | 'uploading' | 'done' — FileDropzone 선택완료 뷰 배지용. */
+  uploadStatus?: "idle" | "uploading" | "done";
+  /** 5-2 본인인증 완료 여부(서버가 제출 시 재확인한다) */
+  phoneVerified?: boolean;
+  onPhoneVerified?: (normalizedPhone: string) => void;
+  /** { [key]: boolean } — MENTOR_AGREEMENTS 의 key 5종 */
+  agreements?: Record<string, boolean>;
+  onAgreementToggle?: (key: string) => void;
+  onAgreementToggleAll?: () => void;
+  onSubmit?: () => void;
+  /** 전송 중(스피너 + 처리중 톤) */
+  submitting?: boolean;
+  /** 필수 항목 미충족 등으로 제출 불가 */
+  submitDisabled?: boolean;
+  id?: string;
+};
 
 export default function FormSectionDocuments({
   values = {},
@@ -78,7 +109,7 @@ export default function FormSectionDocuments({
   submitting = false, // 전송 중(스피너 + 처리중 톤)
   submitDisabled = false, // 필수 항목 미충족 등으로 제출 불가
   id = DOCUMENTS_SECTION_ID,
-}) {
+}: FormSectionDocumentsProps) {
   return (
     <div className="flex flex-col gap-8">
       <FormSectionCard

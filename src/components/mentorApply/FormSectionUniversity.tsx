@@ -55,9 +55,11 @@ const ERROR_MESSAGES = {
   exam_results_length: `${EXAM_RESULTS_MAX_LENGTH}자 이내로 입력해 주세요.`,
 };
 
-export function validateUniversitySection(values = {}) {
-  const errors = {};
-  const trimmed = (key) => String(values[key] ?? "").trim();
+type UniversityValues = Record<string, string | undefined>;
+
+export function validateUniversitySection(values: UniversityValues = {}) {
+  const errors: Record<string, string> = {};
+  const trimmed = (key: string) => String(values[key] ?? "").trim();
 
   if (!trimmed("university")) errors.university = ERROR_MESSAGES.university;
   if (!trimmed("major")) errors.major = ERROR_MESSAGES.major;
@@ -96,12 +98,18 @@ const EXAM_RESULTS_PLACEHOLDER = `형식) 대학 / 모집단위 / 전형 / 결�
 
 const SECTION = FORM_SECTIONS[1];
 
+type FormSectionUniversityProps = {
+  values?: UniversityValues;
+  errors?: Record<string, string>;
+  onChange?: (name: string, value: string) => void;
+};
+
 export default function FormSectionUniversity({
   values = {},
   errors = {},
   onChange,
-}) {
-  const handle = (name) => (value) => onChange?.(name, value);
+}: FormSectionUniversityProps) {
+  const handle = (name: string) => (value: string) => onChange?.(name, value);
 
   return (
     <FormSectionCard

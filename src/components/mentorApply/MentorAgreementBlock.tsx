@@ -18,6 +18,7 @@
 // MENTOR_AGREEMENTS 가 /terms/student/* 로 이미 매핑해 둔 기존 라우트를 가리킨다.
 
 import { Check } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AGREEMENT_COPY } from "../../data/mentorApply";
@@ -30,13 +31,31 @@ const BADGE_CLASSES = {
   optional: "text-ink-sub",
 };
 
+type AgreementItem = {
+  key: string;
+  label: string;
+  required: boolean;
+  to?: string;
+};
+
+type MentorAgreementBlockProps = {
+  /** [{ key, label, required, to }] — src/data/mentorApply.js MENTOR_AGREEMENTS */
+  items?: AgreementItem[];
+  /** { [key]: boolean } */
+  values?: Record<string, boolean>;
+  onToggle?: (key: string) => void;
+  onToggleAll?: () => void;
+  /** 필수 항목 미동의 시 표시할 메시지(시안에 에러 상태 없음 — 확인 항목 25) */
+  error?: string;
+};
+
 export default function MentorAgreementBlock({
   items, // [{ key, label, required, to }] — src/data/mentorApply.js MENTOR_AGREEMENTS
   values, // { [key]: boolean }
   onToggle, // (key) => void
   onToggleAll, // () => void
   error, // 필수 항목 미동의 시 표시할 메시지(시안에 에러 상태 없음 — 확인 항목 25)
-}) {
+}: MentorAgreementBlockProps) {
   const list = items || [];
   const allChecked =
     list.length > 0 && list.every((item) => Boolean(values?.[item.key]));
@@ -147,15 +166,24 @@ export default function MentorAgreementBlock({
   );
 }
 
+type CheckBoxProps = {
+  checked: boolean;
+  index?: number;
+  popping?: boolean;
+};
+
 // 20×20 체크 아이콘 — 시안 §6-9 #5(체크박스 체크 아이콘 20×20, 전체동의 1 + 항목 5).
 // AgreementRow.jsx 의 체크 박스와 동일 규격(h-5 w-5 / lucide Check 14 / strokeWidth 3)이다.
-function CheckBox({ checked, index = 0, popping = false }) {
+function CheckBox({ checked, index = 0, popping = false }: CheckBoxProps) {
   return (
     <span
       aria-hidden="true"
       style={
         popping
-          ? { animationDelay: "calc(var(--i) * 40ms)", "--i": index }
+          ? ({
+              animationDelay: "calc(var(--i) * 40ms)",
+              "--i": index,
+            } as CSSProperties)
           : undefined
       }
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${

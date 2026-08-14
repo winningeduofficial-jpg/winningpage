@@ -28,6 +28,27 @@ const STICKY_OFFSET_REM = 6.5;
 const BADGE_CLASS =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.375rem] bg-surface-badge text-sm font-medium leading-none text-accent";
 
+// 폼 상태는 필드 타입이 섞여 있다 — 텍스트(string) / 칩 복수선택(string[]) / 약관(boolean) /
+// 첨부(File). isFieldFilled 가 이 유니온을 전부 받아 한 곳에서 빈 값 여부를 판정한다.
+type FieldValue =
+  | string
+  | string[]
+  | boolean
+  | number
+  | File
+  | null
+  | undefined;
+
+type FormValues = Record<string, FieldValue>;
+
+export type ProgressSection = {
+  no: number;
+  label: string;
+  /** 해당 단계의 **필수** 필드 이름 배열(각 폼 섹션 컴포넌트가 named export) */
+  fields: string[];
+  id?: string;
+};
+
 /**
  * 값 하나가 "채워졌는가" 판정.
  *
@@ -35,7 +56,7 @@ const BADGE_CLASS =
  * 첨부(File). 타입별로 빈 값의 모양이 다르므로 한 곳에서 판정한다.
  * 숫자 0 과 문자열 '0' 은 유효한 입력이므로 채워진 것으로 본다(falsy 검사만으로는 오판).
  */
-export function isFieldFilled(value) {
+export function isFieldFilled(value: FieldValue) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -44,13 +65,8 @@ export function isFieldFilled(value) {
   return true; // File 등 객체
 }
 
-/**
- * 단계 하나의 진행률.
- * @param {string[]} fields 해당 단계의 **필수** 필드 이름 배열(각 폼 섹션 컴포넌트가 named export)
- * @param {Record<string, unknown>} values 폼 전체 상태
- * @returns {{ filled: number, total: number, percent: number }}
- */
-export function getSectionProgress(fields, values) {
+/** 단계 하나의 진행률. */
+export function getSectionProgress(fields: string[], values: FormValues) {
   const list = Array.isArray(fields) ? fields : [];
   const total = list.length;
   const filled = list.filter((name) => isFieldFilled(values?.[name])).length;
@@ -66,18 +82,18 @@ export function getSectionProgress(fields, values) {
  * 명세 § 필수 항목 카운트가 27(중복 제거) / 28(시안 중복 포함)로 갈리는 이유가 4-8 문항 중복이며
  * (확인 항목 21에서 복제 실수로 확정), 같은 필드를 두 단계가 공유하게 되더라도 사용자가 채워야 할
  * "일의 개수"는 하나이기 때문이다. 단계별 percent 는 그 단계 자신의 목록으로만 계산한다.
- *
- * @param {{ no: number, label: string, fields: string[], id?: string }[]} sections
- * @param {Record<string, unknown>} values
  */
-export function computeProgress(sections, values) {
+export function computeProgress(
+  sections: ProgressSection[],
+  values: FormValues,
+) {
   const list = Array.isArray(sections) ? sections : [];
   const steps = list.map((section) => ({
     ...section,
     ...getSectionProgress(section.fields, values),
   }));
 
-  const requiredNames = new Set();
+  const requiredNames = new Set<string>();
   list.forEach((section) => {
     (Array.isArray(section.fields) ? section.fields : []).forEach((name) => {
       requiredNames.add(name);
@@ -106,7 +122,15 @@ const [REMAINING_HEAD, REMAINING_REST_RAW] =
 const REMAINING_UNIT = REMAINING_REST_RAW.startsWith("개") ? "개" : "";
 const REMAINING_TAIL = REMAINING_REST_RAW.slice(REMAINING_UNIT.length);
 
-export default function ProgressSidebar({ sections = [], values = {} }) {
+type ProgressSidebarProps = {
+  sections?: ProgressSection[];
+  values?: FormValues;
+};
+
+export default function ProgressSidebar({
+  sections = [],
+  values = {},
+}: ProgressSidebarProps) {
   const { steps, remaining } = computeProgress(sections, values);
 
   // 단계 배지 클릭 → 해당 폼 섹션 카드로 앵커 이동.
@@ -118,7 +142,7 @@ export default function ProgressSidebar({ sections = [], values = {} }) {
   //   ① 대상(FormSectionCard)은 다른 담당 파일이라 scroll-mt 클래스를 심을 수 없다.
   //   ② 오프셋을 sticky 와 같은 STICKY_OFFSET_REM 한 곳에서만 관리할 수 있다.
   // rem→px 환산은 루트 폰트 크기를 실측해서 한다(사용자 브라우저 글꼴 확대 설정을 존중).
-  const handleStepClick = (id) => {
+  const handleStepClick = (id?: string) => {
     if (!id || typeof window === "undefined") return;
     const target = document.getElementById(id);
     if (!target) return;

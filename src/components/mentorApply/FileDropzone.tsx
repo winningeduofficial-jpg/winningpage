@@ -35,6 +35,7 @@
 // 연결보다 앞서므로 두 뷰에서 이름이 갈리지 않는다).
 
 import { CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
+import type { ChangeEvent, DragEvent } from "react";
 import { useRef, useState } from "react";
 
 // 시안 보조 문구(§폼 명세 5-1)는 원래 "100MB 이하"였으나, Supabase 전역 업로드
@@ -63,19 +64,36 @@ const DEFAULT_MAX_SIZE_BYTES = 50 * 1024 * 1024;
 // 숨은 파일 인풋의 기본 accessible name. 특정 필드 문맥에 맞게 부모가 덮어쓸 수 있다.
 const DEFAULT_ARIA_LABEL = "재학 증빙 서류 파일 선택";
 
-function getExtension(fileName) {
+function getExtension(fileName: string) {
   const parts = String(fileName || "")
     .toLowerCase()
     .split(".");
-  return parts.length > 1 ? parts.pop() : "";
+  return parts.length > 1 ? (parts.pop() ?? "") : "";
 }
 
-function formatFileSize(bytes) {
+function formatFileSize(bytes: number) {
   if (!Number.isFinite(bytes)) return "";
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
+
+type UploadStatus = "idle" | "uploading" | "done";
+
+type FileDropzoneProps = {
+  value?: File | null;
+  onChange?: (file: File | null) => void;
+  error?: string;
+  maxSizeBytes?: number;
+  accept?: string;
+  /** 2단계 업로드 진행 상태 — 실제 업로드는 이 컴포넌트가 아니라 부모(MentorApplyForm)가
+   * 제출 시점에 수행하므로(파일 선택 즉시 업로드하지 않는 이유는 그쪽 주석 참고), 상태를
+   * 여기로 내려받아 표시만 한다. */
+  uploadStatus?: UploadStatus;
+  ariaLabel?: string;
+  id?: string;
+  className?: string;
+};
 
 export default function FileDropzone({
   value = null, // File | null
@@ -90,8 +108,8 @@ export default function FileDropzone({
   ariaLabel = DEFAULT_ARIA_LABEL,
   id = "mentor-apply-file",
   className = "",
-}) {
-  const inputRef = useRef(null);
+}: FileDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   // 부모가 내려주는 error(제출 시 검증·서버 응답)와 이 컴포넌트가 즉시 잡아내는
   // 형식/용량 오류는 출처가 달라 따로 들고 있다가 표시할 때 합친다.
@@ -107,7 +125,7 @@ export default function FileDropzone({
       .filter(Boolean)
       .join(" ") || undefined;
 
-  function acceptFile(file) {
+  function acceptFile(file: File | null) {
     if (!file) return;
 
     if (!ALLOWED_EXTENSIONS.includes(getExtension(file.name))) {
@@ -126,12 +144,12 @@ export default function FileDropzone({
     onChange?.(file);
   }
 
-  function handleInputChange(event) {
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
     // 1개만 받는다(multiple 미지정이라 사실상 1개지만 드롭 경로와 규칙을 맞춘다).
     acceptFile(event.target.files?.[0] ?? null);
   }
 
-  function handleDrop(event) {
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
     acceptFile(event.dataTransfer?.files?.[0] ?? null);

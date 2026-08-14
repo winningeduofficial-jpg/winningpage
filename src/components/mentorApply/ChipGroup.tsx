@@ -11,11 +11,14 @@
 // 따라서 아래 SELECTED_CLASS 는 시안 실측이 아니라 **폼의 다른 강조 토큰에서 파생한 추정값**이다
 // (보더 accent #0B84FD = 필수 `*`·도움말 강조와 동일, 배경 surface.badge #D1E8FF = 사이드바
 // 번호 배지 배경과 동일). 사용자 승인 전까지 잠정이며, 확정 시 이 상수 한 곳만 고치면 된다.
+import type { KeyboardEvent } from "react";
 import { useId, useRef } from "react";
+
+type ChipOption = string | { value: string; label: string };
 
 // options: string[] 또는 { value, label }[] 둘 다 허용 — src/data/mentorApply.js 의 옵션 배열
 // (전부 string[])을 그대로 넘길 수 있어야 한다. auth/SelectField.jsx:16 과 같은 규약.
-function normalizeOptions(options) {
+function normalizeOptions(options?: ChipOption[] | null) {
   return (options || []).map((option) =>
     typeof option === "string" ? { value: option, label: option } : option,
   );
@@ -31,6 +34,21 @@ const UNSELECTED_CLASS = "border-line bg-white";
 // ⚠ 파생 추정값 — 시안 근거 없음(파일 상단 주석 참고).
 const SELECTED_CLASS = "border-accent bg-surface-badge";
 
+type ChipGroupProps = {
+  name?: string;
+  options?: ChipOption[];
+  value?: string | string[];
+  onChange?: (value: string | string[]) => void;
+  /** false → 단일선택(라디오, value 는 문자열) / true → 복수선택(체크박스, value 는 배열) */
+  multiple?: boolean;
+  /** 지정하면 고정 컬럼 그리드로 배치한다. 미지정이면 flex-wrap 으로 자연 줄바꿈. */
+  columns?: number;
+  disabled?: boolean;
+  labelledBy?: string;
+  ariaLabel?: string;
+  className?: string;
+};
+
 export default function ChipGroup({
   name,
   options,
@@ -45,17 +63,17 @@ export default function ChipGroup({
   labelledBy,
   ariaLabel,
   className = "",
-}) {
+}: ChipGroupProps) {
   const reactId = useId();
   const groupName = name || reactId;
   const normalizedOptions = normalizeOptions(options);
-  const chipRefs = useRef([]);
+  const chipRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const selectedValues = multiple ? (Array.isArray(value) ? value : []) : [];
-  const isSelected = (optionValue) =>
+  const isSelected = (optionValue: string) =>
     multiple ? selectedValues.includes(optionValue) : value === optionValue;
 
-  const handleSelect = (optionValue) => {
+  const handleSelect = (optionValue: string) => {
     if (disabled) return;
 
     if (!multiple) {
@@ -76,7 +94,7 @@ export default function ChipGroup({
   );
   const tabStopIndex = focusIndex >= 0 ? focusIndex : 0;
 
-  const moveFocus = (fromIndex, delta) => {
+  const moveFocus = (fromIndex: number, delta: number) => {
     const total = normalizedOptions.length;
     if (total === 0) return;
 
@@ -86,7 +104,10 @@ export default function ChipGroup({
     handleSelect(normalizedOptions[nextIndex].value);
   };
 
-  const handleKeyDown = (event, index) => {
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
     // 체크박스 그룹(복수선택)은 각 칩이 독립 탭 스톱이라 방향키를 가로채지 않는다.
     if (multiple) return;
 

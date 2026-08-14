@@ -42,7 +42,7 @@ const DEV_ANSWER_PLACEHOLDER =
   "TODO(mentor-apply): 답변 카피 미확보 — 어드민(멘토신청 FAQ 관리)에서 채울 것";
 const PROD_ANSWER_PLACEHOLDER = "답변을 준비 중입니다.";
 
-function hasAnswer(item) {
+function hasAnswer(item: { q: string; a: string }) {
   return typeof item.a === "string" && item.a.trim() !== "";
 }
 
@@ -144,8 +144,13 @@ export default function MentorFaq() {
             규격(py-6 / 질문 18px Medium)은 다르지만, ServiceFaq 를 고치면 서비스 4종이 동시에
             회귀하므로 기존 컴포넌트 규격을 그대로 따른다(명세 § 재사용 매핑 A "수정 0").
             같은 이유로 시안의 3번째 행 배경 #F9FAFB(확인 항목 ㉖, hover 인지 강조인지 미확정)는
-            구현하지 않았고, 단일 open(확인 항목 ㉗)은 ServiceFaq 기존 동작 그대로다. */}
-        <ServiceFaq items={items} />
+            구현하지 않았고, 단일 open(확인 항목 ㉗)은 ServiceFaq 기존 동작 그대로다.
+            ⚠ ServiceFaq(다른 담당 파일, 수정 금지)의 items.a 타입은 string 이지만, 위 주석대로
+            여기서는 whitespace-pre-line span(ReactNode)을 그대로 넘긴다 — React 는 문자열이든
+            노드든 동일하게 렌더하므로 런타임 동작은 그대로다. TS 전환으로 새로 드러난 타입
+            불일치일 뿐 로직 변경이 아니라서, 다른 도메인 컴포넌트를 고치는 대신 여기서만
+            캐스팅한다. */}
+        <ServiceFaq items={items as unknown as { q: string; a: string }[]} />
       </div>
     </ServiceSection>
   );

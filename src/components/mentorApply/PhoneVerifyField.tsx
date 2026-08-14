@@ -56,10 +56,33 @@ const INPUT_CLASS =
 const ACTION_BUTTON_CLASS =
   "flex h-[2.125rem] min-w-[5.875rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] border border-accent bg-transparent px-[0.5rem] py-[0.375rem] text-[0.875rem] font-semibold leading-[1.4] text-accent transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-line disabled:text-ink-sub disabled:hover:opacity-100";
 
-const MESSAGE_TEXT_CLASS = {
+const MESSAGE_TEXT_CLASS: Record<string, string> = {
   default: "text-ink-sub",
   error: "text-error",
   success: "text-accent",
+};
+
+type MessageStatus = "default" | "error" | "success";
+
+// phoneVerification.js(checkJs, JSDoc @returns)의 반환 유니온을 그대로 옮긴 로컬 타입.
+// 크로스 파일 JSDoc 유니온은 `!result.ok` discriminant narrowing 이 적용되지 않아
+// (result 가 계속 전체 유니온으로 남아 `result.reason`/`result.message` 접근이 막힌다) 이
+// 파일 안에서 다시 선언하고 캐스팅한다 — phoneVerification.js 는 담당 파일이 아니다.
+type SendPhoneCodeResult =
+  | { ok: true; expiresIn: number; cooldown: number; dryRun: boolean }
+  | { ok: false; reason: string; message: string; retryAfter?: number };
+
+type VerifyPhoneCodeResult =
+  | { ok: true }
+  | { ok: false; reason: string; message: string; remainingAttempts?: number };
+
+type PhoneVerifyFieldProps = {
+  value?: string; // 휴대폰 번호(원문 입력값). 정규화는 전송 직전에 한다.
+  onChange?: (value: string) => void;
+  verified?: boolean;
+  onVerified?: (normalizedPhone: string) => void;
+  error?: string;
+  id?: string;
 };
 
 export default function PhoneVerifyField({
@@ -69,12 +92,18 @@ export default function PhoneVerifyField({
   onVerified,
   error,
   id = "mentor-apply-phone",
-}) {
+}: PhoneVerifyFieldProps) {
   const [code, setCode] = useState("");
   const [requested, setRequested] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [message, setMessage] = useState({ text: "", status: "default" });
+  const [message, setMessage] = useState<{
+    text: string;
+    status: MessageStatus;
+  }>({
+    text: "",
+    status: "default",
+  });
 
   const cooldown = useCooldown(RESEND_COOLDOWN_SECONDS);
   const normalizedPhone = normalizePhone(value);
@@ -106,9 +135,15 @@ export default function PhoneVerifyField({
     setMessage({ text: "", status: "default" });
 
     try {
-      const result = await sendPhoneCode(normalizedPhone, PHONE_PURPOSE);
+      const result = (await sendPhoneCode(
+        normalizedPhone,
+        PHONE_PURPOSE,
+      )) as SendPhoneCodeResult;
 
-      if (!result.ok) {
+      // ⚠ `=== false` — `!result.ok` 로 쓰면 SendPhoneCodeResult(리터럴 유니온) discriminant
+      // narrowing 이 깨져(TS가 반대 분기로 좁혀 result.reason/message 를 "존재하지 않음"으로
+      // 오판) 아래 result.retryAfter/reason/message 접근에서 컴파일 에러가 난다. 동작은 동일.
+      if (result.ok === false) {
         // 서버가 남은 시간을 알려준 경우에만 쿨다운을 돌린다(ParentForm.jsx:164 동일).
         if (result.retryAfter) cooldown.start();
 
@@ -148,9 +183,13 @@ export default function PhoneVerifyField({
     setVerifying(true);
 
     try {
-      const result = await verifyPhoneCode(normalizedPhone, code);
+      const result = (await verifyPhoneCode(
+        normalizedPhone,
+        code,
+      )) as VerifyPhoneCodeResult;
 
-      if (!result.ok) {
+      // ⚠ `=== false` — 위 handleSend 와 같은 이유(`!result.ok` narrowing 실패)로 바꿨다.
+      if (result.ok === false) {
         setMessage({ text: result.message, status: "error" });
         return;
       }

@@ -14,6 +14,7 @@
 //   ② 4-8 `효과가 없었던 방법 한 가지` 는 시안에 2회 나오지만(3386:4505 / 3386:4513) 라벨·
 //      설명·placeholder 가 완전히 같은 **복제 실수로 확정**됐다(확인 항목 ⑳). 1개만 만든다.
 //   ③ 텍스트에어리어에 `maxLength` + `showCounter` 를 켰다. 아래 MAX_LENGTHS 주석 참고.
+import type { ReactNode } from "react";
 import {
   AVAILABLE_TIMESLOT_OPTIONS,
   CONSULT_FIELD_OPTIONS,
@@ -98,7 +99,7 @@ const PLACEHOLDER = {
 };
 
 // 도움말 내 강조는 시안에서 `#0B84FD`(accent) 동일 크기 인라인 스팬이다(§6-6).
-function Accent({ children }) {
+function Accent({ children }: { children?: ReactNode }) {
   return <span className="text-accent">{children}</span>;
 }
 
@@ -109,13 +110,35 @@ const ROWS = {
   strengths: 6,
 };
 
+// 값이 배열(칩 복수선택 2종)/문자열(그 외)로 갈리는 필드 이름이 섞여 있다.
+type CompetencyValues = {
+  consult_fields?: string[];
+  strongest_field_reason?: string;
+  consult_grades?: string[];
+  weekly_capacity?: string;
+  available_timeslot?: string;
+  motivation?: string;
+  strengths?: string;
+  ineffective_method?: string;
+  situation_answer?: string;
+  tutoring_experience?: string;
+};
+
+type FormSectionCompetencyProps = {
+  values?: CompetencyValues;
+  errors?: Record<string, string>;
+  onChange?: (name: string, value: string | string[]) => void;
+  id?: string;
+};
+
 export default function FormSectionCompetency({
   values = {},
   errors = {},
   onChange, // (name, value) => void
   id = COMPETENCY_SECTION_ID,
-}) {
-  const handle = (name) => (value) => onChange?.(name, value);
+}: FormSectionCompetencyProps) {
+  const handle = (name: string) => (value: string | string[]) =>
+    onChange?.(name, value);
 
   return (
     <FormSectionCard
