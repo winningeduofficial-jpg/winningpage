@@ -1,3 +1,4 @@
+import type { FormEvent } from "react";
 import { useState } from "react";
 import PrimaryButton from "../../auth/PrimaryButton";
 import InlineCard from "../chat/InlineCard";
@@ -42,21 +43,25 @@ const SUBMIT_LABEL = "주제 추천받기";
 
 const FIELD_ID = "performance-guide-freetext";
 
-/**
- * @param {(freetext: string) => void} onSubmit 검증 통과 후 호출. 앞뒤 공백은 제거된 값이다.
- * @param {boolean} [submitting] true면 버튼이 로딩 상태로 잠기고 입력이 막힌다.
- * @param {string|null} [submitError] 제출 실패 메시지(서버 응답 등).
- */
+type ManualInfoFormProps = {
+  /** 검증 통과 후 호출. 앞뒤 공백은 제거된 값이다. */
+  onSubmit?: (freetext: string) => void;
+  /** true면 버튼이 로딩 상태로 잠기고 입력이 막힌다. */
+  submitting?: boolean;
+  /** 제출 실패 메시지(서버 응답 등). */
+  submitError?: string | null;
+};
+
 export default function ManualInfoForm({
   onSubmit,
   submitting = false,
   submitError = null,
-}) {
+}: ManualInfoFormProps) {
   const [value, setValue] = useState("");
 
   const isValid = value.trim() !== "";
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!isValid || submitting) return;
     onSubmit?.(value.trim());

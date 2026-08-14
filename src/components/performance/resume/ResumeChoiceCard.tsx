@@ -15,7 +15,13 @@ const CONTINUE_LABEL = "이어서 하기";
 const RESTART_LABEL = "새로 시작하기";
 const BUSY_LABEL = "불러오는 중…";
 
-function ChoiceButton({ label, onClick, disabled }) {
+type ChoiceButtonProps = {
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+};
+
+function ChoiceButton({ label, onClick, disabled }: ChoiceButtonProps) {
   return (
     <button
       type="button"
@@ -34,20 +40,23 @@ function ChoiceButton({ label, onClick, disabled }) {
   );
 }
 
-/**
- * @param {() => void} onContinue `이어서 하기`.
- * @param {() => void} onRestart `새로 시작하기`.
- * @param {boolean} [busy] `이어서 하기` 조회(§8.6 세션 상세 GET) 진행 중. 두 버튼을 함께
- *   잠근다 — `새로 시작하기`를 동시에 누르면 조회 결과 적용과 리셋이 경합할 수 있다.
- * @param {string|null} [error] 조회 실패 안내. 실패해도 이 카드는 그대로 남아 재시도할 수
- *   있다(§5.20 인라인 실패 패턴과 같은 판단 — 모달로 가리지 않는다).
- */
+type ResumeChoiceCardProps = {
+  /** `이어서 하기`. */
+  onContinue?: () => void;
+  /** `새로 시작하기`. */
+  onRestart?: () => void;
+  /** `이어서 하기` 조회(§8.6 세션 상세 GET) 진행 중. 두 버튼을 함께 잠근다. */
+  busy?: boolean;
+  /** 조회 실패 안내. */
+  error?: string | null;
+};
+
 export default function ResumeChoiceCard({
   onContinue,
   onRestart,
   busy = false,
   error = null,
-}) {
+}: ResumeChoiceCardProps) {
   return (
     <div className="flex flex-col gap-3 pt-1">
       <div className="flex flex-wrap gap-4">

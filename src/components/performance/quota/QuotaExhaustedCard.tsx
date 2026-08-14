@@ -70,7 +70,7 @@ const PURCHASE_ARIA_LABEL = `${PURCHASE_LABEL} (새 창)`;
  * `planEndsAt`(ISO)을 `2026. 8. 11.` 형태로. 파싱할 수 없으면 아무것도 렌더하지 않는다 —
  * 날짜 자리에 원문 문자열을 그대로 흘리면 사용자에게 의미 없는 값이 보인다.
  */
-function formatPlanEndsAt(value) {
+function formatPlanEndsAt(value?: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -87,7 +87,15 @@ function formatPlanEndsAt(value) {
  *   "이용권이 끝난 것"과 "회차만 소진된 것"을 구분할 수 없다. 값이 없으면 줄 자체를 뺀다.
  * @param {() => void} [onDismiss] `나중에 하기`. 카드만 닫고 STEP1~2 입력 상태는 그대로 둔다.
  */
-export default function QuotaExhaustedCard({ planEndsAt = null, onDismiss }) {
+type QuotaExhaustedCardProps = {
+  planEndsAt?: string | null;
+  onDismiss?: () => void;
+};
+
+export default function QuotaExhaustedCard({
+  planEndsAt = null,
+  onDismiss,
+}: QuotaExhaustedCardProps) {
   const endsAtText = formatPlanEndsAt(planEndsAt);
 
   return (

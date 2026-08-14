@@ -1,4 +1,4 @@
-import TopicCard from "./TopicCard";
+import TopicCard, { type Topic } from "./TopicCard";
 
 // STEP3 추천 주제 3카드 묶음 + `다른 주제 다시 추천` — docs/수행평가-상세-명세.md §5.10
 // (`3754:3629`/`3754:3746` 실측).
@@ -32,19 +32,25 @@ import TopicCard from "./TopicCard";
 //   켜서 같은 안내로 수렴시킨다.
 //   **재추천은 회차를 깎지 않는다**(§9.3 — RPC가 `already_charged`를 돌려주는 것이 정상
 //   경로다). 그래서 이 버튼 근처에 회차 소모 경고를 붙이지 않는다.
-/**
- * @param {Array<{id: string, title: string, subtitle: string, tags: string[]}>} topics
- *   현재 라운드의 주제 3건.
- * @param {number} [round] 현재 라운드(1-based).
- * @param {number} [maxRounds] 라운드 상한. 기본 3(§9.3).
- * @param {(topic: object) => void} [onDetail] 카드 클릭 → 상세 모달(P9). `onSelect`는 없다(§11.1 Q48).
- * @param {() => void} [onRegenerate] `다른 주제 다시 추천`.
- * @param {boolean} [regenerating] 재추천 요청 진행 중. 호출부(`PerformanceChatPage`)가
- *   `topicPhase`를 `'loading'`으로 바꾸는 대신 이 플래그를 켠다 — 그래야 카드 3장과 이
- *   버튼이 타임라인에 그대로 남아 **포커스가 유지되고**, 로딩 버블은 그 아래에 덧붙는다.
- * @param {boolean} [roundLimited] 서버가 `409 ROUND_LIMIT`을 돌려준 뒤 켜진다.
- * @param {string|null} [error] 재추천 실패 안내(모델 원문이 아니라 사람이 읽을 문구).
- */
+type TopicCardListProps = {
+  /** 현재 라운드의 주제 3건. */
+  topics?: Topic[];
+  /** 현재 라운드(1-based). */
+  round?: number;
+  /** 라운드 상한. 기본 3(§9.3). */
+  maxRounds?: number;
+  /** 카드 클릭 → 상세 모달(P9). `onSelect`는 없다(§11.1 Q48). */
+  onDetail?: (topic: Topic) => void;
+  /** `다른 주제 다시 추천`. */
+  onRegenerate?: () => void;
+  /** 재추천 요청 진행 중. */
+  regenerating?: boolean;
+  /** 서버가 `409 ROUND_LIMIT`을 돌려준 뒤 켜진다. */
+  roundLimited?: boolean;
+  /** 재추천 실패 안내(모델 원문이 아니라 사람이 읽을 문구). */
+  error?: string | null;
+};
+
 export default function TopicCardList({
   topics = [],
   round = 1,
@@ -54,7 +60,7 @@ export default function TopicCardList({
   regenerating = false,
   roundLimited = false,
   error = null,
-}) {
+}: TopicCardListProps) {
   const limitReached = roundLimited || round >= maxRounds;
 
   // 버튼을 잠그는 두 사유. **`disabled` 속성 대신 `aria-disabled`를 쓴다** — 포커스를 가진

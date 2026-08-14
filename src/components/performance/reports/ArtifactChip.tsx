@@ -9,10 +9,19 @@
 // `accent` 토큰은 배경/보더/링 등 텍스트 외 용도에도 전역 공유돼 토큰 자체를 바꾸지
 // 않고 이 칩 텍스트에만 국소 적용한다(PerformanceReportSurface.jsx 링크색과 동일 근거).
 //
-// @param {string} label 칩 라벨(호출부가 보유/미보유 문구를 이미 골라 넘긴다).
-// @param {boolean} available
-// @param {() => void} [onClick] `available`일 때만 호출된다.
-export default function ArtifactChip({ label, available, onClick }) {
+type ArtifactChipProps = {
+  /** 칩 라벨(호출부가 보유/미보유 문구를 이미 골라 넘긴다). */
+  label: string;
+  available: boolean;
+  /** `available`일 때만 호출된다. */
+  onClick?: () => void;
+};
+
+export default function ArtifactChip({
+  label,
+  available,
+  onClick,
+}: ArtifactChipProps) {
   return (
     <button
       type="button"

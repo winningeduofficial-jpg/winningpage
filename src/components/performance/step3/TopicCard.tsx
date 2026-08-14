@@ -1,6 +1,14 @@
 import { withDedupedKeys } from "../../../lib/reactKeys";
 import MetaTag from "./MetaTag";
 
+export type Topic = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  tags?: string[];
+  detail?: Array<{ id?: string; label: string; text: string }>;
+};
+
 // STEP3 추천 주제 카드 1장 — docs/수행평가-상세-명세.md §5.10(`3754:3629`/`3754:3746` 실측).
 //
 // ── 실측 (두 노드 좌표까지 동일)
@@ -61,7 +69,21 @@ import MetaTag from "./MetaTag";
  *   여는 **유일한** 진입점이다(모달 자체는 P9).
  * @param {string} [className]
  */
-export default function TopicCard({ index, topic, onDetail, className = "" }) {
+type TopicCardProps = {
+  /** 1-based 순번. 배지 문구 `추천 주제 {index}`에 그대로 들어간다. */
+  index: number;
+  topic: Topic;
+  /** 카드 클릭/Enter/Space 시 호출. 상세 모달을 여는 유일한 진입점이다. */
+  onDetail?: (topic: Topic) => void;
+  className?: string;
+};
+
+export default function TopicCard({
+  index,
+  topic,
+  onDetail,
+  className = "",
+}: TopicCardProps) {
   if (!topic) return null;
 
   const tags = Array.isArray(topic.tags) ? topic.tags.filter(Boolean) : [];

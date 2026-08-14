@@ -1,4 +1,18 @@
+import type { ReactNode } from "react";
 import AiAvatar from "./AiAvatar";
+
+type AiMessageProps = {
+  /** 발신자 라벨. 전 노드 공통 `위닝 수행평가 서포터`. */
+  label?: string;
+  /** 말풍선 본문. 생략하면 말풍선 자체를 렌더하지 않는다. */
+  body?: string;
+  /** 말풍선 뒤에 이어 붙는 인라인 카드. */
+  children?: ReactNode;
+  /** 말풍선 max-width 클래스. 기본 `max-w-perf-bubble`(596px). */
+  bubbleMaxWidthClassName?: string;
+  /** 루트(아바타+컬럼 행)에 추가할 클래스. */
+  className?: string;
+};
 
 // AI 말풍선 프리미티브 — docs/수행평가-상세-명세.md §3.1(셸 관례) / §5.3(예외) / §5.5·§5.6·§5.8
 // (말풍선 뒤에 폼·업로드 카드가 붙는 실제 배치) / §7.1(색) / §7.2(타이포).
@@ -39,7 +53,7 @@ export default function AiMessage({
   children,
   bubbleMaxWidthClassName = "max-w-perf-bubble",
   className = "",
-}) {
+}: AiMessageProps) {
   return (
     <div className={["flex items-start gap-5", className].join(" ")}>
       <AiAvatar />

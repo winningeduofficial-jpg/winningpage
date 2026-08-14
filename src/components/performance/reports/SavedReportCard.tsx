@@ -12,7 +12,7 @@ import ArtifactChip from "./ArtifactChip";
 // 원문, `index.html:2910-2913`과 일치) — 이 컴포넌트가 보유/미보유에 따라 라벨을 고른다.
 
 /** `2026. 07. 24` 포맷(§5.18 문구 원문). */
-export function formatSavedAt(iso) {
+export function formatSavedAt(iso?: string | null) {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -22,20 +22,32 @@ export function formatSavedAt(iso) {
   return `${y}. ${m}. ${d}`;
 }
 
-const ARTIFACT_LABELS = {
+type ArtifactType = "design" | "evaluation" | "final";
+
+const ARTIFACT_LABELS: Record<
+  ArtifactType,
+  { available: string; unavailable: string }
+> = {
   design: { available: "설계 리포트", unavailable: "설계 리포트 없음" },
   evaluation: { available: "평가 리포트", unavailable: "평가 리포트 없음" },
   final: { available: "최종 제출본", unavailable: "최종 제출본 없음" },
 };
 
-/**
- * @param {string} title `topicTitle` — 없으면 플레이스홀더 문구로 대체한다(빈 제목 링크 방지).
- * @param {string} meta `고1 1학기 · 수학 / 공통수학 1 · 의학` 조합(호출부가 조립해 넘긴다).
- * @param {string} savedAt `updatedAt`(ISO).
- * @param {string} sessionId 상세 라우트 대상.
- * @param {{design: {available: boolean, reportId: string|null}, evaluation: {...}, final: {...}}} artifacts
- * @param {(type: 'design'|'evaluation'|'final', reportId: string) => void} onArtifactClick
- */
+type ArtifactState = { available: boolean; reportId: string | null };
+
+type SavedReportCardProps = {
+  /** `topicTitle` — 없으면 플레이스홀더 문구로 대체한다(빈 제목 링크 방지). */
+  title?: string;
+  /** `고1 1학기 · 수학 / 공통수학 1 · 의학` 조합(호출부가 조립해 넘긴다). */
+  meta?: string;
+  /** `updatedAt`(ISO). */
+  savedAt?: string | null;
+  /** 상세 라우트 대상. */
+  sessionId: string;
+  artifacts?: Partial<Record<ArtifactType, ArtifactState>>;
+  onArtifactClick?: (type: ArtifactType, reportId: string | null) => void;
+};
+
 export default function SavedReportCard({
   title,
   meta,
@@ -43,7 +55,7 @@ export default function SavedReportCard({
   sessionId,
   artifacts,
   onArtifactClick,
-}) {
+}: SavedReportCardProps) {
   return (
     <div className="flex h-[11.25rem] w-[50rem] flex-col justify-between rounded-[1.25rem] border border-performance-line bg-white p-8">
       <div className="min-w-0">
@@ -59,7 +71,7 @@ export default function SavedReportCard({
       </div>
 
       <div className="flex gap-3">
-        {["design", "evaluation", "final"].map((type) => {
+        {(["design", "evaluation", "final"] as const).map((type) => {
           const artifact = artifacts?.[type] || {
             available: false,
             reportId: null,

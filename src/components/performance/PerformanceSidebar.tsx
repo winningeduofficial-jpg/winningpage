@@ -40,7 +40,10 @@ export const PERFORMANCE_STEPS = [
 
 // §3.3 3상태. 시안 자체는 활성 pill 유무 2상태뿐이라 완료/미도래가 구분되지 않는데,
 // §3.3이 그 한계를 3상태로 확장하는 것을 정본으로 규정했다(배지 색·라벨 굵기·pill 표).
-const STEP_STATE_STYLES = {
+const STEP_STATE_STYLES: Record<
+  string,
+  { badge: string; label: string; pill: boolean }
+> = {
   // 완료: 배지 #d1e8ff(surface-badge) + 체크, 라벨 #525252 w500, pill 없음.
   done: {
     badge: "bg-surface-badge text-ink",
@@ -83,20 +86,24 @@ function CheckIcon() {
   );
 }
 
-/**
- * @param {string|null} [profileName] 로그인 학생 이름 — `bootstrap.profile.name`.
- * @param {string|null} [schoolType] 학교유형 — `profiles.school_type`(§11 Q61-ⓔ 결정).
- * @param {string|null} [gradeLabel] 학년 — STEP1 세션 입력값(`performance_sessions.grade_label`).
- * @param {Array<'done'|'current'|'todo'>} [stepStates] 5스텝 상태. 길이 5를 기대하며 모자란
- *   자리·모르는 값은 `todo`로 떨어진다. 파생은 호출부(`deriveStepStates.js` + `PerformanceChatPage`)
- *   책임이다.
- */
+type PerformanceSidebarProps = {
+  /** 로그인 학생 이름 — `bootstrap.profile.name`. */
+  profileName?: string | null;
+  /** 학교유형 — `profiles.school_type`(§11 Q61-ⓔ 결정). */
+  schoolType?: string | null;
+  /** 학년 — STEP1 세션 입력값(`performance_sessions.grade_label`). */
+  gradeLabel?: string | null;
+  /** 5스텝 상태. 길이 5를 기대하며 모자란 자리·모르는 값은 `todo`로 떨어진다. 파생은
+   * 호출부(`deriveStepStates.js` + `PerformanceChatPage`) 책임이다. */
+  stepStates?: Array<"done" | "current" | "todo">;
+};
+
 export default function PerformanceSidebar({
   profileName = null,
   schoolType = null,
   gradeLabel = null,
-  stepStates = DEFAULT_STEP_STATES,
-}) {
+  stepStates = DEFAULT_STEP_STATES as Array<"done" | "current" | "todo">,
+}: PerformanceSidebarProps) {
   const { pathname } = useLocation();
   // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.

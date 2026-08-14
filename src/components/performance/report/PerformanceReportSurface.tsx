@@ -57,12 +57,19 @@
 // 갈리면 곤란한 최소 단위는 ⓐ 자료 카드 1장(`admission-special-block`) ⓑ 키-값 1행
 // (`admission-text-line`) ⓒ 목록 항목 1개다. 섹션 라벨은 `break-after: avoid`로 본문과
 // 붙여 둔다(라벨만 페이지 끝에 남는 고아 방지).
-/**
- * @param {import('react').ReactNode} children 블록 뷰(`renderBlock`) 출력 또는 그것을 감싼
- *   `SectionedReportView`.
- * @param {string} [className] 래퍼에 추가할 클래스.
- */
-export default function PerformanceReportSurface({ children, className = "" }) {
+import type { ReactNode } from "react";
+
+type PerformanceReportSurfaceProps = {
+  /** 블록 뷰(`renderBlock`) 출력 또는 그것을 감싼 `SectionedReportView`. */
+  children?: ReactNode;
+  /** 래퍼에 추가할 클래스. */
+  className?: string;
+};
+
+export default function PerformanceReportSurface({
+  children,
+  className = "",
+}: PerformanceReportSurfaceProps) {
   return (
     <div
       className={["performance-report-surface", className]

@@ -1,5 +1,15 @@
+import type { HTMLAttributes } from "react";
 import { forwardRef } from "react";
 import AiAvatar from "./AiAvatar";
+
+type AiLoadingBubbleProps = HTMLAttributes<HTMLDivElement> & {
+  /** 로딩 제목. 문구 자체는 다음 단계(P7 이후)에서 이식한다 — 이 컴포넌트는 형식만 만든다. */
+  title?: string;
+  /** 로딩 보조문. */
+  subtitle?: string;
+  /** 발신자 라벨. `AiMessage`와 동일 기본값. */
+  label?: string;
+};
 
 // AI 로딩 카드 프리미티브 — docs/수행평가-상세-명세.md §5.3(정본 제안: "아이콘 1.5rem +
 // 제목/보조 2줄") / §5.9(`3754:3493`) / §5.12(`3754:3868`) / §5.15(`3754:4248`) 3개 노드
@@ -35,48 +45,49 @@ import AiAvatar from "./AiAvatar";
 // 통째로 언마운트돼 `useModalBehavior`의 트리거 복귀가 도달 불가하므로 호출부가 새 포커스
 // 목적지를 지정해야 한다). `ChatTimeline`이 메시지에 `focusRef`가 있으면 여기로 전달하고
 // `tabIndex={-1}`도 함께 준다(포커스 트랩 대상은 아니고 프로그램적 포커스 전용).
-/**
- * @param {string} title 로딩 제목. 문구 자체는 다음 단계(P7 이후)에서 이식한다 — 이 컴포넌트는
- *   형식만 만든다.
- * @param {string} subtitle 로딩 보조문.
- * @param {string} [label] 발신자 라벨. `AiMessage`와 동일 기본값.
- * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
- */
-const AiLoadingBubble = forwardRef(function AiLoadingBubble(
-  { title, subtitle, label = "위닝 수행평가 서포터", className = "", ...rest },
-  ref,
-) {
-  return (
-    <div
-      ref={ref}
-      className={["flex items-start gap-5", className].join(" ")}
-      {...rest}
-    >
-      <AiAvatar />
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
-        <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
-          {label}
-        </span>
-        <div className="flex w-full max-w-perf-bubble items-center gap-[1.125rem] rounded-2xl bg-performance-bubble py-5 pl-[1.125rem] pr-5">
-          <span
-            aria-hidden="true"
-            className="flex h-6 w-6 flex-shrink-0 animate-pulse items-center justify-center motion-reduce:animate-none"
-          >
-            <LoadingSparkle />
+const AiLoadingBubble = forwardRef<HTMLDivElement, AiLoadingBubbleProps>(
+  function AiLoadingBubble(
+    {
+      title,
+      subtitle,
+      label = "위닝 수행평가 서포터",
+      className = "",
+      ...rest
+    },
+    ref,
+  ) {
+    return (
+      <div
+        ref={ref}
+        className={["flex items-start gap-5", className].join(" ")}
+        {...rest}
+      >
+        <AiAvatar />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
+          <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
+            {label}
           </span>
-          <span className="flex min-w-0 flex-col gap-1">
-            <span className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
-              {title}
+          <div className="flex w-full max-w-perf-bubble items-center gap-[1.125rem] rounded-2xl bg-performance-bubble py-5 pl-[1.125rem] pr-5">
+            <span
+              aria-hidden="true"
+              className="flex h-6 w-6 flex-shrink-0 animate-pulse items-center justify-center motion-reduce:animate-none"
+            >
+              <LoadingSparkle />
             </span>
-            <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
-              {subtitle}
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+                {title}
+              </span>
+              <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+                {subtitle}
+              </span>
             </span>
-          </span>
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
 export default AiLoadingBubble;
 

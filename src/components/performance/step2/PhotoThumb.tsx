@@ -16,16 +16,20 @@ import { X } from "lucide-react";
 //    구현 근거는 외부 앱의 같은 자리 UI(`suhaengpyeong/index.html:1571-1574`
 //    `.image-thumb-remove` ✕ 버튼)뿐이며, 색·치수·위치는 시안이 없어 이 파일이
 //    임의로 정한 값이다(우상단 1.25rem 원형, 반투명 먹). 시안이 나오면 교체할 것.
-/**
- * @param {string} src 로컬 미리보기 URL(`URL.createObjectURL`) 또는 서명 URL
- * @param {string} [alt] 대체 텍스트. 안내문 내용은 알 수 없으므로 순번으로 구분한다.
- * @param {() => void} [onRemove] 생략하면 삭제 버튼을 그리지 않는다(업로드 중 등).
- */
+type PhotoThumbProps = {
+  /** 로컬 미리보기 URL(`URL.createObjectURL`) 또는 서명 URL */
+  src: string;
+  /** 대체 텍스트. 안내문 내용은 알 수 없으므로 순번으로 구분한다. */
+  alt?: string;
+  /** 생략하면 삭제 버튼을 그리지 않는다(업로드 중 등). */
+  onRemove?: () => void;
+};
+
 export default function PhotoThumb({
   src,
   alt = "첨부한 안내문 사진",
   onRemove,
-}) {
+}: PhotoThumbProps) {
   return (
     <div className="relative h-[6.25rem] w-[5.625rem] shrink-0 overflow-hidden rounded-lg border border-performance-line bg-performance-bubble">
       <img src={src} alt={alt} className="h-full w-full object-cover" />

@@ -31,20 +31,33 @@ const MODAL_TITLE = "통합 설계 리포트";
 const PRINT_LABEL = "PDF로 저장 / 인쇄";
 const CLOSE_LABEL = "창 닫고 작성하기";
 
-/**
- * @param {boolean} open
- * @param {{sections: Array<{id?: string, label: string, blocks?: object[], text?: string}>}} [report]
- *   `design-report` 응답. 섹션 순서는 서버가 `DESIGN_REPORT_SECTIONS`로 이미 정렬해 내려준다
- *   (`api/performance/design-report.js buildSections`) — 클라이언트는 다시 정렬하지 않는다.
- * @param {string} [topicTitle] 확정한 주제 제목. 헤더 부제로 쓴다.
- * @param {() => void} onClose ESC·딤 클릭·`창 닫고 작성하기` 공통 핸들러.
- */
+type DesignReportSection = {
+  id?: string;
+  label: string;
+  blocks?: Record<string, unknown>[];
+  text?: string;
+};
+
+type DesignReport = {
+  sections: DesignReportSection[];
+};
+
+type DesignReportModalProps = {
+  open: boolean;
+  /** `design-report` 응답. 섹션 순서는 서버가 `DESIGN_REPORT_SECTIONS`로 이미 정렬해 내려준다. */
+  report?: DesignReport | null;
+  /** 확정한 주제 제목. 헤더 부제로 쓴다. */
+  topicTitle?: string;
+  /** ESC·딤 클릭·`창 닫고 작성하기` 공통 핸들러. */
+  onClose: () => void;
+};
+
 export default function DesignReportModal({
   open,
   report,
   topicTitle,
   onClose,
-}) {
+}: DesignReportModalProps) {
   // `open`과 `report`를 한 표현식에서 파생시킨다 — 훅 입력과 렌더 조건이 갈리면
   // `open=true, report=null` 조합에서 body 스크롤이 잠기고 ESC 리스너가 붙는데 아무것도
   // 렌더되지 않는 무음 실패에 빠진다(`ReportModalShell` 호출부 계약).

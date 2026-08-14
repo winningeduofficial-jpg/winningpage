@@ -3,6 +3,7 @@ import { useModalBehavior } from "../../../hooks/useModalBehavior";
 import SectionedReportView, {
   getVisibleSections,
 } from "../report/SectionedReportView";
+import type { Topic } from "./TopicCard";
 
 // STEP3 주제 상세 모달 — docs/수행평가-상세-명세.md §5.11(`3754:4872` 실측) / §10.2 P9
 // 「범용 모달(ESC/딤/포커스 트랩), `SectionedReportView`, 6섹션 렌더, 확정 버튼은 모달
@@ -27,19 +28,23 @@ import SectionedReportView, {
 // **접근성 배경 차단**: `aria-modal="true"` 하나에만 의존한다(goal `AppModal`과 같은 저장소
 // 관례) — 이 컴포넌트는 앱 루트에 대한 참조가 없는 저수준 모달이라 형제 트리에 `inert`를
 // 직접 걸 수 없고, 새 인프라(포털+루트 ref)를 이번 슬라이스에서 만들지 않는다.
-/**
- * @param {boolean} open
- * @param {{id: string, title: string, detail: Array<{id?: string, label: string, text: string}>}} [topic]
- *   `recommend-topics` 응답의 주제 1건. `detail`은 서버가 `TOPIC_DETAIL_SECTIONS` 순서로
- *   이미 정렬해 내려준다(`api/performance/recommend-topics.js` `buildDetail`) — 클라이언트는
- *   순서를 다시 정하지 않고 받은 그대로 렌더한다.
- * @param {() => void} onClose ESC·딤 클릭·`다른 주제 보기` 공통 핸들러. 모달을 닫고 카드
- *   목록으로 복귀시킨다.
- * @param {(topic: object) => void} [onConfirm] `이 주제로 확정하기` 클릭 시 호출. **여기서
- *   확정 API를 부르지 않는다** — 위 주석 참고.
- */
-export default function TopicDetailModal({ open, topic, onClose, onConfirm }) {
-  const panelRef = useRef(null);
+type TopicDetailModalProps = {
+  open: boolean;
+  /** `recommend-topics` 응답의 주제 1건. */
+  topic?: Topic | null;
+  /** ESC·딤 클릭·`다른 주제 보기` 공통 핸들러. 모달을 닫고 카드 목록으로 복귀시킨다. */
+  onClose: () => void;
+  /** `이 주제로 확정하기` 클릭 시 호출. 여기서 확정 API를 부르지 않는다. */
+  onConfirm?: (topic: Topic) => void;
+};
+
+export default function TopicDetailModal({
+  open,
+  topic,
+  onClose,
+  onConfirm,
+}: TopicDetailModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   // `open`과 `topic`을 한 표현식에서 파생시킨다 — 훅 입력과 렌더 조건이 따로 놀면
