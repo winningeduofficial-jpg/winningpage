@@ -1,4 +1,15 @@
+import type { KeyboardEvent } from "react";
 import { useRef } from "react";
+
+type GoalTab = { value: string; label: string };
+
+type GoalTabsProps = {
+  tabs: GoalTab[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  gap?: string;
+};
 
 // 목표관리 앱 텍스트 탭 — docs/figma-goal/00-INDEX.md §5-4 (표에 별도 행 없음, part-11 §213/
 // part-13 §65 실측). 사용처 2곳:
@@ -16,15 +27,15 @@ export default function GoalTabs({
   onChange,
   ariaLabel,
   gap = "2rem",
-}) {
-  const tabRefs = useRef([]);
+}: GoalTabsProps) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const focusTab = (index) => {
+  const focusTab = (index: number) => {
     const el = tabRefs.current[index];
     if (el) el.focus();
   };
 
-  const handleKeyDown = (event, index) => {
+  const handleKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % tabs.length;

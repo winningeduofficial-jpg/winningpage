@@ -4,7 +4,7 @@
 // 그대로 채택했다. 15일 이상 톤은 2026-08-13 확정으로 파랑 → 회색(neutral)으로 바꿨다
 // (중요일정 D 백엔드 배선 UoW, 팀장 확정 사항) — D-7 이내 빨강 · D-14 이내 주황은 그대로다.
 // 정확한 HEX는 변수 미연결이라 근사값(추정).
-function tierOf(dday) {
+function tierOf(dday: unknown) {
   const n = Number(String(dday).replace(/^D-?/i, ""));
   if (Number.isNaN(n)) return "gray";
   if (n <= 7) return "red";
@@ -12,13 +12,17 @@ function tierOf(dday) {
   return "gray";
 }
 
-const TONE_CLASS = {
+const TONE_CLASS: Record<string, string> = {
   red: "bg-[#FCE4E4] text-[#D14343]",
   amber: "bg-[#FDECD2] text-[#B9740D]",
   gray: "bg-[#EDEDED] text-[#6B6B6B]",
 };
 
-export default function GoalDdayBadge({ dday }) {
+type GoalDdayBadgeProps = {
+  dday?: string | number | null;
+};
+
+export default function GoalDdayBadge({ dday }: GoalDdayBadgeProps) {
   const toneClass = TONE_CLASS[tierOf(dday)];
   return (
     <span

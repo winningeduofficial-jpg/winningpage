@@ -1,4 +1,20 @@
+import type { ChangeEventHandler, ReactNode } from "react";
 import { useId } from "react";
+
+type ModalFieldOption = { value: string; label: string };
+
+type ModalFieldProps = {
+  label: ReactNode;
+  variant?: "text" | "number" | "select" | "date";
+  value?: string | number;
+  onChange?: ChangeEventHandler<HTMLInputElement | HTMLSelectElement>;
+  placeholder?: string;
+  suffix?: ReactNode;
+  options?: ModalFieldOption[];
+  required?: boolean;
+  className?: string;
+  [key: string]: unknown;
+};
 
 // 모달 폼 필드 프리미티브 — docs/figma-goal/00-INDEX.md §5-4 `ModalField`.
 // 라벨(h21) + 컨트롤(h39), 라벨→컨트롤 간격 27px(1.6875rem). text/number/select 3변형을 지원한다.
@@ -19,7 +35,7 @@ export default function ModalField({
   required = false,
   className = "",
   ...rest
-}) {
+}: ModalFieldProps) {
   const fieldId = useId();
   const controlClass =
     "h-[2.4375rem] w-full rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";

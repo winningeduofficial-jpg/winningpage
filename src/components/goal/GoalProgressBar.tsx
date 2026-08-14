@@ -10,6 +10,15 @@
 // 남은 가로 공간을 채우기 위해 필요하지만, flex column 부모에 그대로 두면 flex-basis:0%가
 // 세로(main axis) 크기 계산에 끼어들어 "세로로 늘어나려는" 의도치 않은 동작이 된다. 필요한
 // 호출부(row 부모)는 className="flex-1"을 직접 넘긴다.
+type GoalProgressBarProps = {
+  value?: number;
+  max?: number;
+  thickness?: string;
+  trackClassName?: string;
+  fillClassName?: string;
+  className?: string;
+};
+
 export default function GoalProgressBar({
   value = 0,
   max = 100,
@@ -17,7 +26,7 @@ export default function GoalProgressBar({
   trackClassName = "bg-surface-01",
   fillClassName = "bg-surface-02",
   className = "",
-}) {
+}: GoalProgressBarProps) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
     <div

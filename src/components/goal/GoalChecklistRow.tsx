@@ -16,8 +16,24 @@
 // 구분돼 스크린리더에선 동일하게 읽혔다. 상태 텍스트를 sr-only로 노출하고, done/fail을 시각적으로도
 // 구분한다(fail은 취소선 대신 빨간 텍스트). 표시 전용 span을 실제 버튼으로 승격하며 aria-label을
 // 추가해 액션의 의미(완료 처리/취소, 삭제)를 아이콘이 아니라 텍스트로도 전달한다.
-const struck = { done: true, fail: false, pending: false };
-const STATUS_LABEL = { done: "완료", fail: "미실행", pending: "대기" };
+const struck: Record<string, boolean> = {
+  done: true,
+  fail: false,
+  pending: false,
+};
+const STATUS_LABEL: Record<string, string> = {
+  done: "완료",
+  fail: "미실행",
+  pending: "대기",
+};
+
+type GoalChecklistRowProps = {
+  index?: number;
+  text?: string;
+  status?: "done" | "fail" | "pending";
+  onCheck?: () => void;
+  onDelete?: () => void;
+};
 
 export default function GoalChecklistRow({
   index,
@@ -25,7 +41,7 @@ export default function GoalChecklistRow({
   status = "pending",
   onCheck,
   onDelete,
-}) {
+}: GoalChecklistRowProps) {
   const isDone = status === "done";
   const isFail = status === "fail";
 

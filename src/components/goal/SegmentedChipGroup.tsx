@@ -1,4 +1,14 @@
+import type { KeyboardEvent } from "react";
 import { useId, useRef } from "react";
+
+type SegmentedChipOption = { value: string; label: string };
+
+type SegmentedChipGroupProps = {
+  options: SegmentedChipOption[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+};
 
 // 모달 내 단일 선택 라디오 그룹(세그먼트 칩) — docs/figma-goal/00-INDEX.md §5-4 `SegmentedChipGroup`.
 // 시안 실측 폭은 80×39 ×5 / 99×39 ×4 / 81×39 ×4로 모달마다 다르지만, 폭을 고정하지 말고
@@ -16,16 +26,16 @@ export default function SegmentedChipGroup({
   value,
   onChange,
   ariaLabel,
-}) {
+}: SegmentedChipGroupProps) {
   const groupId = useId();
-  const optionRefs = useRef([]);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const focusOption = (index) => {
+  const focusOption = (index: number) => {
     const el = optionRefs.current[index];
     if (el) el.focus();
   };
 
-  const handleKeyDown = (event, index) => {
+  const handleKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;

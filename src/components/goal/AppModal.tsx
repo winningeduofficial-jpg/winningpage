@@ -1,6 +1,21 @@
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
 import { useId, useRef } from "react";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
+
+type AppModalProps = {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  children?: ReactNode;
+  cancelLabel?: string;
+  onCancel?: () => void;
+  submitLabel?: string;
+  onSubmit?: () => void;
+  submitDisabled?: boolean;
+  className?: string;
+};
 
 // 목표관리 앱 모달 6종 공용 셸 — docs/figma-goal/00-INDEX.md §5-4 `AppModal` / §6-3 "모달 규격(전 6종 공통)".
 // 이번 범위는 3종(과제 추가/중요일정 등록/모의고사 성적 추가)이지만, 폭 33.125rem + 좌우패딩
@@ -32,8 +47,8 @@ export default function AppModal({
   onSubmit,
   submitDisabled = false,
   className = "",
-}) {
-  const panelRef = useRef(null);
+}: AppModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   // ESC 닫기 + Tab focus trap + 배경 스크롤 잠금 + 포커스 이동/복귀 — 전부

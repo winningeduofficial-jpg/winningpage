@@ -11,23 +11,31 @@
 // 의미(좋은 변화인지)가 지표 성격에 따라 뒤집힐 수 있어 부호 규칙이 확정되지 않았다. 색을
 // direction에서 자동 유도하면 등급처럼 "낮을수록 좋음"인 지표에서 오작동하므로, 호출부가
 // 지표 성격을 알고 tone을 명시적으로 넘기도록 강제한다.
-const DIRECTION_GLYPH = {
+import type { ReactNode } from "react";
+
+const DIRECTION_GLYPH: Record<string, string> = {
   up: "▲",
   down: "▼", // (추정) 시안에 없음
   flat: "■", // (추정) 시안에 없음
 };
 
-const TONE_CLASS = {
+const TONE_CLASS: Record<string, string> = {
   positive: "bg-[#E3F3E6] text-[#2E9E4C]", // (추정) 연초록 — insight.success와 동일 계열
   negative: "bg-[#FCE4E4] text-[#D14343]", // (추정) 연빨강 — GoalDdayBadge red 톤 재사용
   neutral: "bg-[#F0F0F0] text-ink-sub", // (추정) 회색
+};
+
+type DeltaBadgeProps = {
+  value?: ReactNode;
+  direction?: "up" | "down" | "flat";
+  tone?: "positive" | "negative" | "neutral";
 };
 
 export default function DeltaBadge({
   value,
   direction = "up",
   tone = "positive",
-}) {
+}: DeltaBadgeProps) {
   const glyph = DIRECTION_GLYPH[direction] ?? DIRECTION_GLYPH.up;
   const toneClass = TONE_CLASS[tone] ?? TONE_CLASS.positive;
 

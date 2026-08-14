@@ -6,13 +6,23 @@
 // title: 페이지 타이틀(필수). meta: 타이틀 옆 인라인 보조 텍스트(예: D-63, 회차 라벨 등, 옵셔널).
 // subcopy: 설명문 1줄(옵셔널). actions: 우측 정렬 액션 슬롯(예: `+ 일정 등록` 버튼, 옵셔널).
 // maxWidthClassName: 서브페이지는 기본 83.75rem(1340px), 대시보드만 93rem을 넘겨 쓴다.
+import type { ReactNode } from "react";
+
+type GoalPageHeaderProps = {
+  title: ReactNode;
+  meta?: ReactNode;
+  subcopy?: ReactNode;
+  actions?: ReactNode;
+  maxWidthClassName?: string;
+};
+
 export default function GoalPageHeader({
   title,
   meta,
   subcopy,
   actions,
   maxWidthClassName = "max-w-goal-content",
-}) {
+}: GoalPageHeaderProps) {
   return (
     <header
       className={`w-full px-[3rem] pb-[2.5rem] pt-[6.25rem] ${maxWidthClassName}`}
