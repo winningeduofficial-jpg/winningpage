@@ -204,7 +204,14 @@ function textOrNull(raw) {
  * @param {{ diagnosedAt?: string|null, name?: string|null }} [meta]
  * @returns {object} DiagnosisInput
  */
-export function normalizeAnswers(answers, meta = {}) {
+export function normalizeAnswers(
+  // SurveyStepShell 원시 응답 맵 — q1~q19 키마다 문항 타입이 달라(라벨 문자열/배열/grade-grid
+  // 객체 등) unknown으로 좁히면 아래 source.qN 접근이 전부 캐스팅 지옥이 된다. JSDoc이 이미
+  // 명시한 정본 타입(Record<string, any>) 그대로 옮긴다.
+  // biome-ignore lint/suspicious/noExplicitAny: 위 주석 참고
+  answers: Record<string, any>,
+  meta: { diagnosedAt?: string | null; name?: string | null } = {},
+) {
   const source = answers && typeof answers === "object" ? answers : {};
   const grid = source.q6 && typeof source.q6 === "object" ? source.q6 : {};
   const gradeSystem = codeOf("Q4_SYSTEM", source.q4);
@@ -522,7 +529,10 @@ export function targetGap(areaScores) {
  * AREA_BAND_THRESHOLDS(A1)를 뒤집어도 40 은 따라가면 안 된다.
  */
 export function urgencyOf(input, areaScores) {
-  const scopeAreas = URGENCY_SCOPE === "PAGE1" ? PAGE1_AREAS : AREA_CODES;
+  // URGENCY_SCOPE는 §11 데이터 상수라 리터럴 타입("ALL_12")으로 좁게 추론된다 — 값이 다른
+  // 시점(예: "PAGE1")일 수 있다는 이 분기의 전제를 지우지 않기 위해 비교 시에만 넓힌다.
+  const scopeAreas =
+    (URGENCY_SCOPE as string) === "PAGE1" ? PAGE1_AREAS : AREA_CODES;
   const lowAreaCount = scopeAreas.filter(
     (area) => scoreOf(areaScores, area) < URGENCY_AREA_THRESHOLD,
   ).length;
@@ -716,11 +726,11 @@ export function rankServices(input, areaScores) {
  * ================================================================== */
 
 /** 리커트 24문장 중 실제 응답값이 있는 것만. likertScore 도메인은 {0,25,50,75,100} 5개뿐이다. */
-function likertValuesOf(input) {
+function likertValuesOf(input): number[] {
   return [
     ...Object.values(input?.likert1 ?? {}),
     ...Object.values(input?.likert2 ?? {}),
-  ].filter((value) => isUsableNumber(value));
+  ].filter((value): value is number => isUsableNumber(value));
 }
 
 /**
@@ -743,13 +753,13 @@ function sincerityStats(input) {
   const answered = values.length;
   if (answered === 0)
     return { answered, modeValue: null, offmodeCount: 0, rawOffmodeCount: 0 };
-  const counts = new Map();
+  const counts = new Map<number, number>();
   values.forEach((value) => {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   });
   // 동률이면 먼저 등장한(=응답 순서상 앞선) 값을 최빈값으로 고정한다 — Map 이 삽입 순서를
   // 보존하므로 매 호출 결정론적이다.
-  let modeValue = null;
+  let modeValue: number | null = null;
   let modeCount = -1;
   counts.forEach((count, value) => {
     if (count > modeCount) {
@@ -758,8 +768,11 @@ function sincerityStats(input) {
     }
   });
   const rawOffmodeCount = answered - modeCount;
+  // answered > 0(위에서 이미 0 분기를 반환)이므로 counts 는 비어있지 않고, 아래 forEach는
+  // 항상 최소 1회 실행돼 modeValue 를 채운다 — non-null 단언은 그 보장을 타입으로만 반영한다.
   const offmodeCount = values.filter(
-    (value) => Math.abs(value - modeValue) >= SINCERITY_OFFMODE_MIN_DISTANCE,
+    (value) =>
+      Math.abs(value - (modeValue as number)) >= SINCERITY_OFFMODE_MIN_DISTANCE,
   ).length;
   return { answered, modeValue, offmodeCount, rawOffmodeCount };
 }
