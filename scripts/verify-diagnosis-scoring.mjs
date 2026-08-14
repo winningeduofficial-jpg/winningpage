@@ -121,10 +121,10 @@ import {
   SCREEN_EXTRAS,
 } from "../src/data/diagnosisScreenCopy.ts";
 import { renewalSurveyQuestions } from "../src/data/renewalSurveyQuestions.js";
-import { fill, findBannedPhrases } from "../src/lib/diagnosisCopyBinding.js";
+import { fill, findBannedPhrases } from "../src/lib/diagnosisCopyBinding.ts";
 // 정적 import 다. 동적 import + try/catch 로 감싸면 문법 오류·잘못된 경로 같은 진짜 고장까지
 // 삼켜서 §7.4.3 불변식을 통째로 건너뛴 채 PASS 를 낸다(T16 이 아직 없을 수 있다는 전제는 해소됐다).
-import { buildReport, SELF_DECIDED } from "../src/lib/diagnosisReport.js";
+import { buildReport, SELF_DECIDED } from "../src/lib/diagnosisReport.ts";
 import {
   admissionBand,
   admissionRows,
@@ -2282,7 +2282,7 @@ checkTrue(
 // (12영역 vs PAGE2 6영역)는 자체 결정으로 12영역 전체를 채택했다. STRENGTH_SCOPE/IMPROVEMENT_SCOPE
 // 가 PAGE2_AREAS 로 되돌아가면 여기서 잡힌다.
 {
-  const reportSource = sourceOf("lib/diagnosisReport.js");
+  const reportSource = sourceOf("lib/diagnosisReport.ts");
   checkTrue(
     "F-07 — 대상 범위는 12영역 전체(AREA_CODES), PAGE2 로 축소되지 않았다",
     /const STRENGTH_SCOPE = AREA_CODES/.test(reportSource) &&
@@ -3015,9 +3015,9 @@ beginSection("[F-격리]");
 const REPORT_COMPONENT_DIR = "components/renewal/report/";
 const DIAGNOSIS_SURFACE = [
   "lib/diagnosisScoring.js",
-  "lib/diagnosisCopyBinding.js",
-  "lib/diagnosisInputStorage.js",
-  "lib/diagnosisAdmissionCuts.js",
+  "lib/diagnosisCopyBinding.ts",
+  "lib/diagnosisInputStorage.ts",
+  "lib/diagnosisAdmissionCuts.ts",
   "data/diagnosisScoringTable.js",
   "data/diagnosisScreenCopy.js",
   // 결정문이 자체 결정 값의 집으로 지목했던 파일. 지금은 없지만 나중에 생기면 여기 걸린다 —
@@ -3065,7 +3065,7 @@ checkTrue(
   ),
 );
 
-const selfDecidedHome = sourceOf("lib/diagnosisReport.js");
+const selfDecidedHome = sourceOf("lib/diagnosisReport.ts");
 const duplicatedDefinitions = SELF_DECIDED_STRINGS.filter(
   (value) => selfDecidedHome.split(value).length - 1 !== 1,
 );
@@ -3571,7 +3571,7 @@ check(
 
 // 센티널 계약은 값이 아니라 **호출부의 비교 방식**에서 깨진다 — 소스로 못 박는다.
 {
-  const cutsSource = sourceOf("lib/diagnosisAdmissionCuts.js");
+  const cutsSource = sourceOf("lib/diagnosisAdmissionCuts.ts");
   checkTrue(
     "조회 실패는 센티널로 반환한다(에러를 null 로 삼키지 않는다)",
     cutsSource.includes("return ADMISSION_FETCH_ERROR"),
@@ -3617,7 +3617,7 @@ check(
   // 센티널 객체를 그대로 저장하면 직렬화로 참조 동일성이 사라진다 — 불리언만 넘어가야 한다.
   checkTrue(
     "저장 계층은 불리언 신호만 받는다",
-    sourceOf("lib/diagnosisInputStorage.js").includes("admissionCutsError"),
+    sourceOf("lib/diagnosisInputStorage.ts").includes("admissionCutsError"),
   );
 }
 

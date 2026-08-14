@@ -58,7 +58,7 @@ import {
   HWP_SECTION_JSON_KEYS,
   stableStringifyDoc,
   validateAdmissionDoc,
-} from "../src/lib/admissionDoc.js";
+} from "../src/lib/admissionDoc.ts";
 import {
   buildRawSectionDoc,
   clean,

@@ -96,9 +96,7 @@ function pickLatestCutRow(rows: CutRow[] | null | undefined): CutRow | null {
  */
 export async function fetchAdmissionCuts(
   query?: Partial<AdmissionCutsQuery> | null,
-): Promise<
-  AdmissionCutsResult | null | typeof ADMISSION_FETCH_ERROR
-> {
+): Promise<AdmissionCutsResult | null | typeof ADMISSION_FETCH_ERROR> {
   // 인자 부족은 실패가 아니다 — 학생이 아직 4단을 다 고르지 않은 정상 경로다.
   if (
     !query?.universityKey ||

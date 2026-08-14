@@ -188,8 +188,8 @@ export function weightedGrade(rows) {
   let numerator = 0;
   let denominator = 0;
   let sampleN = 0;
-  const years = new Set();
-  const cuts = new Set();
+  const years = new Set<number>();
+  const cuts = new Set<number>();
   let representativeCut = null;
 
   for (const row of rows ?? []) {

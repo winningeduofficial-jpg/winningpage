@@ -42,8 +42,10 @@ function ok<T>(data: T[] | null | undefined): QueryResult<T> {
  * 경로를 여기서 하나로 정규화해 어떤 실패든 항상 { data:[], error } 로 돌려준다.
  */
 async function run<T>(
+  // supabase-js 쿼리 빌더는 thenable(PromiseLike)이지 완전한 Promise가 아니다
+  // (catch/finally 없음) — await 은 문제없이 동작하므로 파라미터 타입만 완화한다.
   label: string,
-  build: () => Promise<{ data: T[] | null; error: unknown }>,
+  build: () => PromiseLike<{ data: T[] | null; error: unknown }>,
 ): Promise<QueryResult<T>> {
   try {
     const { data, error } = await build();
@@ -65,9 +67,7 @@ export async function fetchAdmissionUniversities() {
 }
 
 /** 학과 목록 — 대학 선택 시(admission_result_department_index). */
-export async function fetchAdmissionDepartments(
-  universityKey?: string | null,
-) {
+export async function fetchAdmissionDepartments(universityKey?: string | null) {
   if (!universityKey) return ok<DepartmentRow>([]);
 
   return run<DepartmentRow>("학과 목록", () =>

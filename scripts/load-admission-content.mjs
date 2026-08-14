@@ -89,7 +89,7 @@ import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
 import {
   shouldSkipForRegression,
   validateAdmissionDoc,
-} from "../src/lib/admissionDoc.js";
+} from "../src/lib/admissionDoc.ts";
 // importCell은 2026-08-06 src/lib/admissionHtmlImport.js로 이동했다(위치만
 // 이동, 동작 동일) — 원래 import-legacy-admission-html.mjs에서 가져왔지만,
 // 이 스크립트가 그 파일을 import하면 Node 전용 코드까지 딸려 들어와서

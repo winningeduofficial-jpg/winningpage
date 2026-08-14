@@ -18,7 +18,7 @@
 
 // 2026-08-06 src/lib/admissionDoc.js로 이동했다(위치만 이동, 동작 동일) —
 // 원래 load-admission-content.mjs에 있었다.
-import { shouldSkipForRegression } from "../src/lib/admissionDoc.js";
+import { shouldSkipForRegression } from "../src/lib/admissionDoc.ts";
 
 function makeDoc(blockTexts) {
   return {

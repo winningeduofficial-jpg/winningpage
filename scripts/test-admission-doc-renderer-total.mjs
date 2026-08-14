@@ -15,7 +15,7 @@
 import admissionHwpSections from "../src/data/admissionHwpSections.json" with {
   type: "json",
 };
-import { validateAdmissionDoc } from "../src/lib/admissionDoc.js";
+import { validateAdmissionDoc } from "../src/lib/admissionDoc.ts";
 import {
   buildRawSectionDoc,
   buildRawSectionHtml,

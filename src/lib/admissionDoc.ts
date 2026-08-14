@@ -54,7 +54,12 @@ export const HWP_SECTION_JSON_KEYS: Record<SectionKey, string> = {
 export type AdmissionDoc = {
   v: 1;
   section: SectionKey;
-  source: "parser" | "legacy-html" | "html-import" | "bundled-special" | "manual";
+  source:
+    | "parser"
+    | "legacy-html"
+    | "html-import"
+    | "bundled-special"
+    | "manual";
   generator: string;
   generatedAt: string;
   wrapModifier?: "special";
@@ -379,7 +384,9 @@ function sortKeysDeep(value: unknown): unknown {
  * 않으면 매번 "변경됨"으로 판정된다. 키 정렬로 객체 키 순서 차이를
  * 무시한다.
  */
-export function stableStringifyDoc(doc: AdmissionDoc | null | undefined): string {
+export function stableStringifyDoc(
+  doc: AdmissionDoc | null | undefined,
+): string {
   if (!doc || typeof doc !== "object") return JSON.stringify(doc ?? null);
   const { generatedAt: _generatedAt, ...rest } = doc;
   return JSON.stringify(sortKeysDeep(rest));
@@ -463,7 +470,10 @@ function lintTableBlock(block: TableBlock, findings: LintFindings) {
   });
 }
 
-function lintBlocks(blocks: Block[] | null | undefined, findings: LintFindings) {
+function lintBlocks(
+  blocks: Block[] | null | undefined,
+  findings: LintFindings,
+) {
   (blocks || []).forEach((block) => {
     if (!block || typeof block !== "object") return;
     if (block.kind === "table") lintTableBlock(block, findings);

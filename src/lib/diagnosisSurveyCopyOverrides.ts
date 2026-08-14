@@ -11,9 +11,7 @@ const TABLE = "learning_diagnosis_v2_survey_copy";
 type SurveyCopyRow = { copy_key: string; copy_value: string };
 
 /** 조회 실패·0행이면 빈 Map — 호출부는 오버라이드 0건으로 취급해 원본 그대로 렌더한다. */
-export async function fetchSurveyCopyOverrides(): Promise<
-  Map<string, string>
-> {
+export async function fetchSurveyCopyOverrides(): Promise<Map<string, string>> {
   const { data, error } = await supabase
     .from(TABLE)
     .select("copy_key, copy_value");
@@ -73,10 +71,7 @@ export function applySurveyCopyOverrides<T extends { id: string }>(
         next.options = options;
         changed = true;
 
-        if (
-          Array.isArray(q.exclusiveCodes) &&
-          q.exclusiveCodes.length > 0
-        ) {
+        if (Array.isArray(q.exclusiveCodes) && q.exclusiveCodes.length > 0) {
           next.exclusiveValues = q.exclusiveCodes
             .map((code: string) => {
               const idx = q.optionCodes.indexOf(code);
@@ -87,10 +82,7 @@ export function applySurveyCopyOverrides<T extends { id: string }>(
       }
     }
 
-    if (
-      Array.isArray(q.extra?.statements) &&
-      q.extra.statements.length > 0
-    ) {
+    if (Array.isArray(q.extra?.statements) && q.extra.statements.length > 0) {
       const statements = q.extra.statements.map((statement: any) => {
         const override = overrideMap.get(`${id}.statement.${statement.key}`);
         return override !== undefined

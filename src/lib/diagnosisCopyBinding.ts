@@ -45,7 +45,7 @@ import {
 // 스크립트는 findBannedPhrases 를 직접 불러 판정하므로 console 출력에 의존하지 않는다.
 const IS_DEV = Boolean(import.meta.env?.DEV);
 
-function devWarn(message, detail) {
+function devWarn(message: string, detail?: unknown) {
   if (!IS_DEV) return;
   if (detail === undefined) console.warn(`[diagnosis-copy] ${message}`);
   else console.warn(`[diagnosis-copy] ${message}`, detail);
@@ -79,14 +79,18 @@ const TOKEN_PATTERN = /\{(\w+|영역)\}/g;
  * 같은 미치환 토큰이 0건임을 입결 4조합 × 등급체계 4종에서 단언한다. 이 완화를 되돌리려면
  * 그 단언과 함께 봐야 한다(명세 §5.2/§5.3 ② 문구도 같이 고쳐야 한다 — 개정 대기).
  */
-export function fill(tpl, vars = {}, tokenKey) {
+export function fill(
+  tpl: string | null | undefined,
+  vars: Record<string, string | number | null | undefined> = {},
+  tokenKey?: string,
+): string {
   if (typeof tpl !== "string" || tpl === "") return "";
 
   // 토큰이 없는 문구는 스코프 미등재가 정상이다(TOKEN_SCOPE 는 토큰 있는 키만 담는다).
   TOKEN_PATTERN.lastIndex = 0;
   if (!TOKEN_PATTERN.test(tpl)) return tpl;
 
-  const scope = TOKEN_SCOPE[tokenKey];
+  const scope = (TOKEN_SCOPE as Record<string, unknown>)[tokenKey as string];
   if (!Array.isArray(scope)) {
     devWarn(
       `fill: TOKEN_SCOPE 에 없는 문구 키 '${tokenKey}' — 토큰이 있는데 화이트리스트가 없어 전부 원문으로 남긴다`,
@@ -133,14 +137,21 @@ export function fill(tpl, vars = {}, tokenKey) {
  * @param {'L1'|'L2'|'L3'|'L4'|'L5'} level levelOf() 결과. stateOf() 4단계 코드를 넣으면 null 이 나온다.
  * @returns {string|null}
  */
-export function levelCopy(page, level) {
+export function levelCopy(
+  page: 1 | 2 | "page1" | "page2",
+  level: string,
+): string | null {
   const pageKey =
     page === 1 || page === "page1"
       ? "page1"
       : page === 2 || page === "page2"
         ? "page2"
         : null;
-  const copy = pageKey ? PAGE_GRADE_COPY[pageKey]?.[level] : undefined;
+  const copy = pageKey
+    ? (PAGE_GRADE_COPY as Record<string, Record<string, unknown>>)[pageKey]?.[
+        level
+      ]
+    : undefined;
   if (typeof copy !== "string") {
     devWarn(`levelCopy: 미커버 조합 (page=${page}, level=${level})`);
     return null;
@@ -156,8 +167,16 @@ export function levelCopy(page, level) {
  * @returns {{ levels: Record<string,string>, strength: string, weakness: string,
  *             need: { improve: string, keep: string }, strategies: string[] }|null}
  */
-export function areaCopy(areaCode) {
-  const copy = AREA_COPY[areaCode];
+export type AreaCopyEntry = {
+  levels: Record<string, string>;
+  strength: string;
+  weakness: string;
+  need: { improve: string; keep: string };
+  strategies: string[];
+};
+
+export function areaCopy(areaCode: string): AreaCopyEntry | null {
+  const copy = (AREA_COPY as Record<string, AreaCopyEntry>)[areaCode];
   if (!copy) {
     devWarn(`areaCopy: 미커버 영역 코드 '${areaCode}'`);
     return null;
@@ -177,15 +196,23 @@ export function areaCopy(areaCode) {
  * @param {'TOP'|'MID'|'LOW'|'WEAK'} state stateOf() 결과 코드
  * @returns {{ title: string, body: string }|null}
  */
-export function narrativeCopy(areaCode, state) {
-  const sheetKey = NARRATIVE_STATE_LABEL[state];
+export function narrativeCopy(
+  areaCode: string,
+  state: "TOP" | "MID" | "LOW" | "WEAK",
+): { title: string; body: string } | null {
+  const sheetKey = (NARRATIVE_STATE_LABEL as Record<string, string>)[state];
   if (!sheetKey) {
     devWarn(
       `narrativeCopy: 미지의 상태 코드 '${state}' — stateOf() 반환값(TOP/MID/LOW/WEAK)만 받는다`,
     );
     return null;
   }
-  const copy = NARRATIVE_COPY[areaCode]?.[sheetKey];
+  const copy = (
+    NARRATIVE_COPY as Record<
+      string,
+      Record<string, { title: string; body: string }>
+    >
+  )[areaCode]?.[sheetKey];
   if (!copy) {
     devWarn(`narrativeCopy: 미커버 조합 (area=${areaCode}, state=${state})`);
     return null;
@@ -201,9 +228,17 @@ export function narrativeCopy(areaCode, state) {
  * @param {'HIGH'|'MID'|'LOW'|null} tier rankServices 의 tier. null(적합도 50 미만)이면 노출 대상이 아니다.
  * @returns {{ text: string, tags: string[] }|null}
  */
-export function serviceCopy(serviceCode, tier) {
-  const entry = SERVICE_COPY[serviceCode];
-  const text = entry?.tiers?.[tier];
+export function serviceCopy(
+  serviceCode: string,
+  tier: "HIGH" | "MID" | "LOW" | null,
+): { text: string; tags: string[] } | null {
+  const entry = (
+    SERVICE_COPY as Record<
+      string,
+      { tiers: Record<string, string>; tags: string[] }
+    >
+  )[serviceCode];
+  const text = entry?.tiers?.[tier as string];
   if (typeof text !== "string") {
     devWarn(`serviceCopy: 미커버 조합 (service=${serviceCode}, tier=${tier})`);
     return null;
@@ -219,8 +254,8 @@ export function serviceCopy(serviceCode, tier) {
  * @param {string} key COMMON_COPY 키
  * @returns {string|null}
  */
-export function commonCopy(key) {
-  const copy = COMMON_COPY[key];
+export function commonCopy(key: string): string | null {
+  const copy = (COMMON_COPY as Record<string, unknown>)[key];
   if (typeof copy !== "string") {
     devWarn(`commonCopy: 미커버 키 '${key}'`);
     return null;
@@ -235,8 +270,8 @@ export function commonCopy(key) {
  * @param {string} key TEMPLATE_COPY 키('card_exec.sub' 처럼 점이 든 시트 표기를 그대로 쓴다)
  * @returns {string|null}
  */
-export function templateCopy(key) {
-  const copy = TEMPLATE_COPY[key];
+export function templateCopy(key: string): string | null {
+  const copy = (TEMPLATE_COPY as Record<string, unknown>)[key];
   if (typeof copy !== "string") {
     devWarn(`templateCopy: 미커버 키 '${key}'`);
     return null;
@@ -253,7 +288,11 @@ export function templateCopy(key) {
 // 깊이 상한은 순환 참조 방어용이다(문구 모듈은 순수 리터럴이라 실제로 도달할 일이 없다).
 const MAX_COLLECT_DEPTH = 8;
 
-function collectStrings(value, depth, out) {
+function collectStrings(
+  value: unknown,
+  depth: number,
+  out: string[],
+): string[] {
   if (depth > MAX_COLLECT_DEPTH) return out;
   if (typeof value === "string") {
     if (value !== "") out.push(value);
@@ -280,9 +319,11 @@ function collectStrings(value, depth, out) {
  * @param {unknown} values 문자열, 또는 문자열을 품은 배열/객체(중첩 허용)
  * @returns {Array<{ text: string, type: string, phrase: string }>}
  */
-export function findBannedPhrases(values) {
+export function findBannedPhrases(
+  values: unknown,
+): { text: string; type: string; phrase: string }[] {
   const texts = collectStrings(values, 0, []);
-  const hits = [];
+  const hits: { text: string; type: string; phrase: string }[] = [];
   for (const text of texts) {
     for (const group of BANNED_PHRASES) {
       for (const phrase of group.phrases) {

@@ -19,10 +19,33 @@
 // 본선 데이터가 434행 → 43,170행으로 100배가 됐으므로 이 규율은 더 엄격해졌다.
 
 import {
+  type AdmissionResultRow,
   collectFallbackAdmissionTracks,
   RESULT_YEARS,
 } from "./admissionResults";
 import { supabase } from "./supabase";
+
+type QueryResult<T> = { data: T[]; error: unknown };
+
+type UniversityIndexRow = {
+  university_key: string;
+  university_name: string;
+  dept_count: number;
+};
+
+type DepartmentIndexRow = {
+  department_key: string;
+  department_name: string;
+  tracks: string[] | null;
+};
+
+type TrendingDepartmentRow = {
+  university_name: string;
+  department_name: string;
+  university_key: string;
+  department_key: string;
+  logo_url: string | null;
+};
 
 // 통합 테이블(admission_results)은 sql/53에서 recruitment_period 축이 제거돼
 // **수시 전용**이 됐다(원본 자료 3종 어디에도 모집시기 개념이 없음 — 명세 §6.1 Q1 확정).
@@ -89,12 +112,12 @@ export const TRENDING_LIMIT = 12;
 // 공통 결과 정규화
 // ---------------------------------------------------------------------------
 
-function fail(label, error) {
+function fail<T>(label: string, error: unknown): QueryResult<T> {
   console.error(`${label} 조회 실패:`, error);
   return { data: [], error };
 }
 
-function ok(data) {
+function ok<T>(data: T[] | null | undefined): QueryResult<T> {
   return { data: data ?? [], error: null };
 }
 
@@ -104,7 +127,10 @@ function ok(data) {
 // 순서가 갈린다. 서버 정렬은 응답을 결정적으로 만드는 용도로 그대로 두고,
 // 화면에 나가는 최종 순서는 여기서 한 번 더 잡는다.
 // 대상 규모가 대학 202행 / 모집단위는 대학당 수십 행이라 클라이언트 재정렬 비용은 무시할 수준.
-function sortByKoreanName(rows, field) {
+function sortByKoreanName<T extends Record<string, unknown>>(
+  rows: T[] | null | undefined,
+  field: string,
+): T[] {
   return [...(rows ?? [])].sort((a, b) =>
     String(a?.[field] ?? "").localeCompare(String(b?.[field] ?? ""), "ko"),
   );
@@ -120,14 +146,16 @@ function sortByKoreanName(rows, field) {
 // 대신 결과는 202행뿐이라 전송량은 ≈12KB고, 검색 뷰 mount 시 1회만 호출한다.
 // 체감 지연이 생기면 뷰를 materialized view로 바꾸는 것이 다음 수단이다
 // (컬럼을 더 받거나 여기서 필터를 거는 것으로는 스캔이 줄지 않는다).
-export async function fetchSusiUniversities() {
+export async function fetchSusiUniversities(): Promise<
+  QueryResult<UniversityIndexRow>
+> {
   const { data, error } = await supabase
     .from("admission_result_university_index")
     .select(UNIVERSITY_INDEX_COLUMNS)
     .order("university_name", { ascending: true });
 
-  if (error) return fail("대학 목록", error);
-  return ok(sortByKoreanName(data, "university_name"));
+  if (error) return fail<UniversityIndexRow>("대학 목록", error);
+  return ok<UniversityIndexRow>(sortByKoreanName(data, "university_name"));
 }
 
 // ---------------------------------------------------------------------------
@@ -141,8 +169,10 @@ export async function fetchSusiUniversities() {
 // university_key 필터는 group by 축이라 뷰 안쪽으로 밀려 들어가고,
 // admission_results_detail_idx (university_key, department_key, result_year)의
 // 선두 컬럼이 받아 준다 — 전량 스캔이 아니다. 대학 1곳당 평균 18모집단위.
-export async function fetchSusiDepartments(universityKey) {
-  if (!universityKey) return ok([]);
+export async function fetchSusiDepartments(
+  universityKey?: string | null,
+): Promise<QueryResult<DepartmentIndexRow>> {
+  if (!universityKey) return ok<DepartmentIndexRow>([]);
 
   const { data, error } = await supabase
     .from("admission_result_department_index")
@@ -150,10 +180,12 @@ export async function fetchSusiDepartments(universityKey) {
     .eq("university_key", universityKey)
     .order("department_name", { ascending: true });
 
-  if (error) return fail("모집단위 목록", error);
+  if (error) return fail<DepartmentIndexRow>("모집단위 목록", error);
 
-  const rows = sortByKoreanName(data, "department_name");
-  return ok(rows.map((row) => ({ ...row, tracks: row.tracks ?? [] })));
+  const rows = sortByKoreanName<DepartmentIndexRow>(data, "department_name");
+  return ok<DepartmentIndexRow>(
+    rows.map((row) => ({ ...row, tracks: row.tracks ?? [] })),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -177,8 +209,11 @@ export async function fetchSusiDepartments(universityKey) {
 // 43,170행 규모에서도 (university_key, department_key) 등치 필터가
 // admission_results_detail_idx의 선두 2컬럼을 그대로 타므로 전량 스캔이 아니다.
 // 모집단위 1개당 평균 12행, 최대치도 수십 행 수준이라 페이지네이션은 불필요하다.
-export async function fetchSusiResultRows(universityKey, departmentKey) {
-  if (!universityKey || !departmentKey) return ok([]);
+export async function fetchSusiResultRows(
+  universityKey?: string | null,
+  departmentKey?: string | null,
+): Promise<QueryResult<AdmissionResultRow>> {
+  if (!universityKey || !departmentKey) return ok<AdmissionResultRow>([]);
 
   const { data, error } = await supabase
     .from("admission_results")
@@ -191,11 +226,14 @@ export async function fetchSusiResultRows(universityKey, departmentKey) {
     .order("admission_track", { ascending: true })
     .order("result_year", { ascending: true });
 
-  if (error) return fail("입결 상세", error);
+  if (error) return fail<AdmissionResultRow>("입결 상세", error);
 
-  const rows = data ?? [];
+  // postgrest-js는 .select() 인자를 타입 레벨에서 파싱한다 — ADMISSION_RESULT_COLUMNS가
+  // .join(",")로 만든 일반 string(리터럴 아님)이라 파서가 GenericStringError로 폴백한다.
+  // 런타임 select 절은 그대로 유효하므로 여기서만 실제 row 타입으로 되돌린다.
+  const rows = (data ?? []) as unknown as AdmissionResultRow[];
   warnUnclassifiedAdmissionTypes(rows);
-  return ok(rows);
+  return ok<AdmissionResultRow>(rows);
 }
 
 // screening_category 컬럼이 없거나(null) 매핑 밖 값이라 전형명 정규식 추론으로
@@ -203,7 +241,9 @@ export async function fetchSusiResultRows(universityKey, departmentKey) {
 // 이 경고에 잡히면 신호가 노이즈가 되므로, screening_category 컬럼값을 그대로 신뢰한
 // 행은 제외하고 fallback을 실제로 탄 행만 모은다(src/lib/admissionResults.js
 // collectFallbackAdmissionTracks 참고).
-export function warnUnclassifiedAdmissionTypes(rows) {
+export function warnUnclassifiedAdmissionTypes(
+  rows: AdmissionResultRow[] | null | undefined,
+) {
   if (!import.meta.env?.DEV) return;
   const fallback = collectFallbackAdmissionTracks(rows);
   if (fallback.length === 0) return;
@@ -220,7 +260,9 @@ export function warnUnclassifiedAdmissionTypes(rows) {
 // 결과가 빈 배열이면 호출부는 섹션 전체를 렌더하지 않는다(빈 pill 그리드는 고장으로 보인다).
 export async function fetchTrendingDepartments({
   limit = TRENDING_LIMIT,
-} = {}) {
+}: {
+  limit?: number;
+} = {}): Promise<QueryResult<TrendingDepartmentRow>> {
   const { data, error } = await supabase
     .from("trending_departments")
     .select(TRENDING_COLUMNS)
@@ -228,6 +270,6 @@ export async function fetchTrendingDepartments({
     .order("sort_order", { ascending: true })
     .limit(limit);
 
-  if (error) return fail("뜨고 있는 학과", error);
-  return ok(data);
+  if (error) return fail<TrendingDepartmentRow>("뜨고 있는 학과", error);
+  return ok<TrendingDepartmentRow>(data);
 }

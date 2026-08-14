@@ -47,7 +47,7 @@ import {
   narrativeCopy,
   serviceCopy,
   templateCopy,
-} from "./diagnosisCopyBinding.js";
+} from "./diagnosisCopyBinding.ts";
 // 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
 import {
   admissionBand,
@@ -70,6 +70,47 @@ import {
   probabilityRangeLabel as toProbabilityRange,
   urgencyOf,
 } from "./diagnosisScoring.js";
+
+/* ================================================================== *
+ * -1. 로컬 타입 — diagnosisScoring.js(미변환 JS, hard 버킷)가 낳는 값의 정확한
+ * 셰이프는 그 엔진 소유이고 이 배치 범위 밖이다(FreeDiagnosisReport.tsx의 동일
+ * 판단 참고). 아래는 이 파일이 실제로 읽는 필드만 최소로 좁힌 로컬 타입이다.
+ * export 하지 않는다(신규 공유 타입 파일 금지 원칙과 같은 이유로, 이 파일
+ * 내부에서만 쓴다).
+ * ================================================================== */
+
+type DiagnosisInputLike = {
+  profile?: {
+    name?: string | null;
+    gradeLevel?: string | null;
+    schoolType?: string | null;
+  } | null;
+  goal?: { targetMajor?: string | null } | null;
+  gradeSystem?: "NINE" | "FIVE" | "MIDDLE_AVG" | "UNKNOWN" | null;
+  gradeTrend?: string | null;
+  scores?: { naesinOverall?: number | null } | null;
+  meta?: { diagnosedAt?: string | null } | null;
+  admissionQuery?: {
+    university?: string | null;
+    department?: string | null;
+    admissionType?: string | null;
+  } | null;
+  freeText?: string | null;
+  likert1?: Record<string, number | null> | null;
+  likert2?: Record<string, number | null> | null;
+};
+
+type AreaScores = Record<string, number>;
+
+type BuildReportCtx = {
+  cuts?: {
+    cut50: number | null;
+    cut70: number | null;
+    finalAvg: number | null;
+  } | null;
+  cutsError?: boolean;
+  admissionMeta?: { year?: string | number | null } | null;
+};
 
 /* ================================================================== *
  * 0. 이 파일이 소유하는 최소 상수
@@ -328,11 +369,11 @@ function formatDiagnosedAt(value) {
  * 문구 조회가 실패하면(=null) 치환하지 않고 기존 경로를 그대로 탄다 — 빈 헤드라인을 만들지 않는다.
  */
 function buildHeadlineLines(
-  input,
-  _areaScores,
-  page1Level,
-  type,
-  sincerityFlagged,
+  input: DiagnosisInputLike,
+  _areaScores: AreaScores,
+  page1Level: string,
+  type: string | null,
+  sincerityFlagged: boolean,
 ) {
   if (sincerityFlagged) {
     const head = commonCopy("SINCERITY_HEAD");
@@ -353,7 +394,7 @@ function buildHeadlineLines(
  * PriorityTable 은 ReportPageOne 이 이 배열을 오름차순 정렬해 받으므로, badge 는 정렬 결과와
  * 반드시 일치해야 한다 — 그래서 뱃지는 직접 세지 않고 priorityBadges() 결과를 인덱싱한다.
  */
-function buildLearningAxes(areaScores) {
+function buildLearningAxes(areaScores: AreaScores) {
   const badgeByCode = new Map(
     priorityBadges(areaScores).map((row) => [row.code, row.badge]),
   );
@@ -379,7 +420,11 @@ function buildLearningAxes(areaScores) {
 }
 
 /** 요약 카드 3장(§7.2). label 이 React key 라 3개가 유일해야 한다(문구집 title 3종이 서로 다르다). */
-function buildSummaryCards(page1Overall, page2Overall, gap) {
+function buildSummaryCards(
+  page1Overall: number,
+  page2Overall: number,
+  gap: { reached: boolean; gap: number; lowestName: string },
+) {
   return [
     {
       label: templateCopy("card_exec.title"),
@@ -423,7 +468,7 @@ function buildSummaryCards(page1Overall, page2Overall, gap) {
  * 조회 키는 화면 라벨이 아니라 상태 코드다(§5.1 매핑표 — narrativeCopy 가 코드만 받는다).
  * 문구가 없는 조합은 빈 카드를 만들지 않고 제외한다(창작 금지).
  */
-function buildTraits(areaScores) {
+function buildTraits(areaScores: AreaScores) {
   return sortByScoreAsc(PAGE1_AREAS, areaScores)
     .slice(0, TRAIT_COUNT)
     .map((code) => narrativeCopy(code, stateOf(areaScores[code] ?? 0)))
@@ -441,7 +486,7 @@ function buildTraits(areaScores) {
  * 어긋난다 → 종합 등급 문구 단독으로 대체한다. 저득점 판정은 stateOf 에서 파생시켜 Q-32 확정 시
  * 임계가 한 곳만 움직이게 한다(별도 상수를 두면 경계가 두 벌이 된다).
  */
-function buildReadinessSummary(areaScores, page2Overall) {
+function buildReadinessSummary(areaScores: AreaScores, page2Overall: number) {
   const sorted = sortByScoreAsc(PAGE2_AREAS, areaScores);
   const lowCode = sorted[0];
   const highCode = sorted[sorted.length - 1];
@@ -466,7 +511,7 @@ function buildReadinessSummary(areaScores, page2Overall) {
 }
 
 /** 6영역 바 그래프(§7.2 readiness.areas) — **정렬 주체가 엔진**이다(PAGE1 과 달리 컴포넌트가 정렬하지 않는다). */
-function buildReadinessAreas(areaScores) {
+function buildReadinessAreas(areaScores: AreaScores) {
   return sortByScoreAsc(PAGE2_AREAS, areaScores).map((code) => {
     const score = areaScores[code] ?? 0;
     return {
@@ -483,7 +528,7 @@ function buildReadinessAreas(areaScores) {
  * 0개·1개 분기가 문구집에 있는데 InsightColumns 에는 캡션 슬롯이 없다 → 리스트 첫 항목으로 흡수한다
  * (컴포넌트를 고치지 않고 문구도 창작하지 않는 유일한 경로).
  */
-function buildStrengths(areaScores) {
+function buildStrengths(areaScores: AreaScores) {
   const items = [...STRENGTH_SCOPE]
     .sort(
       (a, b) =>
@@ -503,7 +548,7 @@ function buildStrengths(areaScores) {
 }
 
 /** 보완 리스트(§5.1) — 하위 영역의 weakness. 개수·대상은 F-07 확정(위 주석) — 12영역 하위 4개 고정. */
-function buildImprovements(areaScores) {
+function buildImprovements(areaScores: AreaScores) {
   return sortByScoreAsc(IMPROVEMENT_SCOPE, areaScores)
     .slice(0, IMPROVEMENT_MAX)
     .map((code) => areaCopy(code)?.weakness)
@@ -517,11 +562,13 @@ function buildImprovements(areaScores) {
  * 현재(ctx.cuts 부재)에도 admission 객체와 rows: [] 는 반드시 존재해야 한다.
  * 행 라벨·'0.91등급 부족' 문자열화는 여기 몫이다(엔진은 key/value/diff 구조만 낸다).
  */
-function buildAdmission(input, ctx) {
+function buildAdmission(input: DiagnosisInputLike, ctx: BuildReportCtx) {
   // F-22 — '조회 실패'(일시 오류)와 '자료 없음'(영구 부재)은 다른 사실이다. 훅이 참조 비교로
   // 가른 결과가 ctx.cutsError 로 올라온다. 여기서는 불리언 하나만 본다.
   const fetchFailed = ctx.cutsError === true;
-  const cuts = ctx.cuts ?? {};
+  // normalizedCuts/admissionRows(diagnosisScoring.js)가 cuts?.cut50 형태로만 읽으므로
+  // null과 {} 는 런타임에서 완전히 동치다 — 타입만 successProbability의 JSDoc 셰이프에 맞춘다.
+  const cuts = ctx.cuts ?? null;
   const mine = convertToNineScale(
     input.gradeSystem,
     input.scores?.naesinOverall,
@@ -580,6 +627,11 @@ function buildAdmission(input, ctx) {
 
   const admissionNote = commonCopy("ADMISSION_NOTE");
 
+  // PROB_DISPLAY_MODE(diagnosisScoringTable.ts)는 상수 리터럴 초기값 그대로 export 돼
+  // TS가 "SCREEN_EXTRA" 단일 리터럴 타입으로 좁힌다 — 이 상수는 값을 직접 고쳐 뒤집는
+  // 롤백 레버라 원본 셰이프(문자열)를 바꾸지 않고 여기서만 비교용으로 넓힌다.
+  const probDisplayMode: string = PROB_DISPLAY_MODE;
+
   // G-3(NIT 1, 2026-08-12) — PROB_DISPLAY_MODE 를 'HEADLINE_SLOT' 으로 되돌리면 구간 라벨이
   // probabilityValue(헤드라인)에 실린다. buildAdmission 은 모드와 무관하게 화면 전용 슬롯도 항상
   // 채웠었는데, 그러면 같은 구간 문자열이 헤드라인 + fd-screen-only 문단에 **두 번** 뜬다
@@ -587,7 +639,7 @@ function buildAdmission(input, ctx) {
   // 전용 슬롯 3종(range/rangeLabel/probNote)만 null 로 죽인다 — badge('참고 결과')는 헤드라인
   // 옆에 계속 붙어야 하므로 모드와 무관하게 유지한다.
   const screenProbabilityRange =
-    PROB_DISPLAY_MODE === "HEADLINE_SLOT" ? null : probabilityRange;
+    probDisplayMode === "HEADLINE_SLOT" ? null : probabilityRange;
 
   return {
     /* ── AdmissionSection 이 무조건 구조분해하는 5키(§7.4.3 불변식) ── */
@@ -597,7 +649,7 @@ function buildAdmission(input, ctx) {
     // 값에 소수·정수 정밀도를 부여하지 않는다는 결정이다. 'HEADLINE_SLOT' 으로 뒤집으면 이 자리에
     // 구간 라벨이 들어가 인쇄에도 실린다(상수 한 줄로 되돌린다).
     probabilityValue:
-      PROB_DISPLAY_MODE === "HEADLINE_SLOT" && probabilityRange != null
+      probDisplayMode === "HEADLINE_SLOT" && probabilityRange != null
         ? probabilityRange
         : (ADMISSION_BAND_LABEL[band] ?? REPORT_FALLBACK.BAND_VALUE_NODATA),
     // 조회 실패에 BAND_NODATA('…자료가 없어 산출하지 않았습니다')를 쓰는 것은 학생에게 거짓을
@@ -657,7 +709,12 @@ function buildAdmission(input, ctx) {
 }
 
 /** diff > 0 이면 내 등급 숫자가 더 커서 '부족', 음수면 '우위'. 내 성적 행과 동률은 '기준점'이다. */
-function formatAdmissionDiff(row) {
+function formatAdmissionDiff(row: {
+  key: string;
+  value: number;
+  diff: number | null;
+  emphasis: boolean;
+}) {
   if (row.key === "mine" || row.diff == null || row.diff === 0)
     return templateCopy("diff_base");
   const key = row.diff > 0 ? "diff_short" : "diff_over";
@@ -669,7 +726,20 @@ function formatAdmissionDiff(row) {
  * 전 서비스 fit < 50 이면 SVC_NONE 을 노출할 캡션 슬롯이 없어 안내 카드 1장으로 흡수한다
  * (rank·name 을 비워 카드 제목 줄만 접는다 — 컴포넌트 수정도 문구 창작도 하지 않는다).
  */
-function buildRecommendations(services) {
+type RankedService = {
+  code: string;
+  name: string;
+  fit: number;
+  // rankServices(diagnosisScoring.js)의 실제 추론 타입은 리터럴 유니온으로 좁혀지지 않고
+  // string으로 넓혀진다(그 파일은 변환 대상 밖) — 그대로 맞춘다.
+  tier: string | null;
+  lowestLinkedAreaName: string | null;
+};
+
+function buildRecommendations(services: {
+  rank1: RankedService | null;
+  rank2: RankedService | null;
+}) {
   const { rank1, rank2 } = services;
   const picked = [rank1, rank2].filter((service) => service != null);
 
@@ -680,7 +750,10 @@ function buildRecommendations(services) {
   }
 
   return picked.map((service, index) => {
-    const copy = serviceCopy(service.code, service.tier);
+    const copy = serviceCopy(
+      service.code,
+      service.tier as "HIGH" | "MID" | "LOW" | null,
+    );
     return {
       rank: RANK_LABELS[index],
       name: SERVICE_LABEL[service.code] ?? service.name ?? "",
@@ -698,7 +771,7 @@ function buildRecommendations(services) {
  * '{영역}' 리터럴이 노출되므로 반드시 fill 을 한 번 더 태운다(§5.2 가 명시적으로 경고한 경로다).
  * 치환값은 rankServices 가 이미 산출한 lowestLinkedAreaName 이다.
  */
-function rankPrefix(index, service) {
+function rankPrefix(index: number, service: RankedService) {
   const generic = commonCopy("SVC_RANK1_PREFIX") ?? "";
   // 치환값이 없으면 토큰이 남으므로 아예 토큰 없는 1순위 캡션으로 떨어뜨린다.
   if (index === 0 || service.lowestLinkedAreaName == null) return generic;
@@ -717,7 +790,7 @@ function rankPrefix(index, service) {
  * 영역(SCREEN_EXTRAS, ReportScreenExtras.jsx)이 level·lowAreaCount 를 urgencyLine 템플릿으로
  * 소비한다 — 더 이상 죽은 코드가 아니다. score 는 여전히 화면에 내지 않는다(F-05 참조).
  */
-function buildUrgency(input, areaScores) {
+function buildUrgency(input: DiagnosisInputLike, areaScores: AreaScores) {
   const urgency = urgencyOf(input, areaScores);
   return {
     level: urgency.level,
@@ -749,7 +822,7 @@ function buildUrgency(input, areaScores) {
  * detail 이 null 인 행(문구 미커버)은 제거하지 않고 그대로 내려보낸다 — 6행 고정 shape 를 유지해
  * UI 가 인덱스로 접근해도 깨지지 않게 하고, 렌더는 컴포넌트가 null 을 걸러 생략한다(창작 금지).
  */
-function buildAreaDetails(areaScores) {
+function buildAreaDetails(areaScores: AreaScores) {
   const rowsOf = (areas, pageKey) =>
     sortByScoreAsc(areas, areaScores).map((code) => {
       const score = areaScores[code] ?? 0;
@@ -781,7 +854,7 @@ function buildAreaDetails(areaScores) {
  * PriorityTable 의 '필요한 것'(need.improve/keep)과는 다른 문구 묶음이다 — 문구집 02 시트에서
  * '필요한 것'과 '맞춤 전략'이 서로 다른 구분이고 문자열도 겹치지 않는다(중복 노출 아님).
  */
-function buildStrategyGroups(areaScores) {
+function buildStrategyGroups(areaScores: AreaScores) {
   return sortByScoreAsc(AREA_CODES, areaScores)
     .map((code) => ({
       code,
@@ -805,7 +878,11 @@ function buildStrategyGroups(areaScores) {
  * F-06 확정(2026-08-11) — 서비스 제한 안내는 학년 리터럴이 아니라 엔진의 filterReason 으로
  *   분기한다. 판정 규칙(고3 6월 경계·KST)이 두 벌이 되지 않게 하려는 것이다.
  */
-function buildNotices(input, serviceFilterReason, sincerityFlagged) {
+function buildNotices(
+  input: DiagnosisInputLike,
+  serviceFilterReason: string | null,
+  sincerityFlagged: boolean,
+) {
   const likert = { ...(input.likert1 ?? {}), ...(input.likert2 ?? {}) };
   const likertKeys = Object.keys(likert);
   const hasSkipped =
@@ -861,8 +938,12 @@ function buildNotices(input, serviceFilterReason, sincerityFlagged) {
  *          참조 동일성이 사라져 훅 밖에서는 판별할 수 없다. 훅이 불리언으로 바꿔 올린다.
  * @returns {object} renewalReportSample 과 동일 shape + traitsHeading + 화면 전용 확장 키
  */
-export function buildReport(input, ctx = {}) {
-  const safeInput = input && typeof input === "object" ? input : {};
+// input: 저장 페이로드(diagnosisInputStorage) 또는 normalizeAnswers() 결과가 그대로
+// 들어온다 — 둘 다 이 배치 범위 밖(하드 버킷·타 파일 소유)이라 정확한 셰이프를 강제하지
+// 않는다(원 JSDoc @param {object} input과 동일한 관용도). 내부에서는 DiagnosisInputLike로 좁힌다.
+export function buildReport(input: any, ctx: BuildReportCtx = {}) {
+  const safeInput: DiagnosisInputLike =
+    input && typeof input === "object" ? input : {};
   const areaScores = scoreAreas(safeInput);
   const page1Overall = overallScore(areaScores, 1);
   const page2Overall = overallScore(areaScores, 2);

@@ -37,7 +37,17 @@ export const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";
  *   참조 비교를 끝내고 불리언으로 올려 주므로 그 값을 그대로 넘기면 된다.
  * @returns {object} 저장된 payload (저장 실패와 무관하게 항상 유효한 객체)
  */
-export function submitDiagnosisAnswers(answers, options = {}) {
+type SubmitDiagnosisOptions = {
+  name?: string | null;
+  admissionCuts?: Record<string, unknown> | null;
+  admissionMeta?: Record<string, unknown> | null;
+  admissionCutsError?: boolean;
+};
+
+export function submitDiagnosisAnswers(
+  answers: Record<string, unknown>,
+  options: SubmitDiagnosisOptions = {},
+) {
   const {
     name = null,
     admissionCuts = null,
@@ -61,7 +71,7 @@ export function submitDiagnosisAnswers(answers, options = {}) {
 }
 
 /** 저장. 실패해도 던지지 않는다 — 라우터 state 경로가 살아 있어 리포트는 그대로 렌더된다. */
-export function saveDiagnosisInput(input) {
+export function saveDiagnosisInput(input: unknown): boolean {
   try {
     window.sessionStorage.setItem(
       DIAGNOSIS_INPUT_STORAGE_KEY,
@@ -82,7 +92,9 @@ export function saveDiagnosisInput(input) {
  * @param {any} [locationState] useLocation().state
  * @returns {object|null} 검증을 통과한 DiagnosisInput, 없으면 null
  */
-export function loadDiagnosisInput(locationState) {
+// locationState: useLocation().state — react-router가 임의 값을 그대로 통과시키는
+// 자리라 원 JSDoc(@param {any})과 동일하게 any로 받는다.
+export function loadDiagnosisInput(locationState?: any): object | null {
   const fromRouter = locationState?.diagnosisInput;
   if (fromRouter?.meta?.schemaVersion === SCHEMA_VERSION) return fromRouter;
 
