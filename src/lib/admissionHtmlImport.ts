@@ -37,6 +37,7 @@
 // needsReview로 반환한다.
 // =====================================================================
 
+import type { AdmissionDoc } from "./admissionDoc.js";
 import { stableStringifyDoc } from "./admissionDoc.js";
 import {
   buildSpecialCategoryDoc,
@@ -294,8 +295,8 @@ function collectSignificantChildren(node) {
   return result;
 }
 
-function normalizeAttrs(node) {
-  const attrs = {};
+function normalizeAttrs(node): Record<string, string> {
+  const attrs: Record<string, string> = {};
   node.attributes.forEach((a) => {
     const name = a.name.toLowerCase();
     if (name === "class") {
@@ -509,13 +510,13 @@ export function compareStoredHtmlEquivalence(rendered, stored) {
 // renderDocToHtml 재렌더 → DOM 동형 비교. 성공해야만 'imported'.
 // -----------------------------------------------------------------------
 function tryCandidate(
-  buildDoc,
+  buildDoc: () => AdmissionDoc | null,
   sectionKey,
   html,
   universityName,
   candidateName,
 ) {
-  let doc;
+  let doc: AdmissionDoc | null;
   try {
     doc = buildDoc();
   } catch (err) {
@@ -541,7 +542,7 @@ function tryCandidate(
     );
   }
 
-  let rendered;
+  let rendered: string;
   try {
     rendered = renderDocToHtml(doc, sectionKey);
   } catch (err) {
