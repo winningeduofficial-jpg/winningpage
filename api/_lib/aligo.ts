@@ -30,22 +30,22 @@
 //   ALIGO_DRY_RUN        'true'면 알리고를 아예 호출하지 않음 (로컬 로직 검증용)
 
 import { outboundFetch } from "./outbound.ts";
-import { maskPhone } from "./phoneCode.js";
+import { maskPhone } from "./phoneCode.ts";
 import { getEnv } from "./supabaseAdmin.ts";
 
 const SMS_ENDPOINT = "https://apis.aligo.in/send/";
 const ALIMTALK_ENDPOINT = "https://kakaoapi.aligo.in/akv10/alimtalk/send/";
 
-export function getChannel() {
+export function getChannel(): "sms" | "alimtalk" {
   // 미설정이면 알림톡. SMS는 'sms'라고 명시했을 때만 쓴다.
   return getEnv("ALIGO_CHANNEL").toLowerCase() === "sms" ? "sms" : "alimtalk";
 }
 
-export function isDryRun() {
+export function isDryRun(): boolean {
   return getEnv("ALIGO_DRY_RUN").toLowerCase() === "true";
 }
 
-function isTestMode() {
+function isTestMode(): boolean {
   return getEnv("ALIGO_TEST_MODE").toLowerCase() === "true";
 }
 
@@ -59,7 +59,7 @@ function isTestMode() {
  * 템플릿 원문의 변수 자리는 `#{인증번호}`이며, 알리고에는 치환이 끝난 완성
  * 문구를 보낸다(변수를 키-값으로 따로 넘기지 않는다).
  */
-export function buildAlimtalkMessage(code) {
+export function buildAlimtalkMessage(code: string): string {
   return [
     "안녕하세요, 위닝에듀입니다.",
     "",
@@ -81,12 +81,12 @@ const SMS_BYTE_LIMIT = 90;
  * 200바이트가 넘어 LMS가 되므로, 90바이트 안에 들어가는 짧은 문구를 따로 쓴다.
  * 알림톡 실패 시 대체 발송(failover)에도 이 문구를 쓴다.
  */
-export function buildSmsMessage(code) {
+export function buildSmsMessage(code: string): string {
   return `[위닝에듀] 인증번호 ${code}`;
 }
 
 /** EUC-KR 기준 바이트 수 — 한글/전각 2바이트, 그 외 1바이트. */
-export function smsByteLength(text) {
+export function smsByteLength(text: string): number {
   let bytes = 0;
 
   for (const ch of String(text)) {
@@ -96,11 +96,21 @@ export function smsByteLength(text) {
   return bytes;
 }
 
-export function isWithinSmsLimit(text) {
+export function isWithinSmsLimit(text: string): boolean {
   return smsByteLength(text) <= SMS_BYTE_LIMIT;
 }
 
-async function postForm(url, params) {
+type FormPostResult = {
+  httpStatus: number;
+  // 벤더(알리고) 응답 JSON 구조가 문서화돼 있지 않아 파싱 결과를 any로 둔다.
+  payload: any;
+  raw?: string;
+};
+
+async function postForm(
+  url: string,
+  params: Record<string, unknown>,
+): Promise<FormPostResult> {
   const body = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -132,7 +142,24 @@ async function postForm(url, params) {
   }
 }
 
-async function sendSms({ phone, code }) {
+export type SendResult = {
+  ok: boolean;
+  channel: string;
+  // 벤더 응답 필드(result_code/code)의 타입이 문서에 명시돼 있지 않아
+  // string|number로 근사한다.
+  providerCode: string | number;
+  providerMessage: string;
+  messageId: string | null;
+  dryRun?: boolean;
+};
+
+async function sendSms({
+  phone,
+  code,
+}: {
+  phone: string;
+  code: string;
+}): Promise<SendResult> {
   const params = {
     key: getEnv("ALIGO_API_KEY"),
     user_id: getEnv("ALIGO_USER_ID"),
@@ -164,7 +191,13 @@ async function sendSms({ phone, code }) {
   };
 }
 
-async function sendAlimtalk({ phone, code }) {
+async function sendAlimtalk({
+  phone,
+  code,
+}: {
+  phone: string;
+  code: string;
+}): Promise<SendResult> {
   const params = {
     apikey: getEnv("ALIGO_API_KEY"),
     userid: getEnv("ALIGO_USER_ID"),
@@ -209,9 +242,14 @@ async function sendAlimtalk({ phone, code }) {
 
 /**
  * 인증번호를 발송한다. 채널 선택과 dry-run 처리를 여기서 흡수한다.
- * @returns {Promise<{ok: boolean, channel: string, providerCode: any, providerMessage: string, messageId: string|null, dryRun?: boolean}>}
  */
-export async function sendVerificationCode({ phone, code }) {
+export async function sendVerificationCode({
+  phone,
+  code,
+}: {
+  phone: string;
+  code: string;
+}): Promise<SendResult> {
   if (isDryRun()) {
     // 실제 발송 없이 발송 성공으로 처리한다. 코드까지 로그로 남겨야
     // 로컬에서 검증 단계를 이어서 테스트할 수 있다.

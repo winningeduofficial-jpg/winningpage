@@ -161,7 +161,9 @@ export function isActiveStatus(value: unknown): boolean {
 }
 
 /** Authorization: Bearer <token> 헤더에서 토큰만 뽑는다. */
-export function getBearerToken(req: { headers: Record<string, string> }): string {
+export function getBearerToken(req: {
+  headers: Record<string, string>;
+}): string {
   return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
 }
 
@@ -779,7 +781,7 @@ export async function readQuotaSnapshot(
     const liveCount = readIntOrNull(summary.live_count, 0) ?? 0;
     const unlimitedSessions = summary.unlimited_sessions === true;
 
-    let quotaTotal;
+    let quotaTotal: number | null;
     if (unlimitedSessions) {
       quotaTotal = null;
     } else if (liveCount === 0) {

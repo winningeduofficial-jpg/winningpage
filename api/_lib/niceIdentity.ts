@@ -48,7 +48,11 @@ export const REQUEST_TTL_SECONDS = 600;
 /** 인증수단 코드. 우리 계약은 휴대폰(M)이다. */
 export const SVC_TYPE_MOBILE = "M";
 
-export function getConfig() {
+export function getConfig(): {
+  clientId: string;
+  clientSecret: string;
+  returnUrl: string;
+} {
   const clientId = getEnv("NICE_CLIENT_ID");
   const clientSecret = getEnv("NICE_CLIENT_SECRET");
   const returnUrl = getEnv("NICE_RETURN_URL");
@@ -67,14 +71,14 @@ export function getConfig() {
  *
  * 24자로 만든다 — 하한 20자에 너무 붙여두면 접두어를 바꿀 때 규격을 넘길 위험이 있다.
  */
-export function generateRequestNo() {
+export function generateRequestNo(): string {
   return `WE${crypto.randomBytes(11).toString("hex").toUpperCase()}`;
 }
 
 // ── 나이 판정 ────────────────────────────────────────────────────────
 
 /** 'YYYYMMDD' → Date. NICE는 birthdate를 이 형식으로 준다. */
-export function parseNiceBirthDate(raw) {
+export function parseNiceBirthDate(raw: unknown): Date | null {
   const s = String(raw || "").trim();
   if (!/^\d{8}$/.test(s)) return null;
 
@@ -99,7 +103,10 @@ export function parseNiceBirthDate(raw) {
  * 만 나이. 생일이 지났는지까지 따진다.
  * 기준일을 인자로 받는 이유는 테스트에서 경계값을 고정하기 위해서다.
  */
-export function computeKoreanAge(birthDate, at = new Date()) {
+export function computeKoreanAge(
+  birthDate: Date | null,
+  at: Date = new Date(),
+): number | null {
   if (!birthDate) return null;
 
   const today = new Date(
@@ -122,7 +129,10 @@ export function computeKoreanAge(birthDate, at = new Date()) {
  * 미만이면 법정대리인 동의가 필요한데, 그 분기를 사용자가 스스로 고르게 두면
  * 아무 의미가 없기 때문이다.
  */
-export function isUnder14(birthDate, at = new Date()) {
+export function isUnder14(
+  birthDate: Date | null,
+  at: Date = new Date(),
+): boolean | null {
   const age = computeKoreanAge(birthDate, at);
   return age === null ? null : age < 14;
 }
@@ -139,7 +149,15 @@ export function isUnder14(birthDate, at = new Date()) {
  *
  * 자르는 위치도 규격이다: 대칭키 [0,32), HMAC키 [48,80).
  */
-export function deriveKeys({ ticket, transactionId, iterators }) {
+export function deriveKeys({
+  ticket,
+  transactionId,
+  iterators,
+}: {
+  ticket: unknown;
+  transactionId: unknown;
+  iterators: unknown;
+}): { key: string; hmacKey: string } {
   const iterations = Number(iterators);
 
   if (
@@ -175,7 +193,9 @@ export function deriveKeys({ ticket, transactionId, iterators }) {
  * GCM의 표준 IV는 12바이트지만 NICE 규격은 16바이트를 쓴다. Node는 GCM에서
  * 임의 길이 IV를 허용하므로 그대로 넘기면 된다.
  */
-export function decryptPayload(encData, key) {
+// NICE 표준창 복호화 결과는 개인정보 스키마가 요청 항목(svc_types)에 따라
+// 달라지는 벤더 페이로드라 any로 둔다.
+export function decryptPayload(encData: string, key: string): any {
   const raw = Buffer.from(String(encData), "base64url");
 
   const IV_LENGTH = 16;
@@ -208,7 +228,7 @@ export function decryptPayload(encData, key) {
 }
 
 /** 무결성 검증값. enc_data **문자열 그대로**를 HMAC-SHA256 한 뒤 base64url(패딩 없음). */
-export function makeIntegrityValue(encData, hmacKey) {
+export function makeIntegrityValue(encData: string, hmacKey: string): string {
   return crypto
     .createHmac("sha256", Buffer.from(hmacKey, "utf8"))
     .update(String(encData), "utf8")
@@ -216,7 +236,11 @@ export function makeIntegrityValue(encData, hmacKey) {
 }
 
 /** 위변조 확인. 길이가 달라도 예외 없이 false를 돌려준다. */
-export function verifyIntegrity(encData, hmacKey, received) {
+export function verifyIntegrity(
+  encData: string,
+  hmacKey: string,
+  received: unknown,
+): boolean {
   const expected = makeIntegrityValue(encData, hmacKey);
   const a = Buffer.from(expected, "utf8");
   const b = Buffer.from(String(received || ""), "utf8");
@@ -227,7 +251,14 @@ export function verifyIntegrity(encData, hmacKey, received) {
 
 // ── NICE API 호출 ────────────────────────────────────────────────────
 
-async function postJson(path, { authorization, body }) {
+// NICE 벤더 응답이 요청 경로마다 필드가 달라(token/url/result) 공용 반환
+// 타입을 두지 않고 any로 둔다. 호출부가 필요한 필드를 직접 구조분해한다.
+type NiceApiError = Error & { niceResultCode?: string };
+
+async function postJson(
+  path: string,
+  { authorization, body }: { authorization: string; body: unknown },
+): Promise<any> {
   const response = await outboundFetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: {
@@ -240,7 +271,8 @@ async function postJson(path, { authorization, body }) {
   });
 
   const text = await response.text();
-  let payload;
+  // 벤더 JSON 응답이라 파싱 결과 형태를 미리 알 수 없다(postJson 반환 타입과 동일 이유).
+  let payload: any;
 
   try {
     payload = JSON.parse(text);
@@ -254,7 +286,7 @@ async function postJson(path, { authorization, body }) {
     // result_code를 error에 달아둔다. 호출부가 "NICE가 거절한 것"과 "NICE에
     // 닿지 못한 것"을 구분해야 사용자에게 맞는 안내를 할 수 있다 —
     // 전자는 재시도해도 그대로고, 후자만 "잠시 후 다시"가 맞다.
-    const error = new Error(
+    const error: NiceApiError = new Error(
       `NICE 요청 실패 (${path}): ${payload?.result_code} ${payload?.result_message || ""}`.trim(),
     );
     error.niceResultCode = String(payload?.result_code || "");
@@ -271,17 +303,24 @@ async function postJson(path, { authorization, body }) {
  * (예: 1786087089000). 다만 규격 변경에 대비해 작은 값이면 초 단위 유효기간으로
  * 간주한다 — 잘못 읽어 캐시를 영원히 유효하다고 판단하는 쪽이 더 위험하다.
  */
-function resolveExpiry(expiresIn) {
+function resolveExpiry(expiresIn: unknown): number {
   const value = Number(expiresIn);
   if (!Number.isFinite(value) || value <= 0) return Date.now() + 60_000;
   return value > 1e12 ? value : Date.now() + value * 1000;
 }
 
+type NiceTokenCache = {
+  accessToken: string;
+  ticket: string;
+  iterators: number;
+  expiresAt: number;
+};
+
 // access_token은 유효기간이 길다. 서버리스 인스턴스가 살아 있는 동안 재사용한다.
 // ticket·iterators도 함께 들고 있어야 한다 — 복호화 키가 여기서 나온다.
-let cachedToken = null;
+let cachedToken: NiceTokenCache | null = null;
 
-export async function fetchAccessToken() {
+export async function fetchAccessToken(): Promise<NiceTokenCache> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
     return cachedToken;
   }
@@ -315,13 +354,29 @@ export async function fetchAccessToken() {
  * 콜백 시점에 이 셋이 있어야 결과를 복호화할 수 있다. requestNo도 결과 조회에
  * 다시 필요하다.
  */
+export type IssueAuthUrlOptions = {
+  requestNo?: string;
+  returnUrl?: string;
+  closeUrl?: string;
+  svcTypes?: string[];
+  methodType?: string;
+};
+
+export type AuthUrlResult = {
+  authUrl: string;
+  transactionId: string;
+  requestNo: string;
+  ticket: string;
+  iterators: number;
+};
+
 export async function issueAuthUrl({
   requestNo = generateRequestNo(),
   returnUrl,
   closeUrl,
   svcTypes = [SVC_TYPE_MOBILE],
   methodType = "GET",
-} = {}) {
+}: IssueAuthUrlOptions = {}): Promise<AuthUrlResult> {
   const config = getConfig();
   const token = await fetchAccessToken();
 
@@ -352,13 +407,22 @@ export async function issueAuthUrl({
  * ticket·iterators는 **표준창을 열 때 쓴 토큰의 것**을 넘겨야 한다. 그 사이
  * 토큰이 갱신됐으면 캐시의 현재 ticket으로는 복호화가 되지 않는다.
  */
+export type FetchAuthResultOptions = {
+  webTransactionId: string;
+  transactionId: string;
+  requestNo: string;
+  ticket: string;
+  iterators: number;
+};
+
+// 반환값은 decryptPayload()와 동일하게 벤더 복호화 페이로드라 any.
 export async function fetchAuthResult({
   webTransactionId,
   transactionId,
   requestNo,
   ticket,
   iterators,
-}) {
+}: FetchAuthResultOptions): Promise<any> {
   const token = await fetchAccessToken();
 
   const payload = await postJson(AUTH_RESULT_PATH, {
@@ -375,7 +439,9 @@ export async function fetchAuthResult({
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
-    const error = new Error("NICE 인증 결과의 무결성 검증에 실패했습니다.");
+    const error: Error & { integrityFailed?: boolean } = new Error(
+      "NICE 인증 결과의 무결성 검증에 실패했습니다.",
+    );
     error.integrityFailed = true;
     throw error;
   }

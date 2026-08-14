@@ -194,7 +194,9 @@ export async function grantProgramAccessForOrder(
     }
 
     const payload = data || {};
-    result.granted = toArray<string>(payload.granted).map(clean).filter(Boolean);
+    result.granted = toArray<string>(payload.granted)
+      .map(clean)
+      .filter(Boolean);
     result.serviceKeys = toArray<string>(payload.service_keys)
       .map(clean)
       .filter(Boolean);
@@ -225,21 +227,36 @@ export async function grantProgramAccessForOrder(
  *   program_access_grants 에서 **그 주문의 행만** revoked_at 으로 닫고, 남아
  *   있는 다른 주문의 부여로 기간·회차를 재계산한다.
  *
- * @param {object} options
- * @param {string} options.orderId
- * @param {?string} options.userId  주문자(orders.user_id). 없으면 회수 대상 없음.
- * @param {'refunded'|'cancelled'} [options.paymentStatus='refunded']
- *        돈을 돌려준 취소는 refunded, 입금된 적 없이 종결된 건(미입금 만료·승인 전
- *        취소)은 cancelled. program_access_payment_status_check 허용값이다.
- *
- * @returns {{ok:boolean, revoked:string[], serviceKeys:string[],
- *            skipped:{...}[], error:?string}}
+ * @param options.orderId
+ * @param options.userId  주문자(orders.user_id). 없으면 회수 대상 없음.
+ * @param options.paymentStatus  돈을 돌려준 취소는 refunded, 입금된 적 없이
+ *        종결된 건(미입금 만료·승인 전 취소)은 cancelled.
+ *        program_access_payment_status_check 허용값이다. 기본값 'refunded'.
  */
+export type RevokeProgramAccessOptions = {
+  orderId?: string;
+  userId?: string | null;
+  paymentStatus?: "refunded" | "cancelled";
+};
+
+export type RevokeProgramAccessResult = {
+  ok: boolean;
+  revoked: string[];
+  serviceKeys: string[];
+  skipped: AccessSkipReason[];
+  error: string | null;
+  ledgerClosed?: number;
+};
+
 export async function revokeProgramAccessForOrder(
-  supabaseAdmin,
-  { orderId, userId, paymentStatus = "refunded" } = {},
-) {
-  const result = {
+  supabaseAdmin: SupabaseClient | null,
+  {
+    orderId,
+    userId,
+    paymentStatus = "refunded",
+  }: RevokeProgramAccessOptions = {},
+): Promise<RevokeProgramAccessResult> {
+  const result: RevokeProgramAccessResult = {
     ok: false,
     revoked: [],
     serviceKeys: [],
@@ -290,8 +307,10 @@ export async function revokeProgramAccessForOrder(
     }
 
     const payload = data || {};
-    result.revoked = toArray(payload.revoked).map(clean).filter(Boolean);
-    result.skipped = toArray(payload.skipped);
+    result.revoked = toArray<string>(payload.revoked)
+      .map(clean)
+      .filter(Boolean);
+    result.skipped = toArray<AccessSkipReason>(payload.skipped);
     result.ok = payload.ok === true;
     if (!result.ok) result.error = clean(payload.error) || "revoke_failed";
     result.ledgerClosed = Number(payload.ledger_closed ?? 0);
