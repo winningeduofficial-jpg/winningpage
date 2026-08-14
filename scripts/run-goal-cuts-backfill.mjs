@@ -1,7 +1,7 @@
 // =====================================================================
 // goal_university_cuts 1회 백필 실행 스크립트
 //
-// admission_results 전체를 읽어 src/lib/goal/goalCutBackfill.js 의
+// admission_results 전체를 읽어 src/lib/goal/goalCutBackfill.ts 의
 // computeGoalCutBackfill 로 (대학, 학과) 쌍당 normal/special 평균 컷을
 // 산출하고 goal_university_cuts 에 upsert 한다. Admin.jsx 의 H-2 백필
 // 패널과 **같은 순수 계산 함수**를 쓴다 — 로직을 복제하지 않는다(복제
@@ -35,7 +35,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   computeGoalCutBackfill,
   fetchBackfillSourceRows,
-} from "../src/lib/goal/goalCutBackfill.js";
+} from "../src/lib/goal/goalCutBackfill.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");

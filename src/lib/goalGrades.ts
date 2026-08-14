@@ -28,9 +28,7 @@ export function round1(value: number | null | undefined): number | null {
 }
 
 /** api/goal/grades.js 회차 레코드 배열 → GoalTable rows({term, korean, math, english, science, average}). */
-export function toTableRows(
-  records: GoalGradeRecordLike[] | null | undefined,
-) {
+export function toTableRows(records: GoalGradeRecordLike[] | null | undefined) {
   return (records || []).map((record) => ({
     term: record.term,
     korean: record.subjects?.korean,

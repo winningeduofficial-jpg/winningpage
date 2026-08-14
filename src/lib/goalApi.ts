@@ -313,7 +313,7 @@ export type SubmitGoalIntakeResult =
 // intake 설문 본문(7단계 폼) — 서버가 zod로 검증하는 실제 계약(api/goal/intake.ts)이라
 // 클라이언트 쪽에서 이중으로 좁게 규정하지 않는다(과잉 제약 방지, 판단 지점).
 export async function submitGoalIntake(
-  body: Record<string, unknown>,
+  body: object,
 ): Promise<SubmitGoalIntakeResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
@@ -547,7 +547,7 @@ type GoalWorkbooksRequestResult =
 
 async function goalWorkbooksRequest(
   method: string,
-  body?: Record<string, unknown>,
+  body?: object,
 ): Promise<GoalWorkbooksRequestResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
@@ -636,7 +636,9 @@ export async function updateGoalWorkbook(
 /** DELETE — 문제집 1건 삭제. */
 export async function deleteGoalWorkbook(
   id: number,
-): Promise<Exclude<GoalWorkbooksRequestResult, { kind: "success" }> | { kind: "success" }> {
+): Promise<
+  Exclude<GoalWorkbooksRequestResult, { kind: "success" }> | { kind: "success" }
+> {
   const outcome = await goalWorkbooksRequest("DELETE", { id });
   if (outcome.kind !== "success") return outcome;
   return { kind: "success" };
@@ -710,7 +712,7 @@ type SubmitGoalScheduleResult =
 
 async function submitGoalSchedule(
   method: string,
-  body: Record<string, unknown>,
+  body: object,
 ): Promise<SubmitGoalScheduleResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
@@ -804,10 +806,7 @@ type RequestPlanTasksResult =
 /** 공용 요청 실행기 — 인증 헤더 부착 + JSON 직렬화 + 안전 파싱까지 4개 함수가 공유. */
 async function requestPlanTasks(
   method: string,
-  {
-    query,
-    body,
-  }: { query?: Record<string, string>; body?: Record<string, unknown> } = {},
+  { query, body }: { query?: Record<string, string>; body?: object } = {},
 ): Promise<RequestPlanTasksResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
@@ -864,8 +863,7 @@ export async function fetchGoalPlanTasks({
 }) {
   const result = await requestPlanTasks("GET", { query: { from, to } });
   if (result.kind !== "success") return result;
-  if (result.body?.allowed === false)
-    return { kind: "not-allowed" as const };
+  if (result.body?.allowed === false) return { kind: "not-allowed" as const };
   return {
     kind: "success" as const,
     tasks: (result.body?.tasks || []) as GoalPlanTask[],
@@ -1149,7 +1147,7 @@ type RequestGoalTimerResult =
 /** 공용 요청 실행기 — 인증 헤더 부착 + JSON 직렬화 + 안전 파싱까지 공유. */
 async function requestGoalTimer(
   method: string,
-  body?: Record<string, unknown>,
+  body?: object,
   { keepalive = false }: { keepalive?: boolean } = {},
 ): Promise<RequestGoalTimerResult> {
   const authHeader = await getAuthHeader();
@@ -1199,8 +1197,7 @@ async function requestGoalTimer(
 export async function fetchGoalTimer() {
   const result = await requestGoalTimer("GET");
   if (result.kind !== "success") return result;
-  if (result.body?.allowed === false)
-    return { kind: "not-allowed" as const };
+  if (result.body?.allowed === false) return { kind: "not-allowed" as const };
   return {
     kind: "success" as const,
     summary: result.body as GoalTimerSummary,
@@ -1220,7 +1217,9 @@ export async function startGoalTimer(subject: string) {
 /** 진행 중인 세션 종료. 진행 중이 없어도 200(멱등) — 항상 success로 접는다. */
 export async function stopGoalTimer({
   keepalive = false,
-}: { keepalive?: boolean } = {}) {
+}: {
+  keepalive?: boolean;
+} = {}) {
   const result = await requestGoalTimer(
     "POST",
     { action: "stop" },
@@ -1233,7 +1232,9 @@ export async function stopGoalTimer({
 /** 하트비트 touch. pagehide에서 호출할 땐 keepalive:true를 넘긴다(위 주석 참고). */
 export async function heartbeatGoalTimer({
   keepalive = false,
-}: { keepalive?: boolean } = {}) {
+}: {
+  keepalive?: boolean;
+} = {}) {
   const result = await requestGoalTimer(
     "POST",
     { action: "heartbeat" },
