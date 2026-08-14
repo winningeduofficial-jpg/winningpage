@@ -1,8 +1,22 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
+
+type StrategyRow = {
+  label: string;
+  value?: ReactNode;
+};
+
+type StrategyListCardProps = {
+  title?: ReactNode;
+  rows: StrategyRow[];
+};
 
 // Row4(월간 전용) 카드② `다음 달 관리 전략` — part-15 §268(전략 행 556×55 ×3).
 // 체크박스/토글 어포던스가 시안에 없어(part-15 §386) 표시 전용 리스트로 구현한다(추정).
-export default function StrategyListCard({ title, rows }) {
+export default function StrategyListCard({
+  title,
+  rows,
+}: StrategyListCardProps) {
   return (
     <GoalCard
       tone="neutral"

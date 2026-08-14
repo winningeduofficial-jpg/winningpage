@@ -1,4 +1,13 @@
+import type { ReactNode } from "react";
 import GoalProgressBar from "../GoalProgressBar";
+
+type StatProgressRowProps = {
+  label: ReactNode;
+  value: number;
+  unit?: string;
+  max?: number;
+  fillClassName?: string;
+};
 
 // 리포트 카드 내 반복되는 "라벨 / 값 / 진행바" 한 행 — docs/figma-goal/00-INDEX.md §5-4
 // `ProgressRow`. 시간대별 학습 효율·학습 방해요인·완료한 핵심 학습 항목·과목별 학습 비중 등
@@ -14,7 +23,7 @@ export default function StatProgressRow({
   unit = "",
   max,
   fillClassName,
-}) {
+}: StatProgressRowProps) {
   const denom = max && max > 0 ? max : value || 1;
 
   return (

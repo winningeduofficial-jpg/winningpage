@@ -1,7 +1,22 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
 
+type ConditionRow = {
+  label: string;
+  emoji?: ReactNode;
+  value?: ReactNode;
+};
+
+type ConditionListCardProps = {
+  title?: ReactNode;
+  rows: ConditionRow[];
+};
+
 // Row1 카드③ `이번 주/달 컨디션` — 이모지 + 라벨 + 일수 3행 리스트(196×200, part-11 §245~247).
-export default function ConditionListCard({ title, rows }) {
+export default function ConditionListCard({
+  title,
+  rows,
+}: ConditionListCardProps) {
   return (
     <GoalCard
       tone="neutral"

@@ -1,4 +1,11 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
+
+type MentorCommentCardProps = {
+  title?: ReactNode;
+  dateLabel?: ReactNode;
+  body?: ReactNode;
+};
 
 // 멘토 코멘트 카드(1340×147) — docs/figma-goal/00-INDEX.md §5-4 `MentorCommentCard`.
 // 리포트 최하단 공통 요소. 제목 + 작성일(인라인) + 본문 1문단.
@@ -6,7 +13,7 @@ export default function MentorCommentCard({
   title = "멘토 코멘트",
   dateLabel,
   body,
-}) {
+}: MentorCommentCardProps) {
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-3 px-8 py-7">
       <div className="flex items-baseline gap-3">
