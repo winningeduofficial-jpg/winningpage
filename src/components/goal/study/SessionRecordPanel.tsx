@@ -4,7 +4,20 @@ import { getSubjectStrongClass } from "../subjectTokens";
 // 오늘 세션 기록 패널(#25 우측, 420×382 = 26.25rem×23.875rem). part-09 §81~85 내부 스펙.
 // 상태 라벨은 시안에 `측정 완료`/`진행 중` 2종만 등장하고 "일시정지" 상태 라벨은 미정의다
 // (part-09 §143 "정의 필요"). 진행 중이 아니고 경과 시간이 있으면 `측정 완료`로 잠정 처리한다(추정).
-export default function SessionRecordPanel({ subjects }) {
+type SessionSubject = {
+  id: string;
+  label: string;
+  elapsedSeconds: number;
+  running?: boolean;
+};
+
+type SessionRecordPanelProps = {
+  subjects: SessionSubject[];
+};
+
+export default function SessionRecordPanel({
+  subjects,
+}: SessionRecordPanelProps) {
   return (
     <GoalCard
       tone="neutral"

@@ -6,7 +6,17 @@
 // 있지 않다 → 선택 시 시각 스펙은 별도 정의 필요"). 앱의 라디오 칩 패턴(파랑 보더 + `surface.03`
 // 배경, `SegmentedChipGroup.jsx` 참고)을 pill(`radius-button 99`, part-09 §248)로 옮겨 준용한다
 // (추정).
-export default function SelectChip({ label, selected, onClick }) {
+type SelectChipProps = {
+  label: string;
+  selected?: boolean;
+  onClick?: () => void;
+};
+
+export default function SelectChip({
+  label,
+  selected,
+  onClick,
+}: SelectChipProps) {
   return (
     <label
       className={`flex h-[3.25rem] w-fit shrink-0 cursor-pointer items-center justify-center rounded-full border px-5 text-[0.9375rem] font-medium leading-[1.2] transition-colors ${

@@ -1,7 +1,15 @@
 import GoalCard from "../GoalCard";
 
 // 섹션5 "한 문장 회고"(1190×238) — 텍스트영역 1137×109(71.0625rem×6.8125rem). part-09 §194~197.
-export default function RetrospectSection({ value, onChange }) {
+type RetrospectSectionProps = {
+  value?: string;
+  onChange: (value: string) => void;
+};
+
+export default function RetrospectSection({
+  value,
+  onChange,
+}: RetrospectSectionProps) {
   return (
     <GoalCard
       tone="neutral"

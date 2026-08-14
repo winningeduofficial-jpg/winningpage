@@ -12,7 +12,17 @@ import { getSubjectStrongClass } from "../subjectTokens";
 // 입력하는 경로(+30분/+1시간 등 퀵칩)가 별도로 있다. 두 값 중 무엇이 최종값인지, 동시 존재 시
 // 충돌을 어떻게 해소할지는 시안에 규칙이 없다(part-09 §241 "수기 입력 경로가 필요한지는 확인
 // 필요") — 이번 구현은 읽기 전용으로만 두고 이중화 충돌 해소는 범위 밖으로 남긴다.
-export default function StudyTimeSection({ rows, totalHours }) {
+type StudyTimeRow = { id: string; label: string; hours: number };
+
+type StudyTimeSectionProps = {
+  rows: StudyTimeRow[];
+  totalHours: number;
+};
+
+export default function StudyTimeSection({
+  rows,
+  totalHours,
+}: StudyTimeSectionProps) {
   return (
     <GoalCard
       tone="neutral"

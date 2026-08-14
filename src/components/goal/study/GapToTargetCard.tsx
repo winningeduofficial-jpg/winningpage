@@ -5,7 +5,13 @@ import GoalCardHeader from "../GoalCardHeader";
 // part-08 §302~305/324~327. 시안 폭 1380px(86.25rem)은 프로젝트 공통 서브페이지 폭
 // (`max-w-goal-content` 83.75rem)과 다르지만, 00-INDEX.md §6-3이 "서브페이지는 리포트 기준
 // 1340px로 통일"을 이미 정본으로 채택했으므로 여기서도 공통 폭을 따른다(시안 폭은 주석으로만).
-export default function GapToTargetCard({ rows }) {
+type GapRow = { label: string; description: string; remaining: string };
+
+type GapToTargetCardProps = {
+  rows: GapRow[];
+};
+
+export default function GapToTargetCard({ rows }: GapToTargetCardProps) {
   return (
     <GoalCard
       tone="neutral"

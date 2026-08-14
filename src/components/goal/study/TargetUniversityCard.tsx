@@ -8,7 +8,14 @@ import GoalProgressBar from "../GoalProgressBar";
 //
 // ⚠︎ 라벨 %와 채움 폭이 시안에서 불일치한다(part-08 §333) → GoalProgressBar가 value/max 비례로
 // 계산하므로 여기서는 절대 px를 다루지 않는다.
-function RateRow({ label, value, dotClassName, fillClassName }) {
+type RateRowProps = {
+  label: string;
+  value: number;
+  dotClassName: string;
+  fillClassName: string;
+};
+
+function RateRow({ label, value, dotClassName, fillClassName }: RateRowProps) {
   return (
     <div className="flex items-center gap-3">
       <span
@@ -32,13 +39,21 @@ function RateRow({ label, value, dotClassName, fillClassName }) {
   );
 }
 
+type TargetUniversityCardProps = {
+  label: string;
+  university: string;
+  department: string;
+  susiRate: number;
+  jeongsiRate: number;
+};
+
 export default function TargetUniversityCard({
   label,
   university,
   department,
   susiRate,
   jeongsiRate,
-}) {
+}: TargetUniversityCardProps) {
   return (
     <GoalCard
       tone="neutral"

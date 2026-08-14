@@ -7,7 +7,13 @@ import { formatClock } from "./SubjectTimerCard";
 // 전체 합계 바(#25, 860×100) — 4과목 elapsedSeconds 합계. part-09 §135 "합계 반영: 클라이언트 계산".
 // CTA `전체 종료 후 기록` → 진행 중인 세션이 있으면 서버에 stop을 보내 마감한 뒤(#26 오늘의 공부
 // 기록에 "종료 시 자동 반영"이라는 카피 근거, part-09 §136) 오늘의 공부 기록으로 이동한다.
-export default function TimerSummaryBar({ totalSeconds }) {
+type TimerSummaryBarProps = {
+  totalSeconds: number;
+};
+
+export default function TimerSummaryBar({
+  totalSeconds,
+}: TimerSummaryBarProps) {
   const navigate = useNavigate();
   const [finishing, setFinishing] = useState(false);
 

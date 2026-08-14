@@ -1,5 +1,14 @@
+import type { KeyboardEvent } from "react";
 import { useRef } from "react";
 import GoalCard from "../GoalCard";
+
+type ConditionOption = { value: string; label: string; emoji?: string };
+
+type ConditionSectionProps = {
+  options: ConditionOption[];
+  value: string;
+  onChange: (value: string) => void;
+};
 
 // 섹션2 "오늘의 컨디션"(639×265) — 단일 선택 라디오 타일 4개(139×143). part-09 §176~180.
 // 선택됨 스타일이 시안에 없어(part-09 §239~240) `SegmentedChipGroup.jsx`의 선택 패턴(파랑 보더 +
@@ -7,15 +16,19 @@ import GoalCard from "../GoalCard";
 //
 // 접근성(코드 검수 §4): role="radiogroup"/"radio"인데 roving tabindex·방향키 이동이 없었다.
 // GoalTabs.jsx의 패턴을 그대로 이식한다.
-export default function ConditionSection({ options, value, onChange }) {
-  const optionRefs = useRef([]);
+export default function ConditionSection({
+  options,
+  value,
+  onChange,
+}: ConditionSectionProps) {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const focusOption = (index) => {
+  const focusOption = (index: number) => {
     const el = optionRefs.current[index];
     if (el) el.focus();
   };
 
-  const handleKeyDown = (event, index) => {
+  const handleKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;
