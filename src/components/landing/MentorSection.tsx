@@ -7,14 +7,19 @@ import MentorCard from "./MentorCard";
  * - 카드 렌더는 MentorCard 프레젠테이션 컴포넌트에 위임 (신규 합성/crop 처리, 필수 항목 미비 row는 null 반환)
  * - useInfiniteMarquee 훅 사용 (화살표 없음, hover pause + 드래그/터치 스크롤 가드)
  *
- * @param {object} props
- * @param {Array<object>} props.mentors
- *   home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조.
- * @param {'default'|'callmentor'} [props.variant='default']
- *   콜멘토 랜딩(섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션 배경/패딩만 다르다 — 신규
- *   컴포넌트 대신 이 variant로 흡수한다(재합성 0).
  */
-export default function MentorSection({ mentors = [], variant = "default" }) {
+type MentorSectionProps = {
+  /** home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조. */
+  mentors?: Array<{ id: string | number; [key: string]: unknown }>;
+  /** 콜멘토 랜딩(섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션 배경/패딩만 다르다 — 신규
+   * 컴포넌트 대신 이 variant로 흡수한다(재합성 0). */
+  variant?: "default" | "callmentor";
+};
+
+export default function MentorSection({
+  mentors = [],
+  variant = "default",
+}: MentorSectionProps) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
     itemCount: mentors.length,
   });

@@ -23,14 +23,15 @@ import Chip from "../Chip";
  * absolute 오버레이 레이어(sm+에서 -12px 확장 라운드 면)로만 표현 — --ease-out-quart
  * 150ms(Header.jsx 관례), prefers-reduced-motion은 motion-reduce:transition-none으로 가드.
  *
- * @param {object} props
- * @param {Array<{id: string, title: string, created_at: string, category?: string|null,
- *   sort_order?: number}>} props.companyNews
- *   company_news 활성 rows (is_pinned desc → sort_order asc → created_at desc)
- * @param {Array<{id: string, title: string, created_at: string, category?: string|null,
- *   sort_order?: number}>} props.notices
- *   notices 활성 rows (동일 정렬)
  */
+
+type NewsItem = {
+  id: string;
+  title: string;
+  created_at: string;
+  category?: string | null;
+  sort_order?: number;
+};
 
 const MAX_ROWS = 3;
 
@@ -44,7 +45,7 @@ const MAX_ROWS = 3;
 //
 // ★ 렌더 조건: category 값 자체가 없으면 배지 대신 스페이서를 그린다.
 //   값은 있는데 이 표에 없는 카테고리는 gray 폴백으로 **렌더된다**(기존 동작 그대로).
-const CATEGORY_BADGE_TONES = {
+const CATEGORY_BADGE_TONES: Record<string, string> = {
   보도자료: "blue",
   파트너십: "green",
   공지: "coral",
@@ -58,7 +59,7 @@ const CATEGORY_BADGE_FALLBACK_TONE = "gray";
 // toISOString() 단독 사용 시 KST 00:00~08:59 생성 글이 전날로 표시되는 문제 방지.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function formatDate(value) {
+function formatDate(value: string | number | Date | null | undefined) {
   if (!value) return "";
 
   const date = new Date(value);
@@ -75,22 +76,31 @@ function formatDate(value) {
 
 // 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
 // '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
-function CategoryBadge({ category }) {
+type ChipTone = "blue" | "green" | "coral" | "red" | "gray";
+
+function CategoryBadge({ category }: { category?: string | null }) {
   if (!category)
     return <span aria-hidden="true" className="relative w-[4rem] shrink-0" />;
 
+  const tone = (CATEGORY_BADGE_TONES[category] ??
+    CATEGORY_BADGE_FALLBACK_TONE) as ChipTone;
+
   return (
-    <Chip
-      tone={CATEGORY_BADGE_TONES[category] ?? CATEGORY_BADGE_FALLBACK_TONE}
-      size="md"
-      className="relative min-w-[4rem] shrink-0"
-    >
+    <Chip tone={tone} size="md" className="relative min-w-[4rem] shrink-0">
       {category}
     </Chip>
   );
 }
 
-function ColumnHeader({ title, moreLink, moreLabel }) {
+function ColumnHeader({
+  title,
+  moreLink,
+  moreLabel,
+}: {
+  title: string;
+  moreLink: string;
+  moreLabel: string;
+}) {
   return (
     <h3 className="text-[1.174rem] font-semibold leading-[1.4] tracking-[-0.0235rem]">
       <Link
@@ -109,7 +119,13 @@ function ColumnHeader({ title, moreLink, moreLabel }) {
   );
 }
 
-function EmptyRows({ message, className }) {
+function EmptyRows({
+  message,
+  className,
+}: {
+  message: string;
+  className?: string;
+}) {
   return (
     <p
       className={`flex items-center justify-center text-center text-[0.9375rem] text-[#8b95a1] ${className}`}
@@ -119,7 +135,7 @@ function EmptyRows({ message, className }) {
   );
 }
 
-function NewsRow({ item, basePath }) {
+function NewsRow({ item, basePath }: { item: NewsItem; basePath: string }) {
   return (
     <li>
       {/* 모바일(<sm): 뱃지+제목 한 줄 + 날짜 둘째 줄로 분리 — shrink-0 뱃지·날짜가 제목을
@@ -157,7 +173,15 @@ function NewsRow({ item, basePath }) {
   );
 }
 
-export default function NewsSection({ companyNews = [], notices = [] }) {
+type NewsSectionProps = {
+  companyNews?: NewsItem[];
+  notices?: NewsItem[];
+};
+
+export default function NewsSection({
+  companyNews = [],
+  notices = [],
+}: NewsSectionProps) {
   const newsRows = companyNews.slice(0, MAX_ROWS);
   const noticeRows = notices.slice(0, MAX_ROWS);
 
