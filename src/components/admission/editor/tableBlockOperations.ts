@@ -75,7 +75,9 @@ export function moveRow(
   if (targetIdx < 0 || targetIdx >= block.rows.length) return block;
   const nextRows = block.rows.slice();
   const [moved] = nextRows.splice(rowIdx, 1);
-  nextRows.splice(targetIdx, 0, moved);
+  // targetIdx가 범위 안이라는 위 가드로 rowIdx도 block.rows 범위 안임이
+  // 보장된다(delta는 ±1, 호출부는 항상 유효한 행 인덱스를 넘긴다).
+  nextRows.splice(targetIdx, 0, moved!);
   return { ...block, rows: nextRows };
 }
 

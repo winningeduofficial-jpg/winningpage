@@ -34,7 +34,8 @@ function renderLeaf(view: CellViewDesc) {
       // RecruitTable.jsx:40-47 — buildRecruitCell(admissionParsing.js:2164) 재현.
       return (
         <div className="admission-recruit-cell-values">
-          {view.chips.map((chip, chipIdx) => (
+          {/* tableModel.cellViewOf가 leaf==='chips'일 때만 chips를 채운다 — 항상 배열. */}
+          {(view.chips ?? []).map((chip, chipIdx) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 읽기 전용 셀 렌더러 — chips는 doc JSON에 id가 없고 사용자가 재정렬하지 않는다.
             <span key={chipIdx}>
               <b>{chip.label}</b>

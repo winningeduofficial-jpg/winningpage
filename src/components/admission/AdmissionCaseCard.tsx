@@ -5,8 +5,8 @@ import {
 } from "../../pages/admission/admissionCaseData";
 
 type ThumbnailProps = {
-  url?: string;
-  title?: string;
+  url?: string | undefined;
+  title?: string | undefined;
 };
 
 function Thumbnail({ url, title }: ThumbnailProps) {

@@ -58,13 +58,20 @@ const VIEW_PARITY: TableParity = {
   scrollWrapExtra: "",
 };
 
+// 뷰 모드 기본값 — 알 수 없는 mode의 폴백으로도 재사용하므로 별도 상수로
+// 뽑아 둔다(Record 인덱스 접근이라 MODE_DEFAULTS.view는 undefined 가능 타입이 된다).
+const VIEW_MODE_DEFAULTS: { slots: TableSlots; parity: TableParity } = {
+  slots: viewSlots,
+  parity: VIEW_PARITY,
+};
+
 // mode → 기본 슬롯/파리티. 편집 슬롯(editSlots)은 다음 단계에서 'edit' 항목으로
 // 등록된다. 그때까지 알 수 없는 mode는 뷰 기본값으로 떨어진다.
 const MODE_DEFAULTS: Record<
   string,
   { slots: TableSlots; parity: TableParity }
 > = {
-  view: { slots: viewSlots, parity: VIEW_PARITY },
+  view: VIEW_MODE_DEFAULTS,
 };
 
 export default function AdmissionTable({
@@ -86,7 +93,7 @@ export default function AdmissionTable({
   // 같은 보호를 받는다.
   if (!desc) return null;
 
-  const defaults = MODE_DEFAULTS[mode] || MODE_DEFAULTS.view;
+  const defaults = MODE_DEFAULTS[mode] || VIEW_MODE_DEFAULTS;
   const activeSlots = slots || defaults.slots;
   const activeParity = parity
     ? { ...defaults.parity, ...parity }

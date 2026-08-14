@@ -114,7 +114,7 @@ function MetaFieldInput({
         className={base}
       >
         <option value="">선택</option>
-        {field.options.map((option) => (
+        {(field.options || []).map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
