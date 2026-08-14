@@ -28,9 +28,20 @@ import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 // 지원 개수: 3(기본값, 수행평가・자기평가) / 5(목표관리). 미등록 columns 값은 폴백 없이
 // 그대로 둔다 — lookup 실패 시 className 이 비어 레이아웃이 눈에 띄게 깨지므로 호출자가
 // 즉시 알아챈다(조용한 3열 대체는 오류를 숨긴다).
-const TAB_PANEL_COLS = {
+const TAB_PANEL_COLS: Record<number, string> = {
   3: "sm:grid-cols-3 lg:grid-cols-3",
   5: "sm:grid-cols-3 lg:grid-cols-5",
+};
+
+type TabCard = { title: string; desc: string; icon: string };
+
+type ServiceTabsPanelProps = {
+  tabs: string[];
+  content: Record<string, TabCard[]>;
+  columns?: 3 | 5;
+  ariaLabel?: string;
+  idPrefix: string;
+  panelHeightClass?: string;
 };
 
 export default function ServiceTabsPanel({
@@ -40,7 +51,7 @@ export default function ServiceTabsPanel({
   ariaLabel,
   idPrefix,
   panelHeightClass = "",
-}) {
+}: ServiceTabsPanelProps) {
   const [activeTab, setActiveTab] = useState(
     () => tabs.find((tab) => content[tab]?.length) ?? tabs[0],
   );

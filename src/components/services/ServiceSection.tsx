@@ -3,7 +3,7 @@ import { SECTION_HEADING_CLASS } from "./serviceTokens";
 // surface: 리터럴 lookup — Tailwind JIT 는 `bg-[${surface}]` 식 템플릿 조립을 스캔하지
 // 못해 클래스가 조용히 사라진다. 미등록 값은 폴백 없이 undefined 로 두어 즉시 눈에 띄게
 // 깨뜨린다(ServiceStepCards STEP_COLS / ServiceTestimonials TESTIMONIAL_COLS 와 동일 규약).
-const SECTION_SURFACE = {
+const SECTION_SURFACE: Record<string, string> = {
   white: "bg-white",
   gray: "bg-[#F4F4F6]",
   // 멘토신청 시안(Surface/05 #F9FAFB, docs/mentor-apply-spec.md §2·§6-1) 전용 톤.
@@ -48,6 +48,19 @@ const SECTION_SURFACE = {
 //
 // 모바일/sm pt(pt-16 sm:pt-20)는 컴포넌트가 고정한다 — 4페이지 기준은 여전히 bg-white
 // 단일이며, gray/softGray 는 각각 콜멘토·멘토신청 전용 확장이다.
+import type { ReactNode } from "react";
+
+type ServiceSectionProps = {
+  heading?: ReactNode;
+  eyebrow?: string;
+  id?: string;
+  surface?: "white" | "gray" | "softGray";
+  className?: string;
+  containerClassName?: string;
+  headingClassName?: string;
+  children?: ReactNode;
+};
+
 export default function ServiceSection({
   heading,
   eyebrow,
@@ -57,7 +70,7 @@ export default function ServiceSection({
   containerClassName = "",
   headingClassName = SECTION_HEADING_CLASS,
   children,
-}) {
+}: ServiceSectionProps) {
   return (
     <section
       id={id}

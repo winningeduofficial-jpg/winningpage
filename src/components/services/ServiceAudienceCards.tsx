@@ -1,9 +1,17 @@
 import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // cardSurface: 리터럴 lookup — 클래스 문자열 템플릿 조립 금지 규약(SECTION_SURFACE 와 동일).
-const AUDIENCE_CARD_SURFACE = {
+const AUDIENCE_CARD_SURFACE: Record<string, string> = {
   muted: "bg-[#F9FAFB]",
   white: "bg-white",
+};
+
+type AudienceItem = { title: string; image: string; desc: string };
+
+type ServiceAudienceCardsProps = {
+  items: AudienceItem[];
+  imageFit?: "contain" | "cover";
+  cardSurface?: "muted" | "white";
 };
 
 // '이런 학생에게 추천해요' 이미지 카드 4장.
@@ -27,7 +35,7 @@ export default function ServiceAudienceCards({
   items,
   imageFit = "contain",
   cardSurface = "muted",
-}) {
+}: ServiceAudienceCardsProps) {
   return (
     <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-4">
       {items.map((item) => (

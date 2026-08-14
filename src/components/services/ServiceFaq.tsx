@@ -14,7 +14,16 @@ import { useState } from "react";
 // 접근성 보강: 기준에는 aria-expanded 만 있었다. 여기에 aria-controls + 답변 id 연결을
 // 추가한다(시각 회귀 0).
 
-function FaqItem({ item, index, isOpen, onToggle }) {
+type FaqEntry = { q: string; a: string };
+
+type FaqItemProps = {
+  item: FaqEntry;
+  index: number;
+  isOpen: boolean;
+  onToggle: () => void;
+};
+
+function FaqItem({ item, index, isOpen, onToggle }: FaqItemProps) {
   const answerId = `faq-answer-${index}`;
 
   // 구분선은 마지막 항목 뒤에 없다(last:border-b-0). stroke #D9D9D9 → 토큰 #D7D7D7.
@@ -51,7 +60,11 @@ function FaqItem({ item, index, isOpen, onToggle }) {
   );
 }
 
-export default function ServiceFaq({ items }) {
+type ServiceFaqProps = {
+  items: FaqEntry[];
+};
+
+export default function ServiceFaq({ items }: ServiceFaqProps) {
   // 시안 펼침 보드는 전 항목이 열려 있으나 이는 답변 전문 표시용 스펙 보드이지 동작 정의가
   // 아니다 — 4페이지 선례대로 단일 open 을 유지한다.
   const [openIndex, setOpenIndex] = useState(-1);

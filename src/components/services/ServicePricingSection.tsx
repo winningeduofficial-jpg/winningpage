@@ -1,10 +1,4 @@
 import { Check } from "lucide-react";
-import { Link } from "react-router-dom";
-
-import { formatKRW } from "../../data/pricingCatalog";
-import { useProducts } from "../../lib/products";
-import ServiceSection from "./ServiceSection";
-
 // 이용권 구매 섹션(Supabase useProducts 의존, loading / error / 정상 3분기).
 //
 // (a) 출처: 수행평가 PricingSection + 목표관리 PricingSection 통합.
@@ -35,13 +29,33 @@ import ServiceSection from "./ServiceSection";
 // (text-[1.0625rem] sm:text-[1.375rem] md:text-[1.125rem] 형태 = 폰트에 배율을 적용한 흔적,
 // 3원칙 1번 위반)는 전부 단일값 text-[1.125rem] 로 정리했다.
 // CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { formatKRW } from "../../data/pricingCatalog";
+import { useProducts } from "../../lib/products";
+import ServiceSection from "./ServiceSection";
+
+type ServicePricingCta = {
+  label: string;
+  to?: string;
+  onClick?: () => void;
+};
+
+type ServicePricingSectionProps = {
+  serviceKey: string;
+  heading?: ReactNode;
+  cta: ServicePricingCta;
+  id?: string;
+  className?: string;
+};
+
 export default function ServicePricingSection({
   serviceKey,
   heading,
   cta,
   id,
   className = "",
-}) {
+}: ServicePricingSectionProps) {
   const { services, loading, error, refetch } = useProducts(serviceKey);
   const products = services[0]?.products || [];
 

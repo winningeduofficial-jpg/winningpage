@@ -16,7 +16,15 @@ import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 // 기준에 있던 설명문의 `mx-auto max-w-[12.4375rem]`(199px 클램프)은 이 저장소 3원칙 3번
 // (카드 안 컨텐츠 폭은 max-width 로 제한하지 않고 카드 패딩으로만 결정)을 어겨 제거했다.
 // 카드 폭 252.5px − 좌우 패딩 48px = 실효 204.5px 로 기존 199px 와 5.5px 차이뿐이다.
-export default function ServiceProcessCards({ items }) {
+type ProcessItem = { title: string; desc: string | string[] };
+
+type ServiceProcessCardsProps = {
+  items: ProcessItem[];
+};
+
+export default function ServiceProcessCards({
+  items,
+}: ServiceProcessCardsProps) {
   return (
     <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[4.3125rem] lg:grid-cols-4 lg:gap-[1.875rem]">
       {items.map((item, index) => (

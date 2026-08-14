@@ -7,7 +7,15 @@
 //
 // children은 프레임 본문이다(3페이지는 빈 배경 div, 목표관리는 실제 대시보드 스크린샷
 // <img>). 자식 쪽 클래스(md:object-cover 등)는 이 컴포넌트가 아니라 호출부가 그대로 소유한다.
-export default function ServiceHeroBrowserFrame({ children }) {
+import type { ReactNode } from "react";
+
+type ServiceHeroBrowserFrameProps = {
+  children?: ReactNode;
+};
+
+export default function ServiceHeroBrowserFrame({
+  children,
+}: ServiceHeroBrowserFrameProps) {
   return (
     <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
       <div className="overflow-hidden rounded-[0.3125rem] bg-white shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)] md:flex md:aspect-[1280/553] md:flex-col">

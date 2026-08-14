@@ -18,9 +18,20 @@
 // 지원 개수: 4(심화탐구・자기평가・수행평가) / 5(목표관리). 미등록 개수는 4열로 폴백한다
 // (4페이지 중 3페이지가 4장 — 배열이 늘거나 줄어도 className 에 'undefined' 문자열이
 // 박히는 조용한 회귀를 막는다).
-const OUTCOME_COLS = { 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" };
+const OUTCOME_COLS: Record<number, string> = {
+  4: "sm:grid-cols-4",
+  5: "sm:grid-cols-5",
+};
 
-export default function ServiceOutcomesPanel({ items }) {
+type OutcomeItem = { label: string; icon: string };
+
+type ServiceOutcomesPanelProps = {
+  items: OutcomeItem[];
+};
+
+export default function ServiceOutcomesPanel({
+  items,
+}: ServiceOutcomesPanelProps) {
   return (
     // 보더/구분선은 #D9D9D9 / #D7D7D7 두 색을 dev 보더 토큰 #D7D7D7 하나로 통일했다.
     <div
