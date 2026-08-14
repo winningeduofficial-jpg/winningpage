@@ -10,7 +10,13 @@
 // 문구가 아니다. PricingSelling.jsx·StudentEnrollmentRequest.jsx 가 이미
 // 상품 조회 실패 시 쓰는 동일 코퍼스를 그대로 재사용한다(신규 문구는
 // 제목 한 줄뿐 — new_copy 목록 참고).
-export default function MemberTypeRetryNotice({ onRetry }) {
+type MemberTypeRetryNoticeProps = {
+  onRetry?: () => void;
+};
+
+export default function MemberTypeRetryNotice({
+  onRetry,
+}: MemberTypeRetryNoticeProps) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
       <h1 className="text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2rem]">
