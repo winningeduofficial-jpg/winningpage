@@ -761,7 +761,7 @@ const CONFIGS = {
     order: "sort_order",
     homepage: true,
     guideText: `특목고 합격 페이지 상단 '목표 특목고 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 수시정시합격 페이지의 합격률과는 완전히 별개 데이터이며 서로 영향을 주지 않습니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
-    ListSummary: AcceptanceRateSummary,
+    listSummaryKey: "acceptanceRateSummary",
     columns: [
       { key: "year", label: "연도" },
       { key: "rate", label: "합격률(%)" },
@@ -827,7 +827,7 @@ const CONFIGS = {
     order: "sort_order",
     homepage: true,
     guideText: `수시정시 합격사례 페이지 상단 '목표 대학 합격률' 영역입니다. 노출 중인 연도의 개수가 'N개년 평균' 문구가 되고, 합격률 평균이 큰 숫자로 표시됩니다. 합격률은 0~100 사이 숫자로 입력하며 소수점 한 자리까지 쓸 수 있습니다(예: 95.4). 연도는 중복 등록할 수 없습니다. 순서는 목록 정렬용이며 홈페이지 표시값에는 영향을 주지 않습니다.`,
-    ListSummary: AcceptanceRateSummary,
+    listSummaryKey: "acceptanceRateSummary",
     columns: [
       { key: "year", label: "연도" },
       { key: "rate", label: "합격률(%)" },
@@ -1301,7 +1301,7 @@ const CONFIGS = {
     // (:5900 부근)를 켜는 스위치라 여기서만 뺐다 — 다른 config·공용
     // 코드는 손대지 않았다.
     guideText: `대학별 수시 모집요강 상세정보 관리입니다. HTML 표 형식으로 입력하면 홈페이지에서 표 형태로 표시됩니다.`,
-    ListSummary: AdmissionListSummary,
+    listSummaryKey: "admissionListSummary",
 
     // 목록 '관리' 열의 행 수정(✏️) 버튼을 이 메뉴에서만 숨긴다.
     // 사용자 지시(2026-08-07): "이제 '디테일한 수정'은 필요없어. 여기서
@@ -1715,7 +1715,7 @@ const CONFIGS = {
     // guideText(Supabase CSV Import 권장 안내)도 같은 이유로 지웠다 —
     // 그 안내가 가리키던 수동 CSV Import 경로 자체가 이제 이 화면
     // 엑셀 왕복으로 대체됐다.
-    ListSummary: AdmissionResultsListSummary,
+    listSummaryKey: "admissionResultsListSummary",
     columns: [
       { key: "result_year", label: "연도" },
       { key: "university_name", label: "대학명" },
@@ -3086,7 +3086,7 @@ const CONFIGS = {
 🔴 학과명은 반드시 채워 주세요. 학과명이 빈 행은 어떤 학생에게도 매칭되지 않습니다 — 온보딩이 학과를 필수로 요구하고, 확률 조회가 학과명 완전일치로 이뤄지기 때문입니다.
 🔴 정시 컷은 같은 (대학, 학과)의 수시 컷과 글자 하나까지 같아야 정시 확률이 산출됩니다. 수시 컷 행의 대학명·학과명을 그대로 복사해 넣어 주세요.
 컷을 고쳐도 이미 온보딩을 마친 학생의 확률은 바뀌지 않습니다 — 학생의 확률은 온보딩 시점의 컷으로 확정됩니다.`,
-    ListSummary: GoalCutsListSummary,
+    listSummaryKey: "goalCutsListSummary",
     columns: [
       { key: "cut_type", label: "컷 종류", options: GOAL_CUT_TYPE_OPTIONS },
       { key: "university_name", label: "대학" },
@@ -3326,6 +3326,18 @@ const CUSTOM_COMPONENT_REGISTRY = {
   premiumBookPages: PremiumBookAdmin,
   mentorApplications: MentorApplicationsAdmin,
   goalStudents: GoalStudentsAdmin,
+};
+
+// CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가
+// 컴포넌트를 직접 실으면 CONFIGS를 도메인별 파일로 옮길 때(4단계) 그 파일이
+// 여기 정의된 컴포넌트들(AdmissionListSummary 등)을 import해야 하고, 그
+// 컴포넌트들도 Admin.jsx 안의 다른 헬퍼를 참조하므로 순환 참조가 생긴다.
+// CONFIGS는 config.listSummaryKey 문자열만 갖고, 조회는 이 레지스트리가 진다.
+const LIST_SUMMARY_REGISTRY = {
+  admissionListSummary: AdmissionListSummary,
+  admissionResultsListSummary: AdmissionResultsListSummary,
+  acceptanceRateSummary: AcceptanceRateSummary,
+  goalCutsListSummary: GoalCutsListSummary,
 };
 
 const _OPTION_EMPTY = {
@@ -6148,9 +6160,10 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
   );
 }
 
-// CONFIGS.goalUniversityCuts.ListSummary 의 진입점. CONFIGS 리터럴이 모듈
-// 초기화 시점에 이 참조를 평가하므로 **반드시 function 선언문이어야 한다**
-// (const 화살표 함수로 쓰면 TDZ ReferenceError 로 어드민 전체가 죽는다).
+// LIST_SUMMARY_REGISTRY.goalCutsListSummary(config.listSummaryKey="goalCutsListSummary")의
+// 진입점. 그 레지스트리가 모듈 초기화 시점에 이 참조를 평가하므로 **반드시
+// function 선언문이어야 한다**(const 화살표 함수로 쓰면 TDZ ReferenceError 로
+// 어드민 전체가 죽는다).
 //
 // props 는 { rows, onReload, mutationSeq } 지만 rows 는 쓰지 않는다 —
 // serverPaginate 탭이라 현재 페이지 10행뿐이다.
@@ -6290,6 +6303,9 @@ export default function Admin() {
   const [exporting, setExporting] = useState(null);
 
   const config = CONFIGS[activeKey];
+  const ListSummaryComponent = config.listSummaryKey
+    ? LIST_SUMMARY_REGISTRY[config.listSummaryKey]
+    : null;
 
   const filteredRows = useMemo(() => {
     // 서버 페이지네이션 탭의 rows는 이미 "검색어가 적용된 현재 페이지 10행"이다.
@@ -6910,8 +6926,8 @@ export default function Admin() {
                     (AcceptanceRateSummary / AdmissionListSummary /
                     AdmissionResultsListSummary)는 전부 props를 구조분해로 받으므로
                     추가 prop을 그냥 무시한다 — 회귀 없음. */}
-                {config.ListSummary && (
-                  <config.ListSummary
+                {ListSummaryComponent && (
+                  <ListSummaryComponent
                     rows={rows}
                     onReload={loadRows}
                     mutationSeq={mutationSeq}
