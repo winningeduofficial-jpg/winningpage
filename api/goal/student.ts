@@ -22,6 +22,7 @@
 // clamp(0, 100, base + Σdelta) 로 다시 더한다(§4). 이 파일은 그 값을 읽어
 // 카멜 케이스로 옮기기만 한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getSchoolCutType } from "../../src/lib/goal/calc/index.ts";
 
 import {
@@ -35,15 +36,7 @@ import {
 
 export const config = { runtime: "nodejs" };
 
-type ApiRequest = {
-  method?: string;
-  headers: Record<string, string>;
-};
-type ApiResponse = {
-  status: (code: number) => { json: (body: unknown) => unknown };
-};
-
-export default async function handler(req: ApiRequest, res: ApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ detail: "Method not allowed" });
   }

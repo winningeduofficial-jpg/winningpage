@@ -27,24 +27,17 @@
 // goal-admin 앱의 리셋 버튼 UI는 이번 범위 밖이다(PR #63, 이 브랜치엔 미포함) —
 // 이 엔드포인트는 백엔드만 완성한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveWinningAdmin } from "../../_lib/adminAuth.js";
 import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
-type ApiRequest = {
-  method?: string;
-  headers: Record<string, string>;
-  body?: Record<string, unknown>;
-};
-type ApiResponse = {
-  status: (code: number) => { json: (body: unknown) => unknown };
-};
 type WinningAdminResult =
   | { ok: true; userId: string }
   | { ok: false; status: number; detail: string };
 
-export default async function handler(req: ApiRequest, res: ApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ detail: "Method not allowed" });
   }
@@ -58,9 +51,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
   }
 
+  // adminAuth.js는 JSDoc에서 req.headers를 Record<string, string>으로 선언한다 —
+  // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일 문자열
+  // 헤더 읽기)은 호환된다.
   const auth: WinningAdminResult = await resolveWinningAdmin(
     supabaseAdmin,
-    req,
+    req as unknown as { headers: Record<string, string> },
   );
   if (auth.ok === false) {
     return res.status(auth.status).json({ detail: auth.detail });

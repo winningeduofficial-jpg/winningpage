@@ -36,6 +36,7 @@
 //    "객체는 지웠는데 행이 남은" 상태이고, 그 행은 pending이라 24시간 스윕이
 //    정리한다(remove는 이미 없는 객체에 대해 에러가 아니다).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getBearerToken,
   hasPaidServiceAccess,
@@ -49,18 +50,8 @@ const SERVICE_KEY = "suhaeng";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ApiRequest = {
-  method?: string;
-  headers: Record<string, string>;
-  body?: Record<string, unknown>;
-};
-type ApiResponse = {
-  status: (code: number) => { json: (body: unknown) => unknown };
-  setHeader: (name: string, value: string) => void;
-};
-
 function fail(
-  res: ApiResponse,
+  res: VercelResponse,
   status: number,
   code: string,
   message: string,
@@ -69,7 +60,7 @@ function fail(
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
-export default async function handler(req: ApiRequest, res: ApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
