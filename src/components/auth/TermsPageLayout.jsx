@@ -57,18 +57,6 @@ export function TermsSection({ title, children, className = "" }) {
   );
 }
 
-// 법무 검수 대기 안내 — 시안/추출 데이터에 원문이 없는 조항에 사용한다(작성 원칙: 데이터에
-// 없는 사항은 "확인 필요"로 표기). 화면에도 노출해 다음 단계(법무 검수)에서 놓치지 않도록 한다.
-export function TermsPendingNotice({ children, className = "" }) {
-  return (
-    <div
-      className={`rounded-lg border border-error/30 bg-surface-card p-4 text-xs leading-6 text-error ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 // 외부 도메인 문자열을 새 탭 링크로 변환(§3.3 F: "외부 링크 3개 … target _blank").
 // 특정 URL을 하드코딩하지 않고 일반적인 도메인 패턴을 인식해, 어느 조항에 도메인이 등장하든
 // 동일하게 동작하도록 한다.

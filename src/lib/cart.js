@@ -15,18 +15,6 @@
 // 값을 지어내는 것보다 비우는 쪽이 안전하다.
 const CART_KEY = "winning-cart-v2";
 
-// 저장 형태: [{ id, serviceKey, serviceName, serviceDesc, name, listPrice, price, badge, recommended }]
-export function getCart() {
-  try {
-    const raw = window.sessionStorage.getItem(CART_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 export function saveCart(items) {
   try {
     window.sessionStorage.setItem(

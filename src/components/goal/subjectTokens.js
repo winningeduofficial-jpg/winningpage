@@ -56,7 +56,3 @@ export const SUBJECT_HEX = {
   science: "#E8F5E9",
   etc: "#F1EDE7",
 };
-
-export function getSubjectHex(key) {
-  return SUBJECT_HEX[resolveSubjectId(key)] ?? SUBJECT_HEX.etc;
-}

@@ -26,6 +26,3 @@ export function buildMyMenu(isParent = false) {
     { label: "환불신청", to: "/mypage#refund", icon: RotateCcw },
   ];
 }
-
-// 구 호출부 호환 — 학생 기준 기본값.
-export const MY_MENU = buildMyMenu(false);

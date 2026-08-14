@@ -38,10 +38,6 @@ const SECTION = FORM_SECTIONS.find((section) => section.no === 5);
 // 사이드바 앵커 기본값(§6-3).
 export const DOCUMENTS_SECTION_ID = "mentor-apply-section-5";
 
-// 이 섹션이 소유하는 필드. 파일과 번호는 `values` 가 아니라 전용 prop 으로 오르내리지만,
-// 필수 카운트·진행률 계산의 기준이 되어야 하므로 이름을 함께 노출한다.
-export const DOCUMENTS_FIELD_NAMES = ["proof_file", "phone"];
-
 // 약관 동의 키(= DB agree_* 컬럼과 1:1). 부모가 초기 상태 맵을 만들 때 쓴다.
 export const DOCUMENTS_AGREEMENT_KEYS = MENTOR_AGREEMENTS.map(
   (item) => item.key,

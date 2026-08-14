@@ -40,10 +40,3 @@ export async function getDemoAccessState() {
     return "guest";
   }
 }
-
-// 하위 호환용 boolean 래퍼. 기존 호출부가 있다면 관리자 여부만 필요할 때 그대로 쓸 수
-// 있다. 문자열('guest'/'member')이 truthy로 오독돼 권한이 조용히 상승하는 사고를 막기
-// 위해 반환형은 절대 문자열로 바꾸지 않는다.
-export async function isAdminUser() {
-  return (await getDemoAccessState()) === "admin";
-}

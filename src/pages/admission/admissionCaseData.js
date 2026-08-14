@@ -110,21 +110,6 @@ export async function fetchAdmissionCaseById(id) {
 }
 
 /**
- * 히어로 합격률 폴백 — Figma 1929:656 원본 데이터.
- * 합계 477 / 5 = 95.4 (기존 하드코딩 '5개년 평균 95.4%'와 일치).
- * sql/41_admission_case_hero.sql 미적용 환경에서도 화면이 현재와 동일하게 보이도록 한다.
- * 하위호환용 — scope별 폴백은 HERO_SCOPES[scope].fallbackRates를 쓴다
- * (수시정시/특목고가 서로 다른 폴백을 가질 수 있어야 하므로).
- */
-export const FALLBACK_ACCEPTANCE_RATES = [
-  { year: 2021, rate: 92 },
-  { year: 2022, rate: 97 },
-  { year: 2023, rate: 95 },
-  { year: 2024, rate: 95 },
-  { year: 2025, rate: 98 },
-];
-
-/**
  * 노출 중인 연도별 합격률. 테이블 미생성/조회 실패면 폴백 상수를 반환한다.
  * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을
  * 그대로 반환한다 — 호출부가 "조회 실패"와 "의도적으로 0건"을 구분해야 하므로
