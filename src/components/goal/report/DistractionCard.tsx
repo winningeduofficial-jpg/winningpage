@@ -1,9 +1,23 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
 import InsightBox from "../InsightBox";
 import StatProgressRow from "./StatProgressRow";
 
+type StatRow = { label: string; value: number; unit?: string };
+type CardTip = { variant?: string; text?: ReactNode };
+
+type DistractionCardProps = {
+  title?: ReactNode;
+  rows: StatRow[];
+  tip?: CardTip | null;
+};
+
 // Row2 카드③ `학습 방해요인 분석` — 주간 2행 / 월간 3행(part-11 §258~261, part-12 §120).
-export default function DistractionCard({ title, rows, tip }) {
+export default function DistractionCard({
+  title,
+  rows,
+  tip,
+}: DistractionCardProps) {
   const max = Math.max(...rows.map((row) => row.value), 0.0001);
 
   return (

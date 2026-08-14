@@ -8,7 +8,19 @@
 //
 // 막대 높이는 항상 "이 차트 내 최댓값 대비 비율"로 계산한다(값 하드코딩 금지 원칙). 0값만
 // 예외적으로 고정 4px(0.25rem) 회색 스텁으로 그려 "데이터가 없다"가 아니라 "값이 0"임을 구분한다.
-export default function VerticalBarChart({ bars, unit = "h", heightRem = 5 }) {
+type BarItem = { label: string; value: number };
+
+type VerticalBarChartProps = {
+  bars: BarItem[];
+  unit?: string;
+  heightRem?: number;
+};
+
+export default function VerticalBarChart({
+  bars,
+  unit = "h",
+  heightRem = 5,
+}: VerticalBarChartProps) {
   const max = Math.max(...bars.map((bar) => bar.value), 0.0001);
 
   return (

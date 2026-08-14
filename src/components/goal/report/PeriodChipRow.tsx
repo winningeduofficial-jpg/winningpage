@@ -1,19 +1,34 @@
+import type { KeyboardEvent } from "react";
 import { useRef } from "react";
+
+type PeriodOption = { value: string; label: string };
+
+type PeriodChipRowProps = {
+  options: PeriodOption[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+};
 
 // 학습방향 리포트 기간 칩(텍스트형) — part-13 §92·§96("텍스트 탭"과 별개, 박스 없는 텍스트형
 // 단일 선택). 선택 상태는 굵기+색 대비로만 표현한다(시안에 보더/배경 박스 없음).
 //
 // 접근성(코드 검수 §4): role="radiogroup"/"radio"인데 roving tabindex·방향키 이동이 없었다.
 // GoalTabs.jsx의 패턴을 그대로 이식한다.
-export default function PeriodChipRow({ options, value, onChange, ariaLabel }) {
-  const optionRefs = useRef([]);
+export default function PeriodChipRow({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: PeriodChipRowProps) {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const focusOption = (index) => {
+  const focusOption = (index: number) => {
     const el = optionRefs.current[index];
     if (el) el.focus();
   };
 
-  const handleKeyDown = (event, index) => {
+  const handleKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;

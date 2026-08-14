@@ -2,7 +2,17 @@ import GoalCard from "../GoalCard";
 
 // Row4(월간 전용) 카드① `이번 달 학습 유형 진단` — part-12 §135, part-15 §267("학습 유형 진단
 // 박스", 174×183). 배지 + 진단 본문.
-export default function LearningTypeCard({ title, badge, body }) {
+type LearningTypeCardProps = {
+  title?: string;
+  badge?: string;
+  body?: string;
+};
+
+export default function LearningTypeCard({
+  title,
+  badge,
+  body,
+}: LearningTypeCardProps) {
   return (
     <GoalCard
       tone="mint"

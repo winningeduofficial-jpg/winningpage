@@ -22,12 +22,34 @@ const TAB_OPTIONS = [
 // 이 순서를 그대로 보여준다 — part-11.md #33(성장 리포트, 탭 y=106 → 타이틀 y=271)과 정반대다.
 // 두 리포트 시안 자체가 다른 순서라 구현 버그가 아니라고 판단해 강제 통일하지 않고 각자 시안을
 // 따른다(GrowthReportBody.jsx 상단 주석 참고).
+type DirectionReport = {
+  heading?: string;
+  meta?: string;
+  periodChips: Array<{ value: string; label: string }>;
+  activePeriod?: string;
+  summary: { meta?: string; typeLabel?: string; body?: string };
+  subjects: Array<{
+    name: string;
+    zoneLabel?: string;
+    badge?: string;
+    body?: string;
+    materials?: string[];
+  }>;
+};
+
+type DirectionReportBodyProps = {
+  tab: string;
+  onTabChange: (value: string) => void;
+  report: DirectionReport;
+  onPeriodChange: (value: string) => void;
+};
+
 export default function DirectionReportBody({
   tab,
   onTabChange,
   report,
   onPeriodChange,
-}) {
+}: DirectionReportBodyProps) {
   return (
     <>
       <GoalPageHeader title={report.heading} meta={report.meta} />

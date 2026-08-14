@@ -10,12 +10,22 @@ import GoalProgressBar from "../GoalProgressBar";
 //
 // 두 행(rows[0]/rows[1])의 채움 색을 파랑/초록으로 구분한다(part-11 §236~237 스크린샷 판독:
 // 수시=파랑, 정시=그린). 이상/최소 목표 2행도 동일 색 규칙을 재사용한다(판단 지점, 추정).
+type AchievementRow = { label: string; value: number; max?: number };
+type AchievementWeek = { label: string; min: number; upper: number };
+
+type GoalAchievementCardProps = {
+  title?: string;
+  variant?: "weekly" | "monthly";
+  rows: AchievementRow[];
+  weeks?: AchievementWeek[];
+};
+
 export default function GoalAchievementCard({
   title,
   variant = "weekly",
   rows,
   weeks,
-}) {
+}: GoalAchievementCardProps) {
   const ROW_FILL = ["bg-accent", "bg-[#ABDFBA]"];
 
   return (

@@ -3,7 +3,19 @@ import VerticalBarChart from "./VerticalBarChart";
 
 // Row1 카드② — 주간 `요일별 공부 시간`(결함4 정정 제목) / 월간 `주차별 공부 시간`.
 // 축 종류(요일 7 / 주차 4)만 데이터로 갈리고 카드 구조는 동일.
-export default function StudyTimeBarChartCard({ title, bars, unit }) {
+type BarItem = { label: string; value: number };
+
+type StudyTimeBarChartCardProps = {
+  title?: string;
+  bars: BarItem[];
+  unit?: string;
+};
+
+export default function StudyTimeBarChartCard({
+  title,
+  bars,
+  unit,
+}: StudyTimeBarChartCardProps) {
   return (
     <GoalCard
       tone="neutral"

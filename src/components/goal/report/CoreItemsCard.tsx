@@ -1,9 +1,23 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
 import InsightBox from "../InsightBox";
 import StatProgressRow from "./StatProgressRow";
 
+type StatRow = { label: string; value: number; unit?: string };
+type CardTip = { variant?: string; text?: ReactNode };
+
+type CoreItemsCardProps = {
+  title?: ReactNode;
+  rows: StatRow[];
+  tip?: CardTip | null;
+};
+
 // Row3 카드① `완료한 핵심 학습 항목` — 주간 1행 / 월간 3행(part-11 §265, part-12 §125 결함9 정정 반영).
-export default function CoreItemsCard({ title, rows, tip }) {
+export default function CoreItemsCard({
+  title,
+  rows,
+  tip,
+}: CoreItemsCardProps) {
   const max = Math.max(...rows.map((row) => row.value), 0.0001);
 
   return (

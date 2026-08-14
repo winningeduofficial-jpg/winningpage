@@ -15,7 +15,18 @@ import GoalProgressBar from "../GoalProgressBar";
 // `▲▼ 0.5%`처럼 이중 글리프로 렌더되는 결함이 있었다. DeltaBadge가 direction/tone을 분리 설계한
 // 취지를 살려 여기서는 문자열 파싱을 완전히 제거한다. 합격률은 높을수록 좋은 지표이므로
 // direction="up" → tone="positive", "down" → tone="negative"로 그대로 대응시킨다.
-function AdmissionBlock({ university, susi, jeongsi }) {
+type AdmissionRate = {
+  delta: { direction: "up" | "down"; value: string };
+  rate: number;
+};
+
+type AdmissionBlockProps = {
+  university: string;
+  susi: AdmissionRate;
+  jeongsi: AdmissionRate;
+};
+
+function AdmissionBlock({ university, susi, jeongsi }: AdmissionBlockProps) {
   const rows = [
     { label: "수시", ...susi },
     { label: "정시", ...jeongsi },
@@ -46,7 +57,20 @@ function AdmissionBlock({ university, susi, jeongsi }) {
   );
 }
 
-export default function AdmissionChanceCard({ title, data }) {
+import type { ReactNode } from "react";
+
+type AdmissionChanceCardProps = {
+  title?: ReactNode;
+  data: {
+    upper: AdmissionBlockProps;
+    lower: AdmissionBlockProps;
+  };
+};
+
+export default function AdmissionChanceCard({
+  title,
+  data,
+}: AdmissionChanceCardProps) {
   return (
     <GoalCard
       tone="neutral"

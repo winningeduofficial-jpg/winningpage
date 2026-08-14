@@ -1,6 +1,18 @@
+import type { ReactNode } from "react";
 import GoalCard from "../GoalCard";
 import InsightBox from "../InsightBox";
 import StatProgressRow from "./StatProgressRow";
+
+type StatRow = { label: string; value: number };
+type CardTip = { variant?: string; text?: ReactNode };
+
+type SubjectShareCardProps = {
+  title?: ReactNode;
+  empty?: boolean;
+  emptyMessage?: ReactNode;
+  rows?: StatRow[];
+  tip?: CardTip | null;
+};
 
 // Row2 카드① — 주간 `과제별 학습 비중`(빈 상태, part-11 §251) / 월간 `과목별 학습 비중`(채워짐,
 // part-12 §116). 같은 컴포넌트가 empty/filled 두 상태를 카드 단위로 분기한다(작업 지시
@@ -15,7 +27,7 @@ export default function SubjectShareCard({
   emptyMessage,
   rows,
   tip,
-}) {
+}: SubjectShareCardProps) {
   return (
     <GoalCard
       tone="neutral"

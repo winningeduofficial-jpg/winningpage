@@ -10,13 +10,21 @@ import GoalCard from "../GoalCard";
 // materials(추천 교재/자료)는 선택 prop이다 — 실배선(api/goal/report.js)은 콘텐츠 추천 엔진이
 // 없어 이 필드를 채우지 않는다(D13, 팀장 확정 "추천 교재 블록 렌더 생략"). materials가
 // 비어 있으면 그 섹션 자체를 렌더하지 않는다(빈 타이틀+빈 wrap 잔여물 방지).
+type SubjectDirectionCardProps = {
+  name: string;
+  zoneLabel?: string;
+  badge?: string;
+  body?: string;
+  materials?: string[];
+};
+
 export default function SubjectDirectionCard({
   name,
   zoneLabel,
   badge,
   body,
   materials,
-}) {
+}: SubjectDirectionCardProps) {
   return (
     <GoalCard
       tone="neutral"
